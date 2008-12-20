@@ -90,10 +90,9 @@
 // local types
 //---------------------------------------------------------------------------
 
-typedef struct
-{
-    unsigned int                m_uiNodeId;
-    tEplNmtuCheckEventCallback  m_pfnCheckEventCb;
+typedef struct {
+	unsigned int m_uiNodeId;
+	tEplNmtuCheckEventCallback m_pfnCheckEventCb;
 
 } tEplNmtCnuInstance;
 
@@ -101,7 +100,7 @@ typedef struct
 // modul globale vars
 //---------------------------------------------------------------------------
 
-static tEplNmtCnuInstance   EplNmtCnuInstance_g;
+static tEplNmtCnuInstance EplNmtCnuInstance_g;
 
 //---------------------------------------------------------------------------
 // local function prototypes
@@ -109,11 +108,9 @@ static tEplNmtCnuInstance   EplNmtCnuInstance_g;
 
 static tEplNmtCommand EplNmtCnuGetNmtCommand(tEplFrameInfo * pFrameInfo_p);
 
-static BOOL EplNmtCnuNodeIdList(BYTE* pbNmtCommandDate_p);
+static BOOL EplNmtCnuNodeIdList(BYTE * pbNmtCommandDate_p);
 
 static tEplKernel PUBLIC EplNmtCnuCommandCb(tEplFrameInfo * pFrameInfo_p);
-
-
 
 //=========================================================================//
 //                                                                         //
@@ -140,11 +137,11 @@ static tEplKernel PUBLIC EplNmtCnuCommandCb(tEplFrameInfo * pFrameInfo_p);
 //---------------------------------------------------------------------------
 EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuInit(unsigned int uiNodeId_p)
 {
-tEplKernel Ret;
+	tEplKernel Ret;
 
-    Ret = EplNmtCnuAddInstance(uiNodeId_p);
+	Ret = EplNmtCnuAddInstance(uiNodeId_p);
 
-    return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -166,25 +163,24 @@ tEplKernel Ret;
 //---------------------------------------------------------------------------
 EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuAddInstance(unsigned int uiNodeId_p)
 {
-tEplKernel Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // reset instance structure
-    EPL_MEMSET(&EplNmtCnuInstance_g, 0, sizeof (EplNmtCnuInstance_g));
+	// reset instance structure
+	EPL_MEMSET(&EplNmtCnuInstance_g, 0, sizeof(EplNmtCnuInstance_g));
 
-    // save nodeid
-    EplNmtCnuInstance_g.m_uiNodeId = uiNodeId_p;
+	// save nodeid
+	EplNmtCnuInstance_g.m_uiNodeId = uiNodeId_p;
 
-    // register callback-function for NMT-commands
+	// register callback-function for NMT-commands
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLU)) != 0)
-    Ret = EplDlluCalRegAsndService(kEplDllAsndNmtCommand,
-                                   EplNmtCnuCommandCb,
-                                   kEplDllAsndFilterLocal);
+	Ret = EplDlluCalRegAsndService(kEplDllAsndNmtCommand,
+				       EplNmtCnuCommandCb,
+				       kEplDllAsndFilterLocal);
 #endif
 
-
-    return Ret;
+	return Ret;
 
 }
 
@@ -207,18 +203,17 @@ tEplKernel Ret;
 //---------------------------------------------------------------------------
 EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuDelInstance()
 {
-tEplKernel Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLU)) != 0)
-    // deregister callback function from DLL
-    Ret = EplDlluCalRegAsndService(kEplDllAsndNmtCommand,
-                                   NULL,
-                                   kEplDllAsndFilterNone);
+	// deregister callback function from DLL
+	Ret = EplDlluCalRegAsndService(kEplDllAsndNmtCommand,
+				       NULL, kEplDllAsndFilterNone);
 #endif
 
-    return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -239,48 +234,49 @@ tEplKernel Ret;
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuSendNmtRequest(
-                                    unsigned int uiNodeId_p,
-                                    tEplNmtCommand NmtCommand_p)
+EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuSendNmtRequest(unsigned int uiNodeId_p,
+						       tEplNmtCommand
+						       NmtCommand_p)
 {
-tEplKernel      Ret;
-tEplFrameInfo   NmtRequestFrameInfo;
-tEplFrame       NmtRequestFrame;
+	tEplKernel Ret;
+	tEplFrameInfo NmtRequestFrameInfo;
+	tEplFrame NmtRequestFrame;
 
+	Ret = kEplSuccessful;
 
-    Ret = kEplSuccessful;
+	// build frame
+	EPL_MEMSET(&NmtRequestFrame.m_be_abDstMac[0], 0x00, sizeof(NmtRequestFrame.m_be_abDstMac));	// set by DLL
+	EPL_MEMSET(&NmtRequestFrame.m_be_abSrcMac[0], 0x00, sizeof(NmtRequestFrame.m_be_abSrcMac));	// set by DLL
+	AmiSetWordToBe(&NmtRequestFrame.m_be_wEtherType,
+		       EPL_C_DLL_ETHERTYPE_EPL);
+	AmiSetByteToLe(&NmtRequestFrame.m_le_bDstNodeId, (BYTE) EPL_C_ADR_MN_DEF_NODE_ID);	// node id of the MN
+	AmiSetByteToLe(&NmtRequestFrame.m_le_bMessageType,
+		       (BYTE) kEplMsgTypeAsnd);
+	AmiSetByteToLe(&NmtRequestFrame.m_Data.m_Asnd.m_le_bServiceId,
+		       (BYTE) kEplDllAsndNmtRequest);
+	AmiSetByteToLe(&NmtRequestFrame.m_Data.m_Asnd.m_Payload.
+		       m_NmtRequestService.m_le_bNmtCommandId,
+		       (BYTE) NmtCommand_p);
+	AmiSetByteToLe(&NmtRequestFrame.m_Data.m_Asnd.m_Payload.m_NmtRequestService.m_le_bTargetNodeId, (BYTE) uiNodeId_p);	// target for the nmt command
+	EPL_MEMSET(&NmtRequestFrame.m_Data.m_Asnd.m_Payload.m_NmtRequestService.
+		   m_le_abNmtCommandData[0], 0x00,
+		   sizeof(NmtRequestFrame.m_Data.m_Asnd.m_Payload.
+			  m_NmtRequestService.m_le_abNmtCommandData));
 
-    // build frame
-    EPL_MEMSET(&NmtRequestFrame.m_be_abDstMac[0], 0x00, sizeof(NmtRequestFrame.m_be_abDstMac)); // set by DLL
-    EPL_MEMSET(&NmtRequestFrame.m_be_abSrcMac[0], 0x00, sizeof(NmtRequestFrame.m_be_abSrcMac)); // set by DLL
-    AmiSetWordToBe(&NmtRequestFrame.m_be_wEtherType, EPL_C_DLL_ETHERTYPE_EPL);
-    AmiSetByteToLe(&NmtRequestFrame.m_le_bDstNodeId, (BYTE) EPL_C_ADR_MN_DEF_NODE_ID); // node id of the MN
-    AmiSetByteToLe(&NmtRequestFrame.m_le_bMessageType, (BYTE)kEplMsgTypeAsnd);
-    AmiSetByteToLe(&NmtRequestFrame.m_Data.m_Asnd.m_le_bServiceId, (BYTE) kEplDllAsndNmtRequest);
-    AmiSetByteToLe(&NmtRequestFrame.m_Data.m_Asnd.m_Payload.m_NmtRequestService.m_le_bNmtCommandId,
-        (BYTE)NmtCommand_p);
-    AmiSetByteToLe(&NmtRequestFrame.m_Data.m_Asnd.m_Payload.m_NmtRequestService.m_le_bTargetNodeId,
-        (BYTE)uiNodeId_p); // target for the nmt command
-    EPL_MEMSET(&NmtRequestFrame.m_Data.m_Asnd.m_Payload.m_NmtRequestService.m_le_abNmtCommandData[0], 0x00, sizeof(NmtRequestFrame.m_Data.m_Asnd.m_Payload.m_NmtRequestService.m_le_abNmtCommandData));
+	// build info-structure
+	NmtRequestFrameInfo.m_NetTime.m_dwNanoSec = 0;
+	NmtRequestFrameInfo.m_NetTime.m_dwSec = 0;
+	NmtRequestFrameInfo.m_pFrame = &NmtRequestFrame;
+	NmtRequestFrameInfo.m_uiFrameSize = EPL_C_DLL_MINSIZE_NMTREQ;	// sizeof(NmtRequestFrame);
 
-
-
-    // build info-structure
-    NmtRequestFrameInfo.m_NetTime.m_dwNanoSec = 0;
-    NmtRequestFrameInfo.m_NetTime.m_dwSec = 0;
-    NmtRequestFrameInfo.m_pFrame = &NmtRequestFrame;
-    NmtRequestFrameInfo.m_uiFrameSize = EPL_C_DLL_MINSIZE_NMTREQ; // sizeof(NmtRequestFrame);
-
-    // send NMT-Request
+	// send NMT-Request
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLU)) != 0)
-    Ret = EplDlluCalAsyncSend(&NmtRequestFrameInfo,    // pointer to frameinfo
-                           kEplDllAsyncReqPrioNmt); // priority
+	Ret = EplDlluCalAsyncSend(&NmtRequestFrameInfo,	// pointer to frameinfo
+				  kEplDllAsyncReqPrioNmt);	// priority
 #endif
 
-
-    return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -301,17 +297,18 @@ tEplFrame       NmtRequestFrame;
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuRegisterCheckEventCb(
-            tEplNmtuCheckEventCallback pfnEplNmtCheckEventCb_p)
+EPLDLLEXPORT tEplKernel PUBLIC
+EplNmtCnuRegisterCheckEventCb(tEplNmtuCheckEventCallback
+			      pfnEplNmtCheckEventCb_p)
 {
-tEplKernel Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // save callback-function in modul global var
-    EplNmtCnuInstance_g.m_pfnCheckEventCb = pfnEplNmtCheckEventCb_p;
+	// save callback-function in modul global var
+	EplNmtCnuInstance_g.m_pfnCheckEventCb = pfnEplNmtCheckEventCb_p;
 
-    return Ret;
+	return Ret;
 
 }
 
@@ -320,7 +317,6 @@ tEplKernel Ret;
 //          P R I V A T E   F U N C T I O N S                              //
 //                                                                         //
 //=========================================================================//
-
 
 //---------------------------------------------------------------------------
 //
@@ -341,273 +337,290 @@ tEplKernel Ret;
 //---------------------------------------------------------------------------
 static tEplKernel PUBLIC EplNmtCnuCommandCb(tEplFrameInfo * pFrameInfo_p)
 {
-tEplKernel      Ret = kEplSuccessful;
-tEplNmtCommand  NmtCommand;
-BOOL            fNodeIdInList;
-tEplNmtEvent    NmtEvent = kEplNmtEventNoEvent;
+	tEplKernel Ret = kEplSuccessful;
+	tEplNmtCommand NmtCommand;
+	BOOL fNodeIdInList;
+	tEplNmtEvent NmtEvent = kEplNmtEventNoEvent;
 
+	if (pFrameInfo_p == NULL) {
+		Ret = kEplNmtInvalidFramePointer;
+		goto Exit;
+	}
 
-    if(pFrameInfo_p == NULL)
-    {
-        Ret = kEplNmtInvalidFramePointer;
-        goto Exit;
-    }
+	NmtCommand = EplNmtCnuGetNmtCommand(pFrameInfo_p);
 
-    NmtCommand = EplNmtCnuGetNmtCommand(pFrameInfo_p);
+	// check NMT-Command
+	switch (NmtCommand) {
 
-    // check NMT-Command
-    switch(NmtCommand)
-    {
+		//------------------------------------------------------------------------
+		// plain NMT state commands
+	case kEplNmtCmdStartNode:
+		{		// send NMT-Event to state maschine kEplNmtEventStartNode
+			NmtEvent = kEplNmtEventStartNode;
+			break;
+		}
 
-        //------------------------------------------------------------------------
-        // plain NMT state commands
-        case kEplNmtCmdStartNode:
-        {   // send NMT-Event to state maschine kEplNmtEventStartNode
-            NmtEvent = kEplNmtEventStartNode;
-            break;
-        }
+	case kEplNmtCmdStopNode:
+		{		// send NMT-Event to state maschine kEplNmtEventStopNode
+			NmtEvent = kEplNmtEventStopNode;
+			break;
+		}
 
-        case kEplNmtCmdStopNode:
-        {   // send NMT-Event to state maschine kEplNmtEventStopNode
-            NmtEvent = kEplNmtEventStopNode;
-            break;
-        }
+	case kEplNmtCmdEnterPreOperational2:
+		{		// send NMT-Event to state maschine kEplNmtEventEnterPreOperational2
+			NmtEvent = kEplNmtEventEnterPreOperational2;
+			break;
+		}
 
-        case kEplNmtCmdEnterPreOperational2:
-        {   // send NMT-Event to state maschine kEplNmtEventEnterPreOperational2
-            NmtEvent = kEplNmtEventEnterPreOperational2;
-            break;
-        }
+	case kEplNmtCmdEnableReadyToOperate:
+		{		// send NMT-Event to state maschine kEplNmtEventEnableReadyToOperate
+			NmtEvent = kEplNmtEventEnableReadyToOperate;
+			break;
+		}
 
-        case kEplNmtCmdEnableReadyToOperate:
-        {   // send NMT-Event to state maschine kEplNmtEventEnableReadyToOperate
-            NmtEvent = kEplNmtEventEnableReadyToOperate;
-            break;
-        }
+	case kEplNmtCmdResetNode:
+		{		// send NMT-Event to state maschine kEplNmtEventResetNode
+			NmtEvent = kEplNmtEventResetNode;
+			break;
+		}
 
-        case kEplNmtCmdResetNode:
-        {   // send NMT-Event to state maschine kEplNmtEventResetNode
-            NmtEvent = kEplNmtEventResetNode;
-            break;
-        }
+	case kEplNmtCmdResetCommunication:
+		{		// send NMT-Event to state maschine kEplNmtEventResetCom
+			NmtEvent = kEplNmtEventResetCom;
+			break;
+		}
 
-        case kEplNmtCmdResetCommunication:
-        {   // send NMT-Event to state maschine kEplNmtEventResetCom
-            NmtEvent = kEplNmtEventResetCom;
-            break;
-        }
+	case kEplNmtCmdResetConfiguration:
+		{		// send NMT-Event to state maschine kEplNmtEventResetConfig
+			NmtEvent = kEplNmtEventResetConfig;
+			break;
+		}
 
-        case kEplNmtCmdResetConfiguration:
-        {   // send NMT-Event to state maschine kEplNmtEventResetConfig
-            NmtEvent = kEplNmtEventResetConfig;
-            break;
-        }
+	case kEplNmtCmdSwReset:
+		{		// send NMT-Event to state maschine kEplNmtEventSwReset
+			NmtEvent = kEplNmtEventSwReset;
+			break;
+		}
 
-        case kEplNmtCmdSwReset:
-        {   // send NMT-Event to state maschine kEplNmtEventSwReset
-            NmtEvent = kEplNmtEventSwReset;
-            break;
-        }
+		//------------------------------------------------------------------------
+		// extended NMT state commands
 
-        //------------------------------------------------------------------------
-        // extended NMT state commands
+	case kEplNmtCmdStartNodeEx:
+		{
+			// check if own nodeid is in EPL node list
+			fNodeIdInList =
+			    EplNmtCnuNodeIdList(&
+						(pFrameInfo_p->m_pFrame->m_Data.
+						 m_Asnd.m_Payload.
+						 m_NmtCommandService.
+						 m_le_abNmtCommandData[0]));
+			if (fNodeIdInList != FALSE) {	// own nodeid in list
+				// send event to process command
+				NmtEvent = kEplNmtEventStartNode;
+			}
+			break;
+		}
 
-        case kEplNmtCmdStartNodeEx:
-        {
-            // check if own nodeid is in EPL node list
-            fNodeIdInList = EplNmtCnuNodeIdList(&(pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.m_le_abNmtCommandData[0]));
-            if(fNodeIdInList != FALSE)
-            {   // own nodeid in list
-                // send event to process command
-                NmtEvent = kEplNmtEventStartNode;
-            }
-            break;
-        }
+	case kEplNmtCmdStopNodeEx:
+		{		// check if own nodeid is in EPL node list
+			fNodeIdInList =
+			    EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.
+						m_Asnd.m_Payload.
+						m_NmtCommandService.
+						m_le_abNmtCommandData[0]);
+			if (fNodeIdInList != FALSE) {	// own nodeid in list
+				// send event to process command
+				NmtEvent = kEplNmtEventStopNode;
+			}
+			break;
+		}
 
-        case kEplNmtCmdStopNodeEx:
-        {   // check if own nodeid is in EPL node list
-            fNodeIdInList = EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.m_le_abNmtCommandData[0]);
-            if(fNodeIdInList != FALSE)
-            {   // own nodeid in list
-                // send event to process command
-                NmtEvent = kEplNmtEventStopNode;
-            }
-            break;
-        }
+	case kEplNmtCmdEnterPreOperational2Ex:
+		{		// check if own nodeid is in EPL node list
+			fNodeIdInList =
+			    EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.
+						m_Asnd.m_Payload.
+						m_NmtCommandService.
+						m_le_abNmtCommandData[0]);
+			if (fNodeIdInList != FALSE) {	// own nodeid in list
+				// send event to process command
+				NmtEvent = kEplNmtEventEnterPreOperational2;
+			}
+			break;
+		}
 
-        case kEplNmtCmdEnterPreOperational2Ex:
-        {   // check if own nodeid is in EPL node list
-            fNodeIdInList = EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.m_le_abNmtCommandData[0]);
-            if(fNodeIdInList != FALSE)
-            {   // own nodeid in list
-                // send event to process command
-                NmtEvent = kEplNmtEventEnterPreOperational2;
-            }
-            break;
-        }
+	case kEplNmtCmdEnableReadyToOperateEx:
+		{		// check if own nodeid is in EPL node list
+			fNodeIdInList =
+			    EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.
+						m_Asnd.m_Payload.
+						m_NmtCommandService.
+						m_le_abNmtCommandData[0]);
+			if (fNodeIdInList != FALSE) {	// own nodeid in list
+				// send event to process command
+				NmtEvent = kEplNmtEventEnableReadyToOperate;
+			}
+			break;
+		}
 
-        case kEplNmtCmdEnableReadyToOperateEx:
-        {   // check if own nodeid is in EPL node list
-            fNodeIdInList = EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.m_le_abNmtCommandData[0]);
-            if(fNodeIdInList != FALSE)
-            {   // own nodeid in list
-                // send event to process command
-                NmtEvent = kEplNmtEventEnableReadyToOperate;
-            }
-            break;
-        }
+	case kEplNmtCmdResetNodeEx:
+		{		// check if own nodeid is in EPL node list
+			fNodeIdInList =
+			    EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.
+						m_Asnd.m_Payload.
+						m_NmtCommandService.
+						m_le_abNmtCommandData[0]);
+			if (fNodeIdInList != FALSE) {	// own nodeid in list
+				// send event to process command
+				NmtEvent = kEplNmtEventResetNode;
+			}
+			break;
+		}
 
-        case kEplNmtCmdResetNodeEx:
-        {// check if own nodeid is in EPL node list
-            fNodeIdInList = EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.m_le_abNmtCommandData[0]);
-            if(fNodeIdInList != FALSE)
-            {   // own nodeid in list
-                // send event to process command
-                NmtEvent = kEplNmtEventResetNode;
-            }
-            break;
-        }
+	case kEplNmtCmdResetCommunicationEx:
+		{		// check if own nodeid is in EPL node list
+			fNodeIdInList =
+			    EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.
+						m_Asnd.m_Payload.
+						m_NmtCommandService.
+						m_le_abNmtCommandData[0]);
+			if (fNodeIdInList != FALSE) {	// own nodeid in list
+				// send event to process command
+				NmtEvent = kEplNmtEventResetCom;
+			}
+			break;
+		}
 
-        case kEplNmtCmdResetCommunicationEx:
-        {   // check if own nodeid is in EPL node list
-            fNodeIdInList = EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.m_le_abNmtCommandData[0]);
-            if(fNodeIdInList != FALSE)
-            {   // own nodeid in list
-                // send event to process command
-                NmtEvent = kEplNmtEventResetCom;
-            }
-            break;
-        }
+	case kEplNmtCmdResetConfigurationEx:
+		{		// check if own nodeid is in EPL node list
+			fNodeIdInList =
+			    EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.
+						m_Asnd.m_Payload.
+						m_NmtCommandService.
+						m_le_abNmtCommandData[0]);
+			if (fNodeIdInList != FALSE) {	// own nodeid in list
+				// send event to process command
+				NmtEvent = kEplNmtEventResetConfig;
+			}
+			break;
+		}
 
-        case kEplNmtCmdResetConfigurationEx:
-        {   // check if own nodeid is in EPL node list
-            fNodeIdInList = EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.m_le_abNmtCommandData[0]);
-            if(fNodeIdInList != FALSE)
-            {   // own nodeid in list
-                // send event to process command
-                NmtEvent = kEplNmtEventResetConfig;
-            }
-            break;
-        }
+	case kEplNmtCmdSwResetEx:
+		{		// check if own nodeid is in EPL node list
+			fNodeIdInList =
+			    EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.
+						m_Asnd.m_Payload.
+						m_NmtCommandService.
+						m_le_abNmtCommandData[0]);
+			if (fNodeIdInList != FALSE) {	// own nodeid in list
+				// send event to process command
+				NmtEvent = kEplNmtEventSwReset;
+			}
+			break;
+		}
 
-        case kEplNmtCmdSwResetEx:
-        {   // check if own nodeid is in EPL node list
-            fNodeIdInList = EplNmtCnuNodeIdList(&pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.m_le_abNmtCommandData[0]);
-            if(fNodeIdInList != FALSE)
-            {   // own nodeid in list
-                // send event to process command
-                NmtEvent = kEplNmtEventSwReset;
-            }
-            break;
-        }
+		//------------------------------------------------------------------------
+		// NMT managing commands
 
-        //------------------------------------------------------------------------
-        // NMT managing commands
+		// TODO: add functions to process managing command (optional)
 
-        // TODO: add functions to process managing command (optional)
+	case kEplNmtCmdNetHostNameSet:
+		{
+			break;
+		}
 
-        case kEplNmtCmdNetHostNameSet:
-        {
-            break;
-        }
+	case kEplNmtCmdFlushArpEntry:
+		{
+			break;
+		}
 
-        case kEplNmtCmdFlushArpEntry:
-        {
-            break;
-        }
+		//------------------------------------------------------------------------
+		// NMT info services
 
-        //------------------------------------------------------------------------
-        // NMT info services
+		// TODO: forward event with infos to the application (optional)
 
-        // TODO: forward event with infos to the application (optional)
+	case kEplNmtCmdPublishConfiguredCN:
+		{
+			break;
+		}
 
-        case kEplNmtCmdPublishConfiguredCN:
-        {
-            break;
-        }
+	case kEplNmtCmdPublishActiveCN:
+		{
+			break;
+		}
 
-        case kEplNmtCmdPublishActiveCN:
-        {
-            break;
-        }
+	case kEplNmtCmdPublishPreOperational1:
+		{
+			break;
+		}
 
-        case kEplNmtCmdPublishPreOperational1:
-        {
-            break;
-        }
+	case kEplNmtCmdPublishPreOperational2:
+		{
+			break;
+		}
 
-        case kEplNmtCmdPublishPreOperational2:
-        {
-            break;
-        }
+	case kEplNmtCmdPublishReadyToOperate:
+		{
+			break;
+		}
 
-        case kEplNmtCmdPublishReadyToOperate:
-        {
-            break;
-        }
+	case kEplNmtCmdPublishOperational:
+		{
+			break;
+		}
 
-        case kEplNmtCmdPublishOperational:
-        {
-            break;
-        }
+	case kEplNmtCmdPublishStopped:
+		{
+			break;
+		}
 
-        case kEplNmtCmdPublishStopped:
-        {
-            break;
-        }
+	case kEplNmtCmdPublishEmergencyNew:
+		{
+			break;
+		}
 
-        case kEplNmtCmdPublishEmergencyNew:
-        {
-            break;
-        }
+	case kEplNmtCmdPublishTime:
+		{
+			break;
+		}
 
-        case kEplNmtCmdPublishTime:
-        {
-            break;
-        }
+		//-----------------------------------------------------------------------
+		// error from MN
+		// -> requested command not supported by MN
+	case kEplNmtCmdInvalidService:
+		{
 
-        //-----------------------------------------------------------------------
-        // error from MN
-        // -> requested command not supported by MN
-        case kEplNmtCmdInvalidService:
-        {
+			// TODO: errorevent to application
+			break;
+		}
 
-            // TODO: errorevent to application
-            break;
-        }
+		//------------------------------------------------------------------------
+		// default
+	default:
+		{
+			Ret = kEplNmtUnknownCommand;
+			goto Exit;
+		}
 
-        //------------------------------------------------------------------------
-        // default
-        default:
-        {
-            Ret = kEplNmtUnknownCommand;
-            goto Exit;
-        }
+	}			// end of switch(NmtCommand)
 
-    }// end of switch(NmtCommand)
-
-    if (NmtEvent != kEplNmtEventNoEvent)
-    {
-        if (EplNmtCnuInstance_g.m_pfnCheckEventCb != NULL)
-        {
-            Ret = EplNmtCnuInstance_g.m_pfnCheckEventCb(NmtEvent);
-            if (Ret == kEplReject)
-            {
-                Ret = kEplSuccessful;
-                goto Exit;
-            }
-            else if (Ret != kEplSuccessful)
-            {
-                goto Exit;
-            }
-        }
+	if (NmtEvent != kEplNmtEventNoEvent) {
+		if (EplNmtCnuInstance_g.m_pfnCheckEventCb != NULL) {
+			Ret = EplNmtCnuInstance_g.m_pfnCheckEventCb(NmtEvent);
+			if (Ret == kEplReject) {
+				Ret = kEplSuccessful;
+				goto Exit;
+			} else if (Ret != kEplSuccessful) {
+				goto Exit;
+			}
+		}
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
-        Ret = EplNmtuNmtEvent(NmtEvent);
+		Ret = EplNmtuNmtEvent(NmtEvent);
 #endif
-    }
+	}
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 
 }
 
@@ -631,14 +644,18 @@ Exit:
 //---------------------------------------------------------------------------
 static tEplNmtCommand EplNmtCnuGetNmtCommand(tEplFrameInfo * pFrameInfo_p)
 {
-tEplNmtCommand          NmtCommand;
-tEplNmtCommandService*  pNmtCommandService;
+	tEplNmtCommand NmtCommand;
+	tEplNmtCommandService *pNmtCommandService;
 
-    pNmtCommandService = &pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService;
+	pNmtCommandService =
+	    &pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.
+	    m_NmtCommandService;
 
-    NmtCommand = (tEplNmtCommand)AmiGetByteFromLe(&pNmtCommandService->m_le_bNmtCommandId);
+	NmtCommand =
+	    (tEplNmtCommand) AmiGetByteFromLe(&pNmtCommandService->
+					      m_le_bNmtCommandId);
 
-    return NmtCommand;
+	return NmtCommand;
 }
 
 //---------------------------------------------------------------------------
@@ -659,33 +676,29 @@ tEplNmtCommandService*  pNmtCommandService;
 // State:
 //
 //---------------------------------------------------------------------------
-static BOOL EplNmtCnuNodeIdList(BYTE* pbNmtCommandDate_p)
+static BOOL EplNmtCnuNodeIdList(BYTE * pbNmtCommandDate_p)
 {
-BOOL            fNodeIdInList;
-unsigned int    uiByteOffset;
-BYTE            bBitOffset;
-BYTE            bNodeListByte;
+	BOOL fNodeIdInList;
+	unsigned int uiByteOffset;
+	BYTE bBitOffset;
+	BYTE bNodeListByte;
 
-    // get byte-offset of the own nodeid in NodeIdList
-    // devide though 8
-    uiByteOffset = (unsigned int)(EplNmtCnuInstance_g.m_uiNodeId >> 3);
-    // get bitoffset
-    bBitOffset = (BYTE) EplNmtCnuInstance_g.m_uiNodeId % 8;
+	// get byte-offset of the own nodeid in NodeIdList
+	// devide though 8
+	uiByteOffset = (unsigned int)(EplNmtCnuInstance_g.m_uiNodeId >> 3);
+	// get bitoffset
+	bBitOffset = (BYTE) EplNmtCnuInstance_g.m_uiNodeId % 8;
 
-    bNodeListByte = AmiGetByteFromLe(&pbNmtCommandDate_p[uiByteOffset]);
-    if((bNodeListByte & bBitOffset) == 0)
-    {
-        fNodeIdInList = FALSE;
-    }
-    else
-    {
-        fNodeIdInList = TRUE;
-    }
+	bNodeListByte = AmiGetByteFromLe(&pbNmtCommandDate_p[uiByteOffset]);
+	if ((bNodeListByte & bBitOffset) == 0) {
+		fNodeIdInList = FALSE;
+	} else {
+		fNodeIdInList = TRUE;
+	}
 
-return  fNodeIdInList;
+	return fNodeIdInList;
 }
 
 #endif // #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_CN)) != 0)
 
 // EOF
-

@@ -95,7 +95,6 @@
 // local function prototypes
 //---------------------------------------------------------------------------
 
-
 /***************************************************************************/
 /*                                                                         */
 /*                                                                         */
@@ -108,7 +107,6 @@
 //
 //
 /***************************************************************************/
-
 
 //=========================================================================//
 //                                                                         //
@@ -124,10 +122,9 @@
 // local types
 //---------------------------------------------------------------------------
 
-typedef struct
-{
-    tEplIdentResponse*   m_apIdentResponse[254];    // the IdentResponse are managed dynamically
-    tEplIdentuCbResponse m_apfnCbResponse[254];
+typedef struct {
+	tEplIdentResponse *m_apIdentResponse[254];	// the IdentResponse are managed dynamically
+	tEplIdentuCbResponse m_apfnCbResponse[254];
 
 } tEplIdentuInstance;
 
@@ -135,7 +132,7 @@ typedef struct
 // local vars
 //---------------------------------------------------------------------------
 
-static tEplIdentuInstance   EplIdentuInstance_g;
+static tEplIdentuInstance EplIdentuInstance_g;
 
 //---------------------------------------------------------------------------
 // local function prototypes
@@ -169,13 +166,12 @@ static tEplKernel PUBLIC EplIdentuCbIdentResponse(tEplFrameInfo * pFrameInfo_p);
 
 EPLDLLEXPORT tEplKernel PUBLIC EplIdentuInit()
 {
-tEplKernel Ret;
+	tEplKernel Ret;
 
-    Ret = EplIdentuAddInstance();
+	Ret = EplIdentuAddInstance();
 
-    return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -197,20 +193,22 @@ tEplKernel Ret;
 
 EPLDLLEXPORT tEplKernel PUBLIC EplIdentuAddInstance()
 {
-tEplKernel Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // reset instance structure
-    EPL_MEMSET(&EplIdentuInstance_g, 0, sizeof (EplIdentuInstance_g));
+	// reset instance structure
+	EPL_MEMSET(&EplIdentuInstance_g, 0, sizeof(EplIdentuInstance_g));
 
-    // register IdentResponse callback function
-    Ret = EplDlluCalRegAsndService(kEplDllAsndIdentResponse, EplIdentuCbIdentResponse, kEplDllAsndFilterAny);
+	// register IdentResponse callback function
+	Ret =
+	    EplDlluCalRegAsndService(kEplDllAsndIdentResponse,
+				     EplIdentuCbIdentResponse,
+				     kEplDllAsndFilterAny);
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -232,19 +230,20 @@ tEplKernel Ret;
 
 EPLDLLEXPORT tEplKernel PUBLIC EplIdentuDelInstance()
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // deregister IdentResponse callback function
-    Ret = EplDlluCalRegAsndService(kEplDllAsndIdentResponse, NULL, kEplDllAsndFilterNone);
+	// deregister IdentResponse callback function
+	Ret =
+	    EplDlluCalRegAsndService(kEplDllAsndIdentResponse, NULL,
+				     kEplDllAsndFilterNone);
 
-    Ret = EplIdentuReset();
+	Ret = EplIdentuReset();
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -266,25 +265,24 @@ tEplKernel  Ret;
 
 EPLDLLEXPORT tEplKernel PUBLIC EplIdentuReset()
 {
-tEplKernel  Ret;
-int         iIndex;
+	tEplKernel Ret;
+	int iIndex;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    for (iIndex = 0; iIndex < tabentries (EplIdentuInstance_g.m_apIdentResponse); iIndex++)
-    {
-        if (EplIdentuInstance_g.m_apIdentResponse[iIndex] != NULL)
-        {   // free memory
-            EPL_FREE(EplIdentuInstance_g.m_apIdentResponse[iIndex]);
-        }
-    }
+	for (iIndex = 0;
+	     iIndex < tabentries(EplIdentuInstance_g.m_apIdentResponse);
+	     iIndex++) {
+		if (EplIdentuInstance_g.m_apIdentResponse[iIndex] != NULL) {	// free memory
+			EPL_FREE(EplIdentuInstance_g.m_apIdentResponse[iIndex]);
+		}
+	}
 
-    EPL_MEMSET(&EplIdentuInstance_g, 0, sizeof (EplIdentuInstance_g));
+	EPL_MEMSET(&EplIdentuInstance_g, 0, sizeof(EplIdentuInstance_g));
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -302,30 +300,27 @@ int         iIndex;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplIdentuGetIdentResponse(
-                                    unsigned int        uiNodeId_p,
-                                    tEplIdentResponse** ppIdentResponse_p)
+tEplKernel PUBLIC EplIdentuGetIdentResponse(unsigned int uiNodeId_p,
+					    tEplIdentResponse **
+					    ppIdentResponse_p)
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // decrement node ID, because array is zero based
-    uiNodeId_p--;
-    if (uiNodeId_p < tabentries (EplIdentuInstance_g.m_apIdentResponse))
-    {
-        *ppIdentResponse_p = EplIdentuInstance_g.m_apIdentResponse[uiNodeId_p];
-    }
-    else
-    {   // invalid node ID specified
-        *ppIdentResponse_p = NULL;
-        Ret = kEplInvalidNodeId;
-    }
+	// decrement node ID, because array is zero based
+	uiNodeId_p--;
+	if (uiNodeId_p < tabentries(EplIdentuInstance_g.m_apIdentResponse)) {
+		*ppIdentResponse_p =
+		    EplIdentuInstance_g.m_apIdentResponse[uiNodeId_p];
+	} else {		// invalid node ID specified
+		*ppIdentResponse_p = NULL;
+		Ret = kEplInvalidNodeId;
+	}
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -343,41 +338,37 @@ tEplKernel  Ret;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplIdentuRequestIdentResponse(
-                                    unsigned int        uiNodeId_p,
-                                    tEplIdentuCbResponse pfnCbResponse_p)
+tEplKernel PUBLIC EplIdentuRequestIdentResponse(unsigned int uiNodeId_p,
+						tEplIdentuCbResponse
+						pfnCbResponse_p)
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // decrement node ID, because array is zero based
-    uiNodeId_p--;
-    if (uiNodeId_p < tabentries (EplIdentuInstance_g.m_apfnCbResponse))
-    {
+	// decrement node ID, because array is zero based
+	uiNodeId_p--;
+	if (uiNodeId_p < tabentries(EplIdentuInstance_g.m_apfnCbResponse)) {
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-        if (EplIdentuInstance_g.m_apfnCbResponse[uiNodeId_p] != NULL)
-        {   // request already issued (maybe by someone else)
-            Ret = kEplInvalidOperation;
-        }
-        else
-        {
-            EplIdentuInstance_g.m_apfnCbResponse[uiNodeId_p] = pfnCbResponse_p;
-            Ret = EplDlluCalIssueRequest(kEplDllReqServiceIdent, (uiNodeId_p + 1), 0xFF);
-        }
+		if (EplIdentuInstance_g.m_apfnCbResponse[uiNodeId_p] != NULL) {	// request already issued (maybe by someone else)
+			Ret = kEplInvalidOperation;
+		} else {
+			EplIdentuInstance_g.m_apfnCbResponse[uiNodeId_p] =
+			    pfnCbResponse_p;
+			Ret =
+			    EplDlluCalIssueRequest(kEplDllReqServiceIdent,
+						   (uiNodeId_p + 1), 0xFF);
+		}
 #else
-        Ret = kEplInvalidOperation;
+		Ret = kEplInvalidOperation;
 #endif
-    }
-    else
-    {   // invalid node ID specified
-        Ret = kEplInvalidNodeId;
-    }
+	} else {		// invalid node ID specified
+		Ret = kEplInvalidNodeId;
+	}
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -399,20 +390,17 @@ tEplKernel  Ret;
 
 EPLDLLEXPORT DWORD PUBLIC EplIdentuGetRunningRequests(void)
 {
-DWORD       dwReqs = 0;
-unsigned int    uiIndex;
+	DWORD dwReqs = 0;
+	unsigned int uiIndex;
 
-    for (uiIndex = 0; uiIndex < 32; uiIndex++)
-    {
-        if (EplIdentuInstance_g.m_apfnCbResponse[uiIndex] != NULL)
-        {
-            dwReqs |= (1 << uiIndex);
-        }
-    }
+	for (uiIndex = 0; uiIndex < 32; uiIndex++) {
+		if (EplIdentuInstance_g.m_apfnCbResponse[uiIndex] != NULL) {
+			dwReqs |= (1 << uiIndex);
+		}
+	}
 
-    return dwReqs;
+	return dwReqs;
 }
-
 
 //=========================================================================//
 //                                                                         //
@@ -440,58 +428,61 @@ unsigned int    uiIndex;
 
 static tEplKernel PUBLIC EplIdentuCbIdentResponse(tEplFrameInfo * pFrameInfo_p)
 {
-tEplKernel      Ret = kEplSuccessful;
-unsigned int    uiNodeId;
-unsigned int    uiIndex;
-tEplIdentuCbResponse    pfnCbResponse;
+	tEplKernel Ret = kEplSuccessful;
+	unsigned int uiNodeId;
+	unsigned int uiIndex;
+	tEplIdentuCbResponse pfnCbResponse;
 
-    uiNodeId = AmiGetByteFromLe(&pFrameInfo_p->m_pFrame->m_le_bSrcNodeId);
+	uiNodeId = AmiGetByteFromLe(&pFrameInfo_p->m_pFrame->m_le_bSrcNodeId);
 
-    uiIndex = uiNodeId - 1;
+	uiIndex = uiNodeId - 1;
 
-    if (uiIndex < tabentries (EplIdentuInstance_g.m_apfnCbResponse))
-    {
-        // memorize pointer to callback function
-        pfnCbResponse = EplIdentuInstance_g.m_apfnCbResponse[uiIndex];
-        // reset callback function pointer so that caller may issue next request immediately
-        EplIdentuInstance_g.m_apfnCbResponse[uiIndex] = NULL;
+	if (uiIndex < tabentries(EplIdentuInstance_g.m_apfnCbResponse)) {
+		// memorize pointer to callback function
+		pfnCbResponse = EplIdentuInstance_g.m_apfnCbResponse[uiIndex];
+		// reset callback function pointer so that caller may issue next request immediately
+		EplIdentuInstance_g.m_apfnCbResponse[uiIndex] = NULL;
 
-        if (pFrameInfo_p->m_uiFrameSize < EPL_C_DLL_MINSIZE_IDENTRES)
-        {   // IdentResponse not received or it has invalid size
-            if (pfnCbResponse == NULL)
-            {   // response was not requested
-                goto Exit;
-            }
-            Ret = pfnCbResponse(uiNodeId, NULL);
-        }
-        else
-        {   // IdentResponse received
-            if (EplIdentuInstance_g.m_apIdentResponse[uiIndex] == NULL)
-            {   // memory for IdentResponse must be allocated
-                EplIdentuInstance_g.m_apIdentResponse[uiIndex] = EPL_MALLOC(sizeof (tEplIdentResponse));
-                if (EplIdentuInstance_g.m_apIdentResponse[uiIndex] == NULL)
-                {   // malloc failed
-                    if (pfnCbResponse == NULL)
-                    {   // response was not requested
-                        goto Exit;
-                    }
-                    Ret = pfnCbResponse(uiNodeId, &pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_IdentResponse);
-                    goto Exit;
-                }
-            }
-            // copy IdentResponse to instance structure
-            EPL_MEMCPY(EplIdentuInstance_g.m_apIdentResponse[uiIndex], &pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_IdentResponse, sizeof(tEplIdentResponse));
-            if (pfnCbResponse == NULL)
-            {   // response was not requested
-                goto Exit;
-            }
-            Ret = pfnCbResponse(uiNodeId, EplIdentuInstance_g.m_apIdentResponse[uiIndex]);
-        }
-    }
+		if (pFrameInfo_p->m_uiFrameSize < EPL_C_DLL_MINSIZE_IDENTRES) {	// IdentResponse not received or it has invalid size
+			if (pfnCbResponse == NULL) {	// response was not requested
+				goto Exit;
+			}
+			Ret = pfnCbResponse(uiNodeId, NULL);
+		} else {	// IdentResponse received
+			if (EplIdentuInstance_g.m_apIdentResponse[uiIndex] == NULL) {	// memory for IdentResponse must be allocated
+				EplIdentuInstance_g.m_apIdentResponse[uiIndex] =
+				    EPL_MALLOC(sizeof(tEplIdentResponse));
+				if (EplIdentuInstance_g.m_apIdentResponse[uiIndex] == NULL) {	// malloc failed
+					if (pfnCbResponse == NULL) {	// response was not requested
+						goto Exit;
+					}
+					Ret =
+					    pfnCbResponse(uiNodeId,
+							  &pFrameInfo_p->
+							  m_pFrame->m_Data.
+							  m_Asnd.m_Payload.
+							  m_IdentResponse);
+					goto Exit;
+				}
+			}
+			// copy IdentResponse to instance structure
+			EPL_MEMCPY(EplIdentuInstance_g.
+				   m_apIdentResponse[uiIndex],
+				   &pFrameInfo_p->m_pFrame->m_Data.m_Asnd.
+				   m_Payload.m_IdentResponse,
+				   sizeof(tEplIdentResponse));
+			if (pfnCbResponse == NULL) {	// response was not requested
+				goto Exit;
+			}
+			Ret =
+			    pfnCbResponse(uiNodeId,
+					  EplIdentuInstance_g.
+					  m_apIdentResponse[uiIndex]);
+		}
+	}
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
 
 // EOF
-

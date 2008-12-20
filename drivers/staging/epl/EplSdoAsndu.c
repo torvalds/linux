@@ -94,11 +94,9 @@
 //---------------------------------------------------------------------------
 
 // instance table
-typedef struct
-{
-    unsigned int            m_auiSdoAsndConnection[EPL_SDO_MAX_CONNECTION_ASND];
-    tEplSequLayerReceiveCb  m_fpSdoAsySeqCb;
-
+typedef struct {
+	unsigned int m_auiSdoAsndConnection[EPL_SDO_MAX_CONNECTION_ASND];
+	tEplSequLayerReceiveCb m_fpSdoAsySeqCb;
 
 } tEplSdoAsndInstance;
 
@@ -106,7 +104,7 @@ typedef struct
 // modul globale vars
 //---------------------------------------------------------------------------
 
-static tEplSdoAsndInstance  SdoAsndInstance_g;
+static tEplSdoAsndInstance SdoAsndInstance_g;
 
 //---------------------------------------------------------------------------
 // local function prototypes
@@ -126,8 +124,6 @@ tEplKernel PUBLIC EplSdoAsnduCb(tEplFrameInfo * pFrameInfo_p);
 //
 //
 /***************************************************************************/
-
-
 
 //=========================================================================//
 //                                                                         //
@@ -155,14 +151,12 @@ tEplKernel PUBLIC EplSdoAsnduCb(tEplFrameInfo * pFrameInfo_p);
 //---------------------------------------------------------------------------
 tEplKernel PUBLIC EplSdoAsnduInit(tEplSequLayerReceiveCb fpReceiveCb_p)
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
+	Ret = EplSdoAsnduAddInstance(fpReceiveCb_p);
 
-    Ret = EplSdoAsnduAddInstance(fpReceiveCb_p);
-
-return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -184,30 +178,26 @@ return Ret;
 //---------------------------------------------------------------------------
 tEplKernel PUBLIC EplSdoAsnduAddInstance(tEplSequLayerReceiveCb fpReceiveCb_p)
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // init control structure
-    EPL_MEMSET(&SdoAsndInstance_g, 0x00, sizeof(SdoAsndInstance_g));
+	// init control structure
+	EPL_MEMSET(&SdoAsndInstance_g, 0x00, sizeof(SdoAsndInstance_g));
 
-    // save pointer to callback-function
-    if (fpReceiveCb_p != NULL)
-    {
-        SdoAsndInstance_g.m_fpSdoAsySeqCb = fpReceiveCb_p;
-    }
-    else
-    {
-        Ret = kEplSdoUdpMissCb;
-    }
+	// save pointer to callback-function
+	if (fpReceiveCb_p != NULL) {
+		SdoAsndInstance_g.m_fpSdoAsySeqCb = fpReceiveCb_p;
+	} else {
+		Ret = kEplSdoUdpMissCb;
+	}
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLU)) != 0)
-    Ret = EplDlluCalRegAsndService(kEplDllAsndSdo,
-                                   EplSdoAsnduCb,
-                                   kEplDllAsndFilterLocal);
+	Ret = EplDlluCalRegAsndService(kEplDllAsndSdo,
+				       EplSdoAsnduCb, kEplDllAsndFilterLocal);
 #endif
 
-    return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -230,20 +220,18 @@ tEplKernel  Ret;
 //---------------------------------------------------------------------------
 tEplKernel PUBLIC EplSdoAsnduDelInstance()
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLU)) != 0)
-    // deregister callback function from DLL
-    Ret = EplDlluCalRegAsndService(kEplDllAsndSdo,
-                                   NULL,
-                                   kEplDllAsndFilterNone);
+	// deregister callback function from DLL
+	Ret = EplDlluCalRegAsndService(kEplDllAsndSdo,
+				       NULL, kEplDllAsndFilterNone);
 #endif
 
-return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -263,61 +251,53 @@ return Ret;
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsnduInitCon(tEplSdoConHdl*  pSdoConHandle_p,
-                               unsigned int    uiTargetNodeId_p)
+tEplKernel PUBLIC EplSdoAsnduInitCon(tEplSdoConHdl * pSdoConHandle_p,
+				     unsigned int uiTargetNodeId_p)
 {
-tEplKernel      Ret;
-unsigned int    uiCount;
-unsigned int    uiFreeCon;
-unsigned int*   puiConnection;
+	tEplKernel Ret;
+	unsigned int uiCount;
+	unsigned int uiFreeCon;
+	unsigned int *puiConnection;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    if ((uiTargetNodeId_p == EPL_C_ADR_INVALID)
-        || (uiTargetNodeId_p >= EPL_C_ADR_BROADCAST))
-    {
-        Ret = kEplSdoAsndInvalidNodeId;
-        goto Exit;
-    }
+	if ((uiTargetNodeId_p == EPL_C_ADR_INVALID)
+	    || (uiTargetNodeId_p >= EPL_C_ADR_BROADCAST)) {
+		Ret = kEplSdoAsndInvalidNodeId;
+		goto Exit;
+	}
+	// get free entry in control structure
+	uiCount = 0;
+	uiFreeCon = EPL_SDO_MAX_CONNECTION_ASND;
+	puiConnection = &SdoAsndInstance_g.m_auiSdoAsndConnection[0];
+	while (uiCount < EPL_SDO_MAX_CONNECTION_ASND) {
+		if (*puiConnection == uiTargetNodeId_p) {	// existing connection to target node found
+			// save handle for higher layer
+			*pSdoConHandle_p = (uiCount | EPL_SDO_ASND_HANDLE);
 
-    // get free entry in control structure
-    uiCount = 0;
-    uiFreeCon = EPL_SDO_MAX_CONNECTION_ASND;
-    puiConnection = &SdoAsndInstance_g.m_auiSdoAsndConnection[0];
-    while(uiCount < EPL_SDO_MAX_CONNECTION_ASND)
-    {
-        if (*puiConnection == uiTargetNodeId_p)
-        {   // existing connection to target node found
-            // save handle for higher layer
-            *pSdoConHandle_p = (uiCount | EPL_SDO_ASND_HANDLE );
+			goto Exit;
+		} else if (*puiConnection == 0) {	// free entry-> save target nodeId
+			uiFreeCon = uiCount;
+		}
+		uiCount++;
+		puiConnection++;
+	}
 
-            goto Exit;
-        }
-        else if (*puiConnection == 0)
-        {   // free entry-> save target nodeId
-            uiFreeCon = uiCount;
-        }
-        uiCount++;
-        puiConnection++;
-    }
+	if (uiFreeCon == EPL_SDO_MAX_CONNECTION_ASND) {
+		// no free connection
+		Ret = kEplSdoAsndNoFreeHandle;
+	} else {
+		puiConnection =
+		    &SdoAsndInstance_g.m_auiSdoAsndConnection[uiFreeCon];
+		*puiConnection = uiTargetNodeId_p;
+		// save handle for higher layer
+		*pSdoConHandle_p = (uiFreeCon | EPL_SDO_ASND_HANDLE);
 
-    if (uiFreeCon == EPL_SDO_MAX_CONNECTION_ASND)
-    {
-        // no free connection
-        Ret = kEplSdoAsndNoFreeHandle;
-    }
-    else
-    {
-        puiConnection = &SdoAsndInstance_g.m_auiSdoAsndConnection[uiFreeCon];
-        *puiConnection = uiTargetNodeId_p;
-        // save handle for higher layer
-        *pSdoConHandle_p = (uiFreeCon | EPL_SDO_ASND_HANDLE );
+		goto Exit;
+	}
 
-        goto Exit;
-    }
-
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -339,47 +319,47 @@ Exit:
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsnduSendData(tEplSdoConHdl       SdoConHandle_p,
-                                    tEplFrame *          pSrcData_p,
-                                    DWORD                dwDataSize_p)
+tEplKernel PUBLIC EplSdoAsnduSendData(tEplSdoConHdl SdoConHandle_p,
+				      tEplFrame * pSrcData_p,
+				      DWORD dwDataSize_p)
 {
-tEplKernel      Ret;
-unsigned int    uiArray;
-tEplFrameInfo   FrameInfo;
+	tEplKernel Ret;
+	unsigned int uiArray;
+	tEplFrameInfo FrameInfo;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    uiArray = (SdoConHandle_p & ~EPL_SDO_ASY_HANDLE_MASK);
+	uiArray = (SdoConHandle_p & ~EPL_SDO_ASY_HANDLE_MASK);
 
-    if(uiArray > EPL_SDO_MAX_CONNECTION_ASND)
-    {
-        Ret = kEplSdoAsndInvalidHandle;
-        goto Exit;
-    }
+	if (uiArray > EPL_SDO_MAX_CONNECTION_ASND) {
+		Ret = kEplSdoAsndInvalidHandle;
+		goto Exit;
+	}
+	// fillout Asnd header
+	// own node id not needed -> filled by DLL
 
-    // fillout Asnd header
-    // own node id not needed -> filled by DLL
+	// set message type
+	AmiSetByteToLe(&pSrcData_p->m_le_bMessageType, (BYTE) kEplMsgTypeAsnd);	// ASnd == 0x06
+	// target node id
+	AmiSetByteToLe(&pSrcData_p->m_le_bDstNodeId,
+		       (BYTE) SdoAsndInstance_g.
+		       m_auiSdoAsndConnection[uiArray]);
+	// set source-nodeid (filled by DLL 0)
+	AmiSetByteToLe(&pSrcData_p->m_le_bSrcNodeId, 0x00);
 
-    // set message type
-    AmiSetByteToLe(&pSrcData_p->m_le_bMessageType, (BYTE)kEplMsgTypeAsnd); // ASnd == 0x06
-    // target node id
-    AmiSetByteToLe(&pSrcData_p->m_le_bDstNodeId, (BYTE) SdoAsndInstance_g.m_auiSdoAsndConnection[uiArray]);
-    // set source-nodeid (filled by DLL 0)
-    AmiSetByteToLe(&pSrcData_p->m_le_bSrcNodeId, 0x00);
+	// calc size
+	dwDataSize_p += EPL_ASND_HEADER_SIZE;
 
-    // calc size
-    dwDataSize_p += EPL_ASND_HEADER_SIZE;
-
-    // send function of DLL
-    FrameInfo.m_uiFrameSize = dwDataSize_p;
-    FrameInfo.m_pFrame = pSrcData_p;
-    EPL_MEMSET(&FrameInfo.m_NetTime , 0x00, sizeof(tEplNetTime));
+	// send function of DLL
+	FrameInfo.m_uiFrameSize = dwDataSize_p;
+	FrameInfo.m_pFrame = pSrcData_p;
+	EPL_MEMSET(&FrameInfo.m_NetTime, 0x00, sizeof(tEplNetTime));
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLU)) != 0)
-    Ret = EplDlluCalAsyncSend(&FrameInfo,kEplDllAsyncReqPrioGeneric);
+	Ret = EplDlluCalAsyncSend(&FrameInfo, kEplDllAsyncReqPrioGeneric);
 #endif
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 
 }
 
@@ -401,25 +381,22 @@ Exit:
 //---------------------------------------------------------------------------
 tEplKernel PUBLIC EplSdoAsnduDelCon(tEplSdoConHdl SdoConHandle_p)
 {
-tEplKernel  Ret;
-unsigned int    uiArray;
+	tEplKernel Ret;
+	unsigned int uiArray;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
+	uiArray = (SdoConHandle_p & ~EPL_SDO_ASY_HANDLE_MASK);
+	// check parameter
+	if (uiArray > EPL_SDO_MAX_CONNECTION_ASND) {
+		Ret = kEplSdoAsndInvalidHandle;
+		goto Exit;
+	}
+	// set target nodeId to 0
+	SdoAsndInstance_g.m_auiSdoAsndConnection[uiArray] = 0;
 
-    uiArray = (SdoConHandle_p & ~EPL_SDO_ASY_HANDLE_MASK);
-    // check parameter
-    if(uiArray > EPL_SDO_MAX_CONNECTION_ASND)
-    {
-        Ret = kEplSdoAsndInvalidHandle;
-        goto Exit;
-    }
-
-    // set target nodeId to 0
-    SdoAsndInstance_g.m_auiSdoAsndConnection[uiArray] = 0;
-
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
 
 //=========================================================================//
@@ -447,63 +424,60 @@ Exit:
 //---------------------------------------------------------------------------
 tEplKernel PUBLIC EplSdoAsnduCb(tEplFrameInfo * pFrameInfo_p)
 {
-tEplKernel      Ret = kEplSuccessful;
-unsigned int    uiCount;
-unsigned int*   puiConnection;
-unsigned int    uiNodeId;
-unsigned int    uiFreeEntry = 0xFFFF;
-tEplSdoConHdl   SdoConHdl;
-tEplFrame*      pFrame;
+	tEplKernel Ret = kEplSuccessful;
+	unsigned int uiCount;
+	unsigned int *puiConnection;
+	unsigned int uiNodeId;
+	unsigned int uiFreeEntry = 0xFFFF;
+	tEplSdoConHdl SdoConHdl;
+	tEplFrame *pFrame;
 
-    pFrame = pFrameInfo_p->m_pFrame;
+	pFrame = pFrameInfo_p->m_pFrame;
 
-    uiNodeId = AmiGetByteFromLe(&pFrame->m_le_bSrcNodeId);
+	uiNodeId = AmiGetByteFromLe(&pFrame->m_le_bSrcNodeId);
 
-    // search corresponding entry in control structure
-    uiCount = 0;
-    puiConnection = &SdoAsndInstance_g.m_auiSdoAsndConnection[0];
-    while (uiCount < EPL_SDO_MAX_CONNECTION_ASND)
-    {
-        if (uiNodeId == *puiConnection)
-        {
-            break;
-        }
-        else if ((*puiConnection == 0)
-            && (uiFreeEntry == 0xFFFF))
-        {   // free entry
-            uiFreeEntry = uiCount;
-        }
-        uiCount++;
-        puiConnection++;
-    }
+	// search corresponding entry in control structure
+	uiCount = 0;
+	puiConnection = &SdoAsndInstance_g.m_auiSdoAsndConnection[0];
+	while (uiCount < EPL_SDO_MAX_CONNECTION_ASND) {
+		if (uiNodeId == *puiConnection) {
+			break;
+		} else if ((*puiConnection == 0)
+			   && (uiFreeEntry == 0xFFFF)) {	// free entry
+			uiFreeEntry = uiCount;
+		}
+		uiCount++;
+		puiConnection++;
+	}
 
-    if (uiCount == EPL_SDO_MAX_CONNECTION_ASND)
-    {
-        if (uiFreeEntry != 0xFFFF)
-        {
-            puiConnection = &SdoAsndInstance_g.m_auiSdoAsndConnection[uiFreeEntry];
-            *puiConnection = uiNodeId;
-            uiCount = uiFreeEntry;
-        }
-        else
-        {
-            EPL_DBGLVL_SDO_TRACE0("EplSdoAsnduCb(): no free handle\n");
-            goto Exit;
-        }
-    }
+	if (uiCount == EPL_SDO_MAX_CONNECTION_ASND) {
+		if (uiFreeEntry != 0xFFFF) {
+			puiConnection =
+			    &SdoAsndInstance_g.
+			    m_auiSdoAsndConnection[uiFreeEntry];
+			*puiConnection = uiNodeId;
+			uiCount = uiFreeEntry;
+		} else {
+			EPL_DBGLVL_SDO_TRACE0
+			    ("EplSdoAsnduCb(): no free handle\n");
+			goto Exit;
+		}
+	}
 //    if (uiNodeId == *puiConnection)
-    {   // entry found or created
-        SdoConHdl = (uiCount | EPL_SDO_ASND_HANDLE );
+	{			// entry found or created
+		SdoConHdl = (uiCount | EPL_SDO_ASND_HANDLE);
 
-        SdoAsndInstance_g.m_fpSdoAsySeqCb(SdoConHdl, &pFrame->m_Data.m_Asnd.m_Payload.m_SdoSequenceFrame, (pFrameInfo_p->m_uiFrameSize - 18));
-    }
+		SdoAsndInstance_g.m_fpSdoAsySeqCb(SdoConHdl,
+						  &pFrame->m_Data.m_Asnd.
+						  m_Payload.m_SdoSequenceFrame,
+						  (pFrameInfo_p->m_uiFrameSize -
+						   18));
+	}
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 
 }
 
-
 #endif // end of #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDO_ASND)) != 0)
 // EOF
-

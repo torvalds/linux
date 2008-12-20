@@ -95,9 +95,6 @@
 // local function prototypes
 //---------------------------------------------------------------------------
 
-
-
-
 //=========================================================================//
 //                                                                         //
 //          P U B L I C   F U N C T I O N S                                //
@@ -124,14 +121,14 @@
 //---------------------------------------------------------------------------
 EPLDLLEXPORT tEplNmtState PUBLIC EplNmtkCalGetNmtState()
 {
-tEplNmtState NmtState;
-    // for test direkt call for EplNmtkGetNmtState()
+	tEplNmtState NmtState;
+	// for test direkt call for EplNmtkGetNmtState()
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTK)) != 0)
-    NmtState = EplNmtkGetNmtState();
+	NmtState = EplNmtkGetNmtState();
 #else
-    NmtState = 0;
+	NmtState = 0;
 #endif
-return NmtState;
+	return NmtState;
 }
 
 //=========================================================================//
@@ -158,7 +155,4 @@ return NmtState;
 //
 //---------------------------------------------------------------------------
 
-
-
 // EOF
-

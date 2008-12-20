@@ -91,11 +91,9 @@
 
 #include "SharedBuff.h"
 
-
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_OBDK)) == 0)
 #error "EPL API layer needs EPL module OBDK!"
 #endif
-
 
 /***************************************************************************/
 /*                                                                         */
@@ -121,7 +119,6 @@
 // local function prototypes
 //---------------------------------------------------------------------------
 
-
 /***************************************************************************/
 /*                                                                         */
 /*                                                                         */
@@ -134,7 +131,6 @@
 //
 //
 /***************************************************************************/
-
 
 //=========================================================================//
 //                                                                         //
@@ -150,9 +146,8 @@
 // local types
 //---------------------------------------------------------------------------
 
-typedef struct
-{
-    tEplApiInitParam    m_InitParam;
+typedef struct {
+	tEplApiInitParam m_InitParam;
 
 } tEplApiInstance;
 
@@ -160,15 +155,15 @@ typedef struct
 // local vars
 //---------------------------------------------------------------------------
 
-static tEplApiInstance  EplApiInstance_g;
-
+static tEplApiInstance EplApiInstance_g;
 
 //---------------------------------------------------------------------------
 // local function prototypes
 //---------------------------------------------------------------------------
 
 // NMT state change event callback function
-static tEplKernel PUBLIC EplApiCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p);
+static tEplKernel PUBLIC EplApiCbNmtStateChange(tEplEventNmtStateChange
+						NmtStateChange_p);
 
 // update DLL configuration from OD
 static tEplKernel PUBLIC EplApiUpdateDllConfig(BOOL fUpdateIdentity_p);
@@ -177,35 +172,34 @@ static tEplKernel PUBLIC EplApiUpdateDllConfig(BOOL fUpdateIdentity_p);
 static tEplKernel PUBLIC EplApiUpdateObd(void);
 
 // process events from user event queue
-static tEplKernel PUBLIC EplApiProcessEvent(tEplEvent* pEplEvent_p);
+static tEplKernel PUBLIC EplApiProcessEvent(tEplEvent * pEplEvent_p);
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
 // callback function of SDO module
-static tEplKernel PUBLIC  EplApiCbSdoCon(tEplSdoComFinished* pSdoComFinished_p);
+static tEplKernel PUBLIC EplApiCbSdoCon(tEplSdoComFinished * pSdoComFinished_p);
 #endif
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 // callback functions of NmtMnu module
-static tEplKernel PUBLIC  EplApiCbNodeEvent(unsigned int uiNodeId_p,
-                                            tEplNmtNodeEvent NodeEvent_p,
-                                            tEplNmtState NmtState_p,
-                                            WORD wErrorCode_p,
-                                            BOOL fMandatory_p);
+static tEplKernel PUBLIC EplApiCbNodeEvent(unsigned int uiNodeId_p,
+					   tEplNmtNodeEvent NodeEvent_p,
+					   tEplNmtState NmtState_p,
+					   WORD wErrorCode_p,
+					   BOOL fMandatory_p);
 
-static tEplKernel PUBLIC  EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
-                                            tEplNmtState NmtState_p,
-                                            WORD wErrorCode_p);
+static tEplKernel PUBLIC EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
+					   tEplNmtState NmtState_p,
+					   WORD wErrorCode_p);
 #endif
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_LEDU)) != 0)
 // callback function of Ledu module
-static tEplKernel PUBLIC  EplApiCbLedStateChange(tEplLedType LedType_p,
-                                                 BOOL fOn_p);
+static tEplKernel PUBLIC EplApiCbLedStateChange(tEplLedType LedType_p,
+						BOOL fOn_p);
 #endif
 
 // OD initialization function (implemented in Objdict.c)
-tEplKernel PUBLIC  EplObdInitRam (tEplObdInitParam MEM* pInitParam_p);
-
+tEplKernel PUBLIC EplObdInitRam(tEplObdInitParam MEM * pInitParam_p);
 
 //=========================================================================//
 //                                                                         //
@@ -234,27 +228,27 @@ tEplKernel PUBLIC  EplObdInitRam (tEplObdInitParam MEM* pInitParam_p);
 
 tEplKernel PUBLIC EplApiInitialize(tEplApiInitParam * pInitParam_p)
 {
-tEplKernel          Ret = kEplSuccessful;
-tEplObdInitParam    ObdInitParam;
-tEplDllkInitParam   DllkInitParam;
+	tEplKernel Ret = kEplSuccessful;
+	tEplObdInitParam ObdInitParam;
+	tEplDllkInitParam DllkInitParam;
 #ifndef EPL_NO_FIFO
-    tShbError           ShbError;
+	tShbError ShbError;
 #endif
 
-    // reset instance structure
-    EPL_MEMSET(&EplApiInstance_g, 0, sizeof (EplApiInstance_g));
+	// reset instance structure
+	EPL_MEMSET(&EplApiInstance_g, 0, sizeof(EplApiInstance_g));
 
-    EPL_MEMCPY(&EplApiInstance_g.m_InitParam, pInitParam_p, min(sizeof (tEplApiInitParam), pInitParam_p->m_uiSizeOfStruct));
+	EPL_MEMCPY(&EplApiInstance_g.m_InitParam, pInitParam_p,
+		   min(sizeof(tEplApiInitParam),
+		       pInitParam_p->m_uiSizeOfStruct));
 
-    // check event callback function pointer
-    if (EplApiInstance_g.m_InitParam.m_pfnCbEvent == NULL)
-    {   // application must always have an event callback function
-        Ret = kEplApiInvalidParam;
-        goto Exit;
-    }
-
+	// check event callback function pointer
+	if (EplApiInstance_g.m_InitParam.m_pfnCbEvent == NULL) {	// application must always have an event callback function
+		Ret = kEplApiInvalidParam;
+		goto Exit;
+	}
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_OBDK)) != 0)
-    // init OD
+	// init OD
 // FIXME
 //    Ret = EplObdInitRam(&ObdInitParam);
 //    if (Ret != kEplSuccessful)
@@ -262,177 +256,148 @@ tEplDllkInitParam   DllkInitParam;
 //        goto Exit;
 //    }
 
-    // initialize EplObd module
-    Ret = EplObdInit(&ObdInitParam);
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	// initialize EplObd module
+	Ret = EplObdInit(&ObdInitParam);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
 #ifndef EPL_NO_FIFO
-    ShbError = ShbInit();
-    if (ShbError != kShbOk)
-    {
-        Ret = kEplNoResource;
-        goto Exit;
-    }
+	ShbError = ShbInit();
+	if (ShbError != kShbOk) {
+		Ret = kEplNoResource;
+		goto Exit;
+	}
 #endif
 
-    // initialize EplEventk module
-    Ret = EplEventkInit(EplApiInstance_g.m_InitParam.m_pfnCbSync);
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
-    // initialize EplEventu module
-    Ret = EplEventuInit(EplApiProcessEvent);
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
-    // init EplTimerk module
-    Ret = EplTimerkInit();
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
-    // initialize EplNmtk module before DLL
+	// initialize EplEventk module
+	Ret = EplEventkInit(EplApiInstance_g.m_InitParam.m_pfnCbSync);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// initialize EplEventu module
+	Ret = EplEventuInit(EplApiProcessEvent);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// init EplTimerk module
+	Ret = EplTimerkInit();
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// initialize EplNmtk module before DLL
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTK)) != 0)
-    Ret = EplNmtkInit();
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	Ret = EplNmtkInit();
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
-    // initialize EplDllk module
+	// initialize EplDllk module
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLK)) != 0)
-    EPL_MEMCPY(DllkInitParam.m_be_abSrcMac, EplApiInstance_g.m_InitParam.m_abMacAddress, 6);
-    Ret = EplDllkAddInstance(&DllkInitParam);
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
-    // initialize EplErrorHandlerk module
-    Ret = EplErrorHandlerkInit();
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
-    // initialize EplDllkCal module
-    Ret = EplDllkCalAddInstance();
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	EPL_MEMCPY(DllkInitParam.m_be_abSrcMac,
+		   EplApiInstance_g.m_InitParam.m_abMacAddress, 6);
+	Ret = EplDllkAddInstance(&DllkInitParam);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// initialize EplErrorHandlerk module
+	Ret = EplErrorHandlerkInit();
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// initialize EplDllkCal module
+	Ret = EplDllkCalAddInstance();
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
-    // initialize EplDlluCal module
+	// initialize EplDlluCal module
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLU)) != 0)
-    Ret = EplDlluCalAddInstance();
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
+	Ret = EplDlluCalAddInstance();
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
-    // initialize EplPdok module
+	// initialize EplPdok module
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_PDOK)) != 0)
-    Ret = EplPdokAddInstance();
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	Ret = EplPdokAddInstance();
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 
-    Ret = EplPdokCalAddInstance();
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
+	Ret = EplPdokCalAddInstance();
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
-    // initialize EplNmtCnu module
+	// initialize EplNmtCnu module
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_CN)) != 0)
-    Ret = EplNmtCnuAddInstance(EplApiInstance_g.m_InitParam.m_uiNodeId);
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	Ret = EplNmtCnuAddInstance(EplApiInstance_g.m_InitParam.m_uiNodeId);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
-    // initialize EplNmtu module
+	// initialize EplNmtu module
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
-    Ret = EplNmtuInit();
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
-    // register NMT event callback function
-    Ret = EplNmtuRegisterStateChangeCb(EplApiCbNmtStateChange);
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	Ret = EplNmtuInit();
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// register NMT event callback function
+	Ret = EplNmtuRegisterStateChangeCb(EplApiCbNmtStateChange);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-    // initialize EplNmtMnu module
-    Ret = EplNmtMnuInit(EplApiCbNodeEvent, EplApiCbBootEvent);
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
-    // initialize EplIdentu module
-    Ret = EplIdentuInit();
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
-    // initialize EplStatusu module
-    Ret = EplStatusuInit();
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	// initialize EplNmtMnu module
+	Ret = EplNmtMnuInit(EplApiCbNodeEvent, EplApiCbBootEvent);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// initialize EplIdentu module
+	Ret = EplIdentuInit();
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// initialize EplStatusu module
+	Ret = EplStatusuInit();
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
-    // initialize EplLedu module
+	// initialize EplLedu module
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_LEDU)) != 0)
-    Ret = EplLeduInit(EplApiCbLedStateChange);
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	Ret = EplLeduInit(EplApiCbLedStateChange);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
-    // init SDO module
+	// init SDO module
 #if ((((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOS)) != 0) || \
      (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0))
-    // init sdo command layer
-    Ret = EplSdoComInit();
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	// init sdo command layer
+	Ret = EplSdoComInit();
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
-    // the application must start NMT state machine
-    // via EplApiExecNmtCommand(kEplNmtEventSwReset)
-    // and thereby the whole EPL stack
+	// the application must start NMT state machine
+	// via EplApiExecNmtCommand(kEplNmtEventSwReset)
+	// and thereby the whole EPL stack
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -452,97 +417,96 @@ Exit:
 
 tEplKernel PUBLIC EplApiShutdown(void)
 {
-tEplKernel      Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
-    // $$$ d.k.: check if NMT state is NMT_GS_OFF
+	// $$$ d.k.: check if NMT state is NMT_GS_OFF
 
-    // $$$ d.k.: maybe delete event queues at first, but this implies that
-    //           no other module must not use the event queues for communication
-    //           during shutdown.
+	// $$$ d.k.: maybe delete event queues at first, but this implies that
+	//           no other module must not use the event queues for communication
+	//           during shutdown.
 
-    // delete instance for all modules
+	// delete instance for all modules
 
-    // deinitialize EplSdoCom module
+	// deinitialize EplSdoCom module
 #if ((((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOS)) != 0) || \
      (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0))
-    Ret = EplSdoComDelInstance();
+	Ret = EplSdoComDelInstance();
 //    PRINTF1("EplSdoComDelInstance():  0x%X\n", Ret);
 #endif
 
-    // deinitialize EplLedu module
+	// deinitialize EplLedu module
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_LEDU)) != 0)
-    Ret = EplLeduDelInstance();
+	Ret = EplLeduDelInstance();
 //    PRINTF1("EplLeduDelInstance():    0x%X\n", Ret);
 #endif
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-    // deinitialize EplNmtMnu module
-    Ret = EplNmtMnuDelInstance();
+	// deinitialize EplNmtMnu module
+	Ret = EplNmtMnuDelInstance();
 //    PRINTF1("EplNmtMnuDelInstance():  0x%X\n", Ret);
 
-    // deinitialize EplIdentu module
-    Ret = EplIdentuDelInstance();
+	// deinitialize EplIdentu module
+	Ret = EplIdentuDelInstance();
 //    PRINTF1("EplIdentuDelInstance():  0x%X\n", Ret);
 
-    // deinitialize EplStatusu module
-    Ret = EplStatusuDelInstance();
+	// deinitialize EplStatusu module
+	Ret = EplStatusuDelInstance();
 //    PRINTF1("EplStatusuDelInstance():  0x%X\n", Ret);
 #endif
 
-    // deinitialize EplNmtCnu module
+	// deinitialize EplNmtCnu module
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_CN)) != 0)
-    Ret = EplNmtCnuDelInstance();
+	Ret = EplNmtCnuDelInstance();
 //    PRINTF1("EplNmtCnuDelInstance():  0x%X\n", Ret);
 #endif
 
-    // deinitialize EplNmtu module
+	// deinitialize EplNmtu module
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
-    Ret = EplNmtuDelInstance();
+	Ret = EplNmtuDelInstance();
 //    PRINTF1("EplNmtuDelInstance():    0x%X\n", Ret);
 #endif
 
-    // deinitialize EplDlluCal module
+	// deinitialize EplDlluCal module
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLU)) != 0)
-    Ret = EplDlluCalDelInstance();
+	Ret = EplDlluCalDelInstance();
 //    PRINTF1("EplDlluCalDelInstance(): 0x%X\n", Ret);
 
 #endif
 
-    // deinitialize EplEventu module
-    Ret = EplEventuDelInstance();
+	// deinitialize EplEventu module
+	Ret = EplEventuDelInstance();
 //    PRINTF1("EplEventuDelInstance():  0x%X\n", Ret);
 
-    // deinitialize EplNmtk module
+	// deinitialize EplNmtk module
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTK)) != 0)
-    Ret = EplNmtkDelInstance();
+	Ret = EplNmtkDelInstance();
 //    PRINTF1("EplNmtkDelInstance():    0x%X\n", Ret);
 #endif
 
-    // deinitialize EplDllk module
+	// deinitialize EplDllk module
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLK)) != 0)
-    Ret = EplDllkDelInstance();
+	Ret = EplDllkDelInstance();
 //    PRINTF1("EplDllkDelInstance():    0x%X\n", Ret);
 
-    // deinitialize EplDllkCal module
-    Ret = EplDllkCalDelInstance();
+	// deinitialize EplDllkCal module
+	Ret = EplDllkCalDelInstance();
 //    PRINTF1("EplDllkCalDelInstance(): 0x%X\n", Ret);
 #endif
 
-    // deinitialize EplEventk module
-    Ret = EplEventkDelInstance();
+	// deinitialize EplEventk module
+	Ret = EplEventkDelInstance();
 //    PRINTF1("EplEventkDelInstance():  0x%X\n", Ret);
 
-    // deinitialize EplTimerk module
-    Ret = EplTimerkDelInstance();
+	// deinitialize EplTimerk module
+	Ret = EplTimerkDelInstance();
 //    PRINTF1("EplTimerkDelInstance():  0x%X\n", Ret);
 
 #ifndef EPL_NO_FIFO
-    ShbExit();
+	ShbExit();
 #endif
 
-    return Ret;
+	return Ret;
 }
-
 
 //----------------------------------------------------------------------------
 // Function:    EplApiExecNmtCommand()
@@ -561,15 +525,14 @@ tEplKernel      Ret = kEplSuccessful;
 
 tEplKernel PUBLIC EplApiExecNmtCommand(tEplNmtEvent NmtEvent_p)
 {
-tEplKernel      Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
-    Ret = EplNmtuNmtEvent(NmtEvent_p);
+	Ret = EplNmtuNmtEvent(NmtEvent_p);
 #endif
 
-    return Ret;
+	return Ret;
 }
-
 
 //----------------------------------------------------------------------------
 // Function:    EplApiLinkObject()
@@ -590,121 +553,106 @@ tEplKernel      Ret = kEplSuccessful;
 // State:
 //----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiLinkObject( unsigned int    uiObjIndex_p,
-                                    void*           pVar_p,
-                                    unsigned int*   puiVarEntries_p,
-                                    tEplObdSize*    pEntrySize_p,
-                                    unsigned int    uiFirstSubindex_p)
+tEplKernel PUBLIC EplApiLinkObject(unsigned int uiObjIndex_p,
+				   void *pVar_p,
+				   unsigned int *puiVarEntries_p,
+				   tEplObdSize * pEntrySize_p,
+				   unsigned int uiFirstSubindex_p)
 {
-BYTE            bVarEntries;
-BYTE            bIndexEntries;
-BYTE MEM*       pbData;
-unsigned int    uiSubindex;
-tEplVarParam    VarParam;
-tEplObdSize     EntrySize;
-tEplObdSize     UsedSize;
+	BYTE bVarEntries;
+	BYTE bIndexEntries;
+	BYTE MEM *pbData;
+	unsigned int uiSubindex;
+	tEplVarParam VarParam;
+	tEplObdSize EntrySize;
+	tEplObdSize UsedSize;
 
-tEplKernel      RetCode = kEplSuccessful;
+	tEplKernel RetCode = kEplSuccessful;
 
-    if ((pVar_p == NULL)
-        || (puiVarEntries_p == NULL)
-        || (*puiVarEntries_p == 0)
-        || (pEntrySize_p == NULL))
-    {
-        RetCode = kEplApiInvalidParam;
-        goto Exit;
-    }
+	if ((pVar_p == NULL)
+	    || (puiVarEntries_p == NULL)
+	    || (*puiVarEntries_p == 0)
+	    || (pEntrySize_p == NULL)) {
+		RetCode = kEplApiInvalidParam;
+		goto Exit;
+	}
 
-    pbData      = (BYTE MEM*) pVar_p;
-    bVarEntries = (BYTE) *puiVarEntries_p;
-    UsedSize    = 0;
+	pbData = (BYTE MEM *) pVar_p;
+	bVarEntries = (BYTE) * puiVarEntries_p;
+	UsedSize = 0;
 
-    // init VarParam structure with default values
-    VarParam.m_uiIndex    = uiObjIndex_p;
-    VarParam.m_ValidFlag  = kVarValidAll;
+	// init VarParam structure with default values
+	VarParam.m_uiIndex = uiObjIndex_p;
+	VarParam.m_ValidFlag = kVarValidAll;
 
-    if (uiFirstSubindex_p != 0)
-    {   // check if object exists by reading subindex 0x00,
-        // because user wants to link a variable to a subindex unequal 0x00
-        // read number of entries
-        EntrySize = (tEplObdSize)  sizeof(bIndexEntries);
-        RetCode = EplObdReadEntry (
-                                uiObjIndex_p,
-                                0x00,
-                                (void GENERIC*) &bIndexEntries,
-                                &EntrySize );
+	if (uiFirstSubindex_p != 0) {	// check if object exists by reading subindex 0x00,
+		// because user wants to link a variable to a subindex unequal 0x00
+		// read number of entries
+		EntrySize = (tEplObdSize) sizeof(bIndexEntries);
+		RetCode = EplObdReadEntry(uiObjIndex_p,
+					  0x00,
+					  (void GENERIC *)&bIndexEntries,
+					  &EntrySize);
 
-        if ((RetCode != kEplSuccessful) || (bIndexEntries == 0x00) )
-        {
-            // Object doesn't exist or invalid entry number
-            RetCode = kEplObdIndexNotExist;
-            goto Exit;
-        }
-    }
-    else
-    {   // user wants to link a variable to subindex 0x00
-        // that's OK
-        bIndexEntries = 0;
-    }
+		if ((RetCode != kEplSuccessful) || (bIndexEntries == 0x00)) {
+			// Object doesn't exist or invalid entry number
+			RetCode = kEplObdIndexNotExist;
+			goto Exit;
+		}
+	} else {		// user wants to link a variable to subindex 0x00
+		// that's OK
+		bIndexEntries = 0;
+	}
 
-    // Correct number of entries if number read from OD is greater
-    // than the specified number.
-    // This is done, so that we do not set more entries than subindexes the
-    // object actually has.
-    if ((bIndexEntries > (bVarEntries + uiFirstSubindex_p - 1)) &&
-        (bVarEntries   != 0x00) )
-    {
-        bIndexEntries = (BYTE) (bVarEntries + uiFirstSubindex_p - 1);
-    }
+	// Correct number of entries if number read from OD is greater
+	// than the specified number.
+	// This is done, so that we do not set more entries than subindexes the
+	// object actually has.
+	if ((bIndexEntries > (bVarEntries + uiFirstSubindex_p - 1)) &&
+	    (bVarEntries != 0x00)) {
+		bIndexEntries = (BYTE) (bVarEntries + uiFirstSubindex_p - 1);
+	}
+	// map entries
+	for (uiSubindex = uiFirstSubindex_p; uiSubindex <= bIndexEntries;
+	     uiSubindex++) {
+		// if passed entry size is 0, then get size from OD
+		if (*pEntrySize_p == 0x00) {
+			// read entry size
+			EntrySize = EplObdGetDataSize(uiObjIndex_p, uiSubindex);
 
-    // map entries
-    for (uiSubindex = uiFirstSubindex_p; uiSubindex <= bIndexEntries; uiSubindex++)
-    {
-        // if passed entry size is 0, then get size from OD
-        if (*pEntrySize_p == 0x00)
-        {
-            // read entry size
-            EntrySize = EplObdGetDataSize(uiObjIndex_p, uiSubindex);
+			if (EntrySize == 0x00) {
+				// invalid entry size (maybe object doesn't exist or entry of type DOMAIN is empty)
+				RetCode = kEplObdSubindexNotExist;
+				break;
+			}
+		} else {	// use passed entry size
+			EntrySize = *pEntrySize_p;
+		}
 
-            if (EntrySize == 0x00)
-            {
-                // invalid entry size (maybe object doesn't exist or entry of type DOMAIN is empty)
-                RetCode = kEplObdSubindexNotExist;
-                break;
-            }
-        }
-        else
-        {   // use passed entry size
-            EntrySize = *pEntrySize_p;
-        }
+		VarParam.m_uiSubindex = uiSubindex;
 
-        VarParam.m_uiSubindex = uiSubindex;
+		// set pointer to user var
+		VarParam.m_Size = EntrySize;
+		VarParam.m_pData = pbData;
 
-        // set pointer to user var
-        VarParam.m_Size  = EntrySize;
-        VarParam.m_pData = pbData;
+		UsedSize += EntrySize;
+		pbData += EntrySize;
 
-        UsedSize += EntrySize;
-        pbData   += EntrySize;
+		RetCode = EplObdDefineVar(&VarParam);
+		if (RetCode != kEplSuccessful) {
+			break;
+		}
+	}
 
-        RetCode = EplObdDefineVar(&VarParam);
-        if (RetCode != kEplSuccessful)
-        {
-            break;
-        }
-    }
+	// set number of mapped entries and entry size
+	*puiVarEntries_p = ((bIndexEntries - uiFirstSubindex_p) + 1);
+	*pEntrySize_p = UsedSize;
 
-    // set number of mapped entries and entry size
-    *puiVarEntries_p = ((bIndexEntries - uiFirstSubindex_p) + 1);
-    *pEntrySize_p = UsedSize;
+      Exit:
 
-
-Exit:
-
-    return (RetCode);
+	return (RetCode);
 
 }
-
 
 // ----------------------------------------------------------------------------
 //
@@ -729,80 +677,70 @@ Exit:
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiReadObject(
-            tEplSdoComConHdl* pSdoComConHdl_p,
-            unsigned int      uiNodeId_p,
-            unsigned int      uiIndex_p,
-            unsigned int      uiSubindex_p,
-            void*             pDstData_le_p,
-            unsigned int*     puiSize_p,
-            tEplSdoType       SdoType_p,
-            void*             pUserArg_p)
+tEplKernel PUBLIC EplApiReadObject(tEplSdoComConHdl * pSdoComConHdl_p,
+				   unsigned int uiNodeId_p,
+				   unsigned int uiIndex_p,
+				   unsigned int uiSubindex_p,
+				   void *pDstData_le_p,
+				   unsigned int *puiSize_p,
+				   tEplSdoType SdoType_p, void *pUserArg_p)
 {
-tEplKernel      Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
-    if ((uiIndex_p == 0) || (pDstData_le_p == NULL) || (puiSize_p == NULL) || (*puiSize_p == 0))
-    {
-        Ret = kEplApiInvalidParam;
-        goto Exit;
-    }
+	if ((uiIndex_p == 0) || (pDstData_le_p == NULL) || (puiSize_p == NULL)
+	    || (*puiSize_p == 0)) {
+		Ret = kEplApiInvalidParam;
+		goto Exit;
+	}
 
-    if (uiNodeId_p == 0
-        || uiNodeId_p == EplObdGetNodeId())
-    {   // local OD access can be performed
-    tEplObdSize     ObdSize;
+	if (uiNodeId_p == 0 || uiNodeId_p == EplObdGetNodeId()) {	// local OD access can be performed
+		tEplObdSize ObdSize;
 
-        ObdSize = (tEplObdSize) *puiSize_p;
-        Ret = EplObdReadEntryToLe(uiIndex_p, uiSubindex_p, pDstData_le_p, &ObdSize);
-        *puiSize_p = (unsigned int) ObdSize;
-    }
-    else
-    {   // perform SDO transfer
+		ObdSize = (tEplObdSize) * puiSize_p;
+		Ret =
+		    EplObdReadEntryToLe(uiIndex_p, uiSubindex_p, pDstData_le_p,
+					&ObdSize);
+		*puiSize_p = (unsigned int)ObdSize;
+	} else {		// perform SDO transfer
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
-    tEplSdoComTransParamByIndex TransParamByIndex;
+		tEplSdoComTransParamByIndex TransParamByIndex;
 //    tEplSdoComConHdl            SdoComConHdl;
 
-        // check if application provides space for handle
-        if (pSdoComConHdl_p == NULL)
-        {
-            Ret = kEplApiInvalidParam;
-            goto Exit;
+		// check if application provides space for handle
+		if (pSdoComConHdl_p == NULL) {
+			Ret = kEplApiInvalidParam;
+			goto Exit;
 //            pSdoComConHdl_p = &SdoComConHdl;
-        }
+		}
+		// init command layer connection
+		Ret = EplSdoComDefineCon(pSdoComConHdl_p, uiNodeId_p,	// target node id
+					 SdoType_p);	// SDO type
+		if ((Ret != kEplSuccessful) && (Ret != kEplSdoComHandleExists)) {
+			goto Exit;
+		}
+		TransParamByIndex.m_pData = pDstData_le_p;
+		TransParamByIndex.m_SdoAccessType = kEplSdoAccessTypeRead;
+		TransParamByIndex.m_SdoComConHdl = *pSdoComConHdl_p;
+		TransParamByIndex.m_uiDataSize = *puiSize_p;
+		TransParamByIndex.m_uiIndex = uiIndex_p;
+		TransParamByIndex.m_uiSubindex = uiSubindex_p;
+		TransParamByIndex.m_pfnSdoFinishedCb = EplApiCbSdoCon;
+		TransParamByIndex.m_pUserArg = pUserArg_p;
 
-        // init command layer connection
-        Ret = EplSdoComDefineCon(pSdoComConHdl_p,
-                                    uiNodeId_p,  // target node id
-                                    SdoType_p);    // SDO type
-        if ((Ret != kEplSuccessful) && (Ret != kEplSdoComHandleExists))
-        {
-            goto Exit;
-        }
-        TransParamByIndex.m_pData = pDstData_le_p;
-        TransParamByIndex.m_SdoAccessType = kEplSdoAccessTypeRead;
-        TransParamByIndex.m_SdoComConHdl = *pSdoComConHdl_p;
-        TransParamByIndex.m_uiDataSize = *puiSize_p;
-        TransParamByIndex.m_uiIndex = uiIndex_p;
-        TransParamByIndex.m_uiSubindex = uiSubindex_p;
-        TransParamByIndex.m_pfnSdoFinishedCb = EplApiCbSdoCon;
-        TransParamByIndex.m_pUserArg = pUserArg_p;
-
-        Ret = EplSdoComInitTransferByIndex(&TransParamByIndex);
-        if (Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }
-        Ret = kEplApiTaskDeferred;
+		Ret = EplSdoComInitTransferByIndex(&TransParamByIndex);
+		if (Ret != kEplSuccessful) {
+			goto Exit;
+		}
+		Ret = kEplApiTaskDeferred;
 
 #else
-        Ret = kEplApiInvalidParam;
+		Ret = kEplApiInvalidParam;
 #endif
-    }
+	}
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
-
 
 // ----------------------------------------------------------------------------
 //
@@ -827,86 +765,75 @@ Exit:
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiWriteObject(
-            tEplSdoComConHdl* pSdoComConHdl_p,
-            unsigned int      uiNodeId_p,
-            unsigned int      uiIndex_p,
-            unsigned int      uiSubindex_p,
-            void*             pSrcData_le_p,
-            unsigned int      uiSize_p,
-            tEplSdoType       SdoType_p,
-            void*             pUserArg_p)
+tEplKernel PUBLIC EplApiWriteObject(tEplSdoComConHdl * pSdoComConHdl_p,
+				    unsigned int uiNodeId_p,
+				    unsigned int uiIndex_p,
+				    unsigned int uiSubindex_p,
+				    void *pSrcData_le_p,
+				    unsigned int uiSize_p,
+				    tEplSdoType SdoType_p, void *pUserArg_p)
 {
-tEplKernel      Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
-    if ((uiIndex_p == 0) || (pSrcData_le_p == NULL) || (uiSize_p == 0))
-    {
-        Ret = kEplApiInvalidParam;
-        goto Exit;
-    }
+	if ((uiIndex_p == 0) || (pSrcData_le_p == NULL) || (uiSize_p == 0)) {
+		Ret = kEplApiInvalidParam;
+		goto Exit;
+	}
 
-    if (uiNodeId_p == 0
-        || uiNodeId_p == EplObdGetNodeId())
-    {   // local OD access can be performed
+	if (uiNodeId_p == 0 || uiNodeId_p == EplObdGetNodeId()) {	// local OD access can be performed
 
-        Ret = EplObdWriteEntryFromLe(uiIndex_p, uiSubindex_p, pSrcData_le_p, uiSize_p);
-    }
-    else
-    {   // perform SDO transfer
+		Ret =
+		    EplObdWriteEntryFromLe(uiIndex_p, uiSubindex_p,
+					   pSrcData_le_p, uiSize_p);
+	} else {		// perform SDO transfer
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
-    tEplSdoComTransParamByIndex TransParamByIndex;
+		tEplSdoComTransParamByIndex TransParamByIndex;
 //    tEplSdoComConHdl            SdoComConHdl;
 
-        // check if application provides space for handle
-        if (pSdoComConHdl_p == NULL)
-        {
-            Ret = kEplApiInvalidParam;
-            goto Exit;
+		// check if application provides space for handle
+		if (pSdoComConHdl_p == NULL) {
+			Ret = kEplApiInvalidParam;
+			goto Exit;
 //            pSdoComConHdl_p = &SdoComConHdl;
-        }
+		}
+		// d.k.: How to recycle command layer connection?
+		//       Try to redefine it, which will return kEplSdoComHandleExists
+		//       and the existing command layer handle.
+		//       If the returned handle is busy, EplSdoComInitTransferByIndex()
+		//       will return with error.
+		// $$$ d.k.: Collisions may occur with Configuration Manager, if both the application and
+		//           Configuration Manager, are trying to communicate with the very same node.
+		//     possible solution: disallow communication by application if Configuration Manager is busy
 
-        // d.k.: How to recycle command layer connection?
-        //       Try to redefine it, which will return kEplSdoComHandleExists
-        //       and the existing command layer handle.
-        //       If the returned handle is busy, EplSdoComInitTransferByIndex()
-        //       will return with error.
-        // $$$ d.k.: Collisions may occur with Configuration Manager, if both the application and
-        //           Configuration Manager, are trying to communicate with the very same node.
-        //     possible solution: disallow communication by application if Configuration Manager is busy
+		// init command layer connection
+		Ret = EplSdoComDefineCon(pSdoComConHdl_p, uiNodeId_p,	// target node id
+					 SdoType_p);	// SDO type
+		if ((Ret != kEplSuccessful) && (Ret != kEplSdoComHandleExists)) {
+			goto Exit;
+		}
+		TransParamByIndex.m_pData = pSrcData_le_p;
+		TransParamByIndex.m_SdoAccessType = kEplSdoAccessTypeWrite;
+		TransParamByIndex.m_SdoComConHdl = *pSdoComConHdl_p;
+		TransParamByIndex.m_uiDataSize = uiSize_p;
+		TransParamByIndex.m_uiIndex = uiIndex_p;
+		TransParamByIndex.m_uiSubindex = uiSubindex_p;
+		TransParamByIndex.m_pfnSdoFinishedCb = EplApiCbSdoCon;
+		TransParamByIndex.m_pUserArg = pUserArg_p;
 
-        // init command layer connection
-        Ret = EplSdoComDefineCon(pSdoComConHdl_p,
-                                    uiNodeId_p,  // target node id
-                                    SdoType_p);    // SDO type
-        if ((Ret != kEplSuccessful) && (Ret != kEplSdoComHandleExists))
-        {
-            goto Exit;
-        }
-        TransParamByIndex.m_pData = pSrcData_le_p;
-        TransParamByIndex.m_SdoAccessType = kEplSdoAccessTypeWrite;
-        TransParamByIndex.m_SdoComConHdl = *pSdoComConHdl_p;
-        TransParamByIndex.m_uiDataSize = uiSize_p;
-        TransParamByIndex.m_uiIndex = uiIndex_p;
-        TransParamByIndex.m_uiSubindex = uiSubindex_p;
-        TransParamByIndex.m_pfnSdoFinishedCb = EplApiCbSdoCon;
-        TransParamByIndex.m_pUserArg = pUserArg_p;
-
-        Ret = EplSdoComInitTransferByIndex(&TransParamByIndex);
-        if (Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }
-        Ret = kEplApiTaskDeferred;
+		Ret = EplSdoComInitTransferByIndex(&TransParamByIndex);
+		if (Ret != kEplSuccessful) {
+			goto Exit;
+		}
+		Ret = kEplApiTaskDeferred;
 
 #else
-        Ret = kEplApiInvalidParam;
+		Ret = kEplApiInvalidParam;
 #endif
-    }
+	}
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
-
 
 // ----------------------------------------------------------------------------
 //
@@ -923,23 +850,21 @@ Exit:
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiFreeSdoChannel(
-            tEplSdoComConHdl SdoComConHdl_p)
+tEplKernel PUBLIC EplApiFreeSdoChannel(tEplSdoComConHdl SdoComConHdl_p)
 {
-tEplKernel      Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
 
-    // init command layer connection
-    Ret = EplSdoComUndefineCon(SdoComConHdl_p);
+	// init command layer connection
+	Ret = EplSdoComUndefineCon(SdoComConHdl_p);
 
 #else
-    Ret = kEplApiInvalidParam;
+	Ret = kEplApiInvalidParam;
 #endif
 
-    return Ret;
+	return Ret;
 }
-
 
 // ----------------------------------------------------------------------------
 //
@@ -956,22 +881,20 @@ tEplKernel      Ret = kEplSuccessful;
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiReadLocalObject(
-            unsigned int      uiIndex_p,
-            unsigned int      uiSubindex_p,
-            void*             pDstData_p,
-            unsigned int*     puiSize_p)
+tEplKernel PUBLIC EplApiReadLocalObject(unsigned int uiIndex_p,
+					unsigned int uiSubindex_p,
+					void *pDstData_p,
+					unsigned int *puiSize_p)
 {
-tEplKernel      Ret = kEplSuccessful;
-tEplObdSize     ObdSize;
+	tEplKernel Ret = kEplSuccessful;
+	tEplObdSize ObdSize;
 
-    ObdSize = (tEplObdSize) *puiSize_p;
-    Ret = EplObdReadEntry(uiIndex_p, uiSubindex_p, pDstData_p, &ObdSize);
-    *puiSize_p = (unsigned int) ObdSize;
+	ObdSize = (tEplObdSize) * puiSize_p;
+	Ret = EplObdReadEntry(uiIndex_p, uiSubindex_p, pDstData_p, &ObdSize);
+	*puiSize_p = (unsigned int)ObdSize;
 
-    return Ret;
+	return Ret;
 }
-
 
 // ----------------------------------------------------------------------------
 //
@@ -988,19 +911,19 @@ tEplObdSize     ObdSize;
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiWriteLocalObject(
-            unsigned int      uiIndex_p,
-            unsigned int      uiSubindex_p,
-            void*             pSrcData_p,
-            unsigned int      uiSize_p)
+tEplKernel PUBLIC EplApiWriteLocalObject(unsigned int uiIndex_p,
+					 unsigned int uiSubindex_p,
+					 void *pSrcData_p,
+					 unsigned int uiSize_p)
 {
-tEplKernel      Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
-    Ret = EplObdWriteEntry(uiIndex_p, uiSubindex_p, pSrcData_p, (tEplObdSize) uiSize_p);
+	Ret =
+	    EplObdWriteEntry(uiIndex_p, uiSubindex_p, pSrcData_p,
+			     (tEplObdSize) uiSize_p);
 
-    return Ret;
+	return Ret;
 }
-
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 // ----------------------------------------------------------------------------
@@ -1017,13 +940,13 @@ tEplKernel      Ret = kEplSuccessful;
 // ----------------------------------------------------------------------------
 
 tEplKernel PUBLIC EplApiMnTriggerStateChange(unsigned int uiNodeId_p,
-                                             tEplNmtNodeCommand  NodeCommand_p)
+					     tEplNmtNodeCommand NodeCommand_p)
 {
-tEplKernel      Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
-    Ret = EplNmtMnuTriggerStateChange(uiNodeId_p, NodeCommand_p);
+	Ret = EplNmtMnuTriggerStateChange(uiNodeId_p, NodeCommand_p);
 
-    return Ret;
+	return Ret;
 }
 
 #endif // (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
@@ -1043,136 +966,139 @@ tEplKernel      Ret = kEplSuccessful;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiCbObdAccess(tEplObdCbParam MEM* pParam_p)
+tEplKernel PUBLIC EplApiCbObdAccess(tEplObdCbParam MEM * pParam_p)
 {
-tEplKernel          Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
 #if (EPL_API_OBD_FORWARD_EVENT != FALSE)
-tEplApiEventArg     EventArg;
+	tEplApiEventArg EventArg;
 
-    // call user callback
-    // must be disabled for EplApiLinuxKernel.c, because of reentrancy problem
-    // for local OD access. This is not so bad as user callback function in
-    // application does not use OD callbacks at the moment.
-    EventArg.m_ObdCbParam = *pParam_p;
-    Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(kEplApiEventObdAccess,
-                                                    &EventArg,
-                                                    EplApiInstance_g.m_InitParam.m_pEventUserArg);
+	// call user callback
+	// must be disabled for EplApiLinuxKernel.c, because of reentrancy problem
+	// for local OD access. This is not so bad as user callback function in
+	// application does not use OD callbacks at the moment.
+	EventArg.m_ObdCbParam = *pParam_p;
+	Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(kEplApiEventObdAccess,
+							&EventArg,
+							EplApiInstance_g.
+							m_InitParam.
+							m_pEventUserArg);
 #endif
 
-    switch (pParam_p->m_uiIndex)
-    {
-        //case 0x1006:    // NMT_CycleLen_U32 (valid on reset)
-        case 0x1C14:    // DLL_LossOfFrameTolerance_U32
-        //case 0x1F98:    // NMT_CycleTiming_REC (valid on reset)
-        {
-            if (pParam_p->m_ObdEvent == kEplObdEvPostWrite)
-            {
-                // update DLL configuration
-                Ret = EplApiUpdateDllConfig(FALSE);
-            }
-            break;
-        }
+	switch (pParam_p->m_uiIndex) {
+		//case 0x1006:    // NMT_CycleLen_U32 (valid on reset)
+	case 0x1C14:		// DLL_LossOfFrameTolerance_U32
+		//case 0x1F98:    // NMT_CycleTiming_REC (valid on reset)
+		{
+			if (pParam_p->m_ObdEvent == kEplObdEvPostWrite) {
+				// update DLL configuration
+				Ret = EplApiUpdateDllConfig(FALSE);
+			}
+			break;
+		}
 
-        case 0x1020:    // CFM_VerifyConfiguration_REC.ConfId_U32 != 0
-        {
-            if ((pParam_p->m_ObdEvent == kEplObdEvPostWrite)
-                && (pParam_p->m_uiSubIndex == 3)
-                && (*((DWORD*)pParam_p->m_pArg) != 0))
-            {
-            DWORD   dwVerifyConfInvalid = 0;
-                // set CFM_VerifyConfiguration_REC.VerifyConfInvalid_U32 to 0
-                Ret = EplObdWriteEntry(0x1020, 4, &dwVerifyConfInvalid, 4);
-                // ignore any error because this objekt is optional
-                Ret = kEplSuccessful;
-            }
-            break;
-        }
+	case 0x1020:		// CFM_VerifyConfiguration_REC.ConfId_U32 != 0
+		{
+			if ((pParam_p->m_ObdEvent == kEplObdEvPostWrite)
+			    && (pParam_p->m_uiSubIndex == 3)
+			    && (*((DWORD *) pParam_p->m_pArg) != 0)) {
+				DWORD dwVerifyConfInvalid = 0;
+				// set CFM_VerifyConfiguration_REC.VerifyConfInvalid_U32 to 0
+				Ret =
+				    EplObdWriteEntry(0x1020, 4,
+						     &dwVerifyConfInvalid, 4);
+				// ignore any error because this objekt is optional
+				Ret = kEplSuccessful;
+			}
+			break;
+		}
 
-        case 0x1F9E:    // NMT_ResetCmd_U8
-        {
-            if (pParam_p->m_ObdEvent == kEplObdEvPreWrite)
-            {
-            BYTE    bNmtCommand;
+	case 0x1F9E:		// NMT_ResetCmd_U8
+		{
+			if (pParam_p->m_ObdEvent == kEplObdEvPreWrite) {
+				BYTE bNmtCommand;
 
-                bNmtCommand = *((BYTE *) pParam_p->m_pArg);
-                // check value range
-                switch ((tEplNmtCommand)bNmtCommand)
-                {
-                    case kEplNmtCmdResetNode:
-                    case kEplNmtCmdResetCommunication:
-                    case kEplNmtCmdResetConfiguration:
-                    case kEplNmtCmdSwReset:
-                    case kEplNmtCmdInvalidService:
-                        // valid command identifier specified
-                        break;
+				bNmtCommand = *((BYTE *) pParam_p->m_pArg);
+				// check value range
+				switch ((tEplNmtCommand) bNmtCommand) {
+				case kEplNmtCmdResetNode:
+				case kEplNmtCmdResetCommunication:
+				case kEplNmtCmdResetConfiguration:
+				case kEplNmtCmdSwReset:
+				case kEplNmtCmdInvalidService:
+					// valid command identifier specified
+					break;
 
-                    default:
-                        pParam_p->m_dwAbortCode = EPL_SDOAC_VALUE_RANGE_EXCEEDED;
-                        Ret = kEplObdAccessViolation;
-                        break;
-                }
-            }
-            else if (pParam_p->m_ObdEvent == kEplObdEvPostWrite)
-            {
-            BYTE    bNmtCommand;
+				default:
+					pParam_p->m_dwAbortCode =
+					    EPL_SDOAC_VALUE_RANGE_EXCEEDED;
+					Ret = kEplObdAccessViolation;
+					break;
+				}
+			} else if (pParam_p->m_ObdEvent == kEplObdEvPostWrite) {
+				BYTE bNmtCommand;
 
-                bNmtCommand = *((BYTE *) pParam_p->m_pArg);
-                // check value range
-                switch ((tEplNmtCommand)bNmtCommand)
-                {
-                    case kEplNmtCmdResetNode:
+				bNmtCommand = *((BYTE *) pParam_p->m_pArg);
+				// check value range
+				switch ((tEplNmtCommand) bNmtCommand) {
+				case kEplNmtCmdResetNode:
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
-                        Ret = EplNmtuNmtEvent(kEplNmtEventResetNode);
+					Ret =
+					    EplNmtuNmtEvent
+					    (kEplNmtEventResetNode);
 #endif
-                        break;
+					break;
 
-                    case kEplNmtCmdResetCommunication:
+				case kEplNmtCmdResetCommunication:
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
-                        Ret = EplNmtuNmtEvent(kEplNmtEventResetCom);
+					Ret =
+					    EplNmtuNmtEvent
+					    (kEplNmtEventResetCom);
 #endif
-                        break;
+					break;
 
-                    case kEplNmtCmdResetConfiguration:
+				case kEplNmtCmdResetConfiguration:
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
-                        Ret = EplNmtuNmtEvent(kEplNmtEventResetConfig);
+					Ret =
+					    EplNmtuNmtEvent
+					    (kEplNmtEventResetConfig);
 #endif
-                        break;
+					break;
 
-                    case kEplNmtCmdSwReset:
+				case kEplNmtCmdSwReset:
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
-                        Ret = EplNmtuNmtEvent(kEplNmtEventSwReset);
+					Ret =
+					    EplNmtuNmtEvent
+					    (kEplNmtEventSwReset);
 #endif
-                        break;
+					break;
 
-                    case kEplNmtCmdInvalidService:
-                        break;
+				case kEplNmtCmdInvalidService:
+					break;
 
-                    default:
-                        pParam_p->m_dwAbortCode = EPL_SDOAC_VALUE_RANGE_EXCEEDED;
-                        Ret = kEplObdAccessViolation;
-                        break;
-                }
-            }
-            break;
-        }
+				default:
+					pParam_p->m_dwAbortCode =
+					    EPL_SDOAC_VALUE_RANGE_EXCEEDED;
+					Ret = kEplObdAccessViolation;
+					break;
+				}
+			}
+			break;
+		}
 
-        default:
-            break;
-    }
+	default:
+		break;
+	}
 
 //Exit:
-    return Ret;
+	return Ret;
 }
-
-
 
 //=========================================================================//
 //                                                                         //
 //          P R I V A T E   F U N C T I O N S                              //
 //                                                                         //
 //=========================================================================//
-
 
 //---------------------------------------------------------------------------
 //
@@ -1189,58 +1115,63 @@ tEplApiEventArg     EventArg;
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiProcessEvent(
-            tEplEvent* pEplEvent_p)
+static tEplKernel PUBLIC EplApiProcessEvent(tEplEvent * pEplEvent_p)
 {
-tEplKernel          Ret;
-tEplEventError*     pEventError;
-tEplApiEventType    EventType;
+	tEplKernel Ret;
+	tEplEventError *pEventError;
+	tEplApiEventType EventType;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // process event
-    switch(pEplEvent_p->m_EventType)
-    {
-        // error event
-        case kEplEventTypeError:
-        {
-            pEventError = (tEplEventError*) pEplEvent_p->m_pArg;
-            switch (pEventError->m_EventSource)
-            {
-                // treat the errors from the following sources as critical
-                case kEplEventSourceEventk:
-                case kEplEventSourceEventu:
-                case kEplEventSourceDllk:
-                {
-                    EventType = kEplApiEventCriticalError;
-                    // halt the stack by entering NMT state Off
-                    Ret = EplNmtuNmtEvent(kEplNmtEventCriticalError);
-                    break;
-                }
+	// process event
+	switch (pEplEvent_p->m_EventType) {
+		// error event
+	case kEplEventTypeError:
+		{
+			pEventError = (tEplEventError *) pEplEvent_p->m_pArg;
+			switch (pEventError->m_EventSource) {
+				// treat the errors from the following sources as critical
+			case kEplEventSourceEventk:
+			case kEplEventSourceEventu:
+			case kEplEventSourceDllk:
+				{
+					EventType = kEplApiEventCriticalError;
+					// halt the stack by entering NMT state Off
+					Ret =
+					    EplNmtuNmtEvent
+					    (kEplNmtEventCriticalError);
+					break;
+				}
 
-                // the other errors are just warnings
-                default:
-                {
-                    EventType = kEplApiEventWarning;
-                    break;
-                }
-            }
+				// the other errors are just warnings
+			default:
+				{
+					EventType = kEplApiEventWarning;
+					break;
+				}
+			}
 
-            // call user callback
-            Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(EventType, (tEplApiEventArg*) pEventError, EplApiInstance_g.m_InitParam.m_pEventUserArg);
-            // discard error from callback function, because this could generate an endless loop
-            Ret = kEplSuccessful;
-            break;
-        }
+			// call user callback
+			Ret =
+			    EplApiInstance_g.m_InitParam.m_pfnCbEvent(EventType,
+								      (tEplApiEventArg
+								       *)
+								      pEventError,
+								      EplApiInstance_g.
+								      m_InitParam.
+								      m_pEventUserArg);
+			// discard error from callback function, because this could generate an endless loop
+			Ret = kEplSuccessful;
+			break;
+		}
 
-        // at present, there are no other events for this module
-        default:
-            break;
-    }
+		// at present, there are no other events for this module
+	default:
+		break;
+	}
 
-    return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -1257,221 +1188,212 @@ tEplApiEventType    EventType;
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p)
+static tEplKernel PUBLIC EplApiCbNmtStateChange(tEplEventNmtStateChange
+						NmtStateChange_p)
 {
-tEplKernel          Ret = kEplSuccessful;
-BYTE                bNmtState;
-tEplApiEventArg     EventArg;
+	tEplKernel Ret = kEplSuccessful;
+	BYTE bNmtState;
+	tEplApiEventArg EventArg;
 
-    // save NMT state in OD
-    bNmtState = (BYTE) NmtStateChange_p.m_NewNmtState;
-    Ret = EplObdWriteEntry(0x1F8C, 0, &bNmtState, 1);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	// save NMT state in OD
+	bNmtState = (BYTE) NmtStateChange_p.m_NewNmtState;
+	Ret = EplObdWriteEntry(0x1F8C, 0, &bNmtState, 1);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// do work which must be done in that state
+	switch (NmtStateChange_p.m_NewNmtState) {
+		// EPL stack is not running
+	case kEplNmtGsOff:
+		break;
 
-    // do work which must be done in that state
-    switch (NmtStateChange_p.m_NewNmtState)
-    {
-        // EPL stack is not running
-        case kEplNmtGsOff:
-            break;
-
-        // first init of the hardware
-        case kEplNmtGsInitialising:
+		// first init of the hardware
+	case kEplNmtGsInitialising:
 #if 0
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDO_UDP)) != 0)
-            // configure SDO via UDP (i.e. bind it to the EPL ethernet interface)
-            Ret = EplSdoUdpuConfig(EplApiInstance_g.m_InitParam.m_dwIpAddress, EPL_C_SDO_EPL_PORT);
-            if (Ret != kEplSuccessful)
-            {
-                goto Exit;
-            }
+		// configure SDO via UDP (i.e. bind it to the EPL ethernet interface)
+		Ret =
+		    EplSdoUdpuConfig(EplApiInstance_g.m_InitParam.m_dwIpAddress,
+				     EPL_C_SDO_EPL_PORT);
+		if (Ret != kEplSuccessful) {
+			goto Exit;
+		}
 #endif
 #endif
 
-            break;
+		break;
 
-        // init of the manufacturer-specific profile area and the
-        // standardised device profile area
-        case kEplNmtGsResetApplication:
-        {
-            // reset application part of OD
-            Ret = EplObdAccessOdPart(
-                kEplObdPartApp,
-                kEplObdDirLoad);
-            if (Ret != kEplSuccessful)
-            {
-                goto Exit;
-            }
+		// init of the manufacturer-specific profile area and the
+		// standardised device profile area
+	case kEplNmtGsResetApplication:
+		{
+			// reset application part of OD
+			Ret = EplObdAccessOdPart(kEplObdPartApp,
+						 kEplObdDirLoad);
+			if (Ret != kEplSuccessful) {
+				goto Exit;
+			}
 
-            break;
-        }
+			break;
+		}
 
-        // init of the communication profile area
-        case kEplNmtGsResetCommunication:
-        {
-            // reset communication part of OD
-            Ret = EplObdAccessOdPart(
-                kEplObdPartGen,
-                kEplObdDirLoad);
+		// init of the communication profile area
+	case kEplNmtGsResetCommunication:
+		{
+			// reset communication part of OD
+			Ret = EplObdAccessOdPart(kEplObdPartGen,
+						 kEplObdDirLoad);
 
-            if (Ret != kEplSuccessful)
-            {
-                goto Exit;
-            }
+			if (Ret != kEplSuccessful) {
+				goto Exit;
+			}
+			// $$$ d.k.: update OD only if OD was not loaded from non-volatile memory
+			Ret = EplApiUpdateObd();
+			if (Ret != kEplSuccessful) {
+				goto Exit;
+			}
 
-            // $$$ d.k.: update OD only if OD was not loaded from non-volatile memory
-            Ret = EplApiUpdateObd();
-            if (Ret != kEplSuccessful)
-            {
-                goto Exit;
-            }
+			break;
+		}
 
-            break;
-        }
+		// build the configuration with infos from OD
+	case kEplNmtGsResetConfiguration:
+		{
 
-        // build the configuration with infos from OD
-        case kEplNmtGsResetConfiguration:
-        {
+			Ret = EplApiUpdateDllConfig(TRUE);
+			if (Ret != kEplSuccessful) {
+				goto Exit;
+			}
 
-            Ret = EplApiUpdateDllConfig(TRUE);
-            if (Ret != kEplSuccessful)
-            {
-                goto Exit;
-            }
+			break;
+		}
 
-            break;
-        }
+		//-----------------------------------------------------------
+		// CN part of the state machine
 
-        //-----------------------------------------------------------
-        // CN part of the state machine
+		// node liste for EPL-Frames and check timeout
+	case kEplNmtCsNotActive:
+		{
+			// indicate completion of reset in NMT_ResetCmd_U8
+			bNmtState = (BYTE) kEplNmtCmdInvalidService;
+			Ret = EplObdWriteEntry(0x1F9E, 0, &bNmtState, 1);
+			if (Ret != kEplSuccessful) {
+				goto Exit;
+			}
 
-        // node liste for EPL-Frames and check timeout
-        case kEplNmtCsNotActive:
-        {
-            // indicate completion of reset in NMT_ResetCmd_U8
-            bNmtState = (BYTE) kEplNmtCmdInvalidService;
-            Ret = EplObdWriteEntry(0x1F9E, 0, &bNmtState, 1);
-            if (Ret != kEplSuccessful)
-            {
-                goto Exit;
-            }
+			break;
+		}
 
-            break;
-        }
+		// node process only async frames
+	case kEplNmtCsPreOperational1:
+		{
+			break;
+		}
 
-        // node process only async frames
-        case kEplNmtCsPreOperational1:
-        {
-            break;
-        }
+		// node process isochronus and asynchronus frames
+	case kEplNmtCsPreOperational2:
+		{
+			break;
+		}
 
-        // node process isochronus and asynchronus frames
-        case kEplNmtCsPreOperational2:
-        {
-            break;
-        }
+		// node should be configured und application is ready
+	case kEplNmtCsReadyToOperate:
+		{
+			break;
+		}
 
-        // node should be configured und application is ready
-        case kEplNmtCsReadyToOperate:
-        {
-            break;
-        }
+		// normal work state
+	case kEplNmtCsOperational:
+		{
+			break;
+		}
 
-        // normal work state
-        case kEplNmtCsOperational:
-        {
-            break;
-        }
+		// node stopped by MN
+		// -> only process asynchronus frames
+	case kEplNmtCsStopped:
+		{
+			break;
+		}
 
-        // node stopped by MN
-        // -> only process asynchronus frames
-        case kEplNmtCsStopped:
-        {
-            break;
-        }
+		// no EPL cycle
+		// -> normal ethernet communication
+	case kEplNmtCsBasicEthernet:
+		{
+			break;
+		}
 
-        // no EPL cycle
-        // -> normal ethernet communication
-        case kEplNmtCsBasicEthernet:
-        {
-            break;
-        }
+		//-----------------------------------------------------------
+		// MN part of the state machine
 
-        //-----------------------------------------------------------
-        // MN part of the state machine
+		// node listens for EPL-Frames and check timeout
+	case kEplNmtMsNotActive:
+		{
+			break;
+		}
 
-        // node listens for EPL-Frames and check timeout
-        case kEplNmtMsNotActive:
-        {
-            break;
-        }
+		// node processes only async frames
+	case kEplNmtMsPreOperational1:
+		{
+			break;
+		}
 
-        // node processes only async frames
-        case kEplNmtMsPreOperational1:
-        {
-            break;
-        }
+		// node processes isochronous and asynchronous frames
+	case kEplNmtMsPreOperational2:
+		{
+			break;
+		}
 
-        // node processes isochronous and asynchronous frames
-        case kEplNmtMsPreOperational2:
-        {
-            break;
-        }
+		// node should be configured und application is ready
+	case kEplNmtMsReadyToOperate:
+		{
+			break;
+		}
 
-        // node should be configured und application is ready
-        case kEplNmtMsReadyToOperate:
-        {
-            break;
-        }
+		// normal work state
+	case kEplNmtMsOperational:
+		{
+			break;
+		}
 
-        // normal work state
-        case kEplNmtMsOperational:
-        {
-            break;
-        }
+		// no EPL cycle
+		// -> normal ethernet communication
+	case kEplNmtMsBasicEthernet:
+		{
+			break;
+		}
 
-        // no EPL cycle
-        // -> normal ethernet communication
-        case kEplNmtMsBasicEthernet:
-        {
-            break;
-        }
-
-        default:
-        {
-            TRACE0("EplApiCbNmtStateChange(): unhandled NMT state\n");
-        }
-    }
+	default:
+		{
+			TRACE0
+			    ("EplApiCbNmtStateChange(): unhandled NMT state\n");
+		}
+	}
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_LEDU)) != 0)
-    // forward event to Led module
-    Ret = EplLeduCbNmtStateChange(NmtStateChange_p);
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	// forward event to Led module
+	Ret = EplLeduCbNmtStateChange(NmtStateChange_p);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-    // forward event to NmtMn module
-    Ret = EplNmtMnuCbNmtStateChange(NmtStateChange_p);
-    if (Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	// forward event to NmtMn module
+	Ret = EplNmtMnuCbNmtStateChange(NmtStateChange_p);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 #endif
 
-    // call user callback
-    EventArg.m_NmtStateChange = NmtStateChange_p;
-    Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(kEplApiEventNmtStateChange,
-                                                    &EventArg,
-                                                    EplApiInstance_g.m_InitParam.m_pEventUserArg);
+	// call user callback
+	EventArg.m_NmtStateChange = NmtStateChange_p;
+	Ret =
+	    EplApiInstance_g.m_InitParam.
+	    m_pfnCbEvent(kEplApiEventNmtStateChange, &EventArg,
+			 EplApiInstance_g.m_InitParam.m_pEventUserArg);
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -1491,202 +1413,210 @@ Exit:
 
 static tEplKernel PUBLIC EplApiUpdateDllConfig(BOOL fUpdateIdentity_p)
 {
-tEplKernel          Ret = kEplSuccessful;
-tEplDllConfigParam  DllConfigParam;
-tEplDllIdentParam   DllIdentParam;
-tEplObdSize         ObdSize;
-WORD                wTemp;
-BYTE                bTemp;
+	tEplKernel Ret = kEplSuccessful;
+	tEplDllConfigParam DllConfigParam;
+	tEplDllIdentParam DllIdentParam;
+	tEplObdSize ObdSize;
+	WORD wTemp;
+	BYTE bTemp;
 
-    // configure Dll
-    EPL_MEMSET(&DllConfigParam, 0, sizeof (DllConfigParam));
-    DllConfigParam.m_uiNodeId = EplObdGetNodeId();
+	// configure Dll
+	EPL_MEMSET(&DllConfigParam, 0, sizeof(DllConfigParam));
+	DllConfigParam.m_uiNodeId = EplObdGetNodeId();
 
-    // Cycle Length (0x1006: NMT_CycleLen_U32) in [us]
-    ObdSize = 4;
-    Ret = EplObdReadEntry(0x1006, 0, &DllConfigParam.m_dwCycleLen, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	// Cycle Length (0x1006: NMT_CycleLen_U32) in [us]
+	ObdSize = 4;
+	Ret =
+	    EplObdReadEntry(0x1006, 0, &DllConfigParam.m_dwCycleLen, &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// 0x1F82: NMT_FeatureFlags_U32
+	ObdSize = 4;
+	Ret =
+	    EplObdReadEntry(0x1F82, 0, &DllConfigParam.m_dwFeatureFlags,
+			    &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// d.k. There is no dependance between FeatureFlags and async-only CN
+	DllConfigParam.m_fAsyncOnly = EplApiInstance_g.m_InitParam.m_fAsyncOnly;
 
-    // 0x1F82: NMT_FeatureFlags_U32
-    ObdSize = 4;
-    Ret = EplObdReadEntry(0x1F82, 0, &DllConfigParam.m_dwFeatureFlags, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	// 0x1C14: DLL_LossOfFrameTolerance_U32 in [ns]
+	ObdSize = 4;
+	Ret =
+	    EplObdReadEntry(0x1C14, 0, &DllConfigParam.m_dwLossOfFrameTolerance,
+			    &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// 0x1F98: NMT_CycleTiming_REC
+	// 0x1F98.1: IsochrTxMaxPayload_U16
+	ObdSize = 2;
+	Ret = EplObdReadEntry(0x1F98, 1, &wTemp, &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	DllConfigParam.m_uiIsochrTxMaxPayload = wTemp;
 
-    // d.k. There is no dependance between FeatureFlags and async-only CN
-    DllConfigParam.m_fAsyncOnly = EplApiInstance_g.m_InitParam.m_fAsyncOnly;
+	// 0x1F98.2: IsochrRxMaxPayload_U16
+	ObdSize = 2;
+	Ret = EplObdReadEntry(0x1F98, 2, &wTemp, &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	DllConfigParam.m_uiIsochrRxMaxPayload = wTemp;
 
-    // 0x1C14: DLL_LossOfFrameTolerance_U32 in [ns]
-    ObdSize = 4;
-    Ret = EplObdReadEntry(0x1C14, 0, &DllConfigParam.m_dwLossOfFrameTolerance, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	// 0x1F98.3: PResMaxLatency_U32
+	ObdSize = 4;
+	Ret =
+	    EplObdReadEntry(0x1F98, 3, &DllConfigParam.m_dwPresMaxLatency,
+			    &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// 0x1F98.4: PReqActPayloadLimit_U16
+	ObdSize = 2;
+	Ret = EplObdReadEntry(0x1F98, 4, &wTemp, &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	DllConfigParam.m_uiPreqActPayloadLimit = wTemp;
 
-    // 0x1F98: NMT_CycleTiming_REC
-    // 0x1F98.1: IsochrTxMaxPayload_U16
-    ObdSize = 2;
-    Ret = EplObdReadEntry(0x1F98, 1, &wTemp, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-    DllConfigParam.m_uiIsochrTxMaxPayload = wTemp;
+	// 0x1F98.5: PResActPayloadLimit_U16
+	ObdSize = 2;
+	Ret = EplObdReadEntry(0x1F98, 5, &wTemp, &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	DllConfigParam.m_uiPresActPayloadLimit = wTemp;
 
-    // 0x1F98.2: IsochrRxMaxPayload_U16
-    ObdSize = 2;
-    Ret = EplObdReadEntry(0x1F98, 2, &wTemp, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-    DllConfigParam.m_uiIsochrRxMaxPayload = wTemp;
+	// 0x1F98.6: ASndMaxLatency_U32
+	ObdSize = 4;
+	Ret =
+	    EplObdReadEntry(0x1F98, 6, &DllConfigParam.m_dwAsndMaxLatency,
+			    &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// 0x1F98.7: MultiplCycleCnt_U8
+	ObdSize = 1;
+	Ret = EplObdReadEntry(0x1F98, 7, &bTemp, &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	DllConfigParam.m_uiMultiplCycleCnt = bTemp;
 
-    // 0x1F98.3: PResMaxLatency_U32
-    ObdSize = 4;
-    Ret = EplObdReadEntry(0x1F98, 3, &DllConfigParam.m_dwPresMaxLatency, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	// 0x1F98.8: AsyncMTU_U16
+	ObdSize = 2;
+	Ret = EplObdReadEntry(0x1F98, 8, &wTemp, &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	DllConfigParam.m_uiAsyncMtu = wTemp;
 
-    // 0x1F98.4: PReqActPayloadLimit_U16
-    ObdSize = 2;
-    Ret = EplObdReadEntry(0x1F98, 4, &wTemp, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-    DllConfigParam.m_uiPreqActPayloadLimit = wTemp;
-
-    // 0x1F98.5: PResActPayloadLimit_U16
-    ObdSize = 2;
-    Ret = EplObdReadEntry(0x1F98, 5, &wTemp, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-    DllConfigParam.m_uiPresActPayloadLimit = wTemp;
-
-    // 0x1F98.6: ASndMaxLatency_U32
-    ObdSize = 4;
-    Ret = EplObdReadEntry(0x1F98, 6, &DllConfigParam.m_dwAsndMaxLatency, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
-    // 0x1F98.7: MultiplCycleCnt_U8
-    ObdSize = 1;
-    Ret = EplObdReadEntry(0x1F98, 7, &bTemp, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-    DllConfigParam.m_uiMultiplCycleCnt = bTemp;
-
-    // 0x1F98.8: AsyncMTU_U16
-    ObdSize = 2;
-    Ret = EplObdReadEntry(0x1F98, 8, &wTemp, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-    DllConfigParam.m_uiAsyncMtu = wTemp;
-
-    // $$$ Prescaler
+	// $$$ Prescaler
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-    // 0x1F8A.1: WaitSoCPReq_U32 in [ns]
-    ObdSize = 4;
-    Ret = EplObdReadEntry(0x1F8A, 1, &DllConfigParam.m_dwWaitSocPreq, &ObdSize);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
-
-    // 0x1F8A.2: AsyncSlotTimeout_U32 in [ns] (optional)
-    ObdSize = 4;
-    Ret = EplObdReadEntry(0x1F8A, 2, &DllConfigParam.m_dwAsyncSlotTimeout, &ObdSize);
+	// 0x1F8A.1: WaitSoCPReq_U32 in [ns]
+	ObdSize = 4;
+	Ret =
+	    EplObdReadEntry(0x1F8A, 1, &DllConfigParam.m_dwWaitSocPreq,
+			    &ObdSize);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
+	// 0x1F8A.2: AsyncSlotTimeout_U32 in [ns] (optional)
+	ObdSize = 4;
+	Ret =
+	    EplObdReadEntry(0x1F8A, 2, &DllConfigParam.m_dwAsyncSlotTimeout,
+			    &ObdSize);
 /*    if(Ret != kEplSuccessful)
     {
         goto Exit;
     }*/
 #endif
 
-    DllConfigParam.m_uiSizeOfStruct = sizeof (DllConfigParam);
-    Ret = EplDllkConfig(&DllConfigParam);
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	DllConfigParam.m_uiSizeOfStruct = sizeof(DllConfigParam);
+	Ret = EplDllkConfig(&DllConfigParam);
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 
-    if (fUpdateIdentity_p != FALSE)
-    {
-        // configure Identity
-        EPL_MEMSET(&DllIdentParam, 0, sizeof (DllIdentParam));
-        ObdSize = 4;
-        Ret = EplObdReadEntry(0x1000, 0, &DllIdentParam.m_dwDeviceType, &ObdSize);
-        if(Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }
+	if (fUpdateIdentity_p != FALSE) {
+		// configure Identity
+		EPL_MEMSET(&DllIdentParam, 0, sizeof(DllIdentParam));
+		ObdSize = 4;
+		Ret =
+		    EplObdReadEntry(0x1000, 0, &DllIdentParam.m_dwDeviceType,
+				    &ObdSize);
+		if (Ret != kEplSuccessful) {
+			goto Exit;
+		}
 
-        ObdSize = 4;
-        Ret = EplObdReadEntry(0x1018, 1, &DllIdentParam.m_dwVendorId, &ObdSize);
-        if(Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }
-        ObdSize = 4;
-        Ret = EplObdReadEntry(0x1018, 2, &DllIdentParam.m_dwProductCode, &ObdSize);
-        if(Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }
-        ObdSize = 4;
-        Ret = EplObdReadEntry(0x1018, 3, &DllIdentParam.m_dwRevisionNumber, &ObdSize);
-        if(Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }
-        ObdSize = 4;
-        Ret = EplObdReadEntry(0x1018, 4, &DllIdentParam.m_dwSerialNumber, &ObdSize);
-        if(Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }
+		ObdSize = 4;
+		Ret =
+		    EplObdReadEntry(0x1018, 1, &DllIdentParam.m_dwVendorId,
+				    &ObdSize);
+		if (Ret != kEplSuccessful) {
+			goto Exit;
+		}
+		ObdSize = 4;
+		Ret =
+		    EplObdReadEntry(0x1018, 2, &DllIdentParam.m_dwProductCode,
+				    &ObdSize);
+		if (Ret != kEplSuccessful) {
+			goto Exit;
+		}
+		ObdSize = 4;
+		Ret =
+		    EplObdReadEntry(0x1018, 3,
+				    &DllIdentParam.m_dwRevisionNumber,
+				    &ObdSize);
+		if (Ret != kEplSuccessful) {
+			goto Exit;
+		}
+		ObdSize = 4;
+		Ret =
+		    EplObdReadEntry(0x1018, 4, &DllIdentParam.m_dwSerialNumber,
+				    &ObdSize);
+		if (Ret != kEplSuccessful) {
+			goto Exit;
+		}
 
-        DllIdentParam.m_dwIpAddress = EplApiInstance_g.m_InitParam.m_dwIpAddress;
-        DllIdentParam.m_dwSubnetMask = EplApiInstance_g.m_InitParam.m_dwSubnetMask;
-        EPL_MEMCPY(DllIdentParam.m_sHostname, EplApiInstance_g.m_InitParam.m_sHostname, sizeof (DllIdentParam.m_sHostname));
+		DllIdentParam.m_dwIpAddress =
+		    EplApiInstance_g.m_InitParam.m_dwIpAddress;
+		DllIdentParam.m_dwSubnetMask =
+		    EplApiInstance_g.m_InitParam.m_dwSubnetMask;
+		EPL_MEMCPY(DllIdentParam.m_sHostname,
+			   EplApiInstance_g.m_InitParam.m_sHostname,
+			   sizeof(DllIdentParam.m_sHostname));
 
-        ObdSize = 4;
-        Ret = EplObdReadEntry(0x1020, 1, &DllIdentParam.m_dwVerifyConfigurationDate, &ObdSize);
-        // ignore any error, because this object is optional
+		ObdSize = 4;
+		Ret =
+		    EplObdReadEntry(0x1020, 1,
+				    &DllIdentParam.m_dwVerifyConfigurationDate,
+				    &ObdSize);
+		// ignore any error, because this object is optional
 
-        ObdSize = 4;
-        Ret = EplObdReadEntry(0x1020, 2, &DllIdentParam.m_dwVerifyConfigurationTime, &ObdSize);
-        // ignore any error, because this object is optional
+		ObdSize = 4;
+		Ret =
+		    EplObdReadEntry(0x1020, 2,
+				    &DllIdentParam.m_dwVerifyConfigurationTime,
+				    &ObdSize);
+		// ignore any error, because this object is optional
 
-        // $$$ d.k.: fill rest of ident structure
+		// $$$ d.k.: fill rest of ident structure
 
-        DllIdentParam.m_uiSizeOfStruct = sizeof (DllIdentParam);
-        Ret = EplDllkSetIdentity(&DllIdentParam);
-        if(Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }
-    }
+		DllIdentParam.m_uiSizeOfStruct = sizeof(DllIdentParam);
+		Ret = EplDllkSetIdentity(&DllIdentParam);
+		if (Ret != kEplSuccessful) {
+			goto Exit;
+		}
+	}
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -1706,223 +1636,258 @@ Exit:
 
 static tEplKernel PUBLIC EplApiUpdateObd(void)
 {
-tEplKernel          Ret = kEplSuccessful;
-WORD                wTemp;
-BYTE                bTemp;
+	tEplKernel Ret = kEplSuccessful;
+	WORD wTemp;
+	BYTE bTemp;
 
-    // set node id in OD
-    Ret = EplObdSetNodeId(EplApiInstance_g.m_InitParam.m_uiNodeId,    // node id
-                            kEplObdNodeIdHardware); // set by hardware
-    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }
+	// set node id in OD
+	Ret = EplObdSetNodeId(EplApiInstance_g.m_InitParam.m_uiNodeId,	// node id
+			      kEplObdNodeIdHardware);	// set by hardware
+	if (Ret != kEplSuccessful) {
+		goto Exit;
+	}
 
-    if (EplApiInstance_g.m_InitParam.m_dwCycleLen != -1)
-    {
-        Ret = EplObdWriteEntry(0x1006, 0, &EplApiInstance_g.m_InitParam.m_dwCycleLen, 4);
+	if (EplApiInstance_g.m_InitParam.m_dwCycleLen != -1) {
+		Ret =
+		    EplObdWriteEntry(0x1006, 0,
+				     &EplApiInstance_g.m_InitParam.m_dwCycleLen,
+				     4);
 /*    if(Ret != kEplSuccessful)
     {
         goto Exit;
     }*/
-    }
+	}
 
-    if (EplApiInstance_g.m_InitParam.m_dwLossOfFrameTolerance != -1)
-    {
-        Ret = EplObdWriteEntry(0x1C14, 0, &EplApiInstance_g.m_InitParam.m_dwLossOfFrameTolerance, 4);
-    /*        if(Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }*/
-    }
+	if (EplApiInstance_g.m_InitParam.m_dwLossOfFrameTolerance != -1) {
+		Ret =
+		    EplObdWriteEntry(0x1C14, 0,
+				     &EplApiInstance_g.m_InitParam.
+				     m_dwLossOfFrameTolerance, 4);
+		/*        if(Ret != kEplSuccessful)
+		   {
+		   goto Exit;
+		   } */
+	}
+	// d.k. There is no dependance between FeatureFlags and async-only CN.
+	if (EplApiInstance_g.m_InitParam.m_dwFeatureFlags != -1) {
+		Ret =
+		    EplObdWriteEntry(0x1F82, 0,
+				     &EplApiInstance_g.m_InitParam.
+				     m_dwFeatureFlags, 4);
+		/*    if(Ret != kEplSuccessful)
+		   {
+		   goto Exit;
+		   } */
+	}
 
-    // d.k. There is no dependance between FeatureFlags and async-only CN.
-    if (EplApiInstance_g.m_InitParam.m_dwFeatureFlags != -1)
-    {
-        Ret = EplObdWriteEntry(0x1F82, 0, &EplApiInstance_g.m_InitParam.m_dwFeatureFlags, 4);
-    /*    if(Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }*/
-    }
-
-    wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiIsochrTxMaxPayload;
-    Ret = EplObdWriteEntry(0x1F98, 1, &wTemp, 2);
-/*    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }*/
-
-    wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiIsochrRxMaxPayload;
-    Ret = EplObdWriteEntry(0x1F98, 2, &wTemp, 2);
-/*    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }*/
-
-    Ret = EplObdWriteEntry(0x1F98, 3, &EplApiInstance_g.m_InitParam.m_dwPresMaxLatency, 4);
+	wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiIsochrTxMaxPayload;
+	Ret = EplObdWriteEntry(0x1F98, 1, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
         goto Exit;
     }*/
 
-    if (EplApiInstance_g.m_InitParam.m_uiPreqActPayloadLimit <= EPL_C_DLL_ISOCHR_MAX_PAYL)
-    {
-        wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiPreqActPayloadLimit;
-        Ret = EplObdWriteEntry(0x1F98, 4, &wTemp, 2);
-/*    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }*/
-    }
-
-    if (EplApiInstance_g.m_InitParam.m_uiPresActPayloadLimit <= EPL_C_DLL_ISOCHR_MAX_PAYL)
-    {
-        wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiPresActPayloadLimit;
-        Ret = EplObdWriteEntry(0x1F98, 5, &wTemp, 2);
-/*    if(Ret != kEplSuccessful)
-    {
-        goto Exit;
-    }*/
-    }
-
-    Ret = EplObdWriteEntry(0x1F98, 6, &EplApiInstance_g.m_InitParam.m_dwAsndMaxLatency, 4);
+	wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiIsochrRxMaxPayload;
+	Ret = EplObdWriteEntry(0x1F98, 2, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
         goto Exit;
     }*/
 
-    if (EplApiInstance_g.m_InitParam.m_uiMultiplCycleCnt <= 0xFF)
-    {
-        bTemp = (BYTE) EplApiInstance_g.m_InitParam.m_uiMultiplCycleCnt;
-        Ret = EplObdWriteEntry(0x1F98, 7, &bTemp, 1);
+	Ret =
+	    EplObdWriteEntry(0x1F98, 3,
+			     &EplApiInstance_g.m_InitParam.m_dwPresMaxLatency,
+			     4);
 /*    if(Ret != kEplSuccessful)
     {
         goto Exit;
     }*/
-    }
 
-    if (EplApiInstance_g.m_InitParam.m_uiAsyncMtu <= EPL_C_DLL_MAX_ASYNC_MTU)
-    {
-        wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiAsyncMtu;
-        Ret = EplObdWriteEntry(0x1F98, 8, &wTemp, 2);
+	if (EplApiInstance_g.m_InitParam.m_uiPreqActPayloadLimit <=
+	    EPL_C_DLL_ISOCHR_MAX_PAYL) {
+		wTemp =
+		    (WORD) EplApiInstance_g.m_InitParam.m_uiPreqActPayloadLimit;
+		Ret = EplObdWriteEntry(0x1F98, 4, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
         goto Exit;
     }*/
-    }
+	}
 
-    if (EplApiInstance_g.m_InitParam.m_uiPrescaler <= 1000)
+	if (EplApiInstance_g.m_InitParam.m_uiPresActPayloadLimit <=
+	    EPL_C_DLL_ISOCHR_MAX_PAYL) {
+		wTemp =
+		    (WORD) EplApiInstance_g.m_InitParam.m_uiPresActPayloadLimit;
+		Ret = EplObdWriteEntry(0x1F98, 5, &wTemp, 2);
+/*    if(Ret != kEplSuccessful)
     {
-        wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiPrescaler;
-        Ret = EplObdWriteEntry(0x1F98, 9, &wTemp, 2);
-        // ignore return code
-        Ret = kEplSuccessful;
-    }
+        goto Exit;
+    }*/
+	}
 
+	Ret =
+	    EplObdWriteEntry(0x1F98, 6,
+			     &EplApiInstance_g.m_InitParam.m_dwAsndMaxLatency,
+			     4);
+/*    if(Ret != kEplSuccessful)
+    {
+        goto Exit;
+    }*/
+
+	if (EplApiInstance_g.m_InitParam.m_uiMultiplCycleCnt <= 0xFF) {
+		bTemp = (BYTE) EplApiInstance_g.m_InitParam.m_uiMultiplCycleCnt;
+		Ret = EplObdWriteEntry(0x1F98, 7, &bTemp, 1);
+/*    if(Ret != kEplSuccessful)
+    {
+        goto Exit;
+    }*/
+	}
+
+	if (EplApiInstance_g.m_InitParam.m_uiAsyncMtu <=
+	    EPL_C_DLL_MAX_ASYNC_MTU) {
+		wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiAsyncMtu;
+		Ret = EplObdWriteEntry(0x1F98, 8, &wTemp, 2);
+/*    if(Ret != kEplSuccessful)
+    {
+        goto Exit;
+    }*/
+	}
+
+	if (EplApiInstance_g.m_InitParam.m_uiPrescaler <= 1000) {
+		wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiPrescaler;
+		Ret = EplObdWriteEntry(0x1F98, 9, &wTemp, 2);
+		// ignore return code
+		Ret = kEplSuccessful;
+	}
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-    if (EplApiInstance_g.m_InitParam.m_dwWaitSocPreq != -1)
-    {
-        Ret = EplObdWriteEntry(0x1F8A, 1, &EplApiInstance_g.m_InitParam.m_dwWaitSocPreq, 4);
-    /*        if(Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }*/
-    }
+	if (EplApiInstance_g.m_InitParam.m_dwWaitSocPreq != -1) {
+		Ret =
+		    EplObdWriteEntry(0x1F8A, 1,
+				     &EplApiInstance_g.m_InitParam.
+				     m_dwWaitSocPreq, 4);
+		/*        if(Ret != kEplSuccessful)
+		   {
+		   goto Exit;
+		   } */
+	}
 
-    if ((EplApiInstance_g.m_InitParam.m_dwAsyncSlotTimeout != 0) && (EplApiInstance_g.m_InitParam.m_dwAsyncSlotTimeout != -1))
-    {
-        Ret = EplObdWriteEntry(0x1F8A, 2, &EplApiInstance_g.m_InitParam.m_dwAsyncSlotTimeout, 4);
-    /*        if(Ret != kEplSuccessful)
-        {
-            goto Exit;
-        }*/
-    }
+	if ((EplApiInstance_g.m_InitParam.m_dwAsyncSlotTimeout != 0)
+	    && (EplApiInstance_g.m_InitParam.m_dwAsyncSlotTimeout != -1)) {
+		Ret =
+		    EplObdWriteEntry(0x1F8A, 2,
+				     &EplApiInstance_g.m_InitParam.
+				     m_dwAsyncSlotTimeout, 4);
+		/*        if(Ret != kEplSuccessful)
+		   {
+		   goto Exit;
+		   } */
+	}
 #endif
 
-    // configure Identity
-    if (EplApiInstance_g.m_InitParam.m_dwDeviceType != -1)
-    {
-        Ret = EplObdWriteEntry(0x1000, 0, &EplApiInstance_g.m_InitParam.m_dwDeviceType, 4);
+	// configure Identity
+	if (EplApiInstance_g.m_InitParam.m_dwDeviceType != -1) {
+		Ret =
+		    EplObdWriteEntry(0x1000, 0,
+				     &EplApiInstance_g.m_InitParam.
+				     m_dwDeviceType, 4);
 /*        if(Ret != kEplSuccessful)
         {
             goto Exit;
         }*/
-    }
+	}
 
-    if (EplApiInstance_g.m_InitParam.m_dwVendorId != -1)
-    {
-        Ret = EplObdWriteEntry(0x1018, 1, &EplApiInstance_g.m_InitParam.m_dwVendorId, 4);
+	if (EplApiInstance_g.m_InitParam.m_dwVendorId != -1) {
+		Ret =
+		    EplObdWriteEntry(0x1018, 1,
+				     &EplApiInstance_g.m_InitParam.m_dwVendorId,
+				     4);
 /*        if(Ret != kEplSuccessful)
         {
             goto Exit;
         }*/
-    }
+	}
 
-    if (EplApiInstance_g.m_InitParam.m_dwProductCode != -1)
-    {
-        Ret = EplObdWriteEntry(0x1018, 2, &EplApiInstance_g.m_InitParam.m_dwProductCode, 4);
+	if (EplApiInstance_g.m_InitParam.m_dwProductCode != -1) {
+		Ret =
+		    EplObdWriteEntry(0x1018, 2,
+				     &EplApiInstance_g.m_InitParam.
+				     m_dwProductCode, 4);
 /*        if(Ret != kEplSuccessful)
         {
             goto Exit;
         }*/
-    }
+	}
 
-    if (EplApiInstance_g.m_InitParam.m_dwRevisionNumber != -1)
-    {
-        Ret = EplObdWriteEntry(0x1018, 3, &EplApiInstance_g.m_InitParam.m_dwRevisionNumber, 4);
+	if (EplApiInstance_g.m_InitParam.m_dwRevisionNumber != -1) {
+		Ret =
+		    EplObdWriteEntry(0x1018, 3,
+				     &EplApiInstance_g.m_InitParam.
+				     m_dwRevisionNumber, 4);
 /*        if(Ret != kEplSuccessful)
         {
             goto Exit;
         }*/
-    }
+	}
 
-    if (EplApiInstance_g.m_InitParam.m_dwSerialNumber != -1)
-    {
-        Ret = EplObdWriteEntry(0x1018, 4, &EplApiInstance_g.m_InitParam.m_dwSerialNumber, 4);
+	if (EplApiInstance_g.m_InitParam.m_dwSerialNumber != -1) {
+		Ret =
+		    EplObdWriteEntry(0x1018, 4,
+				     &EplApiInstance_g.m_InitParam.
+				     m_dwSerialNumber, 4);
 /*        if(Ret != kEplSuccessful)
         {
             goto Exit;
         }*/
-    }
+	}
 
-    if (EplApiInstance_g.m_InitParam.m_pszDevName != NULL)
-    {
-        // write Device Name (0x1008)
-        Ret = EplObdWriteEntry (
-            0x1008, 0, (void GENERIC*) EplApiInstance_g.m_InitParam.m_pszDevName, (tEplObdSize) strlen(EplApiInstance_g.m_InitParam.m_pszDevName));
+	if (EplApiInstance_g.m_InitParam.m_pszDevName != NULL) {
+		// write Device Name (0x1008)
+		Ret =
+		    EplObdWriteEntry(0x1008, 0,
+				     (void GENERIC *)EplApiInstance_g.
+				     m_InitParam.m_pszDevName,
+				     (tEplObdSize) strlen(EplApiInstance_g.
+							  m_InitParam.
+							  m_pszDevName));
 /*        if (Ret != kEplSuccessful)
         {
             goto Exit;
         }*/
-    }
+	}
 
-    if (EplApiInstance_g.m_InitParam.m_pszHwVersion != NULL)
-    {
-        // write Hardware version (0x1009)
-        Ret = EplObdWriteEntry (
-            0x1009, 0, (void GENERIC*) EplApiInstance_g.m_InitParam.m_pszHwVersion, (tEplObdSize) strlen(EplApiInstance_g.m_InitParam.m_pszHwVersion));
+	if (EplApiInstance_g.m_InitParam.m_pszHwVersion != NULL) {
+		// write Hardware version (0x1009)
+		Ret =
+		    EplObdWriteEntry(0x1009, 0,
+				     (void GENERIC *)EplApiInstance_g.
+				     m_InitParam.m_pszHwVersion,
+				     (tEplObdSize) strlen(EplApiInstance_g.
+							  m_InitParam.
+							  m_pszHwVersion));
 /*        if (Ret != kEplSuccessful)
         {
             goto Exit;
         }*/
-    }
+	}
 
-    if (EplApiInstance_g.m_InitParam.m_pszSwVersion != NULL)
-    {
-        // write Software version (0x100A)
-        Ret = EplObdWriteEntry (
-            0x100A, 0, (void GENERIC*) EplApiInstance_g.m_InitParam.m_pszSwVersion, (tEplObdSize) strlen(EplApiInstance_g.m_InitParam.m_pszSwVersion));
+	if (EplApiInstance_g.m_InitParam.m_pszSwVersion != NULL) {
+		// write Software version (0x100A)
+		Ret =
+		    EplObdWriteEntry(0x100A, 0,
+				     (void GENERIC *)EplApiInstance_g.
+				     m_InitParam.m_pszSwVersion,
+				     (tEplObdSize) strlen(EplApiInstance_g.
+							  m_InitParam.
+							  m_pszSwVersion));
 /*        if (Ret != kEplSuccessful)
         {
             goto Exit;
         }*/
-    }
+	}
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -1940,24 +1905,25 @@ Exit:
 //---------------------------------------------------------------------------
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
-static tEplKernel PUBLIC  EplApiCbSdoCon(tEplSdoComFinished* pSdoComFinished_p)
+static tEplKernel PUBLIC EplApiCbSdoCon(tEplSdoComFinished * pSdoComFinished_p)
 {
-tEplKernel Ret;
-tEplApiEventArg EventArg;
+	tEplKernel Ret;
+	tEplApiEventArg EventArg;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // call user callback
-    EventArg.m_Sdo = *pSdoComFinished_p;
-    Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(kEplApiEventSdo,
-                                                    &EventArg,
-                                                    EplApiInstance_g.m_InitParam.m_pEventUserArg);
+	// call user callback
+	EventArg.m_Sdo = *pSdoComFinished_p;
+	Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(kEplApiEventSdo,
+							&EventArg,
+							EplApiInstance_g.
+							m_InitParam.
+							m_pEventUserArg);
 
-    return Ret;
+	return Ret;
 
 }
 #endif
-
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 
@@ -1980,32 +1946,32 @@ tEplApiEventArg EventArg;
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC  EplApiCbNodeEvent(unsigned int uiNodeId_p,
-                                            tEplNmtNodeEvent NodeEvent_p,
-                                            tEplNmtState NmtState_p,
-                                            WORD wErrorCode_p,
-                                            BOOL fMandatory_p)
+static tEplKernel PUBLIC EplApiCbNodeEvent(unsigned int uiNodeId_p,
+					   tEplNmtNodeEvent NodeEvent_p,
+					   tEplNmtState NmtState_p,
+					   WORD wErrorCode_p, BOOL fMandatory_p)
 {
-tEplKernel Ret;
-tEplApiEventArg EventArg;
+	tEplKernel Ret;
+	tEplApiEventArg EventArg;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // call user callback
-    EventArg.m_Node.m_uiNodeId = uiNodeId_p;
-    EventArg.m_Node.m_NodeEvent = NodeEvent_p;
-    EventArg.m_Node.m_NmtState = NmtState_p;
-    EventArg.m_Node.m_wErrorCode = wErrorCode_p;
-    EventArg.m_Node.m_fMandatory = fMandatory_p;
+	// call user callback
+	EventArg.m_Node.m_uiNodeId = uiNodeId_p;
+	EventArg.m_Node.m_NodeEvent = NodeEvent_p;
+	EventArg.m_Node.m_NmtState = NmtState_p;
+	EventArg.m_Node.m_wErrorCode = wErrorCode_p;
+	EventArg.m_Node.m_fMandatory = fMandatory_p;
 
-    Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(kEplApiEventNode,
-                                                    &EventArg,
-                                                    EplApiInstance_g.m_InitParam.m_pEventUserArg);
+	Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(kEplApiEventNode,
+							&EventArg,
+							EplApiInstance_g.
+							m_InitParam.
+							m_pEventUserArg);
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -2024,30 +1990,31 @@ tEplApiEventArg EventArg;
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC  EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
-                                            tEplNmtState NmtState_p,
-                                            WORD wErrorCode_p)
+static tEplKernel PUBLIC EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
+					   tEplNmtState NmtState_p,
+					   WORD wErrorCode_p)
 {
-tEplKernel Ret;
-tEplApiEventArg EventArg;
+	tEplKernel Ret;
+	tEplApiEventArg EventArg;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // call user callback
-    EventArg.m_Boot.m_BootEvent = BootEvent_p;
-    EventArg.m_Boot.m_NmtState = NmtState_p;
-    EventArg.m_Boot.m_wErrorCode = wErrorCode_p;
+	// call user callback
+	EventArg.m_Boot.m_BootEvent = BootEvent_p;
+	EventArg.m_Boot.m_NmtState = NmtState_p;
+	EventArg.m_Boot.m_wErrorCode = wErrorCode_p;
 
-    Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(kEplApiEventBoot,
-                                                    &EventArg,
-                                                    EplApiInstance_g.m_InitParam.m_pEventUserArg);
+	Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(kEplApiEventBoot,
+							&EventArg,
+							EplApiInstance_g.
+							m_InitParam.
+							m_pEventUserArg);
 
-    return Ret;
+	return Ret;
 
 }
 
 #endif // (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_LEDU)) != 0)
 
@@ -2066,28 +2033,28 @@ tEplApiEventArg EventArg;
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC  EplApiCbLedStateChange(tEplLedType LedType_p,
-                                                 BOOL fOn_p)
+static tEplKernel PUBLIC EplApiCbLedStateChange(tEplLedType LedType_p,
+						BOOL fOn_p)
 {
-tEplKernel Ret;
-tEplApiEventArg EventArg;
+	tEplKernel Ret;
+	tEplApiEventArg EventArg;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // call user callback
-    EventArg.m_Led.m_LedType = LedType_p;
-    EventArg.m_Led.m_fOn = fOn_p;
+	// call user callback
+	EventArg.m_Led.m_LedType = LedType_p;
+	EventArg.m_Led.m_fOn = fOn_p;
 
-    Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(kEplApiEventLed,
-                                                    &EventArg,
-                                                    EplApiInstance_g.m_InitParam.m_pEventUserArg);
+	Ret = EplApiInstance_g.m_InitParam.m_pfnCbEvent(kEplApiEventLed,
+							&EventArg,
+							EplApiInstance_g.
+							m_InitParam.
+							m_pEventUserArg);
 
-    return Ret;
+	return Ret;
 
 }
 
 #endif
 
-
 // EOF
-

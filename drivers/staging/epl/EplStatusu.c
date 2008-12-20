@@ -95,7 +95,6 @@
 // local function prototypes
 //---------------------------------------------------------------------------
 
-
 /***************************************************************************/
 /*                                                                         */
 /*                                                                         */
@@ -108,7 +107,6 @@
 //
 //
 /***************************************************************************/
-
 
 //=========================================================================//
 //                                                                         //
@@ -124,9 +122,8 @@
 // local types
 //---------------------------------------------------------------------------
 
-typedef struct
-{
-    tEplStatusuCbResponse m_apfnCbResponse[254];
+typedef struct {
+	tEplStatusuCbResponse m_apfnCbResponse[254];
 
 } tEplStatusuInstance;
 
@@ -134,13 +131,14 @@ typedef struct
 // local vars
 //---------------------------------------------------------------------------
 
-static tEplStatusuInstance   EplStatusuInstance_g;
+static tEplStatusuInstance EplStatusuInstance_g;
 
 //---------------------------------------------------------------------------
 // local function prototypes
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplStatusuCbStatusResponse(tEplFrameInfo * pFrameInfo_p);
+static tEplKernel PUBLIC EplStatusuCbStatusResponse(tEplFrameInfo *
+						    pFrameInfo_p);
 
 //=========================================================================//
 //                                                                         //
@@ -168,13 +166,12 @@ static tEplKernel PUBLIC EplStatusuCbStatusResponse(tEplFrameInfo * pFrameInfo_p
 
 EPLDLLEXPORT tEplKernel PUBLIC EplStatusuInit()
 {
-tEplKernel Ret;
+	tEplKernel Ret;
 
-    Ret = EplStatusuAddInstance();
+	Ret = EplStatusuAddInstance();
 
-    return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -196,20 +193,22 @@ tEplKernel Ret;
 
 EPLDLLEXPORT tEplKernel PUBLIC EplStatusuAddInstance()
 {
-tEplKernel Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // reset instance structure
-    EPL_MEMSET(&EplStatusuInstance_g, 0, sizeof (EplStatusuInstance_g));
+	// reset instance structure
+	EPL_MEMSET(&EplStatusuInstance_g, 0, sizeof(EplStatusuInstance_g));
 
-    // register StatusResponse callback function
-    Ret = EplDlluCalRegAsndService(kEplDllAsndStatusResponse, EplStatusuCbStatusResponse, kEplDllAsndFilterAny);
+	// register StatusResponse callback function
+	Ret =
+	    EplDlluCalRegAsndService(kEplDllAsndStatusResponse,
+				     EplStatusuCbStatusResponse,
+				     kEplDllAsndFilterAny);
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -231,17 +230,18 @@ tEplKernel Ret;
 
 EPLDLLEXPORT tEplKernel PUBLIC EplStatusuDelInstance()
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // deregister StatusResponse callback function
-    Ret = EplDlluCalRegAsndService(kEplDllAsndStatusResponse, NULL, kEplDllAsndFilterNone);
+	// deregister StatusResponse callback function
+	Ret =
+	    EplDlluCalRegAsndService(kEplDllAsndStatusResponse, NULL,
+				     kEplDllAsndFilterNone);
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -260,17 +260,16 @@ tEplKernel  Ret;
 
 EPLDLLEXPORT tEplKernel PUBLIC EplStatusuReset()
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // reset instance structure
-    EPL_MEMSET(&EplStatusuInstance_g, 0, sizeof (EplStatusuInstance_g));
+	// reset instance structure
+	EPL_MEMSET(&EplStatusuInstance_g, 0, sizeof(EplStatusuInstance_g));
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -288,41 +287,37 @@ tEplKernel  Ret;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplStatusuRequestStatusResponse(
-                                  unsigned int        uiNodeId_p,
-                                  tEplStatusuCbResponse pfnCbResponse_p)
+tEplKernel PUBLIC EplStatusuRequestStatusResponse(unsigned int uiNodeId_p,
+						  tEplStatusuCbResponse
+						  pfnCbResponse_p)
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // decrement node ID, because array is zero based
-    uiNodeId_p--;
-    if (uiNodeId_p < tabentries (EplStatusuInstance_g.m_apfnCbResponse))
-    {
+	// decrement node ID, because array is zero based
+	uiNodeId_p--;
+	if (uiNodeId_p < tabentries(EplStatusuInstance_g.m_apfnCbResponse)) {
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-        if (EplStatusuInstance_g.m_apfnCbResponse[uiNodeId_p] != NULL)
-        {   // request already issued (maybe by someone else)
-            Ret = kEplInvalidOperation;
-        }
-        else
-        {
-            EplStatusuInstance_g.m_apfnCbResponse[uiNodeId_p] = pfnCbResponse_p;
-            Ret = EplDlluCalIssueRequest(kEplDllReqServiceStatus, (uiNodeId_p + 1), 0xFF);
-        }
+		if (EplStatusuInstance_g.m_apfnCbResponse[uiNodeId_p] != NULL) {	// request already issued (maybe by someone else)
+			Ret = kEplInvalidOperation;
+		} else {
+			EplStatusuInstance_g.m_apfnCbResponse[uiNodeId_p] =
+			    pfnCbResponse_p;
+			Ret =
+			    EplDlluCalIssueRequest(kEplDllReqServiceStatus,
+						   (uiNodeId_p + 1), 0xFF);
+		}
 #else
-        Ret = kEplInvalidOperation;
+		Ret = kEplInvalidOperation;
 #endif
-    }
-    else
-    {   // invalid node ID specified
-        Ret = kEplInvalidNodeId;
-    }
+	} else {		// invalid node ID specified
+		Ret = kEplInvalidNodeId;
+	}
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //=========================================================================//
 //                                                                         //
@@ -347,41 +342,39 @@ tEplKernel  Ret;
 // State:
 //
 //---------------------------------------------------------------------------
-static tEplKernel PUBLIC EplStatusuCbStatusResponse(tEplFrameInfo * pFrameInfo_p)
+static tEplKernel PUBLIC EplStatusuCbStatusResponse(tEplFrameInfo *
+						    pFrameInfo_p)
 {
-tEplKernel      Ret = kEplSuccessful;
-unsigned int    uiNodeId;
-unsigned int    uiIndex;
-tEplStatusuCbResponse    pfnCbResponse;
+	tEplKernel Ret = kEplSuccessful;
+	unsigned int uiNodeId;
+	unsigned int uiIndex;
+	tEplStatusuCbResponse pfnCbResponse;
 
-    uiNodeId = AmiGetByteFromLe(&pFrameInfo_p->m_pFrame->m_le_bSrcNodeId);
+	uiNodeId = AmiGetByteFromLe(&pFrameInfo_p->m_pFrame->m_le_bSrcNodeId);
 
-    uiIndex = uiNodeId - 1;
+	uiIndex = uiNodeId - 1;
 
-    if (uiIndex < tabentries (EplStatusuInstance_g.m_apfnCbResponse))
-    {
-        // memorize pointer to callback function
-        pfnCbResponse = EplStatusuInstance_g.m_apfnCbResponse[uiIndex];
-        if (pfnCbResponse == NULL)
-        {   // response was not requested
-            goto Exit;
-        }
-        // reset callback function pointer so that caller may issue next request
-        EplStatusuInstance_g.m_apfnCbResponse[uiIndex] = NULL;
+	if (uiIndex < tabentries(EplStatusuInstance_g.m_apfnCbResponse)) {
+		// memorize pointer to callback function
+		pfnCbResponse = EplStatusuInstance_g.m_apfnCbResponse[uiIndex];
+		if (pfnCbResponse == NULL) {	// response was not requested
+			goto Exit;
+		}
+		// reset callback function pointer so that caller may issue next request
+		EplStatusuInstance_g.m_apfnCbResponse[uiIndex] = NULL;
 
-        if (pFrameInfo_p->m_uiFrameSize < EPL_C_DLL_MINSIZE_STATUSRES)
-        {   // StatusResponse not received or it has invalid size
-            Ret = pfnCbResponse(uiNodeId, NULL);
-        }
-        else
-        {   // StatusResponse received
-            Ret = pfnCbResponse(uiNodeId, &pFrameInfo_p->m_pFrame->m_Data.m_Asnd.m_Payload.m_StatusResponse);
-        }
-    }
+		if (pFrameInfo_p->m_uiFrameSize < EPL_C_DLL_MINSIZE_STATUSRES) {	// StatusResponse not received or it has invalid size
+			Ret = pfnCbResponse(uiNodeId, NULL);
+		} else {	// StatusResponse received
+			Ret =
+			    pfnCbResponse(uiNodeId,
+					  &pFrameInfo_p->m_pFrame->m_Data.
+					  m_Asnd.m_Payload.m_StatusResponse);
+		}
+	}
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
 
 // EOF
-

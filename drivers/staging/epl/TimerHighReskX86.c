@@ -91,27 +91,25 @@
 // const defines
 //---------------------------------------------------------------------------
 
-#define TIMER_COUNT           2            /* max 15 timers selectable */
-#define TIMER_MIN_VAL_SINGLE  5000         /* min 5us */
-#define TIMER_MIN_VAL_CYCLE   100000       /* min 100us */
+#define TIMER_COUNT           2	/* max 15 timers selectable */
+#define TIMER_MIN_VAL_SINGLE  5000	/* min 5us */
+#define TIMER_MIN_VAL_CYCLE   100000	/* min 100us */
 
 #define PROVE_OVERRUN
 
-
 #ifndef CONFIG_HIGH_RES_TIMERS
-    #error "Kernel symbol CONFIG_HIGH_RES_TIMERS is required."
+#error "Kernel symbol CONFIG_HIGH_RES_TIMERS is required."
 #endif
-
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-    void  PUBLIC  TgtDbgSignalTracePoint (BYTE bTracePointNumber_p);
-    void  PUBLIC  TgtDbgPostTraceValue (DWORD dwTraceValue_p);
-    #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
-    #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
+void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+#define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
+#define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else
-    #define TGT_DBG_SIGNAL_TRACE_POINT(p)
-    #define TGT_DBG_POST_TRACE_VALUE(v)
+#define TGT_DBG_SIGNAL_TRACE_POINT(p)
+#define TGT_DBG_POST_TRACE_VALUE(v)
 #endif
 #define HRT_DBG_POST_TRACE_VALUE(Event_p, uiNodeId_p, wErrorCode_p) \
     TGT_DBG_POST_TRACE_VALUE((0xE << 28) | (Event_p << 24) \
@@ -128,19 +126,17 @@
 // modul global types
 //---------------------------------------------------------------------------
 
-typedef struct
-{
-    tEplTimerEventArg    m_EventArg;
-    tEplTimerkCallback   m_pfnCallback;
-    struct hrtimer       m_Timer;
-    BOOL                 m_fContinuously;
-    unsigned long long   m_ullPeriod;
+typedef struct {
+	tEplTimerEventArg m_EventArg;
+	tEplTimerkCallback m_pfnCallback;
+	struct hrtimer m_Timer;
+	BOOL m_fContinuously;
+	unsigned long long m_ullPeriod;
 
 } tEplTimerHighReskTimerInfo;
 
-typedef struct
-{
-    tEplTimerHighReskTimerInfo  m_aTimerInfo[TIMER_COUNT];
+typedef struct {
+	tEplTimerHighReskTimerInfo m_aTimerInfo[TIMER_COUNT];
 
 } tEplTimerHighReskInstance;
 
@@ -148,20 +144,19 @@ typedef struct
 // local vars
 //---------------------------------------------------------------------------
 
-static tEplTimerHighReskInstance    EplTimerHighReskInstance_l;
+static tEplTimerHighReskInstance EplTimerHighReskInstance_l;
 
 //---------------------------------------------------------------------------
 // local function prototypes
 //---------------------------------------------------------------------------
 
-enum hrtimer_restart EplTimerHighReskCallback (struct hrtimer* pTimer_p);
+enum hrtimer_restart EplTimerHighReskCallback(struct hrtimer *pTimer_p);
 
 //=========================================================================//
 //                                                                         //
 //          P U B L I C   F U N C T I O N S                                //
 //                                                                         //
 //=========================================================================//
-
 
 //---------------------------------------------------------------------------
 //
@@ -179,14 +174,13 @@ enum hrtimer_restart EplTimerHighReskCallback (struct hrtimer* pTimer_p);
 
 tEplKernel PUBLIC EplTimerHighReskInit(void)
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = EplTimerHighReskAddInstance();
+	Ret = EplTimerHighReskAddInstance();
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -204,44 +198,44 @@ tEplKernel  Ret;
 
 tEplKernel PUBLIC EplTimerHighReskAddInstance(void)
 {
-tEplKernel                   Ret;
-unsigned int                 uiIndex;
+	tEplKernel Ret;
+	unsigned int uiIndex;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    EPL_MEMSET(&EplTimerHighReskInstance_l, 0, sizeof (EplTimerHighReskInstance_l));
+	EPL_MEMSET(&EplTimerHighReskInstance_l, 0,
+		   sizeof(EplTimerHighReskInstance_l));
 
 #ifndef CONFIG_HIGH_RES_TIMERS
-    printk("EplTimerHighResk: Kernel symbol CONFIG_HIGH_RES_TIMERS is required.\n");
-    Ret = kEplNoResource;
-    return Ret;
+	printk
+	    ("EplTimerHighResk: Kernel symbol CONFIG_HIGH_RES_TIMERS is required.\n");
+	Ret = kEplNoResource;
+	return Ret;
 #endif
 
-    /*
-     * Initialize hrtimer structures for all usable timers.
-     */
-    for (uiIndex = 0; uiIndex < TIMER_COUNT; uiIndex++)
-    {
-    tEplTimerHighReskTimerInfo*  pTimerInfo;
-    struct hrtimer*              pTimer;
+	/*
+	 * Initialize hrtimer structures for all usable timers.
+	 */
+	for (uiIndex = 0; uiIndex < TIMER_COUNT; uiIndex++) {
+		tEplTimerHighReskTimerInfo *pTimerInfo;
+		struct hrtimer *pTimer;
 
-        pTimerInfo = &EplTimerHighReskInstance_l.m_aTimerInfo[uiIndex];
-        pTimer = &pTimerInfo->m_Timer;
-        hrtimer_init(pTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+		pTimerInfo = &EplTimerHighReskInstance_l.m_aTimerInfo[uiIndex];
+		pTimer = &pTimerInfo->m_Timer;
+		hrtimer_init(pTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 
-        pTimer->function = EplTimerHighReskCallback;
+		pTimer->function = EplTimerHighReskCallback;
 
-        /*
-         * We use HRTIMER_CB_SOFTIRQ here.
-         * HRTIMER_CB_IRQSAFE is critical as the callback function
-         * would be called with IRQs disabled.
-         */
-        pTimer->cb_mode = HRTIMER_CB_SOFTIRQ;
-    }
+		/*
+		 * We use HRTIMER_CB_SOFTIRQ here.
+		 * HRTIMER_CB_IRQSAFE is critical as the callback function
+		 * would be called with IRQs disabled.
+		 */
+		pTimer->cb_mode = HRTIMER_CB_SOFTIRQ;
+	}
 
-    return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -259,29 +253,27 @@ unsigned int                 uiIndex;
 
 tEplKernel PUBLIC EplTimerHighReskDelInstance(void)
 {
-tEplTimerHighReskTimerInfo*  pTimerInfo;
-tEplKernel                   Ret;
-unsigned int                 uiIndex;
+	tEplTimerHighReskTimerInfo *pTimerInfo;
+	tEplKernel Ret;
+	unsigned int uiIndex;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    for (uiIndex = 0; uiIndex < TIMER_COUNT; uiIndex++)
-    {
-        pTimerInfo = &EplTimerHighReskInstance_l.m_aTimerInfo[0];
-        pTimerInfo->m_pfnCallback = NULL;
-        pTimerInfo->m_EventArg.m_TimerHdl = 0;
-        /*
-         * In this case we can not just try to cancel the timer.
-         * We actually have to wait until its callback function
-         * has returned.
-         */
-        hrtimer_cancel(&pTimerInfo->m_Timer);
-    }
+	for (uiIndex = 0; uiIndex < TIMER_COUNT; uiIndex++) {
+		pTimerInfo = &EplTimerHighReskInstance_l.m_aTimerInfo[0];
+		pTimerInfo->m_pfnCallback = NULL;
+		pTimerInfo->m_EventArg.m_TimerHdl = 0;
+		/*
+		 * In this case we can not just try to cancel the timer.
+		 * We actually have to wait until its callback function
+		 * has returned.
+		 */
+		hrtimer_cancel(&pTimerInfo->m_Timer);
+	}
 
-    return Ret;
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -313,95 +305,88 @@ unsigned int                 uiIndex;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimerHighReskModifyTimerNs(tEplTimerHdl*     pTimerHdl_p,
-                                    unsigned long long  ullTimeNs_p,
-                                    tEplTimerkCallback  pfnCallback_p,
-                                    unsigned long       ulArgument_p,
-                                    BOOL                fContinuously_p)
+tEplKernel PUBLIC EplTimerHighReskModifyTimerNs(tEplTimerHdl * pTimerHdl_p,
+						unsigned long long ullTimeNs_p,
+						tEplTimerkCallback
+						pfnCallback_p,
+						unsigned long ulArgument_p,
+						BOOL fContinuously_p)
 {
-tEplKernel                   Ret;
-unsigned int                 uiIndex;
-tEplTimerHighReskTimerInfo*  pTimerInfo;
-ktime_t                      RelTime;
+	tEplKernel Ret;
+	unsigned int uiIndex;
+	tEplTimerHighReskTimerInfo *pTimerInfo;
+	ktime_t RelTime;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // check pointer to handle
-    if(pTimerHdl_p == NULL)
-    {
-        Ret = kEplTimerInvalidHandle;
-        goto Exit;
-    }
+	// check pointer to handle
+	if (pTimerHdl_p == NULL) {
+		Ret = kEplTimerInvalidHandle;
+		goto Exit;
+	}
 
-    if (*pTimerHdl_p == 0)
-    {   // no timer created yet
+	if (*pTimerHdl_p == 0) {	// no timer created yet
 
-        // search free timer info structure
-        pTimerInfo = &EplTimerHighReskInstance_l.m_aTimerInfo[0];
-        for (uiIndex = 0; uiIndex < TIMER_COUNT; uiIndex++, pTimerInfo++)
-        {
-            if (pTimerInfo->m_EventArg.m_TimerHdl == 0)
-            {   // free structure found
-                break;
-            }
-        }
-        if (uiIndex >= TIMER_COUNT)
-        {   // no free structure found
-            Ret = kEplTimerNoTimerCreated;
-            goto Exit;
-        }
+		// search free timer info structure
+		pTimerInfo = &EplTimerHighReskInstance_l.m_aTimerInfo[0];
+		for (uiIndex = 0; uiIndex < TIMER_COUNT;
+		     uiIndex++, pTimerInfo++) {
+			if (pTimerInfo->m_EventArg.m_TimerHdl == 0) {	// free structure found
+				break;
+			}
+		}
+		if (uiIndex >= TIMER_COUNT) {	// no free structure found
+			Ret = kEplTimerNoTimerCreated;
+			goto Exit;
+		}
 
-        pTimerInfo->m_EventArg.m_TimerHdl = HDL_INIT(uiIndex);
-    }
-    else
-    {
-        uiIndex = HDL_TO_IDX(*pTimerHdl_p);
-        if (uiIndex >= TIMER_COUNT)
-        {   // invalid handle
-            Ret = kEplTimerInvalidHandle;
-            goto Exit;
-        }
+		pTimerInfo->m_EventArg.m_TimerHdl = HDL_INIT(uiIndex);
+	} else {
+		uiIndex = HDL_TO_IDX(*pTimerHdl_p);
+		if (uiIndex >= TIMER_COUNT) {	// invalid handle
+			Ret = kEplTimerInvalidHandle;
+			goto Exit;
+		}
 
-        pTimerInfo = &EplTimerHighReskInstance_l.m_aTimerInfo[uiIndex];
-    }
+		pTimerInfo = &EplTimerHighReskInstance_l.m_aTimerInfo[uiIndex];
+	}
 
-    /*
-     * increment timer handle
-     * (if timer expires right after this statement, the user
-     * would detect an unknown timer handle and discard it)
-     */
-    pTimerInfo->m_EventArg.m_TimerHdl = HDL_INC(pTimerInfo->m_EventArg.m_TimerHdl);
-    *pTimerHdl_p = pTimerInfo->m_EventArg.m_TimerHdl;
+	/*
+	 * increment timer handle
+	 * (if timer expires right after this statement, the user
+	 * would detect an unknown timer handle and discard it)
+	 */
+	pTimerInfo->m_EventArg.m_TimerHdl =
+	    HDL_INC(pTimerInfo->m_EventArg.m_TimerHdl);
+	*pTimerHdl_p = pTimerInfo->m_EventArg.m_TimerHdl;
 
-    // reject too small time values
-    if (    (fContinuously_p  && (ullTimeNs_p < TIMER_MIN_VAL_CYCLE))
-         || (!fContinuously_p && (ullTimeNs_p < TIMER_MIN_VAL_SINGLE)) )
-    {
-        Ret = kEplTimerNoTimerCreated;
-        goto Exit;
-    }
+	// reject too small time values
+	if ((fContinuously_p && (ullTimeNs_p < TIMER_MIN_VAL_CYCLE))
+	    || (!fContinuously_p && (ullTimeNs_p < TIMER_MIN_VAL_SINGLE))) {
+		Ret = kEplTimerNoTimerCreated;
+		goto Exit;
+	}
 
-    pTimerInfo->m_EventArg.m_ulArg = ulArgument_p;
-    pTimerInfo->m_pfnCallback      = pfnCallback_p;
-    pTimerInfo->m_fContinuously    = fContinuously_p;
-    pTimerInfo->m_ullPeriod        = ullTimeNs_p;
+	pTimerInfo->m_EventArg.m_ulArg = ulArgument_p;
+	pTimerInfo->m_pfnCallback = pfnCallback_p;
+	pTimerInfo->m_fContinuously = fContinuously_p;
+	pTimerInfo->m_ullPeriod = ullTimeNs_p;
 
-    /*
-     * HRTIMER_MODE_REL does not influence general handling of this timer.
-     * It only sets relative mode for this start operation.
-     * -> Expire time is calculated by: Now + RelTime
-     * hrtimer_start also skips pending timer events.
-     * The state HRTIMER_STATE_CALLBACK is ignored.
-     * We have to cope with that in our callback function.
-     */
-    RelTime = ktime_add_ns(ktime_set(0,0), ullTimeNs_p);
-    hrtimer_start(&pTimerInfo->m_Timer, RelTime, HRTIMER_MODE_REL);
+	/*
+	 * HRTIMER_MODE_REL does not influence general handling of this timer.
+	 * It only sets relative mode for this start operation.
+	 * -> Expire time is calculated by: Now + RelTime
+	 * hrtimer_start also skips pending timer events.
+	 * The state HRTIMER_STATE_CALLBACK is ignored.
+	 * We have to cope with that in our callback function.
+	 */
+	RelTime = ktime_add_ns(ktime_set(0, 0), ullTimeNs_p);
+	hrtimer_start(&pTimerInfo->m_Timer, RelTime, HRTIMER_MODE_REL);
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -418,63 +403,55 @@ Exit:
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimerHighReskDeleteTimer(tEplTimerHdl* pTimerHdl_p)
+tEplKernel PUBLIC EplTimerHighReskDeleteTimer(tEplTimerHdl * pTimerHdl_p)
 {
-tEplKernel                  Ret = kEplSuccessful;
-unsigned int                uiIndex;
-tEplTimerHighReskTimerInfo* pTimerInfo;
+	tEplKernel Ret = kEplSuccessful;
+	unsigned int uiIndex;
+	tEplTimerHighReskTimerInfo *pTimerInfo;
 
-    // check pointer to handle
-    if(pTimerHdl_p == NULL)
-    {
-        Ret = kEplTimerInvalidHandle;
-        goto Exit;
-    }
+	// check pointer to handle
+	if (pTimerHdl_p == NULL) {
+		Ret = kEplTimerInvalidHandle;
+		goto Exit;
+	}
 
-    if (*pTimerHdl_p == 0)
-    {   // no timer created yet
-        goto Exit;
-    }
-    else
-    {
-        uiIndex = HDL_TO_IDX(*pTimerHdl_p);
-        if (uiIndex >= TIMER_COUNT)
-        {   // invalid handle
-            Ret = kEplTimerInvalidHandle;
-            goto Exit;
-        }
-        pTimerInfo = &EplTimerHighReskInstance_l.m_aTimerInfo[uiIndex];
-        if (pTimerInfo->m_EventArg.m_TimerHdl != *pTimerHdl_p)
-        {   // invalid handle
-            goto Exit;
-        }
-    }
+	if (*pTimerHdl_p == 0) {	// no timer created yet
+		goto Exit;
+	} else {
+		uiIndex = HDL_TO_IDX(*pTimerHdl_p);
+		if (uiIndex >= TIMER_COUNT) {	// invalid handle
+			Ret = kEplTimerInvalidHandle;
+			goto Exit;
+		}
+		pTimerInfo = &EplTimerHighReskInstance_l.m_aTimerInfo[uiIndex];
+		if (pTimerInfo->m_EventArg.m_TimerHdl != *pTimerHdl_p) {	// invalid handle
+			goto Exit;
+		}
+	}
 
-    *pTimerHdl_p = 0;
-    pTimerInfo->m_EventArg.m_TimerHdl = 0;
-    pTimerInfo->m_pfnCallback = NULL;
+	*pTimerHdl_p = 0;
+	pTimerInfo->m_EventArg.m_TimerHdl = 0;
+	pTimerInfo->m_pfnCallback = NULL;
 
-    /*
-     * Three return cases of hrtimer_try_to_cancel have to be tracked:
-     *  1 - timer has been removed
-     *  0 - timer was not active
-     *      We need not do anything. hrtimer timers just consist of
-     *      a hrtimer struct, which we might enqueue in the hrtimers
-     *      event list by calling hrtimer_start().
-     *      If a timer is not enqueued, it is not present in hrtimers.
-     * -1 - callback function is running
-     *      In this case we have to ensure that the timer is not
-     *      continuously restarted. This has been done by clearing
-     *      its handle.
-     */
-    hrtimer_try_to_cancel(&pTimerInfo->m_Timer);
+	/*
+	 * Three return cases of hrtimer_try_to_cancel have to be tracked:
+	 *  1 - timer has been removed
+	 *  0 - timer was not active
+	 *      We need not do anything. hrtimer timers just consist of
+	 *      a hrtimer struct, which we might enqueue in the hrtimers
+	 *      event list by calling hrtimer_start().
+	 *      If a timer is not enqueued, it is not present in hrtimers.
+	 * -1 - callback function is running
+	 *      In this case we have to ensure that the timer is not
+	 *      continuously restarted. This has been done by clearing
+	 *      its handle.
+	 */
+	hrtimer_try_to_cancel(&pTimerInfo->m_Timer);
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 
 }
-
-
 
 //---------------------------------------------------------------------------
 //
@@ -490,66 +467,63 @@ Exit:
 //
 //---------------------------------------------------------------------------
 
-enum hrtimer_restart EplTimerHighReskCallback (struct hrtimer* pTimer_p)
+enum hrtimer_restart EplTimerHighReskCallback(struct hrtimer *pTimer_p)
 {
-unsigned int                 uiIndex;
-tEplTimerHighReskTimerInfo*  pTimerInfo;
-tEplTimerHdl                 OrgTimerHdl;
-enum hrtimer_restart         Ret;
+	unsigned int uiIndex;
+	tEplTimerHighReskTimerInfo *pTimerInfo;
+	tEplTimerHdl OrgTimerHdl;
+	enum hrtimer_restart Ret;
 
-    BENCHMARK_MOD_24_SET(4);
+	BENCHMARK_MOD_24_SET(4);
 
-    Ret        = HRTIMER_NORESTART;
-    pTimerInfo = container_of(pTimer_p, tEplTimerHighReskTimerInfo, m_Timer);
-    uiIndex    = HDL_TO_IDX(pTimerInfo->m_EventArg.m_TimerHdl);
-    if (uiIndex >= TIMER_COUNT)
-    {   // invalid handle
-        goto Exit;
-    }
+	Ret = HRTIMER_NORESTART;
+	pTimerInfo =
+	    container_of(pTimer_p, tEplTimerHighReskTimerInfo, m_Timer);
+	uiIndex = HDL_TO_IDX(pTimerInfo->m_EventArg.m_TimerHdl);
+	if (uiIndex >= TIMER_COUNT) {	// invalid handle
+		goto Exit;
+	}
 
-    /*
-     * We store the timer handle before calling the callback function
-     * as the timer can be modified inside it.
-     */
-    OrgTimerHdl = pTimerInfo->m_EventArg.m_TimerHdl;
+	/*
+	 * We store the timer handle before calling the callback function
+	 * as the timer can be modified inside it.
+	 */
+	OrgTimerHdl = pTimerInfo->m_EventArg.m_TimerHdl;
 
-    if (pTimerInfo->m_pfnCallback != NULL)
-    {
-        pTimerInfo->m_pfnCallback(&pTimerInfo->m_EventArg);
-    }
+	if (pTimerInfo->m_pfnCallback != NULL) {
+		pTimerInfo->m_pfnCallback(&pTimerInfo->m_EventArg);
+	}
 
-    if (pTimerInfo->m_fContinuously)
-    {
-    ktime_t        Interval;
+	if (pTimerInfo->m_fContinuously) {
+		ktime_t Interval;
 #ifdef PROVE_OVERRUN
-    ktime_t        Now;
-    unsigned long  Overruns;
+		ktime_t Now;
+		unsigned long Overruns;
 #endif
 
-        if (OrgTimerHdl != pTimerInfo->m_EventArg.m_TimerHdl)
-        {
-            /* modified timer has already been restarted */
-            goto Exit;
-        }
-
+		if (OrgTimerHdl != pTimerInfo->m_EventArg.m_TimerHdl) {
+			/* modified timer has already been restarted */
+			goto Exit;
+		}
 #ifdef PROVE_OVERRUN
-        Now      = ktime_get();
-        Interval = ktime_add_ns(ktime_set(0,0), pTimerInfo->m_ullPeriod);
-        Overruns = hrtimer_forward(pTimer_p, Now, Interval);
-        if (Overruns > 1)
-        {
-            printk("EplTimerHighResk: Continuous timer (handle 0x%lX) had to skip %lu interval(s)!\n", pTimerInfo->m_EventArg.m_TimerHdl, Overruns-1);
-        }
+		Now = ktime_get();
+		Interval =
+		    ktime_add_ns(ktime_set(0, 0), pTimerInfo->m_ullPeriod);
+		Overruns = hrtimer_forward(pTimer_p, Now, Interval);
+		if (Overruns > 1) {
+			printk
+			    ("EplTimerHighResk: Continuous timer (handle 0x%lX) had to skip %lu interval(s)!\n",
+			     pTimerInfo->m_EventArg.m_TimerHdl, Overruns - 1);
+		}
 #else
-        pTimer_p->expires = ktime_add_ns(pTimer_p->expires,
-                                         pTimerInfo->m_ullPeriod);
+		pTimer_p->expires = ktime_add_ns(pTimer_p->expires,
+						 pTimerInfo->m_ullPeriod);
 #endif
 
-        Ret = HRTIMER_RESTART;
-    }
+		Ret = HRTIMER_RESTART;
+	}
 
-Exit:
-    BENCHMARK_MOD_24_RESET(4);
-    return Ret;
+      Exit:
+	BENCHMARK_MOD_24_RESET(4);
+	return Ret;
 }
-

@@ -72,7 +72,6 @@
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_PDOK)) != 0)
 
-
 /***************************************************************************/
 /*                                                                         */
 /*                                                                         */
@@ -97,7 +96,6 @@
 // local function prototypes
 //---------------------------------------------------------------------------
 
-
 /***************************************************************************/
 /*                                                                         */
 /*                                                                         */
@@ -110,7 +108,6 @@
 //
 //
 /***************************************************************************/
-
 
 //=========================================================================//
 //                                                                         //
@@ -126,9 +123,8 @@
 // local types
 //---------------------------------------------------------------------------
 
-typedef struct
-{
-    BOOL            m_fTpdosValid;
+typedef struct {
+	BOOL m_fTpdosValid;
 
 } tEplPdokCalInstance;
 
@@ -136,12 +132,11 @@ typedef struct
 // local vars
 //---------------------------------------------------------------------------
 
-static tEplPdokCalInstance  EplPdokCalInstance_g;
+static tEplPdokCalInstance EplPdokCalInstance_g;
 
 //---------------------------------------------------------------------------
 // local function prototypes
 //---------------------------------------------------------------------------
-
 
 //=========================================================================//
 //                                                                         //
@@ -167,9 +162,9 @@ static tEplPdokCalInstance  EplPdokCalInstance_g;
 tEplKernel EplPdokCalAddInstance(void)
 {
 
-    EPL_MEMSET(&EplPdokCalInstance_g, 0, sizeof(EplPdokCalInstance_g));
+	EPL_MEMSET(&EplPdokCalInstance_g, 0, sizeof(EplPdokCalInstance_g));
 
-    return kEplSuccessful;
+	return kEplSuccessful;
 }
 
 //---------------------------------------------------------------------------
@@ -190,9 +185,8 @@ tEplKernel EplPdokCalAddInstance(void)
 tEplKernel EplPdokCalDelInstance(void)
 {
 
-    return kEplSuccessful;
+	return kEplSuccessful;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -212,11 +206,11 @@ tEplKernel EplPdokCalDelInstance(void)
 
 tEplKernel EplPdokCalSetTpdosValid(BOOL fValid_p)
 {
-tEplKernel      Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
-    EplPdokCalInstance_g.m_fTpdosValid = fValid_p;
+	EplPdokCalInstance_g.m_fTpdosValid = fValid_p;
 
-    return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -236,13 +230,12 @@ tEplKernel      Ret = kEplSuccessful;
 
 tEplKernel EplPdokCalAreTpdosValid(BOOL * pfValid_p)
 {
-tEplKernel      Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
-    *pfValid_p = EplPdokCalInstance_g.m_fTpdosValid;
+	*pfValid_p = EplPdokCalInstance_g.m_fTpdosValid;
 
-    return Ret;
+	return Ret;
 }
-
 
 //=========================================================================//
 //                                                                         //
@@ -271,4 +264,3 @@ tEplKernel      Ret = kEplSuccessful;
 #endif
 
 // EOF
-

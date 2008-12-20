@@ -78,7 +78,6 @@
 #include "kernel/EplDllkCal.h"
 #endif
 
-
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLU)) != 0)
 
 /***************************************************************************/
@@ -105,7 +104,6 @@
 // local function prototypes
 //---------------------------------------------------------------------------
 
-
 /***************************************************************************/
 /*                                                                         */
 /*                                                                         */
@@ -118,7 +116,6 @@
 //
 //
 /***************************************************************************/
-
 
 //=========================================================================//
 //                                                                         //
@@ -134,9 +131,8 @@
 // local types
 //---------------------------------------------------------------------------
 
-typedef struct
-{
-    tEplDlluCbAsnd  m_apfnDlluCbAsnd[EPL_DLL_MAX_ASND_SERVICE_ID];
+typedef struct {
+	tEplDlluCbAsnd m_apfnDlluCbAsnd[EPL_DLL_MAX_ASND_SERVICE_ID];
 
 } tEplDlluCalInstance;
 
@@ -146,13 +142,15 @@ typedef struct
 
 // if no dynamic memory allocation shall be used
 // define structures statically
-static tEplDlluCalInstance     EplDlluCalInstance_g;
+static tEplDlluCalInstance EplDlluCalInstance_g;
 
 //---------------------------------------------------------------------------
 // local function prototypes
 //---------------------------------------------------------------------------
 
-static tEplKernel EplDlluCalSetAsndServiceIdFilter(tEplDllAsndServiceId ServiceId_p, tEplDllAsndFilter Filter_p);
+static tEplKernel EplDlluCalSetAsndServiceIdFilter(tEplDllAsndServiceId
+						   ServiceId_p,
+						   tEplDllAsndFilter Filter_p);
 
 //=========================================================================//
 //                                                                         //
@@ -177,12 +175,12 @@ static tEplKernel EplDlluCalSetAsndServiceIdFilter(tEplDllAsndServiceId ServiceI
 
 tEplKernel EplDlluCalAddInstance()
 {
-tEplKernel      Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
-    // reset instance structure
-    EPL_MEMSET(&EplDlluCalInstance_g, 0, sizeof (EplDlluCalInstance_g));
+	// reset instance structure
+	EPL_MEMSET(&EplDlluCalInstance_g, 0, sizeof(EplDlluCalInstance_g));
 
-    return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -202,14 +200,13 @@ tEplKernel      Ret = kEplSuccessful;
 
 tEplKernel EplDlluCalDelInstance()
 {
-tEplKernel      Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
-    // reset instance structure
-    EPL_MEMSET(&EplDlluCalInstance_g, 0, sizeof (EplDlluCalInstance_g));
+	// reset instance structure
+	EPL_MEMSET(&EplDlluCalInstance_g, 0, sizeof(EplDlluCalInstance_g));
 
-    return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -228,37 +225,40 @@ tEplKernel      Ret = kEplSuccessful;
 
 tEplKernel EplDlluCalProcess(tEplEvent * pEvent_p)
 {
-tEplKernel      Ret = kEplSuccessful;
-tEplMsgType     MsgType;
-unsigned int    uiAsndServiceId;
-tEplFrameInfo   FrameInfo;
+	tEplKernel Ret = kEplSuccessful;
+	tEplMsgType MsgType;
+	unsigned int uiAsndServiceId;
+	tEplFrameInfo FrameInfo;
 
-    if (pEvent_p->m_EventType == kEplEventTypeAsndRx)
-    {
-        FrameInfo.m_pFrame = (tEplFrame*) pEvent_p->m_pArg;
-        FrameInfo.m_uiFrameSize = pEvent_p->m_uiSize;
-        // extract NetTime
-        FrameInfo.m_NetTime = pEvent_p->m_NetTime;
+	if (pEvent_p->m_EventType == kEplEventTypeAsndRx) {
+		FrameInfo.m_pFrame = (tEplFrame *) pEvent_p->m_pArg;
+		FrameInfo.m_uiFrameSize = pEvent_p->m_uiSize;
+		// extract NetTime
+		FrameInfo.m_NetTime = pEvent_p->m_NetTime;
 
-        MsgType = (tEplMsgType)AmiGetByteFromLe(&FrameInfo.m_pFrame->m_le_bMessageType);
-        if (MsgType != kEplMsgTypeAsnd)
-        {
-            Ret = kEplInvalidOperation;
-            goto Exit;
-        }
+		MsgType =
+		    (tEplMsgType) AmiGetByteFromLe(&FrameInfo.m_pFrame->
+						   m_le_bMessageType);
+		if (MsgType != kEplMsgTypeAsnd) {
+			Ret = kEplInvalidOperation;
+			goto Exit;
+		}
 
-        uiAsndServiceId = (unsigned int) AmiGetByteFromLe(&FrameInfo.m_pFrame->m_Data.m_Asnd.m_le_bServiceId);
-        if (uiAsndServiceId < EPL_DLL_MAX_ASND_SERVICE_ID)
-        {   // ASnd service ID is valid
-            if (EplDlluCalInstance_g.m_apfnDlluCbAsnd[uiAsndServiceId] != NULL)
-            {   // handler was registered
-                Ret = EplDlluCalInstance_g.m_apfnDlluCbAsnd[uiAsndServiceId](&FrameInfo);
-            }
-        }
-    }
+		uiAsndServiceId =
+		    (unsigned int)AmiGetByteFromLe(&FrameInfo.m_pFrame->m_Data.
+						   m_Asnd.m_le_bServiceId);
+		if (uiAsndServiceId < EPL_DLL_MAX_ASND_SERVICE_ID) {	// ASnd service ID is valid
+			if (EplDlluCalInstance_g.m_apfnDlluCbAsnd[uiAsndServiceId] != NULL) {	// handler was registered
+				Ret =
+				    EplDlluCalInstance_g.
+				    m_apfnDlluCbAsnd[uiAsndServiceId]
+				    (&FrameInfo);
+			}
+		}
+	}
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -279,26 +279,26 @@ Exit:
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDlluCalRegAsndService(tEplDllAsndServiceId ServiceId_p, tEplDlluCbAsnd pfnDlluCbAsnd_p, tEplDllAsndFilter Filter_p)
+tEplKernel EplDlluCalRegAsndService(tEplDllAsndServiceId ServiceId_p,
+				    tEplDlluCbAsnd pfnDlluCbAsnd_p,
+				    tEplDllAsndFilter Filter_p)
 {
-tEplKernel  Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
-    if (ServiceId_p < tabentries (EplDlluCalInstance_g.m_apfnDlluCbAsnd))
-    {
-        // memorize function pointer
-        EplDlluCalInstance_g.m_apfnDlluCbAsnd[ServiceId_p] = pfnDlluCbAsnd_p;
+	if (ServiceId_p < tabentries(EplDlluCalInstance_g.m_apfnDlluCbAsnd)) {
+		// memorize function pointer
+		EplDlluCalInstance_g.m_apfnDlluCbAsnd[ServiceId_p] =
+		    pfnDlluCbAsnd_p;
 
-        if (pfnDlluCbAsnd_p == NULL)
-        {   // close filter
-            Filter_p = kEplDllAsndFilterNone;
-        }
+		if (pfnDlluCbAsnd_p == NULL) {	// close filter
+			Filter_p = kEplDllAsndFilterNone;
+		}
+		// set filter in DLL module in kernel part
+		Ret = EplDlluCalSetAsndServiceIdFilter(ServiceId_p, Filter_p);
 
-        // set filter in DLL module in kernel part
-        Ret = EplDlluCalSetAsndServiceIdFilter(ServiceId_p, Filter_p);
+	}
 
-    }
-
-    return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -319,20 +319,20 @@ tEplKernel  Ret = kEplSuccessful;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDlluCalAsyncSend(tEplFrameInfo * pFrameInfo_p, tEplDllAsyncReqPriority Priority_p)
+tEplKernel EplDlluCalAsyncSend(tEplFrameInfo * pFrameInfo_p,
+			       tEplDllAsyncReqPriority Priority_p)
 {
-tEplKernel  Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLK)) != 0)
-    pFrameInfo_p->m_uiFrameSize += 14;  // add size of ethernet header
-    Ret = EplDllkCalAsyncSend(pFrameInfo_p, Priority_p);
+	pFrameInfo_p->m_uiFrameSize += 14;	// add size of ethernet header
+	Ret = EplDllkCalAsyncSend(pFrameInfo_p, Priority_p);
 #else
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 #endif
 
-    return Ret;
+	return Ret;
 }
-
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 
@@ -354,42 +354,41 @@ tEplKernel  Ret = kEplSuccessful;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDlluCalIssueRequest(tEplDllReqServiceId Service_p, unsigned int uiNodeId_p, BYTE bSoaFlag1_p)
+tEplKernel EplDlluCalIssueRequest(tEplDllReqServiceId Service_p,
+				  unsigned int uiNodeId_p, BYTE bSoaFlag1_p)
 {
-tEplKernel  Ret = kEplSuccessful;
+	tEplKernel Ret = kEplSuccessful;
 
-    // add node to appropriate request queue
-    switch (Service_p)
-    {
-        case kEplDllReqServiceIdent:
-        case kEplDllReqServiceStatus:
-        {
-        tEplEvent   Event;
-        tEplDllCalIssueRequest  IssueReq;
+	// add node to appropriate request queue
+	switch (Service_p) {
+	case kEplDllReqServiceIdent:
+	case kEplDllReqServiceStatus:
+		{
+			tEplEvent Event;
+			tEplDllCalIssueRequest IssueReq;
 
-            Event.m_EventSink = kEplEventSinkDllkCal;
-            Event.m_EventType = kEplEventTypeDllkIssueReq;
-            IssueReq.m_Service = Service_p;
-            IssueReq.m_uiNodeId = uiNodeId_p;
-            IssueReq.m_bSoaFlag1 = bSoaFlag1_p;
-            Event.m_pArg = &IssueReq;
-            Event.m_uiSize = sizeof (IssueReq);
+			Event.m_EventSink = kEplEventSinkDllkCal;
+			Event.m_EventType = kEplEventTypeDllkIssueReq;
+			IssueReq.m_Service = Service_p;
+			IssueReq.m_uiNodeId = uiNodeId_p;
+			IssueReq.m_bSoaFlag1 = bSoaFlag1_p;
+			Event.m_pArg = &IssueReq;
+			Event.m_uiSize = sizeof(IssueReq);
 
-            Ret = EplEventuPost(&Event);
-            break;
-        }
+			Ret = EplEventuPost(&Event);
+			break;
+		}
 
-        default:
-        {
-            Ret = kEplDllInvalidParam;
-            goto Exit;
-        }
-    }
+	default:
+		{
+			Ret = kEplDllInvalidParam;
+			goto Exit;
+		}
+	}
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -408,19 +407,18 @@ Exit:
 
 tEplKernel EplDlluCalAddNode(tEplDllNodeInfo * pNodeInfo_p)
 {
-tEplKernel  Ret = kEplSuccessful;
-tEplEvent   Event;
+	tEplKernel Ret = kEplSuccessful;
+	tEplEvent Event;
 
-    Event.m_EventSink = kEplEventSinkDllkCal;
-    Event.m_EventType = kEplEventTypeDllkAddNode;
-    Event.m_pArg = pNodeInfo_p;
-    Event.m_uiSize = sizeof (tEplDllNodeInfo);
+	Event.m_EventSink = kEplEventSinkDllkCal;
+	Event.m_EventType = kEplEventTypeDllkAddNode;
+	Event.m_pArg = pNodeInfo_p;
+	Event.m_uiSize = sizeof(tEplDllNodeInfo);
 
-    Ret = EplEventuPost(&Event);
+	Ret = EplEventuPost(&Event);
 
-    return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -439,19 +437,18 @@ tEplEvent   Event;
 
 tEplKernel EplDlluCalDeleteNode(unsigned int uiNodeId_p)
 {
-tEplKernel  Ret = kEplSuccessful;
-tEplEvent   Event;
+	tEplKernel Ret = kEplSuccessful;
+	tEplEvent Event;
 
-    Event.m_EventSink = kEplEventSinkDllkCal;
-    Event.m_EventType = kEplEventTypeDllkDelNode;
-    Event.m_pArg = &uiNodeId_p;
-    Event.m_uiSize = sizeof (uiNodeId_p);
+	Event.m_EventSink = kEplEventSinkDllkCal;
+	Event.m_EventType = kEplEventTypeDllkDelNode;
+	Event.m_pArg = &uiNodeId_p;
+	Event.m_uiSize = sizeof(uiNodeId_p);
 
-    Ret = EplEventuPost(&Event);
+	Ret = EplEventuPost(&Event);
 
-    return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -470,22 +467,20 @@ tEplEvent   Event;
 
 tEplKernel EplDlluCalSoftDeleteNode(unsigned int uiNodeId_p)
 {
-tEplKernel  Ret = kEplSuccessful;
-tEplEvent   Event;
+	tEplKernel Ret = kEplSuccessful;
+	tEplEvent Event;
 
-    Event.m_EventSink = kEplEventSinkDllkCal;
-    Event.m_EventType = kEplEventTypeDllkSoftDelNode;
-    Event.m_pArg = &uiNodeId_p;
-    Event.m_uiSize = sizeof (uiNodeId_p);
+	Event.m_EventSink = kEplEventSinkDllkCal;
+	Event.m_EventType = kEplEventTypeDllkSoftDelNode;
+	Event.m_pArg = &uiNodeId_p;
+	Event.m_uiSize = sizeof(uiNodeId_p);
 
-    Ret = EplEventuPost(&Event);
+	Ret = EplEventuPost(&Event);
 
-    return Ret;
+	return Ret;
 }
 
-
 #endif // (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-
 
 //=========================================================================//
 //                                                                         //
@@ -509,26 +504,26 @@ tEplEvent   Event;
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel EplDlluCalSetAsndServiceIdFilter(tEplDllAsndServiceId ServiceId_p, tEplDllAsndFilter Filter_p)
+static tEplKernel EplDlluCalSetAsndServiceIdFilter(tEplDllAsndServiceId
+						   ServiceId_p,
+						   tEplDllAsndFilter Filter_p)
 {
-tEplKernel  Ret = kEplSuccessful;
-tEplEvent   Event;
-tEplDllCalAsndServiceIdFilter   ServFilter;
+	tEplKernel Ret = kEplSuccessful;
+	tEplEvent Event;
+	tEplDllCalAsndServiceIdFilter ServFilter;
 
-    Event.m_EventSink = kEplEventSinkDllkCal;
-    Event.m_EventType = kEplEventTypeDllkServFilter;
-    ServFilter.m_ServiceId = ServiceId_p;
-    ServFilter.m_Filter = Filter_p;
-    Event.m_pArg = &ServFilter;
-    Event.m_uiSize = sizeof (ServFilter);
+	Event.m_EventSink = kEplEventSinkDllkCal;
+	Event.m_EventType = kEplEventTypeDllkServFilter;
+	ServFilter.m_ServiceId = ServiceId_p;
+	ServFilter.m_Filter = Filter_p;
+	Event.m_pArg = &ServFilter;
+	Event.m_uiSize = sizeof(ServFilter);
 
-    Ret = EplEventuPost(&Event);
+	Ret = EplEventuPost(&Event);
 
-    return Ret;
+	return Ret;
 }
-
 
 #endif // (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLU)) != 0)
 
 // EOF
-

@@ -68,11 +68,9 @@
 
 ****************************************************************************/
 
-
 #include <linux/net.h>
 #include <linux/in.h>
 #include "SocketLinuxKernel.h"
-
 
 /***************************************************************************/
 /*                                                                         */
@@ -82,33 +80,25 @@
 /*                                                                         */
 /***************************************************************************/
 
-
 //---------------------------------------------------------------------------
 // const defines
 //---------------------------------------------------------------------------
-
 
 //---------------------------------------------------------------------------
 // local types
 //---------------------------------------------------------------------------
 
-
-
 //---------------------------------------------------------------------------
 // modul globale vars
 //---------------------------------------------------------------------------
-
-
 
 //---------------------------------------------------------------------------
 // local function prototypes
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 //  Kernel Module specific Data Structures
 //---------------------------------------------------------------------------
-
 
 //=========================================================================//
 //                                                                         //
@@ -136,75 +126,72 @@
 
 SOCKET socket(int af, int type, int protocol)
 {
-int rc;
-SOCKET socket;
+	int rc;
+	SOCKET socket;
 
-    rc = sock_create_kern(af, type, protocol, &socket);
-    if (rc < 0)
-    {
-        socket = NULL;
-        goto Exit;
-    }
+	rc = sock_create_kern(af, type, protocol, &socket);
+	if (rc < 0) {
+		socket = NULL;
+		goto Exit;
+	}
 
-Exit:
-    return socket;
+      Exit:
+	return socket;
 }
 
 int bind(SOCKET socket_p, const struct sockaddr *addr, int addrlen)
 {
-int rc;
+	int rc;
 
-    rc = socket_p->ops->bind(socket_p,
-                          (struct sockaddr *)addr,
-                          addrlen);
+	rc = socket_p->ops->bind(socket_p, (struct sockaddr *)addr, addrlen);
 
-    return rc;
+	return rc;
 }
 
 int closesocket(SOCKET socket_p)
 {
-    sock_release(socket_p);
+	sock_release(socket_p);
 
-    return 0;
+	return 0;
 }
 
-int recvfrom(SOCKET socket_p, char* buf, int len, int flags, struct sockaddr *from, int * fromlen)
+int recvfrom(SOCKET socket_p, char *buf, int len, int flags,
+	     struct sockaddr *from, int *fromlen)
 {
-int rc;
-struct msghdr msg;
-struct kvec iov;
+	int rc;
+	struct msghdr msg;
+	struct kvec iov;
 
-    msg.msg_control = NULL;
-    msg.msg_controllen = 0;
-    msg.msg_name = from;     // will be struct sock_addr
-    msg.msg_namelen = *fromlen;
-    iov.iov_len = len;
-    iov.iov_base = buf;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_name = from;	// will be struct sock_addr
+	msg.msg_namelen = *fromlen;
+	iov.iov_len = len;
+	iov.iov_base = buf;
 
-    rc = kernel_recvmsg(socket_p, &msg, &iov, 1, iov.iov_len, 0);
+	rc = kernel_recvmsg(socket_p, &msg, &iov, 1, iov.iov_len, 0);
 
-    return rc;
+	return rc;
 }
 
-int sendto(SOCKET socket_p, const char* buf, int len, int flags, const struct sockaddr *to, int tolen)
+int sendto(SOCKET socket_p, const char *buf, int len, int flags,
+	   const struct sockaddr *to, int tolen)
 {
-int rc;
-struct msghdr msg;
-struct kvec iov;
+	int rc;
+	struct msghdr msg;
+	struct kvec iov;
 
-    msg.msg_control = NULL;
-    msg.msg_controllen = 0;
-    msg.msg_name = (struct sockaddr *)to;     // will be struct sock_addr
-    msg.msg_namelen = tolen;
-    msg.msg_flags = 0;
-    iov.iov_len = len;
-    iov.iov_base = (char *)buf;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_name = (struct sockaddr *)to;	// will be struct sock_addr
+	msg.msg_namelen = tolen;
+	msg.msg_flags = 0;
+	iov.iov_len = len;
+	iov.iov_base = (char *)buf;
 
-    rc = kernel_sendmsg(socket_p, &msg, &iov, 1, len);
+	rc = kernel_sendmsg(socket_p, &msg, &iov, 1, len);
 
-    return rc;
+	return rc;
 }
-
 
 // EOF
-

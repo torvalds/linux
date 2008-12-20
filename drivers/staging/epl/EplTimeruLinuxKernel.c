@@ -86,10 +86,9 @@
 //---------------------------------------------------------------------------
 // local types
 //---------------------------------------------------------------------------
-typedef struct
-{
-    struct timer_list   m_Timer;
-    tEplTimerArg        TimerArgument;
+typedef struct {
+	struct timer_list m_Timer;
+	tEplTimerArg TimerArgument;
 
 } tEplTimeruData;
 
@@ -137,13 +136,12 @@ static void PUBLIC EplTimeruCbMs(unsigned long ulParameter_p);
 
 tEplKernel PUBLIC EplTimeruInit()
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = EplTimeruAddInstance();
+	Ret = EplTimeruAddInstance();
 
-    return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -161,13 +159,12 @@ tEplKernel  Ret;
 
 tEplKernel PUBLIC EplTimeruAddInstance()
 {
-tEplKernel Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -187,13 +184,12 @@ tEplKernel Ret;
 
 tEplKernel PUBLIC EplTimeruDelInstance()
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    return Ret;
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -211,42 +207,39 @@ tEplKernel  Ret;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimeruSetTimerMs(tEplTimerHdl*     pTimerHdl_p,
-                                        unsigned long   ulTime_p,
-                                        tEplTimerArg    Argument_p)
+tEplKernel PUBLIC EplTimeruSetTimerMs(tEplTimerHdl * pTimerHdl_p,
+				      unsigned long ulTime_p,
+				      tEplTimerArg Argument_p)
 {
-tEplKernel          Ret = kEplSuccessful;
-tEplTimeruData*     pData;
+	tEplKernel Ret = kEplSuccessful;
+	tEplTimeruData *pData;
 
-    // check pointer to handle
-    if(pTimerHdl_p == NULL)
-    {
-        Ret = kEplTimerInvalidHandle;
-        goto Exit;
-    }
+	// check pointer to handle
+	if (pTimerHdl_p == NULL) {
+		Ret = kEplTimerInvalidHandle;
+		goto Exit;
+	}
 
-    pData = (tEplTimeruData*) EPL_MALLOC(sizeof (tEplTimeruData));
-    if (pData == NULL)
-    {
-        Ret = kEplNoResource;
-        goto Exit;
-    }
+	pData = (tEplTimeruData *) EPL_MALLOC(sizeof(tEplTimeruData));
+	if (pData == NULL) {
+		Ret = kEplNoResource;
+		goto Exit;
+	}
 
-    init_timer(&pData->m_Timer);
-    pData->m_Timer.function = EplTimeruCbMs;
-    pData->m_Timer.data = (unsigned long) pData;
-    pData->m_Timer.expires = jiffies + ulTime_p * HZ / 1000;
+	init_timer(&pData->m_Timer);
+	pData->m_Timer.function = EplTimeruCbMs;
+	pData->m_Timer.data = (unsigned long)pData;
+	pData->m_Timer.expires = jiffies + ulTime_p * HZ / 1000;
 
-    EPL_MEMCPY(&pData->TimerArgument, &Argument_p, sizeof(tEplTimerArg));
+	EPL_MEMCPY(&pData->TimerArgument, &Argument_p, sizeof(tEplTimerArg));
 
-    add_timer(&pData->m_Timer);
+	add_timer(&pData->m_Timer);
 
-    *pTimerHdl_p = (tEplTimerHdl) pData;
+	*pTimerHdl_p = (tEplTimerHdl) pData;
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -264,56 +257,49 @@ Exit:
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimeruModifyTimerMs(tEplTimerHdl*     pTimerHdl_p,
-                                        unsigned long     ulTime_p,
-                                        tEplTimerArg      Argument_p)
+tEplKernel PUBLIC EplTimeruModifyTimerMs(tEplTimerHdl * pTimerHdl_p,
+					 unsigned long ulTime_p,
+					 tEplTimerArg Argument_p)
 {
-tEplKernel          Ret = kEplSuccessful;
-tEplTimeruData*     pData;
+	tEplKernel Ret = kEplSuccessful;
+	tEplTimeruData *pData;
 
-    // check pointer to handle
-    if(pTimerHdl_p == NULL)
-    {
-        Ret = kEplTimerInvalidHandle;
-        goto Exit;
-    }
+	// check pointer to handle
+	if (pTimerHdl_p == NULL) {
+		Ret = kEplTimerInvalidHandle;
+		goto Exit;
+	}
+	// check handle itself, i.e. was the handle initialized before
+	if (*pTimerHdl_p == 0) {
+		Ret = EplTimeruSetTimerMs(pTimerHdl_p, ulTime_p, Argument_p);
+		goto Exit;
+	}
+	pData = (tEplTimeruData *) * pTimerHdl_p;
+	if ((tEplTimeruData *) pData->m_Timer.data != pData) {
+		Ret = kEplTimerInvalidHandle;
+		goto Exit;
+	}
 
-    // check handle itself, i.e. was the handle initialized before
-    if (*pTimerHdl_p == 0)
-    {
-        Ret = EplTimeruSetTimerMs(pTimerHdl_p, ulTime_p, Argument_p);
-        goto Exit;
-    }
-    pData = (tEplTimeruData*) *pTimerHdl_p;
-    if ((tEplTimeruData*)pData->m_Timer.data != pData)
-    {
-        Ret = kEplTimerInvalidHandle;
-        goto Exit;
-    }
+	mod_timer(&pData->m_Timer, (jiffies + ulTime_p * HZ / 1000));
 
-    mod_timer(&pData->m_Timer, (jiffies + ulTime_p * HZ / 1000));
+	// copy the TimerArg after the timer is restarted,
+	// so that a timer occured immediately before mod_timer
+	// won't use the new TimerArg and
+	// therefore the old timer cannot be distinguished from the new one.
+	// But if the new timer is too fast, it may get lost.
+	EPL_MEMCPY(&pData->TimerArgument, &Argument_p, sizeof(tEplTimerArg));
 
-    // copy the TimerArg after the timer is restarted,
-    // so that a timer occured immediately before mod_timer
-    // won't use the new TimerArg and
-    // therefore the old timer cannot be distinguished from the new one.
-    // But if the new timer is too fast, it may get lost.
-    EPL_MEMCPY(&pData->TimerArgument, &Argument_p, sizeof(tEplTimerArg));
-
-    // check if timer is really running
-    if (timer_pending(&pData->m_Timer) == 0)
-    {   // timer is not running
-        // retry starting it
-        add_timer(&pData->m_Timer);
-    }
-
-    // set handle to pointer of tEplTimeruData
+	// check if timer is really running
+	if (timer_pending(&pData->m_Timer) == 0) {	// timer is not running
+		// retry starting it
+		add_timer(&pData->m_Timer);
+	}
+	// set handle to pointer of tEplTimeruData
 //    *pTimerHdl_p = (tEplTimerHdl) pData;
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -329,49 +315,44 @@ Exit:
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimeruDeleteTimer(tEplTimerHdl*     pTimerHdl_p)
+tEplKernel PUBLIC EplTimeruDeleteTimer(tEplTimerHdl * pTimerHdl_p)
 {
-tEplKernel          Ret = kEplSuccessful;
-tEplTimeruData*     pData;
+	tEplKernel Ret = kEplSuccessful;
+	tEplTimeruData *pData;
 
-    // check pointer to handle
-    if(pTimerHdl_p == NULL)
-    {
-        Ret = kEplTimerInvalidHandle;
-        goto Exit;
-    }
-
-    // check handle itself, i.e. was the handle initialized before
-    if (*pTimerHdl_p == 0)
-    {
-        Ret = kEplSuccessful;
-        goto Exit;
-    }
-    pData = (tEplTimeruData*) *pTimerHdl_p;
-    if ((tEplTimeruData*)pData->m_Timer.data != pData)
-    {
-        Ret = kEplTimerInvalidHandle;
-        goto Exit;
-    }
+	// check pointer to handle
+	if (pTimerHdl_p == NULL) {
+		Ret = kEplTimerInvalidHandle;
+		goto Exit;
+	}
+	// check handle itself, i.e. was the handle initialized before
+	if (*pTimerHdl_p == 0) {
+		Ret = kEplSuccessful;
+		goto Exit;
+	}
+	pData = (tEplTimeruData *) * pTimerHdl_p;
+	if ((tEplTimeruData *) pData->m_Timer.data != pData) {
+		Ret = kEplTimerInvalidHandle;
+		goto Exit;
+	}
 
 /*    if (del_timer(&pData->m_Timer) == 1)
     {
         kfree(pData);
     }
 */
-    // try to delete the timer
-    del_timer(&pData->m_Timer);
-    // free memory in any case
-    kfree(pData);
+	// try to delete the timer
+	del_timer(&pData->m_Timer);
+	// free memory in any case
+	kfree(pData);
 
-    // uninitialize handle
-    *pTimerHdl_p = 0;
+	// uninitialize handle
+	*pTimerHdl_p = 0;
 
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -391,32 +372,27 @@ Exit:
 
 BOOL PUBLIC EplTimeruIsTimerActive(tEplTimerHdl TimerHdl_p)
 {
-BOOL        fActive = FALSE;
-tEplTimeruData*     pData;
+	BOOL fActive = FALSE;
+	tEplTimeruData *pData;
 
-    // check handle itself, i.e. was the handle initialized before
-    if (TimerHdl_p == 0)
-    {   // timer was not created yet, so it is not active
-        goto Exit;
-    }
-    pData = (tEplTimeruData*) TimerHdl_p;
-    if ((tEplTimeruData*)pData->m_Timer.data != pData)
-    {   // invalid timer
-        goto Exit;
-    }
+	// check handle itself, i.e. was the handle initialized before
+	if (TimerHdl_p == 0) {	// timer was not created yet, so it is not active
+		goto Exit;
+	}
+	pData = (tEplTimeruData *) TimerHdl_p;
+	if ((tEplTimeruData *) pData->m_Timer.data != pData) {	// invalid timer
+		goto Exit;
+	}
+	// check if timer is running
+	if (timer_pending(&pData->m_Timer) == 0) {	// timer is not running
+		goto Exit;
+	}
 
-    // check if timer is running
-    if (timer_pending(&pData->m_Timer) == 0)
-    {   // timer is not running
-        goto Exit;
-    }
+	fActive = TRUE;
 
-    fActive = TRUE;
-
-Exit:
-    return fActive;
+      Exit:
+	return fActive;
 }
-
 
 //=========================================================================//
 //                                                                         //
@@ -443,30 +419,28 @@ Exit:
 //---------------------------------------------------------------------------
 static void PUBLIC EplTimeruCbMs(unsigned long ulParameter_p)
 {
-tEplKernel          Ret = kEplSuccessful;
-tEplTimeruData*     pData;
-tEplEvent           EplEvent;
-tEplTimerEventArg   TimerEventArg;
+	tEplKernel Ret = kEplSuccessful;
+	tEplTimeruData *pData;
+	tEplEvent EplEvent;
+	tEplTimerEventArg TimerEventArg;
 
-    pData = (tEplTimeruData*) ulParameter_p;
+	pData = (tEplTimeruData *) ulParameter_p;
 
-    // call event function
-    TimerEventArg.m_TimerHdl = (tEplTimerHdl)pData;
-    TimerEventArg.m_ulArg = pData->TimerArgument.m_ulArg;
+	// call event function
+	TimerEventArg.m_TimerHdl = (tEplTimerHdl) pData;
+	TimerEventArg.m_ulArg = pData->TimerArgument.m_ulArg;
 
-    EplEvent.m_EventSink = pData->TimerArgument.m_EventSink;
-    EplEvent.m_EventType = kEplEventTypeTimer;
-    EPL_MEMSET(&EplEvent.m_NetTime, 0x00, sizeof(tEplNetTime));
-    EplEvent.m_pArg = &TimerEventArg;
-    EplEvent.m_uiSize = sizeof(TimerEventArg);
+	EplEvent.m_EventSink = pData->TimerArgument.m_EventSink;
+	EplEvent.m_EventType = kEplEventTypeTimer;
+	EPL_MEMSET(&EplEvent.m_NetTime, 0x00, sizeof(tEplNetTime));
+	EplEvent.m_pArg = &TimerEventArg;
+	EplEvent.m_uiSize = sizeof(TimerEventArg);
 
-    Ret = EplEventuPost(&EplEvent);
+	Ret = EplEventuPost(&EplEvent);
 
-    // d.k. do not free memory, user has to call EplTimeruDeleteTimer()
-    //kfree(pData);
+	// d.k. do not free memory, user has to call EplTimeruDeleteTimer()
+	//kfree(pData);
 
 }
 
-
 // EOF
-

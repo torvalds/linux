@@ -132,11 +132,11 @@
 //---------------------------------------------------------------------------
 tEplKernel PUBLIC EplTimeruInit()
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = EplTimeruAddInstance();
+	Ret = EplTimeruAddInstance();
 
-return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -158,11 +158,11 @@ return Ret;
 //---------------------------------------------------------------------------
 tEplKernel PUBLIC EplTimeruAddInstance()
 {
-tEplKernel Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -186,11 +186,11 @@ return Ret;
 //---------------------------------------------------------------------------
 tEplKernel PUBLIC EplTimeruDelInstance()
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -212,26 +212,23 @@ tEplKernel  Ret;
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplTimeruSetTimerMs(tEplTimerHdl*     pTimerHdl_p,
-                                        unsigned long   ulTime_p,
-                                        tEplTimerArg    Argument_p)
+tEplKernel PUBLIC EplTimeruSetTimerMs(tEplTimerHdl * pTimerHdl_p,
+				      unsigned long ulTime_p,
+				      tEplTimerArg Argument_p)
 {
-tEplKernel          Ret;
+	tEplKernel Ret;
 
+	Ret = kEplSuccessful;
 
-    Ret = kEplSuccessful;
+	// check handle
+	if (pTimerHdl_p == NULL) {
+		Ret = kEplTimerInvalidHandle;
+		goto Exit;
+	}
 
-    // check handle
-    if(pTimerHdl_p == NULL)
-    {
-        Ret = kEplTimerInvalidHandle;
-        goto Exit;
-    }
-
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
-
 
  //---------------------------------------------------------------------------
 //
@@ -252,24 +249,22 @@ Exit:
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplTimeruModifyTimerMs(tEplTimerHdl*     pTimerHdl_p,
-                                        unsigned long     ulTime_p,
-                                        tEplTimerArg      Argument_p)
+tEplKernel PUBLIC EplTimeruModifyTimerMs(tEplTimerHdl * pTimerHdl_p,
+					 unsigned long ulTime_p,
+					 tEplTimerArg Argument_p)
 {
-tEplKernel          Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // check parameter
-    if(pTimerHdl_p == NULL)
-    {
-        Ret = kEplTimerInvalidHandle;
-        goto Exit;
-    }
+	// check parameter
+	if (pTimerHdl_p == NULL) {
+		Ret = kEplTimerInvalidHandle;
+		goto Exit;
+	}
 
-
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
 
  //---------------------------------------------------------------------------
@@ -289,25 +284,22 @@ Exit:
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplTimeruDeleteTimer(tEplTimerHdl*     pTimerHdl_p)
+tEplKernel PUBLIC EplTimeruDeleteTimer(tEplTimerHdl * pTimerHdl_p)
 {
-tEplKernel  Ret;
+	tEplKernel Ret;
 
-    Ret = kEplSuccessful;
+	Ret = kEplSuccessful;
 
-    // check parameter
-    if(pTimerHdl_p == NULL)
-    {
-        Ret = kEplTimerInvalidHandle;
-        goto Exit;
-    }
+	// check parameter
+	if (pTimerHdl_p == NULL) {
+		Ret = kEplTimerInvalidHandle;
+		goto Exit;
+	}
+	// set handle invalide
+	*pTimerHdl_p = 0;
 
-    // set handle invalide
-    *pTimerHdl_p = 0;
-
-
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 
 }
 
@@ -317,7 +309,4 @@ Exit:
 //                                                                         //
 //=========================================================================//
 
-
-
 // EOF
-

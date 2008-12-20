@@ -82,13 +82,13 @@
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLK)) == 0)
 
-    #error 'ERROR: Missing DLLk-Modul!'
+#error 'ERROR: Missing DLLk-Modul!'
 
 #endif
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_OBDK)) == 0)
 
-    #error 'ERROR: Missing OBDk-Modul!'
+#error 'ERROR: Missing OBDk-Modul!'
 
 #endif
 /***************************************************************************/
@@ -120,7 +120,6 @@
 // local function prototypes
 //---------------------------------------------------------------------------
 
-
 /***************************************************************************/
 /*                                                                         */
 /*                                                                         */
@@ -133,7 +132,6 @@
 //
 //
 /***************************************************************************/
-
 
 //=========================================================================//
 //                                                                         //
@@ -153,11 +151,9 @@
 // local vars
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 // local function prototypes
 //---------------------------------------------------------------------------
-
 
 //=========================================================================//
 //                                                                         //
@@ -183,7 +179,7 @@
 tEplKernel EplPdokAddInstance(void)
 {
 
-    return kEplSuccessful;
+	return kEplSuccessful;
 }
 
 //---------------------------------------------------------------------------
@@ -204,9 +200,8 @@ tEplKernel EplPdokAddInstance(void)
 tEplKernel EplPdokDelInstance(void)
 {
 
-    return kEplSuccessful;
+	return kEplSuccessful;
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -228,27 +223,27 @@ tEplKernel EplPdokDelInstance(void)
 
 tEplKernel EplPdokCbPdoReceived(tEplFrameInfo * pFrameInfo_p)
 {
-tEplKernel      Ret = kEplSuccessful;
-tEplEvent       Event;
+	tEplKernel Ret = kEplSuccessful;
+	tEplEvent Event;
 
 #if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-    // reset LED
+	// reset LED
 //    MCF_GPIO_PODR_PCIBG &= ~PDO_LED;  // Level
 #endif
 
-    Event.m_EventSink = kEplEventSinkPdok;
-    Event.m_EventType = kEplEventTypePdoRx;
-    // limit copied data to size of PDO (because from some CNs the frame is larger than necessary)
-    Event.m_uiSize = AmiGetWordFromLe(&pFrameInfo_p->m_pFrame->m_Data.m_Pres.m_le_wSize) + 24; // pFrameInfo_p->m_uiFrameSize;
-    Event.m_pArg = pFrameInfo_p->m_pFrame;
-    Ret = EplEventkPost(&Event);
+	Event.m_EventSink = kEplEventSinkPdok;
+	Event.m_EventType = kEplEventTypePdoRx;
+	// limit copied data to size of PDO (because from some CNs the frame is larger than necessary)
+	Event.m_uiSize = AmiGetWordFromLe(&pFrameInfo_p->m_pFrame->m_Data.m_Pres.m_le_wSize) + 24;	// pFrameInfo_p->m_uiFrameSize;
+	Event.m_pArg = pFrameInfo_p->m_pFrame;
+	Ret = EplEventkPost(&Event);
 
 #if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-    // set LED
+	// set LED
 //    MCF_GPIO_PODR_PCIBG |= PDO_LED;  // Level
 #endif
 
-    return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -271,26 +266,26 @@ tEplEvent       Event;
 
 tEplKernel EplPdokCbPdoTransmitted(tEplFrameInfo * pFrameInfo_p)
 {
-tEplKernel      Ret = kEplSuccessful;
-tEplEvent       Event;
+	tEplKernel Ret = kEplSuccessful;
+	tEplEvent Event;
 
 #if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-    // reset LED
-    MCF_GPIO_PODR_PCIBG &= ~PDO_LED;  // Level
+	// reset LED
+	MCF_GPIO_PODR_PCIBG &= ~PDO_LED;	// Level
 #endif
 
-    Event.m_EventSink = kEplEventSinkPdok;
-    Event.m_EventType = kEplEventTypePdoTx;
-    Event.m_uiSize = sizeof (tEplFrameInfo);
-    Event.m_pArg = pFrameInfo_p;
-    Ret = EplEventkPost(&Event);
+	Event.m_EventSink = kEplEventSinkPdok;
+	Event.m_EventType = kEplEventTypePdoTx;
+	Event.m_uiSize = sizeof(tEplFrameInfo);
+	Event.m_pArg = pFrameInfo_p;
+	Ret = EplEventkPost(&Event);
 
 #if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-    // set LED
-    MCF_GPIO_PODR_PCIBG |= PDO_LED;  // Level
+	// set LED
+	MCF_GPIO_PODR_PCIBG |= PDO_LED;	// Level
 #endif
 
-    return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -311,16 +306,16 @@ tEplEvent       Event;
 
 tEplKernel EplPdokCbSoa(tEplFrameInfo * pFrameInfo_p)
 {
-tEplKernel      Ret = kEplSuccessful;
-tEplEvent       Event;
+	tEplKernel Ret = kEplSuccessful;
+	tEplEvent Event;
 
-    Event.m_EventSink = kEplEventSinkPdok;
-    Event.m_EventType = kEplEventTypePdoSoa;
-    Event.m_uiSize = 0;
-    Event.m_pArg = NULL;
-    Ret = EplEventkPost(&Event);
+	Event.m_EventSink = kEplEventSinkPdok;
+	Event.m_EventType = kEplEventTypePdoSoa;
+	Event.m_uiSize = 0;
+	Event.m_pArg = NULL;
+	Ret = EplEventkPost(&Event);
 
-    return Ret;
+	return Ret;
 }
 
 //---------------------------------------------------------------------------
@@ -343,323 +338,331 @@ tEplEvent       Event;
 
 tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 {
-tEplKernel      Ret = kEplSuccessful;
-WORD    wPdoSize;
-WORD    wBitOffset;
-WORD    wBitSize;
-WORD    wVarSize;
-QWORD   qwObjectMapping;
-BYTE    bMappSubindex;
-BYTE    bObdSubindex;
-WORD    wObdMappIndex;
-WORD    wObdCommIndex;
-WORD    wPdoId;
-BYTE    bObdData;
-BYTE    bObjectCount;
-BYTE    bFrameData;
-BOOL    fValid;
-tEplObdSize     ObdSize;
-tEplFrame      *pFrame;
-tEplFrameInfo  *pFrameInfo;
-unsigned int    uiNodeId;
-tEplMsgType     MsgType;
+	tEplKernel Ret = kEplSuccessful;
+	WORD wPdoSize;
+	WORD wBitOffset;
+	WORD wBitSize;
+	WORD wVarSize;
+	QWORD qwObjectMapping;
+	BYTE bMappSubindex;
+	BYTE bObdSubindex;
+	WORD wObdMappIndex;
+	WORD wObdCommIndex;
+	WORD wPdoId;
+	BYTE bObdData;
+	BYTE bObjectCount;
+	BYTE bFrameData;
+	BOOL fValid;
+	tEplObdSize ObdSize;
+	tEplFrame *pFrame;
+	tEplFrameInfo *pFrameInfo;
+	unsigned int uiNodeId;
+	tEplMsgType MsgType;
 
-    // 0xFF=invalid, RPDO: 0x00=PReq, localNodeId=PRes, remoteNodeId=PRes
-    //               TPDO: 0x00=PRes, MN: CnNodeId=PReq
+	// 0xFF=invalid, RPDO: 0x00=PReq, localNodeId=PRes, remoteNodeId=PRes
+	//               TPDO: 0x00=PRes, MN: CnNodeId=PReq
 
-    switch (pEvent_p->m_EventType)
-    {
-        case kEplEventTypePdoRx:  // RPDO received
-            pFrame = (tEplFrame *) pEvent_p->m_pArg;
+	switch (pEvent_p->m_EventType) {
+	case kEplEventTypePdoRx:	// RPDO received
+		pFrame = (tEplFrame *) pEvent_p->m_pArg;
 
-            // check if received RPDO is valid
-            bFrameData = AmiGetByteFromLe(&pFrame->m_Data.m_Pres.m_le_bFlag1);
-            if ((bFrameData & EPL_FRAME_FLAG1_RD) == 0)
-            {   // RPDO invalid
-                goto Exit;
-            }
+		// check if received RPDO is valid
+		bFrameData =
+		    AmiGetByteFromLe(&pFrame->m_Data.m_Pres.m_le_bFlag1);
+		if ((bFrameData & EPL_FRAME_FLAG1_RD) == 0) {	// RPDO invalid
+			goto Exit;
+		}
+		// retrieve EPL message type
+		MsgType = AmiGetByteFromLe(&pFrame->m_le_bMessageType);
+		if (MsgType == kEplMsgTypePreq) {	// RPDO is PReq frame
+			uiNodeId = EPL_PDO_PREQ_NODE_ID;	// 0x00
+		} else {	// RPDO is PRes frame
+			// retrieve node ID
+			uiNodeId = AmiGetByteFromLe(&pFrame->m_le_bSrcNodeId);
+		}
 
-            // retrieve EPL message type
-            MsgType = AmiGetByteFromLe(&pFrame->m_le_bMessageType);
-            if (MsgType == kEplMsgTypePreq)
-            {   // RPDO is PReq frame
-                uiNodeId = EPL_PDO_PREQ_NODE_ID;  // 0x00
-            }
-            else
-            {   // RPDO is PRes frame
-                // retrieve node ID
-                uiNodeId = AmiGetByteFromLe(&pFrame->m_le_bSrcNodeId);
-            }
+		// search for appropriate valid RPDO in OD
+		wObdMappIndex = EPL_PDOK_OBD_IDX_RX_MAPP_PARAM;
+		for (wObdCommIndex = EPL_PDOK_OBD_IDX_RX_COMM_PARAM;
+		     wObdCommIndex < (EPL_PDOK_OBD_IDX_RX_COMM_PARAM + 0x00FF);
+		     wObdCommIndex++, wObdMappIndex++) {
+			ObdSize = 1;
+			// read node ID from OD
+			Ret =
+			    EplObdReadEntry(wObdCommIndex, 0x01, &bObdData,
+					    &ObdSize);
+			if ((Ret == kEplObdIndexNotExist)
+			    || (Ret == kEplObdSubindexNotExist)
+			    || (Ret == kEplObdIllegalPart)) {	// PDO does not exist; last PDO reached
+				Ret = kEplSuccessful;
+				goto Exit;
+			} else if (Ret != kEplSuccessful) {	// other fatal error occured
+				goto Exit;
+			}
+			// entry read successfully
+			if (bObdData != uiNodeId) {	// node ID does not equal - wrong PDO, try next PDO in OD
+				continue;
+			}
+			ObdSize = 1;
+			// read number of mapped objects from OD; this indicates if the PDO is valid
+			Ret =
+			    EplObdReadEntry(wObdMappIndex, 0x00, &bObjectCount,
+					    &ObdSize);
+			if ((Ret == kEplObdIndexNotExist)
+			    || (Ret == kEplObdSubindexNotExist)
+			    || (Ret == kEplObdIllegalPart)) {	// PDO does not exist; last PDO reached
+				Ret = kEplSuccessful;
+				goto Exit;
+			} else if (Ret != kEplSuccessful) {	// other fatal error occured
+				goto Exit;
+			}
+			// entry read successfully
+			if (bObjectCount == 0) {	// PDO in OD not valid, try next PDO in OD
+				continue;
+			}
 
-            // search for appropriate valid RPDO in OD
-            wObdMappIndex = EPL_PDOK_OBD_IDX_RX_MAPP_PARAM;
-            for (wObdCommIndex = EPL_PDOK_OBD_IDX_RX_COMM_PARAM;
-                wObdCommIndex < (EPL_PDOK_OBD_IDX_RX_COMM_PARAM + 0x00FF);
-                wObdCommIndex++, wObdMappIndex++)
-            {
-                ObdSize = 1;
-                // read node ID from OD
-                Ret = EplObdReadEntry(wObdCommIndex, 0x01, &bObdData, &ObdSize);
-                if ((Ret == kEplObdIndexNotExist)
-                    || (Ret == kEplObdSubindexNotExist)
-                    || (Ret == kEplObdIllegalPart))
-                {   // PDO does not exist; last PDO reached
-                    Ret = kEplSuccessful;
-                    goto Exit;
-                }
-                else if (Ret != kEplSuccessful)
-                {   // other fatal error occured
-                    goto Exit;
-                }
-                // entry read successfully
-                if (bObdData != uiNodeId)
-                {   // node ID does not equal - wrong PDO, try next PDO in OD
-                    continue;
-                }
-                ObdSize = 1;
-                // read number of mapped objects from OD; this indicates if the PDO is valid
-                Ret = EplObdReadEntry(wObdMappIndex, 0x00, &bObjectCount, &ObdSize);
-                if ((Ret == kEplObdIndexNotExist)
-                    || (Ret == kEplObdSubindexNotExist)
-                    || (Ret == kEplObdIllegalPart))
-                {   // PDO does not exist; last PDO reached
-                    Ret = kEplSuccessful;
-                    goto Exit;
-                }
-                else if (Ret != kEplSuccessful)
-                {   // other fatal error occured
-                    goto Exit;
-                }
-                // entry read successfully
-                if (bObjectCount == 0)
-                {   // PDO in OD not valid, try next PDO in OD
-                    continue;
-                }
+			ObdSize = 1;
+			// check PDO mapping version
+			Ret =
+			    EplObdReadEntry(wObdCommIndex, 0x02, &bObdData,
+					    &ObdSize);
+			if (Ret != kEplSuccessful) {	// other fatal error occured
+				goto Exit;
+			}
+			// entry read successfully
+			// retrieve PDO version from frame
+			bFrameData =
+			    AmiGetByteFromLe(&pFrame->m_Data.m_Pres.
+					     m_le_bPdoVersion);
+			if ((bObdData & EPL_VERSION_MAIN) != (bFrameData & EPL_VERSION_MAIN)) {	// PDO versions do not match
+				// $$$ raise PDO error
+				// termiate processing of this RPDO
+				goto Exit;
+			}
+			// valid RPDO found
 
-                ObdSize = 1;
-                // check PDO mapping version
-                Ret = EplObdReadEntry(wObdCommIndex, 0x02, &bObdData, &ObdSize);
-                if (Ret != kEplSuccessful)
-                {   // other fatal error occured
-                    goto Exit;
-                }
-                // entry read successfully
-                // retrieve PDO version from frame
-                bFrameData = AmiGetByteFromLe(&pFrame->m_Data.m_Pres.m_le_bPdoVersion);
-                if ((bObdData & EPL_VERSION_MAIN) != (bFrameData & EPL_VERSION_MAIN))
-                {   // PDO versions do not match
-                    // $$$ raise PDO error
-                    // termiate processing of this RPDO
-                    goto Exit;
-                }
+			// retrieve PDO size
+			wPdoSize =
+			    AmiGetWordFromLe(&pFrame->m_Data.m_Pres.m_le_wSize);
 
-                // valid RPDO found
+			// process mapping
+			for (bMappSubindex = 1; bMappSubindex <= bObjectCount;
+			     bMappSubindex++) {
+				ObdSize = 8;	// QWORD
+				// read object mapping from OD
+				Ret =
+				    EplObdReadEntry(wObdMappIndex,
+						    bMappSubindex,
+						    &qwObjectMapping, &ObdSize);
+				if (Ret != kEplSuccessful) {	// other fatal error occured
+					goto Exit;
+				}
+				// check if object mapping entry is valid, i.e. unequal zero, because "empty" entries are allowed
+				if (qwObjectMapping == 0) {	// invalid entry, continue with next entry
+					continue;
+				}
+				// decode object mapping
+				wObdCommIndex =
+				    (WORD) (qwObjectMapping &
+					    0x000000000000FFFFLL);
+				bObdSubindex =
+				    (BYTE) ((qwObjectMapping &
+					     0x0000000000FF0000LL) >> 16);
+				wBitOffset =
+				    (WORD) ((qwObjectMapping &
+					     0x0000FFFF00000000LL) >> 32);
+				wBitSize =
+				    (WORD) ((qwObjectMapping &
+					     0xFFFF000000000000LL) >> 48);
 
-                // retrieve PDO size
-                wPdoSize = AmiGetWordFromLe(&pFrame->m_Data.m_Pres.m_le_wSize);
+				// check if object exceeds PDO size
+				if (((wBitOffset + wBitSize) >> 3) > wPdoSize) {	// wrong object mapping; PDO size is too low
+					// $$$ raise PDO error
+					// terminate processing of this RPDO
+					goto Exit;
+				}
+				// copy object from RPDO to process/OD variable
+				ObdSize = wBitSize >> 3;
+				Ret =
+				    EplObdWriteEntryFromLe(wObdCommIndex,
+							   bObdSubindex,
+							   &pFrame->m_Data.
+							   m_Pres.
+							   m_le_abPayload[(wBitOffset >> 3)], ObdSize);
+				if (Ret != kEplSuccessful) {	// other fatal error occured
+					goto Exit;
+				}
 
-                // process mapping
-                for (bMappSubindex = 1; bMappSubindex <= bObjectCount; bMappSubindex++)
-                {
-                    ObdSize = 8;    // QWORD
-                    // read object mapping from OD
-                    Ret = EplObdReadEntry(wObdMappIndex, bMappSubindex, &qwObjectMapping, &ObdSize);
-                    if (Ret != kEplSuccessful)
-                    {   // other fatal error occured
-                        goto Exit;
-                    }
+			}
 
-                    // check if object mapping entry is valid, i.e. unequal zero, because "empty" entries are allowed
-                    if (qwObjectMapping == 0)
-                    {   // invalid entry, continue with next entry
-                        continue;
-                    }
+			// processing finished successfully
+			goto Exit;
+		}
+		break;
 
-                    // decode object mapping
-                    wObdCommIndex = (WORD) (qwObjectMapping & 0x000000000000FFFFLL);
-                    bObdSubindex = (BYTE) ((qwObjectMapping & 0x0000000000FF0000LL) >> 16);
-                    wBitOffset = (WORD) ((qwObjectMapping & 0x0000FFFF00000000LL) >> 32);
-                    wBitSize = (WORD) ((qwObjectMapping & 0xFFFF000000000000LL) >> 48);
+	case kEplEventTypePdoTx:	// TPDO transmitted
+		pFrameInfo = (tEplFrameInfo *) pEvent_p->m_pArg;
+		pFrame = pFrameInfo->m_pFrame;
 
-                    // check if object exceeds PDO size
-                    if (((wBitOffset + wBitSize) >> 3) > wPdoSize)
-                    {   // wrong object mapping; PDO size is too low
-                        // $$$ raise PDO error
-                        // terminate processing of this RPDO
-                        goto Exit;
-                    }
+		// set TPDO invalid, so that only fully processed TPDOs are sent as valid
+		bFrameData =
+		    AmiGetByteFromLe(&pFrame->m_Data.m_Pres.m_le_bFlag1);
+		AmiSetByteToLe(&pFrame->m_Data.m_Pres.m_le_bFlag1,
+			       (bFrameData & ~EPL_FRAME_FLAG1_RD));
 
-                    // copy object from RPDO to process/OD variable
-                    ObdSize = wBitSize >> 3;
-                    Ret = EplObdWriteEntryFromLe(wObdCommIndex, bObdSubindex, &pFrame->m_Data.m_Pres.m_le_abPayload[(wBitOffset >> 3)], ObdSize);
-                    if (Ret != kEplSuccessful)
-                    {   // other fatal error occured
-                        goto Exit;
-                    }
+		// retrieve EPL message type
+		MsgType = AmiGetByteFromLe(&pFrame->m_le_bMessageType);
+		if (MsgType == kEplMsgTypePres) {	// TPDO is PRes frame
+			uiNodeId = EPL_PDO_PRES_NODE_ID;	// 0x00
+		} else {	// TPDO is PReq frame
+			// retrieve node ID
+			uiNodeId = AmiGetByteFromLe(&pFrame->m_le_bDstNodeId);
+		}
 
-                }
+		// search for appropriate valid TPDO in OD
+		wObdMappIndex = EPL_PDOK_OBD_IDX_TX_MAPP_PARAM;
+		wObdCommIndex = EPL_PDOK_OBD_IDX_TX_COMM_PARAM;
+		for (wPdoId = 0;; wPdoId++, wObdCommIndex++, wObdMappIndex++) {
+			ObdSize = 1;
+			// read node ID from OD
+			Ret =
+			    EplObdReadEntry(wObdCommIndex, 0x01, &bObdData,
+					    &ObdSize);
+			if ((Ret == kEplObdIndexNotExist)
+			    || (Ret == kEplObdSubindexNotExist)
+			    || (Ret == kEplObdIllegalPart)) {	// PDO does not exist; last PDO reached
+				Ret = kEplSuccessful;
+				goto Exit;
+			} else if (Ret != kEplSuccessful) {	// other fatal error occured
+				goto Exit;
+			}
+			// entry read successfully
+			if (bObdData != uiNodeId) {	// node ID does not equal - wrong PDO, try next PDO in OD
+				continue;
+			}
+			ObdSize = 1;
+			// read number of mapped objects from OD; this indicates if the PDO is valid
+			Ret =
+			    EplObdReadEntry(wObdMappIndex, 0x00, &bObjectCount,
+					    &ObdSize);
+			if ((Ret == kEplObdIndexNotExist)
+			    || (Ret == kEplObdSubindexNotExist)
+			    || (Ret == kEplObdIllegalPart)) {	// PDO does not exist; last PDO reached
+				Ret = kEplSuccessful;
+				goto Exit;
+			} else if (Ret != kEplSuccessful) {	// other fatal error occured
+				goto Exit;
+			}
+			// entry read successfully
+			if (bObjectCount == 0) {	// PDO in OD not valid, try next PDO in OD
+				continue;
+			}
+			// valid TPDO found
 
-                // processing finished successfully
-                goto Exit;
-            }
-            break;
+			ObdSize = 1;
+			// get PDO mapping version from OD
+			Ret =
+			    EplObdReadEntry(wObdCommIndex, 0x02, &bObdData,
+					    &ObdSize);
+			if (Ret != kEplSuccessful) {	// other fatal error occured
+				goto Exit;
+			}
+			// entry read successfully
+			// set PDO version in frame
+			AmiSetByteToLe(&pFrame->m_Data.m_Pres.m_le_bPdoVersion,
+				       bObdData);
 
-        case kEplEventTypePdoTx:  // TPDO transmitted
-            pFrameInfo = (tEplFrameInfo *) pEvent_p->m_pArg;
-            pFrame = pFrameInfo->m_pFrame;
+			// calculate PDO size
+			wPdoSize = 0;
 
-            // set TPDO invalid, so that only fully processed TPDOs are sent as valid
-            bFrameData = AmiGetByteFromLe(&pFrame->m_Data.m_Pres.m_le_bFlag1);
-            AmiSetByteToLe(&pFrame->m_Data.m_Pres.m_le_bFlag1, (bFrameData & ~EPL_FRAME_FLAG1_RD));
+			// process mapping
+			for (bMappSubindex = 1; bMappSubindex <= bObjectCount;
+			     bMappSubindex++) {
+				ObdSize = 8;	// QWORD
+				// read object mapping from OD
+				Ret =
+				    EplObdReadEntry(wObdMappIndex,
+						    bMappSubindex,
+						    &qwObjectMapping, &ObdSize);
+				if (Ret != kEplSuccessful) {	// other fatal error occured
+					goto Exit;
+				}
+				// check if object mapping entry is valid, i.e. unequal zero, because "empty" entries are allowed
+				if (qwObjectMapping == 0) {	// invalid entry, continue with next entry
+					continue;
+				}
+				// decode object mapping
+				wObdCommIndex =
+				    (WORD) (qwObjectMapping &
+					    0x000000000000FFFFLL);
+				bObdSubindex =
+				    (BYTE) ((qwObjectMapping &
+					     0x0000000000FF0000LL) >> 16);
+				wBitOffset =
+				    (WORD) ((qwObjectMapping &
+					     0x0000FFFF00000000LL) >> 32);
+				wBitSize =
+				    (WORD) ((qwObjectMapping &
+					     0xFFFF000000000000LL) >> 48);
 
-            // retrieve EPL message type
-            MsgType = AmiGetByteFromLe(&pFrame->m_le_bMessageType);
-            if (MsgType == kEplMsgTypePres)
-            {   // TPDO is PRes frame
-                uiNodeId = EPL_PDO_PRES_NODE_ID;  // 0x00
-            }
-            else
-            {   // TPDO is PReq frame
-                // retrieve node ID
-                uiNodeId = AmiGetByteFromLe(&pFrame->m_le_bDstNodeId);
-            }
+				// calculate max PDO size
+				ObdSize = wBitSize >> 3;
+				wVarSize = (wBitOffset >> 3) + (WORD) ObdSize;
+				if ((unsigned int)(wVarSize + 24) > pFrameInfo->m_uiFrameSize) {	// TPDO is too short
+					// $$$ raise PDO error, set Ret
+					goto Exit;
+				}
+				if (wVarSize > wPdoSize) {	// memorize new PDO size
+					wPdoSize = wVarSize;
+				}
+				// copy object from process/OD variable to TPDO
+				Ret =
+				    EplObdReadEntryToLe(wObdCommIndex,
+							bObdSubindex,
+							&pFrame->m_Data.m_Pres.
+							m_le_abPayload[(wBitOffset >> 3)], &ObdSize);
+				if (Ret != kEplSuccessful) {	// other fatal error occured
+					goto Exit;
+				}
 
-            // search for appropriate valid TPDO in OD
-            wObdMappIndex = EPL_PDOK_OBD_IDX_TX_MAPP_PARAM;
-            wObdCommIndex = EPL_PDOK_OBD_IDX_TX_COMM_PARAM;
-            for (wPdoId = 0; ; wPdoId++, wObdCommIndex++, wObdMappIndex++)
-            {
-                ObdSize = 1;
-                // read node ID from OD
-                Ret = EplObdReadEntry(wObdCommIndex, 0x01, &bObdData, &ObdSize);
-                if ((Ret == kEplObdIndexNotExist)
-                    || (Ret == kEplObdSubindexNotExist)
-                    || (Ret == kEplObdIllegalPart))
-                {   // PDO does not exist; last PDO reached
-                    Ret = kEplSuccessful;
-                    goto Exit;
-                }
-                else if (Ret != kEplSuccessful)
-                {   // other fatal error occured
-                    goto Exit;
-                }
-                // entry read successfully
-                if (bObdData != uiNodeId)
-                {   // node ID does not equal - wrong PDO, try next PDO in OD
-                    continue;
-                }
-                ObdSize = 1;
-                // read number of mapped objects from OD; this indicates if the PDO is valid
-                Ret = EplObdReadEntry(wObdMappIndex, 0x00, &bObjectCount, &ObdSize);
-                if ((Ret == kEplObdIndexNotExist)
-                    || (Ret == kEplObdSubindexNotExist)
-                    || (Ret == kEplObdIllegalPart))
-                {   // PDO does not exist; last PDO reached
-                    Ret = kEplSuccessful;
-                    goto Exit;
-                }
-                else if (Ret != kEplSuccessful)
-                {   // other fatal error occured
-                    goto Exit;
-                }
-                // entry read successfully
-                if (bObjectCount == 0)
-                {   // PDO in OD not valid, try next PDO in OD
-                    continue;
-                }
+			}
 
-                // valid TPDO found
+			// set PDO size in frame
+			AmiSetWordToLe(&pFrame->m_Data.m_Pres.m_le_wSize,
+				       wPdoSize);
 
-                ObdSize = 1;
-                // get PDO mapping version from OD
-                Ret = EplObdReadEntry(wObdCommIndex, 0x02, &bObdData, &ObdSize);
-                if (Ret != kEplSuccessful)
-                {   // other fatal error occured
-                    goto Exit;
-                }
-                // entry read successfully
-                // set PDO version in frame
-                AmiSetByteToLe(&pFrame->m_Data.m_Pres.m_le_bPdoVersion, bObdData);
+			Ret = EplPdokCalAreTpdosValid(&fValid);
+			if (fValid != FALSE) {
+				// set TPDO valid
+				bFrameData =
+				    AmiGetByteFromLe(&pFrame->m_Data.m_Pres.
+						     m_le_bFlag1);
+				AmiSetByteToLe(&pFrame->m_Data.m_Pres.
+					       m_le_bFlag1,
+					       (bFrameData |
+						EPL_FRAME_FLAG1_RD));
+			}
+			// processing finished successfully
 
-                // calculate PDO size
-                wPdoSize = 0;
+			goto Exit;
+		}
+		break;
 
-                // process mapping
-                for (bMappSubindex = 1; bMappSubindex <= bObjectCount; bMappSubindex++)
-                {
-                    ObdSize = 8;    // QWORD
-                    // read object mapping from OD
-                    Ret = EplObdReadEntry(wObdMappIndex, bMappSubindex, &qwObjectMapping, &ObdSize);
-                    if (Ret != kEplSuccessful)
-                    {   // other fatal error occured
-                        goto Exit;
-                    }
+	case kEplEventTypePdoSoa:	// SoA received
 
-                    // check if object mapping entry is valid, i.e. unequal zero, because "empty" entries are allowed
-                    if (qwObjectMapping == 0)
-                    {   // invalid entry, continue with next entry
-                        continue;
-                    }
+		// invalidate TPDOs
+		Ret = EplPdokCalSetTpdosValid(FALSE);
+		break;
 
-                    // decode object mapping
-                    wObdCommIndex = (WORD) (qwObjectMapping & 0x000000000000FFFFLL);
-                    bObdSubindex = (BYTE) ((qwObjectMapping & 0x0000000000FF0000LL) >> 16);
-                    wBitOffset = (WORD) ((qwObjectMapping & 0x0000FFFF00000000LL) >> 32);
-                    wBitSize = (WORD) ((qwObjectMapping & 0xFFFF000000000000LL) >> 48);
+	default:
+		{
+			ASSERTMSG(FALSE,
+				  "EplPdokProcess(): unhandled event type!\n");
+		}
+	}
 
-                    // calculate max PDO size
-                    ObdSize = wBitSize >> 3;
-                    wVarSize = (wBitOffset >> 3) + (WORD) ObdSize;
-                    if ((unsigned int)(wVarSize + 24) > pFrameInfo->m_uiFrameSize)
-                    {   // TPDO is too short
-                        // $$$ raise PDO error, set Ret
-                        goto Exit;
-                    }
-                    if (wVarSize > wPdoSize)
-                    {   // memorize new PDO size
-                        wPdoSize = wVarSize;
-                    }
-
-                    // copy object from process/OD variable to TPDO
-                    Ret = EplObdReadEntryToLe(wObdCommIndex, bObdSubindex, &pFrame->m_Data.m_Pres.m_le_abPayload[(wBitOffset >> 3)], &ObdSize);
-                    if (Ret != kEplSuccessful)
-                    {   // other fatal error occured
-                        goto Exit;
-                    }
-
-                }
-
-                // set PDO size in frame
-                AmiSetWordToLe(&pFrame->m_Data.m_Pres.m_le_wSize, wPdoSize);
-
-                Ret = EplPdokCalAreTpdosValid(&fValid);
-                if (fValid != FALSE)
-                {
-                    // set TPDO valid
-                    bFrameData = AmiGetByteFromLe(&pFrame->m_Data.m_Pres.m_le_bFlag1);
-                    AmiSetByteToLe(&pFrame->m_Data.m_Pres.m_le_bFlag1, (bFrameData | EPL_FRAME_FLAG1_RD));
-                }
-
-                // processing finished successfully
-
-                goto Exit;
-            }
-            break;
-
-        case kEplEventTypePdoSoa: // SoA received
-
-            // invalidate TPDOs
-            Ret = EplPdokCalSetTpdosValid(FALSE);
-            break;
-
-        default:
-        {
-            ASSERTMSG(FALSE, "EplPdokProcess(): unhandled event type!\n");
-        }
-    }
-
-Exit:
-    return Ret;
+      Exit:
+	return Ret;
 }
 
 //=========================================================================//
@@ -689,4 +692,3 @@ Exit:
 #endif // #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_PDOK)) != 0)
 
 // EOF
-

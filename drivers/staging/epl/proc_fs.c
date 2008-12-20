@@ -91,10 +91,9 @@
 #include <linux/spinlock.h>
 
 #ifdef CONFIG_COLDFIRE
-    #include <asm/coldfire.h>
-    #include "fec.h"
+#include <asm/coldfire.h>
+#include "fec.h"
 #endif
-
 
 /***************************************************************************/
 /*                                                                         */
@@ -113,44 +112,43 @@
 #endif
 
 #ifndef DBG_TRACE_POINTS
-#define DBG_TRACE_POINTS    23  // # of supported debug trace points
+#define DBG_TRACE_POINTS    23	// # of supported debug trace points
 #endif
 
 #ifndef DBG_TRACE_VALUES
-#define DBG_TRACE_VALUES    24 // # of supported debug trace values (size of circular buffer)
+#define DBG_TRACE_VALUES    24	// # of supported debug trace values (size of circular buffer)
 #endif
 
 //---------------------------------------------------------------------------
 // modul global types
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 // local vars
 //---------------------------------------------------------------------------
 
 #ifdef _DBG_TRACE_POINTS_
-    atomic_t            aatmDbgTracePoint_l[DBG_TRACE_POINTS];
-    DWORD               adwDbgTraceValue_l[DBG_TRACE_VALUES];
-    DWORD               dwDbgTraceValueOld_l;
-    unsigned int        uiDbgTraceValuePos_l;
-    spinlock_t          spinlockDbgTraceValue_l;
-    unsigned long       ulDbTraceValueFlags_l;
+atomic_t aatmDbgTracePoint_l[DBG_TRACE_POINTS];
+DWORD adwDbgTraceValue_l[DBG_TRACE_VALUES];
+DWORD dwDbgTraceValueOld_l;
+unsigned int uiDbgTraceValuePos_l;
+spinlock_t spinlockDbgTraceValue_l;
+unsigned long ulDbTraceValueFlags_l;
 #endif
 
 //---------------------------------------------------------------------------
 // local function prototypes
 //---------------------------------------------------------------------------
 
-static  int        EplLinProcRead       (char* pcBuffer_p, char** ppcStart_p, off_t Offset_p, int nBufferSize_p, int* pEof_p, void* pData_p);
-static int EplLinProcWrite(struct file *file, const char __user *buffer, unsigned long count, void *data);
+static int EplLinProcRead(char *pcBuffer_p, char **ppcStart_p, off_t Offset_p,
+			  int nBufferSize_p, int *pEof_p, void *pData_p);
+static int EplLinProcWrite(struct file *file, const char __user * buffer,
+			   unsigned long count, void *data);
 
-void  PUBLIC  TgtDbgSignalTracePoint (BYTE bTracePointNumber_p);
-void  PUBLIC  TgtDbgPostTraceValue (DWORD dwTraceValue_p);
-
+void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
 
 EPLDLLEXPORT DWORD PUBLIC EplIdentuGetRunningRequests(void);
-
 
 //=========================================================================//
 //                                                                         //
@@ -160,35 +158,32 @@ EPLDLLEXPORT DWORD PUBLIC EplIdentuGetRunningRequests(void);
 
 tEplKernel EplLinProcInit(void)
 {
-    struct proc_dir_entry*  pProcDirEntry;
-    pProcDirEntry = create_proc_entry (EPL_PROC_DEV_NAME, S_IRUGO, NULL);
-    if (pProcDirEntry != NULL)
-    {
-        pProcDirEntry->read_proc  = EplLinProcRead;
-        pProcDirEntry->write_proc = EplLinProcWrite;
-        pProcDirEntry->data       = NULL; // device number or something else
+	struct proc_dir_entry *pProcDirEntry;
+	pProcDirEntry = create_proc_entry(EPL_PROC_DEV_NAME, S_IRUGO, NULL);
+	if (pProcDirEntry != NULL) {
+		pProcDirEntry->read_proc = EplLinProcRead;
+		pProcDirEntry->write_proc = EplLinProcWrite;
+		pProcDirEntry->data = NULL;	// device number or something else
 
-    }
-    else
-    {
-        return kEplNoResource;
-    }
+	} else {
+		return kEplNoResource;
+	}
 
 #ifdef _DBG_TRACE_POINTS_
-    // initialize spinlock and circular buffer position
-    spin_lock_init(&spinlockDbgTraceValue_l);
-    uiDbgTraceValuePos_l = 0;
-    dwDbgTraceValueOld_l = 0;
+	// initialize spinlock and circular buffer position
+	spin_lock_init(&spinlockDbgTraceValue_l);
+	uiDbgTraceValuePos_l = 0;
+	dwDbgTraceValueOld_l = 0;
 #endif
 
-    return kEplSuccessful;
+	return kEplSuccessful;
 }
 
 tEplKernel EplLinProcFree(void)
 {
-    remove_proc_entry (EPL_PROC_DEV_NAME, NULL);
+	remove_proc_entry(EPL_PROC_DEV_NAME, NULL);
 
-    return kEplSuccessful;
+	return kEplSuccessful;
 }
 
 //---------------------------------------------------------------------------
@@ -196,225 +191,219 @@ tEplKernel EplLinProcFree(void)
 //---------------------------------------------------------------------------
 
 #ifdef _DBG_TRACE_POINTS_
-void  PUBLIC  TgtDbgSignalTracePoint (
-    BYTE bTracePointNumber_p)
+void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p)
 {
 
-    if (bTracePointNumber_p >= (sizeof(aatmDbgTracePoint_l) / sizeof(aatmDbgTracePoint_l[0])))
-    {
-        goto Exit;
-    }
+	if (bTracePointNumber_p >=
+	    (sizeof(aatmDbgTracePoint_l) / sizeof(aatmDbgTracePoint_l[0]))) {
+		goto Exit;
+	}
 
+	atomic_inc(&aatmDbgTracePoint_l[bTracePointNumber_p]);
 
-    atomic_inc (&aatmDbgTracePoint_l[bTracePointNumber_p]);
+      Exit:
 
-Exit:
-
-    return;
+	return;
 
 }
 
-void  PUBLIC  TgtDbgPostTraceValue (DWORD dwTraceValue_p)
+void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p)
 {
 
-    spin_lock_irqsave(&spinlockDbgTraceValue_l, ulDbTraceValueFlags_l);
-    if (dwDbgTraceValueOld_l != dwTraceValue_p)
-    {
-        adwDbgTraceValue_l[uiDbgTraceValuePos_l] = dwTraceValue_p;
-        uiDbgTraceValuePos_l = (uiDbgTraceValuePos_l + 1) % DBG_TRACE_VALUES;
-        dwDbgTraceValueOld_l = dwTraceValue_p;
-    }
-    spin_unlock_irqrestore(&spinlockDbgTraceValue_l, ulDbTraceValueFlags_l);
+	spin_lock_irqsave(&spinlockDbgTraceValue_l, ulDbTraceValueFlags_l);
+	if (dwDbgTraceValueOld_l != dwTraceValue_p) {
+		adwDbgTraceValue_l[uiDbgTraceValuePos_l] = dwTraceValue_p;
+		uiDbgTraceValuePos_l =
+		    (uiDbgTraceValuePos_l + 1) % DBG_TRACE_VALUES;
+		dwDbgTraceValueOld_l = dwTraceValue_p;
+	}
+	spin_unlock_irqrestore(&spinlockDbgTraceValue_l, ulDbTraceValueFlags_l);
 
-    return;
+	return;
 
 }
 #endif
-
 
 //---------------------------------------------------------------------------
 //  Read function for PROC-FS read access
 //---------------------------------------------------------------------------
 
-static  int  EplLinProcRead (
-    char* pcBuffer_p,
-    char** ppcStart_p,
-    off_t Offset_p,
-    int nBufferSize_p,
-    int* pEof_p,
-    void* pData_p)
+static int EplLinProcRead(char *pcBuffer_p,
+			  char **ppcStart_p,
+			  off_t Offset_p,
+			  int nBufferSize_p, int *pEof_p, void *pData_p)
 {
 
-int             nSize;
-int             Eof;
-tEplDllkCalStatistics* pDllkCalStats;
+	int nSize;
+	int Eof;
+	tEplDllkCalStatistics *pDllkCalStats;
 
-    nSize = 0;
-    Eof   = 0;
+	nSize = 0;
+	Eof = 0;
 
-    // count calls of this function
+	// count calls of this function
 #ifdef _DBG_TRACE_POINTS_
-    TgtDbgSignalTracePoint(0);
+	TgtDbgSignalTracePoint(0);
 #endif
 
-    //---------------------------------------------------------------
-    // generate static information
-    //---------------------------------------------------------------
+	//---------------------------------------------------------------
+	// generate static information
+	//---------------------------------------------------------------
 
-    // ---- Driver information ----
-    nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                       "%s    %s    (c) 2006 %s\n",
-                       EPL_PRODUCT_NAME, EPL_PRODUCT_VERSION, EPL_PRODUCT_MANUFACTURER);
+	// ---- Driver information ----
+	nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
+			  "%s    %s    (c) 2006 %s\n",
+			  EPL_PRODUCT_NAME, EPL_PRODUCT_VERSION,
+			  EPL_PRODUCT_MANUFACTURER);
 
+	//---------------------------------------------------------------
+	// generate process information
+	//---------------------------------------------------------------
 
-    //---------------------------------------------------------------
-    // generate process information
-    //---------------------------------------------------------------
+	// ---- EPL state ----
+	nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
+			  "NMT state:                  0x%04X\n",
+			  (WORD) EplNmtkGetNmtState());
 
-    // ---- EPL state ----
-    nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                       "NMT state:                  0x%04X\n",
-                       (WORD) EplNmtkGetNmtState());
+	EplDllkCalGetStatistics(&pDllkCalStats);
 
-    EplDllkCalGetStatistics(&pDllkCalStats);
-
-    nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                       "CurAsyncTxGen=%lu CurAsyncTxNmt=%lu CurAsyncRx=%lu\nMaxAsyncTxGen=%lu MaxAsyncTxNmt=%lu MaxAsyncRx=%lu\n", pDllkCalStats->m_ulCurTxFrameCountGen, pDllkCalStats->m_ulCurTxFrameCountNmt, pDllkCalStats->m_ulCurRxFrameCount, pDllkCalStats->m_ulMaxTxFrameCountGen, pDllkCalStats->m_ulMaxTxFrameCountNmt, pDllkCalStats->m_ulMaxRxFrameCount);
+	nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
+			  "CurAsyncTxGen=%lu CurAsyncTxNmt=%lu CurAsyncRx=%lu\nMaxAsyncTxGen=%lu MaxAsyncTxNmt=%lu MaxAsyncRx=%lu\n",
+			  pDllkCalStats->m_ulCurTxFrameCountGen,
+			  pDllkCalStats->m_ulCurTxFrameCountNmt,
+			  pDllkCalStats->m_ulCurRxFrameCount,
+			  pDllkCalStats->m_ulMaxTxFrameCountGen,
+			  pDllkCalStats->m_ulMaxTxFrameCountNmt,
+			  pDllkCalStats->m_ulMaxRxFrameCount);
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-    // fetch running IdentRequests
-    nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                       "running IdentRequests:      0x%08lX\n",
-                       EplIdentuGetRunningRequests());
+	// fetch running IdentRequests
+	nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
+			  "running IdentRequests:      0x%08lX\n",
+			  EplIdentuGetRunningRequests());
 
-    // fetch state of NmtMnu module
-    {
-    unsigned int    uiMandatorySlaveCount;
-    unsigned int    uiSignalSlaveCount;
-    WORD            wFlags;
+	// fetch state of NmtMnu module
+	{
+		unsigned int uiMandatorySlaveCount;
+		unsigned int uiSignalSlaveCount;
+		WORD wFlags;
 
-        EplNmtMnuGetDiagnosticInfo(&uiMandatorySlaveCount,
-                                   &uiSignalSlaveCount,
-                                   &wFlags);
+		EplNmtMnuGetDiagnosticInfo(&uiMandatorySlaveCount,
+					   &uiSignalSlaveCount, &wFlags);
 
+		nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
+				  "MN  MandSlaveCount: %u  SigSlaveCount: %u  Flags: 0x%X\n",
+				  uiMandatorySlaveCount, uiSignalSlaveCount,
+				  wFlags);
 
-        nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                           "MN  MandSlaveCount: %u  SigSlaveCount: %u  Flags: 0x%X\n",
-                           uiMandatorySlaveCount, uiSignalSlaveCount, wFlags);
-
-    }
+	}
 #endif
 
-    // ---- FEC state ----
-    #ifdef CONFIG_COLDFIRE
-    {
-        // Receive the base address
-        unsigned long base_addr;
-        #if (EDRV_USED_ETH_CTRL == 0)
-            // Set the base address of FEC0
-            base_addr = FEC_BASE_ADDR_FEC0;
-        #else
-            // Set the base address of FEC1
-            base_addr = FEC_BASE_ADDR_FEC1;
-        #endif
+	// ---- FEC state ----
+#ifdef CONFIG_COLDFIRE
+	{
+		// Receive the base address
+		unsigned long base_addr;
+#if (EDRV_USED_ETH_CTRL == 0)
+		// Set the base address of FEC0
+		base_addr = FEC_BASE_ADDR_FEC0;
+#else
+		// Set the base address of FEC1
+		base_addr = FEC_BASE_ADDR_FEC1;
+#endif
 
-        nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                           "FEC_ECR = 0x%08X FEC_EIR = 0x%08X FEC_EIMR = 0x%08X\nFEC_TCR = 0x%08X FECTFSR = 0x%08X FECRFSR = 0x%08X\n",
-                           FEC_ECR(base_addr), FEC_EIR(base_addr), FEC_EIMR(base_addr), FEC_TCR(base_addr), FEC_FECTFSR(base_addr), FEC_FECRFSR(base_addr));
-    }
-    #endif
+		nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
+				  "FEC_ECR = 0x%08X FEC_EIR = 0x%08X FEC_EIMR = 0x%08X\nFEC_TCR = 0x%08X FECTFSR = 0x%08X FECRFSR = 0x%08X\n",
+				  FEC_ECR(base_addr), FEC_EIR(base_addr),
+				  FEC_EIMR(base_addr), FEC_TCR(base_addr),
+				  FEC_FECTFSR(base_addr),
+				  FEC_FECRFSR(base_addr));
+	}
+#endif
 
+	// ---- DBG: TracePoints ----
+#ifdef _DBG_TRACE_POINTS_
+	{
+		int nNum;
 
-    // ---- DBG: TracePoints ----
-    #ifdef _DBG_TRACE_POINTS_
-    {
-        int nNum;
+		nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
+				  "DbgTracePoints:\n");
+		for (nNum = 0;
+		     nNum < (sizeof(aatmDbgTracePoint_l) / sizeof(atomic_t));
+		     nNum++) {
+			nSize +=
+			    snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
+				     " TracePoint[%2d]: %d\n", (int)nNum,
+				     atomic_read(&aatmDbgTracePoint_l[nNum]));
+		}
 
-        nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                           "DbgTracePoints:\n");
-        for (nNum=0; nNum<(sizeof(aatmDbgTracePoint_l)/sizeof(atomic_t)); nNum++)
-        {
-            nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                               " TracePoint[%2d]: %d\n", (int)nNum,
-                               atomic_read(&aatmDbgTracePoint_l[nNum]));
-        }
+		nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
+				  "DbgTraceValues:\n");
+		for (nNum = 0; nNum < DBG_TRACE_VALUES; nNum++) {
+			if (nNum == uiDbgTraceValuePos_l) {	// next value will be stored at that position
+				nSize +=
+				    snprintf(pcBuffer_p + nSize,
+					     nBufferSize_p - nSize, "*%08lX",
+					     adwDbgTraceValue_l[nNum]);
+			} else {
+				nSize +=
+				    snprintf(pcBuffer_p + nSize,
+					     nBufferSize_p - nSize, " %08lX",
+					     adwDbgTraceValue_l[nNum]);
+			}
+			if ((nNum & 0x00000007) == 0x00000007) {	// 8 values printed -> end of line reached
+				nSize +=
+				    snprintf(pcBuffer_p + nSize,
+					     nBufferSize_p - nSize, "\n");
+			}
+		}
+		if ((nNum & 0x00000007) != 0x00000007) {	// number of values printed is not a multiple of 8 -> print new line
+			nSize +=
+			    snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
+				     "\n");
+		}
+	}
+#endif
 
-        nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                           "DbgTraceValues:\n");
-        for (nNum=0; nNum<DBG_TRACE_VALUES; nNum++)
-        {
-            if (nNum == uiDbgTraceValuePos_l)
-            {   // next value will be stored at that position
-                nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                                   "*%08lX", adwDbgTraceValue_l[nNum]);
-            }
-            else
-            {
-                nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                                   " %08lX", adwDbgTraceValue_l[nNum]);
-            }
-            if ((nNum & 0x00000007) == 0x00000007)
-            {   // 8 values printed -> end of line reached
-                nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                                   "\n");
-            }
-        }
-        if ((nNum & 0x00000007) != 0x00000007)
-        {   // number of values printed is not a multiple of 8 -> print new line
-            nSize += snprintf (pcBuffer_p + nSize, nBufferSize_p - nSize,
-                               "\n");
-        }
-    }
-    #endif
+	Eof = 1;
+	goto Exit;
 
+      Exit:
 
-    Eof = 1;
-    goto Exit;
+	*pEof_p = Eof;
 
-
-Exit:
-
-    *pEof_p = Eof;
-
-    return (nSize);
+	return (nSize);
 
 }
-
 
 //---------------------------------------------------------------------------
 //  Write function for PROC-FS write access
 //---------------------------------------------------------------------------
 
-static int EplLinProcWrite(struct file *file, const char __user *buffer, unsigned long count, void *data)
+static int EplLinProcWrite(struct file *file, const char __user * buffer,
+			   unsigned long count, void *data)
 {
-char            abBuffer[count + 1];
-int             iErr;
-int             iVal = 0;
-tEplNmtEvent    NmtEvent;
+	char abBuffer[count + 1];
+	int iErr;
+	int iVal = 0;
+	tEplNmtEvent NmtEvent;
 
-    if (count > 0)
-    {
-        iErr = copy_from_user(abBuffer, buffer, count);
-        if (iErr != 0)
-        {
-            return count;
-        }
-        abBuffer[count] = '\0';
+	if (count > 0) {
+		iErr = copy_from_user(abBuffer, buffer, count);
+		if (iErr != 0) {
+			return count;
+		}
+		abBuffer[count] = '\0';
 
-        iErr = sscanf(abBuffer, "%i", &iVal);
-    }
-    if ((iVal <= 0) || (iVal > 0x2F))
-    {
-        NmtEvent = kEplNmtEventSwReset;
-    }
-    else
-    {
-        NmtEvent = (tEplNmtEvent) iVal;
-    }
-    // execute specified NMT command on write access of /proc/epl
-    EplNmtuNmtEvent(NmtEvent);
+		iErr = sscanf(abBuffer, "%i", &iVal);
+	}
+	if ((iVal <= 0) || (iVal > 0x2F)) {
+		NmtEvent = kEplNmtEventSwReset;
+	} else {
+		NmtEvent = (tEplNmtEvent) iVal;
+	}
+	// execute specified NMT command on write access of /proc/epl
+	EplNmtuNmtEvent(NmtEvent);
 
-    return count;
+	return count;
 }
-
-
