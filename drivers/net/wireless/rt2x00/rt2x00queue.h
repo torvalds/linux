@@ -158,6 +158,14 @@ enum rxdone_entry_desc_flags {
 };
 
 /**
+ * RXDONE_SIGNAL_MASK - Define to mask off all &rxdone_entry_desc_flags flags
+ * except for the RXDONE_SIGNAL_* flags. This is useful to convert the dev_flags
+ * from &rxdone_entry_desc to a signal value type.
+ */
+#define RXDONE_SIGNAL_MASK \
+       ( RXDONE_SIGNAL_PLCP | RXDONE_SIGNAL_BITRATE )
+
+/**
  * struct rxdone_entry_desc: RX Entry descriptor
  *
  * Summary of information that has been read from the RX frame descriptor.

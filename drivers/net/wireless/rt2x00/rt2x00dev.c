@@ -392,8 +392,8 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 
 	if (idx < 0) {
 		WARNING(rt2x00dev, "Frame received with unrecognized signal,"
-			"signal=0x%.2x, plcp=%d.\n", rxdesc.signal,
-			!!(rxdesc.dev_flags & RXDONE_SIGNAL_PLCP));
+			"signal=0x%.2x, type=%d.\n", rxdesc.signal,
+			(rxdesc.dev_flags & RXDONE_SIGNAL_MASK));
 		idx = 0;
 	}
 
