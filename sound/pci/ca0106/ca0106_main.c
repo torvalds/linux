@@ -1694,6 +1694,7 @@ static int __devinit snd_ca0106_probe(struct pci_dev *pci,
 	err = snd_ca0106_create(dev, card, pci, &chip);
 	if (err < 0)
 		goto error;
+	card->private_data = chip;
 
 	for (i = 0; i < 4; i++) {
 		err = snd_ca0106_pcm(chip, i);
