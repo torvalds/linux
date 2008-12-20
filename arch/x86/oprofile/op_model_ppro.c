@@ -69,7 +69,7 @@ static void ppro_setup_ctrs(struct op_msrs const * const msrs)
 	int i;
 
 	if (!reset_value) {
-		reset_value = kmalloc(sizeof(unsigned) * num_counters,
+		reset_value = kmalloc(sizeof(reset_value[0]) * num_counters,
 					GFP_ATOMIC);
 		if (!reset_value)
 			return;
@@ -156,6 +156,8 @@ static void ppro_start(struct op_msrs const * const msrs)
 	unsigned int low, high;
 	int i;
 
+	if (!reset_value)
+		return;
 	for (i = 0; i < num_counters; ++i) {
 		if (reset_value[i]) {
 			CTRL_READ(low, high, msrs, i);
@@ -171,6 +173,8 @@ static void ppro_stop(struct op_msrs const * const msrs)
 	unsigned int low, high;
 	int i;
 
+	if (!reset_value)
+		return;
 	for (i = 0; i < num_counters; ++i) {
 		if (!reset_value[i])
 			continue;

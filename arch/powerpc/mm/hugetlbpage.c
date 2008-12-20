@@ -677,7 +677,7 @@ repeat:
 	return err;
 }
 
-void set_huge_psize(int psize)
+static void __init set_huge_psize(int psize)
 {
 	/* Check that it is a page size supported by the hardware and
 	 * that it fits within pagetable limits. */

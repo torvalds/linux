@@ -1159,6 +1159,7 @@ EXPORT_SYMBOL(remove_arg_zero);
  */
 int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 {
+	unsigned int depth = bprm->recursion_depth;
 	int try,retval;
 	struct linux_binfmt *fmt;
 #ifdef __alpha__
@@ -1219,8 +1220,15 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 				continue;
 			read_unlock(&binfmt_lock);
 			retval = fn(bprm, regs);
+			/*
+			 * Restore the depth counter to its starting value
+			 * in this call, so we don't have to rely on every
+			 * load_binary function to restore it on return.
+			 */
+			bprm->recursion_depth = depth;
 			if (retval >= 0) {
-				tracehook_report_exec(fmt, bprm, regs);
+				if (depth == 0)
+					tracehook_report_exec(fmt, bprm, regs);
 				put_binfmt(fmt);
 				allow_write_access(bprm->file);
 				if (bprm->file)

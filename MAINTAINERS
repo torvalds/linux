@@ -779,6 +779,7 @@ ATM
 P:	Chas Williams
 M:	chas@cmf.nrl.navy.mil
 L:	linux-atm-general@lists.sourceforge.net (subscribers-only)
+L:	netdev@vger.kernel.org
 W:	http://linux-atm.sourceforge.net
 S:	Maintained
 
@@ -3758,6 +3759,15 @@ M:	drzeus-sdhci@drzeus.cx
 L:	sdhci-devel@list.drzeus.cx
 S:	Maintained
 
+SECURITY SUBSYSTEM
+F:	security/
+P:	James Morris
+M:	jmorris@namei.org
+L:	linux-kernel@vger.kernel.org
+L:	linux-security-module@vger.kernel.org (suggested Cc:)
+T:	git kernel.org:pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+S:	Supported
+
 SECURITY CONTACT
 P:	Security Officers
 M:	security@kernel.org
@@ -4235,7 +4245,7 @@ M:	dedekind@infradead.org
 P:	Adrian Hunter
 M:	ext-adrian.hunter@nokia.com
 L:	linux-mtd@lists.infradead.org
-T:	git git://git.infradead.org/~dedekind/ubifs-2.6.git
+T:	git git://git.infradead.org/ubifs-2.6.git
 W:	http://www.linux-mtd.infradead.org/doc/ubifs.html
 S:	Maintained
 
@@ -4289,7 +4299,7 @@ P:	Artem Bityutskiy
 M:	dedekind@infradead.org
 W:	http://www.linux-mtd.infradead.org/
 L:	linux-mtd@lists.infradead.org
-T:	git git://git.infradead.org/~dedekind/ubi-2.6.git
+T:	git git://git.infradead.org/ubi-2.6.git
 S:	Maintained
 
 USB ACM DRIVER

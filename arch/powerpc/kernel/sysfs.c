@@ -717,9 +717,11 @@ static void unregister_cpu_online(unsigned int cpu)
 
 	BUG_ON(!c->hotpluggable);
 
+#ifdef CONFIG_PPC64
 	if (!firmware_has_feature(FW_FEATURE_ISERIES) &&
 			cpu_has_feature(CPU_FTR_SMT))
 		sysdev_remove_file(s, &attr_smt_snooze_delay);
+#endif
 
 	/* PMC stuff */
 	switch (cur_cpu_spec->pmc_type) {

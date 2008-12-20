@@ -91,7 +91,7 @@ extern int memory_notify(unsigned long val, void *v);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 #define hotplug_memory_notifier(fn, pri) {			\
-	static struct notifier_block fn##_mem_nb =		\
+	static __meminitdata struct notifier_block fn##_mem_nb =\
 		{ .notifier_call = fn, .priority = pri };	\
 	register_memory_notifier(&fn##_mem_nb);			\
 }

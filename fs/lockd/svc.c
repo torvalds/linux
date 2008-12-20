@@ -181,6 +181,7 @@ lockd(void *vrqstp)
 	}
 	flush_signals(current);
 	cancel_delayed_work_sync(&grace_period_end);
+	locks_end_grace(&lockd_manager);
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
 	nlm_shutdown_hosts();
