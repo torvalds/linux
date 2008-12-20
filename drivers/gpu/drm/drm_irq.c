@@ -116,6 +116,9 @@ void drm_vblank_cleanup(struct drm_device *dev)
 		 dev->num_crtcs, DRM_MEM_DRIVER);
 	drm_free(dev->last_vblank, sizeof(*dev->last_vblank) * dev->num_crtcs,
 		 DRM_MEM_DRIVER);
+	drm_free(dev->last_vblank_wait,
+		 sizeof(*dev->last_vblank_wait) * dev->num_crtcs,
+		 DRM_MEM_DRIVER);
 	drm_free(dev->vblank_inmodeset, sizeof(*dev->vblank_inmodeset) *
 		 dev->num_crtcs, DRM_MEM_DRIVER);
 
@@ -159,6 +162,11 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 
 	dev->last_vblank = drm_calloc(num_crtcs, sizeof(u32), DRM_MEM_DRIVER);
 	if (!dev->last_vblank)
+		goto err;
+
+	dev->last_vblank_wait = drm_calloc(num_crtcs, sizeof(u32),
+					   DRM_MEM_DRIVER);
+	if (!dev->last_vblank_wait)
 		goto err;
 
 	dev->vblank_inmodeset = drm_calloc(num_crtcs, sizeof(int),
@@ -642,6 +650,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 	} else {
 		DRM_DEBUG("waiting on vblank count %d, crtc %d\n",
 			  vblwait->request.sequence, crtc);
+		dev->last_vblank_wait[crtc] = vblwait->request.sequence;
 		DRM_WAIT_ON(ret, dev->vbl_queue[crtc], 3 * DRM_HZ,
 			    ((drm_vblank_count(dev, crtc)
 			      - vblwait->request.sequence) <= (1 << 23)));

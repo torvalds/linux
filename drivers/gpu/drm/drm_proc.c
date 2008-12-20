@@ -49,6 +49,8 @@ static int drm_queues_info(char *buf, char **start, off_t offset,
 			   int request, int *eof, void *data);
 static int drm_bufs_info(char *buf, char **start, off_t offset,
 			 int request, int *eof, void *data);
+static int drm_vblank_info(char *buf, char **start, off_t offset,
+			   int request, int *eof, void *data);
 static int drm_gem_name_info(char *buf, char **start, off_t offset,
 			     int request, int *eof, void *data);
 static int drm_gem_object_info(char *buf, char **start, off_t offset,
@@ -72,6 +74,7 @@ static struct drm_proc_list {
 	{"clients", drm_clients_info, 0},
 	{"queues", drm_queues_info, 0},
 	{"bufs", drm_bufs_info, 0},
+	{"vblank", drm_vblank_info, 0},
 	{"gem_names", drm_gem_name_info, DRIVER_GEM},
 	{"gem_objects", drm_gem_object_info, DRIVER_GEM},
 #if DRM_DEBUG_CODE
@@ -453,6 +456,66 @@ static int drm_bufs_info(char *buf, char **start, off_t offset, int request,
 
 	mutex_lock(&dev->struct_mutex);
 	ret = drm__bufs_info(buf, start, offset, request, eof, data);
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
+}
+
+/**
+ * Called when "/proc/dri/.../vblank" is read.
+ *
+ * \param buf output buffer.
+ * \param start start of output data.
+ * \param offset requested start offset.
+ * \param request requested number of bytes.
+ * \param eof whether there is no more data to return.
+ * \param data private data.
+ * \return number of written bytes.
+ */
+static int drm__vblank_info(char *buf, char **start, off_t offset, int request,
+			  int *eof, void *data)
+{
+	struct drm_minor *minor = (struct drm_minor *) data;
+	struct drm_device *dev = minor->dev;
+	int len = 0;
+	int crtc;
+
+	if (offset > DRM_PROC_LIMIT) {
+		*eof = 1;
+		return 0;
+	}
+
+	*start = &buf[offset];
+	*eof = 0;
+
+	for (crtc = 0; crtc < dev->num_crtcs; crtc++) {
+		DRM_PROC_PRINT("CRTC %d enable:     %d\n",
+			       crtc, atomic_read(&dev->vblank_refcount[crtc]));
+		DRM_PROC_PRINT("CRTC %d counter:    %d\n",
+			       crtc, drm_vblank_count(dev, crtc));
+		DRM_PROC_PRINT("CRTC %d last wait:  %d\n",
+			       crtc, dev->last_vblank_wait[crtc]);
+		DRM_PROC_PRINT("CRTC %d in modeset: %d\n",
+			       crtc, dev->vblank_inmodeset[crtc]);
+	}
+
+	if (len > request + offset)
+		return request;
+	*eof = 1;
+	return len - offset;
+}
+
+/**
+ * Simply calls _vblank_info() while holding the drm_device::struct_mutex lock.
+ */
+static int drm_vblank_info(char *buf, char **start, off_t offset, int request,
+			 int *eof, void *data)
+{
+	struct drm_minor *minor = (struct drm_minor *) data;
+	struct drm_device *dev = minor->dev;
+	int ret;
+
+	mutex_lock(&dev->struct_mutex);
+	ret = drm__vblank_info(buf, start, offset, request, eof, data);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
