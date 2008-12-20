@@ -148,7 +148,7 @@ static void ca0106_set_capture_mic_line_in(struct snd_ca0106 *emu)
 
 static void ca0106_set_spdif_bits(struct snd_ca0106 *emu, int idx)
 {
-	snd_ca0106_ptr_write(emu, SPCS0 + idx, 0, emu->spdif_bits[idx]);
+	snd_ca0106_ptr_write(emu, SPCS0 + idx, 0, emu->spdif_str_bits[idx]);
 }
 
 /*
@@ -353,16 +353,33 @@ static int snd_ca0106_spdif_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int snd_ca0106_spdif_get(struct snd_kcontrol *kcontrol,
+static void decode_spdif_bits(unsigned char *status, unsigned int bits)
+{
+	status[0] = (bits >> 0) & 0xff;
+	status[1] = (bits >> 8) & 0xff;
+	status[2] = (bits >> 16) & 0xff;
+	status[3] = (bits >> 24) & 0xff;
+}
+
+static int snd_ca0106_spdif_get_default(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 
-	ucontrol->value.iec958.status[0] = (emu->spdif_bits[idx] >> 0) & 0xff;
-	ucontrol->value.iec958.status[1] = (emu->spdif_bits[idx] >> 8) & 0xff;
-	ucontrol->value.iec958.status[2] = (emu->spdif_bits[idx] >> 16) & 0xff;
-	ucontrol->value.iec958.status[3] = (emu->spdif_bits[idx] >> 24) & 0xff;
+	decode_spdif_bits(ucontrol->value.iec958.status,
+			  emu->spdif_bits[idx]);
+        return 0;
+}
+
+static int snd_ca0106_spdif_get_stream(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+
+	decode_spdif_bits(ucontrol->value.iec958.status,
+			  emu->spdif_str_bits[idx]);
         return 0;
 }
 
@@ -376,24 +393,48 @@ static int snd_ca0106_spdif_get_mask(struct snd_kcontrol *kcontrol,
         return 0;
 }
 
-static int snd_ca0106_spdif_put(struct snd_kcontrol *kcontrol,
+static unsigned int encode_spdif_bits(unsigned char *status)
+{
+	return ((unsigned int)status[0] << 0) |
+		((unsigned int)status[1] << 8) |
+		((unsigned int)status[2] << 16) |
+		((unsigned int)status[3] << 24);
+}
+
+static int snd_ca0106_spdif_put_default(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	int change;
 	unsigned int val;
 
-	val = (ucontrol->value.iec958.status[0] << 0) |
-	      (ucontrol->value.iec958.status[1] << 8) |
-	      (ucontrol->value.iec958.status[2] << 16) |
-	      (ucontrol->value.iec958.status[3] << 24);
-	change = val != emu->spdif_bits[idx];
-	if (change) {
+	val = encode_spdif_bits(ucontrol->value.iec958.status);
+	if (val != emu->spdif_bits[idx]) {
 		emu->spdif_bits[idx] = val;
+		/* FIXME: this isn't safe, but needed to keep the compatibility
+		 * with older alsa-lib config
+		 */
+		emu->spdif_str_bits[idx] = val;
 		ca0106_set_spdif_bits(emu, idx);
+		return 1;
 	}
-        return change;
+	return 0;
+}
+
+static int snd_ca0106_spdif_put_stream(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	unsigned int val;
+
+	val = encode_spdif_bits(ucontrol->value.iec958.status);
+	if (val != emu->spdif_str_bits[idx]) {
+		emu->spdif_str_bits[idx] = val;
+		ca0106_set_spdif_bits(emu, idx);
+		return 1;
+	}
+        return 0;
 }
 
 static int snd_ca0106_volume_info(struct snd_kcontrol *kcontrol,
@@ -604,8 +645,16 @@ static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
 		.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 		.count =	4,
 		.info =         snd_ca0106_spdif_info,
-		.get =          snd_ca0106_spdif_get,
-		.put =          snd_ca0106_spdif_put
+		.get =          snd_ca0106_spdif_get_default,
+		.put =          snd_ca0106_spdif_put_default
+	},
+	{
+		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
+		.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,PCM_STREAM),
+		.count =	4,
+		.info =         snd_ca0106_spdif_info,
+		.get =          snd_ca0106_spdif_get_stream,
+		.put =          snd_ca0106_spdif_put_stream
 	},
 };
 

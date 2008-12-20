@@ -694,7 +694,8 @@ struct snd_ca0106 {
 
 	struct snd_ca0106_channel playback_channels[4];
 	struct snd_ca0106_channel capture_channels[4];
-	u32 spdif_bits[4];             /* s/pdif out setup */
+	u32 spdif_bits[4];             /* s/pdif out default setup */
+	u32 spdif_str_bits[4];         /* s/pdif out per-stream setup */
 	int spdif_enable;
 	int capture_source;
 	int i2c_capture_source;
