@@ -995,6 +995,16 @@ UNUSUAL_DEV(  0x071b, 0x3203, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_NO_WP_DETECT | US_FL_MAX_SECTORS_64),
 
+/* Reported by Jean-Baptiste Onofre <jb@nanthrax.net>
+ * Support the following product :
+ *    "Dane-Elec MediaTouch"
+ */
+UNUSUAL_DEV(  0x071b, 0x32bb, 0x0000, 0x0000,
+		"RockChip",
+		"MTP",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_NO_WP_DETECT | US_FL_MAX_SECTORS_64),
+
 /* Reported by Massimiliano Ghilardi <massimiliano.ghilardi@gmail.com>
  * This USB MP3/AVI player device fails and disconnects if more than 128
  * sectors (64kB) are read/written in a single command, and may be present
