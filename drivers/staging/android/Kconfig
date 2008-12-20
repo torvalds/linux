@@ -6,4 +6,8 @@ config ANDROID
 	---help---
 	  Enable support for various drivers needed on the Android platform
 
+config ANDROID_BINDER_IPC
+	tristate "Android Binder IPC Driver"
+	default y
+
 endmenu
