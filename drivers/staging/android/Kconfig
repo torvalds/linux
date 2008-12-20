@@ -10,4 +10,8 @@ config ANDROID_BINDER_IPC
 	tristate "Android Binder IPC Driver"
 	default y
 
+config ANDROID_LOGGER
+	tristate "Android log driver"
+	default n
+
 endmenu
