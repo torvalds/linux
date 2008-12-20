@@ -568,6 +568,9 @@ static void tick_nohz_switch_to_nohz(void)
  */
 static void tick_nohz_kick_tick(int cpu)
 {
+#if 0
+	/* Switch back to 2.6.27 behaviour */
+
 	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
 	ktime_t delta, now;
 
@@ -584,6 +587,7 @@ static void tick_nohz_kick_tick(int cpu)
 		return;
 
 	tick_nohz_restart(ts, now);
+#endif
 }
 
 #else

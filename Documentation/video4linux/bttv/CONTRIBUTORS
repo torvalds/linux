@@ -3,7 +3,7 @@ Contributors to bttv:
 Michael Chu <mmchu@pobox.com>
   AverMedia fix and more flexible card recognition
 
-Alan Cox <alan@redhat.com>
+Alan Cox <alan@lxorguk.ukuu.org.uk>
   Video4Linux interface and 2.1.x kernel adaptation
 
 Chris Kleitsch

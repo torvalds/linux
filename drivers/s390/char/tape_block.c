@@ -76,7 +76,7 @@ tapeblock_trigger_requeue(struct tape_device *device)
 static void
 tapeblock_end_request(struct request *req, int error)
 {
-	if (__blk_end_request(req, error, blk_rq_bytes(req)))
+	if (blk_end_request(req, error, blk_rq_bytes(req)))
 		BUG();
 }
 
@@ -166,7 +166,7 @@ tapeblock_requeue(struct work_struct *work) {
 		nr_queued++;
 	spin_unlock(get_ccwdev_lock(device->cdev));
 
-	spin_lock(&device->blk_data.request_queue_lock);
+	spin_lock_irq(&device->blk_data.request_queue_lock);
 	while (
 		!blk_queue_plugged(queue) &&
 		elv_next_request(queue)   &&
@@ -176,7 +176,9 @@ tapeblock_requeue(struct work_struct *work) {
 		if (rq_data_dir(req) == WRITE) {
 			DBF_EVENT(1, "TBLOCK: Rejecting write request\n");
 			blkdev_dequeue_request(req);
+			spin_unlock_irq(&device->blk_data.request_queue_lock);
 			tapeblock_end_request(req, -EIO);
+			spin_lock_irq(&device->blk_data.request_queue_lock);
 			continue;
 		}
 		blkdev_dequeue_request(req);

@@ -6,7 +6,7 @@
  * S3C2410 Watchdog Timer Support
  *
  * Based on, softdog.c by Alan Cox,
- *     (c) Copyright 1996 Alan Cox <alan@redhat.com>
+ *     (c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

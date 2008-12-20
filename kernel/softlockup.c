@@ -188,7 +188,7 @@ static void check_hung_task(struct task_struct *t, unsigned long now)
 	if ((long)(now - t->last_switch_timestamp) <
 					sysctl_hung_task_timeout_secs)
 		return;
-	if (sysctl_hung_task_warnings < 0)
+	if (!sysctl_hung_task_warnings)
 		return;
 	sysctl_hung_task_warnings--;
 

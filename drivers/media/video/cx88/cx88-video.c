@@ -1216,8 +1216,12 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct cx8800_fh  *fh   = priv;
 	struct cx8800_dev *dev  = fh->dev;
 
-	if (unlikely(fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE))
+	/* We should remember that this driver also supports teletext,  */
+	/* so we have to test if the v4l2_buf_type is VBI capture data. */
+	if (unlikely((fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+		     (fh->type != V4L2_BUF_TYPE_VBI_CAPTURE)))
 		return -EINVAL;
+
 	if (unlikely(i != fh->type))
 		return -EINVAL;
 
@@ -1232,8 +1236,10 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct cx8800_dev *dev  = fh->dev;
 	int               err, res;
 
-	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if ((fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+	    (fh->type != V4L2_BUF_TYPE_VBI_CAPTURE))
 		return -EINVAL;
+
 	if (i != fh->type)
 		return -EINVAL;
 

@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/spinlock_types.h>
 #include <linux/timer.h>
+#include <linux/types.h>
 #include <linux/workqueue.h>
 
 #define TCODE_IS_READ_REQUEST(tcode)	(((tcode) & ~1) == 4)
@@ -153,6 +154,7 @@ struct fw_packet {
 	size_t header_length;
 	void *payload;
 	size_t payload_length;
+	dma_addr_t payload_bus;
 	u32 timestamp;
 
 	/*

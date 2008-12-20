@@ -99,7 +99,7 @@ struct sta_info *sta_info_get(struct ieee80211_local *local, const u8 *addr)
 
 	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
 	while (sta) {
-		if (compare_ether_addr(sta->sta.addr, addr) == 0)
+		if (memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
 		sta = rcu_dereference(sta->hnext);
 	}

@@ -25,7 +25,6 @@ struct cgroup;
 
 extern int cgroup_init_early(void);
 extern int cgroup_init(void);
-extern void cgroup_init_smp(void);
 extern void cgroup_lock(void);
 extern bool cgroup_lock_live_group(struct cgroup *cgrp);
 extern void cgroup_unlock(void);
@@ -348,8 +347,6 @@ struct cgroup_subsys {
 	struct cgroupfs_root *root;
 
 	struct list_head sibling;
-
-	void *private;
 };
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _subsys;
@@ -410,7 +407,6 @@ void cgroup_mm_owner_callbacks(struct task_struct *old,
 
 static inline int cgroup_init_early(void) { return 0; }
 static inline int cgroup_init(void) { return 0; }
-static inline void cgroup_init_smp(void) {}
 static inline void cgroup_fork(struct task_struct *p) {}
 static inline void cgroup_fork_callbacks(struct task_struct *p) {}
 static inline void cgroup_post_fork(struct task_struct *p) {}

@@ -519,7 +519,6 @@ static int mousedev_release(struct inode *inode, struct file *file)
 	struct mousedev_client *client = file->private_data;
 	struct mousedev *mousedev = client->mousedev;
 
-	mousedev_fasync(-1, file, 0);
 	mousedev_detach_client(mousedev, client);
 	kfree(client);
 

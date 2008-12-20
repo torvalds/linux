@@ -266,7 +266,7 @@ extern int __get_user_unknown(void);
 		"	.section	.fixup,\"ax\"	\n"		\
 		"4:					\n"		\
 		"	mov		%5,%0		\n"		\
-		"	jmp		2b		\n"		\
+		"	jmp		3b		\n"		\
 		"	.previous			\n"		\
 		"	.section	__ex_table,\"a\"\n"		\
 		"	.balign		4		\n"		\

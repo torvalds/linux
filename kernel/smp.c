@@ -51,10 +51,6 @@ static void csd_flag_wait(struct call_single_data *data)
 {
 	/* Wait for response */
 	do {
-		/*
-		 * We need to see the flags store in the IPI handler
-		 */
-		smp_mb();
 		if (!(data->flags & CSD_FLAG_WAIT))
 			break;
 		cpu_relax();
@@ -75,6 +71,11 @@ static void generic_exec_single(int cpu, struct call_single_data *data)
 	ipi = list_empty(&dst->list);
 	list_add_tail(&data->list, &dst->list);
 	spin_unlock_irqrestore(&dst->lock, flags);
+
+	/*
+	 * Make the list addition visible before sending the ipi.
+	 */
+	smp_mb();
 
 	if (ipi)
 		arch_send_call_function_single_ipi(cpu);
@@ -157,7 +158,7 @@ void generic_smp_call_function_single_interrupt(void)
 	 * Need to see other stores to list head for checking whether
 	 * list is empty without holding q->lock
 	 */
-	smp_mb();
+	smp_read_barrier_depends();
 	while (!list_empty(&q->list)) {
 		unsigned int data_flags;
 
@@ -191,7 +192,7 @@ void generic_smp_call_function_single_interrupt(void)
 		/*
 		 * See comment on outer loop
 		 */
-		smp_mb();
+		smp_read_barrier_depends();
 	}
 }
 
@@ -369,6 +370,11 @@ int smp_call_function_mask(cpumask_t mask, void (*func)(void *), void *info,
 	spin_lock_irqsave(&call_function_lock, flags);
 	list_add_tail_rcu(&data->csd.list, &call_function_queue);
 	spin_unlock_irqrestore(&call_function_lock, flags);
+
+	/*
+	 * Make the list addition visible before sending the ipi.
+	 */
+	smp_mb();
 
 	/* Send a message to all CPUs in the map */
 	arch_send_call_function_ipi(mask);

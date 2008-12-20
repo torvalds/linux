@@ -9,6 +9,10 @@
 
 extern int fixmaps_set;
 
+extern pte_t *kmap_pte;
+extern pgprot_t kmap_prot;
+extern pte_t *pkmap_page_table;
+
 void __native_set_fixmap(enum fixed_addresses idx, pte_t pte);
 void native_set_fixmap(enum fixed_addresses idx,
 		       unsigned long phys, pgprot_t flags);

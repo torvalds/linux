@@ -89,7 +89,7 @@ Description:
 
 		error - an interrupt that can't be accounted for above.
 
-		invalid: it's either a wakeup GPE or a GPE/Fixed Event that
+		invalid: it's either a GPE or a Fixed Event that
 			doesn't have an event handler.
 
 		disable: the GPE/Fixed Event is valid but disabled.
@@ -117,30 +117,30 @@ Description:
 		and other user space applications so that the machine won't shutdown
 		when pressing the power button.
 		# cat ff_pwr_btn
-		0
+		0	enabled
 		# press the power button for 3 times;
 		# cat ff_pwr_btn
-		3
+		3	enabled
 		# echo disable > ff_pwr_btn
 		# cat ff_pwr_btn
-		disable
+		3	disabled
 		# press the power button for 3 times;
 		# cat ff_pwr_btn
-		disable
+		3	disabled
 		# echo enable > ff_pwr_btn
 		# cat ff_pwr_btn
-		4
+		4	enabled
 		/*
 		 * this is because the status bit is set even if the enable bit is cleared,
 		 * and it triggers an ACPI fixed event when the enable bit is set again
 		 */
 		# press the power button for 3 times;
 		# cat ff_pwr_btn
-		7
+		7	enabled
 		# echo disable > ff_pwr_btn
 		# press the power button for 3 times;
 		# echo clear > ff_pwr_btn	/* clear the status bit */
 		# echo disable > ff_pwr_btn
 		# cat ff_pwr_btn
-		7
+		7	enabled
 

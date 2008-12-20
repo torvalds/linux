@@ -598,6 +598,11 @@ static int dvb_register(struct cx8802_dev *dev)
 	struct videobuf_dvb_frontend *fe0, *fe1 = NULL;
 	int mfe_shared = 0; /* bus not shared by default */
 
+	if (0 != core->i2c_rc) {
+		printk(KERN_ERR "%s/2: no i2c-bus available, cannot attach dvb drivers\n", core->name);
+		goto frontend_detach;
+	}
+
 	/* Get the first frontend */
 	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
 	if (!fe0)

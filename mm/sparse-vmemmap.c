@@ -64,7 +64,7 @@ void __meminit vmemmap_verify(pte_t *pte, int node,
 	unsigned long pfn = pte_pfn(*pte);
 	int actual_node = early_pfn_to_nid(pfn);
 
-	if (actual_node != node)
+	if (node_distance(actual_node, node) > LOCAL_DISTANCE)
 		printk(KERN_WARNING "[%lx-%lx] potential offnode "
 			"page_structs\n", start, end - 1);
 }

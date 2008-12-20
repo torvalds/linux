@@ -410,7 +410,7 @@ inline unsigned long copy_fpr_from_user(struct task_struct *task,
  * altivec/spe instructions at some point.
  */
 static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
-		int sigret)
+		int sigret, int ctx_has_vsx_region)
 {
 	unsigned long msr = regs->msr;
 
@@ -451,7 +451,7 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 	 * the saved MSR value to indicate that frame->mc_vregs
 	 * contains valid data
 	 */
-	if (current->thread.used_vsr) {
+	if (current->thread.used_vsr && ctx_has_vsx_region) {
 		__giveup_vsx(current);
 		if (copy_vsx_to_user(&frame->mc_vsregs, current))
 			return 1;
@@ -858,11 +858,11 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 	frame = &rt_sf->uc.uc_mcontext;
 	addr = frame;
 	if (vdso32_rt_sigtramp && current->mm->context.vdso_base) {
-		if (save_user_regs(regs, frame, 0))
+		if (save_user_regs(regs, frame, 0, 1))
 			goto badframe;
 		regs->link = current->mm->context.vdso_base + vdso32_rt_sigtramp;
 	} else {
-		if (save_user_regs(regs, frame, __NR_rt_sigreturn))
+		if (save_user_regs(regs, frame, __NR_rt_sigreturn, 1))
 			goto badframe;
 		regs->link = (unsigned long) frame->tramp;
 	}
@@ -936,13 +936,26 @@ long sys_swapcontext(struct ucontext __user *old_ctx,
 		     int ctx_size, int r6, int r7, int r8, struct pt_regs *regs)
 {
 	unsigned char tmp;
+	int ctx_has_vsx_region = 0;
 
 #ifdef CONFIG_PPC64
 	unsigned long new_msr = 0;
 
-	if (new_ctx &&
-	    __get_user(new_msr, &new_ctx->uc_mcontext.mc_gregs[PT_MSR]))
-		return -EFAULT;
+	if (new_ctx) {
+		struct mcontext __user *mcp;
+		u32 cmcp;
+
+		/*
+		 * Get pointer to the real mcontext.  No need for
+		 * access_ok since we are dealing with compat
+		 * pointers.
+		 */
+		if (__get_user(cmcp, &new_ctx->uc_regs))
+			return -EFAULT;
+		mcp = (struct mcontext __user *)(u64)cmcp;
+		if (__get_user(new_msr, &mcp->mc_gregs[PT_MSR]))
+			return -EFAULT;
+	}
 	/*
 	 * Check that the context is not smaller than the original
 	 * size (with VMX but without VSX)
@@ -956,16 +969,9 @@ long sys_swapcontext(struct ucontext __user *old_ctx,
 	if ((ctx_size < sizeof(struct ucontext)) &&
 	    (new_msr & MSR_VSX))
 		return -EINVAL;
-#ifdef CONFIG_VSX
-	/*
-	 * If userspace doesn't provide enough room for VSX data,
-	 * but current thread has used VSX, we don't have anywhere
-	 * to store the full context back into.
-	 */
-	if ((ctx_size < sizeof(struct ucontext)) &&
-	    (current->thread.used_vsr && old_ctx))
-		return -EINVAL;
-#endif
+	/* Does the context have enough room to store VSX data? */
+	if (ctx_size >= sizeof(struct ucontext))
+		ctx_has_vsx_region = 1;
 #else
 	/* Context size is for future use. Right now, we only make sure
 	 * we are passed something we understand
@@ -985,17 +991,17 @@ long sys_swapcontext(struct ucontext __user *old_ctx,
 		 */
 		mctx = (struct mcontext __user *)
 			((unsigned long) &old_ctx->uc_mcontext & ~0xfUL);
-		if (!access_ok(VERIFY_WRITE, old_ctx, sizeof(*old_ctx))
-		    || save_user_regs(regs, mctx, 0)
+		if (!access_ok(VERIFY_WRITE, old_ctx, ctx_size)
+		    || save_user_regs(regs, mctx, 0, ctx_has_vsx_region)
 		    || put_sigset_t(&old_ctx->uc_sigmask, &current->blocked)
 		    || __put_user(to_user_ptr(mctx), &old_ctx->uc_regs))
 			return -EFAULT;
 	}
 	if (new_ctx == NULL)
 		return 0;
-	if (!access_ok(VERIFY_READ, new_ctx, sizeof(*new_ctx))
+	if (!access_ok(VERIFY_READ, new_ctx, ctx_size)
 	    || __get_user(tmp, (u8 __user *) new_ctx)
-	    || __get_user(tmp, (u8 __user *) (new_ctx + 1) - 1))
+	    || __get_user(tmp, (u8 __user *) new_ctx + ctx_size - 1))
 		return -EFAULT;
 
 	/*
@@ -1196,11 +1202,11 @@ int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		goto badframe;
 
 	if (vdso32_sigtramp && current->mm->context.vdso_base) {
-		if (save_user_regs(regs, &frame->mctx, 0))
+		if (save_user_regs(regs, &frame->mctx, 0, 1))
 			goto badframe;
 		regs->link = current->mm->context.vdso_base + vdso32_sigtramp;
 	} else {
-		if (save_user_regs(regs, &frame->mctx, __NR_sigreturn))
+		if (save_user_regs(regs, &frame->mctx, __NR_sigreturn, 1))
 			goto badframe;
 		regs->link = (unsigned long) frame->mctx.tramp;
 	}

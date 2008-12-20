@@ -490,6 +490,7 @@ static struct of_device_id __initdata bq4802_match[] = {
 		.name = "rtc",
 		.compatible = "bq4802",
 	},
+	{},
 };
 
 static struct of_platform_driver bq4802_driver = {
@@ -503,39 +504,16 @@ static struct of_platform_driver bq4802_driver = {
 static unsigned char mostek_read_byte(struct device *dev, u32 ofs)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
-	void __iomem *regs;
-	unsigned char val;
+	void __iomem *regs = (void __iomem *) pdev->resource[0].start;
 
-	regs = (void __iomem *) pdev->resource[0].start;
-	val = readb(regs + ofs);
-
-	/* the year 0 is 1968 */
-	if (ofs == pdata->offset + M48T59_YEAR) {
-		val += 0x68;
-		if ((val & 0xf) > 9)
-			val += 6;
-	}
-	return val;
+	return readb(regs + ofs);
 }
 
 static void mostek_write_byte(struct device *dev, u32 ofs, u8 val)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
-	void __iomem *regs;
+	void __iomem *regs = (void __iomem *) pdev->resource[0].start;
 
-	regs = (void __iomem *) pdev->resource[0].start;
-	if (ofs == pdata->offset + M48T59_YEAR) {
-		if (val < 0x68)
-			val += 0x32;
-		else
-			val -= 0x68;
-		if ((val & 0xf) > 9)
-			val += 6;
-		if ((val & 0xf0) > 0x9A)
-			val += 0x60;
-	}
 	writeb(val, regs + ofs);
 }
 

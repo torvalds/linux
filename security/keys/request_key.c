@@ -74,6 +74,10 @@ static int call_sbin_request_key(struct key_construction *cons,
 
 	kenter("{%d},{%d},%s", key->serial, authkey->serial, op);
 
+	ret = install_user_keyrings(tsk);
+	if (ret < 0)
+		goto error_alloc;
+
 	/* allocate a new session keyring */
 	sprintf(desc, "_req.%u", key->serial);
 

@@ -3940,6 +3940,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		mddev->degraded = 0;
 		mddev->barriers_work = 0;
 		mddev->safemode = 0;
+		kobject_uevent(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE);
 
 	} else if (mddev->pers)
 		printk(KERN_INFO "md: %s switched to read-only mode.\n",

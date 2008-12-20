@@ -165,6 +165,8 @@ EXPORT_SYMBOL(gpio_request);
 
 void gpio_free(unsigned pin)
 {
+	might_sleep();
+
 	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid)) {
 		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
 		return;

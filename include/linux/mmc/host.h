@@ -176,7 +176,7 @@ static inline void *mmc_priv(struct mmc_host *host)
 
 #define mmc_dev(x)	((x)->parent)
 #define mmc_classdev(x)	(&(x)->class_dev)
-#define mmc_hostname(x)	((x)->class_dev.bus_id)
+#define mmc_hostname(x)	(dev_name(&(x)->class_dev))
 
 extern int mmc_suspend_host(struct mmc_host *, pm_message_t);
 extern int mmc_resume_host(struct mmc_host *);

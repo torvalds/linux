@@ -1028,10 +1028,6 @@ unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 
 /* Compute the current effective MSS, taking SACKs and IP options,
  * and even PMTU discovery events into account.
- *
- * LARGESEND note: !tcp_urg_mode is overkill, only frames up to snd_up
- * cannot be large. However, taking into account rare use of URG, this
- * is not a big flaw.
  */
 unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 {
@@ -1046,7 +1042,7 @@ unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 
 	mss_now = tp->mss_cache;
 
-	if (large_allowed && sk_can_gso(sk) && !tcp_urg_mode(tp))
+	if (large_allowed && sk_can_gso(sk))
 		doing_tso = 1;
 
 	if (dst) {
@@ -1516,6 +1512,10 @@ static int tcp_mtu_probe(struct sock *sk)
  * send_head.  This happens as incoming acks open up the remote
  * window for us.
  *
+ * LARGESEND note: !tcp_urg_mode is overkill, only frames between
+ * snd_up-64k-mss .. snd_up cannot be large. However, taking into
+ * account rare use of URG, this is not a big flaw.
+ *
  * Returns 1, if no segments are in flight and we have queued segments, but
  * cannot send anything now because of SWS or another problem.
  */
@@ -1567,7 +1567,7 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 		}
 
 		limit = mss_now;
-		if (tso_segs > 1)
+		if (tso_segs > 1 && !tcp_urg_mode(tp))
 			limit = tcp_mss_split_point(sk, skb, mss_now,
 						    cwnd_quota);
 
@@ -1616,6 +1616,7 @@ void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
  */
 void tcp_push_one(struct sock *sk, unsigned int mss_now)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb = tcp_send_head(sk);
 	unsigned int tso_segs, cwnd_quota;
 
@@ -1630,7 +1631,7 @@ void tcp_push_one(struct sock *sk, unsigned int mss_now)
 		BUG_ON(!tso_segs);
 
 		limit = mss_now;
-		if (tso_segs > 1)
+		if (tso_segs > 1 && !tcp_urg_mode(tp))
 			limit = tcp_mss_split_point(sk, skb, mss_now,
 						    cwnd_quota);
 

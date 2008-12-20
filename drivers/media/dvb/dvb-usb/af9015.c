@@ -31,13 +31,13 @@
 #include "mc44s80x.h"
 #endif
 
-int dvb_usb_af9015_debug;
+static int dvb_usb_af9015_debug;
 module_param_named(debug, dvb_usb_af9015_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level" DVB_USB_DEBUG_STATUS);
-int dvb_usb_af9015_remote;
+static int dvb_usb_af9015_remote;
 module_param_named(remote, dvb_usb_af9015_remote, int, 0644);
 MODULE_PARM_DESC(remote, "select remote");
-int dvb_usb_af9015_dual_mode;
+static int dvb_usb_af9015_dual_mode;
 module_param_named(dual_mode, dvb_usb_af9015_dual_mode, int, 0644);
 MODULE_PARM_DESC(dual_mode, "enable dual mode");
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
@@ -46,7 +46,7 @@ static DEFINE_MUTEX(af9015_usb_mutex);
 
 static struct af9015_config af9015_config;
 static struct dvb_usb_device_properties af9015_properties[2];
-int af9015_properties_count = ARRAY_SIZE(af9015_properties);
+static int af9015_properties_count = ARRAY_SIZE(af9015_properties);
 
 static struct af9013_config af9015_af9013_config[] = {
 	{
@@ -549,7 +549,7 @@ static int af9015_eeprom_dump(struct dvb_usb_device *d)
 	return 0;
 }
 
-int af9015_download_ir_table(struct dvb_usb_device *d)
+static int af9015_download_ir_table(struct dvb_usb_device *d)
 {
 	int i, packets = 0, ret;
 	u16 addr = 0x9a56; /* ir-table start address */
@@ -680,12 +680,6 @@ static int af9015_download_firmware(struct usb_device *udev,
 		err("firmware boot failed:%d", ret);
 		goto error;
 	}
-
-	/* firmware is running, reconnect device in the usb bus */
-	req.cmd = RECONNECT_USB;
-	ret = af9015_rw_udev(udev, &req);
-	if (ret)
-		err("reconnect failed: %d", ret);
 
 error:
 	return ret;
@@ -999,7 +993,7 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 }
 
 /* init 2nd I2C adapter */
-int af9015_i2c_init(struct dvb_usb_device *d)
+static int af9015_i2c_init(struct dvb_usb_device *d)
 {
 	int ret;
 	struct af9015_state *state = d->priv;
@@ -1208,6 +1202,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.usb_ctrl = DEVICE_SPECIFIC,
 		.download_firmware = af9015_download_firmware,
 		.firmware = "dvb-usb-af9015.fw",
+		.no_reconnect = 1,
 
 		.size_of_priv = sizeof(struct af9015_state), \
 
@@ -1306,6 +1301,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.usb_ctrl = DEVICE_SPECIFIC,
 		.download_firmware = af9015_download_firmware,
 		.firmware = "dvb-usb-af9015.fw",
+		.no_reconnect = 1,
 
 		.size_of_priv = sizeof(struct af9015_state), \
 
@@ -1419,7 +1415,7 @@ static int af9015_usb_probe(struct usb_interface *intf,
 	return ret;
 }
 
-void af9015_i2c_exit(struct dvb_usb_device *d)
+static void af9015_i2c_exit(struct dvb_usb_device *d)
 {
 	struct af9015_state *state = d->priv;
 	deb_info("%s: \n", __func__);

@@ -27,7 +27,6 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/kthread.h>
-#include <linux/version.h>
 #include <linux/leds.h>
 #include <acpi/acpi_drivers.h>
 
