@@ -1542,7 +1542,7 @@ err_priv:
 	return ret;
 }
 
-static int wm8350_codec_remove(struct platform_device *pdev)
+static int __devexit wm8350_codec_remove(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = wm8350->codec.codec;
