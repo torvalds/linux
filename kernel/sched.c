@@ -3670,7 +3670,7 @@ redo:
 	}
 
 	if (!ld_moved) {
-		int active_balance;
+		int active_balance = 0;
 
 		schedstat_inc(sd, lb_failed[CPU_NEWLY_IDLE]);
 		if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER &&
