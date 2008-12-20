@@ -690,7 +690,7 @@ struct snd_ca0106 {
 	spinlock_t emu_lock;
 
 	struct snd_ac97 *ac97;
-	struct snd_pcm *pcm;
+	struct snd_pcm *pcm[4];
 
 	struct snd_ca0106_channel playback_channels[4];
 	struct snd_ca0106_channel capture_channels[4];
@@ -707,6 +707,11 @@ struct snd_ca0106 {
 	struct snd_ca_midi midi2;
 
 	u16 spi_dac_reg[16];
+
+#ifdef CONFIG_PM
+#define NUM_SAVED_VOLUMES	9
+	unsigned int saved_vol[NUM_SAVED_VOLUMES];
+#endif
 };
 
 int snd_ca0106_mixer(struct snd_ca0106 *emu);
@@ -725,3 +730,11 @@ int snd_ca0106_i2c_write(struct snd_ca0106 *emu, u32 reg, u32 value);
 
 int snd_ca0106_spi_write(struct snd_ca0106 * emu,
 				   unsigned int data);
+
+#ifdef CONFIG_PM
+void snd_ca0106_mixer_suspend(struct snd_ca0106 *chip);
+void snd_ca0106_mixer_resume(struct snd_ca0106 *chip);
+#else
+#define snd_ca0106_mixer_suspend(chip)	do { } while (0)
+#define snd_ca0106_mixer_resume(chip)	do { } while (0)
+#endif
