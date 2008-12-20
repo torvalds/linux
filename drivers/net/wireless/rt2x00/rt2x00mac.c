@@ -227,6 +227,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_WDS:
 		/*
 		 * We don't support mixed combinations of
 		 * sta and ap interfaces.
