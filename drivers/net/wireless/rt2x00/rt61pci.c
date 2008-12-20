@@ -146,12 +146,6 @@ static void rt61pci_rf_write(struct rt2x00_dev *rt2x00dev,
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
-#ifdef CONFIG_RT2X00_LIB_LEDS
-/*
- * This function is only called from rt61pci_led_brightness()
- * make gcc happy by placing this function inside the
- * same ifdef statement as the caller.
- */
 static void rt61pci_mcu_request(struct rt2x00_dev *rt2x00dev,
 				const u8 command, const u8 token,
 				const u8 arg0, const u8 arg1)
@@ -180,7 +174,6 @@ static void rt61pci_mcu_request(struct rt2x00_dev *rt2x00dev,
 	mutex_unlock(&rt2x00dev->csr_mutex);
 
 }
-#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 static void rt61pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
 {
@@ -967,6 +960,50 @@ static void rt61pci_config_duration(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 }
 
+static void rt61pci_config_ps(struct rt2x00_dev *rt2x00dev,
+				struct rt2x00lib_conf *libconf)
+{
+	enum dev_state state =
+	    (libconf->conf->flags & IEEE80211_CONF_PS) ?
+		STATE_SLEEP : STATE_AWAKE;
+	u32 reg;
+
+	if (state == STATE_SLEEP) {
+		rt2x00pci_register_read(rt2x00dev, MAC_CSR11, &reg);
+		rt2x00_set_field32(&reg, MAC_CSR11_DELAY_AFTER_TBCN,
+				   libconf->conf->beacon_int - 10);
+		rt2x00_set_field32(&reg, MAC_CSR11_TBCN_BEFORE_WAKEUP,
+				   libconf->conf->listen_interval - 1);
+		rt2x00_set_field32(&reg, MAC_CSR11_WAKEUP_LATENCY, 5);
+
+		/* We must first disable autowake before it can be enabled */
+		rt2x00_set_field32(&reg, MAC_CSR11_AUTOWAKE, 0);
+		rt2x00pci_register_write(rt2x00dev, MAC_CSR11, reg);
+
+		rt2x00_set_field32(&reg, MAC_CSR11_AUTOWAKE, 1);
+		rt2x00pci_register_write(rt2x00dev, MAC_CSR11, reg);
+
+		rt2x00pci_register_write(rt2x00dev, SOFT_RESET_CSR, 0x00000005);
+		rt2x00pci_register_write(rt2x00dev, IO_CNTL_CSR, 0x0000001c);
+		rt2x00pci_register_write(rt2x00dev, PCI_USEC_CSR, 0x00000060);
+
+		rt61pci_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0, 0);
+	} else {
+		rt2x00pci_register_read(rt2x00dev, MAC_CSR11, &reg);
+		rt2x00_set_field32(&reg, MAC_CSR11_DELAY_AFTER_TBCN, 0);
+		rt2x00_set_field32(&reg, MAC_CSR11_TBCN_BEFORE_WAKEUP, 0);
+		rt2x00_set_field32(&reg, MAC_CSR11_AUTOWAKE, 0);
+		rt2x00_set_field32(&reg, MAC_CSR11_WAKEUP_LATENCY, 0);
+		rt2x00pci_register_write(rt2x00dev, MAC_CSR11, reg);
+
+		rt2x00pci_register_write(rt2x00dev, SOFT_RESET_CSR, 0x00000007);
+		rt2x00pci_register_write(rt2x00dev, IO_CNTL_CSR, 0x00000018);
+		rt2x00pci_register_write(rt2x00dev, PCI_USEC_CSR, 0x00000020);
+
+		rt61pci_mcu_request(rt2x00dev, MCU_WAKEUP, 0xff, 0, 0);
+	}
+}
+
 static void rt61pci_config(struct rt2x00_dev *rt2x00dev,
 			   struct rt2x00lib_conf *libconf,
 			   const unsigned int flags)
@@ -984,6 +1021,8 @@ static void rt61pci_config(struct rt2x00_dev *rt2x00dev,
 		rt61pci_config_retry_limit(rt2x00dev, libconf);
 	if (flags & IEEE80211_CONF_CHANGE_BEACON_INTERVAL)
 		rt61pci_config_duration(rt2x00dev, libconf);
+	if (flags & IEEE80211_CONF_CHANGE_PS)
+		rt61pci_config_ps(rt2x00dev, libconf);
 }
 
 /*

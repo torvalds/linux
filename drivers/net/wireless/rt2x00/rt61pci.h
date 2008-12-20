@@ -88,8 +88,10 @@
 
 /*
  * SOFT_RESET_CSR
+ * FORCE_CLOCK_ON: Host force MAC clock ON
  */
 #define SOFT_RESET_CSR			0x0010
+#define SOFT_RESET_CSR_FORCE_CLOCK_ON	FIELD32(0x00000002)
 
 /*
  * MCU_INT_SOURCE_CSR: MCU interrupt source/mask register.
@@ -1054,8 +1056,10 @@ struct hw_pairwise_ta_entry {
 
 /*
  * IO_CNTL_CSR
+ * RF_PS: Set RF interface value to power save
  */
 #define IO_CNTL_CSR			0x3498
+#define IO_CNTL_CSR_RF_PS		FIELD32(0x00000004)
 
 /*
  * UART_INT_SOURCE_CSR

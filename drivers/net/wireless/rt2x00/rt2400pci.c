@@ -524,6 +524,32 @@ static void rt2400pci_config_duration(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, CSR12, reg);
 }
 
+static void rt2400pci_config_ps(struct rt2x00_dev *rt2x00dev,
+				struct rt2x00lib_conf *libconf)
+{
+	enum dev_state state =
+	    (libconf->conf->flags & IEEE80211_CONF_PS) ?
+		STATE_SLEEP : STATE_AWAKE;
+	u32 reg;
+
+	if (state == STATE_SLEEP) {
+		rt2x00pci_register_read(rt2x00dev, CSR20, &reg);
+		rt2x00_set_field32(&reg, CSR20_DELAY_AFTER_TBCN,
+				   (libconf->conf->beacon_int - 20) * 16);
+		rt2x00_set_field32(&reg, CSR20_TBCN_BEFORE_WAKEUP,
+				   libconf->conf->listen_interval - 1);
+
+		/* We must first disable autowake before it can be enabled */
+		rt2x00_set_field32(&reg, CSR20_AUTOWAKE, 0);
+		rt2x00pci_register_write(rt2x00dev, CSR20, reg);
+
+		rt2x00_set_field32(&reg, CSR20_AUTOWAKE, 1);
+		rt2x00pci_register_write(rt2x00dev, CSR20, reg);
+	}
+
+	rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
+}
+
 static void rt2400pci_config(struct rt2x00_dev *rt2x00dev,
 			     struct rt2x00lib_conf *libconf,
 			     const unsigned int flags)
@@ -537,6 +563,8 @@ static void rt2400pci_config(struct rt2x00_dev *rt2x00dev,
 		rt2400pci_config_retry_limit(rt2x00dev, libconf);
 	if (flags & IEEE80211_CONF_CHANGE_BEACON_INTERVAL)
 		rt2400pci_config_duration(rt2x00dev, libconf);
+	if (flags & IEEE80211_CONF_CHANGE_PS)
+		rt2400pci_config_ps(rt2x00dev, libconf);
 }
 
 static void rt2400pci_config_cw(struct rt2x00_dev *rt2x00dev,

@@ -634,6 +634,32 @@ static void rt2500usb_config_duration(struct rt2x00_dev *rt2x00dev,
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
 }
 
+static void rt2500usb_config_ps(struct rt2x00_dev *rt2x00dev,
+				struct rt2x00lib_conf *libconf)
+{
+	enum dev_state state =
+	    (libconf->conf->flags & IEEE80211_CONF_PS) ?
+		STATE_SLEEP : STATE_AWAKE;
+	u16 reg;
+
+	if (state == STATE_SLEEP) {
+		rt2500usb_register_read(rt2x00dev, MAC_CSR18, &reg);
+		rt2x00_set_field16(&reg, MAC_CSR18_DELAY_AFTER_BEACON,
+				   libconf->conf->beacon_int - 20);
+		rt2x00_set_field16(&reg, MAC_CSR18_BEACONS_BEFORE_WAKEUP,
+				   libconf->conf->listen_interval - 1);
+
+		/* We must first disable autowake before it can be enabled */
+		rt2x00_set_field16(&reg, MAC_CSR18_AUTO_WAKE, 0);
+		rt2500usb_register_write(rt2x00dev, MAC_CSR18, reg);
+
+		rt2x00_set_field16(&reg, MAC_CSR18_AUTO_WAKE, 1);
+		rt2500usb_register_write(rt2x00dev, MAC_CSR18, reg);
+	}
+
+	rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
+}
+
 static void rt2500usb_config(struct rt2x00_dev *rt2x00dev,
 			     struct rt2x00lib_conf *libconf,
 			     const unsigned int flags)
@@ -647,6 +673,8 @@ static void rt2500usb_config(struct rt2x00_dev *rt2x00dev,
 					 libconf->conf->power_level);
 	if (flags & IEEE80211_CONF_CHANGE_BEACON_INTERVAL)
 		rt2500usb_config_duration(rt2x00dev, libconf);
+	if (flags & IEEE80211_CONF_CHANGE_PS)
+		rt2500usb_config_ps(rt2x00dev, libconf);
 }
 
 /*
