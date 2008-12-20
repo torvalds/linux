@@ -235,8 +235,9 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 	status &= ~MMIO_STATUS_COM_WAIT_INT_MASK;
 	writel(status, iommu->mmio_base + MMIO_STATUS_OFFSET);
 
-	if (unlikely((i == EXIT_LOOP_COUNT) && printk_ratelimit()))
-		printk(KERN_WARNING "AMD IOMMU: Completion wait loop failed\n");
+	if (unlikely(i == EXIT_LOOP_COUNT))
+		panic("AMD IOMMU: Completion wait loop failed\n");
+
 out:
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
