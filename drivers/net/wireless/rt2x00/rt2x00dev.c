@@ -190,7 +190,8 @@ static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 
 	if (vif->type != NL80211_IFTYPE_AP &&
-	    vif->type != NL80211_IFTYPE_ADHOC)
+	    vif->type != NL80211_IFTYPE_ADHOC &&
+	    vif->type != NL80211_IFTYPE_MESH_POINT)
 		return;
 
 	/*
@@ -780,7 +781,8 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00dev->ops->bcn->entry_num > 0)
 		rt2x00dev->hw->wiphy->interface_modes |=
 		    BIT(NL80211_IFTYPE_ADHOC) |
-		    BIT(NL80211_IFTYPE_AP);
+		    BIT(NL80211_IFTYPE_AP) |
+		    BIT(NL80211_IFTYPE_MESH_POINT);
 
 	/*
 	 * Let the driver probe the device to detect the capabilities.
@@ -935,10 +937,11 @@ static void rt2x00lib_resume_intf(void *data, u8 *mac,
 
 
 	/*
-	 * Master or Ad-hoc mode require a new beacon update.
+	 * AP, Ad-hoc, and Mesh Point mode require a new beacon update.
 	 */
 	if (vif->type == NL80211_IFTYPE_AP ||
-	    vif->type == NL80211_IFTYPE_ADHOC)
+	    vif->type == NL80211_IFTYPE_ADHOC ||
+	    vif->type == NL80211_IFTYPE_MESH_POINT)
 		intf->delayed_flags |= DELAYED_UPDATE_BEACON;
 
 	spin_unlock(&intf->lock);
