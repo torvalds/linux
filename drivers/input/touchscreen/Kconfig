@@ -389,4 +389,15 @@ config TOUCHSCREEN_TOUCHIT213
 	  To compile this driver as a module, choose M here: the
 	  module will be called touchit213.
 
+config TOUCHSCREEN_TSC2007
+	tristate "TSC2007 based touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a TSC2007 based touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tsc2007.
+
 endif
