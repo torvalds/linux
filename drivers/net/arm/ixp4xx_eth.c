@@ -170,6 +170,7 @@ struct port {
 	u32 desc_tab_phys;
 	int id;			/* logical port ID */
 	int speed, duplex;
+	u8 firmware[4];
 };
 
 /* NPE message structure */
@@ -795,6 +796,45 @@ static int eth_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 	return phy_mii_ioctl(port->phydev, if_mii(req), cmd);
 }
 
+/* ethtool support */
+
+static void ixp4xx_get_drvinfo(struct net_device *dev,
+			       struct ethtool_drvinfo *info)
+{
+	struct port *port = netdev_priv(dev);
+	strcpy(info->driver, DRV_NAME);
+	snprintf(info->fw_version, sizeof(info->fw_version), "%u:%u:%u:%u",
+		 port->firmware[0], port->firmware[1],
+		 port->firmware[2], port->firmware[3]);
+	strcpy(info->bus_info, "internal");
+}
+
+static int ixp4xx_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct port *port = netdev_priv(dev);
+	return phy_ethtool_gset(port->phydev, cmd);
+}
+
+static int ixp4xx_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct port *port = netdev_priv(dev);
+	return phy_ethtool_sset(port->phydev, cmd);
+}
+
+static int ixp4xx_nway_reset(struct net_device *dev)
+{
+	struct port *port = netdev_priv(dev);
+	return phy_start_aneg(port->phydev);
+}
+
+static struct ethtool_ops ixp4xx_ethtool_ops = {
+	.get_drvinfo = ixp4xx_get_drvinfo,
+	.get_settings = ixp4xx_get_settings,
+	.set_settings = ixp4xx_set_settings,
+	.nway_reset = ixp4xx_nway_reset,
+	.get_link = ethtool_op_get_link,
+};
+
 
 static int request_queues(struct port *port)
 {
@@ -942,6 +982,10 @@ static int eth_open(struct net_device *dev)
 			       npe_name(npe));
 			return -EIO;
 		}
+		port->firmware[0] = msg.byte4;
+		port->firmware[1] = msg.byte5;
+		port->firmware[2] = msg.byte6;
+		port->firmware[3] = msg.byte7;
 	}
 
 	memset(&msg, 0, sizeof(msg));
@@ -1151,6 +1195,7 @@ static int __devinit eth_init_one(struct platform_device *pdev)
 	dev->hard_start_xmit = eth_xmit;
 	dev->stop = eth_close;
 	dev->do_ioctl = eth_ioctl;
+	dev->ethtool_ops = &ixp4xx_ethtool_ops;
 	dev->set_multicast_list = eth_set_mcast_list;
 	dev->tx_queue_len = 100;
 
