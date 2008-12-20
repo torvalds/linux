@@ -13,9 +13,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/mach/map.h>
 
 #include <mach/tc.h>
@@ -101,7 +101,7 @@ static inline void omap_init_mbox(void) { }
 
 #if defined(CONFIG_OMAP_STI)
 
-#define OMAP1_STI_BASE		IO_ADDRESS(0xfffea000)
+#define OMAP1_STI_BASE		0xfffea000
 #define OMAP1_STI_CHANNEL_BASE	(OMAP1_STI_BASE + 0x400)
 
 static struct resource sti_resources[] = {

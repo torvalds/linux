@@ -65,7 +65,7 @@ static int udplite_packet(struct nf_conn *ct,
 			  const struct sk_buff *skb,
 			  unsigned int dataoff,
 			  enum ip_conntrack_info ctinfo,
-			  int pf,
+			  u_int8_t pf,
 			  unsigned int hooknum)
 {
 	/* If we've seen traffic both ways, this is some kind of UDP
@@ -75,7 +75,7 @@ static int udplite_packet(struct nf_conn *ct,
 				   nf_ct_udplite_timeout_stream);
 		/* Also, more likely to be important, and not a probe */
 		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
-			nf_conntrack_event_cache(IPCT_STATUS, skb);
+			nf_conntrack_event_cache(IPCT_STATUS, ct);
 	} else
 		nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_udplite_timeout);
 
@@ -89,9 +89,11 @@ static bool udplite_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 }
 
-static int udplite_error(struct sk_buff *skb, unsigned int dataoff,
+static int udplite_error(struct net *net,
+			 struct sk_buff *skb,
+			 unsigned int dataoff,
 			 enum ip_conntrack_info *ctinfo,
-			 int pf,
+			 u_int8_t pf,
 			 unsigned int hooknum)
 {
 	unsigned int udplen = skb->len - dataoff;
@@ -102,7 +104,7 @@ static int udplite_error(struct sk_buff *skb, unsigned int dataoff,
 	/* Header is too small? */
 	hdr = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hdr == NULL) {
-		if (LOG_INVALID(IPPROTO_UDPLITE))
+		if (LOG_INVALID(net, IPPROTO_UDPLITE))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_udplite: short packet ");
 		return -NF_ACCEPT;
@@ -112,7 +114,7 @@ static int udplite_error(struct sk_buff *skb, unsigned int dataoff,
 	if (cscov == 0)
 		cscov = udplen;
 	else if (cscov < sizeof(*hdr) || cscov > udplen) {
-		if (LOG_INVALID(IPPROTO_UDPLITE))
+		if (LOG_INVALID(net, IPPROTO_UDPLITE))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				"nf_ct_udplite: invalid checksum coverage ");
 		return -NF_ACCEPT;
@@ -120,17 +122,17 @@ static int udplite_error(struct sk_buff *skb, unsigned int dataoff,
 
 	/* UDPLITE mandates checksums */
 	if (!hdr->check) {
-		if (LOG_INVALID(IPPROTO_UDPLITE))
+		if (LOG_INVALID(net, IPPROTO_UDPLITE))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_udplite: checksum missing ");
 		return -NF_ACCEPT;
 	}
 
 	/* Checksum invalid? Ignore. */
-	if (nf_conntrack_checksum && hooknum == NF_INET_PRE_ROUTING &&
+	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_checksum_partial(skb, hooknum, dataoff, cscov, IPPROTO_UDP,
 	    			pf)) {
-		if (LOG_INVALID(IPPROTO_UDPLITE))
+		if (LOG_INVALID(net, IPPROTO_UDPLITE))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_udplite: bad UDPLite checksum ");
 		return -NF_ACCEPT;

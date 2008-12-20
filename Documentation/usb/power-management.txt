@@ -350,11 +350,11 @@ without holding the mutex.
 
 There also are a couple of utility routines drivers can use:
 
-	usb_autopm_enable() sets pm_usage_cnt to 1 and then calls
-	usb_autopm_set_interface(), which will attempt an autoresume.
-
-	usb_autopm_disable() sets pm_usage_cnt to 0 and then calls
+	usb_autopm_enable() sets pm_usage_cnt to 0 and then calls
 	usb_autopm_set_interface(), which will attempt an autosuspend.
+
+	usb_autopm_disable() sets pm_usage_cnt to 1 and then calls
+	usb_autopm_set_interface(), which will attempt an autoresume.
 
 The conventional usage pattern is that a driver calls
 usb_autopm_get_interface() in its open routine and

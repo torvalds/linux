@@ -157,10 +157,8 @@ static ssize_t ps2pp_attr_show_smartscroll(struct psmouse *psmouse, void *data, 
 static ssize_t ps2pp_attr_set_smartscroll(struct psmouse *psmouse, void *data, const char *buf, size_t count)
 {
 	unsigned long value;
-	char *rest;
 
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest || value > 1)
+	if (strict_strtoul(buf, 10, &value) || value > 1)
 		return -EINVAL;
 
 	ps2pp_set_smartscroll(psmouse, value);

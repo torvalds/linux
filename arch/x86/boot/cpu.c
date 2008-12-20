@@ -59,17 +59,18 @@ int validate_cpu(void)
 			u32 e = err_flags[i];
 
 			for (j = 0; j < 32; j++) {
-				int n = (i << 5)+j;
-				if (*msg_strs < n) {
+				if (msg_strs[0] < i ||
+				    (msg_strs[0] == i && msg_strs[1] < j)) {
 					/* Skip to the next string */
-					do {
-						msg_strs++;
-					} while (*msg_strs);
-					msg_strs++;
+					msg_strs += 2;
+					while (*msg_strs++)
+						;
 				}
 				if (e & 1) {
-					if (*msg_strs == n && msg_strs[1])
-						printf("%s ", msg_strs+1);
+					if (msg_strs[0] == i &&
+					    msg_strs[1] == j &&
+					    msg_strs[2])
+						printf("%s ", msg_strs+2);
 					else
 						printf("%d:%d ", i, j);
 				}

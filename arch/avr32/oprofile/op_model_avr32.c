@@ -22,6 +22,8 @@
 #define AVR32_PERFCTR_IRQ_GROUP	0
 #define AVR32_PERFCTR_IRQ_LINE	1
 
+void avr32_backtrace(struct pt_regs * const regs, unsigned int depth);
+
 enum { PCCNT, PCNT0, PCNT1, NR_counter };
 
 struct avr32_perf_counter {
@@ -222,6 +224,8 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 	memcpy(ops, &avr32_perf_counter_ops,
 			sizeof(struct oprofile_operations));
+
+	ops->backtrace = avr32_backtrace;
 
 	printk(KERN_INFO "oprofile: using AVR32 performance monitoring.\n");
 

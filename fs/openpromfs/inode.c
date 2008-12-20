@@ -167,6 +167,7 @@ static int openpromfs_readdir(struct file *, void *, filldir_t);
 static const struct file_operations openprom_operations = {
 	.read		= generic_read_dir,
 	.readdir	= openpromfs_readdir,
+	.llseek		= generic_file_llseek,
 };
 
 static struct dentry *openpromfs_lookup(struct inode *, struct dentry *, struct nameidata *);

@@ -200,7 +200,7 @@ static int update_backups(struct inode * inode, u32 clusters, char *data)
 		if (cluster > clusters)
 			break;
 
-		ret = ocfs2_read_block(osb, blkno, &backup, 0, NULL);
+		ret = ocfs2_read_blocks_sync(osb, blkno, 1, &backup);
 		if (ret < 0) {
 			mlog_errno(ret);
 			break;
@@ -236,8 +236,8 @@ static void ocfs2_update_super_and_backups(struct inode *inode,
 	 * update the superblock last.
 	 * It doesn't matter if the write failed.
 	 */
-	ret = ocfs2_read_block(osb, OCFS2_SUPER_BLOCK_BLKNO,
-			       &super_bh, 0, NULL);
+	ret = ocfs2_read_blocks_sync(osb, OCFS2_SUPER_BLOCK_BLKNO, 1,
+				     &super_bh);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
@@ -332,8 +332,7 @@ int ocfs2_group_extend(struct inode * inode, int new_clusters)
 	lgd_blkno = ocfs2_which_cluster_group(main_bm_inode,
 					      first_new_cluster - 1);
 
-	ret = ocfs2_read_block(osb, lgd_blkno, &group_bh, OCFS2_BH_CACHED,
-			       main_bm_inode);
+	ret = ocfs2_read_block(main_bm_inode, lgd_blkno, &group_bh);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out_unlock;
@@ -540,7 +539,7 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 		goto out_unlock;
 	}
 
-	ret = ocfs2_read_block(osb, input->group, &group_bh, 0, NULL);
+	ret = ocfs2_read_blocks_sync(osb, input->group, 1, &group_bh);
 	if (ret < 0) {
 		mlog(ML_ERROR, "Can't read the group descriptor # %llu "
 		     "from the device.", (unsigned long long)input->group);

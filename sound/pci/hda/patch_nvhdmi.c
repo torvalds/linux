@@ -116,6 +116,7 @@ static int nvhdmi_build_pcms(struct hda_codec *codec)
 	codec->pcm_info = info;
 
 	info->name = "NVIDIA HDMI";
+	info->pcm_type = HDA_PCM_TYPE_HDMI;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = nvhdmi_pcm_digital_playback;
 
 	return 0;

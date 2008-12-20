@@ -237,9 +237,12 @@ static int __init parse_pmtmr(char *arg)
 
 	if (strict_strtoul(arg, 16, &base))
 		return -EINVAL;
-
+#ifdef CONFIG_X86_64
+	if (base > UINT_MAX)
+		return -ERANGE;
+#endif
 	printk(KERN_INFO "PMTMR IOPort override: 0x%04x -> 0x%04lx\n",
-	       (unsigned int)pmtmr_ioport, base);
+	       pmtmr_ioport, base);
 	pmtmr_ioport = base;
 
 	return 1;

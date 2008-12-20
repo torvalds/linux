@@ -399,9 +399,9 @@ static int __devinit phantom_probe(struct pci_dev *pdev,
 		goto err_irq;
 	}
 
-	if (IS_ERR(device_create_drvdata(phantom_class, &pdev->dev,
-					 MKDEV(phantom_major, minor),
-					 NULL, "phantom%u", minor)))
+	if (IS_ERR(device_create(phantom_class, &pdev->dev,
+				 MKDEV(phantom_major, minor), NULL,
+				 "phantom%u", minor)))
 		dev_err(&pdev->dev, "can't create device\n");
 
 	pci_set_drvdata(pdev, pht);

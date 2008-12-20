@@ -696,34 +696,5 @@ void skcipher_geniv_exit(struct crypto_tfm *tfm)
 }
 EXPORT_SYMBOL_GPL(skcipher_geniv_exit);
 
-static int __init blkcipher_module_init(void)
-{
-	int err;
-
-	err = chainiv_module_init();
-	if (err)
-		goto out;
-
-	err = eseqiv_module_init();
-	if (err)
-		goto eseqiv_err;
-
-out:
-	return err;
-
-eseqiv_err:
-	chainiv_module_exit();
-	goto out;
-}
-
-static void __exit blkcipher_module_exit(void)
-{
-	eseqiv_module_exit();
-	chainiv_module_exit();
-}
-
-module_init(blkcipher_module_init);
-module_exit(blkcipher_module_exit);
-
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Generic block chaining cipher type");

@@ -6,6 +6,8 @@
 #include <linux/stddef.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <asm/oplib.h>
 #include <asm/io.h>
 #include <asm/auxio.h>
@@ -59,7 +61,7 @@ void __init auxio_probe(void)
 	r.flags = auxregs[0].which_io & 0xF;
 	r.start = auxregs[0].phys_addr;
 	r.end = auxregs[0].phys_addr + auxregs[0].reg_size - 1;
-	auxio_register = sbus_ioremap(&r, 0, auxregs[0].reg_size, "auxio");
+	auxio_register = of_ioremap(&r, 0, auxregs[0].reg_size, "auxio");
 	/* Fix the address on sun4m and sun4c. */
 	if((((unsigned long) auxregs[0].phys_addr) & 3) == 3 ||
 	   sparc_cpu_model == sun4c)
@@ -128,7 +130,7 @@ void __init auxio_power_probe(void)
 	r.flags = regs.which_io & 0xF;
 	r.start = regs.phys_addr;
 	r.end = regs.phys_addr + regs.reg_size - 1;
-	auxio_power_register = (unsigned char *) sbus_ioremap(&r, 0,
+	auxio_power_register = (unsigned char *) of_ioremap(&r, 0,
 	    regs.reg_size, "auxpower");
 
 	/* Display a quick message on the console. */

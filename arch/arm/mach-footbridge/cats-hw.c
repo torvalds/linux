@@ -9,9 +9,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/screen_info.h>
+#include <linux/io.h>
 
 #include <asm/hardware/dec21285.h>
-#include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 

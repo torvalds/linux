@@ -182,12 +182,12 @@ static int klsi_105_chg_port_settings(struct usb_serial_port *port,
 			sizeof(struct klsi_105_port_settings),
 			KLSI_TIMEOUT);
 	if (rc < 0)
-		err("Change port settings failed (error = %d)", rc);
-	info("%s - %d byte block, baudrate %x, databits %d, u1 %d, u2 %d",
-	    __func__,
-	    settings->pktlen,
-	    settings->baudrate, settings->databits,
-	    settings->unknown1, settings->unknown2);
+		dev_err(&port->dev,
+			"Change port settings failed (error = %d)\n", rc);
+	dev_info(&port->serial->dev->dev,
+		 "%d byte block, baudrate %x, databits %d, u1 %d, u2 %d\n",
+		 settings->pktlen, settings->baudrate, settings->databits,
+		 settings->unknown1, settings->unknown2);
 	return rc;
 } /* klsi_105_chg_port_settings */
 
@@ -215,7 +215,7 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	__u8 status_buf[KLSI_STATUSBUF_LEN] = { -1, -1};
 	__u16 status;
 
-	info("%s - sending SIO Poll request", __func__);
+	dev_info(&port->serial->dev->dev, "sending SIO Poll request\n");
 	rc = usb_control_msg(port->serial->dev,
 			     usb_rcvctrlpipe(port->serial->dev, 0),
 			     KL5KUSB105A_SIO_POLL,
@@ -226,12 +226,13 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 			     10000
 			     );
 	if (rc < 0)
-		err("Reading line status failed (error = %d)", rc);
+		dev_err(&port->dev, "Reading line status failed (error = %d)\n",
+			rc);
 	else {
 		status = get_unaligned_le16(status_buf);
 
-		info("%s - read status %x %x", __func__,
-		     status_buf[0], status_buf[1]);
+		dev_info(&port->serial->dev->dev, "read status %x %x",
+			 status_buf[0], status_buf[1]);
 
 		*line_state_p = klsi_105_status2linestate(status);
 	}
@@ -280,15 +281,16 @@ static int klsi_105_startup(struct usb_serial *serial)
 
 			priv->write_urb_pool[j] = urb;
 			if (urb == NULL) {
-				err("No more urbs???");
+				dev_err(&serial->dev->dev, "No more urbs???\n");
 				goto err_cleanup;
 			}
 
 			urb->transfer_buffer =
 				kmalloc(URB_TRANSFER_BUFFER_SIZE, GFP_KERNEL);
 			if (!urb->transfer_buffer) {
-				err("%s - out of memory for urb buffers.",
-								__func__);
+				dev_err(&serial->dev->dev,
+					"%s - out of memory for urb buffers.\n",
+					__func__);
 				goto err_cleanup;
 			}
 		}
@@ -409,7 +411,8 @@ static int  klsi_105_open(struct tty_struct *tty,
 
 	rc = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (rc) {
-		err("%s - failed submitting read urb, error %d", __func__, rc);
+		dev_err(&port->dev, "%s - failed submitting read urb, "
+			"error %d\n", __func__, rc);
 		retval = rc;
 		goto exit;
 	}
@@ -424,7 +427,7 @@ static int  klsi_105_open(struct tty_struct *tty,
 			     0,
 			     KLSI_TIMEOUT);
 	if (rc < 0) {
-		err("Enabling read failed (error = %d)", rc);
+		dev_err(&port->dev, "Enabling read failed (error = %d)\n", rc);
 		retval = rc;
 	} else
 		dbg("%s - enabled reading", __func__);
@@ -464,7 +467,8 @@ static void klsi_105_close(struct tty_struct *tty,
 				     NULL, 0,
 				     KLSI_TIMEOUT);
 		if (rc < 0)
-			err("Disabling read failed (error = %d)", rc);
+			dev_err(&port->dev,
+				"Disabling read failed (error = %d)\n", rc);
 	}
 	mutex_unlock(&port->serial->disc_mutex);
 
@@ -475,8 +479,9 @@ static void klsi_105_close(struct tty_struct *tty,
 	/* FIXME */
 	/* wgg - do I need this? I think so. */
 	usb_kill_urb(port->interrupt_in_urb);
-	info("kl5kusb105 port stats: %ld bytes in, %ld bytes out",
-					priv->bytes_in, priv->bytes_out);
+	dev_info(&port->serial->dev->dev,
+		 "port stats: %ld bytes in, %ld bytes out\n",
+		 priv->bytes_in, priv->bytes_out);
 } /* klsi_105_close */
 
 
@@ -522,7 +527,9 @@ static int klsi_105_write(struct tty_struct *tty,
 			urb->transfer_buffer =
 				kmalloc(URB_TRANSFER_BUFFER_SIZE, GFP_ATOMIC);
 			if (urb->transfer_buffer == NULL) {
-				err("%s - no more kernel memory...", __func__);
+				dev_err(&port->dev,
+					"%s - no more kernel memory...\n",
+					__func__);
 				goto exit;
 			}
 		}
@@ -549,8 +556,9 @@ static int klsi_105_write(struct tty_struct *tty,
 		/* send the data out the bulk port */
 		result = usb_submit_urb(urb, GFP_ATOMIC);
 		if (result) {
-			err("%s - failed submitting write urb, error %d",
-							__func__, result);
+			dev_err(&port->dev,
+				"%s - failed submitting write urb, error %d\n",
+				__func__, result);
 			goto exit;
 		}
 		buf += size;
@@ -658,7 +666,7 @@ static void klsi_105_read_bulk_callback(struct urb *urb)
 	} else {
 		int bytes_sent = ((__u8 *) data)[0] +
 				 ((unsigned int) ((__u8 *) data)[1] << 8);
-		tty = port->port.tty;
+		tty = tty_port_tty_get(&port->port);
 		/* we should immediately resubmit the URB, before attempting
 		 * to pass the data on to the tty layer. But that needs locking
 		 * against re-entry an then mixed-up data because of
@@ -679,6 +687,7 @@ static void klsi_105_read_bulk_callback(struct urb *urb)
 		tty_buffer_request_room(tty, bytes_sent);
 		tty_insert_flip_string(tty, data + 2, bytes_sent);
 		tty_flip_buffer_push(tty);
+		tty_kref_put(tty);
 
 		/* again lockless, but debug info only */
 		priv->bytes_in += bytes_sent;
@@ -693,8 +702,9 @@ static void klsi_105_read_bulk_callback(struct urb *urb)
 		      port);
 	rc = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	if (rc)
-		err("%s - failed resubmitting read urb, error %d",
-							__func__, rc);
+		dev_err(&port->dev,
+			"%s - failed resubmitting read urb, error %d\n",
+			__func__, rc);
 } /* klsi_105_read_bulk_callback */
 
 
@@ -798,7 +808,8 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 			priv->cfg.databits = kl5kusb105a_dtb_8;
 			break;
 		default:
-			err("CSIZE was not CS5-CS8, using default of 8");
+			dev_err(&port->dev,
+				"CSIZE was not CS5-CS8, using default of 8\n");
 			priv->cfg.databits = kl5kusb105a_dtb_8;
 			break;
 		}
@@ -885,7 +896,8 @@ static int klsi_105_tiocmget(struct tty_struct *tty, struct file *file)
 
 	rc = klsi_105_get_line_state(port, &line_state);
 	if (rc < 0) {
-		err("Reading line control failed (error = %d)", rc);
+		dev_err(&port->dev,
+			"Reading line control failed (error = %d)\n", rc);
 		/* better return value? EAGAIN? */
 		return rc;
 	}
@@ -943,8 +955,9 @@ static void klsi_105_unthrottle(struct tty_struct *tty)
 	port->read_urb->dev = port->serial->dev;
 	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	if (result)
-		err("%s - failed submitting read urb, error %d", __func__,
-		    result);
+		dev_err(&port->dev,
+			"%s - failed submitting read urb, error %d\n",
+			__func__, result);
 }
 
 
@@ -959,7 +972,8 @@ static int __init klsi_105_init(void)
 	if (retval)
 		goto failed_usb_register;
 
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&kl5kusb105d_device);

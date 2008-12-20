@@ -175,6 +175,15 @@ config MACH_SAM9_L9260
 	  Select this if you are using Olimex's SAM9-L9260 board based on the Atmel AT91SAM9260.
 	  <http://www.olimex.com/dev/sam9-L9260.html>
 
+config MACH_AFEB9260
+	bool "Custom afeb9260 board v1"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using custom afeb9260 board based on
+	  open hardware design. Select this for revision 1 of the board.
+	  <svn://194.85.238.22/home/users/george/svn/arm9eb>
+	  <http://groups.google.com/group/arm9fpga-evolution-board>
+
 config MACH_USB_A9260
 	bool "CALAO USB-A9260"
 	depends on ARCH_AT91SAM9260
@@ -313,6 +322,19 @@ config AT91_PROGRAMMABLE_CLOCKS
 	help
 	  Select this if you need to program one or more of the PCK0..PCK3
 	  programmable clock outputs.
+
+config AT91_SLOW_CLOCK
+	bool "Suspend-to-RAM disables main oscillator"
+	depends on SUSPEND
+	help
+	  Select this if you want Suspend-to-RAM to save the most power
+	  possible (without powering off the CPU) by disabling the PLLs
+	  and main oscillator so that only the 32 KiHz clock is available.
+
+	  When only that slow-clock is available, some peripherals lose
+	  functionality.  Many can't issue wakeup events unless faster
+	  clocks are available.  Some lose their operating state and
+	  need to be completely re-initialized.
 
 config AT91_TIMER_HZ
        int "Kernel HZ (jiffies per second)"

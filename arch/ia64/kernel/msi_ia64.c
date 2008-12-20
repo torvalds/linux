@@ -5,6 +5,7 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 #include <linux/msi.h>
+#include <linux/dmar.h>
 #include <asm/smp.h>
 
 /*
@@ -162,3 +163,82 @@ void arch_teardown_msi_irq(unsigned int irq)
 
 	return ia64_teardown_msi_irq(irq);
 }
+
+#ifdef CONFIG_DMAR
+#ifdef CONFIG_SMP
+static void dmar_msi_set_affinity(unsigned int irq, cpumask_t mask)
+{
+	struct irq_cfg *cfg = irq_cfg + irq;
+	struct msi_msg msg;
+	int cpu = first_cpu(mask);
+
+
+	if (!cpu_online(cpu))
+		return;
+
+	if (irq_prepare_move(irq, cpu))
+		return;
+
+	dmar_msi_read(irq, &msg);
+
+	msg.data &= ~MSI_DATA_VECTOR_MASK;
+	msg.data |= MSI_DATA_VECTOR(cfg->vector);
+	msg.address_lo &= ~MSI_ADDR_DESTID_MASK;
+	msg.address_lo |= MSI_ADDR_DESTID_CPU(cpu_physical_id(cpu));
+
+	dmar_msi_write(irq, &msg);
+	irq_desc[irq].affinity = mask;
+}
+#endif /* CONFIG_SMP */
+
+struct irq_chip dmar_msi_type = {
+	.name = "DMAR_MSI",
+	.unmask = dmar_msi_unmask,
+	.mask = dmar_msi_mask,
+	.ack = ia64_ack_msi_irq,
+#ifdef CONFIG_SMP
+	.set_affinity = dmar_msi_set_affinity,
+#endif
+	.retrigger = ia64_msi_retrigger_irq,
+};
+
+static int
+msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
+{
+	struct irq_cfg *cfg = irq_cfg + irq;
+	unsigned dest;
+	cpumask_t mask;
+
+	cpus_and(mask, irq_to_domain(irq), cpu_online_map);
+	dest = cpu_physical_id(first_cpu(mask));
+
+	msg->address_hi = 0;
+	msg->address_lo =
+		MSI_ADDR_HEADER |
+		MSI_ADDR_DESTMODE_PHYS |
+		MSI_ADDR_REDIRECTION_CPU |
+		MSI_ADDR_DESTID_CPU(dest);
+
+	msg->data =
+		MSI_DATA_TRIGGER_EDGE |
+		MSI_DATA_LEVEL_ASSERT |
+		MSI_DATA_DELIVERY_FIXED |
+		MSI_DATA_VECTOR(cfg->vector);
+	return 0;
+}
+
+int arch_setup_dmar_msi(unsigned int irq)
+{
+	int ret;
+	struct msi_msg msg;
+
+	ret = msi_compose_msg(NULL, irq, &msg);
+	if (ret < 0)
+		return ret;
+	dmar_msi_write(irq, &msg);
+	set_irq_chip_and_handler_name(irq, &dmar_msi_type, handle_edge_irq,
+		"edge");
+	return 0;
+}
+#endif /* CONFIG_DMAR */
+

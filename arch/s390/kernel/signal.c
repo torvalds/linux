@@ -24,6 +24,7 @@
 #include <linux/tty.h>
 #include <linux/personality.h>
 #include <linux/binfmts.h>
+#include <linux/tracehook.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/lowcore.h>
@@ -507,6 +508,12 @@ void do_signal(struct pt_regs *regs)
 			 */
 			if (current->thread.per_info.single_step)
 				set_thread_flag(TIF_SINGLE_STEP);
+
+			/*
+			 * Let tracing know that we've done the handler setup.
+			 */
+			tracehook_signal_handler(signr, &info, &ka, regs,
+					 test_thread_flag(TIF_SINGLE_STEP));
 		}
 		return;
 	}
@@ -525,4 +532,10 @@ void do_signal(struct pt_regs *regs)
 		regs->gprs[2] = __NR_restart_syscall;
 		set_thread_flag(TIF_RESTART_SVC);
 	}
+}
+
+void do_notify_resume(struct pt_regs *regs)
+{
+	clear_thread_flag(TIF_NOTIFY_RESUME);
+	tracehook_notify_resume(regs);
 }

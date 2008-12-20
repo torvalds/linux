@@ -8,7 +8,7 @@
  * pages against inodes.  ie: data writeback.  Writeout of the
  * inode itself is not handled here.
  *
- * 10Apr2002	akpm@zip.com.au
+ * 10Apr2002	Andrew Morton
  *		Split out of fs/inode.c
  *		Additions for address_space-based writeback
  */

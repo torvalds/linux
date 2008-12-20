@@ -93,8 +93,7 @@ int via_final_context(struct drm_device *dev, int context)
 	/* Last context, perform cleanup */
 	if (dev->ctx_count == 1 && dev->dev_private) {
 		DRM_DEBUG("Last Context\n");
-		if (dev->irq)
-			drm_irq_uninstall(dev);
+		drm_irq_uninstall(dev);
 		via_cleanup_futex(dev_priv);
 		via_do_cleanup_map(dev);
 	}

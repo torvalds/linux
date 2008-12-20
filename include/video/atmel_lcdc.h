@@ -30,6 +30,7 @@
  */
 #define ATMEL_LCDC_WIRING_BGR	0
 #define ATMEL_LCDC_WIRING_RGB	1
+#define ATMEL_LCDC_WIRING_RGB555	2
 
 
  /* LCD Controller info data structure, stored in device platform_data */
@@ -37,7 +38,7 @@ struct atmel_lcdfb_info {
 	spinlock_t		lock;
 	struct fb_info		*info;
 	void __iomem		*mmio;
-	unsigned long		irq_base;
+	int			irq_base;
 	struct work_struct	task;
 
 	unsigned int		guard_time;

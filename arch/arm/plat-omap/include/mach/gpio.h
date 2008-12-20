@@ -26,10 +26,10 @@
 #ifndef __ASM_ARCH_OMAP_GPIO_H
 #define __ASM_ARCH_OMAP_GPIO_H
 
+#include <linux/io.h>
 #include <mach/irqs.h>
-#include <asm/io.h>
 
-#define OMAP_MPUIO_BASE			(void __iomem *)0xfffb5000
+#define OMAP_MPUIO_BASE			0xfffb5000
 
 #ifdef CONFIG_ARCH_OMAP730
 #define OMAP_MPUIO_INPUT_LATCH		0x00
@@ -76,6 +76,8 @@ extern void omap_free_gpio(int gpio);
 extern void omap_set_gpio_direction(int gpio, int is_input);
 extern void omap_set_gpio_dataout(int gpio, int enable);
 extern int omap_get_gpio_datain(int gpio);
+extern void omap2_gpio_prepare_for_retention(void);
+extern void omap2_gpio_resume_after_retention(void);
 extern void omap_set_gpio_debounce(int gpio, int enable);
 extern void omap_set_gpio_debounce_time(int gpio, int enable);
 

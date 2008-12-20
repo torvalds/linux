@@ -36,12 +36,13 @@ static void pcsp_call_pcm_elapsed(unsigned long priv)
 
 static DECLARE_TASKLET(pcsp_pcm_tasklet, pcsp_call_pcm_elapsed, 0);
 
-enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
+/* write the port and returns the next expire time in ns;
+ * called at the trigger-start and in hrtimer callback
+ */
+static unsigned long pcsp_timer_update(struct hrtimer *handle)
 {
 	unsigned char timer_cnt, val;
-	int fmt_size, periods_elapsed;
 	u64 ns;
-	size_t period_bytes, buffer_bytes;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcsp *chip = container_of(handle, struct snd_pcsp, timer);
@@ -51,28 +52,25 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 		outb(chip->val61, 0x61);
 		chip->thalf = 0;
 		if (!atomic_read(&chip->timer_active))
-			goto stop;
-		hrtimer_forward(&chip->timer, chip->timer.expires,
-				ktime_set(0, chip->ns_rem));
-		return HRTIMER_RESTART;
+			return 0;
+		return chip->ns_rem;
 	}
 
 	if (!atomic_read(&chip->timer_active))
-		goto stop;
+		return 0;
 	substream = chip->playback_substream;
 	if (!substream)
-		goto stop;
+		return 0;
 
 	runtime = substream->runtime;
-	fmt_size = snd_pcm_format_physical_width(runtime->format) >> 3;
 	/* assume it is mono! */
-	val = runtime->dma_area[chip->playback_ptr + fmt_size - 1];
-	if (snd_pcm_format_signed(runtime->format))
+	val = runtime->dma_area[chip->playback_ptr + chip->fmt_size - 1];
+	if (chip->is_signed)
 		val ^= 0x80;
 	timer_cnt = val * CUR_DIV() / 256;
 
 	if (timer_cnt && chip->enable) {
-		spin_lock(&i8253_lock);
+		spin_lock_irqsave(&i8253_lock, flags);
 		if (!nforce_wa) {
 			outb_p(chip->val61, 0x61);
 			outb_p(timer_cnt, 0x42);
@@ -81,14 +79,39 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 			outb(chip->val61 ^ 2, 0x61);
 			chip->thalf = 1;
 		}
-		spin_unlock(&i8253_lock);
+		spin_unlock_irqrestore(&i8253_lock, flags);
 	}
+
+	chip->ns_rem = PCSP_PERIOD_NS();
+	ns = (chip->thalf ? PCSP_CALC_NS(timer_cnt) : chip->ns_rem);
+	chip->ns_rem -= ns;
+	return ns;
+}
+
+enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
+{
+	struct snd_pcsp *chip = container_of(handle, struct snd_pcsp, timer);
+	struct snd_pcm_substream *substream;
+	int periods_elapsed, pointer_update;
+	size_t period_bytes, buffer_bytes;
+	unsigned long ns;
+	unsigned long flags;
+
+	pointer_update = !chip->thalf;
+	ns = pcsp_timer_update(handle);
+	if (!ns)
+		return HRTIMER_NORESTART;
+
+	/* update the playback position */
+	substream = chip->playback_substream;
+	if (!substream)
+		return HRTIMER_NORESTART;
 
 	period_bytes = snd_pcm_lib_period_bytes(substream);
 	buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
 
 	spin_lock_irqsave(&chip->substream_lock, flags);
-	chip->playback_ptr += PCSP_INDEX_INC() * fmt_size;
+	chip->playback_ptr += PCSP_INDEX_INC() * chip->fmt_size;
 	periods_elapsed = chip->playback_ptr - chip->period_ptr;
 	if (periods_elapsed < 0) {
 #if PCSP_DEBUG
@@ -106,31 +129,27 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 	if (periods_elapsed) {
 		chip->period_ptr += periods_elapsed * period_bytes;
 		chip->period_ptr %= buffer_bytes;
-		tasklet_schedule(&pcsp_pcm_tasklet);
 	}
 	spin_unlock_irqrestore(&chip->substream_lock, flags);
 
-	if (!atomic_read(&chip->timer_active))
-		goto stop;
+	if (periods_elapsed)
+		tasklet_schedule(&pcsp_pcm_tasklet);
 
-	chip->ns_rem = PCSP_PERIOD_NS();
-	ns = (chip->thalf ? PCSP_CALC_NS(timer_cnt) : chip->ns_rem);
-	chip->ns_rem -= ns;
-	hrtimer_forward(&chip->timer, chip->timer.expires, ktime_set(0, ns));
+	hrtimer_forward(handle, hrtimer_get_expires(handle), ns_to_ktime(ns));
+
 	return HRTIMER_RESTART;
-
- stop:
-	return HRTIMER_NORESTART;
 }
 
-static void pcsp_start_playing(struct snd_pcsp *chip)
+static int pcsp_start_playing(struct snd_pcsp *chip)
 {
+	unsigned long ns;
+
 #if PCSP_DEBUG
 	printk(KERN_INFO "PCSP: start_playing called\n");
 #endif
 	if (atomic_read(&chip->timer_active)) {
 		printk(KERN_ERR "PCSP: Timer already active\n");
-		return;
+		return -EIO;
 	}
 
 	spin_lock(&i8253_lock);
@@ -140,7 +159,12 @@ static void pcsp_start_playing(struct snd_pcsp *chip)
 	atomic_set(&chip->timer_active, 1);
 	chip->thalf = 0;
 
-	hrtimer_start(&pcsp_chip.timer, ktime_set(0, 0), HRTIMER_MODE_REL);
+	ns = pcsp_timer_update(&pcsp_chip.timer);
+	if (!ns)
+		return -EIO;
+
+	hrtimer_start(&pcsp_chip.timer, ktime_set(0, ns), HRTIMER_MODE_REL);
+	return 0;
 }
 
 static void pcsp_stop_playing(struct snd_pcsp *chip)
@@ -220,6 +244,9 @@ static int snd_pcsp_playback_prepare(struct snd_pcm_substream *substream)
 	pcsp_sync_stop(chip);
 	chip->playback_ptr = 0;
 	chip->period_ptr = 0;
+	chip->fmt_size =
+		snd_pcm_format_physical_width(substream->runtime->format) >> 3;
+	chip->is_signed = snd_pcm_format_signed(substream->runtime->format);
 	return 0;
 }
 
@@ -232,8 +259,7 @@ static int snd_pcsp_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
-		pcsp_start_playing(chip);
-		break;
+		return pcsp_start_playing(chip);
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		pcsp_stop_playing(chip);

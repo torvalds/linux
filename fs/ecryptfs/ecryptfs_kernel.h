@@ -79,11 +79,6 @@
 #define ECRYPTFS_MAX_PKI_NAME_BYTES 16
 #define ECRYPTFS_DEFAULT_NUM_USERS 4
 #define ECRYPTFS_MAX_NUM_USERS 32768
-#define ECRYPTFS_TRANSPORT_NETLINK 0
-#define ECRYPTFS_TRANSPORT_CONNECTOR 1
-#define ECRYPTFS_TRANSPORT_RELAYFS 2
-#define ECRYPTFS_TRANSPORT_MISCDEV 3
-#define ECRYPTFS_DEFAULT_TRANSPORT ECRYPTFS_TRANSPORT_MISCDEV
 #define ECRYPTFS_XATTR_NAME "user.ecryptfs"
 
 #define RFC2440_CIPHER_DES3_EDE 0x02
@@ -400,8 +395,6 @@ struct ecryptfs_msg_ctx {
 	struct mutex mux;
 };
 
-extern unsigned int ecryptfs_transport;
-
 struct ecryptfs_daemon;
 
 struct ecryptfs_daemon {
@@ -627,31 +620,20 @@ int
 ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags);
 int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode);
-int ecryptfs_process_helo(unsigned int transport, uid_t euid,
-			  struct user_namespace *user_ns, struct pid *pid);
+int ecryptfs_process_helo(uid_t euid, struct user_namespace *user_ns,
+			  struct pid *pid);
 int ecryptfs_process_quit(uid_t euid, struct user_namespace *user_ns,
 			  struct pid *pid);
 int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t euid,
 			      struct user_namespace *user_ns, struct pid *pid,
 			      u32 seq);
-int ecryptfs_send_message(unsigned int transport, char *data, int data_len,
+int ecryptfs_send_message(char *data, int data_len,
 			  struct ecryptfs_msg_ctx **msg_ctx);
 int ecryptfs_wait_for_response(struct ecryptfs_msg_ctx *msg_ctx,
 			       struct ecryptfs_message **emsg);
-int ecryptfs_init_messaging(unsigned int transport);
-void ecryptfs_release_messaging(unsigned int transport);
+int ecryptfs_init_messaging(void);
+void ecryptfs_release_messaging(void);
 
-int ecryptfs_send_netlink(char *data, int data_len,
-			  struct ecryptfs_msg_ctx *msg_ctx, u8 msg_type,
-			  u16 msg_flags, struct pid *daemon_pid);
-int ecryptfs_init_netlink(void);
-void ecryptfs_release_netlink(void);
-
-int ecryptfs_send_connector(char *data, int data_len,
-			    struct ecryptfs_msg_ctx *msg_ctx, u8 msg_type,
-			    u16 msg_flags, struct pid *daemon_pid);
-int ecryptfs_init_connector(void);
-void ecryptfs_release_connector(void);
 void
 ecryptfs_write_header_metadata(char *virt,
 			       struct ecryptfs_crypt_stat *crypt_stat,

@@ -11,9 +11,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include <asm/arch/svinto.h>
+#include <arch/svinto.h>
 #include <asm/io.h>
-#include <asm/arch/io_interface_mux.h>
+#include <arch/io_interface_mux.h>
 
 
 #define DBG(s)

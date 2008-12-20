@@ -15,7 +15,11 @@ void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 
-#define dma_mapping_error
+static inline
+int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return 0;
+}
 
 /*
  * Map a single buffer of the indicated size for DMA in streaming mode.
@@ -80,4 +84,15 @@ extern int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 extern void dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 		      int nhwentries, enum dma_data_direction direction);
 
+static inline void dma_sync_single_for_cpu(struct device *dev,
+					dma_addr_t handle, size_t size,
+					enum dma_data_direction dir)
+{
+}
+
+static inline void dma_sync_single_for_device(struct device *dev,
+					dma_addr_t handle, size_t size,
+					enum dma_data_direction dir)
+{
+}
 #endif				/* _BLACKFIN_DMA_MAPPING_H */

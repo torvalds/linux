@@ -37,6 +37,17 @@ config KVM_BOOKE_HOST
 	  Provides host support for KVM on Book E PowerPC processors. Currently
 	  this works on 440 processors only.
 
+config KVM_TRACE
+	bool "KVM trace support"
+	depends on KVM && MARKERS && SYSFS
+	select RELAY
+	select DEBUG_FS
+	default n
+	---help---
+	  This option allows reading a trace of kvm-related events through
+	  relayfs.  Note the ABI is not considered stable and will be
+	  modified in future updates.
+
 source drivers/virtio/Kconfig
 
 endif # VIRTUALIZATION

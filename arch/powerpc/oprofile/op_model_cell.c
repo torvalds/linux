@@ -404,7 +404,7 @@ set_count_mode(u32 kernel, u32 user)
 	}
 }
 
-static inline void enable_ctr(u32 cpu, u32 ctr, u32 * pm07_cntrl)
+static inline void enable_ctr(u32 cpu, u32 ctr, u32 *pm07_cntrl)
 {
 
 	pm07_cntrl[ctr] |= CBE_PM_CTR_ENABLE;
@@ -582,6 +582,13 @@ static int cell_reg_setup(struct op_counter_config *ctr,
 
 	num_counters = num_ctrs;
 
+	if (unlikely(num_ctrs > NR_PHYS_CTRS)) {
+		printk(KERN_ERR
+		       "%s: Oprofile, number of specified events " \
+		       "exceeds number of physical counters\n",
+		       __func__);
+		return -EIO;
+	}
 	pm_regs.group_control = 0;
 	pm_regs.debug_bus_control = 0;
 
@@ -830,13 +837,13 @@ static int calculate_lfsr(int n)
 static int pm_rtas_activate_spu_profiling(u32 node)
 {
 	int ret, i;
-	struct pm_signal pm_signal_local[NR_PHYS_CTRS];
+	struct pm_signal pm_signal_local[NUM_SPUS_PER_NODE];
 
 	/*
 	 * Set up the rtas call to configure the debug bus to
 	 * route the SPU PCs.  Setup the pm_signal for each SPU
 	 */
-	for (i = 0; i < NUM_SPUS_PER_NODE; i++) {
+	for (i = 0; i < ARRAY_SIZE(pm_signal_local); i++) {
 		pm_signal_local[i].cpu = node;
 		pm_signal_local[i].signal_group = 41;
 		/* spu i on word (i/2) */
@@ -848,7 +855,7 @@ static int pm_rtas_activate_spu_profiling(u32 node)
 
 	ret = rtas_ibm_cbe_perftools(SUBFUNC_ACTIVATE,
 				     PASSTHRU_ENABLE, pm_signal_local,
-				     (NUM_SPUS_PER_NODE
+				     (ARRAY_SIZE(pm_signal_local)
 				      * sizeof(struct pm_signal)));
 
 	if (unlikely(ret)) {

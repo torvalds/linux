@@ -340,8 +340,15 @@ static int ipath_post_one_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 	int acc;
 	int ret;
 	unsigned long flags;
+	struct ipath_devdata *dd = to_idev(qp->ibqp.device)->dd;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
+
+	if (qp->ibqp.qp_type != IB_QPT_SMI &&
+	    !(dd->ipath_flags & IPATH_LINKACTIVE)) {
+		ret = -ENETDOWN;
+		goto bail;
+	}
 
 	/* Check that state is OK to post send. */
 	if (unlikely(!(ib_ipath_state_ops[qp->state] & IPATH_POST_SEND_OK)))

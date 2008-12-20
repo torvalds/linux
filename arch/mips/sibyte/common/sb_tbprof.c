@@ -576,8 +576,7 @@ static int __init sbprof_tb_init(void)
 
 	tb_class = tbc;
 
-	dev = device_create_drvdata(tbc, NULL, MKDEV(SBPROF_TB_MAJOR, 0),
-				    NULL, "tb");
+	dev = device_create(tbc, NULL, MKDEV(SBPROF_TB_MAJOR, 0), NULL, "tb");
 	if (IS_ERR(dev)) {
 		err = PTR_ERR(dev);
 		goto out_class;

@@ -167,8 +167,6 @@ struct sta_ampdu_mlme {
  * @lock: used for locking all fields that require locking, see comments
  *	in the header file.
  * @flaglock: spinlock for flags accesses
- * @ht_info: HT capabilities of this STA
- * @supp_rates: Bitmap of supported rates (per band)
  * @addr: MAC address of this STA
  * @aid: STA's unique AID (1..2007, 0 = not assigned yet),
  *	only used in AP (and IBSS?) mode
@@ -191,20 +189,15 @@ struct sta_ampdu_mlme {
  * @last_qual: qual of last received frame from this STA
  * @last_noise: noise of last received frame from this STA
  * @last_seq_ctrl: last received seq/frag number from this STA (per RX queue)
- * @wme_rx_queue: TBD
  * @tx_filtered_count: TBD
  * @tx_retry_failed: TBD
  * @tx_retry_count: TBD
- * @tx_num_consecutive_failures: TBD
- * @tx_num_mpdu_ok: TBD
- * @tx_num_mpdu_fail: TBD
  * @fail_avg: moving percentage of failed MSDUs
  * @tx_packets: number of RX/TX MSDUs
  * @tx_bytes: TBD
  * @tx_fragments: number of transmitted MPDUs
- * @txrate_idx: TBD
- * @last_txrate_idx: TBD
- * @wme_tx_queue: TBD
+ * @last_txrate_idx: Index of the last used transmit rate
+ * @tid_seq: TBD
  * @ampdu_mlme: TBD
  * @timer_to_tid: identity mapping to ID timers
  * @tid_to_tx_q: map tid to tx queue
@@ -217,6 +210,7 @@ struct sta_ampdu_mlme {
  * @plink_timeout: TBD
  * @plink_timer: TBD
  * @debugfs: debug filesystem info
+ * @sta: station information we share with the driver
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -229,10 +223,7 @@ struct sta_info {
 	void *rate_ctrl_priv;
 	spinlock_t lock;
 	spinlock_t flaglock;
-	struct ieee80211_ht_info ht_info;
-	u64 supp_rates[IEEE80211_NUM_BANDS];
-	u8 addr[ETH_ALEN];
-	u16 aid;
+
 	u16 listen_interval;
 
 	/*
@@ -265,17 +256,10 @@ struct sta_info {
 	int last_qual;
 	int last_noise;
 	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES];
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	unsigned int wme_rx_queue[NUM_RX_DATA_QUEUES];
-#endif
 
 	/* Updated from TX status path only, no locking requirements */
 	unsigned long tx_filtered_count;
 	unsigned long tx_retry_failed, tx_retry_count;
-	/* TODO: update in generic code not rate control? */
-	u32 tx_num_consecutive_failures;
-	u32 tx_num_mpdu_ok;
-	u32 tx_num_mpdu_fail;
 	/* moving percentage of failed MSDUs */
 	unsigned int fail_avg;
 
@@ -283,12 +267,8 @@ struct sta_info {
 	unsigned long tx_packets;
 	unsigned long tx_bytes;
 	unsigned long tx_fragments;
-	int txrate_idx;
-	int last_txrate_idx;
+	unsigned int last_txrate_idx;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	unsigned int wme_tx_queue[NUM_RX_DATA_QUEUES];
-#endif
 
 	/*
 	 * Aggregation information, locked with lock.
@@ -319,13 +299,13 @@ struct sta_info {
 		struct dentry *num_ps_buf_frames;
 		struct dentry *inactive_ms;
 		struct dentry *last_seq_ctrl;
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-		struct dentry *wme_rx_queue;
-		struct dentry *wme_tx_queue;
-#endif
 		struct dentry *agg_status;
+		bool add_has_run;
 	} debugfs;
 #endif
+
+	/* keep last! */
+	struct ieee80211_sta sta;
 };
 
 static inline enum plink_state sta_plink_state(struct sta_info *sta)
@@ -425,7 +405,7 @@ static inline u32 get_sta_flags(struct sta_info *sta)
 /*
  * Get a STA info, must have be under RCU read lock.
  */
-struct sta_info *sta_info_get(struct ieee80211_local *local, u8 *addr);
+struct sta_info *sta_info_get(struct ieee80211_local *local, const u8 *addr);
 /*
  * Get STA info by index, BROKEN!
  */
@@ -451,7 +431,6 @@ int sta_info_insert(struct sta_info *sta);
  * has already unlinked it.
  */
 void sta_info_unlink(struct sta_info **sta);
-void __sta_info_unlink(struct sta_info **sta);
 
 void sta_info_destroy(struct sta_info *sta);
 void sta_info_set_tim_bit(struct sta_info *sta);
@@ -463,5 +442,7 @@ void sta_info_stop(struct ieee80211_local *local);
 int sta_info_flush(struct ieee80211_local *local,
 		    struct ieee80211_sub_if_data *sdata);
 void sta_info_flush_delayed(struct ieee80211_sub_if_data *sdata);
+void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
+			  unsigned long exp_time);
 
 #endif /* STA_INFO_H */

@@ -10,6 +10,7 @@
 #include <asm/bfin-global.h>
 #include <asm/reboot.h>
 #include <asm/system.h>
+#include <asm/bfrom.h>
 
 /* A system soft reset makes external memory unusable so force
  * this function into L1.  We use the compiler ssync here rather
@@ -20,7 +21,7 @@
  * the core reset.
  */
 __attribute__((l1_text))
-void bfin_reset(void)
+static void bfin_reset(void)
 {
 	/* Wait for completion of "system" events such as cache line
 	 * line fills so that we avoid infinite stalls later on as
@@ -34,15 +35,15 @@ void bfin_reset(void)
 		bfin_write_SWRST(0x7);
 
 		/* Due to the way reset is handled in the hardware, we need
-		 * to delay for 7 SCLKS.  The only reliable way to do this is
-		 * to calculate the CCLK/SCLK ratio and multiply 7.  For now,
+		 * to delay for 10 SCLKS.  The only reliable way to do this is
+		 * to calculate the CCLK/SCLK ratio and multiply 10.  For now,
 		 * we'll assume worse case which is a 1:15 ratio.
 		 */
 		asm(
 			"LSETUP (1f, 1f) LC0 = %0\n"
 			"1: nop;"
 			:
-			: "a" (15 * 7)
+			: "a" (15 * 10)
 			: "LC0", "LB0", "LT0"
 		);
 
@@ -74,7 +75,14 @@ void machine_restart(char *cmd)
 {
 	native_machine_restart(cmd);
 	local_irq_disable();
-	bfin_reset();
+	if (ANOMALY_05000353 || ANOMALY_05000386)
+		bfin_reset();
+	else
+		/* the bootrom checks to see how it was reset and will
+		 * automatically perform a software reset for us when
+		 * it starts executing boot
+		 */
+		asm("raise 1;");
 }
 
 __attribute__((weak))

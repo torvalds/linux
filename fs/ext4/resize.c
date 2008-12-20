@@ -416,8 +416,8 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 		       "EXT4-fs: ext4_add_new_gdb: adding group block %lu\n",
 		       gdb_num);
 
-        /*
-         * If we are not using the primary superblock/GDT copy don't resize,
+	/*
+	 * If we are not using the primary superblock/GDT copy don't resize,
          * because the user tools have no way of handling this.  Probably a
          * bad time to do it anyways.
          */
@@ -870,11 +870,10 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	 * We can allocate memory for mb_alloc based on the new group
 	 * descriptor
 	 */
-	if (test_opt(sb, MBALLOC)) {
-		err = ext4_mb_add_more_groupinfo(sb, input->group, gdp);
-		if (err)
-			goto exit_journal;
-	}
+	err = ext4_mb_add_more_groupinfo(sb, input->group, gdp);
+	if (err)
+		goto exit_journal;
+
 	/*
 	 * Make the new blocks and inodes valid next.  We do this before
 	 * increasing the group count so that once the group is enabled,
@@ -929,6 +928,15 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	percpu_counter_add(&sbi->s_freeinodes_counter,
 			   EXT4_INODES_PER_GROUP(sb));
 
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG)) {
+		ext4_group_t flex_group;
+		flex_group = ext4_flex_group(sbi, input->group);
+		sbi->s_flex_groups[flex_group].free_blocks +=
+			input->free_blocks_count;
+		sbi->s_flex_groups[flex_group].free_inodes +=
+			EXT4_INODES_PER_GROUP(sb);
+	}
+
 	ext4_journal_dirty_metadata(handle, sbi->s_sbh);
 	sb->s_dirt = 1;
 
@@ -964,7 +972,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	ext4_group_t o_groups_count;
 	ext4_grpblk_t last;
 	ext4_grpblk_t add;
-	struct buffer_head * bh;
+	struct buffer_head *bh;
 	handle_t *handle;
 	int err;
 	unsigned long freed_blocks;
@@ -1077,8 +1085,15 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	/*
 	 * Mark mballoc pages as not up to date so that they will be updated
 	 * next time they are loaded by ext4_mb_load_buddy.
+	 *
+	 * XXX Bad, Bad, BAD!!!  We should not be overloading the
+	 * Uptodate flag, particularly on thte bitmap bh, as way of
+	 * hinting to ext4_mb_load_buddy() that it needs to be
+	 * overloaded.  A user could take a LVM snapshot, then do an
+	 * on-line fsck, and clear the uptodate flag, and this would
+	 * not be a bug in userspace, but a bug in the kernel.  FIXME!!!
 	 */
-	if (test_opt(sb, MBALLOC)) {
+	{
 		struct ext4_sb_info *sbi = EXT4_SB(sb);
 		struct inode *inode = sbi->s_buddy_cache;
 		int blocks_per_page;

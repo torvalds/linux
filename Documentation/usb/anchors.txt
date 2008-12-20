@@ -52,6 +52,11 @@ Therefore no guarantee is made that the URBs have been unlinked when
 the call returns. They may be unlinked later but will be unlinked in
 finite time.
 
+usb_scuttle_anchored_urbs()
+---------------------------
+
+All URBs of an anchor are unanchored en masse.
+
 usb_wait_anchor_empty_timeout()
 -------------------------------
 
@@ -59,4 +64,16 @@ This function waits for all URBs associated with an anchor to finish
 or a timeout, whichever comes first. Its return value will tell you
 whether the timeout was reached.
 
+usb_anchor_empty()
+------------------
 
+Returns true if no URBs are associated with an anchor. Locking
+is the caller's responsibility.
+
+usb_get_from_anchor()
+---------------------
+
+Returns the oldest anchored URB of an anchor. The URB is unanchored
+and returned with a reference. As you may mix URBs to several
+destinations in one anchor you have no guarantee the chronologically
+first submitted URB is returned.

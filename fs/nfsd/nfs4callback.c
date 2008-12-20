@@ -225,7 +225,8 @@ encode_cb_recall(struct xdr_stream *xdr, struct nfs4_cb_recall *cb_rec)
 
 	RESERVE_SPACE(12+sizeof(cb_rec->cbr_stateid) + len);
 	WRITE32(OP_CB_RECALL);
-	WRITEMEM(&cb_rec->cbr_stateid, sizeof(stateid_t));
+	WRITE32(cb_rec->cbr_stateid.si_generation);
+	WRITEMEM(&cb_rec->cbr_stateid.si_opaque, sizeof(stateid_opaque_t));
 	WRITE32(cb_rec->cbr_trunc);
 	WRITE32(len);
 	WRITEMEM(cb_rec->cbr_fhval, len);
@@ -379,6 +380,7 @@ static int do_probe_callback(void *data)
 		.addrsize	= sizeof(addr),
 		.timeout	= &timeparms,
 		.program	= &cb_program,
+		.prognumber	= cb->cb_prog,
 		.version	= nfs_cb_version[1]->number,
 		.authflavor	= RPC_AUTH_UNIX, /* XXX: need AUTH_GSS... */
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
@@ -395,9 +397,6 @@ static int do_probe_callback(void *data)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(cb->cb_port);
 	addr.sin_addr.s_addr = htonl(cb->cb_addr);
-
-	/* Initialize rpc_stat */
-	memset(args.program->stats, 0, sizeof(struct rpc_stat));
 
 	/* Create RPC client */
 	client = rpc_create(&args);

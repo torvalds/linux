@@ -64,7 +64,7 @@ static int power4_reg_setup(struct op_counter_config *ctr,
 	return 0;
 }
 
-extern void ppc64_enable_pmcs(void);
+extern void ppc_enable_pmcs(void);
 
 /*
  * Older CPUs require the MMCRA sample bit to be always set, but newer 
@@ -91,7 +91,7 @@ static int power4_cpu_setup(struct op_counter_config *ctr)
 	unsigned int mmcr0 = mmcr0_val;
 	unsigned long mmcra = mmcra_val;
 
-	ppc64_enable_pmcs();
+	ppc_enable_pmcs();
 
 	/* set the freeze bit */
 	mmcr0 |= MMCR0_FC;

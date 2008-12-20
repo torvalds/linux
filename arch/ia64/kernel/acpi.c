@@ -52,6 +52,7 @@
 #include <asm/numa.h>
 #include <asm/sal.h>
 #include <asm/cyclone.h>
+#include <asm/xen/hypervisor.h>
 
 #define BAD_MADT_ENTRY(entry, end) (                                        \
 		(!entry) || (unsigned long)entry + sizeof(*entry) > end ||  \
@@ -91,6 +92,9 @@ acpi_get_sysname(void)
 	struct acpi_table_rsdp *rsdp;
 	struct acpi_table_xsdt *xsdt;
 	struct acpi_table_header *hdr;
+#ifdef CONFIG_DMAR
+	u64 i, nentries;
+#endif
 
 	rsdp_phys = acpi_find_rsdp();
 	if (!rsdp_phys) {
@@ -121,7 +125,21 @@ acpi_get_sysname(void)
 			return "uv";
 		else
 			return "sn2";
+	} else if (xen_pv_domain() && !strcmp(hdr->oem_id, "XEN")) {
+		return "xen";
 	}
+
+#ifdef CONFIG_DMAR
+	/* Look for Intel IOMMU */
+	nentries = (hdr->length - sizeof(*hdr)) /
+			 sizeof(xsdt->table_offset_entry[0]);
+	for (i = 0; i < nentries; i++) {
+		hdr = __va(xsdt->table_offset_entry[i]);
+		if (strncmp(hdr->signature, ACPI_SIG_DMAR,
+			sizeof(ACPI_SIG_DMAR) - 1) == 0)
+			return "dig_vtd";
+	}
+#endif
 
 	return "dig";
 #else
@@ -137,6 +155,10 @@ acpi_get_sysname(void)
 	return "uv";
 # elif defined (CONFIG_IA64_DIG)
 	return "dig";
+# elif defined (CONFIG_IA64_XEN_GUEST)
+	return "xen";
+# elif defined(CONFIG_IA64_DIG_VTD)
+	return "dig_vtd";
 # else
 #	error Unknown platform.  Fix acpi.c.
 # endif
@@ -656,6 +678,30 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
 	return 0;
 }
 
+int __init early_acpi_boot_init(void)
+{
+	int ret;
+
+	/*
+	 * do a partial walk of MADT to determine how many CPUs
+	 * we have including offline CPUs
+	 */
+	if (acpi_table_parse(ACPI_SIG_MADT, acpi_parse_madt)) {
+		printk(KERN_ERR PREFIX "Can't find MADT\n");
+		return 0;
+	}
+
+	ret = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_SAPIC,
+		acpi_parse_lsapic, NR_CPUS);
+	if (ret < 1)
+		printk(KERN_ERR PREFIX
+		       "Error parsing MADT - no LAPIC entries\n");
+
+	return 0;
+}
+
+
+
 int __init acpi_boot_init(void)
 {
 
@@ -678,11 +724,6 @@ int __init acpi_boot_init(void)
 	    (ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE, acpi_parse_lapic_addr_ovr, 0) < 0)
 		printk(KERN_ERR PREFIX
 		       "Error parsing LAPIC address override entry\n");
-
-	if (acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_SAPIC, acpi_parse_lsapic, NR_CPUS)
-	    < 1)
-		printk(KERN_ERR PREFIX
-		       "Error parsing MADT - no LAPIC entries\n");
 
 	if (acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_APIC_NMI, acpi_parse_lapic_nmi, 0)
 	    < 0)

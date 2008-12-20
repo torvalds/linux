@@ -87,18 +87,15 @@ enum {
 
 #ifdef CONFIG_MLX4_DEBUG
 extern int mlx4_debug_level;
+#else /* CONFIG_MLX4_DEBUG */
+#define mlx4_debug_level	(0)
+#endif /* CONFIG_MLX4_DEBUG */
 
 #define mlx4_dbg(mdev, format, arg...)					\
 	do {								\
 		if (mlx4_debug_level)					\
 			dev_printk(KERN_DEBUG, &mdev->pdev->dev, format, ## arg); \
 	} while (0)
-
-#else /* CONFIG_MLX4_DEBUG */
-
-#define mlx4_dbg(mdev, format, arg...) do { (void) mdev; } while (0)
-
-#endif /* CONFIG_MLX4_DEBUG */
 
 #define mlx4_err(mdev, format, arg...) \
 	dev_err(&mdev->pdev->dev, format, ## arg)
@@ -111,6 +108,7 @@ struct mlx4_bitmap {
 	u32			last;
 	u32			top;
 	u32			max;
+	u32                     reserved_top;
 	u32			mask;
 	spinlock_t		lock;
 	unsigned long	       *table;
@@ -251,6 +249,38 @@ struct mlx4_catas_err {
 	struct list_head	list;
 };
 
+#define MLX4_MAX_MAC_NUM	128
+#define MLX4_MAC_TABLE_SIZE	(MLX4_MAX_MAC_NUM << 3)
+
+struct mlx4_mac_table {
+	__be64			entries[MLX4_MAX_MAC_NUM];
+	int			refs[MLX4_MAX_MAC_NUM];
+	struct mutex		mutex;
+	int			total;
+	int			max;
+};
+
+#define MLX4_MAX_VLAN_NUM	128
+#define MLX4_VLAN_TABLE_SIZE	(MLX4_MAX_VLAN_NUM << 2)
+
+struct mlx4_vlan_table {
+	__be32			entries[MLX4_MAX_VLAN_NUM];
+	int			refs[MLX4_MAX_VLAN_NUM];
+	struct mutex		mutex;
+	int			total;
+	int			max;
+};
+
+struct mlx4_port_info {
+	struct mlx4_dev	       *dev;
+	int			port;
+	char			dev_name[16];
+	struct device_attribute port_attr;
+	enum mlx4_port_type	tmp_type;
+	struct mlx4_mac_table	mac_table;
+	struct mlx4_vlan_table	vlan_table;
+};
+
 struct mlx4_priv {
 	struct mlx4_dev		dev;
 
@@ -279,6 +309,8 @@ struct mlx4_priv {
 
 	struct mlx4_uar		driver_uar;
 	void __iomem	       *kar;
+	struct mlx4_port_info	port[MLX4_MAX_PORTS + 1];
+	struct mutex		port_mutex;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
@@ -288,7 +320,10 @@ static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
 
 u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap);
 void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj);
-int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask, u32 reserved);
+u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align);
+void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt);
+int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
+		     u32 reserved_bot, u32 resetrved_top);
 void mlx4_bitmap_cleanup(struct mlx4_bitmap *bitmap);
 
 int mlx4_reset(struct mlx4_dev *dev);
@@ -345,5 +380,10 @@ void mlx4_qp_event(struct mlx4_dev *dev, u32 qpn, int event_type);
 void mlx4_srq_event(struct mlx4_dev *dev, u32 srqn, int event_type);
 
 void mlx4_handle_catas_err(struct mlx4_dev *dev);
+
+void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table);
+void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
+
+int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port);
 
 #endif /* MLX4_H */

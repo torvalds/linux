@@ -19,10 +19,10 @@
  */
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/io.h>
 
 #include <asm/mach/irq.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 
 #include <asm/hardware/clps7111.h>

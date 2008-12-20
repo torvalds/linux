@@ -123,6 +123,13 @@ struct tc_prio_qopt
 	__u8	priomap[TC_PRIO_MAX+1];	/* Map: logical priority -> PRIO band */
 };
 
+/* MULTIQ section */
+
+struct tc_multiq_qopt {
+	__u16	bands;			/* Number of bands */
+	__u16	max_bands;		/* Maximum number of queues */
+};
+
 /* TBF section */
 
 struct tc_tbf_qopt

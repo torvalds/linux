@@ -2456,20 +2456,14 @@ static ssize_t ipr_read_trace(struct kobject *kobj,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)shost->hostdata;
 	unsigned long lock_flags = 0;
-	int size = IPR_TRACE_SIZE;
-	char *src = (char *)ioa_cfg->trace;
-
-	if (off > size)
-		return 0;
-	if (off + count > size) {
-		size -= off;
-		count = size;
-	}
+	ssize_t ret;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
-	memcpy(buf, &src[off], count);
+	ret = memory_read_from_buffer(buf, count, &off, ioa_cfg->trace,
+				IPR_TRACE_SIZE);
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
-	return count;
+
+	return ret;
 }
 
 static struct bin_attribute ipr_trace_attr = {
@@ -3670,7 +3664,8 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 			sdev->no_uld_attach = 1;
 		}
 		if (ipr_is_vset_device(res)) {
-			sdev->timeout = IPR_VSET_RW_TIMEOUT;
+			blk_queue_rq_timeout(sdev->request_queue,
+					     IPR_VSET_RW_TIMEOUT);
 			blk_queue_max_sectors(sdev->request_queue, IPR_VSET_MAX_SECTORS);
 		}
 		if (ipr_is_vset_device(res) || ipr_is_scsi_disk(res))
@@ -7858,7 +7853,6 @@ static struct pci_driver ipr_driver = {
 	.remove = ipr_remove,
 	.shutdown = ipr_shutdown,
 	.err_handler = &ipr_err_handler,
-	.dynids.use_driver_data = 1
 };
 
 /**

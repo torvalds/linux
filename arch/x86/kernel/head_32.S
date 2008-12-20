@@ -172,10 +172,6 @@ num_subarch_entries = (. - subarch_entries) / 4
  *
  * Note that the stack is not yet set up!
  */
-#define PTE_ATTR	0x007		/* PRESENT+RW+USER */
-#define PDE_ATTR	0x067		/* PRESENT+RW+USER+DIRTY+ACCESSED */
-#define PGD_ATTR	0x001		/* PRESENT (no other attributes) */
-
 default_entry:
 #ifdef CONFIG_X86_PAE
 
@@ -196,9 +192,9 @@ default_entry:
 	movl $pa(pg0), %edi
 	movl %edi, pa(init_pg_tables_start)
 	movl $pa(swapper_pg_pmd), %edx
-	movl $PTE_ATTR, %eax
+	movl $PTE_IDENT_ATTR, %eax
 10:
-	leal PDE_ATTR(%edi),%ecx		/* Create PMD entry */
+	leal PDE_IDENT_ATTR(%edi),%ecx		/* Create PMD entry */
 	movl %ecx,(%edx)			/* Store PMD entry */
 						/* Upper half already zero */
 	addl $8,%edx
@@ -215,7 +211,7 @@ default_entry:
 	 * End condition: we must map up to and including INIT_MAP_BEYOND_END
 	 * bytes beyond the end of our own page tables.
 	 */
-	leal (INIT_MAP_BEYOND_END+PTE_ATTR)(%edi),%ebp
+	leal (INIT_MAP_BEYOND_END+PTE_IDENT_ATTR)(%edi),%ebp
 	cmpl %ebp,%eax
 	jb 10b
 1:
@@ -224,7 +220,7 @@ default_entry:
 	movl %eax, pa(max_pfn_mapped)
 
 	/* Do early initialization of the fixmap area */
-	movl $pa(swapper_pg_fixmap)+PDE_ATTR,%eax
+	movl $pa(swapper_pg_fixmap)+PDE_IDENT_ATTR,%eax
 	movl %eax,pa(swapper_pg_pmd+0x1000*KPMDS-8)
 #else	/* Not PAE */
 
@@ -233,9 +229,9 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 	movl $pa(pg0), %edi
 	movl %edi, pa(init_pg_tables_start)
 	movl $pa(swapper_pg_dir), %edx
-	movl $PTE_ATTR, %eax
+	movl $PTE_IDENT_ATTR, %eax
 10:
-	leal PDE_ATTR(%edi),%ecx		/* Create PDE entry */
+	leal PDE_IDENT_ATTR(%edi),%ecx		/* Create PDE entry */
 	movl %ecx,(%edx)			/* Store identity PDE entry */
 	movl %ecx,page_pde_offset(%edx)		/* Store kernel PDE entry */
 	addl $4,%edx
@@ -249,7 +245,7 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 	 * bytes beyond the end of our own page tables; the +0x007 is
 	 * the attribute bits
 	 */
-	leal (INIT_MAP_BEYOND_END+PTE_ATTR)(%edi),%ebp
+	leal (INIT_MAP_BEYOND_END+PTE_IDENT_ATTR)(%edi),%ebp
 	cmpl %ebp,%eax
 	jb 10b
 	movl %edi,pa(init_pg_tables_end)
@@ -257,7 +253,7 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 	movl %eax, pa(max_pfn_mapped)
 
 	/* Do early initialization of the fixmap area */
-	movl $pa(swapper_pg_fixmap)+PDE_ATTR,%eax
+	movl $pa(swapper_pg_fixmap)+PDE_IDENT_ATTR,%eax
 	movl %eax,pa(swapper_pg_dir+0xffc)
 #endif
 	jmp 3f
@@ -634,19 +630,19 @@ ENTRY(empty_zero_page)
 	/* Page-aligned for the benefit of paravirt? */
 	.align PAGE_SIZE_asm
 ENTRY(swapper_pg_dir)
-	.long	pa(swapper_pg_pmd+PGD_ATTR),0		/* low identity map */
+	.long	pa(swapper_pg_pmd+PGD_IDENT_ATTR),0	/* low identity map */
 # if KPMDS == 3
-	.long	pa(swapper_pg_pmd+PGD_ATTR),0
-	.long	pa(swapper_pg_pmd+PGD_ATTR+0x1000),0
-	.long	pa(swapper_pg_pmd+PGD_ATTR+0x2000),0
+	.long	pa(swapper_pg_pmd+PGD_IDENT_ATTR),0
+	.long	pa(swapper_pg_pmd+PGD_IDENT_ATTR+0x1000),0
+	.long	pa(swapper_pg_pmd+PGD_IDENT_ATTR+0x2000),0
 # elif KPMDS == 2
 	.long	0,0
-	.long	pa(swapper_pg_pmd+PGD_ATTR),0
-	.long	pa(swapper_pg_pmd+PGD_ATTR+0x1000),0
+	.long	pa(swapper_pg_pmd+PGD_IDENT_ATTR),0
+	.long	pa(swapper_pg_pmd+PGD_IDENT_ATTR+0x1000),0
 # elif KPMDS == 1
 	.long	0,0
 	.long	0,0
-	.long	pa(swapper_pg_pmd+PGD_ATTR),0
+	.long	pa(swapper_pg_pmd+PGD_IDENT_ATTR),0
 # else
 #  error "Kernel PMDs should be 1, 2 or 3"
 # endif

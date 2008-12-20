@@ -31,39 +31,61 @@ const struct file_operations generic_ro_fops = {
 
 EXPORT_SYMBOL(generic_ro_fops);
 
+/**
+ * generic_file_llseek_unlocked - lockless generic llseek implementation
+ * @file:	file structure to seek on
+ * @offset:	file offset to seek to
+ * @origin:	type of seek
+ *
+ * Updates the file offset to the value specified by @offset and @origin.
+ * Locking must be provided by the caller.
+ */
 loff_t
 generic_file_llseek_unlocked(struct file *file, loff_t offset, int origin)
 {
-	loff_t retval;
 	struct inode *inode = file->f_mapping->host;
 
 	switch (origin) {
-		case SEEK_END:
-			offset += inode->i_size;
-			break;
-		case SEEK_CUR:
-			offset += file->f_pos;
+	case SEEK_END:
+		offset += inode->i_size;
+		break;
+	case SEEK_CUR:
+		offset += file->f_pos;
+		break;
 	}
-	retval = -EINVAL;
-	if (offset>=0 && offset<=inode->i_sb->s_maxbytes) {
-		/* Special lock needed here? */
-		if (offset != file->f_pos) {
-			file->f_pos = offset;
-			file->f_version = 0;
-		}
-		retval = offset;
+
+	if (offset < 0 || offset > inode->i_sb->s_maxbytes)
+		return -EINVAL;
+
+	/* Special lock needed here? */
+	if (offset != file->f_pos) {
+		file->f_pos = offset;
+		file->f_version = 0;
 	}
-	return retval;
+
+	return offset;
 }
 EXPORT_SYMBOL(generic_file_llseek_unlocked);
 
+/**
+ * generic_file_llseek - generic llseek implementation for regular files
+ * @file:	file structure to seek on
+ * @offset:	file offset to seek to
+ * @origin:	type of seek
+ *
+ * This is a generic implemenation of ->llseek useable for all normal local
+ * filesystems.  It just updates the file offset to the value specified by
+ * @offset and @origin under i_mutex.
+ */
 loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
 {
-	loff_t n;
+	loff_t rval;
+
 	mutex_lock(&file->f_dentry->d_inode->i_mutex);
-	n = generic_file_llseek_unlocked(file, offset, origin);
+	rval = generic_file_llseek_unlocked(file, offset, origin);
 	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
-	return n;
+
+	return rval;
 }
 EXPORT_SYMBOL(generic_file_llseek);
 

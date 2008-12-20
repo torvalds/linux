@@ -6,7 +6,7 @@
  *	This code is released under the GNU General Public License version 2 or
  *	later.
  */
-#include <linux/mc146818rtc.h>
+#include <linux/seq_file.h>
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
 

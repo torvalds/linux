@@ -15,11 +15,11 @@
 
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/rng.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/random.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 
@@ -189,16 +189,21 @@ static int seqiv_givencrypt_first(struct skcipher_givcrypt_request *req)
 {
 	struct crypto_ablkcipher *geniv = skcipher_givcrypt_reqtfm(req);
 	struct seqiv_ctx *ctx = crypto_ablkcipher_ctx(geniv);
+	int err = 0;
 
 	spin_lock_bh(&ctx->lock);
 	if (crypto_ablkcipher_crt(geniv)->givencrypt != seqiv_givencrypt_first)
 		goto unlock;
 
 	crypto_ablkcipher_crt(geniv)->givencrypt = seqiv_givencrypt;
-	get_random_bytes(ctx->salt, crypto_ablkcipher_ivsize(geniv));
+	err = crypto_rng_get_bytes(crypto_default_rng, ctx->salt,
+				   crypto_ablkcipher_ivsize(geniv));
 
 unlock:
 	spin_unlock_bh(&ctx->lock);
+
+	if (err)
+		return err;
 
 	return seqiv_givencrypt(req);
 }
@@ -207,16 +212,21 @@ static int seqiv_aead_givencrypt_first(struct aead_givcrypt_request *req)
 {
 	struct crypto_aead *geniv = aead_givcrypt_reqtfm(req);
 	struct seqiv_ctx *ctx = crypto_aead_ctx(geniv);
+	int err = 0;
 
 	spin_lock_bh(&ctx->lock);
 	if (crypto_aead_crt(geniv)->givencrypt != seqiv_aead_givencrypt_first)
 		goto unlock;
 
 	crypto_aead_crt(geniv)->givencrypt = seqiv_aead_givencrypt;
-	get_random_bytes(ctx->salt, crypto_aead_ivsize(geniv));
+	err = crypto_rng_get_bytes(crypto_default_rng, ctx->salt,
+				   crypto_aead_ivsize(geniv));
 
 unlock:
 	spin_unlock_bh(&ctx->lock);
+
+	if (err)
+		return err;
 
 	return seqiv_aead_givencrypt(req);
 }
@@ -298,19 +308,27 @@ static struct crypto_instance *seqiv_alloc(struct rtattr **tb)
 	if (IS_ERR(algt))
 		return ERR_PTR(err);
 
+	err = crypto_get_default_rng();
+	if (err)
+		return ERR_PTR(err);
+
 	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & CRYPTO_ALG_TYPE_MASK)
 		inst = seqiv_ablkcipher_alloc(tb);
 	else
 		inst = seqiv_aead_alloc(tb);
 
 	if (IS_ERR(inst))
-		goto out;
+		goto put_rng;
 
 	inst->alg.cra_alignmask |= __alignof__(u32) - 1;
 	inst->alg.cra_ctxsize += sizeof(struct seqiv_ctx);
 
 out:
 	return inst;
+
+put_rng:
+	crypto_put_default_rng();
+	goto out;
 }
 
 static void seqiv_free(struct crypto_instance *inst)
@@ -319,6 +337,7 @@ static void seqiv_free(struct crypto_instance *inst)
 		skcipher_geniv_free(inst);
 	else
 		aead_geniv_free(inst);
+	crypto_put_default_rng();
 }
 
 static struct crypto_template seqiv_tmpl = {

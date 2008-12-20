@@ -26,52 +26,6 @@
 #ifndef NET_9P_TRANSPORT_H
 #define NET_9P_TRANSPORT_H
 
-#include <linux/module.h>
-
-/**
- * enum p9_trans_status - different states of underlying transports
- * @Connected: transport is connected and healthy
- * @Disconnected: transport has been disconnected
- * @Hung: transport is connected by wedged
- *
- * This enumeration details the various states a transport
- * instatiation can be in.
- */
-
-enum p9_trans_status {
-	Connected,
-	Disconnected,
-	Hung,
-};
-
-/**
- * struct p9_trans - per-transport state and API
- * @status: transport &p9_trans_status
- * @msize: negotiated maximum packet size (duplicate from client)
- * @extended: negotiated protocol extensions (duplicate from client)
- * @priv: transport private data
- * @close: member function to disconnect and close the transport
- * @rpc: member function to issue a request to the transport
- *
- * This is the basic API for a transport instance.  It is used as
- * a handle by the client to issue requests.  This interface is currently
- * in flux during reorganization.
- *
- * Bugs: there is lots of duplicated data here and its not clear that
- * the member functions need to be per-instance versus per transport
- * module.
- */
-
-struct p9_trans {
-	enum p9_trans_status status;
-	int msize;
-	unsigned char extended;
-	void *priv;
-	void (*close) (struct p9_trans *);
-	int (*rpc) (struct p9_trans *t, struct p9_fcall *tc,
-							struct p9_fcall **rc);
-};
-
 /**
  * struct p9_trans_module - transport module interface
  * @list: used to maintain a list of currently available transports
@@ -79,12 +33,14 @@ struct p9_trans {
  * @maxsize: transport provided maximum packet size
  * @def: set if this transport should be considered the default
  * @create: member function to create a new connection on this transport
+ * @request: member function to issue a request to the transport
+ * @cancel: member function to cancel a request (if it hasn't been sent)
  *
  * This is the basic API for a transport module which is registered by the
  * transport module with the 9P core network module and used by the client
  * to instantiate a new connection on a transport.
  *
- * Bugs: the transport module list isn't protected.
+ * BUGS: the transport module list isn't protected.
  */
 
 struct p9_trans_module {
@@ -92,8 +48,11 @@ struct p9_trans_module {
 	char *name;		/* name of transport */
 	int maxsize;		/* max message size of transport */
 	int def;		/* this transport should be default */
-	struct p9_trans * (*create)(const char *, char *, int, unsigned char);
 	struct module *owner;
+	int (*create)(struct p9_client *, const char *, char *);
+	void (*close) (struct p9_client *);
+	int (*request) (struct p9_client *, struct p9_req_t *req);
+	int (*cancel) (struct p9_client *, struct p9_req_t *req);
 };
 
 void v9fs_register_trans(struct p9_trans_module *m);

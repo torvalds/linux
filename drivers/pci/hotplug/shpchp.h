@@ -59,6 +59,20 @@ extern struct workqueue_struct *shpchp_wq;
 #define warn(format, arg...)						\
 	printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
+#define ctrl_dbg(ctrl, format, arg...)					\
+	do {								\
+		if (shpchp_debug)					\
+			dev_printk(, &ctrl->pci_dev->dev,		\
+					format, ## arg);		\
+	} while (0)
+#define ctrl_err(ctrl, format, arg...)					\
+	dev_err(&ctrl->pci_dev->dev, format, ## arg)
+#define ctrl_info(ctrl, format, arg...)					\
+	dev_info(&ctrl->pci_dev->dev, format, ## arg)
+#define ctrl_warn(ctrl, format, arg...)					\
+	dev_warn(&ctrl->pci_dev->dev, format, ## arg)
+
+
 #define SLOT_NAME_SIZE 10
 struct slot {
 	u8 bus;
@@ -69,15 +83,13 @@ struct slot {
 	u8 state;
 	u8 presence_save;
 	u8 pwr_save;
-	struct timer_list task_event;
-	u8 hp_slot;
 	struct controller *ctrl;
 	struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
-	char name[SLOT_NAME_SIZE];
 	struct delayed_work work;	/* work for button event */
 	struct mutex lock;
+	u8 hp_slot;
 };
 
 struct event_info {
@@ -169,6 +181,11 @@ extern void cleanup_slots(struct controller *ctrl);
 extern void shpchp_queue_pushbutton_work(struct work_struct *work);
 extern int shpc_init( struct controller *ctrl, struct pci_dev *pdev);
 
+static inline const char *slot_name(struct slot *slot)
+{
+	return hotplug_slot_name(slot->hotplug_slot);
+}
+
 #ifdef CONFIG_ACPI
 #include <linux/pci-acpi.h>
 static inline int get_hp_params_from_firmware(struct pci_dev *dev,
@@ -236,7 +253,7 @@ static inline struct slot *shpchp_find_slot(struct controller *ctrl, u8 device)
 			return slot;
 	}
 
-	err("%s: slot (device=0x%x) not found\n", __func__, device);
+	ctrl_err(ctrl, "Slot (device=0x%02x) not found\n", device);
 	return NULL;
 }
 
@@ -270,7 +287,9 @@ static inline void amd_pogo_errata_restore_misc_reg(struct slot *p_slot)
 	pci_read_config_dword(p_slot->ctrl->pci_dev, PCIX_MISC_BRIDGE_ERRORS_OFFSET, &pcix_bridge_errors_reg);
 	perr_set = pcix_bridge_errors_reg & PERR_OBSERVED_MASK;
 	if (perr_set) {
-		dbg ("%s  W1C: Bridge_Errors[ PERR_OBSERVED = %08X]\n",__func__ , perr_set);
+		ctrl_dbg(p_slot->ctrl,
+			 "Bridge_Errors[ PERR_OBSERVED = %08X] (W1C)\n",
+			 perr_set);
 
 		pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MISC_BRIDGE_ERRORS_OFFSET, perr_set);
 	}
@@ -279,7 +298,7 @@ static inline void amd_pogo_errata_restore_misc_reg(struct slot *p_slot)
 	pci_read_config_dword(p_slot->ctrl->pci_dev, PCIX_MEM_BASE_LIMIT_OFFSET, &pcix_mem_base_reg);
 	rse_set = pcix_mem_base_reg & RSE_MASK;
 	if (rse_set) {
-		dbg ("%s  W1C: Memory_Base_Limit[ RSE ]\n",__func__ );
+		ctrl_dbg(p_slot->ctrl, "Memory_Base_Limit[ RSE ] (W1C)\n");
 
 		pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MEM_BASE_LIMIT_OFFSET, rse_set);
 	}

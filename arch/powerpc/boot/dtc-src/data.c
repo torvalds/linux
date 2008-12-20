@@ -32,8 +32,6 @@ void data_free(struct data d)
 		m = nm;
 	}
 
-	assert(!d.val || d.asize);
-
 	if (d.val)
 		free(d.val);
 }
@@ -42,9 +40,6 @@ struct data data_grow_for(struct data d, int xlen)
 {
 	struct data nd;
 	int newsize;
-
-	/* we must start with an allocated datum */
-	assert(!d.val || d.asize);
 
 	if (xlen == 0)
 		return d;
@@ -56,10 +51,7 @@ struct data data_grow_for(struct data d, int xlen)
 	while ((d.len + xlen) > newsize)
 		newsize *= 2;
 
-	nd.asize = newsize;
 	nd.val = xrealloc(d.val, newsize);
-
-	assert(nd.asize >= (d.len + xlen));
 
 	return nd;
 }
@@ -83,16 +75,11 @@ static char get_oct_char(const char *s, int *i)
 	long val;
 
 	x[3] = '\0';
-	x[0] = s[(*i)];
-	if (x[0]) {
-		x[1] = s[(*i)+1];
-		if (x[1])
-			x[2] = s[(*i)+2];
-	}
+	strncpy(x, s + *i, 3);
 
 	val = strtol(x, &endx, 8);
-	if ((endx - x) == 0)
-		fprintf(stderr, "Empty \\nnn escape\n");
+
+	assert(endx > x);
 
 	(*i) += endx - x;
 	return val;
@@ -105,13 +92,11 @@ static char get_hex_char(const char *s, int *i)
 	long val;
 
 	x[2] = '\0';
-	x[0] = s[(*i)];
-	if (x[0])
-		x[1] = s[(*i)+1];
+	strncpy(x, s + *i, 2);
 
 	val = strtol(x, &endx, 16);
-	if ((endx - x) == 0)
-		fprintf(stderr, "Empty \\x escape\n");
+	if (!(endx  > x))
+		die("\\x used with no following hex digits\n");
 
 	(*i) += endx - x;
 	return val;
@@ -182,14 +167,29 @@ struct data data_copy_escape_string(const char *s, int len)
 	return d;
 }
 
-struct data data_copy_file(FILE *f, size_t len)
+struct data data_copy_file(FILE *f, size_t maxlen)
 {
-	struct data d;
+	struct data d = empty_data;
 
-	d = data_grow_for(empty_data, len);
+	while (!feof(f) && (d.len < maxlen)) {
+		size_t chunksize, ret;
 
-	d.len = len;
-	fread(d.val, len, 1, f);
+		if (maxlen == -1)
+			chunksize = 4096;
+		else
+			chunksize = maxlen - d.len;
+
+		d = data_grow_for(d, chunksize);
+		ret = fread(d.val + d.len, 1, chunksize, f);
+
+		if (ferror(f))
+			die("Error reading file into data: %s", strerror(errno));
+
+		if (d.len + ret < d.len)
+			die("Overflow reading file into data\n");
+
+		d.len += ret;
+	}
 
 	return d;
 }
@@ -247,7 +247,7 @@ struct data data_merge(struct data d1, struct data d2)
 
 struct data data_append_cell(struct data d, cell_t word)
 {
-	cell_t beword = cpu_to_be32(word);
+	cell_t beword = cpu_to_fdt32(word);
 
 	return data_append_data(d, &beword, sizeof(beword));
 }
@@ -256,15 +256,15 @@ struct data data_append_re(struct data d, const struct fdt_reserve_entry *re)
 {
 	struct fdt_reserve_entry bere;
 
-	bere.address = cpu_to_be64(re->address);
-	bere.size = cpu_to_be64(re->size);
+	bere.address = cpu_to_fdt64(re->address);
+	bere.size = cpu_to_fdt64(re->size);
 
 	return data_append_data(d, &bere, sizeof(bere));
 }
 
-struct data data_append_addr(struct data d, u64 addr)
+struct data data_append_addr(struct data d, uint64_t addr)
 {
-	u64 beaddr = cpu_to_be64(addr);
+	uint64_t beaddr = cpu_to_fdt64(addr);
 
 	return data_append_data(d, &beaddr, sizeof(beaddr));
 }

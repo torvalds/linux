@@ -51,12 +51,14 @@ struct inet_connection_sock_af_ops {
 				  char __user *optval, int optlen);
 	int	    (*getsockopt)(struct sock *sk, int level, int optname, 
 				  char __user *optval, int __user *optlen);
+#ifdef CONFIG_COMPAT
 	int	    (*compat_setsockopt)(struct sock *sk,
 				int level, int optname,
 				char __user *optval, int optlen);
 	int	    (*compat_getsockopt)(struct sock *sk,
 				int level, int optname,
 				char __user *optval, int __user *optlen);
+#endif
 	void	    (*addr2sockaddr)(struct sock *sk, struct sockaddr *);
 	int	    (*bind_conflict)(const struct sock *sk,
 				     const struct inet_bind_bucket *tb);

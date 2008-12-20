@@ -22,6 +22,7 @@
 #include <asm/prom.h>
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
+#include <asm/msi_bitmap.h>
 
 #include "mpic.h"
 
@@ -81,8 +82,8 @@ static void pasemi_msi_teardown_msi_irqs(struct pci_dev *pdev)
 			continue;
 
 		set_irq_msi(entry->irq, NULL);
-		mpic_msi_free_hwirqs(msi_mpic, virq_to_hw(entry->irq),
-				     ALLOC_CHUNK);
+		msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap,
+				       virq_to_hw(entry->irq), ALLOC_CHUNK);
 		irq_dispose_mapping(entry->irq);
 	}
 
@@ -91,11 +92,10 @@ static void pasemi_msi_teardown_msi_irqs(struct pci_dev *pdev)
 
 static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
-	irq_hw_number_t hwirq;
 	unsigned int virq;
 	struct msi_desc *entry;
 	struct msi_msg msg;
-	int ret;
+	int hwirq;
 
 	pr_debug("pasemi_msi_setup_msi_irqs, pdev %p nvec %d type %d\n",
 		 pdev, nvec, type);
@@ -109,17 +109,19 @@ static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		 * few MSIs for someone, but restrictions will apply to how the
 		 * sources can be changed independently.
 		 */
-		ret = mpic_msi_alloc_hwirqs(msi_mpic, ALLOC_CHUNK);
-		hwirq = ret;
-		if (ret < 0) {
+		hwirq = msi_bitmap_alloc_hwirqs(&msi_mpic->msi_bitmap,
+						ALLOC_CHUNK);
+		if (hwirq < 0) {
 			pr_debug("pasemi_msi: failed allocating hwirq\n");
 			return hwirq;
 		}
 
 		virq = irq_create_mapping(msi_mpic->irqhost, hwirq);
 		if (virq == NO_IRQ) {
-			pr_debug("pasemi_msi: failed mapping hwirq 0x%lx\n", hwirq);
-			mpic_msi_free_hwirqs(msi_mpic, hwirq, ALLOC_CHUNK);
+			pr_debug("pasemi_msi: failed mapping hwirq 0x%x\n",
+				  hwirq);
+			msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap, hwirq,
+					       ALLOC_CHUNK);
 			return -ENOSPC;
 		}
 
@@ -133,8 +135,8 @@ static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		set_irq_chip(virq, &mpic_pasemi_msi_chip);
 		set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
 
-		pr_debug("pasemi_msi: allocated virq 0x%x (hw 0x%lx) addr 0x%x\n",
-			  virq, hwirq, msg.address_lo);
+		pr_debug("pasemi_msi: allocated virq 0x%x (hw 0x%x) " \
+			 "addr 0x%x\n", virq, hwirq, msg.address_lo);
 
 		/* Likewise, the device writes [0...511] into the target
 		 * register to generate MSI [512...1023]

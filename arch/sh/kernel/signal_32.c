@@ -30,6 +30,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
+#include <asm/syscalls.h>
 #include <asm/fpu.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
@@ -215,6 +216,9 @@ asmlinkage int sys_sigreturn(unsigned long r4, unsigned long r5,
 	sigset_t set;
 	int r0;
 
+        /* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 
@@ -247,8 +251,10 @@ asmlinkage int sys_rt_sigreturn(unsigned long r4, unsigned long r5,
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)regs->regs[15];
 	sigset_t set;
-	stack_t st;
 	int r0;
+
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -265,11 +271,9 @@ asmlinkage int sys_rt_sigreturn(unsigned long r4, unsigned long r5,
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &r0))
 		goto badframe;
 
-	if (__copy_from_user(&st, &frame->uc.uc_stack, sizeof(st)))
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL,
+			   regs->regs[15]) == -EFAULT)
 		goto badframe;
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	do_sigaltstack((const stack_t __user *)&st, NULL, (unsigned long)frame);
 
 	return r0;
 
@@ -429,7 +433,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
+	err |= __put_user(NULL, &frame->uc.uc_link);
 	err |= __put_user((void *)current->sas_ss_sp,
 			  &frame->uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->regs[15]),
@@ -492,37 +496,43 @@ give_sigsegv:
 	return -EFAULT;
 }
 
+static inline void
+handle_syscall_restart(unsigned long save_r0, struct pt_regs *regs,
+		       struct sigaction *sa)
+{
+	/* If we're not from a syscall, bail out */
+	if (regs->tra < 0)
+		return;
+
+	/* check for system call restart.. */
+	switch (regs->regs[0]) {
+		case -ERESTART_RESTARTBLOCK:
+		case -ERESTARTNOHAND:
+		no_system_call_restart:
+			regs->regs[0] = -EINTR;
+			regs->sr |= 1;
+			break;
+
+		case -ERESTARTSYS:
+			if (!(sa->sa_flags & SA_RESTART))
+				goto no_system_call_restart;
+		/* fallthrough */
+		case -ERESTARTNOINTR:
+			regs->regs[0] = save_r0;
+			regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
+			break;
+	}
+}
+
 /*
  * OK, we're invoking a handler
  */
-
 static int
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	      sigset_t *oldset, struct pt_regs *regs, unsigned int save_r0)
 {
 	int ret;
 
-	/* Are we from a system call? */
-	if (regs->tra >= 0) {
-		/* If so, check system call restarting.. */
-		switch (regs->regs[0]) {
-			case -ERESTART_RESTARTBLOCK:
-			case -ERESTARTNOHAND:
-			no_system_call_restart:
-				regs->regs[0] = -EINTR;
-				break;
-
-			case -ERESTARTSYS:
-				if (!(ka->sa.sa_flags & SA_RESTART))
-					goto no_system_call_restart;
-			/* fallthrough */
-			case -ERESTARTNOINTR:
-				regs->regs[0] = save_r0;
-				regs->pc -= instruction_size(
-						ctrl_inw(regs->pc - 4));
-				break;
-		}
-	}
 
 	/* Set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
@@ -580,6 +590,9 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
+		if (regs->sr & 1)
+			handle_syscall_restart(save_r0, regs, &ka.sa);
+
 		/* Whee!  Actually deliver the signal.  */
 		if (handle_signal(signr, &ka, &info, oldset,
 				  regs, save_r0) == 0) {

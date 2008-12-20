@@ -325,6 +325,9 @@ int clocksource_register(struct clocksource *c)
 	unsigned long flags;
 	int ret;
 
+	/* save mult_orig on registration */
+	c->mult_orig = c->mult;
+
 	spin_lock_irqsave(&clocksource_lock, flags);
 	ret = clocksource_enqueue(c);
 	if (!ret)

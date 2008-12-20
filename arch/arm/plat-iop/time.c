@@ -18,8 +18,8 @@
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/timex.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <asm/mach/irq.h>

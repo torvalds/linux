@@ -5,6 +5,8 @@
  * Created:     June 18, 2007
  * Copyright:   MontaVista Software Inc.
  *
+ * Copyright 2008 Pierre Ossman
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or (at
@@ -107,11 +109,14 @@ static int sdio_irq_thread(void *_host)
 
 		/*
 		 * Give other threads a chance to run in the presence of
-		 * errors.  FIXME: determine if due to card removal and
-		 * possibly exit this thread if so.
+		 * errors.
 		 */
-		if (ret < 0)
-			ssleep(1);
+		if (ret < 0) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			if (!kthread_should_stop())
+				schedule_timeout(HZ);
+			set_current_state(TASK_RUNNING);
+		}
 
 		/*
 		 * Adaptive polling frequency based on the assumption
@@ -154,7 +159,8 @@ static int sdio_card_irq_get(struct mmc_card *card)
 	if (!host->sdio_irqs++) {
 		atomic_set(&host->sdio_irq_thread_abort, 0);
 		host->sdio_irq_thread =
-			kthread_run(sdio_irq_thread, host, "ksdiorqd");
+			kthread_run(sdio_irq_thread, host, "ksdioirqd/%s",
+				mmc_hostname(host));
 		if (IS_ERR(host->sdio_irq_thread)) {
 			int err = PTR_ERR(host->sdio_irq_thread);
 			host->sdio_irqs--;

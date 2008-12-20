@@ -175,6 +175,8 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
  * BDI_CAP_READ_MAP:       Can be mapped for reading
  * BDI_CAP_WRITE_MAP:      Can be mapped for writing
  * BDI_CAP_EXEC_MAP:       Can be mapped for execution
+ *
+ * BDI_CAP_SWAP_BACKED:    Count shmem/tmpfs objects as swap-backed.
  */
 #define BDI_CAP_NO_ACCT_DIRTY	0x00000001
 #define BDI_CAP_NO_WRITEBACK	0x00000002
@@ -184,6 +186,7 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
 #define BDI_CAP_WRITE_MAP	0x00000020
 #define BDI_CAP_EXEC_MAP	0x00000040
 #define BDI_CAP_NO_ACCT_WB	0x00000080
+#define BDI_CAP_SWAP_BACKED	0x00000100
 
 #define BDI_CAP_VMFLAGS \
 	(BDI_CAP_READ_MAP | BDI_CAP_WRITE_MAP | BDI_CAP_EXEC_MAP)
@@ -248,6 +251,11 @@ static inline bool bdi_cap_account_writeback(struct backing_dev_info *bdi)
 				      BDI_CAP_NO_WRITEBACK));
 }
 
+static inline bool bdi_cap_swap_backed(struct backing_dev_info *bdi)
+{
+	return bdi->capabilities & BDI_CAP_SWAP_BACKED;
+}
+
 static inline bool mapping_cap_writeback_dirty(struct address_space *mapping)
 {
 	return bdi_cap_writeback_dirty(mapping->backing_dev_info);
@@ -256,6 +264,11 @@ static inline bool mapping_cap_writeback_dirty(struct address_space *mapping)
 static inline bool mapping_cap_account_dirty(struct address_space *mapping)
 {
 	return bdi_cap_account_dirty(mapping->backing_dev_info);
+}
+
+static inline bool mapping_cap_swap_backed(struct address_space *mapping)
+{
+	return bdi_cap_swap_backed(mapping->backing_dev_info);
 }
 
 #endif		/* _LINUX_BACKING_DEV_H */

@@ -22,7 +22,7 @@ struct bug_entry {
 
 #ifndef HAVE_ARCH_BUG
 #define BUG() do { \
-	printk("BUG: failure at %s:%d/%s()!\n", __FILE__, __LINE__, __FUNCTION__); \
+	printk("BUG: failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__); \
 	panic("BUG!"); \
 } while (0)
 #endif
@@ -41,7 +41,7 @@ extern void warn_slowpath(const char *file, const int line,
 #define __WARN() warn_on_slowpath(__FILE__, __LINE__)
 #define __WARN_printf(arg...) warn_slowpath(__FILE__, __LINE__, arg)
 #else
-#define __WARN_printf(arg...) __WARN()
+#define __WARN_printf(arg...) do { printk(arg); __WARN(); } while (0)
 #endif
 
 #ifndef WARN_ON

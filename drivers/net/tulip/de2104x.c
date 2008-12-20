@@ -1418,7 +1418,6 @@ static int de_close (struct net_device *dev)
 
 	de_free_rings(de);
 	de_adapter_sleep(de);
-	pci_disable_device(de->pdev);
 	return 0;
 }
 
@@ -1689,6 +1688,7 @@ static void __devinit de21040_get_mac_address (struct de_private *de)
 	unsigned i;
 
 	dw32 (ROMCmd, 0);	/* Reset the pointer with a dummy write. */
+	udelay(5);
 
 	for (i = 0; i < 6; i++) {
 		int value, boguscnt = 100000;

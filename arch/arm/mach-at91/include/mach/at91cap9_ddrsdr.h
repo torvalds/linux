@@ -1,6 +1,8 @@
 /*
  * arch/arm/mach-at91/include/mach/at91cap9_ddrsdr.h
  *
+ *  (C) 2008 Andrew Victor
+ *
  * DDR/SDR Controller (DDRSDRC) - System peripherals registers.
  * Based on AT91CAP9 datasheet revision B.
  *

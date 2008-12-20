@@ -52,7 +52,7 @@ static int tape_proc_show(struct seq_file *m, void *v)
 		return 0;
 	spin_lock_irq(get_ccwdev_lock(device->cdev));
 	seq_printf(m, "%d\t", (int) n);
-	seq_printf(m, "%-10.10s ", device->cdev->dev.bus_id);
+	seq_printf(m, "%-10.10s ", dev_name(&device->cdev->dev));
 	seq_printf(m, "%04X/", device->cdev->id.cu_type);
 	seq_printf(m, "%02X\t", device->cdev->id.cu_model);
 	seq_printf(m, "%04X/", device->cdev->id.dev_type);

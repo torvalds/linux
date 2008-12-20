@@ -300,7 +300,7 @@ int mlx4_init_cq_table(struct mlx4_dev *dev)
 	INIT_RADIX_TREE(&cq_table->tree, GFP_ATOMIC);
 
 	err = mlx4_bitmap_init(&cq_table->bitmap, dev->caps.num_cqs,
-			       dev->caps.num_cqs - 1, dev->caps.reserved_cqs);
+			       dev->caps.num_cqs - 1, dev->caps.reserved_cqs, 0);
 	if (err)
 		return err;
 

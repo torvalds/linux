@@ -559,6 +559,8 @@ static int stv0299_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	int invval = 0;
 
 	dprintk ("%s : FE_SET_FRONTEND\n", __func__);
+	if (state->config->set_ts_params)
+		state->config->set_ts_params(fe, 0);
 
 	// set the inversion
 	if (p->inversion == INVERSION_OFF) invval = 0;

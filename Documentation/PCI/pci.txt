@@ -163,6 +163,10 @@ need pass only as many optional fields as necessary:
 	o class and classmask fields default to 0
 	o driver_data defaults to 0UL.
 
+Note that driver_data must match the value used by any of the pci_device_id
+entries defined in the driver. This makes the driver_data field mandatory
+if all the pci_device_id entries have a non-zero driver_data value.
+
 Once added, the driver probe routine will be invoked for any unclaimed
 PCI devices listed in its (newly updated) pci_ids list.
 

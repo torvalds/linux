@@ -390,7 +390,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 }
 
 /* -- start the camera -- */
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	reg_w_1(gspca_dev, TV8532_AD_SLOPE, 0x32);
 	reg_w_1(gspca_dev, TV8532_AD_BITCTRL, 0x00);
@@ -443,6 +443,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	/************************************************/
 	tv_8532_PollReg(gspca_dev);
 	reg_w_1(gspca_dev, TV8532_UDP_UPDATE, 0x00);	/* 0x31 */
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

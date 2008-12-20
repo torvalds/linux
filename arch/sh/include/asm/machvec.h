@@ -42,13 +42,6 @@ struct sh_machine_vector {
 	void (*mv_outsw)(unsigned long, const void *src, unsigned long count);
 	void (*mv_outsl)(unsigned long, const void *src, unsigned long count);
 
-	u8 (*mv_readb)(void __iomem *);
-	u16 (*mv_readw)(void __iomem *);
-	u32 (*mv_readl)(void __iomem *);
-	void (*mv_writeb)(u8, void __iomem *);
-	void (*mv_writew)(u16, void __iomem *);
-	void (*mv_writel)(u32, void __iomem *);
-
 	int (*mv_irq_demux)(int irq);
 
 	void (*mv_init_irq)(void);

@@ -17,7 +17,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/signal.h>
 #include <asm/system.h>

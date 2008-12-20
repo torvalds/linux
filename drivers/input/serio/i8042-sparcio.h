@@ -87,7 +87,7 @@ static int __devexit sparc_i8042_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id sparc_i8042_match[] = {
+static const struct of_device_id sparc_i8042_match[] = {
 	{
 		.name = "8042",
 	},

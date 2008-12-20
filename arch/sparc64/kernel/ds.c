@@ -1,6 +1,6 @@
 /* ds.c: Domain Services driver for Logical Domains
  *
- * Copyright (C) 2007 David S. Miller <davem@davemloft.net>
+ * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
  */
 
 #include <linux/kernel.h>
@@ -1217,7 +1217,7 @@ static int ds_remove(struct vio_dev *vdev)
 	return 0;
 }
 
-static struct vio_device_id ds_match[] = {
+static struct vio_device_id __initdata ds_match[] = {
 	{
 		.type = "domain-services-port",
 	},

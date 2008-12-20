@@ -49,6 +49,7 @@ enum rfkill_state {
 	RFKILL_STATE_SOFT_BLOCKED = 0,	/* Radio output blocked */
 	RFKILL_STATE_UNBLOCKED    = 1,	/* Radio output allowed */
 	RFKILL_STATE_HARD_BLOCKED = 2,	/* Output blocked, non-overrideable */
+	RFKILL_STATE_MAX,		/* marker for last valid state */
 };
 
 /*
@@ -110,12 +111,14 @@ struct rfkill {
 };
 #define to_rfkill(d)	container_of(d, struct rfkill, dev)
 
-struct rfkill *rfkill_allocate(struct device *parent, enum rfkill_type type);
+struct rfkill * __must_check rfkill_allocate(struct device *parent,
+					     enum rfkill_type type);
 void rfkill_free(struct rfkill *rfkill);
-int rfkill_register(struct rfkill *rfkill);
+int __must_check rfkill_register(struct rfkill *rfkill);
 void rfkill_unregister(struct rfkill *rfkill);
 
 int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state);
+int rfkill_set_default(enum rfkill_type type, enum rfkill_state state);
 
 /**
  * rfkill_state_complement - return complementar state

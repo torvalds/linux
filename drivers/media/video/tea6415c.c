@@ -2,6 +2,7 @@
     tea6415c - i2c-driver for the tea6415c by SGS Thomson
 
     Copyright (C) 1998-2003 Michael Hunold <michael@mihu.de>
+    Copyright (C) 2008 Hans Verkuil <hverkuil@xs4all.nl>
 
     The tea6415c is a bus controlled video-matrix-switch
     with 8 inputs and 6 outputs.
@@ -30,78 +31,24 @@
 #include <linux/module.h>
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
-
+#include <media/v4l2-common.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 #include "tea6415c.h"
 
-static int debug;		/* insmod parameter */
+MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
+MODULE_DESCRIPTION("tea6415c driver");
+MODULE_LICENSE("GPL");
+
+static int debug;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 
-#define dprintk(args...) \
-	    do { if (debug) { printk("%s: %s()[%d]: ", KBUILD_MODNAME, __func__, __LINE__); printk(args); } } while (0)
-
-#define TEA6415C_NUM_INPUTS	8
-#define TEA6415C_NUM_OUTPUTS	6
+MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 /* addresses to scan, found only at 0x03 and/or 0x43 (7-bit) */
 static unsigned short normal_i2c[] = { I2C_TEA6415C_1, I2C_TEA6415C_2, I2C_CLIENT_END };
 
 /* magic definition of all other variables and things */
 I2C_CLIENT_INSMOD;
-
-static struct i2c_driver driver;
-static struct i2c_client client_template;
-
-/* this function is called by i2c_probe */
-static int detect(struct i2c_adapter *adapter, int address, int kind)
-{
-	struct i2c_client *client = NULL;
-	int err = 0;
-
-	/* let's see whether this adapter can support what we need */
-	if (0 == i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WRITE_BYTE)) {
-		return 0;
-	}
-
-	/* allocate memory for client structure */
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (!client) {
-		return -ENOMEM;
-	}
-
-	/* fill client structure */
-	memcpy(client, &client_template, sizeof(struct i2c_client));
-	client->addr = address;
-	client->adapter = adapter;
-
-	/* tell the i2c layer a new client has arrived */
-	if (0 != (err = i2c_attach_client(client))) {
-		kfree(client);
-		return err;
-	}
-
-	printk("tea6415c: detected @ 0x%02x on adapter %s\n", address, &client->adapter->name[0]);
-
-	return 0;
-}
-
-static int attach(struct i2c_adapter *adapter)
-{
-	/* let's see whether this is a know adapter we can attach to */
-	if (adapter->id != I2C_HW_SAA7146) {
-		dprintk("refusing to probe on unknown adapter [name='%s',id=0x%x]\n", adapter->name, adapter->id);
-		return -ENODEV;
-	}
-
-	return i2c_probe(adapter, &addr_data, &detect);
-}
-
-static int detach(struct i2c_client *client)
-{
-	int ret = i2c_detach_client(client);
-	kfree(client);
-	return ret;
-}
 
 /* makes a connection between the input-pin 'i' and the output-pin 'o'
    for the tea6415c-client 'client' */
@@ -110,7 +57,7 @@ static int switch_matrix(struct i2c_client *client, int i, int o)
 	u8 byte = 0;
 	int ret;
 
-	dprintk("adr:0x%02x, i:%d, o:%d\n", client->addr, i, o);
+	v4l_dbg(1, debug, client, "i=%d, o=%d\n", i, o);
 
 	/* check if the pins are valid */
 	if (0 == ((1 == i ||  3 == i ||  5 == i ||  6 == i ||  8 == i || 10 == i || 20 == i || 11 == i)
@@ -168,14 +115,14 @@ static int switch_matrix(struct i2c_client *client, int i, int o)
 
 	ret = i2c_smbus_write_byte(client, byte);
 	if (ret) {
-		dprintk("i2c_smbus_write_byte() failed, ret:%d\n", ret);
+		v4l_dbg(1, debug, client,
+			"i2c_smbus_write_byte() failed, ret:%d\n", ret);
 		return -EIO;
 	}
-
 	return ret;
 }
 
-static int command(struct i2c_client *client, unsigned int cmd, void *arg)
+static int tea6415c_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
 	struct tea6415c_multiplex *v = (struct tea6415c_multiplex *)arg;
 	int result = 0;
@@ -187,38 +134,40 @@ static int command(struct i2c_client *client, unsigned int cmd, void *arg)
 	default:
 		return -ENOIOCTLCMD;
 	}
-
 	return result;
 }
 
-static struct i2c_driver driver = {
-	.driver = {
-		.name = "tea6415c",
-	},
-	.id 	= I2C_DRIVERID_TEA6415C,
-	.attach_adapter	= attach,
-	.detach_client	= detach,
-	.command	= command,
-};
+/* this function is called by i2c_probe */
+static int tea6415c_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
+{
+	/* let's see whether this adapter can support what we need */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WRITE_BYTE))
+		return 0;
 
-static struct i2c_client client_template = {
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
+	return 0;
+}
+
+static int tea6415c_legacy_probe(struct i2c_adapter *adapter)
+{
+	/* Let's see whether this is a known adapter we can attach to.
+	   Prevents conflicts with tvaudio.c. */
+	return adapter->id == I2C_HW_SAA7146;
+}
+
+static const struct i2c_device_id tea6415c_id[] = {
+	{ "tea6415c", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, tea6415c_id);
+
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tea6415c",
-	.driver = &driver,
+	.driverid = I2C_DRIVERID_TEA6415C,
+	.command = tea6415c_command,
+	.probe = tea6415c_probe,
+	.legacy_probe = tea6415c_legacy_probe,
+	.id_table = tea6415c_id,
 };
-
-static int __init this_module_init(void)
-{
-	return i2c_add_driver(&driver);
-}
-
-static void __exit this_module_exit(void)
-{
-	i2c_del_driver(&driver);
-}
-
-module_init(this_module_init);
-module_exit(this_module_exit);
-
-MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
-MODULE_DESCRIPTION("tea6415c driver");
-MODULE_LICENSE("GPL");

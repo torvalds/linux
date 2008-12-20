@@ -29,6 +29,7 @@
 #include <net/9p/9p.h>
 #include <linux/fs.h>
 #include <linux/parser.h>
+#include <net/9p/client.h>
 #include <net/9p/transport.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>

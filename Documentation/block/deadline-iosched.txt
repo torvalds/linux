@@ -30,12 +30,18 @@ write_expire	(in ms)
 Similar to read_expire mentioned above, but for writes.
 
 
-fifo_batch
+fifo_batch	(number of requests)
 ----------
 
-When a read request expires its deadline, we must move some requests from
-the sorted io scheduler list to the block device dispatch queue. fifo_batch
-controls how many requests we move.
+Requests are grouped into ``batches'' of a particular data direction (read or
+write) which are serviced in increasing sector order.  To limit extra seeking,
+deadline expiries are only checked between batches.  fifo_batch controls the
+maximum number of requests per batch.
+
+This parameter tunes the balance between per-request latency and aggregate
+throughput.  When low latency is the primary concern, smaller is better (where
+a value of 1 yields first-come first-served behaviour).  Increasing fifo_batch
+generally improves throughput, at the cost of latency variation.
 
 
 writes_starved	(number of dispatches)

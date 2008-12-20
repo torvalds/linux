@@ -92,19 +92,19 @@ static int v3020_read_time(struct device *dev, struct rtc_time *dt)
 
 	/* ...and then read constant values. */
 	tmp = v3020_get_reg(chip, V3020_SECONDS);
-	dt->tm_sec	= BCD2BIN(tmp);
+	dt->tm_sec	= bcd2bin(tmp);
 	tmp = v3020_get_reg(chip, V3020_MINUTES);
-	dt->tm_min	= BCD2BIN(tmp);
+	dt->tm_min	= bcd2bin(tmp);
 	tmp = v3020_get_reg(chip, V3020_HOURS);
-	dt->tm_hour	= BCD2BIN(tmp);
+	dt->tm_hour	= bcd2bin(tmp);
 	tmp = v3020_get_reg(chip, V3020_MONTH_DAY);
-	dt->tm_mday	= BCD2BIN(tmp);
+	dt->tm_mday	= bcd2bin(tmp);
 	tmp = v3020_get_reg(chip, V3020_MONTH);
-	dt->tm_mon    = BCD2BIN(tmp) - 1;
+	dt->tm_mon    = bcd2bin(tmp) - 1;
 	tmp = v3020_get_reg(chip, V3020_WEEK_DAY);
-	dt->tm_wday	= BCD2BIN(tmp);
+	dt->tm_wday	= bcd2bin(tmp);
 	tmp = v3020_get_reg(chip, V3020_YEAR);
-	dt->tm_year = BCD2BIN(tmp)+100;
+	dt->tm_year = bcd2bin(tmp)+100;
 
 #ifdef DEBUG
 	printk("\n%s : Read RTC values\n",__func__);
@@ -136,13 +136,13 @@ static int v3020_set_time(struct device *dev, struct rtc_time *dt)
 #endif
 
 	/* Write all the values to ram... */
-	v3020_set_reg(chip, V3020_SECONDS, 	BIN2BCD(dt->tm_sec));
-	v3020_set_reg(chip, V3020_MINUTES, 	BIN2BCD(dt->tm_min));
-	v3020_set_reg(chip, V3020_HOURS, 	BIN2BCD(dt->tm_hour));
-	v3020_set_reg(chip, V3020_MONTH_DAY,	BIN2BCD(dt->tm_mday));
-	v3020_set_reg(chip, V3020_MONTH,     BIN2BCD(dt->tm_mon + 1));
-	v3020_set_reg(chip, V3020_WEEK_DAY, 	BIN2BCD(dt->tm_wday));
-	v3020_set_reg(chip, V3020_YEAR, 	BIN2BCD(dt->tm_year % 100));
+	v3020_set_reg(chip, V3020_SECONDS, 	bin2bcd(dt->tm_sec));
+	v3020_set_reg(chip, V3020_MINUTES, 	bin2bcd(dt->tm_min));
+	v3020_set_reg(chip, V3020_HOURS, 	bin2bcd(dt->tm_hour));
+	v3020_set_reg(chip, V3020_MONTH_DAY,	bin2bcd(dt->tm_mday));
+	v3020_set_reg(chip, V3020_MONTH,     bin2bcd(dt->tm_mon + 1));
+	v3020_set_reg(chip, V3020_WEEK_DAY, 	bin2bcd(dt->tm_wday));
+	v3020_set_reg(chip, V3020_YEAR, 	bin2bcd(dt->tm_year % 100));
 
 	/* ...and set the clock. */
 	v3020_set_reg(chip, V3020_CMD_RAM2CLOCK, 0);

@@ -623,7 +623,7 @@ static int cpm_uart_verify_port(struct uart_port *port,
 
 	if (ser->type != PORT_UNKNOWN && ser->type != PORT_CPM)
 		ret = -EINVAL;
-	if (ser->irq < 0 || ser->irq >= NR_IRQS)
+	if (ser->irq < 0 || ser->irq >= nr_irqs)
 		ret = -EINVAL;
 	if (ser->baud_base < 9600)
 		ret = -EINVAL;
@@ -1332,6 +1332,9 @@ static int __devinit cpm_uart_probe(struct of_device *ofdev,
 	ret = cpm_uart_init_port(ofdev->node, pinfo);
 	if (ret)
 		return ret;
+
+	/* initialize the device pointer for the port */
+	pinfo->port.dev = &ofdev->dev;
 
 	return uart_add_one_port(&cpm_reg, &pinfo->port);
 }

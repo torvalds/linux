@@ -224,7 +224,7 @@ static int tcf_em_validate(struct tcf_proto *tp,
 
 		if (em->ops == NULL) {
 			err = -ENOENT;
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 			__rtnl_unlock();
 			request_module("ematch-kind-%u", em_hdr->kind);
 			rtnl_lock();

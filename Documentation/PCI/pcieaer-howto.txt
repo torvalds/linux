@@ -203,22 +203,17 @@ to mmio_enabled.
 
 3.3 helper functions
 
-3.3.1 int pci_find_aer_capability(struct pci_dev *dev);
-pci_find_aer_capability locates the PCI Express AER capability
-in the device configuration space. If the device doesn't support
-PCI-Express AER, the function returns 0.
-
-3.3.2 int pci_enable_pcie_error_reporting(struct pci_dev *dev);
+3.3.1 int pci_enable_pcie_error_reporting(struct pci_dev *dev);
 pci_enable_pcie_error_reporting enables the device to send error
 messages to root port when an error is detected. Note that devices
 don't enable the error reporting by default, so device drivers need
 call this function to enable it.
 
-3.3.3 int pci_disable_pcie_error_reporting(struct pci_dev *dev);
+3.3.2 int pci_disable_pcie_error_reporting(struct pci_dev *dev);
 pci_disable_pcie_error_reporting disables the device to send error
 messages to root port when an error is detected.
 
-3.3.4 int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev);
+3.3.3 int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev);
 pci_cleanup_aer_uncorrect_error_status cleanups the uncorrectable
 error status register.
 

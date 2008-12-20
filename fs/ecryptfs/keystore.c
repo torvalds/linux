@@ -234,8 +234,8 @@ parse_tag_65_packet(struct ecryptfs_session_key *session_key, u8 *cipher_code,
 	}
 	i += data_len;
 	if (message_len < (i + m_size)) {
-		ecryptfs_printk(KERN_ERR, "The received netlink message is "
-				"shorter than expected\n");
+		ecryptfs_printk(KERN_ERR, "The message received from ecryptfsd "
+				"is shorter than expected\n");
 		rc = -EIO;
 		goto out;
 	}
@@ -438,8 +438,8 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	struct ecryptfs_msg_ctx *msg_ctx;
 	struct ecryptfs_message *msg = NULL;
 	char *auth_tok_sig;
-	char *netlink_message;
-	size_t netlink_message_length;
+	char *payload;
+	size_t payload_len;
 	int rc;
 
 	rc = ecryptfs_get_auth_tok_sig(&auth_tok_sig, auth_tok);
@@ -449,15 +449,15 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 		goto out;
 	}
 	rc = write_tag_64_packet(auth_tok_sig, &(auth_tok->session_key),
-				 &netlink_message, &netlink_message_length);
+				 &payload, &payload_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Failed to write tag 64 packet\n");
 		goto out;
 	}
-	rc = ecryptfs_send_message(ecryptfs_transport, netlink_message,
-				   netlink_message_length, &msg_ctx);
+	rc = ecryptfs_send_message(payload, payload_len, &msg_ctx);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error sending netlink message\n");
+		ecryptfs_printk(KERN_ERR, "Error sending message to "
+				"ecryptfsd\n");
 		goto out;
 	}
 	rc = ecryptfs_wait_for_response(msg_ctx, &msg);
@@ -1037,16 +1037,13 @@ static int
 decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 					 struct ecryptfs_crypt_stat *crypt_stat)
 {
-	struct scatterlist dst_sg;
-	struct scatterlist src_sg;
+	struct scatterlist dst_sg[2];
+	struct scatterlist src_sg[2];
 	struct mutex *tfm_mutex;
 	struct blkcipher_desc desc = {
 		.flags = CRYPTO_TFM_REQ_MAY_SLEEP
 	};
 	int rc = 0;
-
-	sg_init_table(&dst_sg, 1);
-	sg_init_table(&src_sg, 1);
 
 	if (unlikely(ecryptfs_verbosity > 0)) {
 		ecryptfs_printk(
@@ -1066,8 +1063,8 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	}
 	rc = virt_to_scatterlist(auth_tok->session_key.encrypted_key,
 				 auth_tok->session_key.encrypted_key_size,
-				 &src_sg, 1);
-	if (rc != 1) {
+				 src_sg, 2);
+	if (rc < 1 || rc > 2) {
 		printk(KERN_ERR "Internal error whilst attempting to convert "
 			"auth_tok->session_key.encrypted_key to scatterlist; "
 			"expected rc = 1; got rc = [%d]. "
@@ -1079,8 +1076,8 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 		auth_tok->session_key.encrypted_key_size;
 	rc = virt_to_scatterlist(auth_tok->session_key.decrypted_key,
 				 auth_tok->session_key.decrypted_key_size,
-				 &dst_sg, 1);
-	if (rc != 1) {
+				 dst_sg, 2);
+	if (rc < 1 || rc > 2) {
 		printk(KERN_ERR "Internal error whilst attempting to convert "
 			"auth_tok->session_key.decrypted_key to scatterlist; "
 			"expected rc = 1; got rc = [%d]\n", rc);
@@ -1096,7 +1093,7 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 		rc = -EINVAL;
 		goto out;
 	}
-	rc = crypto_blkcipher_decrypt(&desc, &dst_sg, &src_sg,
+	rc = crypto_blkcipher_decrypt(&desc, dst_sg, src_sg,
 				      auth_tok->session_key.encrypted_key_size);
 	mutex_unlock(tfm_mutex);
 	if (unlikely(rc)) {
@@ -1333,23 +1330,22 @@ pki_encrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 			struct ecryptfs_key_record *key_rec)
 {
 	struct ecryptfs_msg_ctx *msg_ctx = NULL;
-	char *netlink_payload;
-	size_t netlink_payload_length;
+	char *payload = NULL;
+	size_t payload_len;
 	struct ecryptfs_message *msg;
 	int rc;
 
 	rc = write_tag_66_packet(auth_tok->token.private_key.signature,
 				 ecryptfs_code_for_cipher_string(crypt_stat),
-				 crypt_stat, &netlink_payload,
-				 &netlink_payload_length);
+				 crypt_stat, &payload, &payload_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 66 packet\n");
 		goto out;
 	}
-	rc = ecryptfs_send_message(ecryptfs_transport, netlink_payload,
-				   netlink_payload_length, &msg_ctx);
+	rc = ecryptfs_send_message(payload, payload_len, &msg_ctx);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error sending netlink message\n");
+		ecryptfs_printk(KERN_ERR, "Error sending message to "
+				"ecryptfsd\n");
 		goto out;
 	}
 	rc = ecryptfs_wait_for_response(msg_ctx, &msg);
@@ -1364,8 +1360,7 @@ pki_encrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 		ecryptfs_printk(KERN_ERR, "Error parsing tag 67 packet\n");
 	kfree(msg);
 out:
-	if (netlink_payload)
-		kfree(netlink_payload);
+	kfree(payload);
 	return rc;
 }
 /**
@@ -1541,8 +1536,8 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 	size_t i;
 	size_t encrypted_session_key_valid = 0;
 	char session_key_encryption_key[ECRYPTFS_MAX_KEY_BYTES];
-	struct scatterlist dst_sg;
-	struct scatterlist src_sg;
+	struct scatterlist dst_sg[2];
+	struct scatterlist src_sg[2];
 	struct mutex *tfm_mutex = NULL;
 	u8 cipher_code;
 	size_t packet_size_length;
@@ -1621,8 +1616,8 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		ecryptfs_dump_hex(session_key_encryption_key, 16);
 	}
 	rc = virt_to_scatterlist(crypt_stat->key, key_rec->enc_key_size,
-				 &src_sg, 1);
-	if (rc != 1) {
+				 src_sg, 2);
+	if (rc < 1 || rc > 2) {
 		ecryptfs_printk(KERN_ERR, "Error generating scatterlist "
 				"for crypt_stat session key; expected rc = 1; "
 				"got rc = [%d]. key_rec->enc_key_size = [%d]\n",
@@ -1631,8 +1626,8 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		goto out;
 	}
 	rc = virt_to_scatterlist(key_rec->enc_key, key_rec->enc_key_size,
-				 &dst_sg, 1);
-	if (rc != 1) {
+				 dst_sg, 2);
+	if (rc < 1 || rc > 2) {
 		ecryptfs_printk(KERN_ERR, "Error generating scatterlist "
 				"for crypt_stat encrypted session key; "
 				"expected rc = 1; got rc = [%d]. "
@@ -1653,7 +1648,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 	rc = 0;
 	ecryptfs_printk(KERN_DEBUG, "Encrypting [%d] bytes of the key\n",
 			crypt_stat->key_size);
-	rc = crypto_blkcipher_encrypt(&desc, &dst_sg, &src_sg,
+	rc = crypto_blkcipher_encrypt(&desc, dst_sg, src_sg,
 				      (*key_rec).enc_key_size);
 	mutex_unlock(tfm_mutex);
 	if (rc) {

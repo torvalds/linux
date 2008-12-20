@@ -169,6 +169,9 @@ struct dvb_frontend_ops {
 
 	struct dvb_tuner_ops tuner_ops;
 	struct analog_demod_ops analog_ops;
+
+	int (*set_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
+	int (*get_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
 };
 
 #define MAX_EVENT 8
@@ -182,6 +185,32 @@ struct dvb_fe_events {
 	struct mutex		  mtx;
 };
 
+struct dtv_frontend_properties {
+
+	/* Cache State */
+	u32			state;
+
+	u32			frequency;
+	fe_modulation_t		modulation;
+
+	fe_sec_voltage_t	voltage;
+	fe_sec_tone_mode_t	sectone;
+	fe_spectral_inversion_t	inversion;
+	fe_code_rate_t		fec_inner;
+	fe_transmit_mode_t	transmission_mode;
+	u32			bandwidth_hz;	/* 0 = AUTO */
+	fe_guard_interval_t	guard_interval;
+	fe_hierarchy_t		hierarchy;
+	u32			symbol_rate;
+	fe_code_rate_t		code_rate_HP;
+	fe_code_rate_t		code_rate_LP;
+
+	fe_pilot_t		pilot;
+	fe_rolloff_t		rolloff;
+
+	fe_delivery_system_t	delivery_system;
+};
+
 struct dvb_frontend {
 	struct dvb_frontend_ops ops;
 	struct dvb_adapter *dvb;
@@ -190,6 +219,10 @@ struct dvb_frontend {
 	void *frontend_priv;
 	void *sec_priv;
 	void *analog_demod_priv;
+	struct dtv_frontend_properties dtv_property_cache;
+#define DVB_FRONTEND_COMPONENT_TUNER 0
+	int (*callback)(void *adapter_priv, int component, int cmd, int arg);
+	int id;
 };
 
 extern int dvb_register_frontend(struct dvb_adapter *dvb,

@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/proc-fns.h>
 
 #include <mach/pxa-regs.h>
@@ -20,7 +20,7 @@ static void do_hw_reset(void);
 
 static int reset_gpio = -1;
 
-int init_gpio_reset(int gpio)
+int init_gpio_reset(int gpio, int output)
 {
 	int rc;
 
@@ -30,9 +30,12 @@ int init_gpio_reset(int gpio)
 		goto out;
 	}
 
-	rc = gpio_direction_input(gpio);
+	if (output)
+		rc = gpio_direction_output(gpio, 0);
+	else
+		rc = gpio_direction_input(gpio);
 	if (rc) {
-		printk(KERN_ERR "Can't configure reset_gpio for input\n");
+		printk(KERN_ERR "Can't configure reset_gpio\n");
 		gpio_free(gpio);
 		goto out;
 	}
@@ -87,11 +90,12 @@ void arch_reset(char mode)
 		/* Jump into ROM at address 0 */
 		cpu_reset(0);
 		break;
-	case 'h':
-		do_hw_reset();
-		break;
 	case 'g':
 		do_gpio_reset();
+		break;
+	case 'h':
+	default:
+		do_hw_reset();
 		break;
 	}
 }

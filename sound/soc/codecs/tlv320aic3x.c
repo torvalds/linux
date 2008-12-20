@@ -863,17 +863,21 @@ static int aic3x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	/* interface format */
-	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
-	case SND_SOC_DAIFMT_I2S:
+	/*
+	 * match both interface format and signal polarities since they
+	 * are fixed
+	 */
+	switch (fmt & (SND_SOC_DAIFMT_FORMAT_MASK |
+		       SND_SOC_DAIFMT_INV_MASK)) {
+	case (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF):
 		break;
-	case SND_SOC_DAIFMT_DSP_A:
+	case (SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_IB_NF):
 		iface_breg |= (0x01 << 6);
 		break;
-	case SND_SOC_DAIFMT_RIGHT_J:
+	case (SND_SOC_DAIFMT_RIGHT_J | SND_SOC_DAIFMT_NB_NF):
 		iface_breg |= (0x02 << 6);
 		break;
-	case SND_SOC_DAIFMT_LEFT_J:
+	case (SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF):
 		iface_breg |= (0x03 << 6);
 		break;
 	default:

@@ -342,7 +342,7 @@ struct qlogicpti {
 	u_int	                  req_in_ptr;		/* index of next request slot */
 	u_int	                  res_out_ptr;		/* index of next result slot  */
 	long	                  send_marker;		/* must we send a marker?     */
-	struct sbus_dev		 *sdev;
+	struct of_device	 *op;
 	unsigned long		  __pad;
 
 	int                       cmd_count[MAX_TARGETS];

@@ -224,7 +224,7 @@ static struct file_operations ip6mr_vif_fops = {
 	.open    = ip6mr_vif_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_private,
 };
 
 static void *ipmr_mfc_seq_start(struct seq_file *seq, loff_t *pos)
@@ -338,7 +338,7 @@ static struct file_operations ip6mr_mfc_fops = {
 	.open    = ipmr_mfc_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_private,
 };
 #endif
 
@@ -981,14 +981,15 @@ int __init ip6_mr_init(void)
 		goto proc_cache_fail;
 #endif
 	return 0;
-reg_notif_fail:
-	kmem_cache_destroy(mrt_cachep);
 #ifdef CONFIG_PROC_FS
-proc_vif_fail:
-	unregister_netdevice_notifier(&ip6_mr_notifier);
 proc_cache_fail:
 	proc_net_remove(&init_net, "ip6_mr_vif");
+proc_vif_fail:
+	unregister_netdevice_notifier(&ip6_mr_notifier);
 #endif
+reg_notif_fail:
+	del_timer(&ipmr_expire_timer);
+	kmem_cache_destroy(mrt_cachep);
 	return err;
 }
 
@@ -1383,7 +1384,8 @@ int ip6mr_ioctl(struct sock *sk, int cmd, void __user *arg)
 
 static inline int ip6mr_forward2_finish(struct sk_buff *skb)
 {
-	IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
+	IP6_INC_STATS_BH(dev_net(skb->dst->dev), ip6_dst_idev(skb->dst),
+			 IPSTATS_MIB_OUTFORWDATAGRAMS);
 	return dst_output(skb);
 }
 

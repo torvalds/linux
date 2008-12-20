@@ -14,7 +14,7 @@ static int select_task_rq_idle(struct task_struct *p, int sync)
 /*
  * Idle tasks are unconditionally rescheduled:
  */
-static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p)
+static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p, int sync)
 {
 	resched_task(rq->idle);
 }
@@ -76,7 +76,7 @@ static void switched_to_idle(struct rq *rq, struct task_struct *p,
 	if (running)
 		resched_task(rq->curr);
 	else
-		check_preempt_curr(rq, p);
+		check_preempt_curr(rq, p, 0);
 }
 
 static void prio_changed_idle(struct rq *rq, struct task_struct *p,
@@ -93,7 +93,7 @@ static void prio_changed_idle(struct rq *rq, struct task_struct *p,
 		if (p->prio > oldprio)
 			resched_task(rq->curr);
 	} else
-		check_preempt_curr(rq, p);
+		check_preempt_curr(rq, p, 0);
 }
 
 /*
@@ -105,9 +105,6 @@ static const struct sched_class idle_sched_class = {
 
 	/* dequeue is not valid, we print a debug message there: */
 	.dequeue_task		= dequeue_task_idle,
-#ifdef CONFIG_SMP
-	.select_task_rq		= select_task_rq_idle,
-#endif /* CONFIG_SMP */
 
 	.check_preempt_curr	= check_preempt_curr_idle,
 
@@ -115,6 +112,8 @@ static const struct sched_class idle_sched_class = {
 	.put_prev_task		= put_prev_task_idle,
 
 #ifdef CONFIG_SMP
+	.select_task_rq		= select_task_rq_idle,
+
 	.load_balance		= load_balance_idle,
 	.move_one_task		= move_one_task_idle,
 #endif

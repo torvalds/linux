@@ -89,6 +89,8 @@
  * 	node 3:  0xd8000000 - 0xdfffffff
  */
 #define NODE_MEM_SIZE_BITS	24
+#define SECTION_SIZE_BITS	24
+#define MAX_PHYSMEM_BITS	32
 
 #endif
 

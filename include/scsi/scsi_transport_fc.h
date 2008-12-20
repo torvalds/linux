@@ -167,6 +167,26 @@ enum fc_tgtid_binding_type  {
 struct device_attribute dev_attr_vport_##_name = 	\
 	__ATTR(_name,_mode,_show,_store)
 
+/*
+ * fc_vport_identifiers: This set of data contains all elements
+ * to uniquely identify and instantiate a FC virtual port.
+ *
+ * Notes:
+ *   symbolic_name: The driver is to append the symbolic_name string data
+ *      to the symbolic_node_name data that it generates by default.
+ *      the resulting combination should then be registered with the switch.
+ *      It is expected that things like Xen may stuff a VM title into
+ *      this field.
+ */
+#define FC_VPORT_SYMBOLIC_NAMELEN		64
+struct fc_vport_identifiers {
+	u64 node_name;
+	u64 port_name;
+	u32 roles;
+	bool disable;
+	enum fc_port_type vport_type;	/* only FC_PORTTYPE_NPIV allowed */
+	char symbolic_name[FC_VPORT_SYMBOLIC_NAMELEN];
+};
 
 /*
  * FC Virtual Port Attributes
@@ -197,7 +217,6 @@ struct device_attribute dev_attr_vport_##_name = 	\
  * managed by the transport w/o driver interaction.
  */
 
-#define FC_VPORT_SYMBOLIC_NAMELEN		64
 struct fc_vport {
 	/* Fixed Attributes */
 
@@ -338,6 +357,7 @@ struct fc_rport {	/* aka fc_starget_attrs */
 /* bit field values for struct fc_rport "flags" field: */
 #define FC_RPORT_DEVLOSS_PENDING	0x01
 #define FC_RPORT_SCAN_PENDING		0x02
+#define FC_RPORT_FAST_FAIL_TIMEDOUT	0x03
 
 #define	dev_to_rport(d)				\
 	container_of(d, struct fc_rport, dev)
@@ -659,12 +679,15 @@ fc_remote_port_chkready(struct fc_rport *rport)
 		if (rport->roles & FC_PORT_ROLE_FCP_TARGET)
 			result = 0;
 		else if (rport->flags & FC_RPORT_DEVLOSS_PENDING)
-			result = DID_IMM_RETRY << 16;
+			result = DID_TRANSPORT_DISRUPTED << 16;
 		else
 			result = DID_NO_CONNECT << 16;
 		break;
 	case FC_PORTSTATE_BLOCKED:
-		result = DID_IMM_RETRY << 16;
+		if (rport->flags & FC_RPORT_FAST_FAIL_TIMEDOUT)
+			result = DID_TRANSPORT_FAILFAST << 16;
+		else
+			result = DID_TRANSPORT_DISRUPTED << 16;
 		break;
 	default:
 		result = DID_NO_CONNECT << 16;
@@ -732,6 +755,8 @@ void fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 	 *   be sure to read the Vendor Type and ID formatting requirements
 	 *   specified in scsi_netlink.h
 	 */
+struct fc_vport *fc_vport_create(struct Scsi_Host *shost, int channel,
+		struct fc_vport_identifiers *);
 int fc_vport_terminate(struct fc_vport *vport);
 
 #endif /* SCSI_TRANSPORT_FC_H */

@@ -104,9 +104,9 @@ static struct file_system_type proc_fs_type = {
 
 void __init proc_root_init(void)
 {
-	int err = proc_init_inodecache();
-	if (err)
-		return;
+	int err;
+
+	proc_init_inodecache();
 	err = register_filesystem(&proc_fs_type);
 	if (err)
 		return;
@@ -117,7 +117,7 @@ void __init proc_root_init(void)
 		return;
 	}
 
-	proc_misc_init();
+	proc_symlink("mounts", NULL, "self/mounts");
 
 	proc_net_init();
 

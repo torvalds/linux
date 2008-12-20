@@ -2575,7 +2575,7 @@ static int release_journal_dev(struct super_block *super,
 	if (journal->j_dev_bd != NULL) {
 		if (journal->j_dev_bd->bd_dev != super->s_dev)
 			bd_release(journal->j_dev_bd);
-		result = blkdev_put(journal->j_dev_bd);
+		result = blkdev_put(journal->j_dev_bd, journal->j_dev_mode);
 		journal->j_dev_bd = NULL;
 	}
 
@@ -2593,7 +2593,7 @@ static int journal_init_dev(struct super_block *super,
 {
 	int result;
 	dev_t jdev;
-	int blkdev_mode = FMODE_READ | FMODE_WRITE;
+	fmode_t blkdev_mode = FMODE_READ | FMODE_WRITE;
 	char b[BDEVNAME_SIZE];
 
 	result = 0;
@@ -2608,6 +2608,7 @@ static int journal_init_dev(struct super_block *super,
 	/* there is no "jdev" option and journal is on separate device */
 	if ((!jdev_name || !jdev_name[0])) {
 		journal->j_dev_bd = open_by_devnum(jdev, blkdev_mode);
+		journal->j_dev_mode = blkdev_mode;
 		if (IS_ERR(journal->j_dev_bd)) {
 			result = PTR_ERR(journal->j_dev_bd);
 			journal->j_dev_bd = NULL;
@@ -2618,7 +2619,7 @@ static int journal_init_dev(struct super_block *super,
 		} else if (jdev != super->s_dev) {
 			result = bd_claim(journal->j_dev_bd, journal);
 			if (result) {
-				blkdev_put(journal->j_dev_bd);
+				blkdev_put(journal->j_dev_bd, blkdev_mode);
 				return result;
 			}
 
@@ -2628,7 +2629,9 @@ static int journal_init_dev(struct super_block *super,
 		return 0;
 	}
 
-	journal->j_dev_bd = open_bdev_excl(jdev_name, 0, journal);
+	journal->j_dev_mode = blkdev_mode;
+	journal->j_dev_bd = open_bdev_exclusive(jdev_name,
+						blkdev_mode, journal);
 	if (IS_ERR(journal->j_dev_bd)) {
 		result = PTR_ERR(journal->j_dev_bd);
 		journal->j_dev_bd = NULL;

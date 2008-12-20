@@ -311,7 +311,7 @@ static int lcd_probe(struct usb_interface *interface, const struct usb_device_id
 	dev->interface = interface;
 
 	if (le16_to_cpu(dev->udev->descriptor.idProduct) != 0x0001) {
-		warn(KERN_INFO "USBLCD model not supported.");
+		dev_warn(&interface->dev, "USBLCD model not supported.\n");
 		return -ENODEV;
 	}
 	
@@ -359,12 +359,13 @@ static int lcd_probe(struct usb_interface *interface, const struct usb_device_id
 
 	i = le16_to_cpu(dev->udev->descriptor.bcdDevice);
 
-	info("USBLCD Version %1d%1d.%1d%1d found at address %d",
-		(i & 0xF000)>>12,(i & 0xF00)>>8,(i & 0xF0)>>4,(i & 0xF),
-		dev->udev->devnum);
+	dev_info(&interface->dev, "USBLCD Version %1d%1d.%1d%1d found "
+		 "at address %d\n", (i & 0xF000)>>12, (i & 0xF00)>>8,
+		 (i & 0xF0)>>4,(i & 0xF), dev->udev->devnum);
 
 	/* let the user know what node this device is now attached to */
-	info("USB LCD device now attached to USBLCD-%d", interface->minor);
+	dev_info(&interface->dev, "USB LCD device now attached to USBLCD-%d\n",
+		 interface->minor);
 	return 0;
 
 error:
@@ -413,7 +414,7 @@ static void lcd_disconnect(struct usb_interface *interface)
 	/* decrement our usage count */
 	kref_put(&dev->kref, lcd_delete);
 
-	info("USB LCD #%d now disconnected", minor);
+	dev_info(&interface->dev, "USB LCD #%d now disconnected\n", minor);
 }
 
 static struct usb_driver lcd_driver = {

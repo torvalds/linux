@@ -14,6 +14,9 @@
  * published by the Free Software Foundation.
  */
 
+#ifndef ARCH_ARM_MACH_OMAP2_MEMORY_H
+#define ARCH_ARM_MACH_OMAP2_MEMORY_H
+
 /* Memory timings */
 #define M_DDR		1
 #define M_LOCK_CTRL	(1 << 2)
@@ -34,3 +37,7 @@ extern u32 omap2_memory_get_fast_dll_ctrl(void);
 extern u32 omap2_memory_get_type(void);
 u32 omap2_dll_force_needed(void);
 u32 omap2_reprogram_sdrc(u32 level, u32 force);
+void __init omap2_init_memory(void);
+void __init gpmc_init(void);
+
+#endif

@@ -3,7 +3,7 @@
  *
  * buffer_head fields for JBD
  *
- * 27 May 2001 Andrew Morton <akpm@digeo.com>
+ * 27 May 2001 Andrew Morton
  *	Created - pulled out of fs.h
  */
 

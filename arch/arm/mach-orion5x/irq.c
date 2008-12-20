@@ -13,8 +13,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 #include <asm/gpio.h>
-#include <asm/io.h>
 #include <mach/orion5x.h>
 #include <plat/irq.h>
 #include "common.h"
@@ -162,7 +162,7 @@ static void orion5x_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 				polarity ^= 1 << pin;
 				writel(polarity, GPIO_IN_POL);
 			}
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 	}
 }

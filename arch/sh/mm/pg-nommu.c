@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <asm/page.h>
+#include <asm/uaccess.h>
 
 void copy_page(void *to, void *from)
 {

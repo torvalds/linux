@@ -1,10 +1,11 @@
 /**
  * @file nmi_int.c
  *
- * @remark Copyright 2002 OProfile authors
+ * @remark Copyright 2002-2008 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon <levon@movementarian.org>
+ * @author Robert Richter <robert.richter@amd.com>
  */
 
 #include <linux/init.h>
@@ -27,84 +28,8 @@ static struct op_x86_model_spec const *model;
 static DEFINE_PER_CPU(struct op_msrs, cpu_msrs);
 static DEFINE_PER_CPU(unsigned long, saved_lvtpc);
 
-static int nmi_start(void);
-static void nmi_stop(void);
-static void nmi_cpu_start(void *dummy);
-static void nmi_cpu_stop(void *dummy);
-
 /* 0 == registered but off, 1 == registered and on */
 static int nmi_enabled = 0;
-
-#ifdef CONFIG_SMP
-static int oprofile_cpu_notifier(struct notifier_block *b, unsigned long action,
-				 void *data)
-{
-	int cpu = (unsigned long)data;
-	switch (action) {
-	case CPU_DOWN_FAILED:
-	case CPU_ONLINE:
-		smp_call_function_single(cpu, nmi_cpu_start, NULL, 0);
-		break;
-	case CPU_DOWN_PREPARE:
-		smp_call_function_single(cpu, nmi_cpu_stop, NULL, 1);
-		break;
-	}
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block oprofile_cpu_nb = {
-	.notifier_call = oprofile_cpu_notifier
-};
-#endif
-
-#ifdef CONFIG_PM
-
-static int nmi_suspend(struct sys_device *dev, pm_message_t state)
-{
-	/* Only one CPU left, just stop that one */
-	if (nmi_enabled == 1)
-		nmi_cpu_stop(NULL);
-	return 0;
-}
-
-static int nmi_resume(struct sys_device *dev)
-{
-	if (nmi_enabled == 1)
-		nmi_cpu_start(NULL);
-	return 0;
-}
-
-static struct sysdev_class oprofile_sysclass = {
-	.name		= "oprofile",
-	.resume		= nmi_resume,
-	.suspend	= nmi_suspend,
-};
-
-static struct sys_device device_oprofile = {
-	.id	= 0,
-	.cls	= &oprofile_sysclass,
-};
-
-static int __init init_sysfs(void)
-{
-	int error;
-
-	error = sysdev_class_register(&oprofile_sysclass);
-	if (!error)
-		error = sysdev_register(&device_oprofile);
-	return error;
-}
-
-static void exit_sysfs(void)
-{
-	sysdev_unregister(&device_oprofile);
-	sysdev_class_unregister(&oprofile_sysclass);
-}
-
-#else
-#define init_sysfs() do { } while (0)
-#define exit_sysfs() do { } while (0)
-#endif /* CONFIG_PM */
 
 static int profile_exceptions_notify(struct notifier_block *self,
 				     unsigned long val, void *data)
@@ -360,6 +285,77 @@ static int nmi_create_files(struct super_block *sb, struct dentry *root)
 	return 0;
 }
 
+#ifdef CONFIG_SMP
+static int oprofile_cpu_notifier(struct notifier_block *b, unsigned long action,
+				 void *data)
+{
+	int cpu = (unsigned long)data;
+	switch (action) {
+	case CPU_DOWN_FAILED:
+	case CPU_ONLINE:
+		smp_call_function_single(cpu, nmi_cpu_start, NULL, 0);
+		break;
+	case CPU_DOWN_PREPARE:
+		smp_call_function_single(cpu, nmi_cpu_stop, NULL, 1);
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block oprofile_cpu_nb = {
+	.notifier_call = oprofile_cpu_notifier
+};
+#endif
+
+#ifdef CONFIG_PM
+
+static int nmi_suspend(struct sys_device *dev, pm_message_t state)
+{
+	/* Only one CPU left, just stop that one */
+	if (nmi_enabled == 1)
+		nmi_cpu_stop(NULL);
+	return 0;
+}
+
+static int nmi_resume(struct sys_device *dev)
+{
+	if (nmi_enabled == 1)
+		nmi_cpu_start(NULL);
+	return 0;
+}
+
+static struct sysdev_class oprofile_sysclass = {
+	.name		= "oprofile",
+	.resume		= nmi_resume,
+	.suspend	= nmi_suspend,
+};
+
+static struct sys_device device_oprofile = {
+	.id	= 0,
+	.cls	= &oprofile_sysclass,
+};
+
+static int __init init_sysfs(void)
+{
+	int error;
+
+	error = sysdev_class_register(&oprofile_sysclass);
+	if (!error)
+		error = sysdev_register(&device_oprofile);
+	return error;
+}
+
+static void exit_sysfs(void)
+{
+	sysdev_unregister(&device_oprofile);
+	sysdev_class_unregister(&oprofile_sysclass);
+}
+
+#else
+#define init_sysfs() do { } while (0)
+#define exit_sysfs() do { } while (0)
+#endif /* CONFIG_PM */
+
 static int p4force;
 module_param(p4force, int, 0);
 
@@ -419,15 +415,22 @@ static int __init ppro_init(char **cpu_type)
 	case 15: case 23:
 		*cpu_type = "i386/core_2";
 		break;
-	case 26:
-		*cpu_type = "i386/core_2";
-		break;
 	default:
 		/* Unknown */
 		return 0;
 	}
 
 	model = &op_ppro_spec;
+	return 1;
+}
+
+static int __init arch_perfmon_init(char **cpu_type)
+{
+	if (!cpu_has_arch_perfmon)
+		return 0;
+	*cpu_type = "i386/arch_perfmon";
+	model = &op_arch_perfmon_spec;
+	arch_perfmon_setup_counters();
 	return 1;
 }
 
@@ -438,7 +441,8 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 {
 	__u8 vendor = boot_cpu_data.x86_vendor;
 	__u8 family = boot_cpu_data.x86;
-	char *cpu_type;
+	char *cpu_type = NULL;
+	int ret = 0;
 
 	if (!cpu_has_apic)
 		return -ENODEV;
@@ -451,18 +455,22 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 		default:
 			return -ENODEV;
 		case 6:
-			model = &op_athlon_spec;
+			model = &op_amd_spec;
 			cpu_type = "i386/athlon";
 			break;
 		case 0xf:
-			model = &op_athlon_spec;
+			model = &op_amd_spec;
 			/* Actually it could be i386/hammer too, but give
 			 user space an consistent name. */
 			cpu_type = "x86-64/hammer";
 			break;
 		case 0x10:
-			model = &op_athlon_spec;
+			model = &op_amd_spec;
 			cpu_type = "x86-64/family10";
+			break;
+		case 0x11:
+			model = &op_amd_spec;
+			cpu_type = "x86-64/family11h";
 			break;
 		}
 		break;
@@ -471,36 +479,44 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 		switch (family) {
 			/* Pentium IV */
 		case 0xf:
-			if (!p4_init(&cpu_type))
-				return -ENODEV;
+			p4_init(&cpu_type);
 			break;
 
 			/* A P6-class processor */
 		case 6:
-			if (!ppro_init(&cpu_type))
-				return -ENODEV;
+			ppro_init(&cpu_type);
 			break;
 
 		default:
-			return -ENODEV;
+			break;
 		}
+
+		if (!cpu_type && !arch_perfmon_init(&cpu_type))
+			return -ENODEV;
 		break;
 
 	default:
 		return -ENODEV;
 	}
 
-	init_sysfs();
 #ifdef CONFIG_SMP
 	register_cpu_notifier(&oprofile_cpu_nb);
 #endif
-	using_nmi = 1;
+	/* default values, can be overwritten by model */
 	ops->create_files = nmi_create_files;
 	ops->setup = nmi_setup;
 	ops->shutdown = nmi_shutdown;
 	ops->start = nmi_start;
 	ops->stop = nmi_stop;
 	ops->cpu_type = cpu_type;
+
+	if (model->init)
+		ret = model->init(ops);
+	if (ret)
+		return ret;
+
+	init_sysfs();
+	using_nmi = 1;
 	printk(KERN_INFO "oprofile: using NMI interrupt.\n");
 	return 0;
 }
@@ -513,4 +529,6 @@ void op_nmi_exit(void)
 		unregister_cpu_notifier(&oprofile_cpu_nb);
 #endif
 	}
+	if (model->exit)
+		model->exit();
 }

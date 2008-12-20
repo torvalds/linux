@@ -608,7 +608,7 @@ static void acpi_os_derive_pci_id_2(acpi_handle rhandle,	/* upper bound  */
 	acpi_handle handle;
 	struct acpi_pci_id *pci_id = *id;
 	acpi_status status;
-	unsigned long temp;
+	unsigned long long temp;
 	acpi_object_type type;
 
 	acpi_get_parent(chandle, &handle);
@@ -620,8 +620,7 @@ static void acpi_os_derive_pci_id_2(acpi_handle rhandle,	/* upper bound  */
 		if ((ACPI_FAILURE(status)) || (type != ACPI_TYPE_DEVICE))
 			return;
 
-		status =
-		    acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL,
+		status = acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL,
 					  &temp);
 		if (ACPI_SUCCESS(status)) {
 			u32 val;
@@ -682,6 +681,22 @@ static void acpi_os_execute_deferred(struct work_struct *work)
 	return;
 }
 
+static void acpi_os_execute_hp_deferred(struct work_struct *work)
+{
+	struct acpi_os_dpc *dpc = container_of(work, struct acpi_os_dpc, work);
+	if (!dpc) {
+		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
+		return;
+	}
+
+	acpi_os_wait_events_complete(NULL);
+
+	dpc->function(dpc->context);
+	kfree(dpc);
+
+	return;
+}
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_os_execute
@@ -697,12 +712,13 @@ static void acpi_os_execute_deferred(struct work_struct *work)
  *
  ******************************************************************************/
 
-acpi_status acpi_os_execute(acpi_execute_type type,
-			    acpi_osd_exec_callback function, void *context)
+static acpi_status __acpi_os_execute(acpi_execute_type type,
+	acpi_osd_exec_callback function, void *context, int hp)
 {
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
 	struct workqueue_struct *queue;
+	int ret;
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Scheduling function [%p(%p)] for deferred execution.\n",
 			  function, context));
@@ -726,18 +742,37 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	dpc->function = function;
 	dpc->context = context;
 
-	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
-	queue = (type == OSL_NOTIFY_HANDLER) ? kacpi_notify_wq : kacpid_wq;
-	if (!queue_work(queue, &dpc->work)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			  "Call to queue_work() failed.\n"));
+	if (!hp) {
+		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+		queue = (type == OSL_NOTIFY_HANDLER) ?
+			kacpi_notify_wq : kacpid_wq;
+		ret = queue_work(queue, &dpc->work);
+	} else {
+		INIT_WORK(&dpc->work, acpi_os_execute_hp_deferred);
+		ret = schedule_work(&dpc->work);
+	}
+
+	if (!ret) {
+		printk(KERN_ERR PREFIX
+			  "Call to queue_work() failed.\n");
 		status = AE_ERROR;
 		kfree(dpc);
 	}
 	return_ACPI_STATUS(status);
 }
 
+acpi_status acpi_os_execute(acpi_execute_type type,
+			    acpi_osd_exec_callback function, void *context)
+{
+	return __acpi_os_execute(type, function, context, 0);
+}
 EXPORT_SYMBOL(acpi_os_execute);
+
+acpi_status acpi_os_hotplug_execute(acpi_osd_exec_callback function,
+	void *context)
+{
+	return __acpi_os_execute(0, function, context, 1);
+}
 
 void acpi_os_wait_events_complete(void *context)
 {

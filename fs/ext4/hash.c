@@ -27,7 +27,7 @@ static void TEA_transform(__u32 buf[4], __u32 const in[])
 		sum += DELTA;
 		b0 += ((b1 << 4)+a) ^ (b1+sum) ^ ((b1 >> 5)+b);
 		b1 += ((b0 << 4)+c) ^ (b0+sum) ^ ((b0 >> 5)+d);
-	} while(--n);
+	} while (--n);
 
 	buf[0] += b0;
 	buf[1] += b1;
@@ -35,7 +35,7 @@ static void TEA_transform(__u32 buf[4], __u32 const in[])
 
 
 /* The old legacy hash */
-static __u32 dx_hack_hash (const char *name, int len)
+static __u32 dx_hack_hash(const char *name, int len)
 {
 	__u32 hash0 = 0x12a3fe2d, hash1 = 0x37abe8f9;
 	while (len--) {
@@ -59,7 +59,7 @@ static void str2hashbuf(const char *msg, int len, __u32 *buf, int num)
 	val = pad;
 	if (len > num*4)
 		len = num * 4;
-	for (i=0; i < len; i++) {
+	for (i = 0; i < len; i++) {
 		if ((i % 4) == 0)
 			val = pad;
 		val = msg[i] + (val << 8);
@@ -104,7 +104,7 @@ int ext4fs_dirhash(const char *name, int len, struct dx_hash_info *hinfo)
 
 	/* Check to see if the seed is all zero's */
 	if (hinfo->seed) {
-		for (i=0; i < 4; i++) {
+		for (i = 0; i < 4; i++) {
 			if (hinfo->seed[i])
 				break;
 		}

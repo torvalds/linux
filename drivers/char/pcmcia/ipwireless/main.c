@@ -65,9 +65,9 @@ static void signalled_reboot_work(struct work_struct *work_reboot)
 	struct ipw_dev *ipw = container_of(work_reboot, struct ipw_dev,
 			work_reboot);
 	struct pcmcia_device *link = ipw->link;
-	int ret = pccard_reset_card(link->socket);
+	int ret = pcmcia_reset_card(link->socket);
 
-	if (ret != CS_SUCCESS)
+	if (ret != 0)
 		cs_error(link, ResetCard, ret);
 }
 
@@ -83,7 +83,6 @@ static int config_ipwireless(struct ipw_dev *ipw)
 {
 	struct pcmcia_device *link = ipw->link;
 	int ret;
-	config_info_t conf;
 	tuple_t tuple;
 	unsigned short buf[64];
 	cisparse_t parse;
@@ -105,7 +104,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	while (ret == 0) {
 		ret = pcmcia_get_tuple_data(link, &tuple);
 
-		if (ret != CS_SUCCESS) {
+		if (ret != 0) {
 			cs_error(link, GetTupleData, ret);
 			goto exit0;
 		}
@@ -116,21 +115,21 @@ static int config_ipwireless(struct ipw_dev *ipw)
 
 	ret = pcmcia_get_first_tuple(link, &tuple);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, GetFirstTuple, ret);
 		goto exit0;
 	}
 
 	ret = pcmcia_get_tuple_data(link, &tuple);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, GetTupleData, ret);
 		goto exit0;
 	}
 
-	ret = pcmcia_parse_tuple(link, &tuple, &parse);
+	ret = pcmcia_parse_tuple(&tuple, &parse);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, ParseTuple, ret);
 		goto exit0;
 	}
@@ -152,21 +151,21 @@ static int config_ipwireless(struct ipw_dev *ipw)
 
 	ret = pcmcia_get_first_tuple(link, &tuple);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, GetFirstTuple, ret);
 		goto exit0;
 	}
 
 	ret = pcmcia_get_tuple_data(link, &tuple);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, GetTupleData, ret);
 		goto exit0;
 	}
 
-	ret = pcmcia_parse_tuple(link, &tuple, &parse);
+	ret = pcmcia_parse_tuple(&tuple, &parse);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, GetTupleData, ret);
 		goto exit0;
 	}
@@ -181,7 +180,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 
 	ret = pcmcia_request_io(link, &link->io);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, RequestIO, ret);
 		goto exit0;
 	}
@@ -195,21 +194,21 @@ static int config_ipwireless(struct ipw_dev *ipw)
 
 	ret = pcmcia_get_first_tuple(link, &tuple);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, GetFirstTuple, ret);
 		goto exit1;
 	}
 
 	ret = pcmcia_get_tuple_data(link, &tuple);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, GetTupleData, ret);
 		goto exit1;
 	}
 
-	ret = pcmcia_parse_tuple(link, &tuple, &parse);
+	ret = pcmcia_parse_tuple(&tuple, &parse);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, ParseTuple, ret);
 		goto exit1;
 	}
@@ -227,7 +226,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 		ret = pcmcia_request_window(&link, &ipw->request_common_memory,
 				&ipw->handle_common_memory);
 
-		if (ret != CS_SUCCESS) {
+		if (ret != 0) {
 			cs_error(link, RequestWindow, ret);
 			goto exit1;
 		}
@@ -239,7 +238,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 		ret = pcmcia_map_mem_page(ipw->handle_common_memory,
 				&memreq_common_memory);
 
-		if (ret != CS_SUCCESS) {
+		if (ret != 0) {
 			cs_error(link, MapMemPage, ret);
 			goto exit1;
 		}
@@ -261,7 +260,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 		ret = pcmcia_request_window(&link, &ipw->request_attr_memory,
 				&ipw->handle_attr_memory);
 
-		if (ret != CS_SUCCESS) {
+		if (ret != 0) {
 			cs_error(link, RequestWindow, ret);
 			goto exit2;
 		}
@@ -272,7 +271,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 		ret = pcmcia_map_mem_page(ipw->handle_attr_memory,
 				&memreq_attr_memory);
 
-		if (ret != CS_SUCCESS) {
+		if (ret != 0) {
 			cs_error(link, MapMemPage, ret);
 			goto exit2;
 		}
@@ -292,18 +291,9 @@ static int config_ipwireless(struct ipw_dev *ipw)
 
 	ret = pcmcia_request_irq(link, &link->irq);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, RequestIRQ, ret);
 		goto exit3;
-	}
-
-	/* Look up current Vcc */
-
-	ret = pcmcia_get_configuration_info(link, &conf);
-
-	if (ret != CS_SUCCESS) {
-		cs_error(link, GetConfigurationInfo, ret);
-		goto exit4;
 	}
 
 	printk(KERN_INFO IPWIRELESS_PCCARD_NAME ": Card type %s\n",
@@ -341,7 +331,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	 */
 	ret = pcmcia_request_configuration(link, &link->conf);
 
-	if (ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, RequestConfiguration, ret);
 		goto exit4;
 	}

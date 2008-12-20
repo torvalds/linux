@@ -193,4 +193,39 @@ struct rtl818x_rf_ops {
 	void (*set_chan)(struct ieee80211_hw *, struct ieee80211_conf *);
 };
 
+/* Tx/Rx flags are common between RTL818X chips */
+
+enum rtl818x_tx_desc_flags {
+	RTL818X_TX_DESC_FLAG_NO_ENC	= (1 << 15),
+	RTL818X_TX_DESC_FLAG_TX_OK	= (1 << 15),
+	RTL818X_TX_DESC_FLAG_SPLCP	= (1 << 16),
+	RTL818X_TX_DESC_FLAG_RX_UNDER	= (1 << 16),
+	RTL818X_TX_DESC_FLAG_MOREFRAG	= (1 << 17),
+	RTL818X_TX_DESC_FLAG_CTS	= (1 << 18),
+	RTL818X_TX_DESC_FLAG_RTS	= (1 << 23),
+	RTL818X_TX_DESC_FLAG_LS		= (1 << 28),
+	RTL818X_TX_DESC_FLAG_FS		= (1 << 29),
+	RTL818X_TX_DESC_FLAG_DMA	= (1 << 30),
+	RTL818X_TX_DESC_FLAG_OWN	= (1 << 31)
+};
+
+enum rtl818x_rx_desc_flags {
+	RTL818X_RX_DESC_FLAG_ICV_ERR	= (1 << 12),
+	RTL818X_RX_DESC_FLAG_CRC32_ERR	= (1 << 13),
+	RTL818X_RX_DESC_FLAG_PM		= (1 << 14),
+	RTL818X_RX_DESC_FLAG_RX_ERR	= (1 << 15),
+	RTL818X_RX_DESC_FLAG_BCAST	= (1 << 16),
+	RTL818X_RX_DESC_FLAG_PAM	= (1 << 17),
+	RTL818X_RX_DESC_FLAG_MCAST	= (1 << 18),
+	RTL818X_RX_DESC_FLAG_QOS	= (1 << 19), /* RTL8187(B) only */
+	RTL818X_RX_DESC_FLAG_TRSW	= (1 << 24), /* RTL8187(B) only */
+	RTL818X_RX_DESC_FLAG_SPLCP	= (1 << 25),
+	RTL818X_RX_DESC_FLAG_FOF	= (1 << 26),
+	RTL818X_RX_DESC_FLAG_DMA_FAIL	= (1 << 27),
+	RTL818X_RX_DESC_FLAG_LS		= (1 << 28),
+	RTL818X_RX_DESC_FLAG_FS		= (1 << 29),
+	RTL818X_RX_DESC_FLAG_EOR	= (1 << 30),
+	RTL818X_RX_DESC_FLAG_OWN	= (1 << 31)
+};
+
 #endif /* RTL818X_H */

@@ -26,16 +26,13 @@ static int tcp_retr1_max = 255;
 static int ip_local_port_range_min[] = { 1, 1 };
 static int ip_local_port_range_max[] = { 65535, 65535 };
 
-extern seqlock_t sysctl_port_range_lock;
-extern int sysctl_local_port_range[2];
-
 /* Update system visible IP port range */
 static void set_local_port_range(int range[2])
 {
-	write_seqlock(&sysctl_port_range_lock);
-	sysctl_local_port_range[0] = range[0];
-	sysctl_local_port_range[1] = range[1];
-	write_sequnlock(&sysctl_port_range_lock);
+	write_seqlock(&sysctl_local_ports.lock);
+	sysctl_local_ports.range[0] = range[0];
+	sysctl_local_ports.range[1] = range[1];
+	write_sequnlock(&sysctl_local_ports.lock);
 }
 
 /* Validate changes from /proc interface. */
@@ -44,8 +41,7 @@ static int ipv4_local_port_range(ctl_table *table, int write, struct file *filp,
 				 size_t *lenp, loff_t *ppos)
 {
 	int ret;
-	int range[2] = { sysctl_local_port_range[0],
-			 sysctl_local_port_range[1] };
+	int range[2];
 	ctl_table tmp = {
 		.data = &range,
 		.maxlen = sizeof(range),
@@ -54,6 +50,7 @@ static int ipv4_local_port_range(ctl_table *table, int write, struct file *filp,
 		.extra2 = &ip_local_port_range_max,
 	};
 
+	inet_get_local_port_range(range, range + 1);
 	ret = proc_dointvec_minmax(&tmp, write, filp, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
@@ -67,14 +64,13 @@ static int ipv4_local_port_range(ctl_table *table, int write, struct file *filp,
 }
 
 /* Validate changes from sysctl interface. */
-static int ipv4_sysctl_local_port_range(ctl_table *table, int __user *name,
-					 int nlen, void __user *oldval,
+static int ipv4_sysctl_local_port_range(ctl_table *table,
+					 void __user *oldval,
 					 size_t __user *oldlenp,
 					void __user *newval, size_t newlen)
 {
 	int ret;
-	int range[2] = { sysctl_local_port_range[0],
-			 sysctl_local_port_range[1] };
+	int range[2];
 	ctl_table tmp = {
 		.data = &range,
 		.maxlen = sizeof(range),
@@ -83,7 +79,8 @@ static int ipv4_sysctl_local_port_range(ctl_table *table, int __user *name,
 		.extra2 = &ip_local_port_range_max,
 	};
 
-	ret = sysctl_intvec(&tmp, name, nlen, oldval, oldlenp, newval, newlen);
+	inet_get_local_port_range(range, range + 1);
+	ret = sysctl_intvec(&tmp, oldval, oldlenp, newval, newlen);
 	if (ret == 0 && newval && newlen) {
 		if (range[1] < range[0])
 			ret = -EINVAL;
@@ -112,8 +109,8 @@ static int proc_tcp_congestion_control(ctl_table *ctl, int write, struct file * 
 	return ret;
 }
 
-static int sysctl_tcp_congestion_control(ctl_table *table, int __user *name,
-					 int nlen, void __user *oldval,
+static int sysctl_tcp_congestion_control(ctl_table *table,
+					 void __user *oldval,
 					 size_t __user *oldlenp,
 					 void __user *newval, size_t newlen)
 {
@@ -125,7 +122,7 @@ static int sysctl_tcp_congestion_control(ctl_table *table, int __user *name,
 	int ret;
 
 	tcp_get_default_congestion_control(val);
-	ret = sysctl_string(&tbl, name, nlen, oldval, oldlenp, newval, newlen);
+	ret = sysctl_string(&tbl, oldval, oldlenp, newval, newlen);
 	if (ret == 1 && newval && newlen)
 		ret = tcp_set_default_congestion_control(val);
 	return ret;
@@ -168,8 +165,8 @@ static int proc_allowed_congestion_control(ctl_table *ctl,
 	return ret;
 }
 
-static int strategy_allowed_congestion_control(ctl_table *table, int __user *name,
-					       int nlen, void __user *oldval,
+static int strategy_allowed_congestion_control(ctl_table *table,
+					       void __user *oldval,
 					       size_t __user *oldlenp,
 					       void __user *newval,
 					       size_t newlen)
@@ -182,7 +179,7 @@ static int strategy_allowed_congestion_control(ctl_table *table, int __user *nam
 		return -ENOMEM;
 
 	tcp_get_available_congestion_control(tbl.data, tbl.maxlen);
-	ret = sysctl_string(&tbl, name, nlen, oldval, oldlenp, newval, newlen);
+	ret = sysctl_string(&tbl, oldval, oldlenp, newval, newlen);
 	if (ret == 1 && newval && newlen)
 		ret = tcp_set_allowed_congestion_control(tbl.data);
 	kfree(tbl.data);
@@ -396,8 +393,8 @@ static struct ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4_LOCAL_PORT_RANGE,
 		.procname	= "ip_local_port_range",
-		.data		= &sysctl_local_port_range,
-		.maxlen		= sizeof(sysctl_local_port_range),
+		.data		= &sysctl_local_ports.range,
+		.maxlen		= sizeof(sysctl_local_ports.range),
 		.mode		= 0644,
 		.proc_handler	= &ipv4_local_port_range,
 		.strategy	= &ipv4_sysctl_local_port_range,

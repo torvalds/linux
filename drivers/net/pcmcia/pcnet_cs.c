@@ -310,7 +310,7 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
     i = pcmcia_request_window(&link, &req, &link->win);
-    if (i != CS_SUCCESS) {
+    if (i != 0) {
 	cs_error(link, RequestWindow, i);
 	return NULL;
     }
@@ -333,7 +333,7 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
 
     iounmap(virt);
     j = pcmcia_release_window(link->win);
-    if (j != CS_SUCCESS)
+    if (j != 0)
 	cs_error(link, ReleaseWindow, j);
     return (i < NR_INFO) ? hw_info+i : NULL;
 } /* get_hwinfo */
@@ -504,7 +504,8 @@ static int try_io_port(struct pcmcia_device *link)
 	    link->io.BasePort1 = j ^ 0x300;
 	    link->io.BasePort2 = (j ^ 0x300) + 0x10;
 	    ret = pcmcia_request_io(link, &link->io);
-	    if (ret == CS_SUCCESS) return ret;
+	    if (ret == 0)
+		    return ret;
 	}
 	return ret;
     } else {
@@ -512,58 +513,53 @@ static int try_io_port(struct pcmcia_device *link)
     }
 }
 
+static int pcnet_confcheck(struct pcmcia_device *p_dev,
+			   cistpl_cftable_entry_t *cfg,
+			   cistpl_cftable_entry_t *dflt,
+			   unsigned int vcc,
+			   void *priv_data)
+{
+	int *has_shmem = priv_data;
+	int i;
+	cistpl_io_t *io = &cfg->io;
+
+	if (cfg->index == 0 || cfg->io.nwin == 0)
+		return -EINVAL;
+
+	/* For multifunction cards, by convention, we configure the
+	   network function with window 0, and serial with window 1 */
+	if (io->nwin > 1) {
+		i = (io->win[1].len > io->win[0].len);
+		p_dev->io.BasePort2 = io->win[1-i].base;
+		p_dev->io.NumPorts2 = io->win[1-i].len;
+	} else {
+		i = p_dev->io.NumPorts2 = 0;
+	}
+
+	*has_shmem = ((cfg->mem.nwin == 1) &&
+		      (cfg->mem.win[0].len >= 0x4000));
+	p_dev->io.BasePort1 = io->win[i].base;
+	p_dev->io.NumPorts1 = io->win[i].len;
+	p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+	if (p_dev->io.NumPorts1 + p_dev->io.NumPorts2 >= 32)
+		return try_io_port(p_dev);
+
+	return 0;
+}
+
 static int pcnet_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     pcnet_dev_t *info = PRIV(dev);
-    tuple_t tuple;
-    cisparse_t parse;
-    int i, last_ret, last_fn, start_pg, stop_pg, cm_offset;
+    int last_ret, last_fn, start_pg, stop_pg, cm_offset;
     int has_shmem = 0;
-    u_short buf[64];
     hw_info_t *local_hw_info;
     DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "pcnet_config(0x%p)\n", link);
 
-    tuple.TupleData = (cisdata_t *)buf;
-    tuple.TupleDataMax = sizeof(buf);
-    tuple.TupleOffset = 0;
-    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    tuple.Attributes = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    while (last_ret == CS_SUCCESS) {
-	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-	cistpl_io_t *io = &(parse.cftable_entry.io);
-
-	if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
-			pcmcia_parse_tuple(link, &tuple, &parse) != 0 ||
-			cfg->index == 0 || cfg->io.nwin == 0)
-		goto next_entry;
-
-	link->conf.ConfigIndex = cfg->index;
-	/* For multifunction cards, by convention, we configure the
-	   network function with window 0, and serial with window 1 */
-	if (io->nwin > 1) {
-	    i = (io->win[1].len > io->win[0].len);
-	    link->io.BasePort2 = io->win[1-i].base;
-	    link->io.NumPorts2 = io->win[1-i].len;
-	} else {
-	    i = link->io.NumPorts2 = 0;
-	}
-	has_shmem = ((cfg->mem.nwin == 1) &&
-		     (cfg->mem.win[0].len >= 0x4000));
-	link->io.BasePort1 = io->win[i].base;
-	link->io.NumPorts1 = io->win[i].len;
-	link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-	if (link->io.NumPorts1 + link->io.NumPorts2 >= 32) {
-	    last_ret = try_io_port(link);
-	    if (last_ret == CS_SUCCESS) break;
-	}
-    next_entry:
-	last_ret = pcmcia_get_next_tuple(link, &tuple);
-    }
-    if (last_ret != CS_SUCCESS) {
+    last_ret = pcmcia_loop_config(link, pcnet_confcheck, &has_shmem);
+    if (last_ret) {
 	cs_error(link, RequestIO, last_ret);
 	goto failed;
     }

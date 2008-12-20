@@ -85,10 +85,10 @@ static int toshiba_rbtx4938_irq_nested(int sw_irq)
 	u8 level3;
 
 	level3 = readb(rbtx4938_imstat_addr);
-	if (level3)
-		/* must use fls so onboard ATA has priority */
-		sw_irq = RBTX4938_IRQ_IOC + fls(level3) - 1;
-	return sw_irq;
+	if (unlikely(!level3))
+		return -1;
+	/* must use fls so onboard ATA has priority */
+	return RBTX4938_IRQ_IOC + __fls8(level3);
 }
 
 static void __init

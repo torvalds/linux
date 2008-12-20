@@ -49,12 +49,6 @@ MODULE_LICENSE("GPL");
 #define GENERIC_REG_ID_LOW        0x1D	/* manufacturer ID LSB */
 #define GENERIC_REG_COM_I         0x29	/* misc ID bits */
 
-extern struct ovcamchip_ops ov6x20_ops;
-extern struct ovcamchip_ops ov6x30_ops;
-extern struct ovcamchip_ops ov7x10_ops;
-extern struct ovcamchip_ops ov7x20_ops;
-extern struct ovcamchip_ops ov76be_ops;
-
 static char *chip_names[NUM_CC_TYPES] = {
 	[CC_UNKNOWN]	= "Unknown chip",
 	[CC_OV76BE]	= "OV76BE",

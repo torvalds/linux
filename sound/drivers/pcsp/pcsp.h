@@ -62,6 +62,8 @@ struct snd_pcsp {
 	unsigned short port, irq, dma;
 	spinlock_t substream_lock;
 	struct snd_pcm_substream *playback_substream;
+	unsigned int fmt_size;
+	unsigned int is_signed;
 	size_t playback_ptr;
 	size_t period_ptr;
 	atomic_t timer_active;

@@ -125,6 +125,7 @@ static void adjust_lpt_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap,
 			}
 		}
 	}
+
 	/* Not greater than parent, so compare to children */
 	while (1) {
 		/* Compare to left child */
@@ -460,18 +461,6 @@ static void change_category(struct ubifs_info *c, struct ubifs_lprops *lprops)
 }
 
 /**
- * ubifs_get_lprops - get reference to LEB properties.
- * @c: the UBIFS file-system description object
- *
- * This function locks lprops. Lprops have to be unlocked by
- * 'ubifs_release_lprops()'.
- */
-void ubifs_get_lprops(struct ubifs_info *c)
-{
-	mutex_lock(&c->lp_mutex);
-}
-
-/**
  * calc_dark - calculate LEB dark space size.
  * @c: the UBIFS file-system description object
  * @spc: amount of free and dirty space in the LEB
@@ -576,7 +565,6 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 	ubifs_assert(!(lprops->free & 7) && !(lprops->dirty & 7));
 
 	spin_lock(&c->space_lock);
-
 	if ((lprops->flags & LPROPS_TAKEN) && lprops->free == c->leb_size)
 		c->lst.taken_empty_lebs -= 1;
 
@@ -637,28 +625,9 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 		c->lst.taken_empty_lebs += 1;
 
 	change_category(c, lprops);
-
 	c->idx_gc_cnt += idx_gc_cnt;
-
 	spin_unlock(&c->space_lock);
-
 	return lprops;
-}
-
-/**
- * ubifs_release_lprops - release lprops lock.
- * @c: the UBIFS file-system description object
- *
- * This function has to be called after each 'ubifs_get_lprops()' call to
- * unlock lprops.
- */
-void ubifs_release_lprops(struct ubifs_info *c)
-{
-	ubifs_assert(mutex_is_locked(&c->lp_mutex));
-	ubifs_assert(c->lst.empty_lebs >= 0 &&
-		     c->lst.empty_lebs <= c->main_lebs);
-
-	mutex_unlock(&c->lp_mutex);
 }
 
 /**
@@ -1262,7 +1231,6 @@ static int scan_check_cb(struct ubifs_info *c,
 	}
 
 	ubifs_scan_destroy(sleb);
-
 	return LPT_SCAN_CONTINUE;
 
 out_print:

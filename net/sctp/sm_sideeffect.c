@@ -889,6 +889,35 @@ static void sctp_cmd_adaptation_ind(sctp_cmd_seq_t *commands,
 		sctp_ulpq_tail_event(&asoc->ulpq, ev);
 }
 
+
+static void sctp_cmd_t1_timer_update(struct sctp_association *asoc,
+				    sctp_event_timeout_t timer,
+				    char *name)
+{
+	struct sctp_transport *t;
+
+	t = asoc->init_last_sent_to;
+	asoc->init_err_counter++;
+
+	if (t->init_sent_count > (asoc->init_cycle + 1)) {
+		asoc->timeouts[timer] *= 2;
+		if (asoc->timeouts[timer] > asoc->max_init_timeo) {
+			asoc->timeouts[timer] = asoc->max_init_timeo;
+		}
+		asoc->init_cycle++;
+		SCTP_DEBUG_PRINTK(
+			"T1 %s Timeout adjustment"
+			" init_err_counter: %d"
+			" cycle: %d"
+			" timeout: %ld\n",
+			name,
+			asoc->init_err_counter,
+			asoc->init_cycle,
+			asoc->timeouts[timer]);
+	}
+
+}
+
 /* These three macros allow us to pull the debugging code out of the
  * main flow of sctp_do_sm() to keep attention focused on the real
  * functionality there.
@@ -1123,7 +1152,8 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 
 		case SCTP_CMD_REPORT_TSN:
 			/* Record the arrival of a TSN.  */
-			sctp_tsnmap_mark(&asoc->peer.tsn_map, cmd->obj.u32);
+			error = sctp_tsnmap_mark(&asoc->peer.tsn_map,
+						 cmd->obj.u32);
 			break;
 
 		case SCTP_CMD_REPORT_FWDTSN:
@@ -1195,6 +1225,11 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			if (cmd->obj.ptr)
 				sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
 						SCTP_CHUNK(cmd->obj.ptr));
+
+			if (new_obj->transport) {
+				new_obj->transport->init_sent_count++;
+				asoc->init_last_sent_to = new_obj->transport;
+			}
 
 			/* FIXME - Eventually come up with a cleaner way to
 			 * enabling COOKIE-ECHO + DATA bundling during
@@ -1345,26 +1380,9 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			 * all transports have been tried at the current
 			 * timeout.
 			 */
-			t = asoc->init_last_sent_to;
-			asoc->init_err_counter++;
-
-			if (t->init_sent_count > (asoc->init_cycle + 1)) {
-				asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] *= 2;
-				if (asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] >
-				    asoc->max_init_timeo) {
-					asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] =
-						asoc->max_init_timeo;
-				}
-				asoc->init_cycle++;
-				SCTP_DEBUG_PRINTK(
-					"T1 INIT Timeout adjustment"
-					" init_err_counter: %d"
-					" cycle: %d"
-					" timeout: %ld\n",
-					asoc->init_err_counter,
-					asoc->init_cycle,
-					asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT]);
-			}
+			sctp_cmd_t1_timer_update(asoc,
+						SCTP_EVENT_TIMEOUT_T1_INIT,
+						"INIT");
 
 			sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
 					SCTP_TO(SCTP_EVENT_TIMEOUT_T1_INIT));
@@ -1377,20 +1395,9 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			 * all transports have been tried at the current
 			 * timeout.
 			 */
-			asoc->init_err_counter++;
-
-			asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] *= 2;
-			if (asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] >
-			    asoc->max_init_timeo) {
-				asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] =
-					asoc->max_init_timeo;
-			}
-			SCTP_DEBUG_PRINTK(
-				"T1 COOKIE Timeout adjustment"
-				" init_err_counter: %d"
-				" timeout: %ld\n",
-				asoc->init_err_counter,
-				asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE]);
+			sctp_cmd_t1_timer_update(asoc,
+						SCTP_EVENT_TIMEOUT_T1_COOKIE,
+						"COOKIE");
 
 			/* If we've sent any data bundled with
 			 * COOKIE-ECHO we need to resend.
@@ -1422,6 +1429,10 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_INIT_COUNTER_RESET:
 			asoc->init_err_counter = 0;
 			asoc->init_cycle = 0;
+			list_for_each_entry(t, &asoc->peer.transport_addr_list,
+					    transports) {
+				t->init_sent_count = 0;
+			}
 			break;
 
 		case SCTP_CMD_REPORT_DUP:

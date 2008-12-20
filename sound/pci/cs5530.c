@@ -132,7 +132,7 @@ static int __devinit snd_cs5530_create(struct snd_card *card,
 	}
 	chip->pci_base = pci_resource_start(pci, 0);
 
-	mem = ioremap_nocache(chip->pci_base, pci_resource_len(pci, 0));
+	mem = pci_ioremap_bar(pci, 0);
 	if (mem == NULL) {
 		kfree(chip);
 		pci_disable_device(pci);

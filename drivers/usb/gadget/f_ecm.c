@@ -83,7 +83,7 @@ static inline struct f_ecm *func_to_ecm(struct usb_function *f)
 }
 
 /* peak (theoretical) bulk transfer rate in bits-per-second */
-static inline unsigned bitrate(struct usb_gadget *g)
+static inline unsigned ecm_bitrate(struct usb_gadget *g)
 {
 	if (gadget_is_dualspeed(g) && g->speed == USB_SPEED_HIGH)
 		return 13 * 512 * 8 * 1000 * 8;
@@ -107,7 +107,7 @@ static inline unsigned bitrate(struct usb_gadget *g)
  */
 
 #define LOG2_STATUS_INTERVAL_MSEC	5	/* 1 << 5 == 32 msec */
-#define STATUS_BYTECOUNT		16	/* 8 byte header + data */
+#define ECM_STATUS_BYTECOUNT		16	/* 8 byte header + data */
 
 
 /* interface descriptor: */
@@ -125,8 +125,8 @@ static struct usb_interface_descriptor ecm_control_intf __initdata = {
 	/* .iInterface = DYNAMIC */
 };
 
-static struct usb_cdc_header_desc header_desc __initdata = {
-	.bLength =		sizeof header_desc,
+static struct usb_cdc_header_desc ecm_header_desc __initdata = {
+	.bLength =		sizeof ecm_header_desc,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_HEADER_TYPE,
 
@@ -141,8 +141,8 @@ static struct usb_cdc_union_desc ecm_union_desc __initdata = {
 	/* .bSlaveInterface0 =	DYNAMIC */
 };
 
-static struct usb_cdc_ether_desc ether_desc __initdata = {
-	.bLength =		sizeof ether_desc,
+static struct usb_cdc_ether_desc ecm_desc __initdata = {
+	.bLength =		sizeof ecm_desc,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_ETHERNET_TYPE,
 
@@ -186,17 +186,17 @@ static struct usb_interface_descriptor ecm_data_intf __initdata = {
 
 /* full speed support: */
 
-static struct usb_endpoint_descriptor fs_notify_desc __initdata = {
+static struct usb_endpoint_descriptor fs_ecm_notify_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
-	.wMaxPacketSize =	__constant_cpu_to_le16(STATUS_BYTECOUNT),
+	.wMaxPacketSize =	__constant_cpu_to_le16(ECM_STATUS_BYTECOUNT),
 	.bInterval =		1 << LOG2_STATUS_INTERVAL_MSEC,
 };
 
-static struct usb_endpoint_descriptor fs_in_desc __initdata = {
+static struct usb_endpoint_descriptor fs_ecm_in_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -204,7 +204,7 @@ static struct usb_endpoint_descriptor fs_in_desc __initdata = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_endpoint_descriptor fs_out_desc __initdata = {
+static struct usb_endpoint_descriptor fs_ecm_out_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -212,34 +212,34 @@ static struct usb_endpoint_descriptor fs_out_desc __initdata = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_descriptor_header *eth_fs_function[] __initdata = {
+static struct usb_descriptor_header *ecm_fs_function[] __initdata = {
 	/* CDC ECM control descriptors */
 	(struct usb_descriptor_header *) &ecm_control_intf,
-	(struct usb_descriptor_header *) &header_desc,
+	(struct usb_descriptor_header *) &ecm_header_desc,
 	(struct usb_descriptor_header *) &ecm_union_desc,
-	(struct usb_descriptor_header *) &ether_desc,
+	(struct usb_descriptor_header *) &ecm_desc,
 	/* NOTE: status endpoint might need to be removed */
-	(struct usb_descriptor_header *) &fs_notify_desc,
+	(struct usb_descriptor_header *) &fs_ecm_notify_desc,
 	/* data interface, altsettings 0 and 1 */
 	(struct usb_descriptor_header *) &ecm_data_nop_intf,
 	(struct usb_descriptor_header *) &ecm_data_intf,
-	(struct usb_descriptor_header *) &fs_in_desc,
-	(struct usb_descriptor_header *) &fs_out_desc,
+	(struct usb_descriptor_header *) &fs_ecm_in_desc,
+	(struct usb_descriptor_header *) &fs_ecm_out_desc,
 	NULL,
 };
 
 /* high speed support: */
 
-static struct usb_endpoint_descriptor hs_notify_desc __initdata = {
+static struct usb_endpoint_descriptor hs_ecm_notify_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
-	.wMaxPacketSize =	__constant_cpu_to_le16(STATUS_BYTECOUNT),
+	.wMaxPacketSize =	__constant_cpu_to_le16(ECM_STATUS_BYTECOUNT),
 	.bInterval =		LOG2_STATUS_INTERVAL_MSEC + 4,
 };
-static struct usb_endpoint_descriptor hs_in_desc __initdata = {
+static struct usb_endpoint_descriptor hs_ecm_in_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -248,7 +248,7 @@ static struct usb_endpoint_descriptor hs_in_desc __initdata = {
 	.wMaxPacketSize =	__constant_cpu_to_le16(512),
 };
 
-static struct usb_endpoint_descriptor hs_out_desc __initdata = {
+static struct usb_endpoint_descriptor hs_ecm_out_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -257,19 +257,19 @@ static struct usb_endpoint_descriptor hs_out_desc __initdata = {
 	.wMaxPacketSize =	__constant_cpu_to_le16(512),
 };
 
-static struct usb_descriptor_header *eth_hs_function[] __initdata = {
+static struct usb_descriptor_header *ecm_hs_function[] __initdata = {
 	/* CDC ECM control descriptors */
 	(struct usb_descriptor_header *) &ecm_control_intf,
-	(struct usb_descriptor_header *) &header_desc,
+	(struct usb_descriptor_header *) &ecm_header_desc,
 	(struct usb_descriptor_header *) &ecm_union_desc,
-	(struct usb_descriptor_header *) &ether_desc,
+	(struct usb_descriptor_header *) &ecm_desc,
 	/* NOTE: status endpoint might need to be removed */
-	(struct usb_descriptor_header *) &hs_notify_desc,
+	(struct usb_descriptor_header *) &hs_ecm_notify_desc,
 	/* data interface, altsettings 0 and 1 */
 	(struct usb_descriptor_header *) &ecm_data_nop_intf,
 	(struct usb_descriptor_header *) &ecm_data_intf,
-	(struct usb_descriptor_header *) &hs_in_desc,
-	(struct usb_descriptor_header *) &hs_out_desc,
+	(struct usb_descriptor_header *) &hs_ecm_in_desc,
+	(struct usb_descriptor_header *) &hs_ecm_out_desc,
 	NULL,
 };
 
@@ -329,14 +329,14 @@ static void ecm_do_notify(struct f_ecm *ecm)
 		event->bNotificationType = USB_CDC_NOTIFY_SPEED_CHANGE;
 		event->wValue = cpu_to_le16(0);
 		event->wLength = cpu_to_le16(8);
-		req->length = STATUS_BYTECOUNT;
+		req->length = ECM_STATUS_BYTECOUNT;
 
 		/* SPEED_CHANGE data is up/down speeds in bits/sec */
 		data = req->buf + sizeof *event;
-		data[0] = cpu_to_le32(bitrate(cdev->gadget));
+		data[0] = cpu_to_le32(ecm_bitrate(cdev->gadget));
 		data[1] = data[0];
 
-		DBG(cdev, "notify speed %d\n", bitrate(cdev->gadget));
+		DBG(cdev, "notify speed %d\n", ecm_bitrate(cdev->gadget));
 		ecm->notify_state = ECM_NOTIFY_NONE;
 		break;
 	}
@@ -628,13 +628,13 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	status = -ENODEV;
 
 	/* allocate instance-specific endpoints */
-	ep = usb_ep_autoconfig(cdev->gadget, &fs_in_desc);
+	ep = usb_ep_autoconfig(cdev->gadget, &fs_ecm_in_desc);
 	if (!ep)
 		goto fail;
 	ecm->port.in_ep = ep;
 	ep->driver_data = cdev;	/* claim */
 
-	ep = usb_ep_autoconfig(cdev->gadget, &fs_out_desc);
+	ep = usb_ep_autoconfig(cdev->gadget, &fs_ecm_out_desc);
 	if (!ep)
 		goto fail;
 	ecm->port.out_ep = ep;
@@ -644,7 +644,7 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	 * don't treat it that way.  It's simpler, and some newer CDC
 	 * profiles (wireless handsets) no longer treat it as optional.
 	 */
-	ep = usb_ep_autoconfig(cdev->gadget, &fs_notify_desc);
+	ep = usb_ep_autoconfig(cdev->gadget, &fs_ecm_notify_desc);
 	if (!ep)
 		goto fail;
 	ecm->notify = ep;
@@ -656,47 +656,47 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	ecm->notify_req = usb_ep_alloc_request(ep, GFP_KERNEL);
 	if (!ecm->notify_req)
 		goto fail;
-	ecm->notify_req->buf = kmalloc(STATUS_BYTECOUNT, GFP_KERNEL);
+	ecm->notify_req->buf = kmalloc(ECM_STATUS_BYTECOUNT, GFP_KERNEL);
 	if (!ecm->notify_req->buf)
 		goto fail;
 	ecm->notify_req->context = ecm;
 	ecm->notify_req->complete = ecm_notify_complete;
 
 	/* copy descriptors, and track endpoint copies */
-	f->descriptors = usb_copy_descriptors(eth_fs_function);
+	f->descriptors = usb_copy_descriptors(ecm_fs_function);
 	if (!f->descriptors)
 		goto fail;
 
-	ecm->fs.in = usb_find_endpoint(eth_fs_function,
-			f->descriptors, &fs_in_desc);
-	ecm->fs.out = usb_find_endpoint(eth_fs_function,
-			f->descriptors, &fs_out_desc);
-	ecm->fs.notify = usb_find_endpoint(eth_fs_function,
-			f->descriptors, &fs_notify_desc);
+	ecm->fs.in = usb_find_endpoint(ecm_fs_function,
+			f->descriptors, &fs_ecm_in_desc);
+	ecm->fs.out = usb_find_endpoint(ecm_fs_function,
+			f->descriptors, &fs_ecm_out_desc);
+	ecm->fs.notify = usb_find_endpoint(ecm_fs_function,
+			f->descriptors, &fs_ecm_notify_desc);
 
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
 	 */
 	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		hs_in_desc.bEndpointAddress =
-				fs_in_desc.bEndpointAddress;
-		hs_out_desc.bEndpointAddress =
-				fs_out_desc.bEndpointAddress;
-		hs_notify_desc.bEndpointAddress =
-				fs_notify_desc.bEndpointAddress;
+		hs_ecm_in_desc.bEndpointAddress =
+				fs_ecm_in_desc.bEndpointAddress;
+		hs_ecm_out_desc.bEndpointAddress =
+				fs_ecm_out_desc.bEndpointAddress;
+		hs_ecm_notify_desc.bEndpointAddress =
+				fs_ecm_notify_desc.bEndpointAddress;
 
 		/* copy descriptors, and track endpoint copies */
-		f->hs_descriptors = usb_copy_descriptors(eth_hs_function);
+		f->hs_descriptors = usb_copy_descriptors(ecm_hs_function);
 		if (!f->hs_descriptors)
 			goto fail;
 
-		ecm->hs.in = usb_find_endpoint(eth_hs_function,
-				f->hs_descriptors, &hs_in_desc);
-		ecm->hs.out = usb_find_endpoint(eth_hs_function,
-				f->hs_descriptors, &hs_out_desc);
-		ecm->hs.notify = usb_find_endpoint(eth_hs_function,
-				f->hs_descriptors, &hs_notify_desc);
+		ecm->hs.in = usb_find_endpoint(ecm_hs_function,
+				f->hs_descriptors, &hs_ecm_in_desc);
+		ecm->hs.out = usb_find_endpoint(ecm_hs_function,
+				f->hs_descriptors, &hs_ecm_out_desc);
+		ecm->hs.notify = usb_find_endpoint(ecm_hs_function,
+				f->hs_descriptors, &hs_ecm_notify_desc);
 	}
 
 	/* NOTE:  all that is done without knowing or caring about
@@ -795,7 +795,7 @@ int __init ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 		if (status < 0)
 			return status;
 		ecm_string_defs[1].id = status;
-		ether_desc.iMACAddress = status;
+		ecm_desc.iMACAddress = status;
 	}
 
 	/* allocate and initialize one new instance */

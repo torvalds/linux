@@ -713,7 +713,9 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	/* Now that all memory allocations for this chunk succeeded, we
 	 * can mark it as received so the tsn_map is updated correctly.
 	 */
-	sctp_tsnmap_mark(&asoc->peer.tsn_map, ntohl(chunk->subh.data_hdr->tsn));
+	if (sctp_tsnmap_mark(&asoc->peer.tsn_map,
+			     ntohl(chunk->subh.data_hdr->tsn)))
+		goto fail_mark;
 
 	/* First calculate the padding, so we don't inadvertently
 	 * pass up the wrong length to the user.
@@ -755,8 +757,12 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	event->msg_flags |= chunk->chunk_hdr->flags;
 	event->iif = sctp_chunk_iif(chunk);
 
-fail:
 	return event;
+
+fail_mark:
+	kfree_skb(skb);
+fail:
+	return NULL;
 }
 
 /* Create a partial delivery related event.

@@ -7,7 +7,7 @@
 
 #define ASSEMBLER_MACROS_ONLY
 #include <hwregs/asm/reg_map_asm.h>
-#include <asm/arch/mach/startup.inc>
+#include <mach/startup.inc>
 
 #define RAM_INIT_MAGIC 0x56902387
 #define COMMAND_LINE_MAGIC 0x87109563
@@ -17,7 +17,7 @@
 	.globl	input_data
 
 	.text
-start:
+_start:
 	di
 
 	;; Start clocks for used blocks.
@@ -28,7 +28,13 @@ start:
 	beq	dram_init_finished
 	nop
 
-#include "../../mach/dram_init.S"
+#if defined CONFIG_ETRAXFS
+#include "../../mach-fs/dram_init.S"
+#elif defined CONFIG_CRIS_MACH_ARTPEC3
+#include "../../mach-a3/dram_init.S"
+#else
+#error Only ETRAXFS and ARTPEC-3 supported!
+#endif
 
 dram_init_finished:
 
@@ -130,4 +136,10 @@ _cmd_line_addr:
 _boot_source:
 	.dword 0
 
-#include "../../mach/hw_settings.S"
+#if defined CONFIG_ETRAXFS
+#include "../../mach-fs/hw_settings.S"
+#elif defined CONFIG_CRIS_MACH_ARTPEC3
+#include "../../mach-a3/hw_settings.S"
+#else
+#error Only ETRAXFS and ARTPEC-3 supported!
+#endif

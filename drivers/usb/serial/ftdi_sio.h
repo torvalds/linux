@@ -628,6 +628,11 @@
 #define FTDI_SUUNTO_SPORTS_PID	0xF680	/* Suunto Sports instrument */
 
 /*
+ * Oceanic product ids
+ */
+#define FTDI_OCEANIC_PID	0xF460  /* Oceanic dive instrument */
+
+/*
  * TTi (Thurlby Thandar Instruments)
  */
 #define TTI_VID			0x103E	/* Vendor Id */

@@ -36,4 +36,12 @@
 #define FLUSH_BASE_PHYS		0x00000000
 #define FLUSH_BASE		0xdf000000
 
+/*
+ * Sparsemem support.  Each section is a maximum of 64MB.  The sections
+ * are offset by 128MB and can cover 128MB, so that gives us a maximum
+ * of 29 physmem bits.
+ */
+#define MAX_PHYSMEM_BITS	29
+#define SECTION_SIZE_BITS	26
+
 #endif

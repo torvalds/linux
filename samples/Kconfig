@@ -13,6 +13,12 @@ config SAMPLE_MARKERS
 	help
 	  This build markers example modules.
 
+config SAMPLE_TRACEPOINTS
+	tristate "Build tracepoints examples -- loadable modules only"
+	depends on TRACEPOINTS && m
+	help
+	  This build tracepoints example modules.
+
 config SAMPLE_KOBJECT
 	tristate "Build kobject examples"
 	help

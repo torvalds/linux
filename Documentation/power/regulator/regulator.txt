@@ -10,11 +10,11 @@ Registration
 
 Drivers can register a regulator by calling :-
 
-struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
-					  void *reg_data);
+struct regulator_dev *regulator_register(struct device *dev,
+	struct regulator_desc *regulator_desc);
 
-This will register the regulators capabilities and operations the regulator
-core. The core does not touch reg_data (private to regulator driver).
+This will register the regulators capabilities and operations to the regulator
+core.
 
 Regulators can be unregistered by calling :-
 

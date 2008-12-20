@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <asm/machvec.h>
-#include <asm/sdk7780.h>
+#include <mach/sdk7780.h>
 #include <asm/heartbeat.h>
 #include <asm/io.h>
 #include <asm/addrspace.h>

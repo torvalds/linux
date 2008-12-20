@@ -2472,8 +2472,6 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 		if ((ahd->bugs & AHD_CLRLQO_AUTOCLR_BUG) != 0)
 			ahd_outb(ahd, CLRLQOINT1, 0);
 	} else if ((status & SELTO) != 0) {
-		u_int  scbid;
-
 		/* Stop the selection */
 		ahd_outb(ahd, SCSISEQ0, 0);
 
@@ -2583,9 +2581,6 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 		case BUSFREE_DFF0:
 		case BUSFREE_DFF1:
 		{
-			u_int	scbid;
-			struct	scb *scb;
-
 			mode = busfreetime == BUSFREE_DFF0
 			     ? AHD_MODE_DFF0 : AHD_MODE_DFF1;
 			ahd_set_modes(ahd, mode, mode);
@@ -3689,7 +3684,7 @@ ahd_free_tstate(struct ahd_softc *ahd, u_int scsi_id, char channel, int force)
  * by the capabilities of the bus connectivity of and sync settings for
  * the target.
  */
-void
+static void
 ahd_devlimited_syncrate(struct ahd_softc *ahd,
 			struct ahd_initiator_tinfo *tinfo,
 			u_int *period, u_int *ppr_options, role_t role)
@@ -4136,7 +4131,7 @@ ahd_update_neg_table(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 
 			/*
 			 * Harpoon2A assumed that there would be a
-			 * fallback rate between 160MHz and 80Mhz,
+			 * fallback rate between 160MHz and 80MHz,
 			 * so 7 is used as the period factor rather
 			 * than 8 for 160MHz.
 			 */
@@ -8708,7 +8703,7 @@ ahd_reset_current_bus(struct ahd_softc *ahd)
 int
 ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 {
-	struct	ahd_devinfo devinfo;
+	struct	ahd_devinfo caminfo;
 	u_int	initiator;
 	u_int	target;
 	u_int	max_scsiid;
@@ -8729,7 +8724,7 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 
 	ahd->pending_device = NULL;
 
-	ahd_compile_devinfo(&devinfo,
+	ahd_compile_devinfo(&caminfo,
 			    CAM_TARGET_WILDCARD,
 			    CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD,
@@ -8868,7 +8863,7 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 	}
 
 	/* Notify the XPT that a bus reset occurred */
-	ahd_send_async(ahd, devinfo.channel, CAM_TARGET_WILDCARD,
+	ahd_send_async(ahd, caminfo.channel, CAM_TARGET_WILDCARD,
 		       CAM_LUN_WILDCARD, AC_BUS_RESET);
 
 	ahd_restart(ahd);

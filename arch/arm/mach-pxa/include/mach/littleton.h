@@ -3,4 +3,6 @@
 
 #define LITTLETON_ETH_PHYS	0x30000000
 
+#define LITTLETON_GPIO_LCD_CS	(17)
+
 #endif /* __ASM_ARCH_ZYLONITE_H */

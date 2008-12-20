@@ -891,7 +891,7 @@ int dev_alloc_name(struct net_device *dev, const char *name)
  *	Change name of a device, can pass format strings "eth%d".
  *	for wildcarding.
  */
-int dev_change_name(struct net_device *dev, char *newname)
+int dev_change_name(struct net_device *dev, const char *newname)
 {
 	char oldname[IFNAMSIZ];
 	int err = 0;
@@ -917,7 +917,6 @@ int dev_change_name(struct net_device *dev, char *newname)
 		err = dev_alloc_name(dev, newname);
 		if (err < 0)
 			return err;
-		strcpy(newname, dev->name);
 	}
 	else if (__dev_get_by_name(net, newname))
 		return -EEXIST;
@@ -925,10 +924,10 @@ int dev_change_name(struct net_device *dev, char *newname)
 		strlcpy(dev->name, newname, IFNAMSIZ);
 
 rollback:
-	err = device_rename(&dev->dev, dev->name);
-	if (err) {
+	ret = device_rename(&dev->dev, dev->name);
+	if (ret) {
 		memcpy(dev->name, oldname, IFNAMSIZ);
-		return err;
+		return ret;
 	}
 
 	write_lock_bh(&dev_base_lock);
@@ -953,6 +952,38 @@ rollback:
 
 	return err;
 }
+
+/**
+ *	dev_set_alias - change ifalias of a device
+ *	@dev: device
+ *	@alias: name up to IFALIASZ
+ *	@len: limit of bytes to copy from info
+ *
+ *	Set ifalias for a device,
+ */
+int dev_set_alias(struct net_device *dev, const char *alias, size_t len)
+{
+	ASSERT_RTNL();
+
+	if (len >= IFALIASZ)
+		return -EINVAL;
+
+	if (!len) {
+		if (dev->ifalias) {
+			kfree(dev->ifalias);
+			dev->ifalias = NULL;
+		}
+		return 0;
+	}
+
+	dev->ifalias = krealloc(dev->ifalias, len+1, GFP_KERNEL);
+	if (!dev->ifalias)
+		return -ENOMEM;
+
+	strlcpy(dev->ifalias, alias, len+1);
+	return len;
+}
+
 
 /**
  *	netdev_features_change - device changes features
@@ -1676,14 +1707,14 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		if (!(ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)))
 			ip_proto = ip_hdr(skb)->protocol;
 		addr1 = ip_hdr(skb)->saddr;
 		addr2 = ip_hdr(skb)->daddr;
 		ihl = ip_hdr(skb)->ihl;
 		break;
-	case __constant_htons(ETH_P_IPV6):
+	case htons(ETH_P_IPV6):
 		ip_proto = ipv6_hdr(skb)->nexthdr;
 		addr1 = ipv6_hdr(skb)->saddr.s6_addr32[3];
 		addr2 = ipv6_hdr(skb)->daddr.s6_addr32[3];
@@ -2186,6 +2217,9 @@ int netif_receive_skb(struct sk_buff *skb)
 	struct net_device *null_or_orig;
 	int ret = NET_RX_DROP;
 	__be16 type;
+
+	if (skb->vlan_tci && vlan_hwaccel_do_receive(skb))
+		return NET_RX_SUCCESS;
 
 	/* if we've gotten here through NAPI, check netpoll */
 	if (netpoll_receive_skb(skb))
@@ -3306,6 +3340,12 @@ static void dev_addr_discard(struct net_device *dev)
 	netif_addr_unlock_bh(dev);
 }
 
+/**
+ *	dev_get_flags - get flags reported to userspace
+ *	@dev: device
+ *
+ *	Get the combination of flag bits exported through APIs to userspace.
+ */
 unsigned dev_get_flags(const struct net_device *dev)
 {
 	unsigned flags;
@@ -3330,6 +3370,14 @@ unsigned dev_get_flags(const struct net_device *dev)
 	return flags;
 }
 
+/**
+ *	dev_change_flags - change device settings
+ *	@dev: device
+ *	@flags: device state flags
+ *
+ *	Change settings on device based state flags. The flags are
+ *	in the userspace exported format.
+ */
 int dev_change_flags(struct net_device *dev, unsigned flags)
 {
 	int ret, changes;
@@ -3399,6 +3447,13 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	return ret;
 }
 
+/**
+ *	dev_set_mtu - Change maximum transfer unit
+ *	@dev: device
+ *	@new_mtu: new transfer unit
+ *
+ *	Change the maximum transfer size of the network device.
+ */
 int dev_set_mtu(struct net_device *dev, int new_mtu)
 {
 	int err;
@@ -3423,6 +3478,13 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
 	return err;
 }
 
+/**
+ *	dev_set_mac_address - Change Media Access Control Address
+ *	@dev: device
+ *	@sa: new address
+ *
+ *	Change the hardware (MAC) address of the device
+ */
 int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa)
 {
 	int err;
@@ -3888,6 +3950,46 @@ static void netdev_init_queue_locks(struct net_device *dev)
 	__netdev_init_queue_locks_one(dev, &dev->rx_queue, NULL);
 }
 
+unsigned long netdev_fix_features(unsigned long features, const char *name)
+{
+	/* Fix illegal SG+CSUM combinations. */
+	if ((features & NETIF_F_SG) &&
+	    !(features & NETIF_F_ALL_CSUM)) {
+		if (name)
+			printk(KERN_NOTICE "%s: Dropping NETIF_F_SG since no "
+			       "checksum feature.\n", name);
+		features &= ~NETIF_F_SG;
+	}
+
+	/* TSO requires that SG is present as well. */
+	if ((features & NETIF_F_TSO) && !(features & NETIF_F_SG)) {
+		if (name)
+			printk(KERN_NOTICE "%s: Dropping NETIF_F_TSO since no "
+			       "SG feature.\n", name);
+		features &= ~NETIF_F_TSO;
+	}
+
+	if (features & NETIF_F_UFO) {
+		if (!(features & NETIF_F_GEN_CSUM)) {
+			if (name)
+				printk(KERN_ERR "%s: Dropping NETIF_F_UFO "
+				       "since no NETIF_F_HW_CSUM feature.\n",
+				       name);
+			features &= ~NETIF_F_UFO;
+		}
+
+		if (!(features & NETIF_F_SG)) {
+			if (name)
+				printk(KERN_ERR "%s: Dropping NETIF_F_UFO "
+				       "since no NETIF_F_SG feature.\n", name);
+			features &= ~NETIF_F_UFO;
+		}
+	}
+
+	return features;
+}
+EXPORT_SYMBOL(netdev_fix_features);
+
 /**
  *	register_netdevice	- register a network device
  *	@dev: device to register
@@ -3973,36 +4075,7 @@ int register_netdevice(struct net_device *dev)
 		dev->features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM|NETIF_F_HW_CSUM);
 	}
 
-
-	/* Fix illegal SG+CSUM combinations. */
-	if ((dev->features & NETIF_F_SG) &&
-	    !(dev->features & NETIF_F_ALL_CSUM)) {
-		printk(KERN_NOTICE "%s: Dropping NETIF_F_SG since no checksum feature.\n",
-		       dev->name);
-		dev->features &= ~NETIF_F_SG;
-	}
-
-	/* TSO requires that SG is present as well. */
-	if ((dev->features & NETIF_F_TSO) &&
-	    !(dev->features & NETIF_F_SG)) {
-		printk(KERN_NOTICE "%s: Dropping NETIF_F_TSO since no SG feature.\n",
-		       dev->name);
-		dev->features &= ~NETIF_F_TSO;
-	}
-	if (dev->features & NETIF_F_UFO) {
-		if (!(dev->features & NETIF_F_HW_CSUM)) {
-			printk(KERN_ERR "%s: Dropping NETIF_F_UFO since no "
-					"NETIF_F_HW_CSUM feature.\n",
-							dev->name);
-			dev->features &= ~NETIF_F_UFO;
-		}
-		if (!(dev->features & NETIF_F_SG)) {
-			printk(KERN_ERR "%s: Dropping NETIF_F_UFO since no "
-					"NETIF_F_SG feature.\n",
-					dev->name);
-			dev->features &= ~NETIF_F_UFO;
-		}
-	}
+	dev->features = netdev_fix_features(dev->features, dev->name);
 
 	/* Enable software GSO if SG is supported. */
 	if (dev->features & NETIF_F_SG)
@@ -4311,7 +4384,12 @@ void free_netdev(struct net_device *dev)
 	put_device(&dev->dev);
 }
 
-/* Synchronize with packet receive processing. */
+/**
+ *	synchronize_net -  Synchronize with packet receive processing
+ *
+ *	Wait for packets currently being received to be done.
+ *	Does not block later packets from starting.
+ */
 void synchronize_net(void)
 {
 	might_sleep();
@@ -4613,7 +4691,7 @@ netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
 }
 
 /**
- * netdev_dma_regiser - register the networking subsystem as a DMA client
+ * netdev_dma_register - register the networking subsystem as a DMA client
  */
 static int __init netdev_dma_register(void)
 {
@@ -4636,43 +4714,45 @@ static int __init netdev_dma_register(void) { return -ENODEV; }
 #endif /* CONFIG_NET_DMA */
 
 /**
- *	netdev_compute_feature - compute conjunction of two feature sets
- *	@all: first feature set
- *	@one: second feature set
+ *	netdev_increment_features - increment feature set by one
+ *	@all: current feature set
+ *	@one: new feature set
+ *	@mask: mask feature set
  *
  *	Computes a new feature set after adding a device with feature set
- *	@one to the master device with current feature set @all.  Returns
- *	the new feature set.
+ *	@one to the master device with current feature set @all.  Will not
+ *	enable anything that is off in @mask. Returns the new feature set.
  */
-int netdev_compute_features(unsigned long all, unsigned long one)
+unsigned long netdev_increment_features(unsigned long all, unsigned long one,
+					unsigned long mask)
 {
-	/* if device needs checksumming, downgrade to hw checksumming */
-	if (all & NETIF_F_NO_CSUM && !(one & NETIF_F_NO_CSUM))
-		all ^= NETIF_F_NO_CSUM | NETIF_F_HW_CSUM;
+	/* If device needs checksumming, downgrade to it. */
+        if (all & NETIF_F_NO_CSUM && !(one & NETIF_F_NO_CSUM))
+		all ^= NETIF_F_NO_CSUM | (one & NETIF_F_ALL_CSUM);
+	else if (mask & NETIF_F_ALL_CSUM) {
+		/* If one device supports v4/v6 checksumming, set for all. */
+		if (one & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM) &&
+		    !(all & NETIF_F_GEN_CSUM)) {
+			all &= ~NETIF_F_ALL_CSUM;
+			all |= one & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
+		}
 
-	/* if device can't do all checksum, downgrade to ipv4/ipv6 */
-	if (all & NETIF_F_HW_CSUM && !(one & NETIF_F_HW_CSUM))
-		all ^= NETIF_F_HW_CSUM
-			| NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+		/* If one device supports hw checksumming, set for all. */
+		if (one & NETIF_F_GEN_CSUM && !(all & NETIF_F_GEN_CSUM)) {
+			all &= ~NETIF_F_ALL_CSUM;
+			all |= NETIF_F_HW_CSUM;
+		}
+	}
 
-	if (one & NETIF_F_GSO)
-		one |= NETIF_F_GSO_SOFTWARE;
-	one |= NETIF_F_GSO;
+	one |= NETIF_F_ALL_CSUM;
 
-	/* If even one device supports robust GSO, enable it for all. */
-	if (one & NETIF_F_GSO_ROBUST)
-		all |= NETIF_F_GSO_ROBUST;
-
-	all &= one | NETIF_F_LLTX;
-
-	if (!(all & NETIF_F_ALL_CSUM))
-		all &= ~NETIF_F_SG;
-	if (!(all & NETIF_F_SG))
-		all &= ~NETIF_F_GSO_MASK;
+	one |= all & NETIF_F_ONE_FOR_ALL;
+	all &= one | NETIF_F_LLTX | NETIF_F_GSO;
+	all |= one & mask & NETIF_F_ONE_FOR_ALL;
 
 	return all;
 }
-EXPORT_SYMBOL(netdev_compute_features);
+EXPORT_SYMBOL(netdev_increment_features);
 
 static struct hlist_head *netdev_create_hash(void)
 {
@@ -4708,10 +4788,18 @@ err_name:
 	return -ENOMEM;
 }
 
-char *netdev_drivername(struct net_device *dev, char *buffer, int len)
+/**
+ *	netdev_drivername - network driver for the device
+ *	@dev: network device
+ *	@buffer: buffer for resulting name
+ *	@len: size of buffer
+ *
+ *	Determine network driver for device.
+ */
+char *netdev_drivername(const struct net_device *dev, char *buffer, int len)
 {
-	struct device_driver *driver;
-	struct device *parent;
+	const struct device_driver *driver;
+	const struct device *parent;
 
 	if (len <= 0 || !buffer)
 		return buffer;
@@ -4878,8 +4966,6 @@ EXPORT_SYMBOL(br_fdb_get_hook);
 EXPORT_SYMBOL(br_fdb_put_hook);
 #endif
 
-#ifdef CONFIG_KMOD
 EXPORT_SYMBOL(dev_load);
-#endif
 
 EXPORT_PER_CPU_SYMBOL(softnet_data);

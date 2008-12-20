@@ -14,16 +14,10 @@
 #include <net/netfilter/xt_rateest.h>
 
 
-static bool xt_rateest_mt(const struct sk_buff *skb,
-			  const struct net_device *in,
-			  const struct net_device *out,
-			  const struct xt_match *match,
-			  const void *matchinfo,
-			  int offset,
-			  unsigned int protoff,
-			  bool *hotdrop)
+static bool
+xt_rateest_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_rateest_match_info *info = matchinfo;
+	const struct xt_rateest_match_info *info = par->matchinfo;
 	struct gnet_stats_rate_est *r;
 	u_int32_t bps1, bps2, pps1, pps2;
 	bool ret = true;
@@ -80,13 +74,9 @@ static bool xt_rateest_mt(const struct sk_buff *skb,
 	return ret;
 }
 
-static bool xt_rateest_mt_checkentry(const char *tablename,
-				     const void *ip,
-				     const struct xt_match *match,
-				     void *matchinfo,
-				     unsigned int hook_mask)
+static bool xt_rateest_mt_checkentry(const struct xt_mtchk_param *par)
 {
-	struct xt_rateest_match_info *info = matchinfo;
+	struct xt_rateest_match_info *info = par->matchinfo;
 	struct xt_rateest *est1, *est2;
 
 	if (hweight32(info->flags & (XT_RATEEST_MATCH_ABS |
@@ -127,46 +117,34 @@ err1:
 	return false;
 }
 
-static void xt_rateest_mt_destroy(const struct xt_match *match,
-				  void *matchinfo)
+static void xt_rateest_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	struct xt_rateest_match_info *info = matchinfo;
+	struct xt_rateest_match_info *info = par->matchinfo;
 
 	xt_rateest_put(info->est1);
 	if (info->est2)
 		xt_rateest_put(info->est2);
 }
 
-static struct xt_match xt_rateest_match[] __read_mostly = {
-	{
-		.family		= AF_INET,
-		.name		= "rateest",
-		.match		= xt_rateest_mt,
-		.checkentry	= xt_rateest_mt_checkentry,
-		.destroy	= xt_rateest_mt_destroy,
-		.matchsize	= sizeof(struct xt_rateest_match_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.family		= AF_INET6,
-		.name		= "rateest",
-		.match		= xt_rateest_mt,
-		.checkentry	= xt_rateest_mt_checkentry,
-		.destroy	= xt_rateest_mt_destroy,
-		.matchsize	= sizeof(struct xt_rateest_match_info),
-		.me		= THIS_MODULE,
-	},
+static struct xt_match xt_rateest_mt_reg __read_mostly = {
+	.name       = "rateest",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.match      = xt_rateest_mt,
+	.checkentry = xt_rateest_mt_checkentry,
+	.destroy    = xt_rateest_mt_destroy,
+	.matchsize  = sizeof(struct xt_rateest_match_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init xt_rateest_mt_init(void)
 {
-	return xt_register_matches(xt_rateest_match,
-				   ARRAY_SIZE(xt_rateest_match));
+	return xt_register_match(&xt_rateest_mt_reg);
 }
 
 static void __exit xt_rateest_mt_fini(void)
 {
-	xt_unregister_matches(xt_rateest_match, ARRAY_SIZE(xt_rateest_match));
+	xt_unregister_match(&xt_rateest_mt_reg);
 }
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");

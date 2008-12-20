@@ -37,12 +37,8 @@
 #include <asm/mach-rc32434/ddr.h>
 #include <asm/mach-rc32434/prom.h>
 
-extern void __init setup_serial_port(void);
-
 unsigned int idt_cpu_freq = 132000000;
 EXPORT_SYMBOL(idt_cpu_freq);
-unsigned int gpio_bootup_state;
-EXPORT_SYMBOL(gpio_bootup_state);
 
 static struct resource ddr_reg[] = {
 	{
@@ -108,9 +104,6 @@ void __init prom_setup_cmdline(void)
 				mips_machtype = MACH_MIKROTIK_RB532;
 		}
 
-		if (match_tag(prom_argv[i], GPIO_TAG))
-			gpio_bootup_state = tag2ul(prom_argv[i], GPIO_TAG);
-
 		strcpy(cp, prom_argv[i]);
 		cp += strlen(prom_argv[i]);
 	}
@@ -122,11 +115,6 @@ void __init prom_setup_cmdline(void)
 		strcpy(cp, arcs_cmdline);
 		cp += strlen(arcs_cmdline);
 	}
-	if (gpio_bootup_state & 0x02)
-		strcpy(cp, GPIO_INIT_NOBUTTON);
-	else
-		strcpy(cp, GPIO_INIT_BUTTON);
-
 	cmd_line[CL_SIZE-1] = '\0';
 
 	strcpy(arcs_cmdline, cmd_line);

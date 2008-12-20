@@ -511,3 +511,31 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, 0x1201, fam10h_pci_cfg_space_size);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, 0x1202, fam10h_pci_cfg_space_size);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, 0x1203, fam10h_pci_cfg_space_size);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, 0x1204, fam10h_pci_cfg_space_size);
+
+/*
+ * SB600: Disable BAR1 on device 14.0 to avoid HPET resources from
+ * confusing the PCI engine:
+ */
+static void sb600_disable_hpet_bar(struct pci_dev *dev)
+{
+	u8 val;
+
+	/*
+	 * The SB600 and SB700 both share the same device
+	 * ID, but the PM register 0x55 does something different
+	 * for the SB700, so make sure we are dealing with the
+	 * SB600 before touching the bit:
+	 */
+
+	pci_read_config_byte(dev, 0x08, &val);
+
+	if (val < 0x2F) {
+		outb(0x55, 0xCD6);
+		val = inb(0xCD7);
+
+		/* Set bit 7 in PM register 0x55 */
+		outb(0x55, 0xCD6);
+		outb(val | 0x80, 0xCD7);
+	}
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_ATI, 0x4385, sb600_disable_hpet_bar);

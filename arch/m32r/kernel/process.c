@@ -11,7 +11,7 @@
 #undef DEBUG_PROCESS
 #ifdef DEBUG_PROCESS
 #define DPRINTK(fmt, args...)  printk("%s:%d:%s: " fmt, __FILE__, __LINE__, \
-  __FUNCTION__, ##args)
+  __func__, ##args)
 #else
 #define DPRINTK(fmt, args...)
 #endif

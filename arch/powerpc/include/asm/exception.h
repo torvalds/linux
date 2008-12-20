@@ -53,14 +53,8 @@
  * low halfword of the address, but for Kdump we need the whole low
  * word.
  */
-#ifdef CONFIG_CRASH_DUMP
 #define LOAD_HANDLER(reg, label)					\
-	oris	reg,reg,(label)@h;	/* virt addr of handler ... */	\
-	ori	reg,reg,(label)@l;	/* .. and the rest */
-#else
-#define LOAD_HANDLER(reg, label)					\
-	ori	reg,reg,(label)@l;	/* virt addr of handler ... */
-#endif
+	addi	reg,reg,(label)-_stext;	/* virt addr of handler ... */
 
 #define EXCEPTION_PROLOG_1(area)				\
 	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
@@ -72,37 +66,12 @@
 	std	r9,area+EX_R13(r13);					\
 	mfcr	r9
 
-/*
- * Equal to EXCEPTION_PROLOG_PSERIES, except that it forces 64bit mode.
- * The firmware calls the registered system_reset_fwnmi and
- * machine_check_fwnmi handlers in 32bit mode if the cpu happens to run
- * a 32bit application at the time of the event.
- * This firmware bug is present on POWER4 and JS20.
- */
-#define EXCEPTION_PROLOG_PSERIES_FORCE_64BIT(area, label)		\
-	EXCEPTION_PROLOG_1(area);					\
-	clrrdi	r12,r13,32;		/* get high part of &label */	\
-	mfmsr	r10;							\
-	/* force 64bit mode */						\
-	li	r11,5;			/* MSR_SF_LG|MSR_ISF_LG */	\
-	rldimi	r10,r11,61,0;		/* insert into top 3 bits */	\
-	/* done 64bit mode */						\
-	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
-	LOAD_HANDLER(r12,label)						\
-	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI;				\
-	mtspr	SPRN_SRR0,r12;						\
-	mfspr	r12,SPRN_SRR1;		/* and SRR1 */			\
-	mtspr	SPRN_SRR1,r10;						\
-	rfid;								\
-	b	.	/* prevent speculative execution */
-
 #define EXCEPTION_PROLOG_PSERIES(area, label)				\
 	EXCEPTION_PROLOG_1(area);					\
-	clrrdi	r12,r13,32;		/* get high part of &label */	\
-	mfmsr	r10;							\
+	ld	r12,PACAKBASE(r13);	/* get high part of &label */	\
+	ld	r10,PACAKMSR(r13);	/* get MSR value for kernel */	\
 	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
 	LOAD_HANDLER(r12,label)						\
-	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI;				\
 	mtspr	SPRN_SRR0,r12;						\
 	mfspr	r12,SPRN_SRR1;		/* and SRR1 */			\
 	mtspr	SPRN_SRR1,r10;						\
@@ -210,11 +179,10 @@ label##_pSeries:							\
 	std	r10,PACA_EXGEN+EX_R13(r13);				\
 	std	r11,PACA_EXGEN+EX_R11(r13);				\
 	std	r12,PACA_EXGEN+EX_R12(r13);				\
-	clrrdi	r12,r13,32;		/* get high part of &label */	\
-	mfmsr	r10;							\
+	ld	r12,PACAKBASE(r13);	/* get high part of &label */	\
+	ld	r10,PACAKMSR(r13);	/* get MSR value for kernel */	\
 	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
 	LOAD_HANDLER(r12,label##_common)				\
-	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI;				\
 	mtspr	SPRN_SRR0,r12;						\
 	mfspr	r12,SPRN_SRR1;		/* and SRR1 */			\
 	mtspr	SPRN_SRR1,r10;						\

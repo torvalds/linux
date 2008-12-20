@@ -369,7 +369,7 @@ enum {
 	Opt_err, Opt_uforget, Opt_uignore, Opt_gforget, Opt_gignore
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{Opt_novrs,	"novrs"},
 	{Opt_nostrict,	"nostrict"},
 	{Opt_bs,	"bs=%u"},

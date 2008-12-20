@@ -54,6 +54,9 @@ int of_getintprop_default(struct device_node *np, const char *name, int def)
 }
 EXPORT_SYMBOL(of_getintprop_default);
 
+DEFINE_MUTEX(of_set_property_mutex);
+EXPORT_SYMBOL(of_set_property_mutex);
+
 int of_set_property(struct device_node *dp, const char *name, void *val, int len)
 {
 	struct property **prevp;
@@ -77,7 +80,10 @@ int of_set_property(struct device_node *dp, const char *name, void *val, int len
 			void *old_val = prop->value;
 			int ret;
 
+			mutex_lock(&of_set_property_mutex);
 			ret = prom_setprop(dp->node, (char *) name, val, len);
+			mutex_unlock(&of_set_property_mutex);
+
 			err = -EINVAL;
 			if (ret >= 0) {
 				prop->value = new_val;
@@ -436,7 +442,6 @@ static void __init of_console_init(void)
 
 	switch (prom_vers) {
 	case PROM_V0:
-	case PROM_SUN4:
 		skip = 0;
 		switch (*romvec->pv_stdout) {
 		case PROMDEV_SCREEN:

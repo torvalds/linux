@@ -13,7 +13,7 @@
 #ifndef __ASM_ARCH_MAP_H
 #define __ASM_ARCH_MAP_H
 
-#include <asm/plat-s3c/map.h>
+#include <plat/map.h>
 
 #define S3C2410_ADDR(x)		S3C_ADDR(x)
 

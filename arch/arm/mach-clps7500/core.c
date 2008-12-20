@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/serial_8250.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -23,7 +24,6 @@
 
 #include <mach/hardware.h>
 #include <asm/hardware/iomd.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
@@ -275,9 +275,9 @@ static struct map_desc cl7500_io_desc[] __initdata = {
 		.length		= ISA_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* Flash	*/
-		.virtual	= FLASH_BASE,
-		.pfn		= __phys_to_pfn(FLASH_START),
-		.length		= FLASH_SIZE,
+		.virtual	= CLPS7500_FLASH_BASE,
+		.pfn		= __phys_to_pfn(CLPS7500_FLASH_START),
+		.length		= CLPS7500_FLASH_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* LED		*/
 		.virtual	= LED_BASE,

@@ -31,31 +31,29 @@
 void ocfs2_end_buffer_io_sync(struct buffer_head *bh,
 			     int uptodate);
 
-static inline int ocfs2_read_block(struct ocfs2_super          *osb,
+static inline int ocfs2_read_block(struct inode	       *inode,
 				   u64                  off,
-				   struct buffer_head **bh,
-				   int                  flags,
-				   struct inode        *inode);
+				   struct buffer_head **bh);
 
 int ocfs2_write_block(struct ocfs2_super          *osb,
 		      struct buffer_head  *bh,
 		      struct inode        *inode);
-int ocfs2_read_blocks(struct ocfs2_super          *osb,
+int ocfs2_read_blocks(struct inode	  *inode,
 		      u64                  block,
 		      int                  nr,
 		      struct buffer_head  *bhs[],
-		      int                  flags,
-		      struct inode        *inode);
+		      int                  flags);
+int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
+			   unsigned int nr, struct buffer_head *bhs[]);
 
 int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 				struct buffer_head *bh);
 
-#define OCFS2_BH_CACHED            1
+#define OCFS2_BH_IGNORE_CACHE      1
 #define OCFS2_BH_READAHEAD         8
 
-static inline int ocfs2_read_block(struct ocfs2_super * osb, u64 off,
-				   struct buffer_head **bh, int flags,
-				   struct inode *inode)
+static inline int ocfs2_read_block(struct inode *inode, u64 off,
+				   struct buffer_head **bh)
 {
 	int status = 0;
 
@@ -65,8 +63,7 @@ static inline int ocfs2_read_block(struct ocfs2_super * osb, u64 off,
 		goto bail;
 	}
 
-	status = ocfs2_read_blocks(osb, off, 1, bh,
-				   flags, inode);
+	status = ocfs2_read_blocks(inode, off, 1, bh, 0);
 
 bail:
 	return status;

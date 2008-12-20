@@ -8,7 +8,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/machvec.h>
-#include <asm/shmin.h>
+#include <mach/shmin.h>
 #include <asm/clock.h>
 #include <asm/io.h>
 

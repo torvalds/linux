@@ -395,6 +395,8 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
  
 	kbd = kbd_table + console;
 	switch (cmd) {
+	case TIOCLINUX:
+		return tioclinux(tty, arg);
 	case KIOCSOUND:
 		if (!perm)
 			goto eperm;

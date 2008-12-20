@@ -46,8 +46,6 @@
 #include <acpi/acdispat.h>
 #include <acpi/acinterp.h>
 #include <acpi/acnamesp.h>
-#include <acpi/acparser.h>
-#include <acpi/amlcode.h>
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exresnte")
@@ -238,10 +236,10 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
-		switch (source_desc->reference.opcode) {
-		case AML_LOAD_OP:	/* This is a ddb_handle */
-		case AML_REF_OF_OP:
-		case AML_INDEX_OP:
+		switch (source_desc->reference.class) {
+		case ACPI_REFCLASS_TABLE:	/* This is a ddb_handle */
+		case ACPI_REFCLASS_REFOF:
+		case ACPI_REFCLASS_INDEX:
 
 			/* Return an additional reference to the object */
 
@@ -253,10 +251,8 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 			/* No named references are allowed here */
 
 			ACPI_ERROR((AE_INFO,
-				    "Unsupported Reference opcode %X (%s)",
-				    source_desc->reference.opcode,
-				    acpi_ps_get_opcode_name(source_desc->
-							    reference.opcode)));
+				    "Unsupported Reference type %X",
+				    source_desc->reference.class));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}

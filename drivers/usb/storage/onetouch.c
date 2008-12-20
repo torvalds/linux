@@ -78,8 +78,8 @@ static void usb_onetouch_irq(struct urb *urb)
 resubmit:
 	retval = usb_submit_urb (urb, GFP_ATOMIC);
 	if (retval)
-		err ("can't resubmit intr, %s-%s/input0, retval %d",
-			onetouch->udev->bus->bus_name,
+		dev_err(&dev->dev, "can't resubmit intr, %s-%s/input0, "
+			"retval %d\n", onetouch->udev->bus->bus_name,
 			onetouch->udev->devpath, retval);
 }
 
@@ -90,7 +90,7 @@ static int usb_onetouch_open(struct input_dev *dev)
 	onetouch->is_open = 1;
 	onetouch->irq->dev = onetouch->udev;
 	if (usb_submit_urb(onetouch->irq, GFP_KERNEL)) {
-		err("usb_submit_urb failed");
+		dev_err(&dev->dev, "usb_submit_urb failed\n");
 		return -EIO;
 	}
 
@@ -117,7 +117,8 @@ static void usb_onetouch_pm_hook(struct us_data *us, int action)
 			break;
 		case US_RESUME:
 			if (usb_submit_urb(onetouch->irq, GFP_KERNEL) != 0)
-				err("usb_submit_urb failed");
+				dev_err(&onetouch->irq->dev->dev,
+					"usb_submit_urb failed\n");
 			break;
 		default:
 			break;

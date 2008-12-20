@@ -12,5 +12,6 @@
 #define __ASM_ARCH_MXC_IRQS_H__
 
 #include <mach/hardware.h>
+extern void imx_irq_set_priority(unsigned char irq, unsigned char prio);
 
 #endif /* __ASM_ARCH_MXC_IRQS_H__ */

@@ -64,6 +64,8 @@
 #define DRM_IOCTL_SG_ALLOC32		DRM_IOW( 0x38, drm_scatter_gather32_t)
 #define DRM_IOCTL_SG_FREE32		DRM_IOW( 0x39, drm_scatter_gather32_t)
 
+#define DRM_IOCTL_UPDATE_DRAW32		DRM_IOW( 0x3f, drm_update_draw32_t)
+
 #define DRM_IOCTL_WAIT_VBLANK32		DRM_IOWR(0x3a, drm_wait_vblank32_t)
 
 typedef struct drm_version_32 {
@@ -952,6 +954,37 @@ static int compat_drm_sg_free(struct file *file, unsigned int cmd,
 			 DRM_IOCTL_SG_FREE, (unsigned long)request);
 }
 
+typedef struct drm_update_draw32 {
+	drm_drawable_t handle;
+	unsigned int type;
+	unsigned int num;
+	/* 64-bit version has a 32-bit pad here */
+	u64 data;	/**< Pointer */
+} __attribute__((packed)) drm_update_draw32_t;
+
+static int compat_drm_update_draw(struct file *file, unsigned int cmd,
+				  unsigned long arg)
+{
+	drm_update_draw32_t update32;
+	struct drm_update_draw __user *request;
+	int err;
+
+	if (copy_from_user(&update32, (void __user *)arg, sizeof(update32)))
+		return -EFAULT;
+
+	request = compat_alloc_user_space(sizeof(*request));
+	if (!access_ok(VERIFY_WRITE, request, sizeof(*request)) ||
+	    __put_user(update32.handle, &request->handle) ||
+	    __put_user(update32.type, &request->type) ||
+	    __put_user(update32.num, &request->num) ||
+	    __put_user(update32.data, &request->data))
+		return -EFAULT;
+
+	err = drm_ioctl(file->f_path.dentry->d_inode, file,
+			DRM_IOCTL_UPDATE_DRAW, (unsigned long)request);
+	return err;
+}
+
 struct drm_wait_vblank_request32 {
 	enum drm_vblank_seq_type type;
 	unsigned int sequence;
@@ -1033,6 +1066,7 @@ drm_ioctl_compat_t *drm_compat_ioctls[] = {
 #endif
 	[DRM_IOCTL_NR(DRM_IOCTL_SG_ALLOC32)] = compat_drm_sg_alloc,
 	[DRM_IOCTL_NR(DRM_IOCTL_SG_FREE32)] = compat_drm_sg_free,
+	[DRM_IOCTL_NR(DRM_IOCTL_UPDATE_DRAW32)] = compat_drm_update_draw,
 	[DRM_IOCTL_NR(DRM_IOCTL_WAIT_VBLANK32)] = compat_drm_wait_vblank,
 };
 

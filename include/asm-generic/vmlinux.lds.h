@@ -37,6 +37,13 @@
 #define MEM_DISCARD(sec) *(.mem##sec)
 #endif
 
+#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+#define MCOUNT_REC()	VMLINUX_SYMBOL(__start_mcount_loc) = .; \
+			*(__mcount_loc)				\
+			VMLINUX_SYMBOL(__stop_mcount_loc) = .;
+#else
+#define MCOUNT_REC()
+#endif
 
 /* .data section */
 #define DATA_DATA							\
@@ -52,7 +59,10 @@
 	. = ALIGN(8);							\
 	VMLINUX_SYMBOL(__start___markers) = .;				\
 	*(__markers)							\
-	VMLINUX_SYMBOL(__stop___markers) = .;
+	VMLINUX_SYMBOL(__stop___markers) = .;				\
+	VMLINUX_SYMBOL(__start___tracepoints) = .;			\
+	*(__tracepoints)						\
+	VMLINUX_SYMBOL(__stop___tracepoints) = .;
 
 #define RO_DATA(align)							\
 	. = ALIGN((align));						\
@@ -61,6 +71,7 @@
 		*(.rodata) *(.rodata.*)					\
 		*(__vermagic)		/* Kernel version magic */	\
 		*(__markers_strings)	/* Markers: strings */		\
+		*(__tracepoints_strings)/* Tracepoints: strings */	\
 	}								\
 									\
 	.rodata1          : AT(ADDR(.rodata1) - LOAD_OFFSET) {		\
@@ -188,6 +199,7 @@
 	/* __*init sections */						\
 	__init_rodata : AT(ADDR(__init_rodata) - LOAD_OFFSET) {		\
 		*(.ref.rodata)						\
+		MCOUNT_REC()						\
 		DEV_KEEP(init.rodata)					\
 		DEV_KEEP(exit.rodata)					\
 		CPU_KEEP(init.rodata)					\
@@ -268,7 +280,15 @@
 	CPU_DISCARD(init.data)						\
 	CPU_DISCARD(init.rodata)					\
 	MEM_DISCARD(init.data)						\
-	MEM_DISCARD(init.rodata)
+	MEM_DISCARD(init.rodata)					\
+	/* implement dynamic printk debug */				\
+	VMLINUX_SYMBOL(__start___verbose_strings) = .;                  \
+	*(__verbose_strings)                                            \
+	VMLINUX_SYMBOL(__stop___verbose_strings) = .;                   \
+	. = ALIGN(8);							\
+	VMLINUX_SYMBOL(__start___verbose) = .;                          \
+	*(__verbose)                                                    \
+	VMLINUX_SYMBOL(__stop___verbose) = .;
 
 #define INIT_TEXT							\
 	*(.init.text)							\
@@ -385,6 +405,7 @@
 	. = ALIGN(align);						\
 	VMLINUX_SYMBOL(__per_cpu_start) = .;				\
 	.data.percpu  : AT(ADDR(.data.percpu) - LOAD_OFFSET) {		\
+		*(.data.percpu.page_aligned)				\
 		*(.data.percpu)						\
 		*(.data.percpu.shared_aligned)				\
 	}								\

@@ -105,7 +105,7 @@ static u_char xd_detect (u_char *controller, unsigned int *address);
 static u_char xd_initdrives (void (*init_drive)(u_char drive));
 
 static void do_xd_request (struct request_queue * q);
-static int xd_ioctl (struct inode *inode,struct file *file,unsigned int cmd,unsigned long arg);
+static int xd_ioctl (struct block_device *bdev,fmode_t mode,unsigned int cmd,unsigned long arg);
 static int xd_readwrite (u_char operation,XD_INFO *disk,char *buffer,u_int block,u_int count);
 static void xd_recalibrate (u_char drive);
 

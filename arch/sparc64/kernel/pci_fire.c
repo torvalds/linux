@@ -8,34 +8,16 @@
 #include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/irq.h>
+#include <linux/of_device.h>
 
-#include <asm/oplib.h>
 #include <asm/prom.h>
 #include <asm/irq.h>
+#include <asm/upa.h>
 
 #include "pci_impl.h"
 
-#define fire_read(__reg) \
-({	u64 __ret; \
-	__asm__ __volatile__("ldxa [%1] %2, %0" \
-			     : "=r" (__ret) \
-			     : "r" (__reg), "i" (ASI_PHYS_BYPASS_EC_E) \
-			     : "memory"); \
-	__ret; \
-})
-#define fire_write(__reg, __val) \
-	__asm__ __volatile__("stxa %0, [%1] %2" \
-			     : /* no outputs */ \
-			     : "r" (__val), "r" (__reg), \
-			       "i" (ASI_PHYS_BYPASS_EC_E) \
-			     : "memory")
-
-static void __init pci_fire_scan_bus(struct pci_pbm_info *pbm)
-{
-	pbm->pci_bus = pci_scan_one_pbm(pbm);
-
-	/* XXX register error interrupt handlers XXX */
-}
+#define DRIVER_NAME	"fire"
+#define PFX		DRIVER_NAME ": "
 
 #define FIRE_IOMMU_CONTROL	0x40000UL
 #define FIRE_IOMMU_TSBBASE	0x40008UL
@@ -69,21 +51,21 @@ static int pci_fire_pbm_iommu_init(struct pci_pbm_info *pbm)
 	/*
 	 * Invalidate TLB Entries.
 	 */
-	fire_write(iommu->iommu_flushinv, ~(u64)0);
+	upa_writeq(~(u64)0, iommu->iommu_flushinv);
 
 	err = iommu_table_init(iommu, tsbsize * 8 * 1024, vdma[0], dma_mask,
 			       pbm->numa_node);
 	if (err)
 		return err;
 
-	fire_write(iommu->iommu_tsbbase, __pa(iommu->page_table) | 0x7UL);
+	upa_writeq(__pa(iommu->page_table) | 0x7UL, iommu->iommu_tsbbase);
 
-	control = fire_read(iommu->iommu_control);
+	control = upa_readq(iommu->iommu_control);
 	control |= (0x00000400 /* TSB cache snoop enable */	|
 		    0x00000300 /* Cache mode */			|
 		    0x00000002 /* Bypass enable */		|
 		    0x00000001 /* Translation enable */);
-	fire_write(iommu->iommu_control, control);
+	upa_writeq(control, iommu->iommu_control);
 
 	return 0;
 }
@@ -165,7 +147,7 @@ struct pci_msiq_entry {
 static int pci_fire_get_head(struct pci_pbm_info *pbm, unsigned long msiqid,
 			     unsigned long *head)
 {
-	*head = fire_read(pbm->pbm_regs + EVENT_QUEUE_HEAD(msiqid));
+	*head = upa_readq(pbm->pbm_regs + EVENT_QUEUE_HEAD(msiqid));
 	return 0;
 }
 
@@ -191,8 +173,7 @@ static int pci_fire_dequeue_msi(struct pci_pbm_info *pbm, unsigned long msiqid,
 	*msi = msi_num = ((ep->word0 & MSIQ_WORD0_DATA0) >>
 			  MSIQ_WORD0_DATA0_SHIFT);
 
-	fire_write(pbm->pbm_regs + MSI_CLEAR(msi_num),
-		   MSI_CLEAR_EQWR_N);
+	upa_writeq(MSI_CLEAR_EQWR_N, pbm->pbm_regs + MSI_CLEAR(msi_num));
 
 	/* Clear the entry.  */
 	ep->word0 &= ~MSIQ_WORD0_FMT_TYPE;
@@ -208,7 +189,7 @@ static int pci_fire_dequeue_msi(struct pci_pbm_info *pbm, unsigned long msiqid,
 static int pci_fire_set_head(struct pci_pbm_info *pbm, unsigned long msiqid,
 			     unsigned long head)
 {
-	fire_write(pbm->pbm_regs + EVENT_QUEUE_HEAD(msiqid), head);
+	upa_writeq(head, pbm->pbm_regs + EVENT_QUEUE_HEAD(msiqid));
 	return 0;
 }
 
@@ -217,17 +198,16 @@ static int pci_fire_msi_setup(struct pci_pbm_info *pbm, unsigned long msiqid,
 {
 	u64 val;
 
-	val = fire_read(pbm->pbm_regs + MSI_MAP(msi));
+	val = upa_readq(pbm->pbm_regs + MSI_MAP(msi));
 	val &= ~(MSI_MAP_EQNUM);
 	val |= msiqid;
-	fire_write(pbm->pbm_regs + MSI_MAP(msi), val);
+	upa_writeq(val, pbm->pbm_regs + MSI_MAP(msi));
 
-	fire_write(pbm->pbm_regs + MSI_CLEAR(msi),
-		   MSI_CLEAR_EQWR_N);
+	upa_writeq(MSI_CLEAR_EQWR_N, pbm->pbm_regs + MSI_CLEAR(msi));
 
-	val = fire_read(pbm->pbm_regs + MSI_MAP(msi));
+	val = upa_readq(pbm->pbm_regs + MSI_MAP(msi));
 	val |= MSI_MAP_VALID;
-	fire_write(pbm->pbm_regs + MSI_MAP(msi), val);
+	upa_writeq(val, pbm->pbm_regs + MSI_MAP(msi));
 
 	return 0;
 }
@@ -237,12 +217,12 @@ static int pci_fire_msi_teardown(struct pci_pbm_info *pbm, unsigned long msi)
 	unsigned long msiqid;
 	u64 val;
 
-	val = fire_read(pbm->pbm_regs + MSI_MAP(msi));
+	val = upa_readq(pbm->pbm_regs + MSI_MAP(msi));
 	msiqid = (val & MSI_MAP_EQNUM);
 
 	val &= ~MSI_MAP_VALID;
 
-	fire_write(pbm->pbm_regs + MSI_MAP(msi), val);
+	upa_writeq(val, pbm->pbm_regs + MSI_MAP(msi));
 
 	return 0;
 }
@@ -261,22 +241,19 @@ static int pci_fire_msiq_alloc(struct pci_pbm_info *pbm)
 	memset((char *)pages, 0, PAGE_SIZE << order);
 	pbm->msi_queues = (void *) pages;
 
-	fire_write(pbm->pbm_regs + EVENT_QUEUE_BASE_ADDR_REG,
-		   (EVENT_QUEUE_BASE_ADDR_ALL_ONES |
-		    __pa(pbm->msi_queues)));
+	upa_writeq((EVENT_QUEUE_BASE_ADDR_ALL_ONES |
+		    __pa(pbm->msi_queues)),
+		   pbm->pbm_regs + EVENT_QUEUE_BASE_ADDR_REG);
 
-	fire_write(pbm->pbm_regs + IMONDO_DATA0,
-		   pbm->portid << 6);
-	fire_write(pbm->pbm_regs + IMONDO_DATA1, 0);
+	upa_writeq(pbm->portid << 6, pbm->pbm_regs + IMONDO_DATA0);
+	upa_writeq(0, pbm->pbm_regs + IMONDO_DATA1);
 
-	fire_write(pbm->pbm_regs + MSI_32BIT_ADDR,
-		   pbm->msi32_start);
-	fire_write(pbm->pbm_regs + MSI_64BIT_ADDR,
-		   pbm->msi64_start);
+	upa_writeq(pbm->msi32_start, pbm->pbm_regs + MSI_32BIT_ADDR);
+	upa_writeq(pbm->msi64_start, pbm->pbm_regs + MSI_64BIT_ADDR);
 
 	for (i = 0; i < pbm->msiq_num; i++) {
-		fire_write(pbm->pbm_regs + EVENT_QUEUE_HEAD(i), 0);
-		fire_write(pbm->pbm_regs + EVENT_QUEUE_TAIL(i), 0);
+		upa_writeq(0, pbm->pbm_regs + EVENT_QUEUE_HEAD(i));
+		upa_writeq(0, pbm->pbm_regs + EVENT_QUEUE_TAIL(i));
 	}
 
 	return 0;
@@ -310,9 +287,9 @@ static int pci_fire_msiq_build_irq(struct pci_pbm_info *pbm,
 	/* XXX iterate amongst the 4 IRQ controllers XXX */
 	int_ctrlr = (1UL << 6);
 
-	val = fire_read(imap_reg);
+	val = upa_readq(imap_reg);
 	val |= (1UL << 63) | int_ctrlr;
-	fire_write(imap_reg, val);
+	upa_writeq(val, imap_reg);
 
 	fixup = ((pbm->portid << 6) | devino) - int_ctrlr;
 
@@ -320,9 +297,8 @@ static int pci_fire_msiq_build_irq(struct pci_pbm_info *pbm,
 	if (!virt_irq)
 		return -ENOMEM;
 
-	fire_write(pbm->pbm_regs +
-		   EVENT_QUEUE_CONTROL_SET(msiqid),
-		   EVENT_QUEUE_CONTROL_SET_EN);
+	upa_writeq(EVENT_QUEUE_CONTROL_SET_EN,
+		   pbm->pbm_regs + EVENT_QUEUE_CONTROL_SET(msiqid));
 
 	return virt_irq;
 }
@@ -390,77 +366,65 @@ static void pci_fire_hw_init(struct pci_pbm_info *pbm)
 {
 	u64 val;
 
-	fire_write(pbm->controller_regs + FIRE_PARITY_CONTROL,
-		   FIRE_PARITY_ENAB);
+	upa_writeq(FIRE_PARITY_ENAB,
+		   pbm->controller_regs + FIRE_PARITY_CONTROL);
 
-	fire_write(pbm->controller_regs + FIRE_FATAL_RESET_CTL,
-		   (FIRE_FATAL_RESET_SPARE |
+	upa_writeq((FIRE_FATAL_RESET_SPARE |
 		    FIRE_FATAL_RESET_MB |
 		    FIRE_FATAL_RESET_CPE |
 		    FIRE_FATAL_RESET_APE |
 		    FIRE_FATAL_RESET_PIO |
 		    FIRE_FATAL_RESET_JW |
 		    FIRE_FATAL_RESET_JI |
-		    FIRE_FATAL_RESET_JR));
+		    FIRE_FATAL_RESET_JR),
+		   pbm->controller_regs + FIRE_FATAL_RESET_CTL);
 
-	fire_write(pbm->controller_regs + FIRE_CORE_INTR_ENABLE, ~(u64)0);
+	upa_writeq(~(u64)0, pbm->controller_regs + FIRE_CORE_INTR_ENABLE);
 
-	val = fire_read(pbm->pbm_regs + FIRE_TLU_CTRL);
+	val = upa_readq(pbm->pbm_regs + FIRE_TLU_CTRL);
 	val |= (FIRE_TLU_CTRL_TIM |
 		FIRE_TLU_CTRL_QDET |
 		FIRE_TLU_CTRL_CFG);
-	fire_write(pbm->pbm_regs + FIRE_TLU_CTRL, val);
-	fire_write(pbm->pbm_regs + FIRE_TLU_DEV_CTRL, 0);
-	fire_write(pbm->pbm_regs + FIRE_TLU_LINK_CTRL,
-		   FIRE_TLU_LINK_CTRL_CLK);
+	upa_writeq(val, pbm->pbm_regs + FIRE_TLU_CTRL);
+	upa_writeq(0, pbm->pbm_regs + FIRE_TLU_DEV_CTRL);
+	upa_writeq(FIRE_TLU_LINK_CTRL_CLK,
+		   pbm->pbm_regs + FIRE_TLU_LINK_CTRL);
 
-	fire_write(pbm->pbm_regs + FIRE_LPU_RESET, 0);
-	fire_write(pbm->pbm_regs + FIRE_LPU_LLCFG,
-		   FIRE_LPU_LLCFG_VC0);
-	fire_write(pbm->pbm_regs + FIRE_LPU_FCTRL_UCTRL,
-		   (FIRE_LPU_FCTRL_UCTRL_N |
-		    FIRE_LPU_FCTRL_UCTRL_P));
-	fire_write(pbm->pbm_regs + FIRE_LPU_TXL_FIFOP,
-		   ((0xffff << 16) | (0x0000 << 0)));
-	fire_write(pbm->pbm_regs + FIRE_LPU_LTSSM_CFG2, 3000000);
-	fire_write(pbm->pbm_regs + FIRE_LPU_LTSSM_CFG3, 500000);
-	fire_write(pbm->pbm_regs + FIRE_LPU_LTSSM_CFG4,
-		   (2 << 16) | (140 << 8));
-	fire_write(pbm->pbm_regs + FIRE_LPU_LTSSM_CFG5, 0);
+	upa_writeq(0, pbm->pbm_regs + FIRE_LPU_RESET);
+	upa_writeq(FIRE_LPU_LLCFG_VC0, pbm->pbm_regs + FIRE_LPU_LLCFG);
+	upa_writeq((FIRE_LPU_FCTRL_UCTRL_N | FIRE_LPU_FCTRL_UCTRL_P),
+		   pbm->pbm_regs + FIRE_LPU_FCTRL_UCTRL);
+	upa_writeq(((0xffff << 16) | (0x0000 << 0)),
+		   pbm->pbm_regs + FIRE_LPU_TXL_FIFOP);
+	upa_writeq(3000000, pbm->pbm_regs + FIRE_LPU_LTSSM_CFG2);
+	upa_writeq(500000, pbm->pbm_regs + FIRE_LPU_LTSSM_CFG3);
+	upa_writeq((2 << 16) | (140 << 8),
+		   pbm->pbm_regs + FIRE_LPU_LTSSM_CFG4);
+	upa_writeq(0, pbm->pbm_regs + FIRE_LPU_LTSSM_CFG5);
 
-	fire_write(pbm->pbm_regs + FIRE_DMC_IENAB, ~(u64)0);
-	fire_write(pbm->pbm_regs + FIRE_DMC_DBG_SEL_A, 0);
-	fire_write(pbm->pbm_regs + FIRE_DMC_DBG_SEL_B, 0);
+	upa_writeq(~(u64)0, pbm->pbm_regs + FIRE_DMC_IENAB);
+	upa_writeq(0, pbm->pbm_regs + FIRE_DMC_DBG_SEL_A);
+	upa_writeq(0, pbm->pbm_regs + FIRE_DMC_DBG_SEL_B);
 
-	fire_write(pbm->pbm_regs + FIRE_PEC_IENAB, ~(u64)0);
+	upa_writeq(~(u64)0, pbm->pbm_regs + FIRE_PEC_IENAB);
 }
 
-static int __init pci_fire_pbm_init(struct pci_controller_info *p,
-				    struct device_node *dp, u32 portid)
+static int __init pci_fire_pbm_init(struct pci_pbm_info *pbm,
+				    struct of_device *op, u32 portid)
 {
 	const struct linux_prom64_registers *regs;
-	struct pci_pbm_info *pbm;
+	struct device_node *dp = op->node;
 	int err;
-
-	if ((portid & 1) == 0)
-		pbm = &p->pbm_A;
-	else
-		pbm = &p->pbm_B;
-
-	pbm->next = pci_pbm_root;
-	pci_pbm_root = pbm;
 
 	pbm->numa_node = -1;
 
-	pbm->scan_bus = pci_fire_scan_bus;
 	pbm->pci_ops = &sun4u_pci_ops;
 	pbm->config_space_reg_bits = 12;
 
 	pbm->index = pci_num_pbms++;
 
 	pbm->portid = portid;
-	pbm->parent = p;
-	pbm->prom_node = dp;
+	pbm->op = op;
 	pbm->name = dp->full_name;
 
 	regs = of_get_property(dp, "reg", NULL);
@@ -481,53 +445,77 @@ static int __init pci_fire_pbm_init(struct pci_controller_info *p,
 
 	pci_fire_msi_init(pbm);
 
+	pbm->pci_bus = pci_scan_one_pbm(pbm, &op->dev);
+
+	/* XXX register error interrupt handlers XXX */
+
+	pbm->next = pci_pbm_root;
+	pci_pbm_root = pbm;
+
 	return 0;
 }
 
-static inline int portid_compare(u32 x, u32 y)
+static int __devinit fire_probe(struct of_device *op,
+				const struct of_device_id *match)
 {
-	if (x == (y ^ 1))
-		return 1;
-	return 0;
-}
-
-void __init fire_pci_init(struct device_node *dp, const char *model_name)
-{
-	struct pci_controller_info *p;
-	u32 portid = of_getintprop_default(dp, "portid", 0xff);
-	struct iommu *iommu;
+	struct device_node *dp = op->node;
 	struct pci_pbm_info *pbm;
+	struct iommu *iommu;
+	u32 portid;
+	int err;
 
-	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
-		if (portid_compare(pbm->portid, portid)) {
-			if (pci_fire_pbm_init(pbm->parent, dp, portid))
-				goto fatal_memory_error;
-			return;
-		}
+	portid = of_getintprop_default(dp, "portid", 0xff);
+
+	err = -ENOMEM;
+	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
+	if (!pbm) {
+		printk(KERN_ERR PFX "Cannot allocate pci_pbminfo.\n");
+		goto out_err;
 	}
 
-	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
-	if (!p)
-		goto fatal_memory_error;
+	iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
+	if (!iommu) {
+		printk(KERN_ERR PFX "Cannot allocate PBM iommu.\n");
+		goto out_free_controller;
+	}
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu)
-		goto fatal_memory_error;
+	pbm->iommu = iommu;
 
-	p->pbm_A.iommu = iommu;
+	err = pci_fire_pbm_init(pbm, op, portid);
+	if (err)
+		goto out_free_iommu;
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu)
-		goto fatal_memory_error;
+	dev_set_drvdata(&op->dev, pbm);
 
-	p->pbm_B.iommu = iommu;
+	return 0;
 
-	if (pci_fire_pbm_init(p, dp, portid))
-		goto fatal_memory_error;
+out_free_iommu:
+	kfree(pbm->iommu);
+			
+out_free_controller:
+	kfree(pbm);
 
-	return;
-
-fatal_memory_error:
-	prom_printf("PCI_FIRE: Fatal memory allocation error.\n");
-	prom_halt();
+out_err:
+	return err;
 }
+
+static struct of_device_id __initdata fire_match[] = {
+	{
+		.name = "pci",
+		.compatible = "pciex108e,80f0",
+	},
+	{},
+};
+
+static struct of_platform_driver fire_driver = {
+	.name		= DRIVER_NAME,
+	.match_table	= fire_match,
+	.probe		= fire_probe,
+};
+
+static int __init fire_init(void)
+{
+	return of_register_driver(&fire_driver, &of_bus_type);
+}
+
+subsys_initcall(fire_init);

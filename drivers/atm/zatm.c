@@ -496,8 +496,8 @@ static int open_rx_first(struct atm_vcc *vcc)
 			vcc->qos.rxtp.max_sdu = 65464;
 			/* fix this - we may want to receive 64kB SDUs
 			   later */
-		cells = (vcc->qos.rxtp.max_sdu+ATM_AAL5_TRAILER+
-		    ATM_CELL_PAYLOAD-1)/ATM_CELL_PAYLOAD;
+		cells = DIV_ROUND_UP(vcc->qos.rxtp.max_sdu + ATM_AAL5_TRAILER,
+				ATM_CELL_PAYLOAD);
 		zatm_vcc->pool = pool_index(cells*ATM_CELL_PAYLOAD);
 	}
 	else {
@@ -820,7 +820,7 @@ static int alloc_shaper(struct atm_dev *dev,int *pcr,int min,int max,int ubr)
 			}
 			else {
 				i = 255;
-				m = (ATM_OC3_PCR*255+max-1)/max;
+				m = DIV_ROUND_UP(ATM_OC3_PCR*255, max);
 			}
 		}
 		if (i > m) {

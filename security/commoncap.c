@@ -279,10 +279,10 @@ static int get_file_caps(struct linux_binprm *bprm)
 	struct vfs_cap_data vcaps;
 	struct inode *inode;
 
-	if (bprm->file->f_vfsmnt->mnt_flags & MNT_NOSUID) {
-		bprm_clear_caps(bprm);
+	bprm_clear_caps(bprm);
+
+	if (bprm->file->f_vfsmnt->mnt_flags & MNT_NOSUID)
 		return 0;
-	}
 
 	dentry = dget(bprm->file->f_dentry);
 	inode = dentry->d_inode;
@@ -541,7 +541,7 @@ int cap_task_post_setuid (uid_t old_ruid, uid_t old_euid, uid_t old_suid,
  * yet with increased caps.
  * So we check for increased caps on the target process.
  */
-static inline int cap_safe_nice(struct task_struct *p)
+static int cap_safe_nice(struct task_struct *p)
 {
 	if (!cap_issubset(p->cap_permitted, current->cap_permitted) &&
 	    !capable(CAP_SYS_NICE))

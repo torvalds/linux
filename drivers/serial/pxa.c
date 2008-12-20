@@ -534,6 +534,11 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	serial_out(up, UART_IER, up->ier);
 
+	if (termios->c_cflag & CRTSCTS)
+		up->mcr |= UART_MCR_AFE;
+	else
+		up->mcr &= ~UART_MCR_AFE;
+
 	serial_out(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
 	serial_out(up, UART_DLL, quot & 0xff);		/* LS of divisor */
 	serial_out(up, UART_DLM, quot >> 8);		/* MS of divisor */

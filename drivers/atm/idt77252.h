@@ -173,10 +173,8 @@ struct scq_info
 };
 
 struct rx_pool {
-	struct sk_buff		*first;
-	struct sk_buff		**last;
+	struct sk_buff_head	queue;
 	unsigned int		len;
-	unsigned int		count;
 };
 
 struct aal1 {

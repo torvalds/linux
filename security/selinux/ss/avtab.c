@@ -98,7 +98,7 @@ struct avtab_node *
 avtab_insert_nonunique(struct avtab *h, struct avtab_key *key, struct avtab_datum *datum)
 {
 	int hvalue;
-	struct avtab_node *prev, *cur, *newnode;
+	struct avtab_node *prev, *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
 	if (!h || !h->htable)
@@ -122,9 +122,7 @@ avtab_insert_nonunique(struct avtab *h, struct avtab_key *key, struct avtab_datu
 		    key->target_class < cur->key.target_class)
 			break;
 	}
-	newnode = avtab_insert_node(h, hvalue, prev, cur, key, datum);
-
-	return newnode;
+	return avtab_insert_node(h, hvalue, prev, cur, key, datum);
 }
 
 struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key)
@@ -231,7 +229,7 @@ void avtab_destroy(struct avtab *h)
 
 	for (i = 0; i < h->nslot; i++) {
 		cur = h->htable[i];
-		while (cur != NULL) {
+		while (cur) {
 			temp = cur;
 			cur = cur->next;
 			kmem_cache_free(avtab_node_cachep, temp);

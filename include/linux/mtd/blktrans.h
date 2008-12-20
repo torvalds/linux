@@ -41,6 +41,8 @@ struct mtd_blktrans_ops {
 		    unsigned long block, char *buffer);
 	int (*writesect)(struct mtd_blktrans_dev *dev,
 		     unsigned long block, char *buffer);
+	int (*discard)(struct mtd_blktrans_dev *dev,
+		       unsigned long block, unsigned nr_blocks);
 
 	/* Block layer ioctls */
 	int (*getgeo)(struct mtd_blktrans_dev *dev, struct hd_geometry *geo);

@@ -831,7 +831,7 @@ int snd_soc_dapm_sys_add(struct device *dev)
 		return ret;
 
 	asoc_debugfs = debugfs_create_dir("asoc", NULL);
-	if (!IS_ERR(asoc_debugfs))
+	if (!IS_ERR(asoc_debugfs) && asoc_debugfs)
 		debugfs_create_u32("dapm_pop_time", 0744, asoc_debugfs,
 				   &pop_time);
 	else

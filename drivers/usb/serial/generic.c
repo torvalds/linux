@@ -330,7 +330,7 @@ static void resubmit_read_urb(struct usb_serial_port *port, gfp_t mem_flags)
 static void flush_and_resubmit_read_urb(struct usb_serial_port *port)
 {
 	struct urb *urb = port->read_urb;
-	struct tty_struct *tty = port->port.tty;
+	struct tty_struct *tty = tty_port_tty_get(&port->port);
 	int room;
 
 	/* Push data to tty */
@@ -341,6 +341,7 @@ static void flush_and_resubmit_read_urb(struct usb_serial_port *port)
 			tty_flip_buffer_push(tty);
 		}
 	}
+	tty_kref_put(tty);
 
 	resubmit_read_urb(port, GFP_ATOMIC);
 }

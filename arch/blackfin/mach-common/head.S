@@ -68,6 +68,16 @@ ENTRY(__start)
 	M2 = r0;
 	M3 = r0;
 
+	/*
+	 * Clear ITEST_COMMAND and DTEST_COMMAND registers,
+	 * Leaving these as non-zero can confuse the emulator
+	 */
+	p0.L = LO(DTEST_COMMAND);
+	p0.H = HI(DTEST_COMMAND);
+	[p0] = R0;
+	[p0 + (ITEST_COMMAND - DTEST_COMMAND)] = R0;
+	CSYNC;
+
 	trace_buffer_init(p0,r0);
 	P0 = R1;
 	R0 = R1;
@@ -90,11 +100,45 @@ ENTRY(__start)
 	[p0] = R0;
 	SSYNC;
 
-	/* Save RETX, in case of doublefault */
-	p0.l = ___retx;
-	p0.h = ___retx;
+	/* in case of double faults, save a few things */
+	p0.l = _init_retx;
+	p0.h = _init_retx;
 	R0 = RETX;
 	[P0] = R0;
+
+#ifdef CONFIG_DEBUG_DOUBLEFAULT
+	/* Only save these if we are storing them,
+	 * This happens here, since L1 gets clobbered
+	 * below
+	 */
+	p0.l = _saved_retx;
+	p0.h = _saved_retx;
+	p1.l = _init_saved_retx;
+	p1.h = _init_saved_retx;
+	r0 = [p0];
+	[p1] = r0;
+
+	p0.l = _saved_dcplb_fault_addr;
+	p0.h = _saved_dcplb_fault_addr;
+	p1.l = _init_saved_dcplb_fault_addr;
+	p1.h = _init_saved_dcplb_fault_addr;
+	r0 = [p0];
+	[p1] = r0;
+
+	p0.l = _saved_icplb_fault_addr;
+	p0.h = _saved_icplb_fault_addr;
+	p1.l = _init_saved_icplb_fault_addr;
+	p1.h = _init_saved_icplb_fault_addr;
+	r0 = [p0];
+	[p1] = r0;
+
+	p0.l = _saved_seqstat;
+	p0.h = _saved_seqstat;
+	p1.l = _init_saved_seqstat;
+	p1.h = _init_saved_seqstat;
+	r0 = [p0];
+	[p1] = r0;
+#endif
 
 	/* Initialize stack pointer */
 	sp.l = lo(INITIAL_STACK);
@@ -107,7 +151,7 @@ ENTRY(__start)
 #endif
 
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
-	call _bf53x_relocate_l1_mem;
+	call _bfin_relocate_l1_mem;
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
 	call _start_dma_code;
 #endif
@@ -161,6 +205,60 @@ ENTRY(_real_start)
 	r0 = 0xAD6(z);
 	w[p0] = r0;
 	ssync;
+
+#if L1_DATA_A_LENGTH > 0
+	r1.l = __sbss_l1;
+	r1.h = __sbss_l1;
+	r2.l = __ebss_l1;
+	r2.h = __ebss_l1;
+	r0 = 0 (z);
+	r2 = r2 - r1;
+	cc = r2 == 0;
+	if cc jump .L_a_l1_done;
+	r2 >>= 2;
+	p1 = r1;
+	p2 = r2;
+	lsetup (.L_clear_a_l1, .L_clear_a_l1 ) lc0 = p2;
+.L_clear_a_l1:
+	[p1++] = r0;
+.L_a_l1_done:
+#endif
+
+#if L1_DATA_B_LENGTH > 0
+	r1.l = __sbss_b_l1;
+	r1.h = __sbss_b_l1;
+	r2.l = __ebss_b_l1;
+	r2.h = __ebss_b_l1;
+	r0 = 0 (z);
+	r2 = r2 - r1;
+	cc = r2 == 0;
+	if cc jump .L_b_l1_done;
+	r2 >>= 2;
+	p1 = r1;
+	p2 = r2;
+	lsetup (.L_clear_b_l1, .L_clear_b_l1 ) lc0 = p2;
+.L_clear_b_l1:
+	[p1++] = r0;
+.L_b_l1_done:
+#endif
+
+#if L2_LENGTH > 0
+	r1.l = __sbss_l2;
+	r1.h = __sbss_l2;
+	r2.l = __ebss_l2;
+	r2.h = __ebss_l2;
+	r0 = 0 (z);
+	r2 = r2 - r1;
+	cc = r2 == 0;
+	if cc jump .L_l2_done;
+	r2 >>= 2;
+	p1 = r1;
+	p2 = r2;
+	lsetup (.L_clear_l2, .L_clear_l2 ) lc0 = p2;
+.L_clear_l2:
+	[p1++] = r0;
+.L_l2_done:
+#endif
 
 	/* Zero out the bss region
 	 * Note: this will fail if bss is 0 bytes ...

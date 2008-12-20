@@ -20,12 +20,14 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/bug.h>
 
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
 #include <asm/page.h>
-#include <asm/gpio.h>
+
+static DEFINE_SPINLOCK(die_lock);
 
 /*
  * this must be called very early as the kernel might
@@ -94,16 +96,19 @@ static void dump(struct pt_regs *fp)
 	printk("\n\n");
 }
 
-void die_if_kernel (char *str, struct pt_regs *fp, int nr)
+void die(char *str, struct pt_regs *fp, unsigned long err)
 {
-	extern int console_loglevel;
+	static int diecount;
 
-	if (!(fp->ccr & PS_S))
-		return;
+	oops_enter();
 
-	console_loglevel = 15;
+	console_verbose();
+	spin_lock_irq(&die_lock);
+	report_bug(fp->pc, fp);
+	printk(KERN_EMERG "%s: %04lx [#%d] ", str, err & 0xffff, ++diecount);
 	dump(fp);
 
+	spin_unlock_irq(&die_lock);
 	do_exit(SIGSEGV);
 }
 

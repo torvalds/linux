@@ -6,8 +6,8 @@
 #ifndef __ASM_ARCH_SYSTEM_H
 #define __ASM_ARCH_SYSTEM_H
 
+#include <linux/io.h>
 #include <asm/hardware/iomd.h>
-#include <asm/io.h>
 
 static inline void arch_idle(void)
 {

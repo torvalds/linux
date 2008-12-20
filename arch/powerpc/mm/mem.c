@@ -75,11 +75,10 @@ static inline pte_t *virt_to_kpte(unsigned long vaddr)
 
 int page_is_ram(unsigned long pfn)
 {
-	unsigned long paddr = (pfn << PAGE_SHIFT);
-
 #ifndef CONFIG_PPC64	/* XXX for now */
-	return paddr < __pa(high_memory);
+	return pfn < max_pfn;
 #else
+	unsigned long paddr = (pfn << PAGE_SHIFT);
 	int i;
 	for (i=0; i < lmb.memory.cnt; i++) {
 		unsigned long base;
@@ -135,23 +134,6 @@ int arch_add_memory(int nid, u64 start, u64 size)
 
 	return __add_pages(zone, start_pfn, nr_pages);
 }
-
-#ifdef CONFIG_MEMORY_HOTREMOVE
-int remove_memory(u64 start, u64 size)
-{
-	unsigned long start_pfn, end_pfn;
-	int ret;
-
-	start_pfn = start >> PAGE_SHIFT;
-	end_pfn = start_pfn + (size >> PAGE_SHIFT);
-	ret = offline_pages(start_pfn, end_pfn, 120 * HZ);
-	if (ret)
-		goto out;
-	/* Arch-specific calls go here - next patch */
-out:
-	return ret;
-}
-#endif /* CONFIG_MEMORY_HOTREMOVE */
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
 /*

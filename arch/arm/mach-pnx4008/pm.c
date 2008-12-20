@@ -18,8 +18,8 @@
 #include <linux/suspend.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/cacheflush.h>
 #include <mach/pm.h>
 #include <mach/clock.h>

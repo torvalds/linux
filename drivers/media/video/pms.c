@@ -47,6 +47,7 @@ struct pms_device
 	struct video_picture picture;
 	int height;
 	int width;
+	unsigned long in_use;
 	struct mutex lock;
 };
 
@@ -881,10 +882,27 @@ static ssize_t pms_read(struct file *file, char __user *buf,
 	return len;
 }
 
+static int pms_exclusive_open(struct inode *inode, struct file *file)
+{
+	struct video_device *v = video_devdata(file);
+	struct pms_device *pd = (struct pms_device *)v;
+
+	return test_and_set_bit(0, &pd->in_use) ? -EBUSY : 0;
+}
+
+static int pms_exclusive_release(struct inode *inode, struct file *file)
+{
+	struct video_device *v = video_devdata(file);
+	struct pms_device *pd = (struct pms_device *)v;
+
+	clear_bit(0, &pd->in_use);
+	return 0;
+}
+
 static const struct file_operations pms_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = pms_exclusive_open,
+	.release        = pms_exclusive_release,
 	.ioctl          = pms_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
@@ -897,6 +915,7 @@ static struct video_device pms_template=
 {
 	.name		= "Mediavision PMS",
 	.fops           = &pms_fops,
+	.release 	= video_device_release_empty,
 };
 
 static struct pms_device pms_device;

@@ -422,7 +422,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	__u16 norme;
@@ -549,6 +549,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	PDEBUG(D_STREAM, "webcam started");
 	spca506_GetNormeInput(gspca_dev, &norme, &channel);
 	spca506_SetNormeInput(gspca_dev, norme, channel);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

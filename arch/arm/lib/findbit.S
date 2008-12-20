@@ -33,6 +33,7 @@ ENTRY(_find_first_zero_bit_le)
 		blo	1b
 3:		mov	r0, r1			@ no free bits
 		mov	pc, lr
+ENDPROC(_find_first_zero_bit_le)
 
 /*
  * Purpose  : Find next 'zero' bit
@@ -50,6 +51,7 @@ ENTRY(_find_next_zero_bit_le)
 		orr	r2, r2, #7		@ if zero, then no bits here
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
+ENDPROC(_find_next_zero_bit_le)
 
 /*
  * Purpose  : Find a 'one' bit
@@ -67,6 +69,7 @@ ENTRY(_find_first_bit_le)
 		blo	1b
 3:		mov	r0, r1			@ no free bits
 		mov	pc, lr
+ENDPROC(_find_first_bit_le)
 
 /*
  * Purpose  : Find next 'one' bit
@@ -83,6 +86,7 @@ ENTRY(_find_next_bit_le)
 		orr	r2, r2, #7		@ if zero, then no bits here
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
+ENDPROC(_find_next_bit_le)
 
 #ifdef __ARMEB__
 
@@ -99,6 +103,7 @@ ENTRY(_find_first_zero_bit_be)
 		blo	1b
 3:		mov	r0, r1			@ no free bits
 		mov	pc, lr
+ENDPROC(_find_first_zero_bit_be)
 
 ENTRY(_find_next_zero_bit_be)
 		teq	r1, #0
@@ -113,6 +118,7 @@ ENTRY(_find_next_zero_bit_be)
 		orr	r2, r2, #7		@ if zero, then no bits here
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
+ENDPROC(_find_next_zero_bit_be)
 
 ENTRY(_find_first_bit_be)
 		teq	r1, #0
@@ -127,6 +133,7 @@ ENTRY(_find_first_bit_be)
 		blo	1b
 3:		mov	r0, r1			@ no free bits
 		mov	pc, lr
+ENDPROC(_find_first_bit_be)
 
 ENTRY(_find_next_bit_be)
 		teq	r1, #0
@@ -140,6 +147,7 @@ ENTRY(_find_next_bit_be)
 		orr	r2, r2, #7		@ if zero, then no bits here
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
+ENDPROC(_find_next_bit_be)
 
 #endif
 

@@ -1,7 +1,7 @@
 /*
  *	IP multicast routing support for mrouted 3.6/3.8
  *
- *		(c) 1995 Alan Cox, <alan@redhat.com>
+ *		(c) 1995 Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *	  Linux Consultancy and Custom Driver Development
  *
  *	This program is free software; you can redistribute it and/or
@@ -1945,13 +1945,14 @@ int __init ip_mr_init(void)
 		goto proc_cache_fail;
 #endif
 	return 0;
-reg_notif_fail:
-	kmem_cache_destroy(mrt_cachep);
 #ifdef CONFIG_PROC_FS
-proc_vif_fail:
-	unregister_netdevice_notifier(&ip_mr_notifier);
 proc_cache_fail:
 	proc_net_remove(&init_net, "ip_mr_vif");
+proc_vif_fail:
+	unregister_netdevice_notifier(&ip_mr_notifier);
 #endif
+reg_notif_fail:
+	del_timer(&ipmr_expire_timer);
+	kmem_cache_destroy(mrt_cachep);
 	return err;
 }

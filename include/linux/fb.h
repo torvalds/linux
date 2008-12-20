@@ -808,6 +808,7 @@ struct fb_tile_ops {
 struct fb_info {
 	int node;
 	int flags;
+	struct mutex lock;		/* Lock for open/release/ioctl funcs */
 	struct fb_var_screeninfo var;	/* Current var */
 	struct fb_fix_screeninfo fix;	/* Current fix */
 	struct fb_monspecs monspecs;	/* Current Monitor specs */

@@ -136,10 +136,10 @@ once-only alarms.
 The IT87xx only updates its values each 1.5 seconds; reading it more often
 will do no harm, but will return 'old' values.
 
-To change sensor N to a thermistor, 'echo 2 > tempN_type' where N is 1, 2,
+To change sensor N to a thermistor, 'echo 4 > tempN_type' where N is 1, 2,
 or 3. To change sensor N to a thermal diode, 'echo 3 > tempN_type'.
 Give 0 for unused sensor. Any other value is invalid. To configure this at
-startup, consult lm_sensors's /etc/sensors.conf. (2 = thermistor;
+startup, consult lm_sensors's /etc/sensors.conf. (4 = thermistor;
 3 = thermal diode)
 
 

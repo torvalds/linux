@@ -5,7 +5,7 @@ Supported chips:
   * National Semiconductor PC87427
     Prefix: 'pc87427'
     Addresses scanned: none, address read from Super I/O config space
-    Datasheet: http://www.winbond.com.tw/E-WINBONDHTM/partner/apc_007.html
+    Datasheet: No longer available
 
 Author: Jean Delvare <khali@linux-fr.org>
 

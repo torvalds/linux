@@ -1,10 +1,10 @@
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/io.h>
 
 #include <asm/mach/irq.h>
 #include <asm/hardware/iomd.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 static void iomd_ack_irq_a(unsigned int irq)
 {

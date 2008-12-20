@@ -78,6 +78,7 @@ static __u16 curtreble;
 static unsigned long curfreq;
 static int curstereo;
 static int curmute;
+static unsigned long in_use;
 
 /* i2c addresses */
 #define TDA7318_ADDR 0x88
@@ -336,10 +337,21 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return 0;
 }
 
+static int trust_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &in_use) ? -EBUSY : 0;
+}
+
+static int trust_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &in_use);
+	return 0;
+}
+
 static const struct file_operations trust_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = trust_exclusive_open,
+	.release        = trust_exclusive_release,
 	.ioctl		= video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
@@ -366,6 +378,7 @@ static struct video_device trust_radio = {
 	.name		= "Trust FM Radio",
 	.fops           = &trust_fops,
 	.ioctl_ops 	= &trust_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 static int __init trust_init(void)

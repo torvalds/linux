@@ -332,8 +332,8 @@ void ia64_elf32_init(struct pt_regs *regs);
 #define ELF_PLATFORM	NULL
 
 #ifdef __KERNEL__
-# define SET_PERSONALITY(EX,IBCS2)				\
-	(current->personality = (IBCS2) ? PER_SVR4 : PER_LINUX)
+# define SET_PERSONALITY(EX)				\
+	(current->personality = PER_LINUX)
 #endif
 
 #define IA32_EFLAG	0x200

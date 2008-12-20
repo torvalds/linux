@@ -62,8 +62,11 @@ MODULE_PARM_DESC(disable_other_ir, "disable full codes of "
 #define i2cdprintk(fmt, arg...)    if (ir_debug) \
 	printk(KERN_DEBUG "%s/ir: " fmt, ir->c.name , ## arg)
 
-/** rc5 functions */
+/* Helper functions for RC5 and NEC decoding at GPIO16 or GPIO18 */
 static int saa7134_rc5_irq(struct saa7134_dev *dev);
+static int saa7134_nec_irq(struct saa7134_dev *dev);
+static void nec_task(unsigned long data);
+static void saa7134_nec_timer(unsigned long data);
 
 /* -------------------- GPIO generic keycode builder -------------------- */
 
@@ -114,6 +117,53 @@ static int build_key(struct saa7134_dev *dev)
 }
 
 /* --------------------- Chip specific I2C key builders ----------------- */
+
+static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
+				       u32 *ir_raw)
+{
+	unsigned char b;
+	int gpio;
+
+	/* <dev> is needed to access GPIO. Used by the saa_readl macro. */
+	struct saa7134_dev *dev = ir->c.adapter->algo_data;
+	if (dev == NULL) {
+		dprintk("get_key_msi_tvanywhere_plus: "
+			"gir->c.adapter->algo_data is NULL!\n");
+		return -EIO;
+	}
+
+	/* rising SAA7134_GPIO_GPRESCAN reads the status */
+
+	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+
+	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
+
+	/* GPIO&0x40 is pulsed low when a button is pressed. Don't do
+	   I2C receive if gpio&0x40 is not low. */
+
+	if (gpio & 0x40)
+		return 0;       /* No button press */
+
+	/* GPIO says there is a button press. Get it. */
+
+	if (1 != i2c_master_recv(&ir->c, &b, 1)) {
+		i2cdprintk("read error\n");
+		return -EIO;
+	}
+
+	/* No button press */
+
+	if (b == 0xff)
+		return 0;
+
+	/* Button pressed */
+
+	dprintk("get_key_msi_tvanywhere_plus: Key = 0x%02X\n", b);
+	*ir_key = b;
+	*ir_raw = b;
+	return 1;
+}
 
 static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
@@ -280,7 +330,9 @@ void saa7134_input_irq(struct saa7134_dev *dev)
 {
 	struct card_ir *ir = dev->remote;
 
-	if (!ir->polling && !ir->rc5_gpio) {
+	if (ir->nec_gpio) {
+		saa7134_nec_irq(dev);
+	} else if (!ir->polling && !ir->rc5_gpio) {
 		build_key(dev);
 	} else if (ir->rc5_gpio) {
 		saa7134_rc5_irq(dev);
@@ -316,6 +368,10 @@ void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 		ir->addr = 0x17;
 		ir->rc5_key_timeout = ir_rc5_key_timeout;
 		ir->rc5_remote_gap = ir_rc5_remote_gap;
+	} else if (ir->nec_gpio) {
+		setup_timer(&ir->timer_keyup, saa7134_nec_timer,
+			    (unsigned long)dev);
+		tasklet_init(&ir->tlet, nec_task, (unsigned long)dev);
 	}
 }
 
@@ -335,6 +391,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	u32 mask_keyup   = 0;
 	int polling      = 0;
 	int rc5_gpio	 = 0;
+	int nec_gpio	 = 0;
 	int ir_type      = IR_TYPE_OTHER;
 	int err;
 
@@ -390,6 +447,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		/* Set GPIO pin2 to high to enable the IR controller */
 		saa_setb(SAA7134_GPIO_GPMODE0, 0x4);
 		saa_setb(SAA7134_GPIO_GPSTATUS0, 0x4);
+		break;
+	case SAA7134_BOARD_AVERMEDIA_M135A:
+		ir_codes     = ir_codes_avermedia_m135a;
+		mask_keydown = 0x0040000;
+		mask_keycode = 0x00013f;
+		nec_gpio     = 1;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_777:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
@@ -499,6 +562,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keyup   = 0x040000;
 		polling      = 50; // ms
 		break;
+	case SAA7134_BOARD_ENCORE_ENLTV_FM53:
+		ir_codes     = ir_codes_encore_enltv_fm53;
+		mask_keydown = 0x0040000;
+		mask_keycode = 0x00007f;
+		nec_gpio = 1;
+		break;
 	case SAA7134_BOARD_10MOONSTVMASTER3:
 		ir_codes     = ir_codes_encore_enltv;
 		mask_keycode = 0x5f80000;
@@ -509,6 +578,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		ir_codes     = ir_codes_genius_tvgo_a11mce;
 		mask_keycode = 0xff;
 		mask_keydown = 0xf00000;
+		polling = 50; /* ms */
+		break;
+	case SAA7134_BOARD_REAL_ANGEL_220:
+		ir_codes     = ir_codes_real_audio_220_32_keys;
+		mask_keycode = 0x3f00;
+		mask_keyup   = 0x4000;
 		polling = 50; /* ms */
 		break;
 	}
@@ -533,6 +608,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	ir->mask_keyup   = mask_keyup;
 	ir->polling      = polling;
 	ir->rc5_gpio	 = rc5_gpio;
+	ir->nec_gpio	 = nec_gpio;
 
 	/* init input device */
 	snprintf(ir->name, sizeof(ir->name), "saa7134 IR (%s)",
@@ -612,6 +688,11 @@ void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
 		ir->get_key   = get_key_purpletv;
 		ir->ir_codes  = ir_codes_purpletv;
 		break;
+	case SAA7134_BOARD_MSI_TVATANYWHERE_PLUS:
+		snprintf(ir->c.name, sizeof(ir->c.name), "MSI TV@nywhere Plus");
+		ir->get_key  = get_key_msi_tvanywhere_plus;
+		ir->ir_codes = ir_codes_msi_tvanywhere_plus;
+		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		snprintf(ir->c.name, sizeof(ir->c.name), "HVR 1110");
 		ir->get_key   = get_key_hvr1110;
@@ -675,8 +756,125 @@ static int saa7134_rc5_irq(struct saa7134_dev *dev)
 	return 1;
 }
 
-/* ----------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
+
+/* On NEC protocol, One has 2.25 ms, and zero has 1.125 ms
+   The first pulse (start) has 9 + 4.5 ms
  */
+
+static void saa7134_nec_timer(unsigned long data)
+{
+	struct saa7134_dev *dev = (struct saa7134_dev *) data;
+	struct card_ir *ir = dev->remote;
+
+	dprintk("Cancel key repeat\n");
+
+	ir_input_nokey(ir->dev, &ir->ir);
+}
+
+static void nec_task(unsigned long data)
+{
+	struct saa7134_dev *dev = (struct saa7134_dev *) data;
+	struct card_ir *ir;
+	struct timeval tv;
+	int count, pulse, oldpulse, gap;
+	u32 ircode = 0, not_code = 0;
+	int ngap = 0;
+
+	if (!data) {
+		printk(KERN_ERR "saa713x/ir: Can't recover dev struct\n");
+		/* GPIO will be kept disabled */
+		return;
+	}
+
+	ir = dev->remote;
+
+	/* rising SAA7134_GPIO_GPRESCAN reads the status */
+	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+
+	oldpulse = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2) & ir->mask_keydown;
+	pulse = oldpulse;
+
+	do_gettimeofday(&tv);
+	ir->base_time = tv;
+
+	/* Decode NEC pulsecode. This code can take up to 76.5 ms to run.
+	   Unfortunately, using IRQ to decode pulse didn't work, since it uses
+	   a pulse train of 38KHz. This means one pulse on each 52 us
+	 */
+	do {
+		/* Wait until the end of pulse/space or 5 ms */
+		for (count = 0; count < 500; count++)  {
+			udelay(10);
+			/* rising SAA7134_GPIO_GPRESCAN reads the status */
+			saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+			saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+			pulse = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2)
+				& ir->mask_keydown;
+			if (pulse != oldpulse)
+				break;
+		}
+
+		do_gettimeofday(&tv);
+		gap = 1000000 * (tv.tv_sec - ir->base_time.tv_sec) +
+				tv.tv_usec - ir->base_time.tv_usec;
+
+		if (!pulse) {
+			/* Bit 0 has 560 us, while bit 1 has 1120 us.
+			   Do something only if bit == 1
+			 */
+			if (ngap && (gap > 560 + 280)) {
+				unsigned int shift = ngap - 1;
+
+				/* Address first, then command */
+				if (shift < 8) {
+					shift += 8;
+					ircode |= 1 << shift;
+				} else if (shift < 16) {
+					not_code |= 1 << shift;
+				} else if (shift < 24) {
+					shift -= 16;
+					ircode |= 1 << shift;
+				} else {
+					shift -= 24;
+					not_code |= 1 << shift;
+				}
+			}
+			ngap++;
+		}
+
+
+		ir->base_time = tv;
+
+		/* TIMEOUT - Long pulse */
+		if (gap >= 5000)
+			break;
+		oldpulse = pulse;
+	} while (ngap < 32);
+
+	if (ngap == 32) {
+		/* FIXME: should check if not_code == ~ircode */
+		ir->code = ir_extract_bits(ircode, ir->mask_keycode);
+
+		dprintk("scancode = 0x%02x (code = 0x%02x, notcode= 0x%02x)\n",
+			 ir->code, ircode, not_code);
+
+		ir_input_keydown(ir->dev, &ir->ir, ir->code, ir->code);
+	} else
+		dprintk("Repeat last key\n");
+
+	/* Keep repeating the last key */
+	mod_timer(&ir->timer_keyup, jiffies + msecs_to_jiffies(150));
+
+	saa_setl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
+}
+
+static int saa7134_nec_irq(struct saa7134_dev *dev)
+{
+	struct card_ir *ir = dev->remote;
+
+	saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
+	tasklet_schedule(&ir->tlet);
+
+	return 1;
+}

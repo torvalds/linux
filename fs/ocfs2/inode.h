@@ -40,6 +40,9 @@ struct ocfs2_inode_info
 	/* protects allocation changes on this inode. */
 	struct rw_semaphore		ip_alloc_sem;
 
+	/* protects extended attribute changes on this inode */
+	struct rw_semaphore		ip_xattr_sem;
+
 	/* These fields are protected by ip_lock */
 	spinlock_t			ip_lock;
 	u32				ip_open_count;
@@ -68,6 +71,7 @@ struct ocfs2_inode_info
 	struct ocfs2_extent_map		ip_extent_map;
 
 	struct inode			vfs_inode;
+	struct jbd2_inode		ip_jinode;
 };
 
 /*
@@ -113,8 +117,6 @@ extern struct kmem_cache *ocfs2_inode_cache;
 
 extern const struct address_space_operations ocfs2_aops;
 
-struct buffer_head *ocfs2_bread(struct inode *inode, int block,
-				int *err, int reada);
 void ocfs2_clear_inode(struct inode *inode);
 void ocfs2_delete_inode(struct inode *inode);
 void ocfs2_drop_inode(struct inode *inode);

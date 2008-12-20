@@ -1924,12 +1924,9 @@ static void twa_scsiop_execute_scsi_complete(TW_Device_Extension *tw_dev, int re
 	    (cmd->sc_data_direction == DMA_FROM_DEVICE ||
 	     cmd->sc_data_direction == DMA_BIDIRECTIONAL)) {
 		if (scsi_sg_count(cmd) == 1) {
-			unsigned long flags;
 			void *buf = tw_dev->generic_buffer_virt[request_id];
 
-			local_irq_save(flags);
 			scsi_sg_copy_from_buffer(cmd, buf, TW_SECTOR_SIZE);
-			local_irq_restore(flags);
 		}
 	}
 } /* End twa_scsiop_execute_scsi_complete() */

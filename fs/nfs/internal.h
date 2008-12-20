@@ -153,6 +153,7 @@ extern void nfs4_clear_inode(struct inode *);
 void nfs_zap_acl_cache(struct inode *inode);
 
 /* super.c */
+void nfs_parse_ip_address(char *, size_t, struct sockaddr *, size_t *);
 extern struct file_system_type nfs_xdev_fs_type;
 #ifdef CONFIG_NFS_V4
 extern struct file_system_type nfs4_xdev_fs_type;
@@ -163,8 +164,8 @@ extern struct rpc_stat nfs_rpcstat;
 
 extern int __init register_nfs_fs(void);
 extern void __exit unregister_nfs_fs(void);
-extern void nfs_sb_active(struct nfs_server *server);
-extern void nfs_sb_deactive(struct nfs_server *server);
+extern void nfs_sb_active(struct super_block *sb);
+extern void nfs_sb_deactive(struct super_block *sb);
 
 /* namespace.c */
 extern char *nfs_path(const char *base,
@@ -276,3 +277,23 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
 		PAGE_SIZE - 1) >> PAGE_SHIFT;
 }
 
+#define IPV6_SCOPE_DELIMITER	'%'
+
+/*
+ * Set the port number in an address.  Be agnostic about the address
+ * family.
+ */
+static inline void nfs_set_port(struct sockaddr *sap, unsigned short port)
+{
+	struct sockaddr_in *ap = (struct sockaddr_in *)sap;
+	struct sockaddr_in6 *ap6 = (struct sockaddr_in6 *)sap;
+
+	switch (sap->sa_family) {
+	case AF_INET:
+		ap->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		ap6->sin6_port = htons(port);
+		break;
+	}
+}

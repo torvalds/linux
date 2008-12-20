@@ -34,9 +34,9 @@ extern void omap1510_fpga_init_irq(void);
  * ---------------------------------------------------------------------------
  */
 /* maps in the FPGA registers and the ETHR registers */
-#define H2P2_DBG_FPGA_BASE		0xE8000000	/* VA */
-#define H2P2_DBG_FPGA_SIZE		SZ_4K		/* SIZE */
-#define H2P2_DBG_FPGA_START		0x04000000	/* PA */
+#define H2P2_DBG_FPGA_BASE		IOMEM(0xE8000000)	/* VA */
+#define H2P2_DBG_FPGA_SIZE		SZ_4K			/* SIZE */
+#define H2P2_DBG_FPGA_START		0x04000000		/* PA */
 
 #define H2P2_DBG_FPGA_ETHR_START	(H2P2_DBG_FPGA_START + 0x300)
 #define H2P2_DBG_FPGA_FPGA_REV		(H2P2_DBG_FPGA_BASE + 0x10)	/* FPGA Revision */
@@ -85,9 +85,9 @@ struct h2p2_dbg_fpga {
  *  OMAP-1510 FPGA
  * ---------------------------------------------------------------------------
  */
-#define OMAP1510_FPGA_BASE			0xE8000000	/* Virtual */
-#define OMAP1510_FPGA_SIZE			SZ_4K
-#define OMAP1510_FPGA_START			0x08000000	/* Physical */
+#define OMAP1510_FPGA_BASE		IOMEM(0xE8000000)	/* VA */
+#define OMAP1510_FPGA_SIZE		SZ_4K
+#define OMAP1510_FPGA_START		0x08000000		/* PA */
 
 /* Revision */
 #define OMAP1510_FPGA_REV_LOW			(OMAP1510_FPGA_BASE + 0x0)
