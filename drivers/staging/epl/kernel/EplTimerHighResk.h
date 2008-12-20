@@ -66,7 +66,6 @@
 
   2006/09/29 d.k.:   start of the implementation
 
-
 ****************************************************************************/
 
 #include "../EplTimer.h"
@@ -82,7 +81,6 @@
 // typedef
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 // function prototypes
 //---------------------------------------------------------------------------
@@ -93,20 +91,19 @@ tEplKernel PUBLIC EplTimerHighReskAddInstance(void);
 
 tEplKernel PUBLIC EplTimerHighReskDelInstance(void);
 
-tEplKernel PUBLIC EplTimerHighReskSetTimerNs(tEplTimerHdl*     pTimerHdl_p,
-                                    unsigned long long  ullTimeNs_p,
-                                    tEplTimerkCallback  pfnCallback_p,
-                                    unsigned long       ulArgument_p,
-                                    BOOL                fContinuously_p);
+tEplKernel PUBLIC EplTimerHighReskSetTimerNs(tEplTimerHdl * pTimerHdl_p,
+					     unsigned long long ullTimeNs_p,
+					     tEplTimerkCallback pfnCallback_p,
+					     unsigned long ulArgument_p,
+					     BOOL fContinuously_p);
 
-tEplKernel PUBLIC EplTimerHighReskModifyTimerNs(tEplTimerHdl*     pTimerHdl_p,
-                                    unsigned long long  ullTimeNs_p,
-                                    tEplTimerkCallback  pfnCallback_p,
-                                    unsigned long       ulArgument_p,
-                                    BOOL                fContinuously_p);
+tEplKernel PUBLIC EplTimerHighReskModifyTimerNs(tEplTimerHdl * pTimerHdl_p,
+						unsigned long long ullTimeNs_p,
+						tEplTimerkCallback
+						pfnCallback_p,
+						unsigned long ulArgument_p,
+						BOOL fContinuously_p);
 
-tEplKernel PUBLIC EplTimerHighReskDeleteTimer(tEplTimerHdl*     pTimerHdl_p);
+tEplKernel PUBLIC EplTimerHighReskDeleteTimer(tEplTimerHdl * pTimerHdl_p);
 
-#endif  // #ifndef _EPLTIMERHIGHRESK_H_
-
-
+#endif // #ifndef _EPLTIMERHIGHRESK_H_

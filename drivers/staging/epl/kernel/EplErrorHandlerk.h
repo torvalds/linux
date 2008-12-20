@@ -66,7 +66,6 @@
 
   2006/10/02 d.k.:   start of the implementation, version 1.00
 
-
 ****************************************************************************/
 
 #ifndef _EPL_ERRORHANDLERK_H_
@@ -98,7 +97,4 @@ tEplKernel PUBLIC EplErrorHandlerkDelInstance(void);
 // processes error events
 tEplKernel PUBLIC EplErrorHandlerkProcess(tEplEvent * pEvent_p);
 
-
-#endif  // #ifndef _EPL_ERRORHANDLERK_H_
-
-
+#endif // #ifndef _EPL_ERRORHANDLERK_H_

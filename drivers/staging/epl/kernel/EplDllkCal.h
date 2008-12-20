@@ -66,7 +66,6 @@
 
   2006/06/13 d.k.:   start of the implementation, version 1.00
 
-
 ****************************************************************************/
 
 #ifndef _EPL_DLLKCAL_H_
@@ -83,14 +82,13 @@
 // typedef
 //---------------------------------------------------------------------------
 
-typedef struct
-{
-    unsigned long   m_ulCurTxFrameCountGen;
-    unsigned long   m_ulCurTxFrameCountNmt;
-    unsigned long   m_ulCurRxFrameCount;
-    unsigned long   m_ulMaxTxFrameCountGen;
-    unsigned long   m_ulMaxTxFrameCountNmt;
-    unsigned long   m_ulMaxRxFrameCount;
+typedef struct {
+	unsigned long m_ulCurTxFrameCountGen;
+	unsigned long m_ulCurTxFrameCountNmt;
+	unsigned long m_ulCurRxFrameCount;
+	unsigned long m_ulMaxTxFrameCountGen;
+	unsigned long m_ulMaxTxFrameCountNmt;
+	unsigned long m_ulMaxRxFrameCount;
 
 } tEplDllkCalStatistics;
 
@@ -104,12 +102,16 @@ tEplKernel EplDllkCalAddInstance(void);
 
 tEplKernel EplDllkCalDelInstance(void);
 
-tEplKernel EplDllkCalAsyncGetTxCount(tEplDllAsyncReqPriority * pPriority_p, unsigned int * puiCount_p);
-tEplKernel EplDllkCalAsyncGetTxFrame(void * pFrame_p, unsigned int * puiFrameSize_p, tEplDllAsyncReqPriority Priority_p);
+tEplKernel EplDllkCalAsyncGetTxCount(tEplDllAsyncReqPriority * pPriority_p,
+				     unsigned int *puiCount_p);
+tEplKernel EplDllkCalAsyncGetTxFrame(void *pFrame_p,
+				     unsigned int *puiFrameSize_p,
+				     tEplDllAsyncReqPriority Priority_p);
 // only frames with registered AsndServiceIds are passed to CAL
 tEplKernel EplDllkCalAsyncFrameReceived(tEplFrameInfo * pFrameInfo_p);
 
-tEplKernel EplDllkCalAsyncSend(tEplFrameInfo * pFrameInfo_p, tEplDllAsyncReqPriority Priority_p);
+tEplKernel EplDllkCalAsyncSend(tEplFrameInfo * pFrameInfo_p,
+			       tEplDllAsyncReqPriority Priority_p);
 
 tEplKernel EplDllkCalAsyncClearBuffer(void);
 
@@ -121,16 +123,19 @@ tEplKernel EplDllkCalProcess(tEplEvent * pEvent_p);
 
 tEplKernel EplDllkCalAsyncClearQueues(void);
 
-tEplKernel EplDllkCalIssueRequest(tEplDllReqServiceId Service_p, unsigned int uiNodeId_p, BYTE bSoaFlag1_p);
+tEplKernel EplDllkCalIssueRequest(tEplDllReqServiceId Service_p,
+				  unsigned int uiNodeId_p, BYTE bSoaFlag1_p);
 
-tEplKernel EplDllkCalAsyncGetSoaRequest(tEplDllReqServiceId* pReqServiceId_p, unsigned int* puiNodeId_p);
+tEplKernel EplDllkCalAsyncGetSoaRequest(tEplDllReqServiceId * pReqServiceId_p,
+					unsigned int *puiNodeId_p);
 
-tEplKernel EplDllkCalAsyncSetPendingRequests(unsigned int uiNodeId_p, tEplDllAsyncReqPriority AsyncReqPrio_p, unsigned int uiCount_p);
+tEplKernel EplDllkCalAsyncSetPendingRequests(unsigned int uiNodeId_p,
+					     tEplDllAsyncReqPriority
+					     AsyncReqPrio_p,
+					     unsigned int uiCount_p);
 
 #endif //(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 
 #endif // #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLK)) != 0)
 
-#endif  // #ifndef _EPL_DLLKCAL_H_
-
-
+#endif // #ifndef _EPL_DLLKCAL_H_

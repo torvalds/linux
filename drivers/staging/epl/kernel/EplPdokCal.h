@@ -66,7 +66,6 @@
 
   2006/06/26 d.k.:   start of the implementation, version 1.00
 
-
 ****************************************************************************/
 
 #ifndef _EPL_PDOKCAL_H_
@@ -79,11 +78,9 @@
 // const defines
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 // typedef
 //---------------------------------------------------------------------------
-
 
 //---------------------------------------------------------------------------
 // function prototypes
@@ -99,8 +96,4 @@ tEplKernel EplPdokCalSetTpdosValid(BOOL fValid_p);
 // gets flag for validity of TPDOs from shared memory
 tEplKernel EplPdokCalAreTpdosValid(BOOL * pfValid_p);
 
-
-
-#endif  // #ifndef _EPL_PDOKCAL_H_
-
-
+#endif // #ifndef _EPL_PDOKCAL_H_

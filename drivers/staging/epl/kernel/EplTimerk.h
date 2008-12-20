@@ -66,7 +66,6 @@
 
   2006/07/06 k.t.:   start of the implementation
 
-
 ****************************************************************************/
 
 #include "../EplTimer.h"
@@ -96,7 +95,6 @@
 // typedef
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 // function prototypes
 //---------------------------------------------------------------------------
@@ -107,16 +105,14 @@ tEplKernel PUBLIC EplTimerkAddInstance(void);
 
 tEplKernel PUBLIC EplTimerkDelInstance(void);
 
-tEplKernel PUBLIC EplTimerkSetTimerMs(tEplTimerHdl*     pTimerHdl_p,
-                                        unsigned long ulTime_p,
-                                        tEplTimerArg  Argument_p);
+tEplKernel PUBLIC EplTimerkSetTimerMs(tEplTimerHdl * pTimerHdl_p,
+				      unsigned long ulTime_p,
+				      tEplTimerArg Argument_p);
 
-tEplKernel PUBLIC EplTimerkModifyTimerMs(tEplTimerHdl*     pTimerHdl_p,
-                                        unsigned long     ulTime_p,
-                                        tEplTimerArg      Argument_p);
+tEplKernel PUBLIC EplTimerkModifyTimerMs(tEplTimerHdl * pTimerHdl_p,
+					 unsigned long ulTime_p,
+					 tEplTimerArg Argument_p);
 
-tEplKernel PUBLIC EplTimerkDeleteTimer(tEplTimerHdl*     pTimerHdl_p);
+tEplKernel PUBLIC EplTimerkDeleteTimer(tEplTimerHdl * pTimerHdl_p);
 #endif
-#endif  // #ifndef _EPLTIMERK_H_
-
-
+#endif // #ifndef _EPLTIMERK_H_

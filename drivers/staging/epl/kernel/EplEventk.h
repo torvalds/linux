@@ -66,7 +66,6 @@
 
   2006/06/12 d.k.:   start of the implementation, version 1.00
 
-
 ****************************************************************************/
 
 #ifndef _EPL_EVENTK_H_
@@ -103,12 +102,7 @@ tEplKernel PUBLIC EplEventkPost(tEplEvent * pEvent_p);
 
 // post errorevents from kernelspace
 tEplKernel PUBLIC EplEventkPostError(tEplEventSource EventSource_p,
-                                     tEplKernel      EplError_p,
-                                     unsigned int    uiArgSize_p,
-                                     void*           pArg_p);
+				     tEplKernel EplError_p,
+				     unsigned int uiArgSize_p, void *pArg_p);
 
-
-
-#endif  // #ifndef _EPL_EVENTK_H_
-
-
+#endif // #ifndef _EPL_EVENTK_H_

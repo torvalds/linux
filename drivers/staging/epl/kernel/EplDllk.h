@@ -66,7 +66,6 @@
 
   2006/06/08 d.k.:   start of the implementation, version 1.00
 
-
 ****************************************************************************/
 
 #ifndef _EPL_DLLK_H_
@@ -79,34 +78,31 @@
 // const defines
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 // typedef
 //---------------------------------------------------------------------------
 
-typedef tEplKernel (* tEplDllkCbAsync) (tEplFrameInfo * pFrameInfo_p);
+typedef tEplKernel(*tEplDllkCbAsync) (tEplFrameInfo * pFrameInfo_p);
 
-typedef struct
-{
-    BYTE                m_be_abSrcMac[6];
+typedef struct {
+	BYTE m_be_abSrcMac[6];
 
 } tEplDllkInitParam;
 
 // forward declaration
 struct _tEdrvTxBuffer;
 
-struct _tEplDllkNodeInfo
-{
-    struct _tEplDllkNodeInfo*   m_pNextNodeInfo;
-    struct _tEdrvTxBuffer*      m_pPreqTxBuffer;
-    unsigned int                m_uiNodeId;
-    DWORD                       m_dwPresTimeout;
-    unsigned long               m_ulDllErrorEvents;
-    tEplNmtState                m_NmtState;
-    WORD                        m_wPresPayloadLimit;
-    BYTE                        m_be_abMacAddr[6];
-    BYTE                        m_bSoaFlag1;
-    BOOL                        m_fSoftDelete;      // delete node after error and ignore error
+struct _tEplDllkNodeInfo {
+	struct _tEplDllkNodeInfo *m_pNextNodeInfo;
+	struct _tEdrvTxBuffer *m_pPreqTxBuffer;
+	unsigned int m_uiNodeId;
+	DWORD m_dwPresTimeout;
+	unsigned long m_ulDllErrorEvents;
+	tEplNmtState m_NmtState;
+	WORD m_wPresPayloadLimit;
+	BYTE m_be_abMacAddr[6];
+	BYTE m_bSoaFlag1;
+	BOOL m_fSoftDelete;	// delete node after error and ignore error
 
 };
 
@@ -138,17 +134,17 @@ tEplKernel EplDllkRegAsyncHandler(tEplDllkCbAsync pfnDllkCbAsync_p);
 tEplKernel EplDllkDeregAsyncHandler(tEplDllkCbAsync pfnDllkCbAsync_p);
 
 // register C_DLL_MULTICAST_ASND in ethernet driver if any AsndServiceId is registered
-tEplKernel EplDllkSetAsndServiceIdFilter(tEplDllAsndServiceId ServiceId_p, tEplDllAsndFilter Filter_p);
+tEplKernel EplDllkSetAsndServiceIdFilter(tEplDllAsndServiceId ServiceId_p,
+					 tEplDllAsndFilter Filter_p);
 
 // creates the buffer for a Tx frame and registers it to the ethernet driver
-tEplKernel EplDllkCreateTxFrame(unsigned int * puiHandle_p,
-                                tEplFrame ** ppFrame_p,
-                                unsigned int * puiFrameSize_p,
-                                tEplMsgType MsgType_p,
-                                tEplDllAsndServiceId ServiceId_p);
+tEplKernel EplDllkCreateTxFrame(unsigned int *puiHandle_p,
+				tEplFrame ** ppFrame_p,
+				unsigned int *puiFrameSize_p,
+				tEplMsgType MsgType_p,
+				tEplDllAsndServiceId ServiceId_p);
 
 tEplKernel EplDllkDeleteTxFrame(unsigned int uiHandle_p);
-
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 
@@ -160,12 +156,10 @@ tEplKernel EplDllkSoftDeleteNode(unsigned int uiNodeId_p);
 
 tEplKernel EplDllkSetFlag1OfNode(unsigned int uiNodeId_p, BYTE bSoaFlag1_p);
 
-tEplKernel EplDllkGetFirstNodeInfo(tEplDllkNodeInfo** ppNodeInfo_p);
+tEplKernel EplDllkGetFirstNodeInfo(tEplDllkNodeInfo ** ppNodeInfo_p);
 
 #endif //(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 
 #endif // #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLK)) != 0)
 
-#endif  // #ifndef _EPL_DLLK_H_
-
-
+#endif // #ifndef _EPL_DLLK_H_
