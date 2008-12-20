@@ -733,6 +733,8 @@ static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode,
 	t->mode = mode;
 
 	if (check_mode(t, cmd) == -EINVAL) {
+		tuner_dbg("Tuner doesn't support this mode. "
+			  "Putting tuner to sleep\n");
 		t->mode = T_STANDBY;
 		if (analog_ops->standby)
 			analog_ops->standby(&t->fe);
@@ -786,6 +788,8 @@ static int tuner_s_standby(struct v4l2_subdev *sd, u32 standby)
 {
 	struct tuner *t = to_tuner(sd);
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
+
+	tuner_dbg("Putting tuner to sleep\n");
 
 	if (check_mode(t, "TUNER_SET_STANDBY") == -EINVAL)
 		return 0;
