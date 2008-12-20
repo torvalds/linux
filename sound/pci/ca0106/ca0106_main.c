@@ -305,9 +305,15 @@ static struct snd_pcm_hardware snd_ca0106_capture_hw = {
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
+#if 0 /* FIXME: looks like 44.1kHz capture causes noisy output on 48kHz */
 	.rates =		(SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
 				 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000),
 	.rate_min =		44100,
+#else
+	.rates =		(SNDRV_PCM_RATE_48000 |
+				 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000),
+	.rate_min =		48000,
+#endif /* FIXME */
 	.rate_max =		192000,
 	.channels_min =		2,
 	.channels_max =		2,
