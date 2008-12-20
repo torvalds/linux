@@ -96,6 +96,16 @@ MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS */
 static unsigned long em28xx_devused;
 
+/* supported video standards */
+static struct em28xx_fmt format[] = {
+	{
+		.name     = "16bpp YUY2, 4:2:2, packed",
+		.fourcc   = V4L2_PIX_FMT_YUYV,
+		.depth    = 16,
+		.reg	  = 0x14,
+	},
+};
+
 /* supported controls */
 /* Common to all boards */
 static struct v4l2_queryctrl em28xx_qctrl[] = {
@@ -386,7 +396,8 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	struct em28xx        *dev = fh->dev;
 	struct v4l2_frequency f;
 
-	*size = 16 * fh->dev->width * fh->dev->height >> 3;
+	*size = (fh->dev->width * fh->dev->height * dev->format->depth + 7) >> 3;
+
 	if (0 == *count)
 		*count = EM28XX_DEF_BUF;
 
@@ -439,9 +450,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	struct em28xx        *dev = fh->dev;
 	int                  rc = 0, urb_init = 0;
 
-	/* FIXME: It assumes depth = 16 */
-	/* The only currently supported format is 16 bits/pixel */
-	buf->vb.size = 16 * dev->width * dev->height >> 3;
+	buf->vb.size = (fh->dev->width * fh->dev->height * dev->format->depth + 7) >> 3;
 
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < buf->vb.size)
 		return -EINVAL;
@@ -536,7 +545,7 @@ static int em28xx_config(struct em28xx *dev)
 	dev->mute = 1;		/* maybe not the right place... */
 	dev->volume = 0x1f;
 
-	em28xx_outfmt_set_yuv422(dev);
+	em28xx_set_outfmt(dev);
 	em28xx_colorlevels_set_default(dev);
 	em28xx_compression_disable(dev);
 
@@ -704,8 +713,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 
 	f->fmt.pix.width = dev->width;
 	f->fmt.pix.height = dev->height;
-	f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-	f->fmt.pix.bytesperline = dev->width * 2;
+	f->fmt.pix.pixelformat = dev->format->fourcc;
+	f->fmt.pix.bytesperline = (dev->width * dev->format->depth + 7) >> 3;
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline  * dev->height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
@@ -715,6 +724,17 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 
 	mutex_unlock(&dev->lock);
 	return 0;
+}
+
+static struct em28xx_fmt *format_by_fourcc(unsigned int fourcc)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(format); i++)
+		if (format[i].fourcc == fourcc)
+			return &format[i];
+
+	return NULL;
 }
 
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
@@ -727,6 +747,14 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	unsigned int          maxw   = norm_maxw(dev);
 	unsigned int          maxh   = norm_maxh(dev);
 	unsigned int          hscale, vscale;
+	struct em28xx_fmt     *fmt;
+
+	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
+	if (!fmt) {
+		em28xx_videodbg("Fourcc format (%08x) invalid.\n",
+				f->fmt.pix.pixelformat);
+		return -EINVAL;
+	}
 
 	/* width must even because of the YUYV format
 	   height must be even because of interlacing */
@@ -765,9 +793,9 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	f->fmt.pix.width = width;
 	f->fmt.pix.height = height;
-	f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-	f->fmt.pix.bytesperline = width * 2;
-	f->fmt.pix.sizeimage = width * 2 * height;
+	f->fmt.pix.pixelformat = fmt->fourcc;
+	f->fmt.pix.bytesperline = (dev->width * fmt->depth + 7) >> 3;
+	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 
@@ -780,6 +808,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 	int                   rc;
+	struct em28xx_fmt     *fmt;
 
 	rc = check_dev(dev);
 	if (rc < 0)
@@ -788,6 +817,10 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	mutex_lock(&dev->lock);
 
 	vidioc_try_fmt_vid_cap(file, priv, f);
+
+	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
+	if (!fmt)
+		return -EINVAL;
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
 		em28xx_errdev("%s queue busy\n", __func__);
@@ -804,6 +837,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	/* set new image size */
 	dev->width = f->fmt.pix.width;
 	dev->height = f->fmt.pix.height;
+	dev->format = fmt;
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_set_alternate(dev);
@@ -1332,15 +1366,13 @@ static int vidioc_querycap(struct file *file, void  *priv,
 }
 
 static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
-					struct v4l2_fmtdesc *fmtd)
+					struct v4l2_fmtdesc *f)
 {
-	if (fmtd->index != 0)
+	if (unlikely(f->index >= ARRAY_SIZE(format)))
 		return -EINVAL;
 
-	fmtd->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	strcpy(fmtd->description, "Packed YUY2");
-	fmtd->pixelformat = V4L2_PIX_FMT_YUYV;
-	memset(fmtd->reserved, 0, sizeof(fmtd->reserved));
+	strlcpy(f->description, format[f->index].name, sizeof(f->description));
+	f->pixelformat = format[f->index].fourcc;
 
 	return 0;
 }
@@ -2075,6 +2107,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->em28xx_write_regs_req = em28xx_write_regs_req;
 	dev->em28xx_read_reg_req = em28xx_read_reg_req;
 	dev->board.is_em2800 = em28xx_boards[dev->model].is_em2800;
+	dev->format = &format[0];
 
 	em28xx_pre_card_setup(dev);
 
@@ -2482,3 +2515,4 @@ static void __exit em28xx_module_exit(void)
 
 module_init(em28xx_module_init);
 module_exit(em28xx_module_exit);
+

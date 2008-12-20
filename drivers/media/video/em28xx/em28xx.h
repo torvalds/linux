@@ -209,9 +209,12 @@ struct em28xx_usb_isoc_ctl {
 
 };
 
+/* Struct to enumberate video formats */
 struct em28xx_fmt {
 	char  *name;
 	u32   fourcc;          /* v4l2 format id */
+	int   depth;
+	int   reg;
 };
 
 /* buffer for one video frame */
@@ -430,6 +433,8 @@ struct em28xx {
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
 
+	struct em28xx_fmt *format;
+
 	struct em28xx_IR *ir;
 
 	/* Some older em28xx chips needs a waiting time after writing */
@@ -564,7 +569,7 @@ int em28xx_audio_setup(struct em28xx *dev);
 
 int em28xx_colorlevels_set_default(struct em28xx *dev);
 int em28xx_capture_start(struct em28xx *dev, int start);
-int em28xx_outfmt_set_yuv422(struct em28xx *dev);
+int em28xx_set_outfmt(struct em28xx *dev);
 int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
 int em28xx_init_isoc(struct em28xx *dev, int max_packets,

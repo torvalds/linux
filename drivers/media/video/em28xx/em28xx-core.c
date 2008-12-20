@@ -621,10 +621,19 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 	return rc;
 }
 
-int em28xx_outfmt_set_yuv422(struct em28xx *dev)
+int em28xx_set_outfmt(struct em28xx *dev)
 {
-	em28xx_write_reg(dev, EM28XX_R27_OUTFMT, 0x34);
-	em28xx_write_reg(dev, EM28XX_R10_VINMODE, 0x10);
+	int ret;
+
+	ret = em28xx_write_reg_bits(dev, EM28XX_R27_OUTFMT,
+				    dev->format->reg | 0x20, 0x3f);
+	if (ret < 0)
+		return ret;
+
+	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, 0x10);
+	if (ret < 0)
+		return ret;
+
 	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, 0x11);
 }
 
@@ -686,7 +695,7 @@ int em28xx_resolution_set(struct em28xx *dev)
 	width = norm_maxw(dev);
 	height = norm_maxh(dev) >> 1;
 
-	em28xx_outfmt_set_yuv422(dev);
+	em28xx_set_outfmt(dev);
 	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
 	em28xx_capture_area_set(dev, 0, 0, width >> 2, height >> 2);
 	return em28xx_scaler_set(dev, dev->hscale, dev->vscale);
