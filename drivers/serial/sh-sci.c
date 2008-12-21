@@ -269,7 +269,7 @@ static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 	if (!(cflag & CRTSCTS))
 		__raw_writew(0x0080, SCSPTR0); /* Set RTS = 1 */
 }
-#elif defined(CONFIG_CPU_SH4)
+#elif defined(CONFIG_CPU_SH4) && !defined(CONFIG_CPU_SH4A)
 static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 {
 	if (!(cflag & CRTSCTS))
