@@ -180,7 +180,7 @@ static int dequeue_event(struct client *client,
 		return -ENODEV;
 
 	spin_lock_irqsave(&client->lock, flags);
-	event = container_of(client->event_list.next, struct event, link);
+	event = list_first_entry(&client->event_list, struct event, link);
 	list_del(&event->link);
 	spin_unlock_irqrestore(&client->lock, flags);
 
