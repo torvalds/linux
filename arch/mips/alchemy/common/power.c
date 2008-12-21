@@ -36,6 +36,9 @@
 
 #include <asm/uaccess.h>
 #include <asm/mach-au1x00/au1000.h>
+#if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
+#include <asm/mach-au1x00/au1xxx_dbdma.h>
+#endif
 
 #ifdef CONFIG_PM
 
@@ -156,6 +159,10 @@ static void save_core_regs(void)
 	sleep_static_memctlr[3][0] = au_readl(MEM_STCFG3);
 	sleep_static_memctlr[3][1] = au_readl(MEM_STTIME3);
 	sleep_static_memctlr[3][2] = au_readl(MEM_STADDR3);
+
+#if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
+	au1xxx_dbdma_suspend();
+#endif
 }
 
 static void restore_core_regs(void)
@@ -221,6 +228,10 @@ static void restore_core_regs(void)
 	}
 
 	restore_au1xxx_intctl();
+
+#if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
+	au1xxx_dbdma_resume();
+#endif
 }
 
 unsigned long suspend_mode;
