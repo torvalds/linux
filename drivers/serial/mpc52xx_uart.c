@@ -752,10 +752,15 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 			if (status & MPC52xx_PSC_SR_RB) {
 				flag = TTY_BREAK;
 				uart_handle_break(port);
-			} else if (status & MPC52xx_PSC_SR_PE)
+				port->icount.brk++;
+			} else if (status & MPC52xx_PSC_SR_PE) {
 				flag = TTY_PARITY;
-			else if (status & MPC52xx_PSC_SR_FE)
+				port->icount.parity++;
+			}
+			else if (status & MPC52xx_PSC_SR_FE) {
 				flag = TTY_FRAME;
+				port->icount.frame++;
+			}
 
 			/* Clear error condition */
 			out_8(&PSC(port)->command, MPC52xx_PSC_RST_ERR_STAT);
@@ -769,6 +774,7 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 			 * affect the current character
 			 */
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			port->icount.overrun++;
 		}
 	}
 
