@@ -51,7 +51,6 @@ static void au1000_calibrate_delay(void);
 
 extern unsigned long save_local_and_disable(int controller);
 extern void restore_local_and_enable(int controller, unsigned long mask);
-extern void local_enable_irq(unsigned int irq_nr);
 
 static DEFINE_SPINLOCK(pm_lock);
 
@@ -364,7 +363,10 @@ static int pm_do_freq(ctl_table *ctl, int write, struct file *file,
 	 */
 	intc0_mask = save_local_and_disable(0);
 	intc1_mask = save_local_and_disable(1);
-	local_enable_irq(AU1000_TOY_MATCH2_INT);
+	val = 1 << (AU1000_TOY_MATCH2_INT - AU1000_INTC0_INT_BASE);
+	au_writel(val, IC0_MASKSET);	/* unmask */
+	au_writel(val, IC0_WAKESET);	/* enable wake-from-sleep */
+	au_sync();
 	spin_unlock_irqrestore(&pm_lock, flags);
 	au1000_calibrate_delay();
 	restore_local_and_enable(0, intc0_mask);

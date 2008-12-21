@@ -30,8 +30,6 @@
 #include <prom.h>
 #include <au1xxx.h>
 
-extern void _board_init_irq(void);
-extern void (*board_init_irq)(void);
 
 const char *get_system_type(void)
 {
@@ -131,9 +129,6 @@ void __init board_setup(void)
 #ifdef CONFIG_MIPS_DB1200
 	printk(KERN_INFO "AMD Alchemy Db1200 Board\n");
 #endif
-
-	/* Setup Pb1200 External Interrupt Controller */
-	board_init_irq = _board_init_irq;
 }
 
 int board_au1200fb_panel(void)

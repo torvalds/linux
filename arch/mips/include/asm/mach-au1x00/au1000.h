@@ -109,10 +109,11 @@ struct au1xxx_irqmap {
 	int	im_request;
 };
 
-/*
- * init_IRQ looks for a table with this name.
- */
-extern struct au1xxx_irqmap au1xxx_irq_map[];
+/* core calls this function to let boards initialize other IRQ sources */
+void board_init_irq(void);
+
+/* boards call this to register additional (GPIO) interrupts */
+void au1xxx_setup_irqmap(struct au1xxx_irqmap *map, int count);
 
 #endif /* !defined (_LANGUAGE_ASSEMBLY) */
 
@@ -504,15 +505,6 @@ extern struct au1xxx_irqmap au1xxx_irq_map[];
 #define IC1_FALLINGCLR		0xB180007C
 
 #define IC1_TESTBIT		0xB1800080
-
-/* Interrupt Configuration Modes */
-#define INTC_INT_DISABLED		0x0
-#define INTC_INT_RISE_EDGE		0x1
-#define INTC_INT_FALL_EDGE		0x2
-#define INTC_INT_RISE_AND_FALL_EDGE	0x3
-#define INTC_INT_HIGH_LEVEL		0x5
-#define INTC_INT_LOW_LEVEL		0x6
-#define INTC_INT_HIGH_AND_LOW_LEVEL	0x7
 
 /* Interrupt Numbers */
 /* Au1000 */

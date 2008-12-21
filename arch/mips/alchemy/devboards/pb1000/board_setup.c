@@ -32,10 +32,8 @@
 
 
 struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
-	{ AU1000_GPIO_15, INTC_INT_LOW_LEVEL, 0 },
+	{ AU1000_GPIO_15, IRQF_TRIGGER_LOW, 0 },
 };
-
-int __initdata au1xxx_nr_irqs = ARRAY_SIZE(au1xxx_irq_map);
 
 
 const char *get_system_type(void)
@@ -45,6 +43,11 @@ const char *get_system_type(void)
 
 void board_reset(void)
 {
+}
+
+void __init board_init_irq(void)
+{
+	au1xxx_setup_irqmap(au1xxx_irq_map, ARRAY_SIZE(au1xxx_irq_map));
 }
 
 void __init board_setup(void)

@@ -40,10 +40,9 @@
 
 struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
 	/* This is external interrupt cascade */
-	{ AU1000_GPIO_7, INTC_INT_LOW_LEVEL, 0 },
+	{ AU1000_GPIO_7, IRQF_TRIGGER_LOW, 0 },
 };
 
-int __initdata au1xxx_nr_irqs = ARRAY_SIZE(au1xxx_irq_map);
 
 /*
  * Support for External interrupts on the Pb1200 Development platform.
@@ -121,9 +120,11 @@ static struct irq_chip external_irq_type = {
 	.unmask   = pb1200_enable_irq,
 };
 
-void _board_init_irq(void)
+void __init board_init_irq(void)
 {
 	unsigned int irq;
+
+	au1xxx_setup_irqmap(au1xxx_irq_map, ARRAY_SIZE(au1xxx_irq_map));
 
 #ifdef CONFIG_MIPS_PB1200
 	/* We have a problem with CPLD rev 3. */
