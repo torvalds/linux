@@ -1669,6 +1669,8 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	u64 mt_mask = shadow_mt_mask;
 	struct kvm_mmu_page *sp = page_header(__pa(shadow_pte));
 
+	if (!(vcpu->arch.cr4 & X86_CR4_PGE))
+		global = 0;
 	if (!global && sp->global) {
 		sp->global = 0;
 		if (sp->unsync) {
