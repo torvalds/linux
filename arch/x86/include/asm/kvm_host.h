@@ -244,6 +244,7 @@ struct kvm_mmu {
 	hpa_t root_hpa;
 	int root_level;
 	int shadow_root_level;
+	union kvm_mmu_page_role base_role;
 
 	u64 *pae_root;
 };

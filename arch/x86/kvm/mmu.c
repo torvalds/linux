@@ -1204,8 +1204,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	struct kvm_mmu_page *sp;
 	struct hlist_node *node, *tmp;
 
-	role.word = 0;
-	role.glevels = vcpu->arch.mmu.root_level;
+	role = vcpu->arch.mmu.base_role;
 	role.level = level;
 	role.metaphysical = metaphysical;
 	role.access = access;
@@ -2251,17 +2250,23 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 
 static int init_kvm_softmmu(struct kvm_vcpu *vcpu)
 {
+	int r;
+
 	ASSERT(vcpu);
 	ASSERT(!VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
 	if (!is_paging(vcpu))
-		return nonpaging_init_context(vcpu);
+		r = nonpaging_init_context(vcpu);
 	else if (is_long_mode(vcpu))
-		return paging64_init_context(vcpu);
+		r = paging64_init_context(vcpu);
 	else if (is_pae(vcpu))
-		return paging32E_init_context(vcpu);
+		r = paging32E_init_context(vcpu);
 	else
-		return paging32_init_context(vcpu);
+		r = paging32_init_context(vcpu);
+
+	vcpu->arch.mmu.base_role.glevels = vcpu->arch.mmu.root_level;
+
+	return r;
 }
 
 static int init_kvm_mmu(struct kvm_vcpu *vcpu)
