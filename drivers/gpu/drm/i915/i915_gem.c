@@ -2613,13 +2613,12 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			  "back to user (%d)\n",
 			   args->buffer_count, ret);
 err:
-	if (object_list != NULL) {
-		for (i = 0; i < pinned; i++)
-			i915_gem_object_unpin(object_list[i]);
+	for (i = 0; i < pinned; i++)
+		i915_gem_object_unpin(object_list[i]);
 
-		for (i = 0; i < args->buffer_count; i++)
-			drm_gem_object_unreference(object_list[i]);
-	}
+	for (i = 0; i < args->buffer_count; i++)
+		drm_gem_object_unreference(object_list[i]);
+
 	mutex_unlock(&dev->struct_mutex);
 
 pre_mutex_err:
