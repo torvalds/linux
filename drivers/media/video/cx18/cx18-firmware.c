@@ -26,6 +26,7 @@
 #include "cx18-irq.h"
 #include "cx18-firmware.h"
 #include "cx18-cards.h"
+#include "cx18-av-core.h"
 #include <linux/firmware.h>
 
 #define CX18_PROC_SOFT_RESET 		0xc70010
@@ -224,7 +225,45 @@ void cx18_init_power(struct cx18 *cx, int lowpwr)
 	cx18_write_reg_expect(cx, 0x00020000, CX18_ADEC_CONTROL,
 				  0x00000000, 0x00020002);
 
-	/* The fast clock is at 200/245 MHz */
+	/*
+	 * The PLL parameters are based on the external crystal frequency that
+	 * would ideally be:
+	 *
+	 * NTSC Color subcarrier freq * 8 =
+	 * 	4.5 MHz/286 * 455/2 * 8 = 28.63636363... MHz
+	 *
+	 * The accidents of history and rationale that explain from where this
+	 * combination of magic numbers originate can be found in:
+	 *
+	 * [1] Abrahams, I. C., "Choice of Chrominance Subcarrier Frequency in
+	 * the NTSC Standards", Proceedings of the I-R-E, January 1954, pp 79-80
+	 *
+	 * [2] Abrahams, I. C., "The 'Frequency Interleaving' Principle in the
+	 * NTSC Standards", Proceedings of the I-R-E, January 1954, pp 81-83
+	 *
+	 * As Mike Bradley has rightly pointed out, it's not the exact crystal
+	 * frequency that matters, only that all parts of the driver and
+	 * firmware are using the same value (close to the ideal value).
+	 *
+	 * Since I have a strong suspicion that, if the firmware ever assumes a
+	 * crystal value at all, it will assume 28.636360 MHz, the crystal
+	 * freq used in calculations in this driver will be:
+	 *
+	 *	xtal_freq = 28.636360 MHz
+	 *
+	 * an error of less than 0.13 ppm which is way, way better than any off
+	 * the shelf crystal will have for accuracy anyway.
+	 *
+	 * Below I aim to run the PLLs' VCOs near 400 MHz to minimze errors.
+	 *
+	 * Many thanks to Jeff Campbell and Mike Bradley for their extensive
+	 * investigation, experimentation, testing, and suggested solutions of
+	 * of audio/video sync problems with SVideo and CVBS captures.
+	 */
+
+	/* the fast clock is at 200/245 MHz */
+	/* 1 * xtal_freq * 0x0d.f7df9b8 / 2 = 200 MHz: 400 MHz pre post-divide*/
+	/* 1 * xtal_freq * 0x11.1c71eb8 / 2 = 245 MHz: 490 MHz pre post-divide*/
 	cx18_write_reg(cx, lowpwr ? 0xD : 0x11, CX18_FAST_CLOCK_PLL_INT);
 	cx18_write_reg(cx, lowpwr ? 0x1EFBF37 : 0x038E3D7,
 						CX18_FAST_CLOCK_PLL_FRAC);
@@ -234,15 +273,35 @@ void cx18_init_power(struct cx18 *cx, int lowpwr)
 	cx18_write_reg(cx, 4, CX18_FAST_CLOCK_PLL_ADJUST_BANDWIDTH);
 
 	/* set slow clock to 125/120 MHz */
-	cx18_write_reg(cx, lowpwr ? 0x11 : 0x10, CX18_SLOW_CLOCK_PLL_INT);
-	cx18_write_reg(cx, lowpwr ? 0xEBAF05 : 0x18618A8,
+	/* xtal_freq * 0x0d.1861a20 / 3 = 125 MHz: 375 MHz before post-divide */
+	/* xtal_freq * 0x0c.92493f8 / 3 = 120 MHz: 360 MHz before post-divide */
+	cx18_write_reg(cx, lowpwr ? 0xD : 0xC, CX18_SLOW_CLOCK_PLL_INT);
+	cx18_write_reg(cx, lowpwr ? 0x30C344 : 0x124927F,
 						CX18_SLOW_CLOCK_PLL_FRAC);
-	cx18_write_reg(cx, 4, CX18_SLOW_CLOCK_PLL_POST);
+	cx18_write_reg(cx, 3, CX18_SLOW_CLOCK_PLL_POST);
 
 	/* mpeg clock pll 54MHz */
+	/* xtal_freq * 0xf.15f17f0 / 8 = 54 MHz: 432 MHz before post-divide */
 	cx18_write_reg(cx, 0xF, CX18_MPEG_CLOCK_PLL_INT);
-	cx18_write_reg(cx, 0x2BCFEF, CX18_MPEG_CLOCK_PLL_FRAC);
+	cx18_write_reg(cx, 0x2BE2FE, CX18_MPEG_CLOCK_PLL_FRAC);
 	cx18_write_reg(cx, 8, CX18_MPEG_CLOCK_PLL_POST);
+
+	/*
+	 * VDCLK  Integer = 0x0f, Post Divider = 0x04
+	 * AIMCLK Integer = 0x0e, Post Divider = 0x16
+	 */
+	cx18_av_write4(cx, CXADEC_PLL_CTRL1, 0x160e040f);
+
+	/* VDCLK Fraction = 0x2be2fe */
+	/* xtal * 0xf.15f17f0/4 = 108 MHz: 432 MHz before post divide */
+	cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, 0x002be2fe);
+
+	/* AIMCLK Fraction = 0x05227ad */
+	/* xtal * 0xe.2913d68/0x16 = 48000 * 384: 406 MHz before post-divide */
+	cx18_av_write4(cx, CXADEC_AUX_PLL_FRAC, 0x005227ad);
+
+	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
+	cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
 
 	/* Defaults */
 	/* APU = SC or SC/2 = 125/62.5 */

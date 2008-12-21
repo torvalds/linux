@@ -271,7 +271,7 @@ void cx18_av_std_setup(struct cx18 *cx)
 	if (pll_post) {
 		int fin, fsc, pll;
 
-		pll = (28636364L * ((((u64)pll_int) << 25) + pll_frac)) >> 25;
+		pll = (28636360L * ((((u64)pll_int) << 25) + pll_frac)) >> 25;
 		pll /= pll_post;
 		CX18_DEBUG_INFO("PLL = %d.%06d MHz\n",
 					pll / 1000000, pll % 1000000);
