@@ -499,8 +499,8 @@ discard:
 }
 
 /* get stream parameters (framerate) */
-int sd_get_streamparm(struct gspca_dev *gspca_dev,
-		      struct v4l2_streamparm *parm)
+static int sd_get_streamparm(struct gspca_dev *gspca_dev,
+			     struct v4l2_streamparm *parm)
 {
 	struct v4l2_captureparm *cp = &parm->parm.capture;
 	struct v4l2_fract *tpf = &cp->timeperframe;
@@ -517,8 +517,8 @@ int sd_get_streamparm(struct gspca_dev *gspca_dev,
 }
 
 /* set stream parameters (framerate) */
-int sd_set_streamparm(struct gspca_dev *gspca_dev,
-		      struct v4l2_streamparm *parm)
+static int sd_set_streamparm(struct gspca_dev *gspca_dev,
+			     struct v4l2_streamparm *parm)
 {
 	struct v4l2_captureparm *cp = &parm->parm.capture;
 	struct v4l2_fract *tpf = &cp->timeperframe;

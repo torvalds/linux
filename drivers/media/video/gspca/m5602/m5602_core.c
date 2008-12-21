@@ -24,7 +24,7 @@
 
 /* Kernel module parameters */
 int force_sensor;
-int dump_bridge;
+static int dump_bridge;
 int dump_sensor;
 
 static const __devinitdata struct usb_device_id m5602_table[] = {
