@@ -29,7 +29,22 @@ static void __init sh03_setup(char **cmdline_p)
 	board_time_init = sh03_time_init;
 }
 
-static struct resource cf_ide_resources[3];
+static struct resource cf_ide_resources[] = {
+	[0] = {
+		.start  = 0x1f0,
+		.end    = 0x1f0 + 8,
+		.flags  = IORESOURCE_IO,
+	},
+	[1] = {
+		.start  = 0x1f0 + 0x206,
+		.end    = 0x1f0 +8 + 0x206 + 8,
+		.flags  = IORESOURCE_IO,
+	},
+	[2] = {
+		.start  = IRL2_IRQ,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
 
 static struct platform_device cf_ide_device = {
 	.name		= "pata_platform",
@@ -74,14 +89,10 @@ static int __init sh03_devices_setup(void)
 	}
 
 	/* IDE cmd address : 0x1f0-0x1f7 and 0x3f6 */
-	cf_ide_resources[0].start = (unsigned long)cf_ide_base + 0x40;
-	cf_ide_resources[0].end   = (unsigned long)cf_ide_base + 0x40 + 0x0f;
-	cf_ide_resources[0].flags = IORESOURCE_IO;
-	cf_ide_resources[1].start = (unsigned long)cf_ide_base + 0x2c;
-	cf_ide_resources[1].end   = (unsigned long)cf_ide_base + 0x2c + 0x03;
-	cf_ide_resources[1].flags = IORESOURCE_IO;
-	cf_ide_resources[2].start = IRQ_FATA;
-	cf_ide_resources[2].flags = IORESOURCE_IRQ;
+	cf_ide_resources[0].start += (unsigned long)cf_ide_base;
+	cf_ide_resources[0].end   += (unsigned long)cf_ide_base;
+	cf_ide_resources[1].start += (unsigned long)cf_ide_base;
+	cf_ide_resources[1].end   += (unsigned long)cf_ide_base;
 
 	return platform_add_devices(sh03_devices, ARRAY_SIZE(sh03_devices));
 }
