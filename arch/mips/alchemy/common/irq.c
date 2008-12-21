@@ -37,8 +37,6 @@
 #include <asm/mach-pb1x00/pb1000.h>
 #endif
 
-static DEFINE_SPINLOCK(irq_lock);
-
 static int au1x_ic_settype(unsigned int irq, unsigned int flow_type);
 
 /* per-processor fixed function irqs */
@@ -610,46 +608,4 @@ void __init arch_init_irq(void)
 	board_init_irq();
 
 	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3);
-}
-
-unsigned long save_local_and_disable(int controller)
-{
-	int i;
-	unsigned long flags, mask;
-
-	spin_lock_irqsave(&irq_lock, flags);
-	if (controller) {
-		mask = au_readl(IC1_MASKSET);
-		for (i = 0; i < 32; i++)
-			au1x_ic1_mask(i + AU1000_INTC1_INT_BASE);
-	} else {
-		mask = au_readl(IC0_MASKSET);
-		for (i = 0; i < 32; i++)
-			au1x_ic0_mask(i + AU1000_INTC0_INT_BASE);
-	}
-	spin_unlock_irqrestore(&irq_lock, flags);
-
-	return mask;
-}
-
-void restore_local_and_enable(int controller, unsigned long mask)
-{
-	int i;
-	unsigned long flags, new_mask;
-
-	spin_lock_irqsave(&irq_lock, flags);
-	for (i = 0; i < 32; i++)
-		if (mask & (1 << i)) {
-			if (controller)
-				au1x_ic1_unmask(i + AU1000_INTC1_INT_BASE);
-			else
-				au1x_ic0_unmask(i + AU1000_INTC0_INT_BASE);
-		}
-
-	if (controller)
-		new_mask = au_readl(IC1_MASKSET);
-	else
-		new_mask = au_readl(IC0_MASKSET);
-
-	spin_unlock_irqrestore(&irq_lock, flags);
 }

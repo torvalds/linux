@@ -1560,6 +1560,10 @@ enum soc_au1200_ints {
 #define SYS_SLPPWR		0xB1900078
 #define SYS_SLEEP		0xB190007C
 
+#define SYS_WAKEMSK_D2		(1 << 9)
+#define SYS_WAKEMSK_M2		(1 << 8)
+#define SYS_WAKEMSK_GPIO(x)	(1 << (x))
+
 /* Clock Controller */
 #define SYS_FREQCTRL0		0xB1900020
 #  define SYS_FC_FRDIV2_BIT	22

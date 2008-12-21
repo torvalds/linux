@@ -3,6 +3,7 @@
 #
 
 obj-y += prom.o
+obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_MIPS_PB1000)	+= pb1000/
 obj-$(CONFIG_MIPS_PB1100)	+= pb1100/
 obj-$(CONFIG_MIPS_PB1200)	+= pb1200/
