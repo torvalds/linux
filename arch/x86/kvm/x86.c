@@ -364,6 +364,7 @@ void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	}
 	kvm_x86_ops->set_cr4(vcpu, cr4);
 	vcpu->arch.cr4 = cr4;
+	vcpu->arch.mmu.base_role.cr4_pge = !!(cr4 & X86_CR4_PGE);
 	kvm_mmu_sync_global(vcpu);
 	kvm_mmu_reset_context(vcpu);
 }

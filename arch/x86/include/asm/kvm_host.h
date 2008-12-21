@@ -183,6 +183,7 @@ union kvm_mmu_page_role {
 		unsigned metaphysical:1;
 		unsigned access:3;
 		unsigned invalid:1;
+		unsigned cr4_pge:1;
 	};
 };
 
