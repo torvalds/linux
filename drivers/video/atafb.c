@@ -122,7 +122,6 @@ static struct atafb_par {
 	void *screen_base;
 	int yres_virtual;
 	u_long next_line;
-	u_long next_plane;
 #if defined ATAFB_TT || defined ATAFB_STE
 	union {
 		struct {
@@ -1392,14 +1391,7 @@ set_screen_base:
 	par->screen_base = screen_base + var->yoffset * linelen;
 	par->hw.falcon.xoffset = 0;
 
-	// FIXME!!! sort of works, no crash
-	//par->next_line = linelen;
-	//par->next_plane = yres_virtual * linelen;
 	par->next_line = linelen;
-	par->next_plane = 2;
-	// crashes
-	//par->next_plane = linelen;
-	//par->next_line  = yres_virtual * linelen;
 
 	return 0;
 }
@@ -2662,10 +2654,9 @@ static void atafb_imageblit(struct fb_info *info, const struct fb_image *image)
 			src += pitch;
 		}
 	} else {
-		// only used for logo; broken
-		c2p(info->screen_base, image->data, dx, dy, width, height,
-		    par->next_line, par->next_plane, image->width,
-		    info->var.bits_per_pixel);
+		c2p_iplan2(info->screen_base, image->data, dx, dy, width,
+			   height, par->next_line, image->width,
+			   info->var.bits_per_pixel);
 	}
 }
 

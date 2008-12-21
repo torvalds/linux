@@ -96,6 +96,53 @@ static inline void transp8(u32 d[], unsigned int n, unsigned int m)
 
 
     /*
+     *  Transpose operations on 4 32-bit words
+     */
+
+static inline void transp4(u32 d[], unsigned int n, unsigned int m)
+{
+	u32 mask = get_mask(n);
+
+	switch (m) {
+	case 1:
+		/* First n x 1 block */
+		_transp(d, 0, 1, n, mask);
+		/* Second n x 1 block */
+		_transp(d, 2, 3, n, mask);
+		return;
+
+	case 2:
+		/* Single n x 2 block */
+		_transp(d, 0, 2, n, mask);
+		_transp(d, 1, 3, n, mask);
+		return;
+	}
+
+	c2p_unsupported();
+}
+
+
+    /*
+     *  Transpose operations on 4 32-bit words (reverse order)
+     */
+
+static inline void transp4x(u32 d[], unsigned int n, unsigned int m)
+{
+	u32 mask = get_mask(n);
+
+	switch (m) {
+	case 2:
+		/* Single n x 2 block */
+		_transp(d, 2, 0, n, mask);
+		_transp(d, 3, 1, n, mask);
+		return;
+	}
+
+	c2p_unsupported();
+}
+
+
+    /*
      *  Compose two values, using a bitmask as decision value
      *  This is equivalent to (a & mask) | (b & ~mask)
      */
