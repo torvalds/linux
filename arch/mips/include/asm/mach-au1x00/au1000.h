@@ -137,6 +137,12 @@ extern void set_au1x00_uart_baud_base(unsigned long new_baud_base);
 extern unsigned long get_au1x00_uart_baud_base(void);
 extern unsigned long au1xxx_calc_clock(void);
 
+/* PM: arch/mips/alchemy/common/sleeper.S, power.c, irq.c */
+void au1xxx_save_and_sleep(void);
+void au_sleep(void);
+void save_au1xxx_intctl(void);
+void restore_au1xxx_intctl(void);
+
 /*
  * Every board describes its IRQ mapping with this table.
  */
