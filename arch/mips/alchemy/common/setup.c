@@ -44,6 +44,15 @@ extern void set_cpuspec(void);
 
 void __init plat_mem_setup(void)
 {
+	unsigned long est_freq;
+
+	/* determine core clock */
+	est_freq = au1xxx_calc_clock();
+	est_freq += 5000;    /* round */
+	est_freq -= est_freq % 10000;
+	printk(KERN_INFO "(PRId %08x) @ %lu.%02lu MHz\n", read_c0_prid(),
+	       est_freq / 1000000, ((est_freq % 1000000) * 100) / 1000000);
+
 	_machine_restart = au1000_restart;
 	_machine_halt = au1000_halt;
 	pm_power_off = au1000_power_off;

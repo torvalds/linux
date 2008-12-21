@@ -44,53 +44,6 @@
 
 extern int allow_au1k_wait; /* default off for CP0 Counter */
 
-static DEFINE_SPINLOCK(time_lock);
-
-/*
- * I haven't found anyone that doesn't use a 12 MHz source clock,
- * but just in case.....
- */
-#define AU1000_SRC_CLK	12000000
-
-/*
- * We read the real processor speed from the PLL.  This is important
- * because it is more accurate than computing it from the 32 KHz
- * counter, if it exists.  If we don't have an accurate processor
- * speed, all of the peripherals that derive their clocks based on
- * this advertised speed will introduce error and sometimes not work
- * properly.  This function is futher convoluted to still allow configurations
- * to do that in case they have really, really old silicon with a
- * write-only PLL register.			-- Dan
- */
-unsigned long calc_clock(void)
-{
-	unsigned long cpu_speed;
-	unsigned long flags;
-
-	spin_lock_irqsave(&time_lock, flags);
-
-	/*
-	 * On early Au1000, sys_cpupll was write-only. Since these
-	 * silicon versions of Au1000 are not sold by AMD, we don't bend
-	 * over backwards trying to determine the frequency.
-	 */
-	if (au1xxx_cpu_has_pll_wo())
-#ifdef CONFIG_SOC_AU1000_FREQUENCY
-		cpu_speed = CONFIG_SOC_AU1000_FREQUENCY;
-#else
-		cpu_speed = 396000000;
-#endif
-	else
-		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) * AU1000_SRC_CLK;
-	/* On Alchemy CPU:counter ratio is 1:1 */
-	mips_hpt_frequency = cpu_speed;
-	/* Equation: Baudrate = CPU / (SD * 2 * CLKDIV * 16) */
-	set_au1x00_uart_baud_base(cpu_speed / (2 * ((int)(au_readl(SYS_POWERCTRL)
-							  & 0x03) + 2) * 16));
-	spin_unlock_irqrestore(&time_lock, flags);
-	return cpu_speed;
-}
-
 static cycle_t au1x_counter1_read(void)
 {
 	return au_readl(SYS_RTCREAD);
@@ -150,13 +103,6 @@ void __init plat_time_init(void)
 {
 	struct clock_event_device *cd = &au1x_rtcmatch2_clockdev;
 	unsigned long t;
-	unsigned int est_freq = calc_clock();
-
-	est_freq += 5000;    /* round */
-	est_freq -= est_freq%10000;
-	printk(KERN_INFO "(PRId %08x) @ %u.%02u MHz\n", read_c0_prid(),
-	       est_freq / 1000000, ((est_freq % 1000000) * 100) / 1000000);
-	set_au1x00_speed(est_freq);
 
 	/* Check if firmware (YAMON, ...) has enabled 32kHz and clock
 	 * has been detected.  If so install the rtcmatch2 clocksource,

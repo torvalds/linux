@@ -27,10 +27,20 @@
  */
 
 #include <linux/module.h>
+#include <linux/spinlock.h>
+#include <asm/time.h>
 #include <asm/mach-au1x00/au1000.h>
+
+/*
+ * I haven't found anyone that doesn't use a 12 MHz source clock,
+ * but just in case.....
+ */
+#define AU1000_SRC_CLK	12000000
 
 static unsigned int au1x00_clock; /*  Hz */
 static unsigned long uart_baud_base;
+
+static DEFINE_SPINLOCK(time_lock);
 
 /*
  * Set the au1000_clock
@@ -59,4 +69,48 @@ unsigned long get_au1x00_uart_baud_base(void)
 void set_au1x00_uart_baud_base(unsigned long new_baud_base)
 {
 	uart_baud_base = new_baud_base;
+}
+
+/*
+ * We read the real processor speed from the PLL.  This is important
+ * because it is more accurate than computing it from the 32 KHz
+ * counter, if it exists.  If we don't have an accurate processor
+ * speed, all of the peripherals that derive their clocks based on
+ * this advertised speed will introduce error and sometimes not work
+ * properly.  This function is futher convoluted to still allow configurations
+ * to do that in case they have really, really old silicon with a
+ * write-only PLL register.			-- Dan
+ */
+unsigned long au1xxx_calc_clock(void)
+{
+	unsigned long cpu_speed;
+	unsigned long flags;
+
+	spin_lock_irqsave(&time_lock, flags);
+
+	/*
+	 * On early Au1000, sys_cpupll was write-only. Since these
+	 * silicon versions of Au1000 are not sold by AMD, we don't bend
+	 * over backwards trying to determine the frequency.
+	 */
+	if (au1xxx_cpu_has_pll_wo())
+#ifdef CONFIG_SOC_AU1000_FREQUENCY
+		cpu_speed = CONFIG_SOC_AU1000_FREQUENCY;
+#else
+		cpu_speed = 396000000;
+#endif
+	else
+		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) * AU1000_SRC_CLK;
+
+	/* On Alchemy CPU:counter ratio is 1:1 */
+	mips_hpt_frequency = cpu_speed;
+	/* Equation: Baudrate = CPU / (SD * 2 * CLKDIV * 16) */
+	set_au1x00_uart_baud_base(cpu_speed / (2 * ((int)(au_readl(SYS_POWERCTRL)
+							  & 0x03) + 2) * 16));
+
+	spin_unlock_irqrestore(&time_lock, flags);
+
+	set_au1x00_speed(cpu_speed);
+
+	return cpu_speed;
 }

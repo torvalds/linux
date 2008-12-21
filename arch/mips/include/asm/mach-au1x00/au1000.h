@@ -135,6 +135,7 @@ extern void set_au1x00_speed(unsigned int new_freq);
 extern unsigned int get_au1x00_speed(void);
 extern void set_au1x00_uart_baud_base(unsigned long new_baud_base);
 extern unsigned long get_au1x00_uart_baud_base(void);
+extern unsigned long au1xxx_calc_clock(void);
 
 /*
  * Every board describes its IRQ mapping with this table.
