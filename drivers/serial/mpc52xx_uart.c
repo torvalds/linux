@@ -1148,22 +1148,29 @@ mpc52xx_uart_of_probe(struct of_device *op, const struct of_device_id *match)
 		return ret;
 
 	port->mapbase = res.start;
+	if (!port->mapbase) {
+		dev_dbg(&op->dev, "Could not allocate resources for PSC\n");
+		return -EINVAL;
+	}
+
 	port->irq = irq_of_parse_and_map(op->node, 0);
+	if (port->irq == NO_IRQ) {
+		dev_dbg(&op->dev, "Could not get irq\n");
+		return -EINVAL;
+	}
 
 	dev_dbg(&op->dev, "mpc52xx-psc uart at %p, irq=%x, freq=%i\n",
 		(void *)port->mapbase, port->irq, port->uartclk);
 
-	if ((port->irq == NO_IRQ) || !port->mapbase) {
-		printk(KERN_ERR "Could not allocate resources for PSC\n");
-		return -EINVAL;
-	}
-
 	/* Add the port to the uart sub-system */
 	ret = uart_add_one_port(&mpc52xx_uart_driver, port);
-	if (!ret)
-		dev_set_drvdata(&op->dev, (void *)port);
+	if (ret) {
+		irq_dispose_mapping(port->irq);
+		return ret;
+	}
 
-	return ret;
+	dev_set_drvdata(&op->dev, (void *)port);
+	return 0;
 }
 
 static int
