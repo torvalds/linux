@@ -44,37 +44,13 @@ extern void set_cpuspec(void);
 
 void __init plat_mem_setup(void)
 {
-	struct	cpu_spec *sp;
-	unsigned long prid, cpufreq, bclk;
-
-	set_cpuspec();
-	sp = cur_cpu_spec[0];
-
 	_machine_restart = au1000_restart;
 	_machine_halt = au1000_halt;
 	pm_power_off = au1000_power_off;
 
 	board_setup();  /* board specific setup */
 
-	prid = read_c0_prid();
-	if (sp->cpu_pll_wo)
-#ifdef CONFIG_SOC_AU1000_FREQUENCY
-		cpufreq = CONFIG_SOC_AU1000_FREQUENCY / 1000000;
-#else
-		cpufreq = 396;
-#endif
-	else
-		cpufreq = (au_readl(SYS_CPUPLL) & 0x3F) * 12;
-	printk(KERN_INFO "(PRID %08lx) @ %ld MHz\n", prid, cpufreq);
-
-	if (sp->cpu_bclk) {
-		/* Enable BCLK switching */
-		bclk = au_readl(SYS_POWERCTRL);
-		au_writel(bclk | 0x60, SYS_POWERCTRL);
-		printk(KERN_INFO "BCLK switching enabled!\n");
-	}
-
-	if (sp->cpu_od)
+	if (au1xxx_cpu_needs_config_od())
 		/* Various early Au1xx0 errata corrected by this */
 		set_c0_config(1 << 19); /* Set Config[OD] */
 	else

@@ -7,7 +7,7 @@
 
 obj-y += prom.o irq.o puts.o time.o reset.o \
 	clocks.o platform.o power.o setup.o \
-	sleeper.o cputable.o dma.o dbdma.o gpio.o
+	sleeper.o dma.o dbdma.o gpio.o
 
 obj-$(CONFIG_PCI)		+= pci.o
 

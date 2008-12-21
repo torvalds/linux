@@ -91,6 +91,44 @@ static inline u32 au_readl(unsigned long reg)
 	return *(volatile u32 *)reg;
 }
 
+/* Early Au1000 have a write-only SYS_CPUPLL register. */
+static inline int au1xxx_cpu_has_pll_wo(void)
+{
+	switch (read_c0_prid()) {
+	case 0x00030100:	/* Au1000 DA */
+	case 0x00030201:	/* Au1000 HA */
+	case 0x00030202:	/* Au1000 HB */
+		return 1;
+	}
+	return 0;
+}
+
+/* does CPU need CONFIG[OD] set to fix tons of errata? */
+static inline int au1xxx_cpu_needs_config_od(void)
+{
+	/*
+	 * c0_config.od (bit 19) was write only (and read as 0) on the
+	 * early revisions of Alchemy SOCs.  It disables the bus trans-
+	 * action overlapping and needs to be set to fix various errata.
+	 */
+	switch (read_c0_prid()) {
+	case 0x00030100: /* Au1000 DA */
+	case 0x00030201: /* Au1000 HA */
+	case 0x00030202: /* Au1000 HB */
+	case 0x01030200: /* Au1500 AB */
+	/*
+	 * Au1100/Au1200 errata actually keep silence about this bit,
+	 * so we set it just in case for those revisions that require
+	 * it to be set according to the (now gone) cpu_table.
+	 */
+	case 0x02030200: /* Au1100 AB */
+	case 0x02030201: /* Au1100 BA */
+	case 0x02030202: /* Au1100 BC */
+	case 0x04030201: /* Au1200 AC */
+		return 1;
+	}
+	return 0;
+}
 
 /* arch/mips/au1000/common/clocks.c */
 extern void set_au1x00_speed(unsigned int new_freq);
@@ -1737,26 +1775,6 @@ typedef volatile struct {
 
 static AU1X00_SYS * const sys = (AU1X00_SYS *)SYS_BASE;
 
-#endif
-
-/*
- * Processor information based on PRID.
- * Copied from PowerPC.
- */
-#ifndef _LANGUAGE_ASSEMBLY
-struct cpu_spec {
-	/* CPU is matched via (PRID & prid_mask) == prid_value */
-	unsigned int	prid_mask;
-	unsigned int	prid_value;
-
-	char		*cpu_name;
-	unsigned char	cpu_od;		/* Set Config[OD] */
-	unsigned char	cpu_bclk;	/* Enable BCLK switching */
-	unsigned char	cpu_pll_wo;	/* sys_cpupll reg. write-only */
-};
-
-extern struct cpu_spec	cpu_specs[];
-extern struct cpu_spec	*cur_cpu_spec[];
 #endif
 
 #endif

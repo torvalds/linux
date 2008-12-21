@@ -198,7 +198,7 @@ unsigned long calc_clock(void)
 	 * silicon versions of Au1000 are not sold by AMD, we don't bend
 	 * over backwards trying to determine the frequency.
 	 */
-	if (cur_cpu_spec[0]->cpu_pll_wo)
+	if (au1xxx_cpu_has_pll_wo())
 #ifdef CONFIG_SOC_AU1000_FREQUENCY
 		cpu_speed = CONFIG_SOC_AU1000_FREQUENCY;
 #else
@@ -221,7 +221,7 @@ void __init plat_time_init(void)
 
 	est_freq += 5000;    /* round */
 	est_freq -= est_freq%10000;
-	printk(KERN_INFO "CPU frequency %u.%02u MHz\n",
+	printk(KERN_INFO "(PRId %08x) @ %u.%02u MHz\n", read_c0_prid(),
 	       est_freq / 1000000, ((est_freq % 1000000) * 100) / 1000000);
 	set_au1x00_speed(est_freq);
 
