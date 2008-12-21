@@ -57,11 +57,11 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x12c, 0x11202fff);
 
 			/*
-			 * EN_AV_LOCK = 1
+			 * EN_AV_LOCK = 0
 			 * VID_COUNT = 0x0d2ef8 = 107999.000 * 8 =
 			 *  ((8 samples/32,000) * (13,500,000 * 8) * 4 - 1) * 8
 			 */
-			cx18_av_write4(cx, 0x128, 0xa10d2ef8);
+			cx18_av_write4(cx, 0x128, 0xa00d2ef8);
 			break;
 
 		case 44100:
@@ -82,11 +82,11 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x12c, 0x112092ff);
 
 			/*
-			 * EN_AV_LOCK = 1
+			 * EN_AV_LOCK = 0
 			 * VID_COUNT = 0x1d4bf8 = 239999.000 * 8 =
 			 *  ((49 samples/44,100) * (13,500,000 * 8) * 2 - 1) * 8
 			 */
-			cx18_av_write4(cx, 0x128, 0xa11d4bf8);
+			cx18_av_write4(cx, 0x128, 0xa01d4bf8);
 			break;
 
 		case 48000:
@@ -107,11 +107,11 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x12c, 0x11205fff);
 
 			/*
-			 * EN_AV_LOCK = 1
+			 * EN_AV_LOCK = 0
 			 * VID_COUNT = 0x1193f8 = 143999.000 * 8 =
 			 *  ((4 samples/48,000) * (13,500,000 * 8) * 16 - 1) * 8
 			 */
-			cx18_av_write4(cx, 0x128, 0xa11193f8);
+			cx18_av_write4(cx, 0x128, 0xa01193f8);
 			break;
 		}
 	} else {
@@ -141,11 +141,11 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x12c, 0x11201fff);
 
 			/*
-			 * EN_AV_LOCK = 1
+			 * EN_AV_LOCK = 0
 			 * VID_COUNT = 0x0d2ef8 = 107999.000 * 8 =
 			 *  ((8 samples/32,000) * (13,500,000 * 8) * 4 - 1) * 8
 			 */
-			cx18_av_write4(cx, 0x128, 0xa10d2ef8);
+			cx18_av_write4(cx, 0x128, 0xa00d2ef8);
 			break;
 
 		case 44100:
@@ -170,11 +170,11 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x12c, 0x112061ff);
 
 			/*
-			 * EN_AV_LOCK = 1
+			 * EN_AV_LOCK = 0
 			 * VID_COUNT = 0x1d4bf8 = 239999.000 * 8 =
 			 *  ((49 samples/44,100) * (13,500,000 * 8) * 2 - 1) * 8
 			 */
-			cx18_av_write4(cx, 0x128, 0xa11d4bf8);
+			cx18_av_write4(cx, 0x128, 0xa01d4bf8);
 			break;
 
 		case 48000:
@@ -199,11 +199,11 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x12c, 0x11203fff);
 
 			/*
-			 * EN_AV_LOCK = 1
+			 * EN_AV_LOCK = 0
 			 * VID_COUNT = 0x1193f8 = 143999.000 * 8 =
 			 *  ((4 samples/48,000) * (13,500,000 * 8) * 16 - 1) * 8
 			 */
-			cx18_av_write4(cx, 0x128, 0xa11193f8);
+			cx18_av_write4(cx, 0x128, 0xa01193f8);
 			break;
 		}
 	}
