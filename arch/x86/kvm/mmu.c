@@ -797,7 +797,6 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 	ASSERT(is_empty_shadow_page(sp->spt));
 	bitmap_zero(sp->slot_bitmap, KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS);
 	sp->multimapped = 0;
-	sp->global = 1;
 	sp->parent_pte = parent_pte;
 	--vcpu->kvm->arch.n_free_mmu_pages;
 	return sp;
@@ -1241,6 +1240,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	pgprintk("%s: adding gfn %lx role %x\n", __func__, gfn, role.word);
 	sp->gfn = gfn;
 	sp->role = role;
+	sp->global = role.cr4_pge;
 	hlist_add_head(&sp->hash_link, bucket);
 	if (!metaphysical) {
 		if (rmap_write_protect(vcpu->kvm, gfn))
@@ -1668,8 +1668,6 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	u64 mt_mask = shadow_mt_mask;
 	struct kvm_mmu_page *sp = page_header(__pa(shadow_pte));
 
-	if (!(vcpu->arch.cr4 & X86_CR4_PGE))
-		global = 0;
 	if (!global && sp->global) {
 		sp->global = 0;
 		if (sp->unsync) {
