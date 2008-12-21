@@ -188,84 +188,84 @@ cflags-$(CONFIG_SOC_AU1X00)	+= -I$(srctree)/arch/mips/include/asm/mach-au1x00
 #
 # AMD Alchemy Pb1000 eval board
 #
-libs-$(CONFIG_MIPS_PB1000)	+= arch/mips/alchemy/pb1000/
+core-$(CONFIG_MIPS_PB1000)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_PB1000)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1000)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Pb1100 eval board
 #
-libs-$(CONFIG_MIPS_PB1100)	+= arch/mips/alchemy/pb1100/
+core-$(CONFIG_MIPS_PB1100)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_PB1100)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1100)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Pb1500 eval board
 #
-libs-$(CONFIG_MIPS_PB1500)	+= arch/mips/alchemy/pb1500/
+core-$(CONFIG_MIPS_PB1500)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_PB1500)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1500)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Pb1550 eval board
 #
-libs-$(CONFIG_MIPS_PB1550)	+= arch/mips/alchemy/pb1550/
+core-$(CONFIG_MIPS_PB1550)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_PB1550)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1550)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Pb1200 eval board
 #
-libs-$(CONFIG_MIPS_PB1200)	+= arch/mips/alchemy/pb1200/
+core-$(CONFIG_MIPS_PB1200)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_PB1200)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1200)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Db1000 eval board
 #
-libs-$(CONFIG_MIPS_DB1000)	+= arch/mips/alchemy/db1x00/
+core-$(CONFIG_MIPS_DB1000)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_DB1000)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1000)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Db1100 eval board
 #
-libs-$(CONFIG_MIPS_DB1100)	+= arch/mips/alchemy/db1x00/
+core-$(CONFIG_MIPS_DB1100)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_DB1100)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1100)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Db1500 eval board
 #
-libs-$(CONFIG_MIPS_DB1500)	+= arch/mips/alchemy/db1x00/
+core-$(CONFIG_MIPS_DB1500)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_DB1500)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1500)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Db1550 eval board
 #
-libs-$(CONFIG_MIPS_DB1550)	+= arch/mips/alchemy/db1x00/
+core-$(CONFIG_MIPS_DB1550)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_DB1550)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1550)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Db1200 eval board
 #
-libs-$(CONFIG_MIPS_DB1200)	+= arch/mips/alchemy/pb1200/
+core-$(CONFIG_MIPS_DB1200)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_DB1200)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1200)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Bosporus eval board
 #
-libs-$(CONFIG_MIPS_BOSPORUS)	+= arch/mips/alchemy/db1x00/
+core-$(CONFIG_MIPS_BOSPORUS)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_BOSPORUS)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_BOSPORUS)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Mirage eval board
 #
-libs-$(CONFIG_MIPS_MIRAGE)	+= arch/mips/alchemy/db1x00/
+core-$(CONFIG_MIPS_MIRAGE)	+= arch/mips/alchemy/devboards/
 cflags-$(CONFIG_MIPS_MIRAGE)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_MIRAGE)	+= 0xffffffff80100000
 
