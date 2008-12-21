@@ -1954,7 +1954,7 @@ void cpqhp_pushbutton_thread(unsigned long slot)
 			return ;
 		}
 
-		if (func != NULL && ctrl != NULL) {
+		if (ctrl != NULL) {
 			if (cpqhp_process_SI(ctrl, func) != 0) {
 				amber_LED_on(ctrl, hp_slot);
 				green_LED_off(ctrl, hp_slot);
