@@ -1938,15 +1938,13 @@ static void ftdi_process_read(struct work_struct *work)
 		/* Compare new line status to the old one, signal if different/
 		   N.B. packet may be processed more than once, but differences
 		   are only processed once.  */
-		if (priv != NULL) {
-			char new_status = data[packet_offset + 0] &
-							FTDI_STATUS_B0_MASK;
-			if (new_status != priv->prev_status) {
-				priv->diff_status |=
-					new_status ^ priv->prev_status;
-				wake_up_interruptible(&priv->delta_msr_wait);
-				priv->prev_status = new_status;
-			}
+		char new_status = data[packet_offset + 0] &
+						FTDI_STATUS_B0_MASK;
+		if (new_status != priv->prev_status) {
+			priv->diff_status |=
+				new_status ^ priv->prev_status;
+			wake_up_interruptible(&priv->delta_msr_wait);
+			priv->prev_status = new_status;
 		}
 
 		length = min(PKTSZ, urb->actual_length-packet_offset)-2;

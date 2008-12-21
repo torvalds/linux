@@ -279,7 +279,7 @@ static void pxa_init_debugfs(struct pxa_udc *udc)
 		goto err_queues;
 	eps = debugfs_create_file("epstate", 0400, root, udc,
 			&eps_dbg_fops);
-	if (!queues)
+	if (!eps)
 		goto err_eps;
 
 	udc->debugfs_root = root;
