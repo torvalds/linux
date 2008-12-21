@@ -34,6 +34,7 @@
 #include <asm/macints.h>
 #include <asm/mac_via.h>
 #include <asm/mac_psc.h>
+#include <asm/mac_oss.h>
 
 volatile __u8 *via1, *via2;
 int rbv_present;
@@ -84,7 +85,6 @@ void via_irq_disable(int irq);
 void via_irq_clear(int irq);
 
 extern irqreturn_t mac_scc_dispatch(int, void *);
-extern int oss_present;
 
 /*
  * Initialize the VIAs

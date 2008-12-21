@@ -33,7 +33,6 @@
 #include <asm/atari_joystick.h>
 #include <asm/irq.h>
 
-extern unsigned int keymap_count;
 
 /* Hook for MIDI serial driver */
 void (*atari_MIDI_interrupt_hook) (void);

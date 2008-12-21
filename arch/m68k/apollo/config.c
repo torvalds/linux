@@ -31,10 +31,6 @@ extern unsigned long dn_gettimeoffset(void);
 extern int dn_dummy_hwclk(int, struct rtc_time *);
 extern int dn_dummy_set_clock_mmss(unsigned long);
 extern void dn_dummy_reset(void);
-extern void dn_dummy_waitbut(void);
-extern struct fb_info *dn_fb_init(long *);
-extern void dn_dummy_debug_init(void);
-extern irqreturn_t dn_process_int(int irq, struct pt_regs *fp);
 #ifdef CONFIG_HEARTBEAT
 static void dn_heartbeat(int on);
 #endif

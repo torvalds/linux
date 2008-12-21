@@ -134,6 +134,7 @@
 #include <asm/errno.h>
 #include <asm/macints.h>
 #include <asm/irq_regs.h>
+#include <asm/mac_oss.h>
 
 #define DEBUG_SPURIOUS
 #define SHUTUP_SONIC
@@ -146,7 +147,6 @@ static int scc_mask;
  * VIA/RBV hooks
  */
 
-extern void via_init(void);
 extern void via_register_interrupts(void);
 extern void via_irq_enable(int);
 extern void via_irq_disable(int);
@@ -157,9 +157,6 @@ extern int  via_irq_pending(int);
  * OSS hooks
  */
 
-extern int oss_present;
-
-extern void oss_init(void);
 extern void oss_register_interrupts(void);
 extern void oss_irq_enable(int);
 extern void oss_irq_disable(int);
@@ -170,9 +167,6 @@ extern int  oss_irq_pending(int);
  * PSC hooks
  */
 
-extern int psc_present;
-
-extern void psc_init(void);
 extern void psc_register_interrupts(void);
 extern void psc_irq_enable(int);
 extern void psc_irq_disable(int);
@@ -191,12 +185,10 @@ extern void iop_register_interrupts(void);
 
 extern int baboon_present;
 
-extern void baboon_init(void);
 extern void baboon_register_interrupts(void);
 extern void baboon_irq_enable(int);
 extern void baboon_irq_disable(int);
 extern void baboon_irq_clear(int);
-extern int  baboon_irq_pending(int);
 
 /*
  * SCC interrupt routines
