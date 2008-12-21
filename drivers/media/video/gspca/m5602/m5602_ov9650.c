@@ -143,6 +143,30 @@ int ov9650_init(struct sd *sd)
 	return err;
 }
 
+int ov9650_start(struct sd *sd)
+{
+	int i, err = 0;
+	struct cam *cam = &sd->gspca_dev.cam;
+
+	switch (cam->cam_mode[sd->gspca_dev.curr_mode].width)
+	{
+	default:
+	case 640:
+		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
+
+		for (i = 0; i < ARRAY_SIZE(VGA_ov9650) && !err; i++) {
+			u8 data = VGA_ov9650[i][2];
+			if (VGA_ov9650[i][0] == SENSOR)
+				err = m5602_write_sensor(sd,
+					VGA_ov9650[i][1], &data, 1);
+			else
+				err = m5602_write_bridge(sd, VGA_ov9650[i][1], data);
+		}
+		break;
+	}
+	return err;
+}
+
 int ov9650_power_down(struct sd *sd)
 {
 	int i, err = 0;

@@ -124,6 +124,7 @@ extern int dump_sensor;
 
 int ov9650_probe(struct sd *sd);
 int ov9650_init(struct sd *sd);
+int ov9650_start(struct sd *sd);
 int ov9650_power_down(struct sd *sd);
 
 int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
@@ -151,6 +152,7 @@ static struct m5602_sensor ov9650 = {
 	.i2c_regW = 1,
 	.probe = ov9650_probe,
 	.init = ov9650_init,
+	.start = ov9650_start,
 	.power_down = ov9650_power_down,
 
 	.nctrls = 8,
@@ -259,15 +261,15 @@ static struct m5602_sensor ov9650 = {
 	.nmodes = 1,
 	.modes = {
 	{
-		M5602_DEFAULT_FRAME_WIDTH,
-		M5602_DEFAULT_FRAME_HEIGHT,
+		640,
+		480,
 		V4L2_PIX_FMT_SBGGR8,
 		V4L2_FIELD_NONE,
 		.sizeimage =
-			M5602_DEFAULT_FRAME_WIDTH * M5602_DEFAULT_FRAME_HEIGHT,
-		.bytesperline = M5602_DEFAULT_FRAME_WIDTH,
+			640 * 480,
+		.bytesperline = 640,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1
+		.priv = 0
 	}
 	}
 };
@@ -414,27 +416,6 @@ static const unsigned char init_ov9650[][3] =
 	{SENSOR, OV9650_GAIN, GAIN_DEFAULT},
 	{SENSOR, OV9650_BLUE, BLUE_GAIN_DEFAULT},
 	{SENSOR, OV9650_RED, RED_GAIN_DEFAULT},
-
-	{SENSOR, OV9650_COM3, OV9650_VARIOPIXEL},
-	{SENSOR, OV9650_COM5, OV9650_SYSTEM_CLK_SEL},
-
-	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x82},
-	{BRIDGE, M5602_XB_LINE_OF_FRAME_L, 0x00},
-	{BRIDGE, M5602_XB_PIX_OF_LINE_H, 0x82},
-	{BRIDGE, M5602_XB_PIX_OF_LINE_L, 0x00},
-	{BRIDGE, M5602_XB_SIG_INI, 0x01},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	/* Moves the view window in a vertical orientation */
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x09},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x01},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0xe0}, /* 480 */
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x64}, /* 100 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02}, /* 640 + 100 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0xe4}
 };
 
 static const unsigned char power_down_ov9650[][3] =
@@ -455,6 +436,32 @@ static const unsigned char power_down_ov9650[][3] =
 	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x02},
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x04},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0}
+};
+
+static const unsigned char VGA_ov9650[][3] =
+{
+	{SENSOR, OV9650_COM7, OV9650_VGA_SELECT |
+			      OV9650_RGB_SELECT |
+			      OV9650_RAW_RGB_SELECT},
+
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x82},
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_L, 0x00},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_H, 0x82},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_L, 0x00},
+	{BRIDGE, M5602_XB_SIG_INI, 0x01},
+
+	/* Moves the view window in a vertical orientation */
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x09},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x01},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0xe0}, /* 480 */
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x64}, /* 100 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02}, /* 640 + 100 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0xe4}
 };
 
 #endif
