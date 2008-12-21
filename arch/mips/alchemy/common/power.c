@@ -85,7 +85,11 @@ static unsigned int	sleep_static_memctlr[4][3];
 #define SLEEP_TEST_TIMEOUT 1
 #ifdef	SLEEP_TEST_TIMEOUT
 static int sleep_ticks;
-void wakeup_counter0_set(int ticks);
+static void wakeup_counter0_set(int ticks)
+{
+	au_writel(au_readl(SYS_TOYREAD) + ticks, SYS_TOYMATCH2);
+	au_sync();
+}
 #endif
 
 static void save_core_regs(void)
@@ -183,7 +187,6 @@ static void restore_core_regs(void)
 	}
 
 	restore_au1xxx_intctl();
-	wakeup_counter0_adjust();
 }
 
 unsigned long suspend_mode;
@@ -411,6 +414,15 @@ static struct ctl_table pm_dir_table[] = {
  */
 static int __init pm_init(void)
 {
+	/* init TOY to tick at 1Hz. No need to wait for access bits
+	 * since there's plenty of time between here and the first
+	 * suspend cycle.
+	 */
+	if (au_readl(SYS_TOYTRIM) != 32767) {
+		au_writel(32767, SYS_TOYTRIM);
+		au_sync();
+	}
+
 	register_sysctl_table(pm_dir_table);
 	return 0;
 }

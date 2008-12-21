@@ -96,6 +96,9 @@ int allow_au1k_wait;
 
 static void au1k_wait(void)
 {
+	if (!allow_au1k_wait)
+		return;
+
 	/* using the wait instruction makes CP0 counter unusable */
 	__asm__("	.set	mips3			\n"
 		"	cache	0x14, 0(%0)		\n"
@@ -186,8 +189,7 @@ void __init check_wait(void)
 	case CPU_AU1200:
 	case CPU_AU1210:
 	case CPU_AU1250:
-		if (allow_au1k_wait)
-			cpu_wait = au1k_wait;
+		cpu_wait = au1k_wait;
 		break;
 	case CPU_20KC:
 		/*
