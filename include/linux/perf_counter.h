@@ -128,7 +128,7 @@ struct perf_counter;
  * struct hw_perf_counter_ops - performance counter hw ops
  */
 struct hw_perf_counter_ops {
-	void (*enable)			(struct perf_counter *counter);
+	int (*enable)			(struct perf_counter *counter);
 	void (*disable)			(struct perf_counter *counter);
 	void (*read)			(struct perf_counter *counter);
 };

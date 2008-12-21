@@ -244,7 +244,7 @@ static int fixed_mode_idx(struct hw_perf_counter *hwc)
 /*
  * Find a PMC slot for the freshly enabled / scheduled in counter:
  */
-static void pmc_generic_enable(struct perf_counter *counter)
+static int pmc_generic_enable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 	struct hw_perf_counter *hwc = &counter->hw;
@@ -253,6 +253,8 @@ static void pmc_generic_enable(struct perf_counter *counter)
 	/* Try to get the previous counter again */
 	if (test_and_set_bit(idx, cpuc->used)) {
 		idx = find_first_zero_bit(cpuc->used, nr_counters_generic);
+		if (idx == nr_counters_generic)
+			return -EAGAIN;
 		set_bit(idx, cpuc->used);
 		hwc->idx = idx;
 	}
@@ -265,6 +267,8 @@ static void pmc_generic_enable(struct perf_counter *counter)
 
 	__hw_perf_counter_set_period(counter, hwc, idx);
 	__pmc_generic_enable(counter, hwc, idx);
+
+	return 0;
 }
 
 void perf_counter_print_debug(void)

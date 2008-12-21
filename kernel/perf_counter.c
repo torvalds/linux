@@ -355,21 +355,25 @@ void perf_counter_task_sched_out(struct task_struct *task, int cpu)
 	cpuctx->task_ctx = NULL;
 }
 
-static void
+static int
 counter_sched_in(struct perf_counter *counter,
 		 struct perf_cpu_context *cpuctx,
 		 struct perf_counter_context *ctx,
 		 int cpu)
 {
 	if (counter->state == PERF_COUNTER_STATE_OFF)
-		return;
+		return 0;
 
-	counter->hw_ops->enable(counter);
+	if (counter->hw_ops->enable(counter))
+		return -EAGAIN;
+
 	counter->state = PERF_COUNTER_STATE_ACTIVE;
 	counter->oncpu = cpu;	/* TODO: put 'cpu' into cpuctx->cpu */
 
 	cpuctx->active_oncpu++;
 	ctx->nr_active++;
+
+	return 0;
 }
 
 static int
@@ -378,20 +382,38 @@ group_sched_in(struct perf_counter *group_counter,
 	       struct perf_counter_context *ctx,
 	       int cpu)
 {
-	struct perf_counter *counter;
-	int was_group = 0;
+	struct perf_counter *counter, *partial_group;
+	int ret = 0;
 
-	counter_sched_in(group_counter, cpuctx, ctx, cpu);
+	if (counter_sched_in(group_counter, cpuctx, ctx, cpu))
+		return -EAGAIN;
 
 	/*
 	 * Schedule in siblings as one group (if any):
 	 */
 	list_for_each_entry(counter, &group_counter->sibling_list, list_entry) {
-		counter_sched_in(counter, cpuctx, ctx, cpu);
-		was_group = 1;
+		if (counter_sched_in(counter, cpuctx, ctx, cpu)) {
+			partial_group = counter;
+			goto group_error;
+		}
+		ret = -EAGAIN;
 	}
 
-	return was_group;
+	return ret;
+
+group_error:
+	/*
+	 * Groups can be scheduled in as one unit only, so undo any
+	 * partial group before returning:
+	 */
+	list_for_each_entry(counter, &group_counter->sibling_list, list_entry) {
+		if (counter == partial_group)
+			break;
+		counter_sched_out(counter, cpuctx, ctx);
+	}
+	counter_sched_out(group_counter, cpuctx, ctx);
+
+	return -EAGAIN;
 }
 
 /*
@@ -416,9 +438,6 @@ void perf_counter_task_sched_in(struct task_struct *task, int cpu)
 
 	spin_lock(&ctx->lock);
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
-		if (ctx->nr_active == cpuctx->max_pertask)
-			break;
-
 		/*
 		 * Listen to the 'cpu' scheduling filter constraint
 		 * of counters:
@@ -856,8 +875,9 @@ static const struct file_operations perf_fops = {
 	.poll			= perf_poll,
 };
 
-static void cpu_clock_perf_counter_enable(struct perf_counter *counter)
+static int cpu_clock_perf_counter_enable(struct perf_counter *counter)
 {
+	return 0;
 }
 
 static void cpu_clock_perf_counter_disable(struct perf_counter *counter)
@@ -913,11 +933,13 @@ static void task_clock_perf_counter_read(struct perf_counter *counter)
 	task_clock_perf_counter_update(counter, now);
 }
 
-static void task_clock_perf_counter_enable(struct perf_counter *counter)
+static int task_clock_perf_counter_enable(struct perf_counter *counter)
 {
 	u64 now = task_clock_perf_counter_val(counter, 0);
 
 	atomic64_set(&counter->hw.prev_count, now);
+
+	return 0;
 }
 
 static void task_clock_perf_counter_disable(struct perf_counter *counter)
@@ -960,12 +982,14 @@ static void page_faults_perf_counter_read(struct perf_counter *counter)
 	page_faults_perf_counter_update(counter);
 }
 
-static void page_faults_perf_counter_enable(struct perf_counter *counter)
+static int page_faults_perf_counter_enable(struct perf_counter *counter)
 {
 	/*
 	 * page-faults is a per-task value already,
 	 * so we dont have to clear it on switch-in.
 	 */
+
+	return 0;
 }
 
 static void page_faults_perf_counter_disable(struct perf_counter *counter)
@@ -1006,12 +1030,14 @@ static void context_switches_perf_counter_read(struct perf_counter *counter)
 	context_switches_perf_counter_update(counter);
 }
 
-static void context_switches_perf_counter_enable(struct perf_counter *counter)
+static int context_switches_perf_counter_enable(struct perf_counter *counter)
 {
 	/*
 	 * ->nvcsw + curr->nivcsw is a per-task value already,
 	 * so we dont have to clear it on switch-in.
 	 */
+
+	return 0;
 }
 
 static void context_switches_perf_counter_disable(struct perf_counter *counter)
@@ -1050,12 +1076,14 @@ static void cpu_migrations_perf_counter_read(struct perf_counter *counter)
 	cpu_migrations_perf_counter_update(counter);
 }
 
-static void cpu_migrations_perf_counter_enable(struct perf_counter *counter)
+static int cpu_migrations_perf_counter_enable(struct perf_counter *counter)
 {
 	/*
 	 * se.nr_migrations is a per-task value already,
 	 * so we dont have to clear it on switch-in.
 	 */
+
+	return 0;
 }
 
 static void cpu_migrations_perf_counter_disable(struct perf_counter *counter)
