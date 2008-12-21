@@ -25,6 +25,7 @@
 #include <linux/mm_types.h>
 #include <linux/hrtimer.h>
 #include <linux/kvm_host.h>
+#include <linux/spinlock.h>
 
 #include "iodev.h"
 #include "ioapic.h"
@@ -59,6 +60,10 @@ struct kvm_kpic_state {
 };
 
 struct kvm_pic {
+	spinlock_t lock;
+	bool wakeup_needed;
+	unsigned pending_acks;
+	struct kvm *kvm;
 	struct kvm_kpic_state pics[2]; /* 0 is master pic, 1 is slave pic */
 	irq_request_func *irq_request;
 	void *irq_request_opaque;
