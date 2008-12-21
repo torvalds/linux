@@ -41,10 +41,12 @@
 #include "fw-device.h"
 
 struct client;
+struct client_resource;
+typedef void (*client_resource_release_fn_t)(struct client *,
+					     struct client_resource *);
 struct client_resource {
-	struct list_head link;
-	void (*release)(struct client *client, struct client_resource *r);
-	u32 handle;
+	client_resource_release_fn_t release;
+	int handle;
 };
 
 /*
@@ -78,9 +80,10 @@ struct iso_interrupt {
 struct client {
 	u32 version;
 	struct fw_device *device;
+
 	spinlock_t lock;
-	u32 resource_handle;
-	struct list_head resource_list;
+	bool in_shutdown;
+	struct idr resource_idr;
 	struct list_head event_list;
 	wait_queue_head_t wait;
 	u64 bus_reset_closure;
@@ -126,9 +129,9 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	}
 
 	client->device = device;
-	INIT_LIST_HEAD(&client->event_list);
-	INIT_LIST_HEAD(&client->resource_list);
 	spin_lock_init(&client->lock);
+	idr_init(&client->resource_idr);
+	INIT_LIST_HEAD(&client->event_list);
 	init_waitqueue_head(&client->wait);
 
 	file->private_data = client;
@@ -151,7 +154,10 @@ static void queue_event(struct client *client, struct event *event,
 	event->v[1].size = size1;
 
 	spin_lock_irqsave(&client->lock, flags);
-	list_add_tail(&event->link, &client->event_list);
+	if (client->in_shutdown)
+		kfree(event);
+	else
+		list_add_tail(&event->link, &client->event_list);
 	spin_unlock_irqrestore(&client->lock, flags);
 
 	wake_up_interruptible(&client->wait);
@@ -310,34 +316,49 @@ static int ioctl_get_info(struct client *client, void *buffer)
 	return 0;
 }
 
-static void
-add_client_resource(struct client *client, struct client_resource *resource)
+static int
+add_client_resource(struct client *client, struct client_resource *resource,
+		    gfp_t gfp_mask)
 {
 	unsigned long flags;
+	int ret;
+
+ retry:
+	if (idr_pre_get(&client->resource_idr, gfp_mask) == 0)
+		return -ENOMEM;
 
 	spin_lock_irqsave(&client->lock, flags);
-	list_add_tail(&resource->link, &client->resource_list);
-	resource->handle = client->resource_handle++;
+	if (client->in_shutdown)
+		ret = -ECANCELED;
+	else
+		ret = idr_get_new(&client->resource_idr, resource,
+				  &resource->handle);
 	spin_unlock_irqrestore(&client->lock, flags);
+
+	if (ret == -EAGAIN)
+		goto retry;
+
+	return ret < 0 ? ret : 0;
 }
 
 static int
 release_client_resource(struct client *client, u32 handle,
+			client_resource_release_fn_t release,
 			struct client_resource **resource)
 {
 	struct client_resource *r;
 	unsigned long flags;
 
 	spin_lock_irqsave(&client->lock, flags);
-	list_for_each_entry(r, &client->resource_list, link) {
-		if (r->handle == handle) {
-			list_del(&r->link);
-			break;
-		}
-	}
+	if (client->in_shutdown)
+		r = NULL;
+	else
+		r = idr_find(&client->resource_idr, handle);
+	if (r && r->release == release)
+		idr_remove(&client->resource_idr, handle);
 	spin_unlock_irqrestore(&client->lock, flags);
 
-	if (&r->link == &client->resource_list)
+	if (!(r && r->release == release))
 		return -EINVAL;
 
 	if (resource)
@@ -372,7 +393,12 @@ complete_transaction(struct fw_card *card, int rcode,
 		memcpy(r->data, payload, r->length);
 
 	spin_lock_irqsave(&client->lock, flags);
-	list_del(&response->resource.link);
+	/*
+	 * If called while in shutdown, the idr tree must be left untouched.
+	 * The idr handle will be removed later.
+	 */
+	if (!client->in_shutdown)
+		idr_remove(&client->resource_idr, response->resource.handle);
 	spin_unlock_irqrestore(&client->lock, flags);
 
 	r->type   = FW_CDEV_EVENT_RESPONSE;
@@ -416,7 +442,7 @@ static int ioctl_send_request(struct client *client, void *buffer)
 	    copy_from_user(response->response.data,
 			   u64_to_uptr(request->data), request->length)) {
 		ret = -EFAULT;
-		goto err;
+		goto failed;
 	}
 
 	switch (request->tcode) {
@@ -434,11 +460,13 @@ static int ioctl_send_request(struct client *client, void *buffer)
 		break;
 	default:
 		ret = -EINVAL;
-		goto err;
+		goto failed;
 	}
 
 	response->resource.release = release_transaction;
-	add_client_resource(client, &response->resource);
+	ret = add_client_resource(client, &response->resource, GFP_KERNEL);
+	if (ret < 0)
+		goto failed;
 
 	fw_send_request(device->card, &response->transaction,
 			request->tcode & 0x1f,
@@ -453,7 +481,7 @@ static int ioctl_send_request(struct client *client, void *buffer)
 		return sizeof(request) + request->length;
 	else
 		return sizeof(request);
- err:
+ failed:
 	kfree(response);
 
 	return ret;
@@ -500,22 +528,21 @@ handle_request(struct fw_card *card, struct fw_request *r,
 	struct request *request;
 	struct request_event *e;
 	struct client *client = handler->client;
+	int ret;
 
 	request = kmalloc(sizeof(*request), GFP_ATOMIC);
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
-	if (request == NULL || e == NULL) {
-		kfree(request);
-		kfree(e);
-		fw_send_response(card, r, RCODE_CONFLICT_ERROR);
-		return;
-	}
+	if (request == NULL || e == NULL)
+		goto failed;
 
 	request->request = r;
 	request->data    = payload;
 	request->length  = length;
 
 	request->resource.release = release_request;
-	add_client_resource(client, &request->resource);
+	ret = add_client_resource(client, &request->resource, GFP_ATOMIC);
+	if (ret < 0)
+		goto failed;
 
 	e->request.type    = FW_CDEV_EVENT_REQUEST;
 	e->request.tcode   = tcode;
@@ -526,6 +553,12 @@ handle_request(struct fw_card *card, struct fw_request *r,
 
 	queue_event(client, &e->event,
 		    &e->request, sizeof(e->request), payload, length);
+	return;
+
+ failed:
+	kfree(request);
+	kfree(e);
+	fw_send_response(card, r, RCODE_CONFLICT_ERROR);
 }
 
 static void
@@ -544,6 +577,7 @@ static int ioctl_allocate(struct client *client, void *buffer)
 	struct fw_cdev_allocate *request = buffer;
 	struct address_handler *handler;
 	struct fw_address_region region;
+	int ret;
 
 	handler = kmalloc(sizeof(*handler), GFP_KERNEL);
 	if (handler == NULL)
@@ -563,7 +597,11 @@ static int ioctl_allocate(struct client *client, void *buffer)
 	}
 
 	handler->resource.release = release_address_handler;
-	add_client_resource(client, &handler->resource);
+	ret = add_client_resource(client, &handler->resource, GFP_KERNEL);
+	if (ret < 0) {
+		release_address_handler(client, &handler->resource);
+		return ret;
+	}
 	request->handle = handler->resource.handle;
 
 	return 0;
@@ -573,7 +611,8 @@ static int ioctl_deallocate(struct client *client, void *buffer)
 {
 	struct fw_cdev_deallocate *request = buffer;
 
-	return release_client_resource(client, request->handle, NULL);
+	return release_client_resource(client, request->handle,
+				       release_address_handler, NULL);
 }
 
 static int ioctl_send_response(struct client *client, void *buffer)
@@ -582,8 +621,10 @@ static int ioctl_send_response(struct client *client, void *buffer)
 	struct client_resource *resource;
 	struct request *r;
 
-	if (release_client_resource(client, request->handle, &resource) < 0)
+	if (release_client_resource(client, request->handle,
+				    release_request, &resource) < 0)
 		return -EINVAL;
+
 	r = container_of(resource, struct request, resource);
 	if (request->length < r->length)
 		r->length = request->length;
@@ -626,7 +667,7 @@ static int ioctl_add_descriptor(struct client *client, void *buffer)
 {
 	struct fw_cdev_add_descriptor *request = buffer;
 	struct descriptor *descriptor;
-	int retval;
+	int ret;
 
 	if (request->length > 256)
 		return -EINVAL;
@@ -638,8 +679,8 @@ static int ioctl_add_descriptor(struct client *client, void *buffer)
 
 	if (copy_from_user(descriptor->data,
 			   u64_to_uptr(request->data), request->length * 4)) {
-		kfree(descriptor);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto failed;
 	}
 
 	descriptor->d.length = request->length;
@@ -647,24 +688,31 @@ static int ioctl_add_descriptor(struct client *client, void *buffer)
 	descriptor->d.key = request->key;
 	descriptor->d.data = descriptor->data;
 
-	retval = fw_core_add_descriptor(&descriptor->d);
-	if (retval < 0) {
-		kfree(descriptor);
-		return retval;
-	}
+	ret = fw_core_add_descriptor(&descriptor->d);
+	if (ret < 0)
+		goto failed;
 
 	descriptor->resource.release = release_descriptor;
-	add_client_resource(client, &descriptor->resource);
+	ret = add_client_resource(client, &descriptor->resource, GFP_KERNEL);
+	if (ret < 0) {
+		fw_core_remove_descriptor(&descriptor->d);
+		goto failed;
+	}
 	request->handle = descriptor->resource.handle;
 
 	return 0;
+ failed:
+	kfree(descriptor);
+
+	return ret;
 }
 
 static int ioctl_remove_descriptor(struct client *client, void *buffer)
 {
 	struct fw_cdev_remove_descriptor *request = buffer;
 
-	return release_client_resource(client, request->handle, NULL);
+	return release_client_resource(client, request->handle,
+				       release_descriptor, NULL);
 }
 
 static void
@@ -1003,11 +1051,21 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	return retval;
 }
 
+static int shutdown_resource(int id, void *p, void *data)
+{
+	struct client_resource *r = p;
+	struct client *client = data;
+
+	r->release(client, r);
+
+	return 0;
+}
+
 static int fw_device_op_release(struct inode *inode, struct file *file)
 {
 	struct client *client = file->private_data;
 	struct event *e, *next_e;
-	struct client_resource *r, *next_r;
+	unsigned long flags;
 
 	mutex_lock(&client->device->client_list_mutex);
 	list_del(&client->link);
@@ -1019,17 +1077,22 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	if (client->iso_context)
 		fw_iso_context_destroy(client->iso_context);
 
-	list_for_each_entry_safe(r, next_r, &client->resource_list, link)
-		r->release(client, r);
+	/* Freeze client->resource_idr and client->event_list */
+	spin_lock_irqsave(&client->lock, flags);
+	client->in_shutdown = true;
+	spin_unlock_irqrestore(&client->lock, flags);
 
-	/*
-	 * FIXME: We should wait for the async tasklets to stop
-	 * running before freeing the memory.
-	 */
+	idr_for_each(&client->resource_idr, shutdown_resource, client);
+	idr_remove_all(&client->resource_idr);
+	idr_destroy(&client->resource_idr);
 
 	list_for_each_entry_safe(e, next_e, &client->event_list, link)
 		kfree(e);
 
+	/*
+	 * FIXME: client should be reference-counted.  It's extremely unlikely
+	 * but there may still be transactions being completed at this point.
+	 */
 	fw_device_put(client->device);
 	kfree(client);
 
