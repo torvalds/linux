@@ -71,7 +71,7 @@ static inline void store_planar_masked(void *dst, u32 dst_inc, u32 bpp,
 
 
     /*
-     *  c2p - Copy 8-bit chunky image data to a planar frame buffer
+     *  c2p_planar - Copy 8-bit chunky image data to a planar frame buffer
      *  @dst: Starting address of the planar frame buffer
      *  @dx: Horizontal destination offset (in pixels)
      *  @dy: Vertical destination offset (in pixels)
@@ -83,8 +83,9 @@ static inline void store_planar_masked(void *dst, u32 dst_inc, u32 bpp,
      *  @bpp: Bits per pixel of the planar frame buffer (1-8)
      */
 
-void c2p(void *dst, const void *src, u32 dx, u32 dy, u32 width, u32 height,
-	 u32 dst_nextline, u32 dst_nextplane, u32 src_nextline, u32 bpp)
+void c2p_planar(void *dst, const void *src, u32 dx, u32 dy, u32 width,
+		u32 height, u32 dst_nextline, u32 dst_nextplane,
+		u32 src_nextline, u32 bpp)
 {
 	union {
 		u8 pixels[32];
@@ -150,6 +151,6 @@ void c2p(void *dst, const void *src, u32 dx, u32 dy, u32 width, u32 height,
 		dst += dst_nextline;
 	}
 }
-EXPORT_SYMBOL_GPL(c2p);
+EXPORT_SYMBOL_GPL(c2p_planar);
 
 MODULE_LICENSE("GPL");
