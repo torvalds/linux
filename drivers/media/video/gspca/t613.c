@@ -499,7 +499,7 @@ static void om6802_sensor_init(struct gspca_dev *gspca_dev)
 	reg_w_buf(gspca_dev, sensor_reset, sizeof sensor_reset);
 	msleep(5);
 	i = 4;
-	while (--i < 0) {
+	while (--i > 0) {
 		byte = reg_r(gspca_dev, 0x0060);
 		if (!(byte & 0x01))
 			break;
