@@ -242,6 +242,9 @@ static int m5602_start_transfer(struct gspca_dev *gspca_dev)
 	/* Send start command to the camera */
 	const u8 buffer[4] = {0x13, 0xf9, 0x0f, 0x01};
 
+	if (sd->sensor->start)
+		sd->sensor->start(sd);
+
 	memcpy(buf, buffer, sizeof(buffer));
 	err = usb_control_msg(gspca_dev->dev,
 			      usb_sndctrlpipe(gspca_dev->dev, 0),
