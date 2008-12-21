@@ -46,7 +46,19 @@ void board_reset(void)
 
 void __init board_setup(void)
 {
-	char *argptr = NULL;
+	char *argptr;
+
+	argptr = prom_getcmdline();
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+	argptr = strstr(argptr, "console=");
+	if (argptr == NULL) {
+		argptr = prom_getcmdline();
+		strcat(argptr, " console=ttyS0,115200");
+	}
+#endif
+#ifdef CONFIG_FB_AU1200
+	strcat(argptr, " video=au1200fb:panel:bs");
+#endif
 
 #if 0
 	{
@@ -102,16 +114,6 @@ void __init board_setup(void)
 		au_writel(clksrc, SYS_CLKSRC);
 		au_sync();
 	}
-#endif
-
-#ifdef CONFIG_FB_AU1200
-	argptr = prom_getcmdline();
-#ifdef CONFIG_MIPS_PB1200
-	strcat(argptr, " video=au1200fb:panel:bs");
-#endif
-#ifdef CONFIG_MIPS_DB1200
-	strcat(argptr, " video=au1200fb:panel:bs");
-#endif
 #endif
 
 	/*

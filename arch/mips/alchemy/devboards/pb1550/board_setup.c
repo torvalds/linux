@@ -32,6 +32,8 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1550.h>
 
+#include <prom.h>
+
 
 char irq_tab_alchemy[][5] __initdata = {
 	[12] = { -1, INTB, INTC, INTD, INTA }, /* IDSEL 12 - PCI slot 2 (left)  */
@@ -60,6 +62,16 @@ void board_reset(void)
 void __init board_setup(void)
 {
 	u32 pin_func;
+
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+	char *argptr;
+	argptr = prom_getcmdline();
+	argptr = strstr(argptr, "console=");
+	if (argptr == NULL) {
+		argptr = prom_getcmdline();
+		strcat(argptr, " console=ttyS0,115200");
+	}
+#endif
 
 	/*
 	 * Enable PSC1 SYNC for AC'97.  Normaly done in audio driver,

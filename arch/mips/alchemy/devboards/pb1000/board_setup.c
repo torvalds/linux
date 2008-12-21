@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1000.h>
+#include <prom.h>
 
 
 struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
@@ -51,6 +52,15 @@ void __init board_setup(void)
 	u32 pin_func, static_cfg0;
 	u32 sys_freqctrl, sys_clksrc;
 	u32 prid = read_c0_prid();
+
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+	char *argptr = prom_getcmdline();
+	argptr = strstr(argptr, "console=");
+	if (argptr == NULL) {
+		argptr = prom_getcmdline();
+		strcat(argptr, " console=ttyS0,115200");
+	}
+#endif
 
 	/* Set AUX clock to 12 MHz * 8 = 96 MHz */
 	au_writel(8, SYS_AUXPLL);

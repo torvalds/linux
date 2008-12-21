@@ -32,6 +32,9 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-db1x00/db1x00.h>
 
+#include <prom.h>
+
+
 static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 
 const char *get_system_type(void)
@@ -52,6 +55,31 @@ void board_reset(void)
 void __init board_setup(void)
 {
 	u32 pin_func = 0;
+	char *argptr;
+
+	argptr = prom_getcmdline();
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+	argptr = strstr(argptr, "console=");
+	if (argptr == NULL) {
+		argptr = prom_getcmdline();
+		strcat(argptr, " console=ttyS0,115200");
+	}
+#endif
+
+#ifdef CONFIG_FB_AU1100
+	argptr = strstr(argptr, "video=");
+	if (argptr == NULL) {
+		argptr = prom_getcmdline();
+		/* default panel */
+		/*strcat(argptr, " video=au1100fb:panel:Sharp_320x240_16");*/
+	}
+#endif
+
+#if defined(CONFIG_SOUND_AU1X00) && !defined(CONFIG_SOC_AU1000)
+	/* au1000 does not support vra, au1500 and au1100 do */
+	strcat(argptr, " au1000_audio=vra");
+	argptr = prom_getcmdline();
+#endif
 
 	/* Not valid for Au1550 */
 #if defined(CONFIG_IRDA) && \
