@@ -183,14 +183,8 @@ static int iser_post_receive_control(struct iscsi_conn *conn)
 	struct iser_regd_buf *regd_data;
 	struct iser_dto      *recv_dto = NULL;
 	struct iser_device  *device = iser_conn->ib_conn->device;
-	int rx_data_size, err = 0;
-
-	rx_desc = kmem_cache_alloc(ig.desc_cache, GFP_NOIO);
-	if (rx_desc == NULL) {
-		iser_err("Failed to alloc desc for post recv\n");
-		return -ENOMEM;
-	}
-	rx_desc->type = ISCSI_RX;
+	int rx_data_size, err;
+	int posts, outstanding_unexp_pdus;
 
 	/* for the login sequence we must support rx of upto 8K; login is done
 	 * after conn create/bind (connect) and conn stop/bind (reconnect),
@@ -201,46 +195,80 @@ static int iser_post_receive_control(struct iscsi_conn *conn)
 	else /* FIXME till user space sets conn->max_recv_dlength correctly */
 		rx_data_size = 128;
 
-	rx_desc->data = kmalloc(rx_data_size, GFP_NOIO);
-	if (rx_desc->data == NULL) {
-		iser_err("Failed to alloc data buf for post recv\n");
-		err = -ENOMEM;
-		goto post_rx_kmalloc_failure;
+	outstanding_unexp_pdus =
+		atomic_xchg(&iser_conn->ib_conn->unexpected_pdu_count, 0);
+
+	/*
+	 * in addition to the response buffer, replace those consumed by
+	 * unexpected pdus.
+	 */
+	for (posts = 0; posts < 1 + outstanding_unexp_pdus; posts++) {
+		rx_desc = kmem_cache_alloc(ig.desc_cache, GFP_NOIO);
+		if (rx_desc == NULL) {
+			iser_err("Failed to alloc desc for post recv %d\n",
+				 posts);
+			err = -ENOMEM;
+			goto post_rx_cache_alloc_failure;
+		}
+		rx_desc->type = ISCSI_RX;
+		rx_desc->data = kmalloc(rx_data_size, GFP_NOIO);
+		if (rx_desc->data == NULL) {
+			iser_err("Failed to alloc data buf for post recv %d\n",
+				 posts);
+			err = -ENOMEM;
+			goto post_rx_kmalloc_failure;
+		}
+
+		recv_dto = &rx_desc->dto;
+		recv_dto->ib_conn = iser_conn->ib_conn;
+		recv_dto->regd_vector_len = 0;
+
+		regd_hdr = &rx_desc->hdr_regd_buf;
+		memset(regd_hdr, 0, sizeof(struct iser_regd_buf));
+		regd_hdr->device  = device;
+		regd_hdr->virt_addr  = rx_desc; /* == &rx_desc->iser_header */
+		regd_hdr->data_size  = ISER_TOTAL_HEADERS_LEN;
+
+		iser_reg_single(device, regd_hdr, DMA_FROM_DEVICE);
+
+		iser_dto_add_regd_buff(recv_dto, regd_hdr, 0, 0);
+
+		regd_data = &rx_desc->data_regd_buf;
+		memset(regd_data, 0, sizeof(struct iser_regd_buf));
+		regd_data->device  = device;
+		regd_data->virt_addr  = rx_desc->data;
+		regd_data->data_size  = rx_data_size;
+
+		iser_reg_single(device, regd_data, DMA_FROM_DEVICE);
+
+		iser_dto_add_regd_buff(recv_dto, regd_data, 0, 0);
+
+		err = iser_post_recv(rx_desc);
+		if (err) {
+			iser_err("Failed iser_post_recv for post %d\n", posts);
+			goto post_rx_post_recv_failure;
+		}
 	}
+	/* all posts successful */
+	return 0;
 
-	recv_dto = &rx_desc->dto;
-	recv_dto->ib_conn = iser_conn->ib_conn;
-	recv_dto->regd_vector_len = 0;
-
-	regd_hdr = &rx_desc->hdr_regd_buf;
-	memset(regd_hdr, 0, sizeof(struct iser_regd_buf));
-	regd_hdr->device  = device;
-	regd_hdr->virt_addr  = rx_desc; /* == &rx_desc->iser_header */
-	regd_hdr->data_size  = ISER_TOTAL_HEADERS_LEN;
-
-	iser_reg_single(device, regd_hdr, DMA_FROM_DEVICE);
-
-	iser_dto_add_regd_buff(recv_dto, regd_hdr, 0, 0);
-
-	regd_data = &rx_desc->data_regd_buf;
-	memset(regd_data, 0, sizeof(struct iser_regd_buf));
-	regd_data->device  = device;
-	regd_data->virt_addr  = rx_desc->data;
-	regd_data->data_size  = rx_data_size;
-
-	iser_reg_single(device, regd_data, DMA_FROM_DEVICE);
-
-	iser_dto_add_regd_buff(recv_dto, regd_data, 0, 0);
-
-	err = iser_post_recv(rx_desc);
-	if (!err)
-		return 0;
-
-	/* iser_post_recv failed */
+post_rx_post_recv_failure:
 	iser_dto_buffs_release(recv_dto);
 	kfree(rx_desc->data);
 post_rx_kmalloc_failure:
 	kmem_cache_free(ig.desc_cache, rx_desc);
+post_rx_cache_alloc_failure:
+	if (posts > 0) {
+		/*
+		 * response buffer posted, but did not replace all unexpected
+		 * pdu recv bufs. Ignore error, retry occurs next send
+		 */
+		outstanding_unexp_pdus -= (posts - 1);
+		err = 0;
+	}
+	atomic_add(outstanding_unexp_pdus,
+		   &iser_conn->ib_conn->unexpected_pdu_count);
+
 	return err;
 }
 
@@ -274,8 +302,10 @@ int iser_conn_set_full_featured_mode(struct iscsi_conn *conn)
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
 
 	int i;
-	/* no need to keep it in a var, we are after login so if this should
-	 * be negotiated, by now the result should be available here */
+	/*
+	 * FIXME this value should be declared to the target during login with
+	 * the MaxOutstandingUnexpectedPDUs key when supported
+	 */
 	int initial_post_recv_bufs_num = ISER_MAX_RX_MISC_PDUS;
 
 	iser_dbg("Initially post: %d\n", initial_post_recv_bufs_num);
@@ -478,6 +508,7 @@ int iser_send_control(struct iscsi_conn *conn,
 	int err = 0;
 	struct iser_regd_buf *regd_buf;
 	struct iser_device *device;
+	unsigned char opcode;
 
 	if (!iser_conn_state_comp(iser_conn->ib_conn, ISER_CONN_UP)) {
 		iser_err("Failed to send, conn: 0x%p is not up\n", iser_conn->ib_conn);
@@ -512,10 +543,15 @@ int iser_send_control(struct iscsi_conn *conn,
 				       data_seg_len);
 	}
 
-	if (iser_post_receive_control(conn) != 0) {
-		iser_err("post_rcv_buff failed!\n");
-		err = -ENOMEM;
-		goto send_control_error;
+	opcode = task->hdr->opcode & ISCSI_OPCODE_MASK;
+
+	/* post recv buffer for response if one is expected */
+	if (!(opcode == ISCSI_OP_NOOP_OUT && task->hdr->itt == RESERVED_ITT)) {
+		if (iser_post_receive_control(conn) != 0) {
+			iser_err("post_rcv_buff failed!\n");
+			err = -ENOMEM;
+			goto send_control_error;
+		}
 	}
 
 	err = iser_post_send(mdesc);
@@ -586,6 +622,20 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 	 * parallel to the execution of iser_conn_term. So the code that waits *
 	 * for the posted rx bufs refcount to become zero handles everything   */
 	atomic_dec(&conn->ib_conn->post_recv_buf_count);
+
+	/*
+	 * if an unexpected PDU was received then the recv wr consumed must
+	 * be replaced, this is done in the next send of a control-type PDU
+	 */
+	if (opcode == ISCSI_OP_NOOP_IN && hdr->itt == RESERVED_ITT) {
+		/* nop-in with itt = 0xffffffff */
+		atomic_inc(&conn->ib_conn->unexpected_pdu_count);
+	}
+	else if (opcode == ISCSI_OP_ASYNC_EVENT) {
+		/* asyncronous message */
+		atomic_inc(&conn->ib_conn->unexpected_pdu_count);
+	}
+	/* a reject PDU consumes the recv buf posted for the response */
 }
 
 void iser_snd_completion(struct iser_desc *tx_desc)
