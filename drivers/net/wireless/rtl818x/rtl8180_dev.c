@@ -897,6 +897,7 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		     IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_UNSPEC;
+	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 	dev->queues = 1;
 	dev->max_signal = 65;
 
