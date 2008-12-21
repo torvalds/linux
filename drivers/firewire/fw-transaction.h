@@ -383,7 +383,7 @@ struct fw_card_driver {
 
 	struct fw_iso_context *
 	(*allocate_iso_context)(struct fw_card *card,
-				int type, size_t header_size);
+				int type, int channel, size_t header_size);
 	void (*free_iso_context)(struct fw_iso_context *ctx);
 
 	int (*start_iso)(struct fw_iso_context *ctx,

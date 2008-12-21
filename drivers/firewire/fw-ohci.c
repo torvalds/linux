@@ -205,6 +205,7 @@ struct fw_ohci {
 
 	u32 it_context_mask;
 	struct iso_context *it_context_list;
+	u64 ir_context_channels;
 	u32 ir_context_mask;
 	struct iso_context *ir_context_list;
 };
@@ -1877,20 +1878,23 @@ static int handle_it_packet(struct context *context,
 }
 
 static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
-						int type, size_t header_size)
+				int type, int channel, size_t header_size)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct iso_context *ctx, *list;
 	descriptor_callback_t callback;
+	u64 *channels, dont_care = ~0ULL;
 	u32 *mask, regs;
 	unsigned long flags;
 	int index, ret = -ENOMEM;
 
 	if (type == FW_ISO_CONTEXT_TRANSMIT) {
+		channels = &dont_care;
 		mask = &ohci->it_context_mask;
 		list = ohci->it_context_list;
 		callback = handle_it_packet;
 	} else {
+		channels = &ohci->ir_context_channels;
 		mask = &ohci->ir_context_mask;
 		list = ohci->ir_context_list;
 		if (ohci->use_dualbuffer)
@@ -1900,9 +1904,11 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	}
 
 	spin_lock_irqsave(&ohci->lock, flags);
-	index = ffs(*mask) - 1;
-	if (index >= 0)
+	index = *channels & 1ULL << channel ? ffs(*mask) - 1 : -1;
+	if (index >= 0) {
+		*channels &= ~(1ULL << channel);
 		*mask &= ~(1 << index);
+	}
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
 	if (index < 0)
@@ -2012,6 +2018,7 @@ static void ohci_free_iso_context(struct fw_iso_context *base)
 	} else {
 		index = ctx - ohci->ir_context_list;
 		ohci->ir_context_mask |= 1 << index;
+		ohci->ir_context_channels |= 1ULL << base->channel;
 	}
 
 	spin_unlock_irqrestore(&ohci->lock, flags);
@@ -2424,6 +2431,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	ohci->it_context_list = kzalloc(size, GFP_KERNEL);
 
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
+	ohci->ir_context_channels = ~0ULL;
 	ohci->ir_context_mask = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, ~0);
 	size = sizeof(struct iso_context) * hweight32(ohci->ir_context_mask);
