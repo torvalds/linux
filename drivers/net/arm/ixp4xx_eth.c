@@ -35,7 +35,6 @@
 #include <mach/npe.h>
 #include <mach/qmgr.h>
 
-#define DEBUG_QUEUES		0
 #define DEBUG_DESC		0
 #define DEBUG_RX		0
 #define DEBUG_TX		0
@@ -423,47 +422,13 @@ static inline void debug_desc(u32 phys, struct desc *desc)
 #endif
 }
 
-static inline void debug_queue(unsigned int queue, int is_get, u32 phys)
-{
-#if DEBUG_QUEUES
-	static struct {
-		int queue;
-		char *name;
-	} names[] = {
-		{ TX_QUEUE(0x10), "TX#0 " },
-		{ TX_QUEUE(0x20), "TX#1 " },
-		{ TX_QUEUE(0x00), "TX#2 " },
-		{ RXFREE_QUEUE(0x10), "RX-free#0 " },
-		{ RXFREE_QUEUE(0x20), "RX-free#1 " },
-		{ RXFREE_QUEUE(0x00), "RX-free#2 " },
-		{ TXDONE_QUEUE, "TX-done " },
-	};
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(names); i++)
-		if (names[i].queue == queue)
-			break;
-
-	printk(KERN_DEBUG "Queue %i %s%s %X\n", queue,
-	       i < ARRAY_SIZE(names) ? names[i].name : "",
-	       is_get ? "->" : "<-", phys);
-#endif
-}
-
-static inline u32 queue_get_entry(unsigned int queue)
-{
-	u32 phys = qmgr_get_entry(queue);
-	debug_queue(queue, 1, phys);
-	return phys;
-}
-
 static inline int queue_get_desc(unsigned int queue, struct port *port,
 				 int is_tx)
 {
 	u32 phys, tab_phys, n_desc;
 	struct desc *tab;
 
-	if (!(phys = queue_get_entry(queue)))
+	if (!(phys = qmgr_get_entry(queue)))
 		return -1;
 
 	phys &= ~0x1F; /* mask out non-address bits */
@@ -479,7 +444,6 @@ static inline int queue_get_desc(unsigned int queue, struct port *port,
 static inline void queue_put_desc(unsigned int queue, u32 phys,
 				  struct desc *desc)
 {
-	debug_queue(queue, 0, phys);
 	debug_desc(phys, desc);
 	BUG_ON(phys & 0x1F);
 	qmgr_put_entry(queue, phys);
@@ -628,7 +592,7 @@ static void eth_txdone_irq(void *unused)
 #if DEBUG_TX
 	printk(KERN_DEBUG DRV_NAME ": eth_txdone_irq\n");
 #endif
-	while ((phys = queue_get_entry(TXDONE_QUEUE)) != 0) {
+	while ((phys = qmgr_get_entry(TXDONE_QUEUE)) != 0) {
 		u32 npe_id, n_desc;
 		struct port *port;
 		struct desc *desc;
@@ -840,25 +804,30 @@ static int request_queues(struct port *port)
 {
 	int err;
 
-	err = qmgr_request_queue(RXFREE_QUEUE(port->id), RX_DESCS, 0, 0);
+	err = qmgr_request_queue(RXFREE_QUEUE(port->id), RX_DESCS, 0, 0,
+			    "%s:RX-free", port->netdev->name);
 	if (err)
 		return err;
 
-	err = qmgr_request_queue(port->plat->rxq, RX_DESCS, 0, 0);
+	err = qmgr_request_queue(port->plat->rxq, RX_DESCS, 0, 0,
+			    "%s:RX", port->netdev->name);
 	if (err)
 		goto rel_rxfree;
 
-	err = qmgr_request_queue(TX_QUEUE(port->id), TX_DESCS, 0, 0);
+	err = qmgr_request_queue(TX_QUEUE(port->id), TX_DESCS, 0, 0,
+			    "%s:TX", port->netdev->name);
 	if (err)
 		goto rel_rx;
 
-	err = qmgr_request_queue(port->plat->txreadyq, TX_DESCS, 0, 0);
+	err = qmgr_request_queue(port->plat->txreadyq, TX_DESCS, 0, 0,
+			    "%s:TX-ready", port->netdev->name);
 	if (err)
 		goto rel_tx;
 
 	/* TX-done queue handles skbs sent out by the NPEs */
 	if (!ports_open) {
-		err = qmgr_request_queue(TXDONE_QUEUE, TXDONE_QUEUE_LEN, 0, 0);
+		err = qmgr_request_queue(TXDONE_QUEUE, TXDONE_QUEUE_LEN, 0, 0,
+				    "%s:TX-done", DRV_NAME);
 		if (err)
 			goto rel_txready;
 	}

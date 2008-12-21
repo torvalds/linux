@@ -21,7 +21,6 @@
 #include <mach/npe.h>
 #include <mach/qmgr.h>
 
-#define DEBUG_QUEUES		0
 #define DEBUG_DESC		0
 #define DEBUG_RX		0
 #define DEBUG_TX		0
@@ -555,48 +554,13 @@ static inline void debug_desc(u32 phys, struct desc *desc)
 #endif
 }
 
-static inline void debug_queue(unsigned int queue, int is_get, u32 phys)
-{
-#if DEBUG_QUEUES
-	static struct {
-		int queue;
-		char *name;
-	} names[] = {
-		{ HSS0_PKT_TX0_QUEUE, "TX#0 " },
-		{ HSS0_PKT_TXDONE_QUEUE, "TX-done#0 " },
-		{ HSS0_PKT_RX_QUEUE, "RX#0 " },
-		{ HSS0_PKT_RXFREE0_QUEUE, "RX-free#0 " },
-		{ HSS1_PKT_TX0_QUEUE, "TX#1 " },
-		{ HSS1_PKT_TXDONE_QUEUE, "TX-done#1 " },
-		{ HSS1_PKT_RX_QUEUE, "RX#1 " },
-		{ HSS1_PKT_RXFREE0_QUEUE, "RX-free#1 " },
-	};
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(names); i++)
-		if (names[i].queue == queue)
-			break;
-
-	printk(KERN_DEBUG "Queue %i %s%s %X\n", queue,
-	       i < ARRAY_SIZE(names) ? names[i].name : "",
-	       is_get ? "->" : "<-", phys);
-#endif
-}
-
-static inline u32 queue_get_entry(unsigned int queue)
-{
-	u32 phys = qmgr_get_entry(queue);
-	debug_queue(queue, 1, phys);
-	return phys;
-}
-
 static inline int queue_get_desc(unsigned int queue, struct port *port,
 				 int is_tx)
 {
 	u32 phys, tab_phys, n_desc;
 	struct desc *tab;
 
-	if (!(phys = queue_get_entry(queue)))
+	if (!(phys = qmgr_get_entry(queue)))
 		return -1;
 
 	BUG_ON(phys & 0x1F);
@@ -612,7 +576,6 @@ static inline int queue_get_desc(unsigned int queue, struct port *port,
 static inline void queue_put_desc(unsigned int queue, u32 phys,
 				  struct desc *desc)
 {
-	debug_queue(queue, 0, phys);
 	debug_desc(phys, desc);
 	BUG_ON(phys & 0x1F);
 	qmgr_put_entry(queue, phys);
@@ -930,23 +893,28 @@ static int request_hdlc_queues(struct port *port)
 {
 	int err;
 
-	err = qmgr_request_queue(queue_ids[port->id].rxfree, RX_DESCS, 0, 0);
+	err = qmgr_request_queue(queue_ids[port->id].rxfree, RX_DESCS, 0, 0,
+				 "%s:RX-free", port->netdev->name);
 	if (err)
 		return err;
 
-	err = qmgr_request_queue(queue_ids[port->id].rx, RX_DESCS, 0, 0);
+	err = qmgr_request_queue(queue_ids[port->id].rx, RX_DESCS, 0, 0,
+				 "%s:RX", port->netdev->name);
 	if (err)
 		goto rel_rxfree;
 
-	err = qmgr_request_queue(queue_ids[port->id].tx, TX_DESCS, 0, 0);
+	err = qmgr_request_queue(queue_ids[port->id].tx, TX_DESCS, 0, 0,
+				 "%s:TX", port->netdev->name);
 	if (err)
 		goto rel_rx;
 
-	err = qmgr_request_queue(port->plat->txreadyq, TX_DESCS, 0, 0);
+	err = qmgr_request_queue(port->plat->txreadyq, TX_DESCS, 0, 0,
+				 "%s:TX-ready", port->netdev->name);
 	if (err)
 		goto rel_tx;
 
-	err = qmgr_request_queue(queue_ids[port->id].txdone, TX_DESCS, 0, 0);
+	err = qmgr_request_queue(queue_ids[port->id].txdone, TX_DESCS, 0, 0,
+				 "%s:TX-done", port->netdev->name);
 	if (err)
 		goto rel_txready;
 	return 0;
