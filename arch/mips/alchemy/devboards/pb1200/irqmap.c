@@ -47,77 +47,50 @@ struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
 /*
  * Support for External interrupts on the Pb1200 Development platform.
  */
-static volatile int pb1200_cascade_en;
 
-irqreturn_t pb1200_cascade_handler(int irq, void *dev_id)
+static void pb1200_cascade_handler(unsigned int irq, struct irq_desc *d)
 {
 	unsigned short bisr = bcsr->int_status;
-	int extirq_nr = 0;
 
-	/* Clear all the edge interrupts. This has no effect on level. */
-	bcsr->int_status = bisr;
-	for ( ; bisr; bisr &= bisr - 1) {
-		extirq_nr = PB1200_INT_BEGIN + __ffs(bisr);
-		/* Ack and dispatch IRQ */
-		do_IRQ(extirq_nr);
-	}
-
-	return IRQ_RETVAL(1);
+	for ( ; bisr; bisr &= bisr - 1)
+		generic_handle_irq(PB1200_INT_BEGIN + __ffs(bisr));
 }
 
-inline void pb1200_enable_irq(unsigned int irq_nr)
-{
-	bcsr->intset_mask = 1 << (irq_nr - PB1200_INT_BEGIN);
-	bcsr->intset = 1 << (irq_nr - PB1200_INT_BEGIN);
-}
-
-inline void pb1200_disable_irq(unsigned int irq_nr)
+/* NOTE: both the enable and mask bits must be cleared, otherwise the
+ * CPLD generates tons of spurious interrupts (at least on the DB1200).
+ */
+static void pb1200_mask_irq(unsigned int irq_nr)
 {
 	bcsr->intclr_mask = 1 << (irq_nr - PB1200_INT_BEGIN);
 	bcsr->intclr = 1 << (irq_nr - PB1200_INT_BEGIN);
+	au_sync();
 }
 
-static unsigned int pb1200_setup_cascade(void)
+static void pb1200_maskack_irq(unsigned int irq_nr)
 {
-	return request_irq(AU1000_GPIO_7, &pb1200_cascade_handler,
-			   0, "Pb1200 Cascade", &pb1200_cascade_handler);
+	bcsr->intclr_mask = 1 << (irq_nr - PB1200_INT_BEGIN);
+	bcsr->intclr = 1 << (irq_nr - PB1200_INT_BEGIN);
+	bcsr->int_status = 1 << (irq_nr - PB1200_INT_BEGIN);	/* ack */
+	au_sync();
 }
 
-static unsigned int pb1200_startup_irq(unsigned int irq)
+static void pb1200_unmask_irq(unsigned int irq_nr)
 {
-	if (++pb1200_cascade_en == 1) {
-		int res;
-
-		res = pb1200_setup_cascade();
-		if (res)
-			return res;
-	}
-
-	pb1200_enable_irq(irq);
-
-	return 0;
+	bcsr->intset = 1 << (irq_nr - PB1200_INT_BEGIN);
+	bcsr->intset_mask = 1 << (irq_nr - PB1200_INT_BEGIN);
+	au_sync();
 }
 
-static void pb1200_shutdown_irq(unsigned int irq)
-{
-	pb1200_disable_irq(irq);
-	if (--pb1200_cascade_en == 0)
-		free_irq(AU1000_GPIO_7, &pb1200_cascade_handler);
-}
-
-static struct irq_chip external_irq_type = {
+static struct irq_chip pb1200_cpld_irq_type = {
 #ifdef CONFIG_MIPS_PB1200
 	.name = "Pb1200 Ext",
 #endif
 #ifdef CONFIG_MIPS_DB1200
 	.name = "Db1200 Ext",
 #endif
-	.startup  = pb1200_startup_irq,
-	.shutdown = pb1200_shutdown_irq,
-	.ack      = pb1200_disable_irq,
-	.mask     = pb1200_disable_irq,
-	.mask_ack = pb1200_disable_irq,
-	.unmask   = pb1200_enable_irq,
+	.mask		= pb1200_mask_irq,
+	.mask_ack	= pb1200_maskack_irq,
+	.unmask		= pb1200_unmask_irq,
 };
 
 void __init board_init_irq(void)
@@ -147,15 +120,15 @@ void __init board_init_irq(void)
 		panic("Game over.  Your score is 0.");
 	}
 #endif
+	/* mask & disable & ack all */
+	bcsr->intclr_mask = 0xffff;
+	bcsr->intclr = 0xffff;
+	bcsr->int_status = 0xffff;
+	au_sync();
 
-	for (irq = PB1200_INT_BEGIN; irq <= PB1200_INT_END; irq++) {
-		set_irq_chip_and_handler(irq, &external_irq_type,
-					 handle_level_irq);
-		pb1200_disable_irq(irq);
-	}
+	for (irq = PB1200_INT_BEGIN; irq <= PB1200_INT_END; irq++)
+		set_irq_chip_and_handler_name(irq, &pb1200_cpld_irq_type,
+					 handle_level_irq, "level");
 
-	/*
-	 * GPIO_7 can not be hooked here, so it is hooked upon first
-	 * request of any source attached to the cascade.
-	 */
+	set_irq_chained_handler(AU1000_GPIO_7, pb1200_cascade_handler);
 }
