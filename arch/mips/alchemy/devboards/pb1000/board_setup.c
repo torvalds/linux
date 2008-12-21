@@ -23,11 +23,24 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/init.h>
 #include <linux/delay.h>
-
+#include <linux/init.h>
+#include <linux/interrupt.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1000.h>
+
+
+struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
+	{ AU1000_GPIO_15, INTC_INT_LOW_LEVEL, 0 },
+};
+
+int __initdata au1xxx_nr_irqs = ARRAY_SIZE(au1xxx_irq_map);
+
+
+const char *get_system_type(void)
+{
+	return "Alchemy Pb1000";
+}
 
 void board_reset(void)
 {

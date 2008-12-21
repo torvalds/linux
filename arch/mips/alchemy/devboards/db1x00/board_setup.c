@@ -34,6 +34,15 @@
 
 static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 
+const char *get_system_type(void)
+{
+#ifdef CONFIG_MIPS_BOSPORUS
+	return "Alchemy Bosporus Gateway Reference";
+#else
+	return "Alchemy Db1x00";
+#endif
+}
+
 void board_reset(void)
 {
 	/* Hit BCSR.SW_RESET[RESET] */

@@ -32,6 +32,25 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1550.h>
 
+
+char irq_tab_alchemy[][5] __initdata = {
+	[12] = { -1, INTB, INTC, INTD, INTA }, /* IDSEL 12 - PCI slot 2 (left)  */
+	[13] = { -1, INTA, INTB, INTC, INTD }, /* IDSEL 13 - PCI slot 1 (right) */
+};
+
+struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
+	{ AU1000_GPIO_0, INTC_INT_LOW_LEVEL, 0 },
+	{ AU1000_GPIO_1, INTC_INT_LOW_LEVEL, 0 },
+};
+
+int __initdata au1xxx_nr_irqs = ARRAY_SIZE(au1xxx_irq_map);
+
+
+const char *get_system_type(void)
+{
+	return "Alchemy Pb1550";
+}
+
 void board_reset(void)
 {
 	/* Hit BCSR.SYSTEM[RESET] */

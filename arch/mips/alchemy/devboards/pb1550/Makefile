@@ -5,4 +5,4 @@
 # Makefile for the Alchemy Semiconductor Pb1550 board.
 #
 
-lib-y := init.o board_setup.o irqmap.o
+obj-y := board_setup.o

@@ -33,6 +33,11 @@
 extern void _board_init_irq(void);
 extern void (*board_init_irq)(void);
 
+const char *get_system_type(void)
+{
+	return "Alchemy Pb1200";
+}
+
 void board_reset(void)
 {
 	bcsr->resets = 0;
