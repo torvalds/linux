@@ -709,3 +709,4 @@ _GLOBAL(_tlbia)
 	tlbia
 	sync
 #endif /* CONFIG_SMP */
+	blr
