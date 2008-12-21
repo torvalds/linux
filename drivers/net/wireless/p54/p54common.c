@@ -239,11 +239,11 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 
 	if (priv->fw_var >= 0x300) {
 		/* Firmware supports QoS, use it! */
-		priv->tx_stats[4].limit = 3;		/* AC_VO */
-		priv->tx_stats[5].limit = 4;		/* AC_VI */
-		priv->tx_stats[6].limit = 3;		/* AC_BE */
-		priv->tx_stats[7].limit = 2;		/* AC_BK */
-		dev->queues = 4;
+		priv->tx_stats[P54_QUEUE_AC_VO].limit = 3;
+		priv->tx_stats[P54_QUEUE_AC_VI].limit = 4;
+		priv->tx_stats[P54_QUEUE_AC_BE].limit = 3;
+		priv->tx_stats[P54_QUEUE_AC_BK].limit = 2;
+		dev->queues = P54_QUEUE_AC_NUM;
 	}
 
 	if (!modparam_nohwcrypt)
@@ -655,7 +655,8 @@ static void inline p54_wake_free_queues(struct ieee80211_hw *dev)
 		return ;
 
 	for (i = 0; i < dev->queues; i++)
-		if (priv->tx_stats[i + 4].len < priv->tx_stats[i + 4].limit)
+		if (priv->tx_stats[i + P54_QUEUE_DATA].len <
+		    priv->tx_stats[i + P54_QUEUE_DATA].limit)
 			ieee80211_wake_queue(dev, i);
 }
 
@@ -1244,22 +1245,22 @@ static int p54_tx_fill(struct ieee80211_hw *dev, struct sk_buff *skb,
 	if (unlikely(ieee80211_is_mgmt(hdr->frame_control))) {
 		if (ieee80211_is_beacon(hdr->frame_control)) {
 			*aid = 0;
-			*queue = 0;
+			*queue = P54_QUEUE_BEACON;
 			*extra_len = IEEE80211_MAX_TIM_LEN;
 			*flags = P54_HDR_FLAG_DATA_OUT_TIMESTAMP;
 			return 0;
 		} else if (ieee80211_is_probe_resp(hdr->frame_control)) {
 			*aid = 0;
-			*queue = 2;
+			*queue = P54_QUEUE_MGMT;
 			*flags = P54_HDR_FLAG_DATA_OUT_TIMESTAMP |
 				 P54_HDR_FLAG_DATA_OUT_NOCANCEL;
 			return 0;
 		} else {
-			*queue = 2;
+			*queue = P54_QUEUE_MGMT;
 			ret = 0;
 		}
 	} else {
-		*queue += 4;
+		*queue += P54_QUEUE_DATA;
 		ret = 1;
 	}
 
@@ -1272,7 +1273,7 @@ static int p54_tx_fill(struct ieee80211_hw *dev, struct sk_buff *skb,
 	case NL80211_IFTYPE_MESH_POINT:
 		if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
 			*aid = 0;
-			*queue = 3;
+			*queue = P54_QUEUE_CAB;
 			return 0;
 		}
 		if (info->control.sta)
@@ -1300,7 +1301,7 @@ static u8 p54_convert_algo(enum ieee80211_key_alg alg)
 static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_tx_queue_stats *current_queue = NULL;
+	struct ieee80211_tx_queue_stats *current_queue;
 	struct p54_common *priv = dev->priv;
 	struct p54_hdr *hdr;
 	struct p54_tx_data *txhdr;
@@ -1443,10 +1444,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	}
 	txhdr->crypt_offset = crypt_offset;
 	txhdr->hw_queue = queue;
-	if (current_queue)
-		txhdr->backlog = current_queue->len;
-	else
-		txhdr->backlog = 0;
+	txhdr->backlog = current_queue->len;
 	memset(txhdr->durations, 0, sizeof(txhdr->durations));
 	txhdr->tx_antenna = (info->antenna_sel_tx == 0) ?
 		2 : info->antenna_sel_tx - 1;
@@ -1468,10 +1466,8 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 
  err:
 	skb_pull(skb, sizeof(*hdr) + sizeof(*txhdr) + padding);
-	if (current_queue) {
-		current_queue->len--;
-		current_queue->count--;
-	}
+	current_queue->len--;
+	current_queue->count--;
 	return NETDEV_TX_BUSY;
 }
 
@@ -2019,8 +2015,8 @@ static int p54_get_tx_stats(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
-	memcpy(stats, &priv->tx_stats[4], sizeof(stats[0]) * dev->queues);
-
+	memcpy(stats, &priv->tx_stats[P54_QUEUE_DATA],
+	       sizeof(stats[0]) * dev->queues);
 	return 0;
 }
 
@@ -2181,11 +2177,11 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 				      BIT(NL80211_IFTYPE_MESH_POINT);
 
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
-	priv->tx_stats[0].limit = 1;		/* Beacon queue */
-	priv->tx_stats[1].limit = 1;		/* Probe queue for HW scan */
-	priv->tx_stats[2].limit = 3;		/* queue for MLMEs */
-	priv->tx_stats[3].limit = 3;		/* Broadcast / MC queue */
-	priv->tx_stats[4].limit = 5;		/* Data */
+	priv->tx_stats[P54_QUEUE_BEACON].limit = 1;
+	priv->tx_stats[P54_QUEUE_FWSCAN].limit = 1;
+	priv->tx_stats[P54_QUEUE_MGMT].limit = 3;
+	priv->tx_stats[P54_QUEUE_CAB].limit = 3;
+	priv->tx_stats[P54_QUEUE_DATA].limit = 5;
 	dev->queues = 1;
 	priv->noise = -94;
 	/*

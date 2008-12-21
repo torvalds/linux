@@ -329,7 +329,7 @@ struct p54_frame_sent {
 	u8 padding;
 } __attribute__ ((packed));
 
-enum  p54_tx_data_crypt {
+enum p54_tx_data_crypt {
 	P54_CRYPTO_NONE = 0,
 	P54_CRYPTO_WEP,
 	P54_CRYPTO_TKIP,
@@ -338,6 +338,23 @@ enum  p54_tx_data_crypt {
 	P54_CRYPTO_CCX_KPMIC,
 	P54_CRYPTO_CCX_KP,
 	P54_CRYPTO_AESCCMP
+};
+
+enum p54_tx_data_queue {
+	P54_QUEUE_BEACON	= 0,
+	P54_QUEUE_FWSCAN	= 1,
+	P54_QUEUE_MGMT		= 2,
+	P54_QUEUE_CAB		= 3,
+	P54_QUEUE_DATA		= 4,
+
+	P54_QUEUE_AC_NUM	= 4,
+	P54_QUEUE_AC_VO		= 4,
+	P54_QUEUE_AC_VI		= 5,
+	P54_QUEUE_AC_BE		= 6,
+	P54_QUEUE_AC_BK		= 7,
+
+	/* keep last */
+	P54_QUEUE_NUM		= 8,
 };
 
 struct p54_tx_data {
