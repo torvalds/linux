@@ -2718,9 +2718,8 @@ static int cpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 					}
 					pc300patrntst.num_errors =
 						falc_pattern_test_error(card, ch);
-					if (!arg
-					    || copy_to_user(arg, &pc300patrntst,
-							    sizeof (pc300patterntst_t)))
+					if (copy_to_user(arg, &pc300patrntst,
+							 sizeof(pc300patterntst_t)))
 							return -EINVAL;
 				} else {
 					falc_pattern_test(card, ch, pc300patrntst.patrntst_on);
