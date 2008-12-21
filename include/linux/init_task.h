@@ -116,7 +116,9 @@ extern struct group_info init_groups;
 #ifdef CONFIG_PERF_COUNTERS
 # define INIT_PERF_COUNTERS(tsk)					\
 	.perf_counter_ctx.counter_list =				\
-		LIST_HEAD_INIT(tsk.perf_counter_ctx.counter_list),
+		LIST_HEAD_INIT(tsk.perf_counter_ctx.counter_list),	\
+	.perf_counter_ctx.lock =					\
+		__SPIN_LOCK_UNLOCKED(tsk.perf_counter_ctx.lock),
 #else
 # define INIT_PERF_COUNTERS(tsk)
 #endif
