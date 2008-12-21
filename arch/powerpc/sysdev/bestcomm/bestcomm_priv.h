@@ -198,8 +198,8 @@ struct bcom_task_header {
 #define BCOM_IPR_SCTMR_1	2
 #define BCOM_IPR_FEC_RX		6
 #define BCOM_IPR_FEC_TX		5
-#define BCOM_IPR_ATA_RX		4
-#define BCOM_IPR_ATA_TX		3
+#define BCOM_IPR_ATA_RX		7
+#define BCOM_IPR_ATA_TX		7
 #define BCOM_IPR_SCPCI_RX	2
 #define BCOM_IPR_SCPCI_TX	2
 #define BCOM_IPR_PSC3_RX	2

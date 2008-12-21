@@ -16,8 +16,8 @@
 
 struct bcom_ata_bd {
 	u32	status;
-	u32	dst_pa;
 	u32	src_pa;
+	u32	dst_pa;
 };
 
 extern struct bcom_task *
