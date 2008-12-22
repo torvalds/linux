@@ -185,11 +185,15 @@ static int smk_open_load(struct inode *inode, struct file *file)
  * the subject/object pair and replaces the access that was
  * there. If the pair isn't found add it with the specified
  * access.
+ *
+ * Returns 0 if nothing goes wrong or -ENOMEM if it fails
+ * during the allocation of the new pair to add.
  */
-static void smk_set_access(struct smack_rule *srp)
+static int smk_set_access(struct smack_rule *srp)
 {
 	struct smk_list_entry *sp;
 	struct smk_list_entry *newp;
+	int ret = 0;
 
 	mutex_lock(&smack_list_lock);
 
@@ -202,14 +206,20 @@ static void smk_set_access(struct smack_rule *srp)
 
 	if (sp == NULL) {
 		newp = kzalloc(sizeof(struct smk_list_entry), GFP_KERNEL);
+		if (newp == NULL) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
 		newp->smk_rule = *srp;
 		newp->smk_next = smack_list;
 		smack_list = newp;
 	}
 
+out:
 	mutex_unlock(&smack_list_lock);
 
-	return;
+	return ret;
 }
 
 /**
@@ -309,8 +319,10 @@ static ssize_t smk_write_load(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	smk_set_access(&rule);
-	rc = count;
+	rc = smk_set_access(&rule);
+
+	if (!rc)
+		rc = count;
 
 out:
 	kfree(data);
