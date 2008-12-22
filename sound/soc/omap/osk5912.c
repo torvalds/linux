@@ -61,7 +61,7 @@ static int osk_hw_params(struct snd_pcm_substream *substream,
 
 	/* Set codec DAI configuration */
 	err = snd_soc_dai_set_fmt(codec_dai,
-				  SND_SOC_DAIFMT_DSP_A |
+				  SND_SOC_DAIFMT_DSP_B |
 				  SND_SOC_DAIFMT_NB_IF |
 				  SND_SOC_DAIFMT_CBM_CFM);
 	if (err < 0) {
@@ -71,7 +71,7 @@ static int osk_hw_params(struct snd_pcm_substream *substream,
 
 	/* Set cpu DAI configuration */
 	err = snd_soc_dai_set_fmt(cpu_dai,
-				  SND_SOC_DAIFMT_DSP_A |
+				  SND_SOC_DAIFMT_DSP_B |
 				  SND_SOC_DAIFMT_NB_IF |
 				  SND_SOC_DAIFMT_CBM_CFM);
 	if (err < 0) {
