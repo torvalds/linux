@@ -1322,7 +1322,7 @@ static void iwl3945_apm_stop(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-int iwl3945_apm_reset(struct iwl_priv *priv)
+static int iwl3945_apm_reset(struct iwl_priv *priv)
 {
 	int rc;
 	unsigned long flags;
