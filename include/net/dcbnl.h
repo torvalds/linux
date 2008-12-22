@@ -26,7 +26,7 @@
  */
 struct dcbnl_rtnl_ops {
 	u8   (*getstate)(struct net_device *);
-	void (*setstate)(struct net_device *, u8);
+	u8   (*setstate)(struct net_device *, u8);
 	void (*getpermhwaddr)(struct net_device *, u8 *);
 	void (*setpgtccfgtx)(struct net_device *, int, u8, u8, u8, u8);
 	void (*setpgbwgcfgtx)(struct net_device *, int, u8);

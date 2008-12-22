@@ -714,9 +714,8 @@ static int dcbnl_setstate(struct net_device *netdev, struct nlattr **tb,
 
 	value = nla_get_u8(tb[DCB_ATTR_STATE]);
 
-	netdev->dcbnl_ops->setstate(netdev, value);
-
-	ret = dcbnl_reply(0, RTM_SETDCB, DCB_CMD_SSTATE, DCB_ATTR_STATE,
+	ret = dcbnl_reply(netdev->dcbnl_ops->setstate(netdev, value),
+	                  RTM_SETDCB, DCB_CMD_SSTATE, DCB_ATTR_STATE,
 	                  pid, seq, flags);
 
 	return ret;
