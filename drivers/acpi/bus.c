@@ -688,14 +688,6 @@ void __init acpi_early_init(void)
 	if (acpi_disabled)
 		return;
 
-	/*
-	 * ACPI CA initializes acpi_dbg_level to non-zero, which means
-	 * we get debug output merely by turning on CONFIG_ACPI_DEBUG.
-	 * Turn it off so we don't get output unless the user specifies
-	 * acpi.debug_level.
-	 */
-	acpi_dbg_level = 0;
-
 	printk(KERN_INFO PREFIX "Core revision %08x\n", ACPI_CA_VERSION);
 
 	/* enable workarounds, unless strict ACPI spec. compliance */

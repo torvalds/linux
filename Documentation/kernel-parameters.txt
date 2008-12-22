@@ -220,14 +220,17 @@ and is between 256 and 4096 characters. It is defined in the file
 			Bits in debug_level correspond to a level in
 			ACPI_DEBUG_PRINT statements, e.g.,
 			    ACPI_DEBUG_PRINT((ACPI_DB_INFO, ...
-			See Documentation/acpi/debug.txt for more information
-			about debug layers and levels.
+			The debug_level mask defaults to "info".  See
+			Documentation/acpi/debug.txt for more information about
+			debug layers and levels.
 
+			Enable processor driver info messages:
+			    acpi.debug_layer=0x20000000
+			Enable PCI/PCI interrupt routing info messages:
+			    acpi.debug_layer=0x400000
 			Enable AML "Debug" output, i.e., stores to the Debug
 			object while interpreting AML:
 			    acpi.debug_layer=0xffffffff acpi.debug_level=0x2
-			Enable PCI/PCI interrupt routing info messages:
-			    acpi.debug_layer=0x400000 acpi.debug_level=0x4
 			Enable all messages related to ACPI hardware:
 			    acpi.debug_layer=0x2 acpi.debug_level=0xffffffff
 
