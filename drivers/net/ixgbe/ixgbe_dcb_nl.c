@@ -93,6 +93,8 @@ int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *src_dcb_cfg,
 		dst_dcb_cfg->bcn.rp_admin_mode[i - DCB_BCN_ATTR_RP_0] =
 			src_dcb_cfg->bcn.rp_admin_mode[i - DCB_BCN_ATTR_RP_0];
 	}
+	dst_dcb_cfg->bcn.bcna_option[0] = src_dcb_cfg->bcn.bcna_option[0];
+	dst_dcb_cfg->bcn.bcna_option[1] = src_dcb_cfg->bcn.bcna_option[1];
 	dst_dcb_cfg->bcn.rp_alpha = src_dcb_cfg->bcn.rp_alpha;
 	dst_dcb_cfg->bcn.rp_beta = src_dcb_cfg->bcn.rp_beta;
 	dst_dcb_cfg->bcn.rp_gd = src_dcb_cfg->bcn.rp_gd;
@@ -457,6 +459,12 @@ static void ixgbe_dcbnl_getbcncfg(struct net_device *netdev, int enum_index,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
 	switch (enum_index) {
+	case DCB_BCN_ATTR_BCNA_0:
+		*setting = adapter->dcb_cfg.bcn.bcna_option[0];
+		break;
+	case DCB_BCN_ATTR_BCNA_1:
+		*setting = adapter->dcb_cfg.bcn.bcna_option[1];
+		break;
 	case DCB_BCN_ATTR_ALPHA:
 		*setting = adapter->dcb_cfg.bcn.rp_alpha;
 		break;
@@ -516,6 +524,18 @@ static void ixgbe_dcbnl_setbcncfg(struct net_device *netdev, int enum_index,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
 	switch (enum_index) {
+	case DCB_BCN_ATTR_BCNA_0:
+		adapter->temp_dcb_cfg.bcn.bcna_option[0] = setting;
+		if (adapter->temp_dcb_cfg.bcn.bcna_option[0] !=
+			adapter->dcb_cfg.bcn.bcna_option[0])
+			adapter->dcb_set_bitmap |= BIT_BCN;
+		break;
+	case DCB_BCN_ATTR_BCNA_1:
+		adapter->temp_dcb_cfg.bcn.bcna_option[1] = setting;
+		if (adapter->temp_dcb_cfg.bcn.bcna_option[1] !=
+			adapter->dcb_cfg.bcn.bcna_option[1])
+			adapter->dcb_set_bitmap |= BIT_BCN;
+		break;
 	case DCB_BCN_ATTR_ALPHA:
 		adapter->temp_dcb_cfg.bcn.rp_alpha = setting;
 		if (adapter->temp_dcb_cfg.bcn.rp_alpha !=

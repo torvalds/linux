@@ -140,6 +140,8 @@ static struct nla_policy dcbnl_bcn_nest[DCB_BCN_ATTR_MAX + 1] = {
 	[DCB_BCN_ATTR_RP_6]         = {.type = NLA_U8},
 	[DCB_BCN_ATTR_RP_7]         = {.type = NLA_U8},
 	[DCB_BCN_ATTR_RP_ALL]       = {.type = NLA_FLAG},
+	[DCB_BCN_ATTR_BCNA_0]       = {.type = NLA_U32},
+	[DCB_BCN_ATTR_BCNA_1]       = {.type = NLA_U32},
 	[DCB_BCN_ATTR_ALPHA]        = {.type = NLA_U32},
 	[DCB_BCN_ATTR_BETA]         = {.type = NLA_U32},
 	[DCB_BCN_ATTR_GD]           = {.type = NLA_U32},
@@ -922,7 +924,7 @@ static int dcbnl_bcn_getcfg(struct net_device *netdev, struct nlattr **tb,
 			goto err_bcn;
 	}
 
-	for (i = DCB_BCN_ATTR_ALPHA; i <= DCB_BCN_ATTR_RI; i++) {
+	for (i = DCB_BCN_ATTR_BCNA_0; i <= DCB_BCN_ATTR_RI; i++) {
 		if (!getall && !bcn_tb[i])
 			continue;
 
@@ -980,7 +982,7 @@ static int dcbnl_bcn_setcfg(struct net_device *netdev, struct nlattr **tb,
 			data[i]->nla_type - DCB_BCN_ATTR_RP_0, value_byte);
 	}
 
-	for (i = DCB_BCN_ATTR_ALPHA; i <= DCB_BCN_ATTR_RI; i++) {
+	for (i = DCB_BCN_ATTR_BCNA_0; i <= DCB_BCN_ATTR_RI; i++) {
 		if (data[i] == NULL)
 			continue;
 		value_int = nla_get_u32(data[i]);
