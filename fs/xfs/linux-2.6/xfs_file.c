@@ -204,7 +204,7 @@ xfs_file_readdir(
 	 * point we can change the ->readdir prototype to include the
 	 * buffer size.
 	 */
-	bufsize = (size_t)min_t(loff_t, PAGE_SIZE, inode->i_size);
+	bufsize = (size_t)min_t(loff_t, PAGE_SIZE, ip->i_d.di_size);
 
 	error = xfs_readdir(ip, dirent, bufsize,
 				(xfs_off_t *)&filp->f_pos, filldir);
