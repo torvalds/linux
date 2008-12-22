@@ -34,6 +34,14 @@ config MFD_ASIC3
 	  This driver supports the ASIC3 multifunction chip found on many
 	  PDAs (mainly iPAQ and HTC based ones)
 
+config MFD_DM355EVM_MSP
+	bool "DaVinci DM355 EVM microcontroller"
+	depends on I2C && MACH_DAVINCI_DM355_EVM
+	help
+	  This driver supports the MSP430 microcontroller used on these
+	  boards.  MSP430 firmware manages resets and power sequencing,
+	  inputs from buttons and the IR remote, LEDs, an RTC, and more.
+
 config HTC_EGPIO
 	bool "HTC EGPIO support"
 	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
