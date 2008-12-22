@@ -243,10 +243,6 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 		 * least that often.
 		 */
 		if (unlikely(set_ci >= MLX4_NUM_SPARE_EQE)) {
-			/*
-			 * Conditional on hca_type is OK here because
-			 * this is a rare case, not the fast path.
-			 */
 			eq_set_ci(eq, 0);
 			set_ci = 0;
 		}
