@@ -2237,7 +2237,7 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			}
 		}
 	} else {
-		do_low_power = false;
+		do_low_power = true;
 
 		if (tp->link_config.phy_is_low_power == 0) {
 			tp->link_config.phy_is_low_power = 1;
@@ -11544,8 +11544,7 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 		if (val & VCPU_CFGSHDW_ASPM_DBNC)
 			tp->tg3_flags |= TG3_FLAG_ASPM_WORKAROUND;
 		if ((val & VCPU_CFGSHDW_WOL_ENABLE) &&
-		    (val & VCPU_CFGSHDW_WOL_MAGPKT) &&
-		    device_may_wakeup(&tp->pdev->dev))
+		    (val & VCPU_CFGSHDW_WOL_MAGPKT))
 			tp->tg3_flags |= TG3_FLAG_WOL_ENABLE;
 		goto done;
 	}
