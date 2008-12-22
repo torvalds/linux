@@ -67,8 +67,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.96"
-#define DRV_MODULE_RELDATE	"November 21, 2008"
+#define DRV_MODULE_VERSION	"3.97"
+#define DRV_MODULE_RELDATE	"December 10, 2008"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
