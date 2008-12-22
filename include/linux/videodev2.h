@@ -1376,6 +1376,7 @@ struct v4l2_streamparm {
 #define V4L2_CHIP_MATCH_HOST       0  /* Match against chip ID on host (0 for the host) */
 #define V4L2_CHIP_MATCH_I2C_DRIVER 1  /* Match against I2C driver ID */
 #define V4L2_CHIP_MATCH_I2C_ADDR   2  /* Match against I2C 7-bit address */
+#define V4L2_CHIP_MATCH_AC97       3  /* Match against anciliary AC97 chip */
 
 struct v4l2_register {
 	__u32 match_type; /* Match type */

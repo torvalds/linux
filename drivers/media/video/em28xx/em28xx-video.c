@@ -1221,6 +1221,17 @@ static int vidioc_g_register(struct file *file, void *priv,
 	struct em28xx         *dev = fh->dev;
 	int ret;
 
+	if (reg->match_type == V4L2_CHIP_MATCH_AC97) {
+		mutex_lock(&dev->lock);
+		ret = em28xx_read_ac97(dev, reg->reg);
+		mutex_unlock(&dev->lock);
+		if (ret < 0)
+			return ret;
+
+		reg->val = ret;
+		return 0;
+	}
+
 	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
 		return -EINVAL;
 
@@ -1255,6 +1266,14 @@ static int vidioc_s_register(struct file *file, void *priv,
 	struct em28xx         *dev = fh->dev;
 	__le64 buf;
 	int    rc;
+
+	if (reg->match_type == V4L2_CHIP_MATCH_AC97) {
+		mutex_lock(&dev->lock);
+		rc = em28xx_write_ac97(dev, reg->reg, reg->val);
+		mutex_unlock(&dev->lock);
+
+		return rc;
+	}
 
 	buf = cpu_to_le64(reg->val);
 

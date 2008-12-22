@@ -259,7 +259,7 @@ static int em28xx_is_ac97_ready(struct em28xx *dev)
  * em28xx_read_ac97()
  * write a 16 bit value to the specified AC97 address (LSB first!)
  */
-static int em28xx_read_ac97(struct em28xx *dev, u8 reg)
+int em28xx_read_ac97(struct em28xx *dev, u8 reg)
 {
 	int ret;
 	u8 addr = (reg & 0x7f) | 0x80;
@@ -285,7 +285,7 @@ static int em28xx_read_ac97(struct em28xx *dev, u8 reg)
  * em28xx_write_ac97()
  * write a 16 bit value to the specified AC97 address (LSB first!)
  */
-static int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val)
+int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val)
 {
 	int ret;
 	u8 addr = reg & 0x7f;

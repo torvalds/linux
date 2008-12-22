@@ -564,6 +564,9 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len);
 int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val);
 
+int em28xx_read_ac97(struct em28xx *dev, u8 reg);
+int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val);
+
 int em28xx_audio_analog_set(struct em28xx *dev);
 int em28xx_audio_setup(struct em28xx *dev);
 
