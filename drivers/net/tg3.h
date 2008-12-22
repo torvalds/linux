@@ -2676,10 +2676,9 @@ struct tg3 {
 
 	/* PCI block */
 	u32				pci_chip_rev_id;
+	u16				pci_cmd;
 	u8				pci_cacheline_sz;
 	u8				pci_lat_timer;
-	u8				pci_hdr_type;
-	u8				pci_bist;
 
 	int				pm_cap;
 	int				msi_cap;
@@ -2730,7 +2729,6 @@ struct tg3 {
 
 	u32				led_ctrl;
 	u32				phy_otp;
-	u16				pci_cmd;
 
 	char				board_part_number[24];
 #define TG3_VER_SIZE 32
