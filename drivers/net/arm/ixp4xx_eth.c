@@ -1125,6 +1125,15 @@ static int eth_close(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops ixp4xx_netdev_ops = {
+	.ndo_open = eth_open,
+	.ndo_stop = eth_close,
+	.ndo_start_xmit = eth_xmit,
+	.ndo_set_multicast_list = eth_set_mcast_list,
+	.ndo_do_ioctl = eth_ioctl,
+
+};
+
 static int __devinit eth_init_one(struct platform_device *pdev)
 {
 	struct port *port;
@@ -1160,12 +1169,8 @@ static int __devinit eth_init_one(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	dev->open = eth_open;
-	dev->hard_start_xmit = eth_xmit;
-	dev->stop = eth_close;
-	dev->do_ioctl = eth_ioctl;
+	dev->netdev_ops = &ixp4xx_netdev_ops;
 	dev->ethtool_ops = &ixp4xx_ethtool_ops;
-	dev->set_multicast_list = eth_set_mcast_list;
 	dev->tx_queue_len = 100;
 
 	netif_napi_add(dev, &port->napi, eth_poll, NAPI_WEIGHT);
