@@ -102,7 +102,7 @@ config PPC_IBM_CELL_POWERBUTTON
 config CBE_THERM
 	tristate "CBE thermal support"
 	default m
-	depends on CBE_RAS
+	depends on CBE_RAS && SPU_BASE
 
 config CBE_CPUFREQ
 	tristate "CBE frequency scaling"
@@ -136,5 +136,5 @@ endmenu
 
 config OPROFILE_CELL
 	def_bool y
-	depends on PPC_CELL_NATIVE && (OPROFILE = m || OPROFILE = y)
+	depends on PPC_CELL_NATIVE && (OPROFILE = m || OPROFILE = y) && SPU_BASE
 
