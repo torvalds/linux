@@ -1650,7 +1650,7 @@ int scsi_error_handler(void *data)
 	 * We use TASK_INTERRUPTIBLE so that the thread is not
 	 * counted against the load average as a running process.
 	 * We never actually get interrupted because kthread_run
-	 * disables singal delivery for the created thread.
+	 * disables signal delivery for the created thread.
 	 */
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (!kthread_should_stop()) {
