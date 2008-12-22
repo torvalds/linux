@@ -863,7 +863,6 @@ int iwl_init_drv(struct iwl_priv *priv)
 {
 	int ret;
 
-	priv->retry_rate = 1;
 	priv->ibss_beacon = NULL;
 
 	spin_lock_init(&priv->lock);

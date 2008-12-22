@@ -3525,31 +3525,6 @@ static ssize_t store_filter_flags(struct device *d,
 static DEVICE_ATTR(filter_flags, S_IWUSR | S_IRUGO, show_filter_flags,
 		   store_filter_flags);
 
-static ssize_t store_retry_rate(struct device *d,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	long val;
-	int ret  = strict_strtol(buf, 10, &val);
-	if (!ret)
-		return ret;
-
-	priv->retry_rate = (val > 0) ? val : 1;
-
-	return count;
-}
-
-static ssize_t show_retry_rate(struct device *d,
-			       struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	return sprintf(buf, "%d", priv->retry_rate);
-}
-
-static DEVICE_ATTR(retry_rate, S_IWUSR | S_IRUSR, show_retry_rate,
-		   store_retry_rate);
-
 static ssize_t store_power_level(struct device *d,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
@@ -3705,7 +3680,6 @@ static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_flags.attr,
 	&dev_attr_filter_flags.attr,
 	&dev_attr_power_level.attr,
-	&dev_attr_retry_rate.attr,
 	&dev_attr_statistics.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
