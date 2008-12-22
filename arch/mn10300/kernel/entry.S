@@ -180,6 +180,7 @@ ENTRY(resume_userspace)
 
 #ifdef CONFIG_PREEMPT
 ENTRY(resume_kernel)
+	__cli
 	mov	(TI_preempt_count,a2),d0	# non-zero preempt_count ?
 	cmp	0,d0
 	bne	restore_all
@@ -190,7 +191,7 @@ need_resched:
 	mov	(REG_EPSW,fp),d0
 	and	EPSW_IM,d0
 	cmp	EPSW_IM_7,d0		# interrupts off (exception path) ?
-	beq	restore_all
+	bne	restore_all
 	call	preempt_schedule_irq[],0
 	jmp	need_resched
 #endif

@@ -167,8 +167,22 @@ UNUSUAL_DEV(  0x0421, 0x005d, 0x0001, 0x0600,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Reported by Ozan Sener <themgzzy@gmail.com> */
+UNUSUAL_DEV(  0x0421, 0x0060, 0x0551, 0x0551,
+		"Nokia",
+		"3500c",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
+/* Reported by CSECSY Laszlo <boobaa@frugalware.org> */
+UNUSUAL_DEV(  0x0421, 0x0063, 0x0001, 0x0601,
+		"Nokia",
+		"Nokia 3109c",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 /* Patch for Nokia 5310 capacity */
-UNUSUAL_DEV(  0x0421, 0x006a, 0x0000, 0x0591,
+UNUSUAL_DEV(  0x0421, 0x006a, 0x0000, 0x0701,
 		"Nokia",
 		"5310",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,

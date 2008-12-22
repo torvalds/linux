@@ -702,7 +702,7 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 	 * any child cgroups exist. This is theoretically supportable
 	 * but involves complex error handling, so it's being left until
 	 * later */
-	if (!list_empty(&cgrp->children))
+	if (root->number_of_cgroups > 1)
 		return -EBUSY;
 
 	/* Process each subsystem */

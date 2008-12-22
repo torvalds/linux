@@ -1014,7 +1014,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_SETFPREGS64:
-		ret = copy_regset_to_user(child, view, REGSET_FP,
+		ret = copy_regset_from_user(child, view, REGSET_FP,
 					  0 * sizeof(u64),
 					  33 * sizeof(u64),
 					  fps);

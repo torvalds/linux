@@ -22,7 +22,7 @@
  */
 
 #ifndef __JME_H_INCLUDED__
-#define __JME_H_INCLUDEE__
+#define __JME_H_INCLUDED__
 
 #define DRV_NAME	"jme"
 #define DRV_VERSION	"1.0.3"

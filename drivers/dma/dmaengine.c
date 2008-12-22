@@ -388,7 +388,10 @@ int dma_async_device_register(struct dma_device *device)
 
 	init_completion(&device->done);
 	kref_init(&device->refcount);
+
+	mutex_lock(&dma_list_mutex);
 	device->dev_id = id++;
+	mutex_unlock(&dma_list_mutex);
 
 	/* represent channels in sysfs. Probably want devs too */
 	list_for_each_entry(chan, &device->channels, device_node) {

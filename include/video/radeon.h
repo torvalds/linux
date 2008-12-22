@@ -525,9 +525,6 @@
 #define CRTC_DISPLAY_DIS			   (1 << 10)
 #define CRTC_CRT_ON				   (1 << 15)
 
-/* DSTCACHE_MODE bits constants */
-#define RB2D_DC_AUTOFLUSH_ENABLE                   (1 << 8)
-#define RB2D_DC_DC_DISABLE_IGNORE_PE               (1 << 17)
 
 /* DSTCACHE_CTLSTAT bit constants */
 #define RB2D_DC_FLUSH_2D			   (1 << 0)
@@ -869,10 +866,15 @@
 #define GMC_DST_16BPP_YVYU422                      0x00000c00
 #define GMC_DST_32BPP_AYUV444                      0x00000e00
 #define GMC_DST_16BPP_ARGB4444                     0x00000f00
+#define GMC_SRC_MONO                               0x00000000
+#define GMC_SRC_MONO_LBKGD                         0x00001000
+#define GMC_SRC_DSTCOLOR                           0x00003000
 #define GMC_BYTE_ORDER_MSB_TO_LSB                  0x00000000
 #define GMC_BYTE_ORDER_LSB_TO_MSB                  0x00004000
 #define GMC_DP_CONVERSION_TEMP_9300                0x00008000
 #define GMC_DP_CONVERSION_TEMP_6500                0x00000000
+#define GMC_DP_SRC_RECT                            0x02000000
+#define GMC_DP_SRC_HOST                            0x03000000
 #define GMC_DP_SRC_HOST_BYTEALIGN                  0x04000000
 #define GMC_3D_FCN_EN_CLR                          0x00000000
 #define GMC_3D_FCN_EN_SET                          0x08000000
@@ -883,9 +885,6 @@
 #define GMC_WRITE_MASK_LEAVE                       0x00000000
 #define GMC_WRITE_MASK_SET                         0x40000000
 #define GMC_CLR_CMP_CNTL_DIS      		   (1 << 28)
-#define GMC_SRC_DATATYPE_MASK			   (3 << 12)
-#define GMC_SRC_DATATYPE_MONO_FG_BG		   (0 << 12)
-#define GMC_SRC_DATATYPE_MONO_FG_LA		   (1 << 12)
 #define GMC_SRC_DATATYPE_COLOR			   (3 << 12)
 #define ROP3_S                			   0x00cc0000
 #define ROP3_SRCCOPY				   0x00cc0000
@@ -894,7 +893,6 @@
 #define DP_SRC_SOURCE_MASK        		   (7    << 24)
 #define GMC_BRUSH_NONE            		   (15   <<  4)
 #define DP_SRC_SOURCE_MEMORY			   (2    << 24)
-#define DP_SRC_SOURCE_HOST_DATA			   (3    << 24)
 #define GMC_BRUSH_SOLIDCOLOR			   0x000000d0
 
 /* DP_MIX bit constants */
@@ -979,12 +977,6 @@
 #define DISP_PWR_MAN_DIG_TMDS_ENABLE_RST           (1 << 24)
 #define DISP_PWR_MAN_TV_ENABLE_RST                 (1 << 25)
 #define DISP_PWR_MAN_AUTO_PWRUP_EN                 (1 << 26)
-
-/* RBBM_GUICNTL constants */
-#define RBBM_GUICNTL_HOST_DATA_SWAP_NONE	   (0 << 0)
-#define RBBM_GUICNTL_HOST_DATA_SWAP_16BIT          (1 << 0)
-#define RBBM_GUICNTL_HOST_DATA_SWAP_32BIT	   (2 << 0)
-#define RBBM_GUICNTL_HOST_DATA_SWAP_HDW		   (3 << 0)
 
 /* masks */
 

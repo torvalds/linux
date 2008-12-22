@@ -155,18 +155,36 @@ static void gprs_data_ready(struct sock *sk, int len)
 static void gprs_write_space(struct sock *sk)
 {
 	struct gprs_dev *dev = sk->sk_user_data;
+	struct net_device *net = dev->net;
 	unsigned credits = pep_writeable(sk);
 
 	spin_lock_bh(&dev->tx_lock);
 	dev->tx_max = credits;
-	if (credits > skb_queue_len(&dev->tx_queue))
-		netif_wake_queue(dev->net);
+	if (credits > skb_queue_len(&dev->tx_queue) && netif_running(net))
+		netif_wake_queue(net);
 	spin_unlock_bh(&dev->tx_lock);
 }
 
 /*
  * Network device callbacks
  */
+
+static int gprs_open(struct net_device *dev)
+{
+	struct gprs_dev *gp = netdev_priv(dev);
+
+	gprs_write_space(gp->sk);
+	return 0;
+}
+
+static int gprs_close(struct net_device *dev)
+{
+	struct gprs_dev *gp = netdev_priv(dev);
+
+	netif_stop_queue(dev);
+	flush_work(&gp->tx_work);
+	return 0;
+}
 
 static int gprs_xmit(struct sk_buff *skb, struct net_device *net)
 {
@@ -254,6 +272,8 @@ static void gprs_setup(struct net_device *net)
 	net->tx_queue_len	= 10;
 
 	net->destructor		= free_netdev;
+	net->open		= gprs_open;
+	net->stop		= gprs_close;
 	net->hard_start_xmit	= gprs_xmit; /* mandatory */
 	net->change_mtu		= gprs_set_mtu;
 	net->get_stats		= gprs_get_stats;
@@ -318,7 +338,6 @@ int gprs_attach(struct sock *sk)
 	dev->sk = sk;
 
 	printk(KERN_DEBUG"%s: attached\n", net->name);
-	gprs_write_space(sk); /* kick off TX */
 	return net->ifindex;
 
 out_rel:
@@ -341,7 +360,5 @@ void gprs_detach(struct sock *sk)
 
 	printk(KERN_DEBUG"%s: detached\n", net->name);
 	unregister_netdev(net);
-	flush_scheduled_work();
 	sock_put(sk);
-	skb_queue_purge(&dev->tx_queue);
 }
