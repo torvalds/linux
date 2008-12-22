@@ -73,7 +73,6 @@ static const u16 iwl5000_default_queue_to_tx_fifo[] = {
 /* FIXME: same implementation as 4965 */
 static int iwl5000_apm_stop_master(struct iwl_priv *priv)
 {
-	int ret = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -81,16 +80,13 @@ static int iwl5000_apm_stop_master(struct iwl_priv *priv)
 	/* set stop master bit */
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
-	ret = iwl_poll_direct_bit(priv, CSR_RESET,
+	iwl_poll_direct_bit(priv, CSR_RESET,
 				  CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-	if (ret < 0)
-		goto out;
 
-out:
 	spin_unlock_irqrestore(&priv->lock, flags);
 	IWL_DEBUG_INFO("stop master\n");
 
-	return ret;
+	return 0;
 }
 
 
@@ -1623,7 +1619,7 @@ MODULE_PARM_DESC(disable50,
 module_param_named(swcrypto50, iwl50_mod_params.sw_crypto, bool, 0444);
 MODULE_PARM_DESC(swcrypto50,
 		  "using software crypto engine (default 0 [hardware])\n");
-module_param_named(debug50, iwl50_mod_params.debug, int, 0444);
+module_param_named(debug50, iwl50_mod_params.debug, uint, 0444);
 MODULE_PARM_DESC(debug50, "50XX debug output mask");
 module_param_named(queues_num50, iwl50_mod_params.num_of_queues, int, 0444);
 MODULE_PARM_DESC(queues_num50, "number of hw queues in 50xx series");

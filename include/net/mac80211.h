@@ -165,14 +165,9 @@ enum ieee80211_bss_change {
 
 /**
  * struct ieee80211_bss_ht_conf - BSS's changing HT configuration
- * @secondary_channel_offset: secondary channel offset, uses
- *	%IEEE80211_HT_PARAM_CHA_SEC_ values
- * @width_40_ok: indicates that 40 MHz bandwidth may be used for TX
  * @operation_mode: HT operation mode (like in &struct ieee80211_ht_info)
  */
 struct ieee80211_bss_ht_conf {
-	u8 secondary_channel_offset;
-	bool width_40_ok;
 	u16 operation_mode;
 };
 
@@ -441,6 +436,9 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	is valid. This is useful in monitor mode and necessary for beacon frames
  *	to enable IBSS merging.
  * @RX_FLAG_SHORTPRE: Short preamble was used for this frame
+ * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
+ * @RX_FLAG_40MHZ: HT40 (40 MHz) was used
+ * @RX_FLAG_SHORT_GI: Short guard interval was used
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR	= 1<<0,
@@ -451,7 +449,10 @@ enum mac80211_rx_flags {
 	RX_FLAG_FAILED_FCS_CRC	= 1<<5,
 	RX_FLAG_FAILED_PLCP_CRC = 1<<6,
 	RX_FLAG_TSFT		= 1<<7,
-	RX_FLAG_SHORTPRE	= 1<<8
+	RX_FLAG_SHORTPRE	= 1<<8,
+	RX_FLAG_HT		= 1<<9,
+	RX_FLAG_40MHZ		= 1<<10,
+	RX_FLAG_SHORT_GI	= 1<<11,
 };
 
 /**
@@ -471,7 +472,8 @@ enum mac80211_rx_flags {
  * @noise: noise when receiving this frame, in dBm.
  * @qual: overall signal quality indication, in percent (0-100).
  * @antenna: antenna used
- * @rate_idx: index of data rate into band's supported rates
+ * @rate_idx: index of data rate into band's supported rates or MCS index if
+ *	HT rates are use (RX_FLAG_HT)
  * @flag: %RX_FLAG_*
  */
 struct ieee80211_rx_status {
@@ -508,9 +510,7 @@ static inline int __deprecated __IEEE80211_CONF_SHORT_SLOT_TIME(void)
 
 struct ieee80211_ht_conf {
 	bool enabled;
-	int sec_chan_offset; /* 0 = HT40 disabled; -1 = HT40 enabled, secondary
-			      * channel below primary; 1 = HT40 enabled,
-			      * secondary channel above primary */
+	enum nl80211_channel_type channel_type;
 };
 
 /**
@@ -854,6 +854,11 @@ enum ieee80211_tkip_key_type {
  *
  * @IEEE80211_HW_AMPDU_AGGREGATION:
  *	Hardware supports 11n A-MPDU aggregation.
+ *
+ * @IEEE80211_HW_NO_STACK_DYNAMIC_PS:
+ *	Hardware which has dynamic power save support, meaning
+ *	that power save is enabled in idle periods, and don't need support
+ *	from stack.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
@@ -866,6 +871,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_NOISE_DBM				= 1<<8,
 	IEEE80211_HW_SPECTRUM_MGMT			= 1<<9,
 	IEEE80211_HW_AMPDU_AGGREGATION			= 1<<10,
+	IEEE80211_HW_NO_STACK_DYNAMIC_PS		= 1<<11,
 };
 
 /**

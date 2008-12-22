@@ -44,6 +44,9 @@ enum p54_control_frame_types {
 	P54_CONTROL_TYPE_BT_OPTIONS = 35
 };
 
+#define P54_HDR_FLAG_CONTROL		BIT(15)
+#define P54_HDR_FLAG_CONTROL_OPSET	(BIT(15) + BIT(0))
+
 struct p54_hdr {
 	__le16 flags;
 	__le16 len;
@@ -54,12 +57,23 @@ struct p54_hdr {
 	u8 data[0];
 } __attribute__ ((packed));
 
+#define FREE_AFTER_TX(skb)						\
+	((((struct p54_hdr *) ((struct sk_buff *) skb)->data)->		\
+	flags) == cpu_to_le16(P54_HDR_FLAG_CONTROL_OPSET))
+
 struct p54_edcf_queue_param {
 	__le16 aifs;
 	__le16 cwmin;
 	__le16 cwmax;
 	__le16 txop;
 } __attribute__ ((packed));
+
+struct p54_rssi_linear_approximation {
+	s16 mul;
+	s16 add;
+	s16 longbow_unkn;
+	s16 longbow_unk2;
+};
 
 #define EEPROM_READBACK_LEN 0x3fc
 
@@ -71,11 +85,11 @@ struct p54_edcf_queue_param {
 #define FW_LM20 0x4c4d3230
 
 struct p54_common {
+	struct ieee80211_hw *hw;
 	u32 rx_start;
 	u32 rx_end;
 	struct sk_buff_head tx_queue;
-	void (*tx)(struct ieee80211_hw *dev, struct sk_buff *skb,
-		   int free_on_tx);
+	void (*tx)(struct ieee80211_hw *dev, struct sk_buff *skb);
 	int (*open)(struct ieee80211_hw *dev);
 	void (*stop)(struct ieee80211_hw *dev);
 	int mode;
@@ -90,6 +104,7 @@ struct p54_common {
 	struct pda_channel_output_limit *output_limit;
 	unsigned int output_limit_len;
 	struct pda_pa_curve_data *curve_data;
+	struct p54_rssi_linear_approximation rssical_db[IEEE80211_NUM_BANDS];
 	unsigned int filter_flags;
 	bool use_short_slot;
 	u16 rxhw;
@@ -106,9 +121,7 @@ struct p54_common {
 	struct ieee80211_tx_queue_stats tx_stats[8];
 	struct p54_edcf_queue_param qos_params[8];
 	struct ieee80211_low_level_stats stats;
-	struct timer_list stats_timer;
-	struct completion stats_comp;
-	struct sk_buff *cached_stats;
+	struct delayed_work work;
 	struct sk_buff *cached_beacon;
 	int noise;
 	void *eeprom;

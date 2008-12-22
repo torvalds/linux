@@ -195,37 +195,30 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	struct ieee80211_channel *chan;
 	int ret = 0;
 	int power;
-	enum nl80211_sec_chan_offset sec_chan_offset;
+	enum nl80211_channel_type channel_type;
 
 	might_sleep();
 
 	if (local->sw_scanning) {
 		chan = local->scan_channel;
-		sec_chan_offset = NL80211_SEC_CHAN_NO_HT;
+		channel_type = NL80211_CHAN_NO_HT;
 	} else {
 		chan = local->oper_channel;
-		sec_chan_offset = local->oper_sec_chan_offset;
+		channel_type = local->oper_channel_type;
 	}
 
 	if (chan != local->hw.conf.channel ||
-	    sec_chan_offset != local->hw.conf.ht.sec_chan_offset) {
+	    channel_type != local->hw.conf.ht.channel_type) {
 		local->hw.conf.channel = chan;
-		switch (sec_chan_offset) {
-		case NL80211_SEC_CHAN_NO_HT:
+		local->hw.conf.ht.channel_type = channel_type;
+		switch (channel_type) {
+		case NL80211_CHAN_NO_HT:
 			local->hw.conf.ht.enabled = false;
-			local->hw.conf.ht.sec_chan_offset = 0;
 			break;
-		case NL80211_SEC_CHAN_DISABLED:
+		case NL80211_CHAN_HT20:
+		case NL80211_CHAN_HT40MINUS:
+		case NL80211_CHAN_HT40PLUS:
 			local->hw.conf.ht.enabled = true;
-			local->hw.conf.ht.sec_chan_offset = 0;
-			break;
-		case NL80211_SEC_CHAN_BELOW:
-			local->hw.conf.ht.enabled = true;
-			local->hw.conf.ht.sec_chan_offset = -1;
-			break;
-		case NL80211_SEC_CHAN_ABOVE:
-			local->hw.conf.ht.enabled = true;
-			local->hw.conf.ht.sec_chan_offset = 1;
 			break;
 		}
 		changed |= IEEE80211_CONF_CHANGE_CHANNEL;
@@ -348,7 +341,8 @@ static void ieee80211_tasklet_handler(unsigned long data)
 			dev_kfree_skb(skb);
 			break ;
 		default:
-			WARN_ON(1);
+			WARN(1, "mac80211: Packet is of unknown type %d\n",
+			     skb->pkt_type);
 			dev_kfree_skb(skb);
 			break;
 		}
@@ -731,7 +725,16 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	spin_lock_init(&local->key_lock);
 
+	spin_lock_init(&local->queue_stop_reason_lock);
+
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
+
+	INIT_WORK(&local->dynamic_ps_enable_work,
+		  ieee80211_dynamic_ps_enable_work);
+	INIT_WORK(&local->dynamic_ps_disable_work,
+		  ieee80211_dynamic_ps_disable_work);
+	setup_timer(&local->dynamic_ps_timer,
+		    ieee80211_dynamic_ps_timer, (unsigned long) local);
 
 	sta_info_init(local);
 

@@ -836,6 +836,10 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	    (hw->wiphy->bands[priv->band]->bitrates[rs_index].bitrate !=
 	     hw->wiphy->bands[info->band]->bitrates[info->status.rates[0].idx].bitrate)) {
 		IWL_DEBUG_RATE("initial rate does not match 0x%x\n", tx_rate);
+		/* the last LQ command could failed so the LQ in ucode not
+		 * the same in driver sync up
+		 */
+		iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
 		goto out;
 	}
 
@@ -2167,6 +2171,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	struct ieee80211_conf *conf = &priv->hw->conf;
 	struct iwl_lq_sta *lq_sta = priv_sta;
+	u16 mask_bit = 0;
 
 	lq_sta->flush_timer = 0;
 	lq_sta->supp_rates = sta->supp_rates[sband->band];
@@ -2199,16 +2204,6 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 		/* FIXME: this is w/a remove it later */
 		priv->assoc_station_added = 1;
 	}
-
-	/* Find highest tx rate supported by hardware and destination station */
-	lq_sta->last_txrate_idx = 3;
-	for (i = 0; i < sband->n_bitrates; i++)
-		if (sta->supp_rates[sband->band] & BIT(i))
-			lq_sta->last_txrate_idx = i;
-
-	/* For MODE_IEEE80211A, skip over cck rates in global rate table */
-	if (sband->band == IEEE80211_BAND_5GHZ)
-		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 
 	lq_sta->is_dup = 0;
 	lq_sta->is_green = rs_use_green(priv, conf);
@@ -2247,6 +2242,17 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	/* as default allow aggregation for all tids */
 	lq_sta->tx_agg_tid_en = IWL_AGG_ALL_TID;
 	lq_sta->drv = priv;
+
+	/* Find highest tx rate supported by hardware and destination station */
+	mask_bit = sta->supp_rates[sband->band] & lq_sta->active_legacy_rate;
+	lq_sta->last_txrate_idx = 3;
+	for (i = 0; i < sband->n_bitrates; i++)
+		if (mask_bit & BIT(i))
+			lq_sta->last_txrate_idx = i;
+
+	/* For MODE_IEEE80211A, skip over cck rates in global rate table */
+	if (sband->band == IEEE80211_BAND_5GHZ)
+		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 
 	rs_initialize_lq(priv, conf, sta, lq_sta);
 }

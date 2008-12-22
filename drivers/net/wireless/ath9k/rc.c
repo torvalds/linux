@@ -1498,7 +1498,8 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	__le16 fc = hdr->frame_control;
 
 	/* lowest rate for management and multicast/broadcast frames */
-	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1)) {
+	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1) ||
+	    !sta) {
 		tx_info->control.rates[0].idx = rate_lowest_index(sband, sta);
 		tx_info->control.rates[0].count =
 			is_multicast_ether_addr(hdr->addr1) ? 1 : ATH_MGT_TXMAXTRY;

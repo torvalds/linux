@@ -645,7 +645,7 @@ static void iwl_tx_cmd_build_basic(struct iwl_priv *priv,
 				  struct iwl_tx_cmd *tx_cmd,
 				  struct ieee80211_tx_info *info,
 				  struct ieee80211_hdr *hdr,
-				  int is_unicast, u8 std_id)
+				  u8 std_id)
 {
 	__le16 fc = hdr->frame_control;
 	__le32 tx_flags = tx_cmd->tx_flags;
@@ -834,7 +834,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	u16 len, len_org;
 	u16 seq_number = 0;
 	__le16 fc;
-	u8 hdr_len, unicast;
+	u8 hdr_len;
 	u8 sta_id;
 	u8 wait_write_ptr = 0;
 	u8 tid = 0;
@@ -853,8 +853,6 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		IWL_ERROR("ERROR: No TX rate available.\n");
 		goto drop_unlock;
 	}
-
-	unicast = !is_multicast_ether_addr(hdr->addr1);
 
 	fc = hdr->frame_control;
 
@@ -994,7 +992,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	len = (u16)skb->len;
 	tx_cmd->len = cpu_to_le16(len);
 	/* TODO need this for burst mode later on */
-	iwl_tx_cmd_build_basic(priv, tx_cmd, info, hdr, unicast, sta_id);
+	iwl_tx_cmd_build_basic(priv, tx_cmd, info, hdr, sta_id);
 
 	/* set is_hcca to 0; it probably will never be implemented */
 	iwl_tx_cmd_build_rate(priv, tx_cmd, info, fc, sta_id, 0);

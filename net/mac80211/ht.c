@@ -98,6 +98,7 @@ u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_bss_ht_conf ht;
 	u32 changed = 0;
 	bool enable_ht = true, ht_changed;
+	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
@@ -112,24 +113,36 @@ u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	    ieee80211_channel_to_frequency(hti->control_chan))
 		enable_ht = false;
 
-	/*
-	 * XXX: This is totally incorrect when there are multiple virtual
-	 *	interfaces, needs to be fixed later.
-	 */
-	ht_changed = local->hw.conf.ht.enabled != enable_ht;
+	if (enable_ht) {
+		channel_type = NL80211_CHAN_HT20;
+
+		if (!(ap_ht_cap_flags & IEEE80211_HT_CAP_40MHZ_INTOLERANT) &&
+		    (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) &&
+		    (hti->ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)) {
+			switch(hti->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
+			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+				channel_type = NL80211_CHAN_HT40PLUS;
+				break;
+			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+				channel_type = NL80211_CHAN_HT40MINUS;
+				break;
+			}
+		}
+	}
+
+	ht_changed = local->hw.conf.ht.enabled != enable_ht ||
+		     channel_type != local->hw.conf.ht.channel_type;
+
+	local->oper_channel_type = channel_type;
 	local->hw.conf.ht.enabled = enable_ht;
+
 	if (ht_changed)
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_HT);
 
 	/* disable HT */
 	if (!enable_ht)
 		return 0;
-	ht.secondary_channel_offset =
-		hti->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET;
-	ht.width_40_ok =
-		!(ap_ht_cap_flags & IEEE80211_HT_CAP_40MHZ_INTOLERANT) &&
-		(sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) &&
-		(hti->ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY);
+
 	ht.operation_mode = le16_to_cpu(hti->operation_mode);
 
 	/* if bss configuration changed store the new one */

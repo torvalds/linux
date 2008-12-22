@@ -84,9 +84,6 @@ struct bootrec_desc {
 #define BR_CODE_END_OF_BRA		0xFF0000FF
 #define LEGACY_BR_CODE_END_OF_BRA	0xFFFFFFFF
 
-#define P54_HDR_FLAG_CONTROL		BIT(15)
-#define P54_HDR_FLAG_CONTROL_OPSET	(BIT(15) + BIT(0))
-
 #define P54_HDR_FLAG_DATA_ALIGN		BIT(14)
 #define P54_HDR_FLAG_DATA_OUT_PROMISC	BIT(0)
 #define P54_HDR_FLAG_DATA_OUT_TIMESTAMP BIT(1)
@@ -176,6 +173,11 @@ struct pda_pa_curve_data {
 	u8 points_per_channel;
 	u8 padding;
 	u8 data[0];
+} __attribute__ ((packed));
+
+struct pda_rssi_cal_entry {
+	__le16 mul;
+	__le16 add;
 } __attribute__ ((packed));
 
 /*
@@ -355,6 +357,11 @@ struct p54_tx_data {
 	u8 align[0];
 } __attribute__ ((packed));
 
+/* unit is ms */
+#define P54_TX_FRAME_LIFETIME 2000
+#define P54_TX_TIMEOUT 4000
+#define P54_STATISTICS_UPDATE 5000
+
 #define P54_FILTER_TYPE_NONE		0
 #define P54_FILTER_TYPE_STATION		BIT(0)
 #define P54_FILTER_TYPE_IBSS		BIT(1)
@@ -424,22 +431,18 @@ struct p54_scan {
 	u8 dup_16qam;
 	u8 dup_64qam;
 	union {
-		struct {
-			__le16 rssical_mul;
-			__le16 rssical_add;
-		} v1 __attribute__ ((packed));
+		struct pda_rssi_cal_entry v1_rssi;
 
 		struct {
 			__le32 basic_rate_mask;
 			u8 rts_rates[8];
-			__le16 rssical_mul;
-			__le16 rssical_add;
+			struct pda_rssi_cal_entry rssi;
 		} v2 __attribute__ ((packed));
 	} __attribute__ ((packed));
 } __attribute__ ((packed));
 
-#define P54_SCAN_V1_LEN (sizeof(struct p54_scan)-12)
-#define P54_SCAN_V2_LEN (sizeof(struct p54_scan))
+#define P54_SCAN_V1_LEN 0x70
+#define P54_SCAN_V2_LEN 0x7c
 
 struct p54_led {
 	__le16 mode;

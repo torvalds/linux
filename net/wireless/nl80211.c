@@ -60,7 +60,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 				      .len = BUS_ID_SIZE-1 },
 	[NL80211_ATTR_WIPHY_TXQ_PARAMS] = { .type = NLA_NESTED },
 	[NL80211_ATTR_WIPHY_FREQ] = { .type = NLA_U32 },
-	[NL80211_ATTR_WIPHY_SEC_CHAN_OFFSET] = { .type = NLA_U32 },
+	[NL80211_ATTR_WIPHY_CHANNEL_TYPE] = { .type = NLA_U32 },
 
 	[NL80211_ATTR_IFTYPE] = { .type = NLA_U32 },
 	[NL80211_ATTR_IFINDEX] = { .type = NLA_U32 },
@@ -362,8 +362,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
-		enum nl80211_sec_chan_offset sec_chan_offset =
-			NL80211_SEC_CHAN_NO_HT;
+		enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 		struct ieee80211_channel *chan;
 		struct ieee80211_sta_ht_cap *ht_cap;
 		u32 freq, sec_freq;
@@ -375,13 +374,13 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 		result = -EINVAL;
 
-		if (info->attrs[NL80211_ATTR_WIPHY_SEC_CHAN_OFFSET]) {
-			sec_chan_offset = nla_get_u32(info->attrs[
-					NL80211_ATTR_WIPHY_SEC_CHAN_OFFSET]);
-			if (sec_chan_offset != NL80211_SEC_CHAN_NO_HT &&
-			    sec_chan_offset != NL80211_SEC_CHAN_DISABLED &&
-			    sec_chan_offset != NL80211_SEC_CHAN_BELOW &&
-			    sec_chan_offset != NL80211_SEC_CHAN_ABOVE)
+		if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
+			channel_type = nla_get_u32(info->attrs[
+					   NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
+			if (channel_type != NL80211_CHAN_NO_HT &&
+			    channel_type != NL80211_CHAN_HT20 &&
+			    channel_type != NL80211_CHAN_HT40PLUS &&
+			    channel_type != NL80211_CHAN_HT40MINUS)
 				goto bad_res;
 		}
 
@@ -392,9 +391,9 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED)
 			goto bad_res;
 
-		if (sec_chan_offset == NL80211_SEC_CHAN_BELOW)
+		if (channel_type == NL80211_CHAN_HT40MINUS)
 			sec_freq = freq - 20;
-		else if (sec_chan_offset == NL80211_SEC_CHAN_ABOVE)
+		else if (channel_type == NL80211_CHAN_HT40PLUS)
 			sec_freq = freq + 20;
 		else
 			sec_freq = 0;
@@ -402,7 +401,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		ht_cap = &rdev->wiphy.bands[chan->band]->ht_cap;
 
 		/* no HT capabilities */
-		if (sec_chan_offset != NL80211_SEC_CHAN_NO_HT &&
+		if (channel_type != NL80211_CHAN_NO_HT &&
 		    !ht_cap->ht_supported)
 			goto bad_res;
 
@@ -422,7 +421,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		}
 
 		result = rdev->ops->set_channel(&rdev->wiphy, chan,
-						sec_chan_offset);
+						channel_type);
 		if (result)
 			goto bad_res;
 	}
@@ -1091,12 +1090,46 @@ static int parse_station_flags(struct nlattr *nla, u32 *staflags)
 	return 0;
 }
 
+static u16 nl80211_calculate_bitrate(struct rate_info *rate)
+{
+	int modulation, streams, bitrate;
+
+	if (!(rate->flags & RATE_INFO_FLAGS_MCS))
+		return rate->legacy;
+
+	/* the formula below does only work for MCS values smaller than 32 */
+	if (rate->mcs >= 32)
+		return 0;
+
+	modulation = rate->mcs & 7;
+	streams = (rate->mcs >> 3) + 1;
+
+	bitrate = (rate->flags & RATE_INFO_FLAGS_40_MHZ_WIDTH) ?
+			13500000 : 6500000;
+
+	if (modulation < 4)
+		bitrate *= (modulation + 1);
+	else if (modulation == 4)
+		bitrate *= (modulation + 2);
+	else
+		bitrate *= (modulation + 3);
+
+	bitrate *= streams;
+
+	if (rate->flags & RATE_INFO_FLAGS_SHORT_GI)
+		bitrate = (bitrate / 9) * 10;
+
+	/* do NOT round down here */
+	return (bitrate + 50000) / 100000;
+}
+
 static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 				int flags, struct net_device *dev,
 				u8 *mac_addr, struct station_info *sinfo)
 {
 	void *hdr;
-	struct nlattr *sinfoattr;
+	struct nlattr *sinfoattr, *txrate;
+	u16 bitrate;
 
 	hdr = nl80211hdr_put(msg, pid, seq, flags, NL80211_CMD_NEW_STATION);
 	if (!hdr)
@@ -1126,7 +1159,29 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 	if (sinfo->filled & STATION_INFO_PLINK_STATE)
 		NLA_PUT_U8(msg, NL80211_STA_INFO_PLINK_STATE,
 			    sinfo->plink_state);
+	if (sinfo->filled & STATION_INFO_SIGNAL)
+		NLA_PUT_U8(msg, NL80211_STA_INFO_SIGNAL,
+			   sinfo->signal);
+	if (sinfo->filled & STATION_INFO_TX_BITRATE) {
+		txrate = nla_nest_start(msg, NL80211_STA_INFO_TX_BITRATE);
+		if (!txrate)
+			goto nla_put_failure;
 
+		/* nl80211_calculate_bitrate will return 0 for mcs >= 32 */
+		bitrate = nl80211_calculate_bitrate(&sinfo->txrate);
+		if (bitrate > 0)
+			NLA_PUT_U16(msg, NL80211_RATE_INFO_BITRATE, bitrate);
+
+		if (sinfo->txrate.flags & RATE_INFO_FLAGS_MCS)
+			NLA_PUT_U8(msg, NL80211_RATE_INFO_MCS,
+				    sinfo->txrate.mcs);
+		if (sinfo->txrate.flags & RATE_INFO_FLAGS_40_MHZ_WIDTH)
+			NLA_PUT_FLAG(msg, NL80211_RATE_INFO_40_MHZ_WIDTH);
+		if (sinfo->txrate.flags & RATE_INFO_FLAGS_SHORT_GI)
+			NLA_PUT_FLAG(msg, NL80211_RATE_INFO_SHORT_GI);
+
+		nla_nest_end(msg, txrate);
+	}
 	nla_nest_end(msg, sinfoattr);
 
 	return genlmsg_end(msg, hdr);

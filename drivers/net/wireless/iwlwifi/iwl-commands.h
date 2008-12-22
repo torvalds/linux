@@ -2418,6 +2418,8 @@ struct statistics_rx_ht_phy {
 	__le32 reserved2;
 } __attribute__ ((packed));
 
+#define INTERFERENCE_DATA_AVAILABLE      __constant_cpu_to_le32(1)
+
 struct statistics_rx_non_phy {
 	__le32 bogus_cts;	/* CTS received when not expecting CTS */
 	__le32 bogus_ack;	/* ACK received when not expecting ACK */

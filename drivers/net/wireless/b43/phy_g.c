@@ -3047,6 +3047,8 @@ static void b43_gphy_op_adjust_txpower(struct b43_wldev *dev)
 	int rfatt, bbatt;
 	u8 tx_control;
 
+	b43_mac_suspend(dev);
+
 	spin_lock_irq(&dev->wl->irq_lock);
 
 	/* Calculate the new attenuation values. */
@@ -3103,6 +3105,8 @@ static void b43_gphy_op_adjust_txpower(struct b43_wldev *dev)
 			  gphy->tx_control);
 	b43_radio_unlock(dev);
 	b43_phy_unlock(dev);
+
+	b43_mac_enable(dev);
 }
 
 static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
@@ -3215,9 +3219,9 @@ static void b43_gphy_op_pwork_15sec(struct b43_wldev *dev)
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
 
+	b43_mac_suspend(dev);
 	//TODO: update_aci_moving_average
 	if (gphy->aci_enable && gphy->aci_wlan_automatic) {
-		b43_mac_suspend(dev);
 		if (!gphy->aci_enable && 1 /*TODO: not scanning? */ ) {
 			if (0 /*TODO: bunch of conditions */ ) {
 				phy->ops->interf_mitigation(dev,
@@ -3227,12 +3231,12 @@ static void b43_gphy_op_pwork_15sec(struct b43_wldev *dev)
 			   if (/*(aci_average > 1000) &&*/ !b43_gphy_aci_scan(dev))
 				phy->ops->interf_mitigation(dev, B43_INTERFMODE_NONE);
 		}
-		b43_mac_enable(dev);
 	} else if (gphy->interfmode == B43_INTERFMODE_NONWLAN &&
 		   phy->rev == 1) {
 		//TODO: implement rev1 workaround
 	}
 	b43_lo_g_maintanance_work(dev);
+	b43_mac_enable(dev);
 }
 
 static void b43_gphy_op_pwork_60sec(struct b43_wldev *dev)

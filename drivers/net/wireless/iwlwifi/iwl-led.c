@@ -292,7 +292,7 @@ static int iwl_get_blink_rate(struct iwl_priv *priv)
 			if (tpt  > (blink_tbl[i].tpt * IWL_1MB_RATE))
 				break;
 
-	IWL_DEBUG_LED("LED BLINK IDX=%d", i);
+	IWL_DEBUG_LED("LED BLINK IDX=%d\n", i);
 	return i;
 }
 

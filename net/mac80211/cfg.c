@@ -310,11 +310,34 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 	sinfo->filled = STATION_INFO_INACTIVE_TIME |
 			STATION_INFO_RX_BYTES |
-			STATION_INFO_TX_BYTES;
+			STATION_INFO_TX_BYTES |
+			STATION_INFO_TX_BITRATE;
 
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
 	sinfo->rx_bytes = sta->rx_bytes;
 	sinfo->tx_bytes = sta->tx_bytes;
+
+	if (sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
+		sinfo->filled |= STATION_INFO_SIGNAL;
+		sinfo->signal = (s8)sta->last_signal;
+	}
+
+	sinfo->txrate.flags = 0;
+	if (sta->last_tx_rate.flags & IEEE80211_TX_RC_MCS)
+		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
+	if (sta->last_tx_rate.flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+		sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+	if (sta->last_tx_rate.flags & IEEE80211_TX_RC_SHORT_GI)
+		sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+
+	if (!(sta->last_tx_rate.flags & IEEE80211_TX_RC_MCS)) {
+		struct ieee80211_supported_band *sband;
+		sband = sta->local->hw.wiphy->bands[
+				sta->local->hw.conf.channel->band];
+		sinfo->txrate.legacy =
+			sband->bitrates[sta->last_tx_rate.idx].bitrate;
+	} else
+		sinfo->txrate.mcs = sta->last_tx_rate.idx;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
@@ -663,6 +686,7 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata;
 	int err;
+	int layer2_update;
 
 	/* Prevent a race with changing the rate control algorithm */
 	if (!netif_running(dev))
@@ -693,17 +717,25 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 
 	rate_control_rate_init(sta);
 
+	layer2_update = sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+		sdata->vif.type == NL80211_IFTYPE_AP;
+
 	rcu_read_lock();
 
 	err = sta_info_insert(sta);
 	if (err) {
 		/* STA has been freed */
+		if (err == -EEXIST && layer2_update) {
+			/* Need to update layer 2 devices on reassociation */
+			sta = sta_info_get(local, mac);
+			if (sta)
+				ieee80211_send_layer2_update(sta);
+		}
 		rcu_read_unlock();
 		return err;
 	}
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-	    sdata->vif.type == NL80211_IFTYPE_AP)
+	if (layer2_update)
 		ieee80211_send_layer2_update(sta);
 
 	rcu_read_unlock();
@@ -1099,12 +1131,12 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 
 static int ieee80211_set_channel(struct wiphy *wiphy,
 				 struct ieee80211_channel *chan,
-				 enum nl80211_sec_chan_offset sec_chan_offset)
+				 enum nl80211_channel_type channel_type)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 
 	local->oper_channel = chan;
-	local->oper_sec_chan_offset = sec_chan_offset;
+	local->oper_channel_type = channel_type;
 
 	return ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 }

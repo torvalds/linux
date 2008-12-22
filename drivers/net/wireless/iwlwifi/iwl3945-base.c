@@ -65,7 +65,7 @@ static int iwl3945_tx_queue_update_write_ptr(struct iwl3945_priv *priv,
 
 /* module parameters */
 static int iwl3945_param_disable_hw_scan; /* def: 0 = use 3945's h/w scan */
-static int iwl3945_param_debug;    /* def: 0 = minimal debug log messages */
+static u32 iwl3945_param_debug;    /* def: 0 = minimal debug log messages */
 static int iwl3945_param_disable;  /* def: 0 = enable radio */
 static int iwl3945_param_antenna;  /* def: 0 = both antennas (use diversity) */
 int iwl3945_param_hwcrypto;        /* def: 0 = use software encryption */
@@ -1402,7 +1402,7 @@ static void iwl3945_free_frame(struct iwl3945_priv *priv, struct iwl3945_frame *
 
 unsigned int iwl3945_fill_beacon_frame(struct iwl3945_priv *priv,
 				struct ieee80211_hdr *hdr,
-				const u8 *dest, int left)
+				int left)
 {
 
 	if (!iwl3945_is_associated(priv) || !priv->ibss_beacon ||
@@ -8343,7 +8343,7 @@ MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
 module_param_named(hwcrypto, iwl3945_param_hwcrypto, int, 0444);
 MODULE_PARM_DESC(hwcrypto,
 		 "using hardware crypto engine (default 0 [software])\n");
-module_param_named(debug, iwl3945_param_debug, int, 0444);
+module_param_named(debug, iwl3945_param_debug, uint, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
 module_param_named(disable_hw_scan, iwl3945_param_disable_hw_scan, int, 0444);
 MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");

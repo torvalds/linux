@@ -1350,4 +1350,9 @@ static inline u32 ath5k_hw_bitswap(u32 val, unsigned int bits)
 	return retval;
 }
 
+static inline int ath5k_pad_size(int hdrlen)
+{
+	return (hdrlen < 24) ? 0 : hdrlen & 3;
+}
+
 #endif

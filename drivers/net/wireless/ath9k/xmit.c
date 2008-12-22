@@ -106,6 +106,7 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
+	int hdrlen, padsize;
 
 	DPRINTF(sc, ATH_DBG_XMIT, "TX complete: skb: %p\n", skb);
 
@@ -125,7 +126,26 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	}
 
-	tx_info->status.rates[0].count = tx_status->retries + 1;
+	tx_info->status.rates[0].count = tx_status->retries;
+	if (tx_info->status.rates[0].flags & IEEE80211_TX_RC_MCS) {
+		/* Change idx from internal table index to MCS index */
+		int idx = tx_info->status.rates[0].idx;
+		struct ath_rate_table *rate_table = sc->cur_rate_table;
+		if (idx >= 0 && idx < rate_table->rate_cnt)
+			tx_info->status.rates[0].idx =
+				rate_table->info[idx].ratecode & 0x7f;
+	}
+
+	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+	padsize = hdrlen & 3;
+	if (padsize && hdrlen >= 24) {
+		/*
+		 * Remove MAC header padding before giving the frame back to
+		 * mac80211.
+		 */
+		memmove(skb->data + padsize, skb->data, hdrlen);
+		skb_pull(skb, padsize);
+	}
 
 	ieee80211_tx_status(hw, skb);
 }
