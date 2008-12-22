@@ -14,6 +14,7 @@
  * 04/07/.. ak		Better overflow handling. Assorted fixes.
  * 05/09/10 linville	Add support for syncing ranges, support syncing for
  *			DMA_BIDIRECTIONAL mappings, miscellaneous cleanup.
+ * 08/12/11 beckyb	Add highmem support
  */
 
 #include <linux/cache.h>
@@ -24,6 +25,7 @@
 #include <linux/swiotlb.h>
 #include <linux/string.h>
 #include <linux/swiotlb.h>
+#include <linux/pfn.h>
 #include <linux/types.h>
 #include <linux/ctype.h>
 #include <linux/highmem.h>
@@ -147,11 +149,6 @@ static void *swiotlb_bus_to_virt(dma_addr_t address)
 int __weak swiotlb_arch_range_needs_mapping(void *ptr, size_t size)
 {
 	return 0;
-}
-
-static dma_addr_t swiotlb_sg_to_bus(struct device *hwdev, struct scatterlist *sg)
-{
-	return swiotlb_phys_to_bus(hwdev, page_to_phys(sg_page(sg)) + sg->offset);
 }
 
 static void swiotlb_print_info(unsigned long bytes)
@@ -330,6 +327,47 @@ static int is_swiotlb_buffer(char *addr)
 }
 
 /*
+ * Bounce: copy the swiotlb buffer back to the original dma location
+ */
+static void swiotlb_bounce(phys_addr_t phys, char *dma_addr, size_t size,
+			   enum dma_data_direction dir)
+{
+	unsigned long pfn = PFN_DOWN(phys);
+
+	if (PageHighMem(pfn_to_page(pfn))) {
+		/* The buffer does not have a mapping.  Map it in and copy */
+		unsigned int offset = phys & ~PAGE_MASK;
+		char *buffer;
+		unsigned int sz = 0;
+		unsigned long flags;
+
+		while (size) {
+			sz = min(PAGE_SIZE - offset, size);
+
+			local_irq_save(flags);
+			buffer = kmap_atomic(pfn_to_page(pfn),
+					     KM_BOUNCE_READ);
+			if (dir == DMA_TO_DEVICE)
+				memcpy(dma_addr, buffer + offset, sz);
+			else
+				memcpy(buffer + offset, dma_addr, sz);
+			kunmap_atomic(buffer, KM_BOUNCE_READ);
+			local_irq_restore(flags);
+
+			size -= sz;
+			pfn++;
+			dma_addr += sz;
+			offset = 0;
+		}
+	} else {
+		if (dir == DMA_TO_DEVICE)
+			memcpy(dma_addr, phys_to_virt(phys), size);
+		else
+			memcpy(phys_to_virt(phys), dma_addr, size);
+	}
+}
+
+/*
  * Allocates bounce buffer and returns its kernel virtual address.
  */
 static void *
@@ -430,7 +468,7 @@ found:
 	for (i = 0; i < nslots; i++)
 		io_tlb_orig_addr[index+i] = phys + (i << IO_TLB_SHIFT);
 	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL)
-		memcpy(dma_addr, phys_to_virt(phys), size);
+		swiotlb_bounce(phys, dma_addr, size, DMA_TO_DEVICE);
 
 	return dma_addr;
 }
@@ -450,11 +488,7 @@ unmap_single(struct device *hwdev, char *dma_addr, size_t size, int dir)
 	 * First, sync the memory before unmapping the entry
 	 */
 	if (phys && ((dir == DMA_FROM_DEVICE) || (dir == DMA_BIDIRECTIONAL)))
-		/*
-		 * bounce... copy the data back into the original buffer * and
-		 * delete the bounce buffer.
-		 */
-		memcpy(phys_to_virt(phys), dma_addr, size);
+		swiotlb_bounce(phys, dma_addr, size, DMA_FROM_DEVICE);
 
 	/*
 	 * Return the buffer to the free list by setting the corresponding
@@ -494,13 +528,13 @@ sync_single(struct device *hwdev, char *dma_addr, size_t size,
 	switch (target) {
 	case SYNC_FOR_CPU:
 		if (likely(dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL))
-			memcpy(phys_to_virt(phys), dma_addr, size);
+			swiotlb_bounce(phys, dma_addr, size, DMA_FROM_DEVICE);
 		else
 			BUG_ON(dir != DMA_TO_DEVICE);
 		break;
 	case SYNC_FOR_DEVICE:
 		if (likely(dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL))
-			memcpy(dma_addr, phys_to_virt(phys), size);
+			swiotlb_bounce(phys, dma_addr, size, DMA_TO_DEVICE);
 		else
 			BUG_ON(dir != DMA_FROM_DEVICE);
 		break;
@@ -817,11 +851,11 @@ swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 	BUG_ON(dir == DMA_NONE);
 
 	for_each_sg(sgl, sg, nelems, i) {
-		if (sg->dma_address != swiotlb_sg_to_bus(hwdev, sg))
+		if (sg->dma_address != swiotlb_virt_to_bus(hwdev, sg_virt(sg)))
 			unmap_single(hwdev, swiotlb_bus_to_virt(sg->dma_address),
 				     sg->dma_length, dir);
 		else if (dir == DMA_FROM_DEVICE)
-			dma_mark_clean(swiotlb_bus_to_virt(sg->dma_address), sg->dma_length);
+			dma_mark_clean(sg_virt(sg), sg->dma_length);
 	}
 }
 EXPORT_SYMBOL(swiotlb_unmap_sg_attrs);
@@ -850,11 +884,11 @@ swiotlb_sync_sg(struct device *hwdev, struct scatterlist *sgl,
 	BUG_ON(dir == DMA_NONE);
 
 	for_each_sg(sgl, sg, nelems, i) {
-		if (sg->dma_address != swiotlb_sg_to_bus(hwdev, sg))
+		if (sg->dma_address != swiotlb_virt_to_bus(hwdev, sg_virt(sg)))
 			sync_single(hwdev, swiotlb_bus_to_virt(sg->dma_address),
 				    sg->dma_length, dir, target);
 		else if (dir == DMA_FROM_DEVICE)
-			dma_mark_clean(swiotlb_bus_to_virt(sg->dma_address), sg->dma_length);
+			dma_mark_clean(sg_virt(sg), sg->dma_length);
 	}
 }
 
