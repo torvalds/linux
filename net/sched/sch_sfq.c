@@ -281,7 +281,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	unsigned int hash;
 	sfq_index x;
-	int ret;
+	int uninitialized_var(ret);
 
 	hash = sfq_classify(skb, sch, &ret);
 	if (hash == 0) {
