@@ -665,7 +665,7 @@ ath5k_eeprom_read_pcal_info_5111(struct ath5k_hw *ah, int mode)
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	struct ath5k_chan_pcal_info *pcal;
 	int offset, ret;
-	int i, j;
+	int i;
 	u16 val;
 
 	offset = AR5K_EEPROM_GROUPS_START(ee->ee_version);
@@ -745,11 +745,6 @@ ath5k_eeprom_read_pcal_info_5111(struct ath5k_hw *ah, int mode)
 
 		ath5k_get_pcdac_intercepts(ah, cdata->pcdac_min,
 			cdata->pcdac_max, cdata->pcdac);
-
-		for (j = 0; j < AR5K_EEPROM_N_PCDAC; j++) {
-			cdata->pwr[j] = (u16)
-				(AR5K_EEPROM_POWER_STEP * cdata->pwr[j]);
-		}
 	}
 
 	return 0;
