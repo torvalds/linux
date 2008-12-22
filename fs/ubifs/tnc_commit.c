@@ -802,8 +802,10 @@ int ubifs_tnc_start_commit(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	 * budgeting subsystem to assume the index is already committed,
 	 * even though it is not.
 	 */
+	ubifs_assert(c->min_idx_lebs == ubifs_calc_min_idx_lebs(c));
 	c->old_idx_sz = c->calc_idx_sz;
 	c->budg_uncommitted_idx = 0;
+	c->min_idx_lebs = ubifs_calc_min_idx_lebs(c);
 	spin_unlock(&c->space_lock);
 	mutex_unlock(&c->tnc_mutex);
 
