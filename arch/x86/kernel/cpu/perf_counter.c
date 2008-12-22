@@ -26,6 +26,7 @@ static bool perf_counters_initialized __read_mostly;
  */
 static int nr_counters_generic __read_mostly;
 static u64 perf_counter_mask __read_mostly;
+static u64 counter_value_mask __read_mostly;
 
 static int nr_counters_fixed __read_mostly;
 
@@ -120,9 +121,6 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 			hwc->nmi = 1;
 	}
 
-	hwc->config_base	= MSR_ARCH_PERFMON_EVENTSEL0;
-	hwc->counter_base	= MSR_ARCH_PERFMON_PERFCTR0;
-
 	hwc->irq_period		= hw_event->irq_period;
 	/*
 	 * Intel PMCs cannot be accessed sanely above 32 bit width,
@@ -184,15 +182,33 @@ void hw_perf_restore(u64 ctrl)
 EXPORT_SYMBOL_GPL(hw_perf_restore);
 
 static inline void
+__pmc_fixed_disable(struct perf_counter *counter,
+		    struct hw_perf_counter *hwc, unsigned int __idx)
+{
+	int idx = __idx - X86_PMC_IDX_FIXED;
+	u64 ctrl_val, mask;
+	int err;
+
+	mask = 0xfULL << (idx * 4);
+
+	rdmsrl(hwc->config_base, ctrl_val);
+	ctrl_val &= ~mask;
+	err = checking_wrmsrl(hwc->config_base, ctrl_val);
+}
+
+static inline void
 __pmc_generic_disable(struct perf_counter *counter,
 			   struct hw_perf_counter *hwc, unsigned int idx)
 {
 	int err;
 
+	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL))
+		return __pmc_fixed_disable(counter, hwc, idx);
+
 	err = wrmsr_safe(hwc->config_base + idx, hwc->config, 0);
 }
 
-static DEFINE_PER_CPU(u64, prev_left[X86_PMC_MAX_GENERIC]);
+static DEFINE_PER_CPU(u64, prev_left[X86_PMC_IDX_MAX]);
 
 /*
  * Set the next IRQ period, based on the hwc->period_left value.
@@ -202,8 +218,9 @@ static void
 __hw_perf_counter_set_period(struct perf_counter *counter,
 			     struct hw_perf_counter *hwc, int idx)
 {
-	s32 left = atomic64_read(&hwc->period_left);
+	s64 left = atomic64_read(&hwc->period_left);
 	s32 period = hwc->irq_period;
+	int err;
 
 	/*
 	 * If we are way outside a reasoable range then just skip forward:
@@ -224,21 +241,64 @@ __hw_perf_counter_set_period(struct perf_counter *counter,
 	 * The hw counter starts counting from this counter offset,
 	 * mark it to be able to extra future deltas:
 	 */
-	atomic64_set(&hwc->prev_count, (u64)(s64)-left);
+	atomic64_set(&hwc->prev_count, (u64)-left);
 
-	wrmsr(hwc->counter_base + idx, -left, 0);
+	err = checking_wrmsrl(hwc->counter_base + idx,
+			     (u64)(-left) & counter_value_mask);
+}
+
+static inline void
+__pmc_fixed_enable(struct perf_counter *counter,
+		   struct hw_perf_counter *hwc, unsigned int __idx)
+{
+	int idx = __idx - X86_PMC_IDX_FIXED;
+	u64 ctrl_val, bits, mask;
+	int err;
+
+	/*
+	 * Enable IRQ generation (0x8) and ring-3 counting (0x2),
+	 * and enable ring-0 counting if allowed:
+	 */
+	bits = 0x8ULL | 0x2ULL;
+	if (hwc->config & ARCH_PERFMON_EVENTSEL_OS)
+		bits |= 0x1;
+	bits <<= (idx * 4);
+	mask = 0xfULL << (idx * 4);
+
+	rdmsrl(hwc->config_base, ctrl_val);
+	ctrl_val &= ~mask;
+	ctrl_val |= bits;
+	err = checking_wrmsrl(hwc->config_base, ctrl_val);
 }
 
 static void
 __pmc_generic_enable(struct perf_counter *counter,
 			  struct hw_perf_counter *hwc, int idx)
 {
+	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL))
+		return __pmc_fixed_enable(counter, hwc, idx);
+
 	wrmsr(hwc->config_base + idx,
 	      hwc->config | ARCH_PERFMON_EVENTSEL0_ENABLE, 0);
 }
 
-static int fixed_mode_idx(struct hw_perf_counter *hwc)
+static int
+fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 {
+	unsigned int event;
+
+	if (unlikely(hwc->nmi))
+		return -1;
+
+	event = hwc->config & ARCH_PERFMON_EVENT_MASK;
+
+	if (unlikely(event == intel_perfmon_event_map[PERF_COUNT_INSTRUCTIONS]))
+		return X86_PMC_IDX_FIXED_INSTRUCTIONS;
+	if (unlikely(event == intel_perfmon_event_map[PERF_COUNT_CPU_CYCLES]))
+		return X86_PMC_IDX_FIXED_CPU_CYCLES;
+	if (unlikely(event == intel_perfmon_event_map[PERF_COUNT_BUS_CYCLES]))
+		return X86_PMC_IDX_FIXED_BUS_CYCLES;
+
 	return -1;
 }
 
@@ -249,16 +309,39 @@ static int pmc_generic_enable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 	struct hw_perf_counter *hwc = &counter->hw;
-	int idx = hwc->idx;
+	int idx;
 
-	/* Try to get the previous counter again */
-	if (test_and_set_bit(idx, cpuc->used)) {
-		idx = find_first_zero_bit(cpuc->used, nr_counters_generic);
-		if (idx == nr_counters_generic)
-			return -EAGAIN;
+	idx = fixed_mode_idx(counter, hwc);
+	if (idx >= 0) {
+		/*
+		 * Try to get the fixed counter, if that is already taken
+		 * then try to get a generic counter:
+		 */
+		if (test_and_set_bit(idx, cpuc->used))
+			goto try_generic;
 
-		set_bit(idx, cpuc->used);
+		hwc->config_base = MSR_ARCH_PERFMON_FIXED_CTR_CTRL;
+		/*
+		 * We set it so that counter_base + idx in wrmsr/rdmsr maps to
+		 * MSR_ARCH_PERFMON_FIXED_CTR0 ... CTR2:
+		 */
+		hwc->counter_base =
+			MSR_ARCH_PERFMON_FIXED_CTR0 - X86_PMC_IDX_FIXED;
 		hwc->idx = idx;
+	} else {
+		idx = hwc->idx;
+		/* Try to get the previous generic counter again */
+		if (test_and_set_bit(idx, cpuc->used)) {
+try_generic:
+			idx = find_first_zero_bit(cpuc->used, nr_counters_generic);
+			if (idx == nr_counters_generic)
+				return -EAGAIN;
+
+			set_bit(idx, cpuc->used);
+			hwc->idx = idx;
+		}
+		hwc->config_base  = MSR_ARCH_PERFMON_EVENTSEL0;
+		hwc->counter_base = MSR_ARCH_PERFMON_PERFCTR0;
 	}
 
 	perf_counters_lapic_init(hwc->nmi);
@@ -266,6 +349,10 @@ static int pmc_generic_enable(struct perf_counter *counter)
 	__pmc_generic_disable(counter, hwc, idx);
 
 	cpuc->counters[idx] = counter;
+	/*
+	 * Make it visible before enabling the hw:
+	 */
+	smp_wmb();
 
 	__hw_perf_counter_set_period(counter, hwc, idx);
 	__pmc_generic_enable(counter, hwc, idx);
@@ -275,7 +362,7 @@ static int pmc_generic_enable(struct perf_counter *counter)
 
 void perf_counter_print_debug(void)
 {
-	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, prev_left;
+	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, prev_left, fixed;
 	struct cpu_hw_counters *cpuc;
 	int cpu, idx;
 
@@ -290,11 +377,13 @@ void perf_counter_print_debug(void)
 	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
 	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
 	rdmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, overflow);
+	rdmsrl(MSR_ARCH_PERFMON_FIXED_CTR_CTRL, fixed);
 
 	printk(KERN_INFO "\n");
 	printk(KERN_INFO "CPU#%d: ctrl:       %016llx\n", cpu, ctrl);
 	printk(KERN_INFO "CPU#%d: status:     %016llx\n", cpu, status);
 	printk(KERN_INFO "CPU#%d: overflow:   %016llx\n", cpu, overflow);
+	printk(KERN_INFO "CPU#%d: fixed:      %016llx\n", cpu, fixed);
 	printk(KERN_INFO "CPU#%d: used:       %016llx\n", cpu, *(u64 *)cpuc->used);
 
 	for (idx = 0; idx < nr_counters_generic; idx++) {
@@ -303,12 +392,18 @@ void perf_counter_print_debug(void)
 
 		prev_left = per_cpu(prev_left[idx], cpu);
 
-		printk(KERN_INFO "CPU#%d: PMC%d ctrl:  %016llx\n",
+		printk(KERN_INFO "CPU#%d:   gen-PMC%d ctrl:  %016llx\n",
 			cpu, idx, pmc_ctrl);
-		printk(KERN_INFO "CPU#%d: PMC%d count: %016llx\n",
+		printk(KERN_INFO "CPU#%d:   gen-PMC%d count: %016llx\n",
 			cpu, idx, pmc_count);
-		printk(KERN_INFO "CPU#%d: PMC%d left:  %016llx\n",
+		printk(KERN_INFO "CPU#%d:   gen-PMC%d left:  %016llx\n",
 			cpu, idx, prev_left);
+	}
+	for (idx = 0; idx < nr_counters_fixed; idx++) {
+		rdmsrl(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, pmc_count);
+
+		printk(KERN_INFO "CPU#%d: fixed-PMC%d count: %016llx\n",
+			cpu, idx, pmc_count);
 	}
 	local_irq_enable();
 }
@@ -323,6 +418,11 @@ static void pmc_generic_disable(struct perf_counter *counter)
 
 	clear_bit(idx, cpuc->used);
 	cpuc->counters[idx] = NULL;
+	/*
+	 * Make sure the cleared pointer becomes visible before we
+	 * (potentially) free the counter:
+	 */
+	smp_wmb();
 
 	/*
 	 * Drain the remaining delta count out of a counter
@@ -353,14 +453,11 @@ static void perf_save_and_restart(struct perf_counter *counter)
 {
 	struct hw_perf_counter *hwc = &counter->hw;
 	int idx = hwc->idx;
-	u64 pmc_ctrl;
-
-	rdmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + idx, pmc_ctrl);
 
 	x86_perf_counter_update(counter, hwc, idx);
 	__hw_perf_counter_set_period(counter, hwc, idx);
 
-	if (pmc_ctrl & ARCH_PERFMON_EVENTSEL0_ENABLE)
+	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
 		__pmc_generic_enable(counter, hwc, idx);
 }
 
@@ -373,6 +470,7 @@ perf_handle_group(struct perf_counter *sibling, u64 *status, u64 *overflown)
 	 * Store sibling timestamps (if any):
 	 */
 	list_for_each_entry(counter, &group_leader->sibling_list, list_entry) {
+
 		x86_perf_counter_update(counter, &counter->hw, counter->hw.idx);
 		perf_store_irq_data(sibling, counter->hw_event.type);
 		perf_store_irq_data(sibling, atomic64_read(&counter->count));
@@ -403,7 +501,7 @@ static void __smp_perf_counter_interrupt(struct pt_regs *regs, int nmi)
 
 again:
 	ack = status;
-	for_each_bit(bit, (unsigned long *) &status, nr_counters_generic) {
+	for_each_bit(bit, (unsigned long *)&status, X86_PMC_IDX_MAX) {
 		struct perf_counter *counter = cpuc->counters[bit];
 
 		clear_bit(bit, (unsigned long *) &status);
@@ -561,6 +659,9 @@ void __init init_hw_perf_counters(void)
 	perf_max_counters = nr_counters_generic;
 
 	printk(KERN_INFO "... bit width:       %d\n", eax.split.bit_width);
+	counter_value_mask = (1ULL << eax.split.bit_width) - 1;
+	printk(KERN_INFO "... value mask:      %016Lx\n", counter_value_mask);
+
 	printk(KERN_INFO "... mask length:     %d\n", eax.split.mask_length);
 
 	nr_counters_fixed = edx.split.num_counters_fixed;

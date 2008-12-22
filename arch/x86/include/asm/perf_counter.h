@@ -23,6 +23,11 @@
 #define ARCH_PERFMON_EVENTSEL_OS			  (1 << 17)
 #define ARCH_PERFMON_EVENTSEL_USR			  (1 << 16)
 
+/*
+ * Includes eventsel and unit mask as well:
+ */
+#define ARCH_PERFMON_EVENT_MASK				    0xffff
+
 #define ARCH_PERFMON_UNHALTED_CORE_CYCLES_SEL		      0x3c
 #define ARCH_PERFMON_UNHALTED_CORE_CYCLES_UMASK		(0x00 << 8)
 #define ARCH_PERFMON_UNHALTED_CORE_CYCLES_INDEX 		 0
@@ -69,12 +74,15 @@ union cpuid10_edx {
 
 /* Instr_Retired.Any: */
 #define MSR_ARCH_PERFMON_FIXED_CTR0			0x309
+#define X86_PMC_IDX_FIXED_INSTRUCTIONS			(X86_PMC_IDX_FIXED + 0)
 
 /* CPU_CLK_Unhalted.Core: */
 #define MSR_ARCH_PERFMON_FIXED_CTR1			0x30a
+#define X86_PMC_IDX_FIXED_CPU_CYCLES			(X86_PMC_IDX_FIXED + 1)
 
 /* CPU_CLK_Unhalted.Ref: */
 #define MSR_ARCH_PERFMON_FIXED_CTR2			0x30b
+#define X86_PMC_IDX_FIXED_BUS_CYCLES			(X86_PMC_IDX_FIXED + 2)
 
 #ifdef CONFIG_PERF_COUNTERS
 extern void init_hw_perf_counters(void);
