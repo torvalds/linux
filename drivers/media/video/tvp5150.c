@@ -12,6 +12,7 @@
 #include <media/v4l2-device.h>
 #include <media/tvp5150.h>
 #include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-chip-ident.h>
 
 #include "tvp5150_reg.h"
 
@@ -961,6 +962,20 @@ static int tvp5150_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 }
 
 
+static int tvp5150_g_chip_ident(struct v4l2_subdev *sd,
+				struct v4l2_chip_ident *chip)
+{
+	int rev;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	rev = tvp5150_read(sd, TVP5150_ROM_MAJOR_VER) << 8 |
+	      tvp5150_read(sd, TVP5150_ROM_MINOR_VER);
+
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TVP5150,
+					  rev);
+}
+
+
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int tvp5150_g_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
 {
@@ -1026,6 +1041,7 @@ static const struct v4l2_subdev_core_ops tvp5150_core_ops = {
 	.s_ctrl = tvp5150_s_ctrl,
 	.queryctrl = tvp5150_queryctrl,
 	.reset = tvp5150_reset,
+	.g_chip_ident = tvp5150_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = tvp5150_g_register,
 	.s_register = tvp5150_s_register,
