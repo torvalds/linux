@@ -51,12 +51,17 @@
 #include <linux/uwb.h>
 #include <linux/usb/wusb.h>
 #include <linux/scatterlist.h>
-#include <linux/uwb/debug.h>
 
 static int debug_crypto_verify = 0;
 
 module_param(debug_crypto_verify, int, 0);
 MODULE_PARM_DESC(debug_crypto_verify, "verify the key generation algorithms");
+
+static void wusb_key_dump(const void *buf, size_t len)
+{
+	print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_OFFSET, 16, 1,
+		       buf, len, 0);
+}
 
 /*
  * Block of data, as understood by AES-CCM
@@ -396,14 +401,14 @@ static int wusb_oob_mic_verify(void)
 		       "mismatch between MIC result and WUSB1.0[A2]\n");
 		hs_size = sizeof(stv_hsmic_hs) - sizeof(stv_hsmic_hs.MIC);
 		printk(KERN_ERR "E: Handshake2 in: (%zu bytes)\n", hs_size);
-		dump_bytes(NULL, &stv_hsmic_hs, hs_size);
+		wusb_key_dump(&stv_hsmic_hs, hs_size);
 		printk(KERN_ERR "E: CCM Nonce in: (%zu bytes)\n",
 		       sizeof(stv_hsmic_n));
-		dump_bytes(NULL, &stv_hsmic_n, sizeof(stv_hsmic_n));
+		wusb_key_dump(&stv_hsmic_n, sizeof(stv_hsmic_n));
 		printk(KERN_ERR "E: MIC out:\n");
-		dump_bytes(NULL, mic, sizeof(mic));
+		wusb_key_dump(mic, sizeof(mic));
 		printk(KERN_ERR "E: MIC out (from WUSB1.0[A.2]):\n");
-		dump_bytes(NULL, stv_hsmic_hs.MIC, sizeof(stv_hsmic_hs.MIC));
+		wusb_key_dump(stv_hsmic_hs.MIC, sizeof(stv_hsmic_hs.MIC));
 		result = -EINVAL;
 	} else
 		result = 0;
@@ -471,19 +476,16 @@ static int wusb_key_derive_verify(void)
 		printk(KERN_ERR "E: WUSB key derivation test: "
 		       "mismatch between key derivation result "
 		       "and WUSB1.0[A1] Errata 2006/12\n");
-		printk(KERN_ERR "E: keydvt in: key (%zu bytes)\n",
-		       sizeof(stv_key_a1));
-		dump_bytes(NULL, stv_key_a1, sizeof(stv_key_a1));
-		printk(KERN_ERR "E: keydvt in: nonce (%zu bytes)\n",
-		       sizeof(stv_keydvt_n_a1));
-		dump_bytes(NULL, &stv_keydvt_n_a1, sizeof(stv_keydvt_n_a1));
-		printk(KERN_ERR "E: keydvt in: hnonce & dnonce (%zu bytes)\n",
-		       sizeof(stv_keydvt_in_a1));
-		dump_bytes(NULL, &stv_keydvt_in_a1, sizeof(stv_keydvt_in_a1));
+		printk(KERN_ERR "E: keydvt in: key\n");
+		wusb_key_dump(stv_key_a1, sizeof(stv_key_a1));
+		printk(KERN_ERR "E: keydvt in: nonce\n");
+		wusb_key_dump( &stv_keydvt_n_a1, sizeof(stv_keydvt_n_a1));
+		printk(KERN_ERR "E: keydvt in: hnonce & dnonce\n");
+		wusb_key_dump(&stv_keydvt_in_a1, sizeof(stv_keydvt_in_a1));
 		printk(KERN_ERR "E: keydvt out: KCK\n");
-		dump_bytes(NULL, &keydvt_out.kck, sizeof(keydvt_out.kck));
+		wusb_key_dump(&keydvt_out.kck, sizeof(keydvt_out.kck));
 		printk(KERN_ERR "E: keydvt out: PTK\n");
-		dump_bytes(NULL, &keydvt_out.ptk, sizeof(keydvt_out.ptk));
+		wusb_key_dump(&keydvt_out.ptk, sizeof(keydvt_out.ptk));
 		result = -EINVAL;
 	} else
 		result = 0;

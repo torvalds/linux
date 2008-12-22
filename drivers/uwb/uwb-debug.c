@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
+ * Copyright (C) 2008 Cambridge Silicon Radio Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version
@@ -35,26 +36,6 @@
 #include <linux/uwb/debug-cmd.h>
 
 #include "uwb-internal.h"
-
-void dump_bytes(struct device *dev, const void *_buf, size_t rsize)
-{
-	const char *buf = _buf;
-	char line[32];
-	size_t offset = 0;
-	int cnt, cnt2;
-	for (cnt = 0; cnt < rsize; cnt += 8) {
-		size_t rtop = rsize - cnt < 8 ? rsize - cnt : 8;
-		for (offset = cnt2 = 0; cnt2 < rtop; cnt2++) {
-			offset += scnprintf(line + offset, sizeof(line) - offset,
-					    "%02x ", buf[cnt + cnt2] & 0xff);
-		}
-		if (dev)
-			dev_info(dev, "%s\n", line);
-		else
-			printk(KERN_INFO "%s\n", line);
-	}
-}
-EXPORT_SYMBOL_GPL(dump_bytes);
 
 /*
  * Debug interface
