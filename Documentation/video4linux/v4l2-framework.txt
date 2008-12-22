@@ -410,7 +410,7 @@ for you.
 
 	err = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
 	if (err) {
-		video_device_release(vdev); // or kfree(my_vdev);
+		video_device_release(vdev); /* or kfree(my_vdev); */
 		return err;
 	}
 
