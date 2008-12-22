@@ -881,8 +881,15 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
 			for (i = 0; i < MAX_TX_PACKET_BUFFERS; i++) {
 				sprintf(p, "tx_pb_%u_pxon", i);
+				p += ETH_GSTRING_LEN;
+				sprintf(p, "tx_pb_%u_pxoff", i);
+				p += ETH_GSTRING_LEN;
 			}
 			for (i = 0; i < MAX_RX_PACKET_BUFFERS; i++) {
+				sprintf(p, "rx_pb_%u_pxon", i);
+				p += ETH_GSTRING_LEN;
+				sprintf(p, "rx_pb_%u_pxoff", i);
+				p += ETH_GSTRING_LEN;
 			}
 		}
 		/* BUG_ON(p - data != IXGBE_STATS_LEN * ETH_GSTRING_LEN); */
