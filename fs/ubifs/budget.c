@@ -766,16 +766,6 @@ long long ubifs_get_free_space(struct ubifs_info *c)
 	min_idx_lebs = c->min_idx_lebs;
 	ubifs_assert(min_idx_lebs == ubifs_calc_min_idx_lebs(c));
 	outstanding = c->budg_data_growth + c->budg_dd_growth;
-
-	/*
-	 * Force the amount available to the total size reported if the used
-	 * space is zero.
-	 */
-	if (c->lst.total_used <= UBIFS_INO_NODE_SZ && !outstanding) {
-		spin_unlock(&c->space_lock);
-		return (long long)c->block_cnt << UBIFS_BLOCK_SHIFT;
-	}
-
 	available = ubifs_calc_available(c, min_idx_lebs);
 
 	/*
