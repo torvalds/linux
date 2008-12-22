@@ -45,6 +45,7 @@ extern struct pci_device_id iwl3945_hw_card_ids[];
 
 #include "iwl-csr.h"
 #include "iwl-prph.h"
+#include "iwl-fh.h"
 #include "iwl-3945-hw.h"
 #include "iwl-debug.h"
 #include "iwl-power.h"
@@ -106,13 +107,6 @@ enum iwl3945_antenna {
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
 int iwl3945_x2_queue_used(const struct iwl_queue *q, int i);
-
-#define MAX_NUM_OF_TBS          (20)
-
-/* One for each TFD */
-struct iwl3945_tx_info {
-	struct sk_buff *skb[MAX_NUM_OF_TBS];
-};
 
 #include "iwl-agn-rs.h"
 

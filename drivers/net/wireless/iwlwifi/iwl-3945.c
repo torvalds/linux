@@ -38,6 +38,7 @@
 #include <asm/unaligned.h>
 #include <net/mac80211.h>
 
+#include "iwl-fh.h"
 #include "iwl-3945-fh.h"
 #include "iwl-commands.h"
 #include "iwl-3945.h"
@@ -307,7 +308,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl_priv *priv,
 {
 	struct iwl3945_tx_queue *txq = &priv->txq39[txq_id];
 	struct iwl_queue *q = &txq->q;
-	struct iwl3945_tx_info *tx_info;
+	struct iwl_tx_info *tx_info;
 
 	BUG_ON(txq_id == IWL_CMD_QUEUE_NUM);
 
@@ -728,7 +729,7 @@ int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 {
 	int count;
 	u32 pad;
-	struct iwl3945_tfd_frame *tfd = (struct iwl3945_tfd_frame *)ptr;
+	struct iwl3945_tfd *tfd = (struct iwl3945_tfd *)ptr;
 
 	count = TFD_CTL_COUNT_GET(le32_to_cpu(tfd->control_flags));
 	pad = TFD_CTL_PAD_GET(le32_to_cpu(tfd->control_flags));
@@ -739,8 +740,8 @@ int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 		return -EINVAL;
 	}
 
-	tfd->pa[count].addr = cpu_to_le32(addr);
-	tfd->pa[count].len = cpu_to_le32(len);
+	tfd->tbs[count].addr = cpu_to_le32(addr);
+	tfd->tbs[count].len = cpu_to_le32(len);
 
 	count++;
 
@@ -757,8 +758,8 @@ int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
  */
 int iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl3945_tx_queue *txq)
 {
-	struct iwl3945_tfd_frame *bd_tmp = (struct iwl3945_tfd_frame *)&txq->bd[0];
-	struct iwl3945_tfd_frame *bd = &bd_tmp[txq->q.read_ptr];
+	struct iwl3945_tfd *tfd_tmp = (struct iwl3945_tfd *)&txq->tfds[0];
+	struct iwl3945_tfd *tfd = &tfd_tmp[txq->q.read_ptr];
 	struct pci_dev *dev = priv->pci_dev;
 	int i;
 	int counter;
@@ -769,7 +770,7 @@ int iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl3945_tx_queue *txq)
 		return 0;
 
 	/* sanity check */
-	counter = TFD_CTL_COUNT_GET(le32_to_cpu(bd->control_flags));
+	counter = TFD_CTL_COUNT_GET(le32_to_cpu(tfd->control_flags));
 	if (counter > NUM_TFD_CHUNKS) {
 		IWL_ERR(priv, "Too many chunks: %i\n", counter);
 		/* @todo issue fatal error, it is quite serious situation */
@@ -779,8 +780,8 @@ int iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl3945_tx_queue *txq)
 	/* unmap chunks if any */
 
 	for (i = 1; i < counter; i++) {
-		pci_unmap_single(dev, le32_to_cpu(bd->pa[i].addr),
-				 le32_to_cpu(bd->pa[i].len), PCI_DMA_TODEVICE);
+		pci_unmap_single(dev, le32_to_cpu(tfd->tbs[i].addr),
+			 le32_to_cpu(tfd->tbs[i].len), PCI_DMA_TODEVICE);
 		if (txq->txb[txq->q.read_ptr].skb[0]) {
 			struct sk_buff *skb = txq->txb[txq->q.read_ptr].skb[0];
 			if (txq->txb[txq->q.read_ptr].skb[0]) {

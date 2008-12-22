@@ -304,17 +304,6 @@ struct iwl3945_shared {
 	__le32 tx_base_ptr[8];
 } __attribute__ ((packed));
 
-struct iwl3945_tfd_frame_data {
-	__le32 addr;
-	__le32 len;
-} __attribute__ ((packed));
-
-struct iwl3945_tfd_frame {
-	__le32 control_flags;
-	struct iwl3945_tfd_frame_data pa[4];
-	u8 reserved[28];
-} __attribute__ ((packed));
-
 static inline u8 iwl3945_hw_get_rate(__le16 rate_n_flags)
 {
 	return le16_to_cpu(rate_n_flags) & 0xFF;

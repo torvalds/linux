@@ -36,14 +36,15 @@
 #include <linux/kernel.h>
 #include <net/ieee80211_radiotap.h>
 
-#include "iwl-rfkill.h"
 #include "iwl-eeprom.h"
+#include "iwl-csr.h"
+#include "iwl-prph.h"
+#include "iwl-fh.h"
+#include "iwl-debug.h"
+#include "iwl-rfkill.h"
 #include "iwl-4965-hw.h"
 #include "iwl-3945-hw.h"
 #include "iwl-3945-led.h"
-#include "iwl-csr.h"
-#include "iwl-prph.h"
-#include "iwl-debug.h"
 #include "iwl-led.h"
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
@@ -239,10 +240,10 @@ struct iwl_channel_info {
  */
 struct iwl3945_tx_queue {
 	struct iwl_queue q;
-	struct iwl3945_tfd_frame *bd;
+	struct iwl3945_tfd *tfds;
 	struct iwl_cmd *cmd;
 	dma_addr_t dma_addr_cmd;
-	struct iwl3945_tx_info *txb;
+	struct iwl_tx_info *txb;
 	int need_update;
 	int active;
 };
