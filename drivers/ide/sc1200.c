@@ -104,11 +104,12 @@ static u8 sc1200_udma_filter(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	ide_drive_t *mate = ide_get_pair_dev(drive);
-	u16 *mateid = mate->id;
+	u16 *mateid;
 	u8 mask = hwif->ultra_mask;
 
 	if (mate == NULL)
 		goto out;
+	mateid = mate->id;
 
 	if (ata_id_has_dma(mateid) && __ide_dma_bad_drive(mate) == 0) {
 		if ((mateid[ATA_ID_FIELD_VALID] & 4) &&
