@@ -85,11 +85,7 @@ kernel_backtrace(unsigned long *stackaddr, struct pt_regs *regs)
 	 */
 	do {
 		addr = *stackaddr++;
-
-		if (__kernel_text_address(addr)) {
-			oprofile_add_trace(addr);
-			break;
-		}
+		oprofile_add_trace(addr);
 	} while (valid_kernel_stack(stackaddr, regs));
 
 	return stackaddr;
