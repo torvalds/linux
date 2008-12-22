@@ -1007,7 +1007,7 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 	for_each_unsync_children(sp->unsync_child_bitmap, i) {
 		u64 ent = sp->spt[i];
 
-		if (is_shadow_present_pte(ent)) {
+		if (is_shadow_present_pte(ent) && !is_large_pte(ent)) {
 			struct kvm_mmu_page *child;
 			child = page_header(ent & PT64_BASE_ADDR_MASK);
 
