@@ -219,9 +219,9 @@ extern void iwl3945_rx_queue_reset(struct iwl_priv *priv,
 extern int iwl3945_calc_db_from_ratio(int sig_ratio);
 extern int iwl3945_calc_sig_qual(int rssi_dbm, int noise_dbm);
 extern int iwl3945_tx_queue_init(struct iwl_priv *priv,
-			     struct iwl3945_tx_queue *txq, int count, u32 id);
+			     struct iwl_tx_queue *txq, int count, u32 id);
 extern void iwl3945_rx_replenish(void *data);
-extern void iwl3945_tx_queue_free(struct iwl_priv *priv, struct iwl3945_tx_queue *txq);
+extern void iwl3945_tx_queue_free(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 extern int iwl3945_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len,
 			    const void *data);
 extern int __must_check iwl3945_send_cmd(struct iwl_priv *priv,
@@ -270,10 +270,10 @@ extern void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv);
 extern int iwl3945_hw_nic_reset(struct iwl_priv *priv);
 extern int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *tfd,
 					dma_addr_t addr, u16 len);
-extern int iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl3945_tx_queue *txq);
+extern int iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 extern int iwl3945_hw_get_temperature(struct iwl_priv *priv);
 extern int iwl3945_hw_tx_queue_init(struct iwl_priv *priv,
-				struct iwl3945_tx_queue *txq);
+				struct iwl_tx_queue *txq);
 extern unsigned int iwl3945_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl3945_frame *frame, u8 rate);
 void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv, struct iwl_cmd *cmd,

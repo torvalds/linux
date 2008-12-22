@@ -134,9 +134,13 @@ struct iwl_tx_info {
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
  */
+#define TFD_TX_CMD_SLOTS 256
+#define TFD_CMD_SLOTS 32
+
 struct iwl_tx_queue {
 	struct iwl_queue q;
 	struct iwl_tfd *tfds;
+	struct iwl3945_tfd *tfds39;
 	struct iwl_cmd *cmd[TFD_TX_CMD_SLOTS];
 	struct iwl_tx_info *txb;
 	u8 need_update;
@@ -224,28 +228,6 @@ struct iwl_channel_info {
 
 	/* Radio/DSP gain settings for each scan rate, for directed scans. */
 	struct iwl3945_scan_power_info scan_pwr_info[IWL_NUM_SCAN_RATES];
-};
-
-/**
- * struct iwl3945_tx_queue - Tx Queue for DMA
- * @q: generic Rx/Tx queue descriptor
- * @bd: base of circular buffer of TFDs
- * @cmd: array of command/Tx buffers
- * @dma_addr_cmd: physical address of cmd/tx buffer array
- * @txb: array of per-TFD driver data
- * @need_update: indicates need to update read/write index
- *
- * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
- * descriptors) and required locking structures.
- */
-struct iwl3945_tx_queue {
-	struct iwl_queue q;
-	struct iwl3945_tfd *tfds;
-	struct iwl_cmd *cmd;
-	dma_addr_t dma_addr_cmd;
-	struct iwl_tx_info *txb;
-	int need_update;
-	int active;
 };
 
 #define IWL_TX_FIFO_AC0	0
@@ -1098,8 +1080,6 @@ struct iwl_priv {
 	const struct iwl3945_rxon_cmd active39_rxon;
 	struct iwl3945_rxon_cmd staging39_rxon;
 	struct iwl3945_rxon_cmd recovery39_rxon;
-
-	struct iwl3945_tx_queue txq39[IWL39_MAX_NUM_QUEUES];
 
 	struct iwl3945_power_mgr power_data_39;
 	struct iwl3945_notif_statistics statistics_39;

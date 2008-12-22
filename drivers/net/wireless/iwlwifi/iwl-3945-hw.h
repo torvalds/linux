@@ -240,7 +240,6 @@ struct iwl3945_eeprom {
 
 #define TFD_QUEUE_MIN           0
 #define TFD_QUEUE_MAX           6
-#define TFD_QUEUE_SIZE_MAX      (256)
 
 #define IWL_NUM_SCAN_RATES         (2)
 
@@ -261,9 +260,6 @@ struct iwl3945_eeprom {
 #define TFD_CTL_COUNT_GET(ctl)     ((ctl >> 24) & 7)
 #define TFD_CTL_PAD_SET(n)         (n << 28)
 #define TFD_CTL_PAD_GET(ctl)       (ctl >> 28)
-
-#define TFD_TX_CMD_SLOTS 256
-#define TFD_CMD_SLOTS 32
 
 /*
  * RX related structures and functions

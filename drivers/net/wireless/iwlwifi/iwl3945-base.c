@@ -57,7 +57,7 @@
 #include "iwl-dev.h"
 
 static int iwl3945_tx_queue_update_write_ptr(struct iwl_priv *priv,
-				  struct iwl3945_tx_queue *txq);
+				  struct iwl_tx_queue *txq);
 
 /*
  * module name, copyright, version, etc.
@@ -162,7 +162,7 @@ static int iwl3945_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
  * iwl3945_tx_queue_alloc - Alloc driver data and TFD CB for one Tx/cmd queue
  */
 static int iwl3945_tx_queue_alloc(struct iwl_priv *priv,
-			      struct iwl3945_tx_queue *txq, u32 id)
+			      struct iwl_tx_queue *txq, u32 id)
 {
 	struct pci_dev *dev = priv->pci_dev;
 
@@ -181,13 +181,13 @@ static int iwl3945_tx_queue_alloc(struct iwl_priv *priv,
 
 	/* Circular buffer of transmit frame descriptors (TFDs),
 	 * shared with device */
-	txq->tfds = pci_alloc_consistent(dev,
-			sizeof(txq->tfds[0]) * TFD_QUEUE_SIZE_MAX,
+	txq->tfds39 = pci_alloc_consistent(dev,
+			sizeof(txq->tfds39[0]) * TFD_QUEUE_SIZE_MAX,
 			&txq->q.dma_addr);
 
-	if (!txq->tfds) {
+	if (!txq->tfds39) {
 		IWL_ERR(priv, "pci_alloc_consistent(%zd) failed\n",
-			  sizeof(txq->tfds[0]) * TFD_QUEUE_SIZE_MAX);
+			  sizeof(txq->tfds39[0]) * TFD_QUEUE_SIZE_MAX);
 		goto error;
 	}
 	txq->q.id = id;
@@ -205,10 +205,9 @@ static int iwl3945_tx_queue_alloc(struct iwl_priv *priv,
  * iwl3945_tx_queue_init - Allocate and initialize one tx/cmd queue
  */
 int iwl3945_tx_queue_init(struct iwl_priv *priv,
-		      struct iwl3945_tx_queue *txq, int slots_num, u32 txq_id)
+		      struct iwl_tx_queue *txq, int slots_num, u32 txq_id)
 {
-	struct pci_dev *dev = priv->pci_dev;
-	int len;
+	int len, i;
 	int rc = 0;
 
 	/*
@@ -219,20 +218,25 @@ int iwl3945_tx_queue_init(struct iwl_priv *priv,
 	 * For data Tx queues (all other queues), no super-size command
 	 * space is needed.
 	 */
-	len = sizeof(struct iwl_cmd) * slots_num;
-	if (txq_id == IWL_CMD_QUEUE_NUM)
-		len +=  IWL_MAX_SCAN_SIZE;
-	txq->cmd = pci_alloc_consistent(dev, len, &txq->dma_addr_cmd);
-	if (!txq->cmd)
-		return -ENOMEM;
+	len = sizeof(struct iwl_cmd);
+	for (i = 0; i <= slots_num; i++) {
+		if (i == slots_num) {
+			if (txq_id == IWL_CMD_QUEUE_NUM)
+				len += IWL_MAX_SCAN_SIZE;
+			else
+				continue;
+		}
+
+		txq->cmd[i] = kmalloc(len, GFP_KERNEL);
+		if (!txq->cmd[i])
+			goto err;
+	}
 
 	/* Alloc driver data array and TFD circular buffer */
 	rc = iwl3945_tx_queue_alloc(priv, txq, txq_id);
-	if (rc) {
-		pci_free_consistent(dev, len, txq->cmd, txq->dma_addr_cmd);
+	if (rc)
+		goto err;
 
-		return -ENOMEM;
-	}
 	txq->need_update = 0;
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
@@ -246,6 +250,17 @@ int iwl3945_tx_queue_init(struct iwl_priv *priv,
 	iwl3945_hw_tx_queue_init(priv, txq);
 
 	return 0;
+err:
+	for (i = 0; i < slots_num; i++) {
+		kfree(txq->cmd[i]);
+		txq->cmd[i] = NULL;
+	}
+
+	if (txq_id == IWL_CMD_QUEUE_NUM) {
+		kfree(txq->cmd[slots_num]);
+		txq->cmd[slots_num] = NULL;
+	}
+	return -ENOMEM;
 }
 
 /**
@@ -256,11 +271,11 @@ int iwl3945_tx_queue_init(struct iwl_priv *priv,
  * Free all buffers.
  * 0-fill, but do not free "txq" descriptor structure.
  */
-void iwl3945_tx_queue_free(struct iwl_priv *priv, struct iwl3945_tx_queue *txq)
+void iwl3945_tx_queue_free(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
 	struct iwl_queue *q = &txq->q;
 	struct pci_dev *dev = priv->pci_dev;
-	int len;
+	int len, i;
 
 	if (q->n_bd == 0)
 		return;
@@ -275,12 +290,13 @@ void iwl3945_tx_queue_free(struct iwl_priv *priv, struct iwl3945_tx_queue *txq)
 		len += IWL_MAX_SCAN_SIZE;
 
 	/* De-alloc array of command/tx buffers */
-	pci_free_consistent(dev, len, txq->cmd, txq->dma_addr_cmd);
+	for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
+		kfree(txq->cmd[i]);
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
 		pci_free_consistent(dev, sizeof(struct iwl3945_tfd) *
-				    txq->q.n_bd, txq->tfds, txq->q.dma_addr);
+				    txq->q.n_bd, txq->tfds39, txq->q.dma_addr);
 
 	/* De-alloc array of per-TFD driver data */
 	kfree(txq->txb);
@@ -444,7 +460,7 @@ u8 iwl3945_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flag
  */
 static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
-	struct iwl3945_tx_queue *txq = &priv->txq39[IWL_CMD_QUEUE_NUM];
+	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
 	struct iwl_queue *q = &txq->q;
 	struct iwl3945_tfd *tfd;
 	struct iwl_cmd *out_cmd;
@@ -452,7 +468,7 @@ static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	u16 fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
 	dma_addr_t phys_addr;
 	int pad;
-	int ret;
+	int ret, len;
 	unsigned long flags;
 
 	/* If any of the command structures end up being larger than
@@ -474,11 +490,11 @@ static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	spin_lock_irqsave(&priv->hcmd_lock, flags);
 
-	tfd = &txq->tfds[q->write_ptr];
+	tfd = &txq->tfds39[q->write_ptr];
 	memset(tfd, 0, sizeof(*tfd));
 
 	idx = get_cmd_index(q, q->write_ptr, cmd->meta.flags & CMD_SIZE_HUGE);
-	out_cmd = &txq->cmd[idx];
+	out_cmd = txq->cmd[idx];
 
 	out_cmd->hdr.cmd = cmd->id;
 	memcpy(&out_cmd->meta, &cmd->meta, sizeof(cmd->meta));
@@ -493,8 +509,15 @@ static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (out_cmd->meta.flags & CMD_SIZE_HUGE)
 		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
 
-	phys_addr = txq->dma_addr_cmd + sizeof(txq->cmd[0]) * idx +
-			offsetof(struct iwl_cmd, hdr);
+	len = (idx == TFD_CMD_SLOTS) ?
+			IWL_MAX_SCAN_SIZE : sizeof(struct iwl_cmd);
+
+	phys_addr = pci_map_single(priv->pci_dev, out_cmd,
+					len, PCI_DMA_TODEVICE);
+	pci_unmap_addr_set(&out_cmd->meta, mapping, phys_addr);
+	pci_unmap_len_set(&out_cmd->meta, len, len);
+	phys_addr += offsetof(struct iwl_cmd, hdr);
+
 	iwl3945_hw_txq_attach_buf_to_tfd(priv, tfd, phys_addr, fix_size);
 
 	pad = U32_PAD(cmd->len);
@@ -620,7 +643,7 @@ cancel:
 		 * TX cmd queue. Otherwise in case the cmd comes
 		 * in later, it will possibly set an invalid
 		 * address (cmd->meta.source). */
-		qcmd = &priv->txq39[IWL_CMD_QUEUE_NUM].cmd[cmd_idx];
+		qcmd = priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_idx];
 		qcmd->meta.flags &= ~CMD_WANT_SKB;
 	}
 fail:
@@ -2229,7 +2252,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl3945_tfd *tfd;
 	int txq_id = skb_get_queue_mapping(skb);
-	struct iwl3945_tx_queue *txq = NULL;
+	struct iwl_tx_queue *txq = NULL;
 	struct iwl_queue *q = NULL;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
@@ -2306,13 +2329,13 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	}
 
 	/* Descriptor for chosen Tx queue */
-	txq = &priv->txq39[txq_id];
+	txq = &priv->txq[txq_id];
 	q = &txq->q;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Set up first empty TFD within this queue's circular TFD buffer */
-	tfd = &txq->tfds[q->write_ptr];
+	tfd = &txq->tfds39[q->write_ptr];
 	memset(tfd, 0, sizeof(*tfd));
 	idx = get_cmd_index(q, q->write_ptr, 0);
 
@@ -2321,7 +2344,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	txq->txb[q->write_ptr].skb[0] = skb;
 
 	/* Init first empty entry in queue's array of Tx/cmd buffers */
-	out_cmd = &txq->cmd[idx];
+	out_cmd = txq->cmd[idx];
 	memset(&out_cmd->hdr, 0, sizeof(out_cmd->hdr));
 	memset(&out_cmd->cmd.tx, 0, sizeof(out_cmd->cmd.tx));
 
@@ -2360,8 +2383,14 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* Physical address of this Tx command's header (not MAC header!),
 	 * within command buffer array. */
-	txcmd_phys = txq->dma_addr_cmd + sizeof(struct iwl_cmd) * idx +
-		     offsetof(struct iwl_cmd, hdr);
+	txcmd_phys = pci_map_single(priv->pci_dev,
+				    out_cmd, sizeof(struct iwl_cmd),
+				    PCI_DMA_TODEVICE);
+	pci_unmap_addr_set(&out_cmd->meta, mapping, txcmd_phys);
+	pci_unmap_len_set(&out_cmd->meta, len, sizeof(struct iwl_cmd));
+	/* Add buffer containing Tx command and MAC(!) header to TFD's
+	 * first entry */
+	txcmd_phys += offsetof(struct iwl_cmd, hdr);
 
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
@@ -3076,7 +3105,7 @@ static void iwl3945_setup_rx_handlers(struct iwl_priv *priv)
 static void iwl3945_cmd_queue_reclaim(struct iwl_priv *priv,
 				      int txq_id, int index)
 {
-	struct iwl3945_tx_queue *txq = &priv->txq39[txq_id];
+	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	int nfreed = 0;
 
@@ -3121,8 +3150,8 @@ static void iwl3945_tx_cmd_complete(struct iwl_priv *priv,
 
 	BUG_ON(txq_id != IWL_CMD_QUEUE_NUM);
 
-	cmd_index = get_cmd_index(&priv->txq39[IWL_CMD_QUEUE_NUM].q, index, huge);
-	cmd = &priv->txq39[IWL_CMD_QUEUE_NUM].cmd[cmd_index];
+	cmd_index = get_cmd_index(&priv->txq[IWL_CMD_QUEUE_NUM].q, index, huge);
+	cmd = priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_index];
 
 	/* Input error checking is done when commands are added to queue. */
 	if (cmd->meta.flags & CMD_WANT_SKB) {
@@ -3678,7 +3707,7 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
  * iwl3945_tx_queue_update_write_ptr - Send new write index to hardware
  */
 static int iwl3945_tx_queue_update_write_ptr(struct iwl_priv *priv,
-				  struct iwl3945_tx_queue *txq)
+				  struct iwl_tx_queue *txq)
 {
 	u32 reg = 0;
 	int rc = 0;
@@ -4088,12 +4117,12 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	if (inta & CSR_INT_BIT_WAKEUP) {
 		IWL_DEBUG_ISR("Wakeup interrupt\n");
 		iwl3945_rx_queue_update_write_ptr(priv, &priv->rxq);
-		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq39[0]);
-		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq39[1]);
-		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq39[2]);
-		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq39[3]);
-		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq39[4]);
-		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq39[5]);
+		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq[0]);
+		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq[1]);
+		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq[2]);
+		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq[3]);
+		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq[4]);
+		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq[5]);
 
 		handled |= CSR_INT_BIT_WAKEUP;
 	}
@@ -6735,7 +6764,7 @@ static int iwl3945_mac_get_tx_stats(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = hw->priv;
 	int i, avail;
-	struct iwl3945_tx_queue *txq;
+	struct iwl_tx_queue *txq;
 	struct iwl_queue *q;
 	unsigned long flags;
 
@@ -6749,7 +6778,7 @@ static int iwl3945_mac_get_tx_stats(struct ieee80211_hw *hw,
 	spin_lock_irqsave(&priv->lock, flags);
 
 	for (i = 0; i < AC_NUM; i++) {
-		txq = &priv->txq39[i];
+		txq = &priv->txq[i];
 		q = &txq->q;
 		avail = iwl_queue_space(q);
 
