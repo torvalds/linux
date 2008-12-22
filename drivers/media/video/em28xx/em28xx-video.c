@@ -819,8 +819,10 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	vidioc_try_fmt_vid_cap(file, priv, f);
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
-	if (!fmt)
-		return -EINVAL;
+	if (!fmt) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
 		em28xx_errdev("%s queue busy\n", __func__);
@@ -1305,10 +1307,8 @@ static int vidioc_streamon(struct file *file, void *priv,
 	mutex_lock(&dev->lock);
 	rc = res_get(fh);
 
-	if (unlikely(rc < 0))
-		return rc;
-
-	rc = videobuf_streamon(&fh->vb_vidq);
+	if (likely(rc >= 0))
+		rc = videobuf_streamon(&fh->vb_vidq);
 
 	mutex_unlock(&dev->lock);
 
