@@ -1262,7 +1262,8 @@ static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
  *  using the kumeran interface.  The information retrieved is stored in data.
  *  Release the semaphore before exiting.
  **/
-s32 e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset, u16 *data)
+static s32 e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
+					   u16 *data)
 {
 	u32 kmrnctrlsta;
 	s32 ret_val = 0;
@@ -1295,7 +1296,8 @@ s32 e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset, u16 *data)
  *  at the offset using the kumeran interface.  Release semaphore
  *  before exiting.
  **/
-s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset, u16 data)
+static s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
+					    u16 data)
 {
 	u32 kmrnctrlsta;
 	s32 ret_val = 0;
