@@ -7518,7 +7518,11 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		rdmac_mode |= RDMAC_MODE_FIFO_LONG_BURST;
 
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
-		rdmac_mode |= (1 << 27);
+		rdmac_mode |= RDMAC_MODE_IPV4_LSO_EN;
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780)
+		rdmac_mode |= RDMAC_MODE_IPV6_LSO_EN;
 
 	/* Receive/send statistics. */
 	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
@@ -9274,8 +9278,8 @@ static int tg3_set_tso(struct net_device *dev, u32 value)
 			return -EINVAL;
 		return 0;
 	}
-	if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_2) &&
-	    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906)) {
+	if ((dev->features & NETIF_F_IPV6_CSUM) &&
+	    (tp->tg3_flags2 & TG3_FLG2_HW_TSO_2)) {
 		if (value) {
 			dev->features |= NETIF_F_TSO6;
 			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
@@ -12358,6 +12362,18 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	    (tp->tg3_flags2 & TG3_FLG2_5750_PLUS))
 		tp->tg3_flags2 |= TG3_FLG2_5705_PLUS;
 
+	/* 5700 B0 chips do not support checksumming correctly due
+	 * to hardware bugs.
+	 */
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5700_B0)
+		tp->tg3_flags |= TG3_FLAG_BROKEN_CHECKSUMS;
+	else {
+		tp->tg3_flags |= TG3_FLAG_RX_CHECKSUMS;
+		tp->dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+		if (tp->tg3_flags3 & TG3_FLG3_5755_PLUS)
+			tp->dev->features |= NETIF_F_IPV6_CSUM;
+	}
+
 	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
 		tp->tg3_flags |= TG3_FLAG_SUPPORT_MSI;
 		if (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5750_AX ||
@@ -12613,12 +12629,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		       pci_name(tp->pdev));
 		return err;
 	}
-
-	/* 5700 B0 chips do not support checksumming correctly due
-	 * to hardware bugs.
-	 */
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5700_B0)
-		tp->tg3_flags |= TG3_FLAG_BROKEN_CHECKSUMS;
 
 	/* Derive initial jumbo mode from MTU assigned in
 	 * ether_setup() via the alloc_etherdev() call
@@ -13756,9 +13766,10 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 * is off by default, but can be enabled using ethtool.
 	 */
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
-		dev->features |= NETIF_F_TSO;
-		if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_2) &&
-		    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906))
+		if (dev->features & NETIF_F_IP_CSUM)
+			dev->features |= NETIF_F_TSO;
+		if ((dev->features & NETIF_F_IPV6_CSUM) &&
+		    (tp->tg3_flags2 & TG3_FLG2_HW_TSO_2))
 			dev->features |= NETIF_F_TSO6;
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
 		    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 &&
@@ -13811,18 +13822,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		printk(KERN_ERR PFX "DMA engine test failed, aborting.\n");
 		goto err_out_apeunmap;
 	}
-
-	/* Tigon3 can do ipv4 only... and some chips have buggy
-	 * checksumming.
-	 */
-	if ((tp->tg3_flags & TG3_FLAG_BROKEN_CHECKSUMS) == 0) {
-		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
-		if (tp->tg3_flags3 & TG3_FLG3_5755_PLUS)
-			dev->features |= NETIF_F_IPV6_CSUM;
-
-		tp->tg3_flags |= TG3_FLAG_RX_CHECKSUMS;
-	} else
-		tp->tg3_flags &= ~TG3_FLAG_RX_CHECKSUMS;
 
 	/* flow control autonegotiation is default behavior */
 	tp->tg3_flags |= TG3_FLAG_PAUSE_AUTONEG;
