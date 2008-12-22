@@ -1202,13 +1202,13 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	if (!rxq->bd) {
-		rc = iwl3945_rx_queue_alloc(priv);
+		rc = iwl_rx_queue_alloc(priv);
 		if (rc) {
 			IWL_ERR(priv, "Unable to initialize Rx queue\n");
 			return -ENOMEM;
 		}
 	} else
-		iwl3945_rx_queue_reset(priv, rxq);
+		iwl_rx_queue_reset(priv, rxq);
 
 	iwl3945_rx_replenish(priv);
 

@@ -213,9 +213,6 @@ extern u8 iwl3945_add_station(struct iwl_priv *priv, const u8 *bssid,
 			  int is_ap, u8 flags);
 extern int iwl3945_power_init_handle(struct iwl_priv *priv);
 extern int iwl3945_eeprom_init(struct iwl_priv *priv);
-extern int iwl3945_rx_queue_alloc(struct iwl_priv *priv);
-extern void iwl3945_rx_queue_reset(struct iwl_priv *priv,
-			       struct iwl_rx_queue *rxq);
 extern int iwl3945_calc_db_from_ratio(int sig_ratio);
 extern int iwl3945_calc_sig_qual(int rssi_dbm, int noise_dbm);
 extern int iwl3945_tx_queue_init(struct iwl_priv *priv,

@@ -3186,7 +3186,6 @@ static void iwl3945_tx_cmd_complete(struct iwl_priv *priv,
  *
  * Driver sequence:
  *
- * iwl3945_rx_queue_alloc()   Allocates rx_free
  * iwl3945_rx_replenish()     Replenishes rx_free list from rx_used, and calls
  *                            iwl3945_rx_queue_restock
  * iwl3945_rx_queue_restock() Moves available buffers from rx_free into Rx
@@ -3403,84 +3402,6 @@ void iwl3945_rx_replenish(void *data)
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl3945_rx_queue_restock(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-/* Assumes that the skb field of the buffers in 'pool' is kept accurate.
- * If an SKB has been detached, the POOL needs to have its SKB set to NULL
- * This free routine walks the list of POOL entries and if SKB is set to
- * non NULL it is unmapped and freed
- */
-static void iwl3945_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
-{
-	int i;
-	for (i = 0; i < RX_QUEUE_SIZE + RX_FREE_BUFFERS; i++) {
-		if (rxq->pool[i].skb != NULL) {
-			pci_unmap_single(priv->pci_dev,
-					 rxq->pool[i].real_dma_addr,
-					 IWL_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
-			dev_kfree_skb(rxq->pool[i].skb);
-		}
-	}
-
-	pci_free_consistent(priv->pci_dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			    rxq->dma_addr);
-	rxq->bd = NULL;
-}
-
-int iwl3945_rx_queue_alloc(struct iwl_priv *priv)
-{
-	struct iwl_rx_queue *rxq = &priv->rxq;
-	struct pci_dev *dev = priv->pci_dev;
-	int i;
-
-	spin_lock_init(&rxq->lock);
-	INIT_LIST_HEAD(&rxq->rx_free);
-	INIT_LIST_HEAD(&rxq->rx_used);
-
-	/* Alloc the circular buffer of Read Buffer Descriptors (RBDs) */
-	rxq->bd = pci_alloc_consistent(dev, 4 * RX_QUEUE_SIZE, &rxq->dma_addr);
-	if (!rxq->bd)
-		return -ENOMEM;
-
-	/* Fill the rx_used queue with _all_ of the Rx buffers */
-	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++)
-		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
-
-	/* Set us so that we have processed and used all buffers, but have
-	 * not restocked the Rx queue with fresh buffers */
-	rxq->read = rxq->write = 0;
-	rxq->free_count = 0;
-	rxq->need_update = 0;
-	return 0;
-}
-
-void iwl3945_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
-{
-	unsigned long flags;
-	int i;
-	spin_lock_irqsave(&rxq->lock, flags);
-	INIT_LIST_HEAD(&rxq->rx_free);
-	INIT_LIST_HEAD(&rxq->rx_used);
-	/* Fill the rx_used queue with _all_ of the Rx buffers */
-	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++) {
-		/* In the reset function, these buffers may have been allocated
-		 * to an SKB, so we need to unmap and free potential storage */
-		if (rxq->pool[i].skb != NULL) {
-			pci_unmap_single(priv->pci_dev,
-					 rxq->pool[i].real_dma_addr,
-					 IWL_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
-			priv->alloc_rxb_skb--;
-			dev_kfree_skb(rxq->pool[i].skb);
-			rxq->pool[i].skb = NULL;
-		}
-		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
-	}
-
-	/* Set us so that we have processed and used all buffers, but have
-	 * not restocked the Rx queue with fresh buffers */
-	rxq->read = rxq->write = 0;
-	rxq->free_count = 0;
-	spin_unlock_irqrestore(&rxq->lock, flags);
 }
 
 /* Convert linear signal-to-noise ratio into dB */
@@ -7731,7 +7652,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	iwl3945_dealloc_ucode_pci(priv);
 
 	if (priv->rxq.bd)
-		iwl3945_rx_queue_free(priv, &priv->rxq);
+		iwl_rx_queue_free(priv, &priv->rxq);
 	iwl3945_hw_txq_ctx_free(priv);
 
 	iwl3945_unset_hw_params(priv);
