@@ -264,25 +264,22 @@ static void assign_aggr_tid_seqno(struct sk_buff *skb,
 	}
 
 	/* Get seqno */
-
-	if (ieee80211_is_data(fc) && !is_pae(skb)) {
-		/* For HT capable stations, we save tidno for later use.
-		 * We also override seqno set by upper layer with the one
-		 * in tx aggregation state.
-		 *
-		 * If fragmentation is on, the sequence number is
-		 * not overridden, since it has been
-		 * incremented by the fragmentation routine.
-		 *
-		 * FIXME: check if the fragmentation threshold exceeds
-		 * IEEE80211 max.
-		 */
-		tid = ATH_AN_2_TID(an, bf->bf_tidno);
-		hdr->seq_ctrl = cpu_to_le16(tid->seq_next <<
-					    IEEE80211_SEQ_SEQ_SHIFT);
-		bf->bf_seqno = tid->seq_next;
-		INCR(tid->seq_next, IEEE80211_SEQ_MAX);
-	}
+	/* For HT capable stations, we save tidno for later use.
+	 * We also override seqno set by upper layer with the one
+	 * in tx aggregation state.
+	 *
+	 * If fragmentation is on, the sequence number is
+	 * not overridden, since it has been
+	 * incremented by the fragmentation routine.
+	 *
+	 * FIXME: check if the fragmentation threshold exceeds
+	 * IEEE80211 max.
+	 */
+	tid = ATH_AN_2_TID(an, bf->bf_tidno);
+	hdr->seq_ctrl = cpu_to_le16(tid->seq_next <<
+			IEEE80211_SEQ_SEQ_SHIFT);
+	bf->bf_seqno = tid->seq_next;
+	INCR(tid->seq_next, IEEE80211_SEQ_MAX);
 }
 
 static int setup_tx_flags(struct ath_softc *sc, struct sk_buff *skb,
@@ -1718,11 +1715,10 @@ static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 
 	/* Assign seqno, tidno */
 
-	if (bf_isht(bf) && (sc->sc_flags & SC_OP_TXAGGR))
+	if (ieee80211_is_data_qos(fc) && (sc->sc_flags & SC_OP_TXAGGR))
 		assign_aggr_tid_seqno(skb, bf);
 
 	/* DMA setup */
-
 	bf->bf_mpdu = skb;
 
 	bf->bf_dmacontext = pci_map_single(sc->pdev, skb->data,
