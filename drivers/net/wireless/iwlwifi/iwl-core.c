@@ -1368,7 +1368,7 @@ EXPORT_SYMBOL(iwl_rf_kill_ct_config);
  * When in the 'halt' state, the card is shut down and must be fully
  * restarted to come back on.
  */
-static int iwl_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
+int iwl_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
 {
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_CARD_STATE_CMD,
@@ -1379,6 +1379,7 @@ static int iwl_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
 
 	return iwl_send_cmd(priv, &cmd);
 }
+EXPORT_SYMBOL(iwl_send_card_state);
 
 void iwl_radio_kill_sw_disable_radio(struct iwl_priv *priv)
 {

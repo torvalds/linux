@@ -1076,38 +1076,6 @@ static int iwl3945_send_scan_abort(struct iwl_priv *priv)
 	return rc;
 }
 
-static int iwl3945_card_state_sync_callback(struct iwl_priv *priv,
-					struct iwl_cmd *cmd,
-					struct sk_buff *skb)
-{
-	return 1;
-}
-
-/*
- * CARD_STATE_CMD
- *
- * Use: Sets the device's internal card state to enable, disable, or halt
- *
- * When in the 'enable' state the card operates as normal.
- * When in the 'disable' state, the card enters into a low power mode.
- * When in the 'halt' state, the card is shut down and must be fully
- * restarted to come back on.
- */
-static int iwl3945_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
-{
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_CARD_STATE_CMD,
-		.len = sizeof(u32),
-		.data = &flags,
-		.meta.flags = meta_flag,
-	};
-
-	if (meta_flag & CMD_ASYNC)
-		cmd.meta.u.callback = iwl3945_card_state_sync_callback;
-
-	return iwl3945_send_cmd(priv, &cmd);
-}
-
 static int iwl3945_add_sta_sync_callback(struct iwl_priv *priv,
 				     struct iwl_cmd *cmd, struct sk_buff *skb)
 {
@@ -2545,7 +2513,7 @@ static void iwl3945_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 			iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
 				    CSR_UCODE_SW_BIT_RFKILL);
 			spin_unlock_irqrestore(&priv->lock, flags);
-			iwl3945_send_card_state(priv, CARD_STATE_CMD_DISABLE, 0);
+			iwl_send_card_state(priv, CARD_STATE_CMD_DISABLE, 0);
 			set_bit(STATUS_RF_KILL_SW, &priv->status);
 		}
 		return;
