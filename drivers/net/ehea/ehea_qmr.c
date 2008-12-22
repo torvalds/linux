@@ -893,7 +893,7 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 
 	unsigned long top;
 
-	pt = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	pt = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!pt) {
 		ehea_error("no mem");
 		ret = -ENOMEM;
@@ -937,7 +937,7 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 	mr->adapter = adapter;
 	ret = 0;
 out:
-	kfree(pt);
+	free_page((unsigned long)pt);
 	return ret;
 }
 
