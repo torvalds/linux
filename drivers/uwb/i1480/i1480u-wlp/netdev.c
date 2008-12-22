@@ -41,7 +41,7 @@
 
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
-#include <linux/uwb/debug.h>
+
 #include "i1480u-wlp.h"
 
 struct i1480u_cmd_set_ip_mas {

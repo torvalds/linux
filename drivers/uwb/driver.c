@@ -53,7 +53,7 @@
 #include <linux/err.h>
 #include <linux/kdev_t.h>
 #include <linux/random.h>
-#include <linux/uwb/debug.h>
+
 #include "uwb-internal.h"
 
 

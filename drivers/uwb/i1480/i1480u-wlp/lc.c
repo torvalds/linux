@@ -57,7 +57,7 @@
  */
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
-#include <linux/uwb/debug.h>
+
 #include "i1480u-wlp.h"
 
 

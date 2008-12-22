@@ -25,8 +25,8 @@
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/uwb/debug.h>
 #include <linux/device.h>
+
 #include "i1480u-wlp.h"
 
 
