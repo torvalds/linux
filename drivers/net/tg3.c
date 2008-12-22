@@ -63,8 +63,6 @@
 #define TG3_VLAN_TAG_USED 0
 #endif
 
-#define TG3_TSO_SUPPORT	1
-
 #include "tg3.h"
 
 #define DRV_MODULE_NAME		"tg3"
