@@ -97,7 +97,7 @@ static int omap_pcm_hw_params(struct snd_pcm_substream *substream,
 	prtd->dma_data = dma_data;
 	err = omap_request_dma(dma_data->dma_req, dma_data->name,
 			       omap_pcm_dma_irq, substream, &prtd->dma_ch);
-	if (!err & !cpu_is_omap1510()) {
+	if (!err && !cpu_is_omap1510()) {
 		/*
 		 * Link channel with itself so DMA doesn't need any
 		 * reprogramming while looping the buffer
