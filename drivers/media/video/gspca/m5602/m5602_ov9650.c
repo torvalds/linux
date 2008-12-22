@@ -150,7 +150,6 @@ int ov9650_start(struct sd *sd)
 
 	switch (cam->cam_mode[sd->gspca_dev.curr_mode].width)
 	{
-	default:
 	case 640:
 		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
 
@@ -161,6 +160,19 @@ int ov9650_start(struct sd *sd)
 					VGA_ov9650[i][1], &data, 1);
 			else
 				err = m5602_write_bridge(sd, VGA_ov9650[i][1], data);
+		}
+		break;
+
+	case 320:
+		PDEBUG(D_V4L2, "Configuring camera for QVGA mode");
+
+		for (i = 0; i < ARRAY_SIZE(QVGA_ov9650) && !err; i++) {
+			u8 data = QVGA_ov9650[i][2];
+			if (QVGA_ov9650[i][0] == SENSOR)
+				err = m5602_write_sensor(sd,
+					QVGA_ov9650[i][1], &data, 1);
+			else
+				err = m5602_write_bridge(sd, QVGA_ov9650[i][1], data);
 		}
 		break;
 	}

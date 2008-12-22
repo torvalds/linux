@@ -20,7 +20,6 @@
 #define M5602_OV9650_H_
 
 #include <linux/dmi.h>
-
 #include "m5602_sensor.h"
 
 /*****************************************************************************/
@@ -94,6 +93,7 @@
 
 #define OV9650_REGISTER_RESET		(1 << 7)
 #define OV9650_VGA_SELECT		(1 << 6)
+#define OV9650_QVGA_SELECT		(1 << 4)
 #define OV9650_RGB_SELECT		(1 << 2)
 #define OV9650_RAW_RGB_SELECT		(1 << 0)
 
@@ -258,9 +258,19 @@ static struct m5602_sensor ov9650 = {
 	}
 	},
 
-	.nmodes = 1,
+	.nmodes = 2,
 	.modes = {
 	{
+		320,
+		240,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			320 * 240,
+		.bytesperline = 320,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}, {
 		640,
 		480,
 		V4L2_PIX_FMT_SBGGR8,
@@ -462,6 +472,32 @@ static const unsigned char VGA_ov9650[][3] =
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x64}, /* 100 */
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02}, /* 640 + 100 */
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0xe4}
+};
+
+static const unsigned char QVGA_ov9650[][3] =
+{
+	{SENSOR, OV9650_COM7, OV9650_QVGA_SELECT |
+			      OV9650_RGB_SELECT |
+			      OV9650_RAW_RGB_SELECT},
+
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x82},
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_L, 0x00},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_H, 0x82},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_L, 0x00},
+	{BRIDGE, M5602_XB_SIG_INI, 0x01},
+
+	/* Moves the view window in a vertical orientation */
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x08},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0xf0}, /* 240 */
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x31}, /* 50 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x01}, /* 320 + 50 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x71}
 };
 
 #endif
