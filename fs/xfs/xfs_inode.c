@@ -2804,7 +2804,6 @@ cluster_corrupt_out:
 			XFS_BUF_CLR_BDSTRAT_FUNC(bp);
 			XFS_BUF_UNDONE(bp);
 			XFS_BUF_STALE(bp);
-			XFS_BUF_SHUT(bp);
 			XFS_BUF_ERROR(bp,EIO);
 			xfs_biodone(bp);
 		} else {

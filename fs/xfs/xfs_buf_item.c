@@ -998,21 +998,7 @@ xfs_buf_iodone_callbacks(
 			xfs_buf_do_callbacks(bp, lip);
 			XFS_BUF_SET_FSPRIVATE(bp, NULL);
 			XFS_BUF_CLR_IODONE_FUNC(bp);
-
-			/*
-			 * XFS_SHUT flag gets set when we go thru the
-			 * entire buffer cache and deliberately start
-			 * throwing away delayed write buffers.
-			 * Since there's no biowait done on those,
-			 * we should just brelse them.
-			 */
-			if (XFS_BUF_ISSHUT(bp)) {
-			    XFS_BUF_UNSHUT(bp);
-				xfs_buf_relse(bp);
-			} else {
-				xfs_biodone(bp);
-			}
-
+			xfs_biodone(bp);
 			return;
 		}
 

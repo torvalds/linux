@@ -312,10 +312,6 @@ extern void xfs_buf_trace(xfs_buf_t *, char *, void *, void *);
 #define XFS_BUF_UNORDERED(bp)	((bp)->b_flags &= ~XBF_ORDERED)
 #define XFS_BUF_ISORDERED(bp)	((bp)->b_flags & XBF_ORDERED)
 
-#define XFS_BUF_SHUT(bp)	do { } while (0)
-#define XFS_BUF_UNSHUT(bp)	do { } while (0)
-#define XFS_BUF_ISSHUT(bp)	(0)
-
 #define XFS_BUF_HOLD(bp)	xfs_buf_hold(bp)
 #define XFS_BUF_READ(bp)	((bp)->b_flags |= XBF_READ)
 #define XFS_BUF_UNREAD(bp)	((bp)->b_flags &= ~XBF_READ)
