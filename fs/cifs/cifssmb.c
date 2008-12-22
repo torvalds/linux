@@ -1871,10 +1871,6 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 			rc = -EIO;      /* bad smb */
 			goto plk_err_exit;
 		}
-		if (pLockData == NULL) {
-			rc = -EINVAL;
-			goto plk_err_exit;
-		}
 		data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 		data_count  = le16_to_cpu(pSMBr->t2.DataCount);
 		if (data_count < sizeof(struct cifs_posix_lock)) {
