@@ -86,8 +86,6 @@
 #include <linux/err.h>
 
 #include "uwb-internal.h"
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
 
 /*
  * UWB Radio Controller Notification/Event Handle
@@ -479,8 +477,6 @@ void uwb_rc_neh_grok(struct uwb_rc *rc, void *buf, size_t buf_size)
 	size_t size, real_size, event_size;
 	int needtofree;
 
-	d_fnstart(3, dev, "(rc %p buf %p %zu buf_size)\n", rc, buf, buf_size);
-	d_printf(2, dev, "groking event block: %zu bytes\n", buf_size);
 	itr = buf;
 	size = buf_size;
 	while (size > 0) {
@@ -528,10 +524,7 @@ void uwb_rc_neh_grok(struct uwb_rc *rc, void *buf, size_t buf_size)
 
 		itr += real_size;
 		size -= real_size;
-		d_printf(2, dev, "consumed %zd bytes, %zu left\n",
-			 event_size, size);
 	}
-	d_fnend(3, dev, "(rc %p buf %p %zu buf_size) = void\n", rc, buf, buf_size);
 }
 EXPORT_SYMBOL_GPL(uwb_rc_neh_grok);
 

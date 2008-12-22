@@ -51,7 +51,6 @@
 #include <linux/uwb.h>
 #include <linux/usb/wusb.h>
 #include <linux/scatterlist.h>
-#define D_LOCAL 0
 #include <linux/uwb/debug.h>
 
 static int debug_crypto_verify = 0;
@@ -207,9 +206,6 @@ static int wusb_ccm_mac(struct crypto_blkcipher *tfm_cbc,
 	const u8 bzero[16] = { 0 };
 	size_t zero_padding;
 
-	d_fnstart(3, NULL, "(tfm_cbc %p, tfm_aes %p, mic %p, "
-		  "n %p, a %p, b %p, blen %zu)\n",
-		  tfm_cbc, tfm_aes, mic, n, a, b, blen);
 	/*
 	 * These checks should be compile time optimized out
 	 * ensure @a fills b1's mac_header and following fields
@@ -251,16 +247,6 @@ static int wusb_ccm_mac(struct crypto_blkcipher *tfm_cbc,
 	b1.la = cpu_to_be16(blen + 14);
 	memcpy(&b1.mac_header, a, sizeof(*a));
 
-	d_printf(4, NULL, "I: B0 (%zu bytes)\n", sizeof(b0));
-	d_dump(4, NULL, &b0, sizeof(b0));
-	d_printf(4, NULL, "I: B1 (%zu bytes)\n", sizeof(b1));
-	d_dump(4, NULL, &b1, sizeof(b1));
-	d_printf(4, NULL, "I: B (%zu bytes)\n", blen);
-	d_dump(4, NULL, b, blen);
-	d_printf(4, NULL, "I: B 0-padding (%zu bytes)\n", zero_padding);
-	d_printf(4, NULL, "D: IV before crypto (%zu)\n", ivsize);
-	d_dump(4, NULL, iv, ivsize);
-
 	sg_init_table(sg, ARRAY_SIZE(sg));
 	sg_set_buf(&sg[0], &b0, sizeof(b0));
 	sg_set_buf(&sg[1], &b1, sizeof(b1));
@@ -277,8 +263,6 @@ static int wusb_ccm_mac(struct crypto_blkcipher *tfm_cbc,
 		       result);
 		goto error_cbc_crypt;
 	}
-	d_printf(4, NULL, "D: MIC tag\n");
-	d_dump(4, NULL, iv, ivsize);
 
 	/* Now we crypt the MIC Tag (*iv) with Ax -- values per WUSB1.0[6.5]
 	 * The procedure is to AES crypt the A0 block and XOR the MIC
@@ -293,17 +277,10 @@ static int wusb_ccm_mac(struct crypto_blkcipher *tfm_cbc,
 	ax.counter = 0;
 	crypto_cipher_encrypt_one(tfm_aes, (void *)&ax, (void *)&ax);
 	bytewise_xor(mic, &ax, iv, 8);
-	d_printf(4, NULL, "D: CTR[MIC]\n");
-	d_dump(4, NULL, &ax, 8);
-	d_printf(4, NULL, "D: CCM-MIC tag\n");
-	d_dump(4, NULL, mic, 8);
 	result = 8;
 error_cbc_crypt:
 	kfree(dst_buf);
 error_dst_buf:
-	d_fnend(3, NULL, "(tfm_cbc %p, tfm_aes %p, mic %p, "
-		"n %p, a %p, b %p, blen %zu)\n",
-		tfm_cbc, tfm_aes, mic, n, a, b, blen);
 	return result;
 }
 
@@ -324,10 +301,6 @@ ssize_t wusb_prf(void *out, size_t out_size,
 	struct crypto_cipher *tfm_aes;
 	u64 sfn = 0;
 	__le64 sfn_le;
-
-	d_fnstart(3, NULL, "(out %p, out_size %zu, key %p, _n %p, "
-		  "a %p, b %p, blen %zu, len %zu)\n", out, out_size,
-		  key, _n, a, b, blen, len);
 
 	tfm_cbc = crypto_alloc_blkcipher("cbc(aes)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm_cbc)) {
@@ -370,9 +343,6 @@ error_alloc_aes:
 error_setkey_cbc:
 	crypto_free_blkcipher(tfm_cbc);
 error_alloc_cbc:
-	d_fnend(3, NULL, "(out %p, out_size %zu, key %p, _n %p, "
-		"a %p, b %p, blen %zu, len %zu) = %d\n", out, out_size,
-		key, _n, a, b, blen, len, (int)bytes);
 	return result;
 }
 

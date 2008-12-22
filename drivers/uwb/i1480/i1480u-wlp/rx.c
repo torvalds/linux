@@ -68,11 +68,7 @@
 #include <linux/etherdevice.h>
 #include "i1480u-wlp.h"
 
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
-
-
-/**
+/*
  * Setup the RX context
  *
  * Each URB is provided with a transfer_buffer that is the data field
@@ -129,7 +125,7 @@ error:
 }
 
 
-/** Release resources associated to the rx context */
+/* Release resources associated to the rx context */
 void i1480u_rx_release(struct i1480u *i1480u)
 {
 	int cnt;
@@ -155,7 +151,7 @@ void i1480u_rx_unlink_urbs(struct i1480u *i1480u)
 	}
 }
 
-/** Fix an out-of-sequence packet */
+/* Fix an out-of-sequence packet */
 #define i1480u_fix(i1480u, msg...)			\
 do {							\
 	if (printk_ratelimit())				\
@@ -166,7 +162,7 @@ do {							\
 } while (0)
 
 
-/** Drop an out-of-sequence packet */
+/* Drop an out-of-sequence packet */
 #define i1480u_drop(i1480u, msg...)			\
 do {							\
 	if (printk_ratelimit())				\
@@ -177,7 +173,7 @@ do {							\
 
 
 
-/** Finalizes setting up the SKB and delivers it
+/* Finalizes setting up the SKB and delivers it
  *
  * We first pass the incoming frame to WLP substack for verification. It
  * may also be a WLP association frame in which case WLP will take over the
@@ -192,18 +188,11 @@ void i1480u_skb_deliver(struct i1480u *i1480u)
 	struct net_device *net_dev = i1480u->net_dev;
 	struct device *dev = &i1480u->usb_iface->dev;
 
-	d_printf(6, dev, "RX delivered pre skb(%p), %u bytes\n",
-		 i1480u->rx_skb, i1480u->rx_skb->len);
-	d_dump(7, dev, i1480u->rx_skb->data, i1480u->rx_skb->len);
 	should_parse = wlp_receive_frame(dev, &i1480u->wlp, i1480u->rx_skb,
 					 &i1480u->rx_srcaddr);
 	if (!should_parse)
 		goto out;
 	i1480u->rx_skb->protocol = eth_type_trans(i1480u->rx_skb, net_dev);
-	d_printf(5, dev, "RX delivered skb(%p), %u bytes\n",
-		 i1480u->rx_skb, i1480u->rx_skb->len);
-	d_dump(7, dev, i1480u->rx_skb->data,
-	       i1480u->rx_skb->len > 72 ? 72 : i1480u->rx_skb->len);
 	i1480u->stats.rx_packets++;
 	i1480u->stats.rx_bytes += i1480u->rx_untd_pkt_size;
 	net_dev->last_rx = jiffies;
@@ -216,7 +205,7 @@ out:
 }
 
 
-/**
+/*
  * Process a buffer of data received from the USB RX endpoint
  *
  * First fragment arrives with next or last fragment. All other fragments
@@ -404,7 +393,7 @@ out:
 }
 
 
-/**
+/*
  * Called when an RX URB has finished receiving or has found some kind
  * of error condition.
  *

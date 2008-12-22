@@ -32,8 +32,6 @@
 #include <linux/err.h>
 
 #include "uwb-internal.h"
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
 
 /**
  * Command result codes (WUSB1.0[T8-69])

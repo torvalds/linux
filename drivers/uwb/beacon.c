@@ -22,19 +22,16 @@
  *
  * FIXME: docs
  */
-
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/kdev_t.h>
+
 #include "uwb-internal.h"
 
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
-
-/** Start Beaconing command structure */
+/* Start Beaconing command structure */
 struct uwb_rc_cmd_start_beacon {
 	struct uwb_rccb rccb;
 	__le16 wBPSTOffset;
@@ -176,9 +173,6 @@ struct uwb_beca_e *__uwb_beca_find_bydev(struct uwb_rc *rc,
 {
 	struct uwb_beca_e *bce, *next;
 	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, node) {
-		d_printf(6, NULL, "looking for addr %02x:%02x in %02x:%02x\n",
-			 dev_addr->data[0], dev_addr->data[1],
-			 bce->dev_addr.data[0], bce->dev_addr.data[1]);
 		if (!memcmp(&bce->dev_addr, dev_addr, sizeof(bce->dev_addr)))
 			goto out;
 	}

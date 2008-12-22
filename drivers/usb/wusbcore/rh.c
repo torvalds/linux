@@ -71,9 +71,6 @@
  */
 #include "wusbhc.h"
 
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
-
 /*
  * Reset a fake port
  *
@@ -142,7 +139,6 @@ int wusbhc_rh_status_data(struct usb_hcd *usb_hcd, char *_buf)
 	size_t cnt, size;
 	unsigned long *buf = (unsigned long *) _buf;
 
-	d_fnstart(1, wusbhc->dev, "(wusbhc %p)\n", wusbhc);
 	/* WE DON'T LOCK, see comment */
 	size = wusbhc->ports_max + 1 /* hub bit */;
 	size = (size + 8 - 1) / 8;	/* round to bytes */
@@ -151,8 +147,6 @@ int wusbhc_rh_status_data(struct usb_hcd *usb_hcd, char *_buf)
 			set_bit(cnt + 1, buf);
 		else
 			clear_bit(cnt + 1, buf);
-	d_fnend(1, wusbhc->dev, "(wusbhc %p) %u, buffer:\n", wusbhc, (int)size);
-	d_dump(1, wusbhc->dev, _buf, size);
 	return size;
 }
 EXPORT_SYMBOL_GPL(wusbhc_rh_status_data);
@@ -201,9 +195,7 @@ static int wusbhc_rh_get_hub_descr(struct wusbhc *wusbhc, u16 wValue,
 static int wusbhc_rh_clear_hub_feat(struct wusbhc *wusbhc, u16 feature)
 {
 	int result;
-	struct device *dev = wusbhc->dev;
 
-	d_fnstart(4, dev, "(%p, feature 0x%04u)\n", wusbhc, feature);
 	switch (feature) {
 	case C_HUB_LOCAL_POWER:
 		/* FIXME: maybe plug bit 0 to the power input status,
@@ -215,7 +207,6 @@ static int wusbhc_rh_clear_hub_feat(struct wusbhc *wusbhc, u16 feature)
 	default:
 		result = -EPIPE;
 	}
-	d_fnend(4, dev, "(%p, feature 0x%04u), %d\n", wusbhc, feature, result);
 	return result;
 }
 
@@ -242,14 +233,10 @@ static int wusbhc_rh_get_hub_status(struct wusbhc *wusbhc, u32 *buf,
 static int wusbhc_rh_set_port_feat(struct wusbhc *wusbhc, u16 feature,
 				   u8 selector, u8 port_idx)
 {
-	int result = -EINVAL;
 	struct device *dev = wusbhc->dev;
 
-	d_fnstart(4, dev, "(feat 0x%04u, selector 0x%u, port_idx %d)\n",
-		  feature, selector, port_idx);
-
 	if (port_idx > wusbhc->ports_max)
-		goto error;
+		return -EINVAL;
 
 	switch (feature) {
 		/* According to USB2.0[11.24.2.13]p2, these features
@@ -259,35 +246,27 @@ static int wusbhc_rh_set_port_feat(struct wusbhc *wusbhc, u16 feature,
 	case USB_PORT_FEAT_C_SUSPEND:
 	case USB_PORT_FEAT_C_CONNECTION:
 	case USB_PORT_FEAT_C_RESET:
-		result = 0;
-		break;
-
+		return 0;
 	case USB_PORT_FEAT_POWER:
 		/* No such thing, but we fake it works */
 		mutex_lock(&wusbhc->mutex);
 		wusb_port_by_idx(wusbhc, port_idx)->status |= USB_PORT_STAT_POWER;
 		mutex_unlock(&wusbhc->mutex);
-		result = 0;
-		break;
+		return 0;
 	case USB_PORT_FEAT_RESET:
-		result = wusbhc_rh_port_reset(wusbhc, port_idx);
-		break;
+		return wusbhc_rh_port_reset(wusbhc, port_idx);
 	case USB_PORT_FEAT_ENABLE:
 	case USB_PORT_FEAT_SUSPEND:
 		dev_err(dev, "(port_idx %d) set feat %d/%d UNIMPLEMENTED\n",
 			port_idx, feature, selector);
-		result = -ENOSYS;
-		break;
+		return -ENOSYS;
 	default:
 		dev_err(dev, "(port_idx %d) set feat %d/%d UNKNOWN\n",
 			port_idx, feature, selector);
-		result = -EPIPE;
-		break;
+		return -EPIPE;
 	}
-error:
-	d_fnend(4, dev, "(feat 0x%04u, selector 0x%u, port_idx %d) = %d\n",
-		feature, selector, port_idx, result);
-	return result;
+
+	return 0;
 }
 
 /*
@@ -298,17 +277,13 @@ error:
 static int wusbhc_rh_clear_port_feat(struct wusbhc *wusbhc, u16 feature,
 				     u8 selector, u8 port_idx)
 {
-	int result = -EINVAL;
+	int result = 0;
 	struct device *dev = wusbhc->dev;
 
-	d_fnstart(4, dev, "(wusbhc %p feat 0x%04x selector %d port_idx %d)\n",
-		  wusbhc, feature, selector, port_idx);
-
 	if (port_idx > wusbhc->ports_max)
-		goto error;
+		return -EINVAL;
 
 	mutex_lock(&wusbhc->mutex);
-	result = 0;
 	switch (feature) {
 	case USB_PORT_FEAT_POWER:	/* fake port always on */
 		/* According to USB2.0[11.24.2.7.1.4], no need to implement? */
@@ -328,10 +303,8 @@ static int wusbhc_rh_clear_port_feat(struct wusbhc *wusbhc, u16 feature,
 		break;
 	case USB_PORT_FEAT_SUSPEND:
 	case USB_PORT_FEAT_C_SUSPEND:
-	case 0xffff:		/* ??? FIXME */
 		dev_err(dev, "(port_idx %d) Clear feat %d/%d UNIMPLEMENTED\n",
 			port_idx, feature, selector);
-		/* dump_stack(); */
 		result = -ENOSYS;
 		break;
 	default:
@@ -341,9 +314,7 @@ static int wusbhc_rh_clear_port_feat(struct wusbhc *wusbhc, u16 feature,
 		break;
 	}
 	mutex_unlock(&wusbhc->mutex);
-error:
-	d_fnend(4, dev, "(wusbhc %p feat 0x%04x selector %d port_idx %d) = "
-		"%d\n", wusbhc, feature, selector, port_idx, result);
+
 	return result;
 }
 
@@ -355,22 +326,17 @@ error:
 static int wusbhc_rh_get_port_status(struct wusbhc *wusbhc, u16 port_idx,
 				     u32 *_buf, u16 wLength)
 {
-	int result = -EINVAL;
 	u16 *buf = (u16 *) _buf;
 
-	d_fnstart(1, wusbhc->dev, "(wusbhc %p port_idx %u wLength %u)\n",
-		  wusbhc, port_idx, wLength);
 	if (port_idx > wusbhc->ports_max)
-		goto error;
+		return -EINVAL;
+
 	mutex_lock(&wusbhc->mutex);
 	buf[0] = cpu_to_le16(wusb_port_by_idx(wusbhc, port_idx)->status);
 	buf[1] = cpu_to_le16(wusb_port_by_idx(wusbhc, port_idx)->change);
-	result = 0;
 	mutex_unlock(&wusbhc->mutex);
-error:
-	d_fnend(1, wusbhc->dev, "(wusbhc %p) = %d, buffer:\n", wusbhc, result);
-	d_dump(1, wusbhc->dev, _buf, wLength);
-	return result;
+
+	return 0;
 }
 
 /*

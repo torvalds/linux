@@ -68,17 +68,13 @@
  *
  * Handler functions are called normally uwbd_evt_handle_*().
  */
-
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/freezer.h>
+
 #include "uwb-internal.h"
 
-#define D_LOCAL 1
-#include <linux/uwb/debug.h>
-
-
-/**
+/*
  * UWBD Event handler function signature
  *
  * Return !0 if the event needs not to be freed (ie the handler
@@ -101,9 +97,8 @@ struct uwbd_event {
 	const char *name;
 };
 
-/** Table of handlers for and properties of the UWBD Radio Control Events */
-static
-struct uwbd_event uwbd_events[] = {
+/* Table of handlers for and properties of the UWBD Radio Control Events */
+static struct uwbd_event uwbd_urc_events[] = {
 	[UWB_RC_EVT_IE_RCV] = {
 		.handler = uwbd_evt_handle_rc_ie_rcv,
 		.name = "IE_RECEIVED"
@@ -146,22 +141,14 @@ struct uwbd_evt_type_handler {
 	size_t size;
 };
 
-#define UWBD_EVT_TYPE_HANDLER(n,a) {		\
-	.name = (n),				\
-	.uwbd_events = (a),			\
-	.size = sizeof(a)/sizeof((a)[0])	\
-}
-
-
-/** Table of handlers for each UWBD Event type. */
-static
-struct uwbd_evt_type_handler uwbd_evt_type_handlers[] = {
-	[UWB_RC_CET_GENERAL] = UWBD_EVT_TYPE_HANDLER("RC", uwbd_events)
+/* Table of handlers for each UWBD Event type. */
+static struct uwbd_evt_type_handler uwbd_urc_evt_type_handlers[] = {
+	[UWB_RC_CET_GENERAL] = {
+		.name        = "URC",
+		.uwbd_events = uwbd_urc_events,
+		.size        = ARRAY_SIZE(uwbd_urc_events),
+	},
 };
-
-static const
-size_t uwbd_evt_type_handlers_len =
-	sizeof(uwbd_evt_type_handlers) / sizeof(uwbd_evt_type_handlers[0]);
 
 static const struct uwbd_event uwbd_message_handlers[] = {
 	[UWB_EVT_MSG_RESET] = {
@@ -170,7 +157,7 @@ static const struct uwbd_event uwbd_message_handlers[] = {
 	},
 };
 
-/**
+/*
  * Handle an URC event passed to the UWB Daemon
  *
  * @evt: the event to handle
@@ -190,6 +177,7 @@ static const struct uwbd_event uwbd_message_handlers[] = {
 static
 int uwbd_event_handle_urc(struct uwb_event *evt)
 {
+	int result = -EINVAL;
 	struct uwbd_evt_type_handler *type_table;
 	uwbd_evt_handler_f handler;
 	u8 type, context;
@@ -199,26 +187,24 @@ int uwbd_event_handle_urc(struct uwb_event *evt)
 	event = le16_to_cpu(evt->notif.rceb->wEvent);
 	context = evt->notif.rceb->bEventContext;
 
-	if (type > uwbd_evt_type_handlers_len) {
-		printk(KERN_ERR "UWBD: event type %u: unknown (too high)\n", type);
-		return -EINVAL;
-	}
-	type_table = &uwbd_evt_type_handlers[type];
-	if (type_table->uwbd_events == NULL) {
-		printk(KERN_ERR "UWBD: event type %u: unknown\n", type);
-		return -EINVAL;
-	}
-	if (event > type_table->size) {
-		printk(KERN_ERR "UWBD: event %s[%u]: unknown (too high)\n",
-		       type_table->name, event);
-		return -EINVAL;
-	}
+	if (type > ARRAY_SIZE(uwbd_urc_evt_type_handlers))
+		goto out;
+	type_table = &uwbd_urc_evt_type_handlers[type];
+	if (type_table->uwbd_events == NULL)
+		goto out;
+	if (event > type_table->size)
+		goto out;
 	handler = type_table->uwbd_events[event].handler;
-	if (handler == NULL) {
-		printk(KERN_ERR "UWBD: event %s[%u]: unknown\n", type_table->name, event);
-		return -EINVAL;
-	}
-	return (*handler)(evt);
+	if (handler == NULL)
+		goto out;
+
+	result = (*handler)(evt);
+out:
+	if (result < 0)
+		dev_err(&evt->rc->uwb_dev.dev,
+			"UWBD: event 0x%02x/%04x/%02x, handling failed: %d\n",
+			type, event, context, result);
+	return result;
 }
 
 static void uwbd_event_handle_message(struct uwb_event *evt)

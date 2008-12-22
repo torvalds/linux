@@ -51,9 +51,7 @@
  * the tag and address of the transmitting neighbor.
  */
 
-#define D_LOCAL 5
 #include <linux/netdevice.h>
-#include <linux/uwb/debug.h>
 #include <linux/etherdevice.h>
 #include <linux/wlp.h>
 #include "wlp-internal.h"
@@ -304,7 +302,6 @@ int wlp_eda_for_virtual(struct wlp_eda *eda,
 {
 	int result = 0;
 	struct wlp *wlp = container_of(eda, struct wlp, eda);
-	struct device *dev = &wlp->rc->uwb_dev.dev;
 	struct wlp_eda_node *itr;
 	unsigned long flags;
 	int found = 0;
@@ -313,40 +310,14 @@ int wlp_eda_for_virtual(struct wlp_eda *eda,
 	list_for_each_entry(itr, &eda->cache, list_node) {
 		if (!memcmp(itr->virt_addr, virt_addr,
 			   sizeof(itr->virt_addr))) {
-			d_printf(6, dev, "EDA: looking for "
-			       "%02x:%02x:%02x:%02x:%02x:%02x hit %02x:%02x "
-			       "wss %p tag 0x%02x state %u\n",
-			       virt_addr[0], virt_addr[1],
-			       virt_addr[2], virt_addr[3],
-			       virt_addr[4], virt_addr[5],
-			       itr->dev_addr.data[1],
-			       itr->dev_addr.data[0], itr->wss,
-			       itr->tag, itr->state);
 			result = (*function)(wlp, itr, priv);
 			*dev_addr = itr->dev_addr;
 			found = 1;
 			break;
-		} else
-			d_printf(6, dev, "EDA: looking for "
-			       "%02x:%02x:%02x:%02x:%02x:%02x "
-			       "against "
-			       "%02x:%02x:%02x:%02x:%02x:%02x miss\n",
-			       virt_addr[0], virt_addr[1],
-			       virt_addr[2], virt_addr[3],
-			       virt_addr[4], virt_addr[5],
-			       itr->virt_addr[0], itr->virt_addr[1],
-			       itr->virt_addr[2], itr->virt_addr[3],
-			       itr->virt_addr[4], itr->virt_addr[5]);
+		}
 	}
-	if (!found) {
-		if (printk_ratelimit())
-			dev_err(dev, "EDA: Eth addr %02x:%02x:%02x"
-				":%02x:%02x:%02x not found.\n",
-				virt_addr[0], virt_addr[1],
-				virt_addr[2], virt_addr[3],
-				virt_addr[4], virt_addr[5]);
+	if (!found)
 		result = -ENODEV;
-	}
 	spin_unlock_irqrestore(&eda->lock, flags);
 	return result;
 }

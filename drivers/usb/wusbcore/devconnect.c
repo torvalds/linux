@@ -91,10 +91,6 @@
 #include <linux/workqueue.h>
 #include "wusbhc.h"
 
-#undef D_LOCAL
-#define D_LOCAL 1
-#include <linux/uwb/debug.h>
-
 static void wusbhc_devconnect_acked_work(struct work_struct *work);
 
 static void wusb_dev_free(struct wusb_dev *wusb_dev)
@@ -234,6 +230,7 @@ static struct wusb_dev *wusbhc_cack_add(struct wusbhc *wusbhc,
 	list_add_tail(&wusb_dev->cack_node, &wusbhc->cack_list);
 	wusbhc->cack_count++;
 	wusbhc_fill_cack_ie(wusbhc);
+
 	return wusb_dev;
 }
 
@@ -244,12 +241,9 @@ static struct wusb_dev *wusbhc_cack_add(struct wusbhc *wusbhc,
  */
 static void wusbhc_cack_rm(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 {
-	struct device *dev = wusbhc->dev;
-	d_fnstart(3, dev, "(wusbhc %p wusb_dev %p)\n", wusbhc, wusb_dev);
 	list_del_init(&wusb_dev->cack_node);
 	wusbhc->cack_count--;
 	wusbhc_fill_cack_ie(wusbhc);
-	d_fnend(3, dev, "(wusbhc %p wusb_dev %p) = void\n", wusbhc, wusb_dev);
 }
 
 /*
@@ -257,14 +251,11 @@ static void wusbhc_cack_rm(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 static
 void wusbhc_devconnect_acked(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 {
-	struct device *dev = wusbhc->dev;
-	d_fnstart(3, dev, "(wusbhc %p wusb_dev %p)\n", wusbhc, wusb_dev);
 	wusbhc_cack_rm(wusbhc, wusb_dev);
 	if (wusbhc->cack_count)
 		wusbhc_mmcie_set(wusbhc, 0, 0, &wusbhc->cack_ie.hdr);
 	else
 		wusbhc_mmcie_rm(wusbhc, &wusbhc->cack_ie.hdr);
-	d_fnend(3, dev, "(wusbhc %p wusb_dev %p) = void\n", wusbhc, wusb_dev);
 }
 
 static void wusbhc_devconnect_acked_work(struct work_struct *work)
@@ -314,7 +305,6 @@ void wusbhc_devconnect_ack(struct wusbhc *wusbhc, struct wusb_dn_connect *dnc,
 	struct wusb_port *port;
 	unsigned idx, devnum;
 
-	d_fnstart(3, dev, "(%p, %p, %s)\n", wusbhc, dnc, pr_cdid);
 	mutex_lock(&wusbhc->mutex);
 
 	/* Check we are not handling it already */
@@ -367,7 +357,6 @@ void wusbhc_devconnect_ack(struct wusbhc *wusbhc, struct wusb_dn_connect *dnc,
 	 */
 error_unlock:
 	mutex_unlock(&wusbhc->mutex);
-	d_fnend(3, dev, "(%p, %p, %s) = void\n", wusbhc, dnc, pr_cdid);
 	return;
 
 }
@@ -390,10 +379,8 @@ error_unlock:
 static void __wusbhc_dev_disconnect(struct wusbhc *wusbhc,
 				    struct wusb_port *port)
 {
-	struct device *dev = wusbhc->dev;
 	struct wusb_dev *wusb_dev = port->wusb_dev;
 
-	d_fnstart(3, dev, "(wusbhc %p, port %p)\n", wusbhc, port);
 	port->status &= ~(USB_PORT_STAT_CONNECTION | USB_PORT_STAT_ENABLE
 			  | USB_PORT_STAT_SUSPEND | USB_PORT_STAT_RESET
 			  | USB_PORT_STAT_LOW_SPEED | USB_PORT_STAT_HIGH_SPEED);
@@ -410,7 +397,6 @@ static void __wusbhc_dev_disconnect(struct wusbhc *wusbhc,
 	 * section 6.2.11.2). */
 	wusbhc_gtk_rekey(wusbhc);
 
-	d_fnend(3, dev, "(wusbhc %p, port %p) = void\n", wusbhc, port);
 	/* The Wireless USB part has forgotten about the device already; now
 	 * khubd's timer will pick up the disconnection and remove the USB
 	 * device from the system
@@ -535,10 +521,6 @@ static struct wusb_dev *wusbhc_find_dev_by_addr(struct wusbhc *wusbhc, u8 addr)
  */
 static void wusbhc_handle_dn_alive(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 {
-	struct device *dev = wusbhc->dev;
-
-	d_printf(2, dev, "DN ALIVE: device 0x%02x pong\n", wusb_dev->addr);
-
 	mutex_lock(&wusbhc->mutex);
 	wusb_dev->entry_ts = jiffies;
 	__wusbhc_keep_alive(wusbhc);
@@ -571,11 +553,10 @@ static void wusbhc_handle_dn_connect(struct wusbhc *wusbhc,
 		"no-beacon"
 	};
 
-	d_fnstart(3, dev, "(%p, %p, %zu)\n", wusbhc, dn_hdr, size);
 	if (size < sizeof(*dnc)) {
 		dev_err(dev, "DN CONNECT: short notification (%zu < %zu)\n",
 			size, sizeof(*dnc));
-		goto out;
+		return;
 	}
 
 	dnc = container_of(dn_hdr, struct wusb_dn_connect, hdr);
@@ -587,10 +568,6 @@ static void wusbhc_handle_dn_connect(struct wusbhc *wusbhc,
 		 wusb_dn_connect_new_connection(dnc) ? "connect" : "reconnect");
 	/* ACK the connect */
 	wusbhc_devconnect_ack(wusbhc, dnc, pr_cdid);
-out:
-	d_fnend(3, dev, "(%p, %p, %zu) = void\n",
-		wusbhc, dn_hdr, size);
-	return;
 }
 
 /*
@@ -631,19 +608,17 @@ void wusbhc_handle_dn(struct wusbhc *wusbhc, u8 srcaddr,
 	struct device *dev = wusbhc->dev;
 	struct wusb_dev *wusb_dev;
 
-	d_fnstart(3, dev, "(%p, %p)\n", wusbhc, dn_hdr);
-
 	if (size < sizeof(struct wusb_dn_hdr)) {
 		dev_err(dev, "DN data shorter than DN header (%d < %d)\n",
 			(int)size, (int)sizeof(struct wusb_dn_hdr));
-		goto out;
+		return;
 	}
 
 	wusb_dev = wusbhc_find_dev_by_addr(wusbhc, srcaddr);
 	if (wusb_dev == NULL && dn_hdr->bType != WUSB_DN_CONNECT) {
 		dev_dbg(dev, "ignoring DN %d from unconnected device %02x\n",
 			dn_hdr->bType, srcaddr);
-		goto out;
+		return;
 	}
 
 	switch (dn_hdr->bType) {
@@ -668,9 +643,6 @@ void wusbhc_handle_dn(struct wusbhc *wusbhc, u8 srcaddr,
 		dev_warn(dev, "unknown DN %u (%d octets) from %u\n",
 			 dn_hdr->bType, (int)size, srcaddr);
 	}
-out:
-	d_fnend(3, dev, "(%p, %p) = void\n", wusbhc, dn_hdr);
-	return;
 }
 EXPORT_SYMBOL_GPL(wusbhc_handle_dn);
 
@@ -700,59 +672,30 @@ void __wusbhc_dev_disable(struct wusbhc *wusbhc, u8 port_idx)
 	struct wusb_dev *wusb_dev;
 	struct wuie_disconnect *ie;
 
-	d_fnstart(3, dev, "(%p, %u)\n", wusbhc, port_idx);
-	result = 0;
 	wusb_dev = wusb_port_by_idx(wusbhc, port_idx)->wusb_dev;
 	if (wusb_dev == NULL) {
 		/* reset no device? ignore */
 		dev_dbg(dev, "DISCONNECT: no device at port %u, ignoring\n",
 			port_idx);
-		goto error;
+		return;
 	}
 	__wusbhc_dev_disconnect(wusbhc, wusb_port_by_idx(wusbhc, port_idx));
 
-	result = -ENOMEM;
 	ie = kzalloc(sizeof(*ie), GFP_KERNEL);
 	if (ie == NULL)
-		goto error;
+		return;
 	ie->hdr.bLength = sizeof(*ie);
 	ie->hdr.bIEIdentifier = WUIE_ID_DEVICE_DISCONNECT;
 	ie->bDeviceAddress = wusb_dev->addr;
 	result = wusbhc_mmcie_set(wusbhc, 0, 0, &ie->hdr);
-	if (result < 0) {
+	if (result < 0)
 		dev_err(dev, "DISCONNECT: can't set MMC: %d\n", result);
-		goto error_kfree;
+	else {
+		/* At least 6 MMCs, assuming at least 1 MMC per zone. */
+		msleep(7*4);
+		wusbhc_mmcie_rm(wusbhc, &ie->hdr);
 	}
-
-	/* 120ms, hopefully 6 MMCs */
-	msleep(100);
-	wusbhc_mmcie_rm(wusbhc, &ie->hdr);
-error_kfree:
 	kfree(ie);
-error:
-	d_fnend(3, dev, "(%p, %u) = %d\n", wusbhc, port_idx, result);
-	return;
-}
-
-static void wusb_cap_descr_printf(const unsigned level, struct device *dev,
-				  const struct usb_wireless_cap_descriptor *wcd)
-{
-	d_printf(level, dev,
-		 "WUSB Capability Descriptor\n"
-		 "  bDevCapabilityType          0x%02x\n"
-		 "  bmAttributes                0x%02x\n"
-		 "  wPhyRates                   0x%04x\n"
-		 "  bmTFITXPowerInfo            0x%02x\n"
-		 "  bmFFITXPowerInfo            0x%02x\n"
-		 "  bmBandGroup                 0x%04x\n"
-		 "  bReserved                   0x%02x\n",
-		 wcd->bDevCapabilityType,
-		 wcd->bmAttributes,
-		 le16_to_cpu(wcd->wPHYRates),
-		 wcd->bmTFITXPowerInfo,
-		 wcd->bmFFITXPowerInfo,
-		 wcd->bmBandGroup,
-		 wcd->bReserved);
 }
 
 /*
@@ -795,8 +738,6 @@ static int wusb_dev_bos_grok(struct usb_device *usb_dev,
 		}
 		cap_size = cap_hdr->bLength;
 		cap_type = cap_hdr->bDevCapabilityType;
-		d_printf(4, dev, "BOS Capability: 0x%02x (%zu bytes)\n",
-			 cap_type, cap_size);
 		if (cap_size == 0)
 			break;
 		if (cap_size > top - itr) {
@@ -808,7 +749,6 @@ static int wusb_dev_bos_grok(struct usb_device *usb_dev,
 			result = -EBADF;
 			goto error_bad_cap;
 		}
-		d_dump(3, dev, itr, cap_size);
 		switch (cap_type) {
 		case USB_CAP_TYPE_WIRELESS_USB:
 			if (cap_size != sizeof(*wusb_dev->wusb_cap_descr))
@@ -816,10 +756,8 @@ static int wusb_dev_bos_grok(struct usb_device *usb_dev,
 					"descriptor is %zu bytes vs %zu "
 					"needed\n", cap_size,
 					sizeof(*wusb_dev->wusb_cap_descr));
-			else {
+			else
 				wusb_dev->wusb_cap_descr = itr;
-				wusb_cap_descr_printf(3, dev, itr);
-			}
 			break;
 		default:
 			dev_err(dev, "BUG? Unknown BOS capability 0x%02x "
@@ -884,9 +822,7 @@ static int wusb_dev_bos_add(struct usb_device *usb_dev,
 			"%zu bytes): %zd\n", desc_size, result);
 		goto error_get_descriptor;
 	}
-	d_printf(2, dev, "Got BOS descriptor %zd bytes, %u capabilities\n",
-		 result, bos->bNumDeviceCaps);
-	d_dump(2, dev, bos, result);
+
 	result = wusb_dev_bos_grok(usb_dev, wusb_dev, bos, result);
 	if (result < 0)
 		goto error_bad_bos;
@@ -952,8 +888,6 @@ static void wusb_dev_add_ncb(struct usb_device *usb_dev)
 	if (usb_dev->wusb == 0 || usb_dev->devnum == 1)
 		return;		/* skip non wusb and wusb RHs */
 
-	d_fnstart(3, dev, "(usb_dev %p)\n", usb_dev);
-
 	wusbhc = wusbhc_get_by_usb_dev(usb_dev);
 	if (wusbhc == NULL)
 		goto error_nodev;
@@ -983,7 +917,6 @@ out:
 	wusb_dev_put(wusb_dev);
 	wusbhc_put(wusbhc);
 error_nodev:
-	d_fnend(3, dev, "(usb_dev %p) = void\n", usb_dev);
 	return;
 
 	wusb_dev_sysfs_rm(wusb_dev);
@@ -1070,11 +1003,10 @@ EXPORT_SYMBOL_GPL(__wusb_dev_get_by_usb_dev);
 
 void wusb_dev_destroy(struct kref *_wusb_dev)
 {
-	struct wusb_dev *wusb_dev
-		= container_of(_wusb_dev, struct wusb_dev, refcnt);
+	struct wusb_dev *wusb_dev = container_of(_wusb_dev, struct wusb_dev, refcnt);
+
 	list_del_init(&wusb_dev->cack_node);
 	wusb_dev_free(wusb_dev);
-	d_fnend(1, NULL, "%s (wusb_dev %p) = void\n", __func__, wusb_dev);
 }
 EXPORT_SYMBOL_GPL(wusb_dev_destroy);
 
@@ -1086,8 +1018,6 @@ EXPORT_SYMBOL_GPL(wusb_dev_destroy);
  */
 int wusbhc_devconnect_create(struct wusbhc *wusbhc)
 {
-	d_fnstart(3, wusbhc->dev, "(wusbhc %p)\n", wusbhc);
-
 	wusbhc->keep_alive_ie.hdr.bIEIdentifier = WUIE_ID_KEEP_ALIVE;
 	wusbhc->keep_alive_ie.hdr.bLength = sizeof(wusbhc->keep_alive_ie.hdr);
 	INIT_DELAYED_WORK(&wusbhc->keep_alive_timer, wusbhc_keep_alive_run);
@@ -1096,7 +1026,6 @@ int wusbhc_devconnect_create(struct wusbhc *wusbhc)
 	wusbhc->cack_ie.hdr.bLength = sizeof(wusbhc->cack_ie.hdr);
 	INIT_LIST_HEAD(&wusbhc->cack_list);
 
-	d_fnend(3, wusbhc->dev, "(wusbhc %p) = void\n", wusbhc);
 	return 0;
 }
 
@@ -1105,8 +1034,7 @@ int wusbhc_devconnect_create(struct wusbhc *wusbhc)
  */
 void wusbhc_devconnect_destroy(struct wusbhc *wusbhc)
 {
-	d_fnstart(3, wusbhc->dev, "(wusbhc %p)\n", wusbhc);
-	d_fnend(3, wusbhc->dev, "(wusbhc %p) = void\n", wusbhc);
+	/* no op */
 }
 
 /*
