@@ -50,9 +50,8 @@ static inline __attribute_const__ __u32 __arch_swab32(__u32 x)
 static inline __attribute_const__ __u64 __arch_swab64(__u64 x)
 {
 	__asm__(
-	"	dsbh	%0, %1			\n"
-	"	dshd	%0, %0			\n"
-	"	drotr	%0, %0, 32		\n"
+	"	dsbh	%0, %1\n"
+	"	dshd	%0, %0"
 	: "=r" (x)
 	: "r" (x));
 
