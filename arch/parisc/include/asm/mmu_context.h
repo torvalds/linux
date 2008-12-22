@@ -34,7 +34,7 @@ destroy_context(struct mm_struct *mm)
 	mm->context = 0;
 }
 
-static inline unsigned long __space_to_prot(mm_context_t ctx)
+static inline unsigned long __space_to_prot(mm_context_t context)
 {
 #if SPACEID_SHIFT == 0
 	return context << 1;
