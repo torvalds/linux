@@ -208,7 +208,8 @@ xfs_bmbt_disk_get_all(
 	xfs_bmbt_rec_t	*r,
 	xfs_bmbt_irec_t *s)
 {
-	__xfs_bmbt_get_all(be64_to_cpu(r->l0), be64_to_cpu(r->l1), s);
+	__xfs_bmbt_get_all(get_unaligned_be64(&r->l0),
+				get_unaligned_be64(&r->l1), s);
 }
 
 /*
