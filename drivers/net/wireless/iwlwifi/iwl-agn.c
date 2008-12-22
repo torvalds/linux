@@ -3652,16 +3652,6 @@ static ssize_t show_statistics(struct device *d,
 
 static DEVICE_ATTR(statistics, S_IRUGO, show_statistics, NULL);
 
-static ssize_t show_status(struct device *d,
-			   struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
-	if (!iwl_is_alive(priv))
-		return -EAGAIN;
-	return sprintf(buf, "0x%08x\n", (int)priv->status);
-}
-
-static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
 
 /*****************************************************************************
  *
@@ -3717,7 +3707,6 @@ static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_power_level.attr,
 	&dev_attr_retry_rate.attr,
 	&dev_attr_statistics.attr,
-	&dev_attr_status.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
 #ifdef CONFIG_IWLWIFI_DEBUG

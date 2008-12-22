@@ -63,6 +63,14 @@
 		goto err;                                               \
 } while (0)
 
+#define DEBUGFS_ADD_X32(name, parent, ptr) do {                        \
+	dbgfs->dbgfs_##parent##_files.file_##name =                     \
+	debugfs_create_x32(#name, 0444, dbgfs->dir_##parent, ptr);     \
+	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name)		\
+			|| !dbgfs->dbgfs_##parent##_files.file_##name)	\
+		goto err;                                               \
+} while (0)
+
 #define DEBUGFS_REMOVE(name)  do {              \
 	debugfs_remove(name);                   \
 	name = NULL;                            \
@@ -420,7 +428,6 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
-
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(eeprom);
@@ -462,6 +469,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(rx_statistics, data);
 	DEBUGFS_ADD_FILE(tx_statistics, data);
 	DEBUGFS_ADD_FILE(channels, data);
+	DEBUGFS_ADD_X32(status, data, (u32 *)&priv->status);
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
 			 &priv->disable_chain_noise_cal);
