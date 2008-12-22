@@ -2376,6 +2376,19 @@ int iwl3945_hw_tx_queue_init(struct iwl_priv *priv, struct iwl3945_tx_queue *txq
 	return 0;
 }
 
+/*
+ * HCMD utils
+ */
+static u16 iwl3945_get_hcmd_size(u8 cmd_id, u16 len)
+{
+	switch (cmd_id) {
+	case REPLY_RXON:
+		return (u16) sizeof(struct iwl3945_rxon_cmd);
+	default:
+		return len;
+	}
+}
+
 /**
  * iwl3945_init_hw_rate_table - Initialize the hardware rate fallback table
  */
@@ -2693,8 +2706,13 @@ static struct iwl_lib_ops iwl3945_lib = {
 	},
 };
 
+static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
+	.get_hcmd_size = iwl3945_get_hcmd_size,
+};
+
 static struct iwl_ops iwl3945_ops = {
 	.lib = &iwl3945_lib,
+	.utils = &iwl3945_hcmd_utils,
 };
 
 static struct iwl_cfg iwl3945_bg_cfg = {
