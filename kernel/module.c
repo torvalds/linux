@@ -757,8 +757,16 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 		return -EFAULT;
 	name[MODULE_NAME_LEN-1] = '\0';
 
-	if (mutex_lock_interruptible(&module_mutex) != 0)
-		return -EINTR;
+	/* Create stop_machine threads since free_module relies on
+	 * a non-failing stop_machine call. */
+	ret = stop_machine_create();
+	if (ret)
+		return ret;
+
+	if (mutex_lock_interruptible(&module_mutex) != 0) {
+		ret = -EINTR;
+		goto out_stop;
+	}
 
 	mod = find_module(name);
 	if (!mod) {
@@ -817,6 +825,8 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 
  out:
 	mutex_unlock(&module_mutex);
+out_stop:
+	stop_machine_destroy();
 	return ret;
 }
 
@@ -1875,6 +1885,13 @@ static noinline struct module *load_module(void __user *umod,
 	/* vmalloc barfs on "unusual" numbers.  Check here */
 	if (len > 64 * 1024 * 1024 || (hdr = vmalloc(len)) == NULL)
 		return ERR_PTR(-ENOMEM);
+
+	/* Create stop_machine threads since the error path relies on
+	 * a non-failing stop_machine call. */
+	err = stop_machine_create();
+	if (err)
+		goto free_hdr;
+
 	if (copy_from_user(hdr, umod, len) != 0) {
 		err = -EFAULT;
 		goto free_hdr;
@@ -2258,6 +2275,7 @@ static noinline struct module *load_module(void __user *umod,
 	/* Get rid of temporary copy */
 	vfree(hdr);
 
+	stop_machine_destroy();
 	/* Done! */
 	return mod;
 
@@ -2280,6 +2298,7 @@ static noinline struct module *load_module(void __user *umod,
 	kfree(args);
  free_hdr:
 	vfree(hdr);
+	stop_machine_destroy();
 	return ERR_PTR(err);
 
  truncated:
