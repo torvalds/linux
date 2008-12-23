@@ -428,10 +428,10 @@ config EEEPC_LAPTOP
 	tristate "Eee PC Hotkey Driver (EXPERIMENTAL)"
 	depends on X86
 	depends on ACPI
-	depends on BACKLIGHT_CLASS_DEVICE
-	depends on HWMON
 	depends on EXPERIMENTAL
-	depends on RFKILL
+	select BACKLIGHT_CLASS_DEVICE
+	select HWMON
+	select RFKILL
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
 	  It also adds the ability to switch camera/wlan on/off.
