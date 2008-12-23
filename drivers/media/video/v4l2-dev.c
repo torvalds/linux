@@ -30,6 +30,7 @@
 #include <asm/system.h>
 
 #include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 
 #define VIDEO_NUM_DEVICES	256
 #define VIDEO_NAME              "video4linux"
@@ -407,6 +408,8 @@ int video_register_device_index(struct video_device *vdev, int type, int nr,
 
 	vdev->vfl_type = type;
 	vdev->cdev = NULL;
+	if (vdev->v4l2_dev)
+		vdev->parent = vdev->v4l2_dev->dev;
 
 	/* Part 2: find a free minor, kernel number and device index. */
 #ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES

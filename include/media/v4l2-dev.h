@@ -25,6 +25,7 @@
 #define VFL_TYPE_MAX		4
 
 struct v4l2_ioctl_callbacks;
+struct v4l2_device;
 
 /* Flag to mark the video_device struct as unregistered.
    Drivers can set this flag if they want to block all future
@@ -45,7 +46,10 @@ struct video_device
 	/* sysfs */
 	struct device dev;		/* v4l device */
 	struct cdev *cdev;		/* character device */
+
+	/* Set either parent or v4l2_dev if your driver uses v4l2_device */
 	struct device *parent;		/* device parent */
+	struct v4l2_device *v4l2_dev;	/* v4l2_device parent */
 
 	/* device info */
 	char name[32];
