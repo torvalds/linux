@@ -1352,6 +1352,9 @@ static struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x0e8d, 0x3329), /* i-blue 747, Qstarz BT-Q1000, Holux M-241 */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
+	{ USB_DEVICE(0x0e8d, 0x3329), /* MediaTek Inc GPS */
+	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
 	{ USB_DEVICE(0x0482, 0x0203), /* KYOCERA AH-K3001V */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
