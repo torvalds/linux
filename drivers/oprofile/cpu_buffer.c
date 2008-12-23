@@ -188,8 +188,8 @@ unsigned long op_cpu_buffer_entries(int cpu)
 }
 
 static inline int
-add_sample(struct oprofile_cpu_buffer *cpu_buf,
-	   unsigned long pc, unsigned long event)
+op_add_sample(struct oprofile_cpu_buffer *cpu_buf,
+	      unsigned long pc, unsigned long event)
 {
 	struct op_entry entry;
 	int ret;
@@ -207,7 +207,7 @@ add_sample(struct oprofile_cpu_buffer *cpu_buf,
 static inline int
 add_code(struct oprofile_cpu_buffer *buffer, unsigned long value)
 {
-	return add_sample(buffer, ESCAPE_CODE, value);
+	return op_add_sample(buffer, ESCAPE_CODE, value);
 }
 
 /* This must be safe from any context. It's safe writing here
@@ -249,7 +249,7 @@ static int log_sample(struct oprofile_cpu_buffer *cpu_buf, unsigned long pc,
 			goto fail;
 	}
 
-	if (add_sample(cpu_buf, pc, event))
+	if (op_add_sample(cpu_buf, pc, event))
 		goto fail;
 
 	return 1;
@@ -337,14 +337,14 @@ void oprofile_add_ibs_sample(struct pt_regs * const regs,
 	}
 
 	fail = fail || add_code(cpu_buf, ibs_code);
-	fail = fail || add_sample(cpu_buf, ibs_sample[0], ibs_sample[1]);
-	fail = fail || add_sample(cpu_buf, ibs_sample[2], ibs_sample[3]);
-	fail = fail || add_sample(cpu_buf, ibs_sample[4], ibs_sample[5]);
+	fail = fail || op_add_sample(cpu_buf, ibs_sample[0], ibs_sample[1]);
+	fail = fail || op_add_sample(cpu_buf, ibs_sample[2], ibs_sample[3]);
+	fail = fail || op_add_sample(cpu_buf, ibs_sample[4], ibs_sample[5]);
 
 	if (ibs_code == IBS_OP_BEGIN) {
-		fail = fail || add_sample(cpu_buf, ibs_sample[6], ibs_sample[7]);
-		fail = fail || add_sample(cpu_buf, ibs_sample[8], ibs_sample[9]);
-		fail = fail || add_sample(cpu_buf, ibs_sample[10], ibs_sample[11]);
+		fail = fail || op_add_sample(cpu_buf, ibs_sample[6], ibs_sample[7]);
+		fail = fail || op_add_sample(cpu_buf, ibs_sample[8], ibs_sample[9]);
+		fail = fail || op_add_sample(cpu_buf, ibs_sample[10], ibs_sample[11]);
 	}
 
 	if (!fail)
@@ -376,7 +376,7 @@ void oprofile_add_trace(unsigned long pc)
 	if (pc == ESCAPE_CODE)
 		goto fail;
 
-	if (add_sample(cpu_buf, pc, 0))
+	if (op_add_sample(cpu_buf, pc, 0))
 		goto fail;
 
 	return;
