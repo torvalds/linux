@@ -268,61 +268,56 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
 
-	if (hchan->channel != sc->sc_ah->ah_curchan->channel ||
-	    hchan->channelFlags != sc->sc_ah->ah_curchan->channelFlags ||
-	    (sc->sc_flags & SC_OP_CHAINMASK_UPDATE) ||
-	    (sc->sc_flags & SC_OP_FULL_RESET)) {
-		/*
-		 * This is only performed if the channel settings have
-		 * actually changed.
-		 *
-		 * To switch channels clear any pending DMA operations;
-		 * wait long enough for the RX fifo to drain, reset the
-		 * hardware at the new frequency, and then re-enable
-		 * the relevant bits of the h/w.
-		 */
-		ath9k_hw_set_interrupts(ah, 0);
-		ath_draintxq(sc, false);
-		stopped = ath_stoprecv(sc);
+	/*
+	 * This is only performed if the channel settings have
+	 * actually changed.
+	 *
+	 * To switch channels clear any pending DMA operations;
+	 * wait long enough for the RX fifo to drain, reset the
+	 * hardware at the new frequency, and then re-enable
+	 * the relevant bits of the h/w.
+	 */
+	ath9k_hw_set_interrupts(ah, 0);
+	ath_draintxq(sc, false);
+	stopped = ath_stoprecv(sc);
 
-		/* XXX: do not flush receive queue here. We don't want
-		 * to flush data frames already in queue because of
-		 * changing channel. */
+	/* XXX: do not flush receive queue here. We don't want
+	 * to flush data frames already in queue because of
+	 * changing channel. */
 
-		if (!stopped || (sc->sc_flags & SC_OP_FULL_RESET))
-			fastcc = false;
+	if (!stopped || (sc->sc_flags & SC_OP_FULL_RESET))
+		fastcc = false;
 
-		DPRINTF(sc, ATH_DBG_CONFIG,
-			"(%u MHz) -> (%u MHz), chanwidth: %d\n",
-			sc->sc_ah->ah_curchan->channel,
-			channel->center_freq, sc->tx_chan_width);
+	DPRINTF(sc, ATH_DBG_CONFIG,
+		"(%u MHz) -> (%u MHz), chanwidth: %d\n",
+		sc->sc_ah->ah_curchan->channel,
+		channel->center_freq, sc->tx_chan_width);
 
-		spin_lock_bh(&sc->sc_resetlock);
+	spin_lock_bh(&sc->sc_resetlock);
 
-		r = ath9k_hw_reset(ah, hchan, fastcc);
-		if (r) {
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"Unable to reset channel (%u Mhz) "
-				"reset status %u\n",
-				channel->center_freq, r);
-			spin_unlock_bh(&sc->sc_resetlock);
-			return r;
-		}
+	r = ath9k_hw_reset(ah, hchan, fastcc);
+	if (r) {
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"Unable to reset channel (%u Mhz) "
+			"reset status %u\n",
+			channel->center_freq, r);
 		spin_unlock_bh(&sc->sc_resetlock);
-
-		sc->sc_flags &= ~SC_OP_CHAINMASK_UPDATE;
-		sc->sc_flags &= ~SC_OP_FULL_RESET;
-
-		if (ath_startrecv(sc) != 0) {
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"Unable to restart recv logic\n");
-			return -EIO;
-		}
-
-		ath_cache_conf_rate(sc, &hw->conf);
-		ath_update_txpow(sc);
-		ath9k_hw_set_interrupts(ah, sc->sc_imask);
+		return r;
 	}
+	spin_unlock_bh(&sc->sc_resetlock);
+
+	sc->sc_flags &= ~SC_OP_CHAINMASK_UPDATE;
+	sc->sc_flags &= ~SC_OP_FULL_RESET;
+
+	if (ath_startrecv(sc) != 0) {
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"Unable to restart recv logic\n");
+		return -EIO;
+	}
+
+	ath_cache_conf_rate(sc, &hw->conf);
+	ath_update_txpow(sc);
+	ath9k_hw_set_interrupts(ah, sc->sc_imask);
 	return 0;
 }
 
