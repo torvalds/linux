@@ -3072,48 +3072,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	return 0;
 }
 
-static int ucc_geth_close(struct net_device *dev);
-static int ucc_geth_open(struct net_device *dev);
-
-/* Reopen device. This will reset the MAC and PHY. */
-static void ucc_geth_timeout_work(struct work_struct *work)
-{
-	struct ucc_geth_private *ugeth;
-	struct net_device *dev;
-
-	ugeth = container_of(work, struct ucc_geth_private, timeout_work);
-	dev = ugeth->dev;
-
-	ugeth_vdbg("%s: IN", __func__);
-
-	dev->stats.tx_errors++;
-
-	ugeth_dump_regs(ugeth);
-
-	if (dev->flags & IFF_UP) {
-		/*
-		 * Must reset MAC *and* PHY. This is done by reopening
-		 * the device.
-		 */
-		ucc_geth_close(dev);
-		ucc_geth_open(dev);
-	}
-
-	netif_tx_schedule_all(dev);
-}
-
-/*
- * ucc_geth_timeout gets called when a packet has not been
- * transmitted after a set amount of time.
- */
-static void ucc_geth_timeout(struct net_device *dev)
-{
-	struct ucc_geth_private *ugeth = netdev_priv(dev);
-
-	netif_carrier_off(dev);
-	schedule_work(&ugeth->timeout_work);
-}
-
 /* This is called by the kernel when a frame is ready for transmission. */
 /* It is pointed to by the dev->hard_start_xmit function pointer */
 static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -3522,6 +3480,45 @@ static int ucc_geth_close(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	return 0;
+}
+
+/* Reopen device. This will reset the MAC and PHY. */
+static void ucc_geth_timeout_work(struct work_struct *work)
+{
+	struct ucc_geth_private *ugeth;
+	struct net_device *dev;
+
+	ugeth = container_of(work, struct ucc_geth_private, timeout_work);
+	dev = ugeth->dev;
+
+	ugeth_vdbg("%s: IN", __func__);
+
+	dev->stats.tx_errors++;
+
+	ugeth_dump_regs(ugeth);
+
+	if (dev->flags & IFF_UP) {
+		/*
+		 * Must reset MAC *and* PHY. This is done by reopening
+		 * the device.
+		 */
+		ucc_geth_close(dev);
+		ucc_geth_open(dev);
+	}
+
+	netif_tx_schedule_all(dev);
+}
+
+/*
+ * ucc_geth_timeout gets called when a packet has not been
+ * transmitted after a set amount of time.
+ */
+static void ucc_geth_timeout(struct net_device *dev)
+{
+	struct ucc_geth_private *ugeth = netdev_priv(dev);
+
+	netif_carrier_off(dev);
+	schedule_work(&ugeth->timeout_work);
 }
 
 static phy_interface_t to_phy_interface(const char *phy_connection_type)
