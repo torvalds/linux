@@ -168,26 +168,18 @@ static void ath9k_hw_do_getnf(struct ath_hal *ah,
 }
 
 static bool getNoiseFloorThresh(struct ath_hal *ah,
-				const struct ath9k_channel *chan,
+				enum ieee80211_band band,
 				int16_t *nft)
 {
-	switch (chan->chanmode) {
-	case CHANNEL_A:
-	case CHANNEL_A_HT20:
-	case CHANNEL_A_HT40PLUS:
-	case CHANNEL_A_HT40MINUS:
+	switch (band) {
+	case IEEE80211_BAND_5GHZ:
 		*nft = (int8_t)ath9k_hw_get_eeprom(ah, EEP_NFTHRESH_5);
 		break;
-	case CHANNEL_B:
-	case CHANNEL_G:
-	case CHANNEL_G_HT20:
-	case CHANNEL_G_HT40PLUS:
-	case CHANNEL_G_HT40MINUS:
+	case IEEE80211_BAND_2GHZ:
 		*nft = (int8_t)ath9k_hw_get_eeprom(ah, EEP_NFTHRESH_2);
 		break;
 	default:
-		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
-			"invalid channel flags 0x%x\n", chan->channelFlags);
+		BUG_ON(1);
 		return false;
 	}
 
@@ -692,6 +684,7 @@ int16_t ath9k_hw_getnf(struct ath_hal *ah,
 	int16_t nf, nfThresh;
 	int16_t nfarray[NUM_NF_READINGS] = { 0 };
 	struct ath9k_nfcal_hist *h;
+	struct ieee80211_channel *c = chan->chan;
 	u8 chainmask;
 
 	if (AR_SREV_9280(ah))
@@ -709,7 +702,7 @@ int16_t ath9k_hw_getnf(struct ath_hal *ah,
 	} else {
 		ath9k_hw_do_getnf(ah, nfarray);
 		nf = nfarray[0];
-		if (getNoiseFloorThresh(ah, chan, &nfThresh)
+		if (getNoiseFloorThresh(ah, c->band, &nfThresh)
 		    && nf > nfThresh) {
 			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
 				"noise floor failed detected; "

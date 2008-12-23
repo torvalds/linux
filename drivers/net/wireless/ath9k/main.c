@@ -218,6 +218,7 @@ static int ath_setup_channels(struct ath_softc *sc)
 			chan_2ghz[a].band = IEEE80211_BAND_2GHZ;
 			chan_2ghz[a].center_freq = c->channel;
 			chan_2ghz[a].max_power = c->maxTxPower;
+			c->chan = &chan_2ghz[a];
 
 			if (c->privFlags & CHANNEL_DISALLOW_ADHOC)
 				chan_2ghz[a].flags |= IEEE80211_CHAN_NO_IBSS;
@@ -233,6 +234,7 @@ static int ath_setup_channels(struct ath_softc *sc)
 			chan_5ghz[b].band = IEEE80211_BAND_5GHZ;
 			chan_5ghz[b].center_freq = c->channel;
 			chan_5ghz[b].max_power = c->maxTxPower;
+			c->chan = &chan_5ghz[a];
 
 			if (c->privFlags & CHANNEL_DISALLOW_ADHOC)
 				chan_5ghz[b].flags |= IEEE80211_CHAN_NO_IBSS;

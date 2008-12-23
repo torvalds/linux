@@ -453,6 +453,7 @@ struct ath9k_11n_rate_series {
 	 CHANNEL_HT40MINUS)
 
 struct ath9k_channel {
+	struct ieee80211_channel *chan;
 	u16 channel;
 	u32 channelFlags;
 	u8 privFlags;
