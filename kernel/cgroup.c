@@ -2934,9 +2934,6 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys,
  again:
 	root = subsys->root;
 	if (root == &rootnode) {
-		printk(KERN_INFO
-		       "Not cloning cgroup for unused subsystem %s\n",
-		       subsys->name);
 		mutex_unlock(&cgroup_mutex);
 		return 0;
 	}
