@@ -35,6 +35,7 @@
 #define OV9650_PID			0x0a
 #define OV9650_VER			0x0b
 #define OV9650_COM3			0x0c
+#define OV9650_COM4			0x0d
 #define OV9650_COM5			0x0e
 #define OV9650_COM6			0x0f
 #define OV9650_AECH			0x10
@@ -108,6 +109,8 @@
 #define OV9650_VARIOPIXEL		(1 << 2)
 #define OV9650_SYSTEM_CLK_SEL		(1 << 7)
 #define OV9650_SLAM_MODE 		(1 << 4)
+
+#define OV9650_QVGA_VARIOPIXEL		(1 << 7)
 
 #define OV9650_VFLIP			(1 << 4)
 #define OV9650_HFLIP			(1 << 5)
@@ -426,6 +429,10 @@ static const unsigned char init_ov9650[][3] =
 
 	/* Set the high bits of the exposure value */
 	{SENSOR, OV9650_AECH, ((EXPOSURE_DEFAULT & 0xff00) >> 8)},
+
+	/* Enable VARIOPIXEL */
+	{SENSOR, OV9650_COM3, OV9650_VARIOPIXEL},
+	{SENSOR, OV9650_COM4, OV9650_QVGA_VARIOPIXEL},
 
 	/* Set the low bits of the exposure value */
 	{SENSOR, OV9650_COM1, (EXPOSURE_DEFAULT & 0xff)},
