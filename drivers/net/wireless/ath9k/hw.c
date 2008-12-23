@@ -23,7 +23,9 @@
 #include "phy.h"
 #include "initvals.h"
 
-static const u8 CLOCK_RATE[] = { 40, 80, 22, 44, 88, 40 };
+#define ATH9K_CLOCK_RATE_CCK		22
+#define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
+#define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
 
 extern struct hal_percal_data iq_cal_multi_sample;
 extern struct hal_percal_data iq_cal_single_sample;
@@ -48,17 +50,18 @@ static void ath9k_hw_spur_mitigate(struct ath_hal *ah, struct ath9k_channel *cha
 
 static u32 ath9k_hw_mac_usec(struct ath_hal *ah, u32 clks)
 {
-	if (ah->ah_curchan != NULL)
-		return clks / CLOCK_RATE[ath9k_hw_chan2wmode(ah, ah->ah_curchan)];
-	else
-		return clks / CLOCK_RATE[ATH9K_MODE_11B];
+	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	if (!ah->ah_curchan) /* should really check for CCK instead */
+		return clks / ATH9K_CLOCK_RATE_CCK;
+	if (conf->channel->band == IEEE80211_BAND_2GHZ)
+		return clks / ATH9K_CLOCK_RATE_2GHZ_OFDM;
+	return clks / ATH9K_CLOCK_RATE_5GHZ_OFDM;
 }
 
 static u32 ath9k_hw_mac_to_usec(struct ath_hal *ah, u32 clks)
 {
-	struct ath9k_channel *chan = ah->ah_curchan;
-
-	if (chan && IS_CHAN_HT40(chan))
+	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	if (conf_is_ht40(conf))
 		return ath9k_hw_mac_usec(ah, clks) / 2;
 	else
 		return ath9k_hw_mac_usec(ah, clks);
@@ -66,32 +69,21 @@ static u32 ath9k_hw_mac_to_usec(struct ath_hal *ah, u32 clks)
 
 static u32 ath9k_hw_mac_clks(struct ath_hal *ah, u32 usecs)
 {
-	if (ah->ah_curchan != NULL)
-		return usecs * CLOCK_RATE[ath9k_hw_chan2wmode(ah,
-			ah->ah_curchan)];
-	else
-		return usecs * CLOCK_RATE[ATH9K_MODE_11B];
+	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	if (!ah->ah_curchan) /* should really check for CCK instead */
+		return usecs *ATH9K_CLOCK_RATE_CCK;
+	if (conf->channel->band == IEEE80211_BAND_2GHZ)
+		return usecs *ATH9K_CLOCK_RATE_2GHZ_OFDM;
+	return usecs *ATH9K_CLOCK_RATE_5GHZ_OFDM;
 }
 
 static u32 ath9k_hw_mac_to_clks(struct ath_hal *ah, u32 usecs)
 {
-	struct ath9k_channel *chan = ah->ah_curchan;
-
-	if (chan && IS_CHAN_HT40(chan))
+	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	if (conf_is_ht40(conf))
 		return ath9k_hw_mac_clks(ah, usecs) * 2;
 	else
 		return ath9k_hw_mac_clks(ah, usecs);
-}
-
-enum wireless_mode ath9k_hw_chan2wmode(struct ath_hal *ah,
-			       const struct ath9k_channel *chan)
-{
-	if (IS_CHAN_B(chan))
-		return ATH9K_MODE_11B;
-	if (IS_CHAN_G(chan))
-		return ATH9K_MODE_11G;
-
-	return ATH9K_MODE_11A;
 }
 
 bool ath9k_hw_wait(struct ath_hal *ah, u32 reg, u32 mask, u32 val)
