@@ -627,7 +627,8 @@ static int nfs_init_client(struct nfs_client *clp,
 	 * Create a client RPC handle for doing FSSTAT with UNIX auth only
 	 * - RFC 2623, sec 2.3.2
 	 */
-	error = nfs_create_rpc_client(clp, timeparms, RPC_AUTH_UNIX, 0, 0);
+	error = nfs_create_rpc_client(clp, timeparms, RPC_AUTH_UNIX,
+				      0, data->flags & NFS_MOUNT_NORESVPORT);
 	if (error < 0)
 		goto error;
 	nfs_mark_client_ready(clp, NFS_CS_READY);
@@ -969,7 +970,8 @@ error:
 static int nfs4_init_client(struct nfs_client *clp,
 		const struct rpc_timeout *timeparms,
 		const char *ip_addr,
-		rpc_authflavor_t authflavour)
+		rpc_authflavor_t authflavour,
+		int flags)
 {
 	int error;
 
@@ -983,7 +985,7 @@ static int nfs4_init_client(struct nfs_client *clp,
 	clp->rpc_ops = &nfs_v4_clientops;
 
 	error = nfs_create_rpc_client(clp, timeparms, authflavour,
-				      1, 0);
+				      1, flags & NFS_MOUNT_NORESVPORT);
 	if (error < 0)
 		goto error;
 	memcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
@@ -1034,7 +1036,8 @@ static int nfs4_set_client(struct nfs_server *server,
 		error = PTR_ERR(clp);
 		goto error;
 	}
-	error = nfs4_init_client(clp, timeparms, ip_addr, authflavour);
+	error = nfs4_init_client(clp, timeparms, ip_addr, authflavour,
+					server->flags);
 	if (error < 0)
 		goto error_put;
 
