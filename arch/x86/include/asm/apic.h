@@ -93,7 +93,7 @@ static inline u32 native_apic_msr_read(u32 reg)
 }
 
 #ifndef CONFIG_X86_32
-extern int x2apic, x2apic_preenabled;
+extern int x2apic;
 extern void check_x2apic(void);
 extern void enable_x2apic(void);
 extern void enable_IR_x2apic(void);

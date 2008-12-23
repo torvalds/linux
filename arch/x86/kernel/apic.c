@@ -97,8 +97,8 @@ __setup("apicpmtimer", setup_apicpmtimer);
 #ifdef HAVE_X2APIC
 int x2apic;
 /* x2apic enabled before OS handover */
-int x2apic_preenabled;
-int disable_x2apic;
+static int x2apic_preenabled;
+static int disable_x2apic;
 static __init int setup_nox2apic(char *str)
 {
 	disable_x2apic = 1;
