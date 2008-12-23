@@ -962,12 +962,15 @@ static struct ring_buffer_event *
 __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		  unsigned type, unsigned long length, u64 *ts)
 {
-	struct buffer_page *tail_page, *head_page, *reader_page;
+	struct buffer_page *tail_page, *head_page, *reader_page, *commit_page;
 	unsigned long tail, write;
 	struct ring_buffer *buffer = cpu_buffer->buffer;
 	struct ring_buffer_event *event;
 	unsigned long flags;
 
+	commit_page = cpu_buffer->commit_page;
+	/* we just need to protect against interrupts */
+	barrier();
 	tail_page = cpu_buffer->tail_page;
 	write = local_add_return(length, &tail_page->write);
 	tail = write - length;
@@ -993,7 +996,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		 * it all the way around the buffer, bail, and warn
 		 * about it.
 		 */
-		if (unlikely(next_page == cpu_buffer->commit_page)) {
+		if (unlikely(next_page == commit_page)) {
 			WARN_ON_ONCE(1);
 			goto out_unlock;
 		}
