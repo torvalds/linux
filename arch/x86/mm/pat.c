@@ -684,7 +684,7 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 {
 	int retval = 0;
 	unsigned long i, j;
-	u64 paddr;
+	resource_size_t paddr;
 	unsigned long prot;
 	unsigned long vma_start = vma->vm_start;
 	unsigned long vma_end = vma->vm_end;
@@ -746,8 +746,8 @@ int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t prot,
 {
 	int retval = 0;
 	unsigned long i, j;
-	u64 base_paddr;
-	u64 paddr;
+	resource_size_t base_paddr;
+	resource_size_t paddr;
 	unsigned long vma_start = vma->vm_start;
 	unsigned long vma_end = vma->vm_end;
 	unsigned long vma_size = vma_end - vma_start;
@@ -757,12 +757,12 @@ int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t prot,
 
 	if (is_linear_pfn_mapping(vma)) {
 		/* reserve the whole chunk starting from vm_pgoff */
-		paddr = (u64)vma->vm_pgoff << PAGE_SHIFT;
+		paddr = (resource_size_t)vma->vm_pgoff << PAGE_SHIFT;
 		return reserve_pfn_range(paddr, vma_size, prot);
 	}
 
 	/* reserve page by page using pfn and size */
-	base_paddr = (u64)pfn << PAGE_SHIFT;
+	base_paddr = (resource_size_t)pfn << PAGE_SHIFT;
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		paddr = base_paddr + i;
 		retval = reserve_pfn_range(paddr, PAGE_SIZE, prot);
@@ -790,7 +790,7 @@ void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
 			unsigned long size)
 {
 	unsigned long i;
-	u64 paddr;
+	resource_size_t paddr;
 	unsigned long prot;
 	unsigned long vma_start = vma->vm_start;
 	unsigned long vma_end = vma->vm_end;
@@ -801,14 +801,14 @@ void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
 
 	if (is_linear_pfn_mapping(vma)) {
 		/* free the whole chunk starting from vm_pgoff */
-		paddr = (u64)vma->vm_pgoff << PAGE_SHIFT;
+		paddr = (resource_size_t)vma->vm_pgoff << PAGE_SHIFT;
 		free_pfn_range(paddr, vma_size);
 		return;
 	}
 
 	if (size != 0 && size != vma_size) {
 		/* free page by page, using pfn and size */
-		paddr = (u64)pfn << PAGE_SHIFT;
+		paddr = (resource_size_t)pfn << PAGE_SHIFT;
 		for (i = 0; i < size; i += PAGE_SIZE) {
 			paddr = paddr + i;
 			free_pfn_range(paddr, PAGE_SIZE);
