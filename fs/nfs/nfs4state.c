@@ -71,14 +71,12 @@ static int nfs4_init_client(struct nfs_client *clp, struct rpc_cred *cred)
 	return status;
 }
 
-static struct rpc_cred *nfs4_get_machine_cred(struct nfs_client *clp)
+static struct rpc_cred *nfs4_get_machine_cred_locked(struct nfs_client *clp)
 {
 	struct rpc_cred *cred = NULL;
 
-	spin_lock(&clp->cl_lock);
 	if (clp->cl_machine_cred != NULL)
 		cred = get_rpccred(clp->cl_machine_cred);
-	spin_unlock(&clp->cl_lock);
 	return cred;
 }
 
@@ -94,7 +92,7 @@ static void nfs4_clear_machine_cred(struct nfs_client *clp)
 		put_rpccred(cred);
 }
 
-struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp)
+struct rpc_cred *nfs4_get_renew_cred_locked(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
 	struct rb_node *pos;
@@ -110,13 +108,24 @@ struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp)
 	return cred;
 }
 
+static struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp)
+{
+	struct rpc_cred *cred;
+
+	spin_lock(&clp->cl_lock);
+	cred = nfs4_get_renew_cred_locked(clp);
+	spin_unlock(&clp->cl_lock);
+	return cred;
+}
+
 static struct rpc_cred *nfs4_get_setclientid_cred(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
 	struct rb_node *pos;
 	struct rpc_cred *cred;
 
-	cred = nfs4_get_machine_cred(clp);
+	spin_lock(&clp->cl_lock);
+	cred = nfs4_get_machine_cred_locked(clp);
 	if (cred != NULL)
 		goto out;
 	pos = rb_first(&clp->cl_state_owners);
@@ -125,6 +134,7 @@ static struct rpc_cred *nfs4_get_setclientid_cred(struct nfs_client *clp)
 		cred = get_rpccred(sp->so_cred);
 	}
 out:
+	spin_unlock(&clp->cl_lock);
 	return cred;
 }
 

@@ -202,7 +202,7 @@ extern void nfs4_kill_renewd(struct nfs_client *);
 extern void nfs4_renew_state(struct work_struct *);
 
 /* nfs4state.c */
-struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp);
+struct rpc_cred *nfs4_get_renew_cred_locked(struct nfs_client *clp);
 
 extern struct nfs4_state_owner * nfs4_get_state_owner(struct nfs_server *, struct rpc_cred *);
 extern void nfs4_put_state_owner(struct nfs4_state_owner *);

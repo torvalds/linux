@@ -77,7 +77,7 @@ nfs4_renew_state(struct work_struct *work)
 	timeout = (2 * lease) / 3 + (long)last - (long)now;
 	/* Are we close to a lease timeout? */
 	if (time_after(now, last + lease/3)) {
-		cred = nfs4_get_renew_cred(clp);
+		cred = nfs4_get_renew_cred_locked(clp);
 		if (cred == NULL) {
 			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
 			spin_unlock(&clp->cl_lock);
