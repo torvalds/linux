@@ -130,7 +130,10 @@ struct nfs_inode {
 	 *
 	 * We need to revalidate the cached attrs for this inode if
 	 *
-	 *	jiffies - read_cache_jiffies > attrtimeo
+	 *	jiffies - read_cache_jiffies >= attrtimeo
+	 *
+	 * Please note the comparison is greater than or equal
+	 * so that zero timeout values can be specified.
 	 */
 	unsigned long		read_cache_jiffies;
 	unsigned long		attrtimeo;
