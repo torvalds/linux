@@ -1130,7 +1130,7 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	s32 rate;
 	s8 is_green = lq_sta->is_green;
 
-	if (!conf->ht.enabled || !sta->ht_cap.ht_supported)
+	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
 		return -1;
 
 	if (((sta->ht_cap.cap & IEEE80211_HT_CAP_SM_PS) >> 2)
@@ -1197,7 +1197,7 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	u8 is_green = lq_sta->is_green;
 	s32 rate;
 
-	if (!conf->ht.enabled || !sta->ht_cap.ht_supported)
+	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
 		return -1;
 
 	IWL_DEBUG_RATE("LQ: try to switch to SISO\n");
@@ -1997,7 +1997,7 @@ lq_update:
 		 * stay with best antenna legacy modulation for a while
 		 * before next round of mode comparisons. */
 		tbl1 = &(lq_sta->lq_info[lq_sta->active_tbl]);
-		if (is_legacy(tbl1->lq_type) && !conf->ht.enabled &&
+		if (is_legacy(tbl1->lq_type) && !conf_is_ht(conf) &&
 		    lq_sta->action_counter >= 1) {
 			lq_sta->action_counter = 0;
 			IWL_DEBUG_RATE("LQ: STAY in legacy table\n");
