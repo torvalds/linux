@@ -102,6 +102,13 @@ struct bio {
 #endif
 
 	bio_destructor_t	*bi_destructor;	/* destructor */
+
+	/*
+	 * We can inline a number of vecs at the end of the bio, to avoid
+	 * double allocations for a small number of bio_vecs. This member
+	 * MUST obviously be kept at the very end of the bio.
+	 */
+	struct bio_vec		bi_inline_vecs[0];
 };
 
 /*
@@ -211,6 +218,11 @@ static inline void *bio_data(struct bio *bio)
 		return page_address(bio_page(bio)) + bio_offset(bio);
 
 	return NULL;
+}
+
+static inline int bio_has_allocated_vec(struct bio *bio)
+{
+	return bio->bi_io_vec && bio->bi_io_vec != bio->bi_inline_vecs;
 }
 
 /*

@@ -31,6 +31,12 @@
 
 DEFINE_TRACE(block_split);
 
+/*
+ * Test patch to inline a certain number of bi_io_vec's inside the bio
+ * itself, to shrink a bio data allocation from two mempool calls to one
+ */
+#define BIO_INLINE_VECS		4
+
 static mempool_t *bio_split_pool __read_mostly;
 
 /*
@@ -241,7 +247,7 @@ void bio_free(struct bio *bio, struct bio_set *bs)
 {
 	void *p;
 
-	if (bio->bi_io_vec)
+	if (bio_has_allocated_vec(bio))
 		bvec_free_bs(bs, bio->bi_io_vec, BIO_POOL_IDX(bio));
 
 	if (bio_integrity(bio))
@@ -267,7 +273,8 @@ static void bio_fs_destructor(struct bio *bio)
 
 static void bio_kmalloc_destructor(struct bio *bio)
 {
-	kfree(bio->bi_io_vec);
+	if (bio_has_allocated_vec(bio))
+		kfree(bio->bi_io_vec);
 	kfree(bio);
 }
 
@@ -314,7 +321,16 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 		if (likely(nr_iovecs)) {
 			unsigned long uninitialized_var(idx);
 
-			bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx, bs);
+			if (nr_iovecs <= BIO_INLINE_VECS) {
+				idx = 0;
+				bvl = bio->bi_inline_vecs;
+				nr_iovecs = BIO_INLINE_VECS;
+				memset(bvl, 0, BIO_INLINE_VECS * sizeof(*bvl));
+			} else {
+				bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx,
+							bs);
+				nr_iovecs = bvec_nr_vecs(idx);
+			}
 			if (unlikely(!bvl)) {
 				if (bs)
 					mempool_free(bio, bs->bio_pool);
@@ -324,7 +340,7 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 				goto out;
 			}
 			bio->bi_flags |= idx << BIO_POOL_OFFSET;
-			bio->bi_max_vecs = bvec_nr_vecs(idx);
+			bio->bi_max_vecs = nr_iovecs;
 		}
 		bio->bi_io_vec = bvl;
 	}
@@ -1525,6 +1541,7 @@ void bioset_free(struct bio_set *bs)
  */
 struct bio_set *bioset_create(unsigned int pool_size, unsigned int front_pad)
 {
+	unsigned int back_pad = BIO_INLINE_VECS * sizeof(struct bio_vec);
 	struct bio_set *bs;
 
 	bs = kzalloc(sizeof(*bs), GFP_KERNEL);
@@ -1533,7 +1550,7 @@ struct bio_set *bioset_create(unsigned int pool_size, unsigned int front_pad)
 
 	bs->front_pad = front_pad;
 
-	bs->bio_slab = bio_find_or_create_slab(front_pad);
+	bs->bio_slab = bio_find_or_create_slab(front_pad + back_pad);
 	if (!bs->bio_slab) {
 		kfree(bs);
 		return NULL;
