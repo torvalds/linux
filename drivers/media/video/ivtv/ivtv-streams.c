@@ -209,7 +209,7 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 			itv->device.name, s->name);
 
 	s->v4l2dev->num = num;
-	s->v4l2dev->parent = &itv->dev->dev;
+	s->v4l2dev->v4l2_dev = &itv->device;
 	s->v4l2dev->fops = ivtv_stream_info[type].fops;
 	s->v4l2dev->release = video_device_release;
 	s->v4l2dev->tvnorms = V4L2_STD_ALL;
