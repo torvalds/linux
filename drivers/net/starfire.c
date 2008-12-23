@@ -1509,6 +1509,11 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		desc->status = 0;
 		np->rx_done = (np->rx_done + 1) % DONE_Q_SIZE;
 	}
+
+	if (*quota == 0) {	/* out of rx quota */
+		retcode = 1;
+		goto out;
+	}
 	writew(np->rx_done, np->base + CompletionQConsumerIdx);
 
  out:

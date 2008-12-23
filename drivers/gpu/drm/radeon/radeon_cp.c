@@ -1751,6 +1751,18 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	else
 		dev_priv->flags |= RADEON_IS_PCI;
 
+	ret = drm_addmap(dev, drm_get_resource_start(dev, 2),
+			 drm_get_resource_len(dev, 2), _DRM_REGISTERS,
+			 _DRM_READ_ONLY | _DRM_DRIVER, &dev_priv->mmio);
+	if (ret != 0)
+		return ret;
+
+	ret = drm_vblank_init(dev, 2);
+	if (ret) {
+		radeon_driver_unload(dev);
+		return ret;
+	}
+
 	DRM_DEBUG("%s card detected\n",
 		  ((dev_priv->flags & RADEON_IS_AGP) ? "AGP" : (((dev_priv->flags & RADEON_IS_PCIE) ? "PCIE" : "PCI"))));
 	return ret;
@@ -1767,12 +1779,6 @@ int radeon_driver_firstopen(struct drm_device *dev)
 
 	dev_priv->gart_info.table_size = RADEON_PCIGART_TABLE_SIZE;
 
-	ret = drm_addmap(dev, drm_get_resource_start(dev, 2),
-			 drm_get_resource_len(dev, 2), _DRM_REGISTERS,
-			 _DRM_READ_ONLY, &dev_priv->mmio);
-	if (ret != 0)
-		return ret;
-
 	dev_priv->fb_aper_offset = drm_get_resource_start(dev, 0);
 	ret = drm_addmap(dev, dev_priv->fb_aper_offset,
 			 drm_get_resource_len(dev, 0), _DRM_FRAME_BUFFER,
@@ -1788,6 +1794,9 @@ int radeon_driver_unload(struct drm_device *dev)
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 
 	DRM_DEBUG("\n");
+
+	drm_rmmap(dev, dev_priv->mmio);
+
 	drm_free(dev_priv, sizeof(*dev_priv), DRM_MEM_DRIVER);
 
 	dev->dev_private = NULL;

@@ -256,8 +256,17 @@ int dmabounce_sync_for_cpu(struct device *, dma_addr_t, unsigned long,
 int dmabounce_sync_for_device(struct device *, dma_addr_t, unsigned long,
 		size_t, enum dma_data_direction);
 #else
-#define dmabounce_sync_for_cpu(dev,dma,off,sz,dir)	(1)
-#define dmabounce_sync_for_device(dev,dma,off,sz,dir)	(1)
+static inline int dmabounce_sync_for_cpu(struct device *d, dma_addr_t addr,
+	unsigned long offset, size_t size, enum dma_data_direction dir)
+{
+	return 1;
+}
+
+static inline int dmabounce_sync_for_device(struct device *d, dma_addr_t addr,
+	unsigned long offset, size_t size, enum dma_data_direction dir)
+{
+	return 1;
+}
 
 
 /**

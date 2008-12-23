@@ -106,6 +106,20 @@ void get_inotify_watch(struct inotify_watch *watch)
 }
 EXPORT_SYMBOL_GPL(get_inotify_watch);
 
+int pin_inotify_watch(struct inotify_watch *watch)
+{
+	struct super_block *sb = watch->inode->i_sb;
+	spin_lock(&sb_lock);
+	if (sb->s_count >= S_BIAS) {
+		atomic_inc(&sb->s_active);
+		spin_unlock(&sb_lock);
+		atomic_inc(&watch->count);
+		return 1;
+	}
+	spin_unlock(&sb_lock);
+	return 0;
+}
+
 /**
  * put_inotify_watch - decrements the ref count on a given watch.  cleans up
  * watch references if the count reaches zero.  inotify_watch is freed by
@@ -123,6 +137,13 @@ void put_inotify_watch(struct inotify_watch *watch)
 	}
 }
 EXPORT_SYMBOL_GPL(put_inotify_watch);
+
+void unpin_inotify_watch(struct inotify_watch *watch)
+{
+	struct super_block *sb = watch->inode->i_sb;
+	put_inotify_watch(watch);
+	deactivate_super(sb);
+}
 
 /*
  * inotify_handle_get_wd - returns the next WD for use by the given handle
@@ -407,11 +428,13 @@ void inotify_unmount_inodes(struct list_head *list)
 		watches = &inode->inotify_watches;
 		list_for_each_entry_safe(watch, next_w, watches, i_list) {
 			struct inotify_handle *ih= watch->ih;
+			get_inotify_watch(watch);
 			mutex_lock(&ih->mutex);
 			ih->in_ops->handle_event(watch, watch->wd, IN_UNMOUNT, 0,
 						 NULL, NULL);
 			inotify_remove_watch_locked(ih, watch);
 			mutex_unlock(&ih->mutex);
+			put_inotify_watch(watch);
 		}
 		mutex_unlock(&inode->inotify_mutex);
 		iput(inode);		
@@ -479,6 +502,112 @@ void inotify_init_watch(struct inotify_watch *watch)
 }
 EXPORT_SYMBOL_GPL(inotify_init_watch);
 
+/*
+ * Watch removals suck violently.  To kick the watch out we need (in this
+ * order) inode->inotify_mutex and ih->mutex.  That's fine if we have
+ * a hold on inode; however, for all other cases we need to make damn sure
+ * we don't race with umount.  We can *NOT* just grab a reference to a
+ * watch - inotify_unmount_inodes() will happily sail past it and we'll end
+ * with reference to inode potentially outliving its superblock.  Ideally
+ * we just want to grab an active reference to superblock if we can; that
+ * will make sure we won't go into inotify_umount_inodes() until we are
+ * done.  Cleanup is just deactivate_super().  However, that leaves a messy
+ * case - what if we *are* racing with umount() and active references to
+ * superblock can't be acquired anymore?  We can bump ->s_count, grab
+ * ->s_umount, which will almost certainly wait until the superblock is shut
+ * down and the watch in question is pining for fjords.  That's fine, but
+ * there is a problem - we might have hit the window between ->s_active
+ * getting to 0 / ->s_count - below S_BIAS (i.e. the moment when superblock
+ * is past the point of no return and is heading for shutdown) and the
+ * moment when deactivate_super() acquires ->s_umount.  We could just do
+ * drop_super() yield() and retry, but that's rather antisocial and this
+ * stuff is luser-triggerable.  OTOH, having grabbed ->s_umount and having
+ * found that we'd got there first (i.e. that ->s_root is non-NULL) we know
+ * that we won't race with inotify_umount_inodes().  So we could grab a
+ * reference to watch and do the rest as above, just with drop_super() instead
+ * of deactivate_super(), right?  Wrong.  We had to drop ih->mutex before we
+ * could grab ->s_umount.  So the watch could've been gone already.
+ *
+ * That still can be dealt with - we need to save watch->wd, do idr_find()
+ * and compare its result with our pointer.  If they match, we either have
+ * the damn thing still alive or we'd lost not one but two races at once,
+ * the watch had been killed and a new one got created with the same ->wd
+ * at the same address.  That couldn't have happened in inotify_destroy(),
+ * but inotify_rm_wd() could run into that.  Still, "new one got created"
+ * is not a problem - we have every right to kill it or leave it alone,
+ * whatever's more convenient.
+ *
+ * So we can use idr_find(...) == watch && watch->inode->i_sb == sb as
+ * "grab it and kill it" check.  If it's been our original watch, we are
+ * fine, if it's a newcomer - nevermind, just pretend that we'd won the
+ * race and kill the fscker anyway; we are safe since we know that its
+ * superblock won't be going away.
+ *
+ * And yes, this is far beyond mere "not very pretty"; so's the entire
+ * concept of inotify to start with.
+ */
+
+/**
+ * pin_to_kill - pin the watch down for removal
+ * @ih: inotify handle
+ * @watch: watch to kill
+ *
+ * Called with ih->mutex held, drops it.  Possible return values:
+ * 0 - nothing to do, it has died
+ * 1 - remove it, drop the reference and deactivate_super()
+ * 2 - remove it, drop the reference and drop_super(); we tried hard to avoid
+ * that variant, since it involved a lot of PITA, but that's the best that
+ * could've been done.
+ */
+static int pin_to_kill(struct inotify_handle *ih, struct inotify_watch *watch)
+{
+	struct super_block *sb = watch->inode->i_sb;
+	s32 wd = watch->wd;
+
+	spin_lock(&sb_lock);
+	if (sb->s_count >= S_BIAS) {
+		atomic_inc(&sb->s_active);
+		spin_unlock(&sb_lock);
+		get_inotify_watch(watch);
+		mutex_unlock(&ih->mutex);
+		return 1;	/* the best outcome */
+	}
+	sb->s_count++;
+	spin_unlock(&sb_lock);
+	mutex_unlock(&ih->mutex); /* can't grab ->s_umount under it */
+	down_read(&sb->s_umount);
+	if (likely(!sb->s_root)) {
+		/* fs is already shut down; the watch is dead */
+		drop_super(sb);
+		return 0;
+	}
+	/* raced with the final deactivate_super() */
+	mutex_lock(&ih->mutex);
+	if (idr_find(&ih->idr, wd) != watch || watch->inode->i_sb != sb) {
+		/* the watch is dead */
+		mutex_unlock(&ih->mutex);
+		drop_super(sb);
+		return 0;
+	}
+	/* still alive or freed and reused with the same sb and wd; kill */
+	get_inotify_watch(watch);
+	mutex_unlock(&ih->mutex);
+	return 2;
+}
+
+static void unpin_and_kill(struct inotify_watch *watch, int how)
+{
+	struct super_block *sb = watch->inode->i_sb;
+	put_inotify_watch(watch);
+	switch (how) {
+	case 1:
+		deactivate_super(sb);
+		break;
+	case 2:
+		drop_super(sb);
+	}
+}
+
 /**
  * inotify_destroy - clean up and destroy an inotify instance
  * @ih: inotify handle
@@ -490,11 +619,15 @@ void inotify_destroy(struct inotify_handle *ih)
 	 * pretty.  We cannot do a simple iteration over the list, because we
 	 * do not know the inode until we iterate to the watch.  But we need to
 	 * hold inode->inotify_mutex before ih->mutex.  The following works.
+	 *
+	 * AV: it had to become even uglier to start working ;-/
 	 */
 	while (1) {
 		struct inotify_watch *watch;
 		struct list_head *watches;
+		struct super_block *sb;
 		struct inode *inode;
+		int how;
 
 		mutex_lock(&ih->mutex);
 		watches = &ih->watches;
@@ -503,8 +636,10 @@ void inotify_destroy(struct inotify_handle *ih)
 			break;
 		}
 		watch = list_first_entry(watches, struct inotify_watch, h_list);
-		get_inotify_watch(watch);
-		mutex_unlock(&ih->mutex);
+		sb = watch->inode->i_sb;
+		how = pin_to_kill(ih, watch);
+		if (!how)
+			continue;
 
 		inode = watch->inode;
 		mutex_lock(&inode->inotify_mutex);
@@ -518,7 +653,7 @@ void inotify_destroy(struct inotify_handle *ih)
 
 		mutex_unlock(&ih->mutex);
 		mutex_unlock(&inode->inotify_mutex);
-		put_inotify_watch(watch);
+		unpin_and_kill(watch, how);
 	}
 
 	/* free this handle: the put matching the get in inotify_init() */
@@ -719,7 +854,9 @@ void inotify_evict_watch(struct inotify_watch *watch)
 int inotify_rm_wd(struct inotify_handle *ih, u32 wd)
 {
 	struct inotify_watch *watch;
+	struct super_block *sb;
 	struct inode *inode;
+	int how;
 
 	mutex_lock(&ih->mutex);
 	watch = idr_find(&ih->idr, wd);
@@ -727,9 +864,12 @@ int inotify_rm_wd(struct inotify_handle *ih, u32 wd)
 		mutex_unlock(&ih->mutex);
 		return -EINVAL;
 	}
-	get_inotify_watch(watch);
+	sb = watch->inode->i_sb;
+	how = pin_to_kill(ih, watch);
+	if (!how)
+		return 0;
+
 	inode = watch->inode;
-	mutex_unlock(&ih->mutex);
 
 	mutex_lock(&inode->inotify_mutex);
 	mutex_lock(&ih->mutex);
@@ -740,7 +880,7 @@ int inotify_rm_wd(struct inotify_handle *ih, u32 wd)
 
 	mutex_unlock(&ih->mutex);
 	mutex_unlock(&inode->inotify_mutex);
-	put_inotify_watch(watch);
+	unpin_and_kill(watch, how);
 
 	return 0;
 }

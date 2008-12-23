@@ -58,7 +58,7 @@ void __cpuinit mxcsr_feature_mask_init(void)
 	stts();
 }
 
-void __init init_thread_xstate(void)
+void __cpuinit init_thread_xstate(void)
 {
 	if (!HAVE_HWFP) {
 		xstate_size = sizeof(struct i387_soft_struct);

@@ -287,7 +287,6 @@ typedef struct drm_radeon_private {
 	unsigned long gart_textures_offset;
 
 	drm_local_map_t *sarea;
-	drm_local_map_t *mmio;
 	drm_local_map_t *cp_ring;
 	drm_local_map_t *ring_rptr;
 	drm_local_map_t *gart_textures;
@@ -300,7 +299,6 @@ typedef struct drm_radeon_private {
 	atomic_t swi_emitted;
 	int vblank_crtc;
 	uint32_t irq_enable_reg;
-	int irq_enabled;
 	uint32_t r500_disp_irq_reg;
 
 	struct radeon_surface surfaces[RADEON_MAX_SURFACES];
@@ -318,6 +316,7 @@ typedef struct drm_radeon_private {
 
 	int num_gb_pipes;
 	int track_flush;
+	drm_local_map_t *mmio;
 } drm_radeon_private_t;
 
 typedef struct drm_radeon_buf_priv {

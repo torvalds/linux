@@ -375,6 +375,7 @@ enum {
 	ATA_HORKAGE_BRIDGE_OK	= (1 << 10),	/* no bridge limits */
 	ATA_HORKAGE_ATAPI_MOD16_DMA = (1 << 11), /* use ATAPI DMA for commands
 						    not multiple of 16 bytes */
+	ATA_HORKAGE_FIRMWARE_WARN = (1 << 12),	/* firwmare update warning */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */
@@ -698,6 +699,7 @@ struct ata_port {
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
 
 	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE];
+	unsigned long		qc_allocated;
 	unsigned int		qc_active;
 	int			nr_active_links; /* #links with active qcs */
 

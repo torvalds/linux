@@ -343,9 +343,9 @@ static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
 				return 0;
 			return -EALREADY;
 		}
-		if (WARN_ON(!is_alpha2_set(alpha2) || !is_an_alpha2(alpha2)),
+		if (WARN(!is_alpha2_set(alpha2) || !is_an_alpha2(alpha2),
 				"Invalid Country IE regulatory hint passed "
-				"to the wireless core\n")
+				"to the wireless core\n"))
 			return -EINVAL;
 		/* We ignore Country IE hints for now, as we haven't yet
 		 * added the dot11MultiDomainCapabilityEnabled flag

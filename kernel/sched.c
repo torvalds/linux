@@ -399,7 +399,7 @@ struct cfs_rq {
 	 */
 	struct sched_entity *curr, *next, *last;
 
-	unsigned long nr_spread_over;
+	unsigned int nr_spread_over;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	struct rq *rq;	/* cpu runqueue to which this cfs_rq is attached */
@@ -969,6 +969,14 @@ static struct rq *task_rq_lock(struct task_struct *p, unsigned long *flags)
 	}
 }
 
+void task_rq_unlock_wait(struct task_struct *p)
+{
+	struct rq *rq = task_rq(p);
+
+	smp_mb(); /* spin-unlock-wait is not a full memory barrier */
+	spin_unlock_wait(&rq->lock);
+}
+
 static void __task_rq_unlock(struct rq *rq)
 	__releases(rq->lock)
 {
@@ -1445,9 +1453,12 @@ static int task_hot(struct task_struct *p, u64 now, struct sched_domain *sd);
 static unsigned long cpu_avg_load_per_task(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
+	unsigned long nr_running = ACCESS_ONCE(rq->nr_running);
 
-	if (rq->nr_running)
-		rq->avg_load_per_task = rq->load.weight / rq->nr_running;
+	if (nr_running)
+		rq->avg_load_per_task = rq->load.weight / nr_running;
+	else
+		rq->avg_load_per_task = 0;
 
 	return rq->avg_load_per_task;
 }
@@ -5860,6 +5871,8 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long flags;
 
+	spin_lock_irqsave(&rq->lock, flags);
+
 	__sched_fork(idle);
 	idle->se.exec_start = sched_clock();
 
@@ -5867,7 +5880,6 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	idle->cpus_allowed = cpumask_of_cpu(cpu);
 	__set_task_cpu(idle, cpu);
 
-	spin_lock_irqsave(&rq->lock, flags);
 	rq->curr = rq->idle = idle;
 #if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
 	idle->oncpu = 1;
@@ -6575,7 +6587,9 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 			req = list_entry(rq->migration_queue.next,
 					 struct migration_req, list);
 			list_del_init(&req->list);
+			spin_unlock_irq(&rq->lock);
 			complete(&req->done);
+			spin_lock_irq(&rq->lock);
 		}
 		spin_unlock_irq(&rq->lock);
 		break;
@@ -7778,13 +7792,14 @@ static int dattrs_equal(struct sched_domain_attr *cur, int idx_cur,
  *
  * The passed in 'doms_new' should be kmalloc'd. This routine takes
  * ownership of it and will kfree it when done with it. If the caller
- * failed the kmalloc call, then it can pass in doms_new == NULL,
- * and partition_sched_domains() will fallback to the single partition
- * 'fallback_doms', it also forces the domains to be rebuilt.
+ * failed the kmalloc call, then it can pass in doms_new == NULL &&
+ * ndoms_new == 1, and partition_sched_domains() will fallback to
+ * the single partition 'fallback_doms', it also forces the domains
+ * to be rebuilt.
  *
- * If doms_new==NULL it will be replaced with cpu_online_map.
- * ndoms_new==0 is a special case for destroying existing domains.
- * It will not create the default domain.
+ * If doms_new == NULL it will be replaced with cpu_online_map.
+ * ndoms_new == 0 is a special case for destroying existing domains,
+ * and it will not create the default domain.
  *
  * Call with hotplug lock held
  */

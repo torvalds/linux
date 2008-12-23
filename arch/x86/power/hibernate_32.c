@@ -12,6 +12,7 @@
 #include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/mmzone.h>
 
 /* Defined in hibernate_asm_32.S */
 extern int restore_image(void);
@@ -127,6 +128,9 @@ static int resume_physical_mapping_init(pgd_t *pgd_base)
 			}
 		}
 	}
+
+	resume_map_numa_kva(pgd_base);
+
 	return 0;
 }
 

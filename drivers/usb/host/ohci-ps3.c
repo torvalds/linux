@@ -192,7 +192,7 @@ fail_start:
 	return result;
 }
 
-static int ps3_ohci_remove (struct ps3_system_bus_device *dev)
+static int ps3_ohci_remove(struct ps3_system_bus_device *dev)
 {
 	unsigned int tmp;
 	struct usb_hcd *hcd =
@@ -205,6 +205,7 @@ static int ps3_ohci_remove (struct ps3_system_bus_device *dev)
 
 	tmp = hcd->irq;
 
+	ohci_shutdown(hcd);
 	usb_remove_hcd(hcd);
 
 	ps3_system_bus_set_driver_data(dev, NULL);

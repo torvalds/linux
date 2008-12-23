@@ -86,7 +86,8 @@
 #define OCFS2_CLEAR_INCOMPAT_FEATURE(sb,mask)			\
 	OCFS2_SB(sb)->s_feature_incompat &= ~(mask)
 
-#define OCFS2_FEATURE_COMPAT_SUPP	OCFS2_FEATURE_COMPAT_BACKUP_SB
+#define OCFS2_FEATURE_COMPAT_SUPP	(OCFS2_FEATURE_COMPAT_BACKUP_SB	\
+					 | OCFS2_FEATURE_COMPAT_JBD2_SB)
 #define OCFS2_FEATURE_INCOMPAT_SUPP	(OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT \
 					 | OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC \
 					 | OCFS2_FEATURE_INCOMPAT_INLINE_DATA \
@@ -151,6 +152,11 @@
  * has backup superblocks.
  */
 #define OCFS2_FEATURE_COMPAT_BACKUP_SB		0x0001
+
+/*
+ * The filesystem will correctly handle journal feature bits.
+ */
+#define OCFS2_FEATURE_COMPAT_JBD2_SB		0x0002
 
 /*
  * Unwritten extents support.
@@ -742,12 +748,12 @@ struct ocfs2_group_desc
  */
 struct ocfs2_xattr_entry {
 	__le32	xe_name_hash;    /* hash value of xattr prefix+suffix. */
-	__le16	xe_name_offset;  /* byte offset from the 1st etnry in the local
+	__le16	xe_name_offset;  /* byte offset from the 1st entry in the
 				    local xattr storage(inode, xattr block or
 				    xattr bucket). */
 	__u8	xe_name_len;	 /* xattr name len, does't include prefix. */
-	__u8	xe_type;         /* the low 7 bits indicates the name prefix's
-				  * type and the highest 1 bits indicate whether
+	__u8	xe_type;         /* the low 7 bits indicate the name prefix
+				  * type and the highest bit indicates whether
 				  * the EA is stored in the local storage. */
 	__le64	xe_value_size;	 /* real xattr value length. */
 };
@@ -766,9 +772,10 @@ struct ocfs2_xattr_header {
 						   xattr. */
 	__le16	xh_name_value_len;              /* total length of name/value
 						   length in this bucket. */
-	__le16	xh_num_buckets;                 /* bucket nums in one extent
-						   record, only valid in the
-						   first bucket. */
+	__le16	xh_num_buckets;                 /* Number of xattr buckets
+						   in this extent record,
+						   only valid in the first
+						   bucket. */
 	__le64  xh_csum;
 	struct ocfs2_xattr_entry xh_entries[0]; /* xattr entry list. */
 };
@@ -776,8 +783,8 @@ struct ocfs2_xattr_header {
 /*
  * On disk structure for xattr value root.
  *
- * It is used when one extended attribute's size is larger, and we will save it
- * in an outside cluster. It will stored in a b-tree like file content.
+ * When an xattr's value is large enough, it is stored in an external
+ * b-tree like file data.  The xattr value root points to this structure.
  */
 struct ocfs2_xattr_value_root {
 /*00*/	__le32	xr_clusters;              /* clusters covered by xattr value. */

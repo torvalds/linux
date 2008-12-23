@@ -22,6 +22,8 @@ menuconfig STAGING
 	  If in doubt, say N here.
 
 
+if STAGING
+
 config STAGING_EXCLUDE_BUILD
 	bool "Exclude Staging drivers from being built" if STAGING
 	default y
@@ -62,3 +64,4 @@ source "drivers/staging/at76_usb/Kconfig"
 source "drivers/staging/poch/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
+endif # STAGING

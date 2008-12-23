@@ -1,17 +1,6 @@
 
 #include <linux/irq.h>
 
-void set_pending_irq(unsigned int irq, cpumask_t mask)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned long flags;
-
-	spin_lock_irqsave(&desc->lock, flags);
-	desc->status |= IRQ_MOVE_PENDING;
-	desc->pending_mask = mask;
-	spin_unlock_irqrestore(&desc->lock, flags);
-}
-
 void move_masked_irq(int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);

@@ -16,56 +16,6 @@
  * For questions or problems with this driver, contact Texas Instruments
  * technical support, or Al Borchers <alborchers@steinerpoint.com>, or
  * Peter Berger <pberger@brimson.com>.
- *
- * This driver needs this hotplug script in /etc/hotplug/usb/ti_usb_3410_5052
- * or in /etc/hotplug.d/usb/ti_usb_3410_5052.hotplug to set the device
- * configuration.
- *
- * #!/bin/bash
- *
- * BOOT_CONFIG=1
- * ACTIVE_CONFIG=2
- *
- * if [[ "$ACTION" != "add" ]]
- * then
- * 	exit
- * fi
- *
- * CONFIG_PATH=/sys${DEVPATH%/?*}/bConfigurationValue
- *
- * if [[ 0`cat $CONFIG_PATH` -ne $BOOT_CONFIG ]]
- * then
- * 	exit
- * fi
- *
- * PRODUCT=${PRODUCT%/?*}		# delete version
- * VENDOR_ID=`printf "%d" 0x${PRODUCT%/?*}`
- * PRODUCT_ID=`printf "%d" 0x${PRODUCT#*?/}`
- *
- * PARAM_PATH=/sys/module/ti_usb_3410_5052/parameters
- *
- * function scan() {
- * 	s=$1
- * 	shift
- * 	for i
- * 	do
- * 		if [[ $s -eq $i ]]
- * 		then
- * 			return 0
- * 		fi
- * 	done
- * 	return 1
- * }
- *
- * IFS=$IFS,
- *
- * if (scan $VENDOR_ID 1105 `cat $PARAM_PATH/vendor_3410` &&
- * scan $PRODUCT_ID 13328 `cat $PARAM_PATH/product_3410`) ||
- * (scan $VENDOR_ID 1105 `cat $PARAM_PATH/vendor_5052` &&
- * scan $PRODUCT_ID 20562 20818 20570 20575 `cat $PARAM_PATH/product_5052`)
- * then
- * 	echo $ACTIVE_CONFIG > $CONFIG_PATH
- * fi
  */
 
 #include <linux/kernel.h>
@@ -457,9 +407,10 @@ static int ti_startup(struct usb_serial *serial)
 		goto free_tdev;
 	}
 
-	/* the second configuration must be set (in sysfs by hotplug script) */
+	/* the second configuration must be set */
 	if (dev->actconfig->desc.bConfigurationValue == TI_BOOT_CONFIG) {
-		status = -ENODEV;
+		status = usb_driver_set_configuration(dev, TI_ACTIVE_CONFIG);
+		status = status ? status : -ENODEV;
 		goto free_tdev;
 	}
 

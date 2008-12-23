@@ -160,7 +160,7 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	current->thread.fp_regs.fpc &= FPC_VALID_MASK;
 
 	restore_fp_regs(&current->thread.fp_regs);
-	regs->trap = -1;	/* disable syscall checks */
+	regs->svcnr = 0;	/* disable syscall checks */
 	return 0;
 }
 
@@ -445,7 +445,7 @@ void do_signal(struct pt_regs *regs)
 		oldset = &current->blocked;
 
 	/* Are we from a system call? */
-	if (regs->trap == __LC_SVC_OLD_PSW) {
+	if (regs->svcnr) {
 		continue_addr = regs->psw.addr;
 		restart_addr = continue_addr - regs->ilc;
 		retval = regs->gprs[2];
@@ -462,7 +462,7 @@ void do_signal(struct pt_regs *regs)
 		case -ERESTART_RESTARTBLOCK:
 			regs->gprs[2] = -EINTR;
 		}
-		regs->trap = -1;	/* Don't deal with this again. */
+		regs->svcnr = 0;	/* Don't deal with this again. */
 	}
 
 	/* Get signal to deliver.  When running under ptrace, at this point

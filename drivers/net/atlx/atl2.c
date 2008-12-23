@@ -1690,9 +1690,11 @@ static int atl2_resume(struct pci_dev *pdev)
 
 	ATL2_WRITE_REG(&adapter->hw, REG_WOL_CTRL, 0);
 
-	err = atl2_request_irq(adapter);
-	if (netif_running(netdev) && err)
-		return err;
+	if (netif_running(netdev)) {
+		err = atl2_request_irq(adapter);
+		if (err)
+			return err;
+	}
 
 	atl2_reset_hw(&adapter->hw);
 

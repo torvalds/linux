@@ -1655,12 +1655,14 @@ int __init init_dmars(void)
 			iommu->flush.flush_context = __iommu_flush_context;
 			iommu->flush.flush_iotlb = __iommu_flush_iotlb;
 			printk(KERN_INFO "IOMMU 0x%Lx: using Register based "
-			       "invalidation\n", drhd->reg_base_addr);
+			       "invalidation\n",
+			       (unsigned long long)drhd->reg_base_addr);
 		} else {
 			iommu->flush.flush_context = qi_flush_context;
 			iommu->flush.flush_iotlb = qi_flush_iotlb;
 			printk(KERN_INFO "IOMMU 0x%Lx: using Queued "
-			       "invalidation\n", drhd->reg_base_addr);
+			       "invalidation\n",
+			       (unsigned long long)drhd->reg_base_addr);
 		}
 	}
 

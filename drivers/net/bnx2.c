@@ -543,9 +543,9 @@ bnx2_free_rx_mem(struct bnx2 *bp)
 		for (j = 0; j < bp->rx_max_pg_ring; j++) {
 			if (rxr->rx_pg_desc_ring[j])
 				pci_free_consistent(bp->pdev, RXBD_RING_SIZE,
-						    rxr->rx_pg_desc_ring[i],
-						    rxr->rx_pg_desc_mapping[i]);
-			rxr->rx_pg_desc_ring[i] = NULL;
+						    rxr->rx_pg_desc_ring[j],
+						    rxr->rx_pg_desc_mapping[j]);
+			rxr->rx_pg_desc_ring[j] = NULL;
 		}
 		if (rxr->rx_pg_ring)
 			vfree(rxr->rx_pg_ring);
@@ -3144,6 +3144,28 @@ bnx2_has_work(struct bnx2_napi *bnapi)
 	return 0;
 }
 
+static void
+bnx2_chk_missed_msi(struct bnx2 *bp)
+{
+	struct bnx2_napi *bnapi = &bp->bnx2_napi[0];
+	u32 msi_ctrl;
+
+	if (bnx2_has_work(bnapi)) {
+		msi_ctrl = REG_RD(bp, BNX2_PCICFG_MSI_CONTROL);
+		if (!(msi_ctrl & BNX2_PCICFG_MSI_CONTROL_ENABLE))
+			return;
+
+		if (bnapi->last_status_idx == bp->idle_chk_status_idx) {
+			REG_WR(bp, BNX2_PCICFG_MSI_CONTROL, msi_ctrl &
+			       ~BNX2_PCICFG_MSI_CONTROL_ENABLE);
+			REG_WR(bp, BNX2_PCICFG_MSI_CONTROL, msi_ctrl);
+			bnx2_msi(bp->irq_tbl[0].vector, bnapi);
+		}
+	}
+
+	bp->idle_chk_status_idx = bnapi->last_status_idx;
+}
+
 static void bnx2_poll_link(struct bnx2 *bp, struct bnx2_napi *bnapi)
 {
 	struct status_block *sblk = bnapi->status_blk.msi;
@@ -3218,14 +3240,15 @@ static int bnx2_poll(struct napi_struct *napi, int budget)
 
 		work_done = bnx2_poll_work(bp, bnapi, work_done, budget);
 
-		if (unlikely(work_done >= budget))
-			break;
-
 		/* bnapi->last_status_idx is used below to tell the hw how
 		 * much work has been processed, so we must read it before
 		 * checking for more work.
 		 */
 		bnapi->last_status_idx = sblk->status_idx;
+
+		if (unlikely(work_done >= budget))
+			break;
+
 		rmb();
 		if (likely(!bnx2_has_work(bnapi))) {
 			netif_rx_complete(bp->dev, napi);
@@ -4570,6 +4593,8 @@ bnx2_init_chip(struct bnx2 *bp)
 	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++)
 		bp->bnx2_napi[i].last_status_idx = 0;
 
+	bp->idle_chk_status_idx = 0xffff;
+
 	bp->rx_mode = BNX2_EMAC_RX_MODE_SORT_MODE;
 
 	/* Set up how to generate a link change interrupt. */
@@ -5717,6 +5742,10 @@ bnx2_timer(unsigned long data)
 
 	if (atomic_read(&bp->intr_sem) != 0)
 		goto bnx2_restart_timer;
+
+	if ((bp->flags & (BNX2_FLAG_USING_MSI | BNX2_FLAG_ONE_SHOT_MSI)) ==
+	     BNX2_FLAG_USING_MSI)
+		bnx2_chk_missed_msi(bp);
 
 	bnx2_send_heart_beat(bp);
 
@@ -7204,10 +7233,13 @@ static void
 poll_bnx2(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
+	int i;
 
-	disable_irq(bp->pdev->irq);
-	bnx2_interrupt(bp->pdev->irq, dev);
-	enable_irq(bp->pdev->irq);
+	for (i = 0; i < bp->irq_nvecs; i++) {
+		disable_irq(bp->irq_tbl[i].vector);
+		bnx2_interrupt(bp->irq_tbl[i].vector, &bp->bnx2_napi[i]);
+		enable_irq(bp->irq_tbl[i].vector);
+	}
 }
 #endif
 

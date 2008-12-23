@@ -133,9 +133,11 @@ static int poll_one_napi(struct netpoll_info *npinfo,
 
 	npinfo->rx_flags |= NETPOLL_RX_DROP;
 	atomic_inc(&trapped);
+	set_bit(NAPI_STATE_NPSVC, &napi->state);
 
 	work = napi->poll(napi, budget);
 
+	clear_bit(NAPI_STATE_NPSVC, &napi->state);
 	atomic_dec(&trapped);
 	npinfo->rx_flags &= ~NETPOLL_RX_DROP;
 

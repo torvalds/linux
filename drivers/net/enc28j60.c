@@ -568,6 +568,17 @@ static u16 erxrdpt_workaround(u16 next_packet_ptr, u16 start, u16 end)
 	return erxrdpt;
 }
 
+/*
+ * Calculate wrap around when reading beyond the end of the RX buffer
+ */
+static u16 rx_packet_start(u16 ptr)
+{
+	if (ptr + RSV_SIZE > RXEND_INIT)
+		return (ptr + RSV_SIZE) - (RXEND_INIT - RXSTART_INIT + 1);
+	else
+		return ptr + RSV_SIZE;
+}
+
 static void nolock_rxfifo_init(struct enc28j60_net *priv, u16 start, u16 end)
 {
 	u16 erxrdpt;
@@ -938,8 +949,9 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 			skb->dev = ndev;
 			skb_reserve(skb, NET_IP_ALIGN);
 			/* copy the packet from the receive buffer */
-			enc28j60_mem_read(priv, priv->next_pk_ptr + sizeof(rsv),
-					len, skb_put(skb, len));
+			enc28j60_mem_read(priv,
+				rx_packet_start(priv->next_pk_ptr),
+				len, skb_put(skb, len));
 			if (netif_msg_pktdata(priv))
 				dump_packet(__func__, skb->len, skb->data);
 			skb->protocol = eth_type_trans(skb, ndev);
@@ -947,7 +959,7 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += len;
 			ndev->last_rx = jiffies;
-			netif_rx(skb);
+			netif_rx_ni(skb);
 		}
 	}
 	/*

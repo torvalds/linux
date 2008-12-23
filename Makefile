@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 28
-EXTRAVERSION = -rc4
-NAME = Killer Bat of Doom
+EXTRAVERSION = -rc9
+NAME = Erotic Pickled Herring
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

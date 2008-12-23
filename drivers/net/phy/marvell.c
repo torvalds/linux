@@ -227,6 +227,59 @@ static int m88e1111_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int m88e1118_config_aneg(struct phy_device *phydev)
+{
+	int err;
+
+	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, MII_M1011_PHY_SCR,
+			MII_M1011_PHY_SCR_AUTO_CROSS);
+	if (err < 0)
+		return err;
+
+	err = genphy_config_aneg(phydev);
+	return 0;
+}
+
+static int m88e1118_config_init(struct phy_device *phydev)
+{
+	int err;
+
+	/* Change address */
+	err = phy_write(phydev, 0x16, 0x0002);
+	if (err < 0)
+		return err;
+
+	/* Enable 1000 Mbit */
+	err = phy_write(phydev, 0x15, 0x1070);
+	if (err < 0)
+		return err;
+
+	/* Change address */
+	err = phy_write(phydev, 0x16, 0x0003);
+	if (err < 0)
+		return err;
+
+	/* Adjust LED Control */
+	err = phy_write(phydev, 0x10, 0x021e);
+	if (err < 0)
+		return err;
+
+	/* Reset address */
+	err = phy_write(phydev, 0x16, 0x0);
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
 static int m88e1145_config_init(struct phy_device *phydev)
 {
 	int err;
@@ -414,6 +467,19 @@ static struct phy_driver marvell_drivers[] = {
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
 		.driver = { .owner = THIS_MODULE },
+	},
+	{
+		.phy_id = 0x01410e10,
+		.phy_id_mask = 0xfffffff0,
+		.name = "Marvell 88E1118",
+		.features = PHY_GBIT_FEATURES,
+		.flags = PHY_HAS_INTERRUPT,
+		.config_init = &m88e1118_config_init,
+		.config_aneg = &m88e1118_config_aneg,
+		.read_status = &genphy_read_status,
+		.ack_interrupt = &marvell_ack_interrupt,
+		.config_intr = &marvell_config_intr,
+		.driver = {.owner = THIS_MODULE,},
 	},
 	{
 		.phy_id = 0x01410cd0,

@@ -47,7 +47,7 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 #define SAA7110_MAX_INPUT	9	/* 6 CVBS, 3 SVHS */
-#define SAA7110_MAX_OUTPUT	0	/* its a decoder only */
+#define SAA7110_MAX_OUTPUT	1	/* 1 YUV */
 
 #define SAA7110_NR_REG		0x35
 
@@ -327,7 +327,7 @@ saa7110_command (struct i2c_client *client,
 
 	case DECODER_SET_INPUT:
 		v = *(int *) arg;
-		if (v < 0 || v > SAA7110_MAX_INPUT) {
+		if (v < 0 || v >= SAA7110_MAX_INPUT) {
 			v4l_dbg(1, debug, client, "input=%d not available\n", v);
 			return -EINVAL;
 		}

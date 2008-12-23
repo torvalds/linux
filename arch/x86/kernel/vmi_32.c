@@ -960,8 +960,6 @@ static inline int __init activate_vmi(void)
 
 void __init vmi_init(void)
 {
-	unsigned long flags;
-
 	if (!vmi_rom)
 		probe_vmi_rom();
 	else
@@ -973,13 +971,21 @@ void __init vmi_init(void)
 
 	reserve_top_address(-vmi_rom->virtual_top);
 
-	local_irq_save(flags);
-	activate_vmi();
-
 #ifdef CONFIG_X86_IO_APIC
 	/* This is virtual hardware; timer routing is wired correctly */
 	no_timer_check = 1;
 #endif
+}
+
+void vmi_activate(void)
+{
+	unsigned long flags;
+
+	if (!vmi_rom)
+		return;
+
+	local_irq_save(flags);
+	activate_vmi();
 	local_irq_restore(flags & X86_EFLAGS_IF);
 }
 

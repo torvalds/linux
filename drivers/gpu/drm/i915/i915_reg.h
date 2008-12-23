@@ -522,10 +522,14 @@
 #define DCC_ADDRESSING_MODE_DUAL_CHANNEL_INTERLEAVED	(2 << 0)
 #define DCC_ADDRESSING_MODE_MASK			(3 << 0)
 #define DCC_CHANNEL_XOR_DISABLE				(1 << 10)
+#define DCC_CHANNEL_XOR_BIT_17				(1 << 9)
 
 /** 965 MCH register controlling DRAM channel configuration */
 #define C0DRB3			0x10206
 #define C1DRB3			0x10606
+
+/** GM965 GM45 render standby register */
+#define MCHBAR_RENDER_STANDBY	0x111B8
 
 /*
  * Overlay regs

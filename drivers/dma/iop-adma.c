@@ -85,18 +85,28 @@ iop_adma_run_tx_complete_actions(struct iop_adma_desc_slot *desc,
 			enum dma_ctrl_flags flags = desc->async_tx.flags;
 			u32 src_cnt;
 			dma_addr_t addr;
+			dma_addr_t dest;
 
+			src_cnt = unmap->unmap_src_cnt;
+			dest = iop_desc_get_dest_addr(unmap, iop_chan);
 			if (!(flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-				addr = iop_desc_get_dest_addr(unmap, iop_chan);
-				dma_unmap_page(dev, addr, len, DMA_FROM_DEVICE);
+				enum dma_data_direction dir;
+
+				if (src_cnt > 1) /* is xor? */
+					dir = DMA_BIDIRECTIONAL;
+				else
+					dir = DMA_FROM_DEVICE;
+
+				dma_unmap_page(dev, dest, len, dir);
 			}
 
 			if (!(flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-				src_cnt = unmap->unmap_src_cnt;
 				while (src_cnt--) {
 					addr = iop_desc_get_src_addr(unmap,
 								     iop_chan,
 								     src_cnt);
+					if (addr == dest)
+						continue;
 					dma_unmap_page(dev, addr, len,
 						       DMA_TO_DEVICE);
 				}
@@ -411,6 +421,7 @@ iop_adma_tx_submit(struct dma_async_tx_descriptor *tx)
 	int slot_cnt;
 	int slots_per_op;
 	dma_cookie_t cookie;
+	dma_addr_t next_dma;
 
 	grp_start = sw_desc->group_head;
 	slot_cnt = grp_start->slot_cnt;
@@ -425,12 +436,12 @@ iop_adma_tx_submit(struct dma_async_tx_descriptor *tx)
 			 &old_chain_tail->chain_node);
 
 	/* fix up the hardware chain */
-	iop_desc_set_next_desc(old_chain_tail, grp_start->async_tx.phys);
+	next_dma = grp_start->async_tx.phys;
+	iop_desc_set_next_desc(old_chain_tail, next_dma);
+	BUG_ON(iop_desc_get_next_desc(old_chain_tail) != next_dma); /* flush */
 
-	/* 1/ don't add pre-chained descriptors
-	 * 2/ dummy read to flush next_desc write
-	 */
-	BUG_ON(iop_desc_get_next_desc(sw_desc));
+	/* check for pre-chained descriptors */
+	iop_paranoia(iop_desc_get_next_desc(sw_desc));
 
 	/* increment the pending count by the number of slots
 	 * memcpy operations have a 1:1 (slot:operation) relation

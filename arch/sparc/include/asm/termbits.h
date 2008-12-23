@@ -29,10 +29,11 @@ struct termios {
 	tcflag_t c_cflag;		/* control mode flags */
 	tcflag_t c_lflag;		/* local mode flags */
 	cc_t c_line;			/* line discipline */
+#ifndef __KERNEL__
 	cc_t c_cc[NCCS];		/* control characters */
-#ifdef __KERNEL__
+#else
+	cc_t c_cc[NCCS+2];	/* kernel needs 2 more to hold vmin/vtime */
 #define SIZEOF_USER_TERMIOS sizeof (struct termios) - (2*sizeof (cc_t))
-	cc_t _x_cc[2];                  /* We need them to hold vmin/vtime */
 #endif
 };
 
@@ -42,8 +43,7 @@ struct termios2 {
 	tcflag_t c_cflag;		/* control mode flags */
 	tcflag_t c_lflag;		/* local mode flags */
 	cc_t c_line;			/* line discipline */
-	cc_t c_cc[NCCS];		/* control characters */
-	cc_t _x_cc[2];                  /* padding to match ktermios */
+	cc_t c_cc[NCCS+2];		/* control characters */
 	speed_t c_ispeed;		/* input speed */
 	speed_t c_ospeed;		/* output speed */
 };
@@ -54,8 +54,7 @@ struct ktermios {
 	tcflag_t c_cflag;		/* control mode flags */
 	tcflag_t c_lflag;		/* local mode flags */
 	cc_t c_line;			/* line discipline */
-	cc_t c_cc[NCCS];		/* control characters */
-	cc_t _x_cc[2];                  /* We need them to hold vmin/vtime */
+	cc_t c_cc[NCCS+2];		/* control characters */
 	speed_t c_ispeed;		/* input speed */
 	speed_t c_ospeed;		/* output speed */
 };

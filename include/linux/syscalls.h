@@ -410,8 +410,7 @@ asmlinkage long sys_getsockopt(int fd, int level, int optname,
 asmlinkage long sys_bind(int, struct sockaddr __user *, int);
 asmlinkage long sys_connect(int, struct sockaddr __user *, int);
 asmlinkage long sys_accept(int, struct sockaddr __user *, int __user *);
-asmlinkage long sys_paccept(int, struct sockaddr __user *, int __user *,
-			    const __user sigset_t *, size_t, int);
+asmlinkage long sys_accept4(int, struct sockaddr __user *, int __user *, int);
 asmlinkage long sys_getsockname(int, struct sockaddr __user *, int __user *);
 asmlinkage long sys_getpeername(int, struct sockaddr __user *, int __user *);
 asmlinkage long sys_send(int, void __user *, size_t, unsigned);

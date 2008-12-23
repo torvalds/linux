@@ -1755,7 +1755,7 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 		return TRACE_TYPE_HANDLED;
 
 	SEQ_PUT_FIELD_RET(s, entry->pid);
-	SEQ_PUT_FIELD_RET(s, iter->cpu);
+	SEQ_PUT_FIELD_RET(s, entry->cpu);
 	SEQ_PUT_FIELD_RET(s, iter->ts);
 
 	switch (entry->type) {
@@ -1936,6 +1936,7 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 			ring_buffer_read_finish(iter->buffer_iter[cpu]);
 	}
 	mutex_unlock(&trace_types_lock);
+	kfree(iter);
 
 	return ERR_PTR(-ENOMEM);
 }
@@ -2676,7 +2677,7 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 {
 	unsigned long val;
 	char buf[64];
-	int ret;
+	int ret, cpu;
 	struct trace_array *tr = filp->private_data;
 
 	if (cnt >= sizeof(buf))
@@ -2702,6 +2703,14 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 		pr_info("ftrace: please disable tracing"
 			" before modifying buffer size\n");
 		goto out;
+	}
+
+	/* disable all cpu buffers */
+	for_each_tracing_cpu(cpu) {
+		if (global_trace.data[cpu])
+			atomic_inc(&global_trace.data[cpu]->disabled);
+		if (max_tr.data[cpu])
+			atomic_inc(&max_tr.data[cpu]->disabled);
 	}
 
 	if (val != global_trace.entries) {
@@ -2735,6 +2744,13 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 	if (tracing_disabled)
 		cnt = -ENOMEM;
  out:
+	for_each_tracing_cpu(cpu) {
+		if (global_trace.data[cpu])
+			atomic_dec(&global_trace.data[cpu]->disabled);
+		if (max_tr.data[cpu])
+			atomic_dec(&max_tr.data[cpu]->disabled);
+	}
+
 	max_tr.entries = global_trace.entries;
 	mutex_unlock(&trace_types_lock);
 

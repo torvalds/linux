@@ -1032,6 +1032,7 @@ static void mirror_dtr(struct dm_target *ti)
 
 	del_timer_sync(&ms->timer);
 	flush_workqueue(ms->kmirrord_wq);
+	flush_scheduled_work();
 	dm_kcopyd_client_destroy(ms->kcopyd_client);
 	destroy_workqueue(ms->kmirrord_wq);
 	free_context(ms, ti, ms->nr_mirrors);

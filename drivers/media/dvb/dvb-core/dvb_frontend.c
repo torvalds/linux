@@ -223,6 +223,8 @@ static void dvb_frontend_init(struct dvb_frontend *fe)
 	if (fe->ops.init)
 		fe->ops.init(fe);
 	if (fe->ops.tuner_ops.init) {
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
 		fe->ops.tuner_ops.init(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
@@ -583,6 +585,8 @@ restart:
 		if (fe->ops.set_voltage)
 			fe->ops.set_voltage(fe, SEC_VOLTAGE_OFF);
 		if (fe->ops.tuner_ops.sleep) {
+			if (fe->ops.i2c_gate_ctrl)
+				fe->ops.i2c_gate_ctrl(fe, 1);
 			fe->ops.tuner_ops.sleep(fe);
 			if (fe->ops.i2c_gate_ctrl)
 				fe->ops.i2c_gate_ctrl(fe, 0);
@@ -932,7 +936,8 @@ void dtv_property_dump(struct dtv_property *tvp)
 int is_legacy_delivery_system(fe_delivery_system_t s)
 {
 	if((s == SYS_UNDEFINED) || (s == SYS_DVBC_ANNEX_AC) ||
-		(s == SYS_DVBC_ANNEX_B) || (s == SYS_DVBT) || (s == SYS_DVBS))
+	   (s == SYS_DVBC_ANNEX_B) || (s == SYS_DVBT) || (s == SYS_DVBS) ||
+	   (s == SYS_ATSC))
 		return 1;
 
 	return 0;

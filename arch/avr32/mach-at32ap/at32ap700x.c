@@ -967,28 +967,28 @@ static inline void configure_usart0_pins(void)
 {
 	u32 pin_mask = (1 << 8) | (1 << 9); /* RXD & TXD */
 
-	select_peripheral(PIOA, pin_mask, PERIPH_B, 0);
+	select_peripheral(PIOA, pin_mask, PERIPH_B, AT32_GPIOF_PULLUP);
 }
 
 static inline void configure_usart1_pins(void)
 {
 	u32 pin_mask = (1 << 17) | (1 << 18); /* RXD & TXD */
 
-	select_peripheral(PIOA, pin_mask, PERIPH_A, 0);
+	select_peripheral(PIOA, pin_mask, PERIPH_A, AT32_GPIOF_PULLUP);
 }
 
 static inline void configure_usart2_pins(void)
 {
 	u32 pin_mask = (1 << 26) | (1 << 27); /* RXD & TXD */
 
-	select_peripheral(PIOB, pin_mask, PERIPH_B, 0);
+	select_peripheral(PIOB, pin_mask, PERIPH_B, AT32_GPIOF_PULLUP);
 }
 
 static inline void configure_usart3_pins(void)
 {
 	u32 pin_mask = (1 << 18) | (1 << 17); /* RXD & TXD */
 
-	select_peripheral(PIOB, pin_mask, PERIPH_B, 0);
+	select_peripheral(PIOB, pin_mask, PERIPH_B, AT32_GPIOF_PULLUP);
 }
 
 static struct platform_device *__initdata at32_usarts[4];

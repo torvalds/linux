@@ -1309,7 +1309,7 @@ void enable_x2apic(void)
 	}
 }
 
-void enable_IR_x2apic(void)
+void __init enable_IR_x2apic(void)
 {
 #ifdef CONFIG_INTR_REMAP
 	int ret;
