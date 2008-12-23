@@ -875,7 +875,7 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 	 * above conditions.
 	 */
 	if ((sc->hw->conf.channel->band == IEEE80211_BAND_2GHZ) &&
-	    (sc->hw->conf.ht.enabled)) {
+	    (conf_is_ht(&sc->hw->conf))) {
 		u8 dot11rate = rate_table->info[rix].dot11rate;
 		u8 phy = rate_table->info[rix].phy;
 		if (i == 4 &&
@@ -1511,7 +1511,7 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 			tx_info, &is_probe, false);
 
 	/* Check if aggregation has to be enabled for this tid */
-	if (hw->conf.ht.enabled) {
+	if (conf_is_ht(&hw->conf)) {
 		if (ieee80211_is_data_qos(fc)) {
 			u8 *qc, tid;
 			struct ath_node *an;

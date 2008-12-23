@@ -1690,7 +1690,7 @@ static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 	(sc->sc_flags & SC_OP_PREAMBLE_SHORT) ?
 		(bf->bf_state.bf_type |= BUF_SHORT_PREAMBLE) :
 		(bf->bf_state.bf_type &= ~BUF_SHORT_PREAMBLE);
-	(sc->hw->conf.ht.enabled && !is_pae(skb) &&
+	(conf_is_ht(&sc->hw->conf) && !is_pae(skb) &&
 	 (tx_info->flags & IEEE80211_TX_CTL_AMPDU)) ?
 		(bf->bf_state.bf_type |= BUF_HT) :
 		(bf->bf_state.bf_type &= ~BUF_HT);
