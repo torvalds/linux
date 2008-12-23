@@ -64,6 +64,47 @@ struct pxafb_dma_buff {
 	struct pxafb_dma_descriptor dma_desc[DMA_MAX * 2];
 };
 
+enum {
+	OVERLAY1,
+	OVERLAY2,
+};
+
+enum {
+	OVERLAY_FORMAT_RGB = 0,
+	OVERLAY_FORMAT_YUV444_PACKED,
+	OVERLAY_FORMAT_YUV444_PLANAR,
+	OVERLAY_FORMAT_YUV422_PLANAR,
+	OVERLAY_FORMAT_YUV420_PLANAR,
+};
+
+#define NONSTD_TO_XPOS(x)	(((x) >> 0)  & 0x3ff)
+#define NONSTD_TO_YPOS(x)	(((x) >> 10) & 0x3ff)
+#define NONSTD_TO_PFOR(x)	(((x) >> 20) & 0x7)
+
+struct pxafb_layer;
+
+struct pxafb_layer_ops {
+	void (*enable)(struct pxafb_layer *);
+	void (*disable)(struct pxafb_layer *);
+	void (*setup)(struct pxafb_layer *);
+};
+
+struct pxafb_layer {
+	struct fb_info		fb;
+	int			id;
+	atomic_t		usage;
+	uint32_t		control[2];
+
+	struct pxafb_layer_ops	*ops;
+
+	void __iomem		*video_mem;
+	unsigned long		video_mem_phys;
+	size_t			video_mem_size;
+	struct completion	branch_done;
+
+	struct pxafb_info	*fbi;
+};
+
 struct pxafb_info {
 	struct fb_info		fb;
 	struct device		*dev;
@@ -112,6 +153,10 @@ struct pxafb_info {
 	struct completion	command_done;
 	struct completion	refresh_done;
 	struct task_struct	*smart_thread;
+#endif
+
+#ifdef CONFIG_FB_PXA_OVERLAY
+	struct pxafb_layer	overlay[2];
 #endif
 
 #ifdef CONFIG_CPU_FREQ

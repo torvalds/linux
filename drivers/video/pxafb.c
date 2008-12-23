@@ -20,6 +20,16 @@
  *
  *	linux-arm-kernel@lists.arm.linux.org.uk
  *
+ * Add support for overlay1 and overlay2 based on pxafb_overlay.c:
+ *
+ *   Copyright (C) 2004, Intel Corporation
+ *
+ *     2003/08/27: <yu.tang@intel.com>
+ *     2004/03/10: <stanley.cai@intel.com>
+ *     2004/10/28: <yan.yin@intel.com>
+ *
+ *   Copyright (C) 2006-2008 Marvell International Ltd.
+ *   All Rights Reserved
  */
 
 #include <linux/module.h>
@@ -72,6 +82,8 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 				struct pxafb_info *);
 static void set_ctrlr_state(struct pxafb_info *fbi, u_int state);
 static void setup_base_frame(struct pxafb_info *fbi, int branch);
+static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
+			   unsigned long offset, size_t size);
 
 static unsigned long video_mem_size = 0;
 
@@ -581,6 +593,330 @@ static struct fb_ops pxafb_ops = {
 	.fb_blank	= pxafb_blank,
 };
 
+#ifdef CONFIG_FB_PXA_OVERLAY
+static void overlay1fb_setup(struct pxafb_layer *ofb)
+{
+	int size = ofb->fb.fix.line_length * ofb->fb.var.yres_virtual;
+	unsigned long start = ofb->video_mem_phys;
+	setup_frame_dma(ofb->fbi, DMA_OV1, PAL_NONE, start, size);
+}
+
+/* Depending on the enable status of overlay1/2, the DMA should be
+ * updated from FDADRx (when disabled) or FBRx (when enabled).
+ */
+static void overlay1fb_enable(struct pxafb_layer *ofb)
+{
+	int enabled = lcd_readl(ofb->fbi, OVL1C1) & OVLxC1_OEN;
+	uint32_t fdadr1 = ofb->fbi->fdadr[DMA_OV1] | (enabled ? 0x1 : 0);
+
+	lcd_writel(ofb->fbi, enabled ? FBR1 : FDADR1, fdadr1);
+	lcd_writel(ofb->fbi, OVL1C2, ofb->control[1]);
+	lcd_writel(ofb->fbi, OVL1C1, ofb->control[0] | OVLxC1_OEN);
+}
+
+static void overlay1fb_disable(struct pxafb_layer *ofb)
+{
+	uint32_t lccr5 = lcd_readl(ofb->fbi, LCCR5);
+
+	lcd_writel(ofb->fbi, OVL1C1, ofb->control[0] & ~OVLxC1_OEN);
+
+	lcd_writel(ofb->fbi, LCSR1, LCSR1_BS(1));
+	lcd_writel(ofb->fbi, LCCR5, lccr5 & ~LCSR1_BS(1));
+	lcd_writel(ofb->fbi, FBR1, ofb->fbi->fdadr[DMA_OV1] | 0x3);
+
+	if (wait_for_completion_timeout(&ofb->branch_done, 1 * HZ) == 0)
+		pr_warning("%s: timeout disabling overlay1\n", __func__);
+
+	lcd_writel(ofb->fbi, LCCR5, lccr5);
+}
+
+static void overlay2fb_setup(struct pxafb_layer *ofb)
+{
+	int size, div = 1, pfor = NONSTD_TO_PFOR(ofb->fb.var.nonstd);
+	unsigned long start[3] = { ofb->video_mem_phys, 0, 0 };
+
+	if (pfor == OVERLAY_FORMAT_RGB || pfor == OVERLAY_FORMAT_YUV444_PACKED) {
+		size = ofb->fb.fix.line_length * ofb->fb.var.yres_virtual;
+		setup_frame_dma(ofb->fbi, DMA_OV2_Y, -1, start[0], size);
+	} else {
+		size = ofb->fb.var.xres_virtual * ofb->fb.var.yres_virtual;
+		switch (pfor) {
+		case OVERLAY_FORMAT_YUV444_PLANAR: div = 1; break;
+		case OVERLAY_FORMAT_YUV422_PLANAR: div = 2; break;
+		case OVERLAY_FORMAT_YUV420_PLANAR: div = 4; break;
+		}
+		start[1] = start[0] + size;
+		start[2] = start[1] + size / div;
+		setup_frame_dma(ofb->fbi, DMA_OV2_Y,  -1, start[0], size);
+		setup_frame_dma(ofb->fbi, DMA_OV2_Cb, -1, start[1], size / div);
+		setup_frame_dma(ofb->fbi, DMA_OV2_Cr, -1, start[2], size / div);
+	}
+}
+
+static void overlay2fb_enable(struct pxafb_layer *ofb)
+{
+	int pfor = NONSTD_TO_PFOR(ofb->fb.var.nonstd);
+	int enabled = lcd_readl(ofb->fbi, OVL2C1) & OVLxC1_OEN;
+	uint32_t fdadr2 = ofb->fbi->fdadr[DMA_OV2_Y]  | (enabled ? 0x1 : 0);
+	uint32_t fdadr3 = ofb->fbi->fdadr[DMA_OV2_Cb] | (enabled ? 0x1 : 0);
+	uint32_t fdadr4 = ofb->fbi->fdadr[DMA_OV2_Cr] | (enabled ? 0x1 : 0);
+
+	if (pfor == OVERLAY_FORMAT_RGB || pfor == OVERLAY_FORMAT_YUV444_PACKED)
+		lcd_writel(ofb->fbi, enabled ? FBR2 : FDADR2, fdadr2);
+	else {
+		lcd_writel(ofb->fbi, enabled ? FBR2 : FDADR2, fdadr2);
+		lcd_writel(ofb->fbi, enabled ? FBR3 : FDADR3, fdadr3);
+		lcd_writel(ofb->fbi, enabled ? FBR4 : FDADR4, fdadr4);
+	}
+	lcd_writel(ofb->fbi, OVL2C2, ofb->control[1]);
+	lcd_writel(ofb->fbi, OVL2C1, ofb->control[0] | OVLxC1_OEN);
+}
+
+static void overlay2fb_disable(struct pxafb_layer *ofb)
+{
+	uint32_t lccr5 = lcd_readl(ofb->fbi, LCCR5);
+
+	lcd_writel(ofb->fbi, OVL2C1, ofb->control[0] & ~OVLxC1_OEN);
+
+	lcd_writel(ofb->fbi, LCSR1, LCSR1_BS(2));
+	lcd_writel(ofb->fbi, LCCR5, lccr5 & ~LCSR1_BS(2));
+	lcd_writel(ofb->fbi, FBR2, ofb->fbi->fdadr[DMA_OV2_Y]  | 0x3);
+	lcd_writel(ofb->fbi, FBR3, ofb->fbi->fdadr[DMA_OV2_Cb] | 0x3);
+	lcd_writel(ofb->fbi, FBR4, ofb->fbi->fdadr[DMA_OV2_Cr] | 0x3);
+
+	if (wait_for_completion_timeout(&ofb->branch_done, 1 * HZ) == 0)
+		pr_warning("%s: timeout disabling overlay2\n", __func__);
+}
+
+static struct pxafb_layer_ops ofb_ops[] = {
+	[0] = {
+		.enable		= overlay1fb_enable,
+		.disable	= overlay1fb_disable,
+		.setup		= overlay1fb_setup,
+	},
+	[1] = {
+		.enable		= overlay2fb_enable,
+		.disable	= overlay2fb_disable,
+		.setup		= overlay2fb_setup,
+	},
+};
+
+static int overlayfb_open(struct fb_info *info, int user)
+{
+	struct pxafb_layer *ofb = (struct pxafb_layer *)info;
+
+	/* no support for framebuffer console on overlay */
+	if (user == 0)
+		return -ENODEV;
+
+	/* allow only one user at a time */
+	if (atomic_inc_and_test(&ofb->usage))
+		return -EBUSY;
+
+	/* unblank the base framebuffer */
+	fb_blank(&ofb->fbi->fb, FB_BLANK_UNBLANK);
+	return 0;
+}
+
+static int overlayfb_release(struct fb_info *info, int user)
+{
+	struct pxafb_layer *ofb = (struct pxafb_layer*) info;
+
+	atomic_dec(&ofb->usage);
+	ofb->ops->disable(ofb);
+
+	free_pages_exact(ofb->video_mem, ofb->video_mem_size);
+	ofb->video_mem = NULL;
+	ofb->video_mem_size = 0;
+	return 0;
+}
+
+static int overlayfb_check_var(struct fb_var_screeninfo *var,
+			       struct fb_info *info)
+{
+	struct pxafb_layer *ofb = (struct pxafb_layer *)info;
+	struct fb_var_screeninfo *base_var = &ofb->fbi->fb.var;
+	int xpos, ypos, pfor, bpp;
+
+	xpos = NONSTD_TO_XPOS(var->nonstd);
+	ypos = NONSTD_TO_XPOS(var->nonstd);
+	pfor = NONSTD_TO_PFOR(var->nonstd);
+
+	bpp = pxafb_var_to_bpp(var);
+	if (bpp < 0)
+		return -EINVAL;
+
+	/* no support for YUV format on overlay1 */
+	if (ofb->id == OVERLAY1 && pfor != 0)
+		return -EINVAL;
+
+	/* for YUV packed formats, bpp = 'minimum bpp of YUV components' */
+	switch (pfor) {
+	case OVERLAY_FORMAT_RGB:
+		bpp = pxafb_var_to_bpp(var);
+		if (bpp < 0)
+			return -EINVAL;
+
+		pxafb_set_pixfmt(var, var_to_depth(var));
+		break;
+	case OVERLAY_FORMAT_YUV444_PACKED: bpp = 24; break;
+	case OVERLAY_FORMAT_YUV444_PLANAR: bpp = 8; break;
+	case OVERLAY_FORMAT_YUV422_PLANAR: bpp = 4; break;
+	case OVERLAY_FORMAT_YUV420_PLANAR: bpp = 2; break;
+	default:
+		return -EINVAL;
+	}
+
+	/* each line must start at a 32-bit word boundary */
+	if ((xpos * bpp) % 32)
+		return -EINVAL;
+
+	/* xres must align on 32-bit word boundary */
+	var->xres = roundup(var->xres * bpp, 32) / bpp;
+
+	if ((xpos + var->xres > base_var->xres) ||
+	    (ypos + var->yres > base_var->yres))
+		return -EINVAL;
+
+	var->xres_virtual = var->xres;
+	var->yres_virtual = max(var->yres, var->yres_virtual);
+	return 0;
+}
+
+static int overlayfb_map_video_memory(struct pxafb_layer *ofb)
+{
+	struct fb_var_screeninfo *var = &ofb->fb.var;
+	int pfor = NONSTD_TO_PFOR(var->nonstd);
+	int size, bpp = 0;
+
+	switch (pfor) {
+	case OVERLAY_FORMAT_RGB: bpp = var->bits_per_pixel; break;
+	case OVERLAY_FORMAT_YUV444_PACKED: bpp = 24; break;
+	case OVERLAY_FORMAT_YUV444_PLANAR: bpp = 24; break;
+	case OVERLAY_FORMAT_YUV422_PLANAR: bpp = 16; break;
+	case OVERLAY_FORMAT_YUV420_PLANAR: bpp = 12; break;
+	}
+
+	ofb->fb.fix.line_length = var->xres_virtual * bpp / 8;
+
+	size = PAGE_ALIGN(ofb->fb.fix.line_length * var->yres_virtual);
+
+	/* don't re-allocate if the original video memory is enough */
+	if (ofb->video_mem) {
+		if (ofb->video_mem_size >= size)
+			return 0;
+
+		free_pages_exact(ofb->video_mem, ofb->video_mem_size);
+	}
+
+	ofb->video_mem = alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
+	if (ofb->video_mem == NULL)
+		return -ENOMEM;
+
+	ofb->video_mem_phys = virt_to_phys(ofb->video_mem);
+	ofb->video_mem_size = size;
+
+	ofb->fb.fix.smem_start	= ofb->video_mem_phys;
+	ofb->fb.fix.smem_len	= ofb->fb.fix.line_length * var->yres_virtual;
+	ofb->fb.screen_base	= ofb->video_mem;
+	return 0;
+}
+
+static int overlayfb_set_par(struct fb_info *info)
+{
+	struct pxafb_layer *ofb = (struct pxafb_layer *)info;
+	struct fb_var_screeninfo *var = &info->var;
+	int xpos, ypos, pfor, bpp, ret;
+
+	ret = overlayfb_map_video_memory(ofb);
+	if (ret)
+		return ret;
+
+	bpp  = pxafb_var_to_bpp(var);
+	xpos = NONSTD_TO_XPOS(var->nonstd);
+	ypos = NONSTD_TO_XPOS(var->nonstd);
+	pfor = NONSTD_TO_PFOR(var->nonstd);
+
+	ofb->control[0] = OVLxC1_PPL(var->xres) | OVLxC1_LPO(var->yres) |
+			  OVLxC1_BPP(bpp);
+	ofb->control[1] = OVLxC2_XPOS(xpos) | OVLxC2_YPOS(ypos);
+
+	if (ofb->id == OVERLAY2)
+		ofb->control[1] |= OVL2C2_PFOR(pfor);
+
+	ofb->ops->setup(ofb);
+	ofb->ops->enable(ofb);
+	return 0;
+}
+
+static struct fb_ops overlay_fb_ops = {
+	.owner			= THIS_MODULE,
+	.fb_open		= overlayfb_open,
+	.fb_release		= overlayfb_release,
+	.fb_check_var 		= overlayfb_check_var,
+	.fb_set_par		= overlayfb_set_par,
+};
+
+static void __devinit init_pxafb_overlay(struct pxafb_info *fbi,
+					 struct pxafb_layer *ofb, int id)
+{
+	sprintf(ofb->fb.fix.id, "overlay%d", id + 1);
+
+	ofb->fb.fix.type		= FB_TYPE_PACKED_PIXELS;
+	ofb->fb.fix.xpanstep		= 0;
+	ofb->fb.fix.ypanstep		= 1;
+
+	ofb->fb.var.activate		= FB_ACTIVATE_NOW;
+	ofb->fb.var.height		= -1;
+	ofb->fb.var.width		= -1;
+	ofb->fb.var.vmode		= FB_VMODE_NONINTERLACED;
+
+	ofb->fb.fbops			= &overlay_fb_ops;
+	ofb->fb.flags			= FBINFO_FLAG_DEFAULT;
+	ofb->fb.node			= -1;
+	ofb->fb.pseudo_palette		= NULL;
+
+	ofb->id = id;
+	ofb->ops = &ofb_ops[id];
+	atomic_set(&ofb->usage, 0);
+	ofb->fbi = fbi;
+	init_completion(&ofb->branch_done);
+}
+
+static int __devinit pxafb_overlay_init(struct pxafb_info *fbi)
+{
+	int i, ret;
+
+	for (i = 0; i < 2; i++) {
+		init_pxafb_overlay(fbi, &fbi->overlay[i], i);
+		ret = register_framebuffer(&fbi->overlay[i].fb);
+		if (ret) {
+			dev_err(fbi->dev, "failed to register overlay %d\n", i);
+			return ret;
+		}
+	}
+
+	/* mask all IU/BS/EOF/SOF interrupts */
+	lcd_writel(fbi, LCCR5, ~0);
+
+	/* place overlay(s) on top of base */
+	fbi->lccr0 |= LCCR0_OUC;
+	pr_info("PXA Overlay driver loaded successfully!\n");
+	return 0;
+}
+
+static void __devexit pxafb_overlay_exit(struct pxafb_info *fbi)
+{
+	int i;
+
+	for (i = 0; i < 2; i++)
+		unregister_framebuffer(&fbi->overlay[i].fb);
+}
+#else
+static inline void pxafb_overlay_init(struct pxafb_info *fbi) {}
+static inline void pxafb_overlay_exit(struct pxafb_info *fbi) {}
+#endif /* CONFIG_FB_PXA_OVERLAY */
+
 /*
  * Calculate the PCD value from the clock rate (in picoseconds).
  * We take account of the PPCR clock setting.
@@ -660,7 +996,7 @@ unsigned long pxafb_get_hsync_time(struct device *dev)
 EXPORT_SYMBOL(pxafb_get_hsync_time);
 
 static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
-		unsigned int offset, size_t size)
+			   unsigned long start, size_t size)
 {
 	struct pxafb_dma_descriptor *dma_desc, *pal_desc;
 	unsigned int dma_desc_off, pal_desc_off;
@@ -671,7 +1007,7 @@ static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
 	dma_desc = &fbi->dma_buff->dma_desc[dma];
 	dma_desc_off = offsetof(struct pxafb_dma_buff, dma_desc[dma]);
 
-	dma_desc->fsadr = fbi->video_mem_phys + offset;
+	dma_desc->fsadr = start;
 	dma_desc->fidr  = 0;
 	dma_desc->ldcmd = size;
 
@@ -705,14 +1041,14 @@ static void setup_base_frame(struct pxafb_info *fbi, int branch)
 {
 	struct fb_var_screeninfo *var = &fbi->fb.var;
 	struct fb_fix_screeninfo *fix = &fbi->fb.fix;
-	unsigned int nbytes, offset;
-	int dma, pal, bpp = var->bits_per_pixel;
+	int nbytes, dma, pal, bpp = var->bits_per_pixel;
+	unsigned long offset;
 
 	dma = DMA_BASE + (branch ? DMA_MAX : 0);
 	pal = (bpp >= 16) ? PAL_NONE : PAL_BASE + (branch ? PAL_MAX : 0);
 
 	nbytes = fix->line_length * var->yres;
-	offset = fix->line_length * var->yoffset;
+	offset = fix->line_length * var->yoffset + fbi->video_mem_phys;
 
 	if (fbi->lccr0 & LCCR0_SDS) {
 		nbytes = nbytes / 2;
@@ -1090,8 +1426,9 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 static irqreturn_t pxafb_handle_irq(int irq, void *dev_id)
 {
 	struct pxafb_info *fbi = dev_id;
-	unsigned int lccr0, lcsr = lcd_readl(fbi, LCSR);
+	unsigned int lccr0, lcsr, lcsr1;
 
+	lcsr = lcd_readl(fbi, LCSR);
 	if (lcsr & LCSR_LDD) {
 		lccr0 = lcd_readl(fbi, LCCR0);
 		lcd_writel(fbi, LCCR0, lccr0 | LCCR0_LDM);
@@ -1102,8 +1439,18 @@ static irqreturn_t pxafb_handle_irq(int irq, void *dev_id)
 	if (lcsr & LCSR_CMD_INT)
 		complete(&fbi->command_done);
 #endif
-
 	lcd_writel(fbi, LCSR, lcsr);
+
+#ifdef CONFIG_FB_PXA_OVERLAY
+	lcsr1 = lcd_readl(fbi, LCSR1);
+	if (lcsr1 & LCSR1_BS(1))
+		complete(&fbi->overlay[0].branch_done);
+
+	if (lcsr1 & LCSR1_BS(2))
+		complete(&fbi->overlay[1].branch_done);
+
+	lcd_writel(fbi, LCSR1, lcsr1);
+#endif
 	return IRQ_HANDLED;
 }
 
@@ -1802,6 +2149,8 @@ static int __devinit pxafb_probe(struct platform_device *dev)
 		goto failed_free_cmap;
 	}
 
+	pxafb_overlay_init(fbi);
+
 #ifdef CONFIG_CPU_FREQ
 	fbi->freq_transition.notifier_call = pxafb_freq_transition;
 	fbi->freq_policy.notifier_call = pxafb_freq_policy;
@@ -1852,6 +2201,7 @@ static int __devexit pxafb_remove(struct platform_device *dev)
 
 	info = &fbi->fb;
 
+	pxafb_overlay_exit(fbi);
 	unregister_framebuffer(info);
 
 	pxafb_disable_controller(fbi);

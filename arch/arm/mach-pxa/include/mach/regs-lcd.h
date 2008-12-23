@@ -12,7 +12,8 @@
 #define LCCR3		(0x00C)	/* LCD Controller Control Register 3 */
 #define LCCR4		(0x010)	/* LCD Controller Control Register 4 */
 #define LCCR5		(0x014)	/* LCD Controller Control Register 5 */
-#define LCSR		(0x038)	/* LCD Controller Status Register */
+#define LCSR		(0x038)	/* LCD Controller Status Register 0 */
+#define LCSR1		(0x034)	/* LCD Controller Status Register 1 */
 #define LIIDR		(0x03C)	/* LCD Controller Interrupt ID Register */
 #define TMEDRGBR	(0x040)	/* TMED RGB Seed Register */
 #define TMEDCR		(0x044)	/* TMED Control Register */
@@ -24,6 +25,11 @@
 #define FBR4		(0x030) /* DMA Channel 2 Frame Branch Register */
 #define FBR5		(0x110) /* DMA Channel 2 Frame Branch Register */
 #define FBR6		(0x114) /* DMA Channel 2 Frame Branch Register */
+
+#define OVL1C1		(0x050)	/* Overlay 1 Control Register 1 */
+#define OVL1C2		(0x060)	/* Overlay 1 Control Register 2 */
+#define OVL2C1		(0x070)	/* Overlay 2 Control Register 1 */
+#define OVL2C2		(0x080)	/* Overlay 2 Control Register 2 */
 
 #define CMDCR		(0x100)	/* Command Control Register */
 #define PRSR		(0x104)	/* Panel Read Status Register */
@@ -42,16 +48,12 @@
 #define LCCR4_PAL_FOR_MASK	(3 << 15)
 
 #define FDADR0		(0x200)	/* DMA Channel 0 Frame Descriptor Address Register */
-#define FSADR0		(0x204)	/* DMA Channel 0 Frame Source Address Register */
-#define FIDR0		(0x208)	/* DMA Channel 0 Frame ID Register */
-#define LDCMD0		(0x20C)	/* DMA Channel 0 Command Register */
 #define FDADR1		(0x210)	/* DMA Channel 1 Frame Descriptor Address Register */
-#define FSADR1		(0x214)	/* DMA Channel 1 Frame Source Address Register */
-#define FIDR1		(0x218)	/* DMA Channel 1 Frame ID Register */
-#define LDCMD1		(0x21C)	/* DMA Channel 1 Command Register */
+#define FDADR2		(0x220)	/* DMA Channel 2 Frame Descriptor Address Register */
+#define FDADR3		(0x230)	/* DMA Channel 3 Frame Descriptor Address Register */
+#define FDADR4		(0x240)	/* DMA Channel 4 Frame Descriptor Address Register */
+#define FDADR5		(0x250)	/* DMA Channel 5 Frame Descriptor Address Register */
 #define FDADR6		(0x260) /* DMA Channel 6 Frame Descriptor Address Register */
-#define FSADR6		(0x264) /* DMA Channel 6 Frame Source Address Register */
-#define FIDR6		(0x268) /* DMA Channel 6 Frame ID Register */
 
 #define LCCR0_ENB	(1 << 0)	/* LCD Controller enable */
 #define LCCR0_CMS	(1 << 1)	/* Color/Monochrome Display Select */
@@ -151,7 +153,21 @@
 #define LCSR_RD_ST	(1 << 11)	/* read status */
 #define LCSR_CMD_INT	(1 << 12)	/* command interrupt */
 
+#define LCSR1_IU(x)	(1 << ((x) + 23)) /* Input FIFO underrun */
+#define LCSR1_BS(x)	(1 << ((x) + 15)) /* Branch Status */
+#define LCSR1_EOF(x)	(1 << ((x) + 7))  /* End of Frame Status */
+#define LCSR1_SOF(x)	(1 << ((x) - 1))  /* Start of Frame Status */
+
 #define LDCMD_PAL	(1 << 26)	/* instructs DMA to load palette buffer */
+
+/* overlay control registers */
+#define OVLxC1_PPL(x)	((((x) - 1) & 0x3ff) << 0)	/* Pixels Per Line */
+#define OVLxC1_LPO(x)	((((x) - 1) & 0x3ff) << 10)	/* Number of Lines */
+#define OVLxC1_BPP(x)	(((x) & 0xf) << 20)	/* Bits Per Pixel */
+#define OVLxC1_OEN	(1 << 31)		/* Enable bit for Overlay */
+#define OVLxC2_XPOS(x)	(((x) & 0x3ff) << 0)	/* Horizontal Position */
+#define OVLxC2_YPOS(x)	(((x) & 0x3ff) << 10)	/* Vertical Position */
+#define OVL2C2_PFOR(x)	(((x) & 0x7) << 20)	/* Pixel Format */
 
 /* smartpanel related */
 #define PRSR_DATA(x)	((x) & 0xff)	/* Panel Data */
