@@ -1666,30 +1666,6 @@ static bool ath9k_hw_chip_reset(struct ath_hal *ah,
 	return true;
 }
 
-static struct ath9k_channel *ath9k_hw_check_chan(struct ath_hal *ah,
-						 struct ath9k_channel *chan)
-{
-	if (!(IS_CHAN_2GHZ(chan) ^ IS_CHAN_5GHZ(chan))) {
-		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
-			"invalid channel %u/0x%x; not marked as "
-			"2GHz or 5GHz\n", chan->channel, chan->channelFlags);
-		return NULL;
-	}
-
-	if (!IS_CHAN_OFDM(chan) &&
-	    !IS_CHAN_B(chan) &&
-	    !IS_CHAN_HT20(chan) &&
-	    !IS_CHAN_HT40(chan)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
-			"invalid channel %u/0x%x; not marked as "
-			"OFDM or CCK or HT20 or HT40PLUS or HT40MINUS\n",
-			chan->channel, chan->channelFlags);
-		return NULL;
-	}
-
-	return ath9k_regd_check_channel(ah, chan);
-}
-
 static bool ath9k_hw_channel_change(struct ath_hal *ah,
 				    struct ath9k_channel *chan,
 				    enum ath9k_ht_macmode macmode)
@@ -2234,7 +2210,7 @@ int ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 		ahp->ah_rxchainmask &= 0x3;
 	}
 
-	if (ath9k_hw_check_chan(ah, chan) == NULL) {
+	if (ath9k_regd_check_channel(ah, chan) == NULL) {
 		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
 			"invalid channel %u/0x%x; no mapping\n",
 			chan->channel, chan->channelFlags);
