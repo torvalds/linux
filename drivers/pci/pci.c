@@ -1667,6 +1667,22 @@ int pci_request_regions_exclusive(struct pci_dev *pdev, const char *res_name)
 					((1 << 6) - 1), res_name);
 }
 
+static void __pci_set_master(struct pci_dev *dev, bool enable)
+{
+	u16 old_cmd, cmd;
+
+	pci_read_config_word(dev, PCI_COMMAND, &old_cmd);
+	if (enable)
+		cmd = old_cmd | PCI_COMMAND_MASTER;
+	else
+		cmd = old_cmd & ~PCI_COMMAND_MASTER;
+	if (cmd != old_cmd) {
+		dev_dbg(&dev->dev, "%s bus mastering\n",
+			enable ? "enabling" : "disabling");
+		pci_write_config_word(dev, PCI_COMMAND, cmd);
+	}
+	dev->is_busmaster = enable;
+}
 
 /**
  * pci_set_master - enables bus-mastering for device dev
@@ -1675,19 +1691,19 @@ int pci_request_regions_exclusive(struct pci_dev *pdev, const char *res_name)
  * Enables bus-mastering on the device and calls pcibios_set_master()
  * to do the needed arch specific settings.
  */
-void
-pci_set_master(struct pci_dev *dev)
+void pci_set_master(struct pci_dev *dev)
 {
-	u16 cmd;
-
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-	if (! (cmd & PCI_COMMAND_MASTER)) {
-		dev_dbg(&dev->dev, "enabling bus mastering\n");
-		cmd |= PCI_COMMAND_MASTER;
-		pci_write_config_word(dev, PCI_COMMAND, cmd);
-	}
-	dev->is_busmaster = 1;
+	__pci_set_master(dev, true);
 	pcibios_set_master(dev);
+}
+
+/**
+ * pci_clear_master - disables bus-mastering for device dev
+ * @dev: the PCI device to disable
+ */
+void pci_clear_master(struct pci_dev *dev)
+{
+	__pci_set_master(dev, false);
 }
 
 #ifdef PCI_DISABLE_MWI
@@ -2346,6 +2362,7 @@ EXPORT_SYMBOL(pci_release_selected_regions);
 EXPORT_SYMBOL(pci_request_selected_regions);
 EXPORT_SYMBOL(pci_request_selected_regions_exclusive);
 EXPORT_SYMBOL(pci_set_master);
+EXPORT_SYMBOL(pci_clear_master);
 EXPORT_SYMBOL(pci_set_mwi);
 EXPORT_SYMBOL(pci_try_set_mwi);
 EXPORT_SYMBOL(pci_clear_mwi);
