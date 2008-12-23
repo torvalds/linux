@@ -61,30 +61,23 @@ static void process_asts(void)
 	struct dlm_lkb *lkb;
 	void (*cast) (void *astparam);
 	void (*bast) (void *astparam, int mode);
-	int type = 0, found, bastmode;
+	int type = 0, bastmode;
 
-	for (;;) {
-		found = 0;
-		spin_lock(&ast_queue_lock);
-		list_for_each_entry(lkb, &ast_queue, lkb_astqueue) {
-			r = lkb->lkb_resource;
-			ls = r->res_ls;
+repeat:
+	spin_lock(&ast_queue_lock);
+	list_for_each_entry(lkb, &ast_queue, lkb_astqueue) {
+		r = lkb->lkb_resource;
+		ls = r->res_ls;
 
-			if (dlm_locking_stopped(ls))
-				continue;
+		if (dlm_locking_stopped(ls))
+			continue;
 
-			list_del(&lkb->lkb_astqueue);
-			type = lkb->lkb_ast_type;
-			lkb->lkb_ast_type = 0;
-			bastmode = lkb->lkb_bastmode;
-			found = 1;
-			break;
-		}
+		list_del(&lkb->lkb_astqueue);
+		type = lkb->lkb_ast_type;
+		lkb->lkb_ast_type = 0;
+		bastmode = lkb->lkb_bastmode;
+
 		spin_unlock(&ast_queue_lock);
-
-		if (!found)
-			break;
-
 		cast = lkb->lkb_astfn;
 		bast = lkb->lkb_bastfn;
 
@@ -99,7 +92,9 @@ static void process_asts(void)
 		dlm_put_lkb(lkb);
 
 		cond_resched();
+		goto repeat;
 	}
+	spin_unlock(&ast_queue_lock);
 }
 
 static inline int no_asts(void)
