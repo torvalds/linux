@@ -360,7 +360,7 @@ static int nfs_do_expire_all_delegations(void *ptr)
 
 	allow_signal(SIGKILL);
 
-	if (test_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state) != 0)
+	if (test_bit(NFS4CLNT_MANAGER_RUNNING, &clp->cl_state) != 0)
 		goto out;
 	if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0)
 		goto out;

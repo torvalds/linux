@@ -767,32 +767,34 @@ unlock:
 	return status;
 }
 
-static int reclaimer(void *);
+static int nfs4_run_state_manager(void *);
 
-static inline void nfs4_clear_recover_bit(struct nfs_client *clp)
+static void nfs4_clear_state_manager_bit(struct nfs_client *clp)
 {
 	smp_mb__before_clear_bit();
-	clear_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state);
+	clear_bit(NFS4CLNT_MANAGER_RUNNING, &clp->cl_state);
 	smp_mb__after_clear_bit();
-	wake_up_bit(&clp->cl_state, NFS4CLNT_STATE_RECOVER);
+	wake_up_bit(&clp->cl_state, NFS4CLNT_MANAGER_RUNNING);
 	rpc_wake_up(&clp->cl_rpcwaitq);
 }
 
 /*
- * State recovery routine
+ * Schedule the nfs_client asynchronous state management routine
  */
-static void nfs4_recover_state(struct nfs_client *clp)
+static void nfs4_schedule_state_manager(struct nfs_client *clp)
 {
 	struct task_struct *task;
 
+	if (test_and_set_bit(NFS4CLNT_MANAGER_RUNNING, &clp->cl_state) != 0)
+		return;
 	__module_get(THIS_MODULE);
 	atomic_inc(&clp->cl_count);
-	task = kthread_run(reclaimer, clp, "%s-reclaim",
+	task = kthread_run(nfs4_run_state_manager, clp, "%s-manager",
 				rpc_peeraddr2str(clp->cl_rpcclient,
 							RPC_DISPLAY_ADDR));
 	if (!IS_ERR(task))
 		return;
-	nfs4_clear_recover_bit(clp);
+	nfs4_clear_state_manager_bit(clp);
 	nfs_put_client(clp);
 	module_put(THIS_MODULE);
 }
@@ -806,8 +808,7 @@ void nfs4_schedule_state_recovery(struct nfs_client *clp)
 		return;
 	if (!test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
 		set_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
-	if (test_and_set_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state) == 0)
-		nfs4_recover_state(clp);
+	nfs4_schedule_state_manager(clp);
 }
 
 static int nfs4_state_mark_reclaim_reboot(struct nfs_client *clp, struct nfs4_state *state)
@@ -1106,12 +1107,9 @@ static int nfs4_reclaim_lease(struct nfs_client *clp)
 	return status;
 }
 
-static int reclaimer(void *ptr)
+static void nfs4_state_manager(struct nfs_client *clp)
 {
-	struct nfs_client *clp = ptr;
 	int status = 0;
-
-	allow_signal(SIGKILL);
 
 	/* Ensure exclusive access to NFSv4 state */
 	while (!list_empty(&clp->cl_superblocks)) {
@@ -1161,19 +1159,28 @@ static int reclaimer(void *ptr)
 			nfs_client_return_marked_delegations(clp);
 			continue;
 		}
+
+		nfs4_clear_state_manager_bit(clp);
 		break;
 	}
-out:
-	nfs4_clear_recover_bit(clp);
-	nfs_put_client(clp);
-	module_put_and_exit(0);
-	return 0;
+	return;
 out_error:
-	printk(KERN_WARNING "Error: state recovery failed on NFSv4 server %s"
+	printk(KERN_WARNING "Error: state manager failed on NFSv4 server %s"
 			" with error %d\n", clp->cl_hostname, -status);
 	if (test_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state))
 		nfs4_state_end_reclaim_reboot(clp);
-	goto out;
+	nfs4_clear_state_manager_bit(clp);
+}
+
+static int nfs4_run_state_manager(void *ptr)
+{
+	struct nfs_client *clp = ptr;
+
+	allow_signal(SIGKILL);
+	nfs4_state_manager(clp);
+	nfs_put_client(clp);
+	module_put_and_exit(0);
+	return 0;
 }
 
 /*
