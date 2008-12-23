@@ -22,6 +22,7 @@ struct nfs_delegation {
 	long flags;
 	loff_t maxsize;
 	__u64 change_attr;
+	spinlock_t lock;
 	struct rcu_head rcu;
 };
 

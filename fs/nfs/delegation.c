@@ -140,13 +140,17 @@ static struct nfs_delegation *nfs_detach_delegation_locked(struct nfs_inode *nfs
 
 	if (delegation == NULL)
 		goto nomatch;
+	spin_lock(&delegation->lock);
 	if (stateid != NULL && memcmp(delegation->stateid.data, stateid->data,
 				sizeof(delegation->stateid.data)) != 0)
-		goto nomatch;
+		goto nomatch_unlock;
 	list_del_rcu(&delegation->super_list);
 	nfsi->delegation_state = 0;
 	rcu_assign_pointer(nfsi->delegation, NULL);
+	spin_unlock(&delegation->lock);
 	return delegation;
+nomatch_unlock:
+	spin_unlock(&delegation->lock);
 nomatch:
 	return NULL;
 }
@@ -172,6 +176,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 	delegation->change_attr = nfsi->change_attr;
 	delegation->cred = get_rpccred(cred);
 	delegation->inode = inode;
+	spin_lock_init(&delegation->lock);
 
 	spin_lock(&clp->cl_lock);
 	if (rcu_dereference(nfsi->delegation) != NULL) {

@@ -388,9 +388,8 @@ static void nfs_set_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid
 	write_sequnlock(&state->seqlock);
 }
 
-static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stateid, nfs4_stateid *deleg_stateid, int open_flags)
+static void __update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stateid, const nfs4_stateid *deleg_stateid, int open_flags)
 {
-	open_flags &= (FMODE_READ|FMODE_WRITE);
 	/*
 	 * Protect the call to nfs4_state_set_mode_locked and
 	 * serialise the stateid update
@@ -407,6 +406,45 @@ static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_sta
 	update_open_stateflags(state, open_flags);
 	spin_unlock(&state->owner->so_lock);
 }
+
+static int update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stateid, nfs4_stateid *delegation, int open_flags)
+{
+	struct nfs_inode *nfsi = NFS_I(state->inode);
+	struct nfs_delegation *deleg_cur;
+	int ret = 0;
+
+	open_flags &= (FMODE_READ|FMODE_WRITE);
+
+	rcu_read_lock();
+	deleg_cur = rcu_dereference(nfsi->delegation);
+	if (deleg_cur == NULL)
+		goto no_delegation;
+
+	spin_lock(&deleg_cur->lock);
+	if (nfsi->delegation != deleg_cur ||
+	    (deleg_cur->type & open_flags) != open_flags)
+		goto no_delegation_unlock;
+
+	if (delegation == NULL)
+		delegation = &deleg_cur->stateid;
+	else if (memcmp(deleg_cur->stateid.data, delegation->data, NFS4_STATEID_SIZE) != 0)
+		goto no_delegation_unlock;
+
+	__update_open_stateid(state, open_stateid, &deleg_cur->stateid, open_flags);
+	ret = 1;
+no_delegation_unlock:
+	spin_unlock(&deleg_cur->lock);
+no_delegation:
+	rcu_read_unlock();
+
+	if (!ret && open_stateid != NULL) {
+		__update_open_stateid(state, open_stateid, NULL, open_flags);
+		ret = 1;
+	}
+
+	return ret;
+}
+
 
 static void nfs4_return_incompatible_delegation(struct inode *inode, mode_t open_flags)
 {
@@ -431,23 +469,23 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 	nfs4_stateid stateid;
 	int ret = -EAGAIN;
 
-	rcu_read_lock();
-	delegation = rcu_dereference(nfsi->delegation);
 	for (;;) {
 		if (can_open_cached(state, open_mode)) {
 			spin_lock(&state->owner->so_lock);
 			if (can_open_cached(state, open_mode)) {
 				update_open_stateflags(state, open_mode);
 				spin_unlock(&state->owner->so_lock);
-				rcu_read_unlock();
 				goto out_return_state;
 			}
 			spin_unlock(&state->owner->so_lock);
 		}
-		if (delegation == NULL)
+		rcu_read_lock();
+		delegation = rcu_dereference(nfsi->delegation);
+		if (delegation == NULL ||
+		    !can_open_delegated(delegation, open_mode)) {
+			rcu_read_unlock();
 			break;
-		if (!can_open_delegated(delegation, open_mode))
-			break;
+		}
 		/* Save the delegation */
 		memcpy(stateid.data, delegation->stateid.data, sizeof(stateid.data));
 		rcu_read_unlock();
@@ -455,19 +493,11 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		if (ret != 0)
 			goto out;
 		ret = -EAGAIN;
-		rcu_read_lock();
-		delegation = rcu_dereference(nfsi->delegation);
-		/* If no delegation, try a cached open */
-		if (delegation == NULL)
-			continue;
-		/* Is the delegation still valid? */
-		if (memcmp(stateid.data, delegation->stateid.data, sizeof(stateid.data)) != 0)
-			continue;
-		rcu_read_unlock();
-		update_open_stateid(state, NULL, &stateid, open_mode);
-		goto out_return_state;
+
+		/* Try to update the stateid using the delegation */
+		if (update_open_stateid(state, NULL, &stateid, open_mode))
+			goto out_return_state;
 	}
-	rcu_read_unlock();
 out:
 	return ERR_PTR(ret);
 out_return_state:
@@ -480,7 +510,6 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 	struct inode *inode;
 	struct nfs4_state *state = NULL;
 	struct nfs_delegation *delegation;
-	nfs4_stateid *deleg_stateid = NULL;
 	int ret;
 
 	if (!data->rpc_done) {
@@ -516,12 +545,9 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 					data->owner->so_cred,
 					&data->o_res);
 	}
-	rcu_read_lock();
-	delegation = rcu_dereference(NFS_I(inode)->delegation);
-	if (delegation != NULL)
-		deleg_stateid = &delegation->stateid;
-	update_open_stateid(state, &data->o_res.stateid, deleg_stateid, data->o_arg.open_flags);
-	rcu_read_unlock();
+
+	update_open_stateid(state, &data->o_res.stateid, NULL,
+			data->o_arg.open_flags);
 	iput(inode);
 out:
 	return state;
