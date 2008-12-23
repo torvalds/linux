@@ -369,9 +369,6 @@ struct rndis_wext_private {
 };
 
 
-static const int freq_chan[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
-				2447, 2452, 2457, 2462, 2467, 2472, 2484 };
-
 static const int rates_80211g[8] = { 6, 9, 12, 18, 24, 36, 48, 54 };
 
 static const int bcm4320_power_output[4] = { 25, 50, 75, 100 };
@@ -640,8 +637,8 @@ static void dsconfig_to_freq(unsigned int dsconfig, struct iw_freq *freq)
 static int freq_to_dsconfig(struct iw_freq *freq, unsigned int *dsconfig)
 {
 	if (freq->m < 1000 && freq->e == 0) {
-		if (freq->m >= 1 && freq->m <= ARRAY_SIZE(freq_chan))
-			*dsconfig = freq_chan[freq->m - 1] * 1000;
+		if (freq->m >= 1 && freq->m <= 14)
+			*dsconfig = ieee80211_dsss_chan_to_freq(freq->m) * 1000;
 		else
 			return -1;
 	} else {
@@ -1178,11 +1175,11 @@ static int rndis_iw_get_range(struct net_device *dev,
 		range->throughput = 11 * 1000 * 1000 / 2;
 	}
 
-	range->num_channels = ARRAY_SIZE(freq_chan);
+	range->num_channels = 14;
 
-	for (i = 0; i < ARRAY_SIZE(freq_chan) && i < IW_MAX_FREQUENCIES; i++) {
+	for (i = 0; (i < 14) && (i < IW_MAX_FREQUENCIES); i++) {
 		range->freq[i].i = i + 1;
-		range->freq[i].m = freq_chan[i] * 100000;
+		range->freq[i].m = ieee80211_dsss_chan_to_freq(i + 1) * 100000;
 		range->freq[i].e = 1;
 	}
 	range->num_frequency = i;

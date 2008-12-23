@@ -1070,10 +1070,6 @@ static WifiCtlHdr wifictlhdr8023 = {
 	}
 };
 
-// Frequency list (map channels to frequencies)
-static const long frequency_list[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
-				2447, 2452, 2457, 2462, 2467, 2472, 2484 };
-
 // A few details needed for WEP (Wireless Equivalent Privacy)
 #define MAX_KEY_SIZE 13			// 128 (?) bits
 #define MIN_KEY_SIZE  5			// 40 bits RC4 - WEP
@@ -5725,16 +5721,12 @@ static int airo_set_freq(struct net_device *dev,
 	int rc = -EINPROGRESS;		/* Call commit handler */
 
 	/* If setting by frequency, convert to a channel */
-	if((fwrq->e == 1) &&
-	   (fwrq->m >= (int) 2.412e8) &&
-	   (fwrq->m <= (int) 2.487e8)) {
+	if(fwrq->e == 1) {
 		int f = fwrq->m / 100000;
-		int c = 0;
-		while((c < 14) && (f != frequency_list[c]))
-			c++;
+
 		/* Hack to fall through... */
 		fwrq->e = 0;
-		fwrq->m = c + 1;
+		fwrq->m = ieee80211_freq_to_dsss_chan(f);
 	}
 	/* Setting by channel number */
 	if((fwrq->m > 1000) || (fwrq->e > 0))
@@ -5778,7 +5770,7 @@ static int airo_get_freq(struct net_device *dev,
 
 	ch = le16_to_cpu(status_rid.channel);
 	if((ch > 0) && (ch < 15)) {
-		fwrq->m = frequency_list[ch - 1] * 100000;
+		fwrq->m = ieee80211_dsss_chan_to_freq(ch) * 100000;
 		fwrq->e = 1;
 	} else {
 		fwrq->m = ch;
@@ -6795,8 +6787,8 @@ static int airo_get_range(struct net_device *dev,
 	k = 0;
 	for(i = 0; i < 14; i++) {
 		range->freq[k].i = i + 1; /* List index */
-		range->freq[k].m = frequency_list[i] * 100000;
-		range->freq[k++].e = 1;	/* Values in table in MHz -> * 10^5 * 10 */
+		range->freq[k].m = ieee80211_dsss_chan_to_freq(i + 1) * 100000;
+		range->freq[k++].e = 1;	/* Values in MHz -> * 10^5 * 10 */
 	}
 	range->num_frequency = k;
 
@@ -7189,10 +7181,7 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	/* Add frequency */
 	iwe.cmd = SIOCGIWFREQ;
 	iwe.u.freq.m = le16_to_cpu(bss->dsChannel);
-	/* iwe.u.freq.m containt the channel (starting 1), our 
-	 * frequency_list array start at index 0...
-	 */
-	iwe.u.freq.m = frequency_list[iwe.u.freq.m - 1] * 100000;
+	iwe.u.freq.m = ieee80211_dsss_chan_to_freq(iwe.u.freq.m) * 100000;
 	iwe.u.freq.e = 1;
 	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
 					  &iwe, IW_EV_FREQ_LEN);

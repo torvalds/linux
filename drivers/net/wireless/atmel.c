@@ -2204,9 +2204,6 @@ static int atmel_get_frag(struct net_device *dev,
 	return 0;
 }
 
-static const long frequency_list[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
-				2447, 2452, 2457, 2462, 2467, 2472, 2484 };
-
 static int atmel_set_freq(struct net_device *dev,
 			  struct iw_request_info *info,
 			  struct iw_freq *fwrq,
@@ -2216,16 +2213,12 @@ static int atmel_set_freq(struct net_device *dev,
 	int rc = -EINPROGRESS;		/* Call commit handler */
 
 	/* If setting by frequency, convert to a channel */
-	if ((fwrq->e == 1) &&
-	    (fwrq->m >= (int) 241200000) &&
-	    (fwrq->m <= (int) 248700000)) {
+	if (fwrq->e == 1) {
 		int f = fwrq->m / 100000;
-		int c = 0;
-		while ((c < 14) && (f != frequency_list[c]))
-			c++;
+
 		/* Hack to fall through... */
 		fwrq->e = 0;
-		fwrq->m = c + 1;
+		fwrq->m = ieee80211_freq_to_dsss_chan(f);
 	}
 	/* Setting by channel number */
 	if ((fwrq->m > 1000) || (fwrq->e > 0))
@@ -2384,8 +2377,11 @@ static int atmel_get_range(struct net_device *dev,
 	if (range->num_channels != 0) {
 		for (k = 0, i = channel_table[j].min; i <= channel_table[j].max; i++) {
 			range->freq[k].i = i; /* List index */
-			range->freq[k].m = frequency_list[i - 1] * 100000;
-			range->freq[k++].e = 1;	/* Values in table in MHz -> * 10^5 * 10 */
+
+			/* Values in MHz -> * 10^5 * 10 */
+			range->freq[k].m = (ieee80211_dsss_chan_to_freq(i) *
+					    100000);
+			range->freq[k++].e = 1;
 		}
 		range->num_frequency = k;
 	}
