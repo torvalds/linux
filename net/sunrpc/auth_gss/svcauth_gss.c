@@ -746,7 +746,7 @@ u32 svcauth_gss_flavor(struct auth_domain *dom)
 	return gd->pseudoflavor;
 }
 
-EXPORT_SYMBOL(svcauth_gss_flavor);
+EXPORT_SYMBOL_GPL(svcauth_gss_flavor);
 
 int
 svcauth_gss_register_pseudoflavor(u32 pseudoflavor, char * name)
@@ -780,7 +780,7 @@ out:
 	return stat;
 }
 
-EXPORT_SYMBOL(svcauth_gss_register_pseudoflavor);
+EXPORT_SYMBOL_GPL(svcauth_gss_register_pseudoflavor);
 
 static inline int
 read_u32_from_xdr_buf(struct xdr_buf *buf, int base, u32 *obj)

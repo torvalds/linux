@@ -152,7 +152,7 @@ g_token_size(struct xdr_netobj *mech, unsigned int body_size)
 	return(1 + der_length_size(body_size) + body_size);
 }
 
-EXPORT_SYMBOL(g_token_size);
+EXPORT_SYMBOL_GPL(g_token_size);
 
 /* fills in a buffer with the token header.  The buffer is assumed to
    be the right size.  buf is advanced past the token header */
@@ -167,7 +167,7 @@ g_make_token_header(struct xdr_netobj *mech, int body_size, unsigned char **buf)
 	TWRITE_STR(*buf, mech->data, ((int) mech->len));
 }
 
-EXPORT_SYMBOL(g_make_token_header);
+EXPORT_SYMBOL_GPL(g_make_token_header);
 
 /*
  * Given a buffer containing a token, reads and verifies the token,
@@ -231,5 +231,5 @@ g_verify_token_header(struct xdr_netobj *mech, int *body_size,
 	return(ret);
 }
 
-EXPORT_SYMBOL(g_verify_token_header);
+EXPORT_SYMBOL_GPL(g_verify_token_header);
 
