@@ -3745,10 +3745,12 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 {
 	int err;
 	struct net_device *dev = __dev_get_by_name(net, ifr->ifr_name);
-	const struct net_device_ops *ops = dev->netdev_ops;
+	const struct net_device_ops *ops;
 
 	if (!dev)
 		return -ENODEV;
+
+	ops = dev->netdev_ops;
 
 	switch (cmd) {
 		case SIOCSIFFLAGS:	/* Set interface flags */
