@@ -1123,7 +1123,7 @@ static int usbvideo_v4l_open(struct inode *inode, struct file *file)
 	if (uvd->debug > 1)
 		dev_info(&uvd->dev->dev, "%s($%p)\n", __func__, dev);
 
-	if (0 < usbvideo_ClientIncModCount(uvd))
+	if (usbvideo_ClientIncModCount(uvd) < 0)
 		return -ENODEV;
 	mutex_lock(&uvd->lock);
 
