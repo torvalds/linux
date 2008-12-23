@@ -285,7 +285,7 @@ svc_sock_names(char *buf, struct svc_serv *serv, char *toclose)
 		return -ENOENT;
 	return len;
 }
-EXPORT_SYMBOL(svc_sock_names);
+EXPORT_SYMBOL_GPL(svc_sock_names);
 
 /*
  * Check input queue length
@@ -1097,7 +1097,7 @@ void svc_sock_update_bufs(struct svc_serv *serv)
 	}
 	spin_unlock_bh(&serv->sv_lock);
 }
-EXPORT_SYMBOL(svc_sock_update_bufs);
+EXPORT_SYMBOL_GPL(svc_sock_update_bufs);
 
 /*
  * Initialize socket for RPC use and create svc_sock struct
