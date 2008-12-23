@@ -93,6 +93,7 @@
 
 #define OV9650_REGISTER_RESET		(1 << 7)
 #define OV9650_VGA_SELECT		(1 << 6)
+#define OV9650_CIF_SELECT		(1 << 5)
 #define OV9650_QVGA_SELECT		(1 << 4)
 #define OV9650_RGB_SELECT		(1 << 2)
 #define OV9650_RAW_RGB_SELECT		(1 << 0)
@@ -258,7 +259,7 @@ static struct m5602_sensor ov9650 = {
 	}
 	},
 
-	.nmodes = 2,
+	.nmodes = 3,
 	.modes = {
 	{
 		320,
@@ -268,6 +269,16 @@ static struct m5602_sensor ov9650 = {
 		.sizeimage =
 			320 * 240,
 		.bytesperline = 320,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}, {
+		352,
+		288,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			352 * 288,
+		.bytesperline = 352,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0
 	}, {
@@ -467,6 +478,32 @@ static const unsigned char VGA_ov9650[][3] =
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x62}, /* 98 */
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02}, /* 640 + 98 */
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0xe2}
+};
+
+static const unsigned char CIF_ov9650[][3] =
+{
+	{SENSOR, OV9650_COM7, OV9650_CIF_SELECT |
+			      OV9650_RGB_SELECT |
+			      OV9650_RAW_RGB_SELECT},
+
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x82},
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_L, 0x00},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_H, 0x82},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_L, 0x00},
+	{BRIDGE, M5602_XB_SIG_INI, 0x01},
+
+	/* Moves the view window in a vertical orientation */
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x09},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x01},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x20}, /* 288 */
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x62}, /* 98 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x01}, /* 352 + 98 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0xc2}
 };
 
 static const unsigned char QVGA_ov9650[][3] =

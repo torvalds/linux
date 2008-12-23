@@ -163,6 +163,19 @@ int ov9650_start(struct sd *sd)
 		}
 		break;
 
+	case 352:
+		PDEBUG(D_V4L2, "Configuring camera for CIF mode");
+
+		for (i = 0; i < ARRAY_SIZE(CIF_ov9650) && !err; i++) {
+			u8 data = CIF_ov9650[i][2];
+			if (CIF_ov9650[i][0] == SENSOR)
+				err = m5602_write_sensor(sd,
+					CIF_ov9650[i][1], &data, 1);
+			else
+				err = m5602_write_bridge(sd, CIF_ov9650[i][1], data);
+		}
+		break;
+
 	case 320:
 		PDEBUG(D_V4L2, "Configuring camera for QVGA mode");
 
