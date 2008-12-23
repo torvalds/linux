@@ -3790,6 +3790,10 @@ static int decode_delegreturn(struct xdr_stream *xdr)
 }
 
 /*
+ * END OF "GENERIC" DECODE ROUTINES.
+ */
+
+/*
  * Decode OPEN_DOWNGRADE response
  */
 static int nfs4_xdr_dec_open_downgrade(struct rpc_rqst *rqstp, __be32 *p, struct nfs_closeres *res)
@@ -3812,10 +3816,6 @@ static int nfs4_xdr_dec_open_downgrade(struct rpc_rqst *rqstp, __be32 *p, struct
 out:
 	return status;
 }
-
-/*
- * END OF "GENERIC" DECODE ROUTINES.
- */
 
 /*
  * Decode ACCESS response
