@@ -893,11 +893,15 @@ static int nfs4_reclaim_open_state(struct nfs4_state_owner *sp, const struct nfs
 	 * recovering after a network partition or a reboot from a
 	 * server that doesn't support a grace period.
 	 */
+restart:
+	spin_lock(&sp->so_lock);
 	list_for_each_entry(state, &sp->so_states, open_states) {
 		if (!test_and_clear_bit(ops->state_flag_bit, &state->flags))
 			continue;
 		if (state->state == 0)
 			continue;
+		atomic_inc(&state->count);
+		spin_unlock(&sp->so_lock);
 		status = ops->recover_open(sp, state);
 		if (status >= 0) {
 			status = nfs4_reclaim_locks(state, ops);
@@ -907,7 +911,8 @@ static int nfs4_reclaim_open_state(struct nfs4_state_owner *sp, const struct nfs
 						printk("%s: Lock reclaim failed!\n",
 							__func__);
 				}
-				continue;
+				nfs4_put_open_state(state);
+				goto restart;
 			}
 		}
 		switch (status) {
@@ -935,9 +940,13 @@ static int nfs4_reclaim_open_state(struct nfs4_state_owner *sp, const struct nfs
 			case -NFS4ERR_STALE_CLIENTID:
 				goto out_err;
 		}
+		nfs4_put_open_state(state);
+		goto restart;
 	}
+	spin_unlock(&sp->so_lock);
 	return 0;
 out_err:
+	nfs4_put_open_state(state);
 	return status;
 }
 
