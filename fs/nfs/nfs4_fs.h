@@ -94,10 +94,16 @@ struct nfs4_state_owner {
 
 	spinlock_t	     so_lock;
 	atomic_t	     so_count;
+	unsigned long	     so_flags;
 	struct list_head     so_states;
 	struct list_head     so_delegations;
 	struct nfs_seqid_counter so_seqid;
 	struct rpc_sequence  so_sequence;
+};
+
+enum {
+	NFS_OWNER_RECLAIM_REBOOT,
+	NFS_OWNER_RECLAIM_NOGRACE
 };
 
 /*
@@ -166,6 +172,7 @@ struct nfs4_exception {
 };
 
 struct nfs4_state_recovery_ops {
+	int owner_flag_bit;
 	int state_flag_bit;
 	int (*recover_open)(struct nfs4_state_owner *, struct nfs4_state *);
 	int (*recover_lock)(struct nfs4_state *, struct file_lock *);
