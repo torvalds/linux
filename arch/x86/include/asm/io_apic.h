@@ -156,11 +156,21 @@ extern int sis_apic_bug;
 /* 1 if "noapic" boot option passed */
 extern int skip_ioapic_setup;
 
+/* 1 if "noapic" boot option passed */
+extern int noioapicquirk;
+
+/* -1 if "noapic" boot option passed */
+extern int noioapicreroute;
+
 /* 1 if the timer IRQ uses the '8259A Virtual Wire' mode */
 extern int timer_through_8259;
 
 static inline void disable_ioapic_setup(void)
 {
+#ifdef CONFIG_PCI
+	noioapicquirk = 1;
+	noioapicreroute = -1;
+#endif
 	skip_ioapic_setup = 1;
 }
 

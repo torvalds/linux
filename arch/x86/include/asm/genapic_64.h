@@ -32,6 +32,8 @@ struct genapic {
 	unsigned int (*get_apic_id)(unsigned long x);
 	unsigned long (*set_apic_id)(unsigned int id);
 	unsigned long apic_id_mask;
+	/* wakeup_secondary_cpu */
+	int (*wakeup_cpu)(int apicid, unsigned long start_eip);
 };
 
 extern struct genapic *genapic;

@@ -21,6 +21,7 @@
 #include <asm/smp.h>
 #include <asm/ipi.h>
 #include <asm/genapic.h>
+#include <asm/setup.h>
 
 extern struct genapic apic_flat;
 extern struct genapic apic_physflat;
@@ -53,6 +54,9 @@ void __init setup_apic_routing(void)
 			genapic = &apic_physflat;
 		printk(KERN_INFO "Setting APIC routing to %s\n", genapic->name);
 	}
+
+	if (x86_quirks->update_genapic)
+		x86_quirks->update_genapic();
 }
 
 /* Same for both flat and physical. */

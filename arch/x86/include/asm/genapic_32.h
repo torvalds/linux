@@ -2,6 +2,7 @@
 #define _ASM_X86_GENAPIC_32_H
 
 #include <asm/mpspec.h>
+#include <asm/atomic.h>
 
 /*
  * Generic APIC driver interface.
@@ -65,6 +66,14 @@ struct genapic {
 	void (*send_IPI_allbutself)(int vector);
 	void (*send_IPI_all)(int vector);
 #endif
+	int (*wakeup_cpu)(int apicid, unsigned long start_eip);
+	int trampoline_phys_low;
+	int trampoline_phys_high;
+	void (*wait_for_init_deassert)(atomic_t *deassert);
+	void (*smp_callin_clear_local_apic)(void);
+	void (*store_NMI_vector)(unsigned short *high, unsigned short *low);
+	void (*restore_NMI_vector)(unsigned short *high, unsigned short *low);
+	void (*inquire_remote_apic)(int apicid);
 };
 
 #define APICFUNC(x) .x = x,
@@ -105,16 +114,24 @@ struct genapic {
 	APICFUNC(get_apic_id)				\
 	.apic_id_mask = APIC_ID_MASK,			\
 	APICFUNC(cpu_mask_to_apicid)			\
-	APICFUNC(vector_allocation_domain)			\
+	APICFUNC(vector_allocation_domain)		\
 	APICFUNC(acpi_madt_oem_check)			\
 	IPIFUNC(send_IPI_mask)				\
 	IPIFUNC(send_IPI_allbutself)			\
 	IPIFUNC(send_IPI_all)				\
 	APICFUNC(enable_apic_mode)			\
 	APICFUNC(phys_pkg_id)				\
+	.trampoline_phys_low = TRAMPOLINE_PHYS_LOW,		\
+	.trampoline_phys_high = TRAMPOLINE_PHYS_HIGH,		\
+	APICFUNC(wait_for_init_deassert)		\
+	APICFUNC(smp_callin_clear_local_apic)		\
+	APICFUNC(store_NMI_vector)			\
+	APICFUNC(restore_NMI_vector)			\
+	APICFUNC(inquire_remote_apic)			\
 }
 
 extern struct genapic *genapic;
+extern void es7000_update_genapic_to_cluster(void);
 
 enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC, UV_NON_UNIQUE_APIC};
 #define get_uv_system_type()		UV_NONE

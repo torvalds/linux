@@ -553,22 +553,17 @@ static u64 xpc_prot_vec_sn2[MAX_NUMNODES];
 static enum xp_retval
 xpc_allow_amo_ops_sn2(struct amo *amos_page)
 {
-	u64 nasid_array = 0;
-	int ret;
+	enum xp_retval ret = xpSuccess;
 
 	/*
 	 * On SHUB 1.1, we cannot call sn_change_memprotect() since the BIST
 	 * collides with memory operations. On those systems we call
 	 * xpc_allow_amo_ops_shub_wars_1_1_sn2() instead.
 	 */
-	if (!enable_shub_wars_1_1()) {
-		ret = sn_change_memprotect(ia64_tpa((u64)amos_page), PAGE_SIZE,
-					   SN_MEMPROT_ACCESS_CLASS_1,
-					   &nasid_array);
-		if (ret != 0)
-			return xpSalError;
-	}
-	return xpSuccess;
+	if (!enable_shub_wars_1_1())
+		ret = xp_expand_memprotect(ia64_tpa((u64)amos_page), PAGE_SIZE);
+
+	return ret;
 }
 
 /*

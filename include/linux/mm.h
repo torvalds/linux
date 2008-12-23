@@ -145,6 +145,23 @@ extern pgprot_t protection_map[16];
 #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
 #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
 
+/*
+ * This interface is used by x86 PAT code to identify a pfn mapping that is
+ * linear over entire vma. This is to optimize PAT code that deals with
+ * marking the physical region with a particular prot. This is not for generic
+ * mm use. Note also that this check will not work if the pfn mapping is
+ * linear for a vma starting at physical address 0. In which case PAT code
+ * falls back to slow path of reserving physical range page by page.
+ */
+static inline int is_linear_pfn_mapping(struct vm_area_struct *vma)
+{
+	return ((vma->vm_flags & VM_PFNMAP) && vma->vm_pgoff);
+}
+
+static inline int is_pfn_mapping(struct vm_area_struct *vma)
+{
+	return (vma->vm_flags & VM_PFNMAP);
+}
 
 /*
  * vm_fault is filled by the the pagefault handler and passed to the vma's
@@ -781,6 +798,8 @@ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
 			struct vm_area_struct *vma);
 void unmap_mapping_range(struct address_space *mapping,
 		loff_t const holebegin, loff_t const holelen, int even_cows);
+int follow_phys(struct vm_area_struct *vma, unsigned long address,
+		unsigned int flags, unsigned long *prot, resource_size_t *phys);
 int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 			void *buf, int len, int write);
 

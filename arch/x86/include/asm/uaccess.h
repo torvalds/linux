@@ -350,14 +350,14 @@ do {									\
 
 #define __put_user_nocheck(x, ptr, size)			\
 ({								\
-	long __pu_err;						\
+	int __pu_err;						\
 	__put_user_size((x), (ptr), (size), __pu_err, -EFAULT);	\
 	__pu_err;						\
 })
 
 #define __get_user_nocheck(x, ptr, size)				\
 ({									\
-	long __gu_err;							\
+	int __gu_err;							\
 	unsigned long __gu_val;						\
 	__get_user_size(__gu_val, (ptr), (size), __gu_err, -EFAULT);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\

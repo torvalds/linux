@@ -8,7 +8,11 @@
 #include <linux/types.h>
 #include <linux/cache.h>
 #include <linux/module.h>
-#include <asm/xen/hypervisor.h>
+
+#include <asm/xen/hypercall.h>
+
+#include <xen/interface/xen.h>
+#include <xen/interface/version.h>
 #include <xen/features.h>
 
 u8 xen_features[XENFEAT_NR_SUBMAPS * 32] __read_mostly;

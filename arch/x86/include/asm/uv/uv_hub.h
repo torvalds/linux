@@ -113,25 +113,37 @@
  */
 #define UV_MAX_NASID_VALUE	(UV_MAX_NUMALINK_NODES * 2)
 
+struct uv_scir_s {
+	struct timer_list timer;
+	unsigned long	offset;
+	unsigned long	last;
+	unsigned long	idle_on;
+	unsigned long	idle_off;
+	unsigned char	state;
+	unsigned char	enabled;
+};
+
 /*
  * The following defines attributes of the HUB chip. These attributes are
  * frequently referenced and are kept in the per-cpu data areas of each cpu.
  * They are kept together in a struct to minimize cache misses.
  */
 struct uv_hub_info_s {
-	unsigned long	global_mmr_base;
-	unsigned long	gpa_mask;
-	unsigned long	gnode_upper;
-	unsigned long	lowmem_remap_top;
-	unsigned long	lowmem_remap_base;
-	unsigned short	pnode;
-	unsigned short	pnode_mask;
-	unsigned short	coherency_domain_number;
-	unsigned short	numa_blade_id;
-	unsigned char	blade_processor_id;
-	unsigned char	m_val;
-	unsigned char	n_val;
+	unsigned long		global_mmr_base;
+	unsigned long		gpa_mask;
+	unsigned long		gnode_upper;
+	unsigned long		lowmem_remap_top;
+	unsigned long		lowmem_remap_base;
+	unsigned short		pnode;
+	unsigned short		pnode_mask;
+	unsigned short		coherency_domain_number;
+	unsigned short		numa_blade_id;
+	unsigned char		blade_processor_id;
+	unsigned char		m_val;
+	unsigned char		n_val;
+	struct uv_scir_s	scir;
 };
+
 DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 #define uv_hub_info 		(&__get_cpu_var(__uv_hub_info))
 #define uv_cpu_hub_info(cpu)	(&per_cpu(__uv_hub_info, cpu))
@@ -163,6 +175,30 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 
 #define UV_APIC_PNODE_SHIFT	6
 
+/* Local Bus from cpu's perspective */
+#define LOCAL_BUS_BASE		0x1c00000
+#define LOCAL_BUS_SIZE		(4 * 1024 * 1024)
+
+/*
+ * System Controller Interface Reg
+ *
+ * Note there are NO leds on a UV system.  This register is only
+ * used by the system controller to monitor system-wide operation.
+ * There are 64 regs per node.  With Nahelem cpus (2 cores per node,
+ * 8 cpus per core, 2 threads per cpu) there are 32 cpu threads on
+ * a node.
+ *
+ * The window is located at top of ACPI MMR space
+ */
+#define SCIR_WINDOW_COUNT	64
+#define SCIR_LOCAL_MMR_BASE	(LOCAL_BUS_BASE + \
+				 LOCAL_BUS_SIZE - \
+				 SCIR_WINDOW_COUNT)
+
+#define SCIR_CPU_HEARTBEAT	0x01	/* timer interrupt */
+#define SCIR_CPU_ACTIVITY	0x02	/* not idle */
+#define SCIR_CPU_HB_INTERVAL	(HZ)	/* once per second */
+
 /*
  * Macros for converting between kernel virtual addresses, socket local physical
  * addresses, and UV global physical addresses.
@@ -174,7 +210,7 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 static inline unsigned long uv_soc_phys_ram_to_gpa(unsigned long paddr)
 {
 	if (paddr < uv_hub_info->lowmem_remap_top)
-		paddr += uv_hub_info->lowmem_remap_base;
+		paddr |= uv_hub_info->lowmem_remap_base;
 	return paddr | uv_hub_info->gnode_upper;
 }
 
@@ -182,19 +218,7 @@ static inline unsigned long uv_soc_phys_ram_to_gpa(unsigned long paddr)
 /* socket virtual --> UV global physical address */
 static inline unsigned long uv_gpa(void *v)
 {
-	return __pa(v) | uv_hub_info->gnode_upper;
-}
-
-/* socket virtual --> UV global physical address */
-static inline void *uv_vgpa(void *v)
-{
-	return (void *)uv_gpa(v);
-}
-
-/* UV global physical address --> socket virtual */
-static inline void *uv_va(unsigned long gpa)
-{
-	return __va(gpa & uv_hub_info->gpa_mask);
+	return uv_soc_phys_ram_to_gpa(__pa(v));
 }
 
 /* pnode, offset --> socket virtual */
@@ -277,6 +301,16 @@ static inline void uv_write_local_mmr(unsigned long offset, unsigned long val)
 	*uv_local_mmr_address(offset) = val;
 }
 
+static inline unsigned char uv_read_local_mmr8(unsigned long offset)
+{
+	return *((unsigned char *)uv_local_mmr_address(offset));
+}
+
+static inline void uv_write_local_mmr8(unsigned long offset, unsigned char val)
+{
+	*((unsigned char *)uv_local_mmr_address(offset)) = val;
+}
+
 /*
  * Structures and definitions for converting between cpu, node, pnode, and blade
  * numbers.
@@ -351,5 +385,20 @@ static inline int uv_num_possible_blades(void)
 	return uv_possible_blades;
 }
 
-#endif /* _ASM_X86_UV_UV_HUB_H */
+/* Update SCIR state */
+static inline void uv_set_scir_bits(unsigned char value)
+{
+	if (uv_hub_info->scir.state != value) {
+		uv_hub_info->scir.state = value;
+		uv_write_local_mmr8(uv_hub_info->scir.offset, value);
+	}
+}
+static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
+{
+	if (uv_cpu_hub_info(cpu)->scir.state != value) {
+		uv_cpu_hub_info(cpu)->scir.state = value;
+		uv_write_local_mmr8(uv_cpu_hub_info(cpu)->scir.offset, value);
+	}
+}
 
+#endif /* _ASM_X86_UV_UV_HUB_H */

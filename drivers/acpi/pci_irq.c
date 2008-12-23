@@ -384,6 +384,27 @@ acpi_pci_free_irq(struct acpi_prt_entry *entry,
 	return irq;
 }
 
+#ifdef CONFIG_X86_IO_APIC
+extern int noioapicquirk;
+
+static int bridge_has_boot_interrupt_variant(struct pci_bus *bus)
+{
+	struct pci_bus *bus_it;
+
+	for (bus_it = bus ; bus_it ; bus_it = bus_it->parent) {
+		if (!bus_it->self)
+			return 0;
+
+		printk(KERN_INFO "vendor=%04x device=%04x\n", bus_it->self->vendor,
+				bus_it->self->device);
+
+		if (bus_it->self->irq_reroute_variant)
+			return bus_it->self->irq_reroute_variant;
+	}
+	return 0;
+}
+#endif /* CONFIG_X86_IO_APIC */
+
 /*
  * acpi_pci_irq_lookup
  * success: return IRQ >= 0
@@ -413,6 +434,41 @@ acpi_pci_irq_lookup(struct pci_bus *bus,
 	}
 
 	ret = func(entry, triggering, polarity, link);
+
+#ifdef CONFIG_X86_IO_APIC
+	/*
+	 * Some chipsets (e.g. intel 6700PXH) generate a legacy INTx when the
+	 * IRQ entry in the chipset's IO-APIC is masked (as, e.g. the RT kernel
+	 * does during interrupt handling). When this INTx generation cannot be
+	 * disabled, we reroute these interrupts to their legacy equivalent to
+	 * get rid of spurious interrupts.
+	 */
+        if (!noioapicquirk) {
+		switch (bridge_has_boot_interrupt_variant(bus)) {
+		case 0:
+			/* no rerouting necessary */
+			break;
+
+		case INTEL_IRQ_REROUTE_VARIANT:
+			/*
+			 * Remap according to INTx routing table in 6700PXH
+			 * specs, intel order number 302628-002, section
+			 * 2.15.2. Other chipsets (80332, ...) have the same
+			 * mapping and are handled here as well.
+			 */
+			printk(KERN_INFO "pci irq %d -> rerouted to legacy "
+					 "irq %d\n", ret, (ret % 4) + 16);
+			ret = (ret % 4) + 16;
+			break;
+
+		default:
+			printk(KERN_INFO "not rerouting irq %d to legacy irq: "
+					 "unknown mapping\n", ret);
+			break;
+		}
+	}
+#endif /* CONFIG_X86_IO_APIC */
+
 	return ret;
 }
 

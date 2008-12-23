@@ -17,11 +17,11 @@
 # define AT_VECTOR_SIZE_ARCH 1
 #endif
 
-#ifdef CONFIG_X86_32
-
 struct task_struct; /* one of the stranger aspects of C forward declarations */
 struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next);
+
+#ifdef CONFIG_X86_32
 
 /*
  * Saving eflags is important. It switches not only IOPL between tasks,
@@ -313,6 +313,8 @@ extern unsigned long arch_align_stack(unsigned long sp);
 extern void free_init_pages(char *what, unsigned long begin, unsigned long end);
 
 void default_idle(void);
+
+void stop_this_cpu(void *dummy);
 
 /*
  * Force strict CPU ordering.

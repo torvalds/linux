@@ -15,6 +15,11 @@
 
 #include <linux/device.h>
 #include <asm/uv/uv_hub.h>
+#if defined CONFIG_X86_64
+#include <asm/uv/bios.h>
+#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+#include <asm/sn/sn_sal.h>
+#endif
 #include "../sgi-gru/grukservices.h"
 #include "xp.h"
 
@@ -49,18 +54,79 @@ xp_cpu_to_nasid_uv(int cpuid)
 	return UV_PNODE_TO_NASID(uv_cpu_to_pnode(cpuid));
 }
 
+static enum xp_retval
+xp_expand_memprotect_uv(unsigned long phys_addr, unsigned long size)
+{
+	int ret;
+
+#if defined CONFIG_X86_64
+	ret = uv_bios_change_memprotect(phys_addr, size, UV_MEMPROT_ALLOW_RW);
+	if (ret != BIOS_STATUS_SUCCESS) {
+		dev_err(xp, "uv_bios_change_memprotect(,, "
+			"UV_MEMPROT_ALLOW_RW) failed, ret=%d\n", ret);
+		return xpBiosError;
+	}
+
+#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+	u64 nasid_array;
+
+	ret = sn_change_memprotect(phys_addr, size, SN_MEMPROT_ACCESS_CLASS_1,
+				   &nasid_array);
+	if (ret != 0) {
+		dev_err(xp, "sn_change_memprotect(,, "
+			"SN_MEMPROT_ACCESS_CLASS_1,) failed ret=%d\n", ret);
+		return xpSalError;
+	}
+#else
+	#error not a supported configuration
+#endif
+	return xpSuccess;
+}
+
+static enum xp_retval
+xp_restrict_memprotect_uv(unsigned long phys_addr, unsigned long size)
+{
+	int ret;
+
+#if defined CONFIG_X86_64
+	ret = uv_bios_change_memprotect(phys_addr, size,
+					UV_MEMPROT_RESTRICT_ACCESS);
+	if (ret != BIOS_STATUS_SUCCESS) {
+		dev_err(xp, "uv_bios_change_memprotect(,, "
+			"UV_MEMPROT_RESTRICT_ACCESS) failed, ret=%d\n", ret);
+		return xpBiosError;
+	}
+
+#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+	u64 nasid_array;
+
+	ret = sn_change_memprotect(phys_addr, size, SN_MEMPROT_ACCESS_CLASS_0,
+				   &nasid_array);
+	if (ret != 0) {
+		dev_err(xp, "sn_change_memprotect(,, "
+			"SN_MEMPROT_ACCESS_CLASS_0,) failed ret=%d\n", ret);
+		return xpSalError;
+	}
+#else
+	#error not a supported configuration
+#endif
+	return xpSuccess;
+}
+
 enum xp_retval
 xp_init_uv(void)
 {
 	BUG_ON(!is_uv());
 
 	xp_max_npartitions = XP_MAX_NPARTITIONS_UV;
-	xp_partition_id = 0;	/* !!! not correct value */
-	xp_region_size = 0;	/* !!! not correct value */
+	xp_partition_id = sn_partition_id;
+	xp_region_size = sn_region_size;
 
 	xp_pa = xp_pa_uv;
 	xp_remote_memcpy = xp_remote_memcpy_uv;
 	xp_cpu_to_nasid = xp_cpu_to_nasid_uv;
+	xp_expand_memprotect = xp_expand_memprotect_uv;
+	xp_restrict_memprotect = xp_restrict_memprotect_uv;
 
 	return xpSuccess;
 }

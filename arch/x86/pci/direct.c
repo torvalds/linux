@@ -173,7 +173,7 @@ static int pci_conf2_write(unsigned int seg, unsigned int bus,
 
 #undef PCI_CONF2_ADDRESS
 
-static struct pci_raw_ops pci_direct_conf2 = {
+struct pci_raw_ops pci_direct_conf2 = {
 	.read =		pci_conf2_read,
 	.write =	pci_conf2_write,
 };
@@ -289,6 +289,7 @@ int __init pci_direct_probe(void)
 
 	if (pci_check_type1()) {
 		raw_pci_ops = &pci_direct_conf1;
+		port_cf9_safe = true;
 		return 1;
 	}
 	release_resource(region);
@@ -305,6 +306,7 @@ int __init pci_direct_probe(void)
 
 	if (pci_check_type2()) {
 		raw_pci_ops = &pci_direct_conf2;
+		port_cf9_safe = true;
 		return 2;
 	}
 

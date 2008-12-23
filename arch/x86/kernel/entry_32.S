@@ -1051,6 +1051,7 @@ ENTRY(kernel_thread_helper)
 	push %eax
 	CFI_ADJUST_CFA_OFFSET 4
 	call do_exit
+	ud2			# padding for call trace
 	CFI_ENDPROC
 ENDPROC(kernel_thread_helper)
 
