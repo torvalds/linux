@@ -289,8 +289,6 @@ void uwb_beca_purge(struct uwb_rc *rc)
 		expires = bce->ts_jiffies + msecs_to_jiffies(beacon_timeout_ms);
 		if (time_after(jiffies, expires)) {
 			uwbd_dev_offair(bce);
-			list_del(&bce->node);
-			uwb_bce_put(bce);
 		}
 	}
 	mutex_unlock(&rc->uwb_beca.mutex);

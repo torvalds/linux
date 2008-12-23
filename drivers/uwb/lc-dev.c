@@ -375,6 +375,8 @@ int __uwb_dev_offair(struct uwb_dev *uwb_dev, struct uwb_rc *rc)
 		 rc ? rc->uwb_dev.dev.parent->bus->name : "n/a",
 		 rc ? dev_name(rc->uwb_dev.dev.parent) : "");
 	uwb_dev_rm(uwb_dev);
+	list_del(&uwb_dev->bce->node);
+	uwb_bce_put(uwb_dev->bce);
 	uwb_dev_put(uwb_dev);	/* for the creation in _onair() */
 
 	return 0;
