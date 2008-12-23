@@ -390,8 +390,7 @@ allocated memory.
 
 You should also set these fields:
 
-- parent: set to the parent device (same device as was used to register
-  v4l2_device).
+- v4l2_dev: set to the v4l2_device parent device.
 - name: set to something descriptive and unique.
 - fops: set to the file_operations struct.
 - ioctl_ops: if you use the v4l2_ioctl_ops to simplify ioctl maintenance
@@ -516,5 +515,4 @@ void *video_drvdata(struct file *file);
 
 You can go from a video_device struct to the v4l2_device struct using:
 
-struct v4l2_device *v4l2_dev = dev_get_drvdata(vdev->parent);
-
+struct v4l2_device *v4l2_dev = vdev->v4l2_dev;
