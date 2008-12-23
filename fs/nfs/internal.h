@@ -64,8 +64,17 @@ struct nfs_parsed_mount_data {
 };
 
 /* mount_clnt.c */
-extern int nfs_mount(struct sockaddr *, size_t, char *, char *,
-					int, int, struct nfs_fh *);
+struct nfs_mount_request {
+	struct sockaddr		*sap;
+	size_t			salen;
+	char			*hostname;
+	char			*dirpath;
+	u32			version;
+	unsigned short		protocol;
+	struct nfs_fh		*fh;
+};
+
+extern int nfs_mount(struct nfs_mount_request *info);
 
 /* client.c */
 extern struct rpc_program nfs_program;

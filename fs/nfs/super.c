@@ -1329,8 +1329,13 @@ out_security_failure:
 static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 			 struct nfs_fh *root_fh)
 {
-	struct sockaddr *sap = (struct sockaddr *)&args->mount_server.address;
-	char *hostname;
+	struct nfs_mount_request request = {
+		.sap		= (struct sockaddr *)
+						&args->mount_server.address,
+		.dirpath	= args->nfs_server.export_path,
+		.protocol	= args->mount_server.protocol,
+		.fh		= root_fh,
+	};
 	int status;
 
 	if (args->mount_server.version == 0) {
@@ -1339,42 +1344,38 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 		else
 			args->mount_server.version = NFS_MNT_VERSION;
 	}
+	request.version = args->mount_server.version;
 
 	if (args->mount_server.hostname)
-		hostname = args->mount_server.hostname;
+		request.hostname = args->mount_server.hostname;
 	else
-		hostname = args->nfs_server.hostname;
+		request.hostname = args->nfs_server.hostname;
 
 	/*
 	 * Construct the mount server's address.
 	 */
 	if (args->mount_server.address.ss_family == AF_UNSPEC) {
-		memcpy(sap, &args->nfs_server.address,
+		memcpy(request.sap, &args->nfs_server.address,
 		       args->nfs_server.addrlen);
 		args->mount_server.addrlen = args->nfs_server.addrlen;
 	}
+	request.salen = args->mount_server.addrlen;
 
 	/*
 	 * autobind will be used if mount_server.port == 0
 	 */
-	nfs_set_port(sap, args->mount_server.port);
+	nfs_set_port(request.sap, args->mount_server.port);
 
 	/*
 	 * Now ask the mount server to map our export path
 	 * to a file handle.
 	 */
-	status = nfs_mount(sap,
-			   args->mount_server.addrlen,
-			   hostname,
-			   args->nfs_server.export_path,
-			   args->mount_server.version,
-			   args->mount_server.protocol,
-			   root_fh);
+	status = nfs_mount(&request);
 	if (status == 0)
 		return 0;
 
 	dfprintk(MOUNT, "NFS: unable to mount server %s, error %d\n",
-			hostname, status);
+			request.hostname, status);
 	return status;
 }
 
