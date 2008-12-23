@@ -513,7 +513,7 @@ rpcauth_wrap_req(struct rpc_task *task, kxdrproc_t encode, void *rqstp,
 	if (cred->cr_ops->crwrap_req)
 		return cred->cr_ops->crwrap_req(task, encode, rqstp, data, obj);
 	/* By default, we encode the arguments normally. */
-	return rpc_call_xdrproc(encode, rqstp, data, obj);
+	return encode(rqstp, data, obj);
 }
 
 int
@@ -528,7 +528,7 @@ rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
 		return cred->cr_ops->crunwrap_resp(task, decode, rqstp,
 						   data, obj);
 	/* By default, we decode the arguments normally. */
-	return rpc_call_xdrproc(decode, rqstp, data, obj);
+	return decode(rqstp, data, obj);
 }
 
 int
