@@ -384,6 +384,7 @@ static int do_probe_callback(void *data)
 		.version	= nfs_cb_version[1]->number,
 		.authflavor	= RPC_AUTH_UNIX, /* XXX: need AUTH_GSS... */
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
+		.client_name    = clp->cl_principal,
 	};
 	struct rpc_message msg = {
 		.rpc_proc       = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL],
@@ -391,6 +392,11 @@ static int do_probe_callback(void *data)
 	};
 	struct rpc_clnt *client;
 	int status;
+
+	if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5)) {
+		status = nfserr_cb_path_down;
+		goto out_err;
+	}
 
 	/* Initialize address */
 	memset(&addr, 0, sizeof(addr));
