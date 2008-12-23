@@ -207,12 +207,8 @@ static int nfs4_wait_clnt_recover(struct nfs_client *clp)
 
 	might_sleep();
 
-	rwsem_acquire(&clp->cl_sem.dep_map, 0, 0, _RET_IP_);
-
 	res = wait_on_bit(&clp->cl_state, NFS4CLNT_STATE_RECOVER,
 			nfs4_wait_bit_killable, TASK_KILLABLE);
-
-	rwsem_release(&clp->cl_sem.dep_map, 1, _RET_IP_);
 	return res;
 }
 
@@ -1135,7 +1131,6 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct
 	struct nfs4_state_owner  *sp;
 	struct nfs4_state     *state = NULL;
 	struct nfs_server       *server = NFS_SERVER(dir);
-	struct nfs_client *clp = server->nfs_client;
 	struct nfs4_opendata *opendata;
 	int status;
 
@@ -1150,11 +1145,10 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct
 		goto err_put_state_owner;
 	if (path->dentry->d_inode != NULL)
 		nfs4_return_incompatible_delegation(path->dentry->d_inode, flags & (FMODE_READ|FMODE_WRITE));
-	down_read(&clp->cl_sem);
 	status = -ENOMEM;
 	opendata = nfs4_opendata_alloc(path, sp, flags, sattr);
 	if (opendata == NULL)
-		goto err_release_rwsem;
+		goto err_put_state_owner;
 
 	if (path->dentry->d_inode != NULL)
 		opendata->state = nfs4_get_open_state(path->dentry->d_inode, sp);
@@ -1172,13 +1166,10 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct
 		goto err_opendata_put;
 	nfs4_opendata_put(opendata);
 	nfs4_put_state_owner(sp);
-	up_read(&clp->cl_sem);
 	*res = state;
 	return 0;
 err_opendata_put:
 	nfs4_opendata_put(opendata);
-err_release_rwsem:
-	up_read(&clp->cl_sem);
 err_put_state_owner:
 	nfs4_put_state_owner(sp);
 out_err:
@@ -3099,7 +3090,6 @@ static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock 
 	struct nfs4_lock_state *lsp;
 	int status;
 
-	down_read(&clp->cl_sem);
 	arg.lock_owner.clientid = clp->cl_clientid;
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
@@ -3116,7 +3106,6 @@ static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock 
 	}
 	request->fl_ops->fl_release_private(request);
 out:
-	up_read(&clp->cl_sem);
 	return status;
 }
 
@@ -3273,7 +3262,6 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 
 static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
-	struct nfs_client *clp = state->owner->so_client;
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	struct nfs_seqid *seqid;
 	struct nfs4_lock_state *lsp;
@@ -3284,15 +3272,12 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	status = nfs4_set_lock_state(state, request);
 	/* Unlock _before_ we do the RPC call */
 	request->fl_flags |= FL_EXISTS;
-	down_read(&clp->cl_sem);
 	down_read(&nfsi->rwsem);
 	if (do_vfs_lock(request->fl_file, request) == -ENOENT) {
 		up_read(&nfsi->rwsem);
-		up_read(&clp->cl_sem);
 		goto out;
 	}
 	up_read(&nfsi->rwsem);
-	up_read(&clp->cl_sem);
 	if (status != 0)
 		goto out;
 	/* Is this a delegated lock? */
@@ -3518,7 +3503,6 @@ static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request
 
 static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
-	struct nfs_client *clp = state->owner->so_client;
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	unsigned char fl_flags = request->fl_flags;
 	int status;
@@ -3531,7 +3515,6 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 	status = do_vfs_lock(request->fl_file, request);
 	if (status < 0)
 		goto out;
-	down_read(&clp->cl_sem);
 	down_read(&nfsi->rwsem);
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
 		/* Yes: cache locks! */
@@ -3549,7 +3532,6 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 		printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n", __func__);
 out_unlock:
 	up_read(&nfsi->rwsem);
-	up_read(&clp->cl_sem);
 out:
 	request->fl_flags = fl_flags;
 	return status;

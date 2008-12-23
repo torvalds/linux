@@ -65,7 +65,6 @@ nfs4_renew_state(struct work_struct *work)
 	long lease, timeout;
 	unsigned long last, now;
 
-	down_read(&clp->cl_sem);
 	dprintk("%s: start\n", __func__);
 	/* Are there any active superblocks? */
 	if (list_empty(&clp->cl_superblocks))
@@ -101,11 +100,9 @@ nfs4_renew_state(struct work_struct *work)
 	schedule_delayed_work(&clp->cl_renewd, timeout);
 	spin_unlock(&clp->cl_lock);
 out:
-	up_read(&clp->cl_sem);
 	dprintk("%s: done\n", __func__);
 }
 
-/* Must be called with clp->cl_sem locked for writes */
 void
 nfs4_schedule_state_renewal(struct nfs_client *clp)
 {

@@ -305,10 +305,6 @@ nfs4_drop_state_owner(struct nfs4_state_owner *sp)
 	}
 }
 
-/*
- * Note: must be called with clp->cl_sem held in order to prevent races
- *       with reboot recovery!
- */
 struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct rpc_cred *cred)
 {
 	struct nfs_client *clp = server->nfs_client;
@@ -337,10 +333,6 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 	return sp;
 }
 
-/*
- * Must be called with clp->cl_sem held in order to avoid races
- * with state recovery...
- */
 void nfs4_put_state_owner(struct nfs4_state_owner *sp)
 {
 	struct nfs_client *clp = sp->so_client;
@@ -442,10 +434,6 @@ out:
 	return state;
 }
 
-/*
- * Beware! Caller must be holding exactly one
- * reference to clp->cl_sem!
- */
 void nfs4_put_open_state(struct nfs4_state *state)
 {
 	struct inode *inode = state->inode;
@@ -578,7 +566,6 @@ static void nfs4_free_lock_state(struct nfs4_lock_state *lsp)
  * Return a compatible lock_state. If no initialized lock_state structure
  * exists, return an uninitialized one.
  *
- * The caller must be holding clp->cl_sem
  */
 static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_owner_t owner)
 {
@@ -1127,7 +1114,6 @@ static int reclaimer(void *ptr)
 	allow_signal(SIGKILL);
 
 	/* Ensure exclusive access to NFSv4 state */
-	down_write(&clp->cl_sem);
 	while (!list_empty(&clp->cl_superblocks)) {
 		if (test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state)) {
 			/* We're going to have to re-establish a clientid */
@@ -1149,7 +1135,6 @@ static int reclaimer(void *ptr)
 
 		/* First recover reboot state... */
 		if (test_and_clear_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state)) {
-			/* Note: list is protected by exclusive lock on cl->cl_sem */
 			status = nfs4_do_reclaim(clp, &nfs4_reboot_recovery_ops);
 			if (status == -NFS4ERR_STALE_CLIENTID)
 				continue;
@@ -1159,7 +1144,6 @@ static int reclaimer(void *ptr)
 
 		/* Now recover expired state... */
 		if (test_and_clear_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state)) {
-			/* Note: list is protected by exclusive lock on cl->cl_sem */
 			status = nfs4_do_reclaim(clp, &nfs4_nograce_recovery_ops);
 			if (status < 0) {
 				set_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state);
@@ -1175,7 +1159,6 @@ static int reclaimer(void *ptr)
 		break;
 	}
 out:
-	up_write(&clp->cl_sem);
 	if (test_and_clear_bit(NFS4CLNT_CB_PATH_DOWN, &clp->cl_state))
 		nfs_handle_cb_pathdown(clp);
 	nfs4_clear_recover_bit(clp);

@@ -243,16 +243,13 @@ static void nfs_msync_inode(struct inode *inode)
  */
 static int __nfs_inode_return_delegation(struct inode *inode, struct nfs_delegation *delegation)
 {
-	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	nfs_msync_inode(inode);
-	down_read(&clp->cl_sem);
 	/* Guard against new delegated open calls */
 	down_write(&nfsi->rwsem);
 	nfs_delegation_claim_opens(inode, &delegation->stateid);
 	up_write(&nfsi->rwsem);
-	up_read(&clp->cl_sem);
 	nfs_msync_inode(inode);
 
 	return nfs_do_return_delegation(inode, delegation, 1);
@@ -425,7 +422,6 @@ static int recall_thread(void *data)
 	daemonize("nfsv4-delegreturn");
 
 	nfs_msync_inode(inode);
-	down_read(&clp->cl_sem);
 	down_write(&nfsi->rwsem);
 	spin_lock(&clp->cl_lock);
 	delegation = nfs_detach_delegation_locked(nfsi, args->stateid);
@@ -437,7 +433,6 @@ static int recall_thread(void *data)
 	complete(&args->started);
 	nfs_delegation_claim_opens(inode, args->stateid);
 	up_write(&nfsi->rwsem);
-	up_read(&clp->cl_sem);
 	nfs_msync_inode(inode);
 
 	if (delegation != NULL)
