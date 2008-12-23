@@ -817,6 +817,8 @@ void nfs4_schedule_state_recovery(struct nfs_client *clp)
 {
 	if (!clp)
 		return;
+	if (!test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
+		set_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
 	if (test_and_set_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state) == 0)
 		nfs4_recover_state(clp);
 }
@@ -1019,6 +1021,23 @@ static void nfs4_state_end_reclaim_nograce(struct nfs_client *clp)
 	clear_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state);
 }
 
+static void nfs4_recovery_handle_error(struct nfs_client *clp, int error)
+{
+	switch (error) {
+		case -NFS4ERR_CB_PATH_DOWN:
+			set_bit(NFS4CLNT_CB_PATH_DOWN, &clp->cl_state);
+			break;
+		case -NFS4ERR_STALE_CLIENTID:
+		case -NFS4ERR_LEASE_MOVED:
+			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+			nfs4_state_start_reclaim_reboot(clp);
+			break;
+		case -NFS4ERR_EXPIRED:
+			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+			nfs4_state_start_reclaim_nograce(clp);
+	}
+}
+
 static int nfs4_do_reclaim(struct nfs_client *clp, const struct nfs4_state_recovery_ops *ops)
 {
 	struct rb_node *pos;
@@ -1031,6 +1050,7 @@ static int nfs4_do_reclaim(struct nfs_client *clp, const struct nfs4_state_recov
 		if (status < 0)
 			break;
 	}
+	nfs4_recovery_handle_error(clp, status);
 	return status;
 }
 
@@ -1045,19 +1065,7 @@ static int nfs4_check_lease(struct nfs_client *clp)
 		/* Yes there are: try to renew the old lease */
 		status = nfs4_proc_renew(clp, cred);
 		put_rpccred(cred);
-		switch (status) {
-			case -NFS4ERR_CB_PATH_DOWN:
-				set_bit(NFS4CLNT_CB_PATH_DOWN, &clp->cl_state);
-				break;
-			case -NFS4ERR_STALE_CLIENTID:
-			case -NFS4ERR_LEASE_MOVED:
-				set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-				nfs4_state_start_reclaim_reboot(clp);
-				break;
-			case -NFS4ERR_EXPIRED:
-				set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-				nfs4_state_start_reclaim_nograce(clp);
-		}
+		nfs4_recovery_handle_error(clp, status);
 		return status;
 	}
 
@@ -1095,8 +1103,6 @@ static int reclaimer(void *ptr)
 	/* Ensure exclusive access to NFSv4 state */
 	down_write(&clp->cl_sem);
 	while (!list_empty(&clp->cl_superblocks)) {
-		status = nfs4_check_lease(clp);
-
 		if (test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state)) {
 			/* We're going to have to re-establish a clientid */
 			status = nfs4_reclaim_lease(clp);
@@ -1106,16 +1112,21 @@ static int reclaimer(void *ptr)
 					continue;
 				goto out_error;
 			}
+			clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
+		}
+
+		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
+			status = nfs4_check_lease(clp);
+			if (status != 0)
+				continue;
 		}
 
 		/* First recover reboot state... */
 		if (test_and_clear_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state)) {
 			/* Note: list is protected by exclusive lock on cl->cl_sem */
 			status = nfs4_do_reclaim(clp, &nfs4_reboot_recovery_ops);
-			if (status == -NFS4ERR_STALE_CLIENTID) {
-				set_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state);
+			if (status == -NFS4ERR_STALE_CLIENTID)
 				continue;
-			}
 			nfs4_state_end_reclaim_reboot(clp);
 			continue;
 		}
