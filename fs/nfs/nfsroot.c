@@ -100,7 +100,7 @@ static char nfs_root_name[256] __initdata = "";
 static __be32 servaddr __initdata = 0;
 
 /* Name of directory to mount */
-static char nfs_path[NFS_MAXPATHLEN] __initdata = { 0, };
+static char nfs_export_path[NFS_MAXPATHLEN] __initdata = { 0, };
 
 /* NFS-related data */
 static struct nfs_mount_data nfs_data __initdata = { 0, };/* NFS mount info */
@@ -312,7 +312,7 @@ static int __init root_nfs_name(char *name)
 		printk(KERN_ERR "Root-NFS: Pathname for remote directory too long.\n");
 		return -1;
 	}
-	sprintf(nfs_path, buf, cp);
+	sprintf(nfs_export_path, buf, cp);
 
 	return 1;
 }
@@ -340,7 +340,7 @@ static int __init root_nfs_addr(void)
 static void __init root_nfs_print(void)
 {
 	printk(KERN_NOTICE "Root-NFS: Mounting %s on server %s as root\n",
-		nfs_path, nfs_data.hostname);
+		nfs_export_path, nfs_data.hostname);
 	printk(KERN_NOTICE "Root-NFS:     rsize = %d, wsize = %d, timeo = %d, retrans = %d\n",
 		nfs_data.rsize, nfs_data.wsize, nfs_data.timeo, nfs_data.retrans);
 	printk(KERN_NOTICE "Root-NFS:     acreg (min,max) = (%d,%d), acdir (min,max) = (%d,%d)\n",
@@ -493,10 +493,10 @@ static int __init root_nfs_get_handle(void)
 
 	set_sockaddr(&sin, servaddr, htons(mount_port));
 	status = nfs_mount((struct sockaddr *) &sin, sizeof(sin), NULL,
-			   nfs_path, version, protocol, &fh);
+			   nfs_export_path, version, protocol, &fh);
 	if (status < 0)
 		printk(KERN_ERR "Root-NFS: Server returned error %d "
-				"while mounting %s\n", status, nfs_path);
+				"while mounting %s\n", status, nfs_export_path);
 	else {
 		nfs_data.root.size = fh.size;
 		memcpy(nfs_data.root.data, fh.data, fh.size);
