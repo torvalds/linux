@@ -54,16 +54,6 @@ static void wq_sync_buffer(struct work_struct *work);
 #define DEFAULT_TIMER_EXPIRE (HZ / 10)
 static int work_enabled;
 
-void free_cpu_buffers(void)
-{
-	if (op_ring_buffer_read)
-		ring_buffer_free(op_ring_buffer_read);
-	op_ring_buffer_read = NULL;
-	if (op_ring_buffer_write)
-		ring_buffer_free(op_ring_buffer_write);
-	op_ring_buffer_write = NULL;
-}
-
 unsigned long oprofile_get_cpu_buffer_size(void)
 {
 	return oprofile_cpu_buffer_size;
@@ -75,6 +65,16 @@ void oprofile_cpu_buffer_inc_smpl_lost(void)
 		= &__get_cpu_var(cpu_buffer);
 
 	cpu_buf->sample_lost_overflow++;
+}
+
+void free_cpu_buffers(void)
+{
+	if (op_ring_buffer_read)
+		ring_buffer_free(op_ring_buffer_read);
+	op_ring_buffer_read = NULL;
+	if (op_ring_buffer_write)
+		ring_buffer_free(op_ring_buffer_write);
+	op_ring_buffer_write = NULL;
 }
 
 int alloc_cpu_buffers(void)
