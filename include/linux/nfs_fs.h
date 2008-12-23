@@ -180,7 +180,7 @@ struct nfs_inode {
         /* NFSv4 state */
 	struct list_head	open_states;
 	struct nfs_delegation	*delegation;
-	int			 delegation_state;
+	fmode_t			 delegation_state;
 	struct rw_semaphore	rwsem;
 #endif /* CONFIG_NFS_V4*/
 	struct inode		vfs_inode;

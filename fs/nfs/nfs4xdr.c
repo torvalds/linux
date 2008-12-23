@@ -1024,7 +1024,7 @@ static void encode_opentype(struct xdr_stream *xdr, const struct nfs_openargs *a
 	}
 }
 
-static inline void encode_delegation_type(struct xdr_stream *xdr, int delegation_type)
+static inline void encode_delegation_type(struct xdr_stream *xdr, fmode_t delegation_type)
 {
 	__be32 *p;
 
@@ -1053,7 +1053,7 @@ static inline void encode_claim_null(struct xdr_stream *xdr, const struct qstr *
 	encode_string(xdr, name->len, name->name);
 }
 
-static inline void encode_claim_previous(struct xdr_stream *xdr, int type)
+static inline void encode_claim_previous(struct xdr_stream *xdr, fmode_t type)
 {
 	__be32 *p;
 

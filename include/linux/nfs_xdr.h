@@ -126,7 +126,7 @@ struct nfs_openargs {
 		struct iattr *  attrs;    /* UNCHECKED, GUARDED */
 		nfs4_verifier   verifier; /* EXCLUSIVE */
 		nfs4_stateid	delegation;		/* CLAIM_DELEGATE_CUR */
-		int		delegation_type;	/* CLAIM_PREVIOUS */
+		fmode_t		delegation_type;	/* CLAIM_PREVIOUS */
 	} u;
 	const struct qstr *	name;
 	const struct nfs_server *server;	 /* Needed for ID mapping */
@@ -143,7 +143,7 @@ struct nfs_openres {
 	struct nfs_fattr *      dir_attr;
 	struct nfs_seqid *	seqid;
 	const struct nfs_server *server;
-	int			delegation_type;
+	fmode_t			delegation_type;
 	nfs4_stateid		delegation;
 	__u32			do_recall;
 	__u64			maxsize;

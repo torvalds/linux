@@ -17,7 +17,7 @@ struct nfs_delegation {
 	struct rpc_cred *cred;
 	struct inode *inode;
 	nfs4_stateid stateid;
-	int type;
+	fmode_t type;
 	loff_t maxsize;
 	__u64 change_attr;
 	unsigned long flags;
@@ -54,10 +54,10 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl);
 int nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode);
 
 void nfs_mark_delegation_referenced(struct nfs_delegation *delegation);
-int nfs_have_delegation(struct inode *inode, int flags);
+int nfs_have_delegation(struct inode *inode, fmode_t flags);
 
 #else
-static inline int nfs_have_delegation(struct inode *inode, int flags)
+static inline int nfs_have_delegation(struct inode *inode, fmode_t flags)
 {
 	return 0;
 }
