@@ -691,7 +691,7 @@ void math_error(void __user *ip)
 
 	err = swd & ~cwd & 0x3f;
 
-#if CONFIG_X86_32
+#ifdef CONFIG_X86_32
 	if (!err)
 		return;
 #endif
