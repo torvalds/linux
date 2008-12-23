@@ -786,6 +786,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 	copy_verf(new, &clverifier);
 	new->cl_addr = sin->sin_addr.s_addr;
+	new->cl_flavor = rqstp->rq_flavor;
 	princ = svc_gss_principal(rqstp);
 	if (princ) {
 		new->cl_principal = kstrdup(princ, GFP_KERNEL);

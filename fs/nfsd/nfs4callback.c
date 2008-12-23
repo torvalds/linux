@@ -358,6 +358,7 @@ static struct rpc_program cb_program = {
 		.nrvers		= ARRAY_SIZE(nfs_cb_version),
 		.version	= nfs_cb_version,
 		.stats		= &cb_stats,
+		.pipe_dir_name  = "/nfsd4_cb",
 };
 
 /* Reference counting, callback cleanup, etc., all look racy as heck.
@@ -382,7 +383,7 @@ static int do_probe_callback(void *data)
 		.program	= &cb_program,
 		.prognumber	= cb->cb_prog,
 		.version	= nfs_cb_version[1]->number,
-		.authflavor	= RPC_AUTH_UNIX, /* XXX: need AUTH_GSS... */
+		.authflavor	= clp->cl_flavor,
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
 		.client_name    = clp->cl_principal,
 	};

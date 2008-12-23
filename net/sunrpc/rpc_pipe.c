@@ -407,6 +407,7 @@ enum {
 	RPCAUTH_nfs,
 	RPCAUTH_portmap,
 	RPCAUTH_statd,
+	RPCAUTH_nfsd4_cb,
 	RPCAUTH_RootEOF
 };
 
@@ -438,6 +439,10 @@ static struct rpc_filelist files[] = {
 	},
 	[RPCAUTH_statd] = {
 		.name = "statd",
+		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
+	},
+	[RPCAUTH_nfsd4_cb] = {
+		.name = "nfsd4_cb",
 		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
 	},
 };
