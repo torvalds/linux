@@ -1797,7 +1797,8 @@ static int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, str
 	cache = nfs_access_search_rbtree(inode, cred);
 	if (cache == NULL)
 		goto out;
-	if (!time_in_range(jiffies, cache->jiffies, cache->jiffies + nfsi->attrtimeo))
+	if (!nfs_have_delegation(inode, FMODE_READ) &&
+	    !time_in_range(jiffies, cache->jiffies, cache->jiffies + nfsi->attrtimeo))
 		goto out_stale;
 	res->jiffies = cache->jiffies;
 	res->cred = cache->cred;
