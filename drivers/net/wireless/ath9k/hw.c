@@ -27,14 +27,6 @@
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
 #define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
 
-extern struct hal_percal_data iq_cal_multi_sample;
-extern struct hal_percal_data iq_cal_single_sample;
-extern struct hal_percal_data adc_gain_cal_multi_sample;
-extern struct hal_percal_data adc_gain_cal_single_sample;
-extern struct hal_percal_data adc_dc_cal_multi_sample;
-extern struct hal_percal_data adc_dc_cal_single_sample;
-extern struct hal_percal_data adc_init_dc_cal;
-
 static bool ath9k_hw_set_reset_reg(struct ath_hal *ah, u32 type);
 static void ath9k_hw_set_regs(struct ath_hal *ah, struct ath9k_channel *chan,
 			      enum ath9k_ht_macmode macmode);
@@ -1886,9 +1878,9 @@ static void ath9k_hw_9280_spur_mitigate(struct ath_hal *ah, struct ath9k_channel
 		if ((cur_vit_mask > lower) && (cur_vit_mask < upper)) {
 
 			/* workaround for gcc bug #37014 */
-			volatile int tmp = abs(cur_vit_mask - bin);
+			volatile int tmp_v = abs(cur_vit_mask - bin);
 
-			if (tmp < 75)
+			if (tmp_v < 75)
 				mask_amt = 1;
 			else
 				mask_amt = 0;
@@ -2087,9 +2079,9 @@ static void ath9k_hw_spur_mitigate(struct ath_hal *ah, struct ath9k_channel *cha
 		if ((cur_vit_mask > lower) && (cur_vit_mask < upper)) {
 
 			/* workaround for gcc bug #37014 */
-			volatile int tmp = abs(cur_vit_mask - bin);
+			volatile int tmp_v = abs(cur_vit_mask - bin);
 
-			if (tmp < 75)
+			if (tmp_v < 75)
 				mask_amt = 1;
 			else
 				mask_amt = 0;

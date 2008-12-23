@@ -20,6 +20,14 @@
 #include <linux/if_ether.h>
 #include <linux/delay.h>
 
+extern const struct hal_percal_data iq_cal_multi_sample;
+extern const struct hal_percal_data iq_cal_single_sample;
+extern const struct hal_percal_data adc_gain_cal_multi_sample;
+extern const struct hal_percal_data adc_gain_cal_single_sample;
+extern const struct hal_percal_data adc_dc_cal_multi_sample;
+extern const struct hal_percal_data adc_dc_cal_single_sample;
+extern const struct hal_percal_data adc_init_dc_cal;
+
 struct ar5416_desc {
 	u32 ds_link;
 	u32 ds_data;
