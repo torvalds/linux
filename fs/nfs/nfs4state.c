@@ -951,7 +951,6 @@ static void nfs4_clear_open_state(struct nfs4_state *state)
 	clear_bit(NFS_O_WRONLY_STATE, &state->flags);
 	clear_bit(NFS_O_RDWR_STATE, &state->flags);
 	list_for_each_entry(lock, &state->lock_states, ls_locks) {
-		lock->ls_seqid.counter = 0;
 		lock->ls_seqid.flags = 0;
 		lock->ls_flags &= ~NFS_LOCK_INITIALIZED;
 	}
@@ -966,7 +965,6 @@ static void nfs4_state_mark_reclaim_helper(struct nfs_client *clp, int (*mark_re
 	/* Reset all sequence ids to zero */
 	for (pos = rb_first(&clp->cl_state_owners); pos != NULL; pos = rb_next(pos)) {
 		sp = rb_entry(pos, struct nfs4_state_owner, so_client_node);
-		sp->so_seqid.counter = 0;
 		sp->so_seqid.flags = 0;
 		spin_lock(&sp->so_lock);
 		list_for_each_entry(state, &sp->so_states, open_states) {
