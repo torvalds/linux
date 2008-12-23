@@ -113,7 +113,7 @@ out:
 	wake_up(&rpci->waitq);
 	return res;
 }
-EXPORT_SYMBOL(rpc_queue_upcall);
+EXPORT_SYMBOL_GPL(rpc_queue_upcall);
 
 static inline void
 rpc_inode_setowner(struct inode *inode, void *private)
@@ -808,7 +808,7 @@ err_dput:
 			-ENOMEM);
 	goto out;
 }
-EXPORT_SYMBOL(rpc_mkpipe);
+EXPORT_SYMBOL_GPL(rpc_mkpipe);
 
 /**
  * rpc_unlink - remove a pipe
@@ -839,7 +839,7 @@ rpc_unlink(struct dentry *dentry)
 	dput(parent);
 	return error;
 }
-EXPORT_SYMBOL(rpc_unlink);
+EXPORT_SYMBOL_GPL(rpc_unlink);
 
 /*
  * populate the filesystem
