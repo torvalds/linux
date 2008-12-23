@@ -75,6 +75,8 @@ struct gss_auth {
 	struct dentry *dentry;
 };
 
+static atomic_t pipe_users = ATOMIC_INIT(0);
+
 static void gss_free_ctx(struct gss_cl_ctx *);
 static struct rpc_pipe_ops gss_upcall_ops;
 
@@ -237,6 +239,7 @@ gss_release_msg(struct gss_upcall_msg *gss_msg)
 {
 	if (!atomic_dec_and_test(&gss_msg->count))
 		return;
+	atomic_dec(&pipe_users);
 	BUG_ON(!list_empty(&gss_msg->list));
 	if (gss_msg->ctx != NULL)
 		gss_put_ctx(gss_msg->ctx);
@@ -331,6 +334,7 @@ gss_alloc_msg(struct gss_auth *gss_auth, uid_t uid)
 	gss_msg = kzalloc(sizeof(*gss_msg), GFP_NOFS);
 	if (gss_msg == NULL)
 		return ERR_PTR(-ENOMEM);
+	atomic_inc(&pipe_users);
 	INIT_LIST_HEAD(&gss_msg->list);
 	rpc_init_wait_queue(&gss_msg->rpc_waitqueue, "RPCSEC_GSS upcall waitq");
 	init_waitqueue_head(&gss_msg->waitqueue);
@@ -555,6 +559,13 @@ out:
 	return err;
 }
 
+static int
+gss_pipe_open(struct inode *inode)
+{
+	atomic_inc(&pipe_users);
+	return 0;
+}
+
 static void
 gss_pipe_release(struct inode *inode)
 {
@@ -574,6 +585,8 @@ gss_pipe_release(struct inode *inode)
 		spin_lock(&inode->i_lock);
 	}
 	spin_unlock(&inode->i_lock);
+
+	atomic_dec(&pipe_users);
 }
 
 static void
@@ -1349,6 +1362,7 @@ static struct rpc_pipe_ops gss_upcall_ops = {
 	.upcall		= gss_pipe_upcall,
 	.downcall	= gss_pipe_downcall,
 	.destroy_msg	= gss_pipe_destroy_msg,
+	.open_pipe	= gss_pipe_open,
 	.release_pipe	= gss_pipe_release,
 };
 
