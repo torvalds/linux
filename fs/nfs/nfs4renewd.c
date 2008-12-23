@@ -101,6 +101,7 @@ nfs4_renew_state(struct work_struct *work)
 	cancel_delayed_work(&clp->cl_renewd);
 	schedule_delayed_work(&clp->cl_renewd, timeout);
 	spin_unlock(&clp->cl_lock);
+	nfs_expire_unreferenced_delegations(clp);
 out:
 	dprintk("%s: done\n", __func__);
 }

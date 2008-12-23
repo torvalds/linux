@@ -421,6 +421,7 @@ static int can_open_delegated(struct nfs_delegation *delegation, mode_t open_fla
 		return 0;
 	if (test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags))
 		return 0;
+	nfs_mark_delegation_referenced(delegation);
 	return 1;
 }
 
@@ -505,6 +506,7 @@ static int update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stat
 	else if (memcmp(deleg_cur->stateid.data, delegation->data, NFS4_STATEID_SIZE) != 0)
 		goto no_delegation_unlock;
 
+	nfs_mark_delegation_referenced(deleg_cur);
 	__update_open_stateid(state, open_stateid, &deleg_cur->stateid, open_flags);
 	ret = 1;
 no_delegation_unlock:
