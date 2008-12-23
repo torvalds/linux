@@ -180,7 +180,7 @@ struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned long *idx,
 	 * kzalloc() for the exact number of vecs right away.
 	 */
 	if (!bs)
-		bvl = kzalloc(nr * sizeof(struct bio_vec), gfp_mask);
+		bvl = kmalloc(nr * sizeof(struct bio_vec), gfp_mask);
 
 	/*
 	 * see comment near bvec_array define!
@@ -236,9 +236,6 @@ fallback:
 			goto fallback;
 		}
 	}
-
-	if (bvl)
-		memset(bvl, 0, bvec_nr_vecs(*idx) * sizeof(struct bio_vec));
 
 	return bvl;
 }
@@ -325,7 +322,6 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 				idx = 0;
 				bvl = bio->bi_inline_vecs;
 				nr_iovecs = BIO_INLINE_VECS;
-				memset(bvl, 0, BIO_INLINE_VECS * sizeof(*bvl));
 			} else {
 				bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx,
 							bs);
