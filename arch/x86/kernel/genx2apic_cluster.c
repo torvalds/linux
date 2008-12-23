@@ -114,7 +114,7 @@ static unsigned int x2apic_cpu_mask_to_apicid(const struct cpumask *cpumask)
 	int cpu;
 
 	/*
-	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
+	 * We're using fixed IRQ delivery, can only return one logical APIC ID.
 	 * May as well be the first.
 	 */
 	cpu = cpumask_first(cpumask);
@@ -130,14 +130,14 @@ static unsigned int x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	int cpu;
 
 	/*
-	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
+	 * We're using fixed IRQ delivery, can only return one logical APIC ID.
 	 * May as well be the first.
 	 */
 	for_each_cpu_and(cpu, cpumask, andmask)
 		if (cpumask_test_cpu(cpu, cpu_online_mask))
 			break;
 	if (cpu < nr_cpu_ids)
-		return per_cpu(x86_cpu_to_apicid, cpu);
+		return per_cpu(x86_cpu_to_logical_apicid, cpu);
 	return BAD_APICID;
 }
 
