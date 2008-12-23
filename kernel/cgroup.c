@@ -1024,7 +1024,7 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 		if (ret == -EBUSY) {
 			mutex_unlock(&cgroup_mutex);
 			mutex_unlock(&inode->i_mutex);
-			goto drop_new_super;
+			goto free_cg_links;
 		}
 
 		/* EBUSY should be the only error here */
@@ -1073,10 +1073,11 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 
 	return simple_set_mnt(mnt, sb);
 
+ free_cg_links:
+	free_cg_links(&tmp_cg_links);
  drop_new_super:
 	up_write(&sb->s_umount);
 	deactivate_super(sb);
-	free_cg_links(&tmp_cg_links);
 	return ret;
 }
 
