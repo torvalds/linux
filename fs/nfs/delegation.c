@@ -119,7 +119,7 @@ void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred, st
 	delegation->maxsize = res->maxsize;
 	oldcred = delegation->cred;
 	delegation->cred = get_rpccred(cred);
-	delegation->flags &= ~NFS_DELEGATION_NEED_RECLAIM;
+	clear_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags);
 	NFS_I(inode)->delegation_state = delegation->type;
 	smp_wmb();
 	put_rpccred(oldcred);
@@ -499,7 +499,7 @@ void nfs_delegation_mark_reclaim(struct nfs_client *clp)
 	struct nfs_delegation *delegation;
 	rcu_read_lock();
 	list_for_each_entry_rcu(delegation, &clp->cl_delegations, super_list)
-		delegation->flags |= NFS_DELEGATION_NEED_RECLAIM;
+		set_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags);
 	rcu_read_unlock();
 }
 
@@ -513,7 +513,7 @@ void nfs_delegation_reap_unclaimed(struct nfs_client *clp)
 restart:
 	rcu_read_lock();
 	list_for_each_entry_rcu(delegation, &clp->cl_delegations, super_list) {
-		if ((delegation->flags & NFS_DELEGATION_NEED_RECLAIM) == 0)
+		if (test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags) == 0)
 			continue;
 		inode = nfs_delegation_grab_inode(delegation);
 		if (inode == NULL)

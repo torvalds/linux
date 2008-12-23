@@ -18,10 +18,10 @@ struct nfs_delegation {
 	struct inode *inode;
 	nfs4_stateid stateid;
 	int type;
-#define NFS_DELEGATION_NEED_RECLAIM 1
-	long flags;
 	loff_t maxsize;
 	__u64 change_attr;
+#define NFS_DELEGATION_NEED_RECLAIM 0
+	unsigned long flags;
 	spinlock_t lock;
 	struct rcu_head rcu;
 };

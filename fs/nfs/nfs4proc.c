@@ -344,7 +344,7 @@ static int can_open_delegated(struct nfs_delegation *delegation, mode_t open_fla
 {
 	if ((delegation->type & open_flags) != open_flags)
 		return 0;
-	if (delegation->flags & NFS_DELEGATION_NEED_RECLAIM)
+	if (test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags))
 		return 0;
 	return 1;
 }
@@ -536,7 +536,7 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 		if (delegation)
 			delegation_flags = delegation->flags;
 		rcu_read_unlock();
-		if (!(delegation_flags & NFS_DELEGATION_NEED_RECLAIM))
+		if ((delegation_flags & 1UL<<NFS_DELEGATION_NEED_RECLAIM) == 0)
 			nfs_inode_set_delegation(state->inode,
 					data->owner->so_cred,
 					&data->o_res);
@@ -667,7 +667,7 @@ static int _nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state
 	opendata->o_arg.fh = NFS_FH(state->inode);
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(state->inode)->delegation);
-	if (delegation != NULL && (delegation->flags & NFS_DELEGATION_NEED_RECLAIM) != 0)
+	if (delegation != NULL && test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags) != 0)
 		delegation_type = delegation->type;
 	rcu_read_unlock();
 	opendata->o_arg.u.delegation_type = delegation_type;
@@ -839,7 +839,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 		rcu_read_lock();
 		delegation = rcu_dereference(NFS_I(data->state->inode)->delegation);
 		if (delegation != NULL &&
-		   (delegation->flags & NFS_DELEGATION_NEED_RECLAIM) == 0) {
+		    test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags) == 0) {
 			rcu_read_unlock();
 			goto out_no_action;
 		}
