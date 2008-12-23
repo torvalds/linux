@@ -949,8 +949,7 @@ void ath9k_hw_ani_detach(struct ath_hal *ah);
 
 /* Calibration */
 
-void ath9k_hw_reset_calvalid(struct ath_hal *ah, struct ath9k_channel *chan,
-			     bool *isCalDone);
+bool ath9k_hw_reset_calvalid(struct ath_hal *ah);
 void ath9k_hw_start_nfcal(struct ath_hal *ah);
 void ath9k_hw_loadnf(struct ath_hal *ah, struct ath9k_channel *chan);
 int16_t ath9k_hw_getnf(struct ath_hal *ah,

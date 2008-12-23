@@ -372,8 +372,7 @@ static void ath_ani_calibrate(unsigned long data)
 	} else {
 		if ((timestamp - sc->sc_ani.sc_resetcal_timer) >=
 		    ATH_RESTART_CALINTERVAL) {
-			ath9k_hw_reset_calvalid(ah, ah->ah_curchan,
-						&sc->sc_ani.sc_caldone);
+			sc->sc_ani.sc_caldone = ath9k_hw_reset_calvalid(ah);
 			if (sc->sc_ani.sc_caldone)
 				sc->sc_ani.sc_resetcal_timer = timestamp;
 		}
