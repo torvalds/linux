@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
+#include <linux/sunrpc/svcauth_gss.h>
 
 #include <net/inet_sock.h>
 
@@ -182,10 +183,34 @@ void nfs_callback_down(void)
 	mutex_unlock(&nfs_callback_mutex);
 }
 
+static int check_gss_callback_principal(struct nfs_client *clp,
+					struct svc_rqst *rqstp)
+{
+	struct rpc_clnt *r = clp->cl_rpcclient;
+	char *p = svc_gss_principal(rqstp);
+
+	/*
+	 * It might just be a normal user principal, in which case
+	 * userspace won't bother to tell us the name at all.
+	 */
+	if (p == NULL)
+		return SVC_DENIED;
+
+	/* Expect a GSS_C_NT_HOSTBASED_NAME like "nfs@serverhostname" */
+
+	if (memcmp(p, "nfs@", 4) != 0)
+		return SVC_DENIED;
+	p += 4;
+	if (strcmp(p, r->cl_server) != 0)
+		return SVC_DENIED;
+	return SVC_OK;
+}
+
 static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 {
 	struct nfs_client *clp;
 	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
+	int ret = SVC_OK;
 
 	/* Don't talk to strangers */
 	clp = nfs_find_client(svc_addr(rqstp), 4);
@@ -194,21 +219,22 @@ static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 
 	dprintk("%s: %s NFSv4 callback!\n", __func__,
 			svc_print_addr(rqstp, buf, sizeof(buf)));
-	nfs_put_client(clp);
 
 	switch (rqstp->rq_authop->flavour) {
 		case RPC_AUTH_NULL:
 			if (rqstp->rq_proc != CB_NULL)
-				return SVC_DENIED;
+				ret = SVC_DENIED;
 			break;
 		case RPC_AUTH_UNIX:
 			break;
 		case RPC_AUTH_GSS:
-			/* FIXME: RPCSEC_GSS handling? */
+			ret = check_gss_callback_principal(clp, rqstp);
+			break;
 		default:
-			return SVC_DENIED;
+			ret = SVC_DENIED;
 	}
-	return SVC_OK;
+	nfs_put_client(clp);
+	return ret;
 }
 
 /*

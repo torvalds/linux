@@ -935,6 +935,7 @@ char *svc_gss_principal(struct svc_rqst *rqstp)
 		return gd->rsci->client_name;
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(svc_gss_principal);
 
 static int
 svcauth_gss_set_client(struct svc_rqst *rqstp)
