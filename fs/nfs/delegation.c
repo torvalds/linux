@@ -258,7 +258,7 @@ static int __nfs_inode_return_delegation(struct inode *inode, struct nfs_delegat
 /*
  * Return all delegations that have been marked for return
  */
-static void nfs_client_return_marked_delegations(struct nfs_client *clp)
+void nfs_client_return_marked_delegations(struct nfs_client *clp)
 {
 	struct nfs_delegation *delegation;
 	struct inode *inode;
@@ -342,15 +342,16 @@ void nfs_super_return_all_delegations(struct super_block *sb)
 	nfs_client_return_marked_delegations(clp);
 }
 
-static void nfs_client_return_all_delegations(struct nfs_client *clp)
+static void nfs_client_mark_return_all_delegations(struct nfs_client *clp)
 {
 	struct nfs_delegation *delegation;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(delegation, &clp->cl_delegations, super_list)
+	list_for_each_entry_rcu(delegation, &clp->cl_delegations, super_list) {
 		set_bit(NFS_DELEGATION_RETURN, &delegation->flags);
+		set_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state);
+	}
 	rcu_read_unlock();
-	nfs_client_return_marked_delegations(clp);
 }
 
 static int nfs_do_expire_all_delegations(void *ptr)
@@ -363,7 +364,8 @@ static int nfs_do_expire_all_delegations(void *ptr)
 		goto out;
 	if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0)
 		goto out;
-	nfs_client_return_all_delegations(clp);
+	nfs_client_mark_return_all_delegations(clp);
+	nfs_client_return_marked_delegations(clp);
 out:
 	nfs_put_client(clp);
 	module_put_and_exit(0);
@@ -392,7 +394,7 @@ void nfs_handle_cb_pathdown(struct nfs_client *clp)
 {
 	if (clp == NULL)
 		return;
-	nfs_client_return_all_delegations(clp);
+	nfs_client_mark_return_all_delegations(clp);
 }
 
 struct recall_threadargs {

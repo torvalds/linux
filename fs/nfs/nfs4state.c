@@ -1027,7 +1027,7 @@ static void nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 {
 	switch (error) {
 		case -NFS4ERR_CB_PATH_DOWN:
-			set_bit(NFS4CLNT_CB_PATH_DOWN, &clp->cl_state);
+			nfs_handle_cb_pathdown(clp);
 			break;
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_LEASE_MOVED:
@@ -1156,11 +1156,14 @@ static int reclaimer(void *ptr)
 				nfs4_state_end_reclaim_nograce(clp);
 			continue;
 		}
+
+		if (test_and_clear_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state)) {
+			nfs_client_return_marked_delegations(clp);
+			continue;
+		}
 		break;
 	}
 out:
-	if (test_and_clear_bit(NFS4CLNT_CB_PATH_DOWN, &clp->cl_state))
-		nfs_handle_cb_pathdown(clp);
 	nfs4_clear_recover_bit(clp);
 	nfs_put_client(clp);
 	module_put_and_exit(0);
