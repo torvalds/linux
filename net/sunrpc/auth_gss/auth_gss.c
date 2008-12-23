@@ -329,16 +329,16 @@ gss_alloc_msg(struct gss_auth *gss_auth, uid_t uid)
 	struct gss_upcall_msg *gss_msg;
 
 	gss_msg = kzalloc(sizeof(*gss_msg), GFP_NOFS);
-	if (gss_msg != NULL) {
-		INIT_LIST_HEAD(&gss_msg->list);
-		rpc_init_wait_queue(&gss_msg->rpc_waitqueue, "RPCSEC_GSS upcall waitq");
-		init_waitqueue_head(&gss_msg->waitqueue);
-		atomic_set(&gss_msg->count, 1);
-		gss_msg->msg.data = &gss_msg->uid;
-		gss_msg->msg.len = sizeof(gss_msg->uid);
-		gss_msg->uid = uid;
-		gss_msg->auth = gss_auth;
-	}
+	if (gss_msg == NULL)
+		return ERR_PTR(-ENOMEM);
+	INIT_LIST_HEAD(&gss_msg->list);
+	rpc_init_wait_queue(&gss_msg->rpc_waitqueue, "RPCSEC_GSS upcall waitq");
+	init_waitqueue_head(&gss_msg->waitqueue);
+	atomic_set(&gss_msg->count, 1);
+	gss_msg->msg.data = &gss_msg->uid;
+	gss_msg->msg.len = sizeof(gss_msg->uid);
+	gss_msg->uid = uid;
+	gss_msg->auth = gss_auth;
 	return gss_msg;
 }
 
@@ -355,8 +355,8 @@ gss_setup_upcall(struct rpc_clnt *clnt, struct gss_auth *gss_auth, struct rpc_cr
 		uid = 0;
 
 	gss_new = gss_alloc_msg(gss_auth, uid);
-	if (gss_new == NULL)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(gss_new))
+		return gss_new;
 	gss_msg = gss_add_msg(gss_auth, gss_new);
 	if (gss_msg == gss_new) {
 		int res = rpc_queue_upcall(gss_auth->dentry->d_inode, &gss_new->msg);
