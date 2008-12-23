@@ -58,6 +58,14 @@ config TOUCHSCREEN_CORGI
 	  NOTE: this driver is deprecated, try enable SPI and generic
 	  ADS7846-based touchscreen driver.
 
+config TOUCHSCREEN_DA9034
+	tristate "Touchscreen support for Dialog Semiconductor DA9034"
+	depends on PMIC_DA903X
+	default y
+	help
+	  Say Y here to enable the support for the touchscreen found
+	  on Dialog Semiconductor DA9034 PMIC.
+
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
 	select SERIO
