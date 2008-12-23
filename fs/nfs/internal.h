@@ -63,6 +63,10 @@ struct nfs_parsed_mount_data {
 	struct security_mnt_opts lsm_opts;
 };
 
+/* mount_clnt.c */
+extern int nfs_mount(struct sockaddr *, size_t, char *, char *,
+					int, int, struct nfs_fh *);
+
 /* client.c */
 extern struct rpc_program nfs_program;
 

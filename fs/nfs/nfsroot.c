@@ -86,6 +86,8 @@
 #include <net/ipconfig.h>
 #include <linux/parser.h>
 
+#include "internal.h"
+
 /* Define this to allow debugging output */
 #undef NFSROOT_DEBUG
 #define NFSDBG_FACILITY NFSDBG_ROOT
