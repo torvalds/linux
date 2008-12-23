@@ -273,6 +273,7 @@ static int mt9v022_set_bus_param(struct soc_camera_device *icd,
 				 unsigned long flags)
 {
 	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
+	struct soc_camera_link *icl = mt9v022->client->dev.platform_data;
 	unsigned int width_flag = flags & SOCAM_DATAWIDTH_MASK;
 	int ret;
 	u16 pixclk = 0;
@@ -295,6 +296,8 @@ static int mt9v022_set_bus_param(struct soc_camera_device *icd,
 
 		mt9v022->datawidth = width_flag == SOCAM_DATAWIDTH_8 ? 8 : 10;
 	}
+
+	flags = soc_camera_apply_sensor_flags(icl, flags);
 
 	if (flags & SOCAM_PCLK_SAMPLE_RISING)
 		pixclk |= 0x10;

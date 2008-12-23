@@ -272,17 +272,16 @@ static int mt9m001_set_bus_param(struct soc_camera_device *icd,
 static unsigned long mt9m001_query_bus_param(struct soc_camera_device *icd)
 {
 	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
-	unsigned int width_flag = SOCAM_DATAWIDTH_10;
+	struct soc_camera_link *icl = mt9m001->client->dev.platform_data;
+	/* MT9M001 has all capture_format parameters fixed */
+	unsigned long flags = SOCAM_DATAWIDTH_10 | SOCAM_PCLK_SAMPLE_RISING |
+		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |
+		SOCAM_MASTER;
 
 	if (bus_switch_possible(mt9m001))
-		width_flag |= SOCAM_DATAWIDTH_8;
+		flags |= SOCAM_DATAWIDTH_8;
 
-	/* MT9M001 has all capture_format parameters fixed */
-	return SOCAM_PCLK_SAMPLE_RISING |
-		SOCAM_HSYNC_ACTIVE_HIGH |
-		SOCAM_VSYNC_ACTIVE_HIGH |
-		SOCAM_MASTER |
-		width_flag;
+	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
 static int mt9m001_set_fmt(struct soc_camera_device *icd,

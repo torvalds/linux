@@ -81,11 +81,19 @@ struct soc_camera_host_ops {
 	unsigned int (*poll)(struct file *, poll_table *);
 };
 
+#define SOCAM_SENSOR_INVERT_PCLK	(1 << 0)
+#define SOCAM_SENSOR_INVERT_MCLK	(1 << 1)
+#define SOCAM_SENSOR_INVERT_HSYNC	(1 << 2)
+#define SOCAM_SENSOR_INVERT_VSYNC	(1 << 3)
+#define SOCAM_SENSOR_INVERT_DATA	(1 << 4)
+
 struct soc_camera_link {
 	/* Camera bus id, used to match a camera and a bus */
 	int bus_id;
 	/* GPIO number to switch between 8 and 10 bit modes */
 	unsigned int gpio;
+	/* Per camera SOCAM_SENSOR_* bus flags */
+	unsigned long flags;
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
@@ -205,5 +213,8 @@ static inline unsigned long soc_camera_bus_param_compatible(
 
 	return (!hsync || !vsync || !pclk) ? 0 : common_flags;
 }
+
+extern unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
+						   unsigned long flags);
 
 #endif
