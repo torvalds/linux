@@ -1908,11 +1908,16 @@ twobyte_insn:
 			c->dst.type = OP_NONE;
 			break;
 		case 3: /* lidt/vmmcall */
-			if (c->modrm_mod == 3 && c->modrm_rm == 1) {
-				rc = kvm_fix_hypercall(ctxt->vcpu);
-				if (rc)
-					goto done;
-				kvm_emulate_hypercall(ctxt->vcpu);
+			if (c->modrm_mod == 3) {
+				switch (c->modrm_rm) {
+				case 1:
+					rc = kvm_fix_hypercall(ctxt->vcpu);
+					if (rc)
+						goto done;
+					break;
+				default:
+					goto cannot_emulate;
+				}
 			} else {
 				rc = read_descriptor(ctxt, ops, c->src.ptr,
 						     &size, &address,
