@@ -533,12 +533,6 @@ readpage_async_filler(void *data, struct page *page)
 	unsigned int len;
 	int error;
 
-	error = nfs_wb_page(inode, page);
-	if (error)
-		goto out_unlock;
-	if (PageUptodate(page))
-		goto out_unlock;
-
 	len = nfs_page_length(page);
 	if (len == 0)
 		return nfs_return_empty_page(page);
