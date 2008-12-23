@@ -391,10 +391,17 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* wmm support is a must to HT */
+	/*
+	 * IEEE802.11n does not allow TKIP/WEP as pairwise
+	 * ciphers in HT mode. We still associate in non-ht
+	 * mode (11a/b/g) if any one of these ciphers is
+	 * configured as pairwise.
+	 */
 	if (wmm && (ifsta->flags & IEEE80211_STA_WMM_ENABLED) &&
 	    sband->ht_cap.ht_supported &&
 	    (ht_ie = ieee80211_bss_get_ie(bss, WLAN_EID_HT_INFORMATION)) &&
-	    ht_ie[1] >= sizeof(struct ieee80211_ht_info)) {
+	    ht_ie[1] >= sizeof(struct ieee80211_ht_info) &&
+	    (!(ifsta->flags & IEEE80211_STA_TKIP_WEP_USED))) {
 		struct ieee80211_ht_info *ht_info =
 			(struct ieee80211_ht_info *)(ht_ie + 2);
 		u16 cap = sband->ht_cap.cap;

@@ -459,7 +459,8 @@ static int ieee80211_stop(struct net_device *dev)
 		synchronize_rcu();
 		skb_queue_purge(&sdata->u.sta.skb_queue);
 
-		sdata->u.sta.flags &= ~IEEE80211_STA_PRIVACY_INVOKED;
+		sdata->u.sta.flags &= ~(IEEE80211_STA_PRIVACY_INVOKED |
+					IEEE80211_STA_TKIP_WEP_USED);
 		kfree(sdata->u.sta.extra_ie);
 		sdata->u.sta.extra_ie = NULL;
 		sdata->u.sta.extra_ie_len = 0;
