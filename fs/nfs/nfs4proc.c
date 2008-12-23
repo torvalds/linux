@@ -3273,6 +3273,8 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 
 static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
+	struct nfs_client *clp = state->owner->so_client;
+	struct nfs_inode *nfsi = NFS_I(state->inode);
 	struct nfs_seqid *seqid;
 	struct nfs4_lock_state *lsp;
 	struct rpc_task *task;
@@ -3282,8 +3284,15 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	status = nfs4_set_lock_state(state, request);
 	/* Unlock _before_ we do the RPC call */
 	request->fl_flags |= FL_EXISTS;
-	if (do_vfs_lock(request->fl_file, request) == -ENOENT)
+	down_read(&clp->cl_sem);
+	down_read(&nfsi->rwsem);
+	if (do_vfs_lock(request->fl_file, request) == -ENOENT) {
+		up_read(&nfsi->rwsem);
+		up_read(&clp->cl_sem);
 		goto out;
+	}
+	up_read(&nfsi->rwsem);
+	up_read(&clp->cl_sem);
 	if (status != 0)
 		goto out;
 	/* Is this a delegated lock? */
@@ -3510,6 +3519,7 @@ static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request
 static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
 	struct nfs_client *clp = state->owner->so_client;
+	struct nfs_inode *nfsi = NFS_I(state->inode);
 	unsigned char fl_flags = request->fl_flags;
 	int status;
 
@@ -3522,18 +3532,13 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 	if (status < 0)
 		goto out;
 	down_read(&clp->cl_sem);
+	down_read(&nfsi->rwsem);
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
-		struct nfs_inode *nfsi = NFS_I(state->inode);
 		/* Yes: cache locks! */
-		down_read(&nfsi->rwsem);
 		/* ...but avoid races with delegation recall... */
-		if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
-			request->fl_flags = fl_flags & ~FL_SLEEP;
-			status = do_vfs_lock(request->fl_file, request);
-			up_read(&nfsi->rwsem);
-			goto out_unlock;
-		}
-		up_read(&nfsi->rwsem);
+		request->fl_flags = fl_flags & ~FL_SLEEP;
+		status = do_vfs_lock(request->fl_file, request);
+		goto out_unlock;
 	}
 	status = _nfs4_do_setlk(state, cmd, request, 0);
 	if (status != 0)
@@ -3543,6 +3548,7 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 	if (do_vfs_lock(request->fl_file, request) < 0)
 		printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n", __func__);
 out_unlock:
+	up_read(&nfsi->rwsem);
 	up_read(&clp->cl_sem);
 out:
 	request->fl_flags = fl_flags;
