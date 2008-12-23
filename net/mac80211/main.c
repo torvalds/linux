@@ -211,16 +211,6 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	    channel_type != local->hw.conf.ht.channel_type) {
 		local->hw.conf.channel = chan;
 		local->hw.conf.ht.channel_type = channel_type;
-		switch (channel_type) {
-		case NL80211_CHAN_NO_HT:
-			local->hw.conf.ht.enabled = false;
-			break;
-		case NL80211_CHAN_HT20:
-		case NL80211_CHAN_HT40MINUS:
-		case NL80211_CHAN_HT40PLUS:
-			local->hw.conf.ht.enabled = true;
-			break;
-		}
 		changed |= IEEE80211_CONF_CHANGE_CHANNEL;
 	}
 

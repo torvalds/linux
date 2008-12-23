@@ -508,7 +508,6 @@ static inline int __deprecated __IEEE80211_CONF_SHORT_SLOT_TIME(void)
 #define IEEE80211_CONF_SHORT_SLOT_TIME (__IEEE80211_CONF_SHORT_SLOT_TIME())
 
 struct ieee80211_ht_conf {
-	bool enabled;
 	enum nl80211_channel_type channel_type;
 };
 
