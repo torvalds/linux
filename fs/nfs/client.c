@@ -526,6 +526,8 @@ static int nfs_start_lockd(struct nfs_server *server)
 		.protocol	= server->flags & NFS_MOUNT_TCP ?
 						IPPROTO_TCP : IPPROTO_UDP,
 		.nfs_version	= clp->rpc_ops->version,
+		.noresvport	= server->flags & NFS_MOUNT_NORESVPORT ?
+					1 : 0,
 	};
 
 	if (nlm_init.nfs_version > 3)
