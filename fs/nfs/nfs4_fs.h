@@ -161,7 +161,7 @@ struct nfs4_state {
 	unsigned int n_rdonly;		/* Number of read-only references */
 	unsigned int n_wronly;		/* Number of write-only references */
 	unsigned int n_rdwr;		/* Number of read/write references */
-	int state;			/* State on the server (R,W, or RW) */
+	fmode_t state;			/* State on the server (R,W, or RW) */
 	atomic_t count;
 };
 
@@ -223,9 +223,9 @@ extern struct nfs4_state_owner * nfs4_get_state_owner(struct nfs_server *, struc
 extern void nfs4_put_state_owner(struct nfs4_state_owner *);
 extern struct nfs4_state * nfs4_get_open_state(struct inode *, struct nfs4_state_owner *);
 extern void nfs4_put_open_state(struct nfs4_state *);
-extern void nfs4_close_state(struct path *, struct nfs4_state *, mode_t);
-extern void nfs4_close_sync(struct path *, struct nfs4_state *, mode_t);
-extern void nfs4_state_set_mode_locked(struct nfs4_state *, mode_t);
+extern void nfs4_close_state(struct path *, struct nfs4_state *, fmode_t);
+extern void nfs4_close_sync(struct path *, struct nfs4_state *, fmode_t);
+extern void nfs4_state_set_mode_locked(struct nfs4_state *, fmode_t);
 extern void nfs4_schedule_state_recovery(struct nfs_client *);
 extern void nfs4_schedule_state_manager(struct nfs_client *);
 extern int nfs4_state_mark_reclaim_nograce(struct nfs_client *clp, struct nfs4_state *state);

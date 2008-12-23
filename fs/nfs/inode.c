@@ -592,7 +592,7 @@ static void nfs_file_set_open_context(struct file *filp, struct nfs_open_context
 /*
  * Given an inode, search for an open context with the desired characteristics
  */
-struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, int mode)
+struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, fmode_t mode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_open_context *pos, *ctx = NULL;

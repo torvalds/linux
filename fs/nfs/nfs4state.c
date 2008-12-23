@@ -363,18 +363,18 @@ nfs4_alloc_open_state(void)
 }
 
 void
-nfs4_state_set_mode_locked(struct nfs4_state *state, mode_t mode)
+nfs4_state_set_mode_locked(struct nfs4_state *state, fmode_t fmode)
 {
-	if (state->state == mode)
+	if (state->state == fmode)
 		return;
 	/* NB! List reordering - see the reclaim code for why.  */
-	if ((mode & FMODE_WRITE) != (state->state & FMODE_WRITE)) {
-		if (mode & FMODE_WRITE)
+	if ((fmode & FMODE_WRITE) != (state->state & FMODE_WRITE)) {
+		if (fmode & FMODE_WRITE)
 			list_move(&state->open_states, &state->owner->so_states);
 		else
 			list_move_tail(&state->open_states, &state->owner->so_states);
 	}
-	state->state = mode;
+	state->state = fmode;
 }
 
 static struct nfs4_state *
@@ -454,16 +454,16 @@ void nfs4_put_open_state(struct nfs4_state *state)
 /*
  * Close the current file.
  */
-static void __nfs4_close(struct path *path, struct nfs4_state *state, mode_t mode, int wait)
+static void __nfs4_close(struct path *path, struct nfs4_state *state, fmode_t fmode, int wait)
 {
 	struct nfs4_state_owner *owner = state->owner;
 	int call_close = 0;
-	int newstate;
+	fmode_t newstate;
 
 	atomic_inc(&owner->so_count);
 	/* Protect against nfs4_find_state() */
 	spin_lock(&owner->so_lock);
-	switch (mode & (FMODE_READ | FMODE_WRITE)) {
+	switch (fmode & (FMODE_READ | FMODE_WRITE)) {
 		case FMODE_READ:
 			state->n_rdonly--;
 			break;
@@ -498,14 +498,14 @@ static void __nfs4_close(struct path *path, struct nfs4_state *state, mode_t mod
 		nfs4_do_close(path, state, wait);
 }
 
-void nfs4_close_state(struct path *path, struct nfs4_state *state, mode_t mode)
+void nfs4_close_state(struct path *path, struct nfs4_state *state, fmode_t fmode)
 {
-	__nfs4_close(path, state, mode, 0);
+	__nfs4_close(path, state, fmode, 0);
 }
 
-void nfs4_close_sync(struct path *path, struct nfs4_state *state, mode_t mode)
+void nfs4_close_sync(struct path *path, struct nfs4_state *state, fmode_t fmode)
 {
-	__nfs4_close(path, state, mode, 1);
+	__nfs4_close(path, state, fmode, 1);
 }
 
 /*

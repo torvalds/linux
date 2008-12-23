@@ -120,6 +120,7 @@ struct nfs_openargs {
 	const struct nfs_fh *	fh;
 	struct nfs_seqid *	seqid;
 	int			open_flags;
+	fmode_t			fmode;
 	__u64                   clientid;
 	__u64                   id;
 	union {
@@ -171,7 +172,7 @@ struct nfs_closeargs {
 	struct nfs_fh *         fh;
 	nfs4_stateid *		stateid;
 	struct nfs_seqid *	seqid;
-	int			open_flags;
+	fmode_t			fmode;
 	const u32 *		bitmask;
 };
 

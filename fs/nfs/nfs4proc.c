@@ -323,7 +323,7 @@ static void nfs4_init_opendata_res(struct nfs4_opendata *p)
 }
 
 static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
-		struct nfs4_state_owner *sp, int flags,
+		struct nfs4_state_owner *sp, fmode_t fmode, int flags,
 		const struct iattr *attrs)
 {
 	struct dentry *parent = dget_parent(path->dentry);
@@ -343,7 +343,8 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
 	p->owner = sp;
 	atomic_inc(&sp->so_count);
 	p->o_arg.fh = NFS_FH(dir);
-	p->o_arg.open_flags = flags,
+	p->o_arg.open_flags = flags;
+	p->o_arg.fmode = fmode & (FMODE_READ|FMODE_WRITE);
 	p->o_arg.clientid = server->nfs_client->cl_clientid;
 	p->o_arg.id = sp->so_owner_id.id;
 	p->o_arg.name = &p->path.dentry->d_name;
@@ -399,10 +400,13 @@ static int nfs4_wait_for_completion_rpc_task(struct rpc_task *task)
 	return ret;
 }
 
-static int can_open_cached(struct nfs4_state *state, int mode)
+static int can_open_cached(struct nfs4_state *state, fmode_t mode, int open_mode)
 {
 	int ret = 0;
-	switch (mode & (FMODE_READ|FMODE_WRITE|O_EXCL)) {
+
+	if (open_mode & O_EXCL)
+		goto out;
+	switch (mode & (FMODE_READ|FMODE_WRITE)) {
 		case FMODE_READ:
 			ret |= test_bit(NFS_O_RDONLY_STATE, &state->flags) != 0;
 			break;
@@ -412,12 +416,13 @@ static int can_open_cached(struct nfs4_state *state, int mode)
 		case FMODE_READ|FMODE_WRITE:
 			ret |= test_bit(NFS_O_RDWR_STATE, &state->flags) != 0;
 	}
+out:
 	return ret;
 }
 
-static int can_open_delegated(struct nfs_delegation *delegation, mode_t open_flags)
+static int can_open_delegated(struct nfs_delegation *delegation, fmode_t fmode)
 {
-	if ((delegation->type & open_flags) != open_flags)
+	if ((delegation->type & fmode) != fmode)
 		return 0;
 	if (test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags))
 		return 0;
@@ -425,9 +430,9 @@ static int can_open_delegated(struct nfs_delegation *delegation, mode_t open_fla
 	return 1;
 }
 
-static void update_open_stateflags(struct nfs4_state *state, mode_t open_flags)
+static void update_open_stateflags(struct nfs4_state *state, fmode_t fmode)
 {
-	switch (open_flags) {
+	switch (fmode) {
 		case FMODE_WRITE:
 			state->n_wronly++;
 			break;
@@ -437,15 +442,15 @@ static void update_open_stateflags(struct nfs4_state *state, mode_t open_flags)
 		case FMODE_READ|FMODE_WRITE:
 			state->n_rdwr++;
 	}
-	nfs4_state_set_mode_locked(state, state->state | open_flags);
+	nfs4_state_set_mode_locked(state, state->state | fmode);
 }
 
-static void nfs_set_open_stateid_locked(struct nfs4_state *state, nfs4_stateid *stateid, int open_flags)
+static void nfs_set_open_stateid_locked(struct nfs4_state *state, nfs4_stateid *stateid, fmode_t fmode)
 {
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags) == 0)
 		memcpy(state->stateid.data, stateid->data, sizeof(state->stateid.data));
 	memcpy(state->open_stateid.data, stateid->data, sizeof(state->open_stateid.data));
-	switch (open_flags) {
+	switch (fmode) {
 		case FMODE_READ:
 			set_bit(NFS_O_RDONLY_STATE, &state->flags);
 			break;
@@ -457,14 +462,14 @@ static void nfs_set_open_stateid_locked(struct nfs4_state *state, nfs4_stateid *
 	}
 }
 
-static void nfs_set_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid, int open_flags)
+static void nfs_set_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid, fmode_t fmode)
 {
 	write_seqlock(&state->seqlock);
-	nfs_set_open_stateid_locked(state, stateid, open_flags);
+	nfs_set_open_stateid_locked(state, stateid, fmode);
 	write_sequnlock(&state->seqlock);
 }
 
-static void __update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stateid, const nfs4_stateid *deleg_stateid, int open_flags)
+static void __update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stateid, const nfs4_stateid *deleg_stateid, fmode_t fmode)
 {
 	/*
 	 * Protect the call to nfs4_state_set_mode_locked and
@@ -476,20 +481,20 @@ static void __update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_s
 		set_bit(NFS_DELEGATED_STATE, &state->flags);
 	}
 	if (open_stateid != NULL)
-		nfs_set_open_stateid_locked(state, open_stateid, open_flags);
+		nfs_set_open_stateid_locked(state, open_stateid, fmode);
 	write_sequnlock(&state->seqlock);
 	spin_lock(&state->owner->so_lock);
-	update_open_stateflags(state, open_flags);
+	update_open_stateflags(state, fmode);
 	spin_unlock(&state->owner->so_lock);
 }
 
-static int update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stateid, nfs4_stateid *delegation, int open_flags)
+static int update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stateid, nfs4_stateid *delegation, fmode_t fmode)
 {
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	struct nfs_delegation *deleg_cur;
 	int ret = 0;
 
-	open_flags &= (FMODE_READ|FMODE_WRITE);
+	fmode &= (FMODE_READ|FMODE_WRITE);
 
 	rcu_read_lock();
 	deleg_cur = rcu_dereference(nfsi->delegation);
@@ -498,7 +503,7 @@ static int update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stat
 
 	spin_lock(&deleg_cur->lock);
 	if (nfsi->delegation != deleg_cur ||
-	    (deleg_cur->type & open_flags) != open_flags)
+	    (deleg_cur->type & fmode) != fmode)
 		goto no_delegation_unlock;
 
 	if (delegation == NULL)
@@ -507,7 +512,7 @@ static int update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stat
 		goto no_delegation_unlock;
 
 	nfs_mark_delegation_referenced(deleg_cur);
-	__update_open_stateid(state, open_stateid, &deleg_cur->stateid, open_flags);
+	__update_open_stateid(state, open_stateid, &deleg_cur->stateid, fmode);
 	ret = 1;
 no_delegation_unlock:
 	spin_unlock(&deleg_cur->lock);
@@ -515,7 +520,7 @@ no_delegation:
 	rcu_read_unlock();
 
 	if (!ret && open_stateid != NULL) {
-		__update_open_stateid(state, open_stateid, NULL, open_flags);
+		__update_open_stateid(state, open_stateid, NULL, fmode);
 		ret = 1;
 	}
 
@@ -523,13 +528,13 @@ no_delegation:
 }
 
 
-static void nfs4_return_incompatible_delegation(struct inode *inode, mode_t open_flags)
+static void nfs4_return_incompatible_delegation(struct inode *inode, fmode_t fmode)
 {
 	struct nfs_delegation *delegation;
 
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(inode)->delegation);
-	if (delegation == NULL || (delegation->type & open_flags) == open_flags) {
+	if (delegation == NULL || (delegation->type & fmode) == fmode) {
 		rcu_read_unlock();
 		return;
 	}
@@ -542,15 +547,16 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 	struct nfs4_state *state = opendata->state;
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	struct nfs_delegation *delegation;
-	int open_mode = opendata->o_arg.open_flags & (FMODE_READ|FMODE_WRITE|O_EXCL);
+	int open_mode = opendata->o_arg.open_flags & O_EXCL;
+	fmode_t fmode = opendata->o_arg.fmode;
 	nfs4_stateid stateid;
 	int ret = -EAGAIN;
 
 	for (;;) {
-		if (can_open_cached(state, open_mode)) {
+		if (can_open_cached(state, fmode, open_mode)) {
 			spin_lock(&state->owner->so_lock);
-			if (can_open_cached(state, open_mode)) {
-				update_open_stateflags(state, open_mode);
+			if (can_open_cached(state, fmode, open_mode)) {
+				update_open_stateflags(state, fmode);
 				spin_unlock(&state->owner->so_lock);
 				goto out_return_state;
 			}
@@ -559,7 +565,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		rcu_read_lock();
 		delegation = rcu_dereference(nfsi->delegation);
 		if (delegation == NULL ||
-		    !can_open_delegated(delegation, open_mode)) {
+		    !can_open_delegated(delegation, fmode)) {
 			rcu_read_unlock();
 			break;
 		}
@@ -572,7 +578,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		ret = -EAGAIN;
 
 		/* Try to update the stateid using the delegation */
-		if (update_open_stateid(state, NULL, &stateid, open_mode))
+		if (update_open_stateid(state, NULL, &stateid, fmode))
 			goto out_return_state;
 	}
 out:
@@ -624,7 +630,7 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 	}
 
 	update_open_stateid(state, &data->o_res.stateid, NULL,
-			data->o_arg.open_flags);
+			data->o_arg.fmode);
 	iput(inode);
 out:
 	return state;
@@ -655,7 +661,7 @@ static struct nfs4_opendata *nfs4_open_recoverdata_alloc(struct nfs_open_context
 {
 	struct nfs4_opendata *opendata;
 
-	opendata = nfs4_opendata_alloc(&ctx->path, state->owner, 0, NULL);
+	opendata = nfs4_opendata_alloc(&ctx->path, state->owner, 0, 0, NULL);
 	if (opendata == NULL)
 		return ERR_PTR(-ENOMEM);
 	opendata->state = state;
@@ -663,12 +669,13 @@ static struct nfs4_opendata *nfs4_open_recoverdata_alloc(struct nfs_open_context
 	return opendata;
 }
 
-static int nfs4_open_recover_helper(struct nfs4_opendata *opendata, mode_t openflags, struct nfs4_state **res)
+static int nfs4_open_recover_helper(struct nfs4_opendata *opendata, fmode_t fmode, struct nfs4_state **res)
 {
 	struct nfs4_state *newstate;
 	int ret;
 
-	opendata->o_arg.open_flags = openflags;
+	opendata->o_arg.open_flags = 0;
+	opendata->o_arg.fmode = fmode;
 	memset(&opendata->o_res, 0, sizeof(opendata->o_res));
 	memset(&opendata->c_res, 0, sizeof(opendata->c_res));
 	nfs4_init_opendata_res(opendata);
@@ -678,7 +685,7 @@ static int nfs4_open_recover_helper(struct nfs4_opendata *opendata, mode_t openf
 	newstate = nfs4_opendata_to_nfs4_state(opendata);
 	if (IS_ERR(newstate))
 		return PTR_ERR(newstate);
-	nfs4_close_state(&opendata->path, newstate, openflags);
+	nfs4_close_state(&opendata->path, newstate, fmode);
 	*res = newstate;
 	return 0;
 }
@@ -734,7 +741,7 @@ static int _nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state
 {
 	struct nfs_delegation *delegation;
 	struct nfs4_opendata *opendata;
-	int delegation_type = 0;
+	fmode_t delegation_type = 0;
 	int status;
 
 	opendata = nfs4_open_recoverdata_alloc(ctx, state);
@@ -847,7 +854,7 @@ static void nfs4_open_confirm_release(void *calldata)
 		goto out_free;
 	state = nfs4_opendata_to_nfs4_state(data);
 	if (!IS_ERR(state))
-		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
+		nfs4_close_state(&data->path, state, data->o_arg.fmode);
 out_free:
 	nfs4_opendata_put(data);
 }
@@ -911,7 +918,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	if (data->state != NULL) {
 		struct nfs_delegation *delegation;
 
-		if (can_open_cached(data->state, data->o_arg.open_flags & (FMODE_READ|FMODE_WRITE|O_EXCL)))
+		if (can_open_cached(data->state, data->o_arg.fmode, data->o_arg.open_flags))
 			goto out_no_action;
 		rcu_read_lock();
 		delegation = rcu_dereference(NFS_I(data->state->inode)->delegation);
@@ -980,7 +987,7 @@ static void nfs4_open_release(void *calldata)
 		goto out_free;
 	state = nfs4_opendata_to_nfs4_state(data);
 	if (!IS_ERR(state))
-		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
+		nfs4_close_state(&data->path, state, data->o_arg.fmode);
 out_free:
 	nfs4_opendata_put(data);
 }
@@ -1135,7 +1142,7 @@ static inline void nfs4_exclusive_attrset(struct nfs4_opendata *opendata, struct
 /*
  * Returns a referenced nfs4_state
  */
-static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct iattr *sattr, struct rpc_cred *cred, struct nfs4_state **res)
+static int _nfs4_do_open(struct inode *dir, struct path *path, fmode_t fmode, int flags, struct iattr *sattr, struct rpc_cred *cred, struct nfs4_state **res)
 {
 	struct nfs4_state_owner  *sp;
 	struct nfs4_state     *state = NULL;
@@ -1153,9 +1160,9 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct
 	if (status != 0)
 		goto err_put_state_owner;
 	if (path->dentry->d_inode != NULL)
-		nfs4_return_incompatible_delegation(path->dentry->d_inode, flags & (FMODE_READ|FMODE_WRITE));
+		nfs4_return_incompatible_delegation(path->dentry->d_inode, fmode);
 	status = -ENOMEM;
-	opendata = nfs4_opendata_alloc(path, sp, flags, sattr);
+	opendata = nfs4_opendata_alloc(path, sp, fmode, flags, sattr);
 	if (opendata == NULL)
 		goto err_put_state_owner;
 
@@ -1187,14 +1194,14 @@ out_err:
 }
 
 
-static struct nfs4_state *nfs4_do_open(struct inode *dir, struct path *path, int flags, struct iattr *sattr, struct rpc_cred *cred)
+static struct nfs4_state *nfs4_do_open(struct inode *dir, struct path *path, fmode_t fmode, int flags, struct iattr *sattr, struct rpc_cred *cred)
 {
 	struct nfs4_exception exception = { };
 	struct nfs4_state *res;
 	int status;
 
 	do {
-		status = _nfs4_do_open(dir, path, flags, sattr, cred, &res);
+		status = _nfs4_do_open(dir, path, fmode, flags, sattr, cred, &res);
 		if (status == 0)
 			break;
 		/* NOTE: BAD_SEQID means the server and client disagree about the
@@ -1332,7 +1339,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 		case -NFS4ERR_OLD_STATEID:
 		case -NFS4ERR_BAD_STATEID:
 		case -NFS4ERR_EXPIRED:
-			if (calldata->arg.open_flags == 0)
+			if (calldata->arg.fmode == 0)
 				break;
 		default:
 			if (nfs4_async_handle_error(task, server, state) == -EAGAIN) {
@@ -1374,10 +1381,10 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	nfs_fattr_init(calldata->res.fattr);
 	if (test_bit(NFS_O_RDONLY_STATE, &state->flags) != 0) {
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
-		calldata->arg.open_flags = FMODE_READ;
+		calldata->arg.fmode = FMODE_READ;
 	} else if (test_bit(NFS_O_WRONLY_STATE, &state->flags) != 0) {
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
-		calldata->arg.open_flags = FMODE_WRITE;
+		calldata->arg.fmode = FMODE_WRITE;
 	}
 	calldata->timestamp = jiffies;
 	rpc_call_start(task);
@@ -1430,7 +1437,7 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state, int wait)
 	calldata->arg.seqid = nfs_alloc_seqid(&state->owner->so_seqid);
 	if (calldata->arg.seqid == NULL)
 		goto out_free_calldata;
-	calldata->arg.open_flags = 0;
+	calldata->arg.fmode = 0;
 	calldata->arg.bitmask = server->attr_bitmask;
 	calldata->res.fattr = &calldata->fattr;
 	calldata->res.seqid = calldata->arg.seqid;
@@ -1457,13 +1464,13 @@ out:
 	return status;
 }
 
-static int nfs4_intent_set_file(struct nameidata *nd, struct path *path, struct nfs4_state *state)
+static int nfs4_intent_set_file(struct nameidata *nd, struct path *path, struct nfs4_state *state, fmode_t fmode)
 {
 	struct file *filp;
 	int ret;
 
 	/* If the open_intent is for execute, we have an extra check to make */
-	if (nd->intent.open.flags & FMODE_EXEC) {
+	if (fmode & FMODE_EXEC) {
 		ret = nfs_may_open(state->inode,
 				state->owner->so_cred,
 				nd->intent.open.flags);
@@ -1479,7 +1486,7 @@ static int nfs4_intent_set_file(struct nameidata *nd, struct path *path, struct 
 	}
 	ret = PTR_ERR(filp);
 out_close:
-	nfs4_close_sync(path, state, nd->intent.open.flags);
+	nfs4_close_sync(path, state, fmode & (FMODE_READ|FMODE_WRITE));
 	return ret;
 }
 
@@ -1495,6 +1502,7 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
 	struct dentry *res;
+	fmode_t fmode = nd->intent.open.flags & (FMODE_READ | FMODE_WRITE | FMODE_EXEC);
 
 	if (nd->flags & LOOKUP_CREATE) {
 		attr.ia_mode = nd->intent.open.create_mode;
@@ -1512,7 +1520,7 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	parent = dentry->d_parent;
 	/* Protect against concurrent sillydeletes */
 	nfs_block_sillyrename(parent);
-	state = nfs4_do_open(dir, &path, nd->intent.open.flags, &attr, cred);
+	state = nfs4_do_open(dir, &path, fmode, nd->intent.open.flags, &attr, cred);
 	put_rpccred(cred);
 	if (IS_ERR(state)) {
 		if (PTR_ERR(state) == -ENOENT) {
@@ -1527,7 +1535,7 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 		path.dentry = res;
 	nfs_set_verifier(path.dentry, nfs_save_change_attribute(dir));
 	nfs_unblock_sillyrename(parent);
-	nfs4_intent_set_file(nd, &path, state);
+	nfs4_intent_set_file(nd, &path, state, fmode);
 	return res;
 }
 
@@ -1540,11 +1548,12 @@ nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags, st
 	};
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
+	fmode_t fmode = openflags & (FMODE_READ | FMODE_WRITE);
 
 	cred = rpc_lookup_cred();
 	if (IS_ERR(cred))
 		return PTR_ERR(cred);
-	state = nfs4_do_open(dir, &path, openflags, NULL, cred);
+	state = nfs4_do_open(dir, &path, fmode, openflags, NULL, cred);
 	put_rpccred(cred);
 	if (IS_ERR(state)) {
 		switch (PTR_ERR(state)) {
@@ -1561,10 +1570,10 @@ nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags, st
 	}
 	if (state->inode == dentry->d_inode) {
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
-		nfs4_intent_set_file(nd, &path, state);
+		nfs4_intent_set_file(nd, &path, state, fmode);
 		return 1;
 	}
-	nfs4_close_sync(&path, state, openflags);
+	nfs4_close_sync(&path, state, fmode);
 out_drop:
 	d_drop(dentry);
 	return 0;
@@ -1990,6 +1999,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	};
 	struct nfs4_state *state;
 	struct rpc_cred *cred;
+	fmode_t fmode = flags & (FMODE_READ | FMODE_WRITE);
 	int status = 0;
 
 	cred = rpc_lookup_cred();
@@ -1997,7 +2007,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		status = PTR_ERR(cred);
 		goto out;
 	}
-	state = nfs4_do_open(dir, &path, flags, sattr, cred);
+	state = nfs4_do_open(dir, &path, fmode, flags, sattr, cred);
 	d_drop(dentry);
 	if (IS_ERR(state)) {
 		status = PTR_ERR(state);
@@ -2013,9 +2023,9 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		nfs_post_op_update_inode(state->inode, &fattr);
 	}
 	if (status == 0 && (nd->flags & LOOKUP_OPEN) != 0)
-		status = nfs4_intent_set_file(nd, &path, state);
+		status = nfs4_intent_set_file(nd, &path, state, fmode);
 	else
-		nfs4_close_sync(&path, state, flags);
+		nfs4_close_sync(&path, state, fmode);
 out_putcred:
 	put_rpccred(cred);
 out:

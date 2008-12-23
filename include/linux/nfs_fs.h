@@ -83,7 +83,7 @@ struct nfs_open_context {
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
 	fl_owner_t lockowner;
-	int mode;
+	fmode_t mode;
 
 	unsigned long flags;
 #define NFS_CONTEXT_ERROR_WRITE		(0)
@@ -342,7 +342,7 @@ extern int nfs_setattr(struct dentry *, struct iattr *);
 extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
-extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, int mode);
+extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, fmode_t mode);
 extern u64 nfs_compat_user_ino64(u64 fileid);
 extern void nfs_fattr_init(struct nfs_fattr *fattr);
 

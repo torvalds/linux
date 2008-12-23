@@ -953,12 +953,12 @@ static int encode_lookup(struct xdr_stream *xdr, const struct qstr *name)
 	return 0;
 }
 
-static void encode_share_access(struct xdr_stream *xdr, int open_flags)
+static void encode_share_access(struct xdr_stream *xdr, fmode_t fmode)
 {
 	__be32 *p;
 
 	RESERVE_SPACE(8);
-	switch (open_flags & (FMODE_READ|FMODE_WRITE)) {
+	switch (fmode & (FMODE_READ|FMODE_WRITE)) {
 		case FMODE_READ:
 			WRITE32(NFS4_SHARE_ACCESS_READ);
 			break;
@@ -969,7 +969,7 @@ static void encode_share_access(struct xdr_stream *xdr, int open_flags)
 			WRITE32(NFS4_SHARE_ACCESS_BOTH);
 			break;
 		default:
-			BUG();
+			WRITE32(0);
 	}
 	WRITE32(0);		/* for linux, share_deny = 0 always */
 }
@@ -984,7 +984,7 @@ static inline void encode_openhdr(struct xdr_stream *xdr, const struct nfs_opena
 	RESERVE_SPACE(8);
 	WRITE32(OP_OPEN);
 	WRITE32(arg->seqid->sequence->counter);
-	encode_share_access(xdr, arg->open_flags);
+	encode_share_access(xdr, arg->fmode);
 	RESERVE_SPACE(28);
 	WRITE64(arg->clientid);
 	WRITE32(16);
@@ -1112,7 +1112,7 @@ static int encode_open_downgrade(struct xdr_stream *xdr, const struct nfs_closea
 	WRITE32(OP_OPEN_DOWNGRADE);
 	WRITEMEM(arg->stateid->data, NFS4_STATEID_SIZE);
 	WRITE32(arg->seqid->sequence->counter);
-	encode_share_access(xdr, arg->open_flags);
+	encode_share_access(xdr, arg->fmode);
 	return 0;
 }
 
