@@ -1962,4 +1962,34 @@ rate_lowest_index(struct ieee80211_supported_band *sband,
 int ieee80211_rate_control_register(struct rate_control_ops *ops);
 void ieee80211_rate_control_unregister(struct rate_control_ops *ops);
 
+static inline bool
+conf_is_ht20(struct ieee80211_conf *conf)
+{
+	return conf->ht.channel_type == NL80211_CHAN_HT20;
+}
+
+static inline bool
+conf_is_ht40_minus(struct ieee80211_conf *conf)
+{
+	return conf->ht.channel_type == NL80211_CHAN_HT40MINUS;
+}
+
+static inline bool
+conf_is_ht40_plus(struct ieee80211_conf *conf)
+{
+	return conf->ht.channel_type == NL80211_CHAN_HT40PLUS;
+}
+
+static inline bool
+conf_is_ht40(struct ieee80211_conf *conf)
+{
+	return conf_is_ht40_minus(conf) || conf_is_ht40_plus(conf);
+}
+
+static inline bool
+conf_is_ht(struct ieee80211_conf *conf)
+{
+	return conf->ht.channel_type != NL80211_CHAN_NO_HT;
+}
+
 #endif /* MAC80211_H */
