@@ -255,6 +255,7 @@ static int pmc_generic_enable(struct perf_counter *counter)
 		idx = find_first_zero_bit(cpuc->used, nr_counters_generic);
 		if (idx == nr_counters_generic)
 			return -EAGAIN;
+
 		set_bit(idx, cpuc->used);
 		hwc->idx = idx;
 	}
@@ -274,6 +275,7 @@ static int pmc_generic_enable(struct perf_counter *counter)
 void perf_counter_print_debug(void)
 {
 	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, prev_left;
+	struct cpu_hw_counters *cpuc;
 	int cpu, idx;
 
 	if (!nr_counters_generic)
@@ -282,6 +284,7 @@ void perf_counter_print_debug(void)
 	local_irq_disable();
 
 	cpu = smp_processor_id();
+	cpuc = &per_cpu(cpu_hw_counters, cpu);
 
 	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
 	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
@@ -291,6 +294,7 @@ void perf_counter_print_debug(void)
 	printk(KERN_INFO "CPU#%d: ctrl:       %016llx\n", cpu, ctrl);
 	printk(KERN_INFO "CPU#%d: status:     %016llx\n", cpu, status);
 	printk(KERN_INFO "CPU#%d: overflow:   %016llx\n", cpu, overflow);
+	printk(KERN_INFO "CPU#%d: used:       %016llx\n", cpu, *(u64 *)cpuc->used);
 
 	for (idx = 0; idx < nr_counters_generic; idx++) {
 		rdmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + idx, pmc_ctrl);
