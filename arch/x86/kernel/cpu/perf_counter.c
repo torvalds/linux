@@ -64,7 +64,6 @@ x86_perf_counter_update(struct perf_counter *counter,
 {
 	u64 prev_raw_count, new_raw_count, delta;
 
-	WARN_ON_ONCE(counter->state != PERF_COUNTER_STATE_ACTIVE);
 	/*
 	 * Careful: an NMI might modify the previous counter value.
 	 *
@@ -89,7 +88,6 @@ again:
 	 * of the count, so we do that by clipping the delta to 32 bits:
 	 */
 	delta = (u64)(u32)((s32)new_raw_count - (s32)prev_raw_count);
-	WARN_ON_ONCE((int)delta < 0);
 
 	atomic64_add(delta, &counter->count);
 	atomic64_sub(delta, &hwc->period_left);
@@ -193,7 +191,6 @@ __x86_perf_counter_disable(struct perf_counter *counter,
 	int err;
 
 	err = wrmsr_safe(hwc->config_base + idx, hwc->config, 0);
-	WARN_ON_ONCE(err);
 }
 
 static DEFINE_PER_CPU(u64, prev_left[MAX_HW_COUNTERS]);
@@ -209,8 +206,6 @@ __hw_perf_counter_set_period(struct perf_counter *counter,
 	s32 left = atomic64_read(&hwc->period_left);
 	s32 period = hwc->irq_period;
 
-	WARN_ON_ONCE(period <= 0);
-
 	/*
 	 * If we are way outside a reasoable range then just skip forward:
 	 */
@@ -223,8 +218,6 @@ __hw_perf_counter_set_period(struct perf_counter *counter,
 		left += period;
 		atomic64_set(&hwc->period_left, left);
 	}
-
-	WARN_ON_ONCE(left <= 0);
 
 	per_cpu(prev_left[idx], smp_processor_id()) = left;
 

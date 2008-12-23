@@ -861,8 +861,6 @@ static void task_clock_perf_counter_update(struct perf_counter *counter)
 	atomic64_set(&counter->hw.prev_count, now);
 
 	delta = now - prev;
-	if (WARN_ON_ONCE(delta < 0))
-		delta = 0;
 
 	atomic64_add(delta, &counter->count);
 }
@@ -906,8 +904,6 @@ static void page_faults_perf_counter_update(struct perf_counter *counter)
 	atomic64_set(&counter->hw.prev_count, now);
 
 	delta = now - prev;
-	if (WARN_ON_ONCE(delta < 0))
-		delta = 0;
 
 	atomic64_add(delta, &counter->count);
 }
@@ -954,8 +950,6 @@ static void context_switches_perf_counter_update(struct perf_counter *counter)
 	atomic64_set(&counter->hw.prev_count, now);
 
 	delta = now - prev;
-	if (WARN_ON_ONCE(delta < 0))
-		delta = 0;
 
 	atomic64_add(delta, &counter->count);
 }
@@ -1000,8 +994,6 @@ static void cpu_migrations_perf_counter_update(struct perf_counter *counter)
 	atomic64_set(&counter->hw.prev_count, now);
 
 	delta = now - prev;
-	if (WARN_ON_ONCE(delta < 0))
-		delta = 0;
 
 	atomic64_add(delta, &counter->count);
 }

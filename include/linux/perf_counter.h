@@ -218,8 +218,6 @@ struct perf_cpu_context {
 extern int perf_max_counters;
 
 #ifdef CONFIG_PERF_COUNTERS
-extern void
-perf_counter_show(struct perf_counter *counter, char *str, int trace);
 extern const struct hw_perf_counter_ops *
 hw_perf_counter_init(struct perf_counter *counter);
 
@@ -236,8 +234,6 @@ extern int perf_counter_task_disable(void);
 extern int perf_counter_task_enable(void);
 
 #else
-static inline void
-perf_counter_show(struct perf_counter *counter, char *str, int trace)   { }
 static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }
 static inline void
