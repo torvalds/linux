@@ -52,7 +52,7 @@ static struct pxafb_mode_info e400_pxafb_mode_info = {
 static struct pxafb_mach_info e400_pxafb_mach_info = {
 	.modes          = &e400_pxafb_mode_info,
 	.num_modes      = 1,
-	.lccr0          = LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
+	.lcd_conn	= LCD_COLOR_TFT_16BPP,
 	.lccr3          = 0,
 	.pxafb_backlight_power  = NULL,
 };

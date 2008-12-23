@@ -23,6 +23,10 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/smc91x.h>
+#include <linux/i2c.h>
+#include <linux/leds.h>
+#include <linux/mfd/da903x.h>
+#include <linux/i2c/max732x.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -40,6 +44,7 @@
 #include <mach/pxafb.h>
 #include <mach/ssp.h>
 #include <mach/pxa2xx_spi.h>
+#include <mach/i2c.h>
 #include <mach/pxa27x_keypad.h>
 #include <mach/pxa3xx_nand.h>
 #include <mach/littleton.h>
@@ -314,6 +319,73 @@ static void __init littleton_init_nand(void)
 static inline void littleton_init_nand(void) {}
 #endif /* CONFIG_MTD_NAND_PXA3xx || CONFIG_MTD_NAND_PXA3xx_MODULE */
 
+#if defined(CONFIG_I2C_PXA) || defined(CONFIG_I2C_PXA_MODULE)
+static struct led_info littleton_da9034_leds[] = {
+	[0] = {
+		.name	= "littleton:keypad1",
+		.flags	= DA9034_LED_RAMP,
+	},
+	[1] = {
+		.name	= "littleton:keypad2",
+		.flags	= DA9034_LED_RAMP,
+	},
+	[2] = {
+		.name	= "littleton:vibra",
+		.flags	= 0,
+	},
+};
+
+static struct da903x_subdev_info littleton_da9034_subdevs[] = {
+	{
+		.name		= "da903x-led",
+		.id		= DA9034_ID_LED_1,
+		.platform_data	= &littleton_da9034_leds[0],
+	}, {
+		.name		= "da903x-led",
+		.id		= DA9034_ID_LED_2,
+		.platform_data	= &littleton_da9034_leds[1],
+	}, {
+		.name		= "da903x-led",
+		.id		= DA9034_ID_VIBRA,
+		.platform_data	= &littleton_da9034_leds[2],
+	}, {
+		.name		= "da903x-backlight",
+		.id		= DA9034_ID_WLED,
+	},
+};
+
+static struct da903x_platform_data littleton_da9034_info = {
+	.num_subdevs	= ARRAY_SIZE(littleton_da9034_subdevs),
+	.subdevs	= littleton_da9034_subdevs,
+};
+
+static struct max732x_platform_data littleton_max7320_info = {
+	.gpio_base	= EXT0_GPIO_BASE,
+};
+
+static struct i2c_board_info littleton_i2c_info[] = {
+	[0] = {
+		.type		= "da9034",
+		.addr		= 0x34,
+		.platform_data	= &littleton_da9034_info,
+		.irq		= gpio_to_irq(mfp_to_gpio(MFP_PIN_GPIO18)),
+	},
+	[1] = {
+		.type		= "max7320",
+		.addr		= 0x50,
+		.platform_data	= &littleton_max7320_info,
+	},
+};
+
+static void __init littleton_init_i2c(void)
+{
+	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(littleton_i2c_info));
+}
+#else
+static inline void littleton_init_i2c(void) {}
+#endif /* CONFIG_I2C_PXA || CONFIG_I2C_PXA_MODULE */
+
 static void __init littleton_init(void)
 {
 	/* initialize MFP configurations */
@@ -326,6 +398,7 @@ static void __init littleton_init(void)
 	platform_device_register(&smc91x_device);
 
 	littleton_init_spi();
+	littleton_init_i2c();
 	littleton_init_lcd();
 	littleton_init_keypad();
 	littleton_init_nand();

@@ -344,7 +344,7 @@ static unsigned long am200_pin_config[] __initdata = {
 	GPIO16_GPIO,
 };
 
-static int __init am200_init(void)
+int __init am200_init(void)
 {
 	int ret;
 
@@ -381,8 +381,6 @@ static int __init am200_init(void)
 
 module_param(panel_type, uint, 0);
 MODULE_PARM_DESC(panel_type, "Select the panel type: 6, 8, 97");
-
-module_init(am200_init);
 
 MODULE_DESCRIPTION("board driver for am200 metronome epd kit");
 MODULE_AUTHOR("Jaya Kumar");

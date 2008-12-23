@@ -50,7 +50,6 @@
 #include <asm/irq.h>
 #include <asm/div64.h>
 #include <mach/pxa-regs.h>
-#include <mach/pxa2xx-gpio.h>
 #include <mach/bitfield.h>
 #include <mach/pxafb.h>
 
@@ -724,12 +723,19 @@ int pxafb_smart_queue(struct fb_info *info, uint16_t *cmds, int n_cmds)
 	int i;
 	struct pxafb_info *fbi = container_of(info, struct pxafb_info, fb);
 
-	/* leave 2 commands for INTERRUPT and WAIT_FOR_SYNC */
-	for (i = 0; i < n_cmds; i++) {
+	for (i = 0; i < n_cmds; i++, cmds++) {
+		/* if it is a software delay, flush and delay */
+		if ((*cmds & 0xff00) == SMART_CMD_DELAY) {
+			pxafb_smart_flush(info);
+			mdelay(*cmds & 0xff);
+			continue;
+		}
+
+		/* leave 2 commands for INTERRUPT and WAIT_FOR_SYNC */
 		if (fbi->n_smart_cmds == CMD_BUFF_SIZE - 8)
 			pxafb_smart_flush(info);
 
-		fbi->smart_cmds[fbi->n_smart_cmds++] = *cmds++;
+		fbi->smart_cmds[fbi->n_smart_cmds++] = *cmds;
 	}
 
 	return 0;
@@ -761,7 +767,9 @@ static void setup_smart_timing(struct pxafb_info *fbi,
 		LCCR1_HorSnchWdth(__smart_timing(t3, lclk));
 
 	fbi->reg_lccr2 = LCCR2_DisHght(var->yres);
-	fbi->reg_lccr3 = LCCR3_PixClkDiv(__smart_timing(t4, lclk));
+	fbi->reg_lccr3 = fbi->lccr3 | LCCR3_PixClkDiv(__smart_timing(t4, lclk));
+	fbi->reg_lccr3 |= (var->sync & FB_SYNC_HOR_HIGH_ACT) ? LCCR3_HSP : 0;
+	fbi->reg_lccr3 |= (var->sync & FB_SYNC_VERT_HIGH_ACT) ? LCCR3_VSP : 0;
 
 	/* FIXME: make this configurable */
 	fbi->reg_cmdcr = 1;
@@ -786,10 +794,14 @@ static int pxafb_smart_thread(void *arg)
 		if (try_to_freeze())
 			continue;
 
+		mutex_lock(&fbi->ctrlr_lock);
+
 		if (fbi->state == C_ENABLE) {
 			inf->smart_update(&fbi->fb);
 			complete(&fbi->refresh_done);
 		}
+
+		mutex_unlock(&fbi->ctrlr_lock);
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(30 * HZ / 1000);
@@ -801,14 +813,19 @@ static int pxafb_smart_thread(void *arg)
 
 static int pxafb_smart_init(struct pxafb_info *fbi)
 {
-	if (!(fbi->lccr0 | LCCR0_LCDT))
+	if (!(fbi->lccr0 & LCCR0_LCDT))
 		return 0;
+
+	fbi->smart_cmds = (uint16_t *) fbi->dma_buff->cmd_buff;
+	fbi->n_smart_cmds = 0;
+
+	init_completion(&fbi->command_done);
+	init_completion(&fbi->refresh_done);
 
 	fbi->smart_thread = kthread_run(pxafb_smart_thread, fbi,
 					"lcd_refresh");
 	if (IS_ERR(fbi->smart_thread)) {
-		printk(KERN_ERR "%s: unable to create kernel thread\n",
-				__func__);
+		pr_err("%s: unable to create kernel thread\n", __func__);
 		return PTR_ERR(fbi->smart_thread);
 	}
 
@@ -824,7 +841,9 @@ int pxafb_smart_flush(struct fb_info *info)
 {
 	return 0;
 }
-#endif /* CONFIG_FB_SMART_PANEL */
+
+static inline int pxafb_smart_init(struct pxafb_info *fbi) { return 0; }
+#endif /* CONFIG_FB_PXA_SMARTPANEL */
 
 static void setup_parallel_timing(struct pxafb_info *fbi,
 				  struct fb_var_screeninfo *var)
@@ -986,57 +1005,6 @@ static inline void __pxafb_lcd_power(struct pxafb_info *fbi, int on)
 		fbi->lcd_power(on, &fbi->fb.var);
 }
 
-static void pxafb_setup_gpio(struct pxafb_info *fbi)
-{
-	int gpio, ldd_bits;
-	unsigned int lccr0 = fbi->lccr0;
-
-	/*
-	 * setup is based on type of panel supported
-	 */
-
-	/* 4 bit interface */
-	if ((lccr0 & LCCR0_CMS) == LCCR0_Mono &&
-	    (lccr0 & LCCR0_SDS) == LCCR0_Sngl &&
-	    (lccr0 & LCCR0_DPD) == LCCR0_4PixMono)
-		ldd_bits = 4;
-
-	/* 8 bit interface */
-	else if (((lccr0 & LCCR0_CMS) == LCCR0_Mono &&
-		  ((lccr0 & LCCR0_SDS) == LCCR0_Dual ||
-		   (lccr0 & LCCR0_DPD) == LCCR0_8PixMono)) ||
-		 ((lccr0 & LCCR0_CMS) == LCCR0_Color &&
-		  (lccr0 & LCCR0_PAS) == LCCR0_Pas &&
-		  (lccr0 & LCCR0_SDS) == LCCR0_Sngl))
-		ldd_bits = 8;
-
-	/* 16 bit interface */
-	else if ((lccr0 & LCCR0_CMS) == LCCR0_Color &&
-		 ((lccr0 & LCCR0_SDS) == LCCR0_Dual ||
-		  (lccr0 & LCCR0_PAS) == LCCR0_Act))
-		ldd_bits = 16;
-
-	else {
-		printk(KERN_ERR "pxafb_setup_gpio: unable to determine "
-			       "bits per pixel\n");
-		return;
-	}
-
-	for (gpio = 58; ldd_bits; gpio++, ldd_bits--)
-		pxa_gpio_mode(gpio | GPIO_ALT_FN_2_OUT);
-	/* 18 bit interface */
-	if (fbi->fb.var.bits_per_pixel > 16) {
-		pxa_gpio_mode(86 | GPIO_ALT_FN_2_OUT);
-		pxa_gpio_mode(87 | GPIO_ALT_FN_2_OUT);
-	}
-	pxa_gpio_mode(GPIO74_LCD_FCLK_MD);
-	pxa_gpio_mode(GPIO75_LCD_LCLK_MD);
-	pxa_gpio_mode(GPIO76_LCD_PCLK_MD);
-
-	if ((lccr0 & LCCR0_PAS) == 0)
-		pxa_gpio_mode(GPIO77_LCD_ACBIAS_MD);
-}
-
 static void pxafb_enable_controller(struct pxafb_info *fbi)
 {
 	pr_debug("pxafb: Enabling LCD controller\n");
@@ -1179,7 +1147,6 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		if (old_state == C_ENABLE) {
 			__pxafb_lcd_power(fbi, 0);
 			pxafb_disable_controller(fbi);
-			pxafb_setup_gpio(fbi);
 			pxafb_enable_controller(fbi);
 			__pxafb_lcd_power(fbi, 1);
 		}
@@ -1202,7 +1169,6 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		 */
 		if (old_state != C_ENABLE) {
 			fbi->state = C_ENABLE;
-			pxafb_setup_gpio(fbi);
 			pxafb_enable_controller(fbi);
 			__pxafb_lcd_power(fbi, 1);
 			__pxafb_backlight_power(fbi, 1);
@@ -1340,11 +1306,6 @@ static int __devinit pxafb_map_video_memory(struct pxafb_info *fbi)
 		fbi->palette_cpu = (u16 *) fbi->dma_buff->palette;
 
 	        pr_debug("pxafb: palette_mem_size = 0x%08x\n", fbi->palette_size*sizeof(u16));
-
-#ifdef CONFIG_FB_PXA_SMARTPANEL
-		fbi->smart_cmds = (uint16_t *) fbi->dma_buff->cmd_buff;
-		fbi->n_smart_cmds = 0;
-#endif
 	}
 
 	return fbi->map_cpu ? 0 : -ENOMEM;
@@ -1466,10 +1427,6 @@ static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
 	INIT_WORK(&fbi->task, pxafb_task);
 	mutex_init(&fbi->ctrlr_lock);
 	init_completion(&fbi->disable_done);
-#ifdef CONFIG_FB_PXA_SMARTPANEL
-	init_completion(&fbi->command_done);
-	init_completion(&fbi->refresh_done);
-#endif
 
 	return fbi;
 }
@@ -1801,13 +1758,12 @@ static int __devinit pxafb_probe(struct platform_device *dev)
 		goto failed_free_mem;
 	}
 
-#ifdef CONFIG_FB_PXA_SMARTPANEL
 	ret = pxafb_smart_init(fbi);
 	if (ret) {
 		dev_err(&dev->dev, "failed to initialize smartpanel\n");
 		goto failed_free_irq;
 	}
-#endif
+
 	/*
 	 * This makes sure that our colour bitfield
 	 * descriptors are correctly initialised.
