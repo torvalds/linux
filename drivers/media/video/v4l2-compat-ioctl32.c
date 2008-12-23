@@ -1065,8 +1065,9 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 #endif
 	default:
-		v4l_print_ioctl("compat_ioctl32", cmd);
-		printk(KERN_CONT "\n");
+		printk(KERN_WARNING "compat_ioctl32: "
+			"unknown ioctl '%c', dir=%d, #%d (0x%08x)\n",
+			_IOC_TYPE(cmd), _IOC_DIR(cmd), _IOC_NR(cmd), cmd);
 		break;
 	}
 	return ret;
