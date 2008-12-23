@@ -28,6 +28,7 @@
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>
 #include <asm/tlbflush.h>
+#include "../mm/mmu_decl.h"
 
 
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
