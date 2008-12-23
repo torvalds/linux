@@ -59,41 +59,47 @@ static void bus_read_cachesize(struct ath_softc *sc, int *csz)
 		*csz = DEFAULT_CACHELINE >> 2;   /* Use the default size */
 }
 
-static void ath_setcurmode(struct ath_softc *sc, enum wireless_mode mode)
+static void ath_setcurmode(struct ath_softc *sc, struct ieee80211_conf *conf)
 {
-	sc->cur_rate_table = sc->hw_rate_table[mode];
 	/*
 	 * All protection frames are transmited at 2Mb/s for
 	 * 11g, otherwise at 1Mb/s.
 	 * XXX select protection rate index from rate table.
 	 */
-	sc->sc_protrix = (mode == ATH9K_MODE_11G ? 1 : 0);
-}
-
-static enum wireless_mode ath_chan2mode(struct ath9k_channel *chan)
-{
-	if (chan->chanmode == CHANNEL_A)
-		return ATH9K_MODE_11A;
-	else if (chan->chanmode == CHANNEL_G)
-		return ATH9K_MODE_11G;
-	else if (chan->chanmode == CHANNEL_B)
-		return ATH9K_MODE_11B;
-	else if (chan->chanmode == CHANNEL_A_HT20)
-		return ATH9K_MODE_11NA_HT20;
-	else if (chan->chanmode == CHANNEL_G_HT20)
-		return ATH9K_MODE_11NG_HT20;
-	else if (chan->chanmode == CHANNEL_A_HT40PLUS)
-		return ATH9K_MODE_11NA_HT40PLUS;
-	else if (chan->chanmode == CHANNEL_A_HT40MINUS)
-		return ATH9K_MODE_11NA_HT40MINUS;
-	else if (chan->chanmode == CHANNEL_G_HT40PLUS)
-		return ATH9K_MODE_11NG_HT40PLUS;
-	else if (chan->chanmode == CHANNEL_G_HT40MINUS)
-		return ATH9K_MODE_11NG_HT40MINUS;
-
-	WARN_ON(1); /* should not get here */
-
-	return ATH9K_MODE_11B;
+	sc->sc_protrix = 0;
+	switch (conf->channel->band) {
+	case IEEE80211_BAND_2GHZ:
+		if (conf_is_ht20(conf))
+			sc->cur_rate_table =
+			  sc->hw_rate_table[ATH9K_MODE_11NG_HT20];
+		else if (conf_is_ht40_minus(conf))
+			sc->cur_rate_table =
+			  sc->hw_rate_table[ATH9K_MODE_11NG_HT40MINUS];
+		else if (conf_is_ht40_plus(conf))
+			sc->cur_rate_table =
+			  sc->hw_rate_table[ATH9K_MODE_11NG_HT40PLUS];
+		else {
+			sc->sc_protrix = 1;
+			sc->cur_rate_table =
+			  sc->hw_rate_table[ATH9K_MODE_11G];
+		}
+		break;
+	case IEEE80211_BAND_5GHZ:
+		if (conf_is_ht20(conf))
+			sc->cur_rate_table =
+			  sc->hw_rate_table[ATH9K_MODE_11NA_HT20];
+		else if (conf_is_ht40_minus(conf))
+			sc->cur_rate_table =
+			  sc->hw_rate_table[ATH9K_MODE_11NA_HT40MINUS];
+		else if (conf_is_ht40_plus(conf))
+			sc->cur_rate_table =
+			  sc->hw_rate_table[ATH9K_MODE_11NA_HT40PLUS];
+		else
+			sc->cur_rate_table = sc->hw_rate_table[ATH9K_MODE_11A];
+		break;
+	default:
+		break;
+	}
 }
 
 static void ath_update_txpow(struct ath_softc *sc)
@@ -258,6 +264,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	bool fastcc = true, stopped;
+	struct ieee80211_hw *hw = sc->hw;
 
 	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
@@ -316,7 +323,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 			return -EIO;
 		}
 
-		ath_setcurmode(sc, ath_chan2mode(hchan));
+		ath_setcurmode(sc, &hw->conf);
 		ath_update_txpow(sc);
 		ath9k_hw_set_interrupts(ah, sc->sc_imask);
 	}
@@ -1619,6 +1626,7 @@ detach:
 int ath_reset(struct ath_softc *sc, bool retry_tx)
 {
 	struct ath_hal *ah = sc->sc_ah;
+	struct ieee80211_hw *hw = sc->hw;
 	int status;
 	int error = 0;
 
@@ -1646,7 +1654,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	 * that changes the channel so update any state that
 	 * might change as a result.
 	 */
-	ath_setcurmode(sc, ath_chan2mode(sc->sc_ah->ah_curchan));
+	ath_setcurmode(sc, &hw->conf);
 
 	ath_update_txpow(sc);
 
@@ -1943,7 +1951,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	    !sc->sc_config.swBeaconProcess)
 		sc->sc_imask |= ATH9K_INT_TIM;
 
-	ath_setcurmode(sc, ath_chan2mode(init_channel));
+	ath_setcurmode(sc, &hw->conf);
 
 	sc->sc_flags &= ~SC_OP_INVALID;
 
