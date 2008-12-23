@@ -1112,7 +1112,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 	int status = 0;
 
 	/* Ensure exclusive access to NFSv4 state */
-	while (!list_empty(&clp->cl_superblocks)) {
+	for(;;) {
 		if (test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state)) {
 			/* We're going to have to re-establish a clientid */
 			status = nfs4_reclaim_lease(clp);
@@ -1161,7 +1161,11 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		}
 
 		nfs4_clear_state_manager_bit(clp);
-		break;
+		/* Did we race with an attempt to give us more work? */
+		if (clp->cl_state == 0)
+			break;
+		if (test_and_set_bit(NFS4CLNT_MANAGER_RUNNING, &clp->cl_state) != 0)
+			break;
 	}
 	return;
 out_error:
