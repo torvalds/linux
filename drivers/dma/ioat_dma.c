@@ -1341,10 +1341,12 @@ static void ioat_dma_start_null_desc(struct ioat_dma_chan *ioat_chan)
  */
 #define IOAT_TEST_SIZE 2000
 
+DECLARE_COMPLETION(test_completion);
 static void ioat_dma_test_callback(void *dma_async_param)
 {
 	printk(KERN_ERR "ioatdma: ioat_dma_test_callback(%p)\n",
 		dma_async_param);
+	complete(&test_completion);
 }
 
 /**
@@ -1410,7 +1412,8 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 		goto free_resources;
 	}
 	device->common.device_issue_pending(dma_chan);
-	msleep(1);
+
+	wait_for_completion_timeout(&test_completion, msecs_to_jiffies(3000));
 
 	if (device->common.device_is_tx_complete(dma_chan, cookie, NULL, NULL)
 					!= DMA_SUCCESS) {

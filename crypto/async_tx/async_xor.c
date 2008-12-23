@@ -53,10 +53,17 @@ do_async_xor(struct dma_chan *chan, struct page *dest, struct page **src_list,
 	int xor_src_cnt;
 	dma_addr_t dma_dest;
 
-	dma_dest = dma_map_page(dma->dev, dest, offset, len, DMA_FROM_DEVICE);
-	for (i = 0; i < src_cnt; i++)
+	/* map the dest bidrectional in case it is re-used as a source */
+	dma_dest = dma_map_page(dma->dev, dest, offset, len, DMA_BIDIRECTIONAL);
+	for (i = 0; i < src_cnt; i++) {
+		/* only map the dest once */
+		if (unlikely(src_list[i] == dest)) {
+			dma_src[i] = dma_dest;
+			continue;
+		}
 		dma_src[i] = dma_map_page(dma->dev, src_list[i], offset,
 					  len, DMA_TO_DEVICE);
+	}
 
 	while (src_cnt) {
 		async_flags = flags;

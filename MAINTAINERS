@@ -1527,10 +1527,10 @@ W:	http://ebtables.sourceforge.net/
 S:	Maintained
 
 ECRYPT FILE SYSTEM
-P:	Mike Halcrow, Phillip Hellewell
-M:	mhalcrow@us.ibm.com, phillip@hellewell.homeip.net
-L:	ecryptfs-devel@lists.sourceforge.net
-W:	http://ecryptfs.sourceforge.net/
+P:	Tyler Hicks, Dustin Kirkland
+M:	tyhicks@linux.vnet.ibm.com, kirkland@canonical.com
+L:	ecryptfs-devel@lists.launchpad.net
+W:	https://launchpad.net/ecryptfs
 S:	Supported
 
 EDAC-CORE
@@ -2191,9 +2191,9 @@ S:	Supported
 
 INOTIFY
 P:	John McCutchan
-M:	ttb@tentacle.dhs.org
+M:	john@johnmccutchan.com
 P:	Robert Love
-M:	rml@novell.com
+M:	rlove@rlove.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 

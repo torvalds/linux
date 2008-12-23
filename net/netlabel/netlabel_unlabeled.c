@@ -562,7 +562,6 @@ static int netlbl_unlhsh_remove_addr4(struct net *net,
 				      const struct in_addr *mask,
 				      struct netlbl_audit *audit_info)
 {
-	int ret_val = 0;
 	struct netlbl_af4list *list_entry;
 	struct netlbl_unlhsh_addr4 *entry;
 	struct audit_buffer *audit_buf;
@@ -577,7 +576,7 @@ static int netlbl_unlhsh_remove_addr4(struct net *net,
 	if (list_entry != NULL)
 		entry = netlbl_unlhsh_addr4_entry(list_entry);
 	else
-		ret_val = -ENOENT;
+		entry = NULL;
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_STCDEL,
 					      audit_info);
@@ -588,19 +587,21 @@ static int netlbl_unlhsh_remove_addr4(struct net *net,
 					  addr->s_addr, mask->s_addr);
 		if (dev != NULL)
 			dev_put(dev);
-		if (entry && security_secid_to_secctx(entry->secid,
-						      &secctx,
-						      &secctx_len) == 0) {
+		if (entry != NULL &&
+		    security_secid_to_secctx(entry->secid,
+					     &secctx, &secctx_len) == 0) {
 			audit_log_format(audit_buf, " sec_obj=%s", secctx);
 			security_release_secctx(secctx, secctx_len);
 		}
-		audit_log_format(audit_buf, " res=%u", ret_val == 0 ? 1 : 0);
+		audit_log_format(audit_buf, " res=%u", entry != NULL ? 1 : 0);
 		audit_log_end(audit_buf);
 	}
 
-	if (ret_val == 0)
-		call_rcu(&entry->rcu, netlbl_unlhsh_free_addr4);
-	return ret_val;
+	if (entry == NULL)
+		return -ENOENT;
+
+	call_rcu(&entry->rcu, netlbl_unlhsh_free_addr4);
+	return 0;
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
@@ -624,7 +625,6 @@ static int netlbl_unlhsh_remove_addr6(struct net *net,
 				      const struct in6_addr *mask,
 				      struct netlbl_audit *audit_info)
 {
-	int ret_val = 0;
 	struct netlbl_af6list *list_entry;
 	struct netlbl_unlhsh_addr6 *entry;
 	struct audit_buffer *audit_buf;
@@ -638,7 +638,7 @@ static int netlbl_unlhsh_remove_addr6(struct net *net,
 	if (list_entry != NULL)
 		entry = netlbl_unlhsh_addr6_entry(list_entry);
 	else
-		ret_val = -ENOENT;
+		entry = NULL;
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_STCDEL,
 					      audit_info);
@@ -649,19 +649,21 @@ static int netlbl_unlhsh_remove_addr6(struct net *net,
 					  addr, mask);
 		if (dev != NULL)
 			dev_put(dev);
-		if (entry && security_secid_to_secctx(entry->secid,
-						      &secctx,
-						      &secctx_len) == 0) {
+		if (entry != NULL &&
+		    security_secid_to_secctx(entry->secid,
+					     &secctx, &secctx_len) == 0) {
 			audit_log_format(audit_buf, " sec_obj=%s", secctx);
 			security_release_secctx(secctx, secctx_len);
 		}
-		audit_log_format(audit_buf, " res=%u", ret_val == 0 ? 1 : 0);
+		audit_log_format(audit_buf, " res=%u", entry != NULL ? 1 : 0);
 		audit_log_end(audit_buf);
 	}
 
-	if (ret_val == 0)
-		call_rcu(&entry->rcu, netlbl_unlhsh_free_addr6);
-	return ret_val;
+	if (entry == NULL)
+		return -ENOENT;
+
+	call_rcu(&entry->rcu, netlbl_unlhsh_free_addr6);
+	return 0;
 }
 #endif /* IPv6 */
 

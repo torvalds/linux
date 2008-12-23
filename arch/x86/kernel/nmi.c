@@ -131,6 +131,11 @@ static void report_broken_nmi(int cpu, int *prev_nmi_count)
 	atomic_dec(&nmi_active);
 }
 
+static void __acpi_nmi_disable(void *__unused)
+{
+	apic_write(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
+}
+
 int __init check_nmi_watchdog(void)
 {
 	unsigned int *prev_nmi_count;
@@ -179,8 +184,12 @@ int __init check_nmi_watchdog(void)
 	kfree(prev_nmi_count);
 	return 0;
 error:
-	if (nmi_watchdog == NMI_IO_APIC && !timer_through_8259)
-		disable_8259A_irq(0);
+	if (nmi_watchdog == NMI_IO_APIC) {
+		if (!timer_through_8259)
+			disable_8259A_irq(0);
+		on_each_cpu(__acpi_nmi_disable, NULL, 1);
+	}
+
 #ifdef CONFIG_X86_32
 	timer_ack = 0;
 #endif
@@ -285,11 +294,6 @@ void acpi_nmi_enable(void)
 		on_each_cpu(__acpi_nmi_enable, NULL, 1);
 }
 
-static void __acpi_nmi_disable(void *__unused)
-{
-	apic_write(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
-}
-
 /*
  * Disable timer based NMIs on all CPUs:
  */
@@ -340,6 +344,8 @@ void stop_apic_nmi_watchdog(void *unused)
 		return;
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		lapic_watchdog_stop();
+	else
+		__acpi_nmi_disable(NULL);
 	__get_cpu_var(wd_enabled) = 0;
 	atomic_dec(&nmi_active);
 }
@@ -465,6 +471,24 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 
 #ifdef CONFIG_SYSCTL
 
+static void enable_ioapic_nmi_watchdog_single(void *unused)
+{
+	__get_cpu_var(wd_enabled) = 1;
+	atomic_inc(&nmi_active);
+	__acpi_nmi_enable(NULL);
+}
+
+static void enable_ioapic_nmi_watchdog(void)
+{
+	on_each_cpu(enable_ioapic_nmi_watchdog_single, NULL, 1);
+	touch_nmi_watchdog();
+}
+
+static void disable_ioapic_nmi_watchdog(void)
+{
+	on_each_cpu(stop_apic_nmi_watchdog, NULL, 1);
+}
+
 static int __init setup_unknown_nmi_panic(char *str)
 {
 	unknown_nmi_panic = 1;
@@ -507,6 +531,11 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 			enable_lapic_nmi_watchdog();
 		else
 			disable_lapic_nmi_watchdog();
+	} else if (nmi_watchdog == NMI_IO_APIC) {
+		if (nmi_watchdog_enabled)
+			enable_ioapic_nmi_watchdog();
+		else
+			disable_ioapic_nmi_watchdog();
 	} else {
 		printk(KERN_WARNING
 			"NMI watchdog doesn't know what hardware to touch\n");
