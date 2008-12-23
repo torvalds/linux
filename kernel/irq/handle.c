@@ -145,6 +145,7 @@ int __init early_irq_init(void)
 	for (i = 0; i < legacy_count; i++) {
 		desc[i].irq = i;
 		desc[i].kstat_irqs = kstat_irqs_legacy[i];
+		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
 
 		irq_desc_ptrs[i] = desc + i;
 	}
