@@ -45,7 +45,7 @@
 static struct svc_program	nlmsvc_program;
 
 struct nlmsvc_binding *		nlmsvc_ops;
-EXPORT_SYMBOL(nlmsvc_ops);
+EXPORT_SYMBOL_GPL(nlmsvc_ops);
 
 static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
@@ -300,7 +300,7 @@ out:
 	mutex_unlock(&nlmsvc_mutex);
 	return error;
 }
-EXPORT_SYMBOL(lockd_up);
+EXPORT_SYMBOL_GPL(lockd_up);
 
 /*
  * Decrement the user count and bring down lockd if we're the last.
@@ -329,7 +329,7 @@ lockd_down(void)
 out:
 	mutex_unlock(&nlmsvc_mutex);
 }
-EXPORT_SYMBOL(lockd_down);
+EXPORT_SYMBOL_GPL(lockd_down);
 
 #ifdef CONFIG_SYSCTL
 
