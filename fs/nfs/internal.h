@@ -72,6 +72,7 @@ struct nfs_mount_request {
 	u32			version;
 	unsigned short		protocol;
 	struct nfs_fh		*fh;
+	int			noresvport;
 };
 
 extern int nfs_mount(struct nfs_mount_request *info);

@@ -1345,6 +1345,7 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 		.dirpath	= args->nfs_server.export_path,
 		.protocol	= args->mount_server.protocol,
 		.fh		= root_fh,
+		.noresvport	= args->flags & NFS_MOUNT_NORESVPORT,
 	};
 	int status;
 

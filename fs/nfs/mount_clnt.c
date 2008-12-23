@@ -50,7 +50,6 @@ int nfs_mount(struct nfs_mount_request *info)
 		.program	= &mnt_program,
 		.version	= info->version,
 		.authflavor	= RPC_AUTH_UNIX,
-		.flags		= 0,
 	};
 	struct rpc_clnt		*mnt_clnt;
 	int			status;
@@ -58,6 +57,9 @@ int nfs_mount(struct nfs_mount_request *info)
 	dprintk("NFS: sending MNT request for %s:%s\n",
 		(info->hostname ? info->hostname : "server"),
 			info->dirpath);
+
+	if (info->noresvport)
+		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
 	mnt_clnt = rpc_create(&args);
 	if (IS_ERR(mnt_clnt))
