@@ -781,7 +781,7 @@ static void nfs4_clear_state_manager_bit(struct nfs_client *clp)
 /*
  * Schedule the nfs_client asynchronous state management routine
  */
-static void nfs4_schedule_state_manager(struct nfs_client *clp)
+void nfs4_schedule_state_manager(struct nfs_client *clp)
 {
 	struct task_struct *task;
 

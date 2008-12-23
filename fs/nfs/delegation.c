@@ -354,37 +354,16 @@ static void nfs_client_mark_return_all_delegations(struct nfs_client *clp)
 	rcu_read_unlock();
 }
 
-static int nfs_do_expire_all_delegations(void *ptr)
+static void nfs_delegation_run_state_manager(struct nfs_client *clp)
 {
-	struct nfs_client *clp = ptr;
-
-	allow_signal(SIGKILL);
-
-	if (test_bit(NFS4CLNT_MANAGER_RUNNING, &clp->cl_state) != 0)
-		goto out;
-	if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0)
-		goto out;
-	nfs_client_mark_return_all_delegations(clp);
-	nfs_client_return_marked_delegations(clp);
-out:
-	nfs_put_client(clp);
-	module_put_and_exit(0);
+	if (test_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state))
+		nfs4_schedule_state_manager(clp);
 }
 
 void nfs_expire_all_delegations(struct nfs_client *clp)
 {
-	struct task_struct *task;
-
-	__module_get(THIS_MODULE);
-	atomic_inc(&clp->cl_count);
-	task = kthread_run(nfs_do_expire_all_delegations, clp,
-				"%s-delegreturn",
-				rpc_peeraddr2str(clp->cl_rpcclient,
-							RPC_DISPLAY_ADDR));
-	if (!IS_ERR(task))
-		return;
-	nfs_put_client(clp);
-	module_put(THIS_MODULE);
+	nfs_client_mark_return_all_delegations(clp);
+	nfs_delegation_run_state_manager(clp);
 }
 
 /*
