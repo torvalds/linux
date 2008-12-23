@@ -1308,7 +1308,6 @@ inherit_counter(struct perf_counter *parent_counter,
 	child_ctx->nr_counters++;
 
 	child_counter->parent = parent_counter;
-	parent_counter->nr_inherited++;
 	/*
 	 * inherit into child's child as well:
 	 */

@@ -164,7 +164,6 @@ struct perf_counter {
 	struct task_struct		*task;
 	struct file			*filp;
 
-	unsigned int			nr_inherited;
 	struct perf_counter		*parent;
 	/*
 	 * Protect attach/detach:
