@@ -328,6 +328,7 @@ static const unsigned char init_ov9650[][3] =
 	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x00},
 	{BRIDGE, M5602_XB_GPIO_DAT, 0x00},
 	{BRIDGE, M5602_XB_I2C_CLK_DIV, 0x0a},
+
 	/* Reset chip */
 	{SENSOR, OV9650_COM7, OV9650_REGISTER_RESET},
 	/* Enable double clock */
@@ -335,8 +336,6 @@ static const unsigned char init_ov9650[][3] =
 	/* Do something out of spec with the power */
 	{SENSOR, OV9650_OFON, 0x40},
 
-	/* Set QQVGA */
-	{SENSOR, OV9650_COM1, 0x20},
 	/* Set fast AGC/AEC algorithm with unlimited step size */
 	{SENSOR, OV9650_COM8, OV9650_FAST_AGC_AEC |
 			      OV9650_AEC_UNLIM_STEP_SIZE |
@@ -409,10 +408,6 @@ static const unsigned char init_ov9650[][3] =
 	{SENSOR, OV9650_VSTOP, 0x7e},
 	/* Set complementing vertical frame control */
 	{SENSOR, OV9650_VREF, 0x10},
-	/* Set raw RGB output format with VGA resolution */
-	{SENSOR, OV9650_COM7, OV9650_VGA_SELECT |
-			      OV9650_RGB_SELECT |
-			      OV9650_RAW_RGB_SELECT},
 	{SENSOR, OV9650_ADC, 0x04},
 	{SENSOR, OV9650_HV, 0x40},
 	/* Enable denoise, and white-pixel erase */
@@ -469,9 +464,9 @@ static const unsigned char VGA_ov9650[][3] =
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x64}, /* 100 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02}, /* 640 + 100 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0xe4}
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x62}, /* 98 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02}, /* 640 + 98 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0xe2}
 };
 
 static const unsigned char QVGA_ov9650[][3] =
