@@ -2222,6 +2222,8 @@ static int decode_compound_hdr(struct xdr_stream *xdr, struct compound_hdr *hdr)
 	hdr->tag = (char *)p;
 	p += XDR_QUADLEN(hdr->taglen);
 	READ32(hdr->nops);
+	if (unlikely(hdr->nops < 1))
+		return nfs4_stat_to_errno(hdr->status);
 	return 0;
 }
 
