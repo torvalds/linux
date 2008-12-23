@@ -799,6 +799,9 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 		goto out_bad;
 	}
 
+	if (nfs_have_delegation(inode, FMODE_READ))
+		goto out_set_verifier;
+
 	/* Force a full look up iff the parent directory has changed */
 	if (!nfs_is_exclusive_create(dir, nd) && nfs_check_verifier(dir, dentry)) {
 		if (nfs_lookup_verify_inode(inode, nd))
@@ -817,6 +820,7 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	if ((error = nfs_refresh_inode(inode, &fattr)) != 0)
 		goto out_bad;
 
+out_set_verifier:
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
  out_valid:
 	dput(parent);
@@ -1084,8 +1088,6 @@ out:
 no_open_dput:
 	dput(parent);
 no_open:
-	if (inode != NULL && nfs_have_delegation(inode, FMODE_READ))
-		return 1;
 	return nfs_lookup_revalidate(dentry, nd);
 }
 #endif /* CONFIG_NFSV4 */
