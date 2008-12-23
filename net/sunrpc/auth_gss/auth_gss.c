@@ -369,7 +369,7 @@ static void gss_encode_v0_msg(struct gss_upcall_msg *gss_msg)
 }
 
 static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
-				struct rpc_clnt *clnt)
+				struct rpc_clnt *clnt, int machine_cred)
 {
 	char *p = gss_msg->databuf;
 	int len = 0;
@@ -383,6 +383,15 @@ static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 		p += len;
 		gss_msg->msg.len += len;
 	}
+	if (machine_cred) {
+		len = sprintf(p, "service=* ");
+		p += len;
+		gss_msg->msg.len += len;
+	} else if (!strcmp(clnt->cl_program->name, "nfs4_cb")) {
+		len = sprintf(p, "service=nfs ");
+		p += len;
+		gss_msg->msg.len += len;
+	}
 	len = sprintf(p, "\n");
 	gss_msg->msg.len += len;
 
@@ -391,16 +400,17 @@ static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 }
 
 static void gss_encode_msg(struct gss_upcall_msg *gss_msg,
-				struct rpc_clnt *clnt)
+				struct rpc_clnt *clnt, int machine_cred)
 {
 	if (pipe_version == 0)
 		gss_encode_v0_msg(gss_msg);
 	else /* pipe_version == 1 */
-		gss_encode_v1_msg(gss_msg, clnt);
+		gss_encode_v1_msg(gss_msg, clnt, machine_cred);
 }
 
 static inline struct gss_upcall_msg *
-gss_alloc_msg(struct gss_auth *gss_auth, uid_t uid, struct rpc_clnt *clnt)
+gss_alloc_msg(struct gss_auth *gss_auth, uid_t uid, struct rpc_clnt *clnt,
+		int machine_cred)
 {
 	struct gss_upcall_msg *gss_msg;
 	int vers;
@@ -420,7 +430,7 @@ gss_alloc_msg(struct gss_auth *gss_auth, uid_t uid, struct rpc_clnt *clnt)
 	atomic_set(&gss_msg->count, 1);
 	gss_msg->uid = uid;
 	gss_msg->auth = gss_auth;
-	gss_encode_msg(gss_msg, clnt);
+	gss_encode_msg(gss_msg, clnt, machine_cred);
 	return gss_msg;
 }
 
@@ -432,11 +442,7 @@ gss_setup_upcall(struct rpc_clnt *clnt, struct gss_auth *gss_auth, struct rpc_cr
 	struct gss_upcall_msg *gss_new, *gss_msg;
 	uid_t uid = cred->cr_uid;
 
-	/* Special case: rpc.gssd assumes that uid == 0 implies machine creds */
-	if (gss_cred->gc_machine_cred != 0)
-		uid = 0;
-
-	gss_new = gss_alloc_msg(gss_auth, uid, clnt);
+	gss_new = gss_alloc_msg(gss_auth, uid, clnt, gss_cred->gc_machine_cred);
 	if (IS_ERR(gss_new))
 		return gss_new;
 	gss_msg = gss_add_msg(gss_auth, gss_new);
