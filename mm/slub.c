@@ -24,6 +24,7 @@
 #include <linux/kallsyms.h>
 #include <linux/memory.h>
 #include <linux/math64.h>
+#include <linux/fault-inject.h>
 
 /*
  * Lock order:
@@ -1590,6 +1591,9 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 	struct kmem_cache_cpu *c;
 	unsigned long flags;
 	unsigned int objsize;
+
+	if (should_failslab(s->objsize, gfpflags))
+		return NULL;
 
 	local_irq_save(flags);
 	c = get_cpu_slab(s, smp_processor_id());
