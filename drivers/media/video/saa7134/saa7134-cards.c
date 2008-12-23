@@ -4462,6 +4462,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 3,
@@ -4480,8 +4481,6 @@ struct saa7134_board saa7134_boards[] = {
 			.name = name_radio,
 			.amux = LINE2,
 		},
-		/* no DVB support for now */
-		/* .mpeg           = SAA7134_MPEG_DVB, */
 	},
 	[SAA7134_BOARD_ASUSTeK_TIGER_3IN1] = {
 		.name           = "Asus Tiger 3in1",
@@ -6025,6 +6024,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_M6:
 	case SAA7134_BOARD_BEHOLD_M63:
 	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
+	case SAA7134_BOARD_BEHOLD_H6:
 		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A169_B:
