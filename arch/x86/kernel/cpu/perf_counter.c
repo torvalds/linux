@@ -41,12 +41,13 @@ static DEFINE_PER_CPU(struct cpu_hw_counters, cpu_hw_counters);
 
 static const int intel_perfmon_event_map[] =
 {
-  [PERF_COUNT_CYCLES]			= 0x003c,
+  [PERF_COUNT_CPU_CYCLES]		= 0x003c,
   [PERF_COUNT_INSTRUCTIONS]		= 0x00c0,
   [PERF_COUNT_CACHE_REFERENCES]		= 0x4f2e,
   [PERF_COUNT_CACHE_MISSES]		= 0x412e,
   [PERF_COUNT_BRANCH_INSTRUCTIONS]	= 0x00c4,
   [PERF_COUNT_BRANCH_MISSES]		= 0x00c5,
+  [PERF_COUNT_BUS_CYCLES]		= 0x013c,
 };
 
 static const int max_intel_perfmon_events = ARRAY_SIZE(intel_perfmon_event_map);

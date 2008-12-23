@@ -36,14 +36,15 @@ enum hw_event_types {
 	/*
 	 * Common hardware events, generalized by the kernel:
 	 */
-	PERF_COUNT_CYCLES		=  0,
+	PERF_COUNT_CPU_CYCLES		=  0,
 	PERF_COUNT_INSTRUCTIONS		=  1,
 	PERF_COUNT_CACHE_REFERENCES	=  2,
 	PERF_COUNT_CACHE_MISSES		=  3,
 	PERF_COUNT_BRANCH_INSTRUCTIONS	=  4,
 	PERF_COUNT_BRANCH_MISSES	=  5,
+	PERF_COUNT_BUS_CYCLES		=  6,
 
-	PERF_HW_EVENTS_MAX		=  6,
+	PERF_HW_EVENTS_MAX		=  7,
 
 	/*
 	 * Special "software" counters provided by the kernel, even if
