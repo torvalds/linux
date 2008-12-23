@@ -691,7 +691,7 @@ static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
  */
 struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to concatenate */
 				   int num_devs,	/* number of subdevices      */
-				   char *name)
+				   const char *name)
 {				/* name for the new device   */
 	int i;
 	size_t size;

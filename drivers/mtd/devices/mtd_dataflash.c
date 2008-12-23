@@ -129,7 +129,7 @@ static int dataflash_waitready(struct spi_device *spi)
 		status = dataflash_status(spi);
 		if (status < 0) {
 			DEBUG(MTD_DEBUG_LEVEL1, "%s: status %d?\n",
-					spi->dev.bus_id, status);
+					dev_name(&spi->dev), status);
 			status = 0;
 		}
 
@@ -156,8 +156,8 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 	uint32_t		rem;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: erase addr=0x%llx len 0x%llx\n",
-			spi->dev.bus_id, (long long)instr->addr,
-			(long long)instr->len);
+	      dev_name(&spi->dev), (long long)instr->addr,
+	      (long long)instr->len);
 
 	/* Sanity checks */
 	if (instr->addr + instr->len > mtd->size)
@@ -203,7 +203,7 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 		if (status < 0) {
 			printk(KERN_ERR "%s: erase %x, err %d\n",
-				spi->dev.bus_id, pageaddr, status);
+				dev_name(&spi->dev), pageaddr, status);
 			/* REVISIT:  can retry instr->retries times; or
 			 * giveup and instr->fail_addr = instr->addr;
 			 */
@@ -245,7 +245,7 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int			status;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: read 0x%x..0x%x\n",
-		priv->spi->dev.bus_id, (unsigned)from, (unsigned)(from + len));
+		dev_name(&priv->spi->dev), (unsigned)from, (unsigned)(from + len));
 
 	*retlen = 0;
 
@@ -294,7 +294,7 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 		status = 0;
 	} else
 		DEBUG(MTD_DEBUG_LEVEL1, "%s: read %x..%x --> %d\n",
-			priv->spi->dev.bus_id,
+			dev_name(&priv->spi->dev),
 			(unsigned)from, (unsigned)(from + len),
 			status);
 	return status;
@@ -321,7 +321,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 	uint8_t			*command;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: write 0x%x..0x%x\n",
-		spi->dev.bus_id, (unsigned)to, (unsigned)(to + len));
+		dev_name(&spi->dev), (unsigned)to, (unsigned)(to + len));
 
 	*retlen = 0;
 
@@ -380,7 +380,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 			status = spi_sync(spi, &msg);
 			if (status < 0)
 				DEBUG(MTD_DEBUG_LEVEL1, "%s: xfer %u -> %d \n",
-					spi->dev.bus_id, addr, status);
+					dev_name(&spi->dev), addr, status);
 
 			(void) dataflash_waitready(priv->spi);
 		}
@@ -402,7 +402,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		spi_transfer_del(x + 1);
 		if (status < 0)
 			DEBUG(MTD_DEBUG_LEVEL1, "%s: pgm %u/%u -> %d \n",
-				spi->dev.bus_id, addr, writelen, status);
+				dev_name(&spi->dev), addr, writelen, status);
 
 		(void) dataflash_waitready(priv->spi);
 
@@ -422,14 +422,14 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		status = spi_sync(spi, &msg);
 		if (status < 0)
 			DEBUG(MTD_DEBUG_LEVEL1, "%s: compare %u -> %d \n",
-				spi->dev.bus_id, addr, status);
+				dev_name(&spi->dev), addr, status);
 
 		status = dataflash_waitready(priv->spi);
 
 		/* Check result of the compare operation */
 		if (status & (1 << 6)) {
 			printk(KERN_ERR "%s: compare page %u, err %d\n",
-				spi->dev.bus_id, pageaddr, status);
+				dev_name(&spi->dev), pageaddr, status);
 			remaining = 0;
 			status = -EIO;
 			break;
@@ -785,7 +785,7 @@ static struct flash_info *__devinit jedec_probe(struct spi_device *spi)
 	tmp = spi_write_then_read(spi, &code, 1, id, 3);
 	if (tmp < 0) {
 		DEBUG(MTD_DEBUG_LEVEL0, "%s: error %d reading JEDEC ID\n",
-			spi->dev.bus_id, tmp);
+			dev_name(&spi->dev), tmp);
 		return ERR_PTR(tmp);
 	}
 	if (id[0] != 0x1f)
@@ -875,7 +875,7 @@ static int __devinit dataflash_probe(struct spi_device *spi)
 	status = dataflash_status(spi);
 	if (status <= 0 || status == 0xff) {
 		DEBUG(MTD_DEBUG_LEVEL1, "%s: status error %d\n",
-				spi->dev.bus_id, status);
+				dev_name(&spi->dev), status);
 		if (status == 0 || status == 0xff)
 			status = -ENODEV;
 		return status;
@@ -911,13 +911,13 @@ static int __devinit dataflash_probe(struct spi_device *spi)
 	/* obsolete AT45DB1282 not (yet?) supported */
 	default:
 		DEBUG(MTD_DEBUG_LEVEL1, "%s: unsupported device (%x)\n",
-				spi->dev.bus_id, status & 0x3c);
+				dev_name(&spi->dev), status & 0x3c);
 		status = -ENODEV;
 	}
 
 	if (status < 0)
 		DEBUG(MTD_DEBUG_LEVEL1, "%s: add_dataflash --> %d\n",
-				spi->dev.bus_id, status);
+				dev_name(&spi->dev), status);
 
 	return status;
 }
@@ -927,7 +927,7 @@ static int __devexit dataflash_remove(struct spi_device *spi)
 	struct dataflash	*flash = dev_get_drvdata(&spi->dev);
 	int			status;
 
-	DEBUG(MTD_DEBUG_LEVEL1, "%s: remove\n", spi->dev.bus_id);
+	DEBUG(MTD_DEBUG_LEVEL1, "%s: remove\n", dev_name(&spi->dev));
 
 	if (mtd_has_partitions() && flash->partitioned)
 		status = del_mtd_partitions(&flash->mtd);

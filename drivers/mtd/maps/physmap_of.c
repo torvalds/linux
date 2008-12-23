@@ -183,7 +183,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 
 	err = -EBUSY;
 	info->res = request_mem_region(res.start, res.end - res.start + 1,
-				       dev->dev.bus_id);
+				       dev_name(&dev->dev));
 	if (!info->res)
 		goto err_out;
 
@@ -194,7 +194,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 		goto err_out;
 	}
 
-	info->map.name = dev->dev.bus_id;
+	info->map.name = dev_name(&dev->dev);
 	info->map.phys = res.start;
 	info->map.size = res.end - res.start + 1;
 	info->map.bankwidth = *width;

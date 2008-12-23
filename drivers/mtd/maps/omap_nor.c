@@ -101,7 +101,7 @@ static int __init omapflash_probe(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto out_release_mem_region;
 	}
-	info->map.name		= pdev->dev.bus_id;
+	info->map.name		= dev_name(&pdev->dev);
 	info->map.phys		= res->start;
 	info->map.size		= size;
 	info->map.bankwidth	= pdata->width;
