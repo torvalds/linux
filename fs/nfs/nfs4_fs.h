@@ -40,6 +40,9 @@ struct idmap;
 enum nfs4_client_state {
 	NFS4CLNT_STATE_RECOVER  = 0,
 	NFS4CLNT_LEASE_EXPIRED,
+	NFS4CLNT_RECLAIM_REBOOT,
+	NFS4CLNT_RECLAIM_NOGRACE,
+	NFS4CLNT_CB_PATH_DOWN,
 };
 
 /*
@@ -128,6 +131,8 @@ enum {
 	NFS_O_RDONLY_STATE,		/* OPEN stateid has read-only state */
 	NFS_O_WRONLY_STATE,		/* OPEN stateid has write-only state */
 	NFS_O_RDWR_STATE,		/* OPEN stateid has read/write state */
+	NFS_STATE_RECLAIM_REBOOT,	/* OPEN stateid server rebooted */
+	NFS_STATE_RECLAIM_NOGRACE,	/* OPEN stateid needs to recover state */
 };
 
 struct nfs4_state {
@@ -160,6 +165,7 @@ struct nfs4_exception {
 };
 
 struct nfs4_state_recovery_ops {
+	int state_flag_bit;
 	int (*recover_open)(struct nfs4_state_owner *, struct nfs4_state *);
 	int (*recover_lock)(struct nfs4_state *, struct file_lock *);
 };
@@ -187,7 +193,7 @@ extern int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 		struct nfs4_fs_locations *fs_locations, struct page *page);
 
 extern struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops;
-extern struct nfs4_state_recovery_ops nfs4_network_partition_recovery_ops;
+extern struct nfs4_state_recovery_ops nfs4_nograce_recovery_ops;
 
 extern const u32 nfs4_fattr_bitmap[2];
 extern const u32 nfs4_statfs_bitmap[2];

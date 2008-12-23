@@ -984,7 +984,7 @@ static int nfs4_recover_expired_lease(struct nfs_server *server)
 		ret = nfs4_wait_clnt_recover(server->client, clp);
 		if (ret != 0)
 			return ret;
-		if (!test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
+		if (!test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
 			break;
 		nfs4_schedule_state_recovery(clp);
 	}
@@ -2942,7 +2942,6 @@ static int _nfs4_proc_setclientid_confirm(struct nfs_client *clp, struct rpc_cre
 		spin_lock(&clp->cl_lock);
 		clp->cl_lease_time = fsinfo.lease_time * HZ;
 		clp->cl_last_renewal = now;
-		clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
 		spin_unlock(&clp->cl_lock);
 	}
 	return status;
@@ -3690,11 +3689,13 @@ int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 }
 
 struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops = {
+	.state_flag_bit	= NFS_STATE_RECLAIM_REBOOT,
 	.recover_open	= nfs4_open_reclaim,
 	.recover_lock	= nfs4_lock_reclaim,
 };
 
-struct nfs4_state_recovery_ops nfs4_network_partition_recovery_ops = {
+struct nfs4_state_recovery_ops nfs4_nograce_recovery_ops = {
+	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
 	.recover_open	= nfs4_open_expired,
 	.recover_lock	= nfs4_lock_expired,
 };
