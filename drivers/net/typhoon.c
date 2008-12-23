@@ -1755,7 +1755,6 @@ static int
 typhoon_poll(struct napi_struct *napi, int budget)
 {
 	struct typhoon *tp = container_of(napi, struct typhoon, napi);
-	struct net_device *dev = tp->dev;
 	struct typhoon_indexes *indexes = tp->indexes;
 	int work_done;
 
@@ -1784,7 +1783,7 @@ typhoon_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		iowrite32(TYPHOON_INTR_NONE,
 				tp->ioaddr + TYPHOON_REG_INTR_MASK);
 		typhoon_post_pci_writes(tp->ioaddr);
@@ -1807,10 +1806,10 @@ typhoon_interrupt(int irq, void *dev_instance)
 
 	iowrite32(intr_status, ioaddr + TYPHOON_REG_INTR_STATUS);
 
-	if (netif_rx_schedule_prep(dev, &tp->napi)) {
+	if (netif_rx_schedule_prep(&tp->napi)) {
 		iowrite32(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_MASK);
 		typhoon_post_pci_writes(ioaddr);
-		__netif_rx_schedule(dev, &tp->napi);
+		__netif_rx_schedule(&tp->napi);
 	} else {
 		printk(KERN_ERR "%s: Error, poll already scheduled\n",
                        dev->name);

@@ -1607,9 +1607,9 @@ static int gfar_clean_tx_ring(struct net_device *dev)
 static void gfar_schedule_cleanup(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	if (netif_rx_schedule_prep(dev, &priv->napi)) {
+	if (netif_rx_schedule_prep(&priv->napi)) {
 		gfar_write(&priv->regs->imask, IMASK_RTX_DISABLED);
-		__netif_rx_schedule(dev, &priv->napi);
+		__netif_rx_schedule(&priv->napi);
 	}
 }
 
@@ -1863,7 +1863,7 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 		return budget;
 
 	if (rx_cleaned < budget) {
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 
 		/* Clear the halt bit in RSTAT */
 		gfar_write(&priv->regs->rstat, RSTAT_CLEAR_RHALT);

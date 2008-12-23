@@ -1555,8 +1555,7 @@ static inline u32 netif_msg_init(int debug_value, int default_msg_enable_bits)
 }
 
 /* Test if receive needs to be scheduled but only if up */
-static inline int netif_rx_schedule_prep(struct net_device *dev,
-					 struct napi_struct *napi)
+static inline int netif_rx_schedule_prep(struct napi_struct *napi)
 {
 	return napi_schedule_prep(napi);
 }
@@ -1564,27 +1563,24 @@ static inline int netif_rx_schedule_prep(struct net_device *dev,
 /* Add interface to tail of rx poll list. This assumes that _prep has
  * already been called and returned 1.
  */
-static inline void __netif_rx_schedule(struct net_device *dev,
-				       struct napi_struct *napi)
+static inline void __netif_rx_schedule(struct napi_struct *napi)
 {
 	__napi_schedule(napi);
 }
 
 /* Try to reschedule poll. Called by irq handler. */
 
-static inline void netif_rx_schedule(struct net_device *dev,
-				     struct napi_struct *napi)
+static inline void netif_rx_schedule(struct napi_struct *napi)
 {
-	if (netif_rx_schedule_prep(dev, napi))
-		__netif_rx_schedule(dev, napi);
+	if (netif_rx_schedule_prep(napi))
+		__netif_rx_schedule(napi);
 }
 
 /* Try to reschedule poll. Called by dev->poll() after netif_rx_complete().  */
-static inline int netif_rx_reschedule(struct net_device *dev,
-				      struct napi_struct *napi)
+static inline int netif_rx_reschedule(struct napi_struct *napi)
 {
 	if (napi_schedule_prep(napi)) {
-		__netif_rx_schedule(dev, napi);
+		__netif_rx_schedule(napi);
 		return 1;
 	}
 	return 0;
@@ -1593,8 +1589,7 @@ static inline int netif_rx_reschedule(struct net_device *dev,
 /* same as netif_rx_complete, except that local_irq_save(flags)
  * has already been issued
  */
-static inline void __netif_rx_complete(struct net_device *dev,
-				       struct napi_struct *napi)
+static inline void __netif_rx_complete(struct napi_struct *napi)
 {
 	__napi_complete(napi);
 }
@@ -1604,8 +1599,7 @@ static inline void __netif_rx_complete(struct net_device *dev,
  * it completes the work. The device cannot be out of poll list at this
  * moment, it is BUG().
  */
-static inline void netif_rx_complete(struct net_device *dev,
-				     struct napi_struct *napi)
+static inline void netif_rx_complete(struct napi_struct *napi)
 {
 	napi_complete(napi);
 }

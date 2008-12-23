@@ -984,7 +984,7 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 			/* We processed all packets available.  Tell NAPI it can
 			 * stop polling then re-enable rx interrupts */
 			smsc911x_reg_write(pdata, INT_STS, INT_STS_RSFL_);
-			netif_rx_complete(dev, napi);
+			netif_rx_complete(napi);
 			temp = smsc911x_reg_read(pdata, INT_EN);
 			temp |= INT_EN_RSFL_EN_;
 			smsc911x_reg_write(pdata, INT_EN, temp);

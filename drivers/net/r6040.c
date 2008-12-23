@@ -667,7 +667,7 @@ static int r6040_poll(struct napi_struct *napi, int budget)
 	work_done = r6040_rx(dev, budget);
 
 	if (work_done < budget) {
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		/* Enable RX interrupt */
 		iowrite16(ioread16(ioaddr + MIER) | RX_INTS, ioaddr + MIER);
 	}
@@ -704,7 +704,7 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 
 		/* Mask off RX interrupt */
 		misr &= ~RX_INTS;
-		netif_rx_schedule(dev, &lp->napi);
+		netif_rx_schedule(&lp->napi);
 	}
 
 	/* TX interrupt request */

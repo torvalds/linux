@@ -2293,7 +2293,7 @@ static int ql_poll(struct napi_struct *napi, int budget)
 
 	if (tx_cleaned + rx_cleaned != budget) {
 		spin_lock_irqsave(&qdev->hw_lock, hw_flags);
-		__netif_rx_complete(ndev, napi);
+		__netif_rx_complete(napi);
 		ql_update_small_bufq_prod_index(qdev);
 		ql_update_lrg_bufq_prod_index(qdev);
 		writel(qdev->rsp_consumer_index,
@@ -2352,8 +2352,8 @@ static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
 		spin_unlock(&qdev->adapter_lock);
 	} else if (value & ISP_IMR_DISABLE_CMPL_INT) {
 		ql_disable_interrupts(qdev);
-		if (likely(netif_rx_schedule_prep(ndev, &qdev->napi))) {
-			__netif_rx_schedule(ndev, &qdev->napi);
+		if (likely(netif_rx_schedule_prep(&qdev->napi))) {
+			__netif_rx_schedule(&qdev->napi);
 		}
 	} else {
 		return IRQ_NONE;

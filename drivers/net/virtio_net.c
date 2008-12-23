@@ -374,9 +374,9 @@ static void skb_recv_done(struct virtqueue *rvq)
 {
 	struct virtnet_info *vi = rvq->vdev->priv;
 	/* Schedule NAPI, Suppress further interrupts if successful. */
-	if (netif_rx_schedule_prep(vi->dev, &vi->napi)) {
+	if (netif_rx_schedule_prep(&vi->napi)) {
 		rvq->vq_ops->disable_cb(rvq);
-		__netif_rx_schedule(vi->dev, &vi->napi);
+		__netif_rx_schedule(&vi->napi);
 	}
 }
 
@@ -402,11 +402,11 @@ again:
 
 	/* Out of packets? */
 	if (received < budget) {
-		netif_rx_complete(vi->dev, napi);
+		netif_rx_complete(napi);
 		if (unlikely(!vi->rvq->vq_ops->enable_cb(vi->rvq))
 		    && napi_schedule_prep(napi)) {
 			vi->rvq->vq_ops->disable_cb(vi->rvq);
-			__netif_rx_schedule(vi->dev, napi);
+			__netif_rx_schedule(napi);
 			goto again;
 		}
 	}
@@ -580,9 +580,9 @@ static int virtnet_open(struct net_device *dev)
 	 * won't get another interrupt, so process any outstanding packets
 	 * now.  virtnet_poll wants re-enable the queue, so we disable here.
 	 * We synchronize against interrupts via NAPI_STATE_SCHED */
-	if (netif_rx_schedule_prep(dev, &vi->napi)) {
+	if (netif_rx_schedule_prep(&vi->napi)) {
 		vi->rvq->vq_ops->disable_cb(vi->rvq);
-		__netif_rx_schedule(dev, &vi->napi);
+		__netif_rx_schedule(&vi->napi);
 	}
 	return 0;
 }

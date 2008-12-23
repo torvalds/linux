@@ -1583,7 +1583,7 @@ static int netxen_nic_poll(struct napi_struct *napi, int budget)
 	}
 
 	if ((work_done < budget) && tx_complete) {
-		netif_rx_complete(adapter->netdev, &adapter->napi);
+		netif_rx_complete(&adapter->napi);
 		netxen_nic_enable_int(adapter);
 	}
 

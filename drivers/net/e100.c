@@ -2049,9 +2049,9 @@ static irqreturn_t e100_intr(int irq, void *dev_id)
 	if(stat_ack & stat_ack_rnr)
 		nic->ru_running = RU_SUSPENDED;
 
-	if(likely(netif_rx_schedule_prep(netdev, &nic->napi))) {
+	if(likely(netif_rx_schedule_prep(&nic->napi))) {
 		e100_disable_irq(nic);
-		__netif_rx_schedule(netdev, &nic->napi);
+		__netif_rx_schedule(&nic->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -2060,7 +2060,6 @@ static irqreturn_t e100_intr(int irq, void *dev_id)
 static int e100_poll(struct napi_struct *napi, int budget)
 {
 	struct nic *nic = container_of(napi, struct nic, napi);
-	struct net_device *netdev = nic->netdev;
 	unsigned int work_done = 0;
 
 	e100_rx_clean(nic, &work_done, budget);
@@ -2068,7 +2067,7 @@ static int e100_poll(struct napi_struct *napi, int budget)
 
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		e100_enable_irq(nic);
 	}
 

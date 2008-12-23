@@ -2541,7 +2541,7 @@ static void nes_nic_napi_ce_handler(struct nes_device *nesdev, struct nes_hw_nic
 {
 	struct nes_vnic *nesvnic = container_of(cq, struct nes_vnic, nic_cq);
 
-	netif_rx_schedule(nesdev->netdev[nesvnic->netdev_index], &nesvnic->napi);
+	netif_rx_schedule(&nesvnic->napi);
 }
 
 

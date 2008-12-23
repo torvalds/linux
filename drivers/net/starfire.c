@@ -1290,8 +1290,8 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 		if (intr_status & (IntrRxDone | IntrRxEmpty)) {
 			u32 enable;
 
-			if (likely(netif_rx_schedule_prep(dev, &np->napi))) {
-				__netif_rx_schedule(dev, &np->napi);
+			if (likely(netif_rx_schedule_prep(&np->napi))) {
+				__netif_rx_schedule(&np->napi);
 				enable = readl(ioaddr + IntrEnable);
 				enable &= ~(IntrRxDone | IntrRxEmpty);
 				writel(enable, ioaddr + IntrEnable);
@@ -1530,7 +1530,7 @@ static int netdev_poll(struct napi_struct *napi, int budget)
 		intr_status = readl(ioaddr + IntrStatus);
 	} while (intr_status & (IntrRxDone | IntrRxEmpty));
 
-	netif_rx_complete(dev, napi);
+	netif_rx_complete(napi);
 	intr_status = readl(ioaddr + IntrEnable);
 	intr_status |= IntrRxDone | IntrRxEmpty;
 	writel(intr_status, ioaddr + IntrEnable);

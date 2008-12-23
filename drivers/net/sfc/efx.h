@@ -77,7 +77,7 @@ static inline void efx_schedule_channel(struct efx_channel *channel)
 		  channel->channel, raw_smp_processor_id());
 	channel->work_pending = true;
 
-	netif_rx_schedule(channel->napi_dev, &channel->napi_str);
+	netif_rx_schedule(&channel->napi_str);
 }
 
 #endif /* EFX_EFX_H */

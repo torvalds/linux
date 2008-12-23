@@ -230,7 +230,7 @@ static int efx_poll(struct napi_struct *napi, int budget)
 		 * since efx_channel_processed() will have no effect if
 		 * interrupts have already been disabled.
 		 */
-		netif_rx_complete(napi_dev, napi);
+		netif_rx_complete(napi);
 		efx_channel_processed(channel);
 	}
 

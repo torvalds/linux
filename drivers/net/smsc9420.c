@@ -666,7 +666,7 @@ static irqreturn_t smsc9420_isr(int irq, void *dev_id)
 			smsc9420_pci_flush_write(pd);
 
 			ints_to_clear |= (DMAC_STS_RX_ | DMAC_STS_NIS_);
-			netif_rx_schedule(pd->dev, &pd->napi);
+			netif_rx_schedule(&pd->napi);
 		}
 
 		if (ints_to_clear)
@@ -889,7 +889,7 @@ static int smsc9420_rx_poll(struct napi_struct *napi, int budget)
 	smsc9420_pci_flush_write(pd);
 
 	if (work_done < budget) {
-		netif_rx_complete(dev, &pd->napi);
+		netif_rx_complete(&pd->napi);
 
 		/* re-enable RX DMA interrupts */
 		dma_intr_ena = smsc9420_reg_read(pd, DMAC_INTR_ENA);

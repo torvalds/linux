@@ -1250,7 +1250,6 @@ static int
 jme_poll(JME_NAPI_HOLDER(holder), JME_NAPI_WEIGHT(budget))
 {
 	struct jme_adapter *jme = jme_napi_priv(holder);
-	struct net_device *netdev = jme->dev;
 	int rest;
 
 	rest = jme_process_receive(jme, JME_NAPI_WEIGHT_VAL(budget));

@@ -3347,8 +3347,8 @@ static irqreturn_t igb_msix_rx(int irq, void *data)
 
 	igb_write_itr(rx_ring);
 
-	if (netif_rx_schedule_prep(adapter->netdev, &rx_ring->napi))
-		__netif_rx_schedule(adapter->netdev, &rx_ring->napi);
+	if (netif_rx_schedule_prep(&rx_ring->napi))
+		__netif_rx_schedule(&rx_ring->napi);
 
 #ifdef CONFIG_IGB_DCA
 	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
@@ -3500,7 +3500,7 @@ static irqreturn_t igb_intr_msi(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
-	netif_rx_schedule(netdev, &adapter->rx_ring[0].napi);
+	netif_rx_schedule(&adapter->rx_ring[0].napi);
 
 	return IRQ_HANDLED;
 }
@@ -3538,7 +3538,7 @@ static irqreturn_t igb_intr(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
-	netif_rx_schedule(netdev, &adapter->rx_ring[0].napi);
+	netif_rx_schedule(&adapter->rx_ring[0].napi);
 
 	return IRQ_HANDLED;
 }
@@ -3573,7 +3573,7 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	    !netif_running(netdev)) {
 		if (adapter->itr_setting & 3)
 			igb_set_itr(adapter);
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		if (!test_bit(__IGB_DOWN, &adapter->state))
 			igb_irq_enable(adapter);
 		return 0;
@@ -3599,7 +3599,7 @@ static int igb_clean_rx_ring_msix(struct napi_struct *napi, int budget)
 
 	/* If not enough Rx work done, exit the polling mode */
 	if ((work_done == 0) || !netif_running(netdev)) {
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 
 		if (adapter->itr_setting & 3) {
 			if (adapter->num_rx_queues == 1)

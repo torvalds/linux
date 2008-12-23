@@ -498,7 +498,7 @@ static void eth_rx_irq(void *pdev)
 	printk(KERN_DEBUG "%s: eth_rx_irq\n", dev->name);
 #endif
 	qmgr_disable_irq(port->plat->rxq);
-	netif_rx_schedule(dev, &port->napi);
+	netif_rx_schedule(&port->napi);
 }
 
 static int eth_poll(struct napi_struct *napi, int budget)
@@ -526,7 +526,7 @@ static int eth_poll(struct napi_struct *napi, int budget)
 			printk(KERN_DEBUG "%s: eth_poll netif_rx_complete\n",
 			       dev->name);
 #endif
-			netif_rx_complete(dev, napi);
+			netif_rx_complete(napi);
 			qmgr_enable_irq(rxq);
 			if (!qmgr_stat_empty(rxq) &&
 			    netif_rx_reschedule(dev, napi)) {
@@ -1025,7 +1025,7 @@ static int eth_open(struct net_device *dev)
 	}
 	ports_open++;
 	/* we may already have RX data, enables IRQ */
-	netif_rx_schedule(dev, &port->napi);
+	netif_rx_schedule(&port->napi);
 	return 0;
 }
 

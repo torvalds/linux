@@ -265,8 +265,8 @@ static irqreturn_t bdx_isr_napi(int irq, void *dev)
 		bdx_isr_extra(priv, isr);
 
 	if (isr & (IR_RX_DESC_0 | IR_TX_FREE_0)) {
-		if (likely(netif_rx_schedule_prep(ndev, &priv->napi))) {
-			__netif_rx_schedule(ndev, &priv->napi);
+		if (likely(netif_rx_schedule_prep(&priv->napi))) {
+			__netif_rx_schedule(&priv->napi);
 			RET(IRQ_HANDLED);
 		} else {
 			/* NOTE: we get here if intr has slipped into window
@@ -289,7 +289,6 @@ static irqreturn_t bdx_isr_napi(int irq, void *dev)
 static int bdx_poll(struct napi_struct *napi, int budget)
 {
 	struct bdx_priv *priv = container_of(napi, struct bdx_priv, napi);
-	struct net_device *dev = priv->ndev;
 	int work_done;
 
 	ENTER;
@@ -303,7 +302,7 @@ static int bdx_poll(struct napi_struct *napi, int budget)
 		 * device lock and allow waiting tasks (eg rmmod) to advance) */
 		priv->napi_stop = 0;
 
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		bdx_enable_interrupts(priv);
 	}
 	return work_done;

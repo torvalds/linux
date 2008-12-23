@@ -3330,7 +3330,7 @@ static int ucc_geth_poll(struct napi_struct *napi, int budget)
 		struct ucc_fast_private *uccf;
 		u32 uccm;
 
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		uccf = ugeth->uccf;
 		uccm = in_be32(uccf->p_uccm);
 		uccm |= UCCE_RX_EVENTS;
@@ -3364,10 +3364,10 @@ static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 
 	/* check for receive events that require processing */
 	if (ucce & UCCE_RX_EVENTS) {
-		if (netif_rx_schedule_prep(dev, &ugeth->napi)) {
+		if (netif_rx_schedule_prep(&ugeth->napi)) {
 			uccm &= ~UCCE_RX_EVENTS;
 			out_be32(uccf->p_uccm, uccm);
-			__netif_rx_schedule(dev, &ugeth->napi);
+			__netif_rx_schedule(&ugeth->napi);
 		}
 	}
 

@@ -411,8 +411,8 @@ static irqreturn_t enic_isr_legacy(int irq, void *data)
 	}
 
 	if (ENIC_TEST_INTR(pba, ENIC_INTX_WQ_RQ)) {
-		if (netif_rx_schedule_prep(netdev, &enic->napi))
-			__netif_rx_schedule(netdev, &enic->napi);
+		if (netif_rx_schedule_prep(&enic->napi))
+			__netif_rx_schedule(&enic->napi);
 	} else {
 		vnic_intr_unmask(&enic->intr[ENIC_INTX_WQ_RQ]);
 	}
@@ -440,7 +440,7 @@ static irqreturn_t enic_isr_msi(int irq, void *data)
 	 * writes).
 	 */
 
-	netif_rx_schedule(enic->netdev, &enic->napi);
+	netif_rx_schedule(&enic->napi);
 
 	return IRQ_HANDLED;
 }
@@ -450,7 +450,7 @@ static irqreturn_t enic_isr_msix_rq(int irq, void *data)
 	struct enic *enic = data;
 
 	/* schedule NAPI polling for RQ cleanup */
-	netif_rx_schedule(enic->netdev, &enic->napi);
+	netif_rx_schedule(&enic->napi);
 
 	return IRQ_HANDLED;
 }
@@ -1068,7 +1068,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 		if (netdev->features & NETIF_F_LRO)
 			lro_flush_all(&enic->lro_mgr);
 
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		vnic_intr_unmask(&enic->intr[ENIC_MSIX_RQ]);
 	}
 
@@ -1112,7 +1112,7 @@ static int enic_poll_msix(struct napi_struct *napi, int budget)
 		if (netdev->features & NETIF_F_LRO)
 			lro_flush_all(&enic->lro_mgr);
 
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		vnic_intr_unmask(&enic->intr[ENIC_MSIX_RQ]);
 	}
 
