@@ -1,4 +1,4 @@
-/* drivers/android/timed_gpio.c
+/* drivers/misc/timed_gpio.c
  *
  * Copyright (C) 2008 Google, Inc.
  * Author: Mike Lockwood <lockwood@android.com>
@@ -20,7 +20,7 @@
 #include <linux/err.h>
 #include <asm/arch/gpio.h>
 
-#include "android_timed_gpio.h"
+#include "timed_gpio.h"
 
 
 static struct class *timed_gpio_class;
@@ -88,7 +88,7 @@ static ssize_t gpio_enable_store(
 
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, gpio_enable_show, gpio_enable_store);
 
-static int android_timed_gpio_probe(struct platform_device *pdev)
+static int timed_gpio_probe(struct platform_device *pdev)
 {
 	struct timed_gpio_platform_data *pdata = pdev->dev.platform_data;
 	struct timed_gpio *cur_gpio;
@@ -130,7 +130,7 @@ static int android_timed_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int android_timed_gpio_remove(struct platform_device *pdev)
+static int timed_gpio_remove(struct platform_device *pdev)
 {
 	struct timed_gpio_platform_data *pdata = pdev->dev.platform_data;
 	struct timed_gpio_data *gpio_data = platform_get_drvdata(pdev);
@@ -146,32 +146,32 @@ static int android_timed_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver android_timed_gpio_driver = {
-	.probe		= android_timed_gpio_probe,
-	.remove		= android_timed_gpio_remove,
+static struct platform_driver timed_gpio_driver = {
+	.probe		= timed_gpio_probe,
+	.remove		= timed_gpio_remove,
 	.driver		= {
-		.name		= "android-timed-gpio",
+		.name		= "timed-gpio",
 		.owner		= THIS_MODULE,
 	},
 };
 
-static int __init android_timed_gpio_init(void)
+static int __init timed_gpio_init(void)
 {
 	timed_gpio_class = class_create(THIS_MODULE, "timed_output");
 	if (IS_ERR(timed_gpio_class))
 		return PTR_ERR(timed_gpio_class);
-	return platform_driver_register(&android_timed_gpio_driver);
+	return platform_driver_register(&timed_gpio_driver);
 }
 
-static void __exit android_timed_gpio_exit(void)
+static void __exit timed_gpio_exit(void)
 {
 	class_destroy(timed_gpio_class);
-	platform_driver_unregister(&android_timed_gpio_driver);
+	platform_driver_unregister(&timed_gpio_driver);
 }
 
-module_init(android_timed_gpio_init);
-module_exit(android_timed_gpio_exit);
+module_init(timed_gpio_init);
+module_exit(timed_gpio_exit);
 
 MODULE_AUTHOR("Mike Lockwood <lockwood@android.com>");
-MODULE_DESCRIPTION("Android timed gpio driver");
+MODULE_DESCRIPTION("timed gpio driver");
 MODULE_LICENSE("GPL");

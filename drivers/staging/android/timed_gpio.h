@@ -1,4 +1,4 @@
-/* include/linux/android_timed_gpio.h
+/* include/linux/timed_gpio.h
  *
  * Copyright (C) 2008 Google, Inc.
  *
@@ -13,8 +13,8 @@
  *
 */
 
-#ifndef _LINUX_ANDROID_TIMED_GPIO_H
-#define _LINUX_ANDROID_TIMED_GPIO_H
+#ifndef _LINUX_TIMED_GPIO_H
+#define _LINUX_TIMED_GPIO_H
 
 struct timed_gpio {
 	const char *name;
