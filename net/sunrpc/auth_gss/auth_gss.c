@@ -650,7 +650,6 @@ static void
 gss_free(struct gss_auth *gss_auth)
 {
 	rpc_unlink(gss_auth->dentry);
-	gss_auth->dentry = NULL;
 	gss_mech_put(gss_auth->mech);
 
 	kfree(gss_auth);
