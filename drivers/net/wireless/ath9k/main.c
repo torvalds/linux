@@ -59,7 +59,8 @@ static void bus_read_cachesize(struct ath_softc *sc, int *csz)
 		*csz = DEFAULT_CACHELINE >> 2;   /* Use the default size */
 }
 
-static void ath_setcurmode(struct ath_softc *sc, struct ieee80211_conf *conf)
+static void ath_cache_conf_rate(struct ath_softc *sc,
+				struct ieee80211_conf *conf)
 {
 	switch (conf->channel->band) {
 	case IEEE80211_BAND_2GHZ:
@@ -91,6 +92,7 @@ static void ath_setcurmode(struct ath_softc *sc, struct ieee80211_conf *conf)
 			  sc->hw_rate_table[ATH9K_MODE_11A];
 		break;
 	default:
+		BUG_ON(1);
 		break;
 	}
 }
@@ -316,7 +318,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 			return -EIO;
 		}
 
-		ath_setcurmode(sc, &hw->conf);
+		ath_cache_conf_rate(sc, &hw->conf);
 		ath_update_txpow(sc);
 		ath9k_hw_set_interrupts(ah, sc->sc_imask);
 	}
@@ -1647,7 +1649,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	 * that changes the channel so update any state that
 	 * might change as a result.
 	 */
-	ath_setcurmode(sc, &hw->conf);
+	ath_cache_conf_rate(sc, &hw->conf);
 
 	ath_update_txpow(sc);
 
@@ -1944,7 +1946,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	    !sc->sc_config.swBeaconProcess)
 		sc->sc_imask |= ATH9K_INT_TIM;
 
-	ath_setcurmode(sc, &hw->conf);
+	ath_cache_conf_rate(sc, &hw->conf);
 
 	sc->sc_flags &= ~SC_OP_INVALID;
 
