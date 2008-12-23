@@ -392,13 +392,16 @@ You should also set these fields:
 
 - v4l2_dev: set to the v4l2_device parent device.
 - name: set to something descriptive and unique.
-- fops: set to the file_operations struct.
+- fops: set to the v4l2_file_operations struct.
 - ioctl_ops: if you use the v4l2_ioctl_ops to simplify ioctl maintenance
   (highly recommended to use this and it might become compulsory in the
   future!), then set this to your v4l2_ioctl_ops struct.
 
-If you use v4l2_ioctl_ops, then you should set .unlocked_ioctl to
-__video_ioctl2 or .ioctl to video_ioctl2 in your file_operations struct.
+If you use v4l2_ioctl_ops, then you should set either .unlocked_ioctl or
+.ioctl to video_ioctl2 in your v4l2_file_operations struct.
+
+The v4l2_file_operations struct is a subset of file_operations. The main
+difference is that the inode argument is omitted since it is never used.
 
 
 video_device registration
