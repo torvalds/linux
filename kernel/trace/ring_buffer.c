@@ -838,6 +838,7 @@ rb_set_commit_to_write(struct ring_buffer_per_cpu *cpu_buffer)
 	 * back to us). This allows us to do a simple loop to
 	 * assign the commit to the tail.
 	 */
+ again:
 	while (cpu_buffer->commit_page != cpu_buffer->tail_page) {
 		cpu_buffer->commit_page->page->commit =
 			cpu_buffer->commit_page->write;
@@ -853,6 +854,17 @@ rb_set_commit_to_write(struct ring_buffer_per_cpu *cpu_buffer)
 			cpu_buffer->commit_page->write;
 		barrier();
 	}
+
+	/* again, keep gcc from optimizing */
+	barrier();
+
+	/*
+	 * If an interrupt came in just after the first while loop
+	 * and pushed the tail page forward, we will be left with
+	 * a dangling commit that will never go forward.
+	 */
+	if (unlikely(cpu_buffer->commit_page != cpu_buffer->tail_page))
+		goto again;
 }
 
 static void rb_reset_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
