@@ -22,6 +22,7 @@
 #endif
 
 #include <mach_ipi.h>
+#include "../pci/pci.h"
 
 
 /*
