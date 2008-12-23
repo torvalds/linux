@@ -51,7 +51,7 @@ EXPORT_SYMBOL(profile_pc);
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
-	add_pda(irq0_irqs, 1);
+	inc_irq_stat(irq0_irqs);
 
 	global_clock_event->event_handler(global_clock_event);
 

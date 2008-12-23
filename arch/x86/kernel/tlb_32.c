@@ -118,7 +118,7 @@ void smp_invalidate_interrupt(struct pt_regs *regs)
 	smp_mb__after_clear_bit();
 out:
 	put_cpu_no_resched();
-	__get_cpu_var(irq_stat).irq_tlb_count++;
+	inc_irq_stat(irq_tlb_count);
 }
 
 void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
