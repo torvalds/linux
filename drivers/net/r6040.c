@@ -214,7 +214,7 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 	/* Wait for the read bit to be cleared */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MMDIO);
-		if (cmd & MDIO_READ)
+		if (!(cmd & MDIO_READ))
 			break;
 	}
 
@@ -233,7 +233,7 @@ static void r6040_phy_write(void __iomem *ioaddr, int phy_addr, int reg, u16 val
 	/* Wait for the write bit to be cleared */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MMDIO);
-		if (cmd & MDIO_WRITE)
+		if (!(cmd & MDIO_WRITE))
 			break;
 	}
 }
