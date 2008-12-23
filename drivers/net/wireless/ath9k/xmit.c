@@ -1140,7 +1140,7 @@ static void ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 static void ath_drain_txdataq(struct ath_softc *sc, bool retry_tx)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	int i, status, npend = 0;
+	int i, npend = 0;
 
 	if (!(sc->sc_flags & SC_OP_INVALID)) {
 		for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
@@ -1155,20 +1155,16 @@ static void ath_drain_txdataq(struct ath_softc *sc, bool retry_tx)
 	}
 
 	if (npend) {
+		int r;
 		/* TxDMA not stopped, reset the hal */
 		DPRINTF(sc, ATH_DBG_XMIT, "Unable to stop TxDMA. Reset HAL!\n");
 
 		spin_lock_bh(&sc->sc_resetlock);
-		if (!ath9k_hw_reset(ah,
-				    sc->sc_ah->ah_curchan,
-				    sc->tx_chan_width,
-				    sc->sc_tx_chainmask, sc->sc_rx_chainmask,
-				    sc->sc_ht_extprotspacing, true, &status)) {
-
+		r = ath9k_hw_reset(ah, sc->sc_ah->ah_curchan, true);
+		if (r)
 			DPRINTF(sc, ATH_DBG_FATAL,
-				"Unable to reset hardware; hal status %u\n",
-				status);
-		}
+				"Unable to reset hardware; reset status %u\n",
+				r);
 		spin_unlock_bh(&sc->sc_resetlock);
 	}
 

@@ -2222,23 +2222,20 @@ static void ath9k_hw_spur_mitigate(struct ath_hal *ah, struct ath9k_channel *cha
 	REG_WRITE(ah, AR_PHY_MASK2_P_61_45, tmp_mask);
 }
 
-bool ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
-		    enum ath9k_ht_macmode macmode,
-		    u8 txchainmask, u8 rxchainmask,
-		    enum ath9k_ht_extprotspacing extprotspacing,
-		    bool bChannelChange, int *status)
+int ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
+		    bool bChannelChange)
 {
 	u32 saveLedState;
+	struct ath_softc *sc = ah->ah_sc;
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	struct ath9k_channel *curchan = ah->ah_curchan;
 	u32 saveDefAntenna;
 	u32 macStaId1;
-	int ecode;
-	int i, rx_chainmask;
+	int i, rx_chainmask, r;
 
-	ahp->ah_extprotspacing = extprotspacing;
-	ahp->ah_txchainmask = txchainmask;
-	ahp->ah_rxchainmask = rxchainmask;
+	ahp->ah_extprotspacing = sc->sc_ht_extprotspacing;
+	ahp->ah_txchainmask = sc->sc_tx_chainmask;
+	ahp->ah_rxchainmask = sc->sc_rx_chainmask;
 
 	if (AR_SREV_9280(ah)) {
 		ahp->ah_txchainmask &= 0x3;
@@ -2249,14 +2246,11 @@ bool ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
 			"invalid channel %u/0x%x; no mapping\n",
 			chan->channel, chan->channelFlags);
-		ecode = -EINVAL;
-		goto bad;
+		return -EINVAL;
 	}
 
-	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE)) {
-		ecode = -EIO;
-		goto bad;
-	}
+	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
+		return -EIO;
 
 	if (curchan)
 		ath9k_hw_getnf(ah, curchan);
@@ -2270,10 +2264,10 @@ bool ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 	    (!AR_SREV_9280(ah) || (!IS_CHAN_A_5MHZ_SPACED(chan) &&
 				   !IS_CHAN_A_5MHZ_SPACED(ah->ah_curchan)))) {
 
-		if (ath9k_hw_channel_change(ah, chan, macmode)) {
+		if (ath9k_hw_channel_change(ah, chan, sc->tx_chan_width)) {
 			ath9k_hw_loadnf(ah, ah->ah_curchan);
 			ath9k_hw_start_nfcal(ah);
-			return true;
+			return 0;
 		}
 	}
 
@@ -2291,8 +2285,7 @@ bool ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 
 	if (!ath9k_hw_chip_reset(ah, chan)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_RESET, "chip reset failed\n");
-		ecode = -EINVAL;
-		goto bad;
+		return -EINVAL;
 	}
 
 	if (AR_SREV_9280(ah)) {
@@ -2308,11 +2301,9 @@ bool ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 		ath9k_hw_cfg_output(ah, 9, AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	}
 
-	ecode = ath9k_hw_process_ini(ah, chan, macmode);
-	if (ecode != 0) {
-		ecode = -EINVAL;
-		goto bad;
-	}
+	r = ath9k_hw_process_ini(ah, chan, sc->tx_chan_width);
+	if (r)
+		return r;
 
 	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
 		ath9k_hw_set_delta_slope(ah, chan);
@@ -2325,8 +2316,7 @@ bool ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 	if (!ath9k_hw_eeprom_set_board_values(ah, chan)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 			"error setting board options\n");
-		ecode = -EIO;
-		goto bad;
+		return -EIO;
 	}
 
 	ath9k_hw_decrease_chain_power(ah, chan);
@@ -2354,15 +2344,11 @@ bool ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 	REG_WRITE(ah, AR_RSSI_THR, INIT_RSSI_THR);
 
 	if (AR_SREV_9280_10_OR_LATER(ah)) {
-		if (!(ath9k_hw_ar9280_set_channel(ah, chan))) {
-			ecode = -EIO;
-			goto bad;
-		}
+		if (!(ath9k_hw_ar9280_set_channel(ah, chan)))
+			return -EIO;
 	} else {
-		if (!(ath9k_hw_set_channel(ah, chan))) {
-			ecode = -EIO;
-			goto bad;
-		}
+		if (!(ath9k_hw_set_channel(ah, chan)))
+			return -EIO;
 	}
 
 	for (i = 0; i < AR_NUM_DCU; i++)
@@ -2396,10 +2382,8 @@ bool ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_init_bb(ah, chan);
 
-	if (!ath9k_hw_init_cal(ah, chan)){
-		ecode = -EIO;;
-		goto bad;
-	}
+	if (!ath9k_hw_init_cal(ah, chan))
+		return -EIO;;
 
 	rx_chainmask = ahp->ah_rxchainmask;
 	if ((rx_chainmask == 0x5) || (rx_chainmask == 0x3)) {
@@ -2428,11 +2412,7 @@ bool ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 #endif
 	}
 
-	return true;
-bad:
-	if (status)
-		*status = ecode;
-	return false;
+	return 0;
 }
 
 /************************/
