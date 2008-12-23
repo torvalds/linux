@@ -546,7 +546,8 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
 	struct ieee80211_hdr *hdr;
-	int i, flags, rtsctsena = 0;
+	struct ieee80211_hw *hw = sc->hw;
+	int i, flags, rtsctsena = 0, enable_g_protection = 0;
 	u32 ctsduration = 0;
 	u8 rix = 0, cix, ctsrate = 0;
 	__le16 fc;
@@ -578,6 +579,12 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	flags = (bf->bf_flags & (ATH9K_TXDESC_RTSENA | ATH9K_TXDESC_CTSENA));
 	cix = rt->info[rix].ctrl_rate;
 
+	/* All protection frames are transmited at 2Mb/s for 802.11g,
+	 * otherwise we transmit them at 1Mb/s */
+	if (hw->conf.channel->band == IEEE80211_BAND_2GHZ &&
+	  !conf_is_ht(&hw->conf))
+		enable_g_protection = 1;
+
 	/*
 	 * If 802.11g protection is enabled, determine whether to use RTS/CTS or
 	 * just CTS.  Note that this is only done for OFDM/HT unicast frames.
@@ -590,7 +597,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 		else if (sc->sc_protmode == PROT_M_CTSONLY)
 			flags = ATH9K_TXDESC_CTSENA;
 
-		cix = rt->info[sc->sc_protrix].ctrl_rate;
+		cix = rt->info[enable_g_protection].ctrl_rate;
 		rtsctsena = 1;
 	}
 
@@ -608,7 +615,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	if (sc->sc_config.ath_aggr_prot &&
 	    (!bf_isaggr(bf) || (bf_isaggr(bf) && bf->bf_al < 8192))) {
 		flags = ATH9K_TXDESC_RTSENA;
-		cix = rt->info[sc->sc_protrix].ctrl_rate;
+		cix = rt->info[enable_g_protection].ctrl_rate;
 		rtsctsena = 1;
 	}
 

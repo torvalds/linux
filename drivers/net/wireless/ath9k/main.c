@@ -61,12 +61,6 @@ static void bus_read_cachesize(struct ath_softc *sc, int *csz)
 
 static void ath_setcurmode(struct ath_softc *sc, struct ieee80211_conf *conf)
 {
-	/*
-	 * All protection frames are transmited at 2Mb/s for
-	 * 11g, otherwise at 1Mb/s.
-	 * XXX select protection rate index from rate table.
-	 */
-	sc->sc_protrix = 0;
 	switch (conf->channel->band) {
 	case IEEE80211_BAND_2GHZ:
 		if (conf_is_ht20(conf))
@@ -78,11 +72,9 @@ static void ath_setcurmode(struct ath_softc *sc, struct ieee80211_conf *conf)
 		else if (conf_is_ht40_plus(conf))
 			sc->cur_rate_table =
 			  sc->hw_rate_table[ATH9K_MODE_11NG_HT40PLUS];
-		else {
-			sc->sc_protrix = 1;
+		else
 			sc->cur_rate_table =
 			  sc->hw_rate_table[ATH9K_MODE_11G];
-		}
 		break;
 	case IEEE80211_BAND_5GHZ:
 		if (conf_is_ht20(conf))
@@ -95,7 +87,8 @@ static void ath_setcurmode(struct ath_softc *sc, struct ieee80211_conf *conf)
 			sc->cur_rate_table =
 			  sc->hw_rate_table[ATH9K_MODE_11NA_HT40PLUS];
 		else
-			sc->cur_rate_table = sc->hw_rate_table[ATH9K_MODE_11A];
+			sc->cur_rate_table =
+			  sc->hw_rate_table[ATH9K_MODE_11A];
 		break;
 	default:
 		break;
