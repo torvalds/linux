@@ -368,25 +368,39 @@ static void gss_encode_v0_msg(struct gss_upcall_msg *gss_msg)
 	gss_msg->msg.len = sizeof(gss_msg->uid);
 }
 
-static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg)
+static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
+				struct rpc_clnt *clnt)
 {
-	gss_msg->msg.len = sprintf(gss_msg->databuf, "mech=%s uid=%d\n",
+	char *p = gss_msg->databuf;
+	int len = 0;
+
+	gss_msg->msg.len = sprintf(gss_msg->databuf, "mech=%s uid=%d ",
 				   gss_msg->auth->mech->gm_name,
 				   gss_msg->uid);
+	p += gss_msg->msg.len;
+	if (clnt->cl_principal) {
+		len = sprintf(p, "target=%s ", clnt->cl_principal);
+		p += len;
+		gss_msg->msg.len += len;
+	}
+	len = sprintf(p, "\n");
+	gss_msg->msg.len += len;
+
 	gss_msg->msg.data = gss_msg->databuf;
 	BUG_ON(gss_msg->msg.len > UPCALL_BUF_LEN);
 }
 
-static void gss_encode_msg(struct gss_upcall_msg *gss_msg)
+static void gss_encode_msg(struct gss_upcall_msg *gss_msg,
+				struct rpc_clnt *clnt)
 {
 	if (pipe_version == 0)
 		gss_encode_v0_msg(gss_msg);
 	else /* pipe_version == 1 */
-		gss_encode_v1_msg(gss_msg);
+		gss_encode_v1_msg(gss_msg, clnt);
 }
 
 static inline struct gss_upcall_msg *
-gss_alloc_msg(struct gss_auth *gss_auth, uid_t uid)
+gss_alloc_msg(struct gss_auth *gss_auth, uid_t uid, struct rpc_clnt *clnt)
 {
 	struct gss_upcall_msg *gss_msg;
 	int vers;
@@ -406,7 +420,7 @@ gss_alloc_msg(struct gss_auth *gss_auth, uid_t uid)
 	atomic_set(&gss_msg->count, 1);
 	gss_msg->uid = uid;
 	gss_msg->auth = gss_auth;
-	gss_encode_msg(gss_msg);
+	gss_encode_msg(gss_msg, clnt);
 	return gss_msg;
 }
 
@@ -422,7 +436,7 @@ gss_setup_upcall(struct rpc_clnt *clnt, struct gss_auth *gss_auth, struct rpc_cr
 	if (gss_cred->gc_machine_cred != 0)
 		uid = 0;
 
-	gss_new = gss_alloc_msg(gss_auth, uid);
+	gss_new = gss_alloc_msg(gss_auth, uid, clnt);
 	if (IS_ERR(gss_new))
 		return gss_new;
 	gss_msg = gss_add_msg(gss_auth, gss_new);
