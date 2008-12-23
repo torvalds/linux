@@ -93,6 +93,7 @@
 #include <asm/desc.h>
 #include <asm/dma.h>
 #include <asm/iommu.h>
+#include <asm/gart.h>
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 

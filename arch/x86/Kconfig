@@ -563,7 +563,7 @@ config AMD_IOMMU
 
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
-	bool
+	def_bool y if X86_64
 	help
 	  Support for software bounce buffers used on x86-64 systems
 	  which don't have a hardware IOMMU (e.g. the current generation
