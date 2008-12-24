@@ -287,7 +287,7 @@ static int __cpuinitdata unsafe_smp;
 /*
  * Activate a secondary processor.
  */
-static void __cpuinit start_secondary(void *unused)
+notrace static void __cpuinit start_secondary(void *unused)
 {
 	/*
 	 * Don't put *anything* before cpu_init(), SMP booting is too

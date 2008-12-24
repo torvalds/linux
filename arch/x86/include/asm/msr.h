@@ -85,7 +85,8 @@ static inline void native_write_msr(unsigned int msr,
 	asm volatile("wrmsr" : : "c" (msr), "a"(low), "d" (high) : "memory");
 }
 
-static inline int native_write_msr_safe(unsigned int msr,
+/* Can be uninlined because referenced by paravirt */
+notrace static inline int native_write_msr_safe(unsigned int msr,
 					unsigned low, unsigned high)
 {
 	int err;
