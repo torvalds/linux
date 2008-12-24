@@ -1296,6 +1296,19 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	}
 
+	if (!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS) &&
+	    local->dynamic_ps_timeout > 0) {
+		if (local->hw.conf.flags & IEEE80211_CONF_PS) {
+			ieee80211_stop_queues_by_reason(&local->hw,
+					IEEE80211_QUEUE_STOP_REASON_PS);
+			queue_work(local->hw.workqueue,
+					&local->dynamic_ps_disable_work);
+		}
+
+		mod_timer(&local->dynamic_ps_timer, jiffies +
+				msecs_to_jiffies(local->dynamic_ps_timeout));
+	}
+
 	memset(info, 0, sizeof(*info));
 
 	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
@@ -1473,19 +1486,6 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	if (unlikely(skb->len < ETH_HLEN)) {
 		ret = 0;
 		goto fail;
-	}
-
-	if (!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS) &&
-	    local->dynamic_ps_timeout > 0) {
-		if (local->hw.conf.flags & IEEE80211_CONF_PS) {
-			ieee80211_stop_queues_by_reason(&local->hw,
-							IEEE80211_QUEUE_STOP_REASON_PS);
-			queue_work(local->hw.workqueue,
-				   &local->dynamic_ps_disable_work);
-		}
-
-		mod_timer(&local->dynamic_ps_timer, jiffies +
-			  msecs_to_jiffies(local->dynamic_ps_timeout));
 	}
 
 	nh_pos = skb_network_header(skb) - skb->data;
