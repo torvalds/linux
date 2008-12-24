@@ -36,8 +36,24 @@ struct trace_event *ftrace_find_event(int type);
 int register_ftrace_event(struct trace_event *event);
 int unregister_ftrace_event(struct trace_event *event);
 
+int
+trace_nop_print(struct trace_seq *s, struct trace_entry *entry, int flags);
+
 #define MAX_MEMHEX_BYTES	8
 #define HEX_CHARS		(MAX_MEMHEX_BYTES*2 + 1)
+
+#define SEQ_PUT_FIELD_RET(s, x)				\
+do {							\
+	if (!trace_seq_putmem(s, &(x), sizeof(x)))	\
+		return 0;				\
+} while (0)
+
+#define SEQ_PUT_HEX_FIELD_RET(s, x)			\
+do {							\
+	BUILD_BUG_ON(sizeof(x) > MAX_MEMHEX_BYTES);	\
+	if (!trace_seq_putmem_hex(s, &(x), sizeof(x)))	\
+		return 0;				\
+} while (0)
 
 #endif
 

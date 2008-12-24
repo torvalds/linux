@@ -286,6 +286,15 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 	return ret;
 }
 
+static const char state_to_char[] = TASK_STATE_TO_CHAR_STR;
+
+static int task_state_char(unsigned long state)
+{
+	int bit = state ? __ffs(state) + 1 : 0;
+
+	return bit < sizeof(state_to_char) - 1 ? state_to_char[bit] : '?';
+}
+
 /**
  * ftrace_find_event - find a registered event
  * @type: the type of event to look for
@@ -363,3 +372,461 @@ int unregister_ftrace_event(struct trace_event *event)
 
 	return 0;
 }
+
+/*
+ * Standard events
+ */
+
+int
+trace_nop_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	return 0;
+}
+
+/* TRACE_FN */
+static int
+trace_fn_latency(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct ftrace_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (!seq_print_ip_sym(s, field->ip, flags))
+		goto partial;
+	if (!trace_seq_puts(s, " ("))
+		goto partial;
+	if (!seq_print_ip_sym(s, field->parent_ip, flags))
+		goto partial;
+	if (!trace_seq_puts(s, ")\n"))
+		goto partial;
+
+	return 0;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+static int
+trace_fn_trace(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct ftrace_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (!seq_print_ip_sym(s, field->ip, flags))
+		goto partial;
+
+	if ((flags & TRACE_ITER_PRINT_PARENT) && field->parent_ip) {
+		if (!trace_seq_printf(s, " <-"))
+			goto partial;
+		if (!seq_print_ip_sym(s,
+				      field->parent_ip,
+				      flags))
+			goto partial;
+	}
+	if (!trace_seq_printf(s, "\n"))
+		goto partial;
+
+	return 0;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+static int
+trace_fn_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct ftrace_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (trace_seq_printf(s, "%x %x\n",
+			     field->ip,
+			     field->parent_ip))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return 0;
+}
+
+static int
+trace_fn_hex(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct ftrace_entry *field;
+
+	trace_assign_type(field, entry);
+
+	SEQ_PUT_HEX_FIELD_RET(s, field->ip);
+	SEQ_PUT_HEX_FIELD_RET(s, field->parent_ip);
+
+	return 0;
+}
+
+static int
+trace_fn_bin(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct ftrace_entry *field;
+
+	trace_assign_type(field, entry);
+
+	SEQ_PUT_FIELD_RET(s, field->ip);
+	SEQ_PUT_FIELD_RET(s, field->parent_ip);
+
+	return 0;
+}
+
+static struct trace_event trace_fn_event = {
+	.type	 	= TRACE_FN,
+	.trace		= trace_fn_trace,
+	.latency_trace	= trace_fn_latency,
+	.raw		= trace_fn_raw,
+	.hex		= trace_fn_hex,
+	.binary		= trace_fn_bin,
+};
+
+/* TRACE_CTX an TRACE_WAKE */
+static int
+trace_ctxwake_print(struct trace_seq *s, struct trace_entry *entry, int flags,
+		    char *delim)
+{
+	struct ctx_switch_entry *field;
+	char *comm;
+	int S, T;
+
+	trace_assign_type(field, entry);
+
+	T = task_state_char(field->next_state);
+	S = task_state_char(field->prev_state);
+	comm = trace_find_cmdline(field->next_pid);
+	if (trace_seq_printf(s, " %5d:%3d:%c %s [%03d] %5d:%3d:%c %s\n",
+			     field->prev_pid,
+			     field->prev_prio,
+			     S, delim,
+			     field->next_cpu,
+			     field->next_pid,
+			     field->next_prio,
+			     T, comm))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return 0;
+}
+
+static int
+trace_ctx_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	return trace_ctxwake_print(s, entry, flags, "==>");
+}
+
+static int
+trace_wake_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	return trace_ctxwake_print(s, entry, flags, "  +");
+}
+
+static int
+trace_ctxwake_raw(struct trace_seq *s, struct trace_entry *entry, int flags,
+		  char S)
+{
+	struct ctx_switch_entry *field;
+	int T;
+
+	trace_assign_type(field, entry);
+
+	if (!S)
+		task_state_char(field->prev_state);
+	T = task_state_char(field->next_state);
+	if (trace_seq_printf(s, "%d %d %c %d %d %d %c\n",
+			     field->prev_pid,
+			     field->prev_prio,
+			     S,
+			     field->next_cpu,
+			     field->next_pid,
+			     field->next_prio,
+			     T))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return 0;
+}
+
+static int
+trace_ctx_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	return trace_ctxwake_raw(s, entry, flags, 0);
+}
+
+static int
+trace_wake_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	return trace_ctxwake_raw(s, entry, flags, '+');
+}
+
+
+static int
+trace_ctxwake_hex(struct trace_seq *s, struct trace_entry *entry, int flags,
+		  char S)
+{
+	struct ctx_switch_entry *field;
+	int T;
+
+	trace_assign_type(field, entry);
+
+	if (!S)
+		task_state_char(field->prev_state);
+	T = task_state_char(field->next_state);
+
+	SEQ_PUT_HEX_FIELD_RET(s, field->prev_pid);
+	SEQ_PUT_HEX_FIELD_RET(s, field->prev_prio);
+	SEQ_PUT_HEX_FIELD_RET(s, S);
+	SEQ_PUT_HEX_FIELD_RET(s, field->next_cpu);
+	SEQ_PUT_HEX_FIELD_RET(s, field->next_pid);
+	SEQ_PUT_HEX_FIELD_RET(s, field->next_prio);
+	SEQ_PUT_HEX_FIELD_RET(s, T);
+
+	return 0;
+}
+
+static int
+trace_ctx_hex(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	return trace_ctxwake_hex(s, entry, flags, 0);
+}
+
+static int
+trace_wake_hex(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	return trace_ctxwake_hex(s, entry, flags, '+');
+}
+
+static int
+trace_ctxwake_bin(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct ctx_switch_entry *field;
+
+	trace_assign_type(field, entry);
+
+	SEQ_PUT_FIELD_RET(s, field->prev_pid);
+	SEQ_PUT_FIELD_RET(s, field->prev_prio);
+	SEQ_PUT_FIELD_RET(s, field->prev_state);
+	SEQ_PUT_FIELD_RET(s, field->next_pid);
+	SEQ_PUT_FIELD_RET(s, field->next_prio);
+	SEQ_PUT_FIELD_RET(s, field->next_state);
+
+	return 0;
+}
+
+static struct trace_event trace_ctx_event = {
+	.type	 	= TRACE_CTX,
+	.trace		= trace_ctx_print,
+	.latency_trace	= trace_ctx_print,
+	.raw		= trace_ctx_raw,
+	.hex		= trace_ctx_hex,
+	.binary		= trace_ctxwake_bin,
+};
+
+static struct trace_event trace_wake_event = {
+	.type	 	= TRACE_WAKE,
+	.trace		= trace_wake_print,
+	.latency_trace	= trace_wake_print,
+	.raw		= trace_wake_raw,
+	.hex		= trace_wake_hex,
+	.binary		= trace_ctxwake_bin,
+};
+
+/* TRACE_SPECIAL */
+static int
+trace_special_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct special_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (trace_seq_printf(s, "# %ld %ld %ld\n",
+			     field->arg1,
+			     field->arg2,
+			     field->arg3))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return 0;
+}
+
+static int
+trace_special_hex(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct special_entry *field;
+
+	trace_assign_type(field, entry);
+
+	SEQ_PUT_HEX_FIELD_RET(s, field->arg1);
+	SEQ_PUT_HEX_FIELD_RET(s, field->arg2);
+	SEQ_PUT_HEX_FIELD_RET(s, field->arg3);
+
+	return 0;
+}
+
+static int
+trace_special_bin(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct special_entry *field;
+
+	trace_assign_type(field, entry);
+
+	SEQ_PUT_FIELD_RET(s, field->arg1);
+	SEQ_PUT_FIELD_RET(s, field->arg2);
+	SEQ_PUT_FIELD_RET(s, field->arg3);
+
+	return 0;
+}
+
+static struct trace_event trace_special_event = {
+	.type	 	= TRACE_SPECIAL,
+	.trace		= trace_special_print,
+	.latency_trace	= trace_special_print,
+	.raw		= trace_special_print,
+	.hex		= trace_special_hex,
+	.binary		= trace_special_bin,
+};
+
+/* TRACE_STACK */
+
+static int
+trace_stack_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct stack_entry *field;
+	int i;
+
+	trace_assign_type(field, entry);
+
+	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
+		if (i) {
+			if (trace_seq_puts(s, " <= "))
+				goto partial;
+
+			if (seq_print_ip_sym(s, field->caller[i], flags))
+				goto partial;
+		}
+		if (trace_seq_puts(s, "\n"))
+			goto partial;
+	}
+
+	return 0;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+static struct trace_event trace_stack_event = {
+	.type	 	= TRACE_STACK,
+	.trace		= trace_stack_print,
+	.latency_trace	= trace_stack_print,
+	.raw		= trace_special_print,
+	.hex		= trace_special_hex,
+	.binary		= trace_special_bin,
+};
+
+/* TRACE_USER_STACK */
+static int
+trace_user_stack_print(struct trace_seq *s, struct trace_entry *entry,
+		       int flags)
+{
+	struct userstack_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (seq_print_userip_objs(field, s, flags))
+		goto partial;
+
+	if (trace_seq_putc(s, '\n'))
+		goto partial;
+
+	return 0;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+static struct trace_event trace_user_stack_event = {
+	.type	 	= TRACE_USER_STACK,
+	.trace		= trace_user_stack_print,
+	.latency_trace	= trace_user_stack_print,
+	.raw		= trace_special_print,
+	.hex		= trace_special_hex,
+	.binary		= trace_special_bin,
+};
+
+/* TRACE_PRINT */
+static int
+trace_print_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct print_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (seq_print_ip_sym(s, field->ip, flags))
+		goto partial;
+
+	if (trace_seq_printf(s, ": %s", field->buf))
+		goto partial;
+
+	return 0;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+static int
+trace_print_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct print_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (seq_print_ip_sym(s, field->ip, flags))
+		goto partial;
+
+	if (trace_seq_printf(s, "# %lx %s", field->ip, field->buf))
+		goto partial;
+
+	return 0;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+static struct trace_event trace_print_event = {
+	.type	 	= TRACE_PRINT,
+	.trace		= trace_print_print,
+	.latency_trace	= trace_print_print,
+	.raw		= trace_print_raw,
+	.hex		= trace_nop_print,
+	.binary		= trace_nop_print,
+};
+
+static struct trace_event *events[] __initdata = {
+	&trace_fn_event,
+	&trace_ctx_event,
+	&trace_wake_event,
+	&trace_special_event,
+	&trace_stack_event,
+	&trace_user_stack_event,
+	&trace_print_event,
+	NULL
+};
+
+__init static int init_events(void)
+{
+	struct trace_event *event;
+	int i, ret;
+
+	for (i = 0; events[i]; i++) {
+		event = events[i];
+
+		ret = register_ftrace_event(event);
+		if (!ret) {
+			printk(KERN_WARNING "event %d failed to register\n",
+			       event->type);
+			WARN_ON_ONCE(1);
+		}
+	}
+
+	return 0;
+}
+device_initcall(init_events);

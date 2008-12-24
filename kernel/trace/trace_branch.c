@@ -14,7 +14,9 @@
 #include <linux/hash.h>
 #include <linux/fs.h>
 #include <asm/local.h>
+
 #include "trace.h"
+#include "trace_output.h"
 
 #ifdef CONFIG_BRANCH_TRACER
 
@@ -142,6 +144,49 @@ static void branch_trace_reset(struct trace_array *tr)
 	stop_branch_trace(tr);
 }
 
+static int
+trace_print_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct print_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (seq_print_ip_sym(s, field->ip, flags))
+		goto partial;
+
+	if (trace_seq_printf(s, ": %s", field->buf))
+		goto partial;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+static int
+trace_branch_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct trace_branch *field;
+
+	trace_assign_type(field, entry);
+
+	if (trace_seq_printf(s, "[%s] %s:%s:%d\n",
+			     field->correct ? "  ok  " : " MISS ",
+			     field->func,
+			     field->file,
+			     field->line))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return 0;
+}
+
+static struct trace_event trace_branch_event = {
+	.type	 	= TRACE_BRANCH,
+	.trace		= trace_branch_print,
+	.latency_trace	= trace_branch_print,
+	.raw		= trace_nop_print,
+	.hex		= trace_nop_print,
+	.binary		= trace_nop_print,
+};
+
 struct tracer branch_trace __read_mostly =
 {
 	.name		= "branch",
@@ -154,6 +199,14 @@ struct tracer branch_trace __read_mostly =
 
 __init static int init_branch_trace(void)
 {
+	int ret;
+
+	ret = register_ftrace_event(&trace_branch_event);
+	if (!ret) {
+		printk(KERN_WARNING "Warning: could not register branch events\n");
+		return 1;
+	}
+
 	return register_tracer(&branch_trace);
 }
 
