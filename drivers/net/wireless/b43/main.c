@@ -3752,7 +3752,7 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		break;
 #ifdef CONFIG_B43_NPHY
 	case B43_PHYTYPE_N:
-		if (phy_rev > 1)
+		if (phy_rev > 4)
 			unsupported = 1;
 		break;
 #endif
@@ -3805,7 +3805,7 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 			unsupported = 1;
 		break;
 	case B43_PHYTYPE_N:
-		if (radio_ver != 0x2055)
+		if (radio_ver != 0x2055 && radio_ver != 0x2056)
 			unsupported = 1;
 		break;
 	default:
