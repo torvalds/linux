@@ -871,12 +871,17 @@ set:
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 				  msecs_to_jiffies(local->dynamic_ps_timeout));
 		else {
-			if (local->powersave)
+			if (local->powersave) {
+				ieee80211_send_nullfunc(local, sdata, 1);
 				conf->flags |= IEEE80211_CONF_PS;
-			else
+				ret = ieee80211_hw_config(local,
+						IEEE80211_CONF_CHANGE_PS);
+			} else {
 				conf->flags &= ~IEEE80211_CONF_PS;
-			ret = ieee80211_hw_config(local,
-					IEEE80211_CONF_CHANGE_PS);
+				ret = ieee80211_hw_config(local,
+						IEEE80211_CONF_CHANGE_PS);
+				ieee80211_send_nullfunc(local, sdata, 0);
+			}
 		}
 	}
 

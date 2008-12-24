@@ -575,6 +575,30 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	}
 }
 
+static bool check_tim(struct ieee802_11_elems *elems, u16 aid, bool *is_mc)
+{
+	u8 mask;
+	u8 index, indexn1, indexn2;
+	struct ieee80211_tim_ie *tim = (struct ieee80211_tim_ie *) elems->tim;
+
+	aid &= 0x3fff;
+	index = aid / 8;
+	mask  = 1 << (aid & 7);
+
+	if (tim->bitmap_ctrl & 0x01)
+		*is_mc = true;
+
+	indexn1 = tim->bitmap_ctrl & 0xfe;
+	indexn2 = elems->tim_len + indexn1 - 4;
+
+	if (index < indexn1 || index > indexn2)
+		return false;
+
+	index -= indexn1;
+
+	return !!(tim->virtual_map[index] & mask);
+}
+
 static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
 					   u16 capab, bool erp_valid, u8 erp)
 {
@@ -757,6 +781,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 				  msecs_to_jiffies(local->dynamic_ps_timeout));
 		else {
+			ieee80211_send_nullfunc(local, sdata, 1);
 			conf->flags |= IEEE80211_CONF_PS;
 			ieee80211_hw_config(local,
 					    IEEE80211_CONF_CHANGE_PS);
@@ -1720,7 +1745,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	struct ieee802_11_elems elems;
 	struct ieee80211_local *local = sdata->local;
 	u32 changed = 0;
-	bool erp_valid;
+	bool erp_valid, directed_tim, is_mc = false;
 	u8 erp_value = 0;
 
 	/* Process beacon from the current BSS */
@@ -1743,6 +1768,18 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	ieee80211_sta_wmm_params(local, ifsta, elems.wmm_param,
 				 elems.wmm_param_len);
 
+	if (!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS)) {
+		directed_tim = check_tim(&elems, ifsta->aid, &is_mc);
+
+		if (directed_tim || is_mc) {
+			if (local->hw.conf.flags && IEEE80211_CONF_PS) {
+				local->hw.conf.flags &= ~IEEE80211_CONF_PS;
+				ieee80211_hw_config(local,
+						IEEE80211_CONF_CHANGE_PS);
+				ieee80211_send_nullfunc(local, sdata, 0);
+			}
+		}
+	}
 
 	if (elems.erp_info && elems.erp_info_len >= 1) {
 		erp_valid = true;
@@ -2631,10 +2668,12 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local,
 			     dynamic_ps_enable_work);
+	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
 
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
 
+	ieee80211_send_nullfunc(local, sdata, 1);
 	local->hw.conf.flags |= IEEE80211_CONF_PS;
 
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
