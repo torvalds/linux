@@ -3272,7 +3272,9 @@ bool ath9k_hw_fill_cap_info(struct ath_hal *ah)
 	pCap->num_mr_retries = 4;
 	pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD;
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
+	if (AR_SREV_9285_10_OR_LATER(ah))
+		pCap->num_gpio_pins = AR9285_NUM_GPIO;
+	else if (AR_SREV_9280_10_OR_LATER(ah))
 		pCap->num_gpio_pins = AR928X_NUM_GPIO;
 	else
 		pCap->num_gpio_pins = AR_NUM_GPIO;
@@ -3517,17 +3519,18 @@ void ath9k_hw_cfg_gpio_input(struct ath_hal *ah, u32 gpio)
 
 u32 ath9k_hw_gpio_get(struct ath_hal *ah, u32 gpio)
 {
+#define MS_REG_READ(x, y) \
+	(MS(REG_READ(ah, AR_GPIO_IN_OUT), x##_GPIO_IN_VAL) & (AR_GPIO_BIT(y)))
+
 	if (gpio >= ah->ah_caps.num_gpio_pins)
 		return 0xffffffff;
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
-		return (MS
-			(REG_READ(ah, AR_GPIO_IN_OUT),
-			 AR928X_GPIO_IN_VAL) & AR_GPIO_BIT(gpio)) != 0;
-	} else {
-		return (MS(REG_READ(ah, AR_GPIO_IN_OUT), AR_GPIO_IN_VAL) &
-			AR_GPIO_BIT(gpio)) != 0;
-	}
+	if (AR_SREV_9285_10_OR_LATER(ah))
+		return MS_REG_READ(AR9285, gpio) != 0;
+	else if (AR_SREV_9280_10_OR_LATER(ah))
+		return MS_REG_READ(AR928X, gpio) != 0;
+	else
+		return MS_REG_READ(AR, gpio) != 0;
 }
 
 void ath9k_hw_cfg_output(struct ath_hal *ah, u32 gpio,

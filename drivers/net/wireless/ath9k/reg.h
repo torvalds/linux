@@ -875,12 +875,15 @@ enum {
 
 #define AR_NUM_GPIO                              14
 #define AR928X_NUM_GPIO                          10
+#define AR9285_NUM_GPIO                          12
 
 #define AR_GPIO_IN_OUT                           0x4048
 #define AR_GPIO_IN_VAL                           0x0FFFC000
 #define AR_GPIO_IN_VAL_S                         14
 #define AR928X_GPIO_IN_VAL                       0x000FFC00
 #define AR928X_GPIO_IN_VAL_S                     10
+#define AR9285_GPIO_IN_VAL                       0x00FFF000
+#define AR9285_GPIO_IN_VAL_S                     12
 
 #define AR_GPIO_OE_OUT                           0x404c
 #define AR_GPIO_OE_OUT_DRV                       0x3
@@ -1020,6 +1023,10 @@ enum {
 #define AR_AN_RF5G1_CH1_OB5_S   16
 #define AR_AN_RF5G1_CH1_DB5     0x00380000
 #define AR_AN_RF5G1_CH1_DB5_S   19
+
+#define AR_AN_TOP1                  0x7890
+#define AR_AN_TOP1_DACIPMODE	    0x00040000
+#define AR_AN_TOP1_DACIPMODE_S	    18
 
 #define AR_AN_TOP2                  0x7894
 #define AR_AN_TOP2_XPABIAS_LVL      0xC0000000
