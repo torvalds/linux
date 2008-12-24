@@ -12,6 +12,7 @@
 #include <linux/fs.h>
 
 #include "trace.h"
+#include "trace_output.h"
 
 #define TRACE_GRAPH_INDENT	2
 

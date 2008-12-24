@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 
 #include "trace.h"
+#include "trace_output.h"
 
 struct header_iter {
 	struct pci_dev *dev;

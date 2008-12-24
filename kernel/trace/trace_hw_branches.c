@@ -14,6 +14,7 @@
 #include <asm/ds.h>
 
 #include "trace.h"
+#include "trace_output.h"
 
 
 #define SIZEOF_BTS (1 << 13)

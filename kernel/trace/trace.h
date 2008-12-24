@@ -30,7 +30,7 @@ enum trace_type {
 	TRACE_HW_BRANCHES,
 	TRACE_POWER,
 
-	__TRACE_LAST_TYPE
+	__TRACE_LAST_TYPE,
 };
 
 /*
@@ -484,12 +484,6 @@ extern int trace_selftest_startup_branch(struct tracer *trace,
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);
-extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...);
-extern int
-seq_print_ip_sym(struct trace_seq *s, unsigned long ip,
-		unsigned long sym_flags);
-extern ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf,
-				 size_t cnt);
 extern long ns2usecs(cycle_t nsec);
 extern int
 trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args);

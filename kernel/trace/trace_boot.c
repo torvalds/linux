@@ -11,6 +11,7 @@
 #include <linux/kallsyms.h>
 
 #include "trace.h"
+#include "trace_output.h"
 
 static struct trace_array *boot_trace;
 static bool pre_initcalls_finished;
