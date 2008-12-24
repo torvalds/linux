@@ -1808,7 +1808,7 @@ static struct file_operations dev_fops = {
 	.release = dev_close,
 	.read = dev_read,
 	.mmap = dev_mmap,
-	.ioctl = video_ioctl2,
+	.unlocked_ioctl = __video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
 #endif
