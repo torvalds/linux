@@ -331,7 +331,7 @@ static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
 	off_t offset;
 	struct op_sample *sample;
 
-	sample = cpu_buffer_read_entry(cpu);
+	sample = op_cpu_buffer_read_entry(cpu);
 	if (!sample)
 		goto Error;
 	rip = sample->eip;
@@ -370,7 +370,7 @@ static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
 		count = IBS_OP_CODE_SIZE;	/*IBS OP is 5 int64s*/
 
 	for (i = 0; i < count; i++) {
-		sample = cpu_buffer_read_entry(cpu);
+		sample = op_cpu_buffer_read_entry(cpu);
 		if (!sample)
 			goto Error;
 		add_event_entry(sample->eip);
@@ -537,11 +537,11 @@ void sync_buffer(int cpu)
 
 	add_cpu_switch(cpu);
 
-	cpu_buffer_reset(cpu);
-	available = cpu_buffer_entries(cpu);
+	op_cpu_buffer_reset(cpu);
+	available = op_cpu_buffer_entries(cpu);
 
 	for (i = 0; i < available; ++i) {
-		struct op_sample *s = cpu_buffer_read_entry(cpu);
+		struct op_sample *s = op_cpu_buffer_read_entry(cpu);
 		if (!s)
 			break;
 

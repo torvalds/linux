@@ -64,7 +64,7 @@ DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
  * reset these to invalid values; the next sample collected will
  * populate the buffer with proper values to initialize the buffer
  */
-static inline void cpu_buffer_reset(int cpu)
+static inline void op_cpu_buffer_reset(int cpu)
 {
 	struct oprofile_cpu_buffer *cpu_buf = &per_cpu(cpu_buffer, cpu);
 
@@ -72,7 +72,7 @@ static inline void cpu_buffer_reset(int cpu)
 	cpu_buf->last_task = NULL;
 }
 
-static inline int cpu_buffer_write_entry(struct op_entry *entry)
+static inline int op_cpu_buffer_write_entry(struct op_entry *entry)
 {
 	entry->event = ring_buffer_lock_reserve(op_ring_buffer_write,
 						sizeof(struct op_sample),
@@ -88,13 +88,13 @@ static inline int cpu_buffer_write_entry(struct op_entry *entry)
 	return 0;
 }
 
-static inline int cpu_buffer_write_commit(struct op_entry *entry)
+static inline int op_cpu_buffer_write_commit(struct op_entry *entry)
 {
 	return ring_buffer_unlock_commit(op_ring_buffer_write, entry->event,
 					 entry->irq_flags);
 }
 
-static inline struct op_sample *cpu_buffer_read_entry(int cpu)
+static inline struct op_sample *op_cpu_buffer_read_entry(int cpu)
 {
 	struct ring_buffer_event *e;
 	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
@@ -111,7 +111,7 @@ static inline struct op_sample *cpu_buffer_read_entry(int cpu)
 }
 
 /* "acquire" as many cpu buffer slots as we can */
-static inline unsigned long cpu_buffer_entries(int cpu)
+static inline unsigned long op_cpu_buffer_entries(int cpu)
 {
 	return ring_buffer_entries_cpu(op_ring_buffer_read, cpu)
 		+ ring_buffer_entries_cpu(op_ring_buffer_write, cpu);

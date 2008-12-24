@@ -152,14 +152,14 @@ add_sample(struct oprofile_cpu_buffer *cpu_buf,
 	struct op_entry entry;
 	int ret;
 
-	ret = cpu_buffer_write_entry(&entry);
+	ret = op_cpu_buffer_write_entry(&entry);
 	if (ret)
 		return ret;
 
 	entry.sample->eip = pc;
 	entry.sample->event = event;
 
-	ret = cpu_buffer_write_commit(&entry);
+	ret = op_cpu_buffer_write_commit(&entry);
 	if (ret)
 		return ret;
 
