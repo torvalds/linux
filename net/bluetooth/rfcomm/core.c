@@ -1781,8 +1781,6 @@ static inline void rfcomm_accept_connection(struct rfcomm_session *s)
 	if (err < 0)
 		return;
 
-	__module_get(nsock->ops->owner);
-
 	/* Set our callbacks */
 	nsock->sk->sk_data_ready   = rfcomm_l2data_ready;
 	nsock->sk->sk_state_change = rfcomm_l2state_change;
