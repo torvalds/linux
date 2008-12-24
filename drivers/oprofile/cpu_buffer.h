@@ -40,8 +40,6 @@ struct op_entry {
 };
 
 struct oprofile_cpu_buffer {
-	volatile unsigned long head_pos;
-	volatile unsigned long tail_pos;
 	unsigned long buffer_size;
 	struct task_struct *last_task;
 	int last_is_kernel;

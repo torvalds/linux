@@ -97,8 +97,6 @@ int alloc_cpu_buffers(void)
 		b->last_is_kernel = -1;
 		b->tracing = 0;
 		b->buffer_size = buffer_size;
-		b->tail_pos = 0;
-		b->head_pos = 0;
 		b->sample_received = 0;
 		b->sample_lost_overflow = 0;
 		b->backtrace_aborted = 0;
