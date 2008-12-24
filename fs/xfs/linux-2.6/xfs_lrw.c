@@ -707,7 +707,6 @@ start:
 		}
 	}
 
-retry:
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = mapping->backing_dev_info;
 
@@ -763,6 +762,17 @@ retry:
 	if (ret == -EIOCBQUEUED && !(ioflags & IO_ISAIO))
 		ret = wait_on_sync_kiocb(iocb);
 
+	isize = i_size_read(inode);
+	if (unlikely(ret < 0 && ret != -EFAULT && *offset > isize))
+		*offset = isize;
+
+	if (*offset > xip->i_size) {
+		xfs_ilock(xip, XFS_ILOCK_EXCL);
+		if (*offset > xip->i_size)
+			xip->i_size = *offset;
+		xfs_iunlock(xip, XFS_ILOCK_EXCL);
+	}
+
 	if (ret == -ENOSPC &&
 	    DM_EVENT_ENABLED(xip, DM_EVENT_NOSPACE) && !(ioflags & IO_INVIS)) {
 		xfs_iunlock(xip, iolock);
@@ -776,20 +786,7 @@ retry:
 		xfs_ilock(xip, iolock);
 		if (error)
 			goto out_unlock_internal;
-		pos = xip->i_size;
-		ret = 0;
-		goto retry;
-	}
-
-	isize = i_size_read(inode);
-	if (unlikely(ret < 0 && ret != -EFAULT && *offset > isize))
-		*offset = isize;
-
-	if (*offset > xip->i_size) {
-		xfs_ilock(xip, XFS_ILOCK_EXCL);
-		if (*offset > xip->i_size)
-			xip->i_size = *offset;
-		xfs_iunlock(xip, XFS_ILOCK_EXCL);
+		goto start;
 	}
 
 	error = -ret;
