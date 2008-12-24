@@ -549,10 +549,9 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 	else /* Automatic power level setting */
 		new_power_level = chan->max_power;
 
-	if (local->hw.conf.power_level != new_power_level) {
-		local->hw.conf.power_level = new_power_level;
+	local->hw.conf.user_power_level = new_power_level;
+	if (local->hw.conf.power_level != new_power_level)
 		reconf_flags |= IEEE80211_CONF_CHANGE_POWER;
-	}
 
 	if (local->hw.conf.radio_enabled != !(data->txpower.disabled)) {
 		local->hw.conf.radio_enabled = !(data->txpower.disabled);

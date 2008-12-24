@@ -546,6 +546,7 @@ enum ieee80211_conf_changed {
  * @listen_interval: listen interval in units of beacon interval
  * @flags: configuration flags defined above
  * @power_level: requested transmit power (in dBm)
+ * @user_power_level: User configured transmit power (in dBm)
  * @channel: the channel to tune to
  * @ht: the HT configuration for the device
  * @long_frame_max_tx_count: Maximum number of transmissions for a "long" frame
@@ -559,6 +560,7 @@ struct ieee80211_conf {
 	int beacon_int;
 	u32 flags;
 	int power_level;
+	int user_power_level;
 
 	u16 listen_interval;
 	bool radio_enabled;
