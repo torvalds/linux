@@ -1765,43 +1765,6 @@ static int task_state_char(unsigned long state)
 	return bit < sizeof(state_to_char) - 1 ? state_to_char[bit] : '?';
 }
 
-/*
- * The message is supposed to contain an ending newline.
- * If the printing stops prematurely, try to add a newline of our own.
- */
-void trace_seq_print_cont(struct trace_seq *s, struct trace_iterator *iter)
-{
-	struct trace_entry *ent;
-	struct trace_field_cont *cont;
-	bool ok = true;
-
-	ent = peek_next_entry(iter, iter->cpu, NULL);
-	if (!ent || ent->type != TRACE_CONT) {
-		trace_seq_putc(s, '\n');
-		return;
-	}
-
-	do {
-		cont = (struct trace_field_cont *)ent;
-		if (ok)
-			ok = (trace_seq_printf(s, "%s", cont->buf) > 0);
-
-		ftrace_disable_cpu();
-
-		if (iter->buffer_iter[iter->cpu])
-			ring_buffer_read(iter->buffer_iter[iter->cpu], NULL);
-		else
-			ring_buffer_consume(iter->tr->buffer, iter->cpu, NULL);
-
-		ftrace_enable_cpu();
-
-		ent = peek_next_entry(iter, iter->cpu, NULL);
-	} while (ent && ent->type == TRACE_CONT);
-
-	if (!ok)
-		trace_seq_putc(s, '\n');
-}
-
 static void test_cpu_buff_start(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1833,9 +1796,6 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	char *comm;
 	int S, T;
 	int i;
-
-	if (entry->type == TRACE_CONT)
-		return TRACE_TYPE_HANDLED;
 
 	test_cpu_buff_start(iter);
 
@@ -1922,8 +1882,6 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 
 		seq_print_ip_sym(s, field->ip, sym_flags);
 		trace_seq_printf(s, ": %s", field->buf);
-		if (entry->flags & TRACE_FLAG_CONT)
-			trace_seq_print_cont(s, iter);
 		break;
 	}
 	case TRACE_BRANCH: {
@@ -1967,9 +1925,6 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	int i;
 
 	entry = iter->ent;
-
-	if (entry->type == TRACE_CONT)
-		return TRACE_TYPE_HANDLED;
 
 	test_cpu_buff_start(iter);
 
@@ -2076,8 +2031,6 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 
 		seq_print_ip_sym(s, field->ip, sym_flags);
 		trace_seq_printf(s, ": %s", field->buf);
-		if (entry->flags & TRACE_FLAG_CONT)
-			trace_seq_print_cont(s, iter);
 		break;
 	}
 	case TRACE_GRAPH_RET: {
@@ -2123,9 +2076,6 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 	int S, T;
 
 	entry = iter->ent;
-
-	if (entry->type == TRACE_CONT)
-		return TRACE_TYPE_HANDLED;
 
 	ret = trace_seq_printf(s, "%d %d %llu ",
 		entry->pid, iter->cpu, iter->ts);
@@ -2187,8 +2137,6 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 		trace_assign_type(field, entry);
 
 		trace_seq_printf(s, "# %lx %s", field->ip, field->buf);
-		if (entry->flags & TRACE_FLAG_CONT)
-			trace_seq_print_cont(s, iter);
 		break;
 	}
 	}
@@ -2216,9 +2164,6 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 	int S, T;
 
 	entry = iter->ent;
-
-	if (entry->type == TRACE_CONT)
-		return TRACE_TYPE_HANDLED;
 
 	SEQ_PUT_HEX_FIELD_RET(s, entry->pid);
 	SEQ_PUT_HEX_FIELD_RET(s, iter->cpu);
@@ -2283,9 +2228,6 @@ static enum print_line_t print_printk_msg_only(struct trace_iterator *iter)
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	if (entry->flags & TRACE_FLAG_CONT)
-		trace_seq_print_cont(s, iter);
-
 	return TRACE_TYPE_HANDLED;
 }
 
@@ -2295,9 +2237,6 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 	struct trace_entry *entry;
 
 	entry = iter->ent;
-
-	if (entry->type == TRACE_CONT)
-		return TRACE_TYPE_HANDLED;
 
 	SEQ_PUT_FIELD_RET(s, entry->pid);
 	SEQ_PUT_FIELD_RET(s, entry->cpu);

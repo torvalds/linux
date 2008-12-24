@@ -16,7 +16,6 @@ enum trace_type {
 	TRACE_FN,
 	TRACE_CTX,
 	TRACE_WAKE,
-	TRACE_CONT,
 	TRACE_STACK,
 	TRACE_PRINT,
 	TRACE_SPECIAL,
@@ -178,7 +177,6 @@ struct trace_power {
  *  NEED_RESCED		- reschedule is requested
  *  HARDIRQ		- inside an interrupt handler
  *  SOFTIRQ		- inside a softirq handler
- *  CONT		- multiple entries hold the trace item
  */
 enum trace_flag_type {
 	TRACE_FLAG_IRQS_OFF		= 0x01,
@@ -186,7 +184,6 @@ enum trace_flag_type {
 	TRACE_FLAG_NEED_RESCHED		= 0x04,
 	TRACE_FLAG_HARDIRQ		= 0x08,
 	TRACE_FLAG_SOFTIRQ		= 0x10,
-	TRACE_FLAG_CONT			= 0x20,
 };
 
 #define TRACE_BUF_SIZE		1024
@@ -262,7 +259,6 @@ extern void __ftrace_bad_type(void);
 	do {								\
 		IF_ASSIGN(var, ent, struct ftrace_entry, TRACE_FN);	\
 		IF_ASSIGN(var, ent, struct ctx_switch_entry, 0);	\
-		IF_ASSIGN(var, ent, struct trace_field_cont, TRACE_CONT); \
 		IF_ASSIGN(var, ent, struct stack_entry, TRACE_STACK);	\
 		IF_ASSIGN(var, ent, struct userstack_entry, TRACE_USER_STACK);\
 		IF_ASSIGN(var, ent, struct print_entry, TRACE_PRINT);	\
@@ -489,9 +485,6 @@ extern int trace_selftest_startup_branch(struct tracer *trace,
 
 extern void *head_page(struct trace_array_cpu *data);
 extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...);
-extern void trace_seq_print_cont(struct trace_seq *s,
-				 struct trace_iterator *iter);
-
 extern int
 seq_print_ip_sym(struct trace_seq *s, unsigned long ip,
 		unsigned long sym_flags);

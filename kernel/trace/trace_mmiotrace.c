@@ -262,9 +262,6 @@ static enum print_line_t mmio_print_mark(struct trace_iterator *iter)
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	if (entry->flags & TRACE_FLAG_CONT)
-		trace_seq_print_cont(s, iter);
-
 	return TRACE_TYPE_HANDLED;
 }
 
