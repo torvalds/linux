@@ -1025,7 +1025,7 @@ static int me4600_ao_io_stream_config(me_subdevice_t * subdevice,
 	}
 
 	if (flags & ME_IO_STREAM_CONFIG_HARDWARE_ONLY) {
-		if (!flags & ME_IO_STREAM_CONFIG_WRAPAROUND) {
+		if (!(flags & ME_IO_STREAM_CONFIG_WRAPAROUND)) {
 			PERROR
 			    ("Hardware ME_IO_STREAM_CONFIG_HARDWARE_ONLY has to be with ME_IO_STREAM_CONFIG_WRAPAROUND.\n");
 			return ME_ERRNO_INVALID_FLAGS;

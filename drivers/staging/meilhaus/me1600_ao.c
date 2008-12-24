@@ -756,7 +756,9 @@ static int me1600_ao_io_single_write(me_subdevice_t * subdevice,
 	queue_delayed_work(instance->me1600_workqueue,
 			   &instance->ao_control_task, 1);
 
-	if ((!flags & ME_IO_SINGLE_TYPE_WRITE_NONBLOCKING) && ((instance->ao_regs_shadows)->trigger & instance->ao_idx)) {	//Blocking mode. Wait for software trigger.
+	if ((!(flags & ME_IO_SINGLE_TYPE_WRITE_NONBLOCKING)) &&
+	    ((instance->ao_regs_shadows)->trigger & instance->ao_idx)) {
+		/* Blocking mode. Wait for software trigger. */
 		if (time_out) {
 			delay = (time_out * HZ) / 1000;
 			if (delay == 0)
