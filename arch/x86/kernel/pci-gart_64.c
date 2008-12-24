@@ -745,10 +745,8 @@ void __init gart_iommu_init(void)
 	unsigned long scratch;
 	long i;
 
-	if (cache_k8_northbridges() < 0 || num_k8_northbridges == 0) {
-		printk(KERN_INFO "PCI-GART: No AMD GART found.\n");
+	if (cache_k8_northbridges() < 0 || num_k8_northbridges == 0)
 		return;
-	}
 
 #ifndef CONFIG_AGP_AMD64
 	no_agp = 1;

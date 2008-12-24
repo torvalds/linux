@@ -105,8 +105,6 @@ int mdiobus_register(struct mii_bus *bus)
 		return -EINVAL;
 	}
 
-	bus->state = MDIOBUS_REGISTERED;
-
 	mutex_init(&bus->mdio_lock);
 
 	if (bus->reset)
@@ -122,6 +120,9 @@ int mdiobus_register(struct mii_bus *bus)
 				err = PTR_ERR(phydev);
 		}
 	}
+
+	if (!err)
+		bus->state = MDIOBUS_REGISTERED;
 
 	pr_info("%s: probed\n", bus->name);
 
