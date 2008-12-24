@@ -47,8 +47,12 @@ static int flexcop_i2c_read4(struct flexcop_i2c_adapter *i2c,
 	int len = r100.tw_sm_c_100.total_bytes, /* remember total_bytes is buflen-1 */
 		ret;
 
-	r100.tw_sm_c_100.no_base_addr_ack_error = i2c->no_base_addr;
 	ret = flexcop_i2c_operation(i2c->fc, &r100);
+	if (ret != 0) {
+		deb_i2c("Retrying operation\n");
+		r100.tw_sm_c_100.no_base_addr_ack_error = i2c->no_base_addr;
+		ret = flexcop_i2c_operation(i2c->fc, &r100);
+	}
 	if (ret != 0) {
 		deb_i2c("read failed. %d\n", ret);
 		return ret;

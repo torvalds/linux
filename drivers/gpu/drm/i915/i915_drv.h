@@ -106,6 +106,8 @@ struct intel_opregion {
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
+	int has_gem;
+
 	void __iomem *regs;
 	drm_local_map_t *sarea;
 
