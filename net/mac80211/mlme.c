@@ -751,7 +751,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	bss_info_changed |= BSS_CHANGED_BASIC_RATES;
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
-	if (local->powersave) {
+	if (local->powersave &&
+			!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS)) {
 		if (local->dynamic_ps_timeout > 0)
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 				  msecs_to_jiffies(local->dynamic_ps_timeout));

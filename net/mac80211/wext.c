@@ -865,9 +865,9 @@ set:
 	local->powersave = ps;
 	local->dynamic_ps_timeout = timeout;
 
-	if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
-		if (!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS) &&
-		    local->dynamic_ps_timeout > 0)
+	if (!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS) &&
+			(sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED)) {
+		if (local->dynamic_ps_timeout > 0)
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 				  msecs_to_jiffies(local->dynamic_ps_timeout));
 		else {
@@ -875,8 +875,9 @@ set:
 				conf->flags |= IEEE80211_CONF_PS;
 			else
 				conf->flags &= ~IEEE80211_CONF_PS;
+			ret = ieee80211_hw_config(local,
+					IEEE80211_CONF_CHANGE_PS);
 		}
-		ret = ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 
 	return ret;
