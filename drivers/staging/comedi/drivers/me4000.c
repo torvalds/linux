@@ -782,7 +782,7 @@ static int xilinx_download(comedi_device * dev)
 
 	/* Wait until /INIT pin is set */
 	udelay(20);
-	if (!inl(info->plx_regbase + PLX_INTCSR) & 0x20) {
+	if (!(inl(info->plx_regbase + PLX_INTCSR) & 0x20)) {
 		printk(KERN_ERR
 			"comedi%d: me4000: xilinx_download(): Can't init Xilinx\n",
 			dev->minor);
