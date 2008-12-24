@@ -383,6 +383,8 @@ static int ieee80211_stop(struct net_device *dev)
 		atomic_dec(&local->iff_promiscs);
 
 	dev_mc_unsync(local->mdev, dev);
+	del_timer_sync(&local->dynamic_ps_timer);
+	cancel_work_sync(&local->dynamic_ps_enable_work);
 
 	/* APs need special treatment */
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
