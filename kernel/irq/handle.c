@@ -56,10 +56,6 @@ void handle_bad_irq(unsigned int irq, struct irq_desc *desc)
 int nr_irqs = NR_IRQS;
 EXPORT_SYMBOL_GPL(nr_irqs);
 
-void __init __attribute__((weak)) arch_early_irq_init(void)
-{
-}
-
 #ifdef CONFIG_SPARSE_IRQ
 static struct irq_desc irq_desc_init = {
 	.irq	    = -1,
