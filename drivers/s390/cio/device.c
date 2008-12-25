@@ -1020,8 +1020,8 @@ static void ccw_device_call_sch_unregister(struct work_struct *work)
 	sch = to_subchannel(cdev->dev.parent);
 	css_sch_device_unregister(sch);
 	/* Reset intparm to zeroes. */
-	sch->schib.pmcw.intparm = 0;
-	cio_modify(sch);
+	sch->config.intparm = 0;
+	cio_commit_config(sch);
 	/* Release cdev reference for workqueue processing.*/
 	put_device(&cdev->dev);
 	/* Release subchannel reference for local processing. */
@@ -1148,8 +1148,8 @@ static void ccw_device_move_to_sch(struct work_struct *work)
 		spin_unlock_irq(former_parent->lock);
 		css_sch_device_unregister(former_parent);
 		/* Reset intparm to zeroes. */
-		former_parent->schib.pmcw.intparm = 0;
-		cio_modify(former_parent);
+		former_parent->config.intparm = 0;
+		cio_commit_config(former_parent);
 	}
 	sch_attach_device(sch, cdev);
 out:
@@ -1170,6 +1170,14 @@ static void io_subchannel_irq(struct subchannel *sch)
 		dev_fsm_event(cdev, DEV_EVENT_INTERRUPT);
 }
 
+void io_subchannel_init_config(struct subchannel *sch)
+{
+	memset(&sch->config, 0, sizeof(sch->config));
+	sch->config.csense = 1;
+	if ((sch->lpm & (sch->lpm - 1)) != 0)
+		sch->config.mp = 1;
+}
+
 static void io_subchannel_init_fields(struct subchannel *sch)
 {
 	if (cio_is_console(sch->schid))
@@ -1184,16 +1192,8 @@ static void io_subchannel_init_fields(struct subchannel *sch)
 		      sch->schib.pmcw.dev, sch->schid.ssid,
 		      sch->schid.sch_no, sch->schib.pmcw.pim,
 		      sch->schib.pmcw.pam, sch->schib.pmcw.pom);
-	/* Initially set up some fields in the pmcw. */
-	sch->schib.pmcw.ena = 0;
-	sch->schib.pmcw.csense = 1;	/* concurrent sense */
-	if ((sch->lpm & (sch->lpm - 1)) != 0)
-		sch->schib.pmcw.mp = 1; /* multipath mode */
-	/* clean up possible residual cmf stuff */
-	sch->schib.pmcw.mme = 0;
-	sch->schib.pmcw.mbfc = 0;
-	sch->schib.pmcw.mbi = 0;
-	sch->schib.mba = 0;
+
+	io_subchannel_init_config(sch);
 }
 
 static void io_subchannel_do_unreg(struct work_struct *work)
@@ -1203,8 +1203,8 @@ static void io_subchannel_do_unreg(struct work_struct *work)
 	sch = container_of(work, struct subchannel, work);
 	css_sch_device_unregister(sch);
 	/* Reset intparm to zeroes. */
-	sch->schib.pmcw.intparm = 0;
-	cio_modify(sch);
+	sch->config.intparm = 0;
+	cio_commit_config(sch);
 	put_device(&sch->dev);
 }
 
@@ -1680,8 +1680,8 @@ static int io_subchannel_sch_event(struct subchannel *sch, int slow)
 		spin_lock_irqsave(sch->lock, flags);
 
 		/* Reset intparm to zeroes. */
-		sch->schib.pmcw.intparm = 0;
-		cio_modify(sch);
+		sch->config.intparm = 0;
+		cio_commit_config(sch);
 		break;
 	case REPROBE:
 		ccw_device_trigger_reprobe(cdev);

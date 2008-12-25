@@ -128,8 +128,8 @@ css_free_subchannel(struct subchannel *sch)
 {
 	if (sch) {
 		/* Reset intparm to zeroes. */
-		sch->schib.pmcw.intparm = 0;
-		cio_modify(sch);
+		sch->config.intparm = 0;
+		cio_commit_config(sch);
 		kfree(sch->lock);
 		kfree(sch);
 	}

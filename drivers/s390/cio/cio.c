@@ -330,30 +330,70 @@ cio_cancel (struct subchannel *sch)
 	}
 }
 
-/*
- * Function: cio_modify
- * Issues a "Modify Subchannel" on the specified subchannel
- */
-int
-cio_modify (struct subchannel *sch)
-{
-	int ccode, retry, ret;
 
-	ret = 0;
+static void cio_apply_config(struct subchannel *sch, struct schib *schib)
+{
+	schib->pmcw.intparm = sch->config.intparm;
+	schib->pmcw.mbi = sch->config.mbi;
+	schib->pmcw.isc = sch->config.isc;
+	schib->pmcw.ena = sch->config.ena;
+	schib->pmcw.mme = sch->config.mme;
+	schib->pmcw.mp = sch->config.mp;
+	schib->pmcw.csense = sch->config.csense;
+	schib->pmcw.mbfc = sch->config.mbfc;
+	if (sch->config.mbfc)
+		schib->mba = sch->config.mba;
+}
+
+static int cio_check_config(struct subchannel *sch, struct schib *schib)
+{
+	return (schib->pmcw.intparm == sch->config.intparm) &&
+		(schib->pmcw.mbi == sch->config.mbi) &&
+		(schib->pmcw.isc == sch->config.isc) &&
+		(schib->pmcw.ena == sch->config.ena) &&
+		(schib->pmcw.mme == sch->config.mme) &&
+		(schib->pmcw.mp == sch->config.mp) &&
+		(schib->pmcw.csense == sch->config.csense) &&
+		(schib->pmcw.mbfc == sch->config.mbfc) &&
+		(!sch->config.mbfc || (schib->mba == sch->config.mba));
+}
+
+/*
+ * cio_commit_config - apply configuration to the subchannel
+ */
+int cio_commit_config(struct subchannel *sch)
+{
+	struct schib schib;
+	int ccode, retry, ret = 0;
+
+	if (stsch(sch->schid, &schib) || !css_sch_is_valid(&schib))
+		return -ENODEV;
+
 	for (retry = 0; retry < 5; retry++) {
-		ccode = msch_err (sch->schid, &sch->schib);
-		if (ccode < 0)	/* -EIO if msch gets a program check. */
+		/* copy desired changes to local schib */
+		cio_apply_config(sch, &schib);
+		ccode = msch_err(sch->schid, &schib);
+		if (ccode < 0) /* -EIO if msch gets a program check. */
 			return ccode;
 		switch (ccode) {
 		case 0: /* successfull */
-			return 0;
-		case 1:	/* status pending */
+			if (stsch(sch->schid, &schib) ||
+			    !css_sch_is_valid(&schib))
+				return -ENODEV;
+			if (cio_check_config(sch, &schib)) {
+				/* commit changes from local schib */
+				memcpy(&sch->schib, &schib, sizeof(schib));
+				return 0;
+			}
+			ret = -EAGAIN;
+			break;
+		case 1: /* status pending */
 			return -EBUSY;
-		case 2:	/* busy */
-			udelay (100);	/* allow for recovery */
+		case 2: /* busy */
+			udelay(100); /* allow for recovery */
 			ret = -EBUSY;
 			break;
-		case 3:	/* not operational */
+		case 3: /* not operational */
 			return -ENODEV;
 		}
 	}
@@ -396,32 +436,24 @@ int cio_enable_subchannel(struct subchannel *sch, u32 intparm)
 	if (cio_update_schib(sch))
 		return -ENODEV;
 
-	for (retry = 5, ret = 0; retry > 0; retry--) {
-		sch->schib.pmcw.ena = 1;
-		sch->schib.pmcw.isc = sch->isc;
-		sch->schib.pmcw.intparm = intparm;
-		ret = cio_modify(sch);
-		if (ret == -ENODEV)
-			break;
-		if (ret == -EIO)
+	sch->config.ena = 1;
+	sch->config.isc = sch->isc;
+	sch->config.intparm = intparm;
+
+	for (retry = 0; retry < 3; retry++) {
+		ret = cio_commit_config(sch);
+		if (ret == -EIO) {
 			/*
-			 * Got a program check in cio_modify. Try without
+			 * Got a program check in msch. Try without
 			 * the concurrent sense bit the next time.
 			 */
-			sch->schib.pmcw.csense = 0;
-		if (ret == 0) {
-			if (cio_update_schib(sch)) {
-				ret = -ENODEV;
-				break;
-			}
-			if (sch->schib.pmcw.ena)
-				break;
-		}
-		if (ret == -EBUSY) {
+			sch->config.csense = 0;
+		} else if (ret == -EBUSY) {
 			struct irb irb;
 			if (tsch(sch->schid, &irb) != 0)
 				break;
-		}
+		} else
+			break;
 	}
 	sprintf (dbf_txt, "ret:%d", ret);
 	CIO_TRACE_EVENT (2, dbf_txt);
@@ -436,7 +468,6 @@ EXPORT_SYMBOL_GPL(cio_enable_subchannel);
 int cio_disable_subchannel(struct subchannel *sch)
 {
 	char dbf_txt[15];
-	int retry;
 	int ret;
 
 	CIO_TRACE_EVENT (2, "dissch");
@@ -454,27 +485,9 @@ int cio_disable_subchannel(struct subchannel *sch)
 		 */
 		return -EBUSY;
 
-	for (retry = 5, ret = 0; retry > 0; retry--) {
-		sch->schib.pmcw.ena = 0;
-		ret = cio_modify(sch);
-		if (ret == -ENODEV)
-			break;
-		if (ret == -EBUSY)
-			/*
-			 * The subchannel is busy or status pending.
-			 * We'll disable when the next interrupt was delivered
-			 * via the state machine.
-			 */
-			break;
-		if (ret == 0) {
-			if (cio_update_schib(sch)) {
-				ret = -ENODEV;
-				break;
-			}
-			if (!sch->schib.pmcw.ena)
-				break;
-		}
-	}
+	sch->config.ena = 0;
+	ret = cio_commit_config(sch);
+
 	sprintf (dbf_txt, "ret:%d", ret);
 	CIO_TRACE_EVENT (2, dbf_txt);
 	return ret;
@@ -817,10 +830,9 @@ cio_probe_console(void)
 	 * enable console I/O-interrupt subclass
 	 */
 	isc_register(CONSOLE_ISC);
-	console_subchannel.schib.pmcw.isc = CONSOLE_ISC;
-	console_subchannel.schib.pmcw.intparm =
-		(u32)(addr_t)&console_subchannel;
-	ret = cio_modify(&console_subchannel);
+	console_subchannel.config.isc = CONSOLE_ISC;
+	console_subchannel.config.intparm = (u32)(addr_t)&console_subchannel;
+	ret = cio_commit_config(&console_subchannel);
 	if (ret) {
 		isc_unregister(CONSOLE_ISC);
 		console_subchannel_in_use = 0;
@@ -832,8 +844,8 @@ cio_probe_console(void)
 void
 cio_release_console(void)
 {
-	console_subchannel.schib.pmcw.intparm = 0;
-	cio_modify(&console_subchannel);
+	console_subchannel.config.intparm = 0;
+	cio_commit_config(&console_subchannel);
 	isc_unregister(CONSOLE_ISC);
 	console_subchannel_in_use = 0;
 }

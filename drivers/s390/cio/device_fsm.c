@@ -1026,11 +1026,12 @@ void ccw_device_trigger_reprobe(struct ccw_device *cdev)
 	 * we have before performing device selection :/
 	 */
 	sch->lpm = sch->schib.pmcw.pam & sch->opm;
-	/* Re-set some bits in the pmcw that were lost. */
-	sch->schib.pmcw.csense = 1;
-	sch->schib.pmcw.ena = 0;
-	if ((sch->lpm & (sch->lpm - 1)) != 0)
-		sch->schib.pmcw.mp = 1;
+	/*
+	 * Use the initial configuration since we can't be shure that the old
+	 * paths are valid.
+	 */
+	io_subchannel_init_config(sch);
+
 	/* We should also udate ssd info, but this has to wait. */
 	/* Check if this is another device which appeared on the same sch. */
 	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno) {

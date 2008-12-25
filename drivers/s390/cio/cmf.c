@@ -185,58 +185,19 @@ static inline void cmf_activate(void *area, unsigned int onoff)
 static int set_schib(struct ccw_device *cdev, u32 mme, int mbfc,
 		     unsigned long address)
 {
-	int ret;
-	int retry;
 	struct subchannel *sch;
-	struct schib *schib;
 
 	sch = to_subchannel(cdev->dev.parent);
-	schib = &sch->schib;
-	/* msch can silently fail, so do it again if necessary */
-	for (retry = 0; retry < 3; retry++) {
-		/* prepare schib */
-		if (cio_update_schib(sch))
-			return -ENODEV;
-		schib->pmcw.mme  = mme;
-		schib->pmcw.mbfc = mbfc;
-		/* address can be either a block address or a block index */
-		if (mbfc)
-			schib->mba = address;
-		else
-			schib->pmcw.mbi = address;
 
-		/* try to submit it */
-		switch(ret = msch_err(sch->schid, schib)) {
-			case 0:
-				break;
-			case 1:
-			case 2: /* in I/O or status pending */
-				ret = -EBUSY;
-				break;
-			case 3: /* subchannel is no longer valid */
-				ret = -ENODEV;
-				break;
-			default: /* msch caught an exception */
-				ret = -EINVAL;
-				break;
-		}
-		if (cio_update_schib(sch))
-			return -ENODEV;
+	sch->config.mme = mme;
+	sch->config.mbfc = mbfc;
+	/* address can be either a block address or a block index */
+	if (mbfc)
+		sch->config.mba = address;
+	else
+		sch->config.mbi = address;
 
-		if (ret)
-			break;
-
-		/* check if it worked */
-		if (schib->pmcw.mme  == mme &&
-		    schib->pmcw.mbfc == mbfc &&
-		    (mbfc ? (schib->mba == address)
-			  : (schib->pmcw.mbi == address)))
-			return 0;
-
-		ret = -EINVAL;
-	}
-
-	return ret;
+	return cio_commit_config(sch);
 }
 
 struct set_schib_struct {
