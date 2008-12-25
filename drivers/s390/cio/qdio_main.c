@@ -112,12 +112,13 @@ static inline int qdio_check_ccq(struct qdio_q *q, unsigned int ccq)
  * @state: state of the extracted buffers
  * @start: buffer number to start at
  * @count: count of buffers to examine
+ * @auto_ack: automatically acknowledge buffers
  *
  * Returns the number of successfull extracted equal buffer states.
  * Stops processing if a state is different from the last buffers state.
  */
 static int qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
-			int start, int count)
+			int start, int count, int auto_ack)
 {
 	unsigned int ccq = 0;
 	int tmp_count = count, tmp_start = start;
@@ -130,7 +131,8 @@ static int qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 	if (!q->is_input_q)
 		nr += q->irq_ptr->nr_input_qs;
 again:
-	ccq = do_eqbs(q->irq_ptr->sch_token, state, nr, &tmp_start, &tmp_count);
+	ccq = do_eqbs(q->irq_ptr->sch_token, state, nr, &tmp_start, &tmp_count,
+		      auto_ack);
 	rc = qdio_check_ccq(q, ccq);
 
 	/* At least one buffer was processed, return and extract the remaining
@@ -176,6 +178,9 @@ static int qdio_do_sqbs(struct qdio_q *q, unsigned char state, int start,
 	int nr = q->nr;
 	int rc;
 
+	if (!count)
+		return 0;
+
 	BUG_ON(!q->irq_ptr->sch_token);
 	qdio_perf_stat_inc(&perf_stats.debug_sqbs_all);
 
@@ -203,7 +208,8 @@ again:
 
 /* returns number of examined buffers and their common state in *state */
 static inline int get_buf_states(struct qdio_q *q, unsigned int bufnr,
-				 unsigned char *state, unsigned int count)
+				 unsigned char *state, unsigned int count,
+				 int auto_ack)
 {
 	unsigned char __state = 0;
 	int i;
@@ -212,7 +218,7 @@ static inline int get_buf_states(struct qdio_q *q, unsigned int bufnr,
 	BUG_ON(count > QDIO_MAX_BUFFERS_PER_Q);
 
 	if (is_qebsm(q))
-		return qdio_do_eqbs(q, state, bufnr, count);
+		return qdio_do_eqbs(q, state, bufnr, count, auto_ack);
 
 	for (i = 0; i < count; i++) {
 		if (!__state)
@@ -226,9 +232,9 @@ static inline int get_buf_states(struct qdio_q *q, unsigned int bufnr,
 }
 
 inline int get_buf_state(struct qdio_q *q, unsigned int bufnr,
-		  unsigned char *state)
+		  unsigned char *state, int auto_ack)
 {
-	return get_buf_states(q, bufnr, state, 1);
+	return get_buf_states(q, bufnr, state, 1, auto_ack);
 }
 
 /* wrap-around safe setting of slsb states, returns number of changed buffers */
@@ -376,42 +382,97 @@ void qdio_sync_after_thinint(struct qdio_q *q)
 
 inline void qdio_stop_polling(struct qdio_q *q)
 {
-	spin_lock_bh(&q->u.in.lock);
-	if (!q->u.in.polling) {
-		spin_unlock_bh(&q->u.in.lock);
+	if (!q->u.in.polling)
 		return;
-	}
+
 	q->u.in.polling = 0;
 	qdio_perf_stat_inc(&perf_stats.debug_stop_polling);
 
 	/* show the card that we are not polling anymore */
-	set_buf_state(q, q->last_move_ftc, SLSB_P_INPUT_NOT_INIT);
-	spin_unlock_bh(&q->u.in.lock);
+	if (is_qebsm(q)) {
+		set_buf_states(q, q->last_move_ftc, SLSB_P_INPUT_NOT_INIT,
+			       q->u.in.ack_count);
+		q->u.in.ack_count = 0;
+	} else
+		set_buf_state(q, q->last_move_ftc, SLSB_P_INPUT_NOT_INIT);
 }
 
-static void announce_buffer_error(struct qdio_q *q)
+static void announce_buffer_error(struct qdio_q *q, int count)
 {
+	q->qdio_error = QDIO_ERROR_SLSB_STATE;
+
+	/* special handling for no target buffer empty */
+	if ((!q->is_input_q &&
+	    (q->sbal[q->first_to_check]->element[15].flags & 0xff) == 0x10)) {
+		qdio_perf_stat_inc(&perf_stats.outbound_target_full);
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%3d",
+			      q->first_to_check);
+		return;
+	}
+
 	DBF_ERROR("%4x BUF ERROR", SCH_NO(q));
 	DBF_ERROR((q->is_input_q) ? "IN:%2d" : "OUT:%2d", q->nr);
-	DBF_ERROR("FTC:%3d", q->first_to_check);
+	DBF_ERROR("FTC:%3d C:%3d", q->first_to_check, count);
 	DBF_ERROR("F14:%2x F15:%2x",
 		  q->sbal[q->first_to_check]->element[14].flags & 0xff,
 		  q->sbal[q->first_to_check]->element[15].flags & 0xff);
+}
 
-	q->qdio_error = QDIO_ERROR_SLSB_STATE;
+static inline void inbound_primed(struct qdio_q *q, int count)
+{
+	int new;
+
+	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in prim: %3d", count);
+
+	/* for QEBSM the ACK was already set by EQBS */
+	if (is_qebsm(q)) {
+		if (!q->u.in.polling) {
+			q->u.in.polling = 1;
+			q->u.in.ack_count = count;
+			q->last_move_ftc = q->first_to_check;
+			return;
+		}
+
+		/* delete the previous ACK's */
+		set_buf_states(q, q->last_move_ftc, SLSB_P_INPUT_NOT_INIT,
+			       q->u.in.ack_count);
+		q->u.in.ack_count = count;
+		q->last_move_ftc = q->first_to_check;
+		return;
+	}
+
+	/*
+	 * ACK the newest buffer. The ACK will be removed in qdio_stop_polling
+	 * or by the next inbound run.
+	 */
+	new = add_buf(q->first_to_check, count - 1);
+	if (q->u.in.polling) {
+		/* reset the previous ACK but first set the new one */
+		set_buf_state(q, new, SLSB_P_INPUT_ACK);
+		set_buf_state(q, q->last_move_ftc, SLSB_P_INPUT_NOT_INIT);
+	}
+	else {
+		q->u.in.polling = 1;
+		set_buf_state(q, q->first_to_check, SLSB_P_INPUT_ACK);
+	}
+
+	q->last_move_ftc = new;
+	count--;
+	if (!count)
+		return;
+
+	/*
+	 * Need to change all PRIMED buffers to NOT_INIT, otherwise
+	 * we're loosing initiative in the thinint code.
+	 */
+	set_buf_states(q, next_buf(q->first_to_check), SLSB_P_INPUT_NOT_INIT,
+		       count);
 }
 
 static int get_inbound_buffer_frontier(struct qdio_q *q)
 {
 	int count, stop;
 	unsigned char state;
-
-	/*
-	 * If we still poll don't update last_move_ftc, keep the
-	 * previously ACK buffer there.
-	 */
-	if (!q->u.in.polling)
-		q->last_move_ftc = q->first_to_check;
 
 	/*
 	 * Don't check 128 buffers, as otherwise qdio_inbound_q_moved
@@ -433,34 +494,13 @@ check_next:
 	if (q->first_to_check == stop)
 		goto out;
 
-	count = get_buf_states(q, q->first_to_check, &state, count);
+	count = get_buf_states(q, q->first_to_check, &state, count, 1);
 	if (!count)
 		goto out;
 
 	switch (state) {
 	case SLSB_P_INPUT_PRIMED:
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in prim: %3d", count);
-
-		/*
-		 * Only ACK the first buffer. The ACK will be removed in
-		 * qdio_stop_polling.
-		 */
-		if (q->u.in.polling)
-			state = SLSB_P_INPUT_NOT_INIT;
-		else {
-			q->u.in.polling = 1;
-			state = SLSB_P_INPUT_ACK;
-		}
-		set_buf_state(q, q->first_to_check, state);
-
-		/*
-		 * Need to change all PRIMED buffers to NOT_INIT, otherwise
-		 * we're loosing initiative in the thinint code.
-		 */
-		if (count > 1)
-			set_buf_states(q, next_buf(q->first_to_check),
-				       SLSB_P_INPUT_NOT_INIT, count - 1);
-
+		inbound_primed(q, count);
 		/*
 		 * No siga-sync needed for non-qebsm here, as the inbound queue
 		 * will be synced on the next siga-r, resp.
@@ -470,7 +510,7 @@ check_next:
 		atomic_sub(count, &q->nr_buf_used);
 		goto check_next;
 	case SLSB_P_INPUT_ERROR:
-		announce_buffer_error(q);
+		announce_buffer_error(q, count);
 		/* process the buffer, the upper layer will take care of it */
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
@@ -516,7 +556,7 @@ static int qdio_inbound_q_done(struct qdio_q *q)
 	 */
 	qdio_siga_sync_q(q);
 
-	get_buf_state(q, q->first_to_check, &state);
+	get_buf_state(q, q->first_to_check, &state, 0);
 	if (state == SLSB_P_INPUT_PRIMED)
 		/* we got something to do */
 		return 0;
@@ -619,7 +659,7 @@ check_next:
 	if (q->first_to_check == stop)
 		return q->first_to_check;
 
-	count = get_buf_states(q, q->first_to_check, &state, count);
+	count = get_buf_states(q, q->first_to_check, &state, count, 0);
 	if (!count)
 		return q->first_to_check;
 
@@ -638,7 +678,7 @@ check_next:
 			break;
 		goto check_next;
 	case SLSB_P_OUTPUT_ERROR:
-		announce_buffer_error(q);
+		announce_buffer_error(q, count);
 		/* process the buffer, the upper layer will take care of it */
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
@@ -1451,23 +1491,38 @@ static inline int buf_in_between(int bufnr, int start, int count)
 static void handle_inbound(struct qdio_q *q, unsigned int callflags,
 			   int bufnr, int count)
 {
-	unsigned long flags;
-	int used, rc;
+	int used, rc, diff;
 
-	/*
-	 * do_QDIO could run in parallel with the queue tasklet so the
-	 * upper-layer programm could empty the ACK'ed buffer here.
-	 * If that happens we must clear the polling flag, otherwise
-	 * qdio_stop_polling() could set the buffer to NOT_INIT after
-	 * it was set to EMPTY which would kill us.
-	 */
-	spin_lock_irqsave(&q->u.in.lock, flags);
-	if (q->u.in.polling)
-		if (buf_in_between(q->last_move_ftc, bufnr, count))
+	if (!q->u.in.polling)
+		goto set;
+
+	/* protect against stop polling setting an ACK for an emptied slsb */
+	if (count == QDIO_MAX_BUFFERS_PER_Q) {
+		/* overwriting everything, just delete polling status */
+		q->u.in.polling = 0;
+		q->u.in.ack_count = 0;
+		goto set;
+	} else if (buf_in_between(q->last_move_ftc, bufnr, count)) {
+		if (is_qebsm(q)) {
+			/* partial overwrite, just update last_move_ftc */
+			diff = add_buf(bufnr, count);
+			diff = sub_buf(diff, q->last_move_ftc);
+			q->u.in.ack_count -= diff;
+			if (q->u.in.ack_count <= 0) {
+				q->u.in.polling = 0;
+				q->u.in.ack_count = 0;
+				/* TODO: must we set last_move_ftc to something meaningful? */
+				goto set;
+			}
+			q->last_move_ftc = add_buf(q->last_move_ftc, diff);
+		}
+		else
+			/* the only ACK will be deleted, so stop polling */
 			q->u.in.polling = 0;
+	}
 
+set:
 	count = set_buf_states(q, bufnr, SLSB_CU_INPUT_EMPTY, count);
-	spin_unlock_irqrestore(&q->u.in.lock, flags);
 
 	used = atomic_add_return(count, &q->nr_buf_used) - count;
 	BUG_ON(used + count > QDIO_MAX_BUFFERS_PER_Q);
@@ -1535,7 +1590,7 @@ static void handle_outbound(struct qdio_q *q, unsigned int callflags,
 	}
 
 	/* try to fast requeue buffers */
-	get_buf_state(q, prev_buf(bufnr), &state);
+	get_buf_state(q, prev_buf(bufnr), &state, 0);
 	if (state != SLSB_CU_OUTPUT_PRIMED)
 		qdio_kick_outbound_q(q);
 	else {

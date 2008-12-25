@@ -131,7 +131,7 @@ static inline int tiqdio_inbound_q_done(struct qdio_q *q)
 		return 1;
 
 	qdio_siga_sync_q(q);
-	get_buf_state(q, q->first_to_check, &state);
+	get_buf_state(q, q->first_to_check, &state, 0);
 
 	if (state == SLSB_P_INPUT_PRIMED)
 		/* more work coming */
