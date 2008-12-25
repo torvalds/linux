@@ -1196,6 +1196,30 @@ static void io_subchannel_init_fields(struct subchannel *sch)
 	sch->schib.mba = 0;
 }
 
+static void io_subchannel_do_unreg(struct work_struct *work)
+{
+	struct subchannel *sch;
+
+	sch = container_of(work, struct subchannel, work);
+	css_sch_device_unregister(sch);
+	/* Reset intparm to zeroes. */
+	sch->schib.pmcw.intparm = 0;
+	cio_modify(sch);
+	put_device(&sch->dev);
+}
+
+/* Schedule unregister if we have no cdev. */
+static void io_subchannel_schedule_removal(struct subchannel *sch)
+{
+	get_device(&sch->dev);
+	INIT_WORK(&sch->work, io_subchannel_do_unreg);
+	queue_work(slow_path_wq, &sch->work);
+}
+
+/*
+ * Note: We always return 0 so that we bind to the device even on error.
+ * This is needed so that our remove function is called on unregister.
+ */
 static int io_subchannel_probe(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
@@ -1238,14 +1262,12 @@ static int io_subchannel_probe(struct subchannel *sch)
 	rc = sysfs_create_group(&sch->dev.kobj,
 				&io_subchannel_attr_group);
 	if (rc)
-		return rc;
+		goto out_schedule;
 	/* Allocate I/O subchannel private data. */
 	sch->private = kzalloc(sizeof(struct io_subchannel_private),
 			       GFP_KERNEL | GFP_DMA);
-	if (!sch->private) {
-		rc = -ENOMEM;
+	if (!sch->private)
 		goto out_err;
-	}
 	/*
 	 * First check if a fitting device may be found amongst the
 	 * disconnected devices or in the orphanage.
@@ -1269,24 +1291,21 @@ static int io_subchannel_probe(struct subchannel *sch)
 		return 0;
 	}
 	cdev = io_subchannel_create_ccwdev(sch);
-	if (IS_ERR(cdev)) {
-		rc = PTR_ERR(cdev);
+	if (IS_ERR(cdev))
 		goto out_err;
-	}
 	rc = io_subchannel_recog(cdev, sch);
 	if (rc) {
 		spin_lock_irqsave(sch->lock, flags);
-		sch_set_cdev(sch, NULL);
+		io_subchannel_recog_done(cdev);
 		spin_unlock_irqrestore(sch->lock, flags);
-		if (cdev->dev.release)
-			cdev->dev.release(&cdev->dev);
-		goto out_err;
 	}
 	return 0;
 out_err:
 	kfree(sch->private);
 	sysfs_remove_group(&sch->dev.kobj, &io_subchannel_attr_group);
-	return rc;
+out_schedule:
+	io_subchannel_schedule_removal(sch);
+	return 0;
 }
 
 static int

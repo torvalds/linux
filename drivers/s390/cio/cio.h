@@ -82,6 +82,7 @@ struct subchannel {
 	struct device dev;	/* entry in device tree */
 	struct css_driver *driver;
 	void *private; /* private per subchannel type data */
+	struct work_struct work;
 } __attribute__ ((aligned(8)));
 
 #define IO_INTERRUPT_TYPE	   0 /* I/O interrupt type */
