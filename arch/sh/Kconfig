@@ -126,6 +126,13 @@ config ARCH_HAS_ILOG2_U64
 config ARCH_NO_VIRT_TO_BUS
 	def_bool y
 
+config ARCH_WANT_OPTIONAL_GPIOLIB
+	def_bool y
+	depends on !ARCH_REQUIRE_GPIOLIB
+
+config ARCH_REQUIRE_GPIOLIB
+	def_bool n
+
 config IO_TRAPPED
 	bool
 

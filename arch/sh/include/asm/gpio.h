@@ -19,6 +19,40 @@
 #include <cpu/gpio.h>
 #endif
 
+#define ARCH_NR_GPIOS 512
+#include <asm-generic/gpio.h>
+
+#ifdef CONFIG_GPIOLIB
+
+static inline int gpio_get_value(unsigned gpio)
+{
+	return __gpio_get_value(gpio);
+}
+
+static inline void gpio_set_value(unsigned gpio, int value)
+{
+	__gpio_set_value(gpio, value);
+}
+
+static inline int gpio_cansleep(unsigned gpio)
+{
+	return __gpio_cansleep(gpio);
+}
+
+static inline int gpio_to_irq(unsigned gpio)
+{
+	WARN_ON(1);
+	return -ENOSYS;
+}
+
+static inline int irq_to_gpio(unsigned int irq)
+{
+	WARN_ON(1);
+	return -EINVAL;
+}
+
+#endif /* CONFIG_GPIOLIB */
+
 typedef unsigned short pinmux_enum_t;
 typedef unsigned short pinmux_flag_t;
 
@@ -94,34 +128,9 @@ struct pinmux_info {
 	unsigned int gpio_data_size;
 
 	unsigned long *gpio_in_use;
+	struct gpio_chip chip;
 };
 
 int register_pinmux(struct pinmux_info *pip);
-
-int __gpio_request(unsigned gpio);
-static inline int gpio_request(unsigned gpio, const char *label)
-{
-	return __gpio_request(gpio);
-}
-void gpio_free(unsigned gpio);
-int gpio_direction_input(unsigned gpio);
-int gpio_direction_output(unsigned gpio, int value);
-int gpio_get_value(unsigned gpio);
-void gpio_set_value(unsigned gpio, int value);
-
-/* IRQ modes are unspported */
-static inline int gpio_to_irq(unsigned gpio)
-{
-	WARN_ON(1);
-	return -EINVAL;
-}
-
-static inline int irq_to_gpio(unsigned irq)
-{
-	WARN_ON(1);
-	return -EINVAL;
-}
-
-#include <asm-generic/gpio.h>
 
 #endif /* __ASM_SH_GPIO_H */
