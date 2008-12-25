@@ -25,7 +25,7 @@ volatile static struct rt_pend_tq rt_pend_tq[RT_PEND_TQ_SIZE];
 volatile static struct rt_pend_tq *volatile rt_pend_head = rt_pend_tq,
 	*volatile rt_pend_tail = rt_pend_tq;
 int rt_pend_tq_irq = 0;
-spinlock_t rt_pend_tq_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(rt_pend_tq_lock);
 
 // WARNING: following code not checked against race conditions yet.
 #define INC_CIRCULAR_PTR(ptr,begin,size) do {if(++(ptr)>=(begin)+(size)) (ptr)=(begin); } while(0)
