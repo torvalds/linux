@@ -388,7 +388,7 @@ debug_info_copy(debug_info_t* in, int mode)
 		debug_info_free(rc);
 	} while (1);
 
-        if(!rc || (mode == NO_AREAS))
+	if (mode == NO_AREAS)
                 goto out;
 
         for(i = 0; i < in->nr_areas; i++){
