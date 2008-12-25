@@ -167,6 +167,7 @@ static int write_reg(struct i2c_client *client, u8 reg, u8 value)
 	usb = go->hpi_context;
 	if (down_interruptible(&usb->i2c_lock) != 0) {
 		printk(KERN_INFO "i2c lock failed\n");
+		kfree(buf);
 		return -EINTR;
 	}
 	rc = go7007_usb_vendor_request(go, 0x55, dev_addr,
