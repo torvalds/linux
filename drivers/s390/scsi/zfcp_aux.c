@@ -29,6 +29,8 @@
 #include <linux/seq_file.h>
 #include "zfcp_ext.h"
 
+#define ZFCP_BUS_ID_SIZE	20
+
 static char *device;
 
 MODULE_AUTHOR("IBM Deutschland Entwicklung GmbH - linux390@de.ibm.com");
@@ -84,9 +86,9 @@ static int __init zfcp_device_setup(char *devstr)
 	strcpy(str, devstr);
 
 	token = strsep(&str, ",");
-	if (!token || strlen(token) >= BUS_ID_SIZE)
+	if (!token || strlen(token) >= ZFCP_BUS_ID_SIZE)
 		goto err_out;
-	strncpy(zfcp_data.init_busid, token, BUS_ID_SIZE);
+	strncpy(zfcp_data.init_busid, token, ZFCP_BUS_ID_SIZE);
 
 	token = strsep(&str, ",");
 	if (!token || strict_strtoull(token, 0,
