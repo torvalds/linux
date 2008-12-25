@@ -46,7 +46,9 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_sil"
-#define DRV_VERSION	"2.3"
+#define DRV_VERSION	"2.4"
+
+#define SIL_DMA_BOUNDARY	0x7fffffffUL
 
 enum {
 	SIL_MMIO_BAR		= 5,
@@ -118,6 +120,10 @@ static void sil_dev_config(struct ata_device *dev);
 static int sil_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
 static int sil_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed);
+static void sil_qc_prep(struct ata_queued_cmd *qc);
+static void sil_bmdma_setup(struct ata_queued_cmd *qc);
+static void sil_bmdma_start(struct ata_queued_cmd *qc);
+static void sil_bmdma_stop(struct ata_queued_cmd *qc);
 static void sil_freeze(struct ata_port *ap);
 static void sil_thaw(struct ata_port *ap);
 
@@ -167,13 +173,22 @@ static struct pci_driver sil_pci_driver = {
 };
 
 static struct scsi_host_template sil_sht = {
-	ATA_BMDMA_SHT(DRV_NAME),
+	ATA_BASE_SHT(DRV_NAME),
+	/** These controllers support Large Block Transfer which allows
+	    transfer chunks up to 2GB and which cross 64KB boundaries,
+	    therefore the DMA limits are more relaxed than standard ATA SFF. */
+	.dma_boundary		= SIL_DMA_BOUNDARY,
+	.sg_tablesize		= ATA_MAX_PRD
 };
 
 static struct ata_port_operations sil_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 	.dev_config		= sil_dev_config,
 	.set_mode		= sil_set_mode,
+	.bmdma_setup            = sil_bmdma_setup,
+	.bmdma_start            = sil_bmdma_start,
+	.bmdma_stop		= sil_bmdma_stop,
+	.qc_prep		= sil_qc_prep,
 	.freeze			= sil_freeze,
 	.thaw			= sil_thaw,
 	.scr_read		= sil_scr_read,
@@ -248,6 +263,83 @@ static int slow_down;
 module_param(slow_down, int, 0444);
 MODULE_PARM_DESC(slow_down, "Sledgehammer used to work around random problems, by limiting commands to 15 sectors (0=off, 1=on)");
 
+
+static void sil_bmdma_stop(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	void __iomem *mmio_base = ap->host->iomap[SIL_MMIO_BAR];
+	void __iomem *bmdma2 = mmio_base + sil_port[ap->port_no].bmdma2;
+
+	/* clear start/stop bit - can safely always write 0 */
+	iowrite8(0, bmdma2);
+
+	/* one-PIO-cycle guaranteed wait, per spec, for HDMA1:0 transition */
+	ata_sff_dma_pause(ap);
+}
+
+static void sil_bmdma_setup(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	void __iomem *bmdma = ap->ioaddr.bmdma_addr;
+
+	/* load PRD table addr. */
+	iowrite32(ap->prd_dma, bmdma + ATA_DMA_TABLE_OFS);
+
+	/* issue r/w command */
+	ap->ops->sff_exec_command(ap, &qc->tf);
+}
+
+static void sil_bmdma_start(struct ata_queued_cmd *qc)
+{
+	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
+	struct ata_port *ap = qc->ap;
+	void __iomem *mmio_base = ap->host->iomap[SIL_MMIO_BAR];
+	void __iomem *bmdma2 = mmio_base + sil_port[ap->port_no].bmdma2;
+	u8 dmactl = ATA_DMA_START;
+
+	/* set transfer direction, start host DMA transaction
+	   Note: For Large Block Transfer to work, the DMA must be started
+	   using the bmdma2 register. */
+	if (!rw)
+		dmactl |= ATA_DMA_WR;
+	iowrite8(dmactl, bmdma2);
+}
+
+/* The way God intended PCI IDE scatter/gather lists to look and behave... */
+static void sil_fill_sg(struct ata_queued_cmd *qc)
+{
+	struct scatterlist *sg;
+	struct ata_port *ap = qc->ap;
+	struct ata_prd *prd, *last_prd = NULL;
+	unsigned int si;
+
+	prd = &ap->prd[0];
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
+		/* Note h/w doesn't support 64-bit, so we unconditionally
+		 * truncate dma_addr_t to u32.
+		 */
+		u32 addr = (u32) sg_dma_address(sg);
+		u32 sg_len = sg_dma_len(sg);
+
+		prd->addr = cpu_to_le32(addr);
+		prd->flags_len = cpu_to_le32(sg_len);
+		VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, sg_len);
+
+		last_prd = prd;
+		prd++;
+	}
+
+	if (likely(last_prd))
+		last_prd->flags_len |= cpu_to_le32(ATA_PRD_EOT);
+}
+
+static void sil_qc_prep(struct ata_queued_cmd *qc)
+{
+	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
+		return;
+
+	sil_fill_sg(qc);
+}
 
 static unsigned char sil_get_device_cache_line(struct pci_dev *pdev)
 {
