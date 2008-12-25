@@ -25,7 +25,6 @@
 #if PTTYPE == 64
 	#define pt_element_t u64
 	#define guest_walker guest_walker64
-	#define shadow_walker shadow_walker64
 	#define FNAME(name) paging##64_##name
 	#define PT_BASE_ADDR_MASK PT64_BASE_ADDR_MASK
 	#define PT_DIR_BASE_ADDR_MASK PT64_DIR_BASE_ADDR_MASK
@@ -42,7 +41,6 @@
 #elif PTTYPE == 32
 	#define pt_element_t u32
 	#define guest_walker guest_walker32
-	#define shadow_walker shadow_walker32
 	#define FNAME(name) paging##32_##name
 	#define PT_BASE_ADDR_MASK PT32_BASE_ADDR_MASK
 	#define PT_DIR_BASE_ADDR_MASK PT32_DIR_BASE_ADDR_MASK
@@ -71,18 +69,6 @@ struct guest_walker {
 	unsigned pte_access;
 	gfn_t gfn;
 	u32 error_code;
-};
-
-struct shadow_walker {
-	struct kvm_shadow_walk walker;
-	struct guest_walker *guest_walker;
-	int user_fault;
-	int write_fault;
-	int largepage;
-	int *ptwrite;
-	pfn_t pfn;
-	u64 *sptep;
-	gpa_t pte_gpa;
 };
 
 static gfn_t gpte_to_gfn(pt_element_t gpte)
@@ -453,54 +439,52 @@ out_unlock:
 	return 0;
 }
 
-static int FNAME(shadow_invlpg_entry)(struct kvm_shadow_walk *_sw,
-				      struct kvm_vcpu *vcpu, u64 addr,
-				      u64 *sptep, int level)
-{
-	struct shadow_walker *sw =
-		container_of(_sw, struct shadow_walker, walker);
-
-	/* FIXME: properly handle invlpg on large guest pages */
-	if (level == PT_PAGE_TABLE_LEVEL ||
-	    ((level == PT_DIRECTORY_LEVEL) && is_large_pte(*sptep))) {
-		struct kvm_mmu_page *sp = page_header(__pa(sptep));
-
-		sw->pte_gpa = (sp->gfn << PAGE_SHIFT);
-		sw->pte_gpa += (sptep - sp->spt) * sizeof(pt_element_t);
-
-		if (is_shadow_present_pte(*sptep)) {
-			rmap_remove(vcpu->kvm, sptep);
-			if (is_large_pte(*sptep))
-				--vcpu->kvm->stat.lpages;
-		}
-		set_shadow_pte(sptep, shadow_trap_nonpresent_pte);
-		return 1;
-	}
-	if (!is_shadow_present_pte(*sptep))
-		return 1;
-	return 0;
-}
-
 static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 {
+	struct kvm_shadow_walk_iterator iterator;
 	pt_element_t gpte;
-	struct shadow_walker walker = {
-		.walker = { .entry = FNAME(shadow_invlpg_entry), },
-		.pte_gpa = -1,
-	};
+	gpa_t pte_gpa = -1;
+	int level;
+	u64 *sptep;
 
 	spin_lock(&vcpu->kvm->mmu_lock);
-	walk_shadow(&walker.walker, vcpu, gva);
+
+	for_each_shadow_entry(vcpu, gva, iterator) {
+		level = iterator.level;
+		sptep = iterator.sptep;
+
+		/* FIXME: properly handle invlpg on large guest pages */
+		if (level == PT_PAGE_TABLE_LEVEL ||
+		    ((level == PT_DIRECTORY_LEVEL) && is_large_pte(*sptep))) {
+			struct kvm_mmu_page *sp = page_header(__pa(sptep));
+
+			pte_gpa = (sp->gfn << PAGE_SHIFT);
+			pte_gpa += (sptep - sp->spt) * sizeof(pt_element_t);
+
+			if (is_shadow_present_pte(*sptep)) {
+				rmap_remove(vcpu->kvm, sptep);
+				if (is_large_pte(*sptep))
+					--vcpu->kvm->stat.lpages;
+			}
+			set_shadow_pte(sptep, shadow_trap_nonpresent_pte);
+			break;
+		}
+
+		if (!is_shadow_present_pte(*sptep))
+			break;
+	}
+
 	spin_unlock(&vcpu->kvm->mmu_lock);
-	if (walker.pte_gpa == -1)
+
+	if (pte_gpa == -1)
 		return;
-	if (kvm_read_guest_atomic(vcpu->kvm, walker.pte_gpa, &gpte,
+	if (kvm_read_guest_atomic(vcpu->kvm, pte_gpa, &gpte,
 				  sizeof(pt_element_t)))
 		return;
 	if (is_present_pte(gpte) && (gpte & PT_ACCESSED_MASK)) {
 		if (mmu_topup_memory_caches(vcpu))
 			return;
-		kvm_mmu_pte_write(vcpu, walker.pte_gpa, (const u8 *)&gpte,
+		kvm_mmu_pte_write(vcpu, pte_gpa, (const u8 *)&gpte,
 				  sizeof(pt_element_t), 0);
 	}
 }
@@ -607,7 +591,6 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 #undef pt_element_t
 #undef guest_walker
-#undef shadow_walker
 #undef FNAME
 #undef PT_BASE_ADDR_MASK
 #undef PT_INDEX
