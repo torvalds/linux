@@ -63,7 +63,6 @@ static void topology_work_fn(struct work_struct *work);
 static struct tl_info *tl_info;
 static struct core_info core_info;
 static int machine_has_topology;
-static int machine_has_topology_irq;
 static struct timer_list topology_timer;
 static void set_topology_timer(void);
 static DECLARE_WORK(topology_work, topology_work_fn);
@@ -259,11 +258,6 @@ static void set_topology_timer(void)
 	add_timer(&topology_timer);
 }
 
-static void topology_interrupt(__u16 code)
-{
-	schedule_work(&topology_work);
-}
-
 static int __init early_parse_topology(char *p)
 {
 	if (strncmp(p, "on", 2))
@@ -283,14 +277,7 @@ static int __init init_topology_update(void)
 		goto out;
 	}
 	init_timer_deferrable(&topology_timer);
-	if (machine_has_topology_irq) {
-		rc = register_external_interrupt(0x2005, topology_interrupt);
-		if (rc)
-			goto out;
-		ctl_set_bit(0, 8);
-	}
-	else
-		set_topology_timer();
+	set_topology_timer();
 out:
 	update_cpu_core_map();
 	return rc;
@@ -310,9 +297,6 @@ void __init s390_init_cpu_topology(void)
 	if (!(facility_bits & (1ULL << 52)) || !(facility_bits & (1ULL << 61)))
 		return;
 	machine_has_topology = 1;
-
-	if (facility_bits & (1ULL << 51))
-		machine_has_topology_irq = 1;
 
 	tl_info = alloc_bootmem_pages(PAGE_SIZE);
 	info = tl_info;
@@ -337,5 +321,4 @@ void __init s390_init_cpu_topology(void)
 	return;
 error:
 	machine_has_topology = 0;
-	machine_has_topology_irq = 0;
 }
