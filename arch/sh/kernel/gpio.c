@@ -95,14 +95,13 @@ static int read_write_reg(unsigned long reg, unsigned long reg_width,
 	return 0;
 }
 
-static int get_data_reg(struct pinmux_info *gpioc, unsigned gpio,
-			struct pinmux_data_reg **drp, int *bitp)
+static int setup_data_reg(struct pinmux_info *gpioc, unsigned gpio)
 {
-	pinmux_enum_t enum_id = gpioc->gpios[gpio].enum_id;
+	struct pinmux_gpio *gpiop = &gpioc->gpios[gpio];
 	struct pinmux_data_reg *data_reg;
 	int k, n;
 
-	if (!enum_in_range(enum_id, &gpioc->data))
+	if (!enum_in_range(gpiop->enum_id, &gpioc->data))
 		return -1;
 
 	k = 0;
@@ -113,17 +112,36 @@ static int get_data_reg(struct pinmux_info *gpioc, unsigned gpio,
 			break;
 
 		for (n = 0; n < data_reg->reg_width; n++) {
-			if (data_reg->enum_ids[n] == enum_id) {
-				*drp = data_reg;
-				*bitp = n;
+			if (data_reg->enum_ids[n] == gpiop->enum_id) {
+				gpiop->flags &= ~PINMUX_FLAG_DREG;
+				gpiop->flags |= (k << PINMUX_FLAG_DREG_SHIFT);
+				gpiop->flags &= ~PINMUX_FLAG_DBIT;
+				gpiop->flags |= (n << PINMUX_FLAG_DBIT_SHIFT);
 				return 0;
-
 			}
 		}
 		k++;
 	}
 
+	BUG();
+
 	return -1;
+}
+
+static int get_data_reg(struct pinmux_info *gpioc, unsigned gpio,
+			struct pinmux_data_reg **drp, int *bitp)
+{
+	struct pinmux_gpio *gpiop = &gpioc->gpios[gpio];
+	int k, n;
+
+	if (!enum_in_range(gpiop->enum_id, &gpioc->data))
+		return -1;
+
+	k = (gpiop->flags & PINMUX_FLAG_DREG) >> PINMUX_FLAG_DREG_SHIFT;
+	n = (gpiop->flags & PINMUX_FLAG_DBIT) >> PINMUX_FLAG_DBIT_SHIFT;
+	*drp = gpioc->data_regs + k;
+	*bitp = n;
+	return 0;
 }
 
 static int get_config_reg(struct pinmux_info *gpioc, pinmux_enum_t enum_id,
@@ -341,7 +359,8 @@ int __gpio_request(unsigned gpio)
 			BUG();
 	}
 
-	gpioc->gpios[gpio].flags = pinmux_type;
+	gpioc->gpios[gpio].flags &= ~PINMUX_FLAG_TYPE;
+	gpioc->gpios[gpio].flags |= pinmux_type;
 
 	ret = 0;
  err_unlock:
@@ -364,7 +383,8 @@ void gpio_free(unsigned gpio)
 
 	pinmux_type = gpioc->gpios[gpio].flags & PINMUX_FLAG_TYPE;
 	pinmux_config_gpio(gpioc, gpio, pinmux_type, GPIO_CFG_FREE);
-	gpioc->gpios[gpio].flags = PINMUX_TYPE_NONE;
+	gpioc->gpios[gpio].flags &= ~PINMUX_FLAG_TYPE;
+	gpioc->gpios[gpio].flags |= PINMUX_TYPE_NONE;
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 }
@@ -401,7 +421,8 @@ static int pinmux_direction(struct pinmux_info *gpioc,
 			       GPIO_CFG_REQ) != 0)
 		BUG();
 
-	gpioc->gpios[gpio].flags = new_pinmux_type;
+	gpioc->gpios[gpio].flags &= ~PINMUX_FLAG_TYPE;
+	gpioc->gpios[gpio].flags |= new_pinmux_type;
 
 	ret = 0;
  err_out:
@@ -494,9 +515,14 @@ EXPORT_SYMBOL(gpio_set_value);
 
 int register_pinmux(struct pinmux_info *pip)
 {
+	int k;
+
 	registered_gpio = pip;
 	pr_info("pinmux: %s handling gpio %d -> %d\n",
 		pip->name, pip->first_gpio, pip->last_gpio);
+
+	for (k = pip->first_gpio; k <= pip->last_gpio; k++)
+		setup_data_reg(pip, k);
 
 	return 0;
 }

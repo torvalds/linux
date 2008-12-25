@@ -20,7 +20,7 @@
 #endif
 
 typedef unsigned short pinmux_enum_t;
-typedef unsigned char pinmux_flag_t;
+typedef unsigned short pinmux_flag_t;
 
 #define PINMUX_TYPE_NONE            0
 #define PINMUX_TYPE_FUNCTION        1
@@ -33,6 +33,11 @@ typedef unsigned char pinmux_flag_t;
 #define PINMUX_FLAG_TYPE            (0x7)
 #define PINMUX_FLAG_WANT_PULLUP     (1 << 3)
 #define PINMUX_FLAG_WANT_PULLDOWN   (1 << 4)
+
+#define PINMUX_FLAG_DBIT_SHIFT      5
+#define PINMUX_FLAG_DBIT            (0x1f << PINMUX_FLAG_DBIT_SHIFT)
+#define PINMUX_FLAG_DREG_SHIFT      10
+#define PINMUX_FLAG_DREG            (0x3f << PINMUX_FLAG_DREG_SHIFT)
 
 struct pinmux_gpio {
 	pinmux_enum_t enum_id;
