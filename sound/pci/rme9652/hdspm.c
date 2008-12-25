@@ -3476,7 +3476,7 @@ static irqreturn_t snd_hdspm_interrupt(int irq, void *dev_id)
 		schedule = 1;
 	}
 	if (schedule)
-		tasklet_hi_schedule(&hdspm->midi_tasklet);
+		tasklet_schedule(&hdspm->midi_tasklet);
 	return IRQ_HANDLED;
 }
 

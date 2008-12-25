@@ -653,7 +653,7 @@ static int pcxhr_trigger(struct snd_pcm_substream *subs, int cmd)
 					PCXHR_STREAM_STATUS_SCHEDULE_RUN;
 				snd_pcm_trigger_done(s, subs);
 			}
-			tasklet_hi_schedule(&chip->mgr->trigger_taskq);
+			tasklet_schedule(&chip->mgr->trigger_taskq);
 		} else {
 			stream = subs->runtime->private_data;
 			snd_printdd("Only one Substream %c %d\n",
