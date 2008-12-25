@@ -2832,6 +2832,8 @@ static int patch_alc655(struct snd_ac97 * ac97)
 			val &= ~(1 << 1); /* Pin 47 is EAPD (for internal speaker) */
 		else
 			val |= (1 << 1); /* Pin 47 is spdif input pin */
+		/* this seems missing on some hardwares */
+		ac97->ext_id |= AC97_EI_SPDIF;
 	}
 	val &= ~(1 << 12); /* vref enable */
 	snd_ac97_write_cache(ac97, 0x7a, val);
