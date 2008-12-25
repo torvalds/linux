@@ -283,7 +283,7 @@ static void sysrq_ftrace_dump(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_ftrace_dump_op = {
 	.handler	= sysrq_ftrace_dump,
-	.help_msg	= "dumpZ-ftrace-buffer",
+	.help_msg	= "dump-ftrace-buffer(Z)",
 	.action_msg	= "Dump ftrace buffer",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
