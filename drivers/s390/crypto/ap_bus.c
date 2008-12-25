@@ -24,6 +24,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define KMSG_COMPONENT "ap"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -1487,12 +1490,13 @@ int __init ap_module_init(void)
 	int rc, i;
 
 	if (ap_domain_index < -1 || ap_domain_index >= AP_DOMAINS) {
-		printk(KERN_WARNING "Invalid param: domain = %d. "
-		       " Not loading.\n", ap_domain_index);
+		pr_warning("%d is not a valid cryptographic domain\n",
+			   ap_domain_index);
 		return -EINVAL;
 	}
 	if (ap_instructions_available() != 0) {
-		printk(KERN_WARNING "AP instructions not installed.\n");
+		pr_warning("The hardware system does not support "
+			   "AP instructions\n");
 		return -ENODEV;
 	}
 	if (ap_interrupts_available()) {
