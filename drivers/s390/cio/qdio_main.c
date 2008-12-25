@@ -74,7 +74,7 @@ static inline int do_siga_input(struct subchannel_id schid, unsigned int mask)
  * Note: For IQDC unicast queues only the highest priority queue is processed.
  */
 static inline int do_siga_output(unsigned long schid, unsigned long mask,
-				 u32 *bb, unsigned int fc)
+				 unsigned int *bb, unsigned int fc)
 {
 	register unsigned long __fc asm("0") = fc;
 	register unsigned long __schid asm("1") = schid;
@@ -284,8 +284,7 @@ static int qdio_siga_sync(struct qdio_q *q, unsigned int output,
 	if (!need_siga_sync(q))
 		return 0;
 
-	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-s:");
-	DBF_DEV_HEX(DBF_INFO, q->irq_ptr, q, sizeof(void *));
+	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-s:%1d", q->nr);
 	qdio_perf_stat_inc(&perf_stats.siga_sync);
 
 	cc = do_siga_sync(q->irq_ptr->schid, output, input);
@@ -312,46 +311,37 @@ static inline int qdio_siga_sync_all(struct qdio_q *q)
 	return qdio_siga_sync(q, ~0U, ~0U);
 }
 
-static inline int qdio_do_siga_output(struct qdio_q *q, unsigned int *busy_bit)
+static int qdio_siga_output(struct qdio_q *q, unsigned int *busy_bit)
 {
-	unsigned int fc = 0;
 	unsigned long schid;
+	unsigned int fc = 0;
+	u64 start_time = 0;
+	int cc;
 
-	if (q->u.out.use_enh_siga) {
+	if (q->u.out.use_enh_siga)
 		fc = 3;
-	}
-	if (!is_qebsm(q))
-		schid = *((u32 *)&q->irq_ptr->schid);
-	else {
+
+	if (is_qebsm(q)) {
 		schid = q->irq_ptr->sch_token;
 		fc |= 0x80;
 	}
-	return do_siga_output(schid, q->mask, busy_bit, fc);
-}
+	else
+		schid = *((u32 *)&q->irq_ptr->schid);
 
-static int qdio_siga_output(struct qdio_q *q)
-{
-	int cc;
-	u32 busy_bit;
-	u64 start_time = 0;
-
-	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w:%1d", q->nr);
-	qdio_perf_stat_inc(&perf_stats.siga_out);
 again:
-	cc = qdio_do_siga_output(q, &busy_bit);
-	if (queue_type(q) == QDIO_IQDIO_QFMT && cc == 2 && busy_bit) {
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w bb:%2d", q->nr);
+	cc = do_siga_output(schid, q->mask, busy_bit, fc);
 
-		if (!start_time)
+	/* hipersocket busy condition */
+	if (*busy_bit) {
+		WARN_ON(queue_type(q) != QDIO_IQDIO_QFMT || cc != 2);
+
+		if (!start_time) {
 			start_time = get_usecs();
-		else if ((get_usecs() - start_time) < QDIO_BUSY_BIT_PATIENCE)
+			goto again;
+		}
+		if ((get_usecs() - start_time) < QDIO_BUSY_BIT_PATIENCE)
 			goto again;
 	}
-
-	if (cc == 2 && busy_bit)
-		cc |= QDIO_ERROR_SIGA_BUSY;
-	if (cc)
-		DBF_ERROR("%4x SIGA-W:%2d", SCH_NO(q), cc);
 	return cc;
 }
 
@@ -399,7 +389,7 @@ inline void qdio_stop_polling(struct qdio_q *q)
 
 static void announce_buffer_error(struct qdio_q *q, int count)
 {
-	q->qdio_error = QDIO_ERROR_SLSB_STATE;
+	q->qdio_error |= QDIO_ERROR_SLSB_STATE;
 
 	/* special handling for no target buffer empty */
 	if ((!q->is_input_q &&
@@ -716,68 +706,36 @@ static inline int qdio_outbound_q_moved(struct qdio_q *q)
 		return 0;
 }
 
-/*
- * VM could present us cc=2 and busy bit set on SIGA-write
- * during reconfiguration of their Guest LAN (only in iqdio mode,
- * otherwise qdio is asynchronous and cc=2 and busy bit there will take
- * the queues down immediately).
- *
- * Therefore qdio_siga_output will try for a short time constantly,
- * if such a condition occurs. If it doesn't change, it will
- * increase the busy_siga_counter and save the timestamp, and
- * schedule the queue for later processing. qdio_outbound_processing
- * will check out the counter. If non-zero, it will call qdio_kick_outbound_q
- * as often as the value of the counter. This will attempt further SIGA
- * instructions. For each successful SIGA, the counter is
- * decreased, for failing SIGAs the counter remains the same, after
- * all. After some time of no movement, qdio_kick_outbound_q will
- * finally fail and reflect corresponding error codes to call
- * the upper layer module and have it take the queues down.
- *
- * Note that this is a change from the original HiperSockets design
- * (saying cc=2 and busy bit means take the queues down), but in
- * these days Guest LAN didn't exist... excessive cc=2 with busy bit
- * conditions will still take the queues down, but the threshold is
- * higher due to the Guest LAN environment.
- *
- * Called from outbound tasklet and do_QDIO handler.
- */
 static void qdio_kick_outbound_q(struct qdio_q *q)
 {
-	int rc;
-
-	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "kickoutq:%1d", q->nr);
+	unsigned int busy_bit;
+	int cc;
 
 	if (!need_siga_out(q))
 		return;
 
-	rc = qdio_siga_output(q);
-	switch (rc) {
+	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w:%1d", q->nr);
+	qdio_perf_stat_inc(&perf_stats.siga_out);
+
+	cc = qdio_siga_output(q, &busy_bit);
+	switch (cc) {
 	case 0:
-		/* TODO: improve error handling for CC=0 case */
-		if (q->u.out.timestamp)
-			DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "cc2 rslv:%4x",
-				      atomic_read(&q->u.out.busy_siga_counter));
-		/* went smooth this time, reset timestamp */
-		q->u.out.timestamp = 0;
 		break;
-	/* cc=2 and busy bit */
-	case (2 | QDIO_ERROR_SIGA_BUSY):
-		atomic_inc(&q->u.out.busy_siga_counter);
-
-		/* if the last siga was successful, save timestamp here */
-		if (!q->u.out.timestamp)
-			q->u.out.timestamp = get_usecs();
-
-		/* if we're in time, don't touch qdio_error */
-		if (get_usecs() - q->u.out.timestamp < QDIO_BUSY_BIT_GIVE_UP) {
-			tasklet_schedule(&q->tasklet);
-			break;
+	case 2:
+		if (busy_bit) {
+			DBF_ERROR("%4x cc2 REP:%1d", SCH_NO(q), q->nr);
+			q->qdio_error = cc | QDIO_ERROR_SIGA_BUSY;
+		} else {
+			DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w cc2:%1d",
+				      q->nr);
+			q->qdio_error = cc;
 		}
-		DBF_ERROR("%4x cc2 REP:%1d", SCH_NO(q), q->nr);
-	default:
-		/* for plain cc=1, 2 or 3 */
-		q->qdio_error = rc;
+		break;
+	case 1:
+	case 3:
+		DBF_ERROR("%4x SIGA-W:%1d", SCH_NO(q), cc);
+		q->qdio_error = cc;
+		break;
 	}
 }
 
@@ -808,21 +766,17 @@ static void qdio_kick_outbound_handler(struct qdio_q *q)
 
 static void __qdio_outbound_processing(struct qdio_q *q)
 {
-	int siga_attempts;
+	unsigned long flags;
 
 	qdio_perf_stat_inc(&perf_stats.tasklet_outbound);
-
-	/* see comment in qdio_kick_outbound_q */
-	siga_attempts = atomic_read(&q->u.out.busy_siga_counter);
-	while (siga_attempts--) {
-		atomic_dec(&q->u.out.busy_siga_counter);
-		qdio_kick_outbound_q(q);
-	}
+	spin_lock_irqsave(&q->lock, flags);
 
 	BUG_ON(atomic_read(&q->nr_buf_used) < 0);
 
 	if (qdio_outbound_q_moved(q))
 		qdio_kick_outbound_handler(q);
+
+	spin_unlock_irqrestore(&q->lock, flags);
 
 	if (queue_type(q) == QDIO_ZFCP_QFMT) {
 		if (!pci_out_supported(q) && !qdio_outbound_q_done(q))
@@ -1491,7 +1445,7 @@ static inline int buf_in_between(int bufnr, int start, int count)
 static void handle_inbound(struct qdio_q *q, unsigned int callflags,
 			   int bufnr, int count)
 {
-	int used, rc, diff;
+	int used, cc, diff;
 
 	if (!q->u.in.polling)
 		goto set;
@@ -1532,9 +1486,9 @@ set:
 		return;
 
 	if (need_siga_in(q)) {
-		rc = qdio_siga_input(q);
-		if (rc)
-			q->qdio_error = rc;
+		cc = qdio_siga_input(q);
+		if (cc)
+			q->qdio_error = cc;
 	}
 }
 
@@ -1581,6 +1535,10 @@ static void handle_outbound(struct qdio_q *q, unsigned int callflags,
 				while (count--)
 					qdio_kick_outbound_q(q);
 			}
+
+		/* report CC=2 conditions synchronously */
+		if (q->qdio_error)
+			__qdio_outbound_processing(q);
 		goto out;
 	}
 
