@@ -58,6 +58,7 @@ struct core_info {
 	cpumask_t mask;
 };
 
+static int topology_enabled;
 static void topology_work_fn(struct work_struct *work);
 static struct tl_info *tl_info;
 static struct core_info core_info;
@@ -78,7 +79,7 @@ cpumask_t cpu_coregroup_map(unsigned int cpu)
 	cpumask_t mask;
 
 	cpus_clear(mask);
-	if (!machine_has_topology)
+	if (!topology_enabled || !machine_has_topology)
 		return cpu_possible_map;
 	spin_lock_irqsave(&topology_lock, flags);
 	while (core) {
@@ -262,6 +263,15 @@ static void topology_interrupt(__u16 code)
 {
 	schedule_work(&topology_work);
 }
+
+static int __init early_parse_topology(char *p)
+{
+	if (strncmp(p, "on", 2))
+		return 0;
+	topology_enabled = 1;
+	return 0;
+}
+early_param("topology", early_parse_topology);
 
 static int __init init_topology_update(void)
 {

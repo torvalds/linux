@@ -2252,6 +2252,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			See comment before function dc390_setup() in
 			drivers/scsi/tmscsim.c.
 
+	topology=	[S390]
+			Format: {off | on}
+			Specify if the kernel should make use of the cpu
+			topology informations if the hardware supports these.
+			The scheduler will make use of these informations and
+			e.g. base its process migration decisions on it.
+			Default is off.
+
 	tp720=		[HW,PS2]
 
 	trix=		[HW,OSS] MediaTrix AudioTrix Pro
