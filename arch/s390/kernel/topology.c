@@ -78,7 +78,7 @@ cpumask_t cpu_coregroup_map(unsigned int cpu)
 
 	cpus_clear(mask);
 	if (!machine_has_topology)
-		return cpu_present_map;
+		return cpu_possible_map;
 	spin_lock_irqsave(&topology_lock, flags);
 	while (core) {
 		if (cpu_isset(cpu, core->mask)) {
@@ -168,7 +168,7 @@ static void topology_update_polarization_simple(void)
 	int cpu;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	for_each_present_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		smp_cpu_polarization[cpu] = POLARIZATION_HRZ;
 	mutex_unlock(&smp_cpu_state_mutex);
 }
@@ -199,7 +199,7 @@ int topology_set_cpu_management(int fc)
 		rc = ptf(PTF_HORIZONTAL);
 	if (rc)
 		return -EBUSY;
-	for_each_present_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		smp_cpu_polarization[cpu] = POLARIZATION_UNKNWN;
 	return rc;
 }
@@ -208,7 +208,7 @@ static void update_cpu_core_map(void)
 {
 	int cpu;
 
-	for_each_present_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		cpu_core_map[cpu] = cpu_coregroup_map(cpu);
 }
 
