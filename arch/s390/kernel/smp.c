@@ -500,18 +500,15 @@ static int __cpuinit smp_alloc_lowcore(int cpu)
 
 		save_area = get_zeroed_page(GFP_KERNEL);
 		if (!save_area)
-			goto out_save_area;
+			goto out;
 		lowcore->extended_save_area_addr = (u32) save_area;
 	}
 #endif
 	lowcore_ptr[cpu] = lowcore;
 	return 0;
 
-#ifndef CONFIG_64BIT
-out_save_area:
-	free_page(panic_stack);
-#endif
 out:
+	free_page(panic_stack);
 	free_pages(async_stack, ASYNC_ORDER);
 	free_pages((unsigned long) lowcore, lc_order);
 	return -ENOMEM;
