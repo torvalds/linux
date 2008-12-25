@@ -1138,6 +1138,14 @@ static int qeth_setup_card(struct qeth_card *card)
 	return 0;
 }
 
+static void qeth_core_sl_print(struct seq_file *m, struct service_level *slr)
+{
+	struct qeth_card *card = container_of(slr, struct qeth_card,
+					qeth_service_level);
+	seq_printf(m, "qeth: %s firmware level %s\n", CARD_BUS_ID(card),
+			card->info.mcl_level);
+}
+
 static struct qeth_card *qeth_alloc_card(void)
 {
 	struct qeth_card *card;
@@ -1157,6 +1165,8 @@ static struct qeth_card *qeth_alloc_card(void)
 		return NULL;
 	}
 	card->options.layer2 = -1;
+	card->qeth_service_level.seq_print = qeth_core_sl_print;
+	register_service_level(&card->qeth_service_level);
 	return card;
 }
 
@@ -3730,6 +3740,7 @@ static void qeth_core_free_card(struct qeth_card *card)
 		free_netdev(card->dev);
 	kfree(card->ip_tbd_list);
 	qeth_free_qdio_buffers(card);
+	unregister_service_level(&card->qeth_service_level);
 	kfree(card);
 }
 
