@@ -561,7 +561,7 @@ dasd_create_device(struct ccw_device *cdev)
 	}
 
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
-	cdev->dev.driver_data = device;
+	dev_set_drvdata(&cdev->dev, device);
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	return device;
@@ -597,7 +597,7 @@ dasd_delete_device(struct dasd_device *device)
 
 	/* Disconnect dasd_device structure from ccw_device structure. */
 	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
-	device->cdev->dev.driver_data = NULL;
+	dev_set_drvdata(&device->cdev->dev, NULL);
 	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 
 	/*
@@ -638,7 +638,7 @@ dasd_put_device_wake(struct dasd_device *device)
 struct dasd_device *
 dasd_device_from_cdev_locked(struct ccw_device *cdev)
 {
-	struct dasd_device *device = cdev->dev.driver_data;
+	struct dasd_device *device = dev_get_drvdata(&cdev->dev);
 
 	if (!device)
 		return ERR_PTR(-ENODEV);
