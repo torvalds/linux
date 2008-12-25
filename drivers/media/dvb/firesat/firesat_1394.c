@@ -94,7 +94,7 @@ MODULE_DEVICE_TABLE(ieee1394, firesat_id_table);
 
 /* list of all firesat devices */
 LIST_HEAD(firesat_list);
-spinlock_t firesat_list_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(firesat_list_lock);
 
 static void fcp_request(struct hpsb_host *host,
 			int nodeid,
