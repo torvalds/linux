@@ -10,29 +10,6 @@
  *
  */
 
-#
-# startup-code at 0x10000, running in absolute addressing mode
-# this is called either by the ipl loader or directly by PSW restart
-# or linload or SALIPL
-#
-	.org	0x10000
-startup:basr	%r13,0			# get base
-.LPG0:	l	%r13,0f-.LPG0(%r13)
-	b	0(%r13)
-0:	.long	startup_continue
-
-#
-# params at 10400 (setup.h)
-#
-	.org	PARMAREA
-	.quad	0			# IPL_DEVICE
-	.quad	0			# INITRD_START
-	.quad	0			# INITRD_SIZE
-
-	.org	COMMAND_LINE
-	.byte	"root=/dev/ram0 ro"
-	.byte	0
-
 	.org	0x11000
 
 startup_continue:
