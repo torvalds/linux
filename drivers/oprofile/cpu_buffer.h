@@ -78,6 +78,18 @@ int op_cpu_buffer_write_commit(struct op_entry *entry);
 struct op_sample *op_cpu_buffer_read_entry(struct op_entry *entry, int cpu);
 unsigned long op_cpu_buffer_entries(int cpu);
 
+/* returns the remaining free size of data in the entry */
+static inline
+int op_cpu_buffer_add_data(struct op_entry *entry, unsigned long val)
+{
+	if (!entry->size)
+		return 0;
+	*entry->data = val;
+	entry->size--;
+	entry->data++;
+	return entry->size;
+}
+
 /* extra data flags */
 #define KERNEL_CTX_SWITCH	(1UL << 0)
 #define IS_KERNEL		(1UL << 1)

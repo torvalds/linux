@@ -258,7 +258,7 @@ op_add_code(struct oprofile_cpu_buffer *cpu_buf, unsigned long backtrace,
 	sample->event = flags;
 
 	if (size)
-		sample->data[0] = (unsigned long)task;
+		op_cpu_buffer_add_data(&entry, (unsigned long)task);
 
 	op_cpu_buffer_write_commit(&entry);
 
