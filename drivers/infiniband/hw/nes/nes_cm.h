@@ -165,6 +165,8 @@ struct nes_timer_entry {
 
 #define NES_CM_DEF_SEQ2      0x18ed5740
 #define NES_CM_DEF_LOCAL_ID2 0xb807
+#define	MAX_CM_BUFFER	512
+
 
 typedef u32 nes_addr_t;
 
@@ -258,8 +260,6 @@ struct nes_cm_listener {
 
 /* per connection node and node state information */
 struct nes_cm_node {
-	u32                       hashkey;
-
 	nes_addr_t                loc_addr, rem_addr;
 	u16                       loc_port, rem_port;
 
@@ -357,7 +357,6 @@ struct nes_cm_core {
 	u32                     mtu;
 	u32                     free_tx_pkt_max;
 	u32                     rx_pkt_posted;
-	struct sk_buff_head     tx_free_list;
 	atomic_t                ht_node_cnt;
 	struct list_head        connected_nodes;
 	/* struct list_head hashtable[NES_CM_HASHTABLE_SIZE]; */

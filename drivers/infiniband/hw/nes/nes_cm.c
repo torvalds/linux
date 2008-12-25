@@ -94,7 +94,6 @@ static int mini_cm_set(struct nes_cm_core *, u32, u32);
 
 static void form_cm_frame(struct sk_buff *, struct nes_cm_node *,
 	void *, u32, void *, u32, u8);
-static struct sk_buff *get_free_pkt(struct nes_cm_node *cm_node);
 static int add_ref_cm_node(struct nes_cm_node *);
 static int rem_ref_cm_node(struct nes_cm_core *, struct nes_cm_node *);
 
@@ -355,7 +354,6 @@ static void print_core(struct nes_cm_core *core)
 
 	nes_debug(NES_DBG_CM, "State         : %u \n",  core->state);
 
-	nes_debug(NES_DBG_CM, "Tx Free cnt   : %u \n", skb_queue_len(&core->tx_free_list));
 	nes_debug(NES_DBG_CM, "Listen Nodes  : %u \n", atomic_read(&core->listen_node_cnt));
 	nes_debug(NES_DBG_CM, "Active Nodes  : %u \n", atomic_read(&core->node_cnt));
 
@@ -688,7 +686,7 @@ static int send_syn(struct nes_cm_node *cm_node, u32 sendack,
 	optionssize += 1;
 
 	if (!skb)
-		skb = get_free_pkt(cm_node);
+		skb = dev_alloc_skb(MAX_CM_BUFFER);
 	if (!skb) {
 		nes_debug(NES_DBG_CM, "Failed to get a Free pkt\n");
 		return -1;
@@ -713,7 +711,7 @@ static int send_reset(struct nes_cm_node *cm_node, struct sk_buff *skb)
 	int flags = SET_RST | SET_ACK;
 
 	if (!skb)
-		skb = get_free_pkt(cm_node);
+		skb = dev_alloc_skb(MAX_CM_BUFFER);
 	if (!skb) {
 		nes_debug(NES_DBG_CM, "Failed to get a Free pkt\n");
 		return -1;
@@ -734,7 +732,7 @@ static int send_ack(struct nes_cm_node *cm_node, struct sk_buff *skb)
 	int ret;
 
 	if (!skb)
-		skb = get_free_pkt(cm_node);
+		skb = dev_alloc_skb(MAX_CM_BUFFER);
 
 	if (!skb) {
 		nes_debug(NES_DBG_CM, "Failed to get a Free pkt\n");
@@ -757,7 +755,7 @@ static int send_fin(struct nes_cm_node *cm_node, struct sk_buff *skb)
 
 	/* if we didn't get a frame get one */
 	if (!skb)
-		skb = get_free_pkt(cm_node);
+		skb = dev_alloc_skb(MAX_CM_BUFFER);
 
 	if (!skb) {
 		nes_debug(NES_DBG_CM, "Failed to get a Free pkt\n");
@@ -772,58 +770,14 @@ static int send_fin(struct nes_cm_node *cm_node, struct sk_buff *skb)
 
 
 /**
- * get_free_pkt
- */
-static struct sk_buff *get_free_pkt(struct nes_cm_node *cm_node)
-{
-	struct sk_buff *skb, *new_skb;
-
-	/* check to see if we need to repopulate the free tx pkt queue */
-	if (skb_queue_len(&cm_node->cm_core->tx_free_list) < NES_CM_FREE_PKT_LO_WATERMARK) {
-		while (skb_queue_len(&cm_node->cm_core->tx_free_list) <
-				cm_node->cm_core->free_tx_pkt_max) {
-			/* replace the frame we took, we won't get it back */
-			new_skb = dev_alloc_skb(cm_node->cm_core->mtu);
-			BUG_ON(!new_skb);
-			/* add a replacement frame to the free tx list head */
-			skb_queue_head(&cm_node->cm_core->tx_free_list, new_skb);
-		}
-	}
-
-	skb = skb_dequeue(&cm_node->cm_core->tx_free_list);
-
-	return skb;
-}
-
-
-/**
- * make_hashkey - generate hash key from node tuple
- */
-static inline int make_hashkey(u16 loc_port, nes_addr_t loc_addr, u16 rem_port,
-		nes_addr_t rem_addr)
-{
-	u32 hashkey = 0;
-
-	hashkey = loc_addr + rem_addr + loc_port + rem_port;
-	hashkey = (hashkey % NES_CM_HASHTABLE_SIZE);
-
-	return hashkey;
-}
-
-
-/**
  * find_node - find a cm node that matches the reference cm node
  */
 static struct nes_cm_node *find_node(struct nes_cm_core *cm_core,
 		u16 rem_port, nes_addr_t rem_addr, u16 loc_port, nes_addr_t loc_addr)
 {
 	unsigned long flags;
-	u32 hashkey;
 	struct list_head *hte;
 	struct nes_cm_node *cm_node;
-
-	/* make a hash index key for this packet */
-	hashkey = make_hashkey(loc_port, loc_addr, rem_port, rem_addr);
 
 	/* get a handle on the hte */
 	hte = &cm_core->connected_nodes;
@@ -892,7 +846,6 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 static int add_hte_node(struct nes_cm_core *cm_core, struct nes_cm_node *cm_node)
 {
 	unsigned long flags;
-	u32 hashkey;
 	struct list_head *hte;
 
 	if (!cm_node || !cm_core)
@@ -900,11 +853,6 @@ static int add_hte_node(struct nes_cm_core *cm_core, struct nes_cm_node *cm_node
 
 	nes_debug(NES_DBG_CM, "Adding Node %p to Active Connection HT\n",
 		cm_node);
-
-	/* first, make an index into our hash table */
-	hashkey = make_hashkey(cm_node->loc_port, cm_node->loc_addr,
-			cm_node->rem_port, cm_node->rem_addr);
-	cm_node->hashkey = hashkey;
 
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
 
@@ -2198,10 +2146,7 @@ static int mini_cm_recv_pkt(struct nes_cm_core *cm_core,
  */
 static struct nes_cm_core *nes_cm_alloc_core(void)
 {
-	int i;
-
 	struct nes_cm_core *cm_core;
-	struct sk_buff *skb = NULL;
 
 	/* setup the CM core */
 	/* alloc top level core control structure */
@@ -2218,19 +2163,6 @@ static struct nes_cm_core *nes_cm_alloc_core(void)
 	cm_core->free_tx_pkt_max = NES_CM_DEFAULT_FREE_PKTS;
 
 	atomic_set(&cm_core->events_posted, 0);
-
-	/* init the packet lists */
-	skb_queue_head_init(&cm_core->tx_free_list);
-
-	for (i = 0; i < NES_CM_DEFAULT_FRAME_CNT; i++) {
-		skb = dev_alloc_skb(cm_core->mtu);
-		if (!skb) {
-			kfree(cm_core);
-			return NULL;
-		}
-		/* add 'raw' skb to free frame list */
-		skb_queue_head(&cm_core->tx_free_list, skb);
-	}
 
 	cm_core->api = &nes_cm_api;
 
