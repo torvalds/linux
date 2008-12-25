@@ -575,6 +575,7 @@ enum {
 #define SNDRV_TIMER_GLOBAL_SYSTEM	0
 #define SNDRV_TIMER_GLOBAL_RTC		1
 #define SNDRV_TIMER_GLOBAL_HPET		2
+#define SNDRV_TIMER_GLOBAL_HRTIMER	3
 
 /* info flags */
 #define SNDRV_TIMER_FLG_SLAVE		(1<<0)	/* cannot be controlled */
