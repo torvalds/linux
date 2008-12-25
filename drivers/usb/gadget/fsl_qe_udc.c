@@ -2604,6 +2604,10 @@ static int __devinit qe_udc_probe(struct of_device *ofdev,
 			(unsigned long)udc_controller);
 	/* request irq and disable DR  */
 	udc_controller->usb_irq = irq_of_parse_and_map(np, 0);
+	if (!udc_controller->usb_irq) {
+		ret = -EINVAL;
+		goto err_noirq;
+	}
 
 	ret = request_irq(udc_controller->usb_irq, qe_udc_irq, 0,
 				driver_name, udc_controller);
@@ -2625,6 +2629,8 @@ static int __devinit qe_udc_probe(struct of_device *ofdev,
 err6:
 	free_irq(udc_controller->usb_irq, udc_controller);
 err5:
+	irq_dispose_mapping(udc_controller->usb_irq);
+err_noirq:
 	if (udc_controller->nullmap) {
 		dma_unmap_single(udc_controller->gadget.dev.parent,
 			udc_controller->nullp, 256,
@@ -2648,7 +2654,7 @@ err2:
 	iounmap(udc_controller->usb_regs);
 err1:
 	kfree(udc_controller);
-
+	udc_controller = NULL;
 	return ret;
 }
 
@@ -2710,6 +2716,7 @@ static int __devexit qe_udc_remove(struct of_device *ofdev)
 	kfree(ep->txframe);
 
 	free_irq(udc_controller->usb_irq, udc_controller);
+	irq_dispose_mapping(udc_controller->usb_irq);
 
 	tasklet_kill(&udc_controller->rx_tasklet);
 
