@@ -65,7 +65,7 @@ static struct dentry *gfs2_root;
 static struct workqueue_struct *glock_workqueue;
 static LIST_HEAD(lru_list);
 static atomic_t lru_count = ATOMIC_INIT(0);
-static spinlock_t lru_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(lru_lock);
 
 #define GFS2_GL_HASH_SHIFT      15
 #define GFS2_GL_HASH_SIZE       (1 << GFS2_GL_HASH_SHIFT)
