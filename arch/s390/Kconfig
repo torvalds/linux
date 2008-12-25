@@ -43,6 +43,9 @@ config GENERIC_HWEIGHT
 config GENERIC_TIME
 	def_bool y
 
+config GENERIC_TIME_VSYSCALL
+	def_bool y
+
 config GENERIC_CLOCKEVENTS
 	def_bool y
 

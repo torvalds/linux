@@ -36,6 +36,7 @@
 #include <asm/delay.h>
 #include <asm/s390_ext.h>
 #include <asm/div64.h>
+#include <asm/vdso.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
 #include <asm/timer.h>
@@ -222,6 +223,36 @@ static struct clocksource clocksource_tod = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+
+void update_vsyscall(struct timespec *wall_time, struct clocksource *clock)
+{
+	if (clock != &clocksource_tod)
+		return;
+
+	/* Make userspace gettimeofday spin until we're done. */
+	++vdso_data->tb_update_count;
+	smp_wmb();
+	vdso_data->xtime_tod_stamp = clock->cycle_last;
+	vdso_data->xtime_clock_sec = xtime.tv_sec;
+	vdso_data->xtime_clock_nsec = xtime.tv_nsec;
+	vdso_data->wtom_clock_sec = wall_to_monotonic.tv_sec;
+	vdso_data->wtom_clock_nsec = wall_to_monotonic.tv_nsec;
+	smp_wmb();
+	++vdso_data->tb_update_count;
+}
+
+extern struct timezone sys_tz;
+
+void update_vsyscall_tz(void)
+{
+	/* Make userspace gettimeofday spin until we're done. */
+	++vdso_data->tb_update_count;
+	smp_wmb();
+	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
+	vdso_data->tz_dsttime = sys_tz.tz_dsttime;
+	smp_wmb();
+	++vdso_data->tb_update_count;
+}
 
 /*
  * Initialize the TOD clock and the CPU timer of
