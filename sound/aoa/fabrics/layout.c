@@ -66,7 +66,7 @@ struct layout {
 	unsigned int layout_id;
 	struct codec_connect_info codecs[MAX_CODECS_PER_BUS];
 	int flags;
-	
+
 	/* if busname is not assigned, we use 'Master' below,
 	 * so that our layout table doesn't need to be filled
 	 * too much.

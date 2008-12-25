@@ -5,7 +5,7 @@
  *
  * GPL v2, can be found in COPYING.
  *
- * This file contains the GPIO control routines for 
+ * This file contains the GPIO control routines for
  * direct (through feature calls) access to the GPIO
  * registers.
  */
