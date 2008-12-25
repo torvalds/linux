@@ -1262,6 +1262,25 @@ static int stk_vidioc_g_parm(struct file *filp,
 	return 0;
 }
 
+static int stk_vidioc_enum_framesizes(struct file *filp,
+		void *priv, struct v4l2_frmsizeenum *frms)
+{
+	if (frms->index >= ARRAY_SIZE(stk_sizes))
+		return -EINVAL;
+	switch (frms->pixel_format) {
+	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_RGB565X:
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_SBGGR8:
+		frms->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+		frms->discrete.width = stk_sizes[frms->index].w;
+		frms->discrete.height = stk_sizes[frms->index].h;
+		return 0;
+	default: return -EINVAL;
+	}
+}
+
 static struct file_operations v4l_stk_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l_stk_open,
@@ -1296,6 +1315,7 @@ static const struct v4l2_ioctl_ops v4l_stk_ioctl_ops = {
 	.vidioc_g_ctrl = stk_vidioc_g_ctrl,
 	.vidioc_s_ctrl = stk_vidioc_s_ctrl,
 	.vidioc_g_parm = stk_vidioc_g_parm,
+	.vidioc_enum_framesizes = stk_vidioc_enum_framesizes,
 };
 
 static void stk_v4l_dev_release(struct video_device *vd)
