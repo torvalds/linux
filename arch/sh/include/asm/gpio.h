@@ -59,7 +59,7 @@ struct pinmux_cfg_reg {
 	.enum_ids = (pinmux_enum_t [(r_width / f_width) * (1 << f_width)]) \
 
 struct pinmux_data_reg {
-	unsigned long reg, reg_width;
+	unsigned long reg, reg_width, reg_shadow;
 	pinmux_enum_t *enum_ids;
 };
 

@@ -46,6 +46,62 @@ static int enum_in_range(pinmux_enum_t enum_id, struct pinmux_range *r)
 	return 1;
 }
 
+static unsigned long gpio_read_raw_reg(unsigned long reg,
+				       unsigned long reg_width)
+{
+	switch (reg_width) {
+	case 8:
+		return ctrl_inb(reg);
+	case 16:
+		return ctrl_inw(reg);
+	case 32:
+		return ctrl_inl(reg);
+	}
+
+	BUG();
+	return 0;
+}
+
+static void gpio_write_raw_reg(unsigned long reg,
+			       unsigned long reg_width,
+			       unsigned long data)
+{
+	switch (reg_width) {
+	case 8:
+		ctrl_outb(data, reg);
+		return;
+	case 16:
+		ctrl_outw(data, reg);
+		return;
+	case 32:
+		ctrl_outl(data, reg);
+		return;
+	}
+
+	BUG();
+}
+
+static void gpio_write_bit(struct pinmux_data_reg *dr,
+			   unsigned long in_pos, unsigned long value)
+{
+	unsigned long pos;
+
+	pos = dr->reg_width - (in_pos + 1);
+
+#ifdef DEBUG
+	pr_info("write_bit addr = %lx, value = %ld, pos = %ld, "
+		"r_width = %ld\n",
+		dr->reg, !!value, pos, dr->reg_width);
+#endif
+
+	if (value)
+		set_bit(pos, &dr->reg_shadow);
+	else
+		clear_bit(pos, &dr->reg_shadow);
+
+	gpio_write_raw_reg(dr->reg, dr->reg_width, dr->reg_shadow);
+}
+
 static int gpio_read_reg(unsigned long reg, unsigned long reg_width,
 			 unsigned long field_width, unsigned long in_pos)
 {
@@ -61,18 +117,7 @@ static int gpio_read_reg(unsigned long reg, unsigned long reg_width,
 		reg, pos, reg_width, field_width);
 #endif
 
-	switch (reg_width) {
-	case 8:
-		data = ctrl_inb(reg);
-		break;
-	case 16:
-		data = ctrl_inw(reg);
-		break;
-	case 32:
-		data = ctrl_inl(reg);
-		break;
-	}
-
+	data = gpio_read_raw_reg(reg, reg_width);
 	return (data >> pos) & mask;
 }
 
@@ -138,6 +183,26 @@ static int setup_data_reg(struct pinmux_info *gpioc, unsigned gpio)
 	BUG();
 
 	return -1;
+}
+
+static void setup_data_regs(struct pinmux_info *gpioc)
+{
+	struct pinmux_data_reg *drp;
+	int k;
+
+	for (k = gpioc->first_gpio; k <= gpioc->last_gpio; k++)
+		setup_data_reg(gpioc, k);
+
+	k = 0;
+	while (1) {
+		drp = gpioc->data_regs + k;
+
+		if (!drp->reg_width)
+			break;
+
+		drp->reg_shadow = gpio_read_raw_reg(drp->reg, drp->reg_width);
+		k++;
+	}
 }
 
 static int get_data_reg(struct pinmux_info *gpioc, unsigned gpio,
@@ -465,7 +530,7 @@ static void __gpio_set_value(struct pinmux_info *gpioc,
 	if (!gpioc || get_data_reg(gpioc, gpio, &dr, &bit) != 0)
 		BUG();
 	else
-		gpio_write_reg(dr->reg, dr->reg_width, 1, bit, !!value);
+		gpio_write_bit(dr, bit, value);
 }
 
 int gpio_direction_output(unsigned gpio, int value)
@@ -474,8 +539,8 @@ int gpio_direction_output(unsigned gpio, int value)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&gpio_lock, flags);
 	__gpio_set_value(gpioc, gpio, value);
+	spin_lock_irqsave(&gpio_lock, flags);
 	ret = pinmux_direction(gpioc, gpio, PINMUX_TYPE_OUTPUT);
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
@@ -504,25 +569,16 @@ EXPORT_SYMBOL(gpio_get_value);
 
 void gpio_set_value(unsigned gpio, int value)
 {
-	struct pinmux_info *gpioc = gpio_controller(gpio);
-	unsigned long flags;
-
-	spin_lock_irqsave(&gpio_lock, flags);
-	__gpio_set_value(gpioc, gpio, value);
-	spin_unlock_irqrestore(&gpio_lock, flags);
+	__gpio_set_value(gpio_controller(gpio), gpio, value);
 }
 EXPORT_SYMBOL(gpio_set_value);
 
 int register_pinmux(struct pinmux_info *pip)
 {
-	int k;
-
 	registered_gpio = pip;
+	setup_data_regs(pip);
 	pr_info("pinmux: %s handling gpio %d -> %d\n",
 		pip->name, pip->first_gpio, pip->last_gpio);
-
-	for (k = pip->first_gpio; k <= pip->last_gpio; k++)
-		setup_data_reg(pip, k);
 
 	return 0;
 }
