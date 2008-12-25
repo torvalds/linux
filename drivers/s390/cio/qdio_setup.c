@@ -243,22 +243,31 @@ no_qebsm:
 	QDIO_DBF_TEXT0(0, setup, "noV=V");
 }
 
-static int __get_ssqd_info(struct qdio_irq *irq_ptr)
+/*
+ * If there is a qdio_irq we use the chsc_page and store the information
+ * in the qdio_irq, otherwise we copy it to the specified structure.
+ */
+int qdio_setup_get_ssqd(struct qdio_irq *irq_ptr,
+			struct subchannel_id *schid,
+			struct qdio_ssqd_desc *data)
 {
 	struct chsc_ssqd_area *ssqd;
 	int rc;
 
 	QDIO_DBF_TEXT0(0, setup, "getssqd");
-	ssqd = (struct chsc_ssqd_area *)irq_ptr->chsc_page;
+	if (irq_ptr != NULL)
+		ssqd = (struct chsc_ssqd_area *)irq_ptr->chsc_page;
+	else
+		ssqd = (struct chsc_ssqd_area *)__get_free_page(GFP_KERNEL);
 	memset(ssqd, 0, PAGE_SIZE);
 
 	ssqd->request = (struct chsc_header) {
 		.length = 0x0010,
 		.code	= 0x0024,
 	};
-	ssqd->first_sch = irq_ptr->schid.sch_no;
-	ssqd->last_sch = irq_ptr->schid.sch_no;
-	ssqd->ssid = irq_ptr->schid.ssid;
+	ssqd->first_sch = schid->sch_no;
+	ssqd->last_sch = schid->sch_no;
+	ssqd->ssid = schid->ssid;
 
 	if (chsc(ssqd))
 		return -EIO;
@@ -268,11 +277,17 @@ static int __get_ssqd_info(struct qdio_irq *irq_ptr)
 
 	if (!(ssqd->qdio_ssqd.flags & CHSC_FLAG_QDIO_CAPABILITY) ||
 	    !(ssqd->qdio_ssqd.flags & CHSC_FLAG_VALIDITY) ||
-	    (ssqd->qdio_ssqd.sch != irq_ptr->schid.sch_no))
+	    (ssqd->qdio_ssqd.sch != schid->sch_no))
 		return -EINVAL;
 
-	memcpy(&irq_ptr->ssqd_desc, &ssqd->qdio_ssqd,
-	       sizeof(struct qdio_ssqd_desc));
+	if (irq_ptr != NULL)
+		memcpy(&irq_ptr->ssqd_desc, &ssqd->qdio_ssqd,
+		       sizeof(struct qdio_ssqd_desc));
+	else {
+		memcpy(data, &ssqd->qdio_ssqd,
+		       sizeof(struct qdio_ssqd_desc));
+		free_page((unsigned long)ssqd);
+	}
 	return 0;
 }
 
@@ -282,7 +297,7 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr)
 	char dbf_text[15];
 	int rc;
 
-	rc = __get_ssqd_info(irq_ptr);
+	rc = qdio_setup_get_ssqd(irq_ptr, &irq_ptr->schid, NULL);
 	if (rc) {
 		QDIO_DBF_TEXT2(0, setup, "ssqdasig");
 		sprintf(dbf_text, "schn%4x", irq_ptr->schid.sch_no);

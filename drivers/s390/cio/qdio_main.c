@@ -1129,23 +1129,23 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 /**
  * qdio_get_ssqd_desc - get qdio subchannel description
  * @cdev: ccw device to get description for
+ * @data: where to store the ssqd
  *
- * Returns a pointer to the saved qdio subchannel description,
- * or NULL for not setup qdio devices.
+ * Returns 0 or an error code. The results of the chsc are stored in the
+ * specified structure.
  */
-struct qdio_ssqd_desc *qdio_get_ssqd_desc(struct ccw_device *cdev)
+int qdio_get_ssqd_desc(struct ccw_device *cdev,
+		       struct qdio_ssqd_desc *data)
 {
-	struct qdio_irq *irq_ptr;
 	char dbf_text[15];
+
+	if (!cdev || !cdev->private)
+		return -EINVAL;
 
 	sprintf(dbf_text, "qssq%4x", cdev->private->schid.sch_no);
 	QDIO_DBF_TEXT0(0, setup, dbf_text);
 
-	irq_ptr = cdev->private->qdio_data;
-	if (!irq_ptr)
-		return NULL;
-
-	return &irq_ptr->ssqd_desc;
+	return qdio_setup_get_ssqd(NULL, &cdev->private->schid, data);
 }
 EXPORT_SYMBOL_GPL(qdio_get_ssqd_desc);
 

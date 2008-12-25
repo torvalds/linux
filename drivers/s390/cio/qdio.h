@@ -378,6 +378,9 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 int qdio_allocate_qs(struct qdio_irq *irq_ptr, int nr_input_qs,
 		     int nr_output_qs);
 void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr);
+int qdio_setup_get_ssqd(struct qdio_irq *irq_ptr,
+			struct subchannel_id *schid,
+			struct qdio_ssqd_desc *data);
 int qdio_setup_irq(struct qdio_initialize *init_data);
 void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 				struct ccw_device *cdev);

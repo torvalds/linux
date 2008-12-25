@@ -3757,7 +3757,7 @@ static int qeth_core_driver_group(const char *buf, struct device *root_dev,
 
 int qeth_core_hardsetup_card(struct qeth_card *card)
 {
-	struct qdio_ssqd_desc *qdio_ssqd;
+	struct qdio_ssqd_desc *ssqd;
 	int retries = 3;
 	int mpno = 0;
 	int rc;
@@ -3792,9 +3792,16 @@ retry:
 		return rc;
 	}
 
-	qdio_ssqd = qdio_get_ssqd_desc(CARD_DDEV(card));
-	if (qdio_ssqd)
-		mpno = qdio_ssqd->pcnt;
+	ssqd = kmalloc(sizeof(struct qdio_ssqd_desc), GFP_KERNEL);
+	if (!ssqd) {
+		rc = -ENOMEM;
+		goto out;
+	}
+	rc = qdio_get_ssqd_desc(CARD_DDEV(card), ssqd);
+	if (rc == 0)
+		mpno = ssqd->pcnt;
+	kfree(ssqd);
+
 	if (mpno)
 		mpno = min(mpno - 1, QETH_MAX_PORTNO);
 	if (card->info.portno > mpno) {
