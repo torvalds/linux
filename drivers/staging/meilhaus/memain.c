@@ -79,7 +79,7 @@ MODULE_PARM(major, "i");
 
 static struct file *me_filep = NULL;
 static int me_count = 0;
-static spinlock_t me_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(me_lock);
 static DECLARE_RWSEM(me_rwsem);
 
 /* Board instances are kept in a global list */
