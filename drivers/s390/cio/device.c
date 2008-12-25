@@ -751,8 +751,8 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	/* Do first half of device_register. */
 	device_initialize(&cdev->dev);
 	if (!get_device(&sch->dev)) {
-		if (cdev->dev.release)
-			cdev->dev.release(&cdev->dev);
+		/* Release reference from device_initialize(). */
+		put_device(&cdev->dev);
 		return -ENODEV;
 	}
 	return 0;
