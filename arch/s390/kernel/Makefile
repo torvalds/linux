@@ -2,6 +2,11 @@
 # Makefile for the linux kernel.
 #
 
+ifdef CONFIG_FUNCTION_TRACER
+# Do not trace early boot code
+CFLAGS_REMOVE_early.o = -pg
+endif
+
 #
 # Passing null pointers is ok for smp code, since we access the lowcore here.
 #
@@ -34,6 +39,7 @@ obj-$(CONFIG_COMPAT)		+= compat_linux.o compat_signal.o \
 obj-$(CONFIG_VIRT_TIMER)	+= vtime.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
+obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o
 
 # Kexec part
 S390_KEXEC_OBJS := machine_kexec.o crash.o
