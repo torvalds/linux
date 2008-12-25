@@ -740,6 +740,9 @@ static void __init setup_hwcaps(void)
 void __init
 setup_arch(char **cmdline_p)
 {
+	/* set up preferred console */
+	add_preferred_console("ttyS", 0, NULL);
+
         /*
          * print what head.S has found out about the machine
          */
