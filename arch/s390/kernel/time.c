@@ -12,6 +12,9 @@
  *    Copyright (C) 1991, 1992, 1995  Linus Torvalds
  */
 
+#define KMSG_COMPONENT "time"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -319,8 +322,8 @@ static unsigned long long adjust_time(unsigned long long old,
 	}
 	sched_clock_base_cc += delta;
 	if (adjust.offset != 0) {
-		printk(KERN_NOTICE "etr: time adjusted by %li micro-seconds\n",
-		       adjust.offset);
+		pr_notice("The ETR interface has adjusted the clock "
+			  "by %li microseconds\n", adjust.offset);
 		adjust.modes = ADJ_OFFSET_SINGLESHOT;
 		do_adjtimex(&adjust);
 	}
@@ -481,8 +484,8 @@ static void etr_reset(void)
 		etr_tolec = get_clock();
 		set_bit(CLOCK_SYNC_HAS_ETR, &clock_sync_flags);
 	} else if (etr_port0_online || etr_port1_online) {
-		printk(KERN_WARNING "Running on non ETR capable "
-		       "machine, only local mode available.\n");
+		pr_warning("The real or virtual hardware system does "
+			   "not provide an ETR interface\n");
 		etr_port0_online = etr_port1_online = 0;
 	}
 }
@@ -1423,7 +1426,8 @@ static void __init stp_reset(void)
 	if (rc == 0)
 		set_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags);
 	else if (stp_online) {
-		printk(KERN_WARNING "Running on non STP capable machine.\n");
+		pr_warning("The real or virtual hardware system does "
+			   "not provide an STP interface\n");
 		free_bootmem((unsigned long) stp_page, PAGE_SIZE);
 		stp_page = NULL;
 		stp_online = 0;
