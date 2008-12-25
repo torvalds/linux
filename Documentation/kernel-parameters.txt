@@ -814,6 +814,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	hlt		[BUGS=ARM,SH]
 
+	hvc_iucv=	[S390] Number of z/VM IUCV Hypervisor console (HVC)
+			       back-ends. Valid parameters: 0..8
+
 	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
