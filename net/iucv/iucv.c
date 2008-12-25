@@ -30,6 +30,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define KMSG_COMPONENT "iucv"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/spinlock.h>
@@ -424,8 +427,8 @@ static void iucv_declare_cpu(void *data)
 			err = "Paging or storage error";
 			break;
 		}
-		printk(KERN_WARNING "iucv_register: iucv_declare_buffer "
-		       "on cpu %i returned error 0x%02x (%s)\n", cpu, rc, err);
+		pr_warning("Defining an interrupt buffer on CPU %i"
+			   " failed with 0x%02x (%s)\n", cpu, rc, err);
 		return;
 	}
 
@@ -1652,7 +1655,7 @@ static void iucv_external_interrupt(u16 code)
 	BUG_ON(p->iptype  < 0x01 || p->iptype > 0x09);
 	work = kmalloc(sizeof(struct iucv_irq_list), GFP_ATOMIC);
 	if (!work) {
-		printk(KERN_WARNING "iucv_external_interrupt: out of memory\n");
+		pr_warning("iucv_external_interrupt: out of memory\n");
 		return;
 	}
 	memcpy(&work->data, p, sizeof(work->data));
