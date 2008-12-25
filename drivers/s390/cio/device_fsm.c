@@ -1031,6 +1031,8 @@ void ccw_device_trigger_reprobe(struct ccw_device *cdev)
 	 * paths are valid.
 	 */
 	io_subchannel_init_config(sch);
+	if (cio_commit_config(sch))
+		return;
 
 	/* We should also udate ssd info, but this has to wait. */
 	/* Check if this is another device which appeared on the same sch. */

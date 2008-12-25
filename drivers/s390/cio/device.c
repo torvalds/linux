@@ -1259,6 +1259,9 @@ static int io_subchannel_probe(struct subchannel *sch)
 		return 0;
 	}
 	io_subchannel_init_fields(sch);
+	rc = cio_commit_config(sch);
+	if (rc)
+		goto out_schedule;
 	rc = sysfs_create_group(&sch->dev.kobj,
 				&io_subchannel_attr_group);
 	if (rc)
@@ -1722,6 +1725,9 @@ static int ccw_device_console_enable(struct ccw_device *cdev,
 	sch->private = cio_get_console_priv();
 	memset(sch->private, 0, sizeof(struct io_subchannel_private));
 	io_subchannel_init_fields(sch);
+	rc = cio_commit_config(sch);
+	if (rc)
+		return rc;
 	sch->driver = &io_subchannel_driver;
 	/* Initialize the ccw_device structure. */
 	cdev->dev.parent= &sch->dev;
