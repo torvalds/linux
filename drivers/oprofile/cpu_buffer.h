@@ -78,10 +78,12 @@ int op_cpu_buffer_write_commit(struct op_entry *entry);
 struct op_sample *op_cpu_buffer_read_entry(struct op_entry *entry, int cpu);
 unsigned long op_cpu_buffer_entries(int cpu);
 
-/* transient events for the CPU buffer -> event buffer */
-#define CPU_IS_KERNEL 1
-#define CPU_TRACE_BEGIN 2
-#define IBS_FETCH_BEGIN 3
-#define IBS_OP_BEGIN    4
+/* extra data flags */
+#define KERNEL_CTX_SWITCH	(1UL << 0)
+#define IS_KERNEL		(1UL << 1)
+#define TRACE_BEGIN		(1UL << 2)
+#define USER_CTX_SWITCH		(1UL << 3)
+#define IBS_FETCH_BEGIN		(1UL << 4)
+#define IBS_OP_BEGIN		(1UL << 5)
 
 #endif /* OPROFILE_CPU_BUFFER_H */

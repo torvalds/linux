@@ -1,11 +1,12 @@
 /**
  * @file buffer_sync.c
  *
- * @remark Copyright 2002 OProfile authors
+ * @remark Copyright 2002-2009 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon <levon@movementarian.org>
  * @author Barry Kasindorf
+ * @author Robert Richter <robert.richter@amd.com>
  *
  * This is the core of the buffer management. Each
  * CPU buffer is processed and entered into the
@@ -529,6 +530,7 @@ void sync_buffer(int cpu)
 	sync_buffer_state state = sb_buffer_start;
 	unsigned int i;
 	unsigned long available;
+	unsigned long flags;
 	struct op_entry entry;
 	struct op_sample *sample;
 
@@ -545,38 +547,34 @@ void sync_buffer(int cpu)
 			break;
 
 		if (is_code(sample->eip)) {
-			switch (sample->event) {
-			case 0:
-			case CPU_IS_KERNEL:
-				/* kernel/userspace switch */
-				in_kernel = sample->event;
-				if (state == sb_buffer_start)
-					state = sb_sample_start;
-				add_kernel_ctx_switch(sample->event);
-				break;
-			case CPU_TRACE_BEGIN:
+			flags = sample->event;
+			if (flags & TRACE_BEGIN) {
 				state = sb_bt_start;
 				add_trace_begin();
-				break;
-#ifdef CONFIG_OPROFILE_IBS
-			case IBS_FETCH_BEGIN:
-				add_ibs_begin(cpu, IBS_FETCH_CODE, mm);
-				break;
-			case IBS_OP_BEGIN:
-				add_ibs_begin(cpu, IBS_OP_CODE, mm);
-				break;
-#endif
-			default:
+			}
+			if (flags & KERNEL_CTX_SWITCH) {
+				/* kernel/userspace switch */
+				in_kernel = flags & IS_KERNEL;
+				if (state == sb_buffer_start)
+					state = sb_sample_start;
+				add_kernel_ctx_switch(flags & IS_KERNEL);
+			}
+			if (flags & USER_CTX_SWITCH) {
 				/* userspace context switch */
 				oldmm = mm;
-				new = (struct task_struct *)sample->event;
+				new = (struct task_struct *)sample->data[0];
 				release_mm(oldmm);
 				mm = take_tasks_mm(new);
 				if (mm != oldmm)
 					cookie = get_exec_dcookie(mm);
 				add_user_ctx_switch(new, cookie);
-				break;
 			}
+#ifdef CONFIG_OPROFILE_IBS
+			if (flags & IBS_FETCH_BEGIN)
+				add_ibs_begin(cpu, IBS_FETCH_CODE, mm);
+			if (flags & IBS_OP_BEGIN)
+				add_ibs_begin(cpu, IBS_OP_CODE, mm);
+#endif
 			continue;
 		}
 

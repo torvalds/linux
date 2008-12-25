@@ -2,7 +2,7 @@
  * @file op_model_amd.c
  * athlon / K7 / K8 / Family 10h model-specific MSR operations
  *
- * @remark Copyright 2002-2008 OProfile authors
+ * @remark Copyright 2002-2009 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon
@@ -10,7 +10,7 @@
  * @author Graydon Hoare
  * @author Robert Richter <robert.richter@amd.com>
  * @author Barry Kasindorf
-*/
+ */
 
 #include <linux/oprofile.h>
 #include <linux/device.h>
@@ -62,8 +62,8 @@ static unsigned long reset_value[NUM_COUNTERS];
 
 /* Codes used in cpu_buffer.c */
 /* This produces duplicate code, need to be fixed */
-#define IBS_FETCH_BEGIN 3
-#define IBS_OP_BEGIN    4
+#define IBS_FETCH_BEGIN         (1UL << 4)
+#define IBS_OP_BEGIN            (1UL << 5)
 
 /*
  * The function interface needs to be fixed, something like add
