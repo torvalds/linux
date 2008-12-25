@@ -291,14 +291,12 @@ void lockdep_off(void)
 {
 	current->lockdep_recursion++;
 }
-
 EXPORT_SYMBOL(lockdep_off);
 
 void lockdep_on(void)
 {
 	current->lockdep_recursion--;
 }
-
 EXPORT_SYMBOL(lockdep_on);
 
 /*
@@ -580,7 +578,8 @@ static void print_lock_class_header(struct lock_class *class, int depth)
 /*
  * printk all lock dependencies starting at <entry>:
  */
-static void print_lock_dependencies(struct lock_class *class, int depth)
+static void __used
+print_lock_dependencies(struct lock_class *class, int depth)
 {
 	struct lock_list *entry;
 
@@ -2512,7 +2511,6 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 	if (subclass)
 		register_lock_class(lock, subclass, 1);
 }
-
 EXPORT_SYMBOL_GPL(lockdep_init_map);
 
 /*
@@ -2693,8 +2691,9 @@ static int check_unlock(struct task_struct *curr, struct lockdep_map *lock,
 }
 
 static int
-__lock_set_subclass(struct lockdep_map *lock,
-		    unsigned int subclass, unsigned long ip)
+__lock_set_class(struct lockdep_map *lock, const char *name,
+		 struct lock_class_key *key, unsigned int subclass,
+		 unsigned long ip)
 {
 	struct task_struct *curr = current;
 	struct held_lock *hlock, *prev_hlock;
@@ -2721,6 +2720,7 @@ __lock_set_subclass(struct lockdep_map *lock,
 	return print_unlock_inbalance_bug(curr, lock, ip);
 
 found_it:
+	lockdep_init_map(lock, name, key, 0);
 	class = register_lock_class(lock, subclass, 0);
 	hlock->class_idx = class - lock_classes + 1;
 
@@ -2905,9 +2905,9 @@ static void check_flags(unsigned long flags)
 #endif
 }
 
-void
-lock_set_subclass(struct lockdep_map *lock,
-		  unsigned int subclass, unsigned long ip)
+void lock_set_class(struct lockdep_map *lock, const char *name,
+		    struct lock_class_key *key, unsigned int subclass,
+		    unsigned long ip)
 {
 	unsigned long flags;
 
@@ -2917,13 +2917,12 @@ lock_set_subclass(struct lockdep_map *lock,
 	raw_local_irq_save(flags);
 	current->lockdep_recursion = 1;
 	check_flags(flags);
-	if (__lock_set_subclass(lock, subclass, ip))
+	if (__lock_set_class(lock, name, key, subclass, ip))
 		check_chain_key(current);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
 }
-
-EXPORT_SYMBOL_GPL(lock_set_subclass);
+EXPORT_SYMBOL_GPL(lock_set_class);
 
 /*
  * We are not always called with irqs disabled - do that here,
@@ -2947,7 +2946,6 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
 }
-
 EXPORT_SYMBOL_GPL(lock_acquire);
 
 void lock_release(struct lockdep_map *lock, int nested,
@@ -2965,7 +2963,6 @@ void lock_release(struct lockdep_map *lock, int nested,
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
 }
-
 EXPORT_SYMBOL_GPL(lock_release);
 
 #ifdef CONFIG_LOCK_STAT
@@ -3450,7 +3447,6 @@ retry:
 	if (unlock)
 		read_unlock(&tasklist_lock);
 }
-
 EXPORT_SYMBOL_GPL(debug_show_all_locks);
 
 /*
@@ -3471,7 +3467,6 @@ void debug_show_held_locks(struct task_struct *task)
 {
 		__debug_show_held_locks(task);
 }
-
 EXPORT_SYMBOL_GPL(debug_show_held_locks);
 
 void lockdep_sys_exit(void)
