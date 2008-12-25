@@ -690,8 +690,9 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	int dlen = UBIFS_DATA_NODE_SZ + UBIFS_BLOCK_SIZE * WORST_COMPR_FACTOR;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
-	dbg_jnl("ino %lu, blk %u, len %d, key %s", key_inum(c, key),
-		key_block(c, key), len, DBGKEY(key));
+	dbg_jnl("ino %lu, blk %u, len %d, key %s",
+		(unsigned long)key_inum(c, key), key_block(c, key), len,
+		DBGKEY(key));
 	ubifs_assert(len <= UBIFS_BLOCK_SIZE);
 
 	data = kmalloc(dlen, GFP_NOFS);
@@ -1128,7 +1129,8 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 	ino_t inum = inode->i_ino;
 	unsigned int blk;
 
-	dbg_jnl("ino %lu, size %lld -> %lld", inum, old_size, new_size);
+	dbg_jnl("ino %lu, size %lld -> %lld",
+		(unsigned long)inum, old_size, new_size);
 	ubifs_assert(!ui->data_len);
 	ubifs_assert(S_ISREG(inode->i_mode));
 	ubifs_assert(mutex_is_locked(&ui->ui_mutex));

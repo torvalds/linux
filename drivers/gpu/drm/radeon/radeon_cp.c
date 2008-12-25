@@ -1757,6 +1757,12 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret != 0)
 		return ret;
 
+	ret = drm_vblank_init(dev, 2);
+	if (ret) {
+		radeon_driver_unload(dev);
+		return ret;
+	}
+
 	DRM_DEBUG("%s card detected\n",
 		  ((dev_priv->flags & RADEON_IS_AGP) ? "AGP" : (((dev_priv->flags & RADEON_IS_PCIE) ? "PCIE" : "PCI"))));
 	return ret;

@@ -82,24 +82,27 @@ int irq_can_set_affinity(unsigned int irq)
 int irq_set_affinity(unsigned int irq, cpumask_t cpumask)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long flags;
 
 	if (!desc->chip->set_affinity)
 		return -EINVAL;
 
+	spin_lock_irqsave(&desc->lock, flags);
+
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	if (desc->status & IRQ_MOVE_PCNTXT || desc->status & IRQ_DISABLED) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&desc->lock, flags);
 		desc->affinity = cpumask;
 		desc->chip->set_affinity(irq, cpumask);
-		spin_unlock_irqrestore(&desc->lock, flags);
-	} else
-		set_pending_irq(irq, cpumask);
+	} else {
+		desc->status |= IRQ_MOVE_PENDING;
+		desc->pending_mask = cpumask;
+	}
 #else
 	desc->affinity = cpumask;
 	desc->chip->set_affinity(irq, cpumask);
 #endif
+	desc->status |= IRQ_AFFINITY_SET;
+	spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 
@@ -107,24 +110,59 @@ int irq_set_affinity(unsigned int irq, cpumask_t cpumask)
 /*
  * Generic version of the affinity autoselector.
  */
-int irq_select_affinity(unsigned int irq)
+int do_irq_select_affinity(unsigned int irq, struct irq_desc *desc)
 {
 	cpumask_t mask;
-	struct irq_desc *desc;
 
 	if (!irq_can_set_affinity(irq))
 		return 0;
 
 	cpus_and(mask, cpu_online_map, irq_default_affinity);
 
-	desc = irq_to_desc(irq);
+	/*
+	 * Preserve an userspace affinity setup, but make sure that
+	 * one of the targets is online.
+	 */
+	if (desc->status & (IRQ_AFFINITY_SET | IRQ_NO_BALANCING)) {
+		if (cpus_intersects(desc->affinity, cpu_online_map))
+			mask = desc->affinity;
+		else
+			desc->status &= ~IRQ_AFFINITY_SET;
+	}
+
 	desc->affinity = mask;
 	desc->chip->set_affinity(irq, mask);
 
 	return 0;
 }
+#else
+static inline int do_irq_select_affinity(unsigned int irq, struct irq_desc *d)
+{
+	return irq_select_affinity(irq);
+}
 #endif
 
+/*
+ * Called when affinity is set via /proc/irq
+ */
+int irq_select_affinity_usr(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	ret = do_irq_select_affinity(irq, desc);
+	spin_unlock_irqrestore(&desc->lock, flags);
+
+	return ret;
+}
+
+#else
+static inline int do_irq_select_affinity(int irq, struct irq_desc *desc)
+{
+	return 0;
+}
 #endif
 
 /**
@@ -327,7 +365,7 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		 * IRQF_TRIGGER_* but the PIC does not support multiple
 		 * flow-types?
 		 */
-		pr_warning("No set_type function for IRQ %d (%s)\n", irq,
+		pr_debug("No set_type function for IRQ %d (%s)\n", irq,
 				chip ? (chip->name ? : "unknown") : "unknown");
 		return 0;
 	}
@@ -445,8 +483,12 @@ __setup_irq(unsigned int irq, struct irq_desc * desc, struct irqaction *new)
 			/* Undo nested disables: */
 			desc->depth = 1;
 
+		/* Exclude IRQ from balancing if requested */
+		if (new->flags & IRQF_NOBALANCING)
+			desc->status |= IRQ_NO_BALANCING;
+
 		/* Set default affinity mask once everything is setup */
-		irq_select_affinity(irq);
+		do_irq_select_affinity(irq, desc);
 
 	} else if ((new->flags & IRQF_TRIGGER_MASK)
 			&& (new->flags & IRQF_TRIGGER_MASK)
@@ -458,10 +500,6 @@ __setup_irq(unsigned int irq, struct irq_desc * desc, struct irqaction *new)
 	}
 
 	*p = new;
-
-	/* Exclude IRQ from balancing */
-	if (new->flags & IRQF_NOBALANCING)
-		desc->status |= IRQ_NO_BALANCING;
 
 	/* Reset broken irq detection when installing new handler */
 	desc->irq_count = 0;

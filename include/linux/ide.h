@@ -1296,6 +1296,13 @@ extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *o
 #define ide_pci_register_driver(d) pci_register_driver(d)
 #endif
 
+static inline int ide_pci_is_in_compatibility_mode(struct pci_dev *dev)
+{
+	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE && (dev->class & 5) != 5)
+		return 1;
+	return 0;
+}
+
 void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *, int,
 			 hw_regs_t *, hw_regs_t **);
 void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
@@ -1375,6 +1382,7 @@ enum {
 	IDE_HFLAG_IO_32BIT		= (1 << 24),
 	/* unmask IRQs */
 	IDE_HFLAG_UNMASK_IRQS		= (1 << 25),
+	IDE_HFLAG_BROKEN_ALTSTATUS	= (1 << 26),
 	/* serialize ports if DMA is possible (for sl82c105) */
 	IDE_HFLAG_SERIALIZE_DMA		= (1 << 27),
 	/* force host out of "simplex" mode */

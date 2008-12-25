@@ -305,6 +305,8 @@ static void drm_cleanup(struct drm_device * dev)
 		return;
 	}
 
+	drm_vblank_cleanup(dev);
+
 	drm_lastclose(dev);
 
 	if (drm_core_has_MTRR(dev) && drm_core_has_AGP(dev) &&

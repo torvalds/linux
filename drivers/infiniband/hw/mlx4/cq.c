@@ -343,6 +343,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibcq->device);
 	struct mlx4_ib_cq *cq = to_mcq(ibcq);
+	struct mlx4_mtt mtt;
 	int outst_cqe;
 	int err;
 
@@ -376,10 +377,13 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 			goto out;
 	}
 
+	mtt = cq->buf.mtt;
+
 	err = mlx4_cq_resize(dev->dev, &cq->mcq, entries, &cq->resize_buf->buf.mtt);
 	if (err)
 		goto err_buf;
 
+	mlx4_mtt_cleanup(dev->dev, &mtt);
 	if (ibcq->uobject) {
 		cq->buf      = cq->resize_buf->buf;
 		cq->ibcq.cqe = cq->resize_buf->cqe;
@@ -406,6 +410,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	goto out;
 
 err_buf:
+	mlx4_mtt_cleanup(dev->dev, &cq->resize_buf->buf.mtt);
 	if (!ibcq->uobject)
 		mlx4_ib_free_cq_buf(dev, &cq->resize_buf->buf,
 				    cq->resize_buf->cqe);

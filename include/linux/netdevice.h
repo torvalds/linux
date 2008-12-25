@@ -319,6 +319,7 @@ enum
 {
 	NAPI_STATE_SCHED,	/* Poll is scheduled */
 	NAPI_STATE_DISABLE,	/* Disable pending */
+	NAPI_STATE_NPSVC,	/* Netpoll - don't dequeue from poll_list */
 };
 
 extern void __napi_schedule(struct napi_struct *n);
@@ -1497,6 +1498,12 @@ static inline void netif_rx_complete(struct net_device *dev,
 {
 	unsigned long flags;
 
+	/*
+	 * don't let napi dequeue from the cpu poll list
+	 * just in case its running on a different cpu
+	 */
+	if (unlikely(test_bit(NAPI_STATE_NPSVC, &napi->state)))
+		return;
 	local_irq_save(flags);
 	__netif_rx_complete(dev, napi);
 	local_irq_restore(flags);

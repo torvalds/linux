@@ -668,7 +668,7 @@ static struct xenbus_device_id xenfb_ids[] = {
 	{ "" }
 };
 
-static struct xenbus_driver xenfb = {
+static struct xenbus_driver xenfb_driver = {
 	.name = "vfb",
 	.owner = THIS_MODULE,
 	.ids = xenfb_ids,
@@ -687,12 +687,12 @@ static int __init xenfb_init(void)
 	if (xen_initial_domain())
 		return -ENODEV;
 
-	return xenbus_register_frontend(&xenfb);
+	return xenbus_register_frontend(&xenfb_driver);
 }
 
 static void __exit xenfb_cleanup(void)
 {
-	xenbus_unregister_driver(&xenfb);
+	xenbus_unregister_driver(&xenfb_driver);
 }
 
 module_init(xenfb_init);

@@ -651,6 +651,8 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 				fs_in_desc.bEndpointAddress;
 		hs_out_desc.bEndpointAddress =
 				fs_out_desc.bEndpointAddress;
+		hs_notify_desc.bEndpointAddress =
+				fs_notify_desc.bEndpointAddress;
 
 		/* copy descriptors, and track endpoint copies */
 		f->hs_descriptors = usb_copy_descriptors(eth_hs_function);
@@ -662,6 +664,8 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 				f->hs_descriptors, &hs_in_desc);
 		rndis->hs.out = usb_find_endpoint(eth_hs_function,
 				f->hs_descriptors, &hs_out_desc);
+		rndis->hs.notify = usb_find_endpoint(eth_hs_function,
+				f->hs_descriptors, &hs_notify_desc);
 	}
 
 	rndis->port.open = rndis_open;

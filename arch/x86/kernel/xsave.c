@@ -310,7 +310,7 @@ static void __init setup_xstate_init(void)
 /*
  * Enable and initialize the xsave feature.
  */
-void __init xsave_cntxt_init(void)
+void __ref xsave_cntxt_init(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 

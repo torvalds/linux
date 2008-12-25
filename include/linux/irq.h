@@ -63,7 +63,8 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_MOVE_PENDING	0x00200000	/* need to re-target IRQ destination */
 #define IRQ_NO_BALANCING	0x00400000	/* IRQ is excluded from balancing */
 #define IRQ_SPURIOUS_DISABLED	0x00800000	/* IRQ was disabled by the spurious trap */
-#define IRQ_MOVE_PCNTXT	0x01000000	/* IRQ migration from process context */
+#define IRQ_MOVE_PCNTXT		0x01000000	/* IRQ migration from process context */
+#define IRQ_AFFINITY_SET	0x02000000	/* IRQ affinity was set from userspace*/
 
 #ifdef CONFIG_IRQ_PER_CPU
 # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
@@ -130,7 +131,7 @@ struct irq_chip {
 
 /**
  * struct irq_desc - interrupt descriptor
- *
+ * @irq:		interrupt number for this descriptor
  * @handle_irq:		highlevel irq-events handler [if NULL, __do_IRQ()]
  * @chip:		low level interrupt hardware access
  * @msi_desc:		MSI descriptor
@@ -149,7 +150,6 @@ struct irq_chip {
  * @cpu:		cpu index useful for balancing
  * @pending_mask:	pending rebalanced interrupts
  * @dir:		/proc/irq/ procfs entry
- * @affinity_entry:	/proc/irq/smp_affinity procfs entry on SMP
  * @name:		flow handler name for /proc/interrupts output
  */
 struct irq_desc {
@@ -210,7 +210,6 @@ extern int setup_irq(unsigned int irq, struct irqaction *new);
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 
-void set_pending_irq(unsigned int irq, cpumask_t mask);
 void move_native_irq(int irq);
 void move_masked_irq(int irq);
 
@@ -225,10 +224,6 @@ static inline void move_native_irq(int irq)
 }
 
 static inline void move_masked_irq(int irq)
-{
-}
-
-static inline void set_pending_irq(unsigned int irq, cpumask_t mask)
 {
 }
 

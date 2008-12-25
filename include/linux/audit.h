@@ -391,6 +391,7 @@ extern int audit_classify_arch(int arch);
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
 				/* Public API */
+extern void audit_finish_fork(struct task_struct *child);
 extern int  audit_alloc(struct task_struct *task);
 extern void audit_free(struct task_struct *task);
 extern void audit_syscall_entry(int arch,
@@ -434,7 +435,7 @@ static inline void audit_ptrace(struct task_struct *t)
 
 				/* Private API (for audit.c only) */
 extern unsigned int audit_serial(void);
-extern void auditsc_get_stamp(struct audit_context *ctx,
+extern int auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec *t, unsigned int *serial);
 extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 #define audit_get_loginuid(t) ((t)->loginuid)
@@ -504,6 +505,7 @@ static inline int audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 extern int audit_n_rules;
 extern int audit_signals;
 #else
+#define audit_finish_fork(t)
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
 #define audit_syscall_entry(ta,a,b,c,d,e) do { ; } while (0)
@@ -516,7 +518,7 @@ extern int audit_signals;
 #define audit_inode(n,d) do { ; } while (0)
 #define audit_inode_child(d,i,p) do { ; } while (0)
 #define audit_core_dumps(i) do { ; } while (0)
-#define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
+#define auditsc_get_stamp(c,t,s) (0)
 #define audit_get_loginuid(t) (-1)
 #define audit_get_sessionid(t) (-1)
 #define audit_log_task_context(b) do { ; } while (0)

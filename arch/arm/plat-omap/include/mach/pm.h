@@ -128,7 +128,7 @@ void clk_deny_idle(struct clk *clk);
  * clk_allow_idle - Counters previous clk_deny_idle
  * @clk: clock signal handle
  */
-void clk_deny_idle(struct clk *clk);
+void clk_allow_idle(struct clk *clk);
 
 extern void omap_pm_idle(void);
 extern void omap_pm_suspend(void);

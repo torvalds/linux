@@ -2042,7 +2042,7 @@ static int __devinit pci_init(void)
 	return 0;
 }
 
-static int __devinit pci_setup(char *str)
+static int __init pci_setup(char *str)
 {
 	while (str) {
 		char *k = strchr(str, ',');

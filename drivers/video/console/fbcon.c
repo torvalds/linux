@@ -2389,16 +2389,13 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 
  	if (!fbcon_is_inactive(vc, info)) {
 		if (ops->blank_state != blank) {
-			int ret = 1;
-
 			ops->blank_state = blank;
 			fbcon_cursor(vc, blank ? CM_ERASE : CM_DRAW);
 			ops->cursor_flash = (!blank);
 
-			if (info->fbops->fb_blank)
-				ret = info->fbops->fb_blank(blank, info);
-			if (ret)
-				fbcon_generic_blank(vc, info, blank);
+			if (!(info->flags & FBINFO_MISC_USEREVENT))
+				if (fb_blank(info, blank))
+					fbcon_generic_blank(vc, info, blank);
 		}
 
 		if (!blank)
@@ -3534,11 +3531,17 @@ static void fbcon_exit(void)
 	softback_buf = 0UL;
 
 	for (i = 0; i < FB_MAX; i++) {
+		int pending;
+
 		mapped = 0;
 		info = registered_fb[i];
 
 		if (info == NULL)
 			continue;
+
+		pending = cancel_work_sync(&info->queue);
+		DPRINTK("fbcon: %s pending work\n", (pending ? "canceled" :
+			"no"));
 
 		for (j = first_fb_vc; j <= last_fb_vc; j++) {
 			if (con2fb_map[j] == i)

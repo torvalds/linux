@@ -311,7 +311,7 @@ static int cpu_clock_sample_group(const clockid_t which_clock,
 	struct task_cputime cputime;
 
 	thread_group_cputime(p, &cputime);
-	switch (which_clock) {
+	switch (CPUCLOCK_WHICH(which_clock)) {
 	default:
 		return -EINVAL;
 	case CPUCLOCK_PROF:

@@ -115,7 +115,7 @@ int phonet_address_del(struct net_device *dev, u8 addr)
 	pnd = __phonet_get(dev);
 	if (!pnd || !test_and_clear_bit(addr >> 2, pnd->addrs))
 		err = -EADDRNOTAVAIL;
-	if (bitmap_empty(pnd->addrs, 64))
+	else if (bitmap_empty(pnd->addrs, 64))
 		__phonet_device_free(pnd);
 	spin_unlock_bh(&pndevs.lock);
 	return err;

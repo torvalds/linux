@@ -974,6 +974,7 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 			packet->ack = RCODE_SEND_ERROR;
 			return -1;
 		}
+		packet->payload_bus = payload_bus;
 
 		d[2].req_count    = cpu_to_le16(packet->payload_length);
 		d[2].data_address = cpu_to_le32(payload_bus);
@@ -1025,7 +1026,6 @@ static int handle_at_packet(struct context *context,
 	struct driver_data *driver_data;
 	struct fw_packet *packet;
 	struct fw_ohci *ohci = context->ohci;
-	dma_addr_t payload_bus;
 	int evt;
 
 	if (last->transfer_status == 0)
@@ -1038,9 +1038,8 @@ static int handle_at_packet(struct context *context,
 		/* This packet was cancelled, just continue. */
 		return 1;
 
-	payload_bus = le32_to_cpu(last->data_address);
-	if (payload_bus != 0)
-		dma_unmap_single(ohci->card.device, payload_bus,
+	if (packet->payload_bus)
+		dma_unmap_single(ohci->card.device, packet->payload_bus,
 				 packet->payload_length, DMA_TO_DEVICE);
 
 	evt = le16_to_cpu(last->transfer_status) & 0x1f;
@@ -1696,6 +1695,10 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 
 	if (packet->ack != 0)
 		goto out;
+
+	if (packet->payload_bus)
+		dma_unmap_single(ohci->card.device, packet->payload_bus,
+				 packet->payload_length, DMA_TO_DEVICE);
 
 	log_ar_at_event('T', packet->speed, packet->header, 0x20);
 	driver_data->packet = NULL;

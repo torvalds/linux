@@ -62,7 +62,7 @@ static ssize_t irq_affinity_proc_write(struct file *file,
 	if (!cpus_intersects(new_value, cpu_online_map))
 		/* Special case for empty set - allow the architecture
 		   code to set default SMP affinity. */
-		return irq_select_affinity(irq) ? -EINVAL : count;
+		return irq_select_affinity_usr(irq) ? -EINVAL : count;
 
 	irq_set_affinity(irq, new_value);
 

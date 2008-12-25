@@ -7336,10 +7336,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
+/* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (!gspca_dev->present)
+		return;
 	send_unknown(gspca_dev->dev, sd->sensor);
 }
 

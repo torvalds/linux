@@ -56,6 +56,9 @@ static unsigned long palmtx_pin_config[] __initdata = {
 	GPIO110_MMC_DAT_2,
 	GPIO111_MMC_DAT_3,
 	GPIO112_MMC_CMD,
+	GPIO14_GPIO,	/* SD detect */
+	GPIO114_GPIO,	/* SD power */
+	GPIO115_GPIO,	/* SD r/o switch */
 
 	/* AC97 */
 	GPIO28_AC97_BITCLK,
@@ -64,6 +67,7 @@ static unsigned long palmtx_pin_config[] __initdata = {
 	GPIO31_AC97_SYNC,
 
 	/* IrDA */
+	GPIO40_GPIO,	/* ir disable */
 	GPIO46_FICP_RXD,
 	GPIO47_FICP_TXD,
 
@@ -71,7 +75,8 @@ static unsigned long palmtx_pin_config[] __initdata = {
 	GPIO16_PWM0_OUT,
 
 	/* USB */
-	GPIO13_GPIO,
+	GPIO13_GPIO,	/* usb detect */
+	GPIO95_GPIO,	/* usb power */
 
 	/* PCMCIA */
 	GPIO48_nPOE,
@@ -84,6 +89,45 @@ static unsigned long palmtx_pin_config[] __initdata = {
 	GPIO55_nPREG,
 	GPIO56_nPWAIT,
 	GPIO57_nIOIS16,
+	GPIO94_GPIO,	/* wifi power 1 */
+	GPIO108_GPIO,	/* wifi power 2 */
+	GPIO116_GPIO,	/* wifi ready */
+
+	/* MATRIX KEYPAD */
+	GPIO100_KP_MKIN_0,
+	GPIO101_KP_MKIN_1,
+	GPIO102_KP_MKIN_2,
+	GPIO97_KP_MKIN_3,
+	GPIO103_KP_MKOUT_0,
+	GPIO104_KP_MKOUT_1,
+	GPIO105_KP_MKOUT_2,
+
+	/* LCD */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
+	GPIO77_LCD_BIAS,
+
+	/* MISC. */
+	GPIO10_GPIO,	/* hotsync button */
+	GPIO12_GPIO,	/* power detect */
+	GPIO107_GPIO,	/* earphone detect */
 };
 
 /******************************************************************************
@@ -95,32 +139,49 @@ static int palmtx_mci_init(struct device *dev, irq_handler_t palmtx_detect_int,
 	int err = 0;
 
 	/* Setup an interrupt for detecting card insert/remove events */
-	err = request_irq(IRQ_GPIO_PALMTX_SD_DETECT_N, palmtx_detect_int,
-			IRQF_DISABLED | IRQF_SAMPLE_RANDOM |
+	err = gpio_request(GPIO_NR_PALMTX_SD_DETECT_N, "SD IRQ");
+	if (err)
+		goto err;
+	err = gpio_direction_input(GPIO_NR_PALMTX_SD_DETECT_N);
+	if (err)
+		goto err2;
+	err = request_irq(gpio_to_irq(GPIO_NR_PALMTX_SD_DETECT_N),
+			palmtx_detect_int, IRQF_DISABLED | IRQF_SAMPLE_RANDOM |
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			"SD/MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "%s: cannot request SD/MMC card detect IRQ\n",
 				__func__);
-		return err;
+		goto err2;
 	}
 
 	err = gpio_request(GPIO_NR_PALMTX_SD_POWER, "SD_POWER");
 	if (err)
-		goto pwr_err;
+		goto err3;
+	err = gpio_direction_output(GPIO_NR_PALMTX_SD_POWER, 0);
+	if (err)
+		goto err4;
 
 	err = gpio_request(GPIO_NR_PALMTX_SD_READONLY, "SD_READONLY");
 	if (err)
-		goto ro_err;
+		goto err4;
+	err = gpio_direction_input(GPIO_NR_PALMTX_SD_READONLY);
+	if (err)
+		goto err5;
 
 	printk(KERN_DEBUG "%s: irq registered\n", __func__);
 
 	return 0;
 
-ro_err:
+err5:
+	gpio_free(GPIO_NR_PALMTX_SD_READONLY);
+err4:
 	gpio_free(GPIO_NR_PALMTX_SD_POWER);
-pwr_err:
-	free_irq(IRQ_GPIO_PALMTX_SD_DETECT_N, data);
+err3:
+	free_irq(gpio_to_irq(GPIO_NR_PALMTX_SD_DETECT_N), data);
+err2:
+	gpio_free(GPIO_NR_PALMTX_SD_DETECT_N);
+err:
 	return err;
 }
 
@@ -128,7 +189,8 @@ static void palmtx_mci_exit(struct device *dev, void *data)
 {
 	gpio_free(GPIO_NR_PALMTX_SD_READONLY);
 	gpio_free(GPIO_NR_PALMTX_SD_POWER);
-	free_irq(IRQ_GPIO_PALMTX_SD_DETECT_N, data);
+	free_irq(gpio_to_irq(GPIO_NR_PALMTX_SD_DETECT_N), data);
+	gpio_free(GPIO_NR_PALMTX_SD_DETECT_N);
 }
 
 static void palmtx_mci_power(struct device *dev, unsigned int vdd)
@@ -167,7 +229,6 @@ static unsigned int palmtx_matrix_keys[] = {
 
 	KEY(3, 0, KEY_RIGHT),
 	KEY(3, 2, KEY_LEFT),
-
 };
 
 static struct pxa27x_keypad_platform_data palmtx_keypad_platform_data = {
@@ -209,11 +270,19 @@ static int palmtx_backlight_init(struct device *dev)
 	ret = gpio_request(GPIO_NR_PALMTX_BL_POWER, "BL POWER");
 	if (ret)
 		goto err;
+	ret = gpio_direction_output(GPIO_NR_PALMTX_BL_POWER, 0);
+	if (ret)
+		goto err2;
 	ret = gpio_request(GPIO_NR_PALMTX_LCD_POWER, "LCD POWER");
 	if (ret)
 		goto err2;
+	ret = gpio_direction_output(GPIO_NR_PALMTX_LCD_POWER, 0);
+	if (ret)
+		goto err3;
 
 	return 0;
+err3:
+	gpio_free(GPIO_NR_PALMTX_LCD_POWER);
 err2:
 	gpio_free(GPIO_NR_PALMTX_BL_POWER);
 err:
@@ -254,6 +323,24 @@ static struct platform_device palmtx_backlight = {
 /******************************************************************************
  * IrDA
  ******************************************************************************/
+static int palmtx_irda_startup(struct device *dev)
+{
+	int err;
+	err = gpio_request(GPIO_NR_PALMTX_IR_DISABLE, "IR DISABLE");
+	if (err)
+		goto err;
+	err = gpio_direction_output(GPIO_NR_PALMTX_IR_DISABLE, 1);
+	if (err)
+		gpio_free(GPIO_NR_PALMTX_IR_DISABLE);
+err:
+	return err;
+}
+
+static void palmtx_irda_shutdown(struct device *dev)
+{
+	gpio_free(GPIO_NR_PALMTX_IR_DISABLE);
+}
+
 static void palmtx_irda_transceiver_mode(struct device *dev, int mode)
 {
 	gpio_set_value(GPIO_NR_PALMTX_IR_DISABLE, mode & IR_OFF);
@@ -261,6 +348,8 @@ static void palmtx_irda_transceiver_mode(struct device *dev, int mode)
 }
 
 static struct pxaficp_platform_data palmtx_ficp_platform_data = {
+	.startup		= palmtx_irda_startup,
+	.shutdown		= palmtx_irda_shutdown,
 	.transceiver_cap	= IR_SIRMODE | IR_FIRMODE | IR_OFF,
 	.transceiver_mode	= palmtx_irda_transceiver_mode,
 };
@@ -268,17 +357,11 @@ static struct pxaficp_platform_data palmtx_ficp_platform_data = {
 /******************************************************************************
  * UDC
  ******************************************************************************/
-static void palmtx_udc_command(int cmd)
-{
-	gpio_set_value(GPIO_NR_PALMTX_USB_POWER, !cmd);
-	udelay(50);
-	gpio_set_value(GPIO_NR_PALMTX_USB_PULLUP, !cmd);
-}
-
 static struct pxa2xx_udc_mach_info palmtx_udc_info __initdata = {
 	.gpio_vbus		= GPIO_NR_PALMTX_USB_DETECT_N,
 	.gpio_vbus_inverted	= 1,
-	.udc_command		= palmtx_udc_command,
+	.gpio_pullup		= GPIO_NR_PALMTX_USB_POWER,
+	.gpio_pullup_inverted	= 0,
 };
 
 /******************************************************************************
@@ -290,17 +373,16 @@ static int power_supply_init(struct device *dev)
 
 	ret = gpio_request(GPIO_NR_PALMTX_POWER_DETECT, "CABLE_STATE_AC");
 	if (ret)
-		goto err_cs_ac;
-
-	ret = gpio_request(GPIO_NR_PALMTX_USB_DETECT_N, "CABLE_STATE_USB");
+		goto err1;
+	ret = gpio_direction_input(GPIO_NR_PALMTX_POWER_DETECT);
 	if (ret)
-		goto err_cs_usb;
+		goto err2;
 
 	return 0;
 
-err_cs_usb:
+err2:
 	gpio_free(GPIO_NR_PALMTX_POWER_DETECT);
-err_cs_ac:
+err1:
 	return ret;
 }
 
@@ -309,14 +391,8 @@ static int palmtx_is_ac_online(void)
 	return gpio_get_value(GPIO_NR_PALMTX_POWER_DETECT);
 }
 
-static int palmtx_is_usb_online(void)
-{
-	return !gpio_get_value(GPIO_NR_PALMTX_USB_DETECT_N);
-}
-
 static void power_supply_exit(struct device *dev)
 {
-	gpio_free(GPIO_NR_PALMTX_USB_DETECT_N);
 	gpio_free(GPIO_NR_PALMTX_POWER_DETECT);
 }
 
@@ -327,7 +403,6 @@ static char *palmtx_supplicants[] = {
 static struct pda_power_pdata power_supply_info = {
 	.init            = power_supply_init,
 	.is_ac_online    = palmtx_is_ac_online,
-	.is_usb_online   = palmtx_is_usb_online,
 	.exit            = power_supply_exit,
 	.supplied_to     = palmtx_supplicants,
 	.num_supplicants = ARRAY_SIZE(palmtx_supplicants),
@@ -410,12 +485,23 @@ static void __init palmtx_map_io(void)
 	iotable_init(palmtx_io_desc, ARRAY_SIZE(palmtx_io_desc));
 }
 
+/* setup udc GPIOs initial state */
+static void __init palmtx_udc_init(void)
+{
+	if (!gpio_request(GPIO_NR_PALMTX_USB_POWER, "UDC Vbus")) {
+		gpio_direction_output(GPIO_NR_PALMTX_USB_POWER, 1);
+		gpio_free(GPIO_NR_PALMTX_USB_POWER);
+	}
+}
+
+
 static void __init palmtx_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmtx_pin_config));
 
 	set_pxa_fb_info(&palmtx_lcd_screen);
 	pxa_set_mci_info(&palmtx_mci_platform_data);
+	palmtx_udc_init();
 	pxa_set_udc_info(&palmtx_udc_info);
 	pxa_set_ac97_info(NULL);
 	pxa_set_ficp_info(&palmtx_ficp_platform_data);

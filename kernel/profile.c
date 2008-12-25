@@ -351,7 +351,7 @@ out:
 	put_cpu();
 }
 
-static int __devinit profile_cpu_callback(struct notifier_block *info,
+static int __cpuinit profile_cpu_callback(struct notifier_block *info,
 					unsigned long action, void *__cpu)
 {
 	int node, cpu = (unsigned long)__cpu;
@@ -596,7 +596,7 @@ out_cleanup:
 #define create_hash_tables()			({ 0; })
 #endif
 
-int create_proc_profile(void)
+int __ref create_proc_profile(void) /* false positive from hotcpu_notifier */
 {
 	struct proc_dir_entry *entry;
 

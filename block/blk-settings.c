@@ -125,6 +125,9 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 	q->nr_requests = BLKDEV_MAX_RQ;
 	blk_queue_max_phys_segments(q, MAX_PHYS_SEGMENTS);
 	blk_queue_max_hw_segments(q, MAX_HW_SEGMENTS);
+	blk_queue_segment_boundary(q, BLK_SEG_BOUNDARY_MASK);
+	blk_queue_max_segment_size(q, MAX_SEGMENT_SIZE);
+
 	q->make_request_fn = mfn;
 	q->backing_dev_info.ra_pages =
 			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
@@ -314,6 +317,7 @@ void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 	/* zero is "infinity" */
 	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
 	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
+	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask, b->seg_boundary_mask);
 
 	t->max_phys_segments = min(t->max_phys_segments, b->max_phys_segments);
 	t->max_hw_segments = min(t->max_hw_segments, b->max_hw_segments);

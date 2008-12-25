@@ -1396,7 +1396,8 @@ int ubi_thread(void *u)
 				ubi_msg("%s: %d consecutive failures",
 					ubi->bgt_name, WL_MAX_FAILURES);
 				ubi_ro_mode(ubi);
-				break;
+				ubi->thread_enabled = 0;
+				continue;
 			}
 		} else
 			failures = 0;

@@ -62,7 +62,7 @@ static int em28xx_isoc_audio_deinit(struct em28xx *dev)
 
 	dprintk("Stopping isoc\n");
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
-		usb_kill_urb(dev->adev->urb[i]);
+		usb_unlink_urb(dev->adev->urb[i]);
 		usb_free_urb(dev->adev->urb[i]);
 		dev->adev->urb[i] = NULL;
 	}
@@ -75,7 +75,6 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	struct em28xx            *dev = urb->context;
 	int                      i;
 	unsigned int             oldptr;
-	unsigned long            flags;
 	int                      period_elapsed = 0;
 	int                      status;
 	unsigned char            *cp;
@@ -96,9 +95,21 @@ static void em28xx_audio_isocirq(struct urb *urb)
 			if (!length)
 				continue;
 
-			spin_lock_irqsave(&dev->adev->slock, flags);
-
 			oldptr = dev->adev->hwptr_done_capture;
+			if (oldptr + length >= runtime->buffer_size) {
+				unsigned int cnt =
+				    runtime->buffer_size - oldptr;
+				memcpy(runtime->dma_area + oldptr * stride, cp,
+				       cnt * stride);
+				memcpy(runtime->dma_area, cp + cnt * stride,
+				       length * stride - cnt * stride);
+			} else {
+				memcpy(runtime->dma_area + oldptr * stride, cp,
+				       length * stride);
+			}
+
+			snd_pcm_stream_lock(substream);
+
 			dev->adev->hwptr_done_capture += length;
 			if (dev->adev->hwptr_done_capture >=
 			    runtime->buffer_size)
@@ -113,19 +124,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 				period_elapsed = 1;
 			}
 
-			spin_unlock_irqrestore(&dev->adev->slock, flags);
-
-			if (oldptr + length >= runtime->buffer_size) {
-				unsigned int cnt =
-				    runtime->buffer_size - oldptr;
-				memcpy(runtime->dma_area + oldptr * stride, cp,
-				       cnt * stride);
-				memcpy(runtime->dma_area, cp + cnt * stride,
-				       length * stride - cnt * stride);
-			} else {
-				memcpy(runtime->dma_area + oldptr * stride, cp,
-				       length * stride);
-			}
+			snd_pcm_stream_unlock(substream);
 		}
 		if (period_elapsed)
 			snd_pcm_period_elapsed(substream);

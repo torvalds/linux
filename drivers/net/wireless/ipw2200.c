@@ -3897,6 +3897,7 @@ static int ipw_disassociate(void *data)
 	if (!(priv->status & (STATUS_ASSOCIATED | STATUS_ASSOCIATING)))
 		return 0;
 	ipw_send_disassociate(data, 0);
+	netif_carrier_off(priv->net_dev);
 	return 1;
 }
 
@@ -10189,6 +10190,9 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 	u8 id, hdr_len, unicast;
 	u16 remaining_bytes;
 	int fc;
+
+	if (!(priv->status & STATUS_ASSOCIATED))
+		goto drop;
 
 	hdr_len = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
 	switch (priv->ieee->iw_mode) {

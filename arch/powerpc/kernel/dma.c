@@ -75,6 +75,7 @@ static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
 	for_each_sg(sgl, sg, nents, i) {
 		sg->dma_address = sg_phys(sg) + get_dma_direct_offset(dev);
 		sg->dma_length = sg->length;
+		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
 	}
 
 	return nents;

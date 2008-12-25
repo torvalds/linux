@@ -331,6 +331,7 @@ static int FNAME(shadow_walk_entry)(struct kvm_shadow_walk *_sw,
 		r = kvm_read_guest_atomic(vcpu->kvm, gw->pte_gpa[level - 2],
 					  &curr_pte, sizeof(curr_pte));
 		if (r || curr_pte != gw->ptes[level - 2]) {
+			kvm_mmu_put_page(shadow_page, sptep);
 			kvm_release_pfn_clean(sw->pfn);
 			sw->sptep = NULL;
 			return 1;

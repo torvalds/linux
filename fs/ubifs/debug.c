@@ -101,21 +101,24 @@ static void sprintf_key(const struct ubifs_info *c, const union ubifs_key *key,
 	if (c->key_fmt == UBIFS_SIMPLE_KEY_FMT) {
 		switch (type) {
 		case UBIFS_INO_KEY:
-			sprintf(p, "(%lu, %s)", key_inum(c, key),
+			sprintf(p, "(%lu, %s)", (unsigned long)key_inum(c, key),
 			       get_key_type(type));
 			break;
 		case UBIFS_DENT_KEY:
 		case UBIFS_XENT_KEY:
-			sprintf(p, "(%lu, %s, %#08x)", key_inum(c, key),
+			sprintf(p, "(%lu, %s, %#08x)",
+				(unsigned long)key_inum(c, key),
 				get_key_type(type), key_hash(c, key));
 			break;
 		case UBIFS_DATA_KEY:
-			sprintf(p, "(%lu, %s, %u)", key_inum(c, key),
+			sprintf(p, "(%lu, %s, %u)",
+				(unsigned long)key_inum(c, key),
 				get_key_type(type), key_block(c, key));
 			break;
 		case UBIFS_TRUN_KEY:
 			sprintf(p, "(%lu, %s)",
-				key_inum(c, key), get_key_type(type));
+				(unsigned long)key_inum(c, key),
+				get_key_type(type));
 			break;
 		default:
 			sprintf(p, "(bad key type: %#08x, %#08x)",
@@ -364,8 +367,8 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 		       le32_to_cpu(mst->ihead_lnum));
 		printk(KERN_DEBUG "\tihead_offs     %u\n",
 		       le32_to_cpu(mst->ihead_offs));
-		printk(KERN_DEBUG "\tindex_size     %u\n",
-		       le32_to_cpu(mst->index_size));
+		printk(KERN_DEBUG "\tindex_size     %llu\n",
+		       (unsigned long long)le64_to_cpu(mst->index_size));
 		printk(KERN_DEBUG "\tlpt_lnum       %u\n",
 		       le32_to_cpu(mst->lpt_lnum));
 		printk(KERN_DEBUG "\tlpt_offs       %u\n",
@@ -1589,7 +1592,7 @@ static struct fsck_inode *add_inode(struct ubifs_info *c,
 
 	if (inum > c->highest_inum) {
 		ubifs_err("too high inode number, max. is %lu",
-			  c->highest_inum);
+			  (unsigned long)c->highest_inum);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1668,16 +1671,18 @@ static struct fsck_inode *read_add_inode(struct ubifs_info *c,
 	ino_key_init(c, &key, inum);
 	err = ubifs_lookup_level0(c, &key, &znode, &n);
 	if (!err) {
-		ubifs_err("inode %lu not found in index", inum);
+		ubifs_err("inode %lu not found in index", (unsigned long)inum);
 		return ERR_PTR(-ENOENT);
 	} else if (err < 0) {
-		ubifs_err("error %d while looking up inode %lu", err, inum);
+		ubifs_err("error %d while looking up inode %lu",
+			  err, (unsigned long)inum);
 		return ERR_PTR(err);
 	}
 
 	zbr = &znode->zbranch[n];
 	if (zbr->len < UBIFS_INO_NODE_SZ) {
-		ubifs_err("bad node %lu node length %d", inum, zbr->len);
+		ubifs_err("bad node %lu node length %d",
+			  (unsigned long)inum, zbr->len);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1697,7 +1702,7 @@ static struct fsck_inode *read_add_inode(struct ubifs_info *c,
 	kfree(ino);
 	if (IS_ERR(fscki)) {
 		ubifs_err("error %ld while adding inode %lu node",
-			  PTR_ERR(fscki), inum);
+			  PTR_ERR(fscki), (unsigned long)inum);
 		return fscki;
 	}
 
@@ -1786,7 +1791,8 @@ static int check_leaf(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 		if (IS_ERR(fscki)) {
 			err = PTR_ERR(fscki);
 			ubifs_err("error %d while processing data node and "
-				  "trying to find inode node %lu", err, inum);
+				  "trying to find inode node %lu",
+				  err, (unsigned long)inum);
 			goto out_dump;
 		}
 
@@ -1819,7 +1825,8 @@ static int check_leaf(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 		if (IS_ERR(fscki)) {
 			err = PTR_ERR(fscki);
 			ubifs_err("error %d while processing entry node and "
-				  "trying to find inode node %lu", err, inum);
+				  "trying to find inode node %lu",
+				  err, (unsigned long)inum);
 			goto out_dump;
 		}
 
@@ -1832,7 +1839,7 @@ static int check_leaf(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 			err = PTR_ERR(fscki);
 			ubifs_err("error %d while processing entry node and "
 				  "trying to find parent inode node %lu",
-				  err, inum);
+				  err, (unsigned long)inum);
 			goto out_dump;
 		}
 
@@ -1923,7 +1930,8 @@ static int check_inodes(struct ubifs_info *c, struct fsck_data *fsckd)
 			    fscki->references != 1) {
 				ubifs_err("directory inode %lu has %d "
 					  "direntries which refer it, but "
-					  "should be 1", fscki->inum,
+					  "should be 1",
+					  (unsigned long)fscki->inum,
 					  fscki->references);
 				goto out_dump;
 			}
@@ -1931,27 +1939,29 @@ static int check_inodes(struct ubifs_info *c, struct fsck_data *fsckd)
 			    fscki->references != 0) {
 				ubifs_err("root inode %lu has non-zero (%d) "
 					  "direntries which refer it",
-					  fscki->inum, fscki->references);
+					  (unsigned long)fscki->inum,
+					  fscki->references);
 				goto out_dump;
 			}
 			if (fscki->calc_sz != fscki->size) {
 				ubifs_err("directory inode %lu size is %lld, "
 					  "but calculated size is %lld",
-					  fscki->inum, fscki->size,
-					  fscki->calc_sz);
+					  (unsigned long)fscki->inum,
+					  fscki->size, fscki->calc_sz);
 				goto out_dump;
 			}
 			if (fscki->calc_cnt != fscki->nlink) {
 				ubifs_err("directory inode %lu nlink is %d, "
 					  "but calculated nlink is %d",
-					  fscki->inum, fscki->nlink,
-					  fscki->calc_cnt);
+					  (unsigned long)fscki->inum,
+					  fscki->nlink, fscki->calc_cnt);
 				goto out_dump;
 			}
 		} else {
 			if (fscki->references != fscki->nlink) {
 				ubifs_err("inode %lu nlink is %d, but "
-					  "calculated nlink is %d", fscki->inum,
+					  "calculated nlink is %d",
+					  (unsigned long)fscki->inum,
 					  fscki->nlink, fscki->references);
 				goto out_dump;
 			}
@@ -1959,20 +1969,21 @@ static int check_inodes(struct ubifs_info *c, struct fsck_data *fsckd)
 		if (fscki->xattr_sz != fscki->calc_xsz) {
 			ubifs_err("inode %lu has xattr size %u, but "
 				  "calculated size is %lld",
-				  fscki->inum, fscki->xattr_sz,
+				  (unsigned long)fscki->inum, fscki->xattr_sz,
 				  fscki->calc_xsz);
 			goto out_dump;
 		}
 		if (fscki->xattr_cnt != fscki->calc_xcnt) {
 			ubifs_err("inode %lu has %u xattrs, but "
-				  "calculated count is %lld", fscki->inum,
+				  "calculated count is %lld",
+				  (unsigned long)fscki->inum,
 				  fscki->xattr_cnt, fscki->calc_xcnt);
 			goto out_dump;
 		}
 		if (fscki->xattr_nms != fscki->calc_xnms) {
 			ubifs_err("inode %lu has xattr names' size %u, but "
 				  "calculated names' size is %lld",
-				  fscki->inum, fscki->xattr_nms,
+				  (unsigned long)fscki->inum, fscki->xattr_nms,
 				  fscki->calc_xnms);
 			goto out_dump;
 		}
@@ -1985,11 +1996,12 @@ out_dump:
 	ino_key_init(c, &key, fscki->inum);
 	err = ubifs_lookup_level0(c, &key, &znode, &n);
 	if (!err) {
-		ubifs_err("inode %lu not found in index", fscki->inum);
+		ubifs_err("inode %lu not found in index",
+			  (unsigned long)fscki->inum);
 		return -ENOENT;
 	} else if (err < 0) {
 		ubifs_err("error %d while looking up inode %lu",
-			  err, fscki->inum);
+			  err, (unsigned long)fscki->inum);
 		return err;
 	}
 
@@ -2007,7 +2019,7 @@ out_dump:
 	}
 
 	ubifs_msg("dump of the inode %lu sitting in LEB %d:%d",
-		  fscki->inum, zbr->lnum, zbr->offs);
+		  (unsigned long)fscki->inum, zbr->lnum, zbr->offs);
 	dbg_dump_node(c, ino);
 	kfree(ino);
 	return -EINVAL;

@@ -337,9 +337,9 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 	/* Check if board has eeprom */
 	err = i2c_master_recv(&dev->i2c_client, &buf, 0);
 	if (err < 0) {
-		em28xx_errdev("%s: i2c_master_recv failed! err [%d]\n",
-			__func__, err);
-		return err;
+		em28xx_errdev("board has no eeprom\n");
+		memset(eedata, 0, len);
+		return -ENODEV;
 	}
 
 	buf = 0;
@@ -609,14 +609,16 @@ int em28xx_i2c_register(struct em28xx *dev)
 	dev->i2c_client.adapter = &dev->i2c_adap;
 
 	retval = em28xx_i2c_eeprom(dev, dev->eedata, sizeof(dev->eedata));
-	if (retval < 0) {
+	if ((retval < 0) && (retval != -ENODEV)) {
 		em28xx_errdev("%s: em28xx_i2_eeprom failed! retval [%d]\n",
 			__func__, retval);
+
 		return retval;
 	}
 
 	if (i2c_scan)
 		em28xx_do_i2c_scan(dev);
+
 	return 0;
 }
 

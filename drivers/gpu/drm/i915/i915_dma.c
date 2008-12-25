@@ -717,7 +717,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev->pci_device;
 		break;
 	case I915_PARAM_HAS_GEM:
-		value = 1;
+		value = dev_priv->has_gem;
 		break;
 	default:
 		DRM_ERROR("Unknown parameter %d\n", param->param);
@@ -830,6 +830,14 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	dev_priv->regs = ioremap(base, size);
 
+#ifdef CONFIG_HIGHMEM64G
+	/* don't enable GEM on PAE - needs agp + set_memory_* interface fixes */
+	dev_priv->has_gem = 0;
+#else
+	/* enable GEM by default */
+	dev_priv->has_gem = 1;
+#endif
+
 	i915_gem_load(dev);
 
 	/* Init HWS */
@@ -847,14 +855,22 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * and the registers being closely associated.
 	 *
 	 * According to chipset errata, on the 965GM, MSI interrupts may
-	 * be lost or delayed
+	 * be lost or delayed, but we use them anyways to avoid
+	 * stuck interrupts on some machines.
 	 */
-	if (!IS_I945G(dev) && !IS_I945GM(dev) && !IS_I965GM(dev))
+	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		pci_enable_msi(dev->pdev);
 
 	intel_opregion_init(dev);
 
 	spin_lock_init(&dev_priv->user_irq_lock);
+
+	ret = drm_vblank_init(dev, I915_NUM_PIPE);
+
+	if (ret) {
+		(void) i915_driver_unload(dev);
+		return ret;
+	}
 
 	return ret;
 }

@@ -1630,7 +1630,6 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
  *	sis900_interrupt - sis900 interrupt handler
  *	@irq: the irq number
  *	@dev_instance: the client data object
- *	@regs: snapshot of processor context
  *
  *	The interrupt handler does all of the Rx thread work,
  *	and cleans up after the Tx thread

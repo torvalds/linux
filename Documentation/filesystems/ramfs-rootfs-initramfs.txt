@@ -130,12 +130,12 @@ The 2.6 kernel build process always creates a gzipped cpio format initramfs
 archive and links it into the resulting kernel binary.  By default, this
 archive is empty (consuming 134 bytes on x86).
 
-The config option CONFIG_INITRAMFS_SOURCE (for some reason buried under
-devices->block devices in menuconfig, and living in usr/Kconfig) can be used
-to specify a source for the initramfs archive, which will automatically be
-incorporated into the resulting binary.  This option can point to an existing
-gzipped cpio archive, a directory containing files to be archived, or a text
-file specification such as the following example:
+The config option CONFIG_INITRAMFS_SOURCE (in General Setup in menuconfig,
+and living in usr/Kconfig) can be used to specify a source for the
+initramfs archive, which will automatically be incorporated into the
+resulting binary.  This option can point to an existing gzipped cpio
+archive, a directory containing files to be archived, or a text file
+specification such as the following example:
 
   dir /dev 755 0 0
   nod /dev/console 644 0 0 c 5 1

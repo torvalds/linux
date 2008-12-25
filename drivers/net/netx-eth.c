@@ -401,6 +401,8 @@ static int netx_eth_drv_probe(struct platform_device *pdev)
 	priv->xmac_base = priv->xc->xmac_base;
 	priv->sram_base = priv->xc->sram_base;
 
+	spin_lock_init(&priv->lock);
+
 	ret = pfifo_request(PFIFO_MASK(priv->id));
 	if (ret) {
 		printk("unable to request PFIFO\n");

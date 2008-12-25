@@ -401,13 +401,12 @@ static int __init ppro_init(char **cpu_type)
 		*cpu_type = "i386/pii";
 		break;
 	case 6 ... 8:
+	case 10 ... 11:
 		*cpu_type = "i386/piii";
 		break;
 	case 9:
+	case 13:
 		*cpu_type = "i386/p6_mobile";
-		break;
-	case 10 ... 13:
-		*cpu_type = "i386/p6";
 		break;
 	case 14:
 		*cpu_type = "i386/core";

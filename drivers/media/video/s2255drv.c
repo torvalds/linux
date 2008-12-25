@@ -192,7 +192,7 @@ struct s2255_dmaqueue {
 #define S2255_FW_FAILED		3
 #define S2255_FW_DISCONNECTING  4
 
-#define S2255_FW_MARKER         0x22552f2f
+#define S2255_FW_MARKER		cpu_to_le32(0x22552f2f)
 /* 2255 read states */
 #define S2255_READ_IDLE         0
 #define S2255_READ_FRAME        1

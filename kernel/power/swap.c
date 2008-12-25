@@ -633,7 +633,7 @@ void swsusp_close(fmode_t mode)
 		return;
 	}
 
-	blkdev_put(resume_bdev, mode); /* move up */
+	blkdev_put(resume_bdev, mode);
 }
 
 static int swsusp_header_init(void)

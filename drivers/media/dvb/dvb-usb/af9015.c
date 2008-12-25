@@ -681,12 +681,6 @@ static int af9015_download_firmware(struct usb_device *udev,
 		goto error;
 	}
 
-	/* firmware is running, reconnect device in the usb bus */
-	req.cmd = RECONNECT_USB;
-	ret = af9015_rw_udev(udev, &req);
-	if (ret)
-		err("reconnect failed: %d", ret);
-
 error:
 	return ret;
 }
@@ -1208,6 +1202,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.usb_ctrl = DEVICE_SPECIFIC,
 		.download_firmware = af9015_download_firmware,
 		.firmware = "dvb-usb-af9015.fw",
+		.no_reconnect = 1,
 
 		.size_of_priv = sizeof(struct af9015_state), \
 
@@ -1306,6 +1301,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.usb_ctrl = DEVICE_SPECIFIC,
 		.download_firmware = af9015_download_firmware,
 		.firmware = "dvb-usb-af9015.fw",
+		.no_reconnect = 1,
 
 		.size_of_priv = sizeof(struct af9015_state), \
 

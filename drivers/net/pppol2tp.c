@@ -1353,6 +1353,7 @@ static int pppol2tp_release(struct socket *sock)
 			kfree_skb(skb);
 			sock_put(sk);
 		}
+		sock_put(sk);
 	}
 
 	release_sock(sk);

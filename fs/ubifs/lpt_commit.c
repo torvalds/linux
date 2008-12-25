@@ -571,8 +571,6 @@ static struct ubifs_pnode *next_pnode(struct ubifs_info *c,
 		/* We assume here that LEB zero is never an LPT LEB */
 		if (nnode->nbranch[iip].lnum)
 			return ubifs_get_pnode(c, nnode, iip);
-		else
-			return NULL;
 	}
 
 	/* Go up while can't go right */

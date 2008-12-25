@@ -43,7 +43,7 @@ struct hppa_dma_ops *hppa_dma_ops __read_mostly;
 EXPORT_SYMBOL(hppa_dma_ops);
 
 static struct device root = {
-	.bus_id = "parisc",
+	.init_name = "parisc",
 };
 
 static inline int check_dev(struct device *dev)
@@ -393,7 +393,8 @@ EXPORT_SYMBOL(print_pci_hwpath);
 static void setup_bus_id(struct parisc_device *padev)
 {
 	struct hardware_path path;
-	char *output = padev->dev.bus_id;
+	char name[20];
+	char *output = name;
 	int i;
 
 	get_node_path(padev->dev.parent, &path);
@@ -404,6 +405,7 @@ static void setup_bus_id(struct parisc_device *padev)
 		output += sprintf(output, "%u:", (unsigned char) path.bc[i]);
 	}
 	sprintf(output, "%u", (unsigned char) padev->hw_path);
+	dev_set_name(&padev->dev, name);
 }
 
 struct parisc_device * create_tree_node(char id, struct device *parent)
