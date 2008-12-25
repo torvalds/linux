@@ -1,11 +1,12 @@
 /**
  * @file cpu_buffer.c
  *
- * @remark Copyright 2002 OProfile authors
+ * @remark Copyright 2002-2009 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon <levon@movementarian.org>
  * @author Barry Kasindorf <barry.kasindorf@amd.com>
+ * @author Robert Richter <robert.richter@amd.com>
  *
  * Each CPU has a local buffer that stores PC value/event
  * pairs. We also log context switches when we notice them.
@@ -143,20 +144,36 @@ void end_cpu_work(void)
 	flush_scheduled_work();
 }
 
-int op_cpu_buffer_write_entry(struct op_entry *entry)
+/*
+ * This function prepares the cpu buffer to write a sample.
+ *
+ * Struct op_entry is used during operations on the ring buffer while
+ * struct op_sample contains the data that is stored in the ring
+ * buffer. Struct entry can be uninitialized. The function reserves a
+ * data array that is specified by size. Use
+ * op_cpu_buffer_write_commit() after preparing the sample. In case of
+ * errors a null pointer is returned, otherwise the pointer to the
+ * sample.
+ *
+ */
+struct op_sample
+*op_cpu_buffer_write_reserve(struct op_entry *entry, unsigned long size)
 {
-	entry->event = ring_buffer_lock_reserve(op_ring_buffer_write,
-						sizeof(struct op_sample),
-						&entry->irq_flags);
+	entry->event = ring_buffer_lock_reserve
+		(op_ring_buffer_write, sizeof(struct op_sample) +
+		 size * sizeof(entry->sample->data[0]), &entry->irq_flags);
 	if (entry->event)
 		entry->sample = ring_buffer_event_data(entry->event);
 	else
 		entry->sample = NULL;
 
 	if (!entry->sample)
-		return -ENOMEM;
+		return NULL;
 
-	return 0;
+	entry->size = size;
+	entry->data = entry->sample->data;
+
+	return entry->sample;
 }
 
 int op_cpu_buffer_write_commit(struct op_entry *entry)
@@ -192,14 +209,14 @@ op_add_sample(struct oprofile_cpu_buffer *cpu_buf,
 	      unsigned long pc, unsigned long event)
 {
 	struct op_entry entry;
-	int ret;
+	struct op_sample *sample;
 
-	ret = op_cpu_buffer_write_entry(&entry);
-	if (ret)
-		return ret;
+	sample = op_cpu_buffer_write_reserve(&entry, 0);
+	if (!sample)
+		return -ENOMEM;
 
-	entry.sample->eip = pc;
-	entry.sample->event = event;
+	sample->eip = pc;
+	sample->event = event;
 
 	return op_cpu_buffer_write_commit(&entry);
 }

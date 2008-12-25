@@ -1,10 +1,11 @@
 /**
  * @file cpu_buffer.h
  *
- * @remark Copyright 2002 OProfile authors
+ * @remark Copyright 2002-2009 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon <levon@movementarian.org>
+ * @author Robert Richter <robert.richter@amd.com>
  */
 
 #ifndef OPROFILE_CPU_BUFFER_H
@@ -31,12 +32,15 @@ void end_cpu_work(void);
 struct op_sample {
 	unsigned long eip;
 	unsigned long event;
+	unsigned long data[0];
 };
 
 struct op_entry {
 	struct ring_buffer_event *event;
 	struct op_sample *sample;
 	unsigned long irq_flags;
+	unsigned long size;
+	unsigned long *data;
 };
 
 struct oprofile_cpu_buffer {
@@ -68,7 +72,8 @@ static inline void op_cpu_buffer_reset(int cpu)
 	cpu_buf->last_task = NULL;
 }
 
-int op_cpu_buffer_write_entry(struct op_entry *entry);
+struct op_sample
+*op_cpu_buffer_write_reserve(struct op_entry *entry, unsigned long size);
 int op_cpu_buffer_write_commit(struct op_entry *entry);
 struct op_sample *op_cpu_buffer_read_entry(int cpu);
 unsigned long op_cpu_buffer_entries(int cpu);
