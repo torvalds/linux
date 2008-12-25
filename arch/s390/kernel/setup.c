@@ -651,23 +651,6 @@ setup_memory(void)
 #endif
 }
 
-static int __init __stfle(unsigned long long *list, int doublewords)
-{
-	typedef struct { unsigned long long _[doublewords]; } addrtype;
-	register unsigned long __nr asm("0") = doublewords - 1;
-
-	asm volatile(".insn s,0xb2b00000,%0" /* stfle */
-		     : "=m" (*(addrtype *) list), "+d" (__nr) : : "cc");
-	return __nr + 1;
-}
-
-int __init stfle(unsigned long long *list, int doublewords)
-{
-	if (!(stfl() & (1UL << 24)))
-		return -EOPNOTSUPP;
-	return __stfle(list, doublewords);
-}
-
 /*
  * Setup hardware capabilities.
  */
