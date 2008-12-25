@@ -2191,9 +2191,9 @@ S:	Supported
 
 INOTIFY
 P:	John McCutchan
-M:	ttb@tentacle.dhs.org
+M:	john@johnmccutchan.com
 P:	Robert Love
-M:	rml@novell.com
+M:	rlove@rlove.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
@@ -4529,7 +4529,7 @@ S:	Maintained
 USB VIDEO CLASS
 P:	Laurent Pinchart
 M:	laurent.pinchart@skynet.be
-L:	linux-uvc-devel@lists.berlios.de
+L:	linux-uvc-devel@lists.berlios.de (subscribers-only)
 L:	video4linux-list@redhat.com
 W:	http://linux-uvc.berlios.de
 S:	Maintained

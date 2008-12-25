@@ -22,14 +22,10 @@ static unsigned long prev_overruns;
 
 static void mmio_reset_data(struct trace_array *tr)
 {
-	int cpu;
-
 	overrun_detected = false;
 	prev_overruns = 0;
-	tr->time_start = ftrace_now(tr->cpu);
 
-	for_each_online_cpu(cpu)
-		tracing_reset(tr, cpu);
+	tracing_reset_online_cpus(tr);
 }
 
 static int mmio_trace_init(struct trace_array *tr)

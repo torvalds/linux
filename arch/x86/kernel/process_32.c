@@ -60,6 +60,7 @@
 #include <asm/idle.h>
 #include <asm/syscalls.h>
 #include <asm/smp.h>
+#include <asm/ds.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
@@ -251,17 +252,8 @@ void exit_thread(void)
 		tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
 		put_cpu();
 	}
-#ifdef CONFIG_X86_DS
-	/* Free any BTS tracers that have not been properly released. */
-	if (unlikely(current->bts)) {
-		ds_release_bts(current->bts);
-		current->bts = NULL;
 
-		kfree(current->bts_buffer);
-		current->bts_buffer = NULL;
-		current->bts_size = 0;
-	}
-#endif /* CONFIG_X86_DS */
+	ds_exit_thread(current);
 }
 
 void flush_thread(void)
@@ -343,6 +335,12 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		kfree(p->thread.io_bitmap_ptr);
 		p->thread.io_bitmap_max = 0;
 	}
+
+	ds_copy_thread(p, current);
+
+	clear_tsk_thread_flag(p, TIF_DEBUGCTLMSR);
+	p->thread.debugctlmsr = 0;
+
 	return err;
 }
 

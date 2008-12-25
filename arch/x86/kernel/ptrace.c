@@ -650,6 +650,24 @@ static int ptrace_bts_drain(struct task_struct *child,
 	return drained;
 }
 
+static int ptrace_bts_allocate_buffer(struct task_struct *child, size_t size)
+{
+	child->bts_buffer = alloc_locked_buffer(size);
+	if (!child->bts_buffer)
+		return -ENOMEM;
+
+	child->bts_size = size;
+
+	return 0;
+}
+
+static void ptrace_bts_free_buffer(struct task_struct *child)
+{
+	free_locked_buffer(child->bts_buffer, child->bts_size);
+	child->bts_buffer = NULL;
+	child->bts_size = 0;
+}
+
 static int ptrace_bts_config(struct task_struct *child,
 			     long cfg_size,
 			     const struct ptrace_bts_config __user *ucfg)
@@ -679,14 +697,13 @@ static int ptrace_bts_config(struct task_struct *child,
 
 	if ((cfg.flags & PTRACE_BTS_O_ALLOC) &&
 	    (cfg.size != child->bts_size)) {
-		kfree(child->bts_buffer);
+		int error;
 
-		child->bts_size = cfg.size;
-		child->bts_buffer = kzalloc(cfg.size, GFP_KERNEL);
-		if (!child->bts_buffer) {
-			child->bts_size = 0;
-			return -ENOMEM;
-		}
+		ptrace_bts_free_buffer(child);
+
+		error = ptrace_bts_allocate_buffer(child, cfg.size);
+		if (error < 0)
+			return error;
 	}
 
 	if (cfg.flags & PTRACE_BTS_O_TRACE)
@@ -701,10 +718,8 @@ static int ptrace_bts_config(struct task_struct *child,
 	if (IS_ERR(child->bts)) {
 		int error = PTR_ERR(child->bts);
 
-		kfree(child->bts_buffer);
+		ptrace_bts_free_buffer(child);
 		child->bts = NULL;
-		child->bts_buffer = NULL;
-		child->bts_size = 0;
 
 		return error;
 	}
@@ -769,7 +784,54 @@ static int ptrace_bts_size(struct task_struct *child)
 
 	return (trace->ds.top - trace->ds.begin) / trace->ds.size;
 }
+
+static void ptrace_bts_fork(struct task_struct *tsk)
+{
+	tsk->bts = NULL;
+	tsk->bts_buffer = NULL;
+	tsk->bts_size = 0;
+	tsk->thread.bts_ovfl_signal = 0;
+}
+
+static void ptrace_bts_untrace(struct task_struct *child)
+{
+	if (unlikely(child->bts)) {
+		ds_release_bts(child->bts);
+		child->bts = NULL;
+
+		/* We cannot update total_vm and locked_vm since
+		   child's mm is already gone. But we can reclaim the
+		   memory. */
+		kfree(child->bts_buffer);
+		child->bts_buffer = NULL;
+		child->bts_size = 0;
+	}
+}
+
+static void ptrace_bts_detach(struct task_struct *child)
+{
+	if (unlikely(child->bts)) {
+		ds_release_bts(child->bts);
+		child->bts = NULL;
+
+		ptrace_bts_free_buffer(child);
+	}
+}
+#else
+static inline void ptrace_bts_fork(struct task_struct *tsk) {}
+static inline void ptrace_bts_detach(struct task_struct *child) {}
+static inline void ptrace_bts_untrace(struct task_struct *child) {}
 #endif /* CONFIG_X86_PTRACE_BTS */
+
+void x86_ptrace_fork(struct task_struct *child, unsigned long clone_flags)
+{
+	ptrace_bts_fork(child);
+}
+
+void x86_ptrace_untrace(struct task_struct *child)
+{
+	ptrace_bts_untrace(child);
+}
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -782,16 +844,7 @@ void ptrace_disable(struct task_struct *child)
 #ifdef TIF_SYSCALL_EMU
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 #endif
-#ifdef CONFIG_X86_PTRACE_BTS
-	if (child->bts) {
-		ds_release_bts(child->bts);
-		child->bts = NULL;
-
-		kfree(child->bts_buffer);
-		child->bts_buffer = NULL;
-		child->bts_size = 0;
-	}
-#endif /* CONFIG_X86_PTRACE_BTS */
+	ptrace_bts_detach(child);
 }
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION

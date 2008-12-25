@@ -679,6 +679,16 @@ void tracing_reset(struct trace_array *tr, int cpu)
 	ftrace_enable_cpu();
 }
 
+void tracing_reset_online_cpus(struct trace_array *tr)
+{
+	int cpu;
+
+	tr->time_start = ftrace_now(tr->cpu);
+
+	for_each_online_cpu(cpu)
+		tracing_reset(tr, cpu);
+}
+
 #define SAVED_CMDLINES 128
 static unsigned map_pid_to_cmdline[PID_MAX_DEFAULT+1];
 static unsigned map_cmdline_to_pid[SAVED_CMDLINES];

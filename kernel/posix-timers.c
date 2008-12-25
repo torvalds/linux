@@ -197,6 +197,11 @@ static int common_timer_create(struct k_itimer *new_timer)
 	return 0;
 }
 
+static int no_timer_create(struct k_itimer *new_timer)
+{
+	return -EOPNOTSUPP;
+}
+
 /*
  * Return nonzero if we know a priori this clockid_t value is bogus.
  */
@@ -248,6 +253,7 @@ static __init int init_posix_timers(void)
 		.clock_getres = hrtimer_get_res,
 		.clock_get = posix_get_monotonic_raw,
 		.clock_set = do_posix_clock_nosettime,
+		.timer_create = no_timer_create,
 	};
 
 	register_posix_clock(CLOCK_REALTIME, &clock_realtime);

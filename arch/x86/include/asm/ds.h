@@ -252,12 +252,21 @@ extern void __cpuinit ds_init_intel(struct cpuinfo_x86 *);
  */
 extern void ds_switch_to(struct task_struct *prev, struct task_struct *next);
 
+/*
+ * Task clone/init and cleanup work
+ */
+extern void ds_copy_thread(struct task_struct *tsk, struct task_struct *father);
+extern void ds_exit_thread(struct task_struct *tsk);
+
 #else /* CONFIG_X86_DS */
 
 struct cpuinfo_x86;
 static inline void __cpuinit ds_init_intel(struct cpuinfo_x86 *ignored) {}
 static inline void ds_switch_to(struct task_struct *prev,
 				struct task_struct *next) {}
+static inline void ds_copy_thread(struct task_struct *tsk,
+				  struct task_struct *father) {}
+static inline void ds_exit_thread(struct task_struct *tsk) {}
 
 #endif /* CONFIG_X86_DS */
 #endif /* _ASM_X86_DS_H */
