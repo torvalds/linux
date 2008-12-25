@@ -689,12 +689,7 @@ void math_error(void __user *ip)
 	cwd = get_fpu_cwd(task);
 	swd = get_fpu_swd(task);
 
-	err = swd & ~cwd & 0x3f;
-
-#ifdef CONFIG_X86_32
-	if (!err)
-		return;
-#endif
+	err = swd & ~cwd;
 
 	if (err & 0x001) {	/* Invalid op */
 		/*
@@ -712,7 +707,9 @@ void math_error(void __user *ip)
 	} else if (err & 0x020) { /* Precision */
 		info.si_code = FPE_FLTRES;
 	} else {
-		info.si_code = __SI_FAULT|SI_KERNEL; /* WTF? */
+		/* If we're using IRQ 13, or supposedly even some trap 16
+		   implementations, it's possible we get a spurious trap... */
+		return;		/* Spurious trap, no error */
 	}
 	force_sig_info(SIGFPE, &info, task);
 }
