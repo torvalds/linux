@@ -2161,6 +2161,9 @@ static int reset_irq(struct qe_udc *udc)
 {
 	unsigned char i;
 
+	if (udc->usb_state == USB_STATE_DEFAULT)
+		return 0;
+
 	qe_usb_disable();
 	out_8(&udc->usb_regs->usb_usadr, 0);
 
