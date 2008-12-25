@@ -12,6 +12,7 @@
 #include <linux/workqueue.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
+#include <linux/cpuset.h>
 #include <asm/delay.h>
 #include <asm/s390_ext.h>
 #include <asm/sysinfo.h>
@@ -234,7 +235,7 @@ void arch_update_cpu_topology(void)
 
 static void topology_work_fn(struct work_struct *work)
 {
-	arch_reinit_sched_domains();
+	rebuild_sched_domains();
 }
 
 void topology_schedule_update(void)
