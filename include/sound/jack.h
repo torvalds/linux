@@ -36,6 +36,7 @@ enum snd_jack_types {
 	SND_JACK_MICROPHONE	= 0x0002,
 	SND_JACK_HEADSET	= SND_JACK_HEADPHONE | SND_JACK_MICROPHONE,
 	SND_JACK_LINEOUT	= 0x0004,
+	SND_JACK_MECHANICAL	= 0x0008, /* If detected separately */
 };
 
 struct snd_jack {

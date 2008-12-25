@@ -109,6 +109,9 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 	if (type & SND_JACK_MICROPHONE)
 		input_set_capability(jack->input_dev, EV_SW,
 				     SW_MICROPHONE_INSERT);
+	if (type & SND_JACK_MECHANICAL)
+		input_set_capability(jack->input_dev, EV_SW,
+				     SW_JACK_PHYSICAL_INSERT);
 
 	err = snd_device_new(card, SNDRV_DEV_JACK, jack, &ops);
 	if (err < 0)
@@ -163,6 +166,9 @@ void snd_jack_report(struct snd_jack *jack, int status)
 	if (jack->type & SND_JACK_MICROPHONE)
 		input_report_switch(jack->input_dev, SW_MICROPHONE_INSERT,
 				    status & SND_JACK_MICROPHONE);
+	if (jack->type & SND_JACK_MECHANICAL)
+		input_report_switch(jack->input_dev, SW_JACK_PHYSICAL_INSERT,
+				    status & SND_JACK_MECHANICAL);
 
 	input_sync(jack->input_dev);
 }
