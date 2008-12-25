@@ -659,6 +659,7 @@ struct input_absinfo {
 #define SW_RADIO		SW_RFKILL_ALL	/* deprecated */
 #define SW_MICROPHONE_INSERT	0x04  /* set = inserted */
 #define SW_DOCK			0x05  /* set = plugged into dock */
+#define SW_LINEOUT_INSERT	0x06  /* set = inserted */
 #define SW_MAX			0x0f
 #define SW_CNT			(SW_MAX+1)
 
