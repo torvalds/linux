@@ -2298,7 +2298,7 @@ static int read_firmware(struct usbduxsub *usbduxsub, void *firmwarePtr,
 	struct device *dev = &usbduxsub->interface->dev;
 	int i = 0;
 	unsigned char *fp = (char *)firmwarePtr;
-	unsigned char *firmwareBinary = NULL;
+	unsigned char *firmwareBinary;
 	int res = 0;
 	int maxAddr = 0;
 
@@ -2322,6 +2322,7 @@ static int read_firmware(struct usbduxsub *usbduxsub, void *firmwarePtr,
 			j++;
 			if (j >= sizeof(buf)) {
 				dev_err(dev, "comedi_: bogus firmware file!\n");
+				kfree(firmwareBinary);
 				return -1;
 			}
 		}
@@ -2344,6 +2345,7 @@ static int read_firmware(struct usbduxsub *usbduxsub, void *firmwarePtr,
 		if (buf[0] != ':') {
 			dev_err(dev, "comedi_: upload: not an ihex record: %s",
 				buf);
+			kfree(firmwareBinary);
 			return -EFAULT;
 		}
 
@@ -2360,6 +2362,7 @@ static int read_firmware(struct usbduxsub *usbduxsub, void *firmwarePtr,
 		if (maxAddr >= FIRMWARE_MAX_LEN) {
 			dev_err(dev, "comedi_: firmware upload goes "
 				"beyond FX2 RAM boundaries.\n");
+			kfree(firmwareBinary);
 			return -EFAULT;
 		}
 		/* dev_dbg(dev, "comedi_: off=%x, len=%x:\n", off, len); */
@@ -2375,6 +2378,7 @@ static int read_firmware(struct usbduxsub *usbduxsub, void *firmwarePtr,
 		if (type != 0) {
 			dev_err(dev, "comedi_: unsupported record type: %u\n",
 				type);
+			kfree(firmwareBinary);
 			return -EFAULT;
 		}
 
