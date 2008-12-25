@@ -950,6 +950,14 @@ io_subchannel_register(struct work_struct *work)
 	priv = container_of(work, struct ccw_device_private, kick_work);
 	cdev = priv->cdev;
 	sch = to_subchannel(cdev->dev.parent);
+	/*
+	 * Check if subchannel is still registered. It may have become
+	 * unregistered if a machine check hit us after finishing
+	 * device recognition but before the register work could be
+	 * queued.
+	 */
+	if (!device_is_registered(&sch->dev))
+		goto out_err;
 	css_update_ssd_info(sch);
 	/*
 	 * io_subchannel_register() will also be called after device
@@ -984,18 +992,16 @@ io_subchannel_register(struct work_struct *work)
 		spin_lock_irqsave(sch->lock, flags);
 		sch_set_cdev(sch, NULL);
 		spin_unlock_irqrestore(sch->lock, flags);
-		/* Release reference for workqueue processing. */
-		put_device(&cdev->dev);
 		/* Release initial device reference. */
 		put_device(&cdev->dev);
-		if (atomic_dec_and_test(&ccw_device_init_count))
-			wake_up(&ccw_device_init_wq);
-		return;
+		goto out_err;
 	}
-	put_device(&cdev->dev);
 out:
 	cdev->private->flags.recog_done = 1;
 	wake_up(&cdev->private->wait_q);
+out_err:
+	/* Release reference for workqueue processing. */
+	put_device(&cdev->dev);
 	if (atomic_dec_and_test(&ccw_device_init_count))
 		wake_up(&ccw_device_init_wq);
 }
