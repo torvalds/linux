@@ -145,11 +145,6 @@ struct kvm_rmap_desc {
 	struct kvm_rmap_desc *more;
 };
 
-struct kvm_shadow_walk {
-	int (*entry)(struct kvm_shadow_walk *walk, struct kvm_vcpu *vcpu,
-		     u64 addr, u64 *spte, int level);
-};
-
 struct kvm_shadow_walk_iterator {
 	u64 addr;
 	hpa_t shadow_addr;
@@ -1297,21 +1292,6 @@ static void shadow_walk_next(struct kvm_shadow_walk_iterator *iterator)
 {
 	iterator->shadow_addr = *iterator->sptep & PT64_BASE_ADDR_MASK;
 	--iterator->level;
-}
-
-static int walk_shadow(struct kvm_shadow_walk *walker,
-		       struct kvm_vcpu *vcpu, u64 addr)
-{
-	struct kvm_shadow_walk_iterator iterator;
-	int r;
-
-	for_each_shadow_entry(vcpu, addr, iterator) {
-		r = walker->entry(walker, vcpu, addr,
-				  iterator.sptep, iterator.level);
-		if (r)
-			return r;
-	}
-	return 0;
 }
 
 static void kvm_mmu_page_unlink_children(struct kvm *kvm,
