@@ -1179,12 +1179,6 @@ static int io_subchannel_probe(struct subchannel *sch)
 		return 0;
 	}
 	io_subchannel_init_fields(sch);
-	/*
-	 * First check if a fitting device may be found amongst the
-	 * disconnected devices or in the orphanage.
-	 */
-	dev_id.devno = sch->schib.pmcw.dev;
-	dev_id.ssid = sch->schid.ssid;
 	rc = sysfs_create_group(&sch->dev.kobj,
 				&io_subchannel_attr_group);
 	if (rc)
@@ -1196,6 +1190,12 @@ static int io_subchannel_probe(struct subchannel *sch)
 		rc = -ENOMEM;
 		goto out_err;
 	}
+	/*
+	 * First check if a fitting device may be found amongst the
+	 * disconnected devices or in the orphanage.
+	 */
+	dev_id.devno = sch->schib.pmcw.dev;
+	dev_id.ssid = sch->schid.ssid;
 	cdev = get_disc_ccwdev_by_dev_id(&dev_id, NULL);
 	if (!cdev)
 		cdev = get_orphaned_ccwdev_by_dev_id(to_css(sch->dev.parent),
