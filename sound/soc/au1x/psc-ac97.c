@@ -160,7 +160,8 @@ struct snd_ac97_bus_ops soc_ac97_ops = {
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static int au1xpsc_ac97_hw_params(struct snd_pcm_substream *substream,
-				  struct snd_pcm_hw_params *params)
+				  struct snd_pcm_hw_params *params,
+				  struct snd_soc_dai *dai)
 {
 	/* FIXME */
 	struct au1xpsc_audio_data *pscdata = au1xpsc_ac97_workdata;
@@ -210,7 +211,7 @@ static int au1xpsc_ac97_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int au1xpsc_ac97_trigger(struct snd_pcm_substream *substream,
-				int cmd)
+				int cmd, struct snd_soc_dai *dai)
 {
 	/* FIXME */
 	struct au1xpsc_audio_data *pscdata = au1xpsc_ac97_workdata;
@@ -313,8 +314,7 @@ static void au1xpsc_ac97_remove(struct platform_device *pdev,
 	au1xpsc_ac97_workdata = NULL;
 }
 
-static int au1xpsc_ac97_suspend(struct platform_device *pdev,
-				struct snd_soc_dai *dai)
+static int au1xpsc_ac97_suspend(struct snd_soc_dai *dai)
 {
 	/* save interesting registers and disable PSC */
 	au1xpsc_ac97_workdata->pm[0] =
@@ -328,8 +328,7 @@ static int au1xpsc_ac97_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int au1xpsc_ac97_resume(struct platform_device *pdev,
-			       struct snd_soc_dai *dai)
+static int au1xpsc_ac97_resume(struct snd_soc_dai *dai)
 {
 	/* restore PSC clock config */
 	au_writel(au1xpsc_ac97_workdata->pm[0] | PSC_SEL_PS_AC97MODE,
@@ -345,7 +344,7 @@ static int au1xpsc_ac97_resume(struct platform_device *pdev,
 
 struct snd_soc_dai au1xpsc_ac97_dai = {
 	.name			= "au1xpsc_ac97",
-	.type			= SND_SOC_DAI_AC97,
+	.ac97_control		= 1,
 	.probe			= au1xpsc_ac97_probe,
 	.remove			= au1xpsc_ac97_remove,
 	.suspend		= au1xpsc_ac97_suspend,
@@ -372,11 +371,12 @@ EXPORT_SYMBOL_GPL(au1xpsc_ac97_dai);
 static int __init au1xpsc_ac97_init(void)
 {
 	au1xpsc_ac97_workdata = NULL;
-	return 0;
+	return snd_soc_register_dai(&au1xpsc_ac97_dai);
 }
 
 static void __exit au1xpsc_ac97_exit(void)
 {
+	snd_soc_unregister_dai(&au1xpsc_ac97_dai);
 }
 
 module_init(au1xpsc_ac97_init);
