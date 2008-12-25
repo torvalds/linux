@@ -1281,10 +1281,13 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
-		if (result != ZFCP_ERP_SUCCEEDED)
+		if (result != ZFCP_ERP_SUCCEEDED) {
+			unregister_service_level(&adapter->service_level);
 			zfcp_erp_rports_del(adapter);
-		else
+		} else {
+			register_service_level(&adapter->service_level);
 			schedule_work(&adapter->scan_work);
+		}
 		zfcp_adapter_put(adapter);
 		break;
 	}

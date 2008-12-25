@@ -26,6 +26,7 @@
  */
 
 #include <linux/miscdevice.h>
+#include <linux/seq_file.h>
 #include "zfcp_ext.h"
 
 static char *device;
@@ -436,6 +437,16 @@ static void _zfcp_status_read_scheduler(struct work_struct *work)
 					     stat_work));
 }
 
+static void zfcp_print_sl(struct seq_file *m, struct service_level *sl)
+{
+	struct zfcp_adapter *adapter =
+		container_of(sl, struct zfcp_adapter, service_level);
+
+	seq_printf(m, "zfcp: %s microcode level %x\n",
+		   dev_name(&adapter->ccw_device->dev),
+		   adapter->fsf_lic_version);
+}
+
 /**
  * zfcp_adapter_enqueue - enqueue a new adapter to the list
  * @ccw_device: pointer to the struct cc_device
@@ -499,6 +510,8 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	INIT_WORK(&adapter->stat_work, _zfcp_status_read_scheduler);
 	INIT_WORK(&adapter->scan_work, _zfcp_scan_ports_later);
+
+	adapter->service_level.seq_print = zfcp_print_sl;
 
 	/* mark adapter unusable as long as sysfs registration is not complete */
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
