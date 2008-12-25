@@ -115,8 +115,7 @@ static void ocfs2_dump_meta_lvb_info(u64 level,
 				     unsigned int line,
 				     struct ocfs2_lock_res *lockres)
 {
-	struct ocfs2_meta_lvb *lvb =
-		(struct ocfs2_meta_lvb *)ocfs2_dlm_lvb(&lockres->l_lksb);
+	struct ocfs2_meta_lvb *lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
 
 	mlog(level, "LVB information for %s (called from %s:%u):\n",
 	     lockres->l_name, function, line);
@@ -1864,7 +1863,7 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 
 	mlog_entry_void();
 
-	lvb = (struct ocfs2_meta_lvb *)ocfs2_dlm_lvb(&lockres->l_lksb);
+	lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
 
 	/*
 	 * Invalidate the LVB of a deleted inode - this way other
@@ -1916,7 +1915,7 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 
 	mlog_meta_lvb(0, lockres);
 
-	lvb = (struct ocfs2_meta_lvb *)ocfs2_dlm_lvb(&lockres->l_lksb);
+	lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
 
 	/* We're safe here without the lockres lock... */
 	spin_lock(&oi->ip_lock);
@@ -1951,8 +1950,7 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 static inline int ocfs2_meta_lvb_is_trustable(struct inode *inode,
 					      struct ocfs2_lock_res *lockres)
 {
-	struct ocfs2_meta_lvb *lvb =
-		(struct ocfs2_meta_lvb *)ocfs2_dlm_lvb(&lockres->l_lksb);
+	struct ocfs2_meta_lvb *lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
 
 	if (lvb->lvb_version == OCFS2_LVB_VERSION
 	    && be32_to_cpu(lvb->lvb_igeneration) == inode->i_generation)
@@ -3489,7 +3487,7 @@ static void ocfs2_set_qinfo_lvb(struct ocfs2_lock_res *lockres)
 
 	mlog_entry_void();
 
-	lvb = (struct ocfs2_qinfo_lvb *)ocfs2_dlm_lvb(&lockres->l_lksb);
+	lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
 	lvb->lvb_version = OCFS2_QINFO_LVB_VERSION;
 	lvb->lvb_bgrace = cpu_to_be32(info->dqi_bgrace);
 	lvb->lvb_igrace = cpu_to_be32(info->dqi_igrace);
