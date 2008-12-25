@@ -1898,15 +1898,19 @@ restart_cb:
 		wait_event(dasd_flush_wq, (cqr->status < DASD_CQR_QUEUED));
 		/* Process finished ERP request. */
 		if (cqr->refers) {
+			spin_lock_bh(&block->queue_lock);
 			__dasd_block_process_erp(block, cqr);
+			spin_unlock_bh(&block->queue_lock);
 			/* restart list_for_xx loop since dasd_process_erp
 			 * might remove multiple elements */
 			goto restart_cb;
 		}
 		/* call the callback function */
+		spin_lock_irq(&block->request_queue_lock);
 		cqr->endclk = get_clock();
 		list_del_init(&cqr->blocklist);
 		__dasd_cleanup_cqr(cqr);
+		spin_unlock_irq(&block->request_queue_lock);
 	}
 	return rc;
 }
