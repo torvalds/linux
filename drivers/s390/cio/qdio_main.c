@@ -129,6 +129,7 @@ static int qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 	char dbf_text[15];
 
 	BUG_ON(!q->irq_ptr->sch_token);
+	qdio_perf_stat_inc(&perf_stats.debug_eqbs_all);
 
 	if (!q->is_input_q)
 		nr += q->irq_ptr->nr_input_qs;
@@ -139,8 +140,10 @@ again:
 	/* At least one buffer was processed, return and extract the remaining
 	 * buffers later.
 	 */
-	if ((ccq == 96) && (count != tmp_count))
+	if ((ccq == 96) && (count != tmp_count)) {
+		qdio_perf_stat_inc(&perf_stats.debug_eqbs_incomplete);
 		return (count - tmp_count);
+	}
 	if (rc == 1) {
 		QDIO_DBF_TEXT5(1, trace, "eqAGAIN");
 		goto again;
@@ -179,6 +182,7 @@ static int qdio_do_sqbs(struct qdio_q *q, unsigned char state, int start,
 	char dbf_text[15];
 
 	BUG_ON(!q->irq_ptr->sch_token);
+	qdio_perf_stat_inc(&perf_stats.debug_sqbs_all);
 
 	if (!q->is_input_q)
 		nr += q->irq_ptr->nr_input_qs;
@@ -187,6 +191,7 @@ again:
 	rc = qdio_check_ccq(q, ccq);
 	if (rc == 1) {
 		QDIO_DBF_TEXT5(1, trace, "sqAGAIN");
+		qdio_perf_stat_inc(&perf_stats.debug_sqbs_incomplete);
 		goto again;
 	}
 	if (rc < 0) {

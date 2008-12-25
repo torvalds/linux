@@ -40,6 +40,10 @@ struct qdio_perf_stats {
 	/* for debugging */
 	atomic_long_t debug_tl_out_timer;
 	atomic_long_t debug_stop_polling;
+	atomic_long_t debug_eqbs_all;
+	atomic_long_t debug_eqbs_incomplete;
+	atomic_long_t debug_sqbs_all;
+	atomic_long_t debug_sqbs_incomplete;
 };
 
 extern struct qdio_perf_stats perf_stats;

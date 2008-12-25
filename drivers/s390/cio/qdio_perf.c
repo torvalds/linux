@@ -80,6 +80,12 @@ static int qdio_perf_proc_show(struct seq_file *m, void *v)
 		   (long)atomic_long_read(&perf_stats.debug_stop_polling));
 	seq_printf(m, "AI inbound tasklet loops after stop polling\t: %li\n",
 		   (long)atomic_long_read(&perf_stats.thinint_inbound_loop2));
+	seq_printf(m, "QEBSM EQBS total/incomplete\t\t\t: %li/%li\n",
+		   (long)atomic_long_read(&perf_stats.debug_eqbs_all),
+		   (long)atomic_long_read(&perf_stats.debug_eqbs_incomplete));
+	seq_printf(m, "QEBSM SQBS total/incomplete\t\t\t: %li/%li\n",
+		   (long)atomic_long_read(&perf_stats.debug_sqbs_all),
+		   (long)atomic_long_read(&perf_stats.debug_sqbs_incomplete));
 	seq_printf(m, "\n");
 	return 0;
 }
