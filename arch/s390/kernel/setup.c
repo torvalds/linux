@@ -722,7 +722,12 @@ static void __init setup_hwcaps(void)
 		strcpy(elf_platform, "z990");
 		break;
 	case 0x2094:
+	case 0x2096:
 		strcpy(elf_platform, "z9-109");
+		break;
+	case 0x2097:
+	case 0x2098:
+		strcpy(elf_platform, "z10");
 		break;
 	}
 }
