@@ -36,6 +36,12 @@
 #include <linux/mount.h>
 #include "ubifs.h"
 
+/*
+ * Maximum amount of memory we may 'kmalloc()' without worrying that we are
+ * allocating too much.
+ */
+#define UBIFS_KMALLOC_OK (128*1024)
+
 /* Slab cache for UBIFS inodes */
 struct kmem_cache *ubifs_inode_slab;
 
@@ -561,18 +567,11 @@ static int init_constants_early(struct ubifs_info *c)
 	 * calculations when reporting free space.
 	 */
 	c->leb_overhead = c->leb_size % UBIFS_MAX_DATA_NODE_SZ;
-	/* Buffer size for bulk-reads */
-	c->bulk_read_buf_size = UBIFS_MAX_BULK_READ * UBIFS_MAX_DATA_NODE_SZ;
-	if (c->bulk_read_buf_size > c->leb_size)
-		c->bulk_read_buf_size = c->leb_size;
-	if (c->bulk_read_buf_size > 128 * 1024) {
-		/* Check if we can kmalloc more than 128KiB */
-		void *try = kmalloc(c->bulk_read_buf_size, GFP_KERNEL);
 
-		kfree(try);
-		if (!try)
-			c->bulk_read_buf_size = 128 * 1024;
-	}
+	/* Buffer size for bulk-reads */
+	c->max_bu_buf_len = UBIFS_MAX_BULK_READ * UBIFS_MAX_DATA_NODE_SZ;
+	if (c->max_bu_buf_len > c->leb_size)
+		c->max_bu_buf_len = c->leb_size;
 	return 0;
 }
 
@@ -992,6 +991,34 @@ static void destroy_journal(struct ubifs_info *c)
 }
 
 /**
+ * bu_init - initialize bulk-read information.
+ * @c: UBIFS file-system description object
+ */
+static void bu_init(struct ubifs_info *c)
+{
+	ubifs_assert(c->bulk_read == 1);
+
+	if (c->bu.buf)
+		return; /* Already initialized */
+
+again:
+	c->bu.buf = kmalloc(c->max_bu_buf_len, GFP_KERNEL | __GFP_NOWARN);
+	if (!c->bu.buf) {
+		if (c->max_bu_buf_len > UBIFS_KMALLOC_OK) {
+			c->max_bu_buf_len = UBIFS_KMALLOC_OK;
+			goto again;
+		}
+
+		/* Just disable bulk-read */
+		ubifs_warn("Cannot allocate %d bytes of memory for bulk-read, "
+			   "disabling it", c->max_bu_buf_len);
+		c->mount_opts.bulk_read = 1;
+		c->bulk_read = 0;
+		return;
+	}
+}
+
+/**
  * mount_ubifs - mount UBIFS file-system.
  * @c: UBIFS file-system description object
  *
@@ -1059,6 +1086,13 @@ static int mount_ubifs(struct ubifs_info *c)
 			goto out_free;
 	}
 
+	if (c->bulk_read == 1)
+		bu_init(c);
+
+	/*
+	 * We have to check all CRCs, even for data nodes, when we mount the FS
+	 * (specifically, when we are replaying).
+	 */
 	c->always_chk_crc = 1;
 
 	err = ubifs_read_superblock(c);
@@ -1289,6 +1323,7 @@ out_cbuf:
 out_dereg:
 	dbg_failure_mode_deregistration(c);
 out_free:
+	kfree(c->bu.buf);
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
@@ -1325,10 +1360,11 @@ static void ubifs_umount(struct ubifs_info *c)
 	kfree(c->cbuf);
 	kfree(c->rcvrd_mst_node);
 	kfree(c->mst_node);
+	kfree(c->bu.buf);
+	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
 	UBIFS_DBG(vfree(c->dbg_buf));
-	vfree(c->ileb_buf);
 	dbg_failure_mode_deregistration(c);
 }
 
@@ -1626,12 +1662,21 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 		ubifs_err("invalid or unknown remount parameter");
 		return err;
 	}
+
 	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
 		err = ubifs_remount_rw(c);
 		if (err)
 			return err;
 	} else if (!(sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY))
 		ubifs_remount_ro(c);
+
+	if (c->bulk_read == 1)
+		bu_init(c);
+	else {
+		dbg_gen("disable bulk-read");
+		kfree(c->bu.buf);
+		c->bu.buf = NULL;
+	}
 
 	return 0;
 }
@@ -1723,6 +1768,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	mutex_init(&c->log_mutex);
 	mutex_init(&c->mst_mutex);
 	mutex_init(&c->umount_mutex);
+	mutex_init(&c->bu_mutex);
 	init_waitqueue_head(&c->cmt_wq);
 	c->buds = RB_ROOT;
 	c->old_idx = RB_ROOT;

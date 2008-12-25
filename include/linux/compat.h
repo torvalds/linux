@@ -252,12 +252,10 @@ extern int compat_ptrace_request(struct task_struct *child,
 				 compat_long_t request,
 				 compat_ulong_t addr, compat_ulong_t data);
 
-#ifdef __ARCH_WANT_COMPAT_SYS_PTRACE
 extern long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			       compat_ulong_t addr, compat_ulong_t data);
 asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
 				  compat_long_t addr, compat_long_t data);
-#endif	/* __ARCH_WANT_COMPAT_SYS_PTRACE */
 
 /*
  * epoll (fs/eventpoll.c) compat bits follow ...

@@ -167,8 +167,22 @@ UNUSUAL_DEV(  0x0421, 0x005d, 0x0001, 0x0600,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Reported by Ozan Sener <themgzzy@gmail.com> */
+UNUSUAL_DEV(  0x0421, 0x0060, 0x0551, 0x0551,
+		"Nokia",
+		"3500c",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
+/* Reported by CSECSY Laszlo <boobaa@frugalware.org> */
+UNUSUAL_DEV(  0x0421, 0x0063, 0x0001, 0x0601,
+		"Nokia",
+		"Nokia 3109c",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 /* Patch for Nokia 5310 capacity */
-UNUSUAL_DEV(  0x0421, 0x006a, 0x0000, 0x0591,
+UNUSUAL_DEV(  0x0421, 0x006a, 0x0000, 0x0701,
 		"Nokia",
 		"5310",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -318,6 +332,18 @@ UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
 		US_SC_SCSI, US_PR_KARMA, rio_karma_init, 0),
 #endif
 
+/* Reported by Tamas Kerecsen <kerecsen@bigfoot.com>
+ * Obviously the PROM has not been customized by the VAR;
+ * the Vendor and Product string descriptors are:
+ *	Generic Mass Storage (PROTOTYPE--Remember to change idVendor)
+ *	Generic Manufacturer (PROTOTYPE--Remember to change idVendor)
+ */
+UNUSUAL_DEV(  0x045e, 0xffff, 0x0000, 0x0000,
+		"Mitac",
+		"GPS",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64 ),
+
 /*
  * This virtual floppy is found in Sun equipment (x4600, x4200m2, etc.)
  * Reported by Pete Zaitcev <zaitcev@redhat.com>
@@ -374,6 +400,13 @@ UNUSUAL_DEV(  0x04b0, 0x0301, 0x0010, 0x0010,
 UNUSUAL_DEV(  0x04b0, 0x0401, 0x0200, 0x0200,
 		"NIKON",
 		"NIKON DSC D100",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
+/* Reported by Tobias Kunze Briseno <t-linux@fictive.com> */
+UNUSUAL_DEV(  0x04b0, 0x0403, 0x0200, 0x0200,
+		"NIKON",
+		"NIKON DSC D2H",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 

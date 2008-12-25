@@ -149,7 +149,7 @@ static void do_test_timer(unsigned long data)
 	int cpu;
 
 	/* Increment the counters */
-	on_each_cpu(test_each, NULL, 0, 1);
+	on_each_cpu(test_each, NULL, 1);
 	/* Read all the counters */
 	printk("Counters read from CPU %d\n", smp_processor_id());
 	for_each_online_cpu(cpu) {

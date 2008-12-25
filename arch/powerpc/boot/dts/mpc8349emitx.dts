@@ -91,6 +91,14 @@
 				interrupts = <18 0x8>;
 				interrupt-parent = <&ipic>;
 			};
+
+			mcu_pio: mcu@a {
+				#gpio-cells = <2>;
+				compatible = "fsl,mc9s08qg8-mpc8349emitx",
+					     "fsl,mcu-mpc8349emitx";
+				reg = <0x0a>;
+				gpio-controller;
+			};
 		};
 
 		spi@7000 {
@@ -138,14 +146,6 @@
 				cell-index = <3>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
-			};
-
-			mcu_pio: mcu@a {
-				#gpio-cells = <2>;
-				compatible = "fsl,mc9s08qg8-mpc8349emitx",
-					     "fsl,mcu-mpc8349emitx";
-				reg = <0x0a>;
-				gpio-controller;
 			};
 		};
 

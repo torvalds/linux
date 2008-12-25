@@ -662,6 +662,7 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
  * default timeout for SG_IO if none specified
  */
 #define BLK_DEFAULT_SG_TIMEOUT	(60 * HZ)
+#define BLK_MIN_SG_TIMEOUT	(7 * HZ)
 
 #ifdef CONFIG_BOUNCE
 extern int init_emergency_isa_pool(void);
@@ -786,6 +787,8 @@ static inline void blk_run_address_space(struct address_space *mapping)
 		blk_run_backing_dev(mapping->backing_dev_info, NULL);
 }
 
+extern void blkdev_dequeue_request(struct request *req);
+
 /*
  * blk_end_request() and friends.
  * __blk_end_request() and end_request() must be called with
@@ -819,11 +822,6 @@ extern void blk_update_request(struct request *rq, int error,
  */
 extern unsigned int blk_rq_bytes(struct request *rq);
 extern unsigned int blk_rq_cur_bytes(struct request *rq);
-
-static inline void blkdev_dequeue_request(struct request *req)
-{
-	elv_dequeue_request(req->q, req);
-}
 
 /*
  * Access functions for manipulating queue properties
@@ -920,6 +918,8 @@ extern void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter);
 #define BLK_DEF_MAX_SECTORS 1024
 
 #define MAX_SEGMENT_SIZE	65536
+
+#define BLK_SEG_BOUNDARY_MASK	0xFFFFFFFFUL
 
 #define blkdev_entry_to_request(entry) list_entry((entry), struct request, queuelist)
 

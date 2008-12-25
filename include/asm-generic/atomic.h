@@ -251,7 +251,7 @@ static inline long atomic_long_add_unless(atomic_long_t *l, long a, long u)
 #define atomic_long_cmpxchg(l, old, new) \
 	(atomic_cmpxchg((atomic_t *)(l), (old), (new)))
 #define atomic_long_xchg(v, new) \
-	(atomic_xchg((atomic_t *)(l), (new)))
+	(atomic_xchg((atomic_t *)(v), (new)))
 
 #endif  /*  BITS_PER_LONG == 64  */
 

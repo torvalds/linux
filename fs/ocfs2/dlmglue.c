@@ -2841,9 +2841,8 @@ static void ocfs2_unlock_ast(void *opaque, int error)
 
 	lockres_clear_flags(lockres, OCFS2_LOCK_BUSY);
 	lockres->l_unlock_action = OCFS2_UNLOCK_INVALID;
-	spin_unlock_irqrestore(&lockres->l_lock, flags);
-
 	wake_up(&lockres->l_event);
+	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
 	mlog_exit_void();
 }

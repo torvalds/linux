@@ -101,6 +101,18 @@ static inline __be16 pppoe_proto(const struct sk_buff *skb)
 	 pppoe_proto(skb) == htons(PPP_IPV6) && \
 	 brnf_filter_pppoe_tagged)
 
+static void fake_update_pmtu(struct dst_entry *dst, u32 mtu)
+{
+}
+
+static struct dst_ops fake_dst_ops = {
+	.family =		AF_INET,
+	.protocol =		__constant_htons(ETH_P_IP),
+	.update_pmtu =		fake_update_pmtu,
+	.entry_size =		sizeof(struct rtable),
+	.entries =		ATOMIC_INIT(0),
+};
+
 /*
  * Initialize bogus route table used to keep netfilter happy.
  * Currently, we fill in the PMTU entry because netfilter
@@ -117,6 +129,7 @@ void br_netfilter_rtable_init(struct net_bridge *br)
 	rt->u.dst.path = &rt->u.dst;
 	rt->u.dst.metrics[RTAX_MTU - 1] = 1500;
 	rt->u.dst.flags	= DST_NOXFRM;
+	rt->u.dst.ops = &fake_dst_ops;
 }
 
 static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)

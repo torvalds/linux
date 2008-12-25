@@ -169,18 +169,21 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		}
 		break;
 	case PCI_VENDOR_ID_ATI:
-		/* SB700 old version has a bug in EHCI controller,
+		/* SB600 and old version of SB700 have a bug in EHCI controller,
 		 * which causes usb devices lose response in some cases.
 		 */
-		if (pdev->device == 0x4396) {
+		if ((pdev->device == 0x4386) || (pdev->device == 0x4396)) {
 			p_smbus = pci_get_device(PCI_VENDOR_ID_ATI,
 						 PCI_DEVICE_ID_ATI_SBX00_SMBUS,
 						 NULL);
 			if (!p_smbus)
 				break;
 			rev = p_smbus->revision;
-			if ((rev == 0x3a) || (rev == 0x3b)) {
+			if ((pdev->device == 0x4386) || (rev == 0x3a)
+			    || (rev == 0x3b)) {
 				u8 tmp;
+				ehci_info(ehci, "applying AMD SB600/SB700 USB "
+					"freeze workaround\n");
 				pci_read_config_byte(pdev, 0x53, &tmp);
 				pci_write_config_byte(pdev, 0x53, tmp | (1<<3));
 			}

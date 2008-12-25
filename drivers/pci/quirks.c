@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/acpi.h>
 #include <linux/kallsyms.h>
+#include <linux/dmi.h>
 #include "pci.h"
 
 int isa_dma_bridge_buggy;
@@ -1827,6 +1828,22 @@ static void __devinit ht_enable_msi_mapping(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS,
 			 PCI_DEVICE_ID_SERVERWORKS_HT1000_PXB,
 			 ht_enable_msi_mapping);
+
+/* The P5N32-SLI Premium motherboard from Asus has a problem with msi
+ * for the MCP55 NIC. It is not yet determined whether the msi problem
+ * also affects other devices. As for now, turn off msi for this device.
+ */
+static void __devinit nvenet_msi_disable(struct pci_dev *dev)
+{
+	if (dmi_name_in_vendors("P5N32-SLI PREMIUM")) {
+		dev_info(&dev->dev,
+			 "Disabling msi for MCP55 NIC on P5N32-SLI Premium\n");
+		dev->no_msi = 1;
+	}
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
+			PCI_DEVICE_ID_NVIDIA_NVENET_15,
+			nvenet_msi_disable);
 
 static void __devinit nv_msi_ht_cap_quirk(struct pci_dev *dev)
 {

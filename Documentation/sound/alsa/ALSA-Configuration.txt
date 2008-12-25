@@ -1063,6 +1063,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
 	STAC9227/9228/9229/927x
 	  ref		Reference board
+	  ref-no-jd	Reference board without HP/Mic jack detection
 	  3stack	D965 3stack
 	  5stack	D965 5stack + SPDIF
 	  dell-3stack	Dell Dimension E520
@@ -1072,10 +1073,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  ref		Reference board
 	  dell-m4-1	Dell desktops
 	  dell-m4-2	Dell desktops
+	  dell-m4-3	Dell desktops
 
 	STAC92HD73*
 	  ref		Reference board
-	  dell-m6	Dell desktops
+	  no-jd		BIOS setup but without jack-detection
+	  dell-m6-amic	Dell desktops/laptops with analog mics
+	  dell-m6-dmic	Dell desktops/laptops with digital mics
+	  dell-m6	Dell desktops/laptops with both type of mics
 
 	STAC9872
 	  vaio		Setup for VAIO FE550G/SZ110

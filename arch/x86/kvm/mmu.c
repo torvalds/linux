@@ -1038,13 +1038,13 @@ static int kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	}
 
 	rmap_write_protect(vcpu->kvm, sp->gfn);
+	kvm_unlink_unsync_page(vcpu->kvm, sp);
 	if (vcpu->arch.mmu.sync_page(vcpu, sp)) {
 		kvm_mmu_zap_page(vcpu->kvm, sp);
 		return 1;
 	}
 
 	kvm_mmu_flush_tlb(vcpu);
-	kvm_unlink_unsync_page(vcpu->kvm, sp);
 	return 0;
 }
 

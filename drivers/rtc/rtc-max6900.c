@@ -247,12 +247,18 @@ max6900_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 }
 
+static struct i2c_device_id max6900_id[] = {
+	{ "max6900", 0 },
+	{ }
+};
+
 static struct i2c_driver max6900_driver = {
 	.driver = {
 		   .name = "rtc-max6900",
 		   },
 	.probe = max6900_probe,
 	.remove = max6900_remove,
+	.id_table = max6900_id,
 };
 
 static int __init max6900_init(void)

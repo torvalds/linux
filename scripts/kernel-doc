@@ -378,6 +378,10 @@ sub dump_section {
 #	print STDERR "parameter def '$1' = '$contents'\n";
 	$name = $1;
 	$parameterdescs{$name} = $contents;
+    } elsif ($name eq "@\.\.\.") {
+#	print STDERR "parameter def '...' = '$contents'\n";
+	$name = "...";
+	$parameterdescs{$name} = $contents;
     } else {
 #	print STDERR "other section '$name' = '$contents'\n";
 	if (defined($sections{$name}) && ($sections{$name} ne "")) {
@@ -1588,12 +1592,12 @@ sub push_parameter($$$) {
 
 	if ($type eq "" && $param =~ /\.\.\.$/)
 	{
-	    $type="";
-	    $parameterdescs{$param} = "variable arguments";
+	    if (!defined $parameterdescs{$param} || $parameterdescs{$param} eq "") {
+		$parameterdescs{$param} = "variable arguments";
+	    }
 	}
 	elsif ($type eq "" && ($param eq "" or $param eq "void"))
 	{
-	    $type="";
 	    $param="void";
 	    $parameterdescs{void} = "no arguments";
 	}

@@ -3149,7 +3149,9 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 
 	if (cpu_has_virtual_nmis()) {
 		if (vcpu->arch.nmi_pending && !vcpu->arch.nmi_injected) {
-			if (vmx_nmi_enabled(vcpu)) {
+			if (vcpu->arch.interrupt.pending) {
+				enable_nmi_window(vcpu);
+			} else if (vmx_nmi_enabled(vcpu)) {
 				vcpu->arch.nmi_pending = false;
 				vcpu->arch.nmi_injected = true;
 			} else {

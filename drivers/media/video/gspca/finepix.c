@@ -276,6 +276,12 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	/* Stop the state machine */
 	if (dev->state != FPIX_NOP)
 		wait_for_completion(&dev->can_close);
+}
+
+/* called on streamoff with alt 0 and disconnect */
+static void sd_stop0(struct gspca_dev *gspca_dev)
+{
+	struct usb_fpix *dev = (struct usb_fpix *) gspca_dev;
 
 	usb_free_urb(dev->control_urb);
 	dev->control_urb = NULL;
@@ -385,6 +391,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 error:
 	/* Free the ressources */
 	sd_stopN(gspca_dev);
+	sd_stop0(gspca_dev);
 	return ret;
 }
 
@@ -425,6 +432,7 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
 };
 
 /* -- device connect -- */

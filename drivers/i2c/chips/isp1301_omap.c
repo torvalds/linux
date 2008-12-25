@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb.h>
@@ -33,7 +34,10 @@
 #include <linux/workqueue.h>
 
 #include <asm/irq.h>
+#include <asm/mach-types.h>
+
 #include <mach/usb.h>
+#include <mach/mux.h>
 
 
 #ifndef	DEBUG
@@ -88,14 +92,9 @@ struct isp1301 {
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef	CONFIG_MACH_OMAP_H2
-
 /* board-specific PM hooks */
 
-#include <asm/gpio.h>
-#include <mach/mux.h>
-#include <asm/mach-types.h>
-
+#if defined(CONFIG_MACH_OMAP_H2) || defined(CONFIG_MACH_OMAP_H3)
 
 #if	defined(CONFIG_TPS65010) || defined(CONFIG_TPS65010_MODULE)
 
@@ -116,6 +115,33 @@ static void enable_vbus_draw(struct isp1301 *isp, unsigned mA)
 	int status = tps65010_set_vbus_draw(mA);
 	if (status < 0)
 		pr_debug("  VBUS %d mA error %d\n", mA, status);
+}
+
+static void enable_vbus_source(struct isp1301 *isp)
+{
+	/* this board won't supply more than 8mA vbus power.
+	 * some boards can switch a 100ma "unit load" (or more).
+	 */
+}
+
+
+/* products will deliver OTG messages with LEDs, GUI, etc */
+static inline void notresponding(struct isp1301 *isp)
+{
+	printk(KERN_NOTICE "OTG device not responding.\n");
+}
+
+
+#endif
+
+#if defined(CONFIG_MACH_OMAP_H4)
+
+static void enable_vbus_draw(struct isp1301 *isp, unsigned mA)
+{
+	/* H4 controls this by DIP switch S2.4; no soft control.
+	 * ON means the charger is always enabled.  Leave it OFF
+	 * unless the OTG port is used only in B-peripheral mode.
+	 */
 }
 
 static void enable_vbus_source(struct isp1301 *isp)
@@ -334,8 +360,7 @@ static int gadget_suspend(struct isp1301 *isp)
  * NOTE: guaranteeing certain response times might mean we shouldn't
  * share keventd's work queue; a realtime task might be safest.
  */
-void
-isp1301_defer_work(struct isp1301 *isp, int work)
+static void isp1301_defer_work(struct isp1301 *isp, int work)
 {
 	int status;
 
@@ -511,7 +536,6 @@ static void update_otg1(struct isp1301 *isp, u8 int_src)
 	otg_ctrl = omap_readl(OTG_CTRL) & OTG_CTRL_MASK;
 	otg_ctrl &= ~OTG_XCEIV_INPUTS;
 	otg_ctrl &= ~(OTG_ID|OTG_ASESSVLD|OTG_VBUSVLD);
-
 
 	if (int_src & INTR_SESS_VLD)
 		otg_ctrl |= OTG_ASESSVLD;
@@ -886,11 +910,11 @@ static int otg_probe(struct platform_device *dev)
 
 static int otg_remove(struct platform_device *dev)
 {
-	otg_dev = 0;
+	otg_dev = NULL;
 	return 0;
 }
 
-struct platform_driver omap_otg_driver = {
+static struct platform_driver omap_otg_driver = {
 	.probe		= otg_probe,
 	.remove		= otg_remove,
 	.driver		= {
@@ -1212,6 +1236,8 @@ static void isp1301_release(struct device *dev)
 
 	isp = dev_get_drvdata(dev);
 
+	/* FIXME -- not with a "new style" driver, it doesn't!! */
+
 	/* ugly -- i2c hijacks our memory hook to wait_for_completion() */
 	if (isp->i2c_release)
 		isp->i2c_release(dev);
@@ -1233,7 +1259,7 @@ static int __exit isp1301_remove(struct i2c_client *i2c)
 	otg_unbind(isp);
 #endif
 	if (machine_is_omap_h2())
-		omap_free_gpio(2);
+		gpio_free(2);
 
 	isp->timer.data = 0;
 	set_bit(WORK_STOP, &isp->todo);
@@ -1241,7 +1267,7 @@ static int __exit isp1301_remove(struct i2c_client *i2c)
 	flush_scheduled_work();
 
 	put_device(&i2c->dev);
-	the_transceiver = 0;
+	the_transceiver = NULL;
 
 	return 0;
 }
@@ -1295,7 +1321,7 @@ isp1301_set_host(struct otg_transceiver *otg, struct usb_bus *host)
 	if (!host) {
 		omap_writew(0, OTG_IRQ_EN);
 		power_down(isp);
-		isp->otg.host = 0;
+		isp->otg.host = NULL;
 		return 0;
 	}
 
@@ -1344,7 +1370,9 @@ static int
 isp1301_set_peripheral(struct otg_transceiver *otg, struct usb_gadget *gadget)
 {
 	struct isp1301	*isp = container_of(otg, struct isp1301, otg);
+#ifndef	CONFIG_USB_OTG
 	u32 l;
+#endif
 
 	if (!otg || isp != the_transceiver)
 		return -ENODEV;
@@ -1354,7 +1382,7 @@ isp1301_set_peripheral(struct otg_transceiver *otg, struct usb_gadget *gadget)
 		if (!isp->otg.default_a)
 			enable_vbus_draw(isp, 0);
 		usb_gadget_vbus_disconnect(isp->otg.gadget);
-		isp->otg.gadget = 0;
+		isp->otg.gadget = NULL;
 		power_down(isp);
 		return 0;
 	}
@@ -1379,7 +1407,7 @@ isp1301_set_peripheral(struct otg_transceiver *otg, struct usb_gadget *gadget)
 	power_up(isp);
 	isp->otg.state = OTG_STATE_B_IDLE;
 
-	if (machine_is_omap_h2())
+	if (machine_is_omap_h2() || machine_is_omap_h3())
 		isp1301_set_bits(isp, ISP1301_MODE_CONTROL_1, MC1_DAT_SE0);
 
 	isp1301_set_bits(isp, ISP1301_INTERRUPT_RISING,
@@ -1499,7 +1527,8 @@ isp1301_start_hnp(struct otg_transceiver *dev)
 
 /*-------------------------------------------------------------------------*/
 
-static int __init isp1301_probe(struct i2c_client *i2c)
+static int __init
+isp1301_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	int			status;
 	struct isp1301		*isp;
@@ -1647,7 +1676,7 @@ module_init(isp_init);
 static void __exit isp_exit(void)
 {
 	if (the_transceiver)
-		otg_set_transceiver(0);
+		otg_set_transceiver(NULL);
 	i2c_del_driver(&isp1301_driver);
 }
 module_exit(isp_exit);

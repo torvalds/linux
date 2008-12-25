@@ -418,7 +418,7 @@ static irqreturn_t cd2401_rxerr_interrupt(int irq, void *dev_id)
 							     TTY_OVERRUN);
 					/*
 					   If the flip buffer itself is
-					   overflowing, we still loose
+					   overflowing, we still lose
 					   the next incoming character.
 					 */
 					if (tty_buffer_request_room(tty, 1) !=

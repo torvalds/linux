@@ -2705,7 +2705,7 @@ static int __devinit hrz_probe(struct pci_dev *pci_dev, const struct pci_device_
 
 	/* XXX DEV_LABEL is a guess */
 	if (!request_region(iobase, HRZ_IO_EXTENT, DEV_LABEL)) {
-		return -EINVAL;
+		err = -EINVAL;
 		goto out_disable;
 	}
 

@@ -390,6 +390,9 @@ static int spufs_ps_fault(struct vm_area_struct *vma,
 	if (offset >= ps_size)
 		return VM_FAULT_SIGBUS;
 
+	if (fatal_signal_pending(current))
+		return VM_FAULT_SIGBUS;
+
 	/*
 	 * Because we release the mmap_sem, the context may be destroyed while
 	 * we're in spu_wait. Grab an extra reference so it isn't destroyed

@@ -183,15 +183,13 @@ timer_action (struct ehci_hcd *ehci, enum ehci_timer_action action)
 	 * the async ring; just the I/O watchdog.  Note that if a
 	 * SHRINK were pending, OFF would never be requested.
 	 */
-	enum ehci_timer_action oldactions = ehci->actions;
+	if (timer_pending(&ehci->watchdog)
+			&& ((BIT(TIMER_ASYNC_SHRINK) | BIT(TIMER_ASYNC_OFF))
+				& ehci->actions))
+		return;
 
 	if (!test_and_set_bit (action, &ehci->actions)) {
 		unsigned long t;
-
-		if (timer_pending(&ehci->watchdog)
-			&& ((BIT(TIMER_ASYNC_SHRINK) | BIT(TIMER_ASYNC_OFF))
-				& oldactions))
-			return;
 
 		switch (action) {
 		case TIMER_IO_WATCHDOG:
@@ -208,7 +206,7 @@ timer_action (struct ehci_hcd *ehci, enum ehci_timer_action action)
 			t = DIV_ROUND_UP(EHCI_SHRINK_FRAMES * HZ, 1000) + 1;
 			break;
 		}
-		mod_timer(&ehci->watchdog, round_jiffies(t + jiffies));
+		mod_timer(&ehci->watchdog, t + jiffies);
 	}
 }
 

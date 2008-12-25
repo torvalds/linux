@@ -657,7 +657,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		 * debugger stored an invalid system call number. Skip
 		 * the system call and the system call restart handling.
 		 */
-		regs->trap = -1;
+		regs->svcnr = 0;
 		ret = -1;
 	}
 

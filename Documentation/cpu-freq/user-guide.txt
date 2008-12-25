@@ -23,6 +23,7 @@ Contents:
 1.3 sparc64
 1.4 ppc
 1.5 SuperH
+1.6 Blackfin
 
 2. "Policy" / "Governor"?
 2.1 Policy
@@ -96,6 +97,17 @@ The following SuperH processors are supported by cpufreq:
 
 SH-3
 SH-4
+
+1.6 Blackfin
+------------
+
+The following Blackfin processors are supported by cpufreq:
+
+BF522, BF523, BF524, BF525, BF526, BF527, Rev 0.1 or higher
+BF531, BF532, BF533, Rev 0.3 or higher
+BF534, BF536, BF537, Rev 0.2 or higher
+BF561, Rev 0.3 or higher
+BF542, BF544, BF547, BF548, BF549, Rev 0.1 or higher
 
 
 2. "Policy" / "Governor" ?

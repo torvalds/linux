@@ -35,7 +35,7 @@
 
 #include "irq.h"
 
-volatile unsigned long cpu_callin_map[NR_CPUS] __initdata = {0,};
+volatile unsigned long cpu_callin_map[NR_CPUS] __cpuinitdata = {0,};
 unsigned char boot_cpu_id = 0;
 unsigned char boot_cpu_id4 = 0; /* boot_cpu_id << 2 */
 
@@ -120,7 +120,7 @@ void cpu_panic(void)
 	panic("SMP bolixed\n");
 }
 
-struct linux_prom_registers smp_penguin_ctable __initdata = { 0 };
+struct linux_prom_registers smp_penguin_ctable __cpuinitdata = { 0 };
 
 void smp_send_reschedule(int cpu)
 {

@@ -55,8 +55,6 @@ struct pt_regs {
 
 #ifdef __powerpc64__
 
-#define __ARCH_WANT_COMPAT_SYS_PTRACE
-
 #define STACK_FRAME_OVERHEAD	112	/* size of minimum stack frame */
 #define STACK_FRAME_LR_SAVE	2	/* Location of LR in stack frame */
 #define STACK_FRAME_REGS_MARKER	ASM_CONST(0x7265677368657265)

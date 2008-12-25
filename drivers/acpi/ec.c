@@ -219,7 +219,8 @@ static void gpe_transaction(struct acpi_ec *ec, u8 status)
 	goto unlock;
 err:
 	/* false interrupt, state didn't change */
-	++ec->curr->irq_count;
+	if (in_interrupt())
+		++ec->curr->irq_count;
 unlock:
 	spin_unlock_irqrestore(&ec->curr_lock, flags);
 }

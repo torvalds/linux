@@ -565,7 +565,7 @@ static int mioa701_sys_suspend(struct sys_device *sysdev, pm_message_t state)
 	u32 *mem_resume_unknown	= phys_to_virt(RESUME_UNKNOWN_ADDR);
 
 	/* Devices prepare suspend */
-	is_bt_on = gpio_get_value(GPIO83_BT_ON);
+	is_bt_on = !!gpio_get_value(GPIO83_BT_ON);
 	pxa2xx_mfp_set_lpm(GPIO83_BT_ON,
 			   is_bt_on ? MFP_LPM_DRIVE_HIGH : MFP_LPM_DRIVE_LOW);
 

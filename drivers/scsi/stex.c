@@ -477,7 +477,7 @@ stex_slave_config(struct scsi_device *sdev)
 {
 	sdev->use_10_for_rw = 1;
 	sdev->use_10_for_ms = 1;
-	sdev->timeout = 60 * HZ;
+	blk_queue_rq_timeout(sdev->request_queue, 60 * HZ);
 	sdev->tagged_supported = 1;
 
 	return 0;

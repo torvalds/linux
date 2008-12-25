@@ -132,10 +132,14 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 }
 EXPORT_SYMBOL(ide_end_request);
 
-static void ide_complete_power_step(ide_drive_t *drive, struct request *rq, u8 stat, u8 error)
+static void ide_complete_power_step(ide_drive_t *drive, struct request *rq)
 {
 	struct request_pm_state *pm = rq->data;
 
+#ifdef DEBUG_PM
+	printk(KERN_INFO "%s: complete_power_step(step: %d)\n",
+		drive->name, pm->pm_step);
+#endif
 	if (drive->media != ide_disk)
 		return;
 
@@ -172,7 +176,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		/* Not supported? Switch to next step now. */
 		if (ata_id_flush_enabled(drive->id) == 0 ||
 		    (drive->dev_flags & IDE_DFLAG_WCACHE) == 0) {
-			ide_complete_power_step(drive, rq, 0, 0);
+			ide_complete_power_step(drive, rq);
 			return ide_stopped;
 		}
 		if (ata_id_flush_ext_enabled(drive->id))
@@ -191,7 +195,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		if (drive->media != ide_disk)
 			pm->pm_step = IDE_PM_RESTORE_DMA;
 		else
-			ide_complete_power_step(drive, rq, 0, 0);
+			ide_complete_power_step(drive, rq);
 		return ide_stopped;
 	case IDE_PM_IDLE:		/* Resume step 2 (idle) */
 		args->tf.command = ATA_CMD_IDLEIMMEDIATE;
@@ -322,11 +326,8 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 		}
 	} else if (blk_pm_request(rq)) {
 		struct request_pm_state *pm = rq->data;
-#ifdef DEBUG_PM
-		printk("%s: complete_power_step(step: %d, stat: %x, err: %x)\n",
-			drive->name, rq->pm->pm_step, stat, err);
-#endif
-		ide_complete_power_step(drive, rq, stat, err);
+
+		ide_complete_power_step(drive, rq);
 		if (pm->pm_step == IDE_PM_COMPLETED)
 			ide_complete_pm_request(drive, rq);
 		return;
@@ -804,7 +805,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 			struct request_pm_state *pm = rq->data;
 #ifdef DEBUG_PM
 			printk("%s: start_power_step(step: %d)\n",
-				drive->name, rq->pm->pm_step);
+				drive->name, pm->pm_step);
 #endif
 			startstop = ide_start_power_step(drive, rq);
 			if (startstop == ide_stopped &&
@@ -967,14 +968,13 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 	ide_startstop_t	startstop;
 	int             loops = 0;
 
-	/* for atari only: POSSIBLY BROKEN HERE(?) */
-	ide_get_lock(ide_intr, hwgroup);
-
 	/* caller must own ide_lock */
 	BUG_ON(!irqs_disabled());
 
 	while (!hwgroup->busy) {
 		hwgroup->busy = 1;
+		/* for atari only */
+		ide_get_lock(ide_intr, hwgroup);
 		drive = choose_drive(hwgroup);
 		if (drive == NULL) {
 			int sleeping = 0;

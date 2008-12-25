@@ -294,9 +294,7 @@ static void __cpuinit start_secondary(void *unused)
 	 * fragile that we want to limit the things done here to the
 	 * most necessary things.
 	 */
-#ifdef CONFIG_VMI
 	vmi_bringup();
-#endif
 	cpu_init();
 	preempt_disable();
 	smp_callin();

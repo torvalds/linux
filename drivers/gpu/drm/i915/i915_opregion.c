@@ -235,17 +235,15 @@ void opregion_enable_asle(struct drm_device *dev)
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 
 	if (asle) {
-		u32 pipeb_stats = I915_READ(PIPEBSTAT);
 		if (IS_MOBILE(dev)) {
-			/* Many devices trigger events with a write to the
-			   legacy backlight controller, so we need to ensure
-			   that it's able to generate interrupts */
-			I915_WRITE(PIPEBSTAT, pipeb_stats |=
-				   I915_LEGACY_BLC_EVENT_ENABLE);
-			i915_enable_irq(dev_priv, I915_ASLE_INTERRUPT |
-					I915_DISPLAY_PIPE_B_EVENT_INTERRUPT);
-		} else
-			i915_enable_irq(dev_priv, I915_ASLE_INTERRUPT);
+			unsigned long irqflags;
+
+			spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
+			i915_enable_pipestat(dev_priv, 1,
+					     I915_LEGACY_BLC_EVENT_ENABLE);
+			spin_unlock_irqrestore(&dev_priv->user_irq_lock,
+					       irqflags);
+		}
 
 		asle->tche = ASLE_ALS_EN | ASLE_BLC_EN | ASLE_PFIT_EN |
 			ASLE_PFMB_EN;

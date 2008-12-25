@@ -146,6 +146,8 @@ static inline void smp_send_reschedule(int cpu) { }
 })
 #define smp_call_function_mask(mask, func, info, wait) \
 			(up_smp_call_function(func, info))
+#define smp_call_function_many(mask, func, info, wait) \
+			(up_smp_call_function(func, info))
 static inline void init_call_single_data(void)
 {
 }

@@ -189,7 +189,7 @@ static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
 					pgdat->node_start_pfn;
 }
 
-static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
+static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	int nr_pages = PAGES_PER_SECTION;
@@ -216,7 +216,7 @@ static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 	return 0;
 }
 
-static int __add_section(struct zone *zone, unsigned long phys_start_pfn)
+static int __meminit __add_section(struct zone *zone, unsigned long phys_start_pfn)
 {
 	int nr_pages = PAGES_PER_SECTION;
 	int ret;
@@ -273,7 +273,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms)
  * call this function after deciding the zone to which to
  * add the new pages.
  */
-int __add_pages(struct zone *zone, unsigned long phys_start_pfn,
+int __ref __add_pages(struct zone *zone, unsigned long phys_start_pfn,
 		 unsigned long nr_pages)
 {
 	unsigned long i;
@@ -470,7 +470,8 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
 }
 
 
-int add_memory(int nid, u64 start, u64 size)
+/* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+int __ref add_memory(int nid, u64 start, u64 size)
 {
 	pg_data_t *pgdat = NULL;
 	int new_pgdat = 0;

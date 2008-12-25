@@ -31,21 +31,23 @@
 #include "i915_drv.h"
 #include <linux/swap.h>
 
-static int
-i915_gem_object_set_domain(struct drm_gem_object *obj,
-			    uint32_t read_domains,
-			    uint32_t write_domain);
-static int
-i915_gem_object_set_domain_range(struct drm_gem_object *obj,
-				 uint64_t offset,
-				 uint64_t size,
-				 uint32_t read_domains,
-				 uint32_t write_domain);
-static int
-i915_gem_set_domain(struct drm_gem_object *obj,
-		    struct drm_file *file_priv,
-		    uint32_t read_domains,
-		    uint32_t write_domain);
+#define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+
+static void
+i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
+				  uint32_t read_domains,
+				  uint32_t write_domain);
+static void i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj);
+static void i915_gem_object_flush_gtt_write_domain(struct drm_gem_object *obj);
+static void i915_gem_object_flush_cpu_write_domain(struct drm_gem_object *obj);
+static int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
+					     int write);
+static int i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj,
+					     int write);
+static int i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
+						     uint64_t offset,
+						     uint64_t size);
+static void i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj);
 static int i915_gem_object_get_page_list(struct drm_gem_object *obj);
 static void i915_gem_object_free_page_list(struct drm_gem_object *obj);
 static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
@@ -83,20 +85,14 @@ int
 i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_get_aperture *args = data;
-	struct drm_i915_gem_object *obj_priv;
 
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
 
 	args->aper_size = dev->gtt_total;
-	args->aper_available_size = args->aper_size;
-
-	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
-		if (obj_priv->pin_count > 0)
-			args->aper_available_size -= obj_priv->obj->size;
-	}
+	args->aper_available_size = (args->aper_size -
+				     atomic_read(&dev->pin_memory));
 
 	return 0;
 }
@@ -166,8 +162,8 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->struct_mutex);
 
-	ret = i915_gem_object_set_domain_range(obj, args->offset, args->size,
-					       I915_GEM_DOMAIN_CPU, 0);
+	ret = i915_gem_object_set_cpu_read_domain_range(obj, args->offset,
+							args->size);
 	if (ret != 0) {
 		drm_gem_object_unreference(obj);
 		mutex_unlock(&dev->struct_mutex);
@@ -264,8 +260,7 @@ i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
-	ret = i915_gem_set_domain(obj, file_priv,
-				  I915_GEM_DOMAIN_GTT, I915_GEM_DOMAIN_GTT);
+	ret = i915_gem_object_set_to_gtt_domain(obj, 1);
 	if (ret)
 		goto fail;
 
@@ -324,8 +319,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 
 	mutex_lock(&dev->struct_mutex);
 
-	ret = i915_gem_set_domain(obj, file_priv,
-				  I915_GEM_DOMAIN_CPU, I915_GEM_DOMAIN_CPU);
+	ret = i915_gem_object_set_to_cpu_domain(obj, 1);
 	if (ret) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
@@ -401,7 +395,8 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * Called when user space prepares to use an object
+ * Called when user space prepares to use an object with the CPU, either
+ * through the mmap ioctl's mapping or a GTT mapping.
  */
 int
 i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
@@ -409,10 +404,25 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_set_domain *args = data;
 	struct drm_gem_object *obj;
+	uint32_t read_domains = args->read_domains;
+	uint32_t write_domain = args->write_domain;
 	int ret;
 
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
+
+	/* Only handle setting domains to types used by the CPU. */
+	if (write_domain & ~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+		return -EINVAL;
+
+	if (read_domains & ~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+		return -EINVAL;
+
+	/* Having something in the write domain implies it's in the read
+	 * domain, and only that read domain.  Enforce that in the request.
+	 */
+	if (write_domain != 0 && read_domains != write_domain)
+		return -EINVAL;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
@@ -421,10 +431,21 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	mutex_lock(&dev->struct_mutex);
 #if WATCH_BUF
 	DRM_INFO("set_domain_ioctl %p(%d), %08x %08x\n",
-		 obj, obj->size, args->read_domains, args->write_domain);
+		 obj, obj->size, read_domains, write_domain);
 #endif
-	ret = i915_gem_set_domain(obj, file_priv,
-				  args->read_domains, args->write_domain);
+	if (read_domains & I915_GEM_DOMAIN_GTT) {
+		ret = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
+
+		/* Silently promote "you're not bound, there was nothing to do"
+		 * to success, since the client was just asking us to
+		 * make sure everything was done.
+		 */
+		if (ret == -EINVAL)
+			ret = 0;
+	} else {
+		ret = i915_gem_object_set_to_cpu_domain(obj, write_domain != 0);
+	}
+
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -459,10 +480,9 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	obj_priv = obj->driver_private;
 
 	/* Pinned buffers may be scanout, so flush the cache */
-	if ((obj->write_domain & I915_GEM_DOMAIN_CPU) && obj_priv->pin_count) {
-		i915_gem_clflush_object(obj);
-		drm_agp_chipset_flush(dev);
-	}
+	if (obj_priv->pin_count)
+		i915_gem_object_flush_cpu_write_domain(obj);
+
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -536,7 +556,7 @@ i915_gem_object_free_page_list(struct drm_gem_object *obj)
 }
 
 static void
-i915_gem_object_move_to_active(struct drm_gem_object *obj)
+i915_gem_object_move_to_active(struct drm_gem_object *obj, uint32_t seqno)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -550,8 +570,20 @@ i915_gem_object_move_to_active(struct drm_gem_object *obj)
 	/* Move from whatever list we were on to the tail of execution. */
 	list_move_tail(&obj_priv->list,
 		       &dev_priv->mm.active_list);
+	obj_priv->last_rendering_seqno = seqno;
 }
 
+static void
+i915_gem_object_move_to_flushing(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+	BUG_ON(!obj_priv->active);
+	list_move_tail(&obj_priv->list, &dev_priv->mm.flushing_list);
+	obj_priv->last_rendering_seqno = 0;
+}
 
 static void
 i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
@@ -566,6 +598,7 @@ i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
 	else
 		list_move_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 
+	obj_priv->last_rendering_seqno = 0;
 	if (obj_priv->active) {
 		obj_priv->active = 0;
 		drm_gem_object_unreference(obj);
@@ -614,9 +647,27 @@ i915_add_request(struct drm_device *dev, uint32_t flush_domains)
 
 	request->seqno = seqno;
 	request->emitted_jiffies = jiffies;
-	request->flush_domains = flush_domains;
 	was_empty = list_empty(&dev_priv->mm.request_list);
 	list_add_tail(&request->list, &dev_priv->mm.request_list);
+
+	/* Associate any objects on the flushing list matching the write
+	 * domain we're flushing with our flush.
+	 */
+	if (flush_domains != 0) {
+		struct drm_i915_gem_object *obj_priv, *next;
+
+		list_for_each_entry_safe(obj_priv, next,
+					 &dev_priv->mm.flushing_list, list) {
+			struct drm_gem_object *obj = obj_priv->obj;
+
+			if ((obj->write_domain & flush_domains) ==
+			    obj->write_domain) {
+				obj->write_domain = 0;
+				i915_gem_object_move_to_active(obj, seqno);
+			}
+		}
+
+	}
 
 	if (was_empty && !dev_priv->mm.suspended)
 		schedule_delayed_work(&dev_priv->mm.retire_work, HZ);
@@ -680,30 +731,10 @@ i915_gem_retire_request(struct drm_device *dev,
 			 __func__, request->seqno, obj);
 #endif
 
-		if (obj->write_domain != 0) {
-			list_move_tail(&obj_priv->list,
-				       &dev_priv->mm.flushing_list);
-		} else {
+		if (obj->write_domain != 0)
+			i915_gem_object_move_to_flushing(obj);
+		else
 			i915_gem_object_move_to_inactive(obj);
-		}
-	}
-
-	if (request->flush_domains != 0) {
-		struct drm_i915_gem_object *obj_priv, *next;
-
-		/* Clear the write domain and activity from any buffers
-		 * that are just waiting for a flush matching the one retired.
-		 */
-		list_for_each_entry_safe(obj_priv, next,
-					 &dev_priv->mm.flushing_list, list) {
-			struct drm_gem_object *obj = obj_priv->obj;
-
-			if (obj->write_domain & request->flush_domains) {
-				obj->write_domain = 0;
-				i915_gem_object_move_to_inactive(obj);
-			}
-		}
-
 	}
 }
 
@@ -896,25 +927,10 @@ i915_gem_object_wait_rendering(struct drm_gem_object *obj)
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	int ret;
 
-	/* If there are writes queued to the buffer, flush and
-	 * create a new seqno to wait for.
+	/* This function only exists to support waiting for existing rendering,
+	 * not for emitting required flushes.
 	 */
-	if (obj->write_domain & ~(I915_GEM_DOMAIN_CPU|I915_GEM_DOMAIN_GTT)) {
-		uint32_t write_domain = obj->write_domain;
-#if WATCH_BUF
-		DRM_INFO("%s: flushing object %p from write domain %08x\n",
-			  __func__, obj, write_domain);
-#endif
-		i915_gem_flush(dev, 0, write_domain);
-
-		i915_gem_object_move_to_active(obj);
-		obj_priv->last_rendering_seqno = i915_add_request(dev,
-								  write_domain);
-		BUG_ON(obj_priv->last_rendering_seqno == 0);
-#if WATCH_LRU
-		DRM_INFO("%s: flush moves to exec list %p\n", __func__, obj);
-#endif
-	}
+	BUG_ON((obj->write_domain & I915_GEM_GPU_DOMAINS) != 0);
 
 	/* If there is rendering queued on the buffer being evicted, wait for
 	 * it.
@@ -954,24 +970,16 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 		return -EINVAL;
 	}
 
-	/* Wait for any rendering to complete
-	 */
-	ret = i915_gem_object_wait_rendering(obj);
-	if (ret) {
-		DRM_ERROR("wait_rendering failed: %d\n", ret);
-		return ret;
-	}
-
 	/* Move the object to the CPU domain to ensure that
 	 * any possible CPU writes while it's not in the GTT
 	 * are flushed when we go to remap it. This will
 	 * also ensure that all pending GPU writes are finished
 	 * before we unbind.
 	 */
-	ret = i915_gem_object_set_domain(obj, I915_GEM_DOMAIN_CPU,
-					 I915_GEM_DOMAIN_CPU);
+	ret = i915_gem_object_set_to_cpu_domain(obj, 1);
 	if (ret) {
-		DRM_ERROR("set_domain failed: %d\n", ret);
+		if (ret != -ERESTARTSYS)
+			DRM_ERROR("set_domain failed: %d\n", ret);
 		return ret;
 	}
 
@@ -1087,6 +1095,21 @@ i915_gem_evict_something(struct drm_device *dev)
 }
 
 static int
+i915_gem_evict_everything(struct drm_device *dev)
+{
+	int ret;
+
+	for (;;) {
+		ret = i915_gem_evict_something(dev);
+		if (ret != 0)
+			break;
+	}
+	if (ret == -ENOMEM)
+		return 0;
+	return ret;
+}
+
+static int
 i915_gem_object_get_page_list(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
@@ -1172,7 +1195,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 
 		ret = i915_gem_evict_something(dev);
 		if (ret != 0) {
-			DRM_ERROR("Failed to evict a buffer %d\n", ret);
+			if (ret != -ERESTARTSYS)
+				DRM_ERROR("Failed to evict a buffer %d\n", ret);
 			return ret;
 		}
 		goto search_free;
@@ -1230,6 +1254,143 @@ i915_gem_clflush_object(struct drm_gem_object *obj)
 		return;
 
 	drm_clflush_pages(obj_priv->page_list, obj->size / PAGE_SIZE);
+}
+
+/** Flushes any GPU write domain for the object if it's dirty. */
+static void
+i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	uint32_t seqno;
+
+	if ((obj->write_domain & I915_GEM_GPU_DOMAINS) == 0)
+		return;
+
+	/* Queue the GPU write cache flushing we need. */
+	i915_gem_flush(dev, 0, obj->write_domain);
+	seqno = i915_add_request(dev, obj->write_domain);
+	obj->write_domain = 0;
+	i915_gem_object_move_to_active(obj, seqno);
+}
+
+/** Flushes the GTT write domain for the object if it's dirty. */
+static void
+i915_gem_object_flush_gtt_write_domain(struct drm_gem_object *obj)
+{
+	if (obj->write_domain != I915_GEM_DOMAIN_GTT)
+		return;
+
+	/* No actual flushing is required for the GTT write domain.   Writes
+	 * to it immediately go to main memory as far as we know, so there's
+	 * no chipset flush.  It also doesn't land in render cache.
+	 */
+	obj->write_domain = 0;
+}
+
+/** Flushes the CPU write domain for the object if it's dirty. */
+static void
+i915_gem_object_flush_cpu_write_domain(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+
+	if (obj->write_domain != I915_GEM_DOMAIN_CPU)
+		return;
+
+	i915_gem_clflush_object(obj);
+	drm_agp_chipset_flush(dev);
+	obj->write_domain = 0;
+}
+
+/**
+ * Moves a single object to the GTT read, and possibly write domain.
+ *
+ * This function returns when the move is complete, including waiting on
+ * flushes to occur.
+ */
+static int
+i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
+{
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	int ret;
+
+	/* Not valid to be called on unbound objects. */
+	if (obj_priv->gtt_space == NULL)
+		return -EINVAL;
+
+	i915_gem_object_flush_gpu_write_domain(obj);
+	/* Wait on any GPU rendering and flushing to occur. */
+	ret = i915_gem_object_wait_rendering(obj);
+	if (ret != 0)
+		return ret;
+
+	/* If we're writing through the GTT domain, then CPU and GPU caches
+	 * will need to be invalidated at next use.
+	 */
+	if (write)
+		obj->read_domains &= I915_GEM_DOMAIN_GTT;
+
+	i915_gem_object_flush_cpu_write_domain(obj);
+
+	/* It should now be out of any other write domains, and we can update
+	 * the domain values for our changes.
+	 */
+	BUG_ON((obj->write_domain & ~I915_GEM_DOMAIN_GTT) != 0);
+	obj->read_domains |= I915_GEM_DOMAIN_GTT;
+	if (write) {
+		obj->write_domain = I915_GEM_DOMAIN_GTT;
+		obj_priv->dirty = 1;
+	}
+
+	return 0;
+}
+
+/**
+ * Moves a single object to the CPU read, and possibly write domain.
+ *
+ * This function returns when the move is complete, including waiting on
+ * flushes to occur.
+ */
+static int
+i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
+{
+	struct drm_device *dev = obj->dev;
+	int ret;
+
+	i915_gem_object_flush_gpu_write_domain(obj);
+	/* Wait on any GPU rendering and flushing to occur. */
+	ret = i915_gem_object_wait_rendering(obj);
+	if (ret != 0)
+		return ret;
+
+	i915_gem_object_flush_gtt_write_domain(obj);
+
+	/* If we have a partially-valid cache of the object in the CPU,
+	 * finish invalidating it and free the per-page flags.
+	 */
+	i915_gem_object_set_to_full_cpu_read_domain(obj);
+
+	/* Flush the CPU cache if it's still invalid. */
+	if ((obj->read_domains & I915_GEM_DOMAIN_CPU) == 0) {
+		i915_gem_clflush_object(obj);
+		drm_agp_chipset_flush(dev);
+
+		obj->read_domains |= I915_GEM_DOMAIN_CPU;
+	}
+
+	/* It should now be out of any other write domains, and we can update
+	 * the domain values for our changes.
+	 */
+	BUG_ON((obj->write_domain & ~I915_GEM_DOMAIN_CPU) != 0);
+
+	/* If we're writing through the CPU, then the GPU read domains will
+	 * need to be invalidated at next use.
+	 */
+	if (write) {
+		obj->read_domains &= I915_GEM_DOMAIN_CPU;
+		obj->write_domain = I915_GEM_DOMAIN_CPU;
+	}
+
+	return 0;
 }
 
 /*
@@ -1343,16 +1504,18 @@ i915_gem_clflush_object(struct drm_gem_object *obj)
  *		MI_FLUSH
  *		drm_agp_chipset_flush
  */
-static int
-i915_gem_object_set_domain(struct drm_gem_object *obj,
-			    uint32_t read_domains,
-			    uint32_t write_domain)
+static void
+i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
+				  uint32_t read_domains,
+				  uint32_t write_domain)
 {
 	struct drm_device		*dev = obj->dev;
 	struct drm_i915_gem_object	*obj_priv = obj->driver_private;
 	uint32_t			invalidate_domains = 0;
 	uint32_t			flush_domains = 0;
-	int				ret;
+
+	BUG_ON(read_domains & I915_GEM_DOMAIN_CPU);
+	BUG_ON(write_domain == I915_GEM_DOMAIN_CPU);
 
 #if WATCH_BUF
 	DRM_INFO("%s: object %p read %08x -> %08x write %08x -> %08x\n",
@@ -1389,34 +1552,11 @@ i915_gem_object_set_domain(struct drm_gem_object *obj,
 		DRM_INFO("%s: CPU domain flush %08x invalidate %08x\n",
 			 __func__, flush_domains, invalidate_domains);
 #endif
-		/*
-		 * If we're invaliding the CPU cache and flushing a GPU cache,
-		 * then pause for rendering so that the GPU caches will be
-		 * flushed before the cpu cache is invalidated
-		 */
-		if ((invalidate_domains & I915_GEM_DOMAIN_CPU) &&
-		    (flush_domains & ~(I915_GEM_DOMAIN_CPU |
-				       I915_GEM_DOMAIN_GTT))) {
-			ret = i915_gem_object_wait_rendering(obj);
-			if (ret)
-				return ret;
-		}
 		i915_gem_clflush_object(obj);
 	}
 
 	if ((write_domain | flush_domains) != 0)
 		obj->write_domain = write_domain;
-
-	/* If we're invalidating the CPU domain, clear the per-page CPU
-	 * domain list as well.
-	 */
-	if (obj_priv->page_cpu_valid != NULL &&
-	    (write_domain != 0 ||
-	     read_domains & I915_GEM_DOMAIN_CPU)) {
-		drm_free(obj_priv->page_cpu_valid, obj->size / PAGE_SIZE,
-			 DRM_MEM_DRIVER);
-		obj_priv->page_cpu_valid = NULL;
-	}
 	obj->read_domains = read_domains;
 
 	dev->invalidate_domains |= invalidate_domains;
@@ -1427,47 +1567,94 @@ i915_gem_object_set_domain(struct drm_gem_object *obj,
 		 obj->read_domains, obj->write_domain,
 		 dev->invalidate_domains, dev->flush_domains);
 #endif
-	return 0;
 }
 
 /**
- * Set the read/write domain on a range of the object.
+ * Moves the object from a partially CPU read to a full one.
  *
- * Currently only implemented for CPU reads, otherwise drops to normal
- * i915_gem_object_set_domain().
+ * Note that this only resolves i915_gem_object_set_cpu_read_domain_range(),
+ * and doesn't handle transitioning from !(read_domains & I915_GEM_DOMAIN_CPU).
+ */
+static void
+i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+	if (!obj_priv->page_cpu_valid)
+		return;
+
+	/* If we're partially in the CPU read domain, finish moving it in.
+	 */
+	if (obj->read_domains & I915_GEM_DOMAIN_CPU) {
+		int i;
+
+		for (i = 0; i <= (obj->size - 1) / PAGE_SIZE; i++) {
+			if (obj_priv->page_cpu_valid[i])
+				continue;
+			drm_clflush_pages(obj_priv->page_list + i, 1);
+		}
+		drm_agp_chipset_flush(dev);
+	}
+
+	/* Free the page_cpu_valid mappings which are now stale, whether
+	 * or not we've got I915_GEM_DOMAIN_CPU.
+	 */
+	drm_free(obj_priv->page_cpu_valid, obj->size / PAGE_SIZE,
+		 DRM_MEM_DRIVER);
+	obj_priv->page_cpu_valid = NULL;
+}
+
+/**
+ * Set the CPU read domain on a range of the object.
+ *
+ * The object ends up with I915_GEM_DOMAIN_CPU in its read flags although it's
+ * not entirely valid.  The page_cpu_valid member of the object flags which
+ * pages have been flushed, and will be respected by
+ * i915_gem_object_set_to_cpu_domain() if it's called on to get a valid mapping
+ * of the whole object.
+ *
+ * This function returns when the move is complete, including waiting on
+ * flushes to occur.
  */
 static int
-i915_gem_object_set_domain_range(struct drm_gem_object *obj,
-				 uint64_t offset,
-				 uint64_t size,
-				 uint32_t read_domains,
-				 uint32_t write_domain)
+i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
+					  uint64_t offset, uint64_t size)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
-	int ret, i;
+	int i, ret;
 
-	if (obj->read_domains & I915_GEM_DOMAIN_CPU)
+	if (offset == 0 && size == obj->size)
+		return i915_gem_object_set_to_cpu_domain(obj, 0);
+
+	i915_gem_object_flush_gpu_write_domain(obj);
+	/* Wait on any GPU rendering and flushing to occur. */
+	ret = i915_gem_object_wait_rendering(obj);
+	if (ret != 0)
+		return ret;
+	i915_gem_object_flush_gtt_write_domain(obj);
+
+	/* If we're already fully in the CPU read domain, we're done. */
+	if (obj_priv->page_cpu_valid == NULL &&
+	    (obj->read_domains & I915_GEM_DOMAIN_CPU) != 0)
 		return 0;
 
-	if (read_domains != I915_GEM_DOMAIN_CPU ||
-	    write_domain != 0)
-		return i915_gem_object_set_domain(obj,
-						  read_domains, write_domain);
-
-	/* Wait on any GPU rendering to the object to be flushed. */
-	ret = i915_gem_object_wait_rendering(obj);
-	if (ret)
-		return ret;
-
+	/* Otherwise, create/clear the per-page CPU read domain flag if we're
+	 * newly adding I915_GEM_DOMAIN_CPU
+	 */
 	if (obj_priv->page_cpu_valid == NULL) {
 		obj_priv->page_cpu_valid = drm_calloc(1, obj->size / PAGE_SIZE,
 						      DRM_MEM_DRIVER);
-	}
+		if (obj_priv->page_cpu_valid == NULL)
+			return -ENOMEM;
+	} else if ((obj->read_domains & I915_GEM_DOMAIN_CPU) == 0)
+		memset(obj_priv->page_cpu_valid, 0, obj->size / PAGE_SIZE);
 
 	/* Flush the cache on any pages that are still invalid from the CPU's
 	 * perspective.
 	 */
-	for (i = offset / PAGE_SIZE; i <= (offset + size - 1) / PAGE_SIZE; i++) {
+	for (i = offset / PAGE_SIZE; i <= (offset + size - 1) / PAGE_SIZE;
+	     i++) {
 		if (obj_priv->page_cpu_valid[i])
 			continue;
 
@@ -1476,39 +1663,14 @@ i915_gem_object_set_domain_range(struct drm_gem_object *obj,
 		obj_priv->page_cpu_valid[i] = 1;
 	}
 
-	return 0;
-}
-
-/**
- * Once all of the objects have been set in the proper domain,
- * perform the necessary flush and invalidate operations.
- *
- * Returns the write domains flushed, for use in flush tracking.
- */
-static uint32_t
-i915_gem_dev_set_domain(struct drm_device *dev)
-{
-	uint32_t flush_domains = dev->flush_domains;
-
-	/*
-	 * Now that all the buffers are synced to the proper domains,
-	 * flush and invalidate the collected domains
+	/* It should now be out of any other write domains, and we can update
+	 * the domain values for our changes.
 	 */
-	if (dev->invalidate_domains | dev->flush_domains) {
-#if WATCH_EXEC
-		DRM_INFO("%s: invalidate_domains %08x flush_domains %08x\n",
-			  __func__,
-			 dev->invalidate_domains,
-			 dev->flush_domains);
-#endif
-		i915_gem_flush(dev,
-			       dev->invalidate_domains,
-			       dev->flush_domains);
-		dev->invalidate_domains = 0;
-		dev->flush_domains = 0;
-	}
+	BUG_ON((obj->write_domain & ~I915_GEM_DOMAIN_CPU) != 0);
 
-	return flush_domains;
+	obj->read_domains |= I915_GEM_DOMAIN_CPU;
+
+	return 0;
 }
 
 /**
@@ -1589,6 +1751,18 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			return -EINVAL;
 		}
 
+		if (reloc.write_domain & I915_GEM_DOMAIN_CPU ||
+		    reloc.read_domains & I915_GEM_DOMAIN_CPU) {
+			DRM_ERROR("reloc with read/write CPU domains: "
+				  "obj %p target %d offset %d "
+				  "read %08x write %08x",
+				  obj, reloc.target_handle,
+				  (int) reloc.offset,
+				  reloc.read_domains,
+				  reloc.write_domain);
+			return -EINVAL;
+		}
+
 		if (reloc.write_domain && target_obj->pending_write_domain &&
 		    reloc.write_domain != target_obj->pending_write_domain) {
 			DRM_ERROR("Write domain conflict: "
@@ -1629,19 +1803,11 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			continue;
 		}
 
-		/* Now that we're going to actually write some data in,
-		 * make sure that any rendering using this buffer's contents
-		 * is completed.
-		 */
-		i915_gem_object_wait_rendering(obj);
-
-		/* As we're writing through the gtt, flush
-		 * any CPU writes before we write the relocations
-		 */
-		if (obj->write_domain & I915_GEM_DOMAIN_CPU) {
-			i915_gem_clflush_object(obj);
-			drm_agp_chipset_flush(dev);
-			obj->write_domain = 0;
+		ret = i915_gem_object_set_to_gtt_domain(obj, 1);
+		if (ret != 0) {
+			drm_gem_object_unreference(target_obj);
+			i915_gem_object_unpin(obj);
+			return -EINVAL;
 		}
 
 		/* Map the page containing the relocation we're going to
@@ -1783,6 +1949,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	int ret, i, pinned = 0;
 	uint64_t exec_offset;
 	uint32_t seqno, flush_domains;
+	int pin_tries;
 
 #if WATCH_EXEC
 	DRM_INFO("buffers_ptr %d buffer_count %d len %08x\n",
@@ -1831,14 +1998,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		return -EBUSY;
 	}
 
-	/* Zero the gloabl flush/invalidate flags. These
-	 * will be modified as each object is bound to the
-	 * gtt
-	 */
-	dev->invalidate_domains = 0;
-	dev->flush_domains = 0;
-
-	/* Look up object handles and perform the relocations */
+	/* Look up object handles */
 	for (i = 0; i < args->buffer_count; i++) {
 		object_list[i] = drm_gem_object_lookup(dev, file_priv,
 						       exec_list[i].handle);
@@ -1848,17 +2008,39 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			ret = -EBADF;
 			goto err;
 		}
+	}
 
-		object_list[i]->pending_read_domains = 0;
-		object_list[i]->pending_write_domain = 0;
-		ret = i915_gem_object_pin_and_relocate(object_list[i],
-						       file_priv,
-						       &exec_list[i]);
-		if (ret) {
-			DRM_ERROR("object bind and relocate failed %d\n", ret);
+	/* Pin and relocate */
+	for (pin_tries = 0; ; pin_tries++) {
+		ret = 0;
+		for (i = 0; i < args->buffer_count; i++) {
+			object_list[i]->pending_read_domains = 0;
+			object_list[i]->pending_write_domain = 0;
+			ret = i915_gem_object_pin_and_relocate(object_list[i],
+							       file_priv,
+							       &exec_list[i]);
+			if (ret)
+				break;
+			pinned = i + 1;
+		}
+		/* success */
+		if (ret == 0)
+			break;
+
+		/* error other than GTT full, or we've already tried again */
+		if (ret != -ENOMEM || pin_tries >= 1) {
+			DRM_ERROR("Failed to pin buffers %d\n", ret);
 			goto err;
 		}
-		pinned = i + 1;
+
+		/* unpin all of our buffers */
+		for (i = 0; i < pinned; i++)
+			i915_gem_object_unpin(object_list[i]);
+
+		/* evict everyone we can from the aperture */
+		ret = i915_gem_evict_everything(dev);
+		if (ret)
+			goto err;
 	}
 
 	/* Set the pending read domains for the batch buffer to COMMAND */
@@ -1868,32 +2050,37 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
+	/* Zero the global flush/invalidate flags. These
+	 * will be modified as new domains are computed
+	 * for each object
+	 */
+	dev->invalidate_domains = 0;
+	dev->flush_domains = 0;
+
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
 
-		if (obj_priv->gtt_space == NULL) {
-			/* We evicted the buffer in the process of validating
-			 * our set of buffers in.  We could try to recover by
-			 * kicking them everything out and trying again from
-			 * the start.
-			 */
-			ret = -ENOMEM;
-			goto err;
-		}
-
-		/* make sure all previous memory operations have passed */
-		ret = i915_gem_object_set_domain(obj,
-						 obj->pending_read_domains,
-						 obj->pending_write_domain);
-		if (ret)
-			goto err;
+		/* Compute new gpu domains and update invalidate/flush */
+		i915_gem_object_set_to_gpu_domain(obj,
+						  obj->pending_read_domains,
+						  obj->pending_write_domain);
 	}
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
-	/* Flush/invalidate caches and chipset buffer */
-	flush_domains = i915_gem_dev_set_domain(dev);
+	if (dev->invalidate_domains | dev->flush_domains) {
+#if WATCH_EXEC
+		DRM_INFO("%s: invalidate_domains %08x flush_domains %08x\n",
+			  __func__,
+			 dev->invalidate_domains,
+			 dev->flush_domains);
+#endif
+		i915_gem_flush(dev,
+			       dev->invalidate_domains,
+			       dev->flush_domains);
+		if (dev->flush_domains)
+			(void)i915_add_request(dev, dev->flush_domains);
+	}
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
@@ -1912,8 +2099,6 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			      __func__,
 			      ~0);
 #endif
-
-	(void)i915_add_request(dev, flush_domains);
 
 	/* Exec the batchbuffer */
 	ret = i915_dispatch_gem_execbuffer(dev, args, exec_offset);
@@ -1942,10 +2127,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	i915_file_priv->mm.last_gem_seqno = seqno;
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
 
-		i915_gem_object_move_to_active(obj);
-		obj_priv->last_rendering_seqno = seqno;
+		i915_gem_object_move_to_active(obj, seqno);
 #if WATCH_LRU
 		DRM_INFO("%s: move to exec list %p\n", __func__, obj);
 #endif
@@ -2076,11 +2259,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	/* XXX - flush the CPU caches for pinned objects
 	 * as the X server doesn't manage domains yet
 	 */
-	if (obj->write_domain & I915_GEM_DOMAIN_CPU) {
-		i915_gem_clflush_object(obj);
-		drm_agp_chipset_flush(dev);
-		obj->write_domain = 0;
-	}
+	i915_gem_object_flush_cpu_write_domain(obj);
 	args->offset = obj_priv->gtt_offset;
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
@@ -2130,7 +2309,14 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	}
 
 	obj_priv = obj->driver_private;
-	args->busy = obj_priv->active;
+	/* Don't count being on the flushing list against the object being
+	 * done.  Otherwise, a buffer left on the flushing list but not getting
+	 * flushed (because nobody's flushing that domain) won't ever return
+	 * unbusy and get reused by libdrm's bo cache.  The other expected
+	 * consumer of this interface, OpenGL's occlusion queries, also specs
+	 * that the objects get unbusy "eventually" without any interference.
+	 */
+	args->busy = obj_priv->active && obj_priv->last_rendering_seqno != 0;
 
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
@@ -2180,29 +2366,6 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 
 	drm_free(obj_priv->page_cpu_valid, 1, DRM_MEM_DRIVER);
 	drm_free(obj->driver_private, 1, DRM_MEM_DRIVER);
-}
-
-static int
-i915_gem_set_domain(struct drm_gem_object *obj,
-		    struct drm_file *file_priv,
-		    uint32_t read_domains,
-		    uint32_t write_domain)
-{
-	struct drm_device *dev = obj->dev;
-	int ret;
-	uint32_t flush_domains;
-
-	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
-
-	ret = i915_gem_object_set_domain(obj, read_domains, write_domain);
-	if (ret)
-		return ret;
-	flush_domains = i915_gem_dev_set_domain(obj->dev);
-
-	if (flush_domains & ~(I915_GEM_DOMAIN_CPU|I915_GEM_DOMAIN_GTT))
-		(void) i915_add_request(dev, flush_domains);
-
-	return 0;
 }
 
 /** Unbinds all objects that are on the given buffer list. */
@@ -2299,28 +2462,51 @@ i915_gem_idle(struct drm_device *dev)
 
 	i915_gem_retire_requests(dev);
 
-	/* Active and flushing should now be empty as we've
-	 * waited for a sequence higher than any pending execbuffer
-	 */
-	BUG_ON(!list_empty(&dev_priv->mm.active_list));
-	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
+	if (!dev_priv->mm.wedged) {
+		/* Active and flushing should now be empty as we've
+		 * waited for a sequence higher than any pending execbuffer
+		 */
+		WARN_ON(!list_empty(&dev_priv->mm.active_list));
+		WARN_ON(!list_empty(&dev_priv->mm.flushing_list));
+		/* Request should now be empty as we've also waited
+		 * for the last request in the list
+		 */
+		WARN_ON(!list_empty(&dev_priv->mm.request_list));
+	}
 
-	/* Request should now be empty as we've also waited
-	 * for the last request in the list
+	/* Empty the active and flushing lists to inactive.  If there's
+	 * anything left at this point, it means that we're wedged and
+	 * nothing good's going to happen by leaving them there.  So strip
+	 * the GPU domains and just stuff them onto inactive.
 	 */
-	BUG_ON(!list_empty(&dev_priv->mm.request_list));
+	while (!list_empty(&dev_priv->mm.active_list)) {
+		struct drm_i915_gem_object *obj_priv;
 
-	/* Move all buffers out of the GTT. */
+		obj_priv = list_first_entry(&dev_priv->mm.active_list,
+					    struct drm_i915_gem_object,
+					    list);
+		obj_priv->obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
+		i915_gem_object_move_to_inactive(obj_priv->obj);
+	}
+
+	while (!list_empty(&dev_priv->mm.flushing_list)) {
+		struct drm_i915_gem_object *obj_priv;
+
+		obj_priv = list_first_entry(&dev_priv->mm.flushing_list,
+					    struct drm_i915_gem_object,
+					    list);
+		obj_priv->obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
+		i915_gem_object_move_to_inactive(obj_priv->obj);
+	}
+
+
+	/* Move all inactive buffers out of the GTT. */
 	ret = i915_gem_evict_from_list(dev, &dev_priv->mm.inactive_list);
+	WARN_ON(!list_empty(&dev_priv->mm.inactive_list));
 	if (ret) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
-
-	BUG_ON(!list_empty(&dev_priv->mm.active_list));
-	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
-	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
-	BUG_ON(!list_empty(&dev_priv->mm.request_list));
 
 	i915_gem_cleanup_ringbuffer(dev);
 	mutex_unlock(&dev->struct_mutex);

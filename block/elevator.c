@@ -844,14 +844,7 @@ void elv_dequeue_request(struct request_queue *q, struct request *rq)
 	 */
 	if (blk_account_rq(rq))
 		q->in_flight++;
-
-	/*
-	 * We are now handing the request to the hardware, add the
-	 * timeout handler.
-	 */
-	blk_add_timer(rq);
 }
-EXPORT_SYMBOL(elv_dequeue_request);
 
 int elv_queue_empty(struct request_queue *q)
 {

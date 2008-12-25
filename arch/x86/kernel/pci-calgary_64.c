@@ -1567,7 +1567,7 @@ static int __init calgary_parse_options(char *p)
 				++p;
 			if (*p == '\0')
 				break;
-			bridge = simple_strtol(p, &endp, 0);
+			bridge = simple_strtoul(p, &endp, 0);
 			if (p == endp)
 				break;
 

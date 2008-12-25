@@ -63,12 +63,14 @@ static inline void *kmap_atomic(struct page *page, enum km_type idx)
 #endif /* CONFIG_HIGHMEM */
 
 /* when CONFIG_HIGHMEM is not set these will be plain clear/copy_page */
+#ifndef clear_user_highpage
 static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
 {
 	void *addr = kmap_atomic(page, KM_USER0);
 	clear_user_page(addr, vaddr, page);
 	kunmap_atomic(addr, KM_USER0);
 }
+#endif
 
 #ifndef __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
 /**
