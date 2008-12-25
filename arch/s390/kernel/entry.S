@@ -436,7 +436,7 @@ ret_from_fork:
 	basr	%r14,%r1
 	TRACE_IRQS_ON
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
-	b	BASED(sysc_return)
+	b	BASED(sysc_tracenogo)
 
 #
 # kernel_execve function needs to deal with pt_regs that is not

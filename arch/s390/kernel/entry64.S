@@ -417,7 +417,7 @@ ret_from_fork:
 0:	brasl	%r14,schedule_tail
 	TRACE_IRQS_ON
 	stosm	24(%r15),0x03		# reenable interrupts
-	j	sysc_return
+	j	sysc_tracenogo
 
 #
 # kernel_execve function needs to deal with pt_regs that is not
