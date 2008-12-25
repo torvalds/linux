@@ -125,7 +125,7 @@ void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
 
 static inline int tiqdio_inbound_q_done(struct qdio_q *q)
 {
-	unsigned char state;
+	unsigned char state = 0;
 
 	if (!atomic_read(&q->nr_buf_used))
 		return 1;

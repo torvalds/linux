@@ -529,7 +529,7 @@ int qdio_inbound_q_moved(struct qdio_q *q)
 
 static int qdio_inbound_q_done(struct qdio_q *q)
 {
-	unsigned char state;
+	unsigned char state = 0;
 #ifdef CONFIG_QDIO_DEBUG
 	char dbf_text[15];
 #endif
