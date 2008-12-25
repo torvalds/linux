@@ -195,7 +195,8 @@ static int set_schib(struct ccw_device *cdev, u32 mme, int mbfc,
 	/* msch can silently fail, so do it again if necessary */
 	for (retry = 0; retry < 3; retry++) {
 		/* prepare schib */
-		stsch(sch->schid, schib);
+		if (cio_update_schib(sch))
+			return -ENODEV;
 		schib->pmcw.mme  = mme;
 		schib->pmcw.mbfc = mbfc;
 		/* address can be either a block address or a block index */
@@ -219,7 +220,8 @@ static int set_schib(struct ccw_device *cdev, u32 mme, int mbfc,
 				ret = -EINVAL;
 				break;
 		}
-		stsch(sch->schid, schib); /* restore the schib */
+		if (cio_update_schib(sch))
+			return -ENODEV;
 
 		if (ret)
 			break;
@@ -338,7 +340,7 @@ static int cmf_copy_block(struct ccw_device *cdev)
 
 	sch = to_subchannel(cdev->dev.parent);
 
-	if (stsch(sch->schid, &sch->schib))
+	if (cio_update_schib(sch))
 		return -ENODEV;
 
 	if (scsw_fctl(&sch->schib.scsw) & SCSW_FCTL_START_FUNC) {

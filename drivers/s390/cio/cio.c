@@ -114,11 +114,13 @@ cio_start_handle_notoper(struct subchannel *sch, __u8 lpm)
 	else
 		sch->lpm = 0;
 
-	stsch (sch->schid, &sch->schib);
-
 	CIO_MSG_EVENT(2, "cio_start: 'not oper' status for "
 		      "subchannel 0.%x.%04x!\n", sch->schid.ssid,
 		      sch->schid.sch_no);
+
+	if (cio_update_schib(sch))
+		return -ENODEV;
+
 	sprintf(dbf_text, "no%s", dev_name(&sch->dev));
 	CIO_TRACE_EVENT(0, dbf_text);
 	CIO_HEX_EVENT(0, &sch->schib, sizeof (struct schib));
@@ -316,7 +318,8 @@ cio_cancel (struct subchannel *sch)
 	switch (ccode) {
 	case 0:		/* success */
 		/* Update information in scsw. */
-		stsch (sch->schid, &sch->schib);
+		if (cio_update_schib(sch))
+			return -ENODEV;
 		return 0;
 	case 1:		/* status pending */
 		return -EBUSY;
@@ -358,6 +361,23 @@ cio_modify (struct subchannel *sch)
 }
 
 /**
+ * cio_update_schib - Perform stsch and update schib if subchannel is valid.
+ * @sch: subchannel on which to perform stsch
+ * Return zero on success, -ENODEV otherwise.
+ */
+int cio_update_schib(struct subchannel *sch)
+{
+	struct schib schib;
+
+	if (stsch(sch->schid, &schib) || !css_sch_is_valid(&schib))
+		return -ENODEV;
+
+	memcpy(&sch->schib, &schib, sizeof(schib));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cio_update_schib);
+
+/**
  * cio_enable_subchannel - enable a subchannel.
  * @sch: subchannel to be enabled
  * @intparm: interruption parameter to set
@@ -365,7 +385,6 @@ cio_modify (struct subchannel *sch)
 int cio_enable_subchannel(struct subchannel *sch, u32 intparm)
 {
 	char dbf_txt[15];
-	int ccode;
 	int retry;
 	int ret;
 
@@ -374,8 +393,7 @@ int cio_enable_subchannel(struct subchannel *sch, u32 intparm)
 
 	if (sch_is_pseudo_sch(sch))
 		return -EINVAL;
-	ccode = stsch (sch->schid, &sch->schib);
-	if (ccode)
+	if (cio_update_schib(sch))
 		return -ENODEV;
 
 	for (retry = 5, ret = 0; retry > 0; retry--) {
@@ -392,7 +410,10 @@ int cio_enable_subchannel(struct subchannel *sch, u32 intparm)
 			 */
 			sch->schib.pmcw.csense = 0;
 		if (ret == 0) {
-			stsch (sch->schid, &sch->schib);
+			if (cio_update_schib(sch)) {
+				ret = -ENODEV;
+				break;
+			}
 			if (sch->schib.pmcw.ena)
 				break;
 		}
@@ -415,7 +436,6 @@ EXPORT_SYMBOL_GPL(cio_enable_subchannel);
 int cio_disable_subchannel(struct subchannel *sch)
 {
 	char dbf_txt[15];
-	int ccode;
 	int retry;
 	int ret;
 
@@ -424,8 +444,7 @@ int cio_disable_subchannel(struct subchannel *sch)
 
 	if (sch_is_pseudo_sch(sch))
 		return 0;
-	ccode = stsch (sch->schid, &sch->schib);
-	if (ccode == 3)		/* Not operational. */
+	if (cio_update_schib(sch))
 		return -ENODEV;
 
 	if (scsw_actl(&sch->schib.scsw) != 0)
@@ -448,7 +467,10 @@ int cio_disable_subchannel(struct subchannel *sch)
 			 */
 			break;
 		if (ret == 0) {
-			stsch (sch->schid, &sch->schib);
+			if (cio_update_schib(sch)) {
+				ret = -ENODEV;
+				break;
+			}
 			if (!sch->schib.pmcw.ena)
 				break;
 		}
@@ -851,7 +873,8 @@ __disable_subchannel_easy(struct subchannel_id schid, struct schib *schib)
 		cc = msch(schid, schib);
 		if (cc)
 			return (cc==3?-ENODEV:-EBUSY);
-		stsch(schid, schib);
+		if (stsch(schid, schib) || !css_sch_is_valid(schib))
+			return -ENODEV;
 		if (!schib->pmcw.ena)
 			return 0;
 	}

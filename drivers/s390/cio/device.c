@@ -1350,10 +1350,7 @@ static void io_subchannel_verify(struct subchannel *sch)
 
 static int check_for_io_on_path(struct subchannel *sch, int mask)
 {
-	int cc;
-
-	cc = stsch(sch->schid, &sch->schib);
-	if (cc)
+	if (cio_update_schib(sch))
 		return 0;
 	if (scsw_actl(&sch->schib.scsw) && sch->schib.pmcw.lpum == mask)
 		return 1;
@@ -1422,15 +1419,13 @@ static int io_subchannel_chp_event(struct subchannel *sch,
 		io_subchannel_verify(sch);
 		break;
 	case CHP_OFFLINE:
-		if (stsch(sch->schid, &sch->schib))
-			return -ENXIO;
-		if (!css_sch_is_valid(&sch->schib))
+		if (cio_update_schib(sch))
 			return -ENODEV;
 		io_subchannel_terminate_path(sch, mask);
 		break;
 	case CHP_ONLINE:
-		if (stsch(sch->schid, &sch->schib))
-			return -ENXIO;
+		if (cio_update_schib(sch))
+			return -ENODEV;
 		sch->lpm |= mask & sch->opm;
 		io_subchannel_verify(sch);
 		break;
