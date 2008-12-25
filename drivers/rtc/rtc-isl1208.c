@@ -328,6 +328,13 @@ isl1208_i2c_set_time(struct i2c_client *client, struct rtc_time const *tm)
 	int sr;
 	u8 regs[ISL1208_RTC_SECTION_LEN] = { 0, };
 
+	/* The clock has an 8 bit wide bcd-coded register (they never learn)
+	 * for the year. tm_year is an offset from 1900 and we are interested
+	 * in the 2000-2099 range, so any value less than 100 is invalid.
+	 */
+	if (tm->tm_year < 100)
+		return -EINVAL;
+
 	regs[ISL1208_REG_SC] = bin2bcd(tm->tm_sec);
 	regs[ISL1208_REG_MN] = bin2bcd(tm->tm_min);
 	regs[ISL1208_REG_HR] = bin2bcd(tm->tm_hour) | ISL1208_REG_HR_MIL;

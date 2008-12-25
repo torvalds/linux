@@ -998,7 +998,7 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
 		unsigned long addr = (unsigned long)(*pages);
 		struct vm_area_struct *vma;
 		struct page *page;
-		int err;
+		int err = -EFAULT;
 
 		vma = find_vma(mm, addr);
 		if (!vma)

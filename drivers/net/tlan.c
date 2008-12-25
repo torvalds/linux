@@ -1098,6 +1098,7 @@ static int TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 	dma_addr_t	tail_list_phys;
 	u8		*tail_buffer;
 	unsigned long	flags;
+	unsigned int    txlen;
 
 	if ( ! priv->phyOnline ) {
 		TLAN_DBG( TLAN_DEBUG_TX, "TRANSMIT:  %s PHY is not ready\n",
@@ -1108,6 +1109,7 @@ static int TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 
 	if (skb_padto(skb, TLAN_MIN_FRAME_SIZE))
 		return 0;
+	txlen = max(skb->len, (unsigned int)TLAN_MIN_FRAME_SIZE);
 
 	tail_list = priv->txList + priv->txTail;
 	tail_list_phys = priv->txListDMA + sizeof(TLanList) * priv->txTail;
@@ -1125,16 +1127,16 @@ static int TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 
 	if ( bbuf ) {
 		tail_buffer = priv->txBuffer + ( priv->txTail * TLAN_MAX_FRAME_SIZE );
-		skb_copy_from_linear_data(skb, tail_buffer, skb->len);
+		skb_copy_from_linear_data(skb, tail_buffer, txlen);
 	} else {
 		tail_list->buffer[0].address = pci_map_single(priv->pciDev,
-							      skb->data, skb->len,
+							      skb->data, txlen,
 							      PCI_DMA_TODEVICE);
 		TLan_StoreSKB(tail_list, skb);
 	}
 
-	tail_list->frameSize = (u16) skb->len;
-	tail_list->buffer[0].count = TLAN_LAST_BUFFER | (u32) skb->len;
+	tail_list->frameSize = (u16) txlen;
+	tail_list->buffer[0].count = TLAN_LAST_BUFFER | (u32) txlen;
 	tail_list->buffer[1].count = 0;
 	tail_list->buffer[1].address = 0;
 
@@ -1431,7 +1433,9 @@ static u32 TLan_HandleTxEOF( struct net_device *dev, u16 host_int )
 		if ( ! bbuf ) {
 			struct sk_buff *skb = TLan_GetSKB(head_list);
 			pci_unmap_single(priv->pciDev, head_list->buffer[0].address,
-					 skb->len, PCI_DMA_TODEVICE);
+					 max(skb->len,
+					     (unsigned int)TLAN_MIN_FRAME_SIZE),
+					 PCI_DMA_TODEVICE);
 			dev_kfree_skb_any(skb);
 			head_list->buffer[8].address = 0;
 			head_list->buffer[9].address = 0;
@@ -2055,9 +2059,12 @@ static void TLan_FreeLists( struct net_device *dev )
 			list = priv->txList + i;
 			skb = TLan_GetSKB(list);
 			if ( skb ) {
-				pci_unmap_single(priv->pciDev,
-						 list->buffer[0].address, skb->len,
-						 PCI_DMA_TODEVICE);
+				pci_unmap_single(
+					priv->pciDev,
+					list->buffer[0].address,
+					max(skb->len,
+					    (unsigned int)TLAN_MIN_FRAME_SIZE),
+					PCI_DMA_TODEVICE);
 				dev_kfree_skb_any( skb );
 				list->buffer[8].address = 0;
 				list->buffer[9].address = 0;
