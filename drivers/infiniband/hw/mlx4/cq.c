@@ -325,15 +325,17 @@ static int mlx4_ib_get_outstanding_cqes(struct mlx4_ib_cq *cq)
 
 static void mlx4_ib_cq_resize_copy_cqes(struct mlx4_ib_cq *cq)
 {
-	struct mlx4_cqe *cqe;
+	struct mlx4_cqe *cqe, *new_cqe;
 	int i;
 
 	i = cq->mcq.cons_index;
 	cqe = get_cqe(cq, i & cq->ibcq.cqe);
 	while ((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) != MLX4_CQE_OPCODE_RESIZE) {
-		memcpy(get_cqe_from_buf(&cq->resize_buf->buf,
-					(i + 1) & cq->resize_buf->cqe),
-			get_cqe(cq, i & cq->ibcq.cqe), sizeof(struct mlx4_cqe));
+		new_cqe = get_cqe_from_buf(&cq->resize_buf->buf,
+					   (i + 1) & cq->resize_buf->cqe);
+		memcpy(new_cqe, get_cqe(cq, i & cq->ibcq.cqe), sizeof(struct mlx4_cqe));
+		new_cqe->owner_sr_opcode = (cqe->owner_sr_opcode & ~MLX4_CQE_OWNER_MASK) |
+			(((i + 1) & (cq->resize_buf->cqe + 1)) ? MLX4_CQE_OWNER_MASK : 0);
 		cqe = get_cqe(cq, ++i & cq->ibcq.cqe);
 	}
 	++cq->mcq.cons_index;
