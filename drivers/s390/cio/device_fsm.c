@@ -399,9 +399,6 @@ ccw_device_done(struct ccw_device *cdev, int state)
 		ccw_device_oper_notify(cdev);
 	}
 	wake_up(&cdev->private->wait_q);
-
-	if (css_init_done && state != DEV_STATE_ONLINE)
-		put_device (&cdev->dev);
 }
 
 static int cmp_pgid(struct pgid *p1, struct pgid *p2)
@@ -611,8 +608,6 @@ ccw_device_online(struct ccw_device *cdev)
 	    (cdev->private->state != DEV_STATE_BOXED))
 		return -EINVAL;
 	sch = to_subchannel(cdev->dev.parent);
-	if (css_init_done && !get_device(&cdev->dev))
-		return -ENODEV;
 	ret = cio_enable_subchannel(sch, (u32)(addr_t)sch);
 	if (ret != 0) {
 		/* Couldn't enable the subchannel for i/o. Sick device. */

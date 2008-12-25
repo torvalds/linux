@@ -376,19 +376,23 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 			dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
 		}
 		spin_unlock_irq(cdev->ccwlock);
+		/* Give up reference from ccw_device_set_online(). */
+		put_device(&cdev->dev);
 		return ret;
 	}
 	spin_unlock_irq(cdev->ccwlock);
-	if (ret == 0)
+	if (ret == 0) {
 		wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
-	else {
+		/* Give up reference from ccw_device_set_online(). */
+		put_device(&cdev->dev);
+	} else {
 		CIO_MSG_EVENT(0, "ccw_device_offline returned %d, "
 			      "device 0.%x.%04x\n",
 			      ret, cdev->private->dev_id.ssid,
 			      cdev->private->dev_id.devno);
 		cdev->online = 1;
 	}
- 	return ret;
+	return ret;
 }
 
 /**
@@ -411,6 +415,9 @@ int ccw_device_set_online(struct ccw_device *cdev)
 		return -ENODEV;
 	if (cdev->online || !cdev->drv)
 		return -EINVAL;
+	/* Hold on to an extra reference while device is online. */
+	if (!get_device(&cdev->dev))
+		return -ENODEV;
 
 	spin_lock_irq(cdev->ccwlock);
 	ret = ccw_device_online(cdev);
@@ -422,10 +429,15 @@ int ccw_device_set_online(struct ccw_device *cdev)
 			      "device 0.%x.%04x\n",
 			      ret, cdev->private->dev_id.ssid,
 			      cdev->private->dev_id.devno);
+		/* Give up online reference since onlining failed. */
+		put_device(&cdev->dev);
 		return ret;
 	}
-	if (cdev->private->state != DEV_STATE_ONLINE)
+	if (cdev->private->state != DEV_STATE_ONLINE) {
+		/* Give up online reference since onlining failed. */
+		put_device(&cdev->dev);
 		return -ENODEV;
+	}
 	if (!cdev->drv->set_online || cdev->drv->set_online(cdev) == 0) {
 		cdev->online = 1;
 		return 0;
@@ -440,6 +452,8 @@ int ccw_device_set_online(struct ccw_device *cdev)
 			      "device 0.%x.%04x\n",
 			      ret, cdev->private->dev_id.ssid,
 			      cdev->private->dev_id.devno);
+	/* Give up online reference since onlining failed. */
+	put_device(&cdev->dev);
 	return (ret == 0) ? -ENODEV : ret;
 }
 
@@ -1168,9 +1182,8 @@ static int io_subchannel_probe(struct subchannel *sch)
 		ccw_device_register(cdev);
 		/*
 		 * Check if the device is already online. If it is
-		 * the reference count needs to be corrected
-		 * (see ccw_device_online and css_init_done for the
-		 * ugly details).
+		 * the reference count needs to be corrected since we
+		 * didn't obtain a reference in ccw_device_set_online.
 		 */
 		if (cdev->private->state != DEV_STATE_NOT_OPER &&
 		    cdev->private->state != DEV_STATE_OFFLINE &&
@@ -1806,6 +1819,8 @@ ccw_device_remove (struct device *dev)
 				      "device 0.%x.%04x\n",
 				      ret, cdev->private->dev_id.ssid,
 				      cdev->private->dev_id.devno);
+		/* Give up reference obtained in ccw_device_set_online(). */
+		put_device(&cdev->dev);
 	}
 	ccw_device_set_timeout(cdev, 0);
 	cdev->drv = NULL;
