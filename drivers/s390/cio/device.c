@@ -965,7 +965,7 @@ io_subchannel_register(struct work_struct *work)
 	 * be registered). We need to reprobe since we may now have sense id
 	 * information.
 	 */
-	if (klist_node_attached(&cdev->dev.knode_parent)) {
+	if (device_is_registered(&cdev->dev)) {
 		if (!cdev->drv) {
 			ret = device_reprobe(&cdev->dev);
 			if (ret)
