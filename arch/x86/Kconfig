@@ -241,7 +241,6 @@ config X86_HAS_BOOT_CPU_ID
 config SPARSE_IRQ
 	bool "Support sparse irq numbering"
 	depends on PCI_MSI || HT_IRQ
-	default y
 	help
 	  This enables support for sparse irq, esp for msi/msi-x. You may need
 	  if you have lots of cards supports msi-x installed.
