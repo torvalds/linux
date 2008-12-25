@@ -14,7 +14,10 @@
 #define _LINUX_PERF_COUNTER_H
 
 #include <asm/atomic.h>
-#include <asm/perf_counter.h>
+
+#ifdef CONFIG_PERF_COUNTERS
+# include <asm/perf_counter.h>
+#endif
 
 #include <linux/list.h>
 #include <linux/mutex.h>
