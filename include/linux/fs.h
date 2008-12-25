@@ -316,6 +316,7 @@ struct poll_table_struct;
 struct kstatfs;
 struct vm_area_struct;
 struct vfsmount;
+struct cred;
 
 extern void __init inode_init(void);
 extern void __init inode_init_early(void);
@@ -827,7 +828,7 @@ struct file {
 	fmode_t			f_mode;
 	loff_t			f_pos;
 	struct fown_struct	f_owner;
-	unsigned int		f_uid, f_gid;
+	const struct cred	*f_cred;
 	struct file_ra_state	f_ra;
 
 	u64			f_version;
@@ -1194,7 +1195,7 @@ enum {
 #define has_fs_excl() atomic_read(&current->fs_excl)
 
 #define is_owner_or_cap(inode)	\
-	((current->fsuid == (inode)->i_uid) || capable(CAP_FOWNER))
+	((current_fsuid() == (inode)->i_uid) || capable(CAP_FOWNER))
 
 /* not quite ready to be deprecated, but... */
 extern void lock_super(struct super_block *);
@@ -1674,7 +1675,8 @@ extern int do_truncate(struct dentry *, loff_t start, unsigned int time_attrs,
 extern long do_sys_open(int dfd, const char __user *filename, int flags,
 			int mode);
 extern struct file *filp_open(const char *, int, int);
-extern struct file * dentry_open(struct dentry *, struct vfsmount *, int);
+extern struct file * dentry_open(struct dentry *, struct vfsmount *, int,
+				 const struct cred *);
 extern int filp_close(struct file *, fl_owner_t id);
 extern char * getname(const char __user *);
 

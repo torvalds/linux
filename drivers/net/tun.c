@@ -702,6 +702,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	struct tun_net *tn;
 	struct tun_struct *tun;
 	struct net_device *dev;
+	const struct cred *cred = current_cred();
 	int err;
 
 	tn = net_generic(net, tun_net_id);
@@ -712,11 +713,12 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		/* Check permissions */
 		if (((tun->owner != -1 &&
-		      current->euid != tun->owner) ||
+		      cred->euid != tun->owner) ||
 		     (tun->group != -1 &&
-		      current->egid != tun->group)) &&
-		     !capable(CAP_NET_ADMIN))
+		      cred->egid != tun->group)) &&
+		    !capable(CAP_NET_ADMIN)) {
 			return -EPERM;
+		}
 	}
 	else if (__dev_get_by_name(net, ifr->ifr_name))
 		return -EINVAL;

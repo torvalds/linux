@@ -1452,6 +1452,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			instruction doesn't work correctly and not to
 			use it.
 
+	no_file_caps	Tells the kernel not to honor file capabilities.  The
+			only way then for a file to be executed with privilege
+			is to be setuid root or executed by root.
+
 	nohalt		[IA-64] Tells the kernel not to use the power saving
 			function PAL_HALT_LIGHT when idle. This increases
 			power-consumption. On the positive side, it reduces
