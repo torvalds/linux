@@ -347,16 +347,6 @@ config QDIO
 
 	  If unsure, say Y.
 
-config QDIO_DEBUG
-	bool "Extended debugging information"
-	depends on QDIO
-	help
-	  Say Y here to get extended debugging output in
-	    /sys/kernel/debug/s390dbf/qdio...
-	  Warning: this option reduces the performance of the QDIO module.
-
-	  If unsure, say N.
-
 config CHSC_SCH
 	tristate "Support for CHSC subchannels"
 	help
