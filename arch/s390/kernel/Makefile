@@ -17,8 +17,8 @@ CFLAGS_smp.o	:= -Wno-nonnull
 #
 CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
-obj-y	:=  bitmap.o traps.o time.o process.o base.o early.o \
-            setup.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o \
+obj-y	:=  bitmap.o traps.o time.o process.o base.o early.o setup.o \
+	    processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o \
 	    s390_ext.o debug.o irq.o ipl.o dis.o diag.o mem_detect.o \
 	    vdso.o vtime.o
 

@@ -3,6 +3,9 @@
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "cpu"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -306,7 +309,7 @@ void __init s390_init_cpu_topology(void)
 	for (i = 0; i < info->mnest - 2; i++)
 		nr_cores *= info->mag[NR_MAG - 3 - i];
 
-	printk(KERN_INFO "CPU topology:");
+	pr_info("The CPU configuration topology of the machine is:");
 	for (i = 0; i < NR_MAG; i++)
 		printk(" %d", info->mag[i]);
 	printk(" / %d\n", info->mnest);
