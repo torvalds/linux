@@ -167,7 +167,7 @@ ssize_t ocfs2_quota_read(struct super_block *sb, int type, char *data,
 		len = i_size - off;
 	toread = len;
 	while (toread > 0) {
-		tocopy = min((size_t)(sb->s_blocksize - offset), toread);
+		tocopy = min_t(size_t, (sb->s_blocksize - offset), toread);
 		bh = NULL;
 		err = ocfs2_read_quota_block(gqinode, blk, &bh);
 		if (err) {
