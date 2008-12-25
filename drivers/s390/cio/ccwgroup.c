@@ -91,15 +91,23 @@ ccwgroup_ungroup_store(struct device *dev, struct device_attribute *attr, const 
 
 	gdev = to_ccwgroupdev(dev);
 
-	if (gdev->state != CCWGROUP_OFFLINE)
-		return -EINVAL;
-
+	/* Prevent concurrent online/offline processing and ungrouping. */
+	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
+		return -EAGAIN;
+	if (gdev->state != CCWGROUP_OFFLINE) {
+		rc = -EINVAL;
+		goto out;
+	}
 	/* Note that we cannot unregister the device from one of its
 	 * attribute methods, so we have to use this roundabout approach.
 	 */
 	rc = device_schedule_callback(dev, ccwgroup_ungroup_callback);
-	if (rc)
-		count = rc;
+out:
+	if (rc) {
+		/* Release onoff "lock" when ungrouping failed. */
+		atomic_set(&gdev->onoff, 0);
+		return rc;
+	}
 	return count;
 }
 
