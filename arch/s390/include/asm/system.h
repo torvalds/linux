@@ -99,13 +99,9 @@ static inline void restore_access_regs(unsigned int *acrs)
 	prev = __switch_to(prev,next);					     \
 } while (0)
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 extern void account_vtime(struct task_struct *);
 extern void account_tick_vtime(struct task_struct *);
 extern void account_system_vtime(struct task_struct *);
-#else
-#define account_vtime(x) do { /* empty */ } while (0)
-#endif
 
 #ifdef CONFIG_PFAULT
 extern void pfault_irq_init(void);

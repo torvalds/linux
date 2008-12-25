@@ -69,6 +69,9 @@ config PGSTE
 	bool
 	default y if KVM
 
+config VIRT_CPU_ACCOUNTING
+	def_bool y
+
 mainmenu "Linux Kernel Configuration"
 
 config S390
@@ -469,22 +472,9 @@ config PAGE_STATES
 	  hypervisor. The ESSA instruction is used to do the states
 	  changes between a page that has content and the unused state.
 
-config VIRT_TIMER
-	bool "Virtual CPU timer support"
-	help
-	  This provides a kernel interface for virtual CPU timers.
-	  Default is disabled.
-
-config VIRT_CPU_ACCOUNTING
-	bool "Base user process accounting on virtual cpu timer"
-	depends on VIRT_TIMER
-	help
-	  Select this option to use CPU timer deltas to do user
-	  process accounting.
-
 config APPLDATA_BASE
 	bool "Linux - VM Monitor Stream, base infrastructure"
-	depends on PROC_FS && VIRT_TIMER=y
+	depends on PROC_FS
 	help
 	  This provides a kernel interface for creating and updating z/VM APPLDATA
 	  monitor records. The monitor records are updated at certain time

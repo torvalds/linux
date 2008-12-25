@@ -286,10 +286,8 @@ void __init time_init(void)
 
 	/* Enable TOD clock interrupts on the boot cpu. */
 	init_cpu_timer();
-
-#ifdef CONFIG_VIRT_TIMER
+	/* Enable cpu timer interrupts on the boot cpu. */
 	vtime_init();
-#endif
 }
 
 /*

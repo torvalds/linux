@@ -441,10 +441,8 @@ int __cpuinit start_secondary(void *cpuvoid)
 	preempt_disable();
 	/* Enable TOD clock interrupts on the secondary cpu. */
 	init_cpu_timer();
-#ifdef CONFIG_VIRT_TIMER
 	/* Enable cpu timer interrupts on the secondary cpu. */
 	init_cpu_vtimer();
-#endif
 	/* Enable pfault pseudo page faults on this cpu. */
 	pfault_init();
 
