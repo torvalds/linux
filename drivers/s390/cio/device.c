@@ -1174,7 +1174,8 @@ void io_subchannel_init_config(struct subchannel *sch)
 {
 	memset(&sch->config, 0, sizeof(sch->config));
 	sch->config.csense = 1;
-	if ((sch->lpm & (sch->lpm - 1)) != 0)
+	/* Use subchannel mp mode when there is more than 1 installed CHPID. */
+	if ((sch->schib.pmcw.pim & (sch->schib.pmcw.pim - 1)) != 0)
 		sch->config.mp = 1;
 }
 
