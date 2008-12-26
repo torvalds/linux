@@ -74,10 +74,8 @@ static struct irq_desc *__real_move_irq_desc(struct irq_desc *old_desc,
 
 	node = cpu_to_node(cpu);
 	desc = kzalloc_node(sizeof(*desc), GFP_ATOMIC, node);
-	printk(KERN_DEBUG "  move irq_desc for %d to cpu %d node %d\n",
-		 irq, cpu, node);
 	if (!desc) {
-		printk(KERN_ERR "can not get new irq_desc for moving\n");
+		printk(KERN_ERR "irq %d: can not get new irq_desc for migration.\n", irq);
 		/* still use old one */
 		desc = old_desc;
 		goto out_unlock;
@@ -106,8 +104,6 @@ struct irq_desc *move_irq_desc(struct irq_desc *desc, int cpu)
 		return desc;
 
 	old_cpu = desc->cpu;
-	printk(KERN_DEBUG
-		 "try to move irq_desc from cpu %d to %d\n", old_cpu, cpu);
 	if (old_cpu != cpu) {
 		node = cpu_to_node(cpu);
 		old_node = cpu_to_node(old_cpu);
