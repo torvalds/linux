@@ -811,18 +811,18 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 
 	irq = of_get_property(dp, "interrupts", &len);
 	if (irq) {
-		memcpy(op->irqs, irq, len);
 		op->num_irqs = len / 4;
+
+		/* Prevent overrunning the op->irqs[] array.  */
+		if (op->num_irqs > PROMINTR_MAX) {
+			printk(KERN_WARNING "%s: Too many irqs (%d), "
+			       "limiting to %d.\n",
+			       dp->full_name, op->num_irqs, PROMINTR_MAX);
+			op->num_irqs = PROMINTR_MAX;
+		}
+		memcpy(op->irqs, irq, op->num_irqs * 4);
 	} else {
 		op->num_irqs = 0;
-	}
-
-	/* Prevent overrunning the op->irqs[] array.  */
-	if (op->num_irqs > PROMINTR_MAX) {
-		printk(KERN_WARNING "%s: Too many irqs (%d), "
-		       "limiting to %d.\n",
-		       dp->full_name, op->num_irqs, PROMINTR_MAX);
-		op->num_irqs = PROMINTR_MAX;
 	}
 
 	build_device_resources(op, parent);
