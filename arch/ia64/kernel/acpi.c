@@ -1001,7 +1001,7 @@ acpi_map_iosapic(acpi_handle handle, u32 depth, void *context, void **ret)
 	node = pxm_to_node(pxm);
 
 	if (node >= MAX_NUMNODES || !node_online(node) ||
-	    cpus_empty(node_to_cpumask(node)))
+	    cpumask_empty(cpumask_of_node(node)))
 		return AE_OK;
 
 	/* We know a gsi to node mapping! */
