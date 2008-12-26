@@ -1332,6 +1332,8 @@ static int efx_net_open(struct net_device *net_dev)
 	EFX_LOG(efx, "opening device %s on CPU %d\n", net_dev->name,
 		raw_smp_processor_id());
 
+	if (efx->state == STATE_DISABLED)
+		return -EIO;
 	if (efx->phy_mode & PHY_MODE_SPECIAL)
 		return -EBUSY;
 
@@ -1350,10 +1352,12 @@ static int efx_net_stop(struct net_device *net_dev)
 	EFX_LOG(efx, "closing %s on CPU %d\n", net_dev->name,
 		raw_smp_processor_id());
 
-	/* Stop the device and flush all the channels */
-	efx_stop_all(efx);
-	efx_fini_channels(efx);
-	efx_init_channels(efx);
+	if (efx->state != STATE_DISABLED) {
+		/* Stop the device and flush all the channels */
+		efx_stop_all(efx);
+		efx_fini_channels(efx);
+		efx_init_channels(efx);
+	}
 
 	return 0;
 }
@@ -1685,7 +1689,7 @@ static int efx_reset(struct efx_nic *efx)
 {
 	struct ethtool_cmd ecmd;
 	enum reset_type method = efx->reset_pending;
-	int rc;
+	int rc = 0;
 
 	/* Serialise with kernel interfaces */
 	rtnl_lock();
@@ -1694,7 +1698,7 @@ static int efx_reset(struct efx_nic *efx)
 	 * flag set so that efx_pci_probe_main will be retried */
 	if (efx->state != STATE_RUNNING) {
 		EFX_INFO(efx, "scheduled reset quenched. NIC not RUNNING\n");
-		goto unlock_rtnl;
+		goto out_unlock;
 	}
 
 	EFX_INFO(efx, "resetting (%d)\n", method);
@@ -1704,7 +1708,7 @@ static int efx_reset(struct efx_nic *efx)
 	rc = falcon_reset_hw(efx, method);
 	if (rc) {
 		EFX_ERR(efx, "failed to reset hardware\n");
-		goto fail;
+		goto out_disable;
 	}
 
 	/* Allow resets to be rescheduled. */
@@ -1718,28 +1722,23 @@ static int efx_reset(struct efx_nic *efx)
 
 	/* Leave device stopped if necessary */
 	if (method == RESET_TYPE_DISABLE) {
+		efx_reset_up(efx, &ecmd, false);
 		rc = -EIO;
-		goto fail;
+	} else {
+		rc = efx_reset_up(efx, &ecmd, true);
 	}
 
-	rc = efx_reset_up(efx, &ecmd, true);
-	if (rc)
-		goto disable;
+out_disable:
+	if (rc) {
+		EFX_ERR(efx, "has been disabled\n");
+		efx->state = STATE_DISABLED;
+		dev_close(efx->net_dev);
+	} else {
+		EFX_LOG(efx, "reset complete\n");
+	}
 
-	EFX_LOG(efx, "reset complete\n");
- unlock_rtnl:
+out_unlock:
 	rtnl_unlock();
-	return 0;
-
- fail:
-	efx_reset_up(efx, &ecmd, false);
- disable:
-	EFX_ERR(efx, "has been disabled\n");
-	efx->state = STATE_DISABLED;
-
-	rtnl_unlock();
-	efx_unregister_netdev(efx);
-	efx_fini_port(efx);
 	return rc;
 }
 
