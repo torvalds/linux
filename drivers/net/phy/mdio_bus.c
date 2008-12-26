@@ -63,7 +63,9 @@ EXPORT_SYMBOL(mdiobus_alloc);
 static void mdiobus_release(struct device *d)
 {
 	struct mii_bus *bus = to_mii_bus(d);
-	BUG_ON(bus->state != MDIOBUS_RELEASED);
+	BUG_ON(bus->state != MDIOBUS_RELEASED &&
+	       /* for compatibility with error handling in drivers */
+	       bus->state != MDIOBUS_ALLOCATED);
 	kfree(bus);
 }
 
@@ -83,8 +85,7 @@ static struct class mdio_bus_class = {
  */
 int mdiobus_register(struct mii_bus *bus)
 {
-	int i;
-	int err = 0;
+	int i, err;
 
 	if (NULL == bus || NULL == bus->name ||
 			NULL == bus->read ||
@@ -116,16 +117,23 @@ int mdiobus_register(struct mii_bus *bus)
 			struct phy_device *phydev;
 
 			phydev = mdiobus_scan(bus, i);
-			if (IS_ERR(phydev))
+			if (IS_ERR(phydev)) {
 				err = PTR_ERR(phydev);
+				goto error;
+			}
 		}
 	}
 
-	if (!err)
-		bus->state = MDIOBUS_REGISTERED;
-
+	bus->state = MDIOBUS_REGISTERED;
 	pr_info("%s: probed\n", bus->name);
+	return 0;
 
+error:
+	while (--i >= 0) {
+		if (bus->phy_map[i])
+			device_unregister(&bus->phy_map[i]->dev);
+	}
+	device_del(&bus->dev);
 	return err;
 }
 EXPORT_SYMBOL(mdiobus_register);
