@@ -448,7 +448,7 @@ void early_init_irq_lock_class(void)
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	return desc->kstat_irqs[cpu];
+	return desc ? desc->kstat_irqs[cpu] : 0;
 }
 #endif
 EXPORT_SYMBOL(kstat_irqs_cpu);
