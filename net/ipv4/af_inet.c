@@ -1402,6 +1402,7 @@ EXPORT_SYMBOL_GPL(snmp_mib_free);
 #ifdef CONFIG_IP_MULTICAST
 static struct net_protocol igmp_protocol = {
 	.handler =	igmp_rcv,
+	.netns_ok =	1,
 };
 #endif
 
