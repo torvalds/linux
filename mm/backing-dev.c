@@ -220,7 +220,7 @@ int bdi_init(struct backing_dev_info *bdi)
 	bdi->max_prop_frac = PROP_FRAC_BASE;
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
-		err = percpu_counter_init_irq(&bdi->bdi_stat[i], 0);
+		err = percpu_counter_init(&bdi->bdi_stat[i], 0);
 		if (err)
 			goto err;
 	}
