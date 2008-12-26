@@ -16,8 +16,12 @@ static inline cpumask_t node_to_cpumask(int node)
 {
 	return numa_cpumask_lookup_table[node];
 }
+#define cpumask_of_node(node) (&numa_cpumask_lookup_table[node])
 
-/* Returns a pointer to the cpumask of CPUs on Node 'node'. */
+/*
+ * Returns a pointer to the cpumask of CPUs on Node 'node'.
+ * Deprecated: use "const struct cpumask *mask = cpumask_of_node(node)"
+ */
 #define node_to_cpumask_ptr(v, node)		\
 		cpumask_t *v = &(numa_cpumask_lookup_table[node])
 
@@ -26,9 +30,7 @@ static inline cpumask_t node_to_cpumask(int node)
 
 static inline int node_to_first_cpu(int node)
 {
-	cpumask_t tmp;
-	tmp = node_to_cpumask(node);
-	return first_cpu(tmp);
+	return cpumask_first(cpumask_of_node(node));
 }
 
 struct pci_bus;
