@@ -437,9 +437,6 @@ void early_init_irq_lock_class(void)
 	int i;
 
 	for_each_irq_desc(i, desc) {
-		if (!desc)
-			continue;
-
 		lockdep_set_class(&desc->lock, &irq_desc_lock_class);
 	}
 }
