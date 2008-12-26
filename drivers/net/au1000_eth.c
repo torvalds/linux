@@ -353,7 +353,6 @@ static int mii_probe (struct net_device *dev)
 	}
 
 	/* now we are supposed to have a proper phydev, to attach to... */
-	BUG_ON(!phydev);
 	BUG_ON(phydev->attached_dev);
 
 	phydev = phy_connect(dev, phydev->dev.bus_id, &au1000_adjust_link, 0,
