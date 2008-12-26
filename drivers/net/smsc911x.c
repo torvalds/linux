@@ -1267,8 +1267,6 @@ static int smsc911x_stop(struct net_device *dev)
 	struct smsc911x_data *pdata = netdev_priv(dev);
 	unsigned int temp;
 
-	BUG_ON(!pdata->phy_dev);
-
 	/* Disable all device interrupts */
 	temp = smsc911x_reg_read(pdata, INT_CFG);
 	temp &= ~INT_CFG_IRQ_EN_;
@@ -1283,7 +1281,8 @@ static int smsc911x_stop(struct net_device *dev)
 	smsc911x_tx_update_txcounters(dev);
 
 	/* Bring the PHY down */
-	phy_stop(pdata->phy_dev);
+	if (pdata->phy_dev)
+		phy_stop(pdata->phy_dev);
 
 	SMSC_TRACE(IFDOWN, "Interface stopped");
 	return 0;
