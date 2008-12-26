@@ -1017,8 +1017,8 @@ plip_hard_header(struct sk_buff *skb, struct net_device *dev,
 	return ret;
 }
 
-int plip_hard_header_cache(const struct neighbour *neigh,
-                           struct hh_cache *hh)
+static int plip_hard_header_cache(const struct neighbour *neigh,
+				  struct hh_cache *hh)
 {
 	int ret;
 

@@ -1395,7 +1395,7 @@ set_multicast_list(struct net_device *dev)
 #define eeprom_delay() { udelay(40); }
 #define EE_READ_CMD (6 << 6)
 
-int
+static int
 read_eeprom(int ioaddr, int location, struct net_device *dev)
 {
 	int i;

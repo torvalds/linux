@@ -347,7 +347,7 @@ static int __init check586(struct net_device *dev, unsigned long where, unsigned
  * set iscp at the right place, called by elmc_probe and open586.
  */
 
-void alloc586(struct net_device *dev)
+static void alloc586(struct net_device *dev)
 {
 	struct priv *p = netdev_priv(dev);
 

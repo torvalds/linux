@@ -764,7 +764,7 @@ out:
  . interrupt, so an auto-detect routine can detect it, and find the IRQ,
  ------------------------------------------------------------------------
 */
-int __init smc_findirq( int ioaddr )
+static int __init smc_findirq(int ioaddr)
 {
 #ifndef NO_AUTOPROBE
 	int	timeout = 20;

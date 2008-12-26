@@ -5113,7 +5113,7 @@ static void s2io_set_multicast(struct net_device *dev)
 /* read from CAM unicast & multicast addresses and store it in
  * def_mac_addr structure
  */
-void do_s2io_store_unicast_mc(struct s2io_nic *sp)
+static void do_s2io_store_unicast_mc(struct s2io_nic *sp)
 {
 	int offset;
 	u64 mac_addr = 0x0;

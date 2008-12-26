@@ -1030,7 +1030,7 @@ skip_this_frame:
 
 #endif	/* ALLOW_DMA */
 
-void  __init reset_chip(struct net_device *dev)
+static void __init reset_chip(struct net_device *dev)
 {
 #if !defined(CONFIG_MACH_MX31ADS)
 #if !defined(CONFIG_MACH_IXDP2351) && !defined(CONFIG_ARCH_IXDP2X01)
