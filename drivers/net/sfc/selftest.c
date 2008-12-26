@@ -653,47 +653,48 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 
 /**************************************************************************
  *
- * Entry points
+ * Entry point
  *
  *************************************************************************/
 
-/* Online (i.e. non-disruptive) testing
- * This checks interrupt generation, event delivery and PHY presence. */
-int efx_online_test(struct efx_nic *efx, struct efx_self_tests *tests)
-{
-	struct efx_channel *channel;
-	int rc, rc2 = 0;
-
-	rc = efx_test_mii(efx, tests);
-	if (rc && !rc2)
-		rc2 = rc;
-
-	rc = efx_test_nvram(efx, tests);
-	if (rc && !rc2)
-		rc2 = rc;
-
-	rc = efx_test_interrupts(efx, tests);
-	if (rc && !rc2)
-		rc2 = rc;
-
-	efx_for_each_channel(channel, efx) {
-		rc = efx_test_eventq_irq(channel, tests);
-		if (rc && !rc2)
-			rc2 = rc;
-	}
-
-	return rc2;
-}
-
-/* Offline (i.e. disruptive) testing
- * This checks MAC and PHY loopback on the specified port. */
-int efx_offline_test(struct efx_nic *efx,
-		     struct efx_self_tests *tests, unsigned int loopback_modes)
+int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
+		 unsigned flags)
 {
 	enum efx_loopback_mode loopback_mode = efx->loopback_mode;
 	int phy_mode = efx->phy_mode;
 	struct ethtool_cmd ecmd;
-	int rc, rc2 = 0;
+	struct efx_channel *channel;
+	int rc_test = 0, rc_reset = 0, rc;
+
+	/* Online (i.e. non-disruptive) testing
+	 * This checks interrupt generation, event delivery and PHY presence. */
+
+	rc = efx_test_mii(efx, tests);
+	if (rc && !rc_test)
+		rc_test = rc;
+
+	rc = efx_test_nvram(efx, tests);
+	if (rc && !rc_test)
+		rc_test = rc;
+
+	rc = efx_test_interrupts(efx, tests);
+	if (rc && !rc_test)
+		rc_test = rc;
+
+	efx_for_each_channel(channel, efx) {
+		rc = efx_test_eventq_irq(channel, tests);
+		if (rc && !rc_test)
+			rc_test = rc;
+	}
+
+	if (rc_test)
+		return rc_test;
+
+	if (!(flags & ETH_TEST_FL_OFFLINE))
+		return 0;
+
+	/* Offline (i.e. disruptive) testing
+	 * This checks MAC and PHY loopback on the specified port. */
 
 	/* force the carrier state off so the kernel doesn't transmit during
 	 * the loopback test, and the watchdog timeout doesn't fire. Also put
@@ -717,31 +718,34 @@ int efx_offline_test(struct efx_nic *efx,
 	efx_reset_down(efx, &ecmd);
 
 	rc = efx_test_chip(efx, tests);
-	if (rc && !rc2)
-		rc2 = rc;
+	if (rc && !rc_test)
+		rc_test = rc;
 
 	/* reset the chip to recover from the register test */
-	rc = falcon_reset_hw(efx, RESET_TYPE_ALL);
+	rc_reset = falcon_reset_hw(efx, RESET_TYPE_ALL);
 
 	/* Ensure that the phy is powered and out of loopback
 	 * for the bist and loopback tests */
 	efx->phy_mode &= ~PHY_MODE_LOW_POWER;
 	efx->loopback_mode = LOOPBACK_NONE;
 
-	rc = efx_reset_up(efx, &ecmd, rc == 0);
-	if (rc) {
+	rc = efx_reset_up(efx, &ecmd, rc_reset == 0);
+	if (rc && !rc_reset)
+		rc_reset = rc;
+
+	if (rc_reset) {
 		EFX_ERR(efx, "Unable to recover from chip test\n");
 		efx_schedule_reset(efx, RESET_TYPE_DISABLE);
-		return rc;
+		return rc_reset;
 	}
 
 	rc = efx_test_phy(efx, tests);
-	if (rc && !rc2)
-		rc2 = rc;
+	if (rc && !rc_test)
+		rc_test = rc;
 
-	rc = efx_test_loopbacks(efx, tests, loopback_modes);
-	if (rc && !rc2)
-		rc2 = rc;
+	rc = efx_test_loopbacks(efx, tests, efx->loopback_modes);
+	if (rc && !rc_test)
+		rc_test = rc;
 
 	/* restore the PHY to the previous state */
 	efx->loopback_mode = loopback_mode;
@@ -749,6 +753,6 @@ int efx_offline_test(struct efx_nic *efx,
 	efx->port_inhibited = false;
 	efx_ethtool_set_settings(efx->net_dev, &ecmd);
 
-	return rc2;
+	return rc_test;
 }
 

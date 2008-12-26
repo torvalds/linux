@@ -44,10 +44,8 @@ struct efx_self_tests {
 
 extern void efx_loopback_rx_packet(struct efx_nic *efx,
 				   const char *buf_ptr, int pkt_len);
-extern int efx_online_test(struct efx_nic *efx,
-			   struct efx_self_tests *tests);
-extern int efx_offline_test(struct efx_nic *efx,
-			    struct efx_self_tests *tests,
-			    unsigned int loopback_modes);
+extern int efx_selftest(struct efx_nic *efx,
+			struct efx_self_tests *tests,
+			unsigned flags);
 
 #endif /* EFX_SELFTEST_H */

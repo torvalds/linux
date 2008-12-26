@@ -487,7 +487,7 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_self_tests efx_tests;
-	int offline, already_up;
+	int already_up;
 	int rc;
 
 	ASSERT_RTNL();
@@ -507,24 +507,15 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 	}
 
 	memset(&efx_tests, 0, sizeof(efx_tests));
-	offline = (test->flags & ETH_TEST_FL_OFFLINE);
 
-	/* Perform online self tests first */
-	rc = efx_online_test(efx, &efx_tests);
-	if (rc)
-		goto out;
+	rc = efx_selftest(efx, &efx_tests, test->flags);
 
-	/* Perform offline tests only if online tests passed */
-	if (offline)
-		rc = efx_offline_test(efx, &efx_tests,
-				      efx->loopback_modes);
-
- out:
 	if (!already_up)
 		dev_close(efx->net_dev);
 
-	EFX_LOG(efx, "%s all %sline self-tests\n",
-		rc == 0 ? "passed" : "failed", offline ? "off" : "on");
+	EFX_LOG(efx, "%s %sline self-tests\n",
+		rc == 0 ? "passed" : "failed",
+		(test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
 
  fail2:
  fail1:
