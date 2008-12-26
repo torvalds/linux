@@ -84,5 +84,6 @@ static inline int pcibus_to_node(struct pci_bus *pbus)
 #endif /* CONFIG_SMP */
 
 #define cpu_coregroup_map(cpu)			(cpu_core_map[cpu])
+#define cpu_coregroup_mask(cpu)			(&cpu_core_map[cpu])
 
 #endif /* _ASM_SPARC64_TOPOLOGY_H */
