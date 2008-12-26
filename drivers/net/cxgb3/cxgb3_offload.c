@@ -438,6 +438,15 @@ static int cxgb_offload_ctl(struct t3cdev *tdev, unsigned int req, void *data)
 		p->ipv4addr = pi->iscsi_ipv4addr;
 		break;
 	}
+	case GET_EMBEDDED_INFO: {
+		struct ch_embedded_info *e = data;
+
+		spin_lock(&adapter->stats_lock);
+		t3_get_fw_version(adapter, &e->fw_vers);
+		t3_get_tp_version(adapter, &e->tp_vers);
+		spin_unlock(&adapter->stats_lock);
+		break;
+	}
 	default:
 		return -EOPNOTSUPP;
 	}

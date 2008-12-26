@@ -58,6 +58,8 @@ enum {
 
 	GET_RX_PAGE_INFO	= 50,
 	GET_ISCSI_IPV4ADDR	= 51,
+
+	GET_EMBEDDED_INFO	= 70,
 };
 
 /*
@@ -175,5 +177,13 @@ struct rdma_ctrlqp_setup {
 struct ofld_page_info {
 	unsigned int page_size;  /* Page size, should be a power of 2 */
 	unsigned int num;        /* Number of pages */
+};
+
+/*
+ * Structure used to get firmware and protocol engine versions.
+ */
+struct ch_embedded_info {
+	u32 fw_vers;
+	u32 tp_vers;
 };
 #endif				/* _CXGB3_OFFLOAD_CTL_DEFS_H */
