@@ -126,6 +126,7 @@ struct p54u_rx_info {
 struct p54u_priv {
 	struct p54_common common;
 	struct usb_device *udev;
+	struct usb_interface *intf;
 	enum {
 		P54U_NET2280 = 0,
 		P54U_3887

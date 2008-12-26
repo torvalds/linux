@@ -424,9 +424,44 @@ static int p54u_bulk_msg(struct p54u_priv *priv, unsigned int ep,
 			    data, len, &alen, 2000);
 }
 
+static const char p54u_romboot_3887[] = "~~~~";
+static const char p54u_firmware_upload_3887[] = "<\r";
+
+static int p54u_device_reset_3887(struct ieee80211_hw *dev)
+{
+	struct p54u_priv *priv = dev->priv;
+	int ret, lock;
+	u8 buf[4];
+
+	ret = lock = usb_lock_device_for_reset(priv->udev, priv->intf);
+	if (ret < 0) {
+		dev_err(&priv->udev->dev, "(p54usb) unable to lock device for "
+			"reset: %d\n", ret);
+		return ret;
+	}
+
+	ret = usb_reset_device(priv->udev);
+	if (lock)
+		usb_unlock_device(priv->udev);
+
+	if (ret) {
+		dev_err(&priv->udev->dev, "(p54usb) unable to reset "
+			"device: %d\n", ret);
+		return ret;
+	}
+
+	memcpy(&buf, p54u_romboot_3887, sizeof(buf));
+	ret = p54u_bulk_msg(priv, P54U_PIPE_DATA,
+			    buf, sizeof(buf));
+	if (ret)
+		dev_err(&priv->udev->dev, "(p54usb) unable to jump to "
+			"boot ROM: %d\n", ret);
+
+	return ret;
+}
+
 static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 {
-	static char start_string[] = "~~~~<\r";
 	struct p54u_priv *priv = dev->priv;
 	const struct firmware *fw_entry = NULL;
 	int err, alen;
@@ -445,12 +480,9 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 		goto err_bufalloc;
 	}
 
-	memcpy(buf, start_string, 4);
-	err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, 4);
-	if (err) {
-		dev_err(&priv->udev->dev, "(p54usb) reset failed! (%d)\n", err);
+	err = p54u_device_reset_3887(dev);
+	if (err)
 		goto err_reset;
-	}
 
 	err = request_firmware(&fw_entry, "isl3887usb", &priv->udev->dev);
 	if (err) {
@@ -467,14 +499,14 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 		goto err_upload_failed;
 
 	left = block_size = min((size_t)P54U_FW_BLOCK, fw_entry->size);
-	strcpy(buf, start_string);
-	left -= strlen(start_string);
-	tmp += strlen(start_string);
+	strcpy(buf, p54u_firmware_upload_3887);
+	left -= strlen(p54u_firmware_upload_3887);
+	tmp += strlen(p54u_firmware_upload_3887);
 
 	data = fw_entry->data;
 	remains = fw_entry->size;
 
-	hdr = (struct x2_header *)(buf + strlen(start_string));
+	hdr = (struct x2_header *)(buf + strlen(p54u_firmware_upload_3887));
 	memcpy(hdr->signature, X2_SIGNATURE, X2_SIGNATURE_SIZE);
 	hdr->fw_load_addr = cpu_to_le32(ISL38XX_DEV_FIRMWARE_ADDR);
 	hdr->fw_length = cpu_to_le32(fw_entry->size);
@@ -876,6 +908,9 @@ static int __devinit p54u_probe(struct usb_interface *intf,
 	SET_IEEE80211_DEV(dev, &intf->dev);
 	usb_set_intfdata(intf, dev);
 	priv->udev = udev;
+	priv->intf = intf;
+	skb_queue_head_init(&priv->rx_queue);
+	init_usb_anchor(&priv->submitted);
 
 	usb_get_dev(udev);
 
@@ -918,9 +953,6 @@ static int __devinit p54u_probe(struct usb_interface *intf,
 	if (err)
 		goto err_free_dev;
 
-	skb_queue_head_init(&priv->rx_queue);
-	init_usb_anchor(&priv->submitted);
-
 	p54u_open(dev);
 	err = p54_read_eeprom(dev);
 	p54u_stop(dev);
@@ -958,11 +990,23 @@ static void __devexit p54u_disconnect(struct usb_interface *intf)
 	ieee80211_free_hw(dev);
 }
 
+static int p54u_pre_reset(struct usb_interface *intf)
+{
+	return 0;
+}
+
+static int p54u_post_reset(struct usb_interface *intf)
+{
+	return 0;
+}
+
 static struct usb_driver p54u_driver = {
 	.name	= "p54usb",
 	.id_table = p54u_table,
 	.probe = p54u_probe,
 	.disconnect = p54u_disconnect,
+	.pre_reset = p54u_pre_reset,
+	.post_reset = p54u_post_reset,
 };
 
 static int __init p54u_init(void)
