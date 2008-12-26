@@ -1679,7 +1679,7 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 		memcpy(&port->partner_admin, &tmpl, sizeof(tmpl));
 		memcpy(&port->partner_oper, &tmpl, sizeof(tmpl));
 
-		port->is_enabled = 1;
+		port->is_enabled = true;
 		// ****** private parameters ******
 		port->sm_vars = 0x3;
 		port->sm_rx_state = 0;
@@ -2308,14 +2308,14 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 	// on link down we are zeroing duplex and speed since some of the adaptors(ce1000.lan) report full duplex/speed instead of N/A(duplex) / 0(speed)
 	// on link up we are forcing recheck on the duplex and speed since some of he adaptors(ce1000.lan) report
 	if (link == BOND_LINK_UP) {
-		port->is_enabled = 1;
+		port->is_enabled = true;
 		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
 		port->actor_oper_port_key=port->actor_admin_port_key |= __get_duplex(port);
 		port->actor_admin_port_key &= ~AD_SPEED_KEY_BITS;
 		port->actor_oper_port_key=port->actor_admin_port_key |= (__get_link_speed(port) << 1);
 	} else {
 		/* link has failed */
-		port->is_enabled = 0;
+		port->is_enabled = false;
 		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
 		port->actor_oper_port_key= (port->actor_admin_port_key &= ~AD_SPEED_KEY_BITS);
 	}

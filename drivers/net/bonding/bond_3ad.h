@@ -224,7 +224,8 @@ typedef struct port {
 	struct port_params partner_admin;
 	struct port_params partner_oper;
 
-	u16 is_enabled;	      // BOOLEAN
+	bool is_enabled;
+
 	// ****** PRIVATE PARAMETERS ******
 	u16 sm_vars;	      // all state machines variables for this port
 	rx_states_t sm_rx_state;	// state machine rx state
