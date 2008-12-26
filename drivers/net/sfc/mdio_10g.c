@@ -368,13 +368,16 @@ void mdio_clause45_get_settings_ext(struct efx_nic *efx,
 	} else
 		ecmd->autoneg = AUTONEG_DISABLE;
 
-	/* If AN is enabled and complete, report best common mode */
-	if (ecmd->autoneg &&
-	    (mdio_clause45_read(efx, phy_id, MDIO_MMD_AN, MDIO_MMDREG_STAT1) &
-	     (1 << MDIO_AN_STATUS_AN_DONE_LBN))) {
-		u32 common, lpa;
-		lpa = mdio_clause45_get_an(efx, MDIO_AN_LPA, xnp_lpa);
-		common = ecmd->advertising & lpa;
+	if (ecmd->autoneg) {
+		/* If AN is complete, report best common mode,
+		 * otherwise report best advertised mode. */
+		u32 common = ecmd->advertising;
+		if (mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
+				       MDIO_MMDREG_STAT1) &
+		    (1 << MDIO_AN_STATUS_AN_DONE_LBN)) {
+			common &= mdio_clause45_get_an(efx, MDIO_AN_LPA,
+						       xnp_lpa);
+		}
 		if (common & ADVERTISED_10000baseT_Full) {
 			ecmd->speed = SPEED_10000;
 			ecmd->duplex = DUPLEX_FULL;
