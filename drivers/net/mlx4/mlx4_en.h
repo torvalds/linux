@@ -311,7 +311,6 @@ struct mlx4_en_cq {
 	enum cq_type is_tx;
 	u16 moder_time;
 	u16 moder_cnt;
-	int armed;
 	struct mlx4_cqe *buf;
 #define MLX4_EN_OPCODE_ERROR	0x1e
 };

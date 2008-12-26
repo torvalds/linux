@@ -379,8 +379,8 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 
 	/* Wakeup Tx queue if this ring stopped it */
 	if (unlikely(ring->blocked)) {
-		if (((u32) (ring->prod - ring->cons) <=
-		     ring->size - HEADROOM - MAX_DESC_TXBBS) && !cq->armed) {
+		if ((u32) (ring->prod - ring->cons) <=
+		     ring->size - HEADROOM - MAX_DESC_TXBBS) {
 
 			/* TODO: support multiqueue netdevs. Currently, we block
 			 * when *any* ring is full. Note that:
@@ -404,7 +404,6 @@ void mlx4_en_tx_irq(struct mlx4_cq *mcq)
 	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
 	struct mlx4_en_tx_ring *ring = &priv->tx_ring[cq->ring];
 
-	cq->armed = 0;
 	if (!spin_trylock(&ring->comp_lock))
 		return;
 	mlx4_en_process_tx_cq(cq->dev, cq);
