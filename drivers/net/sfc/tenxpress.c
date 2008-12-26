@@ -654,10 +654,22 @@ void tenxpress_phy_blink(struct efx_nic *efx, bool blink)
 			    PMA_PMD_LED_OVERR_REG, reg);
 }
 
-static int tenxpress_phy_test(struct efx_nic *efx)
+static const char *const tenxpress_test_names[] = {
+	"bist"
+};
+
+static int
+tenxpress_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 {
+	int rc;
+
+	if (!(flags & ETH_TEST_FL_OFFLINE))
+		return 0;
+
 	/* BIST is automatically run after a special software reset */
-	return tenxpress_special_reset(efx);
+	rc = tenxpress_special_reset(efx);
+	results[0] = rc ? -1 : 1;
+	return rc;
 }
 
 static u32 tenxpress_get_xnp_lpa(struct efx_nic *efx)
@@ -770,9 +782,11 @@ struct efx_phy_operations falcon_sfx7101_phy_ops = {
 	.poll             = tenxpress_phy_poll,
 	.fini             = tenxpress_phy_fini,
 	.clear_interrupt  = efx_port_dummy_op_void,
-	.test             = tenxpress_phy_test,
 	.get_settings	  = sfx7101_get_settings,
 	.set_settings	  = mdio_clause45_set_settings,
+	.num_tests	  = ARRAY_SIZE(tenxpress_test_names),
+	.test_names	  = tenxpress_test_names,
+	.run_tests	  = tenxpress_run_tests,
 	.mmds             = TENXPRESS_REQUIRED_DEVS,
 	.loopbacks        = SFX7101_LOOPBACKS,
 };
@@ -784,10 +798,12 @@ struct efx_phy_operations falcon_sft9001_phy_ops = {
 	.poll             = tenxpress_phy_poll,
 	.fini             = tenxpress_phy_fini,
 	.clear_interrupt  = efx_port_dummy_op_void,
-	.test             = tenxpress_phy_test,
 	.get_settings	  = sft9001_get_settings,
 	.set_settings	  = sft9001_set_settings,
 	.set_xnp_advertise = sft9001_set_xnp_advertise,
+	.num_tests	  = ARRAY_SIZE(tenxpress_test_names),
+	.test_names	  = tenxpress_test_names,
+	.run_tests	  = tenxpress_run_tests,
 	.mmds             = TENXPRESS_REQUIRED_DEVS,
 	.loopbacks        = SFT9001_LOOPBACKS,
 };

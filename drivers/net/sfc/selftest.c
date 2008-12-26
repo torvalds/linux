@@ -247,17 +247,20 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 	return 0;
 }
 
-static int efx_test_phy(struct efx_nic *efx, struct efx_self_tests *tests)
+static int efx_test_phy(struct efx_nic *efx, struct efx_self_tests *tests,
+			unsigned flags)
 {
 	int rc;
 
-	if (!efx->phy_op->test)
+	if (!efx->phy_op->run_tests)
 		return 0;
 
+	EFX_BUG_ON_PARANOID(efx->phy_op->num_tests == 0 ||
+			    efx->phy_op->num_tests > EFX_MAX_PHY_TESTS);
+
 	mutex_lock(&efx->mac_lock);
-	rc = efx->phy_op->test(efx);
+	rc = efx->phy_op->run_tests(efx, tests->phy, flags);
 	mutex_unlock(&efx->mac_lock);
-	tests->phy = rc ? -1 : 1;
 	return rc;
 }
 
@@ -691,7 +694,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 		return rc_test;
 
 	if (!(flags & ETH_TEST_FL_OFFLINE))
-		return 0;
+		return efx_test_phy(efx, tests, flags);
 
 	/* Offline (i.e. disruptive) testing
 	 * This checks MAC and PHY loopback on the specified port. */
@@ -739,7 +742,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 		return rc_reset;
 	}
 
-	rc = efx_test_phy(efx, tests);
+	rc = efx_test_phy(efx, tests, flags);
 	if (rc && !rc_test)
 		rc_test = rc;
 

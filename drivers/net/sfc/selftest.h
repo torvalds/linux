@@ -24,6 +24,8 @@ struct efx_loopback_self_tests {
 	int rx_bad;
 };
 
+#define EFX_MAX_PHY_TESTS 20
+
 /* Efx self test results
  * For fields which are not counters, 1 indicates success and -1
  * indicates failure.
@@ -38,7 +40,7 @@ struct efx_self_tests {
 	int eventq_poll[EFX_MAX_CHANNELS];
 	/* offline tests */
 	int registers;
-	int phy;
+	int phy[EFX_MAX_PHY_TESTS];
 	struct efx_loopback_self_tests loopback[LOOPBACK_TEST_MAX + 1];
 };
 

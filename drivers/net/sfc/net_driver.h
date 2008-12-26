@@ -568,6 +568,10 @@ struct efx_mac_operations {
  * @set_settings: Set ethtool settings. Serialised by the mac_lock.
  * @set_xnp_advertise: Set abilities advertised in Extended Next Page
  *	(only needed where AN bit is set in mmds)
+ * @num_tests: Number of PHY-specific tests/results
+ * @test_names: Names of the tests/results
+ * @run_tests: Run tests and record results as appropriate.
+ *	Flags are the ethtool tests flags.
  * @mmds: MMD presence mask
  * @loopbacks: Supported loopback modes mask
  */
@@ -578,12 +582,14 @@ struct efx_phy_operations {
 	void (*reconfigure) (struct efx_nic *efx);
 	void (*clear_interrupt) (struct efx_nic *efx);
 	void (*poll) (struct efx_nic *efx);
-	int (*test) (struct efx_nic *efx);
 	void (*get_settings) (struct efx_nic *efx,
 			      struct ethtool_cmd *ecmd);
 	int (*set_settings) (struct efx_nic *efx,
 			     struct ethtool_cmd *ecmd);
 	bool (*set_xnp_advertise) (struct efx_nic *efx, u32);
+	u32 num_tests;
+	const char *const *test_names;
+	int (*run_tests) (struct efx_nic *efx, int *results, unsigned flags);
 	int mmds;
 	unsigned loopbacks;
 };
