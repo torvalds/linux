@@ -1359,9 +1359,9 @@ static void ad_port_selection_logic(struct port *port)
 			// update the new aggregator's parameters
 			// if port was responsed from the end-user
 			if (port->actor_oper_port_key & AD_DUPLEX_KEY_BITS) {// if port is full duplex
-				port->aggregator->is_individual = 0;
+				port->aggregator->is_individual = false;
 			} else {
-				port->aggregator->is_individual = 1;
+				port->aggregator->is_individual = true;
 			}
 
 			port->aggregator->actor_admin_aggregator_key = port->actor_admin_port_key;
@@ -1613,7 +1613,7 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 static void ad_clear_agg(struct aggregator *aggregator)
 {
 	if (aggregator) {
-		aggregator->is_individual = 0;
+		aggregator->is_individual = false;
 		aggregator->actor_admin_aggregator_key = 0;
 		aggregator->actor_oper_aggregator_key = 0;
 		aggregator->partner_system = null_mac_addr;

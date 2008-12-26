@@ -184,7 +184,7 @@ struct port;
 typedef struct aggregator {
 	struct mac_addr aggregator_mac_address;
 	u16 aggregator_identifier;
-	u16 is_individual;		 // BOOLEAN
+	bool is_individual;
 	u16 actor_admin_aggregator_key;
 	u16 actor_oper_aggregator_key;
 	struct mac_addr partner_system;
