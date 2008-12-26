@@ -828,7 +828,7 @@ static int ray_resume(struct pcmcia_device *link)
 }
 
 /*===========================================================================*/
-int ray_dev_init(struct net_device *dev)
+static int ray_dev_init(struct net_device *dev)
 {
 #ifdef RAY_IMMEDIATE_INIT
     int i;

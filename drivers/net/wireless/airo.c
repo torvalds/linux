@@ -3607,7 +3607,7 @@ badrx:
 	}
 }
 
-void mpi_receive_802_11 (struct airo_info *ai)
+static void mpi_receive_802_11(struct airo_info *ai)
 {
 	RxFid rxd;
 	struct sk_buff *skb = NULL;
