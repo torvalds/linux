@@ -586,6 +586,7 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	u16 freq = le16_to_cpu(hdr->freq);
 	size_t header_len = sizeof(*hdr);
 	u32 tsf32;
+	u8 rate = hdr->rate & 0xf;
 
 	/*
 	 * If the device is in a unspecified state we have to
@@ -614,8 +615,11 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	rx_status.qual = (100 * hdr->rssi) / 127;
 	if (hdr->rate & 0x10)
 		rx_status.flag |= RX_FLAG_SHORTPRE;
-	rx_status.rate_idx = (dev->conf.channel->band == IEEE80211_BAND_2GHZ ?
-			hdr->rate : (hdr->rate - 4)) & 0xf;
+	if (dev->conf.channel->band == IEEE80211_BAND_5GHZ)
+		rx_status.rate_idx = (rate < 4) ? 0 : rate - 4;
+	else
+		rx_status.rate_idx = rate;
+
 	rx_status.freq = freq;
 	rx_status.band =  dev->conf.channel->band;
 	rx_status.antenna = hdr->antenna;
