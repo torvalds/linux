@@ -5460,6 +5460,38 @@ num:
 	return 0;
 }
 
+/*
+ * 8.2.5.  Get the Current Number of Associations (SCTP_GET_ASSOC_NUMBER)
+ * This option gets the current number of associations that are attached
+ * to a one-to-many style socket.  The option value is an uint32_t.
+ */
+static int sctp_getsockopt_assoc_number(struct sock *sk, int len,
+				    char __user *optval, int __user *optlen)
+{
+	struct sctp_sock *sp = sctp_sk(sk);
+	struct sctp_association *asoc;
+	u32 val = 0;
+
+	if (sctp_style(sk, TCP))
+		return -EOPNOTSUPP;
+
+	if (len < sizeof(u32))
+		return -EINVAL;
+
+	len = sizeof(u32);
+
+	list_for_each_entry(asoc, &(sp->ep->asocs), asocs) {
+		val++;
+	}
+
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return 0;
+}
+
 SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 				char __user *optval, int __user *optlen)
 {
@@ -5601,6 +5633,9 @@ SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 	case SCTP_LOCAL_AUTH_CHUNKS:
 		retval = sctp_getsockopt_local_auth_chunks(sk, len, optval,
 							optlen);
+		break;
+	case SCTP_GET_ASSOC_NUMBER:
+		retval = sctp_getsockopt_assoc_number(sk, len, optval, optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;
