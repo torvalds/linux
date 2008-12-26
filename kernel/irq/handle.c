@@ -86,8 +86,9 @@ void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr)
 		desc->kstat_irqs = (unsigned int *)ptr;
 }
 
-void __attribute__((weak)) arch_init_chip_data(struct irq_desc *desc, int cpu)
+int __weak arch_init_chip_data(struct irq_desc *desc, int cpu)
 {
+	return 0;
 }
 
 static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
@@ -132,7 +133,7 @@ static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_sm
 /* FIXME: use bootmem alloc ...*/
 static unsigned int kstat_irqs_legacy[NR_IRQS_LEGACY][NR_CPUS];
 
-void __init early_irq_init(void)
+int __init early_irq_init(void)
 {
 	struct irq_desc *desc;
 	int legacy_count;
@@ -151,7 +152,7 @@ void __init early_irq_init(void)
 	for (i = legacy_count; i < NR_IRQS; i++)
 		irq_desc_ptrs[i] = NULL;
 
-	arch_early_irq_init();
+	return arch_early_irq_init();
 }
 
 struct irq_desc *irq_to_desc(unsigned int irq)

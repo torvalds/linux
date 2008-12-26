@@ -170,7 +170,7 @@ static struct irq_cfg irq_cfgx[NR_IRQS] = {
 	[15] = { .domain = CPU_MASK_ALL, .vector = IRQ15_VECTOR, },
 };
 
-void __init arch_early_irq_init(void)
+int __init arch_early_irq_init(void)
 {
 	struct irq_cfg *cfg;
 	struct irq_desc *desc;
@@ -184,6 +184,8 @@ void __init arch_early_irq_init(void)
 		desc = irq_to_desc(i);
 		desc->chip_data = &cfg[i];
 	}
+
+	return 0;
 }
 
 #ifdef CONFIG_SPARSE_IRQ
@@ -212,7 +214,7 @@ static struct irq_cfg *get_one_free_irq_cfg(int cpu)
 	return cfg;
 }
 
-void arch_init_chip_data(struct irq_desc *desc, int cpu)
+int arch_init_chip_data(struct irq_desc *desc, int cpu)
 {
 	struct irq_cfg *cfg;
 
@@ -224,6 +226,8 @@ void arch_init_chip_data(struct irq_desc *desc, int cpu)
 			BUG_ON(1);
 		}
 	}
+
+	return 0;
 }
 
 #ifdef CONFIG_NUMA_MIGRATE_IRQ_DESC
