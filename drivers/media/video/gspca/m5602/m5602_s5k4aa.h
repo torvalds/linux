@@ -143,13 +143,13 @@ static struct m5602_sensor s5k4aa = {
 	.nmodes = 1,
 	.modes = {
 	{
-		M5602_DEFAULT_FRAME_WIDTH,
-		M5602_DEFAULT_FRAME_HEIGHT,
+		640,
+		480,
 		V4L2_PIX_FMT_SBGGR8,
 		V4L2_FIELD_NONE,
 		.sizeimage =
-			M5602_DEFAULT_FRAME_WIDTH * M5602_DEFAULT_FRAME_HEIGHT,
-		.bytesperline = M5602_DEFAULT_FRAME_WIDTH,
+			640 * 480,
+		.bytesperline = 640,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1
 	}
