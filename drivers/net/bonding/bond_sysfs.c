@@ -43,9 +43,6 @@
 
 /*---------------------------- Declarations -------------------------------*/
 
-extern struct bond_params bonding_defaults;
-extern struct bond_parm_tbl ad_select_tbl[];
-
 static int expected_refcount = -1;
 /*--------------------------- Data Structures -----------------------------*/
 
