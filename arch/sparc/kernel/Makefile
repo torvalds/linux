@@ -68,7 +68,7 @@ obj-$(CONFIG_SPARC64_SMP) += hvtramp.o
 obj-y                     += auxio_$(BITS).o
 obj-$(CONFIG_SUN_PM)      += apc.o pmc.o
 
-obj-$(CONFIG_MODULES)     += module_$(BITS).o
+obj-$(CONFIG_MODULES)     += module.o
 obj-$(CONFIG_MODULES)     += sparc_ksyms_$(BITS).o
 obj-$(CONFIG_SPARC_LED)   += led.o
 obj-$(CONFIG_KGDB)        += kgdb_$(BITS).o

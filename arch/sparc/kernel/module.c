@@ -10,6 +10,7 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/string.h>
+#include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 
@@ -34,6 +35,21 @@ static void *module_map(unsigned long size)
 
 static char *dot2underscore(char *name)
 {
+	return name;
+}
+#else
+static void *module_map(unsigned long size)
+{
+	return vmalloc(size);
+}
+
+/* Replace references to .func with _Func */
+static char *dot2underscore(char *name)
+{
+	if (name[0] == '.') {
+		name[0] = '_';
+                name[1] = toupper(name[1]);
+	}
 	return name;
 }
 #endif /* CONFIG_SPARC64 */
@@ -170,6 +186,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 #endif /* CONFIG_SPARC64 */
 
 		case R_SPARC_32:
+		case R_SPARC_UA32:
 			location[0] = v >> 24;
 			location[1] = v >> 16;
 			location[2] = v >>  8;
@@ -223,6 +240,13 @@ int module_finalize(const Elf_Ehdr *hdr,
 	}
 
 	return 0;
+}
+#else
+int module_finalize(const Elf_Ehdr *hdr,
+                    const Elf_Shdr *sechdrs,
+                    struct module *me)
+{
+        return 0;
 }
 #endif /* CONFIG_SPARC64 */
 
