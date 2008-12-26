@@ -285,7 +285,7 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	return -ETIMEDOUT;
 }
 
-int vnic_dev_capable(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd)
+static int vnic_dev_capable(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd)
 {
 	u64 a0 = (u32)cmd, a1 = 0;
 	int wait = 1000;
