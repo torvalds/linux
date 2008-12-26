@@ -50,13 +50,6 @@ void igb_remove_device(struct e1000_hw *hw)
 	kfree(hw->dev_spec);
 }
 
-static void igb_read_pci_cfg(struct e1000_hw *hw, u32 reg, u16 *value)
-{
-	struct igb_adapter *adapter = hw->back;
-
-	pci_read_config_word(adapter->pdev, reg, value);
-}
-
 static s32 igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
 {
 	struct igb_adapter *adapter = hw->back;
