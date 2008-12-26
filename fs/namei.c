@@ -2893,3 +2893,10 @@ EXPORT_SYMBOL(vfs_symlink);
 EXPORT_SYMBOL(vfs_unlink);
 EXPORT_SYMBOL(dentry_unhash);
 EXPORT_SYMBOL(generic_readlink);
+
+/* to be mentioned only in INIT_TASK */
+struct fs_struct init_fs = {
+	.count		= ATOMIC_INIT(1),
+	.lock		= RW_LOCK_UNLOCKED,
+	.umask		= 0022,
+};
