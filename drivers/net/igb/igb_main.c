@@ -3379,7 +3379,6 @@ static void igb_write_itr(struct igb_ring *ring)
 static irqreturn_t igb_msix_rx(int irq, void *data)
 {
 	struct igb_ring *rx_ring = data;
-	struct igb_adapter *adapter = rx_ring->adapter;
 
 	/* Write the ITR value calculated at the end of the
 	 * previous interrupt.
@@ -3391,7 +3390,7 @@ static irqreturn_t igb_msix_rx(int irq, void *data)
 		__netif_rx_schedule(&rx_ring->napi);
 
 #ifdef CONFIG_IGB_DCA
-	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
+	if (rx_ring->adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_rx_dca(rx_ring);
 #endif
 		return IRQ_HANDLED;
