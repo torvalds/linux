@@ -115,9 +115,6 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	dn->dn_next = inode->i_dnotify;
 	inode->i_dnotify = dn;
 	spin_unlock(&inode->i_lock);
-
-	if (filp->f_op && filp->f_op->dir_notify)
-		return filp->f_op->dir_notify(filp, arg);
 	return 0;
 
 out_free:
