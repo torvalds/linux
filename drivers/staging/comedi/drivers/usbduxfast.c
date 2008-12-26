@@ -1675,14 +1675,14 @@ static int usbduxfast_detach(comedi_device * dev)
 {
 	usbduxfastsub_t *usbduxfastsub_tmp;
 
-#ifdef CONFIG_COMEDI_DEBUG
-	printk("comedi%d: usbduxfast: detach usb device\n", dev->minor);
-#endif
-
 	if (!dev) {
 		printk("comedi?: usbduxfast: detach without dev variable...\n");
 		return -EFAULT;
 	}
+
+#ifdef CONFIG_COMEDI_DEBUG
+	printk("comedi%d: usbduxfast: detach usb device\n", dev->minor);
+#endif
 
 	usbduxfastsub_tmp = dev->private;
 	if (!usbduxfastsub_tmp) {
