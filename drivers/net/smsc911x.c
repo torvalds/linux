@@ -1718,7 +1718,7 @@ static int smsc911x_ethtool_set_eeprom(struct net_device *dev,
 	return ret;
 }
 
-static struct ethtool_ops smsc911x_ethtool_ops = {
+static const struct ethtool_ops smsc911x_ethtool_ops = {
 	.get_settings = smsc911x_ethtool_getsettings,
 	.set_settings = smsc911x_ethtool_setsettings,
 	.get_link = ethtool_op_get_link,
