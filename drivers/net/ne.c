@@ -929,7 +929,7 @@ static void __init ne_add_devices(void)
 }
 
 #ifdef MODULE
-int __init init_module()
+int __init init_module(void)
 {
 	int retval;
 	ne_add_devices();
