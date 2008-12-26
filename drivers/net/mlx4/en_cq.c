@@ -68,6 +68,8 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	err = mlx4_en_map_buffer(&cq->wqres.buf);
 	if (err)
 		mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
+	else
+		cq->buf = (struct mlx4_cqe *) cq->wqres.buf.direct.buf;
 
 	return err;
 }
@@ -82,7 +84,6 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 	cq->mcq.arm_db     = cq->wqres.db.db + 1;
 	*cq->mcq.set_ci_db = 0;
 	*cq->mcq.arm_db    = 0;
-	cq->buf = (struct mlx4_cqe *) cq->wqres.buf.direct.buf;
 	memset(cq->buf, 0, cq->buf_size);
 
 	err = mlx4_cq_alloc(mdev->dev, cq->size, &cq->wqres.mtt, &mdev->priv_uar,
