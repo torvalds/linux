@@ -593,6 +593,8 @@ static const struct header_ops vlan_header_ops = {
 	.parse	 = eth_header_parse,
 };
 
+static const struct net_device_ops vlan_netdev_ops, vlan_netdev_accel_ops;
+
 static int vlan_dev_init(struct net_device *dev)
 {
 	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
@@ -619,11 +621,11 @@ static int vlan_dev_init(struct net_device *dev)
 	if (real_dev->features & NETIF_F_HW_VLAN_TX) {
 		dev->header_ops      = real_dev->header_ops;
 		dev->hard_header_len = real_dev->hard_header_len;
-		dev->hard_start_xmit = vlan_dev_hwaccel_hard_start_xmit;
+		dev->netdev_ops         = &vlan_netdev_accel_ops;
 	} else {
 		dev->header_ops      = &vlan_header_ops;
 		dev->hard_header_len = real_dev->hard_header_len + VLAN_HLEN;
-		dev->hard_start_xmit = vlan_dev_hard_start_xmit;
+		dev->netdev_ops         = &vlan_netdev_ops;
 	}
 
 	if (is_vlan_dev(real_dev))
@@ -704,6 +706,22 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_uninit		= vlan_dev_uninit,
 	.ndo_open		= vlan_dev_open,
 	.ndo_stop		= vlan_dev_stop,
+	.ndo_start_xmit =  vlan_dev_hard_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= vlan_dev_set_mac_address,
+	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
+	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
+	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
+	.ndo_do_ioctl		= vlan_dev_ioctl,
+};
+
+static const struct net_device_ops vlan_netdev_accel_ops = {
+	.ndo_change_mtu		= vlan_dev_change_mtu,
+	.ndo_init		= vlan_dev_init,
+	.ndo_uninit		= vlan_dev_uninit,
+	.ndo_open		= vlan_dev_open,
+	.ndo_stop		= vlan_dev_stop,
+	.ndo_start_xmit =  vlan_dev_hwaccel_hard_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= vlan_dev_set_mac_address,
 	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
