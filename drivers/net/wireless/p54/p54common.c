@@ -376,6 +376,36 @@ static void p54_parse_rssical(struct ieee80211_hw *dev, void *data, int len,
 	}
 }
 
+static void p54_parse_default_country(struct ieee80211_hw *dev,
+				      void *data, int len)
+{
+	struct pda_country *country;
+
+	if (len != sizeof(*country)) {
+		printk(KERN_ERR "%s: found possible invalid default country "
+				"eeprom entry. (entry size: %d)\n",
+		       wiphy_name(dev->wiphy), len);
+
+		print_hex_dump_bytes("country:", DUMP_PREFIX_NONE,
+				     data, len);
+
+		printk(KERN_ERR "%s: please report this issue.\n",
+			wiphy_name(dev->wiphy));
+		return;
+	}
+
+	country = (struct pda_country *) data;
+	if (country->flags == PDR_COUNTRY_CERT_CODE_PSEUDO)
+		regulatory_hint(dev->wiphy, country->alpha2);
+	else {
+		/* TODO:
+		 * write a shared/common function that converts
+		 * "Regulatory domain codes" (802.11-2007 14.8.2.2)
+		 * into ISO/IEC 3166-1 alpha2 for regulatory_hint.
+		 */
+	}
+}
+
 static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 {
 	struct p54_common *priv = dev->priv;
@@ -463,6 +493,9 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			memcpy(priv->iq_autocal, entry->data, data_len);
 			priv->iq_autocal_len = data_len / sizeof(struct pda_iq_autocal_entry);
 			break;
+		case PDR_DEFAULT_COUNTRY:
+			p54_parse_default_country(dev, entry->data, data_len);
+			break;
 		case PDR_INTERFACE_LIST:
 			tmp = entry->data;
 			while ((u8 *)tmp < entry->data + data_len) {
@@ -497,7 +530,6 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		case PDR_UTF8_OEM_NAME:
 		case PDR_UTF8_PRODUCT_NAME:
 		case PDR_COUNTRY_LIST:
-		case PDR_DEFAULT_COUNTRY:
 		case PDR_ANTENNA_GAIN:
 		case PDR_PRISM_INDIGO_PA_CALIBRATION_DATA:
 		case PDR_REGULATORY_POWER_LIMITS:

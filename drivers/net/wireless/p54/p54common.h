@@ -180,6 +180,12 @@ struct pda_rssi_cal_entry {
 	__le16 add;
 } __attribute__ ((packed));
 
+struct pda_country {
+	u8 regdomain;
+	u8 alpha2[2];
+	u8 flags;
+} __attribute__ ((packed));
+
 /*
  * this defines the PDR codes used to build PDAs as defined in document
  * number 553155. The current implementation mirrors version 1.1 of the
