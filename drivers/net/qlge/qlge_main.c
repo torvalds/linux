@@ -3149,7 +3149,7 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 	 * a workqueue only if it's a single interrupt
 	 * environment (MSI/Legacy).
 	 */
-	for (i = 1; i > qdev->rx_ring_count; i++) {
+	for (i = 1; i < qdev->rx_ring_count; i++) {
 		rx_ring = &qdev->rx_ring[i];
 		/* Only the RSS rings use NAPI on multi irq
 		 * environment.  Outbound completion processing
