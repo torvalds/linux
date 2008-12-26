@@ -1459,7 +1459,7 @@ static int netxen_nic_pci_mem_read_direct(struct netxen_adapter *adapter,
 			mem_ptr = ioremap(mem_base + mem_page, PAGE_SIZE * 2);
 		else
 			mem_ptr = ioremap(mem_base + mem_page, PAGE_SIZE);
-		if (mem_ptr == 0UL) {
+		if (mem_ptr == NULL) {
 			*(uint8_t  *)data = 0;
 			return -1;
 		}
@@ -1533,7 +1533,7 @@ netxen_nic_pci_mem_write_direct(struct netxen_adapter *adapter, u64 off,
 			mem_ptr = ioremap(mem_base + mem_page, PAGE_SIZE*2);
 		else
 			mem_ptr = ioremap(mem_base + mem_page, PAGE_SIZE);
-		if (mem_ptr == 0UL)
+		if (mem_ptr == NULL)
 			return -1;
 		addr = mem_ptr;
 		addr += start & (PAGE_SIZE - 1);
