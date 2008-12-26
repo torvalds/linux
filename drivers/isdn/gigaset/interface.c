@@ -107,7 +107,7 @@ static int if_config(struct cardstate *cs, int *arg)
 		return -EBUSY;
 
 	if (!cs->connected) {
-		err("not connected!");
+		pr_err("%s: not connected\n", __func__);
 		return -ENODEV;
 	}
 
@@ -188,7 +188,7 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 
 	cs = (struct cardstate *) tty->driver_data;
 	if (!cs) {
-		err("cs==NULL in %s", __func__);
+		pr_err("%s: no cardstate\n", __func__);
 		return;
 	}
 
@@ -222,7 +222,7 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 
 	cs = (struct cardstate *) tty->driver_data;
 	if (!cs) {
-		err("cs==NULL in %s", __func__);
+		pr_err("%s: no cardstate\n", __func__);
 		return -ENODEV;
 	}
 
@@ -297,7 +297,7 @@ static int if_tiocmget(struct tty_struct *tty, struct file *file)
 
 	cs = (struct cardstate *) tty->driver_data;
 	if (!cs) {
-		err("cs==NULL in %s", __func__);
+		pr_err("%s: no cardstate\n", __func__);
 		return -ENODEV;
 	}
 
@@ -323,7 +323,7 @@ static int if_tiocmset(struct tty_struct *tty, struct file *file,
 
 	cs = (struct cardstate *) tty->driver_data;
 	if (!cs) {
-		err("cs==NULL in %s", __func__);
+		pr_err("%s: no cardstate\n", __func__);
 		return -ENODEV;
 	}
 
@@ -354,7 +354,7 @@ static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 	cs = (struct cardstate *) tty->driver_data;
 	if (!cs) {
-		err("cs==NULL in %s", __func__);
+		pr_err("%s: no cardstate\n", __func__);
 		return -ENODEV;
 	}
 
@@ -388,7 +388,7 @@ static int if_write_room(struct tty_struct *tty)
 
 	cs = (struct cardstate *) tty->driver_data;
 	if (!cs) {
-		err("cs==NULL in %s", __func__);
+		pr_err("%s: no cardstate\n", __func__);
 		return -ENODEV;
 	}
 
@@ -420,7 +420,7 @@ static int if_chars_in_buffer(struct tty_struct *tty)
 
 	cs = (struct cardstate *) tty->driver_data;
 	if (!cs) {
-		err("cs==NULL in %s", __func__);
+		pr_err("%s: no cardstate\n", __func__);
 		return -ENODEV;
 	}
 
@@ -451,7 +451,7 @@ static void if_throttle(struct tty_struct *tty)
 
 	cs = (struct cardstate *) tty->driver_data;
 	if (!cs) {
-		err("cs==NULL in %s", __func__);
+		pr_err("%s: no cardstate\n", __func__);
 		return;
 	}
 
@@ -474,7 +474,7 @@ static void if_unthrottle(struct tty_struct *tty)
 
 	cs = (struct cardstate *) tty->driver_data;
 	if (!cs) {
-		err("cs==NULL in %s", __func__);
+		pr_err("%s: no cardstate\n", __func__);
 		return;
 	}
 
@@ -501,7 +501,7 @@ static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 
 	cs = (struct cardstate *) tty->driver_data;
 	if (!cs) {
-		err("cs==NULL in %s", __func__);
+		pr_err("%s: no cardstate\n", __func__);
 		return;
 	}
 
@@ -701,7 +701,7 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 
 	ret = tty_register_driver(tty);
 	if (ret < 0) {
-		err("failed to register tty driver (error %d)", ret);
+		pr_err("error %d registering tty driver\n", ret);
 		goto error;
 	}
 	gig_dbg(DEBUG_IF, "tty driver initialized");
@@ -709,7 +709,7 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 	return;
 
 enomem:
-	err("could not allocate tty structures");
+	pr_err("out of memory\n");
 error:
 	if (drv->tty)
 		put_tty_driver(drv->tty);
