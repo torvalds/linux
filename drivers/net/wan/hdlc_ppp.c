@@ -303,7 +303,7 @@ static int cp_table[EVENTS][STATES] = {
    STA: RTR must supply id
    SCJ: RUC must supply CP packet len and data */
 static void ppp_cp_event(struct net_device *dev, u16 pid, u16 event, u8 code,
-			 u8 id, unsigned int len, void *data)
+			 u8 id, unsigned int len, const void *data)
 {
 	int old_state, action;
 	struct ppp *ppp = get_ppp(dev);
@@ -374,11 +374,12 @@ static void ppp_cp_event(struct net_device *dev, u16 pid, u16 event, u8 code,
 
 
 static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
-			    unsigned int len, u8 *data)
+			    unsigned int req_len, const u8 *data)
 {
 	static u8 const valid_accm[6] = { LCP_OPTION_ACCM, 6, 0, 0, 0, 0 };
-	u8 *opt, *out;
-	unsigned int nak_len = 0, rej_len = 0;
+	const u8 *opt;
+	u8 *out;
+	unsigned int len = req_len, nak_len = 0, rej_len = 0;
 
 	if (!(out = kmalloc(len, GFP_ATOMIC))) {
 		dev->stats.rx_dropped++;
@@ -423,7 +424,7 @@ static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
 	else if (nak_len)
 		ppp_cp_event(dev, pid, RCR_BAD, CP_CONF_NAK, id, nak_len, out);
 	else
-		ppp_cp_event(dev, pid, RCR_GOOD, CP_CONF_ACK, id, len, data);
+		ppp_cp_event(dev, pid, RCR_GOOD, CP_CONF_ACK, id, req_len, data);
 
 	kfree(out);
 }

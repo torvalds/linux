@@ -335,6 +335,13 @@ config DSCC4_PCI_RST
 
 	  Say Y if your card supports this feature.
 
+config IXP4XX_HSS
+	tristate "Intel IXP4xx HSS (synchronous serial port) support"
+	depends on HDLC && ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR
+	help
+	  Say Y here if you want to use built-in HSS ports
+	  on IXP4xx processor.
+
 config DLCI
 	tristate "Frame Relay DLCI support"
 	---help---
