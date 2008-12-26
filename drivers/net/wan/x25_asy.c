@@ -620,7 +620,7 @@ static struct net_device_stats *x25_asy_get_stats(struct net_device *dev)
   *			STANDARD X.25 ENCAPSULATION		  	 *
   ************************************************************************/
 
-int x25_asy_esc(unsigned char *s, unsigned char *d, int len)
+static int x25_asy_esc(unsigned char *s, unsigned char *d, int len)
 {
 	unsigned char *ptr = d;
 	unsigned char c;
