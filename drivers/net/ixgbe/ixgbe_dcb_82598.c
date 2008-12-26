@@ -97,8 +97,8 @@ s32 ixgbe_dcb_get_pfc_stats_82598(struct ixgbe_hw *hw,
  *
  * Configure packet buffers for DCB mode.
  */
-s32 ixgbe_dcb_config_packet_buffers_82598(struct ixgbe_hw *hw,
-                                          struct ixgbe_dcb_config *dcb_config)
+static s32 ixgbe_dcb_config_packet_buffers_82598(struct ixgbe_hw *hw,
+						 struct ixgbe_dcb_config *dcb_config)
 {
 	s32 ret_val = 0;
 	u32 value = IXGBE_RXPBSIZE_64KB;
