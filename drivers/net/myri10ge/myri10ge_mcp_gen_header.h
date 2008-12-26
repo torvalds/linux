@@ -42,6 +42,7 @@ struct mcp_gen_header {
 	unsigned short handoff_id_caps;	/* bitfield: new mcp must have superset */
 	unsigned msix_table_addr;	/* start address of msix table in firmware */
 	unsigned bss_addr;	/* start of bss */
+	unsigned features;
 	/* 8 */
 };
 
