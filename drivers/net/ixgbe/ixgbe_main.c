@@ -2064,6 +2064,8 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	else
 		ixgbe_configure_msi_and_legacy(adapter);
 
+	ixgbe_napi_add_all(adapter);
+
 	clear_bit(__IXGBE_DOWN, &adapter->state);
 	ixgbe_napi_enable_all(adapter);
 
@@ -3176,7 +3178,12 @@ static int ixgbe_close(struct net_device *netdev)
 void ixgbe_napi_add_all(struct ixgbe_adapter *adapter)
 {
 	int q_idx, q_vectors;
+	struct net_device *netdev = adapter->netdev;
 	int (*poll)(struct napi_struct *, int);
+
+	/* check if we already have our netdev->napi_list populated */
+	if (&netdev->napi_list != netdev->napi_list.next)
+		return;
 
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
 		poll = &ixgbe_clean_rxonly;
@@ -3271,6 +3278,7 @@ static int ixgbe_suspend(struct pci_dev *pdev, pm_message_t state)
 	}
 	ixgbe_reset_interrupt_capability(adapter);
 	ixgbe_napi_del_all(adapter);
+	INIT_LIST_HEAD(&netdev->napi_list);
 	kfree(adapter->tx_ring);
 	kfree(adapter->rx_ring);
 
@@ -4212,8 +4220,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
 
-	ixgbe_napi_add_all(adapter);
-
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
 	if (err)
@@ -4299,7 +4305,6 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 
 	DPRINTK(PROBE, INFO, "complete\n");
-	ixgbe_napi_del_all(adapter);
 	kfree(adapter->tx_ring);
 	kfree(adapter->rx_ring);
 

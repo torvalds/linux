@@ -148,6 +148,7 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			netdev->netdev_ops->ndo_stop(netdev);
 		ixgbe_reset_interrupt_capability(adapter);
 		ixgbe_napi_del_all(adapter);
+		INIT_LIST_HEAD(&netdev->napi_list);
 		kfree(adapter->tx_ring);
 		kfree(adapter->rx_ring);
 		adapter->tx_ring = NULL;
@@ -157,7 +158,6 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
 		ixgbe_init_interrupt_scheme(adapter);
-		ixgbe_napi_add_all(adapter);
 		if (netif_running(netdev))
 			netdev->netdev_ops->ndo_open(netdev);
 	} else {
@@ -167,6 +167,7 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 				netdev->netdev_ops->ndo_stop(netdev);
 			ixgbe_reset_interrupt_capability(adapter);
 			ixgbe_napi_del_all(adapter);
+			INIT_LIST_HEAD(&netdev->napi_list);
 			kfree(adapter->tx_ring);
 			kfree(adapter->rx_ring);
 			adapter->tx_ring = NULL;
@@ -176,7 +177,6 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 			adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 			ixgbe_init_interrupt_scheme(adapter);
-			ixgbe_napi_add_all(adapter);
 			if (netif_running(netdev))
 				netdev->netdev_ops->ndo_open(netdev);
 		}
