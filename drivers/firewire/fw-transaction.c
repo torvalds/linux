@@ -207,6 +207,7 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 	packet->speed = speed;
 	packet->generation = generation;
 	packet->ack = 0;
+	packet->payload_bus = 0;
 }
 
 /**
@@ -581,6 +582,8 @@ fw_fill_response(struct fw_packet *response, u32 *request_header,
 		BUG();
 		return;
 	}
+
+	response->payload_bus = 0;
 }
 EXPORT_SYMBOL(fw_fill_response);
 

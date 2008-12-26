@@ -123,6 +123,8 @@ static void free_iommu(unsigned long offset, int size)
 
 	spin_lock_irqsave(&iommu_bitmap_lock, flags);
 	iommu_area_free(iommu_gart_bitmap, offset, size);
+	if (offset >= next_bit)
+		next_bit = offset + size;
 	spin_unlock_irqrestore(&iommu_bitmap_lock, flags);
 }
 

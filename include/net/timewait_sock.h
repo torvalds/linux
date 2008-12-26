@@ -16,6 +16,7 @@
 
 struct timewait_sock_ops {
 	struct kmem_cache	*twsk_slab;
+	char		*twsk_slab_name;
 	unsigned int	twsk_obj_size;
 	int		(*twsk_unique)(struct sock *sk,
 				       struct sock *sktw, void *twp);

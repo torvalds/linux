@@ -187,6 +187,8 @@ static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 
 	spin_lock_irqsave(&iommu->lock, flags);
 	ret = __iommu_queue_command(iommu, cmd);
+	if (!ret)
+		iommu->need_sync = 1;
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return ret;
@@ -210,9 +212,12 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 	cmd.data[0] = CMD_COMPL_WAIT_INT_MASK;
 	CMD_SET_TYPE(&cmd, CMD_COMPL_WAIT);
 
-	iommu->need_sync = 0;
-
 	spin_lock_irqsave(&iommu->lock, flags);
+
+	if (!iommu->need_sync)
+		goto out;
+
+	iommu->need_sync = 0;
 
 	ret = __iommu_queue_command(iommu, &cmd);
 
@@ -254,8 +259,6 @@ static int iommu_queue_inv_dev_entry(struct amd_iommu *iommu, u16 devid)
 
 	ret = iommu_queue_command(iommu, &cmd);
 
-	iommu->need_sync = 1;
-
 	return ret;
 }
 
@@ -280,8 +283,6 @@ static int iommu_queue_inv_iommu_pages(struct amd_iommu *iommu,
 		cmd.data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
 
 	ret = iommu_queue_command(iommu, &cmd);
-
-	iommu->need_sync = 1;
 
 	return ret;
 }
@@ -343,7 +344,7 @@ static int iommu_map(struct protection_domain *dom,
 	u64 __pte, *pte, *page;
 
 	bus_addr  = PAGE_ALIGN(bus_addr);
-	phys_addr = PAGE_ALIGN(bus_addr);
+	phys_addr = PAGE_ALIGN(phys_addr);
 
 	/* only support 512GB address spaces for now */
 	if (bus_addr > IOMMU_MAP_SIZE_L3 || !(prot & IOMMU_PROT_MASK))
@@ -599,7 +600,7 @@ static void dma_ops_free_pagetable(struct dma_ops_domain *dma_dom)
 			continue;
 
 		p2 = IOMMU_PTE_PAGE(p1[i]);
-		for (j = 0; j < 512; ++i) {
+		for (j = 0; j < 512; ++j) {
 			if (!IOMMU_PTE_PRESENT(p2[j]))
 				continue;
 			p3 = IOMMU_PTE_PAGE(p2[j]);
@@ -762,8 +763,6 @@ static void set_device_domain(struct amd_iommu *iommu,
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 
 	iommu_queue_inv_dev_entry(iommu, devid);
-
-	iommu->need_sync = 1;
 }
 
 /*****************************************************************************
@@ -858,6 +857,9 @@ static int get_device_resources(struct device *dev,
 		print_devid(_bdf, 1);
 	}
 
+	if (domain_for_device(_bdf) == NULL)
+		set_device_domain(*iommu, *domain, _bdf);
+
 	return 1;
 }
 
@@ -908,7 +910,7 @@ static void dma_ops_domain_unmap(struct amd_iommu *iommu,
 	if (address >= dom->aperture_size)
 		return;
 
-	WARN_ON(address & 0xfffULL || address > dom->aperture_size);
+	WARN_ON(address & ~PAGE_MASK || address >= dom->aperture_size);
 
 	pte  = dom->pte_pages[IOMMU_PTE_L1_INDEX(address)];
 	pte += IOMMU_PTE_L0_INDEX(address);
@@ -920,8 +922,8 @@ static void dma_ops_domain_unmap(struct amd_iommu *iommu,
 
 /*
  * This function contains common code for mapping of a physically
- * contiguous memory region into DMA address space. It is uses by all
- * mapping functions provided by this IOMMU driver.
+ * contiguous memory region into DMA address space. It is used by all
+ * mapping functions provided with this IOMMU driver.
  * Must be called with the domain lock held.
  */
 static dma_addr_t __map_single(struct device *dev,
@@ -981,7 +983,8 @@ static void __unmap_single(struct amd_iommu *iommu,
 	dma_addr_t i, start;
 	unsigned int pages;
 
-	if ((dma_addr == 0) || (dma_addr + size > dma_dom->aperture_size))
+	if ((dma_addr == bad_dma_address) ||
+	    (dma_addr + size > dma_dom->aperture_size))
 		return;
 
 	pages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
@@ -1031,8 +1034,7 @@ static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
 	if (addr == bad_dma_address)
 		goto out;
 
-	if (unlikely(iommu->need_sync))
-		iommu_completion_wait(iommu);
+	iommu_completion_wait(iommu);
 
 out:
 	spin_unlock_irqrestore(&domain->lock, flags);
@@ -1060,8 +1062,7 @@ static void unmap_single(struct device *dev, dma_addr_t dma_addr,
 
 	__unmap_single(iommu, domain->priv, dma_addr, size, dir);
 
-	if (unlikely(iommu->need_sync))
-		iommu_completion_wait(iommu);
+	iommu_completion_wait(iommu);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
@@ -1127,8 +1128,7 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 			goto unmap;
 	}
 
-	if (unlikely(iommu->need_sync))
-		iommu_completion_wait(iommu);
+	iommu_completion_wait(iommu);
 
 out:
 	spin_unlock_irqrestore(&domain->lock, flags);
@@ -1173,8 +1173,7 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
 		s->dma_address = s->dma_length = 0;
 	}
 
-	if (unlikely(iommu->need_sync))
-		iommu_completion_wait(iommu);
+	iommu_completion_wait(iommu);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
@@ -1225,8 +1224,7 @@ static void *alloc_coherent(struct device *dev, size_t size,
 		goto out;
 	}
 
-	if (unlikely(iommu->need_sync))
-		iommu_completion_wait(iommu);
+	iommu_completion_wait(iommu);
 
 out:
 	spin_unlock_irqrestore(&domain->lock, flags);
@@ -1257,8 +1255,7 @@ static void free_coherent(struct device *dev, size_t size,
 
 	__unmap_single(iommu, domain->priv, dma_addr, size, DMA_BIDIRECTIONAL);
 
-	if (unlikely(iommu->need_sync))
-		iommu_completion_wait(iommu);
+	iommu_completion_wait(iommu);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
 

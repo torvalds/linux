@@ -107,10 +107,10 @@ END(kvm_vps_resume_normal)
 GLOBAL_ENTRY(kvm_vps_resume_handler)
 	movl r30 = PAL_VPS_RESUME_HANDLER
 	;;
-	ld8 r27=[r25]
+	ld8 r26=[r25]
 	shr r17=r17,IA64_ISR_IR_BIT
 	;;
-	dep r27=r17,r27,63,1   // bit 63 of r27 indicate whether enable CFLE
+	dep r26=r17,r26,63,1   // bit 63 of r26 indicate whether enable CFLE
 	mov pr=r23,-2
 	br.sptk.many kvm_vps_entry
 END(kvm_vps_resume_handler)
@@ -894,12 +894,15 @@ ENTRY(kvm_resume_to_guest)
 	;;
 	ld8 r19=[r19]
 	mov b0=r29
-	cmp.ne p6,p7 = r0,r0
+	mov r27=cr.isr
 	;;
-	tbit.z p6,p7 = r19,IA64_PSR_IC_BIT		// p1=vpsr.ic
+	tbit.z p6,p7 = r19,IA64_PSR_IC_BIT		// p7=vpsr.ic
+	shr r27=r27,IA64_ISR_IR_BIT
 	;;
 	(p6) ld8 r26=[r25]
 	(p7) mov b0=r28
+	;;
+	(p6) dep r26=r27,r26,63,1
 	mov pr=r31,-2
 	br.sptk.many b0             // call pal service
 	;;

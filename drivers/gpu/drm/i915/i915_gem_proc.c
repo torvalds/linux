@@ -166,10 +166,9 @@ static int i915_gem_request_info(char *buf, char **start, off_t offset,
 	list_for_each_entry(gem_request, &dev_priv->mm.request_list,
 			    list)
 	{
-		DRM_PROC_PRINT("    %d @ %d %08x\n",
+		DRM_PROC_PRINT("    %d @ %d\n",
 			       gem_request->seqno,
-			       (int) (jiffies - gem_request->emitted_jiffies),
-			       gem_request->flush_domains);
+			       (int) (jiffies - gem_request->emitted_jiffies));
 	}
 	if (len > request + offset)
 		return request;

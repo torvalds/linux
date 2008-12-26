@@ -847,9 +847,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * and the registers being closely associated.
 	 *
 	 * According to chipset errata, on the 965GM, MSI interrupts may
-	 * be lost or delayed
+	 * be lost or delayed, but we use them anyways to avoid
+	 * stuck interrupts on some machines.
 	 */
-	if (!IS_I945G(dev) && !IS_I945GM(dev) && !IS_I965GM(dev))
+	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		pci_enable_msi(dev->pdev);
 
 	intel_opregion_init(dev);

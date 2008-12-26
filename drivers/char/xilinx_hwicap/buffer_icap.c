@@ -21,9 +21,6 @@
  *     INFRINGEMENT, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  *     FOR A PARTICULAR PURPOSE.
  *
- *     Xilinx products are not intended for use in life support appliances,
- *     devices, or systems. Use in such applications is expressly prohibited.
- *
  *     (c) Copyright 2003-2008 Xilinx Inc.
  *     All rights reserved.
  *

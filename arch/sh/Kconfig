@@ -55,6 +55,8 @@ config GENERIC_HARDIRQS
 
 config GENERIC_HARDIRQS_NO__DO_IRQ
 	def_bool y
+	depends on SUPERH32 && (!SH_DREAMCAST && !SH_SH4202_MICRODEV && \
+				!SH_7751_SYSTEMH && !HD64461)
 
 config GENERIC_IRQ_PROBE
 	def_bool y

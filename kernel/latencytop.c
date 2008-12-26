@@ -191,7 +191,7 @@ static int lstats_show(struct seq_file *m, void *v)
 				latency_record[i].time,
 				latency_record[i].max);
 			for (q = 0; q < LT_BACKTRACEDEPTH; q++) {
-				char sym[KSYM_NAME_LEN];
+				char sym[KSYM_SYMBOL_LEN];
 				char *c;
 				if (!latency_record[i].backtrace[q])
 					break;

@@ -104,4 +104,6 @@ static inline void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 new_pid)
 	}
 }
 
+extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
+
 #endif /* __POWERPC_KVM_PPC_H__ */

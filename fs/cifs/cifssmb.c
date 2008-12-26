@@ -3983,7 +3983,8 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 
 		node->flags = le16_to_cpu(pSMBr->DFSFlags);
 		if (is_unicode) {
-			__le16 *tmp = kmalloc(strlen(searchName)*2, GFP_KERNEL);
+			__le16 *tmp = kmalloc(strlen(searchName)*2 + 2,
+						GFP_KERNEL);
 			cifsConvertToUCS((__le16 *) tmp, searchName,
 					PATH_MAX, nls_codepage, remap);
 			node->path_consumed = hostlen_fromUCS(tmp,
