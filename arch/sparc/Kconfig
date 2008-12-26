@@ -46,7 +46,11 @@ config ARCH_DEFCONFIG
 	default "arch/sparc/configs/sparc32_defconfig" if SPARC32
 	default "arch/sparc/configs/sparc64_defconfig" if SPARC64
 
-
+# CONFIG_BITS can be used at source level to get 32/64 bits
+config BITS
+	int
+	default 32 if SPARC32
+	default 64 if SPARC64
 
 config 64BIT
 	def_bool y if SPARC64
