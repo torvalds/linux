@@ -216,7 +216,6 @@ static int efx_poll(struct napi_struct *napi, int budget)
 {
 	struct efx_channel *channel =
 		container_of(napi, struct efx_channel, napi_str);
-	struct net_device *napi_dev = channel->napi_dev;
 	int rx_packets;
 
 	EFX_TRACE(channel->efx, "channel %d NAPI poll executing on CPU %d\n",

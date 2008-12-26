@@ -846,7 +846,6 @@ static int b44_rx(struct b44 *bp, int budget)
 static int b44_poll(struct napi_struct *napi, int budget)
 {
 	struct b44 *bp = container_of(napi, struct b44, napi);
-	struct net_device *netdev = bp->dev;
 	int work_done;
 
 	spin_lock_irq(&bp->lock);

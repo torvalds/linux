@@ -2866,7 +2866,6 @@ static int s2io_poll_inta(struct napi_struct *napi, int budget)
 {
 	struct s2io_nic *nic = container_of(napi, struct s2io_nic, napi);
 	struct ring_info *ring;
-	struct net_device *dev = nic->dev;
 	struct config_param *config;
 	struct mac_info *mac_control;
 	int pkts_processed = 0;
@@ -4330,7 +4329,6 @@ static irqreturn_t s2io_msix_ring_handle(int irq, void *dev_id)
 	struct ring_info *ring = (struct ring_info *)dev_id;
 	struct s2io_nic *sp = ring->nic;
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
-	struct net_device *dev = sp->dev;
 
 	if (unlikely(!is_s2io_card_up(sp)))
 		return IRQ_HANDLED;

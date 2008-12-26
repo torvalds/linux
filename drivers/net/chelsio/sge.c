@@ -1609,7 +1609,6 @@ static int process_pure_responses(struct adapter *adapter)
 int t1_poll(struct napi_struct *napi, int budget)
 {
 	struct adapter *adapter = container_of(napi, struct adapter, napi);
-	struct net_device *dev = adapter->port[0].dev;
 	int work_done = process_responses(adapter, budget);
 
 	if (likely(work_done < budget)) {
@@ -1627,8 +1626,6 @@ irqreturn_t t1_interrupt(int irq, void *data)
 	int handled;
 
 	if (likely(responses_pending(adapter))) {
-		struct net_device *dev = sge->netdev;
-
 		writel(F_PL_INTR_SGE_DATA, adapter->regs + A_PL_CAUSE);
 
 		if (napi_schedule_prep(&adapter->napi)) {

@@ -1732,7 +1732,6 @@ static irqreturn_t qlge_msix_tx_isr(int irq, void *dev_id)
 static irqreturn_t qlge_msix_rx_isr(int irq, void *dev_id)
 {
 	struct rx_ring *rx_ring = dev_id;
-	struct ql_adapter *qdev = rx_ring->qdev;
 	netif_rx_schedule(&rx_ring->napi);
 	return IRQ_HANDLED;
 }

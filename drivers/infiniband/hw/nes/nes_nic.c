@@ -99,7 +99,6 @@ static int nics_per_function = 1;
 static int nes_netdev_poll(struct napi_struct *napi, int budget)
 {
 	struct nes_vnic *nesvnic = container_of(napi, struct nes_vnic, napi);
-	struct net_device *netdev = nesvnic->netdev;
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_hw_nic_cq *nescq = &nesvnic->nic_cq;
 

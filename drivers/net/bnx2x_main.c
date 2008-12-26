@@ -1592,7 +1592,6 @@ static irqreturn_t bnx2x_msix_fp_int(int irq, void *fp_cookie)
 {
 	struct bnx2x_fastpath *fp = fp_cookie;
 	struct bnx2x *bp = fp->bp;
-	struct net_device *dev = bp->dev;
 	int index = FP_IDX(fp);
 
 	/* Return here if interrupt is disabled */

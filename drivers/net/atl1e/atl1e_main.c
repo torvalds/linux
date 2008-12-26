@@ -1501,7 +1501,6 @@ static int atl1e_clean(struct napi_struct *napi, int budget)
 {
 	struct atl1e_adapter *adapter =
 			container_of(napi, struct atl1e_adapter, napi);
-	struct net_device *netdev  = adapter->netdev;
 	struct pci_dev    *pdev    = adapter->pdev;
 	u32 imr_data;
 	int work_done = 0;

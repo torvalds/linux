@@ -2284,7 +2284,6 @@ static int ql_tx_rx_clean(struct ql3_adapter *qdev,
 static int ql_poll(struct napi_struct *napi, int budget)
 {
 	struct ql3_adapter *qdev = container_of(napi, struct ql3_adapter, napi);
-	struct net_device *ndev = qdev->ndev;
 	int rx_cleaned = 0, tx_cleaned = 0;
 	unsigned long hw_flags;
 	struct ql3xxx_port_registers __iomem *port_regs = qdev->mem_map_registers;

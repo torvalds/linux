@@ -1503,7 +1503,6 @@ static int myri10ge_poll(struct napi_struct *napi, int budget)
 {
 	struct myri10ge_slice_state *ss =
 	    container_of(napi, struct myri10ge_slice_state, napi);
-	struct net_device *netdev = ss->mgp->dev;
 	int work_done;
 
 #ifdef CONFIG_MYRI10GE_DCA

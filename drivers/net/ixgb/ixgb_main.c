@@ -1742,7 +1742,6 @@ static int
 ixgb_clean(struct napi_struct *napi, int budget)
 {
 	struct ixgb_adapter *adapter = container_of(napi, struct ixgb_adapter, napi);
-	struct net_device *netdev = adapter->netdev;
 	int work_done = 0;
 
 	ixgb_clean_tx_irq(adapter);
