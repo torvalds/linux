@@ -3010,14 +3010,21 @@ static int sctp_setsockopt_fragment_interleave(struct sock *sk,
 }
 
 /*
- * 7.1.25.  Set or Get the sctp partial delivery point
+ * 8.1.21.  Set or Get the SCTP Partial Delivery Point
  *       (SCTP_PARTIAL_DELIVERY_POINT)
+ *
  * This option will set or get the SCTP partial delivery point.  This
  * point is the size of a message where the partial delivery API will be
  * invoked to help free up rwnd space for the peer.  Setting this to a
- * lower value will cause partial delivery's to happen more often.  The
+ * lower value will cause partial deliveries to happen more often.  The
  * calls argument is an integer that sets or gets the partial delivery
- * point.
+ * point.  Note also that the call will fail if the user attempts to set
+ * this value larger than the socket receive buffer size.
+ *
+ * Note that any single message having a length smaller than or equal to
+ * the SCTP partial delivery point will be delivered in one single read
+ * call as long as the user provided buffer is large enough to hold the
+ * message.
  */
 static int sctp_setsockopt_partial_delivery_point(struct sock *sk,
 						  char __user *optval,
@@ -3029,6 +3036,12 @@ static int sctp_setsockopt_partial_delivery_point(struct sock *sk,
 		return -EINVAL;
 	if (get_user(val, (int __user *)optval))
 		return -EFAULT;
+
+	/* Note: We double the receive buffer from what the user sets
+	 * it to be, also initial rwnd is based on rcvbuf/2.
+	 */
+	if (val > (sk->sk_rcvbuf >> 1))
+		return -EINVAL;
 
 	sctp_sk(sk)->pd_point = val;
 
