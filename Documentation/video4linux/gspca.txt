@@ -53,6 +53,7 @@ zc3xx		0461:0a00	MicroInnovation WebCam320
 spca500		046d:0890	Logitech QuickCam traveler
 vc032x		046d:0892	Logitech Orbicam
 vc032x		046d:0896	Logitech Orbicam
+zc3xx		046d:089d	Logitech QuickCam E2500
 zc3xx		046d:08a0	Logitech QC IM
 zc3xx		046d:08a1	Logitech QC IM 0x08A1 +sound
 zc3xx		046d:08a2	Labtec Webcam Pro
