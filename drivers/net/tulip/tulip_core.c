@@ -1429,9 +1429,9 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		for (i = 0; i < 3; i++) {
 			int value, boguscnt = 100000;
 			iowrite32(0x600 | i, ioaddr + 0x98);
-			do
+			do {
 				value = ioread32(ioaddr + CSR9);
-			while (value < 0  && --boguscnt > 0);
+			} while (value < 0  && --boguscnt > 0);
 			put_unaligned_le16(value, ((__le16 *)dev->dev_addr) + i);
 			sum += value & 0xffff;
 		}

@@ -1691,9 +1691,9 @@ static void __devinit de21040_get_mac_address (struct de_private *de)
 
 	for (i = 0; i < 6; i++) {
 		int value, boguscnt = 100000;
-		do
+		do {
 			value = dr32(ROMCmd);
-		while (value < 0 && --boguscnt > 0);
+		} while (value < 0 && --boguscnt > 0);
 		de->dev->dev_addr[i] = value;
 		udelay(1);
 		if (boguscnt <= 0)
