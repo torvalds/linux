@@ -88,22 +88,24 @@ struct symbol {
 
 #define for_all_symbols(i, sym) for (i = 0; i < 257; i++) for (sym = symbol_hash[i]; sym; sym = sym->next) if (sym->type != S_OTHER)
 
-#define SYMBOL_CONST		0x0001
-#define SYMBOL_CHECK		0x0008
-#define SYMBOL_CHOICE		0x0010
-#define SYMBOL_CHOICEVAL	0x0020
-#define SYMBOL_VALID		0x0080
-#define SYMBOL_OPTIONAL		0x0100
-#define SYMBOL_WRITE		0x0200
-#define SYMBOL_CHANGED		0x0400
-#define SYMBOL_AUTO		0x1000
-#define SYMBOL_CHECKED		0x2000
-#define SYMBOL_WARNED		0x8000
-#define SYMBOL_DEF		0x10000
-#define SYMBOL_DEF_USER		0x10000
-#define SYMBOL_DEF_AUTO		0x20000
-#define SYMBOL_DEF3		0x40000
-#define SYMBOL_DEF4		0x80000
+#define SYMBOL_CONST      0x0001  /* symbol is const */
+#define SYMBOL_CHECK      0x0008  /* used during dependency checking */
+#define SYMBOL_CHOICE     0x0010  /* start of a choice block (null name) */
+#define SYMBOL_CHOICEVAL  0x0020  /* used as a value in a choice block */
+#define SYMBOL_VALID      0x0080  /* set when symbol.curr is calculated */
+#define SYMBOL_OPTIONAL   0x0100  /* choice is optional - values can be 'n' */
+#define SYMBOL_WRITE      0x0200  /* ? */
+#define SYMBOL_CHANGED    0x0400  /* ? */
+#define SYMBOL_AUTO       0x1000  /* value from environment variable */
+#define SYMBOL_CHECKED    0x2000  /* used during dependency checking */
+#define SYMBOL_WARNED     0x8000  /* warning has been issued */
+
+/* Set when symbol.def[] is used */
+#define SYMBOL_DEF        0x10000  /* First bit of SYMBOL_DEF */
+#define SYMBOL_DEF_USER   0x10000  /* symbol.def[S_DEF_USER] is valid */
+#define SYMBOL_DEF_AUTO   0x20000  /* symbol.def[S_DEF_AUTO] is valid */
+#define SYMBOL_DEF3       0x40000  /* symbol.def[S_DEF_3] is valid */
+#define SYMBOL_DEF4       0x80000  /* symbol.def[S_DEF_4] is valid */
 
 #define SYMBOL_MAXLENGTH	256
 #define SYMBOL_HASHSIZE		257
