@@ -61,7 +61,7 @@ static struct ArcProto capmode_proto =
 };
 
 
-void arcnet_cap_init(void)
+static void arcnet_cap_init(void)
 {
 	int count;
 

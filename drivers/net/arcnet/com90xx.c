@@ -583,7 +583,7 @@ static void com90xx_setmask(struct net_device *dev, int mask)
  *
  * However, it does make sure the card is in a defined state.
  */
-int com90xx_reset(struct net_device *dev, int really_reset)
+static int com90xx_reset(struct net_device *dev, int really_reset)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	short ioaddr = dev->base_addr;
