@@ -601,23 +601,17 @@ static void z8530_dma_status(struct z8530_channel *chan)
 	write_zsctrl(chan, RES_H_IUS);
 }
 
-struct z8530_irqhandler z8530_dma_sync=
-{
+static struct z8530_irqhandler z8530_dma_sync = {
 	z8530_dma_rx,
 	z8530_dma_tx,
 	z8530_dma_status
 };
 
-EXPORT_SYMBOL(z8530_dma_sync);
-
-struct z8530_irqhandler z8530_txdma_sync=
-{
+static struct z8530_irqhandler z8530_txdma_sync = {
 	z8530_rx,
 	z8530_dma_tx,
 	z8530_dma_status
 };
-
-EXPORT_SYMBOL(z8530_txdma_sync);
 
 /**
  *	z8530_rx_clear - Handle RX events from a stopped chip
