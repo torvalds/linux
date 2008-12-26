@@ -2548,7 +2548,7 @@ void netif_napi_del(struct napi_struct *napi)
 {
 	struct sk_buff *skb, *next;
 
-	list_del(&napi->dev_list);
+	list_del_init(&napi->dev_list);
 
 	for (skb = napi->gro_list; skb; skb = next) {
 		next = skb->next;
