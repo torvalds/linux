@@ -244,10 +244,10 @@ typedef struct port {
 } port_t;
 
 // system structure
-typedef struct ad_system {
+struct ad_system {
 	u16 sys_priority;
 	struct mac_addr sys_mac_addr;
-} ad_system_t;
+};
 
 #ifdef __ia64__
 #pragma pack()
@@ -258,7 +258,7 @@ typedef struct ad_system {
 #define SLAVE_AD_INFO(slave) ((slave)->ad_info)
 
 struct ad_bond_info {
-	ad_system_t system;	    // 802.3ad system structure
+	struct ad_system system;	    /* 802.3ad system structure */
 	u32 agg_select_timer;	    // Timer to select aggregator after all adapter's hand shakes
 	u32 agg_select_mode;	    // Mode of selection of active aggregator(bandwidth/count)
 	int lacp_fast;		/* whether fast periodic tx should be
