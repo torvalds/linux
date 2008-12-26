@@ -1874,7 +1874,7 @@ static int __devexit smsc911x_drv_remove(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "smsc911x-memory");
 	if (!res)
-		platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	release_mem_region(res->start, res->end - res->start);
 
