@@ -2390,6 +2390,7 @@ int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	__be16 type = skb->protocol;
 	struct list_head *head = &ptype_base[ntohs(type) & PTYPE_HASH_MASK];
 	int count = 0;
+	int same_flow;
 	int mac_len;
 
 	if (!(skb->dev->features & NETIF_F_GRO))
@@ -2425,6 +2426,8 @@ int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	if (&ptype->list == head)
 		goto normal;
 
+	same_flow = NAPI_GRO_CB(skb)->same_flow;
+
 	if (pp) {
 		struct sk_buff *nskb = *pp;
 
@@ -2434,7 +2437,7 @@ int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 		count--;
 	}
 
-	if (NAPI_GRO_CB(skb)->same_flow)
+	if (same_flow)
 		goto ok;
 
 	if (NAPI_GRO_CB(skb)->flush || count >= MAX_GRO_SKBS) {
