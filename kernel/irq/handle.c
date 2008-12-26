@@ -93,6 +93,8 @@ void __attribute__((weak)) arch_init_chip_data(struct irq_desc *desc, int cpu)
 static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
 {
 	memcpy(desc, &irq_desc_init, sizeof(struct irq_desc));
+
+	spin_lock_init(&desc->lock);
 	desc->irq = irq;
 #ifdef CONFIG_SMP
 	desc->cpu = cpu;

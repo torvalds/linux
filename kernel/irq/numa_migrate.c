@@ -42,6 +42,7 @@ static void init_copy_one_irq_desc(int irq, struct irq_desc *old_desc,
 		 struct irq_desc *desc, int cpu)
 {
 	memcpy(desc, old_desc, sizeof(struct irq_desc));
+	spin_lock_init(&desc->lock);
 	desc->cpu = cpu;
 	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
 	init_copy_kstat_irqs(old_desc, desc, cpu, nr_cpu_ids);
