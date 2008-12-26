@@ -143,9 +143,6 @@ static const struct tty_operations if_ops = {
 	.set_termios =		if_set_termios,
 	.throttle =		if_throttle,
 	.unthrottle =		if_unthrottle,
-#if 0
-	.break_ctl =		serial_break,
-#endif
 	.tiocmget =		if_tiocmget,
 	.tiocmset =		if_tiocmset,
 };
@@ -564,29 +561,6 @@ static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 	 */
 
 	cs->ops->set_line_ctrl(cs, cflag);
-
-#if 0
-	//FIXME this hangs M101 [ts 2005-03-09]
-	//FIXME do we need this?
-	/*
-	 * Set flow control: well, I do not really now how to handle DTR/RTS.
-	 * Just do what we have seen with SniffUSB on Win98.
-	 */
-	/* Drop DTR/RTS if no flow control otherwise assert */
-	gig_dbg(DEBUG_IF, "%u: control_state %x",
-		cs->minor_index, control_state);
-	new_state = control_state;
-	if ((iflag & IXOFF) || (iflag & IXON) || (cflag & CRTSCTS))
-		new_state |= TIOCM_DTR | TIOCM_RTS;
-	else
-		new_state &= ~(TIOCM_DTR | TIOCM_RTS);
-	if (new_state != control_state) {
-		gig_dbg(DEBUG_IF, "%u: new_state %x",
-			cs->minor_index, new_state);
-		gigaset_set_modem_ctrl(cs, control_state, new_state);
-		control_state = new_state;
-	}
-#endif
 
 	/* save off the modified port settings */
 	cs->control_state = control_state;

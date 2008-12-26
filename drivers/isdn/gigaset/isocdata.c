@@ -88,11 +88,9 @@ static inline int isowbuf_startwrite(struct isowbuf_t *iwb)
 			__func__);
 		return 0;
 	}
-#ifdef CONFIG_GIGASET_DEBUG
 	gig_dbg(DEBUG_ISO,
 		"%s: acquired iso write semaphore, data[write]=%02x, nbits=%d",
 		__func__, iwb->data[iwb->write], iwb->wbits);
-#endif
 	return 1;
 }
 
