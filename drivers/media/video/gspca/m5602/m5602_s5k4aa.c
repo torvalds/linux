@@ -123,6 +123,49 @@ sensor_found:
 	return 0;
 }
 
+int s5k4aa_start(struct sd *sd)
+{
+	int i, err = 0;
+	u8 data[2];
+	struct cam *cam = &sd->gspca_dev.cam;
+
+	switch (cam->cam_mode[sd->gspca_dev.curr_mode].width)
+	{
+	case 640:
+		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
+
+		for (i = 0; i < ARRAY_SIZE(VGA_s5k4aa); i++) {
+			switch (VGA_s5k4aa[i][0]) {
+			case BRIDGE:
+				err = m5602_write_bridge(sd,
+						 VGA_s5k4aa[i][1],
+						 VGA_s5k4aa[i][2]);
+			break;
+
+			case SENSOR:
+				data[0] = VGA_s5k4aa[i][2];
+				err = m5602_write_sensor(sd,
+						 VGA_s5k4aa[i][1],
+						 data, 1);
+			break;
+
+			case SENSOR_LONG:
+				data[0] = VGA_s5k4aa[i][2];
+				data[1] = VGA_s5k4aa[i][3];
+				err = m5602_write_sensor(sd,
+						  VGA_s5k4aa[i][1],
+						  data, 2);
+			break;
+
+			default:
+				err("Invalid stream command, exiting init");
+				return -EINVAL;
+			}
+		}
+	}
+	return err;
+}
+
 int s5k4aa_init(struct sd *sd)
 {
 	int i, err = 0;
