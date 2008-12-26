@@ -215,7 +215,7 @@ typedef struct port {
 	struct mac_addr actor_system;	       // This parameter is added here although it is not specified in the standard, just for simplification
 	u16 actor_system_priority;	 // This parameter is added here although it is not specified in the standard, just for simplification
 	u16 actor_port_aggregator_identifier;
-	u16 ntt;			 // BOOLEAN
+	bool ntt;
 	u16 actor_admin_port_key;
 	u16 actor_oper_port_key;
 	u8 actor_admin_port_state;

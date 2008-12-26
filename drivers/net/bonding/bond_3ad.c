@@ -629,8 +629,8 @@ static void __update_ntt(struct lacpdu *lacpdu, struct port *port)
 		    ((lacpdu->partner_state & AD_STATE_SYNCHRONIZATION) != (port->actor_oper_port_state & AD_STATE_SYNCHRONIZATION)) ||
 		    ((lacpdu->partner_state & AD_STATE_AGGREGATION) != (port->actor_oper_port_state & AD_STATE_AGGREGATION))
 		   ) {
-			// set ntt to be TRUE
-			port->ntt = 1;
+
+			port->ntt = true;
 		}
 	}
 }
@@ -987,7 +987,7 @@ static void ad_mux_machine(struct port *port)
 			ad_disable_collecting_distributing(port);
 			port->actor_oper_port_state &= ~AD_STATE_COLLECTING;
 			port->actor_oper_port_state &= ~AD_STATE_DISTRIBUTING;
-			port->ntt = 1;
+			port->ntt = true;
 			break;
 		case AD_MUX_WAITING:
 			port->sm_mux_timer_counter = __ad_timer_to_ticks(AD_WAIT_WHILE_TIMER, 0);
@@ -998,13 +998,13 @@ static void ad_mux_machine(struct port *port)
 			port->actor_oper_port_state &= ~AD_STATE_COLLECTING;
 			port->actor_oper_port_state &= ~AD_STATE_DISTRIBUTING;
 			ad_disable_collecting_distributing(port);
-			port->ntt = 1;
+			port->ntt = true;
 			break;
 		case AD_MUX_COLLECTING_DISTRIBUTING:
 			port->actor_oper_port_state |= AD_STATE_COLLECTING;
 			port->actor_oper_port_state |= AD_STATE_DISTRIBUTING;
 			ad_enable_collecting_distributing(port);
-			port->ntt = 1;
+			port->ntt = true;
 			break;
 		default:    //to silence the compiler
 			break;
@@ -1163,11 +1163,13 @@ static void ad_tx_machine(struct port *port)
 		// check if there is something to send
 		if (port->ntt && (port->sm_vars & AD_PORT_LACP_ENABLED)) {
 			__update_lacpdu_from_port(port);
-			// send the lacpdu
+
 			if (ad_lacpdu_send(port) >= 0) {
 				pr_debug("Sent LACPDU on port %d\n", port->actor_port_number);
-				// mark ntt as false, so it will not be sent again until demanded
-				port->ntt = 0;
+
+				/* mark ntt as false, so it will not be sent again until
+				   demanded */
+				port->ntt = false;
 			}
 		}
 		// restart tx timer(to verify that we will not exceed AD_MAX_TX_IN_SECOND
@@ -1250,7 +1252,7 @@ static void ad_periodic_machine(struct port *port)
 			port->sm_periodic_timer_counter = __ad_timer_to_ticks(AD_PERIODIC_TIMER, (u16)(AD_SLOW_PERIODIC_TIME))-1; // decrement 1 tick we lost in the PERIODIC_TX cycle
 			break;
 		case AD_PERIODIC_TX:
-			port->ntt = 1;
+			port->ntt = true;
 			break;
 		default:    //to silence the compiler
 			break;
@@ -1664,7 +1666,7 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 		port->actor_system = null_mac_addr;
 		port->actor_system_priority = 0xffff;
 		port->actor_port_aggregator_identifier = 0;
-		port->ntt = 0;
+		port->ntt = false;
 		port->actor_admin_port_key = 1;
 		port->actor_oper_port_key  = 1;
 		port->actor_admin_port_state = AD_STATE_AGGREGATION | AD_STATE_LACP_ACTIVITY;
