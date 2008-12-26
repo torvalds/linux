@@ -105,12 +105,6 @@ typedef enum {
 
 #pragma pack(1)
 
-typedef struct ad_header {
-	struct mac_addr destination_address;
-	struct mac_addr source_address;
-	__be16 length_type;
-} ad_header_t;
-
 // Link Aggregation Control Protocol(LACP) data unit structure(43.4.2.2 in the 802.3ad standard)
 typedef struct lacpdu {
 	u8 subtype;		     // = LACP(= 0x01)
@@ -143,7 +137,7 @@ typedef struct lacpdu {
 } lacpdu_t;
 
 typedef struct lacpdu_header {
-	struct ad_header ad_header;
+	struct ethhdr hdr;
 	struct lacpdu lacpdu;
 } lacpdu_header_t;
 
@@ -164,7 +158,7 @@ typedef struct bond_marker {
 } bond_marker_t;
 
 typedef struct bond_marker_header {
-	struct ad_header ad_header;
+	struct ethhdr hdr;
 	struct bond_marker marker;
 } bond_marker_header_t;
 

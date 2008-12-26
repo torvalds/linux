@@ -840,13 +840,11 @@ static int ad_lacpdu_send(struct port *port)
 
 	lacpdu_header = (struct lacpdu_header *)skb_put(skb, length);
 
-	memcpy(lacpdu_header->ad_header.destination_address.mac_addr_value,
-		   lacpdu_mcast_addr, ETH_ALEN);
+	memcpy(lacpdu_header->hdr.h_dest, lacpdu_mcast_addr, ETH_ALEN);
 	/* Note: source addres is set to be the member's PERMANENT address,
 	   because we use it to identify loopback lacpdus in receive. */
-	memcpy(lacpdu_header->ad_header.source_address.mac_addr_value,
-		   slave->perm_hwaddr, ETH_ALEN);
-	lacpdu_header->ad_header.length_type = PKT_TYPE_LACPDU;
+	memcpy(lacpdu_header->hdr.h_source, slave->perm_hwaddr, ETH_ALEN);
+	lacpdu_header->hdr.h_proto = PKT_TYPE_LACPDU;
 
 	lacpdu_header->lacpdu = port->lacpdu; // struct copy
 
@@ -884,13 +882,11 @@ static int ad_marker_send(struct port *port, struct bond_marker *marker)
 
 	marker_header = (struct bond_marker_header *)skb_put(skb, length);
 
-	memcpy(marker_header->ad_header.destination_address.mac_addr_value,
-		   lacpdu_mcast_addr, ETH_ALEN);
+	memcpy(marker_header->hdr.h_dest, lacpdu_mcast_addr, ETH_ALEN);
 	/* Note: source addres is set to be the member's PERMANENT address,
 	   because we use it to identify loopback MARKERs in receive. */
-	memcpy(marker_header->ad_header.source_address.mac_addr_value,
-		   slave->perm_hwaddr, ETH_ALEN);
-	marker_header->ad_header.length_type = PKT_TYPE_LACPDU;
+	memcpy(marker_header->hdr.h_source, slave->perm_hwaddr, ETH_ALEN);
+	marker_header->hdr.h_proto = PKT_TYPE_LACPDU;
 
 	marker_header->marker = *marker; // struct copy
 
