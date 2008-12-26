@@ -822,7 +822,6 @@ static int __devinit smsc911x_mii_init(struct platform_device *pdev,
 		pdata->mii_bus->irq[i] = PHY_POLL;
 
 	pdata->mii_bus->parent = &pdev->dev;
-	dev_set_drvdata(&pdev->dev, &pdata->mii_bus);
 
 	pdata->using_extphy = 0;
 
