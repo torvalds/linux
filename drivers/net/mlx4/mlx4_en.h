@@ -333,9 +333,6 @@ struct mlx4_en_profile {
 	u8 rss_mask;
 	u32 active_ports;
 	u32 small_pkt_int;
-	int rx_moder_cnt;
-	int rx_moder_time;
-	int auto_moder;
 	u8 no_reset;
 	struct mlx4_en_port_profile prof[MLX4_MAX_PORTS + 1];
 };

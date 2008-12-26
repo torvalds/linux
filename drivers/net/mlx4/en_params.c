@@ -71,13 +71,6 @@ MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
 MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
 			   " Per priority bit mask");
 
-/* Interrupt moderation tunning */
-MLX4_EN_PARM_INT(rx_moder_cnt, MLX4_EN_AUTO_CONF,
-	       "Max coalesced descriptors for Rx interrupt moderation");
-MLX4_EN_PARM_INT(rx_moder_time, MLX4_EN_AUTO_CONF,
-	       "Timeout following last packet for Rx interrupt moderation");
-MLX4_EN_PARM_INT(auto_moder, 1, "Enable dynamic interrupt moderation");
-
 MLX4_EN_PARM_INT(rx_ring_num1, 0, "Number or Rx rings for port 1 (0 = #cores)");
 MLX4_EN_PARM_INT(rx_ring_num2, 0, "Number or Rx rings for port 2 (0 = #cores)");
 
@@ -92,9 +85,6 @@ int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	struct mlx4_en_profile *params = &mdev->profile;
 	int i;
 
-	params->rx_moder_cnt = min_t(int, rx_moder_cnt, MLX4_EN_AUTO_CONF);
-	params->rx_moder_time = min_t(int, rx_moder_time, MLX4_EN_AUTO_CONF);
-	params->auto_moder = auto_moder;
 	params->rss_xor = (rss_xor != 0);
 	params->rss_mask = rss_mask & 0x1f;
 	params->num_lro = min_t(int, num_lro , MLX4_EN_MAX_LRO_DESCRIPTORS);
