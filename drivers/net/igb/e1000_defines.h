@@ -323,6 +323,7 @@
 #define E1000_TXD_CMD_IFCS   0x02000000 /* Insert FCS (Ethernet CRC) */
 #define E1000_TXD_CMD_RS     0x08000000 /* Report Status */
 #define E1000_TXD_CMD_DEXT   0x20000000 /* Descriptor extension (0 = legacy) */
+#define E1000_TXD_STAT_DD    0x00000001 /* Descriptor Done */
 /* Extended desc bits for Linksec and timesync */
 
 /* Transmit Control */

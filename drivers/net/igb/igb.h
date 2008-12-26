@@ -43,8 +43,6 @@ struct igb_adapter;
 #endif
 
 /* Interrupt defines */
-#define IGB_MAX_TX_CLEAN 72
-
 #define IGB_MIN_DYN_ITR 3000
 #define IGB_MAX_DYN_ITR 96000
 
@@ -127,7 +125,8 @@ struct igb_buffer {
 		/* TX */
 		struct {
 			unsigned long time_stamp;
-			u32 length;
+			u16 length;
+			u16 next_to_watch;
 		};
 		/* RX */
 		struct {
