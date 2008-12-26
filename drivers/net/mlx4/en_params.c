@@ -60,12 +60,6 @@ MLX4_EN_PARM_INT(num_lro, MLX4_EN_MAX_LRO_DESCRIPTORS,
 		 "Number of LRO sessions per ring or disabled (0)");
 
 /* Priority pausing */
-MLX4_EN_PARM_INT(pptx, MLX4_EN_DEF_TX_PAUSE,
-		 "Pause policy on TX: 0 never generate pause frames "
-		 "1 generate pause frames according to RX buffer threshold");
-MLX4_EN_PARM_INT(pprx, MLX4_EN_DEF_RX_PAUSE,
-		 "Pause policy on RX: 0 ignore received pause frames "
-		 "1 respect received pause frames");
 MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
 			   " Per priority bit mask");
 MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
@@ -89,9 +83,9 @@ int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	params->rss_mask = rss_mask & 0x1f;
 	params->num_lro = min_t(int, num_lro , MLX4_EN_MAX_LRO_DESCRIPTORS);
 	for (i = 1; i <= MLX4_MAX_PORTS; i++) {
-		params->prof[i].rx_pause = pprx;
+		params->prof[i].rx_pause = 1;
 		params->prof[i].rx_ppp = pfcrx;
-		params->prof[i].tx_pause = pptx;
+		params->prof[i].tx_pause = 1;
 		params->prof[i].tx_ppp = pfctx;
 	}
 	if (pfcrx || pfctx) {
