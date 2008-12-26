@@ -32,7 +32,6 @@
  */
 
 #include <linux/cpu.h>
-#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/hrtimer.h>
