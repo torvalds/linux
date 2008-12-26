@@ -638,14 +638,14 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 
 	case PLIP_PK_DATA:
 		lbuf = rcv->skb->data;
-		do
+		do {
 			if (plip_receive(nibble_timeout, dev,
 					 &rcv->nibble, &lbuf[rcv->byte]))
 				return TIMEOUT;
-		while (++rcv->byte < rcv->length.h);
-		do
+		} while (++rcv->byte < rcv->length.h);
+		do {
 			rcv->checksum += lbuf[--rcv->byte];
-		while (rcv->byte);
+		} while (rcv->byte);
 		rcv->state = PLIP_PK_CHECKSUM;
 
 	case PLIP_PK_CHECKSUM:
@@ -816,14 +816,14 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 		snd->checksum = 0;
 
 	case PLIP_PK_DATA:
-		do
+		do {
 			if (plip_send(nibble_timeout, dev,
 				      &snd->nibble, lbuf[snd->byte]))
 				return TIMEOUT;
-		while (++snd->byte < snd->length.h);
-		do
+		} while (++snd->byte < snd->length.h);
+		do {
 			snd->checksum += lbuf[--snd->byte];
-		while (snd->byte);
+		} while (snd->byte);
 		snd->state = PLIP_PK_CHECKSUM;
 
 	case PLIP_PK_CHECKSUM:
