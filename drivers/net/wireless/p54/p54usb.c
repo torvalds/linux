@@ -498,6 +498,13 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 	if (err)
 		goto err_upload_failed;
 
+	if (priv->common.fw_interface != FW_LM87) {
+		dev_err(&priv->udev->dev, "wrong firmware, "
+			"please get a LM87 firmware and try again.\n");
+		err = -EINVAL;
+		goto err_upload_failed;
+	}
+
 	left = block_size = min((size_t)P54U_FW_BLOCK, fw_entry->size);
 	strcpy(buf, p54u_firmware_upload_3887);
 	left -= strlen(p54u_firmware_upload_3887);
@@ -646,6 +653,14 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 		kfree(buf);
 		release_firmware(fw_entry);
 		return err;
+	}
+
+	if (priv->common.fw_interface != FW_LM86) {
+		dev_err(&priv->udev->dev, "wrong firmware, "
+			"please get a LM86(USB) firmware and try again.\n");
+		kfree(buf);
+		release_firmware(fw_entry);
+		return -EINVAL;
 	}
 
 #define P54U_WRITE(type, addr, data) \
