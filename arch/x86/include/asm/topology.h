@@ -231,6 +231,7 @@ static inline int node_to_first_cpu(int node)
 #endif
 
 extern cpumask_t cpu_coregroup_map(int cpu);
+extern const struct cpumask *cpu_coregroup_mask(int cpu);
 
 #ifdef ENABLE_TOPO_DEFINES
 #define topology_physical_package_id(cpu)	(cpu_data(cpu).phys_proc_id)
