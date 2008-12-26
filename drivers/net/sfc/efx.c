@@ -1929,7 +1929,10 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	efx->interrupt_mode = max(efx->type->max_interrupt_mode,
 				  interrupt_mode);
 
-	efx->workqueue = create_singlethread_workqueue("sfc_work");
+	/* Would be good to use the net_dev name, but we're too early */
+	snprintf(efx->workqueue_name, sizeof(efx->workqueue_name), "sfc%s",
+		 pci_name(pci_dev));
+	efx->workqueue = create_singlethread_workqueue(efx->workqueue_name);
 	if (!efx->workqueue)
 		return -ENOMEM;
 
