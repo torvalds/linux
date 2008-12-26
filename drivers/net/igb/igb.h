@@ -159,7 +159,8 @@ struct igb_ring {
 	u16 itr_register;
 	u16 cpu;
 
-	int queue_index;
+	u16 queue_index;
+	u16 reg_idx;
 	unsigned int total_bytes;
 	unsigned int total_packets;
 
