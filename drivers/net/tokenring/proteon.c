@@ -283,7 +283,7 @@ static void proteon_read_eeprom(struct net_device *dev)
 		dev->dev_addr[i] = proteon_sifreadw(dev, SIFINC) >> 8;
 }
 
-unsigned short proteon_setnselout_pins(struct net_device *dev)
+static unsigned short proteon_setnselout_pins(struct net_device *dev)
 {
 	return 0;
 }

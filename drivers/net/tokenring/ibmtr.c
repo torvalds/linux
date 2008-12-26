@@ -1837,8 +1837,8 @@ static void ibmtr_reset_timer(struct timer_list *tmr, struct net_device *dev)
 
 /*****************************************************************************/
 
-void tok_rerun(unsigned long dev_addr){
-
+static void tok_rerun(unsigned long dev_addr)
+{
 	struct net_device *dev = (struct net_device *)dev_addr;
 	struct tok_info *ti = netdev_priv(dev);
 
