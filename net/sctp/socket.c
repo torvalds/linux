@@ -2404,9 +2404,9 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
 		if (params.sack_delay == 0 && params.sack_freq == 0)
 			return 0;
 	} else if (optlen == sizeof(struct sctp_assoc_value)) {
-		printk(KERN_WARNING "SCTP: Use of struct sctp_sack_info "
+		printk(KERN_WARNING "SCTP: Use of struct sctp_assoc_value "
 		       "in delayed_ack socket option deprecated\n");
-		printk(KERN_WARNING "SCTP: struct sctp_sack_info instead\n");
+		printk(KERN_WARNING "SCTP: Use struct sctp_sack_info instead\n");
 		if (copy_from_user(&params, optval, optlen))
 			return -EFAULT;
 
@@ -4221,9 +4221,9 @@ static int sctp_getsockopt_delayed_ack(struct sock *sk, int len,
 		if (copy_from_user(&params, optval, len))
 			return -EFAULT;
 	} else if (len == sizeof(struct sctp_assoc_value)) {
-		printk(KERN_WARNING "SCTP: Use of struct sctp_sack_info "
+		printk(KERN_WARNING "SCTP: Use of struct sctp_assoc_value "
 		       "in delayed_ack socket option deprecated\n");
-		printk(KERN_WARNING "SCTP: struct sctp_sack_info instead\n");
+		printk(KERN_WARNING "SCTP: Use struct sctp_sack_info instead\n");
 		if (copy_from_user(&params, optval, len))
 			return -EFAULT;
 	} else
