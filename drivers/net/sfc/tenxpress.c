@@ -445,14 +445,13 @@ static bool sft9001_link_ok(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	int phy_id = efx->mii.phy_id;
 	u32 reg;
 
-	if (efx->loopback_mode == LOOPBACK_GPHY)
-		return true;
-	else if (efx_phy_mode_disabled(efx->phy_mode))
+	if (efx_phy_mode_disabled(efx->phy_mode))
 		return false;
+	else if (efx->loopback_mode == LOOPBACK_GPHY)
+		return true;
 	else if (efx->loopback_mode)
 		return mdio_clause45_links_ok(efx,
 					      MDIO_MMDREG_DEVS_PMAPMD |
-					      MDIO_MMDREG_DEVS_PCS |
 					      MDIO_MMDREG_DEVS_PHYXS);
 
 	/* We must use the same definition of link state as LASI,
@@ -588,6 +587,10 @@ static void tenxpress_phy_poll(struct efx_nic *efx)
 				change = true;
 		}
 		sfx7101_check_bad_lp(efx, link_ok);
+	} else if (efx->loopback_mode) {
+		bool link_ok = sft9001_link_ok(efx, NULL);
+		if (link_ok != efx->link_up)
+			change = true;
 	} else {
 		u32 status = mdio_clause45_read(efx, efx->mii.phy_id,
 						MDIO_MMD_PMAPMD,

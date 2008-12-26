@@ -167,7 +167,7 @@ int mdio_clause45_check_mmds(struct efx_nic *efx,
 bool mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 {
 	int phy_id = efx->mii.phy_id;
-	int status;
+	u32 reg;
 	bool ok = true;
 	int mmd = 0;
 
@@ -179,12 +179,17 @@ bool mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 		return false;
 	else if (efx_phy_mode_disabled(efx->phy_mode))
 		return false;
-	else if (efx->loopback_mode == LOOPBACK_PHYXS)
+	else if (efx->loopback_mode == LOOPBACK_PHYXS) {
 		mmd_mask &= ~(MDIO_MMDREG_DEVS_PHYXS |
 			      MDIO_MMDREG_DEVS_PCS |
 			      MDIO_MMDREG_DEVS_PMAPMD |
 			      MDIO_MMDREG_DEVS_AN);
-	else if (efx->loopback_mode == LOOPBACK_PCS)
+		if (!mmd_mask) {
+			reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PHYXS,
+						 MDIO_PHYXS_STATUS2);
+			return !(reg & (1 << MDIO_PHYXS_STATUS2_RX_FAULT_LBN));
+		}
+	} else if (efx->loopback_mode == LOOPBACK_PCS)
 		mmd_mask &= ~(MDIO_MMDREG_DEVS_PCS |
 			      MDIO_MMDREG_DEVS_PMAPMD |
 			      MDIO_MMDREG_DEVS_AN);
@@ -196,12 +201,11 @@ bool mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 		if (mmd_mask & 1) {
 			/* Double reads because link state is latched, and a
 			 * read moves the current state into the register */
-			status = mdio_clause45_read(efx, phy_id,
-						    mmd, MDIO_MMDREG_STAT1);
-			status = mdio_clause45_read(efx, phy_id,
-						    mmd, MDIO_MMDREG_STAT1);
-
-			ok = ok && (status & (1 << MDIO_MMDREG_STAT1_LINK_LBN));
+			reg = mdio_clause45_read(efx, phy_id,
+						 mmd, MDIO_MMDREG_STAT1);
+			reg = mdio_clause45_read(efx, phy_id,
+						 mmd, MDIO_MMDREG_STAT1);
+			ok = ok && (reg & (1 << MDIO_MMDREG_STAT1_LINK_LBN));
 		}
 		mmd_mask = (mmd_mask >> 1);
 		mmd++;
