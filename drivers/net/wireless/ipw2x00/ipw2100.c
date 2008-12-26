@@ -5268,21 +5268,21 @@ static int ipw2100_set_ibss_beacon_interval(struct ipw2100_priv *priv,
 	return 0;
 }
 
-void ipw2100_queues_initialize(struct ipw2100_priv *priv)
+static void ipw2100_queues_initialize(struct ipw2100_priv *priv)
 {
 	ipw2100_tx_initialize(priv);
 	ipw2100_rx_initialize(priv);
 	ipw2100_msg_initialize(priv);
 }
 
-void ipw2100_queues_free(struct ipw2100_priv *priv)
+static void ipw2100_queues_free(struct ipw2100_priv *priv)
 {
 	ipw2100_tx_free(priv);
 	ipw2100_rx_free(priv);
 	ipw2100_msg_free(priv);
 }
 
-int ipw2100_queues_allocate(struct ipw2100_priv *priv)
+static int ipw2100_queues_allocate(struct ipw2100_priv *priv)
 {
 	if (ipw2100_tx_allocate(priv) ||
 	    ipw2100_rx_allocate(priv) || ipw2100_msg_allocate(priv))
