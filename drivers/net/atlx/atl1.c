@@ -195,7 +195,7 @@ static int __devinit atl1_validate_option(int *value, struct atl1_option *opt,
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  */
-void __devinit atl1_check_options(struct atl1_adapter *adapter)
+static void __devinit atl1_check_options(struct atl1_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	int bd = adapter->bd_number;
@@ -523,7 +523,7 @@ static int atl1_get_permanent_address(struct atl1_hw *hw)
  * Reads the adapter's MAC address from the EEPROM
  * hw - Struct containing variables accessed by shared code
  */
-s32 atl1_read_mac_addr(struct atl1_hw *hw)
+static s32 atl1_read_mac_addr(struct atl1_hw *hw)
 {
 	u16 i;
 
