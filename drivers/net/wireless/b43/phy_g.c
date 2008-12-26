@@ -54,7 +54,7 @@ static const s8 b43_tssi2dbm_g_table[] = {
 	-20, -20, -20, -20,
 };
 
-const u8 b43_radio_channel_codes_bg[] = {
+static const u8 b43_radio_channel_codes_bg[] = {
 	12, 17, 22, 27,
 	32, 37, 42, 47,
 	52, 57, 62, 67,
@@ -215,9 +215,9 @@ void b43_gphy_set_baseband_attenuation(struct b43_wldev *dev,
 }
 
 /* Adjust the transmission power output (G-PHY) */
-void b43_set_txpower_g(struct b43_wldev *dev,
-		       const struct b43_bbatt *bbatt,
-		       const struct b43_rfatt *rfatt, u8 tx_control)
+static void b43_set_txpower_g(struct b43_wldev *dev,
+			      const struct b43_bbatt *bbatt,
+			      const struct b43_rfatt *rfatt, u8 tx_control)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
@@ -383,14 +383,14 @@ static void b43_set_original_gains(struct b43_wldev *dev)
 }
 
 /* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
-void b43_nrssi_hw_write(struct b43_wldev *dev, u16 offset, s16 val)
+static void b43_nrssi_hw_write(struct b43_wldev *dev, u16 offset, s16 val)
 {
 	b43_phy_write(dev, B43_PHY_NRSSILT_CTRL, offset);
 	b43_phy_write(dev, B43_PHY_NRSSILT_DATA, (u16) val);
 }
 
 /* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
-s16 b43_nrssi_hw_read(struct b43_wldev *dev, u16 offset)
+static s16 b43_nrssi_hw_read(struct b43_wldev *dev, u16 offset)
 {
 	u16 val;
 
@@ -401,7 +401,7 @@ s16 b43_nrssi_hw_read(struct b43_wldev *dev, u16 offset)
 }
 
 /* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
-void b43_nrssi_hw_update(struct b43_wldev *dev, u16 val)
+static void b43_nrssi_hw_update(struct b43_wldev *dev, u16 val)
 {
 	u16 i;
 	s16 tmp;
@@ -415,7 +415,7 @@ void b43_nrssi_hw_update(struct b43_wldev *dev, u16 val)
 }
 
 /* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
-void b43_nrssi_mem_update(struct b43_wldev *dev)
+static void b43_nrssi_mem_update(struct b43_wldev *dev)
 {
 	struct b43_phy_g *gphy = dev->phy.g;
 	s16 i, delta;
@@ -589,7 +589,7 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x0811, backup[1]);
 }
 
-void b43_calc_nrssi_slope(struct b43_wldev *dev)
+static void b43_calc_nrssi_slope(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
@@ -1354,7 +1354,7 @@ struct init2050_saved_values {
 	u16 phy_syncctl;
 };
 
-u16 b43_radio_init2050(struct b43_wldev *dev)
+static u16 b43_radio_init2050(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct init2050_saved_values sav;
