@@ -18,6 +18,7 @@
 #include <linux/seq_file.h>
 #include <linux/scatterlist.h>
 
+#include <asm/sections.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -1951,7 +1952,6 @@ void sun4c_update_mmu_cache(struct vm_area_struct *vma, unsigned long address, p
 }
 
 extern void sparc_context_init(int);
-extern unsigned long end;
 extern unsigned long bootmem_init(unsigned long *pages_avail);
 extern unsigned long last_valid_pfn;
 
@@ -1962,7 +1962,7 @@ void __init sun4c_paging_init(void)
 	extern struct resource sparc_iomap;
 	unsigned long end_pfn, pages_avail;
 
-	kernel_end = (unsigned long) &end;
+	kernel_end = (unsigned long) &_end;
 	kernel_end = SUN4C_REAL_PGDIR_ALIGN(kernel_end);
 
 	pages_avail = 0;

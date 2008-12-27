@@ -25,6 +25,7 @@
 #include <linux/pagemap.h>
 #include <linux/poison.h>
 
+#include <asm/sections.h>
 #include <asm/system.h>
 #include <asm/vac-ops.h>
 #include <asm/page.h>
@@ -47,9 +48,6 @@ struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
 unsigned long sparc_unmapped_base;
 
 struct pgtable_cache_struct pgt_quicklists;
-
-/* References to section boundaries */
-extern char __init_begin, __init_end, _start, _end, etext , edata;
 
 /* Initial ramdisk setup */
 extern unsigned int sparc_ramdisk_image;
@@ -450,9 +448,9 @@ void __init mem_init(void)
 	
 	totalram_pages += totalhigh_pages;
 
-	codepages = (((unsigned long) &etext) - ((unsigned long)&_start));
+	codepages = (((unsigned long) &_etext) - ((unsigned long)&_start));
 	codepages = PAGE_ALIGN(codepages) >> PAGE_SHIFT;
-	datapages = (((unsigned long) &edata) - ((unsigned long)&etext));
+	datapages = (((unsigned long) &_edata) - ((unsigned long)&_etext));
 	datapages = PAGE_ALIGN(datapages) >> PAGE_SHIFT;
 	initpages = (((unsigned long) &__init_end) - ((unsigned long) &__init_begin));
 	initpages = PAGE_ALIGN(initpages) >> PAGE_SHIFT;
@@ -476,8 +474,10 @@ void __init mem_init(void)
 void free_initmem (void)
 {
 	unsigned long addr;
+	unsigned long freed;
 
 	addr = (unsigned long)(&__init_begin);
+	freed = (unsigned long)(&__init_end) - addr;
 	for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
 		struct page *p;
 
@@ -490,8 +490,8 @@ void free_initmem (void)
 		totalram_pages++;
 		num_physpages++;
 	}
-	printk(KERN_INFO "Freeing unused kernel memory: %dk freed\n",
-		(&__init_end - &__init_begin) >> 10);
+	printk(KERN_INFO "Freeing unused kernel memory: %ldk freed\n",
+		freed >> 10);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD

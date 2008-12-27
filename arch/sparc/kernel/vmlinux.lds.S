@@ -49,7 +49,6 @@ SECTIONS
 		*(.gnu.warning)
 	} = 0
 	_etext = .;
-	PROVIDE (etext = .);
 
 	RO_DATA(PAGE_SIZE)
 	.data :	{
@@ -69,7 +68,6 @@ SECTIONS
 	}
 	/* End of data section */
 	_edata = .;
-	PROVIDE (edata = .);
 
 	/* init_task */
 	. = ALIGN(THREAD_SIZE);
@@ -172,7 +170,6 @@ SECTIONS
 		*(COMMON)
 	}
 	_end = . ;
-	PROVIDE (end = .);
 
 	/DISCARD/ : {
 		EXIT_TEXT

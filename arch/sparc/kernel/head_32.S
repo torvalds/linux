@@ -990,7 +990,7 @@ sun4c_continue_boot:
 
 		/* Zero out our BSS section. */
 		set	__bss_start , %o0	! First address of BSS
-		set	end , %o1		! Last address of BSS
+		set	_end , %o1		! Last address of BSS
 		add	%o0, 0x1, %o0
 1:	
 		stb	%g0, [%o0]
