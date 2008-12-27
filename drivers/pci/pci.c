@@ -525,14 +525,17 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
  * pci_update_current_state - Read PCI power state of given device from its
  *                            PCI PM registers and cache it
  * @dev: PCI device to handle.
+ * @state: State to cache in case the device doesn't have the PM capability
  */
-static void pci_update_current_state(struct pci_dev *dev)
+static void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
 {
 	if (dev->pm_cap) {
 		u16 pmcsr;
 
 		pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 		dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
+	} else {
+		dev->current_state = state;
 	}
 }
 
@@ -575,7 +578,7 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		 */
 		int ret = platform_pci_set_power_state(dev, PCI_D0);
 		if (!ret)
-			pci_update_current_state(dev);
+			pci_update_current_state(dev, PCI_D0);
 	}
 	/* This device is quirked not to be put into D3, so
 	   don't put it in D3 */
@@ -588,7 +591,7 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		/* Allow the platform to finalize the transition */
 		int ret = platform_pci_set_power_state(dev, state);
 		if (!ret) {
-			pci_update_current_state(dev);
+			pci_update_current_state(dev, state);
 			error = 0;
 		}
 	}
