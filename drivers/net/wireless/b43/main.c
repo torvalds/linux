@@ -1954,8 +1954,9 @@ static void b43_print_fw_helptext(struct b43_wl *wl, bool error)
 	const char *text;
 
 	text = "You must go to "
-	       "http://linuxwireless.org/en/users/Drivers/b43#devicefirmware "
-	       "and download the latest firmware (version 4).\n";
+	       "http://wireless.kernel.org/en/users/Drivers/b43#devicefirmware "
+	       "and download the correct firmware for this driver version. "
+	       "Please carefully read all instructions on this website.\n";
 	if (error)
 		b43err(wl, text);
 	else
@@ -2271,8 +2272,11 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 	}
 
 	if (b43_is_old_txhdr_format(dev)) {
+		/* We're over the deadline, but we keep support for old fw
+		 * until it turns out to be in major conflict with something new. */
 		b43warn(dev->wl, "You are using an old firmware image. "
-			"Support for old firmware will be removed in July 2008.\n");
+			"Support for old firmware will be removed soon "
+			"(official deadline was July 2008).\n");
 		b43_print_fw_helptext(dev->wl, 0);
 	}
 
