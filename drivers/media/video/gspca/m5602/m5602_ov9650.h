@@ -96,6 +96,7 @@
 #define OV9650_VGA_SELECT		(1 << 6)
 #define OV9650_CIF_SELECT		(1 << 5)
 #define OV9650_QVGA_SELECT		(1 << 4)
+#define OV9650_QCIF_SELECT		(1 << 3)
 #define OV9650_RGB_SELECT		(1 << 2)
 #define OV9650_RAW_RGB_SELECT		(1 << 0)
 
@@ -262,9 +263,19 @@ static struct m5602_sensor ov9650 = {
 	}
 	},
 
-	.nmodes = 3,
+	.nmodes = 4,
 	.modes = {
 	{
+		176,
+		144,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			176 * 144,
+		.bytesperline = 176,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}, {
 		320,
 		240,
 		V4L2_PIX_FMT_SBGGR8,
@@ -526,6 +537,26 @@ static const unsigned char QVGA_ov9650[][3] =
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x71},
 
 	{SENSOR, OV9650_COM7, OV9650_QVGA_SELECT |
+			      OV9650_RGB_SELECT |
+			      OV9650_RAW_RGB_SELECT},
+};
+
+static const unsigned char QCIF_ov9650[][3] =
+{
+	/* Moves the view window in a vertical orientation */
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x09},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x90}, /* 144 */
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x31}, /* 48 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00}, /* 176 + 49 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0xe1},
+
+	{SENSOR, OV9650_COM7, OV9650_QCIF_SELECT |
 			      OV9650_RGB_SELECT |
 			      OV9650_RAW_RGB_SELECT},
 };

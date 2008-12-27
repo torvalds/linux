@@ -194,6 +194,20 @@ int ov9650_start(struct sd *sd)
 				err = m5602_write_bridge(sd, QVGA_ov9650[i][1], data);
 		}
 		break;
+
+	case 176:
+		PDEBUG(D_V4L2, "Configuring camera for QCIF mode");
+
+		for (i = 0; i < ARRAY_SIZE(QCIF_ov9650) && !err; i++) {
+			u8 data = QCIF_ov9650[i][2];
+			if (QCIF_ov9650[i][0] == SENSOR)
+				err = m5602_write_sensor(sd,
+					QCIF_ov9650[i][1], &data, 1);
+			else
+				err = m5602_write_bridge(sd, QCIF_ov9650[i][1], data);
+		}
+		break;
+
 	}
 	return err;
 }
