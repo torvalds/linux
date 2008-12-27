@@ -218,6 +218,21 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	}
 };
 
+int __init early_irq_init(void)
+{
+	struct irq_desc *desc;
+	int count;
+	int i;
+
+	desc = irq_desc;
+	count = ARRAY_SIZE(irq_desc);
+
+	for (i = 0; i < count; i++)
+		desc[i].irq = i;
+
+	return arch_early_irq_init();
+}
+
 struct irq_desc *irq_to_desc(unsigned int irq)
 {
 	return (irq < NR_IRQS) ? irq_desc + irq : NULL;
