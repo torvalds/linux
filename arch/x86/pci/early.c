@@ -2,7 +2,7 @@
 #include <linux/pci.h>
 #include <asm/pci-direct.h>
 #include <asm/io.h>
-#include "pci.h"
+#include <asm/pci_x86.h>
 
 /* Direct PCI access. This is used for PCI accesses in early boot before
    the PCI subsystem works. */

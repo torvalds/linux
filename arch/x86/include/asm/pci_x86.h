@@ -57,7 +57,8 @@ extern struct pci_ops pci_root_ops;
 struct irq_info {
 	u8 bus, devfn;			/* Bus, device and function */
 	struct {
-		u8 link;		/* IRQ line ID, chipset dependent, 0=not routed */
+		u8 link;		/* IRQ line ID, chipset dependent,
+					   0 = not routed */
 		u16 bitmap;		/* Available IRQs */
 	} __attribute__((packed)) irq[4];
 	u8 slot;			/* Slot number, 0=onboard */
@@ -69,11 +70,13 @@ struct irq_routing_table {
 	u16 version;			/* PIRQ_VERSION */
 	u16 size;			/* Table size in bytes */
 	u8 rtr_bus, rtr_devfn;		/* Where the interrupt router lies */
-	u16 exclusive_irqs;		/* IRQs devoted exclusively to PCI usage */
-	u16 rtr_vendor, rtr_device;	/* Vendor and device ID of interrupt router */
+	u16 exclusive_irqs;		/* IRQs devoted exclusively to
+					   PCI usage */
+	u16 rtr_vendor, rtr_device;	/* Vendor and device ID of
+					   interrupt router */
 	u32 miniport_data;		/* Crap */
 	u8 rfu[11];
-	u8 checksum;			/* Modulo 256 checksum must give zero */
+	u8 checksum;			/* Modulo 256 checksum must give 0 */
 	struct irq_info slots[0];
 } __attribute__((packed));
 
@@ -148,15 +151,15 @@ static inline unsigned int mmio_config_readl(void __iomem *pos)
 
 static inline void mmio_config_writeb(void __iomem *pos, u8 val)
 {
-	asm volatile("movb %%al,(%1)" :: "a" (val), "r" (pos) : "memory");
+	asm volatile("movb %%al,(%1)" : : "a" (val), "r" (pos) : "memory");
 }
 
 static inline void mmio_config_writew(void __iomem *pos, u16 val)
 {
-	asm volatile("movw %%ax,(%1)" :: "a" (val), "r" (pos) : "memory");
+	asm volatile("movw %%ax,(%1)" : : "a" (val), "r" (pos) : "memory");
 }
 
 static inline void mmio_config_writel(void __iomem *pos, u32 val)
 {
-	asm volatile("movl %%eax,(%1)" :: "a" (val), "r" (pos) : "memory");
+	asm volatile("movl %%eax,(%1)" : : "a" (val), "r" (pos) : "memory");
 }
