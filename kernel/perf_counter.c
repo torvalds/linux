@@ -45,8 +45,8 @@ hw_perf_counter_init(struct perf_counter *counter)
 }
 
 u64 __weak hw_perf_save_disable(void)		{ return 0; }
-void __weak hw_perf_restore(u64 ctrl)		{ }
-void __weak hw_perf_counter_setup(void)		{ }
+void __weak hw_perf_restore(u64 ctrl)		{ barrier(); }
+void __weak hw_perf_counter_setup(void)		{ barrier(); }
 
 static void
 list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
