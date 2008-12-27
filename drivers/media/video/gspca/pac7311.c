@@ -1064,6 +1064,7 @@ static __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x093a, 0x2608), .driver_info = SENSOR_PAC7311},
 	{USB_DEVICE(0x093a, 0x260e), .driver_info = SENSOR_PAC7311},
 	{USB_DEVICE(0x093a, 0x260f), .driver_info = SENSOR_PAC7311},
+	{USB_DEVICE(0x093a, 0x2620), .driver_info = SENSOR_PAC7302},
 	{USB_DEVICE(0x093a, 0x2621), .driver_info = SENSOR_PAC7302},
 	{USB_DEVICE(0x093a, 0x2622), .driver_info = SENSOR_PAC7302},
 	{USB_DEVICE(0x093a, 0x2624), .driver_info = SENSOR_PAC7302},
