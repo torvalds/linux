@@ -1312,10 +1312,8 @@ void __init srmmu_paging_init(void)
 #endif
 	poke_srmmu();
 
-#ifdef CONFIG_SUN_IO
 	srmmu_allocate_ptable_skeleton(sparc_iomap.start, IOBASE_END);
 	srmmu_allocate_ptable_skeleton(DVMA_VADDR, DVMA_END);
-#endif
 
 	srmmu_allocate_ptable_skeleton(
 		__fix_to_virt(__end_of_fixed_addresses - 1), FIXADDR_TOP);

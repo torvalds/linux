@@ -469,10 +469,6 @@ config SBUSCHAR
 	bool
 	default y
 
-config SUN_IO
-	bool
-	default y
-
 config SUN_LDOMS
 	bool "Sun Logical Domains support"
 	depends on SPARC64
