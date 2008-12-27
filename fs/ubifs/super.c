@@ -602,7 +602,7 @@ static int bud_wbuf_callback(struct ubifs_info *c, int lnum, int free, int pad)
 }
 
 /*
- * init_constants_late - initialize UBIFS constants.
+ * init_constants_sb - initialize UBIFS constants.
  * @c: UBIFS file-system description object
  *
  * This is a helper function which initializes various UBIFS constants after
@@ -610,7 +610,7 @@ static int bud_wbuf_callback(struct ubifs_info *c, int lnum, int free, int pad)
  * makes sure they are all right. Returns zero in case of success and a
  * negative error code in case of failure.
  */
-static int init_constants_late(struct ubifs_info *c)
+static int init_constants_sb(struct ubifs_info *c)
 {
 	int tmp, err;
 	long long tmp64;
@@ -687,6 +687,21 @@ static int init_constants_late(struct ubifs_info *c)
 	if (err)
 		return err;
 
+	return 0;
+}
+
+/*
+ * init_constants_master - initialize UBIFS constants.
+ * @c: UBIFS file-system description object
+ *
+ * This is a helper function which initializes various UBIFS constants after
+ * the master node has been read. It also checks various UBIFS parameters and
+ * makes sure they are all right.
+ */
+static void init_constants_master(struct ubifs_info *c)
+{
+	long long tmp64;
+
 	c->min_idx_lebs = ubifs_calc_min_idx_lebs(c);
 
 	/*
@@ -702,8 +717,6 @@ static int init_constants_late(struct ubifs_info *c)
 	tmp64 *= (long long)c->leb_size - c->leb_overhead;
 	tmp64 = ubifs_reported_space(c, tmp64);
 	c->block_cnt = tmp64 >> UBIFS_BLOCK_SHIFT;
-
-	return 0;
 }
 
 /**
@@ -1138,7 +1151,7 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_free;
 	}
 
-	err = init_constants_late(c);
+	err = init_constants_sb(c);
 	if (err)
 		goto out_free;
 
@@ -1171,6 +1184,8 @@ static int mount_ubifs(struct ubifs_info *c)
 	err = ubifs_read_master(c);
 	if (err)
 		goto out_master;
+
+	init_constants_master(c);
 
 	if ((c->mst_node->flags & cpu_to_le32(UBIFS_MST_DIRTY)) != 0) {
 		ubifs_msg("recovery needed");
