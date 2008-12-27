@@ -237,17 +237,17 @@ int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, S5K4AA_EXPOSURE_HI, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	*val = data << 8;
 	err = m5602_read_sensor(sd, S5K4AA_EXPOSURE_LO, &data, 1);
 	*val |= data;
 	PDEBUG(D_V4L2, "Read exposure %d", *val);
-out:
+
 	return err;
 }
 
@@ -260,14 +260,14 @@ int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set exposure to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 	data = (val >> 8) & 0xff;
 	err = m5602_write_sensor(sd, S5K4AA_EXPOSURE_HI, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 	data = val & 0xff;
 	err = m5602_write_sensor(sd, S5K4AA_EXPOSURE_LO, &data, 1);
-out:
+
 	return err;
 }
 
@@ -279,13 +279,12 @@ int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	*val = (data & S5K4AA_RM_V_FLIP) >> 7;
 	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
 
-out:
 	return err;
 }
 
@@ -298,32 +297,32 @@ int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 	data = ((data & ~S5K4AA_RM_V_FLIP)
 			| ((val & 0x01) << 7));
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	if (val) {
 		err = m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 		if (err < 0)
-			goto out;
+			return err;
 
 		data++;
 		err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	} else {
 		err = m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 		if (err < 0)
-			goto out;
+			return err;
 
 		data--;
 		err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	}
-out:
+
 	return err;
 }
 
@@ -335,12 +334,12 @@ int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	*val = (data & S5K4AA_RM_H_FLIP) >> 6;
 	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
-out:
+
 	return err;
 }
 
@@ -354,32 +353,32 @@ int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	       val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	data = ((data & ~S5K4AA_RM_H_FLIP) | ((val & 0x01) << 6));
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	if (val) {
 		err = m5602_read_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 		if (err < 0)
-			goto out;
+			return err;
 		data++;
 		err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 		if (err < 0)
-			goto out;
+			return err;
 	} else {
 		err = m5602_read_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 		if (err < 0)
-			goto out;
+			return err;
 		data--;
 		err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	}
-out:
+
 	return err;
 }
 
@@ -391,13 +390,12 @@ int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, S5K4AA_GAIN_2, &data, 1);
 	*val = data;
 	PDEBUG(D_V4L2, "Read gain %d", *val);
 
-out:
 	return err;
 }
 
@@ -410,12 +408,11 @@ int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set gain to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	data = val & 0xff;
 	err = m5602_write_sensor(sd, S5K4AA_GAIN_2, &data, 1);
 
-out:
 	return err;
 }
 

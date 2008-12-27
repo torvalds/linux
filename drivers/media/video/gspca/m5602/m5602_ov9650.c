@@ -222,21 +222,21 @@ int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = m5602_read_sensor(sd, OV9650_COM1, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 	*val = i2c_data & 0x03;
 
 	err = m5602_read_sensor(sd, OV9650_AECH, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 	*val |= (i2c_data << 2);
 
 	err = m5602_read_sensor(sd, OV9650_AECHM, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 	*val |= (i2c_data & 0x3f) << 10;
 
 	PDEBUG(D_V4L2, "Read exposure %d", *val);
-out:
+
 	return err;
 }
 
@@ -254,20 +254,19 @@ int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, OV9650_AECHM,
 				  &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	/* The 8 middle bits */
 	i2c_data = (val >> 2) & 0xff;
 	err = m5602_write_sensor(sd, OV9650_AECH,
 				  &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	/* The 2 LSBs */
 	i2c_data = val & 0x03;
 	err = m5602_write_sensor(sd, OV9650_COM1, &i2c_data, 1);
 
-out:
 	return err;
 }
 
@@ -390,7 +389,7 @@ int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
 	err = m5602_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	if (dmi_check_system(ov9650_flip_dmi_table))
 		i2c_data = ((i2c_data & 0xdf) |
@@ -400,7 +399,7 @@ int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 			   ((val & 0x01) << 5));
 
 	err = m5602_write_sensor(sd, OV9650_MVFP, &i2c_data, 1);
-out:
+
 	return err;
 }
 
@@ -429,7 +428,7 @@ int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
 	err = m5602_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	if (dmi_check_system(ov9650_flip_dmi_table))
 		i2c_data = ((i2c_data & 0xef) |
@@ -439,7 +438,7 @@ int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 				((val & 0x01) << 4));
 
 	err = m5602_write_sensor(sd, OV9650_MVFP, &i2c_data, 1);
-out:
+
 	return err;
 }
 
@@ -451,13 +450,13 @@ int ov9650_get_brightness(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = m5602_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 	*val = (i2c_data & 0x03) << 8;
 
 	err = m5602_read_sensor(sd, OV9650_GAIN, &i2c_data, 1);
 	*val |= i2c_data;
 	PDEBUG(D_V4L2, "Read gain %d", *val);
-out:
+
 	return err;
 }
 
@@ -473,19 +472,18 @@ int ov9650_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 		corrupting the VREF high and low bits */
 	err = m5602_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	/* Mask away all uninteresting bits */
 	i2c_data = ((val & 0x0300) >> 2) | (i2c_data & 0x3F);
 	err = m5602_write_sensor(sd, OV9650_VREF, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	/* The 8 LSBs */
 	i2c_data = val & 0xff;
 	err = m5602_write_sensor(sd, OV9650_GAIN, &i2c_data, 1);
 
-out:
 	return err;
 }
 
@@ -511,11 +509,11 @@ int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set auto white balance to %d", val);
 	err = m5602_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	i2c_data = ((i2c_data & 0xfd) | ((val & 0x01) << 1));
 	err = m5602_write_sensor(sd, OV9650_COM8, &i2c_data, 1);
-out:
+
 	return err;
 }
 
@@ -541,11 +539,11 @@ int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set auto gain control to %d", val);
 	err = m5602_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	i2c_data = ((i2c_data & 0xfb) | ((val & 0x01) << 2));
 	err = m5602_write_sensor(sd, OV9650_COM8, &i2c_data, 1);
-out:
+
 	return err;
 }
 

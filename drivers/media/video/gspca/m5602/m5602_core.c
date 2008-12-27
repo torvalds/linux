@@ -92,29 +92,29 @@ int m5602_read_sensor(struct sd *sd, const u8 address,
 		err = m5602_read_bridge(sd, M5602_XB_I2C_STATUS, i2c_data);
 	} while ((*i2c_data & I2C_BUSY) && !err);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_write_bridge(sd, M5602_XB_I2C_DEV_ADDR,
 				 sd->sensor->i2c_slave_id);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_write_bridge(sd, M5602_XB_I2C_REG_ADDR, address);
 	if (err < 0)
-		goto out;
+		return err;
 
 	if (sd->sensor->i2c_regW == 1) {
 		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, len);
 		if (err < 0)
-			goto out;
+			return err;
 
 		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x08);
 		if (err < 0)
-			goto out;
+			return err;
 	} else {
 		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x18 + len);
 		if (err < 0)
-			goto out;
+			return err;
 	}
 
 	for (i = 0; (i < len) && !err; i++) {
@@ -123,7 +123,6 @@ int m5602_read_sensor(struct sd *sd, const u8 address,
 		PDEBUG(D_CONF, "Reading sensor register "
 			       "0x%x containing 0x%x ", address, *i2c_data);
 	}
-out:
 	return err;
 }
 

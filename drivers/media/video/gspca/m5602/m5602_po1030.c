@@ -108,7 +108,7 @@ int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	err = m5602_read_sensor(sd, PO1030_REG_INTEGLINES_H,
 				 &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 	*val = (i2c_data << 8);
 
 	err = m5602_read_sensor(sd, PO1030_REG_INTEGLINES_M,
@@ -116,7 +116,7 @@ int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	*val |= i2c_data;
 
 	PDEBUG(D_V4L2, "Exposure read as %d", *val);
-out:
+
 	return err;
 }
 
@@ -135,7 +135,7 @@ int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, PO1030_REG_INTEGLINES_H,
 				  &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	i2c_data = (val & 0xff);
 	PDEBUG(D_V4L2, "Set exposure to low byte to 0x%x",
@@ -143,7 +143,6 @@ int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, PO1030_REG_INTEGLINES_M,
 				  &i2c_data, 1);
 
-out:
 	return err;
 }
 
@@ -186,14 +185,13 @@ int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set hflip %d", val);
 	err = m5602_read_sensor(sd, PO1030_REG_CONTROL2, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	i2c_data = (0x7f & i2c_data) | ((val & 0x01) << 7);
 
 	err = m5602_write_sensor(sd, PO1030_REG_CONTROL2,
 				 &i2c_data, 1);
 
-out:
 	return err;
 }
 
@@ -222,14 +220,13 @@ int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set vflip %d", val);
 	err = m5602_read_sensor(sd, PO1030_REG_CONTROL2, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	i2c_data = (i2c_data & 0xbf) | ((val & 0x01) << 6);
 
 	err = m5602_write_sensor(sd, PO1030_REG_CONTROL2,
 				 &i2c_data, 1);
 
-out:
 	return err;
 }
 

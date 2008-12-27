@@ -125,16 +125,15 @@ int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	data[0] = (data[0] & 0xfe) | val;
 	err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 				   data, 2);
-out:
 	return err;
 }
 
@@ -163,16 +162,15 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	data[0] = (data[0] & 0xfd) | ((val << 1) & 0x02);
 	err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 					data, 2);
-out:
 	return err;
 }
 
@@ -204,7 +202,7 @@ int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	if (val >= INITIAL_MAX_GAIN * 2 * 2 * 2)
 		return -EINVAL;
@@ -229,7 +227,7 @@ int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 
 	err = m5602_write_sensor(sd, MT9M111_SC_GLOBAL_GAIN,
 				   data, 2);
-out:
+
 	return err;
 }
 
