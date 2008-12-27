@@ -847,16 +847,15 @@ void __cpuinit ds_init_intel(struct cpuinfo_x86 *c)
 	switch (c->x86) {
 	case 0x6:
 		switch (c->x86_model) {
+		case 0 ... 0xC:
+			/* sorry, don't know about them */
+			break;
 		case 0xD:
 		case 0xE: /* Pentium M */
 			ds_configure(&ds_cfg_var);
 			break;
-		case 0xF: /* Core2 */
-		case 0x1C: /* Atom */
+		default: /* Core2, Atom, ... */
 			ds_configure(&ds_cfg_64);
-			break;
-		default:
-			/* sorry, don't know about them */
 			break;
 		}
 		break;

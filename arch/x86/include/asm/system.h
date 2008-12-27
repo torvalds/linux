@@ -314,6 +314,8 @@ extern void free_init_pages(char *what, unsigned long begin, unsigned long end);
 
 void default_idle(void);
 
+void stop_this_cpu(void *dummy);
+
 /*
  * Force strict CPU ordering.
  * And yes, this is required on UP too when we're talking
