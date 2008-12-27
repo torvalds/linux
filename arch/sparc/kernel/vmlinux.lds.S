@@ -1,7 +1,9 @@
 /* ld script for sparc32/sparc64 kernel */
 
 #include <asm-generic/vmlinux.lds.h>
+
 #include <asm/page.h>
+#include <asm/thread_info.h>
 
 #ifdef CONFIG_SPARC32
 #define INITIAL_ADDRESS  0x10000 + SIZEOF_HEADERS
@@ -65,8 +67,15 @@ SECTIONS
 	.data.read_mostly : {
 		*(.data.read_mostly)
 	}
+	/* End of data section */
 	_edata = .;
 	PROVIDE (edata = .);
+
+	/* init_task */
+	. = ALIGN(THREAD_SIZE);
+	.data.init_task : {
+		*(.data.init_task)
+	}
 	.fixup : {
 		__start___fixup = .;
 		*(.fixup)
