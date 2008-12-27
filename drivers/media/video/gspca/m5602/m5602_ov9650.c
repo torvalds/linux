@@ -147,10 +147,8 @@ int ov9650_start(struct sd *sd)
 	int i, err = 0;
 	struct cam *cam = &sd->gspca_dev.cam;
 
-	for (i = 0; i < ARRAY_SIZE(res_init_ov9650) && !err; i++) {
-		u8 data = res_init_ov9650[i][1];
-		err = m5602_write_bridge(sd, res_init_ov9650[i][0], data);
-	}
+	for (i = 0; i < ARRAY_SIZE(res_init_ov9650) && !err; i++)
+		err = m5602_write_bridge(sd, res_init_ov9650[i][0], res_init_ov9650[i][1]);
 	if (err < 0)
 		return err;
 
@@ -160,12 +158,14 @@ int ov9650_start(struct sd *sd)
 		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
 
 		for (i = 0; i < ARRAY_SIZE(VGA_ov9650) && !err; i++) {
-			u8 data = VGA_ov9650[i][2];
-			if (VGA_ov9650[i][0] == SENSOR)
+			if (VGA_ov9650[i][0] == SENSOR) {
+				u8 data = VGA_ov9650[i][2];
+
 				err = m5602_write_sensor(sd,
 					VGA_ov9650[i][1], &data, 1);
-			else
-				err = m5602_write_bridge(sd, VGA_ov9650[i][1], data);
+			} else {
+				err = m5602_write_bridge(sd, VGA_ov9650[i][1], VGA_ov9650[i][2]);
+			}
 		}
 		break;
 
@@ -173,12 +173,14 @@ int ov9650_start(struct sd *sd)
 		PDEBUG(D_V4L2, "Configuring camera for CIF mode");
 
 		for (i = 0; i < ARRAY_SIZE(CIF_ov9650) && !err; i++) {
-			u8 data = CIF_ov9650[i][2];
-			if (CIF_ov9650[i][0] == SENSOR)
+			if (CIF_ov9650[i][0] == SENSOR) {
+				u8 data = CIF_ov9650[i][2];
+
 				err = m5602_write_sensor(sd,
 					CIF_ov9650[i][1], &data, 1);
-			else
-				err = m5602_write_bridge(sd, CIF_ov9650[i][1], data);
+			} else {
+				err = m5602_write_bridge(sd, CIF_ov9650[i][1], CIF_ov9650[i][2]);
+			}
 		}
 		break;
 
@@ -186,12 +188,14 @@ int ov9650_start(struct sd *sd)
 		PDEBUG(D_V4L2, "Configuring camera for QVGA mode");
 
 		for (i = 0; i < ARRAY_SIZE(QVGA_ov9650) && !err; i++) {
-			u8 data = QVGA_ov9650[i][2];
-			if (QVGA_ov9650[i][0] == SENSOR)
+			if (QVGA_ov9650[i][0] == SENSOR) {
+				u8 data = QVGA_ov9650[i][2];
+
 				err = m5602_write_sensor(sd,
 					QVGA_ov9650[i][1], &data, 1);
-			else
-				err = m5602_write_bridge(sd, QVGA_ov9650[i][1], data);
+			} else {
+				err = m5602_write_bridge(sd, QVGA_ov9650[i][1], QVGA_ov9650[i][2]);
+			}
 		}
 		break;
 
@@ -199,12 +203,13 @@ int ov9650_start(struct sd *sd)
 		PDEBUG(D_V4L2, "Configuring camera for QCIF mode");
 
 		for (i = 0; i < ARRAY_SIZE(QCIF_ov9650) && !err; i++) {
-			u8 data = QCIF_ov9650[i][2];
-			if (QCIF_ov9650[i][0] == SENSOR)
+			if (QCIF_ov9650[i][0] == SENSOR) {
+				u8 data = QCIF_ov9650[i][2];
 				err = m5602_write_sensor(sd,
 					QCIF_ov9650[i][1], &data, 1);
-			else
-				err = m5602_write_bridge(sd, QCIF_ov9650[i][1], data);
+			} else {
+				err = m5602_write_bridge(sd, QCIF_ov9650[i][1], QCIF_ov9650[i][2]);
+			}
 		}
 		break;
 
