@@ -150,14 +150,6 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	return 0;
 }
 
-void hw_perf_enable_all(void)
-{
-	if (unlikely(!perf_counters_initialized))
-		return;
-
-	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, perf_counter_mask);
-}
-
 u64 hw_perf_save_disable(void)
 {
 	u64 ctrl;
@@ -200,12 +192,10 @@ static inline void
 __pmc_generic_disable(struct perf_counter *counter,
 			   struct hw_perf_counter *hwc, unsigned int idx)
 {
-	int err;
-
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL))
-		return __pmc_fixed_disable(counter, hwc, idx);
-
-	err = wrmsr_safe(hwc->config_base + idx, hwc->config, 0);
+		__pmc_fixed_disable(counter, hwc, idx);
+	else
+		wrmsr_safe(hwc->config_base + idx, hwc->config, 0);
 }
 
 static DEFINE_PER_CPU(u64, prev_left[X86_PMC_IDX_MAX]);
@@ -276,10 +266,10 @@ __pmc_generic_enable(struct perf_counter *counter,
 			  struct hw_perf_counter *hwc, int idx)
 {
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL))
-		return __pmc_fixed_enable(counter, hwc, idx);
-
-	wrmsr(hwc->config_base + idx,
-	      hwc->config | ARCH_PERFMON_EVENTSEL0_ENABLE, 0);
+		__pmc_fixed_enable(counter, hwc, idx);
+	else
+		wrmsr(hwc->config_base + idx,
+		      hwc->config | ARCH_PERFMON_EVENTSEL0_ENABLE, 0);
 }
 
 static int
