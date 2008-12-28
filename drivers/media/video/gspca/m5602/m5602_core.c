@@ -309,7 +309,11 @@ static void m5602_urb_complete(struct gspca_dev *gspca_dev,
 
 static void m5602_stop_transfer(struct gspca_dev *gspca_dev)
 {
-	/* Is there are a command to stop a data transfer? */
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	/* Run the sensor specific end transfer sequence */
+	if (sd->sensor->stop)
+		sd->sensor->stop(sd);
 }
 
 /* sub-driver description, the ctrl and nctrl is filled at probe time */

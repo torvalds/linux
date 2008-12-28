@@ -34,7 +34,7 @@
 #define S5K83A_DEFAULT_GAIN			0x00
 #define S5K83A_MAXIMUM_GAIN			0x3c
 #define S5K83A_FLIP_MASK			0x10
-
+#define S5K83A_GPIO_LED_MASK		0x10
 
 /*****************************************************************************/
 
@@ -44,7 +44,11 @@ extern int dump_sensor;
 
 int s5k83a_probe(struct sd *sd);
 int s5k83a_init(struct sd *sd);
+int s5k83a_start(struct sd *sd);
+int s5k83a_stop(struct sd *sd);
 int s5k83a_power_down(struct sd *sd);
+
+int s5k83a_set_led_indication(struct sd *sd, u8 val);
 
 int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val);
 int s5k83a_get_brightness(struct gspca_dev *gspca_dev, __s32 *val);
@@ -61,6 +65,8 @@ static struct m5602_sensor s5k83a = {
 	.name = "S5K83A",
 	.probe = s5k83a_probe,
 	.init = s5k83a_init,
+	.start = s5k83a_start,
+	.stop = s5k83a_stop,
 	.power_down = s5k83a_power_down,
 	.i2c_slave_id = 0x5a,
 	.i2c_regW = 2,
@@ -381,7 +387,7 @@ static const unsigned char init_s5k83a[][4] =
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xf0, 0x00},
 	{BRIDGE, M5602_XB_GPIO_DIR, 0x1d, 0x00},
-	{BRIDGE, M5602_XB_GPIO_DAT, 0x1c, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x08, 0x00},
 	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06, 0x00},
 	{BRIDGE, M5602_XB_GPIO_DIR_H, 0x06, 0x00},
 	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x00, 0x00},

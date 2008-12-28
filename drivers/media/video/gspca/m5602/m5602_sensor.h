@@ -61,6 +61,9 @@ struct m5602_sensor {
 	/* Executed when the camera starts to send data */
 	int (*start)(struct sd *sd);
 
+	/* Executed when the camera ends to send data */
+	int (*stop)(struct sd *sd);
+
 	/* Performs a power down sequence */
 	int (*power_down)(struct sd *sd);
 

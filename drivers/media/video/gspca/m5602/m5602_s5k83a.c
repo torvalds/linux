@@ -108,6 +108,16 @@ int s5k83a_init(struct sd *sd)
 	return (err < 0) ? err : 0;
 }
 
+int s5k83a_start(struct sd *sd)
+{
+	return s5k83a_set_led_indication(sd, 1);
+}
+
+int s5k83a_stop(struct sd *sd)
+{
+	return s5k83a_set_led_indication(sd, 0);
+}
+
 int s5k83a_power_down(struct sd *sd)
 {
 	return 0;
@@ -344,4 +354,23 @@ int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, S5K83A_HFLIP_TUNE, data, 1);
 
 	return err;
+}
+
+int s5k83a_set_led_indication(struct sd *sd, u8 val)
+{
+	int err = 0;
+	u8 data[1];
+
+	err = m5602_read_bridge(sd, M5602_XB_GPIO_DAT, data);
+	if (err < 0)
+		return err;
+
+	if (val)
+		data[0] = data[0] | S5K83A_GPIO_LED_MASK;
+	else
+		data[0] = data[0] & ~S5K83A_GPIO_LED_MASK;
+
+	err = m5602_write_bridge(sd, M5602_XB_GPIO_DAT, data[0]);
+
+	return (err < 0) ? err : 0;
 }
