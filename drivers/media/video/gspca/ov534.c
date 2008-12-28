@@ -131,7 +131,7 @@ static int sccb_check_status(struct usb_device *udev)
 		case 0x03:
 			break;
 		default:
-			PDEBUG(D_ERR, "sccb status 0x%02x, attempt %d/5\n",
+			PDEBUG(D_ERR, "sccb status 0x%02x, attempt %d/5",
 			       data, i + 1);
 		}
 	}
