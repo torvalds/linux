@@ -943,6 +943,27 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
+	[EM2820_BOARD_PROLINK_PLAYTV_BOX4_USB2] = {
+		.name         = "Pixelview PlayTV Box 4 USB 2.0",
+		.tda9887_conf = TDA9887_PRESENT,
+		.tuner_type   = TUNER_YMEC_TVF_5533MF,
+		.decoder      = EM28XX_SAA711X,
+		.input        = { {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = SAA7115_COMPOSITE2,
+			.amux     = EM28XX_AMUX_VIDEO,
+			.aout     = EM28XX_AOUT_MONO | 	/* I2S */
+				    EM28XX_AOUT_MASTER,	/* Line out pin */
+		}, {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
 	[EM2820_BOARD_PROLINK_PLAYTV_USB2] = {
 		.name         = "Pixelview Prolink PlayTV USB 2.0",
 		.tda9887_conf = TDA9887_PRESENT,
@@ -1350,6 +1371,7 @@ MODULE_DEVICE_TABLE(usb, em28xx_id_table);
 static struct em28xx_hash_table em28xx_eeprom_hash [] = {
 	/* P/N: SA 60002070465 Tuner: TVF7533-MF */
 	{0x6ce05a8f, EM2820_BOARD_PROLINK_PLAYTV_USB2, TUNER_YMEC_TVF_5533MF},
+	{0x72cc5a8b, EM2820_BOARD_PROLINK_PLAYTV_BOX4_USB2, TUNER_YMEC_TVF_5533MF},
 	{0x966a0441, EM2880_BOARD_KWORLD_DVB_310U, TUNER_XC2028},
 };
 
