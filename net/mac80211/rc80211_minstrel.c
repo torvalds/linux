@@ -126,7 +126,9 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 			mr->adjusted_retry_count = mr->retry_count >> 1;
 			if (mr->adjusted_retry_count > 2)
 				mr->adjusted_retry_count = 2;
+			mr->sample_limit = 4;
 		} else {
+			mr->sample_limit = -1;
 			mr->adjusted_retry_count = mr->retry_count;
 		}
 		if (!mr->adjusted_retry_count)
@@ -169,30 +171,20 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 {
 	struct minstrel_sta_info *mi = priv_sta;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_tx_altrate *ar = info->status.retries;
-	struct minstrel_priv *mp = priv;
-	int i, ndx, tries;
-	int success = 0;
+	struct ieee80211_tx_rate *ar = info->status.rates;
+	int i, ndx;
+	int success;
 
-	if (!info->status.excessive_retries)
-		success = 1;
+	success = !!(info->flags & IEEE80211_TX_STAT_ACK);
 
-	if (!mp->has_mrr || (ar[0].rate_idx < 0)) {
-		ndx = rix_to_ndx(mi, info->tx_rate_idx);
-		tries = info->status.retry_count + 1;
-		mi->r[ndx].success += success;
-		mi->r[ndx].attempts += tries;
-		return;
-	}
-
-	for (i = 0; i < 4; i++) {
-		if (ar[i].rate_idx < 0)
+	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+		if (ar[i].idx < 0)
 			break;
 
-		ndx = rix_to_ndx(mi, ar[i].rate_idx);
-		mi->r[ndx].attempts += ar[i].limit + 1;
+		ndx = rix_to_ndx(mi, ar[i].idx);
+		mi->r[ndx].attempts += ar[i].count;
 
-		if ((i != 3) && (ar[i + 1].rate_idx < 0))
+		if ((i != IEEE80211_TX_MAX_RATES - 1) && (ar[i + 1].idx < 0))
 			mi->r[ndx].success += success;
 	}
 
@@ -210,9 +202,9 @@ minstrel_get_retry_count(struct minstrel_rate *mr,
 {
 	unsigned int retry = mr->adjusted_retry_count;
 
-	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS)
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
 		retry = max(2U, min(mr->retry_count_rtscts, retry));
-	else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)
+	else if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		retry = max(2U, min(mr->retry_count_cts, retry));
 	return retry;
 }
@@ -233,15 +225,16 @@ minstrel_get_next_sample(struct minstrel_sta_info *mi)
 	return sample_ndx;
 }
 
-void
-minstrel_get_rate(void *priv, struct ieee80211_supported_band *sband,
-                  struct ieee80211_sta *sta, void *priv_sta,
-                  struct sk_buff *skb, struct rate_selection *sel)
+static void
+minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
+		  void *priv_sta, struct ieee80211_tx_rate_control *txrc)
 {
+	struct sk_buff *skb = txrc->skb;
+	struct ieee80211_supported_band *sband = txrc->sband;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct minstrel_sta_info *mi = priv_sta;
 	struct minstrel_priv *mp = priv;
-	struct ieee80211_tx_altrate *ar = info->control.retries;
+	struct ieee80211_tx_rate *ar = info->control.rates;
 	unsigned int ndx, sample_ndx = 0;
 	bool mrr;
 	bool sample_slower = false;
@@ -251,16 +244,12 @@ minstrel_get_rate(void *priv, struct ieee80211_supported_band *sband,
 	int sample_rate;
 
 	if (!sta || !mi || use_low_rate(skb)) {
-		sel->rate_idx = rate_lowest_index(sband, sta);
+		ar[0].idx = rate_lowest_index(sband, sta);
+		ar[0].count = mp->max_retry;
 		return;
 	}
 
-	mrr = mp->has_mrr;
-
-	/* mac80211 does not allow mrr for RTS/CTS */
-	if ((info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) ||
-	    (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT))
-		mrr = false;
+	mrr = mp->has_mrr && !txrc->rts && !txrc->bss_conf->use_cts_prot;
 
 	if (time_after(jiffies, mi->stats_update + (mp->update_interval *
 			HZ) / 1000))
@@ -278,7 +267,8 @@ minstrel_get_rate(void *priv, struct ieee80211_supported_band *sband,
 			(mi->sample_count + mi->sample_deferred / 2);
 
 	/* delta > 0: sampling required */
-	if (delta > 0) {
+	if ((delta > 0) && (mrr || !mi->prev_sample)) {
+		struct minstrel_rate *msr;
 		if (mi->packet_count >= 10000) {
 			mi->sample_deferred = 0;
 			mi->sample_count = 0;
@@ -297,13 +287,20 @@ minstrel_get_rate(void *priv, struct ieee80211_supported_band *sband,
 		}
 
 		sample_ndx = minstrel_get_next_sample(mi);
+		msr = &mi->r[sample_ndx];
 		sample = true;
-		sample_slower = mrr && (mi->r[sample_ndx].perfect_tx_time >
+		sample_slower = mrr && (msr->perfect_tx_time >
 			mi->r[ndx].perfect_tx_time);
 
 		if (!sample_slower) {
-			ndx = sample_ndx;
-			mi->sample_count++;
+			if (msr->sample_limit != 0) {
+				ndx = sample_ndx;
+				mi->sample_count++;
+				if (msr->sample_limit > 0)
+					msr->sample_limit--;
+			} else {
+				sample = false;
+			}
 		} else {
 			/* Only use IEEE80211_TX_CTL_RATE_CTRL_PROBE to mark
 			 * packets that have the sampling rate deferred to the
@@ -315,13 +312,22 @@ minstrel_get_rate(void *priv, struct ieee80211_supported_band *sband,
 			mi->sample_deferred++;
 		}
 	}
-	sel->rate_idx = mi->r[ndx].rix;
-	info->control.retry_limit = minstrel_get_retry_count(&mi->r[ndx], info);
+	mi->prev_sample = sample;
+
+	/* If we're not using MRR and the sampling rate already
+	 * has a probability of >95%, we shouldn't be attempting
+	 * to use it, as this only wastes precious airtime */
+	if (!mrr && sample && (mi->r[ndx].probability > 17100))
+		ndx = mi->max_tp_rate;
+
+	ar[0].idx = mi->r[ndx].rix;
+	ar[0].count = minstrel_get_retry_count(&mi->r[ndx], info);
 
 	if (!mrr) {
-		ar[0].rate_idx = mi->lowest_rix;
-		ar[0].limit = mp->max_retry;
-		ar[1].rate_idx = -1;
+		if (!sample)
+			ar[0].count = mp->max_retry;
+		ar[1].idx = mi->lowest_rix;
+		ar[1].count = mp->max_retry;
 		return;
 	}
 
@@ -336,9 +342,9 @@ minstrel_get_rate(void *priv, struct ieee80211_supported_band *sband,
 	}
 	mrr_ndx[1] = mi->max_prob_rate;
 	mrr_ndx[2] = 0;
-	for (i = 0; i < 3; i++) {
-		ar[i].rate_idx = mi->r[mrr_ndx[i]].rix;
-		ar[i].limit = mi->r[mrr_ndx[i]].adjusted_retry_count;
+	for (i = 1; i < 4; i++) {
+		ar[i].idx = mi->r[mrr_ndx[i - 1]].rix;
+		ar[i].count = mi->r[mrr_ndx[i - 1]].adjusted_retry_count;
 	}
 }
 
@@ -415,6 +421,7 @@ minstrel_rate_init(void *priv, struct ieee80211_supported_band *sband,
 
 		/* calculate maximum number of retransmissions before
 		 * fallback (based on maximum segment size) */
+		mr->sample_limit = -1;
 		mr->retry_count = 1;
 		mr->retry_count_cts = 1;
 		mr->retry_count_rtscts = 1;
@@ -500,11 +507,6 @@ minstrel_free_sta(void *priv, struct ieee80211_sta *sta, void *priv_sta)
 	kfree(mi);
 }
 
-static void
-minstrel_clear(void *priv)
-{
-}
-
 static void *
 minstrel_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
@@ -532,13 +534,13 @@ minstrel_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 	/* maximum time that the hw is allowed to stay in one MRR segment */
 	mp->segment_size = 6000;
 
-	if (hw->max_altrate_tries > 0)
-		mp->max_retry = hw->max_altrate_tries;
+	if (hw->max_rate_tries > 0)
+		mp->max_retry = hw->max_rate_tries;
 	else
 		/* safe default, does not necessarily have to match hw properties */
 		mp->max_retry = 7;
 
-	if (hw->max_altrates >= 3)
+	if (hw->max_rates >= 4)
 		mp->has_mrr = true;
 
 	mp->hw = hw;
@@ -558,7 +560,6 @@ static struct rate_control_ops mac80211_minstrel = {
 	.tx_status = minstrel_tx_status,
 	.get_rate = minstrel_get_rate,
 	.rate_init = minstrel_rate_init,
-	.clear = minstrel_clear,
 	.alloc = minstrel_alloc,
 	.free = minstrel_free,
 	.alloc_sta = minstrel_alloc_sta,

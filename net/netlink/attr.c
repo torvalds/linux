@@ -83,6 +83,12 @@ static int validate_nla(struct nlattr *nla, int maxtype,
 		if (attrlen < NLA_ALIGN(pt->len) + NLA_HDRLEN + nla_len(nla))
 			return -ERANGE;
 		break;
+	case NLA_NESTED:
+		/* a nested attributes is allowed to be empty; if its not,
+		 * it must have a size of at least NLA_HDRLEN.
+		 */
+		if (attrlen == 0)
+			break;
 	default:
 		if (pt->len)
 			minlen = pt->len;
@@ -233,7 +239,7 @@ size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize)
  *
  * Returns the number of bytes copied.
  */
-int nla_memcpy(void *dest, struct nlattr *src, int count)
+int nla_memcpy(void *dest, const struct nlattr *src, int count)
 {
 	int minlen = min_t(int, count, nla_len(src));
 

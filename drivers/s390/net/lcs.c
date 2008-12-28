@@ -1295,7 +1295,7 @@ lcs_set_multicast_list(struct net_device *dev)
         struct lcs_card *card;
 
         LCS_DBF_TEXT(4, trace, "setmulti");
-        card = (struct lcs_card *) dev->priv;
+        card = (struct lcs_card *) dev->ml_priv;
 
         if (!lcs_set_thread_start_bit(card, LCS_SET_MC_THREAD))
 		schedule_work(&card->kernel_thread_starter);
@@ -1617,7 +1617,7 @@ lcs_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int rc;
 
 	LCS_DBF_TEXT(5, trace, "pktxmit");
-	card = (struct lcs_card *) dev->priv;
+	card = (struct lcs_card *) dev->ml_priv;
 	rc = __lcs_start_xmit(card, skb, dev);
 	return rc;
 }
@@ -1874,7 +1874,7 @@ lcs_getstats(struct net_device *dev)
 	struct lcs_card *card;
 
 	LCS_DBF_TEXT(4, trace, "netstats");
-	card = (struct lcs_card *) dev->priv;
+	card = (struct lcs_card *) dev->ml_priv;
 	return &card->stats;
 }
 
@@ -1889,7 +1889,7 @@ lcs_stop_device(struct net_device *dev)
 	int rc;
 
 	LCS_DBF_TEXT(2, trace, "stopdev");
-	card   = (struct lcs_card *) dev->priv;
+	card   = (struct lcs_card *) dev->ml_priv;
 	netif_carrier_off(dev);
 	netif_tx_disable(dev);
 	dev->flags &= ~IFF_UP;
@@ -1913,7 +1913,7 @@ lcs_open_device(struct net_device *dev)
 	int rc;
 
 	LCS_DBF_TEXT(2, trace, "opendev");
-	card = (struct lcs_card *) dev->priv;
+	card = (struct lcs_card *) dev->ml_priv;
 	/* initialize statistics */
 	rc = lcs_detect(card);
 	if (rc) {
@@ -2163,7 +2163,7 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 	if (!dev)
 		goto out;
 	card->dev = dev;
-	card->dev->priv = card;
+	card->dev->ml_priv = card;
 	card->dev->open = lcs_open_device;
 	card->dev->stop = lcs_stop_device;
 	card->dev->hard_start_xmit = lcs_start_xmit;

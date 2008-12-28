@@ -516,14 +516,14 @@ int iser_connect(struct iser_conn   *ib_conn,
 	struct sockaddr *src, *dst;
 	int err = 0;
 
-	sprintf(ib_conn->name,"%d.%d.%d.%d:%d",
-		NIPQUAD(dst_addr->sin_addr.s_addr), dst_addr->sin_port);
+	sprintf(ib_conn->name, "%pI4:%d",
+		&dst_addr->sin_addr.s_addr, dst_addr->sin_port);
 
 	/* the device is known only --after-- address resolution */
 	ib_conn->device = NULL;
 
-	iser_err("connecting to: %d.%d.%d.%d, port 0x%x\n",
-		 NIPQUAD(dst_addr->sin_addr), dst_addr->sin_port);
+	iser_err("connecting to: %pI4, port 0x%x\n",
+		 &dst_addr->sin_addr, dst_addr->sin_port);
 
 	ib_conn->state = ISER_CONN_PENDING;
 

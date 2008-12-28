@@ -321,12 +321,12 @@ static int icmp_glue_bits(void *from, char *to, int offset, int len, int odd,
 }
 
 static void icmp_push_reply(struct icmp_bxm *icmp_param,
-			    struct ipcm_cookie *ipc, struct rtable *rt)
+			    struct ipcm_cookie *ipc, struct rtable **rt)
 {
 	struct sock *sk;
 	struct sk_buff *skb;
 
-	sk = icmp_sk(dev_net(rt->u.dst.dev));
+	sk = icmp_sk(dev_net((*rt)->u.dst.dev));
 	if (ip_append_data(sk, icmp_glue_bits, icmp_param,
 			   icmp_param->data_len+icmp_param->head_len,
 			   icmp_param->head_len,
@@ -392,7 +392,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	}
 	if (icmpv4_xrlim_allow(net, rt, icmp_param->data.icmph.type,
 			       icmp_param->data.icmph.code))
-		icmp_push_reply(icmp_param, &ipc, rt);
+		icmp_push_reply(icmp_param, &ipc, &rt);
 	ip_rt_put(rt);
 out_unlock:
 	icmp_xmit_unlock(sk);
@@ -562,7 +562,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		/* No need to clone since we're just using its address. */
 		rt2 = rt;
 
-		err = xfrm_lookup((struct dst_entry **)&rt, &fl, NULL, 0);
+		err = xfrm_lookup(net, (struct dst_entry **)&rt, &fl, NULL, 0);
 		switch (err) {
 		case 0:
 			if (rt != rt2)
@@ -601,7 +601,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		if (err)
 			goto relookup_failed;
 
-		err = xfrm_lookup((struct dst_entry **)&rt2, &fl, NULL,
+		err = xfrm_lookup(net, (struct dst_entry **)&rt2, &fl, NULL,
 				  XFRM_LOOKUP_ICMP);
 		switch (err) {
 		case 0:
@@ -635,7 +635,7 @@ route_done:
 		icmp_param.data_len = room;
 	icmp_param.head_len = sizeof(struct icmphdr);
 
-	icmp_push_reply(&icmp_param, &ipc, rt);
+	icmp_push_reply(&icmp_param, &ipc, &rt);
 ende:
 	ip_rt_put(rt);
 out_unlock:
@@ -683,10 +683,8 @@ static void icmp_unreach(struct sk_buff *skb)
 			break;
 		case ICMP_FRAG_NEEDED:
 			if (ipv4_config.no_pmtu_disc) {
-				LIMIT_NETDEBUG(KERN_INFO "ICMP: " NIPQUAD_FMT ": "
-							 "fragmentation needed "
-							 "and DF set.\n",
-					       NIPQUAD(iph->daddr));
+				LIMIT_NETDEBUG(KERN_INFO "ICMP: %pI4: fragmentation needed and DF set.\n",
+					       &iph->daddr);
 			} else {
 				info = ip_rt_frag_needed(net, iph,
 							 ntohs(icmph->un.frag.mtu),
@@ -696,9 +694,8 @@ static void icmp_unreach(struct sk_buff *skb)
 			}
 			break;
 		case ICMP_SR_FAILED:
-			LIMIT_NETDEBUG(KERN_INFO "ICMP: " NIPQUAD_FMT ": Source "
-						 "Route Failed.\n",
-				       NIPQUAD(iph->daddr));
+			LIMIT_NETDEBUG(KERN_INFO "ICMP: %pI4: Source Route Failed.\n",
+				       &iph->daddr);
 			break;
 		default:
 			break;
@@ -729,12 +726,12 @@ static void icmp_unreach(struct sk_buff *skb)
 	if (!net->ipv4.sysctl_icmp_ignore_bogus_error_responses &&
 	    inet_addr_type(net, iph->daddr) == RTN_BROADCAST) {
 		if (net_ratelimit())
-			printk(KERN_WARNING NIPQUAD_FMT " sent an invalid ICMP "
+			printk(KERN_WARNING "%pI4 sent an invalid ICMP "
 					    "type %u, code %u "
-					    "error to a broadcast: " NIPQUAD_FMT " on %s\n",
-			       NIPQUAD(ip_hdr(skb)->saddr),
+					    "error to a broadcast: %pI4 on %s\n",
+			       &ip_hdr(skb)->saddr,
 			       icmph->type, icmph->code,
-			       NIPQUAD(iph->daddr),
+			       &iph->daddr,
 			       skb->dev->name);
 		goto out;
 	}
@@ -952,9 +949,8 @@ static void icmp_address_reply(struct sk_buff *skb)
 				break;
 		}
 		if (!ifa && net_ratelimit()) {
-			printk(KERN_INFO "Wrong address mask " NIPQUAD_FMT " from "
-					 "%s/" NIPQUAD_FMT "\n",
-			       NIPQUAD(*mp), dev->name, NIPQUAD(rt->rt_src));
+			printk(KERN_INFO "Wrong address mask %pI4 from %s/%pI4\n",
+			       mp, dev->name, &rt->rt_src);
 		}
 	}
 	rcu_read_unlock();
@@ -976,9 +972,10 @@ int icmp_rcv(struct sk_buff *skb)
 	struct net *net = dev_net(rt->u.dst.dev);
 
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+		struct sec_path *sp = skb_sec_path(skb);
 		int nh;
 
-		if (!(skb->sp && skb->sp->xvec[skb->sp->len - 1]->props.flags &
+		if (!(sp && sp->xvec[sp->len - 1]->props.flags &
 				 XFRM_STATE_ICMP))
 			goto drop;
 

@@ -134,17 +134,13 @@ static int qeth_l2_send_setgroupmac_cb(struct qeth_card *card,
 	mac = &cmd->data.setdelmac.mac[0];
 	/* MAC already registered, needed in couple/uncouple case */
 	if (cmd->hdr.return_code == 0x2005) {
-		QETH_DBF_MESSAGE(2, "Group MAC %02x:%02x:%02x:%02x:%02x:%02x "
-			  "already existing on %s \n",
-			  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-			  QETH_CARD_IFNAME(card));
+		QETH_DBF_MESSAGE(2, "Group MAC %pM already existing on %s \n",
+			  mac, QETH_CARD_IFNAME(card));
 		cmd->hdr.return_code = 0;
 	}
 	if (cmd->hdr.return_code)
-		QETH_DBF_MESSAGE(2, "Could not set group MAC "
-			  "%02x:%02x:%02x:%02x:%02x:%02x on %s: %x\n",
-			  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-			  QETH_CARD_IFNAME(card), cmd->hdr.return_code);
+		QETH_DBF_MESSAGE(2, "Could not set group MAC %pM on %s: %x\n",
+			  mac, QETH_CARD_IFNAME(card), cmd->hdr.return_code);
 	return 0;
 }
 
@@ -166,10 +162,8 @@ static int qeth_l2_send_delgroupmac_cb(struct qeth_card *card,
 	cmd = (struct qeth_ipa_cmd *) data;
 	mac = &cmd->data.setdelmac.mac[0];
 	if (cmd->hdr.return_code)
-		QETH_DBF_MESSAGE(2, "Could not delete group MAC "
-			  "%02x:%02x:%02x:%02x:%02x:%02x on %s: %x\n",
-			  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-			  QETH_CARD_IFNAME(card), cmd->hdr.return_code);
+		QETH_DBF_MESSAGE(2, "Could not delete group MAC %pM on %s: %x\n",
+			  mac, QETH_CARD_IFNAME(card), cmd->hdr.return_code);
 	return 0;
 }
 

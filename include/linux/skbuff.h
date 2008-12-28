@@ -250,6 +250,9 @@ typedef unsigned char *sk_buff_data_t;
  *	@tc_verd: traffic control verdict
  *	@ndisc_nodetype: router type (from link layer)
  *	@do_not_encrypt: set to prevent encryption of this frame
+ *	@requeue: set to indicate that the wireless core should attempt
+ *		a software retry on this frame if we failed to
+ *		receive an ACK for it
  *	@dma_cookie: a cookie to one of several possible DMA operations
  *		done by skb DMA functions
  *	@secmark: security marking
@@ -269,8 +272,9 @@ struct sk_buff {
 		struct  dst_entry	*dst;
 		struct  rtable		*rtable;
 	};
+#ifdef CONFIG_XFRM
 	struct	sec_path	*sp;
-
+#endif
 	/*
 	 * This is the control buffer. It is free to use for every
 	 * layer. Please put your private variables there. If you
@@ -325,6 +329,7 @@ struct sk_buff {
 #endif
 #if defined(CONFIG_MAC80211) || defined(CONFIG_MAC80211_MODULE)
 	__u8			do_not_encrypt:1;
+	__u8			requeue:1;
 #endif
 	/* 0/13/14 bit hole */
 
@@ -488,6 +493,19 @@ static inline bool skb_queue_is_last(const struct sk_buff_head *list,
 }
 
 /**
+ *	skb_queue_is_first - check if skb is the first entry in the queue
+ *	@list: queue head
+ *	@skb: buffer
+ *
+ *	Returns true if @skb is the first buffer on the list.
+ */
+static inline bool skb_queue_is_first(const struct sk_buff_head *list,
+				      const struct sk_buff *skb)
+{
+	return (skb->prev == (struct sk_buff *) list);
+}
+
+/**
  *	skb_queue_next - return the next packet in the queue
  *	@list: queue head
  *	@skb: current buffer
@@ -503,6 +521,24 @@ static inline struct sk_buff *skb_queue_next(const struct sk_buff_head *list,
 	 */
 	BUG_ON(skb_queue_is_last(list, skb));
 	return skb->next;
+}
+
+/**
+ *	skb_queue_prev - return the prev packet in the queue
+ *	@list: queue head
+ *	@skb: current buffer
+ *
+ *	Return the prev packet in @list before @skb.  It is only valid to
+ *	call this if skb_queue_is_first() evaluates to false.
+ */
+static inline struct sk_buff *skb_queue_prev(const struct sk_buff_head *list,
+					     const struct sk_buff *skb)
+{
+	/* This BUG_ON may seem severe, but if we just return then we
+	 * are going to dereference garbage.
+	 */
+	BUG_ON(skb_queue_is_first(list, skb));
+	return skb->prev;
 }
 
 /**
@@ -1647,8 +1683,12 @@ extern int             skb_splice_bits(struct sk_buff *skb,
 extern void	       skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to);
 extern void	       skb_split(struct sk_buff *skb,
 				 struct sk_buff *skb1, const u32 len);
+extern int	       skb_shift(struct sk_buff *tgt, struct sk_buff *skb,
+				 int shiftlen);
 
 extern struct sk_buff *skb_segment(struct sk_buff *skb, int features);
+extern int	       skb_gro_receive(struct sk_buff **head,
+				       struct sk_buff *skb);
 
 static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 				       int len, void *buffer)
@@ -1863,6 +1903,18 @@ static inline void skb_copy_queue_mapping(struct sk_buff *to, const struct sk_bu
 {
 	to->queue_mapping = from->queue_mapping;
 }
+
+#ifdef CONFIG_XFRM
+static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
+{
+	return skb->sp;
+}
+#else
+static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
+{
+	return NULL;
+}
+#endif
 
 static inline int skb_is_gso(const struct sk_buff *skb)
 {

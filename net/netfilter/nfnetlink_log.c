@@ -30,6 +30,7 @@
 #include <linux/random.h>
 #include <net/sock.h>
 #include <net/netfilter/nf_log.h>
+#include <net/netfilter/nfnetlink_log.h>
 
 #include <asm/atomic.h>
 
@@ -534,7 +535,7 @@ static struct nf_loginfo default_loginfo = {
 };
 
 /* log handler for internal netfilter logging api */
-static void
+void
 nfulnl_log_packet(u_int8_t pf,
 		  unsigned int hooknum,
 		  const struct sk_buff *skb,
@@ -649,6 +650,7 @@ alloc_failure:
 	/* FIXME: statistics */
 	goto unlock_and_release;
 }
+EXPORT_SYMBOL_GPL(nfulnl_log_packet);
 
 static int
 nfulnl_rcv_nl_event(struct notifier_block *this,

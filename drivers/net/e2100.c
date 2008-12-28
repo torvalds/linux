@@ -107,7 +107,7 @@ static void e21_block_output(struct net_device *dev, int count,
 							 const unsigned char *buf, int start_page);
 static void e21_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 							int ring_page);
-
+static int e21_open(struct net_device *dev);
 static int e21_close(struct net_device *dev);
 
 
@@ -159,6 +159,21 @@ out:
 	return ERR_PTR(err);
 }
 #endif
+
+static const struct net_device_ops e21_netdev_ops = {
+	.ndo_open		= e21_open,
+	.ndo_stop		= e21_close,
+
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller 	= ei_poll,
+#endif
+};
 
 static int __init e21_probe1(struct net_device *dev, int ioaddr)
 {
@@ -265,11 +280,8 @@ static int __init e21_probe1(struct net_device *dev, int ioaddr)
 	ei_status.block_input = &e21_block_input;
 	ei_status.block_output = &e21_block_output;
 	ei_status.get_8390_hdr = &e21_get_8390_hdr;
-	dev->open = &e21_open;
-	dev->stop = &e21_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
+
+	dev->netdev_ops = &e21_netdev_ops;
 	NS8390_init(dev, 0);
 
 	retval = register_netdev(dev);

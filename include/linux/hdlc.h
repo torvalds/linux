@@ -43,7 +43,7 @@ struct hdlc_proto {
 };
 
 
-/* Pointed to by dev->priv */
+/* Pointed to by netdev_priv(dev) */
 typedef struct hdlc_device {
 	/* used by HDLC layer to take control over HDLC device from hw driver*/
 	int (*attach)(struct net_device *dev,
@@ -80,7 +80,7 @@ struct net_device *alloc_hdlcdev(void *priv);
 
 static inline struct hdlc_device* dev_to_hdlc(struct net_device *dev)
 {
-	return dev->priv;
+	return netdev_priv(dev);
 }
 
 static __inline__ void debug_frame(const struct sk_buff *skb)

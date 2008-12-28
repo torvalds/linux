@@ -44,11 +44,6 @@
 
 #include "cmtp.h"
 
-#ifndef CONFIG_BT_CMTP_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 #define VERSION "1.0"
 
 static DECLARE_RWSEM(cmtp_session_sem);

@@ -54,8 +54,9 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 	socket_seq_show(seq);
 	seq_printf(seq, "TCP: inuse %d orphan %d tw %d alloc %d mem %d\n",
 		   sock_prot_inuse_get(net, &tcp_prot),
-		   atomic_read(&tcp_orphan_count),
-		   tcp_death_row.tw_count, atomic_read(&tcp_sockets_allocated),
+		   (int)percpu_counter_sum_positive(&tcp_orphan_count),
+		   tcp_death_row.tw_count,
+		   (int)percpu_counter_sum_positive(&tcp_sockets_allocated),
 		   atomic_read(&tcp_memory_allocated));
 	seq_printf(seq, "UDP: inuse %d mem %d\n",
 		   sock_prot_inuse_get(net, &udp_prot),
@@ -234,6 +235,9 @@ static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_ITEM("TCPSpuriousRTOs", LINUX_MIB_TCPSPURIOUSRTOS),
 	SNMP_MIB_ITEM("TCPMD5NotFound", LINUX_MIB_TCPMD5NOTFOUND),
 	SNMP_MIB_ITEM("TCPMD5Unexpected", LINUX_MIB_TCPMD5UNEXPECTED),
+	SNMP_MIB_ITEM("TCPSackShifted", LINUX_MIB_SACKSHIFTED),
+	SNMP_MIB_ITEM("TCPSackMerged", LINUX_MIB_SACKMERGED),
+	SNMP_MIB_ITEM("TCPSackShiftFallback", LINUX_MIB_SACKSHIFTFALLBACK),
 	SNMP_MIB_SENTINEL
 };
 

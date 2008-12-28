@@ -2270,11 +2270,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		/* new SMB session uses our srvTcp ref */
 		pSesInfo->server = srvTcp;
 		if (srvTcp->addr.sockAddr6.sin6_family == AF_INET6)
-			sprintf(pSesInfo->serverName, NIP6_FMT,
-				NIP6(srvTcp->addr.sockAddr6.sin6_addr));
+			sprintf(pSesInfo->serverName, "%pI6",
+				&srvTcp->addr.sockAddr6.sin6_addr);
 		else
-			sprintf(pSesInfo->serverName, NIPQUAD_FMT,
-				NIPQUAD(srvTcp->addr.sockAddr.sin_addr.s_addr));
+			sprintf(pSesInfo->serverName, "%pI4",
+				&srvTcp->addr.sockAddr.sin_addr.s_addr);
 
 		write_lock(&cifs_tcp_ses_lock);
 		list_add(&pSesInfo->smb_ses_list, &srvTcp->smb_ses_list);

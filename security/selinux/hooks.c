@@ -4735,7 +4735,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb, int ifindex,
 	 * as fast and as clean as possible. */
 	if (selinux_compat_net || !selinux_policycap_netpeer)
 		return selinux_ip_postroute_compat(skb, ifindex, family);
-
+#ifdef CONFIG_XFRM
 	/* If skb->dst->xfrm is non-NULL then the packet is undergoing an IPsec
 	 * packet transformation so allow the packet to pass without any checks
 	 * since we'll have another chance to perform access control checks
@@ -4744,7 +4744,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb, int ifindex,
 	 *       is NULL, in this case go ahead and apply access control. */
 	if (skb->dst != NULL && skb->dst->xfrm != NULL)
 		return NF_ACCEPT;
-
+#endif
 	secmark_active = selinux_secmark_enabled();
 	peerlbl_active = netlbl_enabled() || selinux_xfrm_enabled();
 	if (!secmark_active && !peerlbl_active)

@@ -49,8 +49,8 @@
 #include <asm/processor.h>
 
 #define DRV_NAME	"r6040"
-#define DRV_VERSION	"0.18"
-#define DRV_RELDATE	"13Jul2008"
+#define DRV_VERSION	"0.19"
+#define DRV_RELDATE	"18Dec2008"
 
 /* PHY CHIP Address */
 #define PHY1_ADDR	1	/* For MAC1 */
@@ -214,7 +214,7 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 	/* Wait for the read bit to be cleared */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MMDIO);
-		if (cmd & MDIO_READ)
+		if (!(cmd & MDIO_READ))
 			break;
 	}
 
@@ -233,7 +233,7 @@ static void r6040_phy_write(void __iomem *ioaddr, int phy_addr, int reg, u16 val
 	/* Wait for the write bit to be cleared */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MMDIO);
-		if (cmd & MDIO_WRITE)
+		if (!(cmd & MDIO_WRITE))
 			break;
 	}
 }
@@ -598,7 +598,6 @@ static int r6040_rx(struct net_device *dev, int limit)
 		
 		/* Send to upper layer */
 		netif_receive_skb(skb_ptr);
-		dev->last_rx = jiffies;
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += descptr->len - 4;
 
@@ -668,7 +667,7 @@ static int r6040_poll(struct napi_struct *napi, int budget)
 	work_done = r6040_rx(dev, budget);
 
 	if (work_done < budget) {
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		/* Enable RX interrupt */
 		iowrite16(ioread16(ioaddr + MIER) | RX_INTS, ioaddr + MIER);
 	}
@@ -681,8 +680,10 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
-	u16 status;
+	u16 misr, status;
 
+	/* Save MIER */
+	misr = ioread16(ioaddr + MIER);
 	/* Mask off RDC MAC interrupt */
 	iowrite16(MSK_INT, ioaddr + MIER);
 	/* Read MISR status and clear */
@@ -702,13 +703,16 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 			dev->stats.rx_fifo_errors++;
 
 		/* Mask off RX interrupt */
-		iowrite16(ioread16(ioaddr + MIER) & ~RX_INTS, ioaddr + MIER);
-		netif_rx_schedule(dev, &lp->napi);
+		misr &= ~RX_INTS;
+		netif_rx_schedule(&lp->napi);
 	}
 
 	/* TX interrupt request */
 	if (status & TX_INTS)
 		r6040_tx(dev);
+
+	/* Restore RDC MAC interrupt */
+	iowrite16(misr, ioaddr + MIER);
 
 	return IRQ_HANDLED;
 }
@@ -1030,11 +1034,26 @@ static u32 netdev_get_link(struct net_device *dev)
 	return mii_link_ok(&rp->mii_if);
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_settings		= netdev_get_settings,
 	.set_settings		= netdev_set_settings,
 	.get_link		= netdev_get_link,
+};
+
+static const struct net_device_ops r6040_netdev_ops = {
+	.ndo_open		= r6040_open,
+	.ndo_stop		= r6040_close,
+	.ndo_start_xmit		= r6040_start_xmit,
+	.ndo_get_stats		= r6040_get_stats,
+	.ndo_set_multicast_list = r6040_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl		= r6040_ioctl,
+	.ndo_tx_timeout		= r6040_tx_timeout,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= r6040_poll_controller,
+#endif
 };
 
 static int __devinit r6040_init_one(struct pci_dev *pdev,
@@ -1128,18 +1147,10 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->switch_sig = 0;
 
 	/* The RDC-specific entries in the device structure. */
-	dev->open = &r6040_open;
-	dev->hard_start_xmit = &r6040_start_xmit;
-	dev->stop = &r6040_close;
-	dev->get_stats = r6040_get_stats;
-	dev->set_multicast_list = &r6040_multicast_list;
-	dev->do_ioctl = &r6040_ioctl;
+	dev->netdev_ops = &r6040_netdev_ops;
 	dev->ethtool_ops = &netdev_ethtool_ops;
-	dev->tx_timeout = &r6040_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = r6040_poll_controller;
-#endif
+
 	netif_napi_add(dev, &lp->napi, r6040_poll, 64);
 	lp->mii_if.dev = dev;
 	lp->mii_if.mdio_read = r6040_mdio_read;
