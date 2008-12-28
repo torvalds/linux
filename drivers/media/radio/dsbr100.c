@@ -236,7 +236,7 @@ usb_control_msg_failed:
 	dev_err(&radio->usbdev->dev,
 		"%s - usb_control_msg returned %i, request %i\n",
 			__func__, retval, request);
-	return -1;
+	return retval;
 
 }
 
@@ -279,7 +279,7 @@ usb_control_msg_failed:
 	dev_err(&radio->usbdev->dev,
 		"%s - usb_control_msg returned %i, request %i\n",
 			__func__, retval, request);
-	return -1;
+	return retval;
 
 }
 
@@ -336,7 +336,7 @@ usb_control_msg_failed:
 	dev_err(&radio->usbdev->dev,
 		"%s - usb_control_msg returned %i, request %i\n",
 			__func__, retval, request);
-	return -1;
+	return retval;
 }
 
 /* return the device status.  This is, in effect, just whether it
@@ -452,7 +452,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 
 	radio->curfreq = f->frequency;
 	retval = dsbr100_setfreq(radio, radio->curfreq);
-	if (retval == -1)
+	if (retval < 0)
 		dev_warn(&radio->usbdev->dev, "Set frequency failed\n");
 	return 0;
 }
@@ -516,14 +516,14 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	case V4L2_CID_AUDIO_MUTE:
 		if (ctrl->value) {
 			retval = dsbr100_stop(radio);
-			if (retval == -1) {
+			if (retval < 0) {
 				dev_warn(&radio->usbdev->dev,
 					 "Radio did not respond properly\n");
 				return -EBUSY;
 			}
 		} else {
 			retval = dsbr100_start(radio);
-			if (retval == -1) {
+			if (retval < 0) {
 				dev_warn(&radio->usbdev->dev,
 					 "Radio did not respond properly\n");
 				return -EBUSY;
@@ -585,7 +585,7 @@ static int usb_dsbr100_open(struct inode *inode, struct file *file)
 	}
 
 	retval = dsbr100_setfreq(radio, radio->curfreq);
-	if (retval == -1)
+	if (retval < 0)
 		dev_warn(&radio->usbdev->dev,
 			"set frequency failed\n");
 
@@ -604,7 +604,7 @@ static int usb_dsbr100_close(struct inode *inode, struct file *file)
 	radio->users = 0;
 	if (!radio->removed) {
 		retval = dsbr100_stop(radio);
-		if (retval == -1) {
+		if (retval < 0) {
 			dev_warn(&radio->usbdev->dev,
 				"dsbr100_stop failed\n");
 		}
@@ -620,7 +620,7 @@ static int usb_dsbr100_suspend(struct usb_interface *intf, pm_message_t message)
 	int retval;
 
 	retval = dsbr100_stop(radio);
-	if (retval == -1)
+	if (retval < 0)
 		dev_warn(&intf->dev, "dsbr100_stop failed\n");
 
 	dev_info(&intf->dev, "going into suspend..\n");
@@ -635,7 +635,7 @@ static int usb_dsbr100_resume(struct usb_interface *intf)
 	int retval;
 
 	retval = dsbr100_start(radio);
-	if (retval == -1)
+	if (retval < 0)
 		dev_warn(&intf->dev, "dsbr100_start failed\n");
 
 	dev_info(&intf->dev, "coming out of suspend..\n");
