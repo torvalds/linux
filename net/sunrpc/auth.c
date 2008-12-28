@@ -350,16 +350,18 @@ EXPORT_SYMBOL_GPL(rpcauth_lookup_credcache);
 struct rpc_cred *
 rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 {
-	struct auth_cred acred = {
-		.uid = current->fsuid,
-		.gid = current->fsgid,
-		.group_info = current->group_info,
-	};
+	struct auth_cred acred;
 	struct rpc_cred *ret;
+	const struct cred *cred = current_cred();
 
 	dprintk("RPC:       looking up %s cred\n",
 		auth->au_ops->au_name);
-	get_group_info(acred.group_info);
+
+	memset(&acred, 0, sizeof(acred));
+	acred.uid = cred->fsuid;
+	acred.gid = cred->fsgid;
+	acred.group_info = get_group_info(((struct cred *)cred)->group_info);
+
 	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
 	put_group_info(acred.group_info);
 	return ret;

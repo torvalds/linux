@@ -1513,8 +1513,8 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
 	inode = new_inode(sb);
 	if (inode) {
 		inode->i_mode = mode;
-		inode->i_uid = current->fsuid;
-		inode->i_gid = current->fsgid;
+		inode->i_uid = current_fsuid();
+		inode->i_gid = current_fsgid();
 		inode->i_blocks = 0;
 		inode->i_mapping->backing_dev_info = &shmem_backing_dev_info;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
@@ -2278,8 +2278,8 @@ static int shmem_fill_super(struct super_block *sb,
 	sbinfo->max_blocks = 0;
 	sbinfo->max_inodes = 0;
 	sbinfo->mode = S_IRWXUGO | S_ISVTX;
-	sbinfo->uid = current->fsuid;
-	sbinfo->gid = current->fsgid;
+	sbinfo->uid = current_fsuid();
+	sbinfo->gid = current_fsgid();
 	sbinfo->mpol = NULL;
 	sb->s_fs_info = sbinfo;
 

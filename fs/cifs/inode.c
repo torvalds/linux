@@ -1143,11 +1143,11 @@ mkdir_get_info:
 				.device	= 0,
 			};
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-				args.uid = (__u64)current->fsuid;
+				args.uid = (__u64)current_fsuid();
 				if (inode->i_mode & S_ISGID)
 					args.gid = (__u64)inode->i_gid;
 				else
-					args.gid = (__u64)current->fsgid;
+					args.gid = (__u64)current_fsgid();
 			} else {
 				args.uid = NO_CHANGE_64;
 				args.gid = NO_CHANGE_64;
@@ -1184,13 +1184,13 @@ mkdir_get_info:
 				if (cifs_sb->mnt_cifs_flags &
 				     CIFS_MOUNT_SET_UID) {
 					direntry->d_inode->i_uid =
-						current->fsuid;
+						current_fsuid();
 					if (inode->i_mode & S_ISGID)
 						direntry->d_inode->i_gid =
 							inode->i_gid;
 					else
 						direntry->d_inode->i_gid =
-							current->fsgid;
+							current_fsgid();
 				}
 			}
 		}

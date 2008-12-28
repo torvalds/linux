@@ -46,12 +46,14 @@
 #include <linux/blkdev.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/tracehook.h>
+#include <linux/init_task.h>
 #include <trace/sched.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
+#include "cred-internals.h"
 
 static void exit_mm(struct task_struct * tsk);
 
@@ -164,7 +166,10 @@ void release_task(struct task_struct * p)
 	int zap_leader;
 repeat:
 	tracehook_prepare_release_task(p);
-	atomic_dec(&p->user->processes);
+	/* don't need to get the RCU readlock here - the process is dead and
+	 * can't be modifying its own credentials */
+	atomic_dec(&__task_cred(p)->user->processes);
+
 	proc_flush_task(p);
 	write_lock_irq(&tasklist_lock);
 	tracehook_finish_release_task(p);
@@ -339,12 +344,12 @@ static void reparent_to_kthreadd(void)
 	/* cpus_allowed? */
 	/* rt_priority? */
 	/* signals? */
-	security_task_reparent_to_init(current);
 	memcpy(current->signal->rlim, init_task.signal->rlim,
 	       sizeof(current->signal->rlim));
-	atomic_inc(&(INIT_USER->__count));
+
+	atomic_inc(&init_cred.usage);
+	commit_creds(&init_cred);
 	write_unlock_irq(&tasklist_lock);
-	switch_uid(INIT_USER);
 }
 
 void __set_special_pids(struct pid *pid)
@@ -1078,7 +1083,6 @@ NORET_TYPE void do_exit(long code)
 	check_stack_usage();
 	exit_thread();
 	cgroup_exit(tsk, 1);
-	exit_keys(tsk);
 
 	if (group_dead && tsk->signal->leader)
 		disassociate_ctty(1);
@@ -1263,12 +1267,12 @@ static int wait_task_zombie(struct task_struct *p, int options,
 	unsigned long state;
 	int retval, status, traced;
 	pid_t pid = task_pid_vnr(p);
+	uid_t uid = __task_cred(p)->uid;
 
 	if (!likely(options & WEXITED))
 		return 0;
 
 	if (unlikely(options & WNOWAIT)) {
-		uid_t uid = p->uid;
 		int exit_code = p->exit_code;
 		int why, status;
 
@@ -1389,7 +1393,7 @@ static int wait_task_zombie(struct task_struct *p, int options,
 	if (!retval && infop)
 		retval = put_user(pid, &infop->si_pid);
 	if (!retval && infop)
-		retval = put_user(p->uid, &infop->si_uid);
+		retval = put_user(uid, &infop->si_uid);
 	if (!retval)
 		retval = pid;
 
@@ -1454,7 +1458,8 @@ static int wait_task_stopped(int ptrace, struct task_struct *p,
 	if (!unlikely(options & WNOWAIT))
 		p->exit_code = 0;
 
-	uid = p->uid;
+	/* don't need the RCU readlock here as we're holding a spinlock */
+	uid = __task_cred(p)->uid;
 unlock_sig:
 	spin_unlock_irq(&p->sighand->siglock);
 	if (!exit_code)
@@ -1528,10 +1533,10 @@ static int wait_task_continued(struct task_struct *p, int options,
 	}
 	if (!unlikely(options & WNOWAIT))
 		p->signal->flags &= ~SIGNAL_STOP_CONTINUED;
+	uid = __task_cred(p)->uid;
 	spin_unlock_irq(&p->sighand->siglock);
 
 	pid = task_pid_vnr(p);
-	uid = p->uid;
 	get_task_struct(p);
 	read_unlock(&tasklist_lock);
 

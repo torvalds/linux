@@ -439,13 +439,20 @@ static void free_pi_state(struct futex_pi_state *pi_state)
 static struct task_struct * futex_find_get_task(pid_t pid)
 {
 	struct task_struct *p;
+	const struct cred *cred = current_cred(), *pcred;
 
 	rcu_read_lock();
 	p = find_task_by_vpid(pid);
-	if (!p || ((current->euid != p->euid) && (current->euid != p->uid)))
+	if (!p) {
 		p = ERR_PTR(-ESRCH);
-	else
-		get_task_struct(p);
+	} else {
+		pcred = __task_cred(p);
+		if (cred->euid != pcred->euid &&
+		    cred->euid != pcred->uid)
+			p = ERR_PTR(-ESRCH);
+		else
+			get_task_struct(p);
+	}
 
 	rcu_read_unlock();
 
@@ -1829,6 +1836,7 @@ sys_get_robust_list(int pid, struct robust_list_head __user * __user *head_ptr,
 {
 	struct robust_list_head __user *head;
 	unsigned long ret;
+	const struct cred *cred = current_cred(), *pcred;
 
 	if (!futex_cmpxchg_enabled)
 		return -ENOSYS;
@@ -1844,8 +1852,10 @@ sys_get_robust_list(int pid, struct robust_list_head __user * __user *head_ptr,
 		if (!p)
 			goto err_unlock;
 		ret = -EPERM;
-		if ((current->euid != p->euid) && (current->euid != p->uid) &&
-				!capable(CAP_SYS_PTRACE))
+		pcred = __task_cred(p);
+		if (cred->euid != pcred->euid &&
+		    cred->euid != pcred->uid &&
+		    !capable(CAP_SYS_PTRACE))
 			goto err_unlock;
 		head = p->robust_list;
 		rcu_read_unlock();

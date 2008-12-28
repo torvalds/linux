@@ -246,7 +246,8 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 	}
 	if (card->debug_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
 		hysdn_addlog(card, "config open for uid=%d gid=%d mode=0x%x",
-			     filep->f_uid, filep->f_gid, filep->f_mode);
+			     filep->f_cred->fsuid, filep->f_cred->fsgid,
+			     filep->f_mode);
 
 	if ((filep->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_WRITE) {
 		/* write only access -> write boot file or conf line */
@@ -331,7 +332,8 @@ hysdn_conf_close(struct inode *ino, struct file *filep)
 	}
 	if (card->debug_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
 		hysdn_addlog(card, "config close for uid=%d gid=%d mode=0x%x",
-			     filep->f_uid, filep->f_gid, filep->f_mode);
+			     filep->f_cred->fsuid, filep->f_cred->fsgid,
+			     filep->f_mode);
 
 	if ((filep->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_WRITE) {
 		/* write only access -> write boot file or conf line */

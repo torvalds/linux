@@ -1651,7 +1651,7 @@ out:
 
 static int test_perm(int mode, int op)
 {
-	if (!current->euid)
+	if (!current_euid())
 		mode >>= 6;
 	else if (in_egroup_p(0))
 		mode >>= 3;
