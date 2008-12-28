@@ -141,7 +141,6 @@ struct amradio_device {
 
 	unsigned char *buffer;
 	struct mutex lock;	/* buffer locking */
-	struct mutex disconnect_lock;
 	int curfreq;
 	int stereo;
 	int users;
@@ -302,16 +301,12 @@ static void usb_amradio_disconnect(struct usb_interface *intf)
 {
 	struct amradio_device *radio = usb_get_intfdata(intf);
 
-	mutex_lock(&radio->disconnect_lock);
+	mutex_lock(&radio->lock);
 	radio->removed = 1;
-	usb_set_intfdata(intf, NULL);
+	mutex_unlock(&radio->lock);
 
-	if (radio->users == 0) {
-		video_unregister_device(radio->videodev);
-		kfree(radio->buffer);
-		kfree(radio);
-	}
-	mutex_unlock(&radio->disconnect_lock);
+	usb_set_intfdata(intf, NULL);
+	video_unregister_device(radio->videodev);
 }
 
 /* vidioc_querycap - query device capabilities */
@@ -529,7 +524,7 @@ static int usb_amradio_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-/*close device - free driver structures */
+/*close device */
 static int usb_amradio_close(struct inode *inode, struct file *file)
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
@@ -538,21 +533,15 @@ static int usb_amradio_close(struct inode *inode, struct file *file)
 	if (!radio)
 		return -ENODEV;
 
-	mutex_lock(&radio->disconnect_lock);
 	radio->users = 0;
-	if (radio->removed) {
-		video_unregister_device(radio->videodev);
-		kfree(radio->buffer);
-		kfree(radio);
 
-	} else {
+	if (!radio->removed) {
 		retval = amradio_stop(radio);
 		if (retval < 0)
 			amradio_dev_warn(&radio->videodev->dev,
 				"amradio_stop failed\n");
 	}
 
-	mutex_unlock(&radio->disconnect_lock);
 	return 0;
 }
 
@@ -609,12 +598,24 @@ static const struct v4l2_ioctl_ops usb_amradio_ioctl_ops = {
 	.vidioc_s_input     = vidioc_s_input,
 };
 
+static void usb_amradio_device_release(struct video_device *videodev)
+{
+	struct amradio_device *radio = video_get_drvdata(videodev);
+
+	/* we call v4l to free radio->videodev */
+	video_device_release(videodev);
+
+	/* free rest memory */
+	kfree(radio->buffer);
+	kfree(radio);
+}
+
 /* V4L2 interface */
 static struct video_device amradio_videodev_template = {
 	.name		= "AverMedia MR 800 USB FM Radio",
 	.fops		= &usb_amradio_fops,
 	.ioctl_ops 	= &usb_amradio_ioctl_ops,
-	.release	= video_device_release,
+	.release	= usb_amradio_device_release,
 };
 
 /* check if the device is present and register with v4l and
@@ -652,7 +653,6 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = 95.16 * FREQ_MUL;
 
-	mutex_init(&radio->disconnect_lock);
 	mutex_init(&radio->lock);
 
 	video_set_drvdata(radio->videodev, radio);
