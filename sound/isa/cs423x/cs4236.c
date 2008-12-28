@@ -385,10 +385,11 @@ static void snd_card_cs4236_free(struct snd_card *card)
 static struct snd_card *snd_cs423x_card_new(int dev)
 {
 	struct snd_card *card;
+	int err;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_card_cs4236));
-	if (card == NULL)
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct snd_card_cs4236), &card);
+	if (err < 0)
 		return NULL;
 	card->private_free = snd_card_cs4236_free;
 	return card;

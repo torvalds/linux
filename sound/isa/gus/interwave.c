@@ -630,10 +630,11 @@ static struct snd_card *snd_interwave_card_new(int dev)
 {
 	struct snd_card *card;
 	struct snd_interwave *iwcard;
+	int err;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_interwave));
-	if (card == NULL)
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct snd_interwave), &card);
+	if (err < 0)
 		return NULL;
 	iwcard = card->private_data;
 	iwcard->card = card;

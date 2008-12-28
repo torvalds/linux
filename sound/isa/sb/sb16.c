@@ -326,9 +326,12 @@ static void snd_sb16_free(struct snd_card *card)
 
 static struct snd_card *snd_sb16_card_new(int dev)
 {
-	struct snd_card *card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-					sizeof(struct snd_card_sb16));
-	if (card == NULL)
+	struct snd_card *card;
+	int err;
+
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct snd_card_sb16), &card);
+	if (err < 0)
 		return NULL;
 	card->private_free = snd_sb16_free;
 	return card;

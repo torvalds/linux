@@ -342,10 +342,11 @@ static struct snd_card *snd_wavefront_card_new(int dev)
 {
 	struct snd_card *card;
 	snd_wavefront_card_t *acard;
+	int err;
 
-	card = snd_card_new (index[dev], id[dev], THIS_MODULE,
-			     sizeof(snd_wavefront_card_t));
-	if (card == NULL)
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(snd_wavefront_card_t), &card);
+	if (err < 0)
 		return NULL;
 
 	acard = card->private_data;

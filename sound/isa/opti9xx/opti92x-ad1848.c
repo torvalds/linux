@@ -833,9 +833,11 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 static struct snd_card *snd_opti9xx_card_new(void)
 {
 	struct snd_card *card;
+	int err;
 
-	card = snd_card_new(index, id, THIS_MODULE, sizeof(struct snd_opti9xx));
-	if (! card)
+	err = snd_card_create(index, id, THIS_MODULE,
+			      sizeof(struct snd_opti9xx), &card);
+	if (err < 0)
 		return NULL;
 	card->private_free = snd_card_opti9xx_free;
 	return card;

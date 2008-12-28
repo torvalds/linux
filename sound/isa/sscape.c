@@ -1357,10 +1357,10 @@ static int __devinit snd_sscape_probe(struct device *pdev, unsigned int dev)
 	struct soundscape *sscape;
 	int ret;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct soundscape));
-	if (!card)
-		return -ENOMEM;
+	ret = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct soundscape), &card);
+	if (ret < 0)
+		return ret;
 
 	sscape = get_card_soundscape(card);
 	sscape->type = SSCAPE;
@@ -1462,10 +1462,10 @@ static int __devinit sscape_pnp_detect(struct pnp_card_link *pcard,
 	 * Create a new ALSA sound card entry, in anticipation
 	 * of detecting our hardware ...
 	 */
-	card = snd_card_new(index[idx], id[idx], THIS_MODULE,
-			    sizeof(struct soundscape));
-	if (!card)
-		return -ENOMEM;
+	ret = snd_card_create(index[idx], id[idx], THIS_MODULE,
+			      sizeof(struct soundscape), &card);
+	if (ret < 0)
+		return ret;
 
 	sscape = get_card_soundscape(card);
 

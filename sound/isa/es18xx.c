@@ -2127,8 +2127,11 @@ static int __devinit snd_audiodrive_pnpc(int dev, struct snd_audiodrive *acard,
 
 static struct snd_card *snd_es18xx_card_new(int dev)
 {
-	return snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_audiodrive));
+	struct snd_card *card;
+	if (snd_card_create(index[dev], id[dev], THIS_MODULE,
+			    sizeof(struct snd_audiodrive), &card) < 0)
+		return NULL;
+	return card;
 }
 
 static int __devinit snd_audiodrive_probe(struct snd_card *card, int dev)
