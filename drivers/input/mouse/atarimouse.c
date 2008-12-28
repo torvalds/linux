@@ -118,8 +118,9 @@ static int __init atamouse_init(void)
 	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(ST_MFP))
 		return -ENODEV;
 
-	if (!atari_keyb_init())
-		return -ENODEV;
+	error = atari_keyb_init();
+	if (error)
+		return error;
 
 	atamouse_dev = input_allocate_device();
 	if (!atamouse_dev)
