@@ -212,7 +212,7 @@ static void update_cpu_core_map(void)
 		cpu_core_map[cpu] = cpu_coregroup_map(cpu);
 }
 
-void arch_update_cpu_topology(void)
+int arch_update_cpu_topology(void)
 {
 	struct tl_info *info = tl_info;
 	struct sys_device *sysdev;
@@ -221,7 +221,7 @@ void arch_update_cpu_topology(void)
 	if (!machine_has_topology) {
 		update_cpu_core_map();
 		topology_update_polarization_simple();
-		return;
+		return 0;
 	}
 	stsi(info, 15, 1, 2);
 	tl_to_cores(info);
@@ -230,6 +230,7 @@ void arch_update_cpu_topology(void)
 		sysdev = get_cpu_sysdev(cpu);
 		kobject_uevent(&sysdev->kobj, KOBJ_CHANGE);
 	}
+	return 1;
 }
 
 static void topology_work_fn(struct work_struct *work)

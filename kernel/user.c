@@ -104,6 +104,8 @@ static int sched_create_user(struct user_struct *up)
 	if (IS_ERR(up->tg))
 		rc = -ENOMEM;
 
+	set_tg_uid(up);
+
 	return rc;
 }
 
