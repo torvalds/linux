@@ -46,7 +46,7 @@ static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
 
 static void cgrp_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
-	kfree(ss);
+	kfree(net_cls_state(cgrp));
 }
 
 static u64 read_classid(struct cgroup *cgrp, struct cftype *cft)
