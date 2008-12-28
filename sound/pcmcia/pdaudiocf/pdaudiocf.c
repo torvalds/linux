@@ -121,13 +121,14 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 	pdacf = snd_pdacf_create(card);
 	if (!pdacf) {
 		snd_card_free(card);
-		return -EIO;
+		return -ENOMEM;
 	}
 
-	if (snd_device_new(card, SNDRV_DEV_LOWLEVEL, pdacf, &ops) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, pdacf, &ops);
+	if (err < 0) {
 		kfree(pdacf);
 		snd_card_free(card);
-		return -ENODEV;
+		return err;
 	}
 
 	snd_card_set_dev(card, &handle_to_dev(link));
