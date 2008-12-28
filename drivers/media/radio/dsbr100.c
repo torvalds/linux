@@ -495,7 +495,8 @@ static int usb_dsbr100_open(struct inode *inode, struct file *file)
 	retval = dsbr100_setfreq(radio, radio->curfreq);
 
 	if (retval == -1)
-		printk(KERN_WARNING KBUILD_MODNAME ": Set frequency failed\n");
+		dev_warn(&radio->usbdev->dev,
+			"set frequency failed\n");
 
 	unlock_kernel();
 	return 0;
