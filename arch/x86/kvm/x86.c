@@ -2371,40 +2371,19 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(emulate_instruction);
 
-static void free_pio_guest_pages(struct kvm_vcpu *vcpu)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(vcpu->arch.pio.guest_pages); ++i)
-		if (vcpu->arch.pio.guest_pages[i]) {
-			kvm_release_page_dirty(vcpu->arch.pio.guest_pages[i]);
-			vcpu->arch.pio.guest_pages[i] = NULL;
-		}
-}
-
 static int pio_copy_data(struct kvm_vcpu *vcpu)
 {
 	void *p = vcpu->arch.pio_data;
-	void *q;
+	gva_t q = vcpu->arch.pio.guest_gva;
 	unsigned bytes;
-	int nr_pages = vcpu->arch.pio.guest_pages[1] ? 2 : 1;
+	int ret;
 
-	q = vmap(vcpu->arch.pio.guest_pages, nr_pages, VM_READ|VM_WRITE,
-		 PAGE_KERNEL);
-	if (!q) {
-		free_pio_guest_pages(vcpu);
-		return -ENOMEM;
-	}
-	q += vcpu->arch.pio.guest_page_offset;
 	bytes = vcpu->arch.pio.size * vcpu->arch.pio.cur_count;
 	if (vcpu->arch.pio.in)
-		memcpy(q, p, bytes);
+		ret = kvm_write_guest_virt(q, p, bytes, vcpu);
 	else
-		memcpy(p, q, bytes);
-	q -= vcpu->arch.pio.guest_page_offset;
-	vunmap(q);
-	free_pio_guest_pages(vcpu);
-	return 0;
+		ret = kvm_read_guest_virt(q, p, bytes, vcpu);
+	return ret;
 }
 
 int complete_pio(struct kvm_vcpu *vcpu)
@@ -2515,7 +2494,6 @@ int kvm_emulate_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	vcpu->arch.pio.in = in;
 	vcpu->arch.pio.string = 0;
 	vcpu->arch.pio.down = 0;
-	vcpu->arch.pio.guest_page_offset = 0;
 	vcpu->arch.pio.rep = 0;
 
 	if (vcpu->run->io.direction == KVM_EXIT_IO_IN)
@@ -2543,9 +2521,7 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		  gva_t address, int rep, unsigned port)
 {
 	unsigned now, in_page;
-	int i, ret = 0;
-	int nr_pages = 1;
-	struct page *page;
+	int ret = 0;
 	struct kvm_io_device *pio_dev;
 
 	vcpu->run->exit_reason = KVM_EXIT_IO;
@@ -2557,7 +2533,6 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	vcpu->arch.pio.in = in;
 	vcpu->arch.pio.string = 1;
 	vcpu->arch.pio.down = down;
-	vcpu->arch.pio.guest_page_offset = offset_in_page(address);
 	vcpu->arch.pio.rep = rep;
 
 	if (vcpu->run->io.direction == KVM_EXIT_IO_IN)
@@ -2577,15 +2552,8 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	else
 		in_page = offset_in_page(address) + size;
 	now = min(count, (unsigned long)in_page / size);
-	if (!now) {
-		/*
-		 * String I/O straddles page boundary.  Pin two guest pages
-		 * so that we satisfy atomicity constraints.  Do just one
-		 * transaction to avoid complexity.
-		 */
-		nr_pages = 2;
+	if (!now)
 		now = 1;
-	}
 	if (down) {
 		/*
 		 * String I/O in reverse.  Yuck.  Kill the guest, fix later.
@@ -2600,15 +2568,7 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	if (vcpu->arch.pio.cur_count == vcpu->arch.pio.count)
 		kvm_x86_ops->skip_emulated_instruction(vcpu);
 
-	for (i = 0; i < nr_pages; ++i) {
-		page = gva_to_page(vcpu, address + i * PAGE_SIZE);
-		vcpu->arch.pio.guest_pages[i] = page;
-		if (!page) {
-			kvm_inject_gp(vcpu, 0);
-			free_pio_guest_pages(vcpu);
-			return 1;
-		}
-	}
+	vcpu->arch.pio.guest_gva = address;
 
 	pio_dev = vcpu_find_pio_dev(vcpu, port,
 				    vcpu->arch.pio.cur_count,
@@ -2616,7 +2576,11 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	if (!vcpu->arch.pio.in) {
 		/* string PIO write */
 		ret = pio_copy_data(vcpu);
-		if (ret >= 0 && pio_dev) {
+		if (ret == X86EMUL_PROPAGATE_FAULT) {
+			kvm_inject_gp(vcpu, 0);
+			return 1;
+		}
+		if (ret == 0 && pio_dev) {
 			pio_string_write(pio_dev, vcpu);
 			complete_pio(vcpu);
 			if (vcpu->arch.pio.count == 0)
