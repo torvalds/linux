@@ -1031,7 +1031,7 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 		netif_rx_complete(napi);
 
 		if (ibmveth_rxq_pending_buffer(adapter) &&
-		    netif_rx_reschedule(netdev, napi)) {
+		    netif_rx_reschedule(napi)) {
 			lpar_rc = h_vio_signal(adapter->vdev->unit_address,
 					       VIO_IRQ_DISABLE);
 			goto restart_poll;
