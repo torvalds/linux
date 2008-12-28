@@ -338,7 +338,7 @@ snd_wavefront_free(struct snd_card *card)
 	}
 }
 
-static struct snd_card *snd_wavefront_card_new(int dev)
+static int snd_wavefront_card_new(int dev, struct snd_card **cardp)
 {
 	struct snd_card *card;
 	snd_wavefront_card_t *acard;
@@ -347,7 +347,7 @@ static struct snd_card *snd_wavefront_card_new(int dev)
 	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
 			      sizeof(snd_wavefront_card_t), &card);
 	if (err < 0)
-		return NULL;
+		return err;
 
 	acard = card->private_data;
 	acard->wavefront.irq = -1;
@@ -358,7 +358,8 @@ static struct snd_card *snd_wavefront_card_new(int dev)
 	acard->wavefront.card = card;
 	card->private_free = snd_wavefront_free;
 
-	return card;
+	*cardp = card;
+	return 0;
 }
 
 static int __devinit
@@ -568,9 +569,9 @@ static int __devinit snd_wavefront_isa_probe(struct device *pdev,
 	struct snd_card *card;
 	int err;
 
-	card = snd_wavefront_card_new(dev);
-	if (! card)
-		return -ENOMEM;
+	err = snd_wavefront_card_new(dev, &card);
+	if (err < 0)
+		return err;
 	snd_card_set_dev(card, pdev);
 	if ((err = snd_wavefront_probe(card, dev)) < 0) {
 		snd_card_free(card);
@@ -617,9 +618,9 @@ static int __devinit snd_wavefront_pnp_detect(struct pnp_card_link *pcard,
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 
-	card = snd_wavefront_card_new(dev);
-	if (! card)
-		return -ENOMEM;
+	res = snd_wavefront_card_new(dev, &card);
+	if (res < 0)
+		return res;
 
 	if (snd_wavefront_pnp (dev, card->private_data, pcard, pid) < 0) {
 		if (cs4232_pcm_port[dev] == SNDRV_AUTO_PORT) {
