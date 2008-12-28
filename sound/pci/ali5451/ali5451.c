@@ -2307,9 +2307,9 @@ static int __devinit snd_ali_probe(struct pci_dev *pci,
 
 	snd_ali_printk("probe ...\n");
 
-	card = snd_card_new(index, id, THIS_MODULE, 0);
-	if (!card)
-		return -ENOMEM;
+	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	err = snd_ali_create(card, pci, pcm_channels, spdif, &codec);
 	if (err < 0)

@@ -889,12 +889,13 @@ static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
 	pci_write_config_word(pci, PCI_COMMAND, word | PCI_COMMAND_IO);
 	pci_set_master(pci);
 	
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 
-			    sizeof(*acard) /* private_data: acard */);
-	if (card == NULL) {
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 
+			      sizeof(*acard) /* private_data: acard */,
+			      &card);
+	if (err < 0) {
 		pci_release_regions(pci);
 		pci_disable_device(pci);
-		return -ENOMEM;
+		return err;
 	}
 
 	acard = card->private_data;
