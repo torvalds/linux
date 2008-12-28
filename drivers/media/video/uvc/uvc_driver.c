@@ -1147,8 +1147,13 @@ next_descriptor:
 		buffer += buffer[0];
 	}
 
-	/* Check if the optional status endpoint is present. */
-	if (alts->desc.bNumEndpoints == 1) {
+	/* Check if the optional status endpoint is present. Built-in iSight
+	 * webcams have an interrupt endpoint but spit proprietary data that
+	 * don't conform to the UVC status endpoint messages. Don't try to
+	 * handle the interrupt endpoint for those cameras.
+	 */
+	if (alts->desc.bNumEndpoints == 1 &&
+	    !(dev->quirks & UVC_QUIRK_BUILTIN_ISIGHT)) {
 		struct usb_host_endpoint *ep = &alts->endpoint[0];
 		struct usb_endpoint_descriptor *desc = &ep->desc;
 
