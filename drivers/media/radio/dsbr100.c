@@ -1,5 +1,5 @@
-/* A driver for the D-Link DSB-R100 USB radio.  The R100 plugs
- into both the USB and an analog audio input, so this thing
+/* A driver for the D-Link DSB-R100 USB radio and Gemtek USB Radio 21.
+ The device plugs into both the USB and an analog audio input, so this thing
  only deals with initialisation and frequency setting, the
  audio data has to be handled by a sound driver.
 
@@ -172,7 +172,6 @@ struct dsbr100_device {
 	int muted;
 };
 
-
 static struct usb_device_id usb_dsbr100_device_table [] = {
 	{ USB_DEVICE(DSB100_VENDOR, DSB100_PRODUCT) },
 	{ }						/* Terminating entry */
@@ -236,7 +235,6 @@ usb_control_msg_failed:
 	return -1;
 
 }
-
 
 /* switch off radio */
 static int dsbr100_stop(struct dsbr100_device *radio)
@@ -363,13 +361,14 @@ static void dsbr100_getstat(struct dsbr100_device *radio)
 	mutex_unlock(&radio->lock);
 }
 
-
 /* USB subsystem interface begins here */
 
-/* handle unplugging of the device, release data structures
-if nothing keeps us from doing it.  If something is still
-keeping us busy, the release callback of v4l will take care
-of releasing it. */
+/*
+ * Handle unplugging of the device.
+ * We call video_unregister_device in any case.
+ * The last function called in this procedure is
+ * usb_dsbr100_video_device_release
+ */
 static void usb_dsbr100_disconnect(struct usb_interface *intf)
 {
 	struct dsbr100_device *radio = usb_get_intfdata(intf);
@@ -640,6 +639,7 @@ static int usb_dsbr100_resume(struct usb_interface *intf)
 	return 0;
 }
 
+/* free data structures */
 static void usb_dsbr100_video_device_release(struct video_device *videodev)
 {
 	struct dsbr100_device *radio = videodev_to_radio(videodev);
@@ -683,8 +683,7 @@ static struct video_device dsbr100_videodev_data = {
 	.release	= usb_dsbr100_video_device_release,
 };
 
-/* check if the device is present and register with v4l and
-usb if it is */
+/* check if the device is present and register with v4l and usb if it is */
 static int usb_dsbr100_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
