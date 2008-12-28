@@ -197,86 +197,169 @@ static struct usb_driver usb_dsbr100_driver = {
 /* switch on radio */
 static int dsbr100_start(struct dsbr100_device *radio)
 {
+	int retval;
+	int request;
+
 	mutex_lock(&radio->lock);
-	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			USB_REQ_GET_STATUS,
-			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			0x00, 0xC7, radio->transfer_buffer, 8, 300) < 0 ||
-	usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			DSB100_ONOFF,
-			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			0x01, 0x00, radio->transfer_buffer, 8, 300) < 0) {
-		mutex_unlock(&radio->lock);
-		return -1;
+
+	retval = usb_control_msg(radio->usbdev,
+		usb_rcvctrlpipe(radio->usbdev, 0),
+		USB_REQ_GET_STATUS,
+		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
+		0x00, 0xC7, radio->transfer_buffer, 8, 300);
+
+	if (retval < 0) {
+		request = USB_REQ_GET_STATUS;
+		goto usb_control_msg_failed;
 	}
 
-	radio->muted=0;
+	retval = usb_control_msg(radio->usbdev,
+		usb_rcvctrlpipe(radio->usbdev, 0),
+		DSB100_ONOFF,
+		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
+		0x01, 0x00, radio->transfer_buffer, 8, 300);
+
+	if (retval < 0) {
+		request = DSB100_ONOFF;
+		goto usb_control_msg_failed;
+	}
+
+	radio->muted = 0;
 	mutex_unlock(&radio->lock);
 	return (radio->transfer_buffer)[0];
+
+usb_control_msg_failed:
+	mutex_unlock(&radio->lock);
+	dev_err(&radio->usbdev->dev,
+		"%s - usb_control_msg returned %i, request %i\n",
+			__func__, retval, request);
+	return -1;
+
 }
 
 
 /* switch off radio */
 static int dsbr100_stop(struct dsbr100_device *radio)
 {
+	int retval;
+	int request;
+
 	mutex_lock(&radio->lock);
-	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			USB_REQ_GET_STATUS,
-			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			0x16, 0x1C, radio->transfer_buffer, 8, 300) < 0 ||
-	usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			DSB100_ONOFF,
-			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			0x00, 0x00, radio->transfer_buffer, 8, 300) < 0) {
-		mutex_unlock(&radio->lock);
-		return -1;
+
+	retval = usb_control_msg(radio->usbdev,
+		usb_rcvctrlpipe(radio->usbdev, 0),
+		USB_REQ_GET_STATUS,
+		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
+		0x16, 0x1C, radio->transfer_buffer, 8, 300);
+
+	if (retval < 0) {
+		request = USB_REQ_GET_STATUS;
+		goto usb_control_msg_failed;
 	}
 
-	radio->muted=1;
+	retval = usb_control_msg(radio->usbdev,
+		usb_rcvctrlpipe(radio->usbdev, 0),
+		DSB100_ONOFF,
+		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
+		0x00, 0x00, radio->transfer_buffer, 8, 300);
+
+	if (retval < 0) {
+		request = DSB100_ONOFF;
+		goto usb_control_msg_failed;
+	}
+
+	radio->muted = 1;
 	mutex_unlock(&radio->lock);
 	return (radio->transfer_buffer)[0];
+
+usb_control_msg_failed:
+	mutex_unlock(&radio->lock);
+	dev_err(&radio->usbdev->dev,
+		"%s - usb_control_msg returned %i, request %i\n",
+			__func__, retval, request);
+	return -1;
+
 }
 
 /* set a frequency, freq is defined by v4l's TUNER_LOW, i.e. 1/16th kHz */
 static int dsbr100_setfreq(struct dsbr100_device *radio, int freq)
 {
+	int retval;
+	int request;
+
 	freq = (freq / 16 * 80) / 1000 + 856;
 	mutex_lock(&radio->lock);
-	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			DSB100_TUNE,
-			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			(freq >> 8) & 0x00ff, freq & 0xff,
-			radio->transfer_buffer, 8, 300) < 0 ||
-	   usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			USB_REQ_GET_STATUS,
-			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			0x96, 0xB7, radio->transfer_buffer, 8, 300) < 0 ||
-	usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			USB_REQ_GET_STATUS,
-			USB_TYPE_VENDOR | USB_RECIP_DEVICE |  USB_DIR_IN,
-			0x00, 0x24, radio->transfer_buffer, 8, 300) < 0) {
-		radio->stereo = -1;
-		mutex_unlock(&radio->lock);
-		return -1;
+
+	retval = usb_control_msg(radio->usbdev,
+		usb_rcvctrlpipe(radio->usbdev, 0),
+		DSB100_TUNE,
+		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
+		(freq >> 8) & 0x00ff, freq & 0xff,
+		radio->transfer_buffer, 8, 300);
+
+	if (retval < 0) {
+		request = DSB100_TUNE;
+		goto usb_control_msg_failed;
+	}
+
+	retval = usb_control_msg(radio->usbdev,
+		usb_rcvctrlpipe(radio->usbdev, 0),
+		USB_REQ_GET_STATUS,
+		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
+		0x96, 0xB7, radio->transfer_buffer, 8, 300);
+
+	if (retval < 0) {
+		request = USB_REQ_GET_STATUS;
+		goto usb_control_msg_failed;
+	}
+
+	retval = usb_control_msg(radio->usbdev,
+		usb_rcvctrlpipe(radio->usbdev, 0),
+		USB_REQ_GET_STATUS,
+		USB_TYPE_VENDOR | USB_RECIP_DEVICE |  USB_DIR_IN,
+		0x00, 0x24, radio->transfer_buffer, 8, 300);
+
+	if (retval < 0) {
+		request = USB_REQ_GET_STATUS;
+		goto usb_control_msg_failed;
 	}
 
 	radio->stereo = !((radio->transfer_buffer)[0] & 0x01);
 	mutex_unlock(&radio->lock);
 	return (radio->transfer_buffer)[0];
+
+usb_control_msg_failed:
+	radio->stereo = -1;
+	mutex_unlock(&radio->lock);
+	dev_err(&radio->usbdev->dev,
+		"%s - usb_control_msg returned %i, request %i\n",
+			__func__, retval, request);
+	return -1;
 }
 
 /* return the device status.  This is, in effect, just whether it
 sees a stereo signal or not.  Pity. */
 static void dsbr100_getstat(struct dsbr100_device *radio)
 {
+	int retval;
+
 	mutex_lock(&radio->lock);
-	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
+
+	retval = usb_control_msg(radio->usbdev,
+		usb_rcvctrlpipe(radio->usbdev, 0),
 		USB_REQ_GET_STATUS,
 		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-		0x00 , 0x24, radio->transfer_buffer, 8, 300) < 0)
+		0x00 , 0x24, radio->transfer_buffer, 8, 300);
+
+	if (retval < 0) {
 		radio->stereo = -1;
-	else
+		dev_err(&radio->usbdev->dev,
+			"%s - usb_control_msg returned %i, request %i\n",
+				__func__, retval, USB_REQ_GET_STATUS);
+	} else {
 		radio->stereo = !(radio->transfer_buffer[0] & 0x01);
+	}
+
 	mutex_unlock(&radio->lock);
 }
 
@@ -358,13 +441,15 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
 	struct dsbr100_device *radio = video_drvdata(file);
+	int retval;
 
 	/* safety check */
 	if (radio->removed)
 		return -EIO;
 
 	radio->curfreq = f->frequency;
-	if (dsbr100_setfreq(radio, radio->curfreq) == -1)
+	retval = dsbr100_setfreq(radio, radio->curfreq);
+	if (retval == -1)
 		dev_warn(&radio->usbdev->dev, "Set frequency failed\n");
 	return 0;
 }
@@ -418,6 +503,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
 	struct dsbr100_device *radio = video_drvdata(file);
+	int retval;
 
 	/* safety check */
 	if (radio->removed)
@@ -426,13 +512,15 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 		if (ctrl->value) {
-			if (dsbr100_stop(radio) == -1) {
+			retval = dsbr100_stop(radio);
+			if (retval == -1) {
 				dev_warn(&radio->usbdev->dev,
 					 "Radio did not respond properly\n");
 				return -EBUSY;
 			}
 		} else {
-			if (dsbr100_start(radio) == -1) {
+			retval = dsbr100_start(radio);
+			if (retval == -1) {
 				dev_warn(&radio->usbdev->dev,
 					 "Radio did not respond properly\n");
 				return -EBUSY;
@@ -484,7 +572,8 @@ static int usb_dsbr100_open(struct inode *inode, struct file *file)
 	radio->users = 1;
 	radio->muted = 1;
 
-	if (dsbr100_start(radio) < 0) {
+	retval = dsbr100_start(radio);
+	if (retval < 0) {
 		dev_warn(&radio->usbdev->dev,
 			 "Radio did not start up properly\n");
 		radio->users = 0;
@@ -493,7 +582,6 @@ static int usb_dsbr100_open(struct inode *inode, struct file *file)
 	}
 
 	retval = dsbr100_setfreq(radio, radio->curfreq);
-
 	if (retval == -1)
 		dev_warn(&radio->usbdev->dev,
 			"set frequency failed\n");
@@ -601,6 +689,7 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
 	struct dsbr100_device *radio;
+	int retval;
 
 	radio = kmalloc(sizeof(struct dsbr100_device), GFP_KERNEL);
 
@@ -622,7 +711,8 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = FREQ_MIN * FREQ_MUL;
 	video_set_drvdata(&radio->videodev, radio);
-	if (video_register_device(&radio->videodev, VFL_TYPE_RADIO, radio_nr) < 0) {
+	retval = video_register_device(&radio->videodev, VFL_TYPE_RADIO, radio_nr);
+	if (retval < 0) {
 		dev_warn(&intf->dev, "Could not register video device\n");
 		kfree(radio->transfer_buffer);
 		kfree(radio);
