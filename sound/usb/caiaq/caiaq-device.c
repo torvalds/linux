@@ -339,6 +339,7 @@ static void __devinit setup_card(struct snd_usb_caiaqdev *dev)
 static struct snd_card* create_card(struct usb_device* usb_dev)
 {
 	int devnum;
+	int err;
 	struct snd_card *card;
 	struct snd_usb_caiaqdev *dev;
 
@@ -349,9 +350,9 @@ static struct snd_card* create_card(struct usb_device* usb_dev)
 	if (devnum >= SNDRV_CARDS)
 		return NULL;
 
-	card = snd_card_new(index[devnum], id[devnum], THIS_MODULE, 
-					sizeof(struct snd_usb_caiaqdev));
-	if (!card)
+	err = snd_card_create(index[devnum], id[devnum], THIS_MODULE, 
+			      sizeof(struct snd_usb_caiaqdev), &card);
+	if (err < 0)
 		return NULL;
 
 	dev = caiaqdev(card);

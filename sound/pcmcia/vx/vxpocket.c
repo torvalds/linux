@@ -292,7 +292,7 @@ static int vxpocket_probe(struct pcmcia_device *p_dev)
 {
 	struct snd_card *card;
 	struct snd_vxpocket *vxp;
-	int i;
+	int i, err;
 
 	/* find an empty slot from the card list */
 	for (i = 0; i < SNDRV_CARDS; i++) {
@@ -307,10 +307,10 @@ static int vxpocket_probe(struct pcmcia_device *p_dev)
 		return -ENODEV; /* disabled explicitly */
 
 	/* ok, create a card instance */
-	card = snd_card_new(index[i], id[i], THIS_MODULE, 0);
-	if (card == NULL) {
+	err = snd_card_create(index[i], id[i], THIS_MODULE, 0, &card);
+	if (err < 0) {
 		snd_printk(KERN_ERR "vxpocket: cannot create a card instance\n");
-		return -ENOMEM;
+		return err;
 	}
 
 	vxp = snd_vxpocket_new(card, ibl[i], p_dev);

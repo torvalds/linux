@@ -482,14 +482,16 @@ static struct snd_card *usx2y_create_card(struct usb_device *device)
 {
 	int		dev;
 	struct snd_card *card;
+	int err;
+
 	for (dev = 0; dev < SNDRV_CARDS; ++dev)
 		if (enable[dev] && !snd_us122l_card_used[dev])
 			break;
 	if (dev >= SNDRV_CARDS)
 		return NULL;
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct us122l));
-	if (!card)
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct us122l), &card);
+	if (err < 0)
 		return NULL;
 	snd_us122l_card_used[US122L(card)->chip.index = dev] = 1;
 
