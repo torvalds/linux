@@ -35,6 +35,7 @@
 #include <linux/seq_file.h>
 #include <linux/mount.h>
 #include <linux/math64.h>
+#include <linux/writeback.h>
 #include "ubifs.h"
 
 /*
@@ -431,6 +432,23 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 	struct ubifs_info *c = sb->s_fs_info;
 	int i, ret = 0, err;
 	long long bud_bytes;
+	struct writeback_control wbc = {
+		.sync_mode   = wait ? WB_SYNC_ALL : WB_SYNC_HOLD,
+		.range_start = 0,
+		.range_end   = LLONG_MAX,
+		.nr_to_write = LONG_MAX,
+	};
+
+	/*
+	 * VFS calls '->sync_fs()' before synchronizing all dirty inodes and
+	 * pages, so synchronize them first, then commit the journal. Strictly
+	 * speaking, it is not necessary to commit the journal here,
+	 * synchronizing write-buffers would be enough. But committing makes
+	 * UBIFS free space predictions much more accurate, so we want to let
+	 * the user be able to get more accurate results of 'statfs()' after
+	 * they synchronize the file system.
+	 */
+	generic_sync_sb_inodes(sb, &wbc);
 
 	if (c->jheads) {
 		for (i = 0; i < c->jhead_cnt; i++) {
