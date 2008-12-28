@@ -29,6 +29,7 @@
 #define WM8580_CLKSRC_NONE 5
 
 struct wm8580_setup_data {
+	int i2c_bus;
 	unsigned short i2c_address;
 };
 
