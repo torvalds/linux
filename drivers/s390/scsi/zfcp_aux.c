@@ -25,8 +25,14 @@
  *            Sven Schuetz
  */
 
+#define KMSG_COMPONENT "zfcp"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/miscdevice.h>
+#include <linux/seq_file.h>
 #include "zfcp_ext.h"
+
+#define ZFCP_BUS_ID_SIZE	20
 
 static char *device;
 
@@ -83,9 +89,9 @@ static int __init zfcp_device_setup(char *devstr)
 	strcpy(str, devstr);
 
 	token = strsep(&str, ",");
-	if (!token || strlen(token) >= BUS_ID_SIZE)
+	if (!token || strlen(token) >= ZFCP_BUS_ID_SIZE)
 		goto err_out;
-	strncpy(zfcp_data.init_busid, token, BUS_ID_SIZE);
+	strncpy(zfcp_data.init_busid, token, ZFCP_BUS_ID_SIZE);
 
 	token = strsep(&str, ",");
 	if (!token || strict_strtoull(token, 0,
@@ -102,7 +108,7 @@ static int __init zfcp_device_setup(char *devstr)
 
  err_out:
 	kfree(str);
-	pr_err("zfcp: %s is not a valid SCSI device\n", devstr);
+	pr_err("%s is not a valid SCSI device\n", devstr);
 	return 0;
 }
 
@@ -186,13 +192,13 @@ static int __init zfcp_module_init(void)
 
 	retval = misc_register(&zfcp_cfdc_misc);
 	if (retval) {
-		pr_err("zfcp: Registering the misc device zfcp_cfdc failed\n");
+		pr_err("Registering the misc device zfcp_cfdc failed\n");
 		goto out_misc;
 	}
 
 	retval = zfcp_ccw_register();
 	if (retval) {
-		pr_err("zfcp: The zfcp device driver could not register with "
+		pr_err("The zfcp device driver could not register with "
 		       "the common I/O layer\n");
 		goto out_ccw_register;
 	}
@@ -436,6 +442,16 @@ static void _zfcp_status_read_scheduler(struct work_struct *work)
 					     stat_work));
 }
 
+static void zfcp_print_sl(struct seq_file *m, struct service_level *sl)
+{
+	struct zfcp_adapter *adapter =
+		container_of(sl, struct zfcp_adapter, service_level);
+
+	seq_printf(m, "zfcp: %s microcode level %x\n",
+		   dev_name(&adapter->ccw_device->dev),
+		   adapter->fsf_lic_version);
+}
+
 /**
  * zfcp_adapter_enqueue - enqueue a new adapter to the list
  * @ccw_device: pointer to the struct cc_device
@@ -499,6 +515,8 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	INIT_WORK(&adapter->stat_work, _zfcp_status_read_scheduler);
 	INIT_WORK(&adapter->scan_work, _zfcp_scan_ports_later);
+
+	adapter->service_level.seq_print = zfcp_print_sl;
 
 	/* mark adapter unusable as long as sysfs registration is not complete */
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);

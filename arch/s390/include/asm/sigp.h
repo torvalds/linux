@@ -61,6 +61,7 @@ typedef enum
 {
 	ec_schedule=0,
 	ec_call_function,
+	ec_call_function_single,
 	ec_bit_last
 } ec_bit_sig;
 
