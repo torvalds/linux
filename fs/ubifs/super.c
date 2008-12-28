@@ -429,15 +429,27 @@ static int ubifs_show_options(struct seq_file *s, struct vfsmount *mnt)
 
 static int ubifs_sync_fs(struct super_block *sb, int wait)
 {
+	int i, err;
 	struct ubifs_info *c = sb->s_fs_info;
-	int i, ret = 0, err;
-	long long bud_bytes;
 	struct writeback_control wbc = {
 		.sync_mode   = wait ? WB_SYNC_ALL : WB_SYNC_HOLD,
 		.range_start = 0,
 		.range_end   = LLONG_MAX,
 		.nr_to_write = LONG_MAX,
 	};
+
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
+
+	/*
+	 * Synchronize write buffers, because 'ubifs_run_commit()' does not
+	 * do this if it waits for an already running commit.
+	 */
+	for (i = 0; i < c->jhead_cnt; i++) {
+		err = ubifs_wbuf_sync(&c->jheads[i].wbuf);
+		if (err)
+			return err;
+	}
 
 	/*
 	 * VFS calls '->sync_fs()' before synchronizing all dirty inodes and
@@ -450,30 +462,16 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 	 */
 	generic_sync_sb_inodes(sb, &wbc);
 
-	if (c->jheads) {
-		for (i = 0; i < c->jhead_cnt; i++) {
-			err = ubifs_wbuf_sync(&c->jheads[i].wbuf);
-			if (err && !ret)
-				ret = err;
-		}
-
-		/* Commit the journal unless it has too little data */
-		spin_lock(&c->buds_lock);
-		bud_bytes = c->bud_bytes;
-		spin_unlock(&c->buds_lock);
-		if (bud_bytes > c->leb_size) {
-			err = ubifs_run_commit(c);
-			if (err)
-				return err;
-		}
-	}
+	err = ubifs_run_commit(c);
+	if (err)
+		return err;
 
 	/*
 	 * We ought to call sync for c->ubi but it does not have one. If it had
 	 * it would in turn call mtd->sync, however mtd operations are
 	 * synchronous anyway, so we don't lose any sleep here.
 	 */
-	return ret;
+	return err;
 }
 
 /**
