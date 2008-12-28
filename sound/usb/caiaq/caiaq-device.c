@@ -336,7 +336,7 @@ static void __devinit setup_card(struct snd_usb_caiaqdev *dev)
 		log("Unable to set up control system (ret=%d)\n", ret);
 }
 
-static struct snd_card* create_card(struct usb_device* usb_dev)
+static int create_card(struct usb_device* usb_dev, struct snd_card **cardp)
 {
 	int devnum;
 	int err;
@@ -348,12 +348,12 @@ static struct snd_card* create_card(struct usb_device* usb_dev)
 			break;
 
 	if (devnum >= SNDRV_CARDS)
-		return NULL;
+		return -ENODEV;
 
 	err = snd_card_create(index[devnum], id[devnum], THIS_MODULE, 
 			      sizeof(struct snd_usb_caiaqdev), &card);
 	if (err < 0)
-		return NULL;
+		return err;
 
 	dev = caiaqdev(card);
 	dev->chip.dev = usb_dev;
@@ -363,7 +363,8 @@ static struct snd_card* create_card(struct usb_device* usb_dev)
 	spin_lock_init(&dev->spinlock);
 	snd_card_set_dev(card, &usb_dev->dev);
 
-	return card;
+	*cardp = card;
+	return 0;
 }
 
 static int __devinit init_card(struct snd_usb_caiaqdev *dev)
@@ -442,10 +443,10 @@ static int __devinit snd_probe(struct usb_interface *intf,
 	struct snd_card *card;
 	struct usb_device *device = interface_to_usbdev(intf);
 	
-	card = create_card(device);
+	ret = create_card(device, &card);
 	
-	if (!card)
-		return -ENOMEM;
+	if (ret < 0)
+		return ret;
 			
 	usb_set_intfdata(intf, card);
 	ret = init_card(caiaqdev(card));
