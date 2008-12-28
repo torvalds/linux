@@ -2650,7 +2650,7 @@ config RIONET_RX_SIZE
 	default "128"
 
 config FDDI
-	bool "FDDI driver support"
+	tristate "FDDI driver support"
 	depends on (PCI || EISA || TC)
 	help
 	  Fiber Distributed Data Interface is a high speed local area network
