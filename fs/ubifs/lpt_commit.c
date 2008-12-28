@@ -548,7 +548,7 @@ static int write_cnodes(struct ubifs_info *c)
 no_space:
 	ubifs_err("LPT out of space mismatch");
 	dbg_err("LPT out of space mismatch at LEB %d:%d needing %d, done_ltab "
-	        "%d, done_lsave %d", lnum, offs, len, done_ltab, done_lsave);
+		"%d, done_lsave %d", lnum, offs, len, done_ltab, done_lsave);
 	dbg_dump_lpt_info(c);
 	dbg_dump_lpt_lebs(c);
 	dump_stack();

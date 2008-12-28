@@ -481,8 +481,8 @@ struct ubifs_lprops {
 struct ubifs_lpt_lprops {
 	int free;
 	int dirty;
-	unsigned tgc : 1;
-	unsigned cmt : 1;
+	unsigned tgc:1;
+	unsigned cmt:1;
 };
 
 /**
@@ -1322,8 +1322,8 @@ struct ubifs_info {
 	void *sbuf;
 	struct list_head idx_gc;
 	int idx_gc_cnt;
-	volatile int gc_seq;
-	volatile int gced_lnum;
+	int gc_seq;
+	int gced_lnum;
 
 	struct list_head infos_list;
 	struct mutex umount_mutex;

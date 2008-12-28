@@ -703,7 +703,8 @@ void dbg_dump_lpt_info(struct ubifs_info *c)
 	printk(KERN_DEBUG "\tLPT root is at %d:%d\n", c->lpt_lnum, c->lpt_offs);
 	printk(KERN_DEBUG "\tLPT head is at %d:%d\n",
 	       c->nhead_lnum, c->nhead_offs);
-	printk(KERN_DEBUG "\tLPT ltab is at %d:%d\n", c->ltab_lnum, c->ltab_offs);
+	printk(KERN_DEBUG "\tLPT ltab is at %d:%d\n",
+	       c->ltab_lnum, c->ltab_offs);
 	if (c->big_lpt)
 		printk(KERN_DEBUG "\tLPT lsave is at %d:%d\n",
 		       c->lsave_lnum, c->lsave_offs);
