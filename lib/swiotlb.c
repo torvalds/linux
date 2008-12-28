@@ -593,6 +593,7 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	*dma_handle = dev_addr;
 	return ret;
 }
+EXPORT_SYMBOL(swiotlb_alloc_coherent);
 
 void
 swiotlb_free_coherent(struct device *hwdev, size_t size, void *vaddr,
@@ -605,6 +606,7 @@ swiotlb_free_coherent(struct device *hwdev, size_t size, void *vaddr,
 		/* DMA_TO_DEVICE to avoid memcpy in unmap_single */
 		unmap_single(hwdev, vaddr, size, DMA_TO_DEVICE);
 }
+EXPORT_SYMBOL(swiotlb_free_coherent);
 
 static void
 swiotlb_full(struct device *dev, size_t size, int dir, int do_panic)
@@ -677,6 +679,7 @@ swiotlb_map_single(struct device *hwdev, void *ptr, size_t size, int dir)
 {
 	return swiotlb_map_single_attrs(hwdev, ptr, size, dir, NULL);
 }
+EXPORT_SYMBOL(swiotlb_map_single);
 
 /*
  * Unmap a single streaming mode DMA translation.  The dma_addr and size must
@@ -706,6 +709,8 @@ swiotlb_unmap_single(struct device *hwdev, dma_addr_t dev_addr, size_t size,
 {
 	return swiotlb_unmap_single_attrs(hwdev, dev_addr, size, dir, NULL);
 }
+EXPORT_SYMBOL(swiotlb_unmap_single);
+
 /*
  * Make physical memory consistent for a single streaming mode DMA translation
  * after a transfer.
@@ -735,6 +740,7 @@ swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
 {
 	swiotlb_sync_single(hwdev, dev_addr, size, dir, SYNC_FOR_CPU);
 }
+EXPORT_SYMBOL(swiotlb_sync_single_for_cpu);
 
 void
 swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
@@ -742,6 +748,7 @@ swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
 {
 	swiotlb_sync_single(hwdev, dev_addr, size, dir, SYNC_FOR_DEVICE);
 }
+EXPORT_SYMBOL(swiotlb_sync_single_for_device);
 
 /*
  * Same as above, but for a sub-range of the mapping.
@@ -767,6 +774,7 @@ swiotlb_sync_single_range_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
 	swiotlb_sync_single_range(hwdev, dev_addr, offset, size, dir,
 				  SYNC_FOR_CPU);
 }
+EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_cpu);
 
 void
 swiotlb_sync_single_range_for_device(struct device *hwdev, dma_addr_t dev_addr,
@@ -775,6 +783,7 @@ swiotlb_sync_single_range_for_device(struct device *hwdev, dma_addr_t dev_addr,
 	swiotlb_sync_single_range(hwdev, dev_addr, offset, size, dir,
 				  SYNC_FOR_DEVICE);
 }
+EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_device);
 
 /*
  * Map a set of buffers described by scatterlist in streaming mode for DMA.
@@ -833,6 +842,7 @@ swiotlb_map_sg(struct device *hwdev, struct scatterlist *sgl, int nelems,
 {
 	return swiotlb_map_sg_attrs(hwdev, sgl, nelems, dir, NULL);
 }
+EXPORT_SYMBOL(swiotlb_map_sg);
 
 /*
  * Unmap a set of streaming mode DMA translations.  Again, cpu read rules
@@ -863,6 +873,7 @@ swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sgl, int nelems,
 {
 	return swiotlb_unmap_sg_attrs(hwdev, sgl, nelems, dir, NULL);
 }
+EXPORT_SYMBOL(swiotlb_unmap_sg);
 
 /*
  * Make physical memory consistent for a set of streaming mode DMA translations
@@ -895,6 +906,7 @@ swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
 {
 	swiotlb_sync_sg(hwdev, sg, nelems, dir, SYNC_FOR_CPU);
 }
+EXPORT_SYMBOL(swiotlb_sync_sg_for_cpu);
 
 void
 swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
@@ -902,12 +914,14 @@ swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 {
 	swiotlb_sync_sg(hwdev, sg, nelems, dir, SYNC_FOR_DEVICE);
 }
+EXPORT_SYMBOL(swiotlb_sync_sg_for_device);
 
 int
 swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t dma_addr)
 {
 	return (dma_addr == swiotlb_virt_to_bus(hwdev, io_tlb_overflow_buffer));
 }
+EXPORT_SYMBOL(swiotlb_dma_mapping_error);
 
 /*
  * Return whether the given device DMA address mask can be supported
@@ -920,18 +934,4 @@ swiotlb_dma_supported(struct device *hwdev, u64 mask)
 {
 	return swiotlb_virt_to_bus(hwdev, io_tlb_end - 1) <= mask;
 }
-
-EXPORT_SYMBOL(swiotlb_map_single);
-EXPORT_SYMBOL(swiotlb_unmap_single);
-EXPORT_SYMBOL(swiotlb_map_sg);
-EXPORT_SYMBOL(swiotlb_unmap_sg);
-EXPORT_SYMBOL(swiotlb_sync_single_for_cpu);
-EXPORT_SYMBOL(swiotlb_sync_single_for_device);
-EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_cpu);
-EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_device);
-EXPORT_SYMBOL(swiotlb_sync_sg_for_cpu);
-EXPORT_SYMBOL(swiotlb_sync_sg_for_device);
-EXPORT_SYMBOL(swiotlb_dma_mapping_error);
-EXPORT_SYMBOL(swiotlb_alloc_coherent);
-EXPORT_SYMBOL(swiotlb_free_coherent);
 EXPORT_SYMBOL(swiotlb_dma_supported);
