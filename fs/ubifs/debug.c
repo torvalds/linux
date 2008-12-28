@@ -663,9 +663,90 @@ void dbg_dump_budg(struct ubifs_info *c)
 
 void dbg_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp)
 {
-	printk(KERN_DEBUG "LEB %d lprops: free %d, dirty %d (used %d), "
-	       "flags %#x\n", lp->lnum, lp->free, lp->dirty,
-	       c->leb_size - lp->free - lp->dirty, lp->flags);
+	int i, spc, dark = 0, dead = 0;
+	struct rb_node *rb;
+	struct ubifs_bud *bud;
+
+	spc = lp->free + lp->dirty;
+	if (spc < c->dead_wm)
+		dead = spc;
+	else
+		dark = ubifs_calc_dark(c, spc);
+
+	if (lp->flags & LPROPS_INDEX)
+		printk(KERN_DEBUG "LEB %-7d free %-8d dirty %-8d used %-8d "
+		       "free + dirty %-8d flags %#x (", lp->lnum, lp->free,
+		       lp->dirty, c->leb_size - spc, spc, lp->flags);
+	else
+		printk(KERN_DEBUG "LEB %-7d free %-8d dirty %-8d used %-8d "
+		       "free + dirty %-8d dark %-4d dead %-4d nodes fit %-3d "
+		       "flags %#-4x (", lp->lnum, lp->free, lp->dirty,
+		       c->leb_size - spc, spc, dark, dead,
+		       (int)(spc / UBIFS_MAX_NODE_SZ), lp->flags);
+
+	if (lp->flags & LPROPS_TAKEN) {
+		if (lp->flags & LPROPS_INDEX)
+			printk(KERN_CONT "index, taken");
+		else
+			printk(KERN_CONT "taken");
+	} else {
+		const char *s;
+
+		if (lp->flags & LPROPS_INDEX) {
+			switch (lp->flags & LPROPS_CAT_MASK) {
+			case LPROPS_DIRTY_IDX:
+				s = "dirty index";
+				break;
+			case LPROPS_FRDI_IDX:
+				s = "freeable index";
+				break;
+			default:
+				s = "index";
+			}
+		} else {
+			switch (lp->flags & LPROPS_CAT_MASK) {
+			case LPROPS_UNCAT:
+				s = "not categorized";
+				break;
+			case LPROPS_DIRTY:
+				s = "dirty";
+				break;
+			case LPROPS_FREE:
+				s = "free";
+				break;
+			case LPROPS_EMPTY:
+				s = "empty";
+				break;
+			case LPROPS_FREEABLE:
+				s = "freeable";
+				break;
+			default:
+				s = NULL;
+				break;
+			}
+		}
+		printk(KERN_CONT "%s", s);
+	}
+
+	for (rb = rb_first((struct rb_root *)&c->buds); rb; rb = rb_next(rb)) {
+		bud = rb_entry(rb, struct ubifs_bud, rb);
+		if (bud->lnum == lp->lnum) {
+			int head = 0;
+			for (i = 0; i < c->jhead_cnt; i++) {
+				if (lp->lnum == c->jheads[i].wbuf.lnum) {
+					printk(KERN_CONT ", jhead %s",
+					       dbg_jhead(i));
+					head = 1;
+				}
+			}
+			if (!head)
+				printk(KERN_CONT ", bud of jhead %s",
+				       dbg_jhead(bud->jhead));
+		}
+	}
+	if (lp->lnum == c->gc_lnum)
+		printk(KERN_CONT ", GC LEB");
+	printk(KERN_CONT ")\n");
 }
 
 void dbg_dump_lprops(struct ubifs_info *c)

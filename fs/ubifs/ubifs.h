@@ -1674,6 +1674,7 @@ const struct ubifs_lprops *ubifs_fast_find_free(struct ubifs_info *c);
 const struct ubifs_lprops *ubifs_fast_find_empty(struct ubifs_info *c);
 const struct ubifs_lprops *ubifs_fast_find_freeable(struct ubifs_info *c);
 const struct ubifs_lprops *ubifs_fast_find_frdi_idx(struct ubifs_info *c);
+int ubifs_calc_dark(const struct ubifs_info *c, int spc);
 
 /* file.c */
 int ubifs_fsync(struct file *file, struct dentry *dentry, int datasync);

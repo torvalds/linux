@@ -461,21 +461,18 @@ static void change_category(struct ubifs_info *c, struct ubifs_lprops *lprops)
 }
 
 /**
- * calc_dark - calculate LEB dark space size.
+ * ubifs_calc_dark - calculate LEB dark space size.
  * @c: the UBIFS file-system description object
  * @spc: amount of free and dirty space in the LEB
  *
- * This function calculates amount of dark space in an LEB which has @spc bytes
- * of free and dirty space. Returns the calculations result.
+ * This function calculates and returns amount of dark space in an LEB which
+ * has @spc bytes of free and dirty space.
  *
- * Dark space is the space which is not always usable - it depends on which
- * nodes are written in which order. E.g., if an LEB has only 512 free bytes,
- * it is dark space, because it cannot fit a large data node. So UBIFS cannot
- * count on this LEB and treat these 512 bytes as usable because it is not true
- * if, for example, only big chunks of uncompressible data will be written to
- * the FS.
+ * UBIFS is trying to account the space which might not be usable, and this
+ * space is called "dark space". For example, if an LEB has only %512 free
+ * bytes, it is dark space, because it cannot fit a large data node.
  */
-static int calc_dark(struct ubifs_info *c, int spc)
+int ubifs_calc_dark(const struct ubifs_info *c, int spc)
 {
 	ubifs_assert(!(spc & 7));
 
@@ -575,7 +572,7 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 		if (old_spc < c->dead_wm)
 			c->lst.total_dead -= old_spc;
 		else
-			c->lst.total_dark -= calc_dark(c, old_spc);
+			c->lst.total_dark -= ubifs_calc_dark(c, old_spc);
 
 		c->lst.total_used -= c->leb_size - old_spc;
 	}
@@ -616,7 +613,7 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 		if (new_spc < c->dead_wm)
 			c->lst.total_dead += new_spc;
 		else
-			c->lst.total_dark += calc_dark(c, new_spc);
+			c->lst.total_dark += ubifs_calc_dark(c, new_spc);
 
 		c->lst.total_used += c->leb_size - new_spc;
 	}
@@ -1107,7 +1104,7 @@ static int scan_check_cb(struct ubifs_info *c,
 				  "- continuing checking");
 			lst->empty_lebs += 1;
 			lst->total_free += c->leb_size;
-			lst->total_dark += calc_dark(c, c->leb_size);
+			lst->total_dark += ubifs_calc_dark(c, c->leb_size);
 			return LPT_SCAN_CONTINUE;
 		}
 
@@ -1117,7 +1114,7 @@ static int scan_check_cb(struct ubifs_info *c,
 				  "- continuing checking");
 			lst->total_free  += lp->free;
 			lst->total_dirty += lp->dirty;
-			lst->total_dark  +=  calc_dark(c, c->leb_size);
+			lst->total_dark  +=  ubifs_calc_dark(c, c->leb_size);
 			return LPT_SCAN_CONTINUE;
 		}
 		data->err = PTR_ERR(sleb);
@@ -1235,7 +1232,7 @@ static int scan_check_cb(struct ubifs_info *c,
 		if (spc < c->dead_wm)
 			lst->total_dead += spc;
 		else
-			lst->total_dark += calc_dark(c, spc);
+			lst->total_dark += ubifs_calc_dark(c, spc);
 	}
 
 	ubifs_scan_destroy(sleb);
