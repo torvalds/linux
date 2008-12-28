@@ -335,9 +335,6 @@ config NET_CLS_CGROUP
 	  Say Y here if you want to classify packets based on the control
 	  cgroup of their process.
 
-	  To compile this code as a module, choose M here: the
-	  module will be called cls_cgroup.
-
 config NET_EMATCH
 	bool "Extended Matches"
 	select NET_CLS
