@@ -33,6 +33,10 @@
 
  History:
 
+ Version 0.44:
+	Add suspend/resume functions, fix unplug of device,
+	a lot of cleanups and fixes by Alexey Klimov <klimov.linux@gmail.com>
+
  Version 0.43:
 	Oliver Neukum: avoided DMA coherency issue
 
@@ -93,8 +97,8 @@
  */
 #include <linux/version.h>	/* for KERNEL_VERSION MACRO	*/
 
-#define DRIVER_VERSION "v0.43"
-#define RADIO_VERSION KERNEL_VERSION(0, 4, 3)
+#define DRIVER_VERSION "v0.44"
+#define RADIO_VERSION KERNEL_VERSION(0, 4, 4)
 
 static struct v4l2_queryctrl radio_qctrl[] = {
 	{
