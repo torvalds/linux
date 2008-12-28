@@ -166,7 +166,7 @@ static struct usb_driver usb_amradio_driver = {
 	.resume			= usb_amradio_resume,
 	.reset_resume		= usb_amradio_resume,
 	.id_table		= usb_amradio_device_table,
-	.supports_autosuspend	= 1,
+	.supports_autosuspend	= 0,
 };
 
 /* switch on radio. Send 8 bytes to device. */
