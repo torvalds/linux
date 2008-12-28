@@ -89,6 +89,7 @@ parameter is applicable:
 	SPARC	Sparc architecture is enabled.
 	SWSUSP	Software suspend (hibernation) is enabled.
 	SUSPEND	System suspend states are enabled.
+	FTRACE	Function tracing enabled.
 	TS	Appropriate touchscreen support is enabled.
 	USB	USB support is enabled.
 	USBHID	USB Human Interface Device support is enabled.
@@ -752,6 +753,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			buggy SAL_CACHE_FLUSH implementations. Using this
 			parameter will force ia64_sal_cache_flush to call
 			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
+
+	ftrace=[tracer]
+			[ftrace] will set and start the specified tracer
+			as early as possible in order to facilitate early
+			boot debugging.
+
+	ftrace_dump_on_oops
+			[ftrace] will dump the trace buffers on oops.
 
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
@@ -2195,6 +2204,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	st=		[HW,SCSI] SCSI tape parameters (buffers, etc.)
 			See Documentation/scsi/st.txt.
+
+	stacktrace	[FTRACE]
+			Enabled the stack tracer on boot up.
 
 	sti=		[PARISC,HW]
 			Format: <num>

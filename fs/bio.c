@@ -26,7 +26,10 @@
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
 #include <linux/blktrace_api.h>
+#include <trace/block.h>
 #include <scsi/sg.h>		/* for struct sg_iovec */
+
+DEFINE_TRACE(block_split);
 
 static struct kmem_cache *bio_slab __read_mostly;
 
@@ -1263,7 +1266,7 @@ struct bio_pair *bio_split(struct bio *bi, int first_sectors)
 	if (!bp)
 		return bp;
 
-	blk_add_trace_pdu_int(bdev_get_queue(bi->bi_bdev), BLK_TA_SPLIT, bi,
+	trace_block_split(bdev_get_queue(bi->bi_bdev), bi,
 				bi->bi_sector + first_sectors);
 
 	BUG_ON(bi->bi_vcnt != 1);

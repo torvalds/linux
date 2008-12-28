@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/clockchips.h>
+#include <linux/ftrace.h>
 #include <asm/system.h>
 #include <asm/apic.h>
 
@@ -102,6 +103,9 @@ static inline int hlt_use_halt(void)
 void default_idle(void)
 {
 	if (hlt_use_halt()) {
+		struct power_trace it;
+
+		trace_power_start(&it, POWER_CSTATE, 1);
 		current_thread_info()->status &= ~TS_POLLING;
 		/*
 		 * TS_POLLING-cleared state must be visible before we
@@ -114,6 +118,7 @@ void default_idle(void)
 		else
 			local_irq_enable();
 		current_thread_info()->status |= TS_POLLING;
+		trace_power_end(&it);
 	} else {
 		local_irq_enable();
 		/* loop is done by the caller */
@@ -171,24 +176,31 @@ EXPORT_SYMBOL_GPL(cpu_idle_wait);
  */
 void mwait_idle_with_hints(unsigned long ax, unsigned long cx)
 {
+	struct power_trace it;
+
+	trace_power_start(&it, POWER_CSTATE, (ax>>4)+1);
 	if (!need_resched()) {
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
 		if (!need_resched())
 			__mwait(ax, cx);
 	}
+	trace_power_end(&it);
 }
 
 /* Default MONITOR/MWAIT with no hints, used for default C1 state */
 static void mwait_idle(void)
 {
+	struct power_trace it;
 	if (!need_resched()) {
+		trace_power_start(&it, POWER_CSTATE, 1);
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
 		if (!need_resched())
 			__sti_mwait(0, 0);
 		else
 			local_irq_enable();
+		trace_power_end(&it);
 	} else
 		local_irq_enable();
 }
@@ -200,9 +212,13 @@ static void mwait_idle(void)
  */
 static void poll_idle(void)
 {
+	struct power_trace it;
+
+	trace_power_start(&it, POWER_CSTATE, 0);
 	local_irq_enable();
 	while (!need_resched())
 		cpu_relax();
+	trace_power_end(&it);
 }
 
 /*

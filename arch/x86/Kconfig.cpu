@@ -515,12 +515,12 @@ config CPU_SUP_UMC_32
 config X86_DS
 	def_bool X86_PTRACE_BTS
 	depends on X86_DEBUGCTLMSR
+	select HAVE_HW_BRANCH_TRACER
 
 config X86_PTRACE_BTS
 	bool "Branch Trace Store"
 	default y
 	depends on X86_DEBUGCTLMSR
-	depends on BROKEN
 	help
 	  This adds a ptrace interface to the hardware's branch trace store.
 
