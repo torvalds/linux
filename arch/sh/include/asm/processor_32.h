@@ -175,15 +175,21 @@ static __inline__ void enable_fpu(void)
 
 void show_trace(struct task_struct *tsk, unsigned long *sp,
 		struct pt_regs *regs);
+
+#ifdef CONFIG_DUMP_CODE
+void show_code(struct pt_regs *regs);
+#else
+static inline void show_code(struct pt_regs *regs)
+{
+}
+#endif
+
 extern unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)  (task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)  (task_pt_regs(tsk)->regs[15])
 
 #define user_stack_pointer(regs)	((regs)->regs[15])
-
-#define cpu_sleep()	__asm__ __volatile__ ("sleep" : : : "memory")
-#define cpu_relax()	barrier()
 
 #if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH3) || \
     defined(CONFIG_CPU_SH4)

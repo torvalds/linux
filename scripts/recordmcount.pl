@@ -167,6 +167,17 @@ if ($arch eq "x86_64") {
     $objcopy .= " -O elf32-i386";
     $cc .= " -m32";
 
+} elsif ($arch eq "sh") {
+    $section_regex = "Disassembly of section\\s+(\\S+):";
+    $function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount\$";
+    $type = ".long";
+
+    # force flags for this arch
+    $ld .= " -m shlelf_linux";
+    $objcopy .= " -O elf32-sh-linux";
+    $cc .= " -m32";
+
 } else {
     die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
 }
