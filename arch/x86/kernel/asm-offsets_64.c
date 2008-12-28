@@ -20,6 +20,8 @@
 
 #include <xen/interface/xen.h>
 
+#include <asm/sigframe.h>
+
 #define __NO_STUBS 1
 #undef __SYSCALL
 #undef _ASM_X86_UNISTD_64_H
@@ -87,7 +89,7 @@ int main(void)
 	BLANK();
 #undef ENTRY
 	DEFINE(IA32_RT_SIGFRAME_sigcontext,
-	       offsetof (struct rt_sigframe32, uc.uc_mcontext));
+	       offsetof (struct rt_sigframe_ia32, uc.uc_mcontext));
 	BLANK();
 #endif
 	DEFINE(pbe_address, offsetof(struct pbe, address));

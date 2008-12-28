@@ -168,7 +168,15 @@ static inline void __change_bit(int nr, volatile unsigned long *addr)
  */
 static inline void change_bit(int nr, volatile unsigned long *addr)
 {
-	asm volatile(LOCK_PREFIX "btc %1,%0" : ADDR : "Ir" (nr));
+	if (IS_IMMEDIATE(nr)) {
+		asm volatile(LOCK_PREFIX "xorb %1,%0"
+			: CONST_MASK_ADDR(nr, addr)
+			: "iq" ((u8)CONST_MASK(nr)));
+	} else {
+		asm volatile(LOCK_PREFIX "btc %1,%0"
+			: BITOP_ADDR(addr)
+			: "Ir" (nr));
+	}
 }
 
 /**

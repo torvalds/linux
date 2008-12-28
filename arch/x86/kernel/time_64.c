@@ -49,9 +49,9 @@ unsigned long profile_pc(struct pt_regs *regs)
 }
 EXPORT_SYMBOL(profile_pc);
 
-irqreturn_t timer_interrupt(int irq, void *dev_id)
+static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
-	add_pda(irq0_irqs, 1);
+	inc_irq_stat(irq0_irqs);
 
 	global_clock_event->event_handler(global_clock_event);
 
@@ -80,6 +80,8 @@ unsigned long __init calibrate_cpu(void)
 			break;
 	no_ctr_free = (i == 4);
 	if (no_ctr_free) {
+		WARN(1, KERN_WARNING "Warning: AMD perfctrs busy ... "
+		     "cpu_khz value may be incorrect.\n");
 		i = 3;
 		rdmsrl(MSR_K7_EVNTSEL3, evntsel3);
 		wrmsrl(MSR_K7_EVNTSEL3, 0);
