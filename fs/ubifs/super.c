@@ -466,12 +466,7 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 	if (err)
 		return err;
 
-	/*
-	 * We ought to call sync for c->ubi but it does not have one. If it had
-	 * it would in turn call mtd->sync, however mtd operations are
-	 * synchronous anyway, so we don't lose any sleep here.
-	 */
-	return err;
+	return ubi_sync(c->vi.ubi_num);
 }
 
 /**
