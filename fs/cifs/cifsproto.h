@@ -330,7 +330,8 @@ extern void CalcNTLMv2_response(const struct cifsSesInfo *, char *);
 extern void setup_ntlmv2_rsp(struct cifsSesInfo *, char *,
 			     const struct nls_table *);
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-extern void calc_lanman_hash(struct cifsSesInfo *ses, char *lnm_session_key);
+extern void calc_lanman_hash(const char *password, const char *cryptkey,
+				bool encrypt, char *lnm_session_key);
 #endif /* CIFS_WEAK_PW_HASH */
 extern int CIFSSMBCopy(int xid,
 			struct cifsTconInfo *source_tcon,
