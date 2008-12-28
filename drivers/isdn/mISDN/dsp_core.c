@@ -301,8 +301,9 @@ dsp_control_req(struct dsp *dsp, struct mISDNhead *hh, struct sk_buff *skb)
 		if (dsp_debug & DEBUG_DSP_CORE)
 			printk(KERN_DEBUG "%s: start dtmf\n", __func__);
 		if (len == sizeof(int)) {
-			printk(KERN_NOTICE "changing DTMF Threshold "
-				"to %d\n", *((int *)data));
+			if (dsp_debug & DEBUG_DSP_CORE)
+				printk(KERN_NOTICE "changing DTMF Threshold "
+					"to %d\n", *((int *)data));
 			dsp->dtmf.treshold = (*(int *)data) * 10000;
 		}
 		/* init goertzel */

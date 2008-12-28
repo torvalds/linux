@@ -927,10 +927,6 @@ conf_software:
 
 	/* for more than two members.. */
 
-	/* in case of hdlc, we change to software */
-	if (dsp->hdlc)
-		goto conf_software;
-
 	/* if all members already have the same conference */
 	if (all_conf)
 		return;
@@ -941,6 +937,9 @@ conf_software:
 	if (current_conf >= 0) {
 join_members:
 		list_for_each_entry(member, &conf->mlist, list) {
+			/* in case of hdlc, change to software */
+			if (member->dsp->hdlc)
+				goto conf_software;
 			/* join to current conference */
 			if (member->dsp->hfc_conf == current_conf)
 				continue;
