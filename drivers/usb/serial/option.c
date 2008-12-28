@@ -224,7 +224,7 @@ static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *po
 #define ONDA_VENDOR_ID				0x19d2
 #define ONDA_PRODUCT_MSA501HS			0x0001
 #define ONDA_PRODUCT_ET502HS			0x0002
-#define ONDA_PRODUCT_MT503HS			0x0200
+#define ONDA_PRODUCT_MT503HS			0x2000
 
 #define BANDRICH_VENDOR_ID			0x1A8D
 #define BANDRICH_PRODUCT_C100_1			0x1002
