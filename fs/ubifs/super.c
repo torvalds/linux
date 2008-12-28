@@ -1570,20 +1570,24 @@ out:
  * @c: UBIFS file-system description object
  *
  * This function is called during un-mounting and re-mounting, and it commits
- * the journal unless the "fast unmount" mode is enabled. It also avoids
- * committing the journal if it contains too few data.
+ * the journal unless the "fast unmount" mode is enabled.
  */
 static void commit_on_unmount(struct ubifs_info *c)
 {
-	if (!c->fast_unmount) {
-		long long bud_bytes;
+	struct super_block *sb = c->vfs_sb;
+	long long bud_bytes;
 
-		spin_lock(&c->buds_lock);
-		bud_bytes = c->bud_bytes;
-		spin_unlock(&c->buds_lock);
-		if (bud_bytes > c->leb_size)
-			ubifs_run_commit(c);
-	}
+	/*
+	 * This function is called before the background thread is stopped, so
+	 * we may race with ongoing commit, which means we have to take
+	 * @c->bud_lock to access @c->bud_bytes.
+	 */
+	spin_lock(&c->buds_lock);
+	bud_bytes = c->bud_bytes;
+	spin_unlock(&c->buds_lock);
+
+	if (!c->fast_unmount && !(sb->s_flags & MS_RDONLY) && bud_bytes)
+		ubifs_run_commit(c);
 }
 
 /**
@@ -2009,7 +2013,7 @@ static void ubifs_kill_sb(struct super_block *sb)
 	 * We do 'commit_on_unmount()' here instead of 'ubifs_put_super()'
 	 * in order to be outside BKL.
 	 */
-	if (sb->s_root && !(sb->s_flags & MS_RDONLY))
+	if (sb->s_root)
 		commit_on_unmount(c);
 	/* The un-mount routine is actually done in put_super() */
 	generic_shutdown_super(sb);
