@@ -40,6 +40,7 @@
 			d-cache-size = <32768>;
 			dcr-controller;
 			dcr-access-method = "native";
+			next-level-cache = <&L2C0>;
 		};
 	};
 
@@ -102,6 +103,16 @@
 	CPR0: cpr {
 		compatible = "ibm,cpr-460ex";
 		dcr-reg = <0x00c 0x002>;
+	};
+
+	L2C0: l2c {
+		compatible = "ibm,l2-cache-460ex", "ibm,l2-cache";
+		dcr-reg = <0x020 0x008		/* Internal SRAM DCR's */
+			   0x030 0x008>;	/* L2 cache DCR's */
+		cache-line-size = <32>;		/* 32 bytes */
+		cache-size = <262144>;		/* L2, 256K */
+		interrupt-parent = <&UIC1>;
+		interrupts = <11 1>;
 	};
 
 	plb {
@@ -343,6 +354,7 @@
 			 * later cannot be changed
 			 */
 			ranges = <0x02000000 0x00000000 0x80000000 0x0000000d 0x80000000 0x00000000 0x80000000
+				  0x02000000 0x00000000 0x00000000 0x0000000c 0x0ee00000 0x00000000 0x00100000
 				  0x01000000 0x00000000 0x00000000 0x0000000c 0x08000000 0x00000000 0x00010000>;
 
 			/* Inbound 2GB range starting at 0 */
@@ -373,6 +385,7 @@
 			 * later cannot be changed
 			 */
 			ranges = <0x02000000 0x00000000 0x80000000 0x0000000e 0x00000000 0x00000000 0x80000000
+				  0x02000000 0x00000000 0x00000000 0x0000000f 0x00000000 0x00000000 0x00100000
 				  0x01000000 0x00000000 0x00000000 0x0000000f 0x80000000 0x00000000 0x00010000>;
 
 			/* Inbound 2GB range starting at 0 */
@@ -414,6 +427,7 @@
 			 * later cannot be changed
 			 */
 			ranges = <0x02000000 0x00000000 0x80000000 0x0000000e 0x80000000 0x00000000 0x80000000
+				  0x02000000 0x00000000 0x00000000 0x0000000f 0x00100000 0x00000000 0x00100000
 				  0x01000000 0x00000000 0x00000000 0x0000000f 0x80010000 0x00000000 0x00010000>;
 
 			/* Inbound 2GB range starting at 0 */

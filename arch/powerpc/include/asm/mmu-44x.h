@@ -4,6 +4,8 @@
  * PPC440 support
  */
 
+#include <asm/page.h>
+
 #define PPC44x_MMUCR_TID	0x000000ff
 #define PPC44x_MMUCR_STS	0x00010000
 
@@ -56,8 +58,9 @@
 extern unsigned int tlb_44x_hwater;
 
 typedef struct {
-	unsigned long id;
-	unsigned long vdso_base;
+	unsigned int	id;
+	unsigned int	active;
+	unsigned long	vdso_base;
 } mm_context_t;
 
 #endif /* !__ASSEMBLY__ */
@@ -72,5 +75,20 @@ typedef struct {
 
 /* Size of the TLBs used for pinning in lowmem */
 #define PPC_PIN_SIZE	(1 << 28)	/* 256M */
+
+#if (PAGE_SHIFT == 12)
+#define PPC44x_TLBE_SIZE	PPC44x_TLB_4K
+#elif (PAGE_SHIFT == 14)
+#define PPC44x_TLBE_SIZE	PPC44x_TLB_16K
+#elif (PAGE_SHIFT == 16)
+#define PPC44x_TLBE_SIZE	PPC44x_TLB_64K
+#else
+#error "Unsupported PAGE_SIZE"
+#endif
+
+#define PPC44x_PGD_OFF_SHIFT	(32 - PGDIR_SHIFT + PGD_T_LOG2)
+#define PPC44x_PGD_OFF_MASK_BIT	(PGDIR_SHIFT - PGD_T_LOG2)
+#define PPC44x_PTE_ADD_SHIFT	(32 - PGDIR_SHIFT + PTE_SHIFT + PTE_T_LOG2)
+#define PPC44x_PTE_ADD_MASK_BIT	(32 - PTE_T_LOG2 - PTE_SHIFT)
 
 #endif /* _ASM_POWERPC_MMU_44X_H_ */

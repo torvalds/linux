@@ -641,6 +641,12 @@ config HVC_XEN
 	help
 	  Xen virtual console device driver
 
+config HVC_UDBG
+       bool "udbg based fake hypervisor console"
+       depends on PPC && EXPERIMENTAL
+       select HVC_DRIVER
+       default n
+
 config VIRTIO_CONSOLE
 	tristate "Virtio console"
 	depends on VIRTIO
