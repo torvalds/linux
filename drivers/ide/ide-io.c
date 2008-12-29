@@ -58,6 +58,7 @@
 static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 			     int uptodate, unsigned int nr_bytes, int dequeue)
 {
+	unsigned long flags;
 	int ret = 1;
 	int error = 0;
 
@@ -84,11 +85,13 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 		ide_dma_on(drive);
 	}
 
-	if (!__blk_end_request(rq, error, nr_bytes)) {
-		if (dequeue)
-			HWGROUP(drive)->rq = NULL;
+	spin_lock_irqsave(&ide_lock, flags);
+	if (!__blk_end_request(rq, error, nr_bytes))
 		ret = 0;
-	}
+	spin_unlock_irqrestore(&ide_lock, flags);
+
+	if (ret == 0 && dequeue)
+		drive->hwif->hwgroup->rq = NULL;
 
 	return ret;
 }
@@ -108,8 +111,6 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 {
 	unsigned int nr_bytes = nr_sectors << 9;
 	struct request *rq = drive->hwif->hwgroup->rq;
-	unsigned long flags;
-	int ret = 1;
 
 	if (!nr_bytes) {
 		if (blk_pc_request(rq))
@@ -118,11 +119,7 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 			nr_bytes = rq->hard_cur_sectors << 9;
 	}
 
-	spin_lock_irqsave(&ide_lock, flags);
-	ret = __ide_end_request(drive, rq, uptodate, nr_bytes, 1);
-	spin_unlock_irqrestore(&ide_lock, flags);
-
-	return ret;
+	return __ide_end_request(drive, rq, uptodate, nr_bytes, 1);
 }
 EXPORT_SYMBOL(ide_end_request);
 
@@ -236,16 +233,9 @@ out_do_tf:
 int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
 			     int uptodate, int nr_sectors)
 {
-	unsigned long flags;
-	int ret;
-
 	BUG_ON(!blk_rq_started(rq));
 
-	spin_lock_irqsave(&ide_lock, flags);
-	ret = __ide_end_request(drive, rq, uptodate, nr_sectors << 9, 0);
-	spin_unlock_irqrestore(&ide_lock, flags);
-
-	return ret;
+	return __ide_end_request(drive, rq, uptodate, nr_sectors << 9, 0);
 }
 EXPORT_SYMBOL_GPL(ide_end_dequeued_request);
 
