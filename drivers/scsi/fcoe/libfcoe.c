@@ -166,7 +166,7 @@ static int fcoe_cpu_callback(struct notifier_block *nfb, unsigned long action,
 #endif /* CONFIG_HOTPLUG_CPU */
 
 /**
- * foce_rcv - this is the fcoe receive function called by NET_RX_SOFTIRQ
+ * fcoe_rcv - this is the fcoe receive function called by NET_RX_SOFTIRQ
  * @skb: the receive skb
  * @dev: associated net device
  * @ptype: context
@@ -991,8 +991,8 @@ static int fcoe_ethdrv_get(const struct net_device *netdev)
 
 	owner = fcoe_netdev_to_module_owner(netdev);
 	if (owner) {
-		printk(KERN_DEBUG "foce:hold driver module %s for %s\n",
-		       owner->name, netdev->name);
+		printk(KERN_DEBUG "fcoe:hold driver module %s for %s\n",
+		       module_name(owner), netdev->name);
 		return  try_module_get(owner);
 	}
 	return -ENODEV;
@@ -1011,8 +1011,8 @@ static int fcoe_ethdrv_put(const struct net_device *netdev)
 
 	owner = fcoe_netdev_to_module_owner(netdev);
 	if (owner) {
-		printk(KERN_DEBUG "foce:release driver module %s for %s\n",
-		       owner->name, netdev->name);
+		printk(KERN_DEBUG "fcoe:release driver module %s for %s\n",
+		       module_name(owner), netdev->name);
 		module_put(owner);
 		return 0;
 	}
