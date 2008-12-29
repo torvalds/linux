@@ -797,3 +797,23 @@ int on_each_cpu(void (*func) (void *info), void *info, int wait)
 }
 EXPORT_SYMBOL(on_each_cpu);
 #endif
+
+/*
+ * [ These __weak aliases are kept in a separate compilation unit, so that
+ *   GCC does not inline them incorrectly. ]
+ */
+
+int __init __weak early_irq_init(void)
+{
+	return 0;
+}
+
+int __init __weak arch_early_irq_init(void)
+{
+	return 0;
+}
+
+int __weak arch_init_chip_data(struct irq_desc *desc, int cpu)
+{
+	return 0;
+}
