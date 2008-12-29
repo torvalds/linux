@@ -382,7 +382,7 @@ static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
 
 #endif
 
-static void add_sample_entry(unsigned long offset, unsigned long event)
+static inline void add_sample_entry(unsigned long offset, unsigned long event)
 {
 	add_event_entry(offset);
 	add_event_entry(event);
