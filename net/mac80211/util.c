@@ -352,8 +352,8 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 	}
 }
 
-void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
-				    enum queue_stop_reason reason)
+static void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
+					   enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	unsigned long flags;
@@ -382,8 +382,8 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 	netif_stop_subqueue(local->mdev, queue);
 }
 
-void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
-				    enum queue_stop_reason reason)
+static void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
+					   enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	unsigned long flags;
