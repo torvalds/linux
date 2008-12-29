@@ -2354,6 +2354,7 @@ static int tracing_set_tracer(char *buf)
 		if (ret)
 			goto out;
 	}
+	init_tracer_stat(t);
 
 	trace_branch_enable(tr);
  out:
@@ -3206,7 +3207,7 @@ __init static int tracer_alloc_buffers(void)
 #else
 	current_trace = &nop_trace;
 #endif
-
+	init_tracer_stat(current_trace);
 	/* All seems OK, enable tracing */
 	tracing_disabled = 0;
 

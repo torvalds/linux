@@ -336,6 +336,21 @@ struct tracer {
 	struct tracer		*next;
 	int			print_max;
 	struct tracer_flags 	*flags;
+
+	/*
+	 * If you change one of the following on tracing runtime, recall
+	 * init_tracer_stat()
+	 */
+
+	/* Iteration over statistic entries */
+	void			*(*stat_start)(void);
+	void			*(*stat_next)(void *prev, int idx);
+	/* Compare two entries for sorting (optional) for stats */
+	int			(*stat_cmp)(void *p1, void *p2);
+	/* Print a stat entry */
+	int			(*stat_show)(struct seq_file *s, void *p);
+	/* Print the headers of your stat entries */
+	int			(*stat_headers)(struct seq_file *s);
 };
 
 struct trace_seq {
@@ -420,6 +435,8 @@ void tracing_stop_sched_switch_record(void);
 void tracing_start_sched_switch_record(void);
 int register_tracer(struct tracer *type);
 void unregister_tracer(struct tracer *type);
+
+void init_tracer_stat(struct tracer *trace);
 
 extern unsigned long nsecs_to_usecs(unsigned long nsecs);
 
