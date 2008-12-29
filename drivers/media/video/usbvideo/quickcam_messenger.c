@@ -447,7 +447,7 @@ static int qcm_sensor_init(struct uvd *uvd)
 	CHECK_RET(ret, qcm_stv_setw(uvd->dev, 0x15c1,
 				cpu_to_le16(ISOC_PACKET_SIZE)));
 	CHECK_RET(ret, qcm_stv_setb(uvd->dev, 0x15c3, 0x08));
-	CHECK_RET(ret, ret = qcm_stv_setb(uvd->dev, 0x143f, 0x01));
+	CHECK_RET(ret, qcm_stv_setb(uvd->dev, 0x143f, 0x01));
 
 	CHECK_RET(ret, qcm_stv_setb(uvd->dev, STV_ISO_ENABLE, 0x00));
 
