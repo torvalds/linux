@@ -53,6 +53,7 @@ typedef struct __user_cap_data_struct {
 #define XATTR_NAME_CAPS XATTR_SECURITY_PREFIX XATTR_CAPS_SUFFIX
 
 #define VFS_CAP_REVISION_MASK	0xFF000000
+#define VFS_CAP_REVISION_SHIFT	24
 #define VFS_CAP_FLAGS_MASK	~VFS_CAP_REVISION_MASK
 #define VFS_CAP_FLAGS_EFFECTIVE	0x000001
 
@@ -68,6 +69,9 @@ typedef struct __user_cap_data_struct {
 #define VFS_CAP_U32             VFS_CAP_U32_2
 #define VFS_CAP_REVISION	VFS_CAP_REVISION_2
 
+#ifdef CONFIG_SECURITY_FILE_CAPABILITIES
+extern int file_caps_enabled;
+#endif
 
 struct vfs_cap_data {
 	__le32 magic_etc;            /* Little endian */
@@ -95,6 +99,13 @@ struct vfs_cap_data {
 typedef struct kernel_cap_struct {
 	__u32 cap[_KERNEL_CAPABILITY_U32S];
 } kernel_cap_t;
+
+/* exact same as vfs_cap_data but in cpu endian and always filled completely */
+struct cpu_vfs_cap_data {
+	__u32 magic_etc;
+	kernel_cap_t permitted;
+	kernel_cap_t inheritable;
+};
 
 #define _USER_CAP_HEADER_SIZE  (sizeof(struct __user_cap_header_struct))
 #define _KERNEL_CAP_T_SIZE     (sizeof(kernel_cap_t))
@@ -454,6 +465,13 @@ static inline int cap_isclear(const kernel_cap_t a)
 	return 1;
 }
 
+/*
+ * Check if "a" is a subset of "set".
+ * return 1 if ALL of the capabilities in "a" are also in "set"
+ *	cap_issubset(0101, 1111) will return 1
+ * return 0 if ANY of the capabilities in "a" are not in "set"
+ *	cap_issubset(1111, 0101) will return 0
+ */
 static inline int cap_issubset(const kernel_cap_t a, const kernel_cap_t set)
 {
 	kernel_cap_t dest;
@@ -501,8 +519,6 @@ extern const kernel_cap_t __cap_empty_set;
 extern const kernel_cap_t __cap_full_set;
 extern const kernel_cap_t __cap_init_eff_set;
 
-kernel_cap_t cap_set_effective(const kernel_cap_t pE_new);
-
 /**
  * has_capability - Determine if a task has a superior capability available
  * @t: The task in question
@@ -514,8 +530,13 @@ kernel_cap_t cap_set_effective(const kernel_cap_t pE_new);
  * Note that this does not set PF_SUPERPRIV on the task.
  */
 #define has_capability(t, cap) (security_capable((t), (cap)) == 0)
+#define has_capability_noaudit(t, cap) (security_capable_noaudit((t), (cap)) == 0)
 
 extern int capable(int cap);
+
+/* audit system wants to get cap info from files as well */
+struct dentry;
+extern int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps);
 
 #endif /* __KERNEL__ */
 

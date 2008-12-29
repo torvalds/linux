@@ -13,12 +13,6 @@
 #include <net/netlink.h>
 #include <net/pkt_cls.h>
 
-
-/*
- * Not quite sure if we need all the xchgs Alexey uses when accessing things.
- * Can always add them later ... :)
- */
-
 /*
  * Passing parameters to the root seems to be done more awkwardly than really
  * necessary. At least, u32 doesn't seem to use such dirty hacks. To be

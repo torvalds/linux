@@ -9,6 +9,8 @@
 #ifndef __XEN_PUBLIC_EVENT_CHANNEL_H__
 #define __XEN_PUBLIC_EVENT_CHANNEL_H__
 
+#include <xen/interface/xen.h>
+
 typedef uint32_t evtchn_port_t;
 DEFINE_GUEST_HANDLE(evtchn_port_t);
 

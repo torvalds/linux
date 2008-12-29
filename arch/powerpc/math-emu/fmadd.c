@@ -15,7 +15,6 @@ fmadd(void *frD, void *frA, void *frB, void *frC)
 	FP_DECL_D(C);
 	FP_DECL_D(T);
 	FP_DECL_EX;
-	int ret = 0;
 
 #ifdef DEBUG
 	printk("%s: %p %p %p %p\n", __func__, frD, frA, frB, frC);
@@ -33,12 +32,12 @@ fmadd(void *frD, void *frA, void *frB, void *frC)
 
 	if ((A_c == FP_CLS_INF && C_c == FP_CLS_ZERO) ||
 	    (A_c == FP_CLS_ZERO && C_c == FP_CLS_INF))
-                ret |= EFLAG_VXIMZ;
+                FP_SET_EXCEPTION(EFLAG_VXIMZ);
 
 	FP_MUL_D(T, A, C);
 
 	if (T_s != B_s && T_c == FP_CLS_INF && B_c == FP_CLS_INF)
-		ret |= EFLAG_VXISI;
+		FP_SET_EXCEPTION(EFLAG_VXISI);
 
 	FP_ADD_D(R, T, B);
 

@@ -62,6 +62,7 @@
 #include <asm/mtrr.h>
 #include <asm/vmi.h>
 #include <asm/genapic.h>
+#include <asm/setup.h>
 #include <linux/mc146818rtc.h>
 
 #include <mach_apic.h>
@@ -534,7 +535,7 @@ static void impress_friends(void)
 	pr_debug("Before bogocount - setting activated=1.\n");
 }
 
-static inline void __inquire_remote_apic(int apicid)
+void __inquire_remote_apic(int apicid)
 {
 	unsigned i, regs[] = { APIC_ID >> 4, APIC_LVR >> 4, APIC_SPIV >> 4 };
 	char *names[] = { "ID", "VERSION", "SPIV" };
@@ -573,14 +574,13 @@ static inline void __inquire_remote_apic(int apicid)
 	}
 }
 
-#ifdef WAKE_SECONDARY_VIA_NMI
 /*
  * Poke the other CPU in the eye via NMI to wake it up. Remember that the normal
  * INIT, INIT, STARTUP sequence will reset the chip hard for us, and this
  * won't ... remember to clear down the APIC, etc later.
  */
-static int __devinit
-wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
+int __devinit
+wakeup_secondary_cpu_via_nmi(int logical_apicid, unsigned long start_eip)
 {
 	unsigned long send_status, accept_status = 0;
 	int maxlvt;
@@ -597,7 +597,7 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 	 * Give the other CPU some time to accept the IPI.
 	 */
 	udelay(200);
-	if (APIC_INTEGRATED(apic_version[phys_apicid])) {
+	if (APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
 		maxlvt = lapic_get_maxlvt();
 		if (maxlvt > 3)			/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
@@ -612,11 +612,9 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 
 	return (send_status | accept_status);
 }
-#endif	/* WAKE_SECONDARY_VIA_NMI */
 
-#ifdef WAKE_SECONDARY_VIA_INIT
-static int __devinit
-wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
+int __devinit
+wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 {
 	unsigned long send_status, accept_status = 0;
 	int maxlvt, num_starts, j;
@@ -735,7 +733,6 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 
 	return (send_status | accept_status);
 }
-#endif	/* WAKE_SECONDARY_VIA_INIT */
 
 struct create_idle {
 	struct work_struct work;
@@ -1084,8 +1081,10 @@ static int __init smp_sanity_check(unsigned max_cpus)
 #endif
 
 	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
-		printk(KERN_WARNING "weird, boot CPU (#%d) not listed"
-				    "by the BIOS.\n", hard_smp_processor_id());
+		printk(KERN_WARNING
+			"weird, boot CPU (#%d) not listed by the BIOS.\n",
+			hard_smp_processor_id());
+
 		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
 	}
 

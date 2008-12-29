@@ -171,9 +171,8 @@ static int (*unregister_interrupt)(void);
 static int interrupt_registered;
 
 static struct hfc_multi *syncmaster;
-int plxsd_master; /* if we have a master card (yet) */
+static int plxsd_master; /* if we have a master card (yet) */
 static spinlock_t plx_lock; /* may not acquire other lock inside */
-EXPORT_SYMBOL(plx_lock);
 
 #define	TYP_E1		1
 #define	TYP_4S		4
@@ -422,7 +421,7 @@ HFC_wait_debug(struct hfc_multi *hc, const char *function, int line)
 #endif
 
 /* write fifo data (REGIO) */
-void
+static void
 write_fifo_regio(struct hfc_multi *hc, u_char *data, int len)
 {
 	outb(A_FIFO_DATA0, (hc->pci_iobase)+4);
@@ -443,7 +442,7 @@ write_fifo_regio(struct hfc_multi *hc, u_char *data, int len)
 	}
 }
 /* write fifo data (PCIMEM) */
-void
+static void
 write_fifo_pcimem(struct hfc_multi *hc, u_char *data, int len)
 {
 	while (len>>2) {
@@ -465,7 +464,7 @@ write_fifo_pcimem(struct hfc_multi *hc, u_char *data, int len)
 	}
 }
 /* read fifo data (REGIO) */
-void
+static void
 read_fifo_regio(struct hfc_multi *hc, u_char *data, int len)
 {
 	outb(A_FIFO_DATA0, (hc->pci_iobase)+4);
@@ -487,7 +486,7 @@ read_fifo_regio(struct hfc_multi *hc, u_char *data, int len)
 }
 
 /* read fifo data (PCIMEM) */
-void
+static void
 read_fifo_pcimem(struct hfc_multi *hc, u_char *data, int len)
 {
 	while (len>>2) {
@@ -706,7 +705,7 @@ vpm_out(struct hfc_multi *c, int which, unsigned short addr,
 }
 
 
-void
+static void
 vpm_init(struct hfc_multi *wc)
 {
 	unsigned char reg;
@@ -789,7 +788,8 @@ vpm_init(struct hfc_multi *wc)
 	}
 }
 
-void
+#ifdef UNUSED
+static void
 vpm_check(struct hfc_multi *hctmp)
 {
 	unsigned char gpi2;
@@ -799,6 +799,7 @@ vpm_check(struct hfc_multi *hctmp)
 	if ((gpi2 & 0x3) != 0x3)
 		printk(KERN_DEBUG "Got interrupt 0x%x from VPM!\n", gpi2);
 }
+#endif /* UNUSED */
 
 
 /*
@@ -812,7 +813,7 @@ vpm_check(struct hfc_multi *hctmp)
  *
  */
 
-void
+static void
 vpm_echocan_on(struct hfc_multi *hc, int ch, int taps)
 {
 	unsigned int timeslot;
@@ -844,7 +845,7 @@ vpm_echocan_on(struct hfc_multi *hc, int ch, int taps)
 	vpm_out(hc, unit, timeslot, 0x7e);
 }
 
-void
+static void
 vpm_echocan_off(struct hfc_multi *hc, int ch)
 {
 	unsigned int timeslot;
@@ -887,8 +888,9 @@ vpm_echocan_off(struct hfc_multi *hc, int ch)
 static inline void
 hfcmulti_resync(struct hfc_multi *locked, struct hfc_multi *newmaster, int rm)
 {
-	struct hfc_multi *hc, *next, *pcmmaster = 0;
-	u_int *plx_acc_32, pv;
+	struct hfc_multi *hc, *next, *pcmmaster = NULL;
+	void __iomem *plx_acc_32;
+	u_int pv;
 	u_long flags;
 
 	spin_lock_irqsave(&HFClock, flags);
@@ -916,7 +918,7 @@ hfcmulti_resync(struct hfc_multi *locked, struct hfc_multi *newmaster, int rm)
 	/* Disable sync of all cards */
 	list_for_each_entry_safe(hc, next, &HFClist, list) {
 		if (test_bit(HFC_CHIP_PLXSD, &hc->chip)) {
-			plx_acc_32 = (u_int *)(hc->plx_membase+PLX_GPIOC);
+			plx_acc_32 = hc->plx_membase + PLX_GPIOC;
 			pv = readl(plx_acc_32);
 			pv &= ~PLX_SYNC_O_EN;
 			writel(pv, plx_acc_32);
@@ -938,7 +940,7 @@ hfcmulti_resync(struct hfc_multi *locked, struct hfc_multi *newmaster, int rm)
 			printk(KERN_DEBUG "id=%d (0x%p) = syncronized with "
 				"interface.\n", hc->id, hc);
 		/* Enable new sync master */
-		plx_acc_32 = (u_int *)(hc->plx_membase+PLX_GPIOC);
+		plx_acc_32 = hc->plx_membase + PLX_GPIOC;
 		pv = readl(plx_acc_32);
 		pv |= PLX_SYNC_O_EN;
 		writel(pv, plx_acc_32);
@@ -968,7 +970,7 @@ hfcmulti_resync(struct hfc_multi *locked, struct hfc_multi *newmaster, int rm)
 					    "QUARTZ is automatically "
 					    "enabled by HFC-%dS\n", hc->type);
 			}
-			plx_acc_32 = (u_int *)(hc->plx_membase+PLX_GPIOC);
+			plx_acc_32 = hc->plx_membase + PLX_GPIOC;
 			pv = readl(plx_acc_32);
 			pv |= PLX_SYNC_O_EN;
 			writel(pv, plx_acc_32);
@@ -1013,7 +1015,8 @@ plxsd_checksync(struct hfc_multi *hc, int rm)
 static void
 release_io_hfcmulti(struct hfc_multi *hc)
 {
-	u_int	*plx_acc_32, pv;
+	void __iomem *plx_acc_32;
+	u_int	pv;
 	u_long	plx_flags;
 
 	if (debug & DEBUG_HFCMULTI_INIT)
@@ -1033,7 +1036,7 @@ release_io_hfcmulti(struct hfc_multi *hc)
 			printk(KERN_DEBUG "%s: release PLXSD card %d\n",
 			    __func__, hc->id + 1);
 		spin_lock_irqsave(&plx_lock, plx_flags);
-		plx_acc_32 = (u_int *)(hc->plx_membase+PLX_GPIOC);
+		plx_acc_32 = hc->plx_membase + PLX_GPIOC;
 		writel(PLX_GPIOC_INIT, plx_acc_32);
 		pv = readl(plx_acc_32);
 		/* Termination off */
@@ -1055,9 +1058,9 @@ release_io_hfcmulti(struct hfc_multi *hc)
 	test_and_clear_bit(HFC_CHIP_PLXSD, &hc->chip); /* prevent resync */
 	pci_write_config_word(hc->pci_dev, PCI_COMMAND, 0);
 	if (hc->pci_membase)
-		iounmap((void *)hc->pci_membase);
+		iounmap(hc->pci_membase);
 	if (hc->plx_membase)
-		iounmap((void *)hc->plx_membase);
+		iounmap(hc->plx_membase);
 	if (hc->pci_iobase)
 		release_region(hc->pci_iobase, 8);
 
@@ -1080,7 +1083,8 @@ init_chip(struct hfc_multi *hc)
 	u_long			flags, val, val2 = 0, rev;
 	int			i, err = 0;
 	u_char			r_conf_en, rval;
-	u_int			*plx_acc_32, pv;
+	void __iomem		*plx_acc_32;
+	u_int			pv;
 	u_long			plx_flags, hfc_flags;
 	int			plx_count;
 	struct hfc_multi	*pos, *next, *plx_last_hc;
@@ -1154,7 +1158,7 @@ init_chip(struct hfc_multi *hc)
 			printk(KERN_DEBUG "%s: initializing PLXSD card %d\n",
 			    __func__, hc->id + 1);
 		spin_lock_irqsave(&plx_lock, plx_flags);
-		plx_acc_32 = (u_int *)(hc->plx_membase+PLX_GPIOC);
+		plx_acc_32 = hc->plx_membase + PLX_GPIOC;
 		writel(PLX_GPIOC_INIT, plx_acc_32);
 		pv = readl(plx_acc_32);
 		/* The first and the last cards are terminating the PCM bus */
@@ -1190,8 +1194,7 @@ init_chip(struct hfc_multi *hc)
 					"we disable termination\n",
 				    __func__, plx_last_hc->id + 1);
 			spin_lock_irqsave(&plx_lock, plx_flags);
-			plx_acc_32 = (u_int *)(plx_last_hc->plx_membase
-					+ PLX_GPIOC);
+			plx_acc_32 = plx_last_hc->plx_membase + PLX_GPIOC;
 			pv = readl(plx_acc_32);
 			pv &= ~PLX_TERM_ON;
 			writel(pv, plx_acc_32);
@@ -1240,7 +1243,7 @@ init_chip(struct hfc_multi *hc)
 	/* Speech Design PLX bridge pcm and sync mode */
 	if (test_bit(HFC_CHIP_PLXSD, &hc->chip)) {
 		spin_lock_irqsave(&plx_lock, plx_flags);
-		plx_acc_32 = (u_int *)(hc->plx_membase+PLX_GPIOC);
+		plx_acc_32 = hc->plx_membase + PLX_GPIOC;
 		pv = readl(plx_acc_32);
 		/* Connect PCM */
 		if (hc->hw.r_pcm_md0 & V_PCM_MD) {
@@ -1352,8 +1355,7 @@ controller_fail:
 			/* retry with master clock */
 			if (test_bit(HFC_CHIP_PLXSD, &hc->chip)) {
 				spin_lock_irqsave(&plx_lock, plx_flags);
-				plx_acc_32 = (u_int *)(hc->plx_membase +
-					PLX_GPIOC);
+				plx_acc_32 = hc->plx_membase + PLX_GPIOC;
 				pv = readl(plx_acc_32);
 				pv |= PLX_MASTER_EN | PLX_SLAVE_EN_N;
 				pv |= PLX_SYNC_O_EN;
@@ -1389,7 +1391,7 @@ controller_fail:
 		if (test_bit(HFC_CHIP_PCM_MASTER, &hc->chip))
 			plxsd_master = 1;
 		spin_lock_irqsave(&plx_lock, plx_flags);
-		plx_acc_32 = (u_int *)(hc->plx_membase+PLX_GPIOC);
+		plx_acc_32 = hc->plx_membase + PLX_GPIOC;
 		pv = readl(plx_acc_32);
 		pv |=  PLX_DSP_RES_N;
 		writel(pv, plx_acc_32);
@@ -2586,7 +2588,8 @@ hfcmulti_interrupt(int intno, void *dev_id)
 	struct dchannel		*dch;
 	u_char			r_irq_statech, status, r_irq_misc, r_irq_oview;
 	int			i;
-	u_short			*plx_acc, wval;
+	void __iomem		*plx_acc;
+	u_short			wval;
 	u_char			e1_syncsta, temp;
 	u_long			flags;
 
@@ -2606,7 +2609,7 @@ hfcmulti_interrupt(int intno, void *dev_id)
 
 	if (test_bit(HFC_CHIP_PLXSD, &hc->chip)) {
 		spin_lock_irqsave(&plx_lock, flags);
-		plx_acc = (u_short *)(hc->plx_membase + PLX_INTCSR);
+		plx_acc = hc->plx_membase + PLX_INTCSR;
 		wval = readw(plx_acc);
 		spin_unlock_irqrestore(&plx_lock, flags);
 		if (!(wval & PLX_INTCSR_LINTI1_STATUS))
@@ -4091,7 +4094,7 @@ init_card(struct hfc_multi *hc)
 {
 	int	err = -EIO;
 	u_long	flags;
-	u_short	*plx_acc;
+	void	__iomem *plx_acc;
 	u_long	plx_flags;
 
 	if (debug & DEBUG_HFCMULTI_INIT)
@@ -4113,7 +4116,7 @@ init_card(struct hfc_multi *hc)
 
 	if (test_bit(HFC_CHIP_PLXSD, &hc->chip)) {
 		spin_lock_irqsave(&plx_lock, plx_flags);
-		plx_acc = (u_short *)(hc->plx_membase+PLX_INTCSR);
+		plx_acc = hc->plx_membase + PLX_INTCSR;
 		writew((PLX_INTCSR_PCIINT_ENABLE | PLX_INTCSR_LINTI1_ENABLE),
 			plx_acc); /* enable PCI & LINT1 irq */
 		spin_unlock_irqrestore(&plx_lock, plx_flags);
@@ -4162,7 +4165,7 @@ init_card(struct hfc_multi *hc)
 error:
 	if (test_bit(HFC_CHIP_PLXSD, &hc->chip)) {
 		spin_lock_irqsave(&plx_lock, plx_flags);
-		plx_acc = (u_short *)(hc->plx_membase+PLX_INTCSR);
+		plx_acc = hc->plx_membase + PLX_INTCSR;
 		writew(0x00, plx_acc); /*disable IRQs*/
 		spin_unlock_irqrestore(&plx_lock, plx_flags);
 	}

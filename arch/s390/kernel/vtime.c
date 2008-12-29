@@ -27,7 +27,6 @@
 static ext_int_info_t ext_int_info_timer;
 static DEFINE_PER_CPU(struct vtimer_queue, virt_cpu_timer);
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 /*
  * Update process times based on virtual cpu times stored by entry.S
  * to the lowcore fields user_timer, system_timer & steal_clock.
@@ -125,16 +124,6 @@ static inline void set_vtimer(__u64 expires)
 	/* store expire time for this CPU timer */
 	__get_cpu_var(virt_cpu_timer).to_expire = expires;
 }
-#else
-static inline void set_vtimer(__u64 expires)
-{
-	S390_lowcore.last_update_timer = expires;
-	asm volatile ("SPT %0" : : "m" (S390_lowcore.last_update_timer));
-
-	/* store expire time for this CPU timer */
-	__get_cpu_var(virt_cpu_timer).to_expire = expires;
-}
-#endif
 
 void vtime_start_cpu_timer(void)
 {

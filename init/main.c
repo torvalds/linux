@@ -670,6 +670,7 @@ asmlinkage void __init start_kernel(void)
 		efi_enter_virtual_mode();
 #endif
 	thread_info_cache_init();
+	cred_init();
 	fork_init(num_physpages);
 	proc_caches_init();
 	buffer_init();

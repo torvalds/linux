@@ -213,9 +213,6 @@ static struct ip_vs_scheduler ip_vs_wrr_scheduler = {
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
 	.n_list =		LIST_HEAD_INIT(ip_vs_wrr_scheduler.n_list),
-#ifdef CONFIG_IP_VS_IPV6
-	.supports_ipv6 =	1,
-#endif
 	.init_service =		ip_vs_wrr_init_svc,
 	.done_service =		ip_vs_wrr_done_svc,
 	.update_service =	ip_vs_wrr_update_svc,

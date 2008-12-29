@@ -8,14 +8,10 @@
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
- *
- *  Revision history
- *    25th Sep 2008   Initial version.
  */
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <sound/core.h>
@@ -68,7 +64,7 @@ static int ad73311_soc_probe(struct platform_device *pdev)
 		goto pcm_err;
 	}
 
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "ad73311: failed to register card\n");
 		goto register_err;
@@ -101,6 +97,18 @@ struct snd_soc_codec_device soc_codec_dev_ad73311 = {
 	.remove = 	ad73311_soc_remove,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ad73311);
+
+static int __init ad73311_init(void)
+{
+	return snd_soc_register_dai(&ad73311_dai);
+}
+module_init(ad73311_init);
+
+static void __exit ad73311_exit(void)
+{
+	snd_soc_unregister_dai(&ad73311_dai);
+}
+module_exit(ad73311_exit);
 
 MODULE_DESCRIPTION("ASoC ad73311 driver");
 MODULE_AUTHOR("Cliff Cai ");

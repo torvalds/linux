@@ -1160,6 +1160,8 @@ static inline void __init phyp_dump_reserve_mem(void) {}
 
 void __init early_init_devtree(void *params)
 {
+	unsigned long limit;
+
 	DBG(" -> early_init_devtree(%p)\n", params);
 
 	/* Setup flat device-tree pointer */
@@ -1200,7 +1202,19 @@ void __init early_init_devtree(void *params)
 	early_reserve_mem();
 	phyp_dump_reserve_mem();
 
-	lmb_enforce_memory_limit(memory_limit);
+	limit = memory_limit;
+	if (! limit) {
+		unsigned long memsize;
+
+		/* Ensure that total memory size is page-aligned, because
+		 * otherwise mark_bootmem() gets upset. */
+		lmb_analyze();
+		memsize = lmb_phys_mem_size();
+		if ((memsize & PAGE_MASK) != memsize)
+			limit = memsize & PAGE_MASK;
+	}
+	lmb_enforce_memory_limit(limit);
+
 	lmb_analyze();
 
 	DBG("Phys. mem: %lx\n", lmb_phys_mem_size());
@@ -1269,6 +1283,37 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 	return np;
 }
 EXPORT_SYMBOL(of_find_node_by_phandle);
+
+/**
+ *	of_find_next_cache_node - Find a node's subsidiary cache
+ *	@np:	node of type "cpu" or "cache"
+ *
+ *	Returns a node pointer with refcount incremented, use
+ *	of_node_put() on it when done.  Caller should hold a reference
+ *	to np.
+ */
+struct device_node *of_find_next_cache_node(struct device_node *np)
+{
+	struct device_node *child;
+	const phandle *handle;
+
+	handle = of_get_property(np, "l2-cache", NULL);
+	if (!handle)
+		handle = of_get_property(np, "next-level-cache", NULL);
+
+	if (handle)
+		return of_find_node_by_phandle(*handle);
+
+	/* OF on pmac has nodes instead of properties named "l2-cache"
+	 * beneath CPU nodes.
+	 */
+	if (!strcmp(np->type, "cpu"))
+		for_each_child_of_node(np, child)
+			if (!strcmp(child->type, "cache"))
+				return child;
+
+	return NULL;
+}
 
 /**
  *	of_find_all_nodes - Get next node in global list

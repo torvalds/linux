@@ -34,6 +34,6 @@ void save_processor_state(void)
 void restore_processor_state(void)
 {
 #ifdef CONFIG_PPC32
-	set_context(current->active_mm->context.id, current->active_mm->pgd);
+	switch_mmu_context(NULL, current->active_mm);
 #endif
 }

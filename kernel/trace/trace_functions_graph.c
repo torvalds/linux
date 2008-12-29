@@ -592,6 +592,12 @@ print_graph_comment(struct print_entry *trace, struct trace_seq *s,
 	if (ent->flags & TRACE_FLAG_CONT)
 		trace_seq_print_cont(s, iter);
 
+	/* Strip ending newline */
+	if (s->buffer[s->len - 1] == '\n') {
+		s->buffer[s->len - 1] = '\0';
+		s->len--;
+	}
+
 	ret = trace_seq_printf(s, " */\n");
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;

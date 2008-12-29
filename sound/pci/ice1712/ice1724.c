@@ -382,23 +382,25 @@ static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id)
 	unsigned char status_mask =
 		VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX | VT1724_IRQ_MTPCM;
 	int handled = 0;
-#ifdef CONFIG_SND_DEBUG
 	int timeout = 0;
-#endif
 
 	while (1) {
 		status = inb(ICEREG1724(ice, IRQSTAT));
 		status &= status_mask;
 		if (status == 0)
 			break;
-#ifdef CONFIG_SND_DEBUG
 		if (++timeout > 10) {
-			printk(KERN_ERR
-			       "ice1724: Too long irq loop, status = 0x%x\n",
-			       status);
+			status = inb(ICEREG1724(ice, IRQSTAT));
+			printk(KERN_ERR "ice1724: Too long irq loop, "
+			       "status = 0x%x\n", status);
+			if (status & VT1724_IRQ_MPU_TX) {
+				printk(KERN_ERR "ice1724: Disabling MPU_TX\n");
+				outb(inb(ICEREG1724(ice, IRQMASK)) |
+				     VT1724_IRQ_MPU_TX,
+				     ICEREG1724(ice, IRQMASK));
+			}
 			break;
 		}
-#endif
 		handled = 1;
 		if (status & VT1724_IRQ_MPU_TX) {
 			spin_lock(&ice->reg_lock);
@@ -2351,7 +2353,6 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 {
 	struct snd_ice1712 *ice;
 	int err;
-	unsigned char mask;
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_vt1724_dev_free,
 	};
@@ -2412,9 +2413,9 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 		return -EIO;
 	}
 
-	/* unmask used interrupts */
-	mask = VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX;
-	outb(mask, ICEREG1724(ice, IRQMASK));
+	/* MPU_RX and TX irq masks are cleared later dynamically */
+	outb(VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX , ICEREG1724(ice, IRQMASK));
+
 	/* don't handle FIFO overrun/underruns (just yet),
 	 * since they cause machine lockups
 	 */

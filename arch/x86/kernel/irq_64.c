@@ -19,7 +19,6 @@
 #include <asm/idle.h>
 #include <asm/smp.h>
 
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
 /*
  * Probabilistic stack overflow check:
  *
@@ -29,19 +28,18 @@
  */
 static inline void stack_overflow_check(struct pt_regs *regs)
 {
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
 	u64 curbase = (u64)task_stack_page(current);
-	static unsigned long warned = -60*HZ;
 
-	if (regs->sp >= curbase && regs->sp <= curbase + THREAD_SIZE &&
-	    regs->sp <  curbase + sizeof(struct thread_info) + 128 &&
-	    time_after(jiffies, warned + 60*HZ)) {
-		printk("do_IRQ: %s near stack overflow (cur:%Lx,sp:%lx)\n",
-		       current->comm, curbase, regs->sp);
-		show_stack(NULL,NULL);
-		warned = jiffies;
-	}
-}
+	WARN_ONCE(regs->sp >= curbase &&
+		  regs->sp <= curbase + THREAD_SIZE &&
+		  regs->sp <  curbase + sizeof(struct thread_info) +
+					sizeof(struct pt_regs) + 128,
+
+		  "do_IRQ: %s near stack overflow (cur:%Lx,sp:%lx)\n",
+			current->comm, curbase, regs->sp);
 #endif
+}
 
 /*
  * do_IRQ handles all normal device IRQ's (the special
@@ -61,9 +59,7 @@ asmlinkage unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 	irq_enter();
 	irq = __get_cpu_var(vector_irq)[vector];
 
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
 	stack_overflow_check(regs);
-#endif
 
 	desc = irq_to_desc(irq);
 	if (likely(desc))

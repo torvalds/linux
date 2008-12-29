@@ -123,10 +123,10 @@ struct rxrpc_peer *rxrpc_get_peer(struct sockaddr_rxrpc *srx, gfp_t gfp)
 	const char *new = "old";
 	int usage;
 
-	_enter("{%d,%d,%u.%u.%u.%u+%hu}",
+	_enter("{%d,%d,%pI4+%hu}",
 	       srx->transport_type,
 	       srx->transport_len,
-	       NIPQUAD(srx->transport.sin.sin_addr),
+	       &srx->transport.sin.sin_addr,
 	       ntohs(srx->transport.sin.sin_port));
 
 	/* search the peer list first */
@@ -177,12 +177,12 @@ struct rxrpc_peer *rxrpc_get_peer(struct sockaddr_rxrpc *srx, gfp_t gfp)
 	new = "new";
 
 success:
-	_net("PEER %s %d {%d,%u,%u.%u.%u.%u+%hu}",
+	_net("PEER %s %d {%d,%u,%pI4+%hu}",
 	     new,
 	     peer->debug_id,
 	     peer->srx.transport_type,
 	     peer->srx.transport.family,
-	     NIPQUAD(peer->srx.transport.sin.sin_addr),
+	     &peer->srx.transport.sin.sin_addr,
 	     ntohs(peer->srx.transport.sin.sin_port));
 
 	_leave(" = %p {u=%d}", peer, atomic_read(&peer->usage));

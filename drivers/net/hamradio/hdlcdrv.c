@@ -162,7 +162,6 @@ static void hdlc_rx_flag(struct net_device *dev, struct hdlcdrv_state *s)
 	memcpy(cp, s->hdlcrx.buffer, pkt_len - 1);
 	skb->protocol = ax25_type_trans(skb, dev);
 	netif_rx(skb);
-	dev->last_rx = jiffies;
 	s->stats.rx_packets++;
 }
 

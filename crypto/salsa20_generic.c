@@ -24,6 +24,7 @@
 #include <linux/errno.h>
 #include <linux/crypto.h>
 #include <linux/types.h>
+#include <linux/bitops.h>
 #include <crypto/algapi.h>
 #include <asm/byteorder.h>
 
@@ -42,10 +43,6 @@ D. J. Bernstein
 Public domain.
 */
 
-#define ROTATE(v,n) (((v) << (n)) | ((v) >> (32 - (n))))
-#define XOR(v,w) ((v) ^ (w))
-#define PLUS(v,w) (((v) + (w)))
-#define PLUSONE(v) (PLUS((v),1))
 #define U32TO8_LITTLE(p, v) \
 	{ (p)[0] = (v >>  0) & 0xff; (p)[1] = (v >>  8) & 0xff; \
 	  (p)[2] = (v >> 16) & 0xff; (p)[3] = (v >> 24) & 0xff; }
@@ -65,41 +62,41 @@ static void salsa20_wordtobyte(u8 output[64], const u32 input[16])
 
 	memcpy(x, input, sizeof(x));
 	for (i = 20; i > 0; i -= 2) {
-		x[ 4] = XOR(x[ 4],ROTATE(PLUS(x[ 0],x[12]), 7));
-		x[ 8] = XOR(x[ 8],ROTATE(PLUS(x[ 4],x[ 0]), 9));
-		x[12] = XOR(x[12],ROTATE(PLUS(x[ 8],x[ 4]),13));
-		x[ 0] = XOR(x[ 0],ROTATE(PLUS(x[12],x[ 8]),18));
-		x[ 9] = XOR(x[ 9],ROTATE(PLUS(x[ 5],x[ 1]), 7));
-		x[13] = XOR(x[13],ROTATE(PLUS(x[ 9],x[ 5]), 9));
-		x[ 1] = XOR(x[ 1],ROTATE(PLUS(x[13],x[ 9]),13));
-		x[ 5] = XOR(x[ 5],ROTATE(PLUS(x[ 1],x[13]),18));
-		x[14] = XOR(x[14],ROTATE(PLUS(x[10],x[ 6]), 7));
-		x[ 2] = XOR(x[ 2],ROTATE(PLUS(x[14],x[10]), 9));
-		x[ 6] = XOR(x[ 6],ROTATE(PLUS(x[ 2],x[14]),13));
-		x[10] = XOR(x[10],ROTATE(PLUS(x[ 6],x[ 2]),18));
-		x[ 3] = XOR(x[ 3],ROTATE(PLUS(x[15],x[11]), 7));
-		x[ 7] = XOR(x[ 7],ROTATE(PLUS(x[ 3],x[15]), 9));
-		x[11] = XOR(x[11],ROTATE(PLUS(x[ 7],x[ 3]),13));
-		x[15] = XOR(x[15],ROTATE(PLUS(x[11],x[ 7]),18));
-		x[ 1] = XOR(x[ 1],ROTATE(PLUS(x[ 0],x[ 3]), 7));
-		x[ 2] = XOR(x[ 2],ROTATE(PLUS(x[ 1],x[ 0]), 9));
-		x[ 3] = XOR(x[ 3],ROTATE(PLUS(x[ 2],x[ 1]),13));
-		x[ 0] = XOR(x[ 0],ROTATE(PLUS(x[ 3],x[ 2]),18));
-		x[ 6] = XOR(x[ 6],ROTATE(PLUS(x[ 5],x[ 4]), 7));
-		x[ 7] = XOR(x[ 7],ROTATE(PLUS(x[ 6],x[ 5]), 9));
-		x[ 4] = XOR(x[ 4],ROTATE(PLUS(x[ 7],x[ 6]),13));
-		x[ 5] = XOR(x[ 5],ROTATE(PLUS(x[ 4],x[ 7]),18));
-		x[11] = XOR(x[11],ROTATE(PLUS(x[10],x[ 9]), 7));
-		x[ 8] = XOR(x[ 8],ROTATE(PLUS(x[11],x[10]), 9));
-		x[ 9] = XOR(x[ 9],ROTATE(PLUS(x[ 8],x[11]),13));
-		x[10] = XOR(x[10],ROTATE(PLUS(x[ 9],x[ 8]),18));
-		x[12] = XOR(x[12],ROTATE(PLUS(x[15],x[14]), 7));
-		x[13] = XOR(x[13],ROTATE(PLUS(x[12],x[15]), 9));
-		x[14] = XOR(x[14],ROTATE(PLUS(x[13],x[12]),13));
-		x[15] = XOR(x[15],ROTATE(PLUS(x[14],x[13]),18));
+		x[ 4] ^= rol32((x[ 0] + x[12]),  7);
+		x[ 8] ^= rol32((x[ 4] + x[ 0]),  9);
+		x[12] ^= rol32((x[ 8] + x[ 4]), 13);
+		x[ 0] ^= rol32((x[12] + x[ 8]), 18);
+		x[ 9] ^= rol32((x[ 5] + x[ 1]),  7);
+		x[13] ^= rol32((x[ 9] + x[ 5]),  9);
+		x[ 1] ^= rol32((x[13] + x[ 9]), 13);
+		x[ 5] ^= rol32((x[ 1] + x[13]), 18);
+		x[14] ^= rol32((x[10] + x[ 6]),  7);
+		x[ 2] ^= rol32((x[14] + x[10]),  9);
+		x[ 6] ^= rol32((x[ 2] + x[14]), 13);
+		x[10] ^= rol32((x[ 6] + x[ 2]), 18);
+		x[ 3] ^= rol32((x[15] + x[11]),  7);
+		x[ 7] ^= rol32((x[ 3] + x[15]),  9);
+		x[11] ^= rol32((x[ 7] + x[ 3]), 13);
+		x[15] ^= rol32((x[11] + x[ 7]), 18);
+		x[ 1] ^= rol32((x[ 0] + x[ 3]),  7);
+		x[ 2] ^= rol32((x[ 1] + x[ 0]),  9);
+		x[ 3] ^= rol32((x[ 2] + x[ 1]), 13);
+		x[ 0] ^= rol32((x[ 3] + x[ 2]), 18);
+		x[ 6] ^= rol32((x[ 5] + x[ 4]),  7);
+		x[ 7] ^= rol32((x[ 6] + x[ 5]),  9);
+		x[ 4] ^= rol32((x[ 7] + x[ 6]), 13);
+		x[ 5] ^= rol32((x[ 4] + x[ 7]), 18);
+		x[11] ^= rol32((x[10] + x[ 9]),  7);
+		x[ 8] ^= rol32((x[11] + x[10]),  9);
+		x[ 9] ^= rol32((x[ 8] + x[11]), 13);
+		x[10] ^= rol32((x[ 9] + x[ 8]), 18);
+		x[12] ^= rol32((x[15] + x[14]),  7);
+		x[13] ^= rol32((x[12] + x[15]),  9);
+		x[14] ^= rol32((x[13] + x[12]), 13);
+		x[15] ^= rol32((x[14] + x[13]), 18);
 	}
 	for (i = 0; i < 16; ++i)
-		x[i] = PLUS(x[i],input[i]);
+		x[i] += input[i];
 	for (i = 0; i < 16; ++i)
 		U32TO8_LITTLE(output + 4 * i,x[i]);
 }
@@ -150,9 +147,9 @@ static void salsa20_encrypt_bytes(struct salsa20_ctx *ctx, u8 *dst,
 	while (bytes) {
 		salsa20_wordtobyte(buf, ctx->input);
 
-		ctx->input[8] = PLUSONE(ctx->input[8]);
+		ctx->input[8]++;
 		if (!ctx->input[8])
-			ctx->input[9] = PLUSONE(ctx->input[9]);
+			ctx->input[9]++;
 
 		if (bytes <= 64) {
 			crypto_xor(dst, buf, bytes);

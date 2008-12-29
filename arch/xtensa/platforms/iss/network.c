@@ -365,7 +365,7 @@ static int tuntap_probe(struct iss_net_private *lp, int index, char *init)
 
 static int iss_net_rx(struct net_device *dev)
 {
-	struct iss_net_private *lp = dev->priv;
+	struct iss_net_private *lp = netdev_priv(dev);
 	int pkt_len;
 	struct sk_buff *skb;
 
@@ -456,7 +456,7 @@ static void iss_net_timer(unsigned long priv)
 
 static int iss_net_open(struct net_device *dev)
 {
-	struct iss_net_private *lp = dev->priv;
+	struct iss_net_private *lp = netdev_priv(dev);
 	char addr[sizeof "255.255.255.255\0"];
 	int err;
 
@@ -496,7 +496,7 @@ out:
 
 static int iss_net_close(struct net_device *dev)
 {
-	struct iss_net_private *lp = dev->priv;
+	struct iss_net_private *lp = netdev_priv(dev);
 printk("iss_net_close!\n");
 	netif_stop_queue(dev);
 	spin_lock(&lp->lock);
@@ -515,7 +515,7 @@ printk("iss_net_close!\n");
 
 static int iss_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct iss_net_private *lp = dev->priv;
+	struct iss_net_private *lp = netdev_priv(dev);
 	unsigned long flags;
 	int len;
 
@@ -551,7 +551,7 @@ static int iss_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *iss_net_get_stats(struct net_device *dev)
 {
-	struct iss_net_private *lp = dev->priv;
+	struct iss_net_private *lp = netdev_priv(dev);
 	return &lp->stats;
 }
 
@@ -578,7 +578,7 @@ static void iss_net_tx_timeout(struct net_device *dev)
 static int iss_net_set_mac(struct net_device *dev, void *addr)
 {
 #if 0
-	struct iss_net_private *lp = dev->priv;
+	struct iss_net_private *lp = netdev_priv(dev);
 	struct sockaddr *hwaddr = addr;
 
 	spin_lock(&lp->lock);
@@ -592,7 +592,7 @@ static int iss_net_set_mac(struct net_device *dev, void *addr)
 static int iss_net_change_mtu(struct net_device *dev, int new_mtu)
 {
 #if 0
-	struct iss_net_private *lp = dev->priv;
+	struct iss_net_private *lp = netdev_priv(dev);
 	int err = 0;
 
 	spin_lock(&lp->lock);
@@ -636,7 +636,7 @@ static int iss_net_configure(int index, char *init)
 
 	/* Initialize private element. */
 
-	lp = dev->priv;
+	lp = netdev_priv(dev);
 	*lp = ((struct iss_net_private) {
 		.device_list		= LIST_HEAD_INIT(lp->device_list),
 		.opened_list		= LIST_HEAD_INIT(lp->opened_list),
@@ -660,10 +660,7 @@ static int iss_net_configure(int index, char *init)
 
 	printk(KERN_INFO "Netdevice %d ", index);
 	if (lp->have_mac)
-		printk("(%02x:%02x:%02x:%02x:%02x:%02x) ",
-				lp->mac[0], lp->mac[1],
-				lp->mac[2], lp->mac[3],
-				lp->mac[4], lp->mac[5]);
+		printk("(%pM) ", lp->mac);
 	printk(": ");
 
 	/* sysfs register */

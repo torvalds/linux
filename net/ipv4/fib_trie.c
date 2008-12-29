@@ -2399,8 +2399,8 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 		__be32 prf = htonl(mask_pfx(tn->key, tn->pos));
 
 		seq_indent(seq, iter->depth-1);
-		seq_printf(seq, "  +-- " NIPQUAD_FMT "/%d %d %d %d\n",
-			   NIPQUAD(prf), tn->pos, tn->bits, tn->full_children,
+		seq_printf(seq, "  +-- %pI4/%d %d %d %d\n",
+			   &prf, tn->pos, tn->bits, tn->full_children,
 			   tn->empty_children);
 
 	} else {
@@ -2410,7 +2410,7 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 		__be32 val = htonl(l->key);
 
 		seq_indent(seq, iter->depth);
-		seq_printf(seq, "  |-- " NIPQUAD_FMT "\n", NIPQUAD(val));
+		seq_printf(seq, "  |-- %pI4\n", &val);
 
 		hlist_for_each_entry_rcu(li, node, &l->list, hlist) {
 			struct fib_alias *fa;

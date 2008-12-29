@@ -7,22 +7,21 @@
  * by the Free Software Foundation, incorporated herein by reference.
  */
 /*
- * Driver for XFP optical PHYs (plus some support specific to the Quake 2032)
+ * Driver for XFP optical PHYs (plus some support specific to the Quake 2022/32)
  * See www.amcc.com for details (search for qt2032)
  */
 
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include "efx.h"
-#include "gmii.h"
 #include "mdio_10g.h"
 #include "xenpack.h"
 #include "phy.h"
-#include "mac.h"
+#include "falcon.h"
 
-#define XFP_REQUIRED_DEVS (MDIO_MMDREG_DEVS0_PCS |	\
-			   MDIO_MMDREG_DEVS0_PMAPMD |	\
-			   MDIO_MMDREG_DEVS0_PHYXS)
+#define XFP_REQUIRED_DEVS (MDIO_MMDREG_DEVS_PCS |	\
+			   MDIO_MMDREG_DEVS_PMAPMD |	\
+			   MDIO_MMDREG_DEVS_PHYXS)
 
 #define XFP_LOOPBACKS ((1 << LOOPBACK_PCS) |		\
 		       (1 << LOOPBACK_PMAPMD) |		\
@@ -65,7 +64,7 @@ static int xfp_reset_phy(struct efx_nic *efx)
 	/* Check that all the MMDs we expect are present and responding. We
 	 * expect faults on some if the link is down, but not on the PHY XS */
 	rc = mdio_clause45_check_mmds(efx, XFP_REQUIRED_DEVS,
-				      MDIO_MMDREG_DEVS0_PHYXS);
+				      MDIO_MMDREG_DEVS_PHYXS);
 	if (rc < 0)
 		goto fail;
 
@@ -120,15 +119,12 @@ static int xfp_link_ok(struct efx_nic *efx)
 	return mdio_clause45_links_ok(efx, XFP_REQUIRED_DEVS);
 }
 
-static int xfp_phy_check_hw(struct efx_nic *efx)
+static void xfp_phy_poll(struct efx_nic *efx)
 {
-	int rc = 0;
 	int link_up = xfp_link_ok(efx);
 	/* Simulate a PHY event if link state has changed */
 	if (link_up != efx->link_up)
-		falcon_xmac_sim_phy_event(efx);
-
-	return rc;
+		falcon_sim_phy_event(efx);
 }
 
 static void xfp_phy_reconfigure(struct efx_nic *efx)
@@ -145,7 +141,9 @@ static void xfp_phy_reconfigure(struct efx_nic *efx)
 
 	phy_data->phy_mode = efx->phy_mode;
 	efx->link_up = xfp_link_ok(efx);
-	efx->link_options = GM_LPA_10000FULL;
+	efx->link_speed = 10000;
+	efx->link_fd = true;
+	efx->link_fc = efx->wanted_fc;
 }
 
 
@@ -160,11 +158,14 @@ static void xfp_phy_fini(struct efx_nic *efx)
 }
 
 struct efx_phy_operations falcon_xfp_phy_ops = {
+	.macs		 = EFX_XMAC,
 	.init            = xfp_phy_init,
 	.reconfigure     = xfp_phy_reconfigure,
-	.check_hw        = xfp_phy_check_hw,
+	.poll            = xfp_phy_poll,
 	.fini            = xfp_phy_fini,
 	.clear_interrupt = xfp_phy_clear_interrupt,
+	.get_settings    = mdio_clause45_get_settings,
+	.set_settings	 = mdio_clause45_set_settings,
 	.mmds            = XFP_REQUIRED_DEVS,
 	.loopbacks       = XFP_LOOPBACKS,
 };

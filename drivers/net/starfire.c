@@ -653,7 +653,6 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	void __iomem *base;
 	int drv_flags, io_size;
 	int boguscnt;
-	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -823,9 +822,9 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	if (register_netdev(dev))
 		goto err_out_cleardev;
 
-	printk(KERN_INFO "%s: %s at %p, %s, IRQ %d.\n",
+	printk(KERN_INFO "%s: %s at %p, %pM, IRQ %d.\n",
 	       dev->name, netdrv_tbl[chip_idx].name, base,
-	       print_mac(mac, dev->dev_addr), irq);
+	       dev->dev_addr, irq);
 
 	if (drv_flags & CanHaveMII) {
 		int phy, phy_idx = 0;
@@ -881,9 +880,9 @@ static int mdio_read(struct net_device *dev, int phy_id, int location)
 	void __iomem *mdio_addr = np->base + MIICtrl + (phy_id<<7) + (location<<2);
 	int result, boguscnt=1000;
 	/* ??? Should we add a busy-wait here? */
-	do
+	do {
 		result = readl(mdio_addr);
-	while ((result & 0xC0000000) != 0x80000000 && --boguscnt > 0);
+	} while ((result & 0xC0000000) != 0x80000000 && --boguscnt > 0);
 	if (boguscnt == 0)
 		return 0;
 	if ((result & 0xffff) == 0xffff)
@@ -1291,8 +1290,8 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 		if (intr_status & (IntrRxDone | IntrRxEmpty)) {
 			u32 enable;
 
-			if (likely(netif_rx_schedule_prep(dev, &np->napi))) {
-				__netif_rx_schedule(dev, &np->napi);
+			if (likely(netif_rx_schedule_prep(&np->napi))) {
+				__netif_rx_schedule(&np->napi);
 				enable = readl(ioaddr + IntrEnable);
 				enable &= ~(IntrRxDone | IntrRxEmpty);
 				writel(enable, ioaddr + IntrEnable);
@@ -1452,12 +1451,8 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 #ifndef final_version			/* Remove after testing. */
 		/* You will want this info for the initial debug. */
 		if (debug > 5) {
-			printk(KERN_DEBUG "  Rx data " MAC_FMT " " MAC_FMT
-			       " %2.2x%2.2x.\n",
-			       skb->data[0], skb->data[1], skb->data[2],
-			       skb->data[3], skb->data[4], skb->data[5],
-			       skb->data[6], skb->data[7], skb->data[8],
-			       skb->data[9], skb->data[10], skb->data[11],
+			printk(KERN_DEBUG "  Rx data %pM %pM %2.2x%2.2x.\n",
+			       skb->data, skb->data + 6,
 			       skb->data[12], skb->data[13]);
 		}
 #endif
@@ -1501,7 +1496,6 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		} else
 #endif /* VLAN_SUPPORT */
 			netif_receive_skb(skb);
-		dev->last_rx = jiffies;
 		np->stats.rx_packets++;
 
 	next_rx:
@@ -1541,7 +1535,7 @@ static int netdev_poll(struct napi_struct *napi, int budget)
 		intr_status = readl(ioaddr + IntrStatus);
 	} while (intr_status & (IntrRxDone | IntrRxEmpty));
 
-	netif_rx_complete(dev, napi);
+	netif_rx_complete(napi);
 	intr_status = readl(ioaddr + IntrEnable);
 	intr_status |= IntrRxDone | IntrRxEmpty;
 	writel(intr_status, ioaddr + IntrEnable);

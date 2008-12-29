@@ -1,6 +1,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <asm/idle.h>
 #include <linux/smp.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -9,6 +10,7 @@
 #include <linux/clockchips.h>
 #include <linux/ftrace.h>
 #include <asm/system.h>
+#include <asm/apic.h>
 
 unsigned long idle_halt;
 EXPORT_SYMBOL(idle_halt);
@@ -126,6 +128,21 @@ void default_idle(void)
 #ifdef CONFIG_APM_MODULE
 EXPORT_SYMBOL(default_idle);
 #endif
+
+void stop_this_cpu(void *dummy)
+{
+	local_irq_disable();
+	/*
+	 * Remove this CPU:
+	 */
+	cpu_clear(smp_processor_id(), cpu_online_map);
+	disable_local_APIC();
+
+	for (;;) {
+		if (hlt_works(smp_processor_id()))
+			halt();
+	}
+}
 
 static void do_nothing(void *unused)
 {

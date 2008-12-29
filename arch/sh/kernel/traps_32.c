@@ -28,17 +28,6 @@
 #include <asm/fpu.h>
 #include <asm/kprobes.h>
 
-#ifdef CONFIG_SH_KGDB
-#include <asm/kgdb.h>
-#define CHK_REMOTE_DEBUG(regs)			\
-{						\
-	if (kgdb_debug_hook && !user_mode(regs))\
-		(*kgdb_debug_hook)(regs);       \
-}
-#else
-#define CHK_REMOTE_DEBUG(regs)
-#endif
-
 #ifdef CONFIG_CPU_SH2
 # define TRAP_RESERVED_INST	4
 # define TRAP_ILLEGAL_SLOT_INST	6
@@ -94,7 +83,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
 
-	CHK_REMOTE_DEBUG(regs);
 	print_modules();
 	show_regs(regs);
 
@@ -683,13 +671,12 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 	error_code = lookup_exception_vector();
 
 	local_irq_enable();
-	CHK_REMOTE_DEBUG(regs);
 	force_sig(SIGILL, tsk);
 	die_if_no_fixup("reserved instruction", regs, error_code);
 }
 
 #ifdef CONFIG_SH_FPU_EMU
-static int emulate_branch(unsigned short inst, struct pt_regs* regs)
+static int emulate_branch(unsigned short inst, struct pt_regs *regs)
 {
 	/*
 	 * bfs: 8fxx: PC+=d*2+4;
@@ -702,27 +689,32 @@ static int emulate_branch(unsigned short inst, struct pt_regs* regs)
 	 * jsr: 4x0b: PC=Rn      after PR=PC+4;
 	 * rts: 000b: PC=PR;
 	 */
-	if ((inst & 0xfd00) == 0x8d00) {
+	if (((inst & 0xf000) == 0xb000)  ||	/* bsr */
+	    ((inst & 0xf0ff) == 0x0003)  ||	/* bsrf */
+	    ((inst & 0xf0ff) == 0x400b))	/* jsr */
+		regs->pr = regs->pc + 4;
+
+	if ((inst & 0xfd00) == 0x8d00) {	/* bfs, bts */
 		regs->pc += SH_PC_8BIT_OFFSET(inst);
 		return 0;
 	}
 
-	if ((inst & 0xe000) == 0xa000) {
+	if ((inst & 0xe000) == 0xa000) {	/* bra, bsr */
 		regs->pc += SH_PC_12BIT_OFFSET(inst);
 		return 0;
 	}
 
-	if ((inst & 0xf0df) == 0x0003) {
+	if ((inst & 0xf0df) == 0x0003) {	/* braf, bsrf */
 		regs->pc += regs->regs[(inst & 0x0f00) >> 8] + 4;
 		return 0;
 	}
 
-	if ((inst & 0xf0df) == 0x400b) {
+	if ((inst & 0xf0df) == 0x400b) {	/* jmp, jsr */
 		regs->pc = regs->regs[(inst & 0x0f00) >> 8];
 		return 0;
 	}
 
-	if ((inst & 0xffff) == 0x000b) {
+	if ((inst & 0xffff) == 0x000b) {	/* rts */
 		regs->pc = regs->pr;
 		return 0;
 	}
@@ -756,7 +748,6 @@ asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 	inst = lookup_exception_vector();
 
 	local_irq_enable();
-	CHK_REMOTE_DEBUG(regs);
 	force_sig(SIGILL, tsk);
 	die_if_no_fixup("illegal slot instruction", regs, inst);
 }
@@ -868,10 +859,7 @@ void show_trace(struct task_struct *tsk, unsigned long *sp,
 	if (regs && user_mode(regs))
 		return;
 
-	printk("\nCall trace: ");
-#ifdef CONFIG_KALLSYMS
-	printk("\n");
-#endif
+	printk("\nCall trace:\n");
 
 	while (!kstack_end(sp)) {
 		addr = *sp++;

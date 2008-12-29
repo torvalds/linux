@@ -48,17 +48,8 @@ extern int del_virt_timer(struct vtimer_list *timer);
 extern void init_cpu_vtimer(void);
 extern void vtime_init(void);
 
-#ifdef CONFIG_VIRT_TIMER
-
 extern void vtime_start_cpu_timer(void);
 extern void vtime_stop_cpu_timer(void);
-
-#else
-
-static inline void vtime_start_cpu_timer(void) { }
-static inline void vtime_stop_cpu_timer(void) { }
-
-#endif /* CONFIG_VIRT_TIMER */
 
 #endif /* __KERNEL__ */
 

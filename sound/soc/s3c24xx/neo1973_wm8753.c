@@ -59,7 +59,7 @@
 #define NEO_CAPTURE_HEADSET		7
 #define NEO_CAPTURE_BLUETOOTH		8
 
-static struct snd_soc_machine neo1973;
+static struct snd_soc_card neo1973;
 static struct i2c_client *i2c;
 
 static int neo1973_hifi_hw_params(struct snd_pcm_substream *substream,
@@ -548,7 +548,6 @@ static int neo1973_wm8753_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai bt_dai = {
 	.name = "Bluetooth",
 	.id = 0,
-	.type = SND_SOC_DAI_PCM,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 1,
@@ -579,8 +578,9 @@ static struct snd_soc_dai_link neo1973_dai[] = {
 },
 };
 
-static struct snd_soc_machine neo1973 = {
+static struct snd_soc_card neo1973 = {
 	.name = "neo1973",
+	.platform = &s3c24xx_soc_platform,
 	.dai_link = neo1973_dai,
 	.num_links = ARRAY_SIZE(neo1973_dai),
 };
@@ -591,8 +591,7 @@ static struct wm8753_setup_data neo1973_wm8753_setup = {
 };
 
 static struct snd_soc_device neo1973_snd_devdata = {
-	.machine = &neo1973,
-	.platform = &s3c24xx_soc_platform,
+	.card = &neo1973,
 	.codec_dev = &soc_codec_dev_wm8753,
 	.codec_data = &neo1973_wm8753_setup,
 };

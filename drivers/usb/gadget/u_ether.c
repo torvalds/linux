@@ -146,7 +146,7 @@ static inline int qlen(struct usb_gadget *gadget)
 
 /* NETWORK DRIVER HOOKUP (to the layer above this driver) */
 
-static int eth_change_mtu(struct net_device *net, int new_mtu)
+static int ueth_change_mtu(struct net_device *net, int new_mtu)
 {
 	struct eth_dev	*dev = netdev_priv(net);
 	unsigned long	flags;
@@ -764,7 +764,7 @@ int __init gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 	if (ethaddr)
 		memcpy(ethaddr, dev->host_mac, ETH_ALEN);
 
-	net->change_mtu = eth_change_mtu;
+	net->change_mtu = ueth_change_mtu;
 	net->hard_start_xmit = eth_start_xmit;
 	net->open = eth_open;
 	net->stop = eth_stop;
@@ -787,10 +787,8 @@ int __init gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 		dev_dbg(&g->dev, "register_netdev failed, %d\n", status);
 		free_netdev(net);
 	} else {
-		DECLARE_MAC_BUF(tmp);
-
-		INFO(dev, "MAC %s\n", print_mac(tmp, net->dev_addr));
-		INFO(dev, "HOST MAC %s\n", print_mac(tmp, dev->host_mac));
+		INFO(dev, "MAC %pM\n", net->dev_addr);
+		INFO(dev, "HOST MAC %pM\n", dev->host_mac);
 
 		the_dev = dev;
 	}

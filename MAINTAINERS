@@ -742,7 +742,7 @@ M:	jirislaby@gmail.com
 P:	Nick Kossifidis
 M:	mickflemm@gmail.com
 P:	Luis R. Rodriguez
-M:	mcgrof@gmail.com
+M:	lrodriguez@atheros.com
 P:	Bob Copeland
 M:	me@bobcopeland.com
 L:	linux-wireless@vger.kernel.org
@@ -1607,11 +1607,6 @@ L:	acpi4asus-user@lists.sourceforge.net
 W:	http://sourceforge.net/projects/acpi4asus
 S:	Maintained
 
-EEPRO100 NETWORK DRIVER
-P:	Andrey V. Savochkin
-M:	saw@saw.sw.com.sg
-S:	Maintained
-
 EFS FILESYSTEM
 W:	http://aeschi.ch.eu.org/efs/
 S:	Orphan
@@ -1849,7 +1844,7 @@ P:	Haavard Skinnemoen
 M:	hskinnemoen@atmel.com
 S:	Supported
 
-GENERIC HDLC DRIVER, N2, C101, PCI200SYN and WANXL DRIVERS
+GENERIC HDLC (WAN) DRIVERS
 P:	Krzysztof Halasa
 M:	khc@pm.waw.pl
 W:	http://www.kernel.org/pub/linux/utils/net/hdlc/
@@ -2247,6 +2242,11 @@ P:	Dan Williams
 M:	dan.j.williams@intel.com
 L:	linux-kernel@vger.kernel.org
 S:	Supported
+
+INTEL IXP4XX QMGR, NPE, ETHERNET and HSS SUPPORT
+P:	Krzysztof Halasa
+M:	khc@pm.waw.pl
+S:	Maintained
 
 INTEL IXP4XX RANDOM NUMBER GENERATOR SUPPORT
 P:	Deepak Saxena
@@ -3614,15 +3614,25 @@ L:	linux-hams@vger.kernel.org
 W:	http://www.linux-ax25.org/
 S:	Maintained
 
-RTL818X WIRELESS DRIVER
-P:	Michael Wu
-M:	flamingice@sourmilk.net
-P:	Andrea Merello
-M:	andreamrl@tiscali.it
+RTL8180 WIRELESS DRIVER
+P:	John W. Linville
+M:	linville@tuxdriver.com
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
-T:	git kernel.org:/pub/scm/linux/kernel/git/mwu/mac80211-drivers.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
+
+RTL8187 WIRELESS DRIVER
+P:	 Herton Ronaldo Krzesinski
+M:      herton@mandriva.com.br
+P:      Hin-Tak Leung
+M       htl10@users.sourceforge.net
+P:      Larry Finger
+M:      Larry.Finger@lwfinger.net
+L:      linux-wireless@vger.kernel.org
+W:      http://linuxwireless.org/
+T:      git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-testing.git
+S:      Maintained
 
 S3 SAVAGE FRAMEBUFFER DRIVER
 P:	Antonino Daplas
@@ -3913,6 +3923,18 @@ M:	mhoffman@lightlink.com
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
+SMSC911x ETHERNET DRIVER
+P:	Steve Glendinning
+M:	steve.glendinning@smsc.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
+SMSC9420 PCI ETHERNET DRIVER
+P:	Steve Glendinning
+M:	steve.glendinning@smsc.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 SMX UIO Interface
 P:	Ben Nizette
 M:	bn@niasdigital.com
@@ -3977,7 +3999,7 @@ M:	tiwai@suse.de
 L:	alsa-devel@alsa-project.org (subscribers-only)
 S:	Maintained
 
-SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT
+SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
 P:	Liam Girdwood
 M:	lrg@slimlogic.co.uk
 P:	Mark Brown

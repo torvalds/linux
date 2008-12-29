@@ -179,6 +179,11 @@ int next_signal(struct sigpending *pending, sigset_t *mask)
 	return sig;
 }
 
+/*
+ * allocate a new signal queue record
+ * - this may be called without locks if and only if t == current, otherwise an
+ *   appopriate lock must be held to stop the target task from exiting
+ */
 static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 					 int override_rlimit)
 {
@@ -186,11 +191,12 @@ static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 	struct user_struct *user;
 
 	/*
-	 * In order to avoid problems with "switch_user()", we want to make
-	 * sure that the compiler doesn't re-load "t->user"
+	 * We won't get problems with the target's UID changing under us
+	 * because changing it requires RCU be used, and if t != current, the
+	 * caller must be holding the RCU readlock (by way of a spinlock) and
+	 * we use RCU protection here
 	 */
-	user = t->user;
-	barrier();
+	user = get_uid(__task_cred(t)->user);
 	atomic_inc(&user->sigpending);
 	if (override_rlimit ||
 	    atomic_read(&user->sigpending) <=
@@ -198,12 +204,14 @@ static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 		q = kmem_cache_alloc(sigqueue_cachep, flags);
 	if (unlikely(q == NULL)) {
 		atomic_dec(&user->sigpending);
+		free_uid(user);
 	} else {
 		INIT_LIST_HEAD(&q->list);
 		q->flags = 0;
-		q->user = get_uid(user);
+		q->user = user;
 	}
-	return(q);
+
+	return q;
 }
 
 static void __sigqueue_free(struct sigqueue *q)
@@ -564,10 +572,12 @@ static int rm_from_queue(unsigned long mask, struct sigpending *s)
 
 /*
  * Bad permissions for sending the signal
+ * - the caller must hold at least the RCU read lock
  */
 static int check_kill_permission(int sig, struct siginfo *info,
 				 struct task_struct *t)
 {
+	const struct cred *cred = current_cred(), *tcred;
 	struct pid *sid;
 	int error;
 
@@ -581,8 +591,11 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	if (error)
 		return error;
 
-	if ((current->euid ^ t->suid) && (current->euid ^ t->uid) &&
-	    (current->uid  ^ t->suid) && (current->uid  ^ t->uid) &&
+	tcred = __task_cred(t);
+	if ((cred->euid ^ tcred->suid) &&
+	    (cred->euid ^ tcred->uid) &&
+	    (cred->uid  ^ tcred->suid) &&
+	    (cred->uid  ^ tcred->uid) &&
 	    !capable(CAP_KILL)) {
 		switch (sig) {
 		case SIGCONT:
@@ -846,7 +859,7 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 			q->info.si_errno = 0;
 			q->info.si_code = SI_USER;
 			q->info.si_pid = task_pid_vnr(current);
-			q->info.si_uid = current->uid;
+			q->info.si_uid = current_uid();
 			break;
 		case (unsigned long) SEND_SIG_PRIV:
 			q->info.si_signo = sig;
@@ -1010,6 +1023,10 @@ struct sighand_struct *lock_task_sighand(struct task_struct *tsk, unsigned long 
 	return sighand;
 }
 
+/*
+ * send signal info to all the members of a group
+ * - the caller must hold the RCU read lock at least
+ */
 int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 {
 	unsigned long flags;
@@ -1031,8 +1048,8 @@ int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 /*
  * __kill_pgrp_info() sends a signal to a process group: this is what the tty
  * control characters do (^C, ^Z etc)
+ * - the caller must hold at least a readlock on tasklist_lock
  */
-
 int __kill_pgrp_info(int sig, struct siginfo *info, struct pid *pgrp)
 {
 	struct task_struct *p = NULL;
@@ -1088,6 +1105,7 @@ int kill_pid_info_as_uid(int sig, struct siginfo *info, struct pid *pid,
 {
 	int ret = -EINVAL;
 	struct task_struct *p;
+	const struct cred *pcred;
 
 	if (!valid_signal(sig))
 		return ret;
@@ -1098,9 +1116,11 @@ int kill_pid_info_as_uid(int sig, struct siginfo *info, struct pid *pid,
 		ret = -ESRCH;
 		goto out_unlock;
 	}
-	if ((info == SEND_SIG_NOINFO || (!is_si_special(info) && SI_FROMUSER(info)))
-	    && (euid != p->suid) && (euid != p->uid)
-	    && (uid != p->suid) && (uid != p->uid)) {
+	pcred = __task_cred(p);
+	if ((info == SEND_SIG_NOINFO ||
+	     (!is_si_special(info) && SI_FROMUSER(info))) &&
+	    euid != pcred->suid && euid != pcred->uid &&
+	    uid  != pcred->suid && uid  != pcred->uid) {
 		ret = -EPERM;
 		goto out_unlock;
 	}
@@ -1371,9 +1391,8 @@ int do_notify_parent(struct task_struct *tsk, int sig)
 	 */
 	rcu_read_lock();
 	info.si_pid = task_pid_nr_ns(tsk, tsk->parent->nsproxy->pid_ns);
+	info.si_uid = __task_cred(tsk)->uid;
 	rcu_read_unlock();
-
-	info.si_uid = tsk->uid;
 
 	thread_group_cputime(tsk, &cputime);
 	info.si_utime = cputime_to_jiffies(cputime.utime);
@@ -1442,9 +1461,8 @@ static void do_notify_parent_cldstop(struct task_struct *tsk, int why)
 	 */
 	rcu_read_lock();
 	info.si_pid = task_pid_nr_ns(tsk, tsk->parent->nsproxy->pid_ns);
+	info.si_uid = __task_cred(tsk)->uid;
 	rcu_read_unlock();
-
-	info.si_uid = tsk->uid;
 
 	info.si_utime = cputime_to_clock_t(tsk->utime);
 	info.si_stime = cputime_to_clock_t(tsk->stime);
@@ -1600,7 +1618,7 @@ void ptrace_notify(int exit_code)
 	info.si_signo = SIGTRAP;
 	info.si_code = exit_code;
 	info.si_pid = task_pid_vnr(current);
-	info.si_uid = current->uid;
+	info.si_uid = current_uid();
 
 	/* Let the debugger run.  */
 	spin_lock_irq(&current->sighand->siglock);
@@ -1712,7 +1730,7 @@ static int ptrace_signal(int signr, siginfo_t *info,
 		info->si_errno = 0;
 		info->si_code = SI_USER;
 		info->si_pid = task_pid_vnr(current->parent);
-		info->si_uid = current->parent->uid;
+		info->si_uid = task_uid(current->parent);
 	}
 
 	/* If the (new) signal is now blocked, requeue it.  */
@@ -2213,7 +2231,7 @@ sys_kill(pid_t pid, int sig)
 	info.si_errno = 0;
 	info.si_code = SI_USER;
 	info.si_pid = task_tgid_vnr(current);
-	info.si_uid = current->uid;
+	info.si_uid = current_uid();
 
 	return kill_something_info(sig, &info, pid);
 }
@@ -2230,7 +2248,7 @@ static int do_tkill(pid_t tgid, pid_t pid, int sig)
 	info.si_errno = 0;
 	info.si_code = SI_TKILL;
 	info.si_pid = task_tgid_vnr(current);
-	info.si_uid = current->uid;
+	info.si_uid = current_uid();
 
 	rcu_read_lock();
 	p = find_task_by_vpid(pid);

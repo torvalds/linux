@@ -321,7 +321,7 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 
 	memcpy(data->comm, tsk->comm, TASK_COMM_LEN);
 	data->pid = tsk->pid;
-	data->uid = tsk->uid;
+	data->uid = task_uid(tsk);
 	data->nice = tsk->static_prio - 20 - MAX_RT_PRIO;
 	data->policy = tsk->policy;
 	data->rt_priority = tsk->rt_priority;

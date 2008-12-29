@@ -608,7 +608,6 @@ int netxen_niu_macaddr_set(struct netxen_adapter *adapter,
 	int phy = adapter->physical_port;
 	unsigned char mac_addr[6];
 	int i;
-	DECLARE_MAC_BUF(mac);
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		return 0;
@@ -636,10 +635,8 @@ int netxen_niu_macaddr_set(struct netxen_adapter *adapter,
 	if (i == 10) {
 		printk(KERN_ERR "%s: cannot set Mac addr for %s\n",
 		       netxen_nic_driver_name, adapter->netdev->name);
-		printk(KERN_ERR "MAC address set: %s.\n",
-		       print_mac(mac, addr));
-		printk(KERN_ERR "MAC address get: %s.\n",
-		       print_mac(mac, mac_addr));
+		printk(KERN_ERR "MAC address set: %pM.\n", addr);
+		printk(KERN_ERR "MAC address get: %pM.\n", mac_addr);
 	}
 	return 0;
 }

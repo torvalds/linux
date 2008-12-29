@@ -108,6 +108,7 @@ struct rfkill {
 
 	struct device dev;
 	struct list_head node;
+	enum rfkill_state state_for_resume;
 };
 #define to_rfkill(d)	container_of(d, struct rfkill, dev)
 
@@ -147,12 +148,5 @@ static inline char *rfkill_get_led_name(struct rfkill *rfkill)
 	return NULL;
 #endif
 }
-
-/* rfkill notification chain */
-#define RFKILL_STATE_CHANGED		0x0001	/* state of a normal rfkill
-						   switch has changed */
-
-int register_rfkill_notifier(struct notifier_block *nb);
-int unregister_rfkill_notifier(struct notifier_block *nb);
 
 #endif /* RFKILL_H */

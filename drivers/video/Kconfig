@@ -1889,10 +1889,11 @@ config FB_W100
 config FB_SH_MOBILE_LCDC
 	tristate "SuperH Mobile LCDC framebuffer support"
 	depends on FB && SUPERH
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	default m
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	select FB_DEFERRED_IO
 	---help---
 	  Frame buffer driver for the on-chip SH-Mobile LCD controller.
 
@@ -2021,17 +2022,19 @@ config FB_COBALT
 	depends on FB && MIPS_COBALT
 
 config FB_SH7760
-       bool "SH7760/SH7763 LCDC support"
-       depends on FB && (CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7763)
-       select FB_CFB_FILLRECT
-       select FB_CFB_COPYAREA
-       select FB_CFB_IMAGEBLIT
-       help
-         Support for the SH7760/SH7763 integrated (D)STN/TFT LCD Controller.
-         Supports display resolutions up to 1024x1024 pixel, grayscale and
-         color operation, with depths ranging from 1 bpp to 8 bpp monochrome
-         and 8, 15 or 16 bpp color; 90 degrees clockwise display rotation for
-         panels <= 320 pixel horizontal resolution.
+	bool "SH7760/SH7763/SH7720/SH7721 LCDC support"
+	depends on FB && (CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7763 \
+		|| CPU_SUBTYPE_SH7720 || CPU_SUBTYPE_SH7721)
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Support for the SH7760/SH7763/SH7720/SH7721 integrated
+	  (D)STN/TFT LCD Controller.
+	  Supports display resolutions up to 1024x1024 pixel, grayscale and
+	  color operation, with depths ranging from 1 bpp to 8 bpp monochrome
+	  and 8, 15 or 16 bpp color; 90 degrees clockwise display rotation for
+	  panels <= 320 pixel horizontal resolution.
 
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"

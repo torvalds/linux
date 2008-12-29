@@ -1176,7 +1176,7 @@ static int mount_is_safe(struct path *path)
 	if (S_ISLNK(path->dentry->d_inode->i_mode))
 		return -EPERM;
 	if (path->dentry->d_inode->i_mode & S_ISVTX) {
-		if (current->uid != path->dentry->d_inode->i_uid)
+		if (current_uid() != path->dentry->d_inode->i_uid)
 			return -EPERM;
 	}
 	if (inode_permission(path->dentry->d_inode, MAY_WRITE))

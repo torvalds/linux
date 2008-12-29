@@ -1155,7 +1155,7 @@ static phy_info_t const phy_info_ks8721bl = {
 
 static void mii_parse_dp8384x_sr2(uint mii_reg, struct net_device *dev)
 {
-	struct fec_enet_private *fep = dev->priv;
+	struct fec_enet_private *fep = netdev_priv(dev);
 	volatile uint *s = &(fep->phy_status);
 
 	*s &= ~(PHY_STAT_SPMASK | PHY_STAT_LINK | PHY_STAT_ANC);
@@ -2562,7 +2562,6 @@ static int __init fec_enet_module_init(void)
 {
 	struct net_device *dev;
 	int i, err;
-	DECLARE_MAC_BUF(mac);
 
 	printk("FEC ENET Version 0.2\n");
 
@@ -2581,8 +2580,7 @@ static int __init fec_enet_module_init(void)
 			return -EIO;
 		}
 
-		printk("%s: ethernet %s\n",
-		       dev->name, print_mac(mac, dev->dev_addr));
+		printk("%s: ethernet %pM\n", dev->name, dev->dev_addr);
 	}
 	return 0;
 }

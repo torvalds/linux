@@ -163,7 +163,7 @@ config SND_ML403_AC97CR
 
 config SND_AC97_POWER_SAVE
 	bool "AC97 Power-Saving Mode"
-	depends on SND_AC97_CODEC && EXPERIMENTAL
+	depends on SND_AC97_CODEC
 	default n
 	help
 	  Say Y here to enable the aggressive power-saving support of
