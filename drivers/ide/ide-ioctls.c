@@ -19,7 +19,6 @@ int ide_setting_ioctl(ide_drive_t *drive, struct block_device *bdev,
 		      const struct ide_ioctl_devset *s)
 {
 	const struct ide_devset *ds;
-	unsigned long flags;
 	int err = -EOPNOTSUPP;
 
 	for (; (ds = s->setting); s++) {
@@ -33,9 +32,7 @@ int ide_setting_ioctl(ide_drive_t *drive, struct block_device *bdev,
 
 read_val:
 	mutex_lock(&ide_setting_mtx);
-	spin_lock_irqsave(&ide_lock, flags);
 	err = ds->get(drive);
-	spin_unlock_irqrestore(&ide_lock, flags);
 	mutex_unlock(&ide_setting_mtx);
 	return err >= 0 ? put_user(err, (long __user *)arg) : err;
 
