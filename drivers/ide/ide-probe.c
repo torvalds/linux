@@ -1060,7 +1060,6 @@ static int init_irq (ide_hwif_t *hwif)
 
 		if (h && h->hwgroup) {  /* scan only initialized ports */
 			if (hwif->irq == h->irq) {
-				hwif->sharing_irq = h->sharing_irq = 1;
 				if (hwif->chipset != ide_pci ||
 				    h->chipset != ide_pci) {
 					save_match(hwif, h, &match);
@@ -1152,8 +1151,7 @@ static int init_irq (ide_hwif_t *hwif)
 		io_ports->data_addr, hwif->irq);
 #endif /* __mc68000__ */
 	if (match)
-		printk(KERN_CONT " (%sed with %s)",
-			hwif->sharing_irq ? "shar" : "serializ", match->name);
+		printk(KERN_CONT " (serialized with %s)", match->name);
 	printk(KERN_CONT "\n");
 
 	mutex_unlock(&ide_cfg_mtx);
