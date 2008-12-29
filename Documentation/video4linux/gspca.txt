@@ -50,6 +50,9 @@ ov519		045e:028c	Micro$oft xbox cam
 spca508		0461:0815	Micro Innovation IC200
 sunplus		0461:0821	Fujifilm MV-1
 zc3xx		0461:0a00	MicroInnovation WebCam320
+stv06xx		046d:0840	QuickCam Express
+stv06xx		046d:0850	LEGO cam / QuickCam Web
+stv06xx		046d:0870	Dexxa WebCam USB
 spca500		046d:0890	Logitech QuickCam traveler
 vc032x		046d:0892	Logitech Orbicam
 vc032x		046d:0896	Logitech Orbicam

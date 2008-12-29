@@ -47,4 +47,4 @@ gspca_vc032x-objs		:= vc032x.o
 gspca_zc3xx-objs		:= zc3xx.o
 
 obj-$(CONFIG_USB_M5602)		+= m5602/
-
+obj-$(CONFIG_USB_STV06XX) 	+= stv06xx/
