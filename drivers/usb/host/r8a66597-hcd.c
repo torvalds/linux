@@ -660,9 +660,9 @@ static u16 get_empty_pipenum(struct r8a66597 *r8a66597,
 	u16 array[R8A66597_MAX_NUM_PIPE], i = 0, min;
 
 	memset(array, 0, sizeof(array));
-	switch (ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (usb_endpoint_type(ep)) {
 	case USB_ENDPOINT_XFER_BULK:
-		if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
+		if (usb_endpoint_dir_in(ep))
 			array[i++] = 4;
 		else {
 			array[i++] = 3;
@@ -670,7 +670,7 @@ static u16 get_empty_pipenum(struct r8a66597 *r8a66597,
 		}
 		break;
 	case USB_ENDPOINT_XFER_INT:
-		if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK) {
+		if (usb_endpoint_dir_in(ep)) {
 			array[i++] = 6;
 			array[i++] = 7;
 			array[i++] = 8;
@@ -678,7 +678,7 @@ static u16 get_empty_pipenum(struct r8a66597 *r8a66597,
 			array[i++] = 9;
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
+		if (usb_endpoint_dir_in(ep))
 			array[i++] = 2;
 		else
 			array[i++] = 1;
@@ -928,10 +928,9 @@ static void init_pipe_info(struct r8a66597 *r8a66597, struct urb *urb,
 
 	info.pipenum = get_empty_pipenum(r8a66597, ep);
 	info.address = get_urb_to_r8a66597_addr(r8a66597, urb);
-	info.epnum = ep->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
+	info.epnum = usb_endpoint_num(ep);
 	info.maxpacket = le16_to_cpu(ep->wMaxPacketSize);
-	info.type = get_r8a66597_type(ep->bmAttributes
-				      & USB_ENDPOINT_XFERTYPE_MASK);
+	info.type = get_r8a66597_type(usb_endpoint_type(ep));
 	info.bufnum = get_bufnum(info.pipenum);
 	info.buf_bsize = get_buf_bsize(info.pipenum);
 	if (info.type == R8A66597_BULK) {
@@ -941,7 +940,7 @@ static void init_pipe_info(struct r8a66597 *r8a66597, struct urb *urb,
 		info.interval = get_interval(urb, ep->bInterval);
 		info.timer_interval = get_timer_interval(urb, ep->bInterval);
 	}
-	if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
+	if (usb_endpoint_dir_in(ep))
 		info.dir_in = 1;
 	else
 		info.dir_in = 0;

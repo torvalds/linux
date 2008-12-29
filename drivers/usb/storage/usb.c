@@ -846,12 +846,12 @@ static int get_pipes(struct us_data *us)
 	us->send_ctrl_pipe = usb_sndctrlpipe(us->pusb_dev, 0);
 	us->recv_ctrl_pipe = usb_rcvctrlpipe(us->pusb_dev, 0);
 	us->send_bulk_pipe = usb_sndbulkpipe(us->pusb_dev,
-		ep_out->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
+		usb_endpoint_num(ep_out));
 	us->recv_bulk_pipe = usb_rcvbulkpipe(us->pusb_dev, 
-		ep_in->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
+		usb_endpoint_num(ep_in));
 	if (ep_int) {
 		us->recv_intr_pipe = usb_rcvintpipe(us->pusb_dev,
-			ep_int->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
+			usb_endpoint_num(ep_int));
 		us->ep_bInterval = ep_int->bInterval;
 	}
 	return 0;
