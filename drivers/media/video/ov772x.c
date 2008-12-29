@@ -766,6 +766,27 @@ static int ov772x_set_register(struct soc_camera_device *icd,
 }
 #endif
 
+static const struct ov772x_win_size*
+ov772x_select_win(u32 width, u32 height)
+{
+	__u32 diff;
+	const struct ov772x_win_size *win;
+
+	/* default is QVGA */
+	diff = abs(width - ov772x_win_qvga.width) +
+		abs(height - ov772x_win_qvga.height);
+	win = &ov772x_win_qvga;
+
+	/* VGA */
+	if (diff >
+	    abs(width  - ov772x_win_vga.width) +
+	    abs(height - ov772x_win_vga.height))
+		win = &ov772x_win_vga;
+
+	return win;
+}
+
+
 static int ov772x_set_fmt(struct soc_camera_device *icd,
 			  __u32                     pixfmt,
 			  struct v4l2_rect         *rect)
@@ -786,34 +807,28 @@ static int ov772x_set_fmt(struct soc_camera_device *icd,
 		}
 	}
 
+	/*
+	 * select win
+	 */
+	priv->win = ov772x_select_win(rect->width, rect->height);
+
 	return ret;
 }
 
 static int ov772x_try_fmt(struct soc_camera_device *icd,
 			  struct v4l2_format       *f)
 {
-	struct v4l2_pix_format *pix  = &f->fmt.pix;
-	struct ov772x_priv     *priv;
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	const struct ov772x_win_size *win;
 
-	priv = container_of(icd, struct ov772x_priv, icd);
+	/*
+	 * select suitable win
+	 */
+	win = ov772x_select_win(pix->width, pix->height);
 
-	/* QVGA */
-	if (pix->width  <= ov772x_win_qvga.width ||
-	    pix->height <= ov772x_win_qvga.height) {
-		priv->win   = &ov772x_win_qvga;
-		pix->width  =  ov772x_win_qvga.width;
-		pix->height =  ov772x_win_qvga.height;
-	}
-
-	/* VGA */
-	else if (pix->width  <= ov772x_win_vga.width ||
-		 pix->height <= ov772x_win_vga.height) {
-		priv->win   = &ov772x_win_vga;
-		pix->width  =  ov772x_win_vga.width;
-		pix->height =  ov772x_win_vga.height;
-	}
-
-	pix->field = V4L2_FIELD_NONE;
+	pix->width  = win->width;
+	pix->height = win->height;
+	pix->field  = V4L2_FIELD_NONE;
 
 	return 0;
 }
