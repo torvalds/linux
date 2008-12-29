@@ -424,16 +424,17 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 				if (time_after(jiffies, info->write_timeout))
 					do_end_request = 1;
 				else {
+					struct request_queue *q = drive->queue;
 					unsigned long flags;
 
 					/*
 					 * take a breather relying on the unplug
 					 * timer to kick us again
 					 */
-					spin_lock_irqsave(&ide_lock, flags);
-					blk_plug_device(drive->queue);
-					spin_unlock_irqrestore(&ide_lock,
-								flags);
+					spin_lock_irqsave(q->queue_lock, flags);
+					blk_plug_device(q);
+					spin_unlock_irqrestore(q->queue_lock, flags);
+
 					return 1;
 				}
 			}
@@ -502,11 +503,12 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 
 end_request:
 	if (stat & ATA_ERR) {
+		struct request_queue *q = drive->queue;
 		unsigned long flags;
 
-		spin_lock_irqsave(&ide_lock, flags);
+		spin_lock_irqsave(q->queue_lock, flags);
 		blkdev_dequeue_request(rq);
-		spin_unlock_irqrestore(&ide_lock, flags);
+		spin_unlock_irqrestore(q->queue_lock, flags);
 
 		hwgroup->rq = NULL;
 

@@ -247,20 +247,21 @@ EXPORT_SYMBOL_GPL(ide_end_dequeued_request);
  */
 static void ide_complete_pm_request (ide_drive_t *drive, struct request *rq)
 {
+	struct request_queue *q = drive->queue;
 	unsigned long flags;
 
 #ifdef DEBUG_PM
 	printk("%s: completing PM request, %s\n", drive->name,
 	       blk_pm_suspend_request(rq) ? "suspend" : "resume");
 #endif
-	spin_lock_irqsave(&ide_lock, flags);
+	spin_lock_irqsave(q->queue_lock, flags);
 	if (blk_pm_suspend_request(rq)) {
-		blk_stop_queue(drive->queue);
+		blk_stop_queue(q);
 	} else {
 		drive->dev_flags &= ~IDE_DFLAG_BLOCKED;
-		blk_start_queue(drive->queue);
+		blk_start_queue(q);
 	}
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	drive->hwif->hwgroup->rq = NULL;
 
@@ -1469,16 +1470,16 @@ out:
 void ide_do_drive_cmd(ide_drive_t *drive, struct request *rq)
 {
 	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
+	struct request_queue *q = drive->queue;
 	unsigned long flags;
 
 	hwgroup->rq = NULL;
 
-	spin_lock_irqsave(&ide_lock, flags);
-	__elv_add_request(drive->queue, rq, ELEVATOR_INSERT_FRONT, 0);
-	blk_start_queueing(drive->queue);
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_lock_irqsave(q->queue_lock, flags);
+	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+	blk_start_queueing(q);
+	spin_unlock_irqrestore(q->queue_lock, flags);
 }
-
 EXPORT_SYMBOL(ide_do_drive_cmd);
 
 void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount, u8 dma)
