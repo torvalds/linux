@@ -465,6 +465,18 @@ struct snd_soc_platform s3c24xx_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(s3c24xx_soc_platform);
 
+static int __init s3c24xx_soc_platform_init(void)
+{
+	return snd_soc_register_platform(&s3c24xx_soc_platform);
+}
+module_init(s3c24xx_soc_platform_init);
+
+static void __exit s3c24xx_soc_platform_exit(void)
+{
+	snd_soc_unregister_platform(&s3c24xx_soc_platform);
+}
+module_exit(s3c24xx_soc_platform_exit);
+
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung S3C24XX PCM DMA module");
 MODULE_LICENSE("GPL");

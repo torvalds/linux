@@ -739,7 +739,6 @@ memory_squeeze:
 				skb->len = pkt_len;
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
-				dev->last_rx = jiffies;
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += pkt_len;
 			}
@@ -1034,12 +1033,8 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static void print_eth(unsigned char *add, char *str)
 {
-	DECLARE_MAC_BUF(mac);
-	DECLARE_MAC_BUF(mac2);
-
-	printk(KERN_DEBUG "i596 0x%p, %s --> %s %02X%02X, %s\n",
-	       add, print_mac(mac, add + 6), print_mac(mac2, add),
-	       add[12], add[13], str);
+	printk(KERN_DEBUG "i596 0x%p, %pM --> %pM %02X%02X, %s\n",
+	       add, add + 6, add, add[12], add[13], str);
 }
 
 static int __devinit i82596_probe(struct net_device *dev)
@@ -1343,7 +1338,6 @@ static void set_multicast_list(struct net_device *dev)
 	struct i596_private *lp = netdev_priv(dev);
 	struct i596_dma *dma = lp->dma;
 	int config = 0, cnt;
-	DECLARE_MAC_BUF(mac);
 
 	DEB(DEB_MULTI,
 	    printk(KERN_DEBUG
@@ -1407,8 +1401,8 @@ static void set_multicast_list(struct net_device *dev)
 			if (i596_debug > 1)
 				DEB(DEB_MULTI,
 				    printk(KERN_DEBUG
-					   "%s: Adding address %s\n",
-					   dev->name, print_mac(mac, cp)));
+					   "%s: Adding address %pM\n",
+					   dev->name, cp));
 		}
 		DMA_WBACK_INV(dev, &dma->mc_cmd, sizeof(struct mc_cmd));
 		i596_add_cmd(dev, &cmd->cmd);

@@ -789,7 +789,7 @@ spider_net_set_low_watermark(struct spider_net_card *card)
  * spider_net_release_tx_chain releases the tx descriptors that spider has
  * finished with (if non-brutal) or simply release tx descriptors (if brutal).
  * If some other context is calling this function, we return 1 so that we're
- * scheduled again (if we were scheduled) and will not loose initiative.
+ * scheduled again (if we were scheduled) and will not lose initiative.
  */
 static int
 spider_net_release_tx_chain(struct spider_net_card *card, int brutal)
@@ -1302,7 +1302,7 @@ static int spider_net_poll(struct napi_struct *napi, int budget)
 	/* if all packets are in the stack, enable interrupts and return 0 */
 	/* if not, return 1 */
 	if (packets_done < budget) {
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		spider_net_rx_irq_on(card);
 		card->ignore_rx_ramfull = 0;
 	}
@@ -1529,8 +1529,7 @@ spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg,
 			spider_net_refill_rx_chain(card);
 			spider_net_enable_rxdmac(card);
 			card->num_rx_ints ++;
-			netif_rx_schedule(card->netdev,
-					  &card->napi);
+			netif_rx_schedule(&card->napi);
 		}
 		show_error = 0;
 		break;
@@ -1550,8 +1549,7 @@ spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg,
 		spider_net_refill_rx_chain(card);
 		spider_net_enable_rxdmac(card);
 		card->num_rx_ints ++;
-		netif_rx_schedule(card->netdev,
-				  &card->napi);
+		netif_rx_schedule(&card->napi);
 		show_error = 0;
 		break;
 
@@ -1565,8 +1563,7 @@ spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg,
 		spider_net_refill_rx_chain(card);
 		spider_net_enable_rxdmac(card);
 		card->num_rx_ints ++;
-		netif_rx_schedule(card->netdev,
-				  &card->napi);
+		netif_rx_schedule(&card->napi);
 		show_error = 0;
 		break;
 
@@ -1660,11 +1657,11 @@ spider_net_interrupt(int irq, void *ptr)
 
 	if (status_reg & SPIDER_NET_RXINT ) {
 		spider_net_rx_irq_off(card);
-		netif_rx_schedule(netdev, &card->napi);
+		netif_rx_schedule(&card->napi);
 		card->num_rx_ints ++;
 	}
 	if (status_reg & SPIDER_NET_TXINT)
-		netif_rx_schedule(netdev, &card->napi);
+		netif_rx_schedule(&card->napi);
 
 	if (status_reg & SPIDER_NET_LINKINT)
 		spider_net_link_reset(netdev);

@@ -21,8 +21,6 @@
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
 
-#define SND_SOC_VERSION "0.13.2"
-
 /*
  * Convenience kcontrol builders
  */
@@ -145,105 +143,31 @@ enum snd_soc_bias_level {
 	SND_SOC_BIAS_OFF,
 };
 
-/*
- * Digital Audio Interface (DAI) types
- */
-#define SND_SOC_DAI_AC97	0x1
-#define SND_SOC_DAI_I2S		0x2
-#define SND_SOC_DAI_PCM		0x4
-#define SND_SOC_DAI_AC97_BUS	0x8	/* for custom i.e. non ac97_codec.c */
-
-/*
- * DAI hardware audio formats
- */
-#define SND_SOC_DAIFMT_I2S		0	/* I2S mode */
-#define SND_SOC_DAIFMT_RIGHT_J	1	/* Right justified mode */
-#define SND_SOC_DAIFMT_LEFT_J	2	/* Left Justified mode */
-#define SND_SOC_DAIFMT_DSP_A	3	/* L data msb after FRM or LRC */
-#define SND_SOC_DAIFMT_DSP_B	4	/* L data msb during FRM or LRC */
-#define SND_SOC_DAIFMT_AC97		5	/* AC97 */
-
-#define SND_SOC_DAIFMT_MSB 	SND_SOC_DAIFMT_LEFT_J
-#define SND_SOC_DAIFMT_LSB	SND_SOC_DAIFMT_RIGHT_J
-
-/*
- * DAI Gating
- */
-#define SND_SOC_DAIFMT_CONT			(0 << 4)	/* continuous clock */
-#define SND_SOC_DAIFMT_GATED		(1 << 4)	/* clock is gated when not Tx/Rx */
-
-/*
- * DAI Sync
- * Synchronous LR (Left Right) clocks and Frame signals.
- */
-#define SND_SOC_DAIFMT_SYNC		(0 << 5)	/* Tx FRM = Rx FRM */
-#define SND_SOC_DAIFMT_ASYNC		(1 << 5)	/* Tx FRM ~ Rx FRM */
-
-/*
- * TDM
- */
-#define SND_SOC_DAIFMT_TDM		(1 << 6)
-
-/*
- * DAI hardware signal inversions
- */
-#define SND_SOC_DAIFMT_NB_NF		(0 << 8)	/* normal bclk + frm */
-#define SND_SOC_DAIFMT_NB_IF		(1 << 8)	/* normal bclk + inv frm */
-#define SND_SOC_DAIFMT_IB_NF		(2 << 8)	/* invert bclk + nor frm */
-#define SND_SOC_DAIFMT_IB_IF		(3 << 8)	/* invert bclk + frm */
-
-/*
- * DAI hardware clock masters
- * This is wrt the codec, the inverse is true for the interface
- * i.e. if the codec is clk and frm master then the interface is
- * clk and frame slave.
- */
-#define SND_SOC_DAIFMT_CBM_CFM	(0 << 12) /* codec clk & frm master */
-#define SND_SOC_DAIFMT_CBS_CFM	(1 << 12) /* codec clk slave & frm master */
-#define SND_SOC_DAIFMT_CBM_CFS	(2 << 12) /* codec clk master & frame slave */
-#define SND_SOC_DAIFMT_CBS_CFS	(3 << 12) /* codec clk & frm slave */
-
-#define SND_SOC_DAIFMT_FORMAT_MASK		0x000f
-#define SND_SOC_DAIFMT_CLOCK_MASK		0x00f0
-#define SND_SOC_DAIFMT_INV_MASK			0x0f00
-#define SND_SOC_DAIFMT_MASTER_MASK		0xf000
-
-
-/*
- * Master Clock Directions
- */
-#define SND_SOC_CLOCK_IN	0
-#define SND_SOC_CLOCK_OUT	1
-
-/*
- * AC97 codec ID's bitmask
- */
-#define SND_SOC_DAI_AC97_ID0	(1 << 0)
-#define SND_SOC_DAI_AC97_ID1	(1 << 1)
-#define SND_SOC_DAI_AC97_ID2	(1 << 2)
-#define SND_SOC_DAI_AC97_ID3	(1 << 3)
-
 struct snd_soc_device;
 struct snd_soc_pcm_stream;
 struct snd_soc_ops;
 struct snd_soc_dai_mode;
 struct snd_soc_pcm_runtime;
 struct snd_soc_dai;
+struct snd_soc_platform;
 struct snd_soc_codec;
-struct snd_soc_machine_config;
 struct soc_enum;
 struct snd_soc_ac97_ops;
-struct snd_soc_clock_info;
 
 typedef int (*hw_write_t)(void *,const char* ,int);
 typedef int (*hw_read_t)(void *,char* ,int);
 
 extern struct snd_ac97_bus_ops soc_ac97_ops;
 
+int snd_soc_register_platform(struct snd_soc_platform *platform);
+void snd_soc_unregister_platform(struct snd_soc_platform *platform);
+int snd_soc_register_codec(struct snd_soc_codec *codec);
+void snd_soc_unregister_codec(struct snd_soc_codec *codec);
+
 /* pcm <-> DAI connect */
 void snd_soc_free_pcms(struct snd_soc_device *socdev);
 int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid);
-int snd_soc_register_card(struct snd_soc_device *socdev);
+int snd_soc_init_card(struct snd_soc_device *socdev);
 
 /* set runtime hw params */
 int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
@@ -262,27 +186,6 @@ int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned short reg,
 int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 	struct snd_ac97_bus_ops *ops, int num);
 void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
-
-/* Digital Audio Interface clocking API.*/
-int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
-	unsigned int freq, int dir);
-
-int snd_soc_dai_set_clkdiv(struct snd_soc_dai *dai,
-	int div_id, int div);
-
-int snd_soc_dai_set_pll(struct snd_soc_dai *dai,
-	int pll_id, unsigned int freq_in, unsigned int freq_out);
-
-/* Digital Audio interface formatting */
-int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt);
-
-int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
-	unsigned int mask, int slots);
-
-int snd_soc_dai_set_tristate(struct snd_soc_dai *dai, int tristate);
-
-/* Digital Audio Interface mute */
-int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute);
 
 /*
  *Controls
@@ -341,66 +244,14 @@ struct snd_soc_ops {
 	int (*trigger)(struct snd_pcm_substream *, int);
 };
 
-/* ASoC DAI ops */
-struct snd_soc_dai_ops {
-	/* DAI clocking configuration */
-	int (*set_sysclk)(struct snd_soc_dai *dai,
-		int clk_id, unsigned int freq, int dir);
-	int (*set_pll)(struct snd_soc_dai *dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out);
-	int (*set_clkdiv)(struct snd_soc_dai *dai, int div_id, int div);
-
-	/* DAI format configuration */
-	int (*set_fmt)(struct snd_soc_dai *dai, unsigned int fmt);
-	int (*set_tdm_slot)(struct snd_soc_dai *dai,
-		unsigned int mask, int slots);
-	int (*set_tristate)(struct snd_soc_dai *dai, int tristate);
-
-	/* digital mute */
-	int (*digital_mute)(struct snd_soc_dai *dai, int mute);
-};
-
-/* SoC  DAI (Digital Audio Interface) */
-struct snd_soc_dai {
-	/* DAI description */
-	char *name;
-	unsigned int id;
-	unsigned char type;
-
-	/* DAI callbacks */
-	int (*probe)(struct platform_device *pdev,
-		     struct snd_soc_dai *dai);
-	void (*remove)(struct platform_device *pdev,
-		       struct snd_soc_dai *dai);
-	int (*suspend)(struct platform_device *pdev,
-		struct snd_soc_dai *dai);
-	int (*resume)(struct platform_device *pdev,
-		struct snd_soc_dai *dai);
-
-	/* ops */
-	struct snd_soc_ops ops;
-	struct snd_soc_dai_ops dai_ops;
-
-	/* DAI capabilities */
-	struct snd_soc_pcm_stream capture;
-	struct snd_soc_pcm_stream playback;
-
-	/* DAI runtime info */
-	struct snd_pcm_runtime *runtime;
-	struct snd_soc_codec *codec;
-	unsigned int active;
-	unsigned char pop_wait:1;
-	void *dma_data;
-
-	/* DAI private data */
-	void *private_data;
-};
-
 /* SoC Audio Codec */
 struct snd_soc_codec {
 	char *name;
 	struct module *owner;
 	struct mutex mutex;
+	struct device *dev;
+
+	struct list_head list;
 
 	/* callbacks */
 	int (*set_bias_level)(struct snd_soc_codec *,
@@ -426,6 +277,7 @@ struct snd_soc_codec {
 	short reg_cache_step;
 
 	/* dapm */
+	u32 pop_time;
 	struct list_head dapm_widgets;
 	struct list_head dapm_paths;
 	enum snd_soc_bias_level bias_level;
@@ -435,6 +287,11 @@ struct snd_soc_codec {
 	/* codec DAI's */
 	struct snd_soc_dai *dai;
 	unsigned int num_dai;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_reg;
+	struct dentry *debugfs_pop_time;
+#endif
 };
 
 /* codec device */
@@ -448,13 +305,12 @@ struct snd_soc_codec_device {
 /* SoC platform interface */
 struct snd_soc_platform {
 	char *name;
+	struct list_head list;
 
 	int (*probe)(struct platform_device *pdev);
 	int (*remove)(struct platform_device *pdev);
-	int (*suspend)(struct platform_device *pdev,
-		struct snd_soc_dai *dai);
-	int (*resume)(struct platform_device *pdev,
-		struct snd_soc_dai *dai);
+	int (*suspend)(struct snd_soc_dai *dai);
+	int (*resume)(struct snd_soc_dai *dai);
 
 	/* pcm creation and destruction */
 	int (*pcm_new)(struct snd_card *, struct snd_soc_dai *,
@@ -484,9 +340,14 @@ struct snd_soc_dai_link  {
 	struct snd_pcm *pcm;
 };
 
-/* SoC machine */
-struct snd_soc_machine {
+/* SoC card */
+struct snd_soc_card {
 	char *name;
+	struct device *dev;
+
+	struct list_head list;
+
+	int instantiated;
 
 	int (*probe)(struct platform_device *pdev);
 	int (*remove)(struct platform_device *pdev);
@@ -499,23 +360,26 @@ struct snd_soc_machine {
 	int (*resume_post)(struct platform_device *pdev);
 
 	/* callbacks */
-	int (*set_bias_level)(struct snd_soc_machine *,
+	int (*set_bias_level)(struct snd_soc_card *,
 			      enum snd_soc_bias_level level);
 
 	/* CPU <--> Codec DAI links  */
 	struct snd_soc_dai_link *dai_link;
 	int num_links;
+
+	struct snd_soc_device *socdev;
+
+	struct snd_soc_platform *platform;
+	struct delayed_work delayed_work;
+	struct work_struct deferred_resume_work;
 };
 
 /* SoC Device - the audio subsystem */
 struct snd_soc_device {
 	struct device *dev;
-	struct snd_soc_machine *machine;
-	struct snd_soc_platform *platform;
+	struct snd_soc_card *card;
 	struct snd_soc_codec *codec;
 	struct snd_soc_codec_device *codec_dev;
-	struct delayed_work delayed_work;
-	struct work_struct deferred_resume_work;
 	void *codec_data;
 };
 
@@ -541,5 +405,7 @@ struct soc_enum {
 	const char **texts;
 	void *dapm;
 };
+
+#include <sound/soc-dai.h>
 
 #endif

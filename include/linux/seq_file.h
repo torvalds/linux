@@ -34,6 +34,7 @@ struct seq_operations {
 
 #define SEQ_SKIP 1
 
+char *mangle_path(char *s, char *p, char *esc);
 int seq_open(struct file *, const struct seq_operations *);
 ssize_t seq_read(struct file *, char __user *, size_t, loff_t *);
 loff_t seq_lseek(struct file *, loff_t, int);

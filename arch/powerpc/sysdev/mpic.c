@@ -661,17 +661,6 @@ static inline void mpic_eoi(struct mpic *mpic)
 	(void)mpic_cpu_read(MPIC_INFO(CPU_WHOAMI));
 }
 
-#ifdef CONFIG_SMP
-static irqreturn_t mpic_ipi_action(int irq, void *data)
-{
-	long ipi = (long)data;
-
-	smp_message_recv(ipi);
-
-	return IRQ_HANDLED;
-}
-#endif /* CONFIG_SMP */
-
 /*
  * Linux descriptor level callbacks
  */
@@ -1548,13 +1537,7 @@ unsigned int mpic_get_mcirq(void)
 void mpic_request_ipis(void)
 {
 	struct mpic *mpic = mpic_primary;
-	long i, err;
-	static char *ipi_names[] = {
-		"IPI0 (call function)",
-		"IPI1 (reschedule)",
-		"IPI2 (call function single)",
-		"IPI3 (debugger break)",
-	};
+	int i;
 	BUG_ON(mpic == NULL);
 
 	printk(KERN_INFO "mpic: requesting IPIs ... \n");
@@ -1563,17 +1546,10 @@ void mpic_request_ipis(void)
 		unsigned int vipi = irq_create_mapping(mpic->irqhost,
 						       mpic->ipi_vecs[0] + i);
 		if (vipi == NO_IRQ) {
-			printk(KERN_ERR "Failed to map IPI %ld\n", i);
-			break;
+			printk(KERN_ERR "Failed to map %s\n", smp_ipi_name[i]);
+			continue;
 		}
-		err = request_irq(vipi, mpic_ipi_action,
-				  IRQF_DISABLED|IRQF_PERCPU,
-				  ipi_names[i], (void *)i);
-		if (err) {
-			printk(KERN_ERR "Request of irq %d for IPI %ld failed\n",
-			       vipi, i);
-			break;
-		}
+		smp_request_message_ipi(vipi, i);
 	}
 }
 

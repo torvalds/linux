@@ -872,7 +872,7 @@ static void smsc_ircc_timeout(struct net_device *dev)
  *    waits until the next transmit interrupt, and continues until the
  *    frame is transmitted.
  */
-int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
+static int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 {
 	struct smsc_ircc_cb *self;
 	unsigned long flags;
@@ -1128,7 +1128,7 @@ static void smsc_ircc_change_speed(struct smsc_ircc_cb *self, u32 speed)
  *    Set speed of IrDA port to specified baudrate
  *
  */
-void smsc_ircc_set_sir_speed(struct smsc_ircc_cb *self, __u32 speed)
+static void smsc_ircc_set_sir_speed(struct smsc_ircc_cb *self, __u32 speed)
 {
 	int iobase;
 	int fcr;    /* FIFO control reg */
@@ -1894,7 +1894,7 @@ static void __exit smsc_ircc_cleanup(void)
  * This function *must* be called with spinlock held, because it may
  * be called from the irq handler (via smsc_ircc_change_speed()). - Jean II
  */
-void smsc_ircc_sir_start(struct smsc_ircc_cb *self)
+static void smsc_ircc_sir_start(struct smsc_ircc_cb *self)
 {
 	struct net_device *dev;
 	int fir_base, sir_base;

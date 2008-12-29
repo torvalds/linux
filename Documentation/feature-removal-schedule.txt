@@ -120,13 +120,6 @@ Who:	Christoph Hellwig <hch@lst.de>
 
 ---------------------------
 
-What:   eepro100 network driver
-When:   January 2007
-Why:    replaced by the e100 driver
-Who:    Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
 What:	Unused EXPORT_SYMBOL/EXPORT_SYMBOL_GPL exports
 	(temporary transition config option provided until then)
 	The transition config option will also be removed at the same time.

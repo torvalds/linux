@@ -622,6 +622,16 @@ config HVC_BEAT
 	help
 	  Toshiba's Cell Reference Set Beat Console device driver
 
+config HVC_IUCV
+	bool "z/VM IUCV Hypervisor console support (VM only)"
+	depends on S390
+	select HVC_DRIVER
+	select IUCV
+	default y
+	help
+	  This driver provides a Hypervisor console (HVC) back-end to access
+	  a Linux (console) terminal via a z/VM IUCV communication path.
+
 config HVC_XEN
 	bool "Xen Hypervisor Console support"
 	depends on XEN
@@ -630,6 +640,12 @@ config HVC_XEN
 	default y
 	help
 	  Xen virtual console device driver
+
+config HVC_UDBG
+       bool "udbg based fake hypervisor console"
+       depends on PPC && EXPERIMENTAL
+       select HVC_DRIVER
+       default n
 
 config VIRTIO_CONSOLE
 	tristate "Virtio console"

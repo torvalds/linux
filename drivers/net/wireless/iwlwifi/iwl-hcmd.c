@@ -22,7 +22,7 @@
  * in the file called LICENSE.GPL.
  *
  * Contact Information:
- * Tomas Winkler <tomas.winkler@intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 
@@ -36,7 +36,7 @@
 #include "iwl-core.h"
 
 
-#define IWL_CMD(x) case x : return #x
+#define IWL_CMD(x) case x: return #x
 
 const char *get_cmd_string(u8 cmd)
 {

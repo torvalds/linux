@@ -42,7 +42,7 @@
 #ifndef EFX_DRIVER_NAME
 #define EFX_DRIVER_NAME	"sfc"
 #endif
-#define EFX_DRIVER_VERSION	"2.2"
+#define EFX_DRIVER_VERSION	"2.3"
 
 #ifdef EFX_ENABLE_DEBUG
 #define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
@@ -327,6 +327,7 @@ enum efx_rx_alloc_method {
  *
  * @efx: Associated Efx NIC
  * @channel: Channel instance number
+ * @name: Name for channel and IRQ
  * @used_flags: Channel is used by net driver
  * @enabled: Channel enabled indicator
  * @irq: IRQ number (MSI and MSI-X only)
@@ -357,6 +358,7 @@ enum efx_rx_alloc_method {
 struct efx_channel {
 	struct efx_nic *efx;
 	int channel;
+	char name[IFNAMSIZ + 6];
 	int used_flags;
 	bool enabled;
 	int irq;
@@ -414,6 +416,7 @@ struct efx_blinker {
  * @init_leds: Sets up board LEDs
  * @set_fault_led: Turns the fault LED on or off
  * @blink: Starts/stops blinking
+ * @monitor: Board-specific health check function
  * @fini: Cleanup function
  * @blinker: used to blink LEDs in software
  * @hwmon_client: I2C client for hardware monitor
@@ -428,6 +431,7 @@ struct efx_board {
 	 * have a separate init callback that happens later than
 	 * board init. */
 	int (*init_leds)(struct efx_nic *efx);
+	int (*monitor) (struct efx_nic *nic);
 	void (*set_fault_led) (struct efx_nic *efx, bool state);
 	void (*blink) (struct efx_nic *efx, bool start);
 	void (*fini) (struct efx_nic *nic);
@@ -449,15 +453,19 @@ enum efx_int_mode {
 
 enum phy_type {
 	PHY_TYPE_NONE = 0,
-	PHY_TYPE_CX4_RTMR = 1,
-	PHY_TYPE_1G_ALASKA = 2,
-	PHY_TYPE_10XPRESS = 3,
-	PHY_TYPE_XFP = 4,
+	PHY_TYPE_TXC43128 = 1,
+	PHY_TYPE_88E1111 = 2,
+	PHY_TYPE_SFX7101 = 3,
+	PHY_TYPE_QT2022C2 = 4,
 	PHY_TYPE_PM8358 = 6,
+	PHY_TYPE_SFT9001A = 8,
+	PHY_TYPE_SFT9001B = 10,
 	PHY_TYPE_MAX	/* Insert any new items before this */
 };
 
 #define PHY_ADDR_INVALID 0xff
+
+#define EFX_IS10G(efx) ((efx)->link_speed == 10000)
 
 enum nic_state {
 	STATE_INIT = 0,
@@ -499,6 +507,55 @@ enum efx_fc_type {
 	EFX_FC_AUTO = 4,
 };
 
+/* Supported MAC bit-mask */
+enum efx_mac_type {
+	EFX_GMAC = 1,
+	EFX_XMAC = 2,
+};
+
+static inline unsigned int efx_fc_advertise(enum efx_fc_type wanted_fc)
+{
+	unsigned int adv = 0;
+	if (wanted_fc & EFX_FC_RX)
+		adv = ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+	if (wanted_fc & EFX_FC_TX)
+		adv ^= ADVERTISE_PAUSE_ASYM;
+	return adv;
+}
+
+static inline enum efx_fc_type efx_fc_resolve(enum efx_fc_type wanted_fc,
+					      unsigned int lpa)
+{
+	unsigned int adv = efx_fc_advertise(wanted_fc);
+
+	if (!(wanted_fc & EFX_FC_AUTO))
+		return wanted_fc;
+
+	if (adv & lpa & ADVERTISE_PAUSE_CAP)
+		return EFX_FC_RX | EFX_FC_TX;
+	if (adv & lpa & ADVERTISE_PAUSE_ASYM) {
+		if (adv & ADVERTISE_PAUSE_CAP)
+			return EFX_FC_RX;
+		if (lpa & ADVERTISE_PAUSE_CAP)
+			return EFX_FC_TX;
+	}
+	return 0;
+}
+
+/**
+ * struct efx_mac_operations - Efx MAC operations table
+ * @reconfigure: Reconfigure MAC. Serialised by the mac_lock
+ * @update_stats: Update statistics
+ * @irq: Hardware MAC event callback. Serialised by the mac_lock
+ * @poll: Poll for hardware state. Serialised by the mac_lock
+ */
+struct efx_mac_operations {
+	void (*reconfigure) (struct efx_nic *efx);
+	void (*update_stats) (struct efx_nic *efx);
+	void (*irq) (struct efx_nic *efx);
+	void (*poll) (struct efx_nic *efx);
+};
+
 /**
  * struct efx_phy_operations - Efx PHY operations table
  * @init: Initialise PHY
@@ -506,17 +563,33 @@ enum efx_fc_type {
  * @reconfigure: Reconfigure PHY (e.g. for new link parameters)
  * @clear_interrupt: Clear down interrupt
  * @blink: Blink LEDs
- * @check_hw: Check hardware
+ * @poll: Poll for hardware state. Serialised by the mac_lock.
+ * @get_settings: Get ethtool settings. Serialised by the mac_lock.
+ * @set_settings: Set ethtool settings. Serialised by the mac_lock.
+ * @set_xnp_advertise: Set abilities advertised in Extended Next Page
+ *	(only needed where AN bit is set in mmds)
+ * @num_tests: Number of PHY-specific tests/results
+ * @test_names: Names of the tests/results
+ * @run_tests: Run tests and record results as appropriate.
+ *	Flags are the ethtool tests flags.
  * @mmds: MMD presence mask
  * @loopbacks: Supported loopback modes mask
  */
 struct efx_phy_operations {
+	enum efx_mac_type macs;
 	int (*init) (struct efx_nic *efx);
 	void (*fini) (struct efx_nic *efx);
 	void (*reconfigure) (struct efx_nic *efx);
 	void (*clear_interrupt) (struct efx_nic *efx);
-	int (*check_hw) (struct efx_nic *efx);
-	int (*test) (struct efx_nic *efx);
+	void (*poll) (struct efx_nic *efx);
+	void (*get_settings) (struct efx_nic *efx,
+			      struct ethtool_cmd *ecmd);
+	int (*set_settings) (struct efx_nic *efx,
+			     struct ethtool_cmd *ecmd);
+	bool (*set_xnp_advertise) (struct efx_nic *efx, u32);
+	u32 num_tests;
+	const char *const *test_names;
+	int (*run_tests) (struct efx_nic *efx, int *results, unsigned flags);
 	int mmds;
 	unsigned loopbacks;
 };
@@ -525,11 +598,15 @@ struct efx_phy_operations {
  * @enum efx_phy_mode - PHY operating mode flags
  * @PHY_MODE_NORMAL: on and should pass traffic
  * @PHY_MODE_TX_DISABLED: on with TX disabled
+ * @PHY_MODE_LOW_POWER: set to low power through MDIO
+ * @PHY_MODE_OFF: switched off through external control
  * @PHY_MODE_SPECIAL: on but will not pass traffic
  */
 enum efx_phy_mode {
 	PHY_MODE_NORMAL		= 0,
 	PHY_MODE_TX_DISABLED	= 1,
+	PHY_MODE_LOW_POWER	= 2,
+	PHY_MODE_OFF		= 4,
 	PHY_MODE_SPECIAL	= 8,
 };
 
@@ -629,7 +706,7 @@ union efx_multicast_hash {
  * @legacy_irq: IRQ number
  * @workqueue: Workqueue for port reconfigures and the HW monitor.
  *	Work items do not hold and must not acquire RTNL.
- * @reset_workqueue: Workqueue for resets.  Work item will acquire RTNL.
+ * @workqueue_name: Name of workqueue
  * @reset_work: Scheduled reset workitem
  * @monitor_work: Hardware monitor workitem
  * @membase_phys: Memory BAR value as physical address
@@ -644,6 +721,7 @@ union efx_multicast_hash {
  * @rx_queue: RX DMA queues
  * @channel: Channels
  * @n_rx_queues: Number of RX queues
+ * @n_channels: Number of channels in use
  * @rx_buffer_len: RX buffer length
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
  * @irq_status: Interrupt status buffer
@@ -655,15 +733,16 @@ union efx_multicast_hash {
  *	This field will be %NULL if no flash device is present.
  * @spi_eeprom: SPI EEPROM device
  *	This field will be %NULL if no EEPROM device is present.
+ * @spi_lock: SPI bus lock
  * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
  * @nic_data: Hardware dependant state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
  *	@port_inhibited, efx_monitor() and efx_reconfigure_port()
  * @port_enabled: Port enabled indicator.
- *	Serialises efx_stop_all(), efx_start_all() and efx_monitor() and
- *	efx_reconfigure_work with kernel interfaces. Safe to read under any
- *	one of the rtnl_lock, mac_lock, or netif_tx_lock, but all three must
- *	be held to modify it.
+ *	Serialises efx_stop_all(), efx_start_all(), efx_monitor(),
+ *	efx_phy_work(), and efx_mac_work() with kernel interfaces. Safe to read
+ *	under any one of the rtnl_lock, mac_lock, or netif_tx_lock, but all
+ *	three must be held to modify it.
  * @port_inhibited: If set, the netif_carrier is always off. Hold the mac_lock
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
@@ -677,6 +756,7 @@ union efx_multicast_hash {
  * @stats_lock: Statistics update lock. Serialises statistics fetches
  * @stats_enabled: Temporarily disable statistics fetches.
  *	Serialised by @stats_lock
+ * @mac_op: MAC interface
  * @mac_address: Permanent MAC address
  * @phy_type: PHY type
  * @phy_lock: PHY access lock
@@ -684,13 +764,17 @@ union efx_multicast_hash {
  * @phy_data: PHY private data (including PHY-specific stats)
  * @mii: PHY interface
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
+ * @mac_up: MAC link state
  * @link_up: Link status
- * @link_options: Link options (MII/GMII format)
+ * @link_fd: Link is full duplex
+ * @link_fc: Actualy flow control flags
+ * @link_speed: Link speed (Mbps)
  * @n_link_state_changes: Number of times the link has changed state
  * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
  * @multicast_hash: Multicast hash table
- * @flow_control: Flow control flags - separate RX/TX so can't use link_options
- * @reconfigure_work: work item for dealing with PHY events
+ * @wanted_fc: Wanted flow control flags
+ * @phy_work: work item for dealing with PHY events
+ * @mac_work: work item for dealing with MAC events
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
@@ -704,7 +788,7 @@ struct efx_nic {
 	const struct efx_nic_type *type;
 	int legacy_irq;
 	struct workqueue_struct *workqueue;
-	struct workqueue_struct *reset_workqueue;
+	char workqueue_name[16];
 	struct work_struct reset_work;
 	struct delayed_work monitor_work;
 	resource_size_t membase_phys;
@@ -723,6 +807,7 @@ struct efx_nic {
 	struct efx_channel channel[EFX_MAX_CHANNELS];
 
 	int n_rx_queues;
+	int n_channels;
 	unsigned int rx_buffer_len;
 	unsigned int rx_buffer_order;
 
@@ -731,12 +816,14 @@ struct efx_nic {
 
 	struct efx_spi_device *spi_flash;
 	struct efx_spi_device *spi_eeprom;
+	struct mutex spi_lock;
 
 	unsigned n_rx_nodesc_drop_cnt;
 
 	struct falcon_nic_data *nic_data;
 
 	struct mutex mac_lock;
+	struct work_struct mac_work;
 	bool port_enabled;
 	bool port_inhibited;
 
@@ -752,23 +839,27 @@ struct efx_nic {
 	spinlock_t stats_lock;
 	bool stats_enabled;
 
+	struct efx_mac_operations *mac_op;
 	unsigned char mac_address[ETH_ALEN];
 
 	enum phy_type phy_type;
 	spinlock_t phy_lock;
+	struct work_struct phy_work;
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
 	struct mii_if_info mii;
 	enum efx_phy_mode phy_mode;
 
+	bool mac_up;
 	bool link_up;
-	unsigned int link_options;
+	bool link_fd;
+	enum efx_fc_type link_fc;
+	unsigned int link_speed;
 	unsigned int n_link_state_changes;
 
 	bool promiscuous;
 	union efx_multicast_hash multicast_hash;
-	enum efx_fc_type flow_control;
-	struct work_struct reconfigure_work;
+	enum efx_fc_type wanted_fc;
 
 	atomic_t rx_reset;
 	enum efx_loopback_mode loopback_mode;

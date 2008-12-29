@@ -27,7 +27,6 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
-#include "hda_patch.h"
 
 #define CXT_PIN_DIR_IN              0x00
 #define CXT_PIN_DIR_OUT             0x01
@@ -86,8 +85,6 @@ struct conexant_spec {
 
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;
-	unsigned int num_kctl_alloc, num_kctl_used;
-	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_imux;
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
@@ -344,15 +341,6 @@ static int conexant_init(struct hda_codec *codec)
 
 static void conexant_free(struct hda_codec *codec)
 {
-        struct conexant_spec *spec = codec->spec;
-        unsigned int i;
-
-        if (spec->kctl_alloc) {
-                for (i = 0; i < spec->num_kctl_used; i++)
-                        kfree(spec->kctl_alloc[i].name);
-                kfree(spec->kctl_alloc);
-        }
-
 	kfree(codec->spec);
 }
 
@@ -1782,7 +1770,7 @@ static int patch_cxt5051(struct hda_codec *codec)
 /*
  */
 
-struct hda_codec_preset snd_hda_preset_conexant[] = {
+static struct hda_codec_preset snd_hda_preset_conexant[] = {
 	{ .id = 0x14f15045, .name = "CX20549 (Venice)",
 	  .patch = patch_cxt5045 },
 	{ .id = 0x14f15047, .name = "CX20551 (Waikiki)",
@@ -1791,3 +1779,28 @@ struct hda_codec_preset snd_hda_preset_conexant[] = {
 	  .patch = patch_cxt5051 },
 	{} /* terminator */
 };
+
+MODULE_ALIAS("snd-hda-codec-id:14f15045");
+MODULE_ALIAS("snd-hda-codec-id:14f15047");
+MODULE_ALIAS("snd-hda-codec-id:14f15051");
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Conexant HD-audio codec");
+
+static struct hda_codec_preset_list conexant_list = {
+	.preset = snd_hda_preset_conexant,
+	.owner = THIS_MODULE,
+};
+
+static int __init patch_conexant_init(void)
+{
+	return snd_hda_add_codec_preset(&conexant_list);
+}
+
+static void __exit patch_conexant_exit(void)
+{
+	snd_hda_delete_codec_preset(&conexant_list);
+}
+
+module_init(patch_conexant_init)
+module_exit(patch_conexant_exit)

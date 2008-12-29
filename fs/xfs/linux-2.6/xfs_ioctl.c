@@ -256,6 +256,7 @@ xfs_open_by_handle(
 	struct file		*parfilp,
 	struct inode		*parinode)
 {
+	const struct cred	*cred = current_cred();
 	int			error;
 	int			new_fd;
 	int			permflag;
@@ -321,7 +322,7 @@ xfs_open_by_handle(
 	mntget(parfilp->f_path.mnt);
 
 	/* Create file pointer. */
-	filp = dentry_open(dentry, parfilp->f_path.mnt, hreq.oflags);
+	filp = dentry_open(dentry, parfilp->f_path.mnt, hreq.oflags, cred);
 	if (IS_ERR(filp)) {
 		put_unused_fd(new_fd);
 		return -XFS_ERROR(-PTR_ERR(filp));
@@ -1007,7 +1008,7 @@ xfs_ioctl_setattr(
 	 * to the file owner ID, except in cases where the
 	 * CAP_FSETID capability is applicable.
 	 */
-	if (current->fsuid != ip->i_d.di_uid && !capable(CAP_FOWNER)) {
+	if (current_fsuid() != ip->i_d.di_uid && !capable(CAP_FOWNER)) {
 		code = XFS_ERROR(EPERM);
 		goto error_return;
 	}

@@ -9,6 +9,7 @@
 #include <linux/irq.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/ata_platform.h>
 #include <asm/io.h>
 #include <asm/rtc.h>
 #include <mach-sh03/mach/io.h>
@@ -20,19 +21,6 @@ static void __init init_sh03_IRQ(void)
 	plat_irq_setup_pins(IRQ_MODE_IRQ);
 }
 
-extern void *cf_io_base;
-
-static void __iomem *sh03_ioport_map(unsigned long port, unsigned int size)
-{
-	if (PXSEG(port))
-		return (void __iomem *)port;
-	/* CompactFlash (IDE) */
-	if (((port >= 0x1f0) && (port <= 0x1f7)) || (port == 0x3f6))
-		return (void __iomem *)((unsigned long)cf_io_base + port);
-
-        return (void __iomem *)(port + PCI_IO_BASE);
-}
-
 /* arch/sh/boards/sh03/rtc.c */
 void sh03_time_init(void);
 
@@ -40,6 +28,30 @@ static void __init sh03_setup(char **cmdline_p)
 {
 	board_time_init = sh03_time_init;
 }
+
+static struct resource cf_ide_resources[] = {
+	[0] = {
+		.start  = 0x1f0,
+		.end    = 0x1f0 + 8,
+		.flags  = IORESOURCE_IO,
+	},
+	[1] = {
+		.start  = 0x1f0 + 0x206,
+		.end    = 0x1f0 +8 + 0x206 + 8,
+		.flags  = IORESOURCE_IO,
+	},
+	[2] = {
+		.start  = IRL2_IRQ,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device cf_ide_device = {
+	.name		= "pata_platform",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(cf_ide_resources),
+	.resource	= cf_ide_resources,
+};
 
 static struct resource heartbeat_resources[] = {
 	[0] = {
@@ -58,10 +70,30 @@ static struct platform_device heartbeat_device = {
 
 static struct platform_device *sh03_devices[] __initdata = {
 	&heartbeat_device,
+	&cf_ide_device,
 };
 
 static int __init sh03_devices_setup(void)
 {
+	pgprot_t prot;
+	unsigned long paddrbase;
+	void *cf_ide_base;
+
+	/* open I/O area window */
+	paddrbase = virt_to_phys((void *)PA_AREA5_IO);
+	prot = PAGE_KERNEL_PCC(1, _PAGE_PCC_IO16);
+	cf_ide_base = p3_ioremap(paddrbase, PAGE_SIZE, prot.pgprot);
+	if (!cf_ide_base) {
+		printk("allocate_cf_area : can't open CF I/O window!\n");
+		return -ENOMEM;
+	}
+
+	/* IDE cmd address : 0x1f0-0x1f7 and 0x3f6 */
+	cf_ide_resources[0].start += (unsigned long)cf_ide_base;
+	cf_ide_resources[0].end   += (unsigned long)cf_ide_base;
+	cf_ide_resources[1].start += (unsigned long)cf_ide_base;
+	cf_ide_resources[1].end   += (unsigned long)cf_ide_base;
+
 	return platform_add_devices(sh03_devices, ARRAY_SIZE(sh03_devices));
 }
 __initcall(sh03_devices_setup);
@@ -70,6 +102,5 @@ static struct sh_machine_vector mv_sh03 __initmv = {
 	.mv_name		= "Interface (CTP/PCI-SH03)",
 	.mv_setup		= sh03_setup,
 	.mv_nr_irqs		= 48,
-	.mv_ioport_map		= sh03_ioport_map,
 	.mv_init_irq		= init_sh03_IRQ,
 };

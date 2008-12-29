@@ -32,22 +32,17 @@ static int cap_quota_on(struct dentry *dentry)
 	return 0;
 }
 
-static int cap_bprm_alloc_security(struct linux_binprm *bprm)
+static int cap_bprm_check_security (struct linux_binprm *bprm)
 {
 	return 0;
 }
 
-static void cap_bprm_free_security(struct linux_binprm *bprm)
+static void cap_bprm_committing_creds(struct linux_binprm *bprm)
 {
 }
 
-static void cap_bprm_post_apply_creds(struct linux_binprm *bprm)
+static void cap_bprm_committed_creds(struct linux_binprm *bprm)
 {
-}
-
-static int cap_bprm_check_security(struct linux_binprm *bprm)
-{
-	return 0;
 }
 
 static int cap_sb_alloc_security(struct super_block *sb)
@@ -64,7 +59,7 @@ static int cap_sb_copy_data(char *orig, char *copy)
 	return 0;
 }
 
-static int cap_sb_kern_mount(struct super_block *sb, void *data)
+static int cap_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
 	return 0;
 }
@@ -330,7 +325,7 @@ static int cap_file_receive(struct file *file)
 	return 0;
 }
 
-static int cap_dentry_open(struct file *file)
+static int cap_dentry_open(struct file *file, const struct cred *cred)
 {
 	return 0;
 }
@@ -340,13 +335,27 @@ static int cap_task_create(unsigned long clone_flags)
 	return 0;
 }
 
-static int cap_task_alloc_security(struct task_struct *p)
+static void cap_cred_free(struct cred *cred)
+{
+}
+
+static int cap_cred_prepare(struct cred *new, const struct cred *old, gfp_t gfp)
 {
 	return 0;
 }
 
-static void cap_task_free_security(struct task_struct *p)
+static void cap_cred_commit(struct cred *new, const struct cred *old)
 {
+}
+
+static int cap_kernel_act_as(struct cred *new, u32 secid)
+{
+	return 0;
+}
+
+static int cap_kernel_create_files_as(struct cred *new, struct inode *inode)
+{
+	return 0;
 }
 
 static int cap_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
@@ -750,7 +759,7 @@ static void cap_release_secctx(char *secdata, u32 seclen)
 }
 
 #ifdef CONFIG_KEYS
-static int cap_key_alloc(struct key *key, struct task_struct *ctx,
+static int cap_key_alloc(struct key *key, const struct cred *cred,
 			 unsigned long flags)
 {
 	return 0;
@@ -760,7 +769,7 @@ static void cap_key_free(struct key *key)
 {
 }
 
-static int cap_key_permission(key_ref_t key_ref, struct task_struct *context,
+static int cap_key_permission(key_ref_t key_ref, const struct cred *cred,
 			      key_perm_t perm)
 {
 	return 0;
@@ -814,8 +823,7 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, ptrace_may_access);
 	set_to_cap_if_null(ops, ptrace_traceme);
 	set_to_cap_if_null(ops, capget);
-	set_to_cap_if_null(ops, capset_check);
-	set_to_cap_if_null(ops, capset_set);
+	set_to_cap_if_null(ops, capset);
 	set_to_cap_if_null(ops, acct);
 	set_to_cap_if_null(ops, capable);
 	set_to_cap_if_null(ops, quotactl);
@@ -824,11 +832,9 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, syslog);
 	set_to_cap_if_null(ops, settime);
 	set_to_cap_if_null(ops, vm_enough_memory);
-	set_to_cap_if_null(ops, bprm_alloc_security);
-	set_to_cap_if_null(ops, bprm_free_security);
-	set_to_cap_if_null(ops, bprm_apply_creds);
-	set_to_cap_if_null(ops, bprm_post_apply_creds);
-	set_to_cap_if_null(ops, bprm_set_security);
+	set_to_cap_if_null(ops, bprm_set_creds);
+	set_to_cap_if_null(ops, bprm_committing_creds);
+	set_to_cap_if_null(ops, bprm_committed_creds);
 	set_to_cap_if_null(ops, bprm_check_security);
 	set_to_cap_if_null(ops, bprm_secureexec);
 	set_to_cap_if_null(ops, sb_alloc_security);
@@ -890,10 +896,13 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, file_receive);
 	set_to_cap_if_null(ops, dentry_open);
 	set_to_cap_if_null(ops, task_create);
-	set_to_cap_if_null(ops, task_alloc_security);
-	set_to_cap_if_null(ops, task_free_security);
+	set_to_cap_if_null(ops, cred_free);
+	set_to_cap_if_null(ops, cred_prepare);
+	set_to_cap_if_null(ops, cred_commit);
+	set_to_cap_if_null(ops, kernel_act_as);
+	set_to_cap_if_null(ops, kernel_create_files_as);
 	set_to_cap_if_null(ops, task_setuid);
-	set_to_cap_if_null(ops, task_post_setuid);
+	set_to_cap_if_null(ops, task_fix_setuid);
 	set_to_cap_if_null(ops, task_setgid);
 	set_to_cap_if_null(ops, task_setpgid);
 	set_to_cap_if_null(ops, task_getpgid);
@@ -910,7 +919,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, task_wait);
 	set_to_cap_if_null(ops, task_kill);
 	set_to_cap_if_null(ops, task_prctl);
-	set_to_cap_if_null(ops, task_reparent_to_init);
 	set_to_cap_if_null(ops, task_to_inode);
 	set_to_cap_if_null(ops, ipc_permission);
 	set_to_cap_if_null(ops, ipc_getsecid);

@@ -81,6 +81,36 @@ label##5:					       	\
 #define ALT_FTR_SECTION_END_IFCLR(msk)	\
 	ALT_FTR_SECTION_END_NESTED_IFCLR(msk, 97)
 
+/* MMU feature dependent sections */
+#define BEGIN_MMU_FTR_SECTION_NESTED(label)	START_FTR_SECTION(label)
+#define BEGIN_MMU_FTR_SECTION			START_FTR_SECTION(97)
+
+#define END_MMU_FTR_SECTION_NESTED(msk, val, label) 		\
+	FTR_SECTION_ELSE_NESTED(label)				\
+	MAKE_FTR_SECTION_ENTRY(msk, val, label, __mmu_ftr_fixup)
+
+#define END_MMU_FTR_SECTION(msk, val)		\
+	END_MMU_FTR_SECTION_NESTED(msk, val, 97)
+
+#define END_MMU_FTR_SECTION_IFSET(msk)	END_MMU_FTR_SECTION((msk), (msk))
+#define END_MMU_FTR_SECTION_IFCLR(msk)	END_MMU_FTR_SECTION((msk), 0)
+
+/* MMU feature sections with alternatives, use BEGIN_FTR_SECTION to start */
+#define MMU_FTR_SECTION_ELSE_NESTED(label)	FTR_SECTION_ELSE_NESTED(label)
+#define MMU_FTR_SECTION_ELSE	MMU_FTR_SECTION_ELSE_NESTED(97)
+#define ALT_MMU_FTR_SECTION_END_NESTED(msk, val, label)	\
+	MAKE_FTR_SECTION_ENTRY(msk, val, label, __mmu_ftr_fixup)
+#define ALT_MMU_FTR_SECTION_END_NESTED_IFSET(msk, label)	\
+	ALT_MMU_FTR_SECTION_END_NESTED(msk, msk, label)
+#define ALT_MMU_FTR_SECTION_END_NESTED_IFCLR(msk, label)	\
+	ALT_MMU_FTR_SECTION_END_NESTED(msk, 0, label)
+#define ALT_MMU_FTR_SECTION_END(msk, val)	\
+	ALT_MMU_FTR_SECTION_END_NESTED(msk, val, 97)
+#define ALT_MMU_FTR_SECTION_END_IFSET(msk)	\
+	ALT_MMU_FTR_SECTION_END_NESTED_IFSET(msk, 97)
+#define ALT_MMU_FTR_SECTION_END_IFCLR(msk)	\
+	ALT_MMU_FTR_SECTION_END_NESTED_IFCLR(msk, 97)
+
 /* Firmware feature dependent sections */
 #define BEGIN_FW_FTR_SECTION_NESTED(label)	START_FTR_SECTION(label)
 #define BEGIN_FW_FTR_SECTION			START_FTR_SECTION(97)

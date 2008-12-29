@@ -63,6 +63,16 @@ MODULE_LICENSE("GPL");
 
 static char version[] __devinitdata = "rrunner.c: v0.50 11/11/2002  Jes Sorensen (jes@wildopensource.com)\n";
 
+
+static const struct net_device_ops rr_netdev_ops = {
+	.ndo_open 		= rr_open,
+	.ndo_stop		= rr_close,
+	.ndo_do_ioctl		= rr_ioctl,
+	.ndo_start_xmit		= rr_start_xmit,
+	.ndo_change_mtu		= hippi_change_mtu,
+	.ndo_set_mac_address	= hippi_mac_addr,
+};
+
 /*
  * Implementation notes:
  *
@@ -115,10 +125,7 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 	spin_lock_init(&rrpriv->lock);
 
 	dev->irq = pdev->irq;
-	dev->open = &rr_open;
-	dev->hard_start_xmit = &rr_start_xmit;
-	dev->stop = &rr_close;
-	dev->do_ioctl = &rr_ioctl;
+	dev->netdev_ops = &rr_netdev_ops;
 
 	dev->base_addr = pci_resource_start(pdev, 0);
 
@@ -511,7 +518,6 @@ static int __devinit rr_init(struct net_device *dev)
 	struct rr_private *rrpriv;
 	struct rr_regs __iomem *regs;
 	u32 sram_size, rev;
-	DECLARE_MAC_BUF(mac);
 
 	rrpriv = netdev_priv(dev);
 	regs = rrpriv->regs;
@@ -549,7 +555,7 @@ static int __devinit rr_init(struct net_device *dev)
 	*(__be32 *)(dev->dev_addr+2) =
 	  htonl(rr_read_eeprom_word(rrpriv, offsetof(struct eeprom, manf.BoardULA[4])));
 
-	printk("  MAC: %s\n", print_mac(mac, dev->dev_addr));
+	printk("  MAC: %pM\n", dev->dev_addr);
 
 	sram_size = rr_read_eeprom_word(rrpriv, 8);
 	printk("  SRAM size 0x%06x\n", sram_size);
@@ -1006,7 +1012,6 @@ static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 
 			netif_rx(skb);		/* send it up */
 
-			dev->last_rx = jiffies;
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += pkt_len;
 		}
@@ -1708,9 +1713,3 @@ static void __exit rr_cleanup_module(void)
 
 module_init(rr_init_module);
 module_exit(rr_cleanup_module);
-
-/*
- * Local variables:
- * compile-command: "gcc -D__KERNEL__ -I../../include -Wall -Wstrict-prototypes -O2 -pipe -fomit-frame-pointer -fno-strength-reduce -m486 -malign-loops=2 -malign-jumps=2 -malign-functions=2 -DMODULE -DMODVERSIONS -include ../../include/linux/modversions.h -c rrunner.c"
- * End:
- */

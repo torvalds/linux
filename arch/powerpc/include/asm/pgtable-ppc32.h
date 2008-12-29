@@ -228,9 +228,10 @@ extern int icache_44x_need_flush;
  *   - FILE *must* be in the bottom three bits because swap cache
  *     entries use the top 29 bits for TLB2.
  *
- *   - CACHE COHERENT bit (M) has no effect on PPC440 core, because it
- *     doesn't support SMP. So we can use this as software bit, like
- *     DIRTY.
+ *   - CACHE COHERENT bit (M) has no effect on original PPC440 cores,
+ *     because it doesn't support SMP. However, some later 460 variants
+ *     have -some- form of SMP support and so I keep the bit there for
+ *     future use
  *
  * With the PPC 44x Linux implementation, the 0-11th LSBs of the PTE are used
  * for memory protection related functions (see PTE structure in
@@ -436,20 +437,23 @@ extern int icache_44x_need_flush;
 			 _PAGE_USER | _PAGE_ACCESSED | \
 			 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | \
 			 _PAGE_EXEC | _PAGE_HWEXEC)
-/*
- * Note: the _PAGE_COHERENT bit automatically gets set in the hardware
- * PTE if CONFIG_SMP is defined (hash_page does this); there is no need
- * to have it in the Linux PTE, and in fact the bit could be reused for
- * another purpose.  -- paulus.
- */
 
-#ifdef CONFIG_44x
-#define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_GUARDED)
+/*
+ * We define 2 sets of base prot bits, one for basic pages (ie,
+ * cacheable kernel and user pages) and one for non cacheable
+ * pages. We always set _PAGE_COHERENT when SMP is enabled or
+ * the processor might need it for DMA coherency.
+ */
+#if defined(CONFIG_SMP) || defined(CONFIG_PPC_STD_MMU)
+#define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_COHERENT)
 #else
 #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED)
 #endif
+#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_NO_CACHE)
+
 #define _PAGE_WRENABLE	(_PAGE_RW | _PAGE_DIRTY | _PAGE_HWWRITE)
 #define _PAGE_KERNEL	(_PAGE_BASE | _PAGE_SHARED | _PAGE_WRENABLE)
+#define _PAGE_KERNEL_NC	(_PAGE_BASE_NC | _PAGE_SHARED | _PAGE_WRENABLE)
 
 #ifdef CONFIG_PPC_STD_MMU
 /* On standard PPC MMU, no user access implies kernel read/write access,
@@ -459,7 +463,7 @@ extern int icache_44x_need_flush;
 #define _PAGE_KERNEL_RO	(_PAGE_BASE | _PAGE_SHARED)
 #endif
 
-#define _PAGE_IO	(_PAGE_KERNEL | _PAGE_NO_CACHE | _PAGE_GUARDED)
+#define _PAGE_IO	(_PAGE_KERNEL_NC | _PAGE_GUARDED)
 #define _PAGE_RAM	(_PAGE_KERNEL | _PAGE_HWEXEC)
 
 #if defined(CONFIG_KGDB) || defined(CONFIG_XMON) || defined(CONFIG_BDI_SWITCH) ||\
@@ -551,9 +555,6 @@ static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
-
-static inline void pte_uncache(pte_t pte)       { pte_val(pte) |= _PAGE_NO_CACHE; }
-static inline void pte_cache(pte_t pte)         { pte_val(pte) &= ~_PAGE_NO_CACHE; }
 
 static inline pte_t pte_wrprotect(pte_t pte) {
 	pte_val(pte) &= ~(_PAGE_RW | _PAGE_HWWRITE); return pte; }
@@ -693,10 +694,11 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 #endif
 }
 
+
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
-#if defined(CONFIG_PTE_64BIT) && defined(CONFIG_SMP)
+#if defined(CONFIG_PTE_64BIT) && defined(CONFIG_SMP) && defined(CONFIG_DEBUG_VM)
 	WARN_ON(pte_present(*ptep));
 #endif
 	__set_pte_at(mm, addr, ptep, pte);
@@ -759,16 +761,6 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry, int dirty)
 	}								   \
 	__changed;							   \
 })
-
-/*
- * Macro to mark a page protection value as "uncacheable".
- */
-#define pgprot_noncached(prot)	(__pgprot(pgprot_val(prot) | _PAGE_NO_CACHE | _PAGE_GUARDED))
-
-struct file;
-extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
-				     unsigned long size, pgprot_t vma_prot);
-#define __HAVE_PHYS_MEM_ACCESS_PROT
 
 #define __HAVE_ARCH_PTE_SAME
 #define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HASHPTE) == 0)

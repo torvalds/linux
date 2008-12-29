@@ -22,6 +22,30 @@ int eip_close(struct net_device *dev)
 }
 EXPORT_SYMBOL(eip_close);
 
+int eip_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	return __ei_start_xmit(skb, dev);
+}
+EXPORT_SYMBOL(eip_start_xmit);
+
+struct net_device_stats *eip_get_stats(struct net_device *dev)
+{
+	return __ei_get_stats(dev);
+}
+EXPORT_SYMBOL(eip_get_stats);
+
+void eip_set_multicast_list(struct net_device *dev)
+{
+	__ei_set_multicast_list(dev);
+}
+EXPORT_SYMBOL(eip_set_multicast_list);
+
+void eip_tx_timeout(struct net_device *dev)
+{
+	__ei_tx_timeout(dev);
+}
+EXPORT_SYMBOL(eip_tx_timeout);
+
 irqreturn_t eip_interrupt(int irq, void *dev_id)
 {
 	return __ei_interrupt(irq, dev_id);
@@ -36,9 +60,33 @@ void eip_poll(struct net_device *dev)
 EXPORT_SYMBOL(eip_poll);
 #endif
 
+const struct net_device_ops eip_netdev_ops = {
+	.ndo_open		= eip_open,
+	.ndo_stop		= eip_close,
+	.ndo_start_xmit		= eip_start_xmit,
+	.ndo_tx_timeout		= eip_tx_timeout,
+	.ndo_get_stats		= eip_get_stats,
+	.ndo_set_multicast_list = eip_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= eip_poll,
+#endif
+};
+EXPORT_SYMBOL(eip_netdev_ops);
+
 struct net_device *__alloc_eip_netdev(int size)
 {
-	return ____alloc_ei_netdev(size);
+	struct net_device *dev = ____alloc_ei_netdev(size);
+#ifdef CONFIG_COMPAT_NET_DEV_OPS
+	if (dev) {
+		dev->hard_start_xmit = eip_start_xmit;
+		dev->get_stats	= eip_get_stats;
+		dev->set_multicast_list = eip_set_multicast_list;
+		dev->tx_timeout = eip_tx_timeout;
+	}
+#endif
+	return dev;
 }
 EXPORT_SYMBOL(__alloc_eip_netdev);
 

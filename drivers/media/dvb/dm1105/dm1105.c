@@ -697,8 +697,7 @@ static void __devinit dm1105dvb_read_mac(struct dm1105dvb *dm1105dvb, u8 *mac)
 	};
 
 	dm1105_i2c_xfer(&dm1105dvb->i2c_adap, msg , 2);
-	dev_info(&dm1105dvb->pdev->dev, "MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
-			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	dev_info(&dm1105dvb->pdev->dev, "MAC %pM\n", mac);
 }
 
 static int __devinit dm1105_probe(struct pci_dev *pdev,

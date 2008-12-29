@@ -27,53 +27,70 @@ int nfsexp_flags(struct svc_rqst *rqstp, struct svc_export *exp)
 
 int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 {
-	struct svc_cred	cred = rqstp->rq_cred;
+	struct group_info *rqgi;
+	struct group_info *gi;
+	struct cred *new;
 	int i;
 	int flags = nfsexp_flags(rqstp, exp);
 	int ret;
 
-	if (flags & NFSEXP_ALLSQUASH) {
-		cred.cr_uid = exp->ex_anon_uid;
-		cred.cr_gid = exp->ex_anon_gid;
-		cred.cr_group_info = groups_alloc(0);
-	} else if (flags & NFSEXP_ROOTSQUASH) {
-		struct group_info *gi;
-		if (!cred.cr_uid)
-			cred.cr_uid = exp->ex_anon_uid;
-		if (!cred.cr_gid)
-			cred.cr_gid = exp->ex_anon_gid;
-		gi = groups_alloc(cred.cr_group_info->ngroups);
-		if (gi)
-			for (i = 0; i < cred.cr_group_info->ngroups; i++) {
-				if (!GROUP_AT(cred.cr_group_info, i))
-					GROUP_AT(gi, i) = exp->ex_anon_gid;
-				else
-					GROUP_AT(gi, i) = GROUP_AT(cred.cr_group_info, i);
-			}
-		cred.cr_group_info = gi;
-	} else
-		get_group_info(cred.cr_group_info);
-
-	if (cred.cr_uid != (uid_t) -1)
-		current->fsuid = cred.cr_uid;
-	else
-		current->fsuid = exp->ex_anon_uid;
-	if (cred.cr_gid != (gid_t) -1)
-		current->fsgid = cred.cr_gid;
-	else
-		current->fsgid = exp->ex_anon_gid;
-
-	if (!cred.cr_group_info)
+	/* discard any old override before preparing the new set */
+	revert_creds(get_cred(current->real_cred));
+	new = prepare_creds();
+	if (!new)
 		return -ENOMEM;
-	ret = set_current_groups(cred.cr_group_info);
-	put_group_info(cred.cr_group_info);
-	if ((cred.cr_uid)) {
-		current->cap_effective =
-			cap_drop_nfsd_set(current->cap_effective);
+
+	new->fsuid = rqstp->rq_cred.cr_uid;
+	new->fsgid = rqstp->rq_cred.cr_gid;
+
+	rqgi = rqstp->rq_cred.cr_group_info;
+
+	if (flags & NFSEXP_ALLSQUASH) {
+		new->fsuid = exp->ex_anon_uid;
+		new->fsgid = exp->ex_anon_gid;
+		gi = groups_alloc(0);
+	} else if (flags & NFSEXP_ROOTSQUASH) {
+		if (!new->fsuid)
+			new->fsuid = exp->ex_anon_uid;
+		if (!new->fsgid)
+			new->fsgid = exp->ex_anon_gid;
+
+		gi = groups_alloc(rqgi->ngroups);
+		if (!gi)
+			goto oom;
+
+		for (i = 0; i < rqgi->ngroups; i++) {
+			if (!GROUP_AT(rqgi, i))
+				GROUP_AT(gi, i) = exp->ex_anon_gid;
+			else
+				GROUP_AT(gi, i) = GROUP_AT(rqgi, i);
+		}
 	} else {
-		current->cap_effective =
-			cap_raise_nfsd_set(current->cap_effective,
-					   current->cap_permitted);
+		gi = get_group_info(rqgi);
 	}
+
+	if (new->fsuid == (uid_t) -1)
+		new->fsuid = exp->ex_anon_uid;
+	if (new->fsgid == (gid_t) -1)
+		new->fsgid = exp->ex_anon_gid;
+
+	ret = set_groups(new, gi);
+	put_group_info(gi);
+	if (!ret)
+		goto error;
+
+	if (new->uid)
+		new->cap_effective = cap_drop_nfsd_set(new->cap_effective);
+	else
+		new->cap_effective = cap_raise_nfsd_set(new->cap_effective,
+							new->cap_permitted);
+	put_cred(override_creds(new));
+	return 0;
+
+oom:
+	ret = -ENOMEM;
+error:
+	abort_creds(new);
 	return ret;
 }
+

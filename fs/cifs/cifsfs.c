@@ -66,7 +66,9 @@ unsigned int sign_CIFS_PDUs = 1;
 extern struct task_struct *oplockThread; /* remove sparse warning */
 struct task_struct *oplockThread = NULL;
 /* extern struct task_struct * dnotifyThread; remove sparse warning */
+#ifdef CONFIG_CIFS_EXPERIMENTAL
 static struct task_struct *dnotifyThread = NULL;
+#endif
 static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
@@ -337,39 +339,58 @@ static int
 cifs_show_options(struct seq_file *s, struct vfsmount *m)
 {
 	struct cifs_sb_info *cifs_sb;
+	struct cifsTconInfo *tcon;
+	struct TCP_Server_Info *server;
 
 	cifs_sb = CIFS_SB(m->mnt_sb);
 
 	if (cifs_sb) {
-		if (cifs_sb->tcon) {
-/* BB add prepath to mount options displayed */
+		tcon = cifs_sb->tcon;
+		if (tcon) {
 			seq_printf(s, ",unc=%s", cifs_sb->tcon->treeName);
-			if (cifs_sb->tcon->ses) {
-				if (cifs_sb->tcon->ses->userName)
+			if (tcon->ses) {
+				if (tcon->ses->userName)
 					seq_printf(s, ",username=%s",
-					   cifs_sb->tcon->ses->userName);
-				if (cifs_sb->tcon->ses->domainName)
+					   tcon->ses->userName);
+				if (tcon->ses->domainName)
 					seq_printf(s, ",domain=%s",
-					   cifs_sb->tcon->ses->domainName);
+					   tcon->ses->domainName);
+				server = tcon->ses->server;
+				if (server) {
+					seq_printf(s, ",addr=");
+					switch (server->addr.sockAddr6.
+						sin6_family) {
+					case AF_INET6:
+						seq_printf(s, "%pI6",
+							   &server->addr.sockAddr6.sin6_addr);
+						break;
+					case AF_INET:
+						seq_printf(s, "%pI4",
+							   &server->addr.sockAddr.sin_addr.s_addr);
+						break;
+					}
+				}
 			}
 			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID) ||
-			   !(cifs_sb->tcon->unix_ext))
+			   !(tcon->unix_ext))
 				seq_printf(s, ",uid=%d", cifs_sb->mnt_uid);
 			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID) ||
-			   !(cifs_sb->tcon->unix_ext))
+			   !(tcon->unix_ext))
 				seq_printf(s, ",gid=%d", cifs_sb->mnt_gid);
-			if (!cifs_sb->tcon->unix_ext) {
+			if (!tcon->unix_ext) {
 				seq_printf(s, ",file_mode=0%o,dir_mode=0%o",
 					   cifs_sb->mnt_file_mode,
 					   cifs_sb->mnt_dir_mode);
 			}
-			if (cifs_sb->tcon->seal)
+			if (tcon->seal)
 				seq_printf(s, ",seal");
-			if (cifs_sb->tcon->nocase)
+			if (tcon->nocase)
 				seq_printf(s, ",nocase");
-			if (cifs_sb->tcon->retry)
+			if (tcon->retry)
 				seq_printf(s, ",hard");
 		}
+		if (cifs_sb->prepath)
+			seq_printf(s, ",prepath=%s", cifs_sb->prepath);
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
 			seq_printf(s, ",posixpaths");
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)
@@ -417,9 +438,8 @@ int cifs_xquota_set(struct super_block *sb, int quota_type, qid_t qid,
 	xid = GetXid();
 	if (pTcon) {
 		cFYI(1, ("set type: 0x%x id: %d", quota_type, qid));
-	} else {
+	} else
 		rc = -EIO;
-	}
 
 	FreeXid(xid);
 	return rc;
@@ -441,9 +461,8 @@ int cifs_xquota_get(struct super_block *sb, int quota_type, qid_t qid,
 	xid = GetXid();
 	if (pTcon) {
 		cFYI(1, ("set type: 0x%x id: %d", quota_type, qid));
-	} else {
+	} else
 		rc = -EIO;
-	}
 
 	FreeXid(xid);
 	return rc;
@@ -464,9 +483,8 @@ int cifs_xstate_set(struct super_block *sb, unsigned int flags, int operation)
 	xid = GetXid();
 	if (pTcon) {
 		cFYI(1, ("flags: 0x%x operation: 0x%x", flags, operation));
-	} else {
+	} else
 		rc = -EIO;
-	}
 
 	FreeXid(xid);
 	return rc;
@@ -479,17 +497,16 @@ int cifs_xstate_get(struct super_block *sb, struct fs_quota_stat *qstats)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsTconInfo *pTcon;
 
-	if (cifs_sb) {
+	if (cifs_sb)
 		pTcon = cifs_sb->tcon;
-	} else {
+	else
 		return -EIO;
-	}
+
 	xid = GetXid();
 	if (pTcon) {
 		cFYI(1, ("pqstats %p", qstats));
-	} else {
+	} else
 		rc = -EIO;
-	}
 
 	FreeXid(xid);
 	return rc;
@@ -1029,6 +1046,7 @@ static int cifs_oplock_thread(void *dummyarg)
 	return 0;
 }
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
 static int cifs_dnotify_thread(void *dummyarg)
 {
 	struct list_head *tmp;
@@ -1054,6 +1072,7 @@ static int cifs_dnotify_thread(void *dummyarg)
 
 	return 0;
 }
+#endif
 
 static int __init
 init_cifs(void)
@@ -1131,16 +1150,20 @@ init_cifs(void)
 		goto out_unregister_dfs_key_type;
 	}
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
 	dnotifyThread = kthread_run(cifs_dnotify_thread, NULL, "cifsdnotifyd");
 	if (IS_ERR(dnotifyThread)) {
 		rc = PTR_ERR(dnotifyThread);
 		cERROR(1, ("error %d create dnotify thread", rc));
 		goto out_stop_oplock_thread;
 	}
+#endif
 
 	return 0;
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
  out_stop_oplock_thread:
+#endif
 	kthread_stop(oplockThread);
  out_unregister_dfs_key_type:
 #ifdef CONFIG_CIFS_DFS_UPCALL
@@ -1179,8 +1202,10 @@ exit_cifs(void)
 	cifs_destroy_inodecache();
 	cifs_destroy_mids();
 	cifs_destroy_request_bufs();
-	kthread_stop(oplockThread);
+#ifdef CONFIG_CIFS_EXPERIMENTAL
 	kthread_stop(dnotifyThread);
+#endif
+	kthread_stop(oplockThread);
 }
 
 MODULE_AUTHOR("Steve French <sfrench@us.ibm.com>");

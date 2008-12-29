@@ -516,8 +516,9 @@ static void int_callback(struct urb *u)
 {
 	struct kaweth_device *kaweth = u->context;
 	int act_state;
+	int status = u->status;
 
-	switch (u->status) {
+	switch (status) {
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
@@ -598,6 +599,7 @@ static void kaweth_usb_receive(struct urb *urb)
 {
 	struct kaweth_device *kaweth = urb->context;
 	struct net_device *net = kaweth->net;
+	int status = urb->status;
 
 	int count = urb->actual_length;
 	int count2 = urb->transfer_buffer_length;
@@ -606,7 +608,7 @@ static void kaweth_usb_receive(struct urb *urb)
 
 	struct sk_buff *skb;
 
-	if(unlikely(urb->status == -ECONNRESET || urb->status == -ESHUTDOWN))
+	if(unlikely(status == -ECONNRESET || status == -ESHUTDOWN))
 	/* we are killed - set a flag and wake the disconnect handler */
 	{
 		kaweth->end = 1;
@@ -621,10 +623,10 @@ static void kaweth_usb_receive(struct urb *urb)
 	}
 	spin_unlock(&kaweth->device_lock);
 
-	if(urb->status && urb->status != -EREMOTEIO && count != 1) {
+	if(status && status != -EREMOTEIO && count != 1) {
 		err("%s RX status: %d count: %d packet_len: %d",
                            net->name,
-			   urb->status,
+			   status,
 			   count,
 			   (int)pkt_len);
 		kaweth_resubmit_rx_urb(kaweth, GFP_ATOMIC);
@@ -775,10 +777,11 @@ static void kaweth_usb_transmit_complete(struct urb *urb)
 {
 	struct kaweth_device *kaweth = urb->context;
 	struct sk_buff *skb = kaweth->tx_skb;
+	int status = urb->status;
 
-	if (unlikely(urb->status != 0))
-		if (urb->status != -ENOENT)
-			dbg("%s: TX status %d.", kaweth->net->name, urb->status);
+	if (unlikely(status != 0))
+		if (status != -ENOENT)
+			dbg("%s: TX status %d.", kaweth->net->name, status);
 
 	netif_wake_queue(kaweth->net);
 	dev_kfree_skb_irq(skb);

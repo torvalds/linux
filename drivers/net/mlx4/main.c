@@ -421,9 +421,7 @@ static int mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
 				  ((u64) (MLX4_CMPT_TYPE_EQ *
 					  cmpt_entry_sz) << MLX4_CMPT_SHIFT),
 				  cmpt_entry_sz,
-				  roundup_pow_of_two(MLX4_NUM_EQ +
-						     dev->caps.reserved_eqs),
-				  MLX4_NUM_EQ + dev->caps.reserved_eqs, 0, 0);
+				  dev->caps.num_eqs, dev->caps.num_eqs, 0, 0);
 	if (err)
 		goto err_cq;
 
@@ -810,12 +808,12 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 		if (dev->flags & MLX4_FLAG_MSI_X) {
 			mlx4_warn(dev, "NOP command failed to generate MSI-X "
 				  "interrupt IRQ %d).\n",
-				  priv->eq_table.eq[MLX4_EQ_ASYNC].irq);
+				  priv->eq_table.eq[dev->caps.num_comp_vectors].irq);
 			mlx4_warn(dev, "Trying again without MSI-X.\n");
 		} else {
 			mlx4_err(dev, "NOP command failed to generate interrupt "
 				 "(IRQ %d), aborting.\n",
-				 priv->eq_table.eq[MLX4_EQ_ASYNC].irq);
+				 priv->eq_table.eq[dev->caps.num_comp_vectors].irq);
 			mlx4_err(dev, "BIOS or ACPI interrupt routing problem?\n");
 		}
 
@@ -908,31 +906,50 @@ err_uar_table_free:
 static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	struct msix_entry entries[MLX4_NUM_EQ];
+	struct msix_entry *entries;
+	int nreq;
 	int err;
 	int i;
 
 	if (msi_x) {
-		for (i = 0; i < MLX4_NUM_EQ; ++i)
+		nreq = min(dev->caps.num_eqs - dev->caps.reserved_eqs,
+			   num_possible_cpus() + 1);
+		entries = kcalloc(nreq, sizeof *entries, GFP_KERNEL);
+		if (!entries)
+			goto no_msi;
+
+		for (i = 0; i < nreq; ++i)
 			entries[i].entry = i;
 
-		err = pci_enable_msix(dev->pdev, entries, ARRAY_SIZE(entries));
+	retry:
+		err = pci_enable_msix(dev->pdev, entries, nreq);
 		if (err) {
-			if (err > 0)
-				mlx4_info(dev, "Only %d MSI-X vectors available, "
-					  "not using MSI-X\n", err);
+			/* Try again if at least 2 vectors are available */
+			if (err > 1) {
+				mlx4_info(dev, "Requested %d vectors, "
+					  "but only %d MSI-X vectors available, "
+					  "trying again\n", nreq, err);
+				nreq = err;
+				goto retry;
+			}
+
 			goto no_msi;
 		}
 
-		for (i = 0; i < MLX4_NUM_EQ; ++i)
+		dev->caps.num_comp_vectors = nreq - 1;
+		for (i = 0; i < nreq; ++i)
 			priv->eq_table.eq[i].irq = entries[i].vector;
 
 		dev->flags |= MLX4_FLAG_MSI_X;
+
+		kfree(entries);
 		return;
 	}
 
 no_msi:
-	for (i = 0; i < MLX4_NUM_EQ; ++i)
+	dev->caps.num_comp_vectors = 1;
+
+	for (i = 0; i < 2; ++i)
 		priv->eq_table.eq[i].irq = dev->pdev->irq;
 }
 
@@ -1074,6 +1091,10 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_cmd;
 
+	err = mlx4_alloc_eq_table(dev);
+	if (err)
+		goto err_close;
+
 	mlx4_enable_msi_x(dev);
 
 	err = mlx4_setup_hca(dev);
@@ -1084,7 +1105,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	if (err)
-		goto err_close;
+		goto err_free_eq;
 
 	for (port = 1; port <= dev->caps.num_ports; port++) {
 		err = mlx4_init_port_info(dev, port);
@@ -1113,6 +1134,9 @@ err_port:
 	mlx4_cleanup_mr_table(dev);
 	mlx4_cleanup_pd_table(dev);
 	mlx4_cleanup_uar_table(dev);
+
+err_free_eq:
+	mlx4_free_eq_table(dev);
 
 err_close:
 	if (dev->flags & MLX4_FLAG_MSI_X)
@@ -1177,6 +1201,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 		iounmap(priv->kar);
 		mlx4_uar_free(dev, &priv->driver_uar);
 		mlx4_cleanup_uar_table(dev);
+		mlx4_free_eq_table(dev);
 		mlx4_close_hca(dev);
 		mlx4_cmd_cleanup(dev);
 
