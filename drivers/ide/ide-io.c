@@ -1008,7 +1008,7 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 			 * set nIEN for previous hwif, drives in the
 			 * quirk_list may not like intr setups/cleanups
 			 */
-			if (drive->quirk_list != 1)
+			if (drive->quirk_list == 0)
 				hwif->tp_ops->set_irq(hwif, 0);
 		}
 		hwgroup->hwif = hwif;
