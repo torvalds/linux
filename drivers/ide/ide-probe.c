@@ -1442,8 +1442,8 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 			hwif->mate->serialized = hwif->serialized = 1;
 	}
 
-	if (d->host_flags & IDE_HFLAG_RQSIZE_256)
-		hwif->rqsize = 256;
+	if (d->max_sectors)
+		hwif->rqsize = d->max_sectors;
 
 	/* call chipset specific routine for each enabled port */
 	if (d->init_hwif)

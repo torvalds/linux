@@ -1372,8 +1372,6 @@ enum {
 	IDE_HFLAG_LEGACY_IRQS		= (1 << 21),
 	/* force use of legacy IRQs */
 	IDE_HFLAG_FORCE_LEGACY_IRQS	= (1 << 22),
-	/* limit LBA48 requests to 256 sectors */
-	IDE_HFLAG_RQSIZE_256		= (1 << 23),
 	/* use 32-bit I/O ops */
 	IDE_HFLAG_IO_32BIT		= (1 << 24),
 	/* unmask IRQs */
@@ -1411,6 +1409,9 @@ struct ide_port_info {
 
 	ide_pci_enablebit_t	enablebits[2];
 	hwif_chipset_t		chipset;
+
+	u16			max_sectors;	/* if < than the default one */
+
 	u32			host_flags;
 	u8			pio_mask;
 	u8			swdma_mask;
