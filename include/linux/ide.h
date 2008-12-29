@@ -839,7 +839,6 @@ typedef struct hwif_s {
 	unsigned	extra_ports;	/* number of extra dma ports */
 
 	unsigned	present    : 1;	/* this interface exists */
-	unsigned	serialized : 1;	/* serialized all channel operation */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 
 	struct device		gendev;

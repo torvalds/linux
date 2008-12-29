@@ -864,31 +864,6 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 }
 
 /*
- * save_match() is used to simplify logic in init_irq() below.
- *
- * A loophole here is that we may not know about a particular
- * hwif's irq until after that hwif is actually probed/initialized..
- * This could be a problem for the case where an hwif is on a
- * dual interface that requires serialization (eg. cmd640) and another
- * hwif using one of the same irqs is initialized beforehand.
- *
- * This routine detects and reports such situations, but does not fix them.
- */
-static void save_match(ide_hwif_t *hwif, ide_hwif_t *new, ide_hwif_t **match)
-{
-	ide_hwif_t *m = *match;
-
-	if (m && m->hwgroup && m->hwgroup != new->hwgroup) {
-		if (!new->hwgroup)
-			return;
-		printk(KERN_WARNING "%s: potential IRQ problem with %s and %s\n",
-			hwif->name, new->name, m->name);
-	}
-	if (!m || m->irq != hwif->irq) /* don't undo a prior perfect match */
-		*match = new;
-}
-
-/*
  * init request queue
  */
 static int ide_init_queue(ide_drive_t *drive)
@@ -1052,26 +1027,13 @@ static int init_irq (ide_hwif_t *hwif)
 	mutex_lock(&ide_cfg_mtx);
 	hwif->hwgroup = NULL;
 
-	/*
-	 * Group up with any other hwifs that share our irq(s).
-	 */
 	for (index = 0; index < MAX_HWIFS; index++) {
 		ide_hwif_t *h = ide_ports[index];
 
 		if (h && h->hwgroup) {  /* scan only initialized ports */
-			if (hwif->irq == h->irq) {
-				if (hwif->chipset != ide_pci ||
-				    h->chipset != ide_pci) {
-					save_match(hwif, h, &match);
-				}
-			}
-			if (hwif->serialized) {
-				if (hwif->mate && hwif->mate->irq == h->irq)
-					save_match(hwif, h, &match);
-			}
-			if (h->serialized) {
-				if (h->mate && hwif->irq == h->mate->irq)
-					save_match(hwif, h, &match);
+			if (hwif->host->host_flags & IDE_HFLAG_SERIALIZE) {
+				if (hwif->host == h->host)
+					match = h;
 			}
 		}
 	}
@@ -1437,10 +1399,8 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	}
 
 	if ((d->host_flags & IDE_HFLAG_SERIALIZE) ||
-	    ((d->host_flags & IDE_HFLAG_SERIALIZE_DMA) && hwif->dma_base)) {
-		if (hwif->mate)
-			hwif->mate->serialized = hwif->serialized = 1;
-	}
+	    ((d->host_flags & IDE_HFLAG_SERIALIZE_DMA) && hwif->dma_base))
+		hwif->host->host_flags |= IDE_HFLAG_SERIALIZE;
 
 	if (d->max_sectors)
 		hwif->rqsize = d->max_sectors;
