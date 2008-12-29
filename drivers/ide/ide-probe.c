@@ -110,8 +110,8 @@ static void ide_disk_init_mult_count(ide_drive_t *drive)
  *	read and parse the results. This function is run with
  *	interrupts disabled. 
  */
- 
-static inline void do_identify (ide_drive_t *drive, u8 cmd)
+
+static void do_identify(ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	u16 *id = drive->id;
@@ -554,8 +554,8 @@ static void enable_nest (ide_drive_t *drive)
  *			1  device was found
  *			   (note: IDE_DFLAG_PRESENT might still be not set)
  */
- 
-static inline u8 probe_for_drive (ide_drive_t *drive)
+
+static u8 probe_for_drive(ide_drive_t *drive)
 {
 	char *m;
 
