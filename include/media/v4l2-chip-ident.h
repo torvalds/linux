@@ -177,6 +177,7 @@ enum {
 	V4L2_IDENT_MT9M112		= 45008,
 	V4L2_IDENT_MT9V022IX7ATC	= 45010, /* No way to detect "normal" I77ATx */
 	V4L2_IDENT_MT9V022IX7ATM	= 45015, /* and "lead free" IA7ATx chips */
+	V4L2_IDENT_MT9T031		= 45020,
 };
 
 #endif
