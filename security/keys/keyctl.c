@@ -838,11 +838,11 @@ static long get_instantiation_keyring(key_serial_t ringid,
 {
 	key_ref_t dkref;
 
+	*_dest_keyring = NULL;
+
 	/* just return a NULL pointer if we weren't asked to make a link */
-	if (ringid == 0) {
-		*_dest_keyring = NULL;
+	if (ringid == 0)
 		return 0;
-	}
 
 	/* if a specific keyring is nominated by ID, then use that */
 	if (ringid > 0) {
