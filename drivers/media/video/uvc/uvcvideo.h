@@ -529,6 +529,7 @@ struct uvc_streaming {
 	__u16 maxpsize;
 
 	struct uvc_streaming_header header;
+	enum v4l2_buf_type type;
 
 	unsigned int nformats;
 	struct uvc_format *format;
@@ -564,12 +565,15 @@ struct uvc_buffer {
 #define UVC_QUEUE_DROP_INCOMPLETE	(1 << 2)
 
 struct uvc_video_queue {
+	enum v4l2_buf_type type;
+
 	void *mem;
 	unsigned int flags;
 	__u32 sequence;
 
 	unsigned int count;
 	unsigned int buf_size;
+	unsigned int buf_used;
 	struct uvc_buffer buffer[UVC_MAX_VIDEO_BUFFERS];
 	struct mutex mutex;	/* protects buffers and mainqueue */
 	spinlock_t irqlock;	/* protects irqqueue */
@@ -584,8 +588,9 @@ struct uvc_video_device {
 	atomic_t active;
 	unsigned int frozen : 1;
 
-	struct list_head iterms;
-	struct uvc_entity *oterm;
+	struct list_head iterms;		/* Input terminals */
+	struct uvc_entity *oterm;		/* Output terminal */
+	struct uvc_entity *sterm;		/* USB streaming terminal */
 	struct uvc_entity *processing;
 	struct uvc_entity *selector;
 	struct list_head extensions;
@@ -726,7 +731,8 @@ extern struct uvc_driver uvc_driver;
 extern void uvc_delete(struct kref *kref);
 
 /* Video buffers queue management. */
-extern void uvc_queue_init(struct uvc_video_queue *queue);
+extern void uvc_queue_init(struct uvc_video_queue *queue,
+		enum v4l2_buf_type type);
 extern int uvc_alloc_buffers(struct uvc_video_queue *queue,
 		unsigned int nbuffers, unsigned int buflength);
 extern int uvc_free_buffers(struct uvc_video_queue *queue);

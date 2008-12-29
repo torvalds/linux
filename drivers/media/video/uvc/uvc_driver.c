@@ -12,8 +12,8 @@
  */
 
 /*
- * This driver aims to support video input devices compliant with the 'USB
- * Video Class' specification.
+ * This driver aims to support video input and ouput devices compliant with the
+ * 'USB Video Class' specification.
  *
  * The driver doesn't support the deprecated v4l1 interface. It implements the
  * mmap capture method only, and doesn't do any image format conversion in
@@ -609,45 +609,54 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 	}
 
 	/* Parse the header descriptor. */
-	if (buffer[2] == VS_OUTPUT_HEADER) {
-		uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming interface "
-			"%d OUTPUT HEADER descriptor is not supported.\n",
-			dev->udev->devnum, alts->desc.bInterfaceNumber);
-		goto error;
-	} else if (buffer[2] == VS_INPUT_HEADER) {
-		p = buflen >= 5 ? buffer[3] : 0;
-		n = buflen >= 12 ? buffer[12] : 0;
+	switch (buffer[2]) {
+	case VS_OUTPUT_HEADER:
+		streaming->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+		size = 9;
+		break;
 
-		if (buflen < 13 + p*n || buffer[2] != VS_INPUT_HEADER) {
-			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
-				"interface %d INPUT HEADER descriptor is "
-				"invalid.\n", dev->udev->devnum,
-				alts->desc.bInterfaceNumber);
-			goto error;
-		}
+	case VS_INPUT_HEADER:
+		streaming->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		size = 13;
+		break;
 
-		streaming->header.bNumFormats = p;
-		streaming->header.bEndpointAddress = buffer[6];
-		streaming->header.bmInfo = buffer[7];
-		streaming->header.bTerminalLink = buffer[8];
-		streaming->header.bStillCaptureMethod = buffer[9];
-		streaming->header.bTriggerSupport = buffer[10];
-		streaming->header.bTriggerUsage = buffer[11];
-		streaming->header.bControlSize = n;
-
-		streaming->header.bmaControls = kmalloc(p*n, GFP_KERNEL);
-		if (streaming->header.bmaControls == NULL) {
-			ret = -ENOMEM;
-			goto error;
-		}
-
-		memcpy(streaming->header.bmaControls, &buffer[13], p*n);
-	} else {
+	default:
 		uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming interface "
 			"%d HEADER descriptor not found.\n", dev->udev->devnum,
 			alts->desc.bInterfaceNumber);
 		goto error;
 	}
+
+	p = buflen >= 4 ? buffer[3] : 0;
+	n = buflen >= size ? buffer[size-1] : 0;
+
+	if (buflen < size + p*n) {
+		uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
+			"interface %d HEADER descriptor is invalid.\n",
+			dev->udev->devnum, alts->desc.bInterfaceNumber);
+		goto error;
+	}
+
+	streaming->header.bNumFormats = p;
+	streaming->header.bEndpointAddress = buffer[6];
+	if (buffer[2] == VS_INPUT_HEADER) {
+		streaming->header.bmInfo = buffer[7];
+		streaming->header.bTerminalLink = buffer[8];
+		streaming->header.bStillCaptureMethod = buffer[9];
+		streaming->header.bTriggerSupport = buffer[10];
+		streaming->header.bTriggerUsage = buffer[11];
+	} else {
+		streaming->header.bTerminalLink = buffer[7];
+	}
+	streaming->header.bControlSize = n;
+
+	streaming->header.bmaControls = kmalloc(p*n, GFP_KERNEL);
+	if (streaming->header.bmaControls == NULL) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	memcpy(streaming->header.bmaControls, &buffer[size], p*n);
 
 	buflen -= buffer[0];
 	buffer += buffer[0];
@@ -1258,6 +1267,26 @@ static int uvc_scan_chain_entity(struct uvc_video_device *video,
 		list_add_tail(&entity->chain, &video->iterms);
 		break;
 
+	case TT_STREAMING:
+		if (uvc_trace_param & UVC_TRACE_PROBE)
+			printk(" <- IT %d\n", entity->id);
+
+		if (!UVC_ENTITY_IS_ITERM(entity)) {
+			uvc_trace(UVC_TRACE_DESCR, "Unsupported input "
+				"terminal %u.\n", entity->id);
+			return -1;
+		}
+
+		if (video->sterm != NULL) {
+			uvc_trace(UVC_TRACE_DESCR, "Found multiple streaming "
+				"entities in chain.\n");
+			return -1;
+		}
+
+		list_add_tail(&entity->chain, &video->iterms);
+		video->sterm = entity;
+		break;
+
 	default:
 		uvc_trace(UVC_TRACE_DESCR, "Unsupported entity type "
 			"0x%04x found in chain.\n", UVC_ENTITY_TYPE(entity));
@@ -1368,6 +1397,10 @@ static int uvc_scan_chain(struct uvc_video_device *video)
 
 	entity = video->oterm;
 	uvc_trace(UVC_TRACE_PROBE, "Scanning UVC chain: OT %d", entity->id);
+
+	if (UVC_ENTITY_TYPE(entity) == TT_STREAMING)
+		video->sterm = entity;
+
 	id = entity->output.bSourceID;
 	while (id != 0) {
 		prev = entity;
@@ -1396,8 +1429,11 @@ static int uvc_scan_chain(struct uvc_video_device *video)
 			return id;
 	}
 
-	/* Initialize the video buffers queue. */
-	uvc_queue_init(&video->queue);
+	if (video->sterm == NULL) {
+		uvc_trace(UVC_TRACE_DESCR, "No streaming entity found in "
+			"chain.\n");
+		return -1;
+	}
 
 	return 0;
 }
@@ -1408,7 +1444,8 @@ static int uvc_scan_chain(struct uvc_video_device *video)
  * The driver currently supports a single video device per control interface
  * only. The terminal and units must match the following structure:
  *
- * ITT_CAMERA -> VC_PROCESSING_UNIT -> VC_EXTENSION_UNIT{0,n} -> TT_STREAMING
+ * ITT_* -> VC_PROCESSING_UNIT -> VC_EXTENSION_UNIT{0,n} -> TT_STREAMING
+ * TT_STREAMING -> VC_PROCESSING_UNIT -> VC_EXTENSION_UNIT{0,n} -> OTT_*
  *
  * The Extension Units, if present, must have a single input pin. The
  * Processing Unit and Extension Units can be in any order. Additional
@@ -1425,7 +1462,7 @@ static int uvc_register_video(struct uvc_device *dev)
 	list_for_each_entry(term, &dev->entities, list) {
 		struct uvc_streaming *streaming;
 
-		if (UVC_ENTITY_TYPE(term) != TT_STREAMING)
+		if (!UVC_ENTITY_IS_TERM(term) || !UVC_ENTITY_IS_OTERM(term))
 			continue;
 
 		memset(&dev->video, 0, sizeof dev->video);
@@ -1438,7 +1475,8 @@ static int uvc_register_video(struct uvc_device *dev)
 			continue;
 
 		list_for_each_entry(streaming, &dev->streaming, list) {
-			if (streaming->header.bTerminalLink == term->id) {
+			if (streaming->header.bTerminalLink ==
+			    dev->video.sterm->id) {
 				dev->video.streaming = streaming;
 				found = 1;
 				break;
@@ -1463,6 +1501,9 @@ static int uvc_register_video(struct uvc_device *dev)
 		}
 		printk(" -> %d).\n", dev->video.oterm->id);
 	}
+
+	/* Initialize the video buffers queue. */
+	uvc_queue_init(&dev->video.queue, dev->video.streaming->type);
 
 	/* Initialize the streaming interface with default streaming
 	 * parameters.

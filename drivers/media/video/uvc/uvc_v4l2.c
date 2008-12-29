@@ -110,7 +110,7 @@ static int uvc_v4l2_try_format(struct uvc_video_device *video,
 	int ret = 0;
 	__u8 *fcc;
 
-	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (fmt->type != video->streaming->type)
 		return -EINVAL;
 
 	fcc = (__u8 *)&fmt->fmt.pix.pixelformat;
@@ -216,7 +216,7 @@ static int uvc_v4l2_get_format(struct uvc_video_device *video,
 	struct uvc_format *format = video->streaming->cur_format;
 	struct uvc_frame *frame = video->streaming->cur_frame;
 
-	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (fmt->type != video->streaming->type)
 		return -EINVAL;
 
 	if (format == NULL || frame == NULL)
@@ -242,7 +242,7 @@ static int uvc_v4l2_set_format(struct uvc_video_device *video,
 	struct uvc_frame *frame;
 	int ret;
 
-	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (fmt->type != video->streaming->type)
 		return -EINVAL;
 
 	if (uvc_queue_streaming(&video->queue))
@@ -264,7 +264,7 @@ static int uvc_v4l2_get_streamparm(struct uvc_video_device *video,
 {
 	uint32_t numerator, denominator;
 
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (parm->type != video->streaming->type)
 		return -EINVAL;
 
 	numerator = video->streaming->ctrl.dwFrameInterval;
@@ -272,13 +272,21 @@ static int uvc_v4l2_get_streamparm(struct uvc_video_device *video,
 	uvc_simplify_fraction(&numerator, &denominator, 8, 333);
 
 	memset(parm, 0, sizeof *parm);
-	parm->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
-	parm->parm.capture.capturemode = 0;
-	parm->parm.capture.timeperframe.numerator = numerator;
-	parm->parm.capture.timeperframe.denominator = denominator;
-	parm->parm.capture.extendedmode = 0;
-	parm->parm.capture.readbuffers = 0;
+	parm->type = video->streaming->type;
+
+	if (video->streaming->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+		parm->parm.capture.capturemode = 0;
+		parm->parm.capture.timeperframe.numerator = numerator;
+		parm->parm.capture.timeperframe.denominator = denominator;
+		parm->parm.capture.extendedmode = 0;
+		parm->parm.capture.readbuffers = 0;
+	} else {
+		parm->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
+		parm->parm.output.outputmode = 0;
+		parm->parm.output.timeperframe.numerator = numerator;
+		parm->parm.output.timeperframe.denominator = denominator;
+	}
 
 	return 0;
 }
@@ -288,24 +296,27 @@ static int uvc_v4l2_set_streamparm(struct uvc_video_device *video,
 {
 	struct uvc_frame *frame = video->streaming->cur_frame;
 	struct uvc_streaming_control probe;
+	struct v4l2_fract timeperframe;
 	uint32_t interval;
 	int ret;
 
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (parm->type != video->streaming->type)
 		return -EINVAL;
 
 	if (uvc_queue_streaming(&video->queue))
 		return -EBUSY;
 
+	if (parm->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		timeperframe = parm->parm.capture.timeperframe;
+	else
+		timeperframe = parm->parm.output.timeperframe;
+
 	memcpy(&probe, &video->streaming->ctrl, sizeof probe);
-	interval = uvc_fraction_to_interval(
-			parm->parm.capture.timeperframe.numerator,
-			parm->parm.capture.timeperframe.denominator);
+	interval = uvc_fraction_to_interval(timeperframe.numerator,
+		timeperframe.denominator);
 
 	uvc_trace(UVC_TRACE_FORMAT, "Setting frame interval to %u/%u (%u).\n",
-			parm->parm.capture.timeperframe.numerator,
-			parm->parm.capture.timeperframe.denominator,
-			interval);
+		timeperframe.numerator, timeperframe.denominator, interval);
 	probe.dwFrameInterval = uvc_try_frame_interval(frame, interval);
 
 	/* Probe the device with the new settings. */
@@ -315,11 +326,15 @@ static int uvc_v4l2_set_streamparm(struct uvc_video_device *video,
 	memcpy(&video->streaming->ctrl, &probe, sizeof probe);
 
 	/* Return the actual frame period. */
-	parm->parm.capture.timeperframe.numerator = probe.dwFrameInterval;
-	parm->parm.capture.timeperframe.denominator = 10000000;
-	uvc_simplify_fraction(&parm->parm.capture.timeperframe.numerator,
-				&parm->parm.capture.timeperframe.denominator,
-				8, 333);
+	timeperframe.numerator = probe.dwFrameInterval;
+	timeperframe.denominator = 10000000;
+	uvc_simplify_fraction(&timeperframe.numerator,
+		&timeperframe.denominator, 8, 333);
+
+	if (parm->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		parm->parm.capture.timeperframe = timeperframe;
+	else
+		parm->parm.output.timeperframe = timeperframe;
 
 	return 0;
 }
@@ -476,8 +491,12 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		strncpy(cap->bus_info, video->dev->udev->bus->bus_name,
 			sizeof cap->bus_info);
 		cap->version = DRIVER_VERSION_NUMBER;
-		cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
-				  | V4L2_CAP_STREAMING;
+		if (video->streaming->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+			cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
+					  | V4L2_CAP_STREAMING;
+		else
+			cap->capabilities = V4L2_CAP_VIDEO_OUTPUT
+					  | V4L2_CAP_STREAMING;
 		break;
 	}
 
@@ -655,7 +674,7 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_fmtdesc *fmt = arg;
 		struct uvc_format *format;
 
-		if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+		if (fmt->type != video->streaming->type ||
 		    fmt->index >= video->streaming->nformats)
 			return -EINVAL;
 
@@ -794,7 +813,7 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_cropcap *ccap = arg;
 		struct uvc_frame *frame = video->streaming->cur_frame;
 
-		if (ccap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		if (ccap->type != video->streaming->type)
 			return -EINVAL;
 
 		ccap->bounds.left = 0;
@@ -820,7 +839,7 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		unsigned int bufsize =
 			video->streaming->ctrl.dwMaxVideoFrameSize;
 
-		if (rb->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+		if (rb->type != video->streaming->type ||
 		    rb->memory != V4L2_MEMORY_MMAP)
 			return -EINVAL;
 
@@ -840,7 +859,7 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		struct v4l2_buffer *buf = arg;
 
-		if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		if (buf->type != video->streaming->type)
 			return -EINVAL;
 
 		if (!uvc_has_privileges(handle))
@@ -866,7 +885,7 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		int *type = arg;
 
-		if (*type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		if (*type != video->streaming->type)
 			return -EINVAL;
 
 		if (!uvc_has_privileges(handle))
@@ -881,7 +900,7 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		int *type = arg;
 
-		if (*type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		if (*type != video->streaming->type)
 			return -EINVAL;
 
 		if (!uvc_has_privileges(handle))

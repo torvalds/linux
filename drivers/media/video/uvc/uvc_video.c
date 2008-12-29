@@ -453,6 +453,34 @@ static void uvc_video_decode_end(struct uvc_video_device *video,
 	}
 }
 
+static int uvc_video_encode_header(struct uvc_video_device *video,
+		struct uvc_buffer *buf, __u8 *data, int len)
+{
+	data[0] = 2;	/* Header length */
+	data[1] = UVC_STREAM_EOH | UVC_STREAM_EOF
+		| (video->last_fid & UVC_STREAM_FID);
+	return 2;
+}
+
+static int uvc_video_encode_data(struct uvc_video_device *video,
+		struct uvc_buffer *buf, __u8 *data, int len)
+{
+	struct uvc_video_queue *queue = &video->queue;
+	unsigned int nbytes;
+	void *mem;
+
+	/* Copy video data to the URB buffer. */
+	mem = queue->mem + buf->buf.m.offset + queue->buf_used;
+	nbytes = min((unsigned int)len, buf->buf.bytesused - queue->buf_used);
+	nbytes = min(video->bulk.max_payload_size - video->bulk.payload_size,
+			nbytes);
+	memcpy(data, mem, nbytes);
+
+	queue->buf_used += nbytes;
+
+	return nbytes;
+}
+
 /* ------------------------------------------------------------------------
  * URB handling
  */
@@ -557,6 +585,48 @@ static void uvc_video_decode_bulk(struct urb *urb,
 		video->bulk.skip_payload = 0;
 		video->bulk.payload_size = 0;
 	}
+}
+
+static void uvc_video_encode_bulk(struct urb *urb,
+	struct uvc_video_device *video, struct uvc_buffer *buf)
+{
+	u8 *mem = urb->transfer_buffer;
+	int len = video->urb_size, ret;
+
+	if (buf == NULL) {
+		urb->transfer_buffer_length = 0;
+		return;
+	}
+
+	/* If the URB is the first of its payload, add the header. */
+	if (video->bulk.header_size == 0) {
+		ret = uvc_video_encode_header(video, buf, mem, len);
+		video->bulk.header_size = ret;
+		video->bulk.payload_size += ret;
+		mem += ret;
+		len -= ret;
+	}
+
+	/* Process video data. */
+	ret = uvc_video_encode_data(video, buf, mem, len);
+
+	video->bulk.payload_size += ret;
+	len -= ret;
+
+	if (buf->buf.bytesused == video->queue.buf_used ||
+	    video->bulk.payload_size == video->bulk.max_payload_size) {
+		if (buf->buf.bytesused == video->queue.buf_used) {
+			video->queue.buf_used = 0;
+			buf->state = UVC_BUF_STATE_DONE;
+			uvc_queue_next_buffer(&video->queue, buf);
+			video->last_fid ^= UVC_STREAM_FID;
+		}
+
+		video->bulk.header_size = 0;
+		video->bulk.payload_size = 0;
+	}
+
+	urb->transfer_buffer_length = video->urb_size - len;
 }
 
 static void uvc_video_complete(struct urb *urb)
@@ -756,7 +826,15 @@ static int uvc_init_video_bulk(struct uvc_video_device *video,
 	if (uvc_alloc_urb_buffers(video, size) < 0)
 		return -ENOMEM;
 
-	pipe = usb_rcvbulkpipe(video->dev->udev, ep->desc.bEndpointAddress);
+	if (usb_endpoint_dir_in(&ep->desc))
+		pipe = usb_rcvbulkpipe(video->dev->udev,
+				       ep->desc.bEndpointAddress);
+	else
+		pipe = usb_sndbulkpipe(video->dev->udev,
+				       ep->desc.bEndpointAddress);
+
+	if (video->streaming->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		size = 0;
 
 	for (i = 0; i < UVC_URBS; ++i) {
 		urb = usb_alloc_urb(0, gfp_flags);
@@ -977,12 +1055,22 @@ int uvc_video_init(struct uvc_video_device *video)
 	atomic_set(&video->active, 0);
 
 	/* Select the video decoding function */
-	if (video->dev->quirks & UVC_QUIRK_BUILTIN_ISIGHT)
-		video->decode = uvc_video_decode_isight;
-	else if (video->streaming->intf->num_altsetting > 1)
-		video->decode = uvc_video_decode_isoc;
-	else
-		video->decode = uvc_video_decode_bulk;
+	if (video->streaming->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		if (video->dev->quirks & UVC_QUIRK_BUILTIN_ISIGHT)
+			video->decode = uvc_video_decode_isight;
+		else if (video->streaming->intf->num_altsetting > 1)
+			video->decode = uvc_video_decode_isoc;
+		else
+			video->decode = uvc_video_decode_bulk;
+	} else {
+		if (video->streaming->intf->num_altsetting == 1)
+			video->decode = uvc_video_encode_bulk;
+		else {
+			uvc_printk(KERN_INFO, "Isochronous endpoints are not "
+				"supported for video output devices.\n");
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }
