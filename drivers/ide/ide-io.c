@@ -107,16 +107,9 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 {
 	unsigned int nr_bytes = nr_sectors << 9;
-	struct request *rq;
+	struct request *rq = drive->hwif->hwgroup->rq;
 	unsigned long flags;
 	int ret = 1;
-
-	/*
-	 * room for locking improvements here, the calls below don't
-	 * need the queue lock held at all
-	 */
-	spin_lock_irqsave(&ide_lock, flags);
-	rq = HWGROUP(drive)->rq;
 
 	if (!nr_bytes) {
 		if (blk_pc_request(rq))
@@ -125,9 +118,10 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 			nr_bytes = rq->hard_cur_sectors << 9;
 	}
 
+	spin_lock_irqsave(&ide_lock, flags);
 	ret = __ide_end_request(drive, rq, uptodate, nr_bytes, 1);
-
 	spin_unlock_irqrestore(&ide_lock, flags);
+
 	return ret;
 }
 EXPORT_SYMBOL(ide_end_request);
@@ -245,8 +239,9 @@ int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&ide_lock, flags);
 	BUG_ON(!blk_rq_started(rq));
+
+	spin_lock_irqsave(&ide_lock, flags);
 	ret = __ide_end_request(drive, rq, uptodate, nr_sectors << 9, 0);
 	spin_unlock_irqrestore(&ide_lock, flags);
 
@@ -278,7 +273,11 @@ static void ide_complete_pm_request (ide_drive_t *drive, struct request *rq)
 		drive->dev_flags &= ~IDE_DFLAG_BLOCKED;
 		blk_start_queue(drive->queue);
 	}
-	HWGROUP(drive)->rq = NULL;
+	spin_unlock_irqrestore(&ide_lock, flags);
+
+	drive->hwif->hwgroup->rq = NULL;
+
+	spin_lock_irqsave(&ide_lock, flags);
 	if (__blk_end_request(rq, 0, 0))
 		BUG();
 	spin_unlock_irqrestore(&ide_lock, flags);
@@ -300,12 +299,9 @@ static void ide_complete_pm_request (ide_drive_t *drive, struct request *rq)
  
 void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 {
+	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
+	struct request *rq = hwgroup->rq;
 	unsigned long flags;
-	struct request *rq;
-
-	spin_lock_irqsave(&ide_lock, flags);
-	rq = HWGROUP(drive)->rq;
-	spin_unlock_irqrestore(&ide_lock, flags);
 
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *task = (ide_task_t *)rq->special;
@@ -333,15 +329,16 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 		return;
 	}
 
-	spin_lock_irqsave(&ide_lock, flags);
-	HWGROUP(drive)->rq = NULL;
+	hwgroup->rq = NULL;
+
 	rq->errors = err;
+
+	spin_lock_irqsave(&ide_lock, flags);
 	if (unlikely(__blk_end_request(rq, (rq->errors ? -EIO : 0),
 				       blk_rq_bytes(rq))))
 		BUG();
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
-
 EXPORT_SYMBOL(ide_end_drive_cmd);
 
 static void ide_kill_rq(ide_drive_t *drive, struct request *rq)
@@ -1489,11 +1486,12 @@ out:
 
 void ide_do_drive_cmd(ide_drive_t *drive, struct request *rq)
 {
+	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
 	unsigned long flags;
-	ide_hwgroup_t *hwgroup = HWGROUP(drive);
+
+	hwgroup->rq = NULL;
 
 	spin_lock_irqsave(&ide_lock, flags);
-	hwgroup->rq = NULL;
 	__elv_add_request(drive->queue, rq, ELEVATOR_INSERT_FRONT, 0);
 	blk_start_queueing(drive->queue);
 	spin_unlock_irqrestore(&ide_lock, flags);

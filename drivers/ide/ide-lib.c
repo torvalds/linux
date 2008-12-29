@@ -277,14 +277,9 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 
 static void ide_dump_opcode(ide_drive_t *drive)
 {
-	struct request *rq;
+	struct request *rq = drive->hwif->hwgroup->rq;
 	ide_task_t *task = NULL;
 
-	spin_lock(&ide_lock);
-	rq = NULL;
-	if (HWGROUP(drive))
-		rq = HWGROUP(drive)->rq;
-	spin_unlock(&ide_lock);
 	if (!rq)
 		return;
 

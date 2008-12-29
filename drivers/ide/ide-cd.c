@@ -317,7 +317,8 @@ static void ide_dump_status_no_sense(ide_drive_t *drive, const char *msg, u8 st)
 static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
+	struct request *rq = hwgroup->rq;
 	int stat, err, sense_key;
 
 	/* check for errors */
@@ -508,8 +509,9 @@ end_request:
 
 		spin_lock_irqsave(&ide_lock, flags);
 		blkdev_dequeue_request(rq);
-		HWGROUP(drive)->rq = NULL;
 		spin_unlock_irqrestore(&ide_lock, flags);
+
+		hwgroup->rq = NULL;
 
 		cdrom_queue_request_sense(drive, rq->sense, rq);
 	} else
@@ -950,7 +952,8 @@ static int cdrom_newpc_intr_dummy_cb(struct request *rq)
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = HWGROUP(drive)->rq;
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
+	struct request *rq = hwgroup->rq;
 	xfer_func_t *xferfunc;
 	ide_expiry_t *expiry = NULL;
 	int dma_error = 0, dma, stat, thislen, uptodate = 0;
@@ -1157,8 +1160,9 @@ end_request:
 		spin_lock_irqsave(&ide_lock, flags);
 		if (__blk_end_request(rq, 0, dlen))
 			BUG();
-		HWGROUP(drive)->rq = NULL;
 		spin_unlock_irqrestore(&ide_lock, flags);
+
+		hwgroup->rq = NULL;
 	} else {
 		if (!uptodate)
 			rq->cmd_flags |= REQ_FAILED;
