@@ -87,6 +87,9 @@ enum {
 	/* module wm8775: just ident 8775 */
 	V4L2_IDENT_WM8775 = 8775,
 
+	/* module tw9910: just ident 9910 */
+	V4L2_IDENT_TW9910 = 9910,
+
 	/* module cs53132a: just ident 53132 */
 	V4L2_IDENT_CS53l32A = 53132,
 

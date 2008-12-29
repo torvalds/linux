@@ -755,6 +755,12 @@ config MT9V022_PCA9536_SWITCH
 	  Select this if your MT9V022 camera uses a PCA9536 I2C GPIO
 	  extender to switch between 8 and 10 bit datawidth modes
 
+config SOC_CAMERA_TW9910
+	tristate "tw9910 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a tw9910 video driver
+
 config SOC_CAMERA_PLATFORM
 	tristate "platform camera support"
 	depends on SOC_CAMERA
