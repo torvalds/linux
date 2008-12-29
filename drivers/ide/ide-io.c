@@ -291,9 +291,6 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *task = (ide_task_t *)rq->special;
 
-		if (rq->errors == 0)
-			rq->errors = !OK_STAT(stat, ATA_DRDY, BAD_STAT);
-
 		if (task) {
 			struct ide_taskfile *tf = &task->tf;
 
