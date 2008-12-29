@@ -122,8 +122,6 @@ struct ide_io_ports {
 #define MAX_DRIVES	2	/* per interface; 2 assumed by lots of code */
 #define SECTOR_SIZE	512
 
-#define IDE_LARGE_SEEK(b1,b2,t)	(((b1) > (b2) + (t)) || ((b2) > (b1) + (t)))
-
 /*
  * Timeouts for various operations:
  */
@@ -496,8 +494,6 @@ enum {
 	 * when more than one interrupt is needed.
 	 */
 	IDE_AFLAG_LIMIT_NFRAMES		= (1 << 7),
-	/* Seeking in progress. */
-	IDE_AFLAG_SEEKING		= (1 << 8),
 	/* Saved TOC information is current. */
 	IDE_AFLAG_TOC_VALID		= (1 << 9),
 	/* We think that the drive door is locked. */

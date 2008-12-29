@@ -774,52 +774,6 @@ static ide_startstop_t cdrom_start_rw_cont(ide_drive_t *drive)
 	return cdrom_transfer_packet_command(drive, rq, cdrom_newpc_intr);
 }
 
-#define IDECD_SEEK_THRESHOLD	(1000)			/* 1000 blocks */
-#define IDECD_SEEK_TIMER	(5 * WAIT_MIN_SLEEP)	/* 100 ms */
-#define IDECD_SEEK_TIMEOUT	(2 * WAIT_CMD)		/* 20 sec */
-
-static ide_startstop_t cdrom_seek_intr(ide_drive_t *drive)
-{
-	struct cdrom_info *info = drive->driver_data;
-	int stat;
-	static int retry = 10;
-
-	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
-
-	if (cdrom_decode_status(drive, 0, &stat))
-		return ide_stopped;
-
-	drive->atapi_flags |= IDE_AFLAG_SEEKING;
-
-	if (retry && time_after(jiffies, info->start_seek + IDECD_SEEK_TIMER)) {
-		if (--retry == 0)
-			drive->dev_flags &= ~IDE_DFLAG_DSC_OVERLAP;
-	}
-	return ide_stopped;
-}
-
-static void ide_cd_prepare_seek_request(ide_drive_t *drive, struct request *rq)
-{
-	sector_t frame = rq->sector;
-
-	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
-
-	sector_div(frame, queue_hardsect_size(drive->queue) >> SECTOR_BITS);
-
-	memset(rq->cmd, 0, BLK_MAX_CDB);
-	rq->cmd[0] = GPCMD_SEEK;
-	put_unaligned(cpu_to_be32(frame), (unsigned int *) &rq->cmd[2]);
-
-	rq->timeout = ATAPI_WAIT_PC;
-}
-
-static ide_startstop_t cdrom_start_seek_continuation(ide_drive_t *drive)
-{
-	struct request *rq = drive->hwif->hwgroup->rq;
-
-	return cdrom_transfer_packet_command(drive, rq, &cdrom_seek_intr);
-}
-
 /*
  * Fix up a possibly partially-processed request so that we can start it over
  * entirely, or even put it back on the request queue.
@@ -1260,7 +1214,6 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
-	struct cdrom_info *info = drive->driver_data;
 	ide_handler_t *fn;
 	int xferlen;
 
@@ -1270,44 +1223,14 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		      (unsigned long long)block);
 
 	if (blk_fs_request(rq)) {
-		if (drive->atapi_flags & IDE_AFLAG_SEEKING) {
-			ide_hwif_t *hwif = drive->hwif;
-			unsigned long elapsed = jiffies - info->start_seek;
-			int stat = hwif->tp_ops->read_status(hwif);
+		xferlen = 32768;
+		fn = cdrom_start_rw_cont;
 
-			if ((stat & ATA_DSC) != ATA_DSC) {
-				if (elapsed < IDECD_SEEK_TIMEOUT) {
-					ide_stall_queue(drive,
-							IDECD_SEEK_TIMER);
-					return ide_stopped;
-				}
-				printk(KERN_ERR PFX "%s: DSC timeout\n",
-						drive->name);
-			}
-			drive->atapi_flags &= ~IDE_AFLAG_SEEKING;
-		}
-		if (rq_data_dir(rq) == READ &&
-		    IDE_LARGE_SEEK(info->last_block, block,
-			    IDECD_SEEK_THRESHOLD) &&
-		    (drive->dev_flags & IDE_DFLAG_DSC_OVERLAP)) {
-			xferlen = 0;
-			fn = cdrom_start_seek_continuation;
+		if (cdrom_start_rw(drive, rq) == ide_stopped)
+			return ide_stopped;
 
-			drive->dma = 0;
-			info->start_seek = jiffies;
-
-			ide_cd_prepare_seek_request(drive, rq);
-		} else {
-			xferlen = 32768;
-			fn = cdrom_start_rw_cont;
-
-			if (cdrom_start_rw(drive, rq) == ide_stopped)
-				return ide_stopped;
-
-			if (ide_cd_prepare_rw_request(drive, rq) == ide_stopped)
-				return ide_stopped;
-		}
-		info->last_block = block;
+		if (ide_cd_prepare_rw_request(drive, rq) == ide_stopped)
+			return ide_stopped;
 	} else if (blk_sense_request(rq) || blk_pc_request(rq) ||
 		   rq->cmd_type == REQ_TYPE_ATA_PC) {
 		xferlen = rq->data_len;
