@@ -63,65 +63,66 @@ static struct v4l2_pix_format vga_mode[] = {
 	 .priv = 0},
 };
 
-static void ov534_reg_write(struct usb_device *udev, u16 reg, u8 val)
+static void ov534_reg_write(struct gspca_dev *gspca_dev, u16 reg, u8 val)
 {
-	u8 data = val;
+	struct usb_device *udev = gspca_dev->dev;
 	int ret;
 
 	PDEBUG(D_USBO, "reg=0x%04x, val=0%02x", reg, val);
+	gspca_dev->usb_buf[0] = val;
 	ret = usb_control_msg(udev,
 			      usb_sndctrlpipe(udev, 0),
 			      0x1,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			      0x0, reg, &data, 1, CTRL_TIMEOUT);
+			      0x0, reg, gspca_dev->usb_buf, 1, CTRL_TIMEOUT);
 	if (ret < 0)
 		PDEBUG(D_ERR, "write failed");
 }
 
-static u8 ov534_reg_read(struct usb_device *udev, u16 reg)
+static u8 ov534_reg_read(struct gspca_dev *gspca_dev, u16 reg)
 {
-	u8 data;
+	struct usb_device *udev = gspca_dev->dev;
 	int ret;
 
 	ret = usb_control_msg(udev,
 			      usb_rcvctrlpipe(udev, 0),
 			      0x1,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			      0x0, reg, &data, 1, CTRL_TIMEOUT);
-	PDEBUG(D_USBI, "reg=0x%04x, data=0x%02x", reg, data);
+			      0x0, reg, gspca_dev->usb_buf, 1, CTRL_TIMEOUT);
+	PDEBUG(D_USBI, "reg=0x%04x, data=0x%02x", reg, gspca_dev->usb_buf[0]);
 	if (ret < 0)
 		PDEBUG(D_ERR, "read failed");
-	return data;
+	return gspca_dev->usb_buf[0];
 }
 
 /* Two bits control LED: 0x21 bit 7 and 0x23 bit 7.
  * (direction and output)? */
-static void ov534_set_led(struct usb_device *udev, int status)
+static void ov534_set_led(struct gspca_dev *gspca_dev, int status)
 {
 	u8 data;
 
 	PDEBUG(D_CONF, "led status: %d", status);
 
-	data = ov534_reg_read(udev, 0x21);
+	data = ov534_reg_read(gspca_dev, 0x21);
 	data |= 0x80;
-	ov534_reg_write(udev, 0x21, data);
+	ov534_reg_write(gspca_dev, 0x21, data);
 
-	data = ov534_reg_read(udev, 0x23);
+	data = ov534_reg_read(gspca_dev, 0x23);
 	if (status)
 		data |= 0x80;
 	else
 		data &= ~(0x80);
 
-	ov534_reg_write(udev, 0x23, data);
+	ov534_reg_write(gspca_dev, 0x23, data);
 }
 
-static int sccb_check_status(struct usb_device *udev)
+static int sccb_check_status(struct gspca_dev *gspca_dev)
 {
 	u8 data;
 	int i;
 
 	for (i = 0; i < 5; i++) {
-		data = ov534_reg_read(udev, OV534_REG_STATUS);
+		data = ov534_reg_read(gspca_dev, OV534_REG_STATUS);
 
 		switch (data) {
 		case 0x00:
@@ -138,30 +139,30 @@ static int sccb_check_status(struct usb_device *udev)
 	return 0;
 }
 
-static void sccb_reg_write(struct usb_device *udev, u16 reg, u8 val)
+static void sccb_reg_write(struct gspca_dev *gspca_dev, u16 reg, u8 val)
 {
 	PDEBUG(D_USBO, "reg: 0x%04x, val: 0x%02x", reg, val);
-	ov534_reg_write(udev, OV534_REG_SUBADDR, reg);
-	ov534_reg_write(udev, OV534_REG_WRITE, val);
-	ov534_reg_write(udev, OV534_REG_OPERATION, OV534_OP_WRITE_3);
+	ov534_reg_write(gspca_dev, OV534_REG_SUBADDR, reg);
+	ov534_reg_write(gspca_dev, OV534_REG_WRITE, val);
+	ov534_reg_write(gspca_dev, OV534_REG_OPERATION, OV534_OP_WRITE_3);
 
-	if (!sccb_check_status(udev))
+	if (!sccb_check_status(gspca_dev))
 		PDEBUG(D_ERR, "sccb_reg_write failed");
 }
 
 #ifdef GSPCA_DEBUG
-static u8 sccb_reg_read(struct usb_device *udev, u16 reg)
+static u8 sccb_reg_read(struct gspca_dev *gspca_dev, u16 reg)
 {
-	ov534_reg_write(udev, OV534_REG_SUBADDR, reg);
-	ov534_reg_write(udev, OV534_REG_OPERATION, OV534_OP_WRITE_2);
-	if (!sccb_check_status(udev))
+	ov534_reg_write(gspca_dev, OV534_REG_SUBADDR, reg);
+	ov534_reg_write(gspca_dev, OV534_REG_OPERATION, OV534_OP_WRITE_2);
+	if (!sccb_check_status(gspca_dev))
 		PDEBUG(D_ERR, "sccb_reg_read failed 1");
 
-	ov534_reg_write(udev, OV534_REG_OPERATION, OV534_OP_READ_2);
-	if (!sccb_check_status(udev))
+	ov534_reg_write(gspca_dev, OV534_REG_OPERATION, OV534_OP_READ_2);
+	if (!sccb_check_status(gspca_dev))
 		PDEBUG(D_ERR, "sccb_reg_read failed 2");
 
-	return ov534_reg_read(udev, OV534_REG_READ);
+	return ov534_reg_read(gspca_dev, OV534_REG_READ);
 }
 #endif
 
@@ -318,26 +319,26 @@ static void ov534_set_frame_rate(struct gspca_dev *gspca_dev)
 
 	switch (fr) {
 	case 50:
-		sccb_reg_write(gspca_dev->dev, 0x11, 0x01);
-		sccb_reg_write(gspca_dev->dev, 0x0d, 0x41);
-		ov534_reg_write(gspca_dev->dev, 0xe5, 0x02);
+		sccb_reg_write(gspca_dev, 0x11, 0x01);
+		sccb_reg_write(gspca_dev, 0x0d, 0x41);
+		ov534_reg_write(gspca_dev, 0xe5, 0x02);
 		break;
 	case 40:
-		sccb_reg_write(gspca_dev->dev, 0x11, 0x02);
-		sccb_reg_write(gspca_dev->dev, 0x0d, 0xc1);
-		ov534_reg_write(gspca_dev->dev, 0xe5, 0x04);
+		sccb_reg_write(gspca_dev, 0x11, 0x02);
+		sccb_reg_write(gspca_dev, 0x0d, 0xc1);
+		ov534_reg_write(gspca_dev, 0xe5, 0x04);
 		break;
 /*	case 30: */
 	default:
 		fr = 30;
-		sccb_reg_write(gspca_dev->dev, 0x11, 0x04);
-		sccb_reg_write(gspca_dev->dev, 0x0d, 0x81);
-		ov534_reg_write(gspca_dev->dev, 0xe5, 0x02);
+		sccb_reg_write(gspca_dev, 0x11, 0x04);
+		sccb_reg_write(gspca_dev, 0x0d, 0x81);
+		ov534_reg_write(gspca_dev, 0xe5, 0x02);
 		break;
 	case 15:
-		sccb_reg_write(gspca_dev->dev, 0x11, 0x03);
-		sccb_reg_write(gspca_dev->dev, 0x0d, 0x41);
-		ov534_reg_write(gspca_dev->dev, 0xe5, 0x04);
+		sccb_reg_write(gspca_dev, 0x11, 0x03);
+		sccb_reg_write(gspca_dev, 0x0d, 0x41);
+		ov534_reg_write(gspca_dev, 0xe5, 0x04);
 		break;
 	}
 
@@ -346,27 +347,28 @@ static void ov534_set_frame_rate(struct gspca_dev *gspca_dev)
 }
 
 /* setup method */
-static void ov534_setup(struct usb_device *udev)
+static void ov534_setup(struct gspca_dev *gspca_dev)
 {
 	int i;
 
 	/* Initialize bridge chip */
 	for (i = 0; i < ARRAY_SIZE(ov534_reg_initdata); i++)
-		ov534_reg_write(udev, ov534_reg_initdata[i][0],
+		ov534_reg_write(gspca_dev, ov534_reg_initdata[i][0],
 				ov534_reg_initdata[i][1]);
 
 	PDEBUG(D_PROBE, "sensor is ov%02x%02x",
-		sccb_reg_read(udev, 0x0a), sccb_reg_read(udev, 0x0b));
+		sccb_reg_read(gspca_dev, 0x0a),
+		sccb_reg_read(gspca_dev, 0x0b));
 
-	ov534_set_led(udev, 1);
+	ov534_set_led(gspca_dev, 1);
 
 	/* Initialize sensor */
 	for (i = 0; i < ARRAY_SIZE(ov772x_reg_initdata); i++)
-		sccb_reg_write(udev, ov772x_reg_initdata[i][0],
+		sccb_reg_write(gspca_dev, ov772x_reg_initdata[i][0],
 			       ov772x_reg_initdata[i][1]);
 
-	ov534_reg_write(udev, 0xe0, 0x09);
-	ov534_set_led(udev, 0);
+	ov534_reg_write(gspca_dev, 0xe0, 0x09);
+	ov534_set_led(gspca_dev, 0);
 }
 
 /* this function is called at probe time */
@@ -390,7 +392,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	ov534_setup(gspca_dev->dev);
+	ov534_setup(gspca_dev);
 	ov534_set_frame_rate(gspca_dev);
 
 	return 0;
@@ -399,8 +401,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	/* start streaming data */
-	ov534_set_led(gspca_dev->dev, 1);
-	ov534_reg_write(gspca_dev->dev, 0xe0, 0x00);
+	ov534_set_led(gspca_dev, 1);
+	ov534_reg_write(gspca_dev, 0xe0, 0x00);
 
 	return 0;
 }
@@ -408,8 +410,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	/* stop streaming data */
-	ov534_reg_write(gspca_dev->dev, 0xe0, 0x09);
-	ov534_set_led(gspca_dev->dev, 0);
+	ov534_reg_write(gspca_dev, 0xe0, 0x09);
+	ov534_set_led(gspca_dev, 0);
 }
 
 /* Values for bmHeaderInfo (Video and Still Image Payload Headers, 2.4.3.3) */
