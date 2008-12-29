@@ -33,8 +33,8 @@ MODULE_AUTHOR("Erik Andrén");
 MODULE_DESCRIPTION("STV06XX USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-int dump_bridge;
-int dump_sensor;
+static int dump_bridge;
+static int dump_sensor;
 
 int stv06xx_write_bridge(struct sd *sd, u16 address, u16 i2c_data)
 {
@@ -476,7 +476,7 @@ static int sd_probe(struct usb_interface *intf,
 			       THIS_MODULE);
 }
 
-void sd_disconnect(struct usb_interface *intf)
+static void sd_disconnect(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
 	struct sd *sd = (struct sd *) gspca_dev;
