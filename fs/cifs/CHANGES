@@ -1,3 +1,12 @@
+Version 1.56
+------------
+Add "forcemandatorylock" mount option to allow user to use mandatory
+rather than posix (advisory) byte range locks, even though server would
+support posix byte range locks.  Fix query of root inode when prefixpath
+specified and user does not have access to query information about the
+top of the share.  Fix problem in 2.6.28 resolving DFS paths to
+Samba servers (worked to Windows).
+
 Version 1.55
 ------------
 Various fixes to make delete of open files behavior more predictable

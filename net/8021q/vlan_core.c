@@ -47,8 +47,6 @@ int vlan_hwaccel_do_receive(struct sk_buff *skb)
 	skb->priority = vlan_get_ingress_priority(dev, skb->vlan_tci);
 	skb->vlan_tci = 0;
 
-	dev->last_rx = jiffies;
-
 	stats = &dev->stats;
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;

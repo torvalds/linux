@@ -33,6 +33,7 @@
 #include <linux/cpufreq.h>
 #include <linux/compiler.h>
 #include <linux/dmi.h>
+#include <linux/ftrace.h>
 
 #include <linux/acpi.h>
 #include <acpi/processor.h>
@@ -391,6 +392,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	unsigned int next_perf_state = 0; /* Index into perf table */
 	unsigned int i;
 	int result = 0;
+	struct power_trace it;
 
 	dprintk("acpi_cpufreq_target %d (%d)\n", target_freq, policy->cpu);
 
@@ -426,6 +428,8 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 			return 0;
 		}
 	}
+
+	trace_power_mark(&it, POWER_PSTATE, next_perf_state);
 
 	switch (data->cpu_feature) {
 	case SYSTEM_INTEL_MSR_CAPABLE:

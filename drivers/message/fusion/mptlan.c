@@ -815,7 +815,7 @@ mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
  * @priority: 0 = put it on the timer queue, 1 = put it on the immediate queue
  */
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	
 	if (test_and_set_bit(0, &priv->post_buckets_active) == 0) {
 		if (priority) {
@@ -834,7 +834,7 @@ mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
 static int
 mpt_lan_receive_skb(struct net_device *dev, struct sk_buff *skb)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 
 	skb->protocol = mpt_lan_type_trans(skb, dev);
 
@@ -866,7 +866,7 @@ mpt_lan_receive_skb(struct net_device *dev, struct sk_buff *skb)
 static int
 mpt_lan_receive_post_turbo(struct net_device *dev, u32 tmsg)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
 	struct sk_buff *skb, *old_skb;
 	unsigned long flags;
@@ -921,7 +921,7 @@ static int
 mpt_lan_receive_post_free(struct net_device *dev,
 			  LANReceivePostReply_t *pRecvRep)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
 	unsigned long flags;
 	struct sk_buff *skb;
@@ -976,7 +976,7 @@ static int
 mpt_lan_receive_post_reply(struct net_device *dev,
 			   LANReceivePostReply_t *pRecvRep)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
 	struct sk_buff *skb, *old_skb;
 	unsigned long flags;
@@ -1427,11 +1427,9 @@ mptlan_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(KERN_INFO MYNAM ": %s: Fusion MPT LAN device "
 		       "registered as '%s'\n", ioc->name, dev->name);
 		printk(KERN_INFO MYNAM ": %s/%s: "
-		       "LanAddr = %02X:%02X:%02X:%02X:%02X:%02X\n",
+		       "LanAddr = %pM\n",
 		       IOC_AND_NETDEV_NAMES_s_s(dev),
-		       dev->dev_addr[0], dev->dev_addr[1],
-		       dev->dev_addr[2], dev->dev_addr[3],
-		       dev->dev_addr[4], dev->dev_addr[5]);
+		       dev->dev_addr);
 	
 		ioc->netdev = dev;
 
@@ -1516,9 +1514,8 @@ mpt_lan_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 		printk (KERN_WARNING MYNAM ": %s: WARNING - Broadcast swap F/W bug detected!\n",
 				NETDEV_PTR_TO_IOC_NAME_s(dev));
-		printk (KERN_WARNING MYNAM ": Please update sender @ MAC_addr = %02x:%02x:%02x:%02x:%02x:%02x\n",
-				fch->saddr[0], fch->saddr[1], fch->saddr[2],
-				fch->saddr[3], fch->saddr[4], fch->saddr[5]);
+		printk (KERN_WARNING MYNAM ": Please update sender @ MAC_addr = %pM\n",
+				fch->saddr);
 	}
 
 	if (*fch->daddr & 1) {
@@ -1536,7 +1533,6 @@ mpt_lan_type_trans(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	fcllc = (struct fcllc *)skb->data;
-
 
 	/* Strip the SNAP header from ARP packets since we don't
 	 * pass them through to the 802.2/SNAP layers.

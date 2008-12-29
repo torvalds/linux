@@ -44,9 +44,12 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 {
 	BUG_ON(mm == &init_mm); /* Should never happen */
 
-#ifdef CONFIG_SMP
+#if 1 || defined(CONFIG_SMP)
 	flush_tlb_all();
 #else
+	/* FIXME: currently broken, causing space id and protection ids
+	 *  to go out of sync, resulting in faults on userspace accesses.
+	 */
 	if (mm) {
 		if (mm->context != 0)
 			free_sid(mm->context);

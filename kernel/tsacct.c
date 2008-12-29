@@ -27,6 +27,7 @@
  */
 void bacct_add_tsk(struct taskstats *stats, struct task_struct *tsk)
 {
+	const struct cred *tcred;
 	struct timespec uptime, ts;
 	u64 ac_etime;
 
@@ -53,10 +54,11 @@ void bacct_add_tsk(struct taskstats *stats, struct task_struct *tsk)
 		stats->ac_flag |= AXSIG;
 	stats->ac_nice	 = task_nice(tsk);
 	stats->ac_sched	 = tsk->policy;
-	stats->ac_uid	 = tsk->uid;
-	stats->ac_gid	 = tsk->gid;
 	stats->ac_pid	 = tsk->pid;
 	rcu_read_lock();
+	tcred = __task_cred(tsk);
+	stats->ac_uid	 = tcred->uid;
+	stats->ac_gid	 = tcred->gid;
 	stats->ac_ppid	 = pid_alive(tsk) ?
 				rcu_dereference(tsk->real_parent)->tgid : 0;
 	rcu_read_unlock();

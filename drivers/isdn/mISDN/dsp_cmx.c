@@ -1540,11 +1540,13 @@ send_packet:
 	schedule_work(&dsp->workq);
 }
 
-u32	samplecount;
+static u32	samplecount;
 struct timer_list dsp_spl_tl;
 u32	dsp_spl_jiffies; /* calculate the next time to fire */
-u32	dsp_start_jiffies; /* jiffies at the time, the calculation begins */
-struct timeval dsp_start_tv; /* time at start of calculation */
+#ifdef UNUSED
+static u32	dsp_start_jiffies; /* jiffies at the time, the calculation begins */
+#endif /* UNUSED */
+static struct timeval dsp_start_tv; /* time at start of calculation */
 
 void
 dsp_cmx_send(void *arg)

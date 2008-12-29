@@ -350,7 +350,7 @@ static __wsum qeth_eddp_check_tcp4_hdr(struct qeth_eddp_data *eddp,
 	phcsum = csum_tcpudp_nofold(eddp->nh.ip4.h.saddr, eddp->nh.ip4.h.daddr,
 				    eddp->thl + data_len, IPPROTO_TCP, 0);
 	/* compute checksum of tcp header */
-	return csum_partial((u8 *)&eddp->th, eddp->thl, phcsum);
+	return csum_partial(&eddp->th, eddp->thl, phcsum);
 }
 
 static __wsum qeth_eddp_check_tcp6_hdr(struct qeth_eddp_data *eddp,
@@ -362,12 +362,12 @@ static __wsum qeth_eddp_check_tcp6_hdr(struct qeth_eddp_data *eddp,
 	QETH_DBF_TEXT(TRACE, 5, "eddpckt6");
 	eddp->th.tcp.h.check = 0;
 	/* compute pseudo header checksum */
-	phcsum = csum_partial((u8 *)&eddp->nh.ip6.h.saddr,
+	phcsum = csum_partial(&eddp->nh.ip6.h.saddr,
 			      sizeof(struct in6_addr), 0);
-	phcsum = csum_partial((u8 *)&eddp->nh.ip6.h.daddr,
+	phcsum = csum_partial(&eddp->nh.ip6.h.daddr,
 			      sizeof(struct in6_addr), phcsum);
 	proto = htonl(IPPROTO_TCP);
-	phcsum = csum_partial((u8 *)&proto, sizeof(u32), phcsum);
+	phcsum = csum_partial(&proto, sizeof(u32), phcsum);
 	return phcsum;
 }
 

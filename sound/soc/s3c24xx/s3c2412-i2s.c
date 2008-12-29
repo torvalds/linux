@@ -343,7 +343,8 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 }
 
 static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *params)
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	u32 iismod;
@@ -373,7 +374,8 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
+static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+			       struct snd_soc_dai *dai)
 {
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
 	unsigned long irqs;
@@ -647,8 +649,7 @@ static int s3c2412_i2s_probe(struct platform_device *pdev,
 }
 
 #ifdef CONFIG_PM
-static int s3c2412_i2s_suspend(struct platform_device *dev,
-			      struct snd_soc_dai *dai)
+static int s3c2412_i2s_suspend(struct snd_soc_dai *dai)
 {
 	struct s3c2412_i2s_info *i2s = &s3c2412_i2s;
 	u32 iismod;
@@ -663,25 +664,24 @@ static int s3c2412_i2s_suspend(struct platform_device *dev,
 		iismod = readl(i2s->regs + S3C2412_IISMOD);
 
 		if (iismod & S3C2412_IISCON_RXDMA_ACTIVE)
-			dev_warn(&dev->dev, "%s: RXDMA active?\n", __func__);
+			pr_warning("%s: RXDMA active?\n", __func__);
 
 		if (iismod & S3C2412_IISCON_TXDMA_ACTIVE)
-			dev_warn(&dev->dev, "%s: TXDMA active?\n", __func__);
+			pr_warning("%s: TXDMA active?\n", __func__);
 
 		if (iismod & S3C2412_IISCON_IIS_ACTIVE)
-			dev_warn(&dev->dev, "%s: IIS active\n", __func__);
+			pr_warning("%s: IIS active\n", __func__);
 	}
 
 	return 0;
 }
 
-static int s3c2412_i2s_resume(struct platform_device *pdev,
-			      struct snd_soc_dai *dai)
+static int s3c2412_i2s_resume(struct snd_soc_dai *dai)
 {
 	struct s3c2412_i2s_info *i2s = &s3c2412_i2s;
 
-	dev_info(&pdev->dev, "dai_active %d, IISMOD %08x, IISCON %08x\n",
-		 dai->active, i2s->suspend_iismod, i2s->suspend_iiscon);
+	pr_info("dai_active %d, IISMOD %08x, IISCON %08x\n",
+		dai->active, i2s->suspend_iismod, i2s->suspend_iiscon);
 
 	if (dai->active) {
 		writel(i2s->suspend_iiscon, i2s->regs + S3C2412_IISCON);
@@ -711,7 +711,6 @@ static int s3c2412_i2s_resume(struct platform_device *pdev,
 struct snd_soc_dai s3c2412_i2s_dai = {
 	.name	= "s3c2412-i2s",
 	.id	= 0,
-	.type	= SND_SOC_DAI_I2S,
 	.probe	= s3c2412_i2s_probe,
 	.suspend = s3c2412_i2s_suspend,
 	.resume = s3c2412_i2s_resume,
@@ -730,14 +729,25 @@ struct snd_soc_dai s3c2412_i2s_dai = {
 	.ops = {
 		.trigger	= s3c2412_i2s_trigger,
 		.hw_params	= s3c2412_i2s_hw_params,
-	},
-	.dai_ops = {
 		.set_fmt	= s3c2412_i2s_set_fmt,
 		.set_clkdiv	= s3c2412_i2s_set_clkdiv,
 		.set_sysclk	= s3c2412_i2s_set_sysclk,
 	},
 };
 EXPORT_SYMBOL_GPL(s3c2412_i2s_dai);
+
+static int __init s3c2412_i2s_init(void)
+{
+	return snd_soc_register_dai(&s3c2412_i2s_dai);
+}
+module_init(s3c2412_i2s_init);
+
+static void __exit s3c2412_i2s_exit(void)
+{
+	snd_soc_unregister_dai(&s3c2412_i2s_dai);
+}
+module_exit(s3c2412_i2s_exit);
+
 
 /* Module information */
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");

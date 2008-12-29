@@ -446,13 +446,13 @@ static int stk7700ph_tuner_attach(struct dvb_usb_adapter *adap)
 		== NULL ? -ENODEV : 0;
 }
 
-#define DEFAULT_RC_INTERVAL 150
+#define DEFAULT_RC_INTERVAL 50
 
 static u8 rc_request[] = { REQUEST_POLL_RC, 0 };
 
 /* Number of keypresses to ignore before start repeating */
-#define RC_REPEAT_DELAY 2
-#define RC_REPEAT_DELAY_V1_20 5
+#define RC_REPEAT_DELAY 6
+#define RC_REPEAT_DELAY_V1_20 10
 
 
 

@@ -6,6 +6,9 @@
  *
  *  - flush_tlb_mm(mm) flushes the specified mm context TLB's
  *  - flush_tlb_page(vma, vmaddr) flushes one page
+ *  - local_flush_tlb_mm(mm) flushes the specified mm context on
+ *                           the local processor
+ *  - local_flush_tlb_page(vma, vmaddr) flushes one page on the local processor
  *  - flush_tlb_page_nohash(vma, vmaddr) flushes one page if SW loaded TLB
  *  - flush_tlb_range(vma, start, end) flushes a range of pages
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
@@ -17,7 +20,7 @@
  */
 #ifdef __KERNEL__
 
-#if defined(CONFIG_4xx) || defined(CONFIG_8xx) || defined(CONFIG_FSL_BOOKE)
+#ifdef CONFIG_PPC_MMU_NOHASH
 /*
  * TLB flushing for software loaded TLB chips
  *
@@ -28,63 +31,49 @@
 
 #include <linux/mm.h>
 
-extern void _tlbie(unsigned long address, unsigned int pid);
-extern void _tlbil_all(void);
-extern void _tlbil_pid(unsigned int pid);
-extern void _tlbil_va(unsigned long address, unsigned int pid);
+#define MMU_NO_CONTEXT      	((unsigned int)-1)
 
-#if defined(CONFIG_40x) || defined(CONFIG_8xx)
-#define _tlbia()	asm volatile ("tlbia; sync" : : : "memory")
-#else /* CONFIG_44x || CONFIG_FSL_BOOKE */
-extern void _tlbia(void);
+extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			    unsigned long end);
+extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+
+extern void local_flush_tlb_mm(struct mm_struct *mm);
+extern void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
+
+#ifdef CONFIG_SMP
+extern void flush_tlb_mm(struct mm_struct *mm);
+extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
+#else
+#define flush_tlb_mm(mm)		local_flush_tlb_mm(mm)
+#define flush_tlb_page(vma,addr)	local_flush_tlb_page(vma,addr)
 #endif
+#define flush_tlb_page_nohash(vma,addr)	flush_tlb_page(vma,addr)
 
-static inline void flush_tlb_mm(struct mm_struct *mm)
-{
-	_tlbil_pid(mm->context.id);
-}
+#elif defined(CONFIG_PPC_STD_MMU_32)
 
-static inline void flush_tlb_page(struct vm_area_struct *vma,
-				  unsigned long vmaddr)
-{
-	_tlbil_va(vmaddr, vma ? vma->vm_mm->context.id : 0);
-}
-
-static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
-					 unsigned long vmaddr)
-{
-	flush_tlb_page(vma, vmaddr);
-}
-
-static inline void flush_tlb_range(struct vm_area_struct *vma,
-				   unsigned long start, unsigned long end)
-{
-	_tlbil_pid(vma->vm_mm->context.id);
-}
-
-static inline void flush_tlb_kernel_range(unsigned long start,
-					  unsigned long end)
-{
-	_tlbil_pid(0);
-}
-
-#elif defined(CONFIG_PPC32)
 /*
- * TLB flushing for "classic" hash-MMMU 32-bit CPUs, 6xx, 7xx, 7xxx
+ * TLB flushing for "classic" hash-MMU 32-bit CPUs, 6xx, 7xx, 7xxx
  */
-extern void _tlbie(unsigned long address);
-extern void _tlbia(void);
-
 extern void flush_tlb_mm(struct mm_struct *mm);
 extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 extern void flush_tlb_page_nohash(struct vm_area_struct *vma, unsigned long addr);
 extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			    unsigned long end);
 extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+static inline void local_flush_tlb_page(struct vm_area_struct *vma,
+					unsigned long vmaddr)
+{
+	flush_tlb_page(vma, vmaddr);
+}
+static inline void local_flush_tlb_mm(struct mm_struct *mm)
+{
+	flush_tlb_mm(mm);
+}
 
-#else
+#elif defined(CONFIG_PPC_STD_MMU_64)
+
 /*
- * TLB flushing for 64-bit has-MMU CPUs
+ * TLB flushing for 64-bit hash-MMU CPUs
  */
 
 #include <linux/percpu.h>
@@ -134,7 +123,16 @@ extern void flush_hash_page(unsigned long va, real_pte_t pte, int psize,
 extern void flush_hash_range(unsigned long number, int local);
 
 
+static inline void local_flush_tlb_mm(struct mm_struct *mm)
+{
+}
+
 static inline void flush_tlb_mm(struct mm_struct *mm)
+{
+}
+
+static inline void local_flush_tlb_page(struct vm_area_struct *vma,
+					unsigned long vmaddr)
 {
 }
 
@@ -162,7 +160,8 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 extern void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 				     unsigned long end);
 
-
+#else
+#error Unsupported MMU type
 #endif
 
 #endif /*__KERNEL__ */

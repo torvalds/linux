@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/inode.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2007
+ *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -621,6 +621,47 @@ static const struct inode_operations cifs_ipc_inode_ops = {
 	.lookup = cifs_lookup,
 };
 
+static char *build_path_to_root(struct cifs_sb_info *cifs_sb)
+{
+	int pplen = cifs_sb->prepathlen;
+	int dfsplen;
+	char *full_path = NULL;
+
+	/* if no prefix path, simply set path to the root of share to "" */
+	if (pplen == 0) {
+		full_path = kmalloc(1, GFP_KERNEL);
+		if (full_path)
+			full_path[0] = 0;
+		return full_path;
+	}
+
+	if (cifs_sb->tcon && (cifs_sb->tcon->Flags & SMB_SHARE_IS_IN_DFS))
+		dfsplen = strnlen(cifs_sb->tcon->treeName, MAX_TREE_SIZE + 1);
+	else
+		dfsplen = 0;
+
+	full_path = kmalloc(dfsplen + pplen + 1, GFP_KERNEL);
+	if (full_path == NULL)
+		return full_path;
+
+	if (dfsplen) {
+		strncpy(full_path, cifs_sb->tcon->treeName, dfsplen);
+		/* switch slash direction in prepath depending on whether
+		 * windows or posix style path names
+		 */
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) {
+			int i;
+			for (i = 0; i < dfsplen; i++) {
+				if (full_path[i] == '\\')
+					full_path[i] = '/';
+			}
+		}
+	}
+	strncpy(full_path + dfsplen, cifs_sb->prepath, pplen);
+	full_path[dfsplen + pplen] = 0; /* add trailing null */
+	return full_path;
+}
+
 /* gets root inode */
 struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 {
@@ -628,6 +669,7 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 	struct cifs_sb_info *cifs_sb;
 	struct inode *inode;
 	long rc;
+	char *full_path;
 
 	inode = iget_locked(sb, ino);
 	if (!inode)
@@ -636,13 +678,17 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 		return inode;
 
 	cifs_sb = CIFS_SB(inode->i_sb);
-	xid = GetXid();
+	full_path = build_path_to_root(cifs_sb);
+	if (full_path == NULL)
+		return ERR_PTR(-ENOMEM);
 
+	xid = GetXid();
 	if (cifs_sb->tcon->unix_ext)
-		rc = cifs_get_inode_info_unix(&inode, "", inode->i_sb, xid);
+		rc = cifs_get_inode_info_unix(&inode, full_path, inode->i_sb,
+						xid);
 	else
-		rc = cifs_get_inode_info(&inode, "", NULL, inode->i_sb, xid,
-					 NULL);
+		rc = cifs_get_inode_info(&inode, full_path, NULL, inode->i_sb,
+						xid, NULL);
 	if (rc && cifs_sb->tcon->ipc) {
 		cFYI(1, ("ipc connection - fake read inode"));
 		inode->i_mode |= S_IFDIR;
@@ -652,6 +698,7 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 		inode->i_uid = cifs_sb->mnt_uid;
 		inode->i_gid = cifs_sb->mnt_gid;
 	} else if (rc) {
+		kfree(full_path);
 		_FreeXid(xid);
 		iget_failed(inode);
 		return ERR_PTR(rc);
@@ -659,6 +706,7 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 
 	unlock_new_inode(inode);
 
+	kfree(full_path);
 	/* can not call macro FreeXid here since in a void func
 	 * TODO: This is no longer true
 	 */
@@ -1143,11 +1191,11 @@ mkdir_get_info:
 				.device	= 0,
 			};
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-				args.uid = (__u64)current->fsuid;
+				args.uid = (__u64)current_fsuid();
 				if (inode->i_mode & S_ISGID)
 					args.gid = (__u64)inode->i_gid;
 				else
-					args.gid = (__u64)current->fsgid;
+					args.gid = (__u64)current_fsgid();
 			} else {
 				args.uid = NO_CHANGE_64;
 				args.gid = NO_CHANGE_64;
@@ -1184,13 +1232,13 @@ mkdir_get_info:
 				if (cifs_sb->mnt_cifs_flags &
 				     CIFS_MOUNT_SET_UID) {
 					direntry->d_inode->i_uid =
-						current->fsuid;
+						current_fsuid();
 					if (inode->i_mode & S_ISGID)
 						direntry->d_inode->i_gid =
 							inode->i_gid;
 					else
 						direntry->d_inode->i_gid =
-							current->fsgid;
+							current_fsgid();
 				}
 			}
 		}

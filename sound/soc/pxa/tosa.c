@@ -38,7 +38,7 @@
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-ac97.h"
 
-static struct snd_soc_machine tosa;
+static struct snd_soc_card tosa;
 
 #define TOSA_HP        0
 #define TOSA_MIC_INT   1
@@ -230,15 +230,37 @@ static struct snd_soc_dai_link tosa_dai[] = {
 },
 };
 
-static struct snd_soc_machine tosa = {
+static int tosa_probe(struct platform_device *dev)
+{
+	int ret;
+
+	ret = gpio_request(TOSA_GPIO_L_MUTE, "Headphone Jack");
+	if (ret)
+		return ret;
+	ret = gpio_direction_output(TOSA_GPIO_L_MUTE, 0);
+	if (ret)
+		gpio_free(TOSA_GPIO_L_MUTE);
+
+	return ret;
+}
+
+static int tosa_remove(struct platform_device *dev)
+{
+	gpio_free(TOSA_GPIO_L_MUTE);
+	return 0;
+}
+
+static struct snd_soc_card tosa = {
 	.name = "Tosa",
+	.platform = &pxa2xx_soc_platform,
 	.dai_link = tosa_dai,
 	.num_links = ARRAY_SIZE(tosa_dai),
+	.probe = tosa_probe,
+	.remove = tosa_remove,
 };
 
 static struct snd_soc_device tosa_snd_devdata = {
-	.machine = &tosa,
-	.platform = &pxa2xx_soc_platform,
+	.card = &tosa,
 	.codec_dev = &soc_codec_dev_wm9712,
 };
 
@@ -250,11 +272,6 @@ static int __init tosa_init(void)
 
 	if (!machine_is_tosa())
 		return -ENODEV;
-
-	ret = gpio_request(TOSA_GPIO_L_MUTE, "Headphone Jack");
-	if (ret)
-		return ret;
-	gpio_direction_output(TOSA_GPIO_L_MUTE, 0);
 
 	tosa_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!tosa_snd_device) {
@@ -272,15 +289,12 @@ static int __init tosa_init(void)
 	platform_device_put(tosa_snd_device);
 
 err_alloc:
-	gpio_free(TOSA_GPIO_L_MUTE);
-
 	return ret;
 }
 
 static void __exit tosa_exit(void)
 {
 	platform_device_unregister(tosa_snd_device);
-	gpio_free(TOSA_GPIO_L_MUTE);
 }
 
 module_init(tosa_init);

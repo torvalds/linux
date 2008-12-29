@@ -266,109 +266,6 @@ static void vmi_nop(void)
 {
 }
 
-#ifdef CONFIG_DEBUG_PAGE_TYPE
-
-#ifdef CONFIG_X86_PAE
-#define MAX_BOOT_PTS (2048+4+1)
-#else
-#define MAX_BOOT_PTS (1024+1)
-#endif
-
-/*
- * During boot, mem_map is not yet available in paging_init, so stash
- * all the boot page allocations here.
- */
-static struct {
-	u32 pfn;
-	int type;
-} boot_page_allocations[MAX_BOOT_PTS];
-static int num_boot_page_allocations;
-static int boot_allocations_applied;
-
-void vmi_apply_boot_page_allocations(void)
-{
-	int i;
-	BUG_ON(!mem_map);
-	for (i = 0; i < num_boot_page_allocations; i++) {
-		struct page *page = pfn_to_page(boot_page_allocations[i].pfn);
-		page->type = boot_page_allocations[i].type;
-		page->type = boot_page_allocations[i].type &
-				~(VMI_PAGE_ZEROED | VMI_PAGE_CLONE);
-	}
-	boot_allocations_applied = 1;
-}
-
-static void record_page_type(u32 pfn, int type)
-{
-	BUG_ON(num_boot_page_allocations >= MAX_BOOT_PTS);
-	boot_page_allocations[num_boot_page_allocations].pfn = pfn;
-	boot_page_allocations[num_boot_page_allocations].type = type;
-	num_boot_page_allocations++;
-}
-
-static void check_zeroed_page(u32 pfn, int type, struct page *page)
-{
-	u32 *ptr;
-	int i;
-	int limit = PAGE_SIZE / sizeof(int);
-
-	if (page_address(page))
-		ptr = (u32 *)page_address(page);
-	else
-		ptr = (u32 *)__va(pfn << PAGE_SHIFT);
-	/*
-	 * When cloning the root in non-PAE mode, only the userspace
-	 * pdes need to be zeroed.
-	 */
-	if (type & VMI_PAGE_CLONE)
-		limit = KERNEL_PGD_BOUNDARY;
-	for (i = 0; i < limit; i++)
-		BUG_ON(ptr[i]);
-}
-
-/*
- * We stash the page type into struct page so we can verify the page
- * types are used properly.
- */
-static void vmi_set_page_type(u32 pfn, int type)
-{
-	/* PAE can have multiple roots per page - don't track */
-	if (PTRS_PER_PMD > 1 && (type & VMI_PAGE_PDP))
-		return;
-
-	if (boot_allocations_applied) {
-		struct page *page = pfn_to_page(pfn);
-		if (type != VMI_PAGE_NORMAL)
-			BUG_ON(page->type);
-		else
-			BUG_ON(page->type == VMI_PAGE_NORMAL);
-		page->type = type & ~(VMI_PAGE_ZEROED | VMI_PAGE_CLONE);
-		if (type & VMI_PAGE_ZEROED)
-			check_zeroed_page(pfn, type, page);
-	} else {
-		record_page_type(pfn, type);
-	}
-}
-
-static void vmi_check_page_type(u32 pfn, int type)
-{
-	/* PAE can have multiple roots per page - skip checks */
-	if (PTRS_PER_PMD > 1 && (type & VMI_PAGE_PDP))
-		return;
-
-	type &= ~(VMI_PAGE_ZEROED | VMI_PAGE_CLONE);
-	if (boot_allocations_applied) {
-		struct page *page = pfn_to_page(pfn);
-		BUG_ON((page->type ^ type) & VMI_PAGE_PAE);
-		BUG_ON(type == VMI_PAGE_NORMAL && page->type);
-		BUG_ON((type & page->type) == 0);
-	}
-}
-#else
-#define vmi_set_page_type(p,t) do { } while (0)
-#define vmi_check_page_type(p,t) do { } while (0)
-#endif
-
 #ifdef CONFIG_HIGHPTE
 static void *vmi_kmap_atomic_pte(struct page *page, enum km_type type)
 {
@@ -395,7 +292,6 @@ static void *vmi_kmap_atomic_pte(struct page *page, enum km_type type)
 
 static void vmi_allocate_pte(struct mm_struct *mm, unsigned long pfn)
 {
-	vmi_set_page_type(pfn, VMI_PAGE_L1);
 	vmi_ops.allocate_page(pfn, VMI_PAGE_L1, 0, 0, 0);
 }
 
@@ -406,27 +302,22 @@ static void vmi_allocate_pmd(struct mm_struct *mm, unsigned long pfn)
 	 * It is called only for swapper_pg_dir, which already has
 	 * data on it.
 	 */
- 	vmi_set_page_type(pfn, VMI_PAGE_L2);
 	vmi_ops.allocate_page(pfn, VMI_PAGE_L2, 0, 0, 0);
 }
 
 static void vmi_allocate_pmd_clone(unsigned long pfn, unsigned long clonepfn, unsigned long start, unsigned long count)
 {
- 	vmi_set_page_type(pfn, VMI_PAGE_L2 | VMI_PAGE_CLONE);
-	vmi_check_page_type(clonepfn, VMI_PAGE_L2);
 	vmi_ops.allocate_page(pfn, VMI_PAGE_L2 | VMI_PAGE_CLONE, clonepfn, start, count);
 }
 
 static void vmi_release_pte(unsigned long pfn)
 {
 	vmi_ops.release_page(pfn, VMI_PAGE_L1);
-	vmi_set_page_type(pfn, VMI_PAGE_NORMAL);
 }
 
 static void vmi_release_pmd(unsigned long pfn)
 {
 	vmi_ops.release_page(pfn, VMI_PAGE_L2);
-	vmi_set_page_type(pfn, VMI_PAGE_NORMAL);
 }
 
 /*
@@ -450,26 +341,22 @@ static void vmi_release_pmd(unsigned long pfn)
 
 static void vmi_update_pte(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	vmi_check_page_type(__pa(ptep) >> PAGE_SHIFT, VMI_PAGE_PTE);
 	vmi_ops.update_pte(ptep, vmi_flags_addr(mm, addr, VMI_PAGE_PT, 0));
 }
 
 static void vmi_update_pte_defer(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	vmi_check_page_type(__pa(ptep) >> PAGE_SHIFT, VMI_PAGE_PTE);
 	vmi_ops.update_pte(ptep, vmi_flags_addr_defer(mm, addr, VMI_PAGE_PT, 0));
 }
 
 static void vmi_set_pte(pte_t *ptep, pte_t pte)
 {
 	/* XXX because of set_pmd_pte, this can be called on PT or PD layers */
-	vmi_check_page_type(__pa(ptep) >> PAGE_SHIFT, VMI_PAGE_PTE | VMI_PAGE_PD);
 	vmi_ops.set_pte(pte, ptep, VMI_PAGE_PT);
 }
 
 static void vmi_set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
 {
-	vmi_check_page_type(__pa(ptep) >> PAGE_SHIFT, VMI_PAGE_PTE);
 	vmi_ops.set_pte(pte, ptep, vmi_flags_addr(mm, addr, VMI_PAGE_PT, 0));
 }
 
@@ -477,10 +364,8 @@ static void vmi_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 #ifdef CONFIG_X86_PAE
 	const pte_t pte = { .pte = pmdval.pmd };
-	vmi_check_page_type(__pa(pmdp) >> PAGE_SHIFT, VMI_PAGE_PMD);
 #else
 	const pte_t pte = { pmdval.pud.pgd.pgd };
-	vmi_check_page_type(__pa(pmdp) >> PAGE_SHIFT, VMI_PAGE_PGD);
 #endif
 	vmi_ops.set_pte(pte, (pte_t *)pmdp, VMI_PAGE_PD);
 }
@@ -502,7 +387,6 @@ static void vmi_set_pte_atomic(pte_t *ptep, pte_t pteval)
 
 static void vmi_set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
 {
-	vmi_check_page_type(__pa(ptep) >> PAGE_SHIFT, VMI_PAGE_PTE);
 	vmi_ops.set_pte(pte, ptep, vmi_flags_addr_defer(mm, addr, VMI_PAGE_PT, 1));
 }
 
@@ -510,21 +394,18 @@ static void vmi_set_pud(pud_t *pudp, pud_t pudval)
 {
 	/* Um, eww */
 	const pte_t pte = { .pte = pudval.pgd.pgd };
-	vmi_check_page_type(__pa(pudp) >> PAGE_SHIFT, VMI_PAGE_PGD);
 	vmi_ops.set_pte(pte, (pte_t *)pudp, VMI_PAGE_PDP);
 }
 
 static void vmi_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	const pte_t pte = { .pte = 0 };
-	vmi_check_page_type(__pa(ptep) >> PAGE_SHIFT, VMI_PAGE_PTE);
 	vmi_ops.set_pte(pte, ptep, vmi_flags_addr(mm, addr, VMI_PAGE_PT, 0));
 }
 
 static void vmi_pmd_clear(pmd_t *pmd)
 {
 	const pte_t pte = { .pte = 0 };
-	vmi_check_page_type(__pa(pmd) >> PAGE_SHIFT, VMI_PAGE_PMD);
 	vmi_ops.set_pte(pte, (pte_t *)pmd, VMI_PAGE_PD);
 }
 #endif
@@ -960,8 +841,6 @@ static inline int __init activate_vmi(void)
 
 void __init vmi_init(void)
 {
-	unsigned long flags;
-
 	if (!vmi_rom)
 		probe_vmi_rom();
 	else
@@ -973,13 +852,21 @@ void __init vmi_init(void)
 
 	reserve_top_address(-vmi_rom->virtual_top);
 
-	local_irq_save(flags);
-	activate_vmi();
-
 #ifdef CONFIG_X86_IO_APIC
 	/* This is virtual hardware; timer routing is wired correctly */
 	no_timer_check = 1;
 #endif
+}
+
+void vmi_activate(void)
+{
+	unsigned long flags;
+
+	if (!vmi_rom)
+		return;
+
+	local_irq_save(flags);
+	activate_vmi();
 	local_irq_restore(flags & X86_EFLAGS_IF);
 }
 

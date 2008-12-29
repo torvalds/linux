@@ -1085,7 +1085,6 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
     struct de4x5_private *lp = netdev_priv(dev);
     struct pci_dev *pdev = NULL;
     int i, status=0;
-    DECLARE_MAC_BUF(mac);
 
     gendev->driver_data = dev;
 
@@ -1119,10 +1118,10 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
     }
 
     dev->base_addr = iobase;
-    printk ("%s: %s at 0x%04lx", gendev->bus_id, name, iobase);
+    printk ("%s: %s at 0x%04lx", dev_name(gendev), name, iobase);
 
     status = get_hw_addr(dev);
-    printk(", h/w address %s\n", print_mac(mac, dev->dev_addr));
+    printk(", h/w address %pM\n", dev->dev_addr);
 
     if (status != 0) {
 	printk("      which has an Ethernet PROM CRC error.\n");
@@ -1154,7 +1153,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
             }
         }
 	lp->fdx = lp->params.fdx;
-	sprintf(lp->adapter_name,"%s (%s)", name, gendev->bus_id);
+	sprintf(lp->adapter_name,"%s (%s)", name, dev_name(gendev));
 
 	lp->dma_size = (NUM_RX_DESC + NUM_TX_DESC) * sizeof(struct de4x5_desc);
 #if defined(__alpha__) || defined(__powerpc__) || defined(CONFIG_SPARC) || defined(DE4X5_DO_MEMCPY)
@@ -1647,7 +1646,6 @@ de4x5_rx(struct net_device *dev)
 		    netif_rx(skb);
 
 		    /* Update stats */
-		    dev->last_rx = jiffies;
 		    lp->stats.rx_packets++;
  		    lp->stats.rx_bytes += pkt_len;
 		}
@@ -5401,7 +5399,6 @@ static void
 de4x5_dbg_srom(struct de4x5_srom *p)
 {
     int i;
-    DECLARE_MAC_BUF(mac);
 
     if (de4x5_debug & DEBUG_SROM) {
 	printk("Sub-system Vendor ID: %04x\n", *((u_short *)p->sub_vendor_id));
@@ -5410,7 +5407,7 @@ de4x5_dbg_srom(struct de4x5_srom *p)
 	printk("SROM version:         %02x\n", (u_char)(p->version));
 	printk("# controllers:        %02x\n", (u_char)(p->num_controllers));
 
-	printk("Hardware Address:     %s\n", print_mac(mac, p->ieee_addr));
+	printk("Hardware Address:     %pM\n", p->ieee_addr);
 	printk("CRC checksum:         %04x\n", (u_short)(p->chksum));
 	for (i=0; i<64; i++) {
 	    printk("%3d %04x\n", i<<1, (u_short)*((u_short *)p+i));
@@ -5424,12 +5421,10 @@ static void
 de4x5_dbg_rx(struct sk_buff *skb, int len)
 {
     int i, j;
-    DECLARE_MAC_BUF(mac);
-    DECLARE_MAC_BUF(mac2);
 
     if (de4x5_debug & DEBUG_RX) {
-	printk("R: %s <- %s len/SAP:%02x%02x [%d]\n",
-	       print_mac(mac, skb->data), print_mac(mac2, &skb->data[6]),
+	printk("R: %pM <- %pM len/SAP:%02x%02x [%d]\n",
+	       skb->data, &skb->data[6],
 	       (u_char)skb->data[12],
 	       (u_char)skb->data[13],
 	       len);

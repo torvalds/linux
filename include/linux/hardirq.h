@@ -4,6 +4,7 @@
 #include <linux/preempt.h>
 #include <linux/smp_lock.h>
 #include <linux/lockdep.h>
+#include <linux/ftrace_irq.h>
 #include <asm/hardirq.h>
 #include <asm/system.h>
 
@@ -161,7 +162,17 @@ extern void irq_enter(void);
  */
 extern void irq_exit(void);
 
-#define nmi_enter()		do { lockdep_off(); __irq_enter(); } while (0)
-#define nmi_exit()		do { __irq_exit(); lockdep_on(); } while (0)
+#define nmi_enter()				\
+	do {					\
+		ftrace_nmi_enter();		\
+		lockdep_off();			\
+		__irq_enter();			\
+	} while (0)
+#define nmi_exit()				\
+	do {					\
+		__irq_exit();			\
+		lockdep_on();			\
+		ftrace_nmi_exit();		\
+	} while (0)
 
 #endif /* LINUX_HARDIRQ_H */

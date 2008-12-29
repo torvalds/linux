@@ -7,6 +7,7 @@
  * 30 May 2002:	Cleanup, Robert M. Love <rml@tech9.net>
  */
 
+#include <linux/audit.h>
 #include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -14,12 +15,7 @@
 #include <linux/syscalls.h>
 #include <linux/pid_namespace.h>
 #include <asm/uaccess.h>
-
-/*
- * This lock protects task->cap_* for all tasks including current.
- * Locking rule: acquire this prior to tasklist_lock.
- */
-static DEFINE_SPINLOCK(task_capability_lock);
+#include "cred-internals.h"
 
 /*
  * Leveraged for setting/resetting capabilities
@@ -32,6 +28,17 @@ const kernel_cap_t __cap_init_eff_set = CAP_INIT_EFF_SET;
 EXPORT_SYMBOL(__cap_empty_set);
 EXPORT_SYMBOL(__cap_full_set);
 EXPORT_SYMBOL(__cap_init_eff_set);
+
+#ifdef CONFIG_SECURITY_FILE_CAPABILITIES
+int file_caps_enabled = 1;
+
+static int __init file_caps_disable(char *str)
+{
+	file_caps_enabled = 0;
+	return 1;
+}
+__setup("no_file_caps", file_caps_disable);
+#endif
 
 /*
  * More recent versions of libcap are available from:
@@ -115,167 +122,12 @@ static int cap_validate_magic(cap_user_header_t header, unsigned *tocopy)
 	return 0;
 }
 
-#ifndef CONFIG_SECURITY_FILE_CAPABILITIES
-
 /*
- * Without filesystem capability support, we nominally support one process
- * setting the capabilities of another
- */
-static inline int cap_get_target_pid(pid_t pid, kernel_cap_t *pEp,
-				     kernel_cap_t *pIp, kernel_cap_t *pPp)
-{
-	struct task_struct *target;
-	int ret;
-
-	spin_lock(&task_capability_lock);
-	read_lock(&tasklist_lock);
-
-	if (pid && pid != task_pid_vnr(current)) {
-		target = find_task_by_vpid(pid);
-		if (!target) {
-			ret = -ESRCH;
-			goto out;
-		}
-	} else
-		target = current;
-
-	ret = security_capget(target, pEp, pIp, pPp);
-
-out:
-	read_unlock(&tasklist_lock);
-	spin_unlock(&task_capability_lock);
-
-	return ret;
-}
-
-/*
- * cap_set_pg - set capabilities for all processes in a given process
- * group.  We call this holding task_capability_lock and tasklist_lock.
- */
-static inline int cap_set_pg(int pgrp_nr, kernel_cap_t *effective,
-			     kernel_cap_t *inheritable,
-			     kernel_cap_t *permitted)
-{
-	struct task_struct *g, *target;
-	int ret = -EPERM;
-	int found = 0;
-	struct pid *pgrp;
-
-	spin_lock(&task_capability_lock);
-	read_lock(&tasklist_lock);
-
-	pgrp = find_vpid(pgrp_nr);
-	do_each_pid_task(pgrp, PIDTYPE_PGID, g) {
-		target = g;
-		while_each_thread(g, target) {
-			if (!security_capset_check(target, effective,
-						   inheritable, permitted)) {
-				security_capset_set(target, effective,
-						    inheritable, permitted);
-				ret = 0;
-			}
-			found = 1;
-		}
-	} while_each_pid_task(pgrp, PIDTYPE_PGID, g);
-
-	read_unlock(&tasklist_lock);
-	spin_unlock(&task_capability_lock);
-
-	if (!found)
-		ret = 0;
-	return ret;
-}
-
-/*
- * cap_set_all - set capabilities for all processes other than init
- * and self.  We call this holding task_capability_lock and tasklist_lock.
- */
-static inline int cap_set_all(kernel_cap_t *effective,
-			      kernel_cap_t *inheritable,
-			      kernel_cap_t *permitted)
-{
-	struct task_struct *g, *target;
-	int ret = -EPERM;
-	int found = 0;
-
-	spin_lock(&task_capability_lock);
-	read_lock(&tasklist_lock);
-
-	do_each_thread(g, target) {
-		if (target == current
-		    || is_container_init(target->group_leader))
-			continue;
-		found = 1;
-		if (security_capset_check(target, effective, inheritable,
-					  permitted))
-			continue;
-		ret = 0;
-		security_capset_set(target, effective, inheritable, permitted);
-	} while_each_thread(g, target);
-
-	read_unlock(&tasklist_lock);
-	spin_unlock(&task_capability_lock);
-
-	if (!found)
-		ret = 0;
-
-	return ret;
-}
-
-/*
- * Given the target pid does not refer to the current process we
- * need more elaborate support... (This support is not present when
- * filesystem capabilities are configured.)
- */
-static inline int do_sys_capset_other_tasks(pid_t pid, kernel_cap_t *effective,
-					    kernel_cap_t *inheritable,
-					    kernel_cap_t *permitted)
-{
-	struct task_struct *target;
-	int ret;
-
-	if (!capable(CAP_SETPCAP))
-		return -EPERM;
-
-	if (pid == -1)	          /* all procs other than current and init */
-		return cap_set_all(effective, inheritable, permitted);
-
-	else if (pid < 0)                    /* all procs in process group */
-		return cap_set_pg(-pid, effective, inheritable, permitted);
-
-	/* target != current */
-	spin_lock(&task_capability_lock);
-	read_lock(&tasklist_lock);
-
-	target = find_task_by_vpid(pid);
-	if (!target)
-		ret = -ESRCH;
-	else {
-		ret = security_capset_check(target, effective, inheritable,
-					    permitted);
-
-		/* having verified that the proposed changes are legal,
-		   we now put them into effect. */
-		if (!ret)
-			security_capset_set(target, effective, inheritable,
-					    permitted);
-	}
-
-	read_unlock(&tasklist_lock);
-	spin_unlock(&task_capability_lock);
-
-	return ret;
-}
-
-#else /* ie., def CONFIG_SECURITY_FILE_CAPABILITIES */
-
-/*
- * If we have configured with filesystem capability support, then the
- * only thing that can change the capabilities of the current process
- * is the current process. As such, we can't be in this code at the
- * same time as we are in the process of setting capabilities in this
- * process. The net result is that we can limit our use of locks to
- * when we are reading the caps of another process.
+ * The only thing that can change the capabilities of the current
+ * process is the current process. As such, we can't be in this code
+ * at the same time as we are in the process of setting capabilities
+ * in this process. The net result is that we can limit our use of
+ * locks to when we are reading the caps of another process.
  */
 static inline int cap_get_target_pid(pid_t pid, kernel_cap_t *pEp,
 				     kernel_cap_t *pIp, kernel_cap_t *pPp)
@@ -285,7 +137,6 @@ static inline int cap_get_target_pid(pid_t pid, kernel_cap_t *pEp,
 	if (pid && (pid != task_pid_vnr(current))) {
 		struct task_struct *target;
 
-		spin_lock(&task_capability_lock);
 		read_lock(&tasklist_lock);
 
 		target = find_task_by_vpid(pid);
@@ -295,49 +146,11 @@ static inline int cap_get_target_pid(pid_t pid, kernel_cap_t *pEp,
 			ret = security_capget(target, pEp, pIp, pPp);
 
 		read_unlock(&tasklist_lock);
-		spin_unlock(&task_capability_lock);
 	} else
 		ret = security_capget(current, pEp, pIp, pPp);
 
 	return ret;
 }
-
-/*
- * With filesystem capability support configured, the kernel does not
- * permit the changing of capabilities in one process by another
- * process. (CAP_SETPCAP has much less broad semantics when configured
- * this way.)
- */
-static inline int do_sys_capset_other_tasks(pid_t pid,
-					    kernel_cap_t *effective,
-					    kernel_cap_t *inheritable,
-					    kernel_cap_t *permitted)
-{
-	return -EPERM;
-}
-
-#endif /* ie., ndef CONFIG_SECURITY_FILE_CAPABILITIES */
-
-/*
- * Atomically modify the effective capabilities returning the original
- * value. No permission check is performed here - it is assumed that the
- * caller is permitted to set the desired effective capabilities.
- */
-kernel_cap_t cap_set_effective(const kernel_cap_t pE_new)
-{
-	kernel_cap_t pE_old;
-
-	spin_lock(&task_capability_lock);
-
-	pE_old = current->cap_effective;
-	current->cap_effective = pE_new;
-
-	spin_unlock(&task_capability_lock);
-
-	return pE_old;
-}
-
-EXPORT_SYMBOL(cap_set_effective);
 
 /**
  * sys_capget - get the capabilities of a given process.
@@ -366,7 +179,6 @@ asmlinkage long sys_capget(cap_user_header_t header, cap_user_data_t dataptr)
 		return -EINVAL;
 
 	ret = cap_get_target_pid(pid, &pE, &pI, &pP);
-
 	if (!ret) {
 		struct __user_cap_data_struct kdata[_KERNEL_CAPABILITY_U32S];
 		unsigned i;
@@ -412,16 +224,14 @@ asmlinkage long sys_capget(cap_user_header_t header, cap_user_data_t dataptr)
  * @data: pointer to struct that contains the effective, permitted,
  *	and inheritable capabilities
  *
- * Set capabilities for a given process, all processes, or all
- * processes in a given process group.
+ * Set capabilities for the current process only.  The ability to any other
+ * process(es) has been deprecated and removed.
  *
  * The restrictions on setting capabilities are specified as:
  *
- * [pid is for the 'target' task.  'current' is the calling task.]
- *
- * I: any raised capabilities must be a subset of the (old current) permitted
- * P: any raised capabilities must be a subset of the (old current) permitted
- * E: must be set to a subset of (new target) permitted
+ * I: any raised capabilities must be a subset of the old permitted
+ * P: any raised capabilities must be a subset of the old permitted
+ * E: must be set to a subset of new permitted
  *
  * Returns 0 on success and < 0 on error.
  */
@@ -430,6 +240,7 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 	struct __user_cap_data_struct kdata[_KERNEL_CAPABILITY_U32S];
 	unsigned i, tocopy;
 	kernel_cap_t inheritable, permitted, effective;
+	struct cred *new;
 	int ret;
 	pid_t pid;
 
@@ -440,10 +251,13 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 	if (get_user(pid, &header->pid))
 		return -EFAULT;
 
-	if (copy_from_user(&kdata, data, tocopy
-			   * sizeof(struct __user_cap_data_struct))) {
+	/* may only affect current now */
+	if (pid != 0 && pid != task_pid_vnr(current))
+		return -EPERM;
+
+	if (copy_from_user(&kdata, data,
+			   tocopy * sizeof(struct __user_cap_data_struct)))
 		return -EFAULT;
-	}
 
 	for (i = 0; i < tocopy; i++) {
 		effective.cap[i] = kdata[i].effective;
@@ -457,32 +271,23 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 		i++;
 	}
 
-	if (pid && (pid != task_pid_vnr(current)))
-		ret = do_sys_capset_other_tasks(pid, &effective, &inheritable,
-						&permitted);
-	else {
-		/*
-		 * This lock is required even when filesystem
-		 * capability support is configured - it protects the
-		 * sys_capget() call from returning incorrect data in
-		 * the case that the targeted process is not the
-		 * current one.
-		 */
-		spin_lock(&task_capability_lock);
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
 
-		ret = security_capset_check(current, &effective, &inheritable,
-					    &permitted);
-		/*
-		 * Having verified that the proposed changes are
-		 * legal, we now put them into effect.
-		 */
-		if (!ret)
-			security_capset_set(current, &effective, &inheritable,
-					    &permitted);
-		spin_unlock(&task_capability_lock);
-	}
+	ret = security_capset(new, current_cred(),
+			      &effective, &inheritable, &permitted);
+	if (ret < 0)
+		goto error;
 
+	ret = audit_log_capset(pid, new, current_cred());
+	if (ret < 0)
+		return ret;
 
+	return commit_creds(new);
+
+error:
+	abort_creds(new);
 	return ret;
 }
 
@@ -498,6 +303,11 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
  */
 int capable(int cap)
 {
+	if (unlikely(!cap_valid(cap))) {
+		printk(KERN_CRIT "capable() called with invalid cap=%u\n", cap);
+		BUG();
+	}
+
 	if (has_capability(current, cap)) {
 		current->flags |= PF_SUPERPRIV;
 		return 1;

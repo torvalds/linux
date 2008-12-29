@@ -32,6 +32,8 @@
 #include <asm/proto.h>
 #include <asm/vdso.h>
 
+#include <asm/sigframe.h>
+
 #define DEBUG_SIG 0
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
@@ -41,7 +43,6 @@
 			 X86_EFLAGS_ZF | X86_EFLAGS_AF | X86_EFLAGS_PF | \
 			 X86_EFLAGS_CF)
 
-asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset);
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
 
 int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
@@ -173,30 +174,6 @@ asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,
 /*
  * Do a signal return; undo the signal stack.
  */
-
-struct sigframe
-{
-	u32 pretcode;
-	int sig;
-	struct sigcontext_ia32 sc;
-	struct _fpstate_ia32 fpstate_unused; /* look at kernel/sigframe.h */
-	unsigned int extramask[_COMPAT_NSIG_WORDS-1];
-	char retcode[8];
-	/* fp state follows here */
-};
-
-struct rt_sigframe
-{
-	u32 pretcode;
-	int sig;
-	u32 pinfo;
-	u32 puc;
-	compat_siginfo_t info;
-	struct ucontext_ia32 uc;
-	char retcode[8];
-	/* fp state follows here */
-};
-
 #define COPY(x)			{		\
 	err |= __get_user(regs->x, &sc->x);	\
 }
@@ -271,7 +248,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 
 asmlinkage long sys32_sigreturn(struct pt_regs *regs)
 {
-	struct sigframe __user *frame = (struct sigframe __user *)(regs->sp-8);
+	struct sigframe_ia32 __user *frame = (struct sigframe_ia32 __user *)(regs->sp-8);
 	sigset_t set;
 	unsigned int ax;
 
@@ -301,12 +278,12 @@ badframe:
 
 asmlinkage long sys32_rt_sigreturn(struct pt_regs *regs)
 {
-	struct rt_sigframe __user *frame;
+	struct rt_sigframe_ia32 __user *frame;
 	sigset_t set;
 	unsigned int ax;
 	struct pt_regs tregs;
 
-	frame = (struct rt_sigframe __user *)(regs->sp - 4);
+	frame = (struct rt_sigframe_ia32 __user *)(regs->sp - 4);
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -396,7 +373,7 @@ static void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	}
 
 	/* This is the legacy signal stack switching. */
-	else if ((regs->ss & 0xffff) != __USER_DS &&
+	else if ((regs->ss & 0xffff) != __USER32_DS &&
 		!(ka->sa.sa_flags & SA_RESTORER) &&
 		 ka->sa.sa_restorer)
 		sp = (unsigned long) ka->sa.sa_restorer;
@@ -418,7 +395,7 @@ static void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 int ia32_setup_frame(int sig, struct k_sigaction *ka,
 		     compat_sigset_t *set, struct pt_regs *regs)
 {
-	struct sigframe __user *frame;
+	struct sigframe_ia32 __user *frame;
 	void __user *restorer;
 	int err = 0;
 	void __user *fpstate = NULL;
@@ -467,7 +444,7 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	 * These are actually not used anymore, but left because some
 	 * gdb versions depend on them as a marker.
 	 */
-	err |= __copy_to_user(frame->retcode, &code, 8);
+	err |= __put_user(*((u64 *)&code), (u64 *)frame->retcode);
 	if (err)
 		return -EFAULT;
 
@@ -497,7 +474,7 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			compat_sigset_t *set, struct pt_regs *regs)
 {
-	struct rt_sigframe __user *frame;
+	struct rt_sigframe_ia32 __user *frame;
 	void __user *restorer;
 	int err = 0;
 	void __user *fpstate = NULL;
@@ -554,7 +531,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 * Not actually used anymore, but left because some gdb
 	 * versions need it.
 	 */
-	err |= __copy_to_user(frame->retcode, &code, 8);
+	err |= __put_user(*((u64 *)&code), (u64 *)frame->retcode);
 	if (err)
 		return -EFAULT;
 

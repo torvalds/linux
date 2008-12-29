@@ -66,6 +66,22 @@ config REALTEK_PHY
 	---help---
 	  Supports the Realtek 821x PHY.
 
+config NATIONAL_PHY
+	tristate "Drivers for National Semiconductor PHYs"
+	---help---
+	  Currently supports the DP83865 PHY.
+
+config STE10XP
+	depends on PHYLIB
+	tristate "Driver for STMicroelectronics STe10Xp PHYs"
+	---help---
+	  This is the driver for the STe100p and STe101p PHYs.
+
+config LSI_ET1011C_PHY
+	tristate "Driver for LSI ET1011C PHY"
+	---help---
+	  Supports the LSI ET1011C PHY.
+
 config FIXED_PHY
 	bool "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
 	depends on PHYLIB=y
@@ -84,10 +100,13 @@ config MDIO_BITBANG
 
 	  If in doubt, say N.
 
-config MDIO_OF_GPIO
+config MDIO_GPIO
 	tristate "Support for GPIO lib-based bitbanged MDIO buses"
-	depends on MDIO_BITBANG && OF_GPIO
+	depends on MDIO_BITBANG && GENERIC_GPIO
 	---help---
 	  Supports GPIO lib-based MDIO busses.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mdio-gpio.
 
 endif # PHYLIB

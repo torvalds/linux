@@ -117,6 +117,7 @@ struct sioc_mif_req6
 
 #include <linux/pim.h>
 #include <linux/skbuff.h>	/* for struct sk_buff_head */
+#include <net/net_namespace.h>
 
 #ifdef CONFIG_IPV6_MROUTE
 static inline int ip6_mroute_opt(int opt)
@@ -187,6 +188,9 @@ struct mif_device
 struct mfc6_cache
 {
 	struct mfc6_cache *next;		/* Next entry on cache line 	*/
+#ifdef CONFIG_NET_NS
+	struct net *mfc6_net;
+#endif
 	struct in6_addr mf6c_mcastgrp;			/* Group the entry belongs to 	*/
 	struct in6_addr mf6c_origin;			/* Source of packet 		*/
 	mifi_t mf6c_parent;			/* Source interface		*/
@@ -209,6 +213,18 @@ struct mfc6_cache
 	} mfc_un;
 };
 
+static inline
+struct net *mfc6_net(const struct mfc6_cache *mfc)
+{
+	return read_pnet(&mfc->mfc6_net);
+}
+
+static inline
+void mfc6_net_set(struct mfc6_cache *mfc, struct net *net)
+{
+	write_pnet(&mfc->mfc6_net, hold_net(net));
+}
+
 #define MFC_STATIC		1
 #define MFC_NOTIFY		2
 
@@ -229,13 +245,17 @@ struct mfc6_cache
 
 #ifdef __KERNEL__
 struct rtmsg;
-extern int ip6mr_get_route(struct sk_buff *skb, struct rtmsg *rtm, int nowait);
+extern int ip6mr_get_route(struct net *net, struct sk_buff *skb,
+			   struct rtmsg *rtm, int nowait);
 
 #ifdef CONFIG_IPV6_MROUTE
-extern struct sock *mroute6_socket;
+static inline struct sock *mroute6_socket(struct net *net)
+{
+	return net->ipv6.mroute6_sk;
+}
 extern int ip6mr_sk_done(struct sock *sk);
 #else
-#define mroute6_socket NULL
+static inline struct sock *mroute6_socket(struct net *net) { return NULL; }
 static inline int ip6mr_sk_done(struct sock *sk) { return 0; }
 #endif
 #endif

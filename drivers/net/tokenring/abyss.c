@@ -99,7 +99,6 @@ static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_
 	struct net_local *tp;
 	int ret, pci_irq_line;
 	unsigned long pci_ioaddr;
-	DECLARE_MAC_BUF(mac);
 	
 	if (versionprinted++ == 0)
 		printk("%s", version);
@@ -147,8 +146,7 @@ static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_
 
 	abyss_read_eeprom(dev);
 
-	printk("%s:    Ring Station Address: %s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk("%s:    Ring Station Address: %pM\n", dev->name, dev->dev_addr);
 
 	tp = netdev_priv(dev);
 	tp->setnselout = abyss_setnselout_pins;

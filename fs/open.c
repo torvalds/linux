@@ -425,38 +425,32 @@ out:
  */
 asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 {
+	const struct cred *old_cred;
+	struct cred *override_cred;
 	struct path path;
 	struct inode *inode;
-	int old_fsuid, old_fsgid;
-	kernel_cap_t uninitialized_var(old_cap);  /* !SECURE_NO_SETUID_FIXUP */
 	int res;
 
 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
 		return -EINVAL;
 
-	old_fsuid = current->fsuid;
-	old_fsgid = current->fsgid;
+	override_cred = prepare_creds();
+	if (!override_cred)
+		return -ENOMEM;
 
-	current->fsuid = current->uid;
-	current->fsgid = current->gid;
+	override_cred->fsuid = override_cred->uid;
+	override_cred->fsgid = override_cred->gid;
 
 	if (!issecure(SECURE_NO_SETUID_FIXUP)) {
-		/*
-		 * Clear the capabilities if we switch to a non-root user
-		 */
-#ifndef CONFIG_SECURITY_FILE_CAPABILITIES
-		/*
-		 * FIXME: There is a race here against sys_capset.  The
-		 * capabilities can change yet we will restore the old
-		 * value below.  We should hold task_capabilities_lock,
-		 * but we cannot because user_path_at can sleep.
-		 */
-#endif /* ndef CONFIG_SECURITY_FILE_CAPABILITIES */
-		if (current->uid)
-			old_cap = cap_set_effective(__cap_empty_set);
+		/* Clear the capabilities if we switch to a non-root user */
+		if (override_cred->uid)
+			cap_clear(override_cred->cap_effective);
 		else
-			old_cap = cap_set_effective(current->cap_permitted);
+			override_cred->cap_effective =
+				override_cred->cap_permitted;
 	}
+
+	old_cred = override_creds(override_cred);
 
 	res = user_path_at(dfd, filename, LOOKUP_FOLLOW, &path);
 	if (res)
@@ -494,12 +488,8 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 out_path_release:
 	path_put(&path);
 out:
-	current->fsuid = old_fsuid;
-	current->fsgid = old_fsgid;
-
-	if (!issecure(SECURE_NO_SETUID_FIXUP))
-		cap_set_effective(old_cap);
-
+	revert_creds(old_cred);
+	put_cred(override_cred);
 	return res;
 }
 
@@ -792,7 +782,8 @@ static inline int __get_file_write_access(struct inode *inode,
 
 static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 					int flags, struct file *f,
-					int (*open)(struct inode *, struct file *))
+					int (*open)(struct inode *, struct file *),
+					const struct cred *cred)
 {
 	struct inode *inode;
 	int error;
@@ -816,7 +807,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	f->f_op = fops_get(inode->i_fop);
 	file_move(f, &inode->i_sb->s_files);
 
-	error = security_dentry_open(f);
+	error = security_dentry_open(f, cred);
 	if (error)
 		goto cleanup_all;
 
@@ -891,6 +882,8 @@ cleanup_file:
 struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry,
 		int (*open)(struct inode *, struct file *))
 {
+	const struct cred *cred = current_cred();
+
 	if (IS_ERR(nd->intent.open.file))
 		goto out;
 	if (IS_ERR(dentry))
@@ -898,7 +891,7 @@ struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry
 	nd->intent.open.file = __dentry_open(dget(dentry), mntget(nd->path.mnt),
 					     nd->intent.open.flags - 1,
 					     nd->intent.open.file,
-					     open);
+					     open, cred);
 out:
 	return nd->intent.open.file;
 out_err:
@@ -917,6 +910,7 @@ EXPORT_SYMBOL_GPL(lookup_instantiate_filp);
  */
 struct file *nameidata_to_filp(struct nameidata *nd, int flags)
 {
+	const struct cred *cred = current_cred();
 	struct file *filp;
 
 	/* Pick up the filp from the open intent */
@@ -924,7 +918,7 @@ struct file *nameidata_to_filp(struct nameidata *nd, int flags)
 	/* Has the filesystem initialised the file for us? */
 	if (filp->f_path.dentry == NULL)
 		filp = __dentry_open(nd->path.dentry, nd->path.mnt, flags, filp,
-				     NULL);
+				     NULL, cred);
 	else
 		path_put(&nd->path);
 	return filp;
@@ -934,7 +928,8 @@ struct file *nameidata_to_filp(struct nameidata *nd, int flags)
  * dentry_open() will have done dput(dentry) and mntput(mnt) if it returns an
  * error.
  */
-struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
+struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags,
+			 const struct cred *cred)
 {
 	int error;
 	struct file *f;
@@ -959,7 +954,7 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 		return ERR_PTR(error);
 	}
 
-	return __dentry_open(dentry, mnt, flags, f, NULL);
+	return __dentry_open(dentry, mnt, flags, f, NULL, cred);
 }
 EXPORT_SYMBOL(dentry_open);
 

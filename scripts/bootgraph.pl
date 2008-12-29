@@ -78,11 +78,13 @@ while (<>) {
 }
 
 if ($count == 0) {
-	print "No data found in the dmesg. Make sure that 'printk.time=1' and\n";
-	print "'initcall_debug' are passed on the kernel command line.\n\n";
-	print "Usage: \n";
-	print "      dmesg | perl scripts/bootgraph.pl > output.svg\n\n";
-	exit;
+    print STDERR <<END;
+No data found in the dmesg. Make sure that 'printk.time=1' and
+'initcall_debug' are passed on the kernel command line.
+Usage:
+      dmesg | perl scripts/bootgraph.pl > output.svg
+END
+    exit 1;
 }
 
 print "<?xml version=\"1.0\" standalone=\"no\"?> \n";
@@ -109,8 +111,8 @@ my $stylecounter = 0;
 my %rows;
 my $rowscount = 1;
 my @initcalls = sort { $start{$a} <=> $start{$b} } keys(%start);
-my $key;
-foreach $key (@initcalls) {
+
+foreach my $key (@initcalls) {
 	my $duration = $end{$key} - $start{$key};
 
 	if ($duration >= $threshold) {

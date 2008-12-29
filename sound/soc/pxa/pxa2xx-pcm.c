@@ -69,7 +69,7 @@ static int pxa2xx_pcm_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-struct snd_pcm_ops pxa2xx_pcm_ops = {
+static struct snd_pcm_ops pxa2xx_pcm_ops = {
 	.open		= __pxa2xx_pcm_open,
 	.close		= __pxa2xx_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -117,6 +117,18 @@ struct snd_soc_platform pxa2xx_soc_platform = {
 	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
 };
 EXPORT_SYMBOL_GPL(pxa2xx_soc_platform);
+
+static int __init pxa2xx_soc_platform_init(void)
+{
+	return snd_soc_register_platform(&pxa2xx_soc_platform);
+}
+module_init(pxa2xx_soc_platform_init);
+
+static void __exit pxa2xx_soc_platform_exit(void)
+{
+	snd_soc_unregister_platform(&pxa2xx_soc_platform);
+}
+module_exit(pxa2xx_soc_platform_exit);
 
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("Intel PXA2xx PCM DMA module");

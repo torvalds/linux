@@ -72,49 +72,33 @@ void rt2x00leds_led_quality(struct rt2x00_dev *rt2x00dev, int rssi)
 	}
 }
 
-void rt2x00led_led_activity(struct rt2x00_dev *rt2x00dev, bool enabled)
+static void rt2x00led_led_simple(struct rt2x00_led *led, bool enabled)
 {
-	struct rt2x00_led *led = &rt2x00dev->led_qual;
-	unsigned int brightness;
+	unsigned int brightness = enabled ? LED_FULL : LED_OFF;
 
-	if ((led->type != LED_TYPE_ACTIVITY) || !(led->flags & LED_REGISTERED))
+	if (!(led->flags & LED_REGISTERED))
 		return;
 
-	brightness = enabled ? LED_FULL : LED_OFF;
-	if (brightness != led->led_dev.brightness) {
-		led->led_dev.brightness_set(&led->led_dev, brightness);
-		led->led_dev.brightness = brightness;
-	}
+	led->led_dev.brightness_set(&led->led_dev, brightness);
+	led->led_dev.brightness = brightness;
+}
+
+void rt2x00led_led_activity(struct rt2x00_dev *rt2x00dev, bool enabled)
+{
+	if (rt2x00dev->led_qual.type == LED_TYPE_ACTIVITY)
+		rt2x00led_led_simple(&rt2x00dev->led_qual, enabled);
 }
 
 void rt2x00leds_led_assoc(struct rt2x00_dev *rt2x00dev, bool enabled)
 {
-	struct rt2x00_led *led = &rt2x00dev->led_assoc;
-	unsigned int brightness;
-
-	if ((led->type != LED_TYPE_ASSOC) || !(led->flags & LED_REGISTERED))
-		return;
-
-	brightness = enabled ? LED_FULL : LED_OFF;
-	if (brightness != led->led_dev.brightness) {
-		led->led_dev.brightness_set(&led->led_dev, brightness);
-		led->led_dev.brightness = brightness;
-	}
+	if (rt2x00dev->led_assoc.type == LED_TYPE_ASSOC)
+		rt2x00led_led_simple(&rt2x00dev->led_assoc, enabled);
 }
 
 void rt2x00leds_led_radio(struct rt2x00_dev *rt2x00dev, bool enabled)
 {
-	struct rt2x00_led *led = &rt2x00dev->led_radio;
-	unsigned int brightness;
-
-	if ((led->type != LED_TYPE_RADIO) || !(led->flags & LED_REGISTERED))
-		return;
-
-	brightness = enabled ? LED_FULL : LED_OFF;
-	if (brightness != led->led_dev.brightness) {
-		led->led_dev.brightness_set(&led->led_dev, brightness);
-		led->led_dev.brightness = brightness;
-	}
+	if (rt2x00dev->led_radio.type == LED_TYPE_ASSOC)
+		rt2x00led_led_simple(&rt2x00dev->led_radio, enabled);
 }
 
 static int rt2x00leds_register_led(struct rt2x00_dev *rt2x00dev,
@@ -125,6 +109,7 @@ static int rt2x00leds_register_led(struct rt2x00_dev *rt2x00dev,
 	int retval;
 
 	led->led_dev.name = name;
+	led->led_dev.brightness = LED_OFF;
 
 	retval = led_classdev_register(device, &led->led_dev);
 	if (retval) {
@@ -199,7 +184,16 @@ exit_fail:
 static void rt2x00leds_unregister_led(struct rt2x00_led *led)
 {
 	led_classdev_unregister(&led->led_dev);
-	led->led_dev.brightness_set(&led->led_dev, LED_OFF);
+
+	/*
+	 * This might look weird, but when we are unregistering while
+	 * suspended the led is already off, and since we haven't
+	 * fully resumed yet, access to the device might not be
+	 * possible yet.
+	 */
+	if (!(led->led_dev.flags & LED_SUSPENDED))
+		led->led_dev.brightness_set(&led->led_dev, LED_OFF);
+
 	led->flags &= ~LED_REGISTERED;
 }
 
@@ -213,22 +207,40 @@ void rt2x00leds_unregister(struct rt2x00_dev *rt2x00dev)
 		rt2x00leds_unregister_led(&rt2x00dev->led_radio);
 }
 
+static inline void rt2x00leds_suspend_led(struct rt2x00_led *led)
+{
+	led_classdev_suspend(&led->led_dev);
+
+	/* This shouldn't be needed, but just to be safe */
+	led->led_dev.brightness_set(&led->led_dev, LED_OFF);
+	led->led_dev.brightness = LED_OFF;
+}
+
 void rt2x00leds_suspend(struct rt2x00_dev *rt2x00dev)
 {
 	if (rt2x00dev->led_qual.flags & LED_REGISTERED)
-		led_classdev_suspend(&rt2x00dev->led_qual.led_dev);
+		rt2x00leds_suspend_led(&rt2x00dev->led_qual);
 	if (rt2x00dev->led_assoc.flags & LED_REGISTERED)
-		led_classdev_suspend(&rt2x00dev->led_assoc.led_dev);
+		rt2x00leds_suspend_led(&rt2x00dev->led_assoc);
 	if (rt2x00dev->led_radio.flags & LED_REGISTERED)
-		led_classdev_suspend(&rt2x00dev->led_radio.led_dev);
+		rt2x00leds_suspend_led(&rt2x00dev->led_radio);
+}
+
+static inline void rt2x00leds_resume_led(struct rt2x00_led *led)
+{
+	led_classdev_resume(&led->led_dev);
+
+	/* Device might have enabled the LEDS during resume */
+	led->led_dev.brightness_set(&led->led_dev, LED_OFF);
+	led->led_dev.brightness = LED_OFF;
 }
 
 void rt2x00leds_resume(struct rt2x00_dev *rt2x00dev)
 {
 	if (rt2x00dev->led_radio.flags & LED_REGISTERED)
-		led_classdev_resume(&rt2x00dev->led_radio.led_dev);
+		rt2x00leds_resume_led(&rt2x00dev->led_radio);
 	if (rt2x00dev->led_assoc.flags & LED_REGISTERED)
-		led_classdev_resume(&rt2x00dev->led_assoc.led_dev);
+		rt2x00leds_resume_led(&rt2x00dev->led_assoc);
 	if (rt2x00dev->led_qual.flags & LED_REGISTERED)
-		led_classdev_resume(&rt2x00dev->led_qual.led_dev);
+		rt2x00leds_resume_led(&rt2x00dev->led_qual);
 }

@@ -305,41 +305,40 @@ static inline const char* ps3_result(int result)
 /* system bus routines */
 
 enum ps3_match_id {
-	PS3_MATCH_ID_EHCI           = 1,
-	PS3_MATCH_ID_OHCI           = 2,
-	PS3_MATCH_ID_GELIC          = 3,
-	PS3_MATCH_ID_AV_SETTINGS    = 4,
-	PS3_MATCH_ID_SYSTEM_MANAGER = 5,
-	PS3_MATCH_ID_STOR_DISK      = 6,
-	PS3_MATCH_ID_STOR_ROM       = 7,
-	PS3_MATCH_ID_STOR_FLASH     = 8,
-	PS3_MATCH_ID_SOUND          = 9,
-	PS3_MATCH_ID_GRAPHICS       = 10,
-	PS3_MATCH_ID_LPM            = 11,
+	PS3_MATCH_ID_EHCI		= 1,
+	PS3_MATCH_ID_OHCI		= 2,
+	PS3_MATCH_ID_GELIC		= 3,
+	PS3_MATCH_ID_AV_SETTINGS	= 4,
+	PS3_MATCH_ID_SYSTEM_MANAGER	= 5,
+	PS3_MATCH_ID_STOR_DISK		= 6,
+	PS3_MATCH_ID_STOR_ROM		= 7,
+	PS3_MATCH_ID_STOR_FLASH		= 8,
+	PS3_MATCH_ID_SOUND		= 9,
+	PS3_MATCH_ID_GPU		= 10,
+	PS3_MATCH_ID_LPM		= 11,
 };
 
-#define PS3_MODULE_ALIAS_EHCI           "ps3:1"
-#define PS3_MODULE_ALIAS_OHCI           "ps3:2"
-#define PS3_MODULE_ALIAS_GELIC          "ps3:3"
-#define PS3_MODULE_ALIAS_AV_SETTINGS    "ps3:4"
-#define PS3_MODULE_ALIAS_SYSTEM_MANAGER "ps3:5"
-#define PS3_MODULE_ALIAS_STOR_DISK      "ps3:6"
-#define PS3_MODULE_ALIAS_STOR_ROM       "ps3:7"
-#define PS3_MODULE_ALIAS_STOR_FLASH     "ps3:8"
-#define PS3_MODULE_ALIAS_SOUND          "ps3:9"
-#define PS3_MODULE_ALIAS_GRAPHICS       "ps3:10"
-#define PS3_MODULE_ALIAS_LPM            "ps3:11"
+enum ps3_match_sub_id {
+	PS3_MATCH_SUB_ID_GPU_FB		= 1,
+};
+
+#define PS3_MODULE_ALIAS_EHCI		"ps3:1:0"
+#define PS3_MODULE_ALIAS_OHCI		"ps3:2:0"
+#define PS3_MODULE_ALIAS_GELIC		"ps3:3:0"
+#define PS3_MODULE_ALIAS_AV_SETTINGS	"ps3:4:0"
+#define PS3_MODULE_ALIAS_SYSTEM_MANAGER	"ps3:5:0"
+#define PS3_MODULE_ALIAS_STOR_DISK	"ps3:6:0"
+#define PS3_MODULE_ALIAS_STOR_ROM	"ps3:7:0"
+#define PS3_MODULE_ALIAS_STOR_FLASH	"ps3:8:0"
+#define PS3_MODULE_ALIAS_SOUND		"ps3:9:0"
+#define PS3_MODULE_ALIAS_GPU_FB		"ps3:10:1"
+#define PS3_MODULE_ALIAS_LPM		"ps3:11:0"
 
 enum ps3_system_bus_device_type {
 	PS3_DEVICE_TYPE_IOC0 = 1,
 	PS3_DEVICE_TYPE_SB,
 	PS3_DEVICE_TYPE_VUART,
 	PS3_DEVICE_TYPE_LPM,
-};
-
-enum ps3_match_sub_id {
-	/* for PS3_MATCH_ID_GRAPHICS */
-	PS3_MATCH_SUB_ID_FB		= 1,
 };
 
 /**
@@ -515,5 +514,8 @@ u32 ps3_get_and_clear_pm_interrupts(u32 cpu);
 void ps3_sync_irq(int node);
 u32 ps3_get_hw_thread_id(int cpu);
 u64 ps3_get_spe_id(void *arg);
+
+/* mutex synchronizing GPU accesses and video mode changes */
+extern struct mutex ps3_gpu_mutex;
 
 #endif

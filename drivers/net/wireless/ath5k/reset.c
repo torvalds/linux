@@ -674,7 +674,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 			(ee->ee_switch_settling[ee_mode] << 7) & 0x3f80,
 			0xffffc07f);
 		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_GAIN,
-			(ee->ee_ant_tx_rx[ee_mode] << 12) & 0x3f000,
+			(ee->ee_atn_tx_rx[ee_mode] << 12) & 0x3f000,
 			0xfffc0fff);
 		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_DESIRED_SIZE,
 			(ee->ee_adc_desired_size[ee_mode] & 0x00ff) |
@@ -842,9 +842,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 *
 	 * XXX: Find an interval that's OK for all cards...
 	 */
-	ret = ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
-	if (ret)
-		return ret;
+	ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
 
 	/*
 	 * Reset queues and start beacon timers at the end of the reset routine
@@ -864,8 +862,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 
 	/* Pre-enable interrupts on 5211/5212*/
 	if (ah->ah_version != AR5K_AR5210)
-		ath5k_hw_set_imr(ah, AR5K_INT_RX | AR5K_INT_TX |
-				AR5K_INT_FATAL);
+		ath5k_hw_set_imr(ah, ah->ah_imr);
 
 	/*
 	 * Set RF kill flags if supported by the device (read from the EEPROM)

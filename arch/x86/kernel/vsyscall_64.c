@@ -17,6 +17,9 @@
  *  want per guest time just set the kernel.vsyscall64 sysctl to 0.
  */
 
+/* Disable profiling for userspace code: */
+#define DISABLE_BRANCH_PROFILING
+
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

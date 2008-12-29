@@ -450,6 +450,20 @@ static const struct ethtool_ops ace_ethtool_ops = {
 
 static void ace_watchdog(struct net_device *dev);
 
+static const struct net_device_ops ace_netdev_ops = {
+	.ndo_open		= ace_open,
+	.ndo_stop		= ace_close,
+	.ndo_tx_timeout		= ace_watchdog,
+	.ndo_get_stats		= ace_get_stats,
+	.ndo_start_xmit		= ace_start_xmit,
+	.ndo_set_multicast_list	= ace_set_multicast_list,
+	.ndo_set_mac_address	= ace_set_mac_addr,
+	.ndo_change_mtu		= ace_change_mtu,
+#if ACENIC_DO_VLAN
+	.ndo_vlan_rx_register	= ace_vlan_rx_register,
+#endif
+};
+
 static int __devinit acenic_probe_one(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
@@ -466,27 +480,19 @@ static int __devinit acenic_probe_one(struct pci_dev *pdev,
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	ap = dev->priv;
+	ap = netdev_priv(dev);
 	ap->pdev = pdev;
 	ap->name = pci_name(pdev);
 
 	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
 #if ACENIC_DO_VLAN
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	dev->vlan_rx_register = ace_vlan_rx_register;
 #endif
 
-	dev->tx_timeout = &ace_watchdog;
 	dev->watchdog_timeo = 5*HZ;
 
-	dev->open = &ace_open;
-	dev->stop = &ace_close;
-	dev->hard_start_xmit = &ace_start_xmit;
-	dev->get_stats = &ace_get_stats;
-	dev->set_multicast_list = &ace_set_multicast_list;
+	dev->netdev_ops = &ace_netdev_ops;
 	SET_ETHTOOL_OPS(dev, &ace_ethtool_ops);
-	dev->set_mac_address = &ace_set_mac_addr;
-	dev->change_mtu = &ace_change_mtu;
 
 	/* we only display this string ONCE */
 	if (!boards_found)
@@ -892,7 +898,6 @@ static int __devinit ace_init(struct net_device *dev)
 	int board_idx, ecode = 0;
 	short i;
 	unsigned char cache_size;
-	DECLARE_MAC_BUF(mac);
 
 	ap = netdev_priv(dev);
 	regs = ap->regs;
@@ -1019,7 +1024,7 @@ static int __devinit ace_init(struct net_device *dev)
 	dev->dev_addr[4] = (mac2 >> 8) & 0xff;
 	dev->dev_addr[5] = mac2 & 0xff;
 
-	printk("MAC: %s\n", print_mac(mac, dev->dev_addr));
+	printk("MAC: %pM\n", dev->dev_addr);
 
 	/*
 	 * Looks like this is necessary to deal with on all architectures,
@@ -2034,7 +2039,6 @@ static void ace_rx_int(struct net_device *dev, u32 rxretprd, u32 rxretcsm)
 #endif
 			netif_rx(skb);
 
-		dev->last_rx = jiffies;
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += retdesc->size;
 
@@ -3220,10 +3224,3 @@ static int __devinit read_eeprom_byte(struct net_device *dev,
 	       ap->name, offset);
 	goto out;
 }
-
-
-/*
- * Local variables:
- * compile-command: "gcc -D__SMP__ -D__KERNEL__ -DMODULE -I../../include -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -pipe -fno-strength-reduce -DMODVERSIONS -include ../../include/linux/modversions.h   -c -o acenic.o acenic.c"
- * End:
- */

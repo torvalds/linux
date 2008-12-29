@@ -426,6 +426,7 @@ static int file_mode(int fmode)
 
 static int hppfs_open(struct inode *inode, struct file *file)
 {
+	const struct cred *cred = file->f_cred;
 	struct hppfs_private *data;
 	struct vfsmount *proc_mnt;
 	struct dentry *proc_dentry;
@@ -446,7 +447,7 @@ static int hppfs_open(struct inode *inode, struct file *file)
 
 	/* XXX This isn't closed anywhere */
 	data->proc_file = dentry_open(dget(proc_dentry), mntget(proc_mnt),
-				      file_mode(file->f_mode));
+				      file_mode(file->f_mode), cred);
 	err = PTR_ERR(data->proc_file);
 	if (IS_ERR(data->proc_file))
 		goto out_free1;
@@ -489,6 +490,7 @@ static int hppfs_open(struct inode *inode, struct file *file)
 
 static int hppfs_dir_open(struct inode *inode, struct file *file)
 {
+	const struct cred *cred = file->f_cred;
 	struct hppfs_private *data;
 	struct vfsmount *proc_mnt;
 	struct dentry *proc_dentry;
@@ -502,7 +504,7 @@ static int hppfs_dir_open(struct inode *inode, struct file *file)
 	proc_dentry = HPPFS_I(inode)->proc_dentry;
 	proc_mnt = inode->i_sb->s_fs_info;
 	data->proc_file = dentry_open(dget(proc_dentry), mntget(proc_mnt),
-				      file_mode(file->f_mode));
+				      file_mode(file->f_mode), cred);
 	err = PTR_ERR(data->proc_file);
 	if (IS_ERR(data->proc_file))
 		goto out_free;

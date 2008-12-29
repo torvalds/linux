@@ -506,7 +506,7 @@ int arp_bind_neighbour(struct dst_entry *dst)
 	if (dev == NULL)
 		return -EINVAL;
 	if (n == NULL) {
-		__be32 nexthop = ((struct rtable*)dst)->rt_gateway;
+		__be32 nexthop = ((struct rtable *)dst)->rt_gateway;
 		if (dev->flags&(IFF_LOOPBACK|IFF_POINTOPOINT))
 			nexthop = 0;
 		n = __neigh_lookup_errno(
@@ -640,14 +640,14 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 	arp_ptr=(unsigned char *)(arp+1);
 
 	memcpy(arp_ptr, src_hw, dev->addr_len);
-	arp_ptr+=dev->addr_len;
-	memcpy(arp_ptr, &src_ip,4);
-	arp_ptr+=4;
+	arp_ptr += dev->addr_len;
+	memcpy(arp_ptr, &src_ip, 4);
+	arp_ptr += 4;
 	if (target_hw != NULL)
 		memcpy(arp_ptr, target_hw, dev->addr_len);
 	else
 		memset(arp_ptr, 0, dev->addr_len);
-	arp_ptr+=dev->addr_len;
+	arp_ptr += dev->addr_len;
 	memcpy(arp_ptr, &dest_ip, 4);
 
 	return skb;
@@ -818,18 +818,18 @@ static int arp_process(struct sk_buff *skb)
 		addr_type = rt->rt_type;
 
 		if (addr_type == RTN_LOCAL) {
-			n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
-			if (n) {
-				int dont_send = 0;
+			int dont_send = 0;
 
-				if (!dont_send)
-					dont_send |= arp_ignore(in_dev,sip,tip);
-				if (!dont_send && IN_DEV_ARPFILTER(in_dev))
-					dont_send |= arp_filter(sip,tip,dev);
-				if (!dont_send)
+			if (!dont_send)
+				dont_send |= arp_ignore(in_dev,sip,tip);
+			if (!dont_send && IN_DEV_ARPFILTER(in_dev))
+				dont_send |= arp_filter(sip,tip,dev);
+			if (!dont_send) {
+				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
+				if (n) {
 					arp_send(ARPOP_REPLY,ETH_P_ARP,sip,dev,tip,sha,dev->dev_addr,sha);
-
-				neigh_release(n);
+					neigh_release(n);
+				}
 			}
 			goto out;
 		} else if (IN_DEV_FORWARD(in_dev)) {
@@ -1308,7 +1308,7 @@ static void arp_format_neigh_entry(struct seq_file *seq,
 #if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
 	}
 #endif
-	sprintf(tbuf, NIPQUAD_FMT, NIPQUAD(*(u32*)n->primary_key));
+	sprintf(tbuf, "%pI4", n->primary_key);
 	seq_printf(seq, "%-16s 0x%-10x0x%-10x%s     *        %s\n",
 		   tbuf, hatype, arp_state_to_flags(n), hbuffer, dev->name);
 	read_unlock(&n->lock);
@@ -1321,7 +1321,7 @@ static void arp_format_pneigh_entry(struct seq_file *seq,
 	int hatype = dev ? dev->type : 0;
 	char tbuf[16];
 
-	sprintf(tbuf, NIPQUAD_FMT, NIPQUAD(*(u32*)n->key));
+	sprintf(tbuf, "%pI4", n->key);
 	seq_printf(seq, "%-16s 0x%-10x0x%-10x%s     *        %s\n",
 		   tbuf, hatype, ATF_PUBL | ATF_PERM, "00:00:00:00:00:00",
 		   dev ? dev->name : "*");

@@ -292,7 +292,7 @@ static int ali_ircc_open(int i, chipio_t *info)
 		return -ENOMEM;
 	}
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 	self->netdev = dev;
 	spin_lock_init(&self->lock);
    
@@ -665,7 +665,7 @@ static irqreturn_t ali_ircc_interrupt(int irq, void *dev_id)
 		
 	IRDA_DEBUG(2, "%s(), ---------------- Start ----------------\n", __func__);
 		
-	self = dev->priv;
+	self = netdev_priv(dev);
 	
 	spin_lock(&self->lock);
 	
@@ -1333,7 +1333,7 @@ static int ali_ircc_net_open(struct net_device *dev)
 	
 	IRDA_ASSERT(dev != NULL, return -1;);
 	
-	self = (struct ali_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 	
 	IRDA_ASSERT(self != NULL, return 0;);
 	
@@ -1396,7 +1396,7 @@ static int ali_ircc_net_close(struct net_device *dev)
 		
 	IRDA_ASSERT(dev != NULL, return -1;);
 
-	self = (struct ali_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 	IRDA_ASSERT(self != NULL, return 0;);
 
 	/* Stop device */
@@ -1436,7 +1436,7 @@ static int ali_ircc_fir_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	
 	IRDA_DEBUG(1, "%s(), ---------------- Start -----------------\n", __func__ );
 	
-	self = (struct ali_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 	iobase = self->io.fir_base;
 
 	netif_stop_queue(dev);
@@ -1931,7 +1931,6 @@ static int  ali_ircc_dma_receive_complete(struct ali_ircc_cb *self)
 			skb_reset_mac_header(skb);
 			skb->protocol = htons(ETH_P_IRDA);
 			netif_rx(skb);
-			self->netdev->last_rx = jiffies;
 		}
 	}
 	
@@ -1960,7 +1959,7 @@ static int ali_ircc_sir_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	
 	IRDA_ASSERT(dev != NULL, return 0;);
 	
-	self = (struct ali_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 	IRDA_ASSERT(self != NULL, return 0;);
 
 	iobase = self->io.sir_base;
@@ -2028,7 +2027,7 @@ static int ali_ircc_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	
 	IRDA_ASSERT(dev != NULL, return -1;);
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -2114,7 +2113,7 @@ static int ali_ircc_is_receiving(struct ali_ircc_cb *self)
 
 static struct net_device_stats *ali_ircc_net_get_stats(struct net_device *dev)
 {
-	struct ali_ircc_cb *self = (struct ali_ircc_cb *) dev->priv;
+	struct ali_ircc_cb *self = netdev_priv(dev);
 	
 	IRDA_DEBUG(2, "%s(), ---------------- Start ----------------\n", __func__ );
 		

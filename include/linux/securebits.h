@@ -32,7 +32,7 @@
    setting is locked or not. A setting which is locked cannot be
    changed from user-level. */
 #define issecure_mask(X)	(1 << (X))
-#define issecure(X)		(issecure_mask(X) & current->securebits)
+#define issecure(X)		(issecure_mask(X) & current_cred_xxx(securebits))
 
 #define SECURE_ALL_BITS		(issecure_mask(SECURE_NOROOT) | \
 				 issecure_mask(SECURE_NO_SETUID_FIXUP) | \
