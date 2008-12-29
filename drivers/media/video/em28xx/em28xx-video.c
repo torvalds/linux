@@ -1950,8 +1950,10 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 	return vfd;
 }
 
-int em28xx_analog_config(struct em28xx *dev)
+int em28xx_register_analog_devices(struct em28xx *dev)
 {
+	int ret;
+
 	printk(KERN_INFO "%s: v4l2 driver version %d.%d.%d\n",
 		dev->name,
 		(EM28XX_VERSION_CODE >> 16) & 0xff,
@@ -1984,13 +1986,6 @@ int em28xx_analog_config(struct em28xx *dev)
 
 	/* FIXME: This is a very bad hack! Not all devices have TV on input 2 */
 	dev->ctl_input = 2;
-
-	return 0;
-}
-
-int em28xx_register_analog_devices(struct em28xx *dev)
-{
-	int ret;
 
 	/* allocate and fill video video_device struct */
 	dev->vdev = em28xx_vdev_init(dev, &em28xx_video_template, "video");

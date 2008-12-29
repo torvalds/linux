@@ -1948,12 +1948,6 @@ int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	em28xx_add_into_devlist(dev);
 
-	errCode = em28xx_analog_config(dev);
-	if (errCode) {
-		em28xx_errdev("error configuring device\n");
-		return -ENOMEM;
-	}
-
 	retval = em28xx_register_analog_devices(dev);
 	if (retval < 0) {
 		em28xx_release_resources(dev);
