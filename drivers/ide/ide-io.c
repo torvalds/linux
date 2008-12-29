@@ -1363,14 +1363,13 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	ide_drive_t *drive;
 	ide_handler_t *handler;
 	ide_startstop_t startstop;
+	irqreturn_t irq_ret = IRQ_NONE;
 
 	spin_lock_irqsave(&ide_lock, flags);
 	hwif = hwgroup->hwif;
 
-	if (!ide_ack_intr(hwif)) {
-		spin_unlock_irqrestore(&ide_lock, flags);
-		return IRQ_NONE;
-	}
+	if (!ide_ack_intr(hwif))
+		goto out;
 
 	if ((handler = hwgroup->handler) == NULL || hwgroup->polling) {
 		/*
@@ -1406,9 +1405,9 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 			(void)hwif->tp_ops->read_status(hwif);
 #endif /* CONFIG_BLK_DEV_IDEPCI */
 		}
-		spin_unlock_irqrestore(&ide_lock, flags);
-		return IRQ_NONE;
+		goto out;
 	}
+
 	drive = hwgroup->drive;
 	if (!drive) {
 		/*
@@ -1417,10 +1416,10 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 		 *
 		 * [Note - this can occur if the drive is hot unplugged]
 		 */
-		spin_unlock_irqrestore(&ide_lock, flags);
-		return IRQ_HANDLED;
+		goto out_handled;
 	}
-	if (!drive_is_ready(drive)) {
+
+	if (!drive_is_ready(drive))
 		/*
 		 * This happens regularly when we share a PCI IRQ with
 		 * another device.  Unfortunately, it can also happen
@@ -1428,9 +1427,8 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 		 * their status register is up to date.  Hopefully we have
 		 * enough advance overhead that the latter isn't a problem.
 		 */
-		spin_unlock_irqrestore(&ide_lock, flags);
-		return IRQ_NONE;
-	}
+		goto out;
+
 	if (!hwgroup->busy) {
 		hwgroup->busy = 1;	/* paranoia */
 		printk(KERN_ERR "%s: ide_intr: hwgroup->busy was 0 ??\n", drive->name);
@@ -1467,8 +1465,11 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 				"on exit\n", drive->name);
 		}
 	}
+out_handled:
+	irq_ret = IRQ_HANDLED;
+out:
 	spin_unlock_irqrestore(&ide_lock, flags);
-	return IRQ_HANDLED;
+	return irq_ret;
 }
 
 /**
