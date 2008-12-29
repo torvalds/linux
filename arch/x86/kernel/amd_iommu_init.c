@@ -243,7 +243,7 @@ static void __init iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
 }
 
 /* Function to enable the hardware */
-void __init iommu_enable(struct amd_iommu *iommu)
+static void __init iommu_enable(struct amd_iommu *iommu)
 {
 	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU "
 	       "at %02x:%02x.%x cap 0x%hx\n",
@@ -256,7 +256,7 @@ void __init iommu_enable(struct amd_iommu *iommu)
 }
 
 /* Function to enable IOMMU event logging and event interrupts */
-void __init iommu_enable_event_logging(struct amd_iommu *iommu)
+static void __init iommu_enable_event_logging(struct amd_iommu *iommu)
 {
 	iommu_feature_enable(iommu, CONTROL_EVT_LOG_EN);
 	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
