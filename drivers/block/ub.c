@@ -2146,10 +2146,9 @@ static int ub_get_pipes(struct ub_dev *sc, struct usb_device *dev,
 		ep = &altsetting->endpoint[i].desc;
 
 		/* Is it a BULK endpoint? */
-		if ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-				== USB_ENDPOINT_XFER_BULK) {
+		if (usb_endpoint_xfer_bulk(ep)) {
 			/* BULK in or out? */
-			if (ep->bEndpointAddress & USB_DIR_IN) {
+			if (usb_endpoint_dir_in(ep)) {
 				if (ep_in == NULL)
 					ep_in = ep;
 			} else {
@@ -2168,9 +2167,9 @@ static int ub_get_pipes(struct ub_dev *sc, struct usb_device *dev,
 	sc->send_ctrl_pipe = usb_sndctrlpipe(dev, 0);
 	sc->recv_ctrl_pipe = usb_rcvctrlpipe(dev, 0);
 	sc->send_bulk_pipe = usb_sndbulkpipe(dev,
-		ep_out->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
+		usb_endpoint_num(ep_out));
 	sc->recv_bulk_pipe = usb_rcvbulkpipe(dev, 
-		ep_in->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
+		usb_endpoint_num(ep_in));
 
 	return 0;
 }
