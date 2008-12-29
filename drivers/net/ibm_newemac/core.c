@@ -396,9 +396,7 @@ static void emac_hash_mc(struct emac_instance *dev)
 
 	for (dmi = dev->ndev->mc_list; dmi; dmi = dmi->next) {
 		int slot, reg, mask;
-		DBG2(dev, "mc %02x:%02x:%02x:%02x:%02x:%02x" NL,
-		     dmi->dmi_addr[0], dmi->dmi_addr[1], dmi->dmi_addr[2],
-		     dmi->dmi_addr[3], dmi->dmi_addr[4], dmi->dmi_addr[5]);
+		DBG2(dev, "mc %pM" NL, dmi->dmi_addr);
 
 		slot = EMAC_XAHT_CRC_TO_SLOT(dev, ether_crc(ETH_ALEN, dmi->dmi_addr));
 		reg = EMAC_XAHT_SLOT_TO_REG(dev, slot);
@@ -2865,11 +2863,8 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	wake_up_all(&emac_probe_wait);
 
 
-	printk(KERN_INFO
-	       "%s: EMAC-%d %s, MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       ndev->name, dev->cell_index, np->full_name,
-	       ndev->dev_addr[0], ndev->dev_addr[1], ndev->dev_addr[2],
-	       ndev->dev_addr[3], ndev->dev_addr[4], ndev->dev_addr[5]);
+	printk(KERN_INFO "%s: EMAC-%d %s, MAC %pM\n",
+	       ndev->name, dev->cell_index, np->full_name, ndev->dev_addr);
 
 	if (dev->phy_mode == PHY_MODE_SGMII)
 		printk(KERN_NOTICE "%s: in SGMII mode\n", ndev->name);

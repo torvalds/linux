@@ -1601,14 +1601,14 @@ static int iscsi_tcp_get_addr(struct iscsi_conn *conn, struct socket *sock,
 	case AF_INET:
 		sin = (struct sockaddr_in *)addr;
 		spin_lock_bh(&conn->session->lock);
-		sprintf(buf, NIPQUAD_FMT, NIPQUAD(sin->sin_addr.s_addr));
+		sprintf(buf, "%pI4", &sin->sin_addr.s_addr);
 		*port = be16_to_cpu(sin->sin_port);
 		spin_unlock_bh(&conn->session->lock);
 		break;
 	case AF_INET6:
 		sin6 = (struct sockaddr_in6 *)addr;
 		spin_lock_bh(&conn->session->lock);
-		sprintf(buf, NIP6_FMT, NIP6(sin6->sin6_addr));
+		sprintf(buf, "%pI6", &sin6->sin6_addr);
 		*port = be16_to_cpu(sin6->sin6_port);
 		spin_unlock_bh(&conn->session->lock);
 		break;

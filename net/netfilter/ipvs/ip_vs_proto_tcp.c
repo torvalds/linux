@@ -192,8 +192,8 @@ tcp_snat_handler(struct sk_buff *skb,
 	/* Adjust TCP checksums */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		tcp_partial_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
-					htonl(oldlen),
-					htonl(skb->len - tcphoff));
+					htons(oldlen),
+					htons(skb->len - tcphoff));
 	} else if (!cp->app) {
 		/* Only port and addr are changed, do fast csum update */
 		tcp_fast_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
@@ -267,8 +267,8 @@ tcp_dnat_handler(struct sk_buff *skb,
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		tcp_partial_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
-					htonl(oldlen),
-					htonl(skb->len - tcphoff));
+					htons(oldlen),
+					htons(skb->len - tcphoff));
 	} else if (!cp->app) {
 		/* Only port and addr are changed, do fast csum update */
 		tcp_fast_csum_update(cp->af, tcph, &cp->vaddr, &cp->daddr,

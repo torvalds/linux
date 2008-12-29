@@ -43,7 +43,9 @@ int seq_default_timer_class = SNDRV_TIMER_CLASS_GLOBAL;
 int seq_default_timer_sclass = SNDRV_TIMER_SCLASS_NONE;
 int seq_default_timer_card = -1;
 int seq_default_timer_device =
-#ifdef CONFIG_SND_SEQ_RTCTIMER_DEFAULT
+#ifdef CONFIG_SND_SEQ_HRTIMER_DEFAULT
+	SNDRV_TIMER_GLOBAL_HRTIMER
+#elif defined(CONFIG_SND_SEQ_RTCTIMER_DEFAULT)
 	SNDRV_TIMER_GLOBAL_RTC
 #else
 	SNDRV_TIMER_GLOBAL_SYSTEM

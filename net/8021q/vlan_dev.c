@@ -163,8 +163,6 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		goto err_unlock;
 	}
 
-	skb->dev->last_rx = jiffies;
-
 	stats = &skb->dev->stats;
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;
@@ -526,6 +524,7 @@ out:
 static int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
+	const struct net_device_ops *ops = real_dev->netdev_ops;
 	struct ifreq ifrr;
 	int err = -EOPNOTSUPP;
 
@@ -536,8 +535,8 @@ static int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
-		if (real_dev->do_ioctl && netif_device_present(real_dev))
-			err = real_dev->do_ioctl(real_dev, &ifrr, cmd);
+		if (netif_device_present(real_dev) && ops->ndo_do_ioctl)
+			err = ops->ndo_do_ioctl(real_dev, &ifrr, cmd);
 		break;
 	}
 
@@ -594,6 +593,8 @@ static const struct header_ops vlan_header_ops = {
 	.parse	 = eth_header_parse,
 };
 
+static const struct net_device_ops vlan_netdev_ops, vlan_netdev_accel_ops;
+
 static int vlan_dev_init(struct net_device *dev)
 {
 	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
@@ -620,11 +621,11 @@ static int vlan_dev_init(struct net_device *dev)
 	if (real_dev->features & NETIF_F_HW_VLAN_TX) {
 		dev->header_ops      = real_dev->header_ops;
 		dev->hard_header_len = real_dev->hard_header_len;
-		dev->hard_start_xmit = vlan_dev_hwaccel_hard_start_xmit;
+		dev->netdev_ops         = &vlan_netdev_accel_ops;
 	} else {
 		dev->header_ops      = &vlan_header_ops;
 		dev->hard_header_len = real_dev->hard_header_len + VLAN_HLEN;
-		dev->hard_start_xmit = vlan_dev_hard_start_xmit;
+		dev->netdev_ops         = &vlan_netdev_ops;
 	}
 
 	if (is_vlan_dev(real_dev))
@@ -646,6 +647,26 @@ static void vlan_dev_uninit(struct net_device *dev)
 			kfree(pm);
 		}
 	}
+}
+
+static int vlan_ethtool_get_settings(struct net_device *dev,
+				     struct ethtool_cmd *cmd)
+{
+	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
+	struct net_device *real_dev = vlan->real_dev;
+
+	if (!real_dev->ethtool_ops->get_settings)
+		return -EOPNOTSUPP;
+
+	return real_dev->ethtool_ops->get_settings(real_dev, cmd);
+}
+
+static void vlan_ethtool_get_drvinfo(struct net_device *dev,
+				     struct ethtool_drvinfo *info)
+{
+	strcpy(info->driver, vlan_fullname);
+	strcpy(info->version, vlan_version);
+	strcpy(info->fw_version, "N/A");
 }
 
 static u32 vlan_ethtool_get_rx_csum(struct net_device *dev)
@@ -672,9 +693,41 @@ static u32 vlan_ethtool_get_flags(struct net_device *dev)
 }
 
 static const struct ethtool_ops vlan_ethtool_ops = {
+	.get_settings	        = vlan_ethtool_get_settings,
+	.get_drvinfo	        = vlan_ethtool_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_rx_csum		= vlan_ethtool_get_rx_csum,
 	.get_flags		= vlan_ethtool_get_flags,
+};
+
+static const struct net_device_ops vlan_netdev_ops = {
+	.ndo_change_mtu		= vlan_dev_change_mtu,
+	.ndo_init		= vlan_dev_init,
+	.ndo_uninit		= vlan_dev_uninit,
+	.ndo_open		= vlan_dev_open,
+	.ndo_stop		= vlan_dev_stop,
+	.ndo_start_xmit =  vlan_dev_hard_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= vlan_dev_set_mac_address,
+	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
+	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
+	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
+	.ndo_do_ioctl		= vlan_dev_ioctl,
+};
+
+static const struct net_device_ops vlan_netdev_accel_ops = {
+	.ndo_change_mtu		= vlan_dev_change_mtu,
+	.ndo_init		= vlan_dev_init,
+	.ndo_uninit		= vlan_dev_uninit,
+	.ndo_open		= vlan_dev_open,
+	.ndo_stop		= vlan_dev_stop,
+	.ndo_start_xmit =  vlan_dev_hwaccel_hard_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= vlan_dev_set_mac_address,
+	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
+	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
+	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
+	.ndo_do_ioctl		= vlan_dev_ioctl,
 };
 
 void vlan_setup(struct net_device *dev)
@@ -684,16 +737,7 @@ void vlan_setup(struct net_device *dev)
 	dev->priv_flags		|= IFF_802_1Q_VLAN;
 	dev->tx_queue_len	= 0;
 
-	dev->change_mtu		= vlan_dev_change_mtu;
-	dev->init		= vlan_dev_init;
-	dev->uninit		= vlan_dev_uninit;
-	dev->open		= vlan_dev_open;
-	dev->stop		= vlan_dev_stop;
-	dev->set_mac_address	= vlan_dev_set_mac_address;
-	dev->set_rx_mode	= vlan_dev_set_rx_mode;
-	dev->set_multicast_list	= vlan_dev_set_rx_mode;
-	dev->change_rx_flags	= vlan_dev_change_rx_flags;
-	dev->do_ioctl		= vlan_dev_ioctl;
+	dev->netdev_ops		= &vlan_netdev_ops;
 	dev->destructor		= free_netdev;
 	dev->ethtool_ops	= &vlan_ethtool_ops;
 

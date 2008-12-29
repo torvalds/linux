@@ -27,10 +27,13 @@ menu "Networking options"
 config NET_NS
 	bool "Network namespace support"
 	default n
-	depends on EXPERIMENTAL && !SYSFS && NAMESPACES
+	depends on EXPERIMENTAL && NAMESPACES
 	help
 	  Allow user space to create what appear to be multiple instances
 	  of the network stack.
+
+config COMPAT_NET_DEV_OPS
+       def_bool y
 
 source "net/packet/Kconfig"
 source "net/unix/Kconfig"
@@ -191,6 +194,7 @@ source "net/lapb/Kconfig"
 source "net/econet/Kconfig"
 source "net/wanrouter/Kconfig"
 source "net/sched/Kconfig"
+source "net/dcb/Kconfig"
 
 menu "Network testing"
 
@@ -247,7 +251,6 @@ if WIRELESS
 
 source "net/wireless/Kconfig"
 source "net/mac80211/Kconfig"
-source "net/ieee80211/Kconfig"
 
 endif # WIRELESS
 

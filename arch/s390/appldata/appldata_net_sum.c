@@ -67,7 +67,6 @@ static void appldata_get_net_sum_data(void *data)
 	int i;
 	struct appldata_net_sum_data *net_data;
 	struct net_device *dev;
-	struct net_device_stats *stats;
 	unsigned long rx_packets, tx_packets, rx_bytes, tx_bytes, rx_errors,
 			tx_errors, rx_dropped, tx_dropped, collisions;
 
@@ -86,7 +85,8 @@ static void appldata_get_net_sum_data(void *data)
 	collisions = 0;
 	read_lock(&dev_base_lock);
 	for_each_netdev(&init_net, dev) {
-		stats = dev->get_stats(dev);
+		const struct net_device_stats *stats = dev_get_stats(dev);
+
 		rx_packets += stats->rx_packets;
 		tx_packets += stats->tx_packets;
 		rx_bytes   += stats->rx_bytes;

@@ -379,8 +379,8 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 
 	/* Wakeup Tx queue if this ring stopped it */
 	if (unlikely(ring->blocked)) {
-		if (((u32) (ring->prod - ring->cons) <=
-		     ring->size - HEADROOM - MAX_DESC_TXBBS) && !cq->armed) {
+		if ((u32) (ring->prod - ring->cons) <=
+		     ring->size - HEADROOM - MAX_DESC_TXBBS) {
 
 			/* TODO: support multiqueue netdevs. Currently, we block
 			 * when *any* ring is full. Note that:
@@ -404,14 +404,11 @@ void mlx4_en_tx_irq(struct mlx4_cq *mcq)
 	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
 	struct mlx4_en_tx_ring *ring = &priv->tx_ring[cq->ring];
 
-	spin_lock_irq(&ring->comp_lock);
-	cq->armed = 0;
+	if (!spin_trylock(&ring->comp_lock))
+		return;
 	mlx4_en_process_tx_cq(cq->dev, cq);
-	if (ring->blocked)
-		mlx4_en_arm_cq(priv, cq);
-	else
-		mod_timer(&cq->timer, jiffies + 1);
-	spin_unlock_irq(&ring->comp_lock);
+	mod_timer(&cq->timer, jiffies + 1);
+	spin_unlock(&ring->comp_lock);
 }
 
 
@@ -424,8 +421,10 @@ void mlx4_en_poll_tx_cq(unsigned long data)
 
 	INC_PERF_COUNTER(priv->pstats.tx_poll);
 
-	netif_tx_lock(priv->dev);
-	spin_lock_irq(&ring->comp_lock);
+	if (!spin_trylock(&ring->comp_lock)) {
+		mod_timer(&cq->timer, jiffies + MLX4_EN_TX_POLL_TIMEOUT);
+		return;
+	}
 	mlx4_en_process_tx_cq(cq->dev, cq);
 	inflight = (u32) (ring->prod - ring->cons - ring->last_nr_txbb);
 
@@ -435,8 +434,7 @@ void mlx4_en_poll_tx_cq(unsigned long data)
 	if (inflight && priv->port_up)
 		mod_timer(&cq->timer, jiffies + MLX4_EN_TX_POLL_TIMEOUT);
 
-	spin_unlock_irq(&ring->comp_lock);
-	netif_tx_unlock(priv->dev);
+	spin_unlock(&ring->comp_lock);
 }
 
 static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
@@ -479,7 +477,10 @@ static inline void mlx4_en_xmit_poll(struct mlx4_en_priv *priv, int tx_ind)
 
 	/* Poll the CQ every mlx4_en_TX_MODER_POLL packets */
 	if ((++ring->poll_cnt & (MLX4_EN_TX_POLL_MODER - 1)) == 0)
-		mlx4_en_process_tx_cq(priv->dev, cq);
+		if (spin_trylock(&ring->comp_lock)) {
+			mlx4_en_process_tx_cq(priv->dev, cq);
+			spin_unlock(&ring->comp_lock);
+		}
 }
 
 static void *get_frag_ptr(struct sk_buff *skb)

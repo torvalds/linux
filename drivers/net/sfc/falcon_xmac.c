@@ -15,7 +15,6 @@
 #include "falcon_hwdefs.h"
 #include "falcon_io.h"
 #include "mac.h"
-#include "gmii.h"
 #include "mdio_10g.h"
 #include "phy.h"
 #include "boards.h"
@@ -26,24 +25,6 @@
  * MAC operations
  *
  *************************************************************************/
-static int falcon_reset_xmac(struct efx_nic *efx)
-{
-	efx_oword_t reg;
-	int count;
-
-	EFX_POPULATE_OWORD_1(reg, XM_CORE_RST, 1);
-	falcon_write(efx, &reg, XM_GLB_CFG_REG);
-
-	for (count = 0; count < 10000; count++) {	/* wait upto 100ms */
-		falcon_read(efx, &reg, XM_GLB_CFG_REG);
-		if (EFX_OWORD_FIELD(reg, XM_CORE_RST) == 0)
-			return 0;
-		udelay(10);
-	}
-
-	EFX_ERR(efx, "timed out waiting for XMAC core reset\n");
-	return -ETIMEDOUT;
-}
 
 /* Configure the XAUI driver that is an output from Falcon */
 static void falcon_setup_xaui(struct efx_nic *efx)
@@ -99,31 +80,20 @@ int falcon_reset_xaui(struct efx_nic *efx)
 	return -ETIMEDOUT;
 }
 
-static bool falcon_xgmii_status(struct efx_nic *efx)
-{
-	efx_oword_t reg;
-
-	if (falcon_rev(efx) < FALCON_REV_B0)
-		return true;
-
-	/* The ISR latches, so clear it and re-read */
-	falcon_read(efx, &reg, XM_MGT_INT_REG_B0);
-	falcon_read(efx, &reg, XM_MGT_INT_REG_B0);
-
-	if (EFX_OWORD_FIELD(reg, XM_LCLFLT) ||
-	    EFX_OWORD_FIELD(reg, XM_RMTFLT)) {
-		EFX_INFO(efx, "MGT_INT: "EFX_DWORD_FMT"\n", EFX_DWORD_VAL(reg));
-		return false;
-	}
-
-	return true;
-}
-
 static void falcon_mask_status_intr(struct efx_nic *efx, bool enable)
 {
 	efx_oword_t reg;
 
-	if ((falcon_rev(efx) < FALCON_REV_B0) || LOOPBACK_INTERNAL(efx))
+	if ((falcon_rev(efx) != FALCON_REV_B0) || LOOPBACK_INTERNAL(efx))
+		return;
+
+	/* We expect xgmii faults if the wireside link is up */
+	if (!EFX_WORKAROUND_5147(efx) || !efx->link_up)
+		return;
+
+	/* We can only use this interrupt to signal the negative edge of
+	 * xaui_align [we have to poll the positive edge]. */
+	if (!efx->mac_up)
 		return;
 
 	/* Flush the ISR */
@@ -136,35 +106,7 @@ static void falcon_mask_status_intr(struct efx_nic *efx, bool enable)
 	falcon_write(efx, &reg, XM_MGT_INT_MSK_REG_B0);
 }
 
-int falcon_init_xmac(struct efx_nic *efx)
-{
-	int rc;
-
-	/* Initialize the PHY first so the clock is around */
-	rc = efx->phy_op->init(efx);
-	if (rc)
-		goto fail1;
-
-	rc = falcon_reset_xaui(efx);
-	if (rc)
-		goto fail2;
-
-	/* Wait again. Give the PHY and MAC time to come back */
-	schedule_timeout_uninterruptible(HZ / 10);
-
-	rc = falcon_reset_xmac(efx);
-	if (rc)
-		goto fail2;
-
-	falcon_mask_status_intr(efx, true);
-	return 0;
-
- fail2:
-	efx->phy_op->fini(efx);
- fail1:
-	return rc;
-}
-
+/* Get status of XAUI link */
 bool falcon_xaui_link_ok(struct efx_nic *efx)
 {
 	efx_oword_t reg;
@@ -188,18 +130,10 @@ bool falcon_xaui_link_ok(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(reg, XX_DISPERR, XX_DISPERR_RESET);
 	falcon_write(efx, &reg, XX_CORE_STAT_REG);
 
-	/* If the link is up, then check the phy side of the xaui link
-	 * (error conditions from the wire side propoagate back through
-	 * the phy to the xaui side). */
-	if (efx->link_up && link_ok) {
+	/* If the link is up, then check the phy side of the xaui link */
+	if (efx->link_up && link_ok)
 		if (efx->phy_op->mmds & (1 << MDIO_MMD_PHYXS))
 			link_ok = mdio_clause45_phyxgxs_lane_sync(efx);
-	}
-
-	/* If the PHY and XAUI links are up, then check the mac's xgmii
-	 * fault state */
-	if (efx->link_up && link_ok)
-		link_ok = falcon_xgmii_status(efx);
 
 	return link_ok;
 }
@@ -208,7 +142,7 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 {
 	unsigned int max_frame_len;
 	efx_oword_t reg;
-	bool rx_fc = !!(efx->flow_control & EFX_FC_RX);
+	bool rx_fc = !!(efx->link_fc & EFX_FC_RX);
 
 	/* Configure MAC  - cut-thru mode is hard wired on */
 	EFX_POPULATE_DWORD_3(reg,
@@ -311,70 +245,39 @@ static void falcon_reconfigure_xgxs_core(struct efx_nic *efx)
 
 /* Try and bring the Falcon side of the Falcon-Phy XAUI link fails
  * to come back up. Bash it until it comes back up */
-static bool falcon_check_xaui_link_up(struct efx_nic *efx)
+static void falcon_check_xaui_link_up(struct efx_nic *efx, int tries)
 {
-	int max_tries, tries;
-	tries = EFX_WORKAROUND_5147(efx) ? 5 : 1;
-	max_tries = tries;
+	efx->mac_up = falcon_xaui_link_ok(efx);
 
 	if ((efx->loopback_mode == LOOPBACK_NETWORK) ||
-	    (efx->phy_type == PHY_TYPE_NONE) ||
 	    efx_phy_mode_disabled(efx->phy_mode))
-		return false;
+		/* XAUI link is expected to be down */
+		return;
 
-	while (tries) {
-		if (falcon_xaui_link_ok(efx))
-			return true;
-
-		EFX_LOG(efx, "%s Clobbering XAUI (%d tries left).\n",
-			__func__, tries);
+	while (!efx->mac_up && tries) {
+		EFX_LOG(efx, "bashing xaui\n");
 		falcon_reset_xaui(efx);
 		udelay(200);
-		tries--;
-	}
 
-	EFX_LOG(efx, "Failed to bring XAUI link back up in %d tries!\n",
-		max_tries);
-	return false;
+		efx->mac_up = falcon_xaui_link_ok(efx);
+		--tries;
+	}
 }
 
-void falcon_reconfigure_xmac(struct efx_nic *efx)
+static void falcon_reconfigure_xmac(struct efx_nic *efx)
 {
-	bool xaui_link_ok;
-
 	falcon_mask_status_intr(efx, false);
-
-	falcon_deconfigure_mac_wrapper(efx);
-
-	/* Reconfigure the PHY, disabling transmit in mac level loopback. */
-	if (LOOPBACK_INTERNAL(efx))
-		efx->phy_mode |= PHY_MODE_TX_DISABLED;
-	else
-		efx->phy_mode &= ~PHY_MODE_TX_DISABLED;
-	efx->phy_op->reconfigure(efx);
 
 	falcon_reconfigure_xgxs_core(efx);
 	falcon_reconfigure_xmac_core(efx);
 
 	falcon_reconfigure_mac_wrapper(efx);
 
-	/* Ensure XAUI link is up */
-	xaui_link_ok = falcon_check_xaui_link_up(efx);
-
-	if (xaui_link_ok && efx->link_up)
-		falcon_mask_status_intr(efx, true);
+	falcon_check_xaui_link_up(efx, 5);
+	falcon_mask_status_intr(efx, true);
 }
 
-void falcon_fini_xmac(struct efx_nic *efx)
-{
-	/* Isolate the MAC - PHY */
-	falcon_deconfigure_mac_wrapper(efx);
-
-	/* Potentially power down the PHY */
-	efx->phy_op->fini(efx);
-}
-
-void falcon_update_stats_xmac(struct efx_nic *efx)
+static void falcon_update_stats_xmac(struct efx_nic *efx)
 {
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 	int rc;
@@ -439,97 +342,35 @@ void falcon_update_stats_xmac(struct efx_nic *efx)
 		 mac_stats->rx_control * 64);
 }
 
-int falcon_check_xmac(struct efx_nic *efx)
+static void falcon_xmac_irq(struct efx_nic *efx)
 {
-	bool xaui_link_ok;
-	int rc;
+	/* The XGMII link has a transient fault, which indicates either:
+	 *   - there's a transient xgmii fault
+	 *   - falcon's end of the xaui link may need a kick
+	 *   - the wire-side link may have gone down, but the lasi/poll()
+	 *     hasn't noticed yet.
+	 *
+	 * We only want to even bother polling XAUI if we're confident it's
+	 * not (1) or (3). In both cases, the only reliable way to spot this
+	 * is to wait a bit. We do this here by forcing the mac link state
+	 * to down, and waiting for the mac poll to come round and check
+	 */
+	efx->mac_up = false;
+}
 
-	if ((efx->loopback_mode == LOOPBACK_NETWORK) ||
-	    efx_phy_mode_disabled(efx->phy_mode))
-		return 0;
+static void falcon_poll_xmac(struct efx_nic *efx)
+{
+	if (!EFX_WORKAROUND_5147(efx) || !efx->link_up || efx->mac_up)
+		return;
 
 	falcon_mask_status_intr(efx, false);
-	xaui_link_ok = falcon_xaui_link_ok(efx);
-
-	if (EFX_WORKAROUND_5147(efx) && !xaui_link_ok)
-		falcon_reset_xaui(efx);
-
-	/* Call the PHY check_hw routine */
-	rc = efx->phy_op->check_hw(efx);
-
-	/* Unmask interrupt if everything was (and still is) ok */
-	if (xaui_link_ok && efx->link_up)
-		falcon_mask_status_intr(efx, true);
-
-	return rc;
+	falcon_check_xaui_link_up(efx, 1);
+	falcon_mask_status_intr(efx, true);
 }
 
-/* Simulate a PHY event */
-void falcon_xmac_sim_phy_event(struct efx_nic *efx)
-{
-	efx_qword_t phy_event;
-
-	EFX_POPULATE_QWORD_2(phy_event,
-			     EV_CODE, GLOBAL_EV_DECODE,
-			     XG_PHY_INTR, 1);
-	falcon_generate_event(&efx->channel[0], &phy_event);
-}
-
-int falcon_xmac_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
-{
-	mdio_clause45_get_settings(efx, ecmd);
-	ecmd->transceiver = XCVR_INTERNAL;
-	ecmd->phy_address = efx->mii.phy_id;
-	ecmd->autoneg = AUTONEG_DISABLE;
-	ecmd->duplex = DUPLEX_FULL;
-	return 0;
-}
-
-int falcon_xmac_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
-{
-	if (ecmd->transceiver != XCVR_INTERNAL)
-		return -EINVAL;
-	if (ecmd->autoneg != AUTONEG_DISABLE)
-		return -EINVAL;
-	if (ecmd->duplex != DUPLEX_FULL)
-		return -EINVAL;
-
-	return mdio_clause45_set_settings(efx, ecmd);
-}
-
-
-int falcon_xmac_set_pause(struct efx_nic *efx, enum efx_fc_type flow_control)
-{
-	bool reset;
-
-	if (flow_control & EFX_FC_AUTO) {
-		EFX_LOG(efx, "10G does not support flow control "
-			"autonegotiation\n");
-		return -EINVAL;
-	}
-
-	if ((flow_control & EFX_FC_TX) && !(flow_control & EFX_FC_RX))
-		return -EINVAL;
-
-	/* TX flow control may automatically turn itself off if the
-	 * link partner (intermittently) stops responding to pause
-	 * frames. There isn't any indication that this has happened,
-	 * so the best we do is leave it up to the user to spot this
-	 * and fix it be cycling transmit flow control on this end. */
-	reset = ((flow_control & EFX_FC_TX) &&
-		 !(efx->flow_control & EFX_FC_TX));
-	if (EFX_WORKAROUND_11482(efx) && reset) {
-		if (falcon_rev(efx) >= FALCON_REV_B0) {
-			/* Recover by resetting the EM block */
-			if (efx->link_up)
-				falcon_drain_tx_fifo(efx);
-		} else {
-			/* Schedule a reset to recover */
-			efx_schedule_reset(efx, RESET_TYPE_INVISIBLE);
-		}
-	}
-
-	efx->flow_control = flow_control;
-
-	return 0;
-}
+struct efx_mac_operations falcon_xmac_operations = {
+	.reconfigure	= falcon_reconfigure_xmac,
+	.update_stats	= falcon_update_stats_xmac,
+	.irq		= falcon_xmac_irq,
+	.poll		= falcon_poll_xmac,
+};

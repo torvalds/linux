@@ -414,7 +414,6 @@ static int ray_config(struct pcmcia_device *link)
     memreq_t mem;
     struct net_device *dev = (struct net_device *)link->priv;
     ray_dev_t *local = netdev_priv(dev);
-    DECLARE_MAC_BUF(mac);
 
     DEBUG(1, "ray_config(0x%p)\n", link);
 
@@ -485,8 +484,8 @@ static int ray_config(struct pcmcia_device *link)
     strcpy(local->node.dev_name, dev->name);
     link->dev_node = &local->node;
 
-    printk(KERN_INFO "%s: RayLink, irq %d, hw_addr %s\n",
-       dev->name, dev->irq, print_mac(mac, dev->dev_addr));
+    printk(KERN_INFO "%s: RayLink, irq %d, hw_addr %pM\n",
+       dev->name, dev->irq, dev->dev_addr);
 
     return 0;
 
@@ -829,7 +828,7 @@ static int ray_resume(struct pcmcia_device *link)
 }
 
 /*===========================================================================*/
-int ray_dev_init(struct net_device *dev)
+static int ray_dev_init(struct net_device *dev)
 {
 #ifdef RAY_IMMEDIATE_INIT
     int i;
@@ -2285,7 +2284,6 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs, unsigned i
 
     skb->protocol = eth_type_trans(skb,dev);
     netif_rx(skb);
-    dev->last_rx = jiffies;
     local->stats.rx_packets++;
     local->stats.rx_bytes += total_len;
 
@@ -2595,7 +2593,6 @@ static int ray_cs_proc_show(struct seq_file *m, void *v)
     UCHAR *p;
     struct freq_hop_element *pfh;
     UCHAR c[33];
-    DECLARE_MAC_BUF(mac);
 
     link = this_device;
     if (!link)
@@ -2623,8 +2620,7 @@ static int ray_cs_proc_show(struct seq_file *m, void *v)
                    nettype[local->sparm.b5.a_network_type], c);
 
     p = local->bss_id;
-    seq_printf(m, "BSSID                = %s\n",
-                   print_mac(mac, p));
+    seq_printf(m, "BSSID                = %pM\n", p);
 
     seq_printf(m, "Country code         = %d\n",
                    local->sparm.b5.a_curr_country_code);

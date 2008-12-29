@@ -662,6 +662,7 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
  * default timeout for SG_IO if none specified
  */
 #define BLK_DEFAULT_SG_TIMEOUT	(60 * HZ)
+#define BLK_MIN_SG_TIMEOUT	(7 * HZ)
 
 #ifdef CONFIG_BOUNCE
 extern int init_emergency_isa_pool(void);

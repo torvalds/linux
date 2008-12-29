@@ -114,7 +114,7 @@ extern int sysctl_sctp_wmem[3];
 
 static int sctp_memory_pressure;
 static atomic_t sctp_memory_allocated;
-static atomic_t sctp_sockets_allocated;
+struct percpu_counter sctp_sockets_allocated;
 
 static void sctp_enter_memory_pressure(struct sock *sk)
 {
@@ -2404,9 +2404,9 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
 		if (params.sack_delay == 0 && params.sack_freq == 0)
 			return 0;
 	} else if (optlen == sizeof(struct sctp_assoc_value)) {
-		printk(KERN_WARNING "SCTP: Use of struct sctp_sack_info "
+		printk(KERN_WARNING "SCTP: Use of struct sctp_assoc_value "
 		       "in delayed_ack socket option deprecated\n");
-		printk(KERN_WARNING "SCTP: struct sctp_sack_info instead\n");
+		printk(KERN_WARNING "SCTP: Use struct sctp_sack_info instead\n");
 		if (copy_from_user(&params, optval, optlen))
 			return -EFAULT;
 
@@ -2778,32 +2778,77 @@ static int sctp_setsockopt_mappedv4(struct sock *sk, char __user *optval, int op
 }
 
 /*
- * 7.1.17 Set the maximum fragrmentation size (SCTP_MAXSEG)
- *
- * This socket option specifies the maximum size to put in any outgoing
- * SCTP chunk.  If a message is larger than this size it will be
+ * 8.1.16.  Get or Set the Maximum Fragmentation Size (SCTP_MAXSEG)
+ * This option will get or set the maximum size to put in any outgoing
+ * SCTP DATA chunk.  If a message is larger than this size it will be
  * fragmented by SCTP into the specified size.  Note that the underlying
  * SCTP implementation may fragment into smaller sized chunks when the
  * PMTU of the underlying association is smaller than the value set by
- * the user.
+ * the user.  The default value for this option is '0' which indicates
+ * the user is NOT limiting fragmentation and only the PMTU will effect
+ * SCTP's choice of DATA chunk size.  Note also that values set larger
+ * than the maximum size of an IP datagram will effectively let SCTP
+ * control fragmentation (i.e. the same as setting this option to 0).
+ *
+ * The following structure is used to access and modify this parameter:
+ *
+ * struct sctp_assoc_value {
+ *   sctp_assoc_t assoc_id;
+ *   uint32_t assoc_value;
+ * };
+ *
+ * assoc_id:  This parameter is ignored for one-to-one style sockets.
+ *    For one-to-many style sockets this parameter indicates which
+ *    association the user is performing an action upon.  Note that if
+ *    this field's value is zero then the endpoints default value is
+ *    changed (effecting future associations only).
+ * assoc_value:  This parameter specifies the maximum size in bytes.
  */
 static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, int optlen)
 {
+	struct sctp_assoc_value params;
 	struct sctp_association *asoc;
 	struct sctp_sock *sp = sctp_sk(sk);
 	int val;
 
-	if (optlen < sizeof(int))
+	if (optlen == sizeof(int)) {
+		printk(KERN_WARNING
+		   "SCTP: Use of int in maxseg socket option deprecated\n");
+		printk(KERN_WARNING
+		   "SCTP: Use struct sctp_assoc_value instead\n");
+		if (copy_from_user(&val, optval, optlen))
+			return -EFAULT;
+		params.assoc_id = 0;
+	} else if (optlen == sizeof(struct sctp_assoc_value)) {
+		if (copy_from_user(&params, optval, optlen))
+			return -EFAULT;
+		val = params.assoc_value;
+	} else
 		return -EINVAL;
-	if (get_user(val, (int __user *)optval))
-		return -EFAULT;
+
 	if ((val != 0) && ((val < 8) || (val > SCTP_MAX_CHUNK_LEN)))
 		return -EINVAL;
-	sp->user_frag = val;
 
-	/* Update the frag_point of the existing associations. */
-	list_for_each_entry(asoc, &(sp->ep->asocs), asocs) {
-		asoc->frag_point = sctp_frag_point(sp, asoc->pathmtu);
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id && sctp_style(sk, UDP))
+		return -EINVAL;
+
+	if (asoc) {
+		if (val == 0) {
+			val = asoc->pathmtu;
+			val -= sp->pf->af->net_header_len;
+			val -= sizeof(struct sctphdr) +
+					sizeof(struct sctp_data_chunk);
+		}
+
+		asoc->frag_point = val;
+	} else {
+		sp->user_frag = val;
+
+		/* Update the frag_point of the existing associations. */
+		list_for_each_entry(asoc, &(sp->ep->asocs), asocs) {
+			asoc->frag_point = sctp_frag_point(sp, asoc->pathmtu);
+		}
 	}
 
 	return 0;
@@ -2965,14 +3010,21 @@ static int sctp_setsockopt_fragment_interleave(struct sock *sk,
 }
 
 /*
- * 7.1.25.  Set or Get the sctp partial delivery point
+ * 8.1.21.  Set or Get the SCTP Partial Delivery Point
  *       (SCTP_PARTIAL_DELIVERY_POINT)
+ *
  * This option will set or get the SCTP partial delivery point.  This
  * point is the size of a message where the partial delivery API will be
  * invoked to help free up rwnd space for the peer.  Setting this to a
- * lower value will cause partial delivery's to happen more often.  The
+ * lower value will cause partial deliveries to happen more often.  The
  * calls argument is an integer that sets or gets the partial delivery
- * point.
+ * point.  Note also that the call will fail if the user attempts to set
+ * this value larger than the socket receive buffer size.
+ *
+ * Note that any single message having a length smaller than or equal to
+ * the SCTP partial delivery point will be delivered in one single read
+ * call as long as the user provided buffer is large enough to hold the
+ * message.
  */
 static int sctp_setsockopt_partial_delivery_point(struct sock *sk,
 						  char __user *optval,
@@ -2984,6 +3036,12 @@ static int sctp_setsockopt_partial_delivery_point(struct sock *sk,
 		return -EINVAL;
 	if (get_user(val, (int __user *)optval))
 		return -EFAULT;
+
+	/* Note: We double the receive buffer from what the user sets
+	 * it to be, also initial rwnd is based on rcvbuf/2.
+	 */
+	if (val > (sk->sk_rcvbuf >> 1))
+		return -EINVAL;
 
 	sctp_sk(sk)->pd_point = val;
 
@@ -3613,7 +3671,12 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->hmac = NULL;
 
 	SCTP_DBG_OBJCNT_INC(sock);
-	atomic_inc(&sctp_sockets_allocated);
+	percpu_counter_inc(&sctp_sockets_allocated);
+
+	local_bh_disable();
+	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+	local_bh_enable();
+
 	return 0;
 }
 
@@ -3627,7 +3690,10 @@ SCTP_STATIC void sctp_destroy_sock(struct sock *sk)
 	/* Release our hold on the endpoint. */
 	ep = sctp_sk(sk)->ep;
 	sctp_endpoint_free(ep);
-	atomic_dec(&sctp_sockets_allocated);
+	percpu_counter_dec(&sctp_sockets_allocated);
+	local_bh_disable();
+	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+	local_bh_enable();
 }
 
 /* API 4.1.7 shutdown() - TCP Style Syntax
@@ -4168,9 +4234,9 @@ static int sctp_getsockopt_delayed_ack(struct sock *sk, int len,
 		if (copy_from_user(&params, optval, len))
 			return -EFAULT;
 	} else if (len == sizeof(struct sctp_assoc_value)) {
-		printk(KERN_WARNING "SCTP: Use of struct sctp_sack_info "
+		printk(KERN_WARNING "SCTP: Use of struct sctp_assoc_value "
 		       "in delayed_ack socket option deprecated\n");
-		printk(KERN_WARNING "SCTP: struct sctp_sack_info instead\n");
+		printk(KERN_WARNING "SCTP: Use struct sctp_sack_info instead\n");
 		if (copy_from_user(&params, optval, len))
 			return -EFAULT;
 	} else
@@ -5092,30 +5158,69 @@ static int sctp_getsockopt_context(struct sock *sk, int len,
 }
 
 /*
- * 7.1.17 Set the maximum fragrmentation size (SCTP_MAXSEG)
- *
- * This socket option specifies the maximum size to put in any outgoing
- * SCTP chunk.  If a message is larger than this size it will be
+ * 8.1.16.  Get or Set the Maximum Fragmentation Size (SCTP_MAXSEG)
+ * This option will get or set the maximum size to put in any outgoing
+ * SCTP DATA chunk.  If a message is larger than this size it will be
  * fragmented by SCTP into the specified size.  Note that the underlying
  * SCTP implementation may fragment into smaller sized chunks when the
  * PMTU of the underlying association is smaller than the value set by
- * the user.
+ * the user.  The default value for this option is '0' which indicates
+ * the user is NOT limiting fragmentation and only the PMTU will effect
+ * SCTP's choice of DATA chunk size.  Note also that values set larger
+ * than the maximum size of an IP datagram will effectively let SCTP
+ * control fragmentation (i.e. the same as setting this option to 0).
+ *
+ * The following structure is used to access and modify this parameter:
+ *
+ * struct sctp_assoc_value {
+ *   sctp_assoc_t assoc_id;
+ *   uint32_t assoc_value;
+ * };
+ *
+ * assoc_id:  This parameter is ignored for one-to-one style sockets.
+ *    For one-to-many style sockets this parameter indicates which
+ *    association the user is performing an action upon.  Note that if
+ *    this field's value is zero then the endpoints default value is
+ *    changed (effecting future associations only).
+ * assoc_value:  This parameter specifies the maximum size in bytes.
  */
 static int sctp_getsockopt_maxseg(struct sock *sk, int len,
 				  char __user *optval, int __user *optlen)
 {
-	int val;
+	struct sctp_assoc_value params;
+	struct sctp_association *asoc;
 
-	if (len < sizeof(int))
+	if (len == sizeof(int)) {
+		printk(KERN_WARNING
+		   "SCTP: Use of int in maxseg socket option deprecated\n");
+		printk(KERN_WARNING
+		   "SCTP: Use struct sctp_assoc_value instead\n");
+		params.assoc_id = 0;
+	} else if (len >= sizeof(struct sctp_assoc_value)) {
+		len = sizeof(struct sctp_assoc_value);
+		if (copy_from_user(&params, optval, sizeof(params)))
+			return -EFAULT;
+	} else
 		return -EINVAL;
 
-	len = sizeof(int);
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id && sctp_style(sk, UDP))
+		return -EINVAL;
 
-	val = sctp_sk(sk)->user_frag;
+	if (asoc)
+		params.assoc_value = asoc->frag_point;
+	else
+		params.assoc_value = sctp_sk(sk)->user_frag;
+
 	if (put_user(len, optlen))
 		return -EFAULT;
-	if (copy_to_user(optval, &val, len))
-		return -EFAULT;
+	if (len == sizeof(int)) {
+		if (copy_to_user(optval, &params.assoc_value, len))
+			return -EFAULT;
+	} else {
+		if (copy_to_user(optval, &params, len))
+			return -EFAULT;
+	}
 
 	return 0;
 }
@@ -5368,6 +5473,38 @@ num:
 	return 0;
 }
 
+/*
+ * 8.2.5.  Get the Current Number of Associations (SCTP_GET_ASSOC_NUMBER)
+ * This option gets the current number of associations that are attached
+ * to a one-to-many style socket.  The option value is an uint32_t.
+ */
+static int sctp_getsockopt_assoc_number(struct sock *sk, int len,
+				    char __user *optval, int __user *optlen)
+{
+	struct sctp_sock *sp = sctp_sk(sk);
+	struct sctp_association *asoc;
+	u32 val = 0;
+
+	if (sctp_style(sk, TCP))
+		return -EOPNOTSUPP;
+
+	if (len < sizeof(u32))
+		return -EINVAL;
+
+	len = sizeof(u32);
+
+	list_for_each_entry(asoc, &(sp->ep->asocs), asocs) {
+		val++;
+	}
+
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return 0;
+}
+
 SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 				char __user *optval, int __user *optlen)
 {
@@ -5509,6 +5646,9 @@ SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 	case SCTP_LOCAL_AUTH_CHUNKS:
 		retval = sctp_getsockopt_local_auth_chunks(sk, len, optval,
 							optlen);
+		break;
+	case SCTP_GET_ASSOC_NUMBER:
+		retval = sctp_getsockopt_assoc_number(sk, len, optval, optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;

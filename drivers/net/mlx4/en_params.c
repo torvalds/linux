@@ -60,23 +60,10 @@ MLX4_EN_PARM_INT(num_lro, MLX4_EN_MAX_LRO_DESCRIPTORS,
 		 "Number of LRO sessions per ring or disabled (0)");
 
 /* Priority pausing */
-MLX4_EN_PARM_INT(pptx, MLX4_EN_DEF_TX_PAUSE,
-		 "Pause policy on TX: 0 never generate pause frames "
-		 "1 generate pause frames according to RX buffer threshold");
-MLX4_EN_PARM_INT(pprx, MLX4_EN_DEF_RX_PAUSE,
-		 "Pause policy on RX: 0 ignore received pause frames "
-		 "1 respect received pause frames");
 MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
 			   " Per priority bit mask");
 MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
 			   " Per priority bit mask");
-
-/* Interrupt moderation tunning */
-MLX4_EN_PARM_INT(rx_moder_cnt, MLX4_EN_AUTO_CONF,
-	       "Max coalesced descriptors for Rx interrupt moderation");
-MLX4_EN_PARM_INT(rx_moder_time, MLX4_EN_AUTO_CONF,
-	       "Timeout following last packet for Rx interrupt moderation");
-MLX4_EN_PARM_INT(auto_moder, 1, "Enable dynamic interrupt moderation");
 
 MLX4_EN_PARM_INT(rx_ring_num1, 0, "Number or Rx rings for port 1 (0 = #cores)");
 MLX4_EN_PARM_INT(rx_ring_num2, 0, "Number or Rx rings for port 2 (0 = #cores)");
@@ -92,16 +79,13 @@ int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	struct mlx4_en_profile *params = &mdev->profile;
 	int i;
 
-	params->rx_moder_cnt = min_t(int, rx_moder_cnt, MLX4_EN_AUTO_CONF);
-	params->rx_moder_time = min_t(int, rx_moder_time, MLX4_EN_AUTO_CONF);
-	params->auto_moder = auto_moder;
 	params->rss_xor = (rss_xor != 0);
 	params->rss_mask = rss_mask & 0x1f;
 	params->num_lro = min_t(int, num_lro , MLX4_EN_MAX_LRO_DESCRIPTORS);
 	for (i = 1; i <= MLX4_MAX_PORTS; i++) {
-		params->prof[i].rx_pause = pprx;
+		params->prof[i].rx_pause = 1;
 		params->prof[i].rx_ppp = pfcrx;
-		params->prof[i].tx_pause = pptx;
+		params->prof[i].tx_pause = 1;
 		params->prof[i].tx_ppp = pfctx;
 	}
 	if (pfcrx || pfctx) {

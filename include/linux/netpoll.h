@@ -94,11 +94,6 @@ static inline void netpoll_poll_unlock(void *have)
 	rcu_read_unlock();
 }
 
-static inline void netpoll_netdev_init(struct net_device *dev)
-{
-	INIT_LIST_HEAD(&dev->napi_list);
-}
-
 #else
 static inline int netpoll_rx(struct sk_buff *skb)
 {

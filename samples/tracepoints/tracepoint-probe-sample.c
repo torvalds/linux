@@ -46,6 +46,7 @@ void __exit tp_sample_trace_exit(void)
 {
 	unregister_trace_subsys_eventb(probe_subsys_eventb);
 	unregister_trace_subsys_event(probe_subsys_event);
+	tracepoint_synchronize_unregister();
 }
 
 module_exit(tp_sample_trace_exit);

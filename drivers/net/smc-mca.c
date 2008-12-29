@@ -182,6 +182,22 @@ static char *smc_mca_adapter_names[] __initdata = {
 
 static int ultra_found = 0;
 
+
+static const struct net_device_ops ultramca_netdev_ops = {
+	.ndo_open		= ultramca_open,
+	.ndo_stop		= ultramca_close_card,
+
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller 	= ei_poll,
+#endif
+};
+
 static int __init ultramca_probe(struct device *gen_dev)
 {
 	unsigned short ioaddr;
@@ -196,7 +212,6 @@ static int __init ultramca_probe(struct device *gen_dev)
 	int tirq = 0;
 	int base_addr = ultra_io[ultra_found];
 	int irq = ultra_irq[ultra_found];
-	DECLARE_MAC_BUF(mac);
 
 	if (base_addr || irq) {
 		printk(KERN_INFO "Probing for SMC MCA adapter");
@@ -334,8 +349,8 @@ static int __init ultramca_probe(struct device *gen_dev)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = inb(ioaddr + 8 + i);
 
-	printk(KERN_INFO "smc_mca[%d]: Parameters: %#3x, %s",
-	       slot + 1, ioaddr, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "smc_mca[%d]: Parameters: %#3x, %pM",
+	       slot + 1, ioaddr, dev->dev_addr);
 
 	/* Switch from the station address to the alternate register set
 	 * and read the useful registers there.
@@ -385,11 +400,7 @@ static int __init ultramca_probe(struct device *gen_dev)
 
 	ei_status.priv = slot;
 
-	dev->open = &ultramca_open;
-	dev->stop = &ultramca_close_card;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
+	dev->netdev_ops = &ultramca_netdev_ops;
 
 	NS8390_init(dev, 0);
 

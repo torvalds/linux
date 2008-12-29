@@ -142,6 +142,7 @@ struct rcu_head {
  * on the write-side to insure proper synchronization.
  */
 #define rcu_read_lock_sched() preempt_disable()
+#define rcu_read_lock_sched_notrace() preempt_disable_notrace()
 
 /*
  * rcu_read_unlock_sched - marks the end of a RCU-classic critical section
@@ -149,6 +150,7 @@ struct rcu_head {
  * See rcu_read_lock_sched for more information.
  */
 #define rcu_read_unlock_sched() preempt_enable()
+#define rcu_read_unlock_sched_notrace() preempt_enable_notrace()
 
 
 

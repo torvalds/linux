@@ -160,7 +160,6 @@ struct blk_trace {
 
 extern int blk_trace_ioctl(struct block_device *, unsigned, char __user *);
 extern void blk_trace_shutdown(struct request_queue *);
-extern void __blk_add_trace(struct blk_trace *, sector_t, int, int, u32, int, int, void *);
 extern int do_blk_trace_setup(struct request_queue *q,
 	char *name, dev_t dev, struct blk_user_trace_setup *buts);
 extern void __trace_note_message(struct blk_trace *, const char *fmt, ...);
@@ -186,168 +185,8 @@ extern void __trace_note_message(struct blk_trace *, const char *fmt, ...);
 	} while (0)
 #define BLK_TN_MAX_MSG		128
 
-/**
- * blk_add_trace_rq - Add a trace for a request oriented action
- * @q:		queue the io is for
- * @rq:		the source request
- * @what:	the action
- *
- * Description:
- *     Records an action against a request. Will log the bio offset + size.
- *
- **/
-static inline void blk_add_trace_rq(struct request_queue *q, struct request *rq,
-				    u32 what)
-{
-	struct blk_trace *bt = q->blk_trace;
-	int rw = rq->cmd_flags & 0x03;
-
-	if (likely(!bt))
-		return;
-
-	if (blk_discard_rq(rq))
-		rw |= (1 << BIO_RW_DISCARD);
-
-	if (blk_pc_request(rq)) {
-		what |= BLK_TC_ACT(BLK_TC_PC);
-		__blk_add_trace(bt, 0, rq->data_len, rw, what, rq->errors, sizeof(rq->cmd), rq->cmd);
-	} else  {
-		what |= BLK_TC_ACT(BLK_TC_FS);
-		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9, rw, what, rq->errors, 0, NULL);
-	}
-}
-
-/**
- * blk_add_trace_bio - Add a trace for a bio oriented action
- * @q:		queue the io is for
- * @bio:	the source bio
- * @what:	the action
- *
- * Description:
- *     Records an action against a bio. Will log the bio offset + size.
- *
- **/
-static inline void blk_add_trace_bio(struct request_queue *q, struct bio *bio,
-				     u32 what)
-{
-	struct blk_trace *bt = q->blk_trace;
-
-	if (likely(!bt))
-		return;
-
-	__blk_add_trace(bt, bio->bi_sector, bio->bi_size, bio->bi_rw, what, !bio_flagged(bio, BIO_UPTODATE), 0, NULL);
-}
-
-/**
- * blk_add_trace_generic - Add a trace for a generic action
- * @q:		queue the io is for
- * @bio:	the source bio
- * @rw:		the data direction
- * @what:	the action
- *
- * Description:
- *     Records a simple trace
- *
- **/
-static inline void blk_add_trace_generic(struct request_queue *q,
-					 struct bio *bio, int rw, u32 what)
-{
-	struct blk_trace *bt = q->blk_trace;
-
-	if (likely(!bt))
-		return;
-
-	if (bio)
-		blk_add_trace_bio(q, bio, what);
-	else
-		__blk_add_trace(bt, 0, 0, rw, what, 0, 0, NULL);
-}
-
-/**
- * blk_add_trace_pdu_int - Add a trace for a bio with an integer payload
- * @q:		queue the io is for
- * @what:	the action
- * @bio:	the source bio
- * @pdu:	the integer payload
- *
- * Description:
- *     Adds a trace with some integer payload. This might be an unplug
- *     option given as the action, with the depth at unplug time given
- *     as the payload
- *
- **/
-static inline void blk_add_trace_pdu_int(struct request_queue *q, u32 what,
-					 struct bio *bio, unsigned int pdu)
-{
-	struct blk_trace *bt = q->blk_trace;
-	__be64 rpdu = cpu_to_be64(pdu);
-
-	if (likely(!bt))
-		return;
-
-	if (bio)
-		__blk_add_trace(bt, bio->bi_sector, bio->bi_size, bio->bi_rw, what, !bio_flagged(bio, BIO_UPTODATE), sizeof(rpdu), &rpdu);
-	else
-		__blk_add_trace(bt, 0, 0, 0, what, 0, sizeof(rpdu), &rpdu);
-}
-
-/**
- * blk_add_trace_remap - Add a trace for a remap operation
- * @q:		queue the io is for
- * @bio:	the source bio
- * @dev:	target device
- * @from:	source sector
- * @to:		target sector
- *
- * Description:
- *     Device mapper or raid target sometimes need to split a bio because
- *     it spans a stripe (or similar). Add a trace for that action.
- *
- **/
-static inline void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
-				       dev_t dev, sector_t from, sector_t to)
-{
-	struct blk_trace *bt = q->blk_trace;
-	struct blk_io_trace_remap r;
-
-	if (likely(!bt))
-		return;
-
-	r.device = cpu_to_be32(dev);
-	r.device_from = cpu_to_be32(bio->bi_bdev->bd_dev);
-	r.sector = cpu_to_be64(to);
-
-	__blk_add_trace(bt, from, bio->bi_size, bio->bi_rw, BLK_TA_REMAP, !bio_flagged(bio, BIO_UPTODATE), sizeof(r), &r);
-}
-
-/**
- * blk_add_driver_data - Add binary message with driver-specific data
- * @q:		queue the io is for
- * @rq:		io request
- * @data:	driver-specific data
- * @len:	length of driver-specific data
- *
- * Description:
- *     Some drivers might want to write driver-specific data per request.
- *
- **/
-static inline void blk_add_driver_data(struct request_queue *q,
-				       struct request *rq,
-				       void *data, size_t len)
-{
-	struct blk_trace *bt = q->blk_trace;
-
-	if (likely(!bt))
-		return;
-
-	if (blk_pc_request(rq))
-		__blk_add_trace(bt, 0, rq->data_len, 0, BLK_TA_DRV_DATA,
-				rq->errors, len, data);
-	else
-		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
-				0, BLK_TA_DRV_DATA, rq->errors, len, data);
-}
-
+extern void blk_add_driver_data(struct request_queue *q, struct request *rq,
+				void *data, size_t len);
 extern int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 			   char __user *arg);
 extern int blk_trace_startstop(struct request_queue *q, int start);
@@ -356,13 +195,8 @@ extern int blk_trace_remove(struct request_queue *q);
 #else /* !CONFIG_BLK_DEV_IO_TRACE */
 #define blk_trace_ioctl(bdev, cmd, arg)		(-ENOTTY)
 #define blk_trace_shutdown(q)			do { } while (0)
-#define blk_add_trace_rq(q, rq, what)		do { } while (0)
-#define blk_add_trace_bio(q, rq, what)		do { } while (0)
-#define blk_add_trace_generic(q, rq, rw, what)	do { } while (0)
-#define blk_add_trace_pdu_int(q, what, bio, pdu)	do { } while (0)
-#define blk_add_trace_remap(q, bio, dev, f, t)	do {} while (0)
-#define blk_add_driver_data(q, rq, data, len)	do {} while (0)
 #define do_blk_trace_setup(q, name, dev, buts)	(-ENOTTY)
+#define blk_add_driver_data(q, rq, data, len)	do {} while (0)
 #define blk_trace_setup(q, name, dev, arg)	(-ENOTTY)
 #define blk_trace_startstop(q, start)		(-ENOTTY)
 #define blk_trace_remove(q)			(-ENOTTY)

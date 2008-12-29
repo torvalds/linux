@@ -201,7 +201,7 @@ static void irttp_todo_expired(unsigned long data)
  *
  *     Flushes (removes all frames) in transitt-buffer (tx_list)
  */
-void irttp_flush_queues(struct tsap_cb *self)
+static void irttp_flush_queues(struct tsap_cb *self)
 {
 	struct sk_buff* skb;
 
@@ -1266,9 +1266,9 @@ static void irttp_connect_confirm(void *instance, void *sap,
  *    Some other device is connecting to this TSAP
  *
  */
-void irttp_connect_indication(void *instance, void *sap, struct qos_info *qos,
-			      __u32 max_seg_size, __u8 max_header_size,
-			      struct sk_buff *skb)
+static void irttp_connect_indication(void *instance, void *sap,
+		struct qos_info *qos, __u32 max_seg_size, __u8 max_header_size,
+		struct sk_buff *skb)
 {
 	struct tsap_cb *self;
 	struct lsap_cb *lsap;
@@ -1579,8 +1579,8 @@ EXPORT_SYMBOL(irttp_disconnect_request);
  *    Disconnect indication, TSAP disconnected by peer?
  *
  */
-void irttp_disconnect_indication(void *instance, void *sap, LM_REASON reason,
-				 struct sk_buff *skb)
+static void irttp_disconnect_indication(void *instance, void *sap,
+		LM_REASON reason, struct sk_buff *skb)
 {
 	struct tsap_cb *self;
 
@@ -1664,7 +1664,7 @@ static void irttp_do_data_indication(struct tsap_cb *self, struct sk_buff *skb)
  *     Check if we have any frames to be transmitted, or if we have any
  *     available credit to give away.
  */
-void irttp_run_rx_queue(struct tsap_cb *self)
+static void irttp_run_rx_queue(struct tsap_cb *self)
 {
 	struct sk_buff *skb;
 	int more = 0;

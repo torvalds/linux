@@ -13,6 +13,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_NFLOG.h>
 #include <net/netfilter/nf_log.h>
+#include <net/netfilter/nfnetlink_log.h>
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_DESCRIPTION("Xtables: packet logging to netlink using NFLOG");
@@ -31,8 +32,8 @@ nflog_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	li.u.ulog.group	     = info->group;
 	li.u.ulog.qthreshold = info->threshold;
 
-	nf_log_packet(par->family, par->hooknum, skb, par->in,
-	              par->out, &li, "%s", info->prefix);
+	nfulnl_log_packet(par->family, par->hooknum, skb, par->in,
+			  par->out, &li, info->prefix);
 	return XT_CONTINUE;
 }
 

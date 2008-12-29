@@ -270,10 +270,9 @@ static int rpcb_register_netid4(struct sockaddr_in *address_to_register,
 	char buf[32];
 
 	/* Construct AF_INET universal address */
-	snprintf(buf, sizeof(buf),
-			NIPQUAD_FMT".%u.%u",
-			NIPQUAD(address_to_register->sin_addr.s_addr),
-			port >> 8, port & 0xff);
+	snprintf(buf, sizeof(buf), "%pI4.%u.%u",
+		 &address_to_register->sin_addr.s_addr,
+		 port >> 8, port & 0xff);
 	map->r_addr = buf;
 
 	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
@@ -305,9 +304,9 @@ static int rpcb_register_netid6(struct sockaddr_in6 *address_to_register,
 		snprintf(buf, sizeof(buf), "::.%u.%u",
 				port >> 8, port & 0xff);
 	else
-		snprintf(buf, sizeof(buf), NIP6_FMT".%u.%u",
-				NIP6(address_to_register->sin6_addr),
-				port >> 8, port & 0xff);
+		snprintf(buf, sizeof(buf), "%pI6.%u.%u",
+			 &address_to_register->sin6_addr,
+			 port >> 8, port & 0xff);
 	map->r_addr = buf;
 
 	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
@@ -422,8 +421,8 @@ int rpcb_getport_sync(struct sockaddr_in *sin, u32 prog, u32 vers, int prot)
 	struct rpc_clnt	*rpcb_clnt;
 	int status;
 
-	dprintk("RPC:       %s(" NIPQUAD_FMT ", %u, %u, %d)\n",
-		__func__, NIPQUAD(sin->sin_addr.s_addr), prog, vers, prot);
+	dprintk("RPC:       %s(%pI4, %u, %u, %d)\n",
+		__func__, &sin->sin_addr.s_addr, prog, vers, prot);
 
 	rpcb_clnt = rpcb_create(NULL, (struct sockaddr *)sin,
 				sizeof(*sin), prot, RPCBVERS_2);

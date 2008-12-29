@@ -669,10 +669,12 @@ config BLK_DEV_CELLEB
 
 endif
 
+# TODO: BLK_DEV_IDEDMA_PCI -> BLK_DEV_IDEDMA_SFF
 config BLK_DEV_IDE_PMAC
 	tristate "PowerMac on-board IDE support"
 	depends on PPC_PMAC && IDE=y
 	select IDE_TIMINGS
+	select BLK_DEV_IDEDMA_PCI
 	help
 	  This driver provides support for the on-board IDE controller on
 	  most of the recent Apple Power Macintoshes and PowerBooks.
@@ -688,16 +690,6 @@ config BLK_DEV_IDE_PMAC_ATA100FIRST
 	  these, those machine used to have the hard disk on hdc and the
 	  CD-ROM on hda. This option changes this to more natural hda for
 	  hard disk and hdc for CD-ROM.
-
-config BLK_DEV_IDEDMA_PMAC
-	bool "PowerMac IDE DMA support"
-	depends on BLK_DEV_IDE_PMAC
-	select BLK_DEV_IDEDMA_PCI
-	help
-	  This option allows the driver for the on-board IDE controller on
-	  Power Macintoshes and PowerBooks to use DMA (direct memory access)
-	  to transfer data to and from memory.  Saying Y is safe and improves
-	  performance.
 
 config BLK_DEV_IDE_AU1XXX
        bool "IDE for AMD Alchemy Au1200"
@@ -912,7 +904,7 @@ config BLK_DEV_UMC8672
 endif
 
 config BLK_DEV_IDEDMA
-	def_bool BLK_DEV_IDEDMA_SFF || BLK_DEV_IDEDMA_PMAC || \
+	def_bool BLK_DEV_IDEDMA_SFF || \
 		 BLK_DEV_IDEDMA_ICS || BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 
 endif # IDE

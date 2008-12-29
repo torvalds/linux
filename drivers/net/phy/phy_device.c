@@ -74,7 +74,7 @@ int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
 	if (!fixup)
 		return -ENOMEM;
 
-	strncpy(fixup->bus_id, bus_id, BUS_ID_SIZE);
+	strlcpy(fixup->bus_id, bus_id, sizeof(fixup->bus_id));
 	fixup->phy_uid = phy_uid;
 	fixup->phy_uid_mask = phy_uid_mask;
 	fixup->run = run;
@@ -109,7 +109,7 @@ EXPORT_SYMBOL(phy_register_fixup_for_id);
  */
 static int phy_needs_fixup(struct phy_device *phydev, struct phy_fixup *fixup)
 {
-	if (strcmp(fixup->bus_id, phydev->dev.bus_id) != 0)
+	if (strcmp(fixup->bus_id, dev_name(&phydev->dev)) != 0)
 		if (strcmp(fixup->bus_id, PHY_ANY_ID) != 0)
 			return 0;
 
@@ -232,7 +232,7 @@ struct phy_device * get_phy_device(struct mii_bus *bus, int addr)
 		return NULL;
 
 	/*
-	 * Broken hardware is sometimes missing the pull down resistor on the
+	 * Broken hardware is sometimes missing the pull-up resistor on the
 	 * MDIO line, which results in reads to non-existent devices returning
 	 * 0 rather than 0xffff. Catch this here and treat 0 as a non-existent
 	 * device as well.
@@ -517,23 +517,6 @@ int genphy_setup_forced(struct phy_device *phydev)
 	
 	err = phy_write(phydev, MII_BMCR, ctl);
 
-	if (err < 0)
-		return err;
-
-	/*
-	 * Run the fixups on this PHY, just in case the
-	 * board code needs to change something after a reset
-	 */
-	err = phy_scan_fixups(phydev);
-
-	if (err < 0)
-		return err;
-
-	/* We just reset the device, so we'd better configure any
-	 * settings the PHY requires to operate */
-	if (phydev->drv->config_init)
-		err = phydev->drv->config_init(phydev);
-
 	return err;
 }
 
@@ -779,7 +762,35 @@ static int genphy_config_init(struct phy_device *phydev)
 
 	return 0;
 }
+int genphy_suspend(struct phy_device *phydev)
+{
+	int value;
 
+	mutex_lock(&phydev->lock);
+
+	value = phy_read(phydev, MII_BMCR);
+	phy_write(phydev, MII_BMCR, (value | BMCR_PDOWN));
+
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(genphy_suspend);
+
+int genphy_resume(struct phy_device *phydev)
+{
+	int value;
+
+	mutex_lock(&phydev->lock);
+
+	value = phy_read(phydev, MII_BMCR);
+	phy_write(phydev, MII_BMCR, (value & ~BMCR_PDOWN));
+
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(genphy_resume);
 
 /**
  * phy_probe - probe and init a PHY device
@@ -855,7 +866,6 @@ int phy_driver_register(struct phy_driver *new_driver)
 {
 	int retval;
 
-	memset(&new_driver->driver, 0, sizeof(new_driver->driver));
 	new_driver->driver.name = new_driver->name;
 	new_driver->driver.bus = &mdio_bus_type;
 	new_driver->driver.probe = phy_probe;
@@ -890,6 +900,8 @@ static struct phy_driver genphy_driver = {
 	.features	= 0,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
 	.driver		= {.owner= THIS_MODULE, },
 };
 

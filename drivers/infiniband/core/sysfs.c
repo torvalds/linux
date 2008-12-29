@@ -262,15 +262,7 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((__be16 *) gid.raw)[0]),
-		       be16_to_cpu(((__be16 *) gid.raw)[1]),
-		       be16_to_cpu(((__be16 *) gid.raw)[2]),
-		       be16_to_cpu(((__be16 *) gid.raw)[3]),
-		       be16_to_cpu(((__be16 *) gid.raw)[4]),
-		       be16_to_cpu(((__be16 *) gid.raw)[5]),
-		       be16_to_cpu(((__be16 *) gid.raw)[6]),
-		       be16_to_cpu(((__be16 *) gid.raw)[7]));
+	return sprintf(buf, "%pI6\n", gid.raw);
 }
 
 static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,

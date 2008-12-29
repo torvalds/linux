@@ -207,6 +207,8 @@ config PC300
 	tristate "Cyclades-PC300 support (RS-232/V.35, X.21, T1/E1 boards)"
 	depends on HDLC && PCI && BROKEN
 	---help---
+	  This driver is broken because of struct tty_driver change.
+
 	  Driver for the Cyclades-PC300 synchronous communication boards.
 
 	  These boards provide synchronous serial interfaces to your
@@ -332,6 +334,13 @@ config DSCC4_PCI_RST
 	  cards. Contact your manufacturer for details.
 
 	  Say Y if your card supports this feature.
+
+config IXP4XX_HSS
+	tristate "Intel IXP4xx HSS (synchronous serial port) support"
+	depends on HDLC && ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR
+	help
+	  Say Y here if you want to use built-in HSS ports
+	  on IXP4xx processor.
 
 config DLCI
 	tristate "Frame Relay DLCI support"

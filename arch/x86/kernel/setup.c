@@ -93,11 +93,13 @@
 #include <asm/desc.h>
 #include <asm/dma.h>
 #include <asm/iommu.h>
+#include <asm/gart.h>
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 
 #include <mach_apic.h>
 #include <asm/paravirt.h>
+#include <asm/hypervisor.h>
 
 #include <asm/percpu.h>
 #include <asm/topology.h>
@@ -448,6 +450,7 @@ static void __init reserve_early_setup_data(void)
  * @size: Size of the crashkernel memory to reserve.
  * Returns the base address on success, and -1ULL on failure.
  */
+static
 unsigned long long __init find_and_reserve_crashkernel(unsigned long long size)
 {
 	const unsigned long long alignment = 16<<20; 	/* 16M */
@@ -583,161 +586,24 @@ static int __init setup_elfcorehdr(char *arg)
 early_param("elfcorehdr", setup_elfcorehdr);
 #endif
 
-static struct x86_quirks default_x86_quirks __initdata;
+static int __init default_update_genapic(void)
+{
+#ifdef CONFIG_X86_SMP
+# if defined(CONFIG_X86_GENERICARCH) || defined(CONFIG_X86_64)
+	genapic->wakeup_cpu = wakeup_secondary_cpu_via_init;
+# endif
+#endif
+
+	return 0;
+}
+
+static struct x86_quirks default_x86_quirks __initdata = {
+	.update_genapic         = default_update_genapic,
+};
 
 struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
 
-/*
- * Some BIOSes seem to corrupt the low 64k of memory during events
- * like suspend/resume and unplugging an HDMI cable.  Reserve all
- * remaining free memory in that area and fill it with a distinct
- * pattern.
- */
-#ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
-#define MAX_SCAN_AREAS	8
-
-static int __read_mostly memory_corruption_check = -1;
-
-static unsigned __read_mostly corruption_check_size = 64*1024;
-static unsigned __read_mostly corruption_check_period = 60; /* seconds */
-
-static struct e820entry scan_areas[MAX_SCAN_AREAS];
-static int num_scan_areas;
-
-
-static int set_corruption_check(char *arg)
-{
-	char *end;
-
-	memory_corruption_check = simple_strtol(arg, &end, 10);
-
-	return (*end == 0) ? 0 : -EINVAL;
-}
-early_param("memory_corruption_check", set_corruption_check);
-
-static int set_corruption_check_period(char *arg)
-{
-	char *end;
-
-	corruption_check_period = simple_strtoul(arg, &end, 10);
-
-	return (*end == 0) ? 0 : -EINVAL;
-}
-early_param("memory_corruption_check_period", set_corruption_check_period);
-
-static int set_corruption_check_size(char *arg)
-{
-	char *end;
-	unsigned size;
-
-	size = memparse(arg, &end);
-
-	if (*end == '\0')
-		corruption_check_size = size;
-
-	return (size == corruption_check_size) ? 0 : -EINVAL;
-}
-early_param("memory_corruption_check_size", set_corruption_check_size);
-
-
-static void __init setup_bios_corruption_check(void)
-{
-	u64 addr = PAGE_SIZE;	/* assume first page is reserved anyway */
-
-	if (memory_corruption_check == -1) {
-		memory_corruption_check =
-#ifdef CONFIG_X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
-			1
-#else
-			0
-#endif
-			;
-	}
-
-	if (corruption_check_size == 0)
-		memory_corruption_check = 0;
-
-	if (!memory_corruption_check)
-		return;
-
-	corruption_check_size = round_up(corruption_check_size, PAGE_SIZE);
-
-	while(addr < corruption_check_size && num_scan_areas < MAX_SCAN_AREAS) {
-		u64 size;
-		addr = find_e820_area_size(addr, &size, PAGE_SIZE);
-
-		if (addr == 0)
-			break;
-
-		if ((addr + size) > corruption_check_size)
-			size = corruption_check_size - addr;
-
-		if (size == 0)
-			break;
-
-		e820_update_range(addr, size, E820_RAM, E820_RESERVED);
-		scan_areas[num_scan_areas].addr = addr;
-		scan_areas[num_scan_areas].size = size;
-		num_scan_areas++;
-
-		/* Assume we've already mapped this early memory */
-		memset(__va(addr), 0, size);
-
-		addr += size;
-	}
-
-	printk(KERN_INFO "Scanning %d areas for low memory corruption\n",
-	       num_scan_areas);
-	update_e820();
-}
-
-static struct timer_list periodic_check_timer;
-
-void check_for_bios_corruption(void)
-{
-	int i;
-	int corruption = 0;
-
-	if (!memory_corruption_check)
-		return;
-
-	for(i = 0; i < num_scan_areas; i++) {
-		unsigned long *addr = __va(scan_areas[i].addr);
-		unsigned long size = scan_areas[i].size;
-
-		for(; size; addr++, size -= sizeof(unsigned long)) {
-			if (!*addr)
-				continue;
-			printk(KERN_ERR "Corrupted low memory at %p (%lx phys) = %08lx\n",
-			       addr, __pa(addr), *addr);
-			corruption = 1;
-			*addr = 0;
-		}
-	}
-
-	WARN(corruption, KERN_ERR "Memory corruption detected in low memory\n");
-}
-
-static void periodic_check_for_corruption(unsigned long data)
-{
-	check_for_bios_corruption();
-	mod_timer(&periodic_check_timer, round_jiffies(jiffies + corruption_check_period*HZ));
-}
-
-void start_periodic_check_for_corruption(void)
-{
-	if (!memory_corruption_check || corruption_check_period == 0)
-		return;
-
-	printk(KERN_INFO "Scanning for low memory corruption every %d seconds\n",
-	       corruption_check_period);
-
-	init_timer(&periodic_check_timer);
-	periodic_check_timer.function = &periodic_check_for_corruption;
-	periodic_check_for_corruption(0);
-}
-#endif
-
+#ifdef CONFIG_X86_RESERVE_LOW_64K
 static int __init dmi_low_memory_corruption(const struct dmi_system_id *d)
 {
 	printk(KERN_NOTICE
@@ -749,6 +615,7 @@ static int __init dmi_low_memory_corruption(const struct dmi_system_id *d)
 
 	return 0;
 }
+#endif
 
 /* List of systems that have known low memory corruption BIOS problems */
 static struct dmi_system_id __initdata bad_bios_dmi_table[] = {
@@ -793,6 +660,9 @@ void __init setup_arch(char **cmdline_p)
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
+
+	/* VMI may relocate the fixmap; do this before touching ioremap area */
+	vmi_init();
 
 	early_cpu_init();
 	early_ioremap_init();
@@ -880,13 +750,8 @@ void __init setup_arch(char **cmdline_p)
 	check_efer();
 #endif
 
-#if defined(CONFIG_VMI) && defined(CONFIG_X86_32)
-	/*
-	 * Must be before kernel pagetables are setup
-	 * or fixmap area is touched.
-	 */
-	vmi_init();
-#endif
+	/* Must be before kernel pagetables are setup */
+	vmi_activate();
 
 	/* after early param, so could get panic from serial */
 	reserve_early_setup_data();
@@ -908,6 +773,12 @@ void __init setup_arch(char **cmdline_p)
 	dmi_scan_machine();
 
 	dmi_check_system(bad_bios_dmi_table);
+
+	/*
+	 * VMware detection requires dmi to be available, so this
+	 * needs to be done after dmi_scan_machine, for the BP.
+	 */
+	init_hypervisor(&boot_cpu_data);
 
 #ifdef CONFIG_X86_32
 	probe_roms();

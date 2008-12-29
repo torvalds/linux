@@ -185,11 +185,15 @@ static int smk_open_load(struct inode *inode, struct file *file)
  * the subject/object pair and replaces the access that was
  * there. If the pair isn't found add it with the specified
  * access.
+ *
+ * Returns 0 if nothing goes wrong or -ENOMEM if it fails
+ * during the allocation of the new pair to add.
  */
-static void smk_set_access(struct smack_rule *srp)
+static int smk_set_access(struct smack_rule *srp)
 {
 	struct smk_list_entry *sp;
 	struct smk_list_entry *newp;
+	int ret = 0;
 
 	mutex_lock(&smack_list_lock);
 
@@ -202,14 +206,20 @@ static void smk_set_access(struct smack_rule *srp)
 
 	if (sp == NULL) {
 		newp = kzalloc(sizeof(struct smk_list_entry), GFP_KERNEL);
+		if (newp == NULL) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
 		newp->smk_rule = *srp;
 		newp->smk_next = smack_list;
 		smack_list = newp;
 	}
 
+out:
 	mutex_unlock(&smack_list_lock);
 
-	return;
+	return ret;
 }
 
 /**
@@ -309,8 +319,10 @@ static ssize_t smk_write_load(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	smk_set_access(&rule);
-	rc = count;
+	rc = smk_set_access(&rule);
+
+	if (!rc)
+		rc = count;
 
 out:
 	kfree(data);
@@ -336,7 +348,7 @@ static void smk_cipso_doi(void)
 
 	audit_info.loginuid = audit_get_loginuid(current);
 	audit_info.sessionid = audit_get_sessionid(current);
-	audit_info.secid = smack_to_secid(current->security);
+	audit_info.secid = smack_to_secid(current_security());
 
 	rc = netlbl_cfg_map_del(NULL, &audit_info);
 	if (rc != 0)
@@ -371,7 +383,7 @@ static void smk_unlbl_ambient(char *oldambient)
 
 	audit_info.loginuid = audit_get_loginuid(current);
 	audit_info.sessionid = audit_get_sessionid(current);
-	audit_info.secid = smack_to_secid(current->security);
+	audit_info.secid = smack_to_secid(current_security());
 
 	if (oldambient != NULL) {
 		rc = netlbl_cfg_map_del(oldambient, &audit_info);
@@ -843,7 +855,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	char in[SMK_LABELLEN];
-	char *sp = current->security;
+	char *sp = current->cred->security;
 
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;

@@ -164,7 +164,7 @@ int smk_curacc(char *obj_label, u32 mode)
 {
 	int rc;
 
-	rc = smk_access(current->security, obj_label, mode);
+	rc = smk_access(current_security(), obj_label, mode);
 	if (rc == 0)
 		return 0;
 
@@ -173,7 +173,7 @@ int smk_curacc(char *obj_label, u32 mode)
 	 * only one that gets privilege and current does not
 	 * have that label.
 	 */
-	if (smack_onlycap != NULL && smack_onlycap != current->security)
+	if (smack_onlycap != NULL && smack_onlycap != current->cred->security)
 		return rc;
 
 	if (capable(CAP_MAC_OVERRIDE))

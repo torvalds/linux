@@ -219,7 +219,7 @@ int inet6_csk_xmit(struct sk_buff *skb, int ipfragok)
 		if (final_p)
 			ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-		if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0) {
+		if ((err = xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0) {
 			sk->sk_route_caps = 0;
 			kfree_skb(skb);
 			return err;

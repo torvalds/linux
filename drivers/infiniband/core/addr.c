@@ -41,6 +41,8 @@
 #include <net/neighbour.h>
 #include <net/route.h>
 #include <net/netevent.h>
+#include <net/addrconf.h>
+#include <net/ip6_route.h>
 #include <rdma/ib_addr.h>
 
 MODULE_AUTHOR("Sean Hefty");
@@ -49,8 +51,8 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 struct addr_req {
 	struct list_head list;
-	struct sockaddr src_addr;
-	struct sockaddr dst_addr;
+	struct sockaddr_storage src_addr;
+	struct sockaddr_storage dst_addr;
 	struct rdma_dev_addr *addr;
 	struct rdma_addr_client *client;
 	void *context;
@@ -113,15 +115,32 @@ EXPORT_SYMBOL(rdma_copy_addr);
 int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 {
 	struct net_device *dev;
-	__be32 ip = ((struct sockaddr_in *) addr)->sin_addr.s_addr;
-	int ret;
+	int ret = -EADDRNOTAVAIL;
 
-	dev = ip_dev_find(&init_net, ip);
-	if (!dev)
-		return -EADDRNOTAVAIL;
+	switch (addr->sa_family) {
+	case AF_INET:
+		dev = ip_dev_find(&init_net,
+			((struct sockaddr_in *) addr)->sin_addr.s_addr);
 
-	ret = rdma_copy_addr(dev_addr, dev, NULL);
-	dev_put(dev);
+		if (!dev)
+			return ret;
+
+		ret = rdma_copy_addr(dev_addr, dev, NULL);
+		dev_put(dev);
+		break;
+	case AF_INET6:
+		for_each_netdev(&init_net, dev) {
+			if (ipv6_chk_addr(&init_net,
+					  &((struct sockaddr_in6 *) addr)->sin6_addr,
+					  dev, 1)) {
+				ret = rdma_copy_addr(dev_addr, dev, NULL);
+				break;
+			}
+		}
+		break;
+	default:
+		break;
+	}
 	return ret;
 }
 EXPORT_SYMBOL(rdma_translate_ip);
@@ -156,22 +175,37 @@ static void queue_req(struct addr_req *req)
 	mutex_unlock(&lock);
 }
 
-static void addr_send_arp(struct sockaddr_in *dst_in)
+static void addr_send_arp(struct sockaddr *dst_in)
 {
 	struct rtable *rt;
 	struct flowi fl;
-	__be32 dst_ip = dst_in->sin_addr.s_addr;
+	struct dst_entry *dst;
 
 	memset(&fl, 0, sizeof fl);
-	fl.nl_u.ip4_u.daddr = dst_ip;
-	if (ip_route_output_key(&init_net, &rt, &fl))
-		return;
+	if (dst_in->sa_family == AF_INET)  {
+		fl.nl_u.ip4_u.daddr =
+			((struct sockaddr_in *) dst_in)->sin_addr.s_addr;
 
-	neigh_event_send(rt->u.dst.neighbour, NULL);
-	ip_rt_put(rt);
+		if (ip_route_output_key(&init_net, &rt, &fl))
+			return;
+
+		neigh_event_send(rt->u.dst.neighbour, NULL);
+		ip_rt_put(rt);
+
+	} else {
+		fl.nl_u.ip6_u.daddr =
+			((struct sockaddr_in6 *) dst_in)->sin6_addr;
+
+		dst = ip6_route_output(&init_net, NULL, &fl);
+		if (!dst)
+			return;
+
+		neigh_event_send(dst->neighbour, NULL);
+		dst_release(dst);
+	}
 }
 
-static int addr_resolve_remote(struct sockaddr_in *src_in,
+static int addr4_resolve_remote(struct sockaddr_in *src_in,
 			       struct sockaddr_in *dst_in,
 			       struct rdma_dev_addr *addr)
 {
@@ -220,10 +254,51 @@ out:
 	return ret;
 }
 
+static int addr6_resolve_remote(struct sockaddr_in6 *src_in,
+			       struct sockaddr_in6 *dst_in,
+			       struct rdma_dev_addr *addr)
+{
+	struct flowi fl;
+	struct neighbour *neigh;
+	struct dst_entry *dst;
+	int ret = -ENODATA;
+
+	memset(&fl, 0, sizeof fl);
+	fl.nl_u.ip6_u.daddr = dst_in->sin6_addr;
+	fl.nl_u.ip6_u.saddr = src_in->sin6_addr;
+
+	dst = ip6_route_output(&init_net, NULL, &fl);
+	if (!dst)
+		return ret;
+
+	if (dst->dev->flags & IFF_NOARP) {
+		ret = rdma_copy_addr(addr, dst->dev, NULL);
+	} else {
+		neigh = dst->neighbour;
+		if (neigh && (neigh->nud_state & NUD_VALID))
+			ret = rdma_copy_addr(addr, neigh->dev, neigh->ha);
+	}
+
+	dst_release(dst);
+	return ret;
+}
+
+static int addr_resolve_remote(struct sockaddr *src_in,
+				struct sockaddr *dst_in,
+				struct rdma_dev_addr *addr)
+{
+	if (src_in->sa_family == AF_INET) {
+		return addr4_resolve_remote((struct sockaddr_in *) src_in,
+			(struct sockaddr_in *) dst_in, addr);
+	} else
+		return addr6_resolve_remote((struct sockaddr_in6 *) src_in,
+			(struct sockaddr_in6 *) dst_in, addr);
+}
+
 static void process_req(struct work_struct *work)
 {
 	struct addr_req *req, *temp_req;
-	struct sockaddr_in *src_in, *dst_in;
+	struct sockaddr *src_in, *dst_in;
 	struct list_head done_list;
 
 	INIT_LIST_HEAD(&done_list);
@@ -231,8 +306,8 @@ static void process_req(struct work_struct *work)
 	mutex_lock(&lock);
 	list_for_each_entry_safe(req, temp_req, &req_list, list) {
 		if (req->status == -ENODATA) {
-			src_in = (struct sockaddr_in *) &req->src_addr;
-			dst_in = (struct sockaddr_in *) &req->dst_addr;
+			src_in = (struct sockaddr *) &req->src_addr;
+			dst_in = (struct sockaddr *) &req->dst_addr;
 			req->status = addr_resolve_remote(src_in, dst_in,
 							  req->addr);
 			if (req->status && time_after_eq(jiffies, req->timeout))
@@ -251,41 +326,72 @@ static void process_req(struct work_struct *work)
 
 	list_for_each_entry_safe(req, temp_req, &done_list, list) {
 		list_del(&req->list);
-		req->callback(req->status, &req->src_addr, req->addr,
-			      req->context);
+		req->callback(req->status, (struct sockaddr *) &req->src_addr,
+			req->addr, req->context);
 		put_client(req->client);
 		kfree(req);
 	}
 }
 
-static int addr_resolve_local(struct sockaddr_in *src_in,
-			      struct sockaddr_in *dst_in,
+static int addr_resolve_local(struct sockaddr *src_in,
+			      struct sockaddr *dst_in,
 			      struct rdma_dev_addr *addr)
 {
 	struct net_device *dev;
-	__be32 src_ip = src_in->sin_addr.s_addr;
-	__be32 dst_ip = dst_in->sin_addr.s_addr;
 	int ret;
 
-	dev = ip_dev_find(&init_net, dst_ip);
-	if (!dev)
-		return -EADDRNOTAVAIL;
+	if (dst_in->sa_family == AF_INET) {
+		__be32 src_ip = ((struct sockaddr_in *) src_in)->sin_addr.s_addr;
+		__be32 dst_ip = ((struct sockaddr_in *) dst_in)->sin_addr.s_addr;
 
-	if (ipv4_is_zeronet(src_ip)) {
-		src_in->sin_family = dst_in->sin_family;
-		src_in->sin_addr.s_addr = dst_ip;
-		ret = rdma_copy_addr(addr, dev, dev->dev_addr);
-	} else if (ipv4_is_loopback(src_ip)) {
-		ret = rdma_translate_ip((struct sockaddr *)dst_in, addr);
-		if (!ret)
-			memcpy(addr->dst_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
+		dev = ip_dev_find(&init_net, dst_ip);
+		if (!dev)
+			return -EADDRNOTAVAIL;
+
+		if (ipv4_is_zeronet(src_ip)) {
+			src_in->sa_family = dst_in->sa_family;
+			((struct sockaddr_in *) src_in)->sin_addr.s_addr = dst_ip;
+			ret = rdma_copy_addr(addr, dev, dev->dev_addr);
+		} else if (ipv4_is_loopback(src_ip)) {
+			ret = rdma_translate_ip(dst_in, addr);
+			if (!ret)
+				memcpy(addr->dst_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
+		} else {
+			ret = rdma_translate_ip(src_in, addr);
+			if (!ret)
+				memcpy(addr->dst_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
+		}
+		dev_put(dev);
 	} else {
-		ret = rdma_translate_ip((struct sockaddr *)src_in, addr);
-		if (!ret)
-			memcpy(addr->dst_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
+		struct in6_addr *a;
+
+		for_each_netdev(&init_net, dev)
+			if (ipv6_chk_addr(&init_net,
+					  &((struct sockaddr_in6 *) addr)->sin6_addr,
+					  dev, 1))
+				break;
+
+		if (!dev)
+			return -EADDRNOTAVAIL;
+
+		a = &((struct sockaddr_in6 *) src_in)->sin6_addr;
+
+		if (ipv6_addr_any(a)) {
+			src_in->sa_family = dst_in->sa_family;
+			((struct sockaddr_in6 *) src_in)->sin6_addr =
+				((struct sockaddr_in6 *) dst_in)->sin6_addr;
+			ret = rdma_copy_addr(addr, dev, dev->dev_addr);
+		} else if (ipv6_addr_loopback(a)) {
+			ret = rdma_translate_ip(dst_in, addr);
+			if (!ret)
+				memcpy(addr->dst_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
+		} else  {
+			ret = rdma_translate_ip(src_in, addr);
+			if (!ret)
+				memcpy(addr->dst_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
+		}
 	}
 
-	dev_put(dev);
 	return ret;
 }
 
@@ -296,7 +402,7 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 				     struct rdma_dev_addr *addr, void *context),
 		    void *context)
 {
-	struct sockaddr_in *src_in, *dst_in;
+	struct sockaddr *src_in, *dst_in;
 	struct addr_req *req;
 	int ret = 0;
 
@@ -313,8 +419,8 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 	req->client = client;
 	atomic_inc(&client->refcount);
 
-	src_in = (struct sockaddr_in *) &req->src_addr;
-	dst_in = (struct sockaddr_in *) &req->dst_addr;
+	src_in = (struct sockaddr *) &req->src_addr;
+	dst_in = (struct sockaddr *) &req->dst_addr;
 
 	req->status = addr_resolve_local(src_in, dst_in, addr);
 	if (req->status == -EADDRNOTAVAIL)

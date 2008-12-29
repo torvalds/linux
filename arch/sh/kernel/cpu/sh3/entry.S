@@ -52,7 +52,7 @@
  *	syscall #
  *
  */
-#if defined(CONFIG_KGDB_NMI)
+#if defined(CONFIG_KGDB)
 NMI_VEC = 0x1c0			! Must catch early for debounce
 #endif
 
@@ -307,7 +307,7 @@ skip_restore:
 6:	or	k0, k2			! Set the IMASK-bits
 	ldc	k2, ssr
 	!
-#if defined(CONFIG_KGDB_NMI)
+#if defined(CONFIG_KGDB)
 	! Clear in_nmi
 	mov.l	6f, k0
 	mov	#0, k1
@@ -320,7 +320,7 @@ skip_restore:
 
 	.align	2
 5:	.long	0x00001000	! DSP
-#ifdef CONFIG_KGDB_NMI
+#ifdef CONFIG_KGDB
 6:	.long	in_nmi
 #endif
 7:	.long	0x30000000
@@ -376,9 +376,9 @@ tlb_miss:
 !
 	.balign 	512,0,512
 interrupt:
-	mov.l	2f, k2
 	mov.l	3f, k3
-#if defined(CONFIG_KGDB_NMI)
+#if defined(CONFIG_KGDB)
+	mov.l	2f, k2
 	! Debounce (filter nested NMI)
 	mov.l	@k2, k0
 	mov.l	5f, k1
@@ -390,16 +390,16 @@ interrupt:
 	rte
 	 nop
 	.align	2
+2:	.long	INTEVT
 5:	.long	NMI_VEC
 6:	.long	in_nmi
 0:
-#endif /* defined(CONFIG_KGDB_NMI) */
+#endif /* defined(CONFIG_KGDB) */
 	bra	handle_exception
 	 mov	#-1, k2		! interrupt exception marker
 
 	.align	2
 1:	.long	EXPEVT
-2:	.long	INTEVT
 3:	.long	ret_from_irq
 4:	.long	ret_from_exception
 

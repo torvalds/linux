@@ -56,7 +56,8 @@ int lbs_mesh_config_send(struct lbs_private *priv,
 			 uint16_t action, uint16_t type);
 int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan);
 
-int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria);
+int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
+		struct wol_config *p_wol_config);
 int lbs_suspend(struct lbs_private *priv);
 void lbs_resume(struct lbs_private *priv);
 

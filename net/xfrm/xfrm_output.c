@@ -41,6 +41,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 {
 	struct dst_entry *dst = skb->dst;
 	struct xfrm_state *x = dst->xfrm;
+	struct net *net = xs_net(x);
 
 	if (err <= 0)
 		goto resume;
@@ -48,33 +49,33 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 	do {
 		err = xfrm_state_check_space(x, skb);
 		if (err) {
-			XFRM_INC_STATS(LINUX_MIB_XFRMOUTERROR);
+			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
 			goto error_nolock;
 		}
 
 		err = x->outer_mode->output(x, skb);
 		if (err) {
-			XFRM_INC_STATS(LINUX_MIB_XFRMOUTSTATEMODEERROR);
+			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEMODEERROR);
 			goto error_nolock;
 		}
 
 		spin_lock_bh(&x->lock);
 		err = xfrm_state_check_expire(x);
 		if (err) {
-			XFRM_INC_STATS(LINUX_MIB_XFRMOUTSTATEEXPIRED);
+			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEEXPIRED);
 			goto error;
 		}
 
 		if (x->type->flags & XFRM_TYPE_REPLAY_PROT) {
 			XFRM_SKB_CB(skb)->seq.output = ++x->replay.oseq;
 			if (unlikely(x->replay.oseq == 0)) {
-				XFRM_INC_STATS(LINUX_MIB_XFRMOUTSTATESEQERROR);
+				XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATESEQERROR);
 				x->replay.oseq--;
 				xfrm_audit_state_replay_overflow(x, skb);
 				err = -EOVERFLOW;
 				goto error;
 			}
-			if (xfrm_aevent_is_on())
+			if (xfrm_aevent_is_on(net))
 				xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 		}
 
@@ -89,12 +90,12 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 
 resume:
 		if (err) {
-			XFRM_INC_STATS(LINUX_MIB_XFRMOUTSTATEPROTOERROR);
+			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEPROTOERROR);
 			goto error_nolock;
 		}
 
 		if (!(skb->dst = dst_pop(dst))) {
-			XFRM_INC_STATS(LINUX_MIB_XFRMOUTERROR);
+			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
 			err = -EHOSTUNREACH;
 			goto error_nolock;
 		}
@@ -178,6 +179,7 @@ static int xfrm_output_gso(struct sk_buff *skb)
 
 int xfrm_output(struct sk_buff *skb)
 {
+	struct net *net = dev_net(skb->dst->dev);
 	int err;
 
 	if (skb_is_gso(skb))
@@ -186,7 +188,7 @@ int xfrm_output(struct sk_buff *skb)
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		err = skb_checksum_help(skb);
 		if (err) {
-			XFRM_INC_STATS(LINUX_MIB_XFRMOUTERROR);
+			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
 			kfree_skb(skb);
 			return err;
 		}

@@ -528,8 +528,6 @@ static void rdma_close(struct p9_client *client)
 
 /**
  * alloc_rdma - Allocate and initialize the rdma transport structure
- * @msize: MTU
- * @dotu: Extension attribute
  * @opts: Mount options structure
  */
 static struct p9_trans_rdma *alloc_rdma(struct p9_rdma_opts *opts)

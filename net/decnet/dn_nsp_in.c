@@ -83,7 +83,9 @@ static void dn_log_martian(struct sk_buff *skb, const char *msg)
 	if (decnet_log_martians && net_ratelimit()) {
 		char *devname = skb->dev ? skb->dev->name : "???";
 		struct dn_skb_cb *cb = DN_SKB_CB(skb);
-		printk(KERN_INFO "DECnet: Martian packet (%s) dev=%s src=0x%04hx dst=0x%04hx srcport=0x%04hx dstport=0x%04hx\n", msg, devname, dn_ntohs(cb->src), dn_ntohs(cb->dst), dn_ntohs(cb->src_port), dn_ntohs(cb->dst_port));
+		printk(KERN_INFO "DECnet: Martian packet (%s) dev=%s src=0x%04hx dst=0x%04hx srcport=0x%04hx dstport=0x%04hx\n",
+		       msg, devname, le16_to_cpu(cb->src), le16_to_cpu(cb->dst),
+		       le16_to_cpu(cb->src_port), le16_to_cpu(cb->dst_port));
 	}
 }
 
@@ -133,7 +135,7 @@ static int dn_process_ack(struct sock *sk, struct sk_buff *skb, int oth)
 	if (skb->len < 2)
 		return len;
 
-	if ((ack = dn_ntohs(*ptr)) & 0x8000) {
+	if ((ack = le16_to_cpu(*ptr)) & 0x8000) {
 		skb_pull(skb, 2);
 		ptr++;
 		len += 2;
@@ -147,7 +149,7 @@ static int dn_process_ack(struct sock *sk, struct sk_buff *skb, int oth)
 	if (skb->len < 2)
 		return len;
 
-	if ((ack = dn_ntohs(*ptr)) & 0x8000) {
+	if ((ack = le16_to_cpu(*ptr)) & 0x8000) {
 		skb_pull(skb, 2);
 		len += 2;
 		if ((ack & 0x4000) == 0) {
@@ -237,7 +239,7 @@ static struct sock *dn_find_listener(struct sk_buff *skb, unsigned short *reason
 	cb->dst_port = msg->dstaddr;
 	cb->services = msg->services;
 	cb->info     = msg->info;
-	cb->segsize  = dn_ntohs(msg->segsize);
+	cb->segsize  = le16_to_cpu(msg->segsize);
 
 	if (!pskb_may_pull(skb, sizeof(*msg)))
 		goto err_out;
@@ -344,7 +346,7 @@ static void dn_nsp_conn_conf(struct sock *sk, struct sk_buff *skb)
 	ptr = skb->data;
 	cb->services = *ptr++;
 	cb->info = *ptr++;
-	cb->segsize = dn_ntohs(*(__le16 *)ptr);
+	cb->segsize = le16_to_cpu(*(__le16 *)ptr);
 
 	if ((scp->state == DN_CI) || (scp->state == DN_CD)) {
 		scp->persist = 0;
@@ -361,7 +363,7 @@ static void dn_nsp_conn_conf(struct sock *sk, struct sk_buff *skb)
 		if (skb->len > 0) {
 			u16 dlen = *skb->data;
 			if ((dlen <= 16) && (dlen <= skb->len)) {
-				scp->conndata_in.opt_optl = dn_htons(dlen);
+				scp->conndata_in.opt_optl = cpu_to_le16(dlen);
 				skb_copy_from_linear_data_offset(skb, 1,
 					      scp->conndata_in.opt_data, dlen);
 			}
@@ -396,17 +398,17 @@ static void dn_nsp_disc_init(struct sock *sk, struct sk_buff *skb)
 	if (skb->len < 2)
 		goto out;
 
-	reason = dn_ntohs(*(__le16 *)skb->data);
+	reason = le16_to_cpu(*(__le16 *)skb->data);
 	skb_pull(skb, 2);
 
-	scp->discdata_in.opt_status = dn_htons(reason);
+	scp->discdata_in.opt_status = cpu_to_le16(reason);
 	scp->discdata_in.opt_optl   = 0;
 	memset(scp->discdata_in.opt_data, 0, 16);
 
 	if (skb->len > 0) {
 		u16 dlen = *skb->data;
 		if ((dlen <= 16) && (dlen <= skb->len)) {
-			scp->discdata_in.opt_optl = dn_htons(dlen);
+			scp->discdata_in.opt_optl = cpu_to_le16(dlen);
 			skb_copy_from_linear_data_offset(skb, 1, scp->discdata_in.opt_data, dlen);
 		}
 	}
@@ -463,7 +465,7 @@ static void dn_nsp_disc_conf(struct sock *sk, struct sk_buff *skb)
 	if (skb->len != 2)
 		goto out;
 
-	reason = dn_ntohs(*(__le16 *)skb->data);
+	reason = le16_to_cpu(*(__le16 *)skb->data);
 
 	sk->sk_state = TCP_CLOSE;
 
@@ -512,7 +514,7 @@ static void dn_nsp_linkservice(struct sock *sk, struct sk_buff *skb)
 	if (skb->len != 4)
 		goto out;
 
-	segnum = dn_ntohs(*(__le16 *)ptr);
+	segnum = le16_to_cpu(*(__le16 *)ptr);
 	ptr += 2;
 	lsflags = *(unsigned char *)ptr++;
 	fcval = *ptr;
@@ -620,7 +622,7 @@ static void dn_nsp_otherdata(struct sock *sk, struct sk_buff *skb)
 	if (skb->len < 2)
 		goto out;
 
-	cb->segnum = segnum = dn_ntohs(*(__le16 *)skb->data);
+	cb->segnum = segnum = le16_to_cpu(*(__le16 *)skb->data);
 	skb_pull(skb, 2);
 
 	if (seq_next(scp->numoth_rcv, segnum)) {
@@ -648,7 +650,7 @@ static void dn_nsp_data(struct sock *sk, struct sk_buff *skb)
 	if (skb->len < 2)
 		goto out;
 
-	cb->segnum = segnum = dn_ntohs(*(__le16 *)skb->data);
+	cb->segnum = segnum = le16_to_cpu(*(__le16 *)skb->data);
 	skb_pull(skb, 2);
 
 	if (seq_next(scp->numdat_rcv, segnum)) {

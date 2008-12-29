@@ -384,7 +384,7 @@ static void speed_bulk_callback(struct urb *urb)
  */
 static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
-	struct irda_usb_cb *self = netdev->priv;
+	struct irda_usb_cb *self = netdev_priv(netdev);
 	struct urb *urb = self->tx_urb;
 	unsigned long flags;
 	s32 speed;
@@ -628,7 +628,7 @@ static void write_bulk_callback(struct urb *urb)
 static void irda_usb_net_timeout(struct net_device *netdev)
 {
 	unsigned long flags;
-	struct irda_usb_cb *self = netdev->priv;
+	struct irda_usb_cb *self = netdev_priv(netdev);
 	struct urb *urb;
 	int	done = 0;	/* If we have made any progress */
 
@@ -929,7 +929,6 @@ static void irda_usb_receive(struct urb *urb)
 	/* Keep stats up to date */
 	self->stats.rx_bytes += len;
 	self->stats.rx_packets++;
-	self->netdev->last_rx = jiffies;
 
 done:
 	/* Note : at this point, the URB we've just received (urb)
@@ -1175,7 +1174,7 @@ static int irda_usb_net_open(struct net_device *netdev)
 	IRDA_DEBUG(1, "%s()\n", __func__);
 
 	IRDA_ASSERT(netdev != NULL, return -1;);
-	self = (struct irda_usb_cb *) netdev->priv;
+	self = netdev_priv(netdev);
 	IRDA_ASSERT(self != NULL, return -1;);
 
 	spin_lock_irqsave(&self->lock, flags);
@@ -1257,7 +1256,7 @@ static int irda_usb_net_close(struct net_device *netdev)
 	IRDA_DEBUG(1, "%s()\n", __func__);
 
 	IRDA_ASSERT(netdev != NULL, return -1;);
-	self = (struct irda_usb_cb *) netdev->priv;
+	self = netdev_priv(netdev);
 	IRDA_ASSERT(self != NULL, return -1;);
 
 	/* Clear this flag *before* unlinking the urbs and *before*
@@ -1306,7 +1305,7 @@ static int irda_usb_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	int ret = 0;
 
 	IRDA_ASSERT(dev != NULL, return -1;);
-	self = dev->priv;
+	self = netdev_priv(dev);
 	IRDA_ASSERT(self != NULL, return -1;);
 
 	IRDA_DEBUG(2, "%s(), %s, (cmd=0x%X)\n", __func__, dev->name, cmd);
@@ -1348,7 +1347,7 @@ static int irda_usb_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  */
 static struct net_device_stats *irda_usb_net_get_stats(struct net_device *dev)
 {
-	struct irda_usb_cb *self = dev->priv;
+	struct irda_usb_cb *self = netdev_priv(dev);
 	return &self->stats;
 }
 
@@ -1641,7 +1640,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 		goto err_out;
 
 	SET_NETDEV_DEV(net, &intf->dev);
-	self = net->priv;
+	self = netdev_priv(net);
 	self->netdev = net;
 	spin_lock_init(&self->lock);
 	init_timer(&self->rx_defer_timer);

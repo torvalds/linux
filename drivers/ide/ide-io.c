@@ -208,8 +208,10 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		 */
 		if (drive->hwif->dma_ops == NULL)
 			break;
-		if (drive->dev_flags & IDE_DFLAG_USING_DMA)
-			ide_set_dma(drive);
+		/*
+		 * TODO: respect IDE_DFLAG_USING_DMA
+		 */
+		ide_set_dma(drive);
 		break;
 	}
 

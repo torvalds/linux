@@ -98,6 +98,12 @@
 			interrupt-parent = <&mpic>;
 
 		};
+		gef_gpio: gpio@7,14000 {
+			#gpio-cells = <2>;
+			compatible = "gef,sbc610-gpio";
+			reg = <0x7 0x14000 0x24>;
+			gpio-controller;
+		};
 	};
 
 	soc@fef00000 {
@@ -118,6 +124,11 @@
 			interrupts = <0x2b 0x2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
+
+			rtc@51 {
+				compatible = "epson,rx8581";
+				reg = <0x00000051>;
+			};
 
 			eti@6b {
 				compatible = "dallas,ds1682";

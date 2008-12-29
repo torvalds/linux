@@ -579,7 +579,7 @@ static void xics_update_irq_servers(void)
 	int i, j;
 	struct device_node *np;
 	u32 ilen;
-	const u32 *ireg, *isize;
+	const u32 *ireg;
 	u32 hcpuid;
 
 	/* Find the server numbers for the boot cpu. */
@@ -606,11 +606,6 @@ static void xics_update_irq_servers(void)
 			default_distrib_server = ireg[j+1];
 		}
 	}
-
-	/* get the bit size of server numbers */
-	isize = of_get_property(np, "ibm,interrupt-server#-size", NULL);
-	if (isize)
-		interrupt_server_size = *isize;
 
 	of_node_put(np);
 }
@@ -682,6 +677,7 @@ void __init xics_init_IRQ(void)
 	struct device_node *np;
 	u32 indx = 0;
 	int found = 0;
+	const u32 *isize;
 
 	ppc64_boot_msg(0x20, "XICS Init");
 
@@ -700,6 +696,26 @@ void __init xics_init_IRQ(void)
 	}
 	if (found == 0)
 		return;
+
+	/* get the bit size of server numbers */
+	found = 0;
+
+	for_each_compatible_node(np, NULL, "ibm,ppc-xics") {
+		isize = of_get_property(np, "ibm,interrupt-server#-size", NULL);
+
+		if (!isize)
+			continue;
+
+		if (!found) {
+			interrupt_server_size = *isize;
+			found = 1;
+		} else if (*isize != interrupt_server_size) {
+			printk(KERN_WARNING "XICS: "
+			       "mismatched ibm,interrupt-server#-size\n");
+			interrupt_server_size = max(*isize,
+						    interrupt_server_size);
+		}
+	}
 
 	xics_update_irq_servers();
 	xics_init_host();
@@ -728,9 +744,18 @@ static void xics_set_cpu_priority(unsigned char cppr)
 /* Have the calling processor join or leave the specified global queue */
 static void xics_set_cpu_giq(unsigned int gserver, unsigned int join)
 {
-	int status = rtas_set_indicator_fast(GLOBAL_INTERRUPT_QUEUE,
-		(1UL << interrupt_server_size) - 1 - gserver, join);
-	WARN_ON(status < 0);
+	int index;
+	int status;
+
+	if (!rtas_indicator_present(GLOBAL_INTERRUPT_QUEUE, NULL))
+		return;
+
+	index = (1UL << interrupt_server_size) - 1 - gserver;
+
+	status = rtas_set_indicator_fast(GLOBAL_INTERRUPT_QUEUE, index, join);
+
+	WARN(status < 0, "set-indicator(%d, %d, %u) returned %d\n",
+	     GLOBAL_INTERRUPT_QUEUE, index, join, status);
 }
 
 void xics_setup_cpu(void)
