@@ -147,8 +147,14 @@ int ov9650_start(struct sd *sd)
 	int i, err = 0;
 	struct cam *cam = &sd->gspca_dev.cam;
 
-	for (i = 0; i < ARRAY_SIZE(res_init_ov9650) && !err; i++)
-		err = m5602_write_bridge(sd, res_init_ov9650[i][0], res_init_ov9650[i][1]);
+	for (i = 0; i < ARRAY_SIZE(res_init_ov9650) && !err; i++) {
+		if (res_init_ov9650[i][0] == BRIDGE)
+			err = m5602_write_bridge(sd, res_init_ov9650[i][1], res_init_ov9650[i][2]);
+		else if (res_init_ov9650[i][0] == SENSOR) {
+			u8 data = res_init_ov9650[i][2];
+			err = m5602_write_sensor(sd, res_init_ov9650[i][1], &data, 1);
+		}
+	}
 	if (err < 0)
 		return err;
 
@@ -215,6 +221,12 @@ int ov9650_start(struct sd *sd)
 
 	}
 	return err;
+}
+
+int ov9650_stop(struct sd *sd)
+{
+	u8 data = OV9650_SOFT_SLEEP | OV9650_OUTPUT_DRIVE_2X;
+	return m5602_write_sensor(sd, OV9650_COM2, &data, 1);
 }
 
 int ov9650_power_down(struct sd *sd)

@@ -32,6 +32,7 @@
 #define OV9650_BAVE			0x05
 #define OV9650_GEAVE			0x06
 #define OV9650_RSVD7			0x07
+#define OV9650_COM2			0x09
 #define OV9650_PID			0x0a
 #define OV9650_VER			0x0b
 #define OV9650_COM3			0x0c
@@ -116,6 +117,9 @@
 #define OV9650_VFLIP			(1 << 4)
 #define OV9650_HFLIP			(1 << 5)
 
+#define OV9650_SOFT_SLEEP		(1 << 4)
+#define OV9650_OUTPUT_DRIVE_2X		(1 << 0)
+
 #define GAIN_DEFAULT			0x14
 #define RED_GAIN_DEFAULT		0x70
 #define BLUE_GAIN_DEFAULT		0x20
@@ -130,6 +134,7 @@ extern int dump_sensor;
 int ov9650_probe(struct sd *sd);
 int ov9650_init(struct sd *sd);
 int ov9650_start(struct sd *sd);
+int ov9650_stop(struct sd *sd);
 int ov9650_power_down(struct sd *sd);
 
 int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
@@ -158,6 +163,7 @@ static struct m5602_sensor ov9650 = {
 	.probe = ov9650_probe,
 	.init = ov9650_init,
 	.start = ov9650_start,
+	.stop = ov9650_stop,
 	.power_down = ov9650_power_down,
 
 	.nctrls = 8,
@@ -450,6 +456,9 @@ static const unsigned char init_ov9650[][3] =
 	{SENSOR, OV9650_GAIN, GAIN_DEFAULT},
 	{SENSOR, OV9650_BLUE, BLUE_GAIN_DEFAULT},
 	{SENSOR, OV9650_RED, RED_GAIN_DEFAULT},
+
+	/* Put the sensor in soft sleep mode */
+	{SENSOR, OV9650_COM2, OV9650_SOFT_SLEEP | OV9650_OUTPUT_DRIVE_2X},
 };
 
 static const unsigned char power_down_ov9650[][3] =
@@ -472,13 +481,15 @@ static const unsigned char power_down_ov9650[][3] =
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
 };
 
-static const unsigned char res_init_ov9650[][2] =
+static const unsigned char res_init_ov9650[][3] =
 {
-	{M5602_XB_LINE_OF_FRAME_H, 0x82},
-	{M5602_XB_LINE_OF_FRAME_L, 0x00},
-	{M5602_XB_PIX_OF_LINE_H, 0x82},
-	{M5602_XB_PIX_OF_LINE_L, 0x00},
-	{M5602_XB_SIG_INI, 0x01}
+	{SENSOR, OV9650_COM2, (1 << 0)},
+
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x82},
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_L, 0x00},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_H, 0x82},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_L, 0x00},
+	{BRIDGE, M5602_XB_SIG_INI, 0x01}
 };
 
 static const unsigned char VGA_ov9650[][3] =
