@@ -564,7 +564,7 @@ static void tx4939ide_input_data_swap(ide_drive_t *drive, struct request *rq,
 
 	while (count--)
 		*ptr++ = cpu_to_le16(__raw_readw((void __iomem *)port));
-	__ide_flush_dcache_range((unsigned long)buf, count * 2);
+	__ide_flush_dcache_range((unsigned long)buf, roundup(len, 2));
 }
 
 static void tx4939ide_output_data_swap(ide_drive_t *drive, struct request *rq,
@@ -578,7 +578,7 @@ static void tx4939ide_output_data_swap(ide_drive_t *drive, struct request *rq,
 		__raw_writew(le16_to_cpu(*ptr), (void __iomem *)port);
 		ptr++;
 	}
-	__ide_flush_dcache_range((unsigned long)buf, count * 2);
+	__ide_flush_dcache_range((unsigned long)buf, roundup(len, 2));
 }
 
 static const struct ide_tp_ops tx4939ide_tp_ops = {
