@@ -1831,13 +1831,6 @@ static ide_proc_entry_t idecd_proc[] = {
 	{ NULL, 0, NULL, NULL }
 };
 
-ide_devset_rw_flag(dsc_overlap, IDE_DFLAG_DSC_OVERLAP);
-
-static const struct ide_proc_devset idecd_settings[] = {
-	IDE_PROC_DEVSET(dsc_overlap, 0, 1),
-	{ 0 },
-};
-
 static ide_proc_entry_t *ide_cd_proc_entries(ide_drive_t *drive)
 {
 	return idecd_proc;
@@ -1845,7 +1838,7 @@ static ide_proc_entry_t *ide_cd_proc_entries(ide_drive_t *drive)
 
 static const struct ide_proc_devset *ide_cd_proc_devsets(ide_drive_t *drive)
 {
-	return idecd_settings;
+	return NULL;
 }
 #endif
 
@@ -1945,11 +1938,6 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 	/* set correct block size */
 	blk_queue_hardsect_size(drive->queue, CD_FRAMESIZE);
 
-	if (drive->next != drive)
-		drive->dev_flags |= IDE_DFLAG_DSC_OVERLAP;
-	else
-		drive->dev_flags &= ~IDE_DFLAG_DSC_OVERLAP;
-
 	if (ide_cdrom_register(drive, nslots)) {
 		printk(KERN_ERR PFX "%s: %s failed to register device with the"
 				" cdrom driver.\n", drive->name, __func__);
@@ -1986,7 +1974,6 @@ static void ide_cd_release(struct kref *kref)
 	kfree(info->toc);
 	if (devinfo->handle == drive)
 		unregister_cdrom(devinfo);
-	drive->dev_flags &= ~IDE_DFLAG_DSC_OVERLAP;
 	drive->driver_data = NULL;
 	blk_queue_prep_rq(drive->queue, NULL);
 	g->private_data = NULL;
