@@ -130,7 +130,6 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 	}
 }
 
-/* Called with ide_lock held. */
 static void __ide_port_unregister_devices(ide_hwif_t *hwif)
 {
 	int i;
@@ -139,10 +138,8 @@ static void __ide_port_unregister_devices(ide_hwif_t *hwif)
 		ide_drive_t *drive = &hwif->drives[i];
 
 		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
-			spin_unlock_irq(&ide_lock);
 			device_unregister(&drive->gendev);
 			wait_for_completion(&drive->gendev_rel_comp);
-			spin_lock_irq(&ide_lock);
 		}
 	}
 }
@@ -150,11 +147,9 @@ static void __ide_port_unregister_devices(ide_hwif_t *hwif)
 void ide_port_unregister_devices(ide_hwif_t *hwif)
 {
 	mutex_lock(&ide_cfg_mtx);
-	spin_lock_irq(&ide_lock);
 	__ide_port_unregister_devices(hwif);
 	hwif->present = 0;
 	ide_port_init_devices_data(hwif);
-	spin_unlock_irq(&ide_lock);
 	mutex_unlock(&ide_cfg_mtx);
 }
 EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
@@ -192,12 +187,10 @@ void ide_unregister(ide_hwif_t *hwif)
 
 	mutex_lock(&ide_cfg_mtx);
 
-	spin_lock_irq(&ide_lock);
 	if (hwif->present) {
 		__ide_port_unregister_devices(hwif);
 		hwif->present = 0;
 	}
-	spin_unlock_irq(&ide_lock);
 
 	ide_proc_unregister_port(hwif);
 
