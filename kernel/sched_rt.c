@@ -1207,13 +1207,11 @@ static void push_rt_tasks(struct rq *rq)
 static int pull_rt_task(struct rq *this_rq)
 {
 	int this_cpu = this_rq->cpu, ret = 0, cpu;
-	struct task_struct *p, *next;
+	struct task_struct *p;
 	struct rq *src_rq;
 
 	if (likely(!rt_overloaded(this_rq)))
 		return 0;
-
-	next = pick_next_task_rt(this_rq);
 
 	for_each_cpu(cpu, this_rq->rd->rto_mask) {
 		if (this_cpu == cpu)
@@ -1223,17 +1221,9 @@ static int pull_rt_task(struct rq *this_rq)
 		/*
 		 * We can potentially drop this_rq's lock in
 		 * double_lock_balance, and another CPU could
-		 * steal our next task - hence we must cause
-		 * the caller to recalculate the next task
-		 * in that case:
+		 * alter this_rq
 		 */
-		if (double_lock_balance(this_rq, src_rq)) {
-			struct task_struct *old_next = next;
-
-			next = pick_next_task_rt(this_rq);
-			if (next != old_next)
-				ret = 1;
-		}
+		double_lock_balance(this_rq, src_rq);
 
 		/*
 		 * Are there still pullable RT tasks?
@@ -1247,7 +1237,7 @@ static int pull_rt_task(struct rq *this_rq)
 		 * Do we have an RT task that preempts
 		 * the to-be-scheduled task?
 		 */
-		if (p && (!next || (p->prio < next->prio))) {
+		if (p && (p->prio < this_rq->rt.highest_prio.curr)) {
 			WARN_ON(p == src_rq->curr);
 			WARN_ON(!p->se.on_rq);
 
@@ -1257,12 +1247,9 @@ static int pull_rt_task(struct rq *this_rq)
 			 * This is just that p is wakeing up and hasn't
 			 * had a chance to schedule. We only pull
 			 * p if it is lower in priority than the
-			 * current task on the run queue or
-			 * this_rq next task is lower in prio than
-			 * the current task on that rq.
+			 * current task on the run queue
 			 */
-			if (p->prio < src_rq->curr->prio ||
-			    (next && next->prio < src_rq->curr->prio))
+			if (p->prio < src_rq->curr->prio)
 				goto skip;
 
 			ret = 1;
@@ -1275,13 +1262,7 @@ static int pull_rt_task(struct rq *this_rq)
 			 * case there's an even higher prio task
 			 * in another runqueue. (low likelyhood
 			 * but possible)
-			 *
-			 * Update next so that we won't pick a task
-			 * on another cpu with a priority lower (or equal)
-			 * than the one we just picked.
 			 */
-			next = p;
-
 		}
  skip:
 		double_unlock_balance(this_rq, src_rq);
