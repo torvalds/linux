@@ -384,10 +384,8 @@ static void ide_dump_atapi_error(ide_drive_t *drive, u8 err)
 
 u8 ide_dump_status(ide_drive_t *drive, const char *msg, u8 stat)
 {
-	unsigned long flags;
 	u8 err = 0;
 
-	local_irq_save(flags);
 	printk(KERN_ERR "%s: %s: status=0x%02x { ", drive->name, msg, stat);
 	if (stat & ATA_BUSY)
 		printk(KERN_CONT "Busy ");
@@ -417,7 +415,6 @@ u8 ide_dump_status(ide_drive_t *drive, const char *msg, u8 stat)
 			ide_dump_atapi_error(drive, err);
 	}
 	ide_dump_opcode(drive);
-	local_irq_restore(flags);
 	return err;
 }
 EXPORT_SYMBOL(ide_dump_status);
