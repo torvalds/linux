@@ -651,7 +651,7 @@ static int tw9910_set_fmt(struct soc_camera_device *icd, __u32 pixfmt,
 	 */
 	priv->scale = tw9910_select_norm(icd, rect->width, rect->height);
 	if (!priv->scale)
-		return ret;
+		goto tw9910_set_fmt_error;
 
 	/*
 	 * reset hardware
@@ -659,7 +659,8 @@ static int tw9910_set_fmt(struct soc_camera_device *icd, __u32 pixfmt,
 	tw9910_reset(priv->client);
 	ret = tw9910_write_array(priv->client, tw9910_default_regs);
 	if (ret < 0)
-		return ret;
+		goto tw9910_set_fmt_error;
+
 	/*
 	 * set bus width
 	 */
@@ -669,7 +670,7 @@ static int tw9910_set_fmt(struct soc_camera_device *icd, __u32 pixfmt,
 
 	ret = tw9910_mask_set(priv->client, OPFORM, LEN, val);
 	if (ret < 0)
-		return ret;
+		goto tw9910_set_fmt_error;
 
 	/*
 	 * select MPOUT behavior
@@ -697,26 +698,35 @@ static int tw9910_set_fmt(struct soc_camera_device *icd, __u32 pixfmt,
 
 	ret = tw9910_mask_set(priv->client, VBICNTL, RTSEL_MASK, val);
 	if (ret < 0)
-		return ret;
+		goto tw9910_set_fmt_error;
 
 	/*
 	 * set scale
 	 */
 	ret = tw9910_set_scale(priv->client, priv->scale);
 	if (ret < 0)
-		return ret;
+		goto tw9910_set_fmt_error;
 
 	/*
 	 * set cropping
 	 */
 	ret = tw9910_set_cropping(priv->client, &tw9910_cropping_ctrl);
 	if (ret < 0)
-		return ret;
+		goto tw9910_set_fmt_error;
 
 	/*
 	 * set hsync
 	 */
 	ret = tw9910_set_hsync(priv->client, &tw9910_hsync_ctrl);
+	if (ret < 0)
+		goto tw9910_set_fmt_error;
+
+	return ret;
+
+tw9910_set_fmt_error:
+
+	tw9910_reset(priv->client);
+	priv->scale = NULL;
 
 	return ret;
 }
