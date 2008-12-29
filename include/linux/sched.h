@@ -1179,6 +1179,7 @@ struct task_struct {
 #endif
 
 	struct list_head tasks;
+	struct plist_node pushable_tasks;
 
 	struct mm_struct *mm, *active_mm;
 

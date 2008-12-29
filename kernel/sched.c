@@ -471,6 +471,7 @@ struct rt_rq {
 #ifdef CONFIG_SMP
 	unsigned long rt_nr_migratory;
 	int overloaded;
+	struct plist_head pushable_tasks;
 #endif
 	int rt_throttled;
 	u64 rt_time;
@@ -2481,6 +2482,8 @@ void sched_fork(struct task_struct *p, int clone_flags)
 	/* Want to start with kernel preemption disabled. */
 	task_thread_info(p)->preempt_count = 1;
 #endif
+	plist_node_init(&p->pushable_tasks, MAX_PRIO);
+
 	put_cpu();
 }
 
@@ -8237,6 +8240,7 @@ static void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)
 #ifdef CONFIG_SMP
 	rt_rq->rt_nr_migratory = 0;
 	rt_rq->overloaded = 0;
+	plist_head_init(&rq->rt.pushable_tasks, &rq->lock);
 #endif
 
 	rt_rq->rt_time = 0;

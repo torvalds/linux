@@ -49,6 +49,24 @@ static void update_rt_migration(struct rq *rq)
 		rq->rt.overloaded = 0;
 	}
 }
+
+static void enqueue_pushable_task(struct rq *rq, struct task_struct *p)
+{
+	plist_del(&p->pushable_tasks, &rq->rt.pushable_tasks);
+	plist_node_init(&p->pushable_tasks, p->prio);
+	plist_add(&p->pushable_tasks, &rq->rt.pushable_tasks);
+}
+
+static void dequeue_pushable_task(struct rq *rq, struct task_struct *p)
+{
+	plist_del(&p->pushable_tasks, &rq->rt.pushable_tasks);
+}
+
+#else
+
+#define enqueue_pushable_task(rq, p) do { } while (0)
+#define dequeue_pushable_task(rq, p) do { } while (0)
+
 #endif /* CONFIG_SMP */
 
 static inline struct task_struct *rt_task_of(struct sched_rt_entity *rt_se)
@@ -751,6 +769,9 @@ static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
 
 	enqueue_rt_entity(rt_se);
 
+	if (!task_current(rq, p) && p->rt.nr_cpus_allowed > 1)
+		enqueue_pushable_task(rq, p);
+
 	inc_cpu_load(rq, p->se.load.weight);
 }
 
@@ -760,6 +781,8 @@ static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
 
 	update_curr_rt(rq);
 	dequeue_rt_entity(rt_se);
+
+	dequeue_pushable_task(rq, p);
 
 	dec_cpu_load(rq, p->se.load.weight);
 }
@@ -911,7 +934,7 @@ static struct sched_rt_entity *pick_next_rt_entity(struct rq *rq,
 	return next;
 }
 
-static struct task_struct *pick_next_task_rt(struct rq *rq)
+static struct task_struct *_pick_next_task_rt(struct rq *rq)
 {
 	struct sched_rt_entity *rt_se;
 	struct task_struct *p;
@@ -933,6 +956,18 @@ static struct task_struct *pick_next_task_rt(struct rq *rq)
 
 	p = rt_task_of(rt_se);
 	p->se.exec_start = rq->clock;
+
+	return p;
+}
+
+static struct task_struct *pick_next_task_rt(struct rq *rq)
+{
+	struct task_struct *p = _pick_next_task_rt(rq);
+
+	/* The running task is never eligible for pushing */
+	if (p)
+		dequeue_pushable_task(rq, p);
+
 	return p;
 }
 
@@ -940,6 +975,13 @@ static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
 {
 	update_curr_rt(rq);
 	p->se.exec_start = 0;
+
+	/*
+	 * The previous task needs to be made eligible for pushing
+	 * if it is still active
+	 */
+	if (p->se.on_rq && p->rt.nr_cpus_allowed > 1)
+		enqueue_pushable_task(rq, p);
 }
 
 #ifdef CONFIG_SMP
@@ -1116,6 +1158,31 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 	return lowest_rq;
 }
 
+static inline int has_pushable_tasks(struct rq *rq)
+{
+	return !plist_head_empty(&rq->rt.pushable_tasks);
+}
+
+static struct task_struct *pick_next_pushable_task(struct rq *rq)
+{
+	struct task_struct *p;
+
+	if (!has_pushable_tasks(rq))
+		return NULL;
+
+	p = plist_first_entry(&rq->rt.pushable_tasks,
+			      struct task_struct, pushable_tasks);
+
+	BUG_ON(rq->cpu != task_cpu(p));
+	BUG_ON(task_current(rq, p));
+	BUG_ON(p->rt.nr_cpus_allowed <= 1);
+
+	BUG_ON(!p->se.on_rq);
+	BUG_ON(!rt_task(p));
+
+	return p;
+}
+
 /*
  * If the current CPU has more than one RT task, see if the non
  * running task can migrate over to a CPU that is running a task
@@ -1125,13 +1192,12 @@ static int push_rt_task(struct rq *rq)
 {
 	struct task_struct *next_task;
 	struct rq *lowest_rq;
-	int ret = 0;
 	int paranoid = RT_MAX_TRIES;
 
 	if (!rq->rt.overloaded)
 		return 0;
 
-	next_task = pick_next_highest_task_rt(rq, -1);
+	next_task = pick_next_pushable_task(rq);
 	if (!next_task)
 		return 0;
 
@@ -1163,12 +1229,19 @@ static int push_rt_task(struct rq *rq)
 		 * so it is possible that next_task has changed.
 		 * If it has, then try again.
 		 */
-		task = pick_next_highest_task_rt(rq, -1);
+		task = pick_next_pushable_task(rq);
 		if (unlikely(task != next_task) && task && paranoid--) {
 			put_task_struct(next_task);
 			next_task = task;
 			goto retry;
 		}
+
+		/*
+		 * Once we have failed to push this task, we will not
+		 * try again, since the other cpus will pull from us
+		 * when they are ready
+		 */
+		dequeue_pushable_task(rq, next_task);
 		goto out;
 	}
 
@@ -1180,23 +1253,12 @@ static int push_rt_task(struct rq *rq)
 
 	double_unlock_balance(rq, lowest_rq);
 
-	ret = 1;
 out:
 	put_task_struct(next_task);
 
-	return ret;
+	return 1;
 }
 
-/*
- * TODO: Currently we just use the second highest prio task on
- *       the queue, and stop when it can't migrate (or there's
- *       no more RT tasks).  There may be a case where a lower
- *       priority RT task has a different affinity than the
- *       higher RT task. In this case the lower RT task could
- *       possibly be able to migrate where as the higher priority
- *       RT task could not.  We currently ignore this issue.
- *       Enhancements are welcome!
- */
 static void push_rt_tasks(struct rq *rq)
 {
 	/* push_rt_task will return true if it moved an RT */
@@ -1295,7 +1357,7 @@ static void pre_schedule_rt(struct rq *rq, struct task_struct *prev)
  */
 static int needs_post_schedule_rt(struct rq *rq)
 {
-	return rq->rt.overloaded ? 1 : 0;
+	return has_pushable_tasks(rq);
 }
 
 static void post_schedule_rt(struct rq *rq)
@@ -1317,7 +1379,7 @@ static void task_wake_up_rt(struct rq *rq, struct task_struct *p)
 {
 	if (!task_running(rq, p) &&
 	    !test_tsk_need_resched(rq->curr) &&
-	    rq->rt.overloaded &&
+	    has_pushable_tasks(rq) &&
 	    p->rt.nr_cpus_allowed > 1)
 		push_rt_tasks(rq);
 }
@@ -1353,6 +1415,24 @@ static void set_cpus_allowed_rt(struct task_struct *p,
 	 */
 	if (p->se.on_rq && (weight != p->rt.nr_cpus_allowed)) {
 		struct rq *rq = task_rq(p);
+
+		if (!task_current(rq, p)) {
+			/*
+			 * Make sure we dequeue this task from the pushable list
+			 * before going further.  It will either remain off of
+			 * the list because we are no longer pushable, or it
+			 * will be requeued.
+			 */
+			if (p->rt.nr_cpus_allowed > 1)
+				dequeue_pushable_task(rq, p);
+
+			/*
+			 * Requeue if our weight is changing and still > 1
+			 */
+			if (weight > 1)
+				enqueue_pushable_task(rq, p);
+
+		}
 
 		if ((p->rt.nr_cpus_allowed <= 1) && (weight > 1)) {
 			rq->rt.rt_nr_migratory++;
@@ -1538,6 +1618,9 @@ static void set_curr_task_rt(struct rq *rq)
 	struct task_struct *p = rq->curr;
 
 	p->se.exec_start = rq->clock;
+
+	/* The running task is never eligible for pushing */
+	dequeue_pushable_task(rq, p);
 }
 
 static const struct sched_class rt_sched_class = {
