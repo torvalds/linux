@@ -297,7 +297,7 @@ extern int video_usercopy(struct file *file, unsigned int cmd,
 /* Standard handlers for V4L ioctl's */
 
 /* This prototype is used on fops.unlocked_ioctl */
-extern int __video_ioctl2(struct file *file,
+extern long __video_ioctl2(struct file *file,
 			unsigned int cmd, unsigned long arg);
 
 /* This prototype is used on fops.ioctl

@@ -1852,7 +1852,7 @@ static int __video_do_ioctl(struct file *file,
 	return ret;
 }
 
-int __video_ioctl2(struct file *file,
+long __video_ioctl2(struct file *file,
 	       unsigned int cmd, unsigned long arg)
 {
 	char	sbuf[128];
