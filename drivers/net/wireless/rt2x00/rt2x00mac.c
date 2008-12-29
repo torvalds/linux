@@ -502,15 +502,17 @@ static void memcpy_tkip(struct rt2x00lib_crypto *crypto, u8 *key, u8 key_len)
 }
 
 int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-		      const u8 *local_address, const u8 *address,
+		      struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		      struct ieee80211_key_conf *key)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct ieee80211_sta *sta;
+	struct rt2x00_intf *intf = vif_to_intf(vif);
 	int (*set_key) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_crypto *crypto,
 			struct ieee80211_key_conf *key);
 	struct rt2x00lib_crypto crypto;
+	static const u8 bcast_addr[ETH_ALEN] =
+		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, };
 
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
@@ -528,32 +530,25 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (rt2x00dev->intf_sta_count)
 		crypto.bssidx = 0;
 	else
-		crypto.bssidx =
-		    local_address[5] & (rt2x00dev->ops->max_ap_intf - 1);
+		crypto.bssidx = intf->mac[5] & (rt2x00dev->ops->max_ap_intf - 1);
 
 	crypto.cipher = rt2x00crypto_key_to_cipher(key);
 	if (crypto.cipher == CIPHER_NONE)
 		return -EOPNOTSUPP;
 
 	crypto.cmd = cmd;
-	crypto.address = address;
+
+	if (sta) {
+		/* some drivers need the AID */
+		crypto.aid = sta->aid;
+		crypto.address = sta->addr;
+	} else
+		crypto.address = bcast_addr;
 
 	if (crypto.cipher == CIPHER_TKIP)
 		memcpy_tkip(&crypto, &key->key[0], key->keylen);
 	else
 		memcpy(&crypto.key, &key->key[0], key->keylen);
-
-	/*
-	 * Discover the Association ID from mac80211.
-	 * Some drivers need this information when updating the
-	 * hardware key (either adding or removing).
-	 */
-	rcu_read_lock();
-	sta = ieee80211_find_sta(hw, address);
-	if (sta)
-		crypto.aid = sta->aid;
-	rcu_read_unlock();
-
 	/*
 	 * Each BSS has a maximum of 4 shared keys.
 	 * Shared key index values:

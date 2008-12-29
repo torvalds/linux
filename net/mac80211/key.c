@@ -47,7 +47,6 @@
  */
 
 static const u8 bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-static const u8 zero_addr[ETH_ALEN];
 
 /* key mutex: used to synchronise todo runners */
 static DEFINE_MUTEX(key_mutex);
@@ -108,29 +107,18 @@ static void assert_key_lock(void)
 	WARN_ON(!mutex_is_locked(&key_mutex));
 }
 
-static const u8 *get_mac_for_key(struct ieee80211_key *key)
+static struct ieee80211_sta *get_sta_for_key(struct ieee80211_key *key)
 {
-	const u8 *addr = bcast_addr;
-
-	/*
-	 * If we're an AP we won't ever receive frames with a non-WEP
-	 * group key so we tell the driver that by using the zero MAC
-	 * address to indicate a transmit-only key.
-	 */
-	if (key->conf.alg != ALG_WEP &&
-	    (key->sdata->vif.type == NL80211_IFTYPE_AP ||
-	     key->sdata->vif.type == NL80211_IFTYPE_AP_VLAN))
-		addr = zero_addr;
-
 	if (key->sta)
-		addr = key->sta->sta.addr;
+		return &key->sta->sta;
 
-	return addr;
+	return NULL;
 }
 
 static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 {
-	const u8 *addr;
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sta *sta;
 	int ret;
 
 	assert_key_lock();
@@ -139,11 +127,16 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	if (!key->local->ops->set_key)
 		return;
 
-	addr = get_mac_for_key(key);
+	sta = get_sta_for_key(key);
+
+	sdata = key->sdata;
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		sdata = container_of(sdata->bss,
+				     struct ieee80211_sub_if_data,
+				     u.ap);
 
 	ret = key->local->ops->set_key(local_to_hw(key->local), SET_KEY,
-				       key->sdata->dev->dev_addr, addr,
-				       &key->conf);
+				       &sdata->vif, sta, &key->conf);
 
 	if (!ret) {
 		spin_lock(&todo_lock);
@@ -155,12 +148,13 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		printk(KERN_ERR "mac80211-%s: failed to set key "
 		       "(%d, %pM) to hardware (%d)\n",
 		       wiphy_name(key->local->hw.wiphy),
-		       key->conf.keyidx, addr, ret);
+		       key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
 }
 
 static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 {
-	const u8 *addr;
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sta *sta;
 	int ret;
 
 	assert_key_lock();
@@ -176,17 +170,22 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 	}
 	spin_unlock(&todo_lock);
 
-	addr = get_mac_for_key(key);
+	sta = get_sta_for_key(key);
+	sdata = key->sdata;
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		sdata = container_of(sdata->bss,
+				     struct ieee80211_sub_if_data,
+				     u.ap);
 
 	ret = key->local->ops->set_key(local_to_hw(key->local), DISABLE_KEY,
-				       key->sdata->dev->dev_addr, addr,
-				       &key->conf);
+				       &sdata->vif, sta, &key->conf);
 
 	if (ret)
 		printk(KERN_ERR "mac80211-%s: failed to remove key "
 		       "(%d, %pM) from hardware (%d)\n",
 		       wiphy_name(key->local->hw.wiphy),
-		       key->conf.keyidx, addr, ret);
+		       key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
 
 	spin_lock(&todo_lock);
 	key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;

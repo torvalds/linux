@@ -794,7 +794,7 @@ static int ath_reserve_key_cache_slot(struct ath_softc *sc)
 }
 
 static int ath_key_config(struct ath_softc *sc,
-			  const u8 *addr,
+			  struct ieee80211_sta *sta,
 			  struct ieee80211_key_conf *key)
 {
 	struct ath9k_keyval hk;
@@ -828,7 +828,10 @@ static int ath_key_config(struct ath_softc *sc,
 	} else if (key->keyidx) {
 		struct ieee80211_vif *vif;
 
-		mac = addr;
+		if (WARN_ON(!sta))
+			return -EOPNOTSUPP;
+		mac = sta->addr;
+
 		vif = sc->sc_vaps[0];
 		if (vif->type != NL80211_IFTYPE_AP) {
 			/* Only keyidx 0 should be used with unicast key, but
@@ -837,7 +840,10 @@ static int ath_key_config(struct ath_softc *sc,
 		} else
 			return -EIO;
 	} else {
-		mac = addr;
+		if (WARN_ON(!sta))
+			return -EOPNOTSUPP;
+		mac = sta->addr;
+
 		if (key->alg == ALG_TKIP)
 			idx = ath_reserve_key_cache_slot_tkip(sc);
 		else
@@ -2320,8 +2326,8 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw,
 
 static int ath9k_set_key(struct ieee80211_hw *hw,
 			 enum set_key_cmd cmd,
-			 const u8 *local_addr,
-			 const u8 *addr,
+			 struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta,
 			 struct ieee80211_key_conf *key)
 {
 	struct ath_softc *sc = hw->priv;
@@ -2331,7 +2337,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case SET_KEY:
-		ret = ath_key_config(sc, addr, key);
+		ret = ath_key_config(sc, sta, key);
 		if (ret >= 0) {
 			key->hw_key_idx = ret;
 			/* push IV and Michael MIC generation to stack */
