@@ -266,6 +266,12 @@ void __smp_call_function_single(int cpu, struct call_single_data *data)
 	generic_exec_single(cpu, data);
 }
 
+/* FIXME: Shim for archs using old arch_send_call_function_ipi API. */
+#ifndef arch_send_call_function_ipi_mask
+#define arch_send_call_function_ipi_mask(maskp) \
+	arch_send_call_function_ipi(*(maskp))
+#endif
+
 /**
  * smp_call_function_many(): Run a function on a set of other CPUs.
  * @mask: The set of cpus to run on (only runs on online subset).
@@ -343,7 +349,7 @@ void smp_call_function_many(const struct cpumask *mask,
 	smp_mb();
 
 	/* Send a message to all CPUs in the map */
-	arch_send_call_function_ipi(*to_cpumask(data->cpumask_bits));
+	arch_send_call_function_ipi_mask(to_cpumask(data->cpumask_bits));
 
 	/* optionally wait for the CPUs to complete */
 	if (wait)
