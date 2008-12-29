@@ -432,13 +432,30 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		if (tq->tqi_flags & AR5K_TXQ_FLAG_TXEOLINT_ENABLE)
 			AR5K_Q_ENABLE_BITS(ah->ah_txq_imr_txeol, queue);
 
+		if (tq->tqi_flags & AR5K_TXQ_FLAG_CBRORNINT_ENABLE)
+			AR5K_Q_ENABLE_BITS(ah->ah_txq_imr_cbrorn, queue);
+
+		if (tq->tqi_flags & AR5K_TXQ_FLAG_CBRURNINT_ENABLE)
+			AR5K_Q_ENABLE_BITS(ah->ah_txq_imr_cbrurn, queue);
+
+		if (tq->tqi_flags & AR5K_TXQ_FLAG_QTRIGINT_ENABLE)
+			AR5K_Q_ENABLE_BITS(ah->ah_txq_imr_qtrig, queue);
+
+		if (tq->tqi_flags & AR5K_TXQ_FLAG_TXNOFRMINT_ENABLE)
+			AR5K_Q_ENABLE_BITS(ah->ah_txq_imr_nofrm, queue);
 
 		/* Update secondary interrupt mask registers */
+
+		/* Filter out inactive queues */
 		ah->ah_txq_imr_txok &= ah->ah_txq_status;
 		ah->ah_txq_imr_txerr &= ah->ah_txq_status;
 		ah->ah_txq_imr_txurn &= ah->ah_txq_status;
 		ah->ah_txq_imr_txdesc &= ah->ah_txq_status;
 		ah->ah_txq_imr_txeol &= ah->ah_txq_status;
+		ah->ah_txq_imr_cbrorn &= ah->ah_txq_status;
+		ah->ah_txq_imr_cbrurn &= ah->ah_txq_status;
+		ah->ah_txq_imr_qtrig &= ah->ah_txq_status;
+		ah->ah_txq_imr_nofrm &= ah->ah_txq_status;
 
 		ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_txok,
 			AR5K_SIMR0_QCU_TXOK) |
@@ -448,8 +465,24 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 			AR5K_SIMR1_QCU_TXERR) |
 			AR5K_REG_SM(ah->ah_txq_imr_txeol,
 			AR5K_SIMR1_QCU_TXEOL), AR5K_SIMR1);
-		ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_txurn,
-			AR5K_SIMR2_QCU_TXURN), AR5K_SIMR2);
+		/* Update simr2 but don't overwrite rest simr2 settings */
+		AR5K_REG_DISABLE_BITS(ah, AR5K_SIMR2, AR5K_SIMR2_QCU_TXURN);
+		AR5K_REG_ENABLE_BITS(ah, AR5K_SIMR2,
+			AR5K_REG_SM(ah->ah_txq_imr_txurn,
+			AR5K_SIMR2_QCU_TXURN));
+		ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_cbrorn,
+			AR5K_SIMR3_QCBRORN) |
+			AR5K_REG_SM(ah->ah_txq_imr_cbrurn,
+			AR5K_SIMR3_QCBRURN), AR5K_SIMR3);
+		ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_qtrig,
+			AR5K_SIMR4_QTRIG), AR5K_SIMR4);
+		/* Set TXNOFRM_QCU for the queues with TXNOFRM enabled */
+		ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_nofrm,
+			AR5K_TXNOFRM_QCU), AR5K_TXNOFRM);
+		/* No queue has TXNOFRM enabled, disable the interrupt
+		 * by setting AR5K_TXNOFRM to zero */
+		if (ah->ah_txq_imr_nofrm == 0)
+			ath5k_hw_reg_write(ah, 0, AR5K_TXNOFRM);
 	}
 
 	return 0;

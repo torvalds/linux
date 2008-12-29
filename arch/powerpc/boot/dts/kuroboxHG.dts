@@ -76,7 +76,6 @@ XXXX add flash parts, rtc, ??
 			interrupt-parent = <&mpic>;
 
 			rtc@32 {
-				device_type = "rtc";
 				compatible = "ricoh,rs5c372a";
 				reg = <0x32>;
 			};

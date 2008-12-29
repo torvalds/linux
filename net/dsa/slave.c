@@ -352,7 +352,7 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	netif_carrier_off(slave_dev);
 
 	if (p->phy != NULL) {
-		phy_attach(slave_dev, p->phy->dev.bus_id,
+		phy_attach(slave_dev, dev_name(&p->phy->dev),
 			   0, PHY_INTERFACE_MODE_GMII);
 
 		p->phy->autoneg = AUTONEG_ENABLE;

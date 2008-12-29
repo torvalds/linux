@@ -25,7 +25,7 @@
  * in the file called LICENSE.GPL.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -71,7 +71,7 @@
 
 #include "iwl-fh.h"
 
-/* EERPROM */
+/* EEPROM */
 #define IWL4965_EEPROM_IMG_SIZE			1024
 
 /*
@@ -83,12 +83,6 @@
 #define IWL_CMD_QUEUE_NUM       4
 #define IWL_CMD_FIFO_NUM        4
 #define IWL49_FIRST_AMPDU_QUEUE	7
-
-/* Tx rates */
-#define IWL_CCK_RATES 4
-#define IWL_OFDM_RATES 8
-#define IWL_HT_RATES 16
-#define IWL_MAX_RATES  (IWL_CCK_RATES+IWL_OFDM_RATES+IWL_HT_RATES)
 
 /* Time constants */
 #define SHORT_SLOT_TIME 9
@@ -111,7 +105,6 @@
 #define PCI_CFG_CMD_REG_INT_DIS_MSK	0x04
 #define PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT         (0x80000000)
 
-#define TFD_QUEUE_SIZE_MAX      (256)
 
 #define IWL_NUM_SCAN_RATES         (2)
 
@@ -287,13 +280,13 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *     that target txpower.
  *
  *
- * 3)  Determine (EEPROM) calibration subband for the target channel, by
- *     comparing against first and last channels in each subband
+ * 3)  Determine (EEPROM) calibration sub band for the target channel, by
+ *     comparing against first and last channels in each sub band
  *     (see struct iwl4965_eeprom_calib_subband_info).
  *
  *
  * 4)  Linearly interpolate (EEPROM) factory calibration measurement sets,
- *     referencing the 2 factory-measured (sample) channels within the subband.
+ *     referencing the 2 factory-measured (sample) channels within the sub band.
  *
  *     Interpolation is based on difference between target channel's frequency
  *     and the sample channels' frequencies.  Since channel numbers are based
@@ -301,7 +294,7 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *     to interpolating based on channel number differences.
  *
  *     Note that the sample channels may or may not be the channels at the
- *     edges of the subband.  The target channel may be "outside" of the
+ *     edges of the sub band.  The target channel may be "outside" of the
  *     span of the sampled channels.
  *
  *     Driver may choose the pair (for 2 Tx chains) of measurements (see
@@ -345,7 +338,7 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *     "4965 temperature calculation".
  *
  *     If current temperature is higher than factory temperature, driver must
- *     increase gain (lower gain table index), and vice versa.
+ *     increase gain (lower gain table index), and vice verse.
  *
  *     Temperature affects gain differently for different channels:
  *
@@ -815,125 +808,14 @@ enum {
  * up to 7 DMA channels (FIFOs).  Each Tx queue is supported by a circular array
  * in DRAM containing 256 Transmit Frame Descriptors (TFDs).
  */
-#define IWL49_MAX_WIN_SIZE	64
-#define IWL49_QUEUE_SIZE	256
 #define IWL49_NUM_FIFOS 	7
 #define IWL49_CMD_FIFO_NUM	4
 #define IWL49_NUM_QUEUES	16
 #define IWL49_NUM_AMPDU_QUEUES	8
 
-/**
- * struct iwl_tfd_frame_data
- *
- * Describes up to 2 buffers containing (contiguous) portions of a Tx frame.
- * Each buffer must be on dword boundary.
- * Up to 10 iwl_tfd_frame_data structures, describing up to 20 buffers,
- * may be filled within a TFD (iwl_tfd_frame).
- *
- * Bit fields in tb1_addr:
- * 31- 0: Tx buffer 1 address bits [31:0]
- *
- * Bit fields in val1:
- * 31-16: Tx buffer 2 address bits [15:0]
- * 15- 4: Tx buffer 1 length (bytes)
- *  3- 0: Tx buffer 1 address bits [32:32]
- *
- * Bit fields in val2:
- * 31-20: Tx buffer 2 length (bytes)
- * 19- 0: Tx buffer 2 address bits [35:16]
- */
-struct iwl_tfd_frame_data {
-	__le32 tb1_addr;
-
-	__le32 val1;
-	/* __le32 ptb1_32_35:4; */
-#define IWL_tb1_addr_hi_POS 0
-#define IWL_tb1_addr_hi_LEN 4
-#define IWL_tb1_addr_hi_SYM val1
-	/* __le32 tb_len1:12; */
-#define IWL_tb1_len_POS 4
-#define IWL_tb1_len_LEN 12
-#define IWL_tb1_len_SYM val1
-	/* __le32 ptb2_0_15:16; */
-#define IWL_tb2_addr_lo16_POS 16
-#define IWL_tb2_addr_lo16_LEN 16
-#define IWL_tb2_addr_lo16_SYM val1
-
-	__le32 val2;
-	/* __le32 ptb2_16_35:20; */
-#define IWL_tb2_addr_hi20_POS 0
-#define IWL_tb2_addr_hi20_LEN 20
-#define IWL_tb2_addr_hi20_SYM val2
-	/* __le32 tb_len2:12; */
-#define IWL_tb2_len_POS 20
-#define IWL_tb2_len_LEN 12
-#define IWL_tb2_len_SYM val2
-} __attribute__ ((packed));
-
 
 /**
- * struct iwl_tfd_frame
- *
- * Transmit Frame Descriptor (TFD)
- *
- * 4965 supports up to 16 Tx queues resident in host DRAM.
- * Each Tx queue uses a circular buffer of 256 TFDs stored in host DRAM.
- * Both driver and device share these circular buffers, each of which must be
- * contiguous 256 TFDs x 128 bytes-per-TFD = 32 KBytes for 4965.
- *
- * Driver must indicate the physical address of the base of each
- * circular buffer via the 4965's FH_MEM_CBBC_QUEUE registers.
- *
- * Each TFD contains pointer/size information for up to 20 data buffers
- * in host DRAM.  These buffers collectively contain the (one) frame described
- * by the TFD.  Each buffer must be a single contiguous block of memory within
- * itself, but buffers may be scattered in host DRAM.  Each buffer has max size
- * of (4K - 4).  The 4965 concatenates all of a TFD's buffers into a single
- * Tx frame, up to 8 KBytes in size.
- *
- * Bit fields in the control dword (val0):
- * 31-30: # dwords (0-3) of padding required at end of frame for 16-byte bound
- *    29: reserved
- * 28-24: # Transmit Buffer Descriptors in TFD
- * 23- 0: reserved
- *
- * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
- */
-struct iwl_tfd_frame {
-	__le32 val0;
-	/* __le32 rsvd1:24; */
-	/* __le32 num_tbs:5; */
-#define IWL_num_tbs_POS 24
-#define IWL_num_tbs_LEN 5
-#define IWL_num_tbs_SYM val0
-	/* __le32 rsvd2:1; */
-	/* __le32 padding:2; */
-	struct iwl_tfd_frame_data pa[10];
-	__le32 reserved;
-} __attribute__ ((packed));
-
-
-/**
- * struct iwl4965_queue_byte_cnt_entry
- *
- * Byte Count Table Entry
- *
- * Bit fields:
- * 15-12: reserved
- * 11- 0: total to-be-transmitted byte count of frame (does not include command)
- */
-struct iwl4965_queue_byte_cnt_entry {
-	__le16 val;
-	/* __le16 byte_cnt:12; */
-#define IWL_byte_cnt_POS 0
-#define IWL_byte_cnt_LEN 12
-#define IWL_byte_cnt_SYM val
-	/* __le16 rsvd:4; */
-} __attribute__ ((packed));
-
-
-/**
- * struct iwl4965_sched_queue_byte_cnt_tbl
+ * struct iwl4965_schedq_bc_tbl
  *
  * Byte Count table
  *
@@ -947,71 +829,12 @@ struct iwl4965_queue_byte_cnt_entry {
  * count table for the chosen Tx queue.  If the TFD index is 0-63, the driver
  * must duplicate the byte count entry in corresponding index 256-319.
  *
- * "dont_care" padding puts each byte count table on a 1024-byte boundary;
+ * padding puts each byte count table on a 1024-byte boundary;
  * 4965 assumes tables are separated by 1024 bytes.
  */
-struct iwl4965_sched_queue_byte_cnt_tbl {
-	struct iwl4965_queue_byte_cnt_entry tfd_offset[IWL49_QUEUE_SIZE +
-						       IWL49_MAX_WIN_SIZE];
-	u8 dont_care[1024 -
-		     (IWL49_QUEUE_SIZE + IWL49_MAX_WIN_SIZE) *
-		     sizeof(__le16)];
+struct iwl4965_scd_bc_tbl {
+	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
+	u8 pad[1024 - (TFD_QUEUE_BC_SIZE) * sizeof(__le16)];
 } __attribute__ ((packed));
 
-
-/**
- * struct iwl4965_shared - handshake area for Tx and Rx
- *
- * For convenience in allocating memory, this structure combines 2 areas of
- * DRAM which must be shared between driver and 4965.  These do not need to
- * be combined, if better allocation would result from keeping them separate:
- *
- * 1)  The Tx byte count tables occupy 1024 bytes each (16 KBytes total for
- *     16 queues).  Driver uses SCD_DRAM_BASE_ADDR to tell 4965 where to find
- *     the first of these tables.  4965 assumes tables are 1024 bytes apart.
- *
- * 2)  The Rx status (val0 and val1) occupies only 8 bytes.  Driver uses
- *     FH_RSCSR_CHNL0_STTS_WPTR_REG to tell 4965 where to find this area.
- *     Driver reads val0 to determine the latest Receive Buffer Descriptor (RBD)
- *     that has been filled by the 4965.
- *
- * Bit fields val0:
- * 31-12:  Not used
- * 11- 0:  Index of last filled Rx buffer descriptor (4965 writes, driver reads)
- *
- * Bit fields val1:
- * 31- 0:  Not used
- */
-struct iwl4965_shared {
-	struct iwl4965_sched_queue_byte_cnt_tbl
-	 queues_byte_cnt_tbls[IWL49_NUM_QUEUES];
-	__le32 rb_closed;
-
-	/* __le32 rb_closed_stts_rb_num:12; */
-#define IWL_rb_closed_stts_rb_num_POS 0
-#define IWL_rb_closed_stts_rb_num_LEN 12
-#define IWL_rb_closed_stts_rb_num_SYM rb_closed
-	/* __le32 rsrv1:4; */
-	/* __le32 rb_closed_stts_rx_frame_num:12; */
-#define IWL_rb_closed_stts_rx_frame_num_POS 16
-#define IWL_rb_closed_stts_rx_frame_num_LEN 12
-#define IWL_rb_closed_stts_rx_frame_num_SYM rb_closed
-	/* __le32 rsrv2:4; */
-
-	__le32 frm_finished;
-	/* __le32 frame_finished_stts_rb_num:12; */
-#define IWL_frame_finished_stts_rb_num_POS 0
-#define IWL_frame_finished_stts_rb_num_LEN 12
-#define IWL_frame_finished_stts_rb_num_SYM frm_finished
-	/* __le32 rsrv3:4; */
-	/* __le32 frame_finished_stts_rx_frame_num:12; */
-#define IWL_frame_finished_stts_rx_frame_num_POS 16
-#define IWL_frame_finished_stts_rx_frame_num_LEN 12
-#define IWL_frame_finished_stts_rx_frame_num_SYM frm_finished
-	/* __le32 rsrv4:4; */
-
-	__le32 padding1;  /* so that allocation will be aligned to 16B */
-	__le32 padding2;
-} __attribute__ ((packed));
-
-#endif /* __iwl4965_4965_hw_h__ */
+#endif /* !__iwl_4965_hw_h__ */

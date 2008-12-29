@@ -568,6 +568,19 @@ static void set_rx_mode(struct net_device *dev);
 static const struct ethtool_ops ethtool_ops;
 static const struct ethtool_ops ethtool_ops_no_mii;
 
+static const struct net_device_ops hamachi_netdev_ops = {
+	.ndo_open		= hamachi_open,
+	.ndo_stop		= hamachi_close,
+	.ndo_start_xmit		= hamachi_start_xmit,
+	.ndo_get_stats		= hamachi_get_stats,
+	.ndo_set_multicast_list	= set_rx_mode,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_tx_timeout		= hamachi_tx_timeout,
+	.ndo_do_ioctl		= netdev_ioctl,
+};
+
+
 static int __devinit hamachi_init_one (struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
@@ -582,7 +595,6 @@ static int __devinit hamachi_init_one (struct pci_dev *pdev,
 	void *ring_space;
 	dma_addr_t ring_dma;
 	int ret = -ENOMEM;
-	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -723,17 +735,11 @@ static int __devinit hamachi_init_one (struct pci_dev *pdev,
 
 
 	/* The Hamachi-specific entries in the device structure. */
-	dev->open = &hamachi_open;
-	dev->hard_start_xmit = &hamachi_start_xmit;
-	dev->stop = &hamachi_close;
-	dev->get_stats = &hamachi_get_stats;
-	dev->set_multicast_list = &set_rx_mode;
-	dev->do_ioctl = &netdev_ioctl;
+	dev->netdev_ops = &hamachi_netdev_ops;
 	if (chip_tbl[hmp->chip_id].flags & CanHaveMII)
 		SET_ETHTOOL_OPS(dev, &ethtool_ops);
 	else
 		SET_ETHTOOL_OPS(dev, &ethtool_ops_no_mii);
-	dev->tx_timeout = &hamachi_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	if (mtu)
 		dev->mtu = mtu;
@@ -744,9 +750,9 @@ static int __devinit hamachi_init_one (struct pci_dev *pdev,
 		goto err_out_unmap_rx;
 	}
 
-	printk(KERN_INFO "%s: %s type %x at %p, %s, IRQ %d.\n",
+	printk(KERN_INFO "%s: %s type %x at %p, %pM, IRQ %d.\n",
 		   dev->name, chip_tbl[chip_id].name, readl(ioaddr + ChipRev),
-		   ioaddr, print_mac(mac, dev->dev_addr), irq);
+		   ioaddr, dev->dev_addr, irq);
 	i = readb(ioaddr + PCIClkMeas);
 	printk(KERN_INFO "%s:  %d-bit %d Mhz PCI bus (%d), Virtual Jumpers "
 		   "%2.2x, LPA %4.4x.\n",
@@ -1646,7 +1652,6 @@ static int hamachi_rx(struct net_device *dev)
 #endif  /* RX_CHECKSUM */
 
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			hmp->stats.rx_packets++;
 		}
 		entry = (++hmp->cur_rx) % RX_RING_SIZE;

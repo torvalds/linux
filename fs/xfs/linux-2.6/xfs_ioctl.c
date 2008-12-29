@@ -252,6 +252,7 @@ xfs_open_by_handle(
 	struct file		*parfilp,
 	struct inode		*parinode)
 {
+	const struct cred	*cred = current_cred();
 	int			error;
 	int			new_fd;
 	int			permflag;
@@ -314,7 +315,7 @@ xfs_open_by_handle(
 	mntget(parfilp->f_path.mnt);
 
 	/* Create file pointer. */
-	filp = dentry_open(dentry, parfilp->f_path.mnt, hreq->oflags);
+	filp = dentry_open(dentry, parfilp->f_path.mnt, hreq->oflags, cred);
 	if (IS_ERR(filp)) {
 		put_unused_fd(new_fd);
 		return -XFS_ERROR(-PTR_ERR(filp));

@@ -122,9 +122,6 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of,
 	out_be32(&priv->regs->mii_speed,
 		((mpc52xx_find_ipb_freq(of->node) >> 20) / 5) << 1);
 
-	/* enable MII interrupt */
-	out_be32(&priv->regs->imask, in_be32(&priv->regs->imask) | FEC_IMASK_MII);
-
 	err = mdiobus_register(bus);
 	if (err)
 		goto out_unmap;
@@ -156,7 +153,7 @@ static int mpc52xx_fec_mdio_remove(struct of_device *of)
 
 	iounmap(priv->regs);
 	for (i=0; i<PHY_MAX_ADDR; i++)
-		if (bus->irq[i])
+		if (bus->irq[i] != PHY_POLL)
 			irq_dispose_mapping(bus->irq[i]);
 	kfree(priv);
 	kfree(bus->irq);

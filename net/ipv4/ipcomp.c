@@ -35,12 +35,12 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 		return;
 
 	spi = htonl(ntohs(ipch->cpi));
-	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr,
+	x = xfrm_state_lookup(&init_net, (xfrm_address_t *)&iph->daddr,
 			      spi, IPPROTO_COMP, AF_INET);
 	if (!x)
 		return;
-	NETDEBUG(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/" NIPQUAD_FMT "\n",
-		 spi, NIPQUAD(iph->daddr));
+	NETDEBUG(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/%pI4\n",
+		 spi, &iph->daddr);
 	xfrm_state_put(x);
 }
 
@@ -49,7 +49,7 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 {
 	struct xfrm_state *t;
 
-	t = xfrm_state_alloc();
+	t = xfrm_state_alloc(&init_net);
 	if (t == NULL)
 		goto out;
 
@@ -85,7 +85,7 @@ static int ipcomp_tunnel_attach(struct xfrm_state *x)
 	int err = 0;
 	struct xfrm_state *t;
 
-	t = xfrm_state_lookup((xfrm_address_t *)&x->id.daddr.a4,
+	t = xfrm_state_lookup(&init_net, (xfrm_address_t *)&x->id.daddr.a4,
 			      x->props.saddr.a4, IPPROTO_IPIP, AF_INET);
 	if (!t) {
 		t = ipcomp_tunnel_create(x);

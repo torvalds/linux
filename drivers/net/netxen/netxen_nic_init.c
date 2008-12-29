@@ -1285,9 +1285,7 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 		}
 		adapter->stats.rxdropped++;
 	} else {
-
 		netif_receive_skb(skb);
-		netdev->last_rx = jiffies;
 
 		adapter->stats.no_rcv++;
 		adapter->stats.rxbytes += length;

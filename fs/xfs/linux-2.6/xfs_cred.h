@@ -23,8 +23,6 @@
 /*
  * Credentials
  */
-typedef struct cred {
-       /* EMPTY */
-} cred_t;
+typedef const struct cred cred_t;
 
 #endif  /* __XFS_CRED_H__ */

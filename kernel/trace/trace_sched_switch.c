@@ -16,7 +16,8 @@
 
 static struct trace_array	*ctx_trace;
 static int __read_mostly	tracer_enabled;
-static atomic_t			sched_ref;
+static int			sched_ref;
+static DEFINE_MUTEX(sched_register_mutex);
 
 static void
 probe_sched_switch(struct rq *__rq, struct task_struct *prev,
@@ -27,7 +28,7 @@ probe_sched_switch(struct rq *__rq, struct task_struct *prev,
 	int cpu;
 	int pc;
 
-	if (!atomic_read(&sched_ref))
+	if (!sched_ref)
 		return;
 
 	tracing_record_cmdline(prev);
@@ -48,7 +49,7 @@ probe_sched_switch(struct rq *__rq, struct task_struct *prev,
 }
 
 static void
-probe_sched_wakeup(struct rq *__rq, struct task_struct *wakee)
+probe_sched_wakeup(struct rq *__rq, struct task_struct *wakee, int success)
 {
 	struct trace_array_cpu *data;
 	unsigned long flags;
@@ -69,16 +70,6 @@ probe_sched_wakeup(struct rq *__rq, struct task_struct *wakee)
 					   flags, pc);
 
 	local_irq_restore(flags);
-}
-
-static void sched_switch_reset(struct trace_array *tr)
-{
-	int cpu;
-
-	tr->time_start = ftrace_now(tr->cpu);
-
-	for_each_online_cpu(cpu)
-		tracing_reset(tr, cpu);
 }
 
 static int tracing_sched_register(void)
@@ -123,20 +114,18 @@ static void tracing_sched_unregister(void)
 
 static void tracing_start_sched_switch(void)
 {
-	long ref;
-
-	ref = atomic_inc_return(&sched_ref);
-	if (ref == 1)
+	mutex_lock(&sched_register_mutex);
+	if (!(sched_ref++))
 		tracing_sched_register();
+	mutex_unlock(&sched_register_mutex);
 }
 
 static void tracing_stop_sched_switch(void)
 {
-	long ref;
-
-	ref = atomic_dec_and_test(&sched_ref);
-	if (ref)
+	mutex_lock(&sched_register_mutex);
+	if (!(--sched_ref))
 		tracing_sched_unregister();
+	mutex_unlock(&sched_register_mutex);
 }
 
 void tracing_start_cmdline_record(void)
@@ -149,40 +138,86 @@ void tracing_stop_cmdline_record(void)
 	tracing_stop_sched_switch();
 }
 
+/**
+ * tracing_start_sched_switch_record - start tracing context switches
+ *
+ * Turns on context switch tracing for a tracer.
+ */
+void tracing_start_sched_switch_record(void)
+{
+	if (unlikely(!ctx_trace)) {
+		WARN_ON(1);
+		return;
+	}
+
+	tracing_start_sched_switch();
+
+	mutex_lock(&sched_register_mutex);
+	tracer_enabled++;
+	mutex_unlock(&sched_register_mutex);
+}
+
+/**
+ * tracing_stop_sched_switch_record - start tracing context switches
+ *
+ * Turns off context switch tracing for a tracer.
+ */
+void tracing_stop_sched_switch_record(void)
+{
+	mutex_lock(&sched_register_mutex);
+	tracer_enabled--;
+	WARN_ON(tracer_enabled < 0);
+	mutex_unlock(&sched_register_mutex);
+
+	tracing_stop_sched_switch();
+}
+
+/**
+ * tracing_sched_switch_assign_trace - assign a trace array for ctx switch
+ * @tr: trace array pointer to assign
+ *
+ * Some tracers might want to record the context switches in their
+ * trace. This function lets those tracers assign the trace array
+ * to use.
+ */
+void tracing_sched_switch_assign_trace(struct trace_array *tr)
+{
+	ctx_trace = tr;
+}
+
 static void start_sched_trace(struct trace_array *tr)
 {
-	sched_switch_reset(tr);
-	tracing_start_cmdline_record();
-	tracer_enabled = 1;
+	tracing_reset_online_cpus(tr);
+	tracing_start_sched_switch_record();
 }
 
 static void stop_sched_trace(struct trace_array *tr)
 {
-	tracer_enabled = 0;
-	tracing_stop_cmdline_record();
+	tracing_stop_sched_switch_record();
 }
 
-static void sched_switch_trace_init(struct trace_array *tr)
+static int sched_switch_trace_init(struct trace_array *tr)
 {
 	ctx_trace = tr;
-
-	if (tr->ctrl)
-		start_sched_trace(tr);
+	start_sched_trace(tr);
+	return 0;
 }
 
 static void sched_switch_trace_reset(struct trace_array *tr)
 {
-	if (tr->ctrl)
+	if (sched_ref)
 		stop_sched_trace(tr);
 }
 
-static void sched_switch_trace_ctrl_update(struct trace_array *tr)
+static void sched_switch_trace_start(struct trace_array *tr)
 {
-	/* When starting a new trace, reset the buffers */
-	if (tr->ctrl)
-		start_sched_trace(tr);
-	else
-		stop_sched_trace(tr);
+	tracing_reset_online_cpus(tr);
+	tracing_start_sched_switch();
+}
+
+static void sched_switch_trace_stop(struct trace_array *tr)
+{
+	tracing_stop_sched_switch();
 }
 
 static struct tracer sched_switch_trace __read_mostly =
@@ -190,7 +225,8 @@ static struct tracer sched_switch_trace __read_mostly =
 	.name		= "sched_switch",
 	.init		= sched_switch_trace_init,
 	.reset		= sched_switch_trace_reset,
-	.ctrl_update	= sched_switch_trace_ctrl_update,
+	.start		= sched_switch_trace_start,
+	.stop		= sched_switch_trace_stop,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_sched_switch,
 #endif
@@ -198,14 +234,7 @@ static struct tracer sched_switch_trace __read_mostly =
 
 __init static int init_sched_switch_trace(void)
 {
-	int ret = 0;
-
-	if (atomic_read(&sched_ref))
-		ret = tracing_sched_register();
-	if (ret) {
-		pr_info("error registering scheduler trace\n");
-		return ret;
-	}
 	return register_tracer(&sched_switch_trace);
 }
 device_initcall(init_sched_switch_trace);
+

@@ -42,7 +42,7 @@ ath9k_regd_sort(void *a, u32 n, u32 size, ath_hal_cmp_t *cmp)
 			u8 *u = t - size;
 			if (cmp(u, t) <= 0)
 				break;
-			swap(u, t, size);
+			swap_array(u, t, size);
 		}
 }
 
@@ -78,8 +78,7 @@ static bool ath9k_regd_is_eeprom_valid(struct ath_hal *ah)
 				return true;
 	}
 	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-		 "%s: invalid regulatory domain/country code 0x%x\n",
-		 __func__, rd);
+		 "invalid regulatory domain/country code 0x%x\n", rd);
 	return false;
 }
 
@@ -107,13 +106,12 @@ static bool ath9k_regd_is_ccode_valid(struct ath_hal *ah,
 		return true;
 
 	rd = ath9k_regd_get_eepromRD(ah);
-	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY, "%s: EEPROM regdomain 0x%x\n",
-		 __func__, rd);
+	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY, "EEPROM regdomain 0x%x\n", rd);
 
 	if (rd & COUNTRY_ERD_FLAG) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"%s: EEPROM setting is country code %u\n",
-			__func__, rd & ~COUNTRY_ERD_FLAG);
+			"EEPROM setting is country code %u\n",
+			rd & ~COUNTRY_ERD_FLAG);
 		return cc == (rd & ~COUNTRY_ERD_FLAG);
 	}
 
@@ -290,8 +288,7 @@ ath9k_regd_get_wmode_regdomain(struct ath_hal *ah, int regDmn,
 		}
 		if (!found) {
 			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-				"%s: Failed to find reg domain pair %u\n",
-				__func__, regDmn);
+				"Failed to find reg domain pair %u\n", regDmn);
 			return false;
 		}
 		if (!(channelFlag & CHANNEL_2GHZ)) {
@@ -307,8 +304,7 @@ ath9k_regd_get_wmode_regdomain(struct ath_hal *ah, int regDmn,
 	found = ath9k_regd_is_valid_reg_domain(regDmn, rd);
 	if (!found) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"%s: Failed to find unitary reg domain %u\n",
-			__func__, regDmn);
+			"Failed to find unitary reg domain %u\n", regDmn);
 		return false;
 	} else {
 		rd->pscan &= regPair->pscanMask;
@@ -430,30 +426,27 @@ ath9k_regd_add_channel(struct ath_hal *ah,
 
 	if (!(c_lo <= c && c <= c_hi)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"%s: c %u out of range [%u..%u]\n",
-			__func__, c, c_lo, c_hi);
+			"c %u out of range [%u..%u]\n",
+			c, c_lo, c_hi);
 		return false;
 	}
 	if ((fband->channelBW == CHANNEL_HALF_BW) &&
 	    !(ah->ah_caps.hw_caps & ATH9K_HW_CAP_CHAN_HALFRATE)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"%s: Skipping %u half rate channel\n",
-			__func__, c);
+			"Skipping %u half rate channel\n", c);
 		return false;
 	}
 
 	if ((fband->channelBW == CHANNEL_QUARTER_BW) &&
 	    !(ah->ah_caps.hw_caps & ATH9K_HW_CAP_CHAN_QUARTERRATE)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"%s: Skipping %u quarter rate channel\n",
-			__func__, c);
+			"Skipping %u quarter rate channel\n", c);
 		return false;
 	}
 
 	if (((c + fband->channelSep) / 2) > (maxChan + HALF_MAXCHANBW)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"%s: c %u > maxChan %u\n",
-			__func__, c, maxChan);
+			"c %u > maxChan %u\n", c, maxChan);
 		return false;
 	}
 
@@ -463,7 +456,7 @@ ath9k_regd_add_channel(struct ath_hal *ah,
 		return false;
 	}
 
-	if ((rd->flags & NO_HOSTAP) && (ah->ah_opmode == ATH9K_M_HOSTAP)) {
+	if ((rd->flags & NO_HOSTAP) && (ah->ah_opmode == NL80211_IFTYPE_AP)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
 			"Skipping HOSTAP channel\n");
 		return false;
@@ -606,8 +599,7 @@ static bool ath9k_regd_japan_check(struct ath_hal *ah,
 	}
 
 	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-		"%s: Skipping %d freq band\n",
-		__func__, j_bandcheck[i].freqbandbit);
+		"Skipping %d freq band\n", j_bandcheck[i].freqbandbit);
 
 	return skipband;
 }
@@ -632,20 +624,19 @@ ath9k_regd_init_channels(struct ath_hal *ah,
 	unsigned long *modes_avail;
 	DECLARE_BITMAP(modes_allowed, ATH9K_MODE_MAX);
 
-	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY, "%s: cc %u %s %s\n",
-		 __func__, cc,
+	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY, "cc %u %s %s\n", cc,
 		 enableOutdoor ? "Enable outdoor" : "",
 		 enableExtendedChannels ? "Enable ecm" : "");
 
 	if (!ath9k_regd_is_ccode_valid(ah, cc)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"%s: invalid country code %d\n", __func__, cc);
+			"Invalid country code %d\n", cc);
 		return false;
 	}
 
 	if (!ath9k_regd_is_eeprom_valid(ah)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"%s: invalid EEPROM contents\n", __func__);
+			"Invalid EEPROM contents\n");
 		return false;
 	}
 
@@ -693,9 +684,9 @@ ath9k_regd_init_channels(struct ath_hal *ah,
 					    ~CHANNEL_2GHZ,
 					    &rd5GHz)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"%s: couldn't find unitary "
+			"Couldn't find unitary "
 			"5GHz reg domain for country %u\n",
-			__func__, ah->ah_countryCode);
+			ah->ah_countryCode);
 		return false;
 	}
 	if (!ath9k_regd_get_wmode_regdomain(ah,
@@ -703,9 +694,9 @@ ath9k_regd_init_channels(struct ath_hal *ah,
 					    CHANNEL_2GHZ,
 					    &rd2GHz)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"%s: couldn't find unitary 2GHz "
+			"Couldn't find unitary 2GHz "
 			"reg domain for country %u\n",
-			__func__, ah->ah_countryCode);
+			ah->ah_countryCode);
 		return false;
 	}
 
@@ -717,9 +708,9 @@ ath9k_regd_init_channels(struct ath_hal *ah,
 							    ~CHANNEL_2GHZ,
 							    &rd5GHz)) {
 				DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-					"%s: couldn't find unitary 5GHz "
+					"Couldn't find unitary 5GHz "
 					"reg domain for country %u\n",
-					__func__, ah->ah_countryCode);
+					ah->ah_countryCode);
 				return false;
 			}
 		}
@@ -749,15 +740,14 @@ ath9k_regd_init_channels(struct ath_hal *ah,
 
 		if (!test_bit(cm->mode, modes_avail)) {
 			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-				"%s: !avail mode %d flags 0x%x\n",
-				__func__, cm->mode, cm->flags);
+				"!avail mode %d flags 0x%x\n",
+				cm->mode, cm->flags);
 			continue;
 		}
 		if (!ath9k_get_channel_edges(ah, cm->flags, &c_lo, &c_hi)) {
 			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-				"%s: channels 0x%x not supported "
-				"by hardware\n",
-				__func__, cm->flags);
+				"channels 0x%x not supported "
+				"by hardware\n", cm->flags);
 			continue;
 		}
 
@@ -788,8 +778,7 @@ ath9k_regd_init_channels(struct ath_hal *ah,
 			break;
 		default:
 			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-				"%s: Unknown HAL mode 0x%x\n", __func__,
-				cm->mode);
+				"Unknown HAL mode 0x%x\n", cm->mode);
 			continue;
 		}
 
@@ -841,9 +830,8 @@ ath9k_regd_init_channels(struct ath_hal *ah,
 					if (next >= maxchans) {
 						DPRINTF(ah->ah_sc,
 							ATH_DBG_REGULATORY,
-							"%s: too many channels "
-							"for channel table\n",
-							__func__);
+							"too many channels "
+							"for channel table\n");
 						goto done;
 					}
 					if (ath9k_regd_add_channel(ah,
@@ -869,9 +857,8 @@ done:
 
 		if (next > ARRAY_SIZE(ah->ah_channels)) {
 			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-				"%s: too many channels %u; truncating to %u\n",
-				__func__, next,
-				(int) ARRAY_SIZE(ah->ah_channels));
+				"too many channels %u; truncating to %u\n",
+				next, (int) ARRAY_SIZE(ah->ah_channels));
 			next = ARRAY_SIZE(ah->ah_channels);
 		}
 #ifdef ATH_NF_PER_CHAN
@@ -919,7 +906,7 @@ ath9k_regd_check_channel(struct ath_hal *ah,
 	int n, lim;
 
 	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-		"%s: channel %u/0x%x (0x%x) requested\n", __func__,
+		"channel %u/0x%x (0x%x) requested\n",
 		c->channel, c->channelFlags, flags);
 
 	cc = ah->ah_curchan;
@@ -950,15 +937,15 @@ ath9k_regd_check_channel(struct ath_hal *ah,
 			d = flags - (cc->channelFlags & CHAN_FLAGS);
 		}
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"%s: channel %u/0x%x d %d\n", __func__,
+			"channel %u/0x%x d %d\n",
 			cc->channel, cc->channelFlags, d);
 		if (d > 0) {
 			base = cc + 1;
 			lim--;
 		}
 	}
-	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY, "%s: no match for %u/0x%x\n",
-		__func__, c->channel, c->channelFlags);
+	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY, "no match for %u/0x%x\n",
+		c->channel, c->channelFlags);
 	return NULL;
 }
 

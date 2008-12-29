@@ -115,14 +115,14 @@ static void nlm_display_address(const struct sockaddr *sap,
 		snprintf(buf, len, "unspecified");
 		break;
 	case AF_INET:
-		snprintf(buf, len, NIPQUAD_FMT, NIPQUAD(sin->sin_addr.s_addr));
+		snprintf(buf, len, "%pI4", &sin->sin_addr.s_addr);
 		break;
 	case AF_INET6:
 		if (ipv6_addr_v4mapped(&sin6->sin6_addr))
-			snprintf(buf, len, NIPQUAD_FMT,
-				 NIPQUAD(sin6->sin6_addr.s6_addr32[3]));
+			snprintf(buf, len, "%pI4",
+				 &sin6->sin6_addr.s6_addr32[3]);
 		else
-			snprintf(buf, len, NIP6_FMT, NIP6(sin6->sin6_addr));
+			snprintf(buf, len, "%pI6", &sin6->sin6_addr);
 		break;
 	default:
 		snprintf(buf, len, "unsupported address family");

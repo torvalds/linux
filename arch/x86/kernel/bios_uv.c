@@ -69,10 +69,10 @@ s64 uv_bios_call_reentrant(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
 
 long sn_partition_id;
 EXPORT_SYMBOL_GPL(sn_partition_id);
-long uv_coherency_id;
-EXPORT_SYMBOL_GPL(uv_coherency_id);
-long uv_region_size;
-EXPORT_SYMBOL_GPL(uv_region_size);
+long sn_coherency_id;
+EXPORT_SYMBOL_GPL(sn_coherency_id);
+long sn_region_size;
+EXPORT_SYMBOL_GPL(sn_region_size);
 int uv_type;
 
 
@@ -100,6 +100,56 @@ s64 uv_bios_get_sn_info(int fc, int *uvtype, long *partid, long *coher,
 	return ret;
 }
 
+int
+uv_bios_mq_watchlist_alloc(int blade, unsigned long addr, unsigned int mq_size,
+			   unsigned long *intr_mmr_offset)
+{
+	union uv_watchlist_u size_blade;
+	u64 watchlist;
+	s64 ret;
+
+	size_blade.size = mq_size;
+	size_blade.blade = blade;
+
+	/*
+	 * bios returns watchlist number or negative error number.
+	 */
+	ret = (int)uv_bios_call_irqsave(UV_BIOS_WATCHLIST_ALLOC, addr,
+			size_blade.val, (u64)intr_mmr_offset,
+			(u64)&watchlist, 0);
+	if (ret < BIOS_STATUS_SUCCESS)
+		return ret;
+
+	return watchlist;
+}
+EXPORT_SYMBOL_GPL(uv_bios_mq_watchlist_alloc);
+
+int
+uv_bios_mq_watchlist_free(int blade, int watchlist_num)
+{
+	return (int)uv_bios_call_irqsave(UV_BIOS_WATCHLIST_FREE,
+				blade, watchlist_num, 0, 0, 0);
+}
+EXPORT_SYMBOL_GPL(uv_bios_mq_watchlist_free);
+
+s64
+uv_bios_change_memprotect(u64 paddr, u64 len, enum uv_memprotect perms)
+{
+	return uv_bios_call_irqsave(UV_BIOS_MEMPROTECT, paddr, len,
+					perms, 0, 0);
+}
+EXPORT_SYMBOL_GPL(uv_bios_change_memprotect);
+
+s64
+uv_bios_reserved_page_pa(u64 buf, u64 *cookie, u64 *addr, u64 *len)
+{
+	s64 ret;
+
+	ret = uv_bios_call_irqsave(UV_BIOS_GET_PARTITION_ADDR, (u64)cookie,
+					(u64)addr, buf, (u64)len, 0);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(uv_bios_reserved_page_pa);
 
 s64 uv_bios_freq_base(u64 clock_type, u64 *ticks_per_second)
 {

@@ -588,6 +588,13 @@ config KALLSYMS_ALL
 
 	   Say N.
 
+config KALLSYMS_STRIP_GENERATED
+	bool "Strip machine generated symbols from kallsyms"
+	depends on KALLSYMS_ALL
+	default y
+	help
+	  Say N if you want kallsyms to retain even machine generated symbols.
+
 config KALLSYMS_EXTRA_PASS
 	bool "Do an extra kallsyms pass"
 	depends on KALLSYMS
@@ -808,6 +815,7 @@ config TRACEPOINTS
 
 config MARKERS
 	bool "Activate markers"
+	depends on TRACEPOINTS
 	help
 	  Place an empty function call at each marker site. Can be
 	  dynamically changed for a probe function.

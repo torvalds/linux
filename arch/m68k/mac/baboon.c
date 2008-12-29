@@ -18,11 +18,14 @@
 #include <asm/macints.h>
 #include <asm/mac_baboon.h>
 
-/* #define DEBUG_BABOON */
 /* #define DEBUG_IRQS */
+
+extern void mac_enable_irq(unsigned int);
+extern void mac_disable_irq(unsigned int);
 
 int baboon_present;
 static volatile struct baboon *baboon;
+static unsigned char baboon_disabled;
 
 #if 0
 extern int macide_ack_intr(struct ata_channel *);
@@ -88,34 +91,51 @@ static irqreturn_t baboon_irq(int irq, void *dev_id)
 
 void __init baboon_register_interrupts(void)
 {
-	request_irq(IRQ_NUBUS_C, baboon_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
-		    "baboon", (void *) baboon);
+	baboon_disabled = 0;
+	request_irq(IRQ_NUBUS_C, baboon_irq, 0, "baboon", (void *)baboon);
 }
 
-void baboon_irq_enable(int irq) {
+/*
+ * The means for masking individual baboon interrupts remains a mystery, so
+ * enable the umbrella interrupt only when no baboon interrupt is disabled.
+ */
+
+void baboon_irq_enable(int irq)
+{
+	int irq_idx = IRQ_IDX(irq);
+
 #ifdef DEBUG_IRQUSE
 	printk("baboon_irq_enable(%d)\n", irq);
 #endif
-	/* FIXME: figure out how to mask and unmask baboon interrupt sources */
-	enable_irq(IRQ_NUBUS_C);
+
+	baboon_disabled &= ~(1 << irq_idx);
+	if (!baboon_disabled)
+		mac_enable_irq(IRQ_NUBUS_C);
 }
 
-void baboon_irq_disable(int irq) {
+void baboon_irq_disable(int irq)
+{
+	int irq_idx = IRQ_IDX(irq);
+
 #ifdef DEBUG_IRQUSE
 	printk("baboon_irq_disable(%d)\n", irq);
 #endif
-	disable_irq(IRQ_NUBUS_C);
+
+	baboon_disabled |= 1 << irq_idx;
+	if (baboon_disabled)
+		mac_disable_irq(IRQ_NUBUS_C);
 }
 
-void baboon_irq_clear(int irq) {
-	int irq_idx	= IRQ_IDX(irq);
+void baboon_irq_clear(int irq)
+{
+	int irq_idx = IRQ_IDX(irq);
 
 	baboon->mb_ifr &= ~(1 << irq_idx);
 }
 
 int baboon_irq_pending(int irq)
 {
-	int irq_idx	= IRQ_IDX(irq);
+	int irq_idx = IRQ_IDX(irq);
 
 	return baboon->mb_ifr & (1 << irq_idx);
 }

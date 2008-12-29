@@ -8,6 +8,9 @@
  *  Author(s):	Jennifer Hunt <jenhunt@us.ibm.com>
  */
 
+#define KMSG_COMPONENT "af_iucv"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/list.h>
@@ -616,6 +619,8 @@ static int iucv_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct iucv_sock *iucv = iucv_sk(sk);
 	struct sk_buff *skb;
 	struct iucv_message txmsg;
+	char user_id[9];
+	char appl_id[9];
 	int err;
 
 	err = sock_error(sk);
@@ -651,8 +656,15 @@ static int iucv_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		err = iucv_message_send(iucv->path, &txmsg, 0, 0,
 					(void *) skb->data, skb->len);
 		if (err) {
-			if (err == 3)
-				printk(KERN_ERR "AF_IUCV msg limit exceeded\n");
+			if (err == 3) {
+				user_id[8] = 0;
+				memcpy(user_id, iucv->dst_user_id, 8);
+				appl_id[8] = 0;
+				memcpy(appl_id, iucv->dst_name, 8);
+				pr_err("Application %s on z/VM guest %s"
+				       " exceeds message limit\n",
+				       user_id, appl_id);
+			}
 			skb_unlink(skb, &iucv->send_skb_q);
 			err = -EPIPE;
 			goto fail;
@@ -1190,7 +1202,8 @@ static int __init afiucv_init(void)
 	int err;
 
 	if (!MACHINE_IS_VM) {
-		printk(KERN_ERR "AF_IUCV connection needs VM as base\n");
+		pr_err("The af_iucv module cannot be loaded"
+		       " without z/VM\n");
 		err = -EPROTONOSUPPORT;
 		goto out;
 	}

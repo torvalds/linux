@@ -58,6 +58,7 @@ static void queue_process(struct work_struct *work)
 
 	while ((skb = skb_dequeue(&npinfo->txq))) {
 		struct net_device *dev = skb->dev;
+		const struct net_device_ops *ops = dev->netdev_ops;
 		struct netdev_queue *txq;
 
 		if (!netif_device_present(dev) || !netif_running(dev)) {
@@ -71,7 +72,7 @@ static void queue_process(struct work_struct *work)
 		__netif_tx_lock(txq, smp_processor_id());
 		if (netif_tx_queue_stopped(txq) ||
 		    netif_tx_queue_frozen(txq) ||
-		    dev->hard_start_xmit(skb, dev) != NETDEV_TX_OK) {
+		    ops->ndo_start_xmit(skb, dev) != NETDEV_TX_OK) {
 			skb_queue_head(&npinfo->txq, skb);
 			__netif_tx_unlock(txq);
 			local_irq_restore(flags);
@@ -174,12 +175,13 @@ static void service_arp_queue(struct netpoll_info *npi)
 void netpoll_poll(struct netpoll *np)
 {
 	struct net_device *dev = np->dev;
+	const struct net_device_ops *ops = dev->netdev_ops;
 
-	if (!dev || !netif_running(dev) || !dev->poll_controller)
+	if (!dev || !netif_running(dev) || !ops->ndo_poll_controller)
 		return;
 
 	/* Process pending work on NIC */
-	dev->poll_controller(dev);
+	ops->ndo_poll_controller(dev);
 
 	poll_napi(dev);
 
@@ -274,6 +276,7 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	int status = NETDEV_TX_BUSY;
 	unsigned long tries;
 	struct net_device *dev = np->dev;
+	const struct net_device_ops *ops = dev->netdev_ops;
 	struct netpoll_info *npinfo = np->dev->npinfo;
 
 	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {
@@ -294,7 +297,7 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		     tries > 0; --tries) {
 			if (__netif_tx_trylock(txq)) {
 				if (!netif_tx_queue_stopped(txq))
-					status = dev->hard_start_xmit(skb, dev);
+					status = ops->ndo_start_xmit(skb, dev);
 				__netif_tx_unlock(txq);
 
 				if (status == NETDEV_TX_OK)
@@ -345,7 +348,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	udph->check = csum_tcpudp_magic(htonl(np->local_ip),
 					htonl(np->remote_ip),
 					udp_len, IPPROTO_UDP,
-					csum_partial((unsigned char *)udph, udp_len, 0));
+					csum_partial(udph, udp_len, 0));
 	if (udph->check == 0)
 		udph->check = CSUM_MANGLED_0;
 
@@ -555,7 +558,6 @@ out:
 
 void netpoll_print_options(struct netpoll *np)
 {
-	DECLARE_MAC_BUF(mac);
 	printk(KERN_INFO "%s: local port %d\n",
 			 np->name, np->local_port);
 	printk(KERN_INFO "%s: local IP %d.%d.%d.%d\n",
@@ -566,8 +568,8 @@ void netpoll_print_options(struct netpoll *np)
 			 np->name, np->remote_port);
 	printk(KERN_INFO "%s: remote IP %d.%d.%d.%d\n",
 			 np->name, HIPQUAD(np->remote_ip));
-	printk(KERN_INFO "%s: remote ethernet address %s\n",
-	                 np->name, print_mac(mac, np->remote_mac));
+	printk(KERN_INFO "%s: remote ethernet address %pM\n",
+	                 np->name, np->remote_mac);
 }
 
 int netpoll_parse_options(struct netpoll *np, char *opt)
@@ -697,7 +699,7 @@ int netpoll_setup(struct netpoll *np)
 		atomic_inc(&npinfo->refcnt);
 	}
 
-	if (!ndev->poll_controller) {
+	if (!ndev->netdev_ops->ndo_poll_controller) {
 		printk(KERN_ERR "%s: %s doesn't support polling, aborting.\n",
 		       np->name, np->dev_name);
 		err = -ENOTSUPP;

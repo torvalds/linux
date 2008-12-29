@@ -61,9 +61,16 @@ struct ip_vs_sh_bucket {
 /*
  *	Returns hash value for IPVS SH entry
  */
-static inline unsigned ip_vs_sh_hashkey(__be32 addr)
+static inline unsigned ip_vs_sh_hashkey(int af, const union nf_inet_addr *addr)
 {
-	return (ntohl(addr)*2654435761UL) & IP_VS_SH_TAB_MASK;
+	__be32 addr_fold = addr->ip;
+
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6)
+		addr_fold = addr->ip6[0]^addr->ip6[1]^
+			    addr->ip6[2]^addr->ip6[3];
+#endif
+	return (ntohl(addr_fold)*2654435761UL) & IP_VS_SH_TAB_MASK;
 }
 
 
@@ -71,9 +78,10 @@ static inline unsigned ip_vs_sh_hashkey(__be32 addr)
  *      Get ip_vs_dest associated with supplied parameters.
  */
 static inline struct ip_vs_dest *
-ip_vs_sh_get(struct ip_vs_sh_bucket *tbl, __be32 addr)
+ip_vs_sh_get(int af, struct ip_vs_sh_bucket *tbl,
+	     const union nf_inet_addr *addr)
 {
-	return (tbl[ip_vs_sh_hashkey(addr)]).dest;
+	return (tbl[ip_vs_sh_hashkey(af, addr)]).dest;
 }
 
 
@@ -199,12 +207,14 @@ ip_vs_sh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 {
 	struct ip_vs_dest *dest;
 	struct ip_vs_sh_bucket *tbl;
-	struct iphdr *iph = ip_hdr(skb);
+	struct ip_vs_iphdr iph;
+
+	ip_vs_fill_iphdr(svc->af, skb_network_header(skb), &iph);
 
 	IP_VS_DBG(6, "ip_vs_sh_schedule(): Scheduling...\n");
 
 	tbl = (struct ip_vs_sh_bucket *)svc->sched_data;
-	dest = ip_vs_sh_get(tbl, iph->saddr);
+	dest = ip_vs_sh_get(svc->af, tbl, &iph.saddr);
 	if (!dest
 	    || !(dest->flags & IP_VS_DEST_F_AVAILABLE)
 	    || atomic_read(&dest->weight) <= 0
@@ -212,11 +222,10 @@ ip_vs_sh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		return NULL;
 	}
 
-	IP_VS_DBG(6, "SH: source IP address %u.%u.%u.%u "
-		  "--> server %u.%u.%u.%u:%d\n",
-		  NIPQUAD(iph->saddr),
-		  NIPQUAD(dest->addr.ip),
-		  ntohs(dest->port));
+	IP_VS_DBG_BUF(6, "SH: source IP address %s --> server %s:%d\n",
+		      IP_VS_DBG_ADDR(svc->af, &iph.saddr),
+		      IP_VS_DBG_ADDR(svc->af, &dest->addr),
+		      ntohs(dest->port));
 
 	return dest;
 }
@@ -231,9 +240,6 @@ static struct ip_vs_scheduler ip_vs_sh_scheduler =
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
 	.n_list	 =		LIST_HEAD_INIT(ip_vs_sh_scheduler.n_list),
-#ifdef CONFIG_IP_VS_IPV6
-	.supports_ipv6 =	0,
-#endif
 	.init_service =		ip_vs_sh_init_svc,
 	.done_service =		ip_vs_sh_done_svc,
 	.update_service =	ip_vs_sh_update_svc,

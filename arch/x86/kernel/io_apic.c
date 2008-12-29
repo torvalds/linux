@@ -2216,10 +2216,9 @@ static void set_ir_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
 asmlinkage void smp_irq_move_cleanup_interrupt(void)
 {
 	unsigned vector, me;
+
 	ack_APIC_irq();
-#ifdef CONFIG_X86_64
 	exit_idle();
-#endif
 	irq_enter();
 
 	me = smp_processor_id();

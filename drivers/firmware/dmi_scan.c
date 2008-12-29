@@ -467,6 +467,17 @@ const char *dmi_get_system_info(int field)
 }
 EXPORT_SYMBOL(dmi_get_system_info);
 
+/**
+ *	dmi_name_in_serial - 	Check if string is in the DMI product serial
+ *				information.
+ */
+int dmi_name_in_serial(const char *str)
+{
+	int f = DMI_PRODUCT_SERIAL;
+	if (dmi_ident[f] && strstr(dmi_ident[f], str))
+		return 1;
+	return 0;
+}
 
 /**
  *	dmi_name_in_vendors - Check if string is anywhere in the DMI vendor information.

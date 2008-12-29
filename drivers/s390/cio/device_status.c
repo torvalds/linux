@@ -56,7 +56,8 @@ ccw_device_path_notoper(struct ccw_device *cdev)
 	struct subchannel *sch;
 
 	sch = to_subchannel(cdev->dev.parent);
-	stsch (sch->schid, &sch->schib);
+	if (cio_update_schib(sch))
+		goto doverify;
 
 	CIO_MSG_EVENT(0, "%s(0.%x.%04x) - path(s) %02x are "
 		      "not operational \n", __func__,
@@ -64,6 +65,7 @@ ccw_device_path_notoper(struct ccw_device *cdev)
 		      sch->schib.pmcw.pnom);
 
 	sch->lpm &= ~sch->schib.pmcw.pnom;
+doverify:
 	cdev->private->flags.doverify = 1;
 }
 

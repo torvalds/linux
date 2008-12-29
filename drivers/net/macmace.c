@@ -194,7 +194,6 @@ static int __devinit mace_probe(struct platform_device *pdev)
 	unsigned char checksum = 0;
 	static int found = 0;
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	if (found || macintosh_config->ether_type != MAC_ETHER_MACE)
 		return -ENODEV;
@@ -249,8 +248,8 @@ static int __devinit mace_probe(struct platform_device *pdev)
 	dev->set_multicast_list	= mace_set_multicast;
 	dev->set_mac_address	= mace_set_address;
 
-	printk(KERN_INFO "%s: 68K MACE, hardware address %s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: 68K MACE, hardware address %pM\n",
+	       dev->name, dev->dev_addr);
 
 	err = register_netdev(dev);
 	if (!err)
@@ -674,7 +673,6 @@ static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
-		dev->last_rx = jiffies;
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += frame_length;
 	}

@@ -726,13 +726,13 @@ repoll:
 		 * set left_to_poll to 0 because in error state, we will not
 		 * get any additional CQEs
 		 */
-		my_qp->sq_map.next_wqe_idx = (my_qp->sq_map.tail + 1) %
-						my_qp->sq_map.entries;
+		my_qp->sq_map.next_wqe_idx = next_index(my_qp->sq_map.tail,
+							my_qp->sq_map.entries);
 		my_qp->sq_map.left_to_poll = 0;
 		ehca_add_to_err_list(my_qp, 1);
 
-		my_qp->rq_map.next_wqe_idx = (my_qp->rq_map.tail + 1) %
-						my_qp->rq_map.entries;
+		my_qp->rq_map.next_wqe_idx = next_index(my_qp->rq_map.tail,
+							my_qp->rq_map.entries);
 		my_qp->rq_map.left_to_poll = 0;
 		if (HAS_RQ(my_qp))
 			ehca_add_to_err_list(my_qp, 0);
@@ -860,9 +860,8 @@ static int generate_flush_cqes(struct ehca_qp *my_qp, struct ib_cq *cq,
 
 		/* mark as reported and advance next_wqe pointer */
 		qmap_entry->reported = 1;
-		qmap->next_wqe_idx++;
-		if (qmap->next_wqe_idx == qmap->entries)
-			qmap->next_wqe_idx = 0;
+		qmap->next_wqe_idx = next_index(qmap->next_wqe_idx,
+						qmap->entries);
 		qmap_entry = &qmap->map[qmap->next_wqe_idx];
 
 		wc++; nr++;

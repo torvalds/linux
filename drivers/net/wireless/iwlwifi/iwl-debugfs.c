@@ -22,7 +22,7 @@
  * in the file called LICENSE.GPL.
  *
  * Contact Information:
- * Tomas Winkler <tomas.winkler@intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 
@@ -58,7 +58,8 @@
 #define DEBUGFS_ADD_BOOL(name, parent, ptr) do {                        \
 	dbgfs->dbgfs_##parent##_files.file_##name =                     \
 	debugfs_create_bool(#name, 0644, dbgfs->dir_##parent, ptr);     \
-	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name))          \
+	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name)		\
+			|| !dbgfs->dbgfs_##parent##_files.file_##name)	\
 		goto err;                                               \
 } while (0)
 
@@ -228,7 +229,6 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	ssize_t ret;
 	/* Add 30 for initial string */
 	const size_t bufsz = 30 + sizeof(char) * 500 * (priv->num_stations);
-	DECLARE_MAC_BUF(mac);
 
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
@@ -242,7 +242,6 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 		if (station->used) {
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"station %d:\ngeneral data:\n", i+1);
-			print_mac(mac, station->sta.sta.addr);
 			pos += scnprintf(buf + pos, bufsz - pos, "id: %u\n",
 					station->sta.sta.sta_id);
 			pos += scnprintf(buf + pos, bufsz - pos, "mode: %u\n",
@@ -349,12 +348,86 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	return count;
 }
 
+
+
+static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	struct ieee80211_channel *channels = NULL;
+	const struct ieee80211_supported_band *supp_band = NULL;
+	int pos = 0, i, bufsz = PAGE_SIZE;
+	char *buf;
+	ssize_t ret;
+
+	if (!test_bit(STATUS_GEO_CONFIGURED, &priv->status))
+		return -EAGAIN;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf) {
+		IWL_ERROR("Can not allocate Buffer\n");
+		return -ENOMEM;
+	}
+
+	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_2GHZ);
+	channels = supp_band->channels;
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"Displaying %d channels in 2.4GHz band 802.11bg):\n",
+			 supp_band->n_channels);
+
+	for (i = 0; i < supp_band->n_channels; i++)
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"%d: %ddBm: BSS%s%s, %s.\n",
+				ieee80211_frequency_to_channel(
+				channels[i].center_freq),
+				channels[i].max_power,
+				channels[i].flags & IEEE80211_CHAN_RADAR ?
+				" (IEEE 802.11h required)" : "",
+				(!(channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+				|| (channels[i].flags &
+				IEEE80211_CHAN_RADAR)) ? "" :
+				", IBSS",
+				channels[i].flags &
+				IEEE80211_CHAN_PASSIVE_SCAN ?
+				"passive only" : "active/passive");
+
+	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_5GHZ);
+	channels = supp_band->channels;
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"Displaying %d channels in 5.2GHz band (802.11a)\n",
+			supp_band->n_channels);
+
+	for (i = 0; i < supp_band->n_channels; i++)
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"%d: %ddBm: BSS%s%s, %s.\n",
+				ieee80211_frequency_to_channel(
+				channels[i].center_freq),
+				channels[i].max_power,
+				channels[i].flags & IEEE80211_CHAN_RADAR ?
+				" (IEEE 802.11h required)" : "",
+				((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+				|| (channels[i].flags &
+				IEEE80211_CHAN_RADAR)) ? "" :
+				", IBSS",
+				channels[i].flags &
+				IEEE80211_CHAN_PASSIVE_SCAN ?
+				"passive only" : "active/passive");
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(eeprom);
 DEBUGFS_READ_FILE_OPS(stations);
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
+DEBUGFS_READ_FILE_OPS(channels);
 
 /*
  * Create the debugfs files and directories
@@ -388,6 +461,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(stations, data);
 	DEBUGFS_ADD_FILE(rx_statistics, data);
 	DEBUGFS_ADD_FILE(tx_statistics, data);
+	DEBUGFS_ADD_FILE(channels, data);
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
 			 &priv->disable_chain_noise_cal);
@@ -416,6 +490,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_sram);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_log_event);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_stations);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_channels);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_data);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_chain_noise);

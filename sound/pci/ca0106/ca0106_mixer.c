@@ -75,6 +75,84 @@
 
 #include "ca0106.h"
 
+static void ca0106_spdif_enable(struct snd_ca0106 *emu)
+{
+	unsigned int val;
+
+	if (emu->spdif_enable) {
+		/* Digital */
+		snd_ca0106_ptr_write(emu, SPDIF_SELECT1, 0, 0xf);
+		snd_ca0106_ptr_write(emu, SPDIF_SELECT2, 0, 0x0b000000);
+		val = snd_ca0106_ptr_read(emu, CAPTURE_CONTROL, 0) & ~0x1000;
+		snd_ca0106_ptr_write(emu, CAPTURE_CONTROL, 0, val);
+		val = inl(emu->port + GPIO) & ~0x101;
+		outl(val, emu->port + GPIO);
+
+	} else {
+		/* Analog */
+		snd_ca0106_ptr_write(emu, SPDIF_SELECT1, 0, 0xf);
+		snd_ca0106_ptr_write(emu, SPDIF_SELECT2, 0, 0x000f0000);
+		val = snd_ca0106_ptr_read(emu, CAPTURE_CONTROL, 0) | 0x1000;
+		snd_ca0106_ptr_write(emu, CAPTURE_CONTROL, 0, val);
+		val = inl(emu->port + GPIO) | 0x101;
+		outl(val, emu->port + GPIO);
+	}
+}
+
+static void ca0106_set_capture_source(struct snd_ca0106 *emu)
+{
+	unsigned int val = emu->capture_source;
+	unsigned int source, mask;
+	source = (val << 28) | (val << 24) | (val << 20) | (val << 16);
+	mask = snd_ca0106_ptr_read(emu, CAPTURE_SOURCE, 0) & 0xffff;
+	snd_ca0106_ptr_write(emu, CAPTURE_SOURCE, 0, source | mask);
+}
+
+static void ca0106_set_i2c_capture_source(struct snd_ca0106 *emu,
+					  unsigned int val, int force)
+{
+	unsigned int ngain, ogain;
+	u32 source;
+
+	snd_ca0106_i2c_write(emu, ADC_MUX, 0); /* Mute input */
+	ngain = emu->i2c_capture_volume[val][0]; /* Left */
+	ogain = emu->i2c_capture_volume[emu->i2c_capture_source][0]; /* Left */
+	if (force || ngain != ogain)
+		snd_ca0106_i2c_write(emu, ADC_ATTEN_ADCL, ngain & 0xff);
+	ngain = emu->i2c_capture_volume[val][1]; /* Right */
+	ogain = emu->i2c_capture_volume[emu->i2c_capture_source][1]; /* Right */
+	if (force || ngain != ogain)
+		snd_ca0106_i2c_write(emu, ADC_ATTEN_ADCR, ngain & 0xff);
+	source = 1 << val;
+	snd_ca0106_i2c_write(emu, ADC_MUX, source); /* Set source */
+	emu->i2c_capture_source = val;
+}
+
+static void ca0106_set_capture_mic_line_in(struct snd_ca0106 *emu)
+{
+	u32 tmp;
+
+	if (emu->capture_mic_line_in) {
+		/* snd_ca0106_i2c_write(emu, ADC_MUX, 0); */ /* Mute input */
+		tmp = inl(emu->port+GPIO) & ~0x400;
+		tmp = tmp | 0x400;
+		outl(tmp, emu->port+GPIO);
+		/* snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_MIC); */
+	} else {
+		/* snd_ca0106_i2c_write(emu, ADC_MUX, 0); */ /* Mute input */
+		tmp = inl(emu->port+GPIO) & ~0x400;
+		outl(tmp, emu->port+GPIO);
+		/* snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_LINEIN); */
+	}
+}
+
+static void ca0106_set_spdif_bits(struct snd_ca0106 *emu, int idx)
+{
+	snd_ca0106_ptr_write(emu, SPCS0 + idx, 0, emu->spdif_str_bits[idx]);
+}
+
+/*
+ */
 static const DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale1, -5175, 25, 1);
 static const DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale2, -10350, 50, 1);
 
@@ -95,30 +173,12 @@ static int snd_ca0106_shared_spdif_put(struct snd_kcontrol *kcontrol,
 	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change = 0;
-	u32 mask;
 
 	val = !!ucontrol->value.integer.value[0];
 	change = (emu->spdif_enable != val);
 	if (change) {
 		emu->spdif_enable = val;
-		if (val) {
-			/* Digital */
-			snd_ca0106_ptr_write(emu, SPDIF_SELECT1, 0, 0xf);
-			snd_ca0106_ptr_write(emu, SPDIF_SELECT2, 0, 0x0b000000);
-			snd_ca0106_ptr_write(emu, CAPTURE_CONTROL, 0,
-				snd_ca0106_ptr_read(emu, CAPTURE_CONTROL, 0) & ~0x1000);
-			mask = inl(emu->port + GPIO) & ~0x101;
-			outl(mask, emu->port + GPIO);
-
-		} else {
-			/* Analog */
-			snd_ca0106_ptr_write(emu, SPDIF_SELECT1, 0, 0xf);
-			snd_ca0106_ptr_write(emu, SPDIF_SELECT2, 0, 0x000f0000);
-			snd_ca0106_ptr_write(emu, CAPTURE_CONTROL, 0,
-				snd_ca0106_ptr_read(emu, CAPTURE_CONTROL, 0) | 0x1000);
-			mask = inl(emu->port + GPIO) | 0x101;
-			outl(mask, emu->port + GPIO);
-		}
+		ca0106_spdif_enable(emu);
 	}
         return change;
 }
@@ -154,8 +214,6 @@ static int snd_ca0106_capture_source_put(struct snd_kcontrol *kcontrol,
 	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change = 0;
-	u32 mask;
-	u32 source;
 
 	val = ucontrol->value.enumerated.item[0] ;
 	if (val >= 6)
@@ -163,9 +221,7 @@ static int snd_ca0106_capture_source_put(struct snd_kcontrol *kcontrol,
 	change = (emu->capture_source != val);
 	if (change) {
 		emu->capture_source = val;
-		source = (val << 28) | (val << 24) | (val << 20) | (val << 16);
-		mask = snd_ca0106_ptr_read(emu, CAPTURE_SOURCE, 0) & 0xffff;
-		snd_ca0106_ptr_write(emu, CAPTURE_SOURCE, 0, source | mask);
+		ca0106_set_capture_source(emu);
 	}
         return change;
 }
@@ -200,9 +256,7 @@ static int snd_ca0106_i2c_capture_source_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int source_id;
-	unsigned int ngain, ogain;
 	int change = 0;
-	u32 source;
 	/* If the capture source has changed,
 	 * update the capture volume from the cached value
 	 * for the particular source.
@@ -212,18 +266,7 @@ static int snd_ca0106_i2c_capture_source_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	change = (emu->i2c_capture_source != source_id);
 	if (change) {
-		snd_ca0106_i2c_write(emu, ADC_MUX, 0); /* Mute input */
-		ngain = emu->i2c_capture_volume[source_id][0]; /* Left */
-		ogain = emu->i2c_capture_volume[emu->i2c_capture_source][0]; /* Left */
-		if (ngain != ogain)
-			snd_ca0106_i2c_write(emu, ADC_ATTEN_ADCL, ((ngain) & 0xff));
-		ngain = emu->i2c_capture_volume[source_id][1]; /* Left */
-		ogain = emu->i2c_capture_volume[emu->i2c_capture_source][1]; /* Left */
-		if (ngain != ogain)
-			snd_ca0106_i2c_write(emu, ADC_ATTEN_ADCR, ((ngain) & 0xff));
-		source = 1 << source_id;
-		snd_ca0106_i2c_write(emu, ADC_MUX, source); /* Set source */
-		emu->i2c_capture_source = source_id;
+		ca0106_set_i2c_capture_source(emu, source_id, 0);
 	}
         return change;
 }
@@ -271,7 +314,6 @@ static int snd_ca0106_capture_mic_line_in_put(struct snd_kcontrol *kcontrol,
 	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change = 0;
-	u32 tmp;
 
 	val = ucontrol->value.enumerated.item[0] ;
 	if (val > 1)
@@ -279,18 +321,7 @@ static int snd_ca0106_capture_mic_line_in_put(struct snd_kcontrol *kcontrol,
 	change = (emu->capture_mic_line_in != val);
 	if (change) {
 		emu->capture_mic_line_in = val;
-		if (val) {
-			//snd_ca0106_i2c_write(emu, ADC_MUX, 0); /* Mute input */
-			tmp = inl(emu->port+GPIO) & ~0x400;
-			tmp = tmp | 0x400;
-			outl(tmp, emu->port+GPIO);
-			//snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_MIC);
-		} else {
-			//snd_ca0106_i2c_write(emu, ADC_MUX, 0); /* Mute input */
-			tmp = inl(emu->port+GPIO) & ~0x400;
-			outl(tmp, emu->port+GPIO);
-			//snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_LINEIN);
-		}
+		ca0106_set_capture_mic_line_in(emu);
 	}
         return change;
 }
@@ -322,16 +353,33 @@ static int snd_ca0106_spdif_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int snd_ca0106_spdif_get(struct snd_kcontrol *kcontrol,
+static void decode_spdif_bits(unsigned char *status, unsigned int bits)
+{
+	status[0] = (bits >> 0) & 0xff;
+	status[1] = (bits >> 8) & 0xff;
+	status[2] = (bits >> 16) & 0xff;
+	status[3] = (bits >> 24) & 0xff;
+}
+
+static int snd_ca0106_spdif_get_default(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 
-	ucontrol->value.iec958.status[0] = (emu->spdif_bits[idx] >> 0) & 0xff;
-	ucontrol->value.iec958.status[1] = (emu->spdif_bits[idx] >> 8) & 0xff;
-	ucontrol->value.iec958.status[2] = (emu->spdif_bits[idx] >> 16) & 0xff;
-	ucontrol->value.iec958.status[3] = (emu->spdif_bits[idx] >> 24) & 0xff;
+	decode_spdif_bits(ucontrol->value.iec958.status,
+			  emu->spdif_bits[idx]);
+        return 0;
+}
+
+static int snd_ca0106_spdif_get_stream(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+
+	decode_spdif_bits(ucontrol->value.iec958.status,
+			  emu->spdif_str_bits[idx]);
         return 0;
 }
 
@@ -345,24 +393,48 @@ static int snd_ca0106_spdif_get_mask(struct snd_kcontrol *kcontrol,
         return 0;
 }
 
-static int snd_ca0106_spdif_put(struct snd_kcontrol *kcontrol,
+static unsigned int encode_spdif_bits(unsigned char *status)
+{
+	return ((unsigned int)status[0] << 0) |
+		((unsigned int)status[1] << 8) |
+		((unsigned int)status[2] << 16) |
+		((unsigned int)status[3] << 24);
+}
+
+static int snd_ca0106_spdif_put_default(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	int change;
 	unsigned int val;
 
-	val = (ucontrol->value.iec958.status[0] << 0) |
-	      (ucontrol->value.iec958.status[1] << 8) |
-	      (ucontrol->value.iec958.status[2] << 16) |
-	      (ucontrol->value.iec958.status[3] << 24);
-	change = val != emu->spdif_bits[idx];
-	if (change) {
-		snd_ca0106_ptr_write(emu, SPCS0 + idx, 0, val);
+	val = encode_spdif_bits(ucontrol->value.iec958.status);
+	if (val != emu->spdif_bits[idx]) {
 		emu->spdif_bits[idx] = val;
+		/* FIXME: this isn't safe, but needed to keep the compatibility
+		 * with older alsa-lib config
+		 */
+		emu->spdif_str_bits[idx] = val;
+		ca0106_set_spdif_bits(emu, idx);
+		return 1;
 	}
-        return change;
+	return 0;
+}
+
+static int snd_ca0106_spdif_put_stream(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	unsigned int val;
+
+	val = encode_spdif_bits(ucontrol->value.iec958.status);
+	if (val != emu->spdif_str_bits[idx]) {
+		emu->spdif_str_bits[idx] = val;
+		ca0106_set_spdif_bits(emu, idx);
+		return 1;
+	}
+        return 0;
 }
 
 static int snd_ca0106_volume_info(struct snd_kcontrol *kcontrol,
@@ -573,8 +645,16 @@ static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
 		.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 		.count =	4,
 		.info =         snd_ca0106_spdif_info,
-		.get =          snd_ca0106_spdif_get,
-		.put =          snd_ca0106_spdif_put
+		.get =          snd_ca0106_spdif_get_default,
+		.put =          snd_ca0106_spdif_put_default
+	},
+	{
+		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
+		.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,PCM_STREAM),
+		.count =	4,
+		.info =         snd_ca0106_spdif_info,
+		.get =          snd_ca0106_spdif_get_stream,
+		.put =          snd_ca0106_spdif_put_stream
 	},
 };
 
@@ -773,3 +853,50 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
         return 0;
 }
 
+#ifdef CONFIG_PM
+struct ca0106_vol_tbl {
+	unsigned int channel_id;
+	unsigned int reg;
+};
+
+static struct ca0106_vol_tbl saved_volumes[NUM_SAVED_VOLUMES] = {
+	{ CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME2 },
+	{ CONTROL_REAR_CHANNEL, PLAYBACK_VOLUME2 },
+	{ CONTROL_CENTER_LFE_CHANNEL, PLAYBACK_VOLUME2 },
+	{ CONTROL_UNKNOWN_CHANNEL, PLAYBACK_VOLUME2 },
+	{ CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME1 },
+	{ CONTROL_REAR_CHANNEL, PLAYBACK_VOLUME1 },
+	{ CONTROL_CENTER_LFE_CHANNEL, PLAYBACK_VOLUME1 },
+	{ CONTROL_UNKNOWN_CHANNEL, PLAYBACK_VOLUME1 },
+	{ 1, CAPTURE_CONTROL },
+};
+
+void snd_ca0106_mixer_suspend(struct snd_ca0106 *chip)
+{
+	int i;
+
+	/* save volumes */
+	for (i = 0; i < NUM_SAVED_VOLUMES; i++)
+		chip->saved_vol[i] =
+			snd_ca0106_ptr_read(chip, saved_volumes[i].reg,
+					    saved_volumes[i].channel_id);
+}
+
+void snd_ca0106_mixer_resume(struct snd_ca0106  *chip)
+{
+	int i;
+
+	for (i = 0; i < NUM_SAVED_VOLUMES; i++)
+		snd_ca0106_ptr_write(chip, saved_volumes[i].reg,
+				     saved_volumes[i].channel_id,
+				     chip->saved_vol[i]);
+
+	ca0106_spdif_enable(chip);
+	ca0106_set_capture_source(chip);
+	ca0106_set_i2c_capture_source(chip, chip->i2c_capture_source, 1);
+	for (i = 0; i < 4; i++)
+		ca0106_set_spdif_bits(chip, i);
+	if (chip->details->i2c_adc)
+		ca0106_set_capture_mic_line_in(chip);
+}
+#endif /* CONFIG_PM */
