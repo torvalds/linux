@@ -637,7 +637,6 @@ static int ov772x_start_capture(struct soc_camera_device *icd)
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
 	int                 ret;
 
-
 	if (!priv->win)
 		priv->win = &ov772x_win_vga;
 	if (!priv->fmt)
@@ -690,7 +689,7 @@ static int ov772x_start_capture(struct soc_camera_device *icd)
 			goto start_end;
 	}
 
-	dev_info(&icd->dev,
+	dev_dbg(&icd->dev,
 		 "format %s, win %s\n", priv->fmt->name, priv->win->name);
 
 start_end:
