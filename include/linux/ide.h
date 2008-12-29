@@ -909,6 +909,8 @@ typedef struct hwgroup_s {
 
 	int req_gen;
 	int req_gen_timer;
+
+	spinlock_t lock;
 } ide_hwgroup_t;
 
 typedef struct ide_driver_s ide_driver_t;
@@ -1610,13 +1612,13 @@ extern struct mutex ide_cfg_mtx;
 /*
  * Structure locking:
  *
- * ide_cfg_mtx and ide_lock together protect changes to
- * ide_hwif_t->{next,hwgroup}
+ * ide_cfg_mtx and hwgroup->lock together protect changes to
+ * ide_hwif_t->next
  * ide_drive_t->next
  *
- * ide_hwgroup_t->busy: ide_lock
- * ide_hwgroup_t->hwif: ide_lock
- * ide_hwif_t->mate: constant, no locking
+ * ide_hwgroup_t->busy: hwgroup->lock
+ * ide_hwgroup_t->hwif: hwgroup->lock
+ * ide_hwif_t->{hwgroup,mate}: constant, no locking
  * ide_drive_t->hwif: constant, no locking
  */
 

@@ -74,9 +74,6 @@ static const u8 ide_hwif_to_major[] = { IDE0_MAJOR, IDE1_MAJOR,
 
 DEFINE_MUTEX(ide_cfg_mtx);
 
-__cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
-EXPORT_SYMBOL(ide_lock);
-
 static void ide_port_init_devices_data(ide_hwif_t *);
 
 /*
@@ -333,6 +330,7 @@ static int set_pio_mode_abuse(ide_hwif_t *hwif, u8 req_pio)
 static int set_pio_mode(ide_drive_t *drive, int arg)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 
 	if (arg < 0 || arg > 255)
@@ -347,9 +345,9 @@ static int set_pio_mode(ide_drive_t *drive, int arg)
 			unsigned long flags;
 
 			/* take lock for IDE_DFLAG_[NO_]UNMASK/[NO_]IO_32BIT */
-			spin_lock_irqsave(&ide_lock, flags);
+			spin_lock_irqsave(&hwgroup->lock, flags);
 			port_ops->set_pio_mode(drive, arg);
-			spin_unlock_irqrestore(&ide_lock, flags);
+			spin_unlock_irqrestore(&hwgroup->lock, flags);
 		} else
 			port_ops->set_pio_mode(drive, arg);
 	} else {

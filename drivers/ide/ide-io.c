@@ -907,7 +907,7 @@ repeat:
 
 /*
  * Issue a new request to a drive from hwgroup
- * Caller must have already done spin_lock_irqsave(&ide_lock, ..);
+ * Caller must have already done spin_lock_irqsave(&hwgroup->lock, ..);
  *
  * A hwgroup is a serialized group of IDE interfaces.  Usually there is
  * exactly one hwif (interface) per hwgroup, but buggy controllers (eg. CMD640)
@@ -919,7 +919,7 @@ repeat:
  * possibly along with many other devices.  This is especially common in
  * PCI-based systems with off-board IDE controller cards.
  *
- * The IDE driver uses the single global ide_lock spinlock to protect
+ * The IDE driver uses a per-hwgroup spinlock to protect
  * access to the request queues, and to protect the hwgroup->busy flag.
  *
  * The first thread into the driver for a particular hwgroup sets the
@@ -935,7 +935,7 @@ repeat:
  * will start the next request from the queue.  If no more work remains,
  * the driver will clear the hwgroup->busy flag and exit.
  *
- * The ide_lock (spinlock) is used to protect all access to the
+ * The per-hwgroup spinlock is used to protect all access to the
  * hwgroup->busy flag, but is otherwise not needed for most processing in
  * the driver.  This makes the driver much more friendlier to shared IRQs
  * than previous designs, while remaining 100% (?) SMP safe and capable.
@@ -948,7 +948,7 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 	ide_startstop_t	startstop;
 	int             loops = 0;
 
-	/* caller must own ide_lock */
+	/* caller must own hwgroup->lock */
 	BUG_ON(!irqs_disabled());
 
 	while (!hwgroup->busy) {
@@ -1070,11 +1070,11 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 		 */
 		if (masked_irq != IDE_NO_IRQ && hwif->irq != masked_irq)
 			disable_irq_nosync(hwif->irq);
-		spin_unlock(&ide_lock);
+		spin_unlock(&hwgroup->lock);
 		local_irq_enable_in_hardirq();
 			/* allow other IRQs while we start this request */
 		startstop = start_request(drive, rq);
-		spin_lock_irq(&ide_lock);
+		spin_lock_irq(&hwgroup->lock);
 		if (masked_irq != IDE_NO_IRQ && hwif->irq != masked_irq)
 			enable_irq(hwif->irq);
 		if (startstop == ide_stopped)
@@ -1172,7 +1172,7 @@ void ide_timer_expiry (unsigned long data)
 	unsigned long	flags;
 	unsigned long	wait = -1;
 
-	spin_lock_irqsave(&ide_lock, flags);
+	spin_lock_irqsave(&hwgroup->lock, flags);
 
 	if (((handler = hwgroup->handler) == NULL) ||
 	    (hwgroup->req_gen != hwgroup->req_gen_timer)) {
@@ -1205,7 +1205,7 @@ void ide_timer_expiry (unsigned long data)
 					hwgroup->timer.expires  = jiffies + wait;
 					hwgroup->req_gen_timer = hwgroup->req_gen;
 					add_timer(&hwgroup->timer);
-					spin_unlock_irqrestore(&ide_lock, flags);
+					spin_unlock_irqrestore(&hwgroup->lock, flags);
 					return;
 				}
 			}
@@ -1215,7 +1215,7 @@ void ide_timer_expiry (unsigned long data)
 			 * the handler() function, which means we need to
 			 * globally mask the specific IRQ:
 			 */
-			spin_unlock(&ide_lock);
+			spin_unlock(&hwgroup->lock);
 			hwif  = HWIF(drive);
 			/* disable_irq_nosync ?? */
 			disable_irq(hwif->irq);
@@ -1239,14 +1239,14 @@ void ide_timer_expiry (unsigned long data)
 						  hwif->tp_ops->read_status(hwif));
 			}
 			drive->service_time = jiffies - drive->service_start;
-			spin_lock_irq(&ide_lock);
+			spin_lock_irq(&hwgroup->lock);
 			enable_irq(hwif->irq);
 			if (startstop == ide_stopped)
 				hwgroup->busy = 0;
 		}
 	}
 	ide_do_request(hwgroup, IDE_NO_IRQ);
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&hwgroup->lock, flags);
 }
 
 /**
@@ -1339,14 +1339,13 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 {
 	unsigned long flags;
 	ide_hwgroup_t *hwgroup = (ide_hwgroup_t *)dev_id;
-	ide_hwif_t *hwif;
+	ide_hwif_t *hwif = hwgroup->hwif;
 	ide_drive_t *drive;
 	ide_handler_t *handler;
 	ide_startstop_t startstop;
 	irqreturn_t irq_ret = IRQ_NONE;
 
-	spin_lock_irqsave(&ide_lock, flags);
-	hwif = hwgroup->hwif;
+	spin_lock_irqsave(&hwgroup->lock, flags);
 
 	if (!ide_ack_intr(hwif))
 		goto out;
@@ -1416,7 +1415,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	hwgroup->handler = NULL;
 	hwgroup->req_gen++;
 	del_timer(&hwgroup->timer);
-	spin_unlock(&ide_lock);
+	spin_unlock(&hwgroup->lock);
 
 	if (hwif->port_ops && hwif->port_ops->clear_irq)
 		hwif->port_ops->clear_irq(drive);
@@ -1427,7 +1426,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	/* service this interrupt, may set handler for next interrupt */
 	startstop = handler(drive);
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	/*
 	 * Note that handler() may have set things up for another
 	 * interrupt to occur soon, but it cannot happen until
@@ -1448,7 +1447,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 out_handled:
 	irq_ret = IRQ_HANDLED;
 out:
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&hwgroup->lock, flags);
 	return irq_ret;
 }
 

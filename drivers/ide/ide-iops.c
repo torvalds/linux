@@ -835,10 +835,12 @@ static void __ide_set_handler (ide_drive_t *drive, ide_handler_t *handler,
 void ide_set_handler (ide_drive_t *drive, ide_handler_t *handler,
 		      unsigned int timeout, ide_expiry_t *expiry)
 {
+	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
 	unsigned long flags;
-	spin_lock_irqsave(&ide_lock, flags);
+
+	spin_lock_irqsave(&hwgroup->lock, flags);
 	__ide_set_handler(drive, handler, timeout, expiry);
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&hwgroup->lock, flags);
 }
 
 EXPORT_SYMBOL(ide_set_handler);
@@ -860,10 +862,11 @@ EXPORT_SYMBOL(ide_set_handler);
 void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 			 unsigned timeout, ide_expiry_t *expiry)
 {
+	ide_hwif_t *hwif = drive->hwif;
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	unsigned long flags;
-	ide_hwif_t *hwif = HWIF(drive);
 
-	spin_lock_irqsave(&ide_lock, flags);
+	spin_lock_irqsave(&hwgroup->lock, flags);
 	__ide_set_handler(drive, handler, timeout, expiry);
 	hwif->tp_ops->exec_command(hwif, cmd);
 	/*
@@ -873,19 +876,20 @@ void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 	 * FIXME: we could skip this delay with care on non shared devices
 	 */
 	ndelay(400);
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&hwgroup->lock, flags);
 }
 EXPORT_SYMBOL(ide_execute_command);
 
 void ide_execute_pkt_cmd(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ide_lock, flags);
+	spin_lock_irqsave(&hwgroup->lock, flags);
 	hwif->tp_ops->exec_command(hwif, ATA_CMD_PACKET);
 	ndelay(400);
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&hwgroup->lock, flags);
 }
 EXPORT_SYMBOL_GPL(ide_execute_pkt_cmd);
 
@@ -1076,22 +1080,16 @@ static void pre_reset(ide_drive_t *drive)
  */
 static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 {
-	unsigned int unit;
-	unsigned long flags, timeout;
-	ide_hwif_t *hwif;
-	ide_hwgroup_t *hwgroup;
-	struct ide_io_ports *io_ports;
-	const struct ide_tp_ops *tp_ops;
+	ide_hwif_t *hwif = drive->hwif;
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
+	struct ide_io_ports *io_ports = &hwif->io_ports;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	const struct ide_port_ops *port_ops;
+	unsigned long flags, timeout;
+	unsigned int unit;
 	DEFINE_WAIT(wait);
 
-	spin_lock_irqsave(&ide_lock, flags);
-	hwif = HWIF(drive);
-	hwgroup = HWGROUP(drive);
-
-	io_ports = &hwif->io_ports;
-
-	tp_ops = hwif->tp_ops;
+	spin_lock_irqsave(&hwgroup->lock, flags);
 
 	/* We must not reset with running handlers */
 	BUG_ON(hwgroup->handler != NULL);
@@ -1106,7 +1104,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		hwgroup->poll_timeout = jiffies + WAIT_WORSTCASE;
 		hwgroup->polling = 1;
 		__ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20, NULL);
-		spin_unlock_irqrestore(&ide_lock, flags);
+		spin_unlock_irqrestore(&hwgroup->lock, flags);
 		return ide_started;
 	}
 
@@ -1129,9 +1127,9 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		if (time_before_eq(timeout, now))
 			break;
 
-		spin_unlock_irqrestore(&ide_lock, flags);
+		spin_unlock_irqrestore(&hwgroup->lock, flags);
 		timeout = schedule_timeout_uninterruptible(timeout - now);
-		spin_lock_irqsave(&ide_lock, flags);
+		spin_lock_irqsave(&hwgroup->lock, flags);
 	} while (timeout);
 	finish_wait(&ide_park_wq, &wait);
 
@@ -1143,7 +1141,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		pre_reset(&hwif->drives[unit]);
 
 	if (io_ports->ctl_addr == 0) {
-		spin_unlock_irqrestore(&ide_lock, flags);
+		spin_unlock_irqrestore(&hwgroup->lock, flags);
 		ide_complete_drive_reset(drive, -ENXIO);
 		return ide_stopped;
 	}
@@ -1179,7 +1177,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	if (port_ops && port_ops->resetproc)
 		port_ops->resetproc(drive);
 
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&hwgroup->lock, flags);
 	return ide_started;
 }
 

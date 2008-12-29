@@ -906,7 +906,8 @@ static int ide_init_queue(ide_drive_t *drive)
 	 *	do not.
 	 */
 
-	q = blk_init_queue_node(do_ide_request, &ide_lock, hwif_to_node(hwif));
+	q = blk_init_queue_node(do_ide_request, &hwif->hwgroup->lock,
+				hwif_to_node(hwif));
 	if (!q)
 		return 1;
 
@@ -947,7 +948,7 @@ static void ide_add_drive_to_hwgroup(ide_drive_t *drive)
 {
 	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	if (!hwgroup->drive) {
 		/* first drive for hwgroup. */
 		drive->next = drive;
@@ -957,7 +958,7 @@ static void ide_add_drive_to_hwgroup(ide_drive_t *drive)
 		drive->next = hwgroup->drive->next;
 		hwgroup->drive->next = drive;
 	}
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 }
 
 /*
@@ -1002,7 +1003,7 @@ void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 
 	ide_ports[hwif->index] = NULL;
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	/*
 	 * Remove us from the hwgroup, and free
 	 * the hwgroup if we were the only member
@@ -1030,7 +1031,7 @@ void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 		}
 		BUG_ON(hwgroup->hwif == hwif);
 	}
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 }
 
 /*
@@ -1092,16 +1093,18 @@ static int init_irq (ide_hwif_t *hwif)
 		 * linked list, the first entry is the hwif that owns
 		 * hwgroup->handler - do not change that.
 		 */
-		spin_lock_irq(&ide_lock);
+		spin_lock_irq(&hwgroup->lock);
 		hwif->next = hwgroup->hwif->next;
 		hwgroup->hwif->next = hwif;
 		BUG_ON(hwif->next == hwif);
-		spin_unlock_irq(&ide_lock);
+		spin_unlock_irq(&hwgroup->lock);
 	} else {
 		hwgroup = kmalloc_node(sizeof(*hwgroup), GFP_KERNEL|__GFP_ZERO,
 				       hwif_to_node(hwif));
 		if (hwgroup == NULL)
 			goto out_up;
+
+		spin_lock_init(&hwgroup->lock);
 
 		hwif->hwgroup = hwgroup;
 		hwgroup->hwif = hwif->next = hwif;
@@ -1263,20 +1266,21 @@ static void ide_remove_drive_from_hwgroup(ide_drive_t *drive)
 static void drive_release_dev (struct device *dev)
 {
 	ide_drive_t *drive = container_of(dev, ide_drive_t, gendev);
+	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
 
 	ide_proc_unregister_device(drive);
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	ide_remove_drive_from_hwgroup(drive);
 	kfree(drive->id);
 	drive->id = NULL;
 	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 	/* Messed up locking ... */
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 	blk_cleanup_queue(drive->queue);
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	drive->queue = NULL;
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 
 	complete(&drive->gendev_rel_comp);
 }
