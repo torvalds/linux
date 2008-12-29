@@ -849,6 +849,20 @@ static int velocity_soft_reset(struct velocity_info *vptr)
 	return 0;
 }
 
+static const struct net_device_ops velocity_netdev_ops = {
+	.ndo_open		= velocity_open,
+	.ndo_stop		= velocity_close,
+	.ndo_start_xmit		= velocity_xmit,
+	.ndo_get_stats		= velocity_get_stats,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list	= velocity_set_multi,
+	.ndo_change_mtu		= velocity_change_mtu,
+	.ndo_do_ioctl		= velocity_ioctl,
+	.ndo_vlan_rx_add_vid	= velocity_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= velocity_vlan_rx_kill_vid,
+	.ndo_vlan_rx_register	= velocity_vlan_rx_register,
+};
+
 /**
  *	velocity_found1		-	set up discovered velocity card
  *	@pdev: PCI device
@@ -958,18 +972,8 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	vptr->phy_id = MII_GET_PHY_ID(vptr->mac_regs);
 
 	dev->irq = pdev->irq;
-	dev->open = velocity_open;
-	dev->hard_start_xmit = velocity_xmit;
-	dev->stop = velocity_close;
-	dev->get_stats = velocity_get_stats;
-	dev->set_multicast_list = velocity_set_multi;
-	dev->do_ioctl = velocity_ioctl;
+	dev->netdev_ops = &velocity_netdev_ops;
 	dev->ethtool_ops = &velocity_ethtool_ops;
-	dev->change_mtu = velocity_change_mtu;
-
-	dev->vlan_rx_add_vid = velocity_vlan_rx_add_vid;
-	dev->vlan_rx_kill_vid = velocity_vlan_rx_kill_vid;
-	dev->vlan_rx_register = velocity_vlan_rx_register;
 
 #ifdef  VELOCITY_ZERO_COPY_SUPPORT
 	dev->features |= NETIF_F_SG;
@@ -1411,8 +1415,6 @@ static int velocity_rx_srv(struct velocity_info *vptr, int status)
 		}
 
 		rd->size |= RX_INTEN;
-
-		vptr->dev->last_rx = jiffies;
 
 		rd_curr++;
 		if (rd_curr >= vptr->options.numrx)

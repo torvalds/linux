@@ -81,9 +81,6 @@
 #ifdef CONFIG_ATARI
 #include <asm/atariints.h>
 #endif
-#ifdef CONFIG_MAC
-#include <asm/macints.h>
-#endif
 #if defined(__mc68000__)
 #include <asm/machdep.h>
 #include <asm/setup.h>
@@ -160,8 +157,6 @@ static int fbcon_set_origin(struct vc_data *);
 
 /* # VBL ints between cursor state changes */
 #define ATARI_CURSOR_BLINK_RATE		(42)
-#define MAC_CURSOR_BLINK_RATE		(32)
-#define DEFAULT_CURSOR_BLINK_RATE	(20)
 
 static int vbl_cursor_cnt;
 static int fbcon_cursor_noblink;
@@ -209,19 +204,6 @@ static void fbcon_set_all_vcs(struct fb_info *info);
 static void fbcon_start(void);
 static void fbcon_exit(void);
 static struct device *fbcon_device;
-
-#ifdef CONFIG_MAC
-/*
- * On the Macintoy, there may or may not be a working VBL int. We need to probe
- */
-static int vbl_detected;
-
-static irqreturn_t fb_vbl_detect(int irq, void *dummy)
-{
-	vbl_detected++;
-	return IRQ_HANDLED;
-}
-#endif
 
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_ROTATION
 static inline void fbcon_set_rotation(struct fb_info *info)
@@ -421,7 +403,7 @@ static void fb_flashcursor(struct work_struct *work)
 	release_console_sem();
 }
 
-#if defined(CONFIG_ATARI) || defined(CONFIG_MAC)
+#ifdef CONFIG_ATARI
 static int cursor_blink_rate;
 static irqreturn_t fb_vbl_handler(int irq, void *dev_id)
 {
@@ -949,9 +931,7 @@ static const char *fbcon_startup(void)
 	struct fb_info *info = NULL;
 	struct fbcon_ops *ops;
 	int rows, cols;
-	int irqres;
 
-	irqres = 1;
 	/*
 	 *  If num_registered_fb is zero, this is a call for the dummy part.
 	 *  The frame buffer devices weren't initialized yet.
@@ -1040,56 +1020,11 @@ static const char *fbcon_startup(void)
 #ifdef CONFIG_ATARI
 	if (MACH_IS_ATARI) {
 		cursor_blink_rate = ATARI_CURSOR_BLINK_RATE;
-		irqres =
-		    request_irq(IRQ_AUTO_4, fb_vbl_handler,
+		(void)request_irq(IRQ_AUTO_4, fb_vbl_handler,
 				IRQ_TYPE_PRIO, "framebuffer vbl",
 				info);
 	}
-#endif				/* CONFIG_ATARI */
-
-#ifdef CONFIG_MAC
-	/*
-	 * On a Macintoy, the VBL interrupt may or may not be active. 
-	 * As interrupt based cursor is more reliable and race free, we 
-	 * probe for VBL interrupts.
-	 */
-	if (MACH_IS_MAC) {
-		int ct = 0;
-		/*
-		 * Probe for VBL: set temp. handler ...
-		 */
-		irqres = request_irq(IRQ_MAC_VBL, fb_vbl_detect, 0,
-				     "framebuffer vbl", info);
-		vbl_detected = 0;
-
-		/*
-		 * ... and spin for 20 ms ...
-		 */
-		while (!vbl_detected && ++ct < 1000)
-			udelay(20);
-
-		if (ct == 1000)
-			printk
-			    ("fbcon_startup: No VBL detected, using timer based cursor.\n");
-
-		free_irq(IRQ_MAC_VBL, fb_vbl_detect);
-
-		if (vbl_detected) {
-			/*
-			 * interrupt based cursor ok
-			 */
-			cursor_blink_rate = MAC_CURSOR_BLINK_RATE;
-			irqres =
-			    request_irq(IRQ_MAC_VBL, fb_vbl_handler, 0,
-					"framebuffer vbl", info);
-		} else {
-			/*
-			 * VBL not detected: fall through, use timer based cursor
-			 */
-			irqres = 1;
-		}
-	}
-#endif				/* CONFIG_MAC */
+#endif /* CONFIG_ATARI */
 
 	fbcon_add_cursor_timer(info);
 	fbcon_has_exited = 0;
@@ -3520,11 +3455,8 @@ static void fbcon_exit(void)
 		return;
 
 #ifdef CONFIG_ATARI
-	free_irq(IRQ_AUTO_4, fb_vbl_handler);
-#endif
-#ifdef CONFIG_MAC
-	if (MACH_IS_MAC && vbl_detected)
-		free_irq(IRQ_MAC_VBL, fb_vbl_handler);
+	if (MACH_IS_ATARI)
+		free_irq(IRQ_AUTO_4, fb_vbl_handler);
 #endif
 
 	kfree((void *)softback_buf);

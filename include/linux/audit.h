@@ -99,6 +99,8 @@
 #define AUDIT_OBJ_PID		1318	/* ptrace target */
 #define AUDIT_TTY		1319	/* Input on an administrative TTY */
 #define AUDIT_EOE		1320	/* End of multi-record event */
+#define AUDIT_BPRM_FCAPS	1321	/* Information about fcaps increasing perms */
+#define AUDIT_CAPSET		1322	/* Record showing argument to sys_capset */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
@@ -453,6 +455,10 @@ extern int __audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_pr
 extern int __audit_mq_timedreceive(mqd_t mqdes, size_t msg_len, unsigned int __user *u_msg_prio, const struct timespec __user *u_abs_timeout);
 extern int __audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification);
 extern int __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat);
+extern int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
+				  const struct cred *new,
+				  const struct cred *old);
+extern int __audit_log_capset(pid_t pid, const struct cred *new, const struct cred *old);
 
 static inline int audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -502,6 +508,24 @@ static inline int audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 		return __audit_mq_getsetattr(mqdes, mqstat);
 	return 0;
 }
+
+static inline int audit_log_bprm_fcaps(struct linux_binprm *bprm,
+				       const struct cred *new,
+				       const struct cred *old)
+{
+	if (unlikely(!audit_dummy_context()))
+		return __audit_log_bprm_fcaps(bprm, new, old);
+	return 0;
+}
+
+static inline int audit_log_capset(pid_t pid, const struct cred *new,
+				   const struct cred *old)
+{
+	if (unlikely(!audit_dummy_context()))
+		return __audit_log_capset(pid, new, old);
+	return 0;
+}
+
 extern int audit_n_rules;
 extern int audit_signals;
 #else
@@ -534,6 +558,8 @@ extern int audit_signals;
 #define audit_mq_timedreceive(d,l,p,t) ({ 0; })
 #define audit_mq_notify(d,n) ({ 0; })
 #define audit_mq_getsetattr(d,s) ({ 0; })
+#define audit_log_bprm_fcaps(b, ncr, ocr) ({ 0; })
+#define audit_log_capset(pid, ncr, ocr) ({ 0; })
 #define audit_ptrace(t) ((void)0)
 #define audit_n_rules 0
 #define audit_signals 0

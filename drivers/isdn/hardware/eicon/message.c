@@ -592,7 +592,7 @@ word api_put(APPL   * appl, CAPI_MSG   * msg)
 /* api_parse function, check the format of api messages             */
 /*------------------------------------------------------------------*/
 
-word api_parse(byte   * msg, word length, byte * format, API_PARSE * parms)
+static word api_parse(byte *msg, word length, byte *format, API_PARSE *parms)
 {
   word i;
   word p;
@@ -631,7 +631,7 @@ word api_parse(byte   * msg, word length, byte * format, API_PARSE * parms)
   return false;
 }
 
-void api_save_msg(API_PARSE   *in, byte *format, API_SAVE   *out)
+static void api_save_msg(API_PARSE *in, byte *format, API_SAVE *out)
 {
   word i, j, n = 0;
   byte   *p;
@@ -663,7 +663,7 @@ void api_save_msg(API_PARSE   *in, byte *format, API_SAVE   *out)
   out->parms[i].length = 0;
 }
 
-void api_load_msg(API_SAVE   *in, API_PARSE   *out)
+static void api_load_msg(API_SAVE *in, API_PARSE *out)
 {
   word i;
 
@@ -3414,7 +3414,8 @@ byte select_b_req(dword Id, word Number, DIVA_CAPI_ADAPTER   * a, PLCI   * plci,
   return false;
 }
 
-byte manufacturer_req(dword Id, word Number, DIVA_CAPI_ADAPTER   * a, PLCI   * plci, APPL   * appl, API_PARSE * parms)
+static byte manufacturer_req(dword Id, word Number, DIVA_CAPI_ADAPTER *a,
+			     PLCI *plci, APPL *appl, API_PARSE *parms)
 {
   word command;
   word i;
@@ -3742,7 +3743,8 @@ byte manufacturer_req(dword Id, word Number, DIVA_CAPI_ADAPTER   * a, PLCI   * p
 }
 
 
-byte manufacturer_res(dword Id, word Number, DIVA_CAPI_ADAPTER   * a, PLCI   * plci, APPL   * appl, API_PARSE * msg)
+static byte manufacturer_res(dword Id, word Number, DIVA_CAPI_ADAPTER *a,
+			     PLCI *plci, APPL *appl, API_PARSE *msg)
 {
   word indication;
 
@@ -4074,7 +4076,8 @@ capi_callback_suffix:
 }
 
 
-void control_rc(PLCI   * plci, byte req, byte rc, byte ch, byte global_req, byte nl_rc)
+static void control_rc(PLCI *plci, byte req, byte rc, byte ch, byte global_req,
+		       byte nl_rc)
 {
   dword Id;
   dword rId;
@@ -4740,7 +4743,7 @@ void control_rc(PLCI   * plci, byte req, byte rc, byte ch, byte global_req, byte
   }
 }
 
-void data_rc(PLCI   * plci, byte ch)
+static void data_rc(PLCI *plci, byte ch)
 {
   dword Id;
   DIVA_CAPI_ADAPTER   * a;
@@ -4776,7 +4779,7 @@ void data_rc(PLCI   * plci, byte ch)
   }
 }
 
-void data_ack(PLCI   * plci, byte ch)
+static void data_ack(PLCI *plci, byte ch)
 {
   dword Id;
   DIVA_CAPI_ADAPTER   * a;
@@ -4802,7 +4805,7 @@ void data_ack(PLCI   * plci, byte ch)
   }
 }
 
-void sig_ind(PLCI   * plci)
+static void sig_ind(PLCI *plci)
 {
   dword x_Id;
   dword Id;
@@ -6170,7 +6173,7 @@ static void SendSetupInfo(APPL   * appl, PLCI   * plci, dword Id, byte   * * par
 }
 
 
-void SendInfo(PLCI   * plci, dword Id, byte   * * parms, byte iesent)
+static void SendInfo(PLCI *plci, dword Id, byte **parms, byte iesent)
 {
   word i;
   word j;
@@ -6346,7 +6349,8 @@ void SendInfo(PLCI   * plci, dword Id, byte   * * parms, byte iesent)
 }
 
 
-byte SendMultiIE(PLCI   * plci, dword Id, byte   * * parms, byte ie_type, dword info_mask, byte setupParse)
+static byte SendMultiIE(PLCI *plci, dword Id, byte **parms, byte ie_type,
+			dword info_mask, byte setupParse)
 {
   word i;
   word j;
@@ -6465,7 +6469,7 @@ static void SendSSExtInd(APPL   * appl, PLCI   * plci, dword Id, byte   * * parm
     }
 };
 
-void nl_ind(PLCI   * plci)
+static void nl_ind(PLCI *plci)
 {
   byte ch;
   word ncci;
@@ -7247,7 +7251,7 @@ void nl_ind(PLCI   * plci)
 /* find a free PLCI                                                 */
 /*------------------------------------------------------------------*/
 
-word get_plci(DIVA_CAPI_ADAPTER   * a)
+static word get_plci(DIVA_CAPI_ADAPTER *a)
 {
   word i,j;
   PLCI   * plci;
@@ -7406,7 +7410,7 @@ static void add_ie(PLCI   * plci, byte code, byte   * p, word p_length)
 /* put a unstructured data into the buffer                          */
 /*------------------------------------------------------------------*/
 
-void add_d(PLCI   * plci, word length, byte   * p)
+static void add_d(PLCI *plci, word length, byte *p)
 {
   word i;
 
@@ -7424,7 +7428,7 @@ void add_d(PLCI   * plci, word length, byte   * p)
 /* parameter buffer                                                 */
 /*------------------------------------------------------------------*/
 
-void add_ai(PLCI   * plci, API_PARSE * ai)
+static void add_ai(PLCI *plci, API_PARSE *ai)
 {
   word i;
     API_PARSE ai_parms[5];
@@ -7445,7 +7449,8 @@ void add_ai(PLCI   * plci, API_PARSE * ai)
 /* put parameter for b1 protocol in the parameter buffer            */
 /*------------------------------------------------------------------*/
 
-word add_b1(PLCI   * plci, API_PARSE * bp, word b_channel_info, word b1_facilities)
+static word add_b1(PLCI *plci, API_PARSE *bp, word b_channel_info,
+		   word b1_facilities)
 {
     API_PARSE bp_parms[8];
     API_PARSE mdm_cfg[9];
@@ -7909,7 +7914,7 @@ word add_b1(PLCI   * plci, API_PARSE * bp, word b_channel_info, word b1_faciliti
 /* put parameter for b2 and B3  protocol in the parameter buffer    */
 /*------------------------------------------------------------------*/
 
-word add_b23(PLCI   * plci, API_PARSE * bp)
+static word add_b23(PLCI *plci, API_PARSE *bp)
 {
   word i, fax_control_bits;
   byte pos, len;
@@ -8706,7 +8711,7 @@ void sig_req(PLCI   * plci, byte req, byte Id)
 /* send a request for the network layer entity                      */
 /*------------------------------------------------------------------*/
 
-void nl_req_ncci(PLCI   * plci, byte req, byte ncci)
+static void nl_req_ncci(PLCI *plci, byte req, byte ncci)
 {
   if(!plci) return;
   if(plci->adapter->adapter_disabled) return;
@@ -8728,7 +8733,7 @@ void nl_req_ncci(PLCI   * plci, byte req, byte ncci)
   plci->req_in_start = plci->req_in;
 }
 
-void send_req(PLCI   * plci)
+static void send_req(PLCI *plci)
 {
   ENTITY   * e;
   word l;
@@ -8863,7 +8868,7 @@ void send_data(PLCI   * plci)
   }
 }
 
-void listen_check(DIVA_CAPI_ADAPTER   * a)
+static void listen_check(DIVA_CAPI_ADAPTER *a)
 {
   word i,j;
   PLCI   * plci;
@@ -8906,7 +8911,7 @@ void listen_check(DIVA_CAPI_ADAPTER   * a)
 /* functions for all parameters sent in INDs                        */
 /*------------------------------------------------------------------*/
 
-void IndParse(PLCI   * plci, word * parms_id, byte   ** parms, byte multiIEsize)
+static void IndParse(PLCI *plci, word *parms_id, byte **parms, byte multiIEsize)
 {
   word ploc;            /* points to current location within packet */
   byte w;
@@ -8991,7 +8996,7 @@ void IndParse(PLCI   * plci, word * parms_id, byte   ** parms, byte multiIEsize)
 /* try to match a cip from received BC and HLC                      */
 /*------------------------------------------------------------------*/
 
-byte ie_compare(byte   * ie1, byte * ie2)
+static byte ie_compare(byte *ie1, byte *ie2)
 {
   word i;
   if(!ie1 || ! ie2) return false;
@@ -9000,7 +9005,7 @@ byte ie_compare(byte   * ie1, byte * ie2)
   return true;
 }
 
-word find_cip(DIVA_CAPI_ADAPTER   * a, byte   * bc, byte   * hlc)
+static word find_cip(DIVA_CAPI_ADAPTER *a, byte *bc, byte *hlc)
 {
   word i;
   word j;
@@ -9068,7 +9073,7 @@ static byte AddInfo(byte   **add_i,
 /* voice and codec features                                         */
 /*------------------------------------------------------------------*/
 
-void SetVoiceChannel(PLCI   *plci, byte   *chi, DIVA_CAPI_ADAPTER   * a)
+static void SetVoiceChannel(PLCI *plci, byte *chi, DIVA_CAPI_ADAPTER *a)
 {
   byte voice_chi[] = "\x02\x18\x01";
   byte channel;
@@ -9086,7 +9091,7 @@ void SetVoiceChannel(PLCI   *plci, byte   *chi, DIVA_CAPI_ADAPTER   * a)
   }
 }
 
-void VoiceChannelOff(PLCI   *plci)
+static void VoiceChannelOff(PLCI *plci)
 {
   dbug(1,dprintf("ExtDevOFF"));
   add_p(plci,FTY,"\x02\x01\x08");             /* B Off */
@@ -9099,7 +9104,8 @@ void VoiceChannelOff(PLCI   *plci)
 }
 
 
-word AdvCodecSupport(DIVA_CAPI_ADAPTER   *a, PLCI   *plci, APPL   *appl, byte hook_listen)
+static word AdvCodecSupport(DIVA_CAPI_ADAPTER *a, PLCI *plci, APPL *appl,
+			    byte hook_listen)
 {
   word j;
   PLCI   *splci;
@@ -9195,7 +9201,7 @@ word AdvCodecSupport(DIVA_CAPI_ADAPTER   *a, PLCI   *plci, APPL   *appl, byte ho
 }
 
 
-void CodecIdCheck(DIVA_CAPI_ADAPTER   *a, PLCI   *plci)
+static void CodecIdCheck(DIVA_CAPI_ADAPTER *a, PLCI *plci)
 {
 
   dbug(1,dprintf("CodecIdCheck"));

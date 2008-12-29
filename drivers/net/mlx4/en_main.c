@@ -170,9 +170,9 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 		mlx4_info(mdev, "Using %d tx rings for port:%d\n",
 			  mdev->profile.prof[i].tx_ring_num, i);
 		if (!mdev->profile.prof[i].rx_ring_num) {
-			mdev->profile.prof[i].rx_ring_num = 1;
+			mdev->profile.prof[i].rx_ring_num = dev->caps.num_comp_vectors;
 			mlx4_info(mdev, "Defaulting to %d rx rings for port:%d\n",
-				  1, i);
+				  mdev->profile.prof[i].rx_ring_num, i);
 		} else
 			mlx4_info(mdev, "Using %d rx rings for port:%d\n",
 				  mdev->profile.prof[i].rx_ring_num, i);

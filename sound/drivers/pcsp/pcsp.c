@@ -187,10 +187,8 @@ static int __devexit pcsp_remove(struct platform_device *dev)
 
 static void pcsp_stop_beep(struct snd_pcsp *chip)
 {
-	spin_lock_irq(&chip->substream_lock);
-	if (!chip->playback_substream)
-		pcspkr_stop_sound();
-	spin_unlock_irq(&chip->substream_lock);
+	pcsp_sync_stop(chip);
+	pcspkr_stop_sound();
 }
 
 #ifdef CONFIG_PM

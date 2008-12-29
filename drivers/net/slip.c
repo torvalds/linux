@@ -365,7 +365,6 @@ static void sl_bump(struct slip *sl)
 	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IP);
 	netif_rx(skb);
-	sl->dev->last_rx = jiffies;
 	sl->rx_packets++;
 }
 
@@ -402,7 +401,7 @@ static void sl_encaps(struct slip *sl, unsigned char *icp, int len)
 	 * if we did not request it before write operation.
 	 *       14 Oct 1994  Dmitry Gorodchanin.
 	 */
-	sl->tty->flags |= (1 << TTY_DO_WRITE_WAKEUP);
+	set_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
 	actual = sl->tty->ops->write(sl->tty, sl->xbuff, count);
 #ifdef SL_CHECK_TRANSMIT
 	sl->dev->trans_start = jiffies;
@@ -432,7 +431,7 @@ static void slip_write_wakeup(struct tty_struct *tty)
 		/* Now serial buffer is almost free & we can start
 		 * transmission of another packet */
 		sl->tx_packets++;
-		tty->flags &= ~(1 << TTY_DO_WRITE_WAKEUP);
+		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 		sl_unlock(sl);
 		return;
 	}
@@ -465,7 +464,7 @@ static void sl_tx_timeout(struct net_device *dev)
 			(tty_chars_in_buffer(sl->tty) || sl->xleft) ?
 				"bad line quality" : "driver error");
 		sl->xleft = 0;
-		sl->tty->flags &= ~(1 << TTY_DO_WRITE_WAKEUP);
+		clear_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
 		sl_unlock(sl);
 #endif
 	}
@@ -515,10 +514,9 @@ sl_close(struct net_device *dev)
 	struct slip *sl = netdev_priv(dev);
 
 	spin_lock_bh(&sl->lock);
-	if (sl->tty) {
+	if (sl->tty)
 		/* TTY discipline is running. */
-		sl->tty->flags &= ~(1 << TTY_DO_WRITE_WAKEUP);
-	}
+		clear_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
 	netif_stop_queue(dev);
 	sl->rcount   = 0;
 	sl->xleft    = 0;

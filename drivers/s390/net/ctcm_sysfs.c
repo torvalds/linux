@@ -10,6 +10,9 @@
 #undef DEBUGDATA
 #undef DEBUGCCW
 
+#define KMSG_COMPONENT "ctcm"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/sysfs.h>
 #include "ctcm_main.h"
 

@@ -571,8 +571,8 @@ static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
 
 	if (inode) {
 		inode->i_mode = mode;
-		inode->i_uid = current->fsuid;
-		inode->i_gid = current->fsgid;
+		inode->i_uid = current_fsuid();
+		inode->i_gid = current_fsgid();
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_mapping->backing_dev_info = &cgroup_backing_dev_info;
@@ -1280,6 +1280,7 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 static int attach_task_by_pid(struct cgroup *cgrp, u64 pid)
 {
 	struct task_struct *tsk;
+	const struct cred *cred = current_cred(), *tcred;
 	int ret;
 
 	if (pid) {
@@ -1289,14 +1290,16 @@ static int attach_task_by_pid(struct cgroup *cgrp, u64 pid)
 			rcu_read_unlock();
 			return -ESRCH;
 		}
-		get_task_struct(tsk);
-		rcu_read_unlock();
 
-		if ((current->euid) && (current->euid != tsk->uid)
-		    && (current->euid != tsk->suid)) {
-			put_task_struct(tsk);
+		tcred = __task_cred(tsk);
+		if (cred->euid &&
+		    cred->euid != tcred->uid &&
+		    cred->euid != tcred->suid) {
+			rcu_read_unlock();
 			return -EACCES;
 		}
+		get_task_struct(tsk);
+		rcu_read_unlock();
 	} else {
 		tsk = current;
 		get_task_struct(tsk);

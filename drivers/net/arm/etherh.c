@@ -637,6 +637,21 @@ static const struct ethtool_ops etherh_ethtool_ops = {
 	.get_drvinfo	= etherh_get_drvinfo,
 };
 
+static const struct net_device_ops etherh_netdev_ops = {
+	.ndo_open		= etherh_open,
+	.ndo_stop		= etherh_close,
+	.ndo_set_config		= etherh_set_config,
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ei_poll,
+#endif
+};
+
 static u32 etherh_regoffsets[16];
 static u32 etherm_regoffsets[16];
 
@@ -648,7 +663,6 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	struct net_device *dev;
 	struct etherh_priv *eh;
 	int ret;
-	DECLARE_MAC_BUF(mac);
 
 	etherh_banner();
 
@@ -664,9 +678,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	SET_NETDEV_DEV(dev, &ec->dev);
 
-	dev->open		= etherh_open;
-	dev->stop		= etherh_close;
-	dev->set_config		= etherh_set_config;
+	dev->netdev_ops		= &etherh_netdev_ops;
 	dev->irq		= ec->irq;
 	dev->ethtool_ops	= &etherh_ethtool_ops;
 
@@ -746,8 +758,8 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (ret)
 		goto free;
 
-	printk(KERN_INFO "%s: %s in slot %d, %s\n",
-		dev->name, data->name, ec->slot_no, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: %s in slot %d, %pM\n",
+		dev->name, data->name, ec->slot_no, dev->dev_addr);
 
 	ecard_set_drvdata(ec, dev);
 

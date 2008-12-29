@@ -68,8 +68,8 @@ static int tcf_pedit_init(struct nlattr *nla, struct nlattr *est,
 			return -EINVAL;
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind,
 				     &pedit_idx_gen, &pedit_hash_info);
-		if (unlikely(!pc))
-			return -ENOMEM;
+		if (IS_ERR(pc))
+		    return PTR_ERR(pc);
 		p = to_pedit(pc);
 		keys = kmalloc(ksize, GFP_KERNEL);
 		if (keys == NULL) {

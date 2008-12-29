@@ -97,7 +97,7 @@ exit:
 	return status;
 }
 
-void ql_update_stats(struct ql_adapter *qdev)
+static void ql_update_stats(struct ql_adapter *qdev)
 {
 	u32 i;
 	u64 data;

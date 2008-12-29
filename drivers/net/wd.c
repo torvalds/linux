@@ -147,6 +147,20 @@ out:
 }
 #endif
 
+static const struct net_device_ops wd_netdev_ops = {
+	.ndo_open		= wd_open,
+	.ndo_stop		= wd_close,
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller 	= ei_poll,
+#endif
+};
+
 static int __init wd_probe1(struct net_device *dev, int ioaddr)
 {
 	int i;
@@ -156,7 +170,6 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	int word16 = 0;				/* 0 = 8 bit, 1 = 16 bit */
 	const char *model_name;
 	static unsigned version_printed;
-	DECLARE_MAC_BUF(mac);
 
 	for (i = 0; i < 8; i++)
 		checksum += inb(ioaddr + 8 + i);
@@ -178,8 +191,8 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = inb(ioaddr + 8 + i);
 
-	printk("%s: WD80x3 at %#3x, %s",
-	       dev->name, ioaddr, print_mac(mac, dev->dev_addr));
+	printk("%s: WD80x3 at %#3x, %pM",
+	       dev->name, ioaddr, dev->dev_addr);
 
 	/* The following PureData probe code was contributed by
 	   Mike Jagdis <jaggy@purplet.demon.co.uk>. Puredata does software
@@ -332,11 +345,8 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	ei_status.block_input = &wd_block_input;
 	ei_status.block_output = &wd_block_output;
 	ei_status.get_8390_hdr = &wd_get_8390_hdr;
-	dev->open = &wd_open;
-	dev->stop = &wd_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
+
+	dev->netdev_ops = &wd_netdev_ops;
 	NS8390_init(dev, 0);
 
 #if 1
@@ -366,8 +376,7 @@ wd_open(struct net_device *dev)
 	  outb(ei_status.reg5, ioaddr+WD_CMDREG5);
   outb(ei_status.reg0, ioaddr); /* WD_CMDREG */
 
-  ei_open(dev);
-  return 0;
+  return ei_open(dev);
 }
 
 static void

@@ -1222,7 +1222,6 @@ static void ipg_nic_rx_with_start_and_end(struct net_device *dev,
 	skb->protocol = eth_type_trans(skb, dev);
 	skb->ip_summed = CHECKSUM_NONE;
 	netif_rx(skb);
-	dev->last_rx = jiffies;
 	sp->rx_buff[entry] = NULL;
 }
 
@@ -1256,7 +1255,6 @@ static void ipg_nic_rx_with_start(struct net_device *dev,
 	jumbo->skb = skb;
 
 	sp->rx_buff[entry] = NULL;
-	dev->last_rx = jiffies;
 }
 
 static void ipg_nic_rx_with_end(struct net_device *dev,
@@ -1292,7 +1290,6 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 			}
 		}
 
-		dev->last_rx = jiffies;
 		jumbo->found_start = 0;
 		jumbo->current_size = 0;
 		jumbo->skb = NULL;
@@ -1325,7 +1322,6 @@ static void ipg_nic_rx_no_start_no_end(struct net_device *dev,
 					       skb->data, sp->rxfrag_size);
 				}
 			}
-			dev->last_rx = jiffies;
 			ipg_nic_rx_free_skb(dev);
 		}
 	} else {
@@ -1494,11 +1490,6 @@ static int ipg_nic_rx(struct net_device *dev)
 			 * when processing completes.
 			 */
 			netif_rx(skb);
-
-			/* Record frame receive time (jiffies = Linux
-			 * kernel current time stamp).
-			 */
-			dev->last_rx = jiffies;
 		}
 
 		/* Assure RX buffer is not reused by IPG. */

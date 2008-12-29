@@ -220,7 +220,6 @@ static int __init mac_onboard_sonic_ethernet_addr(struct net_device *dev)
 	struct sonic_local *lp = netdev_priv(dev);
 	const int prom_addr = ONBOARD_SONIC_PROM_BASE;
 	int i;
-	DECLARE_MAC_BUF(mac);
 
 	/* On NuBus boards we can sometimes look in the ROM resources.
 	   No such luck for comm-slot/onboard. */
@@ -264,8 +263,8 @@ static int __init mac_onboard_sonic_ethernet_addr(struct net_device *dev)
 		dev->dev_addr[1] = val >> 8;
 		dev->dev_addr[0] = val & 0xff;
 
-		printk(KERN_INFO "HW Address from CAM 15: %s\n",
-		       print_mac(mac, dev->dev_addr));
+		printk(KERN_INFO "HW Address from CAM 15: %pM\n",
+		       dev->dev_addr);
 	} else return 0;
 
 	if (memcmp(dev->dev_addr, "\x08\x00\x07", 3) &&
@@ -560,7 +559,6 @@ static int __init mac_sonic_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct sonic_local *lp;
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(sizeof(struct sonic_local));
 	if (!dev)
@@ -584,8 +582,7 @@ found:
 	if (err)
 		goto out;
 
-	printk("%s: MAC %s IRQ %d\n",
-	       dev->name, print_mac(mac, dev->dev_addr), dev->irq);
+	printk("%s: MAC %pM IRQ %d\n", dev->name, dev->dev_addr, dev->irq);
 
 	return 0;
 

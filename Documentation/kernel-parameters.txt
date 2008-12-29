@@ -89,6 +89,7 @@ parameter is applicable:
 	SPARC	Sparc architecture is enabled.
 	SWSUSP	Software suspend (hibernation) is enabled.
 	SUSPEND	System suspend states are enabled.
+	FTRACE	Function tracing enabled.
 	TS	Appropriate touchscreen support is enabled.
 	USB	USB support is enabled.
 	USBHID	USB Human Interface Device support is enabled.
@@ -753,6 +754,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			parameter will force ia64_sal_cache_flush to call
 			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
 
+	ftrace=[tracer]
+			[ftrace] will set and start the specified tracer
+			as early as possible in order to facilitate early
+			boot debugging.
+
+	ftrace_dump_on_oops
+			[ftrace] will dump the trace buffers on oops.
+
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
 			support via parallel port (up to 5 devices per port)
@@ -813,6 +822,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			if not specified.
 
 	hlt		[BUGS=ARM,SH]
+
+	hvc_iucv=	[S390] Number of z/VM IUCV Hypervisor console (HVC)
+			       back-ends. Valid parameters: 0..8
 
 	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.direct	[HW] Put keyboard port into non-translated mode
@@ -1396,7 +1408,20 @@ and is between 256 and 4096 characters. It is defined in the file
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]
 
-	nmi_watchdog=	[KNL,BUGS=X86-32] Debugging features for SMP kernels
+	nmi_watchdog=	[KNL,BUGS=X86-32,X86-64] Debugging features for SMP kernels
+			Format: [panic,][num]
+			Valid num: 0,1,2
+			0 - turn nmi_watchdog off
+			1 - use the IO-APIC timer for the NMI watchdog
+			2 - use the local APIC for the NMI watchdog using
+			a performance counter. Note: This will use one performance
+			counter and the local APIC's performance vector.
+			When panic is specified panic when an NMI watchdog timeout occurs.
+			This is useful when you use a panic=... timeout and need the box
+			quickly up again.
+			Instead of 1 and 2 it is possible to use the following
+			symbolic names: lapic and ioapic
+			Example: nmi_watchdog=2 or nmi_watchdog=panic,lapic
 
 	no387		[BUGS=X86-32] Tells the kernel to use the 387 maths
 			emulation library even if a 387 maths coprocessor
@@ -1451,6 +1476,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	no-hlt		[BUGS=X86-32] Tells the kernel that the hlt
 			instruction doesn't work correctly and not to
 			use it.
+
+	no_file_caps	Tells the kernel not to honor file capabilities.  The
+			only way then for a file to be executed with privilege
+			is to be setuid root or executed by root.
 
 	nohalt		[IA-64] Tells the kernel not to use the power saving
 			function PAL_HALT_LIGHT when idle. This increases
@@ -1629,6 +1658,17 @@ and is between 256 and 4096 characters. It is defined in the file
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of MSI interrupts system-wide.
+		noioapicquirk	[APIC] Disable all boot interrupt quirks.
+				Safety option to keep boot IRQs enabled. This
+				should never be necessary.
+		ioapicreroute	[APIC] Enable rerouting of boot IRQs to the
+				primary IO-APIC for bridges that cannot disable
+				boot IRQs. This fixes a source of spurious IRQs
+				when the system masks IRQs.
+		noioapicreroute	[APIC] Disable workaround that uses the
+				boot IRQ equivalent of an IRQ that connects to
+				a chipset where boot IRQs cannot be disabled.
+				The opposite of ioapicreroute.
 		biosirq		[X86-32] Use PCI BIOS calls to get the interrupt
 				routing table. These calls are known to be buggy
 				on several machines and they hang the machine
@@ -2168,6 +2208,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	st=		[HW,SCSI] SCSI tape parameters (buffers, etc.)
 			See Documentation/scsi/st.txt.
 
+	stacktrace	[FTRACE]
+			Enabled the stack tracer on boot up.
+
 	sti=		[PARISC,HW]
 			Format: <num>
 			Set the STI (builtin display/keyboard on the HP-PARISC
@@ -2252,11 +2295,26 @@ and is between 256 and 4096 characters. It is defined in the file
 			See comment before function dc390_setup() in
 			drivers/scsi/tmscsim.c.
 
+	topology=	[S390]
+			Format: {off | on}
+			Specify if the kernel should make use of the cpu
+			topology informations if the hardware supports these.
+			The scheduler will make use of these informations and
+			e.g. base its process migration decisions on it.
+			Default is off.
+
 	tp720=		[HW,PS2]
 
 	trix=		[HW,OSS] MediaTrix AudioTrix Pro
 			Format:
 			<io>,<irq>,<dma>,<dma2>,<sb_io>,<sb_irq>,<sb_dma>,<mpu_io>,<mpu_irq>
+
+	tsc=		Disable clocksource-must-verify flag for TSC.
+			Format: <string>
+			[x86] reliable: mark tsc clocksource as reliable, this
+			disables clocksource verification at runtime.
+			Used to enable high-resolution timer mode on older
+			hardware, and in virtualized environment.
 
 	turbografx.map[2|3]=	[HW,JOY]
 			TurboGraFX parallel port interface

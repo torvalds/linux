@@ -1462,6 +1462,15 @@ static int __init procswaps_init(void)
 __initcall(procswaps_init);
 #endif /* CONFIG_PROC_FS */
 
+#ifdef MAX_SWAPFILES_CHECK
+static int __init max_swapfiles_check(void)
+{
+	MAX_SWAPFILES_CHECK();
+	return 0;
+}
+late_initcall(max_swapfiles_check);
+#endif
+
 /*
  * Written 01/25/92 by Simmule Turner, heavily changed by Linus.
  *

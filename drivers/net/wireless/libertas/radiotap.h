@@ -6,9 +6,6 @@ struct tx_radiotap_hdr {
 	u8 txpower;
 	u8 rts_retries;
 	u8 data_retries;
-#if 0
-	u8 pad[IEEE80211_RADIOTAP_HDRLEN - 12];
-#endif
 } __attribute__ ((packed));
 
 #define TX_RADIOTAP_PRESENT (				\

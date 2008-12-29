@@ -659,7 +659,6 @@ static inline void dscc4_rx_skb(struct dscc4_dev_priv *dpriv,
 		skb_put(skb, pkt_len);
 		if (netif_running(dev))
 			skb->protocol = hdlc_type_trans(skb, dev);
-		skb->dev->last_rx = jiffies;
 		netif_rx(skb);
 	} else {
 		if (skb->data[pkt_len] & FrameRdo)
@@ -730,8 +729,7 @@ static int __devinit dscc4_init_one(struct pci_dev *pdev,
 	        goto err_free_mmio_region_1;
 	}
 
-	ioaddr = ioremap(pci_resource_start(pdev, 0),
-					pci_resource_len(pdev, 0));
+	ioaddr = pci_ioremap_bar(pdev, 0);
 	if (!ioaddr) {
 		printk(KERN_ERR "%s: cannot remap MMIO region %llx @ %llx\n",
 			DRV_NAME, (unsigned long long)pci_resource_len(pdev, 0),

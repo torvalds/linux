@@ -147,8 +147,8 @@ static void __exit w83977af_cleanup(void)
  *    Open driver instance
  *
  */
-int w83977af_open(int i, unsigned int iobase, unsigned int irq, 
-		  unsigned int dma)
+static int w83977af_open(int i, unsigned int iobase, unsigned int irq,
+			 unsigned int dma)
 {
 	struct net_device *dev;
         struct w83977af_ir *self;
@@ -178,7 +178,7 @@ int w83977af_open(int i, unsigned int iobase, unsigned int irq,
 		goto err_out;
 	}
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 	spin_lock_init(&self->lock);
    
 
@@ -310,7 +310,7 @@ static int w83977af_close(struct w83977af_ir *self)
 	return 0;
 }
 
-int w83977af_probe( int iobase, int irq, int dma)
+static int w83977af_probe(int iobase, int irq, int dma)
 {
   	int version;
 	int i;
@@ -409,7 +409,7 @@ int w83977af_probe( int iobase, int irq, int dma)
 	return -1;
 }
 
-void w83977af_change_speed(struct w83977af_ir *self, __u32 speed)
+static void w83977af_change_speed(struct w83977af_ir *self, __u32 speed)
 {
 	int ir_mode = HCR_SIR;
 	int iobase; 
@@ -489,7 +489,7 @@ void w83977af_change_speed(struct w83977af_ir *self, __u32 speed)
  *    Sets up a DMA transfer to send the current frame.
  *
  */
-int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
+static int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct w83977af_ir *self;
 	__s32 speed;
@@ -497,7 +497,7 @@ int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	__u8 set;
 	int mtt;
 	
-	self = (struct w83977af_ir *) dev->priv;
+	self = netdev_priv(dev);
 
 	iobase = self->io.fir_base;
 
@@ -731,7 +731,7 @@ static void w83977af_dma_xmit_complete(struct w83977af_ir *self)
  *    if it starts to receive a frame.
  *
  */
-int w83977af_dma_receive(struct w83977af_ir *self) 
+static int w83977af_dma_receive(struct w83977af_ir *self)
 {
 	int iobase;
 	__u8 set;
@@ -803,7 +803,7 @@ int w83977af_dma_receive(struct w83977af_ir *self)
  *    Finished with receiving a frame
  *
  */
-int w83977af_dma_receive_complete(struct w83977af_ir *self)
+static int w83977af_dma_receive_complete(struct w83977af_ir *self)
 {
 	struct sk_buff *skb;
 	struct st_fifo *st_fifo;
@@ -923,7 +923,6 @@ int w83977af_dma_receive_complete(struct w83977af_ir *self)
 			skb_reset_mac_header(skb);
 			skb->protocol = htons(ETH_P_IRDA);
 			netif_rx(skb);
-			self->netdev->last_rx = jiffies;
 		}
 	}
 	/* Restore set register */
@@ -1119,7 +1118,7 @@ static irqreturn_t w83977af_interrupt(int irq, void *dev_id)
 	__u8 set, icr, isr;
 	int iobase;
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 
 	iobase = self->io.fir_base;
 
@@ -1192,7 +1191,7 @@ static int w83977af_net_open(struct net_device *dev)
 	IRDA_DEBUG(0, "%s()\n", __func__ );
 	
 	IRDA_ASSERT(dev != NULL, return -1;);
-	self = (struct w83977af_ir *) dev->priv;
+	self = netdev_priv(dev);
 	
 	IRDA_ASSERT(self != NULL, return 0;);
 	
@@ -1256,7 +1255,7 @@ static int w83977af_net_close(struct net_device *dev)
 
 	IRDA_ASSERT(dev != NULL, return -1;);
 	
-	self = (struct w83977af_ir *) dev->priv;
+	self = netdev_priv(dev);
 	
 	IRDA_ASSERT(self != NULL, return 0;);
 	
@@ -1303,7 +1302,7 @@ static int w83977af_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	IRDA_ASSERT(dev != NULL, return -1;);
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -1339,7 +1338,7 @@ out:
 
 static struct net_device_stats *w83977af_net_get_stats(struct net_device *dev)
 {
-	struct w83977af_ir *self = (struct w83977af_ir *) dev->priv;
+	struct w83977af_ir *self = netdev_priv(dev);
 	
 	return &self->stats;
 }

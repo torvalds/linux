@@ -14,12 +14,15 @@
 #include <linux/hash.h>
 #include <linux/highmem.h>
 #include <linux/blktrace_api.h>
+#include <trace/block.h>
 #include <asm/tlbflush.h>
 
 #define POOL_SIZE	64
 #define ISA_POOL_SIZE	16
 
 static mempool_t *page_pool, *isa_page_pool;
+
+DEFINE_TRACE(block_bio_bounce);
 
 #ifdef CONFIG_HIGHMEM
 static __init int init_emergency_pool(void)
@@ -222,7 +225,7 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 	if (!bio)
 		return;
 
-	blk_add_trace_bio(q, *bio_orig, BLK_TA_BOUNCE);
+	trace_block_bio_bounce(q, *bio_orig);
 
 	/*
 	 * at least one page was bounced, fill in possible non-highmem

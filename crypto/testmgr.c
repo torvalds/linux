@@ -843,6 +843,14 @@ static int test_comp(struct crypto_comp *tfm, struct comp_testvec *ctemplate,
 			goto out;
 		}
 
+		if (dlen != ctemplate[i].outlen) {
+			printk(KERN_ERR "alg: comp: Compression test %d "
+			       "failed for %s: output len = %d\n", i + 1, algo,
+			       dlen);
+			ret = -EINVAL;
+			goto out;
+		}
+
 		if (memcmp(result, ctemplate[i].output, dlen)) {
 			printk(KERN_ERR "alg: comp: Compression test %d "
 			       "failed for %s\n", i + 1, algo);
@@ -853,7 +861,7 @@ static int test_comp(struct crypto_comp *tfm, struct comp_testvec *ctemplate,
 	}
 
 	for (i = 0; i < dtcount; i++) {
-		int ilen, ret, dlen = COMP_BUF_SIZE;
+		int ilen, dlen = COMP_BUF_SIZE;
 
 		memset(result, 0, sizeof (result));
 
@@ -864,6 +872,14 @@ static int test_comp(struct crypto_comp *tfm, struct comp_testvec *ctemplate,
 			printk(KERN_ERR "alg: comp: decompression failed "
 			       "on test %d for %s: ret=%d\n", i + 1, algo,
 			       -ret);
+			goto out;
+		}
+
+		if (dlen != dtemplate[i].outlen) {
+			printk(KERN_ERR "alg: comp: Decompression test %d "
+			       "failed for %s: output len = %d\n", i + 1, algo,
+			       dlen);
+			ret = -EINVAL;
 			goto out;
 		}
 
@@ -1010,6 +1026,55 @@ static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
 	return err;
 }
 
+static int alg_test_crc32c(const struct alg_test_desc *desc,
+			   const char *driver, u32 type, u32 mask)
+{
+	struct crypto_shash *tfm;
+	u32 val;
+	int err;
+
+	err = alg_test_hash(desc, driver, type, mask);
+	if (err)
+		goto out;
+
+	tfm = crypto_alloc_shash(driver, type, mask);
+	if (IS_ERR(tfm)) {
+		printk(KERN_ERR "alg: crc32c: Failed to load transform for %s: "
+		       "%ld\n", driver, PTR_ERR(tfm));
+		err = PTR_ERR(tfm);
+		goto out;
+	}
+
+	do {
+		struct {
+			struct shash_desc shash;
+			char ctx[crypto_shash_descsize(tfm)];
+		} sdesc;
+
+		sdesc.shash.tfm = tfm;
+		sdesc.shash.flags = 0;
+
+		*(u32 *)sdesc.ctx = le32_to_cpu(420553207);
+		err = crypto_shash_final(&sdesc.shash, (u8 *)&val);
+		if (err) {
+			printk(KERN_ERR "alg: crc32c: Operation failed for "
+			       "%s: %d\n", driver, err);
+			break;
+		}
+
+		if (val != ~420553207) {
+			printk(KERN_ERR "alg: crc32c: Test failed for %s: "
+			       "%d\n", driver, val);
+			err = -EINVAL;
+		}
+	} while (0);
+
+	crypto_free_shash(tfm);
+
+out:
+	return err;
+}
+
 /* Please keep this list sorted by algorithm name. */
 static const struct alg_test_desc alg_test_descs[] = {
 	{
@@ -1134,7 +1199,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "crc32c",
-		.test = alg_test_hash,
+		.test = alg_test_crc32c,
 		.suite = {
 			.hash = {
 				.vecs = crc32c_tv_template,
@@ -1801,6 +1866,7 @@ static int alg_find_test(const char *alg)
 int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 {
 	int i;
+	int rc;
 
 	if ((type & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_CIPHER) {
 		char nalg[CRYPTO_MAX_ALG_NAME];
@@ -1820,8 +1886,12 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	if (i < 0)
 		goto notest;
 
-	return alg_test_descs[i].test(alg_test_descs + i, driver,
+	rc = alg_test_descs[i].test(alg_test_descs + i, driver,
 				      type, mask);
+	if (fips_enabled && rc)
+		panic("%s: %s alg self test failed in fips mode!\n", driver, alg);
+
+	return rc;
 
 notest:
 	printk(KERN_INFO "alg: No test for %s (%s)\n", alg, driver);

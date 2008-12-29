@@ -100,6 +100,10 @@ struct kimage {
 #define KEXEC_TYPE_DEFAULT 0
 #define KEXEC_TYPE_CRASH   1
 	unsigned int preserve_context : 1;
+
+#ifdef ARCH_HAS_KIMAGE_ARCH
+	struct kimage_arch arch;
+#endif
 };
 
 

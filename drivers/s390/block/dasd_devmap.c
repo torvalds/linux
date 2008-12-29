@@ -23,6 +23,7 @@
 
 /* This is ugly... */
 #define PRINTK_HEADER "dasd_devmap:"
+#define DASD_BUS_ID_SIZE 20
 
 #include "dasd_int.h"
 
@@ -41,7 +42,7 @@ EXPORT_SYMBOL_GPL(dasd_page_cache);
  */
 struct dasd_devmap {
 	struct list_head list;
-	char bus_id[BUS_ID_SIZE];
+	char bus_id[DASD_BUS_ID_SIZE];
         unsigned int devindex;
         unsigned short features;
 	struct dasd_device *device;
@@ -94,7 +95,7 @@ dasd_hash_busid(const char *bus_id)
 	int hash, i;
 
 	hash = 0;
-	for (i = 0; (i < BUS_ID_SIZE) && *bus_id; i++, bus_id++)
+	for (i = 0; (i < DASD_BUS_ID_SIZE) && *bus_id; i++, bus_id++)
 		hash += *bus_id;
 	return hash & 0xff;
 }
@@ -301,7 +302,7 @@ dasd_parse_range( char *parsestring ) {
 	int from, from_id0, from_id1;
 	int to, to_id0, to_id1;
 	int features, rc;
-	char bus_id[BUS_ID_SIZE+1], *str;
+	char bus_id[DASD_BUS_ID_SIZE+1], *str;
 
 	str = parsestring;
 	rc = dasd_busid(&str, &from_id0, &from_id1, &from);
@@ -407,14 +408,14 @@ dasd_add_busid(const char *bus_id, int features)
 	devmap = NULL;
 	hash = dasd_hash_busid(bus_id);
 	list_for_each_entry(tmp, &dasd_hashlists[hash], list)
-		if (strncmp(tmp->bus_id, bus_id, BUS_ID_SIZE) == 0) {
+		if (strncmp(tmp->bus_id, bus_id, DASD_BUS_ID_SIZE) == 0) {
 			devmap = tmp;
 			break;
 		}
 	if (!devmap) {
 		/* This bus_id is new. */
 		new->devindex = dasd_max_devindex++;
-		strncpy(new->bus_id, bus_id, BUS_ID_SIZE);
+		strncpy(new->bus_id, bus_id, DASD_BUS_ID_SIZE);
 		new->features = features;
 		new->device = NULL;
 		list_add(&new->list, &dasd_hashlists[hash]);
@@ -439,7 +440,7 @@ dasd_find_busid(const char *bus_id)
 	devmap = ERR_PTR(-ENODEV);
 	hash = dasd_hash_busid(bus_id);
 	list_for_each_entry(tmp, &dasd_hashlists[hash], list) {
-		if (strncmp(tmp->bus_id, bus_id, BUS_ID_SIZE) == 0) {
+		if (strncmp(tmp->bus_id, bus_id, DASD_BUS_ID_SIZE) == 0) {
 			devmap = tmp;
 			break;
 		}
@@ -561,7 +562,7 @@ dasd_create_device(struct ccw_device *cdev)
 	}
 
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
-	cdev->dev.driver_data = device;
+	dev_set_drvdata(&cdev->dev, device);
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	return device;
@@ -597,7 +598,7 @@ dasd_delete_device(struct dasd_device *device)
 
 	/* Disconnect dasd_device structure from ccw_device structure. */
 	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
-	device->cdev->dev.driver_data = NULL;
+	dev_set_drvdata(&device->cdev->dev, NULL);
 	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 
 	/*
@@ -638,7 +639,7 @@ dasd_put_device_wake(struct dasd_device *device)
 struct dasd_device *
 dasd_device_from_cdev_locked(struct ccw_device *cdev)
 {
-	struct dasd_device *device = cdev->dev.driver_data;
+	struct dasd_device *device = dev_get_drvdata(&cdev->dev);
 
 	if (!device)
 		return ERR_PTR(-ENODEV);

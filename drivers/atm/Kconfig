@@ -391,4 +391,10 @@ config ATM_HE_USE_SUNI
 	  Support for the S/UNI-Ultra and S/UNI-622 found in the ForeRunner
 	  HE cards.  This driver provides carrier detection some statistics.
 
+config ATM_SOLOS
+	tristate "Solos ADSL2+ PCI Multiport card driver"
+	depends on PCI
+	help
+	  Support for the Solos multiport ADSL2+ card.
+
 endif # ATM

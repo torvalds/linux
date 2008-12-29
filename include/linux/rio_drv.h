@@ -427,9 +427,9 @@ void rio_dev_put(struct rio_dev *);
  * Get the unique RIO device identifier. Returns the device
  * identifier string.
  */
-static inline char *rio_name(struct rio_dev *rdev)
+static inline const char *rio_name(struct rio_dev *rdev)
 {
-	return rdev->dev.bus_id;
+	return dev_name(&rdev->dev);
 }
 
 /**

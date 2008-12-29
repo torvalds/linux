@@ -369,7 +369,6 @@ static struct net_device_stats *mlx4_en_get_stats(struct net_device *dev)
 
 static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 {
-	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_cq *cq;
 	int i;
 
@@ -379,15 +378,8 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	 *   satisfy our coelsing target.
 	 * - moder_time is set to a fixed value.
 	 */
-	priv->rx_frames = (mdev->profile.rx_moder_cnt ==
-			   MLX4_EN_AUTO_CONF) ?
-				MLX4_EN_RX_COAL_TARGET /
-				priv->dev->mtu + 1 :
-				mdev->profile.rx_moder_cnt;
-	priv->rx_usecs = (mdev->profile.rx_moder_time ==
-			  MLX4_EN_AUTO_CONF) ?
-				MLX4_EN_RX_COAL_TIME :
-				mdev->profile.rx_moder_time;
+	priv->rx_frames = MLX4_EN_RX_COAL_TARGET / priv->dev->mtu + 1;
+	priv->rx_usecs = MLX4_EN_RX_COAL_TIME;
 	mlx4_dbg(INTR, priv, "Default coalesing params for mtu:%d - "
 			     "rx_frames:%d rx_usecs:%d\n",
 		 priv->dev->mtu, priv->rx_frames, priv->rx_usecs);
@@ -411,7 +403,7 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	priv->pkt_rate_high = MLX4_EN_RX_RATE_HIGH;
 	priv->rx_usecs_high = MLX4_EN_RX_COAL_TIME_HIGH;
 	priv->sample_interval = MLX4_EN_SAMPLE_INTERVAL;
-	priv->adaptive_rx_coal = mdev->profile.auto_moder;
+	priv->adaptive_rx_coal = 1;
 	priv->last_moder_time = MLX4_EN_AUTO_CONF;
 	priv->last_moder_jiffies = 0;
 	priv->last_moder_packets = 0;
@@ -953,6 +945,23 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static const struct net_device_ops mlx4_netdev_ops = {
+	.ndo_open		= mlx4_en_open,
+	.ndo_stop		= mlx4_en_close,
+	.ndo_start_xmit		= mlx4_en_xmit,
+	.ndo_get_stats		= mlx4_en_get_stats,
+	.ndo_set_multicast_list	= mlx4_en_set_multicast,
+	.ndo_set_mac_address	= mlx4_en_set_mac,
+	.ndo_change_mtu		= mlx4_en_change_mtu,
+	.ndo_tx_timeout		= mlx4_en_tx_timeout,
+	.ndo_vlan_rx_register	= mlx4_en_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= mlx4_en_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= mlx4_en_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= mlx4_en_netpoll,
+#endif
+};
+
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			struct mlx4_en_port_profile *prof)
 {
@@ -1029,22 +1038,9 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	/*
 	 * Initialize netdev entry points
 	 */
-
-	dev->open = &mlx4_en_open;
-	dev->stop = &mlx4_en_close;
-	dev->hard_start_xmit = &mlx4_en_xmit;
-	dev->get_stats = &mlx4_en_get_stats;
-	dev->set_multicast_list = &mlx4_en_set_multicast;
-	dev->set_mac_address = &mlx4_en_set_mac;
-	dev->change_mtu = &mlx4_en_change_mtu;
-	dev->tx_timeout = &mlx4_en_tx_timeout;
+	dev->netdev_ops = &mlx4_netdev_ops;
 	dev->watchdog_timeo = MLX4_EN_WATCHDOG_TIMEOUT;
-	dev->vlan_rx_register = mlx4_en_vlan_rx_register;
-	dev->vlan_rx_add_vid = mlx4_en_vlan_rx_add_vid;
-	dev->vlan_rx_kill_vid = mlx4_en_vlan_rx_kill_vid;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = mlx4_en_netpoll;
-#endif
+
 	SET_ETHTOOL_OPS(dev, &mlx4_en_ethtool_ops);
 
 	/* Set defualt MAC */

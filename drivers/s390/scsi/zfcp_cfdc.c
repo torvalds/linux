@@ -7,6 +7,9 @@
  * Copyright IBM Corporation 2008
  */
 
+#define KMSG_COMPONENT "zfcp"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/types.h>
 #include <linux/miscdevice.h>
 #include <asm/ccwdev.h>

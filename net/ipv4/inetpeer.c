@@ -144,7 +144,7 @@ static void unlink_from_unused(struct inet_peer *p)
  * _stack is known to be NULL or not at compile time,
  * so compiler will optimize the if (_stack) tests.
  */
-#define lookup(_daddr,_stack) 					\
+#define lookup(_daddr, _stack) 					\
 ({								\
 	struct inet_peer *u, **v;				\
 	if (_stack != NULL) {					\

@@ -27,6 +27,7 @@
 #define vector_allocation_domain (genapic->vector_allocation_domain)
 #define enable_apic_mode (genapic->enable_apic_mode)
 #define phys_pkg_id (genapic->phys_pkg_id)
+#define wakeup_secondary_cpu (genapic->wakeup_cpu)
 
 extern void generic_bigsmp_probe(void);
 

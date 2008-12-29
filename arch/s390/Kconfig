@@ -43,6 +43,9 @@ config GENERIC_HWEIGHT
 config GENERIC_TIME
 	def_bool y
 
+config GENERIC_TIME_VSYSCALL
+	def_bool y
+
 config GENERIC_CLOCKEVENTS
 	def_bool y
 
@@ -66,10 +69,15 @@ config PGSTE
 	bool
 	default y if KVM
 
+config VIRT_CPU_ACCOUNTING
+	def_bool y
+
 mainmenu "Linux Kernel Configuration"
 
 config S390
 	def_bool y
+	select USE_GENERIC_SMP_HELPERS if SMP
+	select HAVE_FUNCTION_TRACER
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
@@ -225,6 +233,14 @@ config MARCH_Z9_109
 	  Class (z9 BC). The kernel will be slightly faster but will not
 	  work on older machines such as the z990, z890, z900, and z800.
 
+config MARCH_Z10
+	bool "IBM System z10"
+	help
+	  Select this to enable optimizations for IBM System z10. The
+	  kernel will be slightly faster but will not work on older
+	  machines such as the z990, z890, z900, z800, z9-109, z9-ec
+	  and z9-bc.
+
 endchoice
 
 config PACK_STACK
@@ -343,16 +359,6 @@ config QDIO
 
 	  If unsure, say Y.
 
-config QDIO_DEBUG
-	bool "Extended debugging information"
-	depends on QDIO
-	help
-	  Say Y here to get extended debugging output in
-	    /sys/kernel/debug/s390dbf/qdio...
-	  Warning: this option reduces the performance of the QDIO module.
-
-	  If unsure, say N.
-
 config CHSC_SCH
 	tristate "Support for CHSC subchannels"
 	help
@@ -466,22 +472,9 @@ config PAGE_STATES
 	  hypervisor. The ESSA instruction is used to do the states
 	  changes between a page that has content and the unused state.
 
-config VIRT_TIMER
-	bool "Virtual CPU timer support"
-	help
-	  This provides a kernel interface for virtual CPU timers.
-	  Default is disabled.
-
-config VIRT_CPU_ACCOUNTING
-	bool "Base user process accounting on virtual cpu timer"
-	depends on VIRT_TIMER
-	help
-	  Select this option to use CPU timer deltas to do user
-	  process accounting.
-
 config APPLDATA_BASE
 	bool "Linux - VM Monitor Stream, base infrastructure"
-	depends on PROC_FS && VIRT_TIMER=y
+	depends on PROC_FS
 	help
 	  This provides a kernel interface for creating and updating z/VM APPLDATA
 	  monitor records. The monitor records are updated at certain time
