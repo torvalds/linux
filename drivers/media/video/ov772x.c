@@ -942,8 +942,10 @@ static int ov772x_probe(struct i2c_client *client,
 
 	ret = soc_camera_device_register(icd);
 
-	if (ret)
+	if (ret) {
+		i2c_set_clientdata(client, NULL);
 		kfree(priv);
+	}
 
 	return ret;
 }
@@ -953,6 +955,7 @@ static int ov772x_remove(struct i2c_client *client)
 	struct ov772x_priv *priv = i2c_get_clientdata(client);
 
 	soc_camera_device_unregister(&priv->icd);
+	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 	return 0;
 }
