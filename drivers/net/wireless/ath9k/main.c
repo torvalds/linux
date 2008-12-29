@@ -1342,7 +1342,7 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	ah = ath9k_hw_attach(devid, sc, sc->mem, &status);
 	if (ah == NULL) {
 		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to attach hardware; HAL status %u\n", status);
+			"Unable to attach hardware; HAL status %d\n", status);
 		error = -ENXIO;
 		goto bad;
 	}
