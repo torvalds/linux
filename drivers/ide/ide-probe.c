@@ -642,7 +642,7 @@ static int ide_register_port(ide_hwif_t *hwif)
 	int ret;
 
 	/* register with global device tree */
-	strlcpy(hwif->gendev.bus_id,hwif->name,BUS_ID_SIZE);
+	dev_set_name(&hwif->gendev, hwif->name);
 	hwif->gendev.driver_data = hwif;
 	if (hwif->gendev.parent == NULL) {
 		if (hwif->dev)
@@ -1315,7 +1315,7 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
 
-		snprintf(dev->bus_id, BUS_ID_SIZE, "%u.%u", hwif->index, i);
+		dev_set_name(dev, "%u.%u", hwif->index, i);
 		dev->parent = &hwif->gendev;
 		dev->bus = &ide_bus_type;
 		dev->driver_data = drive;
