@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/vmalloc.h>
+#include <media/v4l2-common.h>
 
 #include "em28xx.h"
 
@@ -974,3 +975,145 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(em28xx_init_isoc);
+
+/*
+ * em28xx_wake_i2c()
+ * configure i2c attached devices
+ */
+void em28xx_wake_i2c(struct em28xx *dev)
+{
+	struct v4l2_routing route;
+	int zero = 0;
+
+	route.input = INPUT(dev->ctl_input)->vmux;
+	route.output = 0;
+	em28xx_i2c_call_clients(dev, VIDIOC_INT_RESET, &zero);
+	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+	em28xx_i2c_call_clients(dev, VIDIOC_STREAMON, NULL);
+}
+
+/*
+ * Device control list
+ */
+
+static LIST_HEAD(em28xx_devlist);
+static DEFINE_MUTEX(em28xx_devlist_mutex);
+
+struct em28xx *em28xx_get_device(struct inode *inode,
+				 enum v4l2_buf_type *fh_type,
+				 int *has_radio)
+{
+	struct em28xx *h, *dev = NULL;
+	int minor = iminor(inode);
+
+	*fh_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	*has_radio = 0;
+
+	mutex_lock(&em28xx_devlist_mutex);
+	list_for_each_entry(h, &em28xx_devlist, devlist) {
+		if (h->vdev->minor == minor)
+			dev = h;
+		if (h->vbi_dev->minor == minor) {
+			dev = h;
+			*fh_type = V4L2_BUF_TYPE_VBI_CAPTURE;
+		}
+		if (h->radio_dev &&
+		    h->radio_dev->minor == minor) {
+			dev = h;
+			*has_radio = 1;
+		}
+	}
+	mutex_unlock(&em28xx_devlist_mutex);
+
+	return dev;
+}
+
+/*
+ * em28xx_realease_resources()
+ * unregisters the v4l2,i2c and usb devices
+ * called when the device gets disconected or at module unload
+*/
+void em28xx_remove_from_devlist(struct em28xx *dev)
+{
+	mutex_lock(&em28xx_devlist_mutex);
+	list_del(&dev->devlist);
+	mutex_unlock(&em28xx_devlist_mutex);
+};
+
+void em28xx_add_into_devlist(struct em28xx *dev)
+{
+	mutex_lock(&em28xx_devlist_mutex);
+	list_add_tail(&dev->devlist, &em28xx_devlist);
+	mutex_unlock(&em28xx_devlist_mutex);
+};
+
+/*
+ * Extension interface
+ */
+
+static LIST_HEAD(em28xx_extension_devlist);
+static DEFINE_MUTEX(em28xx_extension_devlist_lock);
+
+int em28xx_register_extension(struct em28xx_ops *ops)
+{
+	struct em28xx *dev = NULL;
+
+	mutex_lock(&em28xx_devlist_mutex);
+	mutex_lock(&em28xx_extension_devlist_lock);
+	list_add_tail(&ops->next, &em28xx_extension_devlist);
+	list_for_each_entry(dev, &em28xx_devlist, devlist) {
+		if (dev)
+			ops->init(dev);
+	}
+	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
+	mutex_unlock(&em28xx_extension_devlist_lock);
+	mutex_unlock(&em28xx_devlist_mutex);
+	return 0;
+}
+EXPORT_SYMBOL(em28xx_register_extension);
+
+void em28xx_unregister_extension(struct em28xx_ops *ops)
+{
+	struct em28xx *dev = NULL;
+
+	mutex_lock(&em28xx_devlist_mutex);
+	list_for_each_entry(dev, &em28xx_devlist, devlist) {
+		if (dev)
+			ops->fini(dev);
+	}
+
+	mutex_lock(&em28xx_extension_devlist_lock);
+	printk(KERN_INFO "Em28xx: Removed (%s) extension\n", ops->name);
+	list_del(&ops->next);
+	mutex_unlock(&em28xx_extension_devlist_lock);
+	mutex_unlock(&em28xx_devlist_mutex);
+}
+EXPORT_SYMBOL(em28xx_unregister_extension);
+
+void em28xx_init_extension(struct em28xx *dev)
+{
+	struct em28xx_ops *ops = NULL;
+
+	mutex_lock(&em28xx_extension_devlist_lock);
+	if (!list_empty(&em28xx_extension_devlist)) {
+		list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+			if (ops->init)
+				ops->init(dev);
+		}
+	}
+	mutex_unlock(&em28xx_extension_devlist_lock);
+}
+
+void em28xx_close_extension(struct em28xx *dev)
+{
+	struct em28xx_ops *ops = NULL;
+
+	mutex_lock(&em28xx_extension_devlist_lock);
+	if (!list_empty(&em28xx_extension_devlist)) {
+		list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+			if (ops->fini)
+				ops->fini(dev);
+		}
+	}
+	mutex_unlock(&em28xx_extension_devlist_lock);
+}

@@ -581,10 +581,21 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 void em28xx_uninit_isoc(struct em28xx *dev);
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
-
-/* Provided by em28xx-video.c */
+void em28xx_wake_i2c(struct em28xx *dev);
+void em28xx_remove_from_devlist(struct em28xx *dev);
+void em28xx_add_into_devlist(struct em28xx *dev);
+struct em28xx *em28xx_get_device(struct inode *inode,
+				 enum v4l2_buf_type *fh_type,
+				 int *has_radio);
 int em28xx_register_extension(struct em28xx_ops *dev);
 void em28xx_unregister_extension(struct em28xx_ops *dev);
+void em28xx_init_extension(struct em28xx *dev);
+void em28xx_close_extension(struct em28xx *dev);
+
+/* Provided by em28xx-video.c */
+int em28xx_analog_config(struct em28xx *dev);
+int em28xx_register_analog_devices(struct em28xx *dev);
+void em28xx_release_analog_resources(struct em28xx *dev);
 
 /* Provided by em28xx-cards.c */
 extern int em2800_variant_detect(struct usb_device *udev, int model);
@@ -595,6 +606,7 @@ extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
 void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir);
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
+void em28xx_release_resources(struct em28xx *dev);
 
 /* Provided by em28xx-input.c */
 int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
