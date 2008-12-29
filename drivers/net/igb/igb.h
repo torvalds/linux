@@ -43,8 +43,6 @@ struct igb_adapter;
 #endif
 
 /* Interrupt defines */
-#define IGB_MAX_TX_CLEAN 72
-
 #define IGB_MIN_DYN_ITR 3000
 #define IGB_MAX_DYN_ITR 96000
 
@@ -127,7 +125,8 @@ struct igb_buffer {
 		/* TX */
 		struct {
 			unsigned long time_stamp;
-			u32 length;
+			u16 length;
+			u16 next_to_watch;
 		};
 		/* RX */
 		struct {
@@ -160,7 +159,8 @@ struct igb_ring {
 	u16 itr_register;
 	u16 cpu;
 
-	int queue_index;
+	u16 queue_index;
+	u16 reg_idx;
 	unsigned int total_bytes;
 	unsigned int total_packets;
 
@@ -294,6 +294,8 @@ struct igb_adapter {
 	unsigned int lro_flushed;
 	unsigned int lro_no_desc;
 #endif
+	unsigned int tx_ring_count;
+	unsigned int rx_ring_count;
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)
@@ -325,7 +327,41 @@ extern void igb_reset(struct igb_adapter *);
 extern int igb_set_spd_dplx(struct igb_adapter *, u16);
 extern int igb_setup_tx_resources(struct igb_adapter *, struct igb_ring *);
 extern int igb_setup_rx_resources(struct igb_adapter *, struct igb_ring *);
+extern void igb_free_tx_resources(struct igb_ring *);
+extern void igb_free_rx_resources(struct igb_ring *);
 extern void igb_update_stats(struct igb_adapter *);
 extern void igb_set_ethtool_ops(struct net_device *);
+
+static inline s32 igb_reset_phy(struct e1000_hw *hw)
+{
+	if (hw->phy.ops.reset_phy)
+		return hw->phy.ops.reset_phy(hw);
+
+	return 0;
+}
+
+static inline s32 igb_read_phy_reg(struct e1000_hw *hw, u32 offset, u16 *data)
+{
+	if (hw->phy.ops.read_phy_reg)
+		return hw->phy.ops.read_phy_reg(hw, offset, data);
+
+	return 0;
+}
+
+static inline s32 igb_write_phy_reg(struct e1000_hw *hw, u32 offset, u16 data)
+{
+	if (hw->phy.ops.write_phy_reg)
+		return hw->phy.ops.write_phy_reg(hw, offset, data);
+
+	return 0;
+}
+
+static inline s32 igb_get_phy_info(struct e1000_hw *hw)
+{
+	if (hw->phy.ops.get_phy_info)
+		return hw->phy.ops.get_phy_info(hw);
+
+	return 0;
+}
 
 #endif /* _IGB_H_ */

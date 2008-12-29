@@ -102,6 +102,7 @@ config CRYPTO_NULL
 	tristate "Null algorithms"
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_HASH
 	help
 	  These are 'Null' algorithms, used by IPsec, which do nothing.
 
@@ -256,12 +257,10 @@ comment "Digest"
 config CRYPTO_CRC32C
 	tristate "CRC32c CRC algorithm"
 	select CRYPTO_HASH
-	select LIBCRC32C
 	help
 	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
 	  by iSCSI for header and data digests and by others.
-	  See Castagnoli93.  This implementation uses lib/libcrc32c.
-	  Module will be crc32c.
+	  See Castagnoli93.  Module will be crc32c.
 
 config CRYPTO_CRC32C_INTEL
 	tristate "CRC32c INTEL hardware acceleration"
@@ -277,19 +276,19 @@ config CRYPTO_CRC32C_INTEL
 
 config CRYPTO_MD4
 	tristate "MD4 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  MD4 message digest algorithm (RFC1320).
 
 config CRYPTO_MD5
 	tristate "MD5 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  MD5 message digest algorithm (RFC1321).
 
 config CRYPTO_MICHAEL_MIC
 	tristate "Michael MIC keyed digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  Michael MIC is used for message integrity protection in TKIP
 	  (IEEE 802.11i). This algorithm is required for TKIP, but it
@@ -298,7 +297,7 @@ config CRYPTO_MICHAEL_MIC
 
 config CRYPTO_RMD128
 	tristate "RIPEMD-128 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  RIPEMD-128 (ISO/IEC 10118-3:2004).
 
@@ -311,7 +310,7 @@ config CRYPTO_RMD128
 
 config CRYPTO_RMD160
 	tristate "RIPEMD-160 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  RIPEMD-160 (ISO/IEC 10118-3:2004).
 
@@ -328,7 +327,7 @@ config CRYPTO_RMD160
 
 config CRYPTO_RMD256
 	tristate "RIPEMD-256 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  RIPEMD-256 is an optional extension of RIPEMD-128 with a
 	  256 bit hash. It is intended for applications that require
@@ -340,7 +339,7 @@ config CRYPTO_RMD256
 
 config CRYPTO_RMD320
 	tristate "RIPEMD-320 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  RIPEMD-320 is an optional extension of RIPEMD-160 with a
 	  320 bit hash. It is intended for applications that require
@@ -352,13 +351,13 @@ config CRYPTO_RMD320
 
 config CRYPTO_SHA1
 	tristate "SHA1 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  SHA256 secure hash standard (DFIPS 180-2).
 
@@ -370,7 +369,7 @@ config CRYPTO_SHA256
 
 config CRYPTO_SHA512
 	tristate "SHA384 and SHA512 digest algorithms"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  SHA512 secure hash standard (DFIPS 180-2).
 
@@ -382,7 +381,7 @@ config CRYPTO_SHA512
 
 config CRYPTO_TGR192
 	tristate "Tiger digest algorithms"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  Tiger hash algorithm 192, 160 and 128-bit hashes
 
@@ -395,7 +394,7 @@ config CRYPTO_TGR192
 
 config CRYPTO_WP512
 	tristate "Whirlpool digest algorithms"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  Whirlpool hash algorithm 512, 384 and 256-bit hashes
 

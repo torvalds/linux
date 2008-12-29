@@ -58,17 +58,17 @@
 #define mlx4_dbg(mlevel, priv, format, arg...)	\
 	if (NETIF_MSG_##mlevel & priv->msg_enable) \
 	printk(KERN_DEBUG "%s %s: " format , DRV_NAME ,\
-		(&priv->mdev->pdev->dev)->bus_id , ## arg)
+		(dev_name(&priv->mdev->pdev->dev)) , ## arg)
 
 #define mlx4_err(mdev, format, arg...) \
 	printk(KERN_ERR "%s %s: " format , DRV_NAME ,\
-		(&mdev->pdev->dev)->bus_id , ## arg)
+		(dev_name(&mdev->pdev->dev)) , ## arg)
 #define mlx4_info(mdev, format, arg...) \
 	printk(KERN_INFO "%s %s: " format , DRV_NAME ,\
-		(&mdev->pdev->dev)->bus_id , ## arg)
+		(dev_name(&mdev->pdev->dev)) , ## arg)
 #define mlx4_warn(mdev, format, arg...) \
 	printk(KERN_WARNING "%s %s: " format , DRV_NAME ,\
-		(&mdev->pdev->dev)->bus_id , ## arg)
+		(dev_name(&mdev->pdev->dev)) , ## arg)
 
 /*
  * Device constants
@@ -311,7 +311,6 @@ struct mlx4_en_cq {
 	enum cq_type is_tx;
 	u16 moder_time;
 	u16 moder_cnt;
-	int armed;
 	struct mlx4_cqe *buf;
 #define MLX4_EN_OPCODE_ERROR	0x1e
 };
@@ -334,9 +333,6 @@ struct mlx4_en_profile {
 	u8 rss_mask;
 	u32 active_ports;
 	u32 small_pkt_int;
-	int rx_moder_cnt;
-	int rx_moder_time;
-	int auto_moder;
 	u8 no_reset;
 	struct mlx4_en_port_profile prof[MLX4_MAX_PORTS + 1];
 };

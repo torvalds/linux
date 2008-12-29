@@ -17,6 +17,7 @@
 */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/ftrace.h>
 #include <asm/uaccess.h>
 #include <asm/sections.h>
 
@@ -40,7 +41,7 @@ const struct exception_table_entry *search_exception_tables(unsigned long addr)
 	return e;
 }
 
-int core_kernel_text(unsigned long addr)
+__notrace_funcgraph int core_kernel_text(unsigned long addr)
 {
 	if (addr >= (unsigned long)_stext &&
 	    addr <= (unsigned long)_etext)
@@ -53,7 +54,7 @@ int core_kernel_text(unsigned long addr)
 	return 0;
 }
 
-int __kernel_text_address(unsigned long addr)
+__notrace_funcgraph int __kernel_text_address(unsigned long addr)
 {
 	if (core_kernel_text(addr))
 		return 1;

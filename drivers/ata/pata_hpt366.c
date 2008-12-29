@@ -183,7 +183,9 @@ static unsigned long hpt366_filter(struct ata_device *adev, unsigned long mask)
 			mask &= ~(0xF8 << ATA_SHIFT_UDMA);
 		if (hpt_dma_blacklisted(adev, "UDMA4", bad_ata66_4))
 			mask &= ~(0xF0 << ATA_SHIFT_UDMA);
-	}
+	} else if (adev->class == ATA_DEV_ATAPI)
+		mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
+
 	return ata_bmdma_mode_filter(adev, mask);
 }
 
@@ -211,11 +213,15 @@ static u32 hpt36x_find_mode(struct ata_port *ap, int speed)
 
 static int hpt36x_cable_detect(struct ata_port *ap)
 {
-	u8 ata66;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	u8 ata66;
 
+	/*
+	 * Each channel of pata_hpt366 occupies separate PCI function
+	 * as the primary channel and bit1 indicates the cable type.
+	 */
 	pci_read_config_byte(pdev, 0x5A, &ata66);
-	if (ata66 & (1 << ap->port_no))
+	if (ata66 & 2)
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
 }

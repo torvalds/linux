@@ -248,7 +248,6 @@ static int __init atp_probe1(long ioaddr)
 	struct net_local *lp;
 	int saved_ctrl_reg, status, i;
 	int res;
-	DECLARE_MAC_BUF(mac);
 
 	outb(0xff, ioaddr + PAR_DATA);
 	/* Save the original value of the Control register, in case we guessed
@@ -324,8 +323,8 @@ static int __init atp_probe1(long ioaddr)
 #endif
 
 	printk(KERN_NOTICE "%s: Pocket adapter found at %#3lx, IRQ %d, "
-	       "SAPROM %s.\n",
-	       dev->name, dev->base_addr, dev->irq, print_mac(mac, dev->dev_addr));
+	       "SAPROM %pM.\n",
+	       dev->name, dev->base_addr, dev->irq, dev->dev_addr);
 
 	/* Reset the ethernet hardware and activate the printer pass-through. */
 	write_reg_high(ioaddr, CMR1, CMR1h_RESET | CMR1h_MUX);
@@ -421,7 +420,7 @@ static unsigned short __init eeprom_op(long ioaddr, u32 cmd)
    registers that "should" only need to be set once at boot, so that
    there is non-reboot way to recover if something goes wrong.
 
-   This is an attachable device: if there is no dev->priv entry then it wasn't
+   This is an attachable device: if there is no private entry then it wasn't
    probed for at boot-time, and we need to probe for it again.
    */
 static int net_open(struct net_device *dev)
@@ -803,21 +802,22 @@ static void net_rx(struct net_device *dev)
 
 static void read_block(long ioaddr, int length, unsigned char *p, int data_mode)
 {
-
 	if (data_mode <= 3) { /* Mode 0 or 1 */
 		outb(Ctrl_LNibRead, ioaddr + PAR_CONTROL);
 		outb(length == 8  ?  RdAddr | HNib | MAR  :  RdAddr | MAR,
 			 ioaddr + PAR_DATA);
 		if (data_mode <= 1) { /* Mode 0 or 1 */
-			do  *p++ = read_byte_mode0(ioaddr);  while (--length > 0);
-		} else	/* Mode 2 or 3 */
-			do  *p++ = read_byte_mode2(ioaddr);  while (--length > 0);
-	} else if (data_mode <= 5)
-		do      *p++ = read_byte_mode4(ioaddr);  while (--length > 0);
-	else
-		do      *p++ = read_byte_mode6(ioaddr);  while (--length > 0);
+			do { *p++ = read_byte_mode0(ioaddr); } while (--length > 0);
+		} else { /* Mode 2 or 3 */
+			do { *p++ = read_byte_mode2(ioaddr); } while (--length > 0);
+		}
+	} else if (data_mode <= 5) {
+		do { *p++ = read_byte_mode4(ioaddr); } while (--length > 0);
+	} else {
+		do { *p++ = read_byte_mode6(ioaddr); } while (--length > 0);
+	}
 
-    outb(EOC+HNib+MAR, ioaddr + PAR_DATA);
+	outb(EOC+HNib+MAR, ioaddr + PAR_DATA);
 	outb(Ctrl_SelData, ioaddr + PAR_CONTROL);
 }
 
@@ -913,7 +913,8 @@ static void __exit atp_cleanup_module(void) {
 	struct net_device *next_dev;
 
 	while (root_atp_dev) {
-		next_dev = ((struct net_local *)root_atp_dev->priv)->next_module;
+		struct net_local *atp_local = netdev_priv(root_atp_dev);
+		next_dev = atp_local->next_module;
 		unregister_netdev(root_atp_dev);
 		/* No need to release_region(), since we never snarf it. */
 		free_netdev(root_atp_dev);

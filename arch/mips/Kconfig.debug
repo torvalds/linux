@@ -48,7 +48,7 @@ config RUNTIME_DEBUG
 	help
 	  If you say Y here, some debugging macros will do run-time checking.
 	  If you say N here, those macros will mostly turn to no-ops.  See
-	  include/asm-mips/debug.h for debuging macros.
+	  arch/mips/include/asm/debug.h for debugging macros.
 	  If unsure, say N.
 
 endmenu

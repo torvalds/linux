@@ -2347,7 +2347,7 @@ static int cas_rx_ringN(struct cas *cp, int ring, int budget)
 	drops = 0;
 	while (1) {
 		struct cas_rx_comp *rxc = rxcs + entry;
-		struct sk_buff *skb;
+		struct sk_buff *uninitialized_var(skb);
 		int type, len;
 		u64 words[4];
 		int i, dring;
@@ -2405,7 +2405,6 @@ static int cas_rx_ringN(struct cas *cp, int ring, int budget)
 		cp->net_stats[ring].rx_packets++;
 		cp->net_stats[ring].rx_bytes += len;
 		spin_unlock(&cp->stat_lock[ring]);
-		cp->dev->last_rx = jiffies;
 
 	next:
 		npackets++;
@@ -2507,7 +2506,7 @@ static irqreturn_t cas_interruptN(int irq, void *dev_id)
 	if (status & INTR_RX_DONE_ALT) { /* handle rx separately */
 #ifdef USE_NAPI
 		cas_mask_intr(cp);
-		netif_rx_schedule(dev, &cp->napi);
+		netif_rx_schedule(&cp->napi);
 #else
 		cas_rx_ringN(cp, ring, 0);
 #endif
@@ -2558,7 +2557,7 @@ static irqreturn_t cas_interrupt1(int irq, void *dev_id)
 	if (status & INTR_RX_DONE_ALT) { /* handle rx separately */
 #ifdef USE_NAPI
 		cas_mask_intr(cp);
-		netif_rx_schedule(dev, &cp->napi);
+		netif_rx_schedule(&cp->napi);
 #else
 		cas_rx_ringN(cp, 1, 0);
 #endif
@@ -2614,7 +2613,7 @@ static irqreturn_t cas_interrupt(int irq, void *dev_id)
 	if (status & INTR_RX_DONE) {
 #ifdef USE_NAPI
 		cas_mask_intr(cp);
-		netif_rx_schedule(dev, &cp->napi);
+		netif_rx_schedule(&cp->napi);
 #else
 		cas_rx_ringN(cp, 0, 0);
 #endif
@@ -2692,7 +2691,7 @@ rx_comp:
 #endif
 	spin_unlock_irqrestore(&cp->lock, flags);
 	if (enable_intr) {
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		cas_unmask_intr(cp);
 	}
 	return credits;
@@ -4988,7 +4987,6 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	int i, err, pci_using_dac;
 	u16 pci_cmd;
 	u8 orig_cacheline_size = 0, cas_cacheline_size = 0;
-	DECLARE_MAC_BUF(mac);
 
 	if (cas_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -5201,12 +5199,12 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 
 	i = readl(cp->regs + REG_BIM_CFG);
 	printk(KERN_INFO "%s: Sun Cassini%s (%sbit/%sMHz PCI/%s) "
-	       "Ethernet[%d] %s\n",  dev->name,
+	       "Ethernet[%d] %pM\n",  dev->name,
 	       (cp->cas_flags & CAS_FLAG_REG_PLUS) ? "+" : "",
 	       (i & BIM_CFG_32BIT) ? "32" : "64",
 	       (i & BIM_CFG_66MHZ) ? "66" : "33",
 	       (cp->phy_type == CAS_PHY_SERDES) ? "Fi" : "Cu", pdev->irq,
-	       print_mac(mac, dev->dev_addr));
+	       dev->dev_addr);
 
 	pci_set_drvdata(pdev, dev);
 	cp->hw_running = 1;

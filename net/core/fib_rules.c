@@ -664,17 +664,18 @@ static int __init fib_rules_init(void)
 	rtnl_register(PF_UNSPEC, RTM_DELRULE, fib_nl_delrule, NULL);
 	rtnl_register(PF_UNSPEC, RTM_GETRULE, NULL, fib_nl_dumprule);
 
-	err = register_netdevice_notifier(&fib_rules_notifier);
+	err = register_pernet_subsys(&fib_rules_net_ops);
 	if (err < 0)
 		goto fail;
 
-	err = register_pernet_subsys(&fib_rules_net_ops);
+	err = register_netdevice_notifier(&fib_rules_notifier);
 	if (err < 0)
 		goto fail_unregister;
+
 	return 0;
 
 fail_unregister:
-	unregister_netdevice_notifier(&fib_rules_notifier);
+	unregister_pernet_subsys(&fib_rules_net_ops);
 fail:
 	rtnl_unregister(PF_UNSPEC, RTM_NEWRULE);
 	rtnl_unregister(PF_UNSPEC, RTM_DELRULE);

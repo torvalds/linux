@@ -901,10 +901,17 @@ static void mark_reserved_regions_for_nid(int nid)
 			if (end_pfn > node_ar.end_pfn)
 				reserve_size = (node_ar.end_pfn << PAGE_SHIFT)
 					- (start_pfn << PAGE_SHIFT);
-			dbg("reserve_bootmem %lx %lx nid=%d\n", physbase,
-				reserve_size, node_ar.nid);
-			reserve_bootmem_node(NODE_DATA(node_ar.nid), physbase,
-						reserve_size, BOOTMEM_DEFAULT);
+			/*
+			 * Only worry about *this* node, others may not
+			 * yet have valid NODE_DATA().
+			 */
+			if (node_ar.nid == nid) {
+				dbg("reserve_bootmem %lx %lx nid=%d\n",
+					physbase, reserve_size, node_ar.nid);
+				reserve_bootmem_node(NODE_DATA(node_ar.nid),
+						physbase, reserve_size,
+						BOOTMEM_DEFAULT);
+			}
 			/*
 			 * if reserved region is contained in the active region
 			 * then done.
@@ -929,7 +936,6 @@ static void mark_reserved_regions_for_nid(int nid)
 void __init do_init_bootmem(void)
 {
 	int nid;
-	unsigned int i;
 
 	min_low_pfn = 0;
 	max_low_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;

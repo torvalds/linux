@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
+#include <asm/unaligned.h>
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
@@ -49,17 +50,19 @@ void ieee80211_wep_free(struct ieee80211_local *local)
 	crypto_free_blkcipher(local->wep_rx_tfm);
 }
 
-static inline int ieee80211_wep_weak_iv(u32 iv, int keylen)
+static inline bool ieee80211_wep_weak_iv(u32 iv, int keylen)
 {
-	/* Fluhrer, Mantin, and Shamir have reported weaknesses in the
+	/*
+	 * Fluhrer, Mantin, and Shamir have reported weaknesses in the
 	 * key scheduling algorithm of RC4. At least IVs (KeyByte + 3,
-	 * 0xff, N) can be used to speedup attacks, so avoid using them. */
+	 * 0xff, N) can be used to speedup attacks, so avoid using them.
+	 */
 	if ((iv & 0xff00) == 0xff00) {
 		u8 B = (iv >> 16) & 0xff;
 		if (B >= 3 && B < 3 + keylen)
-			return 1;
+			return true;
 	}
-	return 0;
+	return false;
 }
 
 
@@ -123,10 +126,10 @@ void ieee80211_wep_encrypt_data(struct crypto_blkcipher *tfm, u8 *rc4key,
 {
 	struct blkcipher_desc desc = { .tfm = tfm };
 	struct scatterlist sg;
-	__le32 *icv;
+	__le32 icv;
 
-	icv = (__le32 *)(data + data_len);
-	*icv = cpu_to_le32(~crc32_le(~0, data, data_len));
+	icv = cpu_to_le32(~crc32_le(~0, data, data_len));
+	put_unaligned(icv, (__le32 *)(data + data_len));
 
 	crypto_blkcipher_setkey(tfm, rc4key, klen);
 	sg_init_one(&sg, data, data_len + WEP_ICV_LEN);
@@ -268,7 +271,7 @@ int ieee80211_wep_decrypt(struct ieee80211_local *local, struct sk_buff *skb,
 }
 
 
-u8 * ieee80211_wep_is_weak_iv(struct sk_buff *skb, struct ieee80211_key *key)
+bool ieee80211_wep_is_weak_iv(struct sk_buff *skb, struct ieee80211_key *key)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	unsigned int hdrlen;
@@ -276,16 +279,13 @@ u8 * ieee80211_wep_is_weak_iv(struct sk_buff *skb, struct ieee80211_key *key)
 	u32 iv;
 
 	if (!ieee80211_has_protected(hdr->frame_control))
-		return NULL;
+		return false;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	ivpos = skb->data + hdrlen;
 	iv = (ivpos[0] << 16) | (ivpos[1] << 8) | ivpos[2];
 
-	if (ieee80211_wep_weak_iv(iv, key->conf.keylen))
-		return ivpos;
-
-	return NULL;
+	return ieee80211_wep_weak_iv(iv, key->conf.keylen);
 }
 
 ieee80211_rx_result
@@ -329,6 +329,8 @@ static int wep_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 ieee80211_tx_result
 ieee80211_crypto_wep_encrypt(struct ieee80211_tx_data *tx)
 {
+	int i;
+
 	ieee80211_tx_set_protected(tx);
 
 	if (wep_encrypt_skb(tx, tx->skb) < 0) {
@@ -337,9 +339,8 @@ ieee80211_crypto_wep_encrypt(struct ieee80211_tx_data *tx)
 	}
 
 	if (tx->extra_frag) {
-		int i;
 		for (i = 0; i < tx->num_extra_frag; i++) {
-			if (wep_encrypt_skb(tx, tx->extra_frag[i]) < 0) {
+			if (wep_encrypt_skb(tx, tx->extra_frag[i])) {
 				I802_DEBUG_INC(tx->local->
 					       tx_handlers_drop_wep);
 				return TX_DROP;

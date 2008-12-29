@@ -19,6 +19,8 @@ config X86_64
 config X86
 	def_bool y
 	select HAVE_AOUT if X86_32
+	select HAVE_READQ
+	select HAVE_WRITEQ
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
@@ -29,11 +31,14 @@ config X86
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_KVM if ((X86_32 && !X86_VOYAGER && !X86_VISWS && !X86_NUMAQ) || X86_64)
 	select HAVE_ARCH_KGDB if !X86_VOYAGER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_GENERIC_DMA_COHERENT if X86_32
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
+	select USER_STACKTRACE_SUPPORT
 
 config ARCH_DEFCONFIG
 	string
@@ -87,6 +92,10 @@ config GENERIC_IOMAP
 config GENERIC_BUG
 	def_bool y
 	depends on BUG
+	select GENERIC_BUG_RELATIVE_POINTERS if X86_64
+
+config GENERIC_BUG_RELATIVE_POINTERS
+	bool
 
 config GENERIC_HWEIGHT
 	def_bool y
@@ -242,21 +251,13 @@ config X86_FIND_SMP_CONFIG
 	def_bool y
 	depends on X86_MPPARSE || X86_VOYAGER
 
-if ACPI
 config X86_MPPARSE
-	def_bool y
-	bool "Enable MPS table"
+	bool "Enable MPS table" if ACPI
+	default y
 	depends on X86_LOCAL_APIC
 	help
 	  For old smp systems that do not have proper acpi support. Newer systems
 	  (esp with 64bit cpus) with acpi support, MADT and DSDT will override it
-endif
-
-if !ACPI
-config X86_MPPARSE
-	def_bool y
-	depends on X86_LOCAL_APIC
-endif
 
 choice
 	prompt "Subarchitecture Type"
@@ -367,10 +368,10 @@ config X86_RDC321X
 	  as R-8610-(G).
 	  If you don't have one of these chips, you should say N here.
 
-config SCHED_NO_NO_OMIT_FRAME_POINTER
+config SCHED_OMIT_FRAME_POINTER
 	def_bool y
 	prompt "Single-depth WCHAN output"
-	depends on X86_32
+	depends on X86
 	help
 	  Calculate simpler /proc/<PID>/wchan values. If this option
 	  is disabled then wchan values will recurse back to the
@@ -464,10 +465,6 @@ config X86_SUMMIT_NUMA
 config X86_CYCLONE_TIMER
 	def_bool y
 	depends on X86_GENERICARCH
-
-config ES7000_CLUSTERED_APIC
-	def_bool y
-	depends on SMP && X86_ES7000 && MPENTIUMIII
 
 source "arch/x86/Kconfig.cpu"
 
@@ -569,7 +566,7 @@ config AMD_IOMMU
 
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
-	bool
+	def_bool y if X86_64
 	help
 	  Support for software bounce buffers used on x86-64 systems
 	  which don't have a hardware IOMMU (e.g. the current generation
@@ -659,6 +656,30 @@ config X86_IO_APIC
 config X86_VISWS_APIC
 	def_bool y
 	depends on X86_32 && X86_VISWS
+
+config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
+	bool "Reroute for broken boot IRQs"
+	default n
+	depends on X86_IO_APIC
+	help
+	  This option enables a workaround that fixes a source of
+	  spurious interrupts. This is recommended when threaded
+	  interrupt handling is used on systems where the generation of
+	  superfluous "boot interrupts" cannot be disabled.
+
+	  Some chipsets generate a legacy INTx "boot IRQ" when the IRQ
+	  entry in the chipset's IO-APIC is masked (as, e.g. the RT
+	  kernel does during interrupt handling). On chipsets where this
+	  boot IRQ generation cannot be disabled, this workaround keeps
+	  the original IRQ line masked so that only the equivalent "boot
+	  IRQ" is delivered to the CPUs. The workaround also tells the
+	  kernel to set up the IRQ handler on the boot IRQ line. In this
+	  way only one interrupt is delivered to the kernel. Otherwise
+	  the spurious second interrupt may cause the kernel to bring
+	  down (vital) interrupt lines.
+
+	  Only affects "broken" chipsets. Interrupt sharing may be
+	  increased on these systems.
 
 config X86_MCE
 	bool "Machine Check Exception"
@@ -956,24 +977,37 @@ config X86_PAE
 config ARCH_PHYS_ADDR_T_64BIT
        def_bool X86_64 || X86_PAE
 
+config DIRECT_GBPAGES
+	bool "Enable 1GB pages for kernel pagetables" if EMBEDDED
+	default y
+	depends on X86_64
+	help
+	  Allow the kernel linear mapping to use 1GB pages on CPUs that
+	  support it. This can improve the kernel's performance a tiny bit by
+	  reducing TLB pressure. If in doubt, say "Y".
+
 # Common NUMA Features
 config NUMA
-	bool "Numa Memory Allocation and Scheduler Support (EXPERIMENTAL)"
+	bool "Numa Memory Allocation and Scheduler Support"
 	depends on SMP
 	depends on X86_64 || (X86_32 && HIGHMEM64G && (X86_NUMAQ || X86_BIGSMP || X86_SUMMIT && ACPI) && EXPERIMENTAL)
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT || X86_BIGSMP)
 	help
 	  Enable NUMA (Non Uniform Memory Access) support.
+
 	  The kernel will try to allocate memory used by a CPU on the
 	  local memory controller of the CPU and add some more
 	  NUMA awareness to the kernel.
 
-	  For 32-bit this is currently highly experimental and should be only
-	  used for kernel development. It might also cause boot failures.
-	  For 64-bit this is recommended on all multiprocessor Opteron systems.
-	  If the system is EM64T, you should say N unless your system is
-	  EM64T NUMA.
+	  For 64-bit this is recommended if the system is Intel Core i7
+	  (or later), AMD Opteron, or EM64T NUMA.
+
+	  For 32-bit this is only needed on (rare) 32-bit-only platforms
+	  that support NUMA topologies, such as NUMAQ / Summit, or if you
+	  boot a 32-bit kernel on a 64-bit NUMA platform.
+
+	  Otherwise, you should say N.
 
 comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
 	depends on X86_32 && X86_SUMMIT && (!HIGHMEM64G || !ACPI)
@@ -1493,6 +1527,10 @@ config ARCH_ENABLE_MEMORY_HOTPLUG
 	def_bool y
 	depends on X86_64 || (X86_32 && HIGHMEM)
 
+config ARCH_ENABLE_MEMORY_HOTREMOVE
+	def_bool y
+	depends on MEMORY_HOTPLUG
+
 config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool X86_64
 	depends on NUMA
@@ -1631,13 +1669,6 @@ config APM_ALLOW_INTS
 	  needs to.  Unfortunately, some BIOSes do not -- especially those in
 	  many of the newer IBM Thinkpads.  If you experience hangs when you
 	  suspend, try setting this to Y.  Otherwise, say N.
-
-config APM_REAL_MODE_POWER_OFF
-	bool "Use real mode APM BIOS call to power off"
-	help
-	  Use real mode APM BIOS calls to switch off the computer. This is
-	  a work-around for a number of buggy BIOSes. Switch this option on if
-	  your computer crashes instead of powering off properly.
 
 endif # APM
 

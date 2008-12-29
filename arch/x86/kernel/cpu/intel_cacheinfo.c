@@ -644,20 +644,17 @@ static inline ssize_t show_shared_cpu_list(struct _cpuid4_info *leaf, char *buf)
 	return show_shared_cpu_map_func(leaf, 1, buf);
 }
 
-static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf) {
-	switch(this_leaf->eax.split.type) {
-	    case CACHE_TYPE_DATA:
+static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf)
+{
+	switch (this_leaf->eax.split.type) {
+	case CACHE_TYPE_DATA:
 		return sprintf(buf, "Data\n");
-		break;
-	    case CACHE_TYPE_INST:
+	case CACHE_TYPE_INST:
 		return sprintf(buf, "Instruction\n");
-		break;
-	    case CACHE_TYPE_UNIFIED:
+	case CACHE_TYPE_UNIFIED:
 		return sprintf(buf, "Unified\n");
-		break;
-	    default:
+	default:
 		return sprintf(buf, "Unknown\n");
-		break;
 	}
 }
 

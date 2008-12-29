@@ -141,4 +141,6 @@ static inline int test_and_change_bit(int nr, volatile void * addr)
 	return retval != 0;
 }
 
+#include <asm-generic/bitops/non-atomic.h>
+
 #endif /* __ASM_SH_BITOPS_LLSC_H */

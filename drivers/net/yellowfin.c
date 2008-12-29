@@ -355,6 +355,16 @@ static int yellowfin_close(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static const struct ethtool_ops ethtool_ops;
 
+static const struct net_device_ops netdev_ops = {
+	.ndo_open 		= yellowfin_open,
+	.ndo_stop 		= yellowfin_close,
+	.ndo_start_xmit 	= yellowfin_start_xmit,
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl 		= netdev_ioctl,
+	.ndo_tx_timeout 	= yellowfin_tx_timeout,
+};
 
 static int __devinit yellowfin_init_one(struct pci_dev *pdev,
 					const struct pci_device_id *ent)
@@ -374,7 +384,6 @@ static int __devinit yellowfin_init_one(struct pci_dev *pdev,
 #else
 	int bar = 1;
 #endif
-	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -465,13 +474,8 @@ static int __devinit yellowfin_init_one(struct pci_dev *pdev,
 		np->duplex_lock = 1;
 
 	/* The Yellowfin-specific entries in the device structure. */
-	dev->open = &yellowfin_open;
-	dev->hard_start_xmit = &yellowfin_start_xmit;
-	dev->stop = &yellowfin_close;
-	dev->set_multicast_list = &set_rx_mode;
-	dev->do_ioctl = &netdev_ioctl;
+	dev->netdev_ops = &netdev_ops;
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
-	dev->tx_timeout = yellowfin_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	if (mtu)
@@ -481,10 +485,10 @@ static int __devinit yellowfin_init_one(struct pci_dev *pdev,
 	if (i)
 		goto err_out_unmap_status;
 
-	printk(KERN_INFO "%s: %s type %8x at %p, %s, IRQ %d.\n",
+	printk(KERN_INFO "%s: %s type %8x at %p, %pM, IRQ %d.\n",
 		   dev->name, pci_id_tbl[chip_idx].name,
 		   ioread32(ioaddr + ChipRev), ioaddr,
-		   print_mac(mac, dev->dev_addr), irq);
+		   dev->dev_addr, irq);
 
 	if (np->drv_flags & HasMII) {
 		int phy, phy_idx = 0;
@@ -1100,11 +1104,9 @@ static int yellowfin_rx(struct net_device *dev)
 			memcmp(le32_to_cpu(yp->rx_ring_dma +
 				entry*sizeof(struct yellowfin_desc)),
 				"\377\377\377\377\377\377", 6) != 0) {
-			if (bogus_rx++ == 0) {
-				DECLARE_MAC_BUF(mac);
-				printk(KERN_WARNING "%s: Bad frame to %s\n",
-					   dev->name, print_mac(mac, buf_addr));
-			}
+			if (bogus_rx++ == 0)
+				printk(KERN_WARNING "%s: Bad frame to %pM\n",
+					   dev->name, buf_addr);
 #endif
 		} else {
 			struct sk_buff *skb;
@@ -1141,7 +1143,6 @@ static int yellowfin_rx(struct net_device *dev)
 			}
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += pkt_len;
 		}
@@ -1423,14 +1424,3 @@ static void __exit yellowfin_cleanup (void)
 
 module_init(yellowfin_init);
 module_exit(yellowfin_cleanup);
-
-/*
- * Local variables:
- *  compile-command: "gcc -DMODULE -Wall -Wstrict-prototypes -O6 -c yellowfin.c"
- *  compile-command-alphaLX: "gcc -DMODULE -Wall -Wstrict-prototypes -O2 -c yellowfin.c -fomit-frame-pointer -fno-strength-reduce -mno-fp-regs -Wa,-m21164a -DBWX_USABLE -DBWIO_ENABLED"
- *  simple-compile-command: "gcc -DMODULE -O6 -c yellowfin.c"
- *  c-indent-level: 4
- *  c-basic-offset: 4
- *  tab-width: 4
- * End:
- */

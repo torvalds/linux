@@ -19,6 +19,6 @@
 #define __XFS_GLOBALS_H__
 
 extern uint64_t	xfs_panic_mask;		/* set to cause more panics */
-extern struct cred *sys_cred;
+extern cred_t *sys_cred;
 
 #endif	/* __XFS_GLOBALS_H__ */

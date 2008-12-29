@@ -580,8 +580,8 @@ static int bind_mcastif_addr(struct socket *sock, char *ifname)
 		IP_VS_ERR("You probably need to specify IP address on "
 			  "multicast interface.\n");
 
-	IP_VS_DBG(7, "binding socket with (%s) %u.%u.%u.%u\n",
-		  ifname, NIPQUAD(addr));
+	IP_VS_DBG(7, "binding socket with (%s) %pI4\n",
+		  ifname, &addr);
 
 	/* Now bind the socket with the address of multicast interface */
 	sin.sin_family	     = AF_INET;

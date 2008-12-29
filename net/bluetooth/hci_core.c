@@ -48,11 +48,6 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#ifndef CONFIG_BT_HCI_CORE_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 static void hci_cmd_task(unsigned long arg);
 static void hci_rx_task(unsigned long arg);
 static void hci_tx_task(unsigned long arg);
@@ -205,7 +200,7 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	/* Mandatory initialization */
 
 	/* Reset */
-	if (test_bit(HCI_QUIRK_RESET_ON_INIT, &hdev->quirks))
+	if (!test_bit(HCI_QUIRK_NO_RESET, &hdev->quirks))
 			hci_send_cmd(hdev, HCI_OP_RESET, 0, NULL);
 
 	/* Read Local Supported Features */
@@ -290,7 +285,7 @@ static void hci_linkpol_req(struct hci_dev *hdev, unsigned long opt)
 {
 	__le16 policy = cpu_to_le16(opt);
 
-	BT_DBG("%s %x", hdev->name, opt);
+	BT_DBG("%s %x", hdev->name, policy);
 
 	/* Default link policy */
 	hci_send_cmd(hdev, HCI_OP_WRITE_DEF_LINK_POLICY, 2, &policy);
@@ -756,7 +751,7 @@ int hci_get_dev_list(void __user *arg)
 
 	size = sizeof(*dl) + dev_num * sizeof(*dr);
 
-	if (!(dl = kmalloc(size, GFP_KERNEL)))
+	if (!(dl = kzalloc(size, GFP_KERNEL)))
 		return -ENOMEM;
 
 	dr = dl->dev_req;

@@ -11,15 +11,14 @@
  *	published by the Free Software Foundation.
  */
 
+#include <linux/dccp.h>
 #include <linux/compiler.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/types.h>
 
-/* Read about the ECN nonce to see why it is 253 */
-#define DCCP_MAX_ACKVEC_OPT_LEN 253
 /* We can spread an ack vector across multiple options */
-#define DCCP_MAX_ACKVEC_LEN (DCCP_MAX_ACKVEC_OPT_LEN * 2)
+#define DCCP_MAX_ACKVEC_LEN (DCCP_SINGLE_OPT_MAXLEN * 2)
 
 #define DCCP_ACKVEC_STATE_RECEIVED	0
 #define DCCP_ACKVEC_STATE_ECN_MARKED	(1 << 6)

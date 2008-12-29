@@ -5,21 +5,8 @@
 # define PA_CONTROL_PAGE	0
 # define VA_CONTROL_PAGE	1
 # define PA_PGD			2
-# define VA_PGD			3
-# define PA_PTE_0		4
-# define VA_PTE_0		5
-# define PA_PTE_1		6
-# define VA_PTE_1		7
-# define PA_SWAP_PAGE		8
-# ifdef CONFIG_X86_PAE
-#  define PA_PMD_0		9
-#  define VA_PMD_0		10
-#  define PA_PMD_1		11
-#  define VA_PMD_1		12
-#  define PAGES_NR		13
-# else
-#  define PAGES_NR		9
-# endif
+# define PA_SWAP_PAGE		3
+# define PAGES_NR		4
 #else
 # define PA_CONTROL_PAGE	0
 # define VA_CONTROL_PAGE	1
@@ -168,6 +155,20 @@ NORET_TYPE void
 relocate_kernel(unsigned long indirection_page,
 		unsigned long page_list,
 		unsigned long start_address) ATTRIB_NORET;
+#endif
+
+#ifdef CONFIG_X86_32
+#define ARCH_HAS_KIMAGE_ARCH
+
+struct kimage_arch {
+	pgd_t *pgd;
+#ifdef CONFIG_X86_PAE
+	pmd_t *pmd0;
+	pmd_t *pmd1;
+#endif
+	pte_t *pte0;
+	pte_t *pte1;
+};
 #endif
 
 #endif /* __ASSEMBLY__ */

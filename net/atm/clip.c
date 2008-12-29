@@ -822,8 +822,8 @@ static void atmarp_info(struct seq_file *seq, struct net_device *dev,
 	seq_printf(seq, "%-6s%-4s%-4s%5ld ",
 		   dev->name, svc ? "SVC" : "PVC", llc ? "LLC" : "NULL", exp);
 
-	off = scnprintf(buf, sizeof(buf) - 1, "%d.%d.%d.%d",
-			NIPQUAD(entry->ip));
+	off = scnprintf(buf, sizeof(buf) - 1, "%pI4",
+			&entry->ip);
 	while (off < 16)
 		buf[off++] = ' ';
 	buf[off] = '\0';

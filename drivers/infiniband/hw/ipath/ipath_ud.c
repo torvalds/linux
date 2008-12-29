@@ -70,8 +70,6 @@ static void ipath_ud_loopback(struct ipath_qp *sqp, struct ipath_swqe *swqe)
 		goto done;
 	}
 
-	rsge.sg_list = NULL;
-
 	/*
 	 * Check that the qkey matches (except for QP0, see 9.6.1.4.1).
 	 * Qkeys with the high order bit set mean use the
@@ -115,21 +113,6 @@ static void ipath_ud_loopback(struct ipath_qp *sqp, struct ipath_swqe *swqe)
 		rq = &qp->r_rq;
 	}
 
-	if (rq->max_sge > 1) {
-		/*
-		 * XXX We could use GFP_KERNEL if ipath_do_send()
-		 * was always called from the tasklet instead of
-		 * from ipath_post_send().
-		 */
-		rsge.sg_list = kmalloc((rq->max_sge - 1) *
-					sizeof(struct ipath_sge),
-				       GFP_ATOMIC);
-		if (!rsge.sg_list) {
-			dev->n_pkt_drops++;
-			goto drop;
-		}
-	}
-
 	/*
 	 * Get the next work request entry to find where to put the data.
 	 * Note that it is safe to drop the lock after changing rq->tail
@@ -147,6 +130,7 @@ static void ipath_ud_loopback(struct ipath_qp *sqp, struct ipath_swqe *swqe)
 		goto drop;
 	}
 	wqe = get_rwqe_ptr(rq, tail);
+	rsge.sg_list = qp->r_ud_sg_list;
 	if (!ipath_init_sge(qp, wqe, &rlen, &rsge)) {
 		spin_unlock_irqrestore(&rq->lock, flags);
 		dev->n_pkt_drops++;
@@ -242,7 +226,6 @@ static void ipath_ud_loopback(struct ipath_qp *sqp, struct ipath_swqe *swqe)
 	ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
 		       swqe->wr.send_flags & IB_SEND_SOLICITED);
 drop:
-	kfree(rsge.sg_list);
 	if (atomic_dec_and_test(&qp->refcount))
 		wake_up(&qp->wait);
 done:;

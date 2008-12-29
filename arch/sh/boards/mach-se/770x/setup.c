@@ -8,8 +8,9 @@
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <asm/machvec.h>
 #include <mach-se/mach/se.h>
+#include <mach-se/mach/mrshpc.h>
+#include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/smc37c93x.h>
 #include <asm/heartbeat.h>
@@ -175,6 +176,7 @@ static struct platform_device *se_devices[] __initdata = {
 
 static int __init se_devices_setup(void)
 {
+	mrshpc_setup_windows();
 	return platform_add_devices(se_devices, ARRAY_SIZE(se_devices));
 }
 device_initcall(se_devices_setup);

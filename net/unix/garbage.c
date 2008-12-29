@@ -106,8 +106,8 @@ static struct sock *unix_get_socket(struct file *filp)
 	 *	Socket ?
 	 */
 	if (S_ISSOCK(inode->i_mode)) {
-		struct socket * sock = SOCKET_I(inode);
-		struct sock * s = sock->sk;
+		struct socket *sock = SOCKET_I(inode);
+		struct sock *s = sock->sk;
 
 		/*
 		 *	PF_UNIX ?
@@ -126,7 +126,7 @@ static struct sock *unix_get_socket(struct file *filp)
 void unix_inflight(struct file *fp)
 {
 	struct sock *s = unix_get_socket(fp);
-	if(s) {
+	if (s) {
 		struct unix_sock *u = unix_sk(s);
 		spin_lock(&unix_gc_lock);
 		if (atomic_long_inc_return(&u->inflight) == 1) {
@@ -143,7 +143,7 @@ void unix_inflight(struct file *fp)
 void unix_notinflight(struct file *fp)
 {
 	struct sock *s = unix_get_socket(fp);
-	if(s) {
+	if (s) {
 		struct unix_sock *u = unix_sk(s);
 		spin_lock(&unix_gc_lock);
 		BUG_ON(list_empty(&u->link));
@@ -156,7 +156,7 @@ void unix_notinflight(struct file *fp)
 
 static inline struct sk_buff *sock_queue_head(struct sock *sk)
 {
-	return (struct sk_buff *) &sk->sk_receive_queue;
+	return (struct sk_buff *)&sk->sk_receive_queue;
 }
 
 #define receive_queue_for_each_skb(sk, next, skb) \
@@ -370,7 +370,7 @@ void unix_gc(void)
 	 */
 	skb_queue_head_init(&hitlist);
 	list_for_each_entry(u, &gc_candidates, link)
-		scan_children(&u->sk, inc_inflight, &hitlist);
+	scan_children(&u->sk, inc_inflight, &hitlist);
 
 	spin_unlock(&unix_gc_lock);
 

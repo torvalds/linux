@@ -131,10 +131,10 @@ struct rxrpc_local *rxrpc_lookup_local(struct sockaddr_rxrpc *srx)
 	struct rxrpc_local *local;
 	int ret;
 
-	_enter("{%d,%u,%u.%u.%u.%u+%hu}",
+	_enter("{%d,%u,%pI4+%hu}",
 	       srx->transport_type,
 	       srx->transport.family,
-	       NIPQUAD(srx->transport.sin.sin_addr),
+	       &srx->transport.sin.sin_addr,
 	       ntohs(srx->transport.sin.sin_port));
 
 	down_write(&rxrpc_local_sem);
@@ -143,10 +143,10 @@ struct rxrpc_local *rxrpc_lookup_local(struct sockaddr_rxrpc *srx)
 	read_lock_bh(&rxrpc_local_lock);
 
 	list_for_each_entry(local, &rxrpc_locals, link) {
-		_debug("CMP {%d,%u,%u.%u.%u.%u+%hu}",
+		_debug("CMP {%d,%u,%pI4+%hu}",
 		       local->srx.transport_type,
 		       local->srx.transport.family,
-		       NIPQUAD(local->srx.transport.sin.sin_addr),
+		       &local->srx.transport.sin.sin_addr,
 		       ntohs(local->srx.transport.sin.sin_port));
 
 		if (local->srx.transport_type != srx->transport_type ||
@@ -188,11 +188,11 @@ struct rxrpc_local *rxrpc_lookup_local(struct sockaddr_rxrpc *srx)
 
 	up_write(&rxrpc_local_sem);
 
-	_net("LOCAL new %d {%d,%u,%u.%u.%u.%u+%hu}",
+	_net("LOCAL new %d {%d,%u,%pI4+%hu}",
 	     local->debug_id,
 	     local->srx.transport_type,
 	     local->srx.transport.family,
-	     NIPQUAD(local->srx.transport.sin.sin_addr),
+	     &local->srx.transport.sin.sin_addr,
 	     ntohs(local->srx.transport.sin.sin_port));
 
 	_leave(" = %p [new]", local);
@@ -203,11 +203,11 @@ found_local:
 	read_unlock_bh(&rxrpc_local_lock);
 	up_write(&rxrpc_local_sem);
 
-	_net("LOCAL old %d {%d,%u,%u.%u.%u.%u+%hu}",
+	_net("LOCAL old %d {%d,%u,%pI4+%hu}",
 	     local->debug_id,
 	     local->srx.transport_type,
 	     local->srx.transport.family,
-	     NIPQUAD(local->srx.transport.sin.sin_addr),
+	     &local->srx.transport.sin.sin_addr,
 	     ntohs(local->srx.transport.sin.sin_port));
 
 	_leave(" = %p [reuse]", local);

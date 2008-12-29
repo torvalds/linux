@@ -33,6 +33,7 @@ module_init(tp_sample_trace_init);
 void __exit tp_sample_trace_exit(void)
 {
 	unregister_trace_subsys_event(probe_subsys_event);
+	tracepoint_synchronize_unregister();
 }
 
 module_exit(tp_sample_trace_exit);

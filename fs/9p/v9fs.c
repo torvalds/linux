@@ -160,7 +160,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses)
 				v9ses->flags |= V9FS_ACCESS_ANY;
 			else {
 				v9ses->flags |= V9FS_ACCESS_SINGLE;
-				v9ses->uid = simple_strtol(s, &e, 10);
+				v9ses->uid = simple_strtoul(s, &e, 10);
 				if (*e != '\0')
 					v9ses->uid = ~0;
 			}

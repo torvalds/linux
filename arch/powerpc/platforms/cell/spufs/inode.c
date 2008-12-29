@@ -95,8 +95,8 @@ spufs_new_inode(struct super_block *sb, int mode)
 		goto out;
 
 	inode->i_mode = mode;
-	inode->i_uid = current->fsuid;
-	inode->i_gid = current->fsgid;
+	inode->i_uid = current_fsuid();
+	inode->i_gid = current_fsgid();
 	inode->i_blocks = 0;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 out:
@@ -323,7 +323,7 @@ static int spufs_context_open(struct dentry *dentry, struct vfsmount *mnt)
 		goto out;
 	}
 
-	filp = dentry_open(dentry, mnt, O_RDONLY);
+	filp = dentry_open(dentry, mnt, O_RDONLY, current_cred());
 	if (IS_ERR(filp)) {
 		put_unused_fd(ret);
 		ret = PTR_ERR(filp);
@@ -562,7 +562,7 @@ static int spufs_gang_open(struct dentry *dentry, struct vfsmount *mnt)
 		goto out;
 	}
 
-	filp = dentry_open(dentry, mnt, O_RDONLY);
+	filp = dentry_open(dentry, mnt, O_RDONLY, current_cred());
 	if (IS_ERR(filp)) {
 		put_unused_fd(ret);
 		ret = PTR_ERR(filp);

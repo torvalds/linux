@@ -31,6 +31,7 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
+#include <linux/clk.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
@@ -89,6 +90,7 @@ struct sh_mobile_ceu_dev {
 
 	unsigned int irq;
 	void __iomem *base;
+	struct clk *clk;
 	unsigned long video_limit;
 
 	/* lock used to protect videobuf */
@@ -309,6 +311,8 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 	if (ret)
 		goto err;
 
+	clk_enable(pcdev->clk);
+
 	ceu_write(pcdev, CAPSR, 1 << 16); /* reset */
 	while (ceu_read(pcdev, CSTSR) & 1)
 		msleep(1);
@@ -341,6 +345,8 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 		pcdev->active = NULL;
 	}
 	spin_unlock_irqrestore(&pcdev->lock, flags);
+
+	clk_disable(pcdev->clk);
 
 	icd->ops->release(icd);
 
@@ -550,6 +556,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 	struct sh_mobile_ceu_dev *pcdev;
 	struct resource *res;
 	void __iomem *base;
+	char clk_name[8];
 	unsigned int irq;
 	int err = 0;
 
@@ -615,6 +622,14 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 		goto exit_release_mem;
 	}
 
+	snprintf(clk_name, sizeof(clk_name), "ceu%d", pdev->id);
+	pcdev->clk = clk_get(&pdev->dev, clk_name);
+	if (IS_ERR(pcdev->clk)) {
+		dev_err(&pdev->dev, "cannot get clock \"%s\"\n", clk_name);
+		err = PTR_ERR(pcdev->clk);
+		goto exit_free_irq;
+	}
+
 	pcdev->ici.priv = pcdev;
 	pcdev->ici.dev.parent = &pdev->dev;
 	pcdev->ici.nr = pdev->id;
@@ -623,10 +638,12 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 
 	err = soc_camera_host_register(&pcdev->ici);
 	if (err)
-		goto exit_free_irq;
+		goto exit_free_clk;
 
 	return 0;
 
+exit_free_clk:
+	clk_put(pcdev->clk);
 exit_free_irq:
 	free_irq(pcdev->irq, pcdev);
 exit_release_mem:
@@ -645,6 +662,7 @@ static int sh_mobile_ceu_remove(struct platform_device *pdev)
 	struct sh_mobile_ceu_dev *pcdev = platform_get_drvdata(pdev);
 
 	soc_camera_host_unregister(&pcdev->ici);
+	clk_put(pcdev->clk);
 	free_irq(pcdev->irq, pcdev);
 	if (platform_get_resource(pdev, IORESOURCE_MEM, 1))
 		dma_release_declared_memory(&pdev->dev);
