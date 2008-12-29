@@ -55,7 +55,7 @@ struct sd {
 static struct ctrl sd_ctrls[] = {
 };
 
-static struct v4l2_pix_format vga_mode[] = {
+static const struct v4l2_pix_format vga_mode[] = {
 	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
 	 .bytesperline = 640 * 2,
 	 .sizeimage = 640 * 480 * 2,

@@ -73,7 +73,7 @@ struct sd {
 #define AG_CNT_START 13
 };
 
-static struct v4l2_pix_format sif_012a_mode[] = {
+static const struct v4l2_pix_format sif_012a_mode[] = {
 	{160, 120, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
@@ -96,7 +96,7 @@ static struct v4l2_pix_format sif_012a_mode[] = {
 		.priv = 0},
 };
 
-static struct v4l2_pix_format sif_072a_mode[] = {
+static const struct v4l2_pix_format sif_072a_mode[] = {
 	{160, 120, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,

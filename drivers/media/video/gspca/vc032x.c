@@ -126,7 +126,7 @@ static struct ctrl sd_ctrls[] = {
 	 },
 };
 
-static struct v4l2_pix_format vc0321_mode[] = {
+static const struct v4l2_pix_format vc0321_mode[] = {
 	{320, 240, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 2,
@@ -138,7 +138,7 @@ static struct v4l2_pix_format vc0321_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 };
-static struct v4l2_pix_format vc0323_mode[] = {
+static const struct v4l2_pix_format vc0323_mode[] = {
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
@@ -151,7 +151,7 @@ static struct v4l2_pix_format vc0323_mode[] = {
 		.priv = 0},
 };
 
-static struct v4l2_pix_format svga_mode[] = {
+static const struct v4l2_pix_format svga_mode[] = {
 	{800, 600, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 800,
 		.sizeimage = 800 * 600 * 1 / 4 + 590,

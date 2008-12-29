@@ -225,7 +225,7 @@ static __u32 ctrl_dis[] = {
 						/* SENSOR_OV7660 6 */
 };
 
-static struct v4l2_pix_format vga_mode[] = {
+static const struct v4l2_pix_format vga_mode[] = {
 	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 4 / 8 + 590,

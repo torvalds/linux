@@ -56,7 +56,7 @@ extern int gspca_debug;
 /* device information - set at probe time */
 struct cam {
 	int bulk_size;		/* buffer size when image transfer by bulk */
-	struct v4l2_pix_format *cam_mode;	/* size nmodes */
+	const struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	char nmodes;
 	__u8 bulk_nurbs;	/* number of URBs in bulk mode
 				 * - cannot be > MAX_NURBS

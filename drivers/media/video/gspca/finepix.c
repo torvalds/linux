@@ -72,7 +72,7 @@ struct usb_fpix {
 }
 
 /* These cameras only support 320x200. */
-static struct v4l2_pix_format fpix_mode[1] = {
+static const struct v4l2_pix_format fpix_mode[1] = {
 	{ 320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
