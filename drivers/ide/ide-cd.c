@@ -262,7 +262,6 @@ static void cdrom_end_request(ide_drive_t *drive, int uptodate)
 		struct request *failed = (struct request *) rq->buffer;
 		struct cdrom_info *info = drive->driver_data;
 		void *sense = &info->sense_data;
-		unsigned long flags;
 
 		if (failed) {
 			if (failed->sense) {
@@ -278,11 +277,9 @@ static void cdrom_end_request(ide_drive_t *drive, int uptodate)
 						failed->hard_nr_sectors))
 					BUG();
 			} else {
-				spin_lock_irqsave(&ide_lock, flags);
-				if (__blk_end_request(failed, -EIO,
-						      failed->data_len))
+				if (blk_end_request(failed, -EIO,
+						    failed->data_len))
 					BUG();
-				spin_unlock_irqrestore(&ide_lock, flags);
 			}
 		} else
 			cdrom_analyze_sense_data(drive, NULL, sense);
@@ -1151,16 +1148,13 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 end_request:
 	if (blk_pc_request(rq)) {
-		unsigned long flags;
 		unsigned int dlen = rq->data_len;
 
 		if (dma)
 			rq->data_len = 0;
 
-		spin_lock_irqsave(&ide_lock, flags);
-		if (__blk_end_request(rq, 0, dlen))
+		if (blk_end_request(rq, 0, dlen))
 			BUG();
-		spin_unlock_irqrestore(&ide_lock, flags);
 
 		hwgroup->rq = NULL;
 	} else {
