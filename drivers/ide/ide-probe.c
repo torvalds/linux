@@ -1125,8 +1125,7 @@ static int init_irq (ide_hwif_t *hwif)
 		sa = IRQF_SHARED;
 #endif /* __mc68000__ */
 
-		if (hwif->chipset == ide_pci || hwif->chipset == ide_cmd646 ||
-		    hwif->chipset == ide_ali14xx)
+		if (hwif->chipset == ide_pci || hwif->chipset == ide_cmd646)
 			sa = IRQF_SHARED;
 
 		if (io_ports->ctl_addr)
