@@ -9,6 +9,7 @@
 #include <linux/mmiotrace.h>
 #include <linux/ftrace.h>
 #include <trace/boot.h>
+#include <trace/kmemtrace.h>
 
 enum trace_type {
 	__TRACE_FIRST_TYPE = 0,
@@ -29,6 +30,8 @@ enum trace_type {
 	TRACE_GRAPH_ENT,
 	TRACE_USER_STACK,
 	TRACE_HW_BRANCHES,
+	TRACE_KMEM_ALLOC,
+	TRACE_KMEM_FREE,
 	TRACE_POWER,
 
 	__TRACE_LAST_TYPE
@@ -170,6 +173,24 @@ struct trace_power {
 	struct power_trace	state_data;
 };
 
+struct kmemtrace_alloc_entry {
+	struct trace_entry	ent;
+	enum kmemtrace_type_id type_id;
+	unsigned long call_site;
+	const void *ptr;
+	size_t bytes_req;
+	size_t bytes_alloc;
+	gfp_t gfp_flags;
+	int node;
+};
+
+struct kmemtrace_free_entry {
+	struct trace_entry	ent;
+	enum kmemtrace_type_id type_id;
+	unsigned long call_site;
+	const void *ptr;
+};
+
 /*
  * trace_flag_type is an enumeration that holds different
  * states when a trace occurs. These are:
@@ -280,6 +301,10 @@ extern void __ftrace_bad_type(void);
 			  TRACE_GRAPH_RET);		\
 		IF_ASSIGN(var, ent, struct hw_branch_entry, TRACE_HW_BRANCHES);\
  		IF_ASSIGN(var, ent, struct trace_power, TRACE_POWER); \
+		IF_ASSIGN(var, ent, struct kmemtrace_alloc_entry,	\
+			  TRACE_KMEM_ALLOC);	\
+		IF_ASSIGN(var, ent, struct kmemtrace_free_entry,	\
+			  TRACE_KMEM_FREE);	\
 		__ftrace_bad_type();					\
 	} while (0)
 

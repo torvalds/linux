@@ -22,28 +22,17 @@ enum kmemtrace_type_id {
 
 extern void kmemtrace_init(void);
 
-static inline void kmemtrace_mark_alloc_node(enum kmemtrace_type_id type_id,
+extern void kmemtrace_mark_alloc_node(enum kmemtrace_type_id type_id,
 					     unsigned long call_site,
 					     const void *ptr,
 					     size_t bytes_req,
 					     size_t bytes_alloc,
 					     gfp_t gfp_flags,
-					     int node)
-{
-	trace_mark(kmemtrace_alloc, "type_id %d call_site %lu ptr %lu "
-		   "bytes_req %lu bytes_alloc %lu gfp_flags %lu node %d",
-		   type_id, call_site, (unsigned long) ptr,
-		   (unsigned long) bytes_req, (unsigned long) bytes_alloc,
-		   (unsigned long) gfp_flags, node);
-}
+					     int node);
 
-static inline void kmemtrace_mark_free(enum kmemtrace_type_id type_id,
+extern void kmemtrace_mark_free(enum kmemtrace_type_id type_id,
 				       unsigned long call_site,
-				       const void *ptr)
-{
-	trace_mark(kmemtrace_free, "type_id %d call_site %lu ptr %lu",
-		   type_id, call_site, (unsigned long) ptr);
-}
+				       const void *ptr);
 
 #else /* CONFIG_KMEMTRACE */
 

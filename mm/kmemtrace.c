@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/marker.h>
 #include <linux/gfp.h>
-#include <linux/kmemtrace.h>
+#include <trace/kmemtrace.h>
 
 #define KMEMTRACE_SUBBUF_SIZE		524288
 #define KMEMTRACE_DEF_N_SUBBUFS		20
