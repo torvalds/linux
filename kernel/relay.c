@@ -675,9 +675,7 @@ int relay_late_setup_files(struct rchan *chan,
 	 */
 	for_each_online_cpu(i) {
 		if (unlikely(!chan->buf[i])) {
-			printk(KERN_ERR "relay_late_setup_files: CPU %u "
-					"has no buffer, it must have!\n", i);
-			BUG();
+			WARN_ONCE(1, KERN_ERR "CPU has no buffer!\n");
 			err = -EINVAL;
 			break;
 		}
