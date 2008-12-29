@@ -98,10 +98,10 @@ int ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	__le32 *table = (__le32 *)hwif->dmatable_cpu;
-	unsigned int is_trm290	= (hwif->chipset == ide_trm290) ? 1 : 0;
 	unsigned int count = 0;
 	int i;
 	struct scatterlist *sg;
+	u8 is_trm290 = !!(hwif->host_flags & IDE_HFLAG_TRM290);
 
 	hwif->sg_nents = ide_build_sglist(drive, rq);
 	if (hwif->sg_nents == 0)

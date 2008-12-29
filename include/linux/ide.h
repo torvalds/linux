@@ -170,7 +170,7 @@ typedef int (ide_ack_intr_t)(struct hwif_s *);
 enum {		ide_unknown,	ide_generic,	ide_pci,
 		ide_cmd640,	ide_dtc2278,	ide_ali14xx,
 		ide_qd65xx,	ide_umc8672,	ide_ht6560b,
-		ide_trm290,	ide_cy82c693,	ide_4drives,
+		ide_cy82c693,	ide_4drives,
 		ide_pmac,	ide_acorn,
 		ide_au1xxx,	ide_palm3710
 };
@@ -1372,6 +1372,8 @@ enum {
 	IDE_HFLAG_LEGACY_IRQS		= (1 << 21),
 	/* force use of legacy IRQs */
 	IDE_HFLAG_FORCE_LEGACY_IRQS	= (1 << 22),
+	/* host is TRM290 */
+	IDE_HFLAG_TRM290		= (1 << 23),
 	/* use 32-bit I/O ops */
 	IDE_HFLAG_IO_32BIT		= (1 << 24),
 	/* unmask IRQs */
