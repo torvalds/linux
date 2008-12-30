@@ -176,7 +176,7 @@ int register_virtio_device(struct virtio_device *dev)
 
 	/* Assign a unique device index and hence name. */
 	dev->index = dev_index++;
-	sprintf(dev->dev.bus_id, "virtio%u", dev->index);
+	dev_set_name(&dev->dev, "virtio%u", dev->index);
 
 	/* We always start by resetting the device, in case a previous
 	 * driver messed it up.  This also tests that code path a little. */
