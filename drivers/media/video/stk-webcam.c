@@ -1396,12 +1396,9 @@ static int stk_camera_probe(struct usb_interface *interface,
 		endpoint = &iface_desc->endpoint[i].desc;
 
 		if (!dev->isoc_ep
-			&& ((endpoint->bEndpointAddress
-				& USB_ENDPOINT_DIR_MASK) == USB_DIR_IN)
-			&& ((endpoint->bmAttributes
-				& USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_ISOC)) {
+			&& usb_endpoint_is_isoc_in(endpoint)) {
 			/* we found an isoc in endpoint */
-			dev->isoc_ep = (endpoint->bEndpointAddress & 0xF);
+			dev->isoc_ep = usb_endpoint_num(endpoint);
 			break;
 		}
 	}

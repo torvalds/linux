@@ -1981,8 +1981,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	endpoint = &interface->cur_altsetting->endpoint[0].desc;
 
 	/* check if the device has the iso in endpoint at the correct place */
-	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-	    USB_ENDPOINT_XFER_ISOC &&
+	if (usb_endpoint_xfer_isoc(endpoint)
+	    &&
 	    (interface->altsetting[1].endpoint[0].desc.wMaxPacketSize == 940)) {
 		/* It's a newer em2874/em2875 device */
 		isoc_pipe = 0;
@@ -1990,11 +1990,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		int check_interface = 1;
 		isoc_pipe = 1;
 		endpoint = &interface->cur_altsetting->endpoint[1].desc;
-		if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) !=
+		if (usb_endpoint_type(endpoint) !=
 		    USB_ENDPOINT_XFER_ISOC)
 			check_interface = 0;
 
-		if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT)
+		if (usb_endpoint_dir_out(endpoint))
 			check_interface = 0;
 
 		if (!check_interface) {
