@@ -1860,9 +1860,7 @@ ipv4_connect(struct TCP_Server_Info *server)
 			smb_buf = (struct smb_hdr *)ses_init_buf;
 			/* sizeof RFC1002_SESSION_REQUEST with no scope */
 			smb_buf->smb_buf_length = 0x81000044;
-			rc = smb_send(socket, smb_buf, 0x44,
-				(struct sockaddr *) &server->addr.sockAddr,
-				server->noblocksnd);
+			rc = smb_send(server, smb_buf, 0x44);
 			kfree(ses_init_buf);
 			msleep(1); /* RFC1001 layer in at least one server
 				      requires very short break before negprot
