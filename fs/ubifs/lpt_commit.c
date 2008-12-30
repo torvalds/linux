@@ -753,7 +753,7 @@ static void lpt_tgc_start(struct ubifs_info *c)
  * LPT trivial garbage collection is where a LPT LEB contains only dirty and
  * free space and so may be reused as soon as the next commit is completed.
  * This function is called after the commit is completed (master node has been
- * written) and unmaps LPT LEBs that were marked for trivial GC.
+ * written) and un-maps LPT LEBs that were marked for trivial GC.
  */
 static int lpt_tgc_end(struct ubifs_info *c)
 {
@@ -1467,7 +1467,7 @@ void ubifs_lpt_free(struct ubifs_info *c, int wr_only)
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
 /**
- * dbg_is_all_ff - determine if a buffer contains only 0xff bytes.
+ * dbg_is_all_ff - determine if a buffer contains only 0xFF bytes.
  * @buf: buffer
  * @len: buffer length
  */
@@ -1492,7 +1492,7 @@ static int dbg_is_nnode_dirty(struct ubifs_info *c, int lnum, int offs)
 	struct ubifs_nnode *nnode;
 	int hght;
 
-	/* Entire tree is in memory so first_nnode / next_nnode are ok */
+	/* Entire tree is in memory so first_nnode / next_nnode are OK */
 	nnode = first_nnode(c, &hght);
 	for (; nnode; nnode = next_nnode(c, nnode, &hght)) {
 		struct ubifs_nbranch *branch;
@@ -1837,7 +1837,7 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
  * This function dumps an LEB from LPT area. Nodes in this area are very
  * different to nodes in the main area (e.g., they do not have common headers,
  * they do not have 8-byte alignments, etc), so we have a separate function to
- * dump LPT area LEBs. Note, LPT has to be locked by the coller.
+ * dump LPT area LEBs. Note, LPT has to be locked by the caller.
  */
 static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 {

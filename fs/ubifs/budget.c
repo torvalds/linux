@@ -652,9 +652,9 @@ void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
  * user-space. User-space application tend to expect that if the file-system
  * (e.g., via the 'statfs()' call) reports that it has N bytes available, they
  * are able to write a file of size N. UBIFS attaches node headers to each data
- * node and it has to write indexind nodes as well. This introduces additional
- * overhead, and UBIFS has to report sligtly less free space to meet the above
- * expectetions.
+ * node and it has to write indexing nodes as well. This introduces additional
+ * overhead, and UBIFS has to report slightly less free space to meet the above
+ * expectations.
  *
  * This function assumes free space is made up of uncompressed data nodes and
  * full index nodes (one per data node, tripled because we always allow enough
@@ -677,7 +677,7 @@ long long ubifs_reported_space(const struct ubifs_info *c, long long free)
 	 * of data nodes, f - fanout. Because effective UBIFS fanout is twice
 	 * as less than maximum fanout, we assume that each data node
 	 * introduces 3 * @c->max_idx_node_sz / (@c->fanout/2 - 1) bytes.
-	 * Note, the multiplier 3 is because UBIFS reseves thrice as more space
+	 * Note, the multiplier 3 is because UBIFS reserves thrice as more space
 	 * for the index.
 	 */
 	f = c->fanout > 3 ? c->fanout >> 1 : 2;
@@ -695,10 +695,10 @@ long long ubifs_reported_space(const struct ubifs_info *c, long long free)
  * This function calculates amount of free space to report to user-space.
  *
  * Because UBIFS may introduce substantial overhead (the index, node headers,
- * alighment, wastage at the end of eraseblocks, etc), it cannot report real
+ * alignment, wastage at the end of eraseblocks, etc), it cannot report real
  * amount of free flash space it has (well, because not all dirty space is
- * reclamable, UBIFS does not actually know the real amount). If UBIFS did so,
- * it would bread user expectetion about what free space is. Users seem to
+ * reclaimable, UBIFS does not actually know the real amount). If UBIFS did so,
+ * it would bread user expectations about what free space is. Users seem to
  * accustomed to assume that if the file-system reports N bytes of free space,
  * they would be able to fit a file of N bytes to the FS. This almost works for
  * traditional file-systems, because they have way less overhead than UBIFS.
