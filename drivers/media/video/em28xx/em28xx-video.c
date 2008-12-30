@@ -93,7 +93,7 @@ static struct em28xx_fmt format[] = {
 		.name     = "16bpp YUY2, 4:2:2, packed",
 		.fourcc   = V4L2_PIX_FMT_YUYV,
 		.depth    = 16,
-		.reg	  = 0x14,
+		.reg	  = EM28XX_OUTFMT_YUV422_Y0UY1V,
 	},
 };
 
