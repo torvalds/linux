@@ -250,8 +250,9 @@ void __init mac_init_IRQ(void)
 	if (baboon_present)
 		baboon_register_interrupts();
 	iop_register_interrupts();
-	request_irq(IRQ_AUTO_7, mac_nmi_handler, 0, "NMI",
-			mac_nmi_handler);
+	if (request_irq(IRQ_AUTO_7, mac_nmi_handler, 0, "NMI",
+			mac_nmi_handler))
+		pr_err("Couldn't register NMI\n");
 #ifdef DEBUG_MACINTS
 	printk("mac_init_IRQ(): Done!\n");
 #endif

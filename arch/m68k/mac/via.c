@@ -283,7 +283,8 @@ void __init via_init_clock(irq_handler_t func)
 	via1[vT1CL] = MAC_CLOCK_LOW;
 	via1[vT1CH] = MAC_CLOCK_HIGH;
 
-	request_irq(IRQ_MAC_TIMER_1, func, IRQ_FLG_LOCK, "timer", func);
+	if (request_irq(IRQ_MAC_TIMER_1, func, IRQ_FLG_LOCK, "timer", func))
+		pr_err("Couldn't register %s interrupt\n", "timer");
 }
 
 /*
@@ -293,25 +294,31 @@ void __init via_init_clock(irq_handler_t func)
 void __init via_register_interrupts(void)
 {
 	if (via_alt_mapping) {
-		request_irq(IRQ_AUTO_1, via1_irq,
+		if (request_irq(IRQ_AUTO_1, via1_irq,
 				IRQ_FLG_LOCK|IRQ_FLG_FAST, "software",
-				(void *) via1);
-		request_irq(IRQ_AUTO_6, via1_irq,
+				(void *) via1))
+			pr_err("Couldn't register %s interrupt\n", "software");
+		if (request_irq(IRQ_AUTO_6, via1_irq,
 				IRQ_FLG_LOCK|IRQ_FLG_FAST, "via1",
-				(void *) via1);
+				(void *) via1))
+			pr_err("Couldn't register %s interrupt\n", "via1");
 	} else {
-		request_irq(IRQ_AUTO_1, via1_irq,
+		if (request_irq(IRQ_AUTO_1, via1_irq,
 				IRQ_FLG_LOCK|IRQ_FLG_FAST, "via1",
-				(void *) via1);
+				(void *) via1))
+			pr_err("Couldn't register %s interrupt\n", "via1");
 	}
-	request_irq(IRQ_AUTO_2, via2_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
-			"via2", (void *) via2);
+	if (request_irq(IRQ_AUTO_2, via2_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
+			"via2", (void *) via2))
+		pr_err("Couldn't register %s interrupt\n", "via2");
 	if (!psc_present) {
-		request_irq(IRQ_AUTO_4, mac_scc_dispatch, IRQ_FLG_LOCK,
-				"scc", mac_scc_dispatch);
+		if (request_irq(IRQ_AUTO_4, mac_scc_dispatch, IRQ_FLG_LOCK,
+				"scc", mac_scc_dispatch))
+			pr_err("Couldn't register %s interrupt\n", "scc");
 	}
-	request_irq(IRQ_MAC_NUBUS, via_nubus_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
-			"nubus", (void *) via2);
+	if (request_irq(IRQ_MAC_NUBUS, via_nubus_irq,
+			IRQ_FLG_LOCK|IRQ_FLG_FAST, "nubus", (void *) via2))
+		pr_err("Couldn't register %s interrupt\n", "nubus");
 }
 
 /*
