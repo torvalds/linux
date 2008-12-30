@@ -154,17 +154,18 @@ int ov9650_start(struct sd *sd)
 
 	for (i = 0; i < ARRAY_SIZE(res_init_ov9650) && !err; i++) {
 		if (res_init_ov9650[i][0] == BRIDGE)
-			err = m5602_write_bridge(sd, res_init_ov9650[i][1], res_init_ov9650[i][2]);
+			err = m5602_write_bridge(sd, res_init_ov9650[i][1],
+				res_init_ov9650[i][2]);
 		else if (res_init_ov9650[i][0] == SENSOR) {
 			u8 data = res_init_ov9650[i][2];
-			err = m5602_write_sensor(sd, res_init_ov9650[i][1], &data, 1);
+			err = m5602_write_sensor(sd,
+				res_init_ov9650[i][1], &data, 1);
 		}
 	}
 	if (err < 0)
 		return err;
 
-	switch (cam->cam_mode[sd->gspca_dev.curr_mode].width)
-	{
+	switch (cam->cam_mode[sd->gspca_dev.curr_mode].width) {
 	case 640:
 		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
 
@@ -175,7 +176,8 @@ int ov9650_start(struct sd *sd)
 				err = m5602_write_sensor(sd,
 					VGA_ov9650[i][1], &data, 1);
 			} else {
-				err = m5602_write_bridge(sd, VGA_ov9650[i][1], VGA_ov9650[i][2]);
+				err = m5602_write_bridge(sd, VGA_ov9650[i][1],
+						VGA_ov9650[i][2]);
 			}
 		}
 		break;
@@ -190,7 +192,8 @@ int ov9650_start(struct sd *sd)
 				err = m5602_write_sensor(sd,
 					CIF_ov9650[i][1], &data, 1);
 			} else {
-				err = m5602_write_bridge(sd, CIF_ov9650[i][1], CIF_ov9650[i][2]);
+				err = m5602_write_bridge(sd, CIF_ov9650[i][1],
+						CIF_ov9650[i][2]);
 			}
 		}
 		break;
@@ -205,7 +208,8 @@ int ov9650_start(struct sd *sd)
 				err = m5602_write_sensor(sd,
 					QVGA_ov9650[i][1], &data, 1);
 			} else {
-				err = m5602_write_bridge(sd, QVGA_ov9650[i][1], QVGA_ov9650[i][2]);
+				err = m5602_write_bridge(sd, QVGA_ov9650[i][1],
+						QVGA_ov9650[i][2]);
 			}
 		}
 		break;
@@ -219,7 +223,8 @@ int ov9650_start(struct sd *sd)
 				err = m5602_write_sensor(sd,
 					QCIF_ov9650[i][1], &data, 1);
 			} else {
-				err = m5602_write_bridge(sd, QCIF_ov9650[i][1], QCIF_ov9650[i][2]);
+				err = m5602_write_bridge(sd, QCIF_ov9650[i][1],
+						QCIF_ov9650[i][2]);
 			}
 		}
 		break;
