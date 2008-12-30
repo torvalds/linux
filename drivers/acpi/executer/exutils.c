@@ -59,6 +59,7 @@
 #define DEFINE_AML_GLOBALS
 
 #include <acpi/acpi.h>
+#include <acpi/accommon.h>
 #include <acpi/acinterp.h>
 #include <acpi/amlcode.h>
 

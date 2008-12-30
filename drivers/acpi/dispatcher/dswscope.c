@@ -42,6 +42,7 @@
  */
 
 #include <acpi/acpi.h>
+#include <acpi/accommon.h>
 #include <acpi/acdispat.h>
 
 #define _COMPONENT          ACPI_DISPATCHER

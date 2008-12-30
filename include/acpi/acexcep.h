@@ -176,6 +176,8 @@
 
 #define AE_CODE_CTRL_MAX                0x000D
 
+/* Exception strings for acpi_format_exception */
+
 #ifdef DEFINE_ACPI_GLOBALS
 
 /*

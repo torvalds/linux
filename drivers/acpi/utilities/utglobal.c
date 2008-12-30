@@ -44,6 +44,7 @@
 #define DEFINE_ACPI_GLOBALS
 
 #include <acpi/acpi.h>
+#include <acpi/accommon.h>
 #include <acpi/acnamesp.h>
 
 #define _COMPONENT          ACPI_UTILITIES

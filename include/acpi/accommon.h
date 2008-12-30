@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acpi.h - Master public include file used to interface to ACPICA
+ * Name: accommon.h - Common include files for generation of ACPICA source
  *
  *****************************************************************************/
 
@@ -41,26 +41,23 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACPI_H__
-#define __ACPI_H__
+#ifndef __ACCOMMON_H__
+#define __ACCOMMON_H__
 
 /*
- * Public include files for use by code that will interface to ACPICA.
- *
- * Information includes the ACPICA data types, names, exceptions, and
- * external interface prototypes. Also included are the definitions for
- * all ACPI tables (FADT, MADT, etc.)
+ * Common set of includes for all ACPICA source files.
+ * We put them here because we don't want to duplicate them
+ * in the the source code again and again.
  *
  * Note: The order of these include files is important.
  */
-#include "platform/acenv.h"	/* Environment-specific items */
-#include "acnames.h"		/* Common ACPI names and strings */
-#include "actypes.h"		/* ACPICA data types and structures */
-#include "acexcep.h"		/* ACPICA exceptions */
-#include "actbl.h"		/* ACPI table definitions */
-#include "acoutput.h"		/* Error output and Debug macros */
-#include "acrestyp.h"		/* Resource Descriptor structs */
-#include "acpiosxf.h"		/* OSL interfaces (ACPICA-to-OS) */
-#include "acpixf.h"		/* ACPI core subsystem external interfaces */
+#include "acconfig.h"		/* Global configuration constants */
+#include "acmacros.h"		/* C macros */
+#include "aclocal.h"		/* Internal data types */
+#include "acobject.h"		/* ACPI internal object */
+#include "acstruct.h"		/* Common structures */
+#include "acglobal.h"		/* All global variables */
+#include "achware.h"		/* Hardware defines and interfaces */
+#include "acutils.h"		/* Utility interfaces */
 
-#endif				/* __ACPI_H__ */
+#endif				/* __ACCOMMON_H__ */

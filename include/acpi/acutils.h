@@ -297,42 +297,6 @@ void acpi_ut_report_info(char *module_name, u32 line_number);
 
 void acpi_ut_report_warning(char *module_name, u32 line_number);
 
-/* Error and message reporting interfaces */
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_debug_print(u32 requested_debug_level,
-		    u32 line_number,
-		    const char *function_name,
-		    const char *module_name,
-		    u32 component_id,
-		    const char *format, ...) ACPI_PRINTF_LIKE(6);
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_debug_print_raw(u32 requested_debug_level,
-			u32 line_number,
-			const char *function_name,
-			const char *module_name,
-			u32 component_id,
-			const char *format, ...) ACPI_PRINTF_LIKE(6);
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_error(const char *module_name,
-	      u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_exception(const char *module_name,
-		  u32 line_number,
-		  acpi_status status,
-		  const char *format, ...) ACPI_PRINTF_LIKE(4);
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_warning(const char *module_name,
-		u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_info(const char *module_name,
-	     u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
-
 /*
  * utdelete - Object deletion and reference counts
  */

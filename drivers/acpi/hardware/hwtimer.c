@@ -43,6 +43,7 @@
  */
 
 #include <acpi/acpi.h>
+#include <acpi/accommon.h>
 
 #define _COMPONENT          ACPI_HARDWARE
 ACPI_MODULE_NAME("hwtimer")

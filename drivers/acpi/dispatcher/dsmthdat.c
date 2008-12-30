@@ -42,6 +42,7 @@
  */
 
 #include <acpi/acpi.h>
+#include <acpi/accommon.h>
 #include <acpi/acdispat.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acinterp.h>

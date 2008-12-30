@@ -44,6 +44,7 @@
 #include <linux/module.h>
 
 #include <acpi/acpi.h>
+#include <acpi/accommon.h>
 #include <acpi/acnamesp.h>
 
 #define _COMPONENT          ACPI_UTILITIES
@@ -1016,7 +1017,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_error, acpi_ut_warning, acpi_ut_info
+ * FUNCTION:    acpi_error, acpi_exception, acpi_warning, acpi_info
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
@@ -1029,7 +1030,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
  ******************************************************************************/
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_error(const char *module_name, u32 line_number, const char *format, ...)
+acpi_error(const char *module_name, u32 line_number, const char *format, ...)
 {
 	va_list args;
 
@@ -1042,8 +1043,8 @@ acpi_ut_error(const char *module_name, u32 line_number, const char *format, ...)
 }
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_exception(const char *module_name,
-		  u32 line_number, acpi_status status, const char *format, ...)
+acpi_exception(const char *module_name,
+	       u32 line_number, acpi_status status, const char *format, ...)
 {
 	va_list args;
 
@@ -1056,11 +1057,8 @@ acpi_ut_exception(const char *module_name,
 	va_end(args);
 }
 
-EXPORT_SYMBOL(acpi_ut_exception);
-
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_warning(const char *module_name,
-		u32 line_number, const char *format, ...)
+acpi_warning(const char *module_name, u32 line_number, const char *format, ...)
 {
 	va_list args;
 
@@ -1073,7 +1071,7 @@ acpi_ut_warning(const char *module_name,
 }
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_info(const char *module_name, u32 line_number, const char *format, ...)
+acpi_info(const char *module_name, u32 line_number, const char *format, ...)
 {
 	va_list args;
 
@@ -1088,3 +1086,8 @@ acpi_ut_info(const char *module_name, u32 line_number, const char *format, ...)
 	acpi_os_printf("\n");
 	va_end(args);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_error)
+ACPI_EXPORT_SYMBOL(acpi_exception)
+ACPI_EXPORT_SYMBOL(acpi_warning)
+ACPI_EXPORT_SYMBOL(acpi_info)

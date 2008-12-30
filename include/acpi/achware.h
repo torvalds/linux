@@ -44,19 +44,13 @@
 #ifndef __ACHWARE_H__
 #define __ACHWARE_H__
 
-/* PM Timer ticks per second (HZ) */
-
-#define PM_TIMER_FREQUENCY  3579545
-
-/* Values for the _SST reserved method */
+/* Values for the _SST predefined method */
 
 #define ACPI_SST_INDICATOR_OFF  0
 #define ACPI_SST_WORKING        1
 #define ACPI_SST_WAKING         2
 #define ACPI_SST_SLEEPING       3
 #define ACPI_SST_SLEEP_CONTEXT  4
-
-/* Prototypes */
 
 /*
  * hwacpi - high level functions
