@@ -204,11 +204,10 @@ typedef u32 acpi_physical_address;
 
 /*******************************************************************************
  *
- * OS-dependent and compiler-dependent types
+ * OS-dependent types
  *
  * If the defaults below are not appropriate for the host system, they can
- * be defined in the compiler-specific or OS-specific header, and this will
- * take precedence.
+ * be defined in the OS-specific header, and this will take precedence.
  *
  ******************************************************************************/
 
@@ -216,12 +215,6 @@ typedef u32 acpi_physical_address;
 
 #ifndef acpi_thread_id
 #define acpi_thread_id			acpi_size
-#endif
-
-/* Object returned from acpi_os_create_lock */
-
-#ifndef acpi_spinlock
-#define acpi_spinlock                   void *
 #endif
 
 /* Flags for acpi_os_acquire_lock/acpi_os_release_lock */
@@ -239,6 +232,44 @@ typedef u32 acpi_physical_address;
 #define acpi_cache_t                    void *
 #endif
 #endif
+
+/*
+ * Synchronization objects - Mutexes, Semaphores, and spin_locks
+ */
+#if (ACPI_MUTEX_TYPE == ACPI_BINARY_SEMAPHORE)
+/*
+ * These macros are used if the host OS does not support a mutex object.
+ * Map the OSL Mutex interfaces to binary semaphores.
+ */
+#define acpi_mutex                      acpi_semaphore
+#define acpi_os_create_mutex(out_handle) acpi_os_create_semaphore (1, 1, out_handle)
+#define acpi_os_delete_mutex(handle)    (void) acpi_os_delete_semaphore (handle)
+#define acpi_os_acquire_mutex(handle,time) acpi_os_wait_semaphore (handle, 1, time)
+#define acpi_os_release_mutex(handle)   (void) acpi_os_signal_semaphore (handle, 1)
+#endif
+
+/* Configurable types for synchronization objects */
+
+#ifndef acpi_spinlock
+#define acpi_spinlock                   void *
+#endif
+
+#ifndef acpi_semaphore
+#define acpi_semaphore                  void *
+#endif
+
+#ifndef acpi_mutex
+#define acpi_mutex                      void *
+#endif
+
+/*******************************************************************************
+ *
+ * Compiler-dependent types
+ *
+ * If the defaults below are not appropriate for the host compiler, they can
+ * be defined in the compiler-specific header, and this will take precedence.
+ *
+ ******************************************************************************/
 
 /* Use C99 uintptr_t for pointer casting if available, "void *" otherwise */
 
@@ -352,11 +383,6 @@ struct uint32_struct {
 	u32 lo;
 	u32 hi;
 };
-
-/* Synchronization objects */
-
-#define acpi_mutex                      void *
-#define acpi_semaphore                  void *
 
 /*
  * Acpi integer width. In ACPI version 1, integers are 32 bits. In ACPI
