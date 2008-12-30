@@ -237,7 +237,7 @@ static struct virtqueue *vp_find_vq(struct virtio_device *vdev, unsigned index,
 	info->queue_index = index;
 	info->num = num;
 
-	size = PAGE_ALIGN(vring_size(num, PAGE_SIZE));
+	size = PAGE_ALIGN(vring_size(num, VIRTIO_PCI_VRING_ALIGN));
 	info->queue = alloc_pages_exact(size, GFP_KERNEL|__GFP_ZERO);
 	if (info->queue == NULL) {
 		err = -ENOMEM;
@@ -290,7 +290,7 @@ static void vp_del_vq(struct virtqueue *vq)
 	iowrite16(info->queue_index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_SEL);
 	iowrite32(0, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN);
 
-	size = PAGE_ALIGN(vring_size(info->num, PAGE_SIZE));
+	size = PAGE_ALIGN(vring_size(info->num, VIRTIO_PCI_VRING_ALIGN));
 	free_pages_exact(info->queue, size);
 	kfree(info);
 }
