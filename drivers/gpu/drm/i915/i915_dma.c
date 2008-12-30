@@ -1160,6 +1160,8 @@ int i915_driver_unload(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_modeset_cleanup(dev);
 
+		i915_gem_free_all_phys_object(dev);
+
 		mutex_lock(&dev->struct_mutex);
 		i915_gem_cleanup_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
