@@ -18,6 +18,19 @@
 
 #include "m5602_po1030.h"
 
+static struct v4l2_pix_format po1030_modes[] = {
+	{
+		640,
+		480,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage = 640 * 480,
+		.bytesperline = 640,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}
+};
+
 static void po1030_dump_registers(struct sd *sd);
 
 int po1030_probe(struct sd *sd)
@@ -59,8 +72,8 @@ int po1030_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
-	sd->gspca_dev.cam.cam_mode = po1030.modes;
-	sd->gspca_dev.cam.nmodes = po1030.nmodes;
+	sd->gspca_dev.cam.cam_mode = po1030_modes;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(po1030_modes);
 	sd->desc->ctrls = po1030.ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(po1030_ctrls);
 	return 0;

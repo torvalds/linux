@@ -129,7 +129,6 @@ static struct ctrl s5k83a_ctrls[] = {
 	}
 };
 
-
 static struct m5602_sensor s5k83a = {
 	.name = "S5K83A",
 	.probe = s5k83a_probe,
@@ -140,21 +139,6 @@ static struct m5602_sensor s5k83a = {
 	.i2c_slave_id = 0x5a,
 	.i2c_regW = 2,
 	.ctrls = s5k83a_ctrls,
-
-	.nmodes = 1,
-	.modes = {
-	{
-		M5602_DEFAULT_FRAME_WIDTH,
-		M5602_DEFAULT_FRAME_HEIGHT,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			M5602_DEFAULT_FRAME_WIDTH * M5602_DEFAULT_FRAME_HEIGHT,
-		.bytesperline = M5602_DEFAULT_FRAME_WIDTH,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1
-	}
-	}
 };
 
 static const unsigned char preinit_s5k83a[][4] =

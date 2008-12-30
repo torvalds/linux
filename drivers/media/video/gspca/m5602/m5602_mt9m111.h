@@ -143,22 +143,7 @@ static struct m5602_sensor mt9m111 = {
 
 	.probe = mt9m111_probe,
 	.init = mt9m111_init,
-	.power_down = mt9m111_power_down,
-
-	.nmodes = 1,
-	.modes = {
-	{
-		M5602_DEFAULT_FRAME_WIDTH,
-		M5602_DEFAULT_FRAME_HEIGHT,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			M5602_DEFAULT_FRAME_WIDTH * M5602_DEFAULT_FRAME_HEIGHT,
-		.bytesperline = M5602_DEFAULT_FRAME_WIDTH,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1
-	}
-	}
+	.power_down = mt9m111_power_down
 };
 
 static const unsigned char preinit_mt9m111[][4] =

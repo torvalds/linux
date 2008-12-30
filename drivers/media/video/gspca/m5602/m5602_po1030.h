@@ -232,21 +232,6 @@ static struct m5602_sensor po1030 = {
 	.power_down = po1030_power_down,
 
 	.ctrls = po1030_ctrls,
-
-	.nmodes = 1,
-	.modes = {
-	{
-		M5602_DEFAULT_FRAME_WIDTH,
-		M5602_DEFAULT_FRAME_HEIGHT,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			M5602_DEFAULT_FRAME_WIDTH * M5602_DEFAULT_FRAME_HEIGHT,
-		.bytesperline = M5602_DEFAULT_FRAME_WIDTH,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1
-	}
-	}
 };
 
 static const unsigned char preinit_po1030[][3] =

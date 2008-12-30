@@ -68,6 +68,50 @@ static
 	{ }
 };
 
+static struct v4l2_pix_format ov9650_modes[] = {
+	{
+		176,
+		144,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			176 * 144,
+		.bytesperline = 176,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}, {
+		320,
+		240,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			320 * 240,
+		.bytesperline = 320,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}, {
+		352,
+		288,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			352 * 288,
+		.bytesperline = 352,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}, {
+		640,
+		480,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			640 * 480,
+		.bytesperline = 640,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}
+};
+
 static void ov9650_dump_registers(struct sd *sd);
 
 int ov9650_probe(struct sd *sd)
@@ -110,8 +154,11 @@ int ov9650_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
-	sd->gspca_dev.cam.cam_mode = ov9650.modes;
-	sd->gspca_dev.cam.nmodes = ov9650.nmodes;
+// 	sd->gspca_dev.cam.cam_mode = ov9650.modes;
+// 	sd->gspca_dev.cam.nmodes = ov9650.nmodes;
+	sd->gspca_dev.cam.cam_mode = ov9650_modes;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(ov9650_modes);
+
 	sd->desc->ctrls = ov9650.ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(ov9650_ctrls);
 	return 0;

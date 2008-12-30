@@ -66,9 +66,6 @@ struct m5602_sensor {
 	int (*power_down)(struct sd *sd);
 
 	const struct ctrl *ctrls;
-
-	char nmodes;
-	struct v4l2_pix_format modes[];
 };
 
 #endif

@@ -18,6 +18,20 @@
 
 #include "m5602_s5k83a.h"
 
+static struct v4l2_pix_format s5k83a_modes[] = {
+	{
+		640,
+		480,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			640 * 480,
+		.bytesperline = 640,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}
+};
+
 static void s5k83a_dump_registers(struct sd *sd);
 
 int s5k83a_probe(struct sd *sd)
@@ -63,8 +77,8 @@ int s5k83a_probe(struct sd *sd)
 		info("Detected a s5k83a sensor");
 
 sensor_found:
-	sd->gspca_dev.cam.cam_mode = s5k83a.modes;
-	sd->gspca_dev.cam.nmodes = s5k83a.nmodes;
+	sd->gspca_dev.cam.cam_mode = s5k83a_modes;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(s5k83a_modes);
 	sd->desc->ctrls = s5k83a.ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(s5k83a_ctrls);
 	return 0;

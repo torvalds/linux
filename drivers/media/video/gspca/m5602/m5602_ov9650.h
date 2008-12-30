@@ -267,52 +267,7 @@ static struct m5602_sensor ov9650 = {
 	.start = ov9650_start,
 	.stop = ov9650_stop,
 	.power_down = ov9650_power_down,
-	.ctrls = ov9650_ctrls,
-
-	.nmodes = 4,
-	.modes = {
-	{
-		176,
-		144,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			176 * 144,
-		.bytesperline = 176,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0
-	}, {
-		320,
-		240,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			320 * 240,
-		.bytesperline = 320,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0
-	}, {
-		352,
-		288,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			352 * 288,
-		.bytesperline = 352,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0
-	}, {
-		640,
-		480,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			640 * 480,
-		.bytesperline = 640,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0
-	}
-	}
+	.ctrls = ov9650_ctrls
 };
 
 static const unsigned char preinit_ov9650[][3] =

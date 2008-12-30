@@ -18,6 +18,19 @@
 
 #include "m5602_mt9m111.h"
 
+static struct v4l2_pix_format mt9m111_modes[] = {
+	{
+		640,
+		480,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage = 640 * 480,
+		.bytesperline = 640,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}
+};
+
 static void mt9m111_dump_registers(struct sd *sd);
 
 int mt9m111_probe(struct sd *sd)
@@ -62,8 +75,8 @@ int mt9m111_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
-	sd->gspca_dev.cam.cam_mode = mt9m111.modes;
-	sd->gspca_dev.cam.nmodes = mt9m111.nmodes;
+	sd->gspca_dev.cam.cam_mode = mt9m111_modes;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(mt9m111_modes);
 	sd->desc->ctrls = mt9m111.ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(mt9m111_ctrls);
 	return 0;

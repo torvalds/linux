@@ -142,21 +142,6 @@ static struct m5602_sensor s5k4aa = {
 	.i2c_slave_id = 0x5a,
 	.i2c_regW = 2,
 	.ctrls = s5k4aa_ctrls,
-
-	.nmodes = 1,
-	.modes = {
-	{
-		640,
-		480,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			640 * 480,
-		.bytesperline = 640,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1
-	}
-	}
 };
 
 static const unsigned char preinit_s5k4aa[][4] =

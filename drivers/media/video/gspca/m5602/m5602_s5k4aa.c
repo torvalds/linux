@@ -50,6 +50,20 @@ static
 	{ }
 };
 
+static struct v4l2_pix_format s5k4aa_modes[] = {
+	{
+		640,
+		480,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			640 * 480,
+		.bytesperline = 640,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}
+};
+
 static void s5k4aa_dump_registers(struct sd *sd);
 
 int s5k4aa_probe(struct sd *sd)
@@ -115,8 +129,8 @@ int s5k4aa_probe(struct sd *sd)
 		info("Detected a s5k4aa sensor");
 
 sensor_found:
-	sd->gspca_dev.cam.cam_mode = s5k4aa.modes;
-	sd->gspca_dev.cam.nmodes = s5k4aa.nmodes;
+	sd->gspca_dev.cam.cam_mode = s5k4aa_modes;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(s5k4aa_modes);
 	sd->desc->ctrls = s5k4aa.ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(s5k4aa_ctrls);
 	return 0;
