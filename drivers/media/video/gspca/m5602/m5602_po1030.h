@@ -141,7 +141,7 @@ int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
 int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor po1030 = {
+static const struct m5602_sensor po1030 = {
 	.name = "PO1030",
 
 	.i2c_slave_id = 0xdc,

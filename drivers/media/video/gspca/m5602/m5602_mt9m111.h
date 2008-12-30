@@ -94,7 +94,7 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
 int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor mt9m111 = {
+const static struct m5602_sensor mt9m111 = {
 	.name = "MT9M111",
 
 	.i2c_slave_id = 0xba,

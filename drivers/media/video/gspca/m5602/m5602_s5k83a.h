@@ -61,7 +61,7 @@ int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
 int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor s5k83a = {
+static const struct m5602_sensor s5k83a = {
 	.name = "S5K83A",
 	.probe = s5k83a_probe,
 	.init = s5k83a_init,

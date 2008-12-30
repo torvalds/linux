@@ -77,8 +77,7 @@ int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
 int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val);
 
-
-static struct m5602_sensor s5k4aa = {
+static const struct m5602_sensor s5k4aa = {
 	.name = "S5K4AA",
 	.probe = s5k4aa_probe,
 	.init = s5k4aa_init,

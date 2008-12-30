@@ -156,7 +156,7 @@ int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val);
 int ov9650_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val);
 int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor ov9650 = {
+const static struct m5602_sensor ov9650 = {
 	.name = "OV9650",
 	.i2c_slave_id = 0x60,
 	.i2c_regW = 1,
