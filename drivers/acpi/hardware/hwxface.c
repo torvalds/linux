@@ -50,6 +50,43 @@ ACPI_MODULE_NAME("hwxface")
 
 /******************************************************************************
  *
+ * FUNCTION:    acpi_reset
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Set reset register in memory or IO space. Note: Does not
+ *              support reset register in PCI config space, this must be
+ *              handled separately.
+ *
+ ******************************************************************************/
+acpi_status acpi_reset(void)
+{
+	struct acpi_generic_address *reset_reg;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_reset);
+
+	reset_reg = &acpi_gbl_FADT.reset_register;
+
+	/* Check if the reset register is supported */
+
+	if (!(acpi_gbl_FADT.flags & ACPI_FADT_RESET_REGISTER) ||
+	    !reset_reg->address) {
+		return_ACPI_STATUS(AE_NOT_EXIST);
+	}
+
+	/* Write the reset value to the reset register */
+
+	status = acpi_write(acpi_gbl_FADT.reset_value, reset_reg);
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_reset)
+
+/******************************************************************************
+ *
  * FUNCTION:    acpi_read
  *
  * PARAMETERS:  Value               - Where the value is returned
