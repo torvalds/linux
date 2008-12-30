@@ -63,15 +63,19 @@ static ssize_t dio_show_resource(struct device *dev, struct device_attribute *at
 }
 static DEVICE_ATTR(resource, S_IRUGO, dio_show_resource, NULL);
 
-void dio_create_sysfs_dev_files(struct dio_dev *d)
+int dio_create_sysfs_dev_files(struct dio_dev *d)
 {
 	struct device *dev = &d->dev;
+	int error;
 
 	/* current configuration's attributes */
-	device_create_file(dev, &dev_attr_id);
-	device_create_file(dev, &dev_attr_ipl);
-	device_create_file(dev, &dev_attr_secid);
-	device_create_file(dev, &dev_attr_name);
-	device_create_file(dev, &dev_attr_resource);
+	if ((error = device_create_file(dev, &dev_attr_id)) ||
+	    (error = device_create_file(dev, &dev_attr_ipl)) ||
+	    (error = device_create_file(dev, &dev_attr_secid)) ||
+	    (error = device_create_file(dev, &dev_attr_name)) ||
+	    (error = device_create_file(dev, &dev_attr_resource)))
+		return error;
+
+	return 0;
 }
 
