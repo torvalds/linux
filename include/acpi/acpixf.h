@@ -81,11 +81,6 @@ const char *acpi_format_exception(acpi_status exception);
 
 acpi_status acpi_purge_cached_objects(void);
 
-#ifdef ACPI_FUTURE_USAGE
-acpi_status
-acpi_install_initialization_handler(acpi_init_handler handler, u32 function);
-#endif
-
 /*
  * ACPI Memory management
  */
@@ -195,8 +190,11 @@ acpi_status acpi_get_id(acpi_handle object, acpi_owner_id * out_type);
 acpi_status acpi_get_parent(acpi_handle object, acpi_handle * out_handle);
 
 /*
- * Event handler interfaces
+ * Handler interfaces
  */
+acpi_status
+acpi_install_initialization_handler(acpi_init_handler handler, u32 function);
+
 acpi_status
 acpi_install_fixed_event_handler(u32 acpi_event,
 				 acpi_event_handler handler, void *context);
@@ -335,6 +333,10 @@ acpi_set_firmware_waking_vector(u32 physical_address);
 
 acpi_status
 acpi_set_firmware_waking_vector64(u64 physical_address);
+
+acpi_status acpi_read(u32 *value, struct acpi_generic_address *reg);
+
+acpi_status acpi_write(u32 value, struct acpi_generic_address *reg);
 
 acpi_status
 acpi_get_sleep_type_data(u8 sleep_state, u8 * slp_typ_a, u8 * slp_typ_b);

@@ -84,9 +84,8 @@ acpi_status acpi_hw_clear_acpi_status(void)
 	/* Clear the fixed events */
 
 	if (acpi_gbl_FADT.xpm1b_event_block.address) {
-		status =
-		    acpi_hw_low_level_write(16, ACPI_BITMASK_ALL_FIXED_STATUS,
-					    &acpi_gbl_FADT.xpm1b_event_block);
+		status = acpi_write(ACPI_BITMASK_ALL_FIXED_STATUS,
+				    &acpi_gbl_FADT.xpm1b_event_block);
 		if (ACPI_FAILURE(status)) {
 			goto unlock_and_exit;
 		}
@@ -243,6 +242,8 @@ struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
 
 	return (&acpi_gbl_bit_register_info[register_id]);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_get_register_unlocked)
 
 /*******************************************************************************
  *
@@ -483,63 +484,49 @@ acpi_hw_register_read(u32 register_id, u32 * return_value)
 	switch (register_id) {
 	case ACPI_REGISTER_PM1_STATUS:	/* 16-bit access */
 
-		status =
-		    acpi_hw_low_level_read(16, &value1,
-					   &acpi_gbl_FADT.xpm1a_event_block);
+		status = acpi_read(&value1, &acpi_gbl_FADT.xpm1a_event_block);
 		if (ACPI_FAILURE(status)) {
 			goto exit;
 		}
 
 		/* PM1B is optional */
 
-		status =
-		    acpi_hw_low_level_read(16, &value2,
-					   &acpi_gbl_FADT.xpm1b_event_block);
+		status = acpi_read(&value2, &acpi_gbl_FADT.xpm1b_event_block);
 		value1 |= value2;
 		break;
 
 	case ACPI_REGISTER_PM1_ENABLE:	/* 16-bit access */
 
-		status =
-		    acpi_hw_low_level_read(16, &value1, &acpi_gbl_xpm1a_enable);
+		status = acpi_read(&value1, &acpi_gbl_xpm1a_enable);
 		if (ACPI_FAILURE(status)) {
 			goto exit;
 		}
 
 		/* PM1B is optional */
 
-		status =
-		    acpi_hw_low_level_read(16, &value2, &acpi_gbl_xpm1b_enable);
+		status = acpi_read(&value2, &acpi_gbl_xpm1b_enable);
 		value1 |= value2;
 		break;
 
 	case ACPI_REGISTER_PM1_CONTROL:	/* 16-bit access */
 
-		status =
-		    acpi_hw_low_level_read(16, &value1,
-					   &acpi_gbl_FADT.xpm1a_control_block);
+		status = acpi_read(&value1, &acpi_gbl_FADT.xpm1a_control_block);
 		if (ACPI_FAILURE(status)) {
 			goto exit;
 		}
 
-		status =
-		    acpi_hw_low_level_read(16, &value2,
-					   &acpi_gbl_FADT.xpm1b_control_block);
+		status = acpi_read(&value2, &acpi_gbl_FADT.xpm1b_control_block);
 		value1 |= value2;
 		break;
 
 	case ACPI_REGISTER_PM2_CONTROL:	/* 8-bit access */
 
-		status =
-		    acpi_hw_low_level_read(8, &value1,
-					   &acpi_gbl_FADT.xpm2_control_block);
+		status = acpi_read(&value1, &acpi_gbl_FADT.xpm2_control_block);
 		break;
 
 	case ACPI_REGISTER_PM_TIMER:	/* 32-bit access */
 
-		status =
-		    acpi_hw_low_level_read(32, &value1,
-					   &acpi_gbl_FADT.xpm_timer_block);
+		status = acpi_read(&value1, &acpi_gbl_FADT.xpm_timer_block);
 		break;
 
 	case ACPI_REGISTER_SMI_COMMAND_BLOCK:	/* 8-bit access */
@@ -614,32 +601,26 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 
 		/* Now we can write the data */
 
-		status =
-		    acpi_hw_low_level_write(16, value,
-					    &acpi_gbl_FADT.xpm1a_event_block);
+		status = acpi_write(value, &acpi_gbl_FADT.xpm1a_event_block);
 		if (ACPI_FAILURE(status)) {
 			goto exit;
 		}
 
 		/* PM1B is optional */
 
-		status =
-		    acpi_hw_low_level_write(16, value,
-					    &acpi_gbl_FADT.xpm1b_event_block);
+		status = acpi_write(value, &acpi_gbl_FADT.xpm1b_event_block);
 		break;
 
 	case ACPI_REGISTER_PM1_ENABLE:	/* 16-bit access */
 
-		status =
-		    acpi_hw_low_level_write(16, value, &acpi_gbl_xpm1a_enable);
+		status = acpi_write(value, &acpi_gbl_xpm1a_enable);
 		if (ACPI_FAILURE(status)) {
 			goto exit;
 		}
 
 		/* PM1B is optional */
 
-		status =
-		    acpi_hw_low_level_write(16, value, &acpi_gbl_xpm1b_enable);
+		status = acpi_write(value, &acpi_gbl_xpm1b_enable);
 		break;
 
 	case ACPI_REGISTER_PM1_CONTROL:	/* 16-bit access */
@@ -660,44 +641,32 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 
 		/* Now we can write the data */
 
-		status =
-		    acpi_hw_low_level_write(16, value,
-					    &acpi_gbl_FADT.xpm1a_control_block);
+		status = acpi_write(value, &acpi_gbl_FADT.xpm1a_control_block);
 		if (ACPI_FAILURE(status)) {
 			goto exit;
 		}
 
-		status =
-		    acpi_hw_low_level_write(16, value,
-					    &acpi_gbl_FADT.xpm1b_control_block);
+		status = acpi_write(value, &acpi_gbl_FADT.xpm1b_control_block);
 		break;
 
 	case ACPI_REGISTER_PM1A_CONTROL:	/* 16-bit access */
 
-		status =
-		    acpi_hw_low_level_write(16, value,
-					    &acpi_gbl_FADT.xpm1a_control_block);
+		status = acpi_write(value, &acpi_gbl_FADT.xpm1a_control_block);
 		break;
 
 	case ACPI_REGISTER_PM1B_CONTROL:	/* 16-bit access */
 
-		status =
-		    acpi_hw_low_level_write(16, value,
-					    &acpi_gbl_FADT.xpm1b_control_block);
+		status = acpi_write(value, &acpi_gbl_FADT.xpm1b_control_block);
 		break;
 
 	case ACPI_REGISTER_PM2_CONTROL:	/* 8-bit access */
 
-		status =
-		    acpi_hw_low_level_write(8, value,
-					    &acpi_gbl_FADT.xpm2_control_block);
+		status = acpi_write(value, &acpi_gbl_FADT.xpm2_control_block);
 		break;
 
 	case ACPI_REGISTER_PM_TIMER:	/* 32-bit access */
 
-		status =
-		    acpi_hw_low_level_write(32, value,
-					    &acpi_gbl_FADT.xpm_timer_block);
+		status = acpi_write(value, &acpi_gbl_FADT.xpm_timer_block);
 		break;
 
 	case ACPI_REGISTER_SMI_COMMAND_BLOCK:	/* 8-bit access */
@@ -719,10 +688,9 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 
 /******************************************************************************
  *
- * FUNCTION:    acpi_hw_low_level_read
+ * FUNCTION:    acpi_read
  *
- * PARAMETERS:  Width               - 8, 16, or 32
- *              Value               - Where the value is returned
+ * PARAMETERS:  Value               - Where the value is returned
  *              Reg                 - GAS register structure
  *
  * RETURN:      Status
@@ -731,13 +699,13 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
  *
  ******************************************************************************/
 
-acpi_status
-acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
+acpi_status acpi_read(u32 *value, struct acpi_generic_address *reg)
 {
+	u32 width;
 	u64 address;
 	acpi_status status;
 
-	ACPI_FUNCTION_NAME(hw_low_level_read);
+	ACPI_FUNCTION_NAME(acpi_read);
 
 	/*
 	 * Must have a valid pointer to a GAS structure, and
@@ -754,6 +722,16 @@ acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
 	if (!address) {
 		return (AE_OK);
 	}
+
+	/* Supported widths are 8/16/32 */
+
+	width = reg->bit_width;
+	if ((width != 8) && (width != 16) && (width != 32)) {
+		return (AE_SUPPORT);
+	}
+
+	/* Initialize entire 32-bit return value to zero */
+
 	*value = 0;
 
 	/*
@@ -787,12 +765,13 @@ acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
 	return (status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_read)
+
 /******************************************************************************
  *
- * FUNCTION:    acpi_hw_low_level_write
+ * FUNCTION:    acpi_write
  *
- * PARAMETERS:  Width               - 8, 16, or 32
- *              Value               - To be written
+ * PARAMETERS:  Value               - To be written
  *              Reg                 - GAS register structure
  *
  * RETURN:      Status
@@ -802,12 +781,13 @@ acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
  ******************************************************************************/
 
 acpi_status
-acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address * reg)
+acpi_write(u32 value, struct acpi_generic_address *reg)
 {
+	u32 width;
 	u64 address;
 	acpi_status status;
 
-	ACPI_FUNCTION_NAME(hw_low_level_write);
+	ACPI_FUNCTION_NAME(acpi_write);
 
 	/*
 	 * Must have a valid pointer to a GAS structure, and
@@ -823,6 +803,13 @@ acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address * reg)
 	ACPI_MOVE_64_TO_64(&address, &reg->address);
 	if (!address) {
 		return (AE_OK);
+	}
+
+	/* Supported widths are 8/16/32 */
+
+	width = reg->bit_width;
+	if ((width != 8) && (width != 16) && (width != 32)) {
+		return (AE_SUPPORT);
 	}
 
 	/*
@@ -855,3 +842,5 @@ acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address * reg)
 
 	return (status);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_write)

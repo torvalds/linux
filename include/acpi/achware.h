@@ -75,13 +75,6 @@ acpi_hw_register_read(u32 register_id, u32 * return_value);
 
 acpi_status acpi_hw_register_write(u32 register_id, u32 value);
 
-acpi_status
-acpi_hw_low_level_read(u32 width,
-		       u32 * value, struct acpi_generic_address *reg);
-
-acpi_status
-acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address *reg);
-
 acpi_status acpi_hw_clear_acpi_status(void);
 
 /*
