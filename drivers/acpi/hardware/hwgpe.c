@@ -51,7 +51,8 @@ ACPI_MODULE_NAME("hwgpe")
 /* Local prototypes */
 static acpi_status
 acpi_hw_enable_wakeup_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-				struct acpi_gpe_block_info *gpe_block);
+				struct acpi_gpe_block_info *gpe_block,
+				void *context);
 
 /******************************************************************************
  *
@@ -260,8 +261,8 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
  ******************************************************************************/
 
 acpi_status
-acpi_hw_disable_gpe_block(struct acpi_gpe_xrupt_info * gpe_xrupt_info,
-			  struct acpi_gpe_block_info * gpe_block)
+acpi_hw_disable_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+			  struct acpi_gpe_block_info *gpe_block, void *context)
 {
 	u32 i;
 	acpi_status status;
@@ -297,8 +298,8 @@ acpi_hw_disable_gpe_block(struct acpi_gpe_xrupt_info * gpe_xrupt_info,
  ******************************************************************************/
 
 acpi_status
-acpi_hw_clear_gpe_block(struct acpi_gpe_xrupt_info * gpe_xrupt_info,
-			struct acpi_gpe_block_info * gpe_block)
+acpi_hw_clear_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+			struct acpi_gpe_block_info *gpe_block, void *context)
 {
 	u32 i;
 	acpi_status status;
@@ -335,8 +336,8 @@ acpi_hw_clear_gpe_block(struct acpi_gpe_xrupt_info * gpe_xrupt_info,
  ******************************************************************************/
 
 acpi_status
-acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info * gpe_xrupt_info,
-				 struct acpi_gpe_block_info * gpe_block)
+acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+				 struct acpi_gpe_block_info *gpe_block, void *context)
 {
 	u32 i;
 	acpi_status status;
@@ -382,7 +383,8 @@ acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info * gpe_xrupt_info,
 
 static acpi_status
 acpi_hw_enable_wakeup_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-				struct acpi_gpe_block_info *gpe_block)
+				struct acpi_gpe_block_info *gpe_block,
+				void *context)
 {
 	u32 i;
 	acpi_status status;
@@ -427,8 +429,8 @@ acpi_status acpi_hw_disable_all_gpes(void)
 
 	ACPI_FUNCTION_TRACE(hw_disable_all_gpes);
 
-	status = acpi_ev_walk_gpe_list(acpi_hw_disable_gpe_block);
-	status = acpi_ev_walk_gpe_list(acpi_hw_clear_gpe_block);
+	status = acpi_ev_walk_gpe_list(acpi_hw_disable_gpe_block, NULL);
+	status = acpi_ev_walk_gpe_list(acpi_hw_clear_gpe_block, NULL);
 	return_ACPI_STATUS(status);
 }
 
@@ -450,7 +452,7 @@ acpi_status acpi_hw_enable_all_runtime_gpes(void)
 
 	ACPI_FUNCTION_TRACE(hw_enable_all_runtime_gpes);
 
-	status = acpi_ev_walk_gpe_list(acpi_hw_enable_runtime_gpe_block);
+	status = acpi_ev_walk_gpe_list(acpi_hw_enable_runtime_gpe_block, NULL);
 	return_ACPI_STATUS(status);
 }
 
@@ -472,6 +474,6 @@ acpi_status acpi_hw_enable_all_wakeup_gpes(void)
 
 	ACPI_FUNCTION_TRACE(hw_enable_all_wakeup_gpes);
 
-	status = acpi_ev_walk_gpe_list(acpi_hw_enable_wakeup_gpe_block);
+	status = acpi_ev_walk_gpe_list(acpi_hw_enable_wakeup_gpe_block, NULL);
 	return_ACPI_STATUS(status);
 }

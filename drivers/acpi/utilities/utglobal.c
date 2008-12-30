@@ -46,9 +46,8 @@
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 
-ACPI_EXPORT_SYMBOL(acpi_gbl_FADT)
 #define _COMPONENT          ACPI_UTILITIES
-    ACPI_MODULE_NAME("utglobal")
+ACPI_MODULE_NAME("utglobal")
 
 /*******************************************************************************
  *
@@ -756,6 +755,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_gpe_xrupt_list_head = NULL;
 	acpi_gbl_gpe_fadt_blocks[0] = NULL;
 	acpi_gbl_gpe_fadt_blocks[1] = NULL;
+	acpi_current_gpe_count = 0;
 
 	/* Global handlers */
 
@@ -816,5 +816,7 @@ acpi_status acpi_ut_init_globals(void)
 	return_ACPI_STATUS(AE_OK);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_gbl_FADT)
 ACPI_EXPORT_SYMBOL(acpi_dbg_level)
 ACPI_EXPORT_SYMBOL(acpi_dbg_layer)
+ACPI_EXPORT_SYMBOL(acpi_current_gpe_count)

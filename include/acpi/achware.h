@@ -94,13 +94,13 @@ acpi_hw_write_gpe_enable_reg(struct acpi_gpe_event_info *gpe_event_info);
 
 acpi_status
 acpi_hw_disable_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-			  struct acpi_gpe_block_info *gpe_block);
+			  struct acpi_gpe_block_info *gpe_block, void *context);
 
 acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info *gpe_event_info);
 
 acpi_status
 acpi_hw_clear_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-			struct acpi_gpe_block_info *gpe_block);
+			struct acpi_gpe_block_info *gpe_block, void *context);
 
 acpi_status
 acpi_hw_get_gpe_status(struct acpi_gpe_event_info *gpe_event_info,
@@ -114,7 +114,8 @@ acpi_status acpi_hw_enable_all_wakeup_gpes(void);
 
 acpi_status
 acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-				 struct acpi_gpe_block_info *gpe_block);
+				 struct acpi_gpe_block_info *gpe_block,
+				 void *context);
 
 #ifdef	ACPI_FUTURE_USAGE
 /*

@@ -124,6 +124,7 @@ u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info)
  * FUNCTION:    acpi_ev_walk_gpe_list
  *
  * PARAMETERS:  gpe_walk_callback   - Routine called for each GPE block
+ *              Context             - Value passed to callback
  *
  * RETURN:      Status
  *
@@ -131,7 +132,8 @@ u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info)
  *
  ******************************************************************************/
 
-acpi_status acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback)
+acpi_status
+acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback, void *context)
 {
 	struct acpi_gpe_block_info *gpe_block;
 	struct acpi_gpe_xrupt_info *gpe_xrupt_info;
@@ -154,8 +156,13 @@ acpi_status acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback)
 
 			/* One callback per GPE block */
 
-			status = gpe_walk_callback(gpe_xrupt_info, gpe_block);
+			status =
+			    gpe_walk_callback(gpe_xrupt_info, gpe_block,
+					      context);
 			if (ACPI_FAILURE(status)) {
+				if (status == AE_CTRL_END) {	/* Callback abort */
+					status = AE_OK;
+				}
 				goto unlock_and_exit;
 			}
 
@@ -186,7 +193,8 @@ acpi_status acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback)
 
 acpi_status
 acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-			    struct acpi_gpe_block_info *gpe_block)
+			    struct acpi_gpe_block_info *gpe_block,
+			    void *context)
 {
 	struct acpi_gpe_event_info *gpe_event_info;
 	u32 i;
@@ -690,7 +698,8 @@ acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block)
 
 	/* Disable all GPEs in this block */
 
-	status = acpi_hw_disable_gpe_block(gpe_block->xrupt_block, gpe_block);
+	status =
+	    acpi_hw_disable_gpe_block(gpe_block->xrupt_block, gpe_block, NULL);
 
 	if (!gpe_block->previous && !gpe_block->next) {
 
@@ -716,6 +725,9 @@ acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block)
 		}
 		acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	}
+
+	acpi_current_gpe_count -=
+	    gpe_block->register_count * ACPI_GPE_REGISTER_WIDTH;
 
 	/* Free the gpe_block */
 
@@ -958,6 +970,9 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 			  gpe_device->name.ascii, gpe_block->register_count,
 			  interrupt_number));
 
+	/* Update global count of currently available GPEs */
+
+	acpi_current_gpe_count += register_count * ACPI_GPE_REGISTER_WIDTH;
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -1057,7 +1072,7 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	/* Enable all valid runtime GPEs found above */
 
-	status = acpi_hw_enable_runtime_gpe_block(NULL, gpe_block);
+	status = acpi_hw_enable_runtime_gpe_block(NULL, gpe_block, NULL);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO, "Could not enable GPEs in GpeBlock %p",
 			    gpe_block));

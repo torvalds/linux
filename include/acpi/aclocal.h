@@ -487,10 +487,15 @@ struct acpi_gpe_walk_info {
 	struct acpi_gpe_block_info *gpe_block;
 };
 
-typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *
-					 gpe_xrupt_info,
-					 struct acpi_gpe_block_info *
-					 gpe_block);
+struct acpi_gpe_device_info {
+	u32 index;
+	u32 next_block_base_index;
+	acpi_status status;
+	struct acpi_namespace_node *gpe_device;
+};
+
+typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+		struct acpi_gpe_block_info *gpe_block, void *context);
 
 /* Information about each particular fixed event */
 

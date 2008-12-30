@@ -49,6 +49,11 @@
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evxfevnt")
 
+/* Local prototypes */
+acpi_status
+acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+		       struct acpi_gpe_block_info *gpe_block, void *context);
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_enable
@@ -60,6 +65,7 @@ ACPI_MODULE_NAME("evxfevnt")
  * DESCRIPTION: Transfers the system into ACPI mode.
  *
  ******************************************************************************/
+
 acpi_status acpi_enable(void)
 {
 	acpi_status status = AE_OK;
@@ -717,3 +723,90 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_remove_gpe_block)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_get_gpe_device
+ *
+ * PARAMETERS:  Index               - System GPE index (0-current_gpe_count)
+ *              gpe_device          - Where the parent GPE Device is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Obtain the GPE device associated with the input index. A NULL
+ *              gpe device indicates that the gpe number is contained in one of
+ *              the FADT-defined gpe blocks. Otherwise, the GPE block device.
+ *
+ ******************************************************************************/
+acpi_status
+acpi_get_gpe_device(u32 index, acpi_handle *gpe_device)
+{
+	struct acpi_gpe_device_info info;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_get_gpe_device);
+
+	if (!gpe_device) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	if (index >= acpi_current_gpe_count) {
+		return_ACPI_STATUS(AE_NOT_EXIST);
+	}
+
+	/* Setup and walk the GPE list */
+
+	info.index = index;
+	info.status = AE_NOT_EXIST;
+	info.gpe_device = NULL;
+	info.next_block_base_index = 0;
+
+	status = acpi_ev_walk_gpe_list(acpi_ev_get_gpe_device, &info);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	*gpe_device = info.gpe_device;
+	return_ACPI_STATUS(info.status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_get_gpe_device)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ev_get_gpe_device
+ *
+ * PARAMETERS:  GPE_WALK_CALLBACK
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Matches the input GPE index (0-current_gpe_count) with a GPE
+ *              block device. NULL if the GPE is one of the FADT-defined GPEs.
+ *
+ ******************************************************************************/
+acpi_status
+acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+		       struct acpi_gpe_block_info *gpe_block, void *context)
+{
+	struct acpi_gpe_device_info *info = context;
+
+	/* Increment Index by the number of GPEs in this block */
+
+	info->next_block_base_index +=
+	    (gpe_block->register_count * ACPI_GPE_REGISTER_WIDTH);
+
+	if (info->index < info->next_block_base_index) {
+		/*
+		 * The GPE index is within this block, get the node. Leave the node
+		 * NULL for the FADT-defined GPEs
+		 */
+		if ((gpe_block->node)->type == ACPI_TYPE_DEVICE) {
+			info->gpe_device = gpe_block->node;
+		}
+
+		info->status = AE_OK;
+		return (AE_CTRL_END);
+	}
+
+	return (AE_OK);
+}

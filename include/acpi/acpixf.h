@@ -265,6 +265,8 @@ acpi_get_gpe_status(acpi_handle gpe_device,
 		    u32 gpe_number,
 		    u32 flags, acpi_event_status * event_status);
 
+acpi_status acpi_get_gpe_device(u32 gpe_index, acpi_handle *gpe_device);
+
 acpi_status
 acpi_install_gpe_block(acpi_handle gpe_device,
 		       struct acpi_generic_address *gpe_block_address,
