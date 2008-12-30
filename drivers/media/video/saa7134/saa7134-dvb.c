@@ -1366,11 +1366,11 @@ static int dvb_init(struct saa7134_dev *dev)
 			goto dettach_frontend;
 		break;
 	case SAA7134_BOARD_BEHOLD_H6:
-		dev->dvb.frontend = dvb_attach(zl10353_attach,
+		fe0->dvb.frontend = dvb_attach(zl10353_attach,
 						&behold_h6_config,
 						&dev->i2c_adap);
-		if (dev->dvb.frontend) {
-			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+		if (fe0->dvb.frontend) {
+			dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x61,
 				   TUNER_PHILIPS_FMD1216ME_MK3);
 		}
