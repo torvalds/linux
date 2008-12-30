@@ -309,10 +309,16 @@ typedef u32 acpi_physical_address;
  *
  *****************************************************************************/
 
-/* Number of distinct GPE register blocks and register width */
+/* Number of distinct FADT-based GPE register blocks (GPE0 and GPE1) */
 
 #define ACPI_MAX_GPE_BLOCKS             2
+
+/* Default ACPI register widths */
+
 #define ACPI_GPE_REGISTER_WIDTH         8
+#define ACPI_PM1_REGISTER_WIDTH         16
+#define ACPI_PM2_REGISTER_WIDTH         8
+#define ACPI_PM_TIMER_WIDTH             32
 
 /* Names within the namespace are 4 bytes long */
 
