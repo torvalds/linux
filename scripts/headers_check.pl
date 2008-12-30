@@ -34,9 +34,11 @@ foreach my $file (@files) {
 	$lineno = 0;
 	while ($line = <FH>) {
 		$lineno++;
-		check_include();
-		check_prototypes();
-		check_config();
+		&check_include();
+		&check_asm_types();
+		&check_sizetypes();
+		&check_prototypes();
+		&check_config();
 	}
 	close FH;
 }
@@ -70,6 +72,45 @@ sub check_config
 {
 	if ($line =~ m/[^a-zA-Z0-9_]+CONFIG_([a-zA-Z0-9]+)[^a-zA-Z0-9]/) {
 		printf STDERR "$filename:$lineno: leaks CONFIG_$1 to userspace where it is not valid\n";
+	}
+}
+
+my $linux_asm_types;
+sub check_asm_types()
+{
+	if ($lineno == 1) {
+		$linux_asm_types = 0;
+	} elsif ($linux_asm_types >= 1) {
+		return;
+	}
+	if ($line =~ m/^\s*#\s*include\s+<asm\/types.h>/) {
+		$linux_asm_types = 1;
+		printf STDERR "$filename:$lineno: " .
+		"include of <linux/types.h> is preferred over <asm/types.h>\n"
+		# Warn until headers are all fixed
+		#$ret = 1;
+	}
+}
+
+my $linux_types;
+sub check_sizetypes
+{
+	if ($lineno == 1) {
+		$linux_types = 0;
+	} elsif ($linux_types >= 1) {
+		return;
+	}
+	if ($line =~ m/^\s*#\s*include\s+<linux\/types.h>/) {
+		$linux_types = 1;
+		return;
+	}
+	if ($line =~ m/__[us](8|16|32|64)\b/) {
+		printf STDERR "$filename:$lineno: " .
+		              "found __[us]{8,16,32,64} type " .
+		              "without #include <linux/types.h>\n";
+		$linux_types = 2;
+		# Warn until headers are all fixed
+		#$ret = 1;
 	}
 }
 
