@@ -2446,6 +2446,8 @@ static void ahci_print_info(struct ata_host *host)
 		speed_s = "1.5";
 	else if (speed == 2)
 		speed_s = "3";
+	else if (speed == 3)
+		speed_s = "6";
 	else
 		speed_s = "?";
 
