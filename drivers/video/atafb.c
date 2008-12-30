@@ -3075,8 +3075,7 @@ int __init atafb_setup(char *options)
 
 int __init atafb_init(void)
 {
-	int pad;
-	int detected_mode;
+	int pad, detected_mode, error;
 	unsigned int defmode = 0;
 	unsigned long mem_req;
 
@@ -3116,8 +3115,12 @@ int __init atafb_init(void)
 			printk("atafb_init: initializing Falcon hw\n");
 			fbhw = &falcon_switch;
 			atafb_ops.fb_setcolreg = &falcon_setcolreg;
-			request_irq(IRQ_AUTO_4, falcon_vbl_switcher, IRQ_TYPE_PRIO,
-			            "framebuffer/modeswitch", falcon_vbl_switcher);
+			error = request_irq(IRQ_AUTO_4, falcon_vbl_switcher,
+					    IRQ_TYPE_PRIO,
+					    "framebuffer/modeswitch",
+					    falcon_vbl_switcher);
+			if (error)
+				return error;
 			defmode = DEFMODE_F30;
 			break;
 		}
