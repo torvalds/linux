@@ -139,6 +139,7 @@ int ov9650_init(struct sd *sd)
 		data = 0x30;
 		err = m5602_write_sensor(sd, OV9650_MVFP, &data, 1);
 	}
+
 	return err;
 }
 
@@ -146,6 +147,10 @@ int ov9650_start(struct sd *sd)
 {
 	int i, err = 0;
 	struct cam *cam = &sd->gspca_dev.cam;
+
+	err = ov9650_init(sd);
+	if (err < 0)
+		return err;
 
 	for (i = 0; i < ARRAY_SIZE(res_init_ov9650) && !err; i++) {
 		if (res_init_ov9650[i][0] == BRIDGE)
