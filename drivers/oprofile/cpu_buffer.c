@@ -203,11 +203,7 @@ add_sample(struct oprofile_cpu_buffer *cpu_buf,
 	entry.sample->eip = pc;
 	entry.sample->event = event;
 
-	ret = op_cpu_buffer_write_commit(&entry);
-	if (ret)
-		return ret;
-
-	return 0;
+	return op_cpu_buffer_write_commit(&entry);
 }
 
 static inline int
