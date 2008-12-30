@@ -105,7 +105,7 @@ enum {
 	board_ahci_ign_iferr	= 2,
 	board_ahci_sb600	= 3,
 	board_ahci_mv		= 4,
-	board_ahci_sb700	= 5,
+	board_ahci_sb700	= 5, /* for SB700 and SB800 */
 	board_ahci_mcp65	= 6,
 	board_ahci_nopmp	= 7,
 
@@ -439,7 +439,7 @@ static const struct ata_port_info ahci_port_info[] = {
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	/* board_ahci_sb700 */
+	/* board_ahci_sb700, for SB700 and SB800 */
 	{
 		AHCI_HFLAGS	(AHCI_HFLAG_IGN_SERR_INTERNAL),
 		.flags		= AHCI_FLAG_COMMON,
@@ -2611,6 +2611,10 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (board_id == board_ahci_mcp65 &&
 	    (pdev->revision == 0xa1 || pdev->revision == 0xa2))
 		hpriv->flags |= AHCI_HFLAG_NO_MSI;
+
+	/* SB800 does NOT need the workaround to ignore SERR_INTERNAL */
+	if (board_id == board_ahci_sb700 && pdev->revision >= 0x40)
+		hpriv->flags &= ~AHCI_HFLAG_IGN_SERR_INTERNAL;
 
 	if ((hpriv->flags & AHCI_HFLAG_NO_MSI) || pci_enable_msi(pdev))
 		pci_intx(pdev, 1);
