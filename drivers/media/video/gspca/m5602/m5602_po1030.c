@@ -62,7 +62,7 @@ sensor_found:
 	sd->gspca_dev.cam.cam_mode = po1030.modes;
 	sd->gspca_dev.cam.nmodes = po1030.nmodes;
 	sd->desc->ctrls = po1030.ctrls;
-	sd->desc->nctrls = po1030.nctrls;
+	sd->desc->nctrls = ARRAY_SIZE(po1030_ctrls);
 	return 0;
 }
 

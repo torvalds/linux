@@ -61,17 +61,7 @@ int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
 int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor s5k83a = {
-	.name = "S5K83A",
-	.probe = s5k83a_probe,
-	.init = s5k83a_init,
-	.start = s5k83a_start,
-	.stop = s5k83a_stop,
-	.power_down = s5k83a_power_down,
-	.i2c_slave_id = 0x5a,
-	.i2c_regW = 2,
-	.nctrls = 5,
-	.ctrls = {
+static struct ctrl s5k83a_ctrls[] = {
 	{
 		{
 			.id = V4L2_CID_BRIGHTNESS,
@@ -136,8 +126,21 @@ static struct m5602_sensor s5k83a = {
 		},
 		.set = s5k83a_set_vflip,
 		.get = s5k83a_get_vflip
-		}
-	},
+	}
+};
+
+
+static struct m5602_sensor s5k83a = {
+	.name = "S5K83A",
+	.probe = s5k83a_probe,
+	.init = s5k83a_init,
+	.start = s5k83a_start,
+	.stop = s5k83a_stop,
+	.power_down = s5k83a_power_down,
+	.i2c_slave_id = 0x5a,
+	.i2c_regW = 2,
+	.ctrls = s5k83a_ctrls,
+
 	.nmodes = 1,
 	.modes = {
 	{

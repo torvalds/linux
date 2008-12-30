@@ -156,18 +156,7 @@ int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val);
 int ov9650_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val);
 int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor ov9650 = {
-	.name = "OV9650",
-	.i2c_slave_id = 0x60,
-	.i2c_regW = 1,
-	.probe = ov9650_probe,
-	.init = ov9650_init,
-	.start = ov9650_start,
-	.stop = ov9650_stop,
-	.power_down = ov9650_power_down,
-
-	.nctrls = 8,
-	.ctrls = {
+static struct ctrl ov9650_ctrls[] = {
 	{
 		{
 			.id		= V4L2_CID_EXPOSURE,
@@ -267,7 +256,18 @@ static struct m5602_sensor ov9650 = {
 		.set = ov9650_set_auto_gain,
 		.get = ov9650_get_auto_gain
 	}
-	},
+};
+
+static struct m5602_sensor ov9650 = {
+	.name = "OV9650",
+	.i2c_slave_id = 0x60,
+	.i2c_regW = 1,
+	.probe = ov9650_probe,
+	.init = ov9650_init,
+	.start = ov9650_start,
+	.stop = ov9650_stop,
+	.power_down = ov9650_power_down,
+	.ctrls = ov9650_ctrls,
 
 	.nmodes = 4,
 	.modes = {
@@ -444,18 +444,9 @@ static const unsigned char init_ov9650[][3] =
 	/* Enable denoise, and white-pixel erase */
 	{SENSOR, OV9650_COM22, 0x23},
 
-	/* Set the high bits of the exposure value */
-	{SENSOR, OV9650_AECH, ((EXPOSURE_DEFAULT & 0xff00) >> 8)},
-
 	/* Enable VARIOPIXEL */
 	{SENSOR, OV9650_COM3, OV9650_VARIOPIXEL},
 	{SENSOR, OV9650_COM4, OV9650_QVGA_VARIOPIXEL},
-
-	/* Set the low bits of the exposure value */
-	{SENSOR, OV9650_COM1, (EXPOSURE_DEFAULT & 0xff)},
-	{SENSOR, OV9650_GAIN, GAIN_DEFAULT},
-	{SENSOR, OV9650_BLUE, BLUE_GAIN_DEFAULT},
-	{SENSOR, OV9650_RED, RED_GAIN_DEFAULT},
 
 	/* Put the sensor in soft sleep mode */
 	{SENSOR, OV9650_COM2, OV9650_SOFT_SLEEP | OV9650_OUTPUT_DRIVE_2X},

@@ -94,18 +94,7 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
 int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor mt9m111 = {
-	.name = "MT9M111",
-
-	.i2c_slave_id = 0xba,
-	.i2c_regW = 2,
-
-	.probe = mt9m111_probe,
-	.init = mt9m111_init,
-	.power_down = mt9m111_power_down,
-
-	.nctrls = 3,
-	.ctrls = {
+const static struct ctrl mt9m111_ctrls[] = {
 	{
 		{
 			.id		= V4L2_CID_VFLIP,
@@ -144,7 +133,17 @@ static struct m5602_sensor mt9m111 = {
 		.set = mt9m111_set_gain,
 		.get = mt9m111_get_gain
 	}
-	},
+};
+
+static struct m5602_sensor mt9m111 = {
+	.name = "MT9M111",
+
+	.i2c_slave_id = 0xba,
+	.i2c_regW = 2,
+
+	.probe = mt9m111_probe,
+	.init = mt9m111_init,
+	.power_down = mt9m111_power_down,
 
 	.nmodes = 1,
 	.modes = {

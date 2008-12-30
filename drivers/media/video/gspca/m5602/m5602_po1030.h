@@ -141,18 +141,7 @@ int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
 int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor po1030 = {
-	.name = "PO1030",
-
-	.i2c_slave_id = 0xdc,
-	.i2c_regW = 1,
-
-	.probe = po1030_probe,
-	.init = po1030_init,
-	.power_down = po1030_power_down,
-
-	.nctrls = 6,
-	.ctrls = {
+static struct ctrl po1030_ctrls[] = {
 	{
 		{
 			.id 		= V4L2_CID_GAIN,
@@ -230,7 +219,19 @@ static struct m5602_sensor po1030 = {
 		.set = po1030_set_vflip,
 		.get = po1030_get_vflip
 	}
-	},
+};
+
+static struct m5602_sensor po1030 = {
+	.name = "PO1030",
+
+	.i2c_slave_id = 0xdc,
+	.i2c_regW = 1,
+
+	.probe = po1030_probe,
+	.init = po1030_init,
+	.power_down = po1030_power_down,
+
+	.ctrls = po1030_ctrls,
 
 	.nmodes = 1,
 	.modes = {

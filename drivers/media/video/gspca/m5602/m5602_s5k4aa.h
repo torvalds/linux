@@ -77,16 +77,7 @@ int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
 int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor s5k4aa = {
-	.name = "S5K4AA",
-	.probe = s5k4aa_probe,
-	.init = s5k4aa_init,
-	.start = s5k4aa_start,
-	.power_down = s5k4aa_power_down,
-	.i2c_slave_id = 0x5a,
-	.i2c_regW = 2,
-	.nctrls = 4,
-	.ctrls = {
+static struct ctrl s5k4aa_ctrls[] = {
 	{
 		{
 			.id 		= V4L2_CID_VFLIP,
@@ -140,7 +131,17 @@ static struct m5602_sensor s5k4aa = {
 		.set = s5k4aa_set_exposure,
 		.get = s5k4aa_get_exposure
 	}
-	},
+};
+
+static struct m5602_sensor s5k4aa = {
+	.name = "S5K4AA",
+	.probe = s5k4aa_probe,
+	.init = s5k4aa_init,
+	.start = s5k4aa_start,
+	.power_down = s5k4aa_power_down,
+	.i2c_slave_id = 0x5a,
+	.i2c_regW = 2,
+	.ctrls = s5k4aa_ctrls,
 
 	.nmodes = 1,
 	.modes = {

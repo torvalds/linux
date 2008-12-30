@@ -24,8 +24,6 @@
 #define M5602_DEFAULT_FRAME_WIDTH  640
 #define M5602_DEFAULT_FRAME_HEIGHT 480
 
-#define M5602_MAX_CTRLS		(V4L2_CID_LASTP1 - V4L2_CID_BASE + 10)
-
 /* Enumerates all supported sensors */
 enum sensors {
 	OV9650_SENSOR	= 1,
@@ -67,8 +65,7 @@ struct m5602_sensor {
 	/* Performs a power down sequence */
 	int (*power_down)(struct sd *sd);
 
-	int nctrls;
-	struct ctrl ctrls[M5602_MAX_CTRLS];
+	const struct ctrl *ctrls;
 
 	char nmodes;
 	struct v4l2_pix_format modes[];

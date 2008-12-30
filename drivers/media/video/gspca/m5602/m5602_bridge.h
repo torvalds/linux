@@ -116,7 +116,7 @@ struct sd {
 	char *name;
 
 	/* A pointer to the currently connected sensor */
-	struct m5602_sensor *sensor;
+	const struct m5602_sensor *sensor;
 
 	struct sd_desc *desc;
 

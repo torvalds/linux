@@ -118,8 +118,7 @@ sensor_found:
 	sd->gspca_dev.cam.cam_mode = s5k4aa.modes;
 	sd->gspca_dev.cam.nmodes = s5k4aa.nmodes;
 	sd->desc->ctrls = s5k4aa.ctrls;
-	sd->desc->nctrls = s5k4aa.nctrls;
-
+	sd->desc->nctrls = ARRAY_SIZE(s5k4aa_ctrls);
 	return 0;
 }
 

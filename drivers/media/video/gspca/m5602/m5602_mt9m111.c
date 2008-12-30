@@ -65,7 +65,7 @@ sensor_found:
 	sd->gspca_dev.cam.cam_mode = mt9m111.modes;
 	sd->gspca_dev.cam.nmodes = mt9m111.nmodes;
 	sd->desc->ctrls = mt9m111.ctrls;
-	sd->desc->nctrls = mt9m111.nctrls;
+	sd->desc->nctrls = ARRAY_SIZE(mt9m111_ctrls);
 	return 0;
 }
 
