@@ -65,9 +65,6 @@ MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
 MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
 			   " Per priority bit mask");
 
-MLX4_EN_PARM_INT(rx_ring_num1, 0, "Number or Rx rings for port 1 (0 = #cores)");
-MLX4_EN_PARM_INT(rx_ring_num2, 0, "Number or Rx rings for port 2 (0 = #cores)");
-
 MLX4_EN_PARM_INT(tx_ring_size1, MLX4_EN_AUTO_CONF, "Tx ring size for port 1");
 MLX4_EN_PARM_INT(tx_ring_size2, MLX4_EN_AUTO_CONF, "Tx ring size for port 2");
 MLX4_EN_PARM_INT(rx_ring_size1, MLX4_EN_AUTO_CONF, "Rx ring size for port 1");
@@ -95,8 +92,6 @@ int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 		params->prof[1].tx_ring_num = 1;
 		params->prof[2].tx_ring_num = 1;
 	}
-	params->prof[1].rx_ring_num = min_t(int, rx_ring_num1, MAX_RX_RINGS);
-	params->prof[2].rx_ring_num = min_t(int, rx_ring_num2, MAX_RX_RINGS);
 
 	if (tx_ring_size1 == MLX4_EN_AUTO_CONF)
 		tx_ring_size1 = MLX4_EN_DEF_TX_RING_SIZE;
