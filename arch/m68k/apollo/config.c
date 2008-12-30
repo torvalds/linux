@@ -200,7 +200,8 @@ void dn_sched_init(irq_handler_t timer_routine)
 	printk("*(0x10803) %02x\n",*(volatile unsigned char *)(timer+0x3));
 #endif
 
-	request_irq(IRQ_APOLLO, dn_timer_int, 0, "time", timer_routine);
+	if (request_irq(IRQ_APOLLO, dn_timer_int, 0, "time", timer_routine))
+		pr_err("Couldn't register timer interrupt\n");
 }
 
 unsigned long dn_gettimeoffset(void) {
