@@ -58,7 +58,8 @@ static ssize_t dio_show_resource(struct device *dev, struct device_attribute *at
 	struct dio_dev *d = to_dio_dev(dev);
 
 	return sprintf(buf, "0x%08lx 0x%08lx 0x%08lx\n",
-		       dio_resource_start(d), dio_resource_end(d),
+		       (unsigned long)dio_resource_start(d),
+		       (unsigned long)dio_resource_end(d),
 		       dio_resource_flags(d));
 }
 static DEVICE_ATTR(resource, S_IRUGO, dio_show_resource, NULL);
