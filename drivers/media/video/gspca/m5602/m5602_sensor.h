@@ -21,9 +21,6 @@
 
 #include "m5602_bridge.h"
 
-#define M5602_DEFAULT_FRAME_WIDTH  640
-#define M5602_DEFAULT_FRAME_HEIGHT 480
-
 /* Enumerates all supported sensors */
 enum sensors {
 	OV9650_SENSOR	= 1,

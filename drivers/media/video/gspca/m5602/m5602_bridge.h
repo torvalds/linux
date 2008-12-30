@@ -112,9 +112,6 @@ static const unsigned char sensor_urb_skeleton[] = {
 struct sd {
 	struct gspca_dev gspca_dev;
 
-	/* The name of the m5602 camera */
-	char *name;
-
 	/* A pointer to the currently connected sensor */
 	const struct m5602_sensor *sensor;
 
