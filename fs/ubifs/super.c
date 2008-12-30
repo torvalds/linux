@@ -1361,8 +1361,20 @@ static int mount_ubifs(struct ubifs_info *c)
 	dbg_msg("tree fanout:         %d", c->fanout);
 	dbg_msg("reserved GC LEB:     %d", c->gc_lnum);
 	dbg_msg("first main LEB:      %d", c->main_first);
+	dbg_msg("max. znode size      %d", c->max_znode_sz);
+	dbg_msg("max. index node size %d", c->max_idx_node_sz);
+	dbg_msg("node sizes:          data %zu, inode %zu, dentry %zu",
+		UBIFS_DATA_NODE_SZ, UBIFS_INO_NODE_SZ, UBIFS_DENT_NODE_SZ);
+	dbg_msg("node sizes:          trun %zu, sb %zu, master %zu",
+		UBIFS_TRUN_NODE_SZ, UBIFS_SB_NODE_SZ, UBIFS_MST_NODE_SZ);
+	dbg_msg("node sizes:          ref %zu, cmt. start %zu, orph %zu",
+		UBIFS_REF_NODE_SZ, UBIFS_CS_NODE_SZ, UBIFS_ORPH_NODE_SZ);
+	dbg_msg("max. node sizes:     data %zu, inode %zu dentry %zu",
+	        UBIFS_MAX_DATA_NODE_SZ, UBIFS_MAX_INO_NODE_SZ,
+		UBIFS_MAX_DENT_NODE_SZ);
 	dbg_msg("dead watermark:      %d", c->dead_wm);
 	dbg_msg("dark watermark:      %d", c->dark_wm);
+	dbg_msg("LEB overhead:        %d", c->leb_overhead);
 	x = (long long)c->main_lebs * c->dark_wm;
 	dbg_msg("max. dark space:     %lld (%lld KiB, %lld MiB)",
 		x, x >> 10, x >> 20);
