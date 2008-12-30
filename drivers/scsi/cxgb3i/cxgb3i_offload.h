@@ -180,7 +180,7 @@ void cxgb3i_c3cn_release(struct s3_conn *);
  * @seq:	tcp sequence number
  * @ddigest:	pdu data digest
  * @pdulen:	recovered pdu length
- * @ulp_data:	scratch area for ULP
+ * @wr_data:	scratch area for tx wr
  */
 struct cxgb3_skb_cb {
 	__u8 flags;
@@ -188,7 +188,7 @@ struct cxgb3_skb_cb {
 	__u32 seq;
 	__u32 ddigest;
 	__u32 pdulen;
-	__u8 ulp_data[16];
+	struct sk_buff *wr_data;
 };
 
 #define CXGB3_SKB_CB(skb)	((struct cxgb3_skb_cb *)&((skb)->cb[0]))
@@ -196,7 +196,7 @@ struct cxgb3_skb_cb {
 #define skb_ulp_mode(skb)	(CXGB3_SKB_CB(skb)->ulp_mode)
 #define skb_ulp_ddigest(skb)	(CXGB3_SKB_CB(skb)->ddigest)
 #define skb_ulp_pdulen(skb)	(CXGB3_SKB_CB(skb)->pdulen)
-#define skb_ulp_data(skb)	(CXGB3_SKB_CB(skb)->ulp_data)
+#define skb_wr_data(skb)	(CXGB3_SKB_CB(skb)->wr_data)
 
 enum c3cb_flags {
 	C3CB_FLAG_NEED_HDR = 1 << 0,	/* packet needs a TX_DATA_WR header */

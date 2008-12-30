@@ -496,7 +496,7 @@ static inline void reset_wr_list(struct s3_conn *c3cn)
 static inline void enqueue_wr(struct s3_conn *c3cn,
 			      struct sk_buff *skb)
 {
-	skb->sp = NULL;
+	skb_wr_data(skb) = NULL;
 
 	/*
 	 * We want to take an extra reference since both us and the driver
@@ -509,7 +509,7 @@ static inline void enqueue_wr(struct s3_conn *c3cn,
 	if (!c3cn->wr_pending_head)
 		c3cn->wr_pending_head = skb;
 	else
-		c3cn->wr_pending_tail->sp = (void *)skb;
+		skb_wr_data(skb) = skb;
 	c3cn->wr_pending_tail = skb;
 }
 
@@ -529,8 +529,8 @@ static inline struct sk_buff *dequeue_wr(struct s3_conn *c3cn)
 
 	if (likely(skb)) {
 		/* Don't bother clearing the tail */
-		c3cn->wr_pending_head = (struct sk_buff *)skb->sp;
-		skb->sp = NULL;
+		c3cn->wr_pending_head = skb_wr_data(skb);
+		skb_wr_data(skb) = NULL;
 	}
 	return skb;
 }
