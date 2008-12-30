@@ -465,7 +465,7 @@ int em28xx_audio_setup(struct em28xx *dev)
 	int vid1, vid2, feat, cfg;
 	u32 vid;
 
-	if (dev->chip_id == CHIP_ID_EM2874) {
+	if (dev->chip_id == CHIP_ID_EM2870 || dev->chip_id == CHIP_ID_EM2874) {
 		/* Digital only device - don't load any alsa module */
 		dev->audio_mode.has_audio = 0;
 		dev->has_audio_class = 0;
