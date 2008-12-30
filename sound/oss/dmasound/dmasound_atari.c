@@ -851,8 +851,9 @@ static int __init AtaIrqInit(void)
 	mfp.tim_dt_a = 1;	/* Cause interrupt after first event. */
 	mfp.tim_ct_a = 8;	/* Turn on event counting. */
 	/* Register interrupt handler. */
-	request_irq(IRQ_MFP_TIMA, AtaInterrupt, IRQ_TYPE_SLOW, "DMA sound",
-		    AtaInterrupt);
+	if (request_irq(IRQ_MFP_TIMA, AtaInterrupt, IRQ_TYPE_SLOW, "DMA sound",
+			AtaInterrupt))
+		return 0;
 	mfp.int_en_a |= 0x20;	/* Turn interrupt on. */
 	mfp.int_mk_a |= 0x20;
 	return 1;
