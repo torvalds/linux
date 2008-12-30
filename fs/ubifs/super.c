@@ -1074,6 +1074,30 @@ again:
 }
 
 /**
+ * check_free_space - check if there is enough free space to mount.
+ * @c: UBIFS file-system description object
+ *
+ * This function makes sure UBIFS has enough free space to be mounted in
+ * read/write mode. UBIFS must always have some free space to allow deletions.
+ */
+static int check_free_space(struct ubifs_info *c)
+{
+	ubifs_assert(c->dark_wm > 0);
+	if (c->lst.total_free + c->lst.total_dirty < c->dark_wm) {
+		ubifs_err("insufficient free space to mount in read/write mode");
+		dbg_dump_budg(c);
+		dbg_dump_lprops(c);
+		/*
+		 * We return %-EINVAL instead of %-ENOSPC because it seems to
+		 * be the closest error code mentioned in the mount function
+		 * documentation.
+		 */
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
  * mount_ubifs - mount UBIFS file-system.
  * @c: UBIFS file-system description object
  *
@@ -1154,7 +1178,7 @@ static int mount_ubifs(struct ubifs_info *c)
 
 	/*
 	 * Make sure the compressor which is set as default in the superblock
-	 * or overriden by mount options is actually compiled in.
+	 * or overridden by mount options is actually compiled in.
 	 */
 	if (!ubifs_compr_present(c->default_compr)) {
 		ubifs_err("'compressor \"%s\" is not compiled in",
@@ -1236,12 +1260,9 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (!mounted_read_only) {
 		int lnum;
 
-		/* Check for enough free space */
-		if (ubifs_calc_available(c, c->min_idx_lebs) <= 0) {
-			ubifs_err("insufficient available space");
-			err = -EINVAL;
+		err = check_free_space(c);
+		if (err)
 			goto out_orphans;
-		}
 
 		/* Check for enough log space */
 		lnum = c->lhead_lnum + 1;
@@ -1442,12 +1463,9 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	c->remounting_rw = 1;
 	c->always_chk_crc = 1;
 
-	/* Check for enough free space */
-	if (ubifs_calc_available(c, c->min_idx_lebs) <= 0) {
-		ubifs_err("insufficient available space");
-		err = -EINVAL;
+	err = check_free_space(c);
+	if (err)
 		goto out;
-	}
 
 	if (c->old_leb_cnt != c->leb_cnt) {
 		struct ubifs_sb_node *sup;
