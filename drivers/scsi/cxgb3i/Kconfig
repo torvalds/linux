@@ -1,5 +1,6 @@
 config SCSI_CXGB3_ISCSI
 	tristate "Chelsio S3xx iSCSI support"
+	depends on CHELSIO_T3_DEPENDS
 	select CHELSIO_T3
 	select SCSI_ISCSI_ATTRS
 	---help---
