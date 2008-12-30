@@ -4,7 +4,6 @@
 #include <linux/kernel.h>
 #include <linux/videodev2.h>
 
-
 /*
  * Dynamic controls
  */
