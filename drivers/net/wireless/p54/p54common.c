@@ -563,6 +563,10 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
 	if (!(synth & PDR_SYNTH_5_GHZ_DISABLED))
 		dev->wiphy->bands[IEEE80211_BAND_5GHZ] = &band_5GHz;
+	if ((synth & PDR_SYNTH_RX_DIV_MASK) == PDR_SYNTH_RX_DIV_SUPPORTED)
+		priv->rx_diversity_mask = 3;
+	if ((synth & PDR_SYNTH_TX_DIV_MASK) == PDR_SYNTH_TX_DIV_SUPPORTED)
+		priv->tx_diversity_mask = 3;
 
 	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
 		u8 perm_addr[ETH_ALEN];
@@ -1512,8 +1516,8 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	txhdr->hw_queue = queue;
 	txhdr->backlog = current_queue->len;
 	memset(txhdr->durations, 0, sizeof(txhdr->durations));
-	txhdr->tx_antenna = (info->antenna_sel_tx == 0) ?
-		2 : info->antenna_sel_tx - 1;
+	txhdr->tx_antenna = ((info->antenna_sel_tx == 0) ?
+		2 : info->antenna_sel_tx - 1) & priv->tx_diversity_mask;
 	txhdr->output_power = priv->output_power;
 	txhdr->cts_rate = cts_rate;
 	if (padding)
@@ -1584,7 +1588,7 @@ static int p54_setup_mac(struct ieee80211_hw *dev)
 	setup->mac_mode = cpu_to_le16(mode);
 	memcpy(setup->mac_addr, priv->mac_addr, ETH_ALEN);
 	memcpy(setup->bssid, priv->bssid, ETH_ALEN);
-	setup->rx_antenna = 2; /* automatic */
+	setup->rx_antenna = 2 & priv->rx_diversity_mask; /* automatic */
 	setup->rx_align = 0;
 	if (priv->fw_var < 0x500) {
 		setup->v1.basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
