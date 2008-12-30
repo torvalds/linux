@@ -1030,7 +1030,7 @@ static void update_device_status(struct device *dev)
 		/* Zero out the virtqueues. */
 		for (vq = dev->vq; vq; vq = vq->next) {
 			memset(vq->vring.desc, 0,
-			       vring_size(vq->config.num, getpagesize()));
+			       vring_size(vq->config.num, LGUEST_VRING_ALIGN));
 			lg_last_avail(vq) = 0;
 		}
 	} else if (dev->desc->status & VIRTIO_CONFIG_S_FAILED) {
@@ -1211,7 +1211,7 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	void *p;
 
 	/* First we need some memory for this virtqueue. */
-	pages = (vring_size(num_descs, getpagesize()) + getpagesize() - 1)
+	pages = (vring_size(num_descs, LGUEST_VRING_ALIGN) + getpagesize() - 1)
 		/ getpagesize();
 	p = get_pages(pages);
 
@@ -1228,7 +1228,7 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	vq->config.pfn = to_guest_phys(p) / getpagesize();
 
 	/* Initialize the vring. */
-	vring_init(&vq->vring, num_descs, p, getpagesize());
+	vring_init(&vq->vring, num_descs, p, LGUEST_VRING_ALIGN);
 
 	/* Append virtqueue to this device's descriptor.  We use
 	 * device_config() to get the end of the device's current virtqueues;
