@@ -229,6 +229,10 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 			 u32 gpe_number,
 			 u32 type, acpi_event_handler address, void *context);
 
+acpi_status
+acpi_remove_gpe_handler(acpi_handle gpe_device,
+			u32 gpe_number, acpi_event_handler address);
+
 #ifdef ACPI_FUTURE_USAGE
 acpi_status acpi_install_exception_handler(acpi_exception_handler handler);
 #endif
@@ -240,10 +244,6 @@ acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle);
 
 acpi_status acpi_release_global_lock(u32 handle);
 
-acpi_status
-acpi_remove_gpe_handler(acpi_handle gpe_device,
-			u32 gpe_number, acpi_event_handler address);
-
 acpi_status acpi_enable_event(u32 event, u32 flags);
 
 acpi_status acpi_disable_event(u32 event, u32 flags);
@@ -252,6 +252,9 @@ acpi_status acpi_clear_event(u32 event);
 
 acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status);
 
+/*
+ * GPE Interfaces
+ */
 acpi_status acpi_set_gpe_type(acpi_handle gpe_device, u32 gpe_number, u8 type);
 
 acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number);
@@ -264,6 +267,10 @@ acpi_status
 acpi_get_gpe_status(acpi_handle gpe_device,
 		    u32 gpe_number,
 		    u32 flags, acpi_event_status * event_status);
+
+acpi_status acpi_disable_all_gpes(void);
+
+acpi_status acpi_enable_all_runtime_gpes(void);
 
 acpi_status acpi_get_gpe_device(u32 gpe_index, acpi_handle *gpe_device);
 
