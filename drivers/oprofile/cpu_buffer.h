@@ -75,7 +75,7 @@ static inline void op_cpu_buffer_reset(int cpu)
 struct op_sample
 *op_cpu_buffer_write_reserve(struct op_entry *entry, unsigned long size);
 int op_cpu_buffer_write_commit(struct op_entry *entry);
-struct op_sample *op_cpu_buffer_read_entry(int cpu);
+struct op_sample *op_cpu_buffer_read_entry(struct op_entry *entry, int cpu);
 unsigned long op_cpu_buffer_entries(int cpu);
 
 /* transient events for the CPU buffer -> event buffer */

@@ -329,9 +329,10 @@ static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
 	int i, count;
 	unsigned long cookie = 0;
 	off_t offset;
+	struct op_entry entry;
 	struct op_sample *sample;
 
-	sample = op_cpu_buffer_read_entry(cpu);
+	sample = op_cpu_buffer_read_entry(&entry, cpu);
 	if (!sample)
 		return;
 	pc = sample->eip;
@@ -370,7 +371,7 @@ static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
 		count = IBS_OP_CODE_SIZE;	/*IBS OP is 5 int64s*/
 
 	for (i = 0; i < count; i++) {
-		sample = op_cpu_buffer_read_entry(cpu);
+		sample = op_cpu_buffer_read_entry(&entry, cpu);
 		if (!sample)
 			return;
 		add_event_entry(sample->eip);
@@ -528,6 +529,8 @@ void sync_buffer(int cpu)
 	sync_buffer_state state = sb_buffer_start;
 	unsigned int i;
 	unsigned long available;
+	struct op_entry entry;
+	struct op_sample *sample;
 
 	mutex_lock(&buffer_mutex);
 
@@ -537,19 +540,19 @@ void sync_buffer(int cpu)
 	available = op_cpu_buffer_entries(cpu);
 
 	for (i = 0; i < available; ++i) {
-		struct op_sample *s = op_cpu_buffer_read_entry(cpu);
-		if (!s)
+		sample = op_cpu_buffer_read_entry(&entry, cpu);
+		if (!sample)
 			break;
 
-		if (is_code(s->eip)) {
-			switch (s->event) {
+		if (is_code(sample->eip)) {
+			switch (sample->event) {
 			case 0:
 			case CPU_IS_KERNEL:
 				/* kernel/userspace switch */
-				in_kernel = s->event;
+				in_kernel = sample->event;
 				if (state == sb_buffer_start)
 					state = sb_sample_start;
-				add_kernel_ctx_switch(s->event);
+				add_kernel_ctx_switch(sample->event);
 				break;
 			case CPU_TRACE_BEGIN:
 				state = sb_bt_start;
@@ -566,7 +569,7 @@ void sync_buffer(int cpu)
 			default:
 				/* userspace context switch */
 				oldmm = mm;
-				new = (struct task_struct *)s->event;
+				new = (struct task_struct *)sample->event;
 				release_mm(oldmm);
 				mm = take_tasks_mm(new);
 				if (mm != oldmm)
@@ -581,7 +584,7 @@ void sync_buffer(int cpu)
 			/* ignore sample */
 			continue;
 
-		if (add_sample(mm, s, in_kernel))
+		if (add_sample(mm, sample, in_kernel))
 			continue;
 
 		/* ignore backtraces if failed to add a sample */

@@ -182,20 +182,28 @@ int op_cpu_buffer_write_commit(struct op_entry *entry)
 					 entry->irq_flags);
 }
 
-struct op_sample *op_cpu_buffer_read_entry(int cpu)
+struct op_sample *op_cpu_buffer_read_entry(struct op_entry *entry, int cpu)
 {
 	struct ring_buffer_event *e;
 	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
 	if (e)
-		return ring_buffer_event_data(e);
+		goto event;
 	if (ring_buffer_swap_cpu(op_ring_buffer_read,
 				 op_ring_buffer_write,
 				 cpu))
 		return NULL;
 	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
 	if (e)
-		return ring_buffer_event_data(e);
+		goto event;
 	return NULL;
+
+event:
+	entry->event = e;
+	entry->sample = ring_buffer_event_data(e);
+	entry->size = (ring_buffer_event_length(e) - sizeof(struct op_sample))
+		/ sizeof(entry->sample->data[0]);
+	entry->data = entry->sample->data;
+	return entry->sample;
 }
 
 unsigned long op_cpu_buffer_entries(int cpu)
