@@ -114,8 +114,9 @@ static irqreturn_t mvme147_timer_int (int irq, void *dev_id)
 void mvme147_sched_init (irq_handler_t timer_routine)
 {
 	tick_handler = timer_routine;
-	request_irq (PCC_IRQ_TIMER1, mvme147_timer_int,
-		IRQ_FLG_REPLACE, "timer 1", NULL);
+	if (request_irq(PCC_IRQ_TIMER1, mvme147_timer_int, IRQ_FLG_REPLACE,
+			"timer 1", NULL))
+		pr_err("Couldn't register timer interrupt\n");
 
 	/* Init the clock with a value */
 	/* our clock goes off every 6.25us */
