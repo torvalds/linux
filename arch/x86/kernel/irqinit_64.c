@@ -81,7 +81,7 @@ int vector_used_by_percpu_irq(unsigned int vector)
 	return 0;
 }
 
-void __init init_ISA_irqs(void)
+static void __init init_ISA_irqs(void)
 {
 	int i;
 
