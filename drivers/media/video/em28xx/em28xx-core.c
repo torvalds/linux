@@ -497,7 +497,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 		dev->audio_mode.i2s_5rates = 1;
 	}
 
-	if (!(cfg & EM28XX_CHIPCFG_AC97)) {
+	if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
+		/* Skip the code that does AC97 vendor detection */
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
 		goto init_audio;
 	}
