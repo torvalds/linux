@@ -188,7 +188,8 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 	config = kvm_vq_config(kdev->desc)+index;
 
 	err = vmem_add_mapping(config->address,
-			       vring_size(config->num, PAGE_SIZE));
+			       vring_size(config->num,
+					  KVM_S390_VIRTIO_RING_ALIGN));
 	if (err)
 		goto out;
 
@@ -209,7 +210,8 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 	return vq;
 unmap:
 	vmem_remove_mapping(config->address,
-			    vring_size(config->num, PAGE_SIZE));
+			    vring_size(config->num,
+				       KVM_S390_VIRTIO_RING_ALIGN));
 out:
 	return ERR_PTR(err);
 }
@@ -220,7 +222,8 @@ static void kvm_del_vq(struct virtqueue *vq)
 
 	vring_del_virtqueue(vq);
 	vmem_remove_mapping(config->address,
-			    vring_size(config->num, PAGE_SIZE));
+			    vring_size(config->num,
+				       KVM_S390_VIRTIO_RING_ALIGN));
 }
 
 /*
