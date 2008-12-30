@@ -65,12 +65,6 @@ MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
 MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
 			   " Per priority bit mask");
 
-MLX4_EN_PARM_INT(tx_ring_size1, MLX4_EN_AUTO_CONF, "Tx ring size for port 1");
-MLX4_EN_PARM_INT(tx_ring_size2, MLX4_EN_AUTO_CONF, "Tx ring size for port 2");
-MLX4_EN_PARM_INT(rx_ring_size1, MLX4_EN_AUTO_CONF, "Rx ring size for port 1");
-MLX4_EN_PARM_INT(rx_ring_size2, MLX4_EN_AUTO_CONF, "Rx ring size for port 2");
-
-
 int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 {
 	struct mlx4_en_profile *params = &mdev->profile;
@@ -84,6 +78,8 @@ int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 		params->prof[i].rx_ppp = pfcrx;
 		params->prof[i].tx_pause = 1;
 		params->prof[i].tx_ppp = pfctx;
+		params->prof[i].tx_ring_size = MLX4_EN_DEF_TX_RING_SIZE;
+		params->prof[i].rx_ring_size = MLX4_EN_DEF_RX_RING_SIZE;
 	}
 	if (pfcrx || pfctx) {
 		params->prof[1].tx_ring_num = MLX4_EN_TX_RING_NUM;
@@ -93,29 +89,6 @@ int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 		params->prof[2].tx_ring_num = 1;
 	}
 
-	if (tx_ring_size1 == MLX4_EN_AUTO_CONF)
-		tx_ring_size1 = MLX4_EN_DEF_TX_RING_SIZE;
-	params->prof[1].tx_ring_size =
-		(tx_ring_size1 < MLX4_EN_MIN_TX_SIZE) ?
-		 MLX4_EN_MIN_TX_SIZE : roundup_pow_of_two(tx_ring_size1);
-
-	if (tx_ring_size2 == MLX4_EN_AUTO_CONF)
-		tx_ring_size2 = MLX4_EN_DEF_TX_RING_SIZE;
-	params->prof[2].tx_ring_size =
-		(tx_ring_size2 < MLX4_EN_MIN_TX_SIZE) ?
-		 MLX4_EN_MIN_TX_SIZE : roundup_pow_of_two(tx_ring_size2);
-
-	if (rx_ring_size1 == MLX4_EN_AUTO_CONF)
-		rx_ring_size1 = MLX4_EN_DEF_RX_RING_SIZE;
-	params->prof[1].rx_ring_size =
-		(rx_ring_size1 < MLX4_EN_MIN_RX_SIZE) ?
-		 MLX4_EN_MIN_RX_SIZE : roundup_pow_of_two(rx_ring_size1);
-
-	if (rx_ring_size2 == MLX4_EN_AUTO_CONF)
-		rx_ring_size2 = MLX4_EN_DEF_RX_RING_SIZE;
-	params->prof[2].rx_ring_size =
-		(rx_ring_size2 < MLX4_EN_MIN_RX_SIZE) ?
-		 MLX4_EN_MIN_RX_SIZE : roundup_pow_of_two(rx_ring_size2);
 	return 0;
 }
 
@@ -412,6 +385,54 @@ static void mlx4_en_get_pauseparam(struct net_device *dev,
 	pause->rx_pause = priv->prof->rx_pause;
 }
 
+static int mlx4_en_set_ringparam(struct net_device *dev,
+				 struct ethtool_ringparam *param)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	u32 rx_size, tx_size;
+	int port_up = 0;
+	int err = 0;
+
+	if (param->rx_jumbo_pending || param->rx_mini_pending)
+		return -EINVAL;
+
+	rx_size = roundup_pow_of_two(param->rx_pending);
+	rx_size = max_t(u32, rx_size, MLX4_EN_MIN_RX_SIZE);
+	tx_size = roundup_pow_of_two(param->tx_pending);
+	tx_size = max_t(u32, tx_size, MLX4_EN_MIN_TX_SIZE);
+
+	if (rx_size == priv->prof->rx_ring_size &&
+	    tx_size == priv->prof->tx_ring_size)
+		return 0;
+
+	mutex_lock(&mdev->state_lock);
+	if (priv->port_up) {
+		port_up = 1;
+		mlx4_en_stop_port(dev);
+	}
+
+	mlx4_en_free_resources(priv);
+
+	priv->prof->tx_ring_size = tx_size;
+	priv->prof->rx_ring_size = rx_size;
+
+	err = mlx4_en_alloc_resources(priv);
+	if (err) {
+		mlx4_err(mdev, "Failed reallocating port resources\n");
+		goto out;
+	}
+	if (port_up) {
+		err = mlx4_en_start_port(dev);
+		if (err)
+			mlx4_err(mdev, "Failed starting port\n");
+	}
+
+out:
+	mutex_unlock(&mdev->state_lock);
+	return err;
+}
+
 static void mlx4_en_get_ringparam(struct net_device *dev,
 				  struct ethtool_ringparam *param)
 {
@@ -451,6 +472,7 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_pauseparam = mlx4_en_get_pauseparam,
 	.set_pauseparam = mlx4_en_set_pauseparam,
 	.get_ringparam = mlx4_en_get_ringparam,
+	.set_ringparam = mlx4_en_set_ringparam,
 	.get_flags = ethtool_op_get_flags,
 	.set_flags = ethtool_op_set_flags,
 };
