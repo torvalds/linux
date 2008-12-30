@@ -277,6 +277,9 @@ static int virtblk_probe(struct virtio_device *vdev)
 	}
 	set_capacity(vblk->disk, cap);
 
+	/* No real sector limit. */
+	blk_queue_max_sectors(vblk->disk->queue, -1U);
+
 	/* Host can optionally specify maximum segment size and number of
 	 * segments. */
 	err = virtio_config_val(vdev, VIRTIO_BLK_F_SIZE_MAX,
@@ -284,6 +287,8 @@ static int virtblk_probe(struct virtio_device *vdev)
 				&v);
 	if (!err)
 		blk_queue_max_segment_size(vblk->disk->queue, v);
+	else
+		blk_queue_max_segment_size(vblk->disk->queue, -1UL);
 
 	err = virtio_config_val(vdev, VIRTIO_BLK_F_SEG_MAX,
 				offsetof(struct virtio_blk_config, seg_max),
