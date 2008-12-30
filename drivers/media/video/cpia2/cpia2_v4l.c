@@ -1572,10 +1572,10 @@ static int ioctl_dqbuf(void *arg,struct camera_data *cam, struct file *file)
  *  cpia2_ioctl
  *
  *****************************************************************************/
-static int cpia2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long cpia2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct camera_data *cam = video_drvdata(file);
-	int retval = 0;
+	long retval = 0;
 
 	if (!cam)
 		return -ENOTTY;
@@ -1841,7 +1841,7 @@ static int cpia2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return retval;
 }
 
-static int cpia2_ioctl(struct file *file,
+static long cpia2_ioctl(struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, cpia2_do_ioctl);

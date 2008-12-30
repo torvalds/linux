@@ -755,7 +755,7 @@ static int cx18_log_status(struct file *file, void *fh)
 	return 0;
 }
 
-static int cx18_default(struct file *file, void *fh, int cmd, void *arg)
+static long cx18_default(struct file *file, void *fh, int cmd, void *arg)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
@@ -783,13 +783,13 @@ static int cx18_default(struct file *file, void *fh, int cmd, void *arg)
 	return 0;
 }
 
-int cx18_v4l2_ioctl(struct file *filp, unsigned int cmd,
+long cx18_v4l2_ioctl(struct file *filp, unsigned int cmd,
 		    unsigned long arg)
 {
 	struct video_device *vfd = video_devdata(filp);
 	struct cx18_open_id *id = (struct cx18_open_id *)filp->private_data;
 	struct cx18 *cx = id->cx;
-	int res;
+	long res;
 
 	mutex_lock(&cx->serialize_lock);
 

@@ -1278,14 +1278,14 @@ static int usbvision_vbi_close(struct file *file)
 	return -ENODEV;
 }
 
-static int usbvision_do_vbi_ioctl(struct file *file,
+static long usbvision_do_vbi_ioctl(struct file *file,
 				 unsigned int cmd, void *arg)
 {
 	/* TODO */
 	return -ENOIOCTLCMD;
 }
 
-static int usbvision_vbi_ioctl(struct file *file,
+static long usbvision_vbi_ioctl(struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, usbvision_do_vbi_ioctl);

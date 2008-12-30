@@ -396,7 +396,7 @@ out_up:
 	return ret;
 }
 
-static int ar_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long ar_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
 	struct ar_device *ar = video_get_drvdata(dev);
@@ -539,7 +539,7 @@ static int ar_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int ar_ioctl(struct file *file, unsigned int cmd,
+static long ar_ioctl(struct file *file, unsigned int cmd,
 		    unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, ar_do_ioctl);

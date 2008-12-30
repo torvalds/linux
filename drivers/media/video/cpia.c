@@ -3333,7 +3333,7 @@ static ssize_t cpia_read(struct file *file, char __user *buf,
 	return cam->decompressed_frame.count;
 }
 
-static int cpia_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long cpia_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = file->private_data;
 	struct cam_data *cam = video_get_drvdata(dev);
@@ -3720,7 +3720,7 @@ static int cpia_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return retval;
 }
 
-static int cpia_ioctl(struct file *file,
+static long cpia_ioctl(struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, cpia_do_ioctl);

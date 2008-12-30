@@ -41,7 +41,7 @@ module_param(video_nr, int, 0);
 static void usbvideo_Disconnect(struct usb_interface *intf);
 static void usbvideo_CameraRelease(struct uvd *uvd);
 
-static int usbvideo_v4l_ioctl(struct file *file,
+static long usbvideo_v4l_ioctl(struct file *file,
 			      unsigned int cmd, unsigned long arg);
 static int usbvideo_v4l_mmap(struct file *file, struct vm_area_struct *vma);
 static int usbvideo_v4l_open(struct file *file);
@@ -1277,7 +1277,7 @@ static int usbvideo_v4l_close(struct file *file)
  * History:
  * 22-Jan-2000 Corrected VIDIOCSPICT to reject unsupported settings.
  */
-static int usbvideo_v4l_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long usbvideo_v4l_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct uvd *uvd = file->private_data;
 
@@ -1497,7 +1497,7 @@ static int usbvideo_v4l_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int usbvideo_v4l_ioctl(struct file *file,
+static long usbvideo_v4l_ioctl(struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, usbvideo_v4l_do_ioctl);

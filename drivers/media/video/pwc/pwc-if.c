@@ -147,7 +147,7 @@ static int pwc_video_close(struct file *file);
 static ssize_t pwc_video_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos);
 static unsigned int pwc_video_poll(struct file *file, poll_table *wait);
-static int  pwc_video_ioctl(struct file *file,
+static long  pwc_video_ioctl(struct file *file,
 			    unsigned int ioctlnr, unsigned long arg);
 static int  pwc_video_mmap(struct file *file, struct vm_area_struct *vma);
 
@@ -1395,12 +1395,12 @@ static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-static int pwc_video_ioctl(struct file *file,
+static long pwc_video_ioctl(struct file *file,
 			   unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vdev = file->private_data;
 	struct pwc_device *pdev;
-	int r = -ENODEV;
+	long r = -ENODEV;
 
 	if (!vdev)
 		goto out;

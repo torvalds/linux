@@ -1725,7 +1725,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int ivtv_default(struct file *file, void *fh, int cmd, void *arg)
+static long ivtv_default(struct file *file, void *fh, int cmd, void *arg)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 

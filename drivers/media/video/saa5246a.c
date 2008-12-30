@@ -804,7 +804,7 @@ static inline int saa5246a_stop_dau(struct saa5246a_device *t,
  *
  *  Returns 0 if successful
  */
-static int do_saa5246a_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long do_saa5246a_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct saa5246a_device *t = video_drvdata(file);
 
@@ -944,11 +944,11 @@ static inline unsigned int vtx_fix_command(unsigned int cmd)
 /*
  *	Handle the locking
  */
-static int saa5246a_ioctl(struct file *file,
+static long saa5246a_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct saa5246a_device *t = video_drvdata(file);
-	int err;
+	long err;
 
 	cmd = vtx_fix_command(cmd);
 	mutex_lock(&t->lock);

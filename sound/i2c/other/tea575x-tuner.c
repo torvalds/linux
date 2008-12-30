@@ -84,7 +84,7 @@ static void snd_tea575x_set_freq(struct snd_tea575x *tea)
  * Linux Video interface
  */
 
-static int snd_tea575x_ioctl(struct file *file,
+static long snd_tea575x_ioctl(struct file *file,
 			     unsigned int cmd, unsigned long data)
 {
 	struct snd_tea575x *tea = video_drvdata(file);

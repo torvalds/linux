@@ -472,12 +472,12 @@ static int uvc_v4l2_release(struct file *file)
 	return 0;
 }
 
-static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct uvc_video_device *video = video_get_drvdata(vdev);
 	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
-	int ret = 0;
+	long ret = 0;
 
 	switch (cmd) {
 	/* Query capabilities */
@@ -996,7 +996,7 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return ret;
 }
 
-static int uvc_v4l2_ioctl(struct file *file,
+static long uvc_v4l2_ioctl(struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
 	if (uvc_trace_param & UVC_TRACE_IOCTL) {

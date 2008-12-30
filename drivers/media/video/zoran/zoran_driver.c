@@ -1938,7 +1938,7 @@ zoran_set_input (struct zoran *zr,
  *   ioctl routine
  */
 
-static int zoran_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long zoran_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
@@ -4189,7 +4189,7 @@ static int zoran_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 }
 
 
-static int
+static long
 zoran_ioctl(struct file  *file,
 	    unsigned int  cmd,
 	    unsigned long arg)

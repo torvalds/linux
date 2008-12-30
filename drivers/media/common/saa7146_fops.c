@@ -308,7 +308,7 @@ static int fops_release(struct file *file)
 	return 0;
 }
 
-static int fops_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long fops_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 /*
 	DEB_EE(("file:%p, cmd:%d, arg:%li\n", file, cmd, arg));

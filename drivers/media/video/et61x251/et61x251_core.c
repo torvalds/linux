@@ -2392,7 +2392,7 @@ et61x251_vidioc_s_parm(struct et61x251_device* cam, void __user * arg)
 }
 
 
-static int et61x251_ioctl_v4l2(struct file *filp,
+static long et61x251_ioctl_v4l2(struct file *filp,
 			       unsigned int cmd, void __user *arg)
 {
 	struct et61x251_device *cam = video_drvdata(filp);
@@ -2487,11 +2487,11 @@ static int et61x251_ioctl_v4l2(struct file *filp,
 }
 
 
-static int et61x251_ioctl(struct file *filp,
+static long et61x251_ioctl(struct file *filp,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct et61x251_device *cam = video_drvdata(filp);
-	int err = 0;
+	long err = 0;
 
 	if (mutex_lock_interruptible(&cam->fileop_mutex))
 		return -ERESTARTSYS;

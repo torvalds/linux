@@ -190,7 +190,7 @@ static int i2c_getdata(struct saa5249_device *t, int count, u8 *buf)
  *	Standard character-device-driver functions
  */
 
-static int do_saa5249_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long do_saa5249_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	static int virtual_mode = false;
 	struct saa5249_device *t = video_drvdata(file);
@@ -479,11 +479,11 @@ static inline unsigned int vtx_fix_command(unsigned int cmd)
  *	Handle the locking
  */
 
-static int saa5249_ioctl(struct file *file,
+static long saa5249_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct saa5249_device *t = video_drvdata(file);
-	int err;
+	long err;
 
 	cmd = vtx_fix_command(cmd);
 	mutex_lock(&t->lock);

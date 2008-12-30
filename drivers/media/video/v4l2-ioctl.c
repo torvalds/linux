@@ -392,14 +392,14 @@ video_fix_command(unsigned int cmd)
 /*
  * Obsolete usercopy function - Should be removed soon
  */
-int
+long
 video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 		v4l2_kioctl func)
 {
 	char	sbuf[128];
 	void    *mbuf = NULL;
 	void	*parg = NULL;
-	int	err  = -EINVAL;
+	long	err  = -EINVAL;
 	int     is_ext_ctrl;
 	size_t  ctrls_size = 0;
 	void __user *user_ptr = NULL;
@@ -623,13 +623,13 @@ static int check_fmt(const struct v4l2_ioctl_ops *ops, enum v4l2_buf_type type)
 	return -EINVAL;
 }
 
-static int __video_do_ioctl(struct file *file,
+static long __video_do_ioctl(struct file *file,
 		unsigned int cmd, void *arg)
 {
 	struct video_device *vfd = video_devdata(file);
 	const struct v4l2_ioctl_ops *ops = vfd->ioctl_ops;
 	void *fh = file->private_data;
-	int ret = -EINVAL;
+	long ret = -EINVAL;
 
 	if ((vfd->debug & V4L2_DEBUG_IOCTL) &&
 				!(vfd->debug & V4L2_DEBUG_IOCTL_ARG)) {
@@ -1845,20 +1845,20 @@ static int __video_do_ioctl(struct file *file,
 	if (vfd->debug & V4L2_DEBUG_IOCTL_ARG) {
 		if (ret < 0) {
 			v4l_print_ioctl(vfd->name, cmd);
-			printk(KERN_CONT " error %d\n", ret);
+			printk(KERN_CONT " error %ld\n", ret);
 		}
 	}
 
 	return ret;
 }
 
-int video_ioctl2(struct file *file,
+long video_ioctl2(struct file *file,
 	       unsigned int cmd, unsigned long arg)
 {
 	char	sbuf[128];
 	void    *mbuf = NULL;
 	void	*parg = NULL;
-	int	err  = -EINVAL;
+	long	err  = -EINVAL;
 	int     is_ext_ctrl;
 	size_t  ctrls_size = 0;
 	void __user *user_ptr = NULL;

@@ -1275,7 +1275,7 @@ static void make_clip_tab(struct saa7146 *saa, struct video_clip *cr, int ncr)
 		clip_draw_rectangle(clipmap, 0, 0, 1024, -saa->win.y);
 }
 
-static int saa_ioctl(struct file *file,
+static long saa_ioctl(struct file *file,
 		     unsigned int cmd, unsigned long argl)
 {
 	struct saa7146 *saa = file->private_data;

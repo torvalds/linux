@@ -975,7 +975,7 @@ static int se401_close(struct file *file)
 	return 0;
 }
 
-static int se401_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long se401_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = file->private_data;
 	struct usb_se401 *se401 = (struct usb_se401 *)vdev;
@@ -1138,7 +1138,7 @@ static int se401_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int se401_ioctl(struct file *file,
+static long se401_ioctl(struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, se401_do_ioctl);

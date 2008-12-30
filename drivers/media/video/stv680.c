@@ -1132,7 +1132,7 @@ static int stv_close(struct file *file)
 	return 0;
 }
 
-static int stv680_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long stv680_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = file->private_data;
 	struct usb_stv *stv680 = video_get_drvdata(vdev);
@@ -1299,7 +1299,7 @@ static int stv680_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int stv680_ioctl(struct file *file,
+static long stv680_ioctl(struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, stv680_do_ioctl);

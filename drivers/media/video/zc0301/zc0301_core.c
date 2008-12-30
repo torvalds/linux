@@ -1793,7 +1793,7 @@ zc0301_vidioc_s_parm(struct zc0301_device* cam, void __user * arg)
 }
 
 
-static int zc0301_ioctl_v4l2(struct file *filp,
+static long zc0301_ioctl_v4l2(struct file *filp,
 			     unsigned int cmd, void __user *arg)
 {
 	struct zc0301_device *cam = video_drvdata(filp);
@@ -1888,7 +1888,7 @@ static int zc0301_ioctl_v4l2(struct file *filp,
 }
 
 
-static int zc0301_ioctl(struct file *filp,
+static long zc0301_ioctl(struct file *filp,
 			unsigned int cmd, unsigned long arg)
 {
 	struct zc0301_device *cam = video_drvdata(filp);

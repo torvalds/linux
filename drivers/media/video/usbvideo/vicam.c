@@ -229,12 +229,12 @@ set_camera_power(struct vicam_camera *cam, int state)
 	return 0;
 }
 
-static int
+static long
 vicam_ioctl(struct file *file, unsigned int ioctlnr, unsigned long arg)
 {
 	void __user *user_arg = (void __user *)arg;
 	struct vicam_camera *cam = file->private_data;
-	int retval = 0;
+	long retval = 0;
 
 	if (!cam)
 		return -ENODEV;

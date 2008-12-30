@@ -239,7 +239,7 @@ struct v4l2_ioctl_ops {
 					   struct v4l2_frmivalenum *fival);
 
 	/* For other private ioctls */
-	int (*vidioc_default)	       (struct file *file, void *fh,
+	long (*vidioc_default)	       (struct file *file, void *fh,
 					int cmd, void *arg);
 };
 
@@ -277,10 +277,10 @@ extern const char *v4l2_field_names[];
 extern const char *v4l2_type_names[];
 
 /*  Compatibility layer interface  --  v4l1-compat module */
-typedef int (*v4l2_kioctl)(struct file *file,
+typedef long (*v4l2_kioctl)(struct file *file,
 			   unsigned int cmd, void *arg);
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
-int v4l_compat_translate_ioctl(struct file *file,
+long v4l_compat_translate_ioctl(struct file *file,
 			       int cmd, void *arg, v4l2_kioctl driver_ioctl);
 #else
 #define v4l_compat_translate_ioctl(file, cmd, arg, ioctl) (-EINVAL)
@@ -293,11 +293,11 @@ extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
 #endif
 
 /* Include support for obsoleted stuff */
-extern int video_usercopy(struct file *file, unsigned int cmd,
+extern long video_usercopy(struct file *file, unsigned int cmd,
 				unsigned long arg, v4l2_kioctl func);
 
 /* Standard handlers for V4L ioctl's */
-extern int video_ioctl2(struct file *file,
+extern long video_ioctl2(struct file *file,
 			unsigned int cmd, unsigned long arg);
 
 #endif /* _V4L2_IOCTL_H */

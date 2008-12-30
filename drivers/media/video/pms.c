@@ -680,7 +680,7 @@ static int pms_capture(struct pms_device *dev, char __user *buf, int rgb555, int
  *	Video4linux interfacing
  */
 
-static int pms_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long pms_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
 	struct pms_device *pd=(struct pms_device *)dev;
@@ -862,7 +862,7 @@ static int pms_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int pms_ioctl(struct file *file,
+static long pms_ioctl(struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, pms_do_ioctl);

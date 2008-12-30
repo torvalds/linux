@@ -3092,7 +3092,7 @@ sn9c102_vidioc_s_audio(struct sn9c102_device* cam, void __user * arg)
 }
 
 
-static int sn9c102_ioctl_v4l2(struct file *filp,
+static long sn9c102_ioctl_v4l2(struct file *filp,
 			      unsigned int cmd, void __user *arg)
 {
 	struct sn9c102_device *cam = video_drvdata(filp);
@@ -3196,7 +3196,7 @@ static int sn9c102_ioctl_v4l2(struct file *filp,
 }
 
 
-static int sn9c102_ioctl(struct file *filp,
+static long sn9c102_ioctl(struct file *filp,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct sn9c102_device *cam = video_drvdata(filp);

@@ -403,9 +403,9 @@ static const struct v4l2_file_operations w9968cf_fops;
 static int w9968cf_open(struct file *);
 static int w9968cf_release(struct file *);
 static int w9968cf_mmap(struct file *, struct vm_area_struct *);
-static int w9968cf_ioctl(struct file *, unsigned, unsigned long);
+static long w9968cf_ioctl(struct file *, unsigned, unsigned long);
 static ssize_t w9968cf_read(struct file *, char __user *, size_t, loff_t *);
-static int w9968cf_v4l_ioctl(struct file *, unsigned int,
+static long w9968cf_v4l_ioctl(struct file *, unsigned int,
 			     void __user *);
 
 /* USB-specific */
@@ -2885,12 +2885,12 @@ static int w9968cf_mmap(struct file* filp, struct vm_area_struct *vma)
 }
 
 
-static int
+static long
 w9968cf_ioctl(struct file *filp,
 	      unsigned int cmd, unsigned long arg)
 {
 	struct w9968cf_device* cam;
-	int err;
+	long err;
 
 	cam = (struct w9968cf_device*)video_get_drvdata(video_devdata(filp));
 
@@ -2916,7 +2916,7 @@ w9968cf_ioctl(struct file *filp,
 }
 
 
-static int w9968cf_v4l_ioctl(struct file *filp,
+static long w9968cf_v4l_ioctl(struct file *filp,
 			     unsigned int cmd, void __user *arg)
 {
 	struct w9968cf_device* cam;

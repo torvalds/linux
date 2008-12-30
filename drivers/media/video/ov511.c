@@ -4010,7 +4010,7 @@ ov51x_v4l1_close(struct file *file)
 }
 
 /* Do not call this function directly! */
-static int
+static long
 ov51x_v4l1_ioctl_internal(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = file->private_data;
@@ -4449,7 +4449,7 @@ redo:
 	return 0;
 }
 
-static int
+static long
 ov51x_v4l1_ioctl(struct file *file,
 		 unsigned int cmd, unsigned long arg)
 {
