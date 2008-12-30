@@ -296,6 +296,7 @@ void kmemtrace_mark_alloc_node(enum kmemtrace_type_id type_id,
 
 	trace_wake_up();
 }
+EXPORT_SYMBOL(kmemtrace_mark_alloc_node);
 
 void kmemtrace_mark_free(enum kmemtrace_type_id type_id,
 		       unsigned long call_site,
@@ -325,6 +326,7 @@ void kmemtrace_mark_free(enum kmemtrace_type_id type_id,
 
 	trace_wake_up();
 }
+EXPORT_SYMBOL(kmemtrace_mark_free);
 
 static struct tracer kmem_tracer __read_mostly = {
 	.name		= "kmemtrace",
