@@ -1579,7 +1579,8 @@ static int p54_setup_mac(struct ieee80211_hw *dev)
 		 * "TRANSPARENT and PROMISCUOUS are mutually exclusive"
 		 * STSW45X0C LMAC API - page 12
 		 */
-		if ((priv->filter_flags & FIF_PROMISC_IN_BSS) &&
+		if (((priv->filter_flags & FIF_PROMISC_IN_BSS) ||
+		     (priv->filter_flags & FIF_OTHER_BSS)) &&
 		    (mode != P54_FILTER_TYPE_PROMISCUOUS))
 			mode |= P54_FILTER_TYPE_TRANSPARENT;
 	} else
@@ -2007,12 +2008,13 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 
 	*total_flags &= FIF_PROMISC_IN_BSS |
+			FIF_OTHER_BSS |
 			(*total_flags & FIF_PROMISC_IN_BSS) ?
 				FIF_FCSFAIL : 0;
 
 	priv->filter_flags = *total_flags;
 
-	if (changed_flags & FIF_PROMISC_IN_BSS)
+	if (changed_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS))
 		p54_setup_mac(dev);
 }
 
