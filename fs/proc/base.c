@@ -2001,13 +2001,11 @@ static struct dentry *proc_pident_lookup(struct inode *dir,
 					 const struct pid_entry *ents,
 					 unsigned int nents)
 {
-	struct inode *inode;
 	struct dentry *error;
 	struct task_struct *task = get_proc_task(dir);
 	const struct pid_entry *p, *last;
 
 	error = ERR_PTR(-ENOENT);
-	inode = NULL;
 
 	if (!task)
 		goto out_no_task;
