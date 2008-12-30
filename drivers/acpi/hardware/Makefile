@@ -2,7 +2,7 @@
 # Makefile for all Linux ACPI interpreter subdirectories
 #
 
-obj-y := hwacpi.o  hwgpe.o  hwregs.o  hwsleep.o
+obj-y := hwacpi.o  hwgpe.o  hwregs.o  hwsleep.o hwxface.o
 
 obj-$(ACPI_FUTURE_USAGE) += hwtimer.o
 
