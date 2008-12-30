@@ -245,7 +245,7 @@ static struct virtqueue *vp_find_vq(struct virtio_device *vdev, unsigned index,
 	}
 
 	/* activate the queue */
-	iowrite32(virt_to_phys(info->queue) >> PAGE_SHIFT,
+	iowrite32(virt_to_phys(info->queue) >> VIRTIO_PCI_QUEUE_ADDR_SHIFT,
 		  vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN);
 
 	/* create the vring */
