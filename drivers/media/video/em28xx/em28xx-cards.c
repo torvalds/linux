@@ -110,17 +110,6 @@ static struct em28xx_reg_seq default_tuner_gpio[] = {
 	{  -1,			-1,		-1,		-1},
 };
 
-/* Pinnacle PCTV HD Mini (80e) GPIOs
-   0-5: not used
-   6:   demod reset, active low
-   7:   LED on, active high */
-static struct em28xx_reg_seq em2874_pinnacle_80e_digital[] = {
-	{EM28XX_R06_I2C_CLK,    0x45,   0xff,		  10}, /*400 KHz*/
-	{EM2874_R80_GPIO,       0x80,   0xff,		  100},/*Demod reset*/
-	{EM2874_R80_GPIO,       0xc0,   0xff,		  10},
-	{  -1,			-1,	-1,		  -1},
-};
-
 /*
  *  Board definitions
  */
@@ -1228,27 +1217,6 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
-
-	/* em2874 tuners are DVB only */
-
-	[EM2874_BOARD_PINNACLE_PCTV_80E] = {
-		.name         = "Pinnacle PCTV HD Mini",
-		.tuner_type   = TUNER_ABSENT,
-		.has_dvb      = 1,
-		.dvb_gpio     = em2874_pinnacle_80e_digital,
-		.ir_codes     = ir_codes_pinnacle_pctv_hd,
-		.decoder      = EM28XX_NODECODER,
-		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE |
-				EM2874_I2C_SECONDARY_BUS_SELECT |
-				EM28XX_I2C_FREQ_400_KHZ,
-#ifdef DJH_DEBUG
-		.input        = { {
-			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = EM28XX_AMUX_LINE_IN,
-		} },
-#endif
-	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1342,8 +1310,6 @@ struct usb_device_id em28xx_id_table [] = {
 			.driver_info = EM2882_BOARD_PINNACLE_HYBRID_PRO },
 	{ USB_DEVICE(0x2304, 0x0227),
 			.driver_info = EM2880_BOARD_PINNACLE_PCTV_HD_PRO },
-	{ USB_DEVICE(0x2304, 0x023f),
-			.driver_info = EM2874_BOARD_PINNACLE_PCTV_80E },
 	{ USB_DEVICE(0x0413, 0x6023),
 			.driver_info = EM2800_BOARD_LEADTEK_WINFAST_USBII },
 	{ USB_DEVICE(0x093b, 0xa005),
