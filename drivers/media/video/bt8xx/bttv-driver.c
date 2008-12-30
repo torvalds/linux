@@ -3208,9 +3208,9 @@ err:
 	return POLLERR;
 }
 
-static int bttv_open(struct inode *inode, struct file *file)
+static int bttv_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct bttv *btv = NULL;
 	struct bttv_fh *fh;
 	enum v4l2_buf_type type = 0;
@@ -3291,7 +3291,7 @@ static int bttv_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int bttv_release(struct inode *inode, struct file *file)
+static int bttv_release(struct file *file)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
@@ -3346,14 +3346,12 @@ bttv_mmap(struct file *file, struct vm_area_struct *vma)
 	return videobuf_mmap_mapper(bttv_queue(fh),vma);
 }
 
-static const struct file_operations bttv_fops =
+static const struct v4l2_file_operations bttv_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = bttv_open,
 	.release  = bttv_release,
 	.ioctl	  = video_ioctl2,
-	.compat_ioctl	= v4l_compat_ioctl32,
-	.llseek	  = no_llseek,
 	.read	  = bttv_read,
 	.mmap	  = bttv_mmap,
 	.poll     = bttv_poll,
@@ -3422,9 +3420,9 @@ static struct video_device bttv_video_template = {
 /* ----------------------------------------------------------------------- */
 /* radio interface                                                         */
 
-static int radio_open(struct inode *inode, struct file *file)
+static int radio_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct bttv *btv = NULL;
 	struct bttv_fh *fh;
 	unsigned int i;
@@ -3467,7 +3465,7 @@ static int radio_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int radio_release(struct inode *inode, struct file *file)
+static int radio_release(struct file *file)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
@@ -3633,15 +3631,13 @@ static unsigned int radio_poll(struct file *file, poll_table *wait)
 	return cmd.result;
 }
 
-static const struct file_operations radio_fops =
+static const struct v4l2_file_operations radio_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = radio_open,
 	.read     = radio_read,
 	.release  = radio_release,
-	.compat_ioctl	= v4l_compat_ioctl32,
 	.ioctl	  = video_ioctl2,
-	.llseek	  = no_llseek,
 	.poll     = radio_poll,
 };
 

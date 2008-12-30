@@ -83,9 +83,9 @@ static int ts_init_encoder(struct saa7134_dev* dev)
 
 /* ------------------------------------------------------------------ */
 
-static int ts_open(struct inode *inode, struct file *file)
+static int ts_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct saa7134_dev *dev;
 	int err;
 
@@ -119,7 +119,7 @@ done:
 	return err;
 }
 
-static int ts_release(struct inode *inode, struct file *file)
+static int ts_release(struct file *file)
 {
 	struct saa7134_dev *dev = file->private_data;
 
@@ -437,7 +437,7 @@ static int empress_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	return 0;
 }
 
-static const struct file_operations ts_fops =
+static const struct v4l2_file_operations ts_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = ts_open,
@@ -446,7 +446,6 @@ static const struct file_operations ts_fops =
 	.poll	  = ts_poll,
 	.mmap	  = ts_mmap,
 	.ioctl	  = video_ioctl2,
-	.llseek   = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops ts_ioctl_ops = {

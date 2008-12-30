@@ -718,9 +718,9 @@ static int get_resource(struct cx23885_fh *fh)
 	}
 }
 
-static int video_open(struct inode *inode, struct file *file)
+static int video_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct cx23885_dev *h, *dev = NULL;
 	struct cx23885_fh *fh;
 	struct list_head *list;
@@ -834,7 +834,7 @@ static unsigned int video_poll(struct file *file,
 	return 0;
 }
 
-static int video_release(struct inode *inode, struct file *file)
+static int video_release(struct file *file)
 {
 	struct cx23885_fh *fh = file->private_data;
 	struct cx23885_dev *dev = fh->dev;
@@ -1422,7 +1422,7 @@ int cx23885_video_irq(struct cx23885_dev *dev, u32 status)
 /* ----------------------------------------------------------- */
 /* exported stuff                                              */
 
-static const struct file_operations video_fops = {
+static const struct v4l2_file_operations video_fops = {
 	.owner	       = THIS_MODULE,
 	.open	       = video_open,
 	.release       = video_release,
@@ -1430,8 +1430,6 @@ static const struct file_operations video_fops = {
 	.poll          = video_poll,
 	.mmap	       = video_mmap,
 	.ioctl	       = video_ioctl2,
-	.compat_ioctl  = v4l_compat_ioctl32,
-	.llseek        = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
@@ -1479,13 +1477,11 @@ static struct video_device cx23885_video_template = {
 	.current_norm         = V4L2_STD_NTSC_M,
 };
 
-static const struct file_operations radio_fops = {
+static const struct v4l2_file_operations radio_fops = {
 	.owner         = THIS_MODULE,
 	.open          = video_open,
 	.release       = video_release,
 	.ioctl         = video_ioctl2,
-	.compat_ioctl  = v4l_compat_ioctl32,
-	.llseek        = no_llseek,
 };
 
 

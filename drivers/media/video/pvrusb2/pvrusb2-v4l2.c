@@ -948,7 +948,7 @@ static void pvr2_v4l2_internal_check(struct pvr2_channel *chp)
 }
 
 
-static int pvr2_v4l2_ioctl(struct inode *inode, struct file *file,
+static int pvr2_v4l2_ioctl(struct file *file,
 			   unsigned int cmd, unsigned long arg)
 {
 
@@ -960,7 +960,7 @@ static int pvr2_v4l2_ioctl(struct inode *inode, struct file *file,
 }
 
 
-static int pvr2_v4l2_release(struct inode *inode, struct file *file)
+static int pvr2_v4l2_release(struct file *file)
 {
 	struct pvr2_v4l2_fh *fhp = file->private_data;
 	struct pvr2_v4l2 *vp = fhp->vhead;
@@ -1008,7 +1008,7 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 }
 
 
-static int pvr2_v4l2_open(struct inode *inode, struct file *file)
+static int pvr2_v4l2_open(struct file *file)
 {
 	struct pvr2_v4l2_dev *dip; /* Our own context pointer */
 	struct pvr2_v4l2_fh *fhp;
@@ -1235,13 +1235,12 @@ static unsigned int pvr2_v4l2_poll(struct file *file, poll_table *wait)
 }
 
 
-static const struct file_operations vdev_fops = {
+static const struct v4l2_file_operations vdev_fops = {
 	.owner      = THIS_MODULE,
 	.open       = pvr2_v4l2_open,
 	.release    = pvr2_v4l2_release,
 	.read       = pvr2_v4l2_read,
 	.ioctl      = pvr2_v4l2_ioctl,
-	.llseek     = no_llseek,
 	.poll       = pvr2_v4l2_poll,
 };
 

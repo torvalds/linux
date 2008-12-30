@@ -1075,7 +1075,7 @@ static unsigned int si470x_fops_poll(struct file *file,
 /*
  * si470x_fops_open - file open
  */
-static int si470x_fops_open(struct inode *inode, struct file *file)
+static int si470x_fops_open(struct file *file)
 {
 	struct si470x_device *radio = video_drvdata(file);
 	int retval;
@@ -1105,7 +1105,7 @@ done:
 /*
  * si470x_fops_release - file release
  */
-static int si470x_fops_release(struct inode *inode, struct file *file)
+static int si470x_fops_release(struct file *file)
 {
 	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
@@ -1147,15 +1147,11 @@ done:
 /*
  * si470x_fops - file operations interface
  */
-static const struct file_operations si470x_fops = {
+static const struct v4l2_file_operations si470x_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.read		= si470x_fops_read,
 	.poll		= si470x_fops_poll,
 	.ioctl		= video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
 	.open		= si470x_fops_open,
 	.release	= si470x_fops_release,
 };

@@ -1000,12 +1000,11 @@ void em28xx_wake_i2c(struct em28xx *dev)
 static LIST_HEAD(em28xx_devlist);
 static DEFINE_MUTEX(em28xx_devlist_mutex);
 
-struct em28xx *em28xx_get_device(struct inode *inode,
+struct em28xx *em28xx_get_device(int minor,
 				 enum v4l2_buf_type *fh_type,
 				 int *has_radio)
 {
 	struct em28xx *h, *dev = NULL;
-	int minor = iminor(inode);
 
 	*fh_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	*has_radio = 0;

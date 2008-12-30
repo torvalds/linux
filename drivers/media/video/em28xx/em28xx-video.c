@@ -1582,15 +1582,15 @@ static int radio_queryctrl(struct file *file, void *priv,
  * em28xx_v4l2_open()
  * inits the device and starts isoc transfer
  */
-static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
+static int em28xx_v4l2_open(struct file *filp)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(filp)->minor;
 	int errCode = 0, radio;
 	struct em28xx *dev;
 	enum v4l2_buf_type fh_type;
 	struct em28xx_fh *fh;
 
-	dev = em28xx_get_device(inode, &fh_type, &radio);
+	dev = em28xx_get_device(minor, &fh_type, &radio);
 
 	if (NULL == dev)
 		return -ENODEV;
@@ -1686,7 +1686,7 @@ void em28xx_release_analog_resources(struct em28xx *dev)
  * stops streaming and deallocates all resources allocated by the v4l2
  * calls and ioctls
  */
-static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
+static int em28xx_v4l2_close(struct file *filp)
 {
 	struct em28xx_fh *fh  = filp->private_data;
 	struct em28xx    *dev = fh->dev;
@@ -1826,7 +1826,7 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	return rc;
 }
 
-static const struct file_operations em28xx_v4l_fops = {
+static const struct v4l2_file_operations em28xx_v4l_fops = {
 	.owner         = THIS_MODULE,
 	.open          = em28xx_v4l2_open,
 	.release       = em28xx_v4l2_close,
@@ -1834,8 +1834,6 @@ static const struct file_operations em28xx_v4l_fops = {
 	.poll          = em28xx_v4l2_poll,
 	.mmap          = em28xx_v4l2_mmap,
 	.ioctl	       = video_ioctl2,
-	.llseek        = no_llseek,
-	.compat_ioctl  = v4l_compat_ioctl32,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
@@ -1890,13 +1888,11 @@ static const struct video_device em28xx_video_template = {
 	.current_norm               = V4L2_STD_PAL,
 };
 
-static const struct file_operations radio_fops = {
+static const struct v4l2_file_operations radio_fops = {
 	.owner         = THIS_MODULE,
 	.open          = em28xx_v4l2_open,
 	.release       = em28xx_v4l2_close,
 	.ioctl	       = video_ioctl2,
-	.compat_ioctl  = v4l_compat_ioctl32,
-	.llseek        = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {

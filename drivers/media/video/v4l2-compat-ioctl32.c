@@ -1072,12 +1072,7 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	return ret;
 }
-#else
-long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
-}
-#endif
 EXPORT_SYMBOL_GPL(v4l_compat_ioctl32);
+#endif
 
 MODULE_LICENSE("GPL");

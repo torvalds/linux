@@ -783,7 +783,7 @@ static int cx18_default(struct file *file, void *fh, int cmd, void *arg)
 	return 0;
 }
 
-int cx18_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
+int cx18_v4l2_ioctl(struct file *filp, unsigned int cmd,
 		    unsigned long arg)
 {
 	struct video_device *vfd = video_devdata(filp);
@@ -795,7 +795,7 @@ int cx18_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 
 	if (cx18_debug & CX18_DBGFLG_IOCTL)
 		vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
-	res = video_ioctl2(inode, filp, cmd, arg);
+	res = video_ioctl2(filp, cmd, arg);
 	vfd->debug = 0;
 	mutex_unlock(&cx->serialize_lock);
 	return res;

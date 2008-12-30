@@ -1852,7 +1852,7 @@ static int __video_do_ioctl(struct file *file,
 	return ret;
 }
 
-long __video_ioctl2(struct file *file,
+int video_ioctl2(struct file *file,
 	       unsigned int cmd, unsigned long arg)
 {
 	char	sbuf[128];
@@ -1943,12 +1943,5 @@ out_ext_ctrl:
 out:
 	kfree(mbuf);
 	return err;
-}
-EXPORT_SYMBOL(__video_ioctl2);
-
-int video_ioctl2(struct inode *inode, struct file *file,
-	       unsigned int cmd, unsigned long arg)
-{
-	return __video_ioctl2(file, cmd, arg);
 }
 EXPORT_SYMBOL(video_ioctl2);

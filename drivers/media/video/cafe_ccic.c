@@ -1472,11 +1472,11 @@ static int cafe_v4l_mmap(struct file *filp, struct vm_area_struct *vma)
 
 
 
-static int cafe_v4l_open(struct inode *inode, struct file *filp)
+static int cafe_v4l_open(struct file *filp)
 {
 	struct cafe_camera *cam;
 
-	cam = cafe_find_dev(iminor(inode));
+	cam = cafe_find_dev(video_devdata(filp)->minor);
 	if (cam == NULL)
 		return -ENODEV;
 	filp->private_data = cam;
@@ -1494,7 +1494,7 @@ static int cafe_v4l_open(struct inode *inode, struct file *filp)
 }
 
 
-static int cafe_v4l_release(struct inode *inode, struct file *filp)
+static int cafe_v4l_release(struct file *filp)
 {
 	struct cafe_camera *cam = filp->private_data;
 
@@ -1759,7 +1759,7 @@ static void cafe_v4l_dev_release(struct video_device *vd)
  * clone it for specific real devices.
  */
 
-static const struct file_operations cafe_v4l_fops = {
+static const struct v4l2_file_operations cafe_v4l_fops = {
 	.owner = THIS_MODULE,
 	.open = cafe_v4l_open,
 	.release = cafe_v4l_release,
@@ -1767,7 +1767,6 @@ static const struct file_operations cafe_v4l_fops = {
 	.poll = cafe_v4l_poll,
 	.mmap = cafe_v4l_mmap,
 	.ioctl = video_ioctl2,
-	.llseek = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops cafe_v4l_ioctl_ops = {

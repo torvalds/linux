@@ -179,7 +179,7 @@ struct saa7146_ext_vv
 	struct saa7146_extension_ioctls *ioctls;
 	int (*ioctl)(struct saa7146_fh*, unsigned int cmd, void *arg);
 
-	struct file_operations vbi_fops;
+	struct v4l2_file_operations vbi_fops;
 };
 
 struct saa7146_use_ops  {
