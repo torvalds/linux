@@ -317,8 +317,10 @@ static int hdcs_set_size(struct sd *sd,
 
 		y = (hdcs->array.height - HDCS_1020_BOTTOM_Y_SKIP - height) / 2
 				+ hdcs->array.top;
-	} else if (height > hdcs->array.height) {
-		height = hdcs->array.height;
+	} else {
+		if (height > hdcs->array.height)
+			height = hdcs->array.height;
+
 		y = hdcs->array.top + (hdcs->array.height - height) / 2;
 	}
 
