@@ -184,7 +184,7 @@ may be NULL if the subdev driver does not support anything from that category.
 It looks like this:
 
 struct v4l2_subdev_core_ops {
-	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip);
+	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
 	int (*init)(struct v4l2_subdev *sd, u32 val);
 	...

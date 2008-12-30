@@ -69,7 +69,7 @@ struct tuner_setup;
    not yet implemented) since ops provide proper type-checking.
  */
 struct v4l2_subdev_core_ops {
-	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip);
+	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
 	int (*init)(struct v4l2_subdev *sd, u32 val);
 	int (*s_standby)(struct v4l2_subdev *sd, u32 standby);
@@ -81,8 +81,8 @@ struct v4l2_subdev_core_ops {
 	int (*querymenu)(struct v4l2_subdev *sd, struct v4l2_querymenu *qm);
 	long (*ioctl)(struct v4l2_subdev *sd, unsigned int cmd, void *arg);
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	int (*g_register)(struct v4l2_subdev *sd, struct v4l2_register *reg);
-	int (*s_register)(struct v4l2_subdev *sd, struct v4l2_register *reg);
+	int (*g_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
+	int (*s_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
 #endif
 };
 

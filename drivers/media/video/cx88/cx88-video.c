@@ -1447,25 +1447,26 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register (struct file *file, void *fh,
-				struct v4l2_register *reg)
+				struct v4l2_dbg_register *reg)
 {
 	struct cx88_core *core = ((struct cx8800_fh*)fh)->dev->core;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 	/* cx2388x has a 24-bit register space */
-	reg->val = cx_read(reg->reg&0xffffff);
+	reg->val = cx_read(reg->reg & 0xffffff);
+	reg->size = 4;
 	return 0;
 }
 
 static int vidioc_s_register (struct file *file, void *fh,
-				struct v4l2_register *reg)
+				struct v4l2_dbg_register *reg)
 {
 	struct cx88_core *core = ((struct cx8800_fh*)fh)->dev->core;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
-	cx_write(reg->reg&0xffffff, reg->val);
+	cx_write(reg->reg & 0xffffff, reg->val);
 	return 0;
 }
 #endif

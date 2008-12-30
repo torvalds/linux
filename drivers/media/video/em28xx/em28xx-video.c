@@ -1154,7 +1154,7 @@ static int em28xx_reg_len(int reg)
 }
 
 static int vidioc_g_chip_ident(struct file *file, void *priv,
-	       struct v4l2_chip_ident *chip)
+	       struct v4l2_dbg_chip_ident *chip)
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
@@ -1162,20 +1162,20 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
 
-	em28xx_i2c_call_clients(dev, VIDIOC_G_CHIP_IDENT, chip);
+	em28xx_i2c_call_clients(dev, VIDIOC_DBG_G_CHIP_IDENT, chip);
 
 	return 0;
 }
 
 
 static int vidioc_g_register(struct file *file, void *priv,
-			     struct v4l2_register *reg)
+			     struct v4l2_dbg_register *reg)
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 	int ret;
 
-	switch (reg->match_type) {
+	switch (reg->match.type) {
 	case V4L2_CHIP_MATCH_AC97:
 		mutex_lock(&dev->lock);
 		ret = em28xx_read_ac97(dev, reg->reg);
@@ -1184,6 +1184,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 			return ret;
 
 		reg->val = ret;
+		reg->size = 1;
 		return 0;
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
 		em28xx_i2c_call_clients(dev, VIDIOC_DBG_G_REGISTER, reg);
@@ -1192,12 +1193,13 @@ static int vidioc_g_register(struct file *file, void *priv,
 		/* Not supported yet */
 		return -EINVAL;
 	default:
-		if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+		if (!v4l2_chip_match_host(&reg->match))
 			return -EINVAL;
 	}
 
 	/* Match host */
-	if (em28xx_reg_len(reg->reg) == 1) {
+	reg->size = em28xx_reg_len(reg->reg);
+	if (reg->size == 1) {
 		mutex_lock(&dev->lock);
 		ret = em28xx_read_reg(dev, reg->reg);
 		mutex_unlock(&dev->lock);
@@ -1207,7 +1209,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 
 		reg->val = ret;
 	} else {
-		__le64 val = 0;
+		__le16 val = 0;
 		mutex_lock(&dev->lock);
 		ret = em28xx_read_reg_req_len(dev, USB_REQ_GET_STATUS,
 						   reg->reg, (char *)&val, 2);
@@ -1215,21 +1217,21 @@ static int vidioc_g_register(struct file *file, void *priv,
 		if (ret < 0)
 			return ret;
 
-		reg->val = le64_to_cpu(val);
+		reg->val = le16_to_cpu(val);
 	}
 
 	return 0;
 }
 
 static int vidioc_s_register(struct file *file, void *priv,
-			     struct v4l2_register *reg)
+			     struct v4l2_dbg_register *reg)
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	__le64 buf;
+	__le16 buf;
 	int    rc;
 
-	switch (reg->match_type) {
+	switch (reg->match.type) {
 	case V4L2_CHIP_MATCH_AC97:
 		mutex_lock(&dev->lock);
 		rc = em28xx_write_ac97(dev, reg->reg, reg->val);
@@ -1243,12 +1245,12 @@ static int vidioc_s_register(struct file *file, void *priv,
 		/* Not supported yet */
 		return -EINVAL;
 	default:
-		if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+		if (!v4l2_chip_match_host(&reg->match))
 			return -EINVAL;
 	}
 
 	/* Match host */
-	buf = cpu_to_le64(reg->val);
+	buf = cpu_to_le16(reg->val);
 
 	mutex_lock(&dev->lock);
 	rc = em28xx_write_regs(dev, reg->reg, (char *)&buf,

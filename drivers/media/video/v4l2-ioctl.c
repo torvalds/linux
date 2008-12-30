@@ -266,7 +266,7 @@ static const char *v4l2_ioctls[] = {
 	[_IOC_NR(VIDIOC_DBG_S_REGISTER)]   = "VIDIOC_DBG_S_REGISTER",
 	[_IOC_NR(VIDIOC_DBG_G_REGISTER)]   = "VIDIOC_DBG_G_REGISTER",
 
-	[_IOC_NR(VIDIOC_G_CHIP_IDENT)]     = "VIDIOC_G_CHIP_IDENT",
+	[_IOC_NR(VIDIOC_DBG_G_CHIP_IDENT)] = "VIDIOC_DBG_G_CHIP_IDENT",
 	[_IOC_NR(VIDIOC_S_HW_FREQ_SEEK)]   = "VIDIOC_S_HW_FREQ_SEEK",
 #endif
 };
@@ -1720,7 +1720,7 @@ static long __video_do_ioctl(struct file *file,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	case VIDIOC_DBG_G_REGISTER:
 	{
-		struct v4l2_register *p = arg;
+		struct v4l2_dbg_register *p = arg;
 
 		if (!capable(CAP_SYS_ADMIN))
 			ret = -EPERM;
@@ -1730,7 +1730,7 @@ static long __video_do_ioctl(struct file *file,
 	}
 	case VIDIOC_DBG_S_REGISTER:
 	{
-		struct v4l2_register *p = arg;
+		struct v4l2_dbg_register *p = arg;
 
 		if (!capable(CAP_SYS_ADMIN))
 			ret = -EPERM;
@@ -1739,9 +1739,9 @@ static long __video_do_ioctl(struct file *file,
 		break;
 	}
 #endif
-	case VIDIOC_G_CHIP_IDENT:
+	case VIDIOC_DBG_G_CHIP_IDENT:
 	{
-		struct v4l2_chip_ident *p = arg;
+		struct v4l2_dbg_chip_ident *p = arg;
 
 		if (!ops->vidioc_g_chip_ident)
 			break;
@@ -1750,6 +1750,11 @@ static long __video_do_ioctl(struct file *file,
 			dbgarg(cmd, "chip_ident=%u, revision=0x%x\n", p->ident, p->revision);
 		break;
 	}
+	case VIDIOC_G_CHIP_IDENT_OLD:
+		printk(KERN_ERR "VIDIOC_G_CHIP_IDENT has been deprecated and will disappear in 2.6.30.\n");
+		printk(KERN_ERR "It is a debugging ioctl and must not be used in applications!\n");
+		return -EINVAL;
+
 	case VIDIOC_S_HW_FREQ_SEEK:
 	{
 		struct v4l2_hw_freq_seek *p = arg;

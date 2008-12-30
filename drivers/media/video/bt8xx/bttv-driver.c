@@ -2039,7 +2039,7 @@ static int bttv_log_status(struct file *file, void *f)
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int bttv_g_register(struct file *file, void *f,
-					struct v4l2_register *reg)
+					struct v4l2_dbg_register *reg)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
@@ -2047,18 +2047,19 @@ static int bttv_g_register(struct file *file, void *f,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 
 	/* bt848 has a 12-bit register space */
 	reg->reg &= 0xfff;
 	reg->val = btread(reg->reg);
+	reg->size = 1;
 
 	return 0;
 }
 
 static int bttv_s_register(struct file *file, void *f,
-					struct v4l2_register *reg)
+					struct v4l2_dbg_register *reg)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
@@ -2066,7 +2067,7 @@ static int bttv_s_register(struct file *file, void *f,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 
 	/* bt848 has a 12-bit register space */

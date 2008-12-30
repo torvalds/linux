@@ -859,7 +859,7 @@ static int __cafe_cam_reset(struct cafe_camera *cam)
  */
 static int cafe_cam_init(struct cafe_camera *cam)
 {
-	struct v4l2_chip_ident chip = { V4L2_CHIP_MATCH_I2C_ADDR, 0, 0, 0 };
+	struct v4l2_dbg_chip_ident chip;
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
@@ -869,8 +869,9 @@ static int cafe_cam_init(struct cafe_camera *cam)
 	ret = __cafe_cam_reset(cam);
 	if (ret)
 		goto out;
-	chip.match_chip = cam->sensor->addr;
-	ret = __cafe_cam_cmd(cam, VIDIOC_G_CHIP_IDENT, &chip);
+	chip.match.type = V4L2_CHIP_MATCH_I2C_ADDR;
+	chip.match.addr = cam->sensor->addr;
+	ret = __cafe_cam_cmd(cam, VIDIOC_DBG_G_CHIP_IDENT, &chip);
 	if (ret)
 		goto out;
 	cam->sensor_type = chip.ident;

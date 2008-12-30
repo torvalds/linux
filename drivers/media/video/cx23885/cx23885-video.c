@@ -1326,11 +1326,11 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register(struct file *file, void *fh,
-				struct v4l2_register *reg)
+				struct v4l2_dbg_register *reg)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 
 	cx23885_call_i2c_clients(&dev->i2c_bus[2], VIDIOC_DBG_G_REGISTER, reg);
@@ -1339,11 +1339,11 @@ static int vidioc_g_register(struct file *file, void *fh,
 }
 
 static int vidioc_s_register(struct file *file, void *fh,
-				struct v4l2_register *reg)
+				struct v4l2_dbg_register *reg)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 
 	cx23885_call_i2c_clients(&dev->i2c_bus[2], VIDIOC_DBG_S_REGISTER, reg);

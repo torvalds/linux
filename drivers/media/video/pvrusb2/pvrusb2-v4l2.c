@@ -851,11 +851,11 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_DBG_G_REGISTER:
 	{
 		u64 val;
-		struct v4l2_register *req = (struct v4l2_register *)arg;
+		struct v4l2_dbg_register *req = (struct v4l2_dbg_register *)arg;
 		if (cmd == VIDIOC_DBG_S_REGISTER) val = req->val;
 		ret = pvr2_hdw_register_access(
-			hdw,req->match_type,req->match_chip,req->reg,
-			cmd == VIDIOC_DBG_S_REGISTER,&val);
+			hdw, &req->match, req->reg,
+			cmd == VIDIOC_DBG_S_REGISTER, &val);
 		if (cmd == VIDIOC_DBG_G_REGISTER) req->val = val;
 		break;
 	}

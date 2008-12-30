@@ -477,12 +477,12 @@ static int usbvision_v4l2_close(struct file *file)
  */
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register (struct file *file, void *priv,
-				struct v4l2_register *reg)
+				struct v4l2_dbg_register *reg)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 	/* NT100x has a 8-bit register space */
 	errCode = usbvision_read_reg(usbvision, reg->reg&0xff);
@@ -492,16 +492,17 @@ static int vidioc_g_register (struct file *file, void *priv,
 		return errCode;
 	}
 	reg->val = errCode;
+	reg->size = 1;
 	return 0;
 }
 
 static int vidioc_s_register (struct file *file, void *priv,
-				struct v4l2_register *reg)
+				struct v4l2_dbg_register *reg)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 	/* NT100x has a 8-bit register space */
 	errCode = usbvision_write_reg(usbvision, reg->reg&0xff, reg->val);

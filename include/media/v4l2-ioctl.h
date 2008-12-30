@@ -225,12 +225,12 @@ struct v4l2_ioctl_ops {
 	/* Debugging ioctls */
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	int (*vidioc_g_register)       (struct file *file, void *fh,
-					struct v4l2_register *reg);
+					struct v4l2_dbg_register *reg);
 	int (*vidioc_s_register)       (struct file *file, void *fh,
-					struct v4l2_register *reg);
+					struct v4l2_dbg_register *reg);
 #endif
 	int (*vidioc_g_chip_ident)     (struct file *file, void *fh,
-					struct v4l2_chip_ident *chip);
+					struct v4l2_dbg_chip_ident *chip);
 
 	int (*vidioc_enum_framesizes)   (struct file *file, void *fh,
 					 struct v4l2_frmsizeenum *fsize);

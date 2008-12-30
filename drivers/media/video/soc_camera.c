@@ -699,7 +699,7 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 }
 
 static int soc_camera_g_chip_ident(struct file *file, void *fh,
-				   struct v4l2_chip_ident *id)
+				   struct v4l2_dbg_chip_ident *id)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
@@ -712,7 +712,7 @@ static int soc_camera_g_chip_ident(struct file *file, void *fh,
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int soc_camera_g_register(struct file *file, void *fh,
-				 struct v4l2_register *reg)
+				 struct v4l2_dbg_register *reg)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
@@ -724,7 +724,7 @@ static int soc_camera_g_register(struct file *file, void *fh,
 }
 
 static int soc_camera_s_register(struct file *file, void *fh,
-				 struct v4l2_register *reg)
+				 struct v4l2_dbg_register *reg)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
