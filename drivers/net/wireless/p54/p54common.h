@@ -534,6 +534,7 @@ struct p54_psm_interval {
 	__le16 periods;
 } __attribute__ ((packed));
 
+#define P54_PSM_CAM			0
 #define P54_PSM				BIT(0)
 #define P54_PSM_DTIM			BIT(1)
 #define P54_PSM_MCBC			BIT(2)

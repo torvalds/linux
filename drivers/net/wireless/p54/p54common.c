@@ -1765,6 +1765,43 @@ static int p54_set_edcf(struct ieee80211_hw *dev)
 	return 0;
 }
 
+static int p54_set_ps(struct ieee80211_hw *dev)
+{
+	struct p54_common *priv = dev->priv;
+	struct sk_buff *skb;
+	struct p54_psm *psm;
+	u16 mode;
+	int i;
+
+	if (dev->conf.flags & IEEE80211_CONF_PS)
+		mode = cpu_to_le16(P54_PSM | P54_PSM_DTIM | P54_PSM_MCBC);
+	else
+		mode = P54_PSM_CAM;
+
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*psm) +
+			sizeof(struct p54_hdr), P54_CONTROL_TYPE_PSM,
+			GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	psm = (struct p54_psm *)skb_put(skb, sizeof(*psm));
+	psm->mode = cpu_to_le16(mode);
+	psm->aid = cpu_to_le16(priv->aid);
+	for (i = 0; i < ARRAY_SIZE(psm->intervals); i++) {
+		psm->intervals[i].interval =
+			cpu_to_le16(dev->conf.listen_interval);
+		psm->intervals[i].periods = 1;
+	}
+
+	psm->beacon_rssi_skip_max = 60;
+	psm->rssi_delta_threshold = 0;
+	psm->nr = 0;
+
+	priv->tx(dev, skb);
+
+	return 0;
+}
+
 static int p54_beacon_tim(struct sk_buff *skb)
 {
 	/*
@@ -1954,6 +1991,11 @@ static int p54_config(struct ieee80211_hw *dev, u32 changed)
 	}
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		ret = p54_scan(dev, P54_SCAN_EXIT, 0);
+		if (ret)
+			goto out;
+	}
+	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		ret = p54_set_ps(dev);
 		if (ret)
 			goto out;
 	}
