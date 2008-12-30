@@ -306,4 +306,16 @@ config JOYSTICK_WALKERA0701
 	  To compile this driver as a module, choose M here: the
 	  module will be called walkera0701.
 
+config JOYSTICK_MAPLE
+	tristate "Dreamcast control pad"
+	depends on MAPLE
+	help
+	  Say Y here if you have a SEGA Dreamcast and want to use your
+	  controller as a joystick.
+
+	  Most Dreamcast users will say Y.
+
+	  To compile this as a module choose M here: the module will be called
+	  maplecontrol.
+
 endif
