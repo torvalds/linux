@@ -249,8 +249,8 @@ static struct virtqueue *vp_find_vq(struct virtio_device *vdev, unsigned index,
 		  vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN);
 
 	/* create the vring */
-	vq = vring_new_virtqueue(info->num, vdev, info->queue,
-				 vp_notify, callback);
+	vq = vring_new_virtqueue(info->num, VIRTIO_PCI_VRING_ALIGN,
+				 vdev, info->queue, vp_notify, callback);
 	if (!vq) {
 		err = -ENOMEM;
 		goto out_activate_queue;

@@ -259,8 +259,8 @@ static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 
 	/* OK, tell virtio_ring.c to set up a virtqueue now we know its size
 	 * and we've got a pointer to its pages. */
-	vq = vring_new_virtqueue(lvq->config.num, vdev, lvq->pages,
-				 lg_notify, callback);
+	vq = vring_new_virtqueue(lvq->config.num, LGUEST_VRING_ALIGN,
+				 vdev, lvq->pages, lg_notify, callback);
 	if (!vq) {
 		err = -ENOMEM;
 		goto unmap;
