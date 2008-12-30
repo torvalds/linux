@@ -189,7 +189,6 @@ extern ssize_t nfs4_listxattr(struct dentry *, char *, size_t);
 
 
 /* nfs4proc.c */
-extern int nfs4_map_errors(int err);
 extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, struct rpc_cred *);
 extern int nfs4_proc_setclientid_confirm(struct nfs_client *, struct rpc_cred *);
 extern int nfs4_proc_async_renew(struct nfs_client *, struct rpc_cred *);
