@@ -937,7 +937,7 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	return err;
 }
 
-long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
+long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret = -ENOIOCTLCMD;
 
@@ -1072,7 +1072,7 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	return ret;
 }
-EXPORT_SYMBOL_GPL(v4l_compat_ioctl32);
+EXPORT_SYMBOL_GPL(v4l2_compat_ioctl32);
 #endif
 
 MODULE_LICENSE("GPL");

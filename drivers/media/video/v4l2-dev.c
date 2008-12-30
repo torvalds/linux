@@ -253,7 +253,7 @@ static const struct file_operations v4l2_unlocked_fops = {
 	.mmap = v4l2_mmap,
 	.unlocked_ioctl = v4l2_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l_compat_ioctl32,
+	.compat_ioctl = v4l2_compat_ioctl32,
 #endif
 	.release = v4l2_release,
 	.poll = v4l2_poll,
@@ -268,7 +268,7 @@ static const struct file_operations v4l2_fops = {
 	.mmap = v4l2_mmap,
 	.ioctl = v4l2_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l_compat_ioctl32,
+	.compat_ioctl = v4l2_compat_ioctl32,
 #endif
 	.release = v4l2_release,
 	.poll = v4l2_poll,

@@ -288,7 +288,7 @@ long v4l_compat_translate_ioctl(struct file *file,
 
 #ifdef CONFIG_COMPAT
 /* 32 Bits compatibility layer for 64 bits processors */
-extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
+extern long v4l2_compat_ioctl32(struct file *file, unsigned int cmd,
 				unsigned long arg);
 #endif
 
