@@ -77,61 +77,6 @@ int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
 int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct ctrl s5k4aa_ctrls[] = {
-	{
-		{
-			.id 		= V4L2_CID_VFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "vertical flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
-		},
-		.set = s5k4aa_set_vflip,
-		.get = s5k4aa_get_vflip
-
-	}, {
-		{
-			.id 		= V4L2_CID_HFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "horizontal flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
-		},
-		.set = s5k4aa_set_hflip,
-		.get = s5k4aa_get_hflip
-
-	}, {
-		{
-			.id		= V4L2_CID_GAIN,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Gain",
-			.minimum	= 0,
-			.maximum	= 127,
-			.step		= 1,
-			.default_value	= 0xa0,
-			.flags		= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = s5k4aa_set_gain,
-		.get = s5k4aa_get_gain
-	}, {
-		{
-			.id		= V4L2_CID_EXPOSURE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Exposure",
-			.minimum	= 13,
-			.maximum	= 0xfff,
-			.step		= 1,
-			.default_value	= 0x100,
-			.flags		= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = s5k4aa_set_exposure,
-		.get = s5k4aa_get_exposure
-	}
-};
 
 static struct m5602_sensor s5k4aa = {
 	.name = "S5K4AA",
@@ -141,7 +86,6 @@ static struct m5602_sensor s5k4aa = {
 	.power_down = s5k4aa_power_down,
 	.i2c_slave_id = 0x5a,
 	.i2c_regW = 2,
-	.ctrls = s5k4aa_ctrls,
 };
 
 static const unsigned char preinit_s5k4aa[][4] =

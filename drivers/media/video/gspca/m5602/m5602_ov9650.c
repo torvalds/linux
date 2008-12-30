@@ -68,6 +68,108 @@ static
 	{ }
 };
 
+const static struct ctrl ov9650_ctrls[] = {
+	{
+		{
+			.id		= V4L2_CID_EXPOSURE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "exposure",
+			.minimum	= 0x00,
+			.maximum	= 0xffff,
+			.step		= 0x1,
+			.default_value 	= EXPOSURE_DEFAULT,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = ov9650_set_exposure,
+		.get = ov9650_get_exposure
+	}, {
+		{
+			.id		= V4L2_CID_GAIN,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "gain",
+			.minimum	= 0x00,
+			.maximum	= 0x3ff,
+			.step		= 0x1,
+			.default_value	= GAIN_DEFAULT,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = ov9650_set_gain,
+		.get = ov9650_get_gain
+	}, {
+		{
+			.type 		= V4L2_CTRL_TYPE_INTEGER,
+			.name 		= "red balance",
+			.minimum 	= 0x00,
+			.maximum 	= 0xff,
+			.step 		= 0x1,
+			.default_value 	= RED_GAIN_DEFAULT,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = ov9650_set_red_balance,
+		.get = ov9650_get_red_balance
+	}, {
+		{
+			.type 		= V4L2_CTRL_TYPE_INTEGER,
+			.name 		= "blue balance",
+			.minimum 	= 0x00,
+			.maximum 	= 0xff,
+			.step 		= 0x1,
+			.default_value 	= BLUE_GAIN_DEFAULT,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = ov9650_set_blue_balance,
+		.get = ov9650_get_blue_balance
+	}, {
+		{
+			.id 		= V4L2_CID_HFLIP,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "horizontal flip",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0
+		},
+		.set = ov9650_set_hflip,
+		.get = ov9650_get_hflip
+	}, {
+		{
+			.id 		= V4L2_CID_VFLIP,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "vertical flip",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0
+		},
+		.set = ov9650_set_vflip,
+		.get = ov9650_get_vflip
+	}, {
+		{
+			.id 		= V4L2_CID_AUTO_WHITE_BALANCE,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "auto white balance",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0
+		},
+		.set = ov9650_set_auto_white_balance,
+		.get = ov9650_get_auto_white_balance
+	}, {
+		{
+			.id 		= V4L2_CID_AUTOGAIN,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "auto gain control",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0
+		},
+		.set = ov9650_set_auto_gain,
+		.get = ov9650_get_auto_gain
+	}
+};
+
 static struct v4l2_pix_format ov9650_modes[] = {
 	{
 		176,
@@ -154,12 +256,9 @@ int ov9650_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
-// 	sd->gspca_dev.cam.cam_mode = ov9650.modes;
-// 	sd->gspca_dev.cam.nmodes = ov9650.nmodes;
 	sd->gspca_dev.cam.cam_mode = ov9650_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(ov9650_modes);
-
-	sd->desc->ctrls = ov9650.ctrls;
+	sd->desc->ctrls = ov9650_ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(ov9650_ctrls);
 	return 0;
 }

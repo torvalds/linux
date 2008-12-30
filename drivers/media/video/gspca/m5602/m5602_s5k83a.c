@@ -32,6 +32,74 @@ static struct v4l2_pix_format s5k83a_modes[] = {
 	}
 };
 
+const static struct ctrl s5k83a_ctrls[] = {
+	{
+		{
+			.id = V4L2_CID_BRIGHTNESS,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "brightness",
+			.minimum = 0x00,
+			.maximum = 0xff,
+			.step = 0x01,
+			.default_value = S5K83A_DEFAULT_BRIGHTNESS,
+			.flags = V4L2_CTRL_FLAG_SLIDER
+		},
+			.set = s5k83a_set_brightness,
+			.get = s5k83a_get_brightness
+
+	}, {
+		{
+			.id = V4L2_CID_WHITENESS,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "whiteness",
+			.minimum = 0x00,
+			.maximum = 0xff,
+			.step = 0x01,
+			.default_value = S5K83A_DEFAULT_WHITENESS,
+			.flags = V4L2_CTRL_FLAG_SLIDER
+		},
+			.set = s5k83a_set_whiteness,
+			.get = s5k83a_get_whiteness,
+	}, {
+		{
+			.id = V4L2_CID_GAIN,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "gain",
+			.minimum = 0x00,
+			.maximum = S5K83A_MAXIMUM_GAIN,
+			.step = 0x01,
+			.default_value = S5K83A_DEFAULT_GAIN,
+			.flags = V4L2_CTRL_FLAG_SLIDER
+		},
+			.set = s5k83a_set_gain,
+			.get = s5k83a_get_gain
+	}, {
+		{
+			.id         = V4L2_CID_HFLIP,
+			.type       = V4L2_CTRL_TYPE_BOOLEAN,
+			.name       = "horizontal flip",
+			.minimum    = 0,
+			.maximum    = 1,
+			.step       = 1,
+			.default_value  = 0
+		},
+			.set = s5k83a_set_hflip,
+			.get = s5k83a_get_hflip
+	}, {
+		{
+		 .id         = V4L2_CID_VFLIP,
+		.type       = V4L2_CTRL_TYPE_BOOLEAN,
+		.name       = "vertical flip",
+		.minimum    = 0,
+		.maximum    = 1,
+		.step       = 1,
+		.default_value  = 0
+		},
+		.set = s5k83a_set_vflip,
+		.get = s5k83a_get_vflip
+	}
+};
+
 static void s5k83a_dump_registers(struct sd *sd);
 
 int s5k83a_probe(struct sd *sd)
@@ -79,7 +147,7 @@ int s5k83a_probe(struct sd *sd)
 sensor_found:
 	sd->gspca_dev.cam.cam_mode = s5k83a_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(s5k83a_modes);
-	sd->desc->ctrls = s5k83a.ctrls;
+	sd->desc->ctrls = s5k83a_ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(s5k83a_ctrls);
 	return 0;
 }

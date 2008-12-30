@@ -31,6 +31,48 @@ static struct v4l2_pix_format mt9m111_modes[] = {
 	}
 };
 
+const static struct ctrl mt9m111_ctrls[] = {
+	{
+		{
+			.id		= V4L2_CID_VFLIP,
+			.type           = V4L2_CTRL_TYPE_BOOLEAN,
+			.name           = "vertical flip",
+			.minimum        = 0,
+			.maximum        = 1,
+			.step           = 1,
+			.default_value  = 0
+		},
+		.set = mt9m111_set_vflip,
+		.get = mt9m111_get_vflip
+	}, {
+		{
+			.id             = V4L2_CID_HFLIP,
+			.type           = V4L2_CTRL_TYPE_BOOLEAN,
+			.name           = "horizontal flip",
+			.minimum        = 0,
+			.maximum        = 1,
+			.step           = 1,
+			.default_value  = 0
+		},
+		.set = mt9m111_set_hflip,
+		.get = mt9m111_get_hflip
+	}, {
+		{
+			.id             = V4L2_CID_GAIN,
+			.type           = V4L2_CTRL_TYPE_INTEGER,
+			.name           = "gain",
+			.minimum        = 0,
+			.maximum        = (INITIAL_MAX_GAIN - 1) * 2 * 2 * 2,
+			.step           = 1,
+			.default_value  = DEFAULT_GAIN,
+			.flags          = V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = mt9m111_set_gain,
+		.get = mt9m111_get_gain
+	}
+};
+
+
 static void mt9m111_dump_registers(struct sd *sd);
 
 int mt9m111_probe(struct sd *sd)
@@ -77,7 +119,7 @@ int mt9m111_probe(struct sd *sd)
 sensor_found:
 	sd->gspca_dev.cam.cam_mode = mt9m111_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(mt9m111_modes);
-	sd->desc->ctrls = mt9m111.ctrls;
+	sd->desc->ctrls = mt9m111_ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(mt9m111_ctrls);
 	return 0;
 }

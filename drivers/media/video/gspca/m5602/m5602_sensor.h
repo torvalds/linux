@@ -64,8 +64,6 @@ struct m5602_sensor {
 
 	/* Performs a power down sequence */
 	int (*power_down)(struct sd *sd);
-
-	const struct ctrl *ctrls;
 };
 
 #endif

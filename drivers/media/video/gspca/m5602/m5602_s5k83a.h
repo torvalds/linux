@@ -61,74 +61,6 @@ int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
 int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct ctrl s5k83a_ctrls[] = {
-	{
-		{
-			.id = V4L2_CID_BRIGHTNESS,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "brightness",
-			.minimum = 0x00,
-			.maximum = 0xff,
-			.step = 0x01,
-			.default_value = S5K83A_DEFAULT_BRIGHTNESS,
-			.flags = V4L2_CTRL_FLAG_SLIDER
-		},
-			.set = s5k83a_set_brightness,
-			.get = s5k83a_get_brightness
-
-	}, {
-		{
-			.id = V4L2_CID_WHITENESS,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "whiteness",
-			.minimum = 0x00,
-			.maximum = 0xff,
-			.step = 0x01,
-			.default_value = S5K83A_DEFAULT_WHITENESS,
-			.flags = V4L2_CTRL_FLAG_SLIDER
-		},
-			.set = s5k83a_set_whiteness,
-			.get = s5k83a_get_whiteness,
-	}, {
-		{
-			.id = V4L2_CID_GAIN,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "gain",
-			.minimum = 0x00,
-			.maximum = S5K83A_MAXIMUM_GAIN,
-			.step = 0x01,
-			.default_value = S5K83A_DEFAULT_GAIN,
-			.flags = V4L2_CTRL_FLAG_SLIDER
-		},
-			.set = s5k83a_set_gain,
-			.get = s5k83a_get_gain
-	}, {
-		{
-			.id         = V4L2_CID_HFLIP,
-			.type       = V4L2_CTRL_TYPE_BOOLEAN,
-			.name       = "horizontal flip",
-			.minimum    = 0,
-			.maximum    = 1,
-			.step       = 1,
-			.default_value  = 0
-		},
-			.set = s5k83a_set_hflip,
-			.get = s5k83a_get_hflip
-	}, {
-		{
-		 .id         = V4L2_CID_VFLIP,
-		.type       = V4L2_CTRL_TYPE_BOOLEAN,
-		.name       = "vertical flip",
-		.minimum    = 0,
-		.maximum    = 1,
-		.step       = 1,
-		.default_value  = 0
-		},
-		.set = s5k83a_set_vflip,
-		.get = s5k83a_get_vflip
-	}
-};
-
 static struct m5602_sensor s5k83a = {
 	.name = "S5K83A",
 	.probe = s5k83a_probe,
@@ -138,7 +70,6 @@ static struct m5602_sensor s5k83a = {
 	.power_down = s5k83a_power_down,
 	.i2c_slave_id = 0x5a,
 	.i2c_regW = 2,
-	.ctrls = s5k83a_ctrls,
 };
 
 static const unsigned char preinit_s5k83a[][4] =

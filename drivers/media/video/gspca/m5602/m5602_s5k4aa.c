@@ -64,6 +64,62 @@ static struct v4l2_pix_format s5k4aa_modes[] = {
 	}
 };
 
+const static struct ctrl s5k4aa_ctrls[] = {
+	{
+		{
+			.id 		= V4L2_CID_VFLIP,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "vertical flip",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0
+		},
+		.set = s5k4aa_set_vflip,
+		.get = s5k4aa_get_vflip
+
+	}, {
+		{
+			.id 		= V4L2_CID_HFLIP,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "horizontal flip",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0
+		},
+		.set = s5k4aa_set_hflip,
+		.get = s5k4aa_get_hflip
+
+	}, {
+		{
+			.id		= V4L2_CID_GAIN,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "Gain",
+			.minimum	= 0,
+			.maximum	= 127,
+			.step		= 1,
+			.default_value	= 0xa0,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = s5k4aa_set_gain,
+		.get = s5k4aa_get_gain
+	}, {
+		{
+			.id		= V4L2_CID_EXPOSURE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "Exposure",
+			.minimum	= 13,
+			.maximum	= 0xfff,
+			.step		= 1,
+			.default_value	= 0x100,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = s5k4aa_set_exposure,
+		.get = s5k4aa_get_exposure
+	}
+};
+
 static void s5k4aa_dump_registers(struct sd *sd);
 
 int s5k4aa_probe(struct sd *sd)
@@ -131,7 +187,7 @@ int s5k4aa_probe(struct sd *sd)
 sensor_found:
 	sd->gspca_dev.cam.cam_mode = s5k4aa_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(s5k4aa_modes);
-	sd->desc->ctrls = s5k4aa.ctrls;
+	sd->desc->ctrls = s5k4aa_ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(s5k4aa_ctrls);
 	return 0;
 }

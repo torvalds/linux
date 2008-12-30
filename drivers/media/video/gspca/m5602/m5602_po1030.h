@@ -141,86 +141,6 @@ int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
 int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct ctrl po1030_ctrls[] = {
-	{
-		{
-			.id 		= V4L2_CID_GAIN,
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "gain",
-			.minimum 	= 0x00,
-			.maximum 	= 0x4f,
-			.step 		= 0x1,
-			.default_value 	= PO1030_GLOBAL_GAIN_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = po1030_set_gain,
-		.get = po1030_get_gain
-	}, {
-		{
-			.id 		= V4L2_CID_EXPOSURE,
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "exposure",
-			.minimum 	= 0x00,
-			.maximum 	= 0x02ff,
-			.step 		= 0x1,
-			.default_value 	= PO1030_EXPOSURE_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = po1030_set_exposure,
-		.get = po1030_get_exposure
-	}, {
-		{
-			.id 		= V4L2_CID_RED_BALANCE,
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "red balance",
-			.minimum 	= 0x00,
-			.maximum 	= 0xff,
-			.step 		= 0x1,
-			.default_value 	= PO1030_RED_GAIN_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = po1030_set_red_balance,
-		.get = po1030_get_red_balance
-	}, {
-		{
-			.id 		= V4L2_CID_BLUE_BALANCE,
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "blue balance",
-			.minimum 	= 0x00,
-			.maximum 	= 0xff,
-			.step 		= 0x1,
-			.default_value 	= PO1030_BLUE_GAIN_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = po1030_set_blue_balance,
-		.get = po1030_get_blue_balance
-	}, {
-		{
-			.id 		= V4L2_CID_HFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "horizontal flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0,
-		},
-		.set = po1030_set_hflip,
-		.get = po1030_get_hflip
-	}, {
-		{
-			.id 		= V4L2_CID_VFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "vertical flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0,
-		},
-		.set = po1030_set_vflip,
-		.get = po1030_get_vflip
-	}
-};
-
 static struct m5602_sensor po1030 = {
 	.name = "PO1030",
 
@@ -230,8 +150,6 @@ static struct m5602_sensor po1030 = {
 	.probe = po1030_probe,
 	.init = po1030_init,
 	.power_down = po1030_power_down,
-
-	.ctrls = po1030_ctrls,
 };
 
 static const unsigned char preinit_po1030[][3] =
