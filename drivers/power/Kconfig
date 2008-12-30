@@ -75,4 +75,11 @@ config BATTERY_BQ27x00
 	help
 	  Say Y here to enable support for batteries with BQ27200(I2C) chip.
 
+config BATTERY_DA9030
+	tristate "DA9030 battery driver"
+	depends on PMIC_DA903X
+	help
+	  Say Y here to enable support for batteries charger integrated into
+	  DA9030 PMIC.
+
 endif # POWER_SUPPLY
