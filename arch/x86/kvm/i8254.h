@@ -9,6 +9,7 @@ struct kvm_kpit_timer {
 	s64 period; /* unit: ns */
 	s64 scheduled;
 	atomic_t pending;
+	bool reinject;
 };
 
 struct kvm_kpit_channel_state {

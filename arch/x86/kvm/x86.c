@@ -993,6 +993,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_NOP_IO_DELAY:
 	case KVM_CAP_MP_STATE:
 	case KVM_CAP_SYNC_MMU:
+	case KVM_CAP_REINJECT_CONTROL:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -1728,6 +1729,15 @@ static int kvm_vm_ioctl_set_pit(struct kvm *kvm, struct kvm_pit_state *ps)
 	return r;
 }
 
+static int kvm_vm_ioctl_reinject(struct kvm *kvm,
+				 struct kvm_reinject_control *control)
+{
+	if (!kvm->arch.vpit)
+		return -ENXIO;
+	kvm->arch.vpit->pit_state.pit_timer.reinject = control->pit_reinject;
+	return 0;
+}
+
 /*
  * Get (and clear) the dirty memory log for a memory slot.
  */
@@ -1920,6 +1930,17 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (!kvm->arch.vpit)
 			goto out;
 		r = kvm_vm_ioctl_set_pit(kvm, &u.ps);
+		if (r)
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_REINJECT_CONTROL: {
+		struct kvm_reinject_control control;
+		r =  -EFAULT;
+		if (copy_from_user(&control, argp, sizeof(control)))
+			goto out;
+		r = kvm_vm_ioctl_reinject(kvm, &control);
 		if (r)
 			goto out;
 		r = 0;

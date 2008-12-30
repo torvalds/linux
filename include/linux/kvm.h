@@ -396,6 +396,9 @@ struct kvm_trace_rec {
 #if defined(CONFIG_X86)
 #define KVM_CAP_SET_GUEST_DEBUG 23
 #endif
+#if defined(CONFIG_X86)
+#define KVM_CAP_REINJECT_CONTROL 24
+#endif
 
 /*
  * ioctls for VM fds
@@ -429,6 +432,7 @@ struct kvm_trace_rec {
 				   struct kvm_assigned_pci_dev)
 #define KVM_ASSIGN_IRQ _IOR(KVMIO, 0x70, \
 			    struct kvm_assigned_irq)
+#define KVM_REINJECT_CONTROL      _IO(KVMIO, 0x71)
 
 /*
  * ioctls for vcpu fds

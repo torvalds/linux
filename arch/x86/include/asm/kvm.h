@@ -233,4 +233,9 @@ struct kvm_guest_debug_arch {
 struct kvm_pit_state {
 	struct kvm_pit_channel_state channels[3];
 };
+
+struct kvm_reinject_control {
+	__u8 pit_reinject;
+	__u8 reserved[31];
+};
 #endif /* _ASM_X86_KVM_H */

@@ -201,6 +201,9 @@ static int __pit_timer_fn(struct kvm_kpit_state *ps)
 	if (!atomic_inc_and_test(&pt->pending))
 		set_bit(KVM_REQ_PENDING_TIMER, &vcpu0->requests);
 
+	if (!pt->reinject)
+		atomic_set(&pt->pending, 1);
+
 	if (vcpu0 && waitqueue_active(&vcpu0->wq))
 		wake_up_interruptible(&vcpu0->wq);
 
@@ -580,6 +583,7 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm)
 	pit_state->irq_ack_notifier.gsi = 0;
 	pit_state->irq_ack_notifier.irq_acked = kvm_pit_ack_irq;
 	kvm_register_irq_ack_notifier(kvm, &pit_state->irq_ack_notifier);
+	pit_state->pit_timer.reinject = true;
 	mutex_unlock(&pit->pit_state.lock);
 
 	kvm_pit_reset(pit);
