@@ -1403,6 +1403,17 @@ EXPORT_SYMBOL_GPL(em28xx_tuner_callback);
 static void inline em28xx_set_model(struct em28xx *dev)
 {
 	memcpy(&dev->board, &em28xx_boards[dev->model], sizeof(dev->board));
+
+	/* Those are the default values for the majority of boards
+	   Use those values if not specified otherwise at boards entry
+	 */
+	if (!dev->board.xclk)
+		dev->board.xclk = EM28XX_XCLK_IR_RC5_MODE |
+				  EM28XX_XCLK_FREQUENCY_12MHZ;
+
+	if (!dev->board.i2c_speed)
+		dev->board.i2c_speed = EM28XX_I2C_CLK_WAIT_ENABLE |
+				       EM28XX_I2C_FREQ_100_KHZ;
 }
 
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
@@ -1464,17 +1475,8 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	if (rc >= 0)
 		dev->reg_gpo = rc;
 
-	/* Those are the default values for the majority of boards
-	   Use those values if not specified otherwise at boards entry
-	 */
-	if (!dev->board.xclk)
-		dev->board.xclk = EM28XX_XCLK_IR_RC5_MODE |
-				  EM28XX_XCLK_FREQUENCY_12MHZ;
-
-	if (!dev->board.i2c_speed)
-		dev->board.i2c_speed = EM28XX_I2C_CLK_WAIT_ENABLE |
-				       EM28XX_I2C_FREQ_100_KHZ;
-
+	/* Set the initial XCLK and I2C clock values based on the board
+	   definition */
 	em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk & 0x7f);
 	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
 	msleep(50);
