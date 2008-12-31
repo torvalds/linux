@@ -256,7 +256,10 @@ void account_system_vtime(struct task_struct *tsk)
 		delta += sys_time;
 		get_paca()->system_time = 0;
 	}
-	account_system_time(tsk, 0, delta, deltascaled);
+	if (in_irq() || idle_task(smp_processor_id()) != tsk)
+		account_system_time(tsk, 0, delta, deltascaled);
+	else
+		account_idle_time(delta);
 	per_cpu(cputime_last_delta, smp_processor_id()) = delta;
 	per_cpu(cputime_scaled_last_delta, smp_processor_id()) = deltascaled;
 	local_irq_restore(flags);
@@ -335,8 +338,12 @@ void calculate_steal_time(void)
 	tb = mftb();
 	purr = mfspr(SPRN_PURR);
 	stolen = (tb - pme->tb) - (purr - pme->purr);
-	if (stolen > 0)
-		account_steal_time(current, stolen);
+	if (stolen > 0) {
+		if (idle_task(smp_processor_id()) != current)
+			account_steal_time(stolen);
+		else
+			account_idle_time(stolen);
+	}
 	pme->tb = tb;
 	pme->purr = purr;
 }
