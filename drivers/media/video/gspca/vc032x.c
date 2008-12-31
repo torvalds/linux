@@ -1979,7 +1979,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	int sensor;
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x02;
 	sd->bridge = id->driver_info;
 
 	vc0321_reset(gspca_dev);

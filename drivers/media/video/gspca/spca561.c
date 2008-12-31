@@ -541,7 +541,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x01;
 	gspca_dev->nbalt = 7 + 1;	/* choose alternate 7 first */
 
 	sd->chip_revision = id->driver_info;

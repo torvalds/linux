@@ -538,7 +538,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x01;
 
 	cam->cam_mode = vga_mode_t16;
 	cam->nmodes = ARRAY_SIZE(vga_mode_t16);

@@ -870,7 +870,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	gspca_dev->ctrl_dis = sensor_data[sd->sensor].ctrl_dis;
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x01;
 	if (!(sensor_data[sd->sensor].flags & F_SIF)) {
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);

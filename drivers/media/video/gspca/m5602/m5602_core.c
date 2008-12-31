@@ -332,7 +332,6 @@ static int m5602_configure(struct gspca_dev *gspca_dev,
 	int err;
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = M5602_ISOC_ENDPOINT_ADDR;
 	sd->desc = &sd_desc;
 
 	if (dump_bridge)

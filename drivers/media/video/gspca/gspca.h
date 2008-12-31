@@ -62,7 +62,6 @@ struct cam {
 				 * - cannot be > MAX_NURBS
 				 * - when 0 and bulk_size != 0 means
 				 *   1 URB and submit done by subdriver */
-	__u8 epaddr;
 };
 
 struct gspca_dev;

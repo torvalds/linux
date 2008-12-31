@@ -636,7 +636,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x01;
 	cam->cam_mode = vga_mode;
 	sd->subtype = id->driver_info;
 	if (sd->subtype != IntelPCCameraPro)

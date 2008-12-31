@@ -812,7 +812,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x01;
 
 	sd->bridge = id->driver_info >> 8;
 	sd->subtype = id->driver_info;

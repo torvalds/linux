@@ -439,22 +439,16 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
  * look for an input transfer endpoint in an alternate setting
  */
 static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
-					  __u8 epaddr,
 					  __u8 xfer)
 {
 	struct usb_host_endpoint *ep;
 	int i, attr;
 
-	epaddr |= USB_DIR_IN;
 	for (i = 0; i < alt->desc.bNumEndpoints; i++) {
 		ep = &alt->endpoint[i];
-		if (ep->desc.bEndpointAddress == epaddr) {
-			attr = ep->desc.bmAttributes
-						& USB_ENDPOINT_XFERTYPE_MASK;
-			if (attr == xfer)
-				return ep;
-			break;
-		}
+		attr = ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+		if (attr == xfer)
+			return ep;
 	}
 	return NULL;
 }
@@ -480,7 +474,6 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 	/* try isoc */
 	while (--i > 0) {			/* alt 0 is unusable */
 		ep = alt_xfer(&intf->altsetting[i],
-				gspca_dev->cam.epaddr,
 				USB_ENDPOINT_XFER_ISOC);
 		if (ep)
 			break;
@@ -489,7 +482,6 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 	/* if no isoc, try bulk */
 	if (ep == NULL) {
 		ep = alt_xfer(&intf->altsetting[0],
-				gspca_dev->cam.epaddr,
 				USB_ENDPOINT_XFER_BULK);
 		if (ep == NULL) {
 			err("no transfer endpoint found");
@@ -618,8 +610,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		/* clear the bulk endpoint */
 		if (gspca_dev->alt == 0)	/* if bulk transfer */
 			usb_clear_halt(gspca_dev->dev,
-					usb_rcvintpipe(gspca_dev->dev,
-						 gspca_dev->cam.epaddr));
+					gspca_dev->urb[0]->pipe);
 
 		/* start the cam */
 		ret = gspca_dev->sd_desc->start(gspca_dev);

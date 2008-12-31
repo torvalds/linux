@@ -241,7 +241,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	tv_8532WriteEEprom(gspca_dev);
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 1;
 	cam->cam_mode = sif_mode;
 	cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
 

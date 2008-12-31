@@ -498,7 +498,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x05;
 
 	sd->sensor = id->driver_info;
 	if (sd->sensor == SENSOR_PAC7302) {

@@ -429,7 +429,6 @@ static int stv06xx_config(struct gspca_dev *gspca_dev,
 	PDEBUG(D_PROBE, "Configuring camera");
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = STV_ISOC_ENDPOINT_ADDR;
 	sd->desc = sd_desc;
 	gspca_dev->sd_desc = &sd->desc;
 

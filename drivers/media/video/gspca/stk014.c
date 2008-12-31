@@ -180,7 +180,7 @@ static int rcv_val(struct gspca_dev *gspca_dev,
 	reg_w(gspca_dev, 0x63b, 0);
 	reg_w(gspca_dev, 0x630, 5);
 	ret = usb_bulk_msg(dev,
-			usb_rcvbulkpipe(dev, 5),
+			usb_rcvbulkpipe(dev, 0x05),
 			gspca_dev->usb_buf,
 			4,		/* length */
 			&alen,
@@ -294,9 +294,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct cam *cam = &gspca_dev->cam;
 
-	cam->epaddr = 0x02;
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
 	sd->brightness = BRIGHTNESS_DEF;

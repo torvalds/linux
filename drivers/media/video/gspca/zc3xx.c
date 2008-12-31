@@ -7147,7 +7147,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x01;
 /*fixme:test*/
 	gspca_dev->nbalt--;
 	if (vga) {

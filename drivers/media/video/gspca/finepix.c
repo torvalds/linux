@@ -259,7 +259,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam->cam_mode = fpix_mode;
 	cam->nmodes = 1;
-	cam->epaddr = 0x01;	/* todo: correct for all cams? */
 	cam->bulk_size = FPIX_MAX_TRANSFER;
 
 /*	gspca_dev->nbalt = 1;	 * use bulk transfer */
@@ -335,8 +334,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* Read the result of the command. Ignore the result, for it
 	 * varies with the device. */
 	ret = usb_bulk_msg(gspca_dev->dev,
-			usb_rcvbulkpipe(gspca_dev->dev,
-					gspca_dev->cam.epaddr),
+			gspca_dev->urb[0]->pipe,
 			gspca_dev->usb_buf, FPIX_MAX_TRANSFER, &size_ret,
 			FPIX_TIMEOUT);
 	if (ret != 0) {
@@ -363,7 +361,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	/* Again, reset bulk in endpoint */
-	usb_clear_halt(gspca_dev->dev, gspca_dev->cam.epaddr);
+	usb_clear_halt(gspca_dev->dev, gspca_dev->urb[0]->pipe);
 
 	/* Allocate a control URB */
 	dev->control_urb = usb_alloc_urb(0, GFP_KERNEL);

@@ -1360,7 +1360,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = OV511_ENDPOINT_ADDRESS;
 	if (!sd->sif) {
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
