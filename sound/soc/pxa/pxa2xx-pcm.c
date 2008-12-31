@@ -61,9 +61,9 @@ static int pxa2xx_pcm_hw_free(struct snd_pcm_substream *substream)
 
 	__pxa2xx_pcm_hw_free(substream);
 
-	if (prtd->dma_ch) {
+	if (prtd->dma_ch >= 0) {
 		pxa_free_dma(prtd->dma_ch);
-		prtd->dma_ch = 0;
+		prtd->dma_ch = -1;
 	}
 
 	return 0;
