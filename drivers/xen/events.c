@@ -142,9 +142,6 @@ static void init_evtchn_cpu_bindings(void)
 
 	/* By default all event channels notify CPU#0. */
 	for_each_irq_desc(i, desc) {
-		if (!desc)
-			continue;
-
 		desc->affinity = cpumask_of_cpu(0);
 	}
 #endif

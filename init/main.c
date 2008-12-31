@@ -540,15 +540,6 @@ void __init __weak thread_info_cache_init(void)
 {
 }
 
-void __init __weak arch_early_irq_init(void)
-{
-}
-
-void __init __weak early_irq_init(void)
-{
-	arch_early_irq_init();
-}
-
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;
