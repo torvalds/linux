@@ -23,7 +23,7 @@
  * 2002-01-17	Adam Belay <ambx1@neo.rr.com>
  *		Updated to latest pnp code
  *
- * 2003-01-31	Alan Cox <alan@redhat.com>
+ * 2003-01-31	Alan Cox <alan@lxorguk.ukuu.org.uk>
  *		Cleaned up locking, delay code, general odds and ends
  *
  * 2006-07-30	Hans J. Koch <koch@hjk-az.de>

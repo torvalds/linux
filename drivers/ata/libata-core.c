@@ -163,40 +163,116 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
 
-/*
- * Iterator helpers.  Don't use directly.
+/**
+ *	ata_link_next - link iteration helper
+ *	@link: the previous link, NULL to start
+ *	@ap: ATA port containing links to iterate
+ *	@mode: iteration mode, one of ATA_LITER_*
  *
- * LOCKING:
- * Host lock or EH context.
+ *	LOCKING:
+ *	Host lock or EH context.
+ *
+ *	RETURNS:
+ *	Pointer to the next link.
  */
-struct ata_link *__ata_port_next_link(struct ata_port *ap,
-				      struct ata_link *link, bool dev_only)
+struct ata_link *ata_link_next(struct ata_link *link, struct ata_port *ap,
+			       enum ata_link_iter_mode mode)
 {
-	/* NULL link indicates start of iteration */
-	if (!link) {
-		if (dev_only && sata_pmp_attached(ap))
-			return ap->pmp_link;
-		return &ap->link;
-	}
+	BUG_ON(mode != ATA_LITER_EDGE &&
+	       mode != ATA_LITER_PMP_FIRST && mode != ATA_LITER_HOST_FIRST);
 
-	/* we just iterated over the host master link, what's next? */
-	if (link == &ap->link) {
-		if (!sata_pmp_attached(ap)) {
-			if (unlikely(ap->slave_link) && !dev_only)
+	/* NULL link indicates start of iteration */
+	if (!link)
+		switch (mode) {
+		case ATA_LITER_EDGE:
+		case ATA_LITER_PMP_FIRST:
+			if (sata_pmp_attached(ap))
+				return ap->pmp_link;
+			/* fall through */
+		case ATA_LITER_HOST_FIRST:
+			return &ap->link;
+		}
+
+	/* we just iterated over the host link, what's next? */
+	if (link == &ap->link)
+		switch (mode) {
+		case ATA_LITER_HOST_FIRST:
+			if (sata_pmp_attached(ap))
+				return ap->pmp_link;
+			/* fall through */
+		case ATA_LITER_PMP_FIRST:
+			if (unlikely(ap->slave_link))
 				return ap->slave_link;
+			/* fall through */
+		case ATA_LITER_EDGE:
 			return NULL;
 		}
-		return ap->pmp_link;
-	}
 
 	/* slave_link excludes PMP */
 	if (unlikely(link == ap->slave_link))
 		return NULL;
 
-	/* iterate to the next PMP link */
+	/* we were over a PMP link */
 	if (++link < ap->pmp_link + ap->nr_pmp_links)
 		return link;
+
+	if (mode == ATA_LITER_PMP_FIRST)
+		return &ap->link;
+
 	return NULL;
+}
+
+/**
+ *	ata_dev_next - device iteration helper
+ *	@dev: the previous device, NULL to start
+ *	@link: ATA link containing devices to iterate
+ *	@mode: iteration mode, one of ATA_DITER_*
+ *
+ *	LOCKING:
+ *	Host lock or EH context.
+ *
+ *	RETURNS:
+ *	Pointer to the next device.
+ */
+struct ata_device *ata_dev_next(struct ata_device *dev, struct ata_link *link,
+				enum ata_dev_iter_mode mode)
+{
+	BUG_ON(mode != ATA_DITER_ENABLED && mode != ATA_DITER_ENABLED_REVERSE &&
+	       mode != ATA_DITER_ALL && mode != ATA_DITER_ALL_REVERSE);
+
+	/* NULL dev indicates start of iteration */
+	if (!dev)
+		switch (mode) {
+		case ATA_DITER_ENABLED:
+		case ATA_DITER_ALL:
+			dev = link->device;
+			goto check;
+		case ATA_DITER_ENABLED_REVERSE:
+		case ATA_DITER_ALL_REVERSE:
+			dev = link->device + ata_link_max_devices(link) - 1;
+			goto check;
+		}
+
+ next:
+	/* move to the next one */
+	switch (mode) {
+	case ATA_DITER_ENABLED:
+	case ATA_DITER_ALL:
+		if (++dev < link->device + ata_link_max_devices(link))
+			goto check;
+		return NULL;
+	case ATA_DITER_ENABLED_REVERSE:
+	case ATA_DITER_ALL_REVERSE:
+		if (--dev >= link->device)
+			goto check;
+		return NULL;
+	}
+
+ check:
+	if ((mode == ATA_DITER_ENABLED || mode == ATA_DITER_ENABLED_REVERSE) &&
+	    !ata_dev_enabled(dev))
+		goto next;
+	return dev;
 }
 
 /**
@@ -1107,8 +1183,8 @@ static void ata_lpm_enable(struct ata_host *host)
 
 	for (i = 0; i < host->n_ports; i++) {
 		ap = host->ports[i];
-		ata_port_for_each_link(link, ap) {
-			ata_link_for_each_dev(dev, link)
+		ata_for_each_link(link, ap, EDGE) {
+			ata_for_each_dev(dev, link, ALL)
 				ata_dev_disable_pm(dev);
 		}
 	}
@@ -2594,11 +2670,11 @@ int ata_bus_probe(struct ata_port *ap)
 
 	ata_port_probe(ap);
 
-	ata_link_for_each_dev(dev, &ap->link)
+	ata_for_each_dev(dev, &ap->link, ALL)
 		tries[dev->devno] = ATA_PROBE_MAX_TRIES;
 
  retry:
-	ata_link_for_each_dev(dev, &ap->link) {
+	ata_for_each_dev(dev, &ap->link, ALL) {
 		/* If we issue an SRST then an ATA drive (not ATAPI)
 		 * may change configuration and be in PIO0 timing. If
 		 * we do a hard reset (or are coming from power on)
@@ -2620,7 +2696,7 @@ int ata_bus_probe(struct ata_port *ap)
 	/* reset and determine device classes */
 	ap->ops->phy_reset(ap);
 
-	ata_link_for_each_dev(dev, &ap->link) {
+	ata_for_each_dev(dev, &ap->link, ALL) {
 		if (!(ap->flags & ATA_FLAG_DISABLED) &&
 		    dev->class != ATA_DEV_UNKNOWN)
 			classes[dev->devno] = dev->class;
@@ -2636,7 +2712,7 @@ int ata_bus_probe(struct ata_port *ap)
 	   specific sequence bass-ackwards so that PDIAG- is released by
 	   the slave device */
 
-	ata_link_for_each_dev_reverse(dev, &ap->link) {
+	ata_for_each_dev(dev, &ap->link, ALL_REVERSE) {
 		if (tries[dev->devno])
 			dev->class = classes[dev->devno];
 
@@ -2653,24 +2729,19 @@ int ata_bus_probe(struct ata_port *ap)
 	if (ap->ops->cable_detect)
 		ap->cbl = ap->ops->cable_detect(ap);
 
-	/* We may have SATA bridge glue hiding here irrespective of the
-	   reported cable types and sensed types */
-	ata_link_for_each_dev(dev, &ap->link) {
-		if (!ata_dev_enabled(dev))
-			continue;
-		/* SATA drives indicate we have a bridge. We don't know which
-		   end of the link the bridge is which is a problem */
+	/* We may have SATA bridge glue hiding here irrespective of
+	 * the reported cable types and sensed types.  When SATA
+	 * drives indicate we have a bridge, we don't know which end
+	 * of the link the bridge is which is a problem.
+	 */
+	ata_for_each_dev(dev, &ap->link, ENABLED)
 		if (ata_id_is_sata(dev->id))
 			ap->cbl = ATA_CBL_SATA;
-	}
 
 	/* After the identify sequence we can now set up the devices. We do
 	   this in the normal order so that the user doesn't get confused */
 
-	ata_link_for_each_dev(dev, &ap->link) {
-		if (!ata_dev_enabled(dev))
-			continue;
-
+	ata_for_each_dev(dev, &ap->link, ENABLED) {
 		ap->link.eh_context.i.flags |= ATA_EHI_PRINTINFO;
 		rc = ata_dev_configure(dev);
 		ap->link.eh_context.i.flags &= ~ATA_EHI_PRINTINFO;
@@ -2683,9 +2754,8 @@ int ata_bus_probe(struct ata_port *ap)
 	if (rc)
 		goto fail;
 
-	ata_link_for_each_dev(dev, &ap->link)
-		if (ata_dev_enabled(dev))
-			return 0;
+	ata_for_each_dev(dev, &ap->link, ENABLED)
+		return 0;
 
 	/* no device present, disable port */
 	ata_port_disable(ap);
@@ -3331,12 +3401,9 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 	int rc = 0, used_dma = 0, found = 0;
 
 	/* step 1: calculate xfer_mask */
-	ata_link_for_each_dev(dev, link) {
+	ata_for_each_dev(dev, link, ENABLED) {
 		unsigned long pio_mask, dma_mask;
 		unsigned int mode_mask;
-
-		if (!ata_dev_enabled(dev))
-			continue;
 
 		mode_mask = ATA_DMA_MASK_ATA;
 		if (dev->class == ATA_DEV_ATAPI)
@@ -3366,10 +3433,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 		goto out;
 
 	/* step 2: always set host PIO timings */
-	ata_link_for_each_dev(dev, link) {
-		if (!ata_dev_enabled(dev))
-			continue;
-
+	ata_for_each_dev(dev, link, ENABLED) {
 		if (dev->pio_mode == 0xff) {
 			ata_dev_printk(dev, KERN_WARNING, "no PIO support\n");
 			rc = -EINVAL;
@@ -3383,8 +3447,8 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 	}
 
 	/* step 3: set host DMA timings */
-	ata_link_for_each_dev(dev, link) {
-		if (!ata_dev_enabled(dev) || !ata_dma_enabled(dev))
+	ata_for_each_dev(dev, link, ENABLED) {
+		if (!ata_dma_enabled(dev))
 			continue;
 
 		dev->xfer_mode = dev->dma_mode;
@@ -3394,11 +3458,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 	}
 
 	/* step 4: update devices' xfer mode */
-	ata_link_for_each_dev(dev, link) {
-		/* don't update suspended devices' xfer mode */
-		if (!ata_dev_enabled(dev))
-			continue;
-
+	ata_for_each_dev(dev, link, ENABLED) {
 		rc = ata_dev_set_mode(dev);
 		if (rc)
 			goto out;
@@ -4048,6 +4108,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "Maxtor 7V300F0",	"VA111630",	ATA_HORKAGE_NONCQ },
 	{ "ST380817AS",		"3.42",		ATA_HORKAGE_NONCQ },
 	{ "ST3160023AS",	"3.42",		ATA_HORKAGE_NONCQ },
+	{ "OCZ CORE_SSD",	"02.10104",	ATA_HORKAGE_NONCQ },
 
 	/* Seagate NCQ + FLUSH CACHE firmware bug */
 	{ "ST31500341AS",	"SD15",		ATA_HORKAGE_NONCQ |
@@ -4263,9 +4324,9 @@ static int cable_is_40wire(struct ata_port *ap)
 	 * - if you have a non detect capable drive you don't want it
 	 *   to colour the choice
 	 */
-	ata_port_for_each_link(link, ap) {
-		ata_link_for_each_dev(dev, link) {
-			if (ata_dev_enabled(dev) && !ata_is_40wire(dev))
+	ata_for_each_link(link, ap, EDGE) {
+		ata_for_each_dev(dev, link, ENABLED) {
+			if (!ata_is_40wire(dev))
 				return 0;
 		}
 	}
@@ -4672,7 +4733,6 @@ static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
 /**
  *	ata_qc_new_init - Request an available ATA command, and initialize it
  *	@dev: Device from whom we request an available command structure
- *	@tag: command tag
  *
  *	LOCKING:
  *	None.
@@ -5218,7 +5278,7 @@ static int ata_host_request_pm(struct ata_host *host, pm_message_t mesg,
 		}
 
 		ap->pflags |= ATA_PFLAG_PM_PENDING;
-		__ata_port_for_each_link(link, ap) {
+		ata_for_each_link(link, ap, HOST_FIRST) {
 			link->eh_info.action |= action;
 			link->eh_info.flags |= ehi_flags;
 		}
@@ -6047,8 +6107,6 @@ int ata_host_activate(struct ata_host *host, int irq,
 static void ata_port_detach(struct ata_port *ap)
 {
 	unsigned long flags;
-	struct ata_link *link;
-	struct ata_device *dev;
 
 	if (!ap->ops->error_handler)
 		goto skip_eh;
@@ -6056,28 +6114,15 @@ static void ata_port_detach(struct ata_port *ap)
 	/* tell EH we're leaving & flush EH */
 	spin_lock_irqsave(ap->lock, flags);
 	ap->pflags |= ATA_PFLAG_UNLOADING;
+	ata_port_schedule_eh(ap);
 	spin_unlock_irqrestore(ap->lock, flags);
 
+	/* wait till EH commits suicide */
 	ata_port_wait_eh(ap);
 
-	/* EH is now guaranteed to see UNLOADING - EH context belongs
-	 * to us.  Restore SControl and disable all existing devices.
-	 */
-	__ata_port_for_each_link(link, ap) {
-		sata_scr_write(link, SCR_CONTROL, link->saved_scontrol & 0xff0);
-		ata_link_for_each_dev(dev, link)
-			ata_dev_disable(dev);
-	}
+	/* it better be dead now */
+	WARN_ON(!(ap->pflags & ATA_PFLAG_UNLOADED));
 
-	/* Final freeze & EH.  All in-flight commands are aborted.  EH
-	 * will be skipped and retrials will be terminated with bad
-	 * target.
-	 */
-	spin_lock_irqsave(ap->lock, flags);
-	ata_port_freeze(ap);	/* won't be thawed */
-	spin_unlock_irqrestore(ap->lock, flags);
-
-	ata_port_wait_eh(ap);
 	cancel_rearming_delayed_work(&ap->hotplug_task);
 
  skip_eh:
@@ -6528,7 +6573,8 @@ EXPORT_SYMBOL_GPL(ata_base_port_ops);
 EXPORT_SYMBOL_GPL(sata_port_ops);
 EXPORT_SYMBOL_GPL(ata_dummy_port_ops);
 EXPORT_SYMBOL_GPL(ata_dummy_port_info);
-EXPORT_SYMBOL_GPL(__ata_port_next_link);
+EXPORT_SYMBOL_GPL(ata_link_next);
+EXPORT_SYMBOL_GPL(ata_dev_next);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_host_init);
 EXPORT_SYMBOL_GPL(ata_host_alloc);

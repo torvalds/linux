@@ -171,7 +171,7 @@ int __cpuexit __cpu_disable(void)
 	/*
 	 * Stop the local timer for this CPU.
 	 */
-	local_timer_stop(cpu);
+	local_timer_stop();
 
 	/*
 	 * Flush user cache and TLB mappings, and then remove this CPU
@@ -274,7 +274,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	/*
 	 * Setup local timer for this CPU.
 	 */
-	local_timer_setup(cpu);
+	local_timer_setup();
 
 	calibrate_delay();
 

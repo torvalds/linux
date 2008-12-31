@@ -23,9 +23,9 @@
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-i2c-drv.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("i2c device driver for cs5345 Audio ADC");
 MODULE_AUTHOR("Hans Verkuil");
@@ -40,111 +40,143 @@ MODULE_PARM_DESC(debug, "Debugging messages, 0=Off (default), 1=On");
 
 /* ----------------------------------------------------------------------- */
 
-static inline int cs5345_write(struct i2c_client *client, u8 reg, u8 value)
+static inline int cs5345_write(struct v4l2_subdev *sd, u8 reg, u8 value)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
-static inline int cs5345_read(struct i2c_client *client, u8 reg)
+static inline int cs5345_read(struct v4l2_subdev *sd, u8 reg)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 	return i2c_smbus_read_byte_data(client, reg);
+}
+
+static int cs5345_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+{
+	if ((route->input & 0xf) > 6) {
+		v4l2_err(sd, "Invalid input %d.\n", route->input);
+		return -EINVAL;
+	}
+	cs5345_write(sd, 0x09, route->input & 0xf);
+	cs5345_write(sd, 0x05, route->input & 0xf0);
+	return 0;
+}
+
+static int cs5345_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	if (ctrl->id == V4L2_CID_AUDIO_MUTE) {
+		ctrl->value = (cs5345_read(sd, 0x04) & 0x08) != 0;
+		return 0;
+	}
+	if (ctrl->id != V4L2_CID_AUDIO_VOLUME)
+		return -EINVAL;
+	ctrl->value = cs5345_read(sd, 0x07) & 0x3f;
+	if (ctrl->value >= 32)
+		ctrl->value = ctrl->value - 64;
+	return 0;
+}
+
+static int cs5345_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	if (ctrl->id == V4L2_CID_AUDIO_MUTE) {
+		cs5345_write(sd, 0x04, ctrl->value ? 0x80 : 0);
+		return 0;
+	}
+	if (ctrl->id != V4L2_CID_AUDIO_VOLUME)
+		return -EINVAL;
+	if (ctrl->value > 24 || ctrl->value < -24)
+		return -EINVAL;
+	cs5345_write(sd, 0x07, ((u8)ctrl->value) & 0x3f);
+	cs5345_write(sd, 0x08, ((u8)ctrl->value) & 0x3f);
+	return 0;
+}
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int cs5345_g_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	if (!v4l2_chip_match_i2c_client(client,
+				reg->match_type, reg->match_chip))
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	reg->val = cs5345_read(sd, reg->reg & 0x1f);
+	return 0;
+}
+
+static int cs5345_s_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	if (!v4l2_chip_match_i2c_client(client,
+				reg->match_type, reg->match_chip))
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	cs5345_write(sd, reg->reg & 0x1f, reg->val & 0xff);
+	return 0;
+}
+#endif
+
+static int cs5345_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_CS5345, 0);
+}
+
+static int cs5345_log_status(struct v4l2_subdev *sd)
+{
+	u8 v = cs5345_read(sd, 0x09) & 7;
+	u8 m = cs5345_read(sd, 0x04);
+	int vol = cs5345_read(sd, 0x08) & 0x3f;
+
+	v4l2_info(sd, "Input:  %d%s\n", v,
+			(m & 0x80) ? " (muted)" : "");
+	if (vol >= 32)
+		vol = vol - 64;
+	v4l2_info(sd, "Volume: %d dB\n", vol);
+	return 0;
 }
 
 static int cs5345_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
-	struct v4l2_routing *route = arg;
-	struct v4l2_control *ctrl = arg;
-
-	switch (cmd) {
-	case VIDIOC_INT_G_AUDIO_ROUTING:
-		route->input = cs5345_read(client, 0x09) & 7;
-		route->input |= cs5345_read(client, 0x05) & 0x70;
-		route->output = 0;
-		break;
-
-	case VIDIOC_INT_S_AUDIO_ROUTING:
-		if ((route->input & 0xf) > 6) {
-			v4l_err(client, "Invalid input %d.\n", route->input);
-			return -EINVAL;
-		}
-		cs5345_write(client, 0x09, route->input & 0xf);
-		cs5345_write(client, 0x05, route->input & 0xf0);
-		break;
-
-	case VIDIOC_G_CTRL:
-		if (ctrl->id == V4L2_CID_AUDIO_MUTE) {
-			ctrl->value = (cs5345_read(client, 0x04) & 0x08) != 0;
-			break;
-		}
-		if (ctrl->id != V4L2_CID_AUDIO_VOLUME)
-			return -EINVAL;
-		ctrl->value = cs5345_read(client, 0x07) & 0x3f;
-		if (ctrl->value >= 32)
-			ctrl->value = ctrl->value - 64;
-		break;
-
-	case VIDIOC_S_CTRL:
-		break;
-		if (ctrl->id == V4L2_CID_AUDIO_MUTE) {
-			cs5345_write(client, 0x04, ctrl->value ? 0x80 : 0);
-			break;
-		}
-		if (ctrl->id != V4L2_CID_AUDIO_VOLUME)
-			return -EINVAL;
-		if (ctrl->value > 24 || ctrl->value < -24)
-			return -EINVAL;
-		cs5345_write(client, 0x07, ((u8)ctrl->value) & 0x3f);
-		cs5345_write(client, 0x08, ((u8)ctrl->value) & 0x3f);
-		break;
-
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	case VIDIOC_DBG_G_REGISTER:
-	case VIDIOC_DBG_S_REGISTER:
-	{
-		struct v4l2_register *reg = arg;
-
-		if (!v4l2_chip_match_i2c_client(client,
-					reg->match_type, reg->match_chip))
-			return -EINVAL;
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		if (cmd == VIDIOC_DBG_G_REGISTER)
-			reg->val = cs5345_read(client, reg->reg & 0x1f);
-		else
-			cs5345_write(client, reg->reg & 0x1f, reg->val & 0xff);
-		break;
-	}
-#endif
-
-	case VIDIOC_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client,
-				arg, V4L2_IDENT_CS5345, 0);
-
-	case VIDIOC_LOG_STATUS:
-		{
-			u8 v = cs5345_read(client, 0x09) & 7;
-			u8 m = cs5345_read(client, 0x04);
-			int vol = cs5345_read(client, 0x08) & 0x3f;
-
-			v4l_info(client, "Input:  %d%s\n", v,
-				      (m & 0x80) ? " (muted)" : "");
-			if (vol >= 32)
-				vol = vol - 64;
-			v4l_info(client, "Volume: %d dB\n", vol);
-			break;
-		}
-
-	default:
-		return -EINVAL;
-	}
-	return 0;
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
 }
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops cs5345_core_ops = {
+	.log_status = cs5345_log_status,
+	.g_chip_ident = cs5345_g_chip_ident,
+	.g_ctrl = cs5345_g_ctrl,
+	.s_ctrl = cs5345_s_ctrl,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.g_register = cs5345_g_register,
+	.s_register = cs5345_s_register,
+#endif
+};
+
+static const struct v4l2_subdev_audio_ops cs5345_audio_ops = {
+	.s_routing = cs5345_s_routing,
+};
+
+static const struct v4l2_subdev_ops cs5345_ops = {
+	.core = &cs5345_core_ops,
+	.audio = &cs5345_audio_ops,
+};
 
 /* ----------------------------------------------------------------------- */
 
 static int cs5345_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
+	struct v4l2_subdev *sd;
+
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
@@ -152,9 +184,25 @@ static int cs5345_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	cs5345_write(client, 0x02, 0x00);
-	cs5345_write(client, 0x04, 0x01);
-	cs5345_write(client, 0x09, 0x01);
+	sd = kzalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
+	if (sd == NULL)
+		return -ENOMEM;
+	v4l2_i2c_subdev_init(sd, client, &cs5345_ops);
+
+	cs5345_write(sd, 0x02, 0x00);
+	cs5345_write(sd, 0x04, 0x01);
+	cs5345_write(sd, 0x09, 0x01);
+	return 0;
+}
+
+/* ----------------------------------------------------------------------- */
+
+static int cs5345_remove(struct i2c_client *client)
+{
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	v4l2_device_unregister_subdev(sd);
+	kfree(sd);
 	return 0;
 }
 
@@ -171,5 +219,6 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.driverid = I2C_DRIVERID_CS5345,
 	.command = cs5345_command,
 	.probe = cs5345_probe,
+	.remove = cs5345_remove,
 	.id_table = cs5345_id,
 };

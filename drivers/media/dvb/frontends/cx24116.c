@@ -106,7 +106,7 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 #define CX24116_HAS_SYNCLOCK (0x08)
 #define CX24116_HAS_UNKNOWN1 (0x10)
 #define CX24116_HAS_UNKNOWN2 (0x20)
-#define CX24116_STATUS_MASK  (0x3f)
+#define CX24116_STATUS_MASK  (0x0f)
 #define CX24116_SIGNAL_MASK  (0xc0)
 
 #define CX24116_DISEQC_TONEOFF   (0)    /* toneburst never sent */
@@ -160,6 +160,7 @@ struct cx24116_tuning {
 	fe_spectral_inversion_t inversion;
 	fe_code_rate_t fec;
 
+	fe_delivery_system_t delsys;
 	fe_modulation_t modulation;
 	fe_pilot_t pilot;
 	fe_rolloff_t rolloff;
@@ -411,14 +412,15 @@ struct cx24116_modfec {
 };
 
 static int cx24116_lookup_fecmod(struct cx24116_state *state,
-	fe_modulation_t m, fe_code_rate_t f)
+	fe_delivery_system_t d, fe_modulation_t m, fe_code_rate_t f)
 {
 	int i, ret = -EOPNOTSUPP;
 
 	dprintk("%s(0x%02x,0x%02x)\n", __func__, m, f);
 
 	for (i = 0; i < ARRAY_SIZE(CX24116_MODFEC_MODES); i++) {
-		if ((m == CX24116_MODFEC_MODES[i].modulation) &&
+		if ((d == CX24116_MODFEC_MODES[i].delivery_system) &&
+			(m == CX24116_MODFEC_MODES[i].modulation) &&
 			(f == CX24116_MODFEC_MODES[i].fec)) {
 				ret = i;
 				break;
@@ -429,13 +431,13 @@ static int cx24116_lookup_fecmod(struct cx24116_state *state,
 }
 
 static int cx24116_set_fec(struct cx24116_state *state,
-	fe_modulation_t mod, fe_code_rate_t fec)
+	fe_delivery_system_t delsys, fe_modulation_t mod, fe_code_rate_t fec)
 {
 	int ret = 0;
 
 	dprintk("%s(0x%02x,0x%02x)\n", __func__, mod, fec);
 
-	ret = cx24116_lookup_fecmod(state, mod, fec);
+	ret = cx24116_lookup_fecmod(state, delsys, mod, fec);
 
 	if (ret < 0)
 		return ret;
@@ -679,7 +681,8 @@ static int cx24116_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
 
-	int lock = cx24116_readreg(state, CX24116_REG_SSTATUS);
+	int lock = cx24116_readreg(state, CX24116_REG_SSTATUS) &
+		CX24116_STATUS_MASK;
 
 	dprintk("%s: status = 0x%02x\n", __func__, lock);
 
@@ -1205,7 +1208,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24116_cmd cmd;
 	fe_status_t tunerstat;
-	int i, status, ret, retune;
+	int i, status, ret, retune = 1;
 
 	dprintk("%s()\n", __func__);
 
@@ -1222,7 +1225,6 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 
 		/* Pilot doesn't exist in DVB-S, turn bit off */
 		state->dnxt.pilot_val = CX24116_PILOT_OFF;
-		retune = 1;
 
 		/* DVB-S only supports 0.35 */
 		if (c->rolloff != ROLLOFF_35) {
@@ -1250,7 +1252,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 		case PILOT_AUTO:	/* Not supported but emulated */
 			state->dnxt.pilot_val = (c->modulation == QPSK)
 				? CX24116_PILOT_OFF : CX24116_PILOT_ON;
-			retune = 2;
+			retune++;
 			break;
 		case PILOT_OFF:
 			state->dnxt.pilot_val = CX24116_PILOT_OFF;
@@ -1287,6 +1289,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 			__func__, c->delivery_system);
 		return -EOPNOTSUPP;
 	}
+	state->dnxt.delsys = c->delivery_system;
 	state->dnxt.modulation = c->modulation;
 	state->dnxt.frequency = c->frequency;
 	state->dnxt.pilot = c->pilot;
@@ -1297,7 +1300,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 		return ret;
 
 	/* FEC_NONE/AUTO for DVB-S2 is not supported and detected here */
-	ret = cx24116_set_fec(state, c->modulation, c->fec_inner);
+	ret = cx24116_set_fec(state, c->delivery_system, c->modulation, c->fec_inner);
 	if (ret !=  0)
 		return ret;
 
@@ -1308,6 +1311,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 	/* discard the 'current' tuning parameters and prepare to tune */
 	cx24116_clone_params(fe);
 
+	dprintk("%s:   delsys      = %d\n", __func__, state->dcur.delsys);
 	dprintk("%s:   modulation  = %d\n", __func__, state->dcur.modulation);
 	dprintk("%s:   frequency   = %d\n", __func__, state->dcur.frequency);
 	dprintk("%s:   pilot       = %d (val = 0x%02x)\n", __func__,
@@ -1427,6 +1431,23 @@ tuned:  /* Set/Reset B/W */
 	return ret;
 }
 
+static int cx24116_tune(struct dvb_frontend *fe, struct dvb_frontend_parameters *params,
+	unsigned int mode_flags, unsigned int *delay, fe_status_t *status)
+{
+	*delay = HZ / 5;
+	if (params) {
+		int ret = cx24116_set_frontend(fe, params);
+		if (ret)
+			return ret;
+	}
+	return cx24116_read_status(fe, status);
+}
+
+static int cx24116_get_algo(struct dvb_frontend *fe)
+{
+	return DVBFE_ALGO_HW;
+}
+
 static struct dvb_frontend_ops cx24116_ops = {
 
 	.info = {
@@ -1458,6 +1479,8 @@ static struct dvb_frontend_ops cx24116_ops = {
 	.set_voltage = cx24116_set_voltage,
 	.diseqc_send_master_cmd = cx24116_send_diseqc_msg,
 	.diseqc_send_burst = cx24116_diseqc_send_burst,
+	.get_frontend_algo = cx24116_get_algo,
+	.tune = cx24116_tune,
 
 	.set_property = cx24116_set_property,
 	.get_property = cx24116_get_property,

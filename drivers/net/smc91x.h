@@ -493,7 +493,8 @@ struct smc_local {
  * as RX which can overrun memory and lose packets.
  */
 #include <linux/dma-mapping.h>
-#include <asm/dma.h>
+#include <mach/dma.h>
+#include <mach/hardware.h>
 #include <mach/pxa-regs.h>
 
 #ifdef SMC_insl

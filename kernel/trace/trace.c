@@ -30,7 +30,6 @@
 #include <linux/gfp.h>
 #include <linux/fs.h>
 #include <linux/kprobes.h>
-#include <linux/seq_file.h>
 #include <linux/writeback.h>
 
 #include <linux/stacktrace.h>
@@ -1310,7 +1309,7 @@ enum trace_file_type {
 	TRACE_FILE_ANNOTATE	= 2,
 };
 
-static void trace_iterator_increment(struct trace_iterator *iter, int cpu)
+static void trace_iterator_increment(struct trace_iterator *iter)
 {
 	/* Don't allow ftrace to trace into the ring buffers */
 	ftrace_disable_cpu();
@@ -1389,7 +1388,7 @@ static void *find_next_entry_inc(struct trace_iterator *iter)
 	iter->ent = __find_next_entry(iter, &iter->cpu, &iter->ts);
 
 	if (iter->ent)
-		trace_iterator_increment(iter, iter->cpu);
+		trace_iterator_increment(iter);
 
 	return iter->ent ? iter : NULL;
 }

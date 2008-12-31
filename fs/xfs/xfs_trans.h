@@ -18,6 +18,8 @@
 #ifndef	__XFS_TRANS_H__
 #define	__XFS_TRANS_H__
 
+struct xfs_log_item;
+
 /*
  * This is the structure written in the log at the head of
  * every transaction. It identifies the type and id of the
@@ -98,76 +100,6 @@ typedef struct xfs_trans_header {
 #define	XFS_TRANS_TYPE_MAX		41
 /* new transaction types need to be reflected in xfs_logprint(8) */
 
-
-#ifdef __KERNEL__
-struct xfs_buf;
-struct xfs_buftarg;
-struct xfs_efd_log_item;
-struct xfs_efi_log_item;
-struct xfs_inode;
-struct xfs_item_ops;
-struct xfs_log_iovec;
-struct xfs_log_item;
-struct xfs_log_item_desc;
-struct xfs_mount;
-struct xfs_trans;
-struct xfs_dquot_acct;
-
-typedef struct xfs_log_item {
-	struct list_head		li_ail;		/* AIL pointers */
-	xfs_lsn_t			li_lsn;		/* last on-disk lsn */
-	struct xfs_log_item_desc	*li_desc;	/* ptr to current desc*/
-	struct xfs_mount		*li_mountp;	/* ptr to fs mount */
-	uint				li_type;	/* item type */
-	uint				li_flags;	/* misc flags */
-	struct xfs_log_item		*li_bio_list;	/* buffer item list */
-	void				(*li_cb)(struct xfs_buf *,
-						 struct xfs_log_item *);
-							/* buffer item iodone */
-							/* callback func */
-	struct xfs_item_ops		*li_ops;	/* function list */
-} xfs_log_item_t;
-
-#define	XFS_LI_IN_AIL	0x1
-#define XFS_LI_ABORTED	0x2
-
-typedef struct xfs_item_ops {
-	uint (*iop_size)(xfs_log_item_t *);
-	void (*iop_format)(xfs_log_item_t *, struct xfs_log_iovec *);
-	void (*iop_pin)(xfs_log_item_t *);
-	void (*iop_unpin)(xfs_log_item_t *, int);
-	void (*iop_unpin_remove)(xfs_log_item_t *, struct xfs_trans *);
-	uint (*iop_trylock)(xfs_log_item_t *);
-	void (*iop_unlock)(xfs_log_item_t *);
-	xfs_lsn_t (*iop_committed)(xfs_log_item_t *, xfs_lsn_t);
-	void (*iop_push)(xfs_log_item_t *);
-	void (*iop_pushbuf)(xfs_log_item_t *);
-	void (*iop_committing)(xfs_log_item_t *, xfs_lsn_t);
-} xfs_item_ops_t;
-
-#define IOP_SIZE(ip)		(*(ip)->li_ops->iop_size)(ip)
-#define IOP_FORMAT(ip,vp)	(*(ip)->li_ops->iop_format)(ip, vp)
-#define IOP_PIN(ip)		(*(ip)->li_ops->iop_pin)(ip)
-#define IOP_UNPIN(ip, flags)	(*(ip)->li_ops->iop_unpin)(ip, flags)
-#define IOP_UNPIN_REMOVE(ip,tp) (*(ip)->li_ops->iop_unpin_remove)(ip, tp)
-#define IOP_TRYLOCK(ip)		(*(ip)->li_ops->iop_trylock)(ip)
-#define IOP_UNLOCK(ip)		(*(ip)->li_ops->iop_unlock)(ip)
-#define IOP_COMMITTED(ip, lsn)	(*(ip)->li_ops->iop_committed)(ip, lsn)
-#define IOP_PUSH(ip)		(*(ip)->li_ops->iop_push)(ip)
-#define IOP_PUSHBUF(ip)		(*(ip)->li_ops->iop_pushbuf)(ip)
-#define IOP_COMMITTING(ip, lsn) (*(ip)->li_ops->iop_committing)(ip, lsn)
-
-/*
- * Return values for the IOP_TRYLOCK() routines.
- */
-#define	XFS_ITEM_SUCCESS	0
-#define	XFS_ITEM_PINNED		1
-#define	XFS_ITEM_LOCKED		2
-#define	XFS_ITEM_FLUSHING	3
-#define XFS_ITEM_PUSHBUF	4
-
-#endif	/* __KERNEL__ */
-
 /*
  * This structure is used to track log items associated with
  * a transaction.  It points to the log item and keeps some
@@ -176,7 +108,7 @@ typedef struct xfs_item_ops {
  * once we get to commit processing (see xfs_trans_commit()).
  */
 typedef struct xfs_log_item_desc {
-	xfs_log_item_t	*lid_item;
+	struct xfs_log_item	*lid_item;
 	ushort		lid_size;
 	unsigned char	lid_flags;
 	unsigned char	lid_index;
@@ -275,94 +207,6 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 		(((xfs_caddr_t)((dp) - (dp)->lid_index)) - \
 		(xfs_caddr_t)(((xfs_log_item_chunk_t*)0)->lic_descs));
 }
-
-#ifdef __KERNEL__
-/*
- * This structure is used to maintain a list of block ranges that have been
- * freed in the transaction.  The ranges are listed in the perag[] busy list
- * between when they're freed and the transaction is committed to disk.
- */
-
-typedef struct xfs_log_busy_slot {
-	xfs_agnumber_t		lbc_ag;
-	ushort			lbc_idx;	/* index in perag.busy[] */
-} xfs_log_busy_slot_t;
-
-#define XFS_LBC_NUM_SLOTS	31
-typedef struct xfs_log_busy_chunk {
-	struct xfs_log_busy_chunk	*lbc_next;
-	uint				lbc_free;	/* free slots bitmask */
-	ushort				lbc_unused;	/* first unused */
-	xfs_log_busy_slot_t		lbc_busy[XFS_LBC_NUM_SLOTS];
-} xfs_log_busy_chunk_t;
-
-#define	XFS_LBC_MAX_SLOT	(XFS_LBC_NUM_SLOTS - 1)
-#define	XFS_LBC_FREEMASK	((1U << XFS_LBC_NUM_SLOTS) - 1)
-
-#define	XFS_LBC_INIT(cp)	((cp)->lbc_free = XFS_LBC_FREEMASK)
-#define	XFS_LBC_CLAIM(cp, slot)	((cp)->lbc_free &= ~(1 << (slot)))
-#define	XFS_LBC_SLOT(cp, slot)	(&((cp)->lbc_busy[(slot)]))
-#define	XFS_LBC_VACANCY(cp)	(((cp)->lbc_free) & XFS_LBC_FREEMASK)
-#define	XFS_LBC_ISFREE(cp, slot) ((cp)->lbc_free & (1 << (slot)))
-
-/*
- * This is the type of function which can be given to xfs_trans_callback()
- * to be called upon the transaction's commit to disk.
- */
-typedef void (*xfs_trans_callback_t)(struct xfs_trans *, void *);
-
-/*
- * This is the structure maintained for every active transaction.
- */
-typedef struct xfs_trans {
-	unsigned int		t_magic;	/* magic number */
-	xfs_log_callback_t	t_logcb;	/* log callback struct */
-	unsigned int		t_type;		/* transaction type */
-	unsigned int		t_log_res;	/* amt of log space resvd */
-	unsigned int		t_log_count;	/* count for perm log res */
-	unsigned int		t_blk_res;	/* # of blocks resvd */
-	unsigned int		t_blk_res_used;	/* # of resvd blocks used */
-	unsigned int		t_rtx_res;	/* # of rt extents resvd */
-	unsigned int		t_rtx_res_used;	/* # of resvd rt extents used */
-	xfs_log_ticket_t	t_ticket;	/* log mgr ticket */
-	xfs_lsn_t		t_lsn;		/* log seq num of start of
-						 * transaction. */
-	xfs_lsn_t		t_commit_lsn;	/* log seq num of end of
-						 * transaction. */
-	struct xfs_mount	*t_mountp;	/* ptr to fs mount struct */
-	struct xfs_dquot_acct   *t_dqinfo;	/* acctg info for dquots */
-	xfs_trans_callback_t	t_callback;	/* transaction callback */
-	void			*t_callarg;	/* callback arg */
-	unsigned int		t_flags;	/* misc flags */
-	int64_t			t_icount_delta;	/* superblock icount change */
-	int64_t			t_ifree_delta;	/* superblock ifree change */
-	int64_t			t_fdblocks_delta; /* superblock fdblocks chg */
-	int64_t			t_res_fdblocks_delta; /* on-disk only chg */
-	int64_t			t_frextents_delta;/* superblock freextents chg*/
-	int64_t			t_res_frextents_delta; /* on-disk only chg */
-#ifdef DEBUG
-	int64_t			t_ag_freeblks_delta; /* debugging counter */
-	int64_t			t_ag_flist_delta; /* debugging counter */
-	int64_t			t_ag_btree_delta; /* debugging counter */
-#endif
-	int64_t			t_dblocks_delta;/* superblock dblocks change */
-	int64_t			t_agcount_delta;/* superblock agcount change */
-	int64_t			t_imaxpct_delta;/* superblock imaxpct change */
-	int64_t			t_rextsize_delta;/* superblock rextsize chg */
-	int64_t			t_rbmblocks_delta;/* superblock rbmblocks chg */
-	int64_t			t_rblocks_delta;/* superblock rblocks change */
-	int64_t			t_rextents_delta;/* superblocks rextents chg */
-	int64_t			t_rextslog_delta;/* superblocks rextslog chg */
-	unsigned int		t_items_free;	/* log item descs free */
-	xfs_log_item_chunk_t	t_items;	/* first log item desc chunk */
-	xfs_trans_header_t	t_header;	/* header for in-log trans */
-	unsigned int		t_busy_free;	/* busy descs free */
-	xfs_log_busy_chunk_t	t_busy;		/* busy/async free blocks */
-	unsigned long		t_pflags;	/* saved process flags state */
-} xfs_trans_t;
-
-#endif	/* __KERNEL__ */
-
 
 #define	XFS_TRANS_MAGIC		0x5452414E	/* 'TRAN' */
 /*
@@ -906,6 +750,157 @@ typedef struct xfs_trans {
 #define	XFS_DQUOT_REF		1
 
 #ifdef __KERNEL__
+
+struct xfs_buf;
+struct xfs_buftarg;
+struct xfs_efd_log_item;
+struct xfs_efi_log_item;
+struct xfs_inode;
+struct xfs_item_ops;
+struct xfs_log_iovec;
+struct xfs_log_item_desc;
+struct xfs_mount;
+struct xfs_trans;
+struct xfs_dquot_acct;
+
+typedef struct xfs_log_item {
+	struct list_head		li_ail;		/* AIL pointers */
+	xfs_lsn_t			li_lsn;		/* last on-disk lsn */
+	struct xfs_log_item_desc	*li_desc;	/* ptr to current desc*/
+	struct xfs_mount		*li_mountp;	/* ptr to fs mount */
+	struct xfs_ail			*li_ailp;	/* ptr to AIL */
+	uint				li_type;	/* item type */
+	uint				li_flags;	/* misc flags */
+	struct xfs_log_item		*li_bio_list;	/* buffer item list */
+	void				(*li_cb)(struct xfs_buf *,
+						 struct xfs_log_item *);
+							/* buffer item iodone */
+							/* callback func */
+	struct xfs_item_ops		*li_ops;	/* function list */
+} xfs_log_item_t;
+
+#define	XFS_LI_IN_AIL	0x1
+#define XFS_LI_ABORTED	0x2
+
+typedef struct xfs_item_ops {
+	uint (*iop_size)(xfs_log_item_t *);
+	void (*iop_format)(xfs_log_item_t *, struct xfs_log_iovec *);
+	void (*iop_pin)(xfs_log_item_t *);
+	void (*iop_unpin)(xfs_log_item_t *, int);
+	void (*iop_unpin_remove)(xfs_log_item_t *, struct xfs_trans *);
+	uint (*iop_trylock)(xfs_log_item_t *);
+	void (*iop_unlock)(xfs_log_item_t *);
+	xfs_lsn_t (*iop_committed)(xfs_log_item_t *, xfs_lsn_t);
+	void (*iop_push)(xfs_log_item_t *);
+	void (*iop_pushbuf)(xfs_log_item_t *);
+	void (*iop_committing)(xfs_log_item_t *, xfs_lsn_t);
+} xfs_item_ops_t;
+
+#define IOP_SIZE(ip)		(*(ip)->li_ops->iop_size)(ip)
+#define IOP_FORMAT(ip,vp)	(*(ip)->li_ops->iop_format)(ip, vp)
+#define IOP_PIN(ip)		(*(ip)->li_ops->iop_pin)(ip)
+#define IOP_UNPIN(ip, flags)	(*(ip)->li_ops->iop_unpin)(ip, flags)
+#define IOP_UNPIN_REMOVE(ip,tp) (*(ip)->li_ops->iop_unpin_remove)(ip, tp)
+#define IOP_TRYLOCK(ip)		(*(ip)->li_ops->iop_trylock)(ip)
+#define IOP_UNLOCK(ip)		(*(ip)->li_ops->iop_unlock)(ip)
+#define IOP_COMMITTED(ip, lsn)	(*(ip)->li_ops->iop_committed)(ip, lsn)
+#define IOP_PUSH(ip)		(*(ip)->li_ops->iop_push)(ip)
+#define IOP_PUSHBUF(ip)		(*(ip)->li_ops->iop_pushbuf)(ip)
+#define IOP_COMMITTING(ip, lsn) (*(ip)->li_ops->iop_committing)(ip, lsn)
+
+/*
+ * Return values for the IOP_TRYLOCK() routines.
+ */
+#define	XFS_ITEM_SUCCESS	0
+#define	XFS_ITEM_PINNED		1
+#define	XFS_ITEM_LOCKED		2
+#define	XFS_ITEM_FLUSHING	3
+#define XFS_ITEM_PUSHBUF	4
+
+/*
+ * This structure is used to maintain a list of block ranges that have been
+ * freed in the transaction.  The ranges are listed in the perag[] busy list
+ * between when they're freed and the transaction is committed to disk.
+ */
+
+typedef struct xfs_log_busy_slot {
+	xfs_agnumber_t		lbc_ag;
+	ushort			lbc_idx;	/* index in perag.busy[] */
+} xfs_log_busy_slot_t;
+
+#define XFS_LBC_NUM_SLOTS	31
+typedef struct xfs_log_busy_chunk {
+	struct xfs_log_busy_chunk	*lbc_next;
+	uint				lbc_free;	/* free slots bitmask */
+	ushort				lbc_unused;	/* first unused */
+	xfs_log_busy_slot_t		lbc_busy[XFS_LBC_NUM_SLOTS];
+} xfs_log_busy_chunk_t;
+
+#define	XFS_LBC_MAX_SLOT	(XFS_LBC_NUM_SLOTS - 1)
+#define	XFS_LBC_FREEMASK	((1U << XFS_LBC_NUM_SLOTS) - 1)
+
+#define	XFS_LBC_INIT(cp)	((cp)->lbc_free = XFS_LBC_FREEMASK)
+#define	XFS_LBC_CLAIM(cp, slot)	((cp)->lbc_free &= ~(1 << (slot)))
+#define	XFS_LBC_SLOT(cp, slot)	(&((cp)->lbc_busy[(slot)]))
+#define	XFS_LBC_VACANCY(cp)	(((cp)->lbc_free) & XFS_LBC_FREEMASK)
+#define	XFS_LBC_ISFREE(cp, slot) ((cp)->lbc_free & (1 << (slot)))
+
+/*
+ * This is the type of function which can be given to xfs_trans_callback()
+ * to be called upon the transaction's commit to disk.
+ */
+typedef void (*xfs_trans_callback_t)(struct xfs_trans *, void *);
+
+/*
+ * This is the structure maintained for every active transaction.
+ */
+typedef struct xfs_trans {
+	unsigned int		t_magic;	/* magic number */
+	xfs_log_callback_t	t_logcb;	/* log callback struct */
+	unsigned int		t_type;		/* transaction type */
+	unsigned int		t_log_res;	/* amt of log space resvd */
+	unsigned int		t_log_count;	/* count for perm log res */
+	unsigned int		t_blk_res;	/* # of blocks resvd */
+	unsigned int		t_blk_res_used;	/* # of resvd blocks used */
+	unsigned int		t_rtx_res;	/* # of rt extents resvd */
+	unsigned int		t_rtx_res_used;	/* # of resvd rt extents used */
+	xfs_log_ticket_t	t_ticket;	/* log mgr ticket */
+	xfs_lsn_t		t_lsn;		/* log seq num of start of
+						 * transaction. */
+	xfs_lsn_t		t_commit_lsn;	/* log seq num of end of
+						 * transaction. */
+	struct xfs_mount	*t_mountp;	/* ptr to fs mount struct */
+	struct xfs_dquot_acct   *t_dqinfo;	/* acctg info for dquots */
+	xfs_trans_callback_t	t_callback;	/* transaction callback */
+	void			*t_callarg;	/* callback arg */
+	unsigned int		t_flags;	/* misc flags */
+	int64_t			t_icount_delta;	/* superblock icount change */
+	int64_t			t_ifree_delta;	/* superblock ifree change */
+	int64_t			t_fdblocks_delta; /* superblock fdblocks chg */
+	int64_t			t_res_fdblocks_delta; /* on-disk only chg */
+	int64_t			t_frextents_delta;/* superblock freextents chg*/
+	int64_t			t_res_frextents_delta; /* on-disk only chg */
+#ifdef DEBUG
+	int64_t			t_ag_freeblks_delta; /* debugging counter */
+	int64_t			t_ag_flist_delta; /* debugging counter */
+	int64_t			t_ag_btree_delta; /* debugging counter */
+#endif
+	int64_t			t_dblocks_delta;/* superblock dblocks change */
+	int64_t			t_agcount_delta;/* superblock agcount change */
+	int64_t			t_imaxpct_delta;/* superblock imaxpct change */
+	int64_t			t_rextsize_delta;/* superblock rextsize chg */
+	int64_t			t_rbmblocks_delta;/* superblock rbmblocks chg */
+	int64_t			t_rblocks_delta;/* superblock rblocks change */
+	int64_t			t_rextents_delta;/* superblocks rextents chg */
+	int64_t			t_rextslog_delta;/* superblocks rextslog chg */
+	unsigned int		t_items_free;	/* log item descs free */
+	xfs_log_item_chunk_t	t_items;	/* first log item desc chunk */
+	xfs_trans_header_t	t_header;	/* header for in-log trans */
+	unsigned int		t_busy_free;	/* busy descs free */
+	xfs_log_busy_chunk_t	t_busy;		/* busy/async free blocks */
+	unsigned long		t_pflags;	/* saved process flags state */
+} xfs_trans_t;
+
 /*
  * XFS transaction mechanism exported interfaces that are
  * actually macros.
@@ -928,7 +923,6 @@ typedef struct xfs_trans {
 /*
  * XFS transaction mechanism exported interfaces.
  */
-void		xfs_trans_init(struct xfs_mount *);
 xfs_trans_t	*xfs_trans_alloc(struct xfs_mount *, uint);
 xfs_trans_t	*_xfs_trans_alloc(struct xfs_mount *, uint);
 xfs_trans_t	*xfs_trans_dup(xfs_trans_t *);
@@ -975,13 +969,8 @@ int		_xfs_trans_commit(xfs_trans_t *,
 				  int *);
 #define xfs_trans_commit(tp, flags)	_xfs_trans_commit(tp, flags, NULL)
 void		xfs_trans_cancel(xfs_trans_t *, int);
-int		xfs_trans_roll(struct xfs_trans **, struct xfs_inode *);
 int		xfs_trans_ail_init(struct xfs_mount *);
 void		xfs_trans_ail_destroy(struct xfs_mount *);
-void		xfs_trans_push_ail(struct xfs_mount *, xfs_lsn_t);
-xfs_lsn_t	xfs_trans_tail_ail(struct xfs_mount *);
-void		xfs_trans_unlocked_item(struct xfs_mount *,
-					xfs_log_item_t *);
 xfs_log_busy_slot_t *xfs_trans_add_busy(xfs_trans_t *tp,
 					xfs_agnumber_t ag,
 					xfs_extlen_t idx);
@@ -989,5 +978,8 @@ xfs_log_busy_slot_t *xfs_trans_add_busy(xfs_trans_t *tp,
 extern kmem_zone_t	*xfs_trans_zone;
 
 #endif	/* __KERNEL__ */
+
+void		xfs_trans_init(struct xfs_mount *);
+int		xfs_trans_roll(struct xfs_trans **, struct xfs_inode *);
 
 #endif	/* __XFS_TRANS_H__ */

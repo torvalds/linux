@@ -350,16 +350,17 @@ static const struct ide_dma_ops pdc2026x_dma_ops = {
 	.dma_timeout		= pdc202xx_dma_timeout,
 };
 
-#define DECLARE_PDC2026X_DEV(udma, extra_flags) \
+#define DECLARE_PDC2026X_DEV(udma, sectors) \
 	{ \
 		.name		= DRV_NAME, \
 		.init_chipset	= init_chipset_pdc202xx, \
 		.port_ops	= &pdc2026x_port_ops, \
 		.dma_ops	= &pdc2026x_dma_ops, \
-		.host_flags	= IDE_HFLAGS_PDC202XX | extra_flags, \
+		.host_flags	= IDE_HFLAGS_PDC202XX, \
 		.pio_mask	= ATA_PIO4, \
 		.mwdma_mask	= ATA_MWDMA2, \
 		.udma_mask	= udma, \
+		.max_sectors	= sectors, \
 	}
 
 static const struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
@@ -376,8 +377,8 @@ static const struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
 
 	/* 1: PDC2026{2,3} */
 	DECLARE_PDC2026X_DEV(ATA_UDMA4, 0),
-	/* 2: PDC2026{5,7} */
-	DECLARE_PDC2026X_DEV(ATA_UDMA5, IDE_HFLAG_RQSIZE_256),
+	/* 2: PDC2026{5,7}: UDMA5, limit LBA48 requests to 256 sectors */
+	DECLARE_PDC2026X_DEV(ATA_UDMA5, 256),
 };
 
 /**

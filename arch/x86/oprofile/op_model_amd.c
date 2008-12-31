@@ -65,11 +65,13 @@ static unsigned long reset_value[NUM_COUNTERS];
 #define IBS_FETCH_BEGIN 3
 #define IBS_OP_BEGIN    4
 
-/* The function interface needs to be fixed, something like add
-   data. Should then be added to linux/oprofile.h. */
+/*
+ * The function interface needs to be fixed, something like add
+ * data. Should then be added to linux/oprofile.h.
+ */
 extern void
-oprofile_add_ibs_sample(struct pt_regs *const regs,
-			unsigned int *const ibs_sample, int ibs_code);
+oprofile_add_ibs_sample(struct pt_regs * const regs,
+			unsigned int * const ibs_sample, int ibs_code);
 
 struct ibs_fetch_sample {
 	/* MSRC001_1031 IBS Fetch Linear Address Register */
@@ -103,11 +105,6 @@ struct ibs_op_sample {
 	unsigned int ibs_dc_phys_low;
 	unsigned int ibs_dc_phys_high;
 };
-
-/*
- * unitialize the APIC for the IBS interrupts if needed on AMD Family10h+
-*/
-static void clear_ibs_nmi(void);
 
 static int ibs_allowed;	/* AMD Family10h and later */
 
@@ -223,7 +220,7 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 						(unsigned int *)&ibs_fetch,
 						IBS_FETCH_BEGIN);
 
-			/*reenable the IRQ */
+			/* reenable the IRQ */
 			rdmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 			high &= ~IBS_FETCH_HIGH_VALID_BIT;
 			high |= IBS_FETCH_HIGH_ENABLE;
@@ -331,8 +328,10 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 	unsigned int low, high;
 	int i;
 
-	/* Subtle: stop on all counters to avoid race with
-	 * setting our pm callback */
+	/*
+	 * Subtle: stop on all counters to avoid race with setting our
+	 * pm callback
+	 */
 	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
 		if (!reset_value[i])
 			continue;
@@ -343,13 +342,15 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 
 #ifdef CONFIG_OPROFILE_IBS
 	if (ibs_allowed && ibs_config.fetch_enabled) {
-		low = 0;		/* clear max count and enable */
+		/* clear max count and enable */
+		low = 0;
 		high = 0;
 		wrmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 	}
 
 	if (ibs_allowed && ibs_config.op_enabled) {
-		low = 0;		/* clear max count and enable */
+		/* clear max count and enable */
+		low = 0;
 		high = 0;
 		wrmsr(MSR_AMD64_IBSOPCTL, low, high);
 	}
@@ -370,18 +371,7 @@ static void op_amd_shutdown(struct op_msrs const * const msrs)
 	}
 }
 
-#ifndef CONFIG_OPROFILE_IBS
-
-/* no IBS support */
-
-static int op_amd_init(struct oprofile_operations *ops)
-{
-	return 0;
-}
-
-static void op_amd_exit(void) {}
-
-#else
+#ifdef CONFIG_OPROFILE_IBS
 
 static u8 ibs_eilvt_off;
 
@@ -395,7 +385,7 @@ static inline void apic_clear_ibs_nmi_per_cpu(void *arg)
 	setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_FIX, 1);
 }
 
-static int pfm_amd64_setup_eilvt(void)
+static int init_ibs_nmi(void)
 {
 #define IBSCTL_LVTOFFSETVAL		(1 << 8)
 #define IBSCTL				0x1cc
@@ -443,18 +433,22 @@ static int pfm_amd64_setup_eilvt(void)
 	return 0;
 }
 
-/*
- * initialize the APIC for the IBS interrupts
- * if available (AMD Family10h rev B0 and later)
- */
-static void setup_ibs(void)
+/* uninitialize the APIC for the IBS interrupts if needed */
+static void clear_ibs_nmi(void)
+{
+	if (ibs_allowed)
+		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
+}
+
+/* initialize the APIC for the IBS interrupts if available */
+static void ibs_init(void)
 {
 	ibs_allowed = boot_cpu_has(X86_FEATURE_IBS);
 
 	if (!ibs_allowed)
 		return;
 
-	if (pfm_amd64_setup_eilvt()) {
+	if (init_ibs_nmi()) {
 		ibs_allowed = 0;
 		return;
 	}
@@ -462,14 +456,12 @@ static void setup_ibs(void)
 	printk(KERN_INFO "oprofile: AMD IBS detected\n");
 }
 
-
-/*
- * unitialize the APIC for the IBS interrupts if needed on AMD Family10h
- * rev B0 and later */
-static void clear_ibs_nmi(void)
+static void ibs_exit(void)
 {
-	if (ibs_allowed)
-		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
+	if (!ibs_allowed)
+		return;
+
+	clear_ibs_nmi();
 }
 
 static int (*create_arch_files)(struct super_block *sb, struct dentry *root);
@@ -519,7 +511,7 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 
 static int op_amd_init(struct oprofile_operations *ops)
 {
-	setup_ibs();
+	ibs_init();
 	create_arch_files = ops->create_files;
 	ops->create_files = setup_ibs_files;
 	return 0;
@@ -527,10 +519,21 @@ static int op_amd_init(struct oprofile_operations *ops)
 
 static void op_amd_exit(void)
 {
-	clear_ibs_nmi();
+	ibs_exit();
 }
 
-#endif
+#else
+
+/* no IBS support */
+
+static int op_amd_init(struct oprofile_operations *ops)
+{
+	return 0;
+}
+
+static void op_amd_exit(void) {}
+
+#endif /* CONFIG_OPROFILE_IBS */
 
 struct op_x86_model_spec const op_amd_spec = {
 	.init			= op_amd_init,

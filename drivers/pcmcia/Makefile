@@ -72,5 +72,6 @@ pxa2xx-obj-$(CONFIG_ARCH_VIPER)			+= pxa2xx_viper.o
 pxa2xx-obj-$(CONFIG_TRIZEPS_PCMCIA)		+= pxa2xx_trizeps4.o
 pxa2xx-obj-$(CONFIG_MACH_PALMTX)		+= pxa2xx_palmtx.o
 pxa2xx-obj-$(CONFIG_MACH_PALMLD)		+= pxa2xx_palmld.o
+pxa2xx-obj-$(CONFIG_MACH_E740)			+= pxa2xx_e740.o
 
 obj-$(CONFIG_PCMCIA_PXA2XX)			+= pxa2xx_core.o $(pxa2xx-obj-y)

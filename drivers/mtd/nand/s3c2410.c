@@ -45,8 +45,8 @@
 
 #include <asm/io.h>
 
-#include <asm/plat-s3c/regs-nand.h>
-#include <asm/plat-s3c/nand.h>
+#include <plat/regs-nand.h>
+#include <plat/nand.h>
 
 #ifdef CONFIG_MTD_NAND_S3C2410_HWECC
 static int hardware_ecc = 1;
@@ -818,7 +818,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev,
 		goto exit_error;
 	}
 
-	memzero(info, sizeof(*info));
+	memset(info, 0, sizeof(*info));
 	platform_set_drvdata(pdev, info);
 
 	spin_lock_init(&info->controller.lock);
@@ -883,7 +883,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev,
 		goto exit_error;
 	}
 
-	memzero(info->mtds, size);
+	memset(info->mtds, 0, size);
 
 	/* initialise all possible chips */
 

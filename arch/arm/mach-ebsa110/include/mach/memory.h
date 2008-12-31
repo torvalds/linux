@@ -22,13 +22,6 @@
 #define PHYS_OFFSET	UL(0x00000000)
 
 /*
- * We keep this 1:1 so that we don't interfere
- * with the PCMCIA memory regions
- */
-#define __virt_to_bus(x)	(x)
-#define __bus_to_virt(x)	(x)
-
-/*
  * Cache flushing area - SRAM
  */
 #define FLUSH_BASE_PHYS		0x40000000

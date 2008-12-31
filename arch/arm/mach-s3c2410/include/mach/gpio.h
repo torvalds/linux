@@ -15,4 +15,10 @@
 #define gpio_set_value	__gpio_set_value
 #define gpio_cansleep	__gpio_cansleep
 
+/* some boards require extra gpio capacity to support external
+ * devices that need GPIO.
+ */
+
+#define ARCH_NR_GPIOS	(256 + CONFIG_S3C24XX_GPIO_EXTRA)
+
 #include <asm-generic/gpio.h>

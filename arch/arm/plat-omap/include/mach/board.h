@@ -16,7 +16,6 @@
 
 /* Different peripheral ids */
 #define OMAP_TAG_CLOCK		0x4f01
-#define OMAP_TAG_MMC		0x4f02
 #define OMAP_TAG_SERIAL_CONSOLE 0x4f03
 #define OMAP_TAG_USB		0x4f04
 #define OMAP_TAG_LCD		0x4f05
@@ -33,27 +32,6 @@
 struct omap_clock_config {
 	/* 0 for 12 MHz, 1 for 13 MHz and 2 for 19.2 MHz */
 	u8 system_clock_type;
-};
-
-struct omap_mmc_conf {
-	unsigned enabled:1;
-	/* nomux means "standard" muxing is wrong on this board, and that
-	 * board-specific code handled it before common init logic.
-	 */
-	unsigned nomux:1;
-	/* switch pin can be for card detect (default) or card cover */
-	unsigned cover:1;
-	/* 4 wire signaling is optional, and is only used for SD/SDIO */
-	unsigned wire4:1;
-	/* use the internal clock */
-	unsigned internal_clock:1;
-	s16 power_pin;
-	s16 switch_pin;
-	s16 wp_pin;
-};
-
-struct omap_mmc_config {
-	struct omap_mmc_conf mmc[2];
 };
 
 struct omap_serial_console_config {

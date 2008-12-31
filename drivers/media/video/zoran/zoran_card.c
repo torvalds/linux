@@ -153,12 +153,6 @@ MODULE_DESCRIPTION("Zoran-36057/36067 JPEG codec driver");
 MODULE_AUTHOR("Serguei Miridonov");
 MODULE_LICENSE("GPL");
 
-static struct pci_device_id zr36067_pci_tbl[] = {
-	{PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36057,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0}
-};
-MODULE_DEVICE_TABLE(pci, zr36067_pci_tbl);
 
 int zoran_num;			/* number of Buzs in use */
 struct zoran *zoran[BUZ_MAX];

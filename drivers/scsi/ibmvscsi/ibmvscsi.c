@@ -107,7 +107,7 @@ module_param_named(max_channel, max_channel, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_channel, "Largest channel value");
 module_param_named(init_timeout, init_timeout, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(init_timeout, "Initialization timeout in seconds");
-module_param_named(max_requests, max_requests, int, S_IRUGO | S_IWUSR);
+module_param_named(max_requests, max_requests, int, S_IRUGO);
 MODULE_PARM_DESC(max_requests, "Maximum requests for this adapter");
 
 /* ------------------------------------------------------------
@@ -1657,7 +1657,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	vdev->dev.driver_data = NULL;
 
-	driver_template.can_queue = max_requests;
+	driver_template.can_queue = max_requests - 2;
 	host = scsi_host_alloc(&driver_template, sizeof(*hostdata));
 	if (!host) {
 		dev_err(&vdev->dev, "couldn't allocate host data\n");

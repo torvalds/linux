@@ -172,7 +172,7 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 {
 	struct ivtv_stream *s = &itv->streams[type];
 	int num_offset = ivtv_stream_info[type].num_offset;
-	int num = itv->num + ivtv_first_minor + num_offset;
+	int num = itv->instance + ivtv_first_minor + num_offset;
 
 	/* These four fields are always initialized. If v4l2dev == NULL, then
 	   this stream is not in use. In that case no other fields but these
@@ -205,11 +205,11 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 		return -ENOMEM;
 	}
 
-	snprintf(s->v4l2dev->name, sizeof(s->v4l2dev->name), "ivtv%d %s",
-			itv->num, s->name);
+	snprintf(s->v4l2dev->name, sizeof(s->v4l2dev->name), "%s %s",
+			itv->device.name, s->name);
 
 	s->v4l2dev->num = num;
-	s->v4l2dev->parent = &itv->dev->dev;
+	s->v4l2dev->v4l2_dev = &itv->device;
 	s->v4l2dev->fops = ivtv_stream_info[type].fops;
 	s->v4l2dev->release = video_device_release;
 	s->v4l2dev->tvnorms = V4L2_STD_ALL;
@@ -260,6 +260,7 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 		if (s_mpg->v4l2dev)
 			num = s_mpg->v4l2dev->num + ivtv_stream_info[type].num_offset;
 	}
+	video_set_drvdata(s->v4l2dev, s);
 
 	/* Register device. First try the desired minor, then any free one. */
 	if (video_register_device(s->v4l2dev, vfl_type, num)) {
@@ -343,7 +344,7 @@ static void ivtv_vbi_setup(struct ivtv *itv)
 	ivtv_vapi(itv, CX2341X_ENC_SET_VBI_LINE, 5, 0xffff , 0, 0, 0, 0);
 
 	/* setup VBI registers */
-	itv->video_dec_func(itv, VIDIOC_S_FMT, &itv->vbi.in);
+	v4l2_subdev_call(itv->sd_video, video, s_fmt, &itv->vbi.in);
 
 	/* determine number of lines and total number of VBI bytes.
 	   A raw line takes 1443 bytes: 2 * 720 + 4 byte frame header - 1
@@ -577,10 +578,10 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		clear_bit(IVTV_F_I_EOS, &itv->i_flags);
 
 		/* Initialize Digitizer for Capture */
-		itv->video_dec_func(itv, VIDIOC_STREAMOFF, NULL);
+		v4l2_subdev_call(itv->sd_video, video, s_stream, 0);
 		ivtv_msleep_timeout(300, 1);
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
-		itv->video_dec_func(itv, VIDIOC_STREAMON, NULL);
+		v4l2_subdev_call(itv->sd_video, video, s_stream, 1);
 	}
 
 	/* begin_capture */

@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/signal.h>
+#include <linux/clk.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -30,7 +31,6 @@
 #include <asm/mach/map.h>
 
 #include "core.h"
-#include "clock.h"
 
 /*
  * Common I/O mapping:
@@ -229,9 +229,28 @@ static struct amba_device *amba_devs[] __initdata = {
 	&clcd_device,
 };
 
-static struct clk aaec2000_clcd_clk = {
-	.name = "CLCDCLK",
-};
+void clk_disable(struct clk *clk)
+{
+}
+
+int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	return 0;
+}
+
+int clk_enable(struct clk *clk)
+{
+	return 0;
+}
+
+struct clk *clk_get(struct device *dev, const char *id)
+{
+	return dev && strcmp(dev_name(dev), "mb:16") == 0 ? NULL : ERR_PTR(-ENOENT);
+}
+
+void clk_put(struct clk *clk)
+{
+}
 
 void __init aaec2000_set_clcd_plat_data(struct aaec2000_clcd_info *clcd)
 {
@@ -264,8 +283,6 @@ static struct platform_device aaec2000_flash_device = {
 static int __init aaec2000_init(void)
 {
 	int i;
-
-	clk_register(&aaec2000_clcd_clk);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

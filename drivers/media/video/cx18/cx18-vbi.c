@@ -160,11 +160,14 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 		return;
 
 	/* Raw VBI data */
-	if (cx->vbi.sliced_in->service_set == 0) {
+	if (cx18_raw_vbi(cx)) {
 		u8 type;
 
 		cx18_buf_swap(buf);
 
+		/* Skip 12 bytes of header that gets stuffed in */
+		size -= 12;
+		memcpy(p, &buf->buf[12], size);
 		type = p[3];
 
 		size = buf->bytesused = compress_raw_buf(cx, p, size);

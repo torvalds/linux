@@ -112,6 +112,23 @@ static int 		vga_video_font_height;
 static int 		vga_scan_lines		__read_mostly;
 static unsigned int 	vga_rolled_over;
 
+int vgacon_text_mode_force = 0;
+
+bool vgacon_text_force(void)
+{
+	return vgacon_text_mode_force ? true : false;
+}
+EXPORT_SYMBOL(vgacon_text_force);
+
+static int __init text_mode(char *str)
+{
+	vgacon_text_mode_force = 1;
+	return 1;
+}
+
+/* force text mode - used by kernel modesetting */
+__setup("nomodeset", text_mode);
+
 static int __init no_scroll(char *str)
 {
 	/*

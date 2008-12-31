@@ -758,7 +758,7 @@ xfs_acl_setmode(
 	if (gap && nomask)
 		iattr.ia_mode |= gap->ae_perm << 3;
 
-	return xfs_setattr(XFS_I(vp), &iattr, 0, sys_cred);
+	return xfs_setattr(XFS_I(vp), &iattr, 0);
 }
 
 /*

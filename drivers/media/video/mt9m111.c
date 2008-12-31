@@ -1,5 +1,5 @@
 /*
- * Driver for MT9M111 CMOS Image Sensor from Micron
+ * Driver for MT9M111/MT9M112 CMOS Image Sensor from Micron
  *
  * Copyright (C) 2008, Robert Jarzmik <robert.jarzmik@free.fr>
  *
@@ -19,7 +19,7 @@
 #include <media/soc_camera.h>
 
 /*
- * mt9m111 i2c address is 0x5d or 0x48 (depending on SAddr pin)
+ * mt9m111 and mt9m112 i2c address is 0x5d or 0x48 (depending on SAddr pin)
  * The platform has to define i2c_board_info and call i2c_register_board_info()
  */
 
@@ -90,7 +90,7 @@
 #define MT9M111_OUTPUT_FORMAT_CTRL2_B	0x19b
 
 #define MT9M111_OPMODE_AUTOEXPO_EN	(1 << 14)
-
+#define MT9M111_OPMODE_AUTOWHITEBAL_EN	(1 << 1)
 
 #define MT9M111_OUTFMT_PROCESSED_BAYER	(1 << 14)
 #define MT9M111_OUTFMT_BYPASS_IFP	(1 << 10)
@@ -128,9 +128,14 @@
 	.colorspace = _colorspace }
 #define RGB_FMT(_name, _depth, _fourcc) \
 	COL_FMT(_name, _depth, _fourcc, V4L2_COLORSPACE_SRGB)
+#define JPG_FMT(_name, _depth, _fourcc) \
+	COL_FMT(_name, _depth, _fourcc, V4L2_COLORSPACE_JPEG)
 
 static const struct soc_camera_data_format mt9m111_colour_formats[] = {
-	COL_FMT("YCrYCb 8 bit", 8, V4L2_PIX_FMT_YUYV, V4L2_COLORSPACE_JPEG),
+	JPG_FMT("CbYCrY 16 bit", 16, V4L2_PIX_FMT_UYVY),
+	JPG_FMT("CrYCbY 16 bit", 16, V4L2_PIX_FMT_VYUY),
+	JPG_FMT("YCbYCr 16 bit", 16, V4L2_PIX_FMT_YUYV),
+	JPG_FMT("YCrYCb 16 bit", 16, V4L2_PIX_FMT_YVYU),
 	RGB_FMT("RGB 565", 16, V4L2_PIX_FMT_RGB565),
 	RGB_FMT("RGB 555", 16, V4L2_PIX_FMT_RGB555),
 	RGB_FMT("Bayer (sRGB) 10 bit", 10, V4L2_PIX_FMT_SBGGR16),
@@ -145,7 +150,7 @@ enum mt9m111_context {
 struct mt9m111 {
 	struct i2c_client *client;
 	struct soc_camera_device icd;
-	int model;	/* V4L2_IDENT_MT9M111* codes from v4l2-chip-ident.h */
+	int model;	/* V4L2_IDENT_MT9M11x* codes from v4l2-chip-ident.h */
 	enum mt9m111_context context;
 	unsigned int left, top, width, height;
 	u32 pixfmt;
@@ -158,6 +163,7 @@ struct mt9m111 {
 	unsigned int swap_rgb_red_blue:1;
 	unsigned int swap_yuv_y_chromas:1;
 	unsigned int swap_yuv_cb_cr:1;
+	unsigned int autowhitebalance:1;
 };
 
 static int reg_page_map_set(struct i2c_client *client, const u16 reg)
@@ -410,9 +416,13 @@ static int mt9m111_stop_capture(struct soc_camera_device *icd)
 
 static unsigned long mt9m111_query_bus_param(struct soc_camera_device *icd)
 {
-	return SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |
+	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct soc_camera_link *icl = mt9m111->client->dev.platform_data;
+	unsigned long flags = SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |
 		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |
 		SOCAM_DATAWIDTH_8;
+
+	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
 static int mt9m111_set_bus_param(struct soc_camera_device *icd, unsigned long f)
@@ -438,7 +448,24 @@ static int mt9m111_set_pixfmt(struct soc_camera_device *icd, u32 pixfmt)
 	case V4L2_PIX_FMT_RGB565:
 		ret = mt9m111_setfmt_rgb565(icd);
 		break;
+	case V4L2_PIX_FMT_UYVY:
+		mt9m111->swap_yuv_y_chromas = 0;
+		mt9m111->swap_yuv_cb_cr = 0;
+		ret = mt9m111_setfmt_yuv(icd);
+		break;
+	case V4L2_PIX_FMT_VYUY:
+		mt9m111->swap_yuv_y_chromas = 0;
+		mt9m111->swap_yuv_cb_cr = 1;
+		ret = mt9m111_setfmt_yuv(icd);
+		break;
 	case V4L2_PIX_FMT_YUYV:
+		mt9m111->swap_yuv_y_chromas = 1;
+		mt9m111->swap_yuv_cb_cr = 0;
+		ret = mt9m111_setfmt_yuv(icd);
+		break;
+	case V4L2_PIX_FMT_YVYU:
+		mt9m111->swap_yuv_y_chromas = 1;
+		mt9m111->swap_yuv_cb_cr = 1;
 		ret = mt9m111_setfmt_yuv(icd);
 		break;
 	default:
@@ -452,8 +479,8 @@ static int mt9m111_set_pixfmt(struct soc_camera_device *icd, u32 pixfmt)
 	return ret;
 }
 
-static int mt9m111_set_fmt_cap(struct soc_camera_device *icd,
-			       __u32 pixfmt, struct v4l2_rect *rect)
+static int mt9m111_set_fmt(struct soc_camera_device *icd,
+			   __u32 pixfmt, struct v4l2_rect *rect)
 {
 	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
 	int ret;
@@ -473,13 +500,15 @@ static int mt9m111_set_fmt_cap(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int mt9m111_try_fmt_cap(struct soc_camera_device *icd,
-			       struct v4l2_format *f)
+static int mt9m111_try_fmt(struct soc_camera_device *icd,
+			   struct v4l2_format *f)
 {
-	if (f->fmt.pix.height > MT9M111_MAX_HEIGHT)
-		f->fmt.pix.height = MT9M111_MAX_HEIGHT;
-	if (f->fmt.pix.width > MT9M111_MAX_WIDTH)
-		f->fmt.pix.width = MT9M111_MAX_WIDTH;
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	if (pix->height > MT9M111_MAX_HEIGHT)
+		pix->height = MT9M111_MAX_HEIGHT;
+	if (pix->width > MT9M111_MAX_WIDTH)
+		pix->width = MT9M111_MAX_WIDTH;
 
 	return 0;
 }
@@ -597,8 +626,8 @@ static struct soc_camera_ops mt9m111_ops = {
 	.release		= mt9m111_release,
 	.start_capture		= mt9m111_start_capture,
 	.stop_capture		= mt9m111_stop_capture,
-	.set_fmt_cap		= mt9m111_set_fmt_cap,
-	.try_fmt_cap		= mt9m111_try_fmt_cap,
+	.set_fmt		= mt9m111_set_fmt,
+	.try_fmt		= mt9m111_try_fmt,
 	.query_bus_param	= mt9m111_query_bus_param,
 	.set_bus_param		= mt9m111_set_bus_param,
 	.controls		= mt9m111_controls,
@@ -634,18 +663,15 @@ static int mt9m111_set_flip(struct soc_camera_device *icd, int flip, int mask)
 
 static int mt9m111_get_global_gain(struct soc_camera_device *icd)
 {
-	unsigned int data, gain;
+	int data;
 
 	data = reg_read(GLOBAL_GAIN);
 	if (data >= 0)
-		gain = ((data & (1 << 10)) * 2)
-			| ((data & (1 << 9)) * 2)
-			| (data & 0x2f);
-	else
-		gain = data;
-
-	return gain;
+		return (data & 0x2f) * (1 << ((data >> 10) & 1)) *
+			(1 << ((data >> 9) & 1));
+	return data;
 }
+
 static int mt9m111_set_global_gain(struct soc_camera_device *icd, int gain)
 {
 	u16 val;
@@ -679,6 +705,23 @@ static int mt9m111_set_autoexposure(struct soc_camera_device *icd, int on)
 
 	return ret;
 }
+
+static int mt9m111_set_autowhitebalance(struct soc_camera_device *icd, int on)
+{
+	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	int ret;
+
+	if (on)
+		ret = reg_set(OPER_MODE_CTRL, MT9M111_OPMODE_AUTOWHITEBAL_EN);
+	else
+		ret = reg_clear(OPER_MODE_CTRL, MT9M111_OPMODE_AUTOWHITEBAL_EN);
+
+	if (!ret)
+		mt9m111->autowhitebalance = on;
+
+	return ret;
+}
+
 static int mt9m111_get_control(struct soc_camera_device *icd,
 			       struct v4l2_control *ctrl)
 {
@@ -715,6 +758,9 @@ static int mt9m111_get_control(struct soc_camera_device *icd,
 	case V4L2_CID_EXPOSURE_AUTO:
 		ctrl->value = mt9m111->autoexposure;
 		break;
+	case V4L2_CID_AUTO_WHITE_BALANCE:
+		ctrl->value = mt9m111->autowhitebalance;
+		break;
 	}
 	return 0;
 }
@@ -748,6 +794,9 @@ static int mt9m111_set_control(struct soc_camera_device *icd,
 	case V4L2_CID_EXPOSURE_AUTO:
 		ret =  mt9m111_set_autoexposure(icd, ctrl->value);
 		break;
+	case V4L2_CID_AUTO_WHITE_BALANCE:
+		ret =  mt9m111_set_autowhitebalance(icd, ctrl->value);
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -766,6 +815,7 @@ static int mt9m111_restore_state(struct soc_camera_device *icd)
 	mt9m111_set_flip(icd, mt9m111->vflip, MT9M111_RMB_MIRROR_ROWS);
 	mt9m111_set_global_gain(icd, icd->gain);
 	mt9m111_set_autoexposure(icd, mt9m111->autoexposure);
+	mt9m111_set_autowhitebalance(icd, mt9m111->autowhitebalance);
 	return 0;
 }
 
@@ -798,7 +848,7 @@ static int mt9m111_init(struct soc_camera_device *icd)
 	if (!ret)
 		ret = mt9m111_set_autoexposure(icd, mt9m111->autoexposure);
 	if (ret)
-		dev_err(&icd->dev, "mt9m111 init failed: %d\n", ret);
+		dev_err(&icd->dev, "mt9m11x init failed: %d\n", ret);
 	return ret;
 }
 
@@ -808,7 +858,7 @@ static int mt9m111_release(struct soc_camera_device *icd)
 
 	ret = mt9m111_disable(icd);
 	if (ret < 0)
-		dev_err(&icd->dev, "mt9m111 release failed: %d\n", ret);
+		dev_err(&icd->dev, "mt9m11x release failed: %d\n", ret);
 
 	return ret;
 }
@@ -841,25 +891,30 @@ static int mt9m111_video_probe(struct soc_camera_device *icd)
 	data = reg_read(CHIP_VERSION);
 
 	switch (data) {
-	case 0x143a:
+	case 0x143a: /* MT9M111 */
 		mt9m111->model = V4L2_IDENT_MT9M111;
-		icd->formats = mt9m111_colour_formats;
-		icd->num_formats = ARRAY_SIZE(mt9m111_colour_formats);
+		break;
+	case 0x148c: /* MT9M112 */
+		mt9m111->model = V4L2_IDENT_MT9M112;
 		break;
 	default:
 		ret = -ENODEV;
 		dev_err(&icd->dev,
-			"No MT9M111 chip detected, register read %x\n", data);
+			"No MT9M11x chip detected, register read %x\n", data);
 		goto ei2c;
 	}
 
-	dev_info(&icd->dev, "Detected a MT9M111 chip ID 0x143a\n");
+	icd->formats = mt9m111_colour_formats;
+	icd->num_formats = ARRAY_SIZE(mt9m111_colour_formats);
+
+	dev_info(&icd->dev, "Detected a MT9M11x chip ID %x\n", data);
 
 	ret = soc_camera_video_start(icd);
 	if (ret)
 		goto eisis;
 
 	mt9m111->autoexposure = 1;
+	mt9m111->autowhitebalance = 1;
 
 	mt9m111->swap_rgb_even_odd = 1;
 	mt9m111->swap_rgb_red_blue = 1;
@@ -889,7 +944,7 @@ static int mt9m111_probe(struct i2c_client *client,
 	int ret;
 
 	if (!icl) {
-		dev_err(&client->dev, "MT9M111 driver needs platform data\n");
+		dev_err(&client->dev, "MT9M11x driver needs platform data\n");
 		return -EINVAL;
 	}
 
@@ -968,6 +1023,6 @@ static void __exit mt9m111_mod_exit(void)
 module_init(mt9m111_mod_init);
 module_exit(mt9m111_mod_exit);
 
-MODULE_DESCRIPTION("Micron MT9M111 Camera driver");
+MODULE_DESCRIPTION("Micron MT9M111/MT9M112 Camera driver");
 MODULE_AUTHOR("Robert Jarzmik");
 MODULE_LICENSE("GPL");
