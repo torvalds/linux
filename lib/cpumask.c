@@ -107,6 +107,14 @@ bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node)
 		dump_stack();
 	}
 #endif
+	/* FIXME: Bandaid to save us from old primitives which go to NR_CPUS. */
+	if (*mask) {
+		unsigned int tail;
+		tail = BITS_TO_LONGS(NR_CPUS - nr_cpumask_bits) * sizeof(long);
+		memset(cpumask_bits(*mask) + cpumask_size() - tail,
+		       0, tail);
+	}
+
 	return *mask != NULL;
 }
 EXPORT_SYMBOL(alloc_cpumask_var_node);
