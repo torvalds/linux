@@ -163,7 +163,7 @@ const static struct ctrl ov9650_ctrls[] = {
 			.minimum 	= 0,
 			.maximum 	= 1,
 			.step 		= 1,
-			.default_value 	= 0
+			.default_value 	= 1
 		},
 		.set = ov9650_set_auto_gain,
 		.get = ov9650_get_auto_gain
