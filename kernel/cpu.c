@@ -194,7 +194,7 @@ static int __ref take_cpu_down(void *_param)
 static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 {
 	int err, nr_calls = 0;
-	cpumask_t old_allowed, tmp;
+	cpumask_var_t old_allowed;
 	void *hcpu = (void *)(long)cpu;
 	unsigned long mod = tasks_frozen ? CPU_TASKS_FROZEN : 0;
 	struct take_cpu_down_param tcd_param = {
@@ -207,6 +207,9 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 
 	if (!cpu_online(cpu))
 		return -EINVAL;
+
+	if (!alloc_cpumask_var(&old_allowed, GFP_KERNEL))
+		return -ENOMEM;
 
 	cpu_hotplug_begin();
 	err = __raw_notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE | mod,
@@ -222,13 +225,11 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	}
 
 	/* Ensure that we are not runnable on dying cpu */
-	old_allowed = current->cpus_allowed;
-	cpus_setall(tmp);
-	cpu_clear(cpu, tmp);
-	set_cpus_allowed_ptr(current, &tmp);
-	tmp = cpumask_of_cpu(cpu);
+	cpumask_copy(old_allowed, &current->cpus_allowed);
+	set_cpus_allowed_ptr(current,
+			     cpumask_of(cpumask_any_but(cpu_online_mask, cpu)));
 
-	err = __stop_machine(take_cpu_down, &tcd_param, &tmp);
+	err = __stop_machine(take_cpu_down, &tcd_param, cpumask_of(cpu));
 	if (err) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
 		if (raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED | mod,
@@ -254,7 +255,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	check_for_tasks(cpu);
 
 out_allowed:
-	set_cpus_allowed_ptr(current, &old_allowed);
+	set_cpus_allowed_ptr(current, old_allowed);
 out_release:
 	cpu_hotplug_done();
 	if (!err) {
@@ -262,6 +263,7 @@ out_release:
 					    hcpu) == NOTIFY_BAD)
 			BUG();
 	}
+	free_cpumask_var(old_allowed);
 	return err;
 }
 
@@ -280,7 +282,7 @@ int __ref cpu_down(unsigned int cpu)
 
 	/*
 	 * Make sure the all cpus did the reschedule and are not
-	 * using stale version of the cpu_active_map.
+	 * using stale version of the cpu_active_mask.
 	 * This is not strictly necessary becuase stop_machine()
 	 * that we run down the line already provides the required
 	 * synchronization. But it's really a side effect and we do not
@@ -344,7 +346,7 @@ out_notify:
 int __cpuinit cpu_up(unsigned int cpu)
 {
 	int err = 0;
-	if (!cpu_isset(cpu, cpu_possible_map)) {
+	if (!cpu_possible(cpu)) {
 		printk(KERN_ERR "can't online cpu %d because it is not "
 			"configured as may-hotadd at boot time\n", cpu);
 #if defined(CONFIG_IA64) || defined(CONFIG_X86_64)
@@ -369,25 +371,25 @@ out:
 }
 
 #ifdef CONFIG_PM_SLEEP_SMP
-static cpumask_t frozen_cpus;
+static cpumask_var_t frozen_cpus;
 
 int disable_nonboot_cpus(void)
 {
 	int cpu, first_cpu, error = 0;
 
 	cpu_maps_update_begin();
-	first_cpu = first_cpu(cpu_online_map);
+	first_cpu = cpumask_first(cpu_online_mask);
 	/* We take down all of the non-boot CPUs in one shot to avoid races
 	 * with the userspace trying to use the CPU hotplug at the same time
 	 */
-	cpus_clear(frozen_cpus);
+	cpumask_clear(frozen_cpus);
 	printk("Disabling non-boot CPUs ...\n");
 	for_each_online_cpu(cpu) {
 		if (cpu == first_cpu)
 			continue;
 		error = _cpu_down(cpu, 1);
 		if (!error) {
-			cpu_set(cpu, frozen_cpus);
+			cpumask_set_cpu(cpu, frozen_cpus);
 			printk("CPU%d is down\n", cpu);
 		} else {
 			printk(KERN_ERR "Error taking CPU%d down: %d\n",
@@ -413,11 +415,11 @@ void __ref enable_nonboot_cpus(void)
 	/* Allow everyone to use the CPU hotplug again */
 	cpu_maps_update_begin();
 	cpu_hotplug_disabled = 0;
-	if (cpus_empty(frozen_cpus))
+	if (cpumask_empty(frozen_cpus))
 		goto out;
 
 	printk("Enabling non-boot CPUs ...\n");
-	for_each_cpu_mask_nr(cpu, frozen_cpus) {
+	for_each_cpu(cpu, frozen_cpus) {
 		error = _cpu_up(cpu, 1);
 		if (!error) {
 			printk("CPU%d is up\n", cpu);
@@ -425,10 +427,18 @@ void __ref enable_nonboot_cpus(void)
 		}
 		printk(KERN_WARNING "Error taking CPU%d up: %d\n", cpu, error);
 	}
-	cpus_clear(frozen_cpus);
+	cpumask_clear(frozen_cpus);
 out:
 	cpu_maps_update_done();
 }
+
+static int alloc_frozen_cpus(void)
+{
+	if (!alloc_cpumask_var(&frozen_cpus, GFP_KERNEL|__GFP_ZERO))
+		return -ENOMEM;
+	return 0;
+}
+core_initcall(alloc_frozen_cpus);
 #endif /* CONFIG_PM_SLEEP_SMP */
 
 /**
@@ -444,7 +454,7 @@ void __cpuinit notify_cpu_starting(unsigned int cpu)
 	unsigned long val = CPU_STARTING;
 
 #ifdef CONFIG_PM_SLEEP_SMP
-	if (cpu_isset(cpu, frozen_cpus))
+	if (frozen_cpus != NULL && cpumask_test_cpu(cpu, frozen_cpus))
 		val = CPU_STARTING_FROZEN;
 #endif /* CONFIG_PM_SLEEP_SMP */
 	raw_notifier_call_chain(&cpu_chain, val, (void *)(long)cpu);
@@ -456,7 +466,7 @@ void __cpuinit notify_cpu_starting(unsigned int cpu)
  * cpu_bit_bitmap[] is a special, "compressed" data structure that
  * represents all NR_CPUS bits binary values of 1<<nr.
  *
- * It is used by cpumask_of_cpu() to get a constant address to a CPU
+ * It is used by cpumask_of() to get a constant address to a CPU
  * mask value that has a single bit set only.
  */
 
