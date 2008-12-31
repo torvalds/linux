@@ -1755,6 +1755,13 @@ L:	linuxppc-dev@ozlabs.org
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
+FREESCALE IMX / MXC FRAMEBUFFER DRIVER
+P:	Sascha Hauer
+M:	kernel@pengutronix.de
+L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+
 FREESCALE SOC FS_ENET DRIVER
 P:	Pantelis Antoniou
 M:	pantelis.antoniou@gmail.com

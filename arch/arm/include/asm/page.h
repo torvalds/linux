@@ -108,32 +108,38 @@
 #error Unknown user operations model
 #endif
 
+struct page;
+
 struct cpu_user_fns {
-	void (*cpu_clear_user_page)(void *p, unsigned long user);
-	void (*cpu_copy_user_page)(void *to, const void *from,
-				   unsigned long user);
+	void (*cpu_clear_user_highpage)(struct page *page, unsigned long vaddr);
+	void (*cpu_copy_user_highpage)(struct page *to, struct page *from,
+			unsigned long vaddr);
 };
 
 #ifdef MULTI_USER
 extern struct cpu_user_fns cpu_user;
 
-#define __cpu_clear_user_page	cpu_user.cpu_clear_user_page
-#define __cpu_copy_user_page	cpu_user.cpu_copy_user_page
+#define __cpu_clear_user_highpage	cpu_user.cpu_clear_user_highpage
+#define __cpu_copy_user_highpage	cpu_user.cpu_copy_user_highpage
 
 #else
 
-#define __cpu_clear_user_page	__glue(_USER,_clear_user_page)
-#define __cpu_copy_user_page	__glue(_USER,_copy_user_page)
+#define __cpu_clear_user_highpage	__glue(_USER,_clear_user_highpage)
+#define __cpu_copy_user_highpage	__glue(_USER,_copy_user_highpage)
 
-extern void __cpu_clear_user_page(void *p, unsigned long user);
-extern void __cpu_copy_user_page(void *to, const void *from,
-				 unsigned long user);
+extern void __cpu_clear_user_highpage(struct page *page, unsigned long vaddr);
+extern void __cpu_copy_user_highpage(struct page *to, struct page *from,
+			unsigned long vaddr);
 #endif
 
-#define clear_user_page(addr,vaddr,pg)	 __cpu_clear_user_page(addr, vaddr)
-#define copy_user_page(to,from,vaddr,pg) __cpu_copy_user_page(to, from, vaddr)
+#define clear_user_highpage(page,vaddr)		\
+	 __cpu_clear_user_highpage(page, vaddr)
 
-#define clear_page(page)	memzero((void *)(page), PAGE_SIZE)
+#define __HAVE_ARCH_COPY_USER_HIGHPAGE
+#define copy_user_highpage(to,from,vaddr,vma)	\
+	__cpu_copy_user_highpage(to, from, vaddr)
+
+#define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
 extern void copy_page(void *to, const void *from);
 
 #undef STRICT_MM_TYPECHECKS

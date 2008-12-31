@@ -38,12 +38,13 @@ struct gpio_desc {
 	unsigned	valid		: 1;
 	unsigned	can_wakeup	: 1;
 	unsigned	keypad_gpio	: 1;
+	unsigned	dir_inverted	: 1;
 	unsigned int	mask; /* bit mask in PWER or PKWR */
+	unsigned int	mux_mask; /* bit mask of muxed gpio bits, 0 if no mux */
 	unsigned long	config;
 };
 
 static struct gpio_desc gpio_desc[MFP_PIN_GPIO127 + 1];
-static int gpio_nr;
 
 static unsigned long gpdr_lpm[4];
 
@@ -54,7 +55,7 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 	int uorl = !!(gpio & 0x10); /* GAFRx_U or GAFRx_L ? */
 	int shft = (gpio & 0xf) << 1;
 	int fn = MFP_AF(c);
-	int dir = c & MFP_DIR_OUT;
+	int is_out = (c & MFP_DIR_OUT) ? 1 : 0;
 
 	if (fn > 3)
 		return -EINVAL;
@@ -68,7 +69,7 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 	else
 		GAFR_U(bank) = gafr;
 
-	if (dir == MFP_DIR_OUT)
+	if (is_out ^ gpio_desc[gpio].dir_inverted)
 		GPDR(gpio) |= mask;
 	else
 		GPDR(gpio) &= ~mask;
@@ -77,11 +78,11 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 	switch (c & MFP_LPM_STATE_MASK) {
 	case MFP_LPM_DRIVE_HIGH:
 		PGSR(bank) |= mask;
-		dir = MFP_DIR_OUT;
+		is_out = 1;
 		break;
 	case MFP_LPM_DRIVE_LOW:
 		PGSR(bank) &= ~mask;
-		dir = MFP_DIR_OUT;
+		is_out = 1;
 		break;
 	case MFP_LPM_DEFAULT:
 		break;
@@ -92,7 +93,7 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 		break;
 	}
 
-	if (dir == MFP_DIR_OUT)
+	if (is_out ^ gpio_desc[gpio].dir_inverted)
 		gpdr_lpm[bank] |= mask;
 	else
 		gpdr_lpm[bank] &= ~mask;
@@ -106,7 +107,7 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 		return -EINVAL;
 	}
 
-	if ((c & MFP_LPM_CAN_WAKEUP) && (dir == MFP_DIR_OUT)) {
+	if ((c & MFP_LPM_CAN_WAKEUP) && is_out) {
 		pr_warning("%s: output GPIO%d unable to wakeup\n",
 				__func__, gpio);
 		return -EINVAL;
@@ -169,7 +170,7 @@ void pxa2xx_mfp_set_lpm(int mfp, unsigned long lpm)
 int gpio_set_wake(unsigned int gpio, unsigned int on)
 {
 	struct gpio_desc *d;
-	unsigned long c;
+	unsigned long c, mux_taken;
 
 	if (gpio > mfp_to_gpio(MFP_PIN_GPIO127))
 		return -EINVAL;
@@ -183,9 +184,13 @@ int gpio_set_wake(unsigned int gpio, unsigned int on)
 	if (d->keypad_gpio)
 		return -EINVAL;
 
+	mux_taken = (PWER & d->mux_mask) & (~d->mask);
+	if (on && mux_taken)
+		return -EBUSY;
+
 	if (d->can_wakeup && (c & MFP_LPM_CAN_WAKEUP)) {
 		if (on) {
-			PWER |= d->mask;
+			PWER = (PWER & ~d->mux_mask) | d->mask;
 
 			if (c & MFP_LPM_EDGE_RISE)
 				PRER |= d->mask;
@@ -210,7 +215,7 @@ static void __init pxa25x_mfp_init(void)
 {
 	int i;
 
-	for (i = 0; i <= 84; i++)
+	for (i = 0; i <= pxa_last_gpio; i++)
 		gpio_desc[i].valid = 1;
 
 	for (i = 0; i <= 15; i++) {
@@ -218,7 +223,11 @@ static void __init pxa25x_mfp_init(void)
 		gpio_desc[i].mask = GPIO_bit(i);
 	}
 
-	gpio_nr = 85;
+	/* PXA26x has additional 4 GPIOs (86/87/88/89) which has the
+	 * direction bit inverted in GPDR2. See PXA26x DM 4.1.1.
+	 */
+	for (i = 86; i <= pxa_last_gpio; i++)
+		gpio_desc[i].dir_inverted = 1;
 }
 #else
 static inline void pxa25x_mfp_init(void) {}
@@ -251,11 +260,27 @@ int keypad_set_wake(unsigned int on)
 	return 0;
 }
 
+#define PWER_WEMUX2_GPIO38	(1 << 16)
+#define PWER_WEMUX2_GPIO53	(2 << 16)
+#define PWER_WEMUX2_GPIO40	(3 << 16)
+#define PWER_WEMUX2_GPIO36	(4 << 16)
+#define PWER_WEMUX2_MASK	(7 << 16)
+#define PWER_WEMUX3_GPIO31	(1 << 19)
+#define PWER_WEMUX3_GPIO113	(2 << 19)
+#define PWER_WEMUX3_MASK	(3 << 19)
+
+#define INIT_GPIO_DESC_MUXED(mux, gpio)				\
+do {								\
+	gpio_desc[(gpio)].can_wakeup = 1;			\
+	gpio_desc[(gpio)].mask = PWER_ ## mux ## _GPIO ##gpio;	\
+	gpio_desc[(gpio)].mux_mask = PWER_ ## mux ## _MASK;	\
+} while (0)
+
 static void __init pxa27x_mfp_init(void)
 {
 	int i, gpio;
 
-	for (i = 0; i <= 120; i++) {
+	for (i = 0; i <= pxa_last_gpio; i++) {
 		/* skip GPIO2, 5, 6, 7, 8, they are not
 		 * valid pins allow configuration
 		 */
@@ -286,7 +311,12 @@ static void __init pxa27x_mfp_init(void)
 	gpio_desc[35].can_wakeup = 1;
 	gpio_desc[35].mask = PWER_WE35;
 
-	gpio_nr = 121;
+	INIT_GPIO_DESC_MUXED(WEMUX3, 31);
+	INIT_GPIO_DESC_MUXED(WEMUX3, 113);
+	INIT_GPIO_DESC_MUXED(WEMUX2, 38);
+	INIT_GPIO_DESC_MUXED(WEMUX2, 53);
+	INIT_GPIO_DESC_MUXED(WEMUX2, 40);
+	INIT_GPIO_DESC_MUXED(WEMUX2, 36);
 }
 #else
 static inline void pxa27x_mfp_init(void) {}
@@ -300,7 +330,7 @@ static int pxa2xx_mfp_suspend(struct sys_device *d, pm_message_t state)
 {
 	int i;
 
-	for (i = 0; i <= gpio_to_bank(gpio_nr); i++) {
+	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++) {
 
 		saved_gafr[0][i] = GAFR_L(i);
 		saved_gafr[1][i] = GAFR_U(i);
@@ -315,7 +345,7 @@ static int pxa2xx_mfp_resume(struct sys_device *d)
 {
 	int i;
 
-	for (i = 0; i <= gpio_to_bank(gpio_nr); i++) {
+	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++) {
 		GAFR_L(i) = saved_gafr[0][i];
 		GAFR_U(i) = saved_gafr[1][i];
 		GPDR(i * 32) = saved_gpdr[i];
@@ -348,7 +378,7 @@ static int __init pxa2xx_mfp_init(void)
 		pxa27x_mfp_init();
 
 	/* initialize gafr_run[], pgsr_lpm[] from existing values */
-	for (i = 0; i <= gpio_to_bank(gpio_nr); i++)
+	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++)
 		gpdr_lpm[i] = GPDR(i * 32);
 
 	return sysdev_class_register(&pxa2xx_mfp_sysclass);

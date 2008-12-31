@@ -39,6 +39,8 @@
 #include <mach/pxa-regs.h>
 #include <mach/camera.h>
 
+#include "pxa_camera.h"
+
 #define PXA_CAM_VERSION_CODE KERNEL_VERSION(0, 0, 5)
 #define PXA_CAM_DRV_NAME "pxa27x-camera"
 
@@ -1071,7 +1073,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	pcdev->clk = clk_get(&pdev->dev, "CAMCLK");
+	pcdev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pcdev->clk)) {
 		err = PTR_ERR(pcdev->clk);
 		goto exit_kfree;
