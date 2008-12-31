@@ -1514,15 +1514,7 @@ static ssize_t show_dgid(struct device *dev, struct device_attribute *attr,
 	    target->state == SRP_TARGET_REMOVED)
 		return -ENODEV;
 
-	return sprintf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((__be16 *) target->path.dgid.raw)[0]),
-		       be16_to_cpu(((__be16 *) target->path.dgid.raw)[1]),
-		       be16_to_cpu(((__be16 *) target->path.dgid.raw)[2]),
-		       be16_to_cpu(((__be16 *) target->path.dgid.raw)[3]),
-		       be16_to_cpu(((__be16 *) target->path.dgid.raw)[4]),
-		       be16_to_cpu(((__be16 *) target->path.dgid.raw)[5]),
-		       be16_to_cpu(((__be16 *) target->path.dgid.raw)[6]),
-		       be16_to_cpu(((__be16 *) target->path.dgid.raw)[7]));
+	return sprintf(buf, "%pI6\n", target->path.dgid.raw);
 }
 
 static ssize_t show_orig_dgid(struct device *dev,
@@ -1534,15 +1526,7 @@ static ssize_t show_orig_dgid(struct device *dev,
 	    target->state == SRP_TARGET_REMOVED)
 		return -ENODEV;
 
-	return sprintf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(target->orig_dgid[0]),
-		       be16_to_cpu(target->orig_dgid[1]),
-		       be16_to_cpu(target->orig_dgid[2]),
-		       be16_to_cpu(target->orig_dgid[3]),
-		       be16_to_cpu(target->orig_dgid[4]),
-		       be16_to_cpu(target->orig_dgid[5]),
-		       be16_to_cpu(target->orig_dgid[6]),
-		       be16_to_cpu(target->orig_dgid[7]));
+	return sprintf(buf, "%pI6\n", target->orig_dgid);
 }
 
 static ssize_t show_zero_req_lim(struct device *dev,
@@ -1883,19 +1867,12 @@ static ssize_t srp_create_target(struct device *dev,
 
 	shost_printk(KERN_DEBUG, target->scsi_host, PFX
 		     "new target: id_ext %016llx ioc_guid %016llx pkey %04x "
-		     "service_id %016llx dgid %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+		     "service_id %016llx dgid %pI6\n",
 	       (unsigned long long) be64_to_cpu(target->id_ext),
 	       (unsigned long long) be64_to_cpu(target->ioc_guid),
 	       be16_to_cpu(target->path.pkey),
 	       (unsigned long long) be64_to_cpu(target->service_id),
-	       (int) be16_to_cpu(*(__be16 *) &target->path.dgid.raw[0]),
-	       (int) be16_to_cpu(*(__be16 *) &target->path.dgid.raw[2]),
-	       (int) be16_to_cpu(*(__be16 *) &target->path.dgid.raw[4]),
-	       (int) be16_to_cpu(*(__be16 *) &target->path.dgid.raw[6]),
-	       (int) be16_to_cpu(*(__be16 *) &target->path.dgid.raw[8]),
-	       (int) be16_to_cpu(*(__be16 *) &target->path.dgid.raw[10]),
-	       (int) be16_to_cpu(*(__be16 *) &target->path.dgid.raw[12]),
-	       (int) be16_to_cpu(*(__be16 *) &target->path.dgid.raw[14]));
+	       target->path.dgid.raw);
 
 	ret = srp_create_target_ib(target);
 	if (ret)

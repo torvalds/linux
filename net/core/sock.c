@@ -1071,7 +1071,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 		newsk->sk_sleep	 = NULL;
 
 		if (newsk->sk_prot->sockets_allocated)
-			atomic_inc(newsk->sk_prot->sockets_allocated);
+			percpu_counter_inc(newsk->sk_prot->sockets_allocated);
 	}
 out:
 	return newsk;
@@ -1463,8 +1463,12 @@ int __sk_mem_schedule(struct sock *sk, int size, int kind)
 	}
 
 	if (prot->memory_pressure) {
-		if (!*prot->memory_pressure ||
-		    prot->sysctl_mem[2] > atomic_read(prot->sockets_allocated) *
+		int alloc;
+
+		if (!*prot->memory_pressure)
+			return 1;
+		alloc = percpu_counter_read_positive(prot->sockets_allocated);
+		if (prot->sysctl_mem[2] > alloc *
 		    sk_mem_pages(sk->sk_wmem_queued +
 				 atomic_read(&sk->sk_rmem_alloc) +
 				 sk->sk_forward_alloc))
@@ -2035,12 +2039,10 @@ static inline void release_proto_idx(struct proto *prot)
 
 int proto_register(struct proto *prot, int alloc_slab)
 {
-	char *request_sock_slab_name = NULL;
-	char *timewait_sock_slab_name;
-
 	if (alloc_slab) {
 		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
-					       SLAB_HWCACHE_ALIGN, NULL);
+					SLAB_HWCACHE_ALIGN | prot->slab_flags,
+					NULL);
 
 		if (prot->slab == NULL) {
 			printk(KERN_CRIT "%s: Can't create sock SLAB cache!\n",
@@ -2051,12 +2053,12 @@ int proto_register(struct proto *prot, int alloc_slab)
 		if (prot->rsk_prot != NULL) {
 			static const char mask[] = "request_sock_%s";
 
-			request_sock_slab_name = kmalloc(strlen(prot->name) + sizeof(mask) - 1, GFP_KERNEL);
-			if (request_sock_slab_name == NULL)
+			prot->rsk_prot->slab_name = kmalloc(strlen(prot->name) + sizeof(mask) - 1, GFP_KERNEL);
+			if (prot->rsk_prot->slab_name == NULL)
 				goto out_free_sock_slab;
 
-			sprintf(request_sock_slab_name, mask, prot->name);
-			prot->rsk_prot->slab = kmem_cache_create(request_sock_slab_name,
+			sprintf(prot->rsk_prot->slab_name, mask, prot->name);
+			prot->rsk_prot->slab = kmem_cache_create(prot->rsk_prot->slab_name,
 								 prot->rsk_prot->obj_size, 0,
 								 SLAB_HWCACHE_ALIGN, NULL);
 
@@ -2070,16 +2072,18 @@ int proto_register(struct proto *prot, int alloc_slab)
 		if (prot->twsk_prot != NULL) {
 			static const char mask[] = "tw_sock_%s";
 
-			timewait_sock_slab_name = kmalloc(strlen(prot->name) + sizeof(mask) - 1, GFP_KERNEL);
+			prot->twsk_prot->twsk_slab_name = kmalloc(strlen(prot->name) + sizeof(mask) - 1, GFP_KERNEL);
 
-			if (timewait_sock_slab_name == NULL)
+			if (prot->twsk_prot->twsk_slab_name == NULL)
 				goto out_free_request_sock_slab;
 
-			sprintf(timewait_sock_slab_name, mask, prot->name);
+			sprintf(prot->twsk_prot->twsk_slab_name, mask, prot->name);
 			prot->twsk_prot->twsk_slab =
-				kmem_cache_create(timewait_sock_slab_name,
+				kmem_cache_create(prot->twsk_prot->twsk_slab_name,
 						  prot->twsk_prot->twsk_obj_size,
-						  0, SLAB_HWCACHE_ALIGN,
+						  0,
+						  SLAB_HWCACHE_ALIGN |
+							prot->slab_flags,
 						  NULL);
 			if (prot->twsk_prot->twsk_slab == NULL)
 				goto out_free_timewait_sock_slab_name;
@@ -2093,14 +2097,14 @@ int proto_register(struct proto *prot, int alloc_slab)
 	return 0;
 
 out_free_timewait_sock_slab_name:
-	kfree(timewait_sock_slab_name);
+	kfree(prot->twsk_prot->twsk_slab_name);
 out_free_request_sock_slab:
 	if (prot->rsk_prot && prot->rsk_prot->slab) {
 		kmem_cache_destroy(prot->rsk_prot->slab);
 		prot->rsk_prot->slab = NULL;
 	}
 out_free_request_sock_slab_name:
-	kfree(request_sock_slab_name);
+	kfree(prot->rsk_prot->slab_name);
 out_free_sock_slab:
 	kmem_cache_destroy(prot->slab);
 	prot->slab = NULL;
@@ -2123,18 +2127,14 @@ void proto_unregister(struct proto *prot)
 	}
 
 	if (prot->rsk_prot != NULL && prot->rsk_prot->slab != NULL) {
-		const char *name = kmem_cache_name(prot->rsk_prot->slab);
-
 		kmem_cache_destroy(prot->rsk_prot->slab);
-		kfree(name);
+		kfree(prot->rsk_prot->slab_name);
 		prot->rsk_prot->slab = NULL;
 	}
 
 	if (prot->twsk_prot != NULL && prot->twsk_prot->twsk_slab != NULL) {
-		const char *name = kmem_cache_name(prot->twsk_prot->twsk_slab);
-
 		kmem_cache_destroy(prot->twsk_prot->twsk_slab);
-		kfree(name);
+		kfree(prot->twsk_prot->twsk_slab_name);
 		prot->twsk_prot->twsk_slab = NULL;
 	}
 }
@@ -2171,7 +2171,7 @@ static void proto_seq_printf(struct seq_file *seq, struct proto *proto)
 			"%2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c\n",
 		   proto->name,
 		   proto->obj_size,
-		   proto->sockets_allocated != NULL ? atomic_read(proto->sockets_allocated) : -1,
+		   sock_prot_inuse_get(seq_file_net(seq), proto),
 		   proto->memory_allocated != NULL ? atomic_read(proto->memory_allocated) : -1,
 		   proto->memory_pressure != NULL ? *proto->memory_pressure ? "yes" : "no" : "NI",
 		   proto->max_header,
@@ -2225,7 +2225,8 @@ static const struct seq_operations proto_seq_ops = {
 
 static int proto_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &proto_seq_ops);
+	return seq_open_net(inode, file, &proto_seq_ops,
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations proto_seq_fops = {
@@ -2233,13 +2234,31 @@ static const struct file_operations proto_seq_fops = {
 	.open		= proto_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= seq_release_net,
+};
+
+static __net_init int proto_init_net(struct net *net)
+{
+	if (!proc_net_fops_create(net, "protocols", S_IRUGO, &proto_seq_fops))
+		return -ENOMEM;
+
+	return 0;
+}
+
+static __net_exit void proto_exit_net(struct net *net)
+{
+	proc_net_remove(net, "protocols");
+}
+
+
+static __net_initdata struct pernet_operations proto_net_ops = {
+	.init = proto_init_net,
+	.exit = proto_exit_net,
 };
 
 static int __init proto_init(void)
 {
-	/* register /proc/net/protocols */
-	return proc_net_fops_create(&init_net, "protocols", S_IRUGO, &proto_seq_fops) == NULL ? -ENOBUFS : 0;
+	return register_pernet_subsys(&proto_net_ops);
 }
 
 subsys_initcall(proto_init);

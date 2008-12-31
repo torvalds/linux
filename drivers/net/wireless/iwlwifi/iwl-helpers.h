@@ -22,7 +22,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -32,110 +32,6 @@
 
 #include <linux/ctype.h>
 
-/*
- * The structures defined by the hardware/uCode interface
- * have bit-wise operations.  For each bit-field there is
- * a data symbol in the structure, the start bit position
- * and the length of the bit-field.
- *
- * iwl_get_bits and iwl_set_bits will return or set the
- * appropriate bits on a 32-bit value.
- *
- * IWL_GET_BITS and IWL_SET_BITS use symbol expansion to
- * expand out to the appropriate call to iwl_get_bits
- * and iwl_set_bits without having to reference all of the
- * numerical constants and defines provided in the hardware
- * definition
- */
-
-/**
- * iwl_get_bits - Extract a hardware bit-field value
- * @src: source hardware value (__le32)
- * @pos: bit-position (0-based) of first bit of value
- * @len: length of bit-field
- *
- * iwl_get_bits will return the bit-field in cpu endian ordering.
- *
- * NOTE:  If used from IWL_GET_BITS then pos and len are compile-constants and
- *        will collapse to minimal code by the compiler.
- */
-static inline u32 iwl_get_bits(__le32 src, u8 pos, u8 len)
-{
-	u32 tmp = le32_to_cpu(src);
-
-	tmp >>= pos;
-	tmp &= (1UL << len) - 1;
-	return tmp;
-}
-
-/**
- * iwl_set_bits - Set a hardware bit-field value
- * @dst: Address of __le32 hardware value
- * @pos: bit-position (0-based) of first bit of value
- * @len: length of bit-field
- * @val: cpu endian value to encode into the bit-field
- *
- * iwl_set_bits will encode val into dst, masked to be len bits long at bit
- * position pos.
- *
- * NOTE:  If used IWL_SET_BITS pos and len will be compile-constants and
- *        will collapse to minimal code by the compiler.
- */
-static inline void iwl_set_bits(__le32 *dst, u8 pos, u8 len, int val)
-{
-	u32 tmp = le32_to_cpu(*dst);
-
-	tmp &= ~(((1UL << len) - 1) << pos);
-	tmp |= (val & ((1UL << len) - 1)) << pos;
-	*dst = cpu_to_le32(tmp);
-}
-
-static inline void iwl_set_bits16(__le16 *dst, u8 pos, u8 len, int val)
-{
-	u16 tmp = le16_to_cpu(*dst);
-
-	tmp &= ~((1UL << (pos + len)) - (1UL << pos));
-	tmp |= (val & ((1UL << len) - 1)) << pos;
-	*dst = cpu_to_le16(tmp);
-}
-
-/*
- * The bit-field definitions in iwl-xxxx-hw.h are in the form of:
- *
- * struct example {
- *         __le32 val1;
- * #define IWL_name_POS 8
- * #define IWL_name_LEN 4
- * #define IWL_name_SYM val1
- * };
- *
- * The IWL_SET_BITS and IWL_GET_BITS macros are provided to allow the driver
- * to call:
- *
- * struct example bar;
- * u32 val = IWL_GET_BITS(bar, name);
- * val = val * 2;
- * IWL_SET_BITS(bar, name, val);
- *
- * All cpu / host ordering, masking, and shifts are performed by the macros
- * and iwl_{get,set}_bits.
- *
- */
-#define IWL_SET_BITS(s, sym, v) \
-	iwl_set_bits(&(s).IWL_ ## sym ## _SYM, IWL_ ## sym ## _POS, \
-		     IWL_ ## sym ## _LEN, (v))
-
-#define IWL_SET_BITS16(s, sym, v) \
-	iwl_set_bits16(&(s).IWL_ ## sym ## _SYM, IWL_ ## sym ## _POS, \
-		       IWL_ ## sym ## _LEN, (v))
-
-#define IWL_GET_BITS(s, sym) \
-	iwl_get_bits((s).IWL_ ## sym ## _SYM, IWL_ ## sym ## _POS, \
-		      IWL_ ## sym ## _LEN)
-
-
-#define KELVIN_TO_CELSIUS(x) ((x)-273)
-#define CELSIUS_TO_KELVIN(x) ((x)+273)
 #define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
 
 
@@ -157,11 +53,6 @@ static inline unsigned long elapsed_jiffies(unsigned long start,
 		return end - start;
 
 	return end + (MAX_JIFFY_OFFSET - start) + 1;
-}
-
-static inline u8 iwl_get_dma_hi_address(dma_addr_t addr)
-{
-	return sizeof(addr) > sizeof(u32) ? (addr >> 16) >> 16 : 0;
 }
 
 /**

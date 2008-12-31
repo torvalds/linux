@@ -74,6 +74,9 @@ static struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_SET_SAREA_CTX, drm_setsareactx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_SAREA_CTX, drm_getsareactx, DRM_AUTH),
 
+	DRM_IOCTL_DEF(DRM_IOCTL_SET_MASTER, drm_setmaster_ioctl, DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_IOCTL_DROP_MASTER, drm_dropmaster_ioctl, DRM_ROOT_ONLY),
+
 	DRM_IOCTL_DEF(DRM_IOCTL_ADD_CTX, drm_addctx, DRM_AUTH|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_RM_CTX, drm_rmctx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_MOD_CTX, drm_modctx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
@@ -123,6 +126,23 @@ static struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_GEM_CLOSE, drm_gem_close_ioctl, 0),
 	DRM_IOCTL_DEF(DRM_IOCTL_GEM_FLINK, drm_gem_flink_ioctl, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_IOCTL_GEM_OPEN, drm_gem_open_ioctl, DRM_AUTH),
+
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETRESOURCES, drm_mode_getresources, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETCRTC, drm_mode_getcrtc, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_SETCRTC, drm_mode_setcrtc, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_CURSOR, drm_mode_cursor_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETGAMMA, drm_mode_gamma_get_ioctl, DRM_MASTER),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_SETGAMMA, drm_mode_gamma_set_ioctl, DRM_MASTER),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETENCODER, drm_mode_getencoder, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETCONNECTOR, drm_mode_getconnector, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ATTACHMODE, drm_mode_attachmode_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_DETACHMODE, drm_mode_detachmode_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETPROPERTY, drm_mode_getproperty_ioctl, DRM_MASTER | DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_SETPROPERTY, drm_mode_connector_property_set_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETPROPBLOB, drm_mode_getblob_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETFB, drm_mode_getfb, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ADDFB, drm_mode_addfb, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_RMFB, drm_mode_rmfb, DRM_MASTER|DRM_CONTROL_ALLOW),
 };
 
 #define DRM_CORE_IOCTL_COUNT	ARRAY_SIZE( drm_ioctls )
@@ -138,8 +158,6 @@ static struct drm_ioctl_desc drm_ioctls[] = {
  */
 int drm_lastclose(struct drm_device * dev)
 {
-	struct drm_magic_entry *pt, *next;
-	struct drm_map_list *r_list, *list_t;
 	struct drm_vma_entry *vma, *vma_temp;
 	int i;
 
@@ -149,13 +167,7 @@ int drm_lastclose(struct drm_device * dev)
 		dev->driver->lastclose(dev);
 	DRM_DEBUG("driver lastclose completed\n");
 
-	if (dev->unique) {
-		drm_free(dev->unique, strlen(dev->unique) + 1, DRM_MEM_DRIVER);
-		dev->unique = NULL;
-		dev->unique_len = 0;
-	}
-
-	if (dev->irq_enabled)
+	if (dev->irq_enabled && !drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_irq_uninstall(dev);
 
 	mutex_lock(&dev->struct_mutex);
@@ -164,18 +176,9 @@ int drm_lastclose(struct drm_device * dev)
 	drm_drawable_free_all(dev);
 	del_timer(&dev->timer);
 
-	/* Clear pid list */
-	if (dev->magicfree.next) {
-		list_for_each_entry_safe(pt, next, &dev->magicfree, head) {
-			list_del(&pt->head);
-			drm_ht_remove_item(&dev->magiclist, &pt->hash_item);
-			drm_free(pt, sizeof(*pt), DRM_MEM_MAGIC);
-		}
-		drm_ht_remove(&dev->magiclist);
-	}
-
 	/* Clear AGP information */
-	if (drm_core_has_AGP(dev) && dev->agp) {
+	if (drm_core_has_AGP(dev) && dev->agp &&
+	    !drm_core_check_feature(dev, DRIVER_MODESET)) {
 		struct drm_agp_mem *entry, *tempe;
 
 		/* Remove AGP resources, but leave dev->agp
@@ -194,7 +197,8 @@ int drm_lastclose(struct drm_device * dev)
 		dev->agp->acquired = 0;
 		dev->agp->enabled = 0;
 	}
-	if (drm_core_check_feature(dev, DRIVER_SG) && dev->sg) {
+	if (drm_core_check_feature(dev, DRIVER_SG) && dev->sg &&
+	    !drm_core_check_feature(dev, DRIVER_MODESET)) {
 		drm_sg_cleanup(dev->sg);
 		dev->sg = NULL;
 	}
@@ -203,13 +207,6 @@ int drm_lastclose(struct drm_device * dev)
 	list_for_each_entry_safe(vma, vma_temp, &dev->vmalist, head) {
 		list_del(&vma->head);
 		drm_free(vma, sizeof(*vma), DRM_MEM_VMAS);
-	}
-
-	list_for_each_entry_safe(r_list, list_t, &dev->maplist, head) {
-		if (!(r_list->map->flags & _DRM_DRIVER)) {
-			drm_rmmap_locked(dev, r_list->map);
-			r_list = NULL;
-		}
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE) && dev->queuelist) {
@@ -228,14 +225,11 @@ int drm_lastclose(struct drm_device * dev)
 	}
 	dev->queue_count = 0;
 
-	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
+	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA) &&
+	    !drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_dma_takedown(dev);
 
-	if (dev->lock.hw_lock) {
-		dev->sigdata.lock = dev->lock.hw_lock = NULL;	/* SHM removed */
-		dev->lock.file_priv = NULL;
-		wake_up_interruptible(&dev->lock.lock_queue);
-	}
+	dev->dev_mapping = NULL;
 	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("lastclose completed\n");
@@ -262,6 +256,8 @@ int drm_init(struct drm_driver *driver)
 	int i;
 
 	DRM_DEBUG("\n");
+
+	INIT_LIST_HEAD(&driver->device_list);
 
 	for (i = 0; driver->pci_driver.id_table[i].vendor != 0; i++) {
 		pid = (struct pci_device_id *)&driver->pci_driver.id_table[i];
@@ -305,6 +301,8 @@ static void drm_cleanup(struct drm_device * dev)
 		return;
 	}
 
+	drm_vblank_cleanup(dev);
+
 	drm_lastclose(dev);
 
 	if (drm_core_has_MTRR(dev) && drm_core_has_AGP(dev) &&
@@ -327,35 +325,24 @@ static void drm_cleanup(struct drm_device * dev)
 	drm_ht_remove(&dev->map_hash);
 	drm_ctxbitmap_cleanup(dev);
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		drm_put_minor(&dev->control);
+
+	if (dev->driver->driver_features & DRIVER_GEM)
+		drm_gem_destroy(dev);
+
 	drm_put_minor(&dev->primary);
 	if (drm_put_dev(dev))
 		DRM_ERROR("Cannot unload module\n");
 }
 
-static int drm_minors_cleanup(int id, void *ptr, void *data)
-{
-	struct drm_minor *minor = ptr;
-	struct drm_device *dev;
-	struct drm_driver *driver = data;
-
-	dev = minor->dev;
-	if (minor->dev->driver != driver)
-		return 0;
-
-	if (minor->type != DRM_MINOR_LEGACY)
-		return 0;
-
-	if (dev)
-		pci_dev_put(dev->pdev);
-	drm_cleanup(dev);
-	return 1;
-}
-
 void drm_exit(struct drm_driver *driver)
 {
+	struct drm_device *dev, *tmp;
 	DRM_DEBUG("\n");
 
-	idr_for_each(&drm_minors_idr, &drm_minors_cleanup, driver);
+	list_for_each_entry_safe(dev, tmp, &driver->device_list, driver_item)
+		drm_cleanup(dev);
 
 	DRM_INFO("Module unloaded\n");
 }
@@ -501,7 +488,7 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 		retcode = -EINVAL;
 	} else if (((ioctl->flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN)) ||
 		   ((ioctl->flags & DRM_AUTH) && !file_priv->authenticated) ||
-		   ((ioctl->flags & DRM_MASTER) && !file_priv->master)) {
+		   ((ioctl->flags & DRM_MASTER) && !file_priv->is_master)) {
 		retcode = -EACCES;
 	} else {
 		if (cmd & (IOC_IN | IOC_OUT)) {

@@ -681,12 +681,6 @@ static int af9015_download_firmware(struct usb_device *udev,
 		goto error;
 	}
 
-	/* firmware is running, reconnect device in the usb bus */
-	req.cmd = RECONNECT_USB;
-	ret = af9015_rw_udev(udev, &req);
-	if (ret)
-		err("reconnect failed: %d", ret);
-
 error:
 	return ret;
 }
@@ -739,9 +733,19 @@ static int af9015_read_config(struct usb_device *udev)
 				af9015_config.ir_table_size =
 				  ARRAY_SIZE(af9015_ir_table_mygictv);
 				break;
+			case AF9015_REMOTE_DIGITTRADE_DVB_T:
+				af9015_properties[i].rc_key_map =
+				  af9015_rc_keys_digittrade;
+				af9015_properties[i].rc_key_map_size =
+				  ARRAY_SIZE(af9015_rc_keys_digittrade);
+				af9015_config.ir_table =
+				  af9015_ir_table_digittrade;
+				af9015_config.ir_table_size =
+				  ARRAY_SIZE(af9015_ir_table_digittrade);
+				break;
 			}
 		} else {
-			switch (udev->descriptor.idVendor) {
+			switch (le16_to_cpu(udev->descriptor.idVendor)) {
 			case USB_VID_LEADTEK:
 				af9015_properties[i].rc_key_map =
 				  af9015_rc_keys_leadtek;
@@ -754,7 +758,7 @@ static int af9015_read_config(struct usb_device *udev)
 				break;
 			case USB_VID_VISIONPLUS:
 				if (udev->descriptor.idProduct ==
-				USB_PID_AZUREWAVE_AD_TU700) {
+				cpu_to_le16(USB_PID_AZUREWAVE_AD_TU700)) {
 					af9015_properties[i].rc_key_map =
 					  af9015_rc_keys_twinhan;
 					af9015_properties[i].rc_key_map_size =
@@ -805,6 +809,16 @@ static int af9015_read_config(struct usb_device *udev)
 					af9015_config.ir_table_size =
 					  ARRAY_SIZE(af9015_ir_table_msi);
 				}
+				break;
+			case USB_VID_AVERMEDIA:
+				af9015_properties[i].rc_key_map =
+				  af9015_rc_keys_avermedia;
+				af9015_properties[i].rc_key_map_size =
+				  ARRAY_SIZE(af9015_rc_keys_avermedia);
+				af9015_config.ir_table =
+				  af9015_ir_table_avermedia;
+				af9015_config.ir_table_size =
+				  ARRAY_SIZE(af9015_ir_table_avermedia);
 				break;
 			}
 		}
@@ -1197,6 +1211,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_TELESTAR,  USB_PID_TELESTAR_STARSTICK_2)},
 	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A309)},
 /* 15 */{USB_DEVICE(USB_VID_MSI_2,     USB_PID_MSI_DIGI_VOX_MINI_III)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1208,6 +1223,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.usb_ctrl = DEVICE_SPECIFIC,
 		.download_firmware = af9015_download_firmware,
 		.firmware = "dvb-usb-af9015.fw",
+		.no_reconnect = 1,
 
 		.size_of_priv = sizeof(struct af9015_state), \
 
@@ -1306,6 +1322,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.usb_ctrl = DEVICE_SPECIFIC,
 		.download_firmware = af9015_download_firmware,
 		.firmware = "dvb-usb-af9015.fw",
+		.no_reconnect = 1,
 
 		.size_of_priv = sizeof(struct af9015_state), \
 
@@ -1347,7 +1364,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 6,
+		.num_device_descs = 7,
 		.devices = {
 			{
 				.name = "Xtensions XD-380",
@@ -1377,6 +1394,12 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "MSI Digi VOX mini III",
 				.cold_ids = {&af9015_usb_table[15], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "KWorld USB DVB-T TV Stick II " \
+					"(VS-DVB-T 395U)",
+				.cold_ids = {&af9015_usb_table[16], NULL},
 				.warm_ids = {NULL},
 			},
 		}

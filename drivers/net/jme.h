@@ -22,7 +22,7 @@
  */
 
 #ifndef __JME_H_INCLUDED__
-#define __JME_H_INCLUDEE__
+#define __JME_H_INCLUDED__
 
 #define DRV_NAME	"jme"
 #define DRV_VERSION	"1.0.3"
@@ -398,15 +398,15 @@ struct jme_ring {
 #define JME_NAPI_WEIGHT(w) int w
 #define JME_NAPI_WEIGHT_VAL(w) w
 #define JME_NAPI_WEIGHT_SET(w, r)
-#define JME_RX_COMPLETE(dev, napis) netif_rx_complete(dev, napis)
+#define JME_RX_COMPLETE(dev, napis) netif_rx_complete(napis)
 #define JME_NAPI_ENABLE(priv) napi_enable(&priv->napi);
 #define JME_NAPI_DISABLE(priv) \
 	if (!napi_disable_pending(&priv->napi)) \
 		napi_disable(&priv->napi);
 #define JME_RX_SCHEDULE_PREP(priv) \
-	netif_rx_schedule_prep(priv->dev, &priv->napi)
+	netif_rx_schedule_prep(&priv->napi)
 #define JME_RX_SCHEDULE(priv) \
-	__netif_rx_schedule(priv->dev, &priv->napi);
+	__netif_rx_schedule(&priv->napi);
 
 /*
  * Jmac Adapter Private data
@@ -815,16 +815,30 @@ static inline u32 smi_phy_addr(int x)
  * Global Host Control
  */
 enum jme_ghc_bit_mask {
-	GHC_SWRST	= 0x40000000,
-	GHC_DPX		= 0x00000040,
-	GHC_SPEED	= 0x00000030,
-	GHC_LINK_POLL	= 0x00000001,
+	GHC_SWRST		= 0x40000000,
+	GHC_DPX			= 0x00000040,
+	GHC_SPEED		= 0x00000030,
+	GHC_LINK_POLL		= 0x00000001,
 };
 
 enum jme_ghc_speed_val {
-	GHC_SPEED_10M	= 0x00000010,
-	GHC_SPEED_100M	= 0x00000020,
-	GHC_SPEED_1000M	= 0x00000030,
+	GHC_SPEED_10M		= 0x00000010,
+	GHC_SPEED_100M		= 0x00000020,
+	GHC_SPEED_1000M		= 0x00000030,
+};
+
+enum jme_ghc_to_clk {
+	GHC_TO_CLK_OFF		= 0x00000000,
+	GHC_TO_CLK_GPHY		= 0x00400000,
+	GHC_TO_CLK_PCIE		= 0x00800000,
+	GHC_TO_CLK_INVALID	= 0x00C00000,
+};
+
+enum jme_ghc_txmac_clk {
+	GHC_TXMAC_CLK_OFF	= 0x00000000,
+	GHC_TXMAC_CLK_GPHY	= 0x00100000,
+	GHC_TXMAC_CLK_PCIE	= 0x00200000,
+	GHC_TXMAC_CLK_INVALID	= 0x00300000,
 };
 
 /*

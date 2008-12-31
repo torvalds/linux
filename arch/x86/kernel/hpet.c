@@ -33,7 +33,9 @@
  * HPET address is set in acpi/boot.c, when an ACPI entry exists
  */
 unsigned long				hpet_address;
-unsigned long				hpet_num_timers;
+#ifdef CONFIG_PCI_MSI
+static unsigned long			hpet_num_timers;
+#endif
 static void __iomem			*hpet_virt_address;
 
 struct hpet_dev {
@@ -811,7 +813,7 @@ int __init hpet_enable(void)
 
 out_nohpet:
 	hpet_clear_mapping();
-	boot_hpet_disable = 1;
+	hpet_address = 0;
 	return 0;
 }
 
@@ -834,9 +836,10 @@ static __init int hpet_late_init(void)
 
 		hpet_address = force_hpet_address;
 		hpet_enable();
-		if (!hpet_virt_address)
-			return -ENODEV;
 	}
+
+	if (!hpet_virt_address)
+		return -ENODEV;
 
 	hpet_reserve_platform_timers(hpet_readl(HPET_ID));
 

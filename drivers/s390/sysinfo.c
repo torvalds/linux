@@ -1,17 +1,21 @@
 /*
  *  drivers/s390/sysinfo.c
  *
- *    Copyright (C) 2001 IBM Deutschland Entwicklung GmbH, IBM Corporation
- *    Author(s): Ulrich Weigand (Ulrich.Weigand@de.ibm.com)
+ *  Copyright IBM Corp. 2001, 2008
+ *  Author(s): Ulrich Weigand (Ulrich.Weigand@de.ibm.com)
+ *	       Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
+#include <asm/cpcmd.h>
 
 /* Sigh, math-emu. Don't ask. */
 #include <asm/sfp-util.h>
@@ -270,6 +274,125 @@ static __init int create_proc_sysinfo(void)
 }
 
 __initcall(create_proc_sysinfo);
+
+/*
+ * Service levels interface.
+ */
+
+static DECLARE_RWSEM(service_level_sem);
+static LIST_HEAD(service_level_list);
+
+int register_service_level(struct service_level *slr)
+{
+	struct service_level *ptr;
+
+	down_write(&service_level_sem);
+	list_for_each_entry(ptr, &service_level_list, list)
+		if (ptr == slr) {
+			up_write(&service_level_sem);
+			return -EEXIST;
+		}
+	list_add_tail(&slr->list, &service_level_list);
+	up_write(&service_level_sem);
+	return 0;
+}
+EXPORT_SYMBOL(register_service_level);
+
+int unregister_service_level(struct service_level *slr)
+{
+	struct service_level *ptr, *next;
+	int rc = -ENOENT;
+
+	down_write(&service_level_sem);
+	list_for_each_entry_safe(ptr, next, &service_level_list, list) {
+		if (ptr != slr)
+			continue;
+		list_del(&ptr->list);
+		rc = 0;
+		break;
+	}
+	up_write(&service_level_sem);
+	return rc;
+}
+EXPORT_SYMBOL(unregister_service_level);
+
+static void *service_level_start(struct seq_file *m, loff_t *pos)
+{
+	down_read(&service_level_sem);
+	return seq_list_start(&service_level_list, *pos);
+}
+
+static void *service_level_next(struct seq_file *m, void *p, loff_t *pos)
+{
+	return seq_list_next(p, &service_level_list, pos);
+}
+
+static void service_level_stop(struct seq_file *m, void *p)
+{
+	up_read(&service_level_sem);
+}
+
+static int service_level_show(struct seq_file *m, void *p)
+{
+	struct service_level *slr;
+
+	slr = list_entry(p, struct service_level, list);
+	slr->seq_print(m, slr);
+	return 0;
+}
+
+static const struct seq_operations service_level_seq_ops = {
+	.start		= service_level_start,
+	.next		= service_level_next,
+	.stop		= service_level_stop,
+	.show		= service_level_show
+};
+
+static int service_level_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &service_level_seq_ops);
+}
+
+static const struct file_operations service_level_ops = {
+	.open		= service_level_open,
+	.read		= seq_read,
+	.llseek 	= seq_lseek,
+	.release	= seq_release
+};
+
+static void service_level_vm_print(struct seq_file *m,
+				   struct service_level *slr)
+{
+	char *query_buffer, *str;
+
+	query_buffer = kmalloc(1024, GFP_KERNEL | GFP_DMA);
+	if (!query_buffer)
+		return;
+	cpcmd("QUERY CPLEVEL", query_buffer, 1024, NULL);
+	str = strchr(query_buffer, '\n');
+	if (str)
+		*str = 0;
+	seq_printf(m, "VM: %s\n", query_buffer);
+	kfree(query_buffer);
+}
+
+static struct service_level service_level_vm = {
+	.seq_print = service_level_vm_print
+};
+
+static __init int create_proc_service_level(void)
+{
+	proc_create("service_levels", 0, NULL, &service_level_ops);
+	if (MACHINE_IS_VM)
+		register_service_level(&service_level_vm);
+	return 0;
+}
+
+subsys_initcall(create_proc_service_level);
+
+/*
+ * Bogomips calculation based on cpu capability.
+ */
 
 int get_cpu_capability(unsigned int *capability)
 {

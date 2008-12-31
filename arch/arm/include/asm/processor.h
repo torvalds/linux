@@ -23,7 +23,7 @@
 #include <asm/types.h>
 
 #ifdef __KERNEL__
-#define STACK_TOP	((current->personality == PER_LINUX_32BIT) ? \
+#define STACK_TOP	((current->personality & ADDR_LIMIT_32BIT) ? \
 			 TASK_SIZE : TASK_SIZE_26)
 #define STACK_TOP_MAX	TASK_SIZE
 #endif
@@ -64,7 +64,7 @@ struct thread_struct {
 ({									\
 	unsigned long *stack = (unsigned long *)sp;			\
 	set_fs(USER_DS);						\
-	memzero(regs->uregs, sizeof(regs->uregs));			\
+	memset(regs->uregs, 0, sizeof(regs->uregs));			\
 	if (current->personality & ADDR_LIMIT_32BIT)			\
 		regs->ARM_cpsr = USR_MODE;				\
 	else								\

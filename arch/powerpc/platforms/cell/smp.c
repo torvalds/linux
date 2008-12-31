@@ -129,10 +129,15 @@ static int __init smp_iic_probe(void)
 	return cpus_weight(cpu_possible_map);
 }
 
-static void __devinit smp_iic_setup_cpu(int cpu)
+static void __devinit smp_cell_setup_cpu(int cpu)
 {
 	if (cpu != boot_cpuid)
 		iic_setup_cpu();
+
+	/*
+	 * change default DABRX to allow user watchpoints
+	 */
+	mtspr(SPRN_DABRX, DABRX_KERNEL | DABRX_USER);
 }
 
 static DEFINE_SPINLOCK(timebase_lock);
@@ -192,7 +197,7 @@ static struct smp_ops_t bpa_iic_smp_ops = {
 	.message_pass	= smp_iic_message_pass,
 	.probe		= smp_iic_probe,
 	.kick_cpu	= smp_cell_kick_cpu,
-	.setup_cpu	= smp_iic_setup_cpu,
+	.setup_cpu	= smp_cell_setup_cpu,
 	.cpu_bootable	= smp_cell_cpu_bootable,
 };
 

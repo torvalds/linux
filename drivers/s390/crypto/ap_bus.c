@@ -5,6 +5,7 @@
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
+ *	      Felix Beck <felix.beck@de.ibm.com>
  *
  * Adjunct processor bus.
  *
@@ -23,6 +24,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define KMSG_COMPONENT "ap"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -34,6 +38,10 @@
 #include <linux/mutex.h>
 #include <asm/s390_rdev.h>
 #include <asm/reset.h>
+#include <asm/airq.h>
+#include <asm/atomic.h>
+#include <asm/system.h>
+#include <asm/isc.h>
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 
@@ -46,6 +54,7 @@ static enum hrtimer_restart ap_poll_timeout(struct hrtimer *);
 static int ap_poll_thread_start(void);
 static void ap_poll_thread_stop(void);
 static void ap_request_timeout(unsigned long);
+static inline void ap_schedule_poll_timer(void);
 
 /*
  * Module description.
@@ -68,7 +77,7 @@ module_param_named(poll_thread, ap_thread_flag, int, 0000);
 MODULE_PARM_DESC(poll_thread, "Turn on/off poll thread, default is 0 (off).");
 
 static struct device *ap_root_device = NULL;
-static DEFINE_SPINLOCK(ap_device_lock);
+static DEFINE_SPINLOCK(ap_device_list_lock);
 static LIST_HEAD(ap_device_list);
 
 /*
@@ -80,17 +89,27 @@ static int ap_config_time = AP_CONFIG_TIME;
 static DECLARE_WORK(ap_config_work, ap_scan_bus);
 
 /*
- * Tasklet & timer for AP request polling.
+ * Tasklet & timer for AP request polling and interrupts
  */
 static DECLARE_TASKLET(ap_tasklet, ap_poll_all, 0);
 static atomic_t ap_poll_requests = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(ap_poll_wait);
 static struct task_struct *ap_poll_kthread = NULL;
 static DEFINE_MUTEX(ap_poll_thread_mutex);
+static void *ap_interrupt_indicator;
 static struct hrtimer ap_poll_timer;
 /* In LPAR poll with 4kHz frequency. Poll every 250000 nanoseconds.
  * If z/VM change to 1500000 nanoseconds to adjust to z/VM polling.*/
 static unsigned long long poll_timeout = 250000;
+
+/**
+ * ap_using_interrupts() - Returns non-zero if interrupt support is
+ * available.
+ */
+static inline int ap_using_interrupts(void)
+{
+	return ap_interrupt_indicator != NULL;
+}
 
 /**
  * ap_intructions_available() - Test if AP instructions are available.
@@ -110,6 +129,23 @@ static inline int ap_instructions_available(void)
 		EX_TABLE(0b, 1b)
 		: "+d" (reg0), "+d" (reg1), "+d" (reg2) : : "cc" );
 	return reg1;
+}
+
+/**
+ * ap_interrupts_available(): Test if AP interrupts are available.
+ *
+ * Returns 1 if AP interrupts are available.
+ */
+static int ap_interrupts_available(void)
+{
+	unsigned long long facility_bits[2];
+
+	if (stfle(facility_bits, 2) <= 1)
+		return 0;
+	if (!(facility_bits[0] & (1ULL << 61)) ||
+	    !(facility_bits[1] & (1ULL << 62)))
+		return 0;
+	return 1;
 }
 
 /**
@@ -150,6 +186,80 @@ static inline struct ap_queue_status ap_reset_queue(ap_qid_t qid)
 		".long 0xb2af0000"		/* PQAP(RAPQ) */
 		: "+d" (reg0), "=d" (reg1), "+d" (reg2) : : "cc");
 	return reg1;
+}
+
+#ifdef CONFIG_64BIT
+/**
+ * ap_queue_interruption_control(): Enable interruption for a specific AP.
+ * @qid: The AP queue number
+ * @ind: The notification indicator byte
+ *
+ * Returns AP queue status.
+ */
+static inline struct ap_queue_status
+ap_queue_interruption_control(ap_qid_t qid, void *ind)
+{
+	register unsigned long reg0 asm ("0") = qid | 0x03000000UL;
+	register unsigned long reg1_in asm ("1") = 0x0000800000000000UL | AP_ISC;
+	register struct ap_queue_status reg1_out asm ("1");
+	register void *reg2 asm ("2") = ind;
+	asm volatile(
+		".long 0xb2af0000"		/* PQAP(RAPQ) */
+		: "+d" (reg0), "+d" (reg1_in), "=d" (reg1_out), "+d" (reg2)
+		:
+		: "cc" );
+	return reg1_out;
+}
+#endif
+
+/**
+ * ap_queue_enable_interruption(): Enable interruption on an AP.
+ * @qid: The AP queue number
+ * @ind: the notification indicator byte
+ *
+ * Enables interruption on AP queue via ap_queue_interruption_control(). Based
+ * on the return value it waits a while and tests the AP queue if interrupts
+ * have been switched on using ap_test_queue().
+ */
+static int ap_queue_enable_interruption(ap_qid_t qid, void *ind)
+{
+#ifdef CONFIG_64BIT
+	struct ap_queue_status status;
+	int t_depth, t_device_type, rc, i;
+
+	rc = -EBUSY;
+	status = ap_queue_interruption_control(qid, ind);
+
+	for (i = 0; i < AP_MAX_RESET; i++) {
+		switch (status.response_code) {
+		case AP_RESPONSE_NORMAL:
+			if (status.int_enabled)
+				return 0;
+			break;
+		case AP_RESPONSE_RESET_IN_PROGRESS:
+		case AP_RESPONSE_BUSY:
+			break;
+		case AP_RESPONSE_Q_NOT_AVAIL:
+		case AP_RESPONSE_DECONFIGURED:
+		case AP_RESPONSE_CHECKSTOPPED:
+		case AP_RESPONSE_INVALID_ADDRESS:
+			return -ENODEV;
+		case AP_RESPONSE_OTHERWISE_CHANGED:
+			if (status.int_enabled)
+				return 0;
+			break;
+		default:
+			break;
+		}
+		if (i < AP_MAX_RESET - 1) {
+			udelay(5);
+			status = ap_test_queue(qid, &t_depth, &t_device_type);
+		}
+	}
+	return rc;
+#else
+	return -EINVAL;
+#endif
 }
 
 /**
@@ -295,6 +405,11 @@ static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type)
 		case AP_RESPONSE_CHECKSTOPPED:
 			rc = -ENODEV;
 			break;
+		case AP_RESPONSE_INVALID_ADDRESS:
+			rc = -ENODEV;
+			break;
+		case AP_RESPONSE_OTHERWISE_CHANGED:
+			break;
 		case AP_RESPONSE_BUSY:
 			break;
 		default:
@@ -344,6 +459,15 @@ static int ap_init_queue(ap_qid_t qid)
 			udelay(5);
 			status = ap_test_queue(qid, &dummy, &dummy);
 		}
+	}
+	if (rc == 0 && ap_using_interrupts()) {
+		rc = ap_queue_enable_interruption(qid, ap_interrupt_indicator);
+		/* If interruption mode is supported by the machine,
+		* but an AP can not be enabled for interruption then
+		* the AP will be discarded.    */
+		if (rc)
+			pr_err("Registering adapter interrupts for "
+			       "AP %d failed\n", AP_QID_DEVICE(qid));
 	}
 	return rc;
 }
@@ -397,16 +521,16 @@ static ssize_t ap_hwtype_show(struct device *dev,
 	struct ap_device *ap_dev = to_ap_dev(dev);
 	return snprintf(buf, PAGE_SIZE, "%d\n", ap_dev->device_type);
 }
-static DEVICE_ATTR(hwtype, 0444, ap_hwtype_show, NULL);
 
+static DEVICE_ATTR(hwtype, 0444, ap_hwtype_show, NULL);
 static ssize_t ap_depth_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct ap_device *ap_dev = to_ap_dev(dev);
 	return snprintf(buf, PAGE_SIZE, "%d\n", ap_dev->queue_depth);
 }
-static DEVICE_ATTR(depth, 0444, ap_depth_show, NULL);
 
+static DEVICE_ATTR(depth, 0444, ap_depth_show, NULL);
 static ssize_t ap_request_count_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
@@ -509,9 +633,9 @@ static int ap_device_probe(struct device *dev)
 	ap_dev->drv = ap_drv;
 	rc = ap_drv->probe ? ap_drv->probe(ap_dev) : -ENODEV;
 	if (!rc) {
-		spin_lock_bh(&ap_device_lock);
+		spin_lock_bh(&ap_device_list_lock);
 		list_add(&ap_dev->list, &ap_device_list);
-		spin_unlock_bh(&ap_device_lock);
+		spin_unlock_bh(&ap_device_list_lock);
 	}
 	return rc;
 }
@@ -553,9 +677,9 @@ static int ap_device_remove(struct device *dev)
 
 	ap_flush_queue(ap_dev);
 	del_timer_sync(&ap_dev->timeout);
-	spin_lock_bh(&ap_device_lock);
+	spin_lock_bh(&ap_device_list_lock);
 	list_del_init(&ap_dev->list);
-	spin_unlock_bh(&ap_device_lock);
+	spin_unlock_bh(&ap_device_list_lock);
 	if (ap_drv->remove)
 		ap_drv->remove(ap_dev);
 	spin_lock_bh(&ap_dev->lock);
@@ -598,6 +722,14 @@ static ssize_t ap_config_time_show(struct bus_type *bus, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", ap_config_time);
 }
+
+static ssize_t ap_interrupts_show(struct bus_type *bus, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			ap_using_interrupts() ? 1 : 0);
+}
+
+static BUS_ATTR(ap_interrupts, 0444, ap_interrupts_show, NULL);
 
 static ssize_t ap_config_time_store(struct bus_type *bus,
 				    const char *buf, size_t count)
@@ -653,7 +785,8 @@ static ssize_t poll_timeout_store(struct bus_type *bus, const char *buf,
 	ktime_t hr_time;
 
 	/* 120 seconds = maximum poll interval */
-	if (sscanf(buf, "%llu\n", &time) != 1 || time < 1 || time > 120000000000)
+	if (sscanf(buf, "%llu\n", &time) != 1 || time < 1 ||
+	    time > 120000000000ULL)
 		return -EINVAL;
 	poll_timeout = time;
 	hr_time = ktime_set(0, poll_timeout);
@@ -672,6 +805,7 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_domain,
 	&bus_attr_config_time,
 	&bus_attr_poll_thread,
+	&bus_attr_ap_interrupts,
 	&bus_attr_poll_timeout,
 	NULL,
 };
@@ -814,6 +948,11 @@ out:
 	return rc;
 }
 
+static void ap_interrupt_handler(void *unused1, void *unused2)
+{
+	tasklet_schedule(&ap_tasklet);
+}
+
 /**
  * __ap_scan_bus(): Scan the AP bus.
  * @dev: Pointer to device
@@ -928,6 +1067,8 @@ ap_config_timeout(unsigned long ptr)
  */
 static inline void ap_schedule_poll_timer(void)
 {
+	if (ap_using_interrupts())
+		return;
 	if (hrtimer_is_queued(&ap_poll_timer))
 		return;
 	hrtimer_start(&ap_poll_timer, ktime_set(0, poll_timeout),
@@ -1181,7 +1322,7 @@ static void ap_reset(struct ap_device *ap_dev)
 		ap_dev->unregistered = 1;
 }
 
-static int __ap_poll_all(struct ap_device *ap_dev, unsigned long *flags)
+static int __ap_poll_device(struct ap_device *ap_dev, unsigned long *flags)
 {
 	spin_lock(&ap_dev->lock);
 	if (!ap_dev->unregistered) {
@@ -1207,13 +1348,19 @@ static void ap_poll_all(unsigned long dummy)
 	unsigned long flags;
 	struct ap_device *ap_dev;
 
+	/* Reset the indicator if interrupts are used. Thus new interrupts can
+	 * be received. Doing it in the beginning of the tasklet is therefor
+	 * important that no requests on any AP get lost.
+	 */
+	if (ap_using_interrupts())
+		xchg((u8 *)ap_interrupt_indicator, 0);
 	do {
 		flags = 0;
-		spin_lock(&ap_device_lock);
+		spin_lock(&ap_device_list_lock);
 		list_for_each_entry(ap_dev, &ap_device_list, list) {
-			__ap_poll_all(ap_dev, &flags);
+			__ap_poll_device(ap_dev, &flags);
 		}
-		spin_unlock(&ap_device_lock);
+		spin_unlock(&ap_device_list_lock);
 	} while (flags & 1);
 	if (flags & 2)
 		ap_schedule_poll_timer();
@@ -1253,11 +1400,11 @@ static int ap_poll_thread(void *data)
 		remove_wait_queue(&ap_poll_wait, &wait);
 
 		flags = 0;
-		spin_lock_bh(&ap_device_lock);
+		spin_lock_bh(&ap_device_list_lock);
 		list_for_each_entry(ap_dev, &ap_device_list, list) {
-			__ap_poll_all(ap_dev, &flags);
+			__ap_poll_device(ap_dev, &flags);
 		}
-		spin_unlock_bh(&ap_device_lock);
+		spin_unlock_bh(&ap_device_list_lock);
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&ap_poll_wait, &wait);
@@ -1268,6 +1415,8 @@ static int ap_poll_thread_start(void)
 {
 	int rc;
 
+	if (ap_using_interrupts())
+		return 0;
 	mutex_lock(&ap_poll_thread_mutex);
 	if (!ap_poll_kthread) {
 		ap_poll_kthread = kthread_run(ap_poll_thread, NULL, "appoll");
@@ -1301,8 +1450,12 @@ static void ap_request_timeout(unsigned long data)
 {
 	struct ap_device *ap_dev = (struct ap_device *) data;
 
-	if (ap_dev->reset == AP_RESET_ARMED)
+	if (ap_dev->reset == AP_RESET_ARMED) {
 		ap_dev->reset = AP_RESET_DO;
+
+		if (ap_using_interrupts())
+			tasklet_schedule(&ap_tasklet);
+	}
 }
 
 static void ap_reset_domain(void)
@@ -1337,14 +1490,25 @@ int __init ap_module_init(void)
 	int rc, i;
 
 	if (ap_domain_index < -1 || ap_domain_index >= AP_DOMAINS) {
-		printk(KERN_WARNING "Invalid param: domain = %d. "
-		       " Not loading.\n", ap_domain_index);
+		pr_warning("%d is not a valid cryptographic domain\n",
+			   ap_domain_index);
 		return -EINVAL;
 	}
 	if (ap_instructions_available() != 0) {
-		printk(KERN_WARNING "AP instructions not installed.\n");
+		pr_warning("The hardware system does not support "
+			   "AP instructions\n");
 		return -ENODEV;
 	}
+	if (ap_interrupts_available()) {
+		isc_register(AP_ISC);
+		ap_interrupt_indicator = s390_register_adapter_interrupt(
+			&ap_interrupt_handler, NULL, AP_ISC);
+		if (IS_ERR(ap_interrupt_indicator)) {
+			ap_interrupt_indicator = NULL;
+			isc_unregister(AP_ISC);
+		}
+	}
+
 	register_reset_call(&ap_reset_call);
 
 	/* Create /sys/bus/ap. */
@@ -1408,6 +1572,10 @@ out_bus:
 	bus_unregister(&ap_bus_type);
 out:
 	unregister_reset_call(&ap_reset_call);
+	if (ap_using_interrupts()) {
+		s390_unregister_adapter_interrupt(ap_interrupt_indicator, AP_ISC);
+		isc_unregister(AP_ISC);
+	}
 	return rc;
 }
 
@@ -1443,6 +1611,10 @@ void ap_module_exit(void)
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
 	bus_unregister(&ap_bus_type);
 	unregister_reset_call(&ap_reset_call);
+	if (ap_using_interrupts()) {
+		s390_unregister_adapter_interrupt(ap_interrupt_indicator, AP_ISC);
+		isc_unregister(AP_ISC);
+	}
 }
 
 #ifndef CONFIG_ZCRYPT_MONOLITHIC

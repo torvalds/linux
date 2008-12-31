@@ -18,6 +18,13 @@
 #include <xfs.h>
 #include "debug.h"
 
+/* xfs_mount.h drags a lot of crap in, sorry.. */
+#include "xfs_sb.h"
+#include "xfs_inum.h"
+#include "xfs_ag.h"
+#include "xfs_dmapi.h"
+#include "xfs_mount.h"
+
 static char		message[1024];	/* keep it off the stack */
 static DEFINE_SPINLOCK(xfs_err_lock);
 
@@ -55,22 +62,42 @@ cmn_err(register int level, char *fmt, ...)
 }
 
 void
-icmn_err(register int level, char *fmt, va_list ap)
+xfs_fs_vcmn_err(
+	int			level,
+	struct xfs_mount	*mp,
+	char			*fmt,
+	va_list			ap)
 {
-	ulong	flags;
-	int	len;
+	unsigned long		flags;
+	int			len = 0;
 
 	level &= XFS_ERR_MASK;
-	if(level > XFS_MAX_ERR_LEVEL)
+	if (level > XFS_MAX_ERR_LEVEL)
 		level = XFS_MAX_ERR_LEVEL;
+
 	spin_lock_irqsave(&xfs_err_lock,flags);
-	len = vsnprintf(message, sizeof(message), fmt, ap);
+
+	if (mp) {
+		len = sprintf(message, "Filesystem \"%s\": ", mp->m_fsname);
+
+		/*
+		 * Skip the printk if we can't print anything useful
+		 * due to an over-long device name.
+		 */
+		if (len >= sizeof(message))
+			goto out;
+	}
+
+	len = vsnprintf(message + len, sizeof(message) - len, fmt, ap);
 	if (len >= sizeof(message))
 		len = sizeof(message) - 1;
 	if (message[len-1] == '\n')
 		message[len-1] = 0;
+
 	printk("%s%s\n", err_level[level], message);
+ out:
 	spin_unlock_irqrestore(&xfs_err_lock,flags);
+
 	BUG_ON(level == CE_PANIC);
 }
 
@@ -84,5 +111,5 @@ assfail(char *expr, char *file, int line)
 void
 xfs_hex_dump(void *p, int length)
 {
-	print_hex_dump(KERN_ALERT, "", DUMP_PREFIX_OFFSET, 16, 1, p, length, 1);
+	print_hex_dump(KERN_ALERT, "", DUMP_PREFIX_ADDRESS, 16, 1, p, length, 1);
 }

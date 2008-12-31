@@ -350,7 +350,7 @@ lpfc_send_fastpath_evt(struct lpfc_hba *phba,
 			evt_data_size = sizeof(fast_evt_data->un.
 				read_check_error);
 		} else if ((evt_sub_category == LPFC_EVENT_FABRIC_BUSY) ||
-			(evt_sub_category == IOSTAT_NPORT_BSY)) {
+			(evt_sub_category == LPFC_EVENT_PORT_BUSY)) {
 			evt_data = (char *) &fast_evt_data->un.fabric_evt;
 			evt_data_size = sizeof(fast_evt_data->un.fabric_evt);
 		} else {
@@ -387,7 +387,7 @@ lpfc_send_fastpath_evt(struct lpfc_hba *phba,
 		fc_get_event_number(),
 		evt_data_size,
 		evt_data,
-		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+		LPFC_NL_VENDOR_ID);
 
 	lpfc_free_fast_evt(phba, fast_evt_data);
 	return;
@@ -585,20 +585,25 @@ lpfc_do_work(void *p)
 	set_user_nice(current, -20);
 	phba->data_flags = 0;
 
-	while (1) {
+	while (!kthread_should_stop()) {
 		/* wait and check worker queue activities */
 		rc = wait_event_interruptible(phba->work_waitq,
 					(test_and_clear_bit(LPFC_DATA_READY,
 							    &phba->data_flags)
 					 || kthread_should_stop()));
-		BUG_ON(rc);
-
-		if (kthread_should_stop())
+		/* Signal wakeup shall terminate the worker thread */
+		if (rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+					"0433 Wakeup on signal: rc=x%x\n", rc);
 			break;
+		}
 
 		/* Attend pending lpfc data processing */
 		lpfc_work_done(phba);
 	}
+	phba->worker_thread = NULL;
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"0432 Worker thread stopped.\n");
 	return 0;
 }
 
@@ -1852,6 +1857,32 @@ lpfc_disable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	lpfc_nlp_state_cleanup(vport, ndlp, ndlp->nlp_state,
 				NLP_STE_UNUSED_NODE);
 }
+/**
+ * lpfc_initialize_node: Initialize all fields of node object.
+ * @vport: Pointer to Virtual Port object.
+ * @ndlp: Pointer to FC node object.
+ * @did: FC_ID of the node.
+ *	This function is always called when node object need to
+ * be initialized. It initializes all the fields of the node
+ * object.
+ **/
+static inline void
+lpfc_initialize_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+	uint32_t did)
+{
+	INIT_LIST_HEAD(&ndlp->els_retry_evt.evt_listp);
+	INIT_LIST_HEAD(&ndlp->dev_loss_evt.evt_listp);
+	init_timer(&ndlp->nlp_delayfunc);
+	ndlp->nlp_delayfunc.function = lpfc_els_retry_delay;
+	ndlp->nlp_delayfunc.data = (unsigned long)ndlp;
+	ndlp->nlp_DID = did;
+	ndlp->vport = vport;
+	ndlp->nlp_sid = NLP_NO_SID;
+	kref_init(&ndlp->kref);
+	NLP_INT_NODE_ACT(ndlp);
+	atomic_set(&ndlp->cmd_pending, 0);
+	ndlp->cmd_qdepth = LPFC_MAX_TGT_QDEPTH;
+}
 
 struct lpfc_nodelist *
 lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
@@ -1892,17 +1923,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* re-initialize ndlp except of ndlp linked list pointer */
 	memset((((char *)ndlp) + sizeof (struct list_head)), 0,
 		sizeof (struct lpfc_nodelist) - sizeof (struct list_head));
-	INIT_LIST_HEAD(&ndlp->els_retry_evt.evt_listp);
-	INIT_LIST_HEAD(&ndlp->dev_loss_evt.evt_listp);
-	init_timer(&ndlp->nlp_delayfunc);
-	ndlp->nlp_delayfunc.function = lpfc_els_retry_delay;
-	ndlp->nlp_delayfunc.data = (unsigned long)ndlp;
-	ndlp->nlp_DID = did;
-	ndlp->vport = vport;
-	ndlp->nlp_sid = NLP_NO_SID;
-	/* ndlp management re-initialize */
-	kref_init(&ndlp->kref);
-	NLP_INT_NODE_ACT(ndlp);
+	lpfc_initialize_node(vport, ndlp, did);
 
 	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 
@@ -3116,19 +3137,9 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	      uint32_t did)
 {
 	memset(ndlp, 0, sizeof (struct lpfc_nodelist));
-	INIT_LIST_HEAD(&ndlp->els_retry_evt.evt_listp);
-	INIT_LIST_HEAD(&ndlp->dev_loss_evt.evt_listp);
-	init_timer(&ndlp->nlp_delayfunc);
-	ndlp->nlp_delayfunc.function = lpfc_els_retry_delay;
-	ndlp->nlp_delayfunc.data = (unsigned long)ndlp;
-	ndlp->nlp_DID = did;
-	ndlp->vport = vport;
-	ndlp->nlp_sid = NLP_NO_SID;
+
+	lpfc_initialize_node(vport, ndlp, did);
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
-	kref_init(&ndlp->kref);
-	NLP_INT_NODE_ACT(ndlp);
-	atomic_set(&ndlp->cmd_pending, 0);
-	ndlp->cmd_qdepth = LPFC_MAX_TGT_QDEPTH;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
 		"node init:       did:x%x",

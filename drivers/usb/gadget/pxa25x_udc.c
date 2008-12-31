@@ -141,7 +141,11 @@ static int is_vbus_present(void)
 
 	if (mach->gpio_vbus) {
 		int value = gpio_get_value(mach->gpio_vbus);
-		return mach->gpio_vbus_inverted ? !value : value;
+
+		if (mach->gpio_vbus_inverted)
+			return !value;
+		else
+			return !!value;
 	}
 	if (mach->udc_is_connected)
 		return mach->udc_is_connected();
@@ -982,7 +986,7 @@ static int pxa25x_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 	struct pxa25x_udc	*udc;
 
 	udc = container_of(_gadget, struct pxa25x_udc, gadget);
-	udc->vbus = (is_active != 0);
+	udc->vbus = is_active;
 	DMSG("vbus %s\n", is_active ? "supplied" : "inactive");
 	pullup(udc);
 	return 0;
@@ -1399,12 +1403,8 @@ lubbock_vbus_irq(int irq, void *_dev)
 static irqreturn_t udc_vbus_irq(int irq, void *_dev)
 {
 	struct pxa25x_udc	*dev = _dev;
-	int			vbus = gpio_get_value(dev->mach->gpio_vbus);
 
-	if (dev->mach->gpio_vbus_inverted)
-		vbus = !vbus;
-
-	pxa25x_udc_vbus_session(&dev->gadget, vbus);
+	pxa25x_udc_vbus_session(&dev->gadget, is_vbus_present());
 	return IRQ_HANDLED;
 }
 
@@ -2145,7 +2145,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -ENODEV;
 
-	dev->clk = clk_get(&pdev->dev, "UDCCLK");
+	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		retval = PTR_ERR(dev->clk);
 		goto err_clk;

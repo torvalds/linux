@@ -85,11 +85,18 @@
 			dfsrr;
 
 			rtc@68 {
-				device_type = "rtc";
 				compatible = "dallas,ds1339";
 				reg = <0x68>;
 				interrupts = <18 0x8>;
 				interrupt-parent = <&ipic>;
+			};
+
+			mcu_pio: mcu@a {
+				#gpio-cells = <2>;
+				compatible = "fsl,mc9s08qg8-mpc8349emitx",
+					     "fsl,mcu-mpc8349emitx";
+				reg = <0x0a>;
+				gpio-controller;
 			};
 		};
 
@@ -139,14 +146,6 @@
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
-
-			mcu_pio: mcu@a {
-				#gpio-cells = <2>;
-				compatible = "fsl,mc9s08qg8-mpc8349emitx",
-					     "fsl,mcu-mpc8349emitx";
-				reg = <0x0a>;
-				gpio-controller;
-			};
 		};
 
 		usb@22000 {
@@ -184,6 +183,22 @@
 				reg = <0x1c>;
 				device_type = "ethernet-phy";
 			};
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		mdio@25520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,gianfar-tbi";
+			reg = <0x25520 0x20>;
+
+			tbi1: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 
 		enet0: ethernet@24000 {
@@ -195,6 +210,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <32 0x8 33 0x8 34 0x8>;
 			interrupt-parent = <&ipic>;
+			tbi-handle = <&tbi0>;
 			phy-handle = <&phy1c>;
 			linux,network-index = <0>;
 		};
@@ -211,6 +227,7 @@
 			/* Vitesse 7385 isn't on the MDIO bus */
 			fixed-link = <1 1 1000 0 0>;
 			linux,network-index = <1>;
+			tbi-handle = <&tbi1>;
 		};
 
 		serial0: serial@4500 {

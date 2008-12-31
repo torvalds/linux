@@ -5,6 +5,19 @@
  *  http://www.gnu.org/licenses/gpl.html
  */
 
+
+enum pstate {
+	HW_PSTATE_INVALID = 0xff,
+	HW_PSTATE_0 = 0,
+	HW_PSTATE_1 = 1,
+	HW_PSTATE_2 = 2,
+	HW_PSTATE_3 = 3,
+	HW_PSTATE_4 = 4,
+	HW_PSTATE_5 = 5,
+	HW_PSTATE_6 = 6,
+	HW_PSTATE_7 = 7,
+};
+
 struct powernow_k8_data {
 	unsigned int cpu;
 
@@ -23,7 +36,9 @@ struct powernow_k8_data {
         u32 exttype; /* extended interface = 1 */
 
 	/* keep track of the current fid / vid or pstate */
-	u32 currvid, currfid, currpstate;
+	u32 currvid;
+	u32 currfid;
+	enum pstate currpstate;
 
 	/* the powernow_table includes all frequency and vid/fid pairings:
 	 * fid are the lower 8 bits of the index, vid are the upper 8 bits.

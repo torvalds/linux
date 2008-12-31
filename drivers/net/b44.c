@@ -829,7 +829,6 @@ static int b44_rx(struct b44 *bp, int budget)
 		skb->ip_summed = CHECKSUM_NONE;
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		netif_receive_skb(skb);
-		bp->dev->last_rx = jiffies;
 		received++;
 		budget--;
 	next_pkt:
@@ -847,7 +846,6 @@ static int b44_rx(struct b44 *bp, int budget)
 static int b44_poll(struct napi_struct *napi, int budget)
 {
 	struct b44 *bp = container_of(napi, struct b44, napi);
-	struct net_device *netdev = bp->dev;
 	int work_done;
 
 	spin_lock_irq(&bp->lock);
@@ -876,7 +874,7 @@ static int b44_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		b44_enable_ints(bp);
 	}
 
@@ -908,13 +906,13 @@ static irqreturn_t b44_interrupt(int irq, void *dev_id)
 			goto irq_ack;
 		}
 
-		if (netif_rx_schedule_prep(dev, &bp->napi)) {
+		if (netif_rx_schedule_prep(&bp->napi)) {
 			/* NOTE: These writes are posted by the readback of
 			 *       the ISTAT register below.
 			 */
 			bp->istat = istat;
 			__b44_disable_ints(bp);
-			__netif_rx_schedule(dev, &bp->napi);
+			__netif_rx_schedule(&bp->napi);
 		} else {
 			printk(KERN_ERR PFX "%s: Error, poll already scheduled\n",
 			       dev->name);
@@ -2117,7 +2115,6 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	struct net_device *dev;
 	struct b44 *bp;
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	instance++;
 
@@ -2213,8 +2210,8 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	 */
 	b44_chip_reset(bp, B44_CHIP_RESET_FULL);
 
-	printk(KERN_INFO "%s: Broadcom 44xx/47xx 10/100BaseT Ethernet %s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: Broadcom 44xx/47xx 10/100BaseT Ethernet %pM\n",
+	       dev->name, dev->dev_addr);
 
 	return 0;
 

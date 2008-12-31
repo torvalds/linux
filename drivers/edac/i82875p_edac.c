@@ -182,8 +182,6 @@ static struct pci_dev *mci_pdev;	/* init dev: in case that AGP code has
 					 * already registered driver
 					 */
 
-static int i82875p_registered = 1;
-
 static struct edac_pci_ctl_info *i82875p_pci;
 
 static void i82875p_get_error_info(struct mem_ctl_info *mci,
@@ -295,6 +293,7 @@ static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
 				"%s(): pci_bus_add_device() Failed\n",
 				__func__);
 		}
+		pci_bus_assign_resources(dev->bus);
 	}
 
 	*ovrfl_pdev = dev;
@@ -409,6 +408,9 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail0;
 	}
 
+	/* Keeps mci available after edac_mc_del_mc() till edac_mc_free() */
+	kobject_get(&mci->edac_mci_kobj);
+
 	debugf3("%s(): init mci\n", __func__);
 	mci->dev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR;
@@ -451,6 +453,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	return 0;
 
 fail1:
+	kobject_put(&mci->edac_mci_kobj);
 	edac_mc_free(mci);
 
 fail0:
@@ -578,12 +581,11 @@ static void __exit i82875p_exit(void)
 {
 	debugf3("%s()\n", __func__);
 
+	i82875p_remove_one(mci_pdev);
+	pci_dev_put(mci_pdev);
+
 	pci_unregister_driver(&i82875p_driver);
 
-	if (!i82875p_registered) {
-		i82875p_remove_one(mci_pdev);
-		pci_dev_put(mci_pdev);
-	}
 }
 
 module_init(i82875p_init);

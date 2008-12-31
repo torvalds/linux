@@ -46,10 +46,6 @@ static DEFINE_RWLOCK(hl_irqs_lock);
 
 static DEFINE_RWLOCK(addr_space_lock);
 
-/* addr_space list will have zero and max already included as bounds */
-static struct hpsb_address_ops dummy_ops = { NULL, NULL, NULL, NULL };
-static struct hpsb_address_serve dummy_zero_addr, dummy_max_addr;
-
 
 static struct hl_host_info *hl_get_hostinfo(struct hpsb_highlevel *hl,
 					    struct hpsb_host *host)
@@ -481,20 +477,23 @@ int hpsb_unregister_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
 	return retval;
 }
 
+static struct hpsb_address_ops dummy_ops;
+
+/* dummy address spaces as lower and upper bounds of the host's a.s. list */
 static void init_hpsb_highlevel(struct hpsb_host *host)
 {
-	INIT_LIST_HEAD(&dummy_zero_addr.host_list);
-	INIT_LIST_HEAD(&dummy_zero_addr.hl_list);
-	INIT_LIST_HEAD(&dummy_max_addr.host_list);
-	INIT_LIST_HEAD(&dummy_max_addr.hl_list);
+	INIT_LIST_HEAD(&host->dummy_zero_addr.host_list);
+	INIT_LIST_HEAD(&host->dummy_zero_addr.hl_list);
+	INIT_LIST_HEAD(&host->dummy_max_addr.host_list);
+	INIT_LIST_HEAD(&host->dummy_max_addr.hl_list);
 
-	dummy_zero_addr.op = dummy_max_addr.op = &dummy_ops;
+	host->dummy_zero_addr.op = host->dummy_max_addr.op = &dummy_ops;
 
-	dummy_zero_addr.start = dummy_zero_addr.end = 0;
-	dummy_max_addr.start = dummy_max_addr.end = ((u64) 1) << 48;
+	host->dummy_zero_addr.start = host->dummy_zero_addr.end = 0;
+	host->dummy_max_addr.start = host->dummy_max_addr.end = ((u64) 1) << 48;
 
-	list_add_tail(&dummy_zero_addr.host_list, &host->addr_space);
-	list_add_tail(&dummy_max_addr.host_list, &host->addr_space);
+	list_add_tail(&host->dummy_zero_addr.host_list, &host->addr_space);
+	list_add_tail(&host->dummy_max_addr.host_list, &host->addr_space);
 }
 
 void highlevel_add_host(struct hpsb_host *host)

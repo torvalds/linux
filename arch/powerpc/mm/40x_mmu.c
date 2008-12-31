@@ -93,7 +93,7 @@ void __init MMU_init_hw(void)
 
 unsigned long __init mmu_mapin_ram(void)
 {
-	unsigned long v, s;
+	unsigned long v, s, mapped;
 	phys_addr_t p;
 
 	v = KERNELBASE;
@@ -130,5 +130,17 @@ unsigned long __init mmu_mapin_ram(void)
 		s -= LARGE_PAGE_SIZE_4M;
 	}
 
-	return total_lowmem - s;
+	mapped = total_lowmem - s;
+
+	/* If the size of RAM is not an exact power of two, we may not
+	 * have covered RAM in its entirety with 16 and 4 MiB
+	 * pages. Consequently, restrict the top end of RAM currently
+	 * allocable so that calls to the LMB to allocate PTEs for "tail"
+	 * coverage with normal-sized pages (or other reasons) do not
+	 * attempt to allocate outside the allowed range.
+	 */
+
+	__initial_memory_limit_addr = memstart_addr + mapped;
+
+	return mapped;
 }

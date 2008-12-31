@@ -1795,12 +1795,15 @@ retry_open:
 	}
 #endif
 	if (device == MKDEV(TTYAUX_MAJOR, 1)) {
-		driver = tty_driver_kref_get(console_device(&index));
-		if (driver) {
-			/* Don't let /dev/console block */
-			filp->f_flags |= O_NONBLOCK;
-			noctty = 1;
-			goto got_driver;
+		struct tty_driver *console_driver = console_device(&index);
+		if (console_driver) {
+			driver = tty_driver_kref_get(console_driver);
+			if (driver) {
+				/* Don't let /dev/console block */
+				filp->f_flags |= O_NONBLOCK;
+				noctty = 1;
+				goto got_driver;
+			}
 		}
 		mutex_unlock(&tty_mutex);
 		return -ENODEV;
@@ -2015,6 +2018,7 @@ static int tiocsti(struct tty_struct *tty, char __user *p)
 		return -EPERM;
 	if (get_user(ch, p))
 		return -EFAULT;
+	tty_audit_tiocsti(tty, ch);
 	ld = tty_ldisc_ref_wait(tty);
 	ld->ops->receive_buf(tty, &ch, &mbz, 1);
 	tty_ldisc_deref(ld);

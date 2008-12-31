@@ -112,6 +112,9 @@ my ($arch, $bits, $objdump, $objcopy, $cc,
 # Acceptable sections to record.
 my %text_sections = (
      ".text" => 1,
+     ".sched.text" => 1,
+     ".spinlock.text" => 1,
+     ".irqentry.text" => 1,
 );
 
 $objdump = "objdump" if ((length $objdump) == 0);
@@ -130,10 +133,13 @@ my %weak;		# List of weak functions
 my %convert;		# List of local functions used that needs conversion
 
 my $type;
+my $nm_regex;		# Find the local functions (return function)
 my $section_regex;	# Find the start of a section
 my $function_regex;	# Find the name of a function
 			#    (return offset and func name)
 my $mcount_regex;	# Find the call site to mcount (return offset)
+my $alignment;		# The .align value to use for $mcount_section
+my $section_type;	# Section header plus possible alignment command
 
 if ($arch eq "x86") {
     if ($bits == 64) {
@@ -143,11 +149,21 @@ if ($arch eq "x86") {
     }
 }
 
+#
+# We base the defaults off of i386, the other archs may
+# feel free to change them in the below if statements.
+#
+$nm_regex = "^[0-9a-fA-F]+\\s+t\\s+(\\S+)";
+$section_regex = "Disassembly of section\\s+(\\S+):";
+$function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
+$mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount\$";
+$section_type = '@progbits';
+$type = ".long";
+
 if ($arch eq "x86_64") {
-    $section_regex = "Disassembly of section\\s+(\\S+):";
-    $function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount([+-]0x[0-9a-zA-Z]+)?\$";
     $type = ".quad";
+    $alignment = 8;
 
     # force flags for this arch
     $ld .= " -m elf_x86_64";
@@ -156,16 +172,34 @@ if ($arch eq "x86_64") {
     $cc .= " -m64";
 
 } elsif ($arch eq "i386") {
-    $section_regex = "Disassembly of section\\s+(\\S+):";
-    $function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
-    $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount\$";
-    $type = ".long";
+    $alignment = 4;
 
     # force flags for this arch
     $ld .= " -m elf_i386";
     $objdump .= " -M i386";
     $objcopy .= " -O elf32-i386";
     $cc .= " -m32";
+
+} elsif ($arch eq "sh") {
+    $alignment = 2;
+
+    # force flags for this arch
+    $ld .= " -m shlelf_linux";
+    $objcopy .= " -O elf32-sh-linux";
+    $cc .= " -m32";
+
+} elsif ($arch eq "powerpc") {
+    $nm_regex = "^[0-9a-fA-F]+\\s+t\\s+(\\.?\\S+)";
+    $function_regex = "^([0-9a-fA-F]+)\\s+<(\\.?.*?)>:";
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s\\.?_mcount\$";
+
+    if ($bits == 64) {
+	$type = ".quad";
+    }
+
+} elsif ($arch eq "arm") {
+    $alignment = 2;
+    $section_type = '%progbits';
 
 } else {
     die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
@@ -236,7 +270,7 @@ if (!$found_version) {
 #
 open (IN, "$nm $inputfile|") || die "error running $nm";
 while (<IN>) {
-    if (/^[0-9a-fA-F]+\s+t\s+(\S+)/) {
+    if (/$nm_regex/) {
 	$locals{$1} = 1;
     } elsif (/^[0-9a-fA-F]+\s+([wW])\s+(\S+)/) {
 	$weak{$2} = $1;
@@ -287,7 +321,8 @@ sub update_funcs
 	if (!$opened) {
 	    open(FILE, ">$mcount_s") || die "can't create $mcount_s\n";
 	    $opened = 1;
-	    print FILE "\t.section $mcount_section,\"a\",\@progbits\n";
+	    print FILE "\t.section $mcount_section,\"a\",$section_type\n";
+	    print FILE "\t.align $alignment\n" if (defined($alignment));
 	}
 	printf FILE "\t%s %s + %d\n", $type, $ref_func, $offsets[$i] - $offset;
     }

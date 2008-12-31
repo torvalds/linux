@@ -159,7 +159,7 @@ const char *msp_standard_std_name(int std)
 
 static void msp_set_source(struct i2c_client *client, u16 src)
 {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 
 	if (msp_dolby) {
 		msp_write_dsp(client, 0x0008, 0x0520); /* I2S1 */
@@ -186,7 +186,7 @@ void msp3400c_set_carrier(struct i2c_client *client, int cdo1, int cdo2)
 
 void msp3400c_set_mode(struct i2c_client *client, int mode)
 {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	struct msp3400c_init_data_dem *data = &msp3400c_init_data[mode];
 	int tuner = (state->routing.input >> 3) & 1;
 	int i;
@@ -227,7 +227,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 	static char *strmode[] = {
 		"mono", "stereo", "lang2", "lang1", "lang1+lang2"
 	};
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	char *modestr = (state->audmode >= 0 && state->audmode < 5) ?
 		strmode[state->audmode] : "unknown";
 	int src = 0;	/* channel source: FM/AM, nicam or SCART */
@@ -356,7 +356,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 
 static void msp3400c_print_mode(struct i2c_client *client)
 {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 
 	if (state->main == state->second)
 		v4l_dbg(1, msp_debug, client,
@@ -385,7 +385,7 @@ static void msp3400c_print_mode(struct i2c_client *client)
 
 static int msp3400c_detect_stereo(struct i2c_client *client)
 {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	int val;
 	int rxsubchans = state->rxsubchans;
 	int newnicam = state->nicam_on;
@@ -463,7 +463,7 @@ static int msp3400c_detect_stereo(struct i2c_client *client)
 /* stereo/multilang monitoring */
 static void watch_stereo(struct i2c_client *client)
 {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 
 	if (msp_detect_stereo(client))
 		msp_set_audmode(client);
@@ -475,7 +475,7 @@ static void watch_stereo(struct i2c_client *client)
 int msp3400c_thread(void *data)
 {
 	struct i2c_client *client = data;
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	struct msp3400c_carrier_detect *cd;
 	int count, max1, max2, val1, val2, val, i;
 
@@ -659,7 +659,7 @@ no_second:
 int msp3410d_thread(void *data)
 {
 	struct i2c_client *client = data;
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	int val, i, std, count;
 
 	v4l_dbg(1, msp_debug, client, "msp3410 daemon started\n");
@@ -825,7 +825,7 @@ restart:
 
 static int msp34xxg_modus(struct i2c_client *client)
 {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 
 	if (state->radio) {
 		v4l_dbg(1, msp_debug, client, "selected radio modus\n");
@@ -852,7 +852,7 @@ static int msp34xxg_modus(struct i2c_client *client)
 
 static void msp34xxg_set_source(struct i2c_client *client, u16 reg, int in)
  {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	int source, matrix;
 
 	switch (state->audmode) {
@@ -895,7 +895,7 @@ static void msp34xxg_set_source(struct i2c_client *client, u16 reg, int in)
 
 static void msp34xxg_set_sources(struct i2c_client *client)
 {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	u32 in = state->routing.input;
 
 	msp34xxg_set_source(client, 0x0008, (in >> 4) & 0xf);
@@ -911,7 +911,7 @@ static void msp34xxg_set_sources(struct i2c_client *client)
 /* (re-)initialize the msp34xxg */
 static void msp34xxg_reset(struct i2c_client *client)
 {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	int tuner = (state->routing.input >> 3) & 1;
 	int modus;
 
@@ -954,7 +954,7 @@ static void msp34xxg_reset(struct i2c_client *client)
 int msp34xxg_thread(void *data)
 {
 	struct i2c_client *client = data;
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	int val, i;
 
 	v4l_dbg(1, msp_debug, client, "msp34xxg daemon started\n");
@@ -1049,7 +1049,7 @@ unmute:
 
 static int msp34xxg_detect_stereo(struct i2c_client *client)
 {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	int status = msp_read_dem(client, 0x0200);
 	int is_bilingual = status & 0x100;
 	int is_stereo = status & 0x40;
@@ -1078,7 +1078,7 @@ static int msp34xxg_detect_stereo(struct i2c_client *client)
 
 static void msp34xxg_set_audmode(struct i2c_client *client)
 {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 
 	if (state->std == 0x20) {
 	       if ((state->rxsubchans & V4L2_TUNER_SUB_SAP) &&
@@ -1095,7 +1095,7 @@ static void msp34xxg_set_audmode(struct i2c_client *client)
 
 void msp_set_audmode(struct i2c_client *client)
 {
-	struct msp_state *state = i2c_get_clientdata(client);
+	struct msp_state *state = to_state(i2c_get_clientdata(client));
 
 	switch (state->opmode) {
 	case OPMODE_MANUAL:
@@ -1110,7 +1110,7 @@ void msp_set_audmode(struct i2c_client *client)
 
 int msp_detect_stereo(struct i2c_client *client)
 {
-	struct msp_state *state  = i2c_get_clientdata(client);
+	struct msp_state *state  = to_state(i2c_get_clientdata(client));
 
 	switch (state->opmode) {
 	case OPMODE_MANUAL:

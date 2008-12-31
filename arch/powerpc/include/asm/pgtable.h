@@ -16,6 +16,32 @@ struct mm_struct;
 #endif
 
 #ifndef __ASSEMBLY__
+
+/*
+ * Macro to mark a page protection value as "uncacheable".
+ */
+
+#define _PAGE_CACHE_CTL	(_PAGE_COHERENT | _PAGE_GUARDED | _PAGE_NO_CACHE | \
+			 _PAGE_WRITETHRU)
+
+#define pgprot_noncached(prot)	  (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+				            _PAGE_NO_CACHE | _PAGE_GUARDED))
+
+#define pgprot_noncached_wc(prot) (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+				            _PAGE_NO_CACHE))
+
+#define pgprot_cached(prot)       (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+				            _PAGE_COHERENT))
+
+#define pgprot_cached_wthru(prot) (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+				            _PAGE_COHERENT | _PAGE_WRITETHRU))
+
+
+struct file;
+extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+				     unsigned long size, pgprot_t vma_prot);
+#define __HAVE_PHYS_MEM_ACCESS_PROT
+
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..

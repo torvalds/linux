@@ -119,9 +119,10 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 			    dcc & DCC_CHANNEL_XOR_DISABLE) {
 				swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 				swizzle_y = I915_BIT_6_SWIZZLE_9;
-			} else if (IS_I965GM(dev) || IS_GM45(dev)) {
-				/* GM965 only does bit 11-based channel
-				 * randomization
+			} else if ((IS_I965GM(dev) || IS_GM45(dev)) &&
+				   (dcc & DCC_CHANNEL_XOR_BIT_17) == 0) {
+				/* GM965/GM45 does either bit 11 or bit 17
+				 * swizzling.
 				 */
 				swizzle_x = I915_BIT_6_SWIZZLE_9_10_11;
 				swizzle_y = I915_BIT_6_SWIZZLE_9_11;
@@ -207,6 +208,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		}
 	}
 	obj_priv->tiling_mode = args->tiling_mode;
+	obj_priv->stride = args->stride;
 
 	mutex_unlock(&dev->struct_mutex);
 

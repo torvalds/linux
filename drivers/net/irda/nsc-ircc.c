@@ -373,7 +373,7 @@ static int __init nsc_ircc_open(chipio_t *info)
 		return -ENOMEM;
 	}
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 	self->netdev = dev;
 	spin_lock_init(&self->lock);
    
@@ -1354,7 +1354,7 @@ static int nsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 	__s32 speed;
 	__u8 bank;
 	
-	self = (struct nsc_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 
 	IRDA_ASSERT(self != NULL, return 0;);
 
@@ -1427,7 +1427,7 @@ static int nsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 	__u8 bank;
 	int mtt, diff;
 	
-	self = (struct nsc_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 	iobase = self->io.fir_base;
 
 	netif_stop_queue(dev);
@@ -1896,7 +1896,6 @@ static int nsc_ircc_dma_receive_complete(struct nsc_ircc_cb *self, int iobase)
 			skb_reset_mac_header(skb);
 			skb->protocol = htons(ETH_P_IRDA);
 			netif_rx(skb);
-			self->netdev->last_rx = jiffies;
 		}
 	}
 	/* Restore bank register */
@@ -2085,7 +2084,7 @@ static irqreturn_t nsc_ircc_interrupt(int irq, void *dev_id)
 	__u8 bsr, eir;
 	int iobase;
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 
 	spin_lock(&self->lock);	
 
@@ -2166,7 +2165,7 @@ static int nsc_ircc_net_open(struct net_device *dev)
 	IRDA_DEBUG(4, "%s()\n", __func__);
 	
 	IRDA_ASSERT(dev != NULL, return -1;);
-	self = (struct nsc_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 	
 	IRDA_ASSERT(self != NULL, return 0;);
 	
@@ -2229,7 +2228,7 @@ static int nsc_ircc_net_close(struct net_device *dev)
 	
 	IRDA_ASSERT(dev != NULL, return -1;);
 
-	self = (struct nsc_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 	IRDA_ASSERT(self != NULL, return 0;);
 
 	/* Stop device */
@@ -2275,7 +2274,7 @@ static int nsc_ircc_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	IRDA_ASSERT(dev != NULL, return -1;);
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -2310,7 +2309,7 @@ static int nsc_ircc_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static struct net_device_stats *nsc_ircc_net_get_stats(struct net_device *dev)
 {
-	struct nsc_ircc_cb *self = (struct nsc_ircc_cb *) dev->priv;
+	struct nsc_ircc_cb *self = netdev_priv(dev);
 	
 	return &self->stats;
 }

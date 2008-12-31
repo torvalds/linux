@@ -45,5 +45,6 @@ extern void gen_kill_estimator(struct gnet_stats_basic *bstats,
 extern int gen_replace_estimator(struct gnet_stats_basic *bstats,
 				 struct gnet_stats_rate_est *rate_est,
 				 spinlock_t *stats_lock, struct nlattr *opt);
-
+extern bool gen_estimator_active(const struct gnet_stats_basic *bstats,
+				 const struct gnet_stats_rate_est *rate_est);
 #endif

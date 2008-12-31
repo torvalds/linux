@@ -24,13 +24,12 @@ typedef int			__kernel_daddr_t;
 typedef unsigned long		__kernel_size_t;
 typedef long			__kernel_ssize_t;
 typedef long			__kernel_ptrdiff_t;
-typedef long			__kernel_time_t;
 #else
 typedef unsigned int		__kernel_size_t;
 typedef int			__kernel_ssize_t;
 typedef int			__kernel_ptrdiff_t;
-typedef long			__kernel_time_t;
 #endif
+typedef long			__kernel_time_t;
 typedef char *			__kernel_caddr_t;
 
 typedef unsigned short		__kernel_uid16_t;

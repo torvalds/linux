@@ -572,7 +572,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 		priv->param.persist = 256;
 		priv->param.dma = -1;
 		INIT_WORK(&priv->rx_work, rx_bh);
-		dev->priv = priv;
+		dev->ml_priv = priv;
 		sprintf(dev->name, "dmascc%i", 2 * n + i);
 		dev->base_addr = card_base;
 		dev->irq = irq;
@@ -720,7 +720,7 @@ static int read_scc_data(struct scc_priv *priv)
 
 static int scc_open(struct net_device *dev)
 {
-	struct scc_priv *priv = dev->priv;
+	struct scc_priv *priv = dev->ml_priv;
 	struct scc_info *info = priv->info;
 	int card_base = priv->card_base;
 
@@ -862,7 +862,7 @@ static int scc_open(struct net_device *dev)
 
 static int scc_close(struct net_device *dev)
 {
-	struct scc_priv *priv = dev->priv;
+	struct scc_priv *priv = dev->ml_priv;
 	struct scc_info *info = priv->info;
 	int card_base = priv->card_base;
 
@@ -891,7 +891,7 @@ static int scc_close(struct net_device *dev)
 
 static int scc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct scc_priv *priv = dev->priv;
+	struct scc_priv *priv = dev->ml_priv;
 
 	switch (cmd) {
 	case SIOCGSCCPARAM:
@@ -918,7 +918,7 @@ static int scc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static int scc_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
-	struct scc_priv *priv = dev->priv;
+	struct scc_priv *priv = dev->ml_priv;
 	unsigned long flags;
 	int i;
 
@@ -963,7 +963,7 @@ static int scc_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *scc_get_stats(struct net_device *dev)
 {
-	struct scc_priv *priv = dev->priv;
+	struct scc_priv *priv = dev->ml_priv;
 
 	return &priv->stats;
 }
@@ -1283,7 +1283,6 @@ static void rx_bh(struct work_struct *ugli_api)
 			memcpy(&data[1], priv->rx_buf[i], cb);
 			skb->protocol = ax25_type_trans(skb, priv->dev);
 			netif_rx(skb);
-			priv->dev->last_rx = jiffies;
 			priv->stats.rx_packets++;
 			priv->stats.rx_bytes += cb;
 		}

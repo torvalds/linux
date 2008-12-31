@@ -54,6 +54,7 @@
 #include <linux/mutex.h>
 #include <linux/lockd/bind.h>
 #include <linux/module.h>
+#include <linux/sunrpc/svcauth_gss.h>
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -377,6 +378,7 @@ free_client(struct nfs4_client *clp)
 	shutdown_callback_client(clp);
 	if (clp->cl_cred.cr_group_info)
 		put_group_info(clp->cl_cred.cr_group_info);
+	kfree(clp->cl_principal);
 	kfree(clp->cl_name.data);
 	kfree(clp);
 }
@@ -696,6 +698,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	unsigned int 		strhashval;
 	struct nfs4_client	*conf, *unconf, *new;
 	__be32 			status;
+	char			*princ;
 	char                    dname[HEXDIR_LEN];
 	
 	if (!check_name(clname))
@@ -719,8 +722,8 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		status = nfserr_clid_inuse;
 		if (!same_creds(&conf->cl_cred, &rqstp->rq_cred)
 				|| conf->cl_addr != sin->sin_addr.s_addr) {
-			dprintk("NFSD: setclientid: string in use by client"
-				"at %u.%u.%u.%u\n", NIPQUAD(conf->cl_addr));
+			dprintk("NFSD: setclientid: string in use by clientat %pI4\n",
+				&conf->cl_addr);
 			goto out;
 		}
 	}
@@ -783,6 +786,15 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 	copy_verf(new, &clverifier);
 	new->cl_addr = sin->sin_addr.s_addr;
+	new->cl_flavor = rqstp->rq_flavor;
+	princ = svc_gss_principal(rqstp);
+	if (princ) {
+		new->cl_principal = kstrdup(princ, GFP_KERNEL);
+		if (new->cl_principal == NULL) {
+			free_client(new);
+			goto out;
+		}
+	}
 	copy_cred(&new->cl_cred, &rqstp->rq_cred);
 	gen_confirm(new);
 	gen_callback(new, setclid);
@@ -3261,6 +3273,7 @@ nfs4_state_shutdown(void)
 {
 	cancel_rearming_delayed_workqueue(laundry_wq, &laundromat_work);
 	destroy_workqueue(laundry_wq);
+	locks_end_grace(&nfsd4_manager);
 	nfs4_lock_state();
 	nfs4_release_reclaim();
 	__nfs4_state_shutdown();

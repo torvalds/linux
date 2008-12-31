@@ -215,8 +215,8 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 	inode = new_inode(sb);
 	if (inode) {
 		inode->i_mode = mode;
-		inode->i_uid = current->fsuid;
-		inode->i_gid = current->fsgid;
+		inode->i_uid = current_fsuid();
+		inode->i_gid = current_fsgid();
 		inode->i_blocks = 0;
 		inode->i_rdev = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
@@ -963,7 +963,8 @@ static int v9fs_vfs_readlink(struct dentry *dentry, char __user * buffer,
 	if (buflen > PATH_MAX)
 		buflen = PATH_MAX;
 
-	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_iname, dentry);
+	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_name.name,
+									dentry);
 
 	retval = v9fs_readlink(dentry, link, buflen);
 
@@ -1022,7 +1023,8 @@ v9fs_vfs_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
 {
 	char *s = nd_get_link(nd);
 
-	P9_DPRINTK(P9_DEBUG_VFS, " %s %s\n", dentry->d_name.name, s);
+	P9_DPRINTK(P9_DEBUG_VFS, " %s %s\n", dentry->d_name.name,
+		IS_ERR(s) ? "<error>" : s);
 	if (!IS_ERR(s))
 		__putname(s);
 }

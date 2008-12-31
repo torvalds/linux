@@ -80,6 +80,7 @@
 #include <linux/file.h>
 #include <linux/proc_fs.h>
 #include <linux/mutex.h>
+#include <linux/wait.h>
 
 #include <net/sock.h>
 #include <net/af_unix.h>
@@ -91,6 +92,7 @@
 static LIST_HEAD(gc_inflight_list);
 static LIST_HEAD(gc_candidates);
 static DEFINE_SPINLOCK(unix_gc_lock);
+static DECLARE_WAIT_QUEUE_HEAD(unix_gc_wait);
 
 unsigned int unix_tot_inflight;
 
@@ -104,8 +106,8 @@ static struct sock *unix_get_socket(struct file *filp)
 	 *	Socket ?
 	 */
 	if (S_ISSOCK(inode->i_mode)) {
-		struct socket * sock = SOCKET_I(inode);
-		struct sock * s = sock->sk;
+		struct socket *sock = SOCKET_I(inode);
+		struct sock *s = sock->sk;
 
 		/*
 		 *	PF_UNIX ?
@@ -124,7 +126,7 @@ static struct sock *unix_get_socket(struct file *filp)
 void unix_inflight(struct file *fp)
 {
 	struct sock *s = unix_get_socket(fp);
-	if(s) {
+	if (s) {
 		struct unix_sock *u = unix_sk(s);
 		spin_lock(&unix_gc_lock);
 		if (atomic_long_inc_return(&u->inflight) == 1) {
@@ -141,7 +143,7 @@ void unix_inflight(struct file *fp)
 void unix_notinflight(struct file *fp)
 {
 	struct sock *s = unix_get_socket(fp);
-	if(s) {
+	if (s) {
 		struct unix_sock *u = unix_sk(s);
 		spin_lock(&unix_gc_lock);
 		BUG_ON(list_empty(&u->link));
@@ -154,7 +156,7 @@ void unix_notinflight(struct file *fp)
 
 static inline struct sk_buff *sock_queue_head(struct sock *sk)
 {
-	return (struct sk_buff *) &sk->sk_receive_queue;
+	return (struct sk_buff *)&sk->sk_receive_queue;
 }
 
 #define receive_queue_for_each_skb(sk, next, skb) \
@@ -266,12 +268,16 @@ static void inc_inflight_move_tail(struct unix_sock *u)
 		list_move_tail(&u->link, &gc_candidates);
 }
 
-/* The external entry point: unix_gc() */
+static bool gc_in_progress = false;
 
+void wait_for_unix_gc(void)
+{
+	wait_event(unix_gc_wait, gc_in_progress == false);
+}
+
+/* The external entry point: unix_gc() */
 void unix_gc(void)
 {
-	static bool gc_in_progress = false;
-
 	struct unix_sock *u;
 	struct unix_sock *next;
 	struct sk_buff_head hitlist;
@@ -364,7 +370,7 @@ void unix_gc(void)
 	 */
 	skb_queue_head_init(&hitlist);
 	list_for_each_entry(u, &gc_candidates, link)
-		scan_children(&u->sk, inc_inflight, &hitlist);
+	scan_children(&u->sk, inc_inflight, &hitlist);
 
 	spin_unlock(&unix_gc_lock);
 
@@ -376,6 +382,7 @@ void unix_gc(void)
 	/* All candidates should have been detached by now. */
 	BUG_ON(!list_empty(&gc_candidates));
 	gc_in_progress = false;
+	wake_up(&unix_gc_wait);
 
  out:
 	spin_unlock(&unix_gc_lock);

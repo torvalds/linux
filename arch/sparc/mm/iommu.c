@@ -245,8 +245,8 @@ static void iommu_get_scsi_sgl_noflush(struct device *dev, struct scatterlist *s
 	while (sz != 0) {
 		--sz;
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
-		sg->dvma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
-		sg->dvma_length = (__u32) sg->length;
+		sg->dma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
+		sg->dma_length = sg->length;
 		sg = sg_next(sg);
 	}
 }
@@ -259,8 +259,8 @@ static void iommu_get_scsi_sgl_gflush(struct device *dev, struct scatterlist *sg
 	while (sz != 0) {
 		--sz;
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
-		sg->dvma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
-		sg->dvma_length = (__u32) sg->length;
+		sg->dma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
+		sg->dma_length = sg->length;
 		sg = sg_next(sg);
 	}
 }
@@ -290,8 +290,8 @@ static void iommu_get_scsi_sgl_pflush(struct device *dev, struct scatterlist *sg
 			}
 		}
 
-		sg->dvma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
-		sg->dvma_length = (__u32) sg->length;
+		sg->dma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
+		sg->dma_length = sg->length;
 		sg = sg_next(sg);
 	}
 }
@@ -330,8 +330,8 @@ static void iommu_release_scsi_sgl(struct device *dev, struct scatterlist *sg, i
 		--sz;
 
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
-		iommu_release_one(dev, sg->dvma_address & PAGE_MASK, n);
-		sg->dvma_address = 0x21212121;
+		iommu_release_one(dev, sg->dma_address & PAGE_MASK, n);
+		sg->dma_address = 0x21212121;
 		sg = sg_next(sg);
 	}
 }

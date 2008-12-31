@@ -222,7 +222,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector
 	}
 
 	err = mlx4_cq_alloc(dev->dev, entries, &cq->buf.mtt, uar,
-			    cq->db.dma, &cq->mcq, 0);
+			    cq->db.dma, &cq->mcq, vector, 0);
 	if (err)
 		goto err_dbmap;
 
@@ -325,15 +325,17 @@ static int mlx4_ib_get_outstanding_cqes(struct mlx4_ib_cq *cq)
 
 static void mlx4_ib_cq_resize_copy_cqes(struct mlx4_ib_cq *cq)
 {
-	struct mlx4_cqe *cqe;
+	struct mlx4_cqe *cqe, *new_cqe;
 	int i;
 
 	i = cq->mcq.cons_index;
 	cqe = get_cqe(cq, i & cq->ibcq.cqe);
 	while ((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) != MLX4_CQE_OPCODE_RESIZE) {
-		memcpy(get_cqe_from_buf(&cq->resize_buf->buf,
-					(i + 1) & cq->resize_buf->cqe),
-			get_cqe(cq, i & cq->ibcq.cqe), sizeof(struct mlx4_cqe));
+		new_cqe = get_cqe_from_buf(&cq->resize_buf->buf,
+					   (i + 1) & cq->resize_buf->cqe);
+		memcpy(new_cqe, get_cqe(cq, i & cq->ibcq.cqe), sizeof(struct mlx4_cqe));
+		new_cqe->owner_sr_opcode = (cqe->owner_sr_opcode & ~MLX4_CQE_OWNER_MASK) |
+			(((i + 1) & (cq->resize_buf->cqe + 1)) ? MLX4_CQE_OWNER_MASK : 0);
 		cqe = get_cqe(cq, ++i & cq->ibcq.cqe);
 	}
 	++cq->mcq.cons_index;
@@ -343,6 +345,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibcq->device);
 	struct mlx4_ib_cq *cq = to_mcq(ibcq);
+	struct mlx4_mtt mtt;
 	int outst_cqe;
 	int err;
 
@@ -376,10 +379,13 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 			goto out;
 	}
 
+	mtt = cq->buf.mtt;
+
 	err = mlx4_cq_resize(dev->dev, &cq->mcq, entries, &cq->resize_buf->buf.mtt);
 	if (err)
 		goto err_buf;
 
+	mlx4_mtt_cleanup(dev->dev, &mtt);
 	if (ibcq->uobject) {
 		cq->buf      = cq->resize_buf->buf;
 		cq->ibcq.cqe = cq->resize_buf->cqe;
@@ -406,6 +412,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	goto out;
 
 err_buf:
+	mlx4_mtt_cleanup(dev->dev, &cq->resize_buf->buf.mtt);
 	if (!ibcq->uobject)
 		mlx4_ib_free_cq_buf(dev, &cq->resize_buf->buf,
 				    cq->resize_buf->cqe);
@@ -692,7 +699,7 @@ repoll:
 		}
 
 		wc->slid	   = be16_to_cpu(cqe->rlid);
-		wc->sl		   = be16_to_cpu(cqe->sl_vid >> 12);
+		wc->sl		   = be16_to_cpu(cqe->sl_vid) >> 12;
 		g_mlpath_rqpn	   = be32_to_cpu(cqe->g_mlpath_rqpn);
 		wc->src_qp	   = g_mlpath_rqpn & 0xffffff;
 		wc->dlid_path_bits = (g_mlpath_rqpn >> 24) & 0x7f;

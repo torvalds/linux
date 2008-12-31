@@ -37,13 +37,7 @@
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>
-
-#ifdef DEBUG
-#include <asm/udbg.h>
-#define DBG(fmt...) printk(fmt)
-#else
-#define DBG(fmt...)
-#endif
+#include <asm/eeh.h>
 
 static DEFINE_SPINLOCK(hose_spinlock);
 
@@ -53,8 +47,9 @@ static int global_phb_number;		/* Global phb counter */
 /* ISA Memory physical address */
 resource_size_t isa_mem_base;
 
-/* Default PCI flags is 0 */
-unsigned int ppc_pci_flags;
+/* Default PCI flags is 0 on ppc32, modified at boot on ppc64 */
+unsigned int ppc_pci_flags = 0;
+
 
 static struct dma_mapping_ops *pci_dma_ops;
 
@@ -165,8 +160,6 @@ EXPORT_SYMBOL(pci_domain_nr);
  */
 struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
 {
-	if (!have_of)
-		return NULL;
 	while(node) {
 		struct pci_controller *hose, *tmp;
 		list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
@@ -208,26 +201,6 @@ char __devinit *pcibios_setup(char *str)
 	return str;
 }
 
-void __devinit pcibios_setup_new_device(struct pci_dev *dev)
-{
-	struct dev_archdata *sd = &dev->dev.archdata;
-
-	sd->of_node = pci_device_to_OF_node(dev);
-
-	DBG("PCI: device %s OF node: %s\n", pci_name(dev),
-	    sd->of_node ? sd->of_node->full_name : "<none>");
-
-	sd->dma_ops = pci_dma_ops;
-#ifdef CONFIG_PPC32
-	sd->dma_data = (void *)PCI_DRAM_OFFSET;
-#endif
-	set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
-
-	if (ppc_md.pci_dma_dev_setup)
-		ppc_md.pci_dma_dev_setup(dev);
-}
-EXPORT_SYMBOL(pcibios_setup_new_device);
-
 /*
  * Reads the interrupt pin to determine if interrupt is use by card.
  * If the interrupt is used, then gets the interrupt line from the
@@ -252,7 +225,7 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 		return -1;
 #endif
 
-	DBG("Try to map irq for %s...\n", pci_name(pci_dev));
+	pr_debug("PCI: Try to map irq for %s...\n", pci_name(pci_dev));
 
 #ifdef DEBUG
 	memset(&oirq, 0xff, sizeof(oirq));
@@ -276,26 +249,26 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 		    line == 0xff || line == 0) {
 			return -1;
 		}
-		DBG(" -> no map ! Using line %d (pin %d) from PCI config\n",
-		    line, pin);
+		pr_debug(" No map ! Using line %d (pin %d) from PCI config\n",
+			 line, pin);
 
 		virq = irq_create_mapping(NULL, line);
 		if (virq != NO_IRQ)
 			set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
 	} else {
-		DBG(" -> got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
-		    oirq.size, oirq.specifier[0], oirq.specifier[1],
+		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
+			 oirq.size, oirq.specifier[0], oirq.specifier[1],
 		    oirq.controller->full_name);
 
 		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
 					     oirq.size);
 	}
 	if(virq == NO_IRQ) {
-		DBG(" -> failed to map !\n");
+		pr_debug(" Failed to map !\n");
 		return -1;
 	}
 
-	DBG(" -> mapped to linux irq %d\n", virq);
+	pr_debug(" Mapped to linux irq %d\n", virq);
 
 	pci_dev->irq = virq;
 
@@ -397,13 +370,10 @@ static pgprot_t __pci_mmap_set_pgprot(struct pci_dev *dev, struct resource *rp,
 	}
 
 	/* XXX would be nice to have a way to ask for write-through */
-	prot |= _PAGE_NO_CACHE;
 	if (write_combine)
-		prot &= ~_PAGE_GUARDED;
+		return pgprot_noncached_wc(prot);
 	else
-		prot |= _PAGE_GUARDED;
-
-	return __pgprot(prot);
+		return pgprot_noncached(prot);
 }
 
 /*
@@ -414,19 +384,17 @@ static pgprot_t __pci_mmap_set_pgprot(struct pci_dev *dev, struct resource *rp,
 pgprot_t pci_phys_mem_access_prot(struct file *file,
 				  unsigned long pfn,
 				  unsigned long size,
-				  pgprot_t protection)
+				  pgprot_t prot)
 {
 	struct pci_dev *pdev = NULL;
 	struct resource *found = NULL;
-	unsigned long prot = pgprot_val(protection);
 	resource_size_t offset = ((resource_size_t)pfn) << PAGE_SHIFT;
 	int i;
 
 	if (page_is_ram(pfn))
-		return __pgprot(prot);
+		return prot;
 
-	prot |= _PAGE_NO_CACHE | _PAGE_GUARDED;
-
+	prot = pgprot_noncached(prot);
 	for_each_pci_dev(pdev) {
 		for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
 			struct resource *rp = &pdev->resource[i];
@@ -447,14 +415,14 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 	}
 	if (found) {
 		if (found->flags & IORESOURCE_PREFETCH)
-			prot &= ~_PAGE_GUARDED;
+			prot = pgprot_noncached_wc(prot);
 		pci_dev_put(pdev);
 	}
 
-	DBG("non-PCI map for %llx, prot: %lx\n",
-	    (unsigned long long)offset, prot);
+	pr_debug("PCI: Non-PCI map for %llx, prot: %lx\n",
+		 (unsigned long long)offset, pgprot_val(prot));
 
-	return __pgprot(prot);
+	return prot;
 }
 
 
@@ -610,8 +578,7 @@ int pci_mmap_legacy_page_range(struct pci_bus *bus,
 	pr_debug(" -> mapping phys %llx\n", (unsigned long long)offset);
 
 	vma->vm_pgoff = offset >> PAGE_SHIFT;
-	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
-				     | _PAGE_NO_CACHE | _PAGE_GUARDED);
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	return remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			       vma->vm_end - vma->vm_start,
 			       vma->vm_page_prot);
@@ -853,15 +820,12 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 int pci_proc_domain(struct pci_bus *bus)
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
-#ifdef CONFIG_PPC64
-	return hose->buid != 0;
-#else
+
 	if (!(ppc_pci_flags & PPC_PCI_ENABLE_PROC_DOMAINS))
 		return 0;
 	if (ppc_pci_flags & PPC_PCI_COMPAT_DOMAIN_0)
 		return hose->global_number != 0;
 	return 1;
-#endif
 }
 
 void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
@@ -1083,27 +1047,50 @@ static void __devinit pcibios_fixup_bridge(struct pci_bus *bus)
 	}
 }
 
-static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
+void __devinit pcibios_setup_bus_self(struct pci_bus *bus)
 {
-	struct pci_dev *dev = bus->self;
-
-	pr_debug("PCI: Fixup bus %d (%s)\n", bus->number, dev ? pci_name(dev) : "PHB");
-
-	/* Fixup PCI<->PCI bridges. Host bridges are handled separately, for
-	 * now differently between 32 and 64 bits.
-	 */
-	if (dev != NULL)
+	/* Fix up the bus resources for P2P bridges */
+	if (bus->self != NULL)
 		pcibios_fixup_bridge(bus);
 
-	/* Additional setup that is different between 32 and 64 bits for now */
-	pcibios_do_bus_setup(bus);
-
-	/* Platform specific bus fixups */
+	/* Platform specific bus fixups. This is currently only used
+	 * by fsl_pci and I'm hoping to get rid of it at some point
+	 */
 	if (ppc_md.pcibios_fixup_bus)
 		ppc_md.pcibios_fixup_bus(bus);
 
-	/* Read default IRQs and fixup if necessary */
+	/* Setup bus DMA mappings */
+	if (ppc_md.pci_dma_bus_setup)
+		ppc_md.pci_dma_bus_setup(bus);
+}
+
+void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+
+	pr_debug("PCI: Fixup bus devices %d (%s)\n",
+		 bus->number, bus->self ? pci_name(bus->self) : "PHB");
+
 	list_for_each_entry(dev, &bus->devices, bus_list) {
+		struct dev_archdata *sd = &dev->dev.archdata;
+
+		/* Setup OF node pointer in archdata */
+		sd->of_node = pci_device_to_OF_node(dev);
+
+		/* Fixup NUMA node as it may not be setup yet by the generic
+		 * code and is needed by the DMA init
+		 */
+		set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
+
+		/* Hook up default DMA ops */
+		sd->dma_ops = pci_dma_ops;
+		sd->dma_data = (void *)PCI_DRAM_OFFSET;
+
+		/* Additional platform DMA/iommu setup */
+		if (ppc_md.pci_dma_dev_setup)
+			ppc_md.pci_dma_dev_setup(dev);
+
+		/* Read default IRQs and fixup if necessary */
 		pci_read_irq_line(dev);
 		if (ppc_md.pci_irq_fixup)
 			ppc_md.pci_irq_fixup(dev);
@@ -1113,22 +1100,19 @@ static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
 void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
 	/* When called from the generic PCI probe, read PCI<->PCI bridge
-	 * bases before proceeding
+	 * bases. This is -not- called when generating the PCI tree from
+	 * the OF device-tree.
 	 */
 	if (bus->self != NULL)
 		pci_read_bridge_bases(bus);
-	__pcibios_fixup_bus(bus);
+
+	/* Now fixup the bus bus */
+	pcibios_setup_bus_self(bus);
+
+	/* Now fixup devices on that bus */
+	pcibios_setup_bus_devices(bus);
 }
 EXPORT_SYMBOL(pcibios_fixup_bus);
-
-/* When building a bus from the OF tree rather than probing, we need a
- * slightly different version of the fixup which doesn't read the
- * bridge bases using config space accesses
- */
-void __devinit pcibios_fixup_of_probed_bus(struct pci_bus *bus)
-{
-	__pcibios_fixup_bus(bus);
-}
 
 static int skip_isa_ioresource_align(struct pci_dev *dev)
 {
@@ -1198,10 +1182,10 @@ static int __init reparent_resources(struct resource *parent,
 	*pp = NULL;
 	for (p = res->child; p != NULL; p = p->sibling) {
 		p->parent = res;
-		DBG(KERN_INFO "PCI: reparented %s [%llx..%llx] under %s\n",
-		    p->name,
-		    (unsigned long long)p->start,
-		    (unsigned long long)p->end, res->name);
+		pr_debug("PCI: Reparented %s [%llx..%llx] under %s\n",
+			 p->name,
+			 (unsigned long long)p->start,
+			 (unsigned long long)p->end, res->name);
 	}
 	return 0;
 }
@@ -1245,9 +1229,12 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 	int i;
 	struct resource *res, *pr;
 
+	pr_debug("PCI: Allocating bus resources for %04x:%02x...\n",
+		 pci_domain_nr(bus), bus->number);
+
 	for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
 		if ((res = bus->resource[i]) == NULL || !res->flags
-		    || res->start > res->end)
+		    || res->start > res->end || res->parent)
 			continue;
 		if (bus->parent == NULL)
 			pr = (res->flags & IORESOURCE_IO) ?
@@ -1271,14 +1258,14 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 			}
 		}
 
-		DBG("PCI: %s (bus %d) bridge rsrc %d: %016llx-%016llx "
-		    "[0x%x], parent %p (%s)\n",
-		    bus->self ? pci_name(bus->self) : "PHB",
-		    bus->number, i,
-		    (unsigned long long)res->start,
-		    (unsigned long long)res->end,
-		    (unsigned int)res->flags,
-		    pr, (pr && pr->name) ? pr->name : "nil");
+		pr_debug("PCI: %s (bus %d) bridge rsrc %d: %016llx-%016llx "
+			 "[0x%x], parent %p (%s)\n",
+			 bus->self ? pci_name(bus->self) : "PHB",
+			 bus->number, i,
+			 (unsigned long long)res->start,
+			 (unsigned long long)res->end,
+			 (unsigned int)res->flags,
+			 pr, (pr && pr->name) ? pr->name : "nil");
 
 		if (pr && !(pr->flags & IORESOURCE_UNSET)) {
 			if (request_resource(pr, res) == 0)
@@ -1305,11 +1292,11 @@ static inline void __devinit alloc_resource(struct pci_dev *dev, int idx)
 {
 	struct resource *pr, *r = &dev->resource[idx];
 
-	DBG("PCI: Allocating %s: Resource %d: %016llx..%016llx [%x]\n",
-	    pci_name(dev), idx,
-	    (unsigned long long)r->start,
-	    (unsigned long long)r->end,
-	    (unsigned int)r->flags);
+	pr_debug("PCI: Allocating %s: Resource %d: %016llx..%016llx [%x]\n",
+		 pci_name(dev), idx,
+		 (unsigned long long)r->start,
+		 (unsigned long long)r->end,
+		 (unsigned int)r->flags);
 
 	pr = pci_find_parent_resource(dev, r);
 	if (!pr || (pr->flags & IORESOURCE_UNSET) ||
@@ -1317,10 +1304,11 @@ static inline void __devinit alloc_resource(struct pci_dev *dev, int idx)
 		printk(KERN_WARNING "PCI: Cannot allocate resource region %d"
 		       " of device %s, will remap\n", idx, pci_name(dev));
 		if (pr)
-			DBG("PCI:  parent is %p: %016llx-%016llx [%x]\n", pr,
-			    (unsigned long long)pr->start,
-			    (unsigned long long)pr->end,
-			    (unsigned int)pr->flags);
+			pr_debug("PCI:  parent is %p: %016llx-%016llx [%x]\n",
+				 pr,
+				 (unsigned long long)pr->start,
+				 (unsigned long long)pr->end,
+				 (unsigned int)pr->flags);
 		/* We'll assign a new address later */
 		r->flags |= IORESOURCE_UNSET;
 		r->end -= r->start;
@@ -1358,7 +1346,8 @@ static void __init pcibios_allocate_resources(int pass)
 			 * but keep it unregistered.
 			 */
 			u32 reg;
-			DBG("PCI: Switching off ROM of %s\n", pci_name(dev));
+			pr_debug("PCI: Switching off ROM of %s\n",
+				 pci_name(dev));
 			r->flags &= ~IORESOURCE_ROM_ENABLE;
 			pci_read_config_dword(dev, dev->rom_base_reg, &reg);
 			pci_write_config_dword(dev, dev->rom_base_reg,
@@ -1383,7 +1372,7 @@ void __init pcibios_resource_survey(void)
 	}
 
 	if (!(ppc_pci_flags & PPC_PCI_PROBE_ONLY)) {
-		DBG("PCI: Assigning unassigned resouces...\n");
+		pr_debug("PCI: Assigning unassigned resouces...\n");
 		pci_assign_unassigned_resources();
 	}
 
@@ -1393,9 +1382,11 @@ void __init pcibios_resource_survey(void)
 }
 
 #ifdef CONFIG_HOTPLUG
-/* This is used by the pSeries hotplug driver to allocate resource
+
+/* This is used by the PCI hotplug driver to allocate resource
  * of newly plugged busses. We can try to consolidate with the
- * rest of the code later, for now, keep it as-is
+ * rest of the code later, for now, keep it as-is as our main
+ * resource allocation function doesn't deal with sub-trees yet.
  */
 void __devinit pcibios_claim_one_bus(struct pci_bus *bus)
 {
@@ -1410,6 +1401,14 @@ void __devinit pcibios_claim_one_bus(struct pci_bus *bus)
 
 			if (r->parent || !r->start || !r->flags)
 				continue;
+
+			pr_debug("PCI: Claiming %s: "
+				 "Resource %d: %016llx..%016llx [%x]\n",
+				 pci_name(dev), i,
+				 (unsigned long long)r->start,
+				 (unsigned long long)r->end,
+				 (unsigned int)r->flags);
+
 			pci_claim_resource(dev, i);
 		}
 	}
@@ -1418,6 +1417,31 @@ void __devinit pcibios_claim_one_bus(struct pci_bus *bus)
 		pcibios_claim_one_bus(child_bus);
 }
 EXPORT_SYMBOL_GPL(pcibios_claim_one_bus);
+
+
+/* pcibios_finish_adding_to_bus
+ *
+ * This is to be called by the hotplug code after devices have been
+ * added to a bus, this include calling it for a PHB that is just
+ * being added
+ */
+void pcibios_finish_adding_to_bus(struct pci_bus *bus)
+{
+	pr_debug("PCI: Finishing adding to hotplug bus %04x:%02x\n",
+		 pci_domain_nr(bus), bus->number);
+
+	/* Allocate bus and devices resources */
+	pcibios_allocate_bus_resources(bus);
+	pcibios_claim_one_bus(bus);
+
+	/* Add new devices to global lists.  Register in proc, sysfs. */
+	pci_bus_add_devices(bus);
+
+	/* Fixup EEH */
+	eeh_add_device_tree_late(bus);
+}
+EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
+
 #endif /* CONFIG_HOTPLUG */
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
@@ -1428,3 +1452,61 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 
 	return pci_enable_resources(dev, mask);
 }
+
+void __devinit pcibios_setup_phb_resources(struct pci_controller *hose)
+{
+	struct pci_bus *bus = hose->bus;
+	struct resource *res;
+	int i;
+
+	/* Hookup PHB IO resource */
+	bus->resource[0] = res = &hose->io_resource;
+
+	if (!res->flags) {
+		printk(KERN_WARNING "PCI: I/O resource not set for host"
+		       " bridge %s (domain %d)\n",
+		       hose->dn->full_name, hose->global_number);
+#ifdef CONFIG_PPC32
+		/* Workaround for lack of IO resource only on 32-bit */
+		res->start = (unsigned long)hose->io_base_virt - isa_io_base;
+		res->end = res->start + IO_SPACE_LIMIT;
+		res->flags = IORESOURCE_IO;
+#endif /* CONFIG_PPC32 */
+	}
+
+	pr_debug("PCI: PHB IO resource    = %016llx-%016llx [%lx]\n",
+		 (unsigned long long)res->start,
+		 (unsigned long long)res->end,
+		 (unsigned long)res->flags);
+
+	/* Hookup PHB Memory resources */
+	for (i = 0; i < 3; ++i) {
+		res = &hose->mem_resources[i];
+		if (!res->flags) {
+			if (i > 0)
+				continue;
+			printk(KERN_ERR "PCI: Memory resource 0 not set for "
+			       "host bridge %s (domain %d)\n",
+			       hose->dn->full_name, hose->global_number);
+#ifdef CONFIG_PPC32
+			/* Workaround for lack of MEM resource only on 32-bit */
+			res->start = hose->pci_mem_offset;
+			res->end = (resource_size_t)-1LL;
+			res->flags = IORESOURCE_MEM;
+#endif /* CONFIG_PPC32 */
+		}
+		bus->resource[i+1] = res;
+
+		pr_debug("PCI: PHB MEM resource %d = %016llx-%016llx [%lx]\n", i,
+			 (unsigned long long)res->start,
+			 (unsigned long long)res->end,
+			 (unsigned long)res->flags);
+	}
+
+	pr_debug("PCI: PHB MEM offset     = %016llx\n",
+		 (unsigned long long)hose->pci_mem_offset);
+	pr_debug("PCI: PHB IO  offset     = %08lx\n",
+		 (unsigned long)hose->io_base_virt - _IO_BASE);
+
+}
+

@@ -166,10 +166,9 @@ static int i915_gem_request_info(char *buf, char **start, off_t offset,
 	list_for_each_entry(gem_request, &dev_priv->mm.request_list,
 			    list)
 	{
-		DRM_PROC_PRINT("    %d @ %d %08x\n",
+		DRM_PROC_PRINT("    %d @ %d\n",
 			       gem_request->seqno,
-			       (int) (jiffies - gem_request->emitted_jiffies),
-			       gem_request->flush_domains);
+			       (int) (jiffies - gem_request->emitted_jiffies));
 	}
 	if (len > request + offset)
 		return request;
@@ -251,6 +250,39 @@ static int i915_interrupt_info(char *buf, char **start, off_t offset,
 	return len - offset;
 }
 
+static int i915_hws_info(char *buf, char **start, off_t offset,
+			 int request, int *eof, void *data)
+{
+	struct drm_minor *minor = (struct drm_minor *) data;
+	struct drm_device *dev = minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int len = 0, i;
+	volatile u32 *hws;
+
+	if (offset > DRM_PROC_LIMIT) {
+		*eof = 1;
+		return 0;
+	}
+
+	hws = (volatile u32 *)dev_priv->hw_status_page;
+	if (hws == NULL) {
+		*eof = 1;
+		return 0;
+	}
+
+	*start = &buf[offset];
+	*eof = 0;
+	for (i = 0; i < 4096 / sizeof(u32) / 4; i += 4) {
+		DRM_PROC_PRINT("0x%08x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			       i * 4,
+			       hws[i], hws[i + 1], hws[i + 2], hws[i + 3]);
+	}
+	if (len > request + offset)
+		return request;
+	*eof = 1;
+	return len - offset;
+}
+
 static struct drm_proc_list {
 	/** file name */
 	const char *name;
@@ -263,6 +295,7 @@ static struct drm_proc_list {
 	{"i915_gem_request", i915_gem_request_info},
 	{"i915_gem_seqno", i915_gem_seqno_info},
 	{"i915_gem_interrupt", i915_interrupt_info},
+	{"i915_gem_hws", i915_hws_info},
 };
 
 #define I915_GEM_PROC_ENTRIES ARRAY_SIZE(i915_gem_proc_list)

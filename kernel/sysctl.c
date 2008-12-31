@@ -121,6 +121,10 @@ extern int sg_big_buff;
 #include <asm/system.h>
 #endif
 
+#ifdef CONFIG_SPARC64
+extern int sysctl_tsb_ratio;
+#endif
+
 #ifdef __hppa__
 extern int pwrsw_enabled;
 extern int unaligned_enabled;
@@ -175,6 +179,9 @@ static struct ctl_table dev_table[];
 extern struct ctl_table random_table[];
 #ifdef CONFIG_INOTIFY_USER
 extern struct ctl_table inotify_table[];
+#endif
+#ifdef CONFIG_EPOLL
+extern struct ctl_table epoll_table[];
 #endif
 
 #ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
@@ -448,6 +455,16 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
+#ifdef CONFIG_SPARC64
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "tsb-ratio",
+		.data		= &sysctl_tsb_ratio,
+		.maxlen		= sizeof (int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
 #ifdef __hppa__
 	{
 		.ctl_name	= KERN_HPPA_PWRSW,
@@ -482,6 +499,26 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &ftrace_enable_sysctl,
+	},
+#endif
+#ifdef CONFIG_STACK_TRACER
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "stack_tracer_enabled",
+		.data		= &stack_tracer_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &stack_trace_sysctl,
+	},
+#endif
+#ifdef CONFIG_TRACING
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "ftrace_dump_on_oops",
+		.data		= &ftrace_dump_on_oops,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 #endif
 #ifdef CONFIG_MODULES
@@ -1325,6 +1362,13 @@ static struct ctl_table fs_table[] = {
 		.child		= inotify_table,
 	},
 #endif	
+#ifdef CONFIG_EPOLL
+	{
+		.procname	= "epoll",
+		.mode		= 0555,
+		.child		= epoll_table,
+	},
+#endif
 #endif
 	{
 		.ctl_name	= KERN_SETUID_DUMPABLE,
@@ -1641,7 +1685,7 @@ out:
 
 static int test_perm(int mode, int op)
 {
-	if (!current->euid)
+	if (!current_euid())
 		mode >>= 6;
 	else if (in_egroup_p(0))
 		mode >>= 3;

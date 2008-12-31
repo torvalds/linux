@@ -1922,7 +1922,7 @@ typedef struct smb_com_transaction2_get_dfs_refer_req {
 /* DFS server target type */
 #define DFS_TYPE_LINK 0x0000  /* also for sysvol targets */
 #define DFS_TYPE_ROOT 0x0001
- 
+
 /* Referral Entry Flags */
 #define DFS_NAME_LIST_REF 0x0200
 

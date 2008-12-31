@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef CX24113_H
@@ -30,9 +30,13 @@ struct cx24113_config {
 	u32 xtal_khz;
 };
 
-/* TODO: #if defined(CONFIG_DVB_TUNER_CX24113) || \
- * (defined(CONFIG_DVB_TUNER_CX24113_MODULE) && defined(MODULE)) */
+#if defined(CONFIG_DVB_TUNER_CX24113) || \
+	(defined(CONFIG_DVB_TUNER_CX24113_MODULE) && defined(MODULE))
+extern struct dvb_frontend *cx24113_attach(struct dvb_frontend *,
+	const struct cx24113_config *config, struct i2c_adapter *i2c);
 
+extern void cx24113_agc_callback(struct dvb_frontend *fe);
+#else
 static inline struct dvb_frontend *cx24113_attach(struct dvb_frontend *fe,
 	const struct cx24113_config *config, struct i2c_adapter *i2c)
 {
@@ -44,5 +48,6 @@ static inline void cx24113_agc_callback(struct dvb_frontend *fe)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 }
+#endif
 
 #endif /* CX24113_H */

@@ -1016,7 +1016,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	snprintf(i2c->adap.name, sizeof(i2c->adap.name), "pxa_i2c-i2c.%u",
 		 i2c->adap.nr);
 
-	i2c->clk = clk_get(&dev->dev, "I2CCLK");
+	i2c->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(i2c->clk)) {
 		ret = PTR_ERR(i2c->clk);
 		goto eclk;

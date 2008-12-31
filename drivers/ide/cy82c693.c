@@ -292,7 +292,6 @@ static const struct ide_port_info cy82c693_chipset __devinitdata = {
 	.name		= DRV_NAME,
 	.init_iops	= init_iops_cy82c693,
 	.port_ops	= &cy82c693_port_ops,
-	.chipset	= ide_cy82c693,
 	.host_flags	= IDE_HFLAG_SINGLE,
 	.pio_mask	= ATA_PIO4,
 	.swdma_mask	= ATA_SWDMA2,

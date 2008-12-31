@@ -65,21 +65,17 @@ static inline struct dma_mapping_ops *get_dma_ops(struct device *dev)
 		return dma_ops;
 	else
 		return dev->archdata.dma_ops;
-#endif /* _ASM_X86_DMA_MAPPING_H */
+#endif
 }
 
 /* Make sure we keep the same behaviour */
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-#ifdef CONFIG_X86_32
-	return 0;
-#else
 	struct dma_mapping_ops *ops = get_dma_ops(dev);
 	if (ops->mapping_error)
 		return ops->mapping_error(dev, dma_addr);
 
 	return (dma_addr == bad_dma_address);
-#endif
 }
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)

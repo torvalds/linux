@@ -11,19 +11,12 @@
 #ifndef __ASM_ARCH_MXC_MEMORY_H__
 #define __ASM_ARCH_MXC_MEMORY_H__
 
-#include <mach/hardware.h>
-
-/*
- * Virtual view <-> DMA view memory address translations
- * This macro is used to translate the virtual address to an address
- * suitable to be passed to set_dma_addr()
- */
-#define __virt_to_bus(a)	__virt_to_phys(a)
-
-/*
- * Used to convert an address for DMA operations to an address that the
- * kernel can use.
- */
-#define __bus_to_virt(a)	__phys_to_virt(a)
+#if defined CONFIG_ARCH_MX1
+#define PHYS_OFFSET		UL(0x08000000)
+#elif defined CONFIG_ARCH_MX2
+#define PHYS_OFFSET		UL(0xA0000000)
+#elif defined CONFIG_ARCH_MX3
+#define PHYS_OFFSET		UL(0x80000000)
+#endif
 
 #endif /* __ASM_ARCH_MXC_MEMORY_H__ */

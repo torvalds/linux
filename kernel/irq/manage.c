@@ -82,24 +82,27 @@ int irq_can_set_affinity(unsigned int irq)
 int irq_set_affinity(unsigned int irq, cpumask_t cpumask)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long flags;
 
 	if (!desc->chip->set_affinity)
 		return -EINVAL;
 
+	spin_lock_irqsave(&desc->lock, flags);
+
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	if (desc->status & IRQ_MOVE_PCNTXT || desc->status & IRQ_DISABLED) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&desc->lock, flags);
 		desc->affinity = cpumask;
 		desc->chip->set_affinity(irq, cpumask);
-		spin_unlock_irqrestore(&desc->lock, flags);
-	} else
-		set_pending_irq(irq, cpumask);
+	} else {
+		desc->status |= IRQ_MOVE_PENDING;
+		desc->pending_mask = cpumask;
+	}
 #else
 	desc->affinity = cpumask;
 	desc->chip->set_affinity(irq, cpumask);
 #endif
+	desc->status |= IRQ_AFFINITY_SET;
+	spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 
@@ -107,24 +110,59 @@ int irq_set_affinity(unsigned int irq, cpumask_t cpumask)
 /*
  * Generic version of the affinity autoselector.
  */
-int irq_select_affinity(unsigned int irq)
+int do_irq_select_affinity(unsigned int irq, struct irq_desc *desc)
 {
 	cpumask_t mask;
-	struct irq_desc *desc;
 
 	if (!irq_can_set_affinity(irq))
 		return 0;
 
 	cpus_and(mask, cpu_online_map, irq_default_affinity);
 
-	desc = irq_to_desc(irq);
+	/*
+	 * Preserve an userspace affinity setup, but make sure that
+	 * one of the targets is online.
+	 */
+	if (desc->status & (IRQ_AFFINITY_SET | IRQ_NO_BALANCING)) {
+		if (cpus_intersects(desc->affinity, cpu_online_map))
+			mask = desc->affinity;
+		else
+			desc->status &= ~IRQ_AFFINITY_SET;
+	}
+
 	desc->affinity = mask;
 	desc->chip->set_affinity(irq, mask);
 
 	return 0;
 }
+#else
+static inline int do_irq_select_affinity(unsigned int irq, struct irq_desc *d)
+{
+	return irq_select_affinity(irq);
+}
 #endif
 
+/*
+ * Called when affinity is set via /proc/irq
+ */
+int irq_select_affinity_usr(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	ret = do_irq_select_affinity(irq, desc);
+	spin_unlock_irqrestore(&desc->lock, flags);
+
+	return ret;
+}
+
+#else
+static inline int do_irq_select_affinity(int irq, struct irq_desc *desc)
+{
+	return 0;
+}
 #endif
 
 /**
@@ -327,21 +365,23 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		 * IRQF_TRIGGER_* but the PIC does not support multiple
 		 * flow-types?
 		 */
-		pr_warning("No set_type function for IRQ %d (%s)\n", irq,
+		pr_debug("No set_type function for IRQ %d (%s)\n", irq,
 				chip ? (chip->name ? : "unknown") : "unknown");
 		return 0;
 	}
 
-	ret = chip->set_type(irq, flags & IRQF_TRIGGER_MASK);
+	/* caller masked out all except trigger mode flags */
+	ret = chip->set_type(irq, flags);
 
 	if (ret)
 		pr_err("setting trigger mode %d for irq %u failed (%pF)\n",
-				(int)(flags & IRQF_TRIGGER_MASK),
-				irq, chip->set_type);
+				(int)flags, irq, chip->set_type);
 	else {
+		if (flags & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
+			flags |= IRQ_LEVEL;
 		/* note that IRQF_TRIGGER_MASK == IRQ_TYPE_SENSE_MASK */
-		desc->status &= ~IRQ_TYPE_SENSE_MASK;
-		desc->status |= flags & IRQ_TYPE_SENSE_MASK;
+		desc->status &= ~(IRQ_LEVEL | IRQ_TYPE_SENSE_MASK);
+		desc->status |= flags;
 	}
 
 	return ret;
@@ -421,7 +461,8 @@ __setup_irq(unsigned int irq, struct irq_desc * desc, struct irqaction *new)
 
 		/* Setup the type (level, edge polarity) if configured: */
 		if (new->flags & IRQF_TRIGGER_MASK) {
-			ret = __irq_set_trigger(desc, irq, new->flags);
+			ret = __irq_set_trigger(desc, irq,
+					new->flags & IRQF_TRIGGER_MASK);
 
 			if (ret) {
 				spin_unlock_irqrestore(&desc->lock, flags);
@@ -445,8 +486,12 @@ __setup_irq(unsigned int irq, struct irq_desc * desc, struct irqaction *new)
 			/* Undo nested disables: */
 			desc->depth = 1;
 
+		/* Exclude IRQ from balancing if requested */
+		if (new->flags & IRQF_NOBALANCING)
+			desc->status |= IRQ_NO_BALANCING;
+
 		/* Set default affinity mask once everything is setup */
-		irq_select_affinity(irq);
+		do_irq_select_affinity(irq, desc);
 
 	} else if ((new->flags & IRQF_TRIGGER_MASK)
 			&& (new->flags & IRQF_TRIGGER_MASK)
@@ -458,10 +503,6 @@ __setup_irq(unsigned int irq, struct irq_desc * desc, struct irqaction *new)
 	}
 
 	*p = new;
-
-	/* Exclude IRQ from balancing */
-	if (new->flags & IRQF_NOBALANCING)
-		desc->status |= IRQ_NO_BALANCING;
 
 	/* Reset broken irq detection when installing new handler */
 	desc->irq_count = 0;
@@ -634,6 +675,18 @@ int request_irq(unsigned int irq, irq_handler_t handler,
 	struct irqaction *action;
 	struct irq_desc *desc;
 	int retval;
+
+	/*
+	 * handle_IRQ_event() always ignores IRQF_DISABLED except for
+	 * the _first_ irqaction (sigh).  That can cause oopsing, but
+	 * the behavior is classified as "will not fix" so we need to
+	 * start nudging drivers away from using that idiom.
+	 */
+	if ((irqflags & (IRQF_SHARED|IRQF_DISABLED))
+			== (IRQF_SHARED|IRQF_DISABLED))
+		pr_warning("IRQ %d/%s: IRQF_DISABLED is not "
+				"guaranteed on shared IRQs\n",
+				irq, devname);
 
 #ifdef CONFIG_LOCKDEP
 	/*

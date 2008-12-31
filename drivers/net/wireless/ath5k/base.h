@@ -179,6 +179,7 @@ struct ath5k_softc {
 
 	struct timer_list	calib_tim;	/* calibration timer */
 	int 			power_level;	/* Requested tx power in dbm */
+	bool			assoc;		/* assocate state */
 };
 
 #define ath5k_hw_hasbssidmask(_ah) \

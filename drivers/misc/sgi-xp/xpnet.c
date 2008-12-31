@@ -153,8 +153,7 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 	struct sk_buff *skb;
 	void *dst;
 	enum xp_retval ret;
-	struct xpnet_dev_private *priv =
-	    (struct xpnet_dev_private *)xpnet_device->priv;
+	struct xpnet_dev_private *priv = netdev_priv(xpnet_device);
 
 	if (!XPNET_VALID_MSG(msg)) {
 		/*
@@ -368,9 +367,7 @@ xpnet_dev_set_config(struct net_device *dev, struct ifmap *new_map)
 static struct net_device_stats *
 xpnet_dev_get_stats(struct net_device *dev)
 {
-	struct xpnet_dev_private *priv;
-
-	priv = (struct xpnet_dev_private *)dev->priv;
+	struct xpnet_dev_private *priv = netdev_priv(dev);
 
 	return &priv->stats;
 }
@@ -456,7 +453,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct xpnet_pending_msg *queued_msg;
 	u64 start_addr, end_addr;
 	short dest_partid;
-	struct xpnet_dev_private *priv = (struct xpnet_dev_private *)dev->priv;
+	struct xpnet_dev_private *priv = netdev_priv(dev);
 	u16 embedded_bytes = 0;
 
 	dev_dbg(xpnet, ">skb->head=0x%p skb->data=0x%p skb->tail=0x%p "
@@ -541,9 +538,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static void
 xpnet_dev_tx_timeout(struct net_device *dev)
 {
-	struct xpnet_dev_private *priv;
-
-	priv = (struct xpnet_dev_private *)dev->priv;
+	struct xpnet_dev_private *priv = netdev_priv(dev);
 
 	priv->stats.tx_errors++;
 	return;

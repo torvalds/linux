@@ -706,8 +706,7 @@ static long qc_capture(struct qcam_device * q, char __user *buf, unsigned long l
  *	Video4linux interfacing
  */
 
-static int qcam_do_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, void *arg)
+static int qcam_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
 	struct qcam_device *qcam=(struct qcam_device *)dev;
@@ -867,7 +866,7 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 static int qcam_ioctl(struct inode *inode, struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, qcam_do_ioctl);
+	return video_usercopy(file, cmd, arg, qcam_do_ioctl);
 }
 
 static ssize_t qcam_read(struct file *file, char __user *buf,

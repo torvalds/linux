@@ -13425,8 +13425,7 @@ static int __devinit advansys_board_found(struct Scsi_Host *shost,
 		}
 
 		boardp->asc_n_io_port = pci_resource_len(pdev, 1);
-		boardp->ioremap_addr = ioremap(pci_resource_start(pdev, 1),
-					       boardp->asc_n_io_port);
+		boardp->ioremap_addr = pci_ioremap_bar(pdev, 1);
 		if (!boardp->ioremap_addr) {
 			shost_printk(KERN_ERR, shost, "ioremap(%lx, %d) "
 					"returned NULL\n",

@@ -25,7 +25,7 @@
  * in the file called LICENSE.GPL.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -103,7 +103,6 @@
  * Driver reads 16-bit value from bits 31-16 of CSR_EEPROM_REG.
  */
 #define IWL_EEPROM_ACCESS_TIMEOUT	5000 /* uSec */
-#define IWL_EEPROM_ACCESS_DELAY		10   /* uSec */
 
 /*
  * Regulatory channel usage flags in EEPROM struct iwl_eeprom_channel.flags.
@@ -321,6 +320,7 @@ struct iwl3945_eeprom {
 /* RSSR */
 #define FH_RSSR_CTRL            (FH_RSSR_TABLE+0x000)
 #define FH_RSSR_STATUS          (FH_RSSR_TABLE+0x004)
+#define FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE	(0x01000000)
 /* TCSR */
 #define FH_TCSR(_channel)           (FH_TCSR_TABLE+(_channel)*0x20)
 #define FH_TCSR_CONFIG(_channel)    (FH_TCSR(_channel)+0x00)

@@ -1382,13 +1382,13 @@ openRetry:
 		if (cpu_to_le32(FILE_CREATE) == pSMBr->CreateAction)
 			*pOplock |= CIFS_CREATE_ACTION;
 		if (pfile_info) {
-		    memcpy((char *)pfile_info, (char *)&pSMBr->CreationTime,
-			36 /* CreationTime to Attributes */);
-		    /* the file_info buf is endian converted by caller */
-		    pfile_info->AllocationSize = pSMBr->AllocationSize;
-		    pfile_info->EndOfFile = pSMBr->EndOfFile;
-		    pfile_info->NumberOfLinks = cpu_to_le32(1);
-		    pfile_info->DeletePending = 0;
+			memcpy((char *)pfile_info, (char *)&pSMBr->CreationTime,
+				36 /* CreationTime to Attributes */);
+			/* the file_info buf is endian converted by caller */
+			pfile_info->AllocationSize = pSMBr->AllocationSize;
+			pfile_info->EndOfFile = pSMBr->EndOfFile;
+			pfile_info->NumberOfLinks = cpu_to_le32(1);
+			pfile_info->DeletePending = 0;
 		}
 	}
 
@@ -1414,8 +1414,13 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon, const int netfid,
 	cFYI(1, ("Reading %d bytes on fid %d", count, netfid));
 	if (tcon->ses->capabilities & CAP_LARGE_FILES)
 		wct = 12;
-	else
+	else {
 		wct = 10; /* old style read */
+		if ((lseek >> 32) > 0)  {
+			/* can not handle this big offset for old */
+			return -EIO;
+		}
+	}
 
 	*nbytes = 0;
 	rc = small_smb_init(SMB_COM_READ_ANDX, wct, tcon, (void **) &pSMB);
@@ -1431,8 +1436,6 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon, const int netfid,
 	pSMB->OffsetLow = cpu_to_le32(lseek & 0xFFFFFFFF);
 	if (wct == 12)
 		pSMB->OffsetHigh = cpu_to_le32(lseek >> 32);
-	else if ((lseek >> 32) > 0) /* can not handle this big offset for old */
-		return -EIO;
 
 	pSMB->Remaining = 0;
 	pSMB->MaxCount = cpu_to_le16(count & 0xFFFF);
@@ -1519,8 +1522,13 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 
 	if (tcon->ses->capabilities & CAP_LARGE_FILES)
 		wct = 14;
-	else
+	else {
 		wct = 12;
+		if ((offset >> 32) > 0) {
+			/* can not handle big offset for old srv */
+			return -EIO;
+		}
+	}
 
 	rc = smb_init(SMB_COM_WRITE_ANDX, wct, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -1535,8 +1543,6 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	pSMB->OffsetLow = cpu_to_le32(offset & 0xFFFFFFFF);
 	if (wct == 14)
 		pSMB->OffsetHigh = cpu_to_le32(offset >> 32);
-	else if ((offset >> 32) > 0) /* can not handle big offset for old srv */
-		return -EIO;
 
 	pSMB->Reserved = 0xFFFFFFFF;
 	pSMB->WriteMode = 0;
@@ -1558,7 +1564,7 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	pSMB->DataOffset =
 		cpu_to_le16(offsetof(struct smb_com_write_req, Data) - 4);
 	if (buf)
-	    memcpy(pSMB->Data, buf, bytes_sent);
+		memcpy(pSMB->Data, buf, bytes_sent);
 	else if (ubuf) {
 		if (copy_from_user(pSMB->Data, ubuf, bytes_sent)) {
 			cifs_buf_release(pSMB);
@@ -1621,10 +1627,15 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 
 	cFYI(1, ("write2 at %lld %d bytes", (long long)offset, count));
 
-	if (tcon->ses->capabilities & CAP_LARGE_FILES)
+	if (tcon->ses->capabilities & CAP_LARGE_FILES) {
 		wct = 14;
-	else
+	} else {
 		wct = 12;
+		if ((offset >> 32) > 0) {
+			/* can not handle big offset for old srv */
+			return -EIO;
+		}
+	}
 	rc = small_smb_init(SMB_COM_WRITE_ANDX, wct, tcon, (void **) &pSMB);
 	if (rc)
 		return rc;
@@ -1637,8 +1648,6 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 	pSMB->OffsetLow = cpu_to_le32(offset & 0xFFFFFFFF);
 	if (wct == 14)
 		pSMB->OffsetHigh = cpu_to_le32(offset >> 32);
-	else if ((offset >> 32) > 0) /* can not handle big offset for old srv */
-		return -EIO;
 	pSMB->Reserved = 0xFFFFFFFF;
 	pSMB->WriteMode = 0;
 	pSMB->Remaining = 0;
@@ -1860,10 +1869,6 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 
 		if (rc || (pSMBr->ByteCount < sizeof(struct cifs_posix_lock))) {
 			rc = -EIO;      /* bad smb */
-			goto plk_err_exit;
-		}
-		if (pLockData == NULL) {
-			rc = -EINVAL;
 			goto plk_err_exit;
 		}
 		data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
@@ -3983,7 +3988,8 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 
 		node->flags = le16_to_cpu(pSMBr->DFSFlags);
 		if (is_unicode) {
-			__le16 *tmp = kmalloc(strlen(searchName)*2, GFP_KERNEL);
+			__le16 *tmp = kmalloc(strlen(searchName)*2 + 2,
+						GFP_KERNEL);
 			cifsConvertToUCS((__le16 *) tmp, searchName,
 					PATH_MAX, nls_codepage, remap);
 			node->path_consumed = hostlen_fromUCS(tmp,

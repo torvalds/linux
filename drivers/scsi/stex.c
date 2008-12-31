@@ -477,7 +477,7 @@ stex_slave_config(struct scsi_device *sdev)
 {
 	sdev->use_10_for_rw = 1;
 	sdev->use_10_for_ms = 1;
-	sdev->timeout = 60 * HZ;
+	blk_queue_rq_timeout(sdev->request_queue, 60 * HZ);
 	sdev->tagged_supported = 1;
 
 	return 0;
@@ -1108,8 +1108,7 @@ stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_scsi_host_put;
 	}
 
-	hba->mmio_base = ioremap_nocache(pci_resource_start(pdev, 0),
-		pci_resource_len(pdev, 0));
+	hba->mmio_base = pci_ioremap_bar(pdev, 0);
 	if ( !hba->mmio_base) {
 		printk(KERN_ERR DRV_NAME "(%s): memory map failed\n",
 			pci_name(pdev));

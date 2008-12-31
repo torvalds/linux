@@ -24,8 +24,6 @@ static inline cpumask_t target_cpus(void)
 #define INT_DELIVERY_MODE	(dest_Fixed)
 #define INT_DEST_MODE		(0)    /* phys delivery to target proc */
 #define NO_BALANCE_IRQ		(0)
-#define WAKE_SECONDARY_VIA_INIT
-
 
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
 {

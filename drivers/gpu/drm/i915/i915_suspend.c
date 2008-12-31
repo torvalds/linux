@@ -244,6 +244,9 @@ int i915_save_state(struct drm_device *dev)
 	if (IS_I965G(dev) && IS_MOBILE(dev))
 		dev_priv->saveRENDERSTANDBY = I915_READ(MCHBAR_RENDER_STANDBY);
 
+	/* Hardware status page */
+	dev_priv->saveHWS = I915_READ(HWS_PGA);
+
 	/* Display arbitration control */
 	dev_priv->saveDSPARB = I915_READ(DSPARB);
 
@@ -372,6 +375,9 @@ int i915_restore_state(struct drm_device *dev)
 	/* Render Standby */
 	if (IS_I965G(dev) && IS_MOBILE(dev))
 		I915_WRITE(MCHBAR_RENDER_STANDBY, dev_priv->saveRENDERSTANDBY);
+
+	/* Hardware status page */
+	I915_WRITE(HWS_PGA, dev_priv->saveHWS);
 
 	/* Display arbitration */
 	I915_WRITE(DSPARB, dev_priv->saveDSPARB);

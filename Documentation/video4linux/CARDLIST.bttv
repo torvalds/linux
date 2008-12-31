@@ -104,8 +104,8 @@
 103 -> Grand X-Guard / Trust 814PCI                        [0304:0102]
 104 -> Nebula Electronics DigiTV                           [0071:0101]
 105 -> ProVideo PV143                                      [aa00:1430,aa00:1431,aa00:1432,aa00:1433,aa03:1433]
-106 -> PHYTEC VD-009-X1 MiniDIN (bt878)
-107 -> PHYTEC VD-009-X1 Combi (bt878)
+106 -> PHYTEC VD-009-X1 VD-011 MiniDIN (bt878)
+107 -> PHYTEC VD-009-X1 VD-011 Combi (bt878)
 108 -> PHYTEC VD-009 MiniDIN (bt878)
 109 -> PHYTEC VD-009 Combi (bt878)
 110 -> IVC-100                                             [ff00:a132]
@@ -151,3 +151,6 @@
 150 -> Geovision GV-600                                    [008a:763c]
 151 -> Kozumi KTV-01C
 152 -> Encore ENL TV-FM-2                                  [1000:1801]
+153 -> PHYTEC VD-012 (bt878)
+154 -> PHYTEC VD-012-X1 (bt878)
+155 -> PHYTEC VD-012-X2 (bt878)

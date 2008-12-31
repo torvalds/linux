@@ -57,12 +57,18 @@ system_call_common:
 	beq-	1f
 	ld	r1,PACAKSAVE(r13)
 1:	std	r10,0(r1)
-	crclr	so
 	std	r11,_NIP(r1)
 	std	r12,_MSR(r1)
 	std	r0,GPR0(r1)
 	std	r10,GPR1(r1)
 	ACCOUNT_CPU_USER_ENTRY(r10, r11)
+	/*
+	 * This "crclr so" clears CR0.SO, which is the error indication on
+	 * return from this system call.  There must be no cmp instruction
+	 * between it and the "mfcr r9" below, otherwise if XER.SO is set,
+	 * CR0.SO will get set, causing all system calls to appear to fail.
+	 */
+	crclr	so
 	std	r2,GPR2(r1)
 	std	r3,GPR3(r1)
 	std	r4,GPR4(r1)
@@ -888,18 +894,6 @@ _GLOBAL(enter_prom)
 #ifdef CONFIG_DYNAMIC_FTRACE
 _GLOBAL(mcount)
 _GLOBAL(_mcount)
-	/* Taken from output of objdump from lib64/glibc */
-	mflr	r3
-	stdu	r1, -112(r1)
-	std	r3, 128(r1)
-	subi	r3, r3, MCOUNT_INSN_SIZE
-	.globl mcount_call
-mcount_call:
-	bl	ftrace_stub
-	nop
-	ld	r0, 128(r1)
-	mtlr	r0
-	addi	r1, r1, 112
 	blr
 
 _GLOBAL(ftrace_caller)

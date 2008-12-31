@@ -286,8 +286,8 @@ static void ulite_release_port(struct uart_port *port)
 
 static int ulite_request_port(struct uart_port *port)
 {
-	pr_debug("ulite console: port=%p; port->mapbase=%x\n",
-		 port, port->mapbase);
+	pr_debug("ulite console: port=%p; port->mapbase=%llx\n",
+		 port, (unsigned long long) port->mapbase);
 
 	if (!request_mem_region(port->mapbase, ULITE_REGION, "uartlite")) {
 		dev_err(port->dev, "Memory region busy\n");

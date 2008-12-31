@@ -10,7 +10,7 @@
   9 -> Medion 5044
  10 -> Kworld/KuroutoShikou SAA7130-TVPCI
  11 -> Terratec Cinergy 600 TV                  [153b:1143]
- 12 -> Medion 7134                              [16be:0003]
+ 12 -> Medion 7134                              [16be:0003,16be:5000]
  13 -> Typhoon TV+Radio 90031
  14 -> ELSA EX-VISION 300TV                     [1048:226b]
  15 -> ELSA EX-VISION 500TV                     [1048:226a]
@@ -151,3 +151,4 @@
 150 -> Zogis Real Angel 220
 151 -> ADS Tech Instant HDTV                    [1421:0380]
 152 -> Asus Tiger Rev:1.00                      [1043:4857]
+153 -> Kworld Plus TV Analog Lite PCI           [17de:7128]

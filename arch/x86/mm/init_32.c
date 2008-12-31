@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
+#include <linux/pci.h>
 #include <linux/pfn.h>
 #include <linux/poison.h>
 #include <linux/bootmem.h>
@@ -67,7 +68,7 @@ static unsigned long __meminitdata table_top;
 
 static int __initdata after_init_bootmem;
 
-static __init void *alloc_low_page(unsigned long *phys)
+static __init void *alloc_low_page(void)
 {
 	unsigned long pfn = table_end++;
 	void *adr;
@@ -77,7 +78,6 @@ static __init void *alloc_low_page(unsigned long *phys)
 
 	adr = __va(pfn * PAGE_SIZE);
 	memset(adr, 0, PAGE_SIZE);
-	*phys  = pfn * PAGE_SIZE;
 	return adr;
 }
 
@@ -92,16 +92,17 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 	pmd_t *pmd_table;
 
 #ifdef CONFIG_X86_PAE
-	unsigned long phys;
 	if (!(pgd_val(*pgd) & _PAGE_PRESENT)) {
 		if (after_init_bootmem)
 			pmd_table = (pmd_t *)alloc_bootmem_low_pages(PAGE_SIZE);
 		else
-			pmd_table = (pmd_t *)alloc_low_page(&phys);
+			pmd_table = (pmd_t *)alloc_low_page();
 		paravirt_alloc_pmd(&init_mm, __pa(pmd_table) >> PAGE_SHIFT);
 		set_pgd(pgd, __pgd(__pa(pmd_table) | _PAGE_PRESENT));
 		pud = pud_offset(pgd, 0);
 		BUG_ON(pmd_table != pmd_offset(pud, 0));
+
+		return pmd_table;
 	}
 #endif
 	pud = pud_offset(pgd, 0);
@@ -126,10 +127,8 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 			if (!page_table)
 				page_table =
 				(pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
-		} else {
-			unsigned long phys;
-			page_table = (pte_t *)alloc_low_page(&phys);
-		}
+		} else
+			page_table = (pte_t *)alloc_low_page();
 
 		paravirt_alloc_pte(&init_mm, __pa(page_table) >> PAGE_SHIFT);
 		set_pmd(pmd, __pmd(__pa(page_table) | _PAGE_TABLE));
@@ -969,7 +968,7 @@ void __init mem_init(void)
 	int codesize, reservedpages, datasize, initsize;
 	int tmp;
 
-	start_periodic_check_for_corruption();
+	pci_iommu_alloc();
 
 #ifdef CONFIG_FLATMEM
 	BUG_ON(!mem_map);
@@ -1040,11 +1039,25 @@ void __init mem_init(void)
 		(unsigned long)&_text, (unsigned long)&_etext,
 		((unsigned long)&_etext - (unsigned long)&_text) >> 10);
 
+	/*
+	 * Check boundaries twice: Some fundamental inconsistencies can
+	 * be detected at build time already.
+	 */
+#define __FIXADDR_TOP (-PAGE_SIZE)
+#ifdef CONFIG_HIGHMEM
+	BUILD_BUG_ON(PKMAP_BASE + LAST_PKMAP*PAGE_SIZE	> FIXADDR_START);
+	BUILD_BUG_ON(VMALLOC_END			> PKMAP_BASE);
+#endif
+#define high_memory (-128UL << 20)
+	BUILD_BUG_ON(VMALLOC_START			>= VMALLOC_END);
+#undef high_memory
+#undef __FIXADDR_TOP
+
 #ifdef CONFIG_HIGHMEM
 	BUG_ON(PKMAP_BASE + LAST_PKMAP*PAGE_SIZE	> FIXADDR_START);
 	BUG_ON(VMALLOC_END				> PKMAP_BASE);
 #endif
-	BUG_ON(VMALLOC_START				> VMALLOC_END);
+	BUG_ON(VMALLOC_START				>= VMALLOC_END);
 	BUG_ON((unsigned long)high_memory		> VMALLOC_START);
 
 	if (boot_cpu_data.wp_works_ok < 0)

@@ -2072,7 +2072,6 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
 
-		dev->last_rx = jiffies;
 		hp->net_stats.rx_packets++;
 		hp->net_stats.rx_bytes += len;
 	next:
@@ -2131,7 +2130,7 @@ static irqreturn_t quattro_sbus_interrupt(int irq, void *cookie)
 
 	for (i = 0; i < 4; i++) {
 		struct net_device *dev = qp->happy_meals[i];
-		struct happy_meal *hp  = dev->priv;
+		struct happy_meal *hp  = netdev_priv(dev);
 		u32 happy_status       = hme_read32(hp, hp->gregs + GREG_STAT);
 
 		HMD(("quattro_interrupt: status=%08x ", happy_status));
@@ -2176,7 +2175,7 @@ static irqreturn_t quattro_sbus_interrupt(int irq, void *cookie)
 
 static int happy_meal_open(struct net_device *dev)
 {
-	struct happy_meal *hp = dev->priv;
+	struct happy_meal *hp = netdev_priv(dev);
 	int res;
 
 	HMD(("happy_meal_open: "));
@@ -2208,7 +2207,7 @@ static int happy_meal_open(struct net_device *dev)
 
 static int happy_meal_close(struct net_device *dev)
 {
-	struct happy_meal *hp = dev->priv;
+	struct happy_meal *hp = netdev_priv(dev);
 
 	spin_lock_irq(&hp->happy_lock);
 	happy_meal_stop(hp, hp->gregs);
@@ -2237,7 +2236,7 @@ static int happy_meal_close(struct net_device *dev)
 
 static void happy_meal_tx_timeout(struct net_device *dev)
 {
-	struct happy_meal *hp = dev->priv;
+	struct happy_meal *hp = netdev_priv(dev);
 
 	printk (KERN_ERR "%s: transmit timed out, resetting\n", dev->name);
 	tx_dump_log();
@@ -2255,7 +2254,7 @@ static void happy_meal_tx_timeout(struct net_device *dev)
 
 static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct happy_meal *hp = dev->priv;
+	struct happy_meal *hp = netdev_priv(dev);
  	int entry;
  	u32 tx_flags;
 
@@ -2344,7 +2343,7 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *happy_meal_get_stats(struct net_device *dev)
 {
-	struct happy_meal *hp = dev->priv;
+	struct happy_meal *hp = netdev_priv(dev);
 
 	spin_lock_irq(&hp->happy_lock);
 	happy_meal_get_counters(hp, hp->bigmacregs);
@@ -2355,7 +2354,7 @@ static struct net_device_stats *happy_meal_get_stats(struct net_device *dev)
 
 static void happy_meal_set_multicast(struct net_device *dev)
 {
-	struct happy_meal *hp = dev->priv;
+	struct happy_meal *hp = netdev_priv(dev);
 	void __iomem *bregs = hp->bigmacregs;
 	struct dev_mc_list *dmi = dev->mc_list;
 	char *addrs;
@@ -2401,7 +2400,7 @@ static void happy_meal_set_multicast(struct net_device *dev)
 /* Ethtool support... */
 static int hme_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct happy_meal *hp = dev->priv;
+	struct happy_meal *hp = netdev_priv(dev);
 
 	cmd->supported =
 		(SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full |
@@ -2446,7 +2445,7 @@ static int hme_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 static int hme_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct happy_meal *hp = dev->priv;
+	struct happy_meal *hp = netdev_priv(dev);
 
 	/* Verify the settings we care about. */
 	if (cmd->autoneg != AUTONEG_ENABLE &&
@@ -2470,7 +2469,7 @@ static int hme_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 static void hme_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	struct happy_meal *hp = dev->priv;
+	struct happy_meal *hp = netdev_priv(dev);
 
 	strcpy(info->driver, "sunhme");
 	strcpy(info->version, "2.02");
@@ -2492,7 +2491,7 @@ static void hme_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 
 static u32 hme_get_link(struct net_device *dev)
 {
-	struct happy_meal *hp = dev->priv;
+	struct happy_meal *hp = netdev_priv(dev);
 
 	spin_lock_irq(&hp->happy_lock);
 	hp->sw_bmcr = happy_meal_tcvr_read(hp, hp->tcvregs, MII_BMCR);
@@ -2617,7 +2616,6 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 	struct net_device *dev;
 	int i, qfe_slot = -1;
 	int err = -ENODEV;
-	DECLARE_MAC_BUF(mac);
 
 	if (is_qfe) {
 		qp = quattro_sbus_find(op);
@@ -2797,7 +2795,7 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 		printk(KERN_INFO "%s: HAPPY MEAL (SBUS) 10/100baseT Ethernet ",
 		       dev->name);
 
-	printk("%s\n", print_mac(mac, dev->dev_addr));
+	printk("%pM\n", dev->dev_addr);
 
 	return 0;
 
@@ -2932,7 +2930,6 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	int i, qfe_slot = -1;
 	char prom_name[64];
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	/* Now make sure pci_dev cookie is there. */
 #ifdef CONFIG_SPARC
@@ -2973,7 +2970,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 
 	dev->base_addr = (long) pdev;
 
-	hp = (struct happy_meal *)dev->priv;
+	hp = netdev_priv(dev);
 	memset(hp, 0, sizeof(*hp));
 
 	hp->happy_dev = pdev;
@@ -3141,7 +3138,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		printk(KERN_INFO "%s: HAPPY MEAL (PCI/CheerIO) 10/100BaseT Ethernet ",
 		       dev->name);
 
-	printk("%s\n", print_mac(mac, dev->dev_addr));
+	printk("%pM\n", dev->dev_addr);
 
 	return 0;
 

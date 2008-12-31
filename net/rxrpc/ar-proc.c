@@ -61,12 +61,12 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	call = list_entry(v, struct rxrpc_call, link);
 	trans = call->conn->trans;
 
-	sprintf(lbuff, NIPQUAD_FMT":%u",
-		NIPQUAD(trans->local->srx.transport.sin.sin_addr),
+	sprintf(lbuff, "%pI4:%u",
+		&trans->local->srx.transport.sin.sin_addr,
 		ntohs(trans->local->srx.transport.sin.sin_port));
 
-	sprintf(rbuff, NIPQUAD_FMT":%u",
-		NIPQUAD(trans->peer->srx.transport.sin.sin_addr),
+	sprintf(rbuff, "%pI4:%u",
+		&trans->peer->srx.transport.sin.sin_addr,
 		ntohs(trans->peer->srx.transport.sin.sin_port));
 
 	seq_printf(seq,
@@ -144,12 +144,12 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 	conn = list_entry(v, struct rxrpc_connection, link);
 	trans = conn->trans;
 
-	sprintf(lbuff, NIPQUAD_FMT":%u",
-		NIPQUAD(trans->local->srx.transport.sin.sin_addr),
+	sprintf(lbuff, "%pI4:%u",
+		&trans->local->srx.transport.sin.sin_addr,
 		ntohs(trans->local->srx.transport.sin.sin_port));
 
-	sprintf(rbuff, NIPQUAD_FMT":%u",
-		NIPQUAD(trans->peer->srx.transport.sin.sin_addr),
+	sprintf(rbuff, "%pI4:%u",
+		&trans->peer->srx.transport.sin.sin_addr,
 		ntohs(trans->peer->srx.transport.sin.sin_port));
 
 	seq_printf(seq,

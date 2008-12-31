@@ -566,7 +566,6 @@ static bool cache_is_unified(struct device_node *np)
 
 static struct cache_desc * __cpuinit create_cache_index_info(struct device_node *np, struct kobject *parent, int index, int level)
 {
-	const phandle *next_cache_phandle;
 	struct device_node *next_cache;
 	struct cache_desc *new, **end;
 
@@ -591,11 +590,7 @@ static struct cache_desc * __cpuinit create_cache_index_info(struct device_node 
 	while (*end)
 		end = &(*end)->next;
 
-	next_cache_phandle = of_get_property(np, "l2-cache", NULL);
-	if (!next_cache_phandle)
-		goto out;
-
-	next_cache = of_find_node_by_phandle(*next_cache_phandle);
+	next_cache = of_find_next_cache_node(np);
 	if (!next_cache)
 		goto out;
 
@@ -717,9 +712,11 @@ static void unregister_cpu_online(unsigned int cpu)
 
 	BUG_ON(!c->hotpluggable);
 
+#ifdef CONFIG_PPC64
 	if (!firmware_has_feature(FW_FEATURE_ISERIES) &&
 			cpu_has_feature(CPU_FTR_SMT))
 		sysdev_remove_file(s, &attr_smt_snooze_delay);
+#endif
 
 	/* PMC stuff */
 	switch (cur_cpu_spec->pmc_type) {

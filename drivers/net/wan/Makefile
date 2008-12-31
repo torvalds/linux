@@ -14,7 +14,7 @@ obj-$(CONFIG_HDLC_RAW)		+= hdlc_raw.o
 obj-$(CONFIG_HDLC_RAW_ETH)	+= hdlc_raw_eth.o
 obj-$(CONFIG_HDLC_CISCO)	+= hdlc_cisco.o
 obj-$(CONFIG_HDLC_FR)		+= hdlc_fr.o
-obj-$(CONFIG_HDLC_PPP)		+= hdlc_ppp.o	syncppp.o
+obj-$(CONFIG_HDLC_PPP)		+= hdlc_ppp.o
 obj-$(CONFIG_HDLC_X25)		+= hdlc_x25.o
 
 pc300-y				:= pc300_drv.o
@@ -41,6 +41,7 @@ obj-$(CONFIG_C101)		+= c101.o
 obj-$(CONFIG_WANXL)		+= wanxl.o
 obj-$(CONFIG_PCI200SYN)		+= pci200syn.o
 obj-$(CONFIG_PC300TOO)		+= pc300too.o
+obj-$(CONFIG_IXP4XX_HSS)	+= ixp4xx_hss.o
 
 clean-files := wanxlfw.inc
 $(obj)/wanxl.o:	$(obj)/wanxlfw.inc

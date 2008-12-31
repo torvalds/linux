@@ -742,7 +742,7 @@ M:	jirislaby@gmail.com
 P:	Nick Kossifidis
 M:	mickflemm@gmail.com
 P:	Luis R. Rodriguez
-M:	mcgrof@gmail.com
+M:	lrodriguez@atheros.com
 P:	Bob Copeland
 M:	me@bobcopeland.com
 L:	linux-wireless@vger.kernel.org
@@ -779,6 +779,7 @@ ATM
 P:	Chas Williams
 M:	chas@cmf.nrl.navy.mil
 L:	linux-atm-general@lists.sourceforge.net (subscribers-only)
+L:	netdev@vger.kernel.org
 W:	http://linux-atm.sourceforge.net
 S:	Maintained
 
@@ -1526,10 +1527,10 @@ W:	http://ebtables.sourceforge.net/
 S:	Maintained
 
 ECRYPT FILE SYSTEM
-P:	Mike Halcrow, Phillip Hellewell
-M:	mhalcrow@us.ibm.com, phillip@hellewell.homeip.net
-L:	ecryptfs-devel@lists.sourceforge.net
-W:	http://ecryptfs.sourceforge.net/
+P:	Tyler Hicks, Dustin Kirkland
+M:	tyhicks@linux.vnet.ibm.com, kirkland@canonical.com
+L:	ecryptfs-devel@lists.launchpad.net
+W:	https://launchpad.net/ecryptfs
 S:	Supported
 
 EDAC-CORE
@@ -1604,11 +1605,6 @@ P:	Corentin Chary
 M:	corentincj@iksaif.net
 L:	acpi4asus-user@lists.sourceforge.net
 W:	http://sourceforge.net/projects/acpi4asus
-S:	Maintained
-
-EEPRO100 NETWORK DRIVER
-P:	Andrey V. Savochkin
-M:	saw@saw.sw.com.sg
 S:	Maintained
 
 EFS FILESYSTEM
@@ -1759,6 +1755,13 @@ L:	linuxppc-dev@ozlabs.org
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
+FREESCALE IMX / MXC FRAMEBUFFER DRIVER
+P:	Sascha Hauer
+M:	kernel@pengutronix.de
+L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+
 FREESCALE SOC FS_ENET DRIVER
 P:	Pantelis Antoniou
 M:	pantelis.antoniou@gmail.com
@@ -1848,7 +1851,7 @@ P:	Haavard Skinnemoen
 M:	hskinnemoen@atmel.com
 S:	Supported
 
-GENERIC HDLC DRIVER, N2, C101, PCI200SYN and WANXL DRIVERS
+GENERIC HDLC (WAN) DRIVERS
 P:	Krzysztof Halasa
 M:	khc@pm.waw.pl
 W:	http://www.kernel.org/pub/linux/utils/net/hdlc/
@@ -2190,9 +2193,9 @@ S:	Supported
 
 INOTIFY
 P:	John McCutchan
-M:	ttb@tentacle.dhs.org
+M:	john@johnmccutchan.com
 P:	Robert Love
-M:	rml@novell.com
+M:	rlove@rlove.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
@@ -2246,6 +2249,11 @@ P:	Dan Williams
 M:	dan.j.williams@intel.com
 L:	linux-kernel@vger.kernel.org
 S:	Supported
+
+INTEL IXP4XX QMGR, NPE, ETHERNET and HSS SUPPORT
+P:	Krzysztof Halasa
+M:	khc@pm.waw.pl
+S:	Maintained
 
 INTEL IXP4XX RANDOM NUMBER GENERATOR SUPPORT
 P:	Deepak Saxena
@@ -3613,15 +3621,25 @@ L:	linux-hams@vger.kernel.org
 W:	http://www.linux-ax25.org/
 S:	Maintained
 
-RTL818X WIRELESS DRIVER
-P:	Michael Wu
-M:	flamingice@sourmilk.net
-P:	Andrea Merello
-M:	andreamrl@tiscali.it
+RTL8180 WIRELESS DRIVER
+P:	John W. Linville
+M:	linville@tuxdriver.com
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
-T:	git kernel.org:/pub/scm/linux/kernel/git/mwu/mac80211-drivers.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
+
+RTL8187 WIRELESS DRIVER
+P:	 Herton Ronaldo Krzesinski
+M:      herton@mandriva.com.br
+P:      Hin-Tak Leung
+M       htl10@users.sourceforge.net
+P:      Larry Finger
+M:      Larry.Finger@lwfinger.net
+L:      linux-wireless@vger.kernel.org
+W:      http://linuxwireless.org/
+T:      git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-testing.git
+S:      Maintained
 
 S3 SAVAGE FRAMEBUFFER DRIVER
 P:	Antonino Daplas
@@ -3757,6 +3775,15 @@ P:	Pierre Ossman
 M:	drzeus-sdhci@drzeus.cx
 L:	sdhci-devel@list.drzeus.cx
 S:	Maintained
+
+SECURITY SUBSYSTEM
+F:	security/
+P:	James Morris
+M:	jmorris@namei.org
+L:	linux-kernel@vger.kernel.org
+L:	linux-security-module@vger.kernel.org (suggested Cc:)
+T:	git kernel.org:pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+S:	Supported
 
 SECURITY CONTACT
 P:	Security Officers
@@ -3903,6 +3930,18 @@ M:	mhoffman@lightlink.com
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
+SMSC911x ETHERNET DRIVER
+P:	Steve Glendinning
+M:	steve.glendinning@smsc.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
+SMSC9420 PCI ETHERNET DRIVER
+P:	Steve Glendinning
+M:	steve.glendinning@smsc.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 SMX UIO Interface
 P:	Ben Nizette
 M:	bn@niasdigital.com
@@ -3967,7 +4006,7 @@ M:	tiwai@suse.de
 L:	alsa-devel@alsa-project.org (subscribers-only)
 S:	Maintained
 
-SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT
+SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
 P:	Liam Girdwood
 M:	lrg@slimlogic.co.uk
 P:	Mark Brown
@@ -4235,7 +4274,7 @@ M:	dedekind@infradead.org
 P:	Adrian Hunter
 M:	ext-adrian.hunter@nokia.com
 L:	linux-mtd@lists.infradead.org
-T:	git git://git.infradead.org/~dedekind/ubifs-2.6.git
+T:	git git://git.infradead.org/ubifs-2.6.git
 W:	http://www.linux-mtd.infradead.org/doc/ubifs.html
 S:	Maintained
 
@@ -4289,7 +4328,7 @@ P:	Artem Bityutskiy
 M:	dedekind@infradead.org
 W:	http://www.linux-mtd.infradead.org/
 L:	linux-mtd@lists.infradead.org
-T:	git git://git.infradead.org/~dedekind/ubi-2.6.git
+T:	git git://git.infradead.org/ubi-2.6.git
 S:	Maintained
 
 USB ACM DRIVER
@@ -4519,7 +4558,7 @@ S:	Maintained
 USB VIDEO CLASS
 P:	Laurent Pinchart
 M:	laurent.pinchart@skynet.be
-L:	linux-uvc-devel@lists.berlios.de
+L:	linux-uvc-devel@lists.berlios.de (subscribers-only)
 L:	video4linux-list@redhat.com
 W:	http://linux-uvc.berlios.de
 S:	Maintained

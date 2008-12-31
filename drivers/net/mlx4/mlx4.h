@@ -63,12 +63,6 @@ enum {
 };
 
 enum {
-	MLX4_EQ_ASYNC,
-	MLX4_EQ_COMP,
-	MLX4_NUM_EQ
-};
-
-enum {
 	MLX4_NUM_PDS		= 1 << 15
 };
 
@@ -205,10 +199,11 @@ struct mlx4_cq_table {
 
 struct mlx4_eq_table {
 	struct mlx4_bitmap	bitmap;
+	char		       *irq_names;
 	void __iomem	       *clr_int;
-	void __iomem	       *uar_map[(MLX4_NUM_EQ + 6) / 4];
+	void __iomem	      **uar_map;
 	u32			clr_mask;
-	struct mlx4_eq		eq[MLX4_NUM_EQ];
+	struct mlx4_eq	       *eq;
 	u64			icm_virt;
 	struct page	       *icm_page;
 	dma_addr_t		icm_dma;
@@ -328,6 +323,9 @@ void mlx4_bitmap_cleanup(struct mlx4_bitmap *bitmap);
 
 int mlx4_reset(struct mlx4_dev *dev);
 
+int mlx4_alloc_eq_table(struct mlx4_dev *dev);
+void mlx4_free_eq_table(struct mlx4_dev *dev);
+
 int mlx4_init_pd_table(struct mlx4_dev *dev);
 int mlx4_init_uar_table(struct mlx4_dev *dev);
 int mlx4_init_mr_table(struct mlx4_dev *dev);
@@ -385,5 +383,6 @@ void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table);
 void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
 
 int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port);
+int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps);
 
 #endif /* MLX4_H */

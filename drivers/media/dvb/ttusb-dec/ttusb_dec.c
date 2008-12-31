@@ -1157,6 +1157,12 @@ static int ttusb_dec_alloc_iso_urbs(struct ttusb_dec *dec)
 						ISO_BUF_COUNT),
 					       &dec->iso_dma_handle);
 
+	if (!dec->iso_buffer) {
+		dprintk("%s: pci_alloc_consistent - not enough memory\n",
+			__func__);
+		return -ENOMEM;
+	}
+
 	memset(dec->iso_buffer, 0,
 	       ISO_FRAME_SIZE * (FRAMES_PER_ISO_BUF * ISO_BUF_COUNT));
 
@@ -1254,6 +1260,7 @@ static int ttusb_dec_init_usb(struct ttusb_dec *dec)
 		dec->irq_buffer = usb_buffer_alloc(dec->udev,IRQ_PACKET_SIZE,
 					GFP_ATOMIC, &dec->irq_dma_handle);
 		if(!dec->irq_buffer) {
+			usb_free_urb(dec->irq_urb);
 			return -ENOMEM;
 		}
 		usb_fill_int_urb(dec->irq_urb, dec->udev,dec->irq_pipe,

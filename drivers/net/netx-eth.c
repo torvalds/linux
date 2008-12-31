@@ -165,7 +165,6 @@ static void netx_eth_receive(struct net_device *ndev)
 	pfifo_push(EMPTY_PTR_FIFO(priv->id),
 		FIFO_PTR_SEGMENT(seg) | FIFO_PTR_FRAMENO(frameno));
 
-	ndev->last_rx = jiffies;
 	skb->protocol = eth_type_trans(skb, ndev);
 	netif_rx(skb);
 	ndev->stats.rx_packets++;
@@ -400,6 +399,8 @@ static int netx_eth_drv_probe(struct platform_device *pdev)
 	priv->xpec_base = priv->xc->xpec_base;
 	priv->xmac_base = priv->xc->xmac_base;
 	priv->sram_base = priv->xc->sram_base;
+
+	spin_lock_init(&priv->lock);
 
 	ret = pfifo_request(PFIFO_MASK(priv->id));
 	if (ret) {

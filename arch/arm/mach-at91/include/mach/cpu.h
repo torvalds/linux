@@ -49,6 +49,17 @@ static inline unsigned long at91_arch_identify(void)
 	return (at91_sys_read(AT91_DBGU_CIDR) & AT91_CIDR_ARCH);
 }
 
+#ifdef CONFIG_ARCH_AT91CAP9
+#include <mach/at91_pmc.h>
+
+#define ARCH_REVISION_CAP9_B	0x399
+#define ARCH_REVISION_CAP9_C	0x601
+
+static inline unsigned long at91cap9_rev_identify(void)
+{
+	return (at91_sys_read(AT91_PMC_VER));
+}
+#endif
 
 #ifdef CONFIG_ARCH_AT91RM9200
 #define cpu_is_at91rm9200()	(at91_cpu_identify() == ARCH_ID_AT91RM9200)
@@ -90,8 +101,12 @@ static inline unsigned long at91_arch_identify(void)
 
 #ifdef CONFIG_ARCH_AT91CAP9
 #define cpu_is_at91cap9()	(at91_cpu_identify() == ARCH_ID_AT91CAP9)
+#define cpu_is_at91cap9_revB()	(at91cap9_rev_identify() == ARCH_REVISION_CAP9_B)
+#define cpu_is_at91cap9_revC()	(at91cap9_rev_identify() == ARCH_REVISION_CAP9_C)
 #else
 #define cpu_is_at91cap9()	(0)
+#define cpu_is_at91cap9_revB()	(0)
+#define cpu_is_at91cap9_revC()	(0)
 #endif
 
 /*

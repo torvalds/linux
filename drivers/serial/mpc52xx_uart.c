@@ -429,14 +429,24 @@ mpc52xx_uart_tx_empty(struct uart_port *port)
 static void
 mpc52xx_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* Not implemented */
+	if (mctrl & TIOCM_RTS)
+		out_8(&PSC(port)->op1, MPC52xx_PSC_OP_RTS);
+	else
+		out_8(&PSC(port)->op0, MPC52xx_PSC_OP_RTS);
 }
 
 static unsigned int
 mpc52xx_uart_get_mctrl(struct uart_port *port)
 {
-	/* Not implemented */
-	return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
+	unsigned int ret = TIOCM_DSR;
+	u8 status = in_8(&PSC(port)->mpc52xx_psc_ipcr);
+
+	if (!(status & MPC52xx_PSC_CTS))
+		ret |= TIOCM_CTS;
+	if (!(status & MPC52xx_PSC_DCD))
+		ret |= TIOCM_CAR;
+
+	return ret;
 }
 
 static void
@@ -479,7 +489,15 @@ mpc52xx_uart_stop_rx(struct uart_port *port)
 static void
 mpc52xx_uart_enable_ms(struct uart_port *port)
 {
-	/* Not implemented */
+	struct mpc52xx_psc __iomem *psc = PSC(port);
+
+	/* clear D_*-bits by reading them */
+	in_8(&psc->mpc52xx_psc_ipcr);
+	/* enable CTS and DCD as IPC interrupts */
+	out_8(&psc->mpc52xx_psc_acr, MPC52xx_PSC_IEC_CTS | MPC52xx_PSC_IEC_DCD);
+
+	port->read_status_mask |= MPC52xx_PSC_IMR_IPC;
+	out_be16(&psc->mpc52xx_psc_imr, port->read_status_mask);
 }
 
 static void
@@ -580,6 +598,10 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 			MPC52xx_PSC_MODE_ONE_STOP_5_BITS :
 			MPC52xx_PSC_MODE_ONE_STOP;
 
+	if (new->c_cflag & CRTSCTS) {
+		mr1 |= MPC52xx_PSC_MODE_RXRTS;
+		mr2 |= MPC52xx_PSC_MODE_TXCTS;
+	}
 
 	baud = uart_get_baud_rate(port, new, old, 0, port->uartclk/16);
 	quot = uart_get_divisor(port, baud);
@@ -591,8 +613,8 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	/* Update the per-port timeout */
 	uart_update_timeout(port, new->c_cflag, baud);
 
-	/* Do our best to flush TX & RX, so we don't loose anything */
-	/* But we don't wait indefinitly ! */
+	/* Do our best to flush TX & RX, so we don't lose anything */
+	/* But we don't wait indefinitely ! */
 	j = 5000000;	/* Maximum wait */
 	/* FIXME Can't receive chars since set_termios might be called at early
 	 * boot for the console, all stuff is not yet ready to receive at that
@@ -616,6 +638,9 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	out_8(&psc->mode, mr2);
 	out_8(&psc->ctur, ctr >> 8);
 	out_8(&psc->ctlr, ctr & 0xff);
+
+	if (UART_ENABLE_MS(port, new->c_cflag))
+		mpc52xx_uart_enable_ms(port);
 
 	/* Reenable TX & RX */
 	out_8(&psc->command, MPC52xx_PSC_TX_ENABLE);
@@ -752,10 +777,15 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 			if (status & MPC52xx_PSC_SR_RB) {
 				flag = TTY_BREAK;
 				uart_handle_break(port);
-			} else if (status & MPC52xx_PSC_SR_PE)
+				port->icount.brk++;
+			} else if (status & MPC52xx_PSC_SR_PE) {
 				flag = TTY_PARITY;
-			else if (status & MPC52xx_PSC_SR_FE)
+				port->icount.parity++;
+			}
+			else if (status & MPC52xx_PSC_SR_FE) {
 				flag = TTY_FRAME;
+				port->icount.frame++;
+			}
 
 			/* Clear error condition */
 			out_8(&PSC(port)->command, MPC52xx_PSC_RST_ERR_STAT);
@@ -769,6 +799,7 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 			 * affect the current character
 			 */
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			port->icount.overrun++;
 		}
 	}
 
@@ -826,6 +857,7 @@ mpc52xx_uart_int(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	unsigned long pass = ISR_PASS_LIMIT;
 	unsigned int keepgoing;
+	u8 status;
 
 	spin_lock(&port->lock);
 
@@ -841,6 +873,13 @@ mpc52xx_uart_int(int irq, void *dev_id)
 		psc_ops->tx_clr_irq(port);
 		if (psc_ops->tx_rdy(port))
 			keepgoing |= mpc52xx_uart_int_tx_chars(port);
+
+		status = in_8(&PSC(port)->mpc52xx_psc_ipcr);
+		if (status & MPC52xx_PSC_D_DCD)
+			uart_handle_dcd_change(port, !(status & MPC52xx_PSC_DCD));
+
+		if (status & MPC52xx_PSC_D_CTS)
+			uart_handle_cts_change(port, !(status & MPC52xx_PSC_CTS));
 
 		/* Limit number of iteration */
 		if (!(--pass))
@@ -1109,22 +1148,29 @@ mpc52xx_uart_of_probe(struct of_device *op, const struct of_device_id *match)
 		return ret;
 
 	port->mapbase = res.start;
+	if (!port->mapbase) {
+		dev_dbg(&op->dev, "Could not allocate resources for PSC\n");
+		return -EINVAL;
+	}
+
 	port->irq = irq_of_parse_and_map(op->node, 0);
+	if (port->irq == NO_IRQ) {
+		dev_dbg(&op->dev, "Could not get irq\n");
+		return -EINVAL;
+	}
 
 	dev_dbg(&op->dev, "mpc52xx-psc uart at %p, irq=%x, freq=%i\n",
 		(void *)port->mapbase, port->irq, port->uartclk);
 
-	if ((port->irq == NO_IRQ) || !port->mapbase) {
-		printk(KERN_ERR "Could not allocate resources for PSC\n");
-		return -EINVAL;
-	}
-
 	/* Add the port to the uart sub-system */
 	ret = uart_add_one_port(&mpc52xx_uart_driver, port);
-	if (!ret)
-		dev_set_drvdata(&op->dev, (void *)port);
+	if (ret) {
+		irq_dispose_mapping(port->irq);
+		return ret;
+	}
 
-	return ret;
+	dev_set_drvdata(&op->dev, (void *)port);
+	return 0;
 }
 
 static int

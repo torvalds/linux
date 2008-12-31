@@ -6,14 +6,13 @@
  * precise-event based sampling (PEBS).
  *
  * It manages:
- * - per-thread and per-cpu allocation of BTS and PEBS
- * - buffer memory allocation (optional)
- * - buffer overflow handling
+ * - DS and BTS hardware configuration
+ * - buffer overflow handling (to be done)
  * - buffer access
  *
- * It assumes:
- * - get_task_struct on all parameter tasks
- * - current is allowed to trace parameter tasks
+ * It does not do:
+ * - security checking (is the caller allowed to trace the task)
+ * - buffer allocation (memory accounting)
  *
  *
  * Copyright (C) 2007-2008 Intel Corporation.
@@ -23,13 +22,54 @@
 #ifndef _ASM_X86_DS_H
 #define _ASM_X86_DS_H
 
-#ifdef CONFIG_X86_DS
 
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/err.h>
 
+
+#ifdef CONFIG_X86_DS
 
 struct task_struct;
+struct ds_context;
+struct ds_tracer;
+struct bts_tracer;
+struct pebs_tracer;
+
+typedef void (*bts_ovfl_callback_t)(struct bts_tracer *);
+typedef void (*pebs_ovfl_callback_t)(struct pebs_tracer *);
+
+
+/*
+ * A list of features plus corresponding macros to talk about them in
+ * the ds_request function's flags parameter.
+ *
+ * We use the enum to index an array of corresponding control bits;
+ * we use the macro to index a flags bit-vector.
+ */
+enum ds_feature {
+	dsf_bts = 0,
+	dsf_bts_kernel,
+#define BTS_KERNEL (1 << dsf_bts_kernel)
+	/* trace kernel-mode branches */
+
+	dsf_bts_user,
+#define BTS_USER (1 << dsf_bts_user)
+	/* trace user-mode branches */
+
+	dsf_bts_overflow,
+	dsf_bts_max,
+	dsf_pebs = dsf_bts_max,
+
+	dsf_pebs_max,
+	dsf_ctl_max = dsf_pebs_max,
+	dsf_bts_timestamps = dsf_ctl_max,
+#define BTS_TIMESTAMPS (1 << dsf_bts_timestamps)
+	/* add timestamps into BTS trace */
+
+#define BTS_USER_FLAGS (BTS_KERNEL | BTS_USER | BTS_TIMESTAMPS)
+};
+
 
 /*
  * Request BTS or PEBS
@@ -37,163 +77,169 @@ struct task_struct;
  * Due to alignement constraints, the actual buffer may be slightly
  * smaller than the requested or provided buffer.
  *
- * Returns 0 on success; -Eerrno otherwise
+ * Returns a pointer to a tracer structure on success, or
+ * ERR_PTR(errcode) on failure.
+ *
+ * The interrupt threshold is independent from the overflow callback
+ * to allow users to use their own overflow interrupt handling mechanism.
  *
  * task: the task to request recording for;
  *       NULL for per-cpu recording on the current cpu
  * base: the base pointer for the (non-pageable) buffer;
- *       NULL if buffer allocation requested
- * size: the size of the requested or provided buffer
+ * size: the size of the provided buffer in bytes
  * ovfl: pointer to a function to be called on buffer overflow;
  *       NULL if cyclic buffer requested
+ * th: the interrupt threshold in records from the end of the buffer;
+ *     -1 if no interrupt threshold is requested.
+ * flags: a bit-mask of the above flags
  */
-typedef void (*ds_ovfl_callback_t)(struct task_struct *);
-extern int ds_request_bts(struct task_struct *task, void *base, size_t size,
-			  ds_ovfl_callback_t ovfl);
-extern int ds_request_pebs(struct task_struct *task, void *base, size_t size,
-			   ds_ovfl_callback_t ovfl);
+extern struct bts_tracer *ds_request_bts(struct task_struct *task,
+					 void *base, size_t size,
+					 bts_ovfl_callback_t ovfl,
+					 size_t th, unsigned int flags);
+extern struct pebs_tracer *ds_request_pebs(struct task_struct *task,
+					   void *base, size_t size,
+					   pebs_ovfl_callback_t ovfl,
+					   size_t th, unsigned int flags);
 
 /*
  * Release BTS or PEBS resources
+ * Suspend and resume BTS or PEBS tracing
  *
- * Frees buffers allocated on ds_request.
- *
- * Returns 0 on success; -Eerrno otherwise
- *
- * task: the task to release resources for;
- *       NULL to release resources for the current cpu
+ * tracer: the tracer handle returned from ds_request_~()
  */
-extern int ds_release_bts(struct task_struct *task);
-extern int ds_release_pebs(struct task_struct *task);
+extern void ds_release_bts(struct bts_tracer *tracer);
+extern void ds_suspend_bts(struct bts_tracer *tracer);
+extern void ds_resume_bts(struct bts_tracer *tracer);
+extern void ds_release_pebs(struct pebs_tracer *tracer);
+extern void ds_suspend_pebs(struct pebs_tracer *tracer);
+extern void ds_resume_pebs(struct pebs_tracer *tracer);
+
 
 /*
- * Return the (array) index of the write pointer.
- * (assuming an array of BTS/PEBS records)
+ * The raw DS buffer state as it is used for BTS and PEBS recording.
  *
- * Returns -Eerrno on error
- *
- * task: the task to access;
- *       NULL to access the current cpu
- * pos (out): if not NULL, will hold the result
+ * This is the low-level, arch-dependent interface for working
+ * directly on the raw trace data.
  */
-extern int ds_get_bts_index(struct task_struct *task, size_t *pos);
-extern int ds_get_pebs_index(struct task_struct *task, size_t *pos);
+struct ds_trace {
+	/* the number of bts/pebs records */
+	size_t n;
+	/* the size of a bts/pebs record in bytes */
+	size_t size;
+	/* pointers into the raw buffer:
+	   - to the first entry */
+	void *begin;
+	/* - one beyond the last entry */
+	void *end;
+	/* - one beyond the newest entry */
+	void *top;
+	/* - the interrupt threshold */
+	void *ith;
+	/* flags given on ds_request() */
+	unsigned int flags;
+};
 
 /*
- * Return the (array) index one record beyond the end of the array.
- * (assuming an array of BTS/PEBS records)
- *
- * Returns -Eerrno on error
- *
- * task: the task to access;
- *       NULL to access the current cpu
- * pos (out): if not NULL, will hold the result
+ * An arch-independent view on branch trace data.
  */
-extern int ds_get_bts_end(struct task_struct *task, size_t *pos);
-extern int ds_get_pebs_end(struct task_struct *task, size_t *pos);
+enum bts_qualifier {
+	bts_invalid,
+#define BTS_INVALID bts_invalid
+
+	bts_branch,
+#define BTS_BRANCH bts_branch
+
+	bts_task_arrives,
+#define BTS_TASK_ARRIVES bts_task_arrives
+
+	bts_task_departs,
+#define BTS_TASK_DEPARTS bts_task_departs
+
+	bts_qual_bit_size = 4,
+	bts_qual_max = (1 << bts_qual_bit_size),
+};
+
+struct bts_struct {
+	__u64 qualifier;
+	union {
+		/* BTS_BRANCH */
+		struct {
+			__u64 from;
+			__u64 to;
+		} lbr;
+		/* BTS_TASK_ARRIVES or BTS_TASK_DEPARTS */
+		struct {
+			__u64 jiffies;
+			pid_t pid;
+		} timestamp;
+	} variant;
+};
+
 
 /*
- * Provide a pointer to the BTS/PEBS record at parameter index.
- * (assuming an array of BTS/PEBS records)
+ * The BTS state.
  *
- * The pointer points directly into the buffer. The user is
- * responsible for copying the record.
- *
- * Returns the size of a single record on success; -Eerrno on error
- *
- * task: the task to access;
- *       NULL to access the current cpu
- * index: the index of the requested record
- * record (out): pointer to the requested record
+ * This gives access to the raw DS state and adds functions to provide
+ * an arch-independent view of the BTS data.
  */
-extern int ds_access_bts(struct task_struct *task,
-			 size_t index, const void **record);
-extern int ds_access_pebs(struct task_struct *task,
-			  size_t index, const void **record);
+struct bts_trace {
+	struct ds_trace ds;
+
+	int (*read)(struct bts_tracer *tracer, const void *at,
+		    struct bts_struct *out);
+	int (*write)(struct bts_tracer *tracer, const struct bts_struct *in);
+};
+
 
 /*
- * Write one or more BTS/PEBS records at the write pointer index and
- * advance the write pointer.
+ * The PEBS state.
  *
- * If size is not a multiple of the record size, trailing bytes are
- * zeroed out.
- *
- * May result in one or more overflow notifications.
- *
- * If called during overflow handling, that is, with index >=
- * interrupt threshold, the write will wrap around.
- *
- * An overflow notification is given if and when the interrupt
- * threshold is reached during or after the write.
- *
- * Returns the number of bytes written or -Eerrno.
- *
- * task: the task to access;
- *       NULL to access the current cpu
- * buffer: the buffer to write
- * size: the size of the buffer
+ * This gives access to the raw DS state and the PEBS-specific counter
+ * reset value.
  */
-extern int ds_write_bts(struct task_struct *task,
-			const void *buffer, size_t size);
-extern int ds_write_pebs(struct task_struct *task,
-			 const void *buffer, size_t size);
+struct pebs_trace {
+	struct ds_trace ds;
+
+	/* the PEBS reset value */
+	unsigned long long reset_value;
+};
+
 
 /*
- * Same as ds_write_bts/pebs, but omit ownership checks.
+ * Read the BTS or PEBS trace.
  *
- * This is needed to have some other task than the owner of the
- * BTS/PEBS buffer or the parameter task itself write into the
- * respective buffer.
+ * Returns a view on the trace collected for the parameter tracer.
+ *
+ * The view remains valid as long as the traced task is not running or
+ * the tracer is suspended.
+ * Writes into the trace buffer are not reflected.
+ *
+ * tracer: the tracer handle returned from ds_request_~()
  */
-extern int ds_unchecked_write_bts(struct task_struct *task,
-				  const void *buffer, size_t size);
-extern int ds_unchecked_write_pebs(struct task_struct *task,
-				   const void *buffer, size_t size);
+extern const struct bts_trace *ds_read_bts(struct bts_tracer *tracer);
+extern const struct pebs_trace *ds_read_pebs(struct pebs_tracer *tracer);
+
 
 /*
  * Reset the write pointer of the BTS/PEBS buffer.
  *
  * Returns 0 on success; -Eerrno on error
  *
- * task: the task to access;
- *       NULL to access the current cpu
+ * tracer: the tracer handle returned from ds_request_~()
  */
-extern int ds_reset_bts(struct task_struct *task);
-extern int ds_reset_pebs(struct task_struct *task);
-
-/*
- * Clear the BTS/PEBS buffer and reset the write pointer.
- * The entire buffer will be zeroed out.
- *
- * Returns 0 on success; -Eerrno on error
- *
- * task: the task to access;
- *       NULL to access the current cpu
- */
-extern int ds_clear_bts(struct task_struct *task);
-extern int ds_clear_pebs(struct task_struct *task);
-
-/*
- * Provide the PEBS counter reset value.
- *
- * Returns 0 on success; -Eerrno on error
- *
- * task: the task to access;
- *       NULL to access the current cpu
- * value (out): the counter reset value
- */
-extern int ds_get_pebs_reset(struct task_struct *task, u64 *value);
+extern int ds_reset_bts(struct bts_tracer *tracer);
+extern int ds_reset_pebs(struct pebs_tracer *tracer);
 
 /*
  * Set the PEBS counter reset value.
  *
  * Returns 0 on success; -Eerrno on error
  *
- * task: the task to access;
- *       NULL to access the current cpu
+ * tracer: the tracer handle returned from ds_request_pebs()
  * value: the new counter reset value
  */
-extern int ds_set_pebs_reset(struct task_struct *task, u64 value);
+extern int ds_set_pebs_reset(struct pebs_tracer *tracer, u64 value);
 
 /*
  * Initialization
@@ -201,38 +247,26 @@ extern int ds_set_pebs_reset(struct task_struct *task, u64 value);
 struct cpuinfo_x86;
 extern void __cpuinit ds_init_intel(struct cpuinfo_x86 *);
 
-
+/*
+ * Context switch work
+ */
+extern void ds_switch_to(struct task_struct *prev, struct task_struct *next);
 
 /*
- * The DS context - part of struct thread_struct.
+ * Task clone/init and cleanup work
  */
-struct ds_context {
-	/* pointer to the DS configuration; goes into MSR_IA32_DS_AREA */
-	unsigned char *ds;
-	/* the owner of the BTS and PEBS configuration, respectively */
-	struct task_struct *owner[2];
-	/* buffer overflow notification function for BTS and PEBS */
-	ds_ovfl_callback_t callback[2];
-	/* the original buffer address */
-	void *buffer[2];
-	/* the number of allocated pages for on-request allocated buffers */
-	unsigned int pages[2];
-	/* use count */
-	unsigned long count;
-	/* a pointer to the context location inside the thread_struct
-	 * or the per_cpu context array */
-	struct ds_context **this;
-	/* a pointer to the task owning this context, or NULL, if the
-	 * context is owned by a cpu */
-	struct task_struct *task;
-};
-
-/* called by exit_thread() to free leftover contexts */
-extern void ds_free(struct ds_context *context);
+extern void ds_copy_thread(struct task_struct *tsk, struct task_struct *father);
+extern void ds_exit_thread(struct task_struct *tsk);
 
 #else /* CONFIG_X86_DS */
 
-#define ds_init_intel(config) do {} while (0)
+struct cpuinfo_x86;
+static inline void __cpuinit ds_init_intel(struct cpuinfo_x86 *ignored) {}
+static inline void ds_switch_to(struct task_struct *prev,
+				struct task_struct *next) {}
+static inline void ds_copy_thread(struct task_struct *tsk,
+				  struct task_struct *father) {}
+static inline void ds_exit_thread(struct task_struct *tsk) {}
 
 #endif /* CONFIG_X86_DS */
 #endif /* _ASM_X86_DS_H */

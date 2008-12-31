@@ -21,6 +21,7 @@
 #include <linux/debug_locks.h>
 #include <linux/random.h>
 #include <linux/kallsyms.h>
+#include <linux/dmi.h>
 
 int panic_on_oops;
 static unsigned long tainted_mask;
@@ -167,6 +168,7 @@ static const struct tnt tnts[] = {
  *  'M' - System experienced a machine check exception.
  *  'B' - System has hit bad_page.
  *  'U' - Userspace-defined naughtiness.
+ *  'D' - Kernel has oopsed before
  *  'A' - ACPI table overridden.
  *  'W' - Taint on warning.
  *  'C' - modules from drivers/staging are loaded.
@@ -320,36 +322,27 @@ void oops_exit(void)
 }
 
 #ifdef WANT_WARN_ON_SLOWPATH
-void warn_on_slowpath(const char *file, int line)
-{
-	char function[KSYM_SYMBOL_LEN];
-	unsigned long caller = (unsigned long) __builtin_return_address(0);
-	sprint_symbol(function, caller);
-
-	printk(KERN_WARNING "------------[ cut here ]------------\n");
-	printk(KERN_WARNING "WARNING: at %s:%d %s()\n", file,
-		line, function);
-	print_modules();
-	dump_stack();
-	print_oops_end_marker();
-	add_taint(TAINT_WARN);
-}
-EXPORT_SYMBOL(warn_on_slowpath);
-
-
 void warn_slowpath(const char *file, int line, const char *fmt, ...)
 {
 	va_list args;
 	char function[KSYM_SYMBOL_LEN];
 	unsigned long caller = (unsigned long)__builtin_return_address(0);
+	const char *board;
+
 	sprint_symbol(function, caller);
 
 	printk(KERN_WARNING "------------[ cut here ]------------\n");
 	printk(KERN_WARNING "WARNING: at %s:%d %s()\n", file,
 		line, function);
-	va_start(args, fmt);
-	vprintk(fmt, args);
-	va_end(args);
+	board = dmi_get_system_info(DMI_PRODUCT_NAME);
+	if (board)
+		printk(KERN_WARNING "Hardware name: %s\n", board);
+
+	if (fmt) {
+		va_start(args, fmt);
+		vprintk(fmt, args);
+		va_end(args);
+	}
 
 	print_modules();
 	dump_stack();

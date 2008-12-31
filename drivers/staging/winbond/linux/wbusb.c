@@ -336,7 +336,11 @@ WbUsb_destroy(phw_data_t pHwData)
 
 int wb35_open(struct net_device *netdev)
 {
-	PADAPTER Adapter = (PADAPTER)netdev->priv;
+	/* netdev_priv() or netdev->ml_priv should reference to the address of
+	 * private data(PADAPTER). It depends on whether private data memory is
+	 * allocated when alloc_netdev().
+	 */
+	PADAPTER Adapter = (PADAPTER)netdev_priv(netdev);
 	phw_data_t pHwData = &Adapter->sHwData;
 
         netif_start_queue(netdev);

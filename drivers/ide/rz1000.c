@@ -22,34 +22,48 @@
 
 #define DRV_NAME "rz1000"
 
-static void __devinit init_hwif_rz1000 (ide_hwif_t *hwif)
+static int __devinit rz1000_disable_readahead(struct pci_dev *dev)
 {
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u16 reg;
 
 	if (!pci_read_config_word (dev, 0x40, &reg) &&
 	    !pci_write_config_word(dev, 0x40, reg & 0xdfff)) {
 		printk(KERN_INFO "%s: disabled chipset read-ahead "
-			"(buggy RZ1000/RZ1001)\n", hwif->name);
+			"(buggy RZ1000/RZ1001)\n", pci_name(dev));
+		return 0;
 	} else {
-		if (hwif->mate)
-			hwif->mate->serialized = hwif->serialized = 1;
-		hwif->host_flags |= IDE_HFLAG_NO_UNMASK_IRQS;
 		printk(KERN_INFO "%s: serialized, disabled unmasking "
-			"(buggy RZ1000/RZ1001)\n", hwif->name);
+			"(buggy RZ1000/RZ1001)\n", pci_name(dev));
+		return 1;
 	}
 }
 
 static const struct ide_port_info rz1000_chipset __devinitdata = {
 	.name		= DRV_NAME,
-	.init_hwif	= init_hwif_rz1000,
-	.chipset	= ide_rz1000,
 	.host_flags	= IDE_HFLAG_NO_DMA,
 };
 
 static int __devinit rz1000_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_pci_init_one(dev, &rz1000_chipset, NULL);
+	struct ide_port_info d = rz1000_chipset;
+	int rc;
+
+	rc = pci_enable_device(dev);
+	if (rc)
+		return rc;
+
+	if (rz1000_disable_readahead(dev)) {
+		d.host_flags |= IDE_HFLAG_SERIALIZE;
+		d.host_flags |= IDE_HFLAG_NO_UNMASK_IRQS;
+	}
+
+	return ide_pci_init_one(dev, &d, NULL);
+}
+
+static void rz1000_remove(struct pci_dev *dev)
+{
+	ide_pci_remove(dev);
+	pci_disable_device(dev);
 }
 
 static const struct pci_device_id rz1000_pci_tbl[] = {
@@ -63,7 +77,7 @@ static struct pci_driver rz1000_pci_driver = {
 	.name		= "RZ1000_IDE",
 	.id_table	= rz1000_pci_tbl,
 	.probe		= rz1000_init_one,
-	.remove		= ide_pci_remove,
+	.remove		= rz1000_remove,
 };
 
 static int __init rz1000_ide_init(void)

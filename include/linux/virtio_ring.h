@@ -83,7 +83,7 @@ struct vring {
  *	__u16 avail_idx;
  *	__u16 available[num];
  *
- *	// Padding to the next page boundary.
+ *	// Padding to the next align boundary.
  *	char pad[];
  *
  *	// A ring of used descriptor heads with free-running index.
@@ -93,19 +93,19 @@ struct vring {
  * };
  */
 static inline void vring_init(struct vring *vr, unsigned int num, void *p,
-			      unsigned long pagesize)
+			      unsigned long align)
 {
 	vr->num = num;
 	vr->desc = p;
 	vr->avail = p + num*sizeof(struct vring_desc);
-	vr->used = (void *)(((unsigned long)&vr->avail->ring[num] + pagesize-1)
-			    & ~(pagesize - 1));
+	vr->used = (void *)(((unsigned long)&vr->avail->ring[num] + align-1)
+			    & ~(align - 1));
 }
 
-static inline unsigned vring_size(unsigned int num, unsigned long pagesize)
+static inline unsigned vring_size(unsigned int num, unsigned long align)
 {
 	return ((sizeof(struct vring_desc) * num + sizeof(__u16) * (2 + num)
-		 + pagesize - 1) & ~(pagesize - 1))
+		 + align - 1) & ~(align - 1))
 		+ sizeof(__u16) * 2 + sizeof(struct vring_used_elem) * num;
 }
 
@@ -115,6 +115,7 @@ struct virtio_device;
 struct virtqueue;
 
 struct virtqueue *vring_new_virtqueue(unsigned int num,
+				      unsigned int vring_align,
 				      struct virtio_device *vdev,
 				      void *pages,
 				      void (*notify)(struct virtqueue *vq),

@@ -1237,7 +1237,6 @@ static const struct cx88_board cx88_boards[] = {
 		},
 	},
 	[CX88_BOARD_WINFAST_DTV2000H] = {
-		/* video inputs and radio still in testing */
 		.name           = "WinFast DTV2000 H",
 		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
 		.radio_type     = UNSET,
@@ -1251,7 +1250,35 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio1  = 0x00008203,
 			.gpio2  = 0x00017304,
 			.gpio3  = 0x02000000,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x0001d701,
+			.gpio1  = 0x0000b207,
+			.gpio2  = 0x0001d701,
+			.gpio3  = 0x02000000,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE2,
+			.vmux   = 2,
+			.gpio0  = 0x0001d503,
+			.gpio1  = 0x0000b207,
+			.gpio2  = 0x0001d503,
+			.gpio3  = 0x02000000,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 3,
+			.gpio0  = 0x0001d701,
+			.gpio1  = 0x0000b207,
+			.gpio2  = 0x0001d701,
+			.gpio3  = 0x02000000,
 		}},
+		.radio = {
+			 .type  = CX88_RADIO,
+			 .gpio0 = 0x00015702,
+			 .gpio1 = 0x0000f207,
+			 .gpio2 = 0x00015702,
+			 .gpio3 = 0x02000000,
+		},
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_GENIATECH_DVBS] = {
@@ -1847,6 +1874,18 @@ static const struct cx88_board cx88_boards[] = {
 		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_TBS_8910] = {
+		.name           = "TBS 8910 DVB-S",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 	[CX88_BOARD_TBS_8920] = {
 		.name           = "TBS 8920 DVB-S/S2",
 		.tuner_type     = TUNER_ABSENT,
@@ -1859,8 +1898,32 @@ static const struct cx88_board cx88_boards[] = {
 		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_PROF_6200] = {
+		.name           = "Prof 6200 DVB-S",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 	[CX88_BOARD_PROF_7300] = {
 		.name           = "PROF 7300 DVB-S/S2",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
+	[CX88_BOARD_SATTRADE_ST4200] = {
+		.name           = "SATTRADE ST4200 DVB-S/S2",
 		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
@@ -1897,7 +1960,11 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = PCI_VENDOR_ID_ATI,
 		.subdevice = 0x00f8,
 		.card      = CX88_BOARD_ATI_WONDER_PRO,
-	},{
+	}, {
+		.subvendor = PCI_VENDOR_ID_ATI,
+		.subdevice = 0x00f9,
+		.card      = CX88_BOARD_ATI_WONDER_PRO,
+	}, {
 		.subvendor = 0x107d,
 		.subdevice = 0x6611,
 		.card      = CX88_BOARD_WINFAST2000XP_EXPERT,
@@ -2257,13 +2324,25 @@ static const struct cx88_subid cx88_subids[] = {
 		.subdevice = 0x2011,
 		.card      = CX88_BOARD_OMICOM_SS4_PCI,
 	}, {
+		.subvendor = 0x8910,
+		.subdevice = 0x8888,
+		.card      = CX88_BOARD_TBS_8910,
+	}, {
 		.subvendor = 0x8920,
 		.subdevice = 0x8888,
 		.card      = CX88_BOARD_TBS_8920,
 	}, {
+		.subvendor = 0xb022,
+		.subdevice = 0x3022,
+		.card      = CX88_BOARD_PROF_6200,
+	}, {
 		.subvendor = 0xB033,
 		.subdevice = 0x3033,
 		.card      = CX88_BOARD_PROF_7300,
+	}, {
+		.subvendor = 0xb200,
+		.subdevice = 0x4200,
+		.card      = CX88_BOARD_SATTRADE_ST4200,
 	},
 };
 
@@ -2874,8 +2953,11 @@ static void cx88_card_setup(struct cx88_core *core)
 	case  CX88_BOARD_TEVII_S420:
 	case  CX88_BOARD_TEVII_S460:
 	case  CX88_BOARD_OMICOM_SS4_PCI:
+	case  CX88_BOARD_TBS_8910:
 	case  CX88_BOARD_TBS_8920:
+	case  CX88_BOARD_PROF_6200:
 	case  CX88_BOARD_PROF_7300:
+	case  CX88_BOARD_SATTRADE_ST4200:
 		cx_write(MO_SRST_IO, 0);
 		msleep(100);
 		cx_write(MO_SRST_IO, 1);

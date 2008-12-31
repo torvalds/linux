@@ -154,13 +154,13 @@ void xen_setup_mfn_list_list(void)
 {
 	unsigned pfn, idx;
 
-	for(pfn = 0; pfn < MAX_DOMAIN_PAGES; pfn += P2M_ENTRIES_PER_PAGE) {
+	for (pfn = 0; pfn < MAX_DOMAIN_PAGES; pfn += P2M_ENTRIES_PER_PAGE) {
 		unsigned topidx = p2m_top_index(pfn);
 
 		p2m_top_mfn[topidx] = virt_to_mfn(p2m_top[topidx]);
 	}
 
-	for(idx = 0; idx < ARRAY_SIZE(p2m_top_mfn_list); idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(p2m_top_mfn_list); idx++) {
 		unsigned topidx = idx * P2M_ENTRIES_PER_PAGE;
 		p2m_top_mfn_list[idx] = virt_to_mfn(&p2m_top_mfn[topidx]);
 	}
@@ -179,7 +179,7 @@ void __init xen_build_dynamic_phys_to_machine(void)
 	unsigned long max_pfn = min(MAX_DOMAIN_PAGES, xen_start_info->nr_pages);
 	unsigned pfn;
 
-	for(pfn = 0; pfn < max_pfn; pfn += P2M_ENTRIES_PER_PAGE) {
+	for (pfn = 0; pfn < max_pfn; pfn += P2M_ENTRIES_PER_PAGE) {
 		unsigned topidx = p2m_top_index(pfn);
 
 		p2m_top[topidx] = &mfn_list[pfn];
@@ -207,7 +207,7 @@ static void alloc_p2m(unsigned long **pp, unsigned long *mfnp)
 	p = (void *)__get_free_page(GFP_KERNEL | __GFP_NOFAIL);
 	BUG_ON(p == NULL);
 
-	for(i = 0; i < P2M_ENTRIES_PER_PAGE; i++)
+	for (i = 0; i < P2M_ENTRIES_PER_PAGE; i++)
 		p[i] = INVALID_P2M_ENTRY;
 
 	if (cmpxchg(pp, p2m_missing, p) != p2m_missing)
@@ -407,7 +407,8 @@ out:
 		preempt_enable();
 }
 
-pte_t xen_ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+pte_t xen_ptep_modify_prot_start(struct mm_struct *mm,
+				 unsigned long addr, pte_t *ptep)
 {
 	/* Just return the pte as-is.  We preserve the bits on commit */
 	return *ptep;
@@ -661,12 +662,11 @@ void xen_set_pgd(pgd_t *ptr, pgd_t val)
  * For 64-bit, we must skip the Xen hole in the middle of the address
  * space, just after the big x86-64 virtual hole.
  */
-static int xen_pgd_walk(struct mm_struct *mm,
-			int (*func)(struct mm_struct *mm, struct page *,
-				    enum pt_level),
-			unsigned long limit)
+static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
+			  int (*func)(struct mm_struct *mm, struct page *,
+				      enum pt_level),
+			  unsigned long limit)
 {
-	pgd_t *pgd = mm->pgd;
 	int flush = 0;
 	unsigned hole_low, hole_high;
 	unsigned pgdidx_limit, pudidx_limit, pmdidx_limit;
@@ -751,6 +751,14 @@ out:
 	flush |= (*func)(mm, virt_to_page(pgd), PT_PGD);
 
 	return flush;
+}
+
+static int xen_pgd_walk(struct mm_struct *mm,
+			int (*func)(struct mm_struct *mm, struct page *,
+				    enum pt_level),
+			unsigned long limit)
+{
+	return __xen_pgd_walk(mm, mm->pgd, func, limit);
 }
 
 /* If we're using split pte locks, then take the page's lock and
@@ -854,7 +862,7 @@ static void __xen_pgd_pin(struct mm_struct *mm, pgd_t *pgd)
 
 	xen_mc_batch();
 
-	 if (xen_pgd_walk(mm, xen_pin_page, USER_LIMIT)) {
+	if (__xen_pgd_walk(mm, pgd, xen_pin_page, USER_LIMIT)) {
 		/* re-enable interrupts for flushing */
 		xen_mc_issue(0);
 
@@ -871,7 +879,8 @@ static void __xen_pgd_pin(struct mm_struct *mm, pgd_t *pgd)
 
 		if (user_pgd) {
 			xen_pin_page(mm, virt_to_page(user_pgd), PT_PGD);
-			xen_do_pin(MMUEXT_PIN_L4_TABLE, PFN_DOWN(__pa(user_pgd)));
+			xen_do_pin(MMUEXT_PIN_L4_TABLE,
+				   PFN_DOWN(__pa(user_pgd)));
 		}
 	}
 #else /* CONFIG_X86_32 */
@@ -986,7 +995,8 @@ static void __xen_pgd_unpin(struct mm_struct *mm, pgd_t *pgd)
 		pgd_t *user_pgd = xen_get_user_pgd(pgd);
 
 		if (user_pgd) {
-			xen_do_pin(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(user_pgd)));
+			xen_do_pin(MMUEXT_UNPIN_TABLE,
+				   PFN_DOWN(__pa(user_pgd)));
 			xen_unpin_page(mm, virt_to_page(user_pgd), PT_PGD);
 		}
 	}
@@ -998,7 +1008,7 @@ static void __xen_pgd_unpin(struct mm_struct *mm, pgd_t *pgd)
 		       PT_PMD);
 #endif
 
-	xen_pgd_walk(mm, xen_unpin_page, USER_LIMIT);
+	__xen_pgd_walk(mm, pgd, xen_unpin_page, USER_LIMIT);
 
 	xen_mc_issue(0);
 }

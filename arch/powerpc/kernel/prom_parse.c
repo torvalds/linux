@@ -250,8 +250,11 @@ int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
 	 * parsing
 	 */
 	dn = pci_device_to_OF_node(pdev);
-	if (dn)
-		return of_irq_map_one(dn, 0, out_irq);
+	if (dn) {
+		rc = of_irq_map_one(dn, 0, out_irq);
+		if (!rc)
+			return rc;
+	}
 
 	/* Ok, we don't, time to have fun. Let's start by building up an
 	 * interrupt spec.  we assume #interrupt-cells is 1, which is standard
@@ -731,10 +734,7 @@ void of_irq_map_init(unsigned int flags)
 	if (flags & OF_IMAP_NO_PHANDLE) {
 		struct device_node *np;
 
-		for(np = NULL; (np = of_find_all_nodes(np)) != NULL;) {
-			if (of_get_property(np, "interrupt-controller", NULL)
-			    == NULL)
-				continue;
+		for_each_node_with_property(np, "interrupt-controller") {
 			/* Skip /chosen/interrupt-controller */
 			if (strcmp(np->name, "chosen") == 0)
 				continue;

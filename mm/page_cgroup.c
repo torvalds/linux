@@ -49,6 +49,9 @@ static int __init alloc_node_page_cgroup(int nid)
 	start_pfn = NODE_DATA(nid)->node_start_pfn;
 	nr_pages = NODE_DATA(nid)->node_spanned_pages;
 
+	if (!nr_pages)
+		return 0;
+
 	table_size = sizeof(struct page_cgroup) * nr_pages;
 
 	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
@@ -107,19 +110,29 @@ int __init_refok init_section_page_cgroup(unsigned long pfn)
 
 	section = __pfn_to_section(pfn);
 
-	if (section->page_cgroup)
-		return 0;
-
-	nid = page_to_nid(pfn_to_page(pfn));
-
-	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
-	if (slab_is_available()) {
-		base = kmalloc_node(table_size, GFP_KERNEL, nid);
-		if (!base)
-			base = vmalloc_node(table_size, nid);
-	} else {
-		base = __alloc_bootmem_node_nopanic(NODE_DATA(nid), table_size,
+	if (!section->page_cgroup) {
+		nid = page_to_nid(pfn_to_page(pfn));
+		table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+		if (slab_is_available()) {
+			base = kmalloc_node(table_size, GFP_KERNEL, nid);
+			if (!base)
+				base = vmalloc_node(table_size, nid);
+		} else {
+			base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
+				table_size,
 				PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+		}
+	} else {
+		/*
+ 		 * We don't have to allocate page_cgroup again, but
+		 * address of memmap may be changed. So, we have to initialize
+		 * again.
+		 */
+		base = section->page_cgroup + pfn;
+		table_size = 0;
+		/* check address of memmap is changed or not. */
+		if (base->page == pfn_to_page(pfn))
+			return 0;
 	}
 
 	if (!base) {
@@ -208,18 +221,23 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
 		ret = online_page_cgroup(mn->start_pfn,
 				   mn->nr_pages, mn->status_change_nid);
 		break;
-	case MEM_CANCEL_ONLINE:
 	case MEM_OFFLINE:
 		offline_page_cgroup(mn->start_pfn,
 				mn->nr_pages, mn->status_change_nid);
 		break;
+	case MEM_CANCEL_ONLINE:
 	case MEM_GOING_OFFLINE:
 		break;
 	case MEM_ONLINE:
 	case MEM_CANCEL_OFFLINE:
 		break;
 	}
-	ret = notifier_from_errno(ret);
+
+	if (ret)
+		ret = notifier_from_errno(ret);
+	else
+		ret = NOTIFY_OK;
+
 	return ret;
 }
 

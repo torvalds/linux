@@ -264,17 +264,21 @@ static void zcrypt_cex2a_receive(struct ap_device *ap_dev,
 		.type = TYPE82_RSP_CODE,
 		.reply_code = REP82_ERROR_MACHINE_FAILURE,
 	};
-	struct type80_hdr *t80h = reply->message;
+	struct type80_hdr *t80h;
 	int length;
 
 	/* Copy the reply message to the request message buffer. */
-	if (IS_ERR(reply))
+	if (IS_ERR(reply)) {
 		memcpy(msg->message, &error_reply, sizeof(error_reply));
-	else if (t80h->type == TYPE80_RSP_CODE) {
+		goto out;
+	}
+	t80h = reply->message;
+	if (t80h->type == TYPE80_RSP_CODE) {
 		length = min(CEX2A_MAX_RESPONSE_SIZE, (int) t80h->len);
 		memcpy(msg->message, reply->message, length);
 	} else
 		memcpy(msg->message, reply->message, sizeof error_reply);
+out:
 	complete((struct completion *) msg->private);
 }
 

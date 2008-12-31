@@ -250,10 +250,10 @@ static int one_sock_name(char *buf, struct svc_sock *svsk)
 
 	switch(svsk->sk_sk->sk_family) {
 	case AF_INET:
-		len = sprintf(buf, "ipv4 %s %u.%u.%u.%u %d\n",
-			      svsk->sk_sk->sk_protocol==IPPROTO_UDP?
+		len = sprintf(buf, "ipv4 %s %pI4 %d\n",
+			      svsk->sk_sk->sk_protocol == IPPROTO_UDP ?
 			      "udp" : "tcp",
-			      NIPQUAD(inet_sk(svsk->sk_sk)->rcv_saddr),
+			      &inet_sk(svsk->sk_sk)->rcv_saddr,
 			      inet_sk(svsk->sk_sk)->num);
 		break;
 	default:
@@ -1183,7 +1183,11 @@ int svc_addsock(struct svc_serv *serv,
 	else if (so->state > SS_UNCONNECTED)
 		err = -EISCONN;
 	else {
-		svsk = svc_setup_socket(serv, so, &err, SVC_SOCK_DEFAULTS);
+		if (!try_module_get(THIS_MODULE))
+			err = -ENOENT;
+		else
+			svsk = svc_setup_socket(serv, so, &err,
+						SVC_SOCK_DEFAULTS);
 		if (svsk) {
 			struct sockaddr_storage addr;
 			struct sockaddr *sin = (struct sockaddr *)&addr;
@@ -1196,7 +1200,8 @@ int svc_addsock(struct svc_serv *serv,
 			spin_unlock_bh(&serv->sv_lock);
 			svc_xprt_received(&svsk->sk_xprt);
 			err = 0;
-		}
+		} else
+			module_put(THIS_MODULE);
 	}
 	if (err) {
 		sockfd_put(so);

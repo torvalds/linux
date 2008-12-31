@@ -1670,7 +1670,7 @@ static irqreturn_t snd_m3_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	if (status & HV_INT_PENDING)
-		tasklet_hi_schedule(&chip->hwvol_tq);
+		tasklet_schedule(&chip->hwvol_tq);
 
 	/*
 	 * ack an assp int if its running

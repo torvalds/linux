@@ -164,7 +164,7 @@ static u16 __phy_read(struct gem *gp, int phy_addr, int reg)
 
 static inline int _phy_read(struct net_device *dev, int mii_id, int reg)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	return __phy_read(gp, mii_id, reg);
 }
 
@@ -197,7 +197,7 @@ static void __phy_write(struct gem *gp, int phy_addr, int reg, u16 val)
 
 static inline void _phy_write(struct net_device *dev, int mii_id, int reg, int val)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	__phy_write(gp, mii_id, reg, val & 0xffff);
 }
 
@@ -863,7 +863,6 @@ static int gem_rx(struct gem *gp, int work_to_do)
 
 		gp->net_stats.rx_packets++;
 		gp->net_stats.rx_bytes += len;
-		gp->dev->last_rx = jiffies;
 
 	next:
 		entry = NEXT_RX(entry);
@@ -922,7 +921,7 @@ static int gem_poll(struct napi_struct *napi, int budget)
 		gp->status = readl(gp->regs + GREG_STAT);
 	} while (gp->status & GREG_STAT_NAPI);
 
-	__netif_rx_complete(dev, napi);
+	__netif_rx_complete(napi);
 	gem_enable_ints(gp);
 
 	spin_unlock_irqrestore(&gp->lock, flags);
@@ -933,7 +932,7 @@ static int gem_poll(struct napi_struct *napi, int budget)
 static irqreturn_t gem_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	unsigned long flags;
 
 	/* Swallow interrupts when shutting the chip down, though
@@ -945,7 +944,7 @@ static irqreturn_t gem_interrupt(int irq, void *dev_id)
 
 	spin_lock_irqsave(&gp->lock, flags);
 
-	if (netif_rx_schedule_prep(dev, &gp->napi)) {
+	if (netif_rx_schedule_prep(&gp->napi)) {
 		u32 gem_status = readl(gp->regs + GREG_STAT);
 
 		if (gem_status == 0) {
@@ -955,7 +954,7 @@ static irqreturn_t gem_interrupt(int irq, void *dev_id)
 		}
 		gp->status = gem_status;
 		gem_disable_ints(gp);
-		__netif_rx_schedule(dev, &gp->napi);
+		__netif_rx_schedule(&gp->napi);
 	}
 
 	spin_unlock_irqrestore(&gp->lock, flags);
@@ -979,7 +978,7 @@ static void gem_poll_controller(struct net_device *dev)
 
 static void gem_tx_timeout(struct net_device *dev)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 
 	printk(KERN_ERR "%s: transmit timed out, resetting\n", dev->name);
 	if (!gp->running) {
@@ -1018,7 +1017,7 @@ static __inline__ int gem_intme(int entry)
 
 static int gem_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	int entry;
 	u64 ctrl;
 	unsigned long flags;
@@ -1142,6 +1141,70 @@ static int gem_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
+static void gem_pcs_reset(struct gem *gp)
+{
+	int limit;
+	u32 val;
+
+	/* Reset PCS unit. */
+	val = readl(gp->regs + PCS_MIICTRL);
+	val |= PCS_MIICTRL_RST;
+	writel(val, gp->regs + PCS_MIICTRL);
+
+	limit = 32;
+	while (readl(gp->regs + PCS_MIICTRL) & PCS_MIICTRL_RST) {
+		udelay(100);
+		if (limit-- <= 0)
+			break;
+	}
+	if (limit <= 0)
+		printk(KERN_WARNING "%s: PCS reset bit would not clear.\n",
+		       gp->dev->name);
+}
+
+static void gem_pcs_reinit_adv(struct gem *gp)
+{
+	u32 val;
+
+	/* Make sure PCS is disabled while changing advertisement
+	 * configuration.
+	 */
+	val = readl(gp->regs + PCS_CFG);
+	val &= ~(PCS_CFG_ENABLE | PCS_CFG_TO);
+	writel(val, gp->regs + PCS_CFG);
+
+	/* Advertise all capabilities except assymetric
+	 * pause.
+	 */
+	val = readl(gp->regs + PCS_MIIADV);
+	val |= (PCS_MIIADV_FD | PCS_MIIADV_HD |
+		PCS_MIIADV_SP | PCS_MIIADV_AP);
+	writel(val, gp->regs + PCS_MIIADV);
+
+	/* Enable and restart auto-negotiation, disable wrapback/loopback,
+	 * and re-enable PCS.
+	 */
+	val = readl(gp->regs + PCS_MIICTRL);
+	val |= (PCS_MIICTRL_RAN | PCS_MIICTRL_ANE);
+	val &= ~PCS_MIICTRL_WB;
+	writel(val, gp->regs + PCS_MIICTRL);
+
+	val = readl(gp->regs + PCS_CFG);
+	val |= PCS_CFG_ENABLE;
+	writel(val, gp->regs + PCS_CFG);
+
+	/* Make sure serialink loopback is off.  The meaning
+	 * of this bit is logically inverted based upon whether
+	 * you are in Serialink or SERDES mode.
+	 */
+	val = readl(gp->regs + PCS_SCTRL);
+	if (gp->phy_type == phy_serialink)
+		val &= ~PCS_SCTRL_LOOP;
+	else
+		val |= PCS_SCTRL_LOOP;
+	writel(val, gp->regs + PCS_SCTRL);
+}
+
 #define STOP_TRIES 32
 
 /* Must be invoked under gp->lock and gp->tx_lock. */
@@ -1168,6 +1231,9 @@ static void gem_reset(struct gem *gp)
 
 	if (limit <= 0)
 		printk(KERN_ERR "%s: SW reset is ghetto.\n", gp->dev->name);
+
+	if (gp->phy_type == phy_serialink || gp->phy_type == phy_serdes)
+		gem_pcs_reinit_adv(gp);
 }
 
 /* Must be invoked under gp->lock and gp->tx_lock. */
@@ -1324,7 +1390,7 @@ static int gem_set_link_modes(struct gem *gp)
 	    	   gp->phy_type == phy_serdes) {
 		u32 pcs_lpa = readl(gp->regs + PCS_MIILP);
 
-		if (pcs_lpa & PCS_MIIADV_FD)
+		if ((pcs_lpa & PCS_MIIADV_FD) || gp->phy_type == phy_serdes)
 			full_duplex = 1;
 		speed = SPEED_1000;
 	}
@@ -1488,6 +1554,9 @@ static void gem_link_timer(unsigned long data)
 			val = readl(gp->regs + PCS_MIISTAT);
 
 		if ((val & PCS_MIISTAT_LS) != 0) {
+			if (gp->lstate == link_up)
+				goto restart;
+
 			gp->lstate = link_up;
 			netif_carrier_on(gp->dev);
 			(void)gem_set_link_modes(gp);
@@ -1708,61 +1777,8 @@ static void gem_init_phy(struct gem *gp)
 		if (gp->phy_mii.def && gp->phy_mii.def->ops->init)
 			gp->phy_mii.def->ops->init(&gp->phy_mii);
 	} else {
-		u32 val;
-		int limit;
-
-		/* Reset PCS unit. */
-		val = readl(gp->regs + PCS_MIICTRL);
-		val |= PCS_MIICTRL_RST;
-		writeb(val, gp->regs + PCS_MIICTRL);
-
-		limit = 32;
-		while (readl(gp->regs + PCS_MIICTRL) & PCS_MIICTRL_RST) {
-			udelay(100);
-			if (limit-- <= 0)
-				break;
-		}
-		if (limit <= 0)
-			printk(KERN_WARNING "%s: PCS reset bit would not clear.\n",
-			       gp->dev->name);
-
-		/* Make sure PCS is disabled while changing advertisement
-		 * configuration.
-		 */
-		val = readl(gp->regs + PCS_CFG);
-		val &= ~(PCS_CFG_ENABLE | PCS_CFG_TO);
-		writel(val, gp->regs + PCS_CFG);
-
-		/* Advertise all capabilities except assymetric
-		 * pause.
-		 */
-		val = readl(gp->regs + PCS_MIIADV);
-		val |= (PCS_MIIADV_FD | PCS_MIIADV_HD |
-			PCS_MIIADV_SP | PCS_MIIADV_AP);
-		writel(val, gp->regs + PCS_MIIADV);
-
-		/* Enable and restart auto-negotiation, disable wrapback/loopback,
-		 * and re-enable PCS.
-		 */
-		val = readl(gp->regs + PCS_MIICTRL);
-		val |= (PCS_MIICTRL_RAN | PCS_MIICTRL_ANE);
-		val &= ~PCS_MIICTRL_WB;
-		writel(val, gp->regs + PCS_MIICTRL);
-
-		val = readl(gp->regs + PCS_CFG);
-		val |= PCS_CFG_ENABLE;
-		writel(val, gp->regs + PCS_CFG);
-
-		/* Make sure serialink loopback is off.  The meaning
-		 * of this bit is logically inverted based upon whether
-		 * you are in Serialink or SERDES mode.
-		 */
-		val = readl(gp->regs + PCS_SCTRL);
-		if (gp->phy_type == phy_serialink)
-			val &= ~PCS_SCTRL_LOOP;
-		else
-			val |= PCS_SCTRL_LOOP;
-		writel(val, gp->regs + PCS_SCTRL);
+		gem_pcs_reset(gp);
+		gem_pcs_reinit_adv(gp);
 	}
 
 	/* Default aneg parameters */
@@ -2191,7 +2207,7 @@ static void gem_stop_phy(struct gem *gp, int wol)
 
 static int gem_do_start(struct net_device *dev)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gp->lock, flags);
@@ -2238,7 +2254,7 @@ static int gem_do_start(struct net_device *dev)
 
 static void gem_do_stop(struct net_device *dev, int wol)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gp->lock, flags);
@@ -2313,7 +2329,7 @@ static void gem_reset_task(struct work_struct *work)
 
 static int gem_open(struct net_device *dev)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	int rc = 0;
 
 	mutex_lock(&gp->pm_mutex);
@@ -2332,7 +2348,7 @@ static int gem_open(struct net_device *dev)
 
 static int gem_close(struct net_device *dev)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 
 	mutex_lock(&gp->pm_mutex);
 
@@ -2351,7 +2367,7 @@ static int gem_close(struct net_device *dev)
 static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	unsigned long flags;
 
 	mutex_lock(&gp->pm_mutex);
@@ -2415,7 +2431,7 @@ static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
 static int gem_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	unsigned long flags;
 
 	printk(KERN_INFO "%s: resuming\n", dev->name);
@@ -2489,7 +2505,7 @@ static int gem_resume(struct pci_dev *pdev)
 
 static struct net_device_stats *gem_get_stats(struct net_device *dev)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	struct net_device_stats *stats = &gp->net_stats;
 
 	spin_lock_irq(&gp->lock);
@@ -2525,7 +2541,7 @@ static struct net_device_stats *gem_get_stats(struct net_device *dev)
 static int gem_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *macaddr = (struct sockaddr *) addr;
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	unsigned char *e = &dev->dev_addr[0];
 
 	if (!is_valid_ether_addr(macaddr->sa_data))
@@ -2553,7 +2569,7 @@ static int gem_set_mac_address(struct net_device *dev, void *addr)
 
 static void gem_set_multicast(struct net_device *dev)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	u32 rxcfg, rxcfg_new;
 	int limit = 10000;
 
@@ -2602,7 +2618,7 @@ static void gem_set_multicast(struct net_device *dev)
 
 static int gem_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 
 	if (new_mtu < GEM_MIN_MTU || new_mtu > GEM_MAX_MTU)
 		return -EINVAL;
@@ -2633,7 +2649,7 @@ static int gem_change_mtu(struct net_device *dev, int new_mtu)
 
 static void gem_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 
 	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, DRV_VERSION);
@@ -2642,7 +2658,7 @@ static void gem_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 
 static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 
 	if (gp->phy_type == phy_mii_mdio0 ||
 	    gp->phy_type == phy_mii_mdio1) {
@@ -2680,6 +2696,21 @@ static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->speed = 0;
 		cmd->duplex = cmd->port = cmd->phy_address =
 			cmd->transceiver = cmd->autoneg = 0;
+
+		/* serdes means usually a Fibre connector, with most fixed */
+		if (gp->phy_type == phy_serdes) {
+			cmd->port = PORT_FIBRE;
+			cmd->supported = (SUPPORTED_1000baseT_Half |
+				SUPPORTED_1000baseT_Full |
+				SUPPORTED_FIBRE | SUPPORTED_Autoneg |
+				SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+			cmd->advertising = cmd->supported;
+			cmd->transceiver = XCVR_INTERNAL;
+			if (gp->lstate == link_up)
+				cmd->speed = SPEED_1000;
+			cmd->duplex = DUPLEX_FULL;
+			cmd->autoneg = 1;
+		}
 	}
 	cmd->maxtxpkt = cmd->maxrxpkt = 0;
 
@@ -2688,7 +2719,7 @@ static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 static int gem_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 
 	/* Verify the settings we care about. */
 	if (cmd->autoneg != AUTONEG_ENABLE &&
@@ -2719,7 +2750,7 @@ static int gem_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 static int gem_nway_reset(struct net_device *dev)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 
 	if (!gp->want_autoneg)
 		return -EINVAL;
@@ -2736,13 +2767,13 @@ static int gem_nway_reset(struct net_device *dev)
 
 static u32 gem_get_msglevel(struct net_device *dev)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	return gp->msg_enable;
 }
 
 static void gem_set_msglevel(struct net_device *dev, u32 value)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	gp->msg_enable = value;
 }
 
@@ -2754,7 +2785,7 @@ static void gem_set_msglevel(struct net_device *dev, u32 value)
 
 static void gem_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 
 	/* Add more when I understand how to program the chip */
 	if (gp->has_wol) {
@@ -2768,7 +2799,7 @@ static void gem_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 static int gem_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 
 	if (!gp->has_wol)
 		return -EOPNOTSUPP;
@@ -2790,7 +2821,7 @@ static const struct ethtool_ops gem_ethtool_ops = {
 
 static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = netdev_priv(dev);
 	struct mii_ioctl_data *data = if_mii(ifr);
 	int rc = -EOPNOTSUPP;
 	unsigned long flags;
@@ -2922,7 +2953,7 @@ static void gem_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 
 	if (dev) {
-		struct gem *gp = dev->priv;
+		struct gem *gp = netdev_priv(dev);
 
 		unregister_netdev(dev);
 
@@ -2966,7 +2997,6 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct gem *gp;
 	int err, pci_using_dac;
-	DECLARE_MAC_BUF(mac);
 
 	if (gem_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -3026,7 +3056,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	gp = dev->priv;
+	gp = netdev_priv(dev);
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
@@ -3150,9 +3180,8 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 		goto err_out_free_consistent;
 	}
 
-	printk(KERN_INFO "%s: Sun GEM (PCI) 10/100/1000BaseT Ethernet "
-	       "%s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: Sun GEM (PCI) 10/100/1000BaseT Ethernet %pM\n",
+	       dev->name, dev->dev_addr);
 
 	if (gp->phy_type == phy_mii_mdio0 ||
      	    gp->phy_type == phy_mii_mdio1)

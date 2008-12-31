@@ -3333,8 +3333,7 @@ static ssize_t cpia_read(struct file *file, char __user *buf,
 	return cam->decompressed_frame.count;
 }
 
-static int cpia_do_ioctl(struct inode *inode, struct file *file,
-			 unsigned int ioctlnr, void *arg)
+static int cpia_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = file->private_data;
 	struct cam_data *cam = video_get_drvdata(dev);
@@ -3347,9 +3346,9 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 	if (mutex_lock_interruptible(&cam->busy_lock))
 		return -EINTR;
 
-	//DBG("cpia_ioctl: %u\n", ioctlnr);
+	/* DBG("cpia_ioctl: %u\n", cmd); */
 
-	switch (ioctlnr) {
+	switch (cmd) {
 	/* query capabilities */
 	case VIDIOCGCAP:
 	{
@@ -3724,7 +3723,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 static int cpia_ioctl(struct inode *inode, struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, cpia_do_ioctl);
+	return video_usercopy(file, cmd, arg, cpia_do_ioctl);
 }
 
 

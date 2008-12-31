@@ -76,19 +76,19 @@ static int
 net_open(struct net_device *dev)
 {
 	struct in_device *in_dev;
-	hysdn_card *card = dev->priv;
+	hysdn_card *card = dev->ml_priv;
 	int i;
 
 	netif_start_queue(dev);	/* start tx-queueing */
 
 	/* Fill in the MAC-level header (if not already set) */
 	if (!card->mac_addr[0]) {
-		for (i = 0; i < ETH_ALEN - sizeof(unsigned long); i++)
+		for (i = 0; i < ETH_ALEN; i++)
 			dev->dev_addr[i] = 0xfc;
 		if ((in_dev = dev->ip_ptr) != NULL) {
 			struct in_ifaddr *ifa = in_dev->ifa_list;
 			if (ifa != NULL)
-				memcpy(dev->dev_addr + (ETH_ALEN - sizeof(unsigned long)), &ifa->ifa_local, sizeof(unsigned long));
+				memcpy(dev->dev_addr + (ETH_ALEN - sizeof(ifa->ifa_local)), &ifa->ifa_local, sizeof(ifa->ifa_local));
 		}
 	} else
 		memcpy(dev->dev_addr, card->mac_addr, ETH_ALEN);
@@ -159,7 +159,7 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irq(&lp->lock);
 
 	if (lp->sk_count <= 3) {
-		schedule_work(&((hysdn_card *) dev->priv)->irq_queue);
+		schedule_work(&((hysdn_card *) dev->ml_priv)->irq_queue);
 	}
 	return (0);		/* success */
 }				/* net_send_packet */
@@ -295,7 +295,7 @@ hysdn_net_create(hysdn_card * card)
 		kfree(dev);
 		return (i);
 	}
-	dev->priv = card;	/* remember pointer to own data structure */
+	dev->ml_priv = card;	/* remember pointer to own data structure */
 	card->netif = dev;	/* setup the local pointer */
 
 	if (card->debug_flags & LOG_NET_INIT)

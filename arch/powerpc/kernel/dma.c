@@ -75,6 +75,7 @@ static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
 	for_each_sg(sgl, sg, nents, i) {
 		sg->dma_address = sg_phys(sg) + get_dma_direct_offset(dev);
 		sg->dma_length = sg->length;
+		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
 	}
 
 	return nents;
@@ -119,6 +120,26 @@ static inline void dma_direct_unmap_page(struct device *dev,
 {
 }
 
+#ifdef CONFIG_NOT_COHERENT_CACHE
+static inline void dma_direct_sync_sg(struct device *dev,
+		struct scatterlist *sgl, int nents,
+		enum dma_data_direction direction)
+{
+	struct scatterlist *sg;
+	int i;
+
+	for_each_sg(sgl, sg, nents, i)
+		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
+}
+
+static inline void dma_direct_sync_single_range(struct device *dev,
+		dma_addr_t dma_handle, unsigned long offset, size_t size,
+		enum dma_data_direction direction)
+{
+	__dma_sync(bus_to_virt(dma_handle+offset), size, direction);
+}
+#endif
+
 struct dma_mapping_ops dma_direct_ops = {
 	.alloc_coherent	= dma_direct_alloc_coherent,
 	.free_coherent	= dma_direct_free_coherent,
@@ -127,5 +148,11 @@ struct dma_mapping_ops dma_direct_ops = {
 	.dma_supported	= dma_direct_dma_supported,
 	.map_page	= dma_direct_map_page,
 	.unmap_page	= dma_direct_unmap_page,
+#ifdef CONFIG_NOT_COHERENT_CACHE
+	.sync_single_range_for_cpu 	= dma_direct_sync_single_range,
+	.sync_single_range_for_device 	= dma_direct_sync_single_range,
+	.sync_sg_for_cpu 		= dma_direct_sync_sg,
+	.sync_sg_for_device 		= dma_direct_sync_sg,
+#endif
 };
 EXPORT_SYMBOL(dma_direct_ops);

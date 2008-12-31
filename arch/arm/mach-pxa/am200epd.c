@@ -30,7 +30,11 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 
+#include <mach/gumstix.h>
+#include <mach/mfp-pxa25x.h>
 #include <mach/pxafb.h>
+
+#include "generic.h"
 
 #include <video/metronomefb.h>
 
@@ -331,13 +335,24 @@ static struct metronome_board am200_board = {
 	.cleanup		= am200_cleanup,
 };
 
-static int __init am200_init(void)
+static unsigned long am200_pin_config[] __initdata = {
+	GPIO51_GPIO,
+	GPIO49_GPIO,
+	GPIO48_GPIO,
+	GPIO32_GPIO,
+	GPIO17_GPIO,
+	GPIO16_GPIO,
+};
+
+int __init am200_init(void)
 {
 	int ret;
 
 	/* before anything else, we request notification for any fb
 	 * creation events */
 	fb_register_client(&am200_fb_notif);
+
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(am200_pin_config));
 
 	/* request our platform independent driver */
 	request_module("metronomefb");
@@ -366,8 +381,6 @@ static int __init am200_init(void)
 
 module_param(panel_type, uint, 0);
 MODULE_PARM_DESC(panel_type, "Select the panel type: 6, 8, 97");
-
-module_init(am200_init);
 
 MODULE_DESCRIPTION("board driver for am200 metronome epd kit");
 MODULE_AUTHOR("Jaya Kumar");

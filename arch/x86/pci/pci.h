@@ -96,6 +96,7 @@ extern struct pci_raw_ops *raw_pci_ops;
 extern struct pci_raw_ops *raw_pci_ext_ops;
 
 extern struct pci_raw_ops pci_direct_conf1;
+extern bool port_cf9_safe;
 
 /* arch_initcall level */
 extern int pci_direct_probe(void);

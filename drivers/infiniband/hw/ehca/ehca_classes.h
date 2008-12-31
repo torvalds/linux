@@ -163,7 +163,8 @@ struct ehca_mod_qp_parm {
 /* struct for tracking if cqes have been reported to the application */
 struct ehca_qmap_entry {
 	u16 app_wr_id;
-	u16 reported;
+	u8 reported;
+	u8 cqe_req;
 };
 
 struct ehca_queue_map {
@@ -171,7 +172,15 @@ struct ehca_queue_map {
 	unsigned int entries;
 	unsigned int tail;
 	unsigned int left_to_poll;
+	unsigned int next_wqe_idx;   /* Idx to first wqe to be flushed */
 };
+
+/* function to calculate the next index for the qmap */
+static inline unsigned int next_index(unsigned int cur_index, unsigned int limit)
+{
+	unsigned int temp = cur_index + 1;
+	return (temp == limit) ? 0 : temp;
+}
 
 struct ehca_qp {
 	union {

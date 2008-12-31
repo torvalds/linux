@@ -35,7 +35,7 @@
 #define  PCIE_CONF_REG(r)		((((r) & 0xf00) << 16) | ((r) & 0xfc))
 #define  PCIE_CONF_BUS(b)		(((b) & 0xff) << 16)
 #define  PCIE_CONF_DEV(d)		(((d) & 0x1f) << 11)
-#define  PCIE_CONF_FUNC(f)		(((f) & 0x3) << 8)
+#define  PCIE_CONF_FUNC(f)		(((f) & 0x7) << 8)
 #define PCIE_CONF_DATA_OFF	0x18fc
 #define PCIE_MASK_OFF		0x1910
 #define PCIE_CTRL_OFF		0x1a00

@@ -1387,13 +1387,11 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 
 			info = IEEE80211_SKB_CB(meta->skb);
 
-			memset(&info->status, 0, sizeof(info->status));
-
 			/*
 			 * Call back to inform the ieee80211 subsystem about
 			 * the status of the transmission.
 			 */
-			frame_succeed = b43_fill_txstatus_report(info, status);
+			frame_succeed = b43_fill_txstatus_report(dev, info, status);
 #ifdef CONFIG_B43_DEBUG
 			if (frame_succeed)
 				ring->nr_succeed_tx_packets++;

@@ -83,7 +83,6 @@ extern unsigned long ia64_native_getreg_func(int regnum);
 #define paravirt_getreg(reg)					\
 	({							\
 		unsigned long res;				\
-		BUILD_BUG_ON(!__builtin_constant_p(reg));	\
 		if ((reg) == _IA64_REG_IP)			\
 			res = ia64_native_getreg(_IA64_REG_IP); \
 		else						\

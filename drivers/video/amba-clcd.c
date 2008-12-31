@@ -343,14 +343,14 @@ static int clcdfb_register(struct clcd_fb *fb)
 {
 	int ret;
 
-	fb->clk = clk_get(&fb->dev->dev, "CLCDCLK");
+	fb->clk = clk_get(&fb->dev->dev, NULL);
 	if (IS_ERR(fb->clk)) {
 		ret = PTR_ERR(fb->clk);
 		goto out;
 	}
 
 	fb->fb.fix.mmio_start	= fb->dev->res.start;
-	fb->fb.fix.mmio_len	= SZ_4K;
+	fb->fb.fix.mmio_len	= 4096;
 
 	fb->regs = ioremap(fb->fb.fix.mmio_start, fb->fb.fix.mmio_len);
 	if (!fb->regs) {

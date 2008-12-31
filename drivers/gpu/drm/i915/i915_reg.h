@@ -175,9 +175,26 @@
 #define   DISPLAY_PLANE_B           (1<<20)
 
 /*
+ * Fence registers
+ */
+#define FENCE_REG_830_0			0x2000
+#define   I830_FENCE_START_MASK		0x07f80000
+#define   I830_FENCE_TILING_Y_SHIFT	12
+#define   I830_FENCE_SIZE_BITS(size)	((get_order(size >> 19) - 1) << 8)
+#define   I830_FENCE_PITCH_SHIFT	4
+#define   I830_FENCE_REG_VALID		(1<<0)
+
+#define   I915_FENCE_START_MASK		0x0ff00000
+#define   I915_FENCE_SIZE_BITS(size)	((get_order(size >> 20) - 1) << 8)
+
+#define FENCE_REG_965_0			0x03000
+#define   I965_FENCE_PITCH_SHIFT	2
+#define   I965_FENCE_TILING_Y_SHIFT	1
+#define   I965_FENCE_REG_VALID		(1<<0)
+
+/*
  * Instruction and interrupt control regs
  */
-
 #define PRB0_TAIL	0x02030
 #define PRB0_HEAD	0x02034
 #define PRB0_START	0x02038
@@ -244,6 +261,7 @@
 #define   CM0_DEPTH_WRITE_DISABLE (1<<1)
 #define   CM0_RC_OP_FLUSH_DISABLE (1<<0)
 #define GFX_FLSH_CNTL	0x02170 /* 915+ only */
+
 
 /*
  * Framebuffer compression (915+ only)
@@ -522,6 +540,7 @@
 #define DCC_ADDRESSING_MODE_DUAL_CHANNEL_INTERLEAVED	(2 << 0)
 #define DCC_ADDRESSING_MODE_MASK			(3 << 0)
 #define DCC_CHANNEL_XOR_DISABLE				(1 << 10)
+#define DCC_CHANNEL_XOR_BIT_17				(1 << 9)
 
 /** 965 MCH register controlling DRAM channel configuration */
 #define C0DRB3			0x10206
