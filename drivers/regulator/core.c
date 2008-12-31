@@ -29,7 +29,7 @@ static DEFINE_MUTEX(regulator_list_mutex);
 static LIST_HEAD(regulator_list);
 static LIST_HEAD(regulator_map_list);
 
-/**
+/*
  * struct regulator_dev
  *
  * Voltage / Current regulator class device. One for each regulator.
@@ -56,7 +56,7 @@ struct regulator_dev {
 	void *reg_data;		/* regulator_dev data */
 };
 
-/**
+/*
  * struct regulator_map
  *
  * Used to provide symbolic supply names to devices.
