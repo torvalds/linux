@@ -237,6 +237,8 @@ static int virtblk_probe(struct virtio_device *vdev)
 		goto out_put_disk;
 	}
 
+	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, vblk->disk->queue);
+
 	if (index < 26) {
 		sprintf(vblk->disk->disk_name, "vd%c", 'a' + index % 26);
 	} else if (index < (26 + 1) * 26) {

@@ -99,10 +99,18 @@ __clear_page_buffers(struct page *page)
 	page_cache_release(page);
 }
 
+
+static int quiet_error(struct buffer_head *bh)
+{
+	if (!test_bit(BH_Quiet, &bh->b_state) && printk_ratelimit())
+		return 0;
+	return 1;
+}
+
+
 static void buffer_io_error(struct buffer_head *bh)
 {
 	char b[BDEVNAME_SIZE];
-
 	printk(KERN_ERR "Buffer I/O error on device %s, logical block %Lu\n",
 			bdevname(bh->b_bdev, b),
 			(unsigned long long)bh->b_blocknr);
@@ -144,7 +152,7 @@ void end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 	if (uptodate) {
 		set_buffer_uptodate(bh);
 	} else {
-		if (!buffer_eopnotsupp(bh) && printk_ratelimit()) {
+		if (!buffer_eopnotsupp(bh) && !quiet_error(bh)) {
 			buffer_io_error(bh);
 			printk(KERN_WARNING "lost page write due to "
 					"I/O error on %s\n",
@@ -394,7 +402,7 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 		set_buffer_uptodate(bh);
 	} else {
 		clear_buffer_uptodate(bh);
-		if (printk_ratelimit())
+		if (!quiet_error(bh))
 			buffer_io_error(bh);
 		SetPageError(page);
 	}
@@ -455,7 +463,7 @@ static void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 	if (uptodate) {
 		set_buffer_uptodate(bh);
 	} else {
-		if (printk_ratelimit()) {
+		if (!quiet_error(bh)) {
 			buffer_io_error(bh);
 			printk(KERN_WARNING "lost page write due to "
 					"I/O error on %s\n",
@@ -2912,6 +2920,9 @@ static void end_bio_bh_io_sync(struct bio *bio, int err)
 		set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
 		set_bit(BH_Eopnotsupp, &bh->b_state);
 	}
+
+	if (unlikely (test_bit(BIO_QUIET,&bio->bi_flags)))
+		set_bit(BH_Quiet, &bh->b_state);
 
 	bh->b_end_io(bh, test_bit(BIO_UPTODATE, &bio->bi_flags));
 	bio_put(bio);
