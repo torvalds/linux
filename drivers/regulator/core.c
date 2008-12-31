@@ -776,6 +776,20 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
 	if (supply == NULL)
 		return -EINVAL;
 
+	list_for_each_entry(node, &regulator_map_list, list) {
+		if (consumer_dev != node->dev)
+			continue;
+		if (strcmp(node->supply, supply) != 0)
+			continue;
+
+		dev_dbg(consumer_dev, "%s/%s is '%s' supply; fail %s/%s\n",
+				dev_name(&node->regulator->dev),
+				node->regulator->desc->name,
+				supply,
+				dev_name(&rdev->dev), rdev->desc->name);
+		return -EBUSY;
+	}
+
 	node = kmalloc(sizeof(struct regulator_map), GFP_KERNEL);
 	if (node == NULL)
 		return -ENOMEM;
