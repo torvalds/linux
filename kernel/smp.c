@@ -223,7 +223,7 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 		local_irq_save(flags);
 		func(info);
 		local_irq_restore(flags);
-	} else if ((unsigned)cpu < NR_CPUS && cpu_online(cpu)) {
+	} else if ((unsigned)cpu < nr_cpu_ids && cpu_online(cpu)) {
 		struct call_single_data *data = NULL;
 
 		if (!wait) {
