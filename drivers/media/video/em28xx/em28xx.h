@@ -473,7 +473,7 @@ struct em28xx {
 	unsigned long i2c_hash;	/* i2c devicelist hash -
 				   for boards with generic ID */
 
-	struct em28xx_audio *adev;
+	struct em28xx_audio adev;
 
 	/* states */
 	enum em28xx_dev_state state;
