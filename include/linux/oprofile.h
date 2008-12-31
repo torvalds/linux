@@ -86,8 +86,7 @@ int oprofile_arch_init(struct oprofile_operations * ops);
 void oprofile_arch_exit(void);
 
 /**
- * Add a sample. This may be called from any context. Pass
- * smp_processor_id() as cpu.
+ * Add a sample. This may be called from any context.
  */
 void oprofile_add_sample(struct pt_regs * const regs, unsigned long event);
 
