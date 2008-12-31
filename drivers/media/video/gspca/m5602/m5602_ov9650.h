@@ -123,7 +123,7 @@
 #define GAIN_DEFAULT			0x14
 #define RED_GAIN_DEFAULT		0x70
 #define BLUE_GAIN_DEFAULT		0x20
-#define EXPOSURE_DEFAULT		0x5003
+#define EXPOSURE_DEFAULT		0x1ff
 
 /*****************************************************************************/
 

@@ -75,8 +75,8 @@ const static struct ctrl ov9650_ctrls[] = {
 			.type		= V4L2_CTRL_TYPE_INTEGER,
 			.name		= "exposure",
 			.minimum	= 0x00,
-			.maximum	= 0xffff,
-			.step		= 0x1,
+			.maximum	= 0x1ff,
+			.step		= 0x4,
 			.default_value 	= EXPOSURE_DEFAULT,
 			.flags         	= V4L2_CTRL_FLAG_SLIDER
 		},
@@ -406,11 +406,6 @@ int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 i2c_data;
 	int err;
-
-	err = m5602_read_sensor(sd, OV9650_COM1, &i2c_data, 1);
-	if (err < 0)
-		return err;
-	*val = i2c_data & 0x03;
 
 	err = m5602_read_sensor(sd, OV9650_AECH, &i2c_data, 1);
 	if (err < 0)
