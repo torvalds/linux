@@ -121,6 +121,10 @@ extern int sg_big_buff;
 #include <asm/system.h>
 #endif
 
+#ifdef CONFIG_SPARC64
+extern int sysctl_tsb_ratio;
+#endif
+
 #ifdef __hppa__
 extern int pwrsw_enabled;
 extern int unaligned_enabled;
@@ -446,6 +450,16 @@ static struct ctl_table kern_table[] = {
 		.ctl_name	= KERN_SPARC_SCONS_PWROFF,
 		.procname	= "scons-poweroff",
 		.data		= &scons_pwroff,
+		.maxlen		= sizeof (int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_SPARC64
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "tsb-ratio",
+		.data		= &sysctl_tsb_ratio,
 		.maxlen		= sizeof (int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
