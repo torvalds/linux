@@ -310,10 +310,8 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		if (hotcpu == check_cpu) {
-			cpumask_t temp_cpu_online_map = cpu_online_map;
-
-			cpu_clear(hotcpu, temp_cpu_online_map);
-			check_cpu = cpumask_any(&temp_cpu_online_map);
+			/* Pick any other online cpu. */
+			check_cpu = cpumask_any_but(cpu_online_mask, hotcpu);
 		}
 		break;
 
