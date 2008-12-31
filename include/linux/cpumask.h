@@ -144,6 +144,7 @@
 typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
 extern cpumask_t _unused_cpumask_arg_;
 
+#ifndef CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
 #define cpu_set(cpu, dst) __cpu_set((cpu), &(dst))
 static inline void __cpu_set(int cpu, volatile cpumask_t *dstp)
 {
@@ -267,6 +268,7 @@ static inline void __cpus_shift_left(cpumask_t *dstp,
 {
 	bitmap_shift_left(dstp->bits, srcp->bits, n, nbits);
 }
+#endif /* !CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS */
 
 /**
  * to_cpumask - convert an NR_CPUS bitmap to a struct cpumask *
@@ -304,6 +306,7 @@ static inline const struct cpumask *get_cpu_mask(unsigned int cpu)
 	return to_cpumask(p);
 }
 
+#ifndef CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
 /*
  * In cases where we take the address of the cpumask immediately,
  * gcc optimizes it out (it's a constant) and there's no huge stack
@@ -389,19 +392,22 @@ static inline void __cpus_fold(cpumask_t *dstp, const cpumask_t *origp,
 {
 	bitmap_fold(dstp->bits, origp->bits, sz, nbits);
 }
+#endif /* !CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS */
 
 #if NR_CPUS == 1
 
 #define nr_cpu_ids		1
+#ifndef CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
 #define first_cpu(src)		({ (void)(src); 0; })
 #define next_cpu(n, src)	({ (void)(src); 1; })
 #define any_online_cpu(mask)	0
 #define for_each_cpu_mask(cpu, mask)	\
 	for ((cpu) = 0; (cpu) < 1; (cpu)++, (void)mask)
-
+#endif /* !CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS */
 #else /* NR_CPUS > 1 */
 
 extern int nr_cpu_ids;
+#ifndef CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
 int __first_cpu(const cpumask_t *srcp);
 int __next_cpu(int n, const cpumask_t *srcp);
 int __any_online_cpu(const cpumask_t *mask);
@@ -413,8 +419,10 @@ int __any_online_cpu(const cpumask_t *mask);
 	for ((cpu) = -1;				\
 		(cpu) = next_cpu((cpu), (mask)),	\
 		(cpu) < NR_CPUS; )
+#endif /* !CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS */
 #endif
 
+#ifndef CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
 #if NR_CPUS <= 64
 
 #define next_cpu_nr(n, src)		next_cpu(n, src)
@@ -432,6 +440,7 @@ int __next_cpu_nr(int n, const cpumask_t *srcp);
 		(cpu) < nr_cpu_ids; )
 
 #endif /* NR_CPUS > 64 */
+#endif /* !CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS */
 
 /*
  * The following particular system cpumasks and operations manage
