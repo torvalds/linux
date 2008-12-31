@@ -558,23 +558,9 @@ struct timer_rand_state {
 	unsigned dont_count_entropy:1;
 };
 
-static struct timer_rand_state *irq_timer_state[NR_IRQS];
-
-static struct timer_rand_state *get_timer_rand_state(unsigned int irq)
-{
-	if (irq >= nr_irqs)
-		return NULL;
-
-	return irq_timer_state[irq];
-}
-
-static void set_timer_rand_state(unsigned int irq, struct timer_rand_state *state)
-{
-	if (irq >= nr_irqs)
-		return;
-
-	irq_timer_state[irq] = state;
-}
+#ifndef CONFIG_SPARSE_IRQ
+struct timer_rand_state *irq_timer_state[NR_IRQS];
+#endif
 
 static struct timer_rand_state input_timer_state;
 
@@ -933,8 +919,10 @@ void rand_initialize_irq(int irq)
 {
 	struct timer_rand_state *state;
 
+#ifndef CONFIG_SPARSE_IRQ
 	if (irq >= nr_irqs)
 		return;
+#endif
 
 	state = get_timer_rand_state(irq);
 

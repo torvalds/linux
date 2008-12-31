@@ -390,7 +390,7 @@ do {								\
 
 #endif /* CONFIG_LOCK_STAT */
 
-#if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_GENERIC_HARDIRQS)
+#ifdef CONFIG_GENERIC_HARDIRQS
 extern void early_init_irq_lock_class(void);
 #else
 static inline void early_init_irq_lock_class(void)
