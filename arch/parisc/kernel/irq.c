@@ -421,5 +421,5 @@ void __init init_IRQ(void)
 
 void ack_bad_irq(unsigned int irq)
 {
-	printk("unexpected IRQ %d\n", irq);
+	printk(KERN_WARNING "unexpected IRQ %d\n", irq);
 }

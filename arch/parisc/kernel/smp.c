@@ -224,10 +224,7 @@ send_IPI_mask(cpumask_t mask, enum ipi_message_type op)
 static inline void
 send_IPI_single(int dest_cpu, enum ipi_message_type op)
 {
-	if (dest_cpu == NO_PROC_ID) {
-		BUG();
-		return;
-	}
+	BUG_ON(dest_cpu == NO_PROC_ID);
 
 	ipi_send(dest_cpu, op);
 }
@@ -309,8 +306,7 @@ smp_cpu_init(int cpunum)
 	/* Initialise the idle task for this CPU */
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
-	if(current->mm)
-		BUG();
+	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 
 	init_IRQ();   /* make sure no IRQs are enabled or pending */
