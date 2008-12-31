@@ -31,11 +31,10 @@ static DEFINE_PER_CPU(struct vtimer_queue, virt_cpu_timer);
  * Update process times based on virtual cpu times stored by entry.S
  * to the lowcore fields user_timer, system_timer & steal_clock.
  */
-void account_process_tick(struct task_struct *tsk, int user_tick)
+static void do_account_vtime(struct task_struct *tsk, int hardirq_offset)
 {
-	cputime_t cputime;
-	__u64 timer, clock;
-	int rcu_user_flag;
+	struct thread_info *ti = task_thread_info(tsk);
+	__u64 timer, clock, user, system, steal;
 
 	timer = S390_lowcore.last_update_timer;
 	clock = S390_lowcore.last_update_clock;
@@ -44,59 +43,47 @@ void account_process_tick(struct task_struct *tsk, int user_tick)
 		      : "=m" (S390_lowcore.last_update_timer),
 		        "=m" (S390_lowcore.last_update_clock) );
 	S390_lowcore.system_timer += timer - S390_lowcore.last_update_timer;
-	S390_lowcore.steal_clock += S390_lowcore.last_update_clock - clock;
+	S390_lowcore.steal_timer += S390_lowcore.last_update_clock - clock;
 
-	cputime = S390_lowcore.user_timer >> 12;
-	rcu_user_flag = cputime != 0;
-	S390_lowcore.user_timer -= cputime << 12;
-	S390_lowcore.steal_clock -= cputime << 12;
-	account_user_time(tsk, cputime, cputime);
+	user = S390_lowcore.user_timer - ti->user_timer;
+	S390_lowcore.steal_timer -= user;
+	ti->user_timer = S390_lowcore.user_timer;
+	account_user_time(tsk, user, user);
 
-	cputime =  S390_lowcore.system_timer >> 12;
-	S390_lowcore.system_timer -= cputime << 12;
-	S390_lowcore.steal_clock -= cputime << 12;
+	system = S390_lowcore.system_timer - ti->system_timer;
+	S390_lowcore.steal_timer -= system;
+	ti->system_timer = S390_lowcore.system_timer;
 	if (idle_task(smp_processor_id()) != current)
-		account_system_time(tsk, HARDIRQ_OFFSET, cputime, cputime);
+		account_system_time(tsk, hardirq_offset, system, system);
 	else
-		account_idle_time(cputime);
+		account_idle_time(system);
 
-	cputime = S390_lowcore.steal_clock;
-	if ((__s64) cputime > 0) {
-		cputime >>= 12;
-		S390_lowcore.steal_clock -= cputime << 12;
+	steal = S390_lowcore.steal_timer;
+	if ((s64) steal > 0) {
+		S390_lowcore.steal_timer = 0;
 		if (idle_task(smp_processor_id()) != current)
-			account_steal_time(cputime);
+			account_steal_time(steal);
 		else
-			account_idle_time(cputime);
+			account_idle_time(steal);
 	}
 }
 
-/*
- * Update process times based on virtual cpu times stored by entry.S
- * to the lowcore fields user_timer, system_timer & steal_clock.
- */
-void account_vtime(struct task_struct *tsk)
+void account_vtime(struct task_struct *prev, struct task_struct *next)
 {
-	cputime_t cputime;
-	__u64 timer;
+	struct thread_info *ti;
 
-	timer = S390_lowcore.last_update_timer;
-	asm volatile ("  STPT %0"    /* Store current cpu timer value */
-		      : "=m" (S390_lowcore.last_update_timer) );
-	S390_lowcore.system_timer += timer - S390_lowcore.last_update_timer;
+	do_account_vtime(prev, 0);
+	ti = task_thread_info(prev);
+	ti->user_timer = S390_lowcore.user_timer;
+	ti->system_timer = S390_lowcore.system_timer;
+	ti = task_thread_info(next);
+	S390_lowcore.user_timer = ti->user_timer;
+	S390_lowcore.system_timer = ti->system_timer;
+}
 
-	cputime = S390_lowcore.user_timer >> 12;
-	S390_lowcore.user_timer -= cputime << 12;
-	S390_lowcore.steal_clock -= cputime << 12;
-	account_user_time(tsk, cputime, cputime);
-
-	cputime =  S390_lowcore.system_timer >> 12;
-	S390_lowcore.system_timer -= cputime << 12;
-	S390_lowcore.steal_clock -= cputime << 12;
-	if (idle_task(smp_processor_id()) != current)
-		account_system_time(tsk, 0, cputime, cputime);
-	else
-		account_idle_time(cputime);
+void account_process_tick(struct task_struct *tsk, int user_tick)
+{
+	do_account_vtime(tsk, HARDIRQ_OFFSET);
 }
 
 /*
@@ -105,21 +92,21 @@ void account_vtime(struct task_struct *tsk)
  */
 void account_system_vtime(struct task_struct *tsk)
 {
-	cputime_t cputime;
-	__u64 timer;
+	struct thread_info *ti = task_thread_info(tsk);
+	__u64 timer, system;
 
 	timer = S390_lowcore.last_update_timer;
 	asm volatile ("  STPT %0"    /* Store current cpu timer value */
 		      : "=m" (S390_lowcore.last_update_timer) );
 	S390_lowcore.system_timer += timer - S390_lowcore.last_update_timer;
 
-	cputime =  S390_lowcore.system_timer >> 12;
-	S390_lowcore.system_timer -= cputime << 12;
-	S390_lowcore.steal_clock -= cputime << 12;
+	system = S390_lowcore.system_timer - ti->system_timer;
+	S390_lowcore.steal_timer -= system;
+	ti->system_timer = S390_lowcore.system_timer;
 	if (in_irq() || idle_task(smp_processor_id()) != current)
-		account_system_time(tsk, 0, cputime, cputime);
+		account_system_time(tsk, 0, system, system);
 	else
-		account_idle_time(cputime);
+		account_idle_time(system);
 }
 EXPORT_SYMBOL_GPL(account_system_vtime);
 
@@ -490,8 +477,8 @@ void init_cpu_vtimer(void)
 	/* kick the virtual timer */
 	S390_lowcore.exit_timer = VTIMER_MAX_SLICE;
 	S390_lowcore.last_update_timer = VTIMER_MAX_SLICE;
-	asm volatile ("SPT %0" : : "m" (S390_lowcore.last_update_timer));
 	asm volatile ("STCK %0" : "=m" (S390_lowcore.last_update_clock));
+	asm volatile ("SPT %0" : : "m" (S390_lowcore.last_update_timer));
 
 	/* enable cpu timer interrupts */
 	__ctl_set_bit(0,10);
