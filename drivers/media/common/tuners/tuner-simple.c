@@ -1059,7 +1059,12 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 	memcpy(&fe->ops.tuner_ops, &simple_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
 
-	tuner_info("type set to %d (%s)\n", type, priv->tun->name);
+	if (type != priv->type)
+		tuner_warn("couldn't set type to %d. Using %d (%s) instead\n",
+			    type, priv->type, priv->tun->name);
+	else
+		tuner_info("type set to %d (%s)\n",
+			   priv->type, priv->tun->name);
 
 	if ((debug) || ((atv_input[priv->nr] > 0) ||
 			(dtv_input[priv->nr] > 0))) {
