@@ -1902,7 +1902,7 @@ static int kswapd(void *p)
 	};
 	node_to_cpumask_ptr(cpumask, pgdat->node_id);
 
-	if (!cpus_empty(*cpumask))
+	if (!cpumask_empty(cpumask))
 		set_cpus_allowed_ptr(tsk, cpumask);
 	current->reclaim_state = &reclaim_state;
 
