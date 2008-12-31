@@ -41,8 +41,6 @@ extern const struct stv06xx_sensor stv06xx_sensor_hdcs1x00;
 extern const struct stv06xx_sensor stv06xx_sensor_hdcs1020;
 extern const struct stv06xx_sensor stv06xx_sensor_pb0100;
 
-#define STV06XX_MAX_CTRLS		(V4L2_CID_LASTP1 - V4L2_CID_BASE + 10)
-
 struct stv06xx_sensor {
 	/* Defines the name of a sensor */
 	char name[32];
@@ -81,12 +79,6 @@ struct stv06xx_sensor {
 
 	/* Instructs the sensor to dump all its contents */
 	int (*dump)(struct sd *sd);
-
-	int nctrls;
-	struct ctrl ctrls[STV06XX_MAX_CTRLS];
-
-	char nmodes;
-	struct v4l2_pix_format modes[];
 };
 
 #endif

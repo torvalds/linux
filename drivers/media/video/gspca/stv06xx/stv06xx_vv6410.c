@@ -29,6 +29,59 @@
 
 #include "stv06xx_vv6410.h"
 
+static struct v4l2_pix_format vv6410_mode[] = {
+	{
+		356,
+		292,
+		V4L2_PIX_FMT_SGRBG8,
+		V4L2_FIELD_NONE,
+		.sizeimage = 356 * 292,
+		.bytesperline = 356,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}
+};
+
+static const struct ctrl vv6410_ctrl[] = {
+	{
+		{
+			.id		= V4L2_CID_HFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "horizontal flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0
+		},
+		.set = vv6410_set_hflip,
+		.get = vv6410_get_hflip
+	}, {
+		{
+			.id		= V4L2_CID_VFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "vertical flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value 	= 0
+		},
+		.set = vv6410_set_vflip,
+		.get = vv6410_get_vflip
+	}, {
+		{
+			.id		= V4L2_CID_GAIN,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "analog gain",
+			.minimum	= 0,
+			.maximum	= 15,
+			.step		= 1,
+			.default_value  = 0
+		},
+		.set = vv6410_set_analog_gain,
+		.get = vv6410_get_analog_gain
+	}
+};
+
 static int vv6410_probe(struct sd *sd)
 {
 	u16 data;
@@ -42,10 +95,10 @@ static int vv6410_probe(struct sd *sd)
 	if (data == 0x19) {
 		info("vv6410 sensor detected");
 
-		sd->gspca_dev.cam.cam_mode = stv06xx_sensor_vv6410.modes;
-		sd->gspca_dev.cam.nmodes = stv06xx_sensor_vv6410.nmodes;
-		sd->desc.ctrls = stv06xx_sensor_vv6410.ctrls;
-		sd->desc.nctrls = stv06xx_sensor_vv6410.nctrls;
+		sd->gspca_dev.cam.cam_mode = vv6410_mode;
+		sd->gspca_dev.cam.nmodes = ARRAY_SIZE(vv6410_mode);
+		sd->desc.ctrls = vv6410_ctrl;
+		sd->desc.nctrls = ARRAY_SIZE(vv6410_ctrl);
 		return 0;
 	}
 
