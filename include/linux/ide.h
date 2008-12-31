@@ -122,8 +122,6 @@ struct ide_io_ports {
 #define MAX_DRIVES	2	/* per interface; 2 assumed by lots of code */
 #define SECTOR_SIZE	512
 
-#define IDE_LARGE_SEEK(b1,b2,t)	(((b1) > (b2) + (t)) || ((b2) > (b1) + (t)))
-
 /*
  * Timeouts for various operations:
  */
@@ -172,9 +170,7 @@ typedef int (ide_ack_intr_t)(struct hwif_s *);
 enum {		ide_unknown,	ide_generic,	ide_pci,
 		ide_cmd640,	ide_dtc2278,	ide_ali14xx,
 		ide_qd65xx,	ide_umc8672,	ide_ht6560b,
-		ide_rz1000,	ide_trm290,
-		ide_cmd646,	ide_cy82c693,	ide_4drives,
-		ide_pmac,	ide_acorn,
+		ide_4drives,	ide_pmac,	ide_acorn,
 		ide_au1xxx,	ide_palm3710
 };
 
@@ -496,8 +492,6 @@ enum {
 	 * when more than one interrupt is needed.
 	 */
 	IDE_AFLAG_LIMIT_NFRAMES		= (1 << 7),
-	/* Seeking in progress. */
-	IDE_AFLAG_SEEKING		= (1 << 8),
 	/* Saved TOC information is current. */
 	IDE_AFLAG_TOC_VALID		= (1 << 9),
 	/* We think that the drive door is locked. */
@@ -845,8 +839,6 @@ typedef struct hwif_s {
 	unsigned	extra_ports;	/* number of extra dma ports */
 
 	unsigned	present    : 1;	/* this interface exists */
-	unsigned	serialized : 1;	/* serialized all channel operation */
-	unsigned	sharing_irq: 1;	/* 1 = sharing irq with another hwif */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 
 	struct device		gendev;
@@ -909,6 +901,8 @@ typedef struct hwgroup_s {
 
 	int req_gen;
 	int req_gen_timer;
+
+	spinlock_t lock;
 } ide_hwgroup_t;
 
 typedef struct ide_driver_s ide_driver_t;
@@ -1121,6 +1115,14 @@ enum {
 
 	IDE_PM_COMPLETED,
 };
+
+int generic_ide_suspend(struct device *, pm_message_t);
+int generic_ide_resume(struct device *);
+
+void ide_complete_power_step(ide_drive_t *, struct request *);
+ide_startstop_t ide_start_power_step(ide_drive_t *, struct request *);
+void ide_complete_pm_request(ide_drive_t *, struct request *);
+void ide_check_pm_state(ide_drive_t *, struct request *);
 
 /*
  * Subdrivers support.
@@ -1376,8 +1378,8 @@ enum {
 	IDE_HFLAG_LEGACY_IRQS		= (1 << 21),
 	/* force use of legacy IRQs */
 	IDE_HFLAG_FORCE_LEGACY_IRQS	= (1 << 22),
-	/* limit LBA48 requests to 256 sectors */
-	IDE_HFLAG_RQSIZE_256		= (1 << 23),
+	/* host is TRM290 */
+	IDE_HFLAG_TRM290		= (1 << 23),
 	/* use 32-bit I/O ops */
 	IDE_HFLAG_IO_32BIT		= (1 << 24),
 	/* unmask IRQs */
@@ -1415,6 +1417,9 @@ struct ide_port_info {
 
 	ide_pci_enablebit_t	enablebits[2];
 	hwif_chipset_t		chipset;
+
+	u16			max_sectors;	/* if < than the default one */
+
 	u32			host_flags;
 	u8			pio_mask;
 	u8			swdma_mask;
@@ -1610,13 +1615,13 @@ extern struct mutex ide_cfg_mtx;
 /*
  * Structure locking:
  *
- * ide_cfg_mtx and ide_lock together protect changes to
- * ide_hwif_t->{next,hwgroup}
+ * ide_cfg_mtx and hwgroup->lock together protect changes to
+ * ide_hwif_t->next
  * ide_drive_t->next
  *
- * ide_hwgroup_t->busy: ide_lock
- * ide_hwgroup_t->hwif: ide_lock
- * ide_hwif_t->mate: constant, no locking
+ * ide_hwgroup_t->busy: hwgroup->lock
+ * ide_hwgroup_t->hwif: hwgroup->lock
+ * ide_hwif_t->{hwgroup,mate}: constant, no locking
  * ide_drive_t->hwif: constant, no locking
  */
 

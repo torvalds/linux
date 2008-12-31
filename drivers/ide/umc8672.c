@@ -107,18 +107,21 @@ static void umc_set_speeds(u8 speeds[])
 static void umc_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	unsigned long flags;
+	ide_hwgroup_t *mate_hwgroup = hwif->mate ? hwif->mate->hwgroup : NULL;
+	unsigned long uninitialized_var(flags);
 
 	printk("%s: setting umc8672 to PIO mode%d (speed %d)\n",
 		drive->name, pio, pio_to_umc[pio]);
-	spin_lock_irqsave(&ide_lock, flags);
-	if (hwif->mate && hwif->mate->hwgroup->handler) {
+	if (mate_hwgroup)
+		spin_lock_irqsave(&mate_hwgroup->lock, flags);
+	if (mate_hwgroup && mate_hwgroup->handler) {
 		printk(KERN_ERR "umc8672: other interface is busy: exiting tune_umc()\n");
 	} else {
 		current_speeds[drive->name[2] - 'a'] = pio_to_umc[pio];
 		umc_set_speeds(current_speeds);
 	}
-	spin_unlock_irqrestore(&ide_lock, flags);
+	if (mate_hwgroup)
+		spin_unlock_irqrestore(&mate_hwgroup->lock, flags);
 }
 
 static const struct ide_port_ops umc8672_port_ops = {
