@@ -25,8 +25,8 @@ config MOUSE_PS2
 	  mice with wheels and extra buttons, Microsoft, Logitech or Genius
 	  compatible.
 
-	  Synaptics TouchPad users might be interested in a specialized
-	  XFree86 driver at:
+	  Synaptics, ALPS or Elantech TouchPad users might be interested
+	  in a specialized Xorg/XFree86 driver at:
 		<http://w1.894.telia.com/~u89404340/touchpad/index.html>
 	  and a new version of GPM at:
 		<http://www.geocities.com/dt_or/gpm/gpm.html>
@@ -87,12 +87,43 @@ config MOUSE_PS2_TRACKPOINT
 
 	  If unsure, say Y.
 
+config MOUSE_PS2_ELANTECH
+	bool "Elantech PS/2 protocol extension"
+	depends on MOUSE_PS2
+	help
+	  Say Y here if you have an Elantech PS/2 touchpad connected
+	  to your system.
+
+	  Note that if you enable this driver you will need an updated
+	  X.org Synaptics driver that does not require ABS_PRESSURE
+	  reports from the touchpad (i.e. post 1.5.0 version). You can
+	  grab a patch for the driver here:
+
+	  http://userweb.kernel.org/~dtor/synaptics-no-abspressure.patch
+
+	  If unsure, say N.
+
+	  This driver exposes some configuration registers via sysfs
+	  entries. For further information,
+	  see <file:Documentation/input/elantech.txt>.
+
+
 config MOUSE_PS2_TOUCHKIT
 	bool "eGalax TouchKit PS/2 protocol extension"
 	depends on MOUSE_PS2
 	help
 	  Say Y here if you have an eGalax TouchKit PS/2 touchscreen
 	  connected to your system.
+
+	  If unsure, say N.
+
+config MOUSE_PS2_OLPC
+	bool "OLPC PS/2 mouse protocol extension"
+	depends on MOUSE_PS2 && OLPC
+	help
+	  Say Y here if you have an OLPC XO-1 laptop (with built-in
+	  PS/2 touchpad/tablet device).  The manufacturer calls the
+	  touchpad an HGPK.
 
 	  If unsure, say N.
 

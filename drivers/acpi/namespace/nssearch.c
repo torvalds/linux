@@ -331,7 +331,7 @@ acpi_ns_search_and_enter(u32 target_name,
 				      "Found bad character(s) in name, repaired: [%4.4s]\n",
 				      ACPI_CAST_PTR(char, &target_name)));
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Found bad character(s) in name, repaired: [%4.4s]\n",
 					  ACPI_CAST_PTR(char, &target_name)));
 		}

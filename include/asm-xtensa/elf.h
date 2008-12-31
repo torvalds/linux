@@ -189,7 +189,7 @@ typedef struct {
 #endif
 } elf_xtregs_t;
 
-#define SET_PERSONALITY(ex, ibcs2) set_personality(PER_LINUX_32BIT)
+#define SET_PERSONALITY(ex) set_personality(PER_LINUX_32BIT)
 
 struct task_struct;
 

@@ -308,15 +308,19 @@ ENTRY(system_call)
 	mov.l	1f, r9
 	mov.l	@r9, r8		! Read from TRA (Trap Address) Register
 #endif
+
+	mov	#OFF_TRA, r10
+	add	r15, r10
+	mov.l	r8, @r10		! set TRA value to tra
+
 	/*
 	 * Check the trap type
 	 */
 	mov	#((0x20 << 2) - 1), r9
 	cmp/hi	r9, r8
 	bt/s	debug_trap		! it's a debug trap..
-	 mov	#OFF_TRA, r9
-	add	r15, r9
-	mov.l	r8, @r9			! set TRA value to tra
+	 nop
+
 #ifdef CONFIG_TRACE_IRQFLAGS
 	mov.l	5f, r10
 	jsr	@r10

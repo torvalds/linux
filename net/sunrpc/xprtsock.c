@@ -249,6 +249,7 @@ struct sock_xprt {
 	void			(*old_data_ready)(struct sock *, int);
 	void			(*old_state_change)(struct sock *);
 	void			(*old_write_space)(struct sock *);
+	void			(*old_error_report)(struct sock *);
 };
 
 /*
@@ -283,8 +284,7 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(20, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 20, NIPQUAD_FMT,
-				NIPQUAD(addr->sin_addr.s_addr));
+		snprintf(buf, 20, "%pI4", &addr->sin_addr.s_addr);
 	}
 	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
 
@@ -299,8 +299,8 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(48, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 48, "addr="NIPQUAD_FMT" port=%u proto=%s",
-			NIPQUAD(addr->sin_addr.s_addr),
+		snprintf(buf, 48, "addr=%pI4 port=%u proto=%s",
+			&addr->sin_addr.s_addr,
 			ntohs(addr->sin_port),
 			protocol);
 	}
@@ -322,8 +322,8 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(30, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 30, NIPQUAD_FMT".%u.%u",
-				NIPQUAD(addr->sin_addr.s_addr),
+		snprintf(buf, 30, "%pI4.%u.%u",
+				&addr->sin_addr.s_addr,
 				ntohs(addr->sin_port) >> 8,
 				ntohs(addr->sin_port) & 0xff);
 	}
@@ -341,8 +341,7 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(40, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 40, NIP6_FMT,
-				NIP6(addr->sin6_addr));
+		snprintf(buf, 40, "%pI6",&addr->sin6_addr);
 	}
 	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
 
@@ -357,18 +356,17 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(64, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 64, "addr="NIP6_FMT" port=%u proto=%s",
-				NIP6(addr->sin6_addr),
+		snprintf(buf, 64, "addr=%pI6 port=%u proto=%s",
+				&addr->sin6_addr,
 				ntohs(addr->sin6_port),
 				protocol);
 	}
 	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
 
 	buf = kzalloc(36, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 36, NIP6_SEQFMT,
-				NIP6(addr->sin6_addr));
-	}
+	if (buf)
+		snprintf(buf, 36, "%pi6", &addr->sin6_addr);
+
 	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
 
 	buf = kzalloc(8, GFP_KERNEL);
@@ -380,10 +378,10 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(50, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 50, NIP6_FMT".%u.%u",
-				NIP6(addr->sin6_addr),
-				ntohs(addr->sin6_port) >> 8,
-				ntohs(addr->sin6_port) & 0xff);
+		snprintf(buf, 50, "%pI6.%u.%u",
+			 &addr->sin6_addr,
+			 ntohs(addr->sin6_port) >> 8,
+			 ntohs(addr->sin6_port) & 0xff);
 	}
 	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
 
@@ -698,8 +696,9 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	case -EAGAIN:
 		xs_nospace(task);
 		break;
-	case -ECONNREFUSED:
 	case -ECONNRESET:
+		xs_tcp_shutdown(xprt);
+	case -ECONNREFUSED:
 	case -ENOTCONN:
 	case -EPIPE:
 		status = -ENOTCONN;
@@ -742,6 +741,22 @@ out_release:
 	xprt_release_xprt(xprt, task);
 }
 
+static void xs_save_old_callbacks(struct sock_xprt *transport, struct sock *sk)
+{
+	transport->old_data_ready = sk->sk_data_ready;
+	transport->old_state_change = sk->sk_state_change;
+	transport->old_write_space = sk->sk_write_space;
+	transport->old_error_report = sk->sk_error_report;
+}
+
+static void xs_restore_old_callbacks(struct sock_xprt *transport, struct sock *sk)
+{
+	sk->sk_data_ready = transport->old_data_ready;
+	sk->sk_state_change = transport->old_state_change;
+	sk->sk_write_space = transport->old_write_space;
+	sk->sk_error_report = transport->old_error_report;
+}
+
 /**
  * xs_close - close a socket
  * @xprt: transport
@@ -765,9 +780,8 @@ static void xs_close(struct rpc_xprt *xprt)
 	transport->sock = NULL;
 
 	sk->sk_user_data = NULL;
-	sk->sk_data_ready = transport->old_data_ready;
-	sk->sk_state_change = transport->old_state_change;
-	sk->sk_write_space = transport->old_write_space;
+
+	xs_restore_old_callbacks(transport, sk);
 	write_unlock_bh(&sk->sk_callback_lock);
 
 	sk->sk_no_check = 0;
@@ -1180,6 +1194,28 @@ static void xs_tcp_state_change(struct sock *sk)
 }
 
 /**
+ * xs_tcp_error_report - callback mainly for catching RST events
+ * @sk: socket
+ */
+static void xs_tcp_error_report(struct sock *sk)
+{
+	struct rpc_xprt *xprt;
+
+	read_lock(&sk->sk_callback_lock);
+	if (sk->sk_err != ECONNRESET || sk->sk_state != TCP_ESTABLISHED)
+		goto out;
+	if (!(xprt = xprt_from_sock(sk)))
+		goto out;
+	dprintk("RPC:       %s client %p...\n"
+			"RPC:       error %d\n",
+			__func__, xprt, sk->sk_err);
+
+	xprt_force_disconnect(xprt);
+out:
+	read_unlock(&sk->sk_callback_lock);
+}
+
+/**
  * xs_udp_write_space - callback invoked when socket buffer space
  *                             becomes available
  * @sk: socket whose state has changed
@@ -1376,8 +1412,8 @@ static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 		if (port > last)
 			nloop++;
 	} while (err == -EADDRINUSE && nloop != 2);
-	dprintk("RPC:       %s "NIPQUAD_FMT":%u: %s (%d)\n",
-			__func__, NIPQUAD(myaddr.sin_addr),
+	dprintk("RPC:       %s %pI4:%u: %s (%d)\n",
+			__func__, &myaddr.sin_addr,
 			port, err ? "failed" : "ok", err);
 	return err;
 }
@@ -1409,8 +1445,8 @@ static int xs_bind6(struct sock_xprt *transport, struct socket *sock)
 		if (port > last)
 			nloop++;
 	} while (err == -EADDRINUSE && nloop != 2);
-	dprintk("RPC:       xs_bind6 "NIP6_FMT":%u: %s (%d)\n",
-		NIP6(myaddr.sin6_addr), port, err ? "failed" : "ok", err);
+	dprintk("RPC:       xs_bind6 %pI6:%u: %s (%d)\n",
+		&myaddr.sin6_addr, port, err ? "failed" : "ok", err);
 	return err;
 }
 
@@ -1454,10 +1490,9 @@ static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 
 		write_lock_bh(&sk->sk_callback_lock);
 
+		xs_save_old_callbacks(transport, sk);
+
 		sk->sk_user_data = xprt;
-		transport->old_data_ready = sk->sk_data_ready;
-		transport->old_state_change = sk->sk_state_change;
-		transport->old_write_space = sk->sk_write_space;
 		sk->sk_data_ready = xs_udp_data_ready;
 		sk->sk_write_space = xs_udp_write_space;
 		sk->sk_no_check = UDP_CSUM_NORCV;
@@ -1589,13 +1624,13 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 
 		write_lock_bh(&sk->sk_callback_lock);
 
+		xs_save_old_callbacks(transport, sk);
+
 		sk->sk_user_data = xprt;
-		transport->old_data_ready = sk->sk_data_ready;
-		transport->old_state_change = sk->sk_state_change;
-		transport->old_write_space = sk->sk_write_space;
 		sk->sk_data_ready = xs_tcp_data_ready;
 		sk->sk_state_change = xs_tcp_state_change;
 		sk->sk_write_space = xs_tcp_write_space;
+		sk->sk_error_report = xs_tcp_error_report;
 		sk->sk_allocation = GFP_ATOMIC;
 
 		/* socket options */

@@ -284,15 +284,12 @@ static ssize_t sprintf_ipaddr(char *buf, u8 *ip)
 		/*
 		 * IPV4
 		 */
-		str += sprintf(buf, NIPQUAD_FMT, ip[12],
-			       ip[13], ip[14], ip[15]);
+		str += sprintf(buf, "%pI4", ip + 12);
 	} else {
 		/*
 		 * IPv6
 		 */
-		str += sprintf(str, NIP6_FMT, ntohs(ip[0]), ntohs(ip[1]),
-			       ntohs(ip[2]), ntohs(ip[3]), ntohs(ip[4]),
-			       ntohs(ip[5]), ntohs(ip[6]), ntohs(ip[7]));
+		str += sprintf(str, "%pI6", ip);
 	}
 	str += sprintf(str, "\n");
 	return str - buf;
@@ -334,9 +331,9 @@ static void ibft_release(struct kobject *kobj)
 /*
  *  Routines for parsing the iBFT data to be human readable.
  */
-ssize_t ibft_attr_show_initiator(struct ibft_kobject *entry,
-				  struct ibft_attribute *attr,
-				  char *buf)
+static ssize_t ibft_attr_show_initiator(struct ibft_kobject *entry,
+					struct ibft_attribute *attr,
+					char *buf)
 {
 	struct ibft_initiator *initiator = entry->initiator;
 	void *ibft_loc = entry->header;
@@ -376,9 +373,9 @@ ssize_t ibft_attr_show_initiator(struct ibft_kobject *entry,
 	return str - buf;
 }
 
-ssize_t ibft_attr_show_nic(struct ibft_kobject *entry,
-			    struct ibft_attribute *attr,
-			    char *buf)
+static ssize_t ibft_attr_show_nic(struct ibft_kobject *entry,
+				  struct ibft_attribute *attr,
+				  char *buf)
 {
 	struct ibft_nic *nic = entry->nic;
 	void *ibft_loc = entry->header;
@@ -440,9 +437,9 @@ ssize_t ibft_attr_show_nic(struct ibft_kobject *entry,
 	return str - buf;
 };
 
-ssize_t ibft_attr_show_target(struct ibft_kobject *entry,
-			       struct ibft_attribute *attr,
-			       char *buf)
+static ssize_t ibft_attr_show_target(struct ibft_kobject *entry,
+				     struct ibft_attribute *attr,
+				     char *buf)
 {
 	struct ibft_tgt *tgt = entry->tgt;
 	void *ibft_loc = entry->header;
@@ -732,7 +729,6 @@ static int __init ibft_create_attribute(struct ibft_kobject *kobj_data,
 
 	attr->attr.name = name;
 	attr->attr.mode = S_IRUSR;
-	attr->attr.owner = THIS_MODULE;
 
 	attr->hdr = hdr;
 	attr->show = show;

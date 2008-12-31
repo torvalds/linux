@@ -69,7 +69,9 @@ extern void dma_cache_maint(const void *kaddr, size_t size, int rw);
  */
 static inline int dma_supported(struct device *dev, u64 mask)
 {
-	return dev->dma_mask && *dev->dma_mask != 0;
+	if (mask < ISA_DMA_THRESHOLD)
+		return 0;
+	return 1;
 }
 
 static inline int dma_set_mask(struct device *dev, u64 dma_mask)
@@ -256,8 +258,17 @@ int dmabounce_sync_for_cpu(struct device *, dma_addr_t, unsigned long,
 int dmabounce_sync_for_device(struct device *, dma_addr_t, unsigned long,
 		size_t, enum dma_data_direction);
 #else
-#define dmabounce_sync_for_cpu(dev,dma,off,sz,dir)	(1)
-#define dmabounce_sync_for_device(dev,dma,off,sz,dir)	(1)
+static inline int dmabounce_sync_for_cpu(struct device *d, dma_addr_t addr,
+	unsigned long offset, size_t size, enum dma_data_direction dir)
+{
+	return 1;
+}
+
+static inline int dmabounce_sync_for_device(struct device *d, dma_addr_t addr,
+	unsigned long offset, size_t size, enum dma_data_direction dir)
+{
+	return 1;
+}
 
 
 /**

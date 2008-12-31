@@ -52,7 +52,7 @@
  * this single "physical" link to be used by multiple virtual links.)
  */
 
-#define DRIVER_VERSION	"29-May-2008"
+#define UETH__VERSION	"29-May-2008"
 
 struct eth_dev {
 	/* lock is held while accessing port_usb
@@ -146,7 +146,7 @@ static inline int qlen(struct usb_gadget *gadget)
 
 /* NETWORK DRIVER HOOKUP (to the layer above this driver) */
 
-static int eth_change_mtu(struct net_device *net, int new_mtu)
+static int ueth_change_mtu(struct net_device *net, int new_mtu)
 {
 	struct eth_dev	*dev = netdev_priv(net);
 	unsigned long	flags;
@@ -170,7 +170,7 @@ static void eth_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *p)
 	struct eth_dev	*dev = netdev_priv(net);
 
 	strlcpy(p->driver, "g_ether", sizeof p->driver);
-	strlcpy(p->version, DRIVER_VERSION, sizeof p->version);
+	strlcpy(p->version, UETH__VERSION, sizeof p->version);
 	strlcpy(p->fw_version, dev->gadget->name, sizeof p->fw_version);
 	strlcpy(p->bus_info, dev_name(&dev->gadget->dev), sizeof p->bus_info);
 }
@@ -764,7 +764,7 @@ int __init gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 	if (ethaddr)
 		memcpy(ethaddr, dev->host_mac, ETH_ALEN);
 
-	net->change_mtu = eth_change_mtu;
+	net->change_mtu = ueth_change_mtu;
 	net->hard_start_xmit = eth_start_xmit;
 	net->open = eth_open;
 	net->stop = eth_stop;
@@ -787,10 +787,8 @@ int __init gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 		dev_dbg(&g->dev, "register_netdev failed, %d\n", status);
 		free_netdev(net);
 	} else {
-		DECLARE_MAC_BUF(tmp);
-
-		INFO(dev, "MAC %s\n", print_mac(tmp, net->dev_addr));
-		INFO(dev, "HOST MAC %s\n", print_mac(tmp, dev->host_mac));
+		INFO(dev, "MAC %pM\n", net->dev_addr);
+		INFO(dev, "HOST MAC %pM\n", dev->host_mac);
 
 		the_dev = dev;
 	}
@@ -873,6 +871,13 @@ struct net_device *gether_connect(struct gether *link)
 		spin_lock(&dev->lock);
 		dev->port_usb = link;
 		link->ioport = dev;
+		if (netif_running(dev->net)) {
+			if (link->open)
+				link->open(link);
+		} else {
+			if (link->close)
+				link->close(link);
+		}
 		spin_unlock(&dev->lock);
 
 		netif_carrier_on(dev->net);

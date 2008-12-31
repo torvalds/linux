@@ -118,41 +118,6 @@ sys32_execve (char __user *name, compat_uptr_t __user *argv, compat_uptr_t __use
 	return error;
 }
 
-int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
-{
-	compat_ino_t ino;
-	int err;
-
-	if ((u64) stat->size > MAX_NON_LFS ||
-	    !old_valid_dev(stat->dev) ||
-	    !old_valid_dev(stat->rdev))
-		return -EOVERFLOW;
-
-	ino = stat->ino;
-	if (sizeof(ino) < sizeof(stat->ino) && ino != stat->ino)
-		return -EOVERFLOW;
-
-	if (clear_user(ubuf, sizeof(*ubuf)))
-		return -EFAULT;
-
-	err  = __put_user(old_encode_dev(stat->dev), &ubuf->st_dev);
-	err |= __put_user(ino, &ubuf->st_ino);
-	err |= __put_user(stat->mode, &ubuf->st_mode);
-	err |= __put_user(stat->nlink, &ubuf->st_nlink);
-	err |= __put_user(high2lowuid(stat->uid), &ubuf->st_uid);
-	err |= __put_user(high2lowgid(stat->gid), &ubuf->st_gid);
-	err |= __put_user(old_encode_dev(stat->rdev), &ubuf->st_rdev);
-	err |= __put_user(stat->size, &ubuf->st_size);
-	err |= __put_user(stat->atime.tv_sec, &ubuf->st_atime);
-	err |= __put_user(stat->atime.tv_nsec, &ubuf->st_atime_nsec);
-	err |= __put_user(stat->mtime.tv_sec, &ubuf->st_mtime);
-	err |= __put_user(stat->mtime.tv_nsec, &ubuf->st_mtime_nsec);
-	err |= __put_user(stat->ctime.tv_sec, &ubuf->st_ctime);
-	err |= __put_user(stat->ctime.tv_nsec, &ubuf->st_ctime_nsec);
-	err |= __put_user(stat->blksize, &ubuf->st_blksize);
-	err |= __put_user(stat->blocks, &ubuf->st_blocks);
-	return err;
-}
 
 #if PAGE_SHIFT > IA32_PAGE_SHIFT
 
@@ -1133,81 +1098,10 @@ sys32_mremap (unsigned int addr, unsigned int old_len, unsigned int new_len,
 	return ret;
 }
 
-asmlinkage long
-sys32_pipe (int __user *fd)
-{
-	int retval;
-	int fds[2];
-
-	retval = do_pipe_flags(fds, 0);
-	if (retval)
-		goto out;
-	if (copy_to_user(fd, fds, sizeof(fds)))
-		retval = -EFAULT;
-  out:
-	return retval;
-}
-
-static inline long
-get_tv32 (struct timeval *o, struct compat_timeval __user *i)
-{
-	return (!access_ok(VERIFY_READ, i, sizeof(*i)) ||
-		(__get_user(o->tv_sec, &i->tv_sec) | __get_user(o->tv_usec, &i->tv_usec)));
-}
-
-static inline long
-put_tv32 (struct compat_timeval __user *o, struct timeval *i)
-{
-	return (!access_ok(VERIFY_WRITE, o, sizeof(*o)) ||
-		(__put_user(i->tv_sec, &o->tv_sec) | __put_user(i->tv_usec, &o->tv_usec)));
-}
-
 asmlinkage unsigned long
 sys32_alarm (unsigned int seconds)
 {
 	return alarm_setitimer(seconds);
-}
-
-/* Translations due to time_t size differences.  Which affects all
-   sorts of things, like timeval and itimerval.  */
-
-extern struct timezone sys_tz;
-
-asmlinkage long
-sys32_gettimeofday (struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-	if (tv) {
-		struct timeval ktv;
-		do_gettimeofday(&ktv);
-		if (put_tv32(tv, &ktv))
-			return -EFAULT;
-	}
-	if (tz) {
-		if (copy_to_user(tz, &sys_tz, sizeof(sys_tz)))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-asmlinkage long
-sys32_settimeofday (struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-	struct timeval ktv;
-	struct timespec kts;
-	struct timezone ktz;
-
-	if (tv) {
-		if (get_tv32(&ktv, tv))
-			return -EFAULT;
-		kts.tv_sec = ktv.tv_sec;
-		kts.tv_nsec = ktv.tv_usec * 1000;
-	}
-	if (tz) {
-		if (copy_from_user(&ktz, tz, sizeof(ktz)))
-			return -EFAULT;
-	}
-
-	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }
 
 struct sel_arg_struct {
@@ -1298,25 +1192,6 @@ asmlinkage long
 sys32_waitpid (int pid, unsigned int *stat_addr, int options)
 {
 	return compat_sys_wait4(pid, stat_addr, options, NULL);
-}
-
-static unsigned int
-ia32_peek (struct task_struct *child, unsigned long addr, unsigned int *val)
-{
-	size_t copied;
-	unsigned int ret;
-
-	copied = access_process_vm(child, addr, val, sizeof(*val), 0);
-	return (copied != sizeof(ret)) ? -EIO : 0;
-}
-
-static unsigned int
-ia32_poke (struct task_struct *child, unsigned long addr, unsigned int val)
-{
-
-	if (access_process_vm(child, addr, &val, sizeof(val), 1) != sizeof(val))
-		return -EIO;
-	return 0;
 }
 
 /*
@@ -1616,49 +1491,15 @@ restore_ia32_fpxstate (struct task_struct *tsk, struct ia32_user_fxsr_struct __u
 	return 0;
 }
 
-asmlinkage long
-sys32_ptrace (int request, pid_t pid, unsigned int addr, unsigned int data)
+long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
+	compat_ulong_t caddr, compat_ulong_t cdata)
 {
-	struct task_struct *child;
-	unsigned int value, tmp;
+	unsigned long addr = caddr;
+	unsigned long data = cdata;
+	unsigned int tmp;
 	long i, ret;
 
-	lock_kernel();
-	if (request == PTRACE_TRACEME) {
-		ret = ptrace_traceme();
-		goto out;
-	}
-
-	child = ptrace_get_task_struct(pid);
-	if (IS_ERR(child)) {
-		ret = PTR_ERR(child);
-		goto out;
-	}
-
-	if (request == PTRACE_ATTACH) {
-		ret = sys_ptrace(request, pid, addr, data);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
-
 	switch (request) {
-	      case PTRACE_PEEKTEXT:
-	      case PTRACE_PEEKDATA:	/* read word at location addr */
-		ret = ia32_peek(child, addr, &value);
-		if (ret == 0)
-			ret = put_user(value, (unsigned int __user *) compat_ptr(data));
-		else
-			ret = -EIO;
-		goto out_tsk;
-
-	      case PTRACE_POKETEXT:
-	      case PTRACE_POKEDATA:	/* write the word at location addr */
-		ret = ia32_poke(child, addr, data);
-		goto out_tsk;
-
 	      case PTRACE_PEEKUSR:	/* read word at addr in USER area */
 		ret = -EIO;
 		if ((addr & 3) || addr > 17*sizeof(int))
@@ -1723,27 +1564,9 @@ sys32_ptrace (int request, pid_t pid, unsigned int addr, unsigned int data)
 					    compat_ptr(data));
 		break;
 
-	      case PTRACE_GETEVENTMSG:   
-		ret = put_user(child->ptrace_message, (unsigned int __user *) compat_ptr(data));
-		break;
-
-	      case PTRACE_SYSCALL:	/* continue, stop after next syscall */
-	      case PTRACE_CONT:		/* restart after signal. */
-	      case PTRACE_KILL:
-	      case PTRACE_SINGLESTEP:	/* execute chile for one instruction */
-	      case PTRACE_DETACH:	/* detach a process */
-		ret = sys_ptrace(request, pid, addr, data);
-		break;
-
 	      default:
-		ret = ptrace_request(child, request, addr, data);
-		break;
-
+		return compat_ptrace_request(child, request, caddr, cdata);
 	}
-  out_tsk:
-	put_task_struct(child);
-  out:
-	unlock_kernel();
 	return ret;
 }
 
@@ -1792,14 +1615,6 @@ out:
 			return -EFAULT;
 	}
 	return ret;
-}
-
-asmlinkage int
-sys32_pause (void)
-{
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	return -ERESTARTNOHAND;
 }
 
 asmlinkage int
@@ -1952,25 +1767,24 @@ groups16_from_user(struct group_info *group_info, short __user *grouplist)
 asmlinkage long
 sys32_getgroups16 (int gidsetsize, short __user *grouplist)
 {
+	const struct cred *cred = current_cred();
 	int i;
 
 	if (gidsetsize < 0)
 		return -EINVAL;
 
-	get_group_info(current->group_info);
-	i = current->group_info->ngroups;
+	i = cred->group_info->ngroups;
 	if (gidsetsize) {
 		if (i > gidsetsize) {
 			i = -EINVAL;
 			goto out;
 		}
-		if (groups16_to_user(grouplist, current->group_info)) {
+		if (groups16_to_user(grouplist, cred->group_info)) {
 			i = -EFAULT;
 			goto out;
 		}
 	}
 out:
-	put_group_info(current->group_info);
 	return i;
 }
 

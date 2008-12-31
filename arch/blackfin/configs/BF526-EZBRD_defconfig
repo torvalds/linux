@@ -748,7 +748,7 @@ CONFIG_BFIN_OTP=y
 #
 # CONFIG_CAN4LINUX is not set
 # CONFIG_IPMI_HANDLER is not set
-CONFIG_HW_RANDOM=y
+# CONFIG_HW_RANDOM is not set
 # CONFIG_R3964 is not set
 # CONFIG_RAW_DRIVER is not set
 # CONFIG_TCG_TPM is not set

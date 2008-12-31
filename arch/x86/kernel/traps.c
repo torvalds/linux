@@ -481,11 +481,7 @@ do_nmi(struct pt_regs *regs, long error_code)
 {
 	nmi_enter();
 
-#ifdef CONFIG_X86_32
-	{ int cpu; cpu = smp_processor_id(); ++nmi_count(cpu); }
-#else
-	add_pda(__nmi_count, 1);
-#endif
+	inc_irq_stat(__nmi_count);
 
 	if (!ignore_nmis)
 		default_do_nmi(regs);
@@ -664,7 +660,7 @@ void math_error(void __user *ip)
 {
 	struct task_struct *task;
 	siginfo_t info;
-	unsigned short cwd, swd;
+	unsigned short cwd, swd, err;
 
 	/*
 	 * Save the info for the exception handler and clear the error.
@@ -675,7 +671,6 @@ void math_error(void __user *ip)
 	task->thread.error_code = 0;
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
-	info.si_code = __SI_FAULT;
 	info.si_addr = ip;
 	/*
 	 * (~cwd & swd) will mask out exceptions that are not set to unmasked
@@ -689,34 +684,31 @@ void math_error(void __user *ip)
 	 */
 	cwd = get_fpu_cwd(task);
 	swd = get_fpu_swd(task);
-	switch (swd & ~cwd & 0x3f) {
-	case 0x000: /* No unmasked exception */
+
+	err = swd & ~cwd & 0x3f;
+
 #ifdef CONFIG_X86_32
+	if (!err)
 		return;
 #endif
-	default: /* Multiple exceptions */
-		break;
-	case 0x001: /* Invalid Op */
+
+	if (err & 0x001) {	/* Invalid op */
 		/*
 		 * swd & 0x240 == 0x040: Stack Underflow
 		 * swd & 0x240 == 0x240: Stack Overflow
 		 * User must clear the SF bit (0x40) if set
 		 */
 		info.si_code = FPE_FLTINV;
-		break;
-	case 0x002: /* Denormalize */
-	case 0x010: /* Underflow */
-		info.si_code = FPE_FLTUND;
-		break;
-	case 0x004: /* Zero Divide */
+	} else if (err & 0x004) { /* Divide by Zero */
 		info.si_code = FPE_FLTDIV;
-		break;
-	case 0x008: /* Overflow */
+	} else if (err & 0x008) { /* Overflow */
 		info.si_code = FPE_FLTOVF;
-		break;
-	case 0x020: /* Precision */
+	} else if (err & 0x012) { /* Denormal, Underflow */
+		info.si_code = FPE_FLTUND;
+	} else if (err & 0x020) { /* Precision */
 		info.si_code = FPE_FLTRES;
-		break;
+	} else {
+		info.si_code = __SI_FAULT|SI_KERNEL; /* WTF? */
 	}
 	force_sig_info(SIGFPE, &info, task);
 }
@@ -931,14 +923,6 @@ do_device_not_available(struct pt_regs *regs, long error)
 }
 
 #ifdef CONFIG_X86_32
-#ifdef CONFIG_X86_MCE
-dotraplinkage void __kprobes do_machine_check(struct pt_regs *regs, long error)
-{
-	conditional_sti(regs);
-	machine_check_vector(regs, error);
-}
-#endif
-
 dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 {
 	siginfo_t info;

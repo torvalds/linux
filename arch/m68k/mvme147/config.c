@@ -37,7 +37,6 @@
 
 
 static void mvme147_get_model(char *model);
-static int  mvme147_get_hardware_list(char *buffer);
 extern void mvme147_sched_init(irq_handler_t handler);
 extern unsigned long mvme147_gettimeoffset (void);
 extern int mvme147_hwclk (int, struct rtc_time *);
@@ -76,14 +75,6 @@ static void mvme147_get_model(char *model)
 	sprintf(model, "Motorola MVME147");
 }
 
-
-static int mvme147_get_hardware_list(char *buffer)
-{
-	*buffer = '\0';
-
-	return 0;
-}
-
 /*
  * This function is called during kernel startup to initialize
  * the mvme147 IRQ handling routines.
@@ -104,7 +95,6 @@ void __init config_mvme147(void)
 	mach_set_clock_mmss	= mvme147_set_clock_mmss;
 	mach_reset		= mvme147_reset;
 	mach_get_model		= mvme147_get_model;
-	mach_get_hardware_list	= mvme147_get_hardware_list;
 
 	/* Board type is only set by newer versions of vmelilo/tftplilo */
 	if (!vme_brdtype)

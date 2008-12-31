@@ -135,7 +135,7 @@ stream->buf_list[stream->buf_num], (long long)stream->dma_addr[stream->buf_num])
 
 static int usb_bulk_urb_init(struct usb_data_stream *stream)
 {
-	int i;
+	int i, j;
 
 	if ((i = usb_allocate_stream_buffers(stream,stream->props.count,
 					stream->props.u.bulk.buffersize)) < 0)
@@ -143,16 +143,21 @@ static int usb_bulk_urb_init(struct usb_data_stream *stream)
 
 	/* allocate the URBs */
 	for (i = 0; i < stream->props.count; i++) {
-		if ((stream->urb_list[i] = usb_alloc_urb(0,GFP_ATOMIC)) == NULL)
+		stream->urb_list[i] = usb_alloc_urb(0, GFP_ATOMIC);
+		if (!stream->urb_list[i]) {
+			deb_mem("not enough memory for urb_alloc_urb!.\n");
+			for (j = 0; j < i; j++)
+				usb_free_urb(stream->urb_list[i]);
 			return -ENOMEM;
-
+		}
 		usb_fill_bulk_urb( stream->urb_list[i], stream->udev,
 				usb_rcvbulkpipe(stream->udev,stream->props.endpoint),
 				stream->buf_list[i],
 				stream->props.u.bulk.buffersize,
 				usb_urb_complete, stream);
 
-		stream->urb_list[i]->transfer_flags = 0;
+		stream->urb_list[i]->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		stream->urb_list[i]->transfer_dma = stream->dma_addr[i];
 		stream->urbs_initialized++;
 	}
 	return 0;
@@ -170,9 +175,14 @@ static int usb_isoc_urb_init(struct usb_data_stream *stream)
 	for (i = 0; i < stream->props.count; i++) {
 		struct urb *urb;
 		int frame_offset = 0;
-		if ((stream->urb_list[i] =
-					usb_alloc_urb(stream->props.u.isoc.framesperurb,GFP_ATOMIC)) == NULL)
+
+		stream->urb_list[i] = usb_alloc_urb(stream->props.u.isoc.framesperurb, GFP_ATOMIC);
+		if (!stream->urb_list[i]) {
+			deb_mem("not enough memory for urb_alloc_urb!\n");
+			for (j = 0; j < i; j++)
+				usb_free_urb(stream->urb_list[i]);
 			return -ENOMEM;
+		}
 
 		urb = stream->urb_list[i];
 

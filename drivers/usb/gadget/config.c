@@ -168,7 +168,7 @@ usb_copy_descriptors(struct usb_descriptor_header **src)
  * usb_find_endpoint - find a copy of an endpoint descriptor
  * @src: original vector of descriptors
  * @copy: copy of @src
- * @ep: endpoint descriptor found in @src
+ * @match: endpoint descriptor found in @src
  *
  * This returns the copy of the @match descriptor made for @copy.  Its
  * intended use is to help remembering the endpoint descriptor to use

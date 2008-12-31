@@ -72,7 +72,7 @@ int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 		if (kvm_apic_accept_pic_intr(v)) {
 			s = pic_irqchip(v->kvm);
 			s->output = 0;		/* PIC */
-			vector = kvm_pic_read_irq(s);
+			vector = kvm_pic_read_irq(v->kvm);
 		}
 	}
 	return vector;
@@ -90,7 +90,6 @@ EXPORT_SYMBOL_GPL(kvm_inject_pending_timer_irqs);
 void kvm_timer_intr_post(struct kvm_vcpu *vcpu, int vec)
 {
 	kvm_apic_timer_intr_post(vcpu, vec);
-	kvm_pit_timer_intr_post(vcpu, vec);
 	/* TODO: PIT, RTC etc. */
 }
 EXPORT_SYMBOL_GPL(kvm_timer_intr_post);

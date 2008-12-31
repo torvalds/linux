@@ -33,6 +33,7 @@
 #define LCD_CONN_TYPE(_x)	((_x) & 0x0f)
 #define LCD_CONN_WIDTH(_x)	(((_x) >> 4) & 0x1f)
 
+#define LCD_TYPE_MASK		0xf
 #define LCD_TYPE_UNKNOWN	0
 #define LCD_TYPE_MONO_STN	1
 #define LCD_TYPE_MONO_DSTN	2
@@ -47,6 +48,7 @@
 #define LCD_MONO_DSTN_8BPP	((8  << 4) | LCD_TYPE_MONO_DSTN)
 #define LCD_COLOR_STN_8BPP	((8  << 4) | LCD_TYPE_COLOR_STN)
 #define LCD_COLOR_DSTN_16BPP	((16 << 4) | LCD_TYPE_COLOR_DSTN)
+#define LCD_COLOR_TFT_8BPP	((8  << 4) | LCD_TYPE_COLOR_TFT)
 #define LCD_COLOR_TFT_16BPP	((16 << 4) | LCD_TYPE_COLOR_TFT)
 #define LCD_COLOR_TFT_18BPP	((18 << 4) | LCD_TYPE_COLOR_TFT)
 #define LCD_SMART_PANEL_8BPP	((8  << 4) | LCD_TYPE_SMART_PANEL)
@@ -93,6 +95,10 @@ struct pxafb_mode_info {
 	 *    in pxa27x and pxa3xx, initialize them to the same value or
 	 *    the larger one will be used
 	 * 3. same to {rd,wr}_pulse_width
+	 *
+	 * 4. LCD_PCLK_EDGE_{RISE,FALL} controls the L_PCLK_WR polarity
+	 * 5. sync & FB_SYNC_HOR_HIGH_ACT controls the L_LCLK_A0
+	 * 6. sync & FB_SYNC_VERT_HIGH_ACT controls the L_LCLK_RD
 	 */
 	unsigned	a0csrd_set_hld;	/* A0 and CS Setup/Hold Time before/after L_FCLK_RD */
 	unsigned	a0cswr_set_hld;	/* A0 and CS Setup/Hold Time before/after L_PCLK_WR */
@@ -107,6 +113,7 @@ struct pxafb_mach_info {
 	unsigned int num_modes;
 
 	unsigned int	lcd_conn;
+	unsigned long	video_mem_size;
 
 	u_int		fixed_modes:1,
 			cmap_inverse:1,

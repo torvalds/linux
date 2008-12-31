@@ -132,7 +132,7 @@ static void init_backlight(struct atmel_lcdfb_info *sinfo)
 
 	bl = backlight_device_register("backlight", &sinfo->pdev->dev,
 			sinfo, &atmel_lcdc_bl_ops);
-	if (IS_ERR(sinfo->backlight)) {
+	if (IS_ERR(bl)) {
 		dev_err(&sinfo->pdev->dev, "error %ld on backlight register\n",
 				PTR_ERR(bl));
 		return;
@@ -371,6 +371,13 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 	var->transp.msb_right = 0;
 	var->transp.offset = var->transp.length = 0;
 	var->xoffset = var->yoffset = 0;
+
+	if (info->fix.smem_len) {
+		unsigned int smem_len = (var->xres_virtual * var->yres_virtual
+					 * ((var->bits_per_pixel + 7) / 8));
+		if (smem_len > info->fix.smem_len)
+			return -EINVAL;
+	}
 
 	/* Saturate vertical and horizontal timings at maximum values */
 	var->vsync_len = min_t(u32, var->vsync_len,

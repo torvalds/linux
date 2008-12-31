@@ -1,1 +1,3 @@
 relocs
+vmlinux.bin.all
+vmlinux.relocs

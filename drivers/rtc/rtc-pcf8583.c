@@ -76,11 +76,11 @@ static int pcf8583_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 		buf[4] &= 0x3f;
 		buf[5] &= 0x1f;
 
-		dt->tm_sec = BCD2BIN(buf[1]);
-		dt->tm_min = BCD2BIN(buf[2]);
-		dt->tm_hour = BCD2BIN(buf[3]);
-		dt->tm_mday = BCD2BIN(buf[4]);
-		dt->tm_mon = BCD2BIN(buf[5]) - 1;
+		dt->tm_sec = bcd2bin(buf[1]);
+		dt->tm_min = bcd2bin(buf[2]);
+		dt->tm_hour = bcd2bin(buf[3]);
+		dt->tm_mday = bcd2bin(buf[4]);
+		dt->tm_mon = bcd2bin(buf[5]) - 1;
 	}
 
 	return ret == 2 ? 0 : -EIO;
@@ -94,14 +94,14 @@ static int pcf8583_set_datetime(struct i2c_client *client, struct rtc_time *dt, 
 	buf[0] = 0;
 	buf[1] = get_ctrl(client) | 0x80;
 	buf[2] = 0;
-	buf[3] = BIN2BCD(dt->tm_sec);
-	buf[4] = BIN2BCD(dt->tm_min);
-	buf[5] = BIN2BCD(dt->tm_hour);
+	buf[3] = bin2bcd(dt->tm_sec);
+	buf[4] = bin2bcd(dt->tm_min);
+	buf[5] = bin2bcd(dt->tm_hour);
 
 	if (datetoo) {
 		len = 8;
-		buf[6] = BIN2BCD(dt->tm_mday) | (dt->tm_year << 6);
-		buf[7] = BIN2BCD(dt->tm_mon + 1)  | (dt->tm_wday << 5);
+		buf[6] = bin2bcd(dt->tm_mday) | (dt->tm_year << 6);
+		buf[7] = bin2bcd(dt->tm_mon + 1)  | (dt->tm_wday << 5);
 	}
 
 	ret = i2c_master_send(client, (char *)buf, len);

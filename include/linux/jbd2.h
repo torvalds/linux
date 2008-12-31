@@ -61,7 +61,7 @@ extern u8 jbd2_journal_enable_debug;
 	do {								\
 		if ((n) <= jbd2_journal_enable_debug) {			\
 			printk (KERN_DEBUG "(%s, %d): %s: ",		\
-				__FILE__, __LINE__, __FUNCTION__);	\
+				__FILE__, __LINE__, __func__);	\
 			printk (f, ## a);				\
 		}							\
 	} while (0)
@@ -641,6 +641,11 @@ struct transaction_s
 	 */
 	int t_handle_count;
 
+	/*
+	 * For use by the filesystem to store fs-specific data
+	 * structures associated with the transaction
+	 */
+	struct list_head	t_private_list;
 };
 
 struct transaction_run_stats_s {
@@ -935,6 +940,10 @@ struct journal_s
 
 	pid_t			j_last_sync_writer;
 
+	/* This function is called when a transaction is closed */
+	void			(*j_commit_callback)(journal_t *,
+						     transaction_t *);
+
 	/*
 	 * Journal statistics
 	 */
@@ -1143,7 +1152,7 @@ extern int	jbd2_cleanup_journal_tail(journal_t *);
 
 #define jbd_ENOSYS() \
 do {								           \
-	printk (KERN_ERR "JBD unimplemented function %s\n", __FUNCTION__); \
+	printk (KERN_ERR "JBD unimplemented function %s\n", __func__); \
 	current->state = TASK_UNINTERRUPTIBLE;			           \
 	schedule();						           \
 } while (1)

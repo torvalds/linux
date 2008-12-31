@@ -228,8 +228,8 @@ int __meminit vmemmap_populate(struct page *start_page,
 			start, p, __pa(p));
 
 		mapped = htab_bolt_mapping(start, start + page_size, __pa(p),
-					   PAGE_KERNEL, mmu_vmemmap_psize,
-					   mmu_kernel_ssize);
+					   pgprot_val(PAGE_KERNEL),
+					   mmu_vmemmap_psize, mmu_kernel_ssize);
 		BUG_ON(mapped < 0);
 	}
 

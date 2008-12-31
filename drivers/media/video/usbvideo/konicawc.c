@@ -229,7 +229,8 @@ static void konicawc_register_input(struct konicawc *cam, struct usb_device *dev
 
 	cam->input = input_dev = input_allocate_device();
 	if (!input_dev) {
-		warn("Not enough memory for camera's input device\n");
+		dev_warn(&dev->dev,
+			 "Not enough memory for camera's input device\n");
 		return;
 	}
 
@@ -243,8 +244,9 @@ static void konicawc_register_input(struct konicawc *cam, struct usb_device *dev
 
 	error = input_register_device(cam->input);
 	if (error) {
-		warn("Failed to register camera's input device, err: %d\n",
-		     error);
+		dev_warn(&dev->dev,
+			 "Failed to register camera's input device, err: %d\n",
+			 error);
 		input_free_device(cam->input);
 		cam->input = NULL;
 	}
@@ -821,12 +823,12 @@ static int konicawc_probe(struct usb_interface *intf, const struct usb_device_id
 			err("Alternate settings have different endpoint addresses!");
 			return -ENODEV;
 		}
-		if ((endpoint->bmAttributes & 0x03) != 0x01) {
+		if (usb_endpoint_type(endpoint) != USB_ENDPOINT_XFER_ISOC) {
 			err("Interface %d. has non-ISO endpoint!",
 			    interface->desc.bInterfaceNumber);
 			return -ENODEV;
 		}
-		if ((endpoint->bEndpointAddress & 0x80) == 0) {
+		if (usb_endpoint_dir_out(endpoint)) {
 			err("Interface %d. has ISO OUT endpoint!",
 			    interface->desc.bInterfaceNumber);
 			return -ENODEV;

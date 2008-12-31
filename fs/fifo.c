@@ -51,7 +51,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	filp->f_mode &= (FMODE_READ | FMODE_WRITE);
 
 	switch (filp->f_mode) {
-	case 1:
+	case FMODE_READ:
 	/*
 	 *  O_RDONLY
 	 *  POSIX.1 says that O_NONBLOCK means return with the FIFO
@@ -76,7 +76,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 		}
 		break;
 	
-	case 2:
+	case FMODE_WRITE:
 	/*
 	 *  O_WRONLY
 	 *  POSIX.1 says that O_NONBLOCK means return -1 with
@@ -98,7 +98,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 		}
 		break;
 	
-	case 3:
+	case FMODE_READ | FMODE_WRITE:
 	/*
 	 *  O_RDWR
 	 *  POSIX.1 leaves this case "undefined" when O_NONBLOCK is set.

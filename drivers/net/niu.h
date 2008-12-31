@@ -1048,6 +1048,13 @@
 #define  PLL_CFG_LD_SHIFT		8
 #define  PLL_CFG_MPY			0x0000001e
 #define  PLL_CFG_MPY_SHIFT		1
+#define  PLL_CFG_MPY_4X		0x0
+#define  PLL_CFG_MPY_5X		0x00000002
+#define  PLL_CFG_MPY_6X		0x00000004
+#define  PLL_CFG_MPY_8X		0x00000008
+#define  PLL_CFG_MPY_10X		0x0000000a
+#define  PLL_CFG_MPY_12X		0x0000000c
+#define  PLL_CFG_MPY_12P5X		0x0000000e
 #define  PLL_CFG_ENPLL			0x00000001
 
 #define ESR2_TI_PLL_STS_L		(ESR2_BASE + 0x002)
@@ -1093,6 +1100,9 @@
 #define  PLL_TX_CFG_INVPAIR		0x00000080
 #define  PLL_TX_CFG_RATE		0x00000060
 #define  PLL_TX_CFG_RATE_SHIFT		5
+#define  PLL_TX_CFG_RATE_FULL		0x0
+#define  PLL_TX_CFG_RATE_HALF		0x20
+#define  PLL_TX_CFG_RATE_QUAD		0x40
 #define  PLL_TX_CFG_BUSWIDTH		0x0000001c
 #define  PLL_TX_CFG_BUSWIDTH_SHIFT	2
 #define  PLL_TX_CFG_ENTEST		0x00000002
@@ -1132,6 +1142,9 @@
 #define  PLL_RX_CFG_INVPAIR		0x00000080
 #define  PLL_RX_CFG_RATE		0x00000060
 #define  PLL_RX_CFG_RATE_SHIFT		5
+#define  PLL_RX_CFG_RATE_FULL		0x0
+#define  PLL_RX_CFG_RATE_HALF		0x20
+#define  PLL_RX_CFG_RATE_QUAD		0x40
 #define  PLL_RX_CFG_BUSWIDTH		0x0000001c
 #define  PLL_RX_CFG_BUSWIDTH_SHIFT	2
 #define  PLL_RX_CFG_ENTEST		0x00000002
@@ -3230,12 +3243,12 @@ struct niu {
 #define NIU_FLAGS_XMAC			0x00010000 /* 0=BMAC 1=XMAC */
 
 	u32				msg_enable;
+	char                            irq_name[NIU_NUM_RXCHAN+NIU_NUM_TXCHAN+3][IFNAMSIZ + 6];
 
 	/* Protects hw programming, and ring state.  */
 	spinlock_t			lock;
 
 	const struct niu_ops		*ops;
-	struct net_device_stats		net_stats;
 	union niu_mac_stats		mac_stats;
 
 	struct rx_ring_info		*rx_rings;

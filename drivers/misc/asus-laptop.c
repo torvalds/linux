@@ -139,6 +139,7 @@ ASUS_HANDLE(lcd_switch, "\\_SB.PCI0.SBRG.EC0._Q10",	/* All new models */
 	    "\\_SB.PCI0.PX40.ECD0._Q10",	/* L3C */
 	    "\\_SB.PCI0.PX40.EC0.Q10",	/* M1A */
 	    "\\_SB.PCI0.LPCB.EC0._Q10",	/* P30 */
+	    "\\_SB.PCI0.LPCB.EC0._Q0E", /* P30/P35 */
 	    "\\_SB.PCI0.PX40.Q10",	/* S1x */
 	    "\\Q10");		/* A2x, L2D, L3D, M2E */
 
@@ -280,7 +281,7 @@ static int write_acpi_int(acpi_handle handle, const char *method, int val,
 
 static int read_wireless_status(int mask)
 {
-	ulong status;
+	unsigned long long status;
 	acpi_status rv = AE_OK;
 
 	if (!wireless_status_handle)
@@ -297,7 +298,7 @@ static int read_wireless_status(int mask)
 
 static int read_gps_status(void)
 {
-	ulong status;
+	unsigned long long status;
 	acpi_status rv = AE_OK;
 
 	rv = acpi_evaluate_integer(gps_status_handle, NULL, NULL, &status);
@@ -350,7 +351,7 @@ static void write_status(acpi_handle handle, int out, int mask)
 	static void object##_led_set(struct led_classdev *led_cdev,	\
 				     enum led_brightness value)		\
 	{								\
-		object##_led_wk = value;				\
+		object##_led_wk = (value > 0) ? 1 : 0;			\
 		queue_work(led_workqueue, &object##_led_work);		\
 	}								\
 	static void object##_led_update(struct work_struct *ignored)	\
@@ -404,7 +405,7 @@ static void lcd_blank(int blank)
 
 static int read_brightness(struct backlight_device *bd)
 {
-	ulong value;
+	unsigned long long value;
 	acpi_status rv = AE_OK;
 
 	rv = acpi_evaluate_integer(brightness_get_handle, NULL, NULL, &value);
@@ -455,7 +456,7 @@ static ssize_t show_infos(struct device *dev,
 			  struct device_attribute *attr, char *page)
 {
 	int len = 0;
-	ulong temp;
+	unsigned long long temp;
 	char buf[16];		//enough for all info
 	acpi_status rv = AE_OK;
 
@@ -603,7 +604,7 @@ static void set_display(int value)
 
 static int read_display(void)
 {
-	ulong value = 0;
+	unsigned long long value = 0;
 	acpi_status rv = AE_OK;
 
 	/* In most of the case, we know how to set the display, but sometime
@@ -849,7 +850,7 @@ static int asus_hotk_get_info(void)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *model = NULL;
-	ulong bsts_result, hwrs_result;
+	unsigned long long bsts_result, hwrs_result;
 	char *string = NULL;
 	acpi_status status;
 
@@ -996,7 +997,7 @@ static int asus_hotk_add(struct acpi_device *device)
 	hotk->handle = device->handle;
 	strcpy(acpi_device_name(device), ASUS_HOTK_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ASUS_HOTK_CLASS);
-	acpi_driver_data(device) = hotk;
+	device->driver_data = hotk;
 	hotk->device = device;
 
 	result = asus_hotk_check();
@@ -1207,9 +1208,13 @@ static int __init asus_laptop_init(void)
 
 	dev = acpi_get_physical_device(hotk->device->handle);
 
-	result = asus_backlight_init(dev);
-	if (result)
-		goto fail_backlight;
+	if (!acpi_video_backlight_support()) {
+		result = asus_backlight_init(dev);
+		if (result)
+			goto fail_backlight;
+	} else
+		printk(ASUS_INFO "Brightness ignored, must be controlled by "
+		       "ACPI video driver\n");
 
 	result = asus_led_init(dev);
 	if (result)

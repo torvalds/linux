@@ -731,7 +731,7 @@ CONFIG_CAN4LINUX=y
 # CONFIG_CAN_UNCTWINCAN is not set
 CONFIG_CAN_BLACKFIN=m
 # CONFIG_IPMI_HANDLER is not set
-CONFIG_HW_RANDOM=y
+# CONFIG_HW_RANDOM is not set
 # CONFIG_GEN_RTC is not set
 # CONFIG_R3964 is not set
 # CONFIG_RAW_DRIVER is not set
@@ -871,7 +871,7 @@ CONFIG_SSB_POSSIBLE=y
 #
 # CONFIG_VIDEO_DEV is not set
 # CONFIG_DVB_CORE is not set
-CONFIG_DAB=y
+# CONFIG_DAB is not set
 
 #
 # Graphics support

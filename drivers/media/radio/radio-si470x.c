@@ -4,6 +4,7 @@
  *  Driver for USB radios for the Silicon Labs Si470x FM Radio Receivers:
  *   - Silicon Labs USB FM Radio Reference Design
  *   - ADS/Tech FM Radio Receiver (formerly Instant FM Music) (RDX-155-EF)
+ *   - KWorld USB FM Radio SnapMusic Mobile 700 (FM700)
  *
  *  Copyright (c) 2008 Tobias Lorenz <tobias.lorenz@gmx.net>
  *
@@ -20,19 +21,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- */
-
-
-/*
- * User Notes:
- * - USB Audio is provided by the alsa snd_usb_audio module.
- *   For listing you have to redirect the sound, for example using:
- *   arecord -D hw:1,0 -r96000 -c2 -f S16_LE | artsdsp aplay -B -
- * - regarding module parameters in /sys/module/radio_si470x/parameters:
- *   the contents of read-only files (0444) are not updated, even if
- *   space, band and de are changed using private video controls
- * - increase tune_timeout, if you often get -EIO errors
- * - hw_freq_seek returns -EAGAIN, when timed out or band limit is reached
  */
 
 
@@ -104,6 +92,10 @@
  *		- hardware frequency seek support
  *		- afc indication
  *		- more safety checks, let si470x_get_freq return errno
+ *		- vidioc behavior corrected according to v4l2 spec
+ * 2008-10-20	Alexey Klimov <klimov.linux@gmail.com>
+ * 		- add support for KWorld USB FM Radio FM700
+ * 		- blacklisted KWorld radio in hid-core.c and hid-ids.h
  *
  * ToDo:
  * - add firmware download/update support
@@ -141,9 +133,11 @@
 /* USB Device ID List */
 static struct usb_device_id si470x_usb_driver_id_table[] = {
 	/* Silicon Labs USB FM Radio Reference Design */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c4, 0x818a,	USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c4, 0x818a, USB_CLASS_HID, 0, 0) },
 	/* ADS/Tech FM Radio Receiver (formerly Instant FM Music) */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x06e1, 0xa155,	USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x06e1, 0xa155, USB_CLASS_HID, 0, 0) },
+	/* KWorld USB FM Radio SnapMusic Mobile 700 (FM700) */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1b80, 0xd700, USB_CLASS_HID, 0, 0) },
 	/* Terminating entry */
 	{ }
 };
@@ -157,7 +151,7 @@ MODULE_DEVICE_TABLE(usb, si470x_usb_driver_id_table);
 
 /* Radio Nr */
 static int radio_nr = -1;
-module_param(radio_nr, int, 0);
+module_param(radio_nr, int, 0444);
 MODULE_PARM_DESC(radio_nr, "Radio Nr");
 
 /* Spacing (kHz) */
@@ -165,42 +159,42 @@ MODULE_PARM_DESC(radio_nr, "Radio Nr");
 /* 1: 100 kHz (Europe, Japan) */
 /* 2:  50 kHz */
 static unsigned short space = 2;
-module_param(space, ushort, 0);
-MODULE_PARM_DESC(radio_nr, "Spacing: 0=200kHz 1=100kHz *2=50kHz*");
+module_param(space, ushort, 0444);
+MODULE_PARM_DESC(space, "Spacing: 0=200kHz 1=100kHz *2=50kHz*");
 
 /* Bottom of Band (MHz) */
 /* 0: 87.5 - 108 MHz (USA, Europe)*/
 /* 1: 76   - 108 MHz (Japan wide band) */
 /* 2: 76   -  90 MHz (Japan) */
 static unsigned short band = 1;
-module_param(band, ushort, 0);
-MODULE_PARM_DESC(radio_nr, "Band: 0=87.5..108MHz *1=76..108MHz* 2=76..90MHz");
+module_param(band, ushort, 0444);
+MODULE_PARM_DESC(band, "Band: 0=87.5..108MHz *1=76..108MHz* 2=76..90MHz");
 
 /* De-emphasis */
 /* 0: 75 us (USA) */
 /* 1: 50 us (Europe, Australia, Japan) */
 static unsigned short de = 1;
-module_param(de, ushort, 0);
-MODULE_PARM_DESC(radio_nr, "De-emphasis: 0=75us *1=50us*");
+module_param(de, ushort, 0444);
+MODULE_PARM_DESC(de, "De-emphasis: 0=75us *1=50us*");
 
 /* USB timeout */
 static unsigned int usb_timeout = 500;
-module_param(usb_timeout, uint, 0);
+module_param(usb_timeout, uint, 0644);
 MODULE_PARM_DESC(usb_timeout, "USB timeout (ms): *500*");
 
 /* Tune timeout */
 static unsigned int tune_timeout = 3000;
-module_param(tune_timeout, uint, 0);
+module_param(tune_timeout, uint, 0644);
 MODULE_PARM_DESC(tune_timeout, "Tune timeout: *3000*");
 
 /* Seek timeout */
 static unsigned int seek_timeout = 5000;
-module_param(seek_timeout, uint, 0);
+module_param(seek_timeout, uint, 0644);
 MODULE_PARM_DESC(seek_timeout, "Seek timeout: *5000*");
 
 /* RDS buffer blocks */
 static unsigned int rds_buf = 100;
-module_param(rds_buf, uint, 0);
+module_param(rds_buf, uint, 0444);
 MODULE_PARM_DESC(rds_buf, "RDS buffer entries: *100*");
 
 /* RDS maximum block errors */
@@ -209,7 +203,7 @@ static unsigned short max_rds_errors = 1;
 /* 1 means 1-2  errors requiring correction (used by original USBRadio.exe) */
 /* 2 means 3-5  errors requiring correction */
 /* 3 means   6+ errors or errors in checkword, correction not possible */
-module_param(max_rds_errors, ushort, 0);
+module_param(max_rds_errors, ushort, 0644);
 MODULE_PARM_DESC(max_rds_errors, "RDS maximum block errors: *1*");
 
 /* RDS poll frequency */
@@ -218,7 +212,7 @@ static unsigned int rds_poll_time = 40;
 /* 50 is used by radio-cadet */
 /* 75 should be okay */
 /* 80 is the usual RDS receive interval */
-module_param(rds_poll_time, uint, 0);
+module_param(rds_poll_time, uint, 0644);
 MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 
 
@@ -667,23 +661,29 @@ static int si470x_get_freq(struct si470x_device *radio, unsigned int *freq)
 	int retval;
 
 	/* Spacing (kHz) */
-	switch (space) {
+	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_SPACE) >> 4) {
 	/* 0: 200 kHz (USA, Australia) */
-	case 0 : spacing = 0.200 * FREQ_MUL; break;
+	case 0:
+		spacing = 0.200 * FREQ_MUL; break;
 	/* 1: 100 kHz (Europe, Japan) */
-	case 1 : spacing = 0.100 * FREQ_MUL; break;
+	case 1:
+		spacing = 0.100 * FREQ_MUL; break;
 	/* 2:  50 kHz */
-	default: spacing = 0.050 * FREQ_MUL; break;
+	default:
+		spacing = 0.050 * FREQ_MUL; break;
 	};
 
 	/* Bottom of Band (MHz) */
-	switch (band) {
+	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_BAND) >> 6) {
 	/* 0: 87.5 - 108 MHz (USA, Europe) */
-	case 0 : band_bottom = 87.5 * FREQ_MUL; break;
+	case 0:
+		band_bottom = 87.5 * FREQ_MUL; break;
 	/* 1: 76   - 108 MHz (Japan wide band) */
-	default: band_bottom = 76   * FREQ_MUL; break;
+	default:
+		band_bottom = 76   * FREQ_MUL; break;
 	/* 2: 76   -  90 MHz (Japan) */
-	case 2 : band_bottom = 76   * FREQ_MUL; break;
+	case 2:
+		band_bottom = 76   * FREQ_MUL; break;
 	};
 
 	/* read channel */
@@ -706,23 +706,29 @@ static int si470x_set_freq(struct si470x_device *radio, unsigned int freq)
 	unsigned short chan;
 
 	/* Spacing (kHz) */
-	switch (space) {
+	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_SPACE) >> 4) {
 	/* 0: 200 kHz (USA, Australia) */
-	case 0 : spacing = 0.200 * FREQ_MUL; break;
+	case 0:
+		spacing = 0.200 * FREQ_MUL; break;
 	/* 1: 100 kHz (Europe, Japan) */
-	case 1 : spacing = 0.100 * FREQ_MUL; break;
+	case 1:
+		spacing = 0.100 * FREQ_MUL; break;
 	/* 2:  50 kHz */
-	default: spacing = 0.050 * FREQ_MUL; break;
+	default:
+		spacing = 0.050 * FREQ_MUL; break;
 	};
 
 	/* Bottom of Band (MHz) */
-	switch (band) {
+	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_BAND) >> 6) {
 	/* 0: 87.5 - 108 MHz (USA, Europe) */
-	case 0 : band_bottom = 87.5 * FREQ_MUL; break;
+	case 0:
+		band_bottom = 87.5 * FREQ_MUL; break;
 	/* 1: 76   - 108 MHz (Japan wide band) */
-	default: band_bottom = 76   * FREQ_MUL; break;
+	default:
+		band_bottom = 76   * FREQ_MUL; break;
 	/* 2: 76   -  90 MHz (Japan) */
-	case 2 : band_bottom = 76   * FREQ_MUL; break;
+	case 2:
+		band_bottom = 76   * FREQ_MUL; break;
 	};
 
 	/* Chan = [ Freq (Mhz) - Bottom of Band (MHz) ] / Spacing (kHz) */
@@ -1164,7 +1170,6 @@ static const struct file_operations si470x_fops = {
  * si470x_v4l2_queryctrl - query control
  */
 static struct v4l2_queryctrl si470x_v4l2_queryctrl[] = {
-/* HINT: the disabled controls are only here to satify kradio and such apps */
 	{
 		.id		= V4L2_CID_AUDIO_VOLUME,
 		.type		= V4L2_CTRL_TYPE_INTEGER,
@@ -1175,18 +1180,6 @@ static struct v4l2_queryctrl si470x_v4l2_queryctrl[] = {
 		.default_value	= 15,
 	},
 	{
-		.id		= V4L2_CID_AUDIO_BALANCE,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_BASS,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_TREBLE,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
-	},
-	{
 		.id		= V4L2_CID_AUDIO_MUTE,
 		.type		= V4L2_CTRL_TYPE_BOOLEAN,
 		.name		= "Mute",
@@ -1194,10 +1187,6 @@ static struct v4l2_queryctrl si470x_v4l2_queryctrl[] = {
 		.maximum	= 1,
 		.step		= 1,
 		.default_value	= 1,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_LOUDNESS,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
 	},
 };
 
@@ -1220,54 +1209,32 @@ static int si470x_vidioc_querycap(struct file *file, void *priv,
 
 
 /*
- * si470x_vidioc_g_input - get input
- */
-static int si470x_vidioc_g_input(struct file *file, void *priv,
-		unsigned int *i)
-{
-	*i = 0;
-
-	return 0;
-}
-
-
-/*
- * si470x_vidioc_s_input - set input
- */
-static int si470x_vidioc_s_input(struct file *file, void *priv, unsigned int i)
-{
-	int retval = 0;
-
-	/* safety checks */
-	if (i != 0)
-		retval = -EINVAL;
-
-	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": set input failed with %d\n", retval);
-	return retval;
-}
-
-
-/*
  * si470x_vidioc_queryctrl - enumerate control items
  */
 static int si470x_vidioc_queryctrl(struct file *file, void *priv,
 		struct v4l2_queryctrl *qc)
 {
-	unsigned char i;
+	unsigned char i = 0;
 	int retval = -EINVAL;
 
-	/* safety checks */
-	if (!qc->id)
+	/* abort if qc->id is below V4L2_CID_BASE */
+	if (qc->id < V4L2_CID_BASE)
 		goto done;
 
+	/* search video control */
 	for (i = 0; i < ARRAY_SIZE(si470x_v4l2_queryctrl); i++) {
 		if (qc->id == si470x_v4l2_queryctrl[i].id) {
 			memcpy(qc, &(si470x_v4l2_queryctrl[i]), sizeof(*qc));
-			retval = 0;
+			retval = 0; /* found */
 			break;
 		}
+	}
+
+	/* disable unsupported base controls */
+	/* to satisfy kradio and such apps */
+	if ((retval == -EINVAL) && (qc->id < V4L2_CID_LASTP1)) {
+		qc->flags = V4L2_CTRL_FLAG_DISABLED;
+		retval = 0;
 	}
 
 done:
@@ -1360,44 +1327,13 @@ done:
 static int si470x_vidioc_g_audio(struct file *file, void *priv,
 		struct v4l2_audio *audio)
 {
-	int retval = 0;
-
-	/* safety checks */
-	if (audio->index != 0) {
-		retval = -EINVAL;
-		goto done;
-	}
-
+	/* driver constants */
+	audio->index = 0;
 	strcpy(audio->name, "Radio");
 	audio->capability = V4L2_AUDCAP_STEREO;
+	audio->mode = 0;
 
-done:
-	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": get audio failed with %d\n", retval);
-	return retval;
-}
-
-
-/*
- * si470x_vidioc_s_audio - set audio attributes
- */
-static int si470x_vidioc_s_audio(struct file *file, void *priv,
-		struct v4l2_audio *audio)
-{
-	int retval = 0;
-
-	/* safety checks */
-	if (audio->index != 0) {
-		retval = -EINVAL;
-		goto done;
-	}
-
-done:
-	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": set audio failed with %d\n", retval);
-	return retval;
+	return 0;
 }
 
 
@@ -1415,7 +1351,7 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 		retval = -EIO;
 		goto done;
 	}
-	if ((tuner->index != 0) && (tuner->type != V4L2_TUNER_RADIO)) {
+	if (tuner->index != 0) {
 		retval = -EINVAL;
 		goto done;
 	}
@@ -1424,8 +1360,13 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	if (retval < 0)
 		goto done;
 
+	/* driver constants */
 	strcpy(tuner->name, "FM");
-	switch (band) {
+	tuner->type = V4L2_TUNER_RADIO;
+	tuner->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
+
+	/* range limits */
+	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_BAND) >> 6) {
 	/* 0: 87.5 - 108 MHz (USA, Europe, default) */
 	default:
 		tuner->rangelow  =  87.5 * FREQ_MUL;
@@ -1442,14 +1383,18 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 		tuner->rangehigh =  90   * FREQ_MUL;
 		break;
 	};
-	tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-	tuner->capability = V4L2_TUNER_CAP_LOW;
 
-	/* Stereo indicator == Stereo (instead of Mono) */
+	/* stereo indicator == stereo (instead of mono) */
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_ST) == 1)
-		tuner->audmode = V4L2_TUNER_MODE_STEREO;
+		tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
 	else
+		tuner->rxsubchans = V4L2_TUNER_SUB_MONO;
+
+	/* mono/stereo selector */
+	if ((radio->registers[POWERCFG] & POWERCFG_MONO) == 1)
 		tuner->audmode = V4L2_TUNER_MODE_MONO;
+	else
+		tuner->audmode = V4L2_TUNER_MODE_STEREO;
 
 	/* min is worst, max is best; signal:0..0xffff; rssi: 0..0xff */
 	tuner->signal = (radio->registers[STATUSRSSI] & STATUSRSSI_RSSI)
@@ -1474,22 +1419,27 @@ static int si470x_vidioc_s_tuner(struct file *file, void *priv,
 		struct v4l2_tuner *tuner)
 {
 	struct si470x_device *radio = video_drvdata(file);
-	int retval = 0;
+	int retval = -EINVAL;
 
 	/* safety checks */
 	if (radio->disconnected) {
 		retval = -EIO;
 		goto done;
 	}
-	if ((tuner->index != 0) && (tuner->type != V4L2_TUNER_RADIO)) {
-		retval = -EINVAL;
+	if (tuner->index != 0)
+		goto done;
+
+	/* mono/stereo selector */
+	switch (tuner->audmode) {
+	case V4L2_TUNER_MODE_MONO:
+		radio->registers[POWERCFG] |= POWERCFG_MONO;  /* force mono */
+		break;
+	case V4L2_TUNER_MODE_STEREO:
+		radio->registers[POWERCFG] &= ~POWERCFG_MONO; /* try stereo */
+		break;
+	default:
 		goto done;
 	}
-
-	if (tuner->audmode == V4L2_TUNER_MODE_MONO)
-		radio->registers[POWERCFG] |= POWERCFG_MONO;  /* force mono */
-	else
-		radio->registers[POWERCFG] &= ~POWERCFG_MONO; /* try stereo */
 
 	retval = si470x_set_register(radio, POWERCFG);
 
@@ -1515,11 +1465,12 @@ static int si470x_vidioc_g_frequency(struct file *file, void *priv,
 		retval = -EIO;
 		goto done;
 	}
-	if ((freq->tuner != 0) && (freq->type != V4L2_TUNER_RADIO)) {
+	if (freq->tuner != 0) {
 		retval = -EINVAL;
 		goto done;
 	}
 
+	freq->type = V4L2_TUNER_RADIO;
 	retval = si470x_get_freq(radio, &freq->frequency);
 
 done:
@@ -1544,7 +1495,7 @@ static int si470x_vidioc_s_frequency(struct file *file, void *priv,
 		retval = -EIO;
 		goto done;
 	}
-	if ((freq->tuner != 0) && (freq->type != V4L2_TUNER_RADIO)) {
+	if (freq->tuner != 0) {
 		retval = -EINVAL;
 		goto done;
 	}
@@ -1573,7 +1524,7 @@ static int si470x_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 		retval = -EIO;
 		goto done;
 	}
-	if ((seek->tuner != 0) && (seek->type != V4L2_TUNER_RADIO)) {
+	if (seek->tuner != 0) {
 		retval = -EINVAL;
 		goto done;
 	}
@@ -1588,15 +1539,16 @@ done:
 	return retval;
 }
 
+
+/*
+ * si470x_ioctl_ops - video device ioctl operations
+ */
 static const struct v4l2_ioctl_ops si470x_ioctl_ops = {
 	.vidioc_querycap	= si470x_vidioc_querycap,
-	.vidioc_g_input		= si470x_vidioc_g_input,
-	.vidioc_s_input		= si470x_vidioc_s_input,
 	.vidioc_queryctrl	= si470x_vidioc_queryctrl,
 	.vidioc_g_ctrl		= si470x_vidioc_g_ctrl,
 	.vidioc_s_ctrl		= si470x_vidioc_s_ctrl,
 	.vidioc_g_audio		= si470x_vidioc_g_audio,
-	.vidioc_s_audio		= si470x_vidioc_s_audio,
 	.vidioc_g_tuner		= si470x_vidioc_g_tuner,
 	.vidioc_s_tuner		= si470x_vidioc_s_tuner,
 	.vidioc_g_frequency	= si470x_vidioc_g_frequency,
@@ -1604,14 +1556,15 @@ static const struct v4l2_ioctl_ops si470x_ioctl_ops = {
 	.vidioc_s_hw_freq_seek	= si470x_vidioc_s_hw_freq_seek,
 };
 
+
 /*
- * si470x_viddev_tamples - video device interface
+ * si470x_viddev_template - video device interface
  */
 static struct video_device si470x_viddev_template = {
 	.fops			= &si470x_fops,
-	.ioctl_ops 		= &si470x_ioctl_ops,
 	.name			= DRIVER_NAME,
 	.release		= video_device_release,
+	.ioctl_ops		= &si470x_ioctl_ops,
 };
 
 

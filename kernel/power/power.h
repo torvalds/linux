@@ -153,7 +153,7 @@ extern int swsusp_shrink_memory(void);
 extern void swsusp_free(void);
 extern int swsusp_read(unsigned int *flags_p);
 extern int swsusp_write(unsigned int flags);
-extern void swsusp_close(void);
+extern void swsusp_close(fmode_t);
 
 struct timeval;
 /* kernel/power/swsusp.c */

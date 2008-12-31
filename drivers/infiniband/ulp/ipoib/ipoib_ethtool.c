@@ -42,6 +42,13 @@ static void ipoib_get_drvinfo(struct net_device *netdev,
 	strncpy(drvinfo->driver, "ipoib", sizeof(drvinfo->driver) - 1);
 }
 
+static u32 ipoib_get_rx_csum(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	return test_bit(IPOIB_FLAG_CSUM, &priv->flags) &&
+		!test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
+}
+
 static int ipoib_get_coalesce(struct net_device *dev,
 			      struct ethtool_coalesce *coal)
 {
@@ -129,7 +136,7 @@ static void ipoib_get_ethtool_stats(struct net_device *dev,
 
 static const struct ethtool_ops ipoib_ethtool_ops = {
 	.get_drvinfo		= ipoib_get_drvinfo,
-	.get_tso		= ethtool_op_get_tso,
+	.get_rx_csum		= ipoib_get_rx_csum,
 	.get_coalesce		= ipoib_get_coalesce,
 	.set_coalesce		= ipoib_set_coalesce,
 	.get_flags		= ethtool_op_get_flags,

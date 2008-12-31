@@ -324,7 +324,7 @@ static struct clk dspper_ck = {
 	.parent		= &ck_dpll1,
 	.flags		= CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
 			  RATE_CKCTL | VIRTUAL_IO_ADDRESS,
-	.enable_reg	= (void __iomem *)DSP_IDLECT2,
+	.enable_reg	= DSP_IDLECT2,
 	.enable_bit	= EN_PERCK,
 	.rate_offset	= CKCTL_PERDIV_OFFSET,
 	.recalc		= &omap1_ckctl_recalc_dsp_domain,
@@ -338,7 +338,7 @@ static struct clk dspxor_ck = {
 	.parent		= &ck_ref,
 	.flags		= CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
 			  VIRTUAL_IO_ADDRESS,
-	.enable_reg	= (void __iomem *)DSP_IDLECT2,
+	.enable_reg	= DSP_IDLECT2,
 	.enable_bit	= EN_XORPCK,
 	.recalc		= &followparent_recalc,
 	.enable		= &omap1_clk_enable_dsp_domain,
@@ -350,7 +350,7 @@ static struct clk dsptim_ck = {
 	.parent		= &ck_ref,
 	.flags		= CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
 			  VIRTUAL_IO_ADDRESS,
-	.enable_reg	= (void __iomem *)DSP_IDLECT2,
+	.enable_reg	= DSP_IDLECT2,
 	.enable_bit	= EN_DSPTIMCK,
 	.recalc		= &followparent_recalc,
 	.enable		= &omap1_clk_enable_dsp_domain,
@@ -705,7 +705,6 @@ static struct clk bclk_16xx = {
 
 static struct clk mmc1_ck = {
 	.name		= "mmc_ck",
-	.id		= 1,
 	/* Functional clock is direct from ULPD, interface clock is ARMPER */
 	.parent		= &armper_ck.clk,
 	.rate		= 48000000,
@@ -720,7 +719,7 @@ static struct clk mmc1_ck = {
 
 static struct clk mmc2_ck = {
 	.name		= "mmc_ck",
-	.id		= 2,
+	.id		= 1,
 	/* Functional clock is direct from ULPD, interface clock is ARMPER */
 	.parent		= &armper_ck.clk,
 	.rate		= 48000000,

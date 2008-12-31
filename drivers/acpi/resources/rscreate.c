@@ -43,7 +43,6 @@
 
 #include <acpi/acpi.h>
 #include <acpi/acresrc.h>
-#include <acpi/amlcode.h>
 #include <acpi/acnamesp.h>
 
 #define _COMPONENT          ACPI_RESOURCES
@@ -310,13 +309,12 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 			switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
 			case ACPI_TYPE_LOCAL_REFERENCE:
 
-				if (obj_desc->reference.opcode !=
-				    AML_INT_NAMEPATH_OP) {
+				if (obj_desc->reference.class !=
+				    ACPI_REFCLASS_NAME) {
 					ACPI_ERROR((AE_INFO,
-						    "(PRT[%X].Source) Need name, found reference op %X",
+						    "(PRT[%X].Source) Need name, found Reference Class %X",
 						    index,
-						    obj_desc->reference.
-						    opcode));
+						    obj_desc->reference.class));
 					return_ACPI_STATUS(AE_BAD_DATA);
 				}
 

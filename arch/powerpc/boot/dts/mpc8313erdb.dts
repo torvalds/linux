@@ -164,41 +164,6 @@
 			mode = "cpu";
 		};
 
-		dma@82a8 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "fsl,mpc8313-dma", "fsl,elo-dma";
-			reg = <0x82a8 4>;
-			ranges = <0 0x8100 0x1a8>;
-			interrupt-parent = <&ipic>;
-			interrupts = <71 8>;
-			cell-index = <0>;
-			dma-channel@0 {
-				compatible = "fsl,mpc8313-dma-channel", "fsl,elo-dma-channel";
-				reg = <0 0x80>;
-				interrupt-parent = <&ipic>;
-				interrupts = <71 8>;
-			};
-			dma-channel@80 {
-				compatible = "fsl,mpc8313-dma-channel", "fsl,elo-dma-channel";
-				reg = <0x80 0x80>;
-				interrupt-parent = <&ipic>;
-				interrupts = <71 8>;
-			};
-			dma-channel@100 {
-				compatible = "fsl,mpc8313-dma-channel", "fsl,elo-dma-channel";
-				reg = <0x100 0x80>;
-				interrupt-parent = <&ipic>;
-				interrupts = <71 8>;
-			};
-			dma-channel@180 {
-				compatible = "fsl,mpc8313-dma-channel", "fsl,elo-dma-channel";
-				reg = <0x180 0x28>;
-				interrupt-parent = <&ipic>;
-				interrupts = <71 8>;
-			};
-		};
-
 		/* phy type (ULPI, UTMI, UTMI_WIDE, SERIAL) */
 		usb@23000 {
 			compatible = "fsl-usb2-dr";
@@ -225,6 +190,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <37 0x8 36 0x8 35 0x8>;
 			interrupt-parent = <&ipic>;
+			tbi-handle = < &tbi0 >;
 			phy-handle = < &phy1 >;
 			fsl,magic-packet;
 
@@ -245,6 +211,10 @@
 					reg = <0x4>;
 					device_type = "ethernet-phy";
 				};
+				tbi0: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
+				};
 			};
 		};
 
@@ -257,9 +227,24 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <34 0x8 33 0x8 32 0x8>;
 			interrupt-parent = <&ipic>;
+			tbi-handle = < &tbi1 >;
 			phy-handle = < &phy4 >;
 			sleep = <&pmc 0x10000000>;
 			fsl,magic-packet;
+
+			mdio@25520 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,gianfar-tbi";
+				reg = <0x25520 0x20>;
+
+				tbi1: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
+				};
+			};
+
+
 		};
 
 		serial0: serial@4500 {
@@ -359,7 +344,8 @@
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
 			#address-cells = <3>;
-			reg = <0xe0008500 0x100>;
+			reg = <0xe0008500 0x100		/* internal registers */
+			       0xe0008300 0x8>;		/* config space access registers */
 			compatible = "fsl,mpc8349-pci";
 			device_type = "pci";
 		};

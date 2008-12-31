@@ -1348,7 +1348,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 		goto fail_add_host;
 
 	dev_info(&spi->dev, "SD/MMC host %s%s%s%s%s\n",
-			mmc->class_dev.bus_id,
+			dev_name(&mmc->class_dev),
 			host->dma_dev ? "" : ", no DMA",
 			(host->pdata && host->pdata->get_ro)
 				? "" : ", no WP",

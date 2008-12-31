@@ -10,6 +10,7 @@
 #include <linux/blkdev.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/kmod.h>
@@ -180,6 +181,12 @@ void disk_part_iter_exit(struct disk_part_iter *piter)
 }
 EXPORT_SYMBOL_GPL(disk_part_iter_exit);
 
+static inline int sector_in_part(struct hd_struct *part, sector_t sector)
+{
+	return part->start_sect <= sector &&
+		sector < part->start_sect + part->nr_sects;
+}
+
 /**
  * disk_map_sector_rcu - map sector to partition
  * @disk: gendisk of interest
@@ -198,16 +205,22 @@ EXPORT_SYMBOL_GPL(disk_part_iter_exit);
 struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
 {
 	struct disk_part_tbl *ptbl;
+	struct hd_struct *part;
 	int i;
 
 	ptbl = rcu_dereference(disk->part_tbl);
 
-	for (i = 1; i < ptbl->len; i++) {
-		struct hd_struct *part = rcu_dereference(ptbl->part[i]);
+	part = rcu_dereference(ptbl->last_lookup);
+	if (part && sector_in_part(part, sector))
+		return part;
 
-		if (part && part->start_sect <= sector &&
-		    sector < part->start_sect + part->nr_sects)
+	for (i = 1; i < ptbl->len; i++) {
+		part = rcu_dereference(ptbl->part[i]);
+
+		if (part && sector_in_part(part, sector)) {
+			rcu_assign_pointer(ptbl->last_lookup, part);
 			return part;
+		}
 	}
 	return &disk->part0;
 }
@@ -358,7 +371,6 @@ static int blk_mangle_minor(int minor)
 /**
  * blk_alloc_devt - allocate a dev_t for a partition
  * @part: partition to allocate dev_t for
- * @gfp_mask: memory allocation flag
  * @devt: out parameter for resulting dev_t
  *
  * Allocate a dev_t for block device.
@@ -535,7 +547,7 @@ void unlink_gendisk(struct gendisk *disk)
 /**
  * get_gendisk - get partitioning information for a given device
  * @devt: device to get partitioning information for
- * @part: returned partition index
+ * @partno: returned partition index
  *
  * This function gets the structure containing partitioning
  * information for the given device @devt.
@@ -728,11 +740,23 @@ static int show_partition(struct seq_file *seqf, void *v)
 	return 0;
 }
 
-const struct seq_operations partitions_op = {
+static const struct seq_operations partitions_op = {
 	.start	= show_partition_start,
 	.next	= disk_seqf_next,
 	.stop	= disk_seqf_stop,
 	.show	= show_partition
+};
+
+static int partitions_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &partitions_op);
+}
+
+static const struct file_operations proc_partitions_operations = {
+	.open		= partitions_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
 };
 #endif
 
@@ -755,6 +779,8 @@ static int __init genhd_device_init(void)
 		return error;
 	bdev_map = kobj_map_init(base_probe, &block_class_lock);
 	blk_dev_init();
+
+	register_blkdev(BLOCK_EXT_MAJOR, "blkext");
 
 #ifndef CONFIG_SYSFS_DEPRECATED
 	/* create top-level block dir */
@@ -874,8 +900,11 @@ static void disk_replace_part_tbl(struct gendisk *disk,
 	struct disk_part_tbl *old_ptbl = disk->part_tbl;
 
 	rcu_assign_pointer(disk->part_tbl, new_ptbl);
-	if (old_ptbl)
+
+	if (old_ptbl) {
+		rcu_assign_pointer(old_ptbl->last_lookup, NULL);
 		call_rcu(&old_ptbl->rcu_head, disk_free_ptbl_rcu_cb);
+	}
 }
 
 /**
@@ -993,12 +1022,32 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 	return 0;
 }
 
-const struct seq_operations diskstats_op = {
+static const struct seq_operations diskstats_op = {
 	.start	= disk_seqf_start,
 	.next	= disk_seqf_next,
 	.stop	= disk_seqf_stop,
 	.show	= diskstats_show
 };
+
+static int diskstats_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &diskstats_op);
+}
+
+static const struct file_operations proc_diskstats_operations = {
+	.open		= diskstats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+static int __init proc_genhd_init(void)
+{
+	proc_create("diskstats", 0, NULL, &proc_diskstats_operations);
+	proc_create("partitions", 0, NULL, &proc_partitions_operations);
+	return 0;
+}
+module_init(proc_genhd_init);
 #endif /* CONFIG_PROC_FS */
 
 static void media_change_notify_thread(struct work_struct *work)
@@ -1068,6 +1117,7 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 			kfree(disk);
 			return NULL;
 		}
+		disk->node_id = node_id;
 		if (disk_expand_part_tbl(disk, 0)) {
 			free_part_stats(&disk->part0);
 			kfree(disk);
@@ -1082,7 +1132,6 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 		device_initialize(disk_to_dev(disk));
 		INIT_WORK(&disk->async_notify,
 			media_change_notify_thread);
-		disk->node_id = node_id;
 	}
 	return disk;
 }

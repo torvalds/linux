@@ -62,11 +62,6 @@ static inline void str2eaddr(unsigned char *ea, unsigned char *str)
 }
 #endif
 
-unsigned long read_persistent_clock(void)
-{
-	return mc146818_get_cmos_time();
-}
-
 /* An arbitrary time; this can be decreased if reliability looks good */
 #define WAIT_MS 10
 

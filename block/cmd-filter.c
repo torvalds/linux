@@ -27,7 +27,7 @@
 #include <linux/cdrom.h>
 
 int blk_verify_command(struct blk_cmd_filter *filter,
-		       unsigned char *cmd, int has_write_perm)
+		       unsigned char *cmd, fmode_t has_write_perm)
 {
 	/* root can do any command. */
 	if (capable(CAP_SYS_RAWIO))

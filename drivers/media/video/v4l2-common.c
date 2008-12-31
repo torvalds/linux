@@ -28,7 +28,7 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  *
- * Author:	Alan Cox, <alan@redhat.com>
+ * Author:	Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *
  * Fixes:
  */
@@ -58,11 +58,8 @@
 #include <asm/div64.h>
 #define __OLD_VIDIOC_ /* To allow fixing old calls*/
 #include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
 
 #include <linux/videodev2.h>
 
@@ -324,6 +321,19 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"Private packet, IVTV format",
 		NULL
 	};
+	static const char *camera_power_line_frequency[] = {
+		"Disabled",
+		"50 Hz",
+		"60 Hz",
+		NULL
+	};
+	static const char *camera_exposure_auto[] = {
+		"Auto Mode",
+		"Manual Mode",
+		"Shutter Priority Mode",
+		"Aperture Priority Mode",
+		NULL
+	};
 
 	switch (id) {
 		case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
@@ -356,6 +366,10 @@ const char **v4l2_ctrl_get_menu(u32 id)
 			return mpeg_stream_type;
 		case V4L2_CID_MPEG_STREAM_VBI_FMT:
 			return mpeg_stream_vbi_fmt;
+		case V4L2_CID_POWER_LINE_FREQUENCY:
+			return camera_power_line_frequency;
+		case V4L2_CID_EXPOSURE_AUTO:
+			return camera_exposure_auto;
 		default:
 			return NULL;
 	}
@@ -367,17 +381,37 @@ const char *v4l2_ctrl_get_name(u32 id)
 {
 	switch (id) {
 	/* USER controls */
-	case V4L2_CID_USER_CLASS: 	return "User Controls";
-	case V4L2_CID_AUDIO_VOLUME: 	return "Volume";
-	case V4L2_CID_AUDIO_MUTE: 	return "Mute";
-	case V4L2_CID_AUDIO_BALANCE: 	return "Balance";
-	case V4L2_CID_AUDIO_BASS: 	return "Bass";
-	case V4L2_CID_AUDIO_TREBLE: 	return "Treble";
-	case V4L2_CID_AUDIO_LOUDNESS: 	return "Loudness";
-	case V4L2_CID_BRIGHTNESS: 	return "Brightness";
-	case V4L2_CID_CONTRAST: 	return "Contrast";
-	case V4L2_CID_SATURATION: 	return "Saturation";
-	case V4L2_CID_HUE: 		return "Hue";
+	case V4L2_CID_USER_CLASS: 		return "User Controls";
+	case V4L2_CID_AUDIO_VOLUME: 		return "Volume";
+	case V4L2_CID_AUDIO_MUTE: 		return "Mute";
+	case V4L2_CID_AUDIO_BALANCE: 		return "Balance";
+	case V4L2_CID_AUDIO_BASS: 		return "Bass";
+	case V4L2_CID_AUDIO_TREBLE: 		return "Treble";
+	case V4L2_CID_AUDIO_LOUDNESS: 		return "Loudness";
+	case V4L2_CID_BRIGHTNESS: 		return "Brightness";
+	case V4L2_CID_CONTRAST: 		return "Contrast";
+	case V4L2_CID_SATURATION: 		return "Saturation";
+	case V4L2_CID_HUE: 			return "Hue";
+	case V4L2_CID_BLACK_LEVEL:		return "Black Level";
+	case V4L2_CID_AUTO_WHITE_BALANCE:	return "White Balance, Automatic";
+	case V4L2_CID_DO_WHITE_BALANCE:		return "Do White Balance";
+	case V4L2_CID_RED_BALANCE:		return "Red Balance";
+	case V4L2_CID_BLUE_BALANCE:		return "Blue Balance";
+	case V4L2_CID_GAMMA:			return "Gamma";
+	case V4L2_CID_EXPOSURE:			return "Exposure";
+	case V4L2_CID_AUTOGAIN:			return "Gain, Automatic";
+	case V4L2_CID_GAIN:			return "Gain";
+	case V4L2_CID_HFLIP:			return "Horizontal Flip";
+	case V4L2_CID_VFLIP:			return "Vertical Flip";
+	case V4L2_CID_HCENTER:			return "Horizontal Center";
+	case V4L2_CID_VCENTER:			return "Vertical Center";
+	case V4L2_CID_POWER_LINE_FREQUENCY:	return "Power Line Frequency";
+	case V4L2_CID_HUE_AUTO:			return "Hue, Automatic";
+	case V4L2_CID_WHITE_BALANCE_TEMPERATURE: return "White Balance Temperature";
+	case V4L2_CID_SHARPNESS:		return "Sharpness";
+	case V4L2_CID_BACKLIGHT_COMPENSATION:	return "Backlight Compensation";
+	case V4L2_CID_CHROMA_AGC:		return "Chroma AGC";
+	case V4L2_CID_COLOR_KILLER:		return "Color Killer";
 
 	/* MPEG controls */
 	case V4L2_CID_MPEG_CLASS: 		return "MPEG Encoder Controls";
@@ -414,6 +448,25 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_STREAM_PES_ID_VIDEO: return "Stream PES Video ID";
 	case V4L2_CID_MPEG_STREAM_VBI_FMT:	return "Stream VBI Format";
 
+	/* CAMERA controls */
+	case V4L2_CID_CAMERA_CLASS:		return "Camera Controls";
+	case V4L2_CID_EXPOSURE_AUTO:		return "Auto Exposure";
+	case V4L2_CID_EXPOSURE_ABSOLUTE:	return "Exposure Time, Absolute";
+	case V4L2_CID_EXPOSURE_AUTO_PRIORITY:	return "Exposure, Dynamic Framerate";
+	case V4L2_CID_PAN_RELATIVE:		return "Pan, Relative";
+	case V4L2_CID_TILT_RELATIVE:		return "Tilt, Relative";
+	case V4L2_CID_PAN_RESET:		return "Pan, Reset";
+	case V4L2_CID_TILT_RESET:		return "Tilt, Reset";
+	case V4L2_CID_PAN_ABSOLUTE:		return "Pan, Absolute";
+	case V4L2_CID_TILT_ABSOLUTE:		return "Tilt, Absolute";
+	case V4L2_CID_FOCUS_ABSOLUTE:		return "Focus, Absolute";
+	case V4L2_CID_FOCUS_RELATIVE:		return "Focus, Relative";
+	case V4L2_CID_FOCUS_AUTO:		return "Focus, Automatic";
+	case V4L2_CID_ZOOM_ABSOLUTE:		return "Zoom, Absolute";
+	case V4L2_CID_ZOOM_RELATIVE:		return "Zoom, Relative";
+	case V4L2_CID_ZOOM_CONTINUOUS:		return "Zoom, Continuous";
+	case V4L2_CID_PRIVACY:			return "Privacy";
+
 	default:
 		return NULL;
 	}
@@ -432,14 +485,22 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	switch (qctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 	case V4L2_CID_AUDIO_LOUDNESS:
+	case V4L2_CID_AUTO_WHITE_BALANCE:
+	case V4L2_CID_AUTOGAIN:
+	case V4L2_CID_HFLIP:
+	case V4L2_CID_VFLIP:
+	case V4L2_CID_HUE_AUTO:
 	case V4L2_CID_MPEG_AUDIO_MUTE:
 	case V4L2_CID_MPEG_VIDEO_MUTE:
 	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
 	case V4L2_CID_MPEG_VIDEO_PULLDOWN:
+	case V4L2_CID_EXPOSURE_AUTO_PRIORITY:
+	case V4L2_CID_PRIVACY:
 		qctrl->type = V4L2_CTRL_TYPE_BOOLEAN;
 		min = 0;
 		max = step = 1;
 		break;
+	case V4L2_CID_POWER_LINE_FREQUENCY:
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
@@ -455,10 +516,12 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
 	case V4L2_CID_MPEG_STREAM_TYPE:
 	case V4L2_CID_MPEG_STREAM_VBI_FMT:
+	case V4L2_CID_EXPOSURE_AUTO:
 		qctrl->type = V4L2_CTRL_TYPE_MENU;
 		step = 1;
 		break;
 	case V4L2_CID_USER_CLASS:
+	case V4L2_CID_CAMERA_CLASS:
 	case V4L2_CID_MPEG_CLASS:
 		qctrl->type = V4L2_CTRL_TYPE_CTRL_CLASS;
 		qctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
@@ -805,4 +868,116 @@ int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver 
 	return err != -ENOMEM ? 0 : err;
 }
 EXPORT_SYMBOL(v4l2_i2c_attach);
+
+void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
+		const struct v4l2_subdev_ops *ops)
+{
+	v4l2_subdev_init(sd, ops);
+	/* the owner is the same as the i2c_client's driver owner */
+	sd->owner = client->driver->driver.owner;
+	/* i2c_client and v4l2_subdev point to one another */
+	v4l2_set_subdevdata(sd, client);
+	i2c_set_clientdata(client, sd);
+	/* initialize name */
+	snprintf(sd->name, sizeof(sd->name), "%s %d-%04x",
+		client->driver->driver.name, i2c_adapter_id(client->adapter),
+		client->addr);
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_init);
+
+
+
+/* Load an i2c sub-device. It assumes that i2c_get_adapdata(adapter)
+   returns the v4l2_device and that i2c_get_clientdata(client)
+   returns the v4l2_subdev. */
+struct v4l2_subdev *v4l2_i2c_new_subdev(struct i2c_adapter *adapter,
+		const char *module_name, const char *client_type, u8 addr)
+{
+	struct v4l2_device *dev = i2c_get_adapdata(adapter);
+	struct v4l2_subdev *sd = NULL;
+	struct i2c_client *client;
+	struct i2c_board_info info;
+
+	BUG_ON(!dev);
+#ifdef MODULE
+	if (module_name)
+		request_module(module_name);
+#endif
+	/* Setup the i2c board info with the device type and
+	   the device address. */
+	memset(&info, 0, sizeof(info));
+	strlcpy(info.type, client_type, sizeof(info.type));
+	info.addr = addr;
+
+	/* Create the i2c client */
+	client = i2c_new_device(adapter, &info);
+	/* Note: it is possible in the future that
+	   c->driver is NULL if the driver is still being loaded.
+	   We need better support from the kernel so that we
+	   can easily wait for the load to finish. */
+	if (client == NULL || client->driver == NULL)
+		return NULL;
+
+	/* Lock the module so we can safely get the v4l2_subdev pointer */
+	if (!try_module_get(client->driver->driver.owner))
+		return NULL;
+	sd = i2c_get_clientdata(client);
+
+	/* Register with the v4l2_device which increases the module's
+	   use count as well. */
+	if (v4l2_device_register_subdev(dev, sd))
+		sd = NULL;
+	/* Decrease the module use count to match the first try_module_get. */
+	module_put(client->driver->driver.owner);
+	return sd;
+
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev);
+
+/* Probe and load an i2c sub-device. It assumes that i2c_get_adapdata(adapter)
+   returns the v4l2_device and that i2c_get_clientdata(client)
+   returns the v4l2_subdev. */
+struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
+	const char *module_name, const char *client_type,
+	const unsigned short *addrs)
+{
+	struct v4l2_device *dev = i2c_get_adapdata(adapter);
+	struct v4l2_subdev *sd = NULL;
+	struct i2c_client *client = NULL;
+	struct i2c_board_info info;
+
+	BUG_ON(!dev);
+#ifdef MODULE
+	if (module_name)
+		request_module(module_name);
+#endif
+	/* Setup the i2c board info with the device type and
+	   the device address. */
+	memset(&info, 0, sizeof(info));
+	strlcpy(info.type, client_type, sizeof(info.type));
+
+	/* Probe and create the i2c client */
+	client = i2c_new_probed_device(adapter, &info, addrs);
+	/* Note: it is possible in the future that
+	   c->driver is NULL if the driver is still being loaded.
+	   We need better support from the kernel so that we
+	   can easily wait for the load to finish. */
+	if (client == NULL || client->driver == NULL)
+		return NULL;
+
+	/* Lock the module so we can safely get the v4l2_subdev pointer */
+	if (!try_module_get(client->driver->driver.owner))
+		return NULL;
+	sd = i2c_get_clientdata(client);
+
+	/* Register with the v4l2_device which increases the module's
+	   use count as well. */
+	if (v4l2_device_register_subdev(dev, sd))
+		sd = NULL;
+	/* Decrease the module use count to match the first try_module_get. */
+	module_put(client->driver->driver.owner);
+	return sd;
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev);
+
 #endif

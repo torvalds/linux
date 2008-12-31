@@ -1,7 +1,7 @@
 /*
  * Non Fatal Machine Check Exception Reporting
  *
- * (C) Copyright 2002 Dave Jones. <davej@codemonkey.org.uk>
+ * (C) Copyright 2002 Dave Jones. <davej@redhat.com>
  *
  * This file contains routines to check for non-fatal MCEs every 15s
  *

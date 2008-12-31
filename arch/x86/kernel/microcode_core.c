@@ -99,7 +99,7 @@ MODULE_LICENSE("GPL");
 
 #define MICROCODE_VERSION 	"2.00"
 
-struct microcode_ops *microcode_ops;
+static struct microcode_ops *microcode_ops;
 
 /* no concurrent ->write()s are allowed on /dev/cpu/microcode */
 static DEFINE_MUTEX(microcode_mutex);
@@ -203,7 +203,7 @@ MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 #endif
 
 /* fake device for request_firmware */
-struct platform_device *microcode_pdev;
+static struct platform_device *microcode_pdev;
 
 static ssize_t reload_store(struct sys_device *dev,
 			    struct sysdev_attribute *attr,
@@ -272,13 +272,18 @@ static struct attribute_group mc_attr_group = {
 	.name = "microcode",
 };
 
-static void microcode_fini_cpu(int cpu)
+static void __microcode_fini_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
-	mutex_lock(&microcode_mutex);
 	microcode_ops->microcode_fini_cpu(cpu);
 	uci->valid = 0;
+}
+
+static void microcode_fini_cpu(int cpu)
+{
+	mutex_lock(&microcode_mutex);
+	__microcode_fini_cpu(cpu);
 	mutex_unlock(&microcode_mutex);
 }
 
@@ -306,12 +311,16 @@ static int microcode_resume_cpu(int cpu)
 	 * to this cpu (a bit of paranoia):
 	 */
 	if (microcode_ops->collect_cpu_info(cpu, &nsig)) {
-		microcode_fini_cpu(cpu);
+		__microcode_fini_cpu(cpu);
+		printk(KERN_ERR "failed to collect_cpu_info for resuming cpu #%d\n",
+				cpu);
 		return -1;
 	}
 
-	if (memcmp(&nsig, &uci->cpu_sig, sizeof(nsig))) {
-		microcode_fini_cpu(cpu);
+	if ((nsig.sig != uci->cpu_sig.sig) || (nsig.pf != uci->cpu_sig.pf)) {
+		__microcode_fini_cpu(cpu);
+		printk(KERN_ERR "cached ucode doesn't match the resuming cpu #%d\n",
+				cpu);
 		/* Should we look for a new ucode here? */
 		return 1;
 	}
@@ -319,7 +328,7 @@ static int microcode_resume_cpu(int cpu)
 	return 0;
 }
 
-void microcode_update_cpu(int cpu)
+static void microcode_update_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	int err = 0;
@@ -480,8 +489,8 @@ static int __init microcode_init(void)
 
 	printk(KERN_INFO
 	       "Microcode Update Driver: v" MICROCODE_VERSION
-	       " <tigran@aivazian.fsnet.co.uk>"
-	       " <peter.oruba@amd.com>\n");
+	       " <tigran@aivazian.fsnet.co.uk>,"
+	       " Peter Oruba\n");
 
 	return 0;
 }

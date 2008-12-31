@@ -147,7 +147,7 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 		"	ori	%[ticket], %[ticket], 0x2000		\n"
 		"	xori	%[ticket], %[ticket], 0x2000		\n"
 		"	sc	%[ticket], %[ticket_ptr]		\n"
-		"	beqzl	%[ticket], 2f				\n"
+		"	beqzl	%[ticket], 1b				\n"
 		: [ticket_ptr] "+m" (lock->lock),
 		  [ticket] "=&r" (tmp));
 	} else {

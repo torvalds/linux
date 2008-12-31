@@ -73,7 +73,7 @@ static int emi62_writememory(struct usb_device *dev, int address,
 static int emi62_set_reset (struct usb_device *dev, unsigned char reset_bit)
 {
 	int response;
-	info("%s - %d", __func__, reset_bit);
+	dev_info(&dev->dev, "%s - %d\n", __func__, reset_bit);
 	
 	response = emi62_writememory (dev, CPUCS_REG, &reset_bit, 1, 0xa0);
 	if (response < 0) {
@@ -271,7 +271,7 @@ static int emi62_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct usb_device *dev = interface_to_usbdev(intf);
 	dev_dbg(&intf->dev, "emi62_probe\n");
 
-	info("%s start", __func__);
+	dev_info(&intf->dev, "%s start\n", __func__);
 
 	emi62_load_firmware(dev);
 

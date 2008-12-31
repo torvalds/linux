@@ -9,7 +9,7 @@
 #include <hwregs/reg_map.h>
 #include <hwregs/ser_defs.h>
 #include <hwregs/dma_defs.h>
-#include <asm/arch/mach/pinmux.h>
+#include <mach/pinmux.h>
 
 struct dbg_port
 {

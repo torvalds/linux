@@ -57,7 +57,6 @@
 #define DBG(fmt...)
 #endif
 
-int smp_hw_index[NR_CPUS];
 struct thread_info *secondary_ti;
 
 cpumask_t cpu_possible_map = CPU_MASK_NONE;
@@ -101,8 +100,7 @@ void smp_message_recv(int msg)
 		generic_smp_call_function_interrupt();
 		break;
 	case PPC_MSG_RESCHEDULE:
-		/* XXX Do we have to do this? */
-		set_need_resched();
+		/* we notice need_resched on exit */
 		break;
 	case PPC_MSG_CALL_FUNC_SINGLE:
 		generic_smp_call_function_single_interrupt();
@@ -122,6 +120,65 @@ void smp_message_recv(int msg)
 		       smp_processor_id(), msg);
 		break;
 	}
+}
+
+static irqreturn_t call_function_action(int irq, void *data)
+{
+	generic_smp_call_function_interrupt();
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t reschedule_action(int irq, void *data)
+{
+	/* we just need the return path side effect of checking need_resched */
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t call_function_single_action(int irq, void *data)
+{
+	generic_smp_call_function_single_interrupt();
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t debug_ipi_action(int irq, void *data)
+{
+	smp_message_recv(PPC_MSG_DEBUGGER_BREAK);
+	return IRQ_HANDLED;
+}
+
+static irq_handler_t smp_ipi_action[] = {
+	[PPC_MSG_CALL_FUNCTION] =  call_function_action,
+	[PPC_MSG_RESCHEDULE] = reschedule_action,
+	[PPC_MSG_CALL_FUNC_SINGLE] = call_function_single_action,
+	[PPC_MSG_DEBUGGER_BREAK] = debug_ipi_action,
+};
+
+const char *smp_ipi_name[] = {
+	[PPC_MSG_CALL_FUNCTION] =  "ipi call function",
+	[PPC_MSG_RESCHEDULE] = "ipi reschedule",
+	[PPC_MSG_CALL_FUNC_SINGLE] = "ipi call function single",
+	[PPC_MSG_DEBUGGER_BREAK] = "ipi debugger",
+};
+
+/* optional function to request ipi, for controllers with >= 4 ipis */
+int smp_request_message_ipi(int virq, int msg)
+{
+	int err;
+
+	if (msg < 0 || msg > PPC_MSG_DEBUGGER_BREAK) {
+		return -EINVAL;
+	}
+#if !defined(CONFIG_DEBUGGER) && !defined(CONFIG_KEXEC)
+	if (msg == PPC_MSG_DEBUGGER_BREAK) {
+		return 1;
+	}
+#endif
+	err = request_irq(virq, smp_ipi_action[msg], IRQF_DISABLED|IRQF_PERCPU,
+			  smp_ipi_name[msg], 0);
+	WARN(err < 0, "unable to request_irq %d for %s (rc %d)\n",
+		virq, smp_ipi_name[msg], err);
+
+	return err;
 }
 
 void smp_send_reschedule(int cpu)
@@ -409,8 +466,7 @@ out:
 static struct device_node *cpu_to_l2cache(int cpu)
 {
 	struct device_node *np;
-	const phandle *php;
-	phandle ph;
+	struct device_node *cache;
 
 	if (!cpu_present(cpu))
 		return NULL;
@@ -419,13 +475,11 @@ static struct device_node *cpu_to_l2cache(int cpu)
 	if (np == NULL)
 		return NULL;
 
-	php = of_get_property(np, "l2-cache", NULL);
-	if (php == NULL)
-		return NULL;
-	ph = *php;
+	cache = of_find_next_cache_node(np);
+
 	of_node_put(np);
 
-	return of_find_node_by_phandle(ph);
+	return cache;
 }
 
 /* Activate a secondary processor. */

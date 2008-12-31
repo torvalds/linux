@@ -343,6 +343,7 @@ static irqreturn_t bt3c_interrupt(int irq, void *dev_inst)
 	bt3c_info_t *info = dev_inst;
 	unsigned int iobase;
 	int iir;
+	irqreturn_t r = IRQ_NONE;
 
 	BUG_ON(!info->hdev);
 
@@ -374,11 +375,12 @@ static irqreturn_t bt3c_interrupt(int irq, void *dev_inst)
 
 			outb(iir, iobase + CONTROL);
 		}
+		r = IRQ_HANDLED;
 	}
 
 	spin_unlock(&(info->lock));
 
-	return IRQ_HANDLED;
+	return r;
 }
 
 
@@ -500,15 +502,15 @@ static int bt3c_load_firmware(bt3c_info_t *info, const unsigned char *firmware,
 
 		memset(b, 0, sizeof(b));
 		memcpy(b, ptr + 2, 2);
-		size = simple_strtol(b, NULL, 16);
+		size = simple_strtoul(b, NULL, 16);
 
 		memset(b, 0, sizeof(b));
 		memcpy(b, ptr + 4, 8);
-		addr = simple_strtol(b, NULL, 16);
+		addr = simple_strtoul(b, NULL, 16);
 
 		memset(b, 0, sizeof(b));
 		memcpy(b, ptr + (size * 2) + 2, 2);
-		fcs = simple_strtol(b, NULL, 16);
+		fcs = simple_strtoul(b, NULL, 16);
 
 		memset(b, 0, sizeof(b));
 		for (tmp = 0, i = 0; i < size; i++) {
@@ -528,7 +530,7 @@ static int bt3c_load_firmware(bt3c_info_t *info, const unsigned char *firmware,
 			memset(b, 0, sizeof(b));
 			for (i = 0; i < (size - 4) / 2; i++) {
 				memcpy(b, ptr + (i * 4) + 12, 4);
-				tmp = simple_strtol(b, NULL, 16);
+				tmp = simple_strtoul(b, NULL, 16);
 				bt3c_put(iobase, tmp);
 			}
 		}
@@ -657,7 +659,7 @@ static int bt3c_probe(struct pcmcia_device *link)
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.NumPorts1 = 8;
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 
 	link->irq.Handler = bt3c_interrupt;

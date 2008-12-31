@@ -87,12 +87,12 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 	int len;
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
-		len = snprintf(&buf[*idx], buf_len - *idx, "[" NIP6_FMT "]",
-			       NIP6(addr->in6)) + 1;
+		len = snprintf(&buf[*idx], buf_len - *idx, "[%pI6]",
+			       &addr->in6) + 1;
 	else
 #endif
-		len = snprintf(&buf[*idx], buf_len - *idx, NIPQUAD_FMT,
-			       NIPQUAD(addr->ip)) + 1;
+		len = snprintf(&buf[*idx], buf_len - *idx, "%pI4",
+			       &addr->ip) + 1;
 
 	*idx += len;
 	BUG_ON(*idx > buf_len + 1);
@@ -165,13 +165,13 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
     do {								\
 	    if (level <= ip_vs_get_debug_level())			\
 		    printk(KERN_DEBUG "Enter: %s, %s line %i\n",	\
-			   __FUNCTION__, __FILE__, __LINE__);		\
+			   __func__, __FILE__, __LINE__);		\
     } while (0)
 #define LeaveFunction(level)                                            \
     do {                                                                \
 	    if (level <= ip_vs_get_debug_level())                       \
 			printk(KERN_DEBUG "Leave: %s, %s line %i\n",    \
-			       __FUNCTION__, __FILE__, __LINE__);       \
+			       __func__, __FILE__, __LINE__);       \
     } while (0)
 #else
 #define EnterFunction(level)   do {} while (0)
@@ -503,9 +503,6 @@ struct ip_vs_scheduler {
 	char			*name;		/* scheduler name */
 	atomic_t		refcnt;		/* reference counter */
 	struct module		*module;	/* THIS_MODULE/NULL */
-#ifdef CONFIG_IP_VS_IPV6
-	int			supports_ipv6;	/* scheduler has IPv6 support */
-#endif
 
 	/* scheduler initializing service */
 	int (*init_service)(struct ip_vs_service *svc);
@@ -916,7 +913,7 @@ static inline __wsum ip_vs_check_diff4(__be32 old, __be32 new, __wsum oldsum)
 {
 	__be32 diff[2] = { ~old, new };
 
-	return csum_partial((char *) diff, sizeof(diff), oldsum);
+	return csum_partial(diff, sizeof(diff), oldsum);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -926,7 +923,7 @@ static inline __wsum ip_vs_check_diff16(const __be32 *old, const __be32 *new,
 	__be32 diff[8] = { ~old[3], ~old[2], ~old[1], ~old[0],
 			    new[3],  new[2],  new[1],  new[0] };
 
-	return csum_partial((char *) diff, sizeof(diff), oldsum);
+	return csum_partial(diff, sizeof(diff), oldsum);
 }
 #endif
 
@@ -934,7 +931,7 @@ static inline __wsum ip_vs_check_diff2(__be16 old, __be16 new, __wsum oldsum)
 {
 	__be16 diff[2] = { ~old, new };
 
-	return csum_partial((char *) diff, sizeof(diff), oldsum);
+	return csum_partial(diff, sizeof(diff), oldsum);
 }
 
 #endif /* __KERNEL__ */

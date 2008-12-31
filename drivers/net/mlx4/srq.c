@@ -245,7 +245,7 @@ int mlx4_init_srq_table(struct mlx4_dev *dev)
 	INIT_RADIX_TREE(&srq_table->tree, GFP_ATOMIC);
 
 	err = mlx4_bitmap_init(&srq_table->bitmap, dev->caps.num_srqs,
-			       dev->caps.num_srqs - 1, dev->caps.reserved_srqs);
+			       dev->caps.num_srqs - 1, dev->caps.reserved_srqs, 0);
 	if (err)
 		return err;
 

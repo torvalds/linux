@@ -305,6 +305,23 @@ tun_net_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static const struct net_device_ops tun_netdev_ops = {
+	.ndo_open		= tun_net_open,
+	.ndo_stop		= tun_net_close,
+	.ndo_start_xmit		= tun_net_xmit,
+	.ndo_change_mtu		= tun_net_change_mtu,
+};
+
+static const struct net_device_ops tap_netdev_ops = {
+	.ndo_open		= tun_net_open,
+	.ndo_stop		= tun_net_close,
+	.ndo_start_xmit		= tun_net_xmit,
+	.ndo_change_mtu		= tun_net_change_mtu,
+	.ndo_set_multicast_list	= tun_net_mclist,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /* Initialize net device. */
 static void tun_net_init(struct net_device *dev)
 {
@@ -312,11 +329,12 @@ static void tun_net_init(struct net_device *dev)
 
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case TUN_TUN_DEV:
+		dev->netdev_ops = &tun_netdev_ops;
+
 		/* Point-to-Point TUN Device */
 		dev->hard_header_len = 0;
 		dev->addr_len = 0;
 		dev->mtu = 1500;
-		dev->change_mtu = tun_net_change_mtu;
 
 		/* Zero header length */
 		dev->type = ARPHRD_NONE;
@@ -325,10 +343,9 @@ static void tun_net_init(struct net_device *dev)
 		break;
 
 	case TUN_TAP_DEV:
+		dev->netdev_ops = &tap_netdev_ops;
 		/* Ethernet TAP Device */
 		ether_setup(dev);
-		dev->change_mtu         = tun_net_change_mtu;
-		dev->set_multicast_list = tun_net_mclist;
 
 		random_ether_addr(dev->dev_addr);
 
@@ -529,7 +546,6 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 	}
 
 	netif_rx_ni(skb);
-	tun->dev->last_rx = jiffies;
 
 	tun->dev->stats.rx_packets++;
 	tun->dev->stats.rx_bytes += len;
@@ -676,9 +692,6 @@ static void tun_setup(struct net_device *dev)
 	tun->owner = -1;
 	tun->group = -1;
 
-	dev->open = tun_net_open;
-	dev->hard_start_xmit = tun_net_xmit;
-	dev->stop = tun_net_close;
 	dev->ethtool_ops = &tun_ethtool_ops;
 	dev->destructor = free_netdev;
 	dev->features |= NETIF_F_NETNS_LOCAL;
@@ -702,6 +715,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	struct tun_net *tn;
 	struct tun_struct *tun;
 	struct net_device *dev;
+	const struct cred *cred = current_cred();
 	int err;
 
 	tn = net_generic(net, tun_net_id);
@@ -712,11 +726,12 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		/* Check permissions */
 		if (((tun->owner != -1 &&
-		      current->euid != tun->owner) ||
+		      cred->euid != tun->owner) ||
 		     (tun->group != -1 &&
-		      current->egid != tun->group)) &&
-		     !capable(CAP_NET_ADMIN))
+		      cred->egid != tun->group)) &&
+		    !capable(CAP_NET_ADMIN)) {
 			return -EPERM;
+		}
 	}
 	else if (__dev_get_by_name(net, ifr->ifr_name))
 		return -EINVAL;
@@ -750,6 +765,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			return -ENOMEM;
 
 		dev_net_set(dev, net);
+
 		tun = netdev_priv(dev);
 		tun->dev = dev;
 		tun->flags = flags;
@@ -883,7 +899,6 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 	void __user* argp = (void __user*)arg;
 	struct ifreq ifr;
 	int ret;
-	DECLARE_MAC_BUF(mac);
 
 	if (cmd == TUNSETIFF || _IOC_TYPE(cmd) == 0x89)
 		if (copy_from_user(&ifr, argp, sizeof ifr))
@@ -1011,8 +1026,8 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 
 	case SIOCSIFHWADDR:
 		/* Set hw address */
-		DBG(KERN_DEBUG "%s: set hw address: %s\n",
-			tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
+		DBG(KERN_DEBUG "%s: set hw address: %pM\n",
+			tun->dev->name, ifr.ifr_hwaddr.sa_data);
 
 		rtnl_lock();
 		ret = dev_set_mac_address(tun->dev, &ifr.ifr_hwaddr);
@@ -1069,8 +1084,6 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 		return 0;
 
 	DBG(KERN_INFO "%s: tun_chr_close\n", tun->dev->name);
-
-	tun_chr_fasync(-1, file, 0);
 
 	rtnl_lock();
 

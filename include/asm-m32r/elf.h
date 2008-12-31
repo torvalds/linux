@@ -129,6 +129,6 @@ typedef elf_fpreg_t elf_fpregset_t;
    intent than poking at uname or /proc/cpuinfo.  */
 #define ELF_PLATFORM	(NULL)
 
-#define SET_PERSONALITY(ex, ibcs2) set_personality(PER_LINUX)
+#define SET_PERSONALITY(ex) set_personality(PER_LINUX)
 
 #endif  /* _ASM_M32R__ELF_H */

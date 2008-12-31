@@ -244,7 +244,6 @@ static int joydev_release(struct inode *inode, struct file *file)
 	struct joydev_client *client = file->private_data;
 	struct joydev *joydev = client->joydev;
 
-	joydev_fasync(-1, file, 0);
 	joydev_detach_client(joydev, client);
 	kfree(client);
 

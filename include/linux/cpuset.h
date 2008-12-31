@@ -74,8 +74,6 @@ static inline int cpuset_do_slab_mem_spread(void)
 	return current->flags & PF_SPREAD_SLAB;
 }
 
-extern void cpuset_track_online_nodes(void);
-
 extern int current_cpuset_is_being_rebound(void);
 
 extern void rebuild_sched_domains(void);
@@ -150,8 +148,6 @@ static inline int cpuset_do_slab_mem_spread(void)
 {
 	return 0;
 }
-
-static inline void cpuset_track_online_nodes(void) {}
 
 static inline int current_cpuset_is_being_rebound(void)
 {

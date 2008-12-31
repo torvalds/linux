@@ -13,7 +13,7 @@
 #include <linux/mm.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
-#include <asm/arch/svinto.h>
+#include <arch/svinto.h>
 #include <asm/mmu_context.h>
 
 /* debug of low-level TLB reload */

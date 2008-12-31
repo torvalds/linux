@@ -2,6 +2,7 @@
  *  cx18 functions for DVB support
  *
  *  Copyright (c) 2008 Steven Toth <stoth@linuxtv.org>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -107,20 +108,23 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 	if (!demux->dmx.frontend)
 		return -EINVAL;
 
-	if (stream) {
-		mutex_lock(&stream->dvb.feedlock);
-		if (stream->dvb.feeding++ == 0) {
-			CX18_DEBUG_INFO("Starting Transport DMA\n");
-			ret = cx18_start_v4l2_encode_stream(stream);
-			if (ret < 0) {
-				CX18_DEBUG_INFO(
-					"Failed to start Transport DMA\n");
-				stream->dvb.feeding--;
-			}
-		} else
-			ret = 0;
-		mutex_unlock(&stream->dvb.feedlock);
-	}
+	if (!stream)
+		return -EINVAL;
+
+	mutex_lock(&stream->dvb.feedlock);
+	if (stream->dvb.feeding++ == 0) {
+		CX18_DEBUG_INFO("Starting Transport DMA\n");
+		set_bit(CX18_F_S_STREAMING, &stream->s_flags);
+		ret = cx18_start_v4l2_encode_stream(stream);
+		if (ret < 0) {
+			CX18_DEBUG_INFO("Failed to start Transport DMA\n");
+			stream->dvb.feeding--;
+			if (stream->dvb.feeding == 0)
+				clear_bit(CX18_F_S_STREAMING, &stream->s_flags);
+		}
+	} else
+		ret = 0;
+	mutex_unlock(&stream->dvb.feedlock);
 
 	return ret;
 }
@@ -213,6 +217,10 @@ int cx18_dvb_register(struct cx18_stream *stream)
 	dvb_net_init(dvb_adapter, &dvb->dvbnet, dmx);
 
 	CX18_INFO("DVB Frontend registered\n");
+	CX18_INFO("Registered DVB adapter%d for %s (%d x %d kB)\n",
+		  stream->dvb.dvb_adapter.num, stream->name,
+		  stream->buffers, stream->buf_size/1024);
+
 	mutex_init(&dvb->feedlock);
 	dvb->enabled = 1;
 	return ret;

@@ -88,7 +88,7 @@ void acpi_enable_wakeup_device(u8 sleep_state)
 		spin_unlock(&acpi_device_lock);
 		if (!dev->wakeup.flags.run_wake)
 			acpi_enable_gpe(dev->wakeup.gpe_device,
-					dev->wakeup.gpe_number, ACPI_ISR);
+					dev->wakeup.gpe_number);
 		spin_lock(&acpi_device_lock);
 	}
 	spin_unlock(&acpi_device_lock);
@@ -122,7 +122,7 @@ void acpi_disable_wakeup_device(u8 sleep_state)
 						  ACPI_GPE_TYPE_WAKE_RUN);
 				/* Re-enable it, since set_gpe_type will disable it */
 				acpi_enable_gpe(dev->wakeup.gpe_device,
-						dev->wakeup.gpe_number, ACPI_NOT_ISR);
+						dev->wakeup.gpe_number);
 				spin_lock(&acpi_device_lock);
 			}
 			continue;
@@ -133,7 +133,7 @@ void acpi_disable_wakeup_device(u8 sleep_state)
 		/* Never disable run-wake GPE */
 		if (!dev->wakeup.flags.run_wake) {
 			acpi_disable_gpe(dev->wakeup.gpe_device,
-					 dev->wakeup.gpe_number, ACPI_NOT_ISR);
+					 dev->wakeup.gpe_number);
 			acpi_clear_gpe(dev->wakeup.gpe_device,
 				       dev->wakeup.gpe_number, ACPI_NOT_ISR);
 		}
@@ -162,7 +162,7 @@ static int __init acpi_wakeup_device_init(void)
 				  dev->wakeup.gpe_number,
 				  ACPI_GPE_TYPE_WAKE_RUN);
 		acpi_enable_gpe(dev->wakeup.gpe_device,
-				dev->wakeup.gpe_number, ACPI_NOT_ISR);
+				dev->wakeup.gpe_number);
 		dev->wakeup.state.enabled = 1;
 		spin_lock(&acpi_device_lock);
 	}

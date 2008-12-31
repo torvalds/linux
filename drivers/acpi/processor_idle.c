@@ -59,7 +59,6 @@
 #include <acpi/processor.h>
 #include <asm/processor.h>
 
-#define ACPI_PROCESSOR_COMPONENT        0x01000000
 #define ACPI_PROCESSOR_CLASS            "processor"
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_idle");
@@ -375,15 +374,15 @@ static int tsc_halts_in_c(int state)
 {
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
+	case X86_VENDOR_INTEL:
 		/*
 		 * AMD Fam10h TSC will tick in all
 		 * C/P/S0/S1 states when this bit is set.
 		 */
-		if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
+		if (boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
 			return 0;
+
 		/*FALL THROUGH*/
-	case X86_VENDOR_INTEL:
-		/* Several cases known where TSC halts in C2 too */
 	default:
 		return state > ACPI_STATE_C1;
 	}
@@ -1587,6 +1586,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 
 	if (acpi_idle_bm_check()) {
 		if (dev->safe_state) {
+			dev->last_state = dev->safe_state;
 			return dev->safe_state->enter(dev, dev->safe_state);
 		} else {
 			local_irq_disable();

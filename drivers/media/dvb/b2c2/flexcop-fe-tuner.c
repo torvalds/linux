@@ -628,12 +628,14 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 	}
 
 	/* try the cable dvb (stv0297) */
+	fc->fc_i2c_adap[0].no_base_addr = 1;
 	fc->fe = dvb_attach(stv0297_attach, &alps_tdee4_stv0297_config, i2c);
 	if (fc->fe != NULL) {
 		fc->dev_type = FC_CABLE;
 		fc->fe->ops.tuner_ops.set_params = alps_tdee4_stv0297_tuner_set_params;
 		goto fe_found;
 	}
+	fc->fc_i2c_adap[0].no_base_addr = 0;
 
 	/* try the sky v2.3 (vp310/Samsung tbdu18132(tsa5059)) */
 	fc->fe = dvb_attach(mt312_attach,

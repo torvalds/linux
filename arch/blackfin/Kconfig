@@ -64,7 +64,10 @@ config HARDWARE_PM
 	depends on OPROFILE
 
 source "init/Kconfig"
+
 source "kernel/Kconfig.preempt"
+
+source "kernel/Kconfig.freezer"
 
 menu "Blackfin Processor Options"
 

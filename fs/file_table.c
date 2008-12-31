@@ -36,7 +36,9 @@ static struct percpu_counter nr_files __cacheline_aligned_in_smp;
 
 static inline void file_free_rcu(struct rcu_head *head)
 {
-	struct file *f =  container_of(head, struct file, f_u.fu_rcuhead);
+	struct file *f = container_of(head, struct file, f_u.fu_rcuhead);
+
+	put_cred(f->f_cred);
 	kmem_cache_free(filp_cachep, f);
 }
 
@@ -94,7 +96,7 @@ int proc_nr_files(ctl_table *table, int write, struct file *filp,
  */
 struct file *get_empty_filp(void)
 {
-	struct task_struct *tsk;
+	const struct cred *cred = current_cred();
 	static int old_max;
 	struct file * f;
 
@@ -118,12 +120,10 @@ struct file *get_empty_filp(void)
 	if (security_file_alloc(f))
 		goto fail_sec;
 
-	tsk = current;
 	INIT_LIST_HEAD(&f->f_u.fu_list);
 	atomic_long_set(&f->f_count, 1);
 	rwlock_init(&f->f_owner.lock);
-	f->f_uid = tsk->fsuid;
-	f->f_gid = tsk->fsgid;
+	f->f_cred = get_cred(cred);
 	eventpoll_init_file(f);
 	/* f->f_version: 0 */
 	return f;
@@ -161,7 +161,7 @@ EXPORT_SYMBOL(get_empty_filp);
  * code should be moved into this function.
  */
 struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
-		mode_t mode, const struct file_operations *fop)
+		fmode_t mode, const struct file_operations *fop)
 {
 	struct file *file;
 	struct path;
@@ -193,7 +193,7 @@ EXPORT_SYMBOL(alloc_file);
  * of this should be moving to alloc_file().
  */
 int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
-	   mode_t mode, const struct file_operations *fop)
+	   fmode_t mode, const struct file_operations *fop)
 {
 	int error = 0;
 	file->f_path.dentry = dentry;
@@ -269,6 +269,10 @@ void __fput(struct file *file)
 	eventpoll_release(file);
 	locks_remove_flock(file);
 
+	if (unlikely(file->f_flags & FASYNC)) {
+		if (file->f_op && file->f_op->fasync)
+			file->f_op->fasync(-1, file, 0);
+	}
 	if (file->f_op && file->f_op->release)
 		file->f_op->release(inode, file);
 	security_file_free(file);

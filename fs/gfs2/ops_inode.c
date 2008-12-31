@@ -69,7 +69,7 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 			mark_inode_dirty(inode);
 			break;
 		} else if (PTR_ERR(inode) != -EEXIST ||
-			   (nd && (nd->intent.open.flags & O_EXCL))) {
+			   (nd && nd->flags & LOOKUP_EXCL)) {
 			gfs2_holder_uninit(ghs);
 			return PTR_ERR(inode);
 		}

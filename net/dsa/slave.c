@@ -10,6 +10,7 @@
 
 #include <linux/list.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/phy.h>
 #include "dsa_priv.h"
 
@@ -49,11 +50,57 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 /* slave device handling ****************************************************/
 static int dsa_slave_open(struct net_device *dev)
 {
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct net_device *master = p->parent->master_netdev;
+	int err;
+
+	if (!(master->flags & IFF_UP))
+		return -ENETDOWN;
+
+	if (compare_ether_addr(dev->dev_addr, master->dev_addr)) {
+		err = dev_unicast_add(master, dev->dev_addr, ETH_ALEN);
+		if (err < 0)
+			goto out;
+	}
+
+	if (dev->flags & IFF_ALLMULTI) {
+		err = dev_set_allmulti(master, 1);
+		if (err < 0)
+			goto del_unicast;
+	}
+	if (dev->flags & IFF_PROMISC) {
+		err = dev_set_promiscuity(master, 1);
+		if (err < 0)
+			goto clear_allmulti;
+	}
+
 	return 0;
+
+clear_allmulti:
+	if (dev->flags & IFF_ALLMULTI)
+		dev_set_allmulti(master, -1);
+del_unicast:
+	if (compare_ether_addr(dev->dev_addr, master->dev_addr))
+		dev_unicast_delete(master, dev->dev_addr, ETH_ALEN);
+out:
+	return err;
 }
 
 static int dsa_slave_close(struct net_device *dev)
 {
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct net_device *master = p->parent->master_netdev;
+
+	dev_mc_unsync(master, dev);
+	dev_unicast_unsync(master, dev);
+	if (dev->flags & IFF_ALLMULTI)
+		dev_set_allmulti(master, -1);
+	if (dev->flags & IFF_PROMISC)
+		dev_set_promiscuity(master, -1);
+
+	if (compare_ether_addr(dev->dev_addr, master->dev_addr))
+		dev_unicast_delete(master, dev->dev_addr, ETH_ALEN);
+
 	return 0;
 }
 
@@ -77,9 +124,30 @@ static void dsa_slave_set_rx_mode(struct net_device *dev)
 	dev_unicast_sync(master, dev);
 }
 
-static int dsa_slave_set_mac_address(struct net_device *dev, void *addr)
+static int dsa_slave_set_mac_address(struct net_device *dev, void *a)
 {
-	memcpy(dev->dev_addr, addr + 2, 6);
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct net_device *master = p->parent->master_netdev;
+	struct sockaddr *addr = a;
+	int err;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	if (!(dev->flags & IFF_UP))
+		goto out;
+
+	if (compare_ether_addr(addr->sa_data, master->dev_addr)) {
+		err = dev_unicast_add(master, addr->sa_data, ETH_ALEN);
+		if (err < 0)
+			return err;
+	}
+
+	if (compare_ether_addr(dev->dev_addr, master->dev_addr))
+		dev_unicast_delete(master, dev->dev_addr, ETH_ALEN);
+
+out:
+	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 
 	return 0;
 }
@@ -284,7 +352,7 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	netif_carrier_off(slave_dev);
 
 	if (p->phy != NULL) {
-		phy_attach(slave_dev, p->phy->dev.bus_id,
+		phy_attach(slave_dev, dev_name(&p->phy->dev),
 			   0, PHY_INTERFACE_MODE_GMII);
 
 		p->phy->autoneg = AUTONEG_ENABLE;

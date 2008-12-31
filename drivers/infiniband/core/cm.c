@@ -122,7 +122,7 @@ struct cm_counter_attribute {
 
 #define CM_COUNTER_ATTR(_name, _index) \
 struct cm_counter_attribute cm_##_name##_counter_attr = { \
-	.attr = { .name = __stringify(_name), .mode = 0444, .owner = THIS_MODULE }, \
+	.attr = { .name = __stringify(_name), .mode = 0444 }, \
 	.index = _index \
 }
 
@@ -3691,9 +3691,9 @@ static void cm_add_one(struct ib_device *ib_device)
 	cm_dev->ib_device = ib_device;
 	cm_get_ack_delay(cm_dev);
 
-	cm_dev->device = device_create_drvdata(&cm_class, &ib_device->dev,
-					       MKDEV(0, 0), NULL,
-					       "%s", ib_device->name);
+	cm_dev->device = device_create(&cm_class, &ib_device->dev,
+				       MKDEV(0, 0), NULL,
+				       "%s", ib_device->name);
 	if (!cm_dev->device) {
 		kfree(cm_dev);
 		return;

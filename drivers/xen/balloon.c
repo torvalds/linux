@@ -41,17 +41,18 @@
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/mutex.h>
-#include <linux/highmem.h>
 #include <linux/list.h>
 #include <linux/sysdev.h>
 
-#include <asm/xen/hypervisor.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/tlb.h>
 
+#include <asm/xen/hypervisor.h>
+#include <asm/xen/hypercall.h>
+#include <xen/interface/xen.h>
 #include <xen/interface/memory.h>
 #include <xen/xenbus.h>
 #include <xen/features.h>
@@ -123,14 +124,7 @@ static struct timer_list balloon_timer;
 static void scrub_page(struct page *page)
 {
 #ifdef CONFIG_XEN_SCRUB_PAGES
-	if (PageHighMem(page)) {
-		void *v = kmap(page);
-		clear_page(v);
-		kunmap(v);
-	} else {
-		void *v = page_address(page);
-		clear_page(v);
-	}
+	clear_highpage(page);
 #endif
 }
 

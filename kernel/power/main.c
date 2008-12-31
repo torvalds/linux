@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
+#include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/cpu.h>
@@ -21,7 +22,6 @@
 #include <linux/freezer.h>
 #include <linux/vmstat.h>
 #include <linux/syscalls.h>
-#include <linux/ftrace.h>
 
 #include "power.h"
 
@@ -173,7 +173,7 @@ static void suspend_test_finish(const char *label)
 	 * has some performance issues.  The stack dump of a WARN_ON
 	 * is more likely to get the right attention than a printk...
 	 */
-	WARN_ON(msec > (TEST_SUSPEND_SECONDS * 1000));
+	WARN(msec > (TEST_SUSPEND_SECONDS * 1000), "Component: %s\n", label);
 }
 
 #else
@@ -237,6 +237,10 @@ static int suspend_prepare(void)
 	if (error)
 		goto Finish;
 
+	error = usermodehelper_disable();
+	if (error)
+		goto Finish;
+
 	if (suspend_freeze_processes()) {
 		error = -EAGAIN;
 		goto Thaw;
@@ -256,6 +260,7 @@ static int suspend_prepare(void)
 
  Thaw:
 	suspend_thaw_processes();
+	usermodehelper_enable();
  Finish:
 	pm_notifier_call_chain(PM_POST_SUSPEND);
 	pm_restore_console();
@@ -311,7 +316,7 @@ static int suspend_enter(suspend_state_t state)
  */
 int suspend_devices_and_enter(suspend_state_t state)
 {
-	int error, ftrace_save;
+	int error;
 
 	if (!suspend_ops)
 		return -ENOSYS;
@@ -322,7 +327,6 @@ int suspend_devices_and_enter(suspend_state_t state)
 			goto Close;
 	}
 	suspend_console();
-	ftrace_save = __ftrace_enabled_save();
 	suspend_test_start();
 	error = device_suspend(PMSG_SUSPEND);
 	if (error) {
@@ -354,7 +358,6 @@ int suspend_devices_and_enter(suspend_state_t state)
 	suspend_test_start();
 	device_resume(PMSG_RESUME);
 	suspend_test_finish("resume devices");
-	__ftrace_enabled_restore(ftrace_save);
 	resume_console();
  Close:
 	if (suspend_ops->end)
@@ -376,6 +379,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 static void suspend_finish(void)
 {
 	suspend_thaw_processes();
+	usermodehelper_enable();
 	pm_notifier_call_chain(PM_POST_SUSPEND);
 	pm_restore_console();
 }

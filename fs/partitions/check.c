@@ -195,6 +195,14 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	return ERR_PTR(res);
 }
 
+static ssize_t part_partition_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct hd_struct *p = dev_to_part(dev);
+
+	return sprintf(buf, "%d\n", p->partno);
+}
+
 static ssize_t part_start_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -260,6 +268,7 @@ ssize_t part_fail_store(struct device *dev,
 }
 #endif
 
+static DEVICE_ATTR(partition, S_IRUGO, part_partition_show, NULL);
 static DEVICE_ATTR(start, S_IRUGO, part_start_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
 static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
@@ -269,6 +278,7 @@ static struct device_attribute dev_attr_fail =
 #endif
 
 static struct attribute *part_attrs[] = {
+	&dev_attr_partition.attr,
 	&dev_attr_start.attr,
 	&dev_attr_size.attr,
 	&dev_attr_stat.attr,
@@ -338,8 +348,8 @@ static ssize_t whole_disk_show(struct device *dev,
 static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
 		   whole_disk_show, NULL);
 
-int add_partition(struct gendisk *disk, int partno,
-		  sector_t start, sector_t len, int flags)
+struct hd_struct *add_partition(struct gendisk *disk, int partno,
+				sector_t start, sector_t len, int flags)
 {
 	struct hd_struct *p;
 	dev_t devt = MKDEV(0, 0);
@@ -351,15 +361,15 @@ int add_partition(struct gendisk *disk, int partno,
 
 	err = disk_expand_part_tbl(disk, partno);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 	ptbl = disk->part_tbl;
 
 	if (ptbl->part[partno])
-		return -EBUSY;
+		return ERR_PTR(-EBUSY);
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return ERR_PTR(-EBUSY);
 
 	if (!init_part_stats(p)) {
 		err = -ENOMEM;
@@ -385,7 +395,7 @@ int add_partition(struct gendisk *disk, int partno,
 
 	err = blk_alloc_devt(p, &devt);
 	if (err)
-		goto out_free;
+		goto out_free_stats;
 	pdev->devt = devt;
 
 	/* delay uevent until 'holders' subdir is created */
@@ -414,18 +424,20 @@ int add_partition(struct gendisk *disk, int partno,
 	if (!ddev->uevent_suppress)
 		kobject_uevent(&pdev->kobj, KOBJ_ADD);
 
-	return 0;
+	return p;
 
+out_free_stats:
+	free_part_stats(p);
 out_free:
 	kfree(p);
-	return err;
+	return ERR_PTR(err);
 out_del:
 	kobject_put(p->holder_dir);
 	device_del(pdev);
 out_put:
 	put_device(pdev);
 	blk_free_devt(devt);
-	return err;
+	return ERR_PTR(err);
 }
 
 /* Not exported, helper to add_disk(). */
@@ -475,10 +487,10 @@ void register_disk(struct gendisk *disk)
 		goto exit;
 
 	bdev->bd_invalidated = 1;
-	err = blkdev_get(bdev, FMODE_READ, 0);
+	err = blkdev_get(bdev, FMODE_READ);
 	if (err < 0)
 		goto exit;
-	blkdev_put(bdev);
+	blkdev_put(bdev, FMODE_READ);
 
 exit:
 	/* announce disk after possible partitions are created */
@@ -538,20 +550,34 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 		sector_t from = state->parts[p].from;
 		if (!size)
 			continue;
-		if (from + size > get_capacity(disk)) {
+		if (from >= get_capacity(disk)) {
 			printk(KERN_WARNING
-				"%s: p%d exceeds device capacity\n",
-				disk->disk_name, p);
+			       "%s: p%d ignored, start %llu is behind the end of the disk\n",
+			       disk->disk_name, p, (unsigned long long) from);
+			continue;
 		}
-		res = add_partition(disk, p, from, size, state->parts[p].flags);
-		if (res) {
-			printk(KERN_ERR " %s: p%d could not be added: %d\n",
-				disk->disk_name, p, -res);
+		if (from + size > get_capacity(disk)) {
+			/*
+			 * we can not ignore partitions of broken tables
+			 * created by for example camera firmware, but we
+			 * limit them to the end of the disk to avoid
+			 * creating invalid block devices
+			 */
+			printk(KERN_WARNING
+			       "%s: p%d size %llu limited to end of disk\n",
+			       disk->disk_name, p, (unsigned long long) size);
+			size = get_capacity(disk) - from;
+		}
+		part = add_partition(disk, p, from, size,
+				     state->parts[p].flags);
+		if (IS_ERR(part)) {
+			printk(KERN_ERR " %s: p%d could not be added: %ld\n",
+			       disk->disk_name, p, -PTR_ERR(part));
 			continue;
 		}
 #ifdef CONFIG_BLK_DEV_MD
 		if (state->parts[p].flags & ADDPART_FLAG_RAID)
-			md_autodetect_dev(bdev->bd_dev+p);
+			md_autodetect_dev(part_to_dev(part)->devt);
 #endif
 	}
 	kfree(state);

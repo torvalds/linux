@@ -37,13 +37,13 @@
 
 #include <mach/hardware.h>
 
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
-#include <asm/plat-s3c24xx/s3c2412.h>
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/s3c2412.h>
+#include <plat/clock.h>
+#include <plat/cpu.h>
 
 /* We currently have to assume that the system is running
  * from the XTPll input, and that all ***REFCLKs are being
@@ -92,12 +92,6 @@ static int s3c2412_upll_enable(struct clk *clk, int enable)
 }
 
 /* clock selections */
-
-/* CPU EXTCLK input */
-static struct clk clk_ext = {
-	.name		= "extclk",
-	.id		= -1,
-};
 
 static struct clk clk_erefclk = {
 	.name		= "erefclk",
@@ -773,5 +767,6 @@ int __init s3c2412_baseclk_add(void)
 		s3c2412_clkcon_enable(clkp, 0);
 	}
 
+	s3c_pwmclk_init();
 	return 0;
 }

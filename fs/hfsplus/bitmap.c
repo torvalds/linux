@@ -32,6 +32,10 @@ int hfsplus_block_allocate(struct super_block *sb, u32 size, u32 offset, u32 *ma
 	mutex_lock(&HFSPLUS_SB(sb).alloc_file->i_mutex);
 	mapping = HFSPLUS_SB(sb).alloc_file->i_mapping;
 	page = read_mapping_page(mapping, offset / PAGE_CACHE_BITS, NULL);
+	if (IS_ERR(page)) {
+		start = size;
+		goto out;
+	}
 	pptr = kmap(page);
 	curr = pptr + (offset & (PAGE_CACHE_BITS - 1)) / 32;
 	i = offset % 32;
@@ -73,6 +77,10 @@ int hfsplus_block_allocate(struct super_block *sb, u32 size, u32 offset, u32 *ma
 			break;
 		page = read_mapping_page(mapping, offset / PAGE_CACHE_BITS,
 					 NULL);
+		if (IS_ERR(page)) {
+			start = size;
+			goto out;
+		}
 		curr = pptr = kmap(page);
 		if ((size ^ offset) / PAGE_CACHE_BITS)
 			end = pptr + PAGE_CACHE_BITS / 32;
@@ -120,6 +128,10 @@ found:
 		offset += PAGE_CACHE_BITS;
 		page = read_mapping_page(mapping, offset / PAGE_CACHE_BITS,
 					 NULL);
+		if (IS_ERR(page)) {
+			start = size;
+			goto out;
+		}
 		pptr = kmap(page);
 		curr = pptr;
 		end = pptr + PAGE_CACHE_BITS / 32;

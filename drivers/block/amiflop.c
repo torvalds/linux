@@ -1437,10 +1437,11 @@ static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int fd_ioctl(struct inode *inode, struct file *filp,
+static int fd_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned int cmd, unsigned long param)
 {
-	int drive = iminor(inode) & 3;
+	struct amiga_floppy_struct *p = bdev->bd_disk->private_data;
+	int drive = p - unit;
 	static struct floppy_struct getprm;
 	void __user *argp = (void __user *)param;
 
@@ -1451,7 +1452,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 			rel_fdc();
 			return -EBUSY;
 		}
-		fsync_bdev(inode->i_bdev);
+		fsync_bdev(bdev);
 		if (fd_motor_on(drive) == 0) {
 			rel_fdc();
 			return -ENODEV;
@@ -1464,12 +1465,12 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 		rel_fdc();
 		break;
 	case FDFMTTRK:
-		if (param < unit[drive].type->tracks * unit[drive].type->heads)
+		if (param < p->type->tracks * p->type->heads)
 		{
 			get_fdc(drive);
 			if (fd_seek(drive,param) != 0){
-				memset(unit[drive].trackbuf, FD_FILL_BYTE,
-				       unit[drive].dtype->sects * unit[drive].type->sect_mult * 512);
+				memset(p->trackbuf, FD_FILL_BYTE,
+				       p->dtype->sects * p->type->sect_mult * 512);
 				non_int_flush_track(drive);
 			}
 			floppy_off(drive);
@@ -1480,14 +1481,14 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 		break;
 	case FDFMTEND:
 		floppy_off(drive);
-		invalidate_bdev(inode->i_bdev);
+		invalidate_bdev(bdev);
 		break;
 	case FDGETPRM:
 		memset((void *)&getprm, 0, sizeof (getprm));
-		getprm.track=unit[drive].type->tracks;
-		getprm.head=unit[drive].type->heads;
-		getprm.sect=unit[drive].dtype->sects * unit[drive].type->sect_mult;
-		getprm.size=unit[drive].blocks;
+		getprm.track=p->type->tracks;
+		getprm.head=p->type->heads;
+		getprm.sect=p->dtype->sects * p->type->sect_mult;
+		getprm.size=p->blocks;
 		if (copy_to_user(argp, &getprm, sizeof(struct floppy_struct)))
 			return -EFAULT;
 		break;
@@ -1500,10 +1501,10 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 		break;
 #ifdef RAW_IOCTL
 	case IOCTL_RAW_TRACK:
-		if (copy_to_user(argp, raw_buf, unit[drive].type->read_size))
+		if (copy_to_user(argp, raw_buf, p->type->read_size))
 			return -EFAULT;
 		else
-			return unit[drive].type->read_size;
+			return p->type->read_size;
 #endif
 	default:
 		printk(KERN_DEBUG "fd_ioctl: unknown cmd %d for drive %d.",
@@ -1548,10 +1549,10 @@ static void fd_probe(int dev)
  * /dev/PS0 etc), and disallows simultaneous access to the same
  * drive with different device numbers.
  */
-static int floppy_open(struct inode *inode, struct file *filp)
+static int floppy_open(struct block_device *bdev, fmode_t mode)
 {
-	int drive = iminor(inode) & 3;
-	int system =  (iminor(inode) & 4) >> 2;
+	int drive = MINOR(bdev->bd_dev) & 3;
+	int system =  (MINOR(bdev->bd_dev) & 4) >> 2;
 	int old_dev;
 	unsigned long flags;
 
@@ -1560,9 +1561,9 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	if (fd_ref[drive] && old_dev != system)
 		return -EBUSY;
 
-	if (filp && filp->f_mode & 3) {
-		check_disk_change(inode->i_bdev);
-		if (filp->f_mode & 2 ) {
+	if (mode & (FMODE_READ|FMODE_WRITE)) {
+		check_disk_change(bdev);
+		if (mode & FMODE_WRITE) {
 			int wrprot;
 
 			get_fdc(drive);
@@ -1592,9 +1593,10 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int floppy_release(struct inode * inode, struct file * filp)
+static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
-	int drive = iminor(inode) & 3;
+	struct amiga_floppy_struct *p = disk->private_data;
+	int drive = p - unit;
 
 	if (unit[drive].dirty == 1) {
 		del_timer (flush_track_timer + drive);
@@ -1650,7 +1652,7 @@ static struct block_device_operations floppy_fops = {
 	.owner		= THIS_MODULE,
 	.open		= floppy_open,
 	.release	= floppy_release,
-	.ioctl		= fd_ioctl,
+	.locked_ioctl	= fd_ioctl,
 	.getgeo		= fd_getgeo,
 	.media_changed	= amiga_floppy_change,
 };

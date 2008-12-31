@@ -32,8 +32,35 @@ static struct resource iic_resources[] = {
 
 static struct platform_device iic_device = {
 	.name           = "i2c-sh_mobile",
+	.id             = 0, /* "i2c0" clock */
 	.num_resources  = ARRAY_SIZE(iic_resources),
 	.resource       = iic_resources,
+};
+
+static struct resource usb_host_resources[] = {
+	[0] = {
+		.name   = "r8a66597_hcd",
+		.start  = 0xa4d80000,
+		.end    = 0xa4d800ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.name   = "r8a66597_hcd",
+		.start  = 65,
+		.end    = 65,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usb_host_device = {
+	.name	= "r8a66597_hcd",
+	.id	= -1,
+	.dev = {
+		.dma_mask		= NULL,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(usb_host_resources),
+	.resource	= usb_host_resources,
 };
 
 static struct uio_info vpu_platform_data = {
@@ -142,6 +169,7 @@ static struct platform_device sci_device = {
 static struct platform_device *sh7366_devices[] __initdata = {
 	&iic_device,
 	&sci_device,
+	&usb_host_device,
 	&vpu_device,
 	&veu0_device,
 	&veu1_device,
@@ -149,18 +177,11 @@ static struct platform_device *sh7366_devices[] __initdata = {
 
 static int __init sh7366_devices_setup(void)
 {
-	clk_always_enable("mstp031"); /* TLB */
-	clk_always_enable("mstp030"); /* IC */
-	clk_always_enable("mstp029"); /* OC */
-	clk_always_enable("mstp028"); /* RSMEM */
-	clk_always_enable("mstp026"); /* XYMEM */
-	clk_always_enable("mstp023"); /* INTC3 */
-	clk_always_enable("mstp022"); /* INTC */
-	clk_always_enable("mstp020"); /* SuperHyway */
-	clk_always_enable("mstp109"); /* I2C */
-	clk_always_enable("mstp207"); /* VEU-2 */
-	clk_always_enable("mstp202"); /* VEU-1 */
-	clk_always_enable("mstp201"); /* VPU */
+	clk_always_enable("rsmem0"); /* RSMEM */
+	clk_always_enable("xymem0"); /* XYMEM */
+	clk_always_enable("veu1"); /* VEU-2 */
+	clk_always_enable("veu0"); /* VEU-1 */
+	clk_always_enable("vpu0"); /* VPU */
 
 	platform_resource_setup_memory(&vpu_device, "vpu", 2 << 20);
 	platform_resource_setup_memory(&veu0_device, "veu0", 2 << 20);

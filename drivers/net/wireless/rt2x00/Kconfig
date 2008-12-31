@@ -1,5 +1,5 @@
 menuconfig RT2X00
-	bool "Ralink driver support"
+	tristate "Ralink driver support"
 	depends on MAC80211 && WLAN_80211 && EXPERIMENTAL
 	---help---
 	  This will enable the experimental support for the Ralink drivers,
@@ -57,6 +57,7 @@ config RT2500USB
 	tristate "Ralink rt2500 (USB) support"
 	depends on USB
 	select RT2X00_LIB_USB
+	select RT2X00_LIB_CRYPTO
 	---help---
 	  This adds support for rt2500 wireless chipset family.
 	  Supported chips: RT2571 & RT2572.

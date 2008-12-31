@@ -446,11 +446,11 @@ poll_more:
 		if (dev->features & NETIF_F_LRO)
 			lro_flush_all(&priv->lro.lro_mgr);
 
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		if (unlikely(ib_req_notify_cq(priv->recv_cq,
 					      IB_CQ_NEXT_COMP |
 					      IB_CQ_REPORT_MISSED_EVENTS)) &&
-		    netif_rx_reschedule(dev, napi))
+		    netif_rx_reschedule(napi))
 			goto poll_more;
 	}
 
@@ -462,7 +462,7 @@ void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 	struct net_device *dev = dev_ptr;
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	netif_rx_schedule(dev, &priv->napi);
+	netif_rx_schedule(&priv->napi);
 }
 
 static void drain_tx_cq(struct net_device *dev)
@@ -685,10 +685,6 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
 			   round_jiffies_relative(HZ));
 
-	init_timer(&priv->poll_timer);
-	priv->poll_timer.function = ipoib_ib_tx_timer_func;
-	priv->poll_timer.data = (unsigned long)dev;
-
 	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
 
 	return 0;
@@ -905,6 +901,9 @@ int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 		printk(KERN_WARNING "%s: ipoib_transport_dev_init failed\n", ca->name);
 		return -ENODEV;
 	}
+
+	setup_timer(&priv->poll_timer, ipoib_ib_tx_timer_func,
+		    (unsigned long) dev);
 
 	if (dev->flags & IFF_UP) {
 		if (ipoib_ib_dev_open(dev)) {

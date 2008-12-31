@@ -3,7 +3,7 @@
  *
  * Stack trace management functions
  *
- *  Copyright (C) 2006  Paul Mundt
+ *  Copyright (C) 2006 - 2008  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -36,3 +36,24 @@ void save_stack_trace(struct stack_trace *trace)
 	}
 }
 EXPORT_SYMBOL_GPL(save_stack_trace);
+
+void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
+{
+	unsigned long *sp = (unsigned long *)tsk->thread.sp;
+
+	while (!kstack_end(sp)) {
+		unsigned long addr = *sp++;
+
+		if (__kernel_text_address(addr)) {
+			if (in_sched_functions(addr))
+				break;
+			if (trace->skip > 0)
+				trace->skip--;
+			else
+				trace->entries[trace->nr_entries++] = addr;
+			if (trace->nr_entries >= trace->max_entries)
+				break;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(save_stack_trace_tsk);

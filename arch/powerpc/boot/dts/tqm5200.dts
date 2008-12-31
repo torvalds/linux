@@ -181,7 +181,6 @@
 			fsl5200-clocking;
 
 			 rtc@68 {
-				device_type = "rtc";
 				compatible = "dallas,ds1307";
 				reg = <0x68>;
 			};

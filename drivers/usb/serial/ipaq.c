@@ -608,7 +608,7 @@ static int ipaq_open(struct tty_struct *tty,
 	bytes_out = 0;
 	priv = kmalloc(sizeof(struct ipaq_private), GFP_KERNEL);
 	if (priv == NULL) {
-		err("%s - Out of memory", __func__);
+		dev_err(&port->dev, "%s - Out of memory\n", __func__);
 		return -ENOMEM;
 	}
 	usb_set_serial_port_data(port, priv);
@@ -693,8 +693,7 @@ static int ipaq_open(struct tty_struct *tty,
 	}
 
 	if (!retries && result) {
-		err("%s - failed doing control urb, error %d", __func__,
-		    result);
+		dev_err(&port->dev, "%s - failed doing control urb, error %d\n",			__func__, result);
 		goto error;
 	}
 
@@ -707,8 +706,9 @@ static int ipaq_open(struct tty_struct *tty,
 
 	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (result) {
-		err("%s - failed submitting read urb, error %d",
-						__func__, result);
+		dev_err(&port->dev,
+			"%s - failed submitting read urb, error %d\n",
+			__func__, result);
 		goto error;
 	}
 
@@ -716,7 +716,7 @@ static int ipaq_open(struct tty_struct *tty,
 
 enomem:
 	result = -ENOMEM;
-	err("%s - Out of memory", __func__);
+	dev_err(&port->dev, "%s - Out of memory\n", __func__);
 error:
 	ipaq_destroy_lists(port);
 	kfree(priv);
@@ -781,8 +781,9 @@ static void ipaq_read_bulk_callback(struct urb *urb)
 	    ipaq_read_bulk_callback, port);
 	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	if (result)
-		err("%s - failed resubmitting read urb, error %d",
-							__func__, result);
+		dev_err(&port->dev,
+			"%s - failed resubmitting read urb, error %d\n",
+			__func__, result);
 	return;
 }
 
@@ -847,7 +848,8 @@ static int ipaq_write_bulk(struct usb_serial_port *port,
 		spin_unlock_irqrestore(&write_list_lock, flags);
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result)
-			err("%s - failed submitting write urb, error %d",
+			dev_err(&port->dev,
+				"%s - failed submitting write urb, error %d\n",
 				__func__, result);
 	} else {
 		spin_unlock_irqrestore(&write_list_lock, flags);
@@ -909,8 +911,9 @@ static void ipaq_write_bulk_callback(struct urb *urb)
 		spin_unlock_irqrestore(&write_list_lock, flags);
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result)
-			err("%s - failed submitting write urb, error %d",
-					__func__, result);
+			dev_err(&port->dev,
+				"%s - failed submitting write urb, error %d\n",
+				__func__, result);
 	} else {
 		priv->active = 0;
 		spin_unlock_irqrestore(&write_list_lock, flags);
@@ -957,7 +960,7 @@ static int ipaq_startup(struct usb_serial *serial)
 {
 	dbg("%s", __func__);
 	if (serial->dev->actconfig->desc.bConfigurationValue != 1) {
-		err("active config #%d != 1 ??",
+		dev_err(&serial->dev->dev, "active config #%d != 1 ??\n",
 			serial->dev->actconfig->desc.bConfigurationValue);
 		return -ENODEV;
 	}
@@ -976,7 +979,6 @@ static int __init ipaq_init(void)
 	retval = usb_serial_register(&ipaq_device);
 	if (retval)
 		goto failed_usb_serial_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
 	if (vendor) {
 		ipaq_id_table[0].idVendor = vendor;
 		ipaq_id_table[0].idProduct = product;
@@ -985,6 +987,8 @@ static int __init ipaq_init(void)
 	if (retval)
 		goto failed_usb_register;
 
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&ipaq_device);

@@ -203,8 +203,8 @@ udp_snat_handler(struct sk_buff *skb,
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		udp_partial_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
-					htonl(oldlen),
-					htonl(skb->len - udphoff));
+					htons(oldlen),
+					htons(skb->len - udphoff));
 	} else if (!cp->app && (udph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
@@ -279,8 +279,8 @@ udp_dnat_handler(struct sk_buff *skb,
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		udp_partial_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
-					htonl(oldlen),
-					htonl(skb->len - udphoff));
+					htons(oldlen),
+					htons(skb->len - udphoff));
 	} else if (!cp->app && (udph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(cp->af, udph, &cp->vaddr, &cp->daddr,

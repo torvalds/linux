@@ -223,12 +223,12 @@ static int af9013_set_coeff(struct af9013_state *state, fe_bandwidth_t bw)
 	int ret = 0;
 	u8 i = 0;
 	u8 buf[24];
-	u32 ns_coeff1_2048nu;
-	u32 ns_coeff1_8191nu;
-	u32 ns_coeff1_8192nu;
-	u32 ns_coeff1_8193nu;
-	u32 ns_coeff2_2k;
-	u32 ns_coeff2_8k;
+	u32 uninitialized_var(ns_coeff1_2048nu);
+	u32 uninitialized_var(ns_coeff1_8191nu);
+	u32 uninitialized_var(ns_coeff1_8192nu);
+	u32 uninitialized_var(ns_coeff1_8193nu);
+	u32 uninitialized_var(ns_coeff2_2k);
+	u32 uninitialized_var(ns_coeff2_8k);
 
 	deb_info("%s: adc_clock:%d bw:%d\n", __func__,
 		state->config.adc_clock, bw);
@@ -1009,7 +1009,7 @@ static int af9013_update_snr(struct dvb_frontend *fe)
 	int ret;
 	u8 buf[3], i, len;
 	u32 quant = 0;
-	struct snr_table *snr_table;
+	struct snr_table *uninitialized_var(snr_table);
 
 	/* check if quantizer ready (for snr) */
 	ret = af9013_read_reg_bits(state, 0xd2e1, 3, 1, &buf[0]);
@@ -1187,7 +1187,7 @@ static int af9013_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	if (tmp)
 		*status |= FE_HAS_SYNC | FE_HAS_LOCK;
 
-	if (!*status & FE_HAS_SIGNAL) {
+	if (!(*status & FE_HAS_SIGNAL)) {
 		/* AGC lock */
 		ret = af9013_read_reg_bits(state, 0xd1a0, 6, 1, &tmp);
 		if (ret)
@@ -1196,7 +1196,7 @@ static int af9013_read_status(struct dvb_frontend *fe, fe_status_t *status)
 			*status |= FE_HAS_SIGNAL;
 	}
 
-	if (!*status & FE_HAS_CARRIER) {
+	if (!(*status & FE_HAS_CARRIER)) {
 		/* CFO lock */
 		ret = af9013_read_reg_bits(state, 0xd333, 7, 1, &tmp);
 		if (ret)
@@ -1205,7 +1205,7 @@ static int af9013_read_status(struct dvb_frontend *fe, fe_status_t *status)
 			*status |= FE_HAS_CARRIER;
 	}
 
-	if (!*status & FE_HAS_CARRIER) {
+	if (!(*status & FE_HAS_CARRIER)) {
 		/* SFOE lock */
 		ret = af9013_read_reg_bits(state, 0xd334, 6, 1, &tmp);
 		if (ret)

@@ -16,14 +16,6 @@
 #include <asm/addrspace.h>
 #include <asm/io.h>
 
-struct dma_coherent_mem {
-	void		*virt_base;
-	u32		device_base;
-	int		size;
-	int		flags;
-	unsigned long	*bitmap;
-};
-
 void *dma_alloc_coherent(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t gfp)
 {
@@ -44,11 +36,13 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	 */
 	dma_cache_sync(dev, ret, size, DMA_BIDIRECTIONAL);
 
-	ret_nocache = ioremap_nocache(virt_to_phys(ret), size);
+	ret_nocache = (void __force *)ioremap_nocache(virt_to_phys(ret), size);
 	if (!ret_nocache) {
 		free_pages((unsigned long)ret, order);
 		return NULL;
 	}
+
+	split_page(pfn_to_page(virt_to_phys(ret) >> PAGE_SHIFT), order);
 
 	*dma_handle = virt_to_phys(ret);
 	return ret_nocache;
@@ -58,13 +52,14 @@ EXPORT_SYMBOL(dma_alloc_coherent);
 void dma_free_coherent(struct device *dev, size_t size,
 			 void *vaddr, dma_addr_t dma_handle)
 {
-	struct dma_coherent_mem *mem = dev ? dev->dma_mem : NULL;
 	int order = get_order(size);
+	unsigned long pfn = dma_handle >> PAGE_SHIFT;
+	int k;
 
 	if (!dma_release_from_coherent(dev, order, vaddr)) {
 		WARN_ON(irqs_disabled());	/* for portability */
-		BUG_ON(mem && mem->flags & DMA_MEMORY_EXCLUSIVE);
-		free_pages((unsigned long)phys_to_virt(dma_handle), order);
+		for (k = 0; k < (1 << order); k++)
+			__free_pages(pfn_to_page(pfn + k), 0);
 		iounmap(vaddr);
 	}
 }

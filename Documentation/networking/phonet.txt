@@ -146,8 +146,8 @@ WARNING:
 When polling a connected pipe socket for writability, there is an
 intrinsic race condition whereby writability might be lost between the
 polling and the writing system calls. In this case, the socket will
-block until write because possible again, unless non-blocking mode
-becomes enabled.
+block until write becomes possible again, unless non-blocking mode
+is enabled.
 
 
 The pipe protocol provides two socket options at the SOL_PNPIPE level:

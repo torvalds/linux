@@ -229,10 +229,6 @@ The following sysctls are available for the XFS filesystem:
 	ISGID bit is cleared if the irix_sgid_inherit compatibility sysctl
 	is set.
 
-  fs.xfs.restrict_chown		(Min: 0  Default: 1  Max: 1)
-  	Controls whether unprivileged users can use chown to "give away"
-	a file to another user.
-
   fs.xfs.inherit_sync		(Min: 0  Default: 1  Max: 1)
 	Setting this to "1" will cause the "sync" flag set
 	by the xfs_io(8) chattr command on a directory to be

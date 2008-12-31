@@ -242,8 +242,6 @@ static int hiddev_release(struct inode * inode, struct file * file)
 	struct hiddev_list *list = file->private_data;
 	unsigned long flags;
 
-	hiddev_fasync(-1, file, 0);
-
 	spin_lock_irqsave(&list->hiddev->list_lock, flags);
 	list_del(&list->node);
 	spin_unlock_irqrestore(&list->hiddev->list_lock, flags);
@@ -436,8 +434,7 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 		if (copy_to_user(user_arg, uref, sizeof(*uref)))
 			goto fault;
 
-		kfree(uref_multi);
-		return 0;
+		goto goodreturn;
 
 	default:
 		if (cmd != HIDIOCGUSAGE &&

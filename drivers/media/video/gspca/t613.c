@@ -50,7 +50,7 @@ struct sd {
 
 	__u8 sensor;
 #define SENSOR_TAS5130A 0
-#define SENSOR_OTHER 1
+#define SENSOR_OM6802 1
 };
 
 /* V4L2 controls supported by the driver */
@@ -188,7 +188,7 @@ static struct ctrl sd_ctrls[] = {
 	  .minimum = 0,
 	  .maximum = 1,
 	  .step = 1,
-	  .default_value = 1,
+	  .default_value = 0,
 	  },
 	 .set = sd_setwhitebalance,
 	 .get = sd_getwhitebalance
@@ -233,7 +233,7 @@ static char *effects_control[] = {
 	"Negative",
 };
 
-static struct v4l2_pix_format vga_mode_t16[] = {
+static const struct v4l2_pix_format vga_mode_t16[] = {
 	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 4 / 8 + 590,
@@ -259,6 +259,59 @@ static struct v4l2_pix_format vga_mode_t16[] = {
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
+};
+
+/* sensor specific data */
+struct additional_sensor_data {
+	const __u8 data1[20];
+	const __u8 data2[18];
+	const __u8 data3[18];
+	const __u8 data4[4];
+	const __u8 data5[6];
+	const __u8 stream[4];
+};
+
+const static struct additional_sensor_data sensor_data[] = {
+    {				/* TAS5130A */
+	.data1 =
+		{0xd0, 0xbb, 0xd1, 0x28, 0xd2, 0x10, 0xd3, 0x10,
+		 0xd4, 0xbb, 0xd5, 0x28, 0xd6, 0x1e, 0xd7, 0x27,
+		 0xd8, 0xc8, 0xd9, 0xfc},
+	.data2 =
+		{0xe0, 0x60, 0xe1, 0xa8, 0xe2, 0xe0, 0xe3, 0x60,
+		 0xe4, 0xa8, 0xe5, 0xe0, 0xe6, 0x60, 0xe7, 0xa8,
+		 0xe8, 0xe0},
+	.data3 =
+		{0xc7, 0x60, 0xc8, 0xa8, 0xc9, 0xe0, 0xca, 0x60,
+		 0xcb, 0xa8, 0xcc, 0xe0, 0xcd, 0x60, 0xce, 0xa8,
+		 0xcf, 0xe0},
+	.data4 =	/* Freq (50/60Hz). Splitted for test purpose */
+		{0x66, 0x00, 0xa8, 0xe8},
+	.data5 =
+		{0x0c, 0x03, 0xab, 0x10, 0x81, 0x20},
+	.stream =
+		{0x0b, 0x04, 0x0a, 0x40},
+    },
+    {				/* OM6802 */
+	.data1 =
+		{0xd0, 0xc2, 0xd1, 0x28, 0xd2, 0x0f, 0xd3, 0x22,
+		 0xd4, 0xcd, 0xd5, 0x27, 0xd6, 0x2c, 0xd7, 0x06,
+		 0xd8, 0xb3, 0xd9, 0xfc},
+	.data2 =
+		{0xe0, 0x80, 0xe1, 0xff, 0xe2, 0xff, 0xe3, 0x80,
+		 0xe4, 0xff, 0xe5, 0xff, 0xe6, 0x80, 0xe7, 0xff,
+		 0xe8, 0xff},
+	.data3 =
+		{0xc7, 0x80, 0xc8, 0xff, 0xc9, 0xff, 0xca, 0x80,
+		 0xcb, 0xff, 0xcc, 0xff, 0xcd, 0x80, 0xce, 0xff,
+		 0xcf, 0xff},
+	.data4 =	/*Freq (50/60Hz). Splitted for test purpose */
+		{0x66, 0xca, 0xa8, 0xf0 },
+	.data5 =	/* this could be removed later */
+		{0x0c, 0x03, 0xab, 0x13, 0x81, 0x23},
+	.stream =
+		{0x0b, 0x04, 0x0a, 0x78},
+    }
 };
 
 #define MAX_EFFECTS 7
@@ -365,6 +418,8 @@ static const __u8 tas5130a_sensor_init[][8] = {
 	{},
 };
 
+static __u8 sensor_reset[] = {0x61, 0x68, 0x62, 0xff, 0x60, 0x07};
+
 /* read 1 byte */
 static int reg_r(struct gspca_dev *gspca_dev,
 		   __u16 index)
@@ -385,12 +440,12 @@ static void reg_w(struct gspca_dev *gspca_dev,
 	usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0,
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index,
 			NULL, 0, 500);
 }
 
-static void i2c_w(struct gspca_dev *gspca_dev,
+static void reg_w_buf(struct gspca_dev *gspca_dev,
 		  const __u8 *buffer, __u16 len)
 {
 	if (len <= USB_BUF_SZ) {
@@ -398,7 +453,7 @@ static void i2c_w(struct gspca_dev *gspca_dev,
 		usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
 				0,
-			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				0x01, 0,
 				gspca_dev->usb_buf, len, 500);
 	} else {
@@ -409,14 +464,15 @@ static void i2c_w(struct gspca_dev *gspca_dev,
 		usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
 				0,
-			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				0x01, 0,
 				tmpbuf, len, 500);
 		kfree(tmpbuf);
 	}
 }
 
-static void other_sensor_init(struct gspca_dev *gspca_dev)
+/* Reported as OM6802*/
+static void om6802_sensor_init(struct gspca_dev *gspca_dev)
 {
 	int i;
 	const __u8 *p;
@@ -436,11 +492,24 @@ static void other_sensor_init(struct gspca_dev *gspca_dev)
 		0x90, 0x24,
 		0x91, 0xb2,
 		0x82, 0x32,
-		0xfd, 0x00,
-		0xfd, 0x01,
 		0xfd, 0x41,
 		0x00			/* table end */
 	};
+
+	reg_w_buf(gspca_dev, sensor_reset, sizeof sensor_reset);
+	msleep(5);
+	i = 4;
+	while (--i > 0) {
+		byte = reg_r(gspca_dev, 0x0060);
+		if (!(byte & 0x01))
+			break;
+		msleep(100);
+	}
+	byte = reg_r(gspca_dev, 0x0063);
+	if (byte != 0x17) {
+		err("Bad sensor reset %02x", byte);
+		/* continue? */
+	}
 
 	p = sensor_init;
 	while (*p != 0) {
@@ -448,7 +517,7 @@ static void other_sensor_init(struct gspca_dev *gspca_dev)
 		val[3] = *p++;
 		if (*p == 0)
 			reg_w(gspca_dev, 0x3c80);
-		i2c_w(gspca_dev, val, sizeof val);
+		reg_w_buf(gspca_dev, val, sizeof val);
 		i = 4;
 		while (--i >= 0) {
 			msleep(15);
@@ -457,7 +526,8 @@ static void other_sensor_init(struct gspca_dev *gspca_dev)
 				break;
 		}
 	}
-			reg_w(gspca_dev, 0x3c80);
+	msleep(15);
+	reg_w(gspca_dev, 0x3c80);
 }
 
 /* this function is called at probe time */
@@ -485,12 +555,75 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
+static void setbrightness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	unsigned int brightness;
+	__u8 set6[4] = { 0x8f, 0x24, 0xc3, 0x00 };
+
+	brightness = sd->brightness;
+	if (brightness < 7) {
+		set6[1] = 0x26;
+		set6[3] = 0x70 - brightness * 0x10;
+	} else {
+		set6[3] = 0x00 + ((brightness - 7) * 0x10);
+	}
+
+	reg_w_buf(gspca_dev, set6, sizeof set6);
+}
+
+static void setcontrast(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	unsigned int contrast = sd->contrast;
+	__u16 reg_to_write;
+
+	if (contrast < 7)
+		reg_to_write = 0x8ea9 - contrast * 0x200;
+	else
+		reg_to_write = 0x00a9 + (contrast - 7) * 0x200;
+
+	reg_w(gspca_dev, reg_to_write);
+}
+
+static void setcolors(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	__u16 reg_to_write;
+
+	reg_to_write = 0x80bb + sd->colors * 0x100;	/* was 0xc0 */
+	reg_w(gspca_dev, reg_to_write);
+}
+
 static void setgamma(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	PDEBUG(D_CONF, "Gamma: %d", sd->gamma);
-	i2c_w(gspca_dev, gamma_table[sd->gamma], sizeof gamma_table[0]);
+	reg_w_buf(gspca_dev, gamma_table[sd->gamma], sizeof gamma_table[0]);
+}
+
+static void setwhitebalance(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	__u8 white_balance[8] =
+		{0x87, 0x20, 0x88, 0x20, 0x89, 0x20, 0x80, 0x38};
+
+	if (sd->whitebalance)
+		white_balance[7] = 0x3c;
+
+	reg_w_buf(gspca_dev, white_balance, sizeof white_balance);
+}
+
+static void setsharpness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	__u16 reg_to_write;
+
+	reg_to_write = 0x0aa6 + 0x1000 * sd->sharpness;
+
+	reg_w(gspca_dev, reg_to_write);
 }
 
 /* this function is called at probe and resume time */
@@ -511,8 +644,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			{0x08, 0x03, 0x09, 0x03, 0x12, 0x04};
 	static const __u8 n2[] =
 			{0x08, 0x00};
-	static const __u8 nset[] =
-			{ 0x61, 0x68, 0x62, 0xff, 0x60, 0x07 };
 	static const __u8 n3[] =
 			{0x61, 0x68, 0x65, 0x0a, 0x60, 0x04};
 	static const __u8 n4[] =
@@ -525,51 +656,29 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		 0x65, 0x0a, 0xbb, 0x86, 0xaf, 0x58, 0xb0, 0x68,
 		 0x87, 0x40, 0x89, 0x2b, 0x8d, 0xff, 0x83, 0x40,
 		 0xac, 0x84, 0xad, 0x86, 0xaf, 0x46};
-	static const __u8 nset4[] = {
-		0xe0, 0x60, 0xe1, 0xa8, 0xe2, 0xe0, 0xe3, 0x60, 0xe4, 0xa8,
-		0xe5, 0xe0, 0xe6, 0x60, 0xe7, 0xa8,
-		0xe8, 0xe0
-	};
-	/* ojo puede ser 0xe6 en vez de 0xe9 */
-	static const __u8 nset2[] = {
-		0xd0, 0xbb, 0xd1, 0x28, 0xd2, 0x10, 0xd3, 0x10, 0xd4, 0xbb,
-		0xd5, 0x28, 0xd6, 0x1e, 0xd7, 0x27,
-		0xd8, 0xc8, 0xd9, 0xfc
-	};
-	static const __u8 missing[] =
-		{ 0x87, 0x20, 0x88, 0x20, 0x89, 0x20, 0x80, 0x38 };
-	static const __u8 nset3[] = {
-		0xc7, 0x60, 0xc8, 0xa8, 0xc9, 0xe0, 0xca, 0x60, 0xcb, 0xa8,
-		0xcc, 0xe0, 0xcd, 0x60, 0xce, 0xa8,
-		0xcf, 0xe0
-	};
-	static const __u8 nset5[] =
-			{ 0x8f, 0x24, 0xc3, 0x00 };	/* bright */
-	static const __u8 nset7[4] =
-			{ 0x66, 0xca, 0xa8, 0xf8 };	/* 50/60 Hz */
 	static const __u8 nset9[4] =
 			{ 0x0b, 0x04, 0x0a, 0x78 };
 	static const __u8 nset8[6] =
 			{ 0xa8, 0xf0, 0xc6, 0x88, 0xc0, 0x00 };
-	static const __u8 nset10[6] =
-			{ 0x0c, 0x03, 0xab, 0x10, 0x81, 0x20 };
 
 	byte = reg_r(gspca_dev, 0x06);
 	test_byte = reg_r(gspca_dev, 0x07);
 	if (byte == 0x08 && test_byte == 0x07) {
-		PDEBUG(D_CONF, "other sensor");
-		sd->sensor = SENSOR_OTHER;
+		PDEBUG(D_CONF, "sensor om6802");
+		sd->sensor = SENSOR_OM6802;
+	} else if (byte == 0x08 && test_byte == 0x01) {
+		PDEBUG(D_CONF, "sensor tas5130a");
+		sd->sensor = SENSOR_TAS5130A;
 	} else {
-		PDEBUG(D_CONF, "sensor %02x %02x", byte, test_byte);
+		PDEBUG(D_CONF, "unknown sensor %02x %02x", byte, test_byte);
 		sd->sensor = SENSOR_TAS5130A;
 	}
 
-	i2c_w(gspca_dev, n1, sizeof n1);
+	reg_w_buf(gspca_dev, n1, sizeof n1);
 	test_byte = 0;
 	i = 5;
 	while (--i >= 0) {
-		i2c_w(gspca_dev, nset, sizeof nset);
-		msleep(5);
+		reg_w_buf(gspca_dev, sensor_reset, sizeof sensor_reset);
 		test_byte = reg_r(gspca_dev, 0x0063);
 		msleep(100);
 		if (test_byte == 0x17)
@@ -580,7 +689,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 /*		return -EIO; */
 /*fixme: test - continue */
 	}
-	i2c_w(gspca_dev, n2, sizeof n2);
+	reg_w_buf(gspca_dev, n2, sizeof n2);
 
 	i = 0;
 	while (read_indexs[i] != 0x00) {
@@ -590,56 +699,50 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		i++;
 	}
 
-	i2c_w(gspca_dev, n3, sizeof n3);
-	i2c_w(gspca_dev, n4, sizeof n4);
+	reg_w_buf(gspca_dev, n3, sizeof n3);
+	reg_w_buf(gspca_dev, n4, sizeof n4);
 	reg_r(gspca_dev, 0x0080);
 	reg_w(gspca_dev, 0x2c80);
-	i2c_w(gspca_dev, nset2, sizeof nset2);
-	i2c_w(gspca_dev, nset3, sizeof nset3);
-	i2c_w(gspca_dev, nset4, sizeof nset4);
+
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].data1,
+			sizeof sensor_data[sd->sensor].data1);
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].data3,
+			sizeof sensor_data[sd->sensor].data3);
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].data2,
+			sizeof sensor_data[sd->sensor].data2);
+
 	reg_w(gspca_dev, 0x3880);
 	reg_w(gspca_dev, 0x3880);
 	reg_w(gspca_dev, 0x338e);
-	i2c_w(gspca_dev, nset5, sizeof nset5);
-	reg_w(gspca_dev, 0x00a9);
+
+	setbrightness(gspca_dev);
+	setcontrast(gspca_dev);
 	setgamma(gspca_dev);
-	reg_w(gspca_dev, 0x86bb);
-	reg_w(gspca_dev, 0x4aa6);
+	setcolors(gspca_dev);
+	setsharpness(gspca_dev);
+	setwhitebalance(gspca_dev);
 
-	i2c_w(gspca_dev, missing, sizeof missing);
-
-	reg_w(gspca_dev, 0x2087);
+	reg_w(gspca_dev, 0x2087);	/* tied to white balance? */
 	reg_w(gspca_dev, 0x2088);
 	reg_w(gspca_dev, 0x2089);
 
-	i2c_w(gspca_dev, nset7, sizeof nset7);
-	i2c_w(gspca_dev, nset10, sizeof nset10);
-	i2c_w(gspca_dev, nset8, sizeof nset8);
-	i2c_w(gspca_dev, nset9, sizeof nset9);
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].data4,
+			sizeof sensor_data[sd->sensor].data4);
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].data5,
+			sizeof sensor_data[sd->sensor].data5);
+	reg_w_buf(gspca_dev, nset8, sizeof nset8);
+	reg_w_buf(gspca_dev, nset9, sizeof nset9);
 
 	reg_w(gspca_dev, 0x2880);
-	i2c_w(gspca_dev, nset2, sizeof nset2);
-	i2c_w(gspca_dev, nset3, sizeof nset3);
-	i2c_w(gspca_dev, nset4, sizeof nset4);
+
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].data1,
+			sizeof sensor_data[sd->sensor].data1);
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].data3,
+			sizeof sensor_data[sd->sensor].data3);
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].data2,
+			sizeof sensor_data[sd->sensor].data2);
 
 	return 0;
-}
-
-static void setbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	unsigned int brightness;
-	__u8 set6[4] = { 0x8f, 0x26, 0xc3, 0x00 };
-
-	brightness = sd->brightness;
-	if (brightness < 7) {
-		set6[3] = 0x70 - brightness * 0x10;
-	} else {
-		set6[1] = 0x24;
-		set6[3] = 0x00 + ((brightness - 7) * 0x10);
-	}
-
-	i2c_w(gspca_dev, set6, sizeof set6);
 }
 
 static void setflip(struct gspca_dev *gspca_dev)
@@ -651,14 +754,15 @@ static void setflip(struct gspca_dev *gspca_dev)
 	if (sd->mirror)
 		flipcmd[3] = 0x01;
 
-	i2c_w(gspca_dev, flipcmd, sizeof flipcmd);
+	reg_w_buf(gspca_dev, flipcmd, sizeof flipcmd);
 }
 
 static void seteffect(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	i2c_w(gspca_dev, effects_table[sd->effect], sizeof effects_table[0]);
+	reg_w_buf(gspca_dev, effects_table[sd->effect],
+				sizeof effects_table[0]);
 	if (sd->effect == 1 || sd->effect == 5) {
 		PDEBUG(D_CONF,
 		       "This effect have been disabled for webcam \"safety\"");
@@ -671,19 +775,6 @@ static void seteffect(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0xfaa6);
 }
 
-static void setwhitebalance(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	__u8 white_balance[8] =
-	    { 0x87, 0x20, 0x88, 0x20, 0x89, 0x20, 0x80, 0x38 };
-
-	if (sd->whitebalance == 1)
-		white_balance[7] = 0x3c;
-
-	i2c_w(gspca_dev, white_balance, sizeof white_balance);
-}
-
 static void setlightfreq(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -692,52 +783,46 @@ static void setlightfreq(struct gspca_dev *gspca_dev)
 	if (sd->freq == 2)	/* 60hz */
 		freq[1] = 0x00;
 
-	i2c_w(gspca_dev, freq, sizeof freq);
+	reg_w_buf(gspca_dev, freq, sizeof freq);
 }
 
-static void setcontrast(struct gspca_dev *gspca_dev)
+/* Is this really needed?
+ * i added some module parameters for test with some users */
+static void poll_sensor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	unsigned int contrast = sd->contrast;
-	__u16 reg_to_write;
+	static const __u8 poll1[] =
+		{0x67, 0x05, 0x68, 0x81, 0x69, 0x80, 0x6a, 0x82,
+		 0x6b, 0x68, 0x6c, 0x69, 0x72, 0xd9, 0x73, 0x34,
+		 0x74, 0x32, 0x75, 0x92, 0x76, 0x00, 0x09, 0x01,
+		 0x60, 0x14};
+	static const __u8 poll2[] =
+		{0x67, 0x02, 0x68, 0x71, 0x69, 0x72, 0x72, 0xa9,
+		 0x73, 0x02, 0x73, 0x02, 0x60, 0x14};
+	static const __u8 poll3[] =
+		{0x87, 0x3f, 0x88, 0x20, 0x89, 0x2d};
+	static const __u8 poll4[] =
+		{0xa6, 0x0a, 0xea, 0xcf, 0xbe, 0x26, 0xb1, 0x5f,
+		 0xa1, 0xb1, 0xda, 0x6b, 0xdb, 0x98, 0xdf, 0x0c,
+		 0xc2, 0x80, 0xc3, 0x10};
 
-	if (contrast < 7)
-		reg_to_write = 0x8ea9 - (0x200 * contrast);
-	else
-		reg_to_write = (0x00a9 + ((contrast - 7) * 0x200));
-
-	reg_w(gspca_dev, reg_to_write);
-}
-
-static void setcolors(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u16 reg_to_write;
-
-	reg_to_write = 0xc0bb + sd->colors * 0x100;
-	reg_w(gspca_dev, reg_to_write);
-}
-
-static void setsharpness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u16 reg_to_write;
-
-	reg_to_write = 0x0aa6 + 0x1000 * sd->sharpness;
-
-	reg_w(gspca_dev, reg_to_write);
+	if (sd->sensor != SENSOR_TAS5130A) {
+		PDEBUG(D_STREAM, "[Sensor requires polling]");
+		reg_w_buf(gspca_dev, poll1, sizeof poll1);
+		reg_w_buf(gspca_dev, poll2, sizeof poll2);
+		reg_w_buf(gspca_dev, poll3, sizeof poll3);
+		reg_w_buf(gspca_dev, poll4, sizeof poll4);
+	}
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i, mode;
-	static const __u8 t1[] = { 0x66, 0x00, 0xa8, 0xe8 };
 	__u8 t2[] = { 0x07, 0x00, 0x0d, 0x60, 0x0e, 0x80 };
 	static const __u8 t3[] =
 		{ 0xb3, 0x07, 0xb4, 0x00, 0xb5, 0x88, 0xb6, 0x02, 0xb7, 0x06,
 		  0xb8, 0x00, 0xb9, 0xe7, 0xba, 0x01 };
-	static const __u8 t4[] = { 0x0b, 0x04, 0x0a, 0x40 };
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode]. priv;
 	switch (mode) {
@@ -760,31 +845,48 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	if (sd->sensor == SENSOR_TAS5130A) {
 		i = 0;
 		while (tas5130a_sensor_init[i][0] != 0) {
-			i2c_w(gspca_dev, tas5130a_sensor_init[i],
+			reg_w_buf(gspca_dev, tas5130a_sensor_init[i],
 					 sizeof tas5130a_sensor_init[0]);
 			i++;
 		}
 		reg_w(gspca_dev, 0x3c80);
 		/* just in case and to keep sync with logs (for mine) */
-		i2c_w(gspca_dev, tas5130a_sensor_init[3],
+		reg_w_buf(gspca_dev, tas5130a_sensor_init[3],
 				 sizeof tas5130a_sensor_init[0]);
 		reg_w(gspca_dev, 0x3c80);
 	} else {
-		other_sensor_init(gspca_dev);
+		om6802_sensor_init(gspca_dev);
 	}
-	/* just in case and to keep sync with logs  (for mine) */
-	i2c_w(gspca_dev, t1, sizeof t1);
-	i2c_w(gspca_dev, t2, sizeof t2);
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].data4,
+			sizeof sensor_data[sd->sensor].data4);
 	reg_r(gspca_dev, 0x0012);
-	i2c_w(gspca_dev, t3, sizeof t3);
+	reg_w_buf(gspca_dev, t2, sizeof t2);
+	reg_w_buf(gspca_dev, t3, sizeof t3);
 	reg_w(gspca_dev, 0x0013);
-	i2c_w(gspca_dev, t4, sizeof t4);
+	msleep(15);
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].stream,
+			sizeof sensor_data[sd->sensor].stream);
+	poll_sensor(gspca_dev);
+
 	/* restart on each start, just in case, sometimes regs goes wrong
 	 * when using controls from app */
 	setbrightness(gspca_dev);
 	setcontrast(gspca_dev);
 	setcolors(gspca_dev);
 	return 0;
+}
+
+static void sd_stopN(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].stream,
+			sizeof sensor_data[sd->sensor].stream);
+	msleep(20);
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].stream,
+			sizeof sensor_data[sd->sensor].stream);
+	msleep(20);
+	reg_w(gspca_dev, 0x0309);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -1036,6 +1138,7 @@ static const struct sd_desc sd_desc = {
 	.config = sd_config,
 	.init = sd_init,
 	.start = sd_start,
+	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 };

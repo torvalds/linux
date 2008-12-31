@@ -28,6 +28,7 @@
 #include <linux/console.h>
 
 #include <xen/interface/xen.h>
+#include <xen/interface/version.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/vcpu.h>
 #include <xen/features.h>
@@ -793,7 +794,7 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 
 	ret = 0;
 
-	switch(msr) {
+	switch (msr) {
 #ifdef CONFIG_X86_64
 		unsigned which;
 		u64 base;
@@ -863,14 +864,16 @@ static void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn, unsigned l
 	if (PagePinned(virt_to_page(mm->pgd))) {
 		SetPagePinned(page);
 
+		vm_unmap_aliases();
 		if (!PageHighMem(page)) {
 			make_lowmem_page_readonly(__va(PFN_PHYS((unsigned long)pfn)));
 			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
 				pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
-		} else
+		} else {
 			/* make sure there are no stray mappings of
 			   this page */
 			kmap_flush_unused();
+		}
 	}
 }
 
@@ -1451,7 +1454,7 @@ static __init void xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 
 	ident_pte = 0;
 	pfn = 0;
-	for(pmdidx = 0; pmdidx < PTRS_PER_PMD && pfn < max_pfn; pmdidx++) {
+	for (pmdidx = 0; pmdidx < PTRS_PER_PMD && pfn < max_pfn; pmdidx++) {
 		pte_t *pte_page;
 
 		/* Reuse or allocate a page of ptes */
@@ -1469,7 +1472,7 @@ static __init void xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 		}
 
 		/* Install mappings */
-		for(pteidx = 0; pteidx < PTRS_PER_PTE; pteidx++, pfn++) {
+		for (pteidx = 0; pteidx < PTRS_PER_PTE; pteidx++, pfn++) {
 			pte_t pte;
 
 			if (pfn > max_pfn_mapped)
@@ -1483,7 +1486,7 @@ static __init void xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 		}
 	}
 
-	for(pteidx = 0; pteidx < ident_pte; pteidx += PTRS_PER_PTE)
+	for (pteidx = 0; pteidx < ident_pte; pteidx += PTRS_PER_PTE)
 		set_page_prot(&level1_ident_pgt[pteidx], PAGE_KERNEL_RO);
 
 	set_page_prot(pmd, PAGE_KERNEL_RO);
@@ -1497,7 +1500,7 @@ static void convert_pfn_mfn(void *v)
 
 	/* All levels are converted the same way, so just treat them
 	   as ptes. */
-	for(i = 0; i < PTRS_PER_PTE; i++)
+	for (i = 0; i < PTRS_PER_PTE; i++)
 		pte[i] = xen_make_pte(pte[i].pte);
 }
 
@@ -1512,7 +1515,8 @@ static void convert_pfn_mfn(void *v)
  * of the physical mapping once some sort of allocator has been set
  * up.
  */
-static __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
+static __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd,
+						unsigned long max_pfn)
 {
 	pud_t *l3;
 	pmd_t *l2;
@@ -1575,7 +1579,8 @@ static __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pf
 #else	/* !CONFIG_X86_64 */
 static pmd_t level2_kernel_pgt[PTRS_PER_PMD] __page_aligned_bss;
 
-static __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
+static __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd,
+						unsigned long max_pfn)
 {
 	pmd_t *kernel_pmd;
 

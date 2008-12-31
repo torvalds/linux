@@ -327,29 +327,7 @@ static const struct {
 #endif /* CONFIG_ZORRO */
 
 struct cirrusfb_regs {
-	long freq;
-	long nom;
-	long den;
-	long div;
-	long multiplexing;
-	long mclk;
-	long divMCLK;
-
-	long HorizRes;		/* The x resolution in pixel */
-	long HorizTotal;
-	long HorizDispEnd;
-	long HorizBlankStart;
-	long HorizBlankEnd;
-	long HorizSyncStart;
-	long HorizSyncEnd;
-
-	long VertRes;		/* the physical y resolution in scanlines */
-	long VertTotal;
-	long VertDispEnd;
-	long VertSyncStart;
-	long VertSyncEnd;
-	long VertBlankStart;
-	long VertBlankEnd;
+	int multiplexing;
 };
 
 #ifdef CIRRUSFB_DEBUG
@@ -367,110 +345,13 @@ struct cirrusfb_info {
 
 	struct cirrusfb_regs currentmode;
 	int blank_mode;
+	u32 pseudo_palette[16];
 
-	u32	pseudo_palette[16];
-
-#ifdef CONFIG_ZORRO
-	struct zorro_dev *zdev;
-#endif
-#ifdef CONFIG_PCI
-	struct pci_dev *pdev;
-#endif
 	void (*unmap)(struct fb_info *info);
 };
 
-static unsigned cirrusfb_def_mode = 1;
-static int noaccel;
-
-/*
- *    Predefined Video Modes
- */
-
-static const struct {
-	const char *name;
-	struct fb_var_screeninfo var;
-} cirrusfb_predefined[] = {
-	{
-		/* autodetect mode */
-		.name	= "Autodetect",
-	}, {
-		/* 640x480, 31.25 kHz, 60 Hz, 25 MHz PixClock */
-		.name	= "640x480",
-		.var	= {
-			.xres		= 640,
-			.yres		= 480,
-			.xres_virtual	= 640,
-			.yres_virtual	= 480,
-			.bits_per_pixel	= 8,
-			.red		= { .length = 8 },
-			.green		= { .length = 8 },
-			.blue		= { .length = 8 },
-			.width		= -1,
-			.height		= -1,
-			.pixclock	= 40000,
-			.left_margin	= 48,
-			.right_margin	= 16,
-			.upper_margin	= 32,
-			.lower_margin	= 8,
-			.hsync_len	= 96,
-			.vsync_len	= 4,
-			.sync	= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-			.vmode		= FB_VMODE_NONINTERLACED
-		 }
-	}, {
-		/* 800x600, 48 kHz, 76 Hz, 50 MHz PixClock */
-		.name	= "800x600",
-		.var	= {
-			.xres		= 800,
-			.yres		= 600,
-			.xres_virtual	= 800,
-			.yres_virtual	= 600,
-			.bits_per_pixel	= 8,
-			.red		= { .length = 8 },
-			.green		= { .length = 8 },
-			.blue		= { .length = 8 },
-			.width		= -1,
-			.height		= -1,
-			.pixclock	= 20000,
-			.left_margin	= 128,
-			.right_margin	= 16,
-			.upper_margin	= 24,
-			.lower_margin	= 2,
-			.hsync_len	= 96,
-			.vsync_len	= 6,
-			.vmode		= FB_VMODE_NONINTERLACED
-		 }
-	}, {
-		/*
-		 * Modeline from XF86Config:
-		 * Mode "1024x768" 80  1024 1136 1340 1432  768 770 774 805
-		 */
-		/* 1024x768, 55.8 kHz, 70 Hz, 80 MHz PixClock */
-		.name	= "1024x768",
-		.var	= {
-			.xres		= 1024,
-			.yres		= 768,
-			.xres_virtual	= 1024,
-			.yres_virtual	= 768,
-			.bits_per_pixel	= 8,
-			.red		= { .length = 8 },
-			.green		= { .length = 8 },
-			.blue		= { .length = 8 },
-			.width		= -1,
-			.height		= -1,
-			.pixclock	= 12500,
-			.left_margin	= 144,
-			.right_margin	= 32,
-			.upper_margin	= 30,
-			.lower_margin	= 2,
-			.hsync_len	= 192,
-			.vsync_len	= 6,
-			.vmode		= FB_VMODE_NONINTERLACED
-		}
-	}
-};
-
-#define NUM_TOTAL_MODES    ARRAY_SIZE(cirrusfb_predefined)
+static int noaccel __devinitdata;
+static char *mode_option __devinitdata = "640x480@60";
 
 /****************************************************************************/
 /**** BEGIN PROTOTYPES ******************************************************/
@@ -514,10 +395,6 @@ static struct fb_ops cirrusfb_ops = {
 	.fb_imageblit	= cirrusfb_imageblit,
 };
 
-/*--- Hardware Specific Routines -------------------------------------------*/
-static int cirrusfb_decode_var(const struct fb_var_screeninfo *var,
-				struct cirrusfb_regs *regs,
-				struct fb_info *info);
 /*--- Internal routines ----------------------------------------------------*/
 static void init_vgachip(struct fb_info *info);
 static void switch_monitor(struct cirrusfb_info *cinfo, int on);
@@ -546,9 +423,7 @@ static void cirrusfb_RectFill(u8 __iomem *regbase, int bits_per_pixel,
 			      u_short width, u_short height,
 			      u_char color, u_short line_length);
 
-static void bestclock(long freq, long *best,
-		      long *nom, long *den,
-		      long *div, long maxfreq);
+static void bestclock(long freq, int *nom, int *den, int *div);
 
 #ifdef CIRRUSFB_DEBUG
 static void cirrusfb_dump(void);
@@ -584,45 +459,28 @@ static int cirrusfb_release(struct fb_info *info, int user)
 /****************************************************************************/
 /**** BEGIN Hardware specific Routines **************************************/
 
-/* Get a good MCLK value */
-static long cirrusfb_get_mclk(long freq, int bpp, long *div)
+/* Check if the MCLK is not a better clock source */
+static int cirrusfb_check_mclk(struct cirrusfb_info *cinfo, long freq)
 {
-	long mclk;
+	long mclk = vga_rseq(cinfo->regbase, CL_SEQR1F) & 0x3f;
 
-	assert(div != NULL);
-
-	/* Calculate MCLK, in case VCLK is high enough to require > 50MHz.
-	 * Assume a 64-bit data path for now.  The formula is:
-	 * ((B * PCLK * 2)/W) * 1.2
-	 * B = bytes per pixel, PCLK = pixclock, W = data width in bytes */
-	mclk = ((bpp / 8) * freq * 2) / 4;
-	mclk = (mclk * 12) / 10;
-	if (mclk < 50000)
-		mclk = 50000;
-	DPRINTK("Use MCLK of %ld kHz\n", mclk);
-
-	/* Calculate value for SR1F.  Multiply by 2 so we can round up. */
-	mclk = ((mclk * 16) / 14318);
-	mclk = (mclk + 1) / 2;
-	DPRINTK("Set SR1F[5:0] to 0x%lx\n", mclk);
+	/* Read MCLK value */
+	mclk = (14318 * mclk) >> 3;
+	DPRINTK("Read MCLK of %ld kHz\n", mclk);
 
 	/* Determine if we should use MCLK instead of VCLK, and if so, what we
-	   * should divide it by to get VCLK */
-	switch (freq) {
-	case 24751 ... 25249:
-		*div = 2;
-		DPRINTK("Using VCLK = MCLK/2\n");
-		break;
-	case 49501 ... 50499:
-		*div = 1;
+	 * should divide it by to get VCLK
+	 */
+
+	if (abs(freq - mclk) < 250) {
 		DPRINTK("Using VCLK = MCLK\n");
-		break;
-	default:
-		*div = 0;
-		break;
+		return 1;
+	} else if (abs(freq - (mclk / 2)) < 250) {
+		DPRINTK("Using VCLK = MCLK/2\n");
+		return 2;
 	}
 
-	return mclk;
+	return 0;
 }
 
 static int cirrusfb_check_var(struct fb_var_screeninfo *var,
@@ -638,7 +496,6 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 		break;		/* 8 pixel per byte, only 1/4th of mem usable */
 	case 8:
 	case 16:
-	case 24:
 	case 32:
 		break;		/* 1 pixel == 1 byte */
 	default:
@@ -713,7 +570,6 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length = 5;
 		break;
 
-	case 24:
 	case 32:
 		if (isPReP) {
 			var->red.offset = 8;
@@ -767,8 +623,6 @@ static int cirrusfb_decode_var(const struct fb_var_screeninfo *var,
 	long maxclock;
 	int maxclockidx = var->bits_per_pixel >> 3;
 	struct cirrusfb_info *cinfo = info->par;
-	int xres, hfront, hsync, hback;
-	int yres, vfront, vsync, vback;
 
 	switch (var->bits_per_pixel) {
 	case 1:
@@ -782,10 +636,9 @@ static int cirrusfb_decode_var(const struct fb_var_screeninfo *var,
 		break;
 
 	case 16:
-	case 24:
 	case 32:
 		info->fix.line_length = var->xres_virtual * maxclockidx;
-		info->fix.visual = FB_VISUAL_DIRECTCOLOR;
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 
 	default:
@@ -827,90 +680,33 @@ static int cirrusfb_decode_var(const struct fb_var_screeninfo *var,
 	switch (var->bits_per_pixel) {
 	case 16:
 	case 32:
-		if (regs->HorizRes <= 800)
+		if (var->xres <= 800)
 			/* Xbh has this type of clock for 32-bit */
 			freq /= 2;
 		break;
 	}
 #endif
-
-	bestclock(freq, &regs->freq, &regs->nom, &regs->den, &regs->div,
-		  maxclock);
-	regs->mclk = cirrusfb_get_mclk(freq, var->bits_per_pixel,
-					&regs->divMCLK);
-
-	xres = var->xres;
-	hfront = var->right_margin;
-	hsync = var->hsync_len;
-	hback = var->left_margin;
-
-	yres = var->yres;
-	vfront = var->lower_margin;
-	vsync = var->vsync_len;
-	vback = var->upper_margin;
-
-	if (var->vmode & FB_VMODE_DOUBLE) {
-		yres *= 2;
-		vfront *= 2;
-		vsync *= 2;
-		vback *= 2;
-	} else if (var->vmode & FB_VMODE_INTERLACED) {
-		yres = (yres + 1) / 2;
-		vfront = (vfront + 1) / 2;
-		vsync = (vsync + 1) / 2;
-		vback = (vback + 1) / 2;
-	}
-	regs->HorizRes = xres;
-	regs->HorizTotal = (xres + hfront + hsync + hback) / 8 - 5;
-	regs->HorizDispEnd = xres / 8 - 1;
-	regs->HorizBlankStart = xres / 8;
-	/* does not count with "-5" */
-	regs->HorizBlankEnd = regs->HorizTotal + 5;
-	regs->HorizSyncStart = (xres + hfront) / 8 + 1;
-	regs->HorizSyncEnd = (xres + hfront + hsync) / 8 + 1;
-
-	regs->VertRes = yres;
-	regs->VertTotal = yres + vfront + vsync + vback - 2;
-	regs->VertDispEnd = yres - 1;
-	regs->VertBlankStart = yres;
-	regs->VertBlankEnd = regs->VertTotal;
-	regs->VertSyncStart = yres + vfront - 1;
-	regs->VertSyncEnd = yres + vfront + vsync - 1;
-
-	if (regs->VertRes >= 1024) {
-		regs->VertTotal /= 2;
-		regs->VertSyncStart /= 2;
-		regs->VertSyncEnd /= 2;
-		regs->VertDispEnd /= 2;
-	}
-	if (regs->multiplexing) {
-		regs->HorizTotal /= 2;
-		regs->HorizSyncStart /= 2;
-		regs->HorizSyncEnd /= 2;
-		regs->HorizDispEnd /= 2;
-	}
-
 	return 0;
 }
 
-static void cirrusfb_set_mclk(const struct cirrusfb_info *cinfo, int val,
-				int div)
+static void cirrusfb_set_mclk_as_source(const struct cirrusfb_info *cinfo,
+					int div)
 {
+	unsigned char old1f, old1e;
 	assert(cinfo != NULL);
+	old1f = vga_rseq(cinfo->regbase, CL_SEQR1F) & ~0x40;
 
-	if (div == 2) {
-		/* VCLK = MCLK/2 */
-		unsigned char old = vga_rseq(cinfo->regbase, CL_SEQR1E);
-		vga_wseq(cinfo->regbase, CL_SEQR1E, old | 0x1);
-		vga_wseq(cinfo->regbase, CL_SEQR1F, 0x40 | (val & 0x3f));
-	} else if (div == 1) {
-		/* VCLK = MCLK */
-		unsigned char old = vga_rseq(cinfo->regbase, CL_SEQR1E);
-		vga_wseq(cinfo->regbase, CL_SEQR1E, old & ~0x1);
-		vga_wseq(cinfo->regbase, CL_SEQR1F, 0x40 | (val & 0x3f));
-	} else {
-		vga_wseq(cinfo->regbase, CL_SEQR1F, val & 0x3f);
+	if (div) {
+		DPRINTK("Set %s as pixclock source.\n",
+					(div == 2) ? "MCLK/2" : "MCLK");
+		old1f |= 0x40;
+		old1e = vga_rseq(cinfo->regbase, CL_SEQR1E) & ~0x1;
+		if (div == 2)
+			old1e |= 1;
+
+		vga_wseq(cinfo->regbase, CL_SEQR1E, old1e);
 	}
+	vga_wseq(cinfo->regbase, CL_SEQR1F, old1f);
 }
 
 /*************************************************************************
@@ -927,6 +723,10 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	unsigned char tmp;
 	int offset = 0, err;
 	const struct cirrusfb_board_info_rec *bi;
+	int hdispend, hsyncstart, hsyncend, htotal;
+	int yres, vdispend, vsyncstart, vsyncend, vtotal;
+	long freq;
+	int nom, den, div;
 
 	DPRINTK("ENTER\n");
 	DPRINTK("Requested mode: %dx%dx%d\n",
@@ -944,76 +744,117 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 
 	bi = &cirrusfb_board_info[cinfo->btype];
 
+	hsyncstart = var->xres + var->right_margin;
+	hsyncend = hsyncstart + var->hsync_len;
+	htotal = (hsyncend + var->left_margin) / 8 - 5;
+	hdispend = var->xres / 8 - 1;
+	hsyncstart = hsyncstart / 8 + 1;
+	hsyncend = hsyncend / 8 + 1;
+
+	yres = var->yres;
+	vsyncstart = yres + var->lower_margin;
+	vsyncend = vsyncstart + var->vsync_len;
+	vtotal = vsyncend + var->upper_margin;
+	vdispend = yres - 1;
+
+	if (var->vmode & FB_VMODE_DOUBLE) {
+		yres *= 2;
+		vsyncstart *= 2;
+		vsyncend *= 2;
+		vtotal *= 2;
+	} else if (var->vmode & FB_VMODE_INTERLACED) {
+		yres = (yres + 1) / 2;
+		vsyncstart = (vsyncstart + 1) / 2;
+		vsyncend = (vsyncend + 1) / 2;
+		vtotal = (vtotal + 1) / 2;
+	}
+
+	vtotal -= 2;
+	vsyncstart -= 1;
+	vsyncend -= 1;
+
+	if (yres >= 1024) {
+		vtotal /= 2;
+		vsyncstart /= 2;
+		vsyncend /= 2;
+		vdispend /= 2;
+	}
+	if (regs.multiplexing) {
+		htotal /= 2;
+		hsyncstart /= 2;
+		hsyncend /= 2;
+		hdispend /= 2;
+	}
 	/* unlock register VGA_CRTC_H_TOTAL..CRT7 */
 	vga_wcrt(regbase, VGA_CRTC_V_SYNC_END, 0x20);	/* previously: 0x00) */
 
 	/* if debugging is enabled, all parameters get output before writing */
-	DPRINTK("CRT0: %ld\n", regs.HorizTotal);
-	vga_wcrt(regbase, VGA_CRTC_H_TOTAL, regs.HorizTotal);
+	DPRINTK("CRT0: %d\n", htotal);
+	vga_wcrt(regbase, VGA_CRTC_H_TOTAL, htotal);
 
-	DPRINTK("CRT1: %ld\n", regs.HorizDispEnd);
-	vga_wcrt(regbase, VGA_CRTC_H_DISP, regs.HorizDispEnd);
+	DPRINTK("CRT1: %d\n", hdispend);
+	vga_wcrt(regbase, VGA_CRTC_H_DISP, hdispend);
 
-	DPRINTK("CRT2: %ld\n", regs.HorizBlankStart);
-	vga_wcrt(regbase, VGA_CRTC_H_BLANK_START, regs.HorizBlankStart);
+	DPRINTK("CRT2: %d\n", var->xres / 8);
+	vga_wcrt(regbase, VGA_CRTC_H_BLANK_START, var->xres / 8);
 
 	/*  + 128: Compatible read */
-	DPRINTK("CRT3: 128+%ld\n", regs.HorizBlankEnd % 32);
+	DPRINTK("CRT3: 128+%d\n", (htotal + 5) % 32);
 	vga_wcrt(regbase, VGA_CRTC_H_BLANK_END,
-		 128 + (regs.HorizBlankEnd % 32));
+		 128 + ((htotal + 5) % 32));
 
-	DPRINTK("CRT4: %ld\n", regs.HorizSyncStart);
-	vga_wcrt(regbase, VGA_CRTC_H_SYNC_START, regs.HorizSyncStart);
+	DPRINTK("CRT4: %d\n", hsyncstart);
+	vga_wcrt(regbase, VGA_CRTC_H_SYNC_START, hsyncstart);
 
-	tmp = regs.HorizSyncEnd % 32;
-	if (regs.HorizBlankEnd & 32)
+	tmp = hsyncend % 32;
+	if ((htotal + 5) & 32)
 		tmp += 128;
 	DPRINTK("CRT5: %d\n", tmp);
 	vga_wcrt(regbase, VGA_CRTC_H_SYNC_END, tmp);
 
-	DPRINTK("CRT6: %ld\n", regs.VertTotal & 0xff);
-	vga_wcrt(regbase, VGA_CRTC_V_TOTAL, (regs.VertTotal & 0xff));
+	DPRINTK("CRT6: %d\n", vtotal & 0xff);
+	vga_wcrt(regbase, VGA_CRTC_V_TOTAL, vtotal & 0xff);
 
 	tmp = 16;		/* LineCompare bit #9 */
-	if (regs.VertTotal & 256)
+	if (vtotal & 256)
 		tmp |= 1;
-	if (regs.VertDispEnd & 256)
+	if (vdispend & 256)
 		tmp |= 2;
-	if (regs.VertSyncStart & 256)
+	if (vsyncstart & 256)
 		tmp |= 4;
-	if (regs.VertBlankStart & 256)
+	if ((vdispend + 1) & 256)
 		tmp |= 8;
-	if (regs.VertTotal & 512)
+	if (vtotal & 512)
 		tmp |= 32;
-	if (regs.VertDispEnd & 512)
+	if (vdispend & 512)
 		tmp |= 64;
-	if (regs.VertSyncStart & 512)
+	if (vsyncstart & 512)
 		tmp |= 128;
 	DPRINTK("CRT7: %d\n", tmp);
 	vga_wcrt(regbase, VGA_CRTC_OVERFLOW, tmp);
 
 	tmp = 0x40;		/* LineCompare bit #8 */
-	if (regs.VertBlankStart & 512)
+	if ((vdispend + 1) & 512)
 		tmp |= 0x20;
 	if (var->vmode & FB_VMODE_DOUBLE)
 		tmp |= 0x80;
 	DPRINTK("CRT9: %d\n", tmp);
 	vga_wcrt(regbase, VGA_CRTC_MAX_SCAN, tmp);
 
-	DPRINTK("CRT10: %ld\n", regs.VertSyncStart & 0xff);
-	vga_wcrt(regbase, VGA_CRTC_V_SYNC_START, regs.VertSyncStart & 0xff);
+	DPRINTK("CRT10: %d\n", vsyncstart & 0xff);
+	vga_wcrt(regbase, VGA_CRTC_V_SYNC_START, vsyncstart & 0xff);
 
-	DPRINTK("CRT11: 64+32+%ld\n", regs.VertSyncEnd % 16);
-	vga_wcrt(regbase, VGA_CRTC_V_SYNC_END, regs.VertSyncEnd % 16 + 64 + 32);
+	DPRINTK("CRT11: 64+32+%d\n", vsyncend % 16);
+	vga_wcrt(regbase, VGA_CRTC_V_SYNC_END, vsyncend % 16 + 64 + 32);
 
-	DPRINTK("CRT12: %ld\n", regs.VertDispEnd & 0xff);
-	vga_wcrt(regbase, VGA_CRTC_V_DISP_END, regs.VertDispEnd & 0xff);
+	DPRINTK("CRT12: %d\n", vdispend & 0xff);
+	vga_wcrt(regbase, VGA_CRTC_V_DISP_END, vdispend & 0xff);
 
-	DPRINTK("CRT15: %ld\n", regs.VertBlankStart & 0xff);
-	vga_wcrt(regbase, VGA_CRTC_V_BLANK_START, regs.VertBlankStart & 0xff);
+	DPRINTK("CRT15: %d\n", (vdispend + 1) & 0xff);
+	vga_wcrt(regbase, VGA_CRTC_V_BLANK_START, (vdispend + 1) & 0xff);
 
-	DPRINTK("CRT16: %ld\n", regs.VertBlankEnd & 0xff);
-	vga_wcrt(regbase, VGA_CRTC_V_BLANK_END, regs.VertBlankEnd & 0xff);
+	DPRINTK("CRT16: %d\n", vtotal & 0xff);
+	vga_wcrt(regbase, VGA_CRTC_V_BLANK_END, vtotal & 0xff);
 
 	DPRINTK("CRT18: 0xff\n");
 	vga_wcrt(regbase, VGA_CRTC_LINE_COMPARE, 0xff);
@@ -1021,38 +862,53 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	tmp = 0;
 	if (var->vmode & FB_VMODE_INTERLACED)
 		tmp |= 1;
-	if (regs.HorizBlankEnd & 64)
+	if ((htotal + 5) & 64)
 		tmp |= 16;
-	if (regs.HorizBlankEnd & 128)
+	if ((htotal + 5) & 128)
 		tmp |= 32;
-	if (regs.VertBlankEnd & 256)
+	if (vtotal & 256)
 		tmp |= 64;
-	if (regs.VertBlankEnd & 512)
+	if (vtotal & 512)
 		tmp |= 128;
 
 	DPRINTK("CRT1a: %d\n", tmp);
 	vga_wcrt(regbase, CL_CRT1A, tmp);
+
+	freq = PICOS2KHZ(var->pixclock);
+	bestclock(freq, &nom, &den, &div);
 
 	/* set VCLK0 */
 	/* hardware RefClock: 14.31818 MHz */
 	/* formula: VClk = (OSC * N) / (D * (1+P)) */
 	/* Example: VClk = (14.31818 * 91) / (23 * (1+1)) = 28.325 MHz */
 
-	vga_wseq(regbase, CL_SEQRB, regs.nom);
-	tmp = regs.den << 1;
-	if (regs.div != 0)
-		tmp |= 1;
+	if (cinfo->btype == BT_ALPINE) {
+		/* if freq is close to mclk or mclk/2 select mclk
+		 * as clock source
+		 */
+		int divMCLK = cirrusfb_check_mclk(cinfo, freq);
+		if (divMCLK)  {
+			nom = 0;
+			cirrusfb_set_mclk_as_source(cinfo, divMCLK);
+		}
+	}
+	if (nom) {
+		vga_wseq(regbase, CL_SEQRB, nom);
+		tmp = den << 1;
+		if (div != 0)
+			tmp |= 1;
 
-	/* 6 bit denom; ONLY 5434!!! (bugged me 10 days) */
-	if ((cinfo->btype == BT_SD64) ||
-	    (cinfo->btype == BT_ALPINE) ||
-	    (cinfo->btype == BT_GD5480))
-		tmp |= 0x80;
+		/* 6 bit denom; ONLY 5434!!! (bugged me 10 days) */
+		if ((cinfo->btype == BT_SD64) ||
+		    (cinfo->btype == BT_ALPINE) ||
+		    (cinfo->btype == BT_GD5480))
+			tmp |= 0x80;
 
-	DPRINTK("CL_SEQR1B: %ld\n", (long) tmp);
-	vga_wseq(regbase, CL_SEQR1B, tmp);
+		DPRINTK("CL_SEQR1B: %ld\n", (long) tmp);
+		vga_wseq(regbase, CL_SEQR1B, tmp);
+	}
 
-	if (regs.VertRes >= 1024)
+	if (yres >= 1024)
 		/* 1280x1024 */
 		vga_wcrt(regbase, VGA_CRTC_MODE, 0xc7);
 	else
@@ -1066,7 +922,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	/* don't know if it would hurt to also program this if no interlaced */
 	/* mode is used, but I feel better this way.. :-) */
 	if (var->vmode & FB_VMODE_INTERLACED)
-		vga_wcrt(regbase, VGA_CRTC_REGS, regs.HorizTotal / 2);
+		vga_wcrt(regbase, VGA_CRTC_REGS, htotal / 2);
 	else
 		vga_wcrt(regbase, VGA_CRTC_REGS, 0x00);	/* interlace control */
 
@@ -1240,7 +1096,6 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 
 		case BT_ALPINE:
 			DPRINTK(" (for GD543x)\n");
-			cirrusfb_set_mclk(cinfo, regs.mclk, regs.divMCLK);
 			/* We already set SRF and SR1F */
 			break;
 
@@ -1312,11 +1167,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 
 		case BT_ALPINE:
 			DPRINTK(" (for GD543x)\n");
-			if (regs.HorizRes >= 1024)
-				vga_wseq(regbase, CL_SEQR7, 0xa7);
-			else
-				vga_wseq(regbase, CL_SEQR7, 0xa3);
-			cirrusfb_set_mclk(cinfo, regs.mclk, regs.divMCLK);
+			vga_wseq(regbase, CL_SEQR7, 0xa7);
 			break;
 
 		case BT_GD5480:
@@ -1360,7 +1211,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	 */
 
 	else if (var->bits_per_pixel == 32) {
-		DPRINTK("cirrusfb: preparing for 24/32 bit deep display\n");
+		DPRINTK("cirrusfb: preparing for 32 bit deep display\n");
 		switch (cinfo->btype) {
 		case BT_SD64:
 			/* Extended Sequencer Mode: 256c col. mode */
@@ -1394,7 +1245,6 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		case BT_ALPINE:
 			DPRINTK(" (for GD543x)\n");
 			vga_wseq(regbase, CL_SEQR7, 0xa9);
-			cirrusfb_set_mclk(cinfo, regs.mclk, regs.divMCLK);
 			break;
 
 		case BT_GD5480:
@@ -1949,8 +1799,6 @@ static void init_vgachip(struct fb_info *info)
 	/* misc... */
 	WHDR(cinfo, 0);	/* Hidden DAC register: - */
 
-	printk(KERN_DEBUG "cirrusfb: This board has %ld bytes of DRAM memory\n",
-		info->screen_size);
 	DPRINTK("EXIT\n");
 	return;
 }
@@ -2122,7 +1970,7 @@ static int release_io_ports;
  * based on the DRAM bandwidth bit and DRAM bank switching bit.  This
  * works with 1MB, 2MB and 4MB configurations (which the Motorola boards
  * seem to have. */
-static unsigned int cirrusfb_get_memsize(u8 __iomem *regbase)
+static unsigned int __devinit cirrusfb_get_memsize(u8 __iomem *regbase)
 {
 	unsigned long mem;
 	unsigned char SRF;
@@ -2188,8 +2036,7 @@ static void get_pci_addrs(const struct pci_dev *pdev,
 
 static void cirrusfb_pci_unmap(struct fb_info *info)
 {
-	struct cirrusfb_info *cinfo = info->par;
-	struct pci_dev *pdev = cinfo->pdev;
+	struct pci_dev *pdev = to_pci_dev(info->device);
 
 	iounmap(info->screen_base);
 #if 0 /* if system didn't claim this region, we would... */
@@ -2202,23 +2049,25 @@ static void cirrusfb_pci_unmap(struct fb_info *info)
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_ZORRO
-static void __devexit cirrusfb_zorro_unmap(struct fb_info *info)
+static void cirrusfb_zorro_unmap(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
-	zorro_release_device(cinfo->zdev);
+	struct zorro_dev *zdev = to_zorro_dev(info->device);
+
+	zorro_release_device(zdev);
 
 	if (cinfo->btype == BT_PICASSO4) {
 		cinfo->regbase -= 0x600000;
 		iounmap((void *)cinfo->regbase);
 		iounmap(info->screen_base);
 	} else {
-		if (zorro_resource_start(cinfo->zdev) > 0x01000000)
+		if (zorro_resource_start(zdev) > 0x01000000)
 			iounmap(info->screen_base);
 	}
 }
 #endif /* CONFIG_ZORRO */
 
-static int cirrusfb_set_fbinfo(struct fb_info *info)
+static int __devinit cirrusfb_set_fbinfo(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	struct fb_var_screeninfo *var = &info->var;
@@ -2235,7 +2084,7 @@ static int cirrusfb_set_fbinfo(struct fb_info *info)
 	if (cinfo->btype == BT_GD5480) {
 		if (var->bits_per_pixel == 16)
 			info->screen_base += 1 * MB_;
-		if (var->bits_per_pixel == 24 || var->bits_per_pixel == 32)
+		if (var->bits_per_pixel == 32)
 			info->screen_base += 2 * MB_;
 	}
 
@@ -2262,7 +2111,7 @@ static int cirrusfb_set_fbinfo(struct fb_info *info)
 	return 0;
 }
 
-static int cirrusfb_register(struct fb_info *info)
+static int __devinit cirrusfb_register(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	int err;
@@ -2278,22 +2127,26 @@ static int cirrusfb_register(struct fb_info *info)
 	/* sanity checks */
 	assert(btype != BT_NONE);
 
+	/* set all the vital stuff */
+	cirrusfb_set_fbinfo(info);
+
 	DPRINTK("cirrusfb: (RAM start set to: 0x%p)\n", info->screen_base);
 
-	/* Make pretend we've set the var so our structures are in a "good" */
-	/* state, even though we haven't written the mode to the hw yet...  */
-	info->var = cirrusfb_predefined[cirrusfb_def_mode].var;
+	err = fb_find_mode(&info->var, info, mode_option, NULL, 0, NULL, 8);
+	if (!err) {
+		DPRINTK("wrong initial video mode\n");
+		err = -EINVAL;
+		goto err_dealloc_cmap;
+	}
+
 	info->var.activate = FB_ACTIVATE_NOW;
 
 	err = cirrusfb_decode_var(&info->var, &cinfo->currentmode, info);
 	if (err < 0) {
 		/* should never happen */
 		DPRINTK("choking on default var... umm, no good.\n");
-		goto err_unmap_cirrusfb;
+		goto err_dealloc_cmap;
 	}
-
-	/* set all the vital stuff */
-	cirrusfb_set_fbinfo(info);
 
 	err = register_framebuffer(info);
 	if (err < 0) {
@@ -2307,7 +2160,6 @@ static int cirrusfb_register(struct fb_info *info)
 
 err_dealloc_cmap:
 	fb_dealloc_cmap(&info->cmap);
-err_unmap_cirrusfb:
 	cinfo->unmap(info);
 	framebuffer_release(info);
 	return err;
@@ -2330,8 +2182,8 @@ static void __devexit cirrusfb_cleanup(struct fb_info *info)
 }
 
 #ifdef CONFIG_PCI
-static int cirrusfb_pci_register(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int __devinit cirrusfb_pci_register(struct pci_dev *pdev,
+					   const struct pci_device_id *ent)
 {
 	struct cirrusfb_info *cinfo;
 	struct fb_info *info;
@@ -2353,7 +2205,6 @@ static int cirrusfb_pci_register(struct pci_dev *pdev,
 	}
 
 	cinfo = info->par;
-	cinfo->pdev = pdev;
 	cinfo->btype = btype = (enum cirrus_board) ent->driver_data;
 
 	DPRINTK(" Found PCI device, base address 0 is 0x%x, btype set to %d\n",
@@ -2459,8 +2310,8 @@ static struct pci_driver cirrusfb_pci_driver = {
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_ZORRO
-static int cirrusfb_zorro_register(struct zorro_dev *z,
-				   const struct zorro_device_id *ent)
+static int __devinit cirrusfb_zorro_register(struct zorro_dev *z,
+					     const struct zorro_device_id *ent)
 {
 	struct cirrusfb_info *cinfo;
 	struct fb_info *info;
@@ -2489,7 +2340,6 @@ static int cirrusfb_zorro_register(struct zorro_dev *z,
 	assert(z);
 	assert(btype != BT_NONE);
 
-	cinfo->zdev = z;
 	board_addr = zorro_resource_start(z);
 	board_size = zorro_resource_len(z);
 	info->screen_size = size;
@@ -2612,8 +2462,7 @@ static int __init cirrusfb_init(void)
 
 #ifndef MODULE
 static int __init cirrusfb_setup(char *options) {
-	char *this_opt, s[32];
-	int i;
+	char *this_opt;
 
 	DPRINTK("ENTER\n");
 
@@ -2621,17 +2470,17 @@ static int __init cirrusfb_setup(char *options) {
 		return 0;
 
 	while ((this_opt = strsep(&options, ",")) != NULL) {
-		if (!*this_opt) continue;
+		if (!*this_opt)
+			continue;
 
 		DPRINTK("cirrusfb_setup: option '%s'\n", this_opt);
 
-		for (i = 0; i < NUM_TOTAL_MODES; i++) {
-			sprintf(s, "mode:%s", cirrusfb_predefined[i].name);
-			if (strcmp(this_opt, s) == 0)
-				cirrusfb_def_mode = i;
-		}
 		if (!strcmp(this_opt, "noaccel"))
 			noaccel = 1;
+		else if (!strncmp(this_opt, "mode:", 5))
+			mode_option = this_opt + 5;
+		else
+			mode_option = this_opt;
 	}
 	return 0;
 }
@@ -2656,6 +2505,11 @@ static void __exit cirrusfb_exit(void)
 }
 
 module_init(cirrusfb_init);
+
+module_param(mode_option, charp, 0);
+MODULE_PARM_DESC(mode_option, "Initial video mode e.g. '648x480-8@60'");
+module_param(noaccel, bool, 0);
+MODULE_PARM_DESC(noaccel, "Disable acceleration");
 
 #ifdef MODULE
 module_exit(cirrusfb_exit);
@@ -3050,16 +2904,14 @@ static void cirrusfb_RectFill(u8 __iomem *regbase, int bits_per_pixel,
  * bestclock() - determine closest possible clock lower(?) than the
  * desired pixel clock
  **************************************************************************/
-static void bestclock(long freq, long *best, long *nom,
-		       long *den, long *div, long maxfreq)
+static void bestclock(long freq, int *nom, int *den, int *div)
 {
-	long n, h, d, f;
+	int n, d;
+	long h, diff;
 
-	assert(best != NULL);
 	assert(nom != NULL);
 	assert(den != NULL);
 	assert(div != NULL);
-	assert(maxfreq > 0);
 
 	*nom = 0;
 	*den = 0;
@@ -3070,51 +2922,47 @@ static void bestclock(long freq, long *best, long *nom,
 	if (freq < 8000)
 		freq = 8000;
 
-	if (freq > maxfreq)
-		freq = maxfreq;
-
-	*best = 0;
-	f = freq * 10;
+	diff = freq;
 
 	for (n = 32; n < 128; n++) {
-		d = (143181 * n) / f;
+		int s = 0;
+
+		d = (14318 * n) / freq;
 		if ((d >= 7) && (d <= 63)) {
-			if (d > 31)
-				d = (d / 2) * 2;
-			h = (14318 * n) / d;
-			if (abs(h - freq) < abs(*best - freq)) {
-				*best = h;
+			int temp = d;
+
+			if (temp > 31) {
+				s = 1;
+				temp >>= 1;
+			}
+			h = ((14318 * n) / temp) >> s;
+			h = h > freq ? h - freq : freq - h;
+			if (h < diff) {
+				diff = h;
 				*nom = n;
-				if (d < 32) {
-					*den = d;
-					*div = 0;
-				} else {
-					*den = d / 2;
-					*div = 1;
-				}
+				*den = temp;
+				*div = s;
 			}
 		}
-		d = DIV_ROUND_UP(143181 * n, f);
+		d++;
 		if ((d >= 7) && (d <= 63)) {
-			if (d > 31)
-				d = (d / 2) * 2;
-			h = (14318 * n) / d;
-			if (abs(h - freq) < abs(*best - freq)) {
-				*best = h;
+			if (d > 31) {
+				s = 1;
+				d >>= 1;
+			}
+			h = ((14318 * n) / d) >> s;
+			h = h > freq ? h - freq : freq - h;
+			if (h < diff) {
+				diff = h;
 				*nom = n;
-				if (d < 32) {
-					*den = d;
-					*div = 0;
-				} else {
-					*den = d / 2;
-					*div = 1;
-				}
+				*den = d;
+				*div = s;
 			}
 		}
 	}
 
 	DPRINTK("Best possible values for given frequency:\n");
-	DPRINTK("	best: %ld kHz  nom: %ld  den: %ld  div: %ld\n",
+	DPRINTK("	freq: %ld kHz  nom: %d  den: %d  div: %d\n",
 		freq, *nom, *den, *div);
 
 	DPRINTK("EXIT\n");

@@ -188,17 +188,6 @@ static void mem_disp(u8 *addr, int size)
 }
 #endif /* DEBUG */
 
-#ifdef CONFIG_UGETH_FILTERING
-static void enqueue(struct list_head *node, struct list_head *lh)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ugeth_lock, flags);
-	list_add_tail(node, lh);
-	spin_unlock_irqrestore(&ugeth_lock, flags);
-}
-#endif /* CONFIG_UGETH_FILTERING */
-
 static struct list_head *dequeue(struct list_head *lh)
 {
 	unsigned long flags;
@@ -391,23 +380,6 @@ static int dump_init_enet_entries(struct ucc_geth_private *ugeth,
 }
 #endif
 
-#ifdef CONFIG_UGETH_FILTERING
-static struct enet_addr_container *get_enet_addr_container(void)
-{
-	struct enet_addr_container *enet_addr_cont;
-
-	/* allocate memory */
-	enet_addr_cont = kmalloc(sizeof(struct enet_addr_container), GFP_KERNEL);
-	if (!enet_addr_cont) {
-		ugeth_err("%s: No memory for enet_addr_container object.",
-			  __func__);
-		return NULL;
-	}
-
-	return enet_addr_cont;
-}
-#endif /* CONFIG_UGETH_FILTERING */
-
 static void put_enet_addr_container(struct enet_addr_container *enet_addr_cont)
 {
 	kfree(enet_addr_cont);
@@ -419,28 +391,6 @@ static void set_mac_addr(__be16 __iomem *reg, u8 *mac)
 	out_be16(&reg[1], ((u16)mac[3] << 8) | mac[2]);
 	out_be16(&reg[2], ((u16)mac[1] << 8) | mac[0]);
 }
-
-#ifdef CONFIG_UGETH_FILTERING
-static int hw_add_addr_in_paddr(struct ucc_geth_private *ugeth,
-                                u8 *p_enet_addr, u8 paddr_num)
-{
-	struct ucc_geth_82xx_address_filtering_pram *p_82xx_addr_filt;
-
-	if (!(paddr_num < NUM_OF_PADDRS)) {
-		ugeth_warn("%s: Illegal paddr_num.", __func__);
-		return -EINVAL;
-	}
-
-	p_82xx_addr_filt =
-	    (struct ucc_geth_82xx_address_filtering_pram *) ugeth->p_rx_glbl_pram->
-	    addressfiltering;
-
-	/* Ethernet frames are defined in Little Endian mode,    */
-	/* therefore to insert the address we reverse the bytes. */
-	set_mac_addr(&p_82xx_addr_filt->paddr[paddr_num].h, p_enet_addr);
-	return 0;
-}
-#endif /* CONFIG_UGETH_FILTERING */
 
 static int hw_clear_addr_in_paddr(struct ucc_geth_private *ugeth, u8 paddr_num)
 {
@@ -1615,8 +1565,8 @@ static int init_phy(struct net_device *dev)
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	snprintf(phy_id, BUS_ID_SIZE, PHY_ID_FMT, priv->ug_info->mdio_bus,
-			priv->ug_info->phy_address);
+	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT, priv->ug_info->mdio_bus,
+		 priv->ug_info->phy_address);
 
 	phydev = phy_connect(dev, phy_id, &adjust_link, 0, priv->phy_interface);
 
@@ -1647,6 +1597,7 @@ static int ugeth_graceful_stop_tx(struct ucc_geth_private *ugeth)
 	struct ucc_fast_private *uccf;
 	u32 cecr_subblock;
 	u32 temp;
+	int i = 10;
 
 	uccf = ugeth->uccf;
 
@@ -1664,8 +1615,9 @@ static int ugeth_graceful_stop_tx(struct ucc_geth_private *ugeth)
 
 	/* Wait for command to complete */
 	do {
+		msleep(10);
 		temp = in_be32(uccf->p_ucce);
-	} while (!(temp & UCCE_GRA));
+	} while (!(temp & UCCE_GRA) && --i);
 
 	uccf->stopped_tx = 1;
 
@@ -1677,6 +1629,7 @@ static int ugeth_graceful_stop_rx(struct ucc_geth_private * ugeth)
 	struct ucc_fast_private *uccf;
 	u32 cecr_subblock;
 	u8 temp;
+	int i = 10;
 
 	uccf = ugeth->uccf;
 
@@ -1694,9 +1647,9 @@ static int ugeth_graceful_stop_rx(struct ucc_geth_private * ugeth)
 						ucc_num);
 		qe_issue_cmd(QE_GRACEFUL_STOP_RX, cecr_subblock,
 			     QE_CR_PROTOCOL_ETHERNET, 0);
-
+		msleep(10);
 		temp = in_8(&ugeth->p_rx_glbl_pram->rxgstpack);
-	} while (!(temp & GRACEFUL_STOP_ACKNOWLEDGE_RX));
+	} while (!(temp & GRACEFUL_STOP_ACKNOWLEDGE_RX) && --i);
 
 	uccf->stopped_rx = 1;
 
@@ -1799,196 +1752,6 @@ static void ugeth_dump_regs(struct ucc_geth_private *ugeth)
 #endif
 }
 
-#ifdef CONFIG_UGETH_FILTERING
-static int ugeth_ext_filtering_serialize_tad(struct ucc_geth_tad_params *
-					     p_UccGethTadParams,
-					     struct qe_fltr_tad *qe_fltr_tad)
-{
-	u16 temp;
-
-	/* Zero serialized TAD */
-	memset(qe_fltr_tad, 0, QE_FLTR_TAD_SIZE);
-
-	qe_fltr_tad->serialized[0] |= UCC_GETH_TAD_V;	/* Must have this */
-	if (p_UccGethTadParams->rx_non_dynamic_extended_features_mode ||
-	    (p_UccGethTadParams->vtag_op != UCC_GETH_VLAN_OPERATION_TAGGED_NOP)
-	    || (p_UccGethTadParams->vnontag_op !=
-		UCC_GETH_VLAN_OPERATION_NON_TAGGED_NOP)
-	    )
-		qe_fltr_tad->serialized[0] |= UCC_GETH_TAD_EF;
-	if (p_UccGethTadParams->reject_frame)
-		qe_fltr_tad->serialized[0] |= UCC_GETH_TAD_REJ;
-	temp =
-	    (u16) (((u16) p_UccGethTadParams->
-		    vtag_op) << UCC_GETH_TAD_VTAG_OP_SHIFT);
-	qe_fltr_tad->serialized[0] |= (u8) (temp >> 8);	/* upper bits */
-
-	qe_fltr_tad->serialized[1] |= (u8) (temp & 0x00ff);	/* lower bits */
-	if (p_UccGethTadParams->vnontag_op ==
-	    UCC_GETH_VLAN_OPERATION_NON_TAGGED_Q_TAG_INSERT)
-		qe_fltr_tad->serialized[1] |= UCC_GETH_TAD_V_NON_VTAG_OP;
-	qe_fltr_tad->serialized[1] |=
-	    p_UccGethTadParams->rqos << UCC_GETH_TAD_RQOS_SHIFT;
-
-	qe_fltr_tad->serialized[2] |=
-	    p_UccGethTadParams->vpri << UCC_GETH_TAD_V_PRIORITY_SHIFT;
-	/* upper bits */
-	qe_fltr_tad->serialized[2] |= (u8) (p_UccGethTadParams->vid >> 8);
-	/* lower bits */
-	qe_fltr_tad->serialized[3] |= (u8) (p_UccGethTadParams->vid & 0x00ff);
-
-	return 0;
-}
-
-static struct enet_addr_container_t
-    *ugeth_82xx_filtering_get_match_addr_in_hash(struct ucc_geth_private *ugeth,
-						 struct enet_addr *p_enet_addr)
-{
-	struct enet_addr_container *enet_addr_cont;
-	struct list_head *p_lh;
-	u16 i, num;
-	int32_t j;
-	u8 *p_counter;
-
-	if ((*p_enet_addr)[0] & ENET_GROUP_ADDR) {
-		p_lh = &ugeth->group_hash_q;
-		p_counter = &(ugeth->numGroupAddrInHash);
-	} else {
-		p_lh = &ugeth->ind_hash_q;
-		p_counter = &(ugeth->numIndAddrInHash);
-	}
-
-	if (!p_lh)
-		return NULL;
-
-	num = *p_counter;
-
-	for (i = 0; i < num; i++) {
-		enet_addr_cont =
-		    (struct enet_addr_container *)
-		    ENET_ADDR_CONT_ENTRY(dequeue(p_lh));
-		for (j = ENET_NUM_OCTETS_PER_ADDRESS - 1; j >= 0; j--) {
-			if ((*p_enet_addr)[j] != (enet_addr_cont->address)[j])
-				break;
-			if (j == 0)
-				return enet_addr_cont;	/* Found */
-		}
-		enqueue(p_lh, &enet_addr_cont->node);	/* Put it back */
-	}
-	return NULL;
-}
-
-static int ugeth_82xx_filtering_add_addr_in_hash(struct ucc_geth_private *ugeth,
-						 struct enet_addr *p_enet_addr)
-{
-	enum ucc_geth_enet_address_recognition_location location;
-	struct enet_addr_container *enet_addr_cont;
-	struct list_head *p_lh;
-	u8 i;
-	u32 limit;
-	u8 *p_counter;
-
-	if ((*p_enet_addr)[0] & ENET_GROUP_ADDR) {
-		p_lh = &ugeth->group_hash_q;
-		limit = ugeth->ug_info->maxGroupAddrInHash;
-		location =
-		    UCC_GETH_ENET_ADDRESS_RECOGNITION_LOCATION_GROUP_HASH;
-		p_counter = &(ugeth->numGroupAddrInHash);
-	} else {
-		p_lh = &ugeth->ind_hash_q;
-		limit = ugeth->ug_info->maxIndAddrInHash;
-		location =
-		    UCC_GETH_ENET_ADDRESS_RECOGNITION_LOCATION_INDIVIDUAL_HASH;
-		p_counter = &(ugeth->numIndAddrInHash);
-	}
-
-	if ((enet_addr_cont =
-	     ugeth_82xx_filtering_get_match_addr_in_hash(ugeth, p_enet_addr))) {
-		list_add(p_lh, &enet_addr_cont->node);	/* Put it back */
-		return 0;
-	}
-	if ((!p_lh) || (!(*p_counter < limit)))
-		return -EBUSY;
-	if (!(enet_addr_cont = get_enet_addr_container()))
-		return -ENOMEM;
-	for (i = 0; i < ENET_NUM_OCTETS_PER_ADDRESS; i++)
-		(enet_addr_cont->address)[i] = (*p_enet_addr)[i];
-	enet_addr_cont->location = location;
-	enqueue(p_lh, &enet_addr_cont->node);	/* Put it back */
-	++(*p_counter);
-
-	hw_add_addr_in_hash(ugeth, enet_addr_cont->address);
-	return 0;
-}
-
-static int ugeth_82xx_filtering_clear_addr_in_hash(struct ucc_geth_private *ugeth,
-						   struct enet_addr *p_enet_addr)
-{
-	struct ucc_geth_82xx_address_filtering_pram *p_82xx_addr_filt;
-	struct enet_addr_container *enet_addr_cont;
-	struct ucc_fast_private *uccf;
-	enum comm_dir comm_dir;
-	u16 i, num;
-	struct list_head *p_lh;
-	u32 *addr_h, *addr_l;
-	u8 *p_counter;
-
-	uccf = ugeth->uccf;
-
-	p_82xx_addr_filt =
-	    (struct ucc_geth_82xx_address_filtering_pram *) ugeth->p_rx_glbl_pram->
-	    addressfiltering;
-
-	if (!
-	    (enet_addr_cont =
-	     ugeth_82xx_filtering_get_match_addr_in_hash(ugeth, p_enet_addr)))
-		return -ENOENT;
-
-	/* It's been found and removed from the CQ. */
-	/* Now destroy its container */
-	put_enet_addr_container(enet_addr_cont);
-
-	if ((*p_enet_addr)[0] & ENET_GROUP_ADDR) {
-		addr_h = &(p_82xx_addr_filt->gaddr_h);
-		addr_l = &(p_82xx_addr_filt->gaddr_l);
-		p_lh = &ugeth->group_hash_q;
-		p_counter = &(ugeth->numGroupAddrInHash);
-	} else {
-		addr_h = &(p_82xx_addr_filt->iaddr_h);
-		addr_l = &(p_82xx_addr_filt->iaddr_l);
-		p_lh = &ugeth->ind_hash_q;
-		p_counter = &(ugeth->numIndAddrInHash);
-	}
-
-	comm_dir = 0;
-	if (uccf->enabled_tx)
-		comm_dir |= COMM_DIR_TX;
-	if (uccf->enabled_rx)
-		comm_dir |= COMM_DIR_RX;
-	if (comm_dir)
-		ugeth_disable(ugeth, comm_dir);
-
-	/* Clear the hash table. */
-	out_be32(addr_h, 0x00000000);
-	out_be32(addr_l, 0x00000000);
-
-	/* Add all remaining CQ elements back into hash */
-	num = --(*p_counter);
-	for (i = 0; i < num; i++) {
-		enet_addr_cont =
-		    (struct enet_addr_container *)
-		    ENET_ADDR_CONT_ENTRY(dequeue(p_lh));
-		hw_add_addr_in_hash(ugeth, enet_addr_cont->address);
-		enqueue(p_lh, &enet_addr_cont->node);	/* Put it back */
-	}
-
-	if (comm_dir)
-		ugeth_enable(ugeth, comm_dir);
-
-	return 0;
-}
-#endif /* CONFIG_UGETH_FILTERING */
-
 static int ugeth_82xx_filtering_clear_all_addr_in_hash(struct ucc_geth_private *
 						       ugeth,
 						       enum enet_addr_type
@@ -2050,28 +1813,6 @@ static int ugeth_82xx_filtering_clear_all_addr_in_hash(struct ucc_geth_private *
 
 	return 0;
 }
-
-#ifdef CONFIG_UGETH_FILTERING
-static int ugeth_82xx_filtering_add_addr_in_paddr(struct ucc_geth_private *ugeth,
-						  struct enet_addr *p_enet_addr,
-						  u8 paddr_num)
-{
-	int i;
-
-	if ((*p_enet_addr)[0] & ENET_GROUP_ADDR)
-		ugeth_warn
-		    ("%s: multicast address added to paddr will have no "
-		     "effect - is this what you wanted?",
-		     __func__);
-
-	ugeth->indAddrRegUsed[paddr_num] = 1;	/* mark this paddr as used */
-	/* store address in our database */
-	for (i = 0; i < ENET_NUM_OCTETS_PER_ADDRESS; i++)
-		ugeth->paddr[paddr_num][i] = (*p_enet_addr)[i];
-	/* put in hardware */
-	return hw_add_addr_in_paddr(ugeth, p_enet_addr, paddr_num);
-}
-#endif /* CONFIG_UGETH_FILTERING */
 
 static int ugeth_82xx_filtering_clear_addr_in_paddr(struct ucc_geth_private *ugeth,
 						    u8 paddr_num)
@@ -2215,7 +1956,10 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 	while (!list_empty(&ugeth->ind_hash_q))
 		put_enet_addr_container(ENET_ADDR_CONT_ENTRY
 					(dequeue(&ugeth->ind_hash_q)));
-
+	if (ugeth->ug_regs) {
+		iounmap(ugeth->ug_regs);
+		ugeth->ug_regs = NULL;
+	}
 }
 
 static void ucc_geth_set_multi(struct net_device *dev)
@@ -2296,8 +2040,6 @@ static void ucc_geth_stop(struct ucc_geth_private *ugeth)
 	tempval = in_be32(&ug_regs->maccfg1);
 	tempval &= ~(MACCFG1_ENABLE_RX | MACCFG1_ENABLE_TX);
 	out_be32(&ug_regs->maccfg1, tempval);
-
-	free_irq(ugeth->ug_info->uf_info.irq, ugeth->dev);
 
 	ucc_geth_memclean(ugeth);
 }
@@ -2419,11 +2161,15 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 	if (ucc_fast_init(uf_info, &ugeth->uccf)) {
 		if (netif_msg_probe(ugeth))
 			ugeth_err("%s: Failed to init uccf.", __func__);
-		ucc_geth_memclean(ugeth);
 		return -ENOMEM;
 	}
 
-	ugeth->ug_regs = (struct ucc_geth __iomem *) ioremap(uf_info->regs, sizeof(struct ucc_geth));
+	ugeth->ug_regs = ioremap(uf_info->regs, sizeof(*ugeth->ug_regs));
+	if (!ugeth->ug_regs) {
+		if (netif_msg_probe(ugeth))
+			ugeth_err("%s: Failed to ioremap regs.", __func__);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -2475,7 +2221,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Bad number of Rx threads value.",
 				       	__func__);
-		ucc_geth_memclean(ugeth);
 		return -EINVAL;
 		break;
 	}
@@ -2500,7 +2245,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Bad number of Tx threads value.",
 				       	__func__);
-		ucc_geth_memclean(ugeth);
 		return -EINVAL;
 		break;
 	}
@@ -2554,7 +2298,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: IPGIFG initialization parameter too large.",
 				  __func__);
-		ucc_geth_memclean(ugeth);
 		return ret_val;
 	}
 
@@ -2572,7 +2315,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Half Duplex initialization parameter too large.",
 			  __func__);
-		ucc_geth_memclean(ugeth);
 		return ret_val;
 	}
 
@@ -2627,7 +2369,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 				ugeth_err
 				    ("%s: Can not allocate memory for Tx bd rings.",
 				     __func__);
-			ucc_geth_memclean(ugeth);
 			return -ENOMEM;
 		}
 		/* Zero unused end of bd ring, according to spec */
@@ -2663,7 +2404,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 				ugeth_err
 				    ("%s: Can not allocate memory for Rx bd rings.",
 				     __func__);
-			ucc_geth_memclean(ugeth);
 			return -ENOMEM;
 		}
 	}
@@ -2679,7 +2419,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			if (netif_msg_ifup(ugeth))
 				ugeth_err("%s: Could not allocate tx_skbuff",
 					  __func__);
-			ucc_geth_memclean(ugeth);
 			return -ENOMEM;
 		}
 
@@ -2711,7 +2450,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			if (netif_msg_ifup(ugeth))
 				ugeth_err("%s: Could not allocate rx_skbuff",
 					  __func__);
-			ucc_geth_memclean(ugeth);
 			return -ENOMEM;
 		}
 
@@ -2745,7 +2483,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			ugeth_err
 			    ("%s: Can not allocate DPRAM memory for p_tx_glbl_pram.",
 			     __func__);
-		ucc_geth_memclean(ugeth);
 		return -ENOMEM;
 	}
 	ugeth->p_tx_glbl_pram =
@@ -2768,7 +2505,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			ugeth_err
 			    ("%s: Can not allocate DPRAM memory for p_thread_data_tx.",
 			     __func__);
-		ucc_geth_memclean(ugeth);
 		return -ENOMEM;
 	}
 
@@ -2798,7 +2534,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			ugeth_err
 			    ("%s: Can not allocate DPRAM memory for p_send_q_mem_reg.",
 			     __func__);
-		ucc_geth_memclean(ugeth);
 		return -ENOMEM;
 	}
 
@@ -2842,7 +2577,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 				ugeth_err
 				 ("%s: Can not allocate DPRAM memory for p_scheduler.",
 				     __func__);
-			ucc_geth_memclean(ugeth);
 			return -ENOMEM;
 		}
 
@@ -2893,7 +2627,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 				    ("%s: Can not allocate DPRAM memory for"
 					" p_tx_fw_statistics_pram.",
 				       	__func__);
-			ucc_geth_memclean(ugeth);
 			return -ENOMEM;
 		}
 		ugeth->p_tx_fw_statistics_pram =
@@ -2933,7 +2666,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			ugeth_err
 			    ("%s: Can not allocate DPRAM memory for p_rx_glbl_pram.",
 			     __func__);
-		ucc_geth_memclean(ugeth);
 		return -ENOMEM;
 	}
 	ugeth->p_rx_glbl_pram =
@@ -2955,7 +2687,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			ugeth_err
 			    ("%s: Can not allocate DPRAM memory for p_thread_data_rx.",
 			     __func__);
-		ucc_geth_memclean(ugeth);
 		return -ENOMEM;
 	}
 
@@ -2979,7 +2710,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 				ugeth_err
 					("%s: Can not allocate DPRAM memory for"
 					" p_rx_fw_statistics_pram.", __func__);
-			ucc_geth_memclean(ugeth);
 			return -ENOMEM;
 		}
 		ugeth->p_rx_fw_statistics_pram =
@@ -3002,7 +2732,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			ugeth_err
 			    ("%s: Can not allocate DPRAM memory for"
 				" p_rx_irq_coalescing_tbl.", __func__);
-		ucc_geth_memclean(ugeth);
 		return -ENOMEM;
 	}
 
@@ -3071,7 +2800,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			ugeth_err
 			    ("%s: Can not allocate DPRAM memory for p_rx_bd_qs_tbl.",
 			     __func__);
-		ucc_geth_memclean(ugeth);
 		return -ENOMEM;
 	}
 
@@ -3148,7 +2876,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			if (netif_msg_ifup(ugeth))
 				ugeth_err("%s: Null Extended Filtering Chain Pointer.",
 					  __func__);
-			ucc_geth_memclean(ugeth);
 			return -EINVAL;
 		}
 
@@ -3162,7 +2889,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 				ugeth_err
 					("%s: Can not allocate DPRAM memory for"
 					" p_exf_glbl_param.", __func__);
-			ucc_geth_memclean(ugeth);
 			return -ENOMEM;
 		}
 
@@ -3210,7 +2936,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			ugeth_err
 			    ("%s: Can not allocate memory for"
 				" p_UccInitEnetParamShadows.", __func__);
-		ucc_geth_memclean(ugeth);
 		return -ENOMEM;
 	}
 	/* Zero out *p_init_enet_param_shadow */
@@ -3245,7 +2970,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Invalid largest External Lookup Key Size.",
 				  __func__);
-		ucc_geth_memclean(ugeth);
 		return -EINVAL;
 	}
 	ugeth->p_init_enet_param_shadow->largestexternallookupkeysize =
@@ -3272,7 +2996,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		if (netif_msg_ifup(ugeth))
 				ugeth_err("%s: Can not fill p_init_enet_param_shadow.",
 					__func__);
-		ucc_geth_memclean(ugeth);
 		return ret_val;
 	}
 
@@ -3288,7 +3011,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Can not fill p_init_enet_param_shadow.",
 				  __func__);
-		ucc_geth_memclean(ugeth);
 		return ret_val;
 	}
 
@@ -3298,7 +3020,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			if (netif_msg_ifup(ugeth))
 				ugeth_err("%s: Can not fill Rx bds with buffers.",
 					  __func__);
-			ucc_geth_memclean(ugeth);
 			return ret_val;
 		}
 	}
@@ -3310,7 +3031,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			ugeth_err
 			    ("%s: Can not allocate DPRAM memory for p_init_enet_pram.",
 			     __func__);
-		ucc_geth_memclean(ugeth);
 		return -ENOMEM;
 	}
 	p_init_enet_pram =
@@ -3350,28 +3070,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	qe_muram_free(init_enet_pram_offset);
 
 	return 0;
-}
-
-/* ucc_geth_timeout gets called when a packet has not been
- * transmitted after a set amount of time.
- * For now, assume that clearing out all the structures, and
- * starting over will fix the problem. */
-static void ucc_geth_timeout(struct net_device *dev)
-{
-	struct ucc_geth_private *ugeth = netdev_priv(dev);
-
-	ugeth_vdbg("%s: IN", __func__);
-
-	dev->stats.tx_errors++;
-
-	ugeth_dump_regs(ugeth);
-
-	if (dev->flags & IFF_UP) {
-		ucc_geth_stop(ugeth);
-		ucc_geth_startup(ugeth);
-	}
-
-	netif_tx_schedule_all(dev);
 }
 
 /* This is called by the kernel when a frame is ready for transmission. */
@@ -3502,8 +3200,6 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 			netif_receive_skb(skb);
 		}
 
-		ugeth->dev->last_rx = jiffies;
-
 		skb = get_new_skb(ugeth, bd);
 		if (!skb) {
 			if (netif_msg_rx_err(ugeth))
@@ -3592,7 +3288,7 @@ static int ucc_geth_poll(struct napi_struct *napi, int budget)
 		struct ucc_fast_private *uccf;
 		u32 uccm;
 
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		uccf = ugeth->uccf;
 		uccm = in_be32(uccf->p_uccm);
 		uccm |= UCCE_RX_EVENTS;
@@ -3626,10 +3322,10 @@ static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 
 	/* check for receive events that require processing */
 	if (ucce & UCCE_RX_EVENTS) {
-		if (netif_rx_schedule_prep(dev, &ugeth->napi)) {
+		if (netif_rx_schedule_prep(&ugeth->napi)) {
 			uccm &= ~UCCE_RX_EVENTS;
 			out_be32(uccf->p_uccm, uccm);
-			__netif_rx_schedule(dev, &ugeth->napi);
+			__netif_rx_schedule(&ugeth->napi);
 		}
 	}
 
@@ -3697,7 +3393,7 @@ static int ucc_geth_open(struct net_device *dev)
 	if (err) {
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Cannot configure internal struct, aborting.", dev->name);
-		return err;
+		goto out_err_stop;
 	}
 
 	napi_enable(&ugeth->napi);
@@ -3738,22 +3434,19 @@ static int ucc_geth_open(struct net_device *dev)
 
 	phy_start(ugeth->phydev);
 
-	err =
-	    request_irq(ugeth->ug_info->uf_info.irq, ucc_geth_irq_handler, 0,
-			"UCC Geth", dev);
-	if (err) {
-		if (netif_msg_ifup(ugeth))
-			ugeth_err("%s: Cannot get IRQ for net device, aborting.",
-				  dev->name);
-		ucc_geth_stop(ugeth);
-		goto out_err;
-	}
-
 	err = ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
 	if (err) {
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Cannot enable net device, aborting.", dev->name);
-		ucc_geth_stop(ugeth);
+		goto out_err;
+	}
+
+	err = request_irq(ugeth->ug_info->uf_info.irq, ucc_geth_irq_handler,
+			  0, "UCC Geth", dev);
+	if (err) {
+		if (netif_msg_ifup(ugeth))
+			ugeth_err("%s: Cannot get IRQ for net device, aborting.",
+				  dev->name);
 		goto out_err;
 	}
 
@@ -3763,7 +3456,8 @@ static int ucc_geth_open(struct net_device *dev)
 
 out_err:
 	napi_disable(&ugeth->napi);
-
+out_err_stop:
+	ucc_geth_stop(ugeth);
 	return err;
 }
 
@@ -3778,12 +3472,53 @@ static int ucc_geth_close(struct net_device *dev)
 
 	ucc_geth_stop(ugeth);
 
+	free_irq(ugeth->ug_info->uf_info.irq, ugeth->dev);
+
 	phy_disconnect(ugeth->phydev);
 	ugeth->phydev = NULL;
 
 	netif_stop_queue(dev);
 
 	return 0;
+}
+
+/* Reopen device. This will reset the MAC and PHY. */
+static void ucc_geth_timeout_work(struct work_struct *work)
+{
+	struct ucc_geth_private *ugeth;
+	struct net_device *dev;
+
+	ugeth = container_of(work, struct ucc_geth_private, timeout_work);
+	dev = ugeth->dev;
+
+	ugeth_vdbg("%s: IN", __func__);
+
+	dev->stats.tx_errors++;
+
+	ugeth_dump_regs(ugeth);
+
+	if (dev->flags & IFF_UP) {
+		/*
+		 * Must reset MAC *and* PHY. This is done by reopening
+		 * the device.
+		 */
+		ucc_geth_close(dev);
+		ucc_geth_open(dev);
+	}
+
+	netif_tx_schedule_all(dev);
+}
+
+/*
+ * ucc_geth_timeout gets called when a packet has not been
+ * transmitted after a set amount of time.
+ */
+static void ucc_geth_timeout(struct net_device *dev)
+{
+	struct ucc_geth_private *ugeth = netdev_priv(dev);
+
+	netif_carrier_off(dev);
+	schedule_work(&ugeth->timeout_work);
 }
 
 static phy_interface_t to_phy_interface(const char *phy_connection_type)
@@ -4026,6 +3761,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	dev->hard_start_xmit = ucc_geth_start_xmit;
 	dev->tx_timeout = ucc_geth_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
+	INIT_WORK(&ugeth->timeout_work, ucc_geth_timeout_work);
 	netif_napi_add(dev, &ugeth->napi, ucc_geth_poll, UCC_GETH_DEV_WEIGHT);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = ucc_netpoll;

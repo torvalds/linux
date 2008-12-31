@@ -122,8 +122,6 @@ struct ide_io_ports {
 #define MAX_DRIVES	2	/* per interface; 2 assumed by lots of code */
 #define SECTOR_SIZE	512
 
-#define IDE_LARGE_SEEK(b1,b2,t)	(((b1) > (b2) + (t)) || ((b2) > (b1) + (t)))
-
 /*
  * Timeouts for various operations:
  */
@@ -172,9 +170,7 @@ typedef int (ide_ack_intr_t)(struct hwif_s *);
 enum {		ide_unknown,	ide_generic,	ide_pci,
 		ide_cmd640,	ide_dtc2278,	ide_ali14xx,
 		ide_qd65xx,	ide_umc8672,	ide_ht6560b,
-		ide_rz1000,	ide_trm290,
-		ide_cmd646,	ide_cy82c693,	ide_4drives,
-		ide_pmac,	ide_acorn,
+		ide_4drives,	ide_pmac,	ide_acorn,
 		ide_au1xxx,	ide_palm3710
 };
 
@@ -461,12 +457,26 @@ struct ide_acpi_drive_link;
 struct ide_acpi_hwif_link;
 #endif
 
+struct ide_drive_s;
+
+struct ide_disk_ops {
+	int		(*check)(struct ide_drive_s *, const char *);
+	int		(*get_capacity)(struct ide_drive_s *);
+	void		(*setup)(struct ide_drive_s *);
+	void		(*flush)(struct ide_drive_s *);
+	int		(*init_media)(struct ide_drive_s *, struct gendisk *);
+	int		(*set_doorlock)(struct ide_drive_s *, struct gendisk *,
+					int);
+	ide_startstop_t	(*do_request)(struct ide_drive_s *, struct request *,
+				      sector_t);
+	int		(*end_request)(struct ide_drive_s *, int, int);
+	int		(*ioctl)(struct ide_drive_s *, struct block_device *,
+				 fmode_t, unsigned int, unsigned long);
+};
+
 /* ATAPI device flags */
 enum {
 	IDE_AFLAG_DRQ_INTERRUPT		= (1 << 0),
-	IDE_AFLAG_MEDIA_CHANGED		= (1 << 1),
-	/* Drive cannot lock the door. */
-	IDE_AFLAG_NO_DOORLOCK		= (1 << 2),
 
 	/* ide-cd */
 	/* Drive cannot eject the disc. */
@@ -482,8 +492,6 @@ enum {
 	 * when more than one interrupt is needed.
 	 */
 	IDE_AFLAG_LIMIT_NFRAMES		= (1 << 7),
-	/* Seeking in progress. */
-	IDE_AFLAG_SEEKING		= (1 << 8),
 	/* Saved TOC information is current. */
 	IDE_AFLAG_TOC_VALID		= (1 << 9),
 	/* We think that the drive door is locked. */
@@ -498,14 +506,10 @@ enum {
 	IDE_AFLAG_LE_SPEED_FIELDS	= (1 << 17),
 
 	/* ide-floppy */
-	/* Format in progress */
-	IDE_AFLAG_FORMAT_IN_PROGRESS	= (1 << 18),
 	/* Avoid commands not supported in Clik drive */
 	IDE_AFLAG_CLIK_DRIVE		= (1 << 19),
 	/* Requires BH algorithm for packets */
 	IDE_AFLAG_ZIP_DRIVE		= (1 << 20),
-	/* Write protect */
-	IDE_AFLAG_WP			= (1 << 21),
 	/* Supports format progress report */
 	IDE_AFLAG_SRFP			= (1 << 22),
 
@@ -578,7 +582,11 @@ enum {
 	/* don't unload heads */
 	IDE_DFLAG_NO_UNLOAD		= (1 << 27),
 	/* heads unloaded, please don't reset port */
-	IDE_DFLAG_PARKED		= (1 << 28)
+	IDE_DFLAG_PARKED		= (1 << 28),
+	IDE_DFLAG_MEDIA_CHANGED		= (1 << 29),
+	/* write protect */
+	IDE_DFLAG_WP			= (1 << 30),
+	IDE_DFLAG_FORMAT_IN_PROGRESS	= (1 << 31),
 };
 
 struct ide_drive_s {
@@ -596,6 +604,8 @@ struct ide_drive_s {
 	const struct ide_proc_devset *settings; /* /proc/ide/ drive settings */
 #endif
 	struct hwif_s		*hwif;	/* actually (ide_hwif_t *) */
+
+	const struct ide_disk_ops *disk_ops;
 
 	unsigned long dev_flags;
 
@@ -829,8 +839,6 @@ typedef struct hwif_s {
 	unsigned	extra_ports;	/* number of extra dma ports */
 
 	unsigned	present    : 1;	/* this interface exists */
-	unsigned	serialized : 1;	/* serialized all channel operation */
-	unsigned	sharing_irq: 1;	/* 1 = sharing irq with another hwif */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 
 	struct device		gendev;
@@ -893,6 +901,8 @@ typedef struct hwgroup_s {
 
 	int req_gen;
 	int req_gen_timer;
+
+	spinlock_t lock;
 } ide_hwgroup_t;
 
 typedef struct ide_driver_s ide_driver_t;
@@ -1106,6 +1116,14 @@ enum {
 	IDE_PM_COMPLETED,
 };
 
+int generic_ide_suspend(struct device *, pm_message_t);
+int generic_ide_resume(struct device *);
+
+void ide_complete_power_step(ide_drive_t *, struct request *);
+ide_startstop_t ide_start_power_step(ide_drive_t *, struct request *);
+void ide_complete_pm_request(ide_drive_t *, struct request *);
+void ide_check_pm_state(ide_drive_t *, struct request *);
+
 /*
  * Subdrivers support.
  *
@@ -1123,8 +1141,8 @@ struct ide_driver_s {
 	void		(*resume)(ide_drive_t *);
 	void		(*shutdown)(ide_drive_t *);
 #ifdef CONFIG_IDE_PROC_FS
-	ide_proc_entry_t		*proc;
-	const struct ide_proc_devset	*settings;
+	ide_proc_entry_t *		(*proc_entries)(ide_drive_t *);
+	const struct ide_proc_devset *	(*proc_devsets)(ide_drive_t *);
 #endif
 };
 
@@ -1142,8 +1160,7 @@ struct ide_ioctl_devset {
 int ide_setting_ioctl(ide_drive_t *, struct block_device *, unsigned int,
 		      unsigned long, const struct ide_ioctl_devset *);
 
-int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *,
-		      unsigned, unsigned long);
+int generic_ide_ioctl(ide_drive_t *, struct block_device *, unsigned, unsigned long);
 
 extern int ide_vlb_clk;
 extern int ide_pci_clk;
@@ -1281,6 +1298,13 @@ extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *o
 #define ide_pci_register_driver(d) pci_register_driver(d)
 #endif
 
+static inline int ide_pci_is_in_compatibility_mode(struct pci_dev *dev)
+{
+	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE && (dev->class & 5) != 5)
+		return 1;
+	return 0;
+}
+
 void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *, int,
 			 hw_regs_t *, hw_regs_t **);
 void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
@@ -1354,12 +1378,13 @@ enum {
 	IDE_HFLAG_LEGACY_IRQS		= (1 << 21),
 	/* force use of legacy IRQs */
 	IDE_HFLAG_FORCE_LEGACY_IRQS	= (1 << 22),
-	/* limit LBA48 requests to 256 sectors */
-	IDE_HFLAG_RQSIZE_256		= (1 << 23),
+	/* host is TRM290 */
+	IDE_HFLAG_TRM290		= (1 << 23),
 	/* use 32-bit I/O ops */
 	IDE_HFLAG_IO_32BIT		= (1 << 24),
 	/* unmask IRQs */
 	IDE_HFLAG_UNMASK_IRQS		= (1 << 25),
+	IDE_HFLAG_BROKEN_ALTSTATUS	= (1 << 26),
 	/* serialize ports if DMA is possible (for sl82c105) */
 	IDE_HFLAG_SERIALIZE_DMA		= (1 << 27),
 	/* force host out of "simplex" mode */
@@ -1392,6 +1417,9 @@ struct ide_port_info {
 
 	ide_pci_enablebit_t	enablebits[2];
 	hwif_chipset_t		chipset;
+
+	u16			max_sectors;	/* if < than the default one */
+
 	u32			host_flags;
 	u8			pio_mask;
 	u8			swdma_mask;
@@ -1587,13 +1615,13 @@ extern struct mutex ide_cfg_mtx;
 /*
  * Structure locking:
  *
- * ide_cfg_mtx and ide_lock together protect changes to
- * ide_hwif_t->{next,hwgroup}
+ * ide_cfg_mtx and hwgroup->lock together protect changes to
+ * ide_hwif_t->next
  * ide_drive_t->next
  *
- * ide_hwgroup_t->busy: ide_lock
- * ide_hwgroup_t->hwif: ide_lock
- * ide_hwif_t->mate: constant, no locking
+ * ide_hwgroup_t->busy: hwgroup->lock
+ * ide_hwgroup_t->hwif: hwgroup->lock
+ * ide_hwif_t->{hwgroup,mate}: constant, no locking
  * ide_drive_t->hwif: constant, no locking
  */
 

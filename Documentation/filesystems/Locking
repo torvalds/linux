@@ -161,8 +161,12 @@ prototypes:
 	int (*set_page_dirty)(struct page *page);
 	int (*readpages)(struct file *filp, struct address_space *mapping,
 			struct list_head *pages, unsigned nr_pages);
-	int (*prepare_write)(struct file *, struct page *, unsigned, unsigned);
-	int (*commit_write)(struct file *, struct page *, unsigned, unsigned);
+	int (*write_begin)(struct file *, struct address_space *mapping,
+				loff_t pos, unsigned len, unsigned flags,
+				struct page **pagep, void **fsdata);
+	int (*write_end)(struct file *, struct address_space *mapping,
+				loff_t pos, unsigned len, unsigned copied,
+				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
 	int (*invalidatepage) (struct page *, unsigned long);
 	int (*releasepage) (struct page *, int);
@@ -180,8 +184,6 @@ sync_page:		no	maybe
 writepages:		no
 set_page_dirty		no	no
 readpages:		no
-prepare_write:		no	yes			yes
-commit_write:		no	yes			yes
 write_begin:		no	locks the page		yes
 write_end:		no	yes, unlocks		yes
 perform_write:		no	n/a			yes
@@ -191,7 +193,7 @@ releasepage:		no	yes
 direct_IO:		no
 launder_page:		no	yes
 
-	->prepare_write(), ->commit_write(), ->sync_page() and ->readpage()
+	->write_begin(), ->write_end(), ->sync_page() and ->readpage()
 may be called from the request handler (/dev/loop).
 
 	->readpage() unlocks the page, either synchronously or via I/O

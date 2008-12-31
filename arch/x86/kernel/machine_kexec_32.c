@@ -13,6 +13,7 @@
 #include <linux/numa.h>
 #include <linux/ftrace.h>
 #include <linux/suspend.h>
+#include <linux/gfp.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -24,15 +25,6 @@
 #include <asm/desc.h>
 #include <asm/system.h>
 #include <asm/cacheflush.h>
-
-#define PAGE_ALIGNED __attribute__ ((__aligned__(PAGE_SIZE)))
-static u32 kexec_pgd[1024] PAGE_ALIGNED;
-#ifdef CONFIG_X86_PAE
-static u32 kexec_pmd0[1024] PAGE_ALIGNED;
-static u32 kexec_pmd1[1024] PAGE_ALIGNED;
-#endif
-static u32 kexec_pte0[1024] PAGE_ALIGNED;
-static u32 kexec_pte1[1024] PAGE_ALIGNED;
 
 static void set_idt(void *newidt, __u16 limit)
 {
@@ -76,6 +68,76 @@ static void load_segments(void)
 #undef __STR
 }
 
+static void machine_kexec_free_page_tables(struct kimage *image)
+{
+	free_page((unsigned long)image->arch.pgd);
+#ifdef CONFIG_X86_PAE
+	free_page((unsigned long)image->arch.pmd0);
+	free_page((unsigned long)image->arch.pmd1);
+#endif
+	free_page((unsigned long)image->arch.pte0);
+	free_page((unsigned long)image->arch.pte1);
+}
+
+static int machine_kexec_alloc_page_tables(struct kimage *image)
+{
+	image->arch.pgd = (pgd_t *)get_zeroed_page(GFP_KERNEL);
+#ifdef CONFIG_X86_PAE
+	image->arch.pmd0 = (pmd_t *)get_zeroed_page(GFP_KERNEL);
+	image->arch.pmd1 = (pmd_t *)get_zeroed_page(GFP_KERNEL);
+#endif
+	image->arch.pte0 = (pte_t *)get_zeroed_page(GFP_KERNEL);
+	image->arch.pte1 = (pte_t *)get_zeroed_page(GFP_KERNEL);
+	if (!image->arch.pgd ||
+#ifdef CONFIG_X86_PAE
+	    !image->arch.pmd0 || !image->arch.pmd1 ||
+#endif
+	    !image->arch.pte0 || !image->arch.pte1) {
+		machine_kexec_free_page_tables(image);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static void machine_kexec_page_table_set_one(
+	pgd_t *pgd, pmd_t *pmd, pte_t *pte,
+	unsigned long vaddr, unsigned long paddr)
+{
+	pud_t *pud;
+
+	pgd += pgd_index(vaddr);
+#ifdef CONFIG_X86_PAE
+	if (!(pgd_val(*pgd) & _PAGE_PRESENT))
+		set_pgd(pgd, __pgd(__pa(pmd) | _PAGE_PRESENT));
+#endif
+	pud = pud_offset(pgd, vaddr);
+	pmd = pmd_offset(pud, vaddr);
+	if (!(pmd_val(*pmd) & _PAGE_PRESENT))
+		set_pmd(pmd, __pmd(__pa(pte) | _PAGE_TABLE));
+	pte = pte_offset_kernel(pmd, vaddr);
+	set_pte(pte, pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL_EXEC));
+}
+
+static void machine_kexec_prepare_page_tables(struct kimage *image)
+{
+	void *control_page;
+	pmd_t *pmd = 0;
+
+	control_page = page_address(image->control_code_page);
+#ifdef CONFIG_X86_PAE
+	pmd = image->arch.pmd0;
+#endif
+	machine_kexec_page_table_set_one(
+		image->arch.pgd, pmd, image->arch.pte0,
+		(unsigned long)control_page, __pa(control_page));
+#ifdef CONFIG_X86_PAE
+	pmd = image->arch.pmd1;
+#endif
+	machine_kexec_page_table_set_one(
+		image->arch.pgd, pmd, image->arch.pte1,
+		__pa(control_page), __pa(control_page));
+}
+
 /*
  * A architecture hook called to validate the
  * proposed image and prepare the control pages
@@ -87,12 +149,20 @@ static void load_segments(void)
  * reboot code buffer to allow us to avoid allocations
  * later.
  *
- * Make control page executable.
+ * - Make control page executable.
+ * - Allocate page tables
+ * - Setup page tables
  */
 int machine_kexec_prepare(struct kimage *image)
 {
+	int error;
+
 	if (nx_enabled)
 		set_pages_x(image->control_code_page, 1);
+	error = machine_kexec_alloc_page_tables(image);
+	if (error)
+		return error;
+	machine_kexec_prepare_page_tables(image);
 	return 0;
 }
 
@@ -104,6 +174,7 @@ void machine_kexec_cleanup(struct kimage *image)
 {
 	if (nx_enabled)
 		set_pages_nx(image->control_code_page, 1);
+	machine_kexec_free_page_tables(image);
 }
 
 /*
@@ -150,19 +221,11 @@ void machine_kexec(struct kimage *image)
 	relocate_kernel_ptr = control_page;
 	page_list[PA_CONTROL_PAGE] = __pa(control_page);
 	page_list[VA_CONTROL_PAGE] = (unsigned long)control_page;
-	page_list[PA_PGD] = __pa(kexec_pgd);
-	page_list[VA_PGD] = (unsigned long)kexec_pgd;
-#ifdef CONFIG_X86_PAE
-	page_list[PA_PMD_0] = __pa(kexec_pmd0);
-	page_list[VA_PMD_0] = (unsigned long)kexec_pmd0;
-	page_list[PA_PMD_1] = __pa(kexec_pmd1);
-	page_list[VA_PMD_1] = (unsigned long)kexec_pmd1;
-#endif
-	page_list[PA_PTE_0] = __pa(kexec_pte0);
-	page_list[VA_PTE_0] = (unsigned long)kexec_pte0;
-	page_list[PA_PTE_1] = __pa(kexec_pte1);
-	page_list[VA_PTE_1] = (unsigned long)kexec_pte1;
-	page_list[PA_SWAP_PAGE] = (page_to_pfn(image->swap_page) << PAGE_SHIFT);
+	page_list[PA_PGD] = __pa(image->arch.pgd);
+
+	if (image->type == KEXEC_TYPE_DEFAULT)
+		page_list[PA_SWAP_PAGE] = (page_to_pfn(image->swap_page)
+						<< PAGE_SHIFT);
 
 	/* The segment registers are funny things, they have both a
 	 * visible and an invisible part.  Whenever the visible part is

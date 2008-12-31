@@ -19,7 +19,11 @@
 #include <asm/system.h>
 #include <asm/sn/arch.h>	/* defines is_shub1() and is_shub2() */
 #define is_shub()	ia64_platform_is("sn2")
+#ifdef CONFIG_IA64_SGI_UV
 #define is_uv()		ia64_platform_is("uv")
+#else
+#define is_uv()		0
+#endif
 #endif
 #ifdef CONFIG_X86_64
 #include <asm/genapic.h>
@@ -190,9 +194,10 @@ enum xp_retval {
 	xpGruSendMqError,	/* 59: gru send message queue related error */
 
 	xpBadChannelNumber,	/* 60: invalid channel number */
-	xpBadMsgType,		/* 60: invalid message type */
+	xpBadMsgType,		/* 61: invalid message type */
+	xpBiosError,		/* 62: BIOS error */
 
-	xpUnknownReason		/* 61: unknown reason - must be last in enum */
+	xpUnknownReason		/* 63: unknown reason - must be last in enum */
 };
 
 /*
@@ -341,6 +346,8 @@ extern unsigned long (*xp_pa) (void *);
 extern enum xp_retval (*xp_remote_memcpy) (unsigned long, const unsigned long,
 		       size_t);
 extern int (*xp_cpu_to_nasid) (int);
+extern enum xp_retval (*xp_expand_memprotect) (unsigned long, unsigned long);
+extern enum xp_retval (*xp_restrict_memprotect) (unsigned long, unsigned long);
 
 extern u64 xp_nofault_PIOR_target;
 extern int xp_nofault_PIOR(void *);

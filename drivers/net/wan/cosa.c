@@ -388,8 +388,8 @@ static int __init cosa_init(void)
 		goto out_chrdev;
 	}
 	for (i = 0; i < nr_cards; i++)
-		device_create_drvdata(cosa_class, NULL, MKDEV(cosa_major, i),
-				      NULL, "cosa%d", i);
+		device_create(cosa_class, NULL, MKDEV(cosa_major, i), NULL,
+			      "cosa%d", i);
 	err = 0;
 	goto out;
 
@@ -754,7 +754,6 @@ static int cosa_net_rx_done(struct channel_data *chan)
 	chan->netdev->stats.rx_bytes += chan->cosa->rxsize;
 	netif_rx(chan->rx_skb);
 	chan->rx_skb = NULL;
-	chan->netdev->last_rx = jiffies;
 	return 0;
 }
 

@@ -52,6 +52,7 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	DECLARE_WAITQUEUE(entry, current);
 	struct drm_lock *lock = data;
+	struct drm_master *master = file_priv->master;
 	int ret = 0;
 
 	++file_priv->lock_count;
@@ -64,26 +65,27 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 	DRM_DEBUG("%d (pid %d) requests lock (0x%08x), flags = 0x%08x\n",
 		  lock->context, task_pid_nr(current),
-		  dev->lock.hw_lock->lock, lock->flags);
+		  master->lock.hw_lock->lock, lock->flags);
 
 	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE))
 		if (lock->context < 0)
 			return -EINVAL;
 
-	add_wait_queue(&dev->lock.lock_queue, &entry);
-	spin_lock_bh(&dev->lock.spinlock);
-	dev->lock.user_waiters++;
-	spin_unlock_bh(&dev->lock.spinlock);
+	add_wait_queue(&master->lock.lock_queue, &entry);
+	spin_lock_bh(&master->lock.spinlock);
+	master->lock.user_waiters++;
+	spin_unlock_bh(&master->lock.spinlock);
+
 	for (;;) {
 		__set_current_state(TASK_INTERRUPTIBLE);
-		if (!dev->lock.hw_lock) {
+		if (!master->lock.hw_lock) {
 			/* Device has been unregistered */
 			ret = -EINTR;
 			break;
 		}
-		if (drm_lock_take(&dev->lock, lock->context)) {
-			dev->lock.file_priv = file_priv;
-			dev->lock.lock_time = jiffies;
+		if (drm_lock_take(&master->lock, lock->context)) {
+			master->lock.file_priv = file_priv;
+			master->lock.lock_time = jiffies;
 			atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
 			break;	/* Got lock */
 		}
@@ -95,11 +97,11 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			break;
 		}
 	}
-	spin_lock_bh(&dev->lock.spinlock);
-	dev->lock.user_waiters--;
-	spin_unlock_bh(&dev->lock.spinlock);
+	spin_lock_bh(&master->lock.spinlock);
+	master->lock.user_waiters--;
+	spin_unlock_bh(&master->lock.spinlock);
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&dev->lock.lock_queue, &entry);
+	remove_wait_queue(&master->lock.lock_queue, &entry);
 
 	DRM_DEBUG("%d %s\n", lock->context,
 		  ret ? "interrupted" : "has lock");
@@ -108,14 +110,14 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	/* don't set the block all signals on the master process for now 
 	 * really probably not the correct answer but lets us debug xkb
  	 * xserver for now */
-	if (!file_priv->master) {
+	if (!file_priv->is_master) {
 		sigemptyset(&dev->sigmask);
 		sigaddset(&dev->sigmask, SIGSTOP);
 		sigaddset(&dev->sigmask, SIGTSTP);
 		sigaddset(&dev->sigmask, SIGTTIN);
 		sigaddset(&dev->sigmask, SIGTTOU);
 		dev->sigdata.context = lock->context;
-		dev->sigdata.lock = dev->lock.hw_lock;
+		dev->sigdata.lock = master->lock.hw_lock;
 		block_all_signals(drm_notifier, &dev->sigdata, &dev->sigmask);
 	}
 
@@ -154,21 +156,13 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_lock *lock = data;
-	unsigned long irqflags;
-	void (*tasklet_func)(struct drm_device *);
+	struct drm_master *master = file_priv->master;
 
 	if (lock->context == DRM_KERNEL_CONTEXT) {
 		DRM_ERROR("Process %d using kernel context %d\n",
 			  task_pid_nr(current), lock->context);
 		return -EINVAL;
 	}
-
-	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
-	tasklet_func = dev->locked_tasklet_func;
-	dev->locked_tasklet_func = NULL;
-	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
-	if (tasklet_func != NULL)
-		tasklet_func(dev);
 
 	atomic_inc(&dev->counts[_DRM_STAT_UNLOCKS]);
 
@@ -178,7 +172,7 @@ int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	if (dev->driver->kernel_context_switch_unlock)
 		dev->driver->kernel_context_switch_unlock(dev);
 	else {
-		if (drm_lock_free(&dev->lock,lock->context)) {
+		if (drm_lock_free(&master->lock, lock->context)) {
 			/* FIXME: Should really bail out here. */
 		}
 	}
@@ -232,6 +226,7 @@ int drm_lock_take(struct drm_lock_data *lock_data,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(drm_lock_take);
 
 /**
  * This takes a lock forcibly and hands it to context.	Should ONLY be used
@@ -299,6 +294,7 @@ int drm_lock_free(struct drm_lock_data *lock_data, unsigned int context)
 	wake_up_interruptible(&lock_data->lock_queue);
 	return 0;
 }
+EXPORT_SYMBOL(drm_lock_free);
 
 /**
  * If we get here, it means that the process has called DRM_IOCTL_LOCK
@@ -386,9 +382,10 @@ EXPORT_SYMBOL(drm_idlelock_release);
 
 int drm_i_have_hw_lock(struct drm_device *dev, struct drm_file *file_priv)
 {
-	return (file_priv->lock_count && dev->lock.hw_lock &&
-		_DRM_LOCK_IS_HELD(dev->lock.hw_lock->lock) &&
-		dev->lock.file_priv == file_priv);
+	struct drm_master *master = file_priv->master;
+	return (file_priv->lock_count && master->lock.hw_lock &&
+		_DRM_LOCK_IS_HELD(master->lock.hw_lock->lock) &&
+		master->lock.file_priv == file_priv);
 }
 
 EXPORT_SYMBOL(drm_i_have_hw_lock);

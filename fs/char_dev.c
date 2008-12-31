@@ -22,9 +22,6 @@
 #include <linux/mutex.h>
 #include <linux/backing-dev.h>
 
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
 #include "internal.h"
 
 /*
@@ -389,15 +386,22 @@ static int chrdev_open(struct inode *inode, struct file *filp)
 	cdev_put(new);
 	if (ret)
 		return ret;
+
+	ret = -ENXIO;
 	filp->f_op = fops_get(p->ops);
-	if (!filp->f_op) {
-		cdev_put(p);
-		return -ENXIO;
-	}
-	if (filp->f_op->open)
+	if (!filp->f_op)
+		goto out_cdev_put;
+
+	if (filp->f_op->open) {
 		ret = filp->f_op->open(inode,filp);
-	if (ret)
-		cdev_put(p);
+		if (ret)
+			goto out_cdev_put;
+	}
+
+	return 0;
+
+ out_cdev_put:
+	cdev_put(p);
 	return ret;
 }
 

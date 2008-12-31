@@ -1,7 +1,7 @@
 /*
  *    pata_radisys.c - Intel PATA/SATA controllers
  *
- *	(C) 2006 Red Hat <alan@redhat.com>
+ *	(C) 2006 Red Hat <alan@lxorguk.ukuu.org.uk>
  *
  *    Some parts based on ata_piix.c by Jeff Garzik and others.
  *
@@ -81,7 +81,6 @@ static void radisys_set_piomode (struct ata_port *ap, struct ata_device *adev)
  *	radisys_set_dmamode - Initialize host controller PATA DMA timings
  *	@ap: Port whose timings we are configuring
  *	@adev: Device to program
- *	@isich: True if the device is an ICH and has IOCFG registers
  *
  *	Set MWDMA mode for device, in host controller PCI config space.
  *

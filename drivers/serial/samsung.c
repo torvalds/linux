@@ -42,13 +42,14 @@
 #include <linux/serial.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/cpufreq.h>
 
 #include <asm/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/map.h>
 
-#include <asm/plat-s3c/regs-serial.h>
-#include <mach/regs-gpio.h>
+#include <plat/regs-serial.h>
 
 #include "samsung.h"
 
@@ -57,19 +58,6 @@
 #define S3C24XX_SERIAL_NAME	"ttySAC"
 #define S3C24XX_SERIAL_MAJOR	204
 #define S3C24XX_SERIAL_MINOR	64
-
-/* we can support 3 uarts, but not always use them */
-
-#ifdef CONFIG_CPU_S3C2400
-#define NR_PORTS (2)
-#else
-#define NR_PORTS (3)
-#endif
-
-/* port irq numbers */
-
-#define TX_IRQ(port) ((port)->irq + 1)
-#define RX_IRQ(port) ((port)->irq)
 
 /* macros to change one thing to another */
 
@@ -136,8 +124,10 @@ static void s3c24xx_serial_rx_disable(struct uart_port *port)
 
 static void s3c24xx_serial_stop_tx(struct uart_port *port)
 {
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
 	if (tx_enabled(port)) {
-		disable_irq(TX_IRQ(port));
+		disable_irq(ourport->tx_irq);
 		tx_enabled(port) = 0;
 		if (port->flags & UPF_CONS_FLOW)
 			s3c24xx_serial_rx_enable(port);
@@ -146,11 +136,13 @@ static void s3c24xx_serial_stop_tx(struct uart_port *port)
 
 static void s3c24xx_serial_start_tx(struct uart_port *port)
 {
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
 	if (!tx_enabled(port)) {
 		if (port->flags & UPF_CONS_FLOW)
 			s3c24xx_serial_rx_disable(port);
 
-		enable_irq(TX_IRQ(port));
+		enable_irq(ourport->tx_irq);
 		tx_enabled(port) = 1;
 	}
 }
@@ -158,9 +150,11 @@ static void s3c24xx_serial_start_tx(struct uart_port *port)
 
 static void s3c24xx_serial_stop_rx(struct uart_port *port)
 {
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
 	if (rx_enabled(port)) {
 		dbg("s3c24xx_serial_stop_rx: port=%p\n", port);
-		disable_irq(RX_IRQ(port));
+		disable_irq(ourport->rx_irq);
 		rx_enabled(port) = 0;
 	}
 }
@@ -384,13 +378,13 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (ourport->tx_claimed) {
-		free_irq(TX_IRQ(port), ourport);
+		free_irq(ourport->tx_irq, ourport);
 		tx_enabled(port) = 0;
 		ourport->tx_claimed = 0;
 	}
 
 	if (ourport->rx_claimed) {
-		free_irq(RX_IRQ(port), ourport);
+		free_irq(ourport->rx_irq, ourport);
 		ourport->rx_claimed = 0;
 		rx_enabled(port) = 0;
 	}
@@ -407,12 +401,11 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	rx_enabled(port) = 1;
 
-	ret = request_irq(RX_IRQ(port),
-			  s3c24xx_serial_rx_chars, 0,
+	ret = request_irq(ourport->rx_irq, s3c24xx_serial_rx_chars, 0,
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret != 0) {
-		printk(KERN_ERR "cannot get irq %d\n", RX_IRQ(port));
+		printk(KERN_ERR "cannot get irq %d\n", ourport->rx_irq);
 		return ret;
 	}
 
@@ -422,12 +415,11 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	tx_enabled(port) = 1;
 
-	ret = request_irq(TX_IRQ(port),
-			  s3c24xx_serial_tx_chars, 0,
+	ret = request_irq(ourport->tx_irq, s3c24xx_serial_tx_chars, 0,
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret) {
-		printk(KERN_ERR "cannot get irq %d\n", TX_IRQ(port));
+		printk(KERN_ERR "cannot get irq %d\n", ourport->tx_irq);
 		goto err;
 	}
 
@@ -451,6 +443,8 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 			      unsigned int old)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
+	ourport->pm_level = level;
 
 	switch (level) {
 	case 3:
@@ -661,6 +655,7 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 
 		ourport->clksrc = clksrc;
 		ourport->baudclk = clk;
+		ourport->baudclk_rate = clk ? clk_get_rate(clk) : 0;
 	}
 
 	switch (termios->c_cflag & CSIZE) {
@@ -752,6 +747,8 @@ static const char *s3c24xx_serial_type(struct uart_port *port)
 		return "S3C2440";
 	case PORT_S3C2412:
 		return "S3C2412";
+	case PORT_S3C6400:
+		return "S3C6400/10";
 	default:
 		return NULL;
 	}
@@ -827,14 +824,14 @@ static struct uart_ops s3c24xx_serial_ops = {
 static struct uart_driver s3c24xx_uart_drv = {
 	.owner		= THIS_MODULE,
 	.dev_name	= "s3c2410_serial",
-	.nr		= 3,
+	.nr		= CONFIG_SERIAL_SAMSUNG_UARTS,
 	.cons		= S3C24XX_SERIAL_CONSOLE,
 	.driver_name	= S3C24XX_SERIAL_NAME,
 	.major		= S3C24XX_SERIAL_MAJOR,
 	.minor		= S3C24XX_SERIAL_MINOR,
 };
 
-static struct s3c24xx_uart_port s3c24xx_serial_ports[NR_PORTS] = {
+static struct s3c24xx_uart_port s3c24xx_serial_ports[CONFIG_SERIAL_SAMSUNG_UARTS] = {
 	[0] = {
 		.port = {
 			.lock		= __SPIN_LOCK_UNLOCKED(s3c24xx_serial_ports[0].port.lock),
@@ -859,7 +856,7 @@ static struct s3c24xx_uart_port s3c24xx_serial_ports[NR_PORTS] = {
 			.line		= 1,
 		}
 	},
-#if NR_PORTS > 2
+#if CONFIG_SERIAL_SAMSUNG_UARTS > 2
 
 	[2] = {
 		.port = {
@@ -871,6 +868,20 @@ static struct s3c24xx_uart_port s3c24xx_serial_ports[NR_PORTS] = {
 			.ops		= &s3c24xx_serial_ops,
 			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 2,
+		}
+	},
+#endif
+#if CONFIG_SERIAL_SAMSUNG_UARTS > 3
+	[3] = {
+		.port = {
+			.lock		= __SPIN_LOCK_UNLOCKED(s3c24xx_serial_ports[3].port.lock),
+			.iotype		= UPIO_MEM,
+			.irq		= IRQ_S3CUART_RX3,
+			.uartclk	= 0,
+			.fifosize	= 16,
+			.ops		= &s3c24xx_serial_ops,
+			.flags		= UPF_BOOT_AUTOCONF,
+			.line		= 3,
 		}
 	}
 #endif
@@ -889,6 +900,89 @@ static inline int s3c24xx_serial_resetport(struct uart_port *port,
 
 	return (info->reset_port)(port, cfg);
 }
+
+
+#ifdef CONFIG_CPU_FREQ
+
+static int s3c24xx_serial_cpufreq_transition(struct notifier_block *nb,
+					     unsigned long val, void *data)
+{
+	struct s3c24xx_uart_port *port;
+	struct uart_port *uport;
+
+	port = container_of(nb, struct s3c24xx_uart_port, freq_transition);
+	uport = &port->port;
+
+	/* check to see if port is enabled */
+
+	if (port->pm_level != 0)
+		return 0;
+
+	/* try and work out if the baudrate is changing, we can detect
+	 * a change in rate, but we do not have support for detecting
+	 * a disturbance in the clock-rate over the change.
+	 */
+
+	if (IS_ERR(port->clk))
+		goto exit;
+
+	if (port->baudclk_rate == clk_get_rate(port->clk))
+		goto exit;
+
+	if (val == CPUFREQ_PRECHANGE) {
+		/* we should really shut the port down whilst the
+		 * frequency change is in progress. */
+
+	} else if (val == CPUFREQ_POSTCHANGE) {
+		struct ktermios *termios;
+		struct tty_struct *tty;
+
+		if (uport->info == NULL)
+			goto exit;
+
+		tty = uport->info->port.tty;
+
+		if (tty == NULL)
+			goto exit;
+
+		termios = tty->termios;
+
+		if (termios == NULL) {
+			printk(KERN_WARNING "%s: no termios?\n", __func__);
+			goto exit;
+		}
+
+		s3c24xx_serial_set_termios(uport, termios, NULL);
+	}
+
+ exit:
+	return 0;
+}
+
+static inline int s3c24xx_serial_cpufreq_register(struct s3c24xx_uart_port *port)
+{
+	port->freq_transition.notifier_call = s3c24xx_serial_cpufreq_transition;
+
+	return cpufreq_register_notifier(&port->freq_transition,
+					 CPUFREQ_TRANSITION_NOTIFIER);
+}
+
+static inline void s3c24xx_serial_cpufreq_deregister(struct s3c24xx_uart_port *port)
+{
+	cpufreq_unregister_notifier(&port->freq_transition,
+				    CPUFREQ_TRANSITION_NOTIFIER);
+}
+
+#else
+static inline int s3c24xx_serial_cpufreq_register(struct s3c24xx_uart_port *port)
+{
+	return 0;
+}
+
+static inline void s3c24xx_serial_cpufreq_deregister(struct s3c24xx_uart_port *port)
+{
+}
+#endif
 
 /* s3c24xx_serial_init_port
  *
@@ -914,8 +1008,11 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	if (port->mapbase != 0)
 		return 0;
 
-	if (cfg->hwport > 3)
-		return -EINVAL;
+	if (cfg->hwport > CONFIG_SERIAL_SAMSUNG_UARTS) {
+		printk(KERN_ERR "%s: port %d bigger than %d\n", __func__,
+		       cfg->hwport, CONFIG_SERIAL_SAMSUNG_UARTS);
+		return -ERANGE;
+	}
 
 	/* setup info for port */
 	port->dev	= &platdev->dev;
@@ -943,18 +1040,26 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	dbg("resource %p (%lx..%lx)\n", res, res->start, res->end);
 
-	port->mapbase	= res->start;
-	port->membase	= S3C24XX_VA_UART + (res->start - S3C24XX_PA_UART);
+	port->mapbase = res->start;
+	port->membase = S3C_VA_UART + res->start - (S3C_PA_UART & 0xfff00000);
 	ret = platform_get_irq(platdev, 0);
 	if (ret < 0)
 		port->irq = 0;
-	else
+	else {
 		port->irq = ret;
+		ourport->rx_irq = ret;
+		ourport->tx_irq = ret + 1;
+	}
+	
+	ret = platform_get_irq(platdev, 1);
+	if (ret > 0)
+		ourport->tx_irq = ret;
 
 	ourport->clk	= clk_get(&platdev->dev, "uart");
 
-	dbg("port: map=%08x, mem=%08x, irq=%d, clock=%ld\n",
-	    port->mapbase, port->membase, port->irq, port->uartclk);
+	dbg("port: map=%08x, mem=%08x, irq=%d (%d,%d), clock=%ld\n",
+	    port->mapbase, port->membase, port->irq,
+	    ourport->rx_irq, ourport->tx_irq, port->uartclk);
 
 	/* reset the fifos (and setup the uart) */
 	s3c24xx_serial_resetport(port, cfg);
@@ -1002,6 +1107,10 @@ int s3c24xx_serial_probe(struct platform_device *dev,
 	if (ret < 0)
 		printk(KERN_ERR "%s: failed to add clksrc attr.\n", __func__);
 
+	ret = s3c24xx_serial_cpufreq_register(ourport);
+	if (ret < 0)
+		dev_err(&dev->dev, "failed to add cpufreq notifier\n");
+
 	return 0;
 
  probe_err:
@@ -1015,6 +1124,7 @@ int s3c24xx_serial_remove(struct platform_device *dev)
 	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
 
 	if (port) {
+		s3c24xx_serial_cpufreq_deregister(to_ourport(port));
 		device_remove_file(&dev->dev, &dev_attr_clock_source);
 		uart_remove_one_port(&s3c24xx_uart_drv, port);
 	}
@@ -1219,7 +1329,7 @@ static int s3c24xx_serial_init_ports(struct s3c24xx_uart_info *info)
 
 	platdev_ptr = s3c24xx_uart_devs;
 
-	for (i = 0; i < NR_PORTS; i++, ptr++, platdev_ptr++) {
+	for (i = 0; i < CONFIG_SERIAL_SAMSUNG_UARTS; i++, ptr++, platdev_ptr++) {
 		s3c24xx_serial_init_port(ptr, info, *platdev_ptr);
 	}
 
@@ -1240,7 +1350,7 @@ s3c24xx_serial_console_setup(struct console *co, char *options)
 
 	/* is this a valid port */
 
-	if (co->index == -1 || co->index >= NR_PORTS)
+	if (co->index == -1 || co->index >= CONFIG_SERIAL_SAMSUNG_UARTS)
 		co->index = 0;
 
 	port = &s3c24xx_serial_ports[co->index].port;

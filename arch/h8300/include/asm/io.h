@@ -295,6 +295,40 @@ static __inline__ void ctrl_outl(unsigned long b, unsigned long addr)
         *(volatile unsigned long*)addr = b;
 }
 
+static __inline__ void ctrl_bclr(int b, unsigned long addr)
+{
+	if (__builtin_constant_p(b))
+		switch (b) {
+		case 0: __asm__("bclr #0,@%0"::"r"(addr)); break;
+		case 1: __asm__("bclr #1,@%0"::"r"(addr)); break;
+		case 2: __asm__("bclr #2,@%0"::"r"(addr)); break;
+		case 3: __asm__("bclr #3,@%0"::"r"(addr)); break;
+		case 4: __asm__("bclr #4,@%0"::"r"(addr)); break;
+		case 5: __asm__("bclr #5,@%0"::"r"(addr)); break;
+		case 6: __asm__("bclr #6,@%0"::"r"(addr)); break;
+		case 7: __asm__("bclr #7,@%0"::"r"(addr)); break;
+		}
+	else
+		__asm__("bclr %w0,@%1"::"r"(b), "r"(addr));
+}
+
+static __inline__ void ctrl_bset(int b, unsigned long addr)
+{
+	if (__builtin_constant_p(b))
+		switch (b) {
+		case 0: __asm__("bset #0,@%0"::"r"(addr)); break;
+		case 1: __asm__("bset #1,@%0"::"r"(addr)); break;
+		case 2: __asm__("bset #2,@%0"::"r"(addr)); break;
+		case 3: __asm__("bset #3,@%0"::"r"(addr)); break;
+		case 4: __asm__("bset #4,@%0"::"r"(addr)); break;
+		case 5: __asm__("bset #5,@%0"::"r"(addr)); break;
+		case 6: __asm__("bset #6,@%0"::"r"(addr)); break;
+		case 7: __asm__("bset #7,@%0"::"r"(addr)); break;
+		}
+	else
+		__asm__("bset %w0,@%1"::"r"(b), "r"(addr));
+}
+
 /* Pages to physical address... */
 #define page_to_phys(page)      ((page - mem_map) << PAGE_SHIFT)
 #define page_to_bus(page)       ((page - mem_map) << PAGE_SHIFT)

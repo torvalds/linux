@@ -163,16 +163,6 @@ configured individually according to the following options.
 * pwm#_auto_pwm_min - this specifies the PWM value for temp#_auto_temp_off
                       temperature. (PWM value from 0 to 255)
 
-* pwm#_auto_pwm_freq - select base frequency of PWM output. You can select
-                       in range of 10.0 to 94.0 Hz in .1 Hz units.
-		       (Values 100 to 940).
-
-The pwm#_auto_pwm_freq can be set to one of the following 8 values. Setting the
-frequency to a value not on this list, will result in the next higher frequency
-being selected. The actual device frequency may vary slightly from this
-specification as designed by the manufacturer. Consult the datasheet for more
-details. (PWM Frequency values:  100, 150, 230, 300, 380, 470, 620, 940)
-
 * pwm#_auto_pwm_minctl - this flags selects for temp#_auto_temp_off temperature
                          the bahaviour of fans. Write 1 to let fans spinning at
 			 pwm#_auto_pwm_min or write 0 to let them off.

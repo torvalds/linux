@@ -549,7 +549,8 @@ void cx88_wakeup(struct cx88_core *core,
 		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 	}
 	if (bc != 1)
-		printk("%s: %d buffers handled (should be 1)\n",__func__,bc);
+		dprintk(2, "%s: %d buffers handled (should be 1)\n",
+			__func__, bc);
 }
 
 void cx88_shutdown(struct cx88_core *core)
@@ -842,6 +843,9 @@ static int set_tvaudio(struct cx88_core *core)
 
 	} else if (V4L2_STD_SECAM_L & norm) {
 		core->tvaudio = WW_L;
+
+	} else if ((V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H) & norm) {
+		core->tvaudio = WW_BG;
 
 	} else if (V4L2_STD_SECAM_DK & norm) {
 		core->tvaudio = WW_DK;

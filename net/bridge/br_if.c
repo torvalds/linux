@@ -347,15 +347,21 @@ int br_min_mtu(const struct net_bridge *br)
 void br_features_recompute(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
-	unsigned long features;
+	unsigned long features, mask;
 
-	features = br->feature_mask;
+	features = mask = br->feature_mask;
+	if (list_empty(&br->port_list))
+		goto done;
+
+	features &= ~NETIF_F_ONE_FOR_ALL;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		features = netdev_compute_features(features, p->dev->features);
+		features = netdev_increment_features(features,
+						     p->dev->features, mask);
 	}
 
-	br->dev->features = features;
+done:
+	br->dev->features = netdev_fix_features(features, NULL);
 }
 
 /* called with RTNL */
@@ -367,7 +373,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (dev->flags & IFF_LOOPBACK || dev->type != ARPHRD_ETHER)
 		return -EINVAL;
 
-	if (dev->hard_start_xmit == br_dev_xmit)
+	if (dev->netdev_ops->ndo_start_xmit == br_dev_xmit)
 		return -ELOOP;
 
 	if (dev->br_port != NULL)
@@ -454,7 +460,7 @@ void br_net_exit(struct net *net)
 restart:
 	for_each_netdev(net, dev) {
 		if (dev->priv_flags & IFF_EBRIDGE) {
-			del_br(dev->priv);
+			del_br(netdev_priv(dev));
 			goto restart;
 		}
 	}

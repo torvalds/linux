@@ -1361,7 +1361,7 @@ static unsigned int ether1394_encapsulate_prep(unsigned int max_payload,
 		hdr->ff.dgl = dgl;
 		adj_max_payload = max_payload - hdr_type_len[ETH1394_HDR_LF_FF];
 	}
-	return (dg_size + adj_max_payload - 1) / adj_max_payload;
+	return DIV_ROUND_UP(dg_size, adj_max_payload);
 }
 
 static unsigned int ether1394_encapsulate(struct sk_buff *skb,

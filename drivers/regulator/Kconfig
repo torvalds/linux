@@ -1,6 +1,4 @@
-menu "Voltage and Current regulators"
-
-config REGULATOR
+menuconfig REGULATOR
 	bool "Voltage and Current Regulator Support"
 	default n
 	help
@@ -23,21 +21,20 @@ config REGULATOR
 
 	  If unsure, say no.
 
+if REGULATOR
+
 config REGULATOR_DEBUG
 	bool "Regulator debug support"
-	depends on REGULATOR
 	help
 	  Say yes here to enable debugging support.
 
 config REGULATOR_FIXED_VOLTAGE
 	tristate
 	default n
-	select REGULATOR
 
 config REGULATOR_VIRTUAL_CONSUMER
 	tristate "Virtual regulator consumer support"
 	default n
-	select REGULATOR
 	help
 	  This driver provides a virtual consumer for the voltage and
           current regulator API which provides sysfs controls for
@@ -49,7 +46,6 @@ config REGULATOR_VIRTUAL_CONSUMER
 config REGULATOR_BQ24022
 	tristate "TI bq24022 Dual Input 1-Cell Li-Ion Charger IC"
 	default n
-	select REGULATOR
 	help
 	  This driver controls a TI bq24022 Charger attached via
 	  GPIOs. The provided current regulator can enable/disable
@@ -59,7 +55,6 @@ config REGULATOR_BQ24022
 config REGULATOR_WM8350
 	tristate "Wolfson Microelectroncis WM8350 AudioPlus PMIC"
 	depends on MFD_WM8350
-	select REGULATOR
 	help
 	  This driver provides support for the voltage and current regulators
           of the WM8350 AudioPlus PMIC.
@@ -67,7 +62,6 @@ config REGULATOR_WM8350
 config REGULATOR_WM8400
 	tristate "Wolfson Microelectroncis WM8400 AudioPlus PMIC"
 	depends on MFD_WM8400
-	select REGULATOR
 	help
 	  This driver provides support for the voltage regulators of the
 	  WM8400 AudioPlus PMIC.
@@ -75,9 +69,8 @@ config REGULATOR_WM8400
 config REGULATOR_DA903X
 	tristate "Support regulators on Dialog Semiconductor DA9030/DA9034 PMIC"
 	depends on PMIC_DA903X
-	select REGULATOR
 	help
 	  Say y here to support the BUCKs and LDOs regulators found on
 	  Dialog Semiconductor DA9030/DA9034 PMIC.
 
-endmenu
+endif

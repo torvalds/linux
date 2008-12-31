@@ -235,7 +235,6 @@ static void kingsun_rcv_irq(struct urb *urb)
 						  &kingsun->stats,
 						  &kingsun->rx_buff, bytes[i]);
 			}
-			kingsun->netdev->last_rx = jiffies;
 			do_gettimeofday(&kingsun->rx_time);
 			kingsun->receiving =
 				(kingsun->rx_buff.state != OUTSIDE_FRAME)
@@ -540,7 +539,8 @@ static int kingsun_probe(struct usb_interface *intf,
 	if (ret != 0)
 		goto free_mem;
 
-	info("IrDA: Registered KingSun/DonShine device %s", net->name);
+	dev_info(&net->dev, "IrDA: Registered KingSun/DonShine device %s\n",
+		 net->name);
 
 	usb_set_intfdata(intf, kingsun);
 

@@ -33,6 +33,7 @@
 #include <asm/qdio.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
+#include <asm/sysinfo.h>
 #include "zfcp_dbf.h"
 #include "zfcp_fsf.h"
 
@@ -158,20 +159,6 @@ struct fcp_rscn_element {
         u32 nport_did:24;
 } __attribute__((packed));
 
-#define ZFCP_PORT_ADDRESS   0x0
-#define ZFCP_AREA_ADDRESS   0x1
-#define ZFCP_DOMAIN_ADDRESS 0x2
-#define ZFCP_FABRIC_ADDRESS 0x3
-
-#define ZFCP_PORTS_RANGE_PORT   0xFFFFFF
-#define ZFCP_PORTS_RANGE_AREA   0xFFFF00
-#define ZFCP_PORTS_RANGE_DOMAIN 0xFF0000
-#define ZFCP_PORTS_RANGE_FABRIC 0x000000
-
-#define ZFCP_NO_PORTS_PER_AREA    0x100
-#define ZFCP_NO_PORTS_PER_DOMAIN  0x10000
-#define ZFCP_NO_PORTS_PER_FABRIC  0x1000000
-
 /* see fc-ph */
 struct fcp_logo {
         u32 command;
@@ -210,7 +197,6 @@ struct zfcp_ls_adisc {
 #define ZFCP_CT_UNABLE_TO_PERFORM_CMD	0x09
 #define ZFCP_CT_GID_PN			0x0121
 #define ZFCP_CT_GPN_FT			0x0172
-#define ZFCP_CT_MAX_SIZE		0x1020
 #define ZFCP_CT_ACCEPT			0x8002
 #define ZFCP_CT_REJECT			0x8001
 
@@ -257,7 +243,6 @@ struct zfcp_ls_adisc {
 
 /* remote port status */
 #define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
-#define ZFCP_STATUS_PORT_DID_DID		0x00000002
 #define ZFCP_STATUS_PORT_PHYS_CLOSING		0x00000004
 #define ZFCP_STATUS_PORT_NO_WWPN		0x00000008
 #define ZFCP_STATUS_PORT_INVALID_WWPN		0x00000020
@@ -339,8 +324,6 @@ struct ct_iu_gid_pn_resp {
  * @wka_port: port where the request is sent to
  * @req: scatter-gather list for request
  * @resp: scatter-gather list for response
- * @req_count: number of elements in request scatter-gather list
- * @resp_count: number of elements in response scatter-gather list
  * @handler: handler function (called for response to the request)
  * @handler_data: data passed to handler function
  * @timeout: FSF timeout for this request
@@ -351,8 +334,6 @@ struct zfcp_send_ct {
 	struct zfcp_wka_port *wka_port;
 	struct scatterlist *req;
 	struct scatterlist *resp;
-	unsigned int req_count;
-	unsigned int resp_count;
 	void (*handler)(unsigned long);
 	unsigned long handler_data;
 	int timeout;
@@ -377,8 +358,6 @@ struct zfcp_gid_pn_data {
  * @d_id: destiniation id of port where request is sent to
  * @req: scatter-gather list for request
  * @resp: scatter-gather list for response
- * @req_count: number of elements in request scatter-gather list
- * @resp_count: number of elements in response scatter-gather list
  * @handler: handler function (called for response to the request)
  * @handler_data: data passed to handler function
  * @completion: completion for synchronization purposes
@@ -391,8 +370,6 @@ struct zfcp_send_els {
 	u32 d_id;
 	struct scatterlist *req;
 	struct scatterlist *resp;
-	unsigned int req_count;
-	unsigned int resp_count;
 	void (*handler)(unsigned long);
 	unsigned long handler_data;
 	struct completion *completion;
@@ -450,7 +427,6 @@ struct zfcp_latencies {
 };
 
 struct zfcp_adapter {
-	struct list_head	list;              /* list of adapters */
 	atomic_t                refcount;          /* reference count */
 	wait_queue_head_t	remove_wq;         /* can be used to wait for
 						      refcount drop to zero */
@@ -515,6 +491,7 @@ struct zfcp_adapter {
 	struct fsf_qtcb_bottom_port *stats_reset_data;
 	unsigned long		stats_reset;
 	struct work_struct	scan_work;
+	struct service_level	service_level;
 	atomic_t		qdio_outb_full;	   /* queue full incidents */
 };
 
@@ -583,22 +560,19 @@ struct zfcp_fsf_req {
 	unsigned long long     issued;         /* request sent time (STCK) */
 	struct zfcp_unit       *unit;
 	void			(*handler)(struct zfcp_fsf_req *);
+	u16			qdio_outb_usage;/* usage of outbound queue */
+	u16			qdio_inb_usage;	/* usage of inbound queue */
 };
 
 /* driver data */
 struct zfcp_data {
 	struct scsi_host_template scsi_host_template;
 	struct scsi_transport_template *scsi_transport_template;
-	struct list_head	adapter_list_head;  /* head of adapter list */
 	rwlock_t                config_lock;        /* serialises changes
 						       to adapter/port/unit
 						       lists */
 	struct semaphore        config_sema;        /* serialises configuration
 						       changes */
-	atomic_t		loglevel;            /* current loglevel */
-	char			init_busid[20];
-	u64			init_wwpn;
-	u64			init_fcp_lun;
 	struct kmem_cache	*fsf_req_qtcb_cache;
 	struct kmem_cache	*sr_buffer_cache;
 	struct kmem_cache	*gid_pn_cache;
@@ -618,8 +592,6 @@ struct zfcp_fsf_req_qtcb {
 
 #define ZFCP_SET                0x00000100
 #define ZFCP_CLEAR              0x00000200
-
-#define zfcp_get_busid_by_adapter(adapter) (dev_name(&adapter->ccw_device->dev))
 
 /*
  * Helper functions for request ID management.

@@ -390,7 +390,7 @@ void thash_purge_entries_remote(struct kvm_vcpu *v, u64 va, u64 ps)
 
 u64 translate_phy_pte(u64 *pte, u64 itir, u64 va)
 {
-	u64 ps, ps_mask, paddr, maddr;
+	u64 ps, ps_mask, paddr, maddr, io_mask;
 	union pte_flags phy_pte;
 
 	ps = itir_ps(itir);
@@ -398,8 +398,9 @@ u64 translate_phy_pte(u64 *pte, u64 itir, u64 va)
 	phy_pte.val = *pte;
 	paddr = *pte;
 	paddr = ((paddr & _PAGE_PPN_MASK) & ps_mask) | (va & ~ps_mask);
-	maddr = kvm_lookup_mpa(paddr >> PAGE_SHIFT);
-	if (maddr & GPFN_IO_MASK) {
+	maddr = kvm_get_mpt_entry(paddr >> PAGE_SHIFT);
+	io_mask = maddr & GPFN_IO_MASK;
+	if (io_mask && (io_mask != GPFN_PHYS_MMIO)) {
 		*pte |= VTLB_PTE_IO;
 		return -1;
 	}
@@ -418,7 +419,7 @@ int thash_purge_and_insert(struct kvm_vcpu *v, u64 pte, u64 itir,
 						u64 ifa, int type)
 {
 	u64 ps;
-	u64 phy_pte;
+	u64 phy_pte, io_mask, index;
 	union ia64_rr vrr, mrr;
 	int ret = 0;
 
@@ -426,13 +427,16 @@ int thash_purge_and_insert(struct kvm_vcpu *v, u64 pte, u64 itir,
 	vrr.val = vcpu_get_rr(v, ifa);
 	mrr.val = ia64_get_rr(ifa);
 
+	index = (pte & _PAGE_PPN_MASK) >> PAGE_SHIFT;
+	io_mask = kvm_get_mpt_entry(index) & GPFN_IO_MASK;
 	phy_pte = translate_phy_pte(&pte, itir, ifa);
 
 	/* Ensure WB attribute if pte is related to a normal mem page,
 	 * which is required by vga acceleration since qemu maps shared
 	 * vram buffer with WB.
 	 */
-	if (!(pte & VTLB_PTE_IO) && ((pte & _PAGE_MA_MASK) != _PAGE_MA_NAT)) {
+	if (!(pte & VTLB_PTE_IO) && ((pte & _PAGE_MA_MASK) != _PAGE_MA_NAT) &&
+			io_mask != GPFN_PHYS_MMIO) {
 		pte &= ~_PAGE_MA_MASK;
 		phy_pte &= ~_PAGE_MA_MASK;
 	}
@@ -566,10 +570,17 @@ void thash_init(struct thash_cb *hcb, u64 sz)
 	}
 }
 
-u64 kvm_lookup_mpa(u64 gpfn)
+u64 kvm_get_mpt_entry(u64 gpfn)
 {
 	u64 *base = (u64 *) KVM_P2M_BASE;
 	return *(base + gpfn);
+}
+
+u64 kvm_lookup_mpa(u64 gpfn)
+{
+	u64 maddr;
+	maddr = kvm_get_mpt_entry(gpfn);
+	return maddr&_PAGE_PPN_MASK;
 }
 
 u64 kvm_gpa_to_mpa(u64 gpa)

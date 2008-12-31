@@ -29,6 +29,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/processor.h>
 #include <asm/kexec.h>
+#include <asm/bug.h>
 
 	.text
 
@@ -271,170 +272,6 @@ _GLOBAL(real_writeb)
 
 #endif /* CONFIG_40x */
 
-/*
- * Flush MMU TLB
- */
-_GLOBAL(_tlbia)
-#if defined(CONFIG_40x)
-	sync			/* Flush to memory before changing mapping */
-	tlbia
-	isync			/* Flush shadow TLB */
-#elif defined(CONFIG_44x)
-	li	r3,0
-	sync
-
-	/* Load high watermark */
-	lis	r4,tlb_44x_hwater@ha
-	lwz	r5,tlb_44x_hwater@l(r4)
-
-1:	tlbwe	r3,r3,PPC44x_TLB_PAGEID
-	addi	r3,r3,1
-	cmpw	0,r3,r5
-	ble	1b
-
-	isync
-#elif defined(CONFIG_FSL_BOOKE)
-	/* Invalidate all entries in TLB0 */
-	li	r3, 0x04
-	tlbivax	0,3
-	/* Invalidate all entries in TLB1 */
-	li	r3, 0x0c
-	tlbivax	0,3
-	msync
-#ifdef CONFIG_SMP
-	tlbsync
-#endif /* CONFIG_SMP */
-#else /* !(CONFIG_40x || CONFIG_44x || CONFIG_FSL_BOOKE) */
-#if defined(CONFIG_SMP)
-	rlwinm	r8,r1,0,0,(31-THREAD_SHIFT)
-	lwz	r8,TI_CPU(r8)
-	oris	r8,r8,10
-	mfmsr	r10
-	SYNC
-	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
-	rlwinm	r0,r0,0,28,26		/* clear DR */
-	mtmsr	r0
-	SYNC_601
-	isync
-	lis	r9,mmu_hash_lock@h
-	ori	r9,r9,mmu_hash_lock@l
-	tophys(r9,r9)
-10:	lwarx	r7,0,r9
-	cmpwi	0,r7,0
-	bne-	10b
-	stwcx.	r8,0,r9
-	bne-	10b
-	sync
-	tlbia
-	sync
-	TLBSYNC
-	li	r0,0
-	stw	r0,0(r9)		/* clear mmu_hash_lock */
-	mtmsr	r10
-	SYNC_601
-	isync
-#else /* CONFIG_SMP */
-	sync
-	tlbia
-	sync
-#endif /* CONFIG_SMP */
-#endif /* ! defined(CONFIG_40x) */
-	blr
-
-/*
- * Flush MMU TLB for a particular address
- */
-_GLOBAL(_tlbie)
-#if defined(CONFIG_40x)
-	/* We run the search with interrupts disabled because we have to change
-	 * the PID and I don't want to preempt when that happens.
-	 */
-	mfmsr	r5
-	mfspr	r6,SPRN_PID
-	wrteei	0
-	mtspr	SPRN_PID,r4
-	tlbsx.	r3, 0, r3
-	mtspr	SPRN_PID,r6
-	wrtee	r5
-	bne	10f
-	sync
-	/* There are only 64 TLB entries, so r3 < 64, which means bit 25 is clear.
-	 * Since 25 is the V bit in the TLB_TAG, loading this value will invalidate
-	 * the TLB entry. */
-	tlbwe	r3, r3, TLB_TAG
-	isync
-10:
-
-#elif defined(CONFIG_44x)
-	mfspr	r5,SPRN_MMUCR
-	rlwimi	r5,r4,0,24,31			/* Set TID */
-
-	/* We have to run the search with interrupts disabled, even critical
-	 * and debug interrupts (in fact the only critical exceptions we have
-	 * are debug and machine check).  Otherwise  an interrupt which causes
-	 * a TLB miss can clobber the MMUCR between the mtspr and the tlbsx. */
-	mfmsr	r4
-	lis	r6,(MSR_EE|MSR_CE|MSR_ME|MSR_DE)@ha
-	addi	r6,r6,(MSR_EE|MSR_CE|MSR_ME|MSR_DE)@l
-	andc	r6,r4,r6
-	mtmsr	r6
-	mtspr	SPRN_MMUCR,r5
-	tlbsx.	r3, 0, r3
-	mtmsr	r4
-	bne	10f
-	sync
-	/* There are only 64 TLB entries, so r3 < 64,
-	 * which means bit 22, is clear.  Since 22 is
-	 * the V bit in the TLB_PAGEID, loading this
-	 * value will invalidate the TLB entry.
-	 */
-	tlbwe	r3, r3, PPC44x_TLB_PAGEID
-	isync
-10:
-#elif defined(CONFIG_FSL_BOOKE)
-	rlwinm	r4, r3, 0, 0, 19
-	ori	r5, r4, 0x08	/* TLBSEL = 1 */
-	tlbivax	0, r4
-	tlbivax	0, r5
-	msync
-#if defined(CONFIG_SMP)
-	tlbsync
-#endif /* CONFIG_SMP */
-#else /* !(CONFIG_40x || CONFIG_44x || CONFIG_FSL_BOOKE) */
-#if defined(CONFIG_SMP)
-	rlwinm	r8,r1,0,0,(31-THREAD_SHIFT)
-	lwz	r8,TI_CPU(r8)
-	oris	r8,r8,11
-	mfmsr	r10
-	SYNC
-	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
-	rlwinm	r0,r0,0,28,26		/* clear DR */
-	mtmsr	r0
-	SYNC_601
-	isync
-	lis	r9,mmu_hash_lock@h
-	ori	r9,r9,mmu_hash_lock@l
-	tophys(r9,r9)
-10:	lwarx	r7,0,r9
-	cmpwi	0,r7,0
-	bne-	10b
-	stwcx.	r8,0,r9
-	bne-	10b
-	eieio
-	tlbie	r3
-	sync
-	TLBSYNC
-	li	r0,0
-	stw	r0,0(r9)		/* clear mmu_hash_lock */
-	mtmsr	r10
-	SYNC_601
-	isync
-#else /* CONFIG_SMP */
-	tlbie	r3
-	sync
-#endif /* CONFIG_SMP */
-#endif /* ! CONFIG_40x */
-	blr
 
 /*
  * Flush instruction cache.
@@ -589,8 +426,8 @@ _GLOBAL(__flush_dcache_icache)
 BEGIN_FTR_SECTION
 	blr
 END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
-	rlwinm	r3,r3,0,0,19			/* Get page base address */
-	li	r4,4096/L1_CACHE_BYTES	/* Number of lines in a page */
+	rlwinm	r3,r3,0,0,31-PAGE_SHIFT		/* Get page base address */
+	li	r4,PAGE_SIZE/L1_CACHE_BYTES	/* Number of lines in a page */
 	mtctr	r4
 	mr	r6,r3
 0:	dcbst	0,r3				/* Write line to ram */
@@ -630,8 +467,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	rlwinm	r0,r10,0,28,26			/* clear DR */
 	mtmsr	r0
 	isync
-	rlwinm	r3,r3,0,0,19			/* Get page base address */
-	li	r4,4096/L1_CACHE_BYTES	/* Number of lines in a page */
+	rlwinm	r3,r3,0,0,31-PAGE_SHIFT		/* Get page base address */
+	li	r4,PAGE_SIZE/L1_CACHE_BYTES	/* Number of lines in a page */
 	mtctr	r4
 	mr	r6,r3
 0:	dcbst	0,r3				/* Write line to ram */
@@ -655,7 +492,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
  * void clear_pages(void *page, int order) ;
  */
 _GLOBAL(clear_pages)
-	li	r0,4096/L1_CACHE_BYTES
+	li	r0,PAGE_SIZE/L1_CACHE_BYTES
 	slw	r0,r0,r4
 	mtctr	r0
 #ifdef CONFIG_8xx
@@ -713,7 +550,7 @@ _GLOBAL(copy_page)
 	dcbt	r5,r4
 	li	r11,L1_CACHE_BYTES+4
 #endif /* MAX_COPY_PREFETCH */
-	li	r0,4096/L1_CACHE_BYTES - MAX_COPY_PREFETCH
+	li	r0,PAGE_SIZE/L1_CACHE_BYTES - MAX_COPY_PREFETCH
 	crclr	4*cr0+eq
 2:
 	mtctr	r0
@@ -846,8 +683,10 @@ _GLOBAL(kernel_thread)
 	li	r4,0		/* new sp (unused) */
 	li	r0,__NR_clone
 	sc
-	cmpwi	0,r3,0		/* parent or child? */
-	bne	1f		/* return if parent */
+	bns+	1f		/* did system call indicate error? */
+	neg	r3,r3		/* if so, make return code negative */
+1:	cmpwi	0,r3,0		/* parent or child? */
+	bne	2f		/* return if parent */
 	li	r0,0		/* make top-level stack frame */
 	stwu	r0,-16(r1)
 	mtlr	r30		/* fn addr in lr */
@@ -857,7 +696,7 @@ _GLOBAL(kernel_thread)
 	li	r0,__NR_exit	/* exit if function returns */
 	li	r3,0
 	sc
-1:	lwz	r30,8(r1)
+2:	lwz	r30,8(r1)
 	lwz	r31,12(r1)
 	addi	r1,r1,16
 	blr

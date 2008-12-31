@@ -29,7 +29,6 @@ extern unsigned int __nongpreldata pci_probe;
 extern unsigned int pcibios_max_latency;
 
 void pcibios_resource_survey(void);
-int pcibios_enable_resources(struct pci_dev *, int);
 
 /* pci-vdk.c */
 

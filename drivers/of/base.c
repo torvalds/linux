@@ -329,6 +329,41 @@ struct device_node *of_find_compatible_node(struct device_node *from,
 EXPORT_SYMBOL(of_find_compatible_node);
 
 /**
+ *	of_find_node_with_property - Find a node which has a property with
+ *                                   the given name.
+ *	@from:		The node to start searching from or NULL, the node
+ *			you pass will not be searched, only the next one
+ *			will; typically, you pass what the previous call
+ *			returned. of_node_put() will be called on it
+ *	@prop_name:	The name of the property to look for.
+ *
+ *	Returns a node pointer with refcount incremented, use
+ *	of_node_put() on it when done.
+ */
+struct device_node *of_find_node_with_property(struct device_node *from,
+	const char *prop_name)
+{
+	struct device_node *np;
+	struct property *pp;
+
+	read_lock(&devtree_lock);
+	np = from ? from->allnext : allnodes;
+	for (; np; np = np->allnext) {
+		for (pp = np->properties; pp != 0; pp = pp->next) {
+			if (of_prop_cmp(pp->name, prop_name) == 0) {
+				of_node_get(np);
+				goto out;
+			}
+		}
+	}
+out:
+	of_node_put(from);
+	read_unlock(&devtree_lock);
+	return np;
+}
+EXPORT_SYMBOL(of_find_node_with_property);
+
+/**
  * of_match_node - Tell if an device_node has a matching of_match structure
  *	@matches:	array of of device match structures to search in
  *	@node:		the of device structure to match against
@@ -410,7 +445,7 @@ struct of_modalias_table {
 	char *modalias;
 };
 static struct of_modalias_table of_modalias_table[] = {
-	/* Empty for now; add entries as needed */
+	{ "fsl,mcu-mpc8349emitx", "mcu-mpc8349emitx" },
 };
 
 /**
@@ -420,13 +455,12 @@ static struct of_modalias_table of_modalias_table[] = {
  * @len:	Length of modalias value
  *
  * Based on the value of the compatible property, this routine will determine
- * an appropriate modalias value for a particular device tree node.  Three
- * separate methods are used to derive a modalias value.
+ * an appropriate modalias value for a particular device tree node.  Two
+ * separate methods are attempted to derive a modalias value.
  *
  * First method is to lookup the compatible value in of_modalias_table.
- * Second is to look for a "linux,<modalias>" entry in the compatible list
- * and used that for modalias.  Third is to strip off the manufacturer
- * prefix from the first compatible entry and use the remainder as modalias
+ * Second is to strip off the manufacturer prefix from the first
+ * compatible entry and use the remainder as modalias
  *
  * This routine returns 0 on success
  */
@@ -449,21 +483,7 @@ int of_modalias_node(struct device_node *node, char *modalias, int len)
 	if (!compatible)
 		return -ENODEV;
 
-	/* 2. search for linux,<modalias> entry */
-	p = compatible;
-	while (cplen > 0) {
-		if (!strncmp(p, "linux,", 6)) {
-			p += 6;
-			strlcpy(modalias, p, len);
-			return 0;
-		}
-
-		i = strlen(p) + 1;
-		p += i;
-		cplen -= i;
-	}
-
-	/* 3. take first compatible entry and strip manufacturer */
+	/* 2. take first compatible entry and strip manufacturer */
 	p = strchr(compatible, ',');
 	if (!p)
 		return -ENODEV;
@@ -473,3 +493,119 @@ int of_modalias_node(struct device_node *node, char *modalias, int len)
 }
 EXPORT_SYMBOL_GPL(of_modalias_node);
 
+/**
+ * of_parse_phandles_with_args - Find a node pointed by phandle in a list
+ * @np:		pointer to a device tree node containing a list
+ * @list_name:	property name that contains a list
+ * @cells_name:	property name that specifies phandles' arguments count
+ * @index:	index of a phandle to parse out
+ * @out_node:	optional pointer to device_node struct pointer (will be filled)
+ * @out_args:	optional pointer to arguments pointer (will be filled)
+ *
+ * This function is useful to parse lists of phandles and their arguments.
+ * Returns 0 on success and fills out_node and out_args, on error returns
+ * appropriate errno value.
+ *
+ * Example:
+ *
+ * phandle1: node1 {
+ * 	#list-cells = <2>;
+ * }
+ *
+ * phandle2: node2 {
+ * 	#list-cells = <1>;
+ * }
+ *
+ * node3 {
+ * 	list = <&phandle1 1 2 &phandle2 3>;
+ * }
+ *
+ * To get a device_node of the `node2' node you may call this:
+ * of_parse_phandles_with_args(node3, "list", "#list-cells", 2, &node2, &args);
+ */
+int of_parse_phandles_with_args(struct device_node *np, const char *list_name,
+				const char *cells_name, int index,
+				struct device_node **out_node,
+				const void **out_args)
+{
+	int ret = -EINVAL;
+	const u32 *list;
+	const u32 *list_end;
+	int size;
+	int cur_index = 0;
+	struct device_node *node = NULL;
+	const void *args = NULL;
+
+	list = of_get_property(np, list_name, &size);
+	if (!list) {
+		ret = -ENOENT;
+		goto err0;
+	}
+	list_end = list + size / sizeof(*list);
+
+	while (list < list_end) {
+		const u32 *cells;
+		const phandle *phandle;
+
+		phandle = list++;
+		args = list;
+
+		/* one cell hole in the list = <>; */
+		if (!*phandle)
+			goto next;
+
+		node = of_find_node_by_phandle(*phandle);
+		if (!node) {
+			pr_debug("%s: could not find phandle\n",
+				 np->full_name);
+			goto err0;
+		}
+
+		cells = of_get_property(node, cells_name, &size);
+		if (!cells || size != sizeof(*cells)) {
+			pr_debug("%s: could not get %s for %s\n",
+				 np->full_name, cells_name, node->full_name);
+			goto err1;
+		}
+
+		list += *cells;
+		if (list > list_end) {
+			pr_debug("%s: insufficient arguments length\n",
+				 np->full_name);
+			goto err1;
+		}
+next:
+		if (cur_index == index)
+			break;
+
+		of_node_put(node);
+		node = NULL;
+		args = NULL;
+		cur_index++;
+	}
+
+	if (!node) {
+		/*
+		 * args w/o node indicates that the loop above has stopped at
+		 * the 'hole' cell. Report this differently.
+		 */
+		if (args)
+			ret = -EEXIST;
+		else
+			ret = -ENOENT;
+		goto err0;
+	}
+
+	if (out_node)
+		*out_node = node;
+	if (out_args)
+		*out_args = args;
+
+	return 0;
+err1:
+	of_node_put(node);
+err0:
+	pr_debug("%s failed with status %d\n", __func__, ret);
+	return ret;
+}
+EXPORT_SYMBOL(of_parse_phandles_with_args);

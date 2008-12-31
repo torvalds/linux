@@ -22,7 +22,7 @@ isofs_export_iget(struct super_block *sb,
 		  __u32 generation)
 {
 	struct inode *inode;
-	struct dentry *result;
+
 	if (block == 0)
 		return ERR_PTR(-ESTALE);
 	inode = isofs_iget(sb, block, offset);
@@ -32,12 +32,7 @@ isofs_export_iget(struct super_block *sb,
 		iput(inode);
 		return ERR_PTR(-ESTALE);
 	}
-	result = d_alloc_anon(inode);
-	if (!result) {
-		iput(inode);
-		return ERR_PTR(-ENOMEM);
-	}
-	return result;
+	return d_obtain_alias(inode);
 }
 
 /* This function is surprisingly simple.  The trick is understanding
@@ -51,7 +46,6 @@ static struct dentry *isofs_export_get_parent(struct dentry *child)
 	unsigned long parent_offset = 0;
 	struct inode *child_inode = child->d_inode;
 	struct iso_inode_info *e_child_inode = ISOFS_I(child_inode);
-	struct inode *parent_inode = NULL;
 	struct iso_directory_record *de = NULL;
 	struct buffer_head * bh = NULL;
 	struct dentry *rv = NULL;
@@ -104,28 +98,11 @@ static struct dentry *isofs_export_get_parent(struct dentry *child)
 	/* Normalize */
 	isofs_normalize_block_and_offset(de, &parent_block, &parent_offset);
 
-	/* Get the inode. */
-	parent_inode = isofs_iget(child_inode->i_sb,
-				  parent_block,
-				  parent_offset);
-	if (IS_ERR(parent_inode)) {
-		rv = ERR_CAST(parent_inode);
-		if (rv != ERR_PTR(-ENOMEM))
-			rv = ERR_PTR(-EACCES);
-		goto out;
-	}
-
-	/* Allocate the dentry. */
-	rv = d_alloc_anon(parent_inode);
-	if (rv == NULL) {
-		rv = ERR_PTR(-ENOMEM);
-		goto out;
-	}
-
+	rv = d_obtain_alias(isofs_iget(child_inode->i_sb, parent_block,
+				     parent_offset));
  out:
-	if (bh) {
+	if (bh)
 		brelse(bh);
-	}
 	return rv;
 }
 

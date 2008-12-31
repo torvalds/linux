@@ -99,6 +99,8 @@ struct ehci_hcd {			/* one per controller */
 			owned by the companion during a bus suspend */
 	unsigned long		port_c_suspend;		/* which ports have
 			the change-suspend feature turned on */
+	unsigned long		suspended_ports;	/* which ports are
+			suspended */
 
 	/* per-HC memory pools (could be per-bus, but ...) */
 	struct dma_pool		*qh_pool;	/* qh per active urb */
@@ -604,16 +606,7 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 /*
  * Big-endian read/write functions are arch-specific.
  * Other arches can be added if/when they're needed.
- *
- * REVISIT: arch/powerpc now has readl/writel_be, so the
- * definition below can die once the 4xx support is
- * finally ported over.
  */
-#if defined(CONFIG_PPC) && !defined(CONFIG_PPC_MERGE)
-#define readl_be(addr)		in_be32((__force unsigned *)addr)
-#define writel_be(val, addr)	out_be32((__force unsigned *)addr, val)
-#endif
-
 #if defined(CONFIG_ARM) && defined(CONFIG_ARCH_IXP4XX)
 #define readl_be(addr)		__raw_readl((__force unsigned *)addr)
 #define writel_be(val, addr)	__raw_writel(val, (__force unsigned *)addr)

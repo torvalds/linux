@@ -3,4 +3,3 @@
 #
 
 extra-y =  crt0_$(MODEL).o
-obj-y := timer.o

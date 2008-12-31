@@ -43,6 +43,9 @@ config GENERIC_HWEIGHT
 config GENERIC_TIME
 	def_bool y
 
+config GENERIC_TIME_VSYSCALL
+	def_bool y
+
 config GENERIC_CLOCKEVENTS
 	def_bool y
 
@@ -66,10 +69,15 @@ config PGSTE
 	bool
 	default y if KVM
 
+config VIRT_CPU_ACCOUNTING
+	def_bool y
+
 mainmenu "Linux Kernel Configuration"
 
 config S390
 	def_bool y
+	select USE_GENERIC_SMP_HELPERS if SMP
+	select HAVE_FUNCTION_TRACER
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
@@ -77,6 +85,8 @@ config S390
 	select HAVE_ARCH_TRACEHOOK
 
 source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
 
 menu "Base setup"
 
@@ -223,6 +233,14 @@ config MARCH_Z9_109
 	  Class (z9 BC). The kernel will be slightly faster but will not
 	  work on older machines such as the z990, z890, z900, and z800.
 
+config MARCH_Z10
+	bool "IBM System z10"
+	help
+	  Select this to enable optimizations for IBM System z10. The
+	  kernel will be slightly faster but will not work on older
+	  machines such as the z990, z890, z900, z800, z9-109, z9-ec
+	  and z9-bc.
+
 endchoice
 
 config PACK_STACK
@@ -239,18 +257,16 @@ config PACK_STACK
 	  Say Y if you are unsure.
 
 config SMALL_STACK
-	bool "Use 4kb/8kb for kernel stack instead of 8kb/16kb"
-	depends on PACK_STACK && !LOCKDEP
+	bool "Use 8kb for kernel stack instead of 16kb"
+	depends on PACK_STACK && 64BIT && !LOCKDEP
 	help
 	  If you say Y here and the compiler supports the -mkernel-backchain
-	  option the kernel will use a smaller kernel stack size. For 31 bit
-	  the reduced size is 4kb instead of 8kb and for 64 bit it is 8kb
-	  instead of 16kb. This allows to run more thread on a system and
-	  reduces the pressure on the memory management for higher order
-	  page allocations.
+	  option the kernel will use a smaller kernel stack size. The reduced
+	  size is 8kb instead of 16kb. This allows to run more threads on a
+	  system and reduces the pressure on the memory management for higher
+	  order page allocations.
 
 	  Say N if you are unsure.
-
 
 config CHECK_STACK
 	bool "Detect kernel stack overflow"
@@ -343,16 +359,6 @@ config QDIO
 
 	  If unsure, say Y.
 
-config QDIO_DEBUG
-	bool "Extended debugging information"
-	depends on QDIO
-	help
-	  Say Y here to get extended debugging output in
-	    /sys/kernel/debug/s390dbf/qdio...
-	  Warning: this option reduces the performance of the QDIO module.
-
-	  If unsure, say N.
-
 config CHSC_SCH
 	tristate "Support for CHSC subchannels"
 	help
@@ -382,7 +388,7 @@ config IPL
 choice
 	prompt "IPL method generated into head.S"
 	depends on IPL
-	default IPL_TAPE
+	default IPL_VM
 	help
 	  Select "tape" if you want to IPL the image from a Tape.
 
@@ -466,22 +472,9 @@ config PAGE_STATES
 	  hypervisor. The ESSA instruction is used to do the states
 	  changes between a page that has content and the unused state.
 
-config VIRT_TIMER
-	bool "Virtual CPU timer support"
-	help
-	  This provides a kernel interface for virtual CPU timers.
-	  Default is disabled.
-
-config VIRT_CPU_ACCOUNTING
-	bool "Base user process accounting on virtual cpu timer"
-	depends on VIRT_TIMER
-	help
-	  Select this option to use CPU timer deltas to do user
-	  process accounting.
-
 config APPLDATA_BASE
 	bool "Linux - VM Monitor Stream, base infrastructure"
-	depends on PROC_FS && VIRT_TIMER=y
+	depends on PROC_FS
 	help
 	  This provides a kernel interface for creating and updating z/VM APPLDATA
 	  monitor records. The monitor records are updated at certain time
@@ -565,13 +558,16 @@ config ZFCPDUMP
 	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
 
 config S390_GUEST
-bool "s390 guest support (EXPERIMENTAL)"
+bool "s390 guest support for KVM (EXPERIMENTAL)"
 	depends on 64BIT && EXPERIMENTAL
 	select VIRTIO
 	select VIRTIO_RING
 	select VIRTIO_CONSOLE
 	help
-	  Select this option if you want to run the kernel under s390 linux
+	  Select this option if you want to run the kernel as a guest under
+	  the KVM hypervisor. This will add detection for KVM as well  as a
+	  virtio transport. If KVM is detected, the virtio console will be
+	  the default console.
 endmenu
 
 source "net/Kconfig"

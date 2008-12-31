@@ -1,3 +1,4 @@
+
 /* arch/arm/mach-s3c2410/include/mach/uncompress.h
  *
  * Copyright (c) 2003, 2007 Simtec Electronics
@@ -21,7 +22,7 @@
 #undef S3C2410_GPIOREG
 #define S3C2410_GPIOREG(x) ((S3C24XX_PA_GPIO + (x)))
 
-#include <asm/plat-s3c/uncompress.h>
+#include <plat/uncompress.h>
 
 static inline int is_arm926(void)
 {

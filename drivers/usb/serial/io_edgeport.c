@@ -3109,13 +3109,13 @@ static int edge_startup(struct usb_serial *serial)
 				edge_serial->interrupt_read_urb =
 						usb_alloc_urb(0, GFP_KERNEL);
 				if (!edge_serial->interrupt_read_urb) {
-					err("out of memory");
+					dev_err(&dev->dev, "out of memory\n");
 					return -ENOMEM;
 				}
 				edge_serial->interrupt_in_buffer =
 					kmalloc(buffer_size, GFP_KERNEL);
 				if (!edge_serial->interrupt_in_buffer) {
-					err("out of memory");
+					dev_err(&dev->dev, "out of memory\n");
 					usb_free_urb(edge_serial->interrupt_read_urb);
 					return -ENOMEM;
 				}
@@ -3146,13 +3146,13 @@ static int edge_startup(struct usb_serial *serial)
 				edge_serial->read_urb =
 						usb_alloc_urb(0, GFP_KERNEL);
 				if (!edge_serial->read_urb) {
-					err("out of memory");
+					dev_err(&dev->dev, "out of memory\n");
 					return -ENOMEM;
 				}
 				edge_serial->bulk_in_buffer =
 					kmalloc(buffer_size, GFP_KERNEL);
 				if (!edge_serial->bulk_in_buffer) {
-					err("out of memory");
+					dev_err(&dev->dev, "out of memory\n");
 					usb_free_urb(edge_serial->read_urb);
 					return -ENOMEM;
 				}
@@ -3181,7 +3181,8 @@ static int edge_startup(struct usb_serial *serial)
 		}
 
 		if (!interrupt_in_found || !bulk_in_found || !bulk_out_found) {
-			err("Error - the proper endpoints were not found!");
+			dev_err(&dev->dev, "Error - the proper endpoints "
+				"were not found!\n");
 			return -ENODEV;
 		}
 
@@ -3190,8 +3191,9 @@ static int edge_startup(struct usb_serial *serial)
 		response = usb_submit_urb(edge_serial->interrupt_read_urb,
 								GFP_KERNEL);
 		if (response)
-			err("%s - Error %d submitting control urb",
-							__func__, response);
+			dev_err(&dev->dev,
+				"%s - Error %d submitting control urb\n",
+				__func__, response);
 	}
 	return response;
 }
@@ -3253,7 +3255,8 @@ static int __init edgeport_init(void)
 	if (retval)
 		goto failed_usb_register;
 	atomic_set(&CmdUrbs, 0);
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 
 failed_usb_register:

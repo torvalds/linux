@@ -86,7 +86,7 @@ static int eisa_eeprom_open(struct inode *inode, struct file *file)
 {
 	cycle_kernel_lock();
 
-	if (file->f_mode & 2)
+	if (file->f_mode & FMODE_WRITE)
 		return -EINVAL;
    
 	return 0;

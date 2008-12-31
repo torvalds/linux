@@ -264,8 +264,11 @@ static int snd_disconnect_release(struct inode *inode, struct file *file)
 	}
 	spin_unlock(&shutdown_lock);
 
-	if (likely(df))
+	if (likely(df)) {
+		if ((file->f_flags & FASYNC) && df->disconnected_f_op->fasync)
+			df->disconnected_f_op->fasync(-1, file, 0);
 		return df->disconnected_f_op->release(inode, file);
+	}
 
 	panic("%s(%p, %p) failed!", __func__, inode, file);
 }
@@ -530,6 +533,65 @@ static void choose_default_id(struct snd_card *card)
 	}
 }
 
+#ifndef CONFIG_SYSFS_DEPRECATED
+static ssize_t
+card_id_show_attr(struct device *dev,
+		  struct device_attribute *attr, char *buf)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+	return snprintf(buf, PAGE_SIZE, "%s\n", card ? card->id : "(null)");
+}
+
+static ssize_t
+card_id_store_attr(struct device *dev, struct device_attribute *attr,
+		   const char *buf, size_t count)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+	char buf1[sizeof(card->id)];
+	size_t copy = count > sizeof(card->id) - 1 ?
+					sizeof(card->id) - 1 : count;
+	size_t idx;
+	int c;
+
+	for (idx = 0; idx < copy; idx++) {
+		c = buf[idx];
+		if (!isalnum(c) && c != '_' && c != '-')
+			return -EINVAL;
+	}
+	memcpy(buf1, buf, copy);
+	buf1[copy] = '\0';
+	mutex_lock(&snd_card_mutex);
+	if (!snd_info_check_reserved_words(buf1)) {
+	     __exist:
+		mutex_unlock(&snd_card_mutex);
+		return -EEXIST;
+	}
+	for (idx = 0; idx < snd_ecards_limit; idx++) {
+		if (snd_cards[idx] && !strcmp(snd_cards[idx]->id, buf1))
+			goto __exist;
+	}
+	strcpy(card->id, buf1);
+	snd_info_card_id_change(card);
+	mutex_unlock(&snd_card_mutex);
+
+	return count;
+}
+
+static struct device_attribute card_id_attrs =
+	__ATTR(id, S_IRUGO | S_IWUSR, card_id_show_attr, card_id_store_attr);
+
+static ssize_t
+card_number_show_attr(struct device *dev,
+		     struct device_attribute *attr, char *buf)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+	return snprintf(buf, PAGE_SIZE, "%i\n", card ? card->number : -1);
+}
+
+static struct device_attribute card_number_attrs =
+	__ATTR(number, S_IRUGO, card_number_show_attr, NULL);
+#endif /* CONFIG_SYSFS_DEPRECATED */
+
 /**
  *  snd_card_register - register the soundcard
  *  @card: soundcard structure
@@ -549,9 +611,9 @@ int snd_card_register(struct snd_card *card)
 		return -EINVAL;
 #ifndef CONFIG_SYSFS_DEPRECATED
 	if (!card->card_dev) {
-		card->card_dev = device_create_drvdata(sound_class, card->dev,
-						       MKDEV(0, 0), NULL,
-						       "card%i", card->number);
+		card->card_dev = device_create(sound_class, card->dev,
+					       MKDEV(0, 0), card,
+					       "card%i", card->number);
 		if (IS_ERR(card->card_dev))
 			card->card_dev = NULL;
 	}
@@ -572,6 +634,16 @@ int snd_card_register(struct snd_card *card)
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_REGISTER);
+#endif
+#ifndef CONFIG_SYSFS_DEPRECATED
+	if (card->card_dev) {
+		err = device_create_file(card->card_dev, &card_id_attrs);
+		if (err < 0)
+			return err;
+		err = device_create_file(card->card_dev, &card_number_attrs);
+		if (err < 0)
+			return err;
+	}
 #endif
 	return 0;
 }

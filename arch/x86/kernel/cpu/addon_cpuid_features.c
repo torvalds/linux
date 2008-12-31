@@ -69,7 +69,7 @@ void __cpuinit init_scattered_cpuid_features(struct cpuinfo_x86 *c)
  */
 void __cpuinit detect_extended_topology(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_SMP
 	unsigned int eax, ebx, ecx, edx, sub_index;
 	unsigned int ht_mask_width, core_plus_mask_width;
 	unsigned int core_select_mask, core_level_siblings;
@@ -120,9 +120,17 @@ void __cpuinit detect_extended_topology(struct cpuinfo_x86 *c)
 	c->cpu_core_id = phys_pkg_id(c->initial_apicid, ht_mask_width)
 						 & core_select_mask;
 	c->phys_proc_id = phys_pkg_id(c->initial_apicid, core_plus_mask_width);
+	/*
+	 * Reinit the apicid, now that we have extended initial_apicid.
+	 */
+	c->apicid = phys_pkg_id(c->initial_apicid, 0);
 #else
 	c->cpu_core_id = phys_pkg_id(ht_mask_width) & core_select_mask;
 	c->phys_proc_id = phys_pkg_id(core_plus_mask_width);
+	/*
+	 * Reinit the apicid, now that we have extended initial_apicid.
+	 */
+	c->apicid = phys_pkg_id(0);
 #endif
 	c->x86_max_cores = (core_level_siblings / smp_num_siblings);
 

@@ -34,14 +34,11 @@ static ssize_t led_brightness_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	ssize_t ret = 0;
 
 	/* no lock needed for this */
 	led_update_brightness(led_cdev);
-	sprintf(buf, "%u\n", led_cdev->brightness);
-	ret = strlen(buf) + 1;
 
-	return ret;
+	return sprintf(buf, "%u\n", led_cdev->brightness);
 }
 
 static ssize_t led_brightness_store(struct device *dev,
@@ -103,8 +100,8 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 {
 	int rc;
 
-	led_cdev->dev = device_create_drvdata(leds_class, parent, 0, led_cdev,
-					      "%s", led_cdev->name);
+	led_cdev->dev = device_create(leds_class, parent, 0, led_cdev,
+				      "%s", led_cdev->name);
 	if (IS_ERR(led_cdev->dev))
 		return PTR_ERR(led_cdev->dev);
 
@@ -113,6 +110,9 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 	if (rc)
 		goto err_out;
 
+#ifdef CONFIG_LEDS_TRIGGERS
+	init_rwsem(&led_cdev->trigger_lock);
+#endif
 	/* add to the list of leds */
 	down_write(&leds_list_lock);
 	list_add_tail(&led_cdev->node, &leds_list);
@@ -121,8 +121,6 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 	led_update_brightness(led_cdev);
 
 #ifdef CONFIG_LEDS_TRIGGERS
-	init_rwsem(&led_cdev->trigger_lock);
-
 	rc = device_create_file(led_cdev->dev, &dev_attr_trigger);
 	if (rc)
 		goto err_out_led_list;
@@ -147,7 +145,7 @@ err_out:
 EXPORT_SYMBOL_GPL(led_classdev_register);
 
 /**
- * __led_classdev_unregister - unregisters a object of led_properties class.
+ * led_classdev_unregister - unregisters a object of led_properties class.
  * @led_cdev: the led device to unregister
  *
  * Unregisters a previously registered via led_classdev_register object.

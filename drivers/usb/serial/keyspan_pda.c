@@ -742,11 +742,13 @@ static int keyspan_pda_fake_startup(struct usb_serial *serial)
 		fw_name = "keyspan_pda/xircom_pgs.fw";
 #endif
 	else {
-		err("%s: unknown vendor, aborting.", __func__);
+		dev_err(&serial->dev->dev, "%s: unknown vendor, aborting.\n",
+			__func__);
 		return -ENODEV;
 	}
 	if (request_ihex_firmware(&fw, fw_name, &serial->dev->dev)) {
-		err("failed to load firmware \"%s\"\n", fw_name);
+		dev_err(&serial->dev->dev, "failed to load firmware \"%s\"\n",
+			fw_name);
 		return -ENOENT;
 	}
 	record = (const struct ihex_binrec *)fw->data;
@@ -756,10 +758,10 @@ static int keyspan_pda_fake_startup(struct usb_serial *serial)
 					     (unsigned char *)record->data,
 					     be16_to_cpu(record->len), 0xa0);
 		if (response < 0) {
-			err("ezusb_writememory failed for Keyspan PDA "
-			    "firmware (%d %04X %p %d)",
-			    response, be32_to_cpu(record->addr),
-			    record->data, be16_to_cpu(record->len));
+			dev_err(&serial->dev->dev, "ezusb_writememory failed "
+				"for Keyspan PDA firmware (%d %04X %p %d)\n",
+				response, be32_to_cpu(record->addr),
+				record->data, be16_to_cpu(record->len));
 			break;
 		}
 		record = ihex_next_binrec(record);
@@ -874,7 +876,8 @@ static int __init keyspan_pda_init(void)
 	retval = usb_register(&keyspan_pda_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 #ifdef XIRCOM

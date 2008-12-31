@@ -86,15 +86,7 @@ int oprofile_arch_init(struct oprofile_operations * ops);
 void oprofile_arch_exit(void);
 
 /**
- * Add data to the event buffer.
- * The data passed is free-form, but typically consists of
- * file offsets, dcookies, context information, and ESCAPE codes.
- */
-void add_event_entry(unsigned long data);
-
-/**
- * Add a sample. This may be called from any context. Pass
- * smp_processor_id() as cpu.
+ * Add a sample. This may be called from any context.
  */
 void oprofile_add_sample(struct pt_regs * const regs, unsigned long event);
 
@@ -162,5 +154,14 @@ int oprofilefs_ulong_from_user(unsigned long * val, char const __user * buf, siz
 
 /** lock for read/write safety */
 extern spinlock_t oprofilefs_lock;
+
+/**
+ * Add the contents of a circular buffer to the event buffer.
+ */
+void oprofile_put_buff(unsigned long *buf, unsigned int start,
+			unsigned int stop, unsigned int max);
+
+unsigned long oprofile_get_cpu_buffer_size(void);
+void oprofile_cpu_buffer_inc_smpl_lost(void);
  
 #endif /* OPROFILE_H */

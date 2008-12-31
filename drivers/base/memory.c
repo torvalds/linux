@@ -21,6 +21,8 @@
 #include <linux/memory_hotplug.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/stat.h>
+
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
 
@@ -325,7 +327,7 @@ memory_probe_store(struct class *class, const char *buf, size_t count)
 
 	return count;
 }
-static CLASS_ATTR(probe, 0700, NULL, memory_probe_store);
+static CLASS_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
 
 static int memory_probe_init(void)
 {

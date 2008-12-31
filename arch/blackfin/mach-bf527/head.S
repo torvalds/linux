@@ -88,7 +88,7 @@ ENTRY(_start_dma_code)
 	r1 = r1 << 8;                    /* Shift it over                   */
 	r0 = r1 | r0;                    /* add them all together           */
 #ifdef ANOMALY_05000265
-	r0 = BITSET(r0, 15);             /* Add 250 mV of hysteresis to SPORT input pins */
+	BITSET(r0, 15);                  /* Add 250 mV of hysteresis to SPORT input pins */
 #endif
 
 	p0.h = hi(PLL_CTL);

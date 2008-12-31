@@ -8,6 +8,7 @@
 
 #else
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 
@@ -32,6 +33,8 @@ static inline int gpio_request(unsigned gpio, const char *label)
 
 static inline void gpio_free(unsigned gpio)
 {
+	might_sleep();
+
 	/* GPIO can never have been requested */
 	WARN_ON(1);
 }

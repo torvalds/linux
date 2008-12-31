@@ -3739,7 +3739,7 @@ static int stli_getbrdnr(void)
  *	do is go probing around in the usual places hoping we can find it.
  */
 
-static int stli_findeisabrds(void)
+static int __init stli_findeisabrds(void)
 {
 	struct stlibrd *brdp;
 	unsigned int iobase, eid, i;
@@ -3935,7 +3935,7 @@ static struct stlibrd *stli_allocbrd(void)
  *	can find.
  */
 
-static int stli_initbrds(void)
+static int __init stli_initbrds(void)
 {
 	struct stlibrd *brdp, *nxtbrdp;
 	struct stlconf conf;
@@ -4600,9 +4600,8 @@ static int __init istallion_module_init(void)
 
 	istallion_class = class_create(THIS_MODULE, "staliomem");
 	for (i = 0; i < 4; i++)
-		device_create_drvdata(istallion_class, NULL,
-				      MKDEV(STL_SIOMEMMAJOR, i),
-				      NULL, "staliomem%d", i);
+		device_create(istallion_class, NULL, MKDEV(STL_SIOMEMMAJOR, i),
+			      NULL, "staliomem%d", i);
 
 	return 0;
 err_deinit:

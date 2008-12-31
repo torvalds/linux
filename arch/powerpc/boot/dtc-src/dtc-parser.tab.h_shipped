@@ -48,7 +48,8 @@
      DT_BYTE = 264,
      DT_STRING = 265,
      DT_LABEL = 266,
-     DT_REF = 267
+     DT_REF = 267,
+     DT_INCBIN = 268
    };
 #endif
 /* Tokens.  */
@@ -62,22 +63,23 @@
 #define DT_STRING 265
 #define DT_LABEL 266
 #define DT_REF 267
+#define DT_INCBIN 268
 
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 34 "dtc-parser.y"
+#line 37 "dtc-parser.y"
 {
 	char *propnodename;
 	char *literal;
 	char *labelref;
 	unsigned int cbase;
-	u8 byte;
+	uint8_t byte;
 	struct data data;
 
-	u64 addr;
+	uint64_t addr;
 	cell_t cell;
 	struct property *prop;
 	struct property *proplist;
@@ -86,7 +88,7 @@ typedef union YYSTYPE
 	struct reserve_info *re;
 }
 /* Line 1489 of yacc.c.  */
-#line 90 "dtc-parser.tab.h"
+#line 92 "dtc-parser.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

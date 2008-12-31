@@ -121,6 +121,10 @@ extern int sg_big_buff;
 #include <asm/system.h>
 #endif
 
+#ifdef CONFIG_SPARC64
+extern int sysctl_tsb_ratio;
+#endif
+
 #ifdef __hppa__
 extern int pwrsw_enabled;
 extern int unaligned_enabled;
@@ -149,7 +153,7 @@ extern int max_lock_depth;
 #ifdef CONFIG_PROC_SYSCTL
 static int proc_do_cad_pid(struct ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
-static int proc_dointvec_taint(struct ctl_table *table, int write, struct file *filp,
+static int proc_taint(struct ctl_table *table, int write, struct file *filp,
 			       void __user *buffer, size_t *lenp, loff_t *ppos);
 #endif
 
@@ -175,6 +179,9 @@ static struct ctl_table dev_table[];
 extern struct ctl_table random_table[];
 #ifdef CONFIG_INOTIFY_USER
 extern struct ctl_table inotify_table[];
+#endif
+#ifdef CONFIG_EPOLL
+extern struct ctl_table epoll_table[];
 #endif
 
 #ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
@@ -273,6 +280,16 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_shares_thresh",
+		.data		= &sysctl_sched_shares_thresh,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero,
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -379,10 +396,9 @@ static struct ctl_table kern_table[] = {
 #ifdef CONFIG_PROC_SYSCTL
 	{
 		.procname	= "tainted",
-		.data		= &tainted,
-		.maxlen		= sizeof(int),
+		.maxlen 	= sizeof(long),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_taint,
+		.proc_handler	= &proc_taint,
 	},
 #endif
 #ifdef CONFIG_LATENCYTOP
@@ -439,6 +455,16 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
+#ifdef CONFIG_SPARC64
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "tsb-ratio",
+		.data		= &sysctl_tsb_ratio,
+		.maxlen		= sizeof (int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
 #ifdef __hppa__
 	{
 		.ctl_name	= KERN_HPPA_PWRSW,
@@ -465,7 +491,7 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "ftrace_enabled",
@@ -473,6 +499,26 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &ftrace_enable_sysctl,
+	},
+#endif
+#ifdef CONFIG_STACK_TRACER
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "stack_tracer_enabled",
+		.data		= &stack_tracer_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &stack_trace_sysctl,
+	},
+#endif
+#ifdef CONFIG_TRACING
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "ftrace_dump_on_oops",
+		.data		= &ftrace_dump_on_oops,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 #endif
 #ifdef CONFIG_MODULES
@@ -832,6 +878,16 @@ static struct ctl_table kern_table[] = {
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = &proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_UNEVICTABLE_LRU
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "scan_unevictable_pages",
+		.data		= &scan_unevictable_pages,
+		.maxlen		= sizeof(scan_unevictable_pages),
+		.mode		= 0644,
+		.proc_handler	= &scan_unevictable_handler,
 	},
 #endif
 /*
@@ -1282,6 +1338,7 @@ static struct ctl_table fs_table[] = {
 		.extra2		= &two,
 	},
 #endif
+#ifdef CONFIG_AIO
 	{
 		.procname	= "aio-nr",
 		.data		= &aio_nr,
@@ -1296,6 +1353,7 @@ static struct ctl_table fs_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_doulongvec_minmax,
 	},
+#endif /* CONFIG_AIO */
 #ifdef CONFIG_INOTIFY_USER
 	{
 		.ctl_name	= FS_INOTIFY,
@@ -1304,6 +1362,13 @@ static struct ctl_table fs_table[] = {
 		.child		= inotify_table,
 	},
 #endif	
+#ifdef CONFIG_EPOLL
+	{
+		.procname	= "epoll",
+		.mode		= 0555,
+		.child		= epoll_table,
+	},
+#endif
 #endif
 	{
 		.ctl_name	= KERN_SETUID_DUMPABLE,
@@ -1501,7 +1566,6 @@ void register_sysctl_root(struct ctl_table_root *root)
 /* Perform the actual read/write of a sysctl table entry. */
 static int do_sysctl_strategy(struct ctl_table_root *root,
 			struct ctl_table *table,
-			int __user *name, int nlen,
 			void __user *oldval, size_t __user *oldlenp,
 			void __user *newval, size_t newlen)
 {
@@ -1515,8 +1579,7 @@ static int do_sysctl_strategy(struct ctl_table_root *root,
 		return -EPERM;
 
 	if (table->strategy) {
-		rc = table->strategy(table, name, nlen, oldval, oldlenp,
-				     newval, newlen);
+		rc = table->strategy(table, oldval, oldlenp, newval, newlen);
 		if (rc < 0)
 			return rc;
 		if (rc > 0)
@@ -1526,8 +1589,7 @@ static int do_sysctl_strategy(struct ctl_table_root *root,
 	/* If there is no strategy routine, or if the strategy returns
 	 * zero, proceed with automatic r/w */
 	if (table->data && table->maxlen) {
-		rc = sysctl_data(table, name, nlen, oldval, oldlenp,
-				 newval, newlen);
+		rc = sysctl_data(table, oldval, oldlenp, newval, newlen);
 		if (rc < 0)
 			return rc;
 	}
@@ -1559,7 +1621,7 @@ repeat:
 				table = table->child;
 				goto repeat;
 			}
-			error = do_sysctl_strategy(root, table, name, nlen,
+			error = do_sysctl_strategy(root, table,
 						   oldval, oldlenp,
 						   newval, newlen);
 			return error;
@@ -1623,7 +1685,7 @@ out:
 
 static int test_perm(int mode, int op)
 {
-	if (!current->euid)
+	if (!current_euid())
 		mode >>= 6;
 	else if (in_egroup_p(0))
 		mode >>= 3;
@@ -2228,49 +2290,39 @@ int proc_dointvec(struct ctl_table *table, int write, struct file *filp,
 		    	    NULL,NULL);
 }
 
-#define OP_SET	0
-#define OP_AND	1
-#define OP_OR	2
-
-static int do_proc_dointvec_bset_conv(int *negp, unsigned long *lvalp,
-				      int *valp,
-				      int write, void *data)
-{
-	int op = *(int *)data;
-	if (write) {
-		int val = *negp ? -*lvalp : *lvalp;
-		switch(op) {
-		case OP_SET:	*valp = val; break;
-		case OP_AND:	*valp &= val; break;
-		case OP_OR:	*valp |= val; break;
-		}
-	} else {
-		int val = *valp;
-		if (val < 0) {
-			*negp = -1;
-			*lvalp = (unsigned long)-val;
-		} else {
-			*negp = 0;
-			*lvalp = (unsigned long)val;
-		}
-	}
-	return 0;
-}
-
 /*
- *	Taint values can only be increased
+ * Taint values can only be increased
+ * This means we can safely use a temporary.
  */
-static int proc_dointvec_taint(struct ctl_table *table, int write, struct file *filp,
+static int proc_taint(struct ctl_table *table, int write, struct file *filp,
 			       void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int op;
+	struct ctl_table t;
+	unsigned long tmptaint = get_taint();
+	int err;
 
 	if (write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	op = OP_OR;
-	return do_proc_dointvec(table,write,filp,buffer,lenp,ppos,
-				do_proc_dointvec_bset_conv,&op);
+	t = *table;
+	t.data = &tmptaint;
+	err = proc_doulongvec_minmax(&t, write, filp, buffer, lenp, ppos);
+	if (err < 0)
+		return err;
+
+	if (write) {
+		/*
+		 * Poor man's atomic or. Not worth adding a primitive
+		 * to everyone's atomic.h for this
+		 */
+		int i;
+		for (i = 0; i < BITS_PER_LONG && tmptaint >> i; i++) {
+			if ((tmptaint >> i) & 1)
+				add_taint(i);
+		}
+	}
+
+	return err;
 }
 
 struct do_proc_dointvec_minmax_conv_param {
@@ -2718,7 +2770,7 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
  */
 
 /* The generic sysctl data routine (used if no strategy routine supplied) */
-int sysctl_data(struct ctl_table *table, int __user *name, int nlen,
+int sysctl_data(struct ctl_table *table,
 		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {
@@ -2752,7 +2804,7 @@ int sysctl_data(struct ctl_table *table, int __user *name, int nlen,
 }
 
 /* The generic string strategy routine: */
-int sysctl_string(struct ctl_table *table, int __user *name, int nlen,
+int sysctl_string(struct ctl_table *table,
 		  void __user *oldval, size_t __user *oldlenp,
 		  void __user *newval, size_t newlen)
 {
@@ -2798,7 +2850,7 @@ int sysctl_string(struct ctl_table *table, int __user *name, int nlen,
  * are between the minimum and maximum values given in the arrays
  * table->extra1 and table->extra2, respectively.
  */
-int sysctl_intvec(struct ctl_table *table, int __user *name, int nlen,
+int sysctl_intvec(struct ctl_table *table,
 		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {
@@ -2834,7 +2886,7 @@ int sysctl_intvec(struct ctl_table *table, int __user *name, int nlen,
 }
 
 /* Strategy function to convert jiffies to seconds */ 
-int sysctl_jiffies(struct ctl_table *table, int __user *name, int nlen,
+int sysctl_jiffies(struct ctl_table *table,
 		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {
@@ -2868,7 +2920,7 @@ int sysctl_jiffies(struct ctl_table *table, int __user *name, int nlen,
 }
 
 /* Strategy function to convert jiffies to seconds */ 
-int sysctl_ms_jiffies(struct ctl_table *table, int __user *name, int nlen,
+int sysctl_ms_jiffies(struct ctl_table *table,
 		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {
@@ -2923,35 +2975,35 @@ asmlinkage long sys_sysctl(struct __sysctl_args __user *args)
 	return error;
 }
 
-int sysctl_data(struct ctl_table *table, int __user *name, int nlen,
+int sysctl_data(struct ctl_table *table,
 		  void __user *oldval, size_t __user *oldlenp,
 		  void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }
 
-int sysctl_string(struct ctl_table *table, int __user *name, int nlen,
+int sysctl_string(struct ctl_table *table,
 		  void __user *oldval, size_t __user *oldlenp,
 		  void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }
 
-int sysctl_intvec(struct ctl_table *table, int __user *name, int nlen,
+int sysctl_intvec(struct ctl_table *table,
 		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }
 
-int sysctl_jiffies(struct ctl_table *table, int __user *name, int nlen,
+int sysctl_jiffies(struct ctl_table *table,
 		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }
 
-int sysctl_ms_jiffies(struct ctl_table *table, int __user *name, int nlen,
+int sysctl_ms_jiffies(struct ctl_table *table,
 		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {

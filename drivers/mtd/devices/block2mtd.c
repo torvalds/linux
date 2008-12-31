@@ -224,7 +224,7 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 	if (dev->blkdev) {
 		invalidate_mapping_pages(dev->blkdev->bd_inode->i_mapping,
 					0, -1);
-		close_bdev_excl(dev->blkdev);
+		close_bdev_exclusive(dev->blkdev, FMODE_READ|FMODE_WRITE);
 	}
 
 	kfree(dev);
@@ -246,7 +246,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 		return NULL;
 
 	/* Get a handle on the device */
-	bdev = open_bdev_excl(devname, O_RDWR, NULL);
+	bdev = open_bdev_exclusive(devname, FMODE_READ|FMODE_WRITE, NULL);
 #ifndef MODULE
 	if (IS_ERR(bdev)) {
 

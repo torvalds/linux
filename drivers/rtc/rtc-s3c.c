@@ -26,7 +26,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/plat-s3c/regs-rtc.h>
+#include <plat/regs-rtc.h>
 
 /* I have yet to find an S3C implementation with more than one
  * of these rtc blocks in */
@@ -134,12 +134,12 @@ static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 		 rtc_tm->tm_year, rtc_tm->tm_mon, rtc_tm->tm_mday,
 		 rtc_tm->tm_hour, rtc_tm->tm_min, rtc_tm->tm_sec);
 
-	BCD_TO_BIN(rtc_tm->tm_sec);
-	BCD_TO_BIN(rtc_tm->tm_min);
-	BCD_TO_BIN(rtc_tm->tm_hour);
-	BCD_TO_BIN(rtc_tm->tm_mday);
-	BCD_TO_BIN(rtc_tm->tm_mon);
-	BCD_TO_BIN(rtc_tm->tm_year);
+	rtc_tm->tm_sec = bcd2bin(rtc_tm->tm_sec);
+	rtc_tm->tm_min = bcd2bin(rtc_tm->tm_min);
+	rtc_tm->tm_hour = bcd2bin(rtc_tm->tm_hour);
+	rtc_tm->tm_mday = bcd2bin(rtc_tm->tm_mday);
+	rtc_tm->tm_mon = bcd2bin(rtc_tm->tm_mon);
+	rtc_tm->tm_year = bcd2bin(rtc_tm->tm_year);
 
 	rtc_tm->tm_year += 100;
 	rtc_tm->tm_mon -= 1;
@@ -163,12 +163,12 @@ static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
 		return -EINVAL;
 	}
 
-	writeb(BIN2BCD(tm->tm_sec),  base + S3C2410_RTCSEC);
-	writeb(BIN2BCD(tm->tm_min),  base + S3C2410_RTCMIN);
-	writeb(BIN2BCD(tm->tm_hour), base + S3C2410_RTCHOUR);
-	writeb(BIN2BCD(tm->tm_mday), base + S3C2410_RTCDATE);
-	writeb(BIN2BCD(tm->tm_mon + 1), base + S3C2410_RTCMON);
-	writeb(BIN2BCD(year), base + S3C2410_RTCYEAR);
+	writeb(bin2bcd(tm->tm_sec),  base + S3C2410_RTCSEC);
+	writeb(bin2bcd(tm->tm_min),  base + S3C2410_RTCMIN);
+	writeb(bin2bcd(tm->tm_hour), base + S3C2410_RTCHOUR);
+	writeb(bin2bcd(tm->tm_mday), base + S3C2410_RTCDATE);
+	writeb(bin2bcd(tm->tm_mon + 1), base + S3C2410_RTCMON);
+	writeb(bin2bcd(year), base + S3C2410_RTCYEAR);
 
 	return 0;
 }
@@ -199,34 +199,34 @@ static int s3c_rtc_getalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	/* decode the alarm enable field */
 
 	if (alm_en & S3C2410_RTCALM_SECEN)
-		BCD_TO_BIN(alm_tm->tm_sec);
+		alm_tm->tm_sec = bcd2bin(alm_tm->tm_sec);
 	else
 		alm_tm->tm_sec = 0xff;
 
 	if (alm_en & S3C2410_RTCALM_MINEN)
-		BCD_TO_BIN(alm_tm->tm_min);
+		alm_tm->tm_min = bcd2bin(alm_tm->tm_min);
 	else
 		alm_tm->tm_min = 0xff;
 
 	if (alm_en & S3C2410_RTCALM_HOUREN)
-		BCD_TO_BIN(alm_tm->tm_hour);
+		alm_tm->tm_hour = bcd2bin(alm_tm->tm_hour);
 	else
 		alm_tm->tm_hour = 0xff;
 
 	if (alm_en & S3C2410_RTCALM_DAYEN)
-		BCD_TO_BIN(alm_tm->tm_mday);
+		alm_tm->tm_mday = bcd2bin(alm_tm->tm_mday);
 	else
 		alm_tm->tm_mday = 0xff;
 
 	if (alm_en & S3C2410_RTCALM_MONEN) {
-		BCD_TO_BIN(alm_tm->tm_mon);
+		alm_tm->tm_mon = bcd2bin(alm_tm->tm_mon);
 		alm_tm->tm_mon -= 1;
 	} else {
 		alm_tm->tm_mon = 0xff;
 	}
 
 	if (alm_en & S3C2410_RTCALM_YEAREN)
-		BCD_TO_BIN(alm_tm->tm_year);
+		alm_tm->tm_year = bcd2bin(alm_tm->tm_year);
 	else
 		alm_tm->tm_year = 0xffff;
 
@@ -250,17 +250,17 @@ static int s3c_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	if (tm->tm_sec < 60 && tm->tm_sec >= 0) {
 		alrm_en |= S3C2410_RTCALM_SECEN;
-		writeb(BIN2BCD(tm->tm_sec), base + S3C2410_ALMSEC);
+		writeb(bin2bcd(tm->tm_sec), base + S3C2410_ALMSEC);
 	}
 
 	if (tm->tm_min < 60 && tm->tm_min >= 0) {
 		alrm_en |= S3C2410_RTCALM_MINEN;
-		writeb(BIN2BCD(tm->tm_min), base + S3C2410_ALMMIN);
+		writeb(bin2bcd(tm->tm_min), base + S3C2410_ALMMIN);
 	}
 
 	if (tm->tm_hour < 24 && tm->tm_hour >= 0) {
 		alrm_en |= S3C2410_RTCALM_HOUREN;
-		writeb(BIN2BCD(tm->tm_hour), base + S3C2410_ALMHOUR);
+		writeb(bin2bcd(tm->tm_hour), base + S3C2410_ALMHOUR);
 	}
 
 	pr_debug("setting S3C2410_RTCALM to %08x\n", alrm_en);
@@ -455,6 +455,8 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 
 	s3c_rtc_setfreq(&pdev->dev, 1);
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	/* register RTC and exit */
 
 	rtc = rtc_device_register("s3c", &pdev->dev, &s3c_rtcops,
@@ -507,7 +509,7 @@ static int s3c_rtc_resume(struct platform_device *pdev)
 #define s3c_rtc_resume  NULL
 #endif
 
-static struct platform_driver s3c2410_rtcdrv = {
+static struct platform_driver s3c2410_rtc_driver = {
 	.probe		= s3c_rtc_probe,
 	.remove		= __devexit_p(s3c_rtc_remove),
 	.suspend	= s3c_rtc_suspend,
@@ -523,12 +525,12 @@ static char __initdata banner[] = "S3C24XX RTC, (c) 2004,2006 Simtec Electronics
 static int __init s3c_rtc_init(void)
 {
 	printk(banner);
-	return platform_driver_register(&s3c2410_rtcdrv);
+	return platform_driver_register(&s3c2410_rtc_driver);
 }
 
 static void __exit s3c_rtc_exit(void)
 {
-	platform_driver_unregister(&s3c2410_rtcdrv);
+	platform_driver_unregister(&s3c2410_rtc_driver);
 }
 
 module_init(s3c_rtc_init);

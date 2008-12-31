@@ -105,9 +105,6 @@ static const struct sched_class idle_sched_class = {
 
 	/* dequeue is not valid, we print a debug message there: */
 	.dequeue_task		= dequeue_task_idle,
-#ifdef CONFIG_SMP
-	.select_task_rq		= select_task_rq_idle,
-#endif /* CONFIG_SMP */
 
 	.check_preempt_curr	= check_preempt_curr_idle,
 
@@ -115,6 +112,8 @@ static const struct sched_class idle_sched_class = {
 	.put_prev_task		= put_prev_task_idle,
 
 #ifdef CONFIG_SMP
+	.select_task_rq		= select_task_rq_idle,
+
 	.load_balance		= load_balance_idle,
 	.move_one_task		= move_one_task_idle,
 #endif

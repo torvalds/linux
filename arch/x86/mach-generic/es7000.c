@@ -16,7 +16,19 @@
 #include <asm/es7000/apic.h>
 #include <asm/es7000/ipi.h>
 #include <asm/es7000/mpparse.h>
-#include <asm/es7000/wakecpu.h>
+#include <asm/mach-default/mach_wakecpu.h>
+
+void __init es7000_update_genapic_to_cluster(void)
+{
+	genapic->target_cpus = target_cpus_cluster;
+	genapic->int_delivery_mode = INT_DELIVERY_MODE_CLUSTER;
+	genapic->int_dest_mode = INT_DEST_MODE_CLUSTER;
+	genapic->no_balance_irq = NO_BALANCE_IRQ_CLUSTER;
+
+	genapic->init_apic_ldr = init_apic_ldr_cluster;
+
+	genapic->cpu_mask_to_apicid = cpu_mask_to_apicid_cluster;
+}
 
 static int probe_es7000(void)
 {
@@ -74,5 +86,19 @@ static int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;
 }
 #endif
+
+static cpumask_t vector_allocation_domain(int cpu)
+{
+	/* Careful. Some cpus do not strictly honor the set of cpus
+	 * specified in the interrupt destination when using lowest
+	 * priority interrupt delivery mode.
+	 *
+	 * In particular there was a hyperthreading cpu observed to
+	 * deliver interrupts to the wrong hyperthread when only one
+	 * hyperthread was specified in the interrupt desitination.
+	 */
+	cpumask_t domain = { { [0] = APIC_ALL_CPUS, } };
+	return domain;
+}
 
 struct genapic __initdata_refok apic_es7000 = APIC_INIT("es7000", probe_es7000);

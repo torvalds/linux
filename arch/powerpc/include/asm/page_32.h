@@ -13,17 +13,23 @@
 #define ARCH_KMALLOC_MINALIGN	L1_CACHE_BYTES
 #endif
 
+#ifdef CONFIG_PTE_64BIT
+#define PTE_FLAGS_OFFSET	4	/* offset of PTE flags, in bytes */
+#else
+#define PTE_FLAGS_OFFSET	0
+#endif
+
+#define PTE_SHIFT	(PAGE_SHIFT - PTE_T_LOG2)	/* full page */
+
 #ifndef __ASSEMBLY__
 /*
  * The basic type of a PTE - 64 bits for those CPUs with > 32 bit
- * physical addressing.  For now this just the IBM PPC440.
+ * physical addressing.
  */
 #ifdef CONFIG_PTE_64BIT
 typedef unsigned long long pte_basic_t;
-#define PTE_SHIFT	(PAGE_SHIFT - 3)	/* 512 ptes per page */
 #else
 typedef unsigned long pte_basic_t;
-#define PTE_SHIFT	(PAGE_SHIFT - 2)	/* 1024 ptes per page */
 #endif
 
 struct page;
@@ -32,6 +38,9 @@ static inline void clear_page(void *page) { clear_pages(page, 0); }
 extern void copy_page(void *to, void *from);
 
 #include <asm-generic/page.h>
+
+#define PGD_T_LOG2	(__builtin_ffs(sizeof(pgd_t)) - 1)
+#define PTE_T_LOG2	(__builtin_ffs(sizeof(pte_t)) - 1)
 
 #endif /* __ASSEMBLY__ */
 

@@ -82,6 +82,7 @@ static struct hv_ops hvc_get_put_ops = {
 	.put_chars = hvc_put_chars,
 	.notifier_add = notifier_add_irq,
 	.notifier_del = notifier_del_irq,
+	.notifier_hangup = notifier_hangup_irq,
 };
 
 static int __devinit hvc_vio_probe(struct vio_dev *vdev,
@@ -152,8 +153,10 @@ static int hvc_find_vtys(void)
 		/* We have statically defined space for only a certain number
 		 * of console adapters.
 		 */
-		if (num_found >= MAX_NR_HVC_CONSOLES)
+		if (num_found >= MAX_NR_HVC_CONSOLES) {
+			of_node_put(vty);
 			break;
+		}
 
 		vtermno = of_get_property(vty, "reg", NULL);
 		if (!vtermno)

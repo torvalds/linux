@@ -16,6 +16,7 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/ata_platform.h>
 #include <linux/spi/orion_spi.h>
+#include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/timex.h>
 #include <asm/mach/map.h>
@@ -56,6 +57,7 @@ void __init kirkwood_map_io(void)
  ****************************************************************************/
 static struct orion_ehci_data kirkwood_ehci_data = {
 	.dram		= &kirkwood_mbus_dram_info,
+	.phy_version	= EHCI_PHY_NA,
 };
 
 static u64 ehci_dmamask = 0xffffffffUL;
@@ -148,6 +150,98 @@ void __init kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 
 	platform_device_register(&kirkwood_ge00_shared);
 	platform_device_register(&kirkwood_ge00);
+}
+
+
+/*****************************************************************************
+ * GE01
+ ****************************************************************************/
+struct mv643xx_eth_shared_platform_data kirkwood_ge01_shared_data = {
+	.dram		= &kirkwood_mbus_dram_info,
+	.shared_smi	= &kirkwood_ge00_shared,
+};
+
+static struct resource kirkwood_ge01_shared_resources[] = {
+	{
+		.name	= "ge01 base",
+		.start	= GE01_PHYS_BASE + 0x2000,
+		.end	= GE01_PHYS_BASE + 0x3fff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "ge01 err irq",
+		.start	= IRQ_KIRKWOOD_GE01_ERR,
+		.end	= IRQ_KIRKWOOD_GE01_ERR,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device kirkwood_ge01_shared = {
+	.name		= MV643XX_ETH_SHARED_NAME,
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &kirkwood_ge01_shared_data,
+	},
+	.num_resources	= ARRAY_SIZE(kirkwood_ge01_shared_resources),
+	.resource	= kirkwood_ge01_shared_resources,
+};
+
+static struct resource kirkwood_ge01_resources[] = {
+	{
+		.name	= "ge01 irq",
+		.start	= IRQ_KIRKWOOD_GE01_SUM,
+		.end	= IRQ_KIRKWOOD_GE01_SUM,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device kirkwood_ge01 = {
+	.name		= MV643XX_ETH_NAME,
+	.id		= 1,
+	.num_resources	= 1,
+	.resource	= kirkwood_ge01_resources,
+};
+
+void __init kirkwood_ge01_init(struct mv643xx_eth_platform_data *eth_data)
+{
+	eth_data->shared = &kirkwood_ge01_shared;
+	kirkwood_ge01.dev.platform_data = eth_data;
+
+	platform_device_register(&kirkwood_ge01_shared);
+	platform_device_register(&kirkwood_ge01);
+}
+
+
+/*****************************************************************************
+ * Ethernet switch
+ ****************************************************************************/
+static struct resource kirkwood_switch_resources[] = {
+	{
+		.start	= 0,
+		.end	= 0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device kirkwood_switch_device = {
+	.name		= "dsa",
+	.id		= 0,
+	.num_resources	= 0,
+	.resource	= kirkwood_switch_resources,
+};
+
+void __init kirkwood_ge00_switch_init(struct dsa_platform_data *d, int irq)
+{
+	if (irq != NO_IRQ) {
+		kirkwood_switch_resources[0].start = irq;
+		kirkwood_switch_resources[0].end = irq;
+		kirkwood_switch_device.num_resources = 1;
+	}
+
+	d->mii_bus = &kirkwood_ge00_shared.dev;
+	d->netdev = &kirkwood_ge00.dev;
+	kirkwood_switch_device.dev.platform_data = d;
+
+	platform_device_register(&kirkwood_switch_device);
 }
 
 

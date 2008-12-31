@@ -226,7 +226,7 @@ extern long ia64_cmpxchg_called_with_bad_pointer (void);
 /************************************************/
 #define ia64_ssm			IA64_INTRINSIC_MACRO(ssm)
 #define ia64_rsm			IA64_INTRINSIC_MACRO(rsm)
-#define ia64_getreg			IA64_INTRINSIC_API(getreg)
+#define ia64_getreg			IA64_INTRINSIC_MACRO(getreg)
 #define ia64_setreg			IA64_INTRINSIC_API(setreg)
 #define ia64_set_rr			IA64_INTRINSIC_API(set_rr)
 #define ia64_get_rr			IA64_INTRINSIC_API(get_rr)

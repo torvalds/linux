@@ -812,7 +812,7 @@ int dlm_release_lockspace(void *lockspace, int force)
 	error = release_lockspace(ls, force);
 	if (!error)
 		ls_count--;
-	else if (!ls_count)
+	if (!ls_count)
 		threads_stop();
 	mutex_unlock(&ls_lock);
 

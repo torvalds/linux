@@ -67,9 +67,7 @@ int sirdev_get_dongle(struct sir_dev *dev, IRDA_DONGLE type)
 	const struct dongle_driver *drv = NULL;
 	int err = -EINVAL;
 
-#ifdef CONFIG_KMOD
 	request_module("irda-dongle-%d", type);
-#endif
 
 	if (dev->dongle_drv != NULL)
 		return -EBUSY;

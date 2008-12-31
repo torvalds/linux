@@ -317,8 +317,7 @@ static struct gameport_driver interact_drv = {
 
 static int __init interact_init(void)
 {
-	gameport_register_driver(&interact_drv);
-	return 0;
+	return gameport_register_driver(&interact_drv);
 }
 
 static void __exit interact_exit(void)

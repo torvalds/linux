@@ -123,10 +123,11 @@ static int dm_write_reg(struct usbnet *dev, u8 reg, u8 value)
 static void dm_write_async_callback(struct urb *urb)
 {
 	struct usb_ctrlrequest *req = (struct usb_ctrlrequest *)urb->context;
+	int status = urb->status;
 
-	if (urb->status < 0)
+	if (status < 0)
 		printk(KERN_DEBUG "dm_write_async_callback() failed with %d\n",
-		       urb->status);
+		       status);
 
 	kfree(req);
 	usb_free_urb(urb);
@@ -396,6 +397,20 @@ static void dm9601_set_multicast(struct net_device *net)
 	dm_write_reg_async(dev, DM_RX_CTRL, rx_ctl);
 }
 
+static int dm9601_set_mac_address(struct net_device *net, void *p)
+{
+	struct sockaddr *addr = p;
+	struct usbnet *dev = netdev_priv(net);
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
+	memcpy(net->dev_addr, addr->sa_data, net->addr_len);
+	dm_write_async(dev, DM_PHY_ADDR, net->addr_len, net->dev_addr);
+
+	return 0;
+}
+
 static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret;
@@ -406,6 +421,7 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	dev->net->do_ioctl = dm9601_ioctl;
 	dev->net->set_multicast_list = dm9601_set_multicast;
+	dev->net->set_mac_address = dm9601_set_mac_address;
 	dev->net->ethtool_ops = &dm9601_ethtool_ops;
 	dev->net->hard_header_len += DM_TX_OVERHEAD;
 	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;

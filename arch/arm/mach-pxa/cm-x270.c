@@ -162,7 +162,7 @@ static void __init cmx270_init_rtc(void)
 	platform_device_register(&cmx270_rtc_device);
 }
 #else
-static inline void cmx2xx_init_rtc(void) {}
+static inline void cmx270_init_rtc(void) {}
 #endif
 
 /* 2700G graphics */

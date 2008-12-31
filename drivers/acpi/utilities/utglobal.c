@@ -64,7 +64,7 @@ u32 acpi_dbg_level = ACPI_DEBUG_DEFAULT;
 
 /* Debug switch - layer (component) mask */
 
-u32 acpi_dbg_layer = ACPI_COMPONENT_DEFAULT | ACPI_ALL_DRIVERS;
+u32 acpi_dbg_layer = 0;
 u32 acpi_gbl_nesting_level = 0;
 
 /* Debugger globals */
@@ -281,7 +281,6 @@ struct acpi_bit_register_info acpi_gbl_bit_register_info[ACPI_NUM_BITREG] = {
 	/* ACPI_BITREG_RT_CLOCK_ENABLE      */ {ACPI_REGISTER_PM1_ENABLE,
 						ACPI_BITPOSITION_RT_CLOCK_ENABLE,
 						ACPI_BITMASK_RT_CLOCK_ENABLE},
-	/* ACPI_BITREG_WAKE_ENABLE          */ {ACPI_REGISTER_PM1_ENABLE, 0, 0},
 	/* ACPI_BITREG_PCIEXP_WAKE_DISABLE  */ {ACPI_REGISTER_PM1_ENABLE,
 						ACPI_BITPOSITION_PCIEXP_WAKE_DISABLE,
 						ACPI_BITMASK_PCIEXP_WAKE_DISABLE},
@@ -575,6 +574,47 @@ char *acpi_ut_get_descriptor_name(void *object)
 
 }
 
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_get_reference_name
+ *
+ * PARAMETERS:  Object               - An ACPI reference object
+ *
+ * RETURN:      Pointer to a string
+ *
+ * DESCRIPTION: Decode a reference object sub-type to a string.
+ *
+ ******************************************************************************/
+
+/* Printable names of reference object sub-types */
+
+static const char *acpi_gbl_ref_class_names[] = {
+	/* 00 */ "Local",
+	/* 01 */ "Argument",
+	/* 02 */ "RefOf",
+	/* 03 */ "Index",
+	/* 04 */ "DdbHandle",
+	/* 05 */ "Named Object",
+	/* 06 */ "Debug"
+};
+
+const char *acpi_ut_get_reference_name(union acpi_operand_object *object)
+{
+	if (!object)
+		return "NULL Object";
+
+	if (ACPI_GET_DESCRIPTOR_TYPE(object) != ACPI_DESC_TYPE_OPERAND)
+		return "Not an Operand object";
+
+	if (object->common.type != ACPI_TYPE_LOCAL_REFERENCE)
+		return "Not a Reference object";
+
+	if (object->reference.class > ACPI_REFCLASS_MAX)
+		return "Unknown Reference class";
+
+	return acpi_gbl_ref_class_names[object->reference.class];
+}
+
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 /*
  * Strings and procedures used for debug only
@@ -677,14 +717,14 @@ u8 acpi_ut_valid_object_type(acpi_object_type type)
  *
  * PARAMETERS:  None
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Init library globals.  All globals that require specific
  *              initialization should be initialized here!
  *
  ******************************************************************************/
 
-void acpi_ut_init_globals(void)
+acpi_status acpi_ut_init_globals(void)
 {
 	acpi_status status;
 	u32 i;
@@ -695,7 +735,7 @@ void acpi_ut_init_globals(void)
 
 	status = acpi_ut_create_caches();
 	if (ACPI_FAILURE(status)) {
-		return;
+		return_ACPI_STATUS(status);
 	}
 
 	/* Mutex locked flags */
@@ -772,8 +812,8 @@ void acpi_ut_init_globals(void)
 	acpi_gbl_display_final_mem_stats = FALSE;
 #endif
 
-	return_VOID;
+	return_ACPI_STATUS(AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_dbg_level)
-    ACPI_EXPORT_SYMBOL(acpi_dbg_layer)
+ACPI_EXPORT_SYMBOL(acpi_dbg_layer)

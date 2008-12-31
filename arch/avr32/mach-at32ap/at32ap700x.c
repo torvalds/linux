@@ -813,7 +813,7 @@ static struct resource pio4_resource[] = {
 DEFINE_DEV(pio, 4);
 DEV_CLK(mck, pio4, pba, 14);
 
-void __init at32_add_system_devices(void)
+static int __init system_device_init(void)
 {
 	platform_device_register(&at32_pm0_device);
 	platform_device_register(&at32_intc0_device);
@@ -832,7 +832,10 @@ void __init at32_add_system_devices(void)
 	platform_device_register(&pio2_device);
 	platform_device_register(&pio3_device);
 	platform_device_register(&pio4_device);
+
+	return 0;
 }
+core_initcall(system_device_init);
 
 /* --------------------------------------------------------------------
  *  PSIF
@@ -964,28 +967,28 @@ static inline void configure_usart0_pins(void)
 {
 	u32 pin_mask = (1 << 8) | (1 << 9); /* RXD & TXD */
 
-	select_peripheral(PIOA, pin_mask, PERIPH_B, 0);
+	select_peripheral(PIOA, pin_mask, PERIPH_B, AT32_GPIOF_PULLUP);
 }
 
 static inline void configure_usart1_pins(void)
 {
 	u32 pin_mask = (1 << 17) | (1 << 18); /* RXD & TXD */
 
-	select_peripheral(PIOA, pin_mask, PERIPH_A, 0);
+	select_peripheral(PIOA, pin_mask, PERIPH_A, AT32_GPIOF_PULLUP);
 }
 
 static inline void configure_usart2_pins(void)
 {
 	u32 pin_mask = (1 << 26) | (1 << 27); /* RXD & TXD */
 
-	select_peripheral(PIOB, pin_mask, PERIPH_B, 0);
+	select_peripheral(PIOB, pin_mask, PERIPH_B, AT32_GPIOF_PULLUP);
 }
 
 static inline void configure_usart3_pins(void)
 {
 	u32 pin_mask = (1 << 18) | (1 << 17); /* RXD & TXD */
 
-	select_peripheral(PIOB, pin_mask, PERIPH_B, 0);
+	select_peripheral(PIOB, pin_mask, PERIPH_B, AT32_GPIOF_PULLUP);
 }
 
 static struct platform_device *__initdata at32_usarts[4];
@@ -1091,7 +1094,9 @@ at32_add_device_eth(unsigned int id, struct eth_platform_data *data)
 			pin_mask |= (1 << 11);	/* RXD2 */
 			pin_mask |= (1 << 12);	/* RXD3 */
 			pin_mask |= (1 << 14);	/* RXCK */
+#ifndef CONFIG_BOARD_MIMC200
 			pin_mask |= (1 << 18);	/* SPD  */
+#endif
 		}
 
 		select_peripheral(PIOC, pin_mask, PERIPH_A, 0);
@@ -1112,8 +1117,10 @@ at32_add_device_eth(unsigned int id, struct eth_platform_data *data)
 		pin_mask |= (1 << 3);	/* MDC  */
 		pin_mask |= (1 << 2);	/* MDIO */
 
+#ifndef CONFIG_BOARD_MIMC200
 		if (!data->is_rmii)
 			pin_mask |= (1 << 15);	/* SPD  */
+#endif
 
 		select_peripheral(PIOD, pin_mask, PERIPH_B, 0);
 
@@ -1470,7 +1477,7 @@ at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 			pin_mask = ATMEL_LCDC_PRI_24BIT | ATMEL_LCDC_PRI_CONTROL;
 
 		/* LCDC on port C */
-		portc_mask = (pin_mask & 0xfff80000) >> 19;
+		portc_mask = pin_mask & 0xfff80000;
 		select_peripheral(PIOC, portc_mask, PERIPH_A, 0);
 
 		/* LCDC on port D */

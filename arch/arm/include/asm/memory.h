@@ -44,10 +44,10 @@
  * The module space lives between the addresses given by TASK_SIZE
  * and PAGE_OFFSET - it must be within 32MB of the kernel text.
  */
-#define MODULE_END		(PAGE_OFFSET)
-#define MODULE_START		(MODULE_END - 16*1048576)
+#define MODULES_END		(PAGE_OFFSET)
+#define MODULES_VADDR		(MODULES_END - 16*1048576)
 
-#if TASK_SIZE > MODULE_START
+#if TASK_SIZE > MODULES_VADDR
 #error Top of user space clashes with start of module space
 #endif
 
@@ -56,7 +56,7 @@
  * Since we use sections to map it, this macro replaces the physical address
  * with its virtual address while keeping offset from the base section.
  */
-#define XIP_VIRT_ADDR(physaddr)  (MODULE_START + ((physaddr) & 0x000fffff))
+#define XIP_VIRT_ADDR(physaddr)  (MODULES_VADDR + ((physaddr) & 0x000fffff))
 
 /*
  * Allow 16MB-aligned ioremap pages
@@ -94,8 +94,8 @@
 /*
  * The module can be at any place in ram in nommu mode.
  */
-#define MODULE_END		(END_MEM)
-#define MODULE_START		(PHYS_OFFSET)
+#define MODULES_END		(END_MEM)
+#define MODULES_VADDR		(PHYS_OFFSET)
 
 #endif /* !CONFIG_MMU */
 
@@ -112,10 +112,8 @@
  * private definitions which should NOT be used outside memory.h
  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
  */
-#ifndef __virt_to_phys
 #define __virt_to_phys(x)	((x) - PAGE_OFFSET + PHYS_OFFSET)
 #define __phys_to_virt(x)	((x) - PHYS_OFFSET + PAGE_OFFSET)
-#endif
 
 /*
  * Convert a physical address to a Page Frame Number and back
@@ -180,6 +178,11 @@ static inline void *phys_to_virt(unsigned long x)
  * memory.  Use of these is *deprecated* (and that doesn't mean
  * use the __ prefixed forms instead.)  See dma-mapping.h.
  */
+#ifndef __virt_to_bus
+#define __virt_to_bus	__virt_to_phys
+#define __bus_to_virt	__phys_to_virt
+#endif
+
 static inline __deprecated unsigned long virt_to_bus(void *x)
 {
 	return __virt_to_bus((unsigned long)x);

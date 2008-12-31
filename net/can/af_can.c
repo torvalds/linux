@@ -128,8 +128,8 @@ static int can_create(struct net *net, struct socket *sock, int protocol)
 	if (net != &init_net)
 		return -EAFNOSUPPORT;
 
-#ifdef CONFIG_KMOD
-	/* try to load protocol module, when CONFIG_KMOD is defined */
+#ifdef CONFIG_MODULES
+	/* try to load protocol module kernel is modular */
 	if (!proto_tab[protocol]) {
 		err = request_module("can-proto-%d", protocol);
 
@@ -319,23 +319,52 @@ static struct dev_rcv_lists *find_dev_rcv_lists(struct net_device *dev)
 	return n ? d : NULL;
 }
 
+/**
+ * find_rcv_list - determine optimal filterlist inside device filter struct
+ * @can_id: pointer to CAN identifier of a given can_filter
+ * @mask: pointer to CAN mask of a given can_filter
+ * @d: pointer to the device filter struct
+ *
+ * Description:
+ *  Returns the optimal filterlist to reduce the filter handling in the
+ *  receive path. This function is called by service functions that need
+ *  to register or unregister a can_filter in the filter lists.
+ *
+ *  A filter matches in general, when
+ *
+ *          <received_can_id> & mask == can_id & mask
+ *
+ *  so every bit set in the mask (even CAN_EFF_FLAG, CAN_RTR_FLAG) describe
+ *  relevant bits for the filter.
+ *
+ *  The filter can be inverted (CAN_INV_FILTER bit set in can_id) or it can
+ *  filter for error frames (CAN_ERR_FLAG bit set in mask). For error frames
+ *  there is a special filterlist and a special rx path filter handling.
+ *
+ * Return:
+ *  Pointer to optimal filterlist for the given can_id/mask pair.
+ *  Constistency checked mask.
+ *  Reduced can_id to have a preprocessed filter compare value.
+ */
 static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
 					struct dev_rcv_lists *d)
 {
 	canid_t inv = *can_id & CAN_INV_FILTER; /* save flag before masking */
 
-	/* filter error frames */
+	/* filter for error frames in extra filterlist */
 	if (*mask & CAN_ERR_FLAG) {
-		/* clear CAN_ERR_FLAG in list entry */
+		/* clear CAN_ERR_FLAG in filter entry */
 		*mask &= CAN_ERR_MASK;
 		return &d->rx[RX_ERR];
 	}
 
-	/* ensure valid values in can_mask */
-	if (*mask & CAN_EFF_FLAG)
-		*mask &= (CAN_EFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG);
-	else
-		*mask &= (CAN_SFF_MASK | CAN_RTR_FLAG);
+	/* with cleared CAN_ERR_FLAG we have a simple mask/value filterpair */
+
+#define CAN_EFF_RTR_FLAGS (CAN_EFF_FLAG | CAN_RTR_FLAG)
+
+	/* ensure valid values in can_mask for 'SFF only' frame filtering */
+	if ((*mask & CAN_EFF_FLAG) && !(*can_id & CAN_EFF_FLAG))
+		*mask &= (CAN_SFF_MASK | CAN_EFF_RTR_FLAGS);
 
 	/* reduce condition testing at receive time */
 	*can_id &= *mask;
@@ -348,15 +377,19 @@ static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
 	if (!(*mask))
 		return &d->rx[RX_ALL];
 
-	/* use extra filterset for the subscription of exactly *ONE* can_id */
-	if (*can_id & CAN_EFF_FLAG) {
-		if (*mask == (CAN_EFF_MASK | CAN_EFF_FLAG)) {
-			/* RFC: a use-case for hash-tables in the future? */
-			return &d->rx[RX_EFF];
+	/* extra filterlists for the subscription of a single non-RTR can_id */
+	if (((*mask & CAN_EFF_RTR_FLAGS) == CAN_EFF_RTR_FLAGS)
+	    && !(*can_id & CAN_RTR_FLAG)) {
+
+		if (*can_id & CAN_EFF_FLAG) {
+			if (*mask == (CAN_EFF_MASK | CAN_EFF_RTR_FLAGS)) {
+				/* RFC: a future use-case for hash-tables? */
+				return &d->rx[RX_EFF];
+			}
+		} else {
+			if (*mask == (CAN_SFF_MASK | CAN_EFF_RTR_FLAGS))
+				return &d->rx_sff[*can_id];
 		}
-	} else {
-		if (*mask == CAN_SFF_MASK)
-			return &d->rx_sff[*can_id];
 	}
 
 	/* default: filter via can_id/can_mask */
@@ -589,7 +622,10 @@ static int can_rcv_filter(struct dev_rcv_lists *d, struct sk_buff *skb)
 		}
 	}
 
-	/* check CAN_ID specific entries */
+	/* check filterlists for single non-RTR can_ids */
+	if (can_id & CAN_RTR_FLAG)
+		return matches;
+
 	if (can_id & CAN_EFF_FLAG) {
 		hlist_for_each_entry_rcu(r, n, &d->rx[RX_EFF], list) {
 			if (r->can_id == can_id) {

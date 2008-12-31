@@ -8,10 +8,10 @@ config BITREVERSE
 	tristate
 
 config GENERIC_FIND_FIRST_BIT
-	def_bool n
+	bool
 
 config GENERIC_FIND_NEXT_BIT
-	def_bool n
+	bool
 
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
@@ -64,6 +64,8 @@ config CRC7
 
 config LIBCRC32C
 	tristate "CRC32c (Castagnoli, et al) Cyclic Redundancy-Check"
+	select CRYPTO
+	select CRYPTO_CRC32C
 	help
 	  This option is provided for the case where no in-kernel-tree
 	  modules require CRC32c functions, but a module built outside the

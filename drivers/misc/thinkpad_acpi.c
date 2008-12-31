@@ -159,7 +159,6 @@ enum {
 #define TPACPI_DEBUG  KERN_DEBUG  TPACPI_LOG
 
 #define TPACPI_DBG_ALL		0xffff
-#define TPACPI_DBG_ALL		0xffff
 #define TPACPI_DBG_INIT		0x0001
 #define TPACPI_DBG_EXIT		0x0002
 #define dbg_printk(a_dbg_level, format, arg...) \
@@ -543,7 +542,7 @@ static int __init setup_acpi_notify(struct ibm_struct *ibm)
 		return -ENODEV;
 	}
 
-	acpi_driver_data(ibm->acpi->device) = ibm;
+	ibm->acpi->device->driver_data = ibm;
 	sprintf(acpi_device_class(ibm->acpi->device), "%s/%s",
 		TPACPI_ACPI_EVENT_PREFIX,
 		ibm->name);
@@ -582,7 +581,8 @@ static int __init register_tpacpi_subdriver(struct ibm_struct *ibm)
 
 	ibm->acpi->driver = kzalloc(sizeof(struct acpi_driver), GFP_KERNEL);
 	if (!ibm->acpi->driver) {
-		printk(TPACPI_ERR "kzalloc(ibm->driver) failed\n");
+		printk(TPACPI_ERR
+		       "failed to allocate memory for ibm->acpi->driver\n");
 		return -ENOMEM;
 	}
 
@@ -836,6 +836,13 @@ static int parse_strtoul(const char *buf,
 		return -EINVAL;
 
 	return 0;
+}
+
+static void tpacpi_disable_brightness_delay(void)
+{
+	if (acpi_evalf(hkey_handle, NULL, "PWMS", "qvd", 0))
+		printk(TPACPI_NOTICE
+			"ACPI backlight control delay disabled\n");
 }
 
 static int __init tpacpi_query_bcl_levels(acpi_handle handle)
@@ -2139,6 +2146,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	if (!tp_features.hotkey)
 		return 1;
 
+	tpacpi_disable_brightness_delay();
+
 	hotkey_dev_attributes = create_attr_set(13, NULL);
 	if (!hotkey_dev_attributes)
 		return -ENOMEM;
@@ -2512,6 +2521,8 @@ static void hotkey_suspend(pm_message_t state)
 
 static void hotkey_resume(void)
 {
+	tpacpi_disable_brightness_delay();
+
 	if (hotkey_mask_get())
 		printk(TPACPI_ERR
 		       "error while trying to read hot key mask "
@@ -4921,16 +4932,25 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	 */
 	b = tpacpi_check_std_acpi_brightness_support();
 	if (b > 0) {
-		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO) {
-			printk(TPACPI_NOTICE
-			       "Lenovo BIOS switched to ACPI backlight "
-			       "control mode\n");
-		}
-		if (brightness_enable > 1) {
-			printk(TPACPI_NOTICE
-			       "standard ACPI backlight interface "
-			       "available, not loading native one...\n");
-			return 1;
+
+		if (acpi_video_backlight_support()) {
+			if (brightness_enable > 1) {
+				printk(TPACPI_NOTICE
+				       "Standard ACPI backlight interface "
+				       "available, not loading native one.\n");
+				return 1;
+			} else if (brightness_enable == 1) {
+				printk(TPACPI_NOTICE
+				       "Backlight control force enabled, even if standard "
+				       "ACPI backlight interface is available\n");
+			}
+		} else {
+			if (brightness_enable > 1) {
+				printk(TPACPI_NOTICE
+				       "Standard ACPI backlight interface not "
+				       "available, thinkpad_acpi native "
+				       "brightness control enabled\n");
+			}
 		}
 	}
 
@@ -5298,6 +5318,7 @@ static enum fan_control_commands fan_control_commands;
 
 static u8 fan_control_initial_status;
 static u8 fan_control_desired_level;
+static u8 fan_control_resume_level;
 static int fan_watchdog_maxinterval;
 
 static struct mutex fan_mutex;
@@ -5420,8 +5441,8 @@ static int fan_set_level(int level)
 
 	case TPACPI_FAN_WR_ACPI_FANS:
 	case TPACPI_FAN_WR_TPEC:
-		if ((level != TP_EC_FAN_AUTO) &&
-		    (level != TP_EC_FAN_FULLSPEED) &&
+		if (!(level & TP_EC_FAN_AUTO) &&
+		    !(level & TP_EC_FAN_FULLSPEED) &&
 		    ((level < 0) || (level > 7)))
 			return -EINVAL;
 
@@ -5983,6 +6004,84 @@ static void fan_exit(void)
 	flush_workqueue(tpacpi_wq);
 }
 
+static void fan_suspend(pm_message_t state)
+{
+	int rc;
+
+	if (!fan_control_allowed)
+		return;
+
+	/* Store fan status in cache */
+	fan_control_resume_level = 0;
+	rc = fan_get_status_safe(&fan_control_resume_level);
+	if (rc < 0)
+		printk(TPACPI_NOTICE
+			"failed to read fan level for later "
+			"restore during resume: %d\n", rc);
+
+	/* if it is undefined, don't attempt to restore it.
+	 * KEEP THIS LAST */
+	if (tp_features.fan_ctrl_status_undef)
+		fan_control_resume_level = 0;
+}
+
+static void fan_resume(void)
+{
+	u8 current_level = 7;
+	bool do_set = false;
+	int rc;
+
+	/* DSDT *always* updates status on resume */
+	tp_features.fan_ctrl_status_undef = 0;
+
+	if (!fan_control_allowed ||
+	    !fan_control_resume_level ||
+	    (fan_get_status_safe(&current_level) < 0))
+		return;
+
+	switch (fan_control_access_mode) {
+	case TPACPI_FAN_WR_ACPI_SFAN:
+		/* never decrease fan level */
+		do_set = (fan_control_resume_level > current_level);
+		break;
+	case TPACPI_FAN_WR_ACPI_FANS:
+	case TPACPI_FAN_WR_TPEC:
+		/* never decrease fan level, scale is:
+		 * TP_EC_FAN_FULLSPEED > 7 >= TP_EC_FAN_AUTO
+		 *
+		 * We expect the firmware to set either 7 or AUTO, but we
+		 * handle FULLSPEED out of paranoia.
+		 *
+		 * So, we can safely only restore FULLSPEED or 7, anything
+		 * else could slow the fan.  Restoring AUTO is useless, at
+		 * best that's exactly what the DSDT already set (it is the
+		 * slower it uses).
+		 *
+		 * Always keep in mind that the DSDT *will* have set the
+		 * fans to what the vendor supposes is the best level.  We
+		 * muck with it only to speed the fan up.
+		 */
+		if (fan_control_resume_level != 7 &&
+		    !(fan_control_resume_level & TP_EC_FAN_FULLSPEED))
+			return;
+		else
+			do_set = !(current_level & TP_EC_FAN_FULLSPEED) &&
+				 (current_level != fan_control_resume_level);
+		break;
+	default:
+		return;
+	}
+	if (do_set) {
+		printk(TPACPI_NOTICE
+			"restoring fan level to 0x%02x\n",
+			fan_control_resume_level);
+		rc = fan_set_level_safe(fan_control_resume_level);
+		if (rc < 0)
+			printk(TPACPI_NOTICE
+				"failed to restore fan level: %d\n", rc);
+	}
+}
+
 static int fan_read(char *p)
 {
 	int len = 0;
@@ -6174,6 +6273,8 @@ static struct ibm_struct fan_driver_data = {
 	.read = fan_read,
 	.write = fan_write,
 	.exit = fan_exit,
+	.suspend = fan_suspend,
+	.resume = fan_resume,
 };
 
 /****************************************************************************

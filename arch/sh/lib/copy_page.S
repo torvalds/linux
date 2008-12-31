@@ -80,6 +80,11 @@ ENTRY(copy_page)
 	.section __ex_table, "a";	\
 	.long 9999b, 6000f	;	\
 	.previous
+#define EX_NO_POP(...)			\
+	9999: __VA_ARGS__ ;		\
+	.section __ex_table, "a";	\
+	.long 9999b, 6005f	;	\
+	.previous
 ENTRY(__copy_user)
 	! Check if small number of bytes
 	mov	#11,r0
@@ -139,9 +144,9 @@ EX(	mov.b	r1,@r4		)
 	bt	1f
 
 2:
-EX(	mov.b	@r5+,r0		)
+EX_NO_POP(	mov.b	@r5+,r0		)
 	dt	r6
-EX(	mov.b	r0,@r4		)
+EX_NO_POP(	mov.b	r0,@r4		)
 	bf/s	2b
 	 add	#1,r4
 
@@ -150,7 +155,7 @@ EX(	mov.b	r0,@r4		)
 
 # Exception handler:
 .section .fixup, "ax"
-6000:
+6005:
 	mov.l	8000f,r1
 	mov	r3,r0
 	jmp	@r1

@@ -204,6 +204,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 
 	req->mss = mss;
 	ireq->rmt_port = th->source;
+	ireq->loc_port = th->dest;
 	ipv6_addr_copy(&ireq6->rmt_addr, &ipv6_hdr(skb)->saddr);
 	ipv6_addr_copy(&ireq6->loc_addr, &ipv6_hdr(skb)->daddr);
 	if (ipv6_opt_accepted(sk, skb) ||
@@ -258,7 +259,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 
 		if (final_p)
 			ipv6_addr_copy(&fl.fl6_dst, final_p);
-		if ((xfrm_lookup(&dst, &fl, sk, 0)) < 0)
+		if ((xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0)
 			goto out_free;
 	}
 

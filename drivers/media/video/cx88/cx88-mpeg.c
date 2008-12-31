@@ -3,7 +3,7 @@
  *  Support for the mpeg transport stream transfers
  *  PCI function #2 of the cx2388x.
  *
- *    (c) 2004 Jelle Foks <jelle@foks.8m.com>
+ *    (c) 2004 Jelle Foks <jelle@foks.us>
  *    (c) 2004 Chris Pascoe <c.pascoe@itee.uq.edu.au>
  *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
  *
@@ -34,7 +34,7 @@
 /* ------------------------------------------------------------------ */
 
 MODULE_DESCRIPTION("mpeg driver for cx2388x based TV cards");
-MODULE_AUTHOR("Jelle Foks <jelle@foks.8m.com>");
+MODULE_AUTHOR("Jelle Foks <jelle@foks.us>");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
@@ -794,6 +794,29 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 
 	INIT_LIST_HEAD(&dev->drvlist);
 	list_add_tail(&dev->devlist,&cx8802_devlist);
+
+#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
+	mutex_init(&dev->frontends.lock);
+	INIT_LIST_HEAD(&dev->frontends.felist);
+
+	if (core->board.num_frontends) {
+		struct videobuf_dvb_frontend *fe;
+		int i;
+
+		printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__,
+			core->board.num_frontends);
+		for (i = 1; i <= core->board.num_frontends; i++) {
+			fe = videobuf_dvb_alloc_frontend(&dev->frontends, i);
+			if(fe == NULL) {
+				printk(KERN_ERR "%s() failed to alloc\n",
+					__func__);
+				videobuf_dvb_dealloc_frontends(&dev->frontends);
+				err = -ENOMEM;
+				goto fail_free;
+			}
+		}
+	}
+#endif
 
 	/* Maintain a reference so cx88-video can query the 8802 device. */
 	core->dvbdev = dev;

@@ -206,6 +206,60 @@ ENTRY(_real_start)
 	w[p0] = r0;
 	ssync;
 
+#if L1_DATA_A_LENGTH > 0
+	r1.l = __sbss_l1;
+	r1.h = __sbss_l1;
+	r2.l = __ebss_l1;
+	r2.h = __ebss_l1;
+	r0 = 0 (z);
+	r2 = r2 - r1;
+	cc = r2 == 0;
+	if cc jump .L_a_l1_done;
+	r2 >>= 2;
+	p1 = r1;
+	p2 = r2;
+	lsetup (.L_clear_a_l1, .L_clear_a_l1 ) lc0 = p2;
+.L_clear_a_l1:
+	[p1++] = r0;
+.L_a_l1_done:
+#endif
+
+#if L1_DATA_B_LENGTH > 0
+	r1.l = __sbss_b_l1;
+	r1.h = __sbss_b_l1;
+	r2.l = __ebss_b_l1;
+	r2.h = __ebss_b_l1;
+	r0 = 0 (z);
+	r2 = r2 - r1;
+	cc = r2 == 0;
+	if cc jump .L_b_l1_done;
+	r2 >>= 2;
+	p1 = r1;
+	p2 = r2;
+	lsetup (.L_clear_b_l1, .L_clear_b_l1 ) lc0 = p2;
+.L_clear_b_l1:
+	[p1++] = r0;
+.L_b_l1_done:
+#endif
+
+#if L2_LENGTH > 0
+	r1.l = __sbss_l2;
+	r1.h = __sbss_l2;
+	r2.l = __ebss_l2;
+	r2.h = __ebss_l2;
+	r0 = 0 (z);
+	r2 = r2 - r1;
+	cc = r2 == 0;
+	if cc jump .L_l2_done;
+	r2 >>= 2;
+	p1 = r1;
+	p2 = r2;
+	lsetup (.L_clear_l2, .L_clear_l2 ) lc0 = p2;
+.L_clear_l2:
+	[p1++] = r0;
+.L_l2_done:
+#endif
+
 	/* Zero out the bss region
 	 * Note: this will fail if bss is 0 bytes ...
 	 */

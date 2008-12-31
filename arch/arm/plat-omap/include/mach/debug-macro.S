@@ -35,6 +35,18 @@
 #ifdef CONFIG_OMAP_LL_DEBUG_UART3
 		add	\rx, \rx, #0x00004000	@ UART 3
 #endif
+
+#elif	CONFIG_ARCH_OMAP3
+		moveq	\rx, #0x48000000	@ physical base address
+		movne	\rx, #0xd8000000	@ virtual base
+		orr	\rx, \rx, #0x0006a000
+#ifdef CONFIG_OMAP_LL_DEBUG_UART2
+		add	\rx, \rx, #0x00002000	@ UART 2
+#endif
+#ifdef CONFIG_OMAP_LL_DEBUG_UART3
+		add	\rx, \rx, #0x00fb0000	@ UART 3
+		add	\rx, \rx, #0x00006000
+#endif
 #endif
 		.endm
 

@@ -4,6 +4,8 @@
 #ifdef __KERNEL__
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
+#include <linux/numa.h>
+
 extern struct pglist_data *node_data[];
 #define NODE_DATA(nid)		(node_data[nid])
 

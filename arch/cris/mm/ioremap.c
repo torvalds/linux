@@ -12,7 +12,7 @@
 #include <linux/vmalloc.h>
 #include <linux/io.h>
 #include <asm/pgalloc.h>
-#include <asm/arch/memmap.h>
+#include <arch/memmap.h>
 
 /*
  * Generic mapping function (not visible outside):

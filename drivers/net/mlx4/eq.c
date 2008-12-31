@@ -243,10 +243,6 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 		 * least that often.
 		 */
 		if (unlikely(set_ci >= MLX4_NUM_SPARE_EQE)) {
-			/*
-			 * Conditional on hca_type is OK here because
-			 * this is a rare case, not the fast path.
-			 */
 			eq_set_ci(eq, 0);
 			set_ci = 0;
 		}
@@ -266,7 +262,7 @@ static irqreturn_t mlx4_interrupt(int irq, void *dev_ptr)
 
 	writel(priv->eq_table.clr_mask, priv->eq_table.clr_int);
 
-	for (i = 0; i < MLX4_NUM_EQ; ++i)
+	for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i)
 		work |= mlx4_eq_int(dev, &priv->eq_table.eq[i]);
 
 	return IRQ_RETVAL(work);
@@ -302,6 +298,17 @@ static int mlx4_HW2SW_EQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 {
 	return mlx4_cmd_box(dev, 0, mailbox->dma, eq_num, 0, MLX4_CMD_HW2SW_EQ,
 			    MLX4_CMD_TIME_CLASS_A);
+}
+
+static int mlx4_num_eq_uar(struct mlx4_dev *dev)
+{
+	/*
+	 * Each UAR holds 4 EQ doorbells.  To figure out how many UARs
+	 * we need to map, take the difference of highest index and
+	 * the lowest index we'll use and add 1.
+	 */
+	return (dev->caps.num_comp_vectors + 1 + dev->caps.reserved_eqs) / 4 -
+		dev->caps.reserved_eqs / 4 + 1;
 }
 
 static void __iomem *mlx4_get_eq_uar(struct mlx4_dev *dev, struct mlx4_eq *eq)
@@ -483,9 +490,11 @@ static void mlx4_free_irqs(struct mlx4_dev *dev)
 
 	if (eq_table->have_irq)
 		free_irq(dev->pdev->irq, dev);
-	for (i = 0; i < MLX4_NUM_EQ; ++i)
+	for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i)
 		if (eq_table->eq[i].have_irq)
 			free_irq(eq_table->eq[i].irq, eq_table->eq + i);
+
+	kfree(eq_table->irq_names);
 }
 
 static int mlx4_map_clr_int(struct mlx4_dev *dev)
@@ -551,57 +560,93 @@ void mlx4_unmap_eq_icm(struct mlx4_dev *dev)
 	__free_page(priv->eq_table.icm_page);
 }
 
+int mlx4_alloc_eq_table(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	priv->eq_table.eq = kcalloc(dev->caps.num_eqs - dev->caps.reserved_eqs,
+				    sizeof *priv->eq_table.eq, GFP_KERNEL);
+	if (!priv->eq_table.eq)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void mlx4_free_eq_table(struct mlx4_dev *dev)
+{
+	kfree(mlx4_priv(dev)->eq_table.eq);
+}
+
 int mlx4_init_eq_table(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;
 	int i;
 
-	err = mlx4_bitmap_init(&priv->eq_table.bitmap, dev->caps.num_eqs,
-			       dev->caps.num_eqs - 1, dev->caps.reserved_eqs);
-	if (err)
-		return err;
+	priv->eq_table.uar_map = kcalloc(sizeof *priv->eq_table.uar_map,
+					 mlx4_num_eq_uar(dev), GFP_KERNEL);
+	if (!priv->eq_table.uar_map) {
+		err = -ENOMEM;
+		goto err_out_free;
+	}
 
-	for (i = 0; i < ARRAY_SIZE(priv->eq_table.uar_map); ++i)
+	err = mlx4_bitmap_init(&priv->eq_table.bitmap, dev->caps.num_eqs,
+			       dev->caps.num_eqs - 1, dev->caps.reserved_eqs, 0);
+	if (err)
+		goto err_out_free;
+
+	for (i = 0; i < mlx4_num_eq_uar(dev); ++i)
 		priv->eq_table.uar_map[i] = NULL;
 
 	err = mlx4_map_clr_int(dev);
 	if (err)
-		goto err_out_free;
+		goto err_out_bitmap;
 
 	priv->eq_table.clr_mask =
 		swab32(1 << (priv->eq_table.inta_pin & 31));
 	priv->eq_table.clr_int  = priv->clr_base +
 		(priv->eq_table.inta_pin < 32 ? 4 : 0);
 
-	err = mlx4_create_eq(dev, dev->caps.num_cqs + MLX4_NUM_SPARE_EQE,
-			     (dev->flags & MLX4_FLAG_MSI_X) ? MLX4_EQ_COMP : 0,
-			     &priv->eq_table.eq[MLX4_EQ_COMP]);
-	if (err)
-		goto err_out_unmap;
+	priv->eq_table.irq_names = kmalloc(16 * dev->caps.num_comp_vectors, GFP_KERNEL);
+	if (!priv->eq_table.irq_names) {
+		err = -ENOMEM;
+		goto err_out_bitmap;
+	}
+
+	for (i = 0; i < dev->caps.num_comp_vectors; ++i) {
+		err = mlx4_create_eq(dev, dev->caps.num_cqs + MLX4_NUM_SPARE_EQE,
+				     (dev->flags & MLX4_FLAG_MSI_X) ? i : 0,
+				     &priv->eq_table.eq[i]);
+		if (err)
+			goto err_out_unmap;
+	}
 
 	err = mlx4_create_eq(dev, MLX4_NUM_ASYNC_EQE + MLX4_NUM_SPARE_EQE,
-			     (dev->flags & MLX4_FLAG_MSI_X) ? MLX4_EQ_ASYNC : 0,
-			     &priv->eq_table.eq[MLX4_EQ_ASYNC]);
+			     (dev->flags & MLX4_FLAG_MSI_X) ? dev->caps.num_comp_vectors : 0,
+			     &priv->eq_table.eq[dev->caps.num_comp_vectors]);
 	if (err)
 		goto err_out_comp;
 
 	if (dev->flags & MLX4_FLAG_MSI_X) {
-		static const char *eq_name[] = {
-			[MLX4_EQ_COMP]  = DRV_NAME " (comp)",
-			[MLX4_EQ_ASYNC] = DRV_NAME " (async)"
-		};
+		static const char async_eq_name[] = "mlx4-async";
+		const char *eq_name;
 
-		for (i = 0; i < MLX4_NUM_EQ; ++i) {
+		for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i) {
+			if (i < dev->caps.num_comp_vectors) {
+				snprintf(priv->eq_table.irq_names + i * 16, 16,
+					 "mlx4-comp-%d", i);
+				eq_name = priv->eq_table.irq_names + i * 16;
+			} else
+				eq_name = async_eq_name;
+
 			err = request_irq(priv->eq_table.eq[i].irq,
-					  mlx4_msi_x_interrupt,
-					  0, eq_name[i], priv->eq_table.eq + i);
+					  mlx4_msi_x_interrupt, 0, eq_name,
+					  priv->eq_table.eq + i);
 			if (err)
 				goto err_out_async;
 
 			priv->eq_table.eq[i].have_irq = 1;
 		}
-
 	} else {
 		err = request_irq(dev->pdev->irq, mlx4_interrupt,
 				  IRQF_SHARED, DRV_NAME, dev);
@@ -612,28 +657,36 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 	}
 
 	err = mlx4_MAP_EQ(dev, MLX4_ASYNC_EVENT_MASK, 0,
-			  priv->eq_table.eq[MLX4_EQ_ASYNC].eqn);
+			  priv->eq_table.eq[dev->caps.num_comp_vectors].eqn);
 	if (err)
 		mlx4_warn(dev, "MAP_EQ for async EQ %d failed (%d)\n",
-			   priv->eq_table.eq[MLX4_EQ_ASYNC].eqn, err);
+			   priv->eq_table.eq[dev->caps.num_comp_vectors].eqn, err);
 
-	for (i = 0; i < MLX4_NUM_EQ; ++i)
+	for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i)
 		eq_set_ci(&priv->eq_table.eq[i], 1);
 
 	return 0;
 
 err_out_async:
-	mlx4_free_eq(dev, &priv->eq_table.eq[MLX4_EQ_ASYNC]);
+	mlx4_free_eq(dev, &priv->eq_table.eq[dev->caps.num_comp_vectors]);
 
 err_out_comp:
-	mlx4_free_eq(dev, &priv->eq_table.eq[MLX4_EQ_COMP]);
+	i = dev->caps.num_comp_vectors - 1;
 
 err_out_unmap:
+	while (i >= 0) {
+		mlx4_free_eq(dev, &priv->eq_table.eq[i]);
+		--i;
+	}
 	mlx4_unmap_clr_int(dev);
 	mlx4_free_irqs(dev);
 
-err_out_free:
+err_out_bitmap:
 	mlx4_bitmap_cleanup(&priv->eq_table.bitmap);
+
+err_out_free:
+	kfree(priv->eq_table.uar_map);
+
 	return err;
 }
 
@@ -643,18 +696,20 @@ void mlx4_cleanup_eq_table(struct mlx4_dev *dev)
 	int i;
 
 	mlx4_MAP_EQ(dev, MLX4_ASYNC_EVENT_MASK, 1,
-		    priv->eq_table.eq[MLX4_EQ_ASYNC].eqn);
+		    priv->eq_table.eq[dev->caps.num_comp_vectors].eqn);
 
 	mlx4_free_irqs(dev);
 
-	for (i = 0; i < MLX4_NUM_EQ; ++i)
+	for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i)
 		mlx4_free_eq(dev, &priv->eq_table.eq[i]);
 
 	mlx4_unmap_clr_int(dev);
 
-	for (i = 0; i < ARRAY_SIZE(priv->eq_table.uar_map); ++i)
+	for (i = 0; i < mlx4_num_eq_uar(dev); ++i)
 		if (priv->eq_table.uar_map[i])
 			iounmap(priv->eq_table.uar_map[i]);
 
 	mlx4_bitmap_cleanup(&priv->eq_table.bitmap);
+
+	kfree(priv->eq_table.uar_map);
 }

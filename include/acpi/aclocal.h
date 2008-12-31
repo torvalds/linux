@@ -208,6 +208,7 @@ struct acpi_namespace_node {
 #define ANOBJ_METHOD_ARG                0x04	/* Node is a method argument */
 #define ANOBJ_METHOD_LOCAL              0x08	/* Node is a method local */
 #define ANOBJ_SUBTREE_HAS_INI           0x10	/* Used to optimize device initialization */
+#define ANOBJ_EVALUATED                 0x20	/* Set on first evaluation of node */
 
 #define ANOBJ_IS_EXTERNAL               0x08	/* i_aSL only: This object created via External() */
 #define ANOBJ_METHOD_NO_RETVAL          0x10	/* i_aSL only: Method has no return value */
@@ -339,6 +340,82 @@ acpi_status(*ACPI_INTERNAL_METHOD) (struct acpi_walk_state * walk_state);
 #define ACPI_BTYPE_DEVICE_OBJECTS       (ACPI_BTYPE_DEVICE | ACPI_BTYPE_THERMAL | ACPI_BTYPE_PROCESSOR)
 #define ACPI_BTYPE_OBJECTS_AND_REFS     0x0001FFFF	/* ARG or LOCAL */
 #define ACPI_BTYPE_ALL_OBJECTS          0x0000FFFF
+
+/*
+ * Information structure for ACPI predefined names.
+ * Each entry in the table contains the following items:
+ *
+ * Name                 - The ACPI reserved name
+ * param_count          - Number of arguments to the method
+ * expected_return_btypes - Allowed type(s) for the return value
+ */
+struct acpi_name_info {
+	char name[ACPI_NAME_SIZE];
+	u8 param_count;
+	u8 expected_btypes;
+};
+
+/*
+ * Secondary information structures for ACPI predefined objects that return
+ * package objects. This structure appears as the next entry in the table
+ * after the NAME_INFO structure above.
+ *
+ * The reason for this is to minimize the size of the predefined name table.
+ */
+
+/*
+ * Used for ACPI_PTYPE1_FIXED, ACPI_PTYPE1_VAR, ACPI_PTYPE2,
+ * ACPI_PTYPE2_MIN, ACPI_PTYPE2_PKG_COUNT, ACPI_PTYPE2_COUNT
+ */
+struct acpi_package_info {
+	u8 type;
+	u8 object_type1;
+	u8 count1;
+	u8 object_type2;
+	u8 count2;
+	u8 reserved;
+};
+
+/* Used for ACPI_PTYPE2_FIXED */
+
+struct acpi_package_info2 {
+	u8 type;
+	u8 count;
+	u8 object_type[4];
+};
+
+/* Used for ACPI_PTYPE1_OPTION */
+
+struct acpi_package_info3 {
+	u8 type;
+	u8 count;
+	u8 object_type[2];
+	u8 tail_object_type;
+	u8 reserved;
+};
+
+union acpi_predefined_info {
+	struct acpi_name_info info;
+	struct acpi_package_info ret_info;
+	struct acpi_package_info2 ret_info2;
+	struct acpi_package_info3 ret_info3;
+};
+
+/*
+ * Bitmapped return value types
+ * Note: the actual data types must be contiguous, a loop in nspredef.c
+ * depends on this.
+ */
+#define ACPI_RTYPE_ANY                  0x00
+#define ACPI_RTYPE_NONE                 0x01
+#define ACPI_RTYPE_INTEGER              0x02
+#define ACPI_RTYPE_STRING               0x04
+#define ACPI_RTYPE_BUFFER               0x08
+#define ACPI_RTYPE_PACKAGE              0x10
+#define ACPI_RTYPE_REFERENCE            0x20
+#define ACPI_RTYPE_ALL                  0x3F
+
+#define ACPI_NUM_RTYPES                 5	/* Number of actual object types */
 
 /*****************************************************************************
  *

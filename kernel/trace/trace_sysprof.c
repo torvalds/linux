@@ -202,7 +202,6 @@ static void start_stack_timer(int cpu)
 
 	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hrtimer->function = stack_trace_timer_fn;
-	hrtimer->cb_mode = HRTIMER_CB_IRQSAFE_PERCPU;
 
 	hrtimer_start(hrtimer, ns_to_ktime(sample_period), HRTIMER_MODE_REL);
 }
@@ -234,20 +233,10 @@ static void stop_stack_timers(void)
 		stop_stack_timer(cpu);
 }
 
-static void stack_reset(struct trace_array *tr)
-{
-	int cpu;
-
-	tr->time_start = ftrace_now(tr->cpu);
-
-	for_each_online_cpu(cpu)
-		tracing_reset(tr->data[cpu]);
-}
-
 static void start_stack_trace(struct trace_array *tr)
 {
 	mutex_lock(&sample_timer_lock);
-	stack_reset(tr);
+	tracing_reset_online_cpus(tr);
 	start_stack_timers();
 	tracer_enabled = 1;
 	mutex_unlock(&sample_timer_lock);
@@ -261,27 +250,17 @@ static void stop_stack_trace(struct trace_array *tr)
 	mutex_unlock(&sample_timer_lock);
 }
 
-static void stack_trace_init(struct trace_array *tr)
+static int stack_trace_init(struct trace_array *tr)
 {
 	sysprof_trace = tr;
 
-	if (tr->ctrl)
-		start_stack_trace(tr);
+	start_stack_trace(tr);
+	return 0;
 }
 
 static void stack_trace_reset(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		stop_stack_trace(tr);
-}
-
-static void stack_trace_ctrl_update(struct trace_array *tr)
-{
-	/* When starting a new trace, reset the buffers */
-	if (tr->ctrl)
-		start_stack_trace(tr);
-	else
-		stop_stack_trace(tr);
+	stop_stack_trace(tr);
 }
 
 static struct tracer stack_trace __read_mostly =
@@ -289,7 +268,6 @@ static struct tracer stack_trace __read_mostly =
 	.name		= "sysprof",
 	.init		= stack_trace_init,
 	.reset		= stack_trace_reset,
-	.ctrl_update	= stack_trace_ctrl_update,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_sysprof,
 #endif

@@ -1760,10 +1760,9 @@ mptscsih_get_tm_timeout(MPT_ADAPTER *ioc)
 	case FC:
 		return 40;
 	case SAS:
-		return 10;
 	case SPI:
 	default:
-		return 2;
+		return 10;
 	}
 }
 
@@ -2008,6 +2007,9 @@ mptscsih_host_reset(struct scsi_cmnd *SCpnt)
 		    "Can't locate host! (sc=%p)\n", SCpnt);
 		return FAILED;
 	}
+
+	/* make sure we have no outstanding commands at this stage */
+	mptscsih_flush_running_cmds(hd);
 
 	ioc = hd->ioc;
 	printk(MYIOC_s_INFO_FMT "attempting host reset! (sc=%p)\n",

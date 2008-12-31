@@ -41,6 +41,7 @@
 #include <asm/spu_priv1.h>
 #include <asm/firmware.h>
 #include <asm/setjmp.h>
+#include <asm/reg.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
@@ -158,8 +159,6 @@ static int xmon_no_auto_backtrace;
 
 extern void xmon_enter(void);
 extern void xmon_leave(void);
-
-extern void xmon_save_regs(struct pt_regs *);
 
 #ifdef CONFIG_PPC64
 #define REG		"%.16lx"
@@ -532,7 +531,7 @@ int xmon(struct pt_regs *excp)
 	struct pt_regs regs;
 
 	if (excp == NULL) {
-		xmon_save_regs(&regs);
+		ppc_save_regs(&regs);
 		excp = &regs;
 	}
 
@@ -1353,6 +1352,7 @@ static void backtrace(struct pt_regs *excp)
 
 static void print_bug_trap(struct pt_regs *regs)
 {
+#ifdef CONFIG_BUG
 	const struct bug_entry *bug;
 	unsigned long addr;
 
@@ -1373,6 +1373,7 @@ static void print_bug_trap(struct pt_regs *regs)
 #else
 	printf("kernel BUG at %p!\n", (void *)bug->bug_addr);
 #endif
+#endif /* CONFIG_BUG */
 }
 
 static void excprint(struct pt_regs *fp)

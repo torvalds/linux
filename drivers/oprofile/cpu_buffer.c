@@ -22,12 +22,31 @@
 #include <linux/oprofile.h>
 #include <linux/vmalloc.h>
 #include <linux/errno.h>
- 
+
 #include "event_buffer.h"
 #include "cpu_buffer.h"
 #include "buffer_sync.h"
 #include "oprof.h"
 
+#define OP_BUFFER_FLAGS	0
+
+/*
+ * Read and write access is using spin locking. Thus, writing to the
+ * buffer by NMI handler (x86) could occur also during critical
+ * sections when reading the buffer. To avoid this, there are 2
+ * buffers for independent read and write access. Read access is in
+ * process context only, write access only in the NMI handler. If the
+ * read buffer runs empty, both buffers are swapped atomically. There
+ * is potentially a small window during swapping where the buffers are
+ * disabled and samples could be lost.
+ *
+ * Using 2 buffers is a little bit overhead, but the solution is clear
+ * and does not require changes in the ring buffer implementation. It
+ * can be changed to a single buffer solution when the ring buffer
+ * access is implemented as non-locking atomic code.
+ */
+struct ring_buffer *op_ring_buffer_read;
+struct ring_buffer *op_ring_buffer_write;
 DEFINE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
 
 static void wq_sync_buffer(struct work_struct *work);
@@ -37,28 +56,43 @@ static int work_enabled;
 
 void free_cpu_buffers(void)
 {
-	int i;
- 
-	for_each_online_cpu(i) {
-		vfree(per_cpu(cpu_buffer, i).buffer);
-		per_cpu(cpu_buffer, i).buffer = NULL;
-	}
+	if (op_ring_buffer_read)
+		ring_buffer_free(op_ring_buffer_read);
+	op_ring_buffer_read = NULL;
+	if (op_ring_buffer_write)
+		ring_buffer_free(op_ring_buffer_write);
+	op_ring_buffer_write = NULL;
+}
+
+unsigned long oprofile_get_cpu_buffer_size(void)
+{
+	return fs_cpu_buffer_size;
+}
+
+void oprofile_cpu_buffer_inc_smpl_lost(void)
+{
+	struct oprofile_cpu_buffer *cpu_buf
+		= &__get_cpu_var(cpu_buffer);
+
+	cpu_buf->sample_lost_overflow++;
 }
 
 int alloc_cpu_buffers(void)
 {
 	int i;
- 
+
 	unsigned long buffer_size = fs_cpu_buffer_size;
- 
-	for_each_online_cpu(i) {
+
+	op_ring_buffer_read = ring_buffer_alloc(buffer_size, OP_BUFFER_FLAGS);
+	if (!op_ring_buffer_read)
+		goto fail;
+	op_ring_buffer_write = ring_buffer_alloc(buffer_size, OP_BUFFER_FLAGS);
+	if (!op_ring_buffer_write)
+		goto fail;
+
+	for_each_possible_cpu(i) {
 		struct oprofile_cpu_buffer *b = &per_cpu(cpu_buffer, i);
- 
-		b->buffer = vmalloc_node(sizeof(struct op_sample) * buffer_size,
-			cpu_to_node(i));
-		if (!b->buffer)
-			goto fail;
- 
+
 		b->last_task = NULL;
 		b->last_is_kernel = -1;
 		b->tracing = 0;
@@ -111,57 +145,31 @@ void end_cpu_work(void)
 	flush_scheduled_work();
 }
 
-/* Resets the cpu buffer to a sane state. */
-void cpu_buffer_reset(struct oprofile_cpu_buffer * cpu_buf)
+static inline int
+add_sample(struct oprofile_cpu_buffer *cpu_buf,
+	   unsigned long pc, unsigned long event)
 {
-	/* reset these to invalid values; the next sample
-	 * collected will populate the buffer with proper
-	 * values to initialize the buffer
-	 */
-	cpu_buf->last_is_kernel = -1;
-	cpu_buf->last_task = NULL;
+	struct op_entry entry;
+	int ret;
+
+	ret = cpu_buffer_write_entry(&entry);
+	if (ret)
+		return ret;
+
+	entry.sample->eip = pc;
+	entry.sample->event = event;
+
+	ret = cpu_buffer_write_commit(&entry);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
-/* compute number of available slots in cpu_buffer queue */
-static unsigned long nr_available_slots(struct oprofile_cpu_buffer const * b)
+static inline int
+add_code(struct oprofile_cpu_buffer *buffer, unsigned long value)
 {
-	unsigned long head = b->head_pos;
-	unsigned long tail = b->tail_pos;
-
-	if (tail > head)
-		return (tail - head) - 1;
-
-	return tail + (b->buffer_size - head) - 1;
-}
-
-static void increment_head(struct oprofile_cpu_buffer * b)
-{
-	unsigned long new_head = b->head_pos + 1;
-
-	/* Ensure anything written to the slot before we
-	 * increment is visible */
-	wmb();
-
-	if (new_head < b->buffer_size)
-		b->head_pos = new_head;
-	else
-		b->head_pos = 0;
-}
-
-static inline void
-add_sample(struct oprofile_cpu_buffer * cpu_buf,
-           unsigned long pc, unsigned long event)
-{
-	struct op_sample * entry = &cpu_buf->buffer[cpu_buf->head_pos];
-	entry->eip = pc;
-	entry->event = event;
-	increment_head(cpu_buf);
-}
-
-static inline void
-add_code(struct oprofile_cpu_buffer * buffer, unsigned long value)
-{
-	add_sample(buffer, ESCAPE_CODE, value);
+	return add_sample(buffer, ESCAPE_CODE, value);
 }
 
 /* This must be safe from any context. It's safe writing here
@@ -173,20 +181,15 @@ add_code(struct oprofile_cpu_buffer * buffer, unsigned long value)
  * pc. We tag this in the buffer by generating kernel enter/exit
  * events whenever is_kernel changes
  */
-static int log_sample(struct oprofile_cpu_buffer * cpu_buf, unsigned long pc,
+static int log_sample(struct oprofile_cpu_buffer *cpu_buf, unsigned long pc,
 		      int is_kernel, unsigned long event)
 {
-	struct task_struct * task;
+	struct task_struct *task;
 
 	cpu_buf->sample_received++;
 
 	if (pc == ESCAPE_CODE) {
 		cpu_buf->sample_invalid_eip++;
-		return 0;
-	}
-
-	if (nr_available_slots(cpu_buf) < 3) {
-		cpu_buf->sample_lost_overflow++;
 		return 0;
 	}
 
@@ -197,32 +200,35 @@ static int log_sample(struct oprofile_cpu_buffer * cpu_buf, unsigned long pc,
 	/* notice a switch from user->kernel or vice versa */
 	if (cpu_buf->last_is_kernel != is_kernel) {
 		cpu_buf->last_is_kernel = is_kernel;
-		add_code(cpu_buf, is_kernel);
+		if (add_code(cpu_buf, is_kernel))
+			goto fail;
 	}
 
 	/* notice a task switch */
 	if (cpu_buf->last_task != task) {
 		cpu_buf->last_task = task;
-		add_code(cpu_buf, (unsigned long)task);
+		if (add_code(cpu_buf, (unsigned long)task))
+			goto fail;
 	}
- 
-	add_sample(cpu_buf, pc, event);
+
+	if (add_sample(cpu_buf, pc, event))
+		goto fail;
+
 	return 1;
+
+fail:
+	cpu_buf->sample_lost_overflow++;
+	return 0;
 }
 
 static int oprofile_begin_trace(struct oprofile_cpu_buffer *cpu_buf)
 {
-	if (nr_available_slots(cpu_buf) < 4) {
-		cpu_buf->sample_lost_overflow++;
-		return 0;
-	}
-
 	add_code(cpu_buf, CPU_TRACE_BEGIN);
 	cpu_buf->tracing = 1;
 	return 1;
 }
 
-static void oprofile_end_trace(struct oprofile_cpu_buffer * cpu_buf)
+static void oprofile_end_trace(struct oprofile_cpu_buffer *cpu_buf)
 {
 	cpu_buf->tracing = 0;
 }
@@ -240,8 +246,10 @@ void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
 	if (!oprofile_begin_trace(cpu_buf))
 		return;
 
-	/* if log_sample() fail we can't backtrace since we lost the source
-	 * of this event */
+	/*
+	 * if log_sample() fail we can't backtrace since we lost the
+	 * source of this event
+	 */
 	if (log_sample(cpu_buf, pc, is_kernel, event))
 		oprofile_ops.backtrace(regs, backtrace_depth);
 	oprofile_end_trace(cpu_buf);
@@ -257,69 +265,57 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 
 #ifdef CONFIG_OPROFILE_IBS
 
-#define MAX_IBS_SAMPLE_SIZE	14
-static int log_ibs_sample(struct oprofile_cpu_buffer *cpu_buf,
-	unsigned long pc, int is_kernel, unsigned  int *ibs, int ibs_code)
+#define MAX_IBS_SAMPLE_SIZE 14
+
+void oprofile_add_ibs_sample(struct pt_regs * const regs,
+			     unsigned int * const ibs_sample, int ibs_code)
 {
+	int is_kernel = !user_mode(regs);
+	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
 	struct task_struct *task;
+	int fail = 0;
 
 	cpu_buf->sample_received++;
 
-	if (nr_available_slots(cpu_buf) < MAX_IBS_SAMPLE_SIZE) {
-		cpu_buf->sample_lost_overflow++;
-		return 0;
-	}
-
-	is_kernel = !!is_kernel;
-
 	/* notice a switch from user->kernel or vice versa */
 	if (cpu_buf->last_is_kernel != is_kernel) {
+		if (add_code(cpu_buf, is_kernel))
+			goto fail;
 		cpu_buf->last_is_kernel = is_kernel;
-		add_code(cpu_buf, is_kernel);
 	}
 
 	/* notice a task switch */
 	if (!is_kernel) {
 		task = current;
-
 		if (cpu_buf->last_task != task) {
+			if (add_code(cpu_buf, (unsigned long)task))
+				goto fail;
 			cpu_buf->last_task = task;
-			add_code(cpu_buf, (unsigned long)task);
 		}
 	}
 
-	add_code(cpu_buf, ibs_code);
-	add_sample(cpu_buf, ibs[0], ibs[1]);
-	add_sample(cpu_buf, ibs[2], ibs[3]);
-	add_sample(cpu_buf, ibs[4], ibs[5]);
+	fail = fail || add_code(cpu_buf, ibs_code);
+	fail = fail || add_sample(cpu_buf, ibs_sample[0], ibs_sample[1]);
+	fail = fail || add_sample(cpu_buf, ibs_sample[2], ibs_sample[3]);
+	fail = fail || add_sample(cpu_buf, ibs_sample[4], ibs_sample[5]);
 
 	if (ibs_code == IBS_OP_BEGIN) {
-	add_sample(cpu_buf, ibs[6], ibs[7]);
-	add_sample(cpu_buf, ibs[8], ibs[9]);
-	add_sample(cpu_buf, ibs[10], ibs[11]);
+		fail = fail || add_sample(cpu_buf, ibs_sample[6], ibs_sample[7]);
+		fail = fail || add_sample(cpu_buf, ibs_sample[8], ibs_sample[9]);
+		fail = fail || add_sample(cpu_buf, ibs_sample[10], ibs_sample[11]);
 	}
 
-	return 1;
-}
+	if (fail)
+		goto fail;
 
-void oprofile_add_ibs_sample(struct pt_regs *const regs,
-				unsigned int * const ibs_sample, u8 code)
-{
-	int is_kernel = !user_mode(regs);
-	unsigned long pc = profile_pc(regs);
-
-	struct oprofile_cpu_buffer *cpu_buf =
-			 &per_cpu(cpu_buffer, smp_processor_id());
-
-	if (!backtrace_depth) {
-		log_ibs_sample(cpu_buf, pc, is_kernel, ibs_sample, code);
-		return;
-	}
-
-	/* if log_sample() fails we can't backtrace since we lost the source
-	* of this event */
-	if (log_ibs_sample(cpu_buf, pc, is_kernel, ibs_sample, code))
+	if (backtrace_depth)
 		oprofile_ops.backtrace(regs, backtrace_depth);
+
+	return;
+
+fail:
+	cpu_buf->sample_lost_overflow++;
+	return;
 }
 
 #endif
@@ -337,21 +333,21 @@ void oprofile_add_trace(unsigned long pc)
 	if (!cpu_buf->tracing)
 		return;
 
-	if (nr_available_slots(cpu_buf) < 1) {
-		cpu_buf->tracing = 0;
-		cpu_buf->sample_lost_overflow++;
-		return;
-	}
+	/*
+	 * broken frame can give an eip with the same value as an
+	 * escape code, abort the trace if we get it
+	 */
+	if (pc == ESCAPE_CODE)
+		goto fail;
 
-	/* broken frame can give an eip with the same value as an escape code,
-	 * abort the trace if we get it */
-	if (pc == ESCAPE_CODE) {
-		cpu_buf->tracing = 0;
-		cpu_buf->backtrace_aborted++;
-		return;
-	}
+	if (add_sample(cpu_buf, pc, 0))
+		goto fail;
 
-	add_sample(cpu_buf, pc, 0);
+	return;
+fail:
+	cpu_buf->tracing = 0;
+	cpu_buf->backtrace_aborted++;
+	return;
 }
 
 /*
@@ -363,11 +359,16 @@ void oprofile_add_trace(unsigned long pc)
  */
 static void wq_sync_buffer(struct work_struct *work)
 {
-	struct oprofile_cpu_buffer * b =
+	struct oprofile_cpu_buffer *b =
 		container_of(work, struct oprofile_cpu_buffer, work.work);
 	if (b->cpu != smp_processor_id()) {
 		printk(KERN_DEBUG "WQ on CPU%d, prefer CPU%d\n",
 		       smp_processor_id(), b->cpu);
+
+		if (!cpu_online(b->cpu)) {
+			cancel_delayed_work(&b->work);
+			return;
+		}
 	}
 	sync_buffer(b->cpu);
 

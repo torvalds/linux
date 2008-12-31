@@ -126,7 +126,8 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 	cfg->msg.address_hi = 0xffffffff;
 
 	irq = create_irq();
-	if (irq < 0) {
+
+	if (irq <= 0) {
 		kfree(cfg);
 		return -EBUSY;
 	}

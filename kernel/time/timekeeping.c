@@ -58,27 +58,26 @@ struct clocksource *clock;
 
 #ifdef CONFIG_GENERIC_TIME
 /**
- * __get_nsec_offset - Returns nanoseconds since last call to periodic_hook
+ * clocksource_forward_now - update clock to the current time
  *
- * private function, must hold xtime_lock lock when being
- * called. Returns the number of nanoseconds since the
- * last call to update_wall_time() (adjusted by NTP scaling)
+ * Forward the current clock to update its state since the last call to
+ * update_wall_time(). This is useful before significant clock changes,
+ * as it avoids having to deal with this time offset explicitly.
  */
-static inline s64 __get_nsec_offset(void)
+static void clocksource_forward_now(void)
 {
 	cycle_t cycle_now, cycle_delta;
-	s64 ns_offset;
+	s64 nsec;
 
-	/* read clocksource: */
 	cycle_now = clocksource_read(clock);
-
-	/* calculate the delta since the last update_wall_time: */
 	cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
+	clock->cycle_last = cycle_now;
 
-	/* convert to nanoseconds: */
-	ns_offset = cyc2ns(clock, cycle_delta);
+	nsec = cyc2ns(clock, cycle_delta);
+	timespec_add_ns(&xtime, nsec);
 
-	return ns_offset;
+	nsec = ((s64)cycle_delta * clock->mult_orig) >> clock->shift;
+	clock->raw_time.tv_nsec += nsec;
 }
 
 /**
@@ -89,6 +88,7 @@ static inline s64 __get_nsec_offset(void)
  */
 void getnstimeofday(struct timespec *ts)
 {
+	cycle_t cycle_now, cycle_delta;
 	unsigned long seq;
 	s64 nsecs;
 
@@ -96,7 +96,15 @@ void getnstimeofday(struct timespec *ts)
 		seq = read_seqbegin(&xtime_lock);
 
 		*ts = xtime;
-		nsecs = __get_nsec_offset();
+
+		/* read clocksource: */
+		cycle_now = clocksource_read(clock);
+
+		/* calculate the delta since the last update_wall_time: */
+		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
+
+		/* convert to nanoseconds: */
+		nsecs = cyc2ns(clock, cycle_delta);
 
 	} while (read_seqretry(&xtime_lock, seq));
 
@@ -129,22 +137,22 @@ EXPORT_SYMBOL(do_gettimeofday);
  */
 int do_settimeofday(struct timespec *tv)
 {
+	struct timespec ts_delta;
 	unsigned long flags;
-	time_t wtm_sec, sec = tv->tv_sec;
-	long wtm_nsec, nsec = tv->tv_nsec;
 
 	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
 		return -EINVAL;
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 
-	nsec -= __get_nsec_offset();
+	clocksource_forward_now();
 
-	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
-	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
+	ts_delta.tv_sec = tv->tv_sec - xtime.tv_sec;
+	ts_delta.tv_nsec = tv->tv_nsec - xtime.tv_nsec;
+	wall_to_monotonic = timespec_sub(wall_to_monotonic, ts_delta);
 
-	set_normalized_timespec(&xtime, sec, nsec);
-	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
+	xtime = *tv;
+
 	update_xtime_cache(0);
 
 	clock->error = 0;
@@ -170,22 +178,19 @@ EXPORT_SYMBOL(do_settimeofday);
 static void change_clocksource(void)
 {
 	struct clocksource *new;
-	cycle_t now;
-	u64 nsec;
 
 	new = clocksource_get_next();
 
 	if (clock == new)
 		return;
 
-	new->cycle_last = 0;
-	now = clocksource_read(new);
-	nsec =  __get_nsec_offset();
-	timespec_add_ns(&xtime, nsec);
+	clocksource_forward_now();
+
+	new->raw_time = clock->raw_time;
 
 	clock = new;
-	clock->cycle_last = now;
-
+	clock->cycle_last = 0;
+	clock->cycle_last = clocksource_read(new);
 	clock->error = 0;
 	clock->xtime_nsec = 0;
 	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
@@ -200,9 +205,42 @@ static void change_clocksource(void)
 	 */
 }
 #else
+static inline void clocksource_forward_now(void) { }
 static inline void change_clocksource(void) { }
-static inline s64 __get_nsec_offset(void) { return 0; }
 #endif
+
+/**
+ * getrawmonotonic - Returns the raw monotonic time in a timespec
+ * @ts:		pointer to the timespec to be set
+ *
+ * Returns the raw monotonic time (completely un-modified by ntp)
+ */
+void getrawmonotonic(struct timespec *ts)
+{
+	unsigned long seq;
+	s64 nsecs;
+	cycle_t cycle_now, cycle_delta;
+
+	do {
+		seq = read_seqbegin(&xtime_lock);
+
+		/* read clocksource: */
+		cycle_now = clocksource_read(clock);
+
+		/* calculate the delta since the last update_wall_time: */
+		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
+
+		/* convert to nanoseconds: */
+		nsecs = ((s64)cycle_delta * clock->mult_orig) >> clock->shift;
+
+		*ts = clock->raw_time;
+
+	} while (read_seqretry(&xtime_lock, seq));
+
+	timespec_add_ns(ts, nsecs);
+}
+EXPORT_SYMBOL(getrawmonotonic);
+
 
 /**
  * timekeeping_valid_for_hres - Check if timekeeping is suitable for hres
@@ -265,8 +303,6 @@ void __init timekeeping_init(void)
 static int timekeeping_suspended;
 /* time in seconds when suspend began */
 static unsigned long timekeeping_suspend_time;
-/* xtime offset when we went into suspend */
-static s64 timekeeping_suspend_nsecs;
 
 /**
  * timekeeping_resume - Resumes the generic timekeeping subsystem.
@@ -292,8 +328,6 @@ static int timekeeping_resume(struct sys_device *dev)
 		wall_to_monotonic.tv_sec -= sleep_length;
 		total_sleep_time += sleep_length;
 	}
-	/* Make sure that we have the correct xtime reference */
-	timespec_add_ns(&xtime, timekeeping_suspend_nsecs);
 	update_xtime_cache(0);
 	/* re-base the last cycle value */
 	clock->cycle_last = 0;
@@ -319,8 +353,7 @@ static int timekeeping_suspend(struct sys_device *dev, pm_message_t state)
 	timekeeping_suspend_time = read_persistent_clock();
 
 	write_seqlock_irqsave(&xtime_lock, flags);
-	/* Get the current xtime offset */
-	timekeeping_suspend_nsecs = __get_nsec_offset();
+	clocksource_forward_now();
 	timekeeping_suspended = 1;
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
@@ -454,21 +487,27 @@ void update_wall_time(void)
 #else
 	offset = clock->cycle_interval;
 #endif
-	clock->xtime_nsec += (s64)xtime.tv_nsec << clock->shift;
+	clock->xtime_nsec = (s64)xtime.tv_nsec << clock->shift;
 
 	/* normally this loop will run just once, however in the
 	 * case of lost or late ticks, it will accumulate correctly.
 	 */
 	while (offset >= clock->cycle_interval) {
 		/* accumulate one interval */
-		clock->xtime_nsec += clock->xtime_interval;
-		clock->cycle_last += clock->cycle_interval;
 		offset -= clock->cycle_interval;
+		clock->cycle_last += clock->cycle_interval;
 
+		clock->xtime_nsec += clock->xtime_interval;
 		if (clock->xtime_nsec >= (u64)NSEC_PER_SEC << clock->shift) {
 			clock->xtime_nsec -= (u64)NSEC_PER_SEC << clock->shift;
 			xtime.tv_sec++;
 			second_overflow();
+		}
+
+		clock->raw_time.tv_nsec += clock->raw_interval;
+		if (clock->raw_time.tv_nsec >= NSEC_PER_SEC) {
+			clock->raw_time.tv_nsec -= NSEC_PER_SEC;
+			clock->raw_time.tv_sec++;
 		}
 
 		/* accumulate error between NTP and clock interval */
@@ -479,9 +518,34 @@ void update_wall_time(void)
 	/* correct the clock when NTP error is too big */
 	clocksource_adjust(offset);
 
-	/* store full nanoseconds into xtime */
-	xtime.tv_nsec = (s64)clock->xtime_nsec >> clock->shift;
+	/*
+	 * Since in the loop above, we accumulate any amount of time
+	 * in xtime_nsec over a second into xtime.tv_sec, its possible for
+	 * xtime_nsec to be fairly small after the loop. Further, if we're
+	 * slightly speeding the clocksource up in clocksource_adjust(),
+	 * its possible the required corrective factor to xtime_nsec could
+	 * cause it to underflow.
+	 *
+	 * Now, we cannot simply roll the accumulated second back, since
+	 * the NTP subsystem has been notified via second_overflow. So
+	 * instead we push xtime_nsec forward by the amount we underflowed,
+	 * and add that amount into the error.
+	 *
+	 * We'll correct this error next time through this function, when
+	 * xtime_nsec is not as small.
+	 */
+	if (unlikely((s64)clock->xtime_nsec < 0)) {
+		s64 neg = -(s64)clock->xtime_nsec;
+		clock->xtime_nsec = 0;
+		clock->error += neg << (NTP_SCALE_SHIFT - clock->shift);
+	}
+
+	/* store full nanoseconds into xtime after rounding it up and
+	 * add the remainder to the error difference.
+	 */
+	xtime.tv_nsec = ((s64)clock->xtime_nsec >> clock->shift) + 1;
 	clock->xtime_nsec -= (s64)xtime.tv_nsec << clock->shift;
+	clock->error += clock->xtime_nsec << (NTP_SCALE_SHIFT - clock->shift);
 
 	update_xtime_cache(cyc2ns(clock, offset));
 

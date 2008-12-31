@@ -1098,9 +1098,10 @@ ov51x_clear_snapshot(struct usb_ov511 *ov)
 		reg_w(ov, R51x_SYS_SNAP, 0x02);
 		reg_w(ov, R51x_SYS_SNAP, 0x00);
 	} else if (ov->bclass == BCL_OV518) {
-		warn("snapshot reset not supported yet on OV518(+)");
+		dev_warn(&ov->dev->dev,
+			 "snapshot reset not supported yet on OV518(+)\n");
 	} else {
-		err("clear snap: invalid bridge type");
+		dev_err(&ov->dev->dev, "clear snap: invalid bridge type\n");
 	}
 }
 
@@ -1115,14 +1116,16 @@ ov51x_check_snapshot(struct usb_ov511 *ov)
 	if (ov->bclass == BCL_OV511) {
 		ret = reg_r(ov, R51x_SYS_SNAP);
 		if (ret < 0) {
-			err("Error checking snspshot status (%d)", ret);
+			dev_err(&ov->dev->dev,
+				"Error checking snspshot status (%d)\n", ret);
 		} else if (ret & 0x08) {
 			status = 1;
 		}
 	} else if (ov->bclass == BCL_OV518) {
-		warn("snapshot check not supported yet on OV518(+)");
+		dev_warn(&ov->dev->dev,
+			 "snapshot check not supported yet on OV518(+)\n");
 	} else {
-		err("check snap: invalid bridge type");
+		dev_err(&ov->dev->dev, "clear snap: invalid bridge type\n");
 	}
 
 	return status;
@@ -4008,8 +4011,7 @@ ov51x_v4l1_close(struct inode *inode, struct file *file)
 
 /* Do not call this function directly! */
 static int
-ov51x_v4l1_ioctl_internal(struct inode *inode, struct file *file,
-			  unsigned int cmd, void *arg)
+ov51x_v4l1_ioctl_internal(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = file->private_data;
 	struct usb_ov511 *ov = video_get_drvdata(vdev);
@@ -4458,7 +4460,7 @@ ov51x_v4l1_ioctl(struct inode *inode, struct file *file,
 	if (mutex_lock_interruptible(&ov->lock))
 		return -EINTR;
 
-	rc = video_usercopy(inode, file, cmd, arg, ov51x_v4l1_ioctl_internal);
+	rc = video_usercopy(file, cmd, arg, ov51x_v4l1_ioctl_internal);
 
 	mutex_unlock(&ov->lock);
 	return rc;
@@ -5217,7 +5219,8 @@ saa7111a_configure(struct usb_ov511 *ov)
 	if (ov->bclass == BCL_OV511)
 		reg_w(ov, 0x11, 0x00);
 	else
-		warn("SAA7111A not yet supported with OV518/OV518+");
+		dev_warn(&ov->dev->dev,
+			 "SAA7111A not yet supported with OV518/OV518+\n");
 
 	return 0;
 }
@@ -5456,7 +5459,8 @@ ov518_configure(struct usb_ov511 *ov)
 	 * required. OV518 has no uncompressed mode, to save RAM. */
 	if (!dumppix && !ov->compress) {
 		ov->compress = 1;
-		warn("Compression required with OV518...enabling");
+		dev_warn(&ov->dev->dev,
+			 "Compression required with OV518...enabling\n");
 	}
 
 	if (ov->bridge == BRG_OV518) {

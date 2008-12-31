@@ -198,17 +198,10 @@ unsigned long long xen_sched_clock(void)
 /* Get the TSC speed from Xen */
 unsigned long xen_tsc_khz(void)
 {
-	u64 xen_khz = 1000000ULL << 32;
-	const struct pvclock_vcpu_time_info *info =
+	struct pvclock_vcpu_time_info *info =
 		&HYPERVISOR_shared_info->vcpu_info[0].time;
 
-	do_div(xen_khz, info->tsc_to_system_mul);
-	if (info->tsc_shift < 0)
-		xen_khz <<= -info->tsc_shift;
-	else
-		xen_khz >>= info->tsc_shift;
-
-	return xen_khz;
+	return pvclock_tsc_khz(info);
 }
 
 cycle_t xen_clocksource_read(void)

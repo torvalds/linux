@@ -56,7 +56,7 @@ static int proc_idedisk_read_capacity
 	ide_drive_t*drive = (ide_drive_t *)data;
 	int len;
 
-	len = sprintf(page, "%llu\n", (long long)ide_disk_capacity(drive));
+	len = sprintf(page, "%llu\n", (long long)ide_gd_capacity(drive));
 
 	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
 }

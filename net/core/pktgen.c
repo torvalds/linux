@@ -422,6 +422,7 @@ static struct pktgen_dev *pktgen_find_dev(struct pktgen_thread *t,
 					  const char *ifname);
 static int pktgen_device_event(struct notifier_block *, unsigned long, void *);
 static void pktgen_run_all_threads(void);
+static void pktgen_reset_all_threads(void);
 static void pktgen_stop_all_threads_ifs(void);
 static int pktgen_stop_device(struct pktgen_dev *pkt_dev);
 static void pktgen_stop(struct pktgen_thread *t);
@@ -480,6 +481,9 @@ static ssize_t pgctrl_write(struct file *file, const char __user * buf,
 	else if (!strcmp(data, "start"))
 		pktgen_run_all_threads();
 
+	else if (!strcmp(data, "reset"))
+		pktgen_reset_all_threads();
+
 	else
 		printk(KERN_WARNING "pktgen: Unknown command: %s\n", data);
 
@@ -509,7 +513,6 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 	__u64 sa;
 	__u64 stopped;
 	__u64 now = getCurUs();
-	DECLARE_MAC_BUF(mac);
 
 	seq_printf(seq,
 		   "Params: count %llu  min_pkt_size: %u  max_pkt_size: %u\n",
@@ -554,12 +557,12 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 
 	seq_puts(seq, "     src_mac: ");
 
-	seq_printf(seq, "%s ",
-		   print_mac(mac, is_zero_ether_addr(pkt_dev->src_mac) ?
-			     pkt_dev->odev->dev_addr : pkt_dev->src_mac));
+	seq_printf(seq, "%pM ",
+		   is_zero_ether_addr(pkt_dev->src_mac) ?
+			     pkt_dev->odev->dev_addr : pkt_dev->src_mac);
 
 	seq_printf(seq, "dst_mac: ");
-	seq_printf(seq, "%s\n", print_mac(mac, pkt_dev->dst_mac));
+	seq_printf(seq, "%pM\n", pkt_dev->dst_mac);
 
 	seq_printf(seq,
 		   "     udp_src_min: %d  udp_src_max: %d  udp_dst_min: %d  udp_dst_max: %d\n",
@@ -1973,28 +1976,21 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 
 	/* make sure that we don't pick a non-existing transmit queue */
 	ntxq = pkt_dev->odev->real_num_tx_queues;
-	if (ntxq <= num_online_cpus() && (pkt_dev->flags & F_QUEUE_MAP_CPU)) {
-		printk(KERN_WARNING "pktgen: WARNING: QUEUE_MAP_CPU "
-		       "disabled because CPU count (%d) exceeds number ",
-		       num_online_cpus());
-		printk(KERN_WARNING "pktgen: WARNING: of tx queues "
-		       "(%d) on %s \n", ntxq, pkt_dev->odev->name);
-		pkt_dev->flags &= ~F_QUEUE_MAP_CPU;
-	}
+
 	if (ntxq <= pkt_dev->queue_map_min) {
 		printk(KERN_WARNING "pktgen: WARNING: Requested "
-		       "queue_map_min (%d) exceeds number of tx\n",
-		       pkt_dev->queue_map_min);
-		printk(KERN_WARNING "pktgen: WARNING: queues (%d) on "
-		       "%s, resetting\n", ntxq, pkt_dev->odev->name);
+		       "queue_map_min (zero-based) (%d) exceeds valid range "
+		       "[0 - %d] for (%d) queues on %s, resetting\n",
+		       pkt_dev->queue_map_min, (ntxq ?: 1)- 1, ntxq,
+		       pkt_dev->odev->name);
 		pkt_dev->queue_map_min = ntxq - 1;
 	}
-	if (ntxq <= pkt_dev->queue_map_max) {
+	if (pkt_dev->queue_map_max >= ntxq) {
 		printk(KERN_WARNING "pktgen: WARNING: Requested "
-		       "queue_map_max (%d) exceeds number of tx\n",
-		       pkt_dev->queue_map_max);
-		printk(KERN_WARNING "pktgen: WARNING: queues (%d) on "
-		       "%s, resetting\n", ntxq, pkt_dev->odev->name);
+		       "queue_map_max (zero-based) (%d) exceeds valid range "
+		       "[0 - %d] for (%d) queues on %s, resetting\n",
+		       pkt_dev->queue_map_max, (ntxq ?: 1)- 1, ntxq,
+		       pkt_dev->odev->name);
 		pkt_dev->queue_map_max = ntxq - 1;
 	}
 
@@ -2169,7 +2165,8 @@ static void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
 	struct xfrm_state *x = pkt_dev->flows[flow].x;
 	if (!x) {
 		/*slow path: we dont already have xfrm_state*/
-		x = xfrm_stateonly_find((xfrm_address_t *)&pkt_dev->cur_daddr,
+		x = xfrm_stateonly_find(&init_net,
+					(xfrm_address_t *)&pkt_dev->cur_daddr,
 					(xfrm_address_t *)&pkt_dev->cur_saddr,
 					AF_INET,
 					pkt_dev->ipsmode,
@@ -2203,6 +2200,7 @@ static void set_cur_queue_map(struct pktgen_dev *pkt_dev)
 		}
 		pkt_dev->cur_queue_map = t;
 	}
+	pkt_dev->cur_queue_map  = pkt_dev->cur_queue_map % pkt_dev->odev->real_num_tx_queues;
 }
 
 /* Increment/randomize headers according to flags and current values
@@ -3175,6 +3173,24 @@ static void pktgen_run_all_threads(void)
 	pktgen_wait_all_threads_run();
 }
 
+static void pktgen_reset_all_threads(void)
+{
+	struct pktgen_thread *t;
+
+	pr_debug("pktgen: entering pktgen_reset_all_threads.\n");
+
+	mutex_lock(&pktgen_thread_lock);
+
+	list_for_each_entry(t, &pktgen_threads, th_list)
+		t->control |= (T_REMDEVALL);
+
+	mutex_unlock(&pktgen_thread_lock);
+
+	schedule_timeout_interruptible(msecs_to_jiffies(125));	/* Propagate thread->control  */
+
+	pktgen_wait_all_threads_run();
+}
+
 static void show_results(struct pktgen_dev *pkt_dev, int nr_frags)
 {
 	__u64 total_us, bps, mbps, pps, idle;
@@ -3337,13 +3353,13 @@ static void pktgen_rem_thread(struct pktgen_thread *t)
 
 static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 {
-	struct net_device *odev = NULL;
+	struct net_device *odev = pkt_dev->odev;
+	int (*xmit)(struct sk_buff *, struct net_device *)
+		= odev->netdev_ops->ndo_start_xmit;
 	struct netdev_queue *txq;
 	__u64 idle_start = 0;
 	u16 queue_map;
 	int ret;
-
-	odev = pkt_dev->odev;
 
 	if (pkt_dev->delay_us || pkt_dev->delay_ns) {
 		u64 now;
@@ -3425,7 +3441,7 @@ static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 
 		atomic_inc(&(pkt_dev->skb->users));
 	      retry_now:
-		ret = odev->hard_start_xmit(pkt_dev->skb, odev);
+		ret = (*xmit)(pkt_dev->skb, odev);
 		if (likely(ret == NETDEV_TX_OK)) {
 			pkt_dev->last_ok = 1;
 			pkt_dev->sofar++;

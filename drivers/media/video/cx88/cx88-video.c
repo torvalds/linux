@@ -426,24 +426,7 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 
 	/* if there are audioroutes defined, we have an external
 	   ADC to deal with audio */
-
 	if (INPUT(input).audioroute) {
-
-		/* cx2388's C-ADC is connected to the tuner only.
-		   When used with S-Video, that ADC is busy dealing with
-		   chroma, so an external must be used for baseband audio */
-
-		if (INPUT(input).type != CX88_VMUX_TELEVISION &&
-			INPUT(input).type != CX88_RADIO) {
-			/* "ADC mode" */
-			cx_write(AUD_I2SCNTL, 0x1);
-			cx_set(AUD_CTL, EN_I2SIN_ENABLE);
-		} else {
-			/* Normal mode */
-			cx_write(AUD_I2SCNTL, 0x0);
-			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
-		}
-
 		/* The wm8775 module has the "2" route hardwired into
 		   the initialization. Some boards may use different
 		   routes for different inputs. HVR-1300 surely does */
@@ -454,9 +437,19 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 			route.input = INPUT(input).audioroute;
 			cx88_call_i2c_clients(core,
 				VIDIOC_INT_S_AUDIO_ROUTING, &route);
-
 		}
-
+		/* cx2388's C-ADC is connected to the tuner only.
+		   When used with S-Video, that ADC is busy dealing with
+		   chroma, so an external must be used for baseband audio */
+		if (INPUT(input).type != CX88_VMUX_TELEVISION ) {
+			/* "I2S ADC mode" */
+			core->tvaudio = WW_I2SADC;
+			cx88_set_tvaudio(core);
+		} else {
+			/* Normal mode */
+			cx_write(AUD_I2SCNTL, 0x0);
+			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
+		}
 	}
 
 	return 0;
@@ -832,9 +825,24 @@ static int video_open(struct inode *inode, struct file *file)
 		cx_write(MO_GP0_IO, core->board.radio.gpio0);
 		cx_write(MO_GP1_IO, core->board.radio.gpio1);
 		cx_write(MO_GP2_IO, core->board.radio.gpio2);
-		core->tvaudio = WW_FM;
-		cx88_set_tvaudio(core);
-		cx88_set_stereo(core,V4L2_TUNER_MODE_STEREO,1);
+		if (core->board.radio.audioroute) {
+			if(core->board.audio_chip &&
+				core->board.audio_chip == V4L2_IDENT_WM8775) {
+				struct v4l2_routing route;
+
+				route.input = core->board.radio.audioroute;
+				cx88_call_i2c_clients(core,
+					VIDIOC_INT_S_AUDIO_ROUTING, &route);
+			}
+			/* "I2S ADC mode" */
+			core->tvaudio = WW_I2SADC;
+			cx88_set_tvaudio(core);
+		} else {
+			/* FM Mode */
+			core->tvaudio = WW_FM;
+			cx88_set_tvaudio(core);
+			cx88_set_stereo(core,V4L2_TUNER_MODE_STEREO,1);
+		}
 		cx88_call_i2c_clients(core,AUDC_SET_RADIO,NULL);
 	}
 	unlock_kernel();
@@ -1208,8 +1216,12 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct cx8800_fh  *fh   = priv;
 	struct cx8800_dev *dev  = fh->dev;
 
-	if (unlikely(fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE))
+	/* We should remember that this driver also supports teletext,  */
+	/* so we have to test if the v4l2_buf_type is VBI capture data. */
+	if (unlikely((fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+		     (fh->type != V4L2_BUF_TYPE_VBI_CAPTURE)))
 		return -EINVAL;
+
 	if (unlikely(i != fh->type))
 		return -EINVAL;
 
@@ -1224,8 +1236,10 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct cx8800_dev *dev  = fh->dev;
 	int               err, res;
 
-	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if ((fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+	    (fh->type != V4L2_BUF_TYPE_VBI_CAPTURE))
 		return -EINVAL;
+
 	if (i != fh->type)
 		return -EINVAL;
 
@@ -1903,7 +1917,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		goto fail_unreg;
 	}
 	printk(KERN_INFO "%s/0: registered device video%d [v4l2]\n",
-	       core->name,dev->video_dev->minor & 0x1f);
+	       core->name, dev->video_dev->num);
 
 	dev->vbi_dev = cx88_vdev_init(core,dev->pci,&cx8800_vbi_template,"vbi");
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
@@ -1914,7 +1928,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		goto fail_unreg;
 	}
 	printk(KERN_INFO "%s/0: registered device vbi%d\n",
-	       core->name,dev->vbi_dev->minor & 0x1f);
+	       core->name, dev->vbi_dev->num);
 
 	if (core->board.radio.type == CX88_RADIO) {
 		dev->radio_dev = cx88_vdev_init(core,dev->pci,
@@ -1927,7 +1941,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 			goto fail_unreg;
 		}
 		printk(KERN_INFO "%s/0: registered device radio%d\n",
-		       core->name,dev->radio_dev->minor & 0x1f);
+		       core->name, dev->radio_dev->num);
 	}
 
 	/* everything worked */

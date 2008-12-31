@@ -13,8 +13,6 @@
 #include <linux/ipsec.h>
 #include <linux/netfilter_ipv4.h>
 
-static struct xfrm_state_afinfo xfrm4_state_afinfo;
-
 static int xfrm4_init_flags(struct xfrm_state *x)
 {
 	if (ipv4_config.no_pmtu_disc)
@@ -33,6 +31,7 @@ __xfrm4_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	x->sel.dport_mask = htons(0xffff);
 	x->sel.sport = xfrm_flowi_sport(fl);
 	x->sel.sport_mask = htons(0xffff);
+	x->sel.family = AF_INET;
 	x->sel.prefixlen_d = 32;
 	x->sel.prefixlen_s = 32;
 	x->sel.proto = fl->proto;

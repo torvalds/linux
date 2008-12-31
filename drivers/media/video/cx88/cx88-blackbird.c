@@ -3,7 +3,7 @@
  *  Support for a cx23416 mpeg encoder via cx2388x host port.
  *  "blackbird" reference design.
  *
- *    (c) 2004 Jelle Foks <jelle@foks.8m.com>
+ *    (c) 2004 Jelle Foks <jelle@foks.us>
  *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
  *
  *    (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
@@ -39,7 +39,7 @@
 #include "cx88.h"
 
 MODULE_DESCRIPTION("driver for cx2388x/cx23416 based mpeg encoder cards");
-MODULE_AUTHOR("Jelle Foks <jelle@foks.8m.com>, Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Jelle Foks <jelle@foks.us>, Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
 static unsigned int mpegbufs = 32;
@@ -1078,7 +1078,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 		}
 	}
 
-	if (blackbird_initialize_codec(dev) < 0) {
+	if (!atomic_read(&dev->core->mpeg_users) && blackbird_initialize_codec(dev) < 0) {
 		if (drv)
 			drv->request_release(drv);
 		unlock_kernel();
@@ -1109,6 +1109,8 @@ static int mpeg_open(struct inode *inode, struct file *file)
 			fh->mpegq.field);
 	unlock_kernel();
 
+	atomic_inc(&dev->core->mpeg_users);
+
 	return 0;
 }
 
@@ -1118,7 +1120,7 @@ static int mpeg_release(struct inode *inode, struct file *file)
 	struct cx8802_dev *dev = fh->dev;
 	struct cx8802_driver *drv = NULL;
 
-	if (dev->mpeg_active)
+	if (dev->mpeg_active && atomic_read(&dev->core->mpeg_users) == 1)
 		blackbird_stop_codec(dev);
 
 	cx8802_cancel_buffers(fh->dev);
@@ -1137,6 +1139,8 @@ static int mpeg_release(struct inode *inode, struct file *file)
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
 	if (drv)
 		drv->request_release(drv);
+
+	atomic_dec(&dev->core->mpeg_users);
 
 	return 0;
 }
@@ -1158,6 +1162,10 @@ static unsigned int
 mpeg_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct cx8802_fh *fh = file->private_data;
+	struct cx8802_dev *dev = fh->dev;
+
+	if (!dev->mpeg_active)
+		blackbird_start_codec(file, fh);
 
 	return videobuf_poll_stream(file, &fh->mpegq, wait);
 }
@@ -1236,8 +1244,16 @@ static int cx8802_blackbird_advise_acquire(struct cx8802_driver *drv)
 		 * We're being given access to re-arrange the GPIOs.
 		 * Take the bus off the cx22702 and put the cx23416 on it.
 		 */
-		cx_clear(MO_GP0_IO, 0x00000080); /* cx22702 in reset */
-		cx_set(MO_GP0_IO,   0x00000004); /* Disable the cx22702 */
+		/* Toggle reset on cx22702 leaving i2c active */
+		cx_set(MO_GP0_IO, 0x00000080);
+		udelay(1000);
+		cx_clear(MO_GP0_IO, 0x00000080);
+		udelay(50);
+		cx_set(MO_GP0_IO, 0x00000080);
+		udelay(1000);
+		/* tri-state the cx22702 pins */
+		cx_set(MO_GP0_IO, 0x00000004);
+		udelay(1000);
 		break;
 	default:
 		err = -ENODEV;
@@ -1285,7 +1301,7 @@ static int blackbird_register_video(struct cx8802_dev *dev)
 		return err;
 	}
 	printk(KERN_INFO "%s/2: registered device video%d [mpeg]\n",
-	       dev->core->name,dev->mpeg_dev->minor & 0x1f);
+	       dev->core->name, dev->mpeg_dev->num);
 	return 0;
 }
 

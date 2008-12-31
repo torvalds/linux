@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <sound/core.h>
 
 #ifdef CONFIG_SOUND_OSS_CORE
 static int __init init_oss_soundcore(void);
@@ -57,7 +58,7 @@ module_exit(cleanup_soundcore);
 /*
  *	OSS sound core handling. Breaks out sound functions to submodules
  *	
- *	Author:		Alan Cox <alan.cox@linux.org>
+ *	Author:		Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	Fixes:
  *
@@ -220,9 +221,8 @@ static int sound_insert_unit(struct sound_unit **list, const struct file_operati
 	else
 		sprintf(s->name, "sound/%s%d", name, r / SOUND_STEP);
 
-	device_create_drvdata(sound_class, dev,
-			      MKDEV(SOUND_MAJOR, s->unit_minor),
-			      NULL, s->name+6);
+	device_create(sound_class, dev, MKDEV(SOUND_MAJOR, s->unit_minor),
+		      NULL, s->name+6);
 	return r;
 
  fail:
@@ -458,7 +458,7 @@ EXPORT_SYMBOL(unregister_sound_mixer);
 
 void unregister_sound_midi(int unit)
 {
-	return sound_remove_unit(&chains[2], unit);
+	sound_remove_unit(&chains[2], unit);
 }
 
 EXPORT_SYMBOL(unregister_sound_midi);
@@ -475,7 +475,7 @@ EXPORT_SYMBOL(unregister_sound_midi);
 
 void unregister_sound_dsp(int unit)
 {
-	return sound_remove_unit(&chains[3], unit);
+	sound_remove_unit(&chains[3], unit);
 }
 
 
@@ -508,7 +508,7 @@ static struct sound_unit *__look_for_unit(int chain, int unit)
 	return NULL;
 }
 
-int soundcore_open(struct inode *inode, struct file *file)
+static int soundcore_open(struct inode *inode, struct file *file)
 {
 	int chain;
 	int unit = iminor(inode);

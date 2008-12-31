@@ -6,6 +6,7 @@
 #include <asm/proto.h>
 #include <asm/dma.h>
 #include <asm/iommu.h>
+#include <asm/gart.h>
 #include <asm/calgary.h>
 #include <asm/amd_iommu.h>
 
@@ -29,11 +30,6 @@ int iommu_merge __read_mostly = 0;
 int no_iommu __read_mostly;
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly = 0;
-
-/* This tells the BIO block layer to assume merging. Default to off
-   because we cannot guarantee merging later. */
-int iommu_bio_merge __read_mostly = 0;
-EXPORT_SYMBOL(iommu_bio_merge);
 
 dma_addr_t bad_dma_address __read_mostly = 0;
 EXPORT_SYMBOL(bad_dma_address);
@@ -105,11 +101,15 @@ static void __init dma32_free_bootmem(void)
 	dma32_bootmem_ptr = NULL;
 	dma32_bootmem_size = 0;
 }
+#endif
 
 void __init pci_iommu_alloc(void)
 {
+#ifdef CONFIG_X86_64
 	/* free the range so iommu could get some range less than 4G */
 	dma32_free_bootmem();
+#endif
+
 	/*
 	 * The order of these functions is important for
 	 * fall-back/fail-over reasons
@@ -124,15 +124,6 @@ void __init pci_iommu_alloc(void)
 
 	pci_swiotlb_init();
 }
-
-unsigned long iommu_num_pages(unsigned long addr, unsigned long len)
-{
-	unsigned long size = roundup((addr & ~PAGE_MASK) + len, PAGE_SIZE);
-
-	return size >> PAGE_SHIFT;
-}
-EXPORT_SYMBOL(iommu_num_pages);
-#endif
 
 void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 				 dma_addr_t *dma_addr, gfp_t flag)
@@ -188,7 +179,6 @@ static __init int iommu_setup(char *p)
 		}
 
 		if (!strncmp(p, "biomerge", 8)) {
-			iommu_bio_merge = 4096;
 			iommu_merge = 1;
 			force_iommu = 1;
 		}
@@ -300,8 +290,8 @@ fs_initcall(pci_iommu_init);
 static __devinit void via_no_dac(struct pci_dev *dev)
 {
 	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI && forbid_dac == 0) {
-		printk(KERN_INFO "PCI: VIA PCI bridge detected."
-				 "Disabling DAC.\n");
+		printk(KERN_INFO
+			"PCI: VIA PCI bridge detected. Disabling DAC.\n");
 		forbid_dac = 1;
 	}
 }

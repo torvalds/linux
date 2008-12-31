@@ -1,7 +1,7 @@
 /*
  * Driver for the s5k83a sensor
  *
- * Copyright (C) 2008 Erik Andren
+ * Copyright (C) 2008 Erik Andrén
  * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
@@ -22,15 +22,15 @@
 #include "m5602_sensor.h"
 
 #define S5K83A_FLIP				0x01
-#define S5K83A_HFLIP_TUNE		0x03
-#define S5K83A_VFLIP_TUNE		0x05
-#define S5K83A_WHITENESS		0x0a
+#define S5K83A_HFLIP_TUNE			0x03
+#define S5K83A_VFLIP_TUNE			0x05
+#define S5K83A_WHITENESS			0x0a
 #define S5K83A_GAIN				0x18
-#define S5K83A_BRIGHTNESS		0x1b
-#define S5K83A_PAGE_MAP			0xec
+#define S5K83A_BRIGHTNESS			0x1b
+#define S5K83A_PAGE_MAP				0xec
 
-#define S5K83A_DEFAULT_BRIGHTNESS	0x71
-#define S5K83A_DEFAULT_WHITENESS	0x7e
+#define S5K83A_DEFAULT_BRIGHTNESS		0x71
+#define S5K83A_DEFAULT_WHITENESS		0x7e
 #define S5K83A_DEFAULT_GAIN			0x00
 #define S5K83A_MAXIMUM_GAIN			0x3c
 #define S5K83A_FLIP_MASK			0x10
@@ -41,19 +41,10 @@
 /* Kernel module parameters */
 extern int force_sensor;
 extern int dump_sensor;
-extern unsigned int m5602_debug;
-
 
 int s5k83a_probe(struct sd *sd);
 int s5k83a_init(struct sd *sd);
 int s5k83a_power_down(struct sd *sd);
-
-void s5k83a_dump_registers(struct sd *sd);
-
-int s5k83a_read_sensor(struct sd *sd, const u8 address,
-		       u8 *i2c_data, const u8 len);
-int s5k83a_write_sensor(struct sd *sd, const u8 address,
-			u8 *i2c_data, const u8 len);
 
 int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val);
 int s5k83a_get_brightness(struct gspca_dev *gspca_dev, __s32 *val);
@@ -66,15 +57,13 @@ int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
 int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 
-
 static struct m5602_sensor s5k83a = {
 	.name = "S5K83A",
 	.probe = s5k83a_probe,
 	.init = s5k83a_init,
 	.power_down = s5k83a_power_down,
-	.read_sensor = s5k83a_read_sensor,
-	.write_sensor = s5k83a_write_sensor,
 	.i2c_slave_id = 0x5a,
+	.i2c_regW = 2,
 	.nctrls = 5,
 	.ctrls = {
 	{

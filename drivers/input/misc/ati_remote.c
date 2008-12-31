@@ -285,7 +285,6 @@ static const struct {
 };
 
 /* Local function prototypes */
-static void ati_remote_dump		(unsigned char *data, unsigned int actual_length);
 static int ati_remote_open		(struct input_dev *inputdev);
 static void ati_remote_close		(struct input_dev *inputdev);
 static int ati_remote_sendpacket	(struct ati_remote *ati_remote, u16 cmd, unsigned char *data);
@@ -307,15 +306,16 @@ static struct usb_driver ati_remote_driver = {
 /*
  *	ati_remote_dump_input
  */
-static void ati_remote_dump(unsigned char *data, unsigned int len)
+static void ati_remote_dump(struct device *dev, unsigned char *data,
+			    unsigned int len)
 {
 	if ((len == 1) && (data[0] != (unsigned char)0xff) && (data[0] != 0x00))
-		warn("Weird byte 0x%02x", data[0]);
+		dev_warn(dev, "Weird byte 0x%02x\n", data[0]);
 	else if (len == 4)
-		warn("Weird key %02x %02x %02x %02x",
+		dev_warn(dev, "Weird key %02x %02x %02x %02x\n",
 		     data[0], data[1], data[2], data[3]);
 	else
-		warn("Weird data, len=%d %02x %02x %02x %02x %02x %02x ...",
+		dev_warn(dev, "Weird data, len=%d %02x %02x %02x %02x %02x %02x ...\n",
 		     len, data[0], data[1], data[2], data[3], data[4], data[5]);
 }
 
@@ -470,7 +470,7 @@ static void ati_remote_input_report(struct urb *urb)
 	/* Deal with strange looking inputs */
 	if ( (urb->actual_length != 4) || (data[0] != 0x14) ||
 		((data[3] & 0x0f) != 0x00) ) {
-		ati_remote_dump(data, urb->actual_length);
+		ati_remote_dump(&urb->dev->dev, data, urb->actual_length);
 		return;
 	}
 
@@ -814,7 +814,7 @@ static void ati_remote_disconnect(struct usb_interface *interface)
 	ati_remote = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 	if (!ati_remote) {
-		warn("%s - null device?\n", __func__);
+		dev_warn(&interface->dev, "%s - null device?\n", __func__);
 		return;
 	}
 
@@ -834,9 +834,11 @@ static int __init ati_remote_init(void)
 
 	result = usb_register(&ati_remote_driver);
 	if (result)
-		err("usb_register error #%d\n", result);
+		printk(KERN_ERR KBUILD_MODNAME
+		       ": usb_register error #%d\n", result);
 	else
-		info("Registered USB driver " DRIVER_DESC " v. " DRIVER_VERSION);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+		       DRIVER_DESC "\n");
 
 	return result;
 }

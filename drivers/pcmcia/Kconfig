@@ -188,10 +188,6 @@ config PCMCIA_M8XX
 
 	  This driver is also available as a module called m8xx_pcmcia.
 
-config HD64465_PCMCIA
-	tristate "HD64465 host bridge support"
-	depends on HD64465 && PCMCIA
-
 config PCMCIA_AU1X00
 	tristate "Au1x00 pcmcia support"
 	depends on SOC_AU1X00 && PCMCIA
@@ -221,7 +217,7 @@ config PCMCIA_PXA2XX
 	depends on ARM && ARCH_PXA && PCMCIA
 	depends on (ARCH_LUBBOCK || MACH_MAINSTONE || PXA_SHARPSL \
 		    || MACH_ARMCORE || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
-		    || ARCH_VIPER)
+		    || ARCH_VIPER || ARCH_PXA_ESERIES)
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller
 

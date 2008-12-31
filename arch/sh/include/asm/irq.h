@@ -41,6 +41,9 @@ static inline int generic_irq_demux(int irq)
 #define irq_canonicalize(irq)	(irq)
 #define irq_demux(irq)		sh_mv.mv_irq_demux(irq)
 
+void init_IRQ(void);
+asmlinkage int do_IRQ(unsigned int irq, struct pt_regs *regs);
+
 #ifdef CONFIG_IRQSTACKS
 extern void irq_ctx_init(int cpu);
 extern void irq_ctx_exit(int cpu);

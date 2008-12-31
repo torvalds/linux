@@ -2,6 +2,7 @@
  *  cx18 System Control Block initialization
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -85,12 +86,6 @@ struct cx18_mdl {
     u32 length; /* Length of the buffer segment */
 };
 
-/* This structure is used by CPU to provide completed buffers information */
-struct cx18_mdl_ack {
-    u32 id;        /* ID of a completed MDL */
-    u32 data_used; /* Total data filled in the MDL for buffer 'id' */
-};
-
 struct cx18_scb {
 	/* These fields form the System Control Block which is used at boot time
 	   for localizing the IPC data as well as the code positions for all
@@ -128,22 +123,22 @@ struct cx18_scb {
 	u32 apu2cpu_irq;
 	/* Value to write to register SW2 register set (0xC7003140) after the
 	   command is cleared */
-	u32 apu2cpu_irq_ack;
+	u32 cpu2apu_irq_ack;
 	u32 reserved2[13];
 
 	u32 hpu2cpu_mb_offset;
 	u32 hpu2cpu_irq;
-	u32 hpu2cpu_irq_ack;
+	u32 cpu2hpu_irq_ack;
 	u32 reserved3[13];
 
 	u32 ppu2cpu_mb_offset;
 	u32 ppu2cpu_irq;
-	u32 ppu2cpu_irq_ack;
+	u32 cpu2ppu_irq_ack;
 	u32 reserved4[13];
 
 	u32 epu2cpu_mb_offset;
 	u32 epu2cpu_irq;
-	u32 epu2cpu_irq_ack;
+	u32 cpu2epu_irq_ack;
 	u32 reserved5[13];
 	u32 reserved6[8];
 
@@ -153,22 +148,22 @@ struct cx18_scb {
 	u32 reserved11[7];
 	u32 cpu2apu_mb_offset;
 	u32 cpu2apu_irq;
-	u32 cpu2apu_irq_ack;
+	u32 apu2cpu_irq_ack;
 	u32 reserved12[13];
 
 	u32 hpu2apu_mb_offset;
 	u32 hpu2apu_irq;
-	u32 hpu2apu_irq_ack;
+	u32 apu2hpu_irq_ack;
 	u32 reserved13[13];
 
 	u32 ppu2apu_mb_offset;
 	u32 ppu2apu_irq;
-	u32 ppu2apu_irq_ack;
+	u32 apu2ppu_irq_ack;
 	u32 reserved14[13];
 
 	u32 epu2apu_mb_offset;
 	u32 epu2apu_irq;
-	u32 epu2apu_irq_ack;
+	u32 apu2epu_irq_ack;
 	u32 reserved15[13];
 	u32 reserved16[8];
 
@@ -178,22 +173,22 @@ struct cx18_scb {
 	u32 reserved21[7];
 	u32 cpu2hpu_mb_offset;
 	u32 cpu2hpu_irq;
-	u32 cpu2hpu_irq_ack;
+	u32 hpu2cpu_irq_ack;
 	u32 reserved22[13];
 
 	u32 apu2hpu_mb_offset;
 	u32 apu2hpu_irq;
-	u32 apu2hpu_irq_ack;
+	u32 hpu2apu_irq_ack;
 	u32 reserved23[13];
 
 	u32 ppu2hpu_mb_offset;
 	u32 ppu2hpu_irq;
-	u32 ppu2hpu_irq_ack;
+	u32 hpu2ppu_irq_ack;
 	u32 reserved24[13];
 
 	u32 epu2hpu_mb_offset;
 	u32 epu2hpu_irq;
-	u32 epu2hpu_irq_ack;
+	u32 hpu2epu_irq_ack;
 	u32 reserved25[13];
 	u32 reserved26[8];
 
@@ -203,22 +198,22 @@ struct cx18_scb {
 	u32 reserved31[7];
 	u32 cpu2ppu_mb_offset;
 	u32 cpu2ppu_irq;
-	u32 cpu2ppu_irq_ack;
+	u32 ppu2cpu_irq_ack;
 	u32 reserved32[13];
 
 	u32 apu2ppu_mb_offset;
 	u32 apu2ppu_irq;
-	u32 apu2ppu_irq_ack;
+	u32 ppu2apu_irq_ack;
 	u32 reserved33[13];
 
 	u32 hpu2ppu_mb_offset;
 	u32 hpu2ppu_irq;
-	u32 hpu2ppu_irq_ack;
+	u32 ppu2hpu_irq_ack;
 	u32 reserved34[13];
 
 	u32 epu2ppu_mb_offset;
 	u32 epu2ppu_irq;
-	u32 epu2ppu_irq_ack;
+	u32 ppu2epu_irq_ack;
 	u32 reserved35[13];
 	u32 reserved36[8];
 
@@ -228,22 +223,22 @@ struct cx18_scb {
 	u32 reserved41[7];
 	u32 cpu2epu_mb_offset;
 	u32 cpu2epu_irq;
-	u32 cpu2epu_irq_ack;
+	u32 epu2cpu_irq_ack;
 	u32 reserved42[13];
 
 	u32 apu2epu_mb_offset;
 	u32 apu2epu_irq;
-	u32 apu2epu_irq_ack;
+	u32 epu2apu_irq_ack;
 	u32 reserved43[13];
 
 	u32 hpu2epu_mb_offset;
 	u32 hpu2epu_irq;
-	u32 hpu2epu_irq_ack;
+	u32 epu2hpu_irq_ack;
 	u32 reserved44[13];
 
 	u32 ppu2epu_mb_offset;
 	u32 ppu2epu_irq;
-	u32 ppu2epu_irq_ack;
+	u32 epu2ppu_irq_ack;
 	u32 reserved45[13];
 	u32 reserved46[8];
 
@@ -276,7 +271,7 @@ struct cx18_scb {
 	struct cx18_mailbox  hpu2epu_mb;
 	struct cx18_mailbox  ppu2epu_mb;
 
-	struct cx18_mdl_ack  cpu_mdl_ack[CX18_MAX_STREAMS][2];
+	struct cx18_mdl_ack  cpu_mdl_ack[CX18_MAX_STREAMS][CX18_MAX_MDL_ACKS];
 	struct cx18_mdl      cpu_mdl[1];
 };
 

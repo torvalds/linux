@@ -1132,8 +1132,7 @@ static int stv_close (struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int stv680_do_ioctl (struct inode *inode, struct file *file,
-			    unsigned int cmd, void *arg)
+static int stv680_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = file->private_data;
 	struct usb_stv *stv680 = video_get_drvdata(vdev);
@@ -1303,7 +1302,7 @@ static int stv680_do_ioctl (struct inode *inode, struct file *file,
 static int stv680_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, stv680_do_ioctl);
+	return video_usercopy(file, cmd, arg, stv680_do_ioctl);
 }
 
 static int stv680_mmap (struct file *file, struct vm_area_struct *vma)
@@ -1470,7 +1469,8 @@ static int stv680_probe (struct usb_interface *intf, const struct usb_device_id 
 		retval = -EIO;
 		goto error_vdev;
 	}
-	PDEBUG (0, "STV(i): registered new video device: video%d", stv680->vdev->minor);
+	PDEBUG(0, "STV(i): registered new video device: video%d",
+		stv680->vdev->num);
 
 	usb_set_intfdata (intf, stv680);
 	retval = stv680_create_sysfs_files(stv680->vdev);

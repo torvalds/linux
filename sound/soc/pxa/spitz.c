@@ -319,8 +319,9 @@ static struct snd_soc_dai_link spitz_dai = {
 };
 
 /* spitz audio machine driver */
-static struct snd_soc_machine snd_soc_machine_spitz = {
+static struct snd_soc_card snd_soc_spitz = {
 	.name = "Spitz",
+	.platform = &pxa2xx_soc_platform,
 	.dai_link = &spitz_dai,
 	.num_links = 1,
 };
@@ -333,8 +334,7 @@ static struct wm8750_setup_data spitz_wm8750_setup = {
 
 /* spitz audio subsystem */
 static struct snd_soc_device spitz_snd_devdata = {
-	.machine = &snd_soc_machine_spitz,
-	.platform = &pxa2xx_soc_platform,
+	.card = &snd_soc_spitz,
 	.codec_dev = &soc_codec_dev_wm8750,
 	.codec_data = &spitz_wm8750_setup,
 };

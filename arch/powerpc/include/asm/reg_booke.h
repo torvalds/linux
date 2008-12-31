@@ -109,6 +109,7 @@
 #define SPRN_EVPR	0x3D6	/* Exception Vector Prefix Register */
 #define SPRN_L1CSR0	0x3F2	/* L1 Cache Control and Status Register 0 */
 #define SPRN_L1CSR1	0x3F3	/* L1 Cache Control and Status Register 1 */
+#define SPRN_MMUCSR0	0x3F4	/* MMU Control and Status Register 0 */
 #define SPRN_PIT	0x3DB	/* Programmable Interval Timer */
 #define SPRN_BUCSR	0x3F5	/* Branch Unit Control and Status */
 #define SPRN_L2CSR0	0x3F9	/* L2 Data Cache Control and Status Register 0 */
@@ -409,6 +410,12 @@
 #define L2CSR0_L2LFC	0x00000400	/* L2 Cache Lock Flash Clear */
 #define L2CSR0_L2LOA	0x00000080	/* L2 Cache Lock Overflow Allocate */
 #define L2CSR0_L2LO	0x00000020	/* L2 Cache Lock Overflow */
+
+/* Bit definitions for MMUCSR0 */
+#define MMUCSR0_TLB1FI	0x00000002	/* TLB1 Flash invalidate */
+#define MMUCSR0_TLB0FI	0x00000004	/* TLB0 Flash invalidate */
+#define MMUCSR0_TLB2FI	0x00000040	/* TLB2 Flash invalidate */
+#define MMUCSR0_TLB3FI	0x00000020	/* TLB3 Flash invalidate */
 
 /* Bit definitions for SGR. */
 #define SGR_NORMAL	0		/* Speculative fetching allowed. */

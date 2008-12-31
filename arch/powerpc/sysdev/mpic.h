@@ -14,8 +14,6 @@
 #ifdef CONFIG_PCI_MSI
 extern void mpic_msi_reserve_hwirq(struct mpic *mpic, irq_hw_number_t hwirq);
 extern int mpic_msi_init_allocator(struct mpic *mpic);
-extern irq_hw_number_t mpic_msi_alloc_hwirqs(struct mpic *mpic, int num);
-extern void mpic_msi_free_hwirqs(struct mpic *mpic, int offset, int num);
 extern int mpic_u3msi_init(struct mpic *mpic);
 extern int mpic_pasemi_msi_init(struct mpic *mpic);
 #else

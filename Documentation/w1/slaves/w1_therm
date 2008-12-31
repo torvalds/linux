@@ -1,0 +1,41 @@
+Kernel driver w1_therm
+====================
+
+Supported chips:
+  * Maxim ds18*20 based temperature sensors.
+
+Author: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+
+
+Description
+-----------
+
+w1_therm provides basic temperature conversion for ds18*20 devices.
+supported family codes:
+W1_THERM_DS18S20	0x10
+W1_THERM_DS1822		0x22
+W1_THERM_DS18B20	0x28
+
+Support is provided through the sysfs w1_slave file.  Each open and
+read sequence will initiate a temperature conversion then provide two
+lines of ASCII output.  The first line contains the nine hex bytes
+read along with a calculated crc value and YES or NO if it matched.
+If the crc matched the returned values are retained.  The second line
+displays the retained values along with a temperature in millidegrees
+Centigrade after t=.
+
+Parasite powered devices are limited to one slave performing a
+temperature conversion at a time.  If none of the devices are parasite
+powered it would be possible to convert all the devices at the same
+time and then go back to read individual sensors.  That isn't
+currently supported.  The driver also doesn't support reduced
+precision (which would also reduce the conversion time).
+
+The module parameter strong_pullup can be set to 0 to disable the
+strong pullup or 1 to enable.  If enabled the 5V strong pullup will be
+enabled when the conversion is taking place provided the master driver
+must support the strong pullup (or it falls back to a pullup
+resistor).  The DS18b20 temperature sensor specification lists a
+maximum current draw of 1.5mA and that a 5k pullup resistor is not
+sufficient.  The strong pullup is designed to provide the additional
+current required.

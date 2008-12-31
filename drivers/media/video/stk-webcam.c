@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/kref.h>
 
 #include <linux/usb.h>
 #include <linux/mm.h>
@@ -560,7 +559,7 @@ static void stk_clean_iso(struct stk_camera *dev)
 
 		urb = dev->isobufs[i].urb;
 		if (urb) {
-			if (atomic_read(&dev->urbs_used))
+			if (atomic_read(&dev->urbs_used) && is_present(dev))
 				usb_kill_urb(urb);
 			usb_free_urb(urb);
 		}
@@ -689,18 +688,14 @@ static int v4l_stk_release(struct inode *inode, struct file *fp)
 {
 	struct stk_camera *dev = fp->private_data;
 
-	if (dev->owner != fp) {
-		usb_autopm_put_interface(dev->interface);
-		return 0;
+	if (dev->owner == fp) {
+		stk_stop_stream(dev);
+		stk_free_buffers(dev);
+		dev->owner = NULL;
 	}
 
-	stk_stop_stream(dev);
-
-	stk_free_buffers(dev);
-
-	dev->owner = NULL;
-
-	usb_autopm_put_interface(dev->interface);
+	if(is_present(dev))
+		usb_autopm_put_interface(dev->interface);
 
 	return 0;
 }
@@ -713,9 +708,6 @@ static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
 	unsigned long flags;
 	struct stk_sio_buffer *sbuf;
 	struct stk_camera *dev = fp->private_data;
-
-	if (dev == NULL)
-		return -EIO;
 
 	if (!is_present(dev))
 		return -EIO;
@@ -772,9 +764,6 @@ static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
 static unsigned int v4l_stk_poll(struct file *fp, poll_table *wait)
 {
 	struct stk_camera *dev = fp->private_data;
-
-	if (dev == NULL)
-		return -ENODEV;
 
 	poll_wait(fp, &dev->wait_frame, wait);
 
@@ -1273,6 +1262,25 @@ static int stk_vidioc_g_parm(struct file *filp,
 	return 0;
 }
 
+static int stk_vidioc_enum_framesizes(struct file *filp,
+		void *priv, struct v4l2_frmsizeenum *frms)
+{
+	if (frms->index >= ARRAY_SIZE(stk_sizes))
+		return -EINVAL;
+	switch (frms->pixel_format) {
+	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_RGB565X:
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_SBGGR8:
+		frms->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+		frms->discrete.width = stk_sizes[frms->index].w;
+		frms->discrete.height = stk_sizes[frms->index].h;
+		return 0;
+	default: return -EINVAL;
+	}
+}
+
 static struct file_operations v4l_stk_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l_stk_open,
@@ -1307,6 +1315,7 @@ static const struct v4l2_ioctl_ops v4l_stk_ioctl_ops = {
 	.vidioc_g_ctrl = stk_vidioc_g_ctrl,
 	.vidioc_s_ctrl = stk_vidioc_s_ctrl,
 	.vidioc_g_parm = stk_vidioc_g_parm,
+	.vidioc_enum_framesizes = stk_vidioc_enum_framesizes,
 };
 
 static void stk_v4l_dev_release(struct video_device *vd)
@@ -1342,7 +1351,7 @@ static int stk_register_video_device(struct stk_camera *dev)
 		STK_ERROR("v4l registration failed\n");
 	else
 		STK_INFO("Syntek USB2.0 Camera is now controlling video device"
-			" /dev/video%d\n", dev->vdev.minor);
+			" /dev/video%d\n", dev->vdev.num);
 	return err;
 }
 
@@ -1387,12 +1396,9 @@ static int stk_camera_probe(struct usb_interface *interface,
 		endpoint = &iface_desc->endpoint[i].desc;
 
 		if (!dev->isoc_ep
-			&& ((endpoint->bEndpointAddress
-				& USB_ENDPOINT_DIR_MASK) == USB_DIR_IN)
-			&& ((endpoint->bmAttributes
-				& USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_ISOC)) {
+			&& usb_endpoint_is_isoc_in(endpoint)) {
 			/* we found an isoc in endpoint */
-			dev->isoc_ep = (endpoint->bEndpointAddress & 0xF);
+			dev->isoc_ep = usb_endpoint_num(endpoint);
 			break;
 		}
 	}
@@ -1436,8 +1442,8 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 	wake_up_interruptible(&dev->wait_frame);
 	stk_remove_sysfs_files(&dev->vdev);
 
-	STK_INFO("Syntek USB2.0 Camera release resources"
-		"video device /dev/video%d\n", dev->vdev.minor);
+	STK_INFO("Syntek USB2.0 Camera release resources "
+		"video device /dev/video%d\n", dev->vdev.num);
 
 	video_unregister_device(&dev->vdev);
 }

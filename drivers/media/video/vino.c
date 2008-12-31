@@ -30,10 +30,7 @@
 #include <linux/mm.h>
 #include <linux/time.h>
 #include <linux/version.h>
-
-#ifdef CONFIG_KMOD
 #include <linux/kmod.h>
-#endif
 
 #include <linux/i2c.h>
 #include <linux/i2c-algo-sgi.h>
@@ -4240,8 +4237,7 @@ error:
 	return ret;
 }
 
-static int vino_do_ioctl(struct inode *inode, struct file *file,
-		      unsigned int cmd, void *arg)
+static int vino_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
 
@@ -4356,7 +4352,7 @@ static int vino_ioctl(struct inode *inode, struct file *file,
 	if (mutex_lock_interruptible(&vcs->mutex))
 		return -EINTR;
 
-	ret = video_usercopy(inode, file, cmd, arg, vino_do_ioctl);
+	ret = video_usercopy(file, cmd, arg, vino_do_ioctl);
 
 	mutex_unlock(&vcs->mutex);
 
@@ -4634,7 +4630,7 @@ static int __init vino_module_init(void)
 	}
 	vino_init_stage++;
 
-#if defined(CONFIG_KMOD) && defined(MODULE)
+#ifdef MODULE
 	request_module("saa7191");
 	request_module("indycam");
 #endif

@@ -40,6 +40,7 @@
 #include <linux/capability.h>
 #include <linux/rcupdate.h>
 #include <linux/completion.h>
+#include <linux/tracehook.h>
 
 #include <asm/errno.h>
 #include <asm/intrinsics.h>
@@ -1994,11 +1995,6 @@ pfm_close(struct inode *inode, struct file *filp)
 		return -EBADF;
 	}
 
-	if (filp->f_flags & FASYNC) {
-		DPRINT(("cleaning up async_queue=%p\n", ctx->ctx_async_queue));
-		pfm_do_fasync(-1, filp, ctx, 0);
-	}
-
 	PROTECT_CTX(ctx, flags);
 
 	state     = ctx->ctx_state;
@@ -2224,8 +2220,8 @@ pfm_alloc_file(pfm_context_t *ctx)
 	DPRINT(("new inode ino=%ld @%p\n", inode->i_ino, inode));
 
 	inode->i_mode = S_IFCHR|S_IRUGO;
-	inode->i_uid  = current->fsuid;
-	inode->i_gid  = current->fsgid;
+	inode->i_uid  = current_fsuid();
+	inode->i_gid  = current_fsgid();
 
 	sprintf(name, "[%lu]", inode->i_ino);
 	this.name = name;
@@ -2403,22 +2399,33 @@ error_kmem:
 static int
 pfm_bad_permissions(struct task_struct *task)
 {
+	const struct cred *tcred;
+	uid_t uid = current_uid();
+	gid_t gid = current_gid();
+	int ret;
+
+	rcu_read_lock();
+	tcred = __task_cred(task);
+
 	/* inspired by ptrace_attach() */
 	DPRINT(("cur: uid=%d gid=%d task: euid=%d suid=%d uid=%d egid=%d sgid=%d\n",
-		current->uid,
-		current->gid,
-		task->euid,
-		task->suid,
-		task->uid,
-		task->egid,
-		task->sgid));
+		uid,
+		gid,
+		tcred->euid,
+		tcred->suid,
+		tcred->uid,
+		tcred->egid,
+		tcred->sgid));
 
-	return ((current->uid != task->euid)
-	    || (current->uid != task->suid)
-	    || (current->uid != task->uid)
-	    || (current->gid != task->egid)
-	    || (current->gid != task->sgid)
-	    || (current->gid != task->gid)) && !capable(CAP_SYS_PTRACE);
+	ret = ((uid != tcred->euid)
+	       || (uid != tcred->suid)
+	       || (uid != tcred->uid)
+	       || (gid != tcred->egid)
+	       || (gid != tcred->sgid)
+	       || (gid != tcred->gid)) && !capable(CAP_SYS_PTRACE);
+
+	rcu_read_unlock();
+	return ret;
 }
 
 static int
@@ -3684,7 +3691,7 @@ pfm_restart(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 
 		PFM_SET_WORK_PENDING(task, 1);
 
-		tsk_set_notify_resume(task);
+		set_notify_resume(task);
 
 		/*
 		 * XXX: send reschedule if task runs on another CPU
@@ -5044,8 +5051,6 @@ pfm_handle_work(void)
 
 	PFM_SET_WORK_PENDING(current, 0);
 
-	tsk_clear_notify_resume(current);
-
 	regs = task_pt_regs(current);
 
 	/*
@@ -5414,7 +5419,7 @@ pfm_overflow_handler(struct task_struct *task, pfm_context_t *ctx, u64 pmc0, str
 			 * when coming from ctxsw, current still points to the
 			 * previous task, therefore we must work with task and not current.
 			 */
-			tsk_set_notify_resume(task);
+			set_notify_resume(task);
 		}
 		/*
 		 * defer until state is changed (shorten spin window). the context is locked

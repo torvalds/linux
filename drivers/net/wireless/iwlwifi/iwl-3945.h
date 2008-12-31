@@ -19,7 +19,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -50,11 +50,15 @@ extern struct pci_device_id iwl3945_hw_card_ids[];
 #include "iwl-3945-debug.h"
 #include "iwl-3945-led.h"
 
-/* Change firmware file name, using "-" and incrementing number,
- *   *only* when uCode interface or architecture changes so that it
- *   is not compatible with earlier drivers.
- * This number will also appear in << 8 position of 1st dword of uCode file */
-#define IWL3945_UCODE_API "-1"
+/* Highest firmware API version supported */
+#define IWL3945_UCODE_API_MAX 2
+
+/* Lowest firmware API version supported */
+#define IWL3945_UCODE_API_MIN 1
+
+#define IWL3945_FW_PRE	"iwlwifi-3945-"
+#define _IWL3945_MODULE_FIRMWARE(api) IWL3945_FW_PRE #api ".ucode"
+#define IWL3945_MODULE_FIRMWARE(api) _IWL3945_MODULE_FIRMWARE(api)
 
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:
@@ -401,12 +405,6 @@ struct iwl3945_rx_queue {
 
 #define SCAN_INTERVAL 100
 
-#define MAX_A_CHANNELS  252
-#define MIN_A_CHANNELS  7
-
-#define MAX_B_CHANNELS  14
-#define MIN_B_CHANNELS  1
-
 #define STATUS_HCMD_ACTIVE	0	/* host command in progress */
 #define STATUS_HCMD_SYNC_ACTIVE	1	/* sync host command in progress */
 #define STATUS_INT_ENABLED	2
@@ -472,7 +470,6 @@ union iwl3945_qos_capabity {
 
 /* QoS structures */
 struct iwl3945_qos_info {
-	int qos_enable;
 	int qos_active;
 	union iwl3945_qos_capabity qos_cap;
 	struct iwl3945_qosparam_cmd def_qos_parm;
@@ -505,7 +502,7 @@ struct fw_desc {
 
 /* uCode file layout */
 struct iwl3945_ucode {
-	__le32 ver;		/* major/minor/subminor */
+	__le32 ver;		/* major/minor/API/serial */
 	__le32 inst_size;	/* bytes of runtime instructions */
 	__le32 data_size;	/* bytes of runtime data */
 	__le32 init_size;	/* bytes of initialization instructions */
@@ -587,8 +584,7 @@ extern int iwl3945_send_cmd_pdu(struct iwl3945_priv *priv, u8 id, u16 len,
 extern int __must_check iwl3945_send_cmd(struct iwl3945_priv *priv,
 		struct iwl3945_host_cmd *cmd);
 extern unsigned int iwl3945_fill_beacon_frame(struct iwl3945_priv *priv,
-					struct ieee80211_hdr *hdr,
-					const u8 *dest, int left);
+					struct ieee80211_hdr *hdr,int left);
 extern int iwl3945_rx_queue_update_write_ptr(struct iwl3945_priv *priv,
 					 struct iwl3945_rx_queue *q);
 extern int iwl3945_send_statistics_request(struct iwl3945_priv *priv);
@@ -762,6 +758,8 @@ struct iwl3945_priv {
 	void __iomem *hw_base;
 
 	/* uCode images, save to reload in case of failure */
+	u32 ucode_ver;			/* ucode version, copy of
+					   iwl3945_ucode.ver */
 	struct fw_desc ucode_code;	/* runtime inst */
 	struct fw_desc ucode_data;	/* runtime data original */
 	struct fw_desc ucode_data_backup;	/* runtime data save/restore */
@@ -804,6 +802,8 @@ struct iwl3945_priv {
 	u16 active_rate;
 	u16 active_rate_basic;
 
+	u32 sta_supp_rates;
+
 	u8 call_post_assoc_from_beacon;
 	/* Rate scaling data */
 	s8 data_retry_limit;
@@ -828,8 +828,6 @@ struct iwl3945_priv {
 	unsigned long last_statistics_time;
 
 	/* context information */
-	u8 essid[IW_ESSID_MAX_SIZE];
-	u8 essid_len;
 	u16 rates_mask;
 
 	u32 power_mode;
@@ -888,7 +886,6 @@ struct iwl3945_priv {
 	struct work_struct report_work;
 	struct work_struct request_scan;
 	struct work_struct beacon_update;
-	struct work_struct set_monitor;
 
 	struct tasklet_struct irq_tasklet;
 
@@ -903,9 +900,6 @@ struct iwl3945_priv {
 	s8 user_txpower_limit;
 	s8 max_channel_txpower_limit;
 
-#ifdef CONFIG_PM
-	u32 pm_state[16];
-#endif
 
 #ifdef CONFIG_IWL3945_DEBUG
 	/* debugging info */
@@ -953,6 +947,8 @@ static inline int is_channel_ibss(const struct iwl3945_channel_info *ch)
 
 extern const struct iwl3945_channel_info *iwl3945_get_channel_info(
 	const struct iwl3945_priv *priv, enum ieee80211_band band, u16 channel);
+
+extern int iwl3945_rs_next_rate(struct iwl3945_priv *priv, int rate);
 
 /* Requires full declaration of iwl3945_priv before including */
 #include "iwl-3945-io.h"

@@ -72,7 +72,7 @@ do {	if (irda_debug >= (n)) \
 #define IRDA_ASSERT(expr, func) \
 do { if(!(expr)) { \
 	printk( "Assertion failed! %s:%s:%d %s\n", \
-		__FILE__,__FUNCTION__,__LINE__,(#expr) ); \
+		__FILE__,__func__,__LINE__,(#expr) ); \
 	func } } while (0)
 #define IRDA_ASSERT_LABEL(label)	label
 #else

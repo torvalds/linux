@@ -334,13 +334,16 @@ static int pda_power_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+static int ac_wakeup_enabled;
+static int usb_wakeup_enabled;
+
 static int pda_power_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	if (device_may_wakeup(&pdev->dev)) {
 		if (ac_irq)
-			enable_irq_wake(ac_irq->start);
+			ac_wakeup_enabled = !enable_irq_wake(ac_irq->start);
 		if (usb_irq)
-			enable_irq_wake(usb_irq->start);
+			usb_wakeup_enabled = !enable_irq_wake(usb_irq->start);
 	}
 
 	return 0;
@@ -349,9 +352,9 @@ static int pda_power_suspend(struct platform_device *pdev, pm_message_t state)
 static int pda_power_resume(struct platform_device *pdev)
 {
 	if (device_may_wakeup(&pdev->dev)) {
-		if (usb_irq)
+		if (usb_irq && usb_wakeup_enabled)
 			disable_irq_wake(usb_irq->start);
-		if (ac_irq)
+		if (ac_irq && ac_wakeup_enabled)
 			disable_irq_wake(ac_irq->start);
 	}
 

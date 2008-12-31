@@ -13,13 +13,17 @@
 #include <linux/reboot.h>
 #include <linux/threads.h>
 #include <linux/lmb.h>
+#include <linux/of.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>
+#include <asm/sections.h>
 
 void machine_crash_shutdown(struct pt_regs *regs)
 {
 	if (ppc_md.machine_crash_shutdown)
 		ppc_md.machine_crash_shutdown(regs);
+	else
+		default_machine_crash_shutdown(regs);
 }
 
 /*
@@ -31,11 +35,8 @@ int machine_kexec_prepare(struct kimage *image)
 {
 	if (ppc_md.machine_kexec_prepare)
 		return ppc_md.machine_kexec_prepare(image);
-	/*
-	 * Fail if platform doesn't provide its own machine_kexec_prepare
-	 * implementation.
-	 */
-	return -ENOSYS;
+	else
+		return default_machine_kexec_prepare(image);
 }
 
 void machine_kexec_cleanup(struct kimage *image)
@@ -52,13 +53,11 @@ void machine_kexec(struct kimage *image)
 {
 	if (ppc_md.machine_kexec)
 		ppc_md.machine_kexec(image);
-	else {
-		/*
-		 * Fall back to normal restart if platform doesn't provide
-		 * its own kexec function, and user insist to kexec...
-		 */
-		machine_restart(NULL);
-	}
+	else
+		default_machine_kexec(image);
+
+	/* Fall back to normal restart if we're still alive. */
+	machine_restart(NULL);
 	for(;;);
 }
 
@@ -88,11 +87,13 @@ void __init reserve_crashkernel(void)
 
 	crash_size = crashk_res.end - crashk_res.start + 1;
 
+#ifndef CONFIG_RELOCATABLE
 	if (crashk_res.start != KDUMP_KERNELBASE)
 		printk("Crash kernel location must be 0x%x\n",
 				KDUMP_KERNELBASE);
 
 	crashk_res.start = KDUMP_KERNELBASE;
+#endif
 	crash_size = PAGE_ALIGN(crash_size);
 	crashk_res.end = crashk_res.start + crash_size - 1;
 
@@ -116,3 +117,71 @@ int overlaps_crashkernel(unsigned long start, unsigned long size)
 {
 	return (start + size) > crashk_res.start && start <= crashk_res.end;
 }
+
+/* Values we need to export to the second kernel via the device tree. */
+static unsigned long kernel_end;
+static unsigned long crashk_size;
+
+static struct property kernel_end_prop = {
+	.name = "linux,kernel-end",
+	.length = sizeof(unsigned long),
+	.value = &kernel_end,
+};
+
+static struct property crashk_base_prop = {
+	.name = "linux,crashkernel-base",
+	.length = sizeof(unsigned long),
+	.value = &crashk_res.start,
+};
+
+static struct property crashk_size_prop = {
+	.name = "linux,crashkernel-size",
+	.length = sizeof(unsigned long),
+	.value = &crashk_size,
+};
+
+static void __init export_crashk_values(struct device_node *node)
+{
+	struct property *prop;
+
+	/* There might be existing crash kernel properties, but we can't
+	 * be sure what's in them, so remove them. */
+	prop = of_find_property(node, "linux,crashkernel-base", NULL);
+	if (prop)
+		prom_remove_property(node, prop);
+
+	prop = of_find_property(node, "linux,crashkernel-size", NULL);
+	if (prop)
+		prom_remove_property(node, prop);
+
+	if (crashk_res.start != 0) {
+		prom_add_property(node, &crashk_base_prop);
+		crashk_size = crashk_res.end - crashk_res.start + 1;
+		prom_add_property(node, &crashk_size_prop);
+	}
+}
+
+static int __init kexec_setup(void)
+{
+	struct device_node *node;
+	struct property *prop;
+
+	node = of_find_node_by_path("/chosen");
+	if (!node)
+		return -ENOENT;
+
+	/* remove any stale properties so ours can be found */
+	prop = of_find_property(node, kernel_end_prop.name, NULL);
+	if (prop)
+		prom_remove_property(node, prop);
+
+	/* information needed by userspace when using default_machine_kexec */
+	kernel_end = __pa(_end);
+	prom_add_property(node, &kernel_end_prop);
+
+	export_crashk_values(node);
+
+	of_node_put(node);
+	return 0;
+}
+late_initcall(kexec_setup);

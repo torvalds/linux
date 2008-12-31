@@ -17,6 +17,7 @@
 #include <asm/io_apic.h>
 #include <asm/apic.h>
 #include <asm/iommu.h>
+#include <asm/gart.h>
 
 static void __init fix_hypertransport_config(int num, int slot, int func)
 {
@@ -95,7 +96,8 @@ static void __init nvidia_bugs(int num, int slot, int func)
 
 }
 
-static u32 ati_ixp4x0_rev(int num, int slot, int func)
+#if defined(CONFIG_ACPI) && defined(CONFIG_X86_IO_APIC)
+static u32 __init ati_ixp4x0_rev(int num, int slot, int func)
 {
 	u32 d;
 	u8  b;
@@ -115,7 +117,6 @@ static u32 ati_ixp4x0_rev(int num, int slot, int func)
 
 static void __init ati_bugs(int num, int slot, int func)
 {
-#if defined(CONFIG_ACPI) && defined (CONFIG_X86_IO_APIC)
 	u32 d;
 	u8  b;
 
@@ -138,20 +139,53 @@ static void __init ati_bugs(int num, int slot, int func)
 		printk(KERN_INFO "If you got timer trouble "
 		       "try acpi_use_timer_override\n");
 	}
-#endif
 }
 
-#ifdef CONFIG_DMAR
-static void __init intel_g33_dmar(int num, int slot, int func)
+static u32 __init ati_sbx00_rev(int num, int slot, int func)
 {
-	struct acpi_table_header *dmar_tbl;
-	acpi_status status;
+	u32 old, d;
 
-	status = acpi_get_table(ACPI_SIG_DMAR, 0, &dmar_tbl);
-	if (ACPI_SUCCESS(status)) {
-		printk(KERN_INFO "BIOS BUG: DMAR advertised on Intel G31/G33 chipset -- ignoring\n");
-		dmar_disabled = 1;
+	d = read_pci_config(num, slot, func, 0x70);
+	old = d;
+	d &= ~(1<<8);
+	write_pci_config(num, slot, func, 0x70, d);
+	d = read_pci_config(num, slot, func, 0x8);
+	d &= 0xff;
+	write_pci_config(num, slot, func, 0x70, old);
+
+	return d;
+}
+
+static void __init ati_bugs_contd(int num, int slot, int func)
+{
+	u32 d, rev;
+
+	if (acpi_use_timer_override)
+		return;
+
+	rev = ati_sbx00_rev(num, slot, func);
+	if (rev > 0x13)
+		return;
+
+	/* check for IRQ0 interrupt swap */
+	d = read_pci_config(num, slot, func, 0x64);
+	if (!(d & (1<<14)))
+		acpi_skip_timer_override = 1;
+
+	if (acpi_skip_timer_override) {
+		printk(KERN_INFO "SB600 revision 0x%x\n", rev);
+		printk(KERN_INFO "Ignoring ACPI timer override.\n");
+		printk(KERN_INFO "If you got timer trouble "
+		       "try acpi_use_timer_override\n");
 	}
+}
+#else
+static void __init ati_bugs(int num, int slot, int func)
+{
+}
+
+static void __init ati_bugs_contd(int num, int slot, int func)
+{
 }
 #endif
 
@@ -176,10 +210,8 @@ static struct chipset early_qrk[] __initdata = {
 	  PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, fix_hypertransport_config },
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP400_SMBUS,
 	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs },
-#ifdef CONFIG_DMAR
-	{ PCI_VENDOR_ID_INTEL, 0x29c0,
-	  PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, intel_g33_dmar },
-#endif
+	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
+	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs_contd },
 	{}
 };
 

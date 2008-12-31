@@ -61,6 +61,8 @@ void of_register_spi_devices(struct spi_master *master, struct device_node *np)
 			spi->mode |= SPI_CPHA;
 		if (of_find_property(nc, "spi-cpol", NULL))
 			spi->mode |= SPI_CPOL;
+		if (of_find_property(nc, "spi-cs-high", NULL))
+			spi->mode |= SPI_CS_HIGH;
 
 		/* Device speed */
 		prop = of_get_property(nc, "spi-max-frequency", &len);

@@ -62,12 +62,13 @@
 
 #include <asm/mach/irq.h>
 
+#include <plat/regs-irqtype.h>
 #include <mach/regs-irq.h>
 #include <mach/regs-gpio.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
-#include <asm/plat-s3c24xx/irq.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
+#include <plat/irq.h>
 
 /* wakeup irq control */
 

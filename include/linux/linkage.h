@@ -4,8 +4,6 @@
 #include <linux/compiler.h>
 #include <asm/linkage.h>
 
-#define notrace __attribute__((no_instrument_function))
-
 #ifdef __cplusplus
 #define CPP_ASMLINKAGE extern "C"
 #else
@@ -65,14 +63,6 @@
 	.weak name;	   \
 	name:
 #endif
-
-#define KPROBE_ENTRY(name) \
-  .pushsection .kprobes.text, "ax"; \
-  ENTRY(name)
-
-#define KPROBE_END(name) \
-  END(name);		 \
-  .popsection
 
 #ifndef END
 #define END(name) \

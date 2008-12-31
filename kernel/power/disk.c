@@ -14,6 +14,7 @@
 #include <linux/reboot.h>
 #include <linux/string.h>
 #include <linux/device.h>
+#include <linux/kmod.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -21,7 +22,6 @@
 #include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>
-#include <linux/ftrace.h>
 
 #include "power.h"
 
@@ -256,7 +256,7 @@ static int create_image(int platform_mode)
 
 int hibernation_snapshot(int platform_mode)
 {
-	int error, ftrace_save;
+	int error;
 
 	/* Free memory before shutting down devices. */
 	error = swsusp_shrink_memory();
@@ -268,7 +268,6 @@ int hibernation_snapshot(int platform_mode)
 		goto Close;
 
 	suspend_console();
-	ftrace_save = __ftrace_enabled_save();
 	error = device_suspend(PMSG_FREEZE);
 	if (error)
 		goto Recover_platform;
@@ -298,7 +297,6 @@ int hibernation_snapshot(int platform_mode)
  Resume_devices:
 	device_resume(in_suspend ?
 		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
-	__ftrace_enabled_restore(ftrace_save);
 	resume_console();
  Close:
 	platform_end(platform_mode);
@@ -369,11 +367,10 @@ static int resume_target_kernel(void)
 
 int hibernation_restore(int platform_mode)
 {
-	int error, ftrace_save;
+	int error;
 
 	pm_prepare_console();
 	suspend_console();
-	ftrace_save = __ftrace_enabled_save();
 	error = device_suspend(PMSG_QUIESCE);
 	if (error)
 		goto Finish;
@@ -388,7 +385,6 @@ int hibernation_restore(int platform_mode)
 	platform_restore_cleanup(platform_mode);
 	device_resume(PMSG_RECOVER);
  Finish:
-	__ftrace_enabled_restore(ftrace_save);
 	resume_console();
 	pm_restore_console();
 	return error;
@@ -401,7 +397,7 @@ int hibernation_restore(int platform_mode)
 
 int hibernation_platform_enter(void)
 {
-	int error, ftrace_save;
+	int error;
 
 	if (!hibernation_ops)
 		return -ENOSYS;
@@ -416,7 +412,6 @@ int hibernation_platform_enter(void)
 		goto Close;
 
 	suspend_console();
-	ftrace_save = __ftrace_enabled_save();
 	error = device_suspend(PMSG_HIBERNATE);
 	if (error) {
 		if (hibernation_ops->recover)
@@ -451,7 +446,6 @@ int hibernation_platform_enter(void)
 	hibernation_ops->finish();
  Resume_devices:
 	device_resume(PMSG_RESTORE);
-	__ftrace_enabled_restore(ftrace_save);
 	resume_console();
  Close:
 	hibernation_ops->end();
@@ -520,6 +514,10 @@ int hibernate(void)
 	if (error)
 		goto Exit;
 
+	error = usermodehelper_disable();
+	if (error)
+		goto Exit;
+
 	/* Allocate memory management structures */
 	error = create_basic_memory_bitmaps();
 	if (error)
@@ -558,6 +556,7 @@ int hibernate(void)
 	thaw_processes();
  Finish:
 	free_basic_memory_bitmaps();
+	usermodehelper_enable();
  Exit:
 	pm_notifier_call_chain(PM_POST_HIBERNATION);
 	pm_restore_console();
@@ -634,6 +633,10 @@ static int software_resume(void)
 	if (error)
 		goto Finish;
 
+	error = usermodehelper_disable();
+	if (error)
+		goto Finish;
+
 	error = create_basic_memory_bitmaps();
 	if (error)
 		goto Finish;
@@ -641,7 +644,7 @@ static int software_resume(void)
 	pr_debug("PM: Preparing processes for restore.\n");
 	error = prepare_processes();
 	if (error) {
-		swsusp_close();
+		swsusp_close(FMODE_READ);
 		goto Done;
 	}
 
@@ -656,6 +659,7 @@ static int software_resume(void)
 	thaw_processes();
  Done:
 	free_basic_memory_bitmaps();
+	usermodehelper_enable();
  Finish:
 	pm_notifier_call_chain(PM_POST_RESTORE);
 	pm_restore_console();

@@ -60,7 +60,6 @@ static struct pvr2_hdw *unit_pointers[PVR_NUM] = {[ 0 ... PVR_NUM-1 ] = NULL};
 static DEFINE_MUTEX(pvr2_unit_mtx);
 
 static int ctlchg;
-static int initusbreset = 1;
 static int procreload;
 static int tuner[PVR_NUM] = { [0 ... PVR_NUM-1] = -1 };
 static int tolerance[PVR_NUM] = { [0 ... PVR_NUM-1] = 0 };
@@ -71,8 +70,6 @@ module_param(ctlchg, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ctlchg, "0=optimize ctl change 1=always accept new ctl value");
 module_param(init_pause_msec, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(init_pause_msec, "hardware initialization settling delay");
-module_param(initusbreset, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(initusbreset, "Do USB reset device on probe");
 module_param(procreload, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(procreload,
 		 "Attempt init failure recovery with firmware reload");
@@ -1967,9 +1964,6 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	}
 	hdw->fw1_state = FW1_STATE_OK;
 
-	if (initusbreset) {
-		pvr2_hdw_device_reset(hdw);
-	}
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
 	for (idx = 0; idx < hdw->hdw_desc->client_modules.cnt; idx++) {
@@ -2401,7 +2395,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	scnprintf(hdw->bus_info,sizeof(hdw->bus_info),
 		  "usb %s address %d",
-		  hdw->usb_dev->dev.bus_id,
+		  dev_name(&hdw->usb_dev->dev),
 		  hdw->usb_dev->devnum);
 
 	ifnum = hdw->usb_intf->cur_altsetting->desc.bInterfaceNumber;

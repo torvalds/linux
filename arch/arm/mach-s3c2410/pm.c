@@ -34,8 +34,8 @@
 #include <mach/regs-gpio.h>
 #include <mach/h1940.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
 
 #ifdef CONFIG_S3C2410_PM_DEBUG
 extern void pm_dbg(const char *fmt, ...);

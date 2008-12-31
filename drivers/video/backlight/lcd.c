@@ -42,10 +42,13 @@ static int fb_notifier_callback(struct notifier_block *self,
 
 	mutex_lock(&ld->ops_lock);
 	if (!ld->ops->check_fb || ld->ops->check_fb(ld, evdata->info)) {
-		if (event == FB_EVENT_BLANK)
-			ld->ops->set_power(ld, *(int *)evdata->data);
-		else
-			ld->ops->set_mode(ld, evdata->data);
+		if (event == FB_EVENT_BLANK) {
+			if (ld->ops->set_power)
+				ld->ops->set_power(ld, *(int *)evdata->data);
+		} else {
+			if (ld->ops->set_mode)
+				ld->ops->set_mode(ld, evdata->data);
+		}
 	}
 	mutex_unlock(&ld->ops_lock);
 	return 0;

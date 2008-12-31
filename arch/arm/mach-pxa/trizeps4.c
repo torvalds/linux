@@ -399,7 +399,7 @@ static void trizeps4_irda_transceiver_mode(struct device *dev, int mode)
 	/* Switch mode */
 	if (mode & IR_SIRMODE)
 		trizeps_conxs_ircr &= ~ConXS_IRCR_MODE;	/* Slow mode */
-	else if (mode & IR_FIRMODE) {
+	else if (mode & IR_FIRMODE)
 		trizeps_conxs_ircr |= ConXS_IRCR_MODE;	/* Fast mode */
 
 	/* Switch power */

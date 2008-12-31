@@ -1620,21 +1620,25 @@ sl811h_probe(struct platform_device *dev)
 {
 	struct usb_hcd		*hcd;
 	struct sl811		*sl811;
-	struct resource		*addr, *data;
+	struct resource		*addr, *data, *ires;
 	int			irq;
 	void __iomem		*addr_reg;
 	void __iomem		*data_reg;
 	int			retval;
 	u8			tmp, ioaddr = 0;
+	unsigned long		irqflags;
 
 	/* basic sanity checks first.  board-specific init logic should
 	 * have initialized these three resources and probably board
 	 * specific platform_data.  we don't probe for IRQs, and do only
 	 * minimal sanity checking.
 	 */
-	irq = platform_get_irq(dev, 0);
-	if (dev->num_resources < 3 || irq < 0)
+	ires = platform_get_resource(dev, IORESOURCE_IRQ, 0);
+	if (dev->num_resources < 3 || !ires)
 		return -ENODEV;
+
+	irq = ires->start;
+	irqflags = ires->flags & IRQF_TRIGGER_MASK;
 
 	/* refuse to confuse usbcore */
 	if (dev->dev.dma_mask) {
@@ -1717,8 +1721,11 @@ sl811h_probe(struct platform_device *dev)
 	 * triggers (e.g. most ARM CPUs).  Initial driver stress testing
 	 * was on a system with single edge triggering, so most sorts of
 	 * triggering arrangement should work.
+	 *
+	 * Use resource IRQ flags if set by platform device setup.
 	 */
-	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	irqflags |= IRQF_SHARED;
+	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | irqflags);
 	if (retval != 0)
 		goto err6;
 

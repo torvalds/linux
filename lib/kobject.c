@@ -387,11 +387,17 @@ EXPORT_SYMBOL_GPL(kobject_init_and_add);
  * kobject_rename - change the name of an object
  * @kobj: object in question.
  * @new_name: object's new name
+ *
+ * It is the responsibility of the caller to provide mutual
+ * exclusion between two different calls of kobject_rename
+ * on the same kobject and to ensure that new_name is valid and
+ * won't conflict with other kobjects.
  */
 int kobject_rename(struct kobject *kobj, const char *new_name)
 {
 	int error = 0;
 	const char *devpath = NULL;
+	const char *dup_name = NULL, *name;
 	char *devpath_string = NULL;
 	char *envp[2];
 
@@ -400,19 +406,6 @@ int kobject_rename(struct kobject *kobj, const char *new_name)
 		return -EINVAL;
 	if (!kobj->parent)
 		return -EINVAL;
-
-	/* see if this name is already in use */
-	if (kobj->kset) {
-		struct kobject *temp_kobj;
-		temp_kobj = kset_find_obj(kobj->kset, new_name);
-		if (temp_kobj) {
-			printk(KERN_WARNING "kobject '%s' cannot be renamed "
-			       "to '%s' as '%s' is already in existence.\n",
-			       kobject_name(kobj), new_name, new_name);
-			kobject_put(temp_kobj);
-			return -EINVAL;
-		}
-	}
 
 	devpath = kobject_get_path(kobj, GFP_KERNEL);
 	if (!devpath) {
@@ -428,15 +421,27 @@ int kobject_rename(struct kobject *kobj, const char *new_name)
 	envp[0] = devpath_string;
 	envp[1] = NULL;
 
+	name = dup_name = kstrdup(new_name, GFP_KERNEL);
+	if (!name) {
+		error = -ENOMEM;
+		goto out;
+	}
+
 	error = sysfs_rename_dir(kobj, new_name);
+	if (error)
+		goto out;
+
+	/* Install the new kobject name */
+	dup_name = kobj->name;
+	kobj->name = name;
 
 	/* This function is mostly/only used for network interface.
 	 * Some hotplug package track interfaces by their name and
 	 * therefore want to know when the name is changed by the user. */
-	if (!error)
-		kobject_uevent_env(kobj, KOBJ_MOVE, envp);
+	kobject_uevent_env(kobj, KOBJ_MOVE, envp);
 
 out:
+	kfree(dup_name);
 	kfree(devpath_string);
 	kfree(devpath);
 	kobject_put(kobj);

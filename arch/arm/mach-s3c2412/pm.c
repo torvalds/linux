@@ -28,10 +28,10 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-dsc.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
 
-#include <asm/plat-s3c24xx/s3c2412.h>
+#include <plat/s3c2412.h>
 
 extern void s3c2412_sleep_enter(void);
 

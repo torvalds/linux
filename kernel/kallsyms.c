@@ -30,20 +30,19 @@
 #define all_var 0
 #endif
 
-/* These will be re-linked against their real values during the second link stage */
-extern const unsigned long kallsyms_addresses[] __attribute__((weak));
-extern const u8 kallsyms_names[] __attribute__((weak));
+extern const unsigned long kallsyms_addresses[];
+extern const u8 kallsyms_names[];
 
 /* tell the compiler that the count isn't in the small data section if the arch
  * has one (eg: FRV)
  */
 extern const unsigned long kallsyms_num_syms
-__attribute__((weak, section(".rodata")));
+	__attribute__((__section__(".rodata")));
 
-extern const u8 kallsyms_token_table[] __attribute__((weak));
-extern const u16 kallsyms_token_index[] __attribute__((weak));
+extern const u8 kallsyms_token_table[];
+extern const u16 kallsyms_token_index[];
 
-extern const unsigned long kallsyms_markers[] __attribute__((weak));
+extern const unsigned long kallsyms_markers[];
 
 static inline int is_kernel_inittext(unsigned long addr)
 {
@@ -168,9 +167,6 @@ static unsigned long get_symbol_pos(unsigned long addr,
 	unsigned long symbol_start = 0, symbol_end = 0;
 	unsigned long i, low, high, mid;
 
-	/* This kernel should never had been booted. */
-	BUG_ON(!kallsyms_addresses);
-
 	/* do a binary search on the sorted kallsyms_addresses array */
 	low = 0;
 	high = kallsyms_num_syms;
@@ -260,7 +256,6 @@ const char *kallsyms_lookup(unsigned long addr,
 	/* see if it's in a module */
 	return module_address_lookup(addr, symbolsize, offset, modname,
 				     namebuf);
-	return NULL;
 }
 
 int lookup_symbol_name(unsigned long addr, char *symname)
@@ -305,17 +300,24 @@ int sprint_symbol(char *buffer, unsigned long address)
 	char *modname;
 	const char *name;
 	unsigned long offset, size;
-	char namebuf[KSYM_NAME_LEN];
+	int len;
 
-	name = kallsyms_lookup(address, &size, &offset, &modname, namebuf);
+	name = kallsyms_lookup(address, &size, &offset, &modname, buffer);
 	if (!name)
 		return sprintf(buffer, "0x%lx", address);
 
+	if (name != buffer)
+		strcpy(buffer, name);
+	len = strlen(buffer);
+	buffer += len;
+
 	if (modname)
-		return sprintf(buffer, "%s+%#lx/%#lx [%s]", name, offset,
-				size, modname);
+		len += sprintf(buffer, "+%#lx/%#lx [%s]",
+						offset, size, modname);
 	else
-		return sprintf(buffer, "%s+%#lx/%#lx", name, offset, size);
+		len += sprintf(buffer, "+%#lx/%#lx", offset, size);
+
+	return len;
 }
 
 /* Look up a kernel symbol and print it to the kernel messages. */

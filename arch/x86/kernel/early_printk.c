@@ -875,49 +875,6 @@ static struct console early_dbgp_console = {
 };
 #endif
 
-/* Console interface to a host file on AMD's SimNow! */
-
-static int simnow_fd;
-
-enum {
-	MAGIC1 = 0xBACCD00A,
-	MAGIC2 = 0xCA110000,
-	XOPEN = 5,
-	XWRITE = 4,
-};
-
-static noinline long simnow(long cmd, long a, long b, long c)
-{
-	long ret;
-
-	asm volatile("cpuid" :
-		     "=a" (ret) :
-		     "b" (a), "c" (b), "d" (c), "0" (MAGIC1), "D" (cmd + MAGIC2));
-	return ret;
-}
-
-static void __init simnow_init(char *str)
-{
-	char *fn = "klog";
-
-	if (*str == '=')
-		fn = ++str;
-	/* error ignored */
-	simnow_fd = simnow(XOPEN, (unsigned long)fn, O_WRONLY|O_APPEND|O_CREAT, 0644);
-}
-
-static void simnow_write(struct console *con, const char *s, unsigned n)
-{
-	simnow(XWRITE, simnow_fd, (unsigned long)s, n);
-}
-
-static struct console simnow_console = {
-	.name =		"simnow",
-	.write =	simnow_write,
-	.flags =	CON_PRINTBUFFER,
-	.index =	-1,
-};
-
 /* Direct interface for emergencies */
 static struct console *early_console = &early_vga_console;
 static int __initdata early_console_initialized;
@@ -960,10 +917,6 @@ static int __init setup_early_printk(char *buf)
 		max_ypos = boot_params.screen_info.orig_video_lines;
 		current_ypos = boot_params.screen_info.orig_y;
 		early_console = &early_vga_console;
-	} else if (!strncmp(buf, "simnow", 6)) {
-		simnow_init(buf + 6);
-		early_console = &simnow_console;
-		keep_early = 1;
 #ifdef CONFIG_EARLY_PRINTK_DBGP
 	} else if (!strncmp(buf, "dbgp", 4)) {
 		if (early_dbgp_init(buf+4) < 0)

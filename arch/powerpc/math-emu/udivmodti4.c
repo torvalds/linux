@@ -1,6 +1,6 @@
 /* This has so very few changes over libgcc2's __udivmoddi4 it isn't funny.  */
 
-#include "soft-fp.h"
+#include <math-emu/soft-fp.h>
 
 #undef count_leading_zeros
 #define count_leading_zeros  __FP_CLZ

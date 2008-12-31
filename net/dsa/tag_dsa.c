@@ -159,9 +159,9 @@ static int dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	skb->dev = ds->ports[source_port];
 	skb_push(skb, ETH_HLEN);
+	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth_type_trans(skb, skb->dev);
 
-	skb->dev->last_rx = jiffies;
 	skb->dev->stats.rx_packets++;
 	skb->dev->stats.rx_bytes += skb->len;
 

@@ -17,6 +17,8 @@
 #include <linux/bitops.h>
 #include <linux/smp.h>
 #include <linux/nmi.h>
+#include <linux/kprobes.h>
+
 #include <asm/apic.h>
 #include <asm/intel_arch_perfmon.h>
 
@@ -336,7 +338,8 @@ static void single_msr_unreserve(void)
 	release_perfctr_nmi(wd_ops->perfctr);
 }
 
-static void single_msr_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
+static void __kprobes
+single_msr_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
 {
 	/* start the cycle over again */
 	write_watchdog_counter(wd->perfctr_msr, NULL, nmi_hz);
@@ -401,7 +404,7 @@ static int setup_p6_watchdog(unsigned nmi_hz)
 	return 1;
 }
 
-static void p6_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
+static void __kprobes p6_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
 {
 	/*
 	 * P6 based Pentium M need to re-unmask
@@ -605,7 +608,7 @@ static void p4_unreserve(void)
 	release_perfctr_nmi(MSR_P4_IQ_PERFCTR0);
 }
 
-static void p4_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
+static void __kprobes p4_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
 {
 	unsigned dummy;
 	/*
@@ -784,7 +787,7 @@ unsigned lapic_adjust_nmi_hz(unsigned hz)
 	return hz;
 }
 
-int lapic_wd_event(unsigned nmi_hz)
+int __kprobes lapic_wd_event(unsigned nmi_hz)
 {
 	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
 	u64 ctr;

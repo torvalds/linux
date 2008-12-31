@@ -60,7 +60,7 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 	do_div(c, 1000000000);
 	period_cycles = c;
 
-	if (period_cycles < 0)
+	if (period_cycles < 1)
 		period_cycles = 1;
 	prescale = (period_cycles - 1) / 1024;
 	pv = period_cycles / (prescale + 1) - 1;
@@ -173,7 +173,7 @@ static struct pwm_device *pwm_probe(struct platform_device *pdev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	pwm->clk = clk_get(&pdev->dev, "PWMCLK");
+	pwm->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pwm->clk)) {
 		ret = PTR_ERR(pwm->clk);
 		goto err_free;

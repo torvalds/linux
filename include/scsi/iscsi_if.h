@@ -213,6 +213,8 @@ enum iscsi_err {
 	ISCSI_ERR_DATA_DGST		= ISCSI_ERR_BASE + 15,
 	ISCSI_ERR_PARAM_NOT_FOUND	= ISCSI_ERR_BASE + 16,
 	ISCSI_ERR_NO_SCSI_CMD		= ISCSI_ERR_BASE + 17,
+	ISCSI_ERR_INVALID_HOST		= ISCSI_ERR_BASE + 18,
+	ISCSI_ERR_XMIT_FAILED		= ISCSI_ERR_BASE + 19,
 };
 
 /*
@@ -331,8 +333,11 @@ enum iscsi_host_param {
 #define CAP_TEXT_NEGO		0x80
 #define CAP_MARKERS		0x100
 #define CAP_FW_DB		0x200
-#define CAP_SENDTARGETS_OFFLOAD	0x400
-#define CAP_DATA_PATH_OFFLOAD	0x800
+#define CAP_SENDTARGETS_OFFLOAD	0x400	/* offload discovery process */
+#define CAP_DATA_PATH_OFFLOAD	0x800	/* offload entire IO path */
+#define CAP_DIGEST_OFFLOAD	0x1000	/* offload hdr and data digests */
+#define CAP_PADDING_OFFLOAD	0x2000	/* offload padding insertion, removal,
+					 and verification */
 
 /*
  * These flags describes reason of stop_conn() call

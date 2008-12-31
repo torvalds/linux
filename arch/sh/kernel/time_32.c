@@ -1,9 +1,9 @@
 /*
- *  arch/sh/kernel/time.c
+ *  arch/sh/kernel/time_32.c
  *
  *  Copyright (C) 1999  Tetsuya Okada & Niibe Yutaka
  *  Copyright (C) 2000  Philipp Rumpf <prumpf@tux.org>
- *  Copyright (C) 2002 - 2007  Paul Mundt
+ *  Copyright (C) 2002 - 2008  Paul Mundt
  *  Copyright (C) 2002  M. R. Brown  <mrbrown@linux-sh.org>
  *
  *  Some code taken from i386 version.
@@ -16,6 +16,8 @@
 #include <linux/timex.h>
 #include <linux/sched.h>
 #include <linux/clockchips.h>
+#include <linux/mc146818rtc.h>	/* for rtc_lock */
+#include <linux/smp.h>
 #include <asm/clock.h>
 #include <asm/rtc.h>
 #include <asm/timer.h>
@@ -122,11 +124,6 @@ void handle_timer_tick(void)
 {
 	if (current->pid)
 		profile_tick(CPU_PROFILING);
-
-#ifdef CONFIG_HEARTBEAT
-	if (sh_mv.mv_heartbeat != NULL)
-		sh_mv.mv_heartbeat();
-#endif
 
 	/*
 	 * Here we are in the timer irq handler. We just have irqs locally
@@ -253,12 +250,17 @@ void __init time_init(void)
 	set_normalized_timespec(&wall_to_monotonic,
 				-xtime.tv_sec, -xtime.tv_nsec);
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+	local_timer_setup(smp_processor_id());
+#endif
+
 	/*
 	 * Find the timer to use as the system timer, it will be
 	 * initialized for us.
 	 */
 	sys_timer = get_sys_timer();
 	printk(KERN_INFO "Using %s for system timer\n", sys_timer->name);
+
 
 	if (sys_timer->ops->read)
 		clocksource_sh.read = sys_timer->ops->read;
@@ -270,11 +272,4 @@ void __init time_init(void)
 		       ((sh_hpt_frequency + 500) / 1000) / 1000,
 		       ((sh_hpt_frequency + 500) / 1000) % 1000);
 
-#if defined(CONFIG_SH_KGDB)
-	/*
-	 * Set up kgdb as requested. We do it here because the serial
-	 * init uses the timer vars we just set up for figuring baud.
-	 */
-	kgdb_init();
-#endif
 }

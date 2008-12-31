@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/microdev.h>
+#include <mach/microdev.h>
 
 #define NUM_EXTERNAL_IRQS 16	/* IRL0 .. IRL15 */
 
@@ -67,27 +67,13 @@ static const struct {
 
 static void enable_microdev_irq(unsigned int irq);
 static void disable_microdev_irq(unsigned int irq);
-
-	/* shutdown is same as "disable" */
-#define shutdown_microdev_irq disable_microdev_irq
-
 static void mask_and_ack_microdev(unsigned int);
-static void end_microdev_irq(unsigned int irq);
 
-static unsigned int startup_microdev_irq(unsigned int irq)
-{
-	enable_microdev_irq(irq);
-	return 0;		/* never anything pending */
-}
-
-static struct hw_interrupt_type microdev_irq_type = {
-	.typename = "MicroDev-IRQ",
-	.startup = startup_microdev_irq,
-	.shutdown = shutdown_microdev_irq,
-	.enable = enable_microdev_irq,
-	.disable = disable_microdev_irq,
+static struct irq_chip microdev_irq_type = {
+	.name = "MicroDev-IRQ",
+	.unmask = enable_microdev_irq,
+	.mask = disable_microdev_irq,
 	.ack = mask_and_ack_microdev,
-	.end = end_microdev_irq
 };
 
 static void disable_microdev_irq(unsigned int irq)
@@ -130,11 +116,11 @@ static void enable_microdev_irq(unsigned int irq)
 	ctrl_outl(MICRODEV_FPGA_INTC_MASK(fpgaIrq), MICRODEV_FPGA_INTENB_REG);
 }
 
-	/* This functions sets the desired irq handler to be a MicroDev type */
+/* This function sets the desired irq handler to be a MicroDev type */
 static void __init make_microdev_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].chip = &microdev_irq_type;
+	set_irq_chip_and_handler(irq, &microdev_irq_type, handle_level_irq);
 	disable_microdev_irq(irq);
 }
 
@@ -143,17 +129,11 @@ static void mask_and_ack_microdev(unsigned int irq)
 	disable_microdev_irq(irq);
 }
 
-static void end_microdev_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_microdev_irq(irq);
-}
-
 extern void __init init_microdev_irq(void)
 {
 	int i;
 
-		/* disable interrupts on the FPGA INTC register */
+	/* disable interrupts on the FPGA INTC register */
 	ctrl_outl(~0ul, MICRODEV_FPGA_INTDSB_REG);
 
 	for (i = 0; i < NUM_EXTERNAL_IRQS; i++)
@@ -179,5 +159,3 @@ extern void microdev_print_fpga_intc_status(void)
 	printk("FPGA_INTPRI[3..0] = %08x:%08x:%08x:%08x\n", *intprid, *intpric, *intprib, *intpria);
 	printk("-------------------------------------------------------------------------------\n");
 }
-
-

@@ -40,4 +40,6 @@ extern void omap_dispc_enable_digit_out(int enable);
 extern int  omap_dispc_request_irq(void (*callback)(void *data), void *data);
 extern void omap_dispc_free_irq(void);
 
+extern const struct lcd_ctrl omap2_int_ctrl;
+
 #endif

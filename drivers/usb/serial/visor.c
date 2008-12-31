@@ -768,7 +768,7 @@ static int visor_probe(struct usb_serial *serial,
 	dbg("%s", __func__);
 
 	if (serial->dev->actconfig->desc.bConfigurationValue != 1) {
-		err("active config #%d != 1 ??",
+		dev_err(&serial->dev->dev, "active config #%d != 1 ??\n",
 			serial->dev->actconfig->desc.bConfigurationValue);
 		return -ENODEV;
 	}
@@ -971,11 +971,14 @@ static int __init visor_init(void)
 				break;
 			}
 		}
-		info(
-		  "Untested USB device specified at time of module insertion");
-		info("Warning: This is not guaranteed to work");
-		info("Using a newer kernel is preferred to this method");
-		info("Adding Palm OS protocol 4.x support for unknown device: 0x%x/0x%x",
+		printk(KERN_INFO KBUILD_MODNAME
+		       ": Untested USB device specified at time of module insertion\n");
+		printk(KERN_INFO KBUILD_MODNAME
+		       ": Warning: This is not guaranteed to work\n");
+		printk(KERN_INFO KBUILD_MODNAME
+		       ": Using a newer kernel is preferred to this method\n");
+		printk(KERN_INFO KBUILD_MODNAME
+		       ": Adding Palm OS protocol 4.x support for unknown device: 0x%x/0x%x\n",
 			vendor, product);
 	}
 	retval = usb_serial_register(&handspring_device);
@@ -990,7 +993,7 @@ static int __init visor_init(void)
 	retval = usb_register(&visor_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
 
 	return 0;
 failed_usb_register:

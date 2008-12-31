@@ -20,7 +20,6 @@
 #include <linux/seq_file.h>
 #include <linux/time.h>
 #include <linux/of.h>
-#include <linux/kexec.h>
 
 #include <asm/machdep.h>
 #include <asm/prom.h>
@@ -116,10 +115,7 @@ static void c2k_restart(char *cmd)
 
 void c2k_show_cpuinfo(struct seq_file *m)
 {
-	uint memsize = total_memory;
-
 	seq_printf(m, "Vendor\t\t: GEFanuc\n");
-	seq_printf(m, "Memory\t\t: %d MB\n", memsize / (1024 * 1024));
 	seq_printf(m, "coherency\t: %s\n", COHERENCY_SETTING);
 }
 
@@ -150,9 +146,4 @@ define_machine(c2k) {
 	.get_irq		= mv64x60_get_irq,
 	.restart		= c2k_restart,
 	.calibrate_decr		= generic_calibrate_decr,
-#ifdef CONFIG_KEXEC
-	.machine_kexec		= default_machine_kexec,
-	.machine_kexec_prepare	= default_machine_kexec_prepare,
-	.machine_crash_shutdown	= default_machine_crash_shutdown,
-#endif
 };

@@ -343,6 +343,11 @@ static ide_startstop_t idescsi_do_request (ide_drive_t *drive, struct request *r
 }
 
 #ifdef CONFIG_IDE_PROC_FS
+static ide_proc_entry_t idescsi_proc[] = {
+	{ "capacity", S_IFREG|S_IRUGO, proc_ide_read_capacity, NULL },
+	{ NULL, 0, NULL, NULL }
+};
+
 #define ide_scsi_devset_get(name, field) \
 static int get_##name(ide_drive_t *drive) \
 { \
@@ -378,6 +383,16 @@ static const struct ide_proc_devset idescsi_settings[] = {
 	IDE_PROC_DEVSET(transform, 0,	 3),
 	{ 0 },
 };
+
+static ide_proc_entry_t *ide_scsi_proc_entries(ide_drive_t *drive)
+{
+	return idescsi_proc;
+}
+
+static const struct ide_proc_devset *ide_scsi_proc_devsets(ide_drive_t *drive)
+{
+	return idescsi_settings;
+}
 #endif
 
 /*
@@ -419,13 +434,6 @@ static void ide_scsi_remove(ide_drive_t *drive)
 
 static int ide_scsi_probe(ide_drive_t *);
 
-#ifdef CONFIG_IDE_PROC_FS
-static ide_proc_entry_t idescsi_proc[] = {
-	{ "capacity", S_IFREG|S_IRUGO, proc_ide_read_capacity, NULL },
-	{ NULL, 0, NULL, NULL }
-};
-#endif
-
 static ide_driver_t idescsi_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
@@ -439,45 +447,39 @@ static ide_driver_t idescsi_driver = {
 	.end_request		= idescsi_end_request,
 	.error                  = idescsi_atapi_error,
 #ifdef CONFIG_IDE_PROC_FS
-	.proc			= idescsi_proc,
-	.settings		= idescsi_settings,
+	.proc_entries		= ide_scsi_proc_entries,
+	.proc_devsets		= ide_scsi_proc_devsets,
 #endif
 };
 
-static int idescsi_ide_open(struct inode *inode, struct file *filp)
+static int idescsi_ide_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ide_scsi_obj *scsi;
+	struct ide_scsi_obj *scsi = ide_scsi_get(bdev->bd_disk);
 
-	if (!(scsi = ide_scsi_get(disk)))
+	if (!scsi)
 		return -ENXIO;
 
 	return 0;
 }
 
-static int idescsi_ide_release(struct inode *inode, struct file *filp)
+static int idescsi_ide_release(struct gendisk *disk, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ide_scsi_obj *scsi = ide_scsi_g(disk);
-
-	ide_scsi_put(scsi);
-
+	ide_scsi_put(ide_scsi_g(disk));
 	return 0;
 }
 
-static int idescsi_ide_ioctl(struct inode *inode, struct file *file,
+static int idescsi_ide_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
-	struct block_device *bdev = inode->i_bdev;
 	struct ide_scsi_obj *scsi = ide_scsi_g(bdev->bd_disk);
-	return generic_ide_ioctl(scsi->drive, file, bdev, cmd, arg);
+	return generic_ide_ioctl(scsi->drive, bdev, cmd, arg);
 }
 
 static struct block_device_operations idescsi_ops = {
 	.owner		= THIS_MODULE,
 	.open		= idescsi_ide_open,
 	.release	= idescsi_ide_release,
-	.ioctl		= idescsi_ide_ioctl,
+	.locked_ioctl	= idescsi_ide_ioctl,
 };
 
 static int idescsi_slave_configure(struct scsi_device * sdp)
@@ -576,6 +578,8 @@ static int idescsi_eh_abort (struct scsi_cmnd *cmd)
 {
 	idescsi_scsi_t *scsi  = scsihost_to_idescsi(cmd->device->host);
 	ide_drive_t    *drive = scsi->drive;
+	ide_hwif_t     *hwif;
+	ide_hwgroup_t  *hwgroup;
 	int		busy;
 	int             ret   = FAILED;
 
@@ -592,13 +596,16 @@ static int idescsi_eh_abort (struct scsi_cmnd *cmd)
 		goto no_drive;
 	}
 
-	/* First give it some more time, how much is "right" is hard to say :-( */
+	hwif = drive->hwif;
+	hwgroup = hwif->hwgroup;
 
-	busy = ide_wait_not_busy(HWIF(drive), 100);	/* FIXME - uses mdelay which causes latency? */
+	/* First give it some more time, how much is "right" is hard to say :-(
+	   FIXME - uses mdelay which causes latency? */
+	busy = ide_wait_not_busy(hwif, 100);
 	if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
 		printk (KERN_WARNING "ide-scsi: drive did%s become ready\n", busy?" not":"");
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 
 	/* If there is no pc running we're done (our interrupt took care of it) */
 	pc = drive->pc;
@@ -627,7 +634,7 @@ static int idescsi_eh_abort (struct scsi_cmnd *cmd)
 	}
 
 ide_unlock:
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 no_drive:
 	if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
 		printk (KERN_WARNING "ide-scsi: abort returns %s\n", ret == SUCCESS?"success":"failed");
@@ -640,6 +647,7 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 	struct request *req;
 	idescsi_scsi_t *scsi  = scsihost_to_idescsi(cmd->device->host);
 	ide_drive_t    *drive = scsi->drive;
+	ide_hwgroup_t  *hwgroup;
 	int             ready = 0;
 	int             ret   = SUCCESS;
 
@@ -656,14 +664,18 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
+	hwgroup = drive->hwif->hwgroup;
+
 	spin_lock_irq(cmd->device->host->host_lock);
-	spin_lock(&ide_lock);
+	spin_lock(&hwgroup->lock);
 
 	pc = drive->pc;
+	if (pc)
+		req = pc->rq;
 
-	if (pc == NULL || (req = pc->rq) != HWGROUP(drive)->rq || !HWGROUP(drive)->handler) {
+	if (pc == NULL || req != hwgroup->rq || hwgroup->handler == NULL) {
 		printk (KERN_WARNING "ide-scsi: No active request in idescsi_eh_reset\n");
-		spin_unlock(&ide_lock);
+		spin_unlock(&hwgroup->lock);
 		spin_unlock_irq(cmd->device->host->host_lock);
 		return FAILED;
 	}
@@ -683,10 +695,10 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 			BUG();
 	}
 
-	HWGROUP(drive)->rq = NULL;
-	HWGROUP(drive)->handler = NULL;
-	HWGROUP(drive)->busy = 1;		/* will set this to zero when ide reset finished */
-	spin_unlock(&ide_lock);
+	hwgroup->rq = NULL;
+	hwgroup->handler = NULL;
+	hwgroup->busy = 1; /* will set this to zero when ide reset finished */
+	spin_unlock(&hwgroup->lock);
 
 	ide_do_reset(drive);
 

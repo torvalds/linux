@@ -37,7 +37,6 @@
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
-#include <linux/debugfs.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -67,17 +66,13 @@ static int dapm_status = 1;
 module_param(dapm_status, int, 0);
 MODULE_PARM_DESC(dapm_status, "enable DPM sysfs entries");
 
-static struct dentry *asoc_debugfs;
-
-static u32 pop_time;
-
-static void pop_wait(void)
+static void pop_wait(u32 pop_time)
 {
 	if (pop_time)
 		schedule_timeout_uninterruptible(msecs_to_jiffies(pop_time));
 }
 
-static void pop_dbg(const char *fmt, ...)
+static void pop_dbg(u32 pop_time, const char *fmt, ...)
 {
 	va_list args;
 
@@ -85,7 +80,7 @@ static void pop_dbg(const char *fmt, ...)
 
 	if (pop_time) {
 		vprintk(fmt, args);
-		pop_wait();
+		pop_wait(pop_time);
 	}
 
 	va_end(args);
@@ -230,10 +225,11 @@ static int dapm_update_bits(struct snd_soc_dapm_widget *widget)
 
 	change = old != new;
 	if (change) {
-		pop_dbg("pop test %s : %s in %d ms\n", widget->name,
-			widget->power ? "on" : "off", pop_time);
+		pop_dbg(codec->pop_time, "pop test %s : %s in %d ms\n",
+			widget->name, widget->power ? "on" : "off",
+			codec->pop_time);
 		snd_soc_write(codec, widget->reg, new);
-		pop_wait();
+		pop_wait(codec->pop_time);
 	}
 	pr_debug("reg %x old %x new %x change %d\n", widget->reg,
 		 old, new, change);
@@ -293,7 +289,7 @@ static int dapm_new_mixer(struct snd_soc_codec *codec,
 	struct snd_soc_dapm_widget *w)
 {
 	int i, ret = 0;
-	char name[32];
+	size_t name_len;
 	struct snd_soc_dapm_path *path;
 
 	/* add kcontrol */
@@ -307,10 +303,15 @@ static int dapm_new_mixer(struct snd_soc_codec *codec,
 				continue;
 
 			/* add dapm control with long name */
-			snprintf(name, 32, "%s %s", w->name, w->kcontrols[i].name);
-			path->long_name = kstrdup (name, GFP_KERNEL);
+			name_len = 2 + strlen(w->name)
+				+ strlen(w->kcontrols[i].name);
+			path->long_name = kmalloc(name_len, GFP_KERNEL);
 			if (path->long_name == NULL)
 				return -ENOMEM;
+
+			snprintf(path->long_name, name_len, "%s %s",
+				 w->name, w->kcontrols[i].name);
+			path->long_name[name_len - 1] = '\0';
 
 			path->kcontrol = snd_soc_cnew(&w->kcontrols[i], w,
 				path->long_name);
@@ -821,23 +822,9 @@ static DEVICE_ATTR(dapm_widget, 0444, dapm_widget_show, NULL);
 
 int snd_soc_dapm_sys_add(struct device *dev)
 {
-	int ret = 0;
-
 	if (!dapm_status)
 		return 0;
-
-	ret = device_create_file(dev, &dev_attr_dapm_widget);
-	if (ret != 0)
-		return ret;
-
-	asoc_debugfs = debugfs_create_dir("asoc", NULL);
-	if (!IS_ERR(asoc_debugfs))
-		debugfs_create_u32("dapm_pop_time", 0744, asoc_debugfs,
-				   &pop_time);
-	else
-		asoc_debugfs = NULL;
-
-	return 0;
+	return device_create_file(dev, &dev_attr_dapm_widget);
 }
 
 static void snd_soc_dapm_sys_remove(struct device *dev)
@@ -845,9 +832,6 @@ static void snd_soc_dapm_sys_remove(struct device *dev)
 	if (dapm_status) {
 		device_remove_file(dev, &dev_attr_dapm_widget);
 	}
-
-	if (asoc_debugfs)
-		debugfs_remove_recursive(asoc_debugfs);
 }
 
 /* free all dapm widgets and resources */
@@ -1005,28 +989,6 @@ err:
 	kfree(path);
 	return ret;
 }
-
-/**
- * snd_soc_dapm_connect_input - connect dapm widgets
- * @codec: audio codec
- * @sink: name of target widget
- * @control: mixer control name
- * @source: name of source name
- *
- * Connects 2 dapm widgets together via a named audio path. The sink is
- * the widget receiving the audio signal, whilst the source is the sender
- * of the audio signal.
- *
- * This function has been deprecated in favour of snd_soc_dapm_add_routes().
- *
- * Returns 0 for success else error.
- */
-int snd_soc_dapm_connect_input(struct snd_soc_codec *codec, const char *sink,
-	const char *control, const char *source)
-{
-	return snd_soc_dapm_add_route(codec, sink, control, source);
-}
-EXPORT_SYMBOL_GPL(snd_soc_dapm_connect_input);
 
 /**
  * snd_soc_dapm_add_routes - Add routes between DAPM widgets
@@ -1358,8 +1320,12 @@ int snd_soc_dapm_new_controls(struct snd_soc_codec *codec,
 
 	for (i = 0; i < num; i++) {
 		ret = snd_soc_dapm_new_control(codec, widget);
-		if (ret < 0)
+		if (ret < 0) {
+			printk(KERN_ERR
+			       "ASoC: Failed to create DAPM control %s: %d\n",
+			       widget->name, ret);
 			return ret;
+		}
 		widget++;
 	}
 	return 0;
@@ -1440,11 +1406,11 @@ int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
 				enum snd_soc_bias_level level)
 {
 	struct snd_soc_codec *codec = socdev->codec;
-	struct snd_soc_machine *machine = socdev->machine;
+	struct snd_soc_card *card = socdev->card;
 	int ret = 0;
 
-	if (machine->set_bias_level)
-		ret = machine->set_bias_level(machine, level);
+	if (card->set_bias_level)
+		ret = card->set_bias_level(card, level);
 	if (ret == 0 && codec->set_bias_level)
 		ret = codec->set_bias_level(codec, level);
 

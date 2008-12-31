@@ -94,9 +94,6 @@ struct page {
 	void *virtual;			/* Kernel virtual address (NULL if
 					   not kmapped, ie. highmem) */
 #endif /* WANT_PAGE_VIRTUAL */
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-	unsigned long page_cgroup;
-#endif
 };
 
 /*
@@ -235,8 +232,9 @@ struct mm_struct {
 	struct core_state *core_state; /* coredumping support */
 
 	/* aio bits */
-	rwlock_t		ioctx_list_lock;	/* aio lock */
-	struct kioctx		*ioctx_list;
+	spinlock_t		ioctx_lock;
+	struct hlist_head	ioctx_list;
+
 #ifdef CONFIG_MM_OWNER
 	/*
 	 * "owner" points to a task that is regarded as the canonical

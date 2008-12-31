@@ -90,6 +90,7 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	case 72221: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and basic analog video */
 	case 72231: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and basic analog video */
 	case 72241: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and basic analog video */
+	case 72251: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and basic analog video */
 	case 72301: /* WinTV-HVR850 (Retail, IR, ATSC and basic analog video */
 	case 72500: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
 		break;
@@ -185,7 +186,7 @@ void au0828_gpio_setup(struct au0828_dev *dev)
 }
 
 /* table of devices that work with this driver */
-struct usb_device_id au0828_usb_id_table [] = {
+struct usb_device_id au0828_usb_id_table[] = {
 	{ USB_DEVICE(0x2040, 0x7200),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
 	{ USB_DEVICE(0x2040, 0x7240),
@@ -197,6 +198,8 @@ struct usb_device_id au0828_usb_id_table [] = {
 	{ USB_DEVICE(0x2040, 0x7217),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
 	{ USB_DEVICE(0x2040, 0x721b),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x721e),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
 	{ USB_DEVICE(0x2040, 0x721f),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },

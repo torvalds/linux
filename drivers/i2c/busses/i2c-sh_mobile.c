@@ -160,8 +160,38 @@ struct sh_mobile_i2c_data {
 
 static void activate_ch(struct sh_mobile_i2c_data *pd)
 {
+	unsigned long i2c_clk;
+	u_int32_t num;
+	u_int32_t denom;
+	u_int32_t tmp;
+
 	/* Make sure the clock is enabled */
 	clk_enable(pd->clk);
+
+	/* Get clock rate after clock is enabled */
+	i2c_clk = clk_get_rate(pd->clk);
+
+	/* Calculate the value for iccl. From the data sheet:
+	 * iccl = (p clock / transfer rate) * (L / (L + H))
+	 * where L and H are the SCL low/high ratio (5/4 in this case).
+	 * We also round off the result.
+	 */
+	num = i2c_clk * 5;
+	denom = NORMAL_SPEED * 9;
+	tmp = num * 10 / denom;
+	if (tmp % 10 >= 5)
+		pd->iccl = (u_int8_t)((num/denom) + 1);
+	else
+		pd->iccl = (u_int8_t)(num/denom);
+
+	/* Calculate the value for icch. From the data sheet:
+	   icch = (p clock / transfer rate) * (H / (L + H)) */
+	num = i2c_clk * 4;
+	tmp = num * 10 / denom;
+	if (tmp % 10 >= 5)
+		pd->icch = (u_int8_t)((num/denom) + 1);
+	else
+		pd->icch = (u_int8_t)(num/denom);
 
 	/* Enable channel and configure rx ack */
 	iowrite8(ioread8(ICCR(pd)) | ICCR_ICE, ICCR(pd));
@@ -318,7 +348,8 @@ static int sh_mobile_i2c_isr_rx(struct sh_mobile_i2c_data *pd)
 		} else
 			data = i2c_op(pd, OP_RX, 0);
 
-		pd->msg->buf[real_pos] = data;
+		if (real_pos >= 0)
+			pd->msg->buf[real_pos] = data;
 	} while (0);
 
 	pd->pos++;
@@ -458,40 +489,6 @@ static struct i2c_algorithm sh_mobile_i2c_algorithm = {
 	.master_xfer	= sh_mobile_i2c_xfer,
 };
 
-static void sh_mobile_i2c_setup_channel(struct platform_device *dev)
-{
-	struct sh_mobile_i2c_data *pd = platform_get_drvdata(dev);
-	unsigned long peripheral_clk = clk_get_rate(pd->clk);
-	u_int32_t num;
-	u_int32_t denom;
-	u_int32_t tmp;
-
-	spin_lock_init(&pd->lock);
-	init_waitqueue_head(&pd->wait);
-
-	/* Calculate the value for iccl. From the data sheet:
-	 * iccl = (p clock / transfer rate) * (L / (L + H))
-	 * where L and H are the SCL low/high ratio (5/4 in this case).
-	 * We also round off the result.
-	 */
-	num = peripheral_clk * 5;
-	denom = NORMAL_SPEED * 9;
-	tmp = num * 10 / denom;
-	if (tmp % 10 >= 5)
-		pd->iccl = (u_int8_t)((num/denom) + 1);
-	else
-		pd->iccl = (u_int8_t)(num/denom);
-
-	/* Calculate the value for icch. From the data sheet:
-	   icch = (p clock / transfer rate) * (H / (L + H)) */
-	num = peripheral_clk * 4;
-	tmp = num * 10 / denom;
-	if (tmp % 10 >= 5)
-		pd->icch = (u_int8_t)((num/denom) + 1);
-	else
-		pd->icch = (u_int8_t)(num/denom);
-}
-
 static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, int hook)
 {
 	struct resource *res;
@@ -532,6 +529,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	struct sh_mobile_i2c_data *pd;
 	struct i2c_adapter *adap;
 	struct resource *res;
+	char clk_name[8];
 	int size;
 	int ret;
 
@@ -541,9 +539,10 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		return -ENOMEM;
 	}
 
-	pd->clk = clk_get(&dev->dev, "peripheral_clk");
+	snprintf(clk_name, sizeof(clk_name), "i2c%d", dev->id);
+	pd->clk = clk_get(&dev->dev, clk_name);
 	if (IS_ERR(pd->clk)) {
-		dev_err(&dev->dev, "cannot get peripheral clock\n");
+		dev_err(&dev->dev, "cannot get clock \"%s\"\n", clk_name);
 		ret = PTR_ERR(pd->clk);
 		goto err;
 	}
@@ -585,7 +584,8 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 
 	strlcpy(adap->name, dev->name, sizeof(adap->name));
 
-	sh_mobile_i2c_setup_channel(dev);
+	spin_lock_init(&pd->lock);
+	init_waitqueue_head(&pd->wait);
 
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret < 0) {

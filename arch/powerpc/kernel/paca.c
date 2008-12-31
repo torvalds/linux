@@ -12,6 +12,7 @@
 
 #include <asm/lppaca.h>
 #include <asm/paca.h>
+#include <asm/sections.h>
 
 /* This symbol is provided by the linker - let it fill in the paca
  * field correctly */
@@ -36,6 +37,7 @@ struct lppaca lppaca[] = {
 		.end_of_quantum = 0xfffffffffffffffful,
 		.slb_count = 64,
 		.vmxregs_in_use = 0,
+		.page_ins = 0,
 	},
 };
 
@@ -79,6 +81,8 @@ void __init initialise_pacas(void)
 		new_paca->lock_token = 0x8000;
 		new_paca->paca_index = cpu;
 		new_paca->kernel_toc = kernel_toc;
+		new_paca->kernelbase = (unsigned long) _stext;
+		new_paca->kernel_msr = MSR_KERNEL;
 		new_paca->hw_cpu_id = 0xffff;
 		new_paca->slb_shadow_ptr = &slb_shadow[cpu];
 		new_paca->__current = &init_task;

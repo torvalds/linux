@@ -20,7 +20,7 @@ Required properties:
         - compatible        : compatible list, contains 2 entries, first is
 			 "fsl,CHIP-dma-channel", where CHIP is the processor
 			 (mpc8349, mpc8350, etc.) and the second is
-			 "fsl,elo-dma-channel"
+			 "fsl,elo-dma-channel". However, see note below.
         - reg               : <registers mapping for channel>
         - cell-index        : dma channel index starts at 0.
 
@@ -82,7 +82,7 @@ Required properties:
         - compatible        : compatible list, contains 2 entries, first is
 			 "fsl,CHIP-dma-channel", where CHIP is the processor
 			 (mpc8540, mpc8560, etc.) and the second is
-			 "fsl,eloplus-dma-channel"
+			 "fsl,eloplus-dma-channel". However, see note below.
         - cell-index        : dma channel index starts at 0.
         - reg               : <registers mapping for channel>
         - interrupts        : <interrupt mapping for DMA channel IRQ>
@@ -125,3 +125,12 @@ Example:
 			interrupts = <17 2>;
 		};
 	};
+
+Note on DMA channel compatible properties: The compatible property must say
+"fsl,elo-dma-channel" or "fsl,eloplus-dma-channel" to be used by the Elo DMA
+driver (fsldma).  Any DMA channel used by fsldma cannot be used by another
+DMA driver, such as the SSI sound drivers for the MPC8610.  Therefore, any DMA
+channel that should be used for another driver should not use
+"fsl,elo-dma-channel" or "fsl,eloplus-dma-channel".  For the SSI drivers, for
+example, the compatible property should be "fsl,ssi-dma-channel".  See ssi.txt
+for more information.

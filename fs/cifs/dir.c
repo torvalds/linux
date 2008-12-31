@@ -235,11 +235,11 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			};
 
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-				args.uid = (__u64) current->fsuid;
+				args.uid = (__u64) current_fsuid();
 				if (inode->i_mode & S_ISGID)
 					args.gid = (__u64) inode->i_gid;
 				else
-					args.gid = (__u64) current->fsgid;
+					args.gid = (__u64) current_fsgid();
 			} else {
 				args.uid = NO_CHANGE_64;
 				args.gid = NO_CHANGE_64;
@@ -271,13 +271,13 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 				if ((oplock & CIFS_CREATE_ACTION) &&
 				    (cifs_sb->mnt_cifs_flags &
 				     CIFS_MOUNT_SET_UID)) {
-					newinode->i_uid = current->fsuid;
+					newinode->i_uid = current_fsuid();
 					if (inode->i_mode & S_ISGID)
 						newinode->i_gid =
 							inode->i_gid;
 					else
 						newinode->i_gid =
-							current->fsgid;
+							current_fsgid();
 				}
 			}
 		}
@@ -375,8 +375,8 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 			.device	= device_number,
 		};
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-			args.uid = (__u64) current->fsuid;
-			args.gid = (__u64) current->fsgid;
+			args.uid = (__u64) current_fsuid();
+			args.gid = (__u64) current_fsgid();
 		} else {
 			args.uid = NO_CHANGE_64;
 			args.gid = NO_CHANGE_64;
@@ -483,7 +483,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 	xid = GetXid();
 
-	cFYI(1, (" parent inode = 0x%p name is: %s and dentry = 0x%p",
+	cFYI(1, ("parent inode = 0x%p name is: %s and dentry = 0x%p",
 	      parent_dir_inode, direntry->d_name.name, direntry));
 
 	/* check whether path exists */
@@ -515,12 +515,11 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	}
 
 	if (direntry->d_inode != NULL) {
-		cFYI(1, (" non-NULL inode in lookup"));
+		cFYI(1, ("non-NULL inode in lookup"));
 	} else {
-		cFYI(1, (" NULL inode in lookup"));
+		cFYI(1, ("NULL inode in lookup"));
 	}
-	cFYI(1,
-	     (" Full path: %s inode = 0x%p", full_path, direntry->d_inode));
+	cFYI(1, ("Full path: %s inode = 0x%p", full_path, direntry->d_inode));
 
 	if (pTcon->unix_ext)
 		rc = cifs_get_inode_info_unix(&newInode, full_path,

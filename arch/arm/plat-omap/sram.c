@@ -24,6 +24,7 @@
 
 #include <mach/sram.h>
 #include <mach/board.h>
+#include <mach/cpu.h>
 
 #include <mach/control.h>
 
@@ -87,7 +88,7 @@ static int is_sram_locked(void)
 	int type = 0;
 
 	if (cpu_is_omap242x())
-		type = system_rev & OMAP2_DEVICETYPE_MASK;
+		type = omap_rev() & OMAP2_DEVICETYPE_MASK;
 
 	if (type == GP_DEVICE) {
 		/* RAMFW: R/W access to all initiators for all qualifier sets */
@@ -255,7 +256,7 @@ void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl)
 	if (!_omap_sram_reprogram_clock)
 		omap_sram_error();
 
-	return _omap_sram_reprogram_clock(dpllctl, ckctl);
+	_omap_sram_reprogram_clock(dpllctl, ckctl);
 }
 
 int __init omap1_sram_init(void)
@@ -271,7 +272,7 @@ int __init omap1_sram_init(void)
 #define omap1_sram_init()	do {} while (0)
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+#if defined(CONFIG_ARCH_OMAP2)
 
 static void (*_omap2_sram_ddr_init)(u32 *slow_dll_ctrl, u32 fast_dll_ctrl,
 			      u32 base_cs, u32 force_unlock);
@@ -282,8 +283,8 @@ void omap2_sram_ddr_init(u32 *slow_dll_ctrl, u32 fast_dll_ctrl,
 	if (!_omap2_sram_ddr_init)
 		omap_sram_error();
 
-	return _omap2_sram_ddr_init(slow_dll_ctrl, fast_dll_ctrl,
-				    base_cs, force_unlock);
+	_omap2_sram_ddr_init(slow_dll_ctrl, fast_dll_ctrl,
+			     base_cs, force_unlock);
 }
 
 static void (*_omap2_sram_reprogram_sdrc)(u32 perf_level, u32 dll_val,
@@ -294,7 +295,7 @@ void omap2_sram_reprogram_sdrc(u32 perf_level, u32 dll_val, u32 mem_type)
 	if (!_omap2_sram_reprogram_sdrc)
 		omap_sram_error();
 
-	return _omap2_sram_reprogram_sdrc(perf_level, dll_val, mem_type);
+	_omap2_sram_reprogram_sdrc(perf_level, dll_val, mem_type);
 }
 
 static u32 (*_omap2_set_prcm)(u32 dpll_ctrl_val, u32 sdrc_rfr_val, int bypass);
@@ -352,23 +353,19 @@ static inline int omap243x_sram_init(void)
 
 #ifdef CONFIG_ARCH_OMAP3
 
-static u32 (*_omap2_sram_reprogram_gpmc)(u32 perf_level);
-u32 omap2_sram_reprogram_gpmc(u32 perf_level)
+static u32 (*_omap3_sram_configure_core_dpll)(u32 sdrc_rfr_ctrl,
+					      u32 sdrc_actim_ctrla,
+					      u32 sdrc_actim_ctrlb,
+					      u32 m2);
+u32 omap3_configure_core_dpll(u32 sdrc_rfr_ctrl, u32 sdrc_actim_ctrla,
+			      u32 sdrc_actim_ctrlb, u32 m2)
 {
-	if (!_omap2_sram_reprogram_gpmc)
+	if (!_omap3_sram_configure_core_dpll)
 		omap_sram_error();
 
-	return _omap2_sram_reprogram_gpmc(perf_level);
-}
-
-static u32 (*_omap2_sram_configure_core_dpll)(u32 m, u32 n,
-						u32 freqsel, u32 m2);
-u32 omap2_sram_configure_core_dpll(u32 m, u32 n, u32 freqsel, u32 m2)
-{
-	if (!_omap2_sram_configure_core_dpll)
-		omap_sram_error();
-
-	return _omap2_sram_configure_core_dpll(m, n, freqsel, m2);
+	return _omap3_sram_configure_core_dpll(sdrc_rfr_ctrl,
+					       sdrc_actim_ctrla,
+					       sdrc_actim_ctrlb, m2);
 }
 
 /* REVISIT: Should this be same as omap34xx_sram_init() after off-idle? */
@@ -376,31 +373,16 @@ void restore_sram_functions(void)
 {
 	omap_sram_ceil = omap_sram_base + omap_sram_size;
 
-	_omap2_sram_reprogram_gpmc = omap_sram_push(omap34xx_sram_reprogram_gpmc,
-		omap34xx_sram_reprogram_gpmc_sz);
-
-	_omap2_sram_configure_core_dpll =
-			omap_sram_push(omap34xx_sram_configure_core_dpll,
-					omap34xx_sram_configure_core_dpll_sz);
+	_omap3_sram_configure_core_dpll =
+		omap_sram_push(omap3_sram_configure_core_dpll,
+			       omap3_sram_configure_core_dpll_sz);
 }
 
 int __init omap34xx_sram_init(void)
 {
-	_omap2_sram_ddr_init = omap_sram_push(omap34xx_sram_ddr_init,
-					omap34xx_sram_ddr_init_sz);
-
-	_omap2_sram_reprogram_sdrc = omap_sram_push(omap34xx_sram_reprogram_sdrc,
-					omap34xx_sram_reprogram_sdrc_sz);
-
-	_omap2_set_prcm = omap_sram_push(omap34xx_sram_set_prcm,
-					omap34xx_sram_set_prcm_sz);
-
-	_omap2_sram_reprogram_gpmc = omap_sram_push(omap34xx_sram_reprogram_gpmc,
-					omap34xx_sram_reprogram_gpmc_sz);
-
-	_omap2_sram_configure_core_dpll =
-				omap_sram_push(omap34xx_sram_configure_core_dpll,
-					omap34xx_sram_configure_core_dpll_sz);
+	_omap3_sram_configure_core_dpll =
+		omap_sram_push(omap3_sram_configure_core_dpll,
+			       omap3_sram_configure_core_dpll_sz);
 
 	return 0;
 }

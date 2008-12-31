@@ -107,27 +107,27 @@ static int ams_delta_led_resume(struct platform_device *dev)
 
 static int ams_delta_led_probe(struct platform_device *pdev)
 {
-	int i;
-	int ret;
+	int i, ret;
 
-	for (i = ret = 0; ret >= 0 && i < ARRAY_SIZE(ams_delta_leds); i++) {
+	for (i = 0; i < ARRAY_SIZE(ams_delta_leds); i++) {
 		ret = led_classdev_register(&pdev->dev,
 				&ams_delta_leds[i].cdev);
+		if (ret < 0)
+			goto fail;
 	}
 
-	if (ret < 0 && i > 1) {
-		for (i = i - 2; i >= 0; i--)
-			led_classdev_unregister(&ams_delta_leds[i].cdev);
-	}
-
-	return ret;
+	return 0;
+fail:
+	while (--i >= 0)
+		led_classdev_unregister(&ams_delta_leds[i].cdev);
+	return ret;	
 }
 
 static int ams_delta_led_remove(struct platform_device *pdev)
 {
 	int i;
 
-	for (i = ARRAY_SIZE(ams_delta_leds) - 1; i >= 0; i--)
+	for (i = 0; i < ARRAY_SIZE(ams_delta_leds); i--)
 		led_classdev_unregister(&ams_delta_leds[i].cdev);
 
 	return 0;

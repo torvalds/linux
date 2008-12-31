@@ -1509,7 +1509,7 @@ typedef struct vwsnd_dev {
 	struct mutex open_mutex;
 	struct mutex io_mutex;
 	struct mutex mix_mutex;
-	mode_t		open_mode;
+	fmode_t		open_mode;
 	wait_queue_head_t open_wait;
 
 	lithium_t	lith;

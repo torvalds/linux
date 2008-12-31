@@ -69,10 +69,6 @@
 
 #include <linux/workqueue.h>
 
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
-
 #include "usbvision.h"
 #include "usbvision-cards.h"
 
@@ -527,7 +523,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	strlcpy(vc->card,
 		usbvision_device_data[usbvision->DevModel].ModelString,
 		sizeof(vc->card));
-	strlcpy(vc->bus_info, usbvision->dev->dev.bus_id,
+	strlcpy(vc->bus_info, dev_name(&usbvision->dev->dev),
 		sizeof(vc->bus_info));
 	vc->version = USBVISION_DRIVER_VERSION;
 	vc->capabilities = V4L2_CAP_VIDEO_CAPTURE |
@@ -1282,7 +1278,7 @@ static int usbvision_vbi_close(struct inode *inode, struct file *file)
 	return -ENODEV;
 }
 
-static int usbvision_do_vbi_ioctl(struct inode *inode, struct file *file,
+static int usbvision_do_vbi_ioctl(struct file *file,
 				 unsigned int cmd, void *arg)
 {
 	/* TODO */
@@ -1292,7 +1288,7 @@ static int usbvision_do_vbi_ioctl(struct inode *inode, struct file *file,
 static int usbvision_vbi_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, usbvision_do_vbi_ioctl);
+	return video_usercopy(file, cmd, arg, usbvision_do_vbi_ioctl);
 }
 
 
@@ -1444,7 +1440,7 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 	// vbi Device:
 	if (usbvision->vbi) {
 		PDEBUG(DBG_PROBE, "unregister /dev/vbi%d [v4l2]",
-		       usbvision->vbi->minor & 0x1f);
+		       usbvision->vbi->num);
 		if (usbvision->vbi->minor != -1) {
 			video_unregister_device(usbvision->vbi);
 		} else {
@@ -1456,7 +1452,7 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 	// Radio Device:
 	if (usbvision->rdev) {
 		PDEBUG(DBG_PROBE, "unregister /dev/radio%d [v4l2]",
-		       usbvision->rdev->minor & 0x1f);
+		       usbvision->rdev->num);
 		if (usbvision->rdev->minor != -1) {
 			video_unregister_device(usbvision->rdev);
 		} else {
@@ -1468,7 +1464,7 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 	// Video Device:
 	if (usbvision->vdev) {
 		PDEBUG(DBG_PROBE, "unregister /dev/video%d [v4l2]",
-		       usbvision->vdev->minor & 0x1f);
+		       usbvision->vdev->num);
 		if (usbvision->vdev->minor != -1) {
 			video_unregister_device(usbvision->vdev);
 		} else {
@@ -1494,7 +1490,7 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 		goto err_exit;
 	}
 	printk(KERN_INFO "USBVision[%d]: registered USBVision Video device /dev/video%d [v4l2]\n",
-	       usbvision->nr,usbvision->vdev->minor & 0x1f);
+	       usbvision->nr, usbvision->vdev->num);
 
 	// Radio Device:
 	if (usbvision_device_data[usbvision->DevModel].Radio) {
@@ -1511,7 +1507,7 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 			goto err_exit;
 		}
 		printk(KERN_INFO "USBVision[%d]: registered USBVision Radio device /dev/radio%d [v4l2]\n",
-		       usbvision->nr, usbvision->rdev->minor & 0x1f);
+		       usbvision->nr, usbvision->rdev->num);
 	}
 	// vbi Device:
 	if (usbvision_device_data[usbvision->DevModel].vbi) {
@@ -1527,7 +1523,7 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 			goto err_exit;
 		}
 		printk(KERN_INFO "USBVision[%d]: registered USBVision VBI device /dev/vbi%d [v4l2] (Not Working Yet!)\n",
-		       usbvision->nr,usbvision->vbi->minor & 0x1f);
+		       usbvision->nr, usbvision->vbi->num);
 	}
 	// all done
 	return 0;
@@ -1683,7 +1679,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 		interface = &dev->actconfig->interface[ifnum]->altsetting[0];
 	}
 	endpoint = &interface->endpoint[1].desc;
-	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) !=
+	if (usb_endpoint_type(endpoint) !=
 	    USB_ENDPOINT_XFER_ISOC) {
 		err("%s: interface %d. has non-ISO endpoint!",
 		    __func__, ifnum);
@@ -1691,8 +1687,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 		    __func__, endpoint->bmAttributes);
 		return -ENODEV;
 	}
-	if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) ==
-	    USB_DIR_OUT) {
+	if (usb_endpoint_dir_out(endpoint)) {
 		err("%s: interface %d. has ISO OUT endpoint!",
 		    __func__, ifnum);
 		return -ENODEV;

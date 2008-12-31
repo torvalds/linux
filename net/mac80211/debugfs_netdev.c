@@ -41,48 +41,12 @@ static ssize_t ieee80211_if_read(
 	return ret;
 }
 
-#ifdef CONFIG_MAC80211_MESH
-static ssize_t ieee80211_if_write(
-	struct ieee80211_sub_if_data *sdata,
-	char const __user *userbuf,
-	size_t count, loff_t *ppos,
-	int (*format)(struct ieee80211_sub_if_data *, char *))
-{
-	char buf[10];
-	int buf_size;
-
-	memset(buf, 0x00, sizeof(buf));
-	buf_size = min(count, (sizeof(buf)-1));
-	if (copy_from_user(buf, userbuf, buf_size))
-		return count;
-	read_lock(&dev_base_lock);
-	if (sdata->dev->reg_state == NETREG_REGISTERED)
-		(*format)(sdata, buf);
-	read_unlock(&dev_base_lock);
-
-	return count;
-}
-#endif
-
 #define IEEE80211_IF_FMT(name, field, format_string)			\
 static ssize_t ieee80211_if_fmt_##name(					\
 	const struct ieee80211_sub_if_data *sdata, char *buf,		\
 	int buflen)							\
 {									\
 	return scnprintf(buf, buflen, format_string, sdata->field);	\
-}
-#define IEEE80211_IF_WFMT(name, field, type)				\
-static int ieee80211_if_wfmt_##name(					\
-	struct ieee80211_sub_if_data *sdata, char *buf)			\
-{									\
-	unsigned long tmp;						\
-	char *endp;							\
-									\
-	tmp = simple_strtoul(buf, &endp, 0);				\
-	if ((endp == buf) || ((type)tmp != tmp))			\
-		return -EINVAL;						\
-	sdata->field = tmp;						\
-	return 0;							\
 }
 #define IEEE80211_IF_FMT_DEC(name, field)				\
 		IEEE80211_IF_FMT(name, field, "%d\n")
@@ -104,8 +68,7 @@ static ssize_t ieee80211_if_fmt_##name(					\
 	const struct ieee80211_sub_if_data *sdata, char *buf,		\
 	int buflen)							\
 {									\
-	DECLARE_MAC_BUF(mac);						\
-	return scnprintf(buf, buflen, "%s\n", print_mac(mac, sdata->field));\
+	return scnprintf(buf, buflen, "%pM\n", sdata->field);		\
 }
 
 #define __IEEE80211_IF_FILE(name)					\
@@ -125,34 +88,6 @@ static const struct file_operations name##_ops = {			\
 #define IEEE80211_IF_FILE(name, field, format)				\
 		IEEE80211_IF_FMT_##format(name, field)			\
 		__IEEE80211_IF_FILE(name)
-
-#define __IEEE80211_IF_WFILE(name)					\
-static ssize_t ieee80211_if_read_##name(struct file *file,		\
-					char __user *userbuf,		\
-					size_t count, loff_t *ppos)	\
-{									\
-	return ieee80211_if_read(file->private_data,			\
-				 userbuf, count, ppos,			\
-				 ieee80211_if_fmt_##name);		\
-}									\
-static ssize_t ieee80211_if_write_##name(struct file *file,		\
-					const char __user *userbuf,	\
-					size_t count, loff_t *ppos)	\
-{									\
-	return ieee80211_if_write(file->private_data,			\
-				 userbuf, count, ppos,			\
-				 ieee80211_if_wfmt_##name);		\
-}									\
-static const struct file_operations name##_ops = {			\
-	.read = ieee80211_if_read_##name,				\
-	.write = ieee80211_if_write_##name,				\
-	.open = mac80211_open_file_generic,				\
-}
-
-#define IEEE80211_IF_WFILE(name, field, format, type)			\
-		IEEE80211_IF_FMT_##format(name, field)			\
-		IEEE80211_IF_WFMT(name, field, type)			\
-		__IEEE80211_IF_WFILE(name)
 
 /* common attributes */
 IEEE80211_IF_FILE(drop_unencrypted, drop_unencrypted, DEC);
@@ -184,7 +119,7 @@ static ssize_t ieee80211_if_fmt_flags(
 		 sdata->u.sta.flags & IEEE80211_STA_AUTHENTICATED ? "AUTH\n" : "",
 		 sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED ? "ASSOC\n" : "",
 		 sdata->u.sta.flags & IEEE80211_STA_PROBEREQ_POLL ? "PROBEREQ POLL\n" : "",
-		 sdata->bss_conf.use_cts_prot ? "CTS prot\n" : "");
+		 sdata->vif.bss_conf.use_cts_prot ? "CTS prot\n" : "");
 }
 __IEEE80211_IF_FILE(flags);
 
@@ -212,30 +147,30 @@ IEEE80211_IF_FILE(dropped_frames_no_route,
 IEEE80211_IF_FILE(estab_plinks, u.mesh.mshstats.estab_plinks, ATOMIC);
 
 /* Mesh parameters */
-IEEE80211_IF_WFILE(dot11MeshMaxRetries,
-		u.mesh.mshcfg.dot11MeshMaxRetries, DEC, u8);
-IEEE80211_IF_WFILE(dot11MeshRetryTimeout,
-		u.mesh.mshcfg.dot11MeshRetryTimeout, DEC, u16);
-IEEE80211_IF_WFILE(dot11MeshConfirmTimeout,
-		u.mesh.mshcfg.dot11MeshConfirmTimeout, DEC, u16);
-IEEE80211_IF_WFILE(dot11MeshHoldingTimeout,
-		u.mesh.mshcfg.dot11MeshHoldingTimeout, DEC, u16);
-IEEE80211_IF_WFILE(dot11MeshTTL, u.mesh.mshcfg.dot11MeshTTL, DEC, u8);
-IEEE80211_IF_WFILE(auto_open_plinks, u.mesh.mshcfg.auto_open_plinks, DEC, u8);
-IEEE80211_IF_WFILE(dot11MeshMaxPeerLinks,
-		u.mesh.mshcfg.dot11MeshMaxPeerLinks, DEC, u16);
-IEEE80211_IF_WFILE(dot11MeshHWMPactivePathTimeout,
-		u.mesh.mshcfg.dot11MeshHWMPactivePathTimeout, DEC, u32);
-IEEE80211_IF_WFILE(dot11MeshHWMPpreqMinInterval,
-		u.mesh.mshcfg.dot11MeshHWMPpreqMinInterval, DEC, u16);
-IEEE80211_IF_WFILE(dot11MeshHWMPnetDiameterTraversalTime,
-		u.mesh.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC, u16);
-IEEE80211_IF_WFILE(dot11MeshHWMPmaxPREQretries,
-		u.mesh.mshcfg.dot11MeshHWMPmaxPREQretries, DEC, u8);
-IEEE80211_IF_WFILE(path_refresh_time,
-		u.mesh.mshcfg.path_refresh_time, DEC, u32);
-IEEE80211_IF_WFILE(min_discovery_timeout,
-		u.mesh.mshcfg.min_discovery_timeout, DEC, u16);
+IEEE80211_IF_FILE(dot11MeshMaxRetries,
+		u.mesh.mshcfg.dot11MeshMaxRetries, DEC);
+IEEE80211_IF_FILE(dot11MeshRetryTimeout,
+		u.mesh.mshcfg.dot11MeshRetryTimeout, DEC);
+IEEE80211_IF_FILE(dot11MeshConfirmTimeout,
+		u.mesh.mshcfg.dot11MeshConfirmTimeout, DEC);
+IEEE80211_IF_FILE(dot11MeshHoldingTimeout,
+		u.mesh.mshcfg.dot11MeshHoldingTimeout, DEC);
+IEEE80211_IF_FILE(dot11MeshTTL, u.mesh.mshcfg.dot11MeshTTL, DEC);
+IEEE80211_IF_FILE(auto_open_plinks, u.mesh.mshcfg.auto_open_plinks, DEC);
+IEEE80211_IF_FILE(dot11MeshMaxPeerLinks,
+		u.mesh.mshcfg.dot11MeshMaxPeerLinks, DEC);
+IEEE80211_IF_FILE(dot11MeshHWMPactivePathTimeout,
+		u.mesh.mshcfg.dot11MeshHWMPactivePathTimeout, DEC);
+IEEE80211_IF_FILE(dot11MeshHWMPpreqMinInterval,
+		u.mesh.mshcfg.dot11MeshHWMPpreqMinInterval, DEC);
+IEEE80211_IF_FILE(dot11MeshHWMPnetDiameterTraversalTime,
+		u.mesh.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC);
+IEEE80211_IF_FILE(dot11MeshHWMPmaxPREQretries,
+		u.mesh.mshcfg.dot11MeshHWMPmaxPREQretries, DEC);
+IEEE80211_IF_FILE(path_refresh_time,
+		u.mesh.mshcfg.path_refresh_time, DEC);
+IEEE80211_IF_FILE(min_discovery_timeout,
+		u.mesh.mshcfg.min_discovery_timeout, DEC);
 #endif
 
 
@@ -545,8 +480,12 @@ static int netdev_notify(struct notifier_block *nb,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	sprintf(buf, "netdev:%s", dev->name);
 	dir = sdata->debugfsdir;
+
+	if (!dir)
+		return 0;
+
+	sprintf(buf, "netdev:%s", dev->name);
 	if (!debugfs_rename(dir->d_parent, dir, dir->d_parent, buf))
 		printk(KERN_ERR "mac80211: debugfs: failed to rename debugfs "
 		       "dir to %s\n", buf);

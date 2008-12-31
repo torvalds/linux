@@ -36,6 +36,12 @@
 #include <linux/mount.h>
 #include "ubifs.h"
 
+/*
+ * Maximum amount of memory we may 'kmalloc()' without worrying that we are
+ * allocating too much.
+ */
+#define UBIFS_KMALLOC_OK (128*1024)
+
 /* Slab cache for UBIFS inodes */
 struct kmem_cache *ubifs_inode_slab;
 
@@ -401,6 +407,16 @@ static int ubifs_show_options(struct seq_file *s, struct vfsmount *mnt)
 	else if (c->mount_opts.unmount_mode == 1)
 		seq_printf(s, ",norm_unmount");
 
+	if (c->mount_opts.bulk_read == 2)
+		seq_printf(s, ",bulk_read");
+	else if (c->mount_opts.bulk_read == 1)
+		seq_printf(s, ",no_bulk_read");
+
+	if (c->mount_opts.chk_data_crc == 2)
+		seq_printf(s, ",chk_data_crc");
+	else if (c->mount_opts.chk_data_crc == 1)
+		seq_printf(s, ",no_chk_data_crc");
+
 	return 0;
 }
 
@@ -408,13 +424,26 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 {
 	struct ubifs_info *c = sb->s_fs_info;
 	int i, ret = 0, err;
+	long long bud_bytes;
 
-	if (c->jheads)
+	if (c->jheads) {
 		for (i = 0; i < c->jhead_cnt; i++) {
 			err = ubifs_wbuf_sync(&c->jheads[i].wbuf);
 			if (err && !ret)
 				ret = err;
 		}
+
+		/* Commit the journal unless it has too little data */
+		spin_lock(&c->buds_lock);
+		bud_bytes = c->bud_bytes;
+		spin_unlock(&c->buds_lock);
+		if (bud_bytes > c->leb_size) {
+			err = ubifs_run_commit(c);
+			if (err)
+				return err;
+		}
+	}
+
 	/*
 	 * We ought to call sync for c->ubi but it does not have one. If it had
 	 * it would in turn call mtd->sync, however mtd operations are
@@ -538,6 +567,11 @@ static int init_constants_early(struct ubifs_info *c)
 	 * calculations when reporting free space.
 	 */
 	c->leb_overhead = c->leb_size % UBIFS_MAX_DATA_NODE_SZ;
+
+	/* Buffer size for bulk-reads */
+	c->max_bu_buf_len = UBIFS_MAX_BULK_READ * UBIFS_MAX_DATA_NODE_SZ;
+	if (c->max_bu_buf_len > c->leb_size)
+		c->max_bu_buf_len = c->leb_size;
 	return 0;
 }
 
@@ -840,17 +874,29 @@ static int check_volume_empty(struct ubifs_info *c)
  *
  * Opt_fast_unmount: do not run a journal commit before un-mounting
  * Opt_norm_unmount: run a journal commit before un-mounting
+ * Opt_bulk_read: enable bulk-reads
+ * Opt_no_bulk_read: disable bulk-reads
+ * Opt_chk_data_crc: check CRCs when reading data nodes
+ * Opt_no_chk_data_crc: do not check CRCs when reading data nodes
  * Opt_err: just end of array marker
  */
 enum {
 	Opt_fast_unmount,
 	Opt_norm_unmount,
+	Opt_bulk_read,
+	Opt_no_bulk_read,
+	Opt_chk_data_crc,
+	Opt_no_chk_data_crc,
 	Opt_err,
 };
 
 static const match_table_t tokens = {
 	{Opt_fast_unmount, "fast_unmount"},
 	{Opt_norm_unmount, "norm_unmount"},
+	{Opt_bulk_read, "bulk_read"},
+	{Opt_no_bulk_read, "no_bulk_read"},
+	{Opt_chk_data_crc, "chk_data_crc"},
+	{Opt_no_chk_data_crc, "no_chk_data_crc"},
 	{Opt_err, NULL},
 };
 
@@ -887,6 +933,22 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 		case Opt_norm_unmount:
 			c->mount_opts.unmount_mode = 1;
 			c->fast_unmount = 0;
+			break;
+		case Opt_bulk_read:
+			c->mount_opts.bulk_read = 2;
+			c->bulk_read = 1;
+			break;
+		case Opt_no_bulk_read:
+			c->mount_opts.bulk_read = 1;
+			c->bulk_read = 0;
+			break;
+		case Opt_chk_data_crc:
+			c->mount_opts.chk_data_crc = 2;
+			c->no_chk_data_crc = 0;
+			break;
+		case Opt_no_chk_data_crc:
+			c->mount_opts.chk_data_crc = 1;
+			c->no_chk_data_crc = 1;
 			break;
 		default:
 			ubifs_err("unrecognized mount option \"%s\" "
@@ -926,6 +988,34 @@ static void destroy_journal(struct ubifs_info *c)
 	ubifs_destroy_size_tree(c);
 	ubifs_tnc_close(c);
 	free_buds(c);
+}
+
+/**
+ * bu_init - initialize bulk-read information.
+ * @c: UBIFS file-system description object
+ */
+static void bu_init(struct ubifs_info *c)
+{
+	ubifs_assert(c->bulk_read == 1);
+
+	if (c->bu.buf)
+		return; /* Already initialized */
+
+again:
+	c->bu.buf = kmalloc(c->max_bu_buf_len, GFP_KERNEL | __GFP_NOWARN);
+	if (!c->bu.buf) {
+		if (c->max_bu_buf_len > UBIFS_KMALLOC_OK) {
+			c->max_bu_buf_len = UBIFS_KMALLOC_OK;
+			goto again;
+		}
+
+		/* Just disable bulk-read */
+		ubifs_warn("Cannot allocate %d bytes of memory for bulk-read, "
+			   "disabling it", c->max_bu_buf_len);
+		c->mount_opts.bulk_read = 1;
+		c->bulk_read = 0;
+		return;
+	}
 }
 
 /**
@@ -996,6 +1086,15 @@ static int mount_ubifs(struct ubifs_info *c)
 			goto out_free;
 	}
 
+	if (c->bulk_read == 1)
+		bu_init(c);
+
+	/*
+	 * We have to check all CRCs, even for data nodes, when we mount the FS
+	 * (specifically, when we are replaying).
+	 */
+	c->always_chk_crc = 1;
+
 	err = ubifs_read_superblock(c);
 	if (err)
 		goto out_free;
@@ -1032,8 +1131,6 @@ static int mount_ubifs(struct ubifs_info *c)
 
 		/* Create background thread */
 		c->bgt = kthread_create(ubifs_bg_thread, c, c->bgt_name);
-		if (!c->bgt)
-			c->bgt = ERR_PTR(-EINVAL);
 		if (IS_ERR(c->bgt)) {
 			err = PTR_ERR(c->bgt);
 			c->bgt = NULL;
@@ -1139,24 +1236,28 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_infos;
 
+	c->always_chk_crc = 0;
+
 	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"",
 		  c->vi.ubi_num, c->vi.vol_id, c->vi.name);
 	if (mounted_read_only)
 		ubifs_msg("mounted read-only");
 	x = (long long)c->main_lebs * c->leb_size;
-	ubifs_msg("file system size: %lld bytes (%lld KiB, %lld MiB, %d LEBs)",
-		  x, x >> 10, x >> 20, c->main_lebs);
+	ubifs_msg("file system size:   %lld bytes (%lld KiB, %lld MiB, %d "
+		  "LEBs)", x, x >> 10, x >> 20, c->main_lebs);
 	x = (long long)c->log_lebs * c->leb_size + c->max_bud_bytes;
-	ubifs_msg("journal size: %lld bytes (%lld KiB, %lld MiB, %d LEBs)",
-		  x, x >> 10, x >> 20, c->log_lebs + c->max_bud_cnt);
-	ubifs_msg("default compressor: %s", ubifs_compr_name(c->default_compr));
-	ubifs_msg("media format %d, latest format %d",
+	ubifs_msg("journal size:       %lld bytes (%lld KiB, %lld MiB, %d "
+		  "LEBs)", x, x >> 10, x >> 20, c->log_lebs + c->max_bud_cnt);
+	ubifs_msg("media format:       %d (latest is %d)",
 		  c->fmt_version, UBIFS_FORMAT_VERSION);
+	ubifs_msg("default compressor: %s", ubifs_compr_name(c->default_compr));
+	ubifs_msg("reserved for root:  %llu bytes (%llu KiB)",
+		c->report_rp_size, c->report_rp_size >> 10);
 
 	dbg_msg("compiled on:         " __DATE__ " at " __TIME__);
 	dbg_msg("min. I/O unit size:  %d bytes", c->min_io_size);
 	dbg_msg("LEB size:            %d bytes (%d KiB)",
-		c->leb_size, c->leb_size / 1024);
+		c->leb_size, c->leb_size >> 10);
 	dbg_msg("data journal heads:  %d",
 		c->jhead_cnt - NONDATA_JHEADS_CNT);
 	dbg_msg("UUID:                %02X%02X%02X%02X-%02X%02X"
@@ -1222,6 +1323,7 @@ out_cbuf:
 out_dereg:
 	dbg_failure_mode_deregistration(c);
 out_free:
+	kfree(c->bu.buf);
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
@@ -1258,10 +1360,11 @@ static void ubifs_umount(struct ubifs_info *c)
 	kfree(c->cbuf);
 	kfree(c->rcvrd_mst_node);
 	kfree(c->mst_node);
+	kfree(c->bu.buf);
+	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
 	UBIFS_DBG(vfree(c->dbg_buf));
-	vfree(c->ileb_buf);
 	dbg_failure_mode_deregistration(c);
 }
 
@@ -1282,6 +1385,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 
 	mutex_lock(&c->umount_mutex);
 	c->remounting_rw = 1;
+	c->always_chk_crc = 1;
 
 	/* Check for enough free space */
 	if (ubifs_calc_available(c, c->min_idx_lebs) <= 0) {
@@ -1345,20 +1449,20 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 
 	/* Create background thread */
 	c->bgt = kthread_create(ubifs_bg_thread, c, c->bgt_name);
-	if (!c->bgt)
-		c->bgt = ERR_PTR(-EINVAL);
 	if (IS_ERR(c->bgt)) {
 		err = PTR_ERR(c->bgt);
 		c->bgt = NULL;
 		ubifs_err("cannot spawn \"%s\", error %d",
 			  c->bgt_name, err);
-		return err;
+		goto out;
 	}
 	wake_up_process(c->bgt);
 
 	c->orph_buf = vmalloc(c->leb_size);
-	if (!c->orph_buf)
-		return -ENOMEM;
+	if (!c->orph_buf) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	/* Check for enough log space */
 	lnum = c->lhead_lnum + 1;
@@ -1385,6 +1489,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	dbg_gen("re-mounted read-write");
 	c->vfs_sb->s_flags &= ~MS_RDONLY;
 	c->remounting_rw = 0;
+	c->always_chk_crc = 0;
 	mutex_unlock(&c->umount_mutex);
 	return 0;
 
@@ -1400,6 +1505,7 @@ out:
 	c->ileb_buf = NULL;
 	ubifs_lpt_free(c, 1);
 	c->remounting_rw = 0;
+	c->always_chk_crc = 0;
 	mutex_unlock(&c->umount_mutex);
 	return err;
 }
@@ -1408,12 +1514,9 @@ out:
  * commit_on_unmount - commit the journal when un-mounting.
  * @c: UBIFS file-system description object
  *
- * This function is called during un-mounting and it commits the journal unless
- * the "fast unmount" mode is enabled. It also avoids committing the journal if
- * it contains too few data.
- *
- * Sometimes recovery requires the journal to be committed at least once, and
- * this function takes care about this.
+ * This function is called during un-mounting and re-mounting, and it commits
+ * the journal unless the "fast unmount" mode is enabled. It also avoids
+ * committing the journal if it contains too few data.
  */
 static void commit_on_unmount(struct ubifs_info *c)
 {
@@ -1559,12 +1662,21 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 		ubifs_err("invalid or unknown remount parameter");
 		return err;
 	}
+
 	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
 		err = ubifs_remount_rw(c);
 		if (err)
 			return err;
 	} else if (!(sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY))
 		ubifs_remount_ro(c);
+
+	if (c->bulk_read == 1)
+		bu_init(c);
+	else {
+		dbg_gen("disable bulk-read");
+		kfree(c->bu.buf);
+		c->bu.buf = NULL;
+	}
 
 	return 0;
 }
@@ -1656,6 +1768,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	mutex_init(&c->log_mutex);
 	mutex_init(&c->mst_mutex);
 	mutex_init(&c->umount_mutex);
+	mutex_init(&c->bu_mutex);
 	init_waitqueue_head(&c->cmt_wq);
 	c->buds = RB_ROOT;
 	c->old_idx = RB_ROOT;

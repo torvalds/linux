@@ -40,6 +40,8 @@
 #define PCI_DEVICE_ID_INTEL_Q45_IG          0x2E12
 #define PCI_DEVICE_ID_INTEL_G45_HB          0x2E20
 #define PCI_DEVICE_ID_INTEL_G45_IG          0x2E22
+#define PCI_DEVICE_ID_INTEL_G41_HB          0x2E30
+#define PCI_DEVICE_ID_INTEL_G41_IG          0x2E32
 
 /* cover 915 and 945 variants */
 #define IS_I915 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_E7221_HB || \
@@ -54,8 +56,7 @@
 		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965Q_HB || \
 		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965G_HB || \
 		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GM_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GME_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB)
+		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GME_HB)
 
 #define IS_G33 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G33_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q35_HB || \
@@ -63,7 +64,9 @@
 
 #define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGD_E_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q45_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB)
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G41_HB)
 
 extern int agp_memory_reserved;
 
@@ -214,8 +217,8 @@ static int intel_i810_configure(void)
 	if (agp_bridge->driver->needs_scratch_page) {
 		for (i = 0; i < current_size->num_entries; i++) {
 			writel(agp_bridge->scratch_page, intel_private.registers+I810_PTE_BASE+(i*4));
-			readl(intel_private.registers+I810_PTE_BASE+(i*4));	/* PCI posting. */
 		}
+		readl(intel_private.registers+I810_PTE_BASE+((i-1)*4));	/* PCI posting. */
 	}
 	global_cache_flush();
 	return 0;
@@ -525,8 +528,10 @@ static void intel_i830_init_gtt_entries(void)
 		size += 4;
 	} else if (IS_G4X) {
 		/* On 4 series hardware, GTT stolen is separate from graphics
-		 * stolen, ignore it in stolen gtt entries counting */
-		size = 0;
+		 * stolen, ignore it in stolen gtt entries counting.  However,
+		 * 4KB of the stolen memory doesn't get mapped to the GTT.
+		 */
+		size = 4;
 	} else {
 		/* On previous hardware, the GTT size was just what was
 		 * required to map the aperture.
@@ -773,8 +778,8 @@ static int intel_i830_configure(void)
 	if (agp_bridge->driver->needs_scratch_page) {
 		for (i = intel_private.gtt_entries; i < current_size->num_entries; i++) {
 			writel(agp_bridge->scratch_page, intel_private.registers+I810_PTE_BASE+(i*4));
-			readl(intel_private.registers+I810_PTE_BASE+(i*4));	/* PCI Posting. */
 		}
+		readl(intel_private.registers+I810_PTE_BASE+((i-1)*4));	/* PCI Posting. */
 	}
 
 	global_cache_flush();
@@ -989,8 +994,8 @@ static int intel_i915_configure(void)
 	if (agp_bridge->driver->needs_scratch_page) {
 		for (i = intel_private.gtt_entries; i < current_size->num_entries; i++) {
 			writel(agp_bridge->scratch_page, intel_private.gtt+i);
-			readl(intel_private.gtt+i);	/* PCI Posting. */
 		}
+		readl(intel_private.gtt+i-1);	/* PCI Posting. */
 	}
 
 	global_cache_flush();
@@ -1194,6 +1199,7 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 	case PCI_DEVICE_ID_INTEL_IGD_E_HB:
 	case PCI_DEVICE_ID_INTEL_Q45_HB:
 	case PCI_DEVICE_ID_INTEL_G45_HB:
+	case PCI_DEVICE_ID_INTEL_G41_HB:
 		*gtt_offset = *gtt_size = MB(2);
 		break;
 	default:
@@ -2154,13 +2160,15 @@ static const struct intel_driver_description {
 	{ PCI_DEVICE_ID_INTEL_Q33_HB, PCI_DEVICE_ID_INTEL_Q33_IG, 0, "Q33",
 		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_GM45_HB, PCI_DEVICE_ID_INTEL_GM45_IG, 0,
-	    "Mobile Intel? GM45 Express", NULL, &intel_i965_driver },
+	    "Mobile Intel® GM45 Express", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IGD_E_HB, PCI_DEVICE_ID_INTEL_IGD_E_IG, 0,
 	    "Intel Integrated Graphics Device", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_Q45_HB, PCI_DEVICE_ID_INTEL_Q45_IG, 0,
 	    "Q45/Q43", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_G45_HB, PCI_DEVICE_ID_INTEL_G45_IG, 0,
 	    "G45/G43", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_G41_HB, PCI_DEVICE_ID_INTEL_G41_IG, 0,
+	    "G41", NULL, &intel_i965_driver },
 	{ 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -2358,6 +2366,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_IGD_E_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q45_HB),
 	ID(PCI_DEVICE_ID_INTEL_G45_HB),
+	ID(PCI_DEVICE_ID_INTEL_G41_HB),
 	{ }
 };
 
@@ -2388,5 +2397,5 @@ static void __exit agp_intel_cleanup(void)
 module_init(agp_intel_init);
 module_exit(agp_intel_cleanup);
 
-MODULE_AUTHOR("Dave Jones <davej@codemonkey.org.uk>");
+MODULE_AUTHOR("Dave Jones <davej@redhat.com>");
 MODULE_LICENSE("GPL and additional rights");

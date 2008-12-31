@@ -156,11 +156,10 @@ static int blkif_getgeo(struct block_device *bd, struct hd_geometry *hg)
 	return 0;
 }
 
-static int blkif_ioctl(struct inode *inode, struct file *filep,
+static int blkif_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned command, unsigned long argument)
 {
-	struct blkfront_info *info =
-		inode->i_bdev->bd_disk->private_data;
+	struct blkfront_info *info = bdev->bd_disk->private_data;
 	int i;
 
 	dev_dbg(&info->xbdev->dev, "command: 0x%x, argument: 0x%lx\n",
@@ -344,7 +343,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 	if (rq == NULL)
 		return -1;
 
-	elevator_init(rq, "noop");
+	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, rq);
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
 	blk_queue_hardsect_size(rq, sector_size);
@@ -1014,16 +1013,16 @@ static int blkfront_is_ready(struct xenbus_device *dev)
 	return info->is_ready;
 }
 
-static int blkif_open(struct inode *inode, struct file *filep)
+static int blkif_open(struct block_device *bdev, fmode_t mode)
 {
-	struct blkfront_info *info = inode->i_bdev->bd_disk->private_data;
+	struct blkfront_info *info = bdev->bd_disk->private_data;
 	info->users++;
 	return 0;
 }
 
-static int blkif_release(struct inode *inode, struct file *filep)
+static int blkif_release(struct gendisk *disk, fmode_t mode)
 {
-	struct blkfront_info *info = inode->i_bdev->bd_disk->private_data;
+	struct blkfront_info *info = disk->private_data;
 	info->users--;
 	if (info->users == 0) {
 		/* Check whether we have been instructed to close.  We will
@@ -1044,7 +1043,7 @@ static struct block_device_operations xlvbd_block_fops =
 	.open = blkif_open,
 	.release = blkif_release,
 	.getgeo = blkif_getgeo,
-	.ioctl = blkif_ioctl,
+	.locked_ioctl = blkif_ioctl,
 };
 
 

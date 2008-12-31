@@ -485,7 +485,6 @@ static void update_mac_address(struct net_device *dev)
 static int set_mac_address(struct net_device *dev, void* addr)
 {
 	struct sockaddr *address = addr;
-	DECLARE_MAC_BUF(mac);
 
 	if (!is_valid_ether_addr(address->sa_data))
 		return -EADDRNOTAVAIL;
@@ -493,8 +492,8 @@ static int set_mac_address(struct net_device *dev, void* addr)
 	memcpy(dev->dev_addr, address->sa_data, dev->addr_len);
 	update_mac_address(dev);
 
-	printk("%s: Setting MAC address to %s\n", dev->name,
-	       print_mac(mac, dev->dev_addr));
+	printk("%s: Setting MAC address to %pM\n", dev->name,
+	       dev->dev_addr);
 
 	return 0;
 }
@@ -894,7 +893,6 @@ static void at91ether_rx(struct net_device *dev)
 			memcpy(skb_put(skb, pktlen), p_recv, pktlen);
 
 			skb->protocol = eth_type_trans(skb, dev);
-			dev->last_rx = jiffies;
 			dev->stats.rx_bytes += pktlen;
 			netif_rx(skb);
 		}
@@ -978,7 +976,6 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 	struct at91_private *lp;
 	unsigned int val;
 	int res;
-	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(sizeof(struct at91_private));
 	if (!dev)
@@ -1080,14 +1077,15 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 		init_timer(&lp->check_timer);
 		lp->check_timer.data = (unsigned long)dev;
 		lp->check_timer.function = at91ether_check_link;
-	}
+	} else if (lp->board_data.phy_irq_pin >= 32)
+		gpio_request(lp->board_data.phy_irq_pin, "ethernet_phy");
 
 	/* Display ethernet banner */
-	printk(KERN_INFO "%s: AT91 ethernet at 0x%08x int=%d %s%s (%s)\n",
+	printk(KERN_INFO "%s: AT91 ethernet at 0x%08x int=%d %s%s (%pM)\n",
 	       dev->name, (uint) dev->base_addr, dev->irq,
 	       at91_emac_read(AT91_EMAC_CFG) & AT91_EMAC_SPD ? "100-" : "10-",
 	       at91_emac_read(AT91_EMAC_CFG) & AT91_EMAC_FD ? "FullDuplex" : "HalfDuplex",
-	       print_mac(mac, dev->dev_addr));
+	       dev->dev_addr);
 	if ((phy_type == MII_DM9161_ID) || (lp->phy_type == MII_DM9161A_ID))
 		printk(KERN_INFO "%s: Davicom 9161 PHY %s\n", dev->name, (lp->phy_media == PORT_FIBRE) ? "(Fiber)" : "(Copper)");
 	else if (phy_type == MII_LXT971A_ID)
@@ -1166,6 +1164,9 @@ static int __devexit at91ether_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct at91_private *lp = netdev_priv(dev);
+
+	if (lp->board_data.phy_irq_pin >= 32)
+		gpio_free(lp->board_data.phy_irq_pin);
 
 	unregister_netdev(dev);
 	free_irq(dev->irq, dev);

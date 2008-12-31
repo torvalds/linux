@@ -44,6 +44,8 @@
 #include <linux/slab.h>
 #endif
 
+#include <linux/notifier.h>
+#include <linux/memory.h>
 #include "ehca_classes.h"
 #include "ehca_iverbs.h"
 #include "ehca_mrmw.h"
@@ -366,22 +368,23 @@ static int ehca_sense_attributes(struct ehca_shca *shca)
 			shca->hca_cap_mr_pgsize |= pgsize_map[i + 1];
 
 	/* Set maximum number of CQs and QPs to calculate EQ size */
-	if (ehca_max_qp == -1)
-		ehca_max_qp = min_t(int, rblock->max_qp, EHCA_MAX_NUM_QUEUES);
-	else if (ehca_max_qp < 1 || ehca_max_qp > rblock->max_qp) {
-		ehca_gen_err("Requested number of QPs is out of range (1 - %i) "
-			"specified by HW", rblock->max_qp);
-		ret = -EINVAL;
-		goto sense_attributes1;
+	if (shca->max_num_qps == -1)
+		shca->max_num_qps = min_t(int, rblock->max_qp,
+					  EHCA_MAX_NUM_QUEUES);
+	else if (shca->max_num_qps < 1 || shca->max_num_qps > rblock->max_qp) {
+		ehca_gen_warn("The requested number of QPs is out of range "
+			      "(1 - %i) specified by HW. Value is set to %i",
+			      rblock->max_qp, rblock->max_qp);
+		shca->max_num_qps = rblock->max_qp;
 	}
 
-	if (ehca_max_cq == -1)
-		ehca_max_cq = min_t(int, rblock->max_cq, EHCA_MAX_NUM_QUEUES);
-	else if (ehca_max_cq < 1 || ehca_max_cq > rblock->max_cq) {
-		ehca_gen_err("Requested number of CQs is out of range (1 - %i) "
-			"specified by HW", rblock->max_cq);
-		ret = -EINVAL;
-		goto sense_attributes1;
+	if (shca->max_num_cqs == -1)
+		shca->max_num_cqs = min_t(int, rblock->max_cq,
+					  EHCA_MAX_NUM_QUEUES);
+	else if (shca->max_num_cqs < 1 || shca->max_num_cqs > rblock->max_cq) {
+		ehca_gen_warn("The requested number of CQs is out of range "
+			      "(1 - %i) specified by HW. Value is set to %i",
+			      rblock->max_cq, rblock->max_cq);
 	}
 
 	/* query max MTU from first port -- it's the same for all ports */
@@ -714,6 +717,7 @@ static int __devinit ehca_probe(struct of_device *dev,
 	const u64 *handle;
 	struct ib_pd *ibpd;
 	int ret, i, eq_size;
+	unsigned long flags;
 
 	handle = of_get_property(dev->node, "ibm,hca-handle", NULL);
 	if (!handle) {
@@ -733,9 +737,13 @@ static int __devinit ehca_probe(struct of_device *dev,
 		ehca_gen_err("Cannot allocate shca memory.");
 		return -ENOMEM;
 	}
+
 	mutex_init(&shca->modify_mutex);
 	atomic_set(&shca->num_cqs, 0);
 	atomic_set(&shca->num_qps, 0);
+	shca->max_num_qps = ehca_max_qp;
+	shca->max_num_cqs = ehca_max_cq;
+
 	for (i = 0; i < ARRAY_SIZE(shca->sport); i++)
 		spin_lock_init(&shca->sport[i].mod_sqp_lock);
 
@@ -755,7 +763,7 @@ static int __devinit ehca_probe(struct of_device *dev,
 		goto probe1;
 	}
 
-	eq_size = 2 * ehca_max_cq + 4 * ehca_max_qp;
+	eq_size = 2 * shca->max_num_cqs + 4 * shca->max_num_qps;
 	/* create event queues */
 	ret = ehca_create_eq(shca, &shca->eq, EHCA_EQ, eq_size);
 	if (ret) {
@@ -823,9 +831,9 @@ static int __devinit ehca_probe(struct of_device *dev,
 		ehca_err(&shca->ib_device,
 			 "Cannot create device attributes  ret=%d", ret);
 
-	spin_lock(&shca_list_lock);
+	spin_lock_irqsave(&shca_list_lock, flags);
 	list_add(&shca->shca_list, &shca_list);
-	spin_unlock(&shca_list_lock);
+	spin_unlock_irqrestore(&shca_list_lock, flags);
 
 	return 0;
 
@@ -871,6 +879,7 @@ probe1:
 static int __devexit ehca_remove(struct of_device *dev)
 {
 	struct ehca_shca *shca = dev->dev.driver_data;
+	unsigned long flags;
 	int ret;
 
 	sysfs_remove_group(&dev->dev.kobj, &ehca_dev_attr_grp);
@@ -908,9 +917,9 @@ static int __devexit ehca_remove(struct of_device *dev)
 
 	ib_dealloc_device(&shca->ib_device);
 
-	spin_lock(&shca_list_lock);
+	spin_lock_irqsave(&shca_list_lock, flags);
 	list_del(&shca->shca_list);
-	spin_unlock(&shca_list_lock);
+	spin_unlock_irqrestore(&shca_list_lock, flags);
 
 	return ret;
 }
@@ -964,6 +973,41 @@ void ehca_poll_eqs(unsigned long data)
 	spin_unlock(&shca_list_lock);
 }
 
+static int ehca_mem_notifier(struct notifier_block *nb,
+			     unsigned long action, void *data)
+{
+	static unsigned long ehca_dmem_warn_time;
+	unsigned long flags;
+
+	switch (action) {
+	case MEM_CANCEL_OFFLINE:
+	case MEM_CANCEL_ONLINE:
+	case MEM_ONLINE:
+	case MEM_OFFLINE:
+		return NOTIFY_OK;
+	case MEM_GOING_ONLINE:
+	case MEM_GOING_OFFLINE:
+		/* only ok if no hca is attached to the lpar */
+		spin_lock_irqsave(&shca_list_lock, flags);
+		if (list_empty(&shca_list)) {
+			spin_unlock_irqrestore(&shca_list_lock, flags);
+			return NOTIFY_OK;
+		} else {
+			spin_unlock_irqrestore(&shca_list_lock, flags);
+			if (printk_timed_ratelimit(&ehca_dmem_warn_time,
+						   30 * 1000))
+				ehca_gen_err("DMEM operations are not allowed"
+					     "in conjunction with eHCA");
+			return NOTIFY_BAD;
+		}
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block ehca_mem_nb = {
+	.notifier_call = ehca_mem_notifier,
+};
+
 static int __init ehca_module_init(void)
 {
 	int ret;
@@ -991,6 +1035,12 @@ static int __init ehca_module_init(void)
 		goto module_init2;
 	}
 
+	ret = register_memory_notifier(&ehca_mem_nb);
+	if (ret) {
+		ehca_gen_err("Failed registering memory add/remove notifier");
+		goto module_init3;
+	}
+
 	if (ehca_poll_all_eqs != 1) {
 		ehca_gen_err("WARNING!!!");
 		ehca_gen_err("It is possible to lose interrupts.");
@@ -1002,6 +1052,9 @@ static int __init ehca_module_init(void)
 	}
 
 	return 0;
+
+module_init3:
+	ibmebus_unregister_driver(&ehca_driver);
 
 module_init2:
 	ehca_destroy_slab_caches();
@@ -1017,6 +1070,8 @@ static void __exit ehca_module_exit(void)
 		del_timer_sync(&poll_eqs_timer);
 
 	ibmebus_unregister_driver(&ehca_driver);
+
+	unregister_memory_notifier(&ehca_mem_nb);
 
 	ehca_destroy_slab_caches();
 

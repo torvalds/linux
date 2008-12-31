@@ -504,7 +504,7 @@ struct rx_free_desc {
 #define TPD_PKTNT_MASK		0x0001
 #define TPD_PKTINT_SHIFT	15
 #define TPD_VLANTAG_MASK	0xFFFF
-#define TPD_VLAN_SHIFT		16
+#define TPD_VLANTAG_SHIFT	16
 
 /* tpd word 3 bits 0:13 */
 #define TPD_EOP_MASK		0x0001
@@ -754,7 +754,7 @@ struct atl1_hw {
 struct atl1_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
+
 	struct atl1_sft_stats soft_stats;
 	struct vlan_group *vlgrp;
 	u32 rx_buffer_len;
@@ -765,7 +765,7 @@ struct atl1_adapter {
 	struct work_struct tx_timeout_task;
 	struct work_struct link_chg_task;
 	struct work_struct pcie_dma_to_rst_task;
-	struct timer_list watchdog_timer;
+
 	struct timer_list phy_config_timer;
 	bool phy_timer_pending;
 

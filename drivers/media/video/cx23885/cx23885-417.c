@@ -2,7 +2,7 @@
  *
  *  Support for a cx23417 mpeg encoder via cx23885 host port.
  *
- *    (c) 2004 Jelle Foks <jelle@foks.8m.com>
+ *    (c) 2004 Jelle Foks <jelle@foks.us>
  *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
  *    (c) 2008 Steven Toth <stoth@linuxtv.org>
  *      - CX23885/7/8 support
@@ -1815,7 +1815,7 @@ int cx23885_417_register(struct cx23885_dev *dev)
 	cx23885_mc417_init(dev);
 
 	printk(KERN_INFO "%s: registered device video%d [mpeg]\n",
-	       dev->name, dev->v4l_device->minor & 0x1f);
+	       dev->name, dev->v4l_device->num);
 
 	return 0;
 }

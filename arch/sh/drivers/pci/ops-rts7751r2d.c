@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/io.h>
-#include <asm/rts7751r2d.h>
+#include <mach/r2d.h>
 #include "pci-sh4.h"
 
 static u8 rts7751r2d_irq_tab[] __initdata = {

@@ -65,23 +65,22 @@ static void split_page_count(int level)
 	direct_pages_count[level - 1] += PTRS_PER_PTE;
 }
 
-int arch_report_meminfo(char *page)
+void arch_report_meminfo(struct seq_file *m)
 {
-	int n = sprintf(page, "DirectMap4k:  %8lu kB\n",
+	seq_printf(m, "DirectMap4k:    %8lu kB\n",
 			direct_pages_count[PG_LEVEL_4K] << 2);
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
-	n += sprintf(page + n, "DirectMap2M:  %8lu kB\n",
+	seq_printf(m, "DirectMap2M:    %8lu kB\n",
 			direct_pages_count[PG_LEVEL_2M] << 11);
 #else
-	n += sprintf(page + n, "DirectMap4M:  %8lu kB\n",
+	seq_printf(m, "DirectMap4M:    %8lu kB\n",
 			direct_pages_count[PG_LEVEL_2M] << 12);
 #endif
 #ifdef CONFIG_X86_64
 	if (direct_gbpages)
-		n += sprintf(page + n, "DirectMap1G:  %8lu kB\n",
+		seq_printf(m, "DirectMap1G:    %8lu kB\n",
 			direct_pages_count[PG_LEVEL_1G] << 20);
 #endif
-	return n;
 }
 #else
 static inline void split_page_count(int level) { }
@@ -791,6 +790,8 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 
 	/* Must avoid aliasing mappings in the highmem code */
 	kmap_flush_unused();
+
+	vm_unmap_aliases();
 
 	cpa.vaddr = addr;
 	cpa.numpages = numpages;

@@ -1,7 +1,7 @@
 /*
  *	ACPI PATA driver
  *
- *	(c) 2007 Red Hat  <alan@redhat.com>
+ *	(c) 2007 Red Hat
  */
 
 #include <linux/kernel.h>

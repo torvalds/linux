@@ -345,7 +345,7 @@ static inline int key_type_flash(const struct ubifs_info *c, const void *k)
 {
 	const union ubifs_key *key = k;
 
-	return le32_to_cpu(key->u32[1]) >> UBIFS_S_KEY_BLOCK_BITS;
+	return le32_to_cpu(key->j32[1]) >> UBIFS_S_KEY_BLOCK_BITS;
 }
 
 /**
@@ -416,7 +416,7 @@ static inline unsigned int key_block_flash(const struct ubifs_info *c,
 {
 	const union ubifs_key *key = k;
 
-	return le32_to_cpu(key->u32[1]) & UBIFS_S_KEY_BLOCK_MASK;
+	return le32_to_cpu(key->j32[1]) & UBIFS_S_KEY_BLOCK_MASK;
 }
 
 /**
@@ -484,7 +484,7 @@ static inline void key_copy(const struct ubifs_info *c,
  * @key2: the second key to compare
  *
  * This function compares 2 keys and returns %-1 if @key1 is less than
- * @key2, 0 if the keys are equivalent and %1 if @key1 is greater than @key2.
+ * @key2, %0 if the keys are equivalent and %1 if @key1 is greater than @key2.
  */
 static inline int keys_cmp(const struct ubifs_info *c,
 			   const union ubifs_key *key1,
@@ -500,6 +500,26 @@ static inline int keys_cmp(const struct ubifs_info *c,
 		return 1;
 
 	return 0;
+}
+
+/**
+ * keys_eq - determine if keys are equivalent.
+ * @c: UBIFS file-system description object
+ * @key1: the first key to compare
+ * @key2: the second key to compare
+ *
+ * This function compares 2 keys and returns %1 if @key1 is equal to @key2 and
+ * %0 if not.
+ */
+static inline int keys_eq(const struct ubifs_info *c,
+			  const union ubifs_key *key1,
+			  const union ubifs_key *key2)
+{
+	if (key1->u32[0] != key2->u32[0])
+		return 0;
+	if (key1->u32[1] != key2->u32[1])
+		return 0;
+	return 1;
 }
 
 /**

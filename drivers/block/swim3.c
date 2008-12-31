@@ -244,10 +244,10 @@ static int grab_drive(struct floppy_state *fs, enum swim_state state,
 		      int interruptible);
 static void release_drive(struct floppy_state *fs);
 static int fd_eject(struct floppy_state *fs);
-static int floppy_ioctl(struct inode *inode, struct file *filp,
+static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long param);
-static int floppy_open(struct inode *inode, struct file *filp);
-static int floppy_release(struct inode *inode, struct file *filp);
+static int floppy_open(struct block_device *bdev, fmode_t mode);
+static int floppy_release(struct gendisk *disk, fmode_t mode);
 static int floppy_check_change(struct gendisk *disk);
 static int floppy_revalidate(struct gendisk *disk);
 
@@ -839,10 +839,10 @@ static int fd_eject(struct floppy_state *fs)
 static struct floppy_struct floppy_type =
 	{ 2880,18,2,80,0,0x1B,0x00,0xCF,0x6C,NULL };	/*  7 1.44MB 3.5"   */
 
-static int floppy_ioctl(struct inode *inode, struct file *filp,
+static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long param)
 {
-	struct floppy_state *fs = inode->i_bdev->bd_disk->private_data;
+	struct floppy_state *fs = bdev->bd_disk->private_data;
 	int err;
 		
 	if ((cmd & 0x80) && !capable(CAP_SYS_ADMIN))
@@ -868,9 +868,9 @@ static int floppy_ioctl(struct inode *inode, struct file *filp,
 	return -ENOTTY;
 }
 
-static int floppy_open(struct inode *inode, struct file *filp)
+static int floppy_open(struct block_device *bdev, fmode_t mode)
 {
-	struct floppy_state *fs = inode->i_bdev->bd_disk->private_data;
+	struct floppy_state *fs = bdev->bd_disk->private_data;
 	struct swim3 __iomem *sw = fs->swim3;
 	int n, err = 0;
 
@@ -904,17 +904,17 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		swim3_action(fs, SETMFM);
 		swim3_select(fs, RELAX);
 
-	} else if (fs->ref_count == -1 || filp->f_flags & O_EXCL)
+	} else if (fs->ref_count == -1 || mode & FMODE_EXCL)
 		return -EBUSY;
 
-	if (err == 0 && (filp->f_flags & O_NDELAY) == 0
-	    && (filp->f_mode & 3)) {
-		check_disk_change(inode->i_bdev);
+	if (err == 0 && (mode & FMODE_NDELAY) == 0
+	    && (mode & (FMODE_READ|FMODE_WRITE))) {
+		check_disk_change(bdev);
 		if (fs->ejected)
 			err = -ENXIO;
 	}
 
-	if (err == 0 && (filp->f_mode & 2)) {
+	if (err == 0 && (mode & FMODE_WRITE)) {
 		if (fs->write_prot < 0)
 			fs->write_prot = swim3_readbit(fs, WRITE_PROT);
 		if (fs->write_prot)
@@ -930,7 +930,7 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		return err;
 	}
 
-	if (filp->f_flags & O_EXCL)
+	if (mode & FMODE_EXCL)
 		fs->ref_count = -1;
 	else
 		++fs->ref_count;
@@ -938,9 +938,9 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int floppy_release(struct inode *inode, struct file *filp)
+static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
-	struct floppy_state *fs = inode->i_bdev->bd_disk->private_data;
+	struct floppy_state *fs = disk->private_data;
 	struct swim3 __iomem *sw = fs->swim3;
 	if (fs->ref_count > 0 && --fs->ref_count == 0) {
 		swim3_action(fs, MOTOR_OFF);
@@ -1000,7 +1000,7 @@ static int floppy_revalidate(struct gendisk *disk)
 static struct block_device_operations floppy_fops = {
 	.open		= floppy_open,
 	.release	= floppy_release,
-	.ioctl		= floppy_ioctl,
+	.locked_ioctl	= floppy_ioctl,
 	.media_changed	= floppy_check_change,
 	.revalidate_disk= floppy_revalidate,
 };

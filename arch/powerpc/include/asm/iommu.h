@@ -92,13 +92,14 @@ extern void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 				  unsigned long mask, gfp_t flag, int node);
 extern void iommu_free_coherent(struct iommu_table *tbl, size_t size,
 				void *vaddr, dma_addr_t dma_handle);
-extern dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
-				   void *vaddr, size_t size, unsigned long mask,
-				   enum dma_data_direction direction,
-				   struct dma_attrs *attrs);
-extern void iommu_unmap_single(struct iommu_table *tbl, dma_addr_t dma_handle,
-			       size_t size, enum dma_data_direction direction,
-			       struct dma_attrs *attrs);
+extern dma_addr_t iommu_map_page(struct device *dev, struct iommu_table *tbl,
+				 struct page *page, unsigned long offset,
+				 size_t size, unsigned long mask,
+				 enum dma_data_direction direction,
+				 struct dma_attrs *attrs);
+extern void iommu_unmap_page(struct iommu_table *tbl, dma_addr_t dma_handle,
+			     size_t size, enum dma_data_direction direction,
+			     struct dma_attrs *attrs);
 
 extern void iommu_init_early_pSeries(void);
 extern void iommu_init_early_iSeries(void);

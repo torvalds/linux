@@ -53,7 +53,9 @@ static void musb_do_idle(unsigned long _musb)
 {
 	struct musb	*musb = (void *)_musb;
 	unsigned long	flags;
+#ifdef CONFIG_USB_MUSB_HDRC_HCD
 	u8	power;
+#endif
 	u8	devctl;
 
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);

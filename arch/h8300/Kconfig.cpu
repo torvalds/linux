@@ -1,5 +1,7 @@
 menu "Processor type and features"
 
+source "kernel/time/Kconfig"
+
 choice
 	prompt "H8/300 platform"
 	default H8300H_GENERIC
@@ -11,6 +13,7 @@ config H8300H_GENERIC
 
 config H8300H_AKI3068NET
 	bool "AE-3068/69"
+	select CONFIG_H83068
 	help
 	  AKI-H8/3068F / AKI-H8/3069F Flashmicom LAN Board Support
 	  More Information. (Japanese Only)
@@ -21,6 +24,7 @@ config H8300H_AKI3068NET
 
 config H8300H_H8MAX
 	bool "H8MAX"
+	select CONFIG_H83068
 	help
 	  H8MAX Evaluation Board Support
 	  More Information. (Japanese Only)
@@ -28,6 +32,7 @@ config H8300H_H8MAX
 
 config H8300H_SIM
 	bool "H8/300H Simulator"
+	select CONFIG_H83007
 	help
 	  GDB Simulator Support
 	  More Information.
@@ -40,6 +45,7 @@ config H8S_GENERIC
 
 config H8S_EDOSK2674
 	bool "EDOSK-2674"
+	select CONFIG_H8S2768
 	help
 	  Renesas EDOSK-2674 Evaluation Board Support
 	  More Information.
@@ -55,44 +61,37 @@ config H8S_SIM
 
 endchoice
 
-if (H8300H_GENERIC || H8S_GENERIC)
-menu "Detail Selection"
-if (H8300H_GENERIC)
 choice
 	prompt "CPU Selection"
 
 config H83002
 	bool "H8/3001,3002,3003"
+	select CPU_H8300H
 
 config H83007
 	bool "H8/3006,3007"
+	select CPU_H8300H
 
 config H83048
 	bool "H8/3044,3045,3046,3047,3048,3052"
+	select CPU_H8300H
 
 config H83068
 	bool "H8/3065,3066,3067,3068,3069"
-endchoice
-endif
-
-if (H8S_GENERIC)
-choice
-	prompt "CPU Selection"
+	select CPU_H8300H
 
 config H8S2678
 	bool "H8S/2670,2673,2674R,2675,2676"
+	select CPU_H8S
+
 endchoice
-endif
 
 config CPU_CLOCK
 	int "CPU Clock Frequency (/1KHz)"
 	default "20000"
 	help
 	  CPU Clock Frequency divide to 1000
-endmenu
-endif
 
-if (H8300H_GENERIC || H8S_GENERIC || H8300H_SIM || H8S_SIM || H8S_EDOSK2674)
 choice
 	prompt "Kernel executes from"
 	---help---
@@ -107,65 +106,8 @@ config ROMKERNEL
 	bool "ROM"
 	help
 	  The kernel will be resident in FLASH/ROM when running.
-
 endchoice
-endif
 
-if (H8300H_AKI3068NET)
-config H83068
-	bool
-	default y
-
-config CPU_CLOCK
-	int
-	default "20000"
-
-config RAMKERNEL
-	bool
-	default y
-endif
-
-if (H8300H_H8MAX)
-config H83068
-	bool
-	default y
-
-config CPU_CLOCK
-	int
-	default 25000
-
-config RAMKERNEL
-	bool
-	default y
-endif
-
-if (H8300H_SIM)
-config H83007
-	bool
-	default y
-
-config CPU_CLOCK
-	int
-	default "16000"
-endif
-
-if (H8S_EDOSK2674)
-config H8S2678
-	bool
-	default y
-config CPU_CLOCK
-	int
-	default 33000
-endif
-
-if (H8S_SIM)
-config H8S2678
-	bool
-	default y
-config CPU_CLOCK
-	int
-	default 33000
-endif
 
 config CPU_H8300H
 	bool
@@ -176,6 +118,49 @@ config CPU_H8S
 	bool
 	depends on H8S2678
 	default y
+
+choice
+	prompt "Timer"
+config H8300_TIMER8
+	bool "8bit timer (2ch cascade)"
+	depends on (H83007 || H83068 || H8S2678)
+
+config H8300_TIMER16
+	bool "16bit timer"
+	depends on (H83007 || H83068)
+
+config H8300_ITU
+	bool "ITU"
+	depends on (H83002 || H83048)
+
+config H8300_TPU
+	bool "TPU"
+	depends on H8S2678
+endchoice
+
+if H8300_TIMER8
+choice
+	prompt "Timer Channel"
+config H8300_TIMER8_CH0
+	bool "Channel 0"
+config H8300_TIMER8_CH2
+	bool "Channel 2"
+	depends on CPU_H8300H
+endchoice
+endif
+
+config H8300_TIMER16_CH
+	int "16bit timer channel (0 - 2)"
+	depends on H8300_TIMER16
+	range 0 2
+
+config H8300_ITU_CH
+	int "ITU channel"
+	depends on H8300_ITU
+
+config H8300_TPU_CH
+	int "TPU channel"
+	depends on H8300_TPU
 
 config PREEMPT
 	bool "Preemptible Kernel"

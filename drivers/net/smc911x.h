@@ -50,6 +50,10 @@
 #define SMC_DYNAMIC_BUS_CONFIG
 #endif
 
+#ifdef SMC_USE_PXA_DMA
+#define SMC_USE_DMA
+#endif
+
 /* store this information for the driver.. */
 struct smc911x_local {
 	/*
@@ -196,7 +200,8 @@ static inline void SMC_outsl(struct smc911x_local *lp, int reg,
 
 
 #ifdef SMC_USE_PXA_DMA
-#define SMC_USE_DMA
+
+#include <mach/dma.h>
 
 /*
  * Define the request and free functions

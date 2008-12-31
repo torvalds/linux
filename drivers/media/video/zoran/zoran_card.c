@@ -153,12 +153,6 @@ MODULE_DESCRIPTION("Zoran-36057/36067 JPEG codec driver");
 MODULE_AUTHOR("Serguei Miridonov");
 MODULE_LICENSE("GPL");
 
-static struct pci_device_id zr36067_pci_tbl[] = {
-	{PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36057,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0}
-};
-MODULE_DEVICE_TABLE(pci, zr36067_pci_tbl);
 
 int zoran_num;			/* number of Buzs in use */
 struct zoran *zoran[BUZ_MAX];
@@ -817,6 +811,7 @@ zoran_register_i2c (struct zoran *zr)
 	memcpy(&zr->i2c_algo, &zoran_i2c_bit_data_template,
 	       sizeof(struct i2c_algo_bit_data));
 	zr->i2c_algo.data = zr;
+	zr->i2c_adapter.class = I2C_CLASS_TV_ANALOG;
 	zr->i2c_adapter.id = I2C_HW_B_ZR36067;
 	zr->i2c_adapter.client_register = zoran_i2c_client_register;
 	zr->i2c_adapter.client_unregister = zoran_i2c_client_unregister;

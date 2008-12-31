@@ -365,6 +365,7 @@ static int cpm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		pmsg = &msgs[tptr];
 		if (pmsg->flags & I2C_M_RD)
 			ret = wait_event_interruptible_timeout(cpm->i2c_wait,
+				(in_be16(&tbdf[tptr].cbd_sc) & BD_SC_NAK) ||
 				!(in_be16(&rbdf[rptr].cbd_sc) & BD_SC_EMPTY),
 				1 * HZ);
 		else
@@ -423,7 +424,6 @@ static const struct i2c_adapter cpm_ops = {
 	.owner		= THIS_MODULE,
 	.name		= "i2c-cpm",
 	.algo		= &cpm_i2c_algo,
-	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 };
 
 static int __devinit cpm_i2c_setup(struct cpm_i2c *cpm)

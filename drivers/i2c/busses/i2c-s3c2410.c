@@ -40,8 +40,8 @@
 #include <asm/io.h>
 
 #include <mach/regs-gpio.h>
-#include <asm/plat-s3c/regs-iic.h>
-#include <asm/plat-s3c/iic.h>
+#include <plat/regs-iic.h>
+#include <plat/iic.h>
 
 /* i2c controller state */
 
@@ -56,6 +56,7 @@ enum s3c24xx_i2c_state {
 struct s3c24xx_i2c {
 	spinlock_t		lock;
 	wait_queue_head_t	wait;
+	unsigned int		suspended:1;
 
 	struct i2c_msg		*msg;
 	unsigned int		msg_num;
@@ -507,7 +508,7 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c, struct i2c_msg *msgs, int
 	unsigned long timeout;
 	int ret;
 
-	if (!readl(i2c->regs + S3C2410_IICCON) & S3C2410_IICCON_IRQEN)
+	if (i2c->suspended)
 		return -EIO;
 
 	ret = s3c24xx_i2c_set_master(i2c);
@@ -986,17 +987,26 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+static int s3c24xx_i2c_suspend_late(struct platform_device *dev,
+				    pm_message_t msg)
+{
+	struct s3c24xx_i2c *i2c = platform_get_drvdata(dev);
+	i2c->suspended = 1;
+	return 0;
+}
+
 static int s3c24xx_i2c_resume(struct platform_device *dev)
 {
 	struct s3c24xx_i2c *i2c = platform_get_drvdata(dev);
 
-	if (i2c != NULL)
-		s3c24xx_i2c_init(i2c);
+	i2c->suspended = 0;
+	s3c24xx_i2c_init(i2c);
 
 	return 0;
 }
 
 #else
+#define s3c24xx_i2c_suspend_late NULL
 #define s3c24xx_i2c_resume NULL
 #endif
 
@@ -1005,6 +1015,7 @@ static int s3c24xx_i2c_resume(struct platform_device *dev)
 static struct platform_driver s3c2410_i2c_driver = {
 	.probe		= s3c24xx_i2c_probe,
 	.remove		= s3c24xx_i2c_remove,
+	.suspend_late	= s3c24xx_i2c_suspend_late,
 	.resume		= s3c24xx_i2c_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
@@ -1015,6 +1026,7 @@ static struct platform_driver s3c2410_i2c_driver = {
 static struct platform_driver s3c2440_i2c_driver = {
 	.probe		= s3c24xx_i2c_probe,
 	.remove		= s3c24xx_i2c_remove,
+	.suspend_late	= s3c24xx_i2c_suspend_late,
 	.resume		= s3c24xx_i2c_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,

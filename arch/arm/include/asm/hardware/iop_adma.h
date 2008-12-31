@@ -23,6 +23,12 @@
 
 #define IOP_ADMA_SLOT_SIZE 32
 #define IOP_ADMA_THRESHOLD 4
+#ifdef DEBUG
+#define IOP_PARANOIA 1
+#else
+#define IOP_PARANOIA 0
+#endif
+#define iop_paranoia(x) BUG_ON(IOP_PARANOIA && (x))
 
 /**
  * struct iop_adma_device - internal representation of an ADMA device

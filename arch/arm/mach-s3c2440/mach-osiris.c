@@ -33,20 +33,21 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
-#include <asm/plat-s3c/nand.h>
+#include <plat/nand.h>
+#include <plat/iic.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/clock.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
 
 /* onboard perihperal map */
 
@@ -335,7 +336,7 @@ static struct i2c_board_info osiris_i2c_devs[] __initdata = {
 /* Standard Osiris devices */
 
 static struct platform_device *osiris_devices[] __initdata = {
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
 	&s3c_device_wdt,
 	&s3c_device_nand,
 	&osiris_pcmcia,
@@ -397,6 +398,8 @@ static void __init osiris_init(void)
 {
 	sysdev_class_register(&osiris_pm_sysclass);
 	sysdev_register(&osiris_pm_sysdev);
+
+	s3c_i2c0_set_platdata(NULL);
 
 	i2c_register_board_info(0, osiris_i2c_devs,
 				ARRAY_SIZE(osiris_i2c_devs));

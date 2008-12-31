@@ -132,7 +132,7 @@ static int xd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 static struct block_device_operations xd_fops = {
 	.owner	= THIS_MODULE,
-	.ioctl	= xd_ioctl,
+	.locked_ioctl	= xd_ioctl,
 	.getgeo = xd_getgeo,
 };
 static DECLARE_WAIT_QUEUE_HEAD(xd_wait_int);
@@ -343,7 +343,7 @@ static int xd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 /* xd_ioctl: handle device ioctl's */
-static int xd_ioctl (struct inode *inode,struct file *file,u_int cmd,u_long arg)
+static int xd_ioctl(struct block_device *bdev, fmode_t mode, u_int cmd, u_long arg)
 {
 	switch (cmd) {
 		case HDIO_SET_DMA:

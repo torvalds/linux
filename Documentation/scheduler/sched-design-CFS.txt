@@ -92,7 +92,7 @@ other HZ detail.  Thus the CFS scheduler has no notion of "timeslices" in the
 way the previous scheduler had, and has no heuristics whatsoever.  There is
 only one central tunable (you have to switch on CONFIG_SCHED_DEBUG):
 
-   /proc/sys/kernel/sched_granularity_ns
+   /proc/sys/kernel/sched_min_granularity_ns
 
 which can be used to tune the scheduler from "desktop" (i.e., low latencies) to
 "server" (i.e., good batching) workloads.  It defaults to a setting suitable
@@ -273,3 +273,24 @@ task groups and modify their CPU share using the "cgroups" pseudo filesystem.
 
 	# #Launch gmplayer (or your favourite movie player)
 	# echo <movie_player_pid> > multimedia/tasks
+
+8. Implementation note: user namespaces
+
+User namespaces are intended to be hierarchical.  But they are currently
+only partially implemented.  Each of those has ramifications for CFS.
+
+First, since user namespaces are hierarchical, the /sys/kernel/uids
+presentation is inadequate.  Eventually we will likely want to use sysfs
+tagging to provide private views of /sys/kernel/uids within each user
+namespace.
+
+Second, the hierarchical nature is intended to support completely
+unprivileged use of user namespaces.  So if using user groups, then
+we want the users in a user namespace to be children of the user
+who created it.
+
+That is currently unimplemented.  So instead, every user in a new
+user namespace will receive 1024 shares just like any user in the
+initial user namespace.  Note that at the moment creation of a new
+user namespace requires each of CAP_SYS_ADMIN, CAP_SETUID, and
+CAP_SETGID.

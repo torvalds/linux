@@ -60,6 +60,8 @@ struct bsr_dev {
 	unsigned bsr_num;      /* bsr id number for its type */
 	int      bsr_minor;
 
+	struct list_head bsr_list;
+
 	dev_t    bsr_dev;
 	struct cdev bsr_cdev;
 	struct device *bsr_device;
@@ -67,8 +69,8 @@ struct bsr_dev {
 
 };
 
-static unsigned num_bsr_devs;
-static struct bsr_dev *bsr_devs;
+static unsigned total_bsr_devs;
+static struct list_head bsr_devs = LIST_HEAD_INIT(bsr_devs);
 static struct class *bsr_class;
 static int bsr_major;
 
@@ -146,24 +148,25 @@ const static struct file_operations bsr_fops = {
 
 static void bsr_cleanup_devs(void)
 {
-	int i;
-	for (i=0 ; i < num_bsr_devs; i++) {
-		struct bsr_dev *cur = bsr_devs + i;
+	struct bsr_dev *cur, *n;
+
+	list_for_each_entry_safe(cur, n, &bsr_devs, bsr_list) {
 		if (cur->bsr_device) {
 			cdev_del(&cur->bsr_cdev);
 			device_del(cur->bsr_device);
 		}
+		list_del(&cur->bsr_list);
+		kfree(cur);
 	}
-
-	kfree(bsr_devs);
 }
 
-static int bsr_create_devs(struct device_node *bn)
+static int bsr_add_node(struct device_node *bn)
 {
-	int bsr_stride_len, bsr_bytes_len;
+	int bsr_stride_len, bsr_bytes_len, num_bsr_devs;
 	const u32 *bsr_stride;
 	const u32 *bsr_bytes;
 	unsigned i;
+	int ret = -ENODEV;
 
 	bsr_stride = of_get_property(bn, "ibm,lock-stride", &bsr_stride_len);
 	bsr_bytes  = of_get_property(bn, "ibm,#lock-bytes", &bsr_bytes_len);
@@ -171,35 +174,36 @@ static int bsr_create_devs(struct device_node *bn)
 	if (!bsr_stride || !bsr_bytes ||
 	    (bsr_stride_len != bsr_bytes_len)) {
 		printk(KERN_ERR "bsr of-node has missing/incorrect property\n");
-		return -ENODEV;
+		return ret;
 	}
 
 	num_bsr_devs = bsr_bytes_len / sizeof(u32);
 
-	/* only a warning, its informational since we'll fail and exit */
-	WARN_ON(num_bsr_devs > BSR_MAX_DEVS);
-
-	bsr_devs = kzalloc(sizeof(struct bsr_dev) * num_bsr_devs, GFP_KERNEL);
-	if (!bsr_devs)
-		return -ENOMEM;
-
 	for (i = 0 ; i < num_bsr_devs; i++) {
-		struct bsr_dev *cur = bsr_devs + i;
+		struct bsr_dev *cur = kzalloc(sizeof(struct bsr_dev),
+					      GFP_KERNEL);
 		struct resource res;
 		int result;
 
-		result = of_address_to_resource(bn, i, &res);
-		if (result < 0) {
-			printk(KERN_ERR "bsr of-node has invalid reg property\n");
+		if (!cur) {
+			printk(KERN_ERR "Unable to alloc bsr dev\n");
+			ret = -ENOMEM;
 			goto out_err;
 		}
 
-		cur->bsr_minor  = i;
+		result = of_address_to_resource(bn, i, &res);
+		if (result < 0) {
+			printk(KERN_ERR "bsr of-node has invalid reg property, skipping\n");
+			kfree(cur);
+			continue;
+		}
+
+		cur->bsr_minor  = i + total_bsr_devs;
 		cur->bsr_addr   = res.start;
 		cur->bsr_len    = res.end - res.start + 1;
 		cur->bsr_bytes  = bsr_bytes[i];
 		cur->bsr_stride = bsr_stride[i];
-		cur->bsr_dev    = MKDEV(bsr_major, i);
+		cur->bsr_dev    = MKDEV(bsr_major, i + total_bsr_devs);
 
 		switch(cur->bsr_bytes) {
 		case 8:
@@ -220,32 +224,53 @@ static int bsr_create_devs(struct device_node *bn)
 		}
 
 		cur->bsr_num = bsr_types[cur->bsr_type];
-		bsr_types[cur->bsr_type] = cur->bsr_num + 1;
 		snprintf(cur->bsr_name, 32, "bsr%d_%d",
 			 cur->bsr_bytes, cur->bsr_num);
 
 		cdev_init(&cur->bsr_cdev, &bsr_fops);
 		result = cdev_add(&cur->bsr_cdev, cur->bsr_dev, 1);
-		if (result)
+		if (result) {
+			kfree(cur);
 			goto out_err;
+		}
 
-		cur->bsr_device = device_create_drvdata(bsr_class, NULL,
-							cur->bsr_dev,
-							cur, cur->bsr_name);
+		cur->bsr_device = device_create(bsr_class, NULL, cur->bsr_dev,
+						cur, cur->bsr_name);
 		if (!cur->bsr_device) {
 			printk(KERN_ERR "device_create failed for %s\n",
 			       cur->bsr_name);
 			cdev_del(&cur->bsr_cdev);
+			kfree(cur);
 			goto out_err;
 		}
+
+		bsr_types[cur->bsr_type] = cur->bsr_num + 1;
+		list_add_tail(&cur->bsr_list, &bsr_devs);
 	}
+
+	total_bsr_devs += num_bsr_devs;
 
 	return 0;
 
  out_err:
 
 	bsr_cleanup_devs();
-	return -ENODEV;
+	return ret;
+}
+
+static int bsr_create_devs(struct device_node *bn)
+{
+	int ret;
+
+	while (bn) {
+		ret = bsr_add_node(bn);
+		if (ret) {
+			of_node_put(bn);
+			return ret;
+		}
+		bn = of_find_compatible_node(bn, NULL, "ibm,bsr");
+	}
+	return 0;
 }
 
 static int __init bsr_init(void)
@@ -255,7 +280,7 @@ static int __init bsr_init(void)
 	int ret = -ENODEV;
 	int result;
 
-	np = of_find_compatible_node(NULL, "ibm,bsr", "ibm,bsr");
+	np = of_find_compatible_node(NULL, NULL, "ibm,bsr");
 	if (!np)
 		goto out_err;
 
@@ -273,10 +298,10 @@ static int __init bsr_init(void)
 		goto out_err_2;
 	}
 
-	if ((ret = bsr_create_devs(np)) < 0)
+	if ((ret = bsr_create_devs(np)) < 0) {
+		np = NULL;
 		goto out_err_3;
-
-	of_node_put(np);
+	}
 
 	return 0;
 

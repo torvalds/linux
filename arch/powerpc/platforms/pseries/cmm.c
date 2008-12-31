@@ -28,6 +28,7 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/oom.h>
+#include <linux/reboot.h>
 #include <linux/sched.h>
 #include <linux/stringify.h>
 #include <linux/swap.h>
@@ -121,7 +122,7 @@ static long cmm_alloc_pages(long nr)
 			npa = (struct cmm_page_array *)__get_free_page(GFP_NOIO | __GFP_NOWARN |
 								       __GFP_NORETRY | __GFP_NOMEMALLOC);
 			if (!npa) {
-				pr_info("%s: Can not allocate new page list\n", __FUNCTION__);
+				pr_info("%s: Can not allocate new page list\n", __func__);
 				free_page(addr);
 				break;
 			}
@@ -138,7 +139,7 @@ static long cmm_alloc_pages(long nr)
 		}
 
 		if ((rc = plpar_page_set_loaned(__pa(addr)))) {
-			pr_err("%s: Can not set page to loaned. rc=%ld\n", __FUNCTION__, rc);
+			pr_err("%s: Can not set page to loaned. rc=%ld\n", __func__, rc);
 			spin_unlock(&cmm_lock);
 			free_page(addr);
 			break;
@@ -384,6 +385,26 @@ static void cmm_unregister_sysfs(struct sys_device *sysdev)
 }
 
 /**
+ * cmm_reboot_notifier - Make sure pages are not still marked as "loaned"
+ *
+ **/
+static int cmm_reboot_notifier(struct notifier_block *nb,
+			       unsigned long action, void *unused)
+{
+	if (action == SYS_RESTART) {
+		if (cmm_thread_ptr)
+			kthread_stop(cmm_thread_ptr);
+		cmm_thread_ptr = NULL;
+		cmm_free_pages(loaned_pages);
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block cmm_reboot_nb = {
+	.notifier_call = cmm_reboot_notifier,
+};
+
+/**
  * cmm_init - Module initialization
  *
  * Return value:
@@ -399,8 +420,11 @@ static int cmm_init(void)
 	if ((rc = register_oom_notifier(&cmm_oom_nb)) < 0)
 		return rc;
 
-	if ((rc = cmm_sysfs_register(&cmm_sysdev)))
+	if ((rc = register_reboot_notifier(&cmm_reboot_nb)))
 		goto out_oom_notifier;
+
+	if ((rc = cmm_sysfs_register(&cmm_sysdev)))
+		goto out_reboot_notifier;
 
 	if (cmm_disabled)
 		return rc;
@@ -415,6 +439,8 @@ static int cmm_init(void)
 
 out_unregister_sysfs:
 	cmm_unregister_sysfs(&cmm_sysdev);
+out_reboot_notifier:
+	unregister_reboot_notifier(&cmm_reboot_nb);
 out_oom_notifier:
 	unregister_oom_notifier(&cmm_oom_nb);
 	return rc;
@@ -431,6 +457,7 @@ static void cmm_exit(void)
 	if (cmm_thread_ptr)
 		kthread_stop(cmm_thread_ptr);
 	unregister_oom_notifier(&cmm_oom_nb);
+	unregister_reboot_notifier(&cmm_reboot_nb);
 	cmm_free_pages(loaned_pages);
 	cmm_unregister_sysfs(&cmm_sysdev);
 }

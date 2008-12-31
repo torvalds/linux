@@ -749,8 +749,7 @@ static int __devinit snd_bt87x_create(struct snd_card *card,
 		pci_disable_device(pci);
 		return err;
 	}
-	chip->mmio = ioremap_nocache(pci_resource_start(pci, 0),
-				     pci_resource_len(pci, 0));
+	chip->mmio = pci_ioremap_bar(pci, 0);
 	if (!chip->mmio) {
 		snd_printk(KERN_ERR "cannot remap io memory\n");
 		err = -ENOMEM;

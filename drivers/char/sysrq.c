@@ -23,6 +23,7 @@
 #include <linux/reboot.h>
 #include <linux/sysrq.h>
 #include <linux/kbd_kern.h>
+#include <linux/proc_fs.h>
 #include <linux/quotaops.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -167,7 +168,7 @@ static void sysrq_handle_show_timers(int key, struct tty_struct *tty)
 static struct sysrq_key_op sysrq_show_timers_op = {
 	.handler	= sysrq_handle_show_timers,
 	.help_msg	= "show-all-timers(Q)",
-	.action_msg	= "Show Pending Timers",
+	.action_msg	= "Show clockevent devices & pending hrtimers (no others)",
 };
 
 static void sysrq_handle_mountro(int key, struct tty_struct *tty)
@@ -273,6 +274,22 @@ static struct sysrq_key_op sysrq_showstate_blocked_op = {
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
 
+#ifdef CONFIG_TRACING
+#include <linux/ftrace.h>
+
+static void sysrq_ftrace_dump(int key, struct tty_struct *tty)
+{
+	ftrace_dump();
+}
+static struct sysrq_key_op sysrq_ftrace_dump_op = {
+	.handler	= sysrq_ftrace_dump,
+	.help_msg	= "dumpZ-ftrace-buffer",
+	.action_msg	= "Dump ftrace buffer",
+	.enable_mask	= SYSRQ_ENABLE_DUMP,
+};
+#else
+#define sysrq_ftrace_dump_op (*(struct sysrq_key_op *)0)
+#endif
 
 static void sysrq_handle_showmem(int key, struct tty_struct *tty)
 {
@@ -326,6 +343,7 @@ static struct sysrq_key_op sysrq_moom_op = {
 	.handler	= sysrq_handle_moom,
 	.help_msg	= "Full",
 	.action_msg	= "Manual OOM execution",
+	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
 
 static void sysrq_handle_kill(int key, struct tty_struct *tty)
@@ -404,7 +422,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	NULL,				/* x */
 	/* y: May be registered on sparc64 for global register dump */
 	NULL,				/* y */
-	NULL				/* z */
+	&sysrq_ftrace_dump_op,		/* z */
 };
 
 /* key2index calculation, -1 on invalid index */
@@ -533,3 +551,32 @@ int unregister_sysrq_key(int key, struct sysrq_key_op *op_p)
 	return __sysrq_swap_key_ops(key, NULL, op_p);
 }
 EXPORT_SYMBOL(unregister_sysrq_key);
+
+#ifdef CONFIG_PROC_FS
+/*
+ * writing 'C' to /proc/sysrq-trigger is like sysrq-C
+ */
+static ssize_t write_sysrq_trigger(struct file *file, const char __user *buf,
+				   size_t count, loff_t *ppos)
+{
+	if (count) {
+		char c;
+
+		if (get_user(c, buf))
+			return -EFAULT;
+		__handle_sysrq(c, NULL, 0);
+	}
+	return count;
+}
+
+static const struct file_operations proc_sysrq_trigger_operations = {
+	.write		= write_sysrq_trigger,
+};
+
+static int __init sysrq_init(void)
+{
+	proc_create("sysrq-trigger", S_IWUSR, NULL, &proc_sysrq_trigger_operations);
+	return 0;
+}
+module_init(sysrq_init);
+#endif

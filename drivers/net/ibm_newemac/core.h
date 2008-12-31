@@ -190,6 +190,9 @@ struct emac_instance {
 	struct delayed_work		link_work;
 	int				link_polling;
 
+	/* GPCS PHY infos */
+	u32				gpcs_address;
+
 	/* Shared MDIO if any */
 	u32				mdio_ph;
 	struct of_device		*mdio_dev;
@@ -344,6 +347,9 @@ enum {
 #endif
 #ifdef CONFIG_IBM_NEW_EMAC_RGMII
 	    EMAC_FTR_HAS_RGMII	|
+#endif
+#ifdef CONFIG_IBM_NEW_EMAC_NO_FLOW_CTRL
+	    EMAC_FTR_NO_FLOW_CONTROL_40x |
 #endif
 	EMAC_FTR_460EX_PHY_CLK_FIX |
 	EMAC_FTR_440EP_PHY_CLK_FIX,

@@ -135,7 +135,7 @@ static int wait_for_pin(struct i2c_algo_pcf_data *adap, int *status) {
 	*status = get_pcf(adap, 1);
 #ifndef STUB_I2C
 	while (timeout-- && (*status & I2C_PCF_PIN)) {
-		adap->waitforpin();
+		adap->waitforpin(adap->data);
 		*status = get_pcf(adap, 1);
 	}
 	if (*status & I2C_PCF_LAB) {
@@ -208,7 +208,7 @@ static int pcf_init_8584 (struct i2c_algo_pcf_data *adap)
 		return -ENXIO;
 	}
 	
-	printk(KERN_DEBUG "i2c-algo-pcf.o: deteted and initialized PCF8584.\n");
+	printk(KERN_DEBUG "i2c-algo-pcf.o: detected and initialized PCF8584.\n");
 
 	return 0;
 }
@@ -331,13 +331,16 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 	int i;
 	int ret=0, timeout, status;
     
+	if (adap->xfer_begin)
+		adap->xfer_begin(adap->data);
 
 	/* Check for bus busy */
 	timeout = wait_for_bb(adap);
 	if (timeout) {
 		DEB2(printk(KERN_ERR "i2c-algo-pcf.o: "
 		            "Timeout waiting for BB in pcf_xfer\n");)
-		return -EIO;
+		i = -EIO;
+		goto out;
 	}
 	
 	for (i = 0;ret >= 0 && i < num; i++) {
@@ -359,12 +362,14 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 		if (timeout) {
 			if (timeout == -EINTR) {
 				/* arbitration lost */
-				return (-EINTR);
+				i = -EINTR;
+				goto out;
 			}
 			i2c_stop(adap);
 			DEB2(printk(KERN_ERR "i2c-algo-pcf.o: Timeout waiting "
 				    "for PIN(1) in pcf_xfer\n");)
-			return (-EREMOTEIO);
+			i = -EREMOTEIO;
+			goto out;
 		}
     
 #ifndef STUB_I2C
@@ -372,7 +377,8 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 		if (status & I2C_PCF_LRB) {
 			i2c_stop(adap);
 			DEB2(printk(KERN_ERR "i2c-algo-pcf.o: No LRB(1) in pcf_xfer\n");)
-			return (-EREMOTEIO);
+			i = -EREMOTEIO;
+			goto out;
 		}
 #endif
     
@@ -404,6 +410,9 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 		}
 	}
 
+out:
+	if (adap->xfer_end)
+		adap->xfer_end(adap->data);
 	return (i);
 }
 

@@ -1,30 +1,39 @@
 config SND_SOC_ALL_CODECS
 	tristate "Build all ASoC CODEC drivers"
-	depends on I2C
-	select SPI
-	select SPI_MASTER
-	select SND_SOC_AD73311
-	select SND_SOC_AK4535
-	select SND_SOC_CS4270
-	select SND_SOC_SSM2602
-	select SND_SOC_TLV320AIC23
-	select SND_SOC_TLV320AIC26
-	select SND_SOC_TLV320AIC3X
-	select SND_SOC_UDA1380
-	select SND_SOC_WM8510
-	select SND_SOC_WM8580
-	select SND_SOC_WM8731
-	select SND_SOC_WM8750
-	select SND_SOC_WM8753
-	select SND_SOC_WM8900
-	select SND_SOC_WM8903
-	select SND_SOC_WM8971
-	select SND_SOC_WM8990
+	select SND_SOC_AC97_CODEC if SND_SOC_AC97_BUS
+	select SND_SOC_AD1980 if SND_SOC_AC97_BUS
+	select SND_SOC_AD73311 if I2C
+	select SND_SOC_AK4535 if I2C
+	select SND_SOC_CS4270 if I2C
+	select SND_SOC_PCM3008
+	select SND_SOC_SSM2602 if I2C
+	select SND_SOC_TLV320AIC23 if I2C
+	select SND_SOC_TLV320AIC26 if SPI_MASTER
+	select SND_SOC_TLV320AIC3X if I2C
+	select SND_SOC_TWL4030 if TWL4030_CORE
+	select SND_SOC_UDA134X
+	select SND_SOC_UDA1380 if I2C
+	select SND_SOC_WM8350 if MFD_WM8350
+	select SND_SOC_WM8510 if (I2C || SPI_MASTER)
+	select SND_SOC_WM8580 if I2C
+	select SND_SOC_WM8728 if (I2C || SPI_MASTER)
+	select SND_SOC_WM8731 if (I2C || SPI_MASTER)
+	select SND_SOC_WM8750 if (I2C || SPI_MASTER)
+	select SND_SOC_WM8753 if (I2C || SPI_MASTER)
+	select SND_SOC_WM8900 if I2C
+	select SND_SOC_WM8903 if I2C
+	select SND_SOC_WM8971 if I2C
+	select SND_SOC_WM8990 if I2C
+	select SND_SOC_WM9712 if SND_SOC_AC97_BUS
+	select SND_SOC_WM9713 if SND_SOC_AC97_BUS
         help
           Normally ASoC codec drivers are only built if a machine driver which
           uses them is also built since they are only usable with a machine
           driver.  Selecting this option will allow these drivers to be built
           without an explicit machine driver for test and development purposes.
+
+	  Support for the bus types used to access the codecs to be built must
+	  be selected separately.
 
           If unsure select "N".
 
@@ -60,6 +69,12 @@ config SND_SOC_CS4270_VD33_ERRATA
 	bool
 	depends on SND_SOC_CS4270
 
+config SND_SOC_L3
+       tristate
+
+config SND_SOC_PCM3008
+       tristate
+
 config SND_SOC_SSM2602
 	tristate
 
@@ -68,20 +83,34 @@ config SND_SOC_TLV320AIC23
 	depends on I2C
 
 config SND_SOC_TLV320AIC26
-	tristate "TI TLV320AIC26 Codec support"
+	tristate "TI TLV320AIC26 Codec support" if SND_SOC_OF_SIMPLE
 	depends on SPI
 
 config SND_SOC_TLV320AIC3X
 	tristate
 	depends on I2C
 
+config SND_SOC_TWL4030
+	tristate
+	depends on TWL4030_CORE
+
+config SND_SOC_UDA134X
+       tristate
+       select SND_SOC_L3
+
 config SND_SOC_UDA1380
         tristate
+
+config SND_SOC_WM8350
+	tristate
 
 config SND_SOC_WM8510
 	tristate
 
 config SND_SOC_WM8580
+	tristate
+
+config SND_SOC_WM8728
 	tristate
 
 config SND_SOC_WM8731

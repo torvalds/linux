@@ -24,6 +24,7 @@
 #include <scsi/scsi_dh.h>
 
 #define RDAC_NAME "rdac"
+#define RDAC_RETRY_COUNT 5
 
 /*
  * LSI mode page stuff
@@ -226,7 +227,8 @@ static struct request *get_rdac_req(struct scsi_device *sdev,
 	}
 
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	rq->cmd_flags |= REQ_FAILFAST | REQ_NOMERGE;
+	rq->cmd_flags |= REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT |
+			 REQ_FAILFAST_DRIVER;
 	rq->retries = RDAC_RETRIES;
 	rq->timeout = RDAC_TIMEOUT;
 
@@ -385,6 +387,7 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 	struct c9_inquiry *inqp;
 
 	h->lun_state = RDAC_LUN_UNOWNED;
+	h->state = RDAC_STATE_ACTIVE;
 	err = submit_inquiry(sdev, 0xC9, sizeof(struct c9_inquiry), h);
 	if (err == SCSI_DH_OK) {
 		inqp = &h->inq.c9;
@@ -399,6 +402,9 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 			h->lun_state = RDAC_LUN_OWNED;
 		}
 	}
+
+	if (h->lun_state == RDAC_LUN_UNOWNED)
+		h->state = RDAC_STATE_PASSIVE;
 
 	return err;
 }
@@ -473,21 +479,27 @@ static int send_mode_select(struct scsi_device *sdev, struct rdac_dh_data *h)
 {
 	struct request *rq;
 	struct request_queue *q = sdev->request_queue;
-	int err = SCSI_DH_RES_TEMP_UNAVAIL;
+	int err, retry_cnt = RDAC_RETRY_COUNT;
 
+retry:
+	err = SCSI_DH_RES_TEMP_UNAVAIL;
 	rq = rdac_failover_get(sdev, h);
 	if (!rq)
 		goto done;
 
-	sdev_printk(KERN_INFO, sdev, "queueing MODE_SELECT command.\n");
+	sdev_printk(KERN_INFO, sdev, "%s MODE_SELECT command.\n",
+		(retry_cnt == RDAC_RETRY_COUNT) ? "queueing" : "retrying");
 
 	err = blk_execute_rq(q, NULL, rq, 1);
-	if (err != SCSI_DH_OK)
+	blk_put_request(rq);
+	if (err != SCSI_DH_OK) {
 		err = mode_select_handle_sense(sdev, h->sense);
+		if (err == SCSI_DH_RETRY && retry_cnt--)
+			goto retry;
+	}
 	if (err == SCSI_DH_OK)
 		h->state = RDAC_STATE_ACTIVE;
 
-	blk_put_request(rq);
 done:
 	return err;
 }
@@ -590,6 +602,8 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"SUN", "LCSM100_F"},
 	{"DELL", "MD3000"},
 	{"DELL", "MD3000i"},
+	{"LSI", "INF-01-00"},
+	{"ENGENIO", "INF-01-00"},
 	{NULL, NULL},
 };
 

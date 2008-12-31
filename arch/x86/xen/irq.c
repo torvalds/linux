@@ -21,7 +21,6 @@ void xen_force_evtchn_callback(void)
 
 static void __init __xen_init_IRQ(void)
 {
-#ifdef CONFIG_X86_64
 	int i;
 
 	/* Create identity vector->irq map */
@@ -31,7 +30,6 @@ static void __init __xen_init_IRQ(void)
 		for_each_possible_cpu(cpu)
 			per_cpu(vector_irq, cpu)[i] = i;
 	}
-#endif	/* CONFIG_X86_64 */
 
 	xen_init_IRQ();
 }

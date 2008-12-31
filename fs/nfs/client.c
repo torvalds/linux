@@ -143,7 +143,6 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	clp->cl_proto = cl_init->proto;
 
 #ifdef CONFIG_NFS_V4
-	init_rwsem(&clp->cl_sem);
 	INIT_LIST_HEAD(&clp->cl_delegations);
 	spin_lock_init(&clp->cl_lock);
 	INIT_DELAYED_WORK(&clp->cl_renewd, nfs4_renew_state);
@@ -224,31 +223,54 @@ void nfs_put_client(struct nfs_client *clp)
 	}
 }
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static const struct in6_addr *nfs_map_ipv4_addr(const struct sockaddr *sa, struct in6_addr *addr_mapped)
+{
+	switch (sa->sa_family) {
+		default:
+			return NULL;
+		case AF_INET6:
+			return &((const struct sockaddr_in6 *)sa)->sin6_addr;
+			break;
+		case AF_INET:
+			ipv6_addr_set_v4mapped(((const struct sockaddr_in *)sa)->sin_addr.s_addr,
+					addr_mapped);
+			return addr_mapped;
+	}
+}
+
+static int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
+		const struct sockaddr *sa2)
+{
+	const struct in6_addr *addr1;
+	const struct in6_addr *addr2;
+	struct in6_addr addr1_mapped;
+	struct in6_addr addr2_mapped;
+
+	addr1 = nfs_map_ipv4_addr(sa1, &addr1_mapped);
+	if (likely(addr1 != NULL)) {
+		addr2 = nfs_map_ipv4_addr(sa2, &addr2_mapped);
+		if (likely(addr2 != NULL))
+			return ipv6_addr_equal(addr1, addr2);
+	}
+	return 0;
+}
+#else
 static int nfs_sockaddr_match_ipaddr4(const struct sockaddr_in *sa1,
 				 const struct sockaddr_in *sa2)
 {
 	return sa1->sin_addr.s_addr == sa2->sin_addr.s_addr;
 }
 
-static int nfs_sockaddr_match_ipaddr6(const struct sockaddr_in6 *sa1,
-				 const struct sockaddr_in6 *sa2)
-{
-	return ipv6_addr_equal(&sa1->sin6_addr, &sa2->sin6_addr);
-}
-
 static int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
 				 const struct sockaddr *sa2)
 {
-	switch (sa1->sa_family) {
-	case AF_INET:
-		return nfs_sockaddr_match_ipaddr4((const struct sockaddr_in *)sa1,
-				(const struct sockaddr_in *)sa2);
-	case AF_INET6:
-		return nfs_sockaddr_match_ipaddr6((const struct sockaddr_in6 *)sa1,
-				(const struct sockaddr_in6 *)sa2);
-	}
-	BUG();
+	if (unlikely(sa1->sa_family != AF_INET || sa2->sa_family != AF_INET))
+		return 0;
+	return nfs_sockaddr_match_ipaddr4((const struct sockaddr_in *)sa1,
+			(const struct sockaddr_in *)sa2);
 }
+#endif
 
 /*
  * Find a client by IP address and protocol version
@@ -270,8 +292,6 @@ struct nfs_client *nfs_find_client(const struct sockaddr *addr, u32 nfsversion)
 		if (clp->rpc_ops->version != nfsversion)
 			continue;
 
-		if (addr->sa_family != clap->sa_family)
-			continue;
 		/* Match only the IP address, not the port number */
 		if (!nfs_sockaddr_match_ipaddr(addr, clap))
 			continue;
@@ -305,8 +325,6 @@ struct nfs_client *nfs_find_client_next(struct nfs_client *clp)
 		if (clp->rpc_ops->version != nfsvers)
 			continue;
 
-		if (sap->sa_family != clap->sa_family)
-			continue;
 		/* Match only the IP address, not the port number */
 		if (!nfs_sockaddr_match_ipaddr(sap, clap))
 			continue;
@@ -470,7 +488,7 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 static int nfs_create_rpc_client(struct nfs_client *clp,
 				 const struct rpc_timeout *timeparms,
 				 rpc_authflavor_t flavor,
-				 int flags)
+				 int discrtry, int noresvport)
 {
 	struct rpc_clnt		*clnt = NULL;
 	struct rpc_create_args args = {
@@ -482,8 +500,12 @@ static int nfs_create_rpc_client(struct nfs_client *clp,
 		.program	= &nfs_program,
 		.version	= clp->rpc_ops->version,
 		.authflavor	= flavor,
-		.flags		= flags,
 	};
+
+	if (discrtry)
+		args.flags |= RPC_CLNT_CREATE_DISCRTRY;
+	if (noresvport)
+		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
 	if (!IS_ERR(clp->cl_rpcclient))
 		return 0;
@@ -522,6 +544,8 @@ static int nfs_start_lockd(struct nfs_server *server)
 		.protocol	= server->flags & NFS_MOUNT_TCP ?
 						IPPROTO_TCP : IPPROTO_UDP,
 		.nfs_version	= clp->rpc_ops->version,
+		.noresvport	= server->flags & NFS_MOUNT_NORESVPORT ?
+					1 : 0,
 	};
 
 	if (nlm_init.nfs_version > 3)
@@ -623,7 +647,8 @@ static int nfs_init_client(struct nfs_client *clp,
 	 * Create a client RPC handle for doing FSSTAT with UNIX auth only
 	 * - RFC 2623, sec 2.3.2
 	 */
-	error = nfs_create_rpc_client(clp, timeparms, RPC_AUTH_UNIX, 0);
+	error = nfs_create_rpc_client(clp, timeparms, RPC_AUTH_UNIX,
+				      0, data->flags & NFS_MOUNT_NORESVPORT);
 	if (error < 0)
 		goto error;
 	nfs_mark_client_ready(clp, NFS_CS_READY);
@@ -675,7 +700,7 @@ static int nfs_init_server(struct nfs_server *server,
 	server->nfs_client = clp;
 
 	/* Initialise the client representation from the mount data */
-	server->flags = data->flags & NFS_MOUNT_FLAGMASK;
+	server->flags = data->flags;
 
 	if (data->rsize)
 		server->rsize = nfs_block_size(data->rsize, NULL);
@@ -850,7 +875,6 @@ static struct nfs_server *nfs_alloc_server(void)
 	INIT_LIST_HEAD(&server->client_link);
 	INIT_LIST_HEAD(&server->master_link);
 
-	init_waitqueue_head(&server->active_wq);
 	atomic_set(&server->active, 0);
 
 	server->io_stats = nfs_alloc_iostats();
@@ -966,7 +990,8 @@ error:
 static int nfs4_init_client(struct nfs_client *clp,
 		const struct rpc_timeout *timeparms,
 		const char *ip_addr,
-		rpc_authflavor_t authflavour)
+		rpc_authflavor_t authflavour,
+		int flags)
 {
 	int error;
 
@@ -980,7 +1005,7 @@ static int nfs4_init_client(struct nfs_client *clp,
 	clp->rpc_ops = &nfs_v4_clientops;
 
 	error = nfs_create_rpc_client(clp, timeparms, authflavour,
-					RPC_CLNT_CREATE_DISCRTRY);
+				      1, flags & NFS_MOUNT_NORESVPORT);
 	if (error < 0)
 		goto error;
 	memcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
@@ -1031,7 +1056,8 @@ static int nfs4_set_client(struct nfs_server *server,
 		error = PTR_ERR(clp);
 		goto error;
 	}
-	error = nfs4_init_client(clp, timeparms, ip_addr, authflavour);
+	error = nfs4_init_client(clp, timeparms, ip_addr, authflavour,
+					server->flags);
 	if (error < 0)
 		goto error_put;
 
@@ -1060,6 +1086,10 @@ static int nfs4_init_server(struct nfs_server *server,
 	nfs_init_timeout_values(&timeparms, data->nfs_server.protocol,
 			data->timeo, data->retrans);
 
+	/* Initialise the client representation from the mount data */
+	server->flags = data->flags;
+	server->caps |= NFS_CAP_ATOMIC_OPEN;
+
 	/* Get a client record */
 	error = nfs4_set_client(server,
 			data->nfs_server.hostname,
@@ -1071,10 +1101,6 @@ static int nfs4_init_server(struct nfs_server *server,
 			&timeparms);
 	if (error < 0)
 		goto error;
-
-	/* Initialise the client representation from the mount data */
-	server->flags = data->flags & NFS_MOUNT_FLAGMASK;
-	server->caps |= NFS_CAP_ATOMIC_OPEN;
 
 	if (data->rsize)
 		server->rsize = nfs_block_size(data->rsize, NULL);
@@ -1178,6 +1204,10 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	parent_server = NFS_SB(data->sb);
 	parent_client = parent_server->nfs_client;
 
+	/* Initialise the client representation from the parent server */
+	nfs_server_copy_userdata(server, parent_server);
+	server->caps |= NFS_CAP_ATOMIC_OPEN;
+
 	/* Get a client representation.
 	 * Note: NFSv4 always uses TCP, */
 	error = nfs4_set_client(server, data->hostname,
@@ -1189,10 +1219,6 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 				parent_server->client->cl_timeout);
 	if (error < 0)
 		goto error;
-
-	/* Initialise the client representation from the parent server */
-	nfs_server_copy_userdata(server, parent_server);
-	server->caps |= NFS_CAP_ATOMIC_OPEN;
 
 	error = nfs_init_server_rpcclient(server, parent_server->client->cl_timeout, data->authflavor);
 	if (error < 0)

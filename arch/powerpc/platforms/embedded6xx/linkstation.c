@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/initrd.h>
 #include <linux/mtd/physmap.h>
+#include <linux/of_platform.h>
 
 #include <asm/time.h>
 #include <asm/prom.h>
@@ -53,6 +54,19 @@ static struct mtd_partition linkstation_physmap_partitions[] = {
 		.size   = 0x0f0000,
 	},
 };
+
+static __initdata struct of_device_id of_bus_ids[] = {
+	{ .type = "soc", },
+	{ .compatible = "simple-bus", },
+	{},
+};
+
+static int __init declare_of_platform_devices(void)
+{
+	of_platform_bus_probe(NULL, of_bus_ids, NULL);
+	return 0;
+}
+machine_device_initcall(linkstation, declare_of_platform_devices);
 
 static int __init linkstation_add_bridge(struct device_node *dev)
 {

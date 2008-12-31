@@ -30,19 +30,20 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <asm/mips-boards/bonito64.h>
+#include <asm/mach-lemote/pci.h>
 
 extern struct pci_ops bonito64_pci_ops;
 
 static struct resource loongson2e_pci_mem_resource = {
 	.name   = "LOONGSON2E PCI MEM",
-	.start  = 0x14000000UL,
-	.end    = 0x1fffffffUL,
+	.start  = LOONGSON2E_PCI_MEM_START,
+	.end    = LOONGSON2E_PCI_MEM_END,
 	.flags  = IORESOURCE_MEM,
 };
 
 static struct resource loongson2e_pci_io_resource = {
 	.name   = "LOONGSON2E PCI IO MEM",
-	.start  = 0x00004000UL,
+	.start  = LOONGSON2E_PCI_IO_START,
 	.end    = IO_SPACE_LIMIT,
 	.flags  = IORESOURCE_IO,
 };
@@ -82,6 +83,12 @@ static void __init ict_pcimap(void)
 static int __init pcibios_init(void)
 {
 	ict_pcimap();
+
+	loongson2e_pci_controller.io_map_base =
+	    (unsigned long) ioremap(LOONGSON2E_IO_PORT_BASE,
+				    loongson2e_pci_io_resource.end -
+				    loongson2e_pci_io_resource.start + 1);
+
 	register_pci_controller(&loongson2e_pci_controller);
 
 	return 0;

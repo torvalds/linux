@@ -8,6 +8,9 @@
  *	    Frank Munzert <munzert@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "vmur"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/cdev.h>
 #include <linux/smp_lock.h>
 
@@ -39,8 +42,6 @@ static char ur_banner[] = "z/VM virtual unit record device driver";
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("s390 z/VM virtual unit record device driver");
 MODULE_LICENSE("GPL");
-
-#define PRINTK_HEADER "vmur: "
 
 static dev_t ur_first_dev_maj_min;
 static struct class *vmur_class;
@@ -896,9 +897,8 @@ static int ur_set_online(struct ccw_device *cdev)
 		goto fail_free_cdev;
 	}
 
-	urd->device = device_create_drvdata(vmur_class, NULL,
-					    urd->char_device->dev, NULL,
-					    "%s", node_id);
+	urd->device = device_create(vmur_class, NULL, urd->char_device->dev,
+				    NULL, "%s", node_id);
 	if (IS_ERR(urd->device)) {
 		rc = PTR_ERR(urd->device);
 		TRACE("ur_set_online: device_create rc=%d\n", rc);
@@ -988,7 +988,8 @@ static int __init ur_init(void)
 	dev_t dev;
 
 	if (!MACHINE_IS_VM) {
-		PRINT_ERR("%s is only available under z/VM.\n", ur_banner);
+		pr_err("The %s cannot be loaded without z/VM\n",
+		       ur_banner);
 		return -ENODEV;
 	}
 
@@ -1007,7 +1008,8 @@ static int __init ur_init(void)
 
 	rc = alloc_chrdev_region(&dev, 0, NUM_MINORS, "vmur");
 	if (rc) {
-		PRINT_ERR("alloc_chrdev_region failed: err = %d\n", rc);
+		pr_err("Kernel function alloc_chrdev_region failed with "
+		       "error code %d\n", rc);
 		goto fail_unregister_driver;
 	}
 	ur_first_dev_maj_min = MKDEV(MAJOR(dev), 0);
@@ -1017,7 +1019,7 @@ static int __init ur_init(void)
 		rc = PTR_ERR(vmur_class);
 		goto fail_unregister_region;
 	}
-	PRINT_INFO("%s loaded.\n", ur_banner);
+	pr_info("%s loaded.\n", ur_banner);
 	return 0;
 
 fail_unregister_region:
@@ -1035,7 +1037,7 @@ static void __exit ur_exit(void)
 	unregister_chrdev_region(ur_first_dev_maj_min, NUM_MINORS);
 	ccw_driver_unregister(&ur_driver);
 	debug_unregister(vmur_dbf);
-	PRINT_INFO("%s unloaded.\n", ur_banner);
+	pr_info("%s unloaded.\n", ur_banner);
 }
 
 module_init(ur_init);

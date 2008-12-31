@@ -52,6 +52,7 @@ config BCM47XX
 	select SSB
 	select SSB_DRIVER_MIPS
 	select SSB_DRIVER_EXTIF
+	select SSB_EMBEDDED
 	select SSB_PCICORE_HOSTMODE if PCI
 	select GENERIC_GPIO
 	select SYS_HAS_EARLY_PRINTK
@@ -237,21 +238,8 @@ config MIPS_SIM
 	  This option enables support for MIPS Technologies MIPSsim software
 	  emulator.
 
-config MARKEINS
-	bool "NEC EMMA2RH Mark-eins"
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select SWAP_IO_SPACE
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_HAS_CPU_R5000
-	help
-	  This enables support for the R5432-based NEC Mark-eins
-	  boards with R5500 CPU.
+config MACH_EMMA
+	bool "NEC EMMA series based machines"
 
 config MACH_VR41XX
 	bool "NEC VR4100 series based machines"
@@ -259,6 +247,19 @@ config MACH_VR41XX
 	select CSRC_R4K
 	select SYS_HAS_CPU_VR41XX
 	select GENERIC_HARDIRQS_NO__DO_IRQ
+
+config NXP_STB220
+	bool "NXP STB220 board"
+	select SOC_PNX833X
+	help
+	 Support for NXP Semiconductors STB220 Development Board.
+
+config NXP_STB225
+	bool "NXP 225 board"
+	select SOC_PNX833X
+	select SOC_PNX8335
+	help
+	 Support for NXP Semiconductors STB225 Development Board.
 
 config PNX8550_JBS
 	bool "NXP PNX8550 based JBS board"
@@ -326,7 +327,6 @@ config SGI_IP22
 	select IP22_CPU_SCACHE
 	select IRQ_CPU
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
-	select SGI_HAS_DS1286
 	select SGI_HAS_I8042
 	select SGI_HAS_INDYDOG
 	select SGI_HAS_HAL2
@@ -381,7 +381,6 @@ config SGI_IP28
 	select HW_HAS_EISA
 	select I8253
 	select I8259
-	select SGI_HAS_DS1286
 	select SGI_HAS_I8042
 	select SGI_HAS_INDYDOG
 	select SGI_HAS_HAL2
@@ -600,6 +599,7 @@ endchoice
 
 source "arch/mips/alchemy/Kconfig"
 source "arch/mips/basler/excite/Kconfig"
+source "arch/mips/emma/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
@@ -653,7 +653,7 @@ config GENERIC_CMOS_UPDATE
 	bool
 	default y
 
-config SCHED_NO_NO_OMIT_FRAME_POINTER
+config SCHED_OMIT_FRAME_POINTER
 	bool
 	default y
 
@@ -848,6 +848,24 @@ config MIPS_RM9122
 	bool
 	select SERIAL_RM9000
 
+config SOC_PNX833X
+	bool
+	select CEVT_R4K
+	select CSRC_R4K
+	select IRQ_CPU
+	select DMA_NONCOHERENT
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select GENERIC_HARDIRQS_NO__DO_IRQ
+	select GENERIC_GPIO
+	select CPU_MIPSR2_IRQ_VI
+
+config SOC_PNX8335
+	bool
+	select SOC_PNX833X
+
 config PNX8550
 	bool
 	select SOC_PNX8550
@@ -871,9 +889,6 @@ config EMMA2RH
 	default y
 
 config SERIAL_RM9000
-	bool
-
-config SGI_HAS_DS1286
 	bool
 
 config SGI_HAS_INDYDOG
@@ -1091,6 +1106,16 @@ config CPU_R5432
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 
+config CPU_R5500
+	bool "R5500"
+	depends on SYS_HAS_CPU_R5500
+	select CPU_HAS_LLSC
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	help
+	  NEC VR5500 and VR5500A series processors implement 64-bit MIPS IV
+	  instruction set.
+
 config CPU_R6000
 	bool "R6000"
 	depends on EXPERIMENTAL
@@ -1199,6 +1224,9 @@ config SYS_HAS_CPU_R5000
 	bool
 
 config SYS_HAS_CPU_R5432
+	bool
+
+config SYS_HAS_CPU_R5500
 	bool
 
 config SYS_HAS_CPU_R6000
@@ -1883,6 +1911,8 @@ config PROBE_INITRD_HEADER
 	  Say Y here if you are using arch/mips/boot/addinitrd.c to
 	  add initrd or initramfs image to the kernel image.
 	  Otherwise, say N.
+
+source "kernel/Kconfig.freezer"
 
 menu "Bus options (PCI, PCMCIA, EISA, ISA, TC)"
 

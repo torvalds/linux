@@ -4,6 +4,7 @@
  *  Derived from ivtv-driver.h
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,6 +42,7 @@
 #include <linux/pagemap.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <asm/byteorder.h>
 
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
@@ -62,9 +64,6 @@
 #ifndef CONFIG_PCI
 #  error "This driver requires kernel PCI support."
 #endif
-
-/* Default delay to throttle mmio access to the CX23418 */
-#define CX18_DEFAULT_MMIO_NDELAY 0 /* 0 ns = 0 PCI clock(s) / 33 MHz */
 
 #define CX18_MEM_OFFSET	0x00000000
 #define CX18_MEM_SIZE	0x04000000
@@ -115,6 +114,17 @@
 #define CX18_DEFAULT_ENC_YUV_BUFFERS 2
 #define CX18_DEFAULT_ENC_VBI_BUFFERS 1
 #define CX18_DEFAULT_ENC_PCM_BUFFERS 1
+
+/* Maximum firmware DMA buffers per stream */
+#define CX18_MAX_FW_MDLS_PER_STREAM 63
+
+/* DMA buffer, default size in kB allocated */
+#define CX18_DEFAULT_ENC_TS_BUFSIZE   32
+#define CX18_DEFAULT_ENC_MPG_BUFSIZE  32
+#define CX18_DEFAULT_ENC_IDX_BUFSIZE  32
+#define CX18_DEFAULT_ENC_YUV_BUFSIZE 128
+/* Default VBI bufsize based on standards supported by card tuner for now */
+#define CX18_DEFAULT_ENC_PCM_BUFSIZE   4
 
 /* i2c stuff */
 #define I2C_CLIENTS_MAX 16
@@ -175,7 +185,6 @@
 
 #define CX18_MAX_PGM_INDEX (400)
 
-extern int cx18_retry_mmio;	/* enable check & retry of mmio accesses */
 extern int cx18_debug;
 
 
@@ -184,7 +193,6 @@ struct cx18_options {
 	int cardtype;		/* force card type on load */
 	int tuner;		/* set tuner on load */
 	int radio;		/* enable/disable radio */
-	unsigned long mmio_ndelay; /* delay in ns after every PCI mmio access */
 };
 
 /* per-buffer bit flags */
@@ -198,12 +206,12 @@ struct cx18_options {
 #define CX18_F_S_APPL_IO        8	/* this stream is used read/written by an application */
 
 /* per-cx18, i_flags */
-#define CX18_F_I_LOADED_FW	0 	/* Loaded the firmware the first time */
-#define CX18_F_I_EOS		4 	/* End of encoder stream reached */
-#define CX18_F_I_RADIO_USER	5 	/* The radio tuner is selected */
-#define CX18_F_I_ENC_PAUSED	13 	/* the encoder is paused */
-#define CX18_F_I_INITED		21 	/* set after first open */
-#define CX18_F_I_FAILED		22 	/* set if first open failed */
+#define CX18_F_I_LOADED_FW		0 	/* Loaded firmware 1st time */
+#define CX18_F_I_EOS			4 	/* End of encoder stream */
+#define CX18_F_I_RADIO_USER		5 	/* radio tuner is selected */
+#define CX18_F_I_ENC_PAUSED		13 	/* the encoder is paused */
+#define CX18_F_I_INITED			21 	/* set after first open */
+#define CX18_F_I_FAILED			22 	/* set if first open failed */
 
 /* These are the VBI types as they appear in the embedded VBI private packets. */
 #define CX18_SLICED_TYPE_TELETEXT_B     (1)
@@ -216,6 +224,7 @@ struct cx18_buffer {
 	dma_addr_t dma_handle;
 	u32 id;
 	unsigned long b_flags;
+	unsigned skipped;
 	char *buf;
 
 	u32 bytesused;
@@ -244,6 +253,27 @@ struct cx18_dvb {
 struct cx18;	 /* forward reference */
 struct cx18_scb; /* forward reference */
 
+
+#define CX18_MAX_MDL_ACKS 2
+#define CX18_MAX_EPU_WORK_ORDERS (CX18_MAX_FW_MDLS_PER_STREAM + 7)
+/* CPU_DE_RELEASE_MDL can burst CX18_MAX_FW_MDLS_PER_STREAM orders in a group */
+
+#define CX18_F_EWO_MB_STALE_UPON_RECEIPT 0x1
+#define CX18_F_EWO_MB_STALE_WHILE_PROC   0x2
+#define CX18_F_EWO_MB_STALE \
+	     (CX18_F_EWO_MB_STALE_UPON_RECEIPT | CX18_F_EWO_MB_STALE_WHILE_PROC)
+
+struct cx18_epu_work_order {
+	struct work_struct work;
+	atomic_t pending;
+	struct cx18 *cx;
+	unsigned long flags;
+	int rpu;
+	struct cx18_mailbox mb;
+	struct cx18_mdl_ack mdl_ack[CX18_MAX_MDL_ACKS];
+	char *str;
+};
+
 #define CX18_INVALID_TASK_HANDLE 0xffffffff
 
 struct cx18_stream {
@@ -257,7 +287,7 @@ struct cx18_stream {
 	unsigned mdl_offset;
 
 	u32 id;
-	spinlock_t qlock; 	/* locks access to the queues */
+	struct mutex qlock; 	/* locks access to the queues */
 	unsigned long s_flags;	/* status flags, see above */
 	int dma;		/* can be PCI_DMA_TODEVICE,
 				   PCI_DMA_FROMDEVICE or
@@ -271,8 +301,8 @@ struct cx18_stream {
 
 	/* Buffer Queues */
 	struct cx18_queue q_free;	/* free buffers */
-	struct cx18_queue q_full;	/* full buffers */
-	struct cx18_queue q_io;		/* waiting for I/O */
+	struct cx18_queue q_busy;	/* busy buffers - in use by firmware */
+	struct cx18_queue q_full;	/* full buffers - data for user apps */
 
 	/* DVB / Digital Transport */
 	struct cx18_dvb dvb;
@@ -349,12 +379,7 @@ struct cx18_i2c_algo_callback_data {
 	int bus_index;   /* 0 or 1 for the cx23418's 1st or 2nd I2C bus */
 };
 
-#define CX18_MAX_MMIO_RETRIES 10
-
-struct cx18_mmio_stats {
-	atomic_t retried_write[CX18_MAX_MMIO_RETRIES+1];
-	atomic_t retried_read[CX18_MAX_MMIO_RETRIES+1];
-};
+#define CX18_MAX_MMIO_WR_RETRIES 10
 
 /* Struct to hold info about cx18 cards */
 struct cx18 {
@@ -374,7 +399,9 @@ struct cx18 {
 	u32 v4l2_cap;		/* V4L2 capabilities of card */
 	u32 hw_flags; 		/* Hardware description of the board */
 	unsigned mdl_offset;
-	struct cx18_scb __iomem *scb;   /* pointer to SCB */
+	struct cx18_scb __iomem *scb; /* pointer to SCB */
+	struct mutex epu2apu_mb_lock; /* protect driver to chip mailbox in SCB*/
+	struct mutex epu2cpu_mb_lock; /* protect driver to chip mailbox in SCB*/
 
 	struct cx18_av_state av_state;
 
@@ -393,6 +420,7 @@ struct cx18 {
 
 	struct mutex serialize_lock;    /* mutex used to serialize open/close/start/stop/ioctl operations */
 	struct cx18_options options; 	/* User options */
+	int stream_buffers[CX18_MAX_STREAMS]; /* # of buffers for each stream */
 	int stream_buf_size[CX18_MAX_STREAMS]; /* Stream buffer size */
 	struct cx18_stream streams[CX18_MAX_STREAMS]; 	/* Stream data */
 	unsigned long i_flags;  /* global cx18 flags */
@@ -400,8 +428,6 @@ struct cx18 {
 	atomic_t tot_capturing;	/* total count number of active capture streams */
 	spinlock_t lock;        /* lock access to this struct */
 	int search_pack_header;
-
-	spinlock_t dma_reg_lock; /* lock access to DMA engine registers */
 
 	int open_id;		/* incremented each time an open occurs, used as
 				   unique ID. Starts at 1, so 0 can be used as
@@ -426,11 +452,17 @@ struct cx18 {
 
 	wait_queue_head_t mb_apu_waitq;
 	wait_queue_head_t mb_cpu_waitq;
-	wait_queue_head_t mb_epu_waitq;
-	wait_queue_head_t mb_hpu_waitq;
 	wait_queue_head_t cap_w;
 	/* when the current DMA is finished this queue is woken up */
 	wait_queue_head_t dma_waitq;
+
+	u32 sw1_irq_mask;
+	u32 sw2_irq_mask;
+	u32 hw2_irq_mask;
+
+	struct workqueue_struct *work_queue;
+	struct cx18_epu_work_order epu_work_order[CX18_MAX_EPU_WORK_ORDERS];
+	char epu_debug_str[256]; /* CX18_EPU_DEBUG is rare: use shared space */
 
 	/* i2c */
 	struct i2c_adapter i2c_adap[2];
@@ -444,9 +476,6 @@ struct cx18 {
 	u32 gpio_dir;
 	u32 gpio_val;
 	struct mutex gpio_lock;
-
-	/* Statistics */
-	struct cx18_mmio_stats mmio_stats;
 
 	/* v4l2 and User settings */
 
@@ -475,5 +504,11 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv);
 
 /* First-open initialization: load firmware, etc. */
 int cx18_init_on_first_open(struct cx18 *cx);
+
+/* Test if the current VBI mode is raw (1) or sliced (0) */
+static inline int cx18_raw_vbi(const struct cx18 *cx)
+{
+	return cx->vbi.in.type == V4L2_BUF_TYPE_VBI_CAPTURE;
+}
 
 #endif /* CX18_DRIVER_H */

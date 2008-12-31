@@ -12,6 +12,8 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 
+#define DEBUG_QMGR	0
+
 #define HALF_QUEUES	32
 #define QUEUES		64	/* only 32 lower queues currently supported */
 #define MAX_QUEUE_LENGTH 4	/* in dwords */
@@ -61,22 +63,51 @@ void qmgr_enable_irq(unsigned int queue);
 void qmgr_disable_irq(unsigned int queue);
 
 /* request_ and release_queue() must be called from non-IRQ context */
+
+#if DEBUG_QMGR
+extern char qmgr_queue_descs[QUEUES][32];
+
 int qmgr_request_queue(unsigned int queue, unsigned int len /* dwords */,
 		       unsigned int nearly_empty_watermark,
-		       unsigned int nearly_full_watermark);
+		       unsigned int nearly_full_watermark,
+		       const char *desc_format, const char* name);
+#else
+int __qmgr_request_queue(unsigned int queue, unsigned int len /* dwords */,
+			 unsigned int nearly_empty_watermark,
+			 unsigned int nearly_full_watermark);
+#define qmgr_request_queue(queue, len, nearly_empty_watermark,		\
+			   nearly_full_watermark, desc_format, name)	\
+	__qmgr_request_queue(queue, len, nearly_empty_watermark,	\
+			     nearly_full_watermark)
+#endif
+
 void qmgr_release_queue(unsigned int queue);
 
 
 static inline void qmgr_put_entry(unsigned int queue, u32 val)
 {
 	extern struct qmgr_regs __iomem *qmgr_regs;
+#if DEBUG_QMGR
+	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+
+	printk(KERN_DEBUG "Queue %s(%i) put %X\n",
+	       qmgr_queue_descs[queue], queue, val);
+#endif
 	__raw_writel(val, &qmgr_regs->acc[queue][0]);
 }
 
 static inline u32 qmgr_get_entry(unsigned int queue)
 {
+	u32 val;
 	extern struct qmgr_regs __iomem *qmgr_regs;
-	return __raw_readl(&qmgr_regs->acc[queue][0]);
+	val = __raw_readl(&qmgr_regs->acc[queue][0]);
+#if DEBUG_QMGR
+	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+
+	printk(KERN_DEBUG "Queue %s(%i) get %X\n",
+	       qmgr_queue_descs[queue], queue, val);
+#endif
+	return val;
 }
 
 static inline int qmgr_get_stat1(unsigned int queue)

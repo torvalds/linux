@@ -1,7 +1,7 @@
 /*
  * Driver for the mt9m111 sensor
  *
- * Copyright (C) 2008 Erik Andren
+ * Copyright (C) 2008 Erik Andrén
  * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
@@ -82,19 +82,10 @@
 /* Kernel module parameters */
 extern int force_sensor;
 extern int dump_sensor;
-extern unsigned int m5602_debug;
 
 int mt9m111_probe(struct sd *sd);
 int mt9m111_init(struct sd *sd);
 int mt9m111_power_down(struct sd *sd);
-
-int mt9m111_read_sensor(struct sd *sd, const u8 address,
-			u8 *i2c_data, const u8 len);
-
-int mt9m111_write_sensor(struct sd *sd, const u8 address,
-			 u8 *i2c_data, const u8 len);
-
-void mt9m111_dump_registers(struct sd *sd);
 
 int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
@@ -107,13 +98,11 @@ static struct m5602_sensor mt9m111 = {
 	.name = "MT9M111",
 
 	.i2c_slave_id = 0xba,
+	.i2c_regW = 2,
 
 	.probe = mt9m111_probe,
 	.init = mt9m111_init,
 	.power_down = mt9m111_power_down,
-
-	.read_sensor = mt9m111_read_sensor,
-	.write_sensor = mt9m111_write_sensor,
 
 	.nctrls = 3,
 	.ctrls = {
@@ -152,8 +141,8 @@ static struct m5602_sensor mt9m111 = {
 			.default_value  = DEFAULT_GAIN,
 			.flags          = V4L2_CTRL_FLAG_SLIDER
 		},
-		.set = mt9m111_set_hflip,
-		.get = mt9m111_get_hflip
+		.set = mt9m111_set_gain,
+		.get = mt9m111_get_gain
 	}
 	},
 
@@ -1004,7 +993,7 @@ static const unsigned char init_mt9m111[][4] =
 	{BRIDGE, M5602_XB_SIG_INI, 0x02, 0x00},
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00, 0x00},
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02, 0x00}, /* 639*/
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x7f, 0x00},
 	{BRIDGE, M5602_XB_SIG_INI, 0x00, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},

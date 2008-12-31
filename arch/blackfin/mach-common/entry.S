@@ -277,7 +277,7 @@ ENTRY(_bfin_return_from_exception)
 	p5.h = hi(ILAT);
 	r6 = [p5];
 	r7 = 0x20;		/* Did I just cause anther HW error? */
-	r7 = r7 & r1;
+	r6 = r7 & r6;
 	CC = R7 == R6;
 	if CC JUMP _double_fault;
 #endif

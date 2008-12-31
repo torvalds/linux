@@ -9,65 +9,30 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_FN:
 	case TRACE_CTX:
 	case TRACE_WAKE:
+	case TRACE_CONT:
 	case TRACE_STACK:
+	case TRACE_PRINT:
 	case TRACE_SPECIAL:
+	case TRACE_BRANCH:
 		return 1;
 	}
 	return 0;
 }
 
-static int
-trace_test_buffer_cpu(struct trace_array *tr, struct trace_array_cpu *data)
+static int trace_test_buffer_cpu(struct trace_array *tr, int cpu)
 {
-	struct trace_entry *entries;
-	struct page *page;
-	int idx = 0;
-	int i;
+	struct ring_buffer_event *event;
+	struct trace_entry *entry;
 
-	BUG_ON(list_empty(&data->trace_pages));
-	page = list_entry(data->trace_pages.next, struct page, lru);
-	entries = page_address(page);
+	while ((event = ring_buffer_consume(tr->buffer, cpu, NULL))) {
+		entry = ring_buffer_event_data(event);
 
-	check_pages(data);
-	if (head_page(data) != entries)
-		goto failed;
-
-	/*
-	 * The starting trace buffer always has valid elements,
-	 * if any element exists.
-	 */
-	entries = head_page(data);
-
-	for (i = 0; i < tr->entries; i++) {
-
-		if (i < data->trace_idx && !trace_valid_entry(&entries[idx])) {
+		if (!trace_valid_entry(entry)) {
 			printk(KERN_CONT ".. invalid entry %d ",
-				entries[idx].type);
+				entry->type);
 			goto failed;
 		}
-
-		idx++;
-		if (idx >= ENTRIES_PER_PAGE) {
-			page = virt_to_page(entries);
-			if (page->lru.next == &data->trace_pages) {
-				if (i != tr->entries - 1) {
-					printk(KERN_CONT ".. entries buffer mismatch");
-					goto failed;
-				}
-			} else {
-				page = list_entry(page->lru.next, struct page, lru);
-				entries = page_address(page);
-			}
-			idx = 0;
-		}
 	}
-
-	page = virt_to_page(entries);
-	if (page->lru.next != &data->trace_pages) {
-		printk(KERN_CONT ".. too many entries");
-		goto failed;
-	}
-
 	return 0;
 
  failed:
@@ -87,20 +52,18 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 	int cpu, ret = 0;
 
 	/* Don't allow flipping of max traces now */
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	__raw_spin_lock(&ftrace_max_lock);
+
+	cnt = ring_buffer_entries(tr->buffer);
+
 	for_each_possible_cpu(cpu) {
-		if (!head_page(tr->data[cpu]))
-			continue;
-
-		cnt += tr->data[cpu]->trace_idx;
-
-		ret = trace_test_buffer_cpu(tr, tr->data[cpu]);
+		ret = trace_test_buffer_cpu(tr, cpu);
 		if (ret)
 			break;
 	}
 	__raw_spin_unlock(&ftrace_max_lock);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 
 	if (count)
 		*count = cnt;
@@ -108,7 +71,12 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 	return ret;
 }
 
-#ifdef CONFIG_FTRACE
+static inline void warn_failed_init_tracer(struct tracer *trace, int init_ret)
+{
+	printk(KERN_WARNING "Failed to init %s tracer, init returned %d\n",
+		trace->name, init_ret);
+}
+#ifdef CONFIG_FUNCTION_TRACER
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
@@ -120,11 +88,11 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 					   struct trace_array *tr,
 					   int (*func)(void))
 {
-	unsigned long count;
-	int ret;
 	int save_ftrace_enabled = ftrace_enabled;
 	int save_tracer_enabled = tracer_enabled;
+	unsigned long count;
 	char *func_name;
+	int ret;
 
 	/* The ftrace test PASSED */
 	printk(KERN_CONT "PASSED\n");
@@ -137,13 +105,6 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	/* passed in by parameter to fool gcc from optimizing */
 	func();
 
-	/* update the records */
-	ret = ftrace_force_update();
-	if (ret) {
-		printk(KERN_CONT ".. ftraced failed .. ");
-		return ret;
-	}
-
 	/*
 	 * Some archs *cough*PowerPC*cough* add charachters to the
 	 * start of the function names. We simply put a '*' to
@@ -155,8 +116,12 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	ftrace_set_filter(func_name, strlen(func_name), 1);
 
 	/* enable tracing */
-	tr->ctrl = 1;
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		goto out;
+	}
+
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
 
@@ -178,13 +143,13 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	msleep(100);
 
 	/* stop the tracing. */
-	tr->ctrl = 0;
-	trace->ctrl_update(tr);
+	tracing_stop();
 	ftrace_enabled = 0;
 
 	/* check the trace buffer */
 	ret = trace_test_buffer(tr, &count);
 	trace->reset(tr);
+	tracing_start();
 
 	/* we should only have one item */
 	if (!ret && count != 1) {
@@ -192,6 +157,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 		ret = -1;
 		goto out;
 	}
+
  out:
 	ftrace_enabled = save_ftrace_enabled;
 	tracer_enabled = save_tracer_enabled;
@@ -212,37 +178,34 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 int
 trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 {
-	unsigned long count;
-	int ret;
 	int save_ftrace_enabled = ftrace_enabled;
 	int save_tracer_enabled = tracer_enabled;
+	unsigned long count;
+	int ret;
 
 	/* make sure msleep has been recorded */
 	msleep(1);
-
-	/* force the recorded functions to be traced */
-	ret = ftrace_force_update();
-	if (ret) {
-		printk(KERN_CONT ".. ftraced failed .. ");
-		return ret;
-	}
 
 	/* start the tracing */
 	ftrace_enabled = 1;
 	tracer_enabled = 1;
 
-	tr->ctrl = 1;
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		goto out;
+	}
+
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
 	/* stop the tracing. */
-	tr->ctrl = 0;
-	trace->ctrl_update(tr);
+	tracing_stop();
 	ftrace_enabled = 0;
 
 	/* check the trace buffer */
 	ret = trace_test_buffer(tr, &count);
 	trace->reset(tr);
+	tracing_start();
 
 	if (!ret && !count) {
 		printk(KERN_CONT ".. no entries found ..");
@@ -263,7 +226,7 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 
 	return ret;
 }
-#endif /* CONFIG_FTRACE */
+#endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_IRQSOFF_TRACER
 int
@@ -274,8 +237,12 @@ trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 	int ret;
 
 	/* start the tracing */
-	tr->ctrl = 1;
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
 	/* reset the max latency */
 	tracing_max_latency = 0;
 	/* disable interrupts for a bit */
@@ -283,13 +250,13 @@ trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 	udelay(100);
 	local_irq_enable();
 	/* stop the tracing. */
-	tr->ctrl = 0;
-	trace->ctrl_update(tr);
+	tracing_stop();
 	/* check both trace buffers */
 	ret = trace_test_buffer(tr, NULL);
 	if (!ret)
 		ret = trace_test_buffer(&max_tr, &count);
 	trace->reset(tr);
+	tracing_start();
 
 	if (!ret && !count) {
 		printk(KERN_CONT ".. no entries found ..");
@@ -310,9 +277,26 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	unsigned long count;
 	int ret;
 
+	/*
+	 * Now that the big kernel lock is no longer preemptable,
+	 * and this is called with the BKL held, it will always
+	 * fail. If preemption is already disabled, simply
+	 * pass the test. When the BKL is removed, or becomes
+	 * preemptible again, we will once again test this,
+	 * so keep it in.
+	 */
+	if (preempt_count()) {
+		printk(KERN_CONT "can not test ... force ");
+		return 0;
+	}
+
 	/* start the tracing */
-	tr->ctrl = 1;
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
 	/* reset the max latency */
 	tracing_max_latency = 0;
 	/* disable preemption for a bit */
@@ -320,13 +304,13 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	udelay(100);
 	preempt_enable();
 	/* stop the tracing. */
-	tr->ctrl = 0;
-	trace->ctrl_update(tr);
+	tracing_stop();
 	/* check both trace buffers */
 	ret = trace_test_buffer(tr, NULL);
 	if (!ret)
 		ret = trace_test_buffer(&max_tr, &count);
 	trace->reset(tr);
+	tracing_start();
 
 	if (!ret && !count) {
 		printk(KERN_CONT ".. no entries found ..");
@@ -347,9 +331,25 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	unsigned long count;
 	int ret;
 
+	/*
+	 * Now that the big kernel lock is no longer preemptable,
+	 * and this is called with the BKL held, it will always
+	 * fail. If preemption is already disabled, simply
+	 * pass the test. When the BKL is removed, or becomes
+	 * preemptible again, we will once again test this,
+	 * so keep it in.
+	 */
+	if (preempt_count()) {
+		printk(KERN_CONT "can not test ... force ");
+		return 0;
+	}
+
 	/* start the tracing */
-	tr->ctrl = 1;
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		goto out;
+	}
 
 	/* reset the max latency */
 	tracing_max_latency = 0;
@@ -363,27 +363,30 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	local_irq_enable();
 
 	/* stop the tracing. */
-	tr->ctrl = 0;
-	trace->ctrl_update(tr);
+	tracing_stop();
 	/* check both trace buffers */
 	ret = trace_test_buffer(tr, NULL);
-	if (ret)
+	if (ret) {
+		tracing_start();
 		goto out;
+	}
 
 	ret = trace_test_buffer(&max_tr, &count);
-	if (ret)
+	if (ret) {
+		tracing_start();
 		goto out;
+	}
 
 	if (!ret && !count) {
 		printk(KERN_CONT ".. no entries found ..");
 		ret = -1;
+		tracing_start();
 		goto out;
 	}
 
 	/* do the test by disabling interrupts first this time */
 	tracing_max_latency = 0;
-	tr->ctrl = 1;
-	trace->ctrl_update(tr);
+	tracing_start();
 	preempt_disable();
 	local_irq_disable();
 	udelay(100);
@@ -392,8 +395,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	local_irq_enable();
 
 	/* stop the tracing. */
-	tr->ctrl = 0;
-	trace->ctrl_update(tr);
+	tracing_stop();
 	/* check both trace buffers */
 	ret = trace_test_buffer(tr, NULL);
 	if (ret)
@@ -409,11 +411,21 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 
  out:
 	trace->reset(tr);
+	tracing_start();
 	tracing_max_latency = save_max;
 
 	return ret;
 }
 #endif /* CONFIG_IRQSOFF_TRACER && CONFIG_PREEMPT_TRACER */
+
+#ifdef CONFIG_NOP_TRACER
+int
+trace_selftest_startup_nop(struct tracer *trace, struct trace_array *tr)
+{
+	/* What could possibly go wrong? */
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_SCHED_TRACER
 static int trace_wakeup_test_thread(void *data)
@@ -465,8 +477,12 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 	wait_for_completion(&isrt);
 
 	/* start the tracing */
-	tr->ctrl = 1;
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
 	/* reset the max latency */
 	tracing_max_latency = 0;
 
@@ -486,9 +502,11 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 
 	wake_up_process(p);
 
+	/* give a little time to let the thread wake up */
+	msleep(100);
+
 	/* stop the tracing. */
-	tr->ctrl = 0;
-	trace->ctrl_update(tr);
+	tracing_stop();
 	/* check both trace buffers */
 	ret = trace_test_buffer(tr, NULL);
 	if (!ret)
@@ -496,6 +514,7 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 
 
 	trace->reset(tr);
+	tracing_start();
 
 	tracing_max_latency = save_max;
 
@@ -519,16 +538,20 @@ trace_selftest_startup_sched_switch(struct tracer *trace, struct trace_array *tr
 	int ret;
 
 	/* start the tracing */
-	tr->ctrl = 1;
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
 	/* stop the tracing. */
-	tr->ctrl = 0;
-	trace->ctrl_update(tr);
+	tracing_stop();
 	/* check the trace buffer */
 	ret = trace_test_buffer(tr, &count);
 	trace->reset(tr);
+	tracing_start();
 
 	if (!ret && !count) {
 		printk(KERN_CONT ".. no entries found ..");
@@ -547,17 +570,48 @@ trace_selftest_startup_sysprof(struct tracer *trace, struct trace_array *tr)
 	int ret;
 
 	/* start the tracing */
-	tr->ctrl = 1;
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return 0;
+	}
+
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
 	/* stop the tracing. */
-	tr->ctrl = 0;
-	trace->ctrl_update(tr);
+	tracing_stop();
 	/* check the trace buffer */
 	ret = trace_test_buffer(tr, &count);
 	trace->reset(tr);
+	tracing_start();
 
 	return ret;
 }
 #endif /* CONFIG_SYSPROF_TRACER */
+
+#ifdef CONFIG_BRANCH_TRACER
+int
+trace_selftest_startup_branch(struct tracer *trace, struct trace_array *tr)
+{
+	unsigned long count;
+	int ret;
+
+	/* start the tracing */
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
+	/* Sleep for a 1/10 of a second */
+	msleep(100);
+	/* stop the tracing. */
+	tracing_stop();
+	/* check the trace buffer */
+	ret = trace_test_buffer(tr, &count);
+	trace->reset(tr);
+	tracing_start();
+
+	return ret;
+}
+#endif /* CONFIG_BRANCH_TRACER */

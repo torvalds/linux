@@ -22,6 +22,7 @@ enum raw1394_iso_state { RAW1394_ISO_INACTIVE = 0,
 struct file_info {
         struct list_head list;
 
+	struct mutex state_mutex;
         enum { opened, initialized, connected } state;
         unsigned int protocol_version;
 

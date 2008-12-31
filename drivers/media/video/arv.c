@@ -396,8 +396,7 @@ out_up:
 	return ret;
 }
 
-static int ar_do_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, void *arg)
+static int ar_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
 	struct ar_device *ar = video_get_drvdata(dev);
@@ -543,7 +542,7 @@ static int ar_do_ioctl(struct inode *inode, struct file *file,
 static int ar_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		    unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, ar_do_ioctl);
+	return video_usercopy(file, cmd, arg, ar_do_ioctl);
 }
 
 #if USE_INT
@@ -866,7 +865,7 @@ static int __init ar_init(void)
 	}
 
 	printk("video%d: Found M64278 VGA (IRQ %d, Freq %dMHz).\n",
-		ar->vdev->minor, M32R_IRQ_INT3, freq);
+		ar->vdev->num, M32R_IRQ_INT3, freq);
 
 	return 0;
 

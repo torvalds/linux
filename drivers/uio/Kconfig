@@ -58,4 +58,17 @@ config UIO_SMX
 
 	  If you compile this as a module, it will be called uio_smx.
 
+config UIO_SERCOS3
+	tristate "Automata Sercos III PCI card driver"
+	default n
+	help
+	  Userspace I/O interface for the Sercos III PCI card from
+	  Automata GmbH. The userspace part of this driver will be
+	  available for download from the Automata GmbH web site.
+
+	  Automata GmbH:        http://www.automataweb.com
+	  Sercos III interface: http://www.sercos.com
+
+	  If you compile this as a module, it will be called uio_sercos3.
+
 endif

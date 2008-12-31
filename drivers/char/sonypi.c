@@ -523,7 +523,7 @@ static int acpi_driver_registered;
 
 static int sonypi_ec_write(u8 addr, u8 value)
 {
-#ifdef CONFIG_ACPI_EC
+#ifdef CONFIG_ACPI
 	if (SONYPI_ACPI_ACTIVE)
 		return ec_write(addr, value);
 #endif
@@ -539,7 +539,7 @@ static int sonypi_ec_write(u8 addr, u8 value)
 
 static int sonypi_ec_read(u8 addr, u8 *value)
 {
-#ifdef CONFIG_ACPI_EC
+#ifdef CONFIG_ACPI
 	if (SONYPI_ACPI_ACTIVE)
 		return ec_read(addr, value);
 #endif
@@ -898,7 +898,6 @@ static int sonypi_misc_fasync(int fd, struct file *filp, int on)
 
 static int sonypi_misc_release(struct inode *inode, struct file *file)
 {
-	sonypi_misc_fasync(-1, file, 0);
 	mutex_lock(&sonypi_device.lock);
 	sonypi_device.open_count--;
 	mutex_unlock(&sonypi_device.lock);

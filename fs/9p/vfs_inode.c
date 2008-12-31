@@ -215,8 +215,8 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 	inode = new_inode(sb);
 	if (inode) {
 		inode->i_mode = mode;
-		inode->i_uid = current->fsuid;
-		inode->i_gid = current->fsgid;
+		inode->i_uid = current_fsuid();
+		inode->i_gid = current_fsgid();
 		inode->i_blocks = 0;
 		inode->i_rdev = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
@@ -334,7 +334,7 @@ v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 {
 	int err, umode;
 	struct inode *ret;
-	struct p9_stat *st;
+	struct p9_wstat *st;
 
 	ret = NULL;
 	st = p9_client_stat(fid);
@@ -417,6 +417,8 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	struct p9_fid *dfid, *ofid, *fid;
 	struct inode *inode;
 
+	P9_DPRINTK(P9_DEBUG_VFS, "name %s\n", dentry->d_name.name);
+
 	err = 0;
 	ofid = NULL;
 	fid = NULL;
@@ -424,6 +426,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	dfid = v9fs_fid_clone(dentry->d_parent);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
+		P9_DPRINTK(P9_DEBUG_VFS, "fid clone failed %d\n", err);
 		dfid = NULL;
 		goto error;
 	}
@@ -432,18 +435,22 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	ofid = p9_client_walk(dfid, 0, NULL, 1);
 	if (IS_ERR(ofid)) {
 		err = PTR_ERR(ofid);
+		P9_DPRINTK(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
 		ofid = NULL;
 		goto error;
 	}
 
 	err = p9_client_fcreate(ofid, name, perm, mode, extension);
-	if (err < 0)
+	if (err < 0) {
+		P9_DPRINTK(P9_DEBUG_VFS, "p9_client_fcreate failed %d\n", err);
 		goto error;
+	}
 
 	/* now walk from the parent so we can get unopened fid */
 	fid = p9_client_walk(dfid, 1, &name, 0);
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
+		P9_DPRINTK(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
 		fid = NULL;
 		goto error;
 	} else
@@ -453,6 +460,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
+		P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n", err);
 		goto error;
 	}
 
@@ -734,7 +742,7 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	int err;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
-	struct p9_stat *st;
+	struct p9_wstat *st;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "dentry: %p\n", dentry);
 	err = -EPERM;
@@ -815,10 +823,9 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
  */
 
 void
-v9fs_stat2inode(struct p9_stat *stat, struct inode *inode,
+v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 	struct super_block *sb)
 {
-	int n;
 	char ext[32];
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
 
@@ -842,11 +849,7 @@ v9fs_stat2inode(struct p9_stat *stat, struct inode *inode,
 		int major = -1;
 		int minor = -1;
 
-		n = stat->extension.len;
-		if (n > sizeof(ext)-1)
-			n = sizeof(ext)-1;
-		memmove(ext, stat->extension.str, n);
-		ext[n] = 0;
+		strncpy(ext, stat->extension, sizeof(ext));
 		sscanf(ext, "%c %u %u", &type, &major, &minor);
 		switch (type) {
 		case 'c':
@@ -857,10 +860,11 @@ v9fs_stat2inode(struct p9_stat *stat, struct inode *inode,
 			break;
 		default:
 			P9_DPRINTK(P9_DEBUG_ERROR,
-				"Unknown special type %c (%.*s)\n", type,
-				stat->extension.len, stat->extension.str);
+				"Unknown special type %c %s\n", type,
+				stat->extension);
 		};
 		inode->i_rdev = MKDEV(major, minor);
+		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 	} else
 		inode->i_rdev = 0;
 
@@ -904,7 +908,7 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
-	struct p9_stat *st;
+	struct p9_wstat *st;
 
 	P9_DPRINTK(P9_DEBUG_VFS, " %s\n", dentry->d_name.name);
 	retval = -EPERM;
@@ -926,15 +930,10 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 	}
 
 	/* copy extension buffer into buffer */
-	if (st->extension.len < buflen)
-		buflen = st->extension.len + 1;
-
-	memmove(buffer, st->extension.str, buflen - 1);
-	buffer[buflen-1] = 0;
+	strncpy(buffer, st->extension, buflen);
 
 	P9_DPRINTK(P9_DEBUG_VFS,
-		"%s -> %.*s (%s)\n", dentry->d_name.name, st->extension.len,
-		st->extension.str, buffer);
+		"%s -> %s (%s)\n", dentry->d_name.name, st->extension, buffer);
 
 	retval = buflen;
 
@@ -964,7 +963,8 @@ static int v9fs_vfs_readlink(struct dentry *dentry, char __user * buffer,
 	if (buflen > PATH_MAX)
 		buflen = PATH_MAX;
 
-	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_iname, dentry);
+	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_name.name,
+									dentry);
 
 	retval = v9fs_readlink(dentry, link, buflen);
 
@@ -1023,7 +1023,8 @@ v9fs_vfs_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
 {
 	char *s = nd_get_link(nd);
 
-	P9_DPRINTK(P9_DEBUG_VFS, " %s %s\n", dentry->d_name.name, s);
+	P9_DPRINTK(P9_DEBUG_VFS, " %s %s\n", dentry->d_name.name,
+		IS_ERR(s) ? "<error>" : s);
 	if (!IS_ERR(s))
 		__putname(s);
 }

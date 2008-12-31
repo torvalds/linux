@@ -6,7 +6,6 @@
 #include <linux/virtio_blk.h>
 #include <linux/scatterlist.h>
 
-#define VIRTIO_MAX_SG	(3+MAX_PHYS_SEGMENTS)
 #define PART_BITS 4
 
 static int major, index;
@@ -26,8 +25,11 @@ struct virtio_blk
 
 	mempool_t *pool;
 
+	/* What host tells us, plus 2 for header & tailer. */
+	unsigned int sg_elems;
+
 	/* Scatterlist: can be too big for stack. */
-	struct scatterlist sg[VIRTIO_MAX_SG];
+	struct scatterlist sg[/*sg_elems*/];
 };
 
 struct virtblk_req
@@ -97,8 +99,6 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 	if (blk_barrier_rq(vbr->req))
 		vbr->out_hdr.type |= VIRTIO_BLK_T_BARRIER;
 
-	/* This init could be done at vblk creation time */
-	sg_init_table(vblk->sg, VIRTIO_MAX_SG);
 	sg_set_buf(&vblk->sg[0], &vbr->out_hdr, sizeof(vbr->out_hdr));
 	num = blk_rq_map_sg(q, vbr->req, vblk->sg+1);
 	sg_set_buf(&vblk->sg[num+1], &vbr->status, sizeof(vbr->status));
@@ -130,7 +130,7 @@ static void do_virtblk_request(struct request_queue *q)
 
 	while ((req = elv_next_request(q)) != NULL) {
 		vblk = req->rq_disk->private_data;
-		BUG_ON(req->nr_phys_segments > ARRAY_SIZE(vblk->sg));
+		BUG_ON(req->nr_phys_segments + 2 > vblk->sg_elems);
 
 		/* If this request fails, stop queue and wait for something to
 		   finish to restart it. */
@@ -146,11 +146,11 @@ static void do_virtblk_request(struct request_queue *q)
 		vblk->vq->vq_ops->kick(vblk->vq);
 }
 
-static int virtblk_ioctl(struct inode *inode, struct file *filp,
+static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
 			 unsigned cmd, unsigned long data)
 {
-	return scsi_cmd_ioctl(filp, inode->i_bdev->bd_disk->queue,
-			      inode->i_bdev->bd_disk, cmd,
+	return scsi_cmd_ioctl(bdev->bd_disk->queue,
+			      bdev->bd_disk, mode, cmd,
 			      (void __user *)data);
 }
 
@@ -180,7 +180,7 @@ static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
 }
 
 static struct block_device_operations virtblk_fops = {
-	.ioctl  = virtblk_ioctl,
+	.locked_ioctl = virtblk_ioctl,
 	.owner  = THIS_MODULE,
 	.getgeo = virtblk_getgeo,
 };
@@ -196,12 +196,22 @@ static int virtblk_probe(struct virtio_device *vdev)
 	int err;
 	u64 cap;
 	u32 v;
-	u32 blk_size;
+	u32 blk_size, sg_elems;
 
 	if (index_to_minor(index) >= 1 << MINORBITS)
 		return -ENOSPC;
 
-	vdev->priv = vblk = kmalloc(sizeof(*vblk), GFP_KERNEL);
+	/* We need to know how many segments before we allocate. */
+	err = virtio_config_val(vdev, VIRTIO_BLK_F_SEG_MAX,
+				offsetof(struct virtio_blk_config, seg_max),
+				&sg_elems);
+	if (err)
+		sg_elems = 1;
+
+	/* We need an extra sg elements at head and tail. */
+	sg_elems += 2;
+	vdev->priv = vblk = kmalloc(sizeof(*vblk) +
+				    sizeof(vblk->sg[0]) * sg_elems, GFP_KERNEL);
 	if (!vblk) {
 		err = -ENOMEM;
 		goto out;
@@ -210,6 +220,8 @@ static int virtblk_probe(struct virtio_device *vdev)
 	INIT_LIST_HEAD(&vblk->reqs);
 	spin_lock_init(&vblk->lock);
 	vblk->vdev = vdev;
+	vblk->sg_elems = sg_elems;
+	sg_init_table(vblk->sg, vblk->sg_elems);
 
 	/* We expect one virtqueue, for output. */
 	vblk->vq = vdev->config->find_vq(vdev, 0, blk_done);
@@ -236,6 +248,8 @@ static int virtblk_probe(struct virtio_device *vdev)
 		err = -ENOMEM;
 		goto out_put_disk;
 	}
+
+	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, vblk->disk->queue);
 
 	if (index < 26) {
 		sprintf(vblk->disk->disk_name, "vd%c", 'a' + index % 26);
@@ -277,6 +291,13 @@ static int virtblk_probe(struct virtio_device *vdev)
 	}
 	set_capacity(vblk->disk, cap);
 
+	/* We can handle whatever the host told us to handle. */
+	blk_queue_max_phys_segments(vblk->disk->queue, vblk->sg_elems-2);
+	blk_queue_max_hw_segments(vblk->disk->queue, vblk->sg_elems-2);
+
+	/* No real sector limit. */
+	blk_queue_max_sectors(vblk->disk->queue, -1U);
+
 	/* Host can optionally specify maximum segment size and number of
 	 * segments. */
 	err = virtio_config_val(vdev, VIRTIO_BLK_F_SIZE_MAX,
@@ -284,12 +305,8 @@ static int virtblk_probe(struct virtio_device *vdev)
 				&v);
 	if (!err)
 		blk_queue_max_segment_size(vblk->disk->queue, v);
-
-	err = virtio_config_val(vdev, VIRTIO_BLK_F_SEG_MAX,
-				offsetof(struct virtio_blk_config, seg_max),
-				&v);
-	if (!err)
-		blk_queue_max_hw_segments(vblk->disk->queue, v);
+	else
+		blk_queue_max_segment_size(vblk->disk->queue, -1U);
 
 	/* Host can optionally specify the block size of the device */
 	err = virtio_config_val(vdev, VIRTIO_BLK_F_BLK_SIZE,

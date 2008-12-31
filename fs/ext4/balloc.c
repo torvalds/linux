@@ -568,8 +568,16 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 
 	/* this isn't the right place to decide whether block is metadata
 	 * inode.c/extents.c knows better, but for safety ... */
-	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode) ||
-			ext4_should_journal_data(inode))
+	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
+		metadata = 1;
+
+	/* We need to make sure we don't reuse
+	 * block released untill the transaction commit.
+	 * writeback mode have weak data consistency so
+	 * don't force data as metadata when freeing block
+	 * for writeback mode.
+	 */
+	if (metadata == 0 && !ext4_should_writeback_data(inode))
 		metadata = 1;
 
 	sb = inode->i_sb;
@@ -581,26 +589,28 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	return;
 }
 
-int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
-						s64 nblocks)
+/**
+ * ext4_has_free_blocks()
+ * @sbi:	in-core super block structure.
+ * @nblocks:	number of needed blocks
+ *
+ * Check if filesystem has nblocks free & available for allocation.
+ * On success return 1, return 0 on failure.
+ */
+int ext4_has_free_blocks(struct ext4_sb_info *sbi, s64 nblocks)
 {
-	s64 free_blocks, dirty_blocks;
-	s64 root_blocks = 0;
+	s64 free_blocks, dirty_blocks, root_blocks;
 	struct percpu_counter *fbc = &sbi->s_freeblocks_counter;
 	struct percpu_counter *dbc = &sbi->s_dirtyblocks_counter;
 
 	free_blocks  = percpu_counter_read_positive(fbc);
 	dirty_blocks = percpu_counter_read_positive(dbc);
-
-	if (!capable(CAP_SYS_RESOURCE) &&
-		sbi->s_resuid != current->fsuid &&
-		(sbi->s_resgid == 0 || !in_group_p(sbi->s_resgid)))
-		root_blocks = ext4_r_blocks_count(sbi->s_es);
+	root_blocks = ext4_r_blocks_count(sbi->s_es);
 
 	if (free_blocks - (nblocks + root_blocks + dirty_blocks) <
 						EXT4_FREEBLOCKS_WATERMARK) {
-		free_blocks  = percpu_counter_sum(fbc);
-		dirty_blocks = percpu_counter_sum(dbc);
+		free_blocks  = percpu_counter_sum_positive(fbc);
+		dirty_blocks = percpu_counter_sum_positive(dbc);
 		if (dirty_blocks < 0) {
 			printk(KERN_CRIT "Dirty block accounting "
 					"went wrong %lld\n",
@@ -608,56 +618,31 @@ int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
 		}
 	}
 	/* Check whether we have space after
-	 * accounting for current dirty blocks
+	 * accounting for current dirty blocks & root reserved blocks.
 	 */
-	if (free_blocks < ((root_blocks + nblocks) + dirty_blocks))
-		/* we don't have free space */
-		return -ENOSPC;
+	if (free_blocks >= ((root_blocks + nblocks) + dirty_blocks))
+		return 1;
 
-	/* Add the blocks to nblocks */
-	percpu_counter_add(dbc, nblocks);
+	/* Hm, nope.  Are (enough) root reserved blocks available? */
+	if (sbi->s_resuid == current_fsuid() ||
+	    ((sbi->s_resgid != 0) && in_group_p(sbi->s_resgid)) ||
+	    capable(CAP_SYS_RESOURCE)) {
+		if (free_blocks >= (nblocks + dirty_blocks))
+			return 1;
+	}
+
 	return 0;
 }
 
-/**
- * ext4_has_free_blocks()
- * @sbi:	in-core super block structure.
- * @nblocks:	number of neeed blocks
- *
- * Check if filesystem has free blocks available for allocation.
- * Return the number of blocks avaible for allocation for this request
- * On success, return nblocks
- */
-ext4_fsblk_t ext4_has_free_blocks(struct ext4_sb_info *sbi,
+int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
 						s64 nblocks)
 {
-	s64 free_blocks, dirty_blocks;
-	s64 root_blocks = 0;
-	struct percpu_counter *fbc = &sbi->s_freeblocks_counter;
-	struct percpu_counter *dbc = &sbi->s_dirtyblocks_counter;
-
-	free_blocks  = percpu_counter_read_positive(fbc);
-	dirty_blocks = percpu_counter_read_positive(dbc);
-
-	if (!capable(CAP_SYS_RESOURCE) &&
-		sbi->s_resuid != current->fsuid &&
-		(sbi->s_resgid == 0 || !in_group_p(sbi->s_resgid)))
-		root_blocks = ext4_r_blocks_count(sbi->s_es);
-
-	if (free_blocks - (nblocks + root_blocks + dirty_blocks) <
-						EXT4_FREEBLOCKS_WATERMARK) {
-		free_blocks  = percpu_counter_sum(fbc);
-		dirty_blocks = percpu_counter_sum(dbc);
-	}
-	if (free_blocks <= (root_blocks + dirty_blocks))
-		/* we don't have free space */
+	if (ext4_has_free_blocks(sbi, nblocks)) {
+		percpu_counter_add(&sbi->s_dirtyblocks_counter, nblocks);
 		return 0;
-
-	if (free_blocks - (root_blocks + dirty_blocks) < nblocks)
-		return free_blocks - (root_blocks + dirty_blocks);
-	return nblocks;
+	} else
+		return -ENOSPC;
 }
-
 
 /**
  * ext4_should_retry_alloc()

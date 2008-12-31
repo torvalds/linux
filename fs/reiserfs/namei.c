@@ -383,7 +383,6 @@ struct dentry *reiserfs_get_parent(struct dentry *child)
 	struct inode *inode = NULL;
 	struct reiserfs_dir_entry de;
 	INITIALIZE_PATH(path_to_entry);
-	struct dentry *parent;
 	struct inode *dir = child->d_inode;
 
 	if (dir->i_nlink == 0) {
@@ -401,15 +400,7 @@ struct dentry *reiserfs_get_parent(struct dentry *child)
 	inode = reiserfs_iget(dir->i_sb, (struct cpu_key *)&(de.de_dir_id));
 	reiserfs_write_unlock(dir->i_sb);
 
-	if (!inode || IS_ERR(inode)) {
-		return ERR_PTR(-EACCES);
-	}
-	parent = d_alloc_anon(inode);
-	if (!parent) {
-		iput(inode);
-		parent = ERR_PTR(-ENOMEM);
-	}
-	return parent;
+	return d_obtain_alias(inode);
 }
 
 /* add entry to the directory (entry can be hidden). 
@@ -582,7 +573,7 @@ static int new_inode_init(struct inode *inode, struct inode *dir, int mode)
 	/* the quota init calls have to know who to charge the quota to, so
 	 ** we have to set uid and gid here
 	 */
-	inode->i_uid = current->fsuid;
+	inode->i_uid = current_fsuid();
 	inode->i_mode = mode;
 	/* Make inode invalid - just in case we are going to drop it before
 	 * the initialization happens */
@@ -593,7 +584,7 @@ static int new_inode_init(struct inode *inode, struct inode *dir, int mode)
 		if (S_ISDIR(mode))
 			inode->i_mode |= S_ISGID;
 	} else {
-		inode->i_gid = current->fsgid;
+		inode->i_gid = current_fsgid();
 	}
 	DQUOT_INIT(inode);
 	return 0;

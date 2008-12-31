@@ -7,7 +7,7 @@
  * Author: Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
  */
 
-#include "iova.h"
+#include <linux/iova.h>
 
 void
 init_iova_domain(struct iova_domain *iovad, unsigned long pfn_32bit)

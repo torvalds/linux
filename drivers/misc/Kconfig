@@ -15,7 +15,7 @@ if MISC_DEVICES
 
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
-	depends on AVR32 || ARCH_AT91
+	depends on AVR32 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9
 	help
 	  This option enables device driver support for the PWM channels
 	  on certain Atmel prcoessors.  Pulse Width Modulation is used for
@@ -145,6 +145,7 @@ config ACER_WMI
 	depends on NEW_LEDS
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on SERIO_I8042
+	depends on RFKILL
 	select ACPI_WMI
 	---help---
 	  This is a driver for newer Acer (and Wistron) laptops. It adds
@@ -226,10 +227,20 @@ config HP_WMI
          To compile this driver as a module, choose M here: the module will
          be called hp-wmi.
 
+config ICS932S401
+	tristate "Integrated Circuits ICS932S401"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Integrated Circuits
+	  ICS932S401 clock control chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ics932s401.
+
 config MSI_LAPTOP
         tristate "MSI Laptop Extras"
         depends on X86
-        depends on ACPI_EC
+        depends on ACPI
         depends on BACKLIGHT_CLASS_DEVICE
         ---help---
 	  This is a driver for laptops built by MSI (MICRO-STAR
@@ -245,10 +256,21 @@ config MSI_LAPTOP
 
 	  If you have an MSI S270 laptop, say Y or M here.
 
+config PANASONIC_LAPTOP
+	tristate "Panasonic Laptop Extras"
+	depends on X86 && INPUT && ACPI
+        depends on BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This driver adds support for access to backlight control and hotkeys
+	  on Panasonic Let's Note laptops.
+
+	  If you have a Panasonic Let's note laptop (such as the R1(N variant),
+	  R2, R3, R5, T2, W2 and Y2 series), say Y.
+
 config COMPAL_LAPTOP
 	tristate "Compal Laptop Extras"
 	depends on X86
-	depends on ACPI_EC
+	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This is a driver for laptops built by Compal:
@@ -409,6 +431,7 @@ config EEEPC_LAPTOP
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on HWMON
 	depends on EXPERIMENTAL
+	depends on RFKILL
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
 	  It also adds the ability to switch camera/wlan on/off.
@@ -474,5 +497,7 @@ config SGI_GRU_DEBUG
 	---help---
 	This option enables addition debugging code for the SGI GRU driver. If
 	you are unsure, say N.
+
+source "drivers/misc/c2port/Kconfig"
 
 endif # MISC_DEVICES

@@ -12,7 +12,7 @@
 #ifndef Z0194A
 #define Z0194A
 
-static int sharp_z0194a__set_symbol_rate(struct dvb_frontend *fe,
+static int sharp_z0194a_set_symbol_rate(struct dvb_frontend *fe,
 					 u32 srate, u32 ratio)
 {
 	u8 aclk = 0;
@@ -40,7 +40,7 @@ static int sharp_z0194a__set_symbol_rate(struct dvb_frontend *fe,
 	return 0;
 }
 
-static u8 sharp_z0194a__inittab[] = {
+static u8 sharp_z0194a_inittab[] = {
 	0x01, 0x15,
 	0x02, 0x00,
 	0x03, 0x00,
@@ -80,18 +80,6 @@ static u8 sharp_z0194a__inittab[] = {
 	0x34, 0x93,  /* error control */
 	0x0f, 0x52,
 	0xff, 0xff
-};
-
-static struct stv0299_config sharp_z0194a_config = {
-	.demod_address = 0x68,
-	.inittab = sharp_z0194a__inittab,
-	.mclk = 88000000UL,
-	.invert = 1,
-	.skip_reinit = 0,
-	.lock_output = STV0299_LOCKOUTPUT_1,
-	.volt13_op0_op1 = STV0299_VOLT13_OP1,
-	.min_delay_ms = 100,
-	.set_symbol_rate = sharp_z0194a__set_symbol_rate,
 };
 
 #endif

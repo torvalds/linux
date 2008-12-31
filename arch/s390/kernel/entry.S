@@ -46,7 +46,7 @@ SP_R14	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 56
 SP_R15	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 60
 SP_ORIG_R2   =	STACK_FRAME_OVERHEAD + __PT_ORIG_GPR2
 SP_ILC	     =	STACK_FRAME_OVERHEAD + __PT_ILC
-SP_TRAP      =	STACK_FRAME_OVERHEAD + __PT_TRAP
+SP_SVCNR     =	STACK_FRAME_OVERHEAD + __PT_SVCNR
 SP_SIZE      =	STACK_FRAME_OVERHEAD + __PT_SIZE
 
 _TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
@@ -61,22 +61,25 @@ STACK_SIZE  = 1 << STACK_SHIFT
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 	.macro	TRACE_IRQS_ON
-	l	%r1,BASED(.Ltrace_irq_on)
+	basr	%r2,%r0
+	l	%r1,BASED(.Ltrace_irq_on_caller)
 	basr	%r14,%r1
 	.endm
 
 	.macro	TRACE_IRQS_OFF
-	l	%r1,BASED(.Ltrace_irq_off)
+	basr	%r2,%r0
+	l	%r1,BASED(.Ltrace_irq_off_caller)
 	basr	%r14,%r1
 	.endm
 
 	.macro	TRACE_IRQS_CHECK
+	basr	%r2,%r0
 	tm	SP_PSW(%r15),0x03	# irqs enabled?
 	jz	0f
-	l	%r1,BASED(.Ltrace_irq_on)
+	l	%r1,BASED(.Ltrace_irq_on_caller)
 	basr	%r14,%r1
 	j	1f
-0:	l	%r1,BASED(.Ltrace_irq_off)
+0:	l	%r1,BASED(.Ltrace_irq_off_caller)
 	basr	%r14,%r1
 1:
 	.endm
@@ -106,13 +109,6 @@ STACK_SIZE  = 1 << STACK_SHIFT
  *    R15 - kernel stack pointer
  */
 
-	.macro	STORE_TIMER lc_offset
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	stpt	\lc_offset
-#endif
-	.endm
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	.macro	UPDATE_VTIME lc_from,lc_to,lc_sum
 	lm	%r10,%r11,\lc_from
 	sl	%r10,\lc_to
@@ -125,7 +121,6 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	al	%r10,BASED(.Lc_1)
 1:	stm	%r10,%r11,\lc_sum
 	.endm
-#endif
 
 	.macro	SAVE_ALL_BASE savearea
 	stm	%r12,%r15,\savearea
@@ -180,11 +175,10 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	.macro	CREATE_STACK_FRAME psworg,savearea
 	s	%r15,BASED(.Lc_spsize)	# make room for registers & psw
 	mvc	SP_PSW(8,%r15),0(%r12)	# move user PSW to stack
-	la	%r12,\psworg
 	st	%r2,SP_ORIG_R2(%r15)	# store original content of gpr 2
-	icm	%r12,12,__LC_SVC_ILC
+	icm	%r12,3,__LC_SVC_ILC
 	stm	%r0,%r11,SP_R0(%r15)	# store gprs %r0-%r11 to kernel stack
-	st	%r12,SP_ILC(%r15)
+	st	%r12,SP_SVCNR(%r15)
 	mvc	SP_R12(16,%r15),\savearea # move %r12-%r15 to stack
 	la	%r12,0
 	st	%r12,__SF_BACKCHAIN(%r15)	# clear back chain
@@ -196,7 +190,7 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	ni	\psworg+1,0xfd		# clear wait state bit
 	.endif
 	lm	%r0,%r15,SP_R0(%r15)	# load gprs 0-15 of user
-	STORE_TIMER __LC_EXIT_TIMER
+	stpt	__LC_EXIT_TIMER
 	lpsw	\psworg			# back to caller
 	.endm
 
@@ -245,32 +239,31 @@ __critical_start:
 
 	.globl	system_call
 system_call:
-	STORE_TIMER __LC_SYNC_ENTER_TIMER
+	stpt	__LC_SYNC_ENTER_TIMER
 sysc_saveall:
 	SAVE_ALL_BASE __LC_SAVE_AREA
 	SAVE_ALL_SVC __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	lh	%r7,0x8a	  # get svc number from lowcore
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 sysc_vtime:
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
 sysc_stime:
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 sysc_update:
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
-#endif
 sysc_do_svc:
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
-	sla	%r7,2			# *4 and test for svc 0
+	ltr	%r7,%r7			# test for svc 0
 	bnz	BASED(sysc_nr_ok)	# svc number > 0
 	# svc 0: system call number in %r1
 	cl	%r1,BASED(.Lnr_syscalls)
 	bnl	BASED(sysc_nr_ok)
 	lr	%r7,%r1 	  # copy svc number to %r7
-	sla	%r7,2		  # *4
 sysc_nr_ok:
 	mvc	SP_ARGS(4,%r15),SP_R7(%r15)
 sysc_do_restart:
+	sth	%r7,SP_SVCNR(%r15)
+	sll	%r7,2		  # svc number *4
 	l	%r8,BASED(.Lsysc_table)
 	tm	__TI_flags+3(%r9),(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT)
 	l	%r8,0(%r7,%r8)	  # get system call addr.
@@ -373,7 +366,6 @@ sysc_notify_resume:
 sysc_restart:
 	ni	__TI_flags+3(%r9),255-_TIF_RESTART_SVC # clear TIF_RESTART_SVC
 	l	%r7,SP_R2(%r15) 	# load new svc number
-	sla	%r7,2
 	mvc	SP_R2(4,%r15),SP_ORIG_R2(%r15) # restore first argument
 	lm	%r2,%r6,SP_R2(%r15)	# load svc arguments
 	b	BASED(sysc_do_restart)	# restart svc
@@ -383,7 +375,8 @@ sysc_restart:
 #
 sysc_singlestep:
 	ni	__TI_flags+3(%r9),255-_TIF_SINGLE_STEP # clear TIF_SINGLE_STEP
-	mvi	SP_TRAP+1(%r15),0x28	# set trap indication to pgm check
+	mvi	SP_SVCNR(%r15),0xff	# set trap indication to pgm check
+	mvi	SP_SVCNR+1(%r15),0xff
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	l	%r1,BASED(.Lhandle_per)	# load adr. of per handler
 	la	%r14,BASED(sysc_return)	# load adr. of system return
@@ -404,7 +397,7 @@ sysc_tracesys:
 	bnl	BASED(sysc_tracenogo)
 	l	%r8,BASED(.Lsysc_table)
 	lr	%r7,%r2
-	sll	%r7,2			# *4
+	sll	%r7,2			# svc number *4
 	l	%r8,0(%r7,%r8)
 sysc_tracego:
 	lm	%r3,%r6,SP_R3(%r15)
@@ -433,7 +426,7 @@ ret_from_fork:
 	basr	%r14,%r1
 	TRACE_IRQS_ON
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
-	b	BASED(sysc_return)
+	b	BASED(sysc_tracenogo)
 
 #
 # kernel_execve function needs to deal with pt_regs that is not
@@ -487,20 +480,18 @@ pgm_check_handler:
  * we just ignore the PER event (FIXME: is there anything we have to do
  * for LPSW?).
  */
-	STORE_TIMER __LC_SYNC_ENTER_TIMER
+	stpt	__LC_SYNC_ENTER_TIMER
 	SAVE_ALL_BASE __LC_SAVE_AREA
 	tm	__LC_PGM_INT_CODE+1,0x80 # check whether we got a per exception
 	bnz	BASED(pgm_per)		# got per exception -> special case
 	SAVE_ALL_SYNC __LC_PGM_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_PGM_OLD_PSW,__LC_SAVE_AREA
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
 	bz	BASED(pgm_no_vtime)
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
 pgm_no_vtime:
-#endif
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	TRACE_IRQS_OFF
 	l	%r3,__LC_PGM_ILC	# load program interruption code
@@ -533,14 +524,12 @@ pgm_per:
 pgm_per_std:
 	SAVE_ALL_SYNC __LC_PGM_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_PGM_OLD_PSW,__LC_SAVE_AREA
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
 	bz	BASED(pgm_no_vtime2)
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
 pgm_no_vtime2:
-#endif
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	TRACE_IRQS_OFF
 	l	%r1,__TI_task(%r9)
@@ -562,11 +551,9 @@ pgm_no_vtime2:
 pgm_svcper:
 	SAVE_ALL_SYNC __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_SVC_OLD_PSW,__LC_SAVE_AREA
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
-#endif
 	lh	%r7,0x8a		# get svc number from lowcore
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	TRACE_IRQS_OFF
@@ -583,7 +570,8 @@ pgm_svcper:
 # per was called from kernel, must be kprobes
 #
 kernel_per:
-	mvi	SP_TRAP+1(%r15),0x28	# set trap indication to pgm check
+	mvi	SP_SVCNR(%r15),0xff	# set trap indication to pgm check
+	mvi	SP_SVCNR+1(%r15),0xff
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	l	%r1,BASED(.Lhandle_per)	# load adr. of per handler
 	la	%r14,BASED(sysc_restore)# load adr. of system return
@@ -595,19 +583,17 @@ kernel_per:
 
 	.globl io_int_handler
 io_int_handler:
-	STORE_TIMER __LC_ASYNC_ENTER_TIMER
+	stpt	__LC_ASYNC_ENTER_TIMER
 	stck	__LC_INT_CLOCK
 	SAVE_ALL_BASE __LC_SAVE_AREA+16
 	SAVE_ALL_ASYNC __LC_IO_OLD_PSW,__LC_SAVE_AREA+16
 	CREATE_STACK_FRAME __LC_IO_OLD_PSW,__LC_SAVE_AREA+16
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
 	bz	BASED(io_no_vtime)
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_ASYNC_ENTER_TIMER,__LC_USER_TIMER
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
 io_no_vtime:
-#endif
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	TRACE_IRQS_OFF
 	l	%r1,BASED(.Ldo_IRQ)	# load address of do_IRQ
@@ -737,19 +723,17 @@ io_notify_resume:
 
 	.globl	ext_int_handler
 ext_int_handler:
-	STORE_TIMER __LC_ASYNC_ENTER_TIMER
+	stpt	__LC_ASYNC_ENTER_TIMER
 	stck	__LC_INT_CLOCK
 	SAVE_ALL_BASE __LC_SAVE_AREA+16
 	SAVE_ALL_ASYNC __LC_EXT_OLD_PSW,__LC_SAVE_AREA+16
 	CREATE_STACK_FRAME __LC_EXT_OLD_PSW,__LC_SAVE_AREA+16
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
 	bz	BASED(ext_no_vtime)
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_ASYNC_ENTER_TIMER,__LC_USER_TIMER
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
 ext_no_vtime:
-#endif
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	TRACE_IRQS_OFF
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
@@ -772,7 +756,6 @@ mcck_int_handler:
 	la	%r12,__LC_MCK_OLD_PSW
 	tm	__LC_MCCK_CODE,0x80	# system damage?
 	bo	BASED(mcck_int_main)	# yes -> rest of mcck code invalid
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	mvc	__LC_SAVE_AREA+52(8),__LC_ASYNC_ENTER_TIMER
 	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_CPU_TIMER_SAVE_AREA
 	tm	__LC_MCCK_CODE+5,0x02	# stored cpu timer value valid?
@@ -789,9 +772,7 @@ mcck_int_handler:
 	la	%r14,__LC_LAST_UPDATE_TIMER
 0:	spt	0(%r14)
 	mvc	__LC_ASYNC_ENTER_TIMER(8),0(%r14)
-1:
-#endif
-	tm	__LC_MCCK_CODE+2,0x09	# mwp + ia of old psw valid?
+1:	tm	__LC_MCCK_CODE+2,0x09	# mwp + ia of old psw valid?
 	bno	BASED(mcck_int_main)	# no -> skip cleanup critical
 	tm	__LC_MCK_OLD_PSW+1,0x01	# test problem state bit
 	bnz	BASED(mcck_int_main)	# from user -> load async stack
@@ -808,7 +789,6 @@ mcck_int_main:
 	be	BASED(0f)
 	l	%r15,__LC_PANIC_STACK	# load panic stack
 0:	CREATE_STACK_FRAME __LC_MCK_OLD_PSW,__LC_SAVE_AREA+32
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	tm	__LC_MCCK_CODE+2,0x08	# mwp of old psw valid?
 	bno	BASED(mcck_no_vtime)	# no -> skip cleanup critical
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
@@ -817,7 +797,6 @@ mcck_int_main:
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
 mcck_no_vtime:
-#endif
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	l	%r1,BASED(.Ls390_mcck)
@@ -839,16 +818,13 @@ mcck_no_vtime:
 mcck_return:
 	mvc	__LC_RETURN_MCCK_PSW(8),SP_PSW(%r15) # move return PSW
 	ni	__LC_RETURN_MCCK_PSW+1,0xfd # clear wait state bit
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_SAVE_AREA+52
 	tm	__LC_RETURN_MCCK_PSW+1,0x01 # returning to user ?
 	bno	BASED(0f)
 	lm	%r0,%r15,SP_R0(%r15)	# load gprs 0-15
 	stpt	__LC_EXIT_TIMER
 	lpsw	__LC_RETURN_MCCK_PSW	# back to caller
-0:
-#endif
-	lm	%r0,%r15,SP_R0(%r15)	# load gprs 0-15
+0:	lm	%r0,%r15,SP_R0(%r15)	# load gprs 0-15
 	lpsw	__LC_RETURN_MCCK_PSW	# back to caller
 
 	RESTORE_ALL __LC_RETURN_MCCK_PSW,0
@@ -972,13 +948,11 @@ cleanup_system_call:
 	b	BASED(1f)
 0:	la	%r12,__LC_SAVE_AREA+32
 1:
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn+4)
 	bh	BASED(0f)
 	mvc	__LC_SYNC_ENTER_TIMER(8),__LC_ASYNC_ENTER_TIMER
 0:	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn+8)
 	bhe	BASED(cleanup_vtime)
-#endif
 	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn)
 	bh	BASED(0f)
 	mvc	__LC_SAVE_AREA(16),0(%r12)
@@ -989,7 +963,6 @@ cleanup_system_call:
 	l	%r12,__LC_SAVE_AREA+48	# argh
 	st	%r15,12(%r12)
 	lh	%r7,0x8a
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 cleanup_vtime:
 	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn+12)
 	bhe	BASED(cleanup_stime)
@@ -1000,18 +973,15 @@ cleanup_stime:
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 cleanup_update:
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
-#endif
 	mvc	__LC_RETURN_PSW+4(4),BASED(cleanup_table_system_call+4)
 	la	%r12,__LC_RETURN_PSW
 	br	%r14
 cleanup_system_call_insn:
 	.long	sysc_saveall + 0x80000000
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	.long	system_call + 0x80000000
 	.long	sysc_vtime + 0x80000000
 	.long	sysc_stime + 0x80000000
 	.long	sysc_update + 0x80000000
-#endif
 
 cleanup_sysc_return:
 	mvc	__LC_RETURN_PSW(4),0(%r12)
@@ -1022,11 +992,9 @@ cleanup_sysc_return:
 cleanup_sysc_leave:
 	clc	4(4,%r12),BASED(cleanup_sysc_leave_insn)
 	be	BASED(2f)
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
 	clc	4(4,%r12),BASED(cleanup_sysc_leave_insn+4)
 	be	BASED(2f)
-#endif
 	mvc	__LC_RETURN_PSW(8),SP_PSW(%r15)
 	c	%r12,BASED(.Lmck_old_psw)
 	bne	BASED(0f)
@@ -1039,9 +1007,7 @@ cleanup_sysc_leave:
 	br	%r14
 cleanup_sysc_leave_insn:
 	.long	sysc_done - 4 + 0x80000000
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	.long	sysc_done - 8 + 0x80000000
-#endif
 
 cleanup_io_return:
 	mvc	__LC_RETURN_PSW(4),0(%r12)
@@ -1052,11 +1018,9 @@ cleanup_io_return:
 cleanup_io_leave:
 	clc	4(4,%r12),BASED(cleanup_io_leave_insn)
 	be	BASED(2f)
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
 	clc	4(4,%r12),BASED(cleanup_io_leave_insn+4)
 	be	BASED(2f)
-#endif
 	mvc	__LC_RETURN_PSW(8),SP_PSW(%r15)
 	c	%r12,BASED(.Lmck_old_psw)
 	bne	BASED(0f)
@@ -1069,9 +1033,7 @@ cleanup_io_leave:
 	br	%r14
 cleanup_io_leave_insn:
 	.long	io_done - 4 + 0x80000000
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	.long	io_done - 8 + 0x80000000
-#endif
 
 /*
  * Integer constants
@@ -1113,9 +1075,12 @@ cleanup_io_leave_insn:
 .Lschedtail:	.long	schedule_tail
 .Lsysc_table:	.long	sys_call_table
 #ifdef CONFIG_TRACE_IRQFLAGS
-.Ltrace_irq_on: .long	trace_hardirqs_on
-.Ltrace_irq_off:
-		.long	trace_hardirqs_off
+.Ltrace_irq_on_caller:
+		.long	trace_hardirqs_on_caller
+.Ltrace_irq_off_caller:
+		.long	trace_hardirqs_off_caller
+#endif
+#ifdef CONFIG_LOCKDEP
 .Llockdep_sys_exit:
 		.long	lockdep_sys_exit
 #endif

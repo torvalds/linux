@@ -89,6 +89,7 @@ parameter is applicable:
 	SPARC	Sparc architecture is enabled.
 	SWSUSP	Software suspend (hibernation) is enabled.
 	SUSPEND	System suspend states are enabled.
+	FTRACE	Function tracing enabled.
 	TS	Appropriate touchscreen support is enabled.
 	USB	USB support is enabled.
 	USBHID	USB Human Interface Device support is enabled.
@@ -100,7 +101,8 @@ parameter is applicable:
 	X86-32	X86-32, aka i386 architecture is enabled.
 	X86-64	X86-64 architecture is enabled.
 			More X86-64 boot options can be found in
-			Documentation/x86_64/boot-options.txt .
+			Documentation/x86/x86_64/boot-options.txt .
+	X86	Either 32bit or 64bit x86 (same as X86-32+X86-64)
 
 In addition, the following text indicates that the option:
 
@@ -111,10 +113,10 @@ In addition, the following text indicates that the option:
 Parameters denoted with BOOT are actually interpreted by the boot
 loader, and have no meaning to the kernel directly.
 Do not modify the syntax of boot loader parameters without extreme
-need or coordination with <Documentation/i386/boot.txt>.
+need or coordination with <Documentation/x86/i386/boot.txt>.
 
 There are also arch-specific kernel-parameters not documented here.
-See for example <Documentation/x86_64/boot-options.txt>.
+See for example <Documentation/x86/x86_64/boot-options.txt>.
 
 Note that ALL kernel parameters listed below are CASE SENSITIVE, and that
 a trailing = on the name of any parameter states that that parameter will
@@ -197,40 +199,53 @@ and is between 256 and 4096 characters. It is defined in the file
 			that require a timer override, but don't have
 			HPET
 
-	acpi.debug_layer=	[HW,ACPI]
-			Format: <int>
-			Each bit of the <int> indicates an ACPI debug layer,
-			1: enable, 0: disable. It is useful for boot time
-			debugging. After system has booted up, it can be set
-			via /sys/module/acpi/parameters/debug_layer.
-			CONFIG_ACPI_DEBUG must be enabled for this to produce any output.
-			Available bits (add the numbers together) to enable debug output
-			for specific parts of the ACPI subsystem:
-			0x01 utilities 0x02 hardware 0x04 events 0x08 tables
-			0x10 namespace 0x20 parser 0x40 dispatcher
-			0x80 executer 0x100 resources 0x200 acpica debugger
-			0x400 os services 0x800 acpica disassembler.
-			The number can be in decimal or prefixed with 0x in hex.
-			Warning: Many of these options can produce a lot of
-			output and make your system unusable. Be very careful.
+	acpi_backlight=	[HW,ACPI]
+			acpi_backlight=vendor
+			acpi_backlight=video
+			If set to vendor, prefer vendor specific driver
+			(e.g. thinkpad_acpi, sony_acpi, etc.) instead
+			of the ACPI video.ko driver.
 
-	acpi.debug_level=	[HW,ACPI]
+	acpi_display_output=	[HW,ACPI]
+			acpi_display_output=vendor
+			acpi_display_output=video
+			See above.
+
+	acpi.debug_layer=	[HW,ACPI,ACPI_DEBUG]
+	acpi.debug_level=	[HW,ACPI,ACPI_DEBUG]
 			Format: <int>
-			Each bit of the <int> indicates an ACPI debug level,
-			1: enable, 0: disable. It is useful for boot time
-			debugging. After system has booted up, it can be set
-			via /sys/module/acpi/parameters/debug_level.
-			CONFIG_ACPI_DEBUG must be enabled for this to produce any output.
-			Available bits (add the numbers together) to enable different
-			debug output levels of the ACPI subsystem:
-			0x01 error 0x02 warn 0x04 init 0x08 debug object
-			0x10 info 0x20 init names 0x40 parse 0x80 load
-			0x100 dispatch 0x200 execute 0x400 names 0x800 operation region
-			0x1000 bfield 0x2000 tables 0x4000 values 0x8000 objects
-			0x10000 resources 0x20000 user requests 0x40000 package.
-			The number can be in decimal or prefixed with 0x in hex.
-			Warning: Many of these options can produce a lot of
-			output and make your system unusable. Be very careful.
+			CONFIG_ACPI_DEBUG must be enabled to produce any ACPI
+			debug output.  Bits in debug_layer correspond to a
+			_COMPONENT in an ACPI source file, e.g.,
+			    #define _COMPONENT ACPI_PCI_COMPONENT
+			Bits in debug_level correspond to a level in
+			ACPI_DEBUG_PRINT statements, e.g.,
+			    ACPI_DEBUG_PRINT((ACPI_DB_INFO, ...
+			The debug_level mask defaults to "info".  See
+			Documentation/acpi/debug.txt for more information about
+			debug layers and levels.
+
+			Enable processor driver info messages:
+			    acpi.debug_layer=0x20000000
+			Enable PCI/PCI interrupt routing info messages:
+			    acpi.debug_layer=0x400000
+			Enable AML "Debug" output, i.e., stores to the Debug
+			object while interpreting AML:
+			    acpi.debug_layer=0xffffffff acpi.debug_level=0x2
+			Enable all messages related to ACPI hardware:
+			    acpi.debug_layer=0x2 acpi.debug_level=0xffffffff
+
+			Some values produce so much output that the system is
+			unusable.  The "log_buf_len" parameter may be useful
+			if you need to capture more output.
+
+ 	acpi.power_nocheck=	[HW,ACPI]
+ 			Format: 1/0 enable/disable the check of power state.
+ 			On some bogus BIOS the _PSC object/_STA object of
+ 			power resource can't return the correct device power
+ 			state. In such case it is unneccessary to check its
+ 			power state again in power transition.
+ 			1 : disable the power state check
 
 	acpi_pm_good	[X86-32,X86-64]
 			Override the pmtimer bug detection: force the kernel
@@ -283,7 +298,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			Possible values are:
 			isolate - enable device isolation (each device, as far
 			          as possible, will get its own protection
-			          domain)
+			          domain) [default]
+			share - put every device behind one IOMMU into the
+				same protection domain
 			fullflush - enable flushing of IO/TLB entries when
 				    they are unmapped. Otherwise they are
 				    flushed before they will be reused, which
@@ -618,7 +635,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	digiepca=	[HW,SERIAL]
 			See drivers/char/README.epca and
-			Documentation/digiepca.txt.
+			Documentation/serial/digiepca.txt.
 
 	disable_mtrr_cleanup [X86]
 	enable_mtrr_cleanup [X86]
@@ -690,7 +707,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/block/as-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
-	elfcorehdr=	[X86-32, X86_64]
+	elfcorehdr=	[IA64,PPC,SH,X86-32,X86_64]
 			Specifies physical address of start of kernel core
 			image elf header. Generally kexec loader will
 			pass this option to capture kernel.
@@ -729,13 +746,21 @@ and is between 256 and 4096 characters. It is defined in the file
 			See header of drivers/scsi/fdomain.c.
 
 	floppy=		[HW]
-			See Documentation/floppy.txt.
+			See Documentation/blockdev/floppy.txt.
 
 	force_pal_cache_flush
 			[IA-64] Avoid check_sal_cache_flush which may hang on
 			buggy SAL_CACHE_FLUSH implementations. Using this
 			parameter will force ia64_sal_cache_flush to call
 			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
+
+	ftrace=[tracer]
+			[ftrace] will set and start the specified tracer
+			as early as possible in order to facilitate early
+			boot debugging.
+
+	ftrace_dump_on_oops
+			[ftrace] will dump the trace buffers on oops.
 
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
@@ -796,6 +821,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			Defaults to the default architecture's huge page size
 			if not specified.
 
+	hlt		[BUGS=ARM,SH]
+
+	hvc_iucv=	[S390] Number of z/VM IUCV Hypervisor console (HVC)
+			       back-ends. Valid parameters: 0..8
+
+	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
 			     keyboard and cannot control its state
@@ -964,13 +995,15 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format:
 			<cpu number>,...,<cpu number>
 			or
-			<cpu number>-<cpu number>  (must be a positive range in ascending order)
+			<cpu number>-<cpu number>
+			(must be a positive range in ascending order)
 			or a mixture
 			<cpu number>,...,<cpu number>-<cpu number>
+
 			This option can be used to specify one or more CPUs
 			to isolate from the general SMP balancing and scheduling
-			algorithms. The only way to move a process onto or off
-			an "isolated" CPU is via the CPU affinity syscalls.
+			algorithms. You can move a process onto or off an
+			"isolated" CPU via the CPU affinity syscalls or cpuset.
 			<cpu number> begins at 0 and the maximum value is
 			"number of CPUs in system - 1".
 
@@ -1085,7 +1118,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			the same attribute, the last one is used.
 
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	lockd.nlm_grace_period=P  [NFS] Assign grace period.
 			Format: <integer>
@@ -1177,8 +1210,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			it is equivalent to "nosmp", which also disables
 			the IO APIC.
 
-	max_addr=[KMG]	[KNL,BOOT,ia64] All physical memory greater than or
-			equal to this physical address is ignored.
+	max_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory greater than
+			or equal to this physical address is ignored.
 
 	max_luns=	[SCSI] Maximum number of LUNs to probe.
 			Should be between 1 and 2^32-1.
@@ -1191,7 +1224,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	mce		[X86-32] Machine Check Exception
 
-	mce=option	[X86-64] See Documentation/x86_64/boot-options.txt
+	mce=option	[X86-64] See Documentation/x86/x86_64/boot-options.txt
 
 	md=		[HW] RAID subsystems devices and level
 			See Documentation/md.txt.
@@ -1209,6 +1242,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	mem=nopentium	[BUGS=X86-32] Disable usage of 4MB pages for kernel
 			memory.
+
+	memchunk=nn[KMG]
+			[KNL,SH] Allow user to override the default size for
+			per-device physically contiguous DMA buffers.
 
 	memmap=exactmap	[KNL,X86-32,X86_64] Enable setting of an exact
 			E820 memory map, as specified by the user.
@@ -1273,6 +1310,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			problem by letting the user disable the workaround.
 
 	mga=		[HW,DRM]
+
+	min_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory below this
+			physical address is ignored.
 
 	mminit_loglevel=
 			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
@@ -1368,7 +1408,20 @@ and is between 256 and 4096 characters. It is defined in the file
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]
 
-	nmi_watchdog=	[KNL,BUGS=X86-32] Debugging features for SMP kernels
+	nmi_watchdog=	[KNL,BUGS=X86-32,X86-64] Debugging features for SMP kernels
+			Format: [panic,][num]
+			Valid num: 0,1,2
+			0 - turn nmi_watchdog off
+			1 - use the IO-APIC timer for the NMI watchdog
+			2 - use the local APIC for the NMI watchdog using
+			a performance counter. Note: This will use one performance
+			counter and the local APIC's performance vector.
+			When panic is specified panic when an NMI watchdog timeout occurs.
+			This is useful when you use a panic=... timeout and need the box
+			quickly up again.
+			Instead of 1 and 2 it is possible to use the following
+			symbolic names: lapic and ioapic
+			Example: nmi_watchdog=2 or nmi_watchdog=panic,lapic
 
 	no387		[BUGS=X86-32] Tells the kernel to use the 387 maths
 			emulation library even if a 387 maths coprocessor
@@ -1392,6 +1445,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
 
+	nodsp		[SH] Disable hardware DSP at boot time.
+
 	noefi		[X86-32,X86-64] Disable EFI runtime services support.
 
 	noexec		[IA-64]
@@ -1408,17 +1463,23 @@ and is between 256 and 4096 characters. It is defined in the file
 			noexec32=off: disable non-executable mappings
 				read implies executable mappings
 
+	nofpu		[SH] Disable hardware FPU at boot time.
+
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
 	noclflush	[BUGS=X86] Don't use the CLFLUSH instruction
 
-	nohlt		[BUGS=ARM]
+	nohlt		[BUGS=ARM,SH]
 
 	no-hlt		[BUGS=X86-32] Tells the kernel that the hlt
 			instruction doesn't work correctly and not to
 			use it.
+
+	no_file_caps	Tells the kernel not to honor file capabilities.  The
+			only way then for a file to be executed with privilege
+			is to be setuid root or executed by root.
 
 	nohalt		[IA-64] Tells the kernel not to use the power saving
 			function PAL_HALT_LIGHT when idle. This increases
@@ -1430,8 +1491,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	nohz=		[KNL] Boottime enable/disable dynamic ticks
 			Valid arguments: on, off
 			Default: on
-
-	noirqbalance	[X86-32,SMP,KNL] Disable kernel irq balancing
 
 	noirqdebug	[X86-32] Disables the code which attempts to detect and
 			disable unhandled interrupt sources.
@@ -1574,10 +1633,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	pcd.		[PARIDE]
 			See header of drivers/block/paride/pcd.c.
-			See also Documentation/paride.txt.
+			See also Documentation/blockdev/paride.txt.
 
 	pci=option[,option...]	[PCI] various PCI subsystem options:
-		off		[X86-32] don't probe for the PCI bus
+		off		[X86] don't probe for the PCI bus
 		bios		[X86-32] force use of PCI BIOS, don't access
 				the hardware directly. Use this if your machine
 				has a non-standard PCI host bridge.
@@ -1585,9 +1644,9 @@ and is between 256 and 4096 characters. It is defined in the file
 				hardware access methods are allowed. Use this
 				if you experience crashes upon bootup and you
 				suspect they are caused by the BIOS.
-		conf1		[X86-32] Force use of PCI Configuration
+		conf1		[X86] Force use of PCI Configuration
 				Mechanism 1.
-		conf2		[X86-32] Force use of PCI Configuration
+		conf2		[X86] Force use of PCI Configuration
 				Mechanism 2.
 		noaer		[PCIE] If the PCIEAER kernel config parameter is
 				enabled, this kernel boot option can be used to
@@ -1599,6 +1658,17 @@ and is between 256 and 4096 characters. It is defined in the file
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of MSI interrupts system-wide.
+		noioapicquirk	[APIC] Disable all boot interrupt quirks.
+				Safety option to keep boot IRQs enabled. This
+				should never be necessary.
+		ioapicreroute	[APIC] Enable rerouting of boot IRQs to the
+				primary IO-APIC for bridges that cannot disable
+				boot IRQs. This fixes a source of spurious IRQs
+				when the system masks IRQs.
+		noioapicreroute	[APIC] Disable workaround that uses the
+				boot IRQ equivalent of an IRQ that connects to
+				a chipset where boot IRQs cannot be disabled.
+				The opposite of ioapicreroute.
 		biosirq		[X86-32] Use PCI BIOS calls to get the interrupt
 				routing table. These calls are known to be buggy
 				on several machines and they hang the machine
@@ -1607,37 +1677,37 @@ and is between 256 and 4096 characters. It is defined in the file
 				this option if the kernel is unable to allocate
 				IRQs or discover secondary PCI buses on your
 				motherboard.
-		rom		[X86-32] Assign address space to expansion ROMs.
+		rom		[X86] Assign address space to expansion ROMs.
 				Use with caution as certain devices share
 				address decoders between ROMs and other
 				resources.
-		norom		[X86-32,X86_64] Do not assign address space to
+		norom		[X86] Do not assign address space to
 				expansion ROMs that do not already have
 				BIOS assigned address ranges.
-		irqmask=0xMMMM	[X86-32] Set a bit mask of IRQs allowed to be
+		irqmask=0xMMMM	[X86] Set a bit mask of IRQs allowed to be
 				assigned automatically to PCI devices. You can
 				make the kernel exclude IRQs of your ISA cards
 				this way.
-		pirqaddr=0xAAAAA	[X86-32] Specify the physical address
+		pirqaddr=0xAAAAA	[X86] Specify the physical address
 				of the PIRQ table (normally generated
 				by the BIOS) if it is outside the
 				F0000h-100000h range.
-		lastbus=N	[X86-32] Scan all buses thru bus #N. Can be
+		lastbus=N	[X86] Scan all buses thru bus #N. Can be
 				useful if the kernel is unable to find your
 				secondary buses and you want to tell it
 				explicitly which ones they are.
-		assign-busses	[X86-32] Always assign all PCI bus
+		assign-busses	[X86] Always assign all PCI bus
 				numbers ourselves, overriding
 				whatever the firmware may have done.
-		usepirqmask	[X86-32] Honor the possible IRQ mask stored
+		usepirqmask	[X86] Honor the possible IRQ mask stored
 				in the BIOS $PIR table. This is needed on
 				some systems with broken BIOSes, notably
 				some HP Pavilion N5400 and Omnibook XE3
 				notebooks. This will have no effect if ACPI
 				IRQ routing is enabled.
-		noacpi		[X86-32] Do not use ACPI for IRQ routing
+		noacpi		[X86] Do not use ACPI for IRQ routing
 				or for PCI scanning.
-		use_crs		[X86-32] Use _CRS for PCI resource
+		use_crs		[X86] Use _CRS for PCI resource
 				allocation.
 		routeirq	Do IRQ routing for all PCI devices.
 				This is normally done in pci_enable_device(),
@@ -1666,10 +1736,16 @@ and is between 256 and 4096 characters. It is defined in the file
 				reserved for the CardBus bridge's memory
 				window. The default value is 64 megabytes.
 
+	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
+			Management.
+		off	Disable ASPM.
+		force	Enable ASPM even on devices that claim not to support it.
+			WARNING: Forcing ASPM on may cause system lockups.
+
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
 	pd.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pdcchassis=	[PARISC,HW] Disable/Enable PDC Chassis Status codes at
 			boot time.
@@ -1677,13 +1753,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			See arch/parisc/kernel/pdc_chassis.c
 
 	pf.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pg.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pirq=		[SMP,APIC] Manual mp-table setup
-			See Documentation/i386/IO-APIC.txt.
+			See Documentation/x86/i386/IO-APIC.txt.
 
 	plip=		[PPT,NET] Parallel port network link
 			Format: { parport<nr> | timid | 0 }
@@ -1692,6 +1768,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	pmtmr=		[X86] Manual setup of pmtmr I/O Port. 
 			Override pmtimer IOPort with a hex value.
 			e.g. pmtmr=0x508
+
+	pnp.debug	[PNP]
+			Enable PNP debug messages.  This depends on the
+			CONFIG_PNP_DEBUG_MESSAGES option.
 
 	pnpacpi=	[ACPI]
 			{ off }
@@ -1712,6 +1792,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			[ISAPNP] Exclude memory regions for the
 			autoconfiguration.
 			Ranges are in pairs (memory base and size).
+
+	dynamic_printk
+			Enables pr_debug()/dev_dbg() calls if
+			CONFIG_DYNAMIC_PRINTK_DEBUG has been enabled. These can also
+			be switched on/off via <debugfs>/dynamic_printk/modules
 
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
@@ -1741,7 +1826,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	prompt_ramdisk=	[RAM] List of RAM disks to prompt for floppy disk
 			before loading.
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	psmouse.proto=	[HW,MOUSE] Highest PS2 mouse protocol extension to
 			probe for; one of (bare|imps|exps|lifebook|any).
@@ -1761,7 +1846,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			<io>,<mss_io>,<mss_irq>,<mss_dma>,<mpu_io>,<mpu_irq>
 
 	pt.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pty.legacy_count=
 			[KNL] Number of legacy pty's. Overwrites compiled-in
@@ -1775,10 +1860,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/md.txt.
 
 	ramdisk_blocksize=	[RAM]
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	rcupdate.blimit=	[KNL,BOOT]
 			Set maximum number of finished RCU callbacks to process
@@ -2110,7 +2195,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/sonypi.txt
 
 	specialix=	[HW,SERIAL] Specialix multi-serial port adapter
-			See Documentation/specialix.txt.
+			See Documentation/serial/specialix.txt.
 
 	spia_io_base=	[HW,MTD]
 	spia_fio_base=
@@ -2122,6 +2207,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	st=		[HW,SCSI] SCSI tape parameters (buffers, etc.)
 			See Documentation/scsi/st.txt.
+
+	stacktrace	[FTRACE]
+			Enabled the stack tracer on boot up.
 
 	sti=		[PARISC,HW]
 			Format: <num>
@@ -2185,7 +2273,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	thermal.crt=	[HW,ACPI]
 			-1: disable all critical trip points in all thermal zones
-			<degrees C>: lower all critical trip points
+			<degrees C>: override all critical trip points
 
 	thermal.nocrt=	[HW,ACPI]
 			Set to disable actions on ACPI thermal zone
@@ -2207,11 +2295,26 @@ and is between 256 and 4096 characters. It is defined in the file
 			See comment before function dc390_setup() in
 			drivers/scsi/tmscsim.c.
 
+	topology=	[S390]
+			Format: {off | on}
+			Specify if the kernel should make use of the cpu
+			topology informations if the hardware supports these.
+			The scheduler will make use of these informations and
+			e.g. base its process migration decisions on it.
+			Default is off.
+
 	tp720=		[HW,PS2]
 
 	trix=		[HW,OSS] MediaTrix AudioTrix Pro
 			Format:
 			<io>,<irq>,<dma>,<dma2>,<sb_io>,<sb_irq>,<sb_dma>,<mpu_io>,<mpu_irq>
+
+	tsc=		Disable clocksource-must-verify flag for TSC.
+			Format: <string>
+			[x86] reliable: mark tsc clocksource as reliable, this
+			disables clocksource verification at runtime.
+			Used to enable high-resolution timer mode on older
+			hardware, and in virtualized environment.
 
 	turbografx.map[2|3]=	[HW,JOY]
 			TurboGraFX parallel port interface
@@ -2247,6 +2350,25 @@ and is between 256 and 4096 characters. It is defined in the file
 			autosuspended.  Devices for which the delay is set
 			to a negative value won't be autosuspended at all.
 
+	usbcore.usbfs_snoop=
+			[USB] Set to log all usbfs traffic (default 0 = off).
+
+	usbcore.blinkenlights=
+			[USB] Set to cycle leds on hubs (default 0 = off).
+
+	usbcore.old_scheme_first=
+			[USB] Start with the old device initialization
+			scheme (default 0 = off).
+
+	usbcore.use_both_schemes=
+			[USB] Try the other device initialization scheme
+			if the first one fails (default 1 = enabled).
+
+	usbcore.initial_descriptor_timeout=
+			[USB] Specifies timeout for the initial 64-byte
+                        USB_REQ_GET_DESCRIPTOR request in milliseconds
+			(default 5000 = 5.0 seconds).
+
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 
@@ -2270,7 +2392,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/fb/modedb.txt.
 
 	vga=		[BOOT,X86-32] Select a particular video mode
-			See Documentation/i386/boot.txt and
+			See Documentation/x86/i386/boot.txt and
 			Documentation/svga.txt.
 			Use vga=ask for menu.
 			This is actually a boot loader parameter; the value is

@@ -6,6 +6,8 @@ config OPROFILE
 	tristate "OProfile system profiling (EXPERIMENTAL)"
 	depends on PROFILING
 	depends on HAVE_OPROFILE
+	select TRACING
+	select RING_BUFFER
 	help
 	  OProfile is a profiling system capable of profiling the
 	  whole system, include the kernel, kernel modules, libraries,
@@ -21,14 +23,14 @@ config OPROFILE_IBS
           Instruction-Based Sampling (IBS) is a new profiling
           technique that provides rich, precise program performance
           information. IBS is introduced by AMD Family10h processors
-          (AMD Opteron Quad-Core processor “Barcelona”) to overcome
+          (AMD Opteron Quad-Core processor "Barcelona") to overcome
           the limitations of conventional performance counter
           sampling.
 
 	  If unsure, say N.
 
 config HAVE_OPROFILE
-	def_bool n
+	bool
 
 config KPROBES
 	bool "Kprobes"
@@ -42,7 +44,7 @@ config KPROBES
 	  If in doubt, say "N".
 
 config HAVE_EFFICIENT_UNALIGNED_ACCESS
-	def_bool n
+	bool
 	help
 	  Some architectures are unable to perform unaligned accesses
 	  without the use of get_unaligned/put_unaligned. Others are
@@ -65,13 +67,13 @@ config KRETPROBES
 	depends on KPROBES && HAVE_KRETPROBES
 
 config HAVE_IOREMAP_PROT
-	def_bool n
+	bool
 
 config HAVE_KPROBES
-	def_bool n
+	bool
 
 config HAVE_KRETPROBES
-	def_bool n
+	bool
 
 #
 # An arch should select this if it provides all these things:
@@ -79,8 +81,6 @@ config HAVE_KRETPROBES
 #	task_pt_regs()		in asm/processor.h or asm/ptrace.h
 #	arch_has_single_step()	if there is hardware single-step support
 #	arch_has_block_step()	if there is hardware block-step support
-#	arch_ptrace()		and not #define __ARCH_SYS_PTRACE
-#	compat_arch_ptrace()	and #define __ARCH_WANT_COMPAT_SYS_PTRACE
 #	asm/syscall.h		supplying asm-generic/syscall.h interface
 #	linux/regset.h		user_regset interfaces
 #	CORE_DUMP_USE_REGSET	#define'd in linux/elf.h
@@ -89,16 +89,16 @@ config HAVE_KRETPROBES
 #	signal delivery		calls tracehook_signal_handler()
 #
 config HAVE_ARCH_TRACEHOOK
-	def_bool n
+	bool
 
 config HAVE_DMA_ATTRS
-	def_bool n
+	bool
 
 config USE_GENERIC_SMP_HELPERS
-	def_bool n
+	bool
 
 config HAVE_CLK
-	def_bool n
+	bool
 	help
 	  The <linux/clk.h> calls support software clock gating and
 	  thus are a key power management tool on many systems.

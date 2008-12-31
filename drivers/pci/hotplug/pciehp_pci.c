@@ -39,8 +39,7 @@ static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
 	u16 pci_cmd, pci_bctl;
 
 	if (hpp->revision > 1) {
-		printk(KERN_WARNING "%s: Rev.%d type0 record not supported\n",
-		       __func__, hpp->revision);
+		warn("Rev.%d type0 record not supported\n", hpp->revision);
 		return;
 	}
 
@@ -81,8 +80,7 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 	u32 reg32;
 
 	if (hpp->revision > 1) {
-		printk(KERN_WARNING "%s: Rev.%d type2 record not supported\n",
-		       __func__, hpp->revision);
+		warn("Rev.%d type2 record not supported\n", hpp->revision);
 		return;
 	}
 
@@ -149,8 +147,7 @@ static void program_fw_provided_values(struct pci_dev *dev)
 		return;
 
 	if (pciehp_get_hp_params_from_firmware(dev, &hpp)) {
-		printk(KERN_WARNING "%s: Could not get hotplug parameters\n",
-		       __func__);
+		warn("Could not get hotplug parameters\n");
 		return;
 	}
 
@@ -198,18 +195,20 @@ int pciehp_configure_device(struct slot *p_slot)
 	struct pci_dev *dev;
 	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
 	int num, fn;
+	struct controller *ctrl = p_slot->ctrl;
 
 	dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, 0));
 	if (dev) {
-		err("Device %s already exists at %x:%x, cannot hot-add\n",
-				pci_name(dev), p_slot->bus, p_slot->device);
+		ctrl_err(ctrl, "Device %s already exists "
+			 "at %04x:%02x:%02x, cannot hot-add\n", pci_name(dev),
+			 pci_domain_nr(parent), p_slot->bus, p_slot->device);
 		pci_dev_put(dev);
 		return -EINVAL;
 	}
 
 	num = pci_scan_slot(parent, PCI_DEVFN(p_slot->device, 0));
 	if (num == 0) {
-		err("No new device found\n");
+		ctrl_err(ctrl, "No new device found\n");
 		return -ENODEV;
 	}
 
@@ -218,8 +217,8 @@ int pciehp_configure_device(struct slot *p_slot)
 		if (!dev)
 			continue;
 		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
-			err("Cannot hot-add display device %s\n",
-					pci_name(dev));
+			ctrl_err(ctrl, "Cannot hot-add display device %s\n",
+				 pci_name(dev));
 			pci_dev_put(dev);
 			continue;
 		}
@@ -244,9 +243,10 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	u8 presence = 0;
 	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
 	u16 command;
+	struct controller *ctrl = p_slot->ctrl;
 
-	dbg("%s: bus/dev = %x/%x\n", __func__, p_slot->bus,
-				p_slot->device);
+	ctrl_dbg(ctrl, "%s: domain:bus:dev = %04x:%02x:%02x\n",
+		 __func__, pci_domain_nr(parent), p_slot->bus, p_slot->device);
 	ret = p_slot->hpc_ops->get_adapter_status(p_slot, &presence);
 	if (ret)
 		presence = 0;
@@ -257,16 +257,17 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 		if (!temp)
 			continue;
 		if ((temp->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
-			err("Cannot remove display device %s\n",
-					pci_name(temp));
+			ctrl_err(ctrl, "Cannot remove display device %s\n",
+				 pci_name(temp));
 			pci_dev_put(temp);
 			continue;
 		}
 		if (temp->hdr_type == PCI_HEADER_TYPE_BRIDGE && presence) {
 			pci_read_config_byte(temp, PCI_BRIDGE_CONTROL, &bctl);
 			if (bctl & PCI_BRIDGE_CTL_VGA) {
-				err("Cannot remove display device %s\n",
-				    pci_name(temp));
+				ctrl_err(ctrl,
+					 "Cannot remove display device %s\n",
+					 pci_name(temp));
 				pci_dev_put(temp);
 				continue;
 			}

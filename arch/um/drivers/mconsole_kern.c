@@ -16,6 +16,8 @@
 #include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/utsname.h>
+#include <linux/socket.h>
+#include <linux/un.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
@@ -159,7 +161,8 @@ void mconsole_proc(struct mc_request *req)
 		goto out_kill;
 	}
 
-	file = dentry_open(nd.path.dentry, nd.path.mnt, O_RDONLY);
+	file = dentry_open(nd.path.dentry, nd.path.mnt, O_RDONLY,
+			   current_cred());
 	if (IS_ERR(file)) {
 		mconsole_reply(req, "Failed to open file", 1, 0);
 		goto out_kill;
@@ -785,7 +788,7 @@ static int __init mconsole_init(void)
 	/* long to avoid size mismatch warnings from gcc */
 	long sock;
 	int err;
-	char file[256];
+	char file[UNIX_PATH_MAX];
 
 	if (umid_file_name("mconsole", file, sizeof(file)))
 		return -1;

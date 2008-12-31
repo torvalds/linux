@@ -1,4 +1,3 @@
-
 cx8800 release notes
 ====================
 
@@ -10,25 +9,24 @@ current status
 
 video
 	- Basically works.
-	- Some minor image quality glitches.
-	- For now only capture, overlay support isn't completed yet.
+	- For now, only capture and read(). Overlay isn't supported.
 
 audio
 	- The chip specs for the on-chip TV sound decoder are next
 	  to useless :-/
 	- Neverless the builtin TV sound decoder starts working now,
-	  at least for PAL-BG.  Other TV norms need other code ...
+	  at least for some standards.
 	  FOR ANY REPORTS ON THIS PLEASE MENTION THE TV NORM YOU ARE
 	  USING.
 	- Most tuner chips do provide mono sound, which may or may not
 	  be useable depending on the board design.  With the Hauppauge
 	  cards it works, so there is mono sound available as fallback.
 	- audio data dma (i.e. recording without loopback cable to the
-	  sound card) should be possible, but there is no code yet ...
+	  sound card) is supported via cx88-alsa.
 
 vbi
-	- some code present.  Doesn't crash any more, but also doesn't
-	  work yet ...
+	- Code present. Works for NTSC closed caption. PAL and other
+	  TV norms may or may not work.
 
 
 how to add support for new cards

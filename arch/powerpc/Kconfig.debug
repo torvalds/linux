@@ -2,6 +2,15 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
+config PRINT_STACK_DEPTH
+	int "Stack depth to print" if DEBUG_KERNEL
+	default 64
+	help
+	  This option allows you to set the stack depth that the kernel
+	  prints in stack traces. This can be useful if your display is
+	  too small and stack traces cause important information to
+	  scroll off the screen.
+
 config DEBUG_STACKOVERFLOW
 	bool "Check for stack overflows"
 	depends on DEBUG_KERNEL
@@ -48,6 +57,11 @@ config CODE_PATCHING_SELFTEST
 
 config FTR_FIXUP_SELFTEST
 	bool "Run self-tests of the feature-fixup code."
+	depends on DEBUG_KERNEL
+	default n
+
+config MSI_BITMAP_SELFTEST
+	bool "Run self-tests of the MSI bitmap code."
 	depends on DEBUG_KERNEL
 	default n
 

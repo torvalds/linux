@@ -21,12 +21,16 @@ int elf_check_arch(const struct elf32_hdr *x)
 
 	eflags = x->e_flags;
 	if ((eflags & EF_ARM_EABI_MASK) == EF_ARM_EABI_UNKNOWN) {
+		unsigned int flt_fmt;
+
 		/* APCS26 is only allowed if the CPU supports it */
 		if ((eflags & EF_ARM_APCS_26) && !(elf_hwcap & HWCAP_26BIT))
 			return 0;
 
+		flt_fmt = eflags & (EF_ARM_VFP_FLOAT | EF_ARM_SOFT_FLOAT);
+
 		/* VFP requires the supporting code */
-		if ((eflags & EF_ARM_VFP_FLOAT) && !(elf_hwcap & HWCAP_VFP))
+		if (flt_fmt == EF_ARM_VFP_FLOAT && !(elf_hwcap & HWCAP_VFP))
 			return 0;
 	}
 	return 1;

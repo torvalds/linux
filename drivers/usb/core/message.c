@@ -1091,6 +1091,7 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 				continue;
 			dev_dbg(&dev->dev, "unregistering interface %s\n",
 				dev_name(&interface->dev));
+			interface->unregistering = 1;
 			usb_remove_sysfs_intf_files(interface);
 			device_del(&interface->dev);
 		}
@@ -1204,7 +1205,8 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 
 	alt = usb_altnum_to_altsetting(iface, alternate);
 	if (!alt) {
-		warn("selecting invalid altsetting %d", alternate);
+		dev_warn(&dev->dev, "selecting invalid altsetting %d",
+			 alternate);
 		return -EINVAL;
 	}
 

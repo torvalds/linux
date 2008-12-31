@@ -24,6 +24,7 @@
 #include <asm/kdebug.h>
 #include <asm/e820.h>
 #include <asm/bios_ebda.h>
+#include <asm/trampoline.h>
 
 /* boot cpu pda */
 static struct x8664_pda _boot_cpu_pda __read_mostly;
@@ -119,6 +120,8 @@ void __init x86_64_start_kernel(char * real_mode_data)
 void __init x86_64_start_reservations(char *real_mode_data)
 {
 	copy_bootdata(__va(real_mode_data));
+
+	reserve_trampoline_memory();
 
 	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end), "TEXT DATA BSS");
 

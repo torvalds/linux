@@ -30,6 +30,25 @@
 
 /*-------------------------------------------------------------------------*/
 
+/*
+ * Kbuild is not very cooperative with respect to linking separately
+ * compiled library objects into one module.  So for now we won't use
+ * separate compilation ... ensuring init/exit sections work to shrink
+ * the runtime footprint, and giving us at least some parts of what
+ * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
+ */
+#include "composite.c"
+#include "usbstring.c"
+#include "config.c"
+#include "epautoconf.c"
+
+#include "f_acm.c"
+#include "f_obex.c"
+#include "f_serial.c"
+#include "u_serial.c"
+
+/*-------------------------------------------------------------------------*/
+
 /* Thanks to NetChip Technologies for donating this product ID.
 *
 * DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
@@ -38,6 +57,7 @@
 #define GS_VENDOR_ID			0x0525	/* NetChip */
 #define GS_PRODUCT_ID			0xa4a6	/* Linux-USB Serial Gadget */
 #define GS_CDC_PRODUCT_ID		0xa4a7	/* ... as CDC-ACM */
+#define GS_CDC_OBEX_PRODUCT_ID		0xa4a9	/* ... as CDC-OBEX */
 
 /* string IDs are assigned dynamically */
 
@@ -107,6 +127,10 @@ static int use_acm = true;
 module_param(use_acm, bool, 0);
 MODULE_PARM_DESC(use_acm, "Use CDC ACM, default=yes");
 
+static int use_obex = false;
+module_param(use_obex, bool, 0);
+MODULE_PARM_DESC(use_obex, "Use CDC OBEX, default=no");
+
 static unsigned n_ports = 1;
 module_param(n_ports, uint, 0);
 MODULE_PARM_DESC(n_ports, "number of ports to create, default=1");
@@ -121,6 +145,8 @@ static int __init serial_bind_config(struct usb_configuration *c)
 	for (i = 0; i < n_ports && status == 0; i++) {
 		if (use_acm)
 			status = acm_bind_config(c, i);
+		else if (use_obex)
+			status = obex_bind_config(c, i);
 		else
 			status = gser_bind_config(c, i);
 	}
@@ -133,7 +159,6 @@ static struct usb_configuration serial_config_driver = {
 	/* .bConfigurationValue = f(use_acm) */
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower	= 1,	/* 2 mA, minimal */
 };
 
 static int __init gs_bind(struct usb_composite_dev *cdev)
@@ -231,6 +256,12 @@ static int __init init(void)
 		device_desc.bDeviceClass = USB_CLASS_COMM;
 		device_desc.idProduct =
 				__constant_cpu_to_le16(GS_CDC_PRODUCT_ID);
+	} else if (use_obex) {
+		serial_config_driver.label = "CDC OBEX config";
+		serial_config_driver.bConfigurationValue = 3;
+		device_desc.bDeviceClass = USB_CLASS_COMM;
+		device_desc.idProduct =
+			__constant_cpu_to_le16(GS_CDC_OBEX_PRODUCT_ID);
 	} else {
 		serial_config_driver.label = "Generic Serial config";
 		serial_config_driver.bConfigurationValue = 1;

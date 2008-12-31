@@ -73,18 +73,7 @@ ssize_t part_timeout_store(struct device *dev, struct device_attribute *attr,
  */
 void blk_delete_timer(struct request *req)
 {
-	struct request_queue *q = req->q;
-
-	/*
-	 * Nothing to detach
-	 */
-	if (!q->rq_timed_out_fn || !req->deadline)
-		return;
-
 	list_del_init(&req->timeout_list);
-
-	if (list_empty(&q->timeout_list))
-		del_timer(&q->timeout);
 }
 
 static void blk_rq_timed_out(struct request *req)
@@ -118,7 +107,7 @@ static void blk_rq_timed_out(struct request *req)
 void blk_rq_timed_out_timer(unsigned long data)
 {
 	struct request_queue *q = (struct request_queue *) data;
-	unsigned long flags, uninitialized_var(next), next_set = 0;
+	unsigned long flags, next = 0;
 	struct request *rq, *tmp;
 
 	spin_lock_irqsave(q->queue_lock, flags);
@@ -133,16 +122,19 @@ void blk_rq_timed_out_timer(unsigned long data)
 			if (blk_mark_rq_complete(rq))
 				continue;
 			blk_rq_timed_out(rq);
+		} else {
+			if (!next || time_after(next, rq->deadline))
+				next = rq->deadline;
 		}
-		if (!next_set) {
-			next = rq->deadline;
-			next_set = 1;
-		} else if (time_after(next, rq->deadline))
-			next = rq->deadline;
 	}
 
-	if (next_set && !list_empty(&q->timeout_list))
-		mod_timer(&q->timeout, round_jiffies(next));
+	/*
+	 * next can never be 0 here with the list non-empty, since we always
+	 * bump ->deadline to 1 so we can detect if the timer was ever added
+	 * or not. See comment in blk_add_timer()
+	 */
+	if (next)
+		mod_timer(&q->timeout, round_jiffies_up(next));
 
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
@@ -198,17 +190,10 @@ void blk_add_timer(struct request *req)
 
 	/*
 	 * If the timer isn't already pending or this timeout is earlier
-	 * than an existing one, modify the timer. Round to next nearest
+	 * than an existing one, modify the timer. Round up to next nearest
 	 * second.
 	 */
-	expiry = round_jiffies(req->deadline);
-
-	/*
-	 * We use ->deadline == 0 to detect whether a timer was added or
-	 * not, so just increase to next jiffy for that specific case
-	 */
-	if (unlikely(!req->deadline))
-		req->deadline = 1;
+	expiry = round_jiffies_up(req->deadline);
 
 	if (!timer_pending(&q->timeout) ||
 	    time_before(expiry, q->timeout.expires))

@@ -1,7 +1,6 @@
 /*
  * pata_ali.c 	- ALI 15x3 PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
  *
  * based in part upon
  * linux/drivers/ide/pci/alim15x3.c		Version 0.17	2003/01/02

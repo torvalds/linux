@@ -18,6 +18,8 @@
 #ifndef __GIANFAR_MII_H
 #define __GIANFAR_MII_H
 
+struct gfar_private; /* forward ref */
+
 #define MIIMIND_BUSY            0x00000001
 #define MIIMIND_NOTVALID        0x00000004
 
@@ -44,6 +46,9 @@ int gfar_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value);
 int gfar_local_mdio_write(struct gfar_mii __iomem *regs, int mii_id,
 			  int regnum, u16 value);
 int gfar_local_mdio_read(struct gfar_mii __iomem *regs, int mii_id, int regnum);
+struct mii_bus *gfar_get_miibus(const struct gfar_private *priv);
 int __init gfar_mdio_init(void);
 void gfar_mdio_exit(void);
+
+void gfar_mdio_bus_name(char *name, struct device_node *np);
 #endif /* GIANFAR_PHY_H */

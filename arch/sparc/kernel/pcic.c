@@ -436,7 +436,7 @@ int pcic_present(void)
 	return pcic0_up;
 }
 
-static int __init pdev_to_pnode(struct linux_pbm_info *pbm, 
+static int __devinit pdev_to_pnode(struct linux_pbm_info *pbm,
 				    struct pci_dev *pdev)
 {
 	struct linux_prom_pci_registers regs[PROMREG_MAX];

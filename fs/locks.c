@@ -1349,7 +1349,7 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	struct inode *inode = dentry->d_inode;
 	int error, rdlease_count = 0, wrlease_count = 0;
 
-	if ((current->fsuid != inode->i_uid) && !capable(CAP_LEASE))
+	if ((current_fsuid() != inode->i_uid) && !capable(CAP_LEASE))
 		return -EACCES;
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
@@ -1580,7 +1580,8 @@ asmlinkage long sys_flock(unsigned int fd, unsigned int cmd)
 	cmd &= ~LOCK_NB;
 	unlock = (cmd == LOCK_UN);
 
-	if (!unlock && !(cmd & LOCK_MAND) && !(filp->f_mode & 3))
+	if (!unlock && !(cmd & LOCK_MAND) &&
+	    !(filp->f_mode & (FMODE_READ|FMODE_WRITE)))
 		goto out_putf;
 
 	error = flock_make_lock(filp, &lock, cmd);
@@ -2078,6 +2079,7 @@ int vfs_cancel_lock(struct file *filp, struct file_lock *fl)
 EXPORT_SYMBOL_GPL(vfs_cancel_lock);
 
 #ifdef CONFIG_PROC_FS
+#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
 static void lock_get_status(struct seq_file *f, struct file_lock *fl,
@@ -2183,12 +2185,31 @@ static void locks_stop(struct seq_file *f, void *v)
 	unlock_kernel();
 }
 
-struct seq_operations locks_seq_operations = {
+static const struct seq_operations locks_seq_operations = {
 	.start	= locks_start,
 	.next	= locks_next,
 	.stop	= locks_stop,
 	.show	= locks_show,
 };
+
+static int locks_open(struct inode *inode, struct file *filp)
+{
+	return seq_open(filp, &locks_seq_operations);
+}
+
+static const struct file_operations proc_locks_operations = {
+	.open		= locks_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+static int __init proc_locks_init(void)
+{
+	proc_create("locks", 0, NULL, &proc_locks_operations);
+	return 0;
+}
+module_init(proc_locks_init);
 #endif
 
 /**

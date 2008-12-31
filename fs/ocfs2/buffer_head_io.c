@@ -112,7 +112,7 @@ int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
 		bh = bhs[i];
 
 		if (buffer_jbd(bh)) {
-			mlog(ML_ERROR,
+			mlog(ML_BH_IO,
 			     "trying to sync read a jbd "
 			     "managed bh (blocknr = %llu), skipping\n",
 			     (unsigned long long)bh->b_blocknr);
@@ -147,15 +147,10 @@ int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
 	for (i = nr; i > 0; i--) {
 		bh = bhs[i - 1];
 
-		if (buffer_jbd(bh)) {
-			mlog(ML_ERROR,
-			     "the journal got the buffer while it was "
-			     "locked for io! (blocknr = %llu)\n",
-			     (unsigned long long)bh->b_blocknr);
-			BUG();
-		}
+		/* No need to wait on the buffer if it's managed by JBD. */
+		if (!buffer_jbd(bh))
+			wait_on_buffer(bh);
 
-		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
 			/* Status won't be cleared from here on out,
 			 * so we can safely record this and loop back
@@ -251,8 +246,6 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 			ignore_cache = 1;
 		}
 
-		/* XXX: Can we ever get this and *not* have the cached
-		 * flag set? */
 		if (buffer_jbd(bh)) {
 			if (ignore_cache)
 				mlog(ML_BH_IO, "trying to sync read a jbd "

@@ -27,7 +27,7 @@
  * The lower layers may not require more space, ever. Make sure it's
  * enough.
  */
-#define MAX_PHONET_HEADER	8
+#define MAX_PHONET_HEADER	(8 + MAX_HEADER)
 
 /*
  * Every Phonet* socket has this structure first in its
@@ -46,7 +46,7 @@ static inline struct pn_sock *pn_sk(struct sock *sk)
 
 extern const struct proto_ops phonet_dgram_ops;
 
-struct sock *pn_find_sock_by_sa(const struct sockaddr_pn *sa);
+struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *sa);
 void phonet_get_local_port_range(int *min, int *max);
 void pn_sock_hash(struct sock *sk);
 void pn_sock_unhash(struct sock *sk);

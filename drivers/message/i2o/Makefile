@@ -5,7 +5,7 @@
 # In the future, some of these should be built conditionally.
 #
 
-i2o_core-y		+= iop.o driver.o device.o debug.o pci.o exec-osm.o
+i2o_core-y		+= iop.o driver.o device.o debug.o pci.o exec-osm.o memory.o
 i2o_bus-y		+= bus-osm.o
 i2o_config-y		+= config-osm.o
 obj-$(CONFIG_I2O)	+= i2o_core.o

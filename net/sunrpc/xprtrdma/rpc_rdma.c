@@ -118,6 +118,10 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 	}
 
 	if (xdrbuf->tail[0].iov_len) {
+		/* the rpcrdma protocol allows us to omit any trailing
+		 * xdr pad bytes, saving the server an RDMA operation. */
+		if (xdrbuf->tail[0].iov_len < 4 && xprt_rdma_pad_optimize)
+			return n;
 		if (n == nsegs)
 			return 0;
 		seg[n].mr_page = NULL;
@@ -508,8 +512,8 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	if (hdrlen == 0)
 		return -1;
 
-	dprintk("RPC:       %s: %s: hdrlen %zd rpclen %zd padlen %zd\n"
-		"                   headerp 0x%p base 0x%p lkey 0x%x\n",
+	dprintk("RPC:       %s: %s: hdrlen %zd rpclen %zd padlen %zd"
+		" headerp 0x%p base 0x%p lkey 0x%x\n",
 		__func__, transfertypes[wtype], hdrlen, rpclen, padlen,
 		headerp, base, req->rl_iov.lkey);
 
@@ -594,7 +598,7 @@ rpcrdma_count_chunks(struct rpcrdma_rep *rep, unsigned int max, int wrchunk, __b
  * Scatter inline received data back into provided iov's.
  */
 static void
-rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len)
+rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 {
 	int i, npages, curlen, olen;
 	char *destp;
@@ -660,6 +664,13 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len)
 	} else
 		rqst->rq_rcv_buf.tail[0].iov_len = 0;
 
+	if (pad) {
+		/* implicit padding on terminal chunk */
+		unsigned char *p = rqst->rq_rcv_buf.tail[0].iov_base;
+		while (pad--)
+			p[rqst->rq_rcv_buf.tail[0].iov_len++] = 0;
+	}
+
 	if (copy_len)
 		dprintk("RPC:       %s: %d bytes in"
 			" %d extra segments (%d lost)\n",
@@ -681,12 +692,14 @@ rpcrdma_conn_func(struct rpcrdma_ep *ep)
 	struct rpc_xprt *xprt = ep->rep_xprt;
 
 	spin_lock_bh(&xprt->transport_lock);
+	if (++xprt->connect_cookie == 0)	/* maintain a reserved value */
+		++xprt->connect_cookie;
 	if (ep->rep_connected > 0) {
 		if (!xprt_test_and_set_connected(xprt))
 			xprt_wake_pending_tasks(xprt, 0);
 	} else {
 		if (xprt_test_and_clear_connected(xprt))
-			xprt_wake_pending_tasks(xprt, ep->rep_connected);
+			xprt_wake_pending_tasks(xprt, -ENOTCONN);
 	}
 	spin_unlock_bh(&xprt->transport_lock);
 }
@@ -792,14 +805,20 @@ repost:
 			    ((unsigned char *)iptr - (unsigned char *)headerp);
 			status = rep->rr_len + rdmalen;
 			r_xprt->rx_stats.total_rdma_reply += rdmalen;
+			/* special case - last chunk may omit padding */
+			if (rdmalen &= 3) {
+				rdmalen = 4 - rdmalen;
+				status += rdmalen;
+			}
 		} else {
 			/* else ordinary inline */
+			rdmalen = 0;
 			iptr = (__be32 *)((unsigned char *)headerp + 28);
 			rep->rr_len -= 28; /*sizeof *headerp;*/
 			status = rep->rr_len;
 		}
 		/* Fix up the rpc results for upper layer */
-		rpcrdma_inline_fixup(rqst, (char *)iptr, rep->rr_len);
+		rpcrdma_inline_fixup(rqst, (char *)iptr, rep->rr_len, rdmalen);
 		break;
 
 	case htonl(RDMA_NOMSG):

@@ -1465,7 +1465,7 @@ static void z8530_init(void)
 	printk(KERN_INFO "Init Z8530 driver: %u channels, IRQ", Nchips*2);
 	
 	flag=" ";
-	for (k = 0; k < NR_IRQS; k++)
+	for (k = 0; k < nr_irqs; k++)
 		if (Ivec[k].used) 
 		{
 			printk("%s%d", flag, k);
@@ -1518,7 +1518,7 @@ static int scc_net_alloc(const char *name, struct scc_channel *scc)
 	if (!dev) 
 		return -ENOMEM;
 
-	dev->priv = scc;
+	dev->ml_priv = scc;
 	scc->dev = dev;
 	spin_lock_init(&scc->lock);
 	init_timer(&scc->tx_t);
@@ -1575,7 +1575,7 @@ static void scc_net_setup(struct net_device *dev)
 
 static int scc_net_open(struct net_device *dev)
 {
-	struct scc_channel *scc = (struct scc_channel *) dev->priv;
+	struct scc_channel *scc = (struct scc_channel *) dev->ml_priv;
 
  	if (!scc->init)
 		return -EINVAL;
@@ -1593,7 +1593,7 @@ static int scc_net_open(struct net_device *dev)
 
 static int scc_net_close(struct net_device *dev)
 {
-	struct scc_channel *scc = (struct scc_channel *) dev->priv;
+	struct scc_channel *scc = (struct scc_channel *) dev->ml_priv;
 	unsigned long flags;
 
 	netif_stop_queue(dev);
@@ -1627,7 +1627,6 @@ static void scc_net_rx(struct scc_channel *scc, struct sk_buff *skb)
 	skb->protocol = ax25_type_trans(skb, scc->dev);
 	
 	netif_rx(skb);
-	scc->dev->last_rx = jiffies;
 	return;
 }
 
@@ -1635,7 +1634,7 @@ static void scc_net_rx(struct scc_channel *scc, struct sk_buff *skb)
 
 static int scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 {
-	struct scc_channel *scc = (struct scc_channel *) dev->priv;
+	struct scc_channel *scc = (struct scc_channel *) dev->ml_priv;
 	unsigned long flags;
 	char kisscmd;
 
@@ -1705,7 +1704,7 @@ static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct scc_mem_config memcfg;
 	struct scc_hw_config hwcfg;
 	struct scc_calibrate cal;
-	struct scc_channel *scc = (struct scc_channel *) dev->priv;
+	struct scc_channel *scc = (struct scc_channel *) dev->ml_priv;
 	int chan;
 	unsigned char device_name[IFNAMSIZ];
 	void __user *arg = ifr->ifr_data;
@@ -1728,7 +1727,7 @@ static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 			if (hwcfg.irq == 2) hwcfg.irq = 9;
 
-			if (hwcfg.irq < 0 || hwcfg.irq >= NR_IRQS)
+			if (hwcfg.irq < 0 || hwcfg.irq >= nr_irqs)
 				return -EINVAL;
 				
 			if (!Ivec[hwcfg.irq].used && hwcfg.irq)
@@ -1952,7 +1951,7 @@ static int scc_net_set_mac_address(struct net_device *dev, void *addr)
 
 static struct net_device_stats *scc_net_get_stats(struct net_device *dev)
 {
-	struct scc_channel *scc = (struct scc_channel *) dev->priv;
+	struct scc_channel *scc = (struct scc_channel *) dev->ml_priv;
 	
 	scc->dev_stat.rx_errors = scc->stat.rxerrs + scc->stat.rx_over;
 	scc->dev_stat.tx_errors = scc->stat.txerrs + scc->stat.tx_under;
@@ -2148,7 +2147,7 @@ static void __exit scc_cleanup_driver(void)
 		}
 		
 	/* To unload the port must be closed so no real IRQ pending */
-	for (k=0; k < NR_IRQS ; k++)
+	for (k = 0; k < nr_irqs ; k++)
 		if (Ivec[k].used) free_irq(k, NULL);
 		
 	local_irq_enable();

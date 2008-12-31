@@ -30,7 +30,7 @@
 #define XFS_ATTR_TRACE 1
 #define XFS_BLI_TRACE 1
 #define XFS_BMAP_TRACE 1
-#define XFS_BMBT_TRACE 1
+#define XFS_BTREE_TRACE 1
 #define XFS_DIR2_TRACE 1
 #define XFS_DQUOT_TRACE 1
 #define XFS_ILOCK_TRACE 1

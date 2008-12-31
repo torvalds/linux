@@ -168,8 +168,7 @@ static const char *get_v4l_name(int v4l_type)
  * This is part of Video 4 Linux API. The procedure handles ioctl() calls.
  *
  */
-static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
-			      unsigned int cmd, void *arg)
+static int pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_v4l2 *vp = fh->vhead;
@@ -863,8 +862,8 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 #endif
 
 	default :
-		ret = v4l_compat_translate_ioctl(inode,file,cmd,
-						 arg,pvr2_v4l2_do_ioctl);
+		ret = v4l_compat_translate_ioctl(file, cmd,
+						 arg, pvr2_v4l2_do_ioctl);
 	}
 
 	pvr2_hdw_commit_ctl(hdw);
@@ -890,10 +889,9 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-
 static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 {
-	int minor_id = dip->devbase.minor;
+	int num = dip->devbase.num;
 	struct pvr2_hdw *hdw = dip->v4lp->channel.mc_head->hdw;
 	enum pvr2_config cfg = dip->config;
 	int v4l_type = dip->v4l_type;
@@ -909,7 +907,7 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 	video_unregister_device(&dip->devbase);
 
 	printk(KERN_INFO "pvrusb2: unregistered device %s%u [%s]\n",
-	       get_v4l_name(v4l_type),minor_id & 0x1f,
+	       get_v4l_name(v4l_type), num,
 	       pvr2_config_get_name(cfg));
 
 }
@@ -958,7 +956,7 @@ static int pvr2_v4l2_ioctl(struct inode *inode, struct file *file,
 #define IVTV_IOC_G_CODEC        0xFFEE7703
 #define IVTV_IOC_S_CODEC        0xFFEE7704
 	if (cmd == IVTV_IOC_G_CODEC || cmd == IVTV_IOC_S_CODEC) return 0;
-	return video_usercopy(inode, file, cmd, arg, pvr2_v4l2_do_ioctl);
+	return video_usercopy(file, cmd, arg, pvr2_v4l2_do_ioctl);
 }
 
 
@@ -1310,7 +1308,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	}
 
 	printk(KERN_INFO "pvrusb2: registered device %s%u [%s]\n",
-	       get_v4l_name(dip->v4l_type),dip->devbase.minor & 0x1f,
+	       get_v4l_name(dip->v4l_type), dip->devbase.num,
 	       pvr2_config_get_name(dip->config));
 
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,

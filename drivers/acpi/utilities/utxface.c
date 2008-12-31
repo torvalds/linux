@@ -81,7 +81,12 @@ acpi_status __init acpi_initialize_subsystem(void)
 
 	/* Initialize all globals used by the subsystem */
 
-	acpi_ut_init_globals();
+	status = acpi_ut_init_globals();
+	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"During initialization of globals"));
+		return_ACPI_STATUS(status);
+	}
 
 	/* Create the default mutex objects */
 

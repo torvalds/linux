@@ -741,11 +741,14 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	   (index_to_find < first_entry_in_buffer)) {
 		/* close and restart search */
 		cFYI(1, ("search backing up - close and restart search"));
+		write_lock(&GlobalSMBSeslock);
 		if (!cifsFile->srch_inf.endOfSearch &&
 		    !cifsFile->invalidHandle) {
 			cifsFile->invalidHandle = true;
+			write_unlock(&GlobalSMBSeslock);
 			CIFSFindClose(xid, pTcon, cifsFile->netfid);
-		}
+		} else
+			write_unlock(&GlobalSMBSeslock);
 		if (cifsFile->srch_inf.ntwrk_buf_start) {
 			cFYI(1, ("freeing SMB ff cache buf on search rewind"));
 			if (cifsFile->srch_inf.smallBuf)
@@ -762,14 +765,15 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 				 rc));
 			return rc;
 		}
+		cifs_save_resume_key(cifsFile->srch_inf.last_entry, cifsFile);
 	}
 
 	while ((index_to_find >= cifsFile->srch_inf.index_of_last_entry) &&
 	      (rc == 0) && !cifsFile->srch_inf.endOfSearch) {
 		cFYI(1, ("calling findnext2"));
-		cifs_save_resume_key(cifsFile->srch_inf.last_entry, cifsFile);
 		rc = CIFSFindNext(xid, pTcon, cifsFile->netfid,
 				  &cifsFile->srch_inf);
+		cifs_save_resume_key(cifsFile->srch_inf.last_entry, cifsFile);
 		if (rc)
 			return -ENOENT;
 	}

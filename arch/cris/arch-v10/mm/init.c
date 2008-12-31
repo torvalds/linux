@@ -12,7 +12,7 @@
 #include <asm/mmu.h>
 #include <asm/io.h>
 #include <asm/mmu_context.h>
-#include <asm/arch/svinto.h>
+#include <arch/svinto.h>
 
 extern void tlb_init(void);
 

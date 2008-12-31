@@ -558,39 +558,67 @@ static inline void __clear_bit_unlock(unsigned long nr, volatile unsigned long *
 	__clear_bit(nr, addr);
 }
 
-#if defined(CONFIG_CPU_MIPS32) || defined(CONFIG_CPU_MIPS64)
-
 /*
  * Return the bit position (0..63) of the most significant 1 bit in a word
  * Returns -1 if no 1 bit exists
  */
-static inline unsigned long __fls(unsigned long x)
+static inline unsigned long __fls(unsigned long word)
 {
-	int lz;
+	int num;
 
-	if (sizeof(x) == 4) {
+	if (BITS_PER_LONG == 32 &&
+	    __builtin_constant_p(cpu_has_mips_r) && cpu_has_mips_r) {
 		__asm__(
 		"	.set	push					\n"
 		"	.set	mips32					\n"
 		"	clz	%0, %1					\n"
 		"	.set	pop					\n"
-		: "=r" (lz)
-		: "r" (x));
+		: "=r" (num)
+		: "r" (word));
 
-		return 31 - lz;
+		return 31 - num;
 	}
 
-	BUG_ON(sizeof(x) != 8);
+	if (BITS_PER_LONG == 64 &&
+	    __builtin_constant_p(cpu_has_mips64) && cpu_has_mips64) {
+		__asm__(
+		"	.set	push					\n"
+		"	.set	mips64					\n"
+		"	dclz	%0, %1					\n"
+		"	.set	pop					\n"
+		: "=r" (num)
+		: "r" (word));
 
-	__asm__(
-	"	.set	push						\n"
-	"	.set	mips64						\n"
-	"	dclz	%0, %1						\n"
-	"	.set	pop						\n"
-	: "=r" (lz)
-	: "r" (x));
+		return 63 - num;
+	}
 
-	return 63 - lz;
+	num = BITS_PER_LONG - 1;
+
+#if BITS_PER_LONG == 64
+	if (!(word & (~0ul << 32))) {
+		num -= 32;
+		word <<= 32;
+	}
+#endif
+	if (!(word & (~0ul << (BITS_PER_LONG-16)))) {
+		num -= 16;
+		word <<= 16;
+	}
+	if (!(word & (~0ul << (BITS_PER_LONG-8)))) {
+		num -= 8;
+		word <<= 8;
+	}
+	if (!(word & (~0ul << (BITS_PER_LONG-4)))) {
+		num -= 4;
+		word <<= 4;
+	}
+	if (!(word & (~0ul << (BITS_PER_LONG-2)))) {
+		num -= 2;
+		word <<= 2;
+	}
+	if (!(word & (~0ul << (BITS_PER_LONG-1))))
+		num -= 1;
+	return num;
 }
 
 /*
@@ -612,23 +640,43 @@ static inline unsigned long __ffs(unsigned long word)
  * This is defined the same way as ffs.
  * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
-static inline int fls(int word)
+static inline int fls(int x)
 {
-	__asm__("clz %0, %1" : "=r" (word) : "r" (word));
+	int r;
 
-	return 32 - word;
+	if (__builtin_constant_p(cpu_has_mips_r) && cpu_has_mips_r) {
+		__asm__("clz %0, %1" : "=r" (x) : "r" (x));
+
+		return 32 - x;
+	}
+
+	r = 32;
+	if (!x)
+		return 0;
+	if (!(x & 0xffff0000u)) {
+		x <<= 16;
+		r -= 16;
+	}
+	if (!(x & 0xff000000u)) {
+		x <<= 8;
+		r -= 8;
+	}
+	if (!(x & 0xf0000000u)) {
+		x <<= 4;
+		r -= 4;
+	}
+	if (!(x & 0xc0000000u)) {
+		x <<= 2;
+		r -= 2;
+	}
+	if (!(x & 0x80000000u)) {
+		x <<= 1;
+		r -= 1;
+	}
+	return r;
 }
 
-#if defined(CONFIG_64BIT) && defined(CONFIG_CPU_MIPS64)
-static inline int fls64(__u64 word)
-{
-	__asm__("dclz %0, %1" : "=r" (word) : "r" (word));
-
-	return 64 - word;
-}
-#else
 #include <asm-generic/bitops/fls64.h>
-#endif
 
 /*
  * ffs - find first bit set.
@@ -645,16 +693,6 @@ static inline int ffs(int word)
 
 	return fls(word & -word);
 }
-
-#else
-
-#include <asm-generic/bitops/__ffs.h>
-#include <asm-generic/bitops/__fls.h>
-#include <asm-generic/bitops/ffs.h>
-#include <asm-generic/bitops/fls.h>
-#include <asm-generic/bitops/fls64.h>
-
-#endif /*defined(CONFIG_CPU_MIPS32) || defined(CONFIG_CPU_MIPS64) */
 
 #include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/find.h>

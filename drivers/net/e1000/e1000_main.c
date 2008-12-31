@@ -888,6 +888,26 @@ static int e1000_is_need_ioport(struct pci_dev *pdev)
 	}
 }
 
+static const struct net_device_ops e1000_netdev_ops = {
+	.ndo_open		= e1000_open,
+	.ndo_stop		= e1000_close,
+	.ndo_start_xmit		= e1000_xmit_frame,
+	.ndo_get_stats		= e1000_get_stats,
+	.ndo_set_rx_mode	= e1000_set_rx_mode,
+	.ndo_set_mac_address	= e1000_set_mac,
+	.ndo_tx_timeout 	= e1000_tx_timeout,
+	.ndo_change_mtu		= e1000_change_mtu,
+	.ndo_do_ioctl		= e1000_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+
+	.ndo_vlan_rx_register	= e1000_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= e1000_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= e1000_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= e1000_netpoll,
+#endif
+};
+
 /**
  * e1000_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -912,7 +932,6 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
 	int bars, need_ioport;
-	DECLARE_MAC_BUF(mac);
 
 	/* do not allocate ioport bars when not needed */
 	need_ioport = e1000_is_need_ioport(pdev);
@@ -967,8 +986,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	hw->back = adapter;
 
 	err = -EIO;
-	hw->hw_addr = ioremap(pci_resource_start(pdev, BAR_0),
-			      pci_resource_len(pdev, BAR_0));
+	hw->hw_addr = pci_ioremap_bar(pdev, BAR_0);
 	if (!hw->hw_addr)
 		goto err_ioremap;
 
@@ -983,24 +1001,11 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		}
 	}
 
-	netdev->open = &e1000_open;
-	netdev->stop = &e1000_close;
-	netdev->hard_start_xmit = &e1000_xmit_frame;
-	netdev->get_stats = &e1000_get_stats;
-	netdev->set_rx_mode = &e1000_set_rx_mode;
-	netdev->set_mac_address = &e1000_set_mac;
-	netdev->change_mtu = &e1000_change_mtu;
-	netdev->do_ioctl = &e1000_ioctl;
+	netdev->netdev_ops = &e1000_netdev_ops;
 	e1000_set_ethtool_ops(netdev);
-	netdev->tx_timeout = &e1000_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
 	netif_napi_add(netdev, &adapter->napi, e1000_clean, 64);
-	netdev->vlan_rx_register = e1000_vlan_rx_register;
-	netdev->vlan_rx_add_vid = e1000_vlan_rx_add_vid;
-	netdev->vlan_rx_kill_vid = e1000_vlan_rx_kill_vid;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = e1000_netpoll;
-#endif
+
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
 	adapter->bd_number = cards_found;
@@ -1016,9 +1021,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	 * because it depends on mac_type */
 	if ((hw->mac_type == e1000_ich8lan) &&
 	   (pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
-		hw->flash_address =
-			ioremap(pci_resource_start(pdev, 1),
-				pci_resource_len(pdev, 1));
+		hw->flash_address = pci_ioremap_bar(pdev, 1);
 		if (!hw->flash_address)
 			goto err_flashmap;
 	}
@@ -1179,6 +1182,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* initialize the wol settings based on the eeprom settings */
 	adapter->wol = adapter->eeprom_wol;
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
 	/* print bus type/speed/width info */
 	DPRINTK(PROBE, INFO, "(PCI%s:%s:%s) ",
@@ -1194,7 +1198,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		 (hw->bus_width == e1000_bus_width_pciex_1) ? "Width x1" :
 		 "32-bit"));
 
-	printk("%s\n", print_mac(mac, netdev->dev_addr));
+	printk("%pM\n", netdev->dev_addr);
 
 	if (hw->bus_type == e1000_bus_type_pci_express) {
 		DPRINTK(PROBE, WARNING, "This device (id %04x:%04x) will no "
@@ -1238,12 +1242,8 @@ err_eeprom:
 	if (hw->flash_address)
 		iounmap(hw->flash_address);
 err_flashmap:
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		dev_put(&adapter->polling_netdev[i]);
-
 	kfree(adapter->tx_ring);
 	kfree(adapter->rx_ring);
-	kfree(adapter->polling_netdev);
 err_sw_init:
 	iounmap(hw->hw_addr);
 err_ioremap:
@@ -1271,7 +1271,6 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	int i;
 
 	cancel_work_sync(&adapter->reset_task);
 
@@ -1281,9 +1280,6 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	 * would have already happened in close and is redundant. */
 	e1000_release_hw_control(adapter);
 
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		dev_put(&adapter->polling_netdev[i]);
-
 	unregister_netdev(netdev);
 
 	if (!e1000_check_phy_reset_block(hw))
@@ -1291,7 +1287,6 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 
 	kfree(adapter->tx_ring);
 	kfree(adapter->rx_ring);
-	kfree(adapter->polling_netdev);
 
 	iounmap(hw->hw_addr);
 	if (hw->flash_address)
@@ -1317,7 +1312,6 @@ static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
-	int i;
 
 	/* PCI config space info */
 
@@ -1374,11 +1368,6 @@ static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		adapter->polling_netdev[i].priv = adapter;
-		dev_hold(&adapter->polling_netdev[i]);
-		set_bit(__LINK_STATE_START, &adapter->polling_netdev[i].state);
-	}
 	spin_lock_init(&adapter->tx_queue_lock);
 
 	/* Explicitly disable IRQ since the NIC can be in any state. */
@@ -1396,8 +1385,7 @@ static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
  * @adapter: board private structure to initialize
  *
  * We allocate one ring per queue at run-time since we don't know the
- * number of queues at compile-time.  The polling_netdev array is
- * intended for Multiqueue, but should work fine with a single queue.
+ * number of queues at compile-time.
  **/
 
 static int __devinit e1000_alloc_queues(struct e1000_adapter *adapter)
@@ -1411,15 +1399,6 @@ static int __devinit e1000_alloc_queues(struct e1000_adapter *adapter)
 	                           sizeof(struct e1000_rx_ring), GFP_KERNEL);
 	if (!adapter->rx_ring) {
 		kfree(adapter->tx_ring);
-		return -ENOMEM;
-	}
-
-	adapter->polling_netdev = kcalloc(adapter->num_rx_queues,
-	                                  sizeof(struct net_device),
-	                                  GFP_KERNEL);
-	if (!adapter->polling_netdev) {
-		kfree(adapter->tx_ring);
-		kfree(adapter->rx_ring);
 		return -ENOMEM;
 	}
 
@@ -2520,10 +2499,11 @@ static void e1000_watchdog(unsigned long data)
 			                           &adapter->link_duplex);
 
 			ctrl = er32(CTRL);
-			DPRINTK(LINK, INFO, "NIC Link is Up %d Mbps %s, "
-			        "Flow Control: %s\n",
-			        adapter->link_speed,
-			        adapter->link_duplex == FULL_DUPLEX ?
+			printk(KERN_INFO "e1000: %s NIC Link is Up %d Mbps %s, "
+			       "Flow Control: %s\n",
+			       netdev->name,
+			       adapter->link_speed,
+			       adapter->link_duplex == FULL_DUPLEX ?
 			        "Full Duplex" : "Half Duplex",
 			        ((ctrl & E1000_CTRL_TFCE) && (ctrl &
 			        E1000_CTRL_RFCE)) ? "RX/TX" : ((ctrl &
@@ -2599,7 +2579,8 @@ static void e1000_watchdog(unsigned long data)
 		if (netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			DPRINTK(LINK, INFO, "NIC Link is Down\n");
+			printk(KERN_INFO "e1000: %s NIC Link is Down\n",
+			       netdev->name);
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
 			mod_timer(&adapter->phy_info_timer, round_jiffies(jiffies + 2 * HZ));
@@ -3706,12 +3687,12 @@ static irqreturn_t e1000_intr_msi(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
-	if (likely(netif_rx_schedule_prep(netdev, &adapter->napi))) {
+	if (likely(netif_rx_schedule_prep(&adapter->napi))) {
 		adapter->total_tx_bytes = 0;
 		adapter->total_tx_packets = 0;
 		adapter->total_rx_bytes = 0;
 		adapter->total_rx_packets = 0;
-		__netif_rx_schedule(netdev, &adapter->napi);
+		__netif_rx_schedule(&adapter->napi);
 	} else
 		e1000_irq_enable(adapter);
 
@@ -3766,12 +3747,12 @@ static irqreturn_t e1000_intr(int irq, void *data)
 		ew32(IMC, ~0);
 		E1000_WRITE_FLUSH();
 	}
-	if (likely(netif_rx_schedule_prep(netdev, &adapter->napi))) {
+	if (likely(netif_rx_schedule_prep(&adapter->napi))) {
 		adapter->total_tx_bytes = 0;
 		adapter->total_tx_packets = 0;
 		adapter->total_rx_bytes = 0;
 		adapter->total_rx_packets = 0;
-		__netif_rx_schedule(netdev, &adapter->napi);
+		__netif_rx_schedule(&adapter->napi);
 	} else
 		/* this really should not happen! if it does it is basically a
 		 * bug, but not a hard error, so enable ints and continue */
@@ -3790,8 +3771,7 @@ static int e1000_clean(struct napi_struct *napi, int budget)
 	struct net_device *poll_dev = adapter->netdev;
 	int tx_cleaned = 0, work_done = 0;
 
-	/* Must NOT use netdev_priv macro here. */
-	adapter = poll_dev->priv;
+	adapter = netdev_priv(poll_dev);
 
 	/* e1000_clean is called per-cpu.  This lock protects
 	 * tx_ring[0] from being cleaned by multiple cpus
@@ -3813,7 +3793,7 @@ static int e1000_clean(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		if (likely(adapter->itr_setting & 3))
 			e1000_set_itr(adapter);
-		netif_rx_complete(poll_dev, napi);
+		netif_rx_complete(napi);
 		e1000_irq_enable(adapter);
 	}
 
@@ -4102,8 +4082,6 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		} else {
 			netif_receive_skb(skb);
 		}
-
-		netdev->last_rx = jiffies;
 
 next_desc:
 		rx_desc->status = 0;
@@ -4788,7 +4766,7 @@ static pci_ers_result_t e1000_io_error_detected(struct pci_dev *pdev,
 						pci_channel_state_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	netif_device_detach(netdev);
 
@@ -4810,7 +4788,7 @@ static pci_ers_result_t e1000_io_error_detected(struct pci_dev *pdev,
 static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	int err;
 
@@ -4844,7 +4822,7 @@ static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
 static void e1000_io_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
 	e1000_init_manageability(adapter);

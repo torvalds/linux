@@ -169,7 +169,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	unsigned long *table;
 	unsigned long bits;
 
-	bits = (mm->context.noexec || mm->context.pgstes) ? 3UL : 1UL;
+	bits = (mm->context.noexec || mm->context.has_pgste) ? 3UL : 1UL;
 	spin_lock(&mm->page_table_lock);
 	page = NULL;
 	if (!list_empty(&mm->context.pgtable_list)) {
@@ -186,7 +186,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 		pgtable_page_ctor(page);
 		page->flags &= ~FRAG_MASK;
 		table = (unsigned long *) page_to_phys(page);
-		if (mm->context.pgstes)
+		if (mm->context.has_pgste)
 			clear_table_pgstes(table);
 		else
 			clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE);
@@ -210,7 +210,7 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 	struct page *page;
 	unsigned long bits;
 
-	bits = (mm->context.noexec || mm->context.pgstes) ? 3UL : 1UL;
+	bits = (mm->context.noexec || mm->context.has_pgste) ? 3UL : 1UL;
 	bits <<= (__pa(table) & (PAGE_SIZE - 1)) / 256 / sizeof(unsigned long);
 	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
 	spin_lock(&mm->page_table_lock);
@@ -257,29 +257,29 @@ int s390_enable_sie(void)
 	struct mm_struct *mm, *old_mm;
 
 	/* Do we have pgstes? if yes, we are done */
-	if (tsk->mm->context.pgstes)
+	if (tsk->mm->context.has_pgste)
 		return 0;
 
 	/* lets check if we are allowed to replace the mm */
 	task_lock(tsk);
 	if (!tsk->mm || atomic_read(&tsk->mm->mm_users) > 1 ||
-	    tsk->mm != tsk->active_mm || tsk->mm->ioctx_list) {
+	    tsk->mm != tsk->active_mm || !hlist_empty(&tsk->mm->ioctx_list)) {
 		task_unlock(tsk);
 		return -EINVAL;
 	}
 	task_unlock(tsk);
 
-	/* we copy the mm with pgstes enabled */
-	tsk->mm->context.pgstes = 1;
+	/* we copy the mm and let dup_mm create the page tables with_pgstes */
+	tsk->mm->context.alloc_pgste = 1;
 	mm = dup_mm(tsk);
-	tsk->mm->context.pgstes = 0;
+	tsk->mm->context.alloc_pgste = 0;
 	if (!mm)
 		return -ENOMEM;
 
-	/* Now lets check again if somebody attached ptrace etc */
+	/* Now lets check again if something happened */
 	task_lock(tsk);
 	if (!tsk->mm || atomic_read(&tsk->mm->mm_users) > 1 ||
-	    tsk->mm != tsk->active_mm || tsk->mm->ioctx_list) {
+	    tsk->mm != tsk->active_mm || !hlist_empty(&tsk->mm->ioctx_list)) {
 		mmput(mm);
 		task_unlock(tsk);
 		return -EINVAL;

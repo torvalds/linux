@@ -68,12 +68,12 @@ void maple_get_rtc_time(struct rtc_time *tm)
 
 	if (!(maple_clock_read(RTC_CONTROL) & RTC_DM_BINARY)
 	    || RTC_ALWAYS_BCD) {
-		BCD_TO_BIN(tm->tm_sec);
-		BCD_TO_BIN(tm->tm_min);
-		BCD_TO_BIN(tm->tm_hour);
-		BCD_TO_BIN(tm->tm_mday);
-		BCD_TO_BIN(tm->tm_mon);
-		BCD_TO_BIN(tm->tm_year);
+		tm->tm_sec = bcd2bin(tm->tm_sec);
+		tm->tm_min = bcd2bin(tm->tm_min);
+		tm->tm_hour = bcd2bin(tm->tm_hour);
+		tm->tm_mday = bcd2bin(tm->tm_mday);
+		tm->tm_mon = bcd2bin(tm->tm_mon);
+		tm->tm_year = bcd2bin(tm->tm_year);
 	  }
 	if ((tm->tm_year + 1900) < 1970)
 		tm->tm_year += 100;
@@ -104,12 +104,12 @@ int maple_set_rtc_time(struct rtc_time *tm)
 	year = tm->tm_year;
 
 	if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		BIN_TO_BCD(sec);
-		BIN_TO_BCD(min);
-		BIN_TO_BCD(hour);
-		BIN_TO_BCD(mon);
-		BIN_TO_BCD(mday);
-		BIN_TO_BCD(year);
+		sec = bin2bcd(sec);
+		min = bin2bcd(min);
+		hour = bin2bcd(hour);
+		mon = bin2bcd(mon);
+		mday = bin2bcd(mday);
+		year = bin2bcd(year);
 	}
 	maple_clock_write(sec, RTC_SECONDS);
 	maple_clock_write(min, RTC_MINUTES);

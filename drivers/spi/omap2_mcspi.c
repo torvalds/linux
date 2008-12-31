@@ -119,12 +119,14 @@ struct omap2_mcspi {
 	struct clk		*fck;
 	/* Virtual base address of the controller */
 	void __iomem		*base;
+	unsigned long		phys;
 	/* SPI1 has 4 channels, while SPI2 has 2 */
 	struct omap2_mcspi_dma	*dma_channels;
 };
 
 struct omap2_mcspi_cs {
 	void __iomem		*base;
+	unsigned long		phys;
 	int			word_len;
 };
 
@@ -233,7 +235,7 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 	c = count;
 	word_len = cs->word_len;
 
-	base = (unsigned long) io_v2p(cs->base);
+	base = cs->phys;
 	tx_reg = base + OMAP2_MCSPI_TX0;
 	rx_reg = base + OMAP2_MCSPI_RX0;
 	rx = xfer->rx_buf;
@@ -633,6 +635,7 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 		if (!cs)
 			return -ENOMEM;
 		cs->base = mcspi->base + spi->chip_select * 0x14;
+		cs->phys = mcspi->phys + spi->chip_select * 0x14;
 		spi->controller_state = cs;
 	}
 
@@ -1005,7 +1008,13 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	mcspi->base = (void __iomem *) io_p2v(r->start);
+	mcspi->phys = r->start;
+	mcspi->base = ioremap(r->start, r->end - r->start + 1);
+	if (!mcspi->base) {
+		dev_dbg(&pdev->dev, "can't ioremap MCSPI\n");
+		status = -ENOMEM;
+		goto err1aa;
+	}
 
 	INIT_WORK(&mcspi->work, omap2_mcspi_work);
 
@@ -1055,6 +1064,8 @@ err3:
 err2:
 	clk_put(mcspi->ick);
 err1a:
+	iounmap(mcspi->base);
+err1aa:
 	release_mem_region(r->start, (r->end - r->start) + 1);
 err1:
 	spi_master_put(master);
@@ -1067,6 +1078,7 @@ static int __exit omap2_mcspi_remove(struct platform_device *pdev)
 	struct omap2_mcspi	*mcspi;
 	struct omap2_mcspi_dma	*dma_channels;
 	struct resource		*r;
+	void __iomem *base;
 
 	master = dev_get_drvdata(&pdev->dev);
 	mcspi = spi_master_get_devdata(master);
@@ -1078,7 +1090,9 @@ static int __exit omap2_mcspi_remove(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(r->start, (r->end - r->start) + 1);
 
+	base = mcspi->base;
 	spi_unregister_master(master);
+	iounmap(base);
 	kfree(dma_channels);
 
 	return 0;

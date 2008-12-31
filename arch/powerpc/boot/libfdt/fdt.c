@@ -63,7 +63,7 @@ int fdt_check_header(const void *fdt)
 			return -FDT_ERR_BADVERSION;
 		if (fdt_last_comp_version(fdt) > FDT_LAST_SUPPORTED_VERSION)
 			return -FDT_ERR_BADVERSION;
-	} else if (fdt_magic(fdt) == SW_MAGIC) {
+	} else if (fdt_magic(fdt) == FDT_SW_MAGIC) {
 		/* Unfinished sequential-write blob */
 		if (fdt_size_dt_struct(fdt) == 0)
 			return -FDT_ERR_BADSTATE;
@@ -76,7 +76,7 @@ int fdt_check_header(const void *fdt)
 
 const void *fdt_offset_ptr(const void *fdt, int offset, int len)
 {
-	const void *p;
+	const char *p;
 
 	if (fdt_version(fdt) >= 0x11)
 		if (((offset + len) < offset)
@@ -124,9 +124,57 @@ uint32_t fdt_next_tag(const void *fdt, int offset, int *nextoffset)
 	}
 
 	if (nextoffset)
-		*nextoffset = ALIGN(offset, FDT_TAGSIZE);
+		*nextoffset = FDT_TAGALIGN(offset);
 
 	return tag;
+}
+
+int _fdt_check_node_offset(const void *fdt, int offset)
+{
+	if ((offset < 0) || (offset % FDT_TAGSIZE)
+	    || (fdt_next_tag(fdt, offset, &offset) != FDT_BEGIN_NODE))
+		return -FDT_ERR_BADOFFSET;
+
+	return offset;
+}
+
+int fdt_next_node(const void *fdt, int offset, int *depth)
+{
+	int nextoffset = 0;
+	uint32_t tag;
+
+	if (offset >= 0)
+		if ((nextoffset = _fdt_check_node_offset(fdt, offset)) < 0)
+			return nextoffset;
+
+	do {
+		offset = nextoffset;
+		tag = fdt_next_tag(fdt, offset, &nextoffset);
+
+		switch (tag) {
+		case FDT_PROP:
+		case FDT_NOP:
+			break;
+
+		case FDT_BEGIN_NODE:
+			if (depth)
+				(*depth)++;
+			break;
+
+		case FDT_END_NODE:
+			if (depth)
+				(*depth)--;
+			break;
+
+		case FDT_END:
+			return -FDT_ERR_NOTFOUND;
+
+		default:
+			return -FDT_ERR_BADSTRUCTURE;
+		}
+	} while (tag != FDT_BEGIN_NODE);
+
+	return offset;
 }
 
 const char *_fdt_find_string(const char *strtab, int tabsize, const char *s)
@@ -136,17 +184,14 @@ const char *_fdt_find_string(const char *strtab, int tabsize, const char *s)
 	const char *p;
 
 	for (p = strtab; p <= last; p++)
-		if (memeq(p, s, len))
+		if (memcmp(p, s, len) == 0)
 			return p;
 	return NULL;
 }
 
 int fdt_move(const void *fdt, void *buf, int bufsize)
 {
-	int err = fdt_check_header(fdt);
-
-	if (err)
-		return err;
+	FDT_CHECK_HEADER(fdt);
 
 	if (fdt_totalsize(fdt) > bufsize)
 		return -FDT_ERR_NOSPACE;

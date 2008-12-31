@@ -103,6 +103,9 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
 						    NULL);
 		acpi_ex_enter_interpreter();
 	}
+
+	acpi_ds_clear_implicit_return(walk_state);
+
 #ifdef ACPI_DISASSEMBLER
 	if (ACPI_FAILURE(status)) {
 

@@ -595,9 +595,8 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
         } while(value);
         kit->dev_no = bit;
 
-	kit->dev = device_create_drvdata(phidget_class, &kit->udev->dev,
-					MKDEV(0, 0), kit,
-					"interfacekit%d", kit->dev_no);
+	kit->dev = device_create(phidget_class, &kit->udev->dev, MKDEV(0, 0),
+				 kit, "interfacekit%d", kit->dev_no);
         if (IS_ERR(kit->dev)) {
                 rc = PTR_ERR(kit->dev);
                 kit->dev = NULL;

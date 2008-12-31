@@ -104,6 +104,8 @@ typedef struct { unsigned long pgd; } pgd_t;
 
 typedef struct page *pgtable_t;
 
+#define pte_pgprot(x) __pgprot(pte_val(x) & PTE_FLAGS_MASK)
+
 #endif /* !__ASSEMBLY__ */
 
 /*

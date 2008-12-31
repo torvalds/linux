@@ -24,6 +24,7 @@ ENTRY(mioa701_jumpaddr)
 1:
 	mov	r0,     #0xa0000000	@ Don't suppose memory access works
 	orr	r0, r0, #0x00200000	@ even if it's supposed to
+	orr	r0, r0, #0x0000b000
 	mov	r1, #0
 	str	r1, [r0]		@ Early disable resume for next boot
 	ldr	r0, mioa701_jumpaddr	@ (Murphy's Law)

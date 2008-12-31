@@ -4,7 +4,6 @@
 #define COMMAND_LINE_SIZE 256
 
 #ifdef __KERNEL__
-
 /*
  * This is set up by the setup-routine at boot-time
  */

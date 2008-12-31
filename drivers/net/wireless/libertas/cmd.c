@@ -4,7 +4,7 @@
   */
 
 #include <net/iw_handler.h>
-#include <net/ieee80211.h>
+#include <net/lib80211.h>
 #include <linux/kfifo.h>
 #include "host.h"
 #include "hostcmd.h"
@@ -87,7 +87,6 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	struct cmd_ds_get_hw_spec cmd;
 	int ret = -1;
 	u32 i;
-	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -110,8 +109,8 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	 * CF card    firmware 5.0.16p0:   cap 0x00000303
 	 * USB dongle firmware 5.110.17p2: cap 0x00000303
 	 */
-	lbs_pr_info("%s, fw %u.%u.%up%u, cap 0x%08x\n",
-		print_mac(mac, cmd.permanentaddr),
+	lbs_pr_info("%pM, fw %u.%u.%up%u, cap 0x%08x\n",
+		cmd.permanentaddr,
 		priv->fwrelease >> 24 & 0xff,
 		priv->fwrelease >> 16 & 0xff,
 		priv->fwrelease >>  8 & 0xff,
@@ -160,7 +159,8 @@ out:
 	return ret;
 }
 
-int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria)
+int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
+		struct wol_config *p_wol_config)
 {
 	struct cmd_ds_host_sleep cmd_config;
 	int ret;
@@ -170,10 +170,21 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria)
 	cmd_config.gpio = priv->wol_gpio;
 	cmd_config.gap = priv->wol_gap;
 
+	if (p_wol_config != NULL)
+		memcpy((uint8_t *)&cmd_config.wol_conf, (uint8_t *)p_wol_config,
+				sizeof(struct wol_config));
+	else
+		cmd_config.wol_conf.action = CMD_ACT_ACTION_NONE;
+
 	ret = lbs_cmd_with_response(priv, CMD_802_11_HOST_SLEEP_CFG, &cmd_config);
 	if (!ret) {
-		lbs_deb_cmd("Set WOL criteria to %x\n", criteria);
-		priv->wol_criteria = criteria;
+		if (criteria) {
+			lbs_deb_cmd("Set WOL criteria to %x\n", criteria);
+			priv->wol_criteria = criteria;
+		} else
+			memcpy((uint8_t *) p_wol_config,
+					(uint8_t *)&cmd_config.wol_conf,
+					sizeof(struct wol_config));
 	} else {
 		lbs_pr_info("HOST_SLEEP_CFG failed %d\n", ret);
 	}
@@ -605,9 +616,9 @@ int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
 	if (ret == 0) {
 		*curlevel = le16_to_cpu(cmd.curlevel);
 		if (minlevel)
-			*minlevel = le16_to_cpu(cmd.minlevel);
+			*minlevel = cmd.minlevel;
 		if (maxlevel)
-			*maxlevel = le16_to_cpu(cmd.maxlevel);
+			*maxlevel = cmd.maxlevel;
 	}
 
 	lbs_deb_leave(LBS_DEB_CMD);
@@ -823,7 +834,9 @@ int lbs_update_channel(struct lbs_private *priv)
 int lbs_set_channel(struct lbs_private *priv, u8 channel)
 {
 	struct cmd_ds_802_11_rf_channel cmd;
+#ifdef DEBUG
 	u8 old_channel = priv->curbssparams.channel;
+#endif
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -1061,6 +1074,7 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t action, uint16_t chan)
 {
 	struct cmd_ds_mesh_config cmd;
 	struct mrvl_meshie *ie;
+	DECLARE_SSID_BUF(ssid);
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.channel = cpu_to_le16(chan);
@@ -1068,7 +1082,7 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t action, uint16_t chan)
 
 	switch (action) {
 	case CMD_ACT_MESH_CONFIG_START:
-		ie->hdr.id = MFIE_TYPE_GENERIC;
+		ie->id = WLAN_EID_GENERIC;
 		ie->val.oui[0] = 0x00;
 		ie->val.oui[1] = 0x50;
 		ie->val.oui[2] = 0x43;
@@ -1080,7 +1094,7 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t action, uint16_t chan)
 		ie->val.mesh_capability = MARVELL_MESH_CAPABILITY;
 		ie->val.mesh_id_len = priv->mesh_ssid_len;
 		memcpy(ie->val.mesh_id, priv->mesh_ssid, priv->mesh_ssid_len);
-		ie->hdr.len = sizeof(struct mrvl_meshie_val) -
+		ie->len = sizeof(struct mrvl_meshie_val) -
 			IW_ESSID_MAX_SIZE + priv->mesh_ssid_len;
 		cmd.length = cpu_to_le16(sizeof(struct mrvl_meshie_val));
 		break;
@@ -1091,7 +1105,7 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t action, uint16_t chan)
 	}
 	lbs_deb_cmd("mesh config action %d type %x channel %d SSID %s\n",
 		    action, priv->mesh_tlv, chan,
-		    escape_essid(priv->mesh_ssid, priv->mesh_ssid_len));
+		    print_ssid(ssid, priv->mesh_ssid, priv->mesh_ssid_len));
 
 	return __lbs_mesh_config_send(priv, &cmd, action, priv->mesh_tlv);
 }

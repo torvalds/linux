@@ -131,10 +131,12 @@ are expected to do this during initialization.
 
 	r = zd_reg2alpha2(mac->regdomain, alpha2);
 	if (!r)
-		regulatory_hint(hw->wiphy, alpha2, NULL);
+		regulatory_hint(hw->wiphy, alpha2);
 
 Example code - drivers providing a built in regulatory domain:
 --------------------------------------------------------------
+
+[NOTE: This API is not currently available, it can be added when required]
 
 If you have regulatory information you can obtain from your
 driver and you *need* to use this we let you build a regulatory domain
@@ -167,7 +169,6 @@ struct ieee80211_regdomain mydriver_jp_regdom = {
 
 Then in some part of your code after your wiphy has been registered:
 
-	int r;
 	struct ieee80211_regdomain *rd;
 	int size_of_regd;
 	int num_rules = mydriver_jp_regdom.n_reg_rules;
@@ -178,17 +179,12 @@ Then in some part of your code after your wiphy has been registered:
 
 	rd = kzalloc(size_of_regd, GFP_KERNEL);
 	if (!rd)
-	return -ENOMEM;
+		return -ENOMEM;
 
 	memcpy(rd, &mydriver_jp_regdom, sizeof(struct ieee80211_regdomain));
 
-	for (i=0; i < num_rules; i++) {
-		memcpy(&rd->reg_rules[i], &mydriver_jp_regdom.reg_rules[i],
-			sizeof(struct ieee80211_reg_rule));
-	}
-	r = regulatory_hint(hw->wiphy, NULL, rd);
-	if (r) {
-		kfree(rd);
-		return r;
-	}
-
+	for (i=0; i < num_rules; i++)
+		memcpy(&rd->reg_rules[i],
+		       &mydriver_jp_regdom.reg_rules[i],
+		       sizeof(struct ieee80211_reg_rule));
+	regulatory_struct_hint(rd);

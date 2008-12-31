@@ -11,6 +11,9 @@
 #include <linux/leds.h>
 #include <linux/mtd/physmap.h>
 #include <linux/ssb/ssb.h>
+#include <linux/interrupt.h>
+#include <linux/reboot.h>
+#include <linux/gpio.h>
 #include <asm/mach-bcm47xx/bcm47xx.h>
 
 /* GPIO definitions for the WGT634U */
@@ -99,6 +102,30 @@ static struct platform_device *wgt634u_devices[] __initdata = {
 	&wgt634u_gpio_leds,
 };
 
+static irqreturn_t gpio_interrupt(int irq, void *ignored)
+{
+	int state;
+
+	/* Interrupts are shared, check if the current one is
+	   a GPIO interrupt. */
+	if (!ssb_chipco_irq_status(&ssb_bcm47xx.chipco,
+				   SSB_CHIPCO_IRQ_GPIO))
+		return IRQ_NONE;
+
+	state = gpio_get_value(WGT634U_GPIO_RESET);
+
+	/* Interrupt are level triggered, revert the interrupt polarity
+	   to clear the interrupt. */
+	gpio_polarity(WGT634U_GPIO_RESET, state);
+
+	if (!state) {
+		printk(KERN_INFO "Reset button pressed");
+		ctrl_alt_del();
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int __init wgt634u_init(void)
 {
 	/* There is no easy way to detect that we are running on a WGT634U
@@ -112,6 +139,19 @@ static int __init wgt634u_init(void)
 	    ((et0mac[1] == 0x09 && et0mac[2] == 0x5b) ||
 	     (et0mac[1] == 0x0f && et0mac[2] == 0xb5))) {
 		struct ssb_mipscore *mcore = &ssb_bcm47xx.mipscore;
+
+		printk(KERN_INFO "WGT634U machine detected.\n");
+
+		if (!request_irq(gpio_to_irq(WGT634U_GPIO_RESET),
+				 gpio_interrupt, IRQF_SHARED,
+				 "WGT634U GPIO", &ssb_bcm47xx.chipco)) {
+			gpio_direction_input(WGT634U_GPIO_RESET);
+			gpio_intmask(WGT634U_GPIO_RESET, 1);
+			ssb_chipco_irq_mask(&ssb_bcm47xx.chipco,
+					    SSB_CHIPCO_IRQ_GPIO,
+					    SSB_CHIPCO_IRQ_GPIO);
+		}
+
 		wgt634u_flash_data.width = mcore->flash_buswidth;
 		wgt634u_flash_resource.start = mcore->flash_window;
 		wgt634u_flash_resource.end = mcore->flash_window

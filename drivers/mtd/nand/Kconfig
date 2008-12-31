@@ -56,6 +56,12 @@ config MTD_NAND_H1900
 	help
 	  This enables the driver for the iPAQ h1900 flash.
 
+config MTD_NAND_GPIO
+	tristate "GPIO NAND Flash driver"
+	depends on GENERIC_GPIO && ARM
+	help
+	  This enables a GPIO based NAND flash driver.
+
 config MTD_NAND_SPIA
 	tristate "NAND Flash device on SPIA board"
 	depends on ARCH_P720T
@@ -67,12 +73,6 @@ config MTD_NAND_AMS_DELTA
 	depends on MACH_AMS_DELTA
 	help
 	  Support for NAND flash on Amstrad E3 (Delta).
-
-config MTD_NAND_TOTO
-	tristate "NAND Flash device on TOTO board"
-	depends on ARCH_OMAP && BROKEN
-	help
-	  Support for NAND flash on Texas Instruments Toto platform.
 
 config MTD_NAND_TS7250
 	tristate "NAND Flash device on TS-7250 board"
@@ -162,13 +162,6 @@ config MTD_NAND_S3C2410_HWECC
 	  using NAND. Early versions of the chip have had problems with
 	  incorrect ECC generation, and if using these, the default of
 	  software ECC is preferable.
-
-config MTD_NAND_NDFC
-	tristate "NDFC NanD Flash Controller"
-	depends on 4xx && !PPC_MERGE
-	select MTD_NAND_ECC_SMC
-	help
-	 NDFC Nand Flash Controllers are integrated in IBM/AMCC's 4xx SoCs
 
 config MTD_NAND_S3C2410_CLKSTOP
 	bool "S3C2410 NAND IDLE clock stop"
@@ -340,6 +333,13 @@ config MTD_NAND_PXA3xx
 	  This enables the driver for the NAND flash device found on
 	  PXA3xx processors
 
+config MTD_NAND_PXA3xx_BUILTIN
+	bool "Use builtin definitions for some NAND chips (deprecated)"
+	depends on MTD_NAND_PXA3xx
+	help
+	  This enables builtin definitions for some NAND chips. This
+	  is deprecated in favor of platform specific data.
+
 config MTD_NAND_CM_X270
 	tristate "Support for NAND Flash on CM-X270 modules"
 	depends on MTD_NAND && MACH_ARMCORE
@@ -400,10 +400,24 @@ config MTD_NAND_FSL_ELBC
 
 config MTD_NAND_FSL_UPM
 	tristate "Support for NAND on Freescale UPM"
-	depends on MTD_NAND && OF_GPIO && (PPC_83xx || PPC_85xx)
+	depends on MTD_NAND && (PPC_83xx || PPC_85xx)
 	select FSL_LBC
 	help
 	  Enables support for NAND Flash chips wired onto Freescale PowerPC
 	  processor localbus with User-Programmable Machine support.
+
+config MTD_NAND_MXC
+	tristate "MXC NAND support"
+	depends on ARCH_MX2 || ARCH_MX3
+	help
+	  This enables the driver for the NAND flash controller on the
+	  MXC processors.
+
+config MTD_NAND_SH_FLCTL
+	tristate "Support for NAND on Renesas SuperH FLCTL"
+	depends on MTD_NAND && SUPERH && CPU_SUBTYPE_SH7723
+	help
+	  Several Renesas SuperH CPU has FLCTL. This option enables support
+	  for NAND Flash using FLCTL. This driver support SH7723.
 
 endif # MTD_NAND

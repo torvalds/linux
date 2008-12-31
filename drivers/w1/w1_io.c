@@ -93,6 +93,40 @@ static void w1_write_bit(struct w1_master *dev, int bit)
 }
 
 /**
+ * Pre-write operation, currently only supporting strong pullups.
+ * Program the hardware for a strong pullup, if one has been requested and
+ * the hardware supports it.
+ *
+ * @param dev     the master device
+ */
+static void w1_pre_write(struct w1_master *dev)
+{
+	if (dev->pullup_duration &&
+		dev->enable_pullup && dev->bus_master->set_pullup) {
+		dev->bus_master->set_pullup(dev->bus_master->data,
+			dev->pullup_duration);
+	}
+}
+
+/**
+ * Post-write operation, currently only supporting strong pullups.
+ * If a strong pullup was requested, clear it if the hardware supports
+ * them, or execute the delay otherwise, in either case clear the request.
+ *
+ * @param dev     the master device
+ */
+static void w1_post_write(struct w1_master *dev)
+{
+	if (dev->pullup_duration) {
+		if (dev->enable_pullup && dev->bus_master->set_pullup)
+			dev->bus_master->set_pullup(dev->bus_master->data, 0);
+		else
+			msleep(dev->pullup_duration);
+		dev->pullup_duration = 0;
+	}
+}
+
+/**
  * Writes 8 bits.
  *
  * @param dev     the master device
@@ -102,11 +136,17 @@ void w1_write_8(struct w1_master *dev, u8 byte)
 {
 	int i;
 
-	if (dev->bus_master->write_byte)
+	if (dev->bus_master->write_byte) {
+		w1_pre_write(dev);
 		dev->bus_master->write_byte(dev->bus_master->data, byte);
+	}
 	else
-		for (i = 0; i < 8; ++i)
+		for (i = 0; i < 8; ++i) {
+			if (i == 7)
+				w1_pre_write(dev);
 			w1_touch_bit(dev, (byte >> i) & 0x1);
+		}
+	w1_post_write(dev);
 }
 EXPORT_SYMBOL_GPL(w1_write_8);
 
@@ -177,7 +217,7 @@ u8 w1_triplet(struct w1_master *dev, int bdir)
  * @param dev     the master device
  * @return        the byte read
  */
-static u8 w1_read_8(struct w1_master * dev)
+u8 w1_read_8(struct w1_master *dev)
 {
 	int i;
 	u8 res = 0;
@@ -190,6 +230,7 @@ static u8 w1_read_8(struct w1_master * dev)
 
 	return res;
 }
+EXPORT_SYMBOL_GPL(w1_read_8);
 
 /**
  * Writes a series of bytes.
@@ -203,11 +244,14 @@ void w1_write_block(struct w1_master *dev, const u8 *buf, int len)
 {
 	int i;
 
-	if (dev->bus_master->write_block)
+	if (dev->bus_master->write_block) {
+		w1_pre_write(dev);
 		dev->bus_master->write_block(dev->bus_master->data, buf, len);
+	}
 	else
 		for (i = 0; i < len; ++i)
-			w1_write_8(dev, buf[i]);
+			w1_write_8(dev, buf[i]); /* calls w1_pre_write */
+	w1_post_write(dev);
 }
 EXPORT_SYMBOL_GPL(w1_write_block);
 
@@ -250,12 +294,24 @@ int w1_reset_bus(struct w1_master *dev)
 		result = dev->bus_master->reset_bus(dev->bus_master->data) & 0x1;
 	else {
 		dev->bus_master->write_bit(dev->bus_master->data, 0);
+		/* minimum 480, max ? us
+		 * be nice and sleep, except 18b20 spec lists 960us maximum,
+		 * so until we can sleep with microsecond accuracy, spin.
+		 * Feel free to come up with some other way to give up the
+		 * cpu for such a short amount of time AND get it back in
+		 * the maximum amount of time.
+		 */
 		w1_delay(480);
 		dev->bus_master->write_bit(dev->bus_master->data, 1);
 		w1_delay(70);
 
 		result = dev->bus_master->read_bit(dev->bus_master->data) & 0x1;
-		w1_delay(410);
+		/* minmum 70 (above) + 410 = 480 us
+		 * There aren't any timing requirements between a reset and
+		 * the following transactions.  Sleeping is safe here.
+		 */
+		/* w1_delay(410); min required time */
+		msleep(1);
 	}
 
 	return result;
@@ -277,7 +333,8 @@ void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_cal
 {
 	dev->attempts++;
 	if (dev->bus_master->search)
-		dev->bus_master->search(dev->bus_master->data, search_type, cb);
+		dev->bus_master->search(dev->bus_master->data, dev,
+			search_type, cb);
 	else
 		w1_search(dev, search_type, cb);
 }
@@ -299,9 +356,28 @@ int w1_reset_select_slave(struct w1_slave *sl)
 		w1_write_8(sl->master, W1_SKIP_ROM);
 	else {
 		u8 match[9] = {W1_MATCH_ROM, };
-		memcpy(&match[1], (u8 *)&sl->reg_num, 8);
+		u64 rn = le64_to_cpu(*((u64*)&sl->reg_num));
+
+		memcpy(&match[1], &rn, 8);
 		w1_write_block(sl->master, match, 9);
 	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(w1_reset_select_slave);
+
+/**
+ * Put out a strong pull-up of the specified duration after the next write
+ * operation.  Not all hardware supports strong pullups.  Hardware that
+ * doesn't support strong pullups will sleep for the given time after the
+ * write operation without a strong pullup.  This is a one shot request for
+ * the next write, specifying zero will clear a previous request.
+ * The w1 master lock must be held.
+ *
+ * @param delay	time in milliseconds
+ * @return	0=success, anything else=error
+ */
+void w1_next_pullup(struct w1_master *dev, int delay)
+{
+	dev->pullup_duration = delay;
+}
+EXPORT_SYMBOL_GPL(w1_next_pullup);

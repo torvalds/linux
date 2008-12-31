@@ -2,19 +2,24 @@
 Ext4 Filesystem
 ===============
 
-This is a development version of the ext4 filesystem, an advanced level
-of the ext3 filesystem which incorporates scalability and reliability
-enhancements for supporting large filesystems (64 bit) in keeping with
-increasing disk capacities and state-of-the-art feature requirements.
+Ext4 is an an advanced level of the ext3 filesystem which incorporates
+scalability and reliability enhancements for supporting large filesystems
+(64 bit) in keeping with increasing disk capacities and state-of-the-art
+feature requirements.
 
-Mailing list: linux-ext4@vger.kernel.org
+Mailing list:	linux-ext4@vger.kernel.org
+Web site:	http://ext4.wiki.kernel.org
 
 
 1. Quick usage instructions:
 ===========================
 
+Note: More extensive information for getting started with ext4 can be
+      found at the ext4 wiki site at the URL:
+      http://ext4.wiki.kernel.org/index.php/Ext4_Howto
+
   - Compile and install the latest version of e2fsprogs (as of this
-    writing version 1.41) from:
+    writing version 1.41.3) from:
 
     http://sourceforge.net/project/showfiles.php?group_id=2406
 	
@@ -36,11 +41,9 @@ Mailing list: linux-ext4@vger.kernel.org
 
     	# mke2fs -t ext4 /dev/hda1
 
-    Or configure an existing ext3 filesystem to support extents and set
-    the test_fs flag to indicate that it's ok for an in-development
-    filesystem to touch this filesystem:
+    Or to configure an existing ext3 filesystem to support extents: 
 
-	# tune2fs -O extents -E test_fs /dev/hda1
+	# tune2fs -O extents /dev/hda1
 
     If the filesystem was created with 128 byte inodes, it can be
     converted to use 256 byte for greater efficiency via:
@@ -104,8 +107,8 @@ exist yet so I'm not sure they're in the near-term roadmap.
 The big performance win will come with mballoc, delalloc and flex_bg
 grouping of bitmaps and inode tables.  Some test results available here:
 
- - http://www.bullopensource.org/ext4/20080530/ffsb-write-2.6.26-rc2.html
- - http://www.bullopensource.org/ext4/20080530/ffsb-readwrite-2.6.26-rc2.html
+ - http://www.bullopensource.org/ext4/20080818-ffsb/ffsb-write-2.6.27-rc1.html
+ - http://www.bullopensource.org/ext4/20080818-ffsb/ffsb-readwrite-2.6.27-rc1.html
 
 3. Options
 ==========
@@ -214,9 +217,6 @@ noreservation
 bsddf		(*)	Make 'df' act like BSD.
 minixdf			Make 'df' act like Minix.
 
-check=none		Don't do extra checking of bitmaps on mount.
-nocheck
-
 debug			Extra debugging information is sent to syslog.
 
 errors=remount-ro(*)	Remount the filesystem read-only on an error.
@@ -253,8 +253,6 @@ nobh			(a) cache disk block mapping information
 			"nobh" option tries to avoid associating buffer
 			heads (supported only for "writeback" mode).
 
-mballoc		(*)	Use the multiple block allocator for block allocation
-nomballoc		disabled multiple block allocator for block allocation.
 stripe=n		Number of filesystem blocks that mballoc will try
 			to use for allocation size and alignment. For RAID5/6
 			systems this should be the number of data

@@ -1,6 +1,6 @@
 /*
  *  ata_generic.c - Generic PATA/SATA controller driver.
- *  Copyright 2005 Red Hat Inc <alan@redhat.com>, all rights reserved.
+ *  Copyright 2005 Red Hat Inc, all rights reserved.
  *
  *  Elements from ide/pci/generic.c
  *	    Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
@@ -57,10 +57,7 @@ static int generic_set_mode(struct ata_link *link, struct ata_device **unused)
 	if (pdev->vendor == PCI_VENDOR_ID_CENATEK)
 		dma_enabled = 0xFF;
 
-	ata_link_for_each_dev(dev, link) {
-		if (!ata_dev_enabled(dev))
-			continue;
-
+	ata_for_each_dev(dev, link, ENABLED) {
 		/* We don't really care */
 		dev->pio_mode = XFER_PIO_0;
 		dev->dma_mode = XFER_MW_DMA_0;

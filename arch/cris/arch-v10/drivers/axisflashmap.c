@@ -26,7 +26,7 @@
 
 #include <asm/axisflashmap.h>
 #include <asm/mmu.h>
-#include <asm/arch/sv_addr_ag.h>
+#include <arch/sv_addr_ag.h>
 
 #ifdef CONFIG_CRIS_LOW_MAP
 #define FLASH_UNCACHED_ADDR  KSEG_8

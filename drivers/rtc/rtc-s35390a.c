@@ -104,12 +104,12 @@ static int s35390a_disable_test_mode(struct s35390a *s35390a)
 static char s35390a_hr2reg(struct s35390a *s35390a, int hour)
 {
 	if (s35390a->twentyfourhour)
-		return BIN2BCD(hour);
+		return bin2bcd(hour);
 
 	if (hour < 12)
-		return BIN2BCD(hour);
+		return bin2bcd(hour);
 
-	return 0x40 | BIN2BCD(hour - 12);
+	return 0x40 | bin2bcd(hour - 12);
 }
 
 static int s35390a_reg2hr(struct s35390a *s35390a, char reg)
@@ -117,9 +117,9 @@ static int s35390a_reg2hr(struct s35390a *s35390a, char reg)
 	unsigned hour;
 
 	if (s35390a->twentyfourhour)
-		return BCD2BIN(reg & 0x3f);
+		return bcd2bin(reg & 0x3f);
 
-	hour = BCD2BIN(reg & 0x3f);
+	hour = bcd2bin(reg & 0x3f);
 	if (reg & 0x40)
 		hour += 12;
 
@@ -137,13 +137,13 @@ static int s35390a_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		tm->tm_min, tm->tm_hour, tm->tm_mday, tm->tm_mon, tm->tm_year,
 		tm->tm_wday);
 
-	buf[S35390A_BYTE_YEAR] = BIN2BCD(tm->tm_year - 100);
-	buf[S35390A_BYTE_MONTH] = BIN2BCD(tm->tm_mon + 1);
-	buf[S35390A_BYTE_DAY] = BIN2BCD(tm->tm_mday);
-	buf[S35390A_BYTE_WDAY] = BIN2BCD(tm->tm_wday);
+	buf[S35390A_BYTE_YEAR] = bin2bcd(tm->tm_year - 100);
+	buf[S35390A_BYTE_MONTH] = bin2bcd(tm->tm_mon + 1);
+	buf[S35390A_BYTE_DAY] = bin2bcd(tm->tm_mday);
+	buf[S35390A_BYTE_WDAY] = bin2bcd(tm->tm_wday);
 	buf[S35390A_BYTE_HOURS] = s35390a_hr2reg(s35390a, tm->tm_hour);
-	buf[S35390A_BYTE_MINS] = BIN2BCD(tm->tm_min);
-	buf[S35390A_BYTE_SECS] = BIN2BCD(tm->tm_sec);
+	buf[S35390A_BYTE_MINS] = bin2bcd(tm->tm_min);
+	buf[S35390A_BYTE_SECS] = bin2bcd(tm->tm_sec);
 
 	/* This chip expects the bits of each byte to be in reverse order */
 	for (i = 0; i < 7; ++i)
@@ -168,13 +168,13 @@ static int s35390a_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	for (i = 0; i < 7; ++i)
 		buf[i] = bitrev8(buf[i]);
 
-	tm->tm_sec = BCD2BIN(buf[S35390A_BYTE_SECS]);
-	tm->tm_min = BCD2BIN(buf[S35390A_BYTE_MINS]);
+	tm->tm_sec = bcd2bin(buf[S35390A_BYTE_SECS]);
+	tm->tm_min = bcd2bin(buf[S35390A_BYTE_MINS]);
 	tm->tm_hour = s35390a_reg2hr(s35390a, buf[S35390A_BYTE_HOURS]);
-	tm->tm_wday = BCD2BIN(buf[S35390A_BYTE_WDAY]);
-	tm->tm_mday = BCD2BIN(buf[S35390A_BYTE_DAY]);
-	tm->tm_mon = BCD2BIN(buf[S35390A_BYTE_MONTH]) - 1;
-	tm->tm_year = BCD2BIN(buf[S35390A_BYTE_YEAR]) + 100;
+	tm->tm_wday = bcd2bin(buf[S35390A_BYTE_WDAY]);
+	tm->tm_mday = bcd2bin(buf[S35390A_BYTE_DAY]);
+	tm->tm_mon = bcd2bin(buf[S35390A_BYTE_MONTH]) - 1;
+	tm->tm_year = bcd2bin(buf[S35390A_BYTE_YEAR]) + 100;
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, mday=%d, "
 		"mon=%d, year=%d, wday=%d\n", __func__, tm->tm_sec,

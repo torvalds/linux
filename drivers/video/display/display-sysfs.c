@@ -153,12 +153,9 @@ struct display_device *display_device_register(struct display_driver *driver,
 		mutex_unlock(&allocated_dsp_lock);
 
 		if (!ret) {
-			new_dev->dev = device_create_drvdata(display_class,
-							     parent,
-							     MKDEV(0,0),
-							     new_dev,
-							     "display%d",
-							     new_dev->idx);
+			new_dev->dev = device_create(display_class, parent,
+						     MKDEV(0, 0), new_dev,
+						     "display%d", new_dev->idx);
 			if (!IS_ERR(new_dev->dev)) {
 				new_dev->parent = parent;
 				new_dev->driver = driver;

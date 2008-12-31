@@ -95,6 +95,10 @@ unsigned int wqm_quanta = 0x10000;
 module_param(wqm_quanta, int, 0644);
 MODULE_PARM_DESC(wqm_quanta, "WQM quanta");
 
+static unsigned int limit_maxrdreqsz;
+module_param(limit_maxrdreqsz, bool, 0644);
+MODULE_PARM_DESC(limit_maxrdreqsz, "Limit max read request size to 256 Bytes");
+
 LIST_HEAD(nes_adapter_list);
 static LIST_HEAD(nes_dev_list);
 
@@ -138,14 +142,9 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 	struct nes_device *nesdev;
 	struct net_device *netdev;
 	struct nes_vnic *nesvnic;
-	unsigned int addr;
-	unsigned int mask;
 
-	addr = ntohl(ifa->ifa_address);
-	mask = ntohl(ifa->ifa_mask);
-	nes_debug(NES_DBG_NETDEV, "nes_inetaddr_event: ip address " NIPQUAD_FMT
-		  ", netmask " NIPQUAD_FMT ".\n",
-		  HIPQUAD(addr), HIPQUAD(mask));
+	nes_debug(NES_DBG_NETDEV, "nes_inetaddr_event: ip address %pI4, netmask %pI4.\n",
+		  &ifa->ifa_address, &ifa->ifa_mask);
 	list_for_each_entry(nesdev, &nes_dev_list, list) {
 		nes_debug(NES_DBG_NETDEV, "Nesdev list entry = 0x%p. (%s)\n",
 				nesdev, nesdev->netdev[0]->name);
@@ -356,10 +355,8 @@ struct ib_qp *nes_get_qp(struct ib_device *device, int qpn)
  */
 static void nes_print_macaddr(struct net_device *netdev)
 {
-	DECLARE_MAC_BUF(mac);
-
-	nes_debug(NES_DBG_INIT, "%s: %s, IRQ %u\n",
-		  netdev->name, print_mac(mac, netdev->dev_addr), netdev->irq);
+	nes_debug(NES_DBG_INIT, "%s: %pM, IRQ %u\n",
+		  netdev->name, netdev->dev_addr, netdev->irq);
 }
 
 /**
@@ -586,6 +583,18 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	} else {
 		nesdev->mac_index = PCI_FUNC(nesdev->pcidev->devfn) %
 						nesdev->nesadapter->port_count;
+	}
+
+	if ((limit_maxrdreqsz ||
+	     ((nesdev->nesadapter->phy_type[0] == NES_PHY_TYPE_GLADIUS) &&
+	      (hw_rev == NE020_REV1))) &&
+	    (pcie_get_readrq(pcidev) > 256)) {
+		if (pcie_set_readrq(pcidev, 256))
+			printk(KERN_ERR PFX "Unable to set max read request"
+				" to 256 bytes\n");
+		else
+			nes_debug(NES_DBG_INIT, "Max read request size set"
+				" to 256 bytes\n");
 	}
 
 	tasklet_init(&nesdev->dpc_tasklet, nes_dpc, (unsigned long)nesdev);

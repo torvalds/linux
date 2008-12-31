@@ -41,25 +41,14 @@ Table of Contents
   VI - System-on-a-chip devices and nodes
     1) Defining child nodes of an SOC
     2) Representing devices without a current OF specification
-      a) MDIO IO device
-      b) Gianfar-compatible ethernet nodes
-      c) PHY nodes
-      d) Interrupt controllers
-      e) I2C
-      f) Freescale SOC USB controllers
-      g) Freescale SOC SEC Security Engines
-      h) Board Control and Status (BCSR)
-      i) Freescale QUICC Engine module (QE)
-      j) CFI or JEDEC memory-mapped NOR flash
-      k) Global Utilities Block
-      l) Freescale Communications Processor Module
-      m) Chipselect/Local Bus
-      n) 4xx/Axon EMAC ethernet nodes
-      o) Xilinx IP cores
-      p) Freescale Synchronous Serial Interface
-	  q) USB EHCI controllers
-      r) MDIO on GPIOs
-      s) SPI busses
+      a) PHY nodes
+      b) Interrupt controllers
+      c) CFI or JEDEC memory-mapped NOR flash
+      d) 4xx/Axon EMAC ethernet nodes
+      e) Xilinx IP cores
+      f) USB EHCI controllers
+      g) MDIO on GPIOs
+      h) SPI busses
 
   VII - Marvell Discovery mv64[345]6x System Controller chips
     1) The /system-controller node
@@ -1830,41 +1819,7 @@ platforms are moved over to use the flattened-device-tree model.
 		   big-endian;
 	   };
 
-    r) Freescale Display Interface Unit
-
-    The Freescale DIU is a LCD controller, with proper hardware, it can also
-    drive DVI monitors.
-
-    Required properties:
-    - compatible : should be "fsl-diu".
-    - reg : should contain at least address and length of the DIU register
-      set.
-    - Interrupts : one DIU interrupt should be describe here.
-
-    Example (MPC8610HPCD)
-	display@2c000 {
-		compatible = "fsl,diu";
-		reg = <0x2c000 100>;
-		interrupts = <72 2>;
-		interrupt-parent = <&mpic>;
-	};
-
-    s) Freescale on board FPGA
-
-    This is the memory-mapped registers for on board FPGA.
-
-    Required properities:
-    - compatible : should be "fsl,fpga-pixis".
-    - reg : should contain the address and the lenght of the FPPGA register
-      set.
-
-    Example (MPC8610HPCD)
-	board-control@e8000000 {
-		compatible = "fsl,fpga-pixis";
-		reg = <0xe8000000 32>;
-	};
-
-   r) MDIO on GPIOs
+   g) MDIO on GPIOs
 
    Currently defined compatibles:
    - virtual,gpio-mdio
@@ -1884,7 +1839,7 @@ platforms are moved over to use the flattened-device-tree model.
 			 &qe_pio_c 6>;
 	};
 
-    s) SPI (Serial Peripheral Interface) busses
+    h) SPI (Serial Peripheral Interface) busses
 
     SPI busses can be described with a node for the SPI master device
     and a set of child nodes for each SPI slave on the bus.  For this
@@ -1917,6 +1872,8 @@ platforms are moved over to use the flattened-device-tree model.
 			inverse clock polarity (CPOL) mode
     - spi-cpha        - (optional) Empty property indicating device requires
 			shifted clock phase (CPHA) mode
+    - spi-cs-high     - (optional) Empty property indicating device requires
+			chip select active high
 
     SPI example for an MPC5200 SPI bus:
 		spi@f00 {

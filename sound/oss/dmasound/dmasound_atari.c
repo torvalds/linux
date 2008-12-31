@@ -143,7 +143,7 @@ static int AtaMixerIoctl(u_int cmd, u_long arg);
 static int TTMixerIoctl(u_int cmd, u_long arg);
 static int FalconMixerIoctl(u_int cmd, u_long arg);
 static int AtaWriteSqSetup(void);
-static int AtaSqOpen(mode_t mode);
+static int AtaSqOpen(fmode_t mode);
 static int TTStateInfo(char *buffer, size_t space);
 static int FalconStateInfo(char *buffer, size_t space);
 
@@ -1461,7 +1461,7 @@ static int AtaWriteSqSetup(void)
 	return 0 ;
 }
 
-static int AtaSqOpen(mode_t mode)
+static int AtaSqOpen(fmode_t mode)
 {
 	write_sq_ignore_int = 1;
 	return 0 ;

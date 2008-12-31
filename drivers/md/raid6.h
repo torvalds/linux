@@ -18,15 +18,6 @@
 /* Set to 1 to use kernel-wide empty_zero_page */
 #define RAID6_USE_EMPTY_ZERO_PAGE 0
 
-#include <linux/module.h>
-#include <linux/stddef.h>
-#include <linux/compiler.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/mempool.h>
-#include <linux/list.h>
-#include <linux/vmalloc.h>
 #include <linux/raid/md.h>
 #include <linux/raid/raid5.h>
 

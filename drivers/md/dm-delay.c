@@ -13,7 +13,8 @@
 #include <linux/bio.h>
 #include <linux/slab.h>
 
-#include "dm.h"
+#include <linux/device-mapper.h>
+
 #include "dm-bio-list.h"
 
 #define DM_MSG_PREFIX "delay"

@@ -174,48 +174,6 @@ static void atmel_write_buf16(struct mtd_info *mtd, const u8 *buf, int len)
 }
 
 /*
- * write oob for small pages
- */
-static int atmel_nand_write_oob_512(struct mtd_info *mtd,
-		struct nand_chip *chip, int page)
-{
-	int chunk = chip->ecc.bytes + chip->ecc.prepad + chip->ecc.postpad;
-	int eccsize = chip->ecc.size, length = mtd->oobsize;
-	int len, pos, status = 0;
-	const uint8_t *bufpoi = chip->oob_poi;
-
-	pos = eccsize + chunk;
-
-	chip->cmdfunc(mtd, NAND_CMD_SEQIN, pos, page);
-	len = min_t(int, length, chunk);
-	chip->write_buf(mtd, bufpoi, len);
-	bufpoi += len;
-	length -= len;
-	if (length > 0)
-		chip->write_buf(mtd, bufpoi, length);
-
-	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-	status = chip->waitfunc(mtd, chip);
-
-	return status & NAND_STATUS_FAIL ? -EIO : 0;
-
-}
-
-/*
- * read oob for small pages
- */
-static int atmel_nand_read_oob_512(struct mtd_info *mtd,
-		struct nand_chip *chip,	int page, int sndcmd)
-{
-	if (sndcmd) {
-		chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
-		sndcmd = 0;
-	}
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
-	return sndcmd;
-}
-
-/*
  * Calculate HW ECC
  *
  * function called after a write
@@ -235,14 +193,14 @@ static int atmel_nand_calculate(struct mtd_info *mtd,
 	/* get the first 2 ECC bytes */
 	ecc_value = ecc_readl(host->ecc, PR);
 
-	ecc_code[eccpos[0]] = ecc_value & 0xFF;
-	ecc_code[eccpos[1]] = (ecc_value >> 8) & 0xFF;
+	ecc_code[0] = ecc_value & 0xFF;
+	ecc_code[1] = (ecc_value >> 8) & 0xFF;
 
 	/* get the last 2 ECC bytes */
 	ecc_value = ecc_readl(host->ecc, NPR) & ATMEL_ECC_NPARITY;
 
-	ecc_code[eccpos[2]] = ecc_value & 0xFF;
-	ecc_code[eccpos[3]] = (ecc_value >> 8) & 0xFF;
+	ecc_code[2] = ecc_value & 0xFF;
+	ecc_code[3] = (ecc_value >> 8) & 0xFF;
 
 	return 0;
 }
@@ -476,14 +434,12 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 			res = -EIO;
 			goto err_ecc_ioremap;
 		}
-		nand_chip->ecc.mode = NAND_ECC_HW_SYNDROME;
+		nand_chip->ecc.mode = NAND_ECC_HW;
 		nand_chip->ecc.calculate = atmel_nand_calculate;
 		nand_chip->ecc.correct = atmel_nand_correct;
 		nand_chip->ecc.hwctl = atmel_nand_hwctl;
 		nand_chip->ecc.read_page = atmel_nand_read_page;
 		nand_chip->ecc.bytes = 4;
-		nand_chip->ecc.prepad = 0;
-		nand_chip->ecc.postpad = 0;
 	}
 
 	nand_chip->chip_delay = 20;		/* 20us command delay time */
@@ -514,7 +470,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		goto err_scan_ident;
 	}
 
-	if (nand_chip->ecc.mode == NAND_ECC_HW_SYNDROME) {
+	if (nand_chip->ecc.mode == NAND_ECC_HW) {
 		/* ECC is calculated for the whole page (1 step) */
 		nand_chip->ecc.size = mtd->writesize;
 
@@ -522,8 +478,6 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		switch (mtd->writesize) {
 		case 512:
 			nand_chip->ecc.layout = &atmel_oobinfo_small;
-			nand_chip->ecc.read_oob = atmel_nand_read_oob_512;
-			nand_chip->ecc.write_oob = atmel_nand_write_oob_512;
 			ecc_writel(host->ecc, MR, ATMEL_ECC_PAGESIZE_528);
 			break;
 		case 1024:

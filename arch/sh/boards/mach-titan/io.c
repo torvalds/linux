@@ -4,7 +4,7 @@
 #include <linux/pci.h>
 #include <asm/machvec.h>
 #include <asm/addrspace.h>
-#include <asm/titan.h>
+#include <mach/titan.h>
 #include <asm/io.h>
 
 static inline unsigned int port2adr(unsigned int port)

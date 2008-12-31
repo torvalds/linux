@@ -422,9 +422,11 @@ struct ipmi_smi {
 /**
  * The driver model view of the IPMI messaging driver.
  */
-static struct device_driver ipmidriver = {
-	.name = "ipmi",
-	.bus = &platform_bus_type
+static struct platform_driver ipmidriver = {
+	.driver = {
+		.name = "ipmi",
+		.bus = &platform_bus_type
+	}
 };
 static DEFINE_MUTEX(ipmidriver_mutex);
 
@@ -2384,9 +2386,9 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 	 * representing the interfaced BMC already
 	 */
 	if (bmc->guid_set)
-		old_bmc = ipmi_find_bmc_guid(&ipmidriver, bmc->guid);
+		old_bmc = ipmi_find_bmc_guid(&ipmidriver.driver, bmc->guid);
 	else
-		old_bmc = ipmi_find_bmc_prod_dev_id(&ipmidriver,
+		old_bmc = ipmi_find_bmc_prod_dev_id(&ipmidriver.driver,
 						    bmc->id.product_id,
 						    bmc->id.device_id);
 
@@ -2416,7 +2418,7 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 		snprintf(name, sizeof(name),
 			 "ipmi_bmc.%4.4x", bmc->id.product_id);
 
-		while (ipmi_find_bmc_prod_dev_id(&ipmidriver,
+		while (ipmi_find_bmc_prod_dev_id(&ipmidriver.driver,
 						 bmc->id.product_id,
 						 bmc->id.device_id)) {
 			if (!warn_printed) {
@@ -2446,7 +2448,7 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 			       " Unable to allocate platform device\n");
 			return -ENOMEM;
 		}
-		bmc->dev->dev.driver = &ipmidriver;
+		bmc->dev->dev.driver = &ipmidriver.driver;
 		dev_set_drvdata(&bmc->dev->dev, bmc);
 		kref_init(&bmc->refcount);
 
@@ -4247,7 +4249,7 @@ static int ipmi_init_msghandler(void)
 	if (initialized)
 		return 0;
 
-	rv = driver_register(&ipmidriver);
+	rv = driver_register(&ipmidriver.driver);
 	if (rv) {
 		printk(KERN_ERR PFX "Could not register IPMI driver\n");
 		return rv;
@@ -4308,7 +4310,7 @@ static __exit void cleanup_ipmi(void)
 	remove_proc_entry(proc_ipmi_root->name, NULL);
 #endif /* CONFIG_PROC_FS */
 
-	driver_unregister(&ipmidriver);
+	driver_unregister(&ipmidriver.driver);
 
 	initialized = 0;
 

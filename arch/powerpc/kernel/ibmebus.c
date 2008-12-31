@@ -47,7 +47,7 @@
 #include <asm/abs_addr.h>
 
 static struct device ibmebus_bus_device = { /* fake "parent" device */
-	.bus_id = "ibmebus",
+	.init_name = "ibmebus",
 };
 
 struct bus_type ibmebus_bus_type;
@@ -79,20 +79,21 @@ static void ibmebus_free_coherent(struct device *dev,
 	kfree(vaddr);
 }
 
-static dma_addr_t ibmebus_map_single(struct device *dev,
-				     void *ptr,
-				     size_t size,
-				     enum dma_data_direction direction,
-				     struct dma_attrs *attrs)
+static dma_addr_t ibmebus_map_page(struct device *dev,
+				   struct page *page,
+				   unsigned long offset,
+				   size_t size,
+				   enum dma_data_direction direction,
+				   struct dma_attrs *attrs)
 {
-	return (dma_addr_t)(ptr);
+	return (dma_addr_t)(page_address(page) + offset);
 }
 
-static void ibmebus_unmap_single(struct device *dev,
-				 dma_addr_t dma_addr,
-				 size_t size,
-				 enum dma_data_direction direction,
-				 struct dma_attrs *attrs)
+static void ibmebus_unmap_page(struct device *dev,
+			       dma_addr_t dma_addr,
+			       size_t size,
+			       enum dma_data_direction direction,
+			       struct dma_attrs *attrs)
 {
 	return;
 }
@@ -129,11 +130,11 @@ static int ibmebus_dma_supported(struct device *dev, u64 mask)
 static struct dma_mapping_ops ibmebus_dma_ops = {
 	.alloc_coherent = ibmebus_alloc_coherent,
 	.free_coherent  = ibmebus_free_coherent,
-	.map_single     = ibmebus_map_single,
-	.unmap_single   = ibmebus_unmap_single,
 	.map_sg         = ibmebus_map_sg,
 	.unmap_sg       = ibmebus_unmap_sg,
 	.dma_supported  = ibmebus_dma_supported,
+	.map_page       = ibmebus_map_page,
+	.unmap_page     = ibmebus_unmap_page,
 };
 
 static int ibmebus_match_path(struct device *dev, void *data)
@@ -230,6 +231,7 @@ void ibmebus_free_irq(u32 ist, void *dev_id)
 	unsigned int irq = irq_find_mapping(NULL, ist);
 
 	free_irq(irq, dev_id);
+	irq_dispose_mapping(irq);
 }
 EXPORT_SYMBOL(ibmebus_free_irq);
 

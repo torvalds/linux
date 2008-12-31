@@ -130,7 +130,7 @@ ia64_native_getreg_func(int regnum)
 	unsigned long res = -1;
 	switch (regnum) {
 	CASE_GET_REG(GP);
-	CASE_GET_REG(IP);
+	/*CASE_GET_REG(IP);*/ /* returned ip value shouldn't be constant */
 	CASE_GET_REG(PSR);
 	CASE_GET_REG(TP);
 	CASE_GET_REG(SP);
@@ -332,7 +332,7 @@ ia64_native_iosapic_write(char __iomem *iosapic, unsigned int reg, u32 val)
 
 struct pv_iosapic_ops pv_iosapic_ops = {
 	.pcat_compat_init = ia64_native_iosapic_pcat_compat_init,
-	.get_irq_chip = ia64_native_iosapic_get_irq_chip,
+	.__get_irq_chip = ia64_native_iosapic_get_irq_chip,
 
 	.__read = ia64_native_iosapic_read,
 	.__write = ia64_native_iosapic_write,

@@ -18,10 +18,12 @@
 
 #include <linux/types.h>
 
-#define XCHAL_KIO_CACHED_VADDR	0xf0000000
-#define XCHAL_KIO_BYPASS_VADDR	0xf8000000
+#define XCHAL_KIO_CACHED_VADDR	0xe0000000
+#define XCHAL_KIO_BYPASS_VADDR	0xf0000000
 #define XCHAL_KIO_PADDR		0xf0000000
-#define XCHAL_KIO_SIZE		0x08000000
+#define XCHAL_KIO_SIZE		0x10000000
+
+#define IOADDR(x)		(XCHAL_KIO_BYPASS_VADDR + (x))
 
 /*
  * swap functions to change byte order from little-endian to big-endian and

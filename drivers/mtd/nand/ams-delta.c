@@ -145,7 +145,7 @@ static void ams_delta_hwcontrol(struct mtd_info *mtd, int cmd,
 
 static int ams_delta_nand_ready(struct mtd_info *mtd)
 {
-	return omap_get_gpio_datain(AMS_DELTA_GPIO_PIN_NAND_RB);
+	return gpio_get_value(AMS_DELTA_GPIO_PIN_NAND_RB);
 }
 
 /*
@@ -185,7 +185,7 @@ static int __init ams_delta_init(void)
 	this->read_buf = ams_delta_read_buf;
 	this->verify_buf = ams_delta_verify_buf;
 	this->cmd_ctrl = ams_delta_hwcontrol;
-	if (!omap_request_gpio(AMS_DELTA_GPIO_PIN_NAND_RB)) {
+	if (gpio_request(AMS_DELTA_GPIO_PIN_NAND_RB, "nand_rdy") == 0) {
 		this->dev_ready = ams_delta_nand_ready;
 	} else {
 		this->dev_ready = NULL;

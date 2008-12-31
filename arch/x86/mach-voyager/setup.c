@@ -27,7 +27,7 @@ static struct irqaction irq2 = {
 void __init intr_init_hook(void)
 {
 #ifdef CONFIG_SMP
-	smp_intr_init();
+	voyager_smp_intr_init();
 #endif
 
 	setup_irq(2, &irq2);

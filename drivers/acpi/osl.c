@@ -35,7 +35,6 @@
 #include <linux/interrupt.h>
 #include <linux/kmod.h>
 #include <linux/delay.h>
-#include <linux/dmi.h>
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
 #include <linux/acpi.h>
@@ -97,54 +96,44 @@ static DEFINE_SPINLOCK(acpi_res_lock);
 static char osi_additional_string[OSI_STRING_LENGTH_MAX];
 
 /*
- * "Ode to _OSI(Linux)"
+ * The story of _OSI(Linux)
  *
- * osi_linux -- Control response to BIOS _OSI(Linux) query.
+ * From pre-history through Linux-2.6.22,
+ * Linux responded TRUE upon a BIOS OSI(Linux) query.
  *
- * As Linux evolves, the features that it supports change.
- * So an OSI string such as "Linux" is not specific enough
- * to be useful across multiple versions of Linux.  It
- * doesn't identify any particular feature, interface,
- * or even any particular version of Linux...
+ * Unfortunately, reference BIOS writers got wind of this
+ * and put OSI(Linux) in their example code, quickly exposing
+ * this string as ill-conceived and opening the door to
+ * an un-bounded number of BIOS incompatibilities.
  *
- * Unfortunately, Linux-2.6.22 and earlier responded "yes"
- * to a BIOS _OSI(Linux) query.  When
- * a reference mobile BIOS started using it, its use
- * started to spread to many vendor platforms.
- * As it is not supportable, we need to halt that spread.
+ * For example, OSI(Linux) was used on resume to re-POST a
+ * video card on one system, because Linux at that time
+ * could not do a speedy restore in its native driver.
+ * But then upon gaining quick native restore capability,
+ * Linux has no way to tell the BIOS to skip the time-consuming
+ * POST -- putting Linux at a permanent performance disadvantage.
+ * On another system, the BIOS writer used OSI(Linux)
+ * to infer native OS support for IPMI!  On other systems,
+ * OSI(Linux) simply got in the way of Linux claiming to
+ * be compatible with other operating systems, exposing
+ * BIOS issues such as skipped device initialization.
  *
- * Today, most BIOS references to _OSI(Linux) are noise --
- * they have no functional effect and are just dead code
- * carried over from the reference BIOS.
- *
- * The next most common case is that _OSI(Linux) harms Linux,
- * usually by causing the BIOS to follow paths that are
- * not tested during Windows validation.
- *
- * Finally, there is a short list of platforms
- * where OSI(Linux) benefits Linux.
- *
- * In Linux-2.6.23, OSI(Linux) is first disabled by default.
- * DMI is used to disable the dmesg warning about OSI(Linux)
- * on platforms where it is known to have no effect.
- * But a dmesg warning remains for systems where
- * we do not know if OSI(Linux) is good or bad for the system.
- * DMI is also used to enable OSI(Linux) for the machines
- * that are known to need it.
+ * So "Linux" turned out to be a really poor chose of
+ * OSI string, and from Linux-2.6.23 onward we respond FALSE.
  *
  * BIOS writers should NOT query _OSI(Linux) on future systems.
- * It will be ignored by default, and to get Linux to
- * not ignore it will require a kernel source update to
- * add a DMI entry, or a boot-time "acpi_osi=Linux" invocation.
+ * Linux will complain on the console when it sees it, and return FALSE.
+ * To get Linux to return TRUE for your system  will require
+ * a kernel source update to add a DMI entry,
+ * or boot with "acpi_osi=Linux"
  */
-#define OSI_LINUX_ENABLE 0
 
 static struct osi_linux {
 	unsigned int	enable:1;
 	unsigned int	dmi:1;
 	unsigned int	cmdline:1;
 	unsigned int	known:1;
-} osi_linux = { OSI_LINUX_ENABLE, 0, 0, 0};
+} osi_linux = { 0, 0, 0, 0};
 
 static void __init acpi_request_region (struct acpi_generic_address *addr,
 	unsigned int length, char *desc)
@@ -608,7 +597,7 @@ static void acpi_os_derive_pci_id_2(acpi_handle rhandle,	/* upper bound  */
 	acpi_handle handle;
 	struct acpi_pci_id *pci_id = *id;
 	acpi_status status;
-	unsigned long temp;
+	unsigned long long temp;
 	acpi_object_type type;
 
 	acpi_get_parent(chandle, &handle);
@@ -620,8 +609,7 @@ static void acpi_os_derive_pci_id_2(acpi_handle rhandle,	/* upper bound  */
 		if ((ACPI_FAILURE(status)) || (type != ACPI_TYPE_DEVICE))
 			return;
 
-		status =
-		    acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL,
+		status = acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL,
 					  &temp);
 		if (ACPI_SUCCESS(status)) {
 			u32 val;
@@ -682,6 +670,22 @@ static void acpi_os_execute_deferred(struct work_struct *work)
 	return;
 }
 
+static void acpi_os_execute_hp_deferred(struct work_struct *work)
+{
+	struct acpi_os_dpc *dpc = container_of(work, struct acpi_os_dpc, work);
+	if (!dpc) {
+		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
+		return;
+	}
+
+	acpi_os_wait_events_complete(NULL);
+
+	dpc->function(dpc->context);
+	kfree(dpc);
+
+	return;
+}
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_os_execute
@@ -697,12 +701,13 @@ static void acpi_os_execute_deferred(struct work_struct *work)
  *
  ******************************************************************************/
 
-acpi_status acpi_os_execute(acpi_execute_type type,
-			    acpi_osd_exec_callback function, void *context)
+static acpi_status __acpi_os_execute(acpi_execute_type type,
+	acpi_osd_exec_callback function, void *context, int hp)
 {
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
 	struct workqueue_struct *queue;
+	int ret;
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Scheduling function [%p(%p)] for deferred execution.\n",
 			  function, context));
@@ -726,18 +731,37 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	dpc->function = function;
 	dpc->context = context;
 
-	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
-	queue = (type == OSL_NOTIFY_HANDLER) ? kacpi_notify_wq : kacpid_wq;
-	if (!queue_work(queue, &dpc->work)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			  "Call to queue_work() failed.\n"));
+	if (!hp) {
+		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+		queue = (type == OSL_NOTIFY_HANDLER) ?
+			kacpi_notify_wq : kacpid_wq;
+		ret = queue_work(queue, &dpc->work);
+	} else {
+		INIT_WORK(&dpc->work, acpi_os_execute_hp_deferred);
+		ret = schedule_work(&dpc->work);
+	}
+
+	if (!ret) {
+		printk(KERN_ERR PREFIX
+			  "Call to queue_work() failed.\n");
 		status = AE_ERROR;
 		kfree(dpc);
 	}
 	return_ACPI_STATUS(status);
 }
 
+acpi_status acpi_os_execute(acpi_execute_type type,
+			    acpi_osd_exec_callback function, void *context)
+{
+	return __acpi_os_execute(type, function, context, 0);
+}
 EXPORT_SYMBOL(acpi_os_execute);
+
+acpi_status acpi_os_hotplug_execute(acpi_osd_exec_callback function,
+	void *context)
+{
+	return __acpi_os_execute(0, function, context, 1);
+}
 
 void acpi_os_wait_events_complete(void *context)
 {
@@ -1261,34 +1285,6 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
 	return (AE_OK);
 }
 
-/**
- *	acpi_dmi_dump - dump DMI slots needed for blacklist entry
- *
- *	Returns 0 on success
- */
-static int acpi_dmi_dump(void)
-{
-
-	if (!dmi_available)
-		return -1;
-
-	printk(KERN_NOTICE PREFIX "DMI System Vendor: %s\n",
-		dmi_get_system_info(DMI_SYS_VENDOR));
-	printk(KERN_NOTICE PREFIX "DMI Product Name: %s\n",
-		dmi_get_system_info(DMI_PRODUCT_NAME));
-	printk(KERN_NOTICE PREFIX "DMI Product Version: %s\n",
-		dmi_get_system_info(DMI_PRODUCT_VERSION));
-	printk(KERN_NOTICE PREFIX "DMI Board Name: %s\n",
-		dmi_get_system_info(DMI_BOARD_NAME));
-	printk(KERN_NOTICE PREFIX "DMI BIOS Vendor: %s\n",
-		dmi_get_system_info(DMI_BIOS_VENDOR));
-	printk(KERN_NOTICE PREFIX "DMI BIOS Date: %s\n",
-		dmi_get_system_info(DMI_BIOS_DATE));
-
-	return 0;
-}
-
-
 /******************************************************************************
  *
  * FUNCTION:    acpi_os_validate_interface
@@ -1314,21 +1310,6 @@ acpi_os_validate_interface (char *interface)
 			osi_linux.enable ? "honored" : "ignored",
 			osi_linux.cmdline ? " via cmdline" :
 			osi_linux.dmi ? " via DMI" : "");
-
-		if (!osi_linux.dmi) {
-			if (acpi_dmi_dump())
-				printk(KERN_NOTICE PREFIX
-					"[please extract dmidecode output]\n");
-			printk(KERN_NOTICE PREFIX
-				"Please send DMI info above to "
-				"linux-acpi@vger.kernel.org\n");
-		}
-		if (!osi_linux.known && !osi_linux.cmdline) {
-			printk(KERN_NOTICE PREFIX
-				"If \"acpi_osi=%sLinux\" works better, "
-				"please notify linux-acpi@vger.kernel.org\n",
-				osi_linux.enable ? "!" : "");
-		}
 
 		if (osi_linux.enable)
 			return AE_OK;

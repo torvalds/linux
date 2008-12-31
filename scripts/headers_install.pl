@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 #
 # headers_install prepare the listed header files for use in
 # user space and copy the files to their destination.
@@ -17,28 +17,29 @@
 # 3) Drop all sections defined out by __KERNEL__ (using unifdef)
 
 use strict;
-use warnings;
 
 my ($readdir, $installdir, $arch, @files) = @ARGV;
 
 my $unifdef = "scripts/unifdef -U__KERNEL__";
 
 foreach my $file (@files) {
+	local *INFILE;
+	local *OUTFILE;
 	my $tmpfile = "$installdir/$file.tmp";
-	open(my $infile, '<', "$readdir/$file")
+	open(INFILE, "<$readdir/$file")
 		or die "$readdir/$file: $!\n";
-	open(my $outfile, '>', "$tmpfile") or die "$tmpfile: $!\n";
-	while (my $line = <$infile>) {
+	open(OUTFILE, ">$tmpfile") or die "$tmpfile: $!\n";
+	while (my $line = <INFILE>) {
 		$line =~ s/([\s(])__user\s/$1/g;
 		$line =~ s/([\s(])__force\s/$1/g;
 		$line =~ s/([\s(])__iomem\s/$1/g;
 		$line =~ s/\s__attribute_const__\s/ /g;
 		$line =~ s/\s__attribute_const__$//g;
 		$line =~ s/^#include <linux\/compiler.h>//;
-		printf $outfile "%s", $line;
+		printf OUTFILE "%s", $line;
 	}
-	close $outfile;
-	close $infile;
+	close OUTFILE;
+	close INFILE;
 	system $unifdef . " $tmpfile > $installdir/$file";
 	unlink $tmpfile;
 }

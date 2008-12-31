@@ -136,9 +136,12 @@ static void default_idle(void)
 		return;
 	}
 	trace_hardirqs_on();
+	/* Don't trace preempt off for idle. */
+	stop_critical_timings();
 	/* Wait for external, I/O or machine check interrupt. */
 	__load_psw_mask(psw_kernel_bits | PSW_MASK_WAIT |
 			PSW_MASK_IO | PSW_MASK_EXT);
+	start_critical_timings();
 }
 
 void cpu_idle(void)

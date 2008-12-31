@@ -120,7 +120,7 @@ static __inline__ int isdn_net_device_busy(isdn_net_local *lp)
 		return 0;
 
 	if (lp->master)
-		nd = ((isdn_net_local *) lp->master->priv)->netdev;
+		nd = ISDN_MASTER_PRIV(lp)->netdev;
 	else
 		nd = lp->netdev;
 	
@@ -213,9 +213,9 @@ isdn_net_reset(struct net_device *dev)
 {
 #ifdef CONFIG_ISDN_X25
 	struct concap_device_ops * dops =
-		( (isdn_net_local *) dev->priv ) -> dops;
+		((isdn_net_local *) netdev_priv(dev))->dops;
 	struct concap_proto * cprot =
-		( (isdn_net_local *) dev->priv ) -> netdev -> cprot;
+		((isdn_net_local *) netdev_priv(dev))->netdev->cprot;
 #endif
 #ifdef CONFIG_ISDN_X25
 	if( cprot && cprot -> pops && dops )
@@ -250,11 +250,11 @@ isdn_net_open(struct net_device *dev)
 	}
 
 	/* If this interface has slaves, start them also */
-
-	if ((p = (((isdn_net_local *) dev->priv)->slave))) {
+	p = MASTER_TO_SLAVE(dev);
+	if (p) {
 		while (p) {
 			isdn_net_reset(p);
-			p = (((isdn_net_local *) p->priv)->slave);
+			p = MASTER_TO_SLAVE(p);
 		}
 	}
 	isdn_lock_drivers();
@@ -483,7 +483,7 @@ isdn_net_stat_callback(int idx, isdn_ctrl *c)
 							isdn_net_ciscohdlck_connected(lp);
 						if (lp->p_encap != ISDN_NET_ENCAP_SYNCPPP) {
 							if (lp->master) { /* is lp a slave? */
-								isdn_net_dev *nd = ((isdn_net_local *)lp->master->priv)->netdev;
+								isdn_net_dev *nd = ISDN_MASTER_PRIV(lp)->netdev;
 								isdn_net_add_to_bundle(nd, lp);
 							}
 						}
@@ -823,7 +823,7 @@ isdn_net_dial(void)
 void
 isdn_net_hangup(struct net_device *d)
 {
-	isdn_net_local *lp = (isdn_net_local *) d->priv;
+	isdn_net_local *lp = (isdn_net_local *) netdev_priv(d);
 	isdn_ctrl cmd;
 #ifdef CONFIG_ISDN_X25
 	struct concap_proto *cprot = lp->netdev->cprot;
@@ -832,7 +832,7 @@ isdn_net_hangup(struct net_device *d)
 
 	if (lp->flags & ISDN_NET_CONNECTED) {
 		if (lp->slave != NULL) {
-			isdn_net_local *slp = (isdn_net_local *)lp->slave->priv;
+			isdn_net_local *slp = ISDN_SLAVE_PRIV(lp);
 			if (slp->flags & ISDN_NET_CONNECTED) {
 				printk(KERN_INFO
 					"isdn_net: hang up slave %s before %s\n",
@@ -865,8 +865,8 @@ isdn_net_hangup(struct net_device *d)
 }
 
 typedef struct {
-	unsigned short source;
-	unsigned short dest;
+	__be16 source;
+	__be16 dest;
 } ip_ports;
 
 static void
@@ -890,15 +890,15 @@ isdn_net_log_skb(struct sk_buff * skb, isdn_net_local * lp)
 		proto = ETH_P_IP;
 		switch (lp->p_encap) {
 			case ISDN_NET_ENCAP_IPTYP:
-				proto = ntohs(*(unsigned short *) &buf[0]);
+				proto = ntohs(*(__be16 *)&buf[0]);
 				p = &buf[2];
 				break;
 			case ISDN_NET_ENCAP_ETHER:
-				proto = ntohs(*(unsigned short *) &buf[12]);
+				proto = ntohs(*(__be16 *)&buf[12]);
 				p = &buf[14];
 				break;
 			case ISDN_NET_ENCAP_CISCOHDLC:
-				proto = ntohs(*(unsigned short *) &buf[2]);
+				proto = ntohs(*(__be16 *)&buf[2]);
 				p = &buf[4];
 				break;
 #ifdef CONFIG_ISDN_PPP
@@ -942,18 +942,12 @@ isdn_net_log_skb(struct sk_buff * skb, isdn_net_local * lp)
 					strcpy(addinfo, " IDP");
 					break;
 			}
-			printk(KERN_INFO
-				"OPEN: %d.%d.%d.%d -> %d.%d.%d.%d%s\n",
-
-			       p[12], p[13], p[14], p[15],
-			       p[16], p[17], p[18], p[19],
-			       addinfo);
+			printk(KERN_INFO "OPEN: %pI4 -> %pI4%s\n",
+			       p + 12, p + 16, addinfo);
 			break;
 		case ETH_P_ARP:
-			printk(KERN_INFO
-				"OPEN: ARP %d.%d.%d.%d -> *.*.*.* ?%d.%d.%d.%d\n",
-			       p[14], p[15], p[16], p[17],
-			       p[24], p[25], p[26], p[27]);
+			printk(KERN_INFO "OPEN: ARP %pI4 -> *.*.*.* ?%pI4\n",
+			       p + 14, p + 24);
 			break;
 	}
 }
@@ -1054,10 +1048,10 @@ isdn_net_xmit(struct net_device *ndev, struct sk_buff *skb)
 {
 	isdn_net_dev *nd;
 	isdn_net_local *slp;
-	isdn_net_local *lp = (isdn_net_local *) ndev->priv;
+	isdn_net_local *lp = (isdn_net_local *) netdev_priv(ndev);
 	int retv = 0;
 
-	if (((isdn_net_local *) (ndev->priv))->master) {
+	if (((isdn_net_local *) netdev_priv(ndev))->master) {
 		printk("isdn BUG at %s:%d!\n", __FILE__, __LINE__);
 		dev_kfree_skb(skb);
 		return 0;
@@ -1069,7 +1063,7 @@ isdn_net_xmit(struct net_device *ndev, struct sk_buff *skb)
 		return isdn_ppp_xmit(skb, ndev);
 	}
 #endif
-	nd = ((isdn_net_local *) ndev->priv)->netdev;
+	nd = ((isdn_net_local *) netdev_priv(ndev))->netdev;
 	lp = isdn_net_get_locked_lp(nd);
 	if (!lp) {
 		printk(KERN_WARNING "%s: all channels busy - requeuing!\n", ndev->name);
@@ -1096,9 +1090,9 @@ isdn_net_xmit(struct net_device *ndev, struct sk_buff *skb)
 			} else {
 				/* subsequent overload: if slavedelay exceeded, start dialing */
 				if (time_after(jiffies, lp->sqfull_stamp + lp->slavedelay)) {
-					slp = lp->slave->priv;
+					slp = ISDN_SLAVE_PRIV(lp);
 					if (!(slp->flags & ISDN_NET_CONNECTED)) {
-						isdn_net_force_dial_lp((isdn_net_local *) lp->slave->priv);
+						isdn_net_force_dial_lp(ISDN_SLAVE_PRIV(lp));
 					}
 				}
 			}
@@ -1118,7 +1112,7 @@ isdn_net_xmit(struct net_device *ndev, struct sk_buff *skb)
 static void
 isdn_net_adjust_hdr(struct sk_buff *skb, struct net_device *dev)
 {
-	isdn_net_local *lp = (isdn_net_local *) dev->priv;
+	isdn_net_local *lp = (isdn_net_local *) netdev_priv(dev);
 	if (!skb)
 		return;
 	if (lp->p_encap == ISDN_NET_ENCAP_ETHER) {
@@ -1133,7 +1127,7 @@ isdn_net_adjust_hdr(struct sk_buff *skb, struct net_device *dev)
 
 static void isdn_net_tx_timeout(struct net_device * ndev)
 {
-	isdn_net_local *lp = (isdn_net_local *) ndev->priv;
+	isdn_net_local *lp = (isdn_net_local *) netdev_priv(ndev);
 
 	printk(KERN_WARNING "isdn_tx_timeout dev %s dialstate %d\n", ndev->name, lp->dialstate);
 	if (!lp->dialstate){
@@ -1167,7 +1161,7 @@ static void isdn_net_tx_timeout(struct net_device * ndev)
 static int
 isdn_net_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
-	isdn_net_local *lp = (isdn_net_local *) ndev->priv;
+	isdn_net_local *lp = (isdn_net_local *) netdev_priv(ndev);
 #ifdef CONFIG_ISDN_X25
 	struct concap_proto * cprot = lp -> netdev -> cprot;
 /* At this point hard_start_xmit() passes control to the encapsulation
@@ -1316,7 +1310,7 @@ isdn_net_close(struct net_device *dev)
 	struct net_device *p;
 #ifdef CONFIG_ISDN_X25
 	struct concap_proto * cprot =
-		( (isdn_net_local *) dev->priv ) -> netdev -> cprot;
+		((isdn_net_local *) netdev_priv(dev))->netdev->cprot;
 	/* printk(KERN_DEBUG "isdn_net_close %s\n" , dev-> name ); */
 #endif
 
@@ -1324,17 +1318,18 @@ isdn_net_close(struct net_device *dev)
 	if( cprot && cprot -> pops ) cprot -> pops -> close( cprot );
 #endif
 	netif_stop_queue(dev);
-	if ((p = (((isdn_net_local *) dev->priv)->slave))) {
+	p = MASTER_TO_SLAVE(dev);
+	if (p) {
 		/* If this interface has slaves, stop them also */
 		while (p) {
 #ifdef CONFIG_ISDN_X25
-			cprot = ( (isdn_net_local *) p->priv )
+			cprot = ((isdn_net_local *) netdev_priv(p))
 				-> netdev -> cprot;
 			if( cprot && cprot -> pops )
 				cprot -> pops -> close( cprot );
 #endif
 			isdn_net_hangup(p);
-			p = (((isdn_net_local *) p->priv)->slave);
+			p = MASTER_TO_SLAVE(p);
 		}
 	}
 	isdn_net_hangup(dev);
@@ -1348,7 +1343,7 @@ isdn_net_close(struct net_device *dev)
 static struct net_device_stats *
 isdn_net_get_stats(struct net_device *dev)
 {
-	isdn_net_local *lp = (isdn_net_local *) dev->priv;
+	isdn_net_local *lp = (isdn_net_local *) netdev_priv(dev);
 	return &lp->stats;
 }
 
@@ -1361,7 +1356,7 @@ isdn_net_get_stats(struct net_device *dev)
  *      This is normal practice and works for any 'now in use' protocol.
  */
 
-static unsigned short
+static __be16
 isdn_net_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
@@ -1427,7 +1422,7 @@ isdn_net_ciscohdlck_alloc_skb(isdn_net_local *lp, int len)
 static int
 isdn_ciscohdlck_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	isdn_net_local *lp = (isdn_net_local *) dev->priv;
+	isdn_net_local *lp = (isdn_net_local *) netdev_priv(dev);
 	unsigned long len = 0;
 	unsigned long expires = 0;
 	int tmp = 0;
@@ -1539,15 +1534,16 @@ isdn_net_ciscohdlck_slarp_send_keepalive(unsigned long data)
 	p = skb_put(skb, 4 + 14);
 
 	/* cisco header */
-	p += put_u8 (p, CISCO_ADDR_UNICAST);
-	p += put_u8 (p, CISCO_CTRL);
-	p += put_u16(p, CISCO_TYPE_SLARP);
+	*(u8 *)(p + 0) = CISCO_ADDR_UNICAST;
+	*(u8 *)(p + 1) = CISCO_CTRL;
+	*(__be16 *)(p + 2) = cpu_to_be16(CISCO_TYPE_SLARP);
 
 	/* slarp keepalive */
-	p += put_u32(p, CISCO_SLARP_KEEPALIVE);
-	p += put_u32(p, lp->cisco_myseq);
-	p += put_u32(p, lp->cisco_yourseq);
-	p += put_u16(p, 0xffff); // reliablity, always 0xffff
+	*(__be32 *)(p +  4) = cpu_to_be32(CISCO_SLARP_KEEPALIVE);
+	*(__be32 *)(p +  8) = cpu_to_be32(lp->cisco_myseq);
+	*(__be32 *)(p + 12) = cpu_to_be32(lp->cisco_yourseq);
+	*(__be16 *)(p + 16) = cpu_to_be16(0xffff); // reliablity, always 0xffff
+	p += 18;
 
 	isdn_net_write_super(lp, skb);
 
@@ -1569,15 +1565,16 @@ isdn_net_ciscohdlck_slarp_send_request(isdn_net_local *lp)
 	p = skb_put(skb, 4 + 14);
 
 	/* cisco header */
-	p += put_u8 (p, CISCO_ADDR_UNICAST);
-	p += put_u8 (p, CISCO_CTRL);
-	p += put_u16(p, CISCO_TYPE_SLARP);
+	*(u8 *)(p + 0) = CISCO_ADDR_UNICAST;
+	*(u8 *)(p + 1) = CISCO_CTRL;
+	*(__be16 *)(p + 2) = cpu_to_be16(CISCO_TYPE_SLARP);
 
 	/* slarp request */
-	p += put_u32(p, CISCO_SLARP_REQUEST);
-	p += put_u32(p, 0); // address
-	p += put_u32(p, 0); // netmask
-	p += put_u16(p, 0); // unused
+	*(__be32 *)(p +  4) = cpu_to_be32(CISCO_SLARP_REQUEST);
+	*(__be32 *)(p +  8) = cpu_to_be32(0); // address
+	*(__be32 *)(p + 12) = cpu_to_be32(0); // netmask
+	*(__be16 *)(p + 16) = cpu_to_be16(0); // unused
+	p += 18;
 
 	isdn_net_write_super(lp, skb);
 }
@@ -1634,16 +1631,17 @@ isdn_net_ciscohdlck_slarp_send_reply(isdn_net_local *lp)
 	p = skb_put(skb, 4 + 14);
 
 	/* cisco header */
-	p += put_u8 (p, CISCO_ADDR_UNICAST);
-	p += put_u8 (p, CISCO_CTRL);
-	p += put_u16(p, CISCO_TYPE_SLARP);
+	*(u8 *)(p + 0) = CISCO_ADDR_UNICAST;
+	*(u8 *)(p + 1) = CISCO_CTRL;
+	*(__be16 *)(p + 2) = cpu_to_be16(CISCO_TYPE_SLARP);
 
 	/* slarp reply, send own ip/netmask; if values are nonsense remote
 	 * should think we are unable to provide it with an address via SLARP */
-	p += put_u32(p, CISCO_SLARP_REPLY);
-	p += put_u32(p, addr);	// address
-	p += put_u32(p, mask);	// netmask
-	p += put_u16(p, 0);	// unused
+	*(__be32 *)(p +  4) = cpu_to_be32(CISCO_SLARP_REPLY);
+	*(__be32 *)(p +  8) = addr; // address
+	*(__be32 *)(p + 12) = mask; // netmask
+	*(__be16 *)(p + 16) = cpu_to_be16(0); // unused
+	p += 18;
 
 	isdn_net_write_super(lp, skb);
 }
@@ -1654,44 +1652,39 @@ isdn_net_ciscohdlck_slarp_in(isdn_net_local *lp, struct sk_buff *skb)
 	unsigned char *p;
 	int period;
 	u32 code;
-	u32 my_seq, addr;
-	u32 your_seq, mask;
-	u32 local;
+	u32 my_seq;
+	u32 your_seq;
+	__be32 local;
+	__be32 *addr, *mask;
 	u16 unused;
 
 	if (skb->len < 14)
 		return;
 
 	p = skb->data;
-	p += get_u32(p, &code);
-	
+	code = be32_to_cpup((__be32 *)p);
+	p += 4;
+
 	switch (code) {
 	case CISCO_SLARP_REQUEST:
 		lp->cisco_yourseq = 0;
 		isdn_net_ciscohdlck_slarp_send_reply(lp);
 		break;
 	case CISCO_SLARP_REPLY:
-		addr = ntohl(*(u32 *)p);
-		mask = ntohl(*(u32 *)(p+4));
-		if (mask != 0xfffffffc)
+		addr = (__be32 *)p;
+		mask = (__be32 *)(p + 4);
+		if (*mask != cpu_to_be32(0xfffffffc))
 			goto slarp_reply_out;
-		if ((addr & 3) == 0 || (addr & 3) == 3)
+		if ((*addr & cpu_to_be32(3)) == cpu_to_be32(0) ||
+		    (*addr & cpu_to_be32(3)) == cpu_to_be32(3))
 			goto slarp_reply_out;
-		local = addr ^ 3;
-		printk(KERN_INFO "%s: got slarp reply: "
-			"remote ip: %d.%d.%d.%d, "
-			"local ip: %d.%d.%d.%d "
-			"mask: %d.%d.%d.%d\n",
-		       lp->netdev->dev->name,
-		       HIPQUAD(addr),
-		       HIPQUAD(local),
-		       HIPQUAD(mask));
+		local = *addr ^ cpu_to_be32(3);
+		printk(KERN_INFO "%s: got slarp reply: remote ip: %pI4, local ip: %pI4 mask: %pI4\n",
+		       lp->netdev->dev->name, addr, &local, mask);
 		break;
   slarp_reply_out:
-		 printk(KERN_INFO "%s: got invalid slarp "
-				 "reply (%d.%d.%d.%d/%d.%d.%d.%d) "
-				 "- ignored\n", lp->netdev->dev->name,
-				 HIPQUAD(addr), HIPQUAD(mask));
+		printk(KERN_INFO "%s: got invalid slarp reply (%pI4/%pI4) - ignored\n",
+		       lp->netdev->dev->name, addr, mask);
 		break;
 	case CISCO_SLARP_KEEPALIVE:
 		period = (int)((jiffies - lp->cisco_last_slarp_in
@@ -1705,9 +1698,10 @@ isdn_net_ciscohdlck_slarp_in(isdn_net_local *lp, struct sk_buff *skb)
 				lp->cisco_keepalive_period);
 		}
 		lp->cisco_last_slarp_in = jiffies;
-		p += get_u32(p, &my_seq);
-		p += get_u32(p, &your_seq);
-		p += get_u16(p, &unused);
+		my_seq = be32_to_cpup((__be32 *)(p + 0));
+		your_seq = be32_to_cpup((__be32 *)(p + 4));
+		unused = be16_to_cpup((__be16 *)(p + 8));
+		p += 10;
 		lp->cisco_yourseq = my_seq;
 		lp->cisco_mineseen = your_seq;
 		break;
@@ -1726,9 +1720,10 @@ isdn_net_ciscohdlck_receive(isdn_net_local *lp, struct sk_buff *skb)
 		goto out_free;
 
 	p = skb->data;
-	p += get_u8 (p, &addr);
-	p += get_u8 (p, &ctrl);
-	p += get_u16(p, &type);
+	addr = *(u8 *)(p + 0);
+	ctrl = *(u8 *)(p + 1);
+	type = be16_to_cpup((__be16 *)(p + 2));
+	p += 4;
 	skb_pull(skb, 4);
 	
 	if (addr != CISCO_ADDR_UNICAST && addr != CISCO_ADDR_BROADCAST) {
@@ -1769,7 +1764,7 @@ isdn_net_ciscohdlck_receive(isdn_net_local *lp, struct sk_buff *skb)
 static void
 isdn_net_receive(struct net_device *ndev, struct sk_buff *skb)
 {
-	isdn_net_local *lp = (isdn_net_local *) ndev->priv;
+	isdn_net_local *lp = (isdn_net_local *) netdev_priv(ndev);
 	isdn_net_local *olp = lp;	/* original 'lp' */
 #ifdef CONFIG_ISDN_X25
 	struct concap_proto *cprot = lp -> netdev -> cprot;
@@ -1783,7 +1778,7 @@ isdn_net_receive(struct net_device *ndev, struct sk_buff *skb)
 		 * handle master's statistics and hangup-timeout
 		 */
 		ndev = lp->master;
-		lp = (isdn_net_local *) ndev->priv;
+		lp = (isdn_net_local *) netdev_priv(ndev);
 		lp->stats.rx_packets++;
 		lp->stats.rx_bytes += skb->len;
 	}
@@ -1823,7 +1818,7 @@ isdn_net_receive(struct net_device *ndev, struct sk_buff *skb)
 			/* IP with type field */
 			olp->huptimer = 0;
 			lp->huptimer = 0;
-			skb->protocol = *(unsigned short *) &(skb->data[0]);
+			skb->protocol = *(__be16 *)&(skb->data[0]);
 			skb_pull(skb, 2);
 			if (*(unsigned short *) skb->data == 0xFFFF)
 				skb->protocol = htons(ETH_P_802_3);
@@ -1884,7 +1879,7 @@ static int isdn_net_header(struct sk_buff *skb, struct net_device *dev,
 			   unsigned short type,
 			   const void *daddr, const void *saddr, unsigned plen)
 {
-	isdn_net_local *lp = dev->priv;
+	isdn_net_local *lp = netdev_priv(dev);
 	unsigned char *p;
 	ushort len = 0;
 
@@ -1905,20 +1900,21 @@ static int isdn_net_header(struct sk_buff *skb, struct net_device *dev,
 			break;
 		case ISDN_NET_ENCAP_IPTYP:
 			/* ethernet type field */
-			*((ushort *) skb_push(skb, 2)) = htons(type);
+			*((__be16 *)skb_push(skb, 2)) = htons(type);
 			len = 2;
 			break;
 		case ISDN_NET_ENCAP_UIHDLC:
 			/* HDLC with UI-Frames (for ispa with -h1 option) */
-			*((ushort *) skb_push(skb, 2)) = htons(0x0103);
+			*((__be16 *)skb_push(skb, 2)) = htons(0x0103);
 			len = 2;
 			break;
 		case ISDN_NET_ENCAP_CISCOHDLC:
 		case ISDN_NET_ENCAP_CISCOHDLCK:
 			p = skb_push(skb, 4);
-			p += put_u8 (p, CISCO_ADDR_UNICAST);
-			p += put_u8 (p, CISCO_CTRL);
-			p += put_u16(p, type);
+			*(u8 *)(p + 0) = CISCO_ADDR_UNICAST;
+			*(u8 *)(p + 1) = CISCO_CTRL;
+			*(__be16 *)(p + 2) = cpu_to_be16(type);
+			p += 4;
 			len = 4;
 			break;
 #ifdef CONFIG_ISDN_X25
@@ -1940,7 +1936,7 @@ static int
 isdn_net_rebuild_header(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
-	isdn_net_local *lp = dev->priv;
+	isdn_net_local *lp = netdev_priv(dev);
 	int ret = 0;
 
 	if (lp->p_encap == ISDN_NET_ENCAP_ETHER) {
@@ -1970,7 +1966,7 @@ isdn_net_rebuild_header(struct sk_buff *skb)
 static int isdn_header_cache(const struct neighbour *neigh, struct hh_cache *hh)
 {
 	const struct net_device *dev = neigh->dev;
-	isdn_net_local *lp = dev->priv;
+	isdn_net_local *lp = netdev_priv(dev);
 
 	if (lp->p_encap == ISDN_NET_ENCAP_ETHER)
 		return eth_header_cache(neigh, hh);
@@ -1981,9 +1977,9 @@ static void isdn_header_cache_update(struct hh_cache *hh,
 				     const struct net_device *dev,
 				     const unsigned char *haddr)
 {
-	isdn_net_local *lp = dev->priv;
+	isdn_net_local *lp = netdev_priv(dev);
 	if (lp->p_encap == ISDN_NET_ENCAP_ETHER)
-		return eth_header_cache_update(hh, dev, haddr);
+		eth_header_cache_update(hh, dev, haddr);
 }
 
 static const struct header_ops isdn_header_ops = {
@@ -2296,16 +2292,16 @@ isdn_net_find_icall(int di, int ch, int idx, setup_parm *setup)
 				 * it's master and parent slave is online. If not, reject the call.
 				 */
 				if (lp->master) {
-					isdn_net_local *mlp = (isdn_net_local *) lp->master->priv;
+					isdn_net_local *mlp = ISDN_MASTER_PRIV(lp);
 					printk(KERN_DEBUG "ICALLslv: %s\n", p->dev->name);
 					printk(KERN_DEBUG "master=%s\n", lp->master->name);
 					if (mlp->flags & ISDN_NET_CONNECTED) {
 						printk(KERN_DEBUG "master online\n");
 						/* Master is online, find parent-slave (master if first slave) */
 						while (mlp->slave) {
-							if ((isdn_net_local *) mlp->slave->priv == lp)
+							if (ISDN_SLAVE_PRIV(mlp) == lp)
 								break;
-							mlp = (isdn_net_local *) mlp->slave->priv;
+							mlp = ISDN_SLAVE_PRIV(mlp);
 						}
 					} else
 						printk(KERN_DEBUG "master offline\n");
@@ -2517,7 +2513,7 @@ isdn_net_force_dial(char *name)
  */
 static void _isdn_setup(struct net_device *dev)
 {
-	isdn_net_local *lp = dev->priv;
+	isdn_net_local *lp = netdev_priv(dev);
 
 	dev->flags = IFF_NOARP | IFF_POINTOPOINT;
 	lp->p_encap = ISDN_NET_ENCAP_RAWIP;
@@ -2573,20 +2569,20 @@ isdn_net_new(char *name, struct net_device *master)
 		kfree(netdev);
 		return NULL;
 	}
-	netdev->local = netdev->dev->priv;
+	netdev->local = netdev_priv(netdev->dev);
 	netdev->dev->init = isdn_net_init;
 	if (master) {
 		/* Device shall be a slave */
-		struct net_device *p = (((isdn_net_local *) master->priv)->slave);
+		struct net_device *p = MASTER_TO_SLAVE(master);
 		struct net_device *q = master;
 
 		netdev->local->master = master;
 		/* Put device at end of slave-chain */
 		while (p) {
 			q = p;
-			p = (((isdn_net_local *) p->priv)->slave);
+			p = MASTER_TO_SLAVE(p);
 		}
-		((isdn_net_local *) q->priv)->slave = netdev->dev;
+		MASTER_TO_SLAVE(q) = netdev->dev;
 	} else {
 		/* Device shall be a master */
 		/*
@@ -3084,7 +3080,7 @@ isdn_net_force_hangup(char *name)
 		/* If this interface has slaves, do a hangup for them also. */
 		while (q) {
 			isdn_net_hangup(q);
-			q = (((isdn_net_local *) q->priv)->slave);
+			q = MASTER_TO_SLAVE(q);
 		}
 		isdn_net_hangup(p->dev);
 		return 0;
@@ -3114,8 +3110,10 @@ isdn_net_realrm(isdn_net_dev * p, isdn_net_dev * q)
 		isdn_unexclusive_channel(p->local->pre_device, p->local->pre_channel);
 	if (p->local->master) {
 		/* It's a slave-device, so update master's slave-pointer if necessary */
-		if (((isdn_net_local *) (p->local->master->priv))->slave == p->dev)
-			((isdn_net_local *) (p->local->master->priv))->slave = p->local->slave;
+		if (((isdn_net_local *) ISDN_MASTER_PRIV(p->local))->slave ==
+		    p->dev)
+			((isdn_net_local *)ISDN_MASTER_PRIV(p->local))->slave =
+				p->local->slave;
 	} else {
 		/* Unregister only if it's a master-device */
 		unregister_netdev(p->dev);

@@ -151,6 +151,13 @@ void pci_bus_add_devices(struct pci_bus *bus)
 			if (retval)
 				dev_err(&dev->dev, "Error creating cpuaffinity"
 					" file, continuing...\n");
+
+			retval = device_create_file(&child_bus->dev,
+						&dev_attr_cpulistaffinity);
+			if (retval)
+				dev_err(&dev->dev,
+					"Error creating cpulistaffinity"
+					" file, continuing...\n");
 		}
 	}
 }

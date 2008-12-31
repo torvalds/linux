@@ -44,7 +44,6 @@
 
 /* fwd decl */
 static void boot_msp34xx(struct bttv *btv, int pin);
-static void boot_bt832(struct bttv *btv);
 static void hauppauge_eeprom(struct bttv *btv);
 static void avermedia_eeprom(struct bttv *btv);
 static void osprey_eeprom(struct bttv *btv, const u8 ee[256]);
@@ -2217,9 +2216,9 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
-	[BTTV_BOARD_VD009X1_MINIDIN] = {
+	[BTTV_BOARD_VD009X1_VD011_MINIDIN] = {
 		/* M.Klahr@phytec.de */
-		.name           = "PHYTEC VD-009-X1 MiniDIN (bt878)",
+		.name           = "PHYTEC VD-009-X1 VD-011 MiniDIN (bt878)",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
 		.tuner          = UNSET, /* card has no tuner */
@@ -2227,14 +2226,14 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomask       = 0x00,
 		.muxsel         = { 2, 3, 1, 0 },
 		.gpiomux        = { 0, 0, 0, 0 }, /* card has no audio */
-		.needs_tvaudio  = 1,
+		.needs_tvaudio  = 0,
 		.pll            = PLL_28,
 		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
-	[BTTV_BOARD_VD009X1_COMBI] = {
-		.name           = "PHYTEC VD-009-X1 Combi (bt878)",
+	[BTTV_BOARD_VD009X1_VD011_COMBI] = {
+		.name           = "PHYTEC VD-009-X1 VD-011 Combi (bt878)",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
 		.tuner          = UNSET, /* card has no tuner */
@@ -2242,7 +2241,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomask       = 0x00,
 		.muxsel         = { 2, 3, 1, 1 },
 		.gpiomux        = { 0, 0, 0, 0 }, /* card has no audio */
-		.needs_tvaudio  = 1,
+		.needs_tvaudio  = 0,
 		.pll            = PLL_28,
 		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
@@ -3061,6 +3060,54 @@ struct tvcard bttv_tvcards[] = {
 		.pll            = PLL_28,
 		.has_radio      = 1,
 		.has_remote     = 1,
+	},
+		[BTTV_BOARD_VD012] = {
+		/* D.Heer@Phytec.de */
+		.name           = "PHYTEC VD-012 (bt878)",
+		.video_inputs   = 4,
+		.audio_inputs   = 0,
+		.tuner          = UNSET, /* card has no tuner */
+		.svhs           = UNSET, /* card has no s-video */
+		.gpiomask       = 0x00,
+		.muxsel         = { 0, 2, 3, 1 },
+		.gpiomux        = { 0, 0, 0, 0 }, /* card has no audio */
+		.needs_tvaudio  = 0,
+		.pll            = PLL_28,
+		.tuner_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+	},
+		[BTTV_BOARD_VD012_X1] = {
+		/* D.Heer@Phytec.de */
+		.name           = "PHYTEC VD-012-X1 (bt878)",
+		.video_inputs   = 4,
+		.audio_inputs   = 0,
+		.tuner          = UNSET, /* card has no tuner */
+		.svhs           = 3,
+		.gpiomask       = 0x00,
+		.muxsel         = { 2, 3, 1 },
+		.gpiomux        = { 0, 0, 0, 0 }, /* card has no audio */
+		.needs_tvaudio  = 0,
+		.pll            = PLL_28,
+		.tuner_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+	},
+		[BTTV_BOARD_VD012_X2] = {
+		/* D.Heer@Phytec.de */
+		.name           = "PHYTEC VD-012-X2 (bt878)",
+		.video_inputs   = 4,
+		.audio_inputs   = 0,
+		.tuner          = UNSET, /* card has no tuner */
+		.svhs           = 3,
+		.gpiomask       = 0x00,
+		.muxsel         = { 3, 2, 1 },
+		.gpiomux        = { 0, 0, 0, 0 }, /* card has no audio */
+		.needs_tvaudio  = 0,
+		.pll            = PLL_28,
+		.tuner_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
 	}
 };
 
@@ -3673,13 +3720,6 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	if (bttv_tvcards[btv->c.type].audio_mode_gpio)
 		btv->audio_mode_gpio=bttv_tvcards[btv->c.type].audio_mode_gpio;
 
-	if (bttv_tvcards[btv->c.type].digital_mode == DIGITAL_MODE_CAMERA) {
-		/* detect Bt832 chip for quartzsight digital camera */
-		if ((bttv_I2CRead(btv, I2C_ADDR_BT832_ALT1, "Bt832") >=0) ||
-		    (bttv_I2CRead(btv, I2C_ADDR_BT832_ALT2, "Bt832") >=0))
-			boot_bt832(btv);
-	}
-
 	if (!autoload)
 		return;
 
@@ -4073,10 +4113,6 @@ static void __devinit boot_msp34xx(struct bttv *btv, int pin)
 	if (bttv_verbose)
 		printk(KERN_INFO "bttv%d: Hauppauge/Voodoo msp34xx: reset line "
 		       "init [%d]\n", btv->c.nr, pin);
-}
-
-static void __devinit boot_bt832(struct bttv *btv)
-{
 }
 
 /* ----------------------------------------------------------------------- */

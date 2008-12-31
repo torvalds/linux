@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <asm/machvec.h>
-#include <asm/snapgear.h>
+#include <mach/snapgear.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <cpu/timer.h>

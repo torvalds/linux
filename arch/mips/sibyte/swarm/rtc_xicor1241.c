@@ -124,18 +124,18 @@ int xicor_set_time(unsigned long t)
 	xicor_write(X1241REG_SR, X1241REG_SR_WEL | X1241REG_SR_RWEL);
 
 	/* trivial ones */
-	tm.tm_sec = BIN2BCD(tm.tm_sec);
+	tm.tm_sec = bin2bcd(tm.tm_sec);
 	xicor_write(X1241REG_SC, tm.tm_sec);
 
-	tm.tm_min = BIN2BCD(tm.tm_min);
+	tm.tm_min = bin2bcd(tm.tm_min);
 	xicor_write(X1241REG_MN, tm.tm_min);
 
-	tm.tm_mday = BIN2BCD(tm.tm_mday);
+	tm.tm_mday = bin2bcd(tm.tm_mday);
 	xicor_write(X1241REG_DT, tm.tm_mday);
 
 	/* tm_mon starts from 0, *ick* */
 	tm.tm_mon ++;
-	tm.tm_mon = BIN2BCD(tm.tm_mon);
+	tm.tm_mon = bin2bcd(tm.tm_mon);
 	xicor_write(X1241REG_MO, tm.tm_mon);
 
 	/* year is split */
@@ -148,7 +148,7 @@ int xicor_set_time(unsigned long t)
 	tmp = xicor_read(X1241REG_HR);
 	if (tmp & X1241REG_HR_MIL) {
 		/* 24 hour format */
-		tm.tm_hour = BIN2BCD(tm.tm_hour);
+		tm.tm_hour = bin2bcd(tm.tm_hour);
 		tmp = (tmp & ~0x3f) | (tm.tm_hour & 0x3f);
 	} else {
 		/* 12 hour format, with 0x2 for pm */
@@ -157,7 +157,7 @@ int xicor_set_time(unsigned long t)
 			tmp |= 0x20;
 			tm.tm_hour -= 12;
 		}
-		tm.tm_hour = BIN2BCD(tm.tm_hour);
+		tm.tm_hour = bin2bcd(tm.tm_hour);
 		tmp |= tm.tm_hour;
 	}
 	xicor_write(X1241REG_HR, tmp);
@@ -191,13 +191,13 @@ unsigned long xicor_get_time(void)
 	y2k = xicor_read(X1241REG_Y2K);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
-	sec = BCD2BIN(sec);
-	min = BCD2BIN(min);
-	hour = BCD2BIN(hour);
-	day = BCD2BIN(day);
-	mon = BCD2BIN(mon);
-	year = BCD2BIN(year);
-	y2k = BCD2BIN(y2k);
+	sec = bcd2bin(sec);
+	min = bcd2bin(min);
+	hour = bcd2bin(hour);
+	day = bcd2bin(day);
+	mon = bcd2bin(mon);
+	year = bcd2bin(year);
+	y2k = bcd2bin(y2k);
 
 	year += (y2k * 100);
 

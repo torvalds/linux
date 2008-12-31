@@ -53,45 +53,9 @@
 #ifndef _LINUX_TIMEX_H
 #define _LINUX_TIMEX_H
 
-#include <linux/compiler.h>
 #include <linux/time.h>
 
-#include <asm/param.h>
-
 #define NTP_API		4	/* NTP API version */
-
-/*
- * SHIFT_KG and SHIFT_KF establish the damping of the PLL and are chosen
- * for a slightly underdamped convergence characteristic. SHIFT_KH
- * establishes the damping of the FLL and is chosen by wisdom and black
- * art.
- *
- * MAXTC establishes the maximum time constant of the PLL. With the
- * SHIFT_KG and SHIFT_KF values given and a time constant range from
- * zero to MAXTC, the PLL will converge in 15 minutes to 16 hours,
- * respectively.
- */
-#define SHIFT_PLL	4	/* PLL frequency factor (shift) */
-#define SHIFT_FLL	2	/* FLL frequency factor (shift) */
-#define MAXTC		10	/* maximum time constant (shift) */
-
-/*
- * SHIFT_USEC defines the scaling (shift) of the time_freq and
- * time_tolerance variables, which represent the current frequency
- * offset and maximum frequency tolerance.
- */
-#define SHIFT_USEC 16		/* frequency offset scale (shift) */
-#define PPM_SCALE (NSEC_PER_USEC << (NTP_SCALE_SHIFT - SHIFT_USEC))
-#define PPM_SCALE_INV_SHIFT 20
-#define PPM_SCALE_INV ((1ll << (PPM_SCALE_INV_SHIFT + NTP_SCALE_SHIFT)) / \
-		       PPM_SCALE + 1)
-
-#define MAXPHASE 500000000l	/* max phase error (ns) */
-#define MAXFREQ 500000		/* max frequency error (ns/s) */
-#define MAXFREQ_SCALED ((s64)MAXFREQ << NTP_SCALE_SHIFT)
-#define MINSEC 256		/* min interval between updates (s) */
-#define MAXSEC 2048		/* max interval between updates (s) */
-#define NTP_PHASE_LIMIT ((MAXPHASE / NSEC_PER_USEC) << 5) /* beyond max. dispersion */
 
 /*
  * syscall interface - used (mainly by NTP daemon)
@@ -141,8 +105,15 @@ struct timex {
 #define ADJ_MICRO		0x1000	/* select microsecond resolution */
 #define ADJ_NANO		0x2000	/* select nanosecond resolution */
 #define ADJ_TICK		0x4000	/* tick value */
+
+#ifdef __KERNEL__
+#define ADJ_ADJTIME		0x8000	/* switch between adjtime/adjtimex modes */
+#define ADJ_OFFSET_SINGLESHOT	0x0001	/* old-fashioned adjtime */
+#define ADJ_OFFSET_READONLY	0x2000	/* read-only adjtime */
+#else
 #define ADJ_OFFSET_SINGLESHOT	0x8001	/* old-fashioned adjtime */
-#define ADJ_OFFSET_SS_READ	0xa001  /* read-only adjtime */
+#define ADJ_OFFSET_SS_READ	0xa001	/* read-only adjtime */
+#endif
 
 /* xntp 3.4 compatibility names */
 #define MOD_OFFSET	ADJ_OFFSET
@@ -192,7 +163,44 @@ struct timex {
 #define TIME_BAD	TIME_ERROR /* bw compat */
 
 #ifdef __KERNEL__
+#include <linux/compiler.h>
+#include <linux/types.h>
+#include <linux/param.h>
+
 #include <asm/timex.h>
+
+/*
+ * SHIFT_KG and SHIFT_KF establish the damping of the PLL and are chosen
+ * for a slightly underdamped convergence characteristic. SHIFT_KH
+ * establishes the damping of the FLL and is chosen by wisdom and black
+ * art.
+ *
+ * MAXTC establishes the maximum time constant of the PLL. With the
+ * SHIFT_KG and SHIFT_KF values given and a time constant range from
+ * zero to MAXTC, the PLL will converge in 15 minutes to 16 hours,
+ * respectively.
+ */
+#define SHIFT_PLL	4	/* PLL frequency factor (shift) */
+#define SHIFT_FLL	2	/* FLL frequency factor (shift) */
+#define MAXTC		10	/* maximum time constant (shift) */
+
+/*
+ * SHIFT_USEC defines the scaling (shift) of the time_freq and
+ * time_tolerance variables, which represent the current frequency
+ * offset and maximum frequency tolerance.
+ */
+#define SHIFT_USEC 16		/* frequency offset scale (shift) */
+#define PPM_SCALE (NSEC_PER_USEC << (NTP_SCALE_SHIFT - SHIFT_USEC))
+#define PPM_SCALE_INV_SHIFT 19
+#define PPM_SCALE_INV ((1ll << (PPM_SCALE_INV_SHIFT + NTP_SCALE_SHIFT)) / \
+		       PPM_SCALE + 1)
+
+#define MAXPHASE 500000000l	/* max phase error (ns) */
+#define MAXFREQ 500000		/* max frequency error (ns/s) */
+#define MAXFREQ_SCALED ((s64)MAXFREQ << NTP_SCALE_SHIFT)
+#define MINSEC 256		/* min interval between updates (s) */
+#define MAXSEC 2048		/* max interval between updates (s) */
+#define NTP_PHASE_LIMIT ((MAXPHASE / NSEC_PER_USEC) << 5) /* beyond max. dispersion */
 
 /*
  * kernel variables

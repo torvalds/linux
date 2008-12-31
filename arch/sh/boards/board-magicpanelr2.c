@@ -13,12 +13,14 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/map.h>
-#include <asm/magicpanelr2.h>
+#include <mach/magicpanelr2.h>
 #include <asm/heartbeat.h>
+#include <cpu/sh7720.h>
 
 #define LAN9115_READY	(ctrl_inl(0xA8000084UL) & 0x00000001UL)
 
@@ -170,7 +172,14 @@ static void __init setup_port_multiplexing(void)
 	/* R7 A25;	     R6 A24;	     R5 A23;		  R4 A22;
 	 * R3 A21;	     R2 A20;	     R1 A19;		  R0 A0;
 	 */
-	ctrl_outw(0x0000, PORT_PRCR);	/* 00 00 00 00 00 00 00 00 */
+	gpio_request(GPIO_FN_A25, NULL);
+	gpio_request(GPIO_FN_A24, NULL);
+	gpio_request(GPIO_FN_A23, NULL);
+	gpio_request(GPIO_FN_A22, NULL);
+	gpio_request(GPIO_FN_A21, NULL);
+	gpio_request(GPIO_FN_A20, NULL);
+	gpio_request(GPIO_FN_A19, NULL);
+	gpio_request(GPIO_FN_A0, NULL);
 
 	/* S7 (x);		S6 (x);        S5 (x);	     S4 GPO(EEPROM_CS2);
 	 * S3 GPO(EEPROM_CS1);  S2 SIOF0_TXD;  S1 SIOF0_RXD; S0 SIOF0_SCK;

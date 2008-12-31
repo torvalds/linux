@@ -975,8 +975,7 @@ static int se401_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int se401_do_ioctl(struct inode *inode, struct file *file,
-			  unsigned int cmd, void *arg)
+static int se401_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = file->private_data;
 	struct usb_se401 *se401 = (struct usb_se401 *)vdev;
@@ -1142,7 +1141,7 @@ static int se401_do_ioctl(struct inode *inode, struct file *file,
 static int se401_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, se401_do_ioctl);
+	return video_usercopy(file, cmd, arg, se401_do_ioctl);
 }
 
 static ssize_t se401_read(struct file *file, char __user *buf,
@@ -1412,7 +1411,7 @@ static int se401_probe(struct usb_interface *intf,
 		return -EIO;
 	}
 	dev_info(&intf->dev, "registered new video device: video%d\n",
-		 se401->vdev.minor);
+		 se401->vdev.num);
 
 	usb_set_intfdata (intf, se401);
 	return 0;

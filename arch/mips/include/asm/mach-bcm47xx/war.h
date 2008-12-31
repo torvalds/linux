@@ -5,8 +5,8 @@
  *
  * Copyright (C) 2002, 2004, 2007 by Ralf Baechle <ralf@linux-mips.org>
  */
-#ifndef __ASM_MIPS_MACH_BCM947XX_WAR_H
-#define __ASM_MIPS_MACH_BCM947XX_WAR_H
+#ifndef __ASM_MIPS_MACH_BCM47XX_WAR_H
+#define __ASM_MIPS_MACH_BCM47XX_WAR_H
 
 #define R4600_V1_INDEX_ICACHEOP_WAR	0
 #define R4600_V1_HIT_CACHEOP_WAR	0
@@ -22,4 +22,4 @@
 #define R10000_LLSC_WAR			0
 #define MIPS34K_MISSED_ITLB_WAR		0
 
-#endif /* __ASM_MIPS_MACH_BCM947XX_WAR_H */
+#endif /* __ASM_MIPS_MACH_BCM47XX_WAR_H */

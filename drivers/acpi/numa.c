@@ -258,7 +258,7 @@ int __init acpi_numa_init(void)
 
 int acpi_get_pxm(acpi_handle h)
 {
-	unsigned long pxm;
+	unsigned long long pxm;
 	acpi_status status;
 	acpi_handle handle;
 	acpi_handle phandle = h;

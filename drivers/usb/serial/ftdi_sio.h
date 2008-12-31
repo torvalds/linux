@@ -40,6 +40,9 @@
 /* AlphaMicro Components AMC-232USB01 device */
 #define FTDI_AMC232_PID 0xFF00 /* Product Id */
 
+/* www.candapter.com Ewert Energy Systems CANdapter device */
+#define FTDI_CANDAPTER_PID 0x9F80 /* Product Id */
+
 /* SCS HF Radio Modems PID's (http://www.scs-ptc.com) */
 /* the VID is the standard ftdi vid (FTDI_VID) */
 #define FTDI_SCS_DEVICE_0_PID 0xD010    /* SCS PTC-IIusb */
@@ -74,6 +77,9 @@
 
 /* OpenDCC (www.opendcc.de) product id */
 #define FTDI_OPENDCC_PID	0xBFD8
+
+/* Sprog II (Andrew Crosland's SprogII DCC interface) */
+#define FTDI_SPROG_II		0xF0C8
 
 /* www.crystalfontz.com devices - thanx for providing free devices for evaluation ! */
 /* they use the ftdi chipset for the USB interface and the vendor id is the same */
@@ -626,6 +632,11 @@
  * SUUNTO product ids
  */
 #define FTDI_SUUNTO_SPORTS_PID	0xF680	/* Suunto Sports instrument */
+
+/*
+ * Oceanic product ids
+ */
+#define FTDI_OCEANIC_PID	0xF460  /* Oceanic dive instrument */
 
 /*
  * TTi (Thurlby Thandar Instruments)

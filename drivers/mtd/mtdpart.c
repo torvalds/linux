@@ -214,7 +214,7 @@ static int part_erase(struct mtd_info *mtd, struct erase_info *instr)
 	instr->addr += part->offset;
 	ret = part->master->erase(part->master, instr);
 	if (ret) {
-		if (instr->fail_addr != 0xffffffff)
+		if (instr->fail_addr != MTD_FAIL_ADDR_UNKNOWN)
 			instr->fail_addr -= part->offset;
 		instr->addr -= part->offset;
 	}
@@ -226,7 +226,7 @@ void mtd_erase_callback(struct erase_info *instr)
 	if (instr->mtd->erase == part_erase) {
 		struct mtd_part *part = PART(instr->mtd);
 
-		if (instr->fail_addr != 0xffffffff)
+		if (instr->fail_addr != MTD_FAIL_ADDR_UNKNOWN)
 			instr->fail_addr -= part->offset;
 		instr->addr -= part->offset;
 	}
@@ -564,10 +564,8 @@ int parse_mtd_partitions(struct mtd_info *master, const char **types,
 
 	for ( ; ret <= 0 && *types; types++) {
 		parser = get_partition_parser(*types);
-#ifdef CONFIG_KMOD
 		if (!parser && !request_module("%s", *types))
 				parser = get_partition_parser(*types);
-#endif
 		if (!parser) {
 			printk(KERN_NOTICE "%s partition parsing not available\n",
 			       *types);

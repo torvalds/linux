@@ -365,9 +365,8 @@ static int motorcontrol_probe(struct usb_interface *intf, const struct usb_devic
 	} while(value);
 	mc->dev_no = bit;
 
-	mc->dev = device_create_drvdata(phidget_class, &mc->udev->dev,
-					MKDEV(0, 0), mc,
-					"motorcontrol%d", mc->dev_no);
+	mc->dev = device_create(phidget_class, &mc->udev->dev, MKDEV(0, 0), mc,
+				"motorcontrol%d", mc->dev_no);
 	if (IS_ERR(mc->dev)) {
 		rc = PTR_ERR(mc->dev);
 		mc->dev = NULL;

@@ -39,7 +39,6 @@
 extern irqreturn_t q40_process_int(int level, struct pt_regs *regs);
 extern void q40_init_IRQ(void);
 static void q40_get_model(char *model);
-static int  q40_get_hardware_list(char *buffer);
 extern void q40_sched_init(irq_handler_t handler);
 
 static unsigned long q40_gettimeoffset(void);
@@ -153,14 +152,6 @@ static void q40_get_model(char *model)
 	sprintf(model, "Q40");
 }
 
-/* No hardware options on Q40? */
-
-static int q40_get_hardware_list(char *buffer)
-{
-	*buffer = '\0';
-	return 0;
-}
-
 static unsigned int serports[] =
 {
 	0x3f8,0x2f8,0x3e8,0x2e8,0
@@ -191,7 +182,6 @@ void __init config_q40(void)
 
 	mach_reset = q40_reset;
 	mach_get_model = q40_get_model;
-	mach_get_hardware_list = q40_get_hardware_list;
 
 #if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
 	mach_beep = q40_mksound;

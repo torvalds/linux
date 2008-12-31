@@ -52,6 +52,8 @@ config HTC_PASIC3
 
 config UCB1400_CORE
 	tristate "Philips UCB1400 Core driver"
+	depends on AC97_BUS
+	depends on GPIOLIB
 	help
 	  This enables support for the Philips UCB1400 core functions.
 	  The UCB1400 is an AC97 audio codec.
@@ -59,13 +61,27 @@ config UCB1400_CORE
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_core.
 
+config TWL4030_CORE
+	bool "Texas Instruments TWL4030/TPS659x0 Support"
+	depends on I2C=y && GENERIC_HARDIRQS && (ARCH_OMAP2 || ARCH_OMAP3)
+	help
+	  Say yes here if you have TWL4030 family chip on your board.
+	  This core driver provides register access and IRQ handling
+	  facilities, and registers devices for the various functions
+	  so that function-specific drivers can bind to them.
+
+	  These multi-function chips are found on many OMAP2 and OMAP3
+	  boards, providing power management, RTC, GPIO, keypad, a
+	  high speed USB OTG transceiver, an audio codec (on most
+	  versions) and many other features.
+
 config MFD_TMIO
 	bool
 	default n
 
 config MFD_T7L66XB
 	bool "Support Toshiba T7L66XB"
-	depends on ARM
+	depends on ARM && HAVE_CLK
 	select MFD_CORE
 	select MFD_TMIO
 	help
@@ -73,7 +89,7 @@ config MFD_T7L66XB
 
 config MFD_TC6387XB
 	bool "Support Toshiba TC6387XB"
-	depends on ARM
+	depends on ARM && HAVE_CLK
 	select MFD_CORE
 	select MFD_TMIO
 	help
@@ -87,8 +103,20 @@ config MFD_TC6393XB
 	help
 	  Support for Toshiba Mobile IO Controller TC6393XB
 
+config PMIC_DA903X
+	bool "Dialog Semiconductor DA9030/DA9034 PMIC Support"
+	depends on I2C=y
+	help
+	  Say yes here to support for Dialog Semiconductor DA9030 (a.k.a
+	  ARAVA) and DA9034 (a.k.a MICCO), these are Power Management IC
+	  usually found on PXA processors-based platforms. This includes
+	  the I2C driver and the core APIs _only_, you have to select
+	  individual components like LCD backlight, voltage regulators,
+	  LEDs and battery-charger under the corresponding menus.
+
 config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"
+	depends on I2C
 	help
 	  Support for the Wolfson Microelecronics WM8400 PMIC and audio
 	  CODEC.  This driver adds provides common support for accessing

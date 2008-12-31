@@ -19,8 +19,8 @@ config WORD_SIZE
 	default 64 if PPC64
 	default 32 if !PPC64
 
-config PPC_MERGE
-	def_bool y
+config ARCH_PHYS_ADDR_T_64BIT
+       def_bool PPC64 || PHYS_64BIT
 
 config MMU
 	bool
@@ -108,8 +108,7 @@ config ARCH_NO_VIRT_TO_BUS
 config PPC
 	bool
 	default y
-	select HAVE_DYNAMIC_FTRACE
-	select HAVE_FTRACE
+	select HAVE_FUNCTION_TRACER
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_IDE
 	select HAVE_IOREMAP_PROT
@@ -142,7 +141,7 @@ config GENERIC_NVRAM
 	bool
 	default y if PPC32
 
-config SCHED_NO_NO_OMIT_FRAME_POINTER
+config SCHED_OMIT_FRAME_POINTER
 	bool
 	default y
 
@@ -227,6 +226,8 @@ config PPC_OF_PLATFORM_PCI
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 source "arch/powerpc/sysdev/Kconfig"
 source "arch/powerpc/platforms/Kconfig"
 
@@ -284,6 +285,10 @@ config IOMMU_VMERGE
 config IOMMU_HELPER
 	def_bool PPC64
 
+config PPC_NEED_DMA_SYNC_OPS
+	def_bool y
+	depends on NOT_COHERENT_CACHE
+
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
 	depends on SMP && HOTPLUG && EXPERIMENTAL && (PPC_PSERIES || PPC_PMAC)
@@ -321,13 +326,11 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
-	depends on PPC_MULTIPLATFORM && PPC64
+	depends on (PPC64 && RELOCATABLE) || 6xx
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
-	  The kernel will be linked at a different address than normal, and
-	  so can only be used for Kdump.
-
-	  Don't change this unless you know what you are doing.
+	  The same kernel binary can be used as production kernel and dump
+	  capture kernel.
 
 config PHYP_DUMP
 	bool "Hypervisor-assisted dump (EXPERIMENTAL)"
@@ -402,21 +405,54 @@ config PPC_HAS_HASH_64K
 	depends on PPC64
 	default n
 
-config PPC_64K_PAGES
-	bool "64k page size"
-	depends on PPC64
-	select PPC_HAS_HASH_64K
+choice
+	prompt "Page size"
+	default PPC_4K_PAGES
 	help
-	  This option changes the kernel logical page size to 64k. On machines
-	  without processor support for 64k pages, the kernel will simulate
-	  them by loading each individual 4k page on demand transparently,
-	  while on hardware with such support, it will be used to map
-	  normal application pages.
+	  Select the kernel logical page size. Increasing the page size
+	  will reduce software overhead at each page boundary, allow
+	  hardware prefetch mechanisms to be more effective, and allow
+	  larger dma transfers increasing IO efficiency and reducing
+	  overhead. However the utilization of memory will increase.
+	  For example, each cached file will using a multiple of the
+	  page size to hold its contents and the difference between the
+	  end of file and the end of page is wasted.
+
+	  Some dedicated systems, such as software raid serving with
+	  accelerated calculations, have shown significant increases.
+
+	  If you configure a 64 bit kernel for 64k pages but the
+	  processor does not support them, then the kernel will simulate
+	  them with 4k pages, loading them on demand, but with the
+	  reduced software overhead and larger internal fragmentation.
+	  For the 32 bit kernel, a large page option will not be offered
+	  unless it is supported by the configured processor.
+
+	  If unsure, choose 4K_PAGES.
+
+config PPC_4K_PAGES
+	bool "4k page size"
+
+config PPC_16K_PAGES
+	bool "16k page size" if 44x
+
+config PPC_64K_PAGES
+	bool "64k page size" if 44x || PPC_STD_MMU_64
+	select PPC_HAS_HASH_64K if PPC_STD_MMU_64
+
+endchoice
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
-	default "9" if PPC_64K_PAGES
-	default "13" if PPC64 && !PPC_64K_PAGES
+	range 9 64 if PPC_STD_MMU_64 && PPC_64K_PAGES
+	default "9" if PPC_STD_MMU_64 && PPC_64K_PAGES
+	range 13 64 if PPC_STD_MMU_64 && !PPC_64K_PAGES
+	default "13" if PPC_STD_MMU_64 && !PPC_64K_PAGES
+	range 9 64 if PPC_STD_MMU_32 && PPC_16K_PAGES
+	default "9" if PPC_STD_MMU_32 && PPC_16K_PAGES
+	range 7 64 if PPC_STD_MMU_32 && PPC_64K_PAGES
+	default "7" if PPC_STD_MMU_32 && PPC_64K_PAGES
+	range 11 64
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
@@ -435,7 +471,7 @@ config FORCE_MAX_ZONEORDER
 
 config PPC_SUBPAGE_PROT
 	bool "Support setting protections for 4k subpages"
-	depends on PPC_64K_PAGES
+	depends on PPC_STD_MMU_64 && PPC_64K_PAGES
 	help
 	  This option adds support for a system call to allow user programs
 	  to set access permissions (read/write, readonly, or no access)
@@ -806,16 +842,27 @@ config PIN_TLB
 endmenu
 
 if PPC64
+config RELOCATABLE
+	bool "Build a relocatable kernel"
+	help
+	  This builds a kernel image that is capable of running anywhere
+	  in the RMA (real memory area) at any 16k-aligned base address.
+	  The kernel is linked as a position-independent executable (PIE)
+	  and contains dynamic relocations which are processed early
+	  in the bootup process.
+
+	  One use is for the kexec on panic case where the recovery kernel
+	  must live at a different physical address than the primary
+	  kernel.
+
 config PAGE_OFFSET
 	hex
 	default "0xc000000000000000"
 config KERNEL_START
 	hex
-	default "0xc000000002000000" if CRASH_DUMP
 	default "0xc000000000000000"
 config PHYSICAL_START
 	hex
-	default "0x02000000" if CRASH_DUMP
 	default "0x00000000"
 endif
 

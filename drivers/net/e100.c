@@ -166,7 +166,7 @@
 
 #define DRV_NAME		"e100"
 #define DRV_EXT			"-NAPI"
-#define DRV_VERSION		"3.5.23-k4"DRV_EXT
+#define DRV_VERSION		"3.5.23-k6"DRV_EXT
 #define DRV_DESCRIPTION		"Intel(R) PRO/100 Network Driver"
 #define DRV_COPYRIGHT		"Copyright(c) 1999-2006 Intel Corporation"
 #define PFX			DRV_NAME ": "
@@ -1580,11 +1580,13 @@ static void e100_watchdog(unsigned long data)
 	mii_ethtool_gset(&nic->mii, &cmd);
 
 	if(mii_link_ok(&nic->mii) && !netif_carrier_ok(nic->netdev)) {
-		DPRINTK(LINK, INFO, "link up, %sMbps, %s-duplex\n",
-			cmd.speed == SPEED_100 ? "100" : "10",
-			cmd.duplex == DUPLEX_FULL ? "full" : "half");
+		printk(KERN_INFO "e100: %s NIC Link is Up %s Mbps %s Duplex\n",
+		       nic->netdev->name,
+		       cmd.speed == SPEED_100 ? "100" : "10",
+		       cmd.duplex == DUPLEX_FULL ? "Full" : "Half");
 	} else if(!mii_link_ok(&nic->mii) && netif_carrier_ok(nic->netdev)) {
-		DPRINTK(LINK, INFO, "link down\n");
+		printk(KERN_INFO "e100: %s NIC Link is Down\n",
+		       nic->netdev->name);
 	}
 
 	mii_check_link(&nic->mii);
@@ -1804,7 +1806,7 @@ static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 		struct rfd *prev_rfd = (struct rfd *)rx->prev->skb->data;
 		put_unaligned_le32(rx->dma_addr, &prev_rfd->link);
 		pci_dma_sync_single_for_device(nic->pdev, rx->prev->dma_addr,
-			sizeof(struct rfd), PCI_DMA_TODEVICE);
+			sizeof(struct rfd), PCI_DMA_BIDIRECTIONAL);
 	}
 
 	return 0;
@@ -1823,7 +1825,7 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 
 	/* Need to sync before taking a peek at cb_complete bit */
 	pci_dma_sync_single_for_cpu(nic->pdev, rx->dma_addr,
-		sizeof(struct rfd), PCI_DMA_FROMDEVICE);
+		sizeof(struct rfd), PCI_DMA_BIDIRECTIONAL);
 	rfd_status = le16_to_cpu(rfd->status);
 
 	DPRINTK(RX_STATUS, DEBUG, "status=0x%04X\n", rfd_status);
@@ -1850,7 +1852,7 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 
 	/* Get data */
 	pci_unmap_single(nic->pdev, rx->dma_addr,
-		RFD_BUF_LEN, PCI_DMA_FROMDEVICE);
+		RFD_BUF_LEN, PCI_DMA_BIDIRECTIONAL);
 
 	/* If this buffer has the el bit, but we think the receiver
 	 * is still running, check to see if it really stopped while
@@ -1880,7 +1882,6 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	} else {
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += actual_size;
-		nic->netdev->last_rx = jiffies;
 		netif_receive_skb(skb);
 		if(work_done)
 			(*work_done)++;
@@ -1943,7 +1944,7 @@ static void e100_rx_clean(struct nic *nic, unsigned int *work_done,
 		new_before_last_rfd->command |= cpu_to_le16(cb_el);
 		pci_dma_sync_single_for_device(nic->pdev,
 			new_before_last_rx->dma_addr, sizeof(struct rfd),
-			PCI_DMA_TODEVICE);
+			PCI_DMA_BIDIRECTIONAL);
 
 		/* Now that we have a new stopping point, we can clear the old
 		 * stopping point.  We must sync twice to get the proper
@@ -1951,11 +1952,11 @@ static void e100_rx_clean(struct nic *nic, unsigned int *work_done,
 		old_before_last_rfd->command &= ~cpu_to_le16(cb_el);
 		pci_dma_sync_single_for_device(nic->pdev,
 			old_before_last_rx->dma_addr, sizeof(struct rfd),
-			PCI_DMA_TODEVICE);
+			PCI_DMA_BIDIRECTIONAL);
 		old_before_last_rfd->size = cpu_to_le16(VLAN_ETH_FRAME_LEN);
 		pci_dma_sync_single_for_device(nic->pdev,
 			old_before_last_rx->dma_addr, sizeof(struct rfd),
-			PCI_DMA_TODEVICE);
+			PCI_DMA_BIDIRECTIONAL);
 	}
 
 	if(restart_required) {
@@ -1978,7 +1979,7 @@ static void e100_rx_clean_list(struct nic *nic)
 		for(rx = nic->rxs, i = 0; i < count; rx++, i++) {
 			if(rx->skb) {
 				pci_unmap_single(nic->pdev, rx->dma_addr,
-					RFD_BUF_LEN, PCI_DMA_FROMDEVICE);
+					RFD_BUF_LEN, PCI_DMA_BIDIRECTIONAL);
 				dev_kfree_skb(rx->skb);
 			}
 		}
@@ -2021,7 +2022,7 @@ static int e100_rx_alloc_list(struct nic *nic)
 	before_last->command |= cpu_to_le16(cb_el);
 	before_last->size = 0;
 	pci_dma_sync_single_for_device(nic->pdev, rx->dma_addr,
-		sizeof(struct rfd), PCI_DMA_TODEVICE);
+		sizeof(struct rfd), PCI_DMA_BIDIRECTIONAL);
 
 	nic->rx_to_use = nic->rx_to_clean = nic->rxs;
 	nic->ru_running = RU_SUSPENDED;
@@ -2048,9 +2049,9 @@ static irqreturn_t e100_intr(int irq, void *dev_id)
 	if(stat_ack & stat_ack_rnr)
 		nic->ru_running = RU_SUSPENDED;
 
-	if(likely(netif_rx_schedule_prep(netdev, &nic->napi))) {
+	if(likely(netif_rx_schedule_prep(&nic->napi))) {
 		e100_disable_irq(nic);
-		__netif_rx_schedule(netdev, &nic->napi);
+		__netif_rx_schedule(&nic->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -2059,7 +2060,6 @@ static irqreturn_t e100_intr(int irq, void *dev_id)
 static int e100_poll(struct napi_struct *napi, int budget)
 {
 	struct nic *nic = container_of(napi, struct nic, napi);
-	struct net_device *netdev = nic->netdev;
 	unsigned int work_done = 0;
 
 	e100_rx_clean(nic, &work_done, budget);
@@ -2067,7 +2067,7 @@ static int e100_poll(struct napi_struct *napi, int budget)
 
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		e100_enable_irq(nic);
 	}
 
@@ -2222,7 +2222,7 @@ static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)
 	msleep(10);
 
 	pci_dma_sync_single_for_cpu(nic->pdev, nic->rx_to_clean->dma_addr,
-			RFD_BUF_LEN, PCI_DMA_FROMDEVICE);
+			RFD_BUF_LEN, PCI_DMA_BIDIRECTIONAL);
 
 	if(memcmp(nic->rx_to_clean->skb->data + sizeof(struct rfd),
 	   skb->data, ETH_DATA_LEN))
@@ -2322,13 +2322,16 @@ static int e100_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct nic *nic = netdev_priv(netdev);
 
-	if(wol->wolopts != WAKE_MAGIC && wol->wolopts != 0)
+	if ((wol->wolopts && wol->wolopts != WAKE_MAGIC) ||
+	    !device_can_wakeup(&nic->pdev->dev))
 		return -EOPNOTSUPP;
 
 	if(wol->wolopts)
 		nic->flags |= wol_magic;
 	else
 		nic->flags &= ~wol_magic;
+
+	device_set_wakeup_enable(&nic->pdev->dev, wol->wolopts);
 
 	e100_exec_cb(nic, NULL, e100_configure);
 
@@ -2610,13 +2613,27 @@ static int e100_close(struct net_device *netdev)
 	return 0;
 }
 
+static const struct net_device_ops e100_netdev_ops = {
+	.ndo_open		= e100_open,
+	.ndo_stop		= e100_close,
+	.ndo_start_xmit		= e100_xmit_frame,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list	= e100_set_multicast_list,
+	.ndo_set_mac_address	= e100_set_mac_address,
+	.ndo_change_mtu		= e100_change_mtu,
+	.ndo_do_ioctl		= e100_do_ioctl,
+	.ndo_tx_timeout		= e100_tx_timeout,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= e100_netpoll,
+#endif
+};
+
 static int __devinit e100_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct nic *nic;
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	if(!(netdev = alloc_etherdev(sizeof(struct nic)))) {
 		if(((1 << debug) - 1) & NETIF_MSG_PROBE)
@@ -2624,19 +2641,9 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	netdev->open = e100_open;
-	netdev->stop = e100_close;
-	netdev->hard_start_xmit = e100_xmit_frame;
-	netdev->set_multicast_list = e100_set_multicast_list;
-	netdev->set_mac_address = e100_set_mac_address;
-	netdev->change_mtu = e100_change_mtu;
-	netdev->do_ioctl = e100_do_ioctl;
+	netdev->netdev_ops = &e100_netdev_ops;
 	SET_ETHTOOL_OPS(netdev, &e100_ethtool_ops);
-	netdev->tx_timeout = e100_tx_timeout;
 	netdev->watchdog_timeo = E100_WATCHDOG_PERIOD;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = e100_netpoll;
-#endif
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
 	nic = netdev_priv(netdev);
@@ -2734,8 +2741,10 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 
 	/* Wol magic packet can be enabled from eeprom */
 	if((nic->mac >= mac_82558_D101_A4) &&
-	   (nic->eeprom[eeprom_id] & eeprom_id_wol))
+	   (nic->eeprom[eeprom_id] & eeprom_id_wol)) {
 		nic->flags |= wol_magic;
+		device_set_wakeup_enable(&pdev->dev, true);
+	}
 
 	/* ack any pending wake events, disable PME */
 	pci_pme_active(pdev, false);
@@ -2746,9 +2755,9 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		goto err_out_free;
 	}
 
-	DPRINTK(PROBE, INFO, "addr 0x%llx, irq %d, MAC addr %s\n",
+	DPRINTK(PROBE, INFO, "addr 0x%llx, irq %d, MAC addr %pM\n",
 		(unsigned long long)pci_resource_start(pdev, use_io ? 1 : 0),
-		pdev->irq, print_mac(mac, netdev->dev_addr));
+		pdev->irq, netdev->dev_addr);
 
 	return 0;
 
@@ -2794,11 +2803,10 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_save_state(pdev);
 
 	if ((nic->flags & wol_magic) | e100_asf(nic)) {
-		pci_enable_wake(pdev, PCI_D3hot, 1);
-		pci_enable_wake(pdev, PCI_D3cold, 1);
+		if (pci_enable_wake(pdev, PCI_D3cold, true))
+			pci_enable_wake(pdev, PCI_D3hot, true);
 	} else {
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_enable_wake(pdev, PCI_D3cold, 0);
+		pci_enable_wake(pdev, PCI_D3hot, false);
 	}
 
 	pci_disable_device(pdev);
@@ -2843,7 +2851,7 @@ static pci_ers_result_t e100_io_error_detected(struct pci_dev *pdev, pci_channel
 	struct nic *nic = netdev_priv(netdev);
 
 	/* Similar to calling e100_down(), but avoids adapter I/O. */
-	netdev->stop(netdev);
+	e100_close(netdev);
 
 	/* Detach; put netif into a state similar to hotplug unplug. */
 	napi_enable(&nic->napi);

@@ -347,44 +347,6 @@
 #define INT_VICSOURCE30                 30	/* PCI 3 */
 #define INT_VICSOURCE31                 31	/* SIC source */
 
-/* 
- *  Interrupt bit positions
- * 
- */
-#define INTMASK_WDOGINT                 (1 << INT_WDOGINT)
-#define INTMASK_SOFTINT                 (1 << INT_SOFTINT)
-#define INTMASK_COMMRx                  (1 << INT_COMMRx)
-#define INTMASK_COMMTx                  (1 << INT_COMMTx)
-#define INTMASK_TIMERINT0_1             (1 << INT_TIMERINT0_1)
-#define INTMASK_TIMERINT2_3             (1 << INT_TIMERINT2_3)
-#define INTMASK_GPIOINT0                (1 << INT_GPIOINT0)
-#define INTMASK_GPIOINT1                (1 << INT_GPIOINT1)
-#define INTMASK_GPIOINT2                (1 << INT_GPIOINT2)
-#define INTMASK_GPIOINT3                (1 << INT_GPIOINT3)
-#define INTMASK_RTCINT                  (1 << INT_RTCINT)
-#define INTMASK_SSPINT                  (1 << INT_SSPINT)
-#define INTMASK_UARTINT0                (1 << INT_UARTINT0)
-#define INTMASK_UARTINT1                (1 << INT_UARTINT1)
-#define INTMASK_UARTINT2                (1 << INT_UARTINT2)
-#define INTMASK_SCIINT                  (1 << INT_SCIINT)
-#define INTMASK_CLCDINT                 (1 << INT_CLCDINT)
-#define INTMASK_DMAINT                  (1 << INT_DMAINT)
-#define INTMASK_PWRFAILINT              (1 << INT_PWRFAILINT)
-#define INTMASK_MBXINT                  (1 << INT_MBXINT)
-#define INTMASK_GNDINT                  (1 << INT_GNDINT)
-#define INTMASK_VICSOURCE21             (1 << INT_VICSOURCE21)
-#define INTMASK_VICSOURCE22             (1 << INT_VICSOURCE22)
-#define INTMASK_VICSOURCE23             (1 << INT_VICSOURCE23)
-#define INTMASK_VICSOURCE24             (1 << INT_VICSOURCE24)
-#define INTMASK_VICSOURCE25             (1 << INT_VICSOURCE25)
-#define INTMASK_VICSOURCE26             (1 << INT_VICSOURCE26)
-#define INTMASK_VICSOURCE27             (1 << INT_VICSOURCE27)
-#define INTMASK_VICSOURCE28             (1 << INT_VICSOURCE28)
-#define INTMASK_VICSOURCE29             (1 << INT_VICSOURCE29)
-#define INTMASK_VICSOURCE30             (1 << INT_VICSOURCE30)
-#define INTMASK_VICSOURCE31             (1 << INT_VICSOURCE31)
-
-
 #define VERSATILE_SC_VALID_INT               0x003FFFFF
 
 #define MAXIRQNUM                       31
@@ -417,47 +379,11 @@
 #define SIC_INT_PCI3                    30
 
 
-#define SIC_INTMASK_MMCI0B              (1 << SIC_INT_MMCI0B)
-#define SIC_INTMASK_MMCI1B              (1 << SIC_INT_MMCI1B)
-#define SIC_INTMASK_KMI0                (1 << SIC_INT_KMI0)
-#define SIC_INTMASK_KMI1                (1 << SIC_INT_KMI1)
-#define SIC_INTMASK_SCI3                (1 << SIC_INT_SCI3)
-#define SIC_INTMASK_UART3               (1 << SIC_INT_UART3)
-#define SIC_INTMASK_CLCD                (1 << SIC_INT_CLCD)
-#define SIC_INTMASK_TOUCH               (1 << SIC_INT_TOUCH)
-#define SIC_INTMASK_KEYPAD              (1 << SIC_INT_KEYPAD)
-#define SIC_INTMASK_DoC                 (1 << SIC_INT_DoC)
-#define SIC_INTMASK_MMCI0A              (1 << SIC_INT_MMCI0A)
-#define SIC_INTMASK_MMCI1A              (1 << SIC_INT_MMCI1A)
-#define SIC_INTMASK_AACI                (1 << SIC_INT_AACI)
-#define SIC_INTMASK_ETH                 (1 << SIC_INT_ETH)
-#define SIC_INTMASK_USB                 (1 << SIC_INT_USB)
-#define SIC_INTMASK_PCI0                (1 << SIC_INT_PCI0)
-#define SIC_INTMASK_PCI1                (1 << SIC_INT_PCI1)
-#define SIC_INTMASK_PCI2                (1 << SIC_INT_PCI2)
-#define SIC_INTMASK_PCI3                (1 << SIC_INT_PCI3)
-/* 
- *  Application Flash
- * 
- */
-#define FLASH_BASE                      VERSATILE_FLASH_BASE
-#define FLASH_SIZE                      VERSATILE_FLASH_SIZE
-#define FLASH_END                       (FLASH_BASE + FLASH_SIZE - 1)
-#define FLASH_BLOCK_SIZE                SZ_128K
-
-/* 
- *  Boot Flash
- * 
- */
-#define EPROM_BASE                      VERSATILE_BOOT_ROM_HI
-#define EPROM_SIZE                      VERSATILE_BOOT_ROM_SIZE
-#define EPROM_END                       (EPROM_BASE + EPROM_SIZE - 1)
-
 /* 
  *  Clean base - dummy
  * 
  */
-#define CLEAN_BASE                      EPROM_BASE
+#define CLEAN_BASE                      VERSATILE_BOOT_ROM_HI
 
 /*
  * System controller bit assignment

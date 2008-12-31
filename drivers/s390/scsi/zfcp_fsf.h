@@ -164,6 +164,7 @@
 #define FSF_FEATURE_LUN_SHARING			0x00000004
 #define FSF_FEATURE_NOTIFICATION_LOST		0x00000008
 #define FSF_FEATURE_HBAAPI_MANAGEMENT           0x00000010
+#define FSF_FEATURE_ELS_CT_CHAINED_SBALS	0x00000020
 #define FSF_FEATURE_UPDATE_ALERT		0x00000100
 #define FSF_FEATURE_MEASUREMENT_DATA		0x00000200
 
@@ -322,6 +323,7 @@ struct fsf_nport_serv_param {
 	u8  vendor_version_level[16];
 } __attribute__ ((packed));
 
+#define FSF_PLOGI_MIN_LEN	112
 struct fsf_plogi {
 	u32    code;
 	struct fsf_nport_serv_param serv_param;
@@ -437,6 +439,18 @@ struct fsf_qtcb {
 	struct fsf_qtcb_header header;
 	union  fsf_qtcb_bottom bottom;
 	u8 log[FSF_QTCB_LOG_SIZE];
+} __attribute__ ((packed));
+
+struct zfcp_blk_drv_data {
+#define ZFCP_BLK_DRV_DATA_MAGIC			0x1
+	u32 magic;
+#define ZFCP_BLK_LAT_VALID			0x1
+#define ZFCP_BLK_REQ_ERROR			0x2
+	u16 flags;
+	u8 inb_usage;
+	u8 outb_usage;
+	u64 channel_lat;
+	u64 fabric_lat;
 } __attribute__ ((packed));
 
 #endif				/* FSF_H */

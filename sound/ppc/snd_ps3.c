@@ -666,6 +666,7 @@ static int snd_ps3_init_avsetting(struct snd_ps3_card_info *card)
 	card->avs.avs_audio_width = PS3AV_CMD_AUDIO_WORD_BITS_16;
 	card->avs.avs_audio_format = PS3AV_CMD_AUDIO_FORMAT_PCM;
 	card->avs.avs_audio_source = PS3AV_CMD_AUDIO_SOURCE_SERIAL;
+	memcpy(card->avs.avs_cs_info, ps3av_mode_cs_info, 8);
 
 	ret = snd_ps3_change_avsetting(card);
 
@@ -685,6 +686,7 @@ static int snd_ps3_set_avsetting(struct snd_pcm_substream *substream)
 {
 	struct snd_ps3_card_info *card = snd_pcm_substream_chip(substream);
 	struct snd_ps3_avsetting_info avs;
+	int ret;
 
 	avs = card->avs;
 
@@ -729,19 +731,92 @@ static int snd_ps3_set_avsetting(struct snd_pcm_substream *substream)
 		return 1;
 	}
 
-	if ((card->avs.avs_audio_width != avs.avs_audio_width) ||
-	    (card->avs.avs_audio_rate != avs.avs_audio_rate)) {
-		card->avs = avs;
-		snd_ps3_change_avsetting(card);
+	memcpy(avs.avs_cs_info, ps3av_mode_cs_info, 8);
 
+	if (memcmp(&card->avs, &avs, sizeof(avs))) {
 		pr_debug("%s: after freq=%d width=%d\n", __func__,
 			 card->avs.avs_audio_rate, card->avs.avs_audio_width);
 
-		return 0;
+		card->avs = avs;
+		snd_ps3_change_avsetting(card);
+		ret = 0;
 	} else
-		return 1;
+		ret = 1;
+
+	/* check CS non-audio bit and mute accordingly */
+	if (avs.avs_cs_info[0] & 0x02)
+		ps3av_audio_mute_analog(1); /* mute if non-audio */
+	else
+		ps3av_audio_mute_analog(0);
+
+	return ret;
 }
 
+/*
+ * SPDIF status bits controls
+ */
+static int snd_ps3_spdif_mask_info(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
+	uinfo->count = 1;
+	return 0;
+}
+
+/* FIXME: ps3av_set_audio_mode() assumes only consumer mode */
+static int snd_ps3_spdif_cmask_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	memset(ucontrol->value.iec958.status, 0xff, 8);
+	return 0;
+}
+
+static int snd_ps3_spdif_pmask_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int snd_ps3_spdif_default_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	memcpy(ucontrol->value.iec958.status, ps3av_mode_cs_info, 8);
+	return 0;
+}
+
+static int snd_ps3_spdif_default_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	if (memcmp(ps3av_mode_cs_info, ucontrol->value.iec958.status, 8)) {
+		memcpy(ps3av_mode_cs_info, ucontrol->value.iec958.status, 8);
+		return 1;
+	}
+	return 0;
+}
+
+static struct snd_kcontrol_new spdif_ctls[] = {
+	{
+		.access = SNDRV_CTL_ELEM_ACCESS_READ,
+		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,CON_MASK),
+		.info = snd_ps3_spdif_mask_info,
+		.get = snd_ps3_spdif_cmask_get,
+	},
+	{
+		.access = SNDRV_CTL_ELEM_ACCESS_READ,
+		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,PRO_MASK),
+		.info = snd_ps3_spdif_mask_info,
+		.get = snd_ps3_spdif_pmask_get,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
+		.info = snd_ps3_spdif_mask_info,
+		.get = snd_ps3_spdif_default_get,
+		.put = snd_ps3_spdif_default_put,
+	},
+};
 
 
 static int snd_ps3_map_mmio(void)
@@ -842,7 +917,7 @@ static void snd_ps3_audio_set_base_addr(uint64_t ioaddr_start)
 
 static int __init snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 {
-	int ret;
+	int i, ret;
 	u64 lpar_addr, lpar_size;
 
 	BUG_ON(!firmware_has_feature(FW_FEATURE_PS3_LV1));
@@ -903,6 +978,15 @@ static int __init snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	strcpy(the_card.card->driver, "PS3");
 	strcpy(the_card.card->shortname, "PS3");
 	strcpy(the_card.card->longname, "PS3 sound");
+
+	/* create control elements */
+	for (i = 0; i < ARRAY_SIZE(spdif_ctls); i++) {
+		ret = snd_ctl_add(the_card.card,
+				  snd_ctl_new1(&spdif_ctls[i], &the_card));
+		if (ret < 0)
+			goto clean_card;
+	}
+
 	/* create PCM devices instance */
 	/* NOTE:this driver works assuming pcm:substream = 1:1 */
 	ret = snd_pcm_new(the_card.card,

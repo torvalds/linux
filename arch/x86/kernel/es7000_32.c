@@ -38,8 +38,11 @@
 #include <asm/io.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
+#include <asm/atomic.h>
 #include <asm/apicdef.h>
 #include <mach_mpparse.h>
+#include <asm/genapic.h>
+#include <asm/setup.h>
 
 /*
  * ES7000 chipsets
@@ -161,6 +164,43 @@ es7000_rename_gsi(int ioapic, int gsi)
 	return gsi;
 }
 
+static int wakeup_secondary_cpu_via_mip(int cpu, unsigned long eip)
+{
+	unsigned long vect = 0, psaival = 0;
+
+	if (psai == NULL)
+		return -1;
+
+	vect = ((unsigned long)__pa(eip)/0x1000) << 16;
+	psaival = (0x1000000 | vect | cpu);
+
+	while (*psai & 0x1000000)
+		;
+
+	*psai = psaival;
+
+	return 0;
+}
+
+static void noop_wait_for_deassert(atomic_t *deassert_not_used)
+{
+}
+
+static int __init es7000_update_genapic(void)
+{
+	genapic->wakeup_cpu = wakeup_secondary_cpu_via_mip;
+
+	/* MPENTIUMIII */
+	if (boot_cpu_data.x86 == 6 &&
+	    (boot_cpu_data.x86_model >= 7 || boot_cpu_data.x86_model <= 11)) {
+		es7000_update_genapic_to_cluster();
+		genapic->wait_for_init_deassert = noop_wait_for_deassert;
+		genapic->wakeup_cpu = wakeup_secondary_cpu_via_mip;
+	}
+
+	return 0;
+}
+
 void __init
 setup_unisys(void)
 {
@@ -176,6 +216,8 @@ setup_unisys(void)
 	else
 		es7000_plat = ES7000_CLASSIC;
 	ioapic_renumber_irq = es7000_rename_gsi;
+
+	x86_quirks->update_genapic = es7000_update_genapic;
 }
 
 /*
@@ -250,31 +292,24 @@ int __init find_unisys_acpi_oem_table(unsigned long *oem_addr)
 {
 	struct acpi_table_header *header = NULL;
 	int i = 0;
-	acpi_size tbl_size;
 
-	while (ACPI_SUCCESS(acpi_get_table_with_size("OEM1", i++, &header, &tbl_size))) {
+	while (ACPI_SUCCESS(acpi_get_table("OEM1", i++, &header))) {
 		if (!memcmp((char *) &header->oem_id, "UNISYS", 6)) {
 			struct oem_table *t = (struct oem_table *)header;
 
 			oem_addrX = t->OEMTableAddr;
 			oem_size = t->OEMTableSize;
-			early_acpi_os_unmap_memory(header, tbl_size);
 
 			*oem_addr = (unsigned long)__acpi_map_table(oem_addrX,
 								    oem_size);
 			return 0;
 		}
-		early_acpi_os_unmap_memory(header, tbl_size);
 	}
 	return -1;
 }
 
 void __init unmap_unisys_acpi_oem_table(unsigned long oem_addr)
 {
-	if (!oem_addr)
-		return;
-
-	__acpi_unmap_table((char *)oem_addr, oem_size);
 }
 #endif
 
@@ -322,26 +357,6 @@ es7000_mip_write(struct mip_reg *mip_reg)
 	mip_reg->off_38 = ((unsigned long long)mip_reg->off_38 &
 		(unsigned long long)~MIP_VALID);
 	return status;
-}
-
-int
-es7000_start_cpu(int cpu, unsigned long eip)
-{
-	unsigned long vect = 0, psaival = 0;
-
-	if (psai == NULL)
-		return -1;
-
-	vect = ((unsigned long)__pa(eip)/0x1000) << 16;
-	psaival = (0x1000000 | vect | cpu);
-
-	while (*psai & 0x1000000)
-                ;
-
-	*psai = psaival;
-
-	return 0;
-
 }
 
 void __init

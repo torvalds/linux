@@ -30,8 +30,8 @@
 #include <linux/parser.h>
 #include <linux/idr.h>
 #include <net/9p/9p.h>
-#include <net/9p/transport.h>
 #include <net/9p/client.h>
+#include <net/9p/transport.h>
 #include "v9fs.h"
 #include "v9fs_vfs.h"
 
@@ -160,7 +160,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses)
 				v9ses->flags |= V9FS_ACCESS_ANY;
 			else {
 				v9ses->flags |= V9FS_ACCESS_SINGLE;
-				v9ses->uid = simple_strtol(s, &e, 10);
+				v9ses->uid = simple_strtoul(s, &e, 10);
 				if (*e != '\0')
 					v9ses->uid = ~0;
 			}
@@ -234,7 +234,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	if (!v9ses->clnt->dotu)
 		v9ses->flags &= ~V9FS_EXTENDED;
 
-	v9ses->maxdata = v9ses->clnt->msize;
+	v9ses->maxdata = v9ses->clnt->msize - P9_IOHDRSZ;
 
 	/* for legacy mode, fall back to V9FS_ACCESS_ANY */
 	if (!v9fs_extended(v9ses) &&

@@ -728,9 +728,9 @@ static int pd_special_command(struct pd_unit *disk,
 
 /* kernel glue structures */
 
-static int pd_open(struct inode *inode, struct file *file)
+static int pd_open(struct block_device *bdev, fmode_t mode)
 {
-	struct pd_unit *disk = inode->i_bdev->bd_disk->private_data;
+	struct pd_unit *disk = bdev->bd_disk->private_data;
 
 	disk->access++;
 
@@ -758,10 +758,10 @@ static int pd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int pd_ioctl(struct inode *inode, struct file *file,
+static int pd_ioctl(struct block_device *bdev, fmode_t mode,
 	 unsigned int cmd, unsigned long arg)
 {
-	struct pd_unit *disk = inode->i_bdev->bd_disk->private_data;
+	struct pd_unit *disk = bdev->bd_disk->private_data;
 
 	switch (cmd) {
 	case CDROMEJECT:
@@ -773,9 +773,9 @@ static int pd_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-static int pd_release(struct inode *inode, struct file *file)
+static int pd_release(struct gendisk *p, fmode_t mode)
 {
-	struct pd_unit *disk = inode->i_bdev->bd_disk->private_data;
+	struct pd_unit *disk = p->private_data;
 
 	if (!--disk->access && disk->removable)
 		pd_special_command(disk, pd_door_unlock);
@@ -809,7 +809,7 @@ static struct block_device_operations pd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pd_open,
 	.release	= pd_release,
-	.ioctl		= pd_ioctl,
+	.locked_ioctl	= pd_ioctl,
 	.getgeo		= pd_getgeo,
 	.media_changed	= pd_check_media,
 	.revalidate_disk= pd_revalidate

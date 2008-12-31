@@ -2477,7 +2477,11 @@ static int pc_send_break(struct tty_struct *tty, int msec)
 	unsigned long flags;
 
 	if (msec == -1)
-		return -EOPNOTSUPP;
+		msec = 0xFFFF;
+	else if (msec > 0xFFFE)
+		msec = 0xFFFE;
+	else if (msec < 1)
+		msec = 1;
 
 	spin_lock_irqsave(&epca_lock, flags);
 	globalwinon(ch);

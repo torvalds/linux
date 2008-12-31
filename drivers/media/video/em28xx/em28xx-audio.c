@@ -62,7 +62,7 @@ static int em28xx_isoc_audio_deinit(struct em28xx *dev)
 
 	dprintk("Stopping isoc\n");
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
-		usb_kill_urb(dev->adev->urb[i]);
+		usb_unlink_urb(dev->adev->urb[i]);
 		usb_free_urb(dev->adev->urb[i]);
 		dev->adev->urb[i] = NULL;
 	}
@@ -75,7 +75,6 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	struct em28xx            *dev = urb->context;
 	int                      i;
 	unsigned int             oldptr;
-	unsigned long            flags;
 	int                      period_elapsed = 0;
 	int                      status;
 	unsigned char            *cp;
@@ -96,9 +95,21 @@ static void em28xx_audio_isocirq(struct urb *urb)
 			if (!length)
 				continue;
 
-			spin_lock_irqsave(&dev->adev->slock, flags);
-
 			oldptr = dev->adev->hwptr_done_capture;
+			if (oldptr + length >= runtime->buffer_size) {
+				unsigned int cnt =
+				    runtime->buffer_size - oldptr;
+				memcpy(runtime->dma_area + oldptr * stride, cp,
+				       cnt * stride);
+				memcpy(runtime->dma_area, cp + cnt * stride,
+				       length * stride - cnt * stride);
+			} else {
+				memcpy(runtime->dma_area + oldptr * stride, cp,
+				       length * stride);
+			}
+
+			snd_pcm_stream_lock(substream);
+
 			dev->adev->hwptr_done_capture += length;
 			if (dev->adev->hwptr_done_capture >=
 			    runtime->buffer_size)
@@ -113,19 +124,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 				period_elapsed = 1;
 			}
 
-			spin_unlock_irqrestore(&dev->adev->slock, flags);
-
-			if (oldptr + length >= runtime->buffer_size) {
-				unsigned int cnt =
-				    runtime->buffer_size - oldptr;
-				memcpy(runtime->dma_area + oldptr * stride, cp,
-				       cnt * stride);
-				memcpy(runtime->dma_area, cp + cnt * stride,
-				       length * stride - cnt * stride);
-			} else {
-				memcpy(runtime->dma_area + oldptr * stride, cp,
-				       length * stride);
-			}
+			snd_pcm_stream_unlock(substream);
 		}
 		if (period_elapsed)
 			snd_pcm_period_elapsed(substream);
@@ -425,11 +424,12 @@ static int em28xx_audio_init(struct em28xx *dev)
 	struct snd_pcm      *pcm;
 	struct snd_card     *card;
 	static int          devnr;
-	int                 ret, err;
+	int                 err;
 
-	if (dev->has_audio_class) {
+	if (dev->has_alsa_audio != 1) {
 		/* This device does not support the extension (in this case
-		   the device is expecting the snd-usb-audio module */
+		   the device is expecting the snd-usb-audio module or
+		   doesn't have analog audio support at all) */
 		return 0;
 	}
 
@@ -450,7 +450,12 @@ static int em28xx_audio_init(struct em28xx *dev)
 	}
 
 	spin_lock_init(&adev->slock);
-	ret = snd_pcm_new(card, "Em28xx Audio", 0, 0, 1, &pcm);
+	err = snd_pcm_new(card, "Em28xx Audio", 0, 0, 1, &pcm);
+	if (err < 0) {
+		snd_card_free(card);
+		return err;
+	}
+
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_em28xx_pcm_capture);
 	pcm->info_flags = 0;
 	pcm->private_data = dev;
@@ -462,7 +467,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 	err = snd_card_register(card);
 	if (err < 0) {
 		snd_card_free(card);
-		return -ENOMEM;
+		return err;
 	}
 	adev->sndcard = card;
 	adev->udev = dev->udev;
@@ -476,9 +481,10 @@ static int em28xx_audio_fini(struct em28xx *dev)
 	if (dev == NULL)
 		return 0;
 
-	if (dev->has_audio_class) {
+	if (dev->has_alsa_audio != 1) {
 		/* This device does not support the extension (in this case
-		   the device is expecting the snd-usb-audio module */
+		   the device is expecting the snd-usb-audio module or
+		   doesn't have analog audio support at all) */
 		return 0;
 	}
 

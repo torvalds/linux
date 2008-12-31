@@ -42,8 +42,10 @@ u32 booke_wdt_period = WDT_PERIOD_DEFAULT;
 
 #ifdef	CONFIG_FSL_BOOKE
 #define WDTP(x)		((((63-x)&0x3)<<30)|(((63-x)&0x3c)<<15))
+#define WDTP_MASK	(WDTP(0))
 #else
 #define WDTP(x)		(TCR_WP(x))
+#define WDTP_MASK	(TCR_WP_MASK)
 #endif
 
 static DEFINE_SPINLOCK(booke_wdt_lock);
@@ -65,6 +67,7 @@ static void __booke_wdt_enable(void *data)
 	/* clear status before enabling watchdog */
 	__booke_wdt_ping(NULL);
 	val = mfspr(SPRN_TCR);
+	val &= ~WDTP_MASK;
 	val |= (TCR_WIE|TCR_WRC(WRC_CHIP)|WDTP(booke_wdt_period));
 
 	mtspr(SPRN_TCR, val);
@@ -114,7 +117,7 @@ static long booke_wdt_ioctl(struct file *file,
 	case WDIOC_SETTIMEOUT:
 		if (get_user(booke_wdt_period, p))
 			return -EFAULT;
-		mtspr(SPRN_TCR, (mfspr(SPRN_TCR) & ~WDTP(0)) |
+		mtspr(SPRN_TCR, (mfspr(SPRN_TCR) & ~WDTP_MASK) |
 						WDTP(booke_wdt_period));
 		return 0;
 	case WDIOC_GETTIMEOUT:

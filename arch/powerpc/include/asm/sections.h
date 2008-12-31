@@ -18,6 +18,12 @@ static inline int in_kernel_text(unsigned long addr)
 	return 0;
 }
 
+static inline int overlaps_kernel_text(unsigned long start, unsigned long end)
+{
+	return start < (unsigned long)__init_end &&
+		(unsigned long)_stext < end;
+}
+
 #undef dereference_function_descriptor
 static inline void *dereference_function_descriptor(void *ptr)
 {

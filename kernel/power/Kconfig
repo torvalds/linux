@@ -96,7 +96,7 @@ config SUSPEND
 
 config PM_TEST_SUSPEND
 	bool "Test suspend/resume and wakealarm during bootup"
-	depends on SUSPEND && PM_DEBUG && RTC_LIB=y
+	depends on SUSPEND && PM_DEBUG && RTC_CLASS=y
 	---help---
 	This option will let you suspend your machine during bootup, and
 	make it wake up a few seconds later using an RTC wakeup alarm.

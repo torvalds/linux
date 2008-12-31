@@ -45,7 +45,7 @@ struct nfs_mount_data {
 	char		context[NFS_MAX_CONTEXT_LEN + 1];	/* 6 */
 };
 
-/* bits in the flags field */
+/* bits in the flags field visible to user space */
 
 #define NFS_MOUNT_SOFT		0x0001	/* 1 */
 #define NFS_MOUNT_INTR		0x0002	/* 1 */ /* now unused, but ABI */
@@ -64,5 +64,10 @@ struct nfs_mount_data {
 #define NFS_MOUNT_NORDIRPLUS	0x4000	/* 5 */
 #define NFS_MOUNT_UNSHARED	0x8000	/* 5 */
 #define NFS_MOUNT_FLAGMASK	0xFFFF
+
+/* The following are for internal use only */
+#define NFS_MOUNT_LOOKUP_CACHE_NONEG	0x10000
+#define NFS_MOUNT_LOOKUP_CACHE_NONE	0x20000
+#define NFS_MOUNT_NORESVPORT		0x40000
 
 #endif

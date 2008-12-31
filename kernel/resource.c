@@ -17,6 +17,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/device.h>
+#include <linux/pfn.h>
 #include <asm/io.h>
 
 
@@ -38,10 +39,6 @@ EXPORT_SYMBOL(iomem_resource);
 
 static DEFINE_RWLOCK(resource_lock);
 
-#ifdef CONFIG_PROC_FS
-
-enum { MAX_IORES_LEVEL = 5 };
-
 static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct resource *p = v;
@@ -52,6 +49,10 @@ static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 		p = p->parent;
 	return p->sibling;
 }
+
+#ifdef CONFIG_PROC_FS
+
+enum { MAX_IORES_LEVEL = 5 };
 
 static void *r_start(struct seq_file *m, loff_t *pos)
 	__acquires(resource_lock)
@@ -522,7 +523,7 @@ static void __init __reserve_region_with_split(struct resource *root,
 {
 	struct resource *parent = root;
 	struct resource *conflict;
-	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
+	struct resource *res = kzalloc(sizeof(*res), GFP_ATOMIC);
 
 	if (!res)
 		return;
@@ -549,13 +550,9 @@ static void __init __reserve_region_with_split(struct resource *root,
 	}
 
 	if (!res) {
-		printk(KERN_DEBUG "    __reserve_region_with_split: (%s) [%llx, %llx], res: (%s) [%llx, %llx]\n",
-			 conflict->name, conflict->start, conflict->end,
-			 name, start, end);
-
 		/* failed, split and try again */
 
-		/* conflict coverred whole area */
+		/* conflict covered whole area */
 		if (conflict->start <= start && conflict->end >= end)
 			return;
 
@@ -575,7 +572,7 @@ static void __init __reserve_region_with_split(struct resource *root,
 
 }
 
-void reserve_region_with_split(struct resource *root,
+void __init reserve_region_with_split(struct resource *root,
 		resource_size_t start, resource_size_t end,
 		const char *name)
 {
@@ -630,33 +627,34 @@ struct resource * __request_region(struct resource *parent,
 {
 	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
-	if (res) {
-		res->name = name;
-		res->start = start;
-		res->end = start + n - 1;
-		res->flags = IORESOURCE_BUSY;
+	if (!res)
+		return NULL;
 
-		write_lock(&resource_lock);
+	res->name = name;
+	res->start = start;
+	res->end = start + n - 1;
+	res->flags = IORESOURCE_BUSY;
 
-		for (;;) {
-			struct resource *conflict;
+	write_lock(&resource_lock);
 
-			conflict = __request_resource(parent, res);
-			if (!conflict)
-				break;
-			if (conflict != parent) {
-				parent = conflict;
-				if (!(conflict->flags & IORESOURCE_BUSY))
-					continue;
-			}
+	for (;;) {
+		struct resource *conflict;
 
-			/* Uhhuh, that didn't work out.. */
-			kfree(res);
-			res = NULL;
+		conflict = __request_resource(parent, res);
+		if (!conflict)
 			break;
+		if (conflict != parent) {
+			parent = conflict;
+			if (!(conflict->flags & IORESOURCE_BUSY))
+				continue;
 		}
-		write_unlock(&resource_lock);
+
+		/* Uhhuh, that didn't work out.. */
+		kfree(res);
+		res = NULL;
+		break;
 	}
+	write_unlock(&resource_lock);
 	return res;
 }
 EXPORT_SYMBOL(__request_region);
@@ -831,3 +829,50 @@ static int __init reserve_setup(char *str)
 }
 
 __setup("reserve=", reserve_setup);
+
+/*
+ * Check if the requested addr and size spans more than any slot in the
+ * iomem resource tree.
+ */
+int iomem_map_sanity_check(resource_size_t addr, unsigned long size)
+{
+	struct resource *p = &iomem_resource;
+	int err = 0;
+	loff_t l;
+
+	read_lock(&resource_lock);
+	for (p = p->child; p ; p = r_next(NULL, p, &l)) {
+		/*
+		 * We can probably skip the resources without
+		 * IORESOURCE_IO attribute?
+		 */
+		if (p->start >= addr + size)
+			continue;
+		if (p->end < addr)
+			continue;
+		if (PFN_DOWN(p->start) <= PFN_DOWN(addr) &&
+		    PFN_DOWN(p->end) >= PFN_DOWN(addr + size - 1))
+			continue;
+		/*
+		 * if a resource is "BUSY", it's not a hardware resource
+		 * but a driver mapping of such a resource; we don't want
+		 * to warn for those; some drivers legitimately map only
+		 * partial hardware resources. (example: vesafb)
+		 */
+		if (p->flags & IORESOURCE_BUSY)
+			continue;
+
+		printk(KERN_WARNING "resource map sanity check conflict: "
+		       "0x%llx 0x%llx 0x%llx 0x%llx %s\n",
+		       (unsigned long long)addr,
+		       (unsigned long long)(addr + size - 1),
+		       (unsigned long long)p->start,
+		       (unsigned long long)p->end,
+		       p->name);
+		err = -1;
+		break;
+	}
+	read_unlock(&resource_lock);
+
+	return err;
+}

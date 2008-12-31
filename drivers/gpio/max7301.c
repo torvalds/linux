@@ -255,10 +255,6 @@ static int __devinit max7301_probe(struct spi_device *spi)
 	ts->chip.dev = &spi->dev;
 	ts->chip.owner = THIS_MODULE;
 
-	ret = gpiochip_add(&ts->chip);
-	if (ret)
-		goto exit_destroy;
-
 	/*
 	 * tristate all pins in hardware and cache the
 	 * register values for later use.
@@ -269,17 +265,19 @@ static int __devinit max7301_probe(struct spi_device *spi)
 		max7301_write(spi, 0x08 + i, 0xAA);
 		ts->port_config[i] = 0xAA;
 		for (j = 0; j < 4; j++) {
-			int idx = ts->chip.base + (i - 1) * 4 + j;
-			ret = gpio_direction_input(idx);
+			int offset = (i - 1) * 4 + j;
+			ret = max7301_direction_input(&ts->chip, offset);
 			if (ret)
-				goto exit_remove;
-			gpio_free(idx);
+				goto exit_destroy;
 		}
 	}
+
+	ret = gpiochip_add(&ts->chip);
+	if (ret)
+		goto exit_destroy;
+
 	return ret;
 
-exit_remove:
-	gpiochip_remove(&ts->chip);
 exit_destroy:
 	dev_set_drvdata(&spi->dev, NULL);
 	mutex_destroy(&ts->lock);
@@ -325,13 +323,15 @@ static int __init max7301_init(void)
 {
 	return spi_register_driver(&max7301_driver);
 }
+/* register after spi postcore initcall and before
+ * subsys initcalls that may rely on these GPIOs
+ */
+subsys_initcall(max7301_init);
 
 static void __exit max7301_exit(void)
 {
 	spi_unregister_driver(&max7301_driver);
 }
-
-module_init(max7301_init);
 module_exit(max7301_exit);
 
 MODULE_AUTHOR("Juergen Beisert");

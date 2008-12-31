@@ -132,8 +132,6 @@ void __init setup_board(void)
 
 static int __init atstk1004_init(void)
 {
-	at32_add_system_devices();
-
 #ifdef	CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
 	at32_add_device_usart(1);
 #else

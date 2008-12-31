@@ -4294,8 +4294,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	error = -ENODEV;
 
 #if MEMORY_MAPPED_IO
-	ha->mmpbase = ioremap(pci_resource_start(ha->pdev, 1),
-			      pci_resource_len(ha->pdev, 1));
+	ha->mmpbase = pci_ioremap_bar(ha->pdev, 1);
 	if (!ha->mmpbase) {
 		printk(KERN_INFO "qla1280: Unable to map I/O memory\n");
 		goto error_free_response_ring;

@@ -39,10 +39,6 @@
 #include <asm/io.h>
 #include <linux/mutex.h>
 
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
-
 #include "cpia.h"
 
 static int video_nr = -1;
@@ -1351,7 +1347,7 @@ static void create_proc_cpia_cam(struct cam_data *cam)
 	if (!cpia_proc_root || !cam)
 		return;
 
-	snprintf(name, sizeof(name), "video%d", cam->vdev.minor);
+	snprintf(name, sizeof(name), "video%d", cam->vdev.num);
 
 	ent = create_proc_entry(name, S_IFREG|S_IRUGO|S_IWUSR, cpia_proc_root);
 	if (!ent)
@@ -1376,7 +1372,7 @@ static void destroy_proc_cpia_cam(struct cam_data *cam)
 	if (!cam || !cam->proc_entry)
 		return;
 
-	snprintf(name, sizeof(name), "video%d", cam->vdev.minor);
+	snprintf(name, sizeof(name), "video%d", cam->vdev.num);
 	remove_proc_entry(name, cpia_proc_root);
 	cam->proc_entry = NULL;
 }
@@ -3337,8 +3333,7 @@ static ssize_t cpia_read(struct file *file, char __user *buf,
 	return cam->decompressed_frame.count;
 }
 
-static int cpia_do_ioctl(struct inode *inode, struct file *file,
-			 unsigned int ioctlnr, void *arg)
+static int cpia_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = file->private_data;
 	struct cam_data *cam = video_get_drvdata(dev);
@@ -3351,9 +3346,9 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 	if (mutex_lock_interruptible(&cam->busy_lock))
 		return -EINTR;
 
-	//DBG("cpia_ioctl: %u\n", ioctlnr);
+	/* DBG("cpia_ioctl: %u\n", cmd); */
 
-	switch (ioctlnr) {
+	switch (cmd) {
 	/* query capabilities */
 	case VIDIOCGCAP:
 	{
@@ -3728,7 +3723,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 static int cpia_ioctl(struct inode *inode, struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, cpia_do_ioctl);
+	return video_usercopy(file, cmd, arg, cpia_do_ioctl);
 }
 
 
@@ -4009,7 +4004,7 @@ void cpia_unregister_camera(struct cam_data *cam)
 	}
 
 #ifdef CONFIG_PROC_FS
-	DBG("destroying /proc/cpia/video%d\n", cam->vdev.minor);
+	DBG("destroying /proc/cpia/video%d\n", cam->vdev.num);
 	destroy_proc_cpia_cam(cam);
 #endif
 	if (!cam->open_count) {

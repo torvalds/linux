@@ -161,7 +161,7 @@ static void hvc_console_print(struct console *co, const char *b,
 			}
 		} else {
 			r = cons_ops[index]->put_chars(vtermnos[index], c, i);
-			if (r < 0) {
+			if (r <= 0) {
 				/* throw away chars on error */
 				i = 0;
 			} else if (r > 0) {
@@ -367,12 +367,15 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 	spin_lock_irqsave(&hp->lock, flags);
 
 	if (--hp->count == 0) {
-		if (hp->ops->notifier_del)
-			hp->ops->notifier_del(hp, hp->data);
-
 		/* We are done with the tty pointer now. */
 		hp->tty = NULL;
 		spin_unlock_irqrestore(&hp->lock, flags);
+
+		if (hp->ops->notifier_del)
+			hp->ops->notifier_del(hp, hp->data);
+
+		/* cancel pending tty resize work */
+		cancel_work_sync(&hp->tty_resize);
 
 		/*
 		 * Chain calls chars_in_buffer() and returns immediately if
@@ -399,6 +402,9 @@ static void hvc_hangup(struct tty_struct *tty)
 	if (!hp)
 		return;
 
+	/* cancel pending tty resize work */
+	cancel_work_sync(&hp->tty_resize);
+
 	spin_lock_irqsave(&hp->lock, flags);
 
 	/*
@@ -416,10 +422,10 @@ static void hvc_hangup(struct tty_struct *tty)
 	hp->n_outbuf = 0;
 	hp->tty = NULL;
 
-	if (hp->ops->notifier_del)
-			hp->ops->notifier_del(hp, hp->data);
-
 	spin_unlock_irqrestore(&hp->lock, flags);
+
+	if (hp->ops->notifier_hangup)
+			hp->ops->notifier_hangup(hp, hp->data);
 
 	while(temp_open_count) {
 		--temp_open_count;
@@ -431,7 +437,7 @@ static void hvc_hangup(struct tty_struct *tty)
  * Push buffered characters whether they were just recently buffered or waiting
  * on a blocked hypervisor.  Call this function with hp->lock held.
  */
-static void hvc_push(struct hvc_struct *hp)
+static int hvc_push(struct hvc_struct *hp)
 {
 	int n;
 
@@ -439,7 +445,7 @@ static void hvc_push(struct hvc_struct *hp)
 	if (n <= 0) {
 		if (n == 0) {
 			hp->do_wakeup = 1;
-			return;
+			return 0;
 		}
 		/* throw away output on error; this happens when
 		   there is no session connected to the vterm. */
@@ -450,6 +456,8 @@ static void hvc_push(struct hvc_struct *hp)
 		memmove(hp->outbuf, hp->outbuf + n, hp->n_outbuf);
 	else
 		hp->do_wakeup = 1;
+
+	return n;
 }
 
 static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count)
@@ -490,6 +498,39 @@ static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count
 		hvc_kick();
 
 	return written;
+}
+
+/**
+ * hvc_set_winsz() - Resize the hvc tty terminal window.
+ * @work:	work structure.
+ *
+ * The routine shall not be called within an atomic context because it
+ * might sleep.
+ *
+ * Locking:	hp->lock
+ */
+static void hvc_set_winsz(struct work_struct *work)
+{
+	struct hvc_struct *hp;
+	unsigned long hvc_flags;
+	struct tty_struct *tty;
+	struct winsize ws;
+
+	hp = container_of(work, struct hvc_struct, tty_resize);
+	if (!hp)
+		return;
+
+	spin_lock_irqsave(&hp->lock, hvc_flags);
+	if (!hp->tty) {
+		spin_unlock_irqrestore(&hp->lock, hvc_flags);
+		return;
+	}
+	ws  = hp->ws;
+	tty = tty_kref_get(hp->tty);
+	spin_unlock_irqrestore(&hp->lock, hvc_flags);
+
+	tty_do_resize(tty, tty, &ws);
+	tty_kref_put(tty);
 }
 
 /*
@@ -538,16 +579,20 @@ int hvc_poll(struct hvc_struct *hp)
 	char buf[N_INBUF] __ALIGNED__;
 	unsigned long flags;
 	int read_total = 0;
+	int written_total = 0;
 
 	spin_lock_irqsave(&hp->lock, flags);
 
 	/* Push pending writes */
 	if (hp->n_outbuf > 0)
-		hvc_push(hp);
+		written_total = hvc_push(hp);
 
 	/* Reschedule us if still some write pending */
-	if (hp->n_outbuf > 0)
+	if (hp->n_outbuf > 0) {
 		poll_mask |= HVC_POLL_WRITE;
+		/* If hvc_push() was not able to write, sleep a few msecs */
+		timeout = (written_total) ? 0 : MIN_TIMEOUT;
+	}
 
 	/* No tty attached, just skip */
 	tty = hp->tty;
@@ -597,8 +642,11 @@ int hvc_poll(struct hvc_struct *hp)
 				/* Handle the SysRq Hack */
 				/* XXX should support a sequence */
 				if (buf[i] == '\x0f') {	/* ^O */
-					sysrq_pressed = 1;
-					continue;
+					/* if ^O is pressed again, reset
+					 * sysrq_pressed and flip ^O char */
+					sysrq_pressed = !sysrq_pressed;
+					if (sysrq_pressed)
+						continue;
 				} else if (sysrq_pressed) {
 					handle_sysrq(buf[i], tty);
 					sysrq_pressed = 0;
@@ -632,6 +680,23 @@ int hvc_poll(struct hvc_struct *hp)
 }
 EXPORT_SYMBOL_GPL(hvc_poll);
 
+/**
+ * hvc_resize() - Update terminal window size information.
+ * @hp:		HVC console pointer
+ * @ws:		Terminal window size structure
+ *
+ * Stores the specified window size information in the hvc structure of @hp.
+ * The function schedule the tty resize update.
+ *
+ * Locking:	Locking free; the function MUST be called holding hp->lock
+ */
+void hvc_resize(struct hvc_struct *hp, struct winsize ws)
+{
+	hp->ws = ws;
+	schedule_work(&hp->tty_resize);
+}
+EXPORT_SYMBOL_GPL(hvc_resize);
+
 /*
  * This kthread is either polling or interrupt driven.  This is determined by
  * calling hvc_poll() who determines whether a console adapter support
@@ -659,10 +724,6 @@ static int khvcd(void *unused)
 			poll_mask |= HVC_POLL_READ;
 		if (hvc_kicked)
 			continue;
-		if (poll_mask & HVC_POLL_WRITE) {
-			yield();
-			continue;
-		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (!hvc_kicked) {
 			if (poll_mask == 0)
@@ -718,6 +779,7 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int data,
 
 	kref_init(&hp->kref);
 
+	INIT_WORK(&hp->tty_resize, hvc_set_winsz);
 	spin_lock_init(&hp->lock);
 	spin_lock(&hvc_structs_lock);
 
@@ -743,7 +805,7 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int data,
 }
 EXPORT_SYMBOL_GPL(hvc_alloc);
 
-int __devexit hvc_remove(struct hvc_struct *hp)
+int hvc_remove(struct hvc_struct *hp)
 {
 	unsigned long flags;
 	struct tty_struct *tty;
@@ -796,7 +858,7 @@ static int hvc_init(void)
 	drv->minor_start = HVC_MINOR;
 	drv->type = TTY_DRIVER_TYPE_SYSTEM;
 	drv->init_termios = tty_std_termios;
-	drv->flags = TTY_DRIVER_REAL_RAW;
+	drv->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_RESET_TERMIOS;
 	tty_set_operations(drv, &hvc_ops);
 
 	/* Always start the kthread because there can be hotplug vty adapters

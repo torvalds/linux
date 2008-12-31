@@ -1496,7 +1496,7 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 
 
 	/* service information message SIM */
-	if (irb->esw.esw0.erw.cons && (irb->ecw[27] & DASD_SENSE_BIT_0) &&
+	if (irb->esw.esw0.erw.cons && !(irb->ecw[27] & DASD_SENSE_BIT_0) &&
 	    ((irb->ecw[6] & DASD_SIM_SENSE) == DASD_SIM_SENSE)) {
 		dasd_3990_erp_handle_sim(device, irb->ecw);
 		dasd_schedule_device_bh(device);
@@ -1700,7 +1700,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 			recid++;
 		}
 	}
-	if (req->cmd_flags & REQ_FAILFAST)
+	if (blk_noretry_request(req))
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->startdev = startdev;
 	cqr->memdev = startdev;

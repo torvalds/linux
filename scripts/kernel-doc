@@ -289,6 +289,8 @@ my %parameterdescs;
 my @parameterlist;
 my %sections;
 my @sectionlist;
+my $sectcheck;
+my $struct_actual;
 
 my $contents = "";
 my $section_default = "Description";	# default section
@@ -378,6 +380,12 @@ sub dump_section {
 #	print STDERR "parameter def '$1' = '$contents'\n";
 	$name = $1;
 	$parameterdescs{$name} = $contents;
+	$sectcheck = $sectcheck . $name . " ";
+    } elsif ($name eq "@\.\.\.") {
+#	print STDERR "parameter def '...' = '$contents'\n";
+	$name = "...";
+	$parameterdescs{$name} = $contents;
+	$sectcheck = $sectcheck . $name . " ";
     } else {
 #	print STDERR "other section '$name' = '$contents'\n";
 	if (defined($sections{$name}) && ($sections{$name} ne "")) {
@@ -1401,21 +1409,25 @@ sub dump_union($$) {
 sub dump_struct($$) {
     my $x = shift;
     my $file = shift;
+    my $nested;
 
     if ($x =~/(struct|union)\s+(\w+)\s*{(.*)}/) {
 	$declaration_name = $2;
 	my $members = $3;
 
 	# ignore embedded structs or unions
-	$members =~ s/{.*}//g;
+	$members =~ s/({.*})//g;
+	$nested = $1;
 
 	# ignore members marked private:
 	$members =~ s/\/\*.*?private:.*?public:.*?\*\///gos;
 	$members =~ s/\/\*.*?private:.*//gos;
 	# strip comments:
 	$members =~ s/\/\*.*?\*\///gos;
+	$nested =~ s/\/\*.*?\*\///gos;
 
 	create_parameterlist($members, ';', $file);
+	check_sections($file, $declaration_name, "struct", $sectcheck, $struct_actual, $nested);
 
 	output_declaration($declaration_name,
 			   'struct',
@@ -1501,6 +1513,14 @@ sub dump_typedef($$) {
     }
 }
 
+sub save_struct_actual($) {
+    my $actual = shift;
+
+    # strip all spaces from the actual param so that it looks like one string item
+    $actual =~ s/\s*//g;
+    $struct_actual = $struct_actual . $actual . " ";
+}
+
 sub create_parameterlist($$$) {
     my $args = shift;
     my $splitter = shift;
@@ -1533,6 +1553,7 @@ sub create_parameterlist($$$) {
 	    $param = $1;
 	    $type = $arg;
 	    $type =~ s/([^\(]+\(\*?)\s*$param/$1/;
+	    save_struct_actual($param);
 	    push_parameter($param, $type, $file);
 	} elsif ($arg) {
 	    $arg =~ s/\s*:\s*/:/g;
@@ -1557,14 +1578,17 @@ sub create_parameterlist($$$) {
 
 	    foreach $param (@args) {
 		if ($param =~ m/^(\*+)\s*(.*)/) {
+		    save_struct_actual($2);
 		    push_parameter($2, "$type $1", $file);
 		}
 		elsif ($param =~ m/(.*?):(\d+)/) {
 		    if ($type ne "") { # skip unnamed bit-fields
+			save_struct_actual($1);
 			push_parameter($1, "$type:$2", $file)
 		    }
 		}
 		else {
+		    save_struct_actual($param);
 		    push_parameter($param, $type, $file);
 		}
 	    }
@@ -1588,12 +1612,12 @@ sub push_parameter($$$) {
 
 	if ($type eq "" && $param =~ /\.\.\.$/)
 	{
-	    $type="";
-	    $parameterdescs{$param} = "variable arguments";
+	    if (!defined $parameterdescs{$param} || $parameterdescs{$param} eq "") {
+		$parameterdescs{$param} = "variable arguments";
+	    }
 	}
 	elsif ($type eq "" && ($param eq "" or $param eq "void"))
 	{
-	    $type="";
 	    $param="void";
 	    $parameterdescs{void} = "no arguments";
 	}
@@ -1630,6 +1654,46 @@ sub push_parameter($$$) {
 	$parametertypes{$param} = $type;
 }
 
+sub check_sections($$$$$$) {
+	my ($file, $decl_name, $decl_type, $sectcheck, $prmscheck, $nested) = @_;
+	my @sects = split ' ', $sectcheck;
+	my @prms = split ' ', $prmscheck;
+	my $err;
+	my ($px, $sx);
+	my $prm_clean;		# strip trailing "[array size]" and/or beginning "*"
+
+	foreach $sx (0 .. $#sects) {
+		$err = 1;
+		foreach $px (0 .. $#prms) {
+			$prm_clean = $prms[$px];
+			$prm_clean =~ s/\[.*\]//;
+			$prm_clean =~ s/__attribute__\s*\(\([a-z,_\*\s\(\)]*\)\)//;
+			##$prm_clean =~ s/^\**//;
+			if ($prm_clean eq $sects[$sx]) {
+				$err = 0;
+				last;
+			}
+		}
+		if ($err) {
+			if ($decl_type eq "function") {
+				print STDERR "Warning(${file}:$.): " .
+					"Excess function parameter " .
+					"'$sects[$sx]' " .
+					"description in '$decl_name'\n";
+				++$warnings;
+			} else {
+				if ($nested !~ m/\Q$sects[$sx]\E/) {
+				    print STDERR "Warning(${file}:$.): " .
+					"Excess struct/union/enum/typedef member " .
+					"'$sects[$sx]' " .
+					"description in '$decl_name'\n";
+				    ++$warnings;
+				}
+			}
+		}
+	}
+}
+
 ##
 # takes a function prototype and the name of the current file being
 # processed and spits out all the details stored in the global
@@ -1648,7 +1712,7 @@ sub dump_function($$) {
     $prototype =~ s/^noinline +//;
     $prototype =~ s/__devinit +//;
     $prototype =~ s/__init +//;
-    $prototype =~ s/^#define\s+//; #ak added
+    $prototype =~ s/^#\s*define\s+//; #ak added
     $prototype =~ s/__attribute__\s*\(\([a-z,]*\)\)//;
 
     # Yes, this truly is vile.  We are looking for:
@@ -1694,6 +1758,9 @@ sub dump_function($$) {
 	++$errors;
 	return;
     }
+
+	my $prms = join " ", @parameterlist;
+	check_sections($file, $declaration_name, "function", $sectcheck, $prms, "");
 
     output_declaration($declaration_name,
 		       'function',
@@ -1753,6 +1820,8 @@ sub reset_state {
     @parameterlist = ();
     %sections = ();
     @sectionlist = ();
+    $sectcheck = "";
+    $struct_actual = "";
     $prototype = "";
 
     $state = 0;
@@ -1764,13 +1833,13 @@ sub process_state3_function($$) {
 
     $x =~ s@\/\/.*$@@gos; # strip C99-style comments to end of line
 
-    if ($x =~ m#\s*/\*\s+MACDOC\s*#io || ($x =~ /^#/ && $x !~ /^#define/)) {
+    if ($x =~ m#\s*/\*\s+MACDOC\s*#io || ($x =~ /^#/ && $x !~ /^#\s*define/)) {
 	# do nothing
     }
     elsif ($x =~ /([^\{]*)/) {
 	$prototype .= $1;
     }
-    if (($x =~ /\{/) || ($x =~ /\#define/) || ($x =~ /;/)) {
+    if (($x =~ /\{/) || ($x =~ /\#\s*define/) || ($x =~ /;/)) {
 	$prototype =~ s@/\*.*?\*/@@gos;	# strip comments.
 	$prototype =~ s@[\r\n]+@ @gos; # strip newlines/cr's.
 	$prototype =~ s@^\s+@@gos; # strip leading spaces

@@ -80,7 +80,6 @@ static struct bin_attribute w1_ds2760_bin_attr = {
 	.attr = {
 		.name = "w1_slave",
 		.mode = S_IRUGO,
-		.owner = THIS_MODULE,
 	},
 	.size = DS2760_DATA_SIZE,
 	.read = w1_ds2760_read_bin,

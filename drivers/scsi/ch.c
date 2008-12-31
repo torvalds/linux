@@ -190,7 +190,7 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd,
 
         result = scsi_execute_req(ch->device, cmd, direction, buffer,
 				  buflength, &sshdr, timeout * HZ,
-				  MAX_RETRIES);
+				  MAX_RETRIES, NULL);
 
 	dprintk("result: 0x%x\n",result);
 	if (driver_byte(result) & DRIVER_SENSE) {
@@ -914,9 +914,9 @@ static int ch_probe(struct device *dev)
 	ch->minor = minor;
 	sprintf(ch->name,"ch%d",ch->minor);
 
-	class_dev = device_create_drvdata(ch_sysfs_class, dev,
-					  MKDEV(SCSI_CHANGER_MAJOR, ch->minor),
-					  ch, "s%s", ch->name);
+	class_dev = device_create(ch_sysfs_class, dev,
+				  MKDEV(SCSI_CHANGER_MAJOR, ch->minor), ch,
+				  "s%s", ch->name);
 	if (IS_ERR(class_dev)) {
 		printk(KERN_WARNING "ch%d: device_create failed\n",
 		       ch->minor);

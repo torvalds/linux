@@ -259,26 +259,26 @@ isl1208_i2c_read_time(struct i2c_client *client, struct rtc_time *tm)
 		return sr;
 	}
 
-	tm->tm_sec = BCD2BIN(regs[ISL1208_REG_SC]);
-	tm->tm_min = BCD2BIN(regs[ISL1208_REG_MN]);
+	tm->tm_sec = bcd2bin(regs[ISL1208_REG_SC]);
+	tm->tm_min = bcd2bin(regs[ISL1208_REG_MN]);
 
 	/* HR field has a more complex interpretation */
 	{
 		const u8 _hr = regs[ISL1208_REG_HR];
 		if (_hr & ISL1208_REG_HR_MIL)	/* 24h format */
-			tm->tm_hour = BCD2BIN(_hr & 0x3f);
+			tm->tm_hour = bcd2bin(_hr & 0x3f);
 		else {
 			/* 12h format */
-			tm->tm_hour = BCD2BIN(_hr & 0x1f);
+			tm->tm_hour = bcd2bin(_hr & 0x1f);
 			if (_hr & ISL1208_REG_HR_PM)	/* PM flag set */
 				tm->tm_hour += 12;
 		}
 	}
 
-	tm->tm_mday = BCD2BIN(regs[ISL1208_REG_DT]);
-	tm->tm_mon = BCD2BIN(regs[ISL1208_REG_MO]) - 1;	/* rtc starts at 1 */
-	tm->tm_year = BCD2BIN(regs[ISL1208_REG_YR]) + 100;
-	tm->tm_wday = BCD2BIN(regs[ISL1208_REG_DW]);
+	tm->tm_mday = bcd2bin(regs[ISL1208_REG_DT]);
+	tm->tm_mon = bcd2bin(regs[ISL1208_REG_MO]) - 1;	/* rtc starts at 1 */
+	tm->tm_year = bcd2bin(regs[ISL1208_REG_YR]) + 100;
+	tm->tm_wday = bcd2bin(regs[ISL1208_REG_DW]);
 
 	return 0;
 }
@@ -305,13 +305,13 @@ isl1208_i2c_read_alarm(struct i2c_client *client, struct rtc_wkalrm *alarm)
 	}
 
 	/* MSB of each alarm register is an enable bit */
-	tm->tm_sec = BCD2BIN(regs[ISL1208_REG_SCA - ISL1208_REG_SCA] & 0x7f);
-	tm->tm_min = BCD2BIN(regs[ISL1208_REG_MNA - ISL1208_REG_SCA] & 0x7f);
-	tm->tm_hour = BCD2BIN(regs[ISL1208_REG_HRA - ISL1208_REG_SCA] & 0x3f);
-	tm->tm_mday = BCD2BIN(regs[ISL1208_REG_DTA - ISL1208_REG_SCA] & 0x3f);
+	tm->tm_sec = bcd2bin(regs[ISL1208_REG_SCA - ISL1208_REG_SCA] & 0x7f);
+	tm->tm_min = bcd2bin(regs[ISL1208_REG_MNA - ISL1208_REG_SCA] & 0x7f);
+	tm->tm_hour = bcd2bin(regs[ISL1208_REG_HRA - ISL1208_REG_SCA] & 0x3f);
+	tm->tm_mday = bcd2bin(regs[ISL1208_REG_DTA - ISL1208_REG_SCA] & 0x3f);
 	tm->tm_mon =
-		BCD2BIN(regs[ISL1208_REG_MOA - ISL1208_REG_SCA] & 0x1f) - 1;
-	tm->tm_wday = BCD2BIN(regs[ISL1208_REG_DWA - ISL1208_REG_SCA] & 0x03);
+		bcd2bin(regs[ISL1208_REG_MOA - ISL1208_REG_SCA] & 0x1f) - 1;
+	tm->tm_wday = bcd2bin(regs[ISL1208_REG_DWA - ISL1208_REG_SCA] & 0x03);
 
 	return 0;
 }
@@ -328,15 +328,22 @@ isl1208_i2c_set_time(struct i2c_client *client, struct rtc_time const *tm)
 	int sr;
 	u8 regs[ISL1208_RTC_SECTION_LEN] = { 0, };
 
-	regs[ISL1208_REG_SC] = BIN2BCD(tm->tm_sec);
-	regs[ISL1208_REG_MN] = BIN2BCD(tm->tm_min);
-	regs[ISL1208_REG_HR] = BIN2BCD(tm->tm_hour) | ISL1208_REG_HR_MIL;
+	/* The clock has an 8 bit wide bcd-coded register (they never learn)
+	 * for the year. tm_year is an offset from 1900 and we are interested
+	 * in the 2000-2099 range, so any value less than 100 is invalid.
+	 */
+	if (tm->tm_year < 100)
+		return -EINVAL;
 
-	regs[ISL1208_REG_DT] = BIN2BCD(tm->tm_mday);
-	regs[ISL1208_REG_MO] = BIN2BCD(tm->tm_mon + 1);
-	regs[ISL1208_REG_YR] = BIN2BCD(tm->tm_year - 100);
+	regs[ISL1208_REG_SC] = bin2bcd(tm->tm_sec);
+	regs[ISL1208_REG_MN] = bin2bcd(tm->tm_min);
+	regs[ISL1208_REG_HR] = bin2bcd(tm->tm_hour) | ISL1208_REG_HR_MIL;
 
-	regs[ISL1208_REG_DW] = BIN2BCD(tm->tm_wday & 7);
+	regs[ISL1208_REG_DT] = bin2bcd(tm->tm_mday);
+	regs[ISL1208_REG_MO] = bin2bcd(tm->tm_mon + 1);
+	regs[ISL1208_REG_YR] = bin2bcd(tm->tm_year - 100);
+
+	regs[ISL1208_REG_DW] = bin2bcd(tm->tm_wday & 7);
 
 	sr = isl1208_i2c_get_sr(client);
 	if (sr < 0) {

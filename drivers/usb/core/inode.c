@@ -180,8 +180,8 @@ static int parse_options(struct super_block *s, char *data)
 			listmode = option & S_IRWXUGO;
 			break;
 		default:
-			err("usbfs: unrecognised mount option \"%s\" "
-			    "or missing value\n", p);
+			printk(KERN_ERR "usbfs: unrecognised mount option "
+			       "\"%s\" or missing value\n", p);
 			return -EINVAL;
 		}
 	}
@@ -240,7 +240,9 @@ static void update_sb(struct super_block *sb)
 				update_special(bus);
 				break;
 			default:
-				warn("Unknown node %s mode %x found on remount!\n",bus->d_name.name,bus->d_inode->i_mode);
+				printk(KERN_WARNING "usbfs: Unknown node %s "
+				       "mode %x found on remount!\n",
+				       bus->d_name.name, bus->d_inode->i_mode);
 				break;
 			}
 		}
@@ -259,7 +261,7 @@ static int remount(struct super_block *sb, int *flags, char *data)
 		return 0;
 
 	if (parse_options(sb, data)) {
-		warn("usbfs: mount parameter error:");
+		printk(KERN_WARNING "usbfs: mount parameter error.\n");
 		return -EINVAL;
 	}
 
@@ -275,8 +277,8 @@ static struct inode *usbfs_get_inode (struct super_block *sb, int mode, dev_t de
 
 	if (inode) {
 		inode->i_mode = mode;
-		inode->i_uid = current->fsuid;
-		inode->i_gid = current->fsgid;
+		inode->i_uid = current_fsuid();
+		inode->i_gid = current_fsgid();
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		switch (mode & S_IFMT) {
@@ -599,7 +601,7 @@ static int create_special_files (void)
 	/* create the devices special file */
 	retval = simple_pin_fs(&usb_fs_type, &usbfs_mount, &usbfs_mount_count);
 	if (retval) {
-		err ("Unable to get usbfs mount");
+		printk(KERN_ERR "Unable to get usbfs mount\n");
 		goto exit;
 	}
 
@@ -611,7 +613,7 @@ static int create_special_files (void)
 					       NULL, &usbfs_devices_fops,
 					       listuid, listgid);
 	if (devices_usbfs_dentry == NULL) {
-		err ("Unable to create devices usbfs file");
+		printk(KERN_ERR "Unable to create devices usbfs file\n");
 		retval = -ENODEV;
 		goto error_clean_mounts;
 	}
@@ -663,7 +665,7 @@ static void usbfs_add_bus(struct usb_bus *bus)
 	bus->usbfs_dentry = fs_create_file (name, busmode | S_IFDIR, parent,
 					    bus, NULL, busuid, busgid);
 	if (bus->usbfs_dentry == NULL) {
-		err ("error creating usbfs bus entry");
+		printk(KERN_ERR "Error creating usbfs bus entry\n");
 		return;
 	}
 }
@@ -694,7 +696,7 @@ static void usbfs_add_device(struct usb_device *dev)
 					    &usbdev_file_operations,
 					    devuid, devgid);
 	if (dev->usbfs_dentry == NULL) {
-		err ("error creating usbfs device entry");
+		printk(KERN_ERR "Error creating usbfs device entry\n");
 		return;
 	}
 

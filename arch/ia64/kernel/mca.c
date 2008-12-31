@@ -1139,7 +1139,7 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 	return previous_current;
 
 no_mod:
-	printk(KERN_INFO "cpu %d, %s %s, original stack not modified\n",
+	mprintk(KERN_INFO "cpu %d, %s %s, original stack not modified\n",
 			smp_processor_id(), type, msg);
 	return previous_current;
 }

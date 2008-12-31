@@ -250,7 +250,7 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
 			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
 		if (!msgs[i].len) { /* no len: check only for device presence */
-			if (dev->is_em2800)
+			if (dev->board.is_em2800)
 				rc = em2800_i2c_check_for_device(dev, addr);
 			else
 				rc = em28xx_i2c_check_for_device(dev, addr);
@@ -261,7 +261,7 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 		} else if (msgs[i].flags & I2C_M_RD) {
 			/* read bytes */
-			if (dev->is_em2800)
+			if (dev->board.is_em2800)
 				rc = em2800_i2c_recv_bytes(dev, addr,
 							   msgs[i].buf,
 							   msgs[i].len);
@@ -279,7 +279,7 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(" %02x", msgs[i].buf[byte]);
 			}
-			if (dev->is_em2800)
+			if (dev->board.is_em2800)
 				rc = em2800_i2c_send_bytes(dev, addr,
 							   msgs[i].buf,
 							   msgs[i].len);
@@ -332,14 +332,25 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 	struct em28xx_eeprom *em_eeprom = (void *)eedata;
 	int i, err, size = len, block;
 
+	if (dev->chip_id == CHIP_ID_EM2874) {
+		/* Empia switched to a 16-bit addressable eeprom in newer
+		   devices.  While we could certainly write a routine to read
+		   the eeprom, there is nothing of use in there that cannot be
+		   accessed through registers, and there is the risk that we
+		   could corrupt the eeprom (since a 16-bit read call is
+		   interpreted as a write call by 8-bit eeproms).
+		*/
+		return 0;
+	}
+
 	dev->i2c_client.addr = 0xa0 >> 1;
 
 	/* Check if board has eeprom */
 	err = i2c_master_recv(&dev->i2c_client, &buf, 0);
 	if (err < 0) {
-		em28xx_errdev("%s: i2c_master_recv failed! err [%d]\n",
-			__func__, err);
-		return err;
+		em28xx_errdev("board has no eeprom\n");
+		memset(eedata, 0, len);
+		return -ENODEV;
 	}
 
 	buf = 0;
@@ -377,47 +388,49 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 	if (em_eeprom->id == 0x9567eb1a)
 		dev->hash = em28xx_hash_mem(eedata, len, 32);
 
-	printk(KERN_INFO "EEPROM ID= 0x%08x, hash = 0x%08lx\n",
-	       em_eeprom->id, dev->hash);
-	printk(KERN_INFO "Vendor/Product ID= %04x:%04x\n", em_eeprom->vendor_ID,
-	       em_eeprom->product_ID);
+	printk(KERN_INFO "%s: EEPROM ID= 0x%08x, EEPROM hash = 0x%08lx\n",
+	       dev->name, em_eeprom->id, dev->hash);
+
+	printk(KERN_INFO "%s: EEPROM info:\n", dev->name);
 
 	switch (em_eeprom->chip_conf >> 4 & 0x3) {
 	case 0:
-		printk(KERN_INFO "No audio on board.\n");
+		printk(KERN_INFO "%s:\tNo audio on board.\n", dev->name);
 		break;
 	case 1:
-		printk(KERN_INFO "AC97 audio (5 sample rates)\n");
+		printk(KERN_INFO "%s:\tAC97 audio (5 sample rates)\n",
+				 dev->name);
 		break;
 	case 2:
-		printk(KERN_INFO "I2S audio, sample rate=32k\n");
+		printk(KERN_INFO "%s:\tI2S audio, sample rate=32k\n", dev->name);
 		break;
 	case 3:
-		printk(KERN_INFO "I2S audio, 3 sample rates\n");
+		printk(KERN_INFO "%s:\tI2S audio, 3 sample rates\n", dev->name);
 		break;
 	}
 
 	if (em_eeprom->chip_conf & 1 << 3)
-		printk(KERN_INFO "USB Remote wakeup capable\n");
+		printk(KERN_INFO "%s:\tUSB Remote wakeup capable\n", dev->name);
 
 	if (em_eeprom->chip_conf & 1 << 2)
-		printk(KERN_INFO "USB Self power capable\n");
+		printk(KERN_INFO "%s:\tUSB Self power capable\n", dev->name);
 
 	switch (em_eeprom->chip_conf & 0x3) {
 	case 0:
-		printk(KERN_INFO "500mA max power\n");
+		printk(KERN_INFO "%s:\t500mA max power\n", dev->name);
 		break;
 	case 1:
-		printk(KERN_INFO "400mA max power\n");
+		printk(KERN_INFO "%s:\t400mA max power\n", dev->name);
 		break;
 	case 2:
-		printk(KERN_INFO "300mA max power\n");
+		printk(KERN_INFO "%s:\t300mA max power\n", dev->name);
 		break;
 	case 3:
-		printk(KERN_INFO "200mA max power\n");
+		printk(KERN_INFO "%s:\t200mA max power\n", dev->name);
 		break;
 	}
-	printk(KERN_INFO "Table at 0x%02x, strings=0x%04x, 0x%04x, 0x%04x\n",
+	printk(KERN_INFO "%s:\tTable at 0x%02x, strings=0x%04x, 0x%04x, 0x%04x\n",
+				dev->name,
 				em_eeprom->string_idx_table,
 				em_eeprom->string1,
 				em_eeprom->string2,
@@ -609,14 +622,16 @@ int em28xx_i2c_register(struct em28xx *dev)
 	dev->i2c_client.adapter = &dev->i2c_adap;
 
 	retval = em28xx_i2c_eeprom(dev, dev->eedata, sizeof(dev->eedata));
-	if (retval < 0) {
+	if ((retval < 0) && (retval != -ENODEV)) {
 		em28xx_errdev("%s: em28xx_i2_eeprom failed! retval [%d]\n",
 			__func__, retval);
+
 		return retval;
 	}
 
 	if (i2c_scan)
 		em28xx_do_i2c_scan(dev);
+
 	return 0;
 }
 

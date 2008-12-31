@@ -55,14 +55,12 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * For IV/EIV/ICV assembly we must make sure there is
 	 * at least 8 bytes bytes available in headroom for IV/EIV
-	 * and 4 bytes for ICV data as tailroon.
+	 * and 8 bytes for ICV data as tailroon.
 	 */
-#ifdef CONFIG_RT2X00_LIB_CRYPTO
 	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
 		head_size += 8;
-		tail_size += 4;
+		tail_size += 8;
 	}
-#endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
 	/*
 	 * Allocate skbuffer.
@@ -174,7 +172,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	txdesc->cw_max = entry->queue->cw_max;
 	txdesc->aifs = entry->queue->aifs;
 
-	/* Data length + CRC + IV/EIV/ICV/MMIC (when using encryption) */
+	/* Data length + CRC */
 	data_length = entry->skb->len + 4;
 
 	/*
@@ -183,34 +181,17 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK))
 		__set_bit(ENTRY_TXD_ACK, &txdesc->flags);
 
-#ifdef CONFIG_RT2X00_LIB_CRYPTO
 	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) &&
 	    !entry->skb->do_not_encrypt) {
-		struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
-
-		__set_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags);
-
-		txdesc->cipher = rt2x00crypto_key_to_cipher(hw_key);
-
-		if (hw_key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
-			__set_bit(ENTRY_TXD_ENCRYPT_PAIRWISE, &txdesc->flags);
-
-		txdesc->key_idx = hw_key->hw_key_idx;
-		txdesc->iv_offset = ieee80211_get_hdrlen_from_skb(entry->skb);
+		/* Apply crypto specific descriptor information */
+		rt2x00crypto_create_tx_descriptor(entry, txdesc);
 
 		/*
 		 * Extend frame length to include all encryption overhead
 		 * that will be added by the hardware.
 		 */
 		data_length += rt2x00crypto_tx_overhead(tx_info);
-
-		if (!(hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV))
-			__set_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags);
-
-		if (!(hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_MMIC))
-			__set_bit(ENTRY_TXD_ENCRYPT_MMIC, &txdesc->flags);
 	}
-#endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
 	/*
 	 * Check if this is a RTS/CTS frame
@@ -230,8 +211,8 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	/*
 	 * Determine retry information.
 	 */
-	txdesc->retry_limit = tx_info->control.retry_limit;
-	if (tx_info->flags & IEEE80211_TX_CTL_LONG_RETRY_LIMIT)
+	txdesc->retry_limit = tx_info->control.rates[0].count - 1;
+	if (txdesc->retry_limit >= rt2x00dev->long_retry)
 		__set_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags);
 
 	/*
@@ -312,8 +293,8 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 		/*
 		 * Convert length to microseconds.
 		 */
-		residual = get_duration_res(data_length, hwrate->bitrate);
-		duration = get_duration(data_length, hwrate->bitrate);
+		residual = GET_DURATION_RES(data_length, hwrate->bitrate);
+		duration = GET_DURATION(data_length, hwrate->bitrate);
 
 		if (residual != 0) {
 			duration++;
@@ -371,13 +352,15 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 
 int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 {
+	struct ieee80211_tx_info *tx_info;
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct txentry_desc txdesc;
 	struct skb_frame_desc *skbdesc;
-	unsigned int iv_len;
+	unsigned int iv_len = 0;
+	u8 rate_idx, rate_flags;
 
 	if (unlikely(rt2x00queue_full(queue)))
-		return -EINVAL;
+		return -ENOBUFS;
 
 	if (test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags)) {
 		ERROR(queue->rt2x00dev,
@@ -395,14 +378,22 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	entry->skb = skb;
 	rt2x00queue_create_tx_descriptor(entry, &txdesc);
 
+	if (IEEE80211_SKB_CB(skb)->control.hw_key != NULL)
+		iv_len = IEEE80211_SKB_CB(skb)->control.hw_key->iv_len;
+
 	/*
-	 * All information is retreived from the skb->cb array,
+	 * All information is retrieved from the skb->cb array,
 	 * now we should claim ownership of the driver part of that
-	 * array.
+	 * array, preserving the bitrate index and flags.
 	 */
-	skbdesc = get_skb_frame_desc(entry->skb);
+	tx_info = IEEE80211_SKB_CB(skb);
+	rate_idx = tx_info->control.rates[0].idx;
+	rate_flags = tx_info->control.rates[0].flags;
+	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->entry = entry;
+	skbdesc->tx_rate_idx = rate_idx;
+	skbdesc->tx_rate_flags = rate_flags;
 
 	/*
 	 * When hardware encryption is supported, and this frame
@@ -410,22 +401,22 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	 * the frame so we can provide it to the driver seperately.
 	 */
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc.flags) &&
-	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags) &&
-		(IEEE80211_SKB_CB(skb)->control.hw_key != NULL)) {
-		iv_len = IEEE80211_SKB_CB(skb)->control.hw_key->iv_len;
-		rt2x00crypto_tx_remove_iv(skb, iv_len);
+	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags)) {
+		if (test_bit(CONFIG_CRYPTO_COPY_IV, &queue->rt2x00dev->flags))
+			rt2x00crypto_tx_copy_iv(skb, iv_len);
+		else
+			rt2x00crypto_tx_remove_iv(skb, iv_len);
 	}
 
 	/*
 	 * It could be possible that the queue was corrupted and this
-	 * call failed. Just drop the frame, we cannot rollback and pass
-	 * the frame to mac80211 because the skb->cb has now been tainted.
+	 * call failed. Since we always return NETDEV_TX_OK to mac80211,
+	 * this frame will simply be dropped.
 	 */
 	if (unlikely(queue->rt2x00dev->ops->lib->write_tx_data(entry))) {
 		clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-		dev_kfree_skb_any(entry->skb);
 		entry->skb = NULL;
-		return 0;
+		return -EIO;
 	}
 
 	if (test_bit(DRIVER_REQUIRE_DMA, &queue->rt2x00dev->flags))
@@ -555,7 +546,7 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 		queue->length++;
 	} else if (index == Q_INDEX_DONE) {
 		queue->length--;
-		queue->count ++;
+		queue->count++;
 	}
 
 	spin_unlock_irqrestore(&queue->lock, irqflags);
@@ -574,40 +565,18 @@ static void rt2x00queue_reset(struct data_queue *queue)
 	spin_unlock_irqrestore(&queue->lock, irqflags);
 }
 
-void rt2x00queue_init_rx(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue = rt2x00dev->rx;
-	unsigned int i;
-
-	rt2x00queue_reset(queue);
-
-	if (!rt2x00dev->ops->lib->init_rxentry)
-		return;
-
-	for (i = 0; i < queue->limit; i++) {
-		queue->entries[i].flags = 0;
-
-		rt2x00dev->ops->lib->init_rxentry(rt2x00dev,
-						  &queue->entries[i]);
-	}
-}
-
-void rt2x00queue_init_tx(struct rt2x00_dev *rt2x00dev)
+void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	unsigned int i;
 
-	txall_queue_for_each(rt2x00dev, queue) {
+	queue_for_each(rt2x00dev, queue) {
 		rt2x00queue_reset(queue);
-
-		if (!rt2x00dev->ops->lib->init_txentry)
-			continue;
 
 		for (i = 0; i < queue->limit; i++) {
 			queue->entries[i].flags = 0;
 
-			rt2x00dev->ops->lib->init_txentry(rt2x00dev,
-							  &queue->entries[i]);
+			rt2x00dev->ops->lib->clear_entry(&queue->entries[i]);
 		}
 	}
 }

@@ -1,0 +1,8 @@
+TODO:
+	- checkpatch.pl cleanups
+	- sparse warnings
+	- Lindent cleanups
+	- move to use the in-kernel wireless stack
+	- possible enable the pcmcia and pci portions of the driver
+
+Please send all patches to Greg Kroah-Hartman <greg@kroah.com>

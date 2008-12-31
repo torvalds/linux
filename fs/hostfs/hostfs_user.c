@@ -377,7 +377,7 @@ int link_file(const char *to, const char *from)
 	return 0;
 }
 
-int do_readlink(char *file, char *buf, int size)
+int hostfs_do_readlink(char *file, char *buf, int size)
 {
 	int n;
 

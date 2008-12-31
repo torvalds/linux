@@ -25,6 +25,17 @@
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 
+
+/*
+ * Initialize a new task whose father had been ptraced.
+ *
+ * Called from copy_process().
+ */
+void ptrace_fork(struct task_struct *child, unsigned long clone_flags)
+{
+	arch_ptrace_fork(child, clone_flags);
+}
+
 /*
  * ptrace a task: make the debugger its new parent and
  * move it to the ptrace list.
@@ -45,7 +56,7 @@ void __ptrace_link(struct task_struct *child, struct task_struct *new_parent)
  * TASK_TRACED, resume it now.
  * Requires that irqs be disabled.
  */
-void ptrace_untrace(struct task_struct *child)
+static void ptrace_untrace(struct task_struct *child)
 {
 	spin_lock(&child->sighand->siglock);
 	if (task_is_traced(child)) {
@@ -72,6 +83,7 @@ void __ptrace_unlink(struct task_struct *child)
 	child->parent = child->real_parent;
 	list_del_init(&child->ptrace_entry);
 
+	arch_ptrace_untrace(child);
 	if (task_is_traced(child))
 		ptrace_untrace(child);
 }
@@ -115,6 +127,8 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 
 int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 {
+	const struct cred *cred = current_cred(), *tcred;
+
 	/* May we inspect the given task?
 	 * This check is used both for attaching with ptrace
 	 * and for allowing access to sensitive information in /proc.
@@ -127,13 +141,19 @@ int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 	/* Don't let security modules deny introspection */
 	if (task == current)
 		return 0;
-	if (((current->uid != task->euid) ||
-	     (current->uid != task->suid) ||
-	     (current->uid != task->uid) ||
-	     (current->gid != task->egid) ||
-	     (current->gid != task->sgid) ||
-	     (current->gid != task->gid)) && !capable(CAP_SYS_PTRACE))
+	rcu_read_lock();
+	tcred = __task_cred(task);
+	if ((cred->uid != tcred->euid ||
+	     cred->uid != tcred->suid ||
+	     cred->uid != tcred->uid  ||
+	     cred->gid != tcred->egid ||
+	     cred->gid != tcred->sgid ||
+	     cred->gid != tcred->gid) &&
+	    !capable(CAP_SYS_PTRACE)) {
+		rcu_read_unlock();
 		return -EPERM;
+	}
+	rcu_read_unlock();
 	smp_rmb();
 	if (task->mm)
 		dumpable = get_dumpable(task->mm);
@@ -163,6 +183,14 @@ int ptrace_attach(struct task_struct *task)
 	if (same_thread_group(task, current))
 		goto out;
 
+	/* Protect exec's credential calculations against our interference;
+	 * SUID, SGID and LSM creds get determined differently under ptrace.
+	 */
+	retval = mutex_lock_interruptible(&current->cred_exec_mutex);
+	if (retval  < 0)
+		goto out;
+
+	retval = -EPERM;
 repeat:
 	/*
 	 * Nasty, nasty.
@@ -202,6 +230,7 @@ repeat:
 bad:
 	write_unlock_irqrestore(&tasklist_lock, flags);
 	task_unlock(task);
+	mutex_unlock(&current->cred_exec_mutex);
 out:
 	return retval;
 }
@@ -612,7 +641,7 @@ int generic_ptrace_pokedata(struct task_struct *tsk, long addr, long data)
 	return (copied == sizeof(data)) ? 0 : -EIO;
 }
 
-#if defined CONFIG_COMPAT && defined __ARCH_WANT_COMPAT_SYS_PTRACE
+#if defined CONFIG_COMPAT
 #include <linux/compat.h>
 
 int compat_ptrace_request(struct task_struct *child, compat_long_t request,
@@ -709,4 +738,4 @@ asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
 	unlock_kernel();
 	return ret;
 }
-#endif	/* CONFIG_COMPAT && __ARCH_WANT_COMPAT_SYS_PTRACE */
+#endif	/* CONFIG_COMPAT */

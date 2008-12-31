@@ -333,9 +333,7 @@ static int match_name(struct device *dev, void *data)
 {
 	const char *name = data;
 
-	if (strcmp(name, dev->bus_id) == 0)
-		return 1;
-	return 0;
+	return sysfs_streq(name, dev->bus_id);
 }
 
 /**
@@ -981,6 +979,56 @@ struct klist *bus_get_device_klist(struct bus_type *bus)
 	return &bus->p->klist_devices;
 }
 EXPORT_SYMBOL_GPL(bus_get_device_klist);
+
+/*
+ * Yes, this forcably breaks the klist abstraction temporarily.  It
+ * just wants to sort the klist, not change reference counts and
+ * take/drop locks rapidly in the process.  It does all this while
+ * holding the lock for the list, so objects can't otherwise be
+ * added/removed while we're swizzling.
+ */
+static void device_insertion_sort_klist(struct device *a, struct list_head *list,
+					int (*compare)(const struct device *a,
+							const struct device *b))
+{
+	struct list_head *pos;
+	struct klist_node *n;
+	struct device *b;
+
+	list_for_each(pos, list) {
+		n = container_of(pos, struct klist_node, n_node);
+		b = container_of(n, struct device, knode_bus);
+		if (compare(a, b) <= 0) {
+			list_move_tail(&a->knode_bus.n_node,
+				       &b->knode_bus.n_node);
+			return;
+		}
+	}
+	list_move_tail(&a->knode_bus.n_node, list);
+}
+
+void bus_sort_breadthfirst(struct bus_type *bus,
+			   int (*compare)(const struct device *a,
+					  const struct device *b))
+{
+	LIST_HEAD(sorted_devices);
+	struct list_head *pos, *tmp;
+	struct klist_node *n;
+	struct device *dev;
+	struct klist *device_klist;
+
+	device_klist = bus_get_device_klist(bus);
+
+	spin_lock(&device_klist->k_lock);
+	list_for_each_safe(pos, tmp, &device_klist->k_list) {
+		n = container_of(pos, struct klist_node, n_node);
+		dev = container_of(n, struct device, knode_bus);
+		device_insertion_sort_klist(dev, &sorted_devices, compare);
+	}
+	list_splice(&sorted_devices, &device_klist->k_list);
+	spin_unlock(&device_klist->k_lock);
+}
+EXPORT_SYMBOL_GPL(bus_sort_breadthfirst);
 
 int __init buses_init(void)
 {

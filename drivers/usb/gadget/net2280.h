@@ -109,6 +109,7 @@ struct net2280_ep {
 						in_fifo_validate : 1,
 						out_overflow : 1,
 						stopped : 1,
+						wedged : 1,
 						is_in : 1,
 						is_iso : 1,
 						responded : 1;

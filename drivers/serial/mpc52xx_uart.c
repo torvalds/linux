@@ -72,13 +72,8 @@
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-
-#if defined(CONFIG_PPC_MERGE)
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#else
-#include <linux/platform_device.h>
-#endif
 
 #include <asm/mpc52xx.h>
 #include <asm/mpc512x.h>
@@ -107,12 +102,11 @@ static struct uart_port mpc52xx_uart_ports[MPC52xx_PSC_MAXNUM];
 	 *        it's cleared, then a memset(...,0,...) should be added to
 	 *        the console_init
 	 */
-#if defined(CONFIG_PPC_MERGE)
+
 /* lookup table for matching device nodes to index numbers */
 static struct device_node *mpc52xx_uart_nodes[MPC52xx_PSC_MAXNUM];
 
 static void mpc52xx_uart_of_enumerate(void);
-#endif
 
 
 #define PSC(port) ((struct mpc52xx_psc __iomem *)((port)->membase))
@@ -255,17 +249,12 @@ static void mpc52xx_psc_cw_restore_ints(struct uart_port *port)
 /* Search for bus-frequency property in this node or a parent */
 static unsigned long mpc52xx_getuartclk(void *p)
 {
-#if defined(CONFIG_PPC_MERGE)
 	/*
 	 * 5200 UARTs have a / 32 prescaler
 	 * but the generic serial code assumes 16
 	 * so return ipb freq / 2
 	 */
 	return mpc52xx_find_ipb_freq(p) / 2;
-#else
-	pr_debug("unexpected call to mpc52xx_getuartclk with arch/ppc\n");
-	return NULL;
-#endif
 }
 
 static struct psc_ops mpc52xx_psc_ops = {
@@ -440,14 +429,24 @@ mpc52xx_uart_tx_empty(struct uart_port *port)
 static void
 mpc52xx_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* Not implemented */
+	if (mctrl & TIOCM_RTS)
+		out_8(&PSC(port)->op1, MPC52xx_PSC_OP_RTS);
+	else
+		out_8(&PSC(port)->op0, MPC52xx_PSC_OP_RTS);
 }
 
 static unsigned int
 mpc52xx_uart_get_mctrl(struct uart_port *port)
 {
-	/* Not implemented */
-	return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
+	unsigned int ret = TIOCM_DSR;
+	u8 status = in_8(&PSC(port)->mpc52xx_psc_ipcr);
+
+	if (!(status & MPC52xx_PSC_CTS))
+		ret |= TIOCM_CTS;
+	if (!(status & MPC52xx_PSC_DCD))
+		ret |= TIOCM_CAR;
+
+	return ret;
 }
 
 static void
@@ -490,7 +489,15 @@ mpc52xx_uart_stop_rx(struct uart_port *port)
 static void
 mpc52xx_uart_enable_ms(struct uart_port *port)
 {
-	/* Not implemented */
+	struct mpc52xx_psc __iomem *psc = PSC(port);
+
+	/* clear D_*-bits by reading them */
+	in_8(&psc->mpc52xx_psc_ipcr);
+	/* enable CTS and DCD as IPC interrupts */
+	out_8(&psc->mpc52xx_psc_acr, MPC52xx_PSC_IEC_CTS | MPC52xx_PSC_IEC_DCD);
+
+	port->read_status_mask |= MPC52xx_PSC_IMR_IPC;
+	out_be16(&psc->mpc52xx_psc_imr, port->read_status_mask);
 }
 
 static void
@@ -591,6 +598,10 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 			MPC52xx_PSC_MODE_ONE_STOP_5_BITS :
 			MPC52xx_PSC_MODE_ONE_STOP;
 
+	if (new->c_cflag & CRTSCTS) {
+		mr1 |= MPC52xx_PSC_MODE_RXRTS;
+		mr2 |= MPC52xx_PSC_MODE_TXCTS;
+	}
 
 	baud = uart_get_baud_rate(port, new, old, 0, port->uartclk/16);
 	quot = uart_get_divisor(port, baud);
@@ -602,8 +613,8 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	/* Update the per-port timeout */
 	uart_update_timeout(port, new->c_cflag, baud);
 
-	/* Do our best to flush TX & RX, so we don't loose anything */
-	/* But we don't wait indefinitly ! */
+	/* Do our best to flush TX & RX, so we don't lose anything */
+	/* But we don't wait indefinitely ! */
 	j = 5000000;	/* Maximum wait */
 	/* FIXME Can't receive chars since set_termios might be called at early
 	 * boot for the console, all stuff is not yet ready to receive at that
@@ -627,6 +638,9 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	out_8(&psc->mode, mr2);
 	out_8(&psc->ctur, ctr >> 8);
 	out_8(&psc->ctlr, ctr & 0xff);
+
+	if (UART_ENABLE_MS(port, new->c_cflag))
+		mpc52xx_uart_enable_ms(port);
 
 	/* Reenable TX & RX */
 	out_8(&psc->command, MPC52xx_PSC_TX_ENABLE);
@@ -763,10 +777,15 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 			if (status & MPC52xx_PSC_SR_RB) {
 				flag = TTY_BREAK;
 				uart_handle_break(port);
-			} else if (status & MPC52xx_PSC_SR_PE)
+				port->icount.brk++;
+			} else if (status & MPC52xx_PSC_SR_PE) {
 				flag = TTY_PARITY;
-			else if (status & MPC52xx_PSC_SR_FE)
+				port->icount.parity++;
+			}
+			else if (status & MPC52xx_PSC_SR_FE) {
 				flag = TTY_FRAME;
+				port->icount.frame++;
+			}
 
 			/* Clear error condition */
 			out_8(&PSC(port)->command, MPC52xx_PSC_RST_ERR_STAT);
@@ -780,6 +799,7 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 			 * affect the current character
 			 */
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			port->icount.overrun++;
 		}
 	}
 
@@ -837,6 +857,7 @@ mpc52xx_uart_int(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	unsigned long pass = ISR_PASS_LIMIT;
 	unsigned int keepgoing;
+	u8 status;
 
 	spin_lock(&port->lock);
 
@@ -852,6 +873,13 @@ mpc52xx_uart_int(int irq, void *dev_id)
 		psc_ops->tx_clr_irq(port);
 		if (psc_ops->tx_rdy(port))
 			keepgoing |= mpc52xx_uart_int_tx_chars(port);
+
+		status = in_8(&PSC(port)->mpc52xx_psc_ipcr);
+		if (status & MPC52xx_PSC_D_DCD)
+			uart_handle_dcd_change(port, !(status & MPC52xx_PSC_DCD));
+
+		if (status & MPC52xx_PSC_D_CTS)
+			uart_handle_cts_change(port, !(status & MPC52xx_PSC_CTS));
 
 		/* Limit number of iteration */
 		if (!(--pass))
@@ -886,10 +914,6 @@ mpc52xx_console_get_options(struct uart_port *port,
 
 	/* CT{U,L}R are write-only ! */
 	*baud = CONFIG_SERIAL_MPC52xx_CONSOLE_BAUD;
-#if !defined(CONFIG_PPC_MERGE)
-	if (__res.bi_baudrate)
-		*baud = __res.bi_baudrate;
-#endif
 
 	/* Parse them */
 	switch (mr1 & MPC52xx_PSC_MODE_BITS_MASK) {
@@ -946,42 +970,6 @@ mpc52xx_console_write(struct console *co, const char *s, unsigned int count)
 	psc_ops->cw_restore_ints(port);
 }
 
-#if !defined(CONFIG_PPC_MERGE)
-static int __init
-mpc52xx_console_setup(struct console *co, char *options)
-{
-	struct uart_port *port = &mpc52xx_uart_ports[co->index];
-
-	int baud = CONFIG_SERIAL_MPC52xx_CONSOLE_BAUD;
-	int bits = 8;
-	int parity = 'n';
-	int flow = 'n';
-
-	if (co->index < 0 || co->index >= MPC52xx_PSC_MAXNUM)
-		return -EINVAL;
-
-	/* Basic port init. Needed since we use some uart_??? func before
-	 * real init for early access */
-	spin_lock_init(&port->lock);
-	port->uartclk	= __res.bi_ipbfreq / 2; /* Look at CTLR doc */
-	port->ops	= &mpc52xx_uart_ops;
-	port->mapbase	= MPC52xx_PA(MPC52xx_PSCx_OFFSET(co->index+1));
-
-	/* We ioremap ourself */
-	port->membase = ioremap(port->mapbase, MPC52xx_PSC_SIZE);
-	if (port->membase == NULL)
-		return -EINVAL;
-
-	/* Setup the port parameters accoding to options */
-	if (options)
-		uart_parse_options(options, &baud, &parity, &bits, &flow);
-	else
-		mpc52xx_console_get_options(port, &baud, &parity, &bits, &flow);
-
-	return uart_set_options(port, co, baud, parity, bits, flow);
-}
-
-#else
 
 static int __init
 mpc52xx_console_setup(struct console *co, char *options)
@@ -1053,7 +1041,6 @@ mpc52xx_console_setup(struct console *co, char *options)
 
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
-#endif /* defined(CONFIG_PPC_MERGE) */
 
 
 static struct uart_driver mpc52xx_uart_driver;
@@ -1072,9 +1059,7 @@ static struct console mpc52xx_console = {
 static int __init
 mpc52xx_console_init(void)
 {
-#if defined(CONFIG_PPC_MERGE)
 	mpc52xx_uart_of_enumerate();
-#endif
 	register_console(&mpc52xx_console);
 	return 0;
 }
@@ -1100,115 +1085,6 @@ static struct uart_driver mpc52xx_uart_driver = {
 	.cons		= MPC52xx_PSC_CONSOLE,
 };
 
-
-#if !defined(CONFIG_PPC_MERGE)
-/* ======================================================================== */
-/* Platform Driver                                                          */
-/* ======================================================================== */
-
-static int __devinit
-mpc52xx_uart_probe(struct platform_device *dev)
-{
-	struct resource *res = dev->resource;
-
-	struct uart_port *port = NULL;
-	int i, idx, ret;
-
-	/* Check validity & presence */
-	idx = dev->id;
-	if (idx < 0 || idx >= MPC52xx_PSC_MAXNUM)
-		return -EINVAL;
-
-	if (!mpc52xx_match_psc_function(idx, "uart"))
-		return -ENODEV;
-
-	/* Init the port structure */
-	port = &mpc52xx_uart_ports[idx];
-
-	spin_lock_init(&port->lock);
-	port->uartclk	= __res.bi_ipbfreq / 2; /* Look at CTLR doc */
-	port->fifosize	= 512;
-	port->iotype	= UPIO_MEM;
-	port->flags	= UPF_BOOT_AUTOCONF |
-			  (uart_console(port) ? 0 : UPF_IOREMAP);
-	port->line	= idx;
-	port->ops	= &mpc52xx_uart_ops;
-	port->dev	= &dev->dev;
-
-	/* Search for IRQ and mapbase */
-	for (i = 0 ; i < dev->num_resources ; i++, res++) {
-		if (res->flags & IORESOURCE_MEM)
-			port->mapbase = res->start;
-		else if (res->flags & IORESOURCE_IRQ)
-			port->irq = res->start;
-	}
-	if (!port->irq || !port->mapbase)
-		return -EINVAL;
-
-	/* Add the port to the uart sub-system */
-	ret = uart_add_one_port(&mpc52xx_uart_driver, port);
-	if (!ret)
-		platform_set_drvdata(dev, (void *)port);
-
-	return ret;
-}
-
-static int
-mpc52xx_uart_remove(struct platform_device *dev)
-{
-	struct uart_port *port = (struct uart_port *) platform_get_drvdata(dev);
-
-	platform_set_drvdata(dev, NULL);
-
-	if (port)
-		uart_remove_one_port(&mpc52xx_uart_driver, port);
-
-	return 0;
-}
-
-#ifdef CONFIG_PM
-static int
-mpc52xx_uart_suspend(struct platform_device *dev, pm_message_t state)
-{
-	struct uart_port *port = (struct uart_port *) platform_get_drvdata(dev);
-
-	if (port)
-		uart_suspend_port(&mpc52xx_uart_driver, port);
-
-	return 0;
-}
-
-static int
-mpc52xx_uart_resume(struct platform_device *dev)
-{
-	struct uart_port *port = (struct uart_port *) platform_get_drvdata(dev);
-
-	if (port)
-		uart_resume_port(&mpc52xx_uart_driver, port);
-
-	return 0;
-}
-#endif
-
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:mpc52xx-psc");
-
-static struct platform_driver mpc52xx_uart_platform_driver = {
-	.probe		= mpc52xx_uart_probe,
-	.remove		= mpc52xx_uart_remove,
-#ifdef CONFIG_PM
-	.suspend	= mpc52xx_uart_suspend,
-	.resume		= mpc52xx_uart_resume,
-#endif
-	.driver		= {
-		.owner	= THIS_MODULE,
-		.name	= "mpc52xx-psc",
-	},
-};
-#endif /* !defined(CONFIG_PPC_MERGE) */
-
-
-#if defined(CONFIG_PPC_MERGE)
 /* ======================================================================== */
 /* OF Platform Driver                                                       */
 /* ======================================================================== */
@@ -1272,22 +1148,29 @@ mpc52xx_uart_of_probe(struct of_device *op, const struct of_device_id *match)
 		return ret;
 
 	port->mapbase = res.start;
+	if (!port->mapbase) {
+		dev_dbg(&op->dev, "Could not allocate resources for PSC\n");
+		return -EINVAL;
+	}
+
 	port->irq = irq_of_parse_and_map(op->node, 0);
+	if (port->irq == NO_IRQ) {
+		dev_dbg(&op->dev, "Could not get irq\n");
+		return -EINVAL;
+	}
 
 	dev_dbg(&op->dev, "mpc52xx-psc uart at %p, irq=%x, freq=%i\n",
 		(void *)port->mapbase, port->irq, port->uartclk);
 
-	if ((port->irq == NO_IRQ) || !port->mapbase) {
-		printk(KERN_ERR "Could not allocate resources for PSC\n");
-		return -EINVAL;
-	}
-
 	/* Add the port to the uart sub-system */
 	ret = uart_add_one_port(&mpc52xx_uart_driver, port);
-	if (!ret)
-		dev_set_drvdata(&op->dev, (void *)port);
+	if (ret) {
+		irq_dispose_mapping(port->irq);
+		return ret;
+	}
 
-	return ret;
+	dev_set_drvdata(&op->dev, (void *)port);
+	return 0;
 }
 
 static int
@@ -1402,7 +1285,6 @@ static struct of_platform_driver mpc52xx_uart_of_driver = {
 		.name	= "mpc52xx-psc-uart",
 	},
 };
-#endif /* defined(CONFIG_PPC_MERGE) */
 
 
 /* ======================================================================== */
@@ -1423,7 +1305,6 @@ mpc52xx_uart_init(void)
 		return ret;
 	}
 
-#if defined(CONFIG_PPC_MERGE)
 	mpc52xx_uart_of_enumerate();
 
 	ret = of_register_platform_driver(&mpc52xx_uart_of_driver);
@@ -1433,16 +1314,6 @@ mpc52xx_uart_init(void)
 		uart_unregister_driver(&mpc52xx_uart_driver);
 		return ret;
 	}
-#else
-	psc_ops = &mpc52xx_psc_ops;
-	ret = platform_driver_register(&mpc52xx_uart_platform_driver);
-	if (ret) {
-		printk(KERN_ERR "%s: platform_driver_register failed (%i)\n",
-		       __FILE__, ret);
-		uart_unregister_driver(&mpc52xx_uart_driver);
-		return ret;
-	}
-#endif
 
 	return 0;
 }
@@ -1450,11 +1321,7 @@ mpc52xx_uart_init(void)
 static void __exit
 mpc52xx_uart_exit(void)
 {
-#if defined(CONFIG_PPC_MERGE)
 	of_unregister_platform_driver(&mpc52xx_uart_of_driver);
-#else
-	platform_driver_unregister(&mpc52xx_uart_platform_driver);
-#endif
 	uart_unregister_driver(&mpc52xx_uart_driver);
 }
 

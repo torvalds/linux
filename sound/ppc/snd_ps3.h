@@ -51,6 +51,7 @@ struct snd_ps3_avsetting_info {
 	uint32_t avs_audio_width;
 	uint32_t avs_audio_format; /* fixed */
 	uint32_t avs_audio_source; /* fixed */
+	unsigned char avs_cs_info[8];
 };
 /*
  * PS3 audio 'card' instance

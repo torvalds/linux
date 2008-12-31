@@ -53,6 +53,7 @@ enum radeon_family {
 	CHIP_FAMILY_RV380,    /* RV370/RV380/M22/M24 */
 	CHIP_FAMILY_R420,     /* R420/R423/M18 */
 	CHIP_FAMILY_RC410,
+	CHIP_FAMILY_RS400,
 	CHIP_FAMILY_RS480,
 	CHIP_FAMILY_LAST,
 };
@@ -533,22 +534,6 @@ static inline u32 radeon_get_dstbpp(u16 depth)
 /*
  * 2D Engine helper routines
  */
-static inline void radeon_engine_flush (struct radeonfb_info *rinfo)
-{
-	int i;
-
-	/* initiate flush */
-	OUTREGP(RB2D_DSTCACHE_CTLSTAT, RB2D_DC_FLUSH_ALL,
-	        ~RB2D_DC_FLUSH_ALL);
-
-	for (i=0; i < 2000000; i++) {
-		if (!(INREG(RB2D_DSTCACHE_CTLSTAT) & RB2D_DC_BUSY))
-			return;
-		udelay(1);
-	}
-	printk(KERN_ERR "radeonfb: Flush Timeout !\n");
-}
-
 
 static inline void _radeon_fifo_wait(struct radeonfb_info *rinfo, int entries)
 {
@@ -560,6 +545,28 @@ static inline void _radeon_fifo_wait(struct radeonfb_info *rinfo, int entries)
 		udelay(1);
 	}
 	printk(KERN_ERR "radeonfb: FIFO Timeout !\n");
+}
+
+static inline void radeon_engine_flush (struct radeonfb_info *rinfo)
+{
+	int i;
+
+	/* Initiate flush */
+	OUTREGP(DSTCACHE_CTLSTAT, RB2D_DC_FLUSH_ALL,
+	        ~RB2D_DC_FLUSH_ALL);
+
+	/* Ensure FIFO is empty, ie, make sure the flush commands
+	 * has reached the cache
+	 */
+	_radeon_fifo_wait (rinfo, 64);
+
+	/* Wait for the flush to complete */
+	for (i=0; i < 2000000; i++) {
+		if (!(INREG(DSTCACHE_CTLSTAT) & RB2D_DC_BUSY))
+			return;
+		udelay(1);
+	}
+	printk(KERN_ERR "radeonfb: Flush Timeout !\n");
 }
 
 

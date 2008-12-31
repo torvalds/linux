@@ -16,11 +16,11 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/time.h>
-#include <linux/msdos_fs.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/compat.h>
 #include <asm/uaccess.h>
+#include "fat.h"
 
 static inline loff_t fat_make_i_pos(struct super_block *sb,
 				    struct buffer_head *bh,
@@ -77,7 +77,7 @@ next:
 
 	*bh = NULL;
 	iblock = *pos >> sb->s_blocksize_bits;
-	err = fat_bmap(dir, iblock, &phys, &mapped_blocks);
+	err = fat_bmap(dir, iblock, &phys, &mapped_blocks, 0);
 	if (err || !phys)
 		return -1;	/* beyond EOF or error */
 
@@ -86,7 +86,7 @@ next:
 	*bh = sb_bread(sb, phys);
 	if (*bh == NULL) {
 		printk(KERN_ERR "FAT: Directory bread(block %llu) failed\n",
-		       (unsigned long long)phys);
+		       (llu)phys);
 		/* skip this block */
 		*pos = (iblock + 1) << sb->s_blocksize_bits;
 		goto next;
@@ -373,9 +373,10 @@ parse_record:
 		if (de->attr == ATTR_EXT) {
 			int status = fat_parse_long(inode, &cpos, &bh, &de,
 						    &unicode, &nr_slots);
-			if (status < 0)
-				return status;
-			else if (status == PARSE_INVALID)
+			if (status < 0) {
+				err = status;
+				goto end_of_dir;
+			} else if (status == PARSE_INVALID)
 				continue;
 			else if (status == PARSE_NOT_LONGNAME)
 				goto parse_record;
@@ -832,6 +833,7 @@ static long fat_compat_dir_ioctl(struct file *filp, unsigned cmd,
 #endif /* CONFIG_COMPAT */
 
 const struct file_operations fat_dir_operations = {
+	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= fat_readdir,
 	.ioctl		= fat_dir_ioctl,
@@ -839,6 +841,7 @@ const struct file_operations fat_dir_operations = {
 	.compat_ioctl	= fat_compat_dir_ioctl,
 #endif
 	.fsync		= file_fsync,
+	.llseek		= generic_file_llseek,
 };
 
 static int fat_get_short_entry(struct inode *dir, loff_t *pos,
@@ -1088,6 +1091,7 @@ int fat_alloc_new_dir(struct inode *dir, struct timespec *ts)
 	struct msdos_dir_entry *de;
 	sector_t blknr;
 	__le16 date, time;
+	u8 time_cs;
 	int err, cluster;
 
 	err = fat_alloc_clusters(dir, &cluster, 1);
@@ -1101,7 +1105,7 @@ int fat_alloc_new_dir(struct inode *dir, struct timespec *ts)
 		goto error_free;
 	}
 
-	fat_date_unix2dos(ts->tv_sec, &time, &date, sbi->options.tz_utc);
+	fat_time_unix2fat(sbi, ts, &time, &date, &time_cs);
 
 	de = (struct msdos_dir_entry *)bhs[0]->b_data;
 	/* filling the new directory slots ("." and ".." entries) */
@@ -1111,13 +1115,14 @@ int fat_alloc_new_dir(struct inode *dir, struct timespec *ts)
 	de[0].lcase = de[1].lcase = 0;
 	de[0].time = de[1].time = time;
 	de[0].date = de[1].date = date;
-	de[0].ctime_cs = de[1].ctime_cs = 0;
 	if (sbi->options.isvfat) {
 		/* extra timestamps */
 		de[0].ctime = de[1].ctime = time;
+		de[0].ctime_cs = de[1].ctime_cs = time_cs;
 		de[0].adate = de[0].cdate = de[1].adate = de[1].cdate = date;
 	} else {
 		de[0].ctime = de[1].ctime = 0;
+		de[0].ctime_cs = de[1].ctime_cs = 0;
 		de[0].adate = de[0].cdate = de[1].adate = de[1].cdate = 0;
 	}
 	de[0].start = cpu_to_le16(cluster);

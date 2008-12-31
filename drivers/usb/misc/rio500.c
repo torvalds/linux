@@ -89,7 +89,7 @@ static int open_rio(struct inode *inode, struct file *file)
 
 	mutex_unlock(&(rio->lock));
 
-	info("Rio opened.");
+	dev_info(&rio->rio_dev->dev, "Rio opened.\n");
 
 	return 0;
 }
@@ -100,7 +100,7 @@ static int close_rio(struct inode *inode, struct file *file)
 
 	rio->isopen = 0;
 
-	info("Rio closed.");
+	dev_info(&rio->rio_dev->dev, "Rio closed.\n");
 	return 0;
 }
 
@@ -451,7 +451,7 @@ static int probe_rio(struct usb_interface *intf,
 	struct rio_usb_data *rio = &rio_instance;
 	int retval;
 
-	info("USB Rio found at address %d", dev->devnum);
+	dev_info(&intf->dev, "USB Rio found at address %d\n", dev->devnum);
 
 	retval = usb_register_dev(intf, &usb_rio_class);
 	if (retval) {
@@ -503,7 +503,7 @@ static void disconnect_rio(struct usb_interface *intf)
 		kfree(rio->ibuf);
 		kfree(rio->obuf);
 
-		info("USB Rio disconnected.");
+		dev_info(&intf->dev, "USB Rio disconnected.\n");
 
 		rio->present = 0;
 		mutex_unlock(&(rio->lock));
@@ -531,7 +531,8 @@ static int __init usb_rio_init(void)
 	if (retval)
 		goto out;
 
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 out:
 	return retval;

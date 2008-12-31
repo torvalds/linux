@@ -525,6 +525,7 @@ typedef u32 acpi_event_status;
 #define ACPI_EVENT_FLAG_ENABLED         (acpi_event_status) 0x01
 #define ACPI_EVENT_FLAG_WAKE_ENABLED    (acpi_event_status) 0x02
 #define ACPI_EVENT_FLAG_SET             (acpi_event_status) 0x04
+#define ACPI_EVENT_FLAG_HANDLE		(acpi_event_status) 0x08
 
 /*
  * General Purpose Events (GPE)
@@ -607,8 +608,15 @@ typedef u8 acpi_adr_space_type;
 
 /*
  * bit_register IDs
- * These are bitfields defined within the full ACPI registers
+ *
+ * These values are intended to be used by the hardware interfaces
+ * and are mapped to individual bitfields defined within the ACPI
+ * registers. See the acpi_gbl_bit_register_info global table in utglobal.c
+ * for this mapping.
  */
+
+/* PM1 Status register */
+
 #define ACPI_BITREG_TIMER_STATUS                0x00
 #define ACPI_BITREG_BUS_MASTER_STATUS           0x01
 #define ACPI_BITREG_GLOBAL_LOCK_STATUS          0x02
@@ -618,24 +626,29 @@ typedef u8 acpi_adr_space_type;
 #define ACPI_BITREG_WAKE_STATUS                 0x06
 #define ACPI_BITREG_PCIEXP_WAKE_STATUS          0x07
 
+/* PM1 Enable register */
+
 #define ACPI_BITREG_TIMER_ENABLE                0x08
 #define ACPI_BITREG_GLOBAL_LOCK_ENABLE          0x09
 #define ACPI_BITREG_POWER_BUTTON_ENABLE         0x0A
 #define ACPI_BITREG_SLEEP_BUTTON_ENABLE         0x0B
 #define ACPI_BITREG_RT_CLOCK_ENABLE             0x0C
-#define ACPI_BITREG_WAKE_ENABLE                 0x0D
-#define ACPI_BITREG_PCIEXP_WAKE_DISABLE         0x0E
+#define ACPI_BITREG_PCIEXP_WAKE_DISABLE         0x0D
 
-#define ACPI_BITREG_SCI_ENABLE                  0x0F
-#define ACPI_BITREG_BUS_MASTER_RLD              0x10
-#define ACPI_BITREG_GLOBAL_LOCK_RELEASE         0x11
-#define ACPI_BITREG_SLEEP_TYPE_A                0x12
-#define ACPI_BITREG_SLEEP_TYPE_B                0x13
-#define ACPI_BITREG_SLEEP_ENABLE                0x14
+/* PM1 Control register */
 
-#define ACPI_BITREG_ARB_DISABLE                 0x15
+#define ACPI_BITREG_SCI_ENABLE                  0x0E
+#define ACPI_BITREG_BUS_MASTER_RLD              0x0F
+#define ACPI_BITREG_GLOBAL_LOCK_RELEASE         0x10
+#define ACPI_BITREG_SLEEP_TYPE_A                0x11
+#define ACPI_BITREG_SLEEP_TYPE_B                0x12
+#define ACPI_BITREG_SLEEP_ENABLE                0x13
 
-#define ACPI_BITREG_MAX                         0x15
+/* PM2 Control register */
+
+#define ACPI_BITREG_ARB_DISABLE                 0x14
+
+#define ACPI_BITREG_MAX                         0x14
 #define ACPI_NUM_BITREG                         ACPI_BITREG_MAX + 1
 
 /*
@@ -859,6 +872,7 @@ struct acpi_obj_info_header {
 struct acpi_device_info {
 	ACPI_COMMON_OBJ_INFO;
 
+	u32 param_count;	/* If a method, required parameter count */
 	u32 valid;		/* Indicates which fields below are valid */
 	u32 current_status;	/* _STA value */
 	acpi_integer address;	/* _ADR value if any */
@@ -1225,8 +1239,8 @@ struct acpi_resource {
 
 #pragma pack()
 
-#define ACPI_RS_SIZE_MIN                    12
 #define ACPI_RS_SIZE_NO_DATA                8	/* Id + Length fields */
+#define ACPI_RS_SIZE_MIN                    (u32) ACPI_ROUND_UP_TO_NATIVE_WORD (12)
 #define ACPI_RS_SIZE(type)                  (u32) (ACPI_RS_SIZE_NO_DATA + sizeof (type))
 
 #define ACPI_NEXT_RESOURCE(res)             (struct acpi_resource *)((u8 *) res + res->length)

@@ -70,7 +70,7 @@ static struct usb_interface_descriptor loopback_intf = {
 
 /* full speed support: */
 
-static struct usb_endpoint_descriptor fs_source_desc = {
+static struct usb_endpoint_descriptor fs_loop_source_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -78,7 +78,7 @@ static struct usb_endpoint_descriptor fs_source_desc = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_endpoint_descriptor fs_sink_desc = {
+static struct usb_endpoint_descriptor fs_loop_sink_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -88,14 +88,14 @@ static struct usb_endpoint_descriptor fs_sink_desc = {
 
 static struct usb_descriptor_header *fs_loopback_descs[] = {
 	(struct usb_descriptor_header *) &loopback_intf,
-	(struct usb_descriptor_header *) &fs_sink_desc,
-	(struct usb_descriptor_header *) &fs_source_desc,
+	(struct usb_descriptor_header *) &fs_loop_sink_desc,
+	(struct usb_descriptor_header *) &fs_loop_source_desc,
 	NULL,
 };
 
 /* high speed support: */
 
-static struct usb_endpoint_descriptor hs_source_desc = {
+static struct usb_endpoint_descriptor hs_loop_source_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -103,7 +103,7 @@ static struct usb_endpoint_descriptor hs_source_desc = {
 	.wMaxPacketSize =	__constant_cpu_to_le16(512),
 };
 
-static struct usb_endpoint_descriptor hs_sink_desc = {
+static struct usb_endpoint_descriptor hs_loop_sink_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -113,8 +113,8 @@ static struct usb_endpoint_descriptor hs_sink_desc = {
 
 static struct usb_descriptor_header *hs_loopback_descs[] = {
 	(struct usb_descriptor_header *) &loopback_intf,
-	(struct usb_descriptor_header *) &hs_source_desc,
-	(struct usb_descriptor_header *) &hs_sink_desc,
+	(struct usb_descriptor_header *) &hs_loop_source_desc,
+	(struct usb_descriptor_header *) &hs_loop_sink_desc,
 	NULL,
 };
 
@@ -152,7 +152,7 @@ loopback_bind(struct usb_configuration *c, struct usb_function *f)
 
 	/* allocate endpoints */
 
-	loop->in_ep = usb_ep_autoconfig(cdev->gadget, &fs_source_desc);
+	loop->in_ep = usb_ep_autoconfig(cdev->gadget, &fs_loop_source_desc);
 	if (!loop->in_ep) {
 autoconf_fail:
 		ERROR(cdev, "%s: can't autoconfigure on %s\n",
@@ -161,17 +161,17 @@ autoconf_fail:
 	}
 	loop->in_ep->driver_data = cdev;	/* claim */
 
-	loop->out_ep = usb_ep_autoconfig(cdev->gadget, &fs_sink_desc);
+	loop->out_ep = usb_ep_autoconfig(cdev->gadget, &fs_loop_sink_desc);
 	if (!loop->out_ep)
 		goto autoconf_fail;
 	loop->out_ep->driver_data = cdev;	/* claim */
 
 	/* support high speed hardware */
 	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		hs_source_desc.bEndpointAddress =
-				fs_source_desc.bEndpointAddress;
-		hs_sink_desc.bEndpointAddress =
-				fs_sink_desc.bEndpointAddress;
+		hs_loop_source_desc.bEndpointAddress =
+				fs_loop_source_desc.bEndpointAddress;
+		hs_loop_sink_desc.bEndpointAddress =
+				fs_loop_sink_desc.bEndpointAddress;
 		f->hs_descriptors = hs_loopback_descs;
 	}
 
@@ -255,8 +255,10 @@ enable_loopback(struct usb_composite_dev *cdev, struct f_loopback *loop)
 	struct usb_request			*req;
 	unsigned				i;
 
-	src = ep_choose(cdev->gadget, &hs_source_desc, &fs_source_desc);
-	sink = ep_choose(cdev->gadget, &hs_sink_desc, &fs_sink_desc);
+	src = ep_choose(cdev->gadget,
+			&hs_loop_source_desc, &fs_loop_source_desc);
+	sink = ep_choose(cdev->gadget,
+			&hs_loop_sink_desc, &fs_loop_sink_desc);
 
 	/* one endpoint writes data back IN to the host */
 	ep = loop->in_ep;
@@ -350,7 +352,6 @@ static struct usb_configuration loopback_driver = {
 	.bind		= loopback_bind_config,
 	.bConfigurationValue = 2,
 	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower	= 1,	/* 2 mA, minimal */
 	/* .iConfiguration = DYNAMIC */
 };
 

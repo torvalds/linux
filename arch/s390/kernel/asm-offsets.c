@@ -6,6 +6,7 @@
 
 #include <linux/sched.h>
 #include <linux/kbuild.h>
+#include <asm/vdso.h>
 
 int main(void)
 {
@@ -32,11 +33,25 @@ int main(void)
 	DEFINE(__PT_GPRS, offsetof(struct pt_regs, gprs));
 	DEFINE(__PT_ORIG_GPR2, offsetof(struct pt_regs, orig_gpr2));
 	DEFINE(__PT_ILC, offsetof(struct pt_regs, ilc));
-	DEFINE(__PT_TRAP, offsetof(struct pt_regs, trap));
+	DEFINE(__PT_SVCNR, offsetof(struct pt_regs, svcnr));
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
 	BLANK();
 	DEFINE(__SF_BACKCHAIN, offsetof(struct stack_frame, back_chain));
 	DEFINE(__SF_GPRS, offsetof(struct stack_frame, gprs));
 	DEFINE(__SF_EMPTY, offsetof(struct stack_frame, empty1));
+	BLANK();
+	/* timeval/timezone offsets for use by vdso */
+	DEFINE(__VDSO_UPD_COUNT, offsetof(struct vdso_data, tb_update_count));
+	DEFINE(__VDSO_XTIME_STAMP, offsetof(struct vdso_data, xtime_tod_stamp));
+	DEFINE(__VDSO_XTIME_SEC, offsetof(struct vdso_data, xtime_clock_sec));
+	DEFINE(__VDSO_XTIME_NSEC, offsetof(struct vdso_data, xtime_clock_nsec));
+	DEFINE(__VDSO_WTOM_SEC, offsetof(struct vdso_data, wtom_clock_sec));
+	DEFINE(__VDSO_WTOM_NSEC, offsetof(struct vdso_data, wtom_clock_nsec));
+	DEFINE(__VDSO_TIMEZONE, offsetof(struct vdso_data, tz_minuteswest));
+	/* constants used by the vdso */
+	DEFINE(CLOCK_REALTIME, CLOCK_REALTIME);
+	DEFINE(CLOCK_MONOTONIC, CLOCK_MONOTONIC);
+	DEFINE(CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
+
 	return 0;
 }

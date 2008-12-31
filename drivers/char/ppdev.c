@@ -760,9 +760,8 @@ static const struct file_operations pp_fops = {
 
 static void pp_attach(struct parport *port)
 {
-	device_create_drvdata(ppdev_class, port->dev,
-			      MKDEV(PP_MAJOR, port->number),
-			      NULL, "parport%d", port->number);
+	device_create(ppdev_class, port->dev, MKDEV(PP_MAJOR, port->number),
+		      NULL, "parport%d", port->number);
 }
 
 static void pp_detach(struct parport *port)

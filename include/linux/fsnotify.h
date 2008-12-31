@@ -188,7 +188,7 @@ static inline void fsnotify_close(struct file *file)
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	const char *name = dentry->d_name.name;
-	mode_t mode = file->f_mode;
+	fmode_t mode = file->f_mode;
 	u32 mask = (mode & FMODE_WRITE) ? IN_CLOSE_WRITE : IN_CLOSE_NOWRITE;
 
 	if (S_ISDIR(inode->i_mode))

@@ -554,14 +554,11 @@ typedef struct usb_ctlr {
 	u8	usb_usadr;
 	u8	usb_uscom;
 	u8	res1[1];
-	u16	usb_usep1;
-	u16	usb_usep2;
-	u16	usb_usep3;
-	u16	usb_usep4;
+	__be16  usb_usep[4];
 	u8	res2[4];
-	u16	usb_usber;
+	__be16  usb_usber;
 	u8	res3[2];
-	u16	usb_usbmr;
+	__be16  usb_usbmr;
 	u8	usb_usbs;
 	u8	res4[7];
 } usb_cpm2_t;

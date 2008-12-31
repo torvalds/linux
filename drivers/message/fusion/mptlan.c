@@ -77,12 +77,6 @@ MODULE_VERSION(my_VERSION);
  *  Fusion MPT LAN private structures
  */
 
-struct NAA_Hosed {
-	u16 NAA;
-	u8 ieee[FC_ALEN];
-	struct NAA_Hosed *next;
-};
-
 struct BufferControl {
 	struct sk_buff	*skb;
 	dma_addr_t	dma;
@@ -158,11 +152,6 @@ static u8 LanCtx = MPT_MAX_PROTOCOL_DRIVERS;
 
 static u32 max_buckets_out = 127;
 static u32 tx_max_out_p = 127 - 16;
-
-#ifdef QLOGIC_NAA_WORKAROUND
-static struct NAA_Hosed *mpt_bad_naa = NULL;
-DEFINE_RWLOCK(bad_naa_lock);
-#endif
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
@@ -780,30 +769,6 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 //			ctx, skb, skb->data));
 
 	mac = skb_mac_header(skb);
-#ifdef QLOGIC_NAA_WORKAROUND
-{
-	struct NAA_Hosed *nh;
-
-	/* Munge the NAA for Tx packets to QLogic boards, which don't follow
-	   RFC 2625. The longer I look at this, the more my opinion of Qlogic
-	   drops. */
-	read_lock_irq(&bad_naa_lock);
-	for (nh = mpt_bad_naa; nh != NULL; nh=nh->next) {
-		if ((nh->ieee[0] == mac[0]) &&
-		    (nh->ieee[1] == mac[1]) &&
-		    (nh->ieee[2] == mac[2]) &&
-		    (nh->ieee[3] == mac[3]) &&
-		    (nh->ieee[4] == mac[4]) &&
-		    (nh->ieee[5] == mac[5])) {
-			cur_naa = nh->NAA;
-			dlprintk ((KERN_INFO "mptlan/sdu_send: using NAA value "
-				  "= %04x.\n", cur_naa));
-			break;
-		}
-	}
-	read_unlock_irq(&bad_naa_lock);
-}
-#endif
 
 	pTrans->TransactionDetails[0] = cpu_to_le32((cur_naa         << 16) |
 						    (mac[0] <<  8) |
@@ -850,7 +815,7 @@ mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
  * @priority: 0 = put it on the timer queue, 1 = put it on the immediate queue
  */
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	
 	if (test_and_set_bit(0, &priv->post_buckets_active) == 0) {
 		if (priority) {
@@ -869,7 +834,7 @@ mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
 static int
 mpt_lan_receive_skb(struct net_device *dev, struct sk_buff *skb)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 
 	skb->protocol = mpt_lan_type_trans(skb, dev);
 
@@ -901,7 +866,7 @@ mpt_lan_receive_skb(struct net_device *dev, struct sk_buff *skb)
 static int
 mpt_lan_receive_post_turbo(struct net_device *dev, u32 tmsg)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
 	struct sk_buff *skb, *old_skb;
 	unsigned long flags;
@@ -956,7 +921,7 @@ static int
 mpt_lan_receive_post_free(struct net_device *dev,
 			  LANReceivePostReply_t *pRecvRep)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
 	unsigned long flags;
 	struct sk_buff *skb;
@@ -1011,7 +976,7 @@ static int
 mpt_lan_receive_post_reply(struct net_device *dev,
 			   LANReceivePostReply_t *pRecvRep)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
 	struct sk_buff *skb, *old_skb;
 	unsigned long flags;
@@ -1462,11 +1427,9 @@ mptlan_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(KERN_INFO MYNAM ": %s: Fusion MPT LAN device "
 		       "registered as '%s'\n", ioc->name, dev->name);
 		printk(KERN_INFO MYNAM ": %s/%s: "
-		       "LanAddr = %02X:%02X:%02X:%02X:%02X:%02X\n",
+		       "LanAddr = %pM\n",
 		       IOC_AND_NETDEV_NAMES_s_s(dev),
-		       dev->dev_addr[0], dev->dev_addr[1],
-		       dev->dev_addr[2], dev->dev_addr[3],
-		       dev->dev_addr[4], dev->dev_addr[5]);
+		       dev->dev_addr);
 	
 		ioc->netdev = dev;
 
@@ -1551,9 +1514,8 @@ mpt_lan_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 		printk (KERN_WARNING MYNAM ": %s: WARNING - Broadcast swap F/W bug detected!\n",
 				NETDEV_PTR_TO_IOC_NAME_s(dev));
-		printk (KERN_WARNING MYNAM ": Please update sender @ MAC_addr = %02x:%02x:%02x:%02x:%02x:%02x\n",
-				fch->saddr[0], fch->saddr[1], fch->saddr[2],
-				fch->saddr[3], fch->saddr[4], fch->saddr[5]);
+		printk (KERN_WARNING MYNAM ": Please update sender @ MAC_addr = %pM\n",
+				fch->saddr);
 	}
 
 	if (*fch->daddr & 1) {
@@ -1571,80 +1533,6 @@ mpt_lan_type_trans(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	fcllc = (struct fcllc *)skb->data;
-
-#ifdef QLOGIC_NAA_WORKAROUND
-{
-	u16 source_naa = fch->stype, found = 0;
-
-	/* Workaround for QLogic not following RFC 2625 in regards to the NAA
-	   value. */
-
-	if ((source_naa & 0xF000) == 0)
-		source_naa = swab16(source_naa);
-
-	if (fcllc->ethertype == htons(ETH_P_ARP))
-	    dlprintk ((KERN_INFO "mptlan/type_trans: got arp req/rep w/ naa of "
-		      "%04x.\n", source_naa));
-
-	if ((fcllc->ethertype == htons(ETH_P_ARP)) &&
-	   ((source_naa >> 12) !=  MPT_LAN_NAA_RFC2625)){
-		struct NAA_Hosed *nh, *prevnh;
-		int i;
-
-		dlprintk ((KERN_INFO "mptlan/type_trans: ARP Req/Rep from "
-			  "system with non-RFC 2625 NAA value (%04x).\n",
-			  source_naa));
-
-		write_lock_irq(&bad_naa_lock);
-		for (prevnh = nh = mpt_bad_naa; nh != NULL;
-		     prevnh=nh, nh=nh->next) {
-			if ((nh->ieee[0] == fch->saddr[0]) &&
-			    (nh->ieee[1] == fch->saddr[1]) &&
-			    (nh->ieee[2] == fch->saddr[2]) &&
-			    (nh->ieee[3] == fch->saddr[3]) &&
-			    (nh->ieee[4] == fch->saddr[4]) &&
-			    (nh->ieee[5] == fch->saddr[5])) {
-				found = 1;
-				dlprintk ((KERN_INFO "mptlan/type_trans: ARP Re"
-					 "q/Rep w/ bad NAA from system already"
-					 " in DB.\n"));
-				break;
-			}
-		}
-
-		if ((!found) && (nh == NULL)) {
-
-			nh = kmalloc(sizeof(struct NAA_Hosed), GFP_KERNEL);
-			dlprintk ((KERN_INFO "mptlan/type_trans: ARP Req/Rep w/"
-				 " bad NAA from system not yet in DB.\n"));
-
-			if (nh != NULL) {
-				nh->next = NULL;
-				if (!mpt_bad_naa)
-					mpt_bad_naa = nh;
-				if (prevnh)
-					prevnh->next = nh;
-
-				nh->NAA = source_naa; /* Set the S_NAA value. */
-				for (i = 0; i < FC_ALEN; i++)
-					nh->ieee[i] = fch->saddr[i];
-				dlprintk ((KERN_INFO "Got ARP from %02x:%02x:%02x:%02x:"
-					  "%02x:%02x with non-compliant S_NAA value.\n",
-					  fch->saddr[0], fch->saddr[1], fch->saddr[2],
-					  fch->saddr[3], fch->saddr[4],fch->saddr[5]));
-			} else {
-				printk (KERN_ERR "mptlan/type_trans: Unable to"
-					" kmalloc a NAA_Hosed struct.\n");
-			}
-		} else if (!found) {
-			printk (KERN_ERR "mptlan/type_trans: found not"
-				" set, but nh isn't null. Evil "
-				"funkiness abounds.\n");
-		}
-		write_unlock_irq(&bad_naa_lock);
-	}
-}
-#endif
 
 	/* Strip the SNAP header from ARP packets since we don't
 	 * pass them through to the 802.2/SNAP layers.

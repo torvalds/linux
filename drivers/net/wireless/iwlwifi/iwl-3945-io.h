@@ -21,7 +21,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -53,7 +53,7 @@
  * _iwl3945_read32.)
  *
  * These declarations are *extremely* useful in quickly isolating code deltas
- * which result in misconfiguring of the hardware I/O.  In combination with
+ * which result in misconfiguration of the hardware I/O.  In combination with
  * git-bisect and the IO debug level you can quickly determine the specific
  * commit which breaks the IO sequence to the hardware.
  *
@@ -93,7 +93,7 @@ static inline int _iwl3945_poll_bit(struct iwl3945_priv *priv, u32 addr,
 	do {
 		if ((_iwl3945_read32(priv, addr) & mask) == (bits & mask))
 			return i;
-		mdelay(10);
+		udelay(10);
 		i += 10;
 	} while (i < timeout);
 
@@ -107,7 +107,7 @@ static inline int __iwl3945_poll_bit(const char *f, u32 l,
 	int ret = _iwl3945_poll_bit(priv, addr, bits, mask, timeout);
 	IWL_DEBUG_IO("poll_bit(0x%08X, 0x%08X, 0x%08X) - %s- %s %d\n",
 		      addr, bits, mask,
-		      unlikely(ret  == -ETIMEDOUT)?"timeout":"", f, l);
+		      unlikely(ret  == -ETIMEDOUT) ? "timeout" : "", f, l);
 	return ret;
 }
 #define iwl3945_poll_bit(priv, addr, bits, mask, timeout) \
@@ -271,16 +271,7 @@ static inline void iwl3945_write_reg_buf(struct iwl3945_priv *priv,
 static inline int _iwl3945_poll_direct_bit(struct iwl3945_priv *priv,
 					   u32 addr, u32 mask, int timeout)
 {
-	int i = 0;
-
-	do {
-		if ((_iwl3945_read_direct32(priv, addr) & mask) == mask)
-			return i;
-		mdelay(10);
-		i += 10;
-	} while (i < timeout);
-
-	return -ETIMEDOUT;
+	return _iwl3945_poll_bit(priv, addr, mask, mask, timeout);
 }
 
 #ifdef CONFIG_IWL3945_DEBUG
@@ -307,6 +298,7 @@ static inline int __iwl3945_poll_direct_bit(const char *f, u32 l,
 static inline u32 _iwl3945_read_prph(struct iwl3945_priv *priv, u32 reg)
 {
 	_iwl3945_write_direct32(priv, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
+	rmb();
 	return _iwl3945_read_direct32(priv, HBUS_TARG_PRPH_RDAT);
 }
 #ifdef CONFIG_IWL3945_DEBUG
@@ -328,6 +320,7 @@ static inline void _iwl3945_write_prph(struct iwl3945_priv *priv,
 {
 	_iwl3945_write_direct32(priv, HBUS_TARG_PRPH_WADDR,
 			      ((addr & 0x0000FFFF) | (3 << 24)));
+	wmb();
 	_iwl3945_write_direct32(priv, HBUS_TARG_PRPH_WDAT, val);
 }
 #ifdef CONFIG_IWL3945_DEBUG
@@ -389,12 +382,14 @@ static inline void iwl3945_clear_bits_prph(struct iwl3945_priv
 static inline u32 iwl3945_read_targ_mem(struct iwl3945_priv *priv, u32 addr)
 {
 	iwl3945_write_direct32(priv, HBUS_TARG_MEM_RADDR, addr);
+	rmb();
 	return iwl3945_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 }
 
 static inline void iwl3945_write_targ_mem(struct iwl3945_priv *priv, u32 addr, u32 val)
 {
 	iwl3945_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);
+	wmb();
 	iwl3945_write_direct32(priv, HBUS_TARG_MEM_WDAT, val);
 }
 
@@ -402,6 +397,7 @@ static inline void iwl3945_write_targ_mem_buf(struct iwl3945_priv *priv, u32 add
 					  u32 len, u32 *values)
 {
 	iwl3945_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);
+	wmb();
 	for (; 0 < len; len -= sizeof(u32), values++)
 		iwl3945_write_direct32(priv, HBUS_TARG_MEM_WDAT, *values);
 }

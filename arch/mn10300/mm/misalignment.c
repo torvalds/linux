@@ -37,26 +37,22 @@
 #include <asm/asm-offsets.h>
 
 #if 0
-#define kdebug(FMT, ...) printk(KERN_DEBUG FMT, ##__VA_ARGS__)
+#define kdebug(FMT, ...) printk(KERN_DEBUG "MISALIGN: "FMT"\n", ##__VA_ARGS__)
 #else
 #define kdebug(FMT, ...) do {} while (0)
 #endif
 
-static int misalignment_addr(unsigned long *registers, unsigned params,
-			     unsigned opcode, unsigned disp,
-			     void **_address, unsigned long **_postinc);
+static int misalignment_addr(unsigned long *registers, unsigned long sp,
+			     unsigned params, unsigned opcode,
+			     unsigned long disp,
+			     void **_address, unsigned long **_postinc,
+			     unsigned long *_inc);
 
 static int misalignment_reg(unsigned long *registers, unsigned params,
-			    unsigned opcode, unsigned disp,
+			    unsigned opcode, unsigned long disp,
 			    unsigned long **_register);
 
-static inline unsigned int_log2(unsigned x)
-{
-	unsigned y;
-	asm("bsch %1,%0" : "=r"(y) : "r"(x), "0"(0));
-	return y;
-}
-#define log2(x) int_log2(x)
+static void misalignment_MOV_Lcc(struct pt_regs *regs, uint32_t opcode);
 
 static const unsigned Dreg_index[] = {
 	REG_D0 >> 2, REG_D1 >> 2, REG_D2 >> 2, REG_D3 >> 2
@@ -86,9 +82,10 @@ enum format_id {
 	FMT_D7,
 	FMT_D8,
 	FMT_D9,
+	FMT_D10,
 };
 
-struct {
+static const struct {
 	u_int8_t opsz, dispsz;
 } format_tbl[16] = {
 	[FMT_S0]	= { 8,	0	},
@@ -103,6 +100,7 @@ struct {
 	[FMT_D7]	= { 24,	8	},
 	[FMT_D8]	= { 24,	24	},
 	[FMT_D9]	= { 24,	32	},
+	[FMT_D10]	= { 32,	0	},
 };
 
 enum value_id {
@@ -128,9 +126,14 @@ enum value_id {
 	SD24,		/* 24-bit signed displacement */
 	SIMM4_2,	/* 4-bit signed displacement in opcode bits 4-7 */
 	SIMM8,		/* 8-bit signed immediate */
+	IMM8,		/* 8-bit unsigned immediate */
+	IMM16,		/* 16-bit unsigned immediate */
 	IMM24,		/* 24-bit unsigned immediate */
 	IMM32,		/* 32-bit unsigned immediate */
-	IMM32_HIGH8,	/* 32-bit unsigned immediate, high 8-bits in opcode */
+	IMM32_HIGH8,	/* 32-bit unsigned immediate, LSB in opcode */
+
+	IMM32_MEM,	/* 32-bit unsigned displacement */
+	IMM32_HIGH8_MEM, /* 32-bit unsigned displacement, LSB in opcode */
 
 	DN0	= DM0,
 	DN1	= DM1,
@@ -149,7 +152,7 @@ enum value_id {
 };
 
 struct mn10300_opcode {
-	const char	*name;
+	const char	name[8];
 	u_int32_t	opcode;
 	u_int32_t	opmask;
 	unsigned	exclusion;
@@ -185,6 +188,10 @@ struct mn10300_opcode {
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 static const struct mn10300_opcode mn10300_opcodes[] = {
+{ "mov",	0x4200,	     0xf300,	  0,    FMT_S1, 0,	{DM1, MEM2(IMM8, SP)}},
+{ "mov",	0x4300,	     0xf300,	  0,    FMT_S1, 0,	{AM1, MEM2(IMM8, SP)}},
+{ "mov",	0x5800,	     0xfc00,	  0,    FMT_S1, 0,	{MEM2(IMM8, SP), DN0}},
+{ "mov",	0x5c00,	     0xfc00,	  0,    FMT_S1, 0,	{MEM2(IMM8, SP), AN0}},
 { "mov",	0x60,	     0xf0,	  0,    FMT_S0, 0,	{DM1, MEM(AN0)}},
 { "mov",	0x70,	     0xf0,	  0,    FMT_S0, 0,	{MEM(AM0), DN1}},
 { "mov",	0xf000,	     0xfff0,	  0,    FMT_D0, 0,	{MEM(AM0), AN1}},
@@ -197,8 +204,6 @@ static const struct mn10300_opcode mn10300_opcodes[] = {
 { "mov",	0xf81000,    0xfff000,    0,    FMT_D1, 0,	{DM1, MEM2(SD8, AN0)}},
 { "mov",	0xf82000,    0xfff000,    0,    FMT_D1, 0,	{MEM2(SD8,AM0), AN1}},
 { "mov",	0xf83000,    0xfff000,    0,    FMT_D1, 0,	{AM1, MEM2(SD8, AN0)}},
-{ "mov",	0xf8f000,    0xfffc00,    0,    FMT_D1, AM33,	{MEM2(SD8, AM0), SP}},
-{ "mov",	0xf8f400,    0xfffc00,    0,    FMT_D1, AM33,	{SP, MEM2(SD8, AN0)}},
 { "mov",	0xf90a00,    0xffff00,    0,    FMT_D6, AM33,	{MEM(RM0), RN2}},
 { "mov",	0xf91a00,    0xffff00,    0,    FMT_D6, AM33,	{RM2, MEM(RN0)}},
 { "mov",	0xf96a00,    0xffff00,    0x12, FMT_D6, AM33,	{MEMINC(RM0), RN2}},
@@ -207,24 +212,46 @@ static const struct mn10300_opcode mn10300_opcodes[] = {
 { "mov",	0xfa100000,  0xfff00000,  0,    FMT_D2, 0,	{DM1, MEM2(SD16, AN0)}},
 { "mov",	0xfa200000,  0xfff00000,  0,    FMT_D2, 0,	{MEM2(SD16, AM0), AN1}},
 { "mov",	0xfa300000,  0xfff00000,  0,    FMT_D2, 0,	{AM1, MEM2(SD16, AN0)}},
+{ "mov",	0xfa900000,  0xfff30000,  0,    FMT_D2, 0,	{AM1, MEM2(IMM16, SP)}},
+{ "mov",	0xfa910000,  0xfff30000,  0,    FMT_D2, 0,	{DM1, MEM2(IMM16, SP)}},
+{ "mov",	0xfab00000,  0xfffc0000,  0,    FMT_D2, 0,	{MEM2(IMM16, SP), AN0}},
+{ "mov",	0xfab40000,  0xfffc0000,  0,    FMT_D2, 0,	{MEM2(IMM16, SP), DN0}},
 { "mov",	0xfb0a0000,  0xffff0000,  0,    FMT_D7, AM33,	{MEM2(SD8, RM0), RN2}},
 { "mov",	0xfb1a0000,  0xffff0000,  0,    FMT_D7, AM33,	{RM2, MEM2(SD8, RN0)}},
 { "mov",	0xfb6a0000,  0xffff0000,  0x22, FMT_D7, AM33,	{MEMINC2 (RM0, SIMM8), RN2}},
 { "mov",	0xfb7a0000,  0xffff0000,  0,	FMT_D7, AM33,	{RM2, MEMINC2 (RN0, SIMM8)}},
+{ "mov",	0xfb8a0000,  0xffff0f00,  0,    FMT_D7, AM33,	{MEM2(IMM8, SP), RN2}},
 { "mov",	0xfb8e0000,  0xffff000f,  0,    FMT_D7, AM33,	{MEM2(RI, RM0), RD2}},
+{ "mov",	0xfb9a0000,  0xffff0f00,  0,    FMT_D7, AM33,	{RM2, MEM2(IMM8, SP)}},
 { "mov",	0xfb9e0000,  0xffff000f,  0,    FMT_D7, AM33,	{RD2, MEM2(RI, RN0)}},
 { "mov",	0xfc000000,  0xfff00000,  0,    FMT_D4, 0,	{MEM2(IMM32,AM0), DN1}},
 { "mov",	0xfc100000,  0xfff00000,  0,    FMT_D4, 0,	{DM1, MEM2(IMM32,AN0)}},
 { "mov",	0xfc200000,  0xfff00000,  0,    FMT_D4, 0,	{MEM2(IMM32,AM0), AN1}},
 { "mov",	0xfc300000,  0xfff00000,  0,    FMT_D4, 0,	{AM1, MEM2(IMM32,AN0)}},
+{ "mov",	0xfc800000,  0xfff30000,  0,    FMT_D4, 0,	{AM1, MEM(IMM32_MEM)}},
+{ "mov",	0xfc810000,  0xfff30000,  0,    FMT_D4, 0,	{DM1, MEM(IMM32_MEM)}},
+{ "mov",	0xfc900000,  0xfff30000,  0,    FMT_D4, 0,	{AM1, MEM2(IMM32, SP)}},
+{ "mov",	0xfc910000,  0xfff30000,  0,    FMT_D4, 0,	{DM1, MEM2(IMM32, SP)}},
+{ "mov",	0xfca00000,  0xfffc0000,  0,    FMT_D4, 0,	{MEM(IMM32_MEM), AN0}},
+{ "mov",	0xfca40000,  0xfffc0000,  0,    FMT_D4, 0,	{MEM(IMM32_MEM), DN0}},
+{ "mov",	0xfcb00000,  0xfffc0000,  0,    FMT_D4, 0,	{MEM2(IMM32, SP), AN0}},
+{ "mov",	0xfcb40000,  0xfffc0000,  0,    FMT_D4, 0,	{MEM2(IMM32, SP), DN0}},
 { "mov",	0xfd0a0000,  0xffff0000,  0,    FMT_D8, AM33,	{MEM2(SD24, RM0), RN2}},
 { "mov",	0xfd1a0000,  0xffff0000,  0,    FMT_D8, AM33,	{RM2, MEM2(SD24, RN0)}},
 { "mov",	0xfd6a0000,  0xffff0000,  0x22, FMT_D8, AM33,	{MEMINC2 (RM0, IMM24), RN2}},
 { "mov",	0xfd7a0000,  0xffff0000,  0,	FMT_D8, AM33,	{RM2, MEMINC2 (RN0, IMM24)}},
+{ "mov",	0xfd8a0000,  0xffff0f00,  0,    FMT_D8, AM33,	{MEM2(IMM24, SP), RN2}},
+{ "mov",	0xfd9a0000,  0xffff0f00,  0,    FMT_D8, AM33,	{RM2, MEM2(IMM24, SP)}},
 { "mov",	0xfe0a0000,  0xffff0000,  0,    FMT_D9, AM33,	{MEM2(IMM32_HIGH8,RM0), RN2}},
+{ "mov",	0xfe0a0000,  0xffff0000,  0,    FMT_D9, AM33,	{MEM2(IMM32_HIGH8,RM0), RN2}},
+{ "mov",	0xfe0e0000,  0xffff0f00,  0,    FMT_D9, AM33,	{MEM(IMM32_HIGH8_MEM), RN2}},
 { "mov",	0xfe1a0000,  0xffff0000,  0,    FMT_D9, AM33,	{RM2, MEM2(IMM32_HIGH8, RN0)}},
+{ "mov",	0xfe1a0000,  0xffff0000,  0,    FMT_D9, AM33,	{RM2, MEM2(IMM32_HIGH8, RN0)}},
+{ "mov",	0xfe1e0000,  0xffff0f00,  0,    FMT_D9, AM33,	{RM2, MEM(IMM32_HIGH8_MEM)}},
 { "mov",	0xfe6a0000,  0xffff0000,  0x22, FMT_D9, AM33,	{MEMINC2 (RM0, IMM32_HIGH8), RN2}},
 { "mov",	0xfe7a0000,  0xffff0000,  0,	FMT_D9, AM33,	{RN2, MEMINC2 (RM0, IMM32_HIGH8)}},
+{ "mov",	0xfe8a0000,  0xffff0f00,  0,    FMT_D9, AM33,	{MEM2(IMM32_HIGH8, SP), RN2}},
+{ "mov",	0xfe9a0000,  0xffff0f00,  0,    FMT_D9, AM33,	{RM2, MEM2(IMM32_HIGH8, SP)}},
 
 { "movhu",	0xf060,	     0xfff0,	  0,    FMT_D0, 0,	{MEM(AM0), DN1}},
 { "movhu",	0xf070,	     0xfff0,	  0,    FMT_D0, 0,	{DM1, MEM(AN0)}},
@@ -232,29 +259,58 @@ static const struct mn10300_opcode mn10300_opcodes[] = {
 { "movhu",	0xf4c0,	     0xffc0,	  0,    FMT_D0, 0,	{DM2, MEM2(DI, AN0)}},
 { "movhu",	0xf86000,    0xfff000,    0,    FMT_D1, 0,	{MEM2(SD8, AM0), DN1}},
 { "movhu",	0xf87000,    0xfff000,    0,    FMT_D1, 0,	{DM1, MEM2(SD8, AN0)}},
+{ "movhu",	0xf89300,    0xfff300,    0,    FMT_D1, 0,	{DM1, MEM2(IMM8, SP)}},
+{ "movhu",	0xf8bc00,    0xfffc00,    0,    FMT_D1, 0,	{MEM2(IMM8, SP), DN0}},
 { "movhu",	0xf94a00,    0xffff00,    0,    FMT_D6, AM33,	{MEM(RM0), RN2}},
 { "movhu",	0xf95a00,    0xffff00,    0,    FMT_D6, AM33,	{RM2, MEM(RN0)}},
 { "movhu",	0xf9ea00,    0xffff00,    0x12, FMT_D6, AM33,	{MEMINC(RM0), RN2}},
 { "movhu",	0xf9fa00,    0xffff00,    0,	FMT_D6, AM33,	{RM2, MEMINC(RN0)}},
 { "movhu",	0xfa600000,  0xfff00000,  0,    FMT_D2, 0,	{MEM2(SD16, AM0), DN1}},
 { "movhu",	0xfa700000,  0xfff00000,  0,    FMT_D2, 0,	{DM1, MEM2(SD16, AN0)}},
+{ "movhu",	0xfa930000,  0xfff30000,  0,    FMT_D2, 0,	{DM1, MEM2(IMM16, SP)}},
+{ "movhu",	0xfabc0000,  0xfffc0000,  0,    FMT_D2, 0,	{MEM2(IMM16, SP), DN0}},
 { "movhu",	0xfb4a0000,  0xffff0000,  0,    FMT_D7, AM33,	{MEM2(SD8, RM0), RN2}},
 { "movhu",	0xfb5a0000,  0xffff0000,  0,    FMT_D7, AM33,	{RM2, MEM2(SD8, RN0)}},
+{ "movhu",	0xfbca0000,  0xffff0f00,  0,    FMT_D7, AM33,	{MEM2(IMM8, SP), RN2}},
 { "movhu",	0xfbce0000,  0xffff000f,  0,    FMT_D7, AM33,	{MEM2(RI, RM0), RD2}},
+{ "movhu",	0xfbda0000,  0xffff0f00,  0,    FMT_D7, AM33,	{RM2, MEM2(IMM8, SP)}},
 { "movhu",	0xfbde0000,  0xffff000f,  0,    FMT_D7, AM33,	{RD2, MEM2(RI, RN0)}},
 { "movhu",	0xfbea0000,  0xffff0000,  0x22, FMT_D7, AM33,	{MEMINC2 (RM0, SIMM8), RN2}},
 { "movhu",	0xfbfa0000,  0xffff0000,  0,	FMT_D7, AM33,	{RM2, MEMINC2 (RN0, SIMM8)}},
 { "movhu",	0xfc600000,  0xfff00000,  0,    FMT_D4, 0,	{MEM2(IMM32,AM0), DN1}},
 { "movhu",	0xfc700000,  0xfff00000,  0,    FMT_D4, 0,	{DM1, MEM2(IMM32,AN0)}},
+{ "movhu",	0xfc830000,  0xfff30000,  0,    FMT_D4, 0,	{DM1, MEM(IMM32_MEM)}},
+{ "movhu",	0xfc930000,  0xfff30000,  0,    FMT_D4, 0,	{DM1, MEM2(IMM32, SP)}},
+{ "movhu",	0xfcac0000,  0xfffc0000,  0,    FMT_D4, 0,	{MEM(IMM32_MEM), DN0}},
+{ "movhu",	0xfcbc0000,  0xfffc0000,  0,    FMT_D4, 0,	{MEM2(IMM32, SP), DN0}},
 { "movhu",	0xfd4a0000,  0xffff0000,  0,    FMT_D8, AM33,	{MEM2(SD24, RM0), RN2}},
 { "movhu",	0xfd5a0000,  0xffff0000,  0,    FMT_D8, AM33,	{RM2, MEM2(SD24, RN0)}},
+{ "movhu",	0xfdca0000,  0xffff0f00,  0,    FMT_D8, AM33,	{MEM2(IMM24, SP), RN2}},
+{ "movhu",	0xfdda0000,  0xffff0f00,  0,    FMT_D8, AM33,	{RM2, MEM2(IMM24, SP)}},
 { "movhu",	0xfdea0000,  0xffff0000,  0x22, FMT_D8, AM33,	{MEMINC2 (RM0, IMM24), RN2}},
 { "movhu",	0xfdfa0000,  0xffff0000,  0,	FMT_D8, AM33,	{RM2, MEMINC2 (RN0, IMM24)}},
 { "movhu",	0xfe4a0000,  0xffff0000,  0,    FMT_D9, AM33,	{MEM2(IMM32_HIGH8,RM0), RN2}},
+{ "movhu",	0xfe4e0000,  0xffff0f00,  0,    FMT_D9, AM33,	{MEM(IMM32_HIGH8_MEM), RN2}},
 { "movhu",	0xfe5a0000,  0xffff0000,  0,    FMT_D9, AM33,	{RM2, MEM2(IMM32_HIGH8, RN0)}},
+{ "movhu",	0xfe5e0000,  0xffff0f00,  0,    FMT_D9, AM33,	{RM2, MEM(IMM32_HIGH8_MEM)}},
+{ "movhu",	0xfeca0000,  0xffff0f00,  0,    FMT_D9, AM33,	{MEM2(IMM32_HIGH8, SP), RN2}},
+{ "movhu",	0xfeda0000,  0xffff0f00,  0,    FMT_D9, AM33,	{RM2, MEM2(IMM32_HIGH8, SP)}},
 { "movhu",	0xfeea0000,  0xffff0000,  0x22, FMT_D9, AM33,	{MEMINC2 (RM0, IMM32_HIGH8), RN2}},
 { "movhu",	0xfefa0000,  0xffff0000,  0,	FMT_D9, AM33,	{RN2, MEMINC2 (RM0, IMM32_HIGH8)}},
-{ 0, 0, 0, 0, 0, 0, {0}},
+
+{ "mov_llt",	0xf7e00000,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lgt",	0xf7e00001,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lge",	0xf7e00002,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lle",	0xf7e00003,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lcs",	0xf7e00004,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lhi",	0xf7e00005,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lcc",	0xf7e00006,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lls",	0xf7e00007,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_leq",	0xf7e00008,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lne",	0xf7e00009,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lra",	0xf7e0000a,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+
+{ "", 0, 0, 0, 0, 0, {0}},
 };
 
 /*
@@ -265,18 +321,21 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	const struct exception_table_entry *fixup;
 	const struct mn10300_opcode *pop;
 	unsigned long *registers = (unsigned long *) regs;
-	unsigned long data, *store, *postinc;
+	unsigned long data, *store, *postinc, disp, inc, sp;
 	mm_segment_t seg;
 	siginfo_t info;
-	uint32_t opcode, disp, noc, xo, xm;
-	uint8_t *pc, byte;
+	uint32_t opcode, noc, xo, xm;
+	uint8_t *pc, byte, datasz;
 	void *address;
-	unsigned tmp, npop;
+	unsigned tmp, npop, dispsz, loop;
 
-	kdebug("MISALIGN at %lx\n", regs->pc);
+	/* we don't fix up userspace misalignment faults */
+	if (user_mode(regs))
+		goto bus_error;
 
-	if (in_interrupt())
-		die("Misalignment trap in interrupt context", regs, code);
+	sp = (unsigned long) regs + sizeof(*regs);
+
+	kdebug("==>misalignment({pc=%lx,sp=%lx})", regs->pc, sp);
 
 	if (regs->epsw & EPSW_IE)
 		asm volatile("or %0,epsw" : : "i"(EPSW_IE));
@@ -294,8 +353,8 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	opcode = byte;
 	noc = 8;
 
-	for (pop = mn10300_opcodes; pop->name; pop++) {
-		npop = log2(pop->opcode | pop->opmask);
+	for (pop = mn10300_opcodes; pop->name[0]; pop++) {
+		npop = ilog2(pop->opcode | pop->opmask);
 		if (npop <= 0 || npop > 31)
 			continue;
 		npop = (npop + 8) & ~7;
@@ -328,15 +387,15 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	}
 
 	/* didn't manage to find a fixup */
-	if (!user_mode(regs))
-		printk(KERN_CRIT "MISALIGN: %lx: unsupported instruction %x\n",
-		       regs->pc, opcode);
+	printk(KERN_CRIT "MISALIGN: %lx: unsupported instruction %x\n",
+	       regs->pc, opcode);
 
 failed:
 	set_fs(seg);
 	if (die_if_no_fixup("misalignment error", regs, code))
 		return;
 
+bus_error:
 	info.si_signo	= SIGBUS;
 	info.si_errno	= 0;
 	info.si_code	= BUS_ADRALN;
@@ -346,31 +405,27 @@ failed:
 
 	/* error reading opcodes */
 fetch_error:
-	if (!user_mode(regs))
-		printk(KERN_CRIT
-		       "MISALIGN: %p: fault whilst reading instruction data\n",
-		       pc);
+	printk(KERN_CRIT
+	       "MISALIGN: %p: fault whilst reading instruction data\n",
+	       pc);
 	goto failed;
 
 bad_addr_mode:
-	if (!user_mode(regs))
-		printk(KERN_CRIT
-		       "MISALIGN: %lx: unsupported addressing mode %x\n",
-		       regs->pc, opcode);
+	printk(KERN_CRIT
+	       "MISALIGN: %lx: unsupported addressing mode %x\n",
+	       regs->pc, opcode);
 	goto failed;
 
 bad_reg_mode:
-	if (!user_mode(regs))
-		printk(KERN_CRIT
-		       "MISALIGN: %lx: unsupported register mode %x\n",
-		       regs->pc, opcode);
+	printk(KERN_CRIT
+	       "MISALIGN: %lx: unsupported register mode %x\n",
+	       regs->pc, opcode);
 	goto failed;
 
 unsupported_instruction:
-	if (!user_mode(regs))
-		printk(KERN_CRIT
-		       "MISALIGN: %lx: unsupported instruction %x (%s)\n",
-		       regs->pc, opcode, pop->name);
+	printk(KERN_CRIT
+	       "MISALIGN: %lx: unsupported instruction %x (%s)\n",
+	       regs->pc, opcode, pop->name);
 	goto failed;
 
 transfer_failed:
@@ -391,7 +446,7 @@ transfer_failed:
 
 	/* we matched the opcode */
 found_opcode:
-	kdebug("MISALIGN: %lx: %x==%x { %x, %x }\n",
+	kdebug("%lx: %x==%x { %x, %x }",
 	       regs->pc, opcode, pop->opcode, pop->params[0], pop->params[1]);
 
 	tmp = format_tbl[pop->format].opsz;
@@ -406,106 +461,108 @@ found_opcode:
 
 	/* grab the extra displacement (note it's LSB first) */
 	disp = 0;
-	tmp = format_tbl[pop->format].dispsz >> 3;
-	while (tmp > 0) {
-		tmp--;
-		disp <<= 8;
-
+	dispsz = format_tbl[pop->format].dispsz;
+	for (loop = 0; loop < dispsz; loop += 8) {
 		pc++;
 		if (__get_user(byte, pc) != 0)
 			goto fetch_error;
-		disp |= byte;
+		disp |= byte << loop;
+		kdebug("{%p} disp[%02x]=%02x", pc, loop, byte);
 	}
 
+	kdebug("disp=%lx", disp);
+
 	set_fs(KERNEL_XDS);
-	if (fixup || regs->epsw & EPSW_nSL)
+	if (fixup)
 		set_fs(seg);
 
 	tmp = (pop->params[0] ^ pop->params[1]) & 0x80000000;
 	if (!tmp) {
-		if (!user_mode(regs))
-			printk(KERN_CRIT
-			       "MISALIGN: %lx:"
-			       " insn not move to/from memory %x\n",
-			       regs->pc, opcode);
+		printk(KERN_CRIT
+		       "MISALIGN: %lx: insn not move to/from memory %x\n",
+		       regs->pc, opcode);
 		goto failed;
 	}
 
+	/* determine the data transfer size of the move */
+	if (pop->name[3] == 0 || /* "mov" */
+	    pop->name[4] == 'l') /* mov_lcc */
+		inc = datasz = 4;
+	else if (pop->name[3] == 'h') /* movhu */
+		inc = datasz = 2;
+	else
+		goto unsupported_instruction;
+
 	if (pop->params[0] & 0x80000000) {
 		/* move memory to register */
-		if (!misalignment_addr(registers, pop->params[0], opcode, disp,
-				       &address, &postinc))
+		if (!misalignment_addr(registers, sp,
+				       pop->params[0], opcode, disp,
+				       &address, &postinc, &inc))
 			goto bad_addr_mode;
 
 		if (!misalignment_reg(registers, pop->params[1], opcode, disp,
 				      &store))
 			goto bad_reg_mode;
 
-		if (strcmp(pop->name, "mov") == 0) {
-			kdebug("FIXUP: mov (%p),DARn\n", address);
-			if (copy_from_user(&data, (void *) address, 4) != 0)
-				goto transfer_failed;
-			if (pop->params[0] & 0x1000000)
-				*postinc += 4;
-		} else if (strcmp(pop->name, "movhu") == 0) {
-			kdebug("FIXUP: movhu (%p),DARn\n", address);
-			data = 0;
-			if (copy_from_user(&data, (void *) address, 2) != 0)
-				goto transfer_failed;
-			if (pop->params[0] & 0x1000000)
-				*postinc += 2;
-		} else {
-			goto unsupported_instruction;
+		kdebug("mov%u (%p),DARn", datasz, address);
+		if (copy_from_user(&data, (void *) address, datasz) != 0)
+			goto transfer_failed;
+		if (pop->params[0] & 0x1000000) {
+			kdebug("inc=%lx", inc);
+			*postinc += inc;
 		}
 
 		*store = data;
+		kdebug("loaded %lx", data);
 	} else {
 		/* move register to memory */
 		if (!misalignment_reg(registers, pop->params[0], opcode, disp,
 				      &store))
 			goto bad_reg_mode;
 
-		if (!misalignment_addr(registers, pop->params[1], opcode, disp,
-				       &address, &postinc))
+		if (!misalignment_addr(registers, sp,
+				       pop->params[1], opcode, disp,
+				       &address, &postinc, &inc))
 			goto bad_addr_mode;
 
 		data = *store;
 
-		if (strcmp(pop->name, "mov") == 0) {
-			kdebug("FIXUP: mov %lx,(%p)\n", data, address);
-			if (copy_to_user((void *) address, &data, 4) != 0)
-				goto transfer_failed;
-			if (pop->params[1] & 0x1000000)
-				*postinc += 4;
-		} else if (strcmp(pop->name, "movhu") == 0) {
-			kdebug("FIXUP: movhu %hx,(%p)\n",
-			       (uint16_t) data, address);
-			if (copy_to_user((void *) address, &data, 2) != 0)
-				goto transfer_failed;
-			if (pop->params[1] & 0x1000000)
-				*postinc += 2;
-		} else {
-			goto unsupported_instruction;
-		}
+		kdebug("mov%u %lx,(%p)", datasz, data, address);
+		if (copy_to_user((void *) address, &data, datasz) != 0)
+			goto transfer_failed;
+		if (pop->params[1] & 0x1000000)
+			*postinc += inc;
 	}
 
 	tmp = format_tbl[pop->format].opsz + format_tbl[pop->format].dispsz;
 	regs->pc += tmp >> 3;
 
+	/* handle MOV_Lcc, which are currently the only FMT_D10 insns that
+	 * access memory */
+	if (pop->format == FMT_D10)
+		misalignment_MOV_Lcc(regs, opcode);
+
 	set_fs(seg);
-	return;
 }
 
 /*
  * determine the address that was being accessed
  */
-static int misalignment_addr(unsigned long *registers, unsigned params,
-			     unsigned opcode, unsigned disp,
-			     void **_address, unsigned long **_postinc)
+static int misalignment_addr(unsigned long *registers, unsigned long sp,
+			     unsigned params, unsigned opcode,
+			     unsigned long disp,
+			     void **_address, unsigned long **_postinc,
+			     unsigned long *_inc)
 {
 	unsigned long *postinc = NULL, address = 0, tmp;
 
-	params &= 0x7fffffff;
+	if (!(params & 0x1000000)) {
+		kdebug("noinc");
+		*_inc = 0;
+		_inc = NULL;
+	}
+
+	params &= 0x00ffffff;
 
 	do {
 		switch (params & 0xff) {
@@ -514,11 +571,11 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
 			address += *postinc;
 			break;
 		case DM1:
-			postinc = &registers[Dreg_index[opcode >> 2 & 0x0c]];
+			postinc = &registers[Dreg_index[opcode >> 2 & 0x03]];
 			address += *postinc;
 			break;
 		case DM2:
-			postinc = &registers[Dreg_index[opcode >> 4 & 0x30]];
+			postinc = &registers[Dreg_index[opcode >> 4 & 0x03]];
 			address += *postinc;
 			break;
 		case AM0:
@@ -526,11 +583,11 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
 			address += *postinc;
 			break;
 		case AM1:
-			postinc = &registers[Areg_index[opcode >> 2 & 0x0c]];
+			postinc = &registers[Areg_index[opcode >> 2 & 0x03]];
 			address += *postinc;
 			break;
 		case AM2:
-			postinc = &registers[Areg_index[opcode >> 4 & 0x30]];
+			postinc = &registers[Areg_index[opcode >> 4 & 0x03]];
 			address += *postinc;
 			break;
 		case RM0:
@@ -561,33 +618,53 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
 			postinc = &registers[Rreg_index[disp >> 4 & 0x0f]];
 			address += *postinc;
 			break;
+		case SP:
+			address += sp;
+			break;
 
+			/* displacements are either to be added to the address
+			 * before use, or, in the case of post-inc addressing,
+			 * to be added into the base register after use */
 		case SD8:
 		case SIMM8:
-			address += (int32_t) (int8_t) (disp & 0xff);
-			break;
+			disp = (long) (int8_t) (disp & 0xff);
+			goto displace_or_inc;
 		case SD16:
-			address += (int32_t) (int16_t) (disp & 0xffff);
-			break;
+			disp = (long) (int16_t) (disp & 0xffff);
+			goto displace_or_inc;
 		case SD24:
 			tmp = disp << 8;
 			asm("asr 8,%0" : "=r"(tmp) : "0"(tmp));
-			address += tmp;
-			break;
+			disp = (long) tmp;
+			goto displace_or_inc;
 		case SIMM4_2:
 			tmp = opcode >> 4 & 0x0f;
 			tmp <<= 28;
 			asm("asr 28,%0" : "=r"(tmp) : "0"(tmp));
-			address += tmp;
-			break;
+			disp = (long) tmp;
+			goto displace_or_inc;
+		case IMM8:
+			disp &= 0x000000ff;
+			goto displace_or_inc;
+		case IMM16:
+			disp &= 0x0000ffff;
+			goto displace_or_inc;
 		case IMM24:
-			address += disp & 0x00ffffff;
-			break;
+			disp &= 0x00ffffff;
+			goto displace_or_inc;
 		case IMM32:
+		case IMM32_MEM:
 		case IMM32_HIGH8:
-			address += disp;
+		case IMM32_HIGH8_MEM:
+		displace_or_inc:
+			kdebug("%s %lx", _inc ? "incr" : "disp", disp);
+			if (!_inc)
+				address += disp;
+			else
+				*_inc = disp;
 			break;
 		default:
+			BUG();
 			return 0;
 		}
 	} while ((params >>= 8));
@@ -601,7 +678,7 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
  * determine the register that is acting as source/dest
  */
 static int misalignment_reg(unsigned long *registers, unsigned params,
-			    unsigned opcode, unsigned disp,
+			    unsigned opcode, unsigned long disp,
 			    unsigned long **_register)
 {
 	params &= 0x7fffffff;
@@ -654,8 +731,239 @@ static int misalignment_reg(unsigned long *registers, unsigned params,
 		break;
 
 	default:
+		BUG();
 		return 0;
 	}
 
 	return 1;
 }
+
+/*
+ * handle the conditional loop part of the move-and-loop instructions
+ */
+static void misalignment_MOV_Lcc(struct pt_regs *regs, uint32_t opcode)
+{
+	unsigned long epsw = regs->epsw;
+	unsigned long NxorV;
+
+	kdebug("MOV_Lcc %x [flags=%lx]", opcode, epsw & 0xf);
+
+	/* calculate N^V and shift onto the same bit position as Z */
+	NxorV = ((epsw >> 3) ^ epsw >> 1) & 1;
+
+	switch (opcode & 0xf) {
+	case 0x0: /* MOV_LLT: N^V */
+		if (NxorV)
+			goto take_the_loop;
+		return;
+	case 0x1: /* MOV_LGT: ~(Z or (N^V))*/
+		if (!((epsw & EPSW_FLAG_Z) | NxorV))
+			goto take_the_loop;
+		return;
+	case 0x2: /* MOV_LGE: ~(N^V) */
+		if (!NxorV)
+			goto take_the_loop;
+		return;
+	case 0x3: /* MOV_LLE: Z or (N^V) */
+		if ((epsw & EPSW_FLAG_Z) | NxorV)
+			goto take_the_loop;
+		return;
+
+	case 0x4: /* MOV_LCS: C */
+		if (epsw & EPSW_FLAG_C)
+			goto take_the_loop;
+		return;
+	case 0x5: /* MOV_LHI: ~(C or Z) */
+		if (!(epsw & (EPSW_FLAG_C | EPSW_FLAG_Z)))
+			goto take_the_loop;
+		return;
+	case 0x6: /* MOV_LCC: ~C */
+		if (!(epsw & EPSW_FLAG_C))
+			goto take_the_loop;
+		return;
+	case 0x7: /* MOV_LLS: C or Z */
+		if (epsw & (EPSW_FLAG_C | EPSW_FLAG_Z))
+			goto take_the_loop;
+		return;
+
+	case 0x8: /* MOV_LEQ: Z */
+		if (epsw & EPSW_FLAG_Z)
+			goto take_the_loop;
+		return;
+	case 0x9: /* MOV_LNE: ~Z */
+		if (!(epsw & EPSW_FLAG_Z))
+			goto take_the_loop;
+		return;
+	case 0xa: /* MOV_LRA: always */
+		goto take_the_loop;
+
+	default:
+		BUG();
+	}
+
+take_the_loop:
+	/* wind the PC back to just after the SETLB insn */
+	kdebug("loop LAR=%lx", regs->lar);
+	regs->pc = regs->lar - 4;
+}
+
+/*
+ * misalignment handler tests
+ */
+#ifdef CONFIG_TEST_MISALIGNMENT_HANDLER
+static u8 __initdata testbuf[512] __attribute__((aligned(16))) = {
+	[257] = 0x11,
+	[258] = 0x22,
+	[259] = 0x33,
+	[260] = 0x44,
+};
+
+#define ASSERTCMP(X, OP, Y)						\
+do {									\
+	if (unlikely(!((X) OP (Y)))) {					\
+		printk(KERN_ERR "\n");					\
+		printk(KERN_ERR "MISALIGN: Assertion failed at line %u\n", \
+		       __LINE__);					\
+		printk(KERN_ERR "0x%lx " #OP " 0x%lx is false\n",	\
+		       (unsigned long)(X), (unsigned long)(Y));		\
+		BUG();							\
+	}								\
+} while(0)
+
+static int __init test_misalignment(void)
+{
+	register void *r asm("e0");
+	register u32 y asm("e1");
+	void *p = testbuf, *q;
+	u32 tmp, tmp2, x;
+
+	printk(KERN_NOTICE "==>test_misalignment() [testbuf=%p]\n", p);
+	p++;
+
+	printk(KERN_NOTICE "___ MOV (Am),Dn ___\n");
+	q = p + 256;
+	asm volatile("mov	(%0),%1" : "+a"(q), "=d"(x));
+	ASSERTCMP(q, ==, p + 256);
+	ASSERTCMP(x, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (256,Am),Dn ___\n");
+	q = p;
+	asm volatile("mov	(256,%0),%1" : "+a"(q), "=d"(x));
+	ASSERTCMP(q, ==, p);
+	ASSERTCMP(x, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (Di,Am),Dn ___\n");
+	tmp = 256;
+	q = p;
+	asm volatile("mov	(%2,%0),%1" : "+a"(q), "=d"(x), "+d"(tmp));
+	ASSERTCMP(q, ==, p);
+	ASSERTCMP(x, ==, 0x44332211);
+	ASSERTCMP(tmp, ==, 256);
+
+	printk(KERN_NOTICE "___ MOV (256,Rm),Rn ___\n");
+	r = p;
+	asm volatile("mov	(256,%0),%1" : "+r"(r), "=r"(y));
+	ASSERTCMP(r, ==, p);
+	ASSERTCMP(y, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (Rm+),Rn ___\n");
+	r = p + 256;
+	asm volatile("mov	(%0+),%1" : "+r"(r), "=r"(y));
+	ASSERTCMP(r, ==, p + 256 + 4);
+	ASSERTCMP(y, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (Rm+,8),Rn ___\n");
+	r = p + 256;
+	asm volatile("mov	(%0+,8),%1" : "+r"(r), "=r"(y));
+	ASSERTCMP(r, ==, p + 256 + 8);
+	ASSERTCMP(y, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (7,SP),Rn ___\n");
+	asm volatile(
+		"add	-16,sp		\n"
+		"mov	+0x11,%0	\n"
+		"movbu	%0,(7,sp)	\n"
+		"mov	+0x22,%0	\n"
+		"movbu	%0,(8,sp)	\n"
+		"mov	+0x33,%0	\n"
+		"movbu	%0,(9,sp)	\n"
+		"mov	+0x44,%0	\n"
+		"movbu	%0,(10,sp)	\n"
+		"mov	(7,sp),%1	\n"
+		"add	+16,sp		\n"
+		: "+a"(q), "=d"(x));
+	ASSERTCMP(x, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (259,SP),Rn ___\n");
+	asm volatile(
+		"add	-264,sp		\n"
+		"mov	+0x11,%0	\n"
+		"movbu	%0,(259,sp)	\n"
+		"mov	+0x22,%0	\n"
+		"movbu	%0,(260,sp)	\n"
+		"mov	+0x33,%0	\n"
+		"movbu	%0,(261,sp)	\n"
+		"mov	+0x55,%0	\n"
+		"movbu	%0,(262,sp)	\n"
+		"mov	(259,sp),%1	\n"
+		"add	+264,sp		\n"
+		: "+d"(tmp), "=d"(x));
+	ASSERTCMP(x, ==, 0x55332211);
+
+	printk(KERN_NOTICE "___ MOV (260,SP),Rn ___\n");
+	asm volatile(
+		"add	-264,sp		\n"
+		"mov	+0x11,%0	\n"
+		"movbu	%0,(260,sp)	\n"
+		"mov	+0x22,%0	\n"
+		"movbu	%0,(261,sp)	\n"
+		"mov	+0x33,%0	\n"
+		"movbu	%0,(262,sp)	\n"
+		"mov	+0x55,%0	\n"
+		"movbu	%0,(263,sp)	\n"
+		"mov	(260,sp),%1	\n"
+		"add	+264,sp		\n"
+		: "+d"(tmp), "=d"(x));
+	ASSERTCMP(x, ==, 0x55332211);
+
+
+	printk(KERN_NOTICE "___ MOV_LNE ___\n");
+	tmp = 1;
+	tmp2 = 2;
+	q = p + 256;
+	asm volatile(
+		"setlb			\n"
+		"mov	%2,%3		\n"
+		"mov	%1,%2		\n"
+		"cmp	+0,%1		\n"
+		"mov_lne	(%0+,4),%1"
+		: "+r"(q), "+d"(tmp), "+d"(tmp2), "=d"(x)
+		:
+		: "cc");
+	ASSERTCMP(q, ==, p + 256 + 12);
+	ASSERTCMP(x, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV in SETLB ___\n");
+	tmp = 1;
+	tmp2 = 2;
+	q = p + 256;
+	asm volatile(
+		"setlb			\n"
+		"mov	%1,%3		\n"
+		"mov	(%0+),%1	\n"
+		"cmp	+0,%1		\n"
+		"lne			"
+		: "+a"(q), "+d"(tmp), "+d"(tmp2), "=d"(x)
+		:
+		: "cc");
+
+	ASSERTCMP(q, ==, p + 256 + 8);
+	ASSERTCMP(x, ==, 0x44332211);
+
+	printk(KERN_NOTICE "<==test_misalignment()\n");
+	return 0;
+}
+
+arch_initcall(test_misalignment);
+
+#endif /* CONFIG_TEST_MISALIGNMENT_HANDLER */

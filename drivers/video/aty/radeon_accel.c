@@ -211,9 +211,7 @@ void radeonfb_engine_reset(struct radeonfb_info *rinfo)
 	host_path_cntl = INREG(HOST_PATH_CNTL);
 	rbbm_soft_reset = INREG(RBBM_SOFT_RESET);
 
-	if (rinfo->family == CHIP_FAMILY_R300 ||
-	    rinfo->family == CHIP_FAMILY_R350 ||
-	    rinfo->family == CHIP_FAMILY_RV350) {
+	if (IS_R300_VARIANT(rinfo)) {
 		u32 tmp;
 
 		OUTREG(RBBM_SOFT_RESET, (rbbm_soft_reset |
@@ -249,9 +247,7 @@ void radeonfb_engine_reset(struct radeonfb_info *rinfo)
 	INREG(HOST_PATH_CNTL);
 	OUTREG(HOST_PATH_CNTL, host_path_cntl);
 
-	if (rinfo->family != CHIP_FAMILY_R300 &&
-	    rinfo->family != CHIP_FAMILY_R350 &&
-	    rinfo->family != CHIP_FAMILY_RV350)
+	if (!IS_R300_VARIANT(rinfo))
 		OUTREG(RBBM_SOFT_RESET, rbbm_soft_reset);
 
 	OUTREG(CLOCK_CNTL_INDEX, clock_cntl_index);
@@ -268,10 +264,18 @@ void radeonfb_engine_init (struct radeonfb_info *rinfo)
 	radeonfb_engine_reset(rinfo);
 
 	radeon_fifo_wait (1);
-	if ((rinfo->family != CHIP_FAMILY_R300) &&
-	    (rinfo->family != CHIP_FAMILY_R350) &&
-	    (rinfo->family != CHIP_FAMILY_RV350))
+	if (IS_R300_VARIANT(rinfo)) {
+		OUTREG(RB2D_DSTCACHE_MODE, INREG(RB2D_DSTCACHE_MODE) |
+		       RB2D_DC_AUTOFLUSH_ENABLE |
+		       RB2D_DC_DC_DISABLE_IGNORE_PE);
+	} else {
+		/* This needs to be double checked with ATI. Latest X driver
+		 * completely "forgets" to set this register on < r3xx, and
+		 * we used to just write 0 there... I'll keep the 0 and update
+		 * that when we have sorted things out on X side.
+		 */
 		OUTREG(RB2D_DSTCACHE_MODE, 0);
+	}
 
 	radeon_fifo_wait (3);
 	/* We re-read MC_FB_LOCATION from card as it can have been

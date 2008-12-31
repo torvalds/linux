@@ -8,7 +8,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Author:      Alan Cox, <alan@redhat.com>
+ * Author:      Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *
  * Fixes:       Mar 01 2000 Thomas Sparr, <thomas.l.sparr@telia.com>
  *              phone_register_device now works with unit!=PHONE_UNIT_ANY
@@ -54,7 +54,6 @@ static int phone_open(struct inode *inode, struct file *file)
 	if (minor >= PHONE_NUM_DEVICES)
 		return -ENODEV;
 
-	lock_kernel();
 	mutex_lock(&phone_lock);
 	p = phone_device[minor];
 	if (p)
@@ -81,7 +80,6 @@ static int phone_open(struct inode *inode, struct file *file)
 	fops_put(old_fops);
 end:
 	mutex_unlock(&phone_lock);
-	unlock_kernel();
 	return err;
 }
 

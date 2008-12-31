@@ -209,8 +209,16 @@ static int ip_local_deliver_finish(struct sk_buff *skb)
 
 		hash = protocol & (MAX_INET_PROTOS - 1);
 		ipprot = rcu_dereference(inet_protos[hash]);
-		if (ipprot != NULL && (net == &init_net || ipprot->netns_ok)) {
+		if (ipprot != NULL) {
 			int ret;
+
+			if (!net_eq(net, &init_net) && !ipprot->netns_ok) {
+				if (net_ratelimit())
+					printk("%s: proto %d isn't netns-ready\n",
+						__func__, protocol);
+				kfree_skb(skb);
+				goto out;
+			}
 
 			if (!ipprot->no_policy) {
 				if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
@@ -294,10 +302,8 @@ static inline int ip_rcv_options(struct sk_buff *skb)
 			if (!IN_DEV_SOURCE_ROUTE(in_dev)) {
 				if (IN_DEV_LOG_MARTIANS(in_dev) &&
 				    net_ratelimit())
-					printk(KERN_INFO "source route option "
-					       NIPQUAD_FMT " -> " NIPQUAD_FMT "\n",
-					       NIPQUAD(iph->saddr),
-					       NIPQUAD(iph->daddr));
+					printk(KERN_INFO "source route option %pI4 -> %pI4\n",
+					       &iph->saddr, &iph->daddr);
 				in_dev_put(in_dev);
 				goto drop;
 			}
@@ -342,9 +348,9 @@ static int ip_rcv_finish(struct sk_buff *skb)
 		struct ip_rt_acct *st = per_cpu_ptr(ip_rt_acct, smp_processor_id());
 		u32 idx = skb->dst->tclassid;
 		st[idx&0xFF].o_packets++;
-		st[idx&0xFF].o_bytes+=skb->len;
+		st[idx&0xFF].o_bytes += skb->len;
 		st[(idx>>16)&0xFF].i_packets++;
-		st[(idx>>16)&0xFF].i_bytes+=skb->len;
+		st[(idx>>16)&0xFF].i_bytes += skb->len;
 	}
 #endif
 

@@ -2108,7 +2108,7 @@ static void idetape_get_mode_sense_results(ide_drive_t *drive)
 
 	/* device lacks locking support according to capabilities page */
 	if ((caps[6] & 1) == 0)
-		drive->atapi_flags |= IDE_AFLAG_NO_DOORLOCK;
+		drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
 
 	if (caps[7] & 0x02)
 		tape->blk_size = 512;
@@ -2298,6 +2298,16 @@ static ide_proc_entry_t idetape_proc[] = {
 	{ "name",	S_IFREG|S_IRUGO,	proc_idetape_read_name,	NULL },
 	{ NULL, 0, NULL, NULL }
 };
+
+static ide_proc_entry_t *ide_tape_proc_entries(ide_drive_t *drive)
+{
+	return idetape_proc;
+}
+
+static const struct ide_proc_devset *ide_tape_proc_devsets(ide_drive_t *drive)
+{
+	return idetape_settings;
+}
 #endif
 
 static int ide_tape_probe(ide_drive_t *);
@@ -2315,8 +2325,8 @@ static ide_driver_t idetape_driver = {
 	.end_request		= idetape_end_request,
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
-	.proc			= idetape_proc,
-	.settings		= idetape_settings,
+	.proc_entries		= ide_tape_proc_entries,
+	.proc_devsets		= ide_tape_proc_devsets,
 #endif
 };
 
@@ -2330,35 +2340,30 @@ static const struct file_operations idetape_fops = {
 	.release	= idetape_chrdev_release,
 };
 
-static int idetape_open(struct inode *inode, struct file *filp)
+static int idetape_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ide_tape_obj *tape;
+	struct ide_tape_obj *tape = ide_tape_get(bdev->bd_disk);
 
-	tape = ide_tape_get(disk);
 	if (!tape)
 		return -ENXIO;
 
 	return 0;
 }
 
-static int idetape_release(struct inode *inode, struct file *filp)
+static int idetape_release(struct gendisk *disk, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct ide_tape_obj *tape = ide_drv_g(disk, ide_tape_obj);
 
 	ide_tape_put(tape);
-
 	return 0;
 }
 
-static int idetape_ioctl(struct inode *inode, struct file *file,
+static int idetape_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
-	struct block_device *bdev = inode->i_bdev;
 	struct ide_tape_obj *tape = ide_drv_g(bdev->bd_disk, ide_tape_obj);
 	ide_drive_t *drive = tape->drive;
-	int err = generic_ide_ioctl(drive, file, bdev, cmd, arg);
+	int err = generic_ide_ioctl(drive, bdev, cmd, arg);
 	if (err == -EINVAL)
 		err = idetape_blkdev_ioctl(drive, cmd, arg);
 	return err;
@@ -2368,7 +2373,7 @@ static struct block_device_operations idetape_block_ops = {
 	.owner		= THIS_MODULE,
 	.open		= idetape_open,
 	.release	= idetape_release,
-	.ioctl		= idetape_ioctl,
+	.locked_ioctl	= idetape_ioctl,
 };
 
 static int ide_tape_probe(ide_drive_t *drive)
@@ -2420,12 +2425,11 @@ static int ide_tape_probe(ide_drive_t *drive)
 
 	idetape_setup(drive, tape, minor);
 
-	device_create_drvdata(idetape_sysfs_class, &drive->gendev,
-			      MKDEV(IDETAPE_MAJOR, minor), NULL,
-			      "%s", tape->name);
-	device_create_drvdata(idetape_sysfs_class, &drive->gendev,
-			      MKDEV(IDETAPE_MAJOR, minor + 128), NULL,
-			      "n%s", tape->name);
+	device_create(idetape_sysfs_class, &drive->gendev,
+		      MKDEV(IDETAPE_MAJOR, minor), NULL, "%s", tape->name);
+	device_create(idetape_sysfs_class, &drive->gendev,
+		      MKDEV(IDETAPE_MAJOR, minor + 128), NULL,
+		      "n%s", tape->name);
 
 	g->fops = &idetape_block_ops;
 	ide_register_region(g);

@@ -95,7 +95,7 @@ struct exec
    Worse, we have to notice the start address before swapping to use
    /sbin/loader, which of course is _not_ a TASO application.  */
 #define SET_AOUT_PERSONALITY(BFPM, EX) \
-	set_personality (((BFPM->sh_bang || EX.ah.entry < 0x100000000L \
+	set_personality (((BFPM->taso || EX.ah.entry < 0x100000000L \
 			   ? ADDR_LIMIT_32BIT : 0) | PER_OSF4))
 
 #endif /* __KERNEL__ */

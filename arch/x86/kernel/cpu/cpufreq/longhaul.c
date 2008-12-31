@@ -1,5 +1,5 @@
 /*
- *  (C) 2001-2004  Dave Jones. <davej@codemonkey.org.uk>
+ *  (C) 2001-2004  Dave Jones. <davej@redhat.com>
  *  (C) 2002  Padraig Brady. <padraig@antefacto.com>
  *
  *  Licensed under the terms of the GNU GPL License version 2.
@@ -1019,7 +1019,7 @@ MODULE_PARM_DESC(scale_voltage, "Scale voltage of processor");
 module_param(revid_errata, int, 0644);
 MODULE_PARM_DESC(revid_errata, "Ignore CPU Revision ID");
 
-MODULE_AUTHOR ("Dave Jones <davej@codemonkey.org.uk>");
+MODULE_AUTHOR ("Dave Jones <davej@redhat.com>");
 MODULE_DESCRIPTION ("Longhaul driver for VIA Cyrix processors.");
 MODULE_LICENSE ("GPL");
 

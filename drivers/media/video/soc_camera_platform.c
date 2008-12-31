@@ -18,15 +18,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/soc_camera.h>
-
-struct soc_camera_platform_info {
-	int iface;
-	char *format_name;
-	unsigned long format_depth;
-	struct v4l2_pix_format format;
-	unsigned long bus_param;
-	int (*set_capture)(struct soc_camera_platform_info *info, int enable);
-};
+#include <media/soc_camera_platform.h>
 
 struct soc_camera_platform_priv {
 	struct soc_camera_platform_info *info;
@@ -44,11 +36,21 @@ soc_camera_platform_get_info(struct soc_camera_device *icd)
 
 static int soc_camera_platform_init(struct soc_camera_device *icd)
 {
+	struct soc_camera_platform_info *p = soc_camera_platform_get_info(icd);
+
+	if (p->power)
+		p->power(1);
+
 	return 0;
 }
 
 static int soc_camera_platform_release(struct soc_camera_device *icd)
 {
+	struct soc_camera_platform_info *p = soc_camera_platform_get_info(icd);
+
+	if (p->power)
+		p->power(0);
+
 	return 0;
 }
 
@@ -77,19 +79,20 @@ soc_camera_platform_query_bus_param(struct soc_camera_device *icd)
 	return p->bus_param;
 }
 
-static int soc_camera_platform_set_fmt_cap(struct soc_camera_device *icd,
-					   __u32 pixfmt, struct v4l2_rect *rect)
+static int soc_camera_platform_set_fmt(struct soc_camera_device *icd,
+				       __u32 pixfmt, struct v4l2_rect *rect)
 {
 	return 0;
 }
 
-static int soc_camera_platform_try_fmt_cap(struct soc_camera_device *icd,
-					   struct v4l2_format *f)
+static int soc_camera_platform_try_fmt(struct soc_camera_device *icd,
+				       struct v4l2_format *f)
 {
 	struct soc_camera_platform_info *p = soc_camera_platform_get_info(icd);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	f->fmt.pix.width = p->format.width;
-	f->fmt.pix.height = p->format.height;
+	pix->width = p->format.width;
+	pix->height = p->format.height;
 	return 0;
 }
 
@@ -122,8 +125,8 @@ static struct soc_camera_ops soc_camera_platform_ops = {
 	.release		= soc_camera_platform_release,
 	.start_capture		= soc_camera_platform_start_capture,
 	.stop_capture		= soc_camera_platform_stop_capture,
-	.set_fmt_cap		= soc_camera_platform_set_fmt_cap,
-	.try_fmt_cap		= soc_camera_platform_try_fmt_cap,
+	.set_fmt		= soc_camera_platform_set_fmt,
+	.try_fmt		= soc_camera_platform_try_fmt,
 	.set_bus_param		= soc_camera_platform_set_bus_param,
 	.query_bus_param	= soc_camera_platform_query_bus_param,
 };

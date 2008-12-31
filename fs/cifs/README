@@ -463,6 +463,19 @@ A partial list of the supported mount options follows:
 		with cifs style mandatory byte range locks (and most
 		cifs servers do not yet support requesting advisory
 		byte range locks).
+ forcemandatorylock Even if the server supports posix (advisory) byte range
+		locking, send only mandatory lock requests.  For some
+		(presumably rare) applications, originally coded for
+		DOS/Windows, which require Windows style mandatory byte range
+		locking, they may be able to take advantage of this option,
+		forcing the cifs client to only send mandatory locks
+		even if the cifs server would support posix advisory locks.
+		"forcemand" is accepted as a shorter form of this mount
+		option.
+ nodfs          Disable DFS (global name space support) even if the
+		server claims to support it.  This can help work around
+		a problem with parsing of DFS paths with Samba server
+		versions 3.0.24 and 3.0.25.
  remount        remount the share (often used to change from ro to rw mounts
 	        or vice versa)
  cifsacl        Report mode bits (e.g. on stat) based on the Windows ACL for
@@ -488,6 +501,19 @@ A partial list of the supported mount options follows:
 		Note that this differs from the sign mount option in that it
 		causes encryption of data sent over this mounted share but other
 		shares mounted to the same server are unaffected.
+ locallease     This option is rarely needed. Fcntl F_SETLEASE is
+		used by some applications such as Samba and NFSv4 server to
+		check to see whether a file is cacheable.  CIFS has no way
+		to explicitly request a lease, but can check whether a file
+		is cacheable (oplocked).  Unfortunately, even if a file
+		is not oplocked, it could still be cacheable (ie cifs client
+		could grant fcntl leases if no other local processes are using
+		the file) for cases for example such as when the server does not
+		support oplocks and the user is sure that the only updates to
+		the file will be from this client. Specifying this mount option
+		will allow the cifs client to check for leases (only) locally
+		for files which are not oplocked instead of denying leases
+		in that case. (EXPERIMENTAL)
  sec            Security mode.  Allowed values are:
 			none	attempt to connection as a null user (no name)
 			krb5    Use Kerberos version 5 authentication
@@ -637,6 +663,9 @@ requires enabling CONFIG_CIFS_EXPERIMENTAL
 
 	cifsacl support needed to retrieve approximated mode bits based on
 		the contents on the CIFS ACL.
+
+	lease support: cifs will check the oplock state before calling into
+	the vfs to see if we can grant a lease on a file.
 
 	DNOTIFY fcntl: needed for support of directory change 
 			    notification and perhaps later for file leases)

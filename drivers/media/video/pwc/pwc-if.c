@@ -1412,7 +1412,7 @@ static int pwc_video_ioctl(struct inode *inode, struct file *file,
 
 	mutex_lock(&pdev->modlock);
 	if (!pdev->unplugged)
-		r = video_usercopy(inode, file, cmd, arg, pwc_video_do_ioctl);
+		r = video_usercopy(file, cmd, arg, pwc_video_do_ioctl);
 	mutex_unlock(&pdev->modlock);
 out:
 	return r;
@@ -1795,7 +1795,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		goto err;
 	}
 	else {
-		PWC_INFO("Registered as /dev/video%d.\n", pdev->vdev->minor & 0x3F);
+		PWC_INFO("Registered as /dev/video%d.\n", pdev->vdev->num);
 	}
 
 	/* occupy slot */

@@ -157,7 +157,7 @@ acpi_ds_init_callbacks(struct acpi_walk_state *walk_state, u32 pass_number);
  * dsmthdat - method data (locals/args)
  */
 acpi_status
-acpi_ds_store_object_to_local(u16 opcode,
+acpi_ds_store_object_to_local(u8 type,
 			      u32 index,
 			      union acpi_operand_object *src_desc,
 			      struct acpi_walk_state *walk_state);
@@ -173,7 +173,7 @@ void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state);
 u8 acpi_ds_is_method_value(union acpi_operand_object *obj_desc);
 
 acpi_status
-acpi_ds_method_data_get_value(u16 opcode,
+acpi_ds_method_data_get_value(u8 type,
 			      u32 index,
 			      struct acpi_walk_state *walk_state,
 			      union acpi_operand_object **dest_desc);
@@ -184,7 +184,7 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 			      struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ds_method_data_get_node(u16 opcode,
+acpi_ds_method_data_get_node(u8 type,
 			     u32 index,
 			     struct acpi_walk_state *walk_state,
 			     struct acpi_namespace_node **node);

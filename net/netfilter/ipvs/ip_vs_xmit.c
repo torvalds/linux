@@ -82,14 +82,13 @@ __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 
 			if (ip_route_output_key(&init_net, &rt, &fl)) {
 				spin_unlock(&dest->dst_lock);
-				IP_VS_DBG_RL("ip_route_output error, "
-					     "dest: %u.%u.%u.%u\n",
-					     NIPQUAD(dest->addr.ip));
+				IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
+					     &dest->addr.ip);
 				return NULL;
 			}
 			__ip_vs_dst_set(dest, rtos, dst_clone(&rt->u.dst));
-			IP_VS_DBG(10, "new dst %u.%u.%u.%u, refcnt=%d, rtos=%X\n",
-				  NIPQUAD(dest->addr.ip),
+			IP_VS_DBG(10, "new dst %pI4, refcnt=%d, rtos=%X\n",
+				  &dest->addr.ip,
 				  atomic_read(&rt->u.dst.__refcnt), rtos);
 		}
 		spin_unlock(&dest->dst_lock);
@@ -104,8 +103,8 @@ __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 		};
 
 		if (ip_route_output_key(&init_net, &rt, &fl)) {
-			IP_VS_DBG_RL("ip_route_output error, dest: "
-				     "%u.%u.%u.%u\n", NIPQUAD(cp->daddr.ip));
+			IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
+				     &cp->daddr.ip);
 			return NULL;
 		}
 	}
@@ -141,14 +140,13 @@ __ip_vs_get_out_rt_v6(struct ip_vs_conn *cp)
 								 NULL, &fl);
 			if (!rt) {
 				spin_unlock(&dest->dst_lock);
-				IP_VS_DBG_RL("ip6_route_output error, "
-					     "dest: " NIP6_FMT "\n",
-					     NIP6(dest->addr.in6));
+				IP_VS_DBG_RL("ip6_route_output error, dest: %pI6\n",
+					     &dest->addr.in6);
 				return NULL;
 			}
 			__ip_vs_dst_set(dest, 0, dst_clone(&rt->u.dst));
-			IP_VS_DBG(10, "new dst " NIP6_FMT ", refcnt=%d\n",
-				  NIP6(dest->addr.in6),
+			IP_VS_DBG(10, "new dst %pI6, refcnt=%d\n",
+				  &dest->addr.in6,
 				  atomic_read(&rt->u.dst.__refcnt));
 		}
 		spin_unlock(&dest->dst_lock);
@@ -167,8 +165,8 @@ __ip_vs_get_out_rt_v6(struct ip_vs_conn *cp)
 
 		rt = (struct rt6_info *)ip6_route_output(&init_net, NULL, &fl);
 		if (!rt) {
-			IP_VS_DBG_RL("ip6_route_output error, dest: "
-				     NIP6_FMT "\n", NIP6(cp->daddr.in6));
+			IP_VS_DBG_RL("ip6_route_output error, dest: %pI6\n",
+				     &cp->daddr.in6);
 			return NULL;
 		}
 	}
@@ -237,8 +235,8 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	EnterFunction(10);
 
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
-		IP_VS_DBG_RL("ip_vs_bypass_xmit(): ip_route_output error, "
-			     "dest: %u.%u.%u.%u\n", NIPQUAD(iph->daddr));
+		IP_VS_DBG_RL("ip_vs_bypass_xmit(): ip_route_output error, dest: %pI4\n",
+			     &iph->daddr);
 		goto tx_error_icmp;
 	}
 
@@ -301,8 +299,8 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	rt = (struct rt6_info *)ip6_route_output(&init_net, NULL, &fl);
 	if (!rt) {
-		IP_VS_DBG_RL("ip_vs_bypass_xmit_v6(): ip6_route_output error, "
-			     "dest: " NIP6_FMT "\n", NIP6(iph->daddr));
+		IP_VS_DBG_RL("ip_vs_bypass_xmit_v6(): ip6_route_output error, dest: %pI6\n",
+			     &iph->daddr);
 		goto tx_error_icmp;
 	}
 
@@ -713,7 +711,8 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	iph			=	ipv6_hdr(skb);
 	iph->version		=	6;
 	iph->nexthdr		=	IPPROTO_IPV6;
-	iph->payload_len	=	old_iph->payload_len + sizeof(old_iph);
+	iph->payload_len	=	old_iph->payload_len;
+	be16_add_cpu(&iph->payload_len, sizeof(*old_iph));
 	iph->priority		=	old_iph->priority;
 	memset(&iph->flow_lbl, 0, sizeof(iph->flow_lbl));
 	iph->daddr		=	rt->rt6i_dst.addr;

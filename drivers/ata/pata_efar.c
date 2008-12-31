@@ -1,7 +1,7 @@
 /*
  *    pata_efar.c - EFAR PIIX clone controller driver
  *
- *	(C) 2005 Red Hat <alan@redhat.com>
+ *	(C) 2005 Red Hat
  *
  *    Some parts based on ata_piix.c by Jeff Garzik and others.
  *

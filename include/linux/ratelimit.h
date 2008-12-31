@@ -17,11 +17,4 @@ struct ratelimit_state {
 		struct ratelimit_state name = {interval, burst,}
 
 extern int __ratelimit(struct ratelimit_state *rs);
-
-static inline int ratelimit(void)
-{
-	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
-					DEFAULT_RATELIMIT_BURST);
-	return __ratelimit(&rs);
-}
 #endif

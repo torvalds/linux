@@ -6,6 +6,7 @@
 
 typedef u32 uint32_t;
 typedef u64 uint64_t;
+typedef unsigned long uintptr_t;
 
 #define fdt16_to_cpu(x)		(x)
 #define cpu_to_fdt16(x)		(x)

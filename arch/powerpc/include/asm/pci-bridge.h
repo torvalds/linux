@@ -13,7 +13,6 @@
 
 struct device_node;
 
-extern unsigned int ppc_pci_flags;
 enum {
 	/* Force re-assigning all resources (ignore firmware
 	 * setup completely)
@@ -36,6 +35,31 @@ enum {
 	/* ... except for domain 0 */
 	PPC_PCI_COMPAT_DOMAIN_0		= 0x00000020,
 };
+#ifdef CONFIG_PCI
+extern unsigned int ppc_pci_flags;
+
+static inline void ppc_pci_set_flags(int flags)
+{
+	ppc_pci_flags = flags;
+}
+
+static inline void ppc_pci_add_flags(int flags)
+{
+	ppc_pci_flags |= flags;
+}
+
+static inline int ppc_pci_has_flag(int flag)
+{
+	return (ppc_pci_flags & flag);
+}
+#else
+static inline void ppc_pci_set_flags(int flags) { }
+static inline void ppc_pci_add_flags(int flags) { }
+static inline int ppc_pci_has_flag(int flag)
+{
+	return 0;
+}
+#endif
 
 
 /*
@@ -73,6 +97,13 @@ struct pci_controller {
 #ifdef CONFIG_PPC64
 	unsigned long pci_io_size;
 #endif
+
+	/* Some machines have a special region to forward the ISA
+	 * "memory" cycles such as VGA memory regions. Left to 0
+	 * if unsupported
+	 */
+	resource_size_t	isa_mem_phys;
+	resource_size_t	isa_mem_size;
 
 	struct pci_ops *ops;
 	unsigned int __iomem *cfg_addr;
@@ -234,9 +265,6 @@ extern void pcibios_remove_pci_devices(struct pci_bus *bus);
 
 /** Discover new pci devices under this bus, and add them */
 extern void pcibios_add_pci_devices(struct pci_bus *bus);
-extern void pcibios_fixup_new_pci_devices(struct pci_bus *bus);
-
-extern int pcibios_remove_root_bus(struct pci_controller *phb);
 
 static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 {
@@ -283,6 +311,7 @@ extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 /* Allocate & free a PCI host bridge structure */
 extern struct pci_controller *pcibios_alloc_controller(struct device_node *dev);
 extern void pcibios_free_controller(struct pci_controller *phb);
+extern void pcibios_setup_phb_resources(struct pci_controller *hose);
 
 #ifdef CONFIG_PCI
 extern unsigned long pci_address_to_pio(phys_addr_t address);

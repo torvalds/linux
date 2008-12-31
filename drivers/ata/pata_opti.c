@@ -1,7 +1,6 @@
 /*
  * pata_opti.c 	- ATI PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
  *
  * Based on
  *  linux/drivers/ide/pci/opti621.c		Version 0.7	Sept 10, 2002

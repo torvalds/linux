@@ -493,6 +493,7 @@ static int simple_radio_bandswitch(struct dvb_frontend *fe, u8 *buffer)
 	case TUNER_PHILIPS_FM1216ME_MK3:
 	case TUNER_PHILIPS_FM1236_MK3:
 	case TUNER_PHILIPS_FMD1216ME_MK3:
+	case TUNER_PHILIPS_FMD1216MEX_MK3:
 	case TUNER_LG_NTSC_TAPE:
 	case TUNER_PHILIPS_FM1256_IH3:
 	case TUNER_TCL_MF02GIP_5N:
@@ -767,6 +768,7 @@ static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
 
 	switch (priv->type) {
 	case TUNER_PHILIPS_FMD1216ME_MK3:
+	case TUNER_PHILIPS_FMD1216MEX_MK3:
 		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ &&
 		    params->frequency >= 158870000)
 			buf[3] |= 0x08;

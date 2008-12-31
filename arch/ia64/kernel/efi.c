@@ -1335,7 +1335,7 @@ kdump_find_rsvd_region (unsigned long size, struct rsvd_region *r, int n)
 }
 #endif
 
-#ifdef CONFIG_PROC_VMCORE
+#ifdef CONFIG_CRASH_DUMP
 /* locate the size find a the descriptor at a certain address */
 unsigned long __init
 vmcore_find_descriptor_size (unsigned long address)

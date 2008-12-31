@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/mmc/host.h>
+#include <linux/mtd/physmap.h>
 #include <linux/pm.h>
 #include <linux/backlight.h>
 #include <linux/io.h>
@@ -67,6 +68,7 @@
 static unsigned long spitz_pin_config[] __initdata = {
 	/* Chip Selects */
 	GPIO78_nCS_2,	/* SCOOP #2 */
+	GPIO79_nCS_3,	/* NAND */
 	GPIO80_nCS_4,	/* SCOOP #1 */
 
 	/* LCD - 16bpp Active TFT */
@@ -97,10 +99,10 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO51_nPIOW,
 	GPIO85_nPCE_1,
 	GPIO54_nPCE_2,
-	GPIO79_PSKTSEL,
 	GPIO55_nPREG,
 	GPIO56_nPWAIT,
 	GPIO57_nIOIS16,
+	GPIO104_PSKTSEL,
 
 	/* MMC */
 	GPIO32_MMC_CLK,
@@ -120,6 +122,10 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO94_GPIO,	/* SPITZ_GPIO_CF_CD */
 	GPIO105_GPIO,	/* SPITZ_GPIO_CF_IRQ */
 	GPIO106_GPIO,	/* SPITZ_GPIO_CF2_IRQ */
+
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
 
 	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
 };
@@ -385,6 +391,16 @@ static void __init spitz_init_spi(void)
 	if (err)
 		goto err_free_2;
 
+	err = gpio_direction_output(SPITZ_GPIO_ADS7846_CS, 1);
+	if (err)
+		goto err_free_3;
+	err = gpio_direction_output(SPITZ_GPIO_LCDCON_CS, 1);
+	if (err)
+		goto err_free_3;
+	err = gpio_direction_output(SPITZ_GPIO_MAX1111_CS, 1);
+	if (err)
+		goto err_free_3;
+
 	if (machine_is_akita()) {
 		spitz_lcdcon_info.gpio_backlight_cont = AKITA_GPIO_BACKLIGHT_CONT;
 		spitz_lcdcon_info.gpio_backlight_on = AKITA_GPIO_BACKLIGHT_ON;
@@ -394,6 +410,8 @@ static void __init spitz_init_spi(void)
 	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
 	return;
 
+err_free_3:
+	gpio_free(SPITZ_GPIO_MAX1111_CS);
 err_free_2:
 	gpio_free(SPITZ_GPIO_LCDCON_CS);
 err_free_1:
@@ -596,10 +614,41 @@ static struct pxafb_mach_info spitz_pxafb_info = {
 };
 
 
+static struct mtd_partition sharpsl_rom_parts[] = {
+	{
+		.name	="Boot PROM Filesystem",
+		.offset	= 0x00140000,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data sharpsl_rom_data = {
+	.width		= 2,
+	.nr_parts	= ARRAY_SIZE(sharpsl_rom_parts),
+	.parts		= sharpsl_rom_parts,
+};
+
+static struct resource sharpsl_rom_resources[] = {
+	{
+		.start	= 0x00000000,
+		.end	= 0x007fffff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device sharpsl_rom_device = {
+	.name	= "physmap-flash",
+	.id	= -1,
+	.resource = sharpsl_rom_resources,
+	.num_resources = ARRAY_SIZE(sharpsl_rom_resources),
+	.dev.platform_data = &sharpsl_rom_data,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&spitzscoop_device,
 	&spitzkbd_device,
 	&spitzled_device,
+	&sharpsl_rom_device,
 };
 
 static void spitz_poweroff(void)
@@ -674,7 +723,6 @@ static void __init akita_init(void)
 	spitz_pcmcia_config.num_devs = 1;
 	platform_scoop_config = &spitz_pcmcia_config;
 
-	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(akita_i2c_board_info));
 
 	common_init();

@@ -311,7 +311,7 @@
 	* ieee1284_ops.c (parport_ieee1284_read_nibble): Reset nAutoFd
 	on timeout.  Matches 2.2.x behaviour.
 
-2001-03-02  Andrew Morton <andrewm@uow.edu.au>
+2001-03-02  Andrew Morton
 
 	* parport_pc.c (registered_parport): New static variable.
 	(parport_pc_find_ports): Set it when we register PCI driver.

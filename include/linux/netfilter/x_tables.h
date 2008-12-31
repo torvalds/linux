@@ -251,7 +251,7 @@ struct xt_target_param {
  */
 struct xt_tgchk_param {
 	const char *table;
-	void *entryinfo;
+	const void *entryinfo;
 	const struct xt_target *target;
 	void *targinfo;
 	unsigned int hook_mask;

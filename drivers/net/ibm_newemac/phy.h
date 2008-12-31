@@ -57,6 +57,7 @@ struct mii_phy {
 				   or determined automaticaly */
 	int address;		/* PHY address */
 	int mode;		/* PHY mode */
+	int gpcs_address;	/* GPCS PHY address */
 
 	/* 1: autoneg enabled, 0: disabled */
 	int autoneg;
@@ -81,5 +82,6 @@ struct mii_phy {
  */
 int emac_mii_phy_probe(struct mii_phy *phy, int address);
 int emac_mii_reset_phy(struct mii_phy *phy);
+int emac_mii_reset_gpcs(struct mii_phy *phy);
 
 #endif /* __IBM_NEWEMAC_PHY_H */

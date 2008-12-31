@@ -70,12 +70,24 @@ static struct sport_param sport_params[2] = {
 	}
 };
 
-static u16 sport_req[][7] = {
-		{ P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
-		  P_SPORT0_DRPRI, P_SPORT0_RSCLK, 0},
-		{ P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS,
-		  P_SPORT1_DRPRI, P_SPORT1_RSCLK, 0},
-};
+/*
+ * Setting the TFS pin selector for SPORT 0 based on whether the selected
+ * port id F or G. If the port is F then no conflict should exist for the
+ * TFS. When Port G is selected and EMAC then there is a conflict between
+ * the PHY interrupt line and TFS.  Current settings prevent the conflict
+ * by ignoring the TFS pin when Port G is selected. This allows both
+ * ssm2602 using Port G and EMAC concurrently.
+ */
+#ifdef CONFIG_BF527_SPORT0_PORTF
+#define LOCAL_SPORT0_TFS (P_SPORT0_TFS)
+#else
+#define LOCAL_SPORT0_TFS (0)
+#endif
+
+static u16 sport_req[][7] = { {P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
+		P_SPORT0_DRPRI, P_SPORT0_RSCLK, LOCAL_SPORT0_TFS, 0},
+		{P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS, P_SPORT1_DRPRI,
+		P_SPORT1_RSCLK, P_SPORT1_TFS, 0} };
 
 static int bf5xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
@@ -98,23 +110,21 @@ static int bf5xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		ret = -EINVAL;
 		break;
 	default:
+		printk(KERN_ERR "%s: Unknown DAI format type\n", __func__);
 		ret = -EINVAL;
 		break;
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
-		ret = -EINVAL;
-		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
-		ret = -EINVAL;
-		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBM_CFS:
 	case SND_SOC_DAIFMT_CBS_CFM:
 		ret = -EINVAL;
 		break;
 	default:
+		printk(KERN_ERR "%s: Unknown DAI master type\n", __func__);
 		ret = -EINVAL;
 		break;
 	}
@@ -122,7 +132,8 @@ static int bf5xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	return ret;
 }
 
-static int bf5xx_i2s_startup(struct snd_pcm_substream *substream)
+static int bf5xx_i2s_startup(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
 {
 	pr_debug("%s enter\n", __func__);
 
@@ -132,7 +143,8 @@ static int bf5xx_i2s_startup(struct snd_pcm_substream *substream)
 }
 
 static int bf5xx_i2s_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
 {
 	int ret = 0;
 
@@ -183,7 +195,8 @@ static int bf5xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static void bf5xx_i2s_shutdown(struct snd_pcm_substream *substream)
+static void bf5xx_i2s_shutdown(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
 {
 	pr_debug("%s enter\n", __func__);
 	bf5xx_i2s.counter--;
@@ -209,16 +222,14 @@ static int bf5xx_i2s_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static void bf5xx_i2s_remove(struct platform_device *pdev,
-			   struct snd_soc_dai *dai)
+static void bf5xx_i2s_remove(struct snd_soc_dai *dai)
 {
 	pr_debug("%s enter\n", __func__);
 	peripheral_free_list(&sport_req[sport_num][0]);
 }
 
 #ifdef CONFIG_PM
-static int bf5xx_i2s_suspend(struct platform_device *dev,
-			     struct snd_soc_dai *dai)
+static int bf5xx_i2s_suspend(struct snd_soc_dai *dai)
 {
 	struct sport_device *sport =
 		(struct sport_device *)dai->private_data;
@@ -279,7 +290,6 @@ static int bf5xx_i2s_resume(struct platform_device *pdev,
 struct snd_soc_dai bf5xx_i2s_dai = {
 	.name = "bf5xx-i2s",
 	.id = 0,
-	.type = SND_SOC_DAI_I2S,
 	.probe = bf5xx_i2s_probe,
 	.remove = bf5xx_i2s_remove,
 	.suspend = bf5xx_i2s_suspend,
@@ -297,12 +307,23 @@ struct snd_soc_dai bf5xx_i2s_dai = {
 	.ops = {
 		.startup   = bf5xx_i2s_startup,
 		.shutdown  = bf5xx_i2s_shutdown,
-		.hw_params = bf5xx_i2s_hw_params,},
-	.dai_ops = {
+		.hw_params = bf5xx_i2s_hw_params,
 		.set_fmt = bf5xx_i2s_set_dai_fmt,
 	},
 };
 EXPORT_SYMBOL_GPL(bf5xx_i2s_dai);
+
+static int __init bfin_i2s_init(void)
+{
+	return snd_soc_register_dai(&bf5xx_i2s_dai);
+}
+module_init(bfin_i2s_init);
+
+static void __exit bfin_i2s_exit(void)
+{
+	snd_soc_unregister_dai(&bf5xx_i2s_dai);
+}
+module_exit(bfin_i2s_exit);
 
 /* Module information */
 MODULE_AUTHOR("Cliff Cai");

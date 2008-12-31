@@ -995,6 +995,15 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
 							 state->pkg.
 							 this_target_obj, 0);
 			if (!state) {
+
+				/* Free any stacked Update State objects */
+
+				while (state_list) {
+					state =
+					    acpi_ut_pop_generic_state
+					    (&state_list);
+					acpi_ut_delete_generic_state(state);
+				}
 				return_ACPI_STATUS(AE_NO_MEMORY);
 			}
 		}

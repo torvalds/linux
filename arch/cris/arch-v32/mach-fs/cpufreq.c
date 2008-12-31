@@ -2,9 +2,9 @@
 #include <linux/module.h>
 #include <linux/cpufreq.h>
 #include <hwregs/reg_map.h>
-#include <asm/arch/hwregs/reg_rdwr.h>
-#include <asm/arch/hwregs/config_defs.h>
-#include <asm/arch/hwregs/bif_core_defs.h>
+#include <arch/hwregs/reg_rdwr.h>
+#include <arch/hwregs/config_defs.h>
+#include <arch/hwregs/bif_core_defs.h>
 
 static int
 cris_sdram_freq_notifier(struct notifier_block *nb, unsigned long val,
@@ -81,7 +81,6 @@ static int cris_freq_cpu_init(struct cpufreq_policy *policy)
 	int result;
 
 	/* cpuinfo and default policy values */
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	policy->cpuinfo.transition_latency = 1000000;	/* 1ms */
 	policy->cur = cris_freq_get_cpu_frequency(0);
 

@@ -164,7 +164,7 @@ unsigned long __read_mostly sysctl_hung_task_check_count = 1024;
 /*
  * Zero means infinite timeout - no checking done:
  */
-unsigned long __read_mostly sysctl_hung_task_timeout_secs = 120;
+unsigned long __read_mostly sysctl_hung_task_timeout_secs = 480;
 
 unsigned long __read_mostly sysctl_hung_task_warnings = 10;
 
@@ -188,7 +188,7 @@ static void check_hung_task(struct task_struct *t, unsigned long now)
 	if ((long)(now - t->last_switch_timestamp) <
 					sysctl_hung_task_timeout_secs)
 		return;
-	if (sysctl_hung_task_warnings < 0)
+	if (!sysctl_hung_task_warnings)
 		return;
 	sysctl_hung_task_warnings--;
 
@@ -226,7 +226,7 @@ static void check_hung_uninterruptible_tasks(int this_cpu)
 	 * If the system crashed already then all bets are off,
 	 * do not report extra hung tasks:
 	 */
-	if ((tainted & TAINT_DIE) || did_panic)
+	if (test_taint(TAINT_DIE) || did_panic)
 		return;
 
 	read_lock(&tasklist_lock);

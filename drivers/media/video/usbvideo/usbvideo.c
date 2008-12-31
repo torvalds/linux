@@ -1059,7 +1059,7 @@ int usbvideo_RegisterVideoDevice(struct uvd *uvd)
 
 	dev_info(&uvd->dev->dev, "%s on /dev/video%d: canvas=%s videosize=%s\n",
 		 (uvd->handle != NULL) ? uvd->handle->drvName : "???",
-		 uvd->vdev.minor, tmp2, tmp1);
+		 uvd->vdev.num, tmp2, tmp1);
 
 	usb_get_dev(uvd->dev);
 	return 0;
@@ -1123,7 +1123,7 @@ static int usbvideo_v4l_open(struct inode *inode, struct file *file)
 	if (uvd->debug > 1)
 		dev_info(&uvd->dev->dev, "%s($%p)\n", __func__, dev);
 
-	if (0 < usbvideo_ClientIncModCount(uvd))
+	if (usbvideo_ClientIncModCount(uvd) < 0)
 		return -ENODEV;
 	mutex_lock(&uvd->lock);
 
@@ -1281,8 +1281,7 @@ static int usbvideo_v4l_close(struct inode *inode, struct file *file)
  * History:
  * 22-Jan-2000 Corrected VIDIOCSPICT to reject unsupported settings.
  */
-static int usbvideo_v4l_do_ioctl(struct inode *inode, struct file *file,
-				 unsigned int cmd, void *arg)
+static int usbvideo_v4l_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct uvd *uvd = file->private_data;
 
@@ -1505,7 +1504,7 @@ static int usbvideo_v4l_do_ioctl(struct inode *inode, struct file *file,
 static int usbvideo_v4l_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, usbvideo_v4l_do_ioctl);
+	return video_usercopy(file, cmd, arg, usbvideo_v4l_do_ioctl);
 }
 
 /*

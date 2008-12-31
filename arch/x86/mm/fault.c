@@ -54,7 +54,7 @@
 
 static inline int kmmio_fault(struct pt_regs *regs, unsigned long addr)
 {
-#ifdef CONFIG_MMIOTRACE_HOOKS
+#ifdef CONFIG_MMIOTRACE
 	if (unlikely(is_kmmio_active()))
 		if (kmmio_handler(regs, addr) == 1)
 			return -1;
@@ -394,7 +394,7 @@ static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 		if (pte && pte_present(*pte) && !pte_exec(*pte))
 			printk(KERN_CRIT "kernel tried to execute "
 				"NX-protected page - exploit attempt? "
-				"(uid: %d)\n", current->uid);
+				"(uid: %d)\n", current_uid());
 	}
 #endif
 
@@ -414,6 +414,7 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 				 unsigned long error_code)
 {
 	unsigned long flags = oops_begin();
+	int sig = SIGKILL;
 	struct task_struct *tsk;
 
 	printk(KERN_ALERT "%s: Corrupted page table at address %lx\n",
@@ -424,8 +425,8 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 	tsk->thread.trap_no = 14;
 	tsk->thread.error_code = error_code;
 	if (__die("Bad pagetable", regs, error_code))
-		regs = NULL;
-	oops_end(flags, regs, SIGKILL);
+		sig = 0;
+	oops_end(flags, regs, sig);
 }
 #endif
 
@@ -593,6 +594,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 #ifdef CONFIG_X86_64
 	unsigned long flags;
+	int sig;
 #endif
 
 	tsk = current;
@@ -643,24 +645,23 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	}
 
 
-#ifdef CONFIG_X86_32
-	/* It's safe to allow irq's after cr2 has been saved and the vmalloc
-	   fault has been handled. */
-	if (regs->flags & (X86_EFLAGS_IF | X86_VM_MASK))
-		local_irq_enable();
-
 	/*
-	 * If we're in an interrupt, have no user context or are running in an
-	 * atomic region then we must not take the fault.
+	 * It's safe to allow irq's after cr2 has been saved and the
+	 * vmalloc fault has been handled.
+	 *
+	 * User-mode registers count as a user access even for any
+	 * potential system fault or CPU buglet.
 	 */
-	if (in_atomic() || !mm)
-		goto bad_area_nosemaphore;
-#else /* CONFIG_X86_64 */
-	if (likely(regs->flags & X86_EFLAGS_IF))
+	if (user_mode_vm(regs)) {
+		local_irq_enable();
+		error_code |= PF_USER;
+	} else if (regs->flags & X86_EFLAGS_IF)
 		local_irq_enable();
 
+#ifdef CONFIG_X86_64
 	if (unlikely(error_code & PF_RSVD))
 		pgtable_bad(address, regs, error_code);
+#endif
 
 	/*
 	 * If we're in an interrupt, have no user context or are running in an
@@ -669,15 +670,9 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	if (unlikely(in_atomic() || !mm))
 		goto bad_area_nosemaphore;
 
-	/*
-	 * User-mode registers count as a user access even for any
-	 * potential system fault or CPU buglet.
-	 */
-	if (user_mode_vm(regs))
-		error_code |= PF_USER;
 again:
-#endif
-	/* When running in the kernel we expect faults to occur only to
+	/*
+	 * When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the
 	 * kernel and should generate an OOPS.  Unfortunately, in the case of an
 	 * erroneous fault occurring in a code path which already holds mmap_sem
@@ -740,9 +735,6 @@ good_area:
 			goto bad_area;
 	}
 
-#ifdef CONFIG_X86_32
-survive:
-#endif
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
@@ -866,11 +858,12 @@ no_context:
 	bust_spinlocks(0);
 	do_exit(SIGKILL);
 #else
+	sig = SIGKILL;
 	if (__die("Oops", regs, error_code))
-		regs = NULL;
+		sig = 0;
 	/* Executive summary in case the body of the oops scrolled away */
 	printk(KERN_EMERG "CR2: %016lx\n", address);
-	oops_end(flags, regs, SIGKILL);
+	oops_end(flags, regs, sig);
 #endif
 
 /*
@@ -881,12 +874,11 @@ out_of_memory:
 	up_read(&mm->mmap_sem);
 	if (is_global_init(tsk)) {
 		yield();
-#ifdef CONFIG_X86_32
-		down_read(&mm->mmap_sem);
-		goto survive;
-#else
+		/*
+		 * Re-lookup the vma - in theory the vma tree might
+		 * have changed:
+		 */
 		goto again;
-#endif
 	}
 
 	printk("VM: killing process %s\n", tsk->comm);

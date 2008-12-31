@@ -1,7 +1,7 @@
 /*
  *    pata_ns87415.c - NS87415 (non PARISC) PATA
  *
- *	(C) 2005 Red Hat <alan@redhat.com>
+ *	(C) 2005 Red Hat <alan@lxorguk.ukuu.org.uk>
  *
  *    This is a fairly generic MWDMA controller. It has some limitations
  *    as it requires timing reloads on PIO/DMA transitions but it is otherwise

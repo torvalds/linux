@@ -5,8 +5,8 @@
 
 #include "vcs_hook.h"
 #include <stdarg.h>
-#include <asm/arch-v32/hwregs/reg_map.h>
-#include <asm/arch-v32/hwregs/intr_vect_defs.h>
+#include <arch-v32/hwregs/reg_map.h>
+#include <arch-v32/hwregs/intr_vect_defs.h>
 
 #define HOOK_TRIG_ADDR     0xb7000000	/* hook cvlog model reg address */
 #define HOOK_MEM_BASE_ADDR 0xa0000000	/* csp4 (shared mem) base addr */

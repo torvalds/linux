@@ -23,64 +23,14 @@
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/proc_fs.h>
 #include <linux/io.h>
+#include <asm/syscalls.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include <asm/fpu.h>
 
 struct task_struct *last_task_used_math = NULL;
-
-static int hlt_counter = 1;
-
-#define HARD_IDLE_TIMEOUT (HZ / 3)
-
-static int __init nohlt_setup(char *__unused)
-{
-	hlt_counter = 1;
-	return 1;
-}
-
-static int __init hlt_setup(char *__unused)
-{
-	hlt_counter = 0;
-	return 1;
-}
-
-__setup("nohlt", nohlt_setup);
-__setup("hlt", hlt_setup);
-
-static inline void hlt(void)
-{
-	__asm__ __volatile__ ("sleep" : : : "memory");
-}
-
-/*
- * The idle loop on a uniprocessor SH..
- */
-void cpu_idle(void)
-{
-	/* endless idle loop with no priority at all */
-	while (1) {
-		if (hlt_counter) {
-			while (!need_resched())
-				cpu_relax();
-		} else {
-			local_irq_disable();
-			while (!need_resched()) {
-				local_irq_enable();
-				hlt();
-				local_irq_disable();
-			}
-			local_irq_enable();
-		}
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-	}
-
-}
 
 void machine_restart(char * __unused)
 {
@@ -96,13 +46,6 @@ void machine_halt(void)
 
 void machine_power_off(void)
 {
-#if 0
-	/* Disable watchdog timer */
-	ctrl_outl(0xa5000000, WTCSR);
-	/* Configure deep standby on sleep */
-	ctrl_outl(0x03, STBCR);
-#endif
-
 	__asm__ __volatile__ (
 		"sleep\n\t"
 		"synci\n\t"
@@ -111,9 +54,6 @@ void machine_power_off(void)
 
 	panic("Unexpected wakeup!\n");
 }
-
-void (*pm_power_off)(void) = machine_power_off;
-EXPORT_SYMBOL(pm_power_off);
 
 void show_regs(struct pt_regs * regs)
 {
@@ -364,18 +304,6 @@ void show_regs(struct pt_regs * regs)
 	}
 }
 
-struct task_struct * alloc_task_struct(void)
-{
-	/* Get task descriptor pages */
-	return (struct task_struct *)
-		__get_free_pages(GFP_KERNEL, get_order(THREAD_SIZE));
-}
-
-void free_task_struct(struct task_struct *p)
-{
-	free_pages((unsigned long) p, get_order(THREAD_SIZE));
-}
-
 /*
  * Create a kernel thread
  */
@@ -395,6 +323,7 @@ ATTRIB_NORET void kernel_thread_helper(void *arg, int (*fn)(void *))
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 {
 	struct pt_regs regs;
+	int pid;
 
 	memset(&regs, 0, sizeof(regs));
 	regs.regs[2] = (unsigned long)arg;
@@ -403,8 +332,13 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	regs.pc = (unsigned long)kernel_thread_helper;
 	regs.sr = (1 << 30);
 
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
-		       &regs, 0, NULL, NULL);
+	/* Ok, create the new process.. */
+	pid = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
+		      &regs, 0, NULL, NULL);
+
+	trace_mark(kernel_arch_kthread_create, "pid %d fn %p", pid, fn);
+
+	return pid;
 }
 
 /*
@@ -655,41 +589,3 @@ unsigned long get_wchan(struct task_struct *p)
 #endif
 	return pc;
 }
-
-/* Provide a /proc/asids file that lists out the
-   ASIDs currently associated with the processes.  (If the DM.PC register is
-   examined through the debug link, this shows ASID + PC.  To make use of this,
-   the PID->ASID relationship needs to be known.  This is primarily for
-   debugging.)
-   */
-
-#if defined(CONFIG_SH64_PROC_ASIDS)
-static int
-asids_proc_info(char *buf, char **start, off_t fpos, int length, int *eof, void *data)
-{
-	int len=0;
-	struct task_struct *p;
-	read_lock(&tasklist_lock);
-	for_each_process(p) {
-		int pid = p->pid;
-
-		if (!pid)
-			continue;
-		if (p->mm)
-			len += sprintf(buf+len, "%5d : %02lx\n", pid,
-				       asid_cache(smp_processor_id()));
-		else
-			len += sprintf(buf+len, "%5d : (none)\n", pid);
-	}
-	read_unlock(&tasklist_lock);
-	*eof = 1;
-	return len;
-}
-
-static int __init register_proc_asids(void)
-{
-	create_proc_read_entry("asids", 0, NULL, asids_proc_info, NULL);
-	return 0;
-}
-__initcall(register_proc_asids);
-#endif

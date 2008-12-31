@@ -6,7 +6,24 @@
  * Copyright IBM Corporation 2008
  */
 
+#define KMSG_COMPONENT "zfcp"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include "zfcp_ext.h"
+
+enum rscn_address_format {
+	RSCN_PORT_ADDRESS	= 0x0,
+	RSCN_AREA_ADDRESS	= 0x1,
+	RSCN_DOMAIN_ADDRESS	= 0x2,
+	RSCN_FABRIC_ADDRESS	= 0x3,
+};
+
+static u32 rscn_range_mask[] = {
+	[RSCN_PORT_ADDRESS]		= 0xFFFFFF,
+	[RSCN_AREA_ADDRESS]		= 0xFFFF00,
+	[RSCN_DOMAIN_ADDRESS]		= 0xFF0000,
+	[RSCN_FABRIC_ADDRESS]		= 0x000000,
+};
 
 struct ct_iu_gpn_ft_req {
 	struct ct_hdr header;
@@ -23,9 +40,12 @@ struct gpn_ft_resp_acc {
 	u64 wwpn;
 } __attribute__ ((packed));
 
-#define ZFCP_GPN_FT_ENTRIES ((PAGE_SIZE - sizeof(struct ct_hdr)) \
-				/ sizeof(struct gpn_ft_resp_acc))
+#define ZFCP_CT_SIZE_ONE_PAGE	(PAGE_SIZE - sizeof(struct ct_hdr))
+#define ZFCP_GPN_FT_ENTRIES	(ZFCP_CT_SIZE_ONE_PAGE \
+					/ sizeof(struct gpn_ft_resp_acc))
 #define ZFCP_GPN_FT_BUFFERS 4
+#define ZFCP_GPN_FT_MAX_SIZE (ZFCP_GPN_FT_BUFFERS * PAGE_SIZE \
+				- sizeof(struct ct_hdr))
 #define ZFCP_GPN_FT_MAX_ENTRIES ZFCP_GPN_FT_BUFFERS * (ZFCP_GPN_FT_ENTRIES + 1)
 
 struct ct_iu_gpn_ft_resp {
@@ -50,7 +70,8 @@ static int zfcp_wka_port_get(struct zfcp_wka_port *wka_port)
 	if (mutex_lock_interruptible(&wka_port->mutex))
 		return -ERESTARTSYS;
 
-	if (wka_port->status != ZFCP_WKA_PORT_ONLINE) {
+	if (wka_port->status == ZFCP_WKA_PORT_OFFLINE ||
+	    wka_port->status == ZFCP_WKA_PORT_CLOSING) {
 		wka_port->status = ZFCP_WKA_PORT_OPENING;
 		if (zfcp_fsf_open_wka_port(wka_port))
 			wka_port->status = ZFCP_WKA_PORT_OFFLINE;
@@ -125,8 +146,7 @@ static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	list_for_each_entry(port, &fsf_req->adapter->port_list_head, list) {
-		/* FIXME: ZFCP_STATUS_PORT_DID_DID check is racy */
-		if (!(atomic_read(&port->status) & ZFCP_STATUS_PORT_DID_DID))
+		if (!(atomic_read(&port->status) & ZFCP_STATUS_PORT_PHYS_OPEN))
 			/* Try to connect to unused ports anyway. */
 			zfcp_erp_port_reopen(port,
 					     ZFCP_STATUS_COMMON_ERP_FAILED,
@@ -157,22 +177,7 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 	for (i = 1; i < no_entries; i++) {
 		/* skip head and start with 1st element */
 		fcp_rscn_element++;
-		switch (fcp_rscn_element->addr_format) {
-		case ZFCP_PORT_ADDRESS:
-			range_mask = ZFCP_PORTS_RANGE_PORT;
-			break;
-		case ZFCP_AREA_ADDRESS:
-			range_mask = ZFCP_PORTS_RANGE_AREA;
-			break;
-		case ZFCP_DOMAIN_ADDRESS:
-			range_mask = ZFCP_PORTS_RANGE_DOMAIN;
-			break;
-		case ZFCP_FABRIC_ADDRESS:
-			range_mask = ZFCP_PORTS_RANGE_FABRIC;
-			break;
-		default:
-			continue;
-		}
+		range_mask = rscn_range_mask[fcp_rscn_element->addr_format];
 		_zfcp_fc_incoming_rscn(fsf_req, range_mask, fcp_rscn_element);
 	}
 	schedule_work(&fsf_req->adapter->scan_work);
@@ -263,7 +268,6 @@ static void zfcp_fc_ns_gid_pn_eval(unsigned long data)
 		return;
 	/* looks like a valid d_id */
 	port->d_id = ct_iu_resp->d_id & ZFCP_DID_MASK;
-	atomic_set_mask(ZFCP_STATUS_PORT_DID_DID, &port->status);
 }
 
 int static zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *erp_action,
@@ -281,8 +285,6 @@ int static zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *erp_action,
 	gid_pn->ct.timeout = ZFCP_NS_GID_PN_TIMEOUT;
 	gid_pn->ct.req = &gid_pn->req;
 	gid_pn->ct.resp = &gid_pn->resp;
-	gid_pn->ct.req_count = 1;
-	gid_pn->ct.resp_count = 1;
 	sg_init_one(&gid_pn->req, &gid_pn->ct_iu_req,
 		    sizeof(struct ct_iu_gid_pn_req));
 	sg_init_one(&gid_pn->resp, &gid_pn->ct_iu_resp,
@@ -294,7 +296,7 @@ int static zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *erp_action,
 	gid_pn->ct_iu_req.header.gs_subtype = ZFCP_CT_NAME_SERVER;
 	gid_pn->ct_iu_req.header.options = ZFCP_CT_SYNCHRONOUS;
 	gid_pn->ct_iu_req.header.cmd_rsp_code = ZFCP_CT_GID_PN;
-	gid_pn->ct_iu_req.header.max_res_size = ZFCP_CT_MAX_SIZE;
+	gid_pn->ct_iu_req.header.max_res_size = ZFCP_CT_SIZE_ONE_PAGE / 4;
 	gid_pn->ct_iu_req.wwpn = erp_action->port->wwpn;
 
 	init_completion(&compl_rec.done);
@@ -404,8 +406,6 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	sg_init_one(adisc->els.resp, &adisc->ls_adisc_acc,
 		    sizeof(struct zfcp_ls_adisc));
 
-	adisc->els.req_count = 1;
-	adisc->els.resp_count = 1;
 	adisc->els.adapter = adapter;
 	adisc->els.port = port;
 	adisc->els.d_id = port->d_id;
@@ -445,17 +445,17 @@ void zfcp_test_link(struct zfcp_port *port)
 		zfcp_erp_port_forced_reopen(port, 0, 65, NULL);
 }
 
-static void zfcp_free_sg_env(struct zfcp_gpn_ft *gpn_ft)
+static void zfcp_free_sg_env(struct zfcp_gpn_ft *gpn_ft, int buf_num)
 {
 	struct scatterlist *sg = &gpn_ft->sg_req;
 
 	kfree(sg_virt(sg)); /* free request buffer */
-	zfcp_sg_free_table(gpn_ft->sg_resp, ZFCP_GPN_FT_BUFFERS);
+	zfcp_sg_free_table(gpn_ft->sg_resp, buf_num);
 
 	kfree(gpn_ft);
 }
 
-static struct zfcp_gpn_ft *zfcp_alloc_sg_env(void)
+static struct zfcp_gpn_ft *zfcp_alloc_sg_env(int buf_num)
 {
 	struct zfcp_gpn_ft *gpn_ft;
 	struct ct_iu_gpn_ft_req *req;
@@ -472,8 +472,8 @@ static struct zfcp_gpn_ft *zfcp_alloc_sg_env(void)
 	}
 	sg_init_one(&gpn_ft->sg_req, req, sizeof(*req));
 
-	if (zfcp_sg_setup_table(gpn_ft->sg_resp, ZFCP_GPN_FT_BUFFERS)) {
-		zfcp_free_sg_env(gpn_ft);
+	if (zfcp_sg_setup_table(gpn_ft->sg_resp, buf_num)) {
+		zfcp_free_sg_env(gpn_ft, buf_num);
 		gpn_ft = NULL;
 	}
 out:
@@ -482,7 +482,8 @@ out:
 
 
 static int zfcp_scan_issue_gpn_ft(struct zfcp_gpn_ft *gpn_ft,
-				  struct zfcp_adapter *adapter)
+				  struct zfcp_adapter *adapter,
+				  int max_bytes)
 {
 	struct zfcp_send_ct *ct = &gpn_ft->ct;
 	struct ct_iu_gpn_ft_req *req = sg_virt(&gpn_ft->sg_req);
@@ -495,8 +496,7 @@ static int zfcp_scan_issue_gpn_ft(struct zfcp_gpn_ft *gpn_ft,
 	req->header.gs_subtype = ZFCP_CT_NAME_SERVER;
 	req->header.options = ZFCP_CT_SYNCHRONOUS;
 	req->header.cmd_rsp_code = ZFCP_CT_GPN_FT;
-	req->header.max_res_size = (sizeof(struct gpn_ft_resp_acc) *
-					(ZFCP_GPN_FT_MAX_ENTRIES - 1)) >> 2;
+	req->header.max_res_size = max_bytes / 4;
 	req->flags = 0;
 	req->domain_id_scope = 0;
 	req->area_id_scope = 0;
@@ -509,8 +509,6 @@ static int zfcp_scan_issue_gpn_ft(struct zfcp_gpn_ft *gpn_ft,
 	ct->timeout = 10;
 	ct->req = &gpn_ft->sg_req;
 	ct->resp = gpn_ft->sg_resp;
-	ct->req_count = 1;
-	ct->resp_count = ZFCP_GPN_FT_BUFFERS;
 
 	init_completion(&compl_rec.done);
 	compl_rec.handler = NULL;
@@ -537,7 +535,7 @@ static void zfcp_validate_port(struct zfcp_port *port)
 	zfcp_port_dequeue(port);
 }
 
-static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft)
+static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 {
 	struct zfcp_send_ct *ct = &gpn_ft->ct;
 	struct scatterlist *sg = gpn_ft->sg_resp;
@@ -557,13 +555,17 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft)
 		return -EIO;
 	}
 
-	if (hdr->max_res_size)
+	if (hdr->max_res_size) {
+		dev_warn(&adapter->ccw_device->dev,
+			 "The name server reported %d words residual data\n",
+			 hdr->max_res_size);
 		return -E2BIG;
+	}
 
 	down(&zfcp_data.config_sema);
 
 	/* first entry is the header */
-	for (x = 1; x < ZFCP_GPN_FT_MAX_ENTRIES && !last; x++) {
+	for (x = 1; x < max_entries && !last; x++) {
 		if (x % (ZFCP_GPN_FT_ENTRIES + 1))
 			acc++;
 		else
@@ -586,7 +588,6 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft)
 		}
 
 		port = zfcp_port_enqueue(adapter, acc->wwpn,
-					 ZFCP_STATUS_PORT_DID_DID |
 					 ZFCP_STATUS_COMMON_NOESC, d_id);
 		if (IS_ERR(port))
 			ret = PTR_ERR(port);
@@ -609,8 +610,13 @@ int zfcp_scan_ports(struct zfcp_adapter *adapter)
 {
 	int ret, i;
 	struct zfcp_gpn_ft *gpn_ft;
+	int chain, max_entries, buf_num, max_bytes;
 
-	zfcp_erp_wait(adapter); /* wait until adapter is finished with ERP */
+	chain = adapter->adapter_features & FSF_FEATURE_ELS_CT_CHAINED_SBALS;
+	buf_num = chain ? ZFCP_GPN_FT_BUFFERS : 1;
+	max_entries = chain ? ZFCP_GPN_FT_MAX_ENTRIES : ZFCP_GPN_FT_ENTRIES;
+	max_bytes = chain ? ZFCP_GPN_FT_MAX_SIZE : ZFCP_CT_SIZE_ONE_PAGE;
+
 	if (fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPORT)
 		return 0;
 
@@ -618,23 +624,23 @@ int zfcp_scan_ports(struct zfcp_adapter *adapter)
 	if (ret)
 		return ret;
 
-	gpn_ft = zfcp_alloc_sg_env();
+	gpn_ft = zfcp_alloc_sg_env(buf_num);
 	if (!gpn_ft) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	for (i = 0; i < 3; i++) {
-		ret = zfcp_scan_issue_gpn_ft(gpn_ft, adapter);
+		ret = zfcp_scan_issue_gpn_ft(gpn_ft, adapter, max_bytes);
 		if (!ret) {
-			ret = zfcp_scan_eval_gpn_ft(gpn_ft);
+			ret = zfcp_scan_eval_gpn_ft(gpn_ft, max_entries);
 			if (ret == -EAGAIN)
 				ssleep(1);
 			else
 				break;
 		}
 	}
-	zfcp_free_sg_env(gpn_ft);
+	zfcp_free_sg_env(gpn_ft, buf_num);
 out:
 	zfcp_wka_port_put(&adapter->nsp);
 	return ret;

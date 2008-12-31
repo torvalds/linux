@@ -25,7 +25,7 @@
 #include <acpi/acpi_bus.h>
 #endif
 
-static int __init flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static int flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	return 1;
 }
@@ -170,7 +170,7 @@ struct genapic apic_flat =  {
  * We cannot use logical delivery in this case because the mask
  * overflows, so use physical mode.
  */
-static int __init physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 #ifdef CONFIG_ACPI
 	/*
@@ -179,8 +179,10 @@ static int __init physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	 * is an example).
 	 */
 	if (acpi_gbl_FADT.header.revision > FADT2_REVISION_ID &&
-		(acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL))
+		(acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL)) {
+		printk(KERN_DEBUG "system APIC only can use physical flat");
 		return 1;
+	}
 #endif
 
 	return 0;

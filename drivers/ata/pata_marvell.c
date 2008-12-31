@@ -5,7 +5,7 @@
  *	isn't making full use of the device functionality but it is
  *	easy to get working.
  *
- *	(c) 2006 Red Hat  <alan@redhat.com>
+ *	(c) 2006 Red Hat
  */
 
 #include <linux/kernel.h>

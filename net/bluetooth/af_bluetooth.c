@@ -37,25 +37,18 @@
 #include <linux/poll.h>
 #include <net/sock.h>
 #include <asm/ioctls.h>
-
-#if defined(CONFIG_KMOD)
 #include <linux/kmod.h>
-#endif
 
 #include <net/bluetooth/bluetooth.h>
 
-#ifndef CONFIG_BT_SOCK_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
-#define VERSION "2.13"
+#define VERSION "2.14"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
 static struct net_proto_family *bt_proto[BT_MAX_PROTO];
+static DEFINE_RWLOCK(bt_proto_lock);
 
-static struct lock_class_key bt_slock_key[BT_MAX_PROTO];
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key bt_lock_key[BT_MAX_PROTO];
 static const char *bt_key_strings[BT_MAX_PROTO] = {
 	"sk_lock-AF_BLUETOOTH-BTPROTO_L2CAP",
@@ -68,6 +61,7 @@ static const char *bt_key_strings[BT_MAX_PROTO] = {
 	"sk_lock-AF_BLUETOOTH-BTPROTO_AVDTP",
 };
 
+static struct lock_class_key bt_slock_key[BT_MAX_PROTO];
 static const char *bt_slock_key_strings[BT_MAX_PROTO] = {
 	"slock-AF_BLUETOOTH-BTPROTO_L2CAP",
 	"slock-AF_BLUETOOTH-BTPROTO_HCI",
@@ -78,7 +72,25 @@ static const char *bt_slock_key_strings[BT_MAX_PROTO] = {
 	"slock-AF_BLUETOOTH-BTPROTO_HIDP",
 	"slock-AF_BLUETOOTH-BTPROTO_AVDTP",
 };
-static DEFINE_RWLOCK(bt_proto_lock);
+
+static inline void bt_sock_reclassify_lock(struct socket *sock, int proto)
+{
+	struct sock *sk = sock->sk;
+
+	if (!sk)
+		return;
+
+	BUG_ON(sock_owned_by_user(sk));
+
+	sock_lock_init_class_and_name(sk,
+			bt_slock_key_strings[proto], &bt_slock_key[proto],
+				bt_key_strings[proto], &bt_lock_key[proto]);
+}
+#else
+static inline void bt_sock_reclassify_lock(struct socket *sock, int proto)
+{
+}
+#endif
 
 int bt_sock_register(int proto, struct net_proto_family *ops)
 {
@@ -120,21 +132,6 @@ int bt_sock_unregister(int proto)
 }
 EXPORT_SYMBOL(bt_sock_unregister);
 
-static void bt_reclassify_sock_lock(struct socket *sock, int proto)
-{
-	struct sock *sk = sock->sk;
-
-	if (!sk)
-		return;
-	BUG_ON(sock_owned_by_user(sk));
-
-	sock_lock_init_class_and_name(sk,
-			bt_slock_key_strings[proto],
-			&bt_slock_key[proto],
-			bt_key_strings[proto],
-			&bt_lock_key[proto]);
-}
-
 static int bt_sock_create(struct net *net, struct socket *sock, int proto)
 {
 	int err;
@@ -145,11 +142,8 @@ static int bt_sock_create(struct net *net, struct socket *sock, int proto)
 	if (proto < 0 || proto >= BT_MAX_PROTO)
 		return -EINVAL;
 
-#if defined(CONFIG_KMOD)
-	if (!bt_proto[proto]) {
+	if (!bt_proto[proto])
 		request_module("bt-proto-%d", proto);
-	}
-#endif
 
 	err = -EPROTONOSUPPORT;
 
@@ -157,7 +151,7 @@ static int bt_sock_create(struct net *net, struct socket *sock, int proto)
 
 	if (bt_proto[proto] && try_module_get(bt_proto[proto]->owner)) {
 		err = bt_proto[proto]->create(net, sock, proto);
-		bt_reclassify_sock_lock(sock, proto);
+		bt_sock_reclassify_lock(sock, proto);
 		module_put(bt_proto[proto]->owner);
 	}
 
@@ -246,7 +240,7 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	size_t copied;
 	int err;
 
-	BT_DBG("sock %p sk %p len %d", sock, sk, len);
+	BT_DBG("sock %p sk %p len %zu", sock, sk, len);
 
 	if (flags & (MSG_OOB))
 		return -EOPNOTSUPP;

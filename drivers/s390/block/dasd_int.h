@@ -610,8 +610,7 @@ int dasd_scan_partitions(struct dasd_block *);
 void dasd_destroy_partitions(struct dasd_block *);
 
 /* externals in dasd_ioctl.c */
-int  dasd_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
-long dasd_compat_ioctl(struct file *, unsigned int, unsigned long);
+int  dasd_ioctl(struct block_device *, fmode_t, unsigned int, unsigned long);
 
 /* externals in dasd_proc.c */
 int dasd_proc_init(void);

@@ -18,6 +18,7 @@
 #include <linux/personality.h>
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
+#include <linux/hardirq.h>
 #include <linux/init.h>
 #include <linux/uaccess.h>
 

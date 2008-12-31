@@ -45,12 +45,12 @@ unsigned long read_persistent_clock(void)
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		sec = BCD2BIN(sec);
-		min = BCD2BIN(min);
-		hour = BCD2BIN(hour);
-		day = BCD2BIN(day);
-		mon = BCD2BIN(mon);
-		year = BCD2BIN(year);
+		sec = bcd2bin(sec);
+		min = bcd2bin(min);
+		hour = bcd2bin(hour);
+		day = bcd2bin(day);
+		mon = bcd2bin(mon);
+		year = bcd2bin(year);
 	}
 
 	year += real_year - 72 + 2000;
@@ -83,7 +83,7 @@ int rtc_mips_set_mmss(unsigned long nowtime)
 
 	cmos_minutes = CMOS_READ(RTC_MINUTES);
 	if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
-		cmos_minutes = BCD2BIN(cmos_minutes);
+		cmos_minutes = bcd2bin(cmos_minutes);
 
 	/*
 	 * since we're only adjusting minutes and seconds,
@@ -99,8 +99,8 @@ int rtc_mips_set_mmss(unsigned long nowtime)
 
 	if (abs(real_minutes - cmos_minutes) < 30) {
 		if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-			real_seconds = BIN2BCD(real_seconds);
-			real_minutes = BIN2BCD(real_minutes);
+			real_seconds = bin2bcd(real_seconds);
+			real_minutes = bin2bcd(real_minutes);
 		}
 		CMOS_WRITE(real_seconds, RTC_SECONDS);
 		CMOS_WRITE(real_minutes, RTC_MINUTES);

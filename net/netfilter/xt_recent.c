@@ -72,9 +72,6 @@ struct recent_entry {
 struct recent_table {
 	struct list_head	list;
 	char			name[XT_RECENT_NAME_LEN];
-#ifdef CONFIG_PROC_FS
-	struct proc_dir_entry	*proc_old, *proc;
-#endif
 	unsigned int		refcnt;
 	unsigned int		entries;
 	struct list_head	lru_list;
@@ -284,6 +281,9 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_recent_mtinfo *info = par->matchinfo;
 	struct recent_table *t;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *pde;
+#endif
 	unsigned i;
 	bool ret = false;
 
@@ -318,27 +318,25 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 	for (i = 0; i < ip_list_hash_size; i++)
 		INIT_LIST_HEAD(&t->iphash[i]);
 #ifdef CONFIG_PROC_FS
-	t->proc = proc_create(t->name, ip_list_perms, recent_proc_dir,
-		  &recent_mt_fops);
-	if (t->proc == NULL) {
+	pde = proc_create_data(t->name, ip_list_perms, recent_proc_dir,
+		  &recent_mt_fops, t);
+	if (pde == NULL) {
 		kfree(t);
 		goto out;
 	}
+	pde->uid = ip_list_uid;
+	pde->gid = ip_list_gid;
 #ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-	t->proc_old = proc_create(t->name, ip_list_perms, proc_old_dir,
-		      &recent_old_fops);
-	if (t->proc_old == NULL) {
+	pde = proc_create_data(t->name, ip_list_perms, proc_old_dir,
+		      &recent_old_fops, t);
+	if (pde == NULL) {
 		remove_proc_entry(t->name, proc_old_dir);
 		kfree(t);
 		goto out;
 	}
-	t->proc_old->uid   = ip_list_uid;
-	t->proc_old->gid   = ip_list_gid;
-	t->proc_old->data  = t;
+	pde->uid = ip_list_uid;
+	pde->gid = ip_list_gid;
 #endif
-	t->proc->uid       = ip_list_uid;
-	t->proc->gid       = ip_list_gid;
-	t->proc->data      = t;
 #endif
 	spin_lock_bh(&recent_lock);
 	list_add_tail(&t->list, &tables);
@@ -424,13 +422,11 @@ static int recent_seq_show(struct seq_file *seq, void *v)
 
 	i = (e->index - 1) % ip_pkt_list_tot;
 	if (e->family == NFPROTO_IPV4)
-		seq_printf(seq, "src=" NIPQUAD_FMT " ttl: %u last_seen: %lu "
-			   "oldest_pkt: %u", NIPQUAD(e->addr.ip), e->ttl,
-			   e->stamps[i], e->index);
+		seq_printf(seq, "src=%pI4 ttl: %u last_seen: %lu oldest_pkt: %u",
+			   &e->addr.ip, e->ttl, e->stamps[i], e->index);
 	else
-		seq_printf(seq, "src=" NIP6_FMT " ttl: %u last_seen: %lu "
-			   "oldest_pkt: %u", NIP6(e->addr.in6), e->ttl,
-			   e->stamps[i], e->index);
+		seq_printf(seq, "src=%pI6 ttl: %u last_seen: %lu oldest_pkt: %u",
+			   &e->addr.in6, e->ttl, e->stamps[i], e->index);
 	for (i = 0; i < e->nstamps; i++)
 		seq_printf(seq, "%s %lu", i ? "," : "", e->stamps[i]);
 	seq_printf(seq, "\n");

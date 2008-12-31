@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 
 #include <asm/blackfin.h>
+#include <asm/cacheflush.h>
 #include <asm/cplbinit.h>
 #include <asm/mmu_context.h>
 
@@ -144,9 +145,7 @@ static noinline int dcplb_miss(void)
 
 	d_data = CPLB_SUPV_WR | CPLB_VALID | CPLB_DIRTY | PAGE_SIZE_4KB;
 #ifdef CONFIG_BFIN_DCACHE
-	if (addr < _ramend - DMA_UNCACHED_REGION ||
-	    (reserved_mem_dcache_on && addr >= _ramend &&
-	     addr < physical_mem_end)) {
+	if (bfin_addr_dcachable(addr)) {
 		d_data |= CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
 #ifdef CONFIG_BFIN_WT
 		d_data |= CPLB_L1_AOW | CPLB_WT;

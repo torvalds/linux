@@ -36,14 +36,10 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
-static int xc5000_load_fw_on_attach;
-module_param_named(init_fw, xc5000_load_fw_on_attach, int, 0644);
-MODULE_PARM_DESC(init_fw, "Load firmware during driver initialization.");
-
 static DEFINE_MUTEX(xc5000_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
 
-#define dprintk(level,fmt, arg...) if (debug >= level) \
+#define dprintk(level, fmt, arg...) if (debug >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
 
 #define XC5000_DEFAULT_FIRMWARE "dvb-fe-xc5000-1.1.fw"
@@ -138,11 +134,11 @@ struct xc5000_priv {
    immediately the length of the following transaction.
 
 */
-typedef struct {
+struct XC_TV_STANDARD {
 	char *Name;
 	u16 AudioMode;
 	u16 VideoMode;
-} XC_TV_STANDARD;
+};
 
 /* Tuner standards */
 #define MN_NTSC_PAL_BTSC	0
@@ -169,7 +165,7 @@ typedef struct {
 #define FM_Radio_INPUT2 	21
 #define FM_Radio_INPUT1 	22
 
-static XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
+static struct XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"M/N-NTSC/PAL-BTSC", 0x0400, 0x8020},
 	{"M/N-NTSC/PAL-A2",   0x0600, 0x8020},
 	{"M/N-NTSC/PAL-EIAJ", 0x0440, 0x8020},
@@ -183,7 +179,7 @@ static XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"D/K-PAL-NICAM",     0x0E80, 0x8009},
 	{"D/K-PAL-MONO",      0x1478, 0x8009},
 	{"D/K-SECAM-A2 DK1",  0x1200, 0x8009},
-	{"D/K-SECAM-A2 L/DK3",0x0E00, 0x8009},
+	{"D/K-SECAM-A2 L/DK3", 0x0E00, 0x8009},
 	{"D/K-SECAM-A2 MONO", 0x1478, 0x8009},
 	{"L-SECAM-NICAM",     0x8E82, 0x0009},
 	{"L'-SECAM-NICAM",    0x8E82, 0x4009},
@@ -307,9 +303,10 @@ static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
 	unsigned int len, pos, index;
 	u8 buf[XC_MAX_I2C_WRITE_LENGTH];
 
-	index=0;
-	while ((i2c_sequence[index]!=0xFF) || (i2c_sequence[index+1]!=0xFF)) {
-		len = i2c_sequence[index]* 256 + i2c_sequence[index+1];
+	index = 0;
+	while ((i2c_sequence[index] != 0xFF) ||
+		(i2c_sequence[index + 1] != 0xFF)) {
+		len = i2c_sequence[index] * 256 + i2c_sequence[index+1];
 		if (len == 0x0000) {
 			/* RESET command */
 			result = xc_reset(fe);
@@ -329,15 +326,17 @@ static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
 			buf[1] = i2c_sequence[index + 1];
 			pos = 2;
 			while (pos < len) {
-				if ((len - pos) > XC_MAX_I2C_WRITE_LENGTH - 2) {
-					nbytes_to_send = XC_MAX_I2C_WRITE_LENGTH;
-				} else {
+				if ((len - pos) > XC_MAX_I2C_WRITE_LENGTH - 2)
+					nbytes_to_send =
+						XC_MAX_I2C_WRITE_LENGTH;
+				else
 					nbytes_to_send = (len - pos + 2);
+				for (i = 2; i < nbytes_to_send; i++) {
+					buf[i] = i2c_sequence[index + pos +
+						i - 2];
 				}
-				for (i=2; i<nbytes_to_send; i++) {
-					buf[i] = i2c_sequence[index + pos + i - 2];
-				}
-				result = xc_send_i2c_data(priv, buf, nbytes_to_send);
+				result = xc_send_i2c_data(priv, buf,
+					nbytes_to_send);
 
 				if (result != XC_RESULT_SUCCESS)
 					return result;
@@ -386,8 +385,7 @@ static int xc_SetSignalSource(struct xc5000_priv *priv, u16 rf_mode)
 	dprintk(1, "%s(%d) Source = %s\n", __func__, rf_mode,
 		rf_mode == XC_RF_MODE_AIR ? "ANTENNA" : "CABLE");
 
-	if ((rf_mode != XC_RF_MODE_AIR) && (rf_mode != XC_RF_MODE_CABLE))
-	{
+	if ((rf_mode != XC_RF_MODE_AIR) && (rf_mode != XC_RF_MODE_CABLE)) {
 		rf_mode = XC_RF_MODE_CABLE;
 		printk(KERN_ERR
 			"%s(), Invalid mode, defaulting to CABLE",
@@ -560,13 +558,13 @@ static int xc5000_readregs(struct xc5000_priv *priv, u8 *buf, u8 len)
 		.flags = I2C_M_RD, .buf = buf, .len = len };
 
 	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
-		printk(KERN_ERR "xc5000 I2C read failed (len=%i)\n",(int)len);
+		printk(KERN_ERR "xc5000 I2C read failed (len=%i)\n", (int)len);
 		return -EREMOTEIO;
 	}
 	return 0;
 }
 
-static int xc5000_fwupload(struct dvb_frontend* fe)
+static int xc5000_fwupload(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 	const struct firmware *fw;
@@ -576,7 +574,8 @@ static int xc5000_fwupload(struct dvb_frontend* fe)
 	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
 		XC5000_DEFAULT_FIRMWARE);
 
-	ret = request_firmware(&fw, XC5000_DEFAULT_FIRMWARE, &priv->i2c_props.adap->dev);
+	ret = request_firmware(&fw, XC5000_DEFAULT_FIRMWARE,
+		&priv->i2c_props.adap->dev);
 	if (ret) {
 		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
 		ret = XC_RESULT_RESET_FAILURE;
@@ -592,7 +591,7 @@ static int xc5000_fwupload(struct dvb_frontend* fe)
 		ret = XC_RESULT_RESET_FAILURE;
 	} else {
 		printk(KERN_INFO "xc5000: firmware upload\n");
-		ret = xc_load_i2c_sequence(fe,  fw->data );
+		ret = xc_load_i2c_sequence(fe,  fw->data);
 	}
 
 out:
@@ -651,7 +650,7 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 
 	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
 
-	switch(params->u.vsb.modulation) {
+	switch (params->u.vsb.modulation) {
 	case VSB_8:
 	case VSB_16:
 		dprintk(1, "%s() VSB modulation\n", __func__);
@@ -748,42 +747,42 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 	/* FIX ME: Some video standards may have several possible audio
 		   standards. We simply default to one of them here.
 	 */
-	if(params->std & V4L2_STD_MN) {
+	if (params->std & V4L2_STD_MN) {
 		/* default to BTSC audio standard */
 		priv->video_standard = MN_NTSC_PAL_BTSC;
 		goto tune_channel;
 	}
 
-	if(params->std & V4L2_STD_PAL_BG) {
+	if (params->std & V4L2_STD_PAL_BG) {
 		/* default to NICAM audio standard */
 		priv->video_standard = BG_PAL_NICAM;
 		goto tune_channel;
 	}
 
-	if(params->std & V4L2_STD_PAL_I) {
+	if (params->std & V4L2_STD_PAL_I) {
 		/* default to NICAM audio standard */
 		priv->video_standard = I_PAL_NICAM;
 		goto tune_channel;
 	}
 
-	if(params->std & V4L2_STD_PAL_DK) {
+	if (params->std & V4L2_STD_PAL_DK) {
 		/* default to NICAM audio standard */
 		priv->video_standard = DK_PAL_NICAM;
 		goto tune_channel;
 	}
 
-	if(params->std & V4L2_STD_SECAM_DK) {
+	if (params->std & V4L2_STD_SECAM_DK) {
 		/* default to A2 DK1 audio standard */
 		priv->video_standard = DK_SECAM_A2DK1;
 		goto tune_channel;
 	}
 
-	if(params->std & V4L2_STD_SECAM_L) {
+	if (params->std & V4L2_STD_SECAM_L) {
 		priv->video_standard = L_SECAM_NICAM;
 		goto tune_channel;
 	}
 
-	if(params->std & V4L2_STD_SECAM_LC) {
+	if (params->std & V4L2_STD_SECAM_LC) {
 		priv->video_standard = LC_SECAM_NICAM;
 		goto tune_channel;
 	}
@@ -791,7 +790,7 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 tune_channel:
 	ret = xc_SetSignalSource(priv, priv->rf_mode);
 	if (ret != XC_RESULT_SUCCESS) {
-	printk(KERN_ERR
+		printk(KERN_ERR
 			"xc5000: xc_SetSignalSource(%d) failed\n",
 			priv->rf_mode);
 		return -EREMOTEIO;
@@ -863,7 +862,7 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
 	 * I2C transactions until calibration is complete.  This way we
 	 * don't have to rely on clock stretching working.
 	 */
-	xc_wait( 100 );
+	xc_wait(100);
 
 	/* Default to "CABLE" mode */
 	ret |= xc_write_reg(priv, XREG_SIGNALSOURCE, XC_RF_MODE_CABLE);
@@ -885,15 +884,13 @@ static int xc5000_sleep(struct dvb_frontend *fe)
 	 */
 
 	ret = xc_shutdown(priv);
-	if(ret != XC_RESULT_SUCCESS) {
+	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR
 			"xc5000: %s() unable to shutdown tuner\n",
 			__func__);
 		return -EREMOTEIO;
-	}
-	else {
+	} else
 		return XC_RESULT_SUCCESS;
-	}
 }
 
 static int xc5000_init(struct dvb_frontend *fe)
@@ -989,7 +986,7 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 	if (xc5000_readreg(priv, XREG_PRODUCT_ID, &id) != 0)
 		goto fail;
 
-	switch(id) {
+	switch (id) {
 	case XC_PRODUCT_ID_FW_LOADED:
 		printk(KERN_INFO
 			"xc5000: Successfully identified at address 0x%02x\n",
@@ -1015,9 +1012,6 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 
 	memcpy(&fe->ops.tuner_ops, &xc5000_tuner_ops,
 		sizeof(struct dvb_tuner_ops));
-
-	if (xc5000_load_fw_on_attach)
-		xc5000_init(fe);
 
 	return fe;
 fail:

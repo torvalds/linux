@@ -186,31 +186,29 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 		}
 	}
 
-	if (i2o_dma_alloc(dev, &c->status, 8, GFP_KERNEL)) {
+	if (i2o_dma_alloc(dev, &c->status, 8)) {
 		i2o_pci_free(c);
 		return -ENOMEM;
 	}
 
-	if (i2o_dma_alloc(dev, &c->hrt, sizeof(i2o_hrt), GFP_KERNEL)) {
+	if (i2o_dma_alloc(dev, &c->hrt, sizeof(i2o_hrt))) {
 		i2o_pci_free(c);
 		return -ENOMEM;
 	}
 
-	if (i2o_dma_alloc(dev, &c->dlct, 8192, GFP_KERNEL)) {
+	if (i2o_dma_alloc(dev, &c->dlct, 8192)) {
 		i2o_pci_free(c);
 		return -ENOMEM;
 	}
 
-	if (i2o_dma_alloc(dev, &c->status_block, sizeof(i2o_status_block),
-			  GFP_KERNEL)) {
+	if (i2o_dma_alloc(dev, &c->status_block, sizeof(i2o_status_block))) {
 		i2o_pci_free(c);
 		return -ENOMEM;
 	}
 
-	if (i2o_dma_alloc
-	    (dev, &c->out_queue,
-	     I2O_MAX_OUTBOUND_MSG_FRAMES * I2O_OUTBOUND_MSG_FRAME_SIZE *
-	     sizeof(u32), GFP_KERNEL)) {
+	if (i2o_dma_alloc(dev, &c->out_queue,
+		I2O_MAX_OUTBOUND_MSG_FRAMES * I2O_OUTBOUND_MSG_FRAME_SIZE *
+				sizeof(u32))) {
 		i2o_pci_free(c);
 		return -ENOMEM;
 	}

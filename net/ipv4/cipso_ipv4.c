@@ -490,7 +490,6 @@ int cipso_v4_doi_add(struct cipso_v4_doi *doi_def)
 	}
 
 	atomic_set(&doi_def->refcount, 1);
-	INIT_RCU_HEAD(&doi_def->rcu);
 
 	spin_lock(&cipso_v4_doi_list_lock);
 	if (cipso_v4_doi_search(doi_def->doi) != NULL)
@@ -2063,9 +2062,10 @@ int cipso_v4_skbuff_setattr(struct sk_buff *skb,
 	u32 opt_len;
 	int len_delta;
 
-	buf_len = cipso_v4_genopt(buf, buf_len, doi_def, secattr);
-	if (buf_len < 0)
-		return buf_len;
+	ret_val = cipso_v4_genopt(buf, buf_len, doi_def, secattr);
+	if (ret_val < 0)
+		return ret_val;
+	buf_len = ret_val;
 	opt_len = (buf_len + 3) & ~3;
 
 	/* we overwrite any existing options to ensure that we have enough

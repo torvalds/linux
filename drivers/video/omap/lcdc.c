@@ -34,6 +34,8 @@
 
 #include <asm/mach-types.h>
 
+#include "lcdc.h"
+
 #define MODULE_NAME			"lcdc"
 
 #define OMAP_LCDC_BASE			0xfffec000

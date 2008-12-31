@@ -2,7 +2,6 @@
 #define GSPCAV2_H
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/videodev2.h>
@@ -57,8 +56,12 @@ extern int gspca_debug;
 /* device information - set at probe time */
 struct cam {
 	int bulk_size;		/* buffer size when image transfer by bulk */
-	struct v4l2_pix_format *cam_mode;	/* size nmodes */
+	const struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	char nmodes;
+	__u8 bulk_nurbs;	/* number of URBs in bulk mode
+				 * - cannot be > MAX_NURBS
+				 * - when 0 and bulk_size != 0 means
+				 *   1 URB and submit done by subdriver */
 	__u8 epaddr;
 };
 
@@ -71,6 +74,8 @@ typedef void (*cam_v_op) (struct gspca_dev *);
 typedef int (*cam_cf_op) (struct gspca_dev *, const struct usb_device_id *);
 typedef int (*cam_jpg_op) (struct gspca_dev *,
 				struct v4l2_jpegcompression *);
+typedef int (*cam_streamparm_op) (struct gspca_dev *,
+				  struct v4l2_streamparm *);
 typedef int (*cam_qmnu_op) (struct gspca_dev *,
 			struct v4l2_querymenu *);
 typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
@@ -98,11 +103,13 @@ struct sd_desc {
 	cam_pkt_op pkt_scan;
 /* optional operations */
 	cam_v_op stopN;		/* called on stream off - main alt */
-	cam_v_op stop0;		/* called on stream off - alt 0 */
+	cam_v_op stop0;		/* called on stream off & disconnect - alt 0 */
 	cam_v_op dq_callback;	/* called when a frame has been dequeued */
 	cam_jpg_op get_jcomp;
 	cam_jpg_op set_jcomp;
 	cam_qmnu_op querymenu;
+	cam_streamparm_op get_streamparm;
+	cam_streamparm_op set_streamparm;
 };
 
 /* packet types when moving from iso buf to frame buf */
@@ -122,9 +129,8 @@ struct gspca_frame {
 
 struct gspca_dev {
 	struct video_device vdev;	/* !! must be the first item */
-	struct file_operations fops;
+	struct module *module;		/* subdriver handling the device */
 	struct usb_device *dev;
-	struct kref kref;
 	struct file *capt_file;		/* file doing video capture */
 
 	struct cam cam;				/* device information */
@@ -143,22 +149,20 @@ struct gspca_dev {
 	char fr_q;				/* next frame to queue */
 	char fr_o;				/* next frame to dequeue */
 	signed char fr_queue[GSPCA_MAX_FRAMES];	/* frame queue */
-	char last_packet_type;
+	__u8 last_packet_type;
+	__s8 empty_packet;		/* if (-1) don't check empty packets */
+	__u8 streaming;
 
-	__u8 iface;			/* USB interface number */
-	__u8 alt;			/* USB alternate setting */
 	__u8 curr_mode;			/* current camera mode */
 	__u32 pixfmt;			/* current mode parameters */
 	__u16 width;
 	__u16 height;
+	__u32 sequence;			/* frame sequence number */
 
-	atomic_t nevent;		/* number of frames done */
 	wait_queue_head_t wq;		/* wait queue */
 	struct mutex usb_lock;		/* usb exchange protection */
 	struct mutex read_lock;		/* read protection */
 	struct mutex queue_lock;	/* ISOC queue protection */
-	__u32 sequence;			/* frame sequence number */
-	char streaming;
 #ifdef CONFIG_PM
 	char frozen;			/* suspend - resume */
 #endif
@@ -167,6 +171,8 @@ struct gspca_dev {
 	char nbufread;			/* number of buffers for read() */
 	char nurbs;			/* number of allocated URBs */
 	char memory;			/* memory type (V4L2_MEMORY_xxx) */
+	__u8 iface;			/* USB interface number */
+	__u8 alt;			/* USB alternate setting */
 	__u8 nbalt;			/* number of USB alternate settings */
 };
 

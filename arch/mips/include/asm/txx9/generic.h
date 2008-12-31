@@ -86,4 +86,9 @@ void txx9_iocled_init(unsigned long baseaddr,
 		      int basenum, unsigned int num, int lowactive,
 		      const char *color, char **deftriggers);
 
+/* 7SEG LED */
+void txx9_7segled_init(unsigned int num,
+		       void (*putc)(unsigned int pos, unsigned char val));
+int txx9_7segled_putc(unsigned int pos, char c);
+
 #endif /* __ASM_TXX9_GENERIC_H */

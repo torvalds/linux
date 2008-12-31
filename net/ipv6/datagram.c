@@ -175,7 +175,8 @@ ipv4_connected:
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	if ((err = __xfrm_lookup(&dst, &fl, sk, XFRM_LOOKUP_WAIT)) < 0) {
+	err = __xfrm_lookup(sock_net(sk), &dst, &fl, sk, XFRM_LOOKUP_WAIT);
+	if (err < 0) {
 		if (err == -EREMOTE)
 			err = ip6_dst_blackhole(sk, &dst, &fl);
 		if (err < 0)
@@ -661,6 +662,11 @@ int datagram_send_ctl(struct net *net,
 			switch (rthdr->type) {
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 			case IPV6_SRCRT_TYPE_2:
+				if (rthdr->hdrlen != 2 ||
+				    rthdr->segments_left != 1) {
+					err = -EINVAL;
+					goto exit_f;
+				}
 				break;
 #endif
 			default:

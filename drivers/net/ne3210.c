@@ -45,9 +45,6 @@
 
 #define DRV_NAME "ne3210"
 
-static int ne3210_open(struct net_device *dev);
-static int ne3210_close(struct net_device *dev);
-
 static void ne3210_reset_8390(struct net_device *dev);
 
 static void ne3210_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_page);
@@ -99,7 +96,6 @@ static int __init ne3210_eisa_probe (struct device *device)
 	int i, retval, port_index;
 	struct eisa_device *edev = to_eisa_device (device);
 	struct net_device *dev;
-	DECLARE_MAC_BUF(mac);
 
 	/* Allocate dev->priv and fill in 8390 specific dev fields. */
 	if (!(dev = alloc_ei_netdev ())) {
@@ -131,8 +127,8 @@ static int __init ne3210_eisa_probe (struct device *device)
 	port_index = inb(ioaddr + NE3210_CFG2) >> 6;
 	for(i = 0; i < ETHER_ADDR_LEN; i++)
 		dev->dev_addr[i] = inb(ioaddr + NE3210_SA_PROM + i);
-	printk("ne3210.c: NE3210 in EISA slot %d, media: %s, addr: %s.\n",
-		edev->slot, ifmap[port_index], print_mac(mac, dev->dev_addr));
+	printk("ne3210.c: NE3210 in EISA slot %d, media: %s, addr: %pM.\n",
+		edev->slot, ifmap[port_index], dev->dev_addr);
 
 	/* Snarf the interrupt now. CFG file has them all listed as `edge' with share=NO */
 	dev->irq = irq_map[(inb(ioaddr + NE3210_CFG2) >> 3) & 0x07];
@@ -200,11 +196,8 @@ static int __init ne3210_eisa_probe (struct device *device)
 	ei_status.block_output = &ne3210_block_output;
 	ei_status.get_8390_hdr = &ne3210_get_8390_hdr;
 
-	dev->open = &ne3210_open;
-	dev->stop = &ne3210_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
+	dev->netdev_ops = &ei_netdev_ops;
+
 	dev->if_port = ifmap_val[port_index];
 
 	if ((retval = register_netdev (dev)))
@@ -319,22 +312,6 @@ static void ne3210_block_output(struct net_device *dev, int count,
 
 	count = (count + 3) & ~3;     /* Round up to doubleword */
 	memcpy_toio(shmem, buf, count);
-}
-
-static int ne3210_open(struct net_device *dev)
-{
-	ei_open(dev);
-	return 0;
-}
-
-static int ne3210_close(struct net_device *dev)
-{
-
-	if (ei_debug > 1)
-		printk("%s: Shutting down ethercard.\n", dev->name);
-
-	ei_close(dev);
-	return 0;
 }
 
 static struct eisa_device_id ne3210_ids[] = {

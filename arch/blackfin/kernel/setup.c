@@ -119,23 +119,23 @@ void __init bfin_relocate_l1_mem(void)
 	/* Copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
 	dma_memcpy(_stext_l1, _l1_lma_start, l1_code_length);
 
-	l1_data_a_length = _ebss_l1 - _sdata_l1;
+	l1_data_a_length = _sbss_l1 - _sdata_l1;
 	if (l1_data_a_length > L1_DATA_A_LENGTH)
 		panic("L1 Data SRAM Bank A Overflow\n");
 
-	/* Copy _sdata_l1 to _ebss_l1 to L1 data bank A SRAM */
+	/* Copy _sdata_l1 to _sbss_l1 to L1 data bank A SRAM */
 	dma_memcpy(_sdata_l1, _l1_lma_start + l1_code_length, l1_data_a_length);
 
-	l1_data_b_length = _ebss_b_l1 - _sdata_b_l1;
+	l1_data_b_length = _sbss_b_l1 - _sdata_b_l1;
 	if (l1_data_b_length > L1_DATA_B_LENGTH)
 		panic("L1 Data SRAM Bank B Overflow\n");
 
-	/* Copy _sdata_b_l1 to _ebss_b_l1 to L1 data bank B SRAM */
+	/* Copy _sdata_b_l1 to _sbss_b_l1 to L1 data bank B SRAM */
 	dma_memcpy(_sdata_b_l1, _l1_lma_start + l1_code_length +
 			l1_data_a_length, l1_data_b_length);
 
 	if (L2_LENGTH != 0) {
-		l2_length = _ebss_l2 - _stext_l2;
+		l2_length = _sbss_l2 - _stext_l2;
 		if (l2_length > L2_LENGTH)
 			panic("L2 SRAM Overflow\n");
 
@@ -827,7 +827,7 @@ void __init setup_arch(char **cmdline_p)
 				printk(KERN_ERR "Warning: Compiled for Rev %d, but running on Rev %d\n",
 				       bfin_compiled_revid(), bfin_revid());
 		}
-		if (bfin_revid() <= CONFIG_BF_REV_MIN || bfin_revid() > CONFIG_BF_REV_MAX)
+		if (bfin_revid() < CONFIG_BF_REV_MIN || bfin_revid() > CONFIG_BF_REV_MAX)
 			printk(KERN_ERR "Warning: Unsupported Chip Revision ADSP-%s Rev 0.%d detected\n",
 			       CPU, bfin_revid());
 	}

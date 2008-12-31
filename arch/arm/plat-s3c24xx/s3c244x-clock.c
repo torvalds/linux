@@ -31,7 +31,6 @@
 #include <linux/sysdev.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 
@@ -41,8 +40,8 @@
 
 #include <mach/regs-clock.h>
 
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/clock.h>
+#include <plat/cpu.h>
 
 static int s3c2440_setparent_armclk(struct clk *clk, struct clk *parent)
 {
@@ -102,13 +101,13 @@ static int s3c244x_clk_add(struct sys_device *sysdev)
 	if (clk_get_rate(clock_upll) > (94 * MHZ)) {
 		clk_usb_bus.rate = clk_get_rate(clock_upll) / 2;
 
-		mutex_lock(&clocks_mutex);
+		spin_lock(&clocks_lock);
 
 		clkdivn = __raw_readl(S3C2410_CLKDIVN);
 		clkdivn |= S3C2440_CLKDIVN_UCLK;
 		__raw_writel(clkdivn, S3C2410_CLKDIVN);
 
-		mutex_unlock(&clocks_mutex);
+		spin_unlock(&clocks_lock);
 	}
 
 	return 0;

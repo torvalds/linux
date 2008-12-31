@@ -50,27 +50,18 @@
 
 #define PAL_VSA_SYNC_READ						\
 	/* begin to call pal vps sync_read */				\
+{.mii;									\
 	add r25 = VMM_VPD_BASE_OFFSET, r21;				\
-	adds r20 = VMM_VCPU_VSA_BASE_OFFSET, r21;  /* entry point */	\
-	;;								\
-	ld8 r25 = [r25];      /* read vpd base */			\
-	ld8 r20 = [r20];						\
-	;;								\
-	add r20 = PAL_VPS_SYNC_READ,r20;				\
-	;;								\
-{ .mii;									\
 	nop 0x0;							\
-	mov r24 = ip;							\
-	mov b0 = r20;							\
+	mov r24=ip;							\
+	;;								\
+}									\
+{.mmb									\
+	add r24=0x20, r24;						\
+	ld8 r25 = [r25];      /* read vpd base */			\
+	br.cond.sptk kvm_vps_sync_read;		/*call the service*/	\
 	;;								\
 };									\
-{ .mmb;									\
-	add r24 = 0x20, r24;						\
-	nop 0x0;							\
-	br.cond.sptk b0;        /*  call the service */			\
-	;;								\
-};
-
 
 
 #define KVM_MINSTATE_GET_CURRENT(reg)   mov reg=r21

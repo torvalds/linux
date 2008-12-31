@@ -3695,7 +3695,7 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 	unsigned char video_ep = 0;
 
 	if (debug >= 1)
-		dev_info(&uvd->dev->dev, "ibmcam_probe(%p,%u.)\n", intf, ifnum);
+		dev_info(&dev->dev, "ibmcam_probe(%p,%u.)\n", intf, ifnum);
 
 	/* We don't handle multi-config cameras */
 	if (dev->descriptor.bNumConfigurations != 1)
@@ -3746,7 +3746,7 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 			brand = "IBM PC Camera"; /* a.k.a. Xirlink C-It */
 			break;
 		}
-		dev_info(&uvd->dev->dev,
+		dev_info(&dev->dev,
 			 "%s USB camera found (model %d, rev. 0x%04x)\n",
 			 brand, model, le16_to_cpu(dev->descriptor.bcdDevice));
 	} while (0);
@@ -3754,7 +3754,7 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 	/* Validate found interface: must have one ISO endpoint */
 	nas = intf->num_altsetting;
 	if (debug > 0)
-		dev_info(&uvd->dev->dev, "Number of alternate settings=%d.\n",
+		dev_info(&dev->dev, "Number of alternate settings=%d.\n",
 			 nas);
 	if (nas < 2) {
 		err("Too few alternate settings for this camera!");
@@ -3779,11 +3779,11 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 			err("Alternate settings have different endpoint addresses!");
 			return -ENODEV;
 		}
-		if ((endpoint->bmAttributes & 0x03) != 0x01) {
+		if (usb_endpoint_type(endpoint) != USB_ENDPOINT_XFER_ISOC) {
 			err("Interface %d. has non-ISO endpoint!", ifnum);
 			return -ENODEV;
 		}
-		if ((endpoint->bEndpointAddress & 0x80) == 0) {
+		if (usb_endpoint_dir_out(endpoint)) {
 			err("Interface %d. has ISO OUT endpoint!", ifnum);
 			return -ENODEV;
 		}
@@ -3799,7 +3799,7 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 				actInterface = i;
 				maxPS = le16_to_cpu(endpoint->wMaxPacketSize);
 				if (debug > 0)
-					dev_info(&uvd->dev->dev,
+					dev_info(&dev->dev,
 						 "Active setting=%d. "
 						 "maxPS=%d.\n", i, maxPS);
 			} else
@@ -3840,7 +3840,7 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 			RESTRICT_TO_RANGE(framerate, 0, 5);
 			break;
 		default:
-			dev_info(&uvd->dev->dev, "IBM camera: using 320x240\n");
+			dev_info(&dev->dev, "IBM camera: using 320x240\n");
 			size = SIZE_320x240;
 			/* No break here */
 		case SIZE_320x240:
@@ -3869,7 +3869,7 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 			canvasY = 120;
 			break;
 		default:
-			dev_info(&uvd->dev->dev, "IBM NetCamera: using 176x144\n");
+			dev_info(&dev->dev, "IBM NetCamera: using 176x144\n");
 			size = SIZE_176x144;
 			/* No break here */
 		case SIZE_176x144:

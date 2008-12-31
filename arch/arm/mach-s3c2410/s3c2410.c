@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
@@ -28,13 +29,16 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 
-#include <mach/regs-clock.h>
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/cpu-freq.h>
 
-#include <asm/plat-s3c24xx/s3c2410.h>
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/clock.h>
+#include <mach/regs-clock.h>
+#include <plat/regs-serial.h>
+
+#include <plat/s3c2410.h>
+#include <plat/cpu.h>
+#include <plat/devs.h>
+#include <plat/clock.h>
+#include <plat/pll.h>
 
 /* Initial IO mappings */
 
@@ -59,25 +63,28 @@ void __init s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int no)
  * machine specific initialisation.
 */
 
-void __init s3c2410_map_io(struct map_desc *mach_desc, int mach_size)
+void __init s3c2410_map_io(void)
 {
-	/* register our io-tables */
-
 	iotable_init(s3c2410_iodesc, ARRAY_SIZE(s3c2410_iodesc));
-	iotable_init(mach_desc, mach_size);
 }
 
-void __init s3c2410_init_clocks(int xtal)
+void __init_or_cpufreq s3c2410_setup_clocks(void)
 {
+	struct clk *xtal_clk;
 	unsigned long tmp;
+	unsigned long xtal;
 	unsigned long fclk;
 	unsigned long hclk;
 	unsigned long pclk;
 
+	xtal_clk = clk_get(NULL, "xtal");
+	xtal = clk_get_rate(xtal_clk);
+	clk_put(xtal_clk);
+
 	/* now we've got our machine bits initialised, work out what
 	 * clocks we've got */
 
-	fclk = s3c2410_get_pll(__raw_readl(S3C2410_MPLLCON), xtal);
+	fclk = s3c24xx_get_pll(__raw_readl(S3C2410_MPLLCON), xtal);
 
 	tmp = __raw_readl(S3C2410_CLKDIVN);
 
@@ -95,7 +102,13 @@ void __init s3c2410_init_clocks(int xtal)
 	 * console to use them
 	 */
 
-	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);
+	s3c24xx_setup_clocks(fclk, hclk, pclk);
+}
+
+void __init s3c2410_init_clocks(int xtal)
+{
+	s3c24xx_register_baseclocks(xtal);
+	s3c2410_setup_clocks();
 	s3c2410_baseclk_add();
 }
 

@@ -257,12 +257,6 @@ static inline void sh_rtc_setaie(struct device *dev, unsigned int enable)
 	spin_unlock_irq(&rtc->lock);
 }
 
-static void sh_rtc_release(struct device *dev)
-{
-	sh_rtc_setpie(dev, 0);
-	sh_rtc_setaie(dev, 0);
-}
-
 static int sh_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct sh_rtc *rtc = dev_get_drvdata(dev);
@@ -330,23 +324,23 @@ static int sh_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 		sec128 = readb(rtc->regbase + R64CNT);
 
-		tm->tm_sec	= BCD2BIN(readb(rtc->regbase + RSECCNT));
-		tm->tm_min	= BCD2BIN(readb(rtc->regbase + RMINCNT));
-		tm->tm_hour	= BCD2BIN(readb(rtc->regbase + RHRCNT));
-		tm->tm_wday	= BCD2BIN(readb(rtc->regbase + RWKCNT));
-		tm->tm_mday	= BCD2BIN(readb(rtc->regbase + RDAYCNT));
-		tm->tm_mon	= BCD2BIN(readb(rtc->regbase + RMONCNT)) - 1;
+		tm->tm_sec	= bcd2bin(readb(rtc->regbase + RSECCNT));
+		tm->tm_min	= bcd2bin(readb(rtc->regbase + RMINCNT));
+		tm->tm_hour	= bcd2bin(readb(rtc->regbase + RHRCNT));
+		tm->tm_wday	= bcd2bin(readb(rtc->regbase + RWKCNT));
+		tm->tm_mday	= bcd2bin(readb(rtc->regbase + RDAYCNT));
+		tm->tm_mon	= bcd2bin(readb(rtc->regbase + RMONCNT)) - 1;
 
 		if (rtc->capabilities & RTC_CAP_4_DIGIT_YEAR) {
 			yr  = readw(rtc->regbase + RYRCNT);
-			yr100 = BCD2BIN(yr >> 8);
+			yr100 = bcd2bin(yr >> 8);
 			yr &= 0xff;
 		} else {
 			yr  = readb(rtc->regbase + RYRCNT);
-			yr100 = BCD2BIN((yr == 0x99) ? 0x19 : 0x20);
+			yr100 = bcd2bin((yr == 0x99) ? 0x19 : 0x20);
 		}
 
-		tm->tm_year = (yr100 * 100 + BCD2BIN(yr)) - 1900;
+		tm->tm_year = (yr100 * 100 + bcd2bin(yr)) - 1900;
 
 		sec2 = readb(rtc->regbase + R64CNT);
 		cf_bit = readb(rtc->regbase + RCR1) & RCR1_CF;
@@ -388,20 +382,20 @@ static int sh_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	tmp &= ~RCR2_START;
 	writeb(tmp, rtc->regbase + RCR2);
 
-	writeb(BIN2BCD(tm->tm_sec),  rtc->regbase + RSECCNT);
-	writeb(BIN2BCD(tm->tm_min),  rtc->regbase + RMINCNT);
-	writeb(BIN2BCD(tm->tm_hour), rtc->regbase + RHRCNT);
-	writeb(BIN2BCD(tm->tm_wday), rtc->regbase + RWKCNT);
-	writeb(BIN2BCD(tm->tm_mday), rtc->regbase + RDAYCNT);
-	writeb(BIN2BCD(tm->tm_mon + 1), rtc->regbase + RMONCNT);
+	writeb(bin2bcd(tm->tm_sec),  rtc->regbase + RSECCNT);
+	writeb(bin2bcd(tm->tm_min),  rtc->regbase + RMINCNT);
+	writeb(bin2bcd(tm->tm_hour), rtc->regbase + RHRCNT);
+	writeb(bin2bcd(tm->tm_wday), rtc->regbase + RWKCNT);
+	writeb(bin2bcd(tm->tm_mday), rtc->regbase + RDAYCNT);
+	writeb(bin2bcd(tm->tm_mon + 1), rtc->regbase + RMONCNT);
 
 	if (rtc->capabilities & RTC_CAP_4_DIGIT_YEAR) {
-		year = (BIN2BCD((tm->tm_year + 1900) / 100) << 8) |
-			BIN2BCD(tm->tm_year % 100);
+		year = (bin2bcd((tm->tm_year + 1900) / 100) << 8) |
+			bin2bcd(tm->tm_year % 100);
 		writew(year, rtc->regbase + RYRCNT);
 	} else {
 		year = tm->tm_year % 100;
-		writeb(BIN2BCD(year), rtc->regbase + RYRCNT);
+		writeb(bin2bcd(year), rtc->regbase + RYRCNT);
 	}
 
 	/* Start RTC */
@@ -423,7 +417,7 @@ static inline int sh_rtc_read_alarm_value(struct sh_rtc *rtc, int reg_off)
 	byte = readb(rtc->regbase + reg_off);
 	if (byte & AR_ENB) {
 		byte &= ~AR_ENB;	/* strip the enable bit */
-		value = BCD2BIN(byte);
+		value = bcd2bin(byte);
 	}
 
 	return value;
@@ -461,7 +455,7 @@ static inline void sh_rtc_write_alarm_value(struct sh_rtc *rtc,
 	if (value < 0)
 		writeb(0, rtc->regbase + reg_off);
 	else
-		writeb(BIN2BCD(value) | AR_ENB,  rtc->regbase + reg_off);
+		writeb(bin2bcd(value) | AR_ENB,  rtc->regbase + reg_off);
 }
 
 static int sh_rtc_check_alarm(struct rtc_time *tm)
@@ -559,7 +553,6 @@ static int sh_rtc_irq_set_freq(struct device *dev, int freq)
 }
 
 static struct rtc_class_ops sh_rtc_ops = {
-	.release	= sh_rtc_release,
 	.ioctl		= sh_rtc_ioctl,
 	.read_time	= sh_rtc_read_time,
 	.set_time	= sh_rtc_set_time,
@@ -575,7 +568,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 	struct sh_rtc *rtc;
 	struct resource *res;
 	unsigned int tmp;
-	int ret = -ENOENT;
+	int ret;
 
 	rtc = kzalloc(sizeof(struct sh_rtc), GFP_KERNEL);
 	if (unlikely(!rtc))
@@ -584,26 +577,33 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 	spin_lock_init(&rtc->lock);
 
 	/* get periodic/carry/alarm irqs */
-	rtc->periodic_irq = platform_get_irq(pdev, 0);
-	if (unlikely(rtc->periodic_irq < 0)) {
+	ret = platform_get_irq(pdev, 0);
+	if (unlikely(ret < 0)) {
+		ret = -ENOENT;
 		dev_err(&pdev->dev, "No IRQ for period\n");
 		goto err_badres;
 	}
+	rtc->periodic_irq = ret;
 
-	rtc->carry_irq = platform_get_irq(pdev, 1);
-	if (unlikely(rtc->carry_irq < 0)) {
+	ret = platform_get_irq(pdev, 1);
+	if (unlikely(ret < 0)) {
+		ret = -ENOENT;
 		dev_err(&pdev->dev, "No IRQ for carry\n");
 		goto err_badres;
 	}
+	rtc->carry_irq = ret;
 
-	rtc->alarm_irq = platform_get_irq(pdev, 2);
-	if (unlikely(rtc->alarm_irq < 0)) {
+	ret = platform_get_irq(pdev, 2);
+	if (unlikely(ret < 0)) {
+		ret = -ENOENT;
 		dev_err(&pdev->dev, "No IRQ for alarm\n");
 		goto err_badres;
 	}
+	rtc->alarm_irq = ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (unlikely(res == NULL)) {
+		ret = -ENOENT;
 		dev_err(&pdev->dev, "No IO resource\n");
 		goto err_badres;
 	}

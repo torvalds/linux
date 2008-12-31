@@ -70,6 +70,8 @@
 
 #ifdef CONFIG_GUSA_RB
 #include <asm/cmpxchg-grb.h>
+#elif defined(CONFIG_CPU_SH4A)
+#include <asm/cmpxchg-llsc.h>
 #else
 #include <asm/cmpxchg-irq.h>
 #endif
@@ -125,6 +127,8 @@ static inline unsigned long __cmpxchg(volatile void * ptr, unsigned long old,
   })
 
 extern void die(const char *str, struct pt_regs *regs, long err) __attribute__ ((noreturn));
+void free_initmem(void);
+void free_initrd_mem(unsigned long start, unsigned long end);
 
 extern void *set_exception_table_vec(unsigned int vec, void *handler);
 
@@ -171,14 +175,16 @@ asmlinkage void name##_trap_handler(unsigned int vec, struct pt_regs *regs)
 BUILD_TRAP_HANDLER(address_error);
 BUILD_TRAP_HANDLER(debug);
 BUILD_TRAP_HANDLER(bug);
+BUILD_TRAP_HANDLER(breakpoint);
+BUILD_TRAP_HANDLER(singlestep);
 BUILD_TRAP_HANDLER(fpu_error);
 BUILD_TRAP_HANDLER(fpu_state_restore);
 
 #define arch_align_stack(x) (x)
 
 struct mem_access {
-	unsigned long (*from)(void *dst, const void *src, unsigned long cnt);
-	unsigned long (*to)(void *dst, const void *src, unsigned long cnt);
+	unsigned long (*from)(void *dst, const void __user *src, unsigned long cnt);
+	unsigned long (*to)(void __user *dst, const void *src, unsigned long cnt);
 };
 
 #ifdef CONFIG_SUPERH32

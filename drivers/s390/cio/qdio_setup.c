@@ -117,17 +117,16 @@ static void setup_queues_misc(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	q->mask = 1 << (31 - i);
 	q->nr = i;
 	q->handler = handler;
+	spin_lock_init(&q->lock);
 }
 
 static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
-				void **sbals_array, char *dbf_text, int i)
+				void **sbals_array, int i)
 {
 	struct qdio_q *prev;
 	int j;
 
-	QDIO_DBF_TEXT0(0, setup, dbf_text);
-	QDIO_DBF_HEX0(0, setup, &q, sizeof(void *));
-
+	DBF_HEX(&q, sizeof(void *));
 	q->sl = (struct sl *)((char *)q->slib + PAGE_SIZE / 2);
 
 	/* fill in sbal */
@@ -150,31 +149,26 @@ static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++)
 		q->sl->element[j].sbal = (unsigned long)q->sbal[j];
 
-	QDIO_DBF_TEXT2(0, setup, "sl-sb-b0");
-	QDIO_DBF_HEX2(0, setup, q->sl, sizeof(void *));
-	QDIO_DBF_HEX2(0, setup, &q->slsb, sizeof(void *));
-	QDIO_DBF_HEX2(0, setup, q->sbal, sizeof(void *));
+	DBF_EVENT("sl-slsb-sbal");
+	DBF_HEX(q->sl, sizeof(void *));
+	DBF_HEX(&q->slsb, sizeof(void *));
+	DBF_HEX(q->sbal, sizeof(void *));
 }
 
 static void setup_queues(struct qdio_irq *irq_ptr,
 			 struct qdio_initialize *qdio_init)
 {
-	char dbf_text[20];
 	struct qdio_q *q;
 	void **input_sbal_array = qdio_init->input_sbal_addr_array;
 	void **output_sbal_array = qdio_init->output_sbal_addr_array;
 	int i;
 
-	sprintf(dbf_text, "qset%4x", qdio_init->cdev->private->schid.sch_no);
-	QDIO_DBF_TEXT0(0, setup, dbf_text);
-
 	for_each_input_queue(irq_ptr, q, i) {
-		sprintf(dbf_text, "in-q%4x", i);
+		DBF_EVENT("in-q:%1d", i);
 		setup_queues_misc(q, irq_ptr, qdio_init->input_handler, i);
 
 		q->is_input_q = 1;
-		spin_lock_init(&q->u.in.lock);
-		setup_storage_lists(q, irq_ptr, input_sbal_array, dbf_text, i);
+		setup_storage_lists(q, irq_ptr, input_sbal_array, i);
 		input_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
 
 		if (is_thinint_irq(irq_ptr))
@@ -186,12 +180,11 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 	}
 
 	for_each_output_queue(irq_ptr, q, i) {
-		sprintf(dbf_text, "outq%4x", i);
+		DBF_EVENT("outq:%1d", i);
 		setup_queues_misc(q, irq_ptr, qdio_init->output_handler, i);
 
 		q->is_input_q = 0;
-		setup_storage_lists(q, irq_ptr, output_sbal_array,
-				    dbf_text, i);
+		setup_storage_lists(q, irq_ptr, output_sbal_array, i);
 		output_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
 
 		tasklet_init(&q->tasklet, qdio_outbound_processing,
@@ -222,8 +215,6 @@ static void process_ac_flags(struct qdio_irq *irq_ptr, unsigned char qdioac)
 static void check_and_setup_qebsm(struct qdio_irq *irq_ptr,
 				  unsigned char qdioac, unsigned long token)
 {
-	char dbf_text[15];
-
 	if (!(irq_ptr->qib.rflags & QIB_RFLAGS_ENABLE_QEBSM))
 		goto no_qebsm;
 	if (!(qdioac & AC1_SC_QEBSM_AVAILABLE) ||
@@ -232,33 +223,41 @@ static void check_and_setup_qebsm(struct qdio_irq *irq_ptr,
 
 	irq_ptr->sch_token = token;
 
-	QDIO_DBF_TEXT0(0, setup, "V=V:1");
-	sprintf(dbf_text, "%8lx", irq_ptr->sch_token);
-	QDIO_DBF_TEXT0(0, setup, dbf_text);
+	DBF_EVENT("V=V:1");
+	DBF_EVENT("%8lx", irq_ptr->sch_token);
 	return;
 
 no_qebsm:
 	irq_ptr->sch_token = 0;
 	irq_ptr->qib.rflags &= ~QIB_RFLAGS_ENABLE_QEBSM;
-	QDIO_DBF_TEXT0(0, setup, "noV=V");
+	DBF_EVENT("noV=V");
 }
 
-static int __get_ssqd_info(struct qdio_irq *irq_ptr)
+/*
+ * If there is a qdio_irq we use the chsc_page and store the information
+ * in the qdio_irq, otherwise we copy it to the specified structure.
+ */
+int qdio_setup_get_ssqd(struct qdio_irq *irq_ptr,
+			struct subchannel_id *schid,
+			struct qdio_ssqd_desc *data)
 {
 	struct chsc_ssqd_area *ssqd;
 	int rc;
 
-	QDIO_DBF_TEXT0(0, setup, "getssqd");
-	ssqd = (struct chsc_ssqd_area *)irq_ptr->chsc_page;
+	DBF_EVENT("getssqd:%4x", schid->sch_no);
+	if (irq_ptr != NULL)
+		ssqd = (struct chsc_ssqd_area *)irq_ptr->chsc_page;
+	else
+		ssqd = (struct chsc_ssqd_area *)__get_free_page(GFP_KERNEL);
 	memset(ssqd, 0, PAGE_SIZE);
 
 	ssqd->request = (struct chsc_header) {
 		.length = 0x0010,
 		.code	= 0x0024,
 	};
-	ssqd->first_sch = irq_ptr->schid.sch_no;
-	ssqd->last_sch = irq_ptr->schid.sch_no;
-	ssqd->ssid = irq_ptr->schid.ssid;
+	ssqd->first_sch = schid->sch_no;
+	ssqd->last_sch = schid->sch_no;
+	ssqd->ssid = schid->ssid;
 
 	if (chsc(ssqd))
 		return -EIO;
@@ -268,27 +267,29 @@ static int __get_ssqd_info(struct qdio_irq *irq_ptr)
 
 	if (!(ssqd->qdio_ssqd.flags & CHSC_FLAG_QDIO_CAPABILITY) ||
 	    !(ssqd->qdio_ssqd.flags & CHSC_FLAG_VALIDITY) ||
-	    (ssqd->qdio_ssqd.sch != irq_ptr->schid.sch_no))
+	    (ssqd->qdio_ssqd.sch != schid->sch_no))
 		return -EINVAL;
 
-	memcpy(&irq_ptr->ssqd_desc, &ssqd->qdio_ssqd,
-	       sizeof(struct qdio_ssqd_desc));
+	if (irq_ptr != NULL)
+		memcpy(&irq_ptr->ssqd_desc, &ssqd->qdio_ssqd,
+		       sizeof(struct qdio_ssqd_desc));
+	else {
+		memcpy(data, &ssqd->qdio_ssqd,
+		       sizeof(struct qdio_ssqd_desc));
+		free_page((unsigned long)ssqd);
+	}
 	return 0;
 }
 
 void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr)
 {
 	unsigned char qdioac;
-	char dbf_text[15];
 	int rc;
 
-	rc = __get_ssqd_info(irq_ptr);
+	rc = qdio_setup_get_ssqd(irq_ptr, &irq_ptr->schid, NULL);
 	if (rc) {
-		QDIO_DBF_TEXT2(0, setup, "ssqdasig");
-		sprintf(dbf_text, "schn%4x", irq_ptr->schid.sch_no);
-		QDIO_DBF_TEXT2(0, setup, dbf_text);
-		sprintf(dbf_text, "rc:%d", rc);
-		QDIO_DBF_TEXT2(0, setup, dbf_text);
+		DBF_ERROR("%4x ssqd ERR", irq_ptr->schid.sch_no);
+		DBF_ERROR("rc:%x", rc);
 		/* all flags set, worst case */
 		qdioac = AC1_SIGA_INPUT_NEEDED | AC1_SIGA_OUTPUT_NEEDED |
 			 AC1_SIGA_SYNC_NEEDED;
@@ -297,9 +298,7 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr)
 
 	check_and_setup_qebsm(irq_ptr, qdioac, irq_ptr->ssqd_desc.sch_token);
 	process_ac_flags(irq_ptr, qdioac);
-
-	sprintf(dbf_text, "qdioac%2x", qdioac);
-	QDIO_DBF_TEXT2(0, setup, dbf_text);
+	DBF_EVENT("qdioac:%4x", qdioac);
 }
 
 void qdio_release_memory(struct qdio_irq *irq_ptr)
@@ -419,7 +418,7 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	/* get qdio commands */
 	ciw = ccw_device_get_ciw(init_data->cdev, CIW_TYPE_EQUEUE);
 	if (!ciw) {
-		QDIO_DBF_TEXT2(1, setup, "no eq");
+		DBF_ERROR("%4x NO EQ", irq_ptr->schid.sch_no);
 		rc = -EINVAL;
 		goto out_err;
 	}
@@ -427,7 +426,7 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 
 	ciw = ccw_device_get_ciw(init_data->cdev, CIW_TYPE_AQUEUE);
 	if (!ciw) {
-		QDIO_DBF_TEXT2(1, setup, "no aq");
+		DBF_ERROR("%4x NO AQ", irq_ptr->schid.sch_no);
 		rc = -EINVAL;
 		goto out_err;
 	}
@@ -447,56 +446,38 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 {
 	char s[80];
 
-	sprintf(s, "qdio: %s ", dev_name(&cdev->dev));
-	switch (irq_ptr->qib.qfmt) {
-	case QDIO_QETH_QFMT:
-		sprintf(s + strlen(s), "OSA ");
-		break;
-	case QDIO_ZFCP_QFMT:
-		sprintf(s + strlen(s), "ZFCP ");
-		break;
-	case QDIO_IQDIO_QFMT:
-		sprintf(s + strlen(s), "HS ");
-		break;
-	}
-	sprintf(s + strlen(s), "on SC %x using ", irq_ptr->schid.sch_no);
-	sprintf(s + strlen(s), "AI:%d ", is_thinint_irq(irq_ptr));
-	sprintf(s + strlen(s), "QEBSM:%d ", (irq_ptr->sch_token) ? 1 : 0);
-	sprintf(s + strlen(s), "PCI:%d ",
-		(irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED) ? 1 : 0);
-	sprintf(s + strlen(s), "TDD:%d ", css_general_characteristics.aif_tdd);
-	sprintf(s + strlen(s), "SIGA:");
-	sprintf(s + strlen(s), "%s", (irq_ptr->siga_flag.input) ? "R" : " ");
-	sprintf(s + strlen(s), "%s", (irq_ptr->siga_flag.output) ? "W" : " ");
-	sprintf(s + strlen(s), "%s", (irq_ptr->siga_flag.sync) ? "S" : " ");
-	sprintf(s + strlen(s), "%s",
-		(!irq_ptr->siga_flag.no_sync_ti) ? "A" : " ");
-	sprintf(s + strlen(s), "%s",
-		(!irq_ptr->siga_flag.no_sync_out_ti) ? "O" : " ");
-	sprintf(s + strlen(s), "%s",
-		(!irq_ptr->siga_flag.no_sync_out_pci) ? "P" : " ");
-	sprintf(s + strlen(s), "\n");
+	snprintf(s, 80, "qdio: %s %s on SC %x using "
+		 "AI:%d QEBSM:%d PCI:%d TDD:%d SIGA:%s%s%s%s%s%s\n",
+		 dev_name(&cdev->dev),
+		 (irq_ptr->qib.qfmt == QDIO_QETH_QFMT) ? "OSA" :
+			((irq_ptr->qib.qfmt == QDIO_ZFCP_QFMT) ? "ZFCP" : "HS"),
+		 irq_ptr->schid.sch_no,
+		 is_thinint_irq(irq_ptr),
+		 (irq_ptr->sch_token) ? 1 : 0,
+		 (irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED) ? 1 : 0,
+		 css_general_characteristics.aif_tdd,
+		 (irq_ptr->siga_flag.input) ? "R" : " ",
+		 (irq_ptr->siga_flag.output) ? "W" : " ",
+		 (irq_ptr->siga_flag.sync) ? "S" : " ",
+		 (!irq_ptr->siga_flag.no_sync_ti) ? "A" : " ",
+		 (!irq_ptr->siga_flag.no_sync_out_ti) ? "O" : " ",
+		 (!irq_ptr->siga_flag.no_sync_out_pci) ? "P" : " ");
 	printk(KERN_INFO "%s", s);
 }
 
 int __init qdio_setup_init(void)
 {
-	char dbf_text[15];
-
 	qdio_q_cache = kmem_cache_create("qdio_q", sizeof(struct qdio_q),
 					 256, 0, NULL);
 	if (!qdio_q_cache)
 		return -ENOMEM;
 
 	/* Check for OSA/FCP thin interrupts (bit 67). */
-	sprintf(dbf_text, "thini%1x",
-		(css_general_characteristics.aif_osa) ? 1 : 0);
-	QDIO_DBF_TEXT0(0, setup, dbf_text);
+	DBF_EVENT("thinint:%1d",
+		  (css_general_characteristics.aif_osa) ? 1 : 0);
 
 	/* Check for QEBSM support in general (bit 58). */
-	sprintf(dbf_text, "cssQBS:%1x",
-		(qebsm_possible()) ? 1 : 0);
-	QDIO_DBF_TEXT0(0, setup, dbf_text);
+	DBF_EVENT("cssQEBSM:%1d", (qebsm_possible()) ? 1 : 0);
 	return 0;
 }
 

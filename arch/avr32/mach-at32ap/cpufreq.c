@@ -40,6 +40,9 @@ static unsigned int at32_get_speed(unsigned int cpu)
 	return (unsigned int)((clk_get_rate(cpuclk) + 500) / 1000);
 }
 
+static unsigned int	ref_freq;
+static unsigned long	loops_per_jiffy_ref;
+
 static int at32_set_target(struct cpufreq_policy *policy,
 			  unsigned int target_freq,
 			  unsigned int relation)
@@ -61,8 +64,19 @@ static int at32_set_target(struct cpufreq_policy *policy,
 	freqs.cpu = 0;
 	freqs.flags = 0;
 
+	if (!ref_freq) {
+		ref_freq = freqs.old;
+		loops_per_jiffy_ref = boot_cpu_data.loops_per_jiffy;
+	}
+
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	if (freqs.old < freqs.new)
+		boot_cpu_data.loops_per_jiffy = cpufreq_scale(
+				loops_per_jiffy_ref, ref_freq, freqs.new);
 	clk_set_rate(cpuclk, freq);
+	if (freqs.new < freqs.old)
+		boot_cpu_data.loops_per_jiffy = cpufreq_scale(
+				loops_per_jiffy_ref, ref_freq, freqs.new);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 	pr_debug("cpufreq: set frequency %lu Hz\n", freq);
@@ -87,7 +101,6 @@ static int __init at32_cpufreq_driver_init(struct cpufreq_policy *policy)
 	policy->cur = at32_get_speed(0);
 	policy->min = policy->cpuinfo.min_freq;
 	policy->max = policy->cpuinfo.max_freq;
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 
 	printk("cpufreq: AT32AP CPU frequency driver\n");
 

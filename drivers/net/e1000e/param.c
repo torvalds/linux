@@ -151,6 +151,16 @@ E1000_PARAM(KumeranLockLoss, "Enable Kumeran lock loss workaround");
  */
 E1000_PARAM(WriteProtectNVM, "Write-protect NVM [WARNING: disabling this can lead to corrupted NVM]");
 
+/*
+ * Enable CRC Stripping
+ *
+ * Valid Range: 0, 1
+ *
+ * Default Value: 1 (enabled)
+ */
+E1000_PARAM(CrcStripping, "Enable CRC Stripping, disable if your BMC needs " \
+                          "the CRC");
+
 struct e1000_option {
 	enum { enable_option, range_option, list_option } type;
 	const char *name;
@@ -402,6 +412,21 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 			if ((adapter->flags & FLAG_HAS_SMART_POWER_DOWN)
 			    && spd)
 				adapter->flags |= FLAG_SMART_POWER_DOWN;
+		}
+	}
+	{ /* CRC Stripping */
+		const struct e1000_option opt = {
+			.type = enable_option,
+			.name = "CRC Stripping",
+			.err  = "defaulting to enabled",
+			.def  = OPTION_ENABLED
+		};
+
+		if (num_CrcStripping > bd) {
+			unsigned int crc_stripping = CrcStripping[bd];
+			e1000_validate_option(&crc_stripping, &opt, adapter);
+			if (crc_stripping == OPTION_ENABLED)
+				adapter->flags2 |= FLAG2_CRC_STRIPPING;
 		}
 	}
 	{ /* Kumeran Lock Loss Workaround */

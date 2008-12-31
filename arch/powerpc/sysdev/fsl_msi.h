@@ -13,6 +13,8 @@
 #ifndef _POWERPC_SYSDEV_FSL_MSI_H
 #define _POWERPC_SYSDEV_FSL_MSI_H
 
+#include <asm/msi_bitmap.h>
+
 #define NR_MSI_REG		8
 #define IRQS_PER_MSI_REG	32
 #define NR_MSI_IRQS	(NR_MSI_REG * IRQS_PER_MSI_REG)
@@ -22,9 +24,6 @@
 #define FSL_PIC_IP_IPIC	0x00000002
 
 struct fsl_msi {
-	/* Device node of the MSI interrupt*/
-	struct device_node *of_node;
-
 	struct irq_host *irqhost;
 
 	unsigned long cascade_irq;
@@ -34,8 +33,7 @@ struct fsl_msi {
 	void __iomem *msi_regs;
 	u32 feature;
 
-	unsigned long *fsl_msi_bitmap;
-	spinlock_t bitmap_lock;
+	struct msi_bitmap bitmap;
 };
 
 #endif /* _POWERPC_SYSDEV_FSL_MSI_H */

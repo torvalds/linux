@@ -6,6 +6,7 @@
 #include "linux/sched.h"
 #include "linux/shm.h"
 #include "linux/ipc.h"
+#include "linux/syscalls.h"
 #include "asm/mman.h"
 #include "asm/uaccess.h"
 #include "asm/unistd.h"

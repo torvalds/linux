@@ -16,15 +16,7 @@
    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
 */
 
-#include <linux/module.h>
-
-#include <linux/raid/md.h>
-#include <linux/slab.h>
 #include <linux/raid/linear.h>
-
-#define MAJOR_NR MD_MAJOR
-#define MD_DRIVER
-#define MD_PERSONALITY
 
 /*
  * find which device holds a particular offset 
@@ -33,16 +25,15 @@ static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
 {
 	dev_info_t *hash;
 	linear_conf_t *conf = mddev_to_conf(mddev);
-	sector_t block = sector >> 1;
 
 	/*
 	 * sector_div(a,b) returns the remainer and sets a to a/b
 	 */
-	block >>= conf->preshift;
-	(void)sector_div(block, conf->hash_spacing);
-	hash = conf->hash_table[block];
+	sector >>= conf->sector_shift;
+	(void)sector_div(sector, conf->spacing);
+	hash = conf->hash_table[sector];
 
-	while ((sector>>1) >= (hash->size + hash->offset))
+	while (sector >= hash->num_sectors + hash->start_sector)
 		hash++;
 	return hash;
 }
@@ -65,7 +56,7 @@ static int linear_mergeable_bvec(struct request_queue *q,
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
 
 	dev0 = which_dev(mddev, sector);
-	maxsectors = (dev0->size << 1) - (sector - (dev0->offset<<1));
+	maxsectors = dev0->num_sectors - (sector - dev0->start_sector);
 
 	if (maxsectors < bio_sectors)
 		maxsectors = 0;
@@ -112,8 +103,8 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	dev_info_t **table;
 	mdk_rdev_t *rdev;
 	int i, nb_zone, cnt;
-	sector_t min_spacing;
-	sector_t curr_offset;
+	sector_t min_sectors;
+	sector_t curr_sector;
 	struct list_head *tmp;
 
 	conf = kzalloc (sizeof (*conf) + raid_disks*sizeof(dev_info_t),
@@ -145,7 +136,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		    mddev->queue->max_sectors > (PAGE_SIZE>>9))
 			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
-		disk->size = rdev->size;
+		disk->num_sectors = rdev->size * 2;
 		conf->array_sectors += rdev->size * 2;
 
 		cnt++;
@@ -155,34 +146,36 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		goto out;
 	}
 
-	min_spacing = conf->array_sectors / 2;
-	sector_div(min_spacing, PAGE_SIZE/sizeof(struct dev_info *));
+	min_sectors = conf->array_sectors;
+	sector_div(min_sectors, PAGE_SIZE/sizeof(struct dev_info *));
+	if (min_sectors == 0)
+		min_sectors = 1;
 
-	/* min_spacing is the minimum spacing that will fit the hash
+	/* min_sectors is the minimum spacing that will fit the hash
 	 * table in one PAGE.  This may be much smaller than needed.
 	 * We find the smallest non-terminal set of consecutive devices
-	 * that is larger than min_spacing as use the size of that as
+	 * that is larger than min_sectors and use the size of that as
 	 * the actual spacing
 	 */
-	conf->hash_spacing = conf->array_sectors / 2;
+	conf->spacing = conf->array_sectors;
 	for (i=0; i < cnt-1 ; i++) {
-		sector_t sz = 0;
+		sector_t tmp = 0;
 		int j;
-		for (j = i; j < cnt - 1 && sz < min_spacing; j++)
-			sz += conf->disks[j].size;
-		if (sz >= min_spacing && sz < conf->hash_spacing)
-			conf->hash_spacing = sz;
+		for (j = i; j < cnt - 1 && tmp < min_sectors; j++)
+			tmp += conf->disks[j].num_sectors;
+		if (tmp >= min_sectors && tmp < conf->spacing)
+			conf->spacing = tmp;
 	}
 
-	/* hash_spacing may be too large for sector_div to work with,
+	/* spacing may be too large for sector_div to work with,
 	 * so we might need to pre-shift
 	 */
-	conf->preshift = 0;
+	conf->sector_shift = 0;
 	if (sizeof(sector_t) > sizeof(u32)) {
-		sector_t space = conf->hash_spacing;
+		sector_t space = conf->spacing;
 		while (space > (sector_t)(~(u32)0)) {
 			space >>= 1;
-			conf->preshift++;
+			conf->sector_shift++;
 		}
 	}
 	/*
@@ -194,9 +187,9 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		unsigned round;
 		unsigned long base;
 
-		sz = conf->array_sectors >> (conf->preshift + 1);
+		sz = conf->array_sectors >> conf->sector_shift;
 		sz += 1; /* force round-up */
-		base = conf->hash_spacing >> conf->preshift;
+		base = conf->spacing >> conf->sector_shift;
 		round = sector_div(sz, base);
 		nb_zone = sz + (round ? 1 : 0);
 	}
@@ -211,32 +204,31 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	 * Here we generate the linear hash table
 	 * First calculate the device offsets.
 	 */
-	conf->disks[0].offset = 0;
+	conf->disks[0].start_sector = 0;
 	for (i = 1; i < raid_disks; i++)
-		conf->disks[i].offset =
-			conf->disks[i-1].offset +
-			conf->disks[i-1].size;
+		conf->disks[i].start_sector =
+			conf->disks[i-1].start_sector +
+			conf->disks[i-1].num_sectors;
 
 	table = conf->hash_table;
-	curr_offset = 0;
 	i = 0;
-	for (curr_offset = 0;
-	     curr_offset < conf->array_sectors / 2;
-	     curr_offset += conf->hash_spacing) {
+	for (curr_sector = 0;
+	     curr_sector < conf->array_sectors;
+	     curr_sector += conf->spacing) {
 
 		while (i < raid_disks-1 &&
-		       curr_offset >= conf->disks[i+1].offset)
+		       curr_sector >= conf->disks[i+1].start_sector)
 			i++;
 
 		*table ++ = conf->disks + i;
 	}
 
-	if (conf->preshift) {
-		conf->hash_spacing >>= conf->preshift;
-		/* round hash_spacing up so that when we divide by it,
+	if (conf->sector_shift) {
+		conf->spacing >>= conf->sector_shift;
+		/* round spacing up so that when we divide by it,
 		 * we err on the side of "too-low", which is safest.
 		 */
-		conf->hash_spacing++;
+		conf->spacing++;
 	}
 
 	BUG_ON(table - conf->hash_table > nb_zone);
@@ -317,7 +309,6 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 	const int rw = bio_data_dir(bio);
 	mddev_t *mddev = q->queuedata;
 	dev_info_t *tmp_dev;
-	sector_t block;
 	int cpu;
 
 	if (unlikely(bio_barrier(bio))) {
@@ -332,29 +323,33 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 	part_stat_unlock();
 
 	tmp_dev = which_dev(mddev, bio->bi_sector);
-	block = bio->bi_sector >> 1;
     
-	if (unlikely(block >= (tmp_dev->size + tmp_dev->offset)
-		     || block < tmp_dev->offset)) {
+	if (unlikely(bio->bi_sector >= (tmp_dev->num_sectors +
+					tmp_dev->start_sector)
+		     || (bio->bi_sector <
+			 tmp_dev->start_sector))) {
 		char b[BDEVNAME_SIZE];
 
-		printk("linear_make_request: Block %llu out of bounds on "
-			"dev %s size %llu offset %llu\n",
-			(unsigned long long)block,
+		printk("linear_make_request: Sector %llu out of bounds on "
+			"dev %s: %llu sectors, offset %llu\n",
+			(unsigned long long)bio->bi_sector,
 			bdevname(tmp_dev->rdev->bdev, b),
-			(unsigned long long)tmp_dev->size,
-		        (unsigned long long)tmp_dev->offset);
+			(unsigned long long)tmp_dev->num_sectors,
+			(unsigned long long)tmp_dev->start_sector);
 		bio_io_error(bio);
 		return 0;
 	}
 	if (unlikely(bio->bi_sector + (bio->bi_size >> 9) >
-		     (tmp_dev->offset + tmp_dev->size)<<1)) {
+		     tmp_dev->start_sector + tmp_dev->num_sectors)) {
 		/* This bio crosses a device boundary, so we have to
 		 * split it.
 		 */
 		struct bio_pair *bp;
+
 		bp = bio_split(bio,
-			       ((tmp_dev->offset + tmp_dev->size)<<1) - bio->bi_sector);
+			       tmp_dev->start_sector + tmp_dev->num_sectors
+			       - bio->bi_sector);
+
 		if (linear_make_request(q, &bp->bio1))
 			generic_make_request(&bp->bio1);
 		if (linear_make_request(q, &bp->bio2))
@@ -364,7 +359,8 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 	}
 		    
 	bio->bi_bdev = tmp_dev->rdev->bdev;
-	bio->bi_sector = bio->bi_sector - (tmp_dev->offset << 1) + tmp_dev->rdev->data_offset;
+	bio->bi_sector = bio->bi_sector - tmp_dev->start_sector
+		+ tmp_dev->rdev->data_offset;
 
 	return 1;
 }
@@ -372,29 +368,6 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 static void linear_status (struct seq_file *seq, mddev_t *mddev)
 {
 
-#undef MD_DEBUG
-#ifdef MD_DEBUG
-	int j;
-	linear_conf_t *conf = mddev_to_conf(mddev);
-	sector_t s = 0;
-  
-	seq_printf(seq, "      ");
-	for (j = 0; j < mddev->raid_disks; j++)
-	{
-		char b[BDEVNAME_SIZE];
-		s += conf->smallest_size;
-		seq_printf(seq, "[%s",
-			   bdevname(conf->hash_table[j][0].rdev->bdev,b));
-
-		while (s > conf->hash_table[j][0].offset +
-		           conf->hash_table[j][0].size)
-			seq_printf(seq, "/%s] ",
-				   bdevname(conf->hash_table[j][1].rdev->bdev,b));
-		else
-			seq_printf(seq, "] ");
-	}
-	seq_printf(seq, "\n");
-#endif
 	seq_printf(seq, " %dk rounding", mddev->chunk_size/1024);
 }
 

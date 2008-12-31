@@ -50,14 +50,12 @@
 #include <linux/cn_proc.h>
 #include <linux/audit.h>
 #include <linux/tracehook.h>
+#include <linux/kmod.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
-
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
+#include "internal.h"
 
 #ifdef __alpha__
 /* for /sbin/loader handling in search_binary_handler() */
@@ -391,7 +389,7 @@ static int count(char __user * __user * argv, int max)
 			if (!p)
 				break;
 			argv++;
-			if(++i > max)
+			if (i++ >= max)
 				return -E2BIG;
 			cond_resched();
 		}
@@ -775,7 +773,6 @@ static int de_thread(struct task_struct *tsk)
 	struct signal_struct *sig = tsk->signal;
 	struct sighand_struct *oldsighand = tsk->sighand;
 	spinlock_t *lock = &oldsighand->siglock;
-	struct task_struct *leader = NULL;
 	int count;
 
 	if (thread_group_empty(tsk))
@@ -813,7 +810,7 @@ static int de_thread(struct task_struct *tsk)
 	 * and to assume its PID:
 	 */
 	if (!thread_group_leader(tsk)) {
-		leader = tsk->group_leader;
+		struct task_struct *leader = tsk->group_leader;
 
 		sig->notify_count = -1;	/* for exit_notify() */
 		for (;;) {
@@ -825,8 +822,6 @@ static int de_thread(struct task_struct *tsk)
 			schedule();
 		}
 
-		if (unlikely(task_child_reaper(tsk) == leader))
-			task_active_pid_ns(tsk)->child_reaper = tsk;
 		/*
 		 * The only record we have of the real-time age of a
 		 * process, regardless of execs it's done, is start_time.
@@ -867,8 +862,9 @@ static int de_thread(struct task_struct *tsk)
 
 		BUG_ON(leader->exit_state != EXIT_ZOMBIE);
 		leader->exit_state = EXIT_DEAD;
-
 		write_unlock_irq(&tasklist_lock);
+
+		release_task(leader);
 	}
 
 	sig->group_exit_task = NULL;
@@ -877,8 +873,6 @@ static int de_thread(struct task_struct *tsk)
 no_thread_group:
 	exit_itimers(sig);
 	flush_itimer_signals();
-	if (leader)
-		release_task(leader);
 
 	if (atomic_read(&oldsighand->count) != 1) {
 		struct sighand_struct *newsighand;
@@ -985,7 +979,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	/* This is the point of no return */
 	current->sas_ss_sp = current->sas_ss_size = 0;
 
-	if (current->euid == current->uid && current->egid == current->gid)
+	if (current_euid() == current_uid() && current_egid() == current_gid())
 		set_dumpable(current->mm, 1);
 	else
 		set_dumpable(current->mm, suid_dumpable);
@@ -1012,15 +1006,16 @@ int flush_old_exec(struct linux_binprm * bprm)
 	 */
 	current->mm->task_size = TASK_SIZE;
 
-	if (bprm->e_uid != current->euid || bprm->e_gid != current->egid) {
-		suid_keys(current);
-		set_dumpable(current->mm, suid_dumpable);
+	/* install the new credentials */
+	if (bprm->cred->uid != current_euid() ||
+	    bprm->cred->gid != current_egid()) {
 		current->pdeath_signal = 0;
 	} else if (file_permission(bprm->file, MAY_READ) ||
-			(bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP)) {
-		suid_keys(current);
+		   bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP) {
 		set_dumpable(current->mm, suid_dumpable);
 	}
+
+	current->personality &= ~bprm->per_clear;
 
 	/* An exec changes our domain. We are no longer part of the thread
 	   group */
@@ -1038,13 +1033,50 @@ out:
 
 EXPORT_SYMBOL(flush_old_exec);
 
+/*
+ * install the new credentials for this executable
+ */
+void install_exec_creds(struct linux_binprm *bprm)
+{
+	security_bprm_committing_creds(bprm);
+
+	commit_creds(bprm->cred);
+	bprm->cred = NULL;
+
+	/* cred_exec_mutex must be held at least to this point to prevent
+	 * ptrace_attach() from altering our determination of the task's
+	 * credentials; any time after this it may be unlocked */
+
+	security_bprm_committed_creds(bprm);
+}
+EXPORT_SYMBOL(install_exec_creds);
+
+/*
+ * determine how safe it is to execute the proposed program
+ * - the caller must hold current->cred_exec_mutex to protect against
+ *   PTRACE_ATTACH
+ */
+void check_unsafe_exec(struct linux_binprm *bprm)
+{
+	struct task_struct *p = current;
+
+	bprm->unsafe = tracehook_unsafe_exec(p);
+
+	if (atomic_read(&p->fs->count) > 1 ||
+	    atomic_read(&p->files->count) > 1 ||
+	    atomic_read(&p->sighand->count) > 1)
+		bprm->unsafe |= LSM_UNSAFE_SHARE;
+}
+
 /* 
  * Fill the binprm structure from the inode. 
  * Check permissions, then read the first 128 (BINPRM_BUF_SIZE) bytes
+ *
+ * This may be called multiple times for binary chains (scripts for example).
  */
 int prepare_binprm(struct linux_binprm *bprm)
 {
-	int mode;
+	umode_t mode;
 	struct inode * inode = bprm->file->f_path.dentry->d_inode;
 	int retval;
 
@@ -1052,14 +1084,15 @@ int prepare_binprm(struct linux_binprm *bprm)
 	if (bprm->file->f_op == NULL)
 		return -EACCES;
 
-	bprm->e_uid = current->euid;
-	bprm->e_gid = current->egid;
+	/* clear any previous set[ug]id data from a previous binary */
+	bprm->cred->euid = current_euid();
+	bprm->cred->egid = current_egid();
 
-	if(!(bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID)) {
+	if (!(bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID)) {
 		/* Set-uid? */
 		if (mode & S_ISUID) {
-			current->personality &= ~PER_CLEAR_ON_SETID;
-			bprm->e_uid = inode->i_uid;
+			bprm->per_clear |= PER_CLEAR_ON_SETID;
+			bprm->cred->euid = inode->i_uid;
 		}
 
 		/* Set-gid? */
@@ -1069,51 +1102,22 @@ int prepare_binprm(struct linux_binprm *bprm)
 		 * executable.
 		 */
 		if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
-			current->personality &= ~PER_CLEAR_ON_SETID;
-			bprm->e_gid = inode->i_gid;
+			bprm->per_clear |= PER_CLEAR_ON_SETID;
+			bprm->cred->egid = inode->i_gid;
 		}
 	}
 
 	/* fill in binprm security blob */
-	retval = security_bprm_set(bprm);
+	retval = security_bprm_set_creds(bprm);
 	if (retval)
 		return retval;
+	bprm->cred_prepared = 1;
 
-	memset(bprm->buf,0,BINPRM_BUF_SIZE);
-	return kernel_read(bprm->file,0,bprm->buf,BINPRM_BUF_SIZE);
+	memset(bprm->buf, 0, BINPRM_BUF_SIZE);
+	return kernel_read(bprm->file, 0, bprm->buf, BINPRM_BUF_SIZE);
 }
 
 EXPORT_SYMBOL(prepare_binprm);
-
-static int unsafe_exec(struct task_struct *p)
-{
-	int unsafe = tracehook_unsafe_exec(p);
-
-	if (atomic_read(&p->fs->count) > 1 ||
-	    atomic_read(&p->files->count) > 1 ||
-	    atomic_read(&p->sighand->count) > 1)
-		unsafe |= LSM_UNSAFE_SHARE;
-
-	return unsafe;
-}
-
-void compute_creds(struct linux_binprm *bprm)
-{
-	int unsafe;
-
-	if (bprm->e_uid != current->uid) {
-		suid_keys(current);
-		current->pdeath_signal = 0;
-	}
-	exec_keys(current);
-
-	task_lock(current);
-	unsafe = unsafe_exec(current);
-	security_bprm_apply_creds(bprm, unsafe);
-	task_unlock(current);
-	security_bprm_post_apply_creds(bprm);
-}
-EXPORT_SYMBOL(compute_creds);
 
 /*
  * Arguments are '\0' separated strings found at the location bprm->p
@@ -1164,6 +1168,7 @@ EXPORT_SYMBOL(remove_arg_zero);
  */
 int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 {
+	unsigned int depth = bprm->recursion_depth;
 	int try,retval;
 	struct linux_binfmt *fmt;
 #ifdef __alpha__
@@ -1189,7 +1194,7 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 			return retval;
 
 		/* Remember if the application is TASO.  */
-		bprm->sh_bang = eh->ah.entry < 0x100000000UL;
+		bprm->taso = eh->ah.entry < 0x100000000UL;
 
 		bprm->file = file;
 		bprm->loader = loader;
@@ -1224,8 +1229,15 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 				continue;
 			read_unlock(&binfmt_lock);
 			retval = fn(bprm, regs);
+			/*
+			 * Restore the depth counter to its starting value
+			 * in this call, so we don't have to rely on every
+			 * load_binary function to restore it on return.
+			 */
+			bprm->recursion_depth = depth;
 			if (retval >= 0) {
-				tracehook_report_exec(fmt, bprm, regs);
+				if (depth == 0)
+					tracehook_report_exec(fmt, bprm, regs);
 				put_binfmt(fmt);
 				allow_write_access(bprm->file);
 				if (bprm->file)
@@ -1247,8 +1259,8 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 		read_unlock(&binfmt_lock);
 		if (retval != -ENOEXEC || bprm->mm == NULL) {
 			break;
-#ifdef CONFIG_KMOD
-		}else{
+#ifdef CONFIG_MODULES
+		} else {
 #define printable(c) (((c)=='\t') || ((c)=='\n') || (0x20<=(c) && (c)<=0x7e))
 			if (printable(bprm->buf[0]) &&
 			    printable(bprm->buf[1]) &&
@@ -1267,6 +1279,8 @@ EXPORT_SYMBOL(search_binary_handler);
 void free_bprm(struct linux_binprm *bprm)
 {
 	free_arg_pages(bprm);
+	if (bprm->cred)
+		abort_creds(bprm->cred);
 	kfree(bprm);
 }
 
@@ -1292,10 +1306,20 @@ int do_execve(char * filename,
 	if (!bprm)
 		goto out_files;
 
+	retval = mutex_lock_interruptible(&current->cred_exec_mutex);
+	if (retval < 0)
+		goto out_free;
+
+	retval = -ENOMEM;
+	bprm->cred = prepare_exec_creds();
+	if (!bprm->cred)
+		goto out_unlock;
+	check_unsafe_exec(bprm);
+
 	file = open_exec(filename);
 	retval = PTR_ERR(file);
 	if (IS_ERR(file))
-		goto out_kfree;
+		goto out_unlock;
 
 	sched_exec();
 
@@ -1309,14 +1333,10 @@ int do_execve(char * filename,
 
 	bprm->argc = count(argv, MAX_ARG_STRINGS);
 	if ((retval = bprm->argc) < 0)
-		goto out_mm;
+		goto out;
 
 	bprm->envc = count(envp, MAX_ARG_STRINGS);
 	if ((retval = bprm->envc) < 0)
-		goto out_mm;
-
-	retval = security_bprm_alloc(bprm);
-	if (retval)
 		goto out;
 
 	retval = prepare_binprm(bprm);
@@ -1338,21 +1358,18 @@ int do_execve(char * filename,
 
 	current->flags &= ~PF_KTHREAD;
 	retval = search_binary_handler(bprm,regs);
-	if (retval >= 0) {
-		/* execve success */
-		security_bprm_free(bprm);
-		acct_update_integrals(current);
-		free_bprm(bprm);
-		if (displaced)
-			put_files_struct(displaced);
-		return retval;
-	}
+	if (retval < 0)
+		goto out;
+
+	/* execve succeeded */
+	mutex_unlock(&current->cred_exec_mutex);
+	acct_update_integrals(current);
+	free_bprm(bprm);
+	if (displaced)
+		put_files_struct(displaced);
+	return retval;
 
 out:
-	if (bprm->security)
-		security_bprm_free(bprm);
-
-out_mm:
 	if (bprm->mm)
 		mmput (bprm->mm);
 
@@ -1361,7 +1378,11 @@ out_file:
 		allow_write_access(bprm->file);
 		fput(bprm->file);
 	}
-out_kfree:
+
+out_unlock:
+	mutex_unlock(&current->cred_exec_mutex);
+
+out_free:
 	free_bprm(bprm);
 
 out_files:
@@ -1391,8 +1412,9 @@ EXPORT_SYMBOL(set_binfmt);
  * name into corename, which must have space for at least
  * CORENAME_MAX_SIZE bytes plus one byte for the zero terminator.
  */
-static int format_corename(char *corename, int nr_threads, long signr)
+static int format_corename(char *corename, long signr)
 {
+	const struct cred *cred = current_cred();
 	const char *pat_ptr = core_pattern;
 	int ispipe = (*pat_ptr == '|');
 	char *out_ptr = corename;
@@ -1429,7 +1451,7 @@ static int format_corename(char *corename, int nr_threads, long signr)
 			/* uid */
 			case 'u':
 				rc = snprintf(out_ptr, out_end - out_ptr,
-					      "%d", current->uid);
+					      "%d", cred->uid);
 				if (rc > out_end - out_ptr)
 					goto out;
 				out_ptr += rc;
@@ -1437,7 +1459,7 @@ static int format_corename(char *corename, int nr_threads, long signr)
 			/* gid */
 			case 'g':
 				rc = snprintf(out_ptr, out_end - out_ptr,
-					      "%d", current->gid);
+					      "%d", cred->gid);
 				if (rc > out_end - out_ptr)
 					goto out;
 				out_ptr += rc;
@@ -1498,8 +1520,7 @@ static int format_corename(char *corename, int nr_threads, long signr)
 	 * If core_pattern does not include a %p (as is the default)
 	 * and core_uses_pid is set, then .%pid will be appended to
 	 * the filename. Do not do this for piped commands. */
-	if (!ispipe && !pid_in_pattern
-	    && (core_uses_pid || nr_threads)) {
+	if (!ispipe && !pid_in_pattern && core_uses_pid) {
 		rc = snprintf(out_ptr, out_end - out_ptr,
 			      ".%d", task_tgid_vnr(current));
 		if (rc > out_end - out_ptr)
@@ -1714,8 +1735,9 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	struct linux_binfmt * binfmt;
 	struct inode * inode;
 	struct file * file;
+	const struct cred *old_cred;
+	struct cred *cred;
 	int retval = 0;
-	int fsuid = current->fsuid;
 	int flag = 0;
 	int ispipe = 0;
 	unsigned long core_limit = current->signal->rlim[RLIMIT_CORE].rlim_cur;
@@ -1728,12 +1750,20 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	binfmt = current->binfmt;
 	if (!binfmt || !binfmt->core_dump)
 		goto fail;
+
+	cred = prepare_creds();
+	if (!cred) {
+		retval = -ENOMEM;
+		goto fail;
+	}
+
 	down_write(&mm->mmap_sem);
 	/*
 	 * If another thread got here first, or we are not dumpable, bail out.
 	 */
 	if (mm->core_state || !get_dumpable(mm)) {
 		up_write(&mm->mmap_sem);
+		put_cred(cred);
 		goto fail;
 	}
 
@@ -1744,12 +1774,16 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	 */
 	if (get_dumpable(mm) == 2) {	/* Setuid core dump mode */
 		flag = O_EXCL;		/* Stop rewrite attacks */
-		current->fsuid = 0;	/* Dump root private */
+		cred->fsuid = 0;	/* Dump root private */
 	}
 
 	retval = coredump_wait(exit_code, &core_state);
-	if (retval < 0)
+	if (retval < 0) {
+		put_cred(cred);
 		goto fail;
+	}
+
+	old_cred = override_creds(cred);
 
 	/*
 	 * Clear any false indication of pending signals that might
@@ -1762,7 +1796,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	 * uses lock_kernel()
 	 */
  	lock_kernel();
-	ispipe = format_corename(corename, retval, signr);
+	ispipe = format_corename(corename, signr);
 	unlock_kernel();
 	/*
 	 * Don't bother to check the RLIMIT_CORE value if core_pattern points
@@ -1821,7 +1855,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	 * Dont allow local users get cute and trick others to coredump
 	 * into their pre-created files:
 	 */
-	if (inode->i_uid != current->fsuid)
+	if (inode->i_uid != current_fsuid())
 		goto close_fail;
 	if (!file->f_op)
 		goto close_fail;
@@ -1840,7 +1874,8 @@ fail_unlock:
 	if (helper_argv)
 		argv_free(helper_argv);
 
-	current->fsuid = fsuid;
+	revert_creds(old_cred);
+	put_cred(cred);
 	coredump_finish(mm);
 fail:
 	return retval;

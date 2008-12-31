@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <asm/systemh7751.h>
+#include <mach/systemh7751.h>
 #include <asm/addrspace.h>
 #include <asm/io.h>
 

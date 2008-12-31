@@ -70,15 +70,15 @@ static int __devinit snd_ad1848_match(struct device *dev, unsigned int n)
 		return 0;
 
 	if (port[n] == SNDRV_AUTO_PORT) {
-		snd_printk(KERN_ERR "%s: please specify port\n", dev->bus_id);
+		dev_err(dev, "please specify port\n");
 		return 0;
 	}
 	if (irq[n] == SNDRV_AUTO_IRQ) {
-		snd_printk(KERN_ERR "%s: please specify irq\n", dev->bus_id);
+		dev_err(dev, "please specify irq\n");
 		return 0;	
 	}
 	if (dma1[n] == SNDRV_AUTO_DMA) {
-		snd_printk(KERN_ERR "%s: please specify dma1\n", dev->bus_id);
+		dev_err(dev, "please specify dma1\n");
 		return 0;
 	}
 	return 1;

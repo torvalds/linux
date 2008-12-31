@@ -281,6 +281,7 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 			if (tty->driver_data)
 				tty->driver_data = NULL;
 			tty_port_tty_set(&port->port, NULL);
+			tty_kref_put(tty);
 		}
 	}
 
@@ -1121,7 +1122,8 @@ static int __init usb_serial_init(void)
 
 	result = bus_register(&usb_serial_bus_type);
 	if (result) {
-		err("%s - registering bus driver failed", __func__);
+		printk(KERN_ERR "usb-serial: %s - registering bus driver "
+		       "failed\n", __func__);
 		goto exit_bus;
 	}
 
@@ -1142,25 +1144,28 @@ static int __init usb_serial_init(void)
 	tty_set_operations(usb_serial_tty_driver, &serial_ops);
 	result = tty_register_driver(usb_serial_tty_driver);
 	if (result) {
-		err("%s - tty_register_driver failed", __func__);
+		printk(KERN_ERR "usb-serial: %s - tty_register_driver failed\n",
+		       __func__);
 		goto exit_reg_driver;
 	}
 
 	/* register the USB driver */
 	result = usb_register(&usb_serial_driver);
 	if (result < 0) {
-		err("%s - usb_register failed", __func__);
+		printk(KERN_ERR "usb-serial: %s - usb_register failed\n",
+		       __func__);
 		goto exit_tty;
 	}
 
 	/* register the generic driver, if we should */
 	result = usb_serial_generic_register(debug);
 	if (result < 0) {
-		err("%s - registering generic driver failed", __func__);
+		printk(KERN_ERR "usb-serial: %s - registering generic "
+		       "driver failed\n", __func__);
 		goto exit_generic;
 	}
 
-	info(DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
 
 	return result;
 
@@ -1174,7 +1179,8 @@ exit_reg_driver:
 	bus_unregister(&usb_serial_bus_type);
 
 exit_bus:
-	err("%s - returning with error %d", __func__, result);
+	printk(KERN_ERR "usb-serial: %s - returning with error %d\n",
+	       __func__, result);
 	put_tty_driver(usb_serial_tty_driver);
 	return result;
 }
@@ -1233,11 +1239,11 @@ int usb_serial_register(struct usb_serial_driver *driver)
 
 	retval = usb_serial_bus_register(driver);
 	if (retval) {
-		err("problem %d when registering driver %s",
-						retval, driver->description);
+		printk(KERN_ERR "usb-serial: problem %d when registering "
+		       "driver %s\n", retval, driver->description);
 		list_del(&driver->driver_list);
 	} else
-		info("USB Serial support registered for %s",
+		printk(KERN_INFO "USB Serial support registered for %s\n",
 						driver->description);
 
 	return retval;
@@ -1248,7 +1254,8 @@ EXPORT_SYMBOL_GPL(usb_serial_register);
 void usb_serial_deregister(struct usb_serial_driver *device)
 {
 	/* must be called with BKL held */
-	info("USB Serial deregistering driver %s", device->description);
+	printk(KERN_INFO "USB Serial deregistering driver %s\n",
+	       device->description);
 	list_del(&device->driver_list);
 	usb_serial_bus_deregister(device);
 }

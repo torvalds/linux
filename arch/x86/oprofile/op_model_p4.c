@@ -698,24 +698,24 @@ static void p4_shutdown(struct op_msrs const * const msrs)
 
 #ifdef CONFIG_SMP
 struct op_x86_model_spec const op_p4_ht2_spec = {
-	.num_counters = NUM_COUNTERS_HT2,
-	.num_controls = NUM_CONTROLS_HT2,
-	.fill_in_addresses = &p4_fill_in_addresses,
-	.setup_ctrs = &p4_setup_ctrs,
-	.check_ctrs = &p4_check_ctrs,
-	.start = &p4_start,
-	.stop = &p4_stop,
-	.shutdown = &p4_shutdown
+	.num_counters		= NUM_COUNTERS_HT2,
+	.num_controls		= NUM_CONTROLS_HT2,
+	.fill_in_addresses	= &p4_fill_in_addresses,
+	.setup_ctrs		= &p4_setup_ctrs,
+	.check_ctrs		= &p4_check_ctrs,
+	.start			= &p4_start,
+	.stop			= &p4_stop,
+	.shutdown		= &p4_shutdown
 };
 #endif
 
 struct op_x86_model_spec const op_p4_spec = {
-	.num_counters = NUM_COUNTERS_NON_HT,
-	.num_controls = NUM_CONTROLS_NON_HT,
-	.fill_in_addresses = &p4_fill_in_addresses,
-	.setup_ctrs = &p4_setup_ctrs,
-	.check_ctrs = &p4_check_ctrs,
-	.start = &p4_start,
-	.stop = &p4_stop,
-	.shutdown = &p4_shutdown
+	.num_counters		= NUM_COUNTERS_NON_HT,
+	.num_controls		= NUM_CONTROLS_NON_HT,
+	.fill_in_addresses	= &p4_fill_in_addresses,
+	.setup_ctrs		= &p4_setup_ctrs,
+	.check_ctrs		= &p4_check_ctrs,
+	.start			= &p4_start,
+	.stop			= &p4_stop,
+	.shutdown		= &p4_shutdown
 };

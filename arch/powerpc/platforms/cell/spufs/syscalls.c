@@ -69,9 +69,9 @@ static long do_spu_create(const char __user *pathname, unsigned int flags,
 	if (!IS_ERR(tmp)) {
 		struct nameidata nd;
 
-		ret = path_lookup(tmp, LOOKUP_PARENT|
-				LOOKUP_OPEN|LOOKUP_CREATE, &nd);
+		ret = path_lookup(tmp, LOOKUP_PARENT, &nd);
 		if (!ret) {
+			nd.flags |= LOOKUP_OPEN | LOOKUP_CREATE;
 			ret = spufs_create(&nd, flags, mode, neighbor);
 			path_put(&nd.path);
 		}

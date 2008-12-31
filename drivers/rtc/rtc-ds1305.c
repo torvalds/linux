@@ -114,10 +114,10 @@ static unsigned bcd2hour(u8 bcd)
 			hour = 12;
 			bcd &= ~DS1305_HR_PM;
 		}
-		hour += BCD2BIN(bcd);
+		hour += bcd2bin(bcd);
 		return hour - 1;
 	}
-	return BCD2BIN(bcd);
+	return bcd2bin(bcd);
 }
 
 static u8 hour2bcd(bool hr12, int hour)
@@ -125,11 +125,11 @@ static u8 hour2bcd(bool hr12, int hour)
 	if (hr12) {
 		hour++;
 		if (hour <= 12)
-			return DS1305_HR_12 | BIN2BCD(hour);
+			return DS1305_HR_12 | bin2bcd(hour);
 		hour -= 12;
-		return DS1305_HR_12 | DS1305_HR_PM | BIN2BCD(hour);
+		return DS1305_HR_12 | DS1305_HR_PM | bin2bcd(hour);
 	}
-	return BIN2BCD(hour);
+	return bin2bcd(hour);
 }
 
 /*----------------------------------------------------------------------*/
@@ -206,13 +206,13 @@ static int ds1305_get_time(struct device *dev, struct rtc_time *time)
 		buf[4], buf[5], buf[6]);
 
 	/* Decode the registers */
-	time->tm_sec = BCD2BIN(buf[DS1305_SEC]);
-	time->tm_min = BCD2BIN(buf[DS1305_MIN]);
+	time->tm_sec = bcd2bin(buf[DS1305_SEC]);
+	time->tm_min = bcd2bin(buf[DS1305_MIN]);
 	time->tm_hour = bcd2hour(buf[DS1305_HOUR]);
 	time->tm_wday = buf[DS1305_WDAY] - 1;
-	time->tm_mday = BCD2BIN(buf[DS1305_MDAY]);
-	time->tm_mon = BCD2BIN(buf[DS1305_MON]) - 1;
-	time->tm_year = BCD2BIN(buf[DS1305_YEAR]) + 100;
+	time->tm_mday = bcd2bin(buf[DS1305_MDAY]);
+	time->tm_mon = bcd2bin(buf[DS1305_MON]) - 1;
+	time->tm_year = bcd2bin(buf[DS1305_YEAR]) + 100;
 
 	dev_vdbg(dev, "%s secs=%d, mins=%d, "
 		"hours=%d, mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -239,13 +239,13 @@ static int ds1305_set_time(struct device *dev, struct rtc_time *time)
 	/* Write registers starting at the first time/date address. */
 	*bp++ = DS1305_WRITE | DS1305_SEC;
 
-	*bp++ = BIN2BCD(time->tm_sec);
-	*bp++ = BIN2BCD(time->tm_min);
+	*bp++ = bin2bcd(time->tm_sec);
+	*bp++ = bin2bcd(time->tm_min);
 	*bp++ = hour2bcd(ds1305->hr12, time->tm_hour);
 	*bp++ = (time->tm_wday < 7) ? (time->tm_wday + 1) : 1;
-	*bp++ = BIN2BCD(time->tm_mday);
-	*bp++ = BIN2BCD(time->tm_mon + 1);
-	*bp++ = BIN2BCD(time->tm_year - 100);
+	*bp++ = bin2bcd(time->tm_mday);
+	*bp++ = bin2bcd(time->tm_mon + 1);
+	*bp++ = bin2bcd(time->tm_year - 100);
 
 	dev_dbg(dev, "%s: %02x %02x %02x, %02x %02x %02x %02x\n",
 		"write", buf[1], buf[2], buf[3],
@@ -329,8 +329,8 @@ static int ds1305_get_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	 * fill in the rest ... and also handle rollover to tomorrow when
 	 * that's needed.
 	 */
-	alm->time.tm_sec = BCD2BIN(buf[DS1305_SEC]);
-	alm->time.tm_min = BCD2BIN(buf[DS1305_MIN]);
+	alm->time.tm_sec = bcd2bin(buf[DS1305_SEC]);
+	alm->time.tm_min = bcd2bin(buf[DS1305_MIN]);
 	alm->time.tm_hour = bcd2hour(buf[DS1305_HOUR]);
 	alm->time.tm_mday = -1;
 	alm->time.tm_mon = -1;
@@ -387,8 +387,8 @@ static int ds1305_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 	/* write alarm */
 	buf[0] = DS1305_WRITE | DS1305_ALM0(DS1305_SEC);
-	buf[1 + DS1305_SEC] = BIN2BCD(alm->time.tm_sec);
-	buf[1 + DS1305_MIN] = BIN2BCD(alm->time.tm_min);
+	buf[1 + DS1305_SEC] = bin2bcd(alm->time.tm_sec);
+	buf[1 + DS1305_MIN] = bin2bcd(alm->time.tm_min);
 	buf[1 + DS1305_HOUR] = hour2bcd(ds1305->hr12, alm->time.tm_hour);
 	buf[1 + DS1305_WDAY] = DS1305_ALM_DISABLE;
 
@@ -606,7 +606,6 @@ ds1305_nvram_write(struct kobject *kobj, struct bin_attribute *attr,
 static struct bin_attribute nvram = {
 	.attr.name	= "nvram",
 	.attr.mode	= S_IRUGO | S_IWUSR,
-	.attr.owner	= THIS_MODULE,
 	.read		= ds1305_nvram_read,
 	.write		= ds1305_nvram_write,
 	.size		= DS1305_NVRAM_LEN,

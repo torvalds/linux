@@ -138,12 +138,33 @@ int __init virtio_cons_early_init(int (*put_chars)(u32, const char *, int))
 }
 
 /*
+ * virtio console configuration. This supports:
+ * - console resize
+ */
+static void virtcons_apply_config(struct virtio_device *dev)
+{
+	struct winsize ws;
+
+	if (virtio_has_feature(dev, VIRTIO_CONSOLE_F_SIZE)) {
+		dev->config->get(dev,
+				 offsetof(struct virtio_console_config, cols),
+				 &ws.ws_col, sizeof(u16));
+		dev->config->get(dev,
+				 offsetof(struct virtio_console_config, rows),
+				 &ws.ws_row, sizeof(u16));
+		hvc_resize(hvc, ws);
+	}
+}
+
+/*
  * we support only one console, the hvc struct is a global var
- * There is no need to do anything
+ * We set the configuration at this point, since we now have a tty
  */
 static int notifier_add_vio(struct hvc_struct *hp, int data)
 {
 	hp->irq_requested = 1;
+	virtcons_apply_config(vdev);
+
 	return 0;
 }
 
@@ -198,6 +219,7 @@ static int __devinit virtcons_probe(struct virtio_device *dev)
 	virtio_cons.put_chars = put_chars;
 	virtio_cons.notifier_add = notifier_add_vio;
 	virtio_cons.notifier_del = notifier_del_vio;
+	virtio_cons.notifier_hangup = notifier_del_vio;
 
 	/* The first argument of hvc_alloc() is the virtual console number, so
 	 * we use zero.  The second argument is the parameter for the
@@ -233,11 +255,18 @@ static struct virtio_device_id id_table[] = {
 	{ 0 },
 };
 
+static unsigned int features[] = {
+	VIRTIO_CONSOLE_F_SIZE,
+};
+
 static struct virtio_driver virtio_console = {
+	.feature_table = features,
+	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
 	.probe =	virtcons_probe,
+	.config_changed = virtcons_apply_config,
 };
 
 static int __init init(void)

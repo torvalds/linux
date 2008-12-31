@@ -3,7 +3,7 @@
  * Revised: Mon Dec 28 21:59:02 1998 by faith@acm.org
  * Author: Rickard E. Faith, faith@cs.unc.edu
  * Copyright 1992-1996, 1998 Rickard E. Faith (faith@acm.org)
- * Shared IRQ supported added 7/7/2001  Alan Cox <alan@redhat.com>
+ * Shared IRQ supported added 7/7/2001  Alan Cox <alan@lxorguk.ukuu.org.uk>
 
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -290,9 +290,11 @@
 #include <scsi/scsi_ioctl.h>
 #include "fdomain.h"
 
+#ifndef PCMCIA
 MODULE_AUTHOR("Rickard E. Faith");
 MODULE_DESCRIPTION("Future domain SCSI driver");
 MODULE_LICENSE("GPL");
+#endif
 
   
 #define VERSION          "$Revision: 5.51 $"

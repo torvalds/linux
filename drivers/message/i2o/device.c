@@ -467,7 +467,7 @@ int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
 
 	res.virt = NULL;
 
-	if (i2o_dma_alloc(dev, &res, reslen, GFP_KERNEL))
+	if (i2o_dma_alloc(dev, &res, reslen))
 		return -ENOMEM;
 
 	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);

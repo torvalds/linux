@@ -539,7 +539,7 @@ static int zc0301_stream_interrupt(struct zc0301_device* cam)
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "URB timeout reached. The camera is misconfigured. To "
 		       "use it, close and open /dev/video%d again.",
-		    cam->v4ldev->minor);
+		    cam->v4ldev->num);
 		return -EIO;
 	}
 
@@ -640,7 +640,7 @@ static void zc0301_release_resources(struct kref *kref)
 {
 	struct zc0301_device *cam = container_of(kref, struct zc0301_device,
 						 kref);
-	DBG(2, "V4L2 device /dev/video%d deregistered", cam->v4ldev->minor);
+	DBG(2, "V4L2 device /dev/video%d deregistered", cam->v4ldev->num);
 	video_set_drvdata(cam->v4ldev, NULL);
 	video_unregister_device(cam->v4ldev);
 	usb_put_dev(cam->usbdev);
@@ -679,7 +679,7 @@ static int zc0301_open(struct inode* inode, struct file* filp)
 	}
 
 	if (cam->users) {
-		DBG(2, "Device /dev/video%d is busy...", cam->v4ldev->minor);
+		DBG(2, "Device /dev/video%d is busy...", cam->v4ldev->num);
 		DBG(3, "Simultaneous opens are not supported");
 		if ((filp->f_flags & O_NONBLOCK) ||
 		    (filp->f_flags & O_NDELAY)) {
@@ -722,7 +722,7 @@ static int zc0301_open(struct inode* inode, struct file* filp)
 	cam->frame_count = 0;
 	zc0301_empty_framequeues(cam);
 
-	DBG(3, "Video device /dev/video%d is open", cam->v4ldev->minor);
+	DBG(3, "Video device /dev/video%d is open", cam->v4ldev->num);
 
 out:
 	mutex_unlock(&cam->open_mutex);
@@ -746,7 +746,7 @@ static int zc0301_release(struct inode* inode, struct file* filp)
 	cam->users--;
 	wake_up_interruptible_nr(&cam->wait_open, 1);
 
-	DBG(3, "Video device /dev/video%d closed", cam->v4ldev->minor);
+	DBG(3, "Video device /dev/video%d closed", cam->v4ldev->num);
 
 	kref_put(&cam->kref, zc0301_release_resources);
 
@@ -1020,7 +1020,7 @@ zc0301_vidioc_querycap(struct zc0301_device* cam, void __user * arg)
 
 	strlcpy(cap.card, cam->v4ldev->name, sizeof(cap.card));
 	if (usb_make_path(cam->usbdev, cap.bus_info, sizeof(cap.bus_info)) < 0)
-		strlcpy(cap.bus_info, cam->usbdev->dev.bus_id,
+		strlcpy(cap.bus_info, dev_name(&cam->usbdev->dev),
 			sizeof(cap.bus_info));
 
 	if (copy_to_user(arg, &cap, sizeof(cap)))
@@ -1275,7 +1275,7 @@ zc0301_vidioc_s_crop(struct zc0301_device* cam, void __user * arg)
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "VIDIOC_S_CROP failed because of hardware problems. To "
 		       "use the camera, close and open /dev/video%d again.",
-		    cam->v4ldev->minor);
+		    cam->v4ldev->num);
 		return -EIO;
 	}
 
@@ -1288,7 +1288,7 @@ zc0301_vidioc_s_crop(struct zc0301_device* cam, void __user * arg)
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "VIDIOC_S_CROP failed because of not enough memory. To "
 		       "use the camera, close and open /dev/video%d again.",
-		    cam->v4ldev->minor);
+		    cam->v4ldev->num);
 		return -ENOMEM;
 	}
 
@@ -1470,7 +1470,7 @@ zc0301_vidioc_try_s_fmt(struct zc0301_device* cam, unsigned int cmd,
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "VIDIOC_S_FMT failed because of hardware problems. To "
 		       "use the camera, close and open /dev/video%d again.",
-		    cam->v4ldev->minor);
+		    cam->v4ldev->num);
 		return -EIO;
 	}
 
@@ -1482,7 +1482,7 @@ zc0301_vidioc_try_s_fmt(struct zc0301_device* cam, unsigned int cmd,
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "VIDIOC_S_FMT failed because of not enough memory. To "
 		       "use the camera, close and open /dev/video%d again.",
-		    cam->v4ldev->minor);
+		    cam->v4ldev->num);
 		return -ENOMEM;
 	}
 
@@ -1529,7 +1529,7 @@ zc0301_vidioc_s_jpegcomp(struct zc0301_device* cam, void __user * arg)
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "VIDIOC_S_JPEGCOMP failed because of hardware "
 		       "problems. To use the camera, close and open "
-		       "/dev/video%d again.", cam->v4ldev->minor);
+		       "/dev/video%d again.", cam->v4ldev->num);
 		return -EIO;
 	}
 
@@ -2005,7 +2005,7 @@ zc0301_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		goto fail;
 	}
 
-	DBG(2, "V4L2 device registered as /dev/video%d", cam->v4ldev->minor);
+	DBG(2, "V4L2 device registered as /dev/video%d", cam->v4ldev->num);
 
 	cam->module_param.force_munmap = force_munmap[dev_nr];
 	cam->module_param.frame_timeout = frame_timeout[dev_nr];
@@ -2044,7 +2044,7 @@ static void zc0301_usb_disconnect(struct usb_interface* intf)
 	if (cam->users) {
 		DBG(2, "Device /dev/video%d is open! Deregistration and "
 		       "memory deallocation are deferred.",
-		    cam->v4ldev->minor);
+		    cam->v4ldev->num);
 		cam->state |= DEV_MISCONFIGURED;
 		zc0301_stop_transfer(cam);
 		cam->state |= DEV_DISCONNECTED;

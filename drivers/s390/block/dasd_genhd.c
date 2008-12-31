@@ -99,7 +99,7 @@ int dasd_scan_partitions(struct dasd_block *block)
 	struct block_device *bdev;
 
 	bdev = bdget_disk(block->gdp, 0);
-	if (!bdev || blkdev_get(bdev, FMODE_READ, 1) < 0)
+	if (!bdev || blkdev_get(bdev, FMODE_READ) < 0)
 		return -ENODEV;
 	/*
 	 * See fs/partition/check.c:register_disk,rescan_partitions
@@ -152,7 +152,7 @@ void dasd_destroy_partitions(struct dasd_block *block)
 
 	invalidate_partition(block->gdp, 0);
 	/* Matching blkdev_put to the blkdev_get in dasd_scan_partitions. */
-	blkdev_put(bdev);
+	blkdev_put(bdev, FMODE_READ);
 	set_capacity(block->gdp, 0);
 }
 

@@ -581,6 +581,7 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 		goto out;
 	}
 
+#ifdef CONFIG_DMABOUNCE
 	/*
 	 * If the parent device has a DMA mask associated with it,
 	 * propagate it down to the children.
@@ -598,6 +599,7 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 			}
 		}
 	}
+#endif
 
 out:
 	return ret;
@@ -628,7 +630,7 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 		return -ENOMEM;
 
 	sachip->clk = clk_get(me, "SA1111_CLK");
-	if (!sachip->clk) {
+	if (IS_ERR(sachip->clk)) {
 		ret = PTR_ERR(sachip->clk);
 		goto err_free;
 	}
@@ -937,7 +939,7 @@ static int sa1111_resume(struct platform_device *dev)
 #define sa1111_resume  NULL
 #endif
 
-static int sa1111_probe(struct platform_device *pdev)
+static int __devinit sa1111_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
 	int irq;

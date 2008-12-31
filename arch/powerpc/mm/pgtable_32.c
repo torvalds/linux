@@ -48,10 +48,6 @@ EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
 
 extern char etext[], _stext[];
 
-#ifdef CONFIG_SMP
-extern void hash_page_sync(void);
-#endif
-
 #ifdef HAVE_BATS
 extern phys_addr_t v_mapped_by_bats(unsigned long va);
 extern unsigned long p_mapped_by_bats(phys_addr_t pa);
@@ -72,24 +68,29 @@ extern unsigned long p_mapped_by_tlbcam(unsigned long pa);
 #define p_mapped_by_tlbcam(x)	(0UL)
 #endif /* HAVE_TLBCAM */
 
-#ifdef CONFIG_PTE_64BIT
-/* 44x uses an 8kB pgdir because it has 8-byte Linux PTEs. */
-#define PGDIR_ORDER	1
-#else
-#define PGDIR_ORDER	0
-#endif
+#define PGDIR_ORDER	(32 + PGD_T_LOG2 - PGDIR_SHIFT)
 
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *ret;
 
-	ret = (pgd_t *)__get_free_pages(GFP_KERNEL|__GFP_ZERO, PGDIR_ORDER);
+	/* pgdir take page or two with 4K pages and a page fraction otherwise */
+#ifndef CONFIG_PPC_4K_PAGES
+	ret = (pgd_t *)kzalloc(1 << PGDIR_ORDER, GFP_KERNEL);
+#else
+	ret = (pgd_t *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
+			PGDIR_ORDER - PAGE_SHIFT);
+#endif
 	return ret;
 }
 
 void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	free_pages((unsigned long)pgd, PGDIR_ORDER);
+#ifndef CONFIG_PPC_4K_PAGES
+	kfree((void *)pgd);
+#else
+	free_pages((unsigned long)pgd, PGDIR_ORDER - PAGE_SHIFT);
+#endif
 }
 
 __init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
@@ -123,23 +124,6 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 		return NULL;
 	pgtable_page_ctor(ptepage);
 	return ptepage;
-}
-
-void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
-{
-#ifdef CONFIG_SMP
-	hash_page_sync();
-#endif
-	free_page((unsigned long)pte);
-}
-
-void pte_free(struct mm_struct *mm, pgtable_t ptepage)
-{
-#ifdef CONFIG_SMP
-	hash_page_sync();
-#endif
-	pgtable_page_dtor(ptepage);
-	__free_page(ptepage);
 }
 
 void __iomem *
@@ -194,6 +178,7 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 	if (p < 16*1024*1024)
 		p += _ISA_MEM_BASE;
 
+#ifndef CONFIG_CRASH_DUMP
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using.
 	 * mem_init() sets high_memory so only do the check after that.
@@ -203,6 +188,7 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 		       (unsigned long long)p, __builtin_return_address(0));
 		return NULL;
 	}
+#endif
 
 	if (size == 0)
 		return NULL;
@@ -288,7 +274,7 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 }
 
 /*
- * Map in all of physical memory starting at KERNELBASE.
+ * Map in a big chunk of physical memory starting at PAGE_OFFSET.
  */
 void __init mapin_ram(void)
 {
@@ -297,7 +283,7 @@ void __init mapin_ram(void)
 	int ktext;
 
 	s = mmu_mapin_ram();
-	v = KERNELBASE + s;
+	v = PAGE_OFFSET + s;
 	p = memstart_addr + s;
 	for (; s < total_lowmem; s += PAGE_SIZE) {
 		ktext = ((char *) v >= _stext && (char *) v < etext);
@@ -363,7 +349,11 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 		return -EINVAL;
 	set_pte_at(&init_mm, address, kpte, mk_pte(page, prot));
 	wmb();
-	flush_HPTE(0, address, pmd_val(*kpmd));
+#ifdef CONFIG_PPC_STD_MMU
+	flush_hash_pages(0, address, pmd_val(*kpmd), 1);
+#else
+	flush_tlb_page(NULL, address);
+#endif
 	pte_unmap(kpte);
 
 	return 0;
@@ -400,7 +390,7 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
 static int fixmaps;
-unsigned long FIXADDR_TOP = 0xfffff000;
+unsigned long FIXADDR_TOP = (-PAGE_SIZE);
 EXPORT_SYMBOL(FIXADDR_TOP);
 
 void __set_fixmap (enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)

@@ -80,13 +80,13 @@ static int r9701_get_datetime(struct device *dev, struct rtc_time *dt)
 
 	memset(dt, 0, sizeof(*dt));
 
-	dt->tm_sec = BCD2BIN(buf[0]); /* RSECCNT */
-	dt->tm_min = BCD2BIN(buf[1]); /* RMINCNT */
-	dt->tm_hour = BCD2BIN(buf[2]); /* RHRCNT */
+	dt->tm_sec = bcd2bin(buf[0]); /* RSECCNT */
+	dt->tm_min = bcd2bin(buf[1]); /* RMINCNT */
+	dt->tm_hour = bcd2bin(buf[2]); /* RHRCNT */
 
-	dt->tm_mday = BCD2BIN(buf[3]); /* RDAYCNT */
-	dt->tm_mon = BCD2BIN(buf[4]) - 1; /* RMONCNT */
-	dt->tm_year = BCD2BIN(buf[5]) + 100; /* RYRCNT */
+	dt->tm_mday = bcd2bin(buf[3]); /* RDAYCNT */
+	dt->tm_mon = bcd2bin(buf[4]) - 1; /* RMONCNT */
+	dt->tm_year = bcd2bin(buf[5]) + 100; /* RYRCNT */
 
 	/* the rtc device may contain illegal values on power up
 	 * according to the data sheet. make sure they are valid.
@@ -103,12 +103,12 @@ static int r9701_set_datetime(struct device *dev, struct rtc_time *dt)
 	if (year >= 2100 || year < 2000)
 		return -EINVAL;
 
-	ret = write_reg(dev, RHRCNT, BIN2BCD(dt->tm_hour));
-	ret = ret ? ret : write_reg(dev, RMINCNT, BIN2BCD(dt->tm_min));
-	ret = ret ? ret : write_reg(dev, RSECCNT, BIN2BCD(dt->tm_sec));
-	ret = ret ? ret : write_reg(dev, RDAYCNT, BIN2BCD(dt->tm_mday));
-	ret = ret ? ret : write_reg(dev, RMONCNT, BIN2BCD(dt->tm_mon + 1));
-	ret = ret ? ret : write_reg(dev, RYRCNT, BIN2BCD(dt->tm_year - 100));
+	ret = write_reg(dev, RHRCNT, bin2bcd(dt->tm_hour));
+	ret = ret ? ret : write_reg(dev, RMINCNT, bin2bcd(dt->tm_min));
+	ret = ret ? ret : write_reg(dev, RSECCNT, bin2bcd(dt->tm_sec));
+	ret = ret ? ret : write_reg(dev, RDAYCNT, bin2bcd(dt->tm_mday));
+	ret = ret ? ret : write_reg(dev, RMONCNT, bin2bcd(dt->tm_mon + 1));
+	ret = ret ? ret : write_reg(dev, RYRCNT, bin2bcd(dt->tm_year - 100));
 	ret = ret ? ret : write_reg(dev, RWKCNT, 1 << dt->tm_wday);
 
 	return ret;

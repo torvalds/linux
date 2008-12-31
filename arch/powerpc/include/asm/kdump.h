@@ -1,6 +1,8 @@
 #ifndef _PPC64_KDUMP_H
 #define _PPC64_KDUMP_H
 
+#include <asm/page.h>
+
 /* Kdump kernel runs at 32 MB, change at your peril. */
 #define KDUMP_KERNELBASE	0x2000000
 
@@ -11,25 +13,35 @@
 
 #ifdef CONFIG_CRASH_DUMP
 
+/*
+ * On PPC64 translation is disabled during trampoline setup, so we use
+ * physical addresses. Though on PPC32 translation is already enabled,
+ * so we can't do the same. Luckily create_trampoline() creates relative
+ * branches, so we can just add the PAGE_OFFSET and don't worry about it.
+ */
+#ifdef __powerpc64__
 #define KDUMP_TRAMPOLINE_START	0x0100
 #define KDUMP_TRAMPOLINE_END	0x3000
+#else
+#define KDUMP_TRAMPOLINE_START	(0x0100 + PAGE_OFFSET)
+#define KDUMP_TRAMPOLINE_END	(0x3000 + PAGE_OFFSET)
+#endif /* __powerpc64__ */
 
 #define KDUMP_MIN_TCE_ENTRIES	2048
 
 #endif /* CONFIG_CRASH_DUMP */
 
 #ifndef __ASSEMBLY__
-#ifdef CONFIG_CRASH_DUMP
 
+#if defined(CONFIG_CRASH_DUMP) && !defined(CONFIG_RELOCATABLE)
 extern void reserve_kdump_trampoline(void);
 extern void setup_kdump_trampoline(void);
-
-#else /* !CONFIG_CRASH_DUMP */
-
+#else
+/* !CRASH_DUMP || RELOCATABLE */
 static inline void reserve_kdump_trampoline(void) { ; }
 static inline void setup_kdump_trampoline(void) { ; }
+#endif
 
-#endif /* CONFIG_CRASH_DUMP */
 #endif /* __ASSEMBLY__ */
 
 #endif /* __PPC64_KDUMP_H */

@@ -7,7 +7,11 @@
  *
  *  SuperH version:  Copyright (C) 1999, 2000  Niibe Yutaka & Kaz Kojima
  *		     Copyright (C) 2006 Lineo Solutions Inc. support SH4A UBC
- *		     Copyright (C) 2002 - 2007  Paul Mundt
+ *		     Copyright (C) 2002 - 2008  Paul Mundt
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -26,65 +30,9 @@
 #include <asm/system.h>
 #include <asm/ubc.h>
 #include <asm/fpu.h>
+#include <asm/syscalls.h>
 
-static int hlt_counter;
 int ubc_usercnt = 0;
-
-void (*pm_idle)(void);
-void (*pm_power_off)(void);
-EXPORT_SYMBOL(pm_power_off);
-
-static int __init nohlt_setup(char *__unused)
-{
-	hlt_counter = 1;
-	return 1;
-}
-__setup("nohlt", nohlt_setup);
-
-static int __init hlt_setup(char *__unused)
-{
-	hlt_counter = 0;
-	return 1;
-}
-__setup("hlt", hlt_setup);
-
-static void default_idle(void)
-{
-	if (!hlt_counter) {
-		clear_thread_flag(TIF_POLLING_NRFLAG);
-		smp_mb__after_clear_bit();
-		set_bl_bit();
-		while (!need_resched())
-			cpu_sleep();
-		clear_bl_bit();
-		set_thread_flag(TIF_POLLING_NRFLAG);
-	} else
-		while (!need_resched())
-			cpu_relax();
-}
-
-void cpu_idle(void)
-{
-	set_thread_flag(TIF_POLLING_NRFLAG);
-
-	/* endless idle loop with no priority at all */
-	while (1) {
-		void (*idle)(void) = pm_idle;
-
-		if (!idle)
-			idle = default_idle;
-
-		tick_nohz_stop_sched_tick(1);
-		while (!need_resched())
-			idle();
-		tick_nohz_restart_sched_tick();
-
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-		check_pgt_cache();
-	}
-}
 
 void machine_restart(char * __unused)
 {
@@ -110,16 +58,22 @@ void machine_power_off(void)
 void show_regs(struct pt_regs * regs)
 {
 	printk("\n");
-	printk("Pid : %d, Comm: %20s\n", task_pid_nr(current), current->comm);
+	printk("Pid : %d, Comm: \t\t%s\n", task_pid_nr(current), current->comm);
+	printk("CPU : %d        \t\t%s  (%s %.*s)\n\n",
+	       smp_processor_id(), print_tainted(), init_utsname()->release,
+	       (int)strcspn(init_utsname()->version, " "),
+	       init_utsname()->version);
+
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
+	print_symbol("PR is at %s\n", regs->pr);
+
 	printk("PC  : %08lx SP  : %08lx SR  : %08lx ",
 	       regs->pc, regs->regs[15], regs->sr);
 #ifdef CONFIG_MMU
-	printk("TEA : %08x    ", ctrl_inl(MMU_TEA));
+	printk("TEA : %08x\n", ctrl_inl(MMU_TEA));
 #else
-	printk("                  ");
+	printk("\n");
 #endif
-	printk("%s\n", print_tainted());
 
 	printk("R0  : %08lx R1  : %08lx R2  : %08lx R3  : %08lx\n",
 	       regs->regs[0],regs->regs[1],
@@ -137,31 +91,22 @@ void show_regs(struct pt_regs * regs)
 	       regs->mach, regs->macl, regs->gbr, regs->pr);
 
 	show_trace(NULL, (unsigned long *)regs->regs[15], regs);
+	show_code(regs);
 }
 
 /*
  * Create a kernel thread
  */
-
-/*
- * This is the mechanism for creating a new kernel thread.
- *
- */
-extern void kernel_thread_helper(void);
-__asm__(".align 5\n"
-	"kernel_thread_helper:\n\t"
-	"jsr	@r5\n\t"
-	" nop\n\t"
-	"mov.l	1f, r1\n\t"
-	"jsr	@r1\n\t"
-	" mov	r0, r4\n\t"
-	".align 2\n\t"
-	"1:.long do_exit");
+ATTRIB_NORET void kernel_thread_helper(void *arg, int (*fn)(void *))
+{
+	do_exit(fn(arg));
+}
 
 /* Don't use this in BL=1(cli).  Or else, CPU resets! */
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 {
 	struct pt_regs regs;
+	int pid;
 
 	memset(&regs, 0, sizeof(regs));
 	regs.regs[4] = (unsigned long)arg;
@@ -171,8 +116,12 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	regs.sr = (1 << 30);
 
 	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
-		       &regs, 0, NULL, NULL);
+	pid = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
+		      &regs, 0, NULL, NULL);
+
+	trace_mark(kernel_arch_kthread_create, "pid %d fn %p", pid, fn);
+
+	return pid;
 }
 
 /*
@@ -210,10 +159,10 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 	struct task_struct *tsk = current;
 
 	fpvalid = !!tsk_used_math(tsk);
-	if (fpvalid) {
-		unlazy_fpu(tsk, regs);
-		memcpy(fpu, &tsk->thread.fpu.hard, sizeof(*fpu));
-	}
+	if (fpvalid)
+		fpvalid = !fpregs_get(tsk, NULL, 0,
+				      sizeof(struct user_fpu_struct),
+				      fpu, NULL);
 #endif
 
 	return fpvalid;

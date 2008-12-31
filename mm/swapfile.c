@@ -344,7 +344,7 @@ int can_share_swap_page(struct page *page)
  * Work out if there are any other processes sharing this
  * swap cache page. Free it if you can. Return success.
  */
-int remove_exclusive_swap_page(struct page *page)
+static int remove_exclusive_swap_page_count(struct page *page, int count)
 {
 	int retval;
 	struct swap_info_struct * p;
@@ -357,7 +357,7 @@ int remove_exclusive_swap_page(struct page *page)
 		return 0;
 	if (PageWriteback(page))
 		return 0;
-	if (page_count(page) != 2) /* 2: us + cache */
+	if (page_count(page) != count) /* us + cache + ptes */
 		return 0;
 
 	entry.val = page_private(page);
@@ -370,7 +370,7 @@ int remove_exclusive_swap_page(struct page *page)
 	if (p->swap_map[swp_offset(entry)] == 1) {
 		/* Recheck the page count with the swapcache lock held.. */
 		spin_lock_irq(&swapper_space.tree_lock);
-		if ((page_count(page) == 2) && !PageWriteback(page)) {
+		if ((page_count(page) == count) && !PageWriteback(page)) {
 			__delete_from_swap_cache(page);
 			SetPageDirty(page);
 			retval = 1;
@@ -385,6 +385,25 @@ int remove_exclusive_swap_page(struct page *page)
 	}
 
 	return retval;
+}
+
+/*
+ * Most of the time the page should have two references: one for the
+ * process and one for the swap cache.
+ */
+int remove_exclusive_swap_page(struct page *page)
+{
+	return remove_exclusive_swap_page_count(page, 2);
+}
+
+/*
+ * The pageout code holds an extra reference to the page.  That raises
+ * the reference count to test for to 2 for a page that is only in the
+ * swap cache plus 1 for each process that maps the page.
+ */
+int remove_exclusive_swap_page_ref(struct page *page)
+{
+	return remove_exclusive_swap_page_count(page, 2 + page_mapcount(page));
 }
 
 /*
@@ -403,7 +422,7 @@ void free_swap_and_cache(swp_entry_t entry)
 	if (p) {
 		if (swap_entry_free(p, swp_offset(entry)) == 1) {
 			page = find_get_page(&swapper_space, entry.val);
-			if (page && unlikely(!trylock_page(page))) {
+			if (page && !trylock_page(page)) {
 				page_cache_release(page);
 				page = NULL;
 			}
@@ -1442,6 +1461,15 @@ static int __init procswaps_init(void)
 }
 __initcall(procswaps_init);
 #endif /* CONFIG_PROC_FS */
+
+#ifdef MAX_SWAPFILES_CHECK
+static int __init max_swapfiles_check(void)
+{
+	MAX_SWAPFILES_CHECK();
+	return 0;
+}
+late_initcall(max_swapfiles_check);
+#endif
 
 /*
  * Written 01/25/92 by Simmule Turner, heavily changed by Linus.

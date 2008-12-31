@@ -8,7 +8,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  *
- * Authors:	Alan Cox, <alan@redhat.com> (version 1)
+ * Authors:	Alan Cox, <alan@lxorguk.ukuu.org.uk> (version 1)
  *              Mauro Carvalho Chehab <mchehab@infradead.org> (version 2)
  */
 
@@ -393,10 +393,8 @@ video_fix_command(unsigned int cmd)
  * Obsolete usercopy function - Should be removed soon
  */
 int
-video_usercopy(struct inode *inode, struct file *file,
-	       unsigned int cmd, unsigned long arg,
-	       int (*func)(struct inode *inode, struct file *file,
-			   unsigned int cmd, void *arg))
+video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
+		v4l2_kioctl func)
 {
 	char	sbuf[128];
 	void    *mbuf = NULL;
@@ -458,7 +456,7 @@ video_usercopy(struct inode *inode, struct file *file,
 	}
 
 	/* call driver */
-	err = func(inode, file, cmd, parg);
+	err = func(file, cmd, parg);
 	if (err == -ENOIOCTLCMD)
 		err = -EINVAL;
 	if (is_ext_ctrl) {
@@ -625,13 +623,13 @@ static int check_fmt(const struct v4l2_ioctl_ops *ops, enum v4l2_buf_type type)
 	return -EINVAL;
 }
 
-static int __video_do_ioctl(struct inode *inode, struct file *file,
+static int __video_do_ioctl(struct file *file,
 		unsigned int cmd, void *arg)
 {
 	struct video_device *vfd = video_devdata(file);
 	const struct v4l2_ioctl_ops *ops = vfd->ioctl_ops;
-	void                 *fh = file->private_data;
-	int                  ret = -EINVAL;
+	void *fh = file->private_data;
+	int ret = -EINVAL;
 
 	if ((vfd->debug & V4L2_DEBUG_IOCTL) &&
 				!(vfd->debug & V4L2_DEBUG_IOCTL_ARG)) {
@@ -675,7 +673,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	 V4L2 ioctls.
 	 ********************************************************/
 	if (_IOC_TYPE(cmd) == 'v' && _IOC_NR(cmd) < BASE_VIDIOCPRIVATE)
-		return v4l_compat_translate_ioctl(inode, file, cmd, arg,
+		return v4l_compat_translate_ioctl(file, cmd, arg,
 						__video_do_ioctl);
 #endif
 
@@ -1481,9 +1479,15 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_CROP:
 	{
 		struct v4l2_crop *p = arg;
+		__u32 type;
 
 		if (!ops->vidioc_g_crop)
 			break;
+
+		type = p->type;
+		memset(p, 0, sizeof(*p));
+		p->type = type;
+
 		dbgarg(cmd, "type=%s\n", prt_names(p->type, v4l2_type_names));
 		ret = ops->vidioc_g_crop(file, fh, p);
 		if (!ret)
@@ -1504,10 +1508,16 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_CROPCAP:
 	{
 		struct v4l2_cropcap *p = arg;
+		__u32 type;
 
 		/*FIXME: Should also show v4l2_fract pixelaspect */
 		if (!ops->vidioc_cropcap)
 			break;
+
+		type = p->type;
+		memset(p, 0, sizeof(*p));
+		p->type = type;
+
 		dbgarg(cmd, "type=%s\n", prt_names(p->type, v4l2_type_names));
 		ret = ops->vidioc_cropcap(file, fh, p);
 		if (!ret) {
@@ -1522,6 +1532,9 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 
 		if (!ops->vidioc_g_jpegcomp)
 			break;
+
+		memset(p, 0, sizeof(*p));
+
 		ret = ops->vidioc_g_jpegcomp(file, fh, p);
 		if (!ret)
 			dbgarg(cmd, "quality=%d, APPn=%d, "
@@ -1749,6 +1762,77 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		ret = ops->vidioc_s_hw_freq_seek(file, fh, p);
 		break;
 	}
+	case VIDIOC_ENUM_FRAMESIZES:
+	{
+		struct v4l2_frmsizeenum *p = arg;
+
+		if (!ops->vidioc_enum_framesizes)
+			break;
+
+		memset(p, 0, sizeof(*p));
+
+		ret = ops->vidioc_enum_framesizes(file, fh, p);
+		dbgarg(cmd,
+			"index=%d, pixelformat=%d, type=%d ",
+			p->index, p->pixel_format, p->type);
+		switch (p->type) {
+		case V4L2_FRMSIZE_TYPE_DISCRETE:
+			dbgarg2("width = %d, height=%d\n",
+				p->discrete.width, p->discrete.height);
+			break;
+		case V4L2_FRMSIZE_TYPE_STEPWISE:
+			dbgarg2("min %dx%d, max %dx%d, step %dx%d\n",
+				p->stepwise.min_width,  p->stepwise.min_height,
+				p->stepwise.step_width, p->stepwise.step_height,
+				p->stepwise.max_width,  p->stepwise.max_height);
+			break;
+		case V4L2_FRMSIZE_TYPE_CONTINUOUS:
+			dbgarg2("continuous\n");
+			break;
+		default:
+			dbgarg2("- Unknown type!\n");
+		}
+
+		break;
+	}
+	case VIDIOC_ENUM_FRAMEINTERVALS:
+	{
+		struct v4l2_frmivalenum *p = arg;
+
+		if (!ops->vidioc_enum_frameintervals)
+			break;
+
+		memset(p, 0, sizeof(*p));
+
+		ret = ops->vidioc_enum_frameintervals(file, fh, p);
+		dbgarg(cmd,
+			"index=%d, pixelformat=%d, width=%d, height=%d, type=%d ",
+			p->index, p->pixel_format,
+			p->width, p->height, p->type);
+		switch (p->type) {
+		case V4L2_FRMIVAL_TYPE_DISCRETE:
+			dbgarg2("fps=%d/%d\n",
+				p->discrete.numerator,
+				p->discrete.denominator);
+			break;
+		case V4L2_FRMIVAL_TYPE_STEPWISE:
+			dbgarg2("min=%d/%d, max=%d/%d, step=%d/%d\n",
+				p->stepwise.min.numerator,
+				p->stepwise.min.denominator,
+				p->stepwise.max.numerator,
+				p->stepwise.max.denominator,
+				p->stepwise.step.numerator,
+				p->stepwise.step.denominator);
+			break;
+		case V4L2_FRMIVAL_TYPE_CONTINUOUS:
+			dbgarg2("continuous\n");
+			break;
+		default:
+			dbgarg2("- Unknown type!\n");
+		}
+		break;
+	}
+
 	default:
 	{
 		if (!ops->vidioc_default)
@@ -1768,7 +1852,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-int video_ioctl2(struct inode *inode, struct file *file,
+long __video_ioctl2(struct file *file,
 	       unsigned int cmd, unsigned long arg)
 {
 	char	sbuf[128];
@@ -1832,7 +1916,7 @@ int video_ioctl2(struct inode *inode, struct file *file,
 	}
 
 	/* Handles IOCTL */
-	err = __video_do_ioctl(inode, file, cmd, parg);
+	err = __video_do_ioctl(file, cmd, parg);
 	if (err == -ENOIOCTLCMD)
 		err = -EINVAL;
 	if (is_ext_ctrl) {
@@ -1859,5 +1943,12 @@ out_ext_ctrl:
 out:
 	kfree(mbuf);
 	return err;
+}
+EXPORT_SYMBOL(__video_ioctl2);
+
+int video_ioctl2(struct inode *inode, struct file *file,
+	       unsigned int cmd, unsigned long arg)
+{
+	return __video_ioctl2(file, cmd, arg);
 }
 EXPORT_SYMBOL(video_ioctl2);

@@ -32,14 +32,14 @@
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
 
-#include <asm/arch/svinto.h>/* DMA and register descriptions */
+#include <arch/svinto.h>/* DMA and register descriptions */
 #include <asm/io.h>         /* CRIS_LED_* I/O functions */
 #include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/system.h>
 #include <asm/ethernet.h>
 #include <asm/cache.h>
-#include <asm/arch/io_interface_mux.h>
+#include <arch/io_interface_mux.h>
 
 //#define ETHDEBUG
 #define D(x)
@@ -419,7 +419,6 @@ e100_set_mac_address(struct net_device *dev, void *p)
 {
 	struct net_local *np = netdev_priv(dev);
 	struct sockaddr *addr = p;
-	DECLARE_MAC_BUF(mac);
 
 	spin_lock(&np->lock); /* preemption protection */
 
@@ -440,8 +439,7 @@ e100_set_mac_address(struct net_device *dev, void *p)
 
 	/* show it in the log as well */
 
-	printk(KERN_INFO "%s: changed MAC to %s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: changed MAC to %pM\n", dev->name, dev->dev_addr);
 
 	spin_unlock(&np->lock);
 

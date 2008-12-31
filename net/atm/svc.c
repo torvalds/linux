@@ -293,7 +293,10 @@ static int svc_listen(struct socket *sock,int backlog)
 		error = -EINVAL;
 		goto out;
 	}
-	vcc_insert_socket(sk);
+	if (test_bit(ATM_VF_LISTEN, &vcc->flags)) {
+		error = -EADDRINUSE;
+		goto out;
+        }
 	set_bit(ATM_VF_WAITING, &vcc->flags);
 	prepare_to_wait(sk->sk_sleep, &wait, TASK_UNINTERRUPTIBLE);
 	sigd_enq(vcc,as_listen,NULL,NULL,&vcc->local);
@@ -307,6 +310,7 @@ static int svc_listen(struct socket *sock,int backlog)
 		goto out;
 	}
 	set_bit(ATM_VF_LISTEN,&vcc->flags);
+	vcc_insert_socket(sk);
 	sk->sk_max_ack_backlog = backlog > 0 ? backlog : ATM_BACKLOG_DEFAULT;
 	error = -sk->sk_err;
 out:
@@ -604,6 +608,22 @@ static int svc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return error;
 }
 
+#ifdef CONFIG_COMPAT
+static int svc_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	/* The definition of ATM_ADDPARTY uses the size of struct atm_iobuf.
+	   But actually it takes a struct sockaddr_atmsvc, which doesn't need
+	   compat handling. So all we have to do is fix up cmd... */
+	if (cmd == COMPAT_ATM_ADDPARTY)
+		cmd = ATM_ADDPARTY;
+
+	if (cmd == ATM_ADDPARTY || cmd == ATM_DROPPARTY)
+		return svc_ioctl(sock, cmd, arg);
+	else
+		return vcc_compat_ioctl(sock, cmd, arg);
+}
+#endif /* CONFIG_COMPAT */
+
 static const struct proto_ops svc_proto_ops = {
 	.family =	PF_ATMSVC,
 	.owner =	THIS_MODULE,
@@ -616,6 +636,9 @@ static const struct proto_ops svc_proto_ops = {
 	.getname =	svc_getname,
 	.poll =		vcc_poll,
 	.ioctl =	svc_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =	svc_compat_ioctl,
+#endif
 	.listen =	svc_listen,
 	.shutdown =	svc_shutdown,
 	.setsockopt =	svc_setsockopt,

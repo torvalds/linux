@@ -24,7 +24,7 @@ real bad - it changes the behaviour of all unaligned instructions in user
 space, and might cause programs to fail unexpectedly.
 
 To change the alignment trap behavior, simply echo a number into
-/proc/sys/debug/alignment.  The number is made up from various bits:
+/proc/cpu/alignment.  The number is made up from various bits:
 
 bit		behavior when set
 ---		-----------------

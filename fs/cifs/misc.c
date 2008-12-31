@@ -75,12 +75,12 @@ sesInfoAlloc(void)
 
 	ret_buf = kzalloc(sizeof(struct cifsSesInfo), GFP_KERNEL);
 	if (ret_buf) {
-		write_lock(&GlobalSMBSeslock);
 		atomic_inc(&sesInfoAllocCount);
 		ret_buf->status = CifsNew;
-		list_add(&ret_buf->cifsSessionList, &GlobalSMBSessionList);
+		++ret_buf->ses_count;
+		INIT_LIST_HEAD(&ret_buf->smb_ses_list);
+		INIT_LIST_HEAD(&ret_buf->tcon_list);
 		init_MUTEX(&ret_buf->sesSem);
-		write_unlock(&GlobalSMBSeslock);
 	}
 	return ret_buf;
 }
@@ -93,14 +93,14 @@ sesInfoFree(struct cifsSesInfo *buf_to_free)
 		return;
 	}
 
-	write_lock(&GlobalSMBSeslock);
 	atomic_dec(&sesInfoAllocCount);
-	list_del(&buf_to_free->cifsSessionList);
-	write_unlock(&GlobalSMBSeslock);
 	kfree(buf_to_free->serverOS);
 	kfree(buf_to_free->serverDomain);
 	kfree(buf_to_free->serverNOS);
-	kfree(buf_to_free->password);
+	if (buf_to_free->password) {
+		memset(buf_to_free->password, 0, strlen(buf_to_free->password));
+		kfree(buf_to_free->password);
+	}
 	kfree(buf_to_free->domainName);
 	kfree(buf_to_free);
 }
@@ -111,17 +111,14 @@ tconInfoAlloc(void)
 	struct cifsTconInfo *ret_buf;
 	ret_buf = kzalloc(sizeof(struct cifsTconInfo), GFP_KERNEL);
 	if (ret_buf) {
-		write_lock(&GlobalSMBSeslock);
 		atomic_inc(&tconInfoAllocCount);
-		list_add(&ret_buf->cifsConnectionList,
-			 &GlobalTreeConnectionList);
 		ret_buf->tidStatus = CifsNew;
+		++ret_buf->tc_count;
 		INIT_LIST_HEAD(&ret_buf->openFileList);
-		init_MUTEX(&ret_buf->tconSem);
+		INIT_LIST_HEAD(&ret_buf->tcon_list);
 #ifdef CONFIG_CIFS_STATS
 		spin_lock_init(&ret_buf->stat_lock);
 #endif
-		write_unlock(&GlobalSMBSeslock);
 	}
 	return ret_buf;
 }
@@ -133,11 +130,12 @@ tconInfoFree(struct cifsTconInfo *buf_to_free)
 		cFYI(1, ("Null buffer passed to tconInfoFree"));
 		return;
 	}
-	write_lock(&GlobalSMBSeslock);
 	atomic_dec(&tconInfoAllocCount);
-	list_del(&buf_to_free->cifsConnectionList);
-	write_unlock(&GlobalSMBSeslock);
 	kfree(buf_to_free->nativeFileSystem);
+	if (buf_to_free->password) {
+		memset(buf_to_free->password, 0, strlen(buf_to_free->password));
+		kfree(buf_to_free->password);
+	}
 	kfree(buf_to_free);
 }
 
@@ -347,13 +345,13 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		/*  BB Add support for establishing new tCon and SMB Session  */
 		/*      with userid/password pairs found on the smb session   */
 		/*	for other target tcp/ip addresses 		BB    */
-				if (current->fsuid != treeCon->ses->linux_uid) {
+				if (current_fsuid() != treeCon->ses->linux_uid) {
 					cFYI(1, ("Multiuser mode and UID "
 						 "did not match tcon uid"));
-					read_lock(&GlobalSMBSeslock);
-					list_for_each(temp_item, &GlobalSMBSessionList) {
-						ses = list_entry(temp_item, struct cifsSesInfo, cifsSessionList);
-						if (ses->linux_uid == current->fsuid) {
+					read_lock(&cifs_tcp_ses_lock);
+					list_for_each(temp_item, &treeCon->ses->server->smb_ses_list) {
+						ses = list_entry(temp_item, struct cifsSesInfo, smb_ses_list);
+						if (ses->linux_uid == current_fsuid()) {
 							if (ses->server == treeCon->ses->server) {
 								cFYI(1, ("found matching uid substitute right smb_uid"));
 								buffer->Uid = ses->Suid;
@@ -364,7 +362,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 							}
 						}
 					}
-					read_unlock(&GlobalSMBSeslock);
+					read_unlock(&cifs_tcp_ses_lock);
 				}
 			}
 		}
@@ -497,9 +495,10 @@ bool
 is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 {
 	struct smb_com_lock_req *pSMB = (struct smb_com_lock_req *)buf;
-	struct list_head *tmp;
-	struct list_head *tmp1;
+	struct list_head *tmp, *tmp1, *tmp2;
+	struct cifsSesInfo *ses;
 	struct cifsTconInfo *tcon;
+	struct cifsInodeInfo *pCifsInode;
 	struct cifsFileInfo *netfile;
 
 	cFYI(1, ("Checking for oplock break or dnotify response"));
@@ -554,42 +553,45 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 		return false;
 
 	/* look up tcon based on tid & uid */
-	read_lock(&GlobalSMBSeslock);
-	list_for_each(tmp, &GlobalTreeConnectionList) {
-		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
-		if ((tcon->tid == buf->Tid) && (srv == tcon->ses->server)) {
+	read_lock(&cifs_tcp_ses_lock);
+	list_for_each(tmp, &srv->smb_ses_list) {
+		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
+		list_for_each(tmp1, &ses->tcon_list) {
+			tcon = list_entry(tmp1, struct cifsTconInfo, tcon_list);
+			if (tcon->tid != buf->Tid)
+				continue;
+
 			cifs_stats_inc(&tcon->num_oplock_brks);
-			list_for_each(tmp1, &tcon->openFileList) {
-				netfile = list_entry(tmp1, struct cifsFileInfo,
+			write_lock(&GlobalSMBSeslock);
+			list_for_each(tmp2, &tcon->openFileList) {
+				netfile = list_entry(tmp2, struct cifsFileInfo,
 						     tlist);
-				if (pSMB->Fid == netfile->netfid) {
-					struct cifsInodeInfo *pCifsInode;
-					read_unlock(&GlobalSMBSeslock);
-					cFYI(1,
-					    ("file id match, oplock break"));
-					pCifsInode =
-						CIFS_I(netfile->pInode);
-					pCifsInode->clientCanCacheAll = false;
-					if (pSMB->OplockLevel == 0)
-						pCifsInode->clientCanCacheRead
-							= false;
-					pCifsInode->oplockPending = true;
-					AllocOplockQEntry(netfile->pInode,
-							  netfile->netfid,
-							  tcon);
-					cFYI(1,
-					    ("about to wake up oplock thread"));
-					if (oplockThread)
-					    wake_up_process(oplockThread);
-					return true;
-				}
+				if (pSMB->Fid != netfile->netfid)
+					continue;
+
+				write_unlock(&GlobalSMBSeslock);
+				read_unlock(&cifs_tcp_ses_lock);
+				cFYI(1, ("file id match, oplock break"));
+				pCifsInode = CIFS_I(netfile->pInode);
+				pCifsInode->clientCanCacheAll = false;
+				if (pSMB->OplockLevel == 0)
+					pCifsInode->clientCanCacheRead = false;
+				pCifsInode->oplockPending = true;
+				AllocOplockQEntry(netfile->pInode,
+						  netfile->netfid, tcon);
+				cFYI(1, ("about to wake up oplock thread"));
+				if (oplockThread)
+					wake_up_process(oplockThread);
+
+				return true;
 			}
-			read_unlock(&GlobalSMBSeslock);
+			write_unlock(&GlobalSMBSeslock);
+			read_unlock(&cifs_tcp_ses_lock);
 			cFYI(1, ("No matching file for oplock break"));
 			return true;
 		}
 	}
-	read_unlock(&GlobalSMBSeslock);
+	read_unlock(&cifs_tcp_ses_lock);
 	cFYI(1, ("Can not process oplock break for non-existent connection"));
 	return true;
 }

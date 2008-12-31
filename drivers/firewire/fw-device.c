@@ -381,46 +381,21 @@ static struct device_attribute fw_device_attributes[] = {
 	__ATTR_NULL,
 };
 
-struct read_quadlet_callback_data {
-	struct completion done;
-	int rcode;
-	u32 data;
-};
-
-static void
-complete_transaction(struct fw_card *card, int rcode,
-		     void *payload, size_t length, void *data)
-{
-	struct read_quadlet_callback_data *callback_data = data;
-
-	if (rcode == RCODE_COMPLETE)
-		callback_data->data = be32_to_cpu(*(__be32 *)payload);
-	callback_data->rcode = rcode;
-	complete(&callback_data->done);
-}
-
 static int
 read_rom(struct fw_device *device, int generation, int index, u32 *data)
 {
-	struct read_quadlet_callback_data callback_data;
-	struct fw_transaction t;
-	u64 offset;
+	int rcode;
 
 	/* device->node_id, accessed below, must not be older than generation */
 	smp_rmb();
 
-	init_completion(&callback_data.done);
-
-	offset = (CSR_REGISTER_BASE | CSR_CONFIG_ROM) + index * 4;
-	fw_send_request(device->card, &t, TCODE_READ_QUADLET_REQUEST,
+	rcode = fw_run_transaction(device->card, TCODE_READ_QUADLET_REQUEST,
 			device->node_id, generation, device->max_speed,
-			offset, NULL, 4, complete_transaction, &callback_data);
+			(CSR_REGISTER_BASE | CSR_CONFIG_ROM) + index * 4,
+			data, 4);
+	be32_to_cpus(data);
 
-	wait_for_completion(&callback_data.done);
-
-	*data = callback_data.data;
-
-	return callback_data.rcode;
+	return rcode;
 }
 
 #define READ_BIB_ROM_SIZE	256
@@ -612,8 +587,7 @@ static void create_units(struct fw_device *device)
 		unit->device.bus = &fw_bus_type;
 		unit->device.type = &fw_unit_type;
 		unit->device.parent = &device->device;
-		snprintf(unit->device.bus_id, sizeof(unit->device.bus_id),
-			 "%s.%d", device->device.bus_id, i++);
+		dev_set_name(&unit->device, "%s.%d", dev_name(&device->device), i++);
 
 		init_fw_attribute_group(&unit->device,
 					fw_unit_attributes,
@@ -736,8 +710,7 @@ static void fw_device_init(struct work_struct *work)
 	device->device.type = &fw_device_type;
 	device->device.parent = device->card->device;
 	device->device.devt = MKDEV(fw_cdev_major, minor);
-	snprintf(device->device.bus_id, sizeof(device->device.bus_id),
-		 "fw%d", minor);
+	dev_set_name(&device->device, "fw%d", minor);
 
 	init_fw_attribute_group(&device->device,
 				fw_device_attributes,
@@ -766,13 +739,13 @@ static void fw_device_init(struct work_struct *work)
 		if (device->config_rom_retries)
 			fw_notify("created device %s: GUID %08x%08x, S%d00, "
 				  "%d config ROM retries\n",
-				  device->device.bus_id,
+				  dev_name(&device->device),
 				  device->config_rom[3], device->config_rom[4],
 				  1 << device->max_speed,
 				  device->config_rom_retries);
 		else
 			fw_notify("created device %s: GUID %08x%08x, S%d00\n",
-				  device->device.bus_id,
+				  dev_name(&device->device),
 				  device->config_rom[3], device->config_rom[4],
 				  1 << device->max_speed);
 		device->config_rom_retries = 0;
@@ -908,12 +881,12 @@ static void fw_device_refresh(struct work_struct *work)
 		    FW_DEVICE_RUNNING) == FW_DEVICE_SHUTDOWN)
 		goto gone;
 
-	fw_notify("refreshed device %s\n", device->device.bus_id);
+	fw_notify("refreshed device %s\n", dev_name(&device->device));
 	device->config_rom_retries = 0;
 	goto out;
 
  give_up:
-	fw_notify("giving up on refresh of device %s\n", device->device.bus_id);
+	fw_notify("giving up on refresh of device %s\n", dev_name(&device->device));
  gone:
 	atomic_set(&device->state, FW_DEVICE_SHUTDOWN);
 	fw_device_shutdown(work);

@@ -11,7 +11,7 @@
 #define OPROFILE_STATS_H
 
 #include <asm/atomic.h>
- 
+
 struct oprofile_stat_struct {
 	atomic_t sample_lost_no_mm;
 	atomic_t sample_lost_no_mapping;
@@ -20,14 +20,14 @@ struct oprofile_stat_struct {
 };
 
 extern struct oprofile_stat_struct oprofile_stats;
- 
+
 /* reset all stats to zero */
 void oprofile_reset_stats(void);
- 
+
 struct super_block;
 struct dentry;
- 
+
 /* create the stats/ dir */
-void oprofile_create_stats_files(struct super_block * sb, struct dentry * root);
+void oprofile_create_stats_files(struct super_block *sb, struct dentry *root);
 
 #endif /* OPROFILE_STATS_H */

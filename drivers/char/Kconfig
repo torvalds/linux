@@ -124,7 +124,7 @@ config COMPUTONE
 	  which give you many serial ports. You would need something like this
 	  to connect more than two modems to your Linux box, for instance in
 	  order to become a dial-in server. If you have a card like that, say
-	  Y here and read <file:Documentation/computone.txt>.
+	  Y here and read <file:Documentation/serial/computone.txt>.
 
 	  To compile this driver as module, choose M here: the
 	  module will be called ip2.
@@ -136,7 +136,7 @@ config ROCKETPORT
 	  This driver supports Comtrol RocketPort and RocketModem PCI boards.   
           These boards provide 2, 4, 8, 16, or 32 high-speed serial ports or
           modems.  For information about the RocketPort/RocketModem  boards
-          and this driver read <file:Documentation/rocket.txt>.
+          and this driver read <file:Documentation/serial/rocket.txt>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rocket.
@@ -154,7 +154,7 @@ config CYCLADES
 	  your Linux box, for instance in order to become a dial-in server.
 
 	  For information about the Cyclades-Z card, read
-	  <file:Documentation/README.cycladesZ>.
+	  <file:Documentation/serial/README.cycladesZ>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyclades.
@@ -183,7 +183,7 @@ config DIGIEPCA
 	  box, for instance in order to become a dial-in server. This driver
 	  supports the original PC (ISA) boards as well as PCI, and EISA. If
 	  you have a card like this, say Y here and read the file
-	  <file:Documentation/digiepca.txt>.
+	  <file:Documentation/serial/digiepca.txt>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called epca.
@@ -289,7 +289,7 @@ config RISCOM8
 	  which gives you many serial ports. You would need something like
 	  this to connect more than two modems to your Linux box, for instance
 	  in order to become a dial-in server. If you have a card like that,
-	  say Y here and read the file <file:Documentation/riscom8.txt>.
+	  say Y here and read the file <file:Documentation/serial/riscom8.txt>.
 
 	  Also it's possible to say M here and compile this driver as kernel
 	  loadable module; the module will be called riscom8.
@@ -304,8 +304,8 @@ config SPECIALIX
 	  your Linux box, for instance in order to become a dial-in server.
 
 	  If you have a card like that, say Y here and read the file
-	  <file:Documentation/specialix.txt>. Also it's possible to say M here
-	  and compile this driver as kernel loadable module which will be
+	  <file:Documentation/serial/specialix.txt>. Also it's possible to say
+	  M here and compile this driver as kernel loadable module which will be
 	  called specialix.
 
 config SX
@@ -313,7 +313,7 @@ config SX
 	depends on SERIAL_NONSTANDARD && (PCI || EISA || ISA)
 	help
 	  This is a driver for the SX and SI multiport serial cards.
-	  Please read the file <file:Documentation/sx.txt> for details.
+	  Please read the file <file:Documentation/serial/sx.txt> for details.
 
 	  This driver can only be built as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
@@ -344,8 +344,8 @@ config STALDRV
 	  like this to connect more than two modems to your Linux box, for
 	  instance in order to become a dial-in server.  If you say Y here,
 	  you will be asked for your specific card model in the next
-	  questions.  Make sure to read <file:Documentation/stallion.txt> in
-	  this case.  If you have never heard about all this, it's safe to
+	  questions.  Make sure to read <file:Documentation/serial/stallion.txt>
+	  in this case.  If you have never heard about all this, it's safe to
 	  say N.
 
 config STALLION
@@ -354,7 +354,7 @@ config STALLION
 	help
 	  If you have an EasyIO or EasyConnection 8/32 multiport Stallion
 	  card, then this is for you; say Y.  Make sure to read
-	  <file:Documentation/stallion.txt>.
+	  <file:Documentation/serial/stallion.txt>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stallion.
@@ -365,7 +365,7 @@ config ISTALLION
 	help
 	  If you have an EasyConnection 8/64, ONboard, Brumby or Stallion
 	  serial multiport card, say Y here. Make sure to read
-	  <file:Documentation/stallion.txt>.
+	  <file:Documentation/serial/stallion.txt>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called istallion.
@@ -622,6 +622,16 @@ config HVC_BEAT
 	help
 	  Toshiba's Cell Reference Set Beat Console device driver
 
+config HVC_IUCV
+	bool "z/VM IUCV Hypervisor console support (VM only)"
+	depends on S390
+	select HVC_DRIVER
+	select IUCV
+	default y
+	help
+	  This driver provides a Hypervisor console (HVC) back-end to access
+	  a Linux (console) terminal via a z/VM IUCV communication path.
+
 config HVC_XEN
 	bool "Xen Hypervisor Console support"
 	depends on XEN
@@ -630,6 +640,12 @@ config HVC_XEN
 	default y
 	help
 	  Xen virtual console device driver
+
+config HVC_UDBG
+       bool "udbg based fake hypervisor console"
+       depends on PPC && EXPERIMENTAL
+       select HVC_DRIVER
+       default n
 
 config VIRTIO_CONSOLE
 	tristate "Virtio console"
@@ -811,28 +827,6 @@ config JS_RTC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called js-rtc.
-
-config SGI_DS1286
-	tristate "SGI DS1286 RTC support"
-	depends on SGI_HAS_DS1286
-	help
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock built into your computer.
-	  Every SGI has such a clock built in. It reports status information
-	  via the file /proc/rtc and its behaviour is set by various ioctls on
-	  /dev/rtc.
-
-config SGI_IP27_RTC
-	bool "SGI M48T35 RTC support"
-	depends on SGI_IP27
-	help
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock built into your computer.
-	  Every SGI has such a clock built in. It reports status information
-	  via the file /proc/rtc and its behaviour is set by various ioctls on
-	  /dev/rtc.
 
 config GEN_RTC
 	tristate "Generic /dev/rtc emulation"
@@ -1042,15 +1036,6 @@ config HPET
 	  If you say Y here, you will have a miscdevice named "/dev/hpet/".  Each
 	  open selects one of the timers supported by the HPET.  The timers are
 	  non-periodic and/or periodic.
-
-config HPET_RTC_IRQ
-	bool
-	default HPET_EMULATE_RTC
-	depends on RTC && HPET
-	help
-	  If you say Y here, you will disable RTC_IRQ in drivers/char/rtc.c. It
-	  is assumed the platform called hpet_alloc with the RTC IRQ values for
-	  the HPET timers.
 
 config HPET_MMAP
 	bool "Allow mmap of HPET"

@@ -1,3 +1,28 @@
+Version 1.56
+------------
+Add "forcemandatorylock" mount option to allow user to use mandatory
+rather than posix (advisory) byte range locks, even though server would
+support posix byte range locks.  Fix query of root inode when prefixpath
+specified and user does not have access to query information about the
+top of the share.  Fix problem in 2.6.28 resolving DFS paths to
+Samba servers (worked to Windows).
+
+Version 1.55
+------------
+Various fixes to make delete of open files behavior more predictable
+(when delete of an open file fails we mark the file as "delete-on-close"
+in a way that more servers accept, but only if we can first rename the
+file to a temporary name).  Add experimental support for more safely
+handling fcntl(F_SETLEASE).  Convert cifs to using blocking tcp
+sends, and also let tcp autotune the socket send and receive buffers.
+This reduces the number of EAGAIN errors returned by TCP/IP in
+high stress workloads (and the number of retries on socket writes
+when sending large SMBWriteX requests).  Fix case in which a portion of
+data can in some cases not get written to the file on the server before the
+file is closed.  Fix DFS parsing to properly handle path consumed field,
+and to handle certain codepage conversions better.  Fix mount and
+umount race that can cause oops in mount or umount or reconnect.
+
 Version 1.54
 ------------
 Fix premature write failure on congested networks (we would give up
@@ -13,6 +38,7 @@ on dns_upcall (resolving DFS referralls).  Fix plain text password
 authentication (requires setting SecurityFlags to 0x30030 to enable
 lanman and plain text though).  Fix writes to be at correct offset when
 file is open with O_APPEND and file is on a directio (forcediretio) mount.
+Fix bug in rewinding readdir directory searches.  Add nodfs mount option.
 
 Version 1.53
 ------------

@@ -26,6 +26,9 @@
 #include <linux/err.h>
 #include <linux/debugfs.h>
 #include <linux/crash_dump.h>
+#include <linux/mmzone.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -144,6 +147,7 @@ static void __init reserve_crashkernel(void)
 {
 	unsigned long long free_mem;
 	unsigned long long crash_size, crash_base;
+	void *vp;
 	int ret;
 
 	free_mem = ((unsigned long long)max_low_pfn - min_low_pfn) << PAGE_SHIFT;
@@ -152,12 +156,14 @@ static void __init reserve_crashkernel(void)
 			&crash_size, &crash_base);
 	if (ret == 0 && crash_size) {
 		if (crash_base <= 0) {
-			printk(KERN_INFO "crashkernel reservation failed - "
-					"you have to specify a base address\n");
-			return;
-		}
-
-		if (reserve_bootmem(crash_base, crash_size,
+			vp = alloc_bootmem_nopanic(crash_size); 
+			if (!vp) {
+				printk(KERN_INFO "crashkernel allocation "
+				       "failed\n");
+				return;
+			}
+			crash_base = __pa(vp);
+		} else if (reserve_bootmem(crash_base, crash_size,
 					BOOTMEM_EXCLUSIVE) < 0) {
 			printk(KERN_INFO "crashkernel reservation failed - "
 					"memory is in use\n");
@@ -177,6 +183,24 @@ static void __init reserve_crashkernel(void)
 #else
 static inline void __init reserve_crashkernel(void)
 {}
+#endif
+
+#ifndef CONFIG_GENERIC_CALIBRATE_DELAY
+void __cpuinit calibrate_delay(void)
+{
+	struct clk *clk = clk_get(NULL, "cpu_clk");
+
+	if (IS_ERR(clk))
+		panic("Need a sane CPU clock definition!");
+
+	loops_per_jiffy = (clk_get_rate(clk) >> 1) / HZ;
+
+	printk(KERN_INFO "Calibrating delay loop (skipped)... "
+			 "%lu.%02lu BogoMIPS PRESET (lpj=%lu)\n",
+			 loops_per_jiffy/(500000/HZ),
+			 (loops_per_jiffy/(5000/HZ)) % 100,
+			 loops_per_jiffy);
+}
 #endif
 
 void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
@@ -232,15 +256,17 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	 * case of us accidentally initializing the bootmem allocator with
 	 * an invalid RAM area.
 	 */
-	reserve_bootmem(__MEMORY_START+PAGE_SIZE,
-		(PFN_PHYS(free_pfn)+bootmap_size+PAGE_SIZE-1)-__MEMORY_START,
-		BOOTMEM_DEFAULT);
+	reserve_bootmem(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
+			(PFN_PHYS(free_pfn) + bootmap_size + PAGE_SIZE - 1) -
+			(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET),
+			BOOTMEM_DEFAULT);
 
 	/*
 	 * reserve physical page 0 - it's a special BIOS page on many boxes,
 	 * enabling clean reboots, SMP operation, laptop functions.
 	 */
-	reserve_bootmem(__MEMORY_START, PAGE_SIZE, BOOTMEM_DEFAULT);
+	reserve_bootmem(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET,
+			BOOTMEM_DEFAULT);
 
 	sparse_memory_present_with_active_regions(0);
 
@@ -248,17 +274,18 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	ROOT_DEV = Root_RAM0;
 
 	if (LOADER_TYPE && INITRD_START) {
-		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
-			reserve_bootmem(INITRD_START + __MEMORY_START,
-					INITRD_SIZE, BOOTMEM_DEFAULT);
-			initrd_start = INITRD_START + PAGE_OFFSET +
-					__MEMORY_START;
+		unsigned long initrd_start_phys = INITRD_START + __MEMORY_START;
+
+		if (initrd_start_phys + INITRD_SIZE <= PFN_PHYS(max_low_pfn)) {
+			reserve_bootmem(initrd_start_phys, INITRD_SIZE,
+					BOOTMEM_DEFAULT);
+			initrd_start = (unsigned long)__va(initrd_start_phys);
 			initrd_end = initrd_start + INITRD_SIZE;
 		} else {
 			printk("initrd extends beyond end of memory "
-			    "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
-				    INITRD_START + INITRD_SIZE,
-				    max_low_pfn << PAGE_SHIFT);
+			       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
+			       initrd_start_phys + INITRD_SIZE,
+			       (unsigned long)PFN_PHYS(max_low_pfn));
 			initrd_start = 0;
 		}
 	}
@@ -390,6 +417,7 @@ void __init setup_arch(char **cmdline_p)
 }
 
 static const char *cpu_name[] = {
+	[CPU_SH7201]	= "SH7201",
 	[CPU_SH7203]	= "SH7203",	[CPU_SH7263]	= "SH7263",
 	[CPU_SH7206]	= "SH7206",	[CPU_SH7619]	= "SH7619",
 	[CPU_SH7705]	= "SH7705",	[CPU_SH7706]	= "SH7706",
@@ -530,6 +558,8 @@ struct dentry *sh_debugfs_root;
 static int __init sh_debugfs_init(void)
 {
 	sh_debugfs_root = debugfs_create_dir("sh", NULL);
+	if (!sh_debugfs_root)
+		return -ENOMEM;
 	if (IS_ERR(sh_debugfs_root))
 		return PTR_ERR(sh_debugfs_root);
 

@@ -217,8 +217,14 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		return PTR_ERR(bio);
 
 	if (bio->bi_size != len) {
+		/*
+		 * Grab an extra reference to this bio, as bio_unmap_user()
+		 * expects to be able to drop it twice as it happens on the
+		 * normal IO completion path
+		 */
+		bio_get(bio);
 		bio_endio(bio, 0);
-		bio_unmap_user(bio);
+		__blk_rq_unmap_user(bio);
 		return -EINVAL;
 	}
 

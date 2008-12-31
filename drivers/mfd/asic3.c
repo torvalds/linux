@@ -123,7 +123,7 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 					irqnr = asic->irq_base +
 						(ASIC3_GPIOS_PER_BANK * bank)
 						+ i;
-					desc = irq_desc + irqnr;
+					desc = irq_to_desc(irqnr);
 					desc->handle_irq(irqnr, desc);
 					if (asic->irq_bothedge[bank] & bit)
 						asic3_irq_flip_edge(asic, base,
@@ -136,7 +136,7 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 		for (i = ASIC3_NUM_GPIOS; i < ASIC3_NR_IRQS; i++) {
 			/* They start at bit 4 and go up */
 			if (status & (1 << (i - ASIC3_NUM_GPIOS + 4))) {
-				desc = irq_desc + asic->irq_base + i;
+				desc = irq_to_desc(asic->irq_base + i);
 				desc->handle_irq(asic->irq_base + i,
 						 desc);
 			}
@@ -474,9 +474,9 @@ static __init int asic3_gpio_probe(struct platform_device *pdev,
 	u16 dir_reg[ASIC3_NUM_GPIO_BANKS];
 	int i;
 
-	memzero(alt_reg, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
-	memzero(out_reg, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
-	memzero(dir_reg, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
+	memset(alt_reg, 0, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
+	memset(out_reg, 0, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
+	memset(dir_reg, 0, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
 
 	/* Enable all GPIOs */
 	asic3_write_register(asic, ASIC3_GPIO_OFFSET(A, MASK), 0xffff);

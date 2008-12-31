@@ -101,6 +101,8 @@ void fuse_finish_open(struct inode *inode, struct file *file,
 		file->f_op = &fuse_direct_io_file_operations;
 	if (!(outarg->open_flags & FOPEN_KEEP_CACHE))
 		invalidate_inode_pages2(inode->i_mapping);
+	if (outarg->open_flags & FOPEN_NONSEEKABLE)
+		nonseekable_open(inode, file);
 	ff->fh = outarg->fh;
 	file->private_data = fuse_file_get(ff);
 }
@@ -1448,6 +1450,9 @@ static loff_t fuse_file_llseek(struct file *file, loff_t offset, int origin)
 	mutex_lock(&inode->i_mutex);
 	switch (origin) {
 	case SEEK_END:
+		retval = fuse_update_attributes(inode, NULL, file, NULL);
+		if (retval)
+			return retval;
 		offset += i_size_read(inode);
 		break;
 	case SEEK_CUR:

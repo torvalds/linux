@@ -9,10 +9,6 @@
 #ifndef _ASM_PTRACE_H
 #define _ASM_PTRACE_H
 
-#ifdef CONFIG_64BIT
-#define __ARCH_WANT_COMPAT_SYS_PTRACE
-#endif
-
 /* 0 - 31 are integer registers, 32 - 63 are fp registers.  */
 #define FPR_BASE	32
 #define PC		64
@@ -80,25 +76,25 @@ enum pt_watch_style {
 	pt_watch_style_mips64
 };
 struct mips32_watch_regs {
-	uint32_t watchlo[8];
+	unsigned int watchlo[8];
 	/* Lower 16 bits of watchhi. */
-	uint16_t watchhi[8];
+	unsigned short watchhi[8];
 	/* Valid mask and I R W bits.
 	 * bit 0 -- 1 if W bit is usable.
 	 * bit 1 -- 1 if R bit is usable.
 	 * bit 2 -- 1 if I bit is usable.
 	 * bits 3 - 11 -- Valid watchhi mask bits.
 	 */
-	uint16_t watch_masks[8];
+	unsigned short watch_masks[8];
 	/* The number of valid watch register pairs.  */
-	uint32_t num_valid;
+	unsigned int num_valid;
 } __attribute__((aligned(8)));
 
 struct mips64_watch_regs {
-	uint64_t watchlo[8];
-	uint16_t watchhi[8];
-	uint16_t watch_masks[8];
-	uint32_t num_valid;
+	unsigned long long watchlo[8];
+	unsigned short watchhi[8];
+	unsigned short watch_masks[8];
+	unsigned int num_valid;
 } __attribute__((aligned(8)));
 
 struct pt_watch_regs {
@@ -116,6 +112,7 @@ struct pt_watch_regs {
 
 #include <linux/compiler.h>
 #include <linux/linkage.h>
+#include <linux/types.h>
 #include <asm/isadep.h>
 
 struct task_struct;

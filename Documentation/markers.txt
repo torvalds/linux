@@ -50,10 +50,17 @@ Connecting a function (probe) to a marker is done by providing a probe (function
 to call) for the specific marker through marker_probe_register() and can be
 activated by calling marker_arm(). Marker deactivation can be done by calling
 marker_disarm() as many times as marker_arm() has been called. Removing a probe
-is done through marker_probe_unregister(); it will disarm the probe and make
-sure there is no caller left using the probe when it returns. Probe removal is
-preempt-safe because preemption is disabled around the probe call. See the
-"Probe example" section below for a sample probe module.
+is done through marker_probe_unregister(); it will disarm the probe.
+
+marker_synchronize_unregister() must be called between probe unregistration and
+the first occurrence of
+- the end of module exit function,
+  to make sure there is no caller left using the probe;
+- the free of any resource used by the probes,
+  to make sure the probes wont be accessing invalid data.
+This, and the fact that preemption is disabled around the probe call, make sure
+that probe removal and module unload are safe. See the "Probe example" section
+below for a sample probe module.
 
 The marker mechanism supports inserting multiple instances of the same marker.
 Markers can be put in inline functions, inlined static functions, and
@@ -68,6 +75,20 @@ a printk warning which identifies the inconsistency:
 
 "Format mismatch for probe probe_name (format), marker (format)"
 
+Another way to use markers is to simply define the marker without generating any
+function call to actually call into the marker. This is useful in combination
+with tracepoint probes in a scheme like this :
+
+void probe_tracepoint_name(unsigned int arg1, struct task_struct *tsk);
+
+DEFINE_MARKER_TP(marker_eventname, tracepoint_name, probe_tracepoint_name,
+	"arg1 %u pid %d");
+
+notrace void probe_tracepoint_name(unsigned int arg1, struct task_struct *tsk)
+{
+	struct marker *marker = &GET_MARKER(kernel_irq_entry);
+	/* write data to trace buffers ... */
+}
 
 * Probe / marker example
 

@@ -94,18 +94,10 @@ int acpi_parse_mcfg (struct acpi_table_header *header);
 void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
 
 /* the following four functions are architecture-dependent */
-#ifdef CONFIG_HAVE_ARCH_PARSE_SRAT
-#define NR_NODE_MEMBLKS MAX_NUMNODES
-#define acpi_numa_slit_init(slit) do {} while (0)
-#define acpi_numa_processor_affinity_init(pa) do {} while (0)
-#define acpi_numa_memory_affinity_init(ma) do {} while (0)
-#define acpi_numa_arch_fixup() do {} while (0)
-#else
 void acpi_numa_slit_init (struct acpi_table_slit *slit);
 void acpi_numa_processor_affinity_init (struct acpi_srat_cpu_affinity *pa);
 void acpi_numa_memory_affinity_init (struct acpi_srat_mem_affinity *ma);
 void acpi_numa_arch_fixup(void);
-#endif
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */
@@ -171,16 +163,12 @@ struct acpi_pci_driver {
 int acpi_pci_register_driver(struct acpi_pci_driver *driver);
 void acpi_pci_unregister_driver(struct acpi_pci_driver *driver);
 
-#ifdef CONFIG_ACPI_EC
-
 extern int ec_read(u8 addr, u8 *val);
 extern int ec_write(u8 addr, u8 val);
 extern int ec_transaction(u8 command,
                           const u8 *wdata, unsigned wdata_len,
                           u8 *rdata, unsigned rdata_len,
 			  int force_poll);
-
-#endif /*CONFIG_ACPI_EC*/
 
 #if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
 
@@ -201,6 +189,50 @@ extern acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out);
 extern bool wmi_has_guid(const char *guid);
 
 #endif	/* CONFIG_ACPI_WMI */
+
+#define ACPI_VIDEO_OUTPUT_SWITCHING			0x0001
+#define ACPI_VIDEO_DEVICE_POSTING			0x0002
+#define ACPI_VIDEO_ROM_AVAILABLE			0x0004
+#define ACPI_VIDEO_BACKLIGHT				0x0008
+#define ACPI_VIDEO_BACKLIGHT_FORCE_VENDOR		0x0010
+#define ACPI_VIDEO_BACKLIGHT_FORCE_VIDEO		0x0020
+#define ACPI_VIDEO_OUTPUT_SWITCHING_FORCE_VENDOR	0x0040
+#define ACPI_VIDEO_OUTPUT_SWITCHING_FORCE_VIDEO		0x0080
+#define ACPI_VIDEO_BACKLIGHT_DMI_VENDOR			0x0100
+#define ACPI_VIDEO_BACKLIGHT_DMI_VIDEO			0x0200
+#define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VENDOR		0x0400
+#define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VIDEO		0x0800
+
+#if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
+
+extern long acpi_video_get_capabilities(acpi_handle graphics_dev_handle);
+extern long acpi_is_video_device(struct acpi_device *device);
+extern int acpi_video_backlight_support(void);
+extern int acpi_video_display_switch_support(void);
+
+#else
+
+static inline long acpi_video_get_capabilities(acpi_handle graphics_dev_handle)
+{
+	return 0;
+}
+
+static inline long acpi_is_video_device(struct acpi_device *device)
+{
+	return 0;
+}
+
+static inline int acpi_video_backlight_support(void)
+{
+	return 0;
+}
+
+static inline int acpi_video_display_switch_support(void)
+{
+	return 0;
+}
+
+#endif /* defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE) */
 
 extern int acpi_blacklisted(void);
 #ifdef CONFIG_DMI

@@ -260,7 +260,7 @@ start_ap:
 	 * Switch into virtual mode:
 	 */
 	movl r16=(IA64_PSR_IT|IA64_PSR_IC|IA64_PSR_DT|IA64_PSR_RT|IA64_PSR_DFH|IA64_PSR_BN \
-		  |IA64_PSR_DI)
+		  |IA64_PSR_DI|IA64_PSR_AC)
 	;;
 	mov cr.ipsr=r16
 	movl r17=1f

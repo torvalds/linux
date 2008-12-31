@@ -187,7 +187,8 @@ static irqreturn_t psc_i2s_bcom_irq(int irq, void *_psc_i2s_stream)
  * If this is the first stream open, then grab the IRQ and program most of
  * the PSC registers.
  */
-static int psc_i2s_startup(struct snd_pcm_substream *substream)
+static int psc_i2s_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
@@ -220,7 +221,8 @@ static int psc_i2s_startup(struct snd_pcm_substream *substream)
 }
 
 static int psc_i2s_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *params)
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
@@ -256,7 +258,8 @@ static int psc_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int psc_i2s_hw_free(struct snd_pcm_substream *substream)
+static int psc_i2s_hw_free(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
 {
 	snd_pcm_set_runtime_buffer(substream, NULL);
 	return 0;
@@ -268,7 +271,8 @@ static int psc_i2s_hw_free(struct snd_pcm_substream *substream)
  * This function is called by ALSA to start, stop, pause, and resume the DMA
  * transfer of data.
  */
-static int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
+static int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
@@ -277,7 +281,7 @@ static int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct mpc52xx_psc __iomem *regs = psc_i2s->psc_regs;
 	u16 imr;
 	u8 psc_cmd;
-	long flags;
+	unsigned long flags;
 
 	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
 		s = &psc_i2s->capture;
@@ -383,7 +387,8 @@ static int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
  *
  * Shutdown the PSC if there are no other substreams open.
  */
-static void psc_i2s_shutdown(struct snd_pcm_substream *substream)
+static void psc_i2s_shutdown(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
@@ -464,7 +469,6 @@ static int psc_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int format)
  * psc_i2s_dai_template: template CPU Digital Audio Interface
  */
 static struct snd_soc_dai psc_i2s_dai_template = {
-	.type = SND_SOC_DAI_I2S,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -483,8 +487,6 @@ static struct snd_soc_dai psc_i2s_dai_template = {
 		.hw_free = psc_i2s_hw_free,
 		.shutdown = psc_i2s_shutdown,
 		.trigger = psc_i2s_trigger,
-	},
-	.dai_ops = {
 		.set_sysclk = psc_i2s_set_sysclk,
 		.set_fmt = psc_i2s_set_fmt,
 	},
@@ -699,9 +701,11 @@ static ssize_t psc_i2s_stat_store(struct device *dev,
 	return count;
 }
 
-DEVICE_ATTR(status, 0644, psc_i2s_status_show, NULL);
-DEVICE_ATTR(playback_underrun, 0644, psc_i2s_stat_show, psc_i2s_stat_store);
-DEVICE_ATTR(capture_overrun, 0644, psc_i2s_stat_show, psc_i2s_stat_store);
+static DEVICE_ATTR(status, 0644, psc_i2s_status_show, NULL);
+static DEVICE_ATTR(playback_underrun, 0644, psc_i2s_stat_show,
+			psc_i2s_stat_store);
+static DEVICE_ATTR(capture_overrun, 0644, psc_i2s_stat_show,
+			psc_i2s_stat_store);
 
 /* ---------------------------------------------------------------------
  * OF platform bus binding code:
@@ -819,10 +823,12 @@ static int __devinit psc_i2s_of_probe(struct of_device *op,
 
 	/* Register the SYSFS files */
 	rc = device_create_file(psc_i2s->dev, &dev_attr_status);
-	rc = device_create_file(psc_i2s->dev, &dev_attr_capture_overrun);
-	rc = device_create_file(psc_i2s->dev, &dev_attr_playback_underrun);
+	rc |= device_create_file(psc_i2s->dev, &dev_attr_capture_overrun);
+	rc |= device_create_file(psc_i2s->dev, &dev_attr_playback_underrun);
 	if (rc)
 		dev_info(psc_i2s->dev, "error creating sysfs files\n");
+
+	snd_soc_register_platform(&psc_i2s_pcm_soc_platform);
 
 	/* Tell the ASoC OF helpers about it */
 	of_snd_soc_register_platform(&psc_i2s_pcm_soc_platform, op->node,
@@ -836,6 +842,8 @@ static int __devexit psc_i2s_of_remove(struct of_device *op)
 	struct psc_i2s *psc_i2s = dev_get_drvdata(&op->dev);
 
 	dev_dbg(&op->dev, "psc_i2s_remove()\n");
+
+	snd_soc_unregister_platform(&psc_i2s_pcm_soc_platform);
 
 	bcom_gen_bd_rx_release(psc_i2s->capture.bcom_task);
 	bcom_gen_bd_tx_release(psc_i2s->playback.bcom_task);

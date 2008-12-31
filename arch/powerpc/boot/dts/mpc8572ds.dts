@@ -13,8 +13,8 @@
 / {
 	model = "fsl,MPC8572DS";
 	compatible = "fsl,MPC8572DS";
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	aliases {
 		ethernet0 = &enet0;
@@ -61,7 +61,119 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x0 0x0>;	// Filled by U-Boot
+	};
+
+	localbus@ffe05000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8572-elbc", "fsl,elbc", "simple-bus";
+		reg = <0 0xffe05000 0 0x1000>;
+		interrupts = <19 2>;
+		interrupt-parent = <&mpic>;
+
+		ranges = <0x0 0x0 0x0 0xe8000000 0x08000000
+			  0x1 0x0 0x0 0xe0000000 0x08000000
+			  0x2 0x0 0x0 0xffa00000 0x00040000
+			  0x3 0x0 0x0 0xffdf0000 0x00008000
+			  0x4 0x0 0x0 0xffa40000 0x00040000
+			  0x5 0x0 0x0 0xffa80000 0x00040000
+			  0x6 0x0 0x0 0xffac0000 0x00040000>;
+
+		nor@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x8000000>;
+			bank-width = <2>;
+			device-width = <1>;
+
+			ramdisk@0 {
+				reg = <0x0 0x03000000>;
+				readl-only;
+			};
+
+			diagnostic@3000000 {
+				reg = <0x03000000 0x00e00000>;
+				read-only;
+			};
+
+			dink@3e00000 {
+				reg = <0x03e00000 0x00200000>;
+				read-only;
+			};
+
+			kernel@4000000 {
+				reg = <0x04000000 0x00400000>;
+				read-only;
+			};
+
+			jffs2@4400000 {
+				reg = <0x04400000 0x03b00000>;
+			};
+
+			dtb@7f00000 {
+				reg = <0x07f00000 0x00080000>;
+				read-only;
+			};
+
+			u-boot@7f80000 {
+				reg = <0x07f80000 0x00080000>;
+				read-only;
+			};
+		};
+
+		nand@2,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8572-fcm-nand",
+				     "fsl,elbc-fcm-nand";
+			reg = <0x2 0x0 0x40000>;
+
+			u-boot@0 {
+				reg = <0x0 0x02000000>;
+				read-only;
+			};
+
+			jffs2@2000000 {
+				reg = <0x02000000 0x10000000>;
+			};
+
+			ramdisk@12000000 {
+				reg = <0x12000000 0x08000000>;
+				read-only;
+			};
+
+			kernel@1a000000 {
+				reg = <0x1a000000 0x04000000>;
+			};
+
+			dtb@1e000000 {
+				reg = <0x1e000000 0x01000000>;
+				read-only;
+			};
+
+			empty@1f000000 {
+				reg = <0x1f000000 0x21000000>;
+			};
+		};
+
+		nand@4,0 {
+			compatible = "fsl,mpc8572-fcm-nand",
+				     "fsl,elbc-fcm-nand";
+			reg = <0x4 0x0 0x40000>;
+		};
+
+		nand@5,0 {
+			compatible = "fsl,mpc8572-fcm-nand",
+				     "fsl,elbc-fcm-nand";
+			reg = <0x5 0x0 0x40000>;
+		};
+
+		nand@6,0 {
+			compatible = "fsl,mpc8572-fcm-nand",
+				     "fsl,elbc-fcm-nand";
+			reg = <0x6 0x0 0x40000>;
+		};
 	};
 
 	soc8572@ffe00000 {
@@ -69,8 +181,8 @@
 		#size-cells = <1>;
 		device_type = "soc";
 		compatible = "simple-bus";
-		ranges = <0x0 0xffe00000 0x100000>;
-		reg = <0xffe00000 0x1000>;	// CCSRBAR & soc regs, remove once parse code for immrbase fixed
+		ranges = <0x0 0 0xffe00000 0x100000>;
+		reg = <0 0xffe00000 0 0x1000>;	// CCSRBAR & soc regs, remove once parse code for immrbase fixed
 		bus-frequency = <0>;		// Filled out by uboot.
 
 		memory-controller@2000 {
@@ -91,7 +203,7 @@
 			compatible = "fsl,mpc8572-l2-cache-controller";
 			reg = <0x20000 0x1000>;
 			cache-line-size = <32>;	// 32 bytes
-			cache-size = <0x80000>;	// L2, 512K
+			cache-size = <0x100000>; // L2, 1M
 			interrupt-parent = <&mpic>;
 			interrupts = <16 2>;
 		};
@@ -226,6 +338,47 @@
 				interrupts = <10 1>;
 				reg = <0x3>;
 			};
+
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		mdio@25520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,gianfar-tbi";
+			reg = <0x25520 0x20>;
+
+			tbi1: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		mdio@26520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,gianfar-tbi";
+			reg = <0x26520 0x20>;
+
+			tbi2: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		mdio@27520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,gianfar-tbi";
+			reg = <0x27520 0x20>;
+
+			tbi3: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 
 		enet0: ethernet@24000 {
@@ -237,6 +390,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <29 2 30 2 34 2>;
 			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi0>;
 			phy-handle = <&phy0>;
 			phy-connection-type = "rgmii-id";
 		};
@@ -250,6 +404,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <35 2 36 2 40 2>;
 			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi1>;
 			phy-handle = <&phy1>;
 			phy-connection-type = "rgmii-id";
 		};
@@ -263,6 +418,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <31 2 32 2 33 2>;
 			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi2>;
 			phy-handle = <&phy2>;
 			phy-connection-type = "rgmii-id";
 		};
@@ -276,6 +432,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <37 2 38 2 39 2>;
 			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi3>;
 			phy-handle = <&phy3>;
 			phy-connection-type = "rgmii-id";
 		};
@@ -351,10 +508,10 @@
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
-		reg = <0xffe08000 0x1000>;
+		reg = <0 0xffe08000 0 0x1000>;
 		bus-range = <0 255>;
-		ranges = <0x2000000 0x0 0x80000000 0x80000000 0x0 0x20000000
-			  0x1000000 0x0 0x0 0xffc00000 0x0 0x10000>;
+		ranges = <0x2000000 0x0 0x80000000 0 0x80000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0 0xffc00000 0x0 0x00010000>;
 		clock-frequency = <33333333>;
 		interrupt-parent = <&mpic>;
 		interrupts = <24 2>;
@@ -561,10 +718,10 @@
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
-		reg = <0xffe09000 0x1000>;
+		reg = <0 0xffe09000 0 0x1000>;
 		bus-range = <0 255>;
-		ranges = <0x2000000 0x0 0xa0000000 0xa0000000 0x0 0x20000000
-			  0x1000000 0x0 0x0 0xffc10000 0x0 0x10000>;
+		ranges = <0x2000000 0x0 0xa0000000 0 0xa0000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0 0xffc10000 0x0 0x00010000>;
 		clock-frequency = <33333333>;
 		interrupt-parent = <&mpic>;
 		interrupts = <26 2>;
@@ -598,10 +755,10 @@
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
-		reg = <0xffe0a000 0x1000>;
+		reg = <0 0xffe0a000 0 0x1000>;
 		bus-range = <0 255>;
-		ranges = <0x2000000 0x0 0xc0000000 0xc0000000 0x0 0x20000000
-			  0x1000000 0x0 0x0 0xffc20000 0x0 0x10000>;
+		ranges = <0x2000000 0x0 0xc0000000 0 0xc0000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0 0xffc20000 0x0 0x00010000>;
 		clock-frequency = <33333333>;
 		interrupt-parent = <&mpic>;
 		interrupts = <27 2>;

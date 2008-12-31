@@ -3450,14 +3450,14 @@ static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int fd_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
+static int fd_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 		    unsigned long param)
 {
-#define FD_IOCTL_ALLOWED ((filp) && (filp)->private_data)
+#define FD_IOCTL_ALLOWED (mode & (FMODE_WRITE|FMODE_WRITE_IOCTL))
 #define OUT(c,x) case c: outparam = (const char *) (x); break
 #define IN(c,x,tag) case c: *(x) = inparam. tag ; return 0
 
-	int drive = (long)inode->i_bdev->bd_disk->private_data;
+	int drive = (long)bdev->bd_disk->private_data;
 	int type = ITYPE(UDRS->fd_device);
 	int i;
 	int ret;
@@ -3516,11 +3516,11 @@ static int fd_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 			current_type[drive] = NULL;
 			floppy_sizes[drive] = MAX_DISK_SIZE << 1;
 			UDRS->keep_data = 0;
-			return invalidate_drive(inode->i_bdev);
+			return invalidate_drive(bdev);
 		case FDSETPRM:
 		case FDDEFPRM:
 			return set_geometry(cmd, &inparam.g,
-					    drive, type, inode->i_bdev);
+					    drive, type, bdev);
 		case FDGETPRM:
 			ECALL(get_floppy_geometry(drive, type,
 						  (struct floppy_struct **)
@@ -3551,7 +3551,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		case FDFMTEND:
 		case FDFLUSH:
 			LOCK_FDC(drive, 1);
-			return invalidate_drive(inode->i_bdev);
+			return invalidate_drive(bdev);
 
 		case FDSETEMSGTRESH:
 			UDP->max_errors.reporting =
@@ -3659,9 +3659,9 @@ static void __init config_types(void)
 		printk("\n");
 }
 
-static int floppy_release(struct inode *inode, struct file *filp)
+static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
-	int drive = (long)inode->i_bdev->bd_disk->private_data;
+	int drive = (long)disk->private_data;
 
 	mutex_lock(&open_lock);
 	if (UDRS->fd_ref < 0)
@@ -3682,18 +3682,17 @@ static int floppy_release(struct inode *inode, struct file *filp)
  * /dev/PS0 etc), and disallows simultaneous access to the same
  * drive with different device numbers.
  */
-static int floppy_open(struct inode *inode, struct file *filp)
+static int floppy_open(struct block_device *bdev, fmode_t mode)
 {
-	int drive = (long)inode->i_bdev->bd_disk->private_data;
-	int old_dev;
+	int drive = (long)bdev->bd_disk->private_data;
+	int old_dev, new_dev;
 	int try;
 	int res = -EBUSY;
 	char *tmp;
 
-	filp->private_data = (void *)0;
 	mutex_lock(&open_lock);
 	old_dev = UDRS->fd_device;
-	if (opened_bdev[drive] && opened_bdev[drive] != inode->i_bdev)
+	if (opened_bdev[drive] && opened_bdev[drive] != bdev)
 		goto out2;
 
 	if (!UDRS->fd_ref && (UDP->flags & FD_BROKEN_DCL)) {
@@ -3701,15 +3700,15 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		USETF(FD_VERIFY);
 	}
 
-	if (UDRS->fd_ref == -1 || (UDRS->fd_ref && (filp->f_flags & O_EXCL)))
+	if (UDRS->fd_ref == -1 || (UDRS->fd_ref && (mode & FMODE_EXCL)))
 		goto out2;
 
-	if (filp->f_flags & O_EXCL)
+	if (mode & FMODE_EXCL)
 		UDRS->fd_ref = -1;
 	else
 		UDRS->fd_ref++;
 
-	opened_bdev[drive] = inode->i_bdev;
+	opened_bdev[drive] = bdev;
 
 	res = -ENXIO;
 
@@ -3744,31 +3743,26 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		}
 	}
 
-	UDRS->fd_device = iminor(inode);
-	set_capacity(disks[drive], floppy_sizes[iminor(inode)]);
-	if (old_dev != -1 && old_dev != iminor(inode)) {
+	new_dev = MINOR(bdev->bd_dev);
+	UDRS->fd_device = new_dev;
+	set_capacity(disks[drive], floppy_sizes[new_dev]);
+	if (old_dev != -1 && old_dev != new_dev) {
 		if (buffer_drive == drive)
 			buffer_track = -1;
 	}
 
-	/* Allow ioctls if we have write-permissions even if read-only open.
-	 * Needed so that programs such as fdrawcmd still can work on write
-	 * protected disks */
-	if ((filp->f_mode & FMODE_WRITE) || !file_permission(filp, MAY_WRITE))
-		filp->private_data = (void *)8;
-
 	if (UFDCS->rawcmd == 1)
 		UFDCS->rawcmd = 2;
 
-	if (!(filp->f_flags & O_NDELAY)) {
-		if (filp->f_mode & 3) {
+	if (!(mode & FMODE_NDELAY)) {
+		if (mode & (FMODE_READ|FMODE_WRITE)) {
 			UDRS->last_checked = 0;
-			check_disk_change(inode->i_bdev);
+			check_disk_change(bdev);
 			if (UTESTF(FD_DISK_CHANGED))
 				goto out;
 		}
 		res = -EROFS;
-		if ((filp->f_mode & 2) && !(UTESTF(FD_DISK_WRITABLE)))
+		if ((mode & FMODE_WRITE) && !(UTESTF(FD_DISK_WRITABLE)))
 			goto out;
 	}
 	mutex_unlock(&open_lock);
@@ -3911,7 +3905,7 @@ static struct block_device_operations floppy_fops = {
 	.owner			= THIS_MODULE,
 	.open			= floppy_open,
 	.release		= floppy_release,
-	.ioctl			= fd_ioctl,
+	.locked_ioctl		= fd_ioctl,
 	.getgeo			= fd_getgeo,
 	.media_changed		= check_floppy_change,
 	.revalidate_disk	= floppy_revalidate,
@@ -4130,7 +4124,7 @@ static int __init floppy_setup(char *str)
 		printk("\n");
 	} else
 		DPRINT("botched floppy option\n");
-	DPRINT("Read Documentation/floppy.txt\n");
+	DPRINT("Read Documentation/blockdev/floppy.txt\n");
 	return 0;
 }
 
@@ -4172,7 +4166,7 @@ static int __init floppy_init(void)
 	int i, unit, drive;
 	int err, dr;
 
-#if defined(CONFIG_PPC_MERGE)
+#if defined(CONFIG_PPC)
 	if (check_legacy_ioport(FDC1))
 		return -ENODEV;
 #endif

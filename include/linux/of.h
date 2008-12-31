@@ -57,6 +57,12 @@ extern struct device_node *of_get_next_child(const struct device_node *node,
 	for (child = of_get_next_child(parent, NULL); child != NULL; \
 	     child = of_get_next_child(parent, child))
 
+extern struct device_node *of_find_node_with_property(
+	struct device_node *from, const char *prop_name);
+#define for_each_node_with_property(dn, prop_name) \
+	for (dn = of_find_node_with_property(NULL, prop_name); dn; \
+	     dn = of_find_node_with_property(dn, prop_name))
+
 extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);
@@ -71,5 +77,8 @@ extern int of_n_size_cells(struct device_node *np);
 extern const struct of_device_id *of_match_node(
 	const struct of_device_id *matches, const struct device_node *node);
 extern int of_modalias_node(struct device_node *node, char *modalias, int len);
+extern int of_parse_phandles_with_args(struct device_node *np,
+	const char *list_name, const char *cells_name, int index,
+	struct device_node **out_node, const void **out_args);
 
 #endif /* _LINUX_OF_H */

@@ -42,12 +42,6 @@ struct nfs_client {
 	struct rb_root		cl_openowner_id;
 	struct rb_root		cl_lockowner_id;
 
-	/*
-	 * The following rwsem ensures exclusive access to the server
-	 * while we recover the state following a lease expiration.
-	 */
-	struct rw_semaphore	cl_sem;
-
 	struct list_head	cl_delegations;
 	struct rb_root		cl_state_owners;
 	spinlock_t		cl_lock;
@@ -119,7 +113,6 @@ struct nfs_server {
 	void (*destroy)(struct nfs_server *);
 
 	atomic_t active; /* Keep trace of any activity to this server */
-	wait_queue_head_t active_wq;  /* Wait for any activity to stop  */
 
 	/* mountd-related mount options */
 	struct sockaddr_storage	mountd_address;

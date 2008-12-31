@@ -208,6 +208,7 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 		break;
 	case ERR_TYPE_KERNEL_PANIC:
 	default:
+		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DEBUG @@@ */
 		spin_unlock_irqrestore(&rtasd_log_lock, s);
 		return;
 	}
@@ -227,6 +228,7 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 	/* Check to see if we need to or have stopped logging */
 	if (fatal || !logging_enabled) {
 		logging_enabled = 0;
+		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DEBUG @@@ */
 		spin_unlock_irqrestore(&rtasd_log_lock, s);
 		return;
 	}
@@ -249,11 +251,13 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 		else
 			rtas_log_start += 1;
 
+		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DEBUG @@@ */
 		spin_unlock_irqrestore(&rtasd_log_lock, s);
 		wake_up_interruptible(&rtas_log_wait);
 		break;
 	case ERR_TYPE_KERNEL_PANIC:
 	default:
+		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DEBUG @@@ */
 		spin_unlock_irqrestore(&rtasd_log_lock, s);
 		return;
 	}
@@ -295,19 +299,29 @@ static ssize_t rtas_log_read(struct file * file, char __user * buf,
 	if (!tmp)
 		return -ENOMEM;
 
-
 	spin_lock_irqsave(&rtasd_log_lock, s);
 	/* if it's 0, then we know we got the last one (the one in NVRAM) */
-	if (rtas_log_size == 0 && logging_enabled)
+	while (rtas_log_size == 0) {
+		if (file->f_flags & O_NONBLOCK) {
+			spin_unlock_irqrestore(&rtasd_log_lock, s);
+			error = -EAGAIN;
+			goto out;
+		}
+
+		if (!logging_enabled) {
+			spin_unlock_irqrestore(&rtasd_log_lock, s);
+			error = -ENODATA;
+			goto out;
+		}
 		nvram_clear_error_log();
-	spin_unlock_irqrestore(&rtasd_log_lock, s);
 
+		spin_unlock_irqrestore(&rtasd_log_lock, s);
+		error = wait_event_interruptible(rtas_log_wait, rtas_log_size);
+		if (error)
+			goto out;
+		spin_lock_irqsave(&rtasd_log_lock, s);
+	}
 
-	error = wait_event_interruptible(rtas_log_wait, rtas_log_size);
-	if (error)
-		goto out;
-
-	spin_lock_irqsave(&rtasd_log_lock, s);
 	offset = rtas_error_log_buffer_max * (rtas_log_start & LOG_NUMBER_MASK);
 	memcpy(tmp, &rtas_log_buf[offset], count);
 

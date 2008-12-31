@@ -834,7 +834,7 @@ static int video_end(struct saa7146_fh *fh, struct file *file)
  * copying is done already, arg is a kernel pointer.
  */
 
-int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *arg)
+int saa7146_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct saa7146_fh *fh  = file->private_data;
 	struct saa7146_dev *dev = fh->dev;
@@ -1215,7 +1215,7 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 	}
 #endif
 	default:
-		return v4l_compat_translate_ioctl(inode,file,cmd,arg,
+		return v4l_compat_translate_ioctl(file, cmd, arg,
 						  saa7146_video_do_ioctl);
 	}
 	return 0;

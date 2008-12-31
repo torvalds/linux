@@ -126,9 +126,12 @@ config SH_RTS7751R2D
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
 
-config SH_RSK7203
-	bool "RSK7203"
-	depends on CPU_SUBTYPE_SH7203
+config SH_RSK
+	bool "Renesas Starter Kit"
+	depends on CPU_SUBTYPE_SH7201 || CPU_SUBTYPE_SH7203
+	help
+	 Select this option if configuring for any of the RSK+ MCU
+	 evaluation platforms.
 
 config SH_SDK7780
 	bool "SDK7780R3"
@@ -162,6 +165,7 @@ config SH_SH7785LCR_29BIT_PHYSMAPS
 config SH_MIGOR
 	bool "Migo-R"
 	depends on CPU_SUBTYPE_SH7722
+	select GENERIC_GPIO
 	help
 	  Select Migo-R if configuring for the SH7722 Migo-R platform
           by Renesas System Solutions Asia Pte. Ltd.
@@ -169,6 +173,7 @@ config SH_MIGOR
 config SH_AP325RXA
 	bool "AP-325RXA"
 	depends on CPU_SUBTYPE_SH7723
+	select GENERIC_GPIO
 	help
 	  Renesas "AP-325RXA" support.
 	  Compatible with ALGO SYSTEM CO.,LTD. "AP-320A"
@@ -183,6 +188,13 @@ config SH_SH7763RDP
 config SH_EDOSK7705
 	bool "EDOSK7705"
 	depends on CPU_SUBTYPE_SH7705
+
+config SH_EDOSK7760
+	bool "EDOSK7760"
+	depends on CPU_SUBTYPE_SH7760
+	help
+	  Select if configuring for a Renesas EDOSK7760
+	  evaluation board.
 
 config SH_SH4202_MICRODEV
 	bool "SH4-202 MicroDev"
@@ -228,6 +240,7 @@ config SH_X3PROTO
 config SH_MAGIC_PANEL_R2
 	bool "Magic Panel R2"
 	depends on CPU_SUBTYPE_SH7720
+	select GENERIC_GPIO
 	help
 	  Select Magic Panel R2 if configuring for Magic Panel R2.
 
@@ -242,6 +255,7 @@ source "arch/sh/boards/mach-r2d/Kconfig"
 source "arch/sh/boards/mach-highlander/Kconfig"
 source "arch/sh/boards/mach-sdk7780/Kconfig"
 source "arch/sh/boards/mach-migor/Kconfig"
+source "arch/sh/boards/mach-rsk/Kconfig"
 
 if SH_MAGIC_PANEL_R2
 

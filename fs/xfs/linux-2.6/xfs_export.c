@@ -29,7 +29,6 @@
 #include "xfs_vnodeops.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
-#include "xfs_vfsops.h"
 
 /*
  * Note that we only accept fileids which are long enough rather than allow
@@ -148,7 +147,6 @@ xfs_fs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 {
 	struct xfs_fid64	*fid64 = (struct xfs_fid64 *)fid;
 	struct inode		*inode = NULL;
-	struct dentry		*result;
 
 	if (fh_len < xfs_fileid_length(fileid_type))
 		return NULL;
@@ -164,16 +162,7 @@ xfs_fs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 		break;
 	}
 
-	if (!inode)
-		return NULL;
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	result = d_alloc_anon(inode);
-	if (!result) {
-		iput(inode);
-		return ERR_PTR(-ENOMEM);
-	}
-	return result;
+	return d_obtain_alias(inode);
 }
 
 STATIC struct dentry *
@@ -182,7 +171,6 @@ xfs_fs_fh_to_parent(struct super_block *sb, struct fid *fid,
 {
 	struct xfs_fid64	*fid64 = (struct xfs_fid64 *)fid;
 	struct inode		*inode = NULL;
-	struct dentry		*result;
 
 	switch (fileid_type) {
 	case FILEID_INO32_GEN_PARENT:
@@ -195,16 +183,7 @@ xfs_fs_fh_to_parent(struct super_block *sb, struct fid *fid,
 		break;
 	}
 
-	if (!inode)
-		return NULL;
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	result = d_alloc_anon(inode);
-	if (!result) {
-		iput(inode);
-		return ERR_PTR(-ENOMEM);
-	}
-	return result;
+	return d_obtain_alias(inode);
 }
 
 STATIC struct dentry *
@@ -213,18 +192,12 @@ xfs_fs_get_parent(
 {
 	int			error;
 	struct xfs_inode	*cip;
-	struct dentry		*parent;
 
 	error = xfs_lookup(XFS_I(child->d_inode), &xfs_name_dotdot, &cip, NULL);
 	if (unlikely(error))
 		return ERR_PTR(-error);
 
-	parent = d_alloc_anon(VFS_I(cip));
-	if (unlikely(!parent)) {
-		iput(VFS_I(cip));
-		return ERR_PTR(-ENOMEM);
-	}
-	return parent;
+	return d_obtain_alias(VFS_I(cip));
 }
 
 const struct export_operations xfs_export_operations = {

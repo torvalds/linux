@@ -102,6 +102,13 @@ config EDAC_I3000
 	  Support for error detection and correction on the Intel
 	  3000 and 3010 server chipsets.
 
+config EDAC_X38
+	tristate "Intel X38"
+	depends on EDAC_MM_EDAC && PCI && X86
+	help
+	  Support for error detection and correction on the Intel
+	  X38 server chipsets.
+
 config EDAC_I82860
 	tristate "Intel 82860"
 	depends on EDAC_MM_EDAC && PCI && X86_32
@@ -154,7 +161,7 @@ config EDAC_PASEMI
 
 config EDAC_CELL
 	tristate "Cell Broadband Engine memory controller"
-	depends on EDAC_MM_EDAC && PPC_CELL_NATIVE
+	depends on EDAC_MM_EDAC && PPC_CELL_COMMON
 	help
 	  Support for error detection and correction on the
 	  Cell Broadband Engine internal memory controller

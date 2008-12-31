@@ -113,7 +113,11 @@ static int __ocfs2_page_mkwrite(struct inode *inode, struct buffer_head *di_bh,
 	 * ocfs2_write_begin_nolock().
 	 */
 	if (!PageUptodate(page) || page->mapping != inode->i_mapping) {
-		ret = -EINVAL;
+		/*
+		 * the page has been umapped in ocfs2_data_downconvert_worker.
+		 * So return 0 here and let VFS retry.
+		 */
+		ret = 0;
 		goto out;
 	}
 

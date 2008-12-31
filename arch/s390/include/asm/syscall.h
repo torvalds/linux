@@ -17,9 +17,7 @@
 static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)
 {
-	if (regs->trap != __LC_SVC_OLD_PSW)
-		return -1;
-	return regs->gprs[2];
+	return regs->svcnr ? regs->svcnr : -1;
 }
 
 static inline void syscall_rollback(struct task_struct *task,
@@ -52,18 +50,20 @@ static inline void syscall_get_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
+	unsigned long mask = -1UL;
+
 	BUG_ON(i + n > 6);
 #ifdef CONFIG_COMPAT
-	if (test_tsk_thread_flag(task, TIF_31BIT)) {
-		if (i + n == 6)
-			args[--n] = (u32) regs->args[0];
-		while (n-- > 0)
-			args[n] = (u32) regs->gprs[2 + i + n];
-	}
+	if (test_tsk_thread_flag(task, TIF_31BIT))
+		mask = 0xffffffff;
 #endif
 	if (i + n == 6)
-		args[--n] = regs->args[0];
-	memcpy(args, &regs->gprs[2 + i], n * sizeof(args[0]));
+		args[--n] = regs->args[0] & mask;
+	while (n-- > 0)
+		if (i + n > 0)
+			args[n] = regs->gprs[2 + i + n] & mask;
+	if (i == 0)
+		args[0] = regs->orig_gpr2 & mask;
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,
@@ -74,7 +74,11 @@ static inline void syscall_set_arguments(struct task_struct *task,
 	BUG_ON(i + n > 6);
 	if (i + n == 6)
 		regs->args[0] = args[--n];
-	memcpy(&regs->gprs[2 + i], args, n * sizeof(args[0]));
+	while (n-- > 0)
+		if (i + n > 0)
+			regs->gprs[2 + i + n] = args[n];
+	if (i == 0)
+		regs->orig_gpr2 = args[0];
 }
 
 #endif	/* _ASM_SYSCALL_H */

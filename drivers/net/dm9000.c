@@ -47,15 +47,6 @@
 #define CARDNAME	"dm9000"
 #define DRV_VERSION	"1.31"
 
-#ifdef CONFIG_BLACKFIN
-#define readsb	insb
-#define readsw	insw
-#define readsl	insl
-#define writesb	outsb
-#define writesw	outsw
-#define writesl	outsl
-#endif
-
 /*
  * Transmit timeout, default 5 seconds.
  */
@@ -146,7 +137,7 @@ typedef struct board_info {
 
 static inline board_info_t *to_dm9000_board(struct net_device *dev)
 {
-	return dev->priv;
+	return netdev_priv(dev);
 }
 
 /* DM9000 network board routine ---------------------------- */
@@ -635,7 +626,7 @@ static unsigned char dm9000_type_to_char(enum dm9000_type type)
 static void
 dm9000_hash_table(struct net_device *dev)
 {
-	board_info_t *db = (board_info_t *) dev->priv;
+	board_info_t *db = netdev_priv(dev);
 	struct dev_mc_list *mcptr = dev->mc_list;
 	int mc_cnt = dev->mc_count;
 	int i, oft;
@@ -686,7 +677,7 @@ dm9000_hash_table(struct net_device *dev)
 static void
 dm9000_init_dm9000(struct net_device *dev)
 {
-	board_info_t *db = dev->priv;
+	board_info_t *db = netdev_priv(dev);
 	unsigned int imr;
 
 	dm9000_dbg(db, 1, "entering %s\n", __func__);
@@ -732,7 +723,7 @@ dm9000_init_dm9000(struct net_device *dev)
 /* Our watchdog timed out. Called by the networking layer */
 static void dm9000_timeout(struct net_device *dev)
 {
-	board_info_t *db = (board_info_t *) dev->priv;
+	board_info_t *db = netdev_priv(dev);
 	u8 reg_save;
 	unsigned long flags;
 
@@ -760,7 +751,7 @@ static int
 dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned long flags;
-	board_info_t *db = dev->priv;
+	board_info_t *db = netdev_priv(dev);
 
 	dm9000_dbg(db, 3, "%s:\n", __func__);
 
@@ -840,7 +831,7 @@ struct dm9000_rxhdr {
 static void
 dm9000_rx(struct net_device *dev)
 {
-	board_info_t *db = (board_info_t *) dev->priv;
+	board_info_t *db = netdev_priv(dev);
 	struct dm9000_rxhdr rxhdr;
 	struct sk_buff *skb;
 	u8 rxbyte, *rdptr;
@@ -937,7 +928,7 @@ dm9000_rx(struct net_device *dev)
 static irqreturn_t dm9000_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
-	board_info_t *db = dev->priv;
+	board_info_t *db = netdev_priv(dev);
 	int int_status;
 	u8 reg_save;
 
@@ -1005,7 +996,7 @@ static void dm9000_poll_controller(struct net_device *dev)
 static int
 dm9000_open(struct net_device *dev)
 {
-	board_info_t *db = dev->priv;
+	board_info_t *db = netdev_priv(dev);
 	unsigned long irqflags = db->irq_res->flags & IRQF_TRIGGER_MASK;
 
 	if (netif_msg_ifup(db))
@@ -1055,7 +1046,7 @@ static void dm9000_msleep(board_info_t *db, unsigned int ms)
 static int
 dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 {
-	board_info_t *db = (board_info_t *) dev->priv;
+	board_info_t *db = netdev_priv(dev);
 	unsigned long flags;
 	unsigned int reg_save;
 	int ret;
@@ -1102,7 +1093,7 @@ static void
 dm9000_phy_write(struct net_device *dev,
 		 int phyaddr_unused, int reg, int value)
 {
-	board_info_t *db = (board_info_t *) dev->priv;
+	board_info_t *db = netdev_priv(dev);
 	unsigned long flags;
 	unsigned long reg_save;
 
@@ -1143,7 +1134,7 @@ dm9000_phy_write(struct net_device *dev,
 static void
 dm9000_shutdown(struct net_device *dev)
 {
-	board_info_t *db = dev->priv;
+	board_info_t *db = netdev_priv(dev);
 
 	/* RESET device */
 	dm9000_phy_write(dev, 0, MII_BMCR, BMCR_RESET);	/* PHY RESET */
@@ -1159,7 +1150,7 @@ dm9000_shutdown(struct net_device *dev)
 static int
 dm9000_stop(struct net_device *ndev)
 {
-	board_info_t *db = ndev->priv;
+	board_info_t *db = netdev_priv(ndev);
 
 	if (netif_msg_ifdown(db))
 		dev_dbg(db->dev, "shutting down %s\n", ndev->name);
@@ -1206,7 +1197,7 @@ dm9000_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "dm9000_probe()\n");
 
 	/* setup board info structure */
-	db = ndev->priv;
+	db = netdev_priv(ndev);
 	memset(db, 0, sizeof(*db));
 
 	db->dev = &pdev->dev;
@@ -1394,13 +1385,11 @@ dm9000_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 	ret = register_netdev(ndev);
 
-	if (ret == 0) {
-		DECLARE_MAC_BUF(mac);
-		printk(KERN_INFO "%s: dm9000%c at %p,%p IRQ %d MAC: %s (%s)\n",
+	if (ret == 0)
+		printk(KERN_INFO "%s: dm9000%c at %p,%p IRQ %d MAC: %pM (%s)\n",
 		       ndev->name, dm9000_type_to_char(db->type),
 		       db->io_addr, db->io_data, ndev->irq,
-		       print_mac(mac, ndev->dev_addr), mac_src);
-	}
+		       ndev->dev_addr, mac_src);
 	return 0;
 
 out:
@@ -1419,7 +1408,7 @@ dm9000_drv_suspend(struct platform_device *dev, pm_message_t state)
 	board_info_t *db;
 
 	if (ndev) {
-		db = (board_info_t *) ndev->priv;
+		db = netdev_priv(ndev);
 		db->in_suspend = 1;
 
 		if (netif_running(ndev)) {
@@ -1434,7 +1423,7 @@ static int
 dm9000_drv_resume(struct platform_device *dev)
 {
 	struct net_device *ndev = platform_get_drvdata(dev);
-	board_info_t *db = (board_info_t *) ndev->priv;
+	board_info_t *db = netdev_priv(ndev);
 
 	if (ndev) {
 
@@ -1458,7 +1447,7 @@ dm9000_drv_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
-	dm9000_release_board(pdev, (board_info_t *) ndev->priv);
+	dm9000_release_board(pdev, (board_info_t *) netdev_priv(ndev));
 	free_netdev(ndev);		/* free device structure */
 
 	dev_dbg(&pdev->dev, "released and freed device\n");

@@ -559,12 +559,6 @@ mptctl_fasync(int fd, struct file *filep, int mode)
 	return ret;
 }
 
-static int
-mptctl_release(struct inode *inode, struct file *filep)
-{
-	return fasync_helper(-1, filep, 0, &async_queue);
-}
-
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *  MPT ioctl handler
@@ -2706,7 +2700,6 @@ mptctl_hp_targetinfo(unsigned long arg)
 static const struct file_operations mptctl_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
-	.release =	mptctl_release,
 	.fasync = 	mptctl_fasync,
 	.unlocked_ioctl = mptctl_ioctl,
 #ifdef CONFIG_COMPAT

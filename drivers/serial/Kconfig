@@ -447,7 +447,7 @@ config SERIAL_CLPS711X_CONSOLE
 
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
-	depends on ARM && PLAT_S3C24XX
+	depends on ARM && PLAT_S3C
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
@@ -455,9 +455,19 @@ config SERIAL_SAMSUNG
 	  provide all of these ports, depending on how the serial port
 	  pins are configured.
 
+config SERIAL_SAMSUNG_UARTS
+	int
+	depends on SERIAL_SAMSUNG
+	default 2 if ARCH_S3C2400
+	default 4 if ARCH_S3C64XX || CPU_S3C2443
+	default 3
+	help
+	  Select the number of available UART ports for the Samsung S3C
+	  serial driver
+	
 config SERIAL_SAMSUNG_DEBUG
 	bool "Samsung SoC serial debug"
-	depends on SERIAL_SAMSUNG
+	depends on SERIAL_SAMSUNG && DEBUG_LL
 	help
 	  Add support for debugging the serial driver. Since this is
 	  generally being used as a console, we use our own output
@@ -508,7 +518,20 @@ config SERIAL_S3C2440
 	help
 	  Serial port support for the Samsung S3C2440 and S3C2442 SoC
 
+config SERIAL_S3C24A0
+	tristate "Samsung S3C24A0 Serial port support"
+	depends on SERIAL_SAMSUNG && CPU_S3C24A0
+	default y if CPU_S3C24A0
+	help
+	  Serial port support for the Samsung S3C24A0 SoC
 
+config SERIAL_S3C6400
+	tristate "Samsung S3C6400/S3C6410 Serial port support"
+	depends on SERIAL_SAMSUNG && (CPU_S3C600 || CPU_S3C6410)
+	default y
+	help
+	  Serial port support for the Samsung S3C6400 and S3C6410
+	  SoCs
 
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
@@ -1123,42 +1146,6 @@ config SERIAL_CPM_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_CPM_SCC1
-	bool "Support for SCC1 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC1 as a serial port
-
-config SERIAL_CPM_SCC2
-	bool "Support for SCC2 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC2 as a serial port
-
-config SERIAL_CPM_SCC3
-	bool "Support for SCC3 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC3 as a serial port
-
-config SERIAL_CPM_SCC4
-	bool "Support for SCC4 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC4 as a serial port
-
-config SERIAL_CPM_SMC1
-	bool "Support for SMC1 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SMC1 as a serial port
-
-config SERIAL_CPM_SMC2
-	bool "Support for SMC2 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SMC2 as a serial port
-
 config SERIAL_SGI_L1_CONSOLE
 	bool "SGI Altix L1 serial console support"
 	depends on IA64_GENERIC || IA64_SGI_SN2
@@ -1312,7 +1299,7 @@ config SERIAL_SGI_IOC3
 	  say Y or M.  Otherwise, say N.
 
 config SERIAL_NETX
-	bool "NetX serial port support"
+	tristate "NetX serial port support"
 	depends on ARM && ARCH_NETX
 	select SERIAL_CORE
 	help
@@ -1324,7 +1311,7 @@ config SERIAL_NETX
 
 config SERIAL_NETX_CONSOLE
 	bool "Console on NetX serial port"
-	depends on SERIAL_NETX
+	depends on SERIAL_NETX=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you have enabled the serial port on the Hilscher NetX SoC

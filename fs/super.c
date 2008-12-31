@@ -682,7 +682,7 @@ void emergency_remount(void)
  * filesystems which don't use real block-devices.  -- jrs
  */
 
-static struct idr unnamed_dev_idr;
+static DEFINE_IDA(unnamed_dev_ida);
 static DEFINE_SPINLOCK(unnamed_dev_lock);/* protects the above */
 
 int set_anon_super(struct super_block *s, void *data)
@@ -691,10 +691,10 @@ int set_anon_super(struct super_block *s, void *data)
 	int error;
 
  retry:
-	if (idr_pre_get(&unnamed_dev_idr, GFP_ATOMIC) == 0)
+	if (ida_pre_get(&unnamed_dev_ida, GFP_ATOMIC) == 0)
 		return -ENOMEM;
 	spin_lock(&unnamed_dev_lock);
-	error = idr_get_new(&unnamed_dev_idr, NULL, &dev);
+	error = ida_get_new(&unnamed_dev_ida, &dev);
 	spin_unlock(&unnamed_dev_lock);
 	if (error == -EAGAIN)
 		/* We raced and lost with another CPU. */
@@ -704,7 +704,7 @@ int set_anon_super(struct super_block *s, void *data)
 
 	if ((dev & MAX_ID_MASK) == (1 << MINORBITS)) {
 		spin_lock(&unnamed_dev_lock);
-		idr_remove(&unnamed_dev_idr, dev);
+		ida_remove(&unnamed_dev_ida, dev);
 		spin_unlock(&unnamed_dev_lock);
 		return -EMFILE;
 	}
@@ -720,16 +720,11 @@ void kill_anon_super(struct super_block *sb)
 
 	generic_shutdown_super(sb);
 	spin_lock(&unnamed_dev_lock);
-	idr_remove(&unnamed_dev_idr, slot);
+	ida_remove(&unnamed_dev_ida, slot);
 	spin_unlock(&unnamed_dev_lock);
 }
 
 EXPORT_SYMBOL(kill_anon_super);
-
-void __init unnamed_dev_init(void)
-{
-	idr_init(&unnamed_dev_idr);
-}
 
 void kill_litter_super(struct super_block *sb)
 {
@@ -760,9 +755,13 @@ int get_sb_bdev(struct file_system_type *fs_type,
 {
 	struct block_device *bdev;
 	struct super_block *s;
+	fmode_t mode = FMODE_READ;
 	int error = 0;
 
-	bdev = open_bdev_excl(dev_name, flags, fs_type);
+	if (!(flags & MS_RDONLY))
+		mode |= FMODE_WRITE;
+
+	bdev = open_bdev_exclusive(dev_name, mode, fs_type);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 
@@ -785,11 +784,12 @@ int get_sb_bdev(struct file_system_type *fs_type,
 			goto error_bdev;
 		}
 
-		close_bdev_excl(bdev);
+		close_bdev_exclusive(bdev, mode);
 	} else {
 		char b[BDEVNAME_SIZE];
 
 		s->s_flags = flags;
+		s->s_mode = mode;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(bdev));
 		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
@@ -807,7 +807,7 @@ int get_sb_bdev(struct file_system_type *fs_type,
 error_s:
 	error = PTR_ERR(s);
 error_bdev:
-	close_bdev_excl(bdev);
+	close_bdev_exclusive(bdev, mode);
 error:
 	return error;
 }
@@ -817,10 +817,11 @@ EXPORT_SYMBOL(get_sb_bdev);
 void kill_block_super(struct super_block *sb)
 {
 	struct block_device *bdev = sb->s_bdev;
+	fmode_t mode = sb->s_mode;
 
 	generic_shutdown_super(sb);
 	sync_blockdev(bdev);
-	close_bdev_excl(bdev);
+	close_bdev_exclusive(bdev, mode);
 }
 
 EXPORT_SYMBOL(kill_block_super);
@@ -913,7 +914,7 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 		goto out_free_secdata;
 	BUG_ON(!mnt->mnt_sb);
 
- 	error = security_sb_kern_mount(mnt->mnt_sb, secdata);
+ 	error = security_sb_kern_mount(mnt->mnt_sb, flags, secdata);
  	if (error)
  		goto out_sb;
 

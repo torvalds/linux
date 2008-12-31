@@ -166,6 +166,10 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 		status = AE_CTRL_FALSE;
 	}
 
+	/* Predicate can be used for an implicit return value */
+
+	(void)acpi_ds_do_implicit_return(local_obj_desc, walk_state, TRUE);
+
       cleanup:
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Completed a predicate eval=%X Op=%p\n",
@@ -429,10 +433,10 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			     ACPI_TYPE_LOCAL_REFERENCE)
 			    && (walk_state->operands[1]->common.type ==
 				ACPI_TYPE_LOCAL_REFERENCE)
-			    && (walk_state->operands[0]->reference.opcode ==
-				walk_state->operands[1]->reference.opcode)
-			    && (walk_state->operands[0]->reference.offset ==
-				walk_state->operands[1]->reference.offset)) {
+			    && (walk_state->operands[0]->reference.class ==
+				walk_state->operands[1]->reference.class)
+			    && (walk_state->operands[0]->reference.value ==
+				walk_state->operands[1]->reference.value)) {
 				status = AE_OK;
 			} else {
 				ACPI_EXCEPTION((AE_INFO, status,

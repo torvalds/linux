@@ -15,6 +15,7 @@
 #include <asm/vgtod.h>
 #include <asm/time.h>
 #include <asm/delay.h>
+#include <asm/hypervisor.h>
 
 unsigned int cpu_khz;           /* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
@@ -31,6 +32,7 @@ static int tsc_unstable;
    erroneous rdtsc usage on !cpu_has_tsc processors */
 static int tsc_disabled = -1;
 
+static int tsc_clocksource_reliable;
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
@@ -55,7 +57,7 @@ u64 native_sched_clock(void)
 	rdtscll(this_offset);
 
 	/* return the value in ns */
-	return cycles_2_ns(this_offset);
+	return __cycles_2_ns(this_offset);
 }
 
 /* We need to define a real function for sched_clock, to override the
@@ -97,6 +99,15 @@ int __init notsc_setup(char *str)
 #endif
 
 __setup("notsc", notsc_setup);
+
+static int __init tsc_setup(char *str)
+{
+	if (!strcmp(str, "reliable"))
+		tsc_clocksource_reliable = 1;
+	return 1;
+}
+
+__setup("tsc=", tsc_setup);
 
 #define MAX_RETRIES     5
 #define SMI_TRESHOLD    50000
@@ -352,8 +363,14 @@ unsigned long native_calibrate_tsc(void)
 {
 	u64 tsc1, tsc2, delta, ref1, ref2;
 	unsigned long tsc_pit_min = ULONG_MAX, tsc_ref_min = ULONG_MAX;
-	unsigned long flags, latch, ms, fast_calibrate;
+	unsigned long flags, latch, ms, fast_calibrate, tsc_khz;
 	int hpet = is_hpet_enabled(), i, loopmin;
+
+	tsc_khz = get_hypervisor_tsc_freq();
+	if (tsc_khz) {
+		printk(KERN_INFO "TSC: Frequency read from the hypervisor\n");
+		return tsc_khz;
+	}
 
 	local_irq_save(flags);
 	fast_calibrate = quick_pit_calibrate();
@@ -731,24 +748,21 @@ static struct dmi_system_id __initdata bad_tsc_dmi_table[] = {
 	{}
 };
 
-/*
- * Geode_LX - the OLPC CPU has a possibly a very reliable TSC
- */
-#ifdef CONFIG_MGEODE_LX
-/* RTSC counts during suspend */
-#define RTSC_SUSP 0x100
-
-static void __init check_geode_tsc_reliable(void)
+static void __init check_system_tsc_reliable(void)
 {
+#ifdef CONFIG_MGEODE_LX
+	/* RTSC counts during suspend */
+#define RTSC_SUSP 0x100
 	unsigned long res_low, res_high;
 
 	rdmsr_safe(MSR_GEODE_BUSCONT_CONF0, &res_low, &res_high);
+	/* Geode_LX - the OLPC CPU has a possibly a very reliable TSC */
 	if (res_low & RTSC_SUSP)
-		clocksource_tsc.flags &= ~CLOCK_SOURCE_MUST_VERIFY;
-}
-#else
-static inline void check_geode_tsc_reliable(void) { }
+		tsc_clocksource_reliable = 1;
 #endif
+	if (boot_cpu_has(X86_FEATURE_TSC_RELIABLE))
+		tsc_clocksource_reliable = 1;
+}
 
 /*
  * Make an educated guess if the TSC is trustworthy and synchronized
@@ -759,7 +773,7 @@ __cpuinit int unsynchronized_tsc(void)
 	if (!cpu_has_tsc || tsc_unstable)
 		return 1;
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_SMP
 	if (apic_is_clustered_box())
 		return 1;
 #endif
@@ -783,6 +797,8 @@ static void __init init_tsc_clocksource(void)
 {
 	clocksource_tsc.mult = clocksource_khz2mult(tsc_khz,
 			clocksource_tsc.shift);
+	if (tsc_clocksource_reliable)
+		clocksource_tsc.flags &= ~CLOCK_SOURCE_MUST_VERIFY;
 	/* lower the rating if we already know its unstable: */
 	if (check_tsc_unstable()) {
 		clocksource_tsc.rating = 0;
@@ -813,10 +829,6 @@ void __init tsc_init(void)
 		cpu_khz = calibrate_cpu();
 #endif
 
-	lpj = ((u64)tsc_khz * 1000);
-	do_div(lpj, HZ);
-	lpj_fine = lpj;
-
 	printk("Detected %lu.%03lu MHz processor.\n",
 			(unsigned long)cpu_khz / 1000,
 			(unsigned long)cpu_khz % 1000);
@@ -836,6 +848,10 @@ void __init tsc_init(void)
 	/* now allow native_sched_clock() to use rdtsc */
 	tsc_disabled = 0;
 
+	lpj = ((u64)tsc_khz * 1000);
+	do_div(lpj, HZ);
+	lpj_fine = lpj;
+
 	use_tsc_delay();
 	/* Check and install the TSC clocksource */
 	dmi_check_system(bad_tsc_dmi_table);
@@ -843,7 +859,7 @@ void __init tsc_init(void)
 	if (unsynchronized_tsc())
 		mark_tsc_unstable("TSCs unsynchronized");
 
-	check_geode_tsc_reliable();
+	check_system_tsc_reliable();
 	init_tsc_clocksource();
 }
 

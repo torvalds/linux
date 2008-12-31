@@ -61,7 +61,7 @@ static int osk_hw_params(struct snd_pcm_substream *substream,
 
 	/* Set codec DAI configuration */
 	err = snd_soc_dai_set_fmt(codec_dai,
-				  SND_SOC_DAIFMT_DSP_A |
+				  SND_SOC_DAIFMT_DSP_B |
 				  SND_SOC_DAIFMT_NB_IF |
 				  SND_SOC_DAIFMT_CBM_CFM);
 	if (err < 0) {
@@ -71,7 +71,7 @@ static int osk_hw_params(struct snd_pcm_substream *substream,
 
 	/* Set cpu DAI configuration */
 	err = snd_soc_dai_set_fmt(cpu_dai,
-				  SND_SOC_DAIFMT_DSP_A |
+				  SND_SOC_DAIFMT_DSP_B |
 				  SND_SOC_DAIFMT_NB_IF |
 				  SND_SOC_DAIFMT_CBM_CFM);
 	if (err < 0) {
@@ -143,16 +143,16 @@ static struct snd_soc_dai_link osk_dai = {
 };
 
 /* Audio machine driver */
-static struct snd_soc_machine snd_soc_machine_osk = {
+static struct snd_soc_card snd_soc_card_osk = {
 	.name = "OSK5912",
+	.platform = &omap_soc_platform,
 	.dai_link = &osk_dai,
 	.num_links = 1,
 };
 
 /* Audio subsystem */
 static struct snd_soc_device osk_snd_devdata = {
-	.machine = &snd_soc_machine_osk,
-	.platform = &omap_soc_platform,
+	.card = &snd_soc_card_osk,
 	.codec_dev = &soc_codec_dev_tlv320aic23,
 };
 

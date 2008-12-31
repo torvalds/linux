@@ -66,9 +66,6 @@
 
 #define RPCRDMA_INLINE_PAD_THRESH  (512)/* payload threshold to pad (bytes) */
 
-#define RDMA_RESOLVE_TIMEOUT	(5*HZ)	/* TBD 5 seconds */
-#define RDMA_CONNECT_RETRY_MAX	(2)	/* retries if no listener backlog */
-
 /* memory registration strategies */
 #define RPCRDMA_PERSISTENT_REGISTRATION (1)
 
@@ -78,6 +75,7 @@ enum rpcrdma_memreg {
 	RPCRDMA_MEMWINDOWS,
 	RPCRDMA_MEMWINDOWS_ASYNC,
 	RPCRDMA_MTHCAFMR,
+	RPCRDMA_FRMR,
 	RPCRDMA_ALLPHYSICAL,
 	RPCRDMA_LAST
 };

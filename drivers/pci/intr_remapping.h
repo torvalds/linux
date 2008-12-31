@@ -1,4 +1,4 @@
-#include "intel-iommu.h"
+#include <linux/intel-iommu.h>
 
 struct ioapic_scope {
 	struct intel_iommu *iommu;

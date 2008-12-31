@@ -270,10 +270,9 @@ static int rpcb_register_netid4(struct sockaddr_in *address_to_register,
 	char buf[32];
 
 	/* Construct AF_INET universal address */
-	snprintf(buf, sizeof(buf),
-			NIPQUAD_FMT".%u.%u",
-			NIPQUAD(address_to_register->sin_addr.s_addr),
-			port >> 8, port & 0xff);
+	snprintf(buf, sizeof(buf), "%pI4.%u.%u",
+		 &address_to_register->sin_addr.s_addr,
+		 port >> 8, port & 0xff);
 	map->r_addr = buf;
 
 	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
@@ -305,9 +304,9 @@ static int rpcb_register_netid6(struct sockaddr_in6 *address_to_register,
 		snprintf(buf, sizeof(buf), "::.%u.%u",
 				port >> 8, port & 0xff);
 	else
-		snprintf(buf, sizeof(buf), NIP6_FMT".%u.%u",
-				NIP6(address_to_register->sin6_addr),
-				port >> 8, port & 0xff);
+		snprintf(buf, sizeof(buf), "%pI6.%u.%u",
+			 &address_to_register->sin6_addr,
+			 port >> 8, port & 0xff);
 	map->r_addr = buf;
 
 	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
@@ -422,8 +421,8 @@ int rpcb_getport_sync(struct sockaddr_in *sin, u32 prog, u32 vers, int prot)
 	struct rpc_clnt	*rpcb_clnt;
 	int status;
 
-	dprintk("RPC:       %s(" NIPQUAD_FMT ", %u, %u, %d)\n",
-		__func__, NIPQUAD(sin->sin_addr.s_addr), prog, vers, prot);
+	dprintk("RPC:       %s(%pI4, %u, %u, %d)\n",
+		__func__, &sin->sin_addr.s_addr, prog, vers, prot);
 
 	rpcb_clnt = rpcb_create(NULL, (struct sockaddr *)sin,
 				sizeof(*sin), prot, RPCBVERS_2);
@@ -460,6 +459,28 @@ static struct rpc_task *rpcb_call_async(struct rpc_clnt *rpcb_clnt, struct rpcbi
 	return rpc_run_task(&task_setup_data);
 }
 
+/*
+ * In the case where rpc clients have been cloned, we want to make
+ * sure that we use the program number/version etc of the actual
+ * owner of the xprt. To do so, we walk back up the tree of parents
+ * to find whoever created the transport and/or whoever has the
+ * autobind flag set.
+ */
+static struct rpc_clnt *rpcb_find_transport_owner(struct rpc_clnt *clnt)
+{
+	struct rpc_clnt *parent = clnt->cl_parent;
+
+	while (parent != clnt) {
+		if (parent->cl_xprt != clnt->cl_xprt)
+			break;
+		if (clnt->cl_autobind)
+			break;
+		clnt = parent;
+		parent = parent->cl_parent;
+	}
+	return clnt;
+}
+
 /**
  * rpcb_getport_async - obtain the port for a given RPC service on a given host
  * @task: task that is waiting for portmapper request
@@ -469,10 +490,10 @@ static struct rpc_task *rpcb_call_async(struct rpc_clnt *rpcb_clnt, struct rpcbi
  */
 void rpcb_getport_async(struct rpc_task *task)
 {
-	struct rpc_clnt *clnt = task->tk_client;
+	struct rpc_clnt *clnt;
 	struct rpc_procinfo *proc;
 	u32 bind_version;
-	struct rpc_xprt *xprt = task->tk_xprt;
+	struct rpc_xprt *xprt;
 	struct rpc_clnt	*rpcb_clnt;
 	static struct rpcbind_args *map;
 	struct rpc_task	*child;
@@ -481,12 +502,12 @@ void rpcb_getport_async(struct rpc_task *task)
 	size_t salen;
 	int status;
 
+	clnt = rpcb_find_transport_owner(task->tk_client);
+	xprt = clnt->cl_xprt;
+
 	dprintk("RPC: %5u %s(%s, %u, %u, %d)\n",
 		task->tk_pid, __func__,
 		clnt->cl_server, clnt->cl_prog, clnt->cl_vers, xprt->prot);
-
-	/* Autobind on cloned rpc clients is discouraged */
-	BUG_ON(clnt->cl_parent != clnt);
 
 	/* Put self on the wait queue to ensure we get notified if
 	 * some other task is already attempting to bind the port */
@@ -549,7 +570,7 @@ void rpcb_getport_async(struct rpc_task *task)
 		status = -ENOMEM;
 		dprintk("RPC: %5u %s: no memory available\n",
 			task->tk_pid, __func__);
-		goto bailout_nofree;
+		goto bailout_release_client;
 	}
 	map->r_prog = clnt->cl_prog;
 	map->r_vers = clnt->cl_vers;
@@ -569,11 +590,13 @@ void rpcb_getport_async(struct rpc_task *task)
 			task->tk_pid, __func__);
 		return;
 	}
-	rpc_put_task(child);
 
-	task->tk_xprt->stat.bind_count++;
+	xprt->stat.bind_count++;
+	rpc_put_task(child);
 	return;
 
+bailout_release_client:
+	rpc_release_client(rpcb_clnt);
 bailout_nofree:
 	rpcb_wake_rpcbind_waiters(xprt, status);
 	task->tk_status = status;

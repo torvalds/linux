@@ -6,7 +6,9 @@
 #
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
-	depends on (AGP || AGP=n) && PCI && !EMULATED_CMPXCHG
+	depends on (AGP || AGP=n) && PCI && !EMULATED_CMPXCHG && MMU
+	select I2C
+	select I2C_ALGOBIT
 	help
 	  Kernel-level support for the Direct Rendering Infrastructure (DRI)
 	  introduced in XFree86 4.0. If you say Y here, you need to select
@@ -65,6 +67,10 @@ config DRM_I830
 	  will load the correct one.
 
 config DRM_I915
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	depends on FB
 	tristate "i915 driver"
 	help
 	  Choose this option if you have a system that has Intel 830M, 845G,
@@ -75,6 +81,17 @@ config DRM_I915
 	  the X server will load the correct one.
 
 endchoice
+
+config DRM_I915_KMS
+	bool "Enable modesetting on intel by default"
+	depends on DRM_I915
+	help
+	Choose this option if you want kernel modesetting enabled by default,
+	and you have a new enough userspace to support this. Running old
+	userspaces with this enabled will cause pain.  Note that this causes
+	the driver to bind to PCI devices, which precludes loading things
+	like intelfb.
+
 
 config DRM_MGA
 	tristate "Matrox g200/g400"
@@ -87,6 +104,7 @@ config DRM_MGA
 config DRM_SIS
 	tristate "SiS video cards"
 	depends on DRM && AGP
+	depends on FB_SIS || FB_SIS=n
 	help
 	  Choose this option if you have a SiS 630 or compatible video
           chipset. If M is selected the module will be called sis. AGP

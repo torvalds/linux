@@ -18,6 +18,9 @@
  *	duplex (MicroWire) controllers.  Provide chipslect() and txrx_bufs(),
  *	and custom setup()/cleanup() methods.
  */
+
+#include <linux/workqueue.h>
+
 struct spi_bitbang {
 	struct workqueue_struct	*workqueue;
 	struct work_struct	work;

@@ -54,9 +54,9 @@
 #include <linux/cpu.h>
 #include <linux/random.h>
 #include <linux/delay.h>
-#include <linux/byteorder/swabb.h>
 #include <linux/cpumask.h>
 #include <linux/rcupreempt_trace.h>
+#include <asm/byteorder.h>
 
 /*
  * PREEMPT_RCU data structures.
@@ -549,6 +549,16 @@ void rcu_irq_exit(void)
 		rdssp->dynticks++;
 		WARN_ON(rdssp->dynticks & 0x1);
 	}
+}
+
+void rcu_nmi_enter(void)
+{
+	rcu_irq_enter();
+}
+
+void rcu_nmi_exit(void)
+{
+	rcu_irq_exit();
 }
 
 static void dyntick_save_progress_counter(int cpu)

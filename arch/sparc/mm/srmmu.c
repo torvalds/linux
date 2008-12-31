@@ -1251,7 +1251,7 @@ static inline void map_kernel(void)
 /* Paging initialization on the Sparc Reference MMU. */
 extern void sparc_context_init(int);
 
-void (*poke_srmmu)(void) __initdata = NULL;
+void (*poke_srmmu)(void) __cpuinitdata = NULL;
 
 extern unsigned long bootmem_init(unsigned long *pages_avail);
 
@@ -1312,10 +1312,8 @@ void __init srmmu_paging_init(void)
 #endif
 	poke_srmmu();
 
-#ifdef CONFIG_SUN_IO
 	srmmu_allocate_ptable_skeleton(sparc_iomap.start, IOBASE_END);
 	srmmu_allocate_ptable_skeleton(DVMA_VADDR, DVMA_END);
-#endif
 
 	srmmu_allocate_ptable_skeleton(
 		__fix_to_virt(__end_of_fixed_addresses - 1), FIXADDR_TOP);
@@ -1446,7 +1444,7 @@ static void __init init_vac_layout(void)
 	       (int)vac_cache_size, (int)vac_line_size);
 }
 
-static void __init poke_hypersparc(void)
+static void __cpuinit poke_hypersparc(void)
 {
 	volatile unsigned long clear;
 	unsigned long mreg = srmmu_get_mmureg();
@@ -1501,7 +1499,7 @@ static void __init init_hypersparc(void)
 	hypersparc_setup_blockops();
 }
 
-static void __init poke_cypress(void)
+static void __cpuinit poke_cypress(void)
 {
 	unsigned long mreg = srmmu_get_mmureg();
 	unsigned long faddr, tagval;
@@ -1589,7 +1587,7 @@ static void __init init_cypress_605(unsigned long mrev)
 	init_cypress_common();
 }
 
-static void __init poke_swift(void)
+static void __cpuinit poke_swift(void)
 {
 	unsigned long mreg;
 
@@ -1771,7 +1769,7 @@ static void turbosparc_flush_tlb_page(struct vm_area_struct *vma, unsigned long 
 }
 
 
-static void __init poke_turbosparc(void)
+static void __cpuinit poke_turbosparc(void)
 {
 	unsigned long mreg = srmmu_get_mmureg();
 	unsigned long ccreg;
@@ -1834,7 +1832,7 @@ static void __init init_turbosparc(void)
 	poke_srmmu = poke_turbosparc;
 }
 
-static void __init poke_tsunami(void)
+static void __cpuinit poke_tsunami(void)
 {
 	unsigned long mreg = srmmu_get_mmureg();
 
@@ -1876,7 +1874,7 @@ static void __init init_tsunami(void)
 	tsunami_setup_blockops();
 }
 
-static void __init poke_viking(void)
+static void __cpuinit poke_viking(void)
 {
 	unsigned long mreg = srmmu_get_mmureg();
 	static int smp_catch;
@@ -1916,18 +1914,6 @@ static void __init poke_viking(void)
 	mreg |= VIKING_SBENABLE;
 	mreg &= ~(VIKING_ACENABLE);
 	srmmu_set_mmureg(mreg);
-
-#ifdef CONFIG_SMP
-	/* Avoid unnecessary cross calls. */
-	BTFIXUPCOPY_CALL(flush_cache_all, local_flush_cache_all);
-	BTFIXUPCOPY_CALL(flush_cache_mm, local_flush_cache_mm);
-	BTFIXUPCOPY_CALL(flush_cache_range, local_flush_cache_range);
-	BTFIXUPCOPY_CALL(flush_cache_page, local_flush_cache_page);
-	BTFIXUPCOPY_CALL(__flush_page_to_ram, local_flush_page_to_ram);
-	BTFIXUPCOPY_CALL(flush_sig_insns, local_flush_sig_insns);
-	BTFIXUPCOPY_CALL(flush_page_for_dma, local_flush_page_for_dma);
-	btfixup();
-#endif
 }
 
 static void __init init_viking(void)
@@ -2272,6 +2258,17 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_CALL(__flush_page_to_ram, smp_flush_page_to_ram, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_sig_insns, smp_flush_sig_insns, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_page_for_dma, smp_flush_page_for_dma, BTFIXUPCALL_NORM);
+
+	if (poke_srmmu == poke_viking) {
+		/* Avoid unnecessary cross calls. */
+		BTFIXUPCOPY_CALL(flush_cache_all, local_flush_cache_all);
+		BTFIXUPCOPY_CALL(flush_cache_mm, local_flush_cache_mm);
+		BTFIXUPCOPY_CALL(flush_cache_range, local_flush_cache_range);
+		BTFIXUPCOPY_CALL(flush_cache_page, local_flush_cache_page);
+		BTFIXUPCOPY_CALL(__flush_page_to_ram, local_flush_page_to_ram);
+		BTFIXUPCOPY_CALL(flush_sig_insns, local_flush_sig_insns);
+		BTFIXUPCOPY_CALL(flush_page_for_dma, local_flush_page_for_dma);
+	}
 #endif
 
 	if (sparc_cpu_model == sun4d)

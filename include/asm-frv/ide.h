@@ -18,15 +18,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-/****************************************************************************/
-/*
- * some bits needed for parts of the IDE subsystem to compile
- */
-#define __ide_mm_insw(port, addr, n)	insw((unsigned long) (port), addr, n)
-#define __ide_mm_insl(port, addr, n)	insl((unsigned long) (port), addr, n)
-#define __ide_mm_outsw(port, addr, n)	outsw((unsigned long) (port), addr, n)
-#define __ide_mm_outsl(port, addr, n)	outsl((unsigned long) (port), addr, n)
-
+#include <asm-generic/ide_iops.h>
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_IDE_H */

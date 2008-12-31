@@ -62,6 +62,8 @@ mainmenu "Linux/68k Kernel Configuration"
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 menu "Platform dependent setup"
 
 config EISA

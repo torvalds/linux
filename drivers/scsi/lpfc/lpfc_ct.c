@@ -34,6 +34,7 @@
 
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
 #include "lpfc.h"
@@ -134,25 +135,24 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		}
 		list_del(&head);
 	} else {
-		struct lpfc_iocbq  *next;
-
-		list_for_each_entry_safe(iocbq, next, &piocbq->list, list) {
+		INIT_LIST_HEAD(&head);
+		list_add_tail(&head, &piocbq->list);
+		list_for_each_entry(iocbq, &head, list) {
 			icmd = &iocbq->iocb;
 			if (icmd->ulpBdeCount == 0)
-				lpfc_ct_unsol_buffer(phba, piocbq, NULL, 0);
+				lpfc_ct_unsol_buffer(phba, iocbq, NULL, 0);
 			for (i = 0; i < icmd->ulpBdeCount; i++) {
 				paddr = getPaddr(icmd->un.cont64[i].addrHigh,
 						 icmd->un.cont64[i].addrLow);
 				mp = lpfc_sli_ringpostbuf_get(phba, pring,
 							      paddr);
 				size = icmd->un.cont64[i].tus.f.bdeSize;
-				lpfc_ct_unsol_buffer(phba, piocbq, mp, size);
+				lpfc_ct_unsol_buffer(phba, iocbq, mp, size);
 				lpfc_in_buf_free(phba, mp);
 			}
-			list_del(&iocbq->list);
-			lpfc_sli_release_iocbq(phba, iocbq);
 			lpfc_post_buffer(phba, pring, i);
 		}
+		list_del(&head);
 	}
 }
 
@@ -212,7 +212,7 @@ lpfc_alloc_ct_rsp(struct lpfc_hba *phba, int cmdcode, struct ulp_bde64 *bpl,
 		else
 			list_add_tail(&mp->list, &mlist->list);
 
-		bpl->tus.f.bdeFlags = BUFF_USE_RCV;
+		bpl->tus.f.bdeFlags = BUFF_TYPE_BDE_64I;
 		/* build buffer ptr list for IOCB */
 		bpl->addrLow = le32_to_cpu(putPaddrLow(mp->phys) );
 		bpl->addrHigh = le32_to_cpu(putPaddrHigh(mp->phys) );
@@ -283,7 +283,7 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	icmd->un.genreq64.bdl.ulpIoTag32 = 0;
 	icmd->un.genreq64.bdl.addrHigh = putPaddrHigh(bmp->phys);
 	icmd->un.genreq64.bdl.addrLow = putPaddrLow(bmp->phys);
-	icmd->un.genreq64.bdl.bdeFlags = BUFF_TYPE_BDL;
+	icmd->un.genreq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
 	icmd->un.genreq64.bdl.bdeSize = (num_entry * sizeof (struct ulp_bde64));
 
 	if (usr_flg)
@@ -560,18 +560,25 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		irsp->ulpStatus, irsp->un.ulpWord[4], vport->fc_ns_retry);
 
 	/* Don't bother processing response if vport is being torn down. */
-	if (vport->load_flag & FC_UNLOADING)
+	if (vport->load_flag & FC_UNLOADING) {
+		if (vport->fc_flag & FC_RSCN_MODE)
+			lpfc_els_flush_rscn(vport);
 		goto out;
+	}
 
 	if (lpfc_els_chk_latt(vport)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0216 Link event during NS query\n");
+		if (vport->fc_flag & FC_RSCN_MODE)
+			lpfc_els_flush_rscn(vport);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto out;
 	}
 	if (lpfc_error_lost_link(irsp)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0226 NS query failed due to link event\n");
+		if (vport->fc_flag & FC_RSCN_MODE)
+			lpfc_els_flush_rscn(vport);
 		goto out;
 	}
 	if (irsp->ulpStatus) {
@@ -587,6 +594,8 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			if (rc == 0)
 				goto out;
 		}
+		if (vport->fc_flag & FC_RSCN_MODE)
+			lpfc_els_flush_rscn(vport);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
 				 "0257 GID_FT Query error: 0x%x 0x%x\n",
@@ -861,7 +870,7 @@ lpfc_cmpl_ct(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		retry++;
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "0216 Retrying NS cmd %x\n", cmdcode);
+				 "0250 Retrying NS cmd %x\n", cmdcode);
 		rc = lpfc_ns_cmd(vport, cmdcode, retry, 0);
 		if (rc == 0)
 			goto out;
@@ -1008,8 +1017,10 @@ lpfc_vport_symbolic_port_name(struct lpfc_vport *vport, char *symbol,
 	if (n < size)
 		n += snprintf(symbol + n, size - n, " VPort-%d", vport->vpi);
 
-	if (n < size && vport->vname)
-		n += snprintf(symbol + n, size - n, " VName-%s", vport->vname);
+	if (n < size &&
+	    strlen(vport->fc_vport->symbolic_name))
+		n += snprintf(symbol + n, size - n, " VName-%s",
+			      vport->fc_vport->symbolic_name);
 	return n;
 }
 

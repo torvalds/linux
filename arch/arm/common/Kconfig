@@ -13,10 +13,10 @@ config ICST307
 config SA1111
 	bool
 	select DMABOUNCE if !ARCH_PXA
-	select ZONE_DMA if !ARCH_PXA
 
 config DMABOUNCE
 	bool
+	select ZONE_DMA
 
 config TIMER_ACORN
 	bool
@@ -32,4 +32,7 @@ config SHARPSL_PM
 	select APM_EMULATION
 
 config SHARP_SCOOP
+	bool
+
+config COMMON_CLKDEV
 	bool

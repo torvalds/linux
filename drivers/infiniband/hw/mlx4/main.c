@@ -574,8 +574,11 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.owner		= THIS_MODULE;
 	ibdev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	ibdev->ib_dev.local_dma_lkey	= dev->caps.reserved_lkey;
-	ibdev->ib_dev.phys_port_cnt	= dev->caps.num_ports;
-	ibdev->ib_dev.num_comp_vectors	= 1;
+	ibdev->num_ports = 0;
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
+		ibdev->num_ports++;
+	ibdev->ib_dev.phys_port_cnt     = ibdev->num_ports;
+	ibdev->ib_dev.num_comp_vectors	= dev->caps.num_comp_vectors;
 	ibdev->ib_dev.dma_device	= &dev->pdev->dev;
 
 	ibdev->ib_dev.uverbs_abi_ver	= MLX4_IB_UVERBS_ABI_VERSION;
@@ -691,7 +694,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 	struct mlx4_ib_dev *ibdev = ibdev_ptr;
 	int p;
 
-	for (p = 1; p <= dev->caps.num_ports; ++p)
+	for (p = 1; p <= ibdev->num_ports; ++p)
 		mlx4_CLOSE_PORT(dev, p);
 
 	mlx4_ib_mad_cleanup(ibdev);
@@ -706,6 +709,10 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 			  enum mlx4_dev_event event, int port)
 {
 	struct ib_event ibev;
+	struct mlx4_ib_dev *ibdev = to_mdev((struct ib_device *) ibdev_ptr);
+
+	if (port > ibdev->num_ports)
+		return;
 
 	switch (event) {
 	case MLX4_DEV_EVENT_PORT_UP:

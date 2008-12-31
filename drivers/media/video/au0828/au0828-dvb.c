@@ -173,7 +173,8 @@ static int start_urb_transfer(struct au0828_dev *dev)
 		purb->status = -EINPROGRESS;
 		usb_fill_bulk_urb(purb,
 				  dev->usbdev,
-				  usb_rcvbulkpipe(dev->usbdev, _AU0828_BULKPIPE),
+				  usb_rcvbulkpipe(dev->usbdev,
+					_AU0828_BULKPIPE),
 				  purb->transfer_buffer,
 				  URB_BUFSIZE,
 				  urb_completion,

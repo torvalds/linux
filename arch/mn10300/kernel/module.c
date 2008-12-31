@@ -1,6 +1,6 @@
 /* MN10300 Kernel module helper routines
  *
- * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2007, 2008 Red Hat, Inc. All Rights Reserved.
  * Written by Mark Salter (msalter@redhat.com)
  * - Derived from arch/i386/kernel/module.c
  *
@@ -62,21 +62,6 @@ int module_frob_arch_sections(Elf_Ehdr *hdr,
 			      struct module *mod)
 {
 	return 0;
-}
-
-static uint32_t reloc_get16(uint8_t *p)
-{
-	return p[0] | (p[1] << 8);
-}
-
-static uint32_t reloc_get24(uint8_t *p)
-{
-	return reloc_get16(p) | (p[2] << 16);
-}
-
-static uint32_t reloc_get32(uint8_t *p)
-{
-	return reloc_get16(p) | (reloc_get16(p+2) << 16);
 }
 
 static void reloc_put16(uint8_t *p, uint32_t val)
@@ -144,25 +129,19 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		relocation = sym->st_value + rel[i].r_addend;
 
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
-			/* for the first four relocation types, we add the
-			 * adjustment into the value at the location given */
+			/* for the first four relocation types, we simply
+			 * store the adjustment at the location given */
 		case R_MN10300_32:
-			value = reloc_get32(location);
-			value += relocation;
-			reloc_put32(location, value);
+			reloc_put32(location, relocation);
 			break;
 		case R_MN10300_24:
-			value = reloc_get24(location);
-			value += relocation;
-			reloc_put24(location, value);
+			reloc_put24(location, relocation);
 			break;
 		case R_MN10300_16:
-			value = reloc_get16(location);
-			value += relocation;
-			reloc_put16(location, value);
+			reloc_put16(location, relocation);
 			break;
 		case R_MN10300_8:
-			*location += relocation;
+			*location = relocation;
 			break;
 
 			/* for the next three relocation types, we write the

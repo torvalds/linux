@@ -463,7 +463,11 @@ static int acm_cdc_notify(struct f_acm *acm, u8 type, u16 value,
 	notify->wLength = cpu_to_le16(length);
 	memcpy(buf, data, length);
 
+	/* ep_queue() can complete immediately if it fills the fifo... */
+	spin_unlock(&acm->lock);
 	status = usb_ep_queue(ep, req, GFP_ATOMIC);
+	spin_lock(&acm->lock);
+
 	if (status < 0) {
 		ERROR(acm->port.func.config->cdev,
 				"acm ttyGS%d can't notify serial state, %d\n",

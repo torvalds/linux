@@ -340,11 +340,10 @@ static int brd_direct_access (struct block_device *bdev, sector_t sector,
 }
 #endif
 
-static int brd_ioctl(struct inode *inode, struct file *file,
+static int brd_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
 	int error;
-	struct block_device *bdev = inode->i_bdev;
 	struct brd_device *brd = bdev->bd_disk->private_data;
 
 	if (cmd != BLKFLSBUF)
@@ -376,7 +375,7 @@ static int brd_ioctl(struct inode *inode, struct file *file,
 
 static struct block_device_operations brd_fops = {
 	.owner =		THIS_MODULE,
-	.ioctl =		brd_ioctl,
+	.locked_ioctl =		brd_ioctl,
 #ifdef CONFIG_BLK_DEV_XIP
 	.direct_access =	brd_direct_access,
 #endif

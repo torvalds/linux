@@ -31,10 +31,9 @@
 #include <asm/qdio.h>
 #include <asm/ccwdev.h>
 #include <asm/ccwgroup.h>
+#include <asm/sysinfo.h>
 
 #include "qeth_core_mpc.h"
-
-#define KMSG_COMPONENT "qeth"
 
 /**
  * Debug Facility stuff
@@ -73,11 +72,6 @@ struct qeth_dbf_info {
 
 #define QETH_DBF_TEXT_(name, level, text...) \
 	qeth_dbf_longtext(QETH_DBF_##name, level, text)
-
-/**
- * some more debug stuff
- */
-#define PRINTK_HEADER	"qeth: "
 
 #define SENSE_COMMAND_REJECT_BYTE 0
 #define SENSE_COMMAND_REJECT_FLAG 0x80
@@ -733,6 +727,7 @@ struct qeth_card {
 	struct qeth_osn_info osn_info;
 	struct qeth_discipline discipline;
 	atomic_t force_alloc_skb;
+	struct service_level qeth_service_level;
 };
 
 struct qeth_card_list_struct {

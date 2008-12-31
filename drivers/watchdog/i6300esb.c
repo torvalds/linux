@@ -394,8 +394,7 @@ static unsigned char __init esb_getdevice(void)
 			goto err_disable;
 		}
 
-		BASEADDR = ioremap(pci_resource_start(esb_pci, 0),
-				   pci_resource_len(esb_pci, 0));
+		BASEADDR = pci_ioremap_bar(esb_pci, 0);
 		if (BASEADDR == NULL) {
 			/* Something's wrong here, BASEADDR has to be set */
 			printk(KERN_ERR PFX "failed to get BASEADDR\n");

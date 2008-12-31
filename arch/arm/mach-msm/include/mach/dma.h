@@ -1,4 +1,4 @@
-/* arch/arm/mach-msm/include/mach/dma.h
+/* linux/include/asm-arm/arch-msm/dma.h
  *
  * Copyright (C) 2007 Google, Inc.
  *
@@ -18,17 +18,21 @@
 #include <linux/list.h>
 #include <mach/msm_iomap.h>
 
+struct msm_dmov_errdata {
+	uint32_t flush[6];
+};
+
 struct msm_dmov_cmd {
 	struct list_head list;
 	unsigned int cmdptr;
-	void (*complete_func)(struct msm_dmov_cmd *cmd, unsigned int result);
-/*	void (*user_result_func)(struct msm_dmov_cmd *cmd); */
+	void (*complete_func)(struct msm_dmov_cmd *cmd,
+			      unsigned int result,
+			      struct msm_dmov_errdata *err);
 };
 
 void msm_dmov_enqueue_cmd(unsigned id, struct msm_dmov_cmd *cmd);
-void msm_dmov_stop_cmd(unsigned id, struct msm_dmov_cmd *cmd);
+void msm_dmov_stop_cmd(unsigned id, struct msm_dmov_cmd *cmd, int graceful);
 int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
-/* int msm_dmov_exec_cmd_etc(unsigned id, unsigned int cmdptr, int timeout, int interruptible); */
 
 
 
@@ -121,6 +125,16 @@ typedef struct {
 	unsigned dst_dscr;
 	unsigned _reserved;
 } dmov_sg;
+
+/* Box mode */
+typedef struct {
+	uint32_t cmd;
+	uint32_t src_row_addr;
+	uint32_t dst_row_addr;
+	uint32_t src_dst_len;
+	uint32_t num_rows;
+	uint32_t row_offset;
+} dmov_box;
 
 /* bits for the cmd field of the above structures */
 

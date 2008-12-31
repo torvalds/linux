@@ -1561,8 +1561,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 	if (code != USBTEST_REQUEST)
 		return -EOPNOTSUPP;
 
-	if (param->iterations <= 0 || param->length < 0
-			|| param->sglen < 0 || param->vary < 0)
+	if (param->iterations <= 0)
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(&dev->lock))

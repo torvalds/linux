@@ -1,0 +1,10 @@
+00-INDEX
+	- this file
+cdrom.txt
+	- summary of CDROM ioctl calls
+hdio.txt
+	- summary of HDIO_ ioctl calls
+ioctl-decoding.txt
+	- how to decode the bits of an IOCTL code
+ioctl-number.txt
+	- how to implement and register device/driver ioctl calls

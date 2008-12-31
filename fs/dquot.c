@@ -9,8 +9,6 @@
  * implementation is based on one of the several variants of the LINUX
  * inode-subsystem with added complexity of the diskquota system.
  * 
- * Version: $Id: dquot.c,v 6.3 1996/11/17 18:35:34 mvw Exp mvw $
- * 
  * Author:	Marco van Wieringen <mvw@planets.elm.net>
  *
  * Fixes:   Dmitry Gorodchanin <pgmdsg@ibi.com>, 11 Feb 96
@@ -876,7 +874,7 @@ static inline int need_print_warning(struct dquot *dquot)
 
 	switch (dquot->dq_type) {
 		case USRQUOTA:
-			return current->fsuid == dquot->dq_id;
+			return current_fsuid() == dquot->dq_id;
 		case GRPQUOTA:
 			return in_group_p(dquot->dq_id);
 	}
@@ -983,7 +981,7 @@ static void send_warning(const struct dquot *dquot, const char warntype)
 		MINOR(dquot->dq_sb->s_dev));
 	if (ret)
 		goto attr_err_out;
-	ret = nla_put_u64(skb, QUOTA_NL_A_CAUSED_ID, current->user->uid);
+	ret = nla_put_u64(skb, QUOTA_NL_A_CAUSED_ID, current_uid());
 	if (ret)
 		goto attr_err_out;
 	genlmsg_end(skb, msg_head);
@@ -1807,19 +1805,19 @@ int vfs_quota_on_path(struct super_block *sb, int type, int format_id,
 }
 
 /* Actual function called from quotactl() */
-int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path,
+int vfs_quota_on(struct super_block *sb, int type, int format_id, char *name,
 		 int remount)
 {
-	struct nameidata nd;
+	struct path path;
 	int error;
 
 	if (remount)
 		return vfs_quota_on_remount(sb, type);
 
-	error = path_lookup(path, LOOKUP_FOLLOW, &nd);
+	error = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (!error) {
-		error = vfs_quota_on_path(sb, type, format_id, &nd.path);
-		path_put(&nd.path);
+		error = vfs_quota_on_path(sb, type, format_id, &path);
+		path_put(&path);
 	}
 	return error;
 }

@@ -3,7 +3,6 @@
 #
 config TICK_ONESHOT
 	bool
-	default n
 
 config NO_HZ
 	bool "Tickless System (Dynamic Ticks)"

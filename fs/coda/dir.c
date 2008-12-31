@@ -146,6 +146,9 @@ int coda_permission(struct inode *inode, int mask)
 	if (!mask)
 		return 0; 
 
+	if ((mask & MAY_EXEC) && !execute_ok(inode))
+		return -EACCES;
+
 	lock_kernel();
 
 	if (coda_cache_check(inode, mask))

@@ -166,6 +166,7 @@ struct pci_dev *pci_find_device(unsigned int vendor, unsigned int device,
 {
 	struct pci_dev *pdev;
 
+	pci_dev_get(from);
 	pdev = pci_get_subsys(vendor, device, PCI_ANY_ID, PCI_ANY_ID, from);
 	pci_dev_put(pdev);
 	return pdev;
@@ -270,12 +271,8 @@ static struct pci_dev *pci_get_dev_by_id(const struct pci_device_id *id,
 	struct pci_dev *pdev = NULL;
 
 	WARN_ON(in_interrupt());
-	if (from) {
-		/* FIXME
-		 * take the cast off, when bus_find_device is made const.
-		 */
-		dev_start = (struct device *)&from->dev;
-	}
+	if (from)
+		dev_start = &from->dev;
 	dev = bus_find_device(&pci_bus_type, dev_start, (void *)id,
 			      match_pci_dev_by_id);
 	if (dev)

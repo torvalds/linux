@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -651,7 +650,7 @@ pxa_ep_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 	struct pxa27x_request *req;
 
 	req = kzalloc(sizeof *req, gfp_flags);
-	if (!req || !_ep)
+	if (!req)
 		return NULL;
 
 	INIT_LIST_HEAD(&req->queue);
@@ -2227,7 +2226,7 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 	udc->dev = &pdev->dev;
 	udc->mach = pdev->dev.platform_data;
 
-	udc->clk = clk_get(&pdev->dev, "UDCCLK");
+	udc->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(udc->clk)) {
 		retval = PTR_ERR(udc->clk);
 		goto err_clk;

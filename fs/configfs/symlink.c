@@ -108,18 +108,18 @@ out:
 }
 
 
-static int get_target(const char *symname, struct nameidata *nd,
+static int get_target(const char *symname, struct path *path,
 		      struct config_item **target)
 {
 	int ret;
 
-	ret = path_lookup(symname, LOOKUP_FOLLOW|LOOKUP_DIRECTORY, nd);
+	ret = kern_path(symname, LOOKUP_FOLLOW|LOOKUP_DIRECTORY, path);
 	if (!ret) {
-		if (nd->path.dentry->d_sb == configfs_sb) {
-			*target = configfs_get_config_item(nd->path.dentry);
+		if (path->dentry->d_sb == configfs_sb) {
+			*target = configfs_get_config_item(path->dentry);
 			if (!*target) {
 				ret = -ENOENT;
-				path_put(&nd->path);
+				path_put(path);
 			}
 		} else
 			ret = -EPERM;
@@ -132,7 +132,7 @@ static int get_target(const char *symname, struct nameidata *nd,
 int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 {
 	int ret;
-	struct nameidata nd;
+	struct path path;
 	struct configfs_dirent *sd;
 	struct config_item *parent_item;
 	struct config_item *target_item;
@@ -159,7 +159,7 @@ int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symna
 	    !type->ct_item_ops->allow_link)
 		goto out_put;
 
-	ret = get_target(symname, &nd, &target_item);
+	ret = get_target(symname, &path, &target_item);
 	if (ret)
 		goto out_put;
 
@@ -174,7 +174,7 @@ int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symna
 	}
 
 	config_item_put(target_item);
-	path_put(&nd.path);
+	path_put(&path);
 
 out_put:
 	config_item_put(parent_item);

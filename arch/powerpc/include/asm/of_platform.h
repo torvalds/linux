@@ -11,9 +11,6 @@
  *
  */
 
-/* This is just here during the transition */
-#include <linux/of_platform.h>
-
 /* Platform drivers register/unregister */
 static inline int of_register_platform_driver(struct of_platform_driver *drv)
 {

@@ -205,16 +205,13 @@ static struct notifier_block scsi_netlink_notifier = {
 };
 
 
-/**
+/*
  * GENERIC SCSI transport receive and event handlers
- **/
+ */
 
 /**
- * scsi_generic_msg_handler - receive message handler for GENERIC transport
- * 			 messages
- *
+ * scsi_generic_msg_handler - receive message handler for GENERIC transport messages
  * @skb:		socket receive buffer
- *
  **/
 static int
 scsi_generic_msg_handler(struct sk_buff *skb)

@@ -131,6 +131,8 @@ cflags-$(CONFIG_CPU_MIPS64_R2)	+= $(call cc-option,-march=mips64r2,-mips64r2 -U_
 cflags-$(CONFIG_CPU_R5000)	+= -march=r5000 -Wa,--trap
 cflags-$(CONFIG_CPU_R5432)	+= $(call cc-option,-march=r5400,-march=r5000) \
 			-Wa,--trap
+cflags-$(CONFIG_CPU_R5500)	+= $(call cc-option,-march=r5500,-march=r5000) \
+			-Wa,--trap
 cflags-$(CONFIG_CPU_NEVADA)	+= $(call cc-option,-march=rm5200,-march=r5000) \
 			-Wa,--trap
 cflags-$(CONFIG_CPU_RM7000)	+= $(call cc-option,-march=rm7000,-march=r5000) \
@@ -381,6 +383,14 @@ load-$(CONFIG_CASIO_E55)	+= 0xffffffff80004000
 #
 load-$(CONFIG_TANBAC_TB022X)	+= 0xffffffff80000000
 
+# NXP STB225
+core-$(CONFIG_SOC_PNX833X)		+= arch/mips/nxp/pnx833x/common/
+cflags-$(CONFIG_SOC_PNX833X)	+= -Iarch/mips/include/asm/mach-pnx833x
+libs-$(CONFIG_NXP_STB220)		+= arch/mips/nxp/pnx833x/stb22x/
+load-$(CONFIG_NXP_STB220)		+= 0xffffffff80001000
+libs-$(CONFIG_NXP_STB225)		+= arch/mips/nxp/pnx833x/stb22x/
+load-$(CONFIG_NXP_STB225)		+= 0xffffffff80001000
+
 #
 # Common NXP PNX8550
 #
@@ -399,14 +409,17 @@ load-$(CONFIG_PNX8550_JBS)	+= 0xffffffff80060000
 libs-$(CONFIG_PNX8550_STB810)	+= arch/mips/nxp/pnx8550/stb810/
 load-$(CONFIG_PNX8550_STB810)	+= 0xffffffff80060000
 
-# NEC EMMA2RH boards
 #
-core-$(CONFIG_EMMA2RH)          += arch/mips/emma2rh/common/
-cflags-$(CONFIG_EMMA2RH)        += -I$(srctree)/arch/mips/include/asm/mach-emma2rh
+# Common NEC EMMAXXX
+#
+core-$(CONFIG_SOC_EMMA)		+= arch/mips/emma/common/
+cflags-$(CONFIG_SOC_EMMA2RH)	+= -I$(srctree)/arch/mips/include/asm/mach-emma2rh
 
+#
 # NEC EMMA2RH Mark-eins
-core-$(CONFIG_MARKEINS)         += arch/mips/emma2rh/markeins/
-load-$(CONFIG_MARKEINS)         += 0xffffffff88100000
+#
+core-$(CONFIG_NEC_MARKEINS)	+= arch/mips/emma/markeins/
+load-$(CONFIG_NEC_MARKEINS)	+= 0xffffffff88100000
 
 #
 # SGI IP22 (Indy/Indigo2)

@@ -92,6 +92,7 @@ _ENTRY(_start);
  * if needed
  */
 
+_ENTRY(__early_start)
 /* 1. Find the index of the entry we're executing in */
 	bl	invstr				/* Find our address */
 invstr:	mflr	r6				/* Make it accessible */
@@ -235,36 +236,40 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	tlbivax 0,r9
 	TLBSYNC
 
+/* The mapping only needs to be cache-coherent on SMP */
+#ifdef CONFIG_SMP
+#define M_IF_SMP	MAS2_M
+#else
+#define M_IF_SMP	0
+#endif
+
 /* 6. Setup KERNELBASE mapping in TLB1[0] */
 	lis	r6,0x1000		/* Set MAS0(TLBSEL) = TLB1(1), ESEL = 0 */
 	mtspr	SPRN_MAS0,r6
 	lis	r6,(MAS1_VALID|MAS1_IPROT)@h
 	ori	r6,r6,(MAS1_TSIZE(BOOKE_PAGESZ_64M))@l
 	mtspr	SPRN_MAS1,r6
-	li	r7,0
-	lis	r6,PAGE_OFFSET@h
-	ori	r6,r6,PAGE_OFFSET@l
-	rlwimi	r6,r7,0,20,31
+	lis	r6,MAS2_VAL(PAGE_OFFSET, BOOKE_PAGESZ_64M, M_IF_SMP)@h
+	ori	r6,r6,MAS2_VAL(PAGE_OFFSET, BOOKE_PAGESZ_64M, M_IF_SMP)@l
 	mtspr	SPRN_MAS2,r6
 	mtspr	SPRN_MAS3,r8
 	tlbwe
 
 /* 7. Jump to KERNELBASE mapping */
-	lis	r6,KERNELBASE@h
-	ori	r6,r6,KERNELBASE@l
-	rlwimi	r6,r7,0,20,31
+	lis	r6,(KERNELBASE & ~0xfff)@h
+	ori	r6,r6,(KERNELBASE & ~0xfff)@l
 	lis	r7,MSR_KERNEL@h
 	ori	r7,r7,MSR_KERNEL@l
 	bl	1f			/* Find our address */
 1:	mflr	r9
 	rlwimi	r6,r9,0,20,31
-	addi	r6,r6,24
+	addi	r6,r6,(2f - 1b)
 	mtspr	SPRN_SRR0,r6
 	mtspr	SPRN_SRR1,r7
 	rfi				/* start execution out of TLB1[0] entry */
 
 /* 8. Clear out the temp mapping */
-	lis	r7,0x1000	/* Set MAS0(TLBSEL) = 1 */
+2:	lis	r7,0x1000	/* Set MAS0(TLBSEL) = 1 */
 	rlwimi	r7,r5,16,4,15	/* Setup MAS0 = TLBSEL | ESEL(r5) */
 	mtspr	SPRN_MAS0,r7
 	tlbre
@@ -342,6 +347,15 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	/* clear any residual debug events */
 	li	r2,-1
 	mtspr	SPRN_DBSR,r2
+#endif
+
+#ifdef CONFIG_SMP
+	/* Check to see if we're the second processor, and jump
+	 * to the secondary_start code if so
+	 */
+	mfspr	r24,SPRN_PIR
+	cmpwi	r24,0
+	bne	__secondary_start
 #endif
 
 	/*
@@ -422,7 +436,6 @@ skpinv:	addi	r6,r6,1				/* Increment */
  *   r12 is pointer to the pte
  */
 #ifdef CONFIG_PTE_64BIT
-#define PTE_FLAGS_OFFSET	4
 #define FIND_PTE	\
 	rlwinm	r12, r10, 13, 19, 29;	/* Compute pgdir/pmd offset */	\
 	lwzx	r11, r12, r11;		/* Get pgd/pmd entry */		\
@@ -431,7 +444,6 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	rlwimi	r12, r10, 23, 20, 28;	/* Compute pte address */	\
 	lwz	r11, 4(r12);		/* Get pte entry */
 #else
-#define PTE_FLAGS_OFFSET	0
 #define FIND_PTE	\
 	rlwimi	r11, r10, 12, 20, 29;	/* Create L1 (pgdir/pmd) address */	\
 	lwz	r11, 0(r11);		/* Get L1 entry */			\
@@ -579,13 +591,19 @@ interrupt_base:
 
 	FIND_PTE
 	andc.	r13,r13,r11		/* Check permission */
-	bne	2f			/* Bail if permission mismach */
 
 #ifdef CONFIG_PTE_64BIT
-	lwz	r13, 0(r12)
+#ifdef CONFIG_SMP
+	subf	r10,r11,r12		/* create false data dep */
+	lwzx	r13,r11,r10		/* Get upper pte bits */
+#else
+	lwz	r13,0(r12)		/* Get upper pte bits */
+#endif
 #endif
 
-	 /* Jump to common tlb load */
+	bne	2f			/* Bail if permission/valid mismach */
+
+	/* Jump to common tlb load */
 	b	finish_tlb_load
 2:
 	/* The bailout.  Restore registers to pre-exception conditions
@@ -640,11 +658,17 @@ interrupt_base:
 
 	FIND_PTE
 	andc.	r13,r13,r11		/* Check permission */
-	bne	2f			/* Bail if permission mismach */
 
 #ifdef CONFIG_PTE_64BIT
-	lwz	r13, 0(r12)
+#ifdef CONFIG_SMP
+	subf	r10,r11,r12		/* create false data dep */
+	lwzx	r13,r11,r10		/* Get upper pte bits */
+#else
+	lwz	r13,0(r12)		/* Get upper pte bits */
 #endif
+#endif
+
+	bne	2f			/* Bail if permission mismach */
 
 	/* Jump to common TLB load point */
 	b	finish_tlb_load
@@ -675,12 +699,13 @@ interrupt_base:
 	/* SPE Floating Point Data */
 #ifdef CONFIG_SPE
 	EXCEPTION(0x2030, SPEFloatingPointData, SPEFloatingPointException, EXC_XFER_EE);
-#else
-	EXCEPTION(0x2040, SPEFloatingPointData, unknown_exception, EXC_XFER_EE)
-#endif /* CONFIG_SPE */
 
 	/* SPE Floating Point Round */
+	EXCEPTION(0x2050, SPEFloatingPointRound, SPEFloatingPointRoundException, EXC_XFER_EE)
+#else
+	EXCEPTION(0x2040, SPEFloatingPointData, unknown_exception, EXC_XFER_EE)
 	EXCEPTION(0x2050, SPEFloatingPointRound, unknown_exception, EXC_XFER_EE)
+#endif /* CONFIG_SPE */
 
 	/* Performance Monitor */
 	EXCEPTION(0x2060, PerformanceMonitor, performance_monitor_exception, EXC_XFER_STD)
@@ -702,7 +727,7 @@ interrupt_base:
 /*
  * Both the instruction and data TLB miss get to this
  * point to load the TLB.
- *	r10 - EA of fault
+ *	r10 - available to use
  *	r11 - TLB (info from Linux PTE)
  *	r12 - available to use
  *	r13 - upper bits of PTE (if PTE_64BIT) or available to use
@@ -725,6 +750,9 @@ finish_tlb_load:
 #else
 	rlwimi	r12, r11, 26, 27, 31	/* extract WIMGE from pte */
 #endif
+#ifdef CONFIG_SMP
+	ori	r12, r12, MAS2_M
+#endif
 	mtspr	SPRN_MAS2, r12
 
 	li	r10, (_PAGE_HWEXEC | _PAGE_PRESENT)
@@ -736,15 +764,15 @@ finish_tlb_load:
 	iseleq	r12, r12, r10
 	
 #ifdef CONFIG_PTE_64BIT
-2:	rlwimi	r12, r13, 24, 0, 7	/* grab RPN[32:39] */
+	rlwimi	r12, r13, 24, 0, 7	/* grab RPN[32:39] */
 	rlwimi	r12, r11, 24, 8, 19	/* grab RPN[40:51] */
 	mtspr	SPRN_MAS3, r12
-BEGIN_FTR_SECTION
+BEGIN_MMU_FTR_SECTION
 	srwi	r10, r13, 8		/* grab RPN[8:31] */
 	mtspr	SPRN_MAS7, r10
-END_FTR_SECTION_IFSET(CPU_FTR_BIG_PHYS)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 #else
-2:	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
+	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
 	mtspr	SPRN_MAS3, r11
 #endif
 #ifdef CONFIG_E200
@@ -1026,6 +1054,63 @@ _GLOBAL(flush_dcache_L1)
 	isync
 
 	blr
+
+#ifdef CONFIG_SMP
+/* When we get here, r24 needs to hold the CPU # */
+	.globl __secondary_start
+__secondary_start:
+	lis	r3,__secondary_hold_acknowledge@h
+	ori	r3,r3,__secondary_hold_acknowledge@l
+	stw	r24,0(r3)
+
+	li	r3,0
+	mr	r4,r24		/* Why? */
+	bl	call_setup_cpu
+
+	lis	r3,tlbcam_index@ha
+	lwz	r3,tlbcam_index@l(r3)
+	mtctr	r3
+	li	r26,0		/* r26 safe? */
+
+	/* Load each CAM entry */
+1:	mr	r3,r26
+	bl	loadcam_entry
+	addi	r26,r26,1
+	bdnz	1b
+
+	/* get current_thread_info and current */
+	lis	r1,secondary_ti@ha
+	lwz	r1,secondary_ti@l(r1)
+	lwz	r2,TI_TASK(r1)
+
+	/* stack */
+	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
+	li	r0,0
+	stw	r0,0(r1)
+
+	/* ptr to current thread */
+	addi	r4,r2,THREAD	/* address of our thread_struct */
+	mtspr	SPRN_SPRG3,r4
+
+	/* Setup the defaults for TLB entries */
+	li	r4,(MAS4_TSIZED(BOOKE_PAGESZ_4K))@l
+	mtspr	SPRN_MAS4,r4
+
+	/* Jump to start_secondary */
+	lis	r4,MSR_KERNEL@h
+	ori	r4,r4,MSR_KERNEL@l
+	lis	r3,start_secondary@h
+	ori	r3,r3,start_secondary@l
+	mtspr	SPRN_SRR0,r3
+	mtspr	SPRN_SRR1,r4
+	sync
+	rfi
+	sync
+
+	.globl __secondary_hold_acknowledge
+__secondary_hold_acknowledge:
+	.long	-1
+#endif
 
 /*
  * We put a few things here that have to be page-aligned. This stuff

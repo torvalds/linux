@@ -667,7 +667,7 @@ static int pt_open(struct inode *inode, struct file *file)
 		goto out;
 
 	err = -EROFS;
-	if ((!(tape->flags & PT_WRITE_OK)) && (file->f_mode & 2))
+	if ((!(tape->flags & PT_WRITE_OK)) && (file->f_mode & FMODE_WRITE))
 		goto out;
 
 	if (!(iminor(inode) & 128))
@@ -979,12 +979,10 @@ static int __init pt_init(void)
 
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present) {
-			device_create_drvdata(pt_class, NULL,
-					      MKDEV(major, unit), NULL,
-					      "pt%d", unit);
-			device_create_drvdata(pt_class, NULL,
-					      MKDEV(major, unit + 128), NULL,
-					      "pt%dn", unit);
+			device_create(pt_class, NULL, MKDEV(major, unit), NULL,
+				      "pt%d", unit);
+			device_create(pt_class, NULL, MKDEV(major, unit + 128),
+				      NULL, "pt%dn", unit);
 		}
 	goto out;
 

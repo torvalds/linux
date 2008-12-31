@@ -1,9 +1,10 @@
-menu "Sonics Silicon Backplane"
-
 config SSB_POSSIBLE
 	bool
 	depends on HAS_IOMEM && HAS_DMA
 	default y
+
+menu "Sonics Silicon Backplane"
+	depends on SSB_POSSIBLE
 
 config SSB
 	tristate "Sonics Silicon Backplane support"

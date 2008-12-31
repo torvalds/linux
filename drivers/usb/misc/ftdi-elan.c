@@ -698,7 +698,7 @@ static ssize_t ftdi_elan_read(struct file *file, char __user *buffer,
                 int retval = usb_bulk_msg(ftdi->udev,
                         usb_rcvbulkpipe(ftdi->udev, ftdi->bulk_in_endpointAddr),
                          ftdi->bulk_in_buffer, ftdi->bulk_in_size,
-                        &packet_bytes, msecs_to_jiffies(50));
+                        &packet_bytes, 50);
                 if (packet_bytes > 2) {
                         ftdi->bulk_in_left = packet_bytes - 2;
                         ftdi->bulk_in_last = 1;
@@ -960,7 +960,7 @@ static int ftdi_elan_respond_engine(struct usb_ftdi *ftdi)
                 int retval = usb_bulk_msg(ftdi->udev,
                         usb_rcvbulkpipe(ftdi->udev, ftdi->bulk_in_endpointAddr),
                          ftdi->bulk_in_buffer, ftdi->bulk_in_size,
-                        &packet_bytes, msecs_to_jiffies(500));
+                        &packet_bytes, 500);
                 char diag[30 *3 + 4];
                 char *d = diag;
                 int m = packet_bytes;
@@ -1880,7 +1880,7 @@ static int ftdi_elan_flush_input_fifo(struct usb_ftdi *ftdi)
                 int retval = usb_bulk_msg(ftdi->udev,
                         usb_rcvbulkpipe(ftdi->udev, ftdi->bulk_in_endpointAddr),
                          ftdi->bulk_in_buffer, ftdi->bulk_in_size,
-                        &packet_bytes, msecs_to_jiffies(100));
+                        &packet_bytes, 100);
                 if (packet_bytes > 2) {
                         char diag[30 *3 + 4];
                         char *d = diag;
@@ -2067,7 +2067,7 @@ static int ftdi_elan_synchronize(struct usb_ftdi *ftdi)
                                 usb_rcvbulkpipe(ftdi->udev,
                                 ftdi->bulk_in_endpointAddr),
                                 ftdi->bulk_in_buffer, ftdi->bulk_in_size,
-                                &packet_bytes, msecs_to_jiffies(500));
+                                &packet_bytes, 500);
                         if (packet_bytes > 2) {
                                 char diag[30 *3 + 4];
                                 char *d = diag;
@@ -2176,7 +2176,7 @@ static int ftdi_elan_stuck_waiting(struct usb_ftdi *ftdi)
                 int retval = usb_bulk_msg(ftdi->udev,
                         usb_rcvbulkpipe(ftdi->udev, ftdi->bulk_in_endpointAddr),
                          ftdi->bulk_in_buffer, ftdi->bulk_in_size,
-                        &packet_bytes, msecs_to_jiffies(1000));
+                        &packet_bytes, 1000);
                 if (packet_bytes > 2) {
                         char diag[30 *3 + 4];
                         char *d = diag;

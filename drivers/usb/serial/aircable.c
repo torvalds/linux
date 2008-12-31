@@ -220,8 +220,8 @@ static void aircable_send(struct usb_serial_port *port)
 
 	buf = kzalloc(count + HCI_HEADER_LENGTH, GFP_ATOMIC);
 	if (!buf) {
-		err("%s- kzalloc(%d) failed.", __func__,
-		    count + HCI_HEADER_LENGTH);
+		dev_err(&port->dev, "%s- kzalloc(%d) failed.\n",
+			__func__, count + HCI_HEADER_LENGTH);
 		return;
 	}
 
@@ -276,7 +276,7 @@ static void aircable_read(struct work_struct *work)
 
 	if (!tty) {
 		schedule_work(&priv->rx_work);
-		err("%s - No tty available", __func__);
+		dev_err(&port->dev, "%s - No tty available\n", __func__);
 		return ;
 	}
 
@@ -336,7 +336,7 @@ static int aircable_attach(struct usb_serial *serial)
 
 	priv = kzalloc(sizeof(struct aircable_private), GFP_KERNEL);
 	if (!priv) {
-		err("%s- kmalloc(%Zd) failed.", __func__,
+		dev_err(&port->dev, "%s- kmalloc(%Zd) failed.\n", __func__,
 			sizeof(struct aircable_private));
 		return -ENOMEM;
 	}

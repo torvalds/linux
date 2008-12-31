@@ -59,8 +59,6 @@ static struct ps3av {
 		struct ps3av_reply_hdr reply_hdr;
 		u8 raw[PS3AV_BUF_SIZE];
 	} recv_buf;
-	void (*flip_ctl)(int on, void *data);
-	void *flip_data;
 } *ps3av;
 
 /* color space */
@@ -915,6 +913,22 @@ int ps3av_video_mute(int mute)
 
 EXPORT_SYMBOL_GPL(ps3av_video_mute);
 
+/* mute analog output only */
+int ps3av_audio_mute_analog(int mute)
+{
+	int i, res;
+
+	for (i = 0; i < ps3av->av_hw_conf.num_of_avmulti; i++) {
+		res = ps3av_cmd_av_audio_mute(1,
+			&ps3av->av_port[i + ps3av->av_hw_conf.num_of_hdmi],
+			mute);
+		if (res < 0)
+			return -1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ps3av_audio_mute_analog);
+
 int ps3av_audio_mute(int mute)
 {
 	return ps3av_set_audio_mute(mute ? PS3AV_CMD_MUTE_ON
@@ -922,24 +936,6 @@ int ps3av_audio_mute(int mute)
 }
 
 EXPORT_SYMBOL_GPL(ps3av_audio_mute);
-
-void ps3av_register_flip_ctl(void (*flip_ctl)(int on, void *data),
-			     void *flip_data)
-{
-	mutex_lock(&ps3av->mutex);
-	ps3av->flip_ctl = flip_ctl;
-	ps3av->flip_data = flip_data;
-	mutex_unlock(&ps3av->mutex);
-}
-EXPORT_SYMBOL_GPL(ps3av_register_flip_ctl);
-
-void ps3av_flip_ctl(int on)
-{
-	mutex_lock(&ps3av->mutex);
-	if (ps3av->flip_ctl)
-		ps3av->flip_ctl(on, ps3av->flip_data);
-	mutex_unlock(&ps3av->mutex);
-}
 
 static int ps3av_probe(struct ps3_system_bus_device *dev)
 {

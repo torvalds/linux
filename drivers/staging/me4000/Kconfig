@@ -1,0 +1,10 @@
+config ME4000
+	tristate "Meilhaus ME-4000 support"
+	default n
+	depends on PCI
+	help
+	  This driver supports the Meilhaus ME-4000 family of boards
+	  that do data collection and multipurpose I/O.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called me4000.

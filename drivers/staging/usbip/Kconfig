@@ -1,0 +1,36 @@
+config USB_IP_COMMON
+	tristate "USB IP support (EXPERIMENTAL)"
+	depends on USB && NET && EXPERIMENTAL
+	default N
+	---help---
+	  This enables pushing USB packets over IP to allow remote
+	  machines access to USB devices directly.  For more details,
+	  and links to the userspace utility programs to let this work
+	  properly, see http://usbip.naist.jp/
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbip_common_mod.
+
+	  If unsure, say N.
+
+config USB_IP_VHCI_HCD
+	tristate "USB IP client driver"
+	depends on USB_IP_COMMON
+	default N
+	---help---
+	 This enables the USB IP host controller driver which will
+	 run on the client machine.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called vhci_hcd.
+
+config USB_IP_HOST
+	tristate "USB IP host driver"
+	depends on USB_IP_COMMON
+	default N
+	---help---
+	 This enables the USB IP device driver which will run on the
+	 host machine.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called usbip.

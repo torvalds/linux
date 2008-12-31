@@ -10,7 +10,6 @@
  * Copyright (C) 2003, 06 Ralf Baechle (ralf@linux-mips.org)
  */
 #include <linux/bcd.h>
-#include <linux/ds1286.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -28,69 +27,6 @@
 #include <asm/sgi/ioc.h>
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ip22.h>
-
-/*
- * Note that mktime uses month from 1 to 12 while rtc_time_to_tm
- * uses 0 to 11.
- */
-unsigned long read_persistent_clock(void)
-{
-	unsigned int yrs, mon, day, hrs, min, sec;
-	unsigned int save_control;
-	unsigned long flags;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	save_control = hpc3c0->rtcregs[RTC_CMD] & 0xff;
-	hpc3c0->rtcregs[RTC_CMD] = save_control | RTC_TE;
-
-	sec = BCD2BIN(hpc3c0->rtcregs[RTC_SECONDS] & 0xff);
-	min = BCD2BIN(hpc3c0->rtcregs[RTC_MINUTES] & 0xff);
-	hrs = BCD2BIN(hpc3c0->rtcregs[RTC_HOURS] & 0x3f);
-	day = BCD2BIN(hpc3c0->rtcregs[RTC_DATE] & 0xff);
-	mon = BCD2BIN(hpc3c0->rtcregs[RTC_MONTH] & 0x1f);
-	yrs = BCD2BIN(hpc3c0->rtcregs[RTC_YEAR] & 0xff);
-
-	hpc3c0->rtcregs[RTC_CMD] = save_control;
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	if (yrs < 45)
-		yrs += 30;
-	if ((yrs += 40) < 70)
-		yrs += 100;
-
-	return mktime(yrs + 1900, mon, day, hrs, min, sec);
-}
-
-int rtc_mips_set_time(unsigned long tim)
-{
-	struct rtc_time tm;
-	unsigned int save_control;
-	unsigned long flags;
-
-	rtc_time_to_tm(tim, &tm);
-
-	tm.tm_mon += 1;		/* tm_mon starts at zero */
-	tm.tm_year -= 40;
-	if (tm.tm_year >= 100)
-		tm.tm_year -= 100;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	save_control = hpc3c0->rtcregs[RTC_CMD] & 0xff;
-	hpc3c0->rtcregs[RTC_CMD] = save_control | RTC_TE;
-
-	hpc3c0->rtcregs[RTC_YEAR] = BIN2BCD(tm.tm_year);
-	hpc3c0->rtcregs[RTC_MONTH] = BIN2BCD(tm.tm_mon);
-	hpc3c0->rtcregs[RTC_DATE] = BIN2BCD(tm.tm_mday);
-	hpc3c0->rtcregs[RTC_HOURS] = BIN2BCD(tm.tm_hour);
-	hpc3c0->rtcregs[RTC_MINUTES] = BIN2BCD(tm.tm_min);
-	hpc3c0->rtcregs[RTC_SECONDS] = BIN2BCD(tm.tm_sec);
-	hpc3c0->rtcregs[RTC_HUNDREDTH_SECOND] = 0;
-
-	hpc3c0->rtcregs[RTC_CMD] = save_control;
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	return 0;
-}
 
 static unsigned long dosample(void)
 {

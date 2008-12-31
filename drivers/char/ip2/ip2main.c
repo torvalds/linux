@@ -745,12 +745,12 @@ static int __init ip2_loadmain(void)
 
 		pB = i2BoardPtrTable[i];
 		if (pB != NULL) {
-			device_create_drvdata(ip2_class, NULL,
-					      MKDEV(IP2_IPL_MAJOR, 4 * i),
-					      NULL, "ipl%d", i);
-			device_create_drvdata(ip2_class, NULL,
-					      MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
-					      NULL, "stat%d", i);
+			device_create(ip2_class, NULL,
+				      MKDEV(IP2_IPL_MAJOR, 4 * i),
+				      NULL, "ipl%d", i);
+			device_create(ip2_class, NULL,
+				      MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
+				      NULL, "stat%d", i);
 
 			for (box = 0; box < ABS_MAX_BOXES; box++)
 				for (j = 0; j < ABS_BIGGEST_BOX; j++)

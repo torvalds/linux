@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/cryptohash.h>
 #include <linux/delay.h>
@@ -115,6 +116,8 @@ EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(__strncpy_from_user);
 
 #ifdef CONFIG_MMU
+EXPORT_SYMBOL(copy_page);
+
 EXPORT_SYMBOL(__copy_from_user);
 EXPORT_SYMBOL(__copy_to_user);
 EXPORT_SYMBOL(__clear_user);
@@ -181,8 +184,6 @@ EXPORT_SYMBOL(_find_first_bit_be);
 EXPORT_SYMBOL(_find_next_bit_be);
 #endif
 
-EXPORT_SYMBOL(copy_page);
-
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 EXPORT_SYMBOL(mcount);
 #endif

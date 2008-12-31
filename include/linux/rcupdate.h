@@ -52,11 +52,15 @@ struct rcu_head {
 	void (*func)(struct rcu_head *head);
 };
 
-#ifdef CONFIG_CLASSIC_RCU
+#if defined(CONFIG_CLASSIC_RCU)
 #include <linux/rcuclassic.h>
-#else /* #ifdef CONFIG_CLASSIC_RCU */
+#elif defined(CONFIG_TREE_RCU)
+#include <linux/rcutree.h>
+#elif defined(CONFIG_PREEMPT_RCU)
 #include <linux/rcupreempt.h>
-#endif /* #else #ifdef CONFIG_CLASSIC_RCU */
+#else
+#error "Unknown RCU implementation specified to kernel configuration"
+#endif /* #else #if defined(CONFIG_CLASSIC_RCU) */
 
 #define RCU_HEAD_INIT 	{ .next = NULL, .func = NULL }
 #define RCU_HEAD(head) struct rcu_head head = RCU_HEAD_INIT
@@ -142,6 +146,7 @@ struct rcu_head {
  * on the write-side to insure proper synchronization.
  */
 #define rcu_read_lock_sched() preempt_disable()
+#define rcu_read_lock_sched_notrace() preempt_disable_notrace()
 
 /*
  * rcu_read_unlock_sched - marks the end of a RCU-classic critical section
@@ -149,6 +154,7 @@ struct rcu_head {
  * See rcu_read_lock_sched for more information.
  */
 #define rcu_read_unlock_sched() preempt_enable()
+#define rcu_read_unlock_sched_notrace() preempt_enable_notrace()
 
 
 

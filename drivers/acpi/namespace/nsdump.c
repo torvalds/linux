@@ -43,7 +43,6 @@
 
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
-#include <acpi/acparser.h>
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsdump")
@@ -334,9 +333,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		case ACPI_TYPE_LOCAL_REFERENCE:
 
 			acpi_os_printf("[%s]\n",
-				       acpi_ps_get_opcode_name(obj_desc->
-							       reference.
-							       opcode));
+				       acpi_ut_get_reference_name(obj_desc));
 			break;
 
 		case ACPI_TYPE_BUFFER_FIELD:

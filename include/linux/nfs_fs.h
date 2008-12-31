@@ -83,7 +83,7 @@ struct nfs_open_context {
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
 	fl_owner_t lockowner;
-	int mode;
+	fmode_t mode;
 
 	unsigned long flags;
 #define NFS_CONTEXT_ERROR_WRITE		(0)
@@ -130,14 +130,17 @@ struct nfs_inode {
 	 *
 	 * We need to revalidate the cached attrs for this inode if
 	 *
-	 *	jiffies - read_cache_jiffies > attrtimeo
+	 *	jiffies - read_cache_jiffies >= attrtimeo
+	 *
+	 * Please note the comparison is greater than or equal
+	 * so that zero timeout values can be specified.
 	 */
 	unsigned long		read_cache_jiffies;
 	unsigned long		attrtimeo;
 	unsigned long		attrtimeo_timestamp;
 	__u64			change_attr;		/* v4 only */
 
-	unsigned long		last_updated;
+	unsigned long		attr_gencount;
 	/* "Generation counter" for the attribute cache. This is
 	 * bumped whenever we update the metadata on the
 	 * server.
@@ -180,7 +183,7 @@ struct nfs_inode {
         /* NFSv4 state */
 	struct list_head	open_states;
 	struct nfs_delegation	*delegation;
-	int			 delegation_state;
+	fmode_t			 delegation_state;
 	struct rw_semaphore	rwsem;
 #endif /* CONFIG_NFS_V4*/
 	struct inode		vfs_inode;
@@ -200,11 +203,10 @@ struct nfs_inode {
 /*
  * Bit offsets in flags field
  */
-#define NFS_INO_REVALIDATING	(0)		/* revalidating attrs */
-#define NFS_INO_ADVISE_RDPLUS	(1)		/* advise readdirplus */
-#define NFS_INO_STALE		(2)		/* possible stale inode */
-#define NFS_INO_ACL_LRU_SET	(3)		/* Inode is on the LRU list */
-#define NFS_INO_MOUNTPOINT	(4)		/* inode is remote mountpoint */
+#define NFS_INO_ADVISE_RDPLUS	(0)		/* advise readdirplus */
+#define NFS_INO_STALE		(1)		/* possible stale inode */
+#define NFS_INO_ACL_LRU_SET	(2)		/* Inode is on the LRU list */
+#define NFS_INO_MOUNTPOINT	(3)		/* inode is remote mountpoint */
 
 static inline struct nfs_inode *NFS_I(const struct inode *inode)
 {
@@ -343,17 +345,13 @@ extern int nfs_setattr(struct dentry *, struct iattr *);
 extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
-extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, int mode);
+extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, fmode_t mode);
 extern u64 nfs_compat_user_ino64(u64 fileid);
+extern void nfs_fattr_init(struct nfs_fattr *fattr);
 
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern __be32 root_nfs_parse_addr(char *name); /*__init*/
-
-static inline void nfs_fattr_init(struct nfs_fattr *fattr)
-{
-	fattr->valid = 0;
-	fattr->time_start = jiffies;
-}
+extern unsigned long nfs_inc_attr_generation_counter(void);
 
 /*
  * linux/fs/nfs/file.c
@@ -372,8 +370,12 @@ static inline struct nfs_open_context *nfs_file_open_context(struct file *filp)
 
 static inline struct rpc_cred *nfs_file_cred(struct file *file)
 {
-	if (file != NULL)
-		return nfs_file_open_context(file)->cred;
+	if (file != NULL) {
+		struct nfs_open_context *ctx =
+			nfs_file_open_context(file);
+		if (ctx)
+			return ctx->cred;
+	}
 	return NULL;
 }
 
@@ -532,12 +534,6 @@ static inline void nfs3_forget_cached_acls(struct inode *inode)
 {
 }
 #endif /* CONFIG_NFS_V3_ACL */
-
-/*
- * linux/fs/mount_clnt.c
- */
-extern int  nfs_mount(struct sockaddr *, size_t, char *, char *,
-		      int, int, struct nfs_fh *);
 
 /*
  * inline functions

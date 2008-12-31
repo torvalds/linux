@@ -399,11 +399,11 @@ static int pppoe_rcv(struct sk_buff *skb,
 	if (skb->len < len)
 		goto drop;
 
-	po = get_item(ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
-	if (!po)
+	if (pskb_trim_rcsum(skb, len))
 		goto drop;
 
-	if (pskb_trim_rcsum(skb, len))
+	po = get_item(ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
+	if (!po)
 		goto drop;
 
 	return sk_receive_skb(sk_pppox(po), skb, 0);
@@ -958,7 +958,6 @@ static int pppoe_seq_show(struct seq_file *seq, void *v)
 {
 	struct pppox_sock *po;
 	char *dev_name;
-	DECLARE_MAC_BUF(mac);
 
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq, "Id       Address              Device\n");
@@ -968,8 +967,8 @@ static int pppoe_seq_show(struct seq_file *seq, void *v)
 	po = v;
 	dev_name = po->pppoe_pa.dev;
 
-	seq_printf(seq, "%08X %s %8s\n",
-		   po->pppoe_pa.sid, print_mac(mac, po->pppoe_pa.remote), dev_name);
+	seq_printf(seq, "%08X %pM %8s\n",
+		   po->pppoe_pa.sid, po->pppoe_pa.remote, dev_name);
 out:
 	return 0;
 }

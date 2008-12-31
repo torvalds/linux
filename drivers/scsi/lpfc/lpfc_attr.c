@@ -32,6 +32,7 @@
 
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
 #include "lpfc.h"
@@ -49,6 +50,21 @@
 #define LPFC_LINK_SPEED_BITMAP 0x00000117
 #define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8"
 
+/**
+ * lpfc_jedec_to_ascii: Hex to ascii convertor according to JEDEC rules.
+ * @incr: integer to convert.
+ * @hdw: ascii string holding converted integer plus a string terminator.
+ *
+ * Description:
+ * JEDEC Joint Electron Device Engineering Council.
+ * Convert a 32 bit integer composed of 8 nibbles into an 8 byte ascii
+ * character string. The string is then terminated with a NULL in byte 9.
+ * Hex 0-9 becomes ascii '0' to '9'.
+ * Hex a-f becomes ascii '=' to 'B' capital B.
+ *
+ * Notes:
+ * Coded for 32 bit integers only.
+ **/
 static void
 lpfc_jedec_to_ascii(int incr, char hdw[])
 {
@@ -65,6 +81,14 @@ lpfc_jedec_to_ascii(int incr, char hdw[])
 	return;
 }
 
+/**
+ * lpfc_drvr_version_show: Return the Emulex driver string with version number.
+ * @dev: class unused variable.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the module description text.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_drvr_version_show(struct device *dev, struct device_attribute *attr,
 		       char *buf)
@@ -72,6 +96,69 @@ lpfc_drvr_version_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, LPFC_MODULE_DESC "\n");
 }
 
+static ssize_t
+lpfc_bg_info_show(struct device *dev, struct device_attribute *attr,
+		  char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	if (phba->cfg_enable_bg)
+		if (phba->sli3_options & LPFC_SLI3_BG_ENABLED)
+			return snprintf(buf, PAGE_SIZE, "BlockGuard Enabled\n");
+		else
+			return snprintf(buf, PAGE_SIZE,
+					"BlockGuard Not Supported\n");
+	else
+			return snprintf(buf, PAGE_SIZE,
+					"BlockGuard Disabled\n");
+}
+
+static ssize_t
+lpfc_bg_guard_err_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)phba->bg_guard_err_cnt);
+}
+
+static ssize_t
+lpfc_bg_apptag_err_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)phba->bg_apptag_err_cnt);
+}
+
+static ssize_t
+lpfc_bg_reftag_err_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)phba->bg_reftag_err_cnt);
+}
+
+/**
+ * lpfc_info_show: Return some pci info about the host in ascii.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the formatted text from lpfc_info().
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_info_show(struct device *dev, struct device_attribute *attr,
 	       char *buf)
@@ -81,6 +168,14 @@ lpfc_info_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n",lpfc_info(host));
 }
 
+/**
+ * lpfc_serialnum_show: Return the hba serial number in ascii.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the formatted text serial number.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_serialnum_show(struct device *dev, struct device_attribute *attr,
 		    char *buf)
@@ -92,6 +187,18 @@ lpfc_serialnum_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n",phba->SerialNumber);
 }
 
+/**
+ * lpfc_temp_sensor_show: Return the temperature sensor level.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the formatted support level.
+ *
+ * Description:
+ * Returns a number indicating the temperature sensor level currently
+ * supported, zero or one in ascii.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_temp_sensor_show(struct device *dev, struct device_attribute *attr,
 		      char *buf)
@@ -102,6 +209,14 @@ lpfc_temp_sensor_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%d\n",phba->temp_sensor_support);
 }
 
+/**
+ * lpfc_modeldesc_show: Return the model description of the hba.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the scsi vpd model description.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_modeldesc_show(struct device *dev, struct device_attribute *attr,
 		    char *buf)
@@ -113,6 +228,14 @@ lpfc_modeldesc_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n",phba->ModelDesc);
 }
 
+/**
+ * lpfc_modelname_show: Return the model name of the hba.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the scsi vpd model name.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_modelname_show(struct device *dev, struct device_attribute *attr,
 		    char *buf)
@@ -124,6 +247,14 @@ lpfc_modelname_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n",phba->ModelName);
 }
 
+/**
+ * lpfc_programtype_show: Return the program type of the hba.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the scsi vpd program type.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_programtype_show(struct device *dev, struct device_attribute *attr,
 		      char *buf)
@@ -135,6 +266,33 @@ lpfc_programtype_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n",phba->ProgramType);
 }
 
+/**
+ * lpfc_mlomgmt_show: Return the Menlo Maintenance sli flag.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the Menlo Maintenance sli flag.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_mlomgmt_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		(phba->sli.sli_flag & LPFC_MENLO_MAINT));
+}
+
+/**
+ * lpfc_vportnum_show: Return the port number in ascii of the hba.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains scsi vpd program type.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_vportnum_show(struct device *dev, struct device_attribute *attr,
 		   char *buf)
@@ -146,6 +304,14 @@ lpfc_vportnum_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n",phba->Port);
 }
 
+/**
+ * lpfc_fwrev_show: Return the firmware rev running in the hba.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the scsi vpd program type.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_fwrev_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -159,6 +325,14 @@ lpfc_fwrev_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s, sli-%d\n", fwrev, phba->sli_rev);
 }
 
+/**
+ * lpfc_hdw_show: Return the jedec information about the hba.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the scsi vpd program type.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_hdw_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -171,6 +345,15 @@ lpfc_hdw_show(struct device *dev, struct device_attribute *attr, char *buf)
 	lpfc_jedec_to_ascii(vp->rev.biuRev, hdw);
 	return snprintf(buf, PAGE_SIZE, "%s\n", hdw);
 }
+
+/**
+ * lpfc_option_rom_version_show: Return the adapter ROM FCode version.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the ROM and FCode ascii strings.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_option_rom_version_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -181,6 +364,18 @@ lpfc_option_rom_version_show(struct device *dev, struct device_attribute *attr,
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", phba->OptionROMVersion);
 }
+
+/**
+ * lpfc_state_show: Return the link state of the port.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains text describing the state of the link.
+ *
+ * Notes:
+ * The switch statement has no default so zero will be returned.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
@@ -232,8 +427,10 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 					"Unknown\n");
 			break;
 		}
-
-		if (phba->fc_topology == TOPOLOGY_LOOP) {
+		if (phba->sli.sli_flag & LPFC_MENLO_MAINT)
+			len += snprintf(buf + len, PAGE_SIZE-len,
+					"   Menlo Maint Mode\n");
+		else if (phba->fc_topology == TOPOLOGY_LOOP) {
 			if (vport->fc_flag & FC_PUBLIC_LOOP)
 				len += snprintf(buf + len, PAGE_SIZE-len,
 						"   Public Loop\n");
@@ -253,6 +450,18 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 	return len;
 }
 
+/**
+ * lpfc_num_discovered_ports_show: Return sum of mapped and unmapped vports.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the sum of fc mapped and unmapped.
+ *
+ * Description:
+ * Returns the ascii text number of the sum of the fc mapped and unmapped
+ * vport counts.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_num_discovered_ports_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
@@ -264,7 +473,20 @@ lpfc_num_discovered_ports_show(struct device *dev,
 			vport->fc_map_cnt + vport->fc_unmap_cnt);
 }
 
-
+/**
+ * lpfc_issue_lip: Misnomer, name carried over from long ago.
+ * @shost: Scsi_Host pointer.
+ *
+ * Description:
+ * Bring the link down gracefully then re-init the link. The firmware will
+ * re-init the fiber channel interface as required. Does not issue a LIP.
+ *
+ * Returns:
+ * -EPERM port offline or management commands are being blocked
+ * -ENOMEM cannot allocate memory for the mailbox command
+ * -EIO error sending the mailbox command
+ * zero for success
+ **/
 static int
 lpfc_issue_lip(struct Scsi_Host *shost)
 {
@@ -306,6 +528,21 @@ lpfc_issue_lip(struct Scsi_Host *shost)
 	return 0;
 }
 
+/**
+ * lpfc_do_offline: Issues a mailbox command to bring the link down.
+ * @phba: lpfc_hba pointer.
+ * @type: LPFC_EVT_OFFLINE, LPFC_EVT_WARM_START, LPFC_EVT_KILL.
+ *
+ * Notes:
+ * Assumes any error from lpfc_do_offline() will be negative.
+ * Can wait up to 5 seconds for the port ring buffers count
+ * to reach zero, prints a warning if it is not zero and continues.
+ * lpfc_workq_post_event() returns a non-zero return coce if call fails.
+ *
+ * Returns:
+ * -EIO error posting the event
+ * zero for success
+ **/
 static int
 lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 {
@@ -353,6 +590,22 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 	return 0;
 }
 
+/**
+ * lpfc_selective_reset: Offline then onlines the port.
+ * @phba: lpfc_hba pointer.
+ *
+ * Description:
+ * If the port is configured to allow a reset then the hba is brought
+ * offline then online.
+ *
+ * Notes:
+ * Assumes any error from lpfc_do_offline() will be negative.
+ *
+ * Returns:
+ * lpfc_do_offline() return code if not zero
+ * -EIO reset not configured or error posting the event
+ * zero for success
+ **/
 static int
 lpfc_selective_reset(struct lpfc_hba *phba)
 {
@@ -378,6 +631,27 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 	return 0;
 }
 
+/**
+ * lpfc_issue_reset: Selectively resets an adapter.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: containing the string "selective".
+ * @count: unused variable.
+ *
+ * Description:
+ * If the buf contains the string "selective" then lpfc_selective_reset()
+ * is called to perform the reset.
+ *
+ * Notes:
+ * Assumes any error from lpfc_selective_reset() will be negative.
+ * If lpfc_selective_reset() returns zero then the length of the buffer
+ * is returned which indicates succcess
+ *
+ * Returns:
+ * -EINVAL if the buffer does not contain the string "selective"
+ * length of buf if lpfc-selective_reset() if the call succeeds
+ * return value of lpfc_selective_reset() if the call fails
+**/
 static ssize_t
 lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 		 const char *buf, size_t count)
@@ -397,6 +671,14 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 		return status;
 }
 
+/**
+ * lpfc_nport_evt_cnt_show: Return the number of nport events.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the ascii number of nport events.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_nport_evt_cnt_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
@@ -408,6 +690,14 @@ lpfc_nport_evt_cnt_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%d\n", phba->nport_event_cnt);
 }
 
+/**
+ * lpfc_board_mode_show: Return the state of the board.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the state of the adapter.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_board_mode_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
@@ -429,6 +719,19 @@ lpfc_board_mode_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n", state);
 }
 
+/**
+ * lpfc_board_mode_store: Puts the hba in online, offline, warm or error state.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: containing one of the strings "online", "offline", "warm" or "error".
+ * @count: unused variable.
+ *
+ * Returns:
+ * -EACCES if enable hba reset not enabled
+ * -EINVAL if the buffer does not contain a valid string (see above)
+ * -EIO if lpfc_workq_post_event() or lpfc_do_offline() fails
+ * buf length greater than zero indicates success
+ **/
 static ssize_t
 lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 		      const char *buf, size_t count)
@@ -462,6 +765,24 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 		return -EIO;
 }
 
+/**
+ * lpfc_get_hba_info: Return various bits of informaton about the adapter.
+ * @phba: pointer to the adapter structure.
+ * @mxri max xri count.
+ * @axri available xri count.
+ * @mrpi max rpi count.
+ * @arpi available rpi count.
+ * @mvpi max vpi count.
+ * @avpi available vpi count.
+ *
+ * Description:
+ * If an integer pointer for an count is not null then the value for the
+ * count is returned.
+ *
+ * Returns:
+ * zero on error
+ * one for success
+ **/
 static int
 lpfc_get_hba_info(struct lpfc_hba *phba,
 		  uint32_t *mxri, uint32_t *axri,
@@ -524,6 +845,20 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 	return 1;
 }
 
+/**
+ * lpfc_max_rpi_show: Return maximum rpi.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the maximum rpi count in decimal or "Unknown".
+ *
+ * Description:
+ * Calls lpfc_get_hba_info() asking for just the mrpi count.
+ * If lpfc_get_hba_info() returns zero (failure) the buffer text is set
+ * to "Unknown" and the buffer length is returned, therefore the caller
+ * must check for "Unknown" in the buffer to detect a failure.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_max_rpi_show(struct device *dev, struct device_attribute *attr,
 		  char *buf)
@@ -538,6 +873,20 @@ lpfc_max_rpi_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "Unknown\n");
 }
 
+/**
+ * lpfc_used_rpi_show: Return maximum rpi minus available rpi.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: containing the used rpi count in decimal or "Unknown".
+ *
+ * Description:
+ * Calls lpfc_get_hba_info() asking for just the mrpi and arpi counts.
+ * If lpfc_get_hba_info() returns zero (failure) the buffer text is set
+ * to "Unknown" and the buffer length is returned, therefore the caller
+ * must check for "Unknown" in the buffer to detect a failure.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_used_rpi_show(struct device *dev, struct device_attribute *attr,
 		   char *buf)
@@ -552,6 +901,20 @@ lpfc_used_rpi_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "Unknown\n");
 }
 
+/**
+ * lpfc_max_xri_show: Return maximum xri.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the maximum xri count in decimal or "Unknown".
+ *
+ * Description:
+ * Calls lpfc_get_hba_info() asking for just the mrpi count.
+ * If lpfc_get_hba_info() returns zero (failure) the buffer text is set
+ * to "Unknown" and the buffer length is returned, therefore the caller
+ * must check for "Unknown" in the buffer to detect a failure.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_max_xri_show(struct device *dev, struct device_attribute *attr,
 		  char *buf)
@@ -566,6 +929,20 @@ lpfc_max_xri_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "Unknown\n");
 }
 
+/**
+ * lpfc_used_xri_show: Return maximum xpi minus the available xpi.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the used xri count in decimal or "Unknown".
+ *
+ * Description:
+ * Calls lpfc_get_hba_info() asking for just the mxri and axri counts.
+ * If lpfc_get_hba_info() returns zero (failure) the buffer text is set
+ * to "Unknown" and the buffer length is returned, therefore the caller
+ * must check for "Unknown" in the buffer to detect a failure.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_used_xri_show(struct device *dev, struct device_attribute *attr,
 		   char *buf)
@@ -580,6 +957,20 @@ lpfc_used_xri_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "Unknown\n");
 }
 
+/**
+ * lpfc_max_vpi_show: Return maximum vpi.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the maximum vpi count in decimal or "Unknown".
+ *
+ * Description:
+ * Calls lpfc_get_hba_info() asking for just the mvpi count.
+ * If lpfc_get_hba_info() returns zero (failure) the buffer text is set
+ * to "Unknown" and the buffer length is returned, therefore the caller
+ * must check for "Unknown" in the buffer to detect a failure.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_max_vpi_show(struct device *dev, struct device_attribute *attr,
 		  char *buf)
@@ -594,6 +985,20 @@ lpfc_max_vpi_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "Unknown\n");
 }
 
+/**
+ * lpfc_used_vpi_show: Return maximum vpi minus the available vpi.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the used vpi count in decimal or "Unknown".
+ *
+ * Description:
+ * Calls lpfc_get_hba_info() asking for just the mvpi and avpi counts.
+ * If lpfc_get_hba_info() returns zero (failure) the buffer text is set
+ * to "Unknown" and the buffer length is returned, therefore the caller
+ * must check for "Unknown" in the buffer to detect a failure.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_used_vpi_show(struct device *dev, struct device_attribute *attr,
 		   char *buf)
@@ -608,6 +1013,19 @@ lpfc_used_vpi_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "Unknown\n");
 }
 
+/**
+ * lpfc_npiv_info_show: Return text about NPIV support for the adapter.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: text that must be interpreted to determine if npiv is supported.
+ *
+ * Description:
+ * Buffer will contain text indicating npiv is not suppoerted on the port,
+ * the port is an NPIV physical port, or it is an npiv virtual port with
+ * the id of the vport.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_npiv_info_show(struct device *dev, struct device_attribute *attr,
 		    char *buf)
@@ -623,6 +1041,17 @@ lpfc_npiv_info_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "NPIV Virtual (VPI %d)\n", vport->vpi);
 }
 
+/**
+ * lpfc_poll_show: Return text about poll support for the adapter.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the cfg_poll in hex.
+ *
+ * Notes:
+ * cfg_poll should be a lpfc_polling_flags type.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_poll_show(struct device *dev, struct device_attribute *attr,
 	       char *buf)
@@ -634,6 +1063,20 @@ lpfc_poll_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%#x\n", phba->cfg_poll);
 }
 
+/**
+ * lpfc_poll_store: Set the value of cfg_poll for the adapter.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: one or more lpfc_polling_flags values.
+ * @count: not used.
+ *
+ * Notes:
+ * buf contents converted to integer and checked for a valid value.
+ *
+ * Returns:
+ * -EINVAL if the buffer connot be converted or is out of range
+ * length of the buf on success
+ **/
 static ssize_t
 lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
@@ -692,6 +1135,20 @@ lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 	return strlen(buf);
 }
 
+/**
+ * lpfc_param_show: Return a cfg attribute value in decimal.
+ *
+ * Description:
+ * Macro that given an attr e.g. hba_queue_depth expands
+ * into a function with the name lpfc_hba_queue_depth_show.
+ *
+ * lpfc_##attr##_show: Return the decimal value of an adapters cfg_xxx field.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the attribute value in decimal.
+ *
+ * Returns: size of formatted string.
+ **/
 #define lpfc_param_show(attr)	\
 static ssize_t \
 lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
@@ -706,6 +1163,20 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 			phba->cfg_##attr);\
 }
 
+/**
+ * lpfc_param_hex_show: Return a cfg attribute value in hex.
+ *
+ * Description:
+ * Macro that given an attr e.g. hba_queue_depth expands
+ * into a function with the name lpfc_hba_queue_depth_show
+ *
+ * lpfc_##attr##_show: Return the hex value of an adapters cfg_xxx field.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the attribute value in hexidecimal.
+ *
+ * Returns: size of formatted string.
+ **/
 #define lpfc_param_hex_show(attr)	\
 static ssize_t \
 lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
@@ -720,6 +1191,25 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 			phba->cfg_##attr);\
 }
 
+/**
+ * lpfc_param_init: Intializes a cfg attribute.
+ *
+ * Description:
+ * Macro that given an attr e.g. hba_queue_depth expands
+ * into a function with the name lpfc_hba_queue_depth_init. The macro also
+ * takes a default argument, a minimum and maximum argument.
+ *
+ * lpfc_##attr##_init: Initializes an attribute.
+ * @phba: pointer the the adapter structure.
+ * @val: integer attribute value.
+ *
+ * Validates the min and max values then sets the adapter config field
+ * accordingly, or uses the default if out of range and prints an error message.
+ *
+ * Returns:
+ * zero on success
+ * -EINVAL if default used
+ **/
 #define lpfc_param_init(attr, default, minval, maxval)	\
 static int \
 lpfc_##attr##_init(struct lpfc_hba *phba, int val) \
@@ -735,6 +1225,26 @@ lpfc_##attr##_init(struct lpfc_hba *phba, int val) \
 	return -EINVAL;\
 }
 
+/**
+ * lpfc_param_set: Set a cfg attribute value.
+ *
+ * Description:
+ * Macro that given an attr e.g. hba_queue_depth expands
+ * into a function with the name lpfc_hba_queue_depth_set
+ *
+ * lpfc_##attr##_set: Sets an attribute value.
+ * @phba: pointer the the adapter structure.
+ * @val: integer attribute value.
+ *
+ * Description:
+ * Validates the min and max values then sets the
+ * adapter config field if in the valid range. prints error message
+ * and does not set the parameter if invalid.
+ *
+ * Returns:
+ * zero on success
+ * -EINVAL if val is invalid
+ **/
 #define lpfc_param_set(attr, default, minval, maxval)	\
 static int \
 lpfc_##attr##_set(struct lpfc_hba *phba, int val) \
@@ -749,6 +1259,27 @@ lpfc_##attr##_set(struct lpfc_hba *phba, int val) \
 	return -EINVAL;\
 }
 
+/**
+ * lpfc_param_store: Set a vport attribute value.
+ *
+ * Description:
+ * Macro that given an attr e.g. hba_queue_depth expands
+ * into a function with the name lpfc_hba_queue_depth_store.
+ *
+ * lpfc_##attr##_store: Set an sttribute value.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: contains the attribute value in ascii.
+ * @count: not used.
+ *
+ * Description:
+ * Convert the ascii text number to an integer, then
+ * use the lpfc_##attr##_set function to set the value.
+ *
+ * Returns:
+ * -EINVAL if val is invalid or lpfc_##attr##_set() fails
+ * length of buffer upon success.
+ **/
 #define lpfc_param_store(attr)	\
 static ssize_t \
 lpfc_##attr##_store(struct device *dev, struct device_attribute *attr, \
@@ -768,6 +1299,20 @@ lpfc_##attr##_store(struct device *dev, struct device_attribute *attr, \
 		return -EINVAL;\
 }
 
+/**
+ * lpfc_vport_param_show: Return decimal formatted cfg attribute value.
+ *
+ * Description:
+ * Macro that given an attr e.g. hba_queue_depth expands
+ * into a function with the name lpfc_hba_queue_depth_show
+ *
+ * lpfc_##attr##_show: prints the attribute value in decimal.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the attribute value in decimal.
+ *
+ * Returns: length of formatted string.
+ **/
 #define lpfc_vport_param_show(attr)	\
 static ssize_t \
 lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
@@ -780,6 +1325,21 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 	return snprintf(buf, PAGE_SIZE, "%d\n", vport->cfg_##attr);\
 }
 
+/**
+ * lpfc_vport_param_hex_show: Return hex formatted attribute value.
+ *
+ * Description:
+ * Macro that given an attr e.g.
+ * hba_queue_depth expands into a function with the name
+ * lpfc_hba_queue_depth_show
+ *
+ * lpfc_##attr##_show: prints the attribute value in hexidecimal.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the attribute value in hexidecimal.
+ *
+ * Returns: length of formatted string.
+ **/
 #define lpfc_vport_param_hex_show(attr)	\
 static ssize_t \
 lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
@@ -792,6 +1352,24 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 	return snprintf(buf, PAGE_SIZE, "%#x\n", vport->cfg_##attr);\
 }
 
+/**
+ * lpfc_vport_param_init: Initialize a vport cfg attribute.
+ *
+ * Description:
+ * Macro that given an attr e.g. hba_queue_depth expands
+ * into a function with the name lpfc_hba_queue_depth_init. The macro also
+ * takes a default argument, a minimum and maximum argument.
+ *
+ * lpfc_##attr##_init: validates the min and max values then sets the
+ * adapter config field accordingly, or uses the default if out of range
+ * and prints an error message.
+ * @phba: pointer the the adapter structure.
+ * @val: integer attribute value.
+ *
+ * Returns:
+ * zero on success
+ * -EINVAL if default used
+ **/
 #define lpfc_vport_param_init(attr, default, minval, maxval)	\
 static int \
 lpfc_##attr##_init(struct lpfc_vport *vport, int val) \
@@ -801,12 +1379,29 @@ lpfc_##attr##_init(struct lpfc_vport *vport, int val) \
 		return 0;\
 	}\
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
-			 "0449 lpfc_"#attr" attribute cannot be set to %d, "\
+			 "0423 lpfc_"#attr" attribute cannot be set to %d, "\
 			 "allowed range is ["#minval", "#maxval"]\n", val); \
 	vport->cfg_##attr = default;\
 	return -EINVAL;\
 }
 
+/**
+ * lpfc_vport_param_set: Set a vport cfg attribute.
+ *
+ * Description:
+ * Macro that given an attr e.g. hba_queue_depth expands
+ * into a function with the name lpfc_hba_queue_depth_set
+ *
+ * lpfc_##attr##_set: validates the min and max values then sets the
+ * adapter config field if in the valid range. prints error message
+ * and does not set the parameter if invalid.
+ * @phba: pointer the the adapter structure.
+ * @val:	integer attribute value.
+ *
+ * Returns:
+ * zero on success
+ * -EINVAL if val is invalid
+ **/
 #define lpfc_vport_param_set(attr, default, minval, maxval)	\
 static int \
 lpfc_##attr##_set(struct lpfc_vport *vport, int val) \
@@ -816,11 +1411,28 @@ lpfc_##attr##_set(struct lpfc_vport *vport, int val) \
 		return 0;\
 	}\
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
-			 "0450 lpfc_"#attr" attribute cannot be set to %d, "\
+			 "0424 lpfc_"#attr" attribute cannot be set to %d, "\
 			 "allowed range is ["#minval", "#maxval"]\n", val); \
 	return -EINVAL;\
 }
 
+/**
+ * lpfc_vport_param_store: Set a vport attribute.
+ *
+ * Description:
+ * Macro that given an attr e.g. hba_queue_depth
+ * expands into a function with the name lpfc_hba_queue_depth_store
+ *
+ * lpfc_##attr##_store: convert the ascii text number to an integer, then
+ * use the lpfc_##attr##_set function to set the value.
+ * @cdev: class device that is converted into a Scsi_host.
+ * @buf:	contains the attribute value in decimal.
+ * @count: not used.
+ *
+ * Returns:
+ * -EINVAL if val is invalid or lpfc_##attr##_set() fails
+ * length of buffer upon success.
+ **/
 #define lpfc_vport_param_store(attr)	\
 static ssize_t \
 lpfc_##attr##_store(struct device *dev, struct device_attribute *attr, \
@@ -928,6 +1540,10 @@ lpfc_vport_param_store(name)\
 static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
 		   lpfc_##name##_show, lpfc_##name##_store)
 
+static DEVICE_ATTR(bg_info, S_IRUGO, lpfc_bg_info_show, NULL);
+static DEVICE_ATTR(bg_guard_err, S_IRUGO, lpfc_bg_guard_err_show, NULL);
+static DEVICE_ATTR(bg_apptag_err, S_IRUGO, lpfc_bg_apptag_err_show, NULL);
+static DEVICE_ATTR(bg_reftag_err, S_IRUGO, lpfc_bg_reftag_err_show, NULL);
 static DEVICE_ATTR(info, S_IRUGO, lpfc_info_show, NULL);
 static DEVICE_ATTR(serialnum, S_IRUGO, lpfc_serialnum_show, NULL);
 static DEVICE_ATTR(modeldesc, S_IRUGO, lpfc_modeldesc_show, NULL);
@@ -941,6 +1557,7 @@ static DEVICE_ATTR(option_rom_version, S_IRUGO,
 		   lpfc_option_rom_version_show, NULL);
 static DEVICE_ATTR(num_discovered_ports, S_IRUGO,
 		   lpfc_num_discovered_ports_show, NULL);
+static DEVICE_ATTR(menlo_mgmt_mode, S_IRUGO, lpfc_mlomgmt_show, NULL);
 static DEVICE_ATTR(nport_evt_cnt, S_IRUGO, lpfc_nport_evt_cnt_show, NULL);
 static DEVICE_ATTR(lpfc_drvr_version, S_IRUGO, lpfc_drvr_version_show, NULL);
 static DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
@@ -958,6 +1575,17 @@ static DEVICE_ATTR(lpfc_temp_sensor, S_IRUGO, lpfc_temp_sensor_show, NULL);
 
 static char *lpfc_soft_wwn_key = "C99G71SL8032A";
 
+/**
+ * lpfc_soft_wwn_enable_store: Allows setting of the wwn if the key is valid.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: containing the string lpfc_soft_wwn_key.
+ * @count: must be size of lpfc_soft_wwn_key.
+ *
+ * Returns:
+ * -EINVAL if the buffer does not contain lpfc_soft_wwn_key
+ * length of buf indicates success
+ **/
 static ssize_t
 lpfc_soft_wwn_enable_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
@@ -994,6 +1622,14 @@ lpfc_soft_wwn_enable_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(lpfc_soft_wwn_enable, S_IWUSR, NULL,
 		   lpfc_soft_wwn_enable_store);
 
+/**
+ * lpfc_soft_wwpn_show: Return the cfg soft ww port name of the adapter.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the wwpn in hexidecimal.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_soft_wwpn_show(struct device *dev, struct device_attribute *attr,
 		    char *buf)
@@ -1006,7 +1642,19 @@ lpfc_soft_wwpn_show(struct device *dev, struct device_attribute *attr,
 			(unsigned long long)phba->cfg_soft_wwpn);
 }
 
-
+/**
+ * lpfc_soft_wwpn_store: Set the ww port name of the adapter.
+ * @dev class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: contains the wwpn in hexidecimal.
+ * @count: number of wwpn bytes in buf
+ *
+ * Returns:
+ * -EACCES hba reset not enabled, adapter over temp
+ * -EINVAL soft wwn not enabled, count is invalid, invalid wwpn byte invalid
+ * -EIO error taking adapter offline or online
+ * value of count on success
+ **/
 static ssize_t
 lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 		     const char *buf, size_t count)
@@ -1080,6 +1728,14 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(lpfc_soft_wwpn, S_IRUGO | S_IWUSR,\
 		   lpfc_soft_wwpn_show, lpfc_soft_wwpn_store);
 
+/**
+ * lpfc_soft_wwnn_show: Return the cfg soft ww node name for the adapter.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the wwnn in hexidecimal.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_soft_wwnn_show(struct device *dev, struct device_attribute *attr,
 		    char *buf)
@@ -1090,7 +1746,16 @@ lpfc_soft_wwnn_show(struct device *dev, struct device_attribute *attr,
 			(unsigned long long)phba->cfg_soft_wwnn);
 }
 
-
+/**
+ * lpfc_soft_wwnn_store: sets the ww node name of the adapter.
+ * @cdev: class device that is converted into a Scsi_host.
+ * @buf: contains the ww node name in hexidecimal.
+ * @count: number of wwnn bytes in buf.
+ *
+ * Returns:
+ * -EINVAL soft wwn not enabled, count is invalid, invalid wwnn byte invalid
+ * value of count on success
+ **/
 static ssize_t
 lpfc_soft_wwnn_store(struct device *dev, struct device_attribute *attr,
 		     const char *buf, size_t count)
@@ -1178,6 +1843,15 @@ module_param(lpfc_nodev_tmo, int, 0);
 MODULE_PARM_DESC(lpfc_nodev_tmo,
 		 "Seconds driver will hold I/O waiting "
 		 "for a device to come back");
+
+/**
+ * lpfc_nodev_tmo_show: Return the hba dev loss timeout value.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the dev loss timeout in decimal.
+ *
+ * Returns: size of formatted string.
+ **/
 static ssize_t
 lpfc_nodev_tmo_show(struct device *dev, struct device_attribute *attr,
 		    char *buf)
@@ -1189,6 +1863,21 @@ lpfc_nodev_tmo_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%d\n",	vport->cfg_devloss_tmo);
 }
 
+/**
+ * lpfc_nodev_tmo_init: Set the hba nodev timeout value.
+ * @vport: lpfc vport structure pointer.
+ * @val: contains the nodev timeout value.
+ *
+ * Description:
+ * If the devloss tmo is already set then nodev tmo is set to devloss tmo,
+ * a kernel error message is printed and zero is returned.
+ * Else if val is in range then nodev tmo and devloss tmo are set to val.
+ * Otherwise nodev tmo is set to the default value.
+ *
+ * Returns:
+ * zero if already set or if val is in range
+ * -EINVAL val out of range
+ **/
 static int
 lpfc_nodev_tmo_init(struct lpfc_vport *vport, int val)
 {
@@ -1196,7 +1885,7 @@ lpfc_nodev_tmo_init(struct lpfc_vport *vport, int val)
 		vport->cfg_nodev_tmo = vport->cfg_devloss_tmo;
 		if (val != LPFC_DEF_DEVLOSS_TMO)
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-					 "0402 Ignoring nodev_tmo module "
+					 "0407 Ignoring nodev_tmo module "
 					 "parameter because devloss_tmo is "
 					 "set.\n");
 		return 0;
@@ -1215,6 +1904,13 @@ lpfc_nodev_tmo_init(struct lpfc_vport *vport, int val)
 	return -EINVAL;
 }
 
+/**
+ * lpfc_update_rport_devloss_tmo: Update dev loss tmo value.
+ * @vport: lpfc vport structure pointer.
+ *
+ * Description:
+ * Update all the ndlp's dev loss tmo with the vport devloss tmo value.
+ **/
 static void
 lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 {
@@ -1229,6 +1925,21 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 	spin_unlock_irq(shost->host_lock);
 }
 
+/**
+ * lpfc_nodev_tmo_set: Set the vport nodev tmo and devloss tmo values.
+ * @vport: lpfc vport structure pointer.
+ * @val: contains the tmo value.
+ *
+ * Description:
+ * If the devloss tmo is already set or the vport dev loss tmo has changed
+ * then a kernel error message is printed and zero is returned.
+ * Else if val is in range then nodev tmo and devloss tmo are set to val.
+ * Otherwise nodev tmo is set to the default value.
+ *
+ * Returns:
+ * zero if already set or if val is in range
+ * -EINVAL val out of range
+ **/
 static int
 lpfc_nodev_tmo_set(struct lpfc_vport *vport, int val)
 {
@@ -1269,6 +1980,21 @@ MODULE_PARM_DESC(lpfc_devloss_tmo,
 lpfc_vport_param_init(devloss_tmo, LPFC_DEF_DEVLOSS_TMO,
 		      LPFC_MIN_DEVLOSS_TMO, LPFC_MAX_DEVLOSS_TMO)
 lpfc_vport_param_show(devloss_tmo)
+
+/**
+ * lpfc_devloss_tmo_set: Sets vport nodev tmo, devloss tmo values, changed bit.
+ * @vport: lpfc vport structure pointer.
+ * @val: contains the tmo value.
+ *
+ * Description:
+ * If val is in a valid range then set the vport nodev tmo,
+ * devloss tmo, also set the vport dev loss tmo changed flag.
+ * Else a kernel error message is printed.
+ *
+ * Returns:
+ * zero if val is in range
+ * -EINVAL val out of range
+ **/
 static int
 lpfc_devloss_tmo_set(struct lpfc_vport *vport, int val)
 {
@@ -1303,6 +2029,7 @@ static DEVICE_ATTR(lpfc_devloss_tmo, S_IRUGO | S_IWUSR,
 # LOG_LINK_EVENT                0x10       Link events
 # LOG_FCP                       0x40       FCP traffic history
 # LOG_NODE                      0x80       Node table events
+# LOG_BG                        0x200      BlockBuard events
 # LOG_MISC                      0x400      Miscellaneous events
 # LOG_SLI                       0x800      SLI events
 # LOG_FCP_ERROR                 0x1000     Only log FCP errors
@@ -1366,12 +2093,27 @@ MODULE_PARM_DESC(lpfc_restrict_login,
 		 "Restrict virtual ports login to remote initiators.");
 lpfc_vport_param_show(restrict_login);
 
+/**
+ * lpfc_restrict_login_init: Set the vport restrict login flag.
+ * @vport: lpfc vport structure pointer.
+ * @val: contains the restrict login value.
+ *
+ * Description:
+ * If val is not in a valid range then log a kernel error message and set
+ * the vport restrict login to one.
+ * If the port type is physical clear the restrict login flag and return.
+ * Else set the restrict login flag to val.
+ *
+ * Returns:
+ * zero if val is in range
+ * -EINVAL val out of range
+ **/
 static int
 lpfc_restrict_login_init(struct lpfc_vport *vport, int val)
 {
 	if (val < 0 || val > 1) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				 "0449 lpfc_restrict_login attribute cannot "
+				 "0422 lpfc_restrict_login attribute cannot "
 				 "be set to %d, allowed range is [0, 1]\n",
 				 val);
 		vport->cfg_restrict_login = 1;
@@ -1385,12 +2127,28 @@ lpfc_restrict_login_init(struct lpfc_vport *vport, int val)
 	return 0;
 }
 
+/**
+ * lpfc_restrict_login_set: Set the vport restrict login flag.
+ * @vport: lpfc vport structure pointer.
+ * @val: contains the restrict login value.
+ *
+ * Description:
+ * If val is not in a valid range then log a kernel error message and set
+ * the vport restrict login to one.
+ * If the port type is physical and the val is not zero log a kernel
+ * error message, clear the restrict login flag and return zero.
+ * Else set the restrict login flag to val.
+ *
+ * Returns:
+ * zero if val is in range
+ * -EINVAL val out of range
+ **/
 static int
 lpfc_restrict_login_set(struct lpfc_vport *vport, int val)
 {
 	if (val < 0 || val > 1) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				 "0450 lpfc_restrict_login attribute cannot "
+				 "0425 lpfc_restrict_login attribute cannot "
 				 "be set to %d, allowed range is [0, 1]\n",
 				 val);
 		vport->cfg_restrict_login = 1;
@@ -1441,6 +2199,23 @@ LPFC_VPORT_ATTR_R(scan_down, 1, 0, 1,
 # Set loop mode if you want to run as an NL_Port. Value range is [0,0x6].
 # Default value is 0.
 */
+
+/**
+ * lpfc_topology_set: Set the adapters topology field.
+ * @phba: lpfc_hba pointer.
+ * @val: topology value.
+ *
+ * Description:
+ * If val is in a valid range then set the adapter's topology field and
+ * issue a lip; if the lip fails reset the topology to the old value.
+ *
+ * If the value is not in range log a kernel error message and return an error.
+ *
+ * Returns:
+ * zero if val is in range and lip okay
+ * non-zero return value from lpfc_issue_lip()
+ * -EINVAL val out of range
+ **/
 static int
 lpfc_topology_set(struct lpfc_hba *phba, int val)
 {
@@ -1469,6 +2244,335 @@ lpfc_param_store(topology)
 static DEVICE_ATTR(lpfc_topology, S_IRUGO | S_IWUSR,
 		lpfc_topology_show, lpfc_topology_store);
 
+
+/**
+ * lpfc_stat_data_ctrl_store: write call back for lpfc_stat_data_ctrl
+ *  sysfs file.
+ * @dev: Pointer to class device.
+ * @buf: Data buffer.
+ * @count: Size of the data buffer.
+ *
+ * This function get called when an user write to the lpfc_stat_data_ctrl
+ * sysfs file. This function parse the command written to the sysfs file
+ * and take appropriate action. These commands are used for controlling
+ * driver statistical data collection.
+ * Following are the command this function handles.
+ *
+ *    setbucket <bucket_type> <base> <step>
+ *			       = Set the latency buckets.
+ *    destroybucket            = destroy all the buckets.
+ *    start                    = start data collection
+ *    stop                     = stop data collection
+ *    reset                    = reset the collected data
+ **/
+static ssize_t
+lpfc_stat_data_ctrl_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+#define LPFC_MAX_DATA_CTRL_LEN 1024
+	static char bucket_data[LPFC_MAX_DATA_CTRL_LEN];
+	unsigned long i;
+	char *str_ptr, *token;
+	struct lpfc_vport **vports;
+	struct Scsi_Host *v_shost;
+	char *bucket_type_str, *base_str, *step_str;
+	unsigned long base, step, bucket_type;
+
+	if (!strncmp(buf, "setbucket", strlen("setbucket"))) {
+		if (strlen(buf) > LPFC_MAX_DATA_CTRL_LEN)
+			return -EINVAL;
+
+		strcpy(bucket_data, buf);
+		str_ptr = &bucket_data[0];
+		/* Ignore this token - this is command token */
+		token = strsep(&str_ptr, "\t ");
+		if (!token)
+			return -EINVAL;
+
+		bucket_type_str = strsep(&str_ptr, "\t ");
+		if (!bucket_type_str)
+			return -EINVAL;
+
+		if (!strncmp(bucket_type_str, "linear", strlen("linear")))
+			bucket_type = LPFC_LINEAR_BUCKET;
+		else if (!strncmp(bucket_type_str, "power2", strlen("power2")))
+			bucket_type = LPFC_POWER2_BUCKET;
+		else
+			return -EINVAL;
+
+		base_str = strsep(&str_ptr, "\t ");
+		if (!base_str)
+			return -EINVAL;
+		base = simple_strtoul(base_str, NULL, 0);
+
+		step_str = strsep(&str_ptr, "\t ");
+		if (!step_str)
+			return -EINVAL;
+		step = simple_strtoul(step_str, NULL, 0);
+		if (!step)
+			return -EINVAL;
+
+		/* Block the data collection for every vport */
+		vports = lpfc_create_vport_work_array(phba);
+		if (vports == NULL)
+			return -ENOMEM;
+
+		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
+			v_shost = lpfc_shost_from_vport(vports[i]);
+			spin_lock_irq(v_shost->host_lock);
+			/* Block and reset data collection */
+			vports[i]->stat_data_blocked = 1;
+			if (vports[i]->stat_data_enabled)
+				lpfc_vport_reset_stat_data(vports[i]);
+			spin_unlock_irq(v_shost->host_lock);
+		}
+
+		/* Set the bucket attributes */
+		phba->bucket_type = bucket_type;
+		phba->bucket_base = base;
+		phba->bucket_step = step;
+
+		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
+			v_shost = lpfc_shost_from_vport(vports[i]);
+
+			/* Unblock data collection */
+			spin_lock_irq(v_shost->host_lock);
+			vports[i]->stat_data_blocked = 0;
+			spin_unlock_irq(v_shost->host_lock);
+		}
+		lpfc_destroy_vport_work_array(phba, vports);
+		return strlen(buf);
+	}
+
+	if (!strncmp(buf, "destroybucket", strlen("destroybucket"))) {
+		vports = lpfc_create_vport_work_array(phba);
+		if (vports == NULL)
+			return -ENOMEM;
+
+		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
+			v_shost = lpfc_shost_from_vport(vports[i]);
+			spin_lock_irq(shost->host_lock);
+			vports[i]->stat_data_blocked = 1;
+			lpfc_free_bucket(vport);
+			vport->stat_data_enabled = 0;
+			vports[i]->stat_data_blocked = 0;
+			spin_unlock_irq(shost->host_lock);
+		}
+		lpfc_destroy_vport_work_array(phba, vports);
+		phba->bucket_type = LPFC_NO_BUCKET;
+		phba->bucket_base = 0;
+		phba->bucket_step = 0;
+		return strlen(buf);
+	}
+
+	if (!strncmp(buf, "start", strlen("start"))) {
+		/* If no buckets configured return error */
+		if (phba->bucket_type == LPFC_NO_BUCKET)
+			return -EINVAL;
+		spin_lock_irq(shost->host_lock);
+		if (vport->stat_data_enabled) {
+			spin_unlock_irq(shost->host_lock);
+			return strlen(buf);
+		}
+		lpfc_alloc_bucket(vport);
+		vport->stat_data_enabled = 1;
+		spin_unlock_irq(shost->host_lock);
+		return strlen(buf);
+	}
+
+	if (!strncmp(buf, "stop", strlen("stop"))) {
+		spin_lock_irq(shost->host_lock);
+		if (vport->stat_data_enabled == 0) {
+			spin_unlock_irq(shost->host_lock);
+			return strlen(buf);
+		}
+		lpfc_free_bucket(vport);
+		vport->stat_data_enabled = 0;
+		spin_unlock_irq(shost->host_lock);
+		return strlen(buf);
+	}
+
+	if (!strncmp(buf, "reset", strlen("reset"))) {
+		if ((phba->bucket_type == LPFC_NO_BUCKET)
+			|| !vport->stat_data_enabled)
+			return strlen(buf);
+		spin_lock_irq(shost->host_lock);
+		vport->stat_data_blocked = 1;
+		lpfc_vport_reset_stat_data(vport);
+		vport->stat_data_blocked = 0;
+		spin_unlock_irq(shost->host_lock);
+		return strlen(buf);
+	}
+	return -EINVAL;
+}
+
+
+/**
+ * lpfc_stat_data_ctrl_show: Read callback function for
+ *   lpfc_stat_data_ctrl sysfs file.
+ * @dev: Pointer to class device object.
+ * @buf: Data buffer.
+ *
+ * This function is the read call back function for
+ * lpfc_stat_data_ctrl sysfs file. This function report the
+ * current statistical data collection state.
+ **/
+static ssize_t
+lpfc_stat_data_ctrl_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	int index = 0;
+	int i;
+	char *bucket_type;
+	unsigned long bucket_value;
+
+	switch (phba->bucket_type) {
+	case LPFC_LINEAR_BUCKET:
+		bucket_type = "linear";
+		break;
+	case LPFC_POWER2_BUCKET:
+		bucket_type = "power2";
+		break;
+	default:
+		bucket_type = "No Bucket";
+		break;
+	}
+
+	sprintf(&buf[index], "Statistical Data enabled :%d, "
+		"blocked :%d, Bucket type :%s, Bucket base :%d,"
+		" Bucket step :%d\nLatency Ranges :",
+		vport->stat_data_enabled, vport->stat_data_blocked,
+		bucket_type, phba->bucket_base, phba->bucket_step);
+	index = strlen(buf);
+	if (phba->bucket_type != LPFC_NO_BUCKET) {
+		for (i = 0; i < LPFC_MAX_BUCKET_COUNT; i++) {
+			if (phba->bucket_type == LPFC_LINEAR_BUCKET)
+				bucket_value = phba->bucket_base +
+					phba->bucket_step * i;
+			else
+				bucket_value = phba->bucket_base +
+				(1 << i) * phba->bucket_step;
+
+			if (index + 10 > PAGE_SIZE)
+				break;
+			sprintf(&buf[index], "%08ld ", bucket_value);
+			index = strlen(buf);
+		}
+	}
+	sprintf(&buf[index], "\n");
+	return strlen(buf);
+}
+
+/*
+ * Sysfs attribute to control the statistical data collection.
+ */
+static DEVICE_ATTR(lpfc_stat_data_ctrl, S_IRUGO | S_IWUSR,
+		   lpfc_stat_data_ctrl_show, lpfc_stat_data_ctrl_store);
+
+/*
+ * lpfc_drvr_stat_data: sysfs attr to get driver statistical data.
+ */
+
+/*
+ * Each Bucket takes 11 characters and 1 new line + 17 bytes WWN
+ * for each target.
+ */
+#define STAT_DATA_SIZE_PER_TARGET(NUM_BUCKETS) ((NUM_BUCKETS) * 11 + 18)
+#define MAX_STAT_DATA_SIZE_PER_TARGET \
+	STAT_DATA_SIZE_PER_TARGET(LPFC_MAX_BUCKET_COUNT)
+
+
+/**
+ * sysfs_drvr_stat_data_read: Read callback function for lpfc_drvr_stat_data
+ *  sysfs attribute.
+ * @kobj: Pointer to the kernel object
+ * @bin_attr: Attribute object
+ * @buff: Buffer pointer
+ * @off: File offset
+ * @count: Buffer size
+ *
+ * This function is the read call back function for lpfc_drvr_stat_data
+ * sysfs file. This function export the statistical data to user
+ * applications.
+ **/
+static ssize_t
+sysfs_drvr_stat_data_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+		char *buf, loff_t off, size_t count)
+{
+	struct device *dev = container_of(kobj, struct device,
+		kobj);
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	int i = 0, index = 0;
+	unsigned long nport_index;
+	struct lpfc_nodelist *ndlp = NULL;
+	nport_index = (unsigned long)off /
+		MAX_STAT_DATA_SIZE_PER_TARGET;
+
+	if (!vport->stat_data_enabled || vport->stat_data_blocked
+		|| (phba->bucket_type == LPFC_NO_BUCKET))
+		return 0;
+
+	spin_lock_irq(shost->host_lock);
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp) || !ndlp->lat_data)
+			continue;
+
+		if (nport_index > 0) {
+			nport_index--;
+			continue;
+		}
+
+		if ((index + MAX_STAT_DATA_SIZE_PER_TARGET)
+			> count)
+			break;
+
+		if (!ndlp->lat_data)
+			continue;
+
+		/* Print the WWN */
+		sprintf(&buf[index], "%02x%02x%02x%02x%02x%02x%02x%02x:",
+			ndlp->nlp_portname.u.wwn[0],
+			ndlp->nlp_portname.u.wwn[1],
+			ndlp->nlp_portname.u.wwn[2],
+			ndlp->nlp_portname.u.wwn[3],
+			ndlp->nlp_portname.u.wwn[4],
+			ndlp->nlp_portname.u.wwn[5],
+			ndlp->nlp_portname.u.wwn[6],
+			ndlp->nlp_portname.u.wwn[7]);
+
+		index = strlen(buf);
+
+		for (i = 0; i < LPFC_MAX_BUCKET_COUNT; i++) {
+			sprintf(&buf[index], "%010u,",
+				ndlp->lat_data[i].cmd_count);
+			index = strlen(buf);
+		}
+		sprintf(&buf[index], "\n");
+		index = strlen(buf);
+	}
+	spin_unlock_irq(shost->host_lock);
+	return index;
+}
+
+static struct bin_attribute sysfs_drvr_stat_data_attr = {
+	.attr = {
+		.name = "lpfc_drvr_stat_data",
+		.mode = S_IRUSR,
+		.owner = THIS_MODULE,
+	},
+	.size = LPFC_MAX_TARGET * MAX_STAT_DATA_SIZE_PER_TARGET,
+	.read = sysfs_drvr_stat_data_read,
+	.write = NULL,
+};
+
 /*
 # lpfc_link_speed: Link speed selection for initializing the Fibre Channel
 # connection.
@@ -1479,6 +2583,24 @@ static DEVICE_ATTR(lpfc_topology, S_IRUGO | S_IWUSR,
 #       8  = 8 Gigabaud
 # Value range is [0,8]. Default value is 0.
 */
+
+/**
+ * lpfc_link_speed_set: Set the adapters link speed.
+ * @phba: lpfc_hba pointer.
+ * @val: link speed value.
+ *
+ * Description:
+ * If val is in a valid range then set the adapter's link speed field and
+ * issue a lip; if the lip fails reset the link speed to the old value.
+ *
+ * Notes:
+ * If the value is not in range log a kernel error message and return an error.
+ *
+ * Returns:
+ * zero if val is in range and lip okay.
+ * non-zero return value from lpfc_issue_lip()
+ * -EINVAL val out of range
+ **/
 static int
 lpfc_link_speed_set(struct lpfc_hba *phba, int val)
 {
@@ -1513,6 +2635,23 @@ static int lpfc_link_speed = 0;
 module_param(lpfc_link_speed, int, 0);
 MODULE_PARM_DESC(lpfc_link_speed, "Select link speed");
 lpfc_param_show(link_speed)
+
+/**
+ * lpfc_link_speed_init: Set the adapters link speed.
+ * @phba: lpfc_hba pointer.
+ * @val: link speed value.
+ *
+ * Description:
+ * If val is in a valid range then set the adapter's link speed field.
+ *
+ * Notes:
+ * If the value is not in range log a kernel error message, clear the link
+ * speed and return an error.
+ *
+ * Returns:
+ * zero if val saved.
+ * -EINVAL val out of range
+ **/
 static int
 lpfc_link_speed_init(struct lpfc_hba *phba, int val)
 {
@@ -1522,7 +2661,7 @@ lpfc_link_speed_init(struct lpfc_hba *phba, int val)
 		return 0;
 	}
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0454 lpfc_link_speed attribute cannot "
+			"0405 lpfc_link_speed attribute cannot "
 			"be set to %d, allowed values are "
 			"["LPFC_LINK_SPEED_STRING"]\n", val);
 	phba->cfg_link_speed = 0;
@@ -1546,6 +2685,48 @@ LPFC_VPORT_ATTR_R(fcp_class, 3, 2, 3,
 */
 LPFC_VPORT_ATTR_RW(use_adisc, 0, 0, 1,
 		   "Use ADISC on rediscovery to authenticate FCP devices");
+
+/*
+# lpfc_max_scsicmpl_time: Use scsi command completion time to control I/O queue
+# depth. Default value is 0. When the value of this parameter is zero the
+# SCSI command completion time is not used for controlling I/O queue depth. When
+# the parameter is set to a non-zero value, the I/O queue depth is controlled
+# to limit the I/O completion time to the parameter value.
+# The value is set in milliseconds.
+*/
+static int lpfc_max_scsicmpl_time;
+module_param(lpfc_max_scsicmpl_time, int, 0);
+MODULE_PARM_DESC(lpfc_max_scsicmpl_time,
+	"Use command completion time to control queue depth");
+lpfc_vport_param_show(max_scsicmpl_time);
+lpfc_vport_param_init(max_scsicmpl_time, 0, 0, 60000);
+static int
+lpfc_max_scsicmpl_time_set(struct lpfc_vport *vport, int val)
+{
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_nodelist *ndlp, *next_ndlp;
+
+	if (val == vport->cfg_max_scsicmpl_time)
+		return 0;
+	if ((val < 0) || (val > 60000))
+		return -EINVAL;
+	vport->cfg_max_scsicmpl_time = val;
+
+	spin_lock_irq(shost->host_lock);
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
+		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
+			continue;
+		ndlp->cmd_qdepth = LPFC_MAX_TGT_QDEPTH;
+	}
+	spin_unlock_irq(shost->host_lock);
+	return 0;
+}
+lpfc_vport_param_store(max_scsicmpl_time);
+static DEVICE_ATTR(lpfc_max_scsicmpl_time, S_IRUGO | S_IWUSR,
+		   lpfc_max_scsicmpl_time_show,
+		   lpfc_max_scsicmpl_time_store);
 
 /*
 # lpfc_ack0: Use ACK0, instead of ACK1 for class 2 acknowledgement. Value
@@ -1623,12 +2804,12 @@ LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 /*
 # lpfc_use_msi: Use MSI (Message Signaled Interrupts) in systems that
 #		support this feature
-#       0  = MSI disabled (default)
+#       0  = MSI disabled
 #       1  = MSI enabled
-#	2  = MSI-X enabled
-# Value range is [0,2]. Default value is 0.
+#       2  = MSI-X enabled (default)
+# Value range is [0,2]. Default value is 2.
 */
-LPFC_ATTR_R(use_msi, 0, 0, 2, "Use Message Signaled Interrupts (1) or "
+LPFC_ATTR_R(use_msi, 2, 0, 2, "Use Message Signaled Interrupts (1) or "
 	    "MSI-X (2), if possible");
 
 /*
@@ -1648,6 +2829,42 @@ LPFC_ATTR_R(enable_hba_reset, 1, 0, 1, "Enable HBA resets from the driver.");
 LPFC_ATTR_R(enable_hba_heartbeat, 1, 0, 1, "Enable HBA Heartbeat.");
 
 /*
+# lpfc_enable_bg: Enable BlockGuard (Emulex's Implementation of T10-DIF)
+#       0  = BlockGuard disabled (default)
+#       1  = BlockGuard enabled
+# Value range is [0,1]. Default value is 0.
+*/
+LPFC_ATTR_R(enable_bg, 0, 0, 1, "Enable BlockGuard Support");
+
+
+/*
+# lpfc_prot_mask: i
+#	- Bit mask of host protection capabilities used to register with the
+#	  SCSI mid-layer
+# 	- Only meaningful if BG is turned on (lpfc_enable_bg=1).
+#	- Allows you to ultimately specify which profiles to use
+#	- Default will result in registering capabilities for all profiles.
+#
+*/
+unsigned int lpfc_prot_mask =   SHOST_DIX_TYPE0_PROTECTION;
+
+module_param(lpfc_prot_mask, uint, 0);
+MODULE_PARM_DESC(lpfc_prot_mask, "host protection mask");
+
+/*
+# lpfc_prot_guard: i
+#	- Bit mask of protection guard types to register with the SCSI mid-layer
+# 	- Guard types are currently either 1) IP checksum 2) T10-DIF CRC
+#	- Allows you to ultimately specify which profiles to use
+#	- Default will result in registering capabilities for all guard types
+#
+*/
+unsigned char lpfc_prot_guard = SHOST_DIX_GUARD_IP;
+module_param(lpfc_prot_guard, byte, 0);
+MODULE_PARM_DESC(lpfc_prot_guard, "host protection guard type");
+
+
+/*
  * lpfc_sg_seg_cnt: Initial Maximum DMA Segment Count
  * This value can be set to values between 64 and 256. The default value is
  * 64, but may be increased to allow for larger Max I/O sizes. The scsi layer
@@ -1656,7 +2873,15 @@ LPFC_ATTR_R(enable_hba_heartbeat, 1, 0, 1, "Enable HBA Heartbeat.");
 LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_DEFAULT_SG_SEG_CNT,
 	    LPFC_MAX_SG_SEG_CNT, "Max Scatter Gather Segment Count");
 
+LPFC_ATTR_R(prot_sg_seg_cnt, LPFC_DEFAULT_PROT_SG_SEG_CNT,
+		LPFC_DEFAULT_PROT_SG_SEG_CNT, LPFC_MAX_PROT_SG_SEG_CNT,
+		"Max Protection Scatter Gather Segment Count");
+
 struct device_attribute *lpfc_hba_attrs[] = {
+	&dev_attr_bg_info,
+	&dev_attr_bg_guard_err,
+	&dev_attr_bg_apptag_err,
+	&dev_attr_bg_reftag_err,
 	&dev_attr_info,
 	&dev_attr_serialnum,
 	&dev_attr_modeldesc,
@@ -1668,6 +2893,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_option_rom_version,
 	&dev_attr_link_state,
 	&dev_attr_num_discovered_ports,
+	&dev_attr_menlo_mgmt_mode,
 	&dev_attr_lpfc_drvr_version,
 	&dev_attr_lpfc_temp_sensor,
 	&dev_attr_lpfc_log_verbose,
@@ -1703,12 +2929,16 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_poll,
 	&dev_attr_lpfc_poll_tmo,
 	&dev_attr_lpfc_use_msi,
+	&dev_attr_lpfc_enable_bg,
 	&dev_attr_lpfc_soft_wwnn,
 	&dev_attr_lpfc_soft_wwpn,
 	&dev_attr_lpfc_soft_wwn_enable,
 	&dev_attr_lpfc_enable_hba_reset,
 	&dev_attr_lpfc_enable_hba_heartbeat,
 	&dev_attr_lpfc_sg_seg_cnt,
+	&dev_attr_lpfc_max_scsicmpl_time,
+	&dev_attr_lpfc_stat_data_ctrl,
+	&dev_attr_lpfc_prot_sg_seg_cnt,
 	NULL,
 };
 
@@ -1731,9 +2961,29 @@ struct device_attribute *lpfc_vport_attrs[] = {
 	&dev_attr_nport_evt_cnt,
 	&dev_attr_npiv_info,
 	&dev_attr_lpfc_enable_da_id,
+	&dev_attr_lpfc_max_scsicmpl_time,
+	&dev_attr_lpfc_stat_data_ctrl,
 	NULL,
 };
 
+/**
+ * sysfs_ctlreg_write: Write method for writing to ctlreg.
+ * @kobj: kernel kobject that contains the kernel class device.
+ * @bin_attr: kernel attributes passed to us.
+ * @buf: contains the data to be written to the adapter IOREG space.
+ * @off: offset into buffer to beginning of data.
+ * @count: bytes to transfer.
+ *
+ * Description:
+ * Accessed via /sys/class/scsi_host/hostxxx/ctlreg.
+ * Uses the adapter io control registers to send buf contents to the adapter.
+ *
+ * Returns:
+ * -ERANGE off and count combo out of range
+ * -EINVAL off, count or buff address invalid
+ * -EPERM adapter is offline
+ * value of count, buf contents written
+ **/
 static ssize_t
 sysfs_ctlreg_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 		   char *buf, loff_t off, size_t count)
@@ -1766,6 +3016,23 @@ sysfs_ctlreg_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 	return count;
 }
 
+/**
+ * sysfs_ctlreg_read: Read method for reading from ctlreg.
+ * @kobj: kernel kobject that contains the kernel class device.
+ * @bin_attr: kernel attributes passed to us.
+ * @buf: if succesful contains the data from the adapter IOREG space.
+ * @off: offset into buffer to beginning of data.
+ * @count: bytes to transfer.
+ *
+ * Description:
+ * Accessed via /sys/class/scsi_host/hostxxx/ctlreg.
+ * Uses the adapter io control registers to read data into buf.
+ *
+ * Returns:
+ * -ERANGE off and count combo out of range
+ * -EINVAL off, count or buff address invalid
+ * value of count, buf contents read
+ **/
 static ssize_t
 sysfs_ctlreg_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		  char *buf, loff_t off, size_t count)
@@ -1810,7 +3077,10 @@ static struct bin_attribute sysfs_ctlreg_attr = {
 	.write = sysfs_ctlreg_write,
 };
 
-
+/**
+ * sysfs_mbox_idle: frees the sysfs mailbox.
+ * @phba: lpfc_hba pointer
+ **/
 static void
 sysfs_mbox_idle(struct lpfc_hba *phba)
 {
@@ -1824,6 +3094,27 @@ sysfs_mbox_idle(struct lpfc_hba *phba)
 	}
 }
 
+/**
+ * sysfs_mbox_write: Write method for writing information via mbox.
+ * @kobj: kernel kobject that contains the kernel class device.
+ * @bin_attr: kernel attributes passed to us.
+ * @buf: contains the data to be written to sysfs mbox.
+ * @off: offset into buffer to beginning of data.
+ * @count: bytes to transfer.
+ *
+ * Description:
+ * Accessed via /sys/class/scsi_host/hostxxx/mbox.
+ * Uses the sysfs mbox to send buf contents to the adapter.
+ *
+ * Returns:
+ * -ERANGE off and count combo out of range
+ * -EINVAL off, count or buff address invalid
+ * zero if count is zero
+ * -EPERM adapter is offline
+ * -ENOMEM failed to allocate memory for the mail box
+ * -EAGAIN offset, state or mbox is NULL
+ * count number of bytes transferred
+ **/
 static ssize_t
 sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 		 char *buf, loff_t off, size_t count)
@@ -1878,6 +3169,29 @@ sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 	return count;
 }
 
+/**
+ * sysfs_mbox_read: Read method for reading information via mbox.
+ * @kobj: kernel kobject that contains the kernel class device.
+ * @bin_attr: kernel attributes passed to us.
+ * @buf: contains the data to be read from sysfs mbox.
+ * @off: offset into buffer to beginning of data.
+ * @count: bytes to transfer.
+ *
+ * Description:
+ * Accessed via /sys/class/scsi_host/hostxxx/mbox.
+ * Uses the sysfs mbox to receive data from to the adapter.
+ *
+ * Returns:
+ * -ERANGE off greater than mailbox command size
+ * -EINVAL off, count or buff address invalid
+ * zero if off and count are zero
+ * -EACCES adapter over temp
+ * -EPERM garbage can value to catch a multitude of errors
+ * -EAGAIN management IO not permitted, state or off error
+ * -ETIME mailbox timeout
+ * -ENODEV mailbox error
+ * count number of bytes transferred
+ **/
 static ssize_t
 sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		char *buf, loff_t off, size_t count)
@@ -1954,6 +3268,8 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		case MBX_DEL_LD_ENTRY:
 		case MBX_SET_VARIABLE:
 		case MBX_WRITE_WWN:
+		case MBX_PORT_CAPABILITIES:
+		case MBX_PORT_IOV_CONTROL:
 			break;
 		case MBX_READ_SPARM64:
 		case MBX_READ_LA:
@@ -1978,17 +3294,15 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		/* If HBA encountered an error attention, allow only DUMP
 		 * or RESTART mailbox commands until the HBA is restarted.
 		 */
-		if ((phba->pport->stopped) &&
-			(phba->sysfs_mbox.mbox->mb.mbxCommand !=
-				MBX_DUMP_MEMORY &&
-			 phba->sysfs_mbox.mbox->mb.mbxCommand !=
-				MBX_RESTART &&
-			 phba->sysfs_mbox.mbox->mb.mbxCommand !=
-				MBX_WRITE_VPARMS)) {
-			sysfs_mbox_idle(phba);
-			spin_unlock_irq(&phba->hbalock);
-			return -EPERM;
-		}
+		if (phba->pport->stopped &&
+		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_DUMP_MEMORY &&
+		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_RESTART &&
+		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_WRITE_VPARMS &&
+		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_WRITE_WWN)
+			lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
+					"1259 mbox: Issued mailbox cmd "
+					"0x%x while in stopped state.\n",
+					phba->sysfs_mbox.mbox->mb.mbxCommand);
 
 		phba->sysfs_mbox.mbox->vport = vport;
 
@@ -2059,6 +3373,14 @@ static struct bin_attribute sysfs_mbox_attr = {
 	.write = sysfs_mbox_write,
 };
 
+/**
+ * lpfc_alloc_sysfs_attr: Creates the ctlreg and mbox entries.
+ * @vport: address of lpfc vport structure.
+ *
+ * Return codes:
+ * zero on success
+ * error return code from sysfs_create_bin_file()
+ **/
 int
 lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 {
@@ -2066,9 +3388,16 @@ lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 	int error;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
+				      &sysfs_drvr_stat_data_attr);
+
+	/* Virtual ports do not need ctrl_reg and mbox */
+	if (error || vport->port_type == LPFC_NPIV_PORT)
+		goto out;
+
+	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_ctlreg_attr);
 	if (error)
-		goto out;
+		goto out_remove_stat_attr;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_mbox_attr);
@@ -2078,15 +3407,26 @@ lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 	return 0;
 out_remove_ctlreg_attr:
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_ctlreg_attr);
+out_remove_stat_attr:
+	sysfs_remove_bin_file(&shost->shost_dev.kobj,
+			&sysfs_drvr_stat_data_attr);
 out:
 	return error;
 }
 
+/**
+ * lpfc_free_sysfs_attr: Removes the ctlreg and mbox entries.
+ * @vport: address of lpfc vport structure.
+ **/
 void
 lpfc_free_sysfs_attr(struct lpfc_vport *vport)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-
+	sysfs_remove_bin_file(&shost->shost_dev.kobj,
+		&sysfs_drvr_stat_data_attr);
+	/* Virtual ports do not need ctrl_reg and mbox */
+	if (vport->port_type == LPFC_NPIV_PORT)
+		return;
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_mbox_attr);
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_ctlreg_attr);
 }
@@ -2096,6 +3436,10 @@ lpfc_free_sysfs_attr(struct lpfc_vport *vport)
  * Dynamic FC Host Attributes Support
  */
 
+/**
+ * lpfc_get_host_port_id: Copy the vport DID into the scsi host port id.
+ * @shost: kernel scsi host pointer.
+ **/
 static void
 lpfc_get_host_port_id(struct Scsi_Host *shost)
 {
@@ -2105,6 +3449,10 @@ lpfc_get_host_port_id(struct Scsi_Host *shost)
 	fc_host_port_id(shost) = vport->fc_myDID;
 }
 
+/**
+ * lpfc_get_host_port_type: Set the value of the scsi host port type.
+ * @shost: kernel scsi host pointer.
+ **/
 static void
 lpfc_get_host_port_type(struct Scsi_Host *shost)
 {
@@ -2133,6 +3481,10 @@ lpfc_get_host_port_type(struct Scsi_Host *shost)
 	spin_unlock_irq(shost->host_lock);
 }
 
+/**
+ * lpfc_get_host_port_state: Set the value of the scsi host port state.
+ * @shost: kernel scsi host pointer.
+ **/
 static void
 lpfc_get_host_port_state(struct Scsi_Host *shost)
 {
@@ -2167,6 +3519,10 @@ lpfc_get_host_port_state(struct Scsi_Host *shost)
 	spin_unlock_irq(shost->host_lock);
 }
 
+/**
+ * lpfc_get_host_speed: Set the value of the scsi host speed.
+ * @shost: kernel scsi host pointer.
+ **/
 static void
 lpfc_get_host_speed(struct Scsi_Host *shost)
 {
@@ -2199,6 +3555,10 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 	spin_unlock_irq(shost->host_lock);
 }
 
+/**
+ * lpfc_get_host_fabric_name: Set the value of the scsi host fabric name.
+ * @shost: kernel scsi host pointer.
+ **/
 static void
 lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 {
@@ -2221,6 +3581,18 @@ lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 	fc_host_fabric_name(shost) = node_name;
 }
 
+/**
+ * lpfc_get_stats: Return statistical information about the adapter.
+ * @shost: kernel scsi host pointer.
+ *
+ * Notes:
+ * NULL on error for link down, no mbox pool, sli2 active,
+ * management not allowed, memory allocation error, or mbox error.
+ *
+ * Returns:
+ * NULL for error
+ * address of the adapter host statistics
+ **/
 static struct fc_host_statistics *
 lpfc_get_stats(struct Scsi_Host *shost)
 {
@@ -2334,6 +3706,10 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	return hs;
 }
 
+/**
+ * lpfc_reset_stats: Copy the adapter link stats information.
+ * @shost: kernel scsi host pointer.
+ **/
 static void
 lpfc_reset_stats(struct Scsi_Host *shost)
 {
@@ -2411,6 +3787,14 @@ lpfc_reset_stats(struct Scsi_Host *shost)
  * are no sysfs handlers for link_down_tmo.
  */
 
+/**
+ * lpfc_get_node_by_target: Return the nodelist for a target.
+ * @starget: kernel scsi target pointer.
+ *
+ * Returns:
+ * address of the node list if found
+ * NULL target not found
+ **/
 static struct lpfc_nodelist *
 lpfc_get_node_by_target(struct scsi_target *starget)
 {
@@ -2432,6 +3816,10 @@ lpfc_get_node_by_target(struct scsi_target *starget)
 	return NULL;
 }
 
+/**
+ * lpfc_get_starget_port_id: Set the target port id to the ndlp DID or -1.
+ * @starget: kernel scsi target pointer.
+ **/
 static void
 lpfc_get_starget_port_id(struct scsi_target *starget)
 {
@@ -2440,6 +3828,12 @@ lpfc_get_starget_port_id(struct scsi_target *starget)
 	fc_starget_port_id(starget) = ndlp ? ndlp->nlp_DID : -1;
 }
 
+/**
+ * lpfc_get_starget_node_name: Set the target node name.
+ * @starget: kernel scsi target pointer.
+ *
+ * Description: Set the target node name to the ndlp node name wwn or zero.
+ **/
 static void
 lpfc_get_starget_node_name(struct scsi_target *starget)
 {
@@ -2449,6 +3843,12 @@ lpfc_get_starget_node_name(struct scsi_target *starget)
 		ndlp ? wwn_to_u64(ndlp->nlp_nodename.u.wwn) : 0;
 }
 
+/**
+ * lpfc_get_starget_port_name: Set the target port name.
+ * @starget: kernel scsi target pointer.
+ *
+ * Description:  set the target port name to the ndlp port name wwn or zero.
+ **/
 static void
 lpfc_get_starget_port_name(struct scsi_target *starget)
 {
@@ -2458,6 +3858,15 @@ lpfc_get_starget_port_name(struct scsi_target *starget)
 		ndlp ? wwn_to_u64(ndlp->nlp_portname.u.wwn) : 0;
 }
 
+/**
+ * lpfc_set_rport_loss_tmo: Set the rport dev loss tmo.
+ * @rport: fc rport address.
+ * @timeout: new value for dev loss tmo.
+ *
+ * Description:
+ * If timeout is non zero set the dev_loss_tmo to timeout, else set
+ * dev_loss_tmo to one.
+ **/
 static void
 lpfc_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 {
@@ -2467,7 +3876,18 @@ lpfc_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 		rport->dev_loss_tmo = 1;
 }
 
-
+/**
+ * lpfc_rport_show_function: Return rport target information.
+ *
+ * Description:
+ * Macro that uses field to generate a function with the name lpfc_show_rport_
+ *
+ * lpfc_show_rport_##field: returns the bytes formatted in buf
+ * @cdev: class converted to an fc_rport.
+ * @buf: on return contains the target_field or zero.
+ *
+ * Returns: size of formatted string.
+ **/
 #define lpfc_rport_show_function(field, format_string, sz, cast)	\
 static ssize_t								\
 lpfc_show_rport_##field (struct device *dev,				\
@@ -2484,6 +3904,23 @@ lpfc_show_rport_##field (struct device *dev,				\
 	lpfc_rport_show_function(field, format_string, sz, )		\
 static FC_RPORT_ATTR(field, S_IRUGO, lpfc_show_rport_##field, NULL)
 
+/**
+ * lpfc_set_vport_symbolic_name: Set the vport's symbolic name.
+ * @fc_vport: The fc_vport who's symbolic name has been changed.
+ *
+ * Description:
+ * This function is called by the transport after the @fc_vport's symbolic name
+ * has been changed. This function re-registers the symbolic name with the
+ * switch to propogate the change into the fabric if the vport is active.
+ **/
+static void
+lpfc_set_vport_symbolic_name(struct fc_vport *fc_vport)
+{
+	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
+
+	if (vport->port_state == LPFC_VPORT_READY)
+		lpfc_ns_cmd(vport, SLI_CTNS_RSPN_ID, 0, 0);
+}
 
 struct fc_function_template lpfc_transport_functions = {
 	/* fixed attributes the driver supports */
@@ -2493,6 +3930,7 @@ struct fc_function_template lpfc_transport_functions = {
 	.show_host_supported_fc4s = 1,
 	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
+	.show_host_symbolic_name = 1,
 
 	/* dynamic attributes the driver supports */
 	.get_host_port_id = lpfc_get_host_port_id,
@@ -2542,6 +3980,10 @@ struct fc_function_template lpfc_transport_functions = {
 	.terminate_rport_io = lpfc_terminate_rport_io,
 
 	.dd_fcvport_size = sizeof(struct lpfc_vport *),
+
+	.vport_disable = lpfc_vport_disable,
+
+	.set_vport_symbolic_name = lpfc_set_vport_symbolic_name,
 };
 
 struct fc_function_template lpfc_vport_transport_functions = {
@@ -2552,6 +3994,7 @@ struct fc_function_template lpfc_vport_transport_functions = {
 	.show_host_supported_fc4s = 1,
 	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
+	.show_host_symbolic_name = 1,
 
 	/* dynamic attributes the driver supports */
 	.get_host_port_id = lpfc_get_host_port_id,
@@ -2600,8 +4043,14 @@ struct fc_function_template lpfc_vport_transport_functions = {
 	.terminate_rport_io = lpfc_terminate_rport_io,
 
 	.vport_disable = lpfc_vport_disable,
+
+	.set_vport_symbolic_name = lpfc_set_vport_symbolic_name,
 };
 
+/**
+ * lpfc_get_cfgparam: Used during probe_one to init the adapter structure.
+ * @phba: lpfc_hba pointer.
+ **/
 void
 lpfc_get_cfgparam(struct lpfc_hba *phba)
 {
@@ -2618,13 +4067,12 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_use_msi_init(phba, lpfc_use_msi);
 	lpfc_enable_hba_reset_init(phba, lpfc_enable_hba_reset);
 	lpfc_enable_hba_heartbeat_init(phba, lpfc_enable_hba_heartbeat);
+	lpfc_enable_bg_init(phba, lpfc_enable_bg);
 	phba->cfg_poll = lpfc_poll;
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
 	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
-	/* Also reinitialize the host templates with new values. */
-	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_prot_sg_seg_cnt_init(phba, lpfc_prot_sg_seg_cnt);
 	/*
 	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
@@ -2633,10 +4081,25 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
 			sizeof(struct fcp_rsp) +
 			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct ulp_bde64));
+
+	if (phba->cfg_enable_bg) {
+		phba->cfg_sg_seg_cnt = LPFC_MAX_SG_SEG_CNT;
+		phba->cfg_sg_dma_buf_size +=
+			phba->cfg_prot_sg_seg_cnt * sizeof(struct ulp_bde64);
+	}
+
+	/* Also reinitialize the host templates with new values. */
+	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 	return;
 }
 
+/**
+ * lpfc_get_vport_cfgparam: Used during port create, init the vport structure.
+ * @vport: lpfc_vport pointer.
+ **/
 void
 lpfc_get_vport_cfgparam(struct lpfc_vport *vport)
 {
@@ -2648,6 +4111,7 @@ lpfc_get_vport_cfgparam(struct lpfc_vport *vport)
 	lpfc_restrict_login_init(vport, lpfc_restrict_login);
 	lpfc_fcp_class_init(vport, lpfc_fcp_class);
 	lpfc_use_adisc_init(vport, lpfc_use_adisc);
+	lpfc_max_scsicmpl_time_init(vport, lpfc_max_scsicmpl_time);
 	lpfc_fdmi_on_init(vport, lpfc_fdmi_on);
 	lpfc_discovery_threads_init(vport, lpfc_discovery_threads);
 	lpfc_max_luns_init(vport, lpfc_max_luns);

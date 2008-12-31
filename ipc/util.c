@@ -258,6 +258,8 @@ int ipc_get_maxid(struct ipc_ids *ids)
  
 int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
 {
+	uid_t euid;
+	gid_t egid;
 	int id, err;
 
 	if (size > IPCMNI)
@@ -266,24 +268,29 @@ int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
 	if (ids->in_use >= size)
 		return -ENOSPC;
 
+	spin_lock_init(&new->lock);
+	new->deleted = 0;
+	rcu_read_lock();
+	spin_lock(&new->lock);
+
 	err = idr_get_new(&ids->ipcs_idr, new, &id);
-	if (err)
+	if (err) {
+		spin_unlock(&new->lock);
+		rcu_read_unlock();
 		return err;
+	}
 
 	ids->in_use++;
 
-	new->cuid = new->uid = current->euid;
-	new->gid = new->cgid = current->egid;
+	current_euid_egid(&euid, &egid);
+	new->cuid = new->uid = euid;
+	new->gid = new->cgid = egid;
 
 	new->seq = ids->seq++;
 	if(ids->seq > ids->seq_max)
 		ids->seq = 0;
 
 	new->id = ipc_buildid(id, new->seq);
-	spin_lock_init(&new->lock);
-	new->deleted = 0;
-	rcu_read_lock();
-	spin_lock(&new->lock);
 	return id;
 }
 
@@ -616,13 +623,15 @@ void ipc_rcu_putref(void *ptr)
  
 int ipcperms (struct kern_ipc_perm *ipcp, short flag)
 {	/* flag will most probably be 0 or S_...UGO from <linux/stat.h> */
+	uid_t euid = current_euid();
 	int requested_mode, granted_mode, err;
 
 	if (unlikely((err = audit_ipc_obj(ipcp))))
 		return err;
 	requested_mode = (flag >> 6) | (flag >> 3) | flag;
 	granted_mode = ipcp->mode;
-	if (current->euid == ipcp->cuid || current->euid == ipcp->uid)
+	if (euid == ipcp->cuid ||
+	    euid == ipcp->uid)
 		granted_mode >>= 6;
 	else if (in_group_p(ipcp->cgid) || in_group_p(ipcp->gid))
 		granted_mode >>= 3;
@@ -784,6 +793,7 @@ struct kern_ipc_perm *ipcctl_pre_down(struct ipc_ids *ids, int id, int cmd,
 				      struct ipc64_perm *perm, int extra_perm)
 {
 	struct kern_ipc_perm *ipcp;
+	uid_t euid;
 	int err;
 
 	down_write(&ids->rw_mutex);
@@ -803,8 +813,10 @@ struct kern_ipc_perm *ipcctl_pre_down(struct ipc_ids *ids, int id, int cmd,
 		if (err)
 			goto out_unlock;
 	}
-	if (current->euid == ipcp->cuid ||
-	    current->euid == ipcp->uid || capable(CAP_SYS_ADMIN))
+
+	euid = current_euid();
+	if (euid == ipcp->cuid ||
+	    euid == ipcp->uid  || capable(CAP_SYS_ADMIN))
 		return ipcp;
 
 	err = -EPERM;

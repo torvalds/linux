@@ -275,8 +275,9 @@ struct saa7134_format {
 #define SAA7134_BOARD_REAL_ANGEL_220     150
 #define SAA7134_BOARD_ADS_INSTANT_HDTV_PCI  151
 #define SAA7134_BOARD_ASUSTeK_TIGER         152
+#define SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG 153
 
-#define SAA7134_MAXBOARDS 8
+#define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
 
 /* ----------------------------------------------------------- */
@@ -581,7 +582,7 @@ struct saa7134_dev {
 
 #if defined(CONFIG_VIDEO_SAA7134_DVB) || defined(CONFIG_VIDEO_SAA7134_DVB_MODULE)
 	/* SAA7134_MPEG_DVB only */
-	struct videobuf_dvb        dvb;
+	struct videobuf_dvb_frontends frontends;
 	int (*original_demod_sleep)(struct dvb_frontend *fe);
 	int (*original_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
 	int (*original_set_high_voltage)(struct dvb_frontend *fe, long arg);

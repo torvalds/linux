@@ -176,7 +176,7 @@
 #include <asm/setup.h>
 #include <asm/ptrace.h>
 
-#include <asm/arch/svinto.h>
+#include <arch/svinto.h>
 #include <asm/irq.h>
 
 static int kgdb_started = 0;

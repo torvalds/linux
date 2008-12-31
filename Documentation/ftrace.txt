@@ -8,7 +8,7 @@ Copyright 2008 Red Hat Inc.
 Reviewers:   Elias Oltmanns, Randy Dunlap, Andrew Morton,
 	     John Kacur, and David Teigland.
 
-Written for: 2.6.27-rc1
+Written for: 2.6.28-rc2
 
 Introduction
 ------------
@@ -50,26 +50,26 @@ of ftrace. Here is a list of some of the key files:
 
  Note: all time values are in microseconds.
 
-  current_tracer : This is used to set or display the current tracer
+  current_tracer: This is used to set or display the current tracer
 		that is configured.
 
-  available_tracers : This holds the different types of tracers that
+  available_tracers: This holds the different types of tracers that
 		have been compiled into the kernel. The tracers
 		listed here can be configured by echoing their name
 		into current_tracer.
 
-  tracing_enabled : This sets or displays whether the current_tracer
+  tracing_enabled: This sets or displays whether the current_tracer
 		is activated and tracing or not. Echo 0 into this
 		file to disable the tracer or 1 to enable it.
 
-  trace : This file holds the output of the trace in a human readable
+  trace: This file holds the output of the trace in a human readable
 		format (described below).
 
-  latency_trace : This file shows the same trace but the information
+  latency_trace: This file shows the same trace but the information
 		is organized more to display possible latencies
 		in the system (described below).
 
-  trace_pipe : The output is the same as the "trace" file but this
+  trace_pipe: The output is the same as the "trace" file but this
 		file is meant to be streamed with live tracing.
 		Reads from this file will block until new data
 		is retrieved. Unlike the "trace" and "latency_trace"
@@ -82,11 +82,11 @@ of ftrace. Here is a list of some of the key files:
 		tracer is not adding more data, they will display
 		the same information every time they are read.
 
-  iter_ctrl : This file lets the user control the amount of data
+  trace_options: This file lets the user control the amount of data
 		that is displayed in one of the above output
 		files.
 
-  trace_max_latency : Some of the tracers record the max latency.
+  trace_max_latency: Some of the tracers record the max latency.
 		For example, the time interrupts are disabled.
 		This time is saved in this file. The max trace
 		will also be stored, and displayed by either
@@ -94,29 +94,26 @@ of ftrace. Here is a list of some of the key files:
 		only be recorded if the latency is greater than
 		the value in this file. (in microseconds)
 
-  trace_entries : This sets or displays the number of trace
-		entries each CPU buffer can hold. The tracer buffers
-		are the same size for each CPU. The displayed number
-		is the size of the CPU buffer and not total size. The
+  buffer_size_kb: This sets or displays the number of kilobytes each CPU
+		buffer can hold. The tracer buffers are the same size
+		for each CPU. The displayed number is the size of the
+		CPU buffer and not total size of all buffers. The
 		trace buffers are allocated in pages (blocks of memory
 		that the kernel uses for allocation, usually 4 KB in size).
-		Since each entry is smaller than a page, if the last
-		allocated page has room for more entries than were
-		requested, the rest of the page is used to allocate
-		entries.
+		If the last page allocated has room for more bytes
+		than requested, the rest of the page will be used,
+		making the actual allocation bigger than requested.
+		(Note, the size may not be a multiple of the page size due
+		to buffer managment overhead.)
 
 		This can only be updated when the current_tracer
-		is set to "none".
+		is set to "nop".
 
-		NOTE: It is planned on changing the allocated buffers
-		      from being the number of possible CPUS to
-		      the number of online CPUS.
-
-  tracing_cpumask : This is a mask that lets the user only trace
+  tracing_cpumask: This is a mask that lets the user only trace
 		on specified CPUS. The format is a hex string
 		representing the CPUS.
 
-  set_ftrace_filter : When dynamic ftrace is configured in (see the
+  set_ftrace_filter: When dynamic ftrace is configured in (see the
 		section below "dynamic ftrace"), the code is dynamically
 		modified (code text rewrite) to disable calling of the
 		function profiler (mcount). This lets tracing be configured
@@ -130,14 +127,13 @@ of ftrace. Here is a list of some of the key files:
 		be traced. If a function exists in both set_ftrace_filter
 		and set_ftrace_notrace,	the function will _not_ be traced.
 
-  available_filter_functions : When a function is encountered the first
-		time by the dynamic tracer, it is recorded and
-		later the call is converted into a nop. This file
-		lists the functions that have been recorded
-		by the dynamic tracer and these functions can
-		be used to set the ftrace filter by the above
-		"set_ftrace_filter" file. (See the section "dynamic ftrace"
-		below for more details).
+  set_ftrace_pid: Have the function tracer only trace a single thread.
+
+  available_filter_functions: This lists the functions that ftrace
+		has processed and can trace. These are the function
+		names that you can pass to "set_ftrace_filter" or
+		"set_ftrace_notrace". (See the section "dynamic ftrace"
+		below for more details.)
 
 
 The Tracers
@@ -145,7 +141,7 @@ The Tracers
 
 Here is the list of current tracers that may be configured.
 
-  ftrace - function tracer that uses mcount to trace all functions.
+  function - function tracer that uses mcount to trace all functions.
 
   sched_switch - traces the context switches between tasks.
 
@@ -166,8 +162,8 @@ Here is the list of current tracers that may be configured.
 		the highest priority task to get scheduled after
 		it has been woken up.
 
-  none - This is not a tracer. To remove all tracers from tracing
-		simply echo "none" into current_tracer.
+  nop - This is not a tracer. To remove all tracers from tracing
+		simply echo "nop" into current_tracer.
 
 
 Examples of using the tracer
@@ -182,7 +178,7 @@ Output format:
 Here is an example of the output format of the file "trace"
 
                              --------
-# tracer: ftrace
+# tracer: function
 #
 #           TASK-PID   CPU#    TIMESTAMP  FUNCTION
 #              | |      |          |         |
@@ -192,7 +188,7 @@ Here is an example of the output format of the file "trace"
                              --------
 
 A header is printed with the tracer name that is represented by the trace.
-In this case the tracer is "ftrace". Then a header showing the format. Task
+In this case the tracer is "function". Then a header showing the format. Task
 name "bash", the task PID "4251", the CPU that it was running on
 "01", the timestamp in <secs>.<usecs> format, the function name that was
 traced "path_put" and the parent function that called this function
@@ -291,6 +287,9 @@ explains which is which.
   CPU#: The CPU which the process was running on.
 
   irqs-off: 'd' interrupts are disabled. '.' otherwise.
+	    Note: If the architecture does not support a way to
+		  read the irq flags variable, an 'X' will always
+		  be printed here.
 
   need-resched: 'N' task need_resched is set, '.' otherwise.
 
@@ -319,23 +318,23 @@ The above is mostly meaningful for kernel developers.
   The rest is the same as the 'trace' file.
 
 
-iter_ctrl
----------
+trace_options
+-------------
 
-The iter_ctrl file is used to control what gets printed in the trace
+The trace_options file is used to control what gets printed in the trace
 output. To see what is available, simply cat the file:
 
-  cat /debug/tracing/iter_ctrl
+  cat /debug/tracing/trace_options
   print-parent nosym-offset nosym-addr noverbose noraw nohex nobin \
- noblock nostacktrace nosched-tree
+ noblock nostacktrace nosched-tree nouserstacktrace nosym-userobj
 
 To disable one of the options, echo in the option prepended with "no".
 
-  echo noprint-parent > /debug/tracing/iter_ctrl
+  echo noprint-parent > /debug/tracing/trace_options
 
 To enable an option, leave off the "no".
 
-  echo sym-offset > /debug/tracing/iter_ctrl
+  echo sym-offset > /debug/tracing/trace_options
 
 Here are the available options:
 
@@ -380,6 +379,20 @@ Here are the available options:
   stacktrace - This is one of the options that changes the trace itself.
 		When a trace is recorded, so is the stack of functions.
 		This allows for back traces of trace sites.
+
+  userstacktrace - This option changes the trace.
+		   It records a stacktrace of the current userspace thread.
+
+  sym-userobj - when user stacktrace are enabled, look up which object the
+		address belongs to, and print a relative address
+		This is especially useful when ASLR is on, otherwise you don't
+		get a chance to resolve the address to object/file/line after the app is no
+		longer running
+
+		The lookup is performed when you read trace,trace_pipe,latency_trace. Example:
+
+		a.out-1623  [000] 40874.465068: /root/a.out[+0x480] <-/root/a.out[+0
+x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
 
   sched-tree - TBD (any users??)
 
@@ -1000,22 +1013,20 @@ is the stack for the hard interrupt. This hides the fact that NEED_RESCHED
 has been set. We do not see the 'N' until we switch back to the task's
 assigned stack.
 
-ftrace
-------
+function
+--------
 
-ftrace is not only the name of the tracing infrastructure, but it
-is also a name of one of the tracers. The tracer is the function
-tracer. Enabling the function tracer can be done from the
-debug file system. Make sure the ftrace_enabled is set otherwise
-this tracer is a nop.
+This tracer is the function tracer. Enabling the function tracer
+can be done from the debug file system. Make sure the ftrace_enabled is
+set; otherwise this tracer is a nop.
 
  # sysctl kernel.ftrace_enabled=1
- # echo ftrace > /debug/tracing/current_tracer
+ # echo function > /debug/tracing/current_tracer
  # echo 1 > /debug/tracing/tracing_enabled
  # usleep 1
  # echo 0 > /debug/tracing/tracing_enabled
  # cat /debug/tracing/trace
-# tracer: ftrace
+# tracer: function
 #
 #           TASK-PID   CPU#    TIMESTAMP  FUNCTION
 #              | |      |          |         |
@@ -1037,10 +1048,10 @@ this tracer is a nop.
 [...]
 
 
-Note: ftrace uses ring buffers to store the above entries. The newest data
-may overwrite the oldest data. Sometimes using echo to stop the trace
-is not sufficient because the tracing could have overwritten the data
-that you wanted to record. For this reason, it is sometimes better to
+Note: function tracer uses ring buffers to store the above entries.
+The newest data may overwrite the oldest data. Sometimes using echo to
+stop the trace is not sufficient because the tracing could have overwritten
+the data that you wanted to record. For this reason, it is sometimes better to
 disable tracing directly from a program. This allows you to stop the
 tracing at the point that you hit the part that you are interested in.
 To disable the tracing directly from a C program, something like following
@@ -1064,6 +1075,83 @@ For simple one time traces, the above is sufficent. For anything else,
 a search through /proc/mounts may be needed to find where the debugfs
 file-system is mounted.
 
+
+Single thread tracing
+---------------------
+
+By writing into /debug/tracing/set_ftrace_pid you can trace a
+single thread. For example:
+
+# cat /debug/tracing/set_ftrace_pid
+no pid
+# echo 3111 > /debug/tracing/set_ftrace_pid
+# cat /debug/tracing/set_ftrace_pid
+3111
+# echo function > /debug/tracing/current_tracer
+# cat /debug/tracing/trace | head
+ # tracer: function
+ #
+ #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+ #              | |       |          |         |
+     yum-updatesd-3111  [003]  1637.254676: finish_task_switch <-thread_return
+     yum-updatesd-3111  [003]  1637.254681: hrtimer_cancel <-schedule_hrtimeout_range
+     yum-updatesd-3111  [003]  1637.254682: hrtimer_try_to_cancel <-hrtimer_cancel
+     yum-updatesd-3111  [003]  1637.254683: lock_hrtimer_base <-hrtimer_try_to_cancel
+     yum-updatesd-3111  [003]  1637.254685: fget_light <-do_sys_poll
+     yum-updatesd-3111  [003]  1637.254686: pipe_poll <-do_sys_poll
+# echo -1 > /debug/tracing/set_ftrace_pid
+# cat /debug/tracing/trace |head
+ # tracer: function
+ #
+ #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+ #              | |       |          |         |
+ ##### CPU 3 buffer started ####
+     yum-updatesd-3111  [003]  1701.957688: free_poll_entry <-poll_freewait
+     yum-updatesd-3111  [003]  1701.957689: remove_wait_queue <-free_poll_entry
+     yum-updatesd-3111  [003]  1701.957691: fput <-free_poll_entry
+     yum-updatesd-3111  [003]  1701.957692: audit_syscall_exit <-sysret_audit
+     yum-updatesd-3111  [003]  1701.957693: path_put <-audit_syscall_exit
+
+If you want to trace a function when executing, you could use
+something like this simple program:
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int main (int argc, char **argv)
+{
+        if (argc < 1)
+                exit(-1);
+
+        if (fork() > 0) {
+                int fd, ffd;
+                char line[64];
+                int s;
+
+                ffd = open("/debug/tracing/current_tracer", O_WRONLY);
+                if (ffd < 0)
+                        exit(-1);
+                write(ffd, "nop", 3);
+
+                fd = open("/debug/tracing/set_ftrace_pid", O_WRONLY);
+                s = sprintf(line, "%d\n", getpid());
+                write(fd, line, s);
+
+                write(ffd, "function", 8);
+
+                close(fd);
+                close(ffd);
+
+                execvp(argv[1], argv+1);
+        }
+
+        return 0;
+}
+
 dynamic ftrace
 --------------
 
@@ -1074,18 +1162,31 @@ every kernel function, produced by the -pg switch in gcc), starts
 of pointing to a simple return. (Enabling FTRACE will include the
 -pg switch in the compiling of the kernel.)
 
-When dynamic ftrace is initialized, it calls kstop_machine to make
-the machine act like a uniprocessor so that it can freely modify code
-without worrying about other processors executing that same code.  At
-initialization, the mcount calls are changed to call a "record_ip"
-function.  After this, the first time a kernel function is called,
-it has the calling address saved in a hash table.
+At compile time every C file object is run through the
+recordmcount.pl script (located in the scripts directory). This
+script will process the C object using objdump to find all the
+locations in the .text section that call mcount. (Note, only
+the .text section is processed, since processing other sections
+like .init.text may cause races due to those sections being freed).
 
-Later on the ftraced kernel thread is awoken and will again call
-kstop_machine if new functions have been recorded. The ftraced thread
-will change all calls to mcount to "nop".  Just calling mcount
-and having mcount return has shown a 10% overhead. By converting
-it to a nop, there is no measurable overhead to the system.
+A new section called "__mcount_loc" is created that holds references
+to all the mcount call sites in the .text section. This section is
+compiled back into the original object. The final linker will add
+all these references into a single table.
+
+On boot up, before SMP is initialized, the dynamic ftrace code
+scans this table and updates all the locations into nops. It also
+records the locations, which are added to the available_filter_functions
+list.  Modules are processed as they are loaded and before they are
+executed.  When a module is unloaded, it also removes its functions from
+the ftrace function list. This is automatic in the module unload
+code, and the module author does not need to worry about it.
+
+When tracing is enabled, kstop_machine is called to prevent races
+with the CPUS executing code being modified (which can cause the
+CPU to do undesireable things), and the nops are patched back
+to calls. But this time, they do not call mcount (which is just
+a function stub). They now call into the ftrace infrastructure.
 
 One special side-effect to the recording of the functions being
 traced is that we can now selectively choose which functions we
@@ -1150,7 +1251,11 @@ These are the only wild cards which are supported.
 
   <match>*<match> will not work.
 
- # echo hrtimer_* > /debug/tracing/set_ftrace_filter
+Note: It is better to use quotes to enclose the wild cards, otherwise
+  the shell may expand the parameters into names of files in the local
+  directory.
+
+ # echo 'hrtimer_*' > /debug/tracing/set_ftrace_filter
 
 Produces:
 
@@ -1205,7 +1310,7 @@ Again, now we want to append.
  # echo sys_nanosleep > /debug/tracing/set_ftrace_filter
  # cat /debug/tracing/set_ftrace_filter
 sys_nanosleep
- # echo hrtimer_* >> /debug/tracing/set_ftrace_filter
+ # echo 'hrtimer_*' >> /debug/tracing/set_ftrace_filter
  # cat /debug/tracing/set_ftrace_filter
 hrtimer_run_queues
 hrtimer_run_pending
@@ -1248,36 +1353,6 @@ Produces:
 
 We can see that there's no more lock or preempt tracing.
 
-ftraced
--------
-
-As mentioned above, when dynamic ftrace is configured in, a kernel
-thread wakes up once a second and checks to see if there are mcount
-calls that need to be converted into nops. If there are not any, then
-it simply goes back to sleep. But if there are some, it will call
-kstop_machine to convert the calls to nops.
-
-There may be a case in which you do not want this added latency.
-Perhaps you are doing some audio recording and this activity might
-cause skips in the playback. There is an interface to disable
-and enable the "ftraced" kernel thread.
-
- # echo 0 > /debug/tracing/ftraced_enabled
-
-This will disable the calling of kstop_machine to update the
-mcount calls to nops. Remember that there is a large overhead
-to calling mcount. Without this kernel thread, that overhead will
-exist.
-
-If there are recorded calls to mcount, any write to the ftraced_enabled
-file will cause the kstop_machine to run. This means that a
-user can manually perform the updates when they want to by simply
-echoing a '0' into the ftraced_enabled file.
-
-The updates are also done at the beginning of enabling a tracer
-that uses ftrace function recording.
-
-
 trace_pipe
 ----------
 
@@ -1286,14 +1361,14 @@ on the tracing is different. Every read from trace_pipe is consumed.
 This means that subsequent reads will be different. The trace
 is live.
 
- # echo ftrace > /debug/tracing/current_tracer
+ # echo function > /debug/tracing/current_tracer
  # cat /debug/tracing/trace_pipe > /tmp/trace.out &
 [1] 4153
  # echo 1 > /debug/tracing/tracing_enabled
  # usleep 1
  # echo 0 > /debug/tracing/tracing_enabled
  # cat /debug/tracing/trace
-# tracer: ftrace
+# tracer: function
 #
 #           TASK-PID   CPU#    TIMESTAMP  FUNCTION
 #              | |      |          |         |
@@ -1314,48 +1389,36 @@ is live.
 
 Note, reading the trace_pipe file will block until more input is added.
 By changing the tracer, trace_pipe will issue an EOF. We needed
-to set the ftrace tracer _before_ cating the trace_pipe file.
+to set the function tracer _before_ we "cat" the trace_pipe file.
 
 
 trace entries
 -------------
 
 Having too much or not enough data can be troublesome in diagnosing
-an issue in the kernel. The file trace_entries is used to modify
+an issue in the kernel. The file buffer_size_kb is used to modify
 the size of the internal trace buffers. The number listed
 is the number of entries that can be recorded per CPU. To know
 the full size, multiply the number of possible CPUS with the
 number of entries.
 
- # cat /debug/tracing/trace_entries
-65620
+ # cat /debug/tracing/buffer_size_kb
+1408 (units kilobytes)
 
 Note, to modify this, you must have tracing completely disabled. To do that,
-echo "none" into the current_tracer. If the current_tracer is not set
-to "none", an EINVAL error will be returned.
+echo "nop" into the current_tracer. If the current_tracer is not set
+to "nop", an EINVAL error will be returned.
 
- # echo none > /debug/tracing/current_tracer
- # echo 100000 > /debug/tracing/trace_entries
- # cat /debug/tracing/trace_entries
-100045
-
-
-Notice that we echoed in 100,000 but the size is 100,045. The entries
-are held in individual pages. It allocates the number of pages it takes
-to fulfill the request. If more entries may fit on the last page
-then they will be added.
-
- # echo 1 > /debug/tracing/trace_entries
- # cat /debug/tracing/trace_entries
-85
-
-This shows us that 85 entries can fit in a single page.
+ # echo nop > /debug/tracing/current_tracer
+ # echo 10000 > /debug/tracing/buffer_size_kb
+ # cat /debug/tracing/buffer_size_kb
+10000 (units kilobytes)
 
 The number of pages which will be allocated is limited to a percentage
 of available memory. Allocating too much will produce an error.
 
- # echo 1000000000000 > /debug/tracing/trace_entries
+ # echo 1000000000000 > /debug/tracing/buffer_size_kb
 -bash: echo: write error: Cannot allocate memory
- # cat /debug/tracing/trace_entries
+ # cat /debug/tracing/buffer_size_kb
 85
 

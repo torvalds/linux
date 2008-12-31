@@ -41,7 +41,6 @@ static cpumask_t marked_cpus = CPU_MASK_NONE;
 static DEFINE_SPINLOCK(task_mortuary);
 static void process_task_mortuary(void);
 
-
 /* Take ownership of the task struct and place it on the
  * list for processing. Only after two full buffer syncs
  * does the task eventually get freed, because by then
@@ -269,18 +268,6 @@ lookup_dcookie(struct mm_struct *mm, unsigned long addr, off_t *offset)
 	return cookie;
 }
 
-static void increment_tail(struct oprofile_cpu_buffer *b)
-{
-	unsigned long new_tail = b->tail_pos + 1;
-
-	rmb();	/* be sure fifo pointers are synchromized */
-
-	if (new_tail < b->buffer_size)
-		b->tail_pos = new_tail;
-	else
-		b->tail_pos = 0;
-}
-
 static unsigned long last_cookie = INVALID_COOKIE;
 
 static void add_cpu_switch(int i)
@@ -332,28 +319,25 @@ static void add_trace_begin(void)
 
 #define IBS_FETCH_CODE_SIZE	2
 #define IBS_OP_CODE_SIZE	5
-#define IBS_EIP(offset)				\
-	(((struct op_sample *)&cpu_buf->buffer[(offset)])->eip)
-#define IBS_EVENT(offset)				\
-	(((struct op_sample *)&cpu_buf->buffer[(offset)])->event)
 
 /*
  * Add IBS fetch and op entries to event buffer
  */
-static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
-	int in_kernel, struct mm_struct *mm)
+static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
 {
 	unsigned long rip;
 	int i, count;
 	unsigned long ibs_cookie = 0;
 	off_t offset;
+	struct op_sample *sample;
 
-	increment_tail(cpu_buf);	/* move to RIP entry */
-
-	rip = IBS_EIP(cpu_buf->tail_pos);
+	sample = cpu_buffer_read_entry(cpu);
+	if (!sample)
+		goto Error;
+	rip = sample->eip;
 
 #ifdef __LP64__
-	rip += IBS_EVENT(cpu_buf->tail_pos) << 32;
+	rip += sample->event << 32;
 #endif
 
 	if (mm) {
@@ -377,8 +361,8 @@ static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
 	add_event_entry(offset);	/* Offset from Dcookie */
 
 	/* we send the Dcookie offset, but send the raw Linear Add also*/
-	add_event_entry(IBS_EIP(cpu_buf->tail_pos));
-	add_event_entry(IBS_EVENT(cpu_buf->tail_pos));
+	add_event_entry(sample->eip);
+	add_event_entry(sample->event);
 
 	if (code == IBS_FETCH_CODE)
 		count = IBS_FETCH_CODE_SIZE;	/*IBS FETCH is 2 int64s*/
@@ -386,10 +370,17 @@ static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
 		count = IBS_OP_CODE_SIZE;	/*IBS OP is 5 int64s*/
 
 	for (i = 0; i < count; i++) {
-		increment_tail(cpu_buf);
-		add_event_entry(IBS_EIP(cpu_buf->tail_pos));
-		add_event_entry(IBS_EVENT(cpu_buf->tail_pos));
+		sample = cpu_buffer_read_entry(cpu);
+		if (!sample)
+			goto Error;
+		add_event_entry(sample->eip);
+		add_event_entry(sample->event);
 	}
+
+	return;
+
+Error:
+	return;
 }
 
 #endif
@@ -467,33 +458,6 @@ static inline int is_code(unsigned long val)
 }
 
 
-/* "acquire" as many cpu buffer slots as we can */
-static unsigned long get_slots(struct oprofile_cpu_buffer *b)
-{
-	unsigned long head = b->head_pos;
-	unsigned long tail = b->tail_pos;
-
-	/*
-	 * Subtle. This resets the persistent last_task
-	 * and in_kernel values used for switching notes.
-	 * BUT, there is a small window between reading
-	 * head_pos, and this call, that means samples
-	 * can appear at the new head position, but not
-	 * be prefixed with the notes for switching
-	 * kernel mode or a task switch. This small hole
-	 * can lead to mis-attribution or samples where
-	 * we don't know if it's in the kernel or not,
-	 * at the start of an event buffer.
-	 */
-	cpu_buffer_reset(b);
-
-	if (head >= tail)
-		return head - tail;
-
-	return head + (b->buffer_size - tail);
-}
-
-
 /* Move tasks along towards death. Any tasks on dead_tasks
  * will definitely have no remaining references in any
  * CPU buffers at this point, because we use two lists,
@@ -560,57 +524,61 @@ typedef enum {
  */
 void sync_buffer(int cpu)
 {
-	struct oprofile_cpu_buffer *cpu_buf = &per_cpu(cpu_buffer, cpu);
 	struct mm_struct *mm = NULL;
+	struct mm_struct *oldmm;
 	struct task_struct *new;
 	unsigned long cookie = 0;
 	int in_kernel = 1;
-	unsigned int i;
 	sync_buffer_state state = sb_buffer_start;
+	unsigned int i;
 	unsigned long available;
 
 	mutex_lock(&buffer_mutex);
 
 	add_cpu_switch(cpu);
 
-	/* Remember, only we can modify tail_pos */
-
-	available = get_slots(cpu_buf);
+	cpu_buffer_reset(cpu);
+	available = cpu_buffer_entries(cpu);
 
 	for (i = 0; i < available; ++i) {
-		struct op_sample *s = &cpu_buf->buffer[cpu_buf->tail_pos];
+		struct op_sample *s = cpu_buffer_read_entry(cpu);
+		if (!s)
+			break;
 
 		if (is_code(s->eip)) {
-			if (s->event <= CPU_IS_KERNEL) {
+			switch (s->event) {
+			case 0:
+			case CPU_IS_KERNEL:
 				/* kernel/userspace switch */
 				in_kernel = s->event;
 				if (state == sb_buffer_start)
 					state = sb_sample_start;
 				add_kernel_ctx_switch(s->event);
-			} else if (s->event == CPU_TRACE_BEGIN) {
+				break;
+			case CPU_TRACE_BEGIN:
 				state = sb_bt_start;
 				add_trace_begin();
+				break;
 #ifdef CONFIG_OPROFILE_IBS
-			} else if (s->event == IBS_FETCH_BEGIN) {
+			case IBS_FETCH_BEGIN:
 				state = sb_bt_start;
-				add_ibs_begin(cpu_buf,
-					IBS_FETCH_CODE, in_kernel, mm);
-			} else if (s->event == IBS_OP_BEGIN) {
+				add_ibs_begin(cpu, IBS_FETCH_CODE, mm);
+				break;
+			case IBS_OP_BEGIN:
 				state = sb_bt_start;
-				add_ibs_begin(cpu_buf,
-					IBS_OP_CODE, in_kernel, mm);
+				add_ibs_begin(cpu, IBS_OP_CODE, mm);
+				break;
 #endif
-			} else {
-				struct mm_struct *oldmm = mm;
-
+			default:
 				/* userspace context switch */
+				oldmm = mm;
 				new = (struct task_struct *)s->event;
-
 				release_mm(oldmm);
 				mm = take_tasks_mm(new);
 				if (mm != oldmm)
 					cookie = get_exec_dcookie(mm);
 				add_user_ctx_switch(new, cookie);
+				break;
 			}
 		} else if (state >= sb_bt_start &&
 			   !add_sample(mm, s, in_kernel)) {
@@ -619,8 +587,6 @@ void sync_buffer(int cpu)
 				atomic_inc(&oprofile_stats.bt_lost_no_mapping);
 			}
 		}
-
-		increment_tail(cpu_buf);
 	}
 	release_mm(mm);
 
@@ -628,3 +594,27 @@ void sync_buffer(int cpu)
 
 	mutex_unlock(&buffer_mutex);
 }
+
+/* The function can be used to add a buffer worth of data directly to
+ * the kernel buffer. The buffer is assumed to be a circular buffer.
+ * Take the entries from index start and end at index end, wrapping
+ * at max_entries.
+ */
+void oprofile_put_buff(unsigned long *buf, unsigned int start,
+		       unsigned int stop, unsigned int max)
+{
+	int i;
+
+	i = start;
+
+	mutex_lock(&buffer_mutex);
+	while (i != stop) {
+		add_event_entry(buf[i++]);
+
+		if (i >= max)
+			i = 0;
+	}
+
+	mutex_unlock(&buffer_mutex);
+}
+

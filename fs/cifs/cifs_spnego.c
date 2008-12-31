@@ -73,8 +73,8 @@ struct key_type cifs_spnego_key_type = {
  * strlen(";sec=ntlmsspi") */
 #define MAX_MECH_STR_LEN	13
 
-/* max possible addr len eg FEDC:BA98:7654:3210:FEDC:BA98:7654:3210/60 */
-#define MAX_IPV6_ADDR_LEN	42
+/* max possible addr len eg FEDC:BA98:7654:3210:FEDC:BA98:7654:3210/128 */
+#define MAX_IPV6_ADDR_LEN	43
 
 /* strlen of "host=" */
 #define HOST_KEY_LEN		5
@@ -121,11 +121,9 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 
 	/* add the server address */
 	if (server->addr.sockAddr.sin_family == AF_INET)
-		sprintf(dp, "ip4=" NIPQUAD_FMT,
-			NIPQUAD(server->addr.sockAddr.sin_addr));
+		sprintf(dp, "ip4=%pI4", &server->addr.sockAddr.sin_addr);
 	else if (server->addr.sockAddr.sin_family == AF_INET6)
-		sprintf(dp, "ip6=" NIP6_SEQFMT,
-			NIP6(server->addr.sockAddr6.sin6_addr));
+		sprintf(dp, "ip6=%pi6", &server->addr.sockAddr6.sin6_addr);
 	else
 		goto out;
 

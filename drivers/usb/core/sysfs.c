@@ -743,6 +743,29 @@ static ssize_t show_modalias(struct device *dev,
 }
 static DEVICE_ATTR(modalias, S_IRUGO, show_modalias, NULL);
 
+static ssize_t show_supports_autosuspend(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct usb_interface *intf;
+	struct usb_device *udev;
+	int ret;
+
+	intf = to_usb_interface(dev);
+	udev = interface_to_usbdev(intf);
+
+	usb_lock_device(udev);
+	/* Devices will be autosuspended even when an interface isn't claimed */
+	if (!intf->dev.driver ||
+			to_usb_driver(intf->dev.driver)->supports_autosuspend)
+		ret = sprintf(buf, "%u\n", 1);
+	else
+		ret = sprintf(buf, "%u\n", 0);
+	usb_unlock_device(udev);
+
+	return ret;
+}
+static DEVICE_ATTR(supports_autosuspend, S_IRUGO, show_supports_autosuspend, NULL);
+
 static struct attribute *intf_attrs[] = {
 	&dev_attr_bInterfaceNumber.attr,
 	&dev_attr_bAlternateSetting.attr,
@@ -751,6 +774,7 @@ static struct attribute *intf_attrs[] = {
 	&dev_attr_bInterfaceSubClass.attr,
 	&dev_attr_bInterfaceProtocol.attr,
 	&dev_attr_modalias.attr,
+	&dev_attr_supports_autosuspend.attr,
 	NULL,
 };
 static struct attribute_group intf_attr_grp = {
@@ -816,7 +840,7 @@ int usb_create_sysfs_intf_files(struct usb_interface *intf)
 	struct usb_host_interface *alt = intf->cur_altsetting;
 	int retval;
 
-	if (intf->sysfs_files_created)
+	if (intf->sysfs_files_created || intf->unregistering)
 		return 0;
 
 	/* The interface string may be present in some altsettings

@@ -265,7 +265,7 @@ add_failure:
 static int netlbl_mgmt_listentry(struct sk_buff *skb,
 				 struct netlbl_dom_map *entry)
 {
-	int ret_val;
+	int ret_val = 0;
 	struct nlattr *nla_a;
 	struct nlattr *nla_b;
 	struct netlbl_af4list *iter4;
@@ -596,7 +596,6 @@ listdef_failure:
 /**
  * netlbl_mgmt_protocols_cb - Write an individual PROTOCOL message response
  * @skb: the skb to write to
- * @seq: the NETLINK sequence number
  * @cb: the NETLINK callback
  * @protocol: the NetLabel protocol to use in the message
  *

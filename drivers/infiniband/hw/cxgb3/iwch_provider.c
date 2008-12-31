@@ -1102,9 +1102,7 @@ static u64 fw_vers_string_to_u64(struct iwch_dev *iwch_dev)
 	char *cp, *next;
 	unsigned fw_maj, fw_min, fw_mic;
 
-	rtnl_lock();
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
-	rtnl_unlock();
 
 	next = info.fw_version + 1;
 	cp = strsep(&next, ".");
@@ -1192,9 +1190,7 @@ static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr, ch
 	struct net_device *lldev = iwch_dev->rdev.t3cdev_p->lldev;
 
 	PDBG("%s dev 0x%p\n", __func__, dev);
-	rtnl_lock();
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
-	rtnl_unlock();
 	return sprintf(buf, "%s\n", info.fw_version);
 }
 
@@ -1207,9 +1203,7 @@ static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
 	struct net_device *lldev = iwch_dev->rdev.t3cdev_p->lldev;
 
 	PDBG("%s dev 0x%p\n", __func__, dev);
-	rtnl_lock();
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
-	rtnl_unlock();
 	return sprintf(buf, "%s\n", info.driver);
 }
 

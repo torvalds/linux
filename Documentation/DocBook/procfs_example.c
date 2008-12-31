@@ -1,28 +1,16 @@
 /*
  * procfs_example.c: an example proc interface
  *
- * Copyright (C) 2001, Erik Mouw (J.A.K.Mouw@its.tudelft.nl)
+ * Copyright (C) 2001, Erik Mouw (mouw@nl.linux.org)
  *
  * This file accompanies the procfs-guide in the Linux kernel
  * source. Its main use is to demonstrate the concepts and
  * functions described in the guide.
  *
  * This software has been developed while working on the LART
- * computing board (http://www.lart.tudelft.nl/), which is
- * sponsored by the Mobile Multi-media Communications
- * (http://www.mmc.tudelft.nl/) and Ubiquitous Communications 
- * (http://www.ubicom.tudelft.nl/) projects.
- *
- * The author can be reached at:
- *
- *  Erik Mouw
- *  Information and Communication Theory Group
- *  Faculty of Information Technology and Systems
- *  Delft University of Technology
- *  P.O. Box 5031
- *  2600 GA Delft
- *  The Netherlands
- *
+ * computing board (http://www.lartmaker.nl), which was sponsored
+ * by the Delt University of Technology projects Mobile Multi-media
+ * Communications and Ubiquitous Communications.
  *
  * This program is free software; you can redistribute
  * it and/or modify it under the terms of the GNU General

@@ -18,12 +18,7 @@
    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
 */
 
-#include <linux/module.h>
 #include <linux/raid/raid0.h>
-
-#define MAJOR_NR MD_MAJOR
-#define MD_DRIVER
-#define MD_PERSONALITY
 
 static void raid0_unplug(struct request_queue *q)
 {

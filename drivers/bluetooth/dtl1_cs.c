@@ -297,6 +297,7 @@ static irqreturn_t dtl1_interrupt(int irq, void *dev_inst)
 	unsigned char msr;
 	int boguscount = 0;
 	int iir, lsr;
+	irqreturn_t r = IRQ_NONE;
 
 	BUG_ON(!info->hdev);
 
@@ -307,6 +308,7 @@ static irqreturn_t dtl1_interrupt(int irq, void *dev_inst)
 	iir = inb(iobase + UART_IIR) & UART_IIR_ID;
 	while (iir) {
 
+		r = IRQ_HANDLED;
 		/* Clear interrupt */
 		lsr = inb(iobase + UART_LSR);
 
@@ -343,11 +345,12 @@ static irqreturn_t dtl1_interrupt(int irq, void *dev_inst)
 		info->ri_latch = msr & UART_MSR_RI;
 		clear_bit(XMIT_WAITING, &(info->tx_state));
 		dtl1_write_wakeup(info);
+		r = IRQ_HANDLED;
 	}
 
 	spin_unlock(&(info->lock));
 
-	return IRQ_HANDLED;
+	return r;
 }
 
 
@@ -568,7 +571,7 @@ static int dtl1_probe(struct pcmcia_device *link)
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.NumPorts1 = 8;
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 
 	link->irq.Handler = dtl1_interrupt;

@@ -605,7 +605,7 @@ void musb_platform_set_mode(struct musb *musb, u8 musb_mode)
 
 	if (musb->board_mode != MUSB_OTG) {
 		ERR("Changing mode currently only supported in OTG mode\n");
-		return;
+		return -EINVAL;
 	}
 
 	otg_stat = musb_readl(tbase, TUSB_DEV_OTG_STAT);

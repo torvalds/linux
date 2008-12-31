@@ -94,7 +94,7 @@ extern void ptrace_notify(int exit_code);
 extern void __ptrace_link(struct task_struct *child,
 			  struct task_struct *new_parent);
 extern void __ptrace_unlink(struct task_struct *child);
-extern void ptrace_untrace(struct task_struct *child);
+extern void ptrace_fork(struct task_struct *task, unsigned long clone_flags);
 #define PTRACE_MODE_READ   1
 #define PTRACE_MODE_ATTACH 2
 /* Returns 0 on success, -errno on denial. */
@@ -312,6 +312,27 @@ static inline void user_enable_block_step(struct task_struct *task)
  * indicated by arch_ptrace_stop_needed().
  */
 #define arch_ptrace_stop(code, info)		do { } while (0)
+#endif
+
+#ifndef arch_ptrace_untrace
+/*
+ * Do machine-specific work before untracing child.
+ *
+ * This is called for a normal detach as well as from ptrace_exit()
+ * when the tracing task dies.
+ *
+ * Called with write_lock(&tasklist_lock) held.
+ */
+#define arch_ptrace_untrace(task)		do { } while (0)
+#endif
+
+#ifndef arch_ptrace_fork
+/*
+ * Do machine-specific work to initialize a new task.
+ *
+ * This is called from copy_process().
+ */
+#define arch_ptrace_fork(child, clone_flags)	do { } while (0)
 #endif
 
 extern int task_current_syscall(struct task_struct *target, long *callno,

@@ -24,8 +24,8 @@
 int blk_queue_ordered(struct request_queue *q, unsigned ordered,
 		      prepare_flush_fn *prepare_flush_fn)
 {
-	if (ordered & (QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_POSTFLUSH) &&
-	    prepare_flush_fn == NULL) {
+	if (!prepare_flush_fn && (ordered & (QUEUE_ORDERED_DO_PREFLUSH |
+					     QUEUE_ORDERED_DO_POSTFLUSH))) {
 		printk(KERN_ERR "%s: prepare_flush_fn required\n", __func__);
 		return -EINVAL;
 	}
@@ -88,7 +88,7 @@ unsigned blk_ordered_req_seq(struct request *rq)
 		return QUEUE_ORDSEQ_DONE;
 }
 
-void blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
+bool blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
 {
 	struct request *rq;
 
@@ -99,7 +99,7 @@ void blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
 	q->ordseq |= seq;
 
 	if (blk_ordered_cur_seq(q) != QUEUE_ORDSEQ_DONE)
-		return;
+		return false;
 
 	/*
 	 * Okay, sequence complete.
@@ -109,6 +109,8 @@ void blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
 
 	if (__blk_end_request(rq, q->orderr, blk_rq_bytes(rq)))
 		BUG();
+
+	return true;
 }
 
 static void pre_flush_end_io(struct request *rq, int error)
@@ -134,7 +136,7 @@ static void queue_flush(struct request_queue *q, unsigned which)
 	struct request *rq;
 	rq_end_io_fn *end_io;
 
-	if (which == QUEUE_ORDERED_PREFLUSH) {
+	if (which == QUEUE_ORDERED_DO_PREFLUSH) {
 		rq = &q->pre_flush_rq;
 		end_io = pre_flush_end_io;
 	} else {
@@ -151,80 +153,110 @@ static void queue_flush(struct request_queue *q, unsigned which)
 	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 }
 
-static inline struct request *start_ordered(struct request_queue *q,
-					    struct request *rq)
+static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 {
+	struct request *rq = *rqp;
+	unsigned skip = 0;
+
 	q->orderr = 0;
 	q->ordered = q->next_ordered;
 	q->ordseq |= QUEUE_ORDSEQ_STARTED;
 
 	/*
-	 * Prep proxy barrier request.
+	 * For an empty barrier, there's no actual BAR request, which
+	 * in turn makes POSTFLUSH unnecessary.  Mask them off.
 	 */
-	blkdev_dequeue_request(rq);
+	if (!rq->hard_nr_sectors) {
+		q->ordered &= ~(QUEUE_ORDERED_DO_BAR |
+				QUEUE_ORDERED_DO_POSTFLUSH);
+		/*
+		 * Empty barrier on a write-through device w/ ordered
+		 * tag has no command to issue and without any command
+		 * to issue, ordering by tag can't be used.  Drain
+		 * instead.
+		 */
+		if ((q->ordered & QUEUE_ORDERED_BY_TAG) &&
+		    !(q->ordered & QUEUE_ORDERED_DO_PREFLUSH)) {
+			q->ordered &= ~QUEUE_ORDERED_BY_TAG;
+			q->ordered |= QUEUE_ORDERED_BY_DRAIN;
+		}
+	}
+
+	/* stash away the original request */
+	elv_dequeue_request(q, rq);
 	q->orig_bar_rq = rq;
-	rq = &q->bar_rq;
-	blk_rq_init(q, rq);
-	if (bio_data_dir(q->orig_bar_rq->bio) == WRITE)
-		rq->cmd_flags |= REQ_RW;
-	if (q->ordered & QUEUE_ORDERED_FUA)
-		rq->cmd_flags |= REQ_FUA;
-	init_request_from_bio(rq, q->orig_bar_rq->bio);
-	rq->end_io = bar_end_io;
+	rq = NULL;
 
 	/*
 	 * Queue ordered sequence.  As we stack them at the head, we
 	 * need to queue in reverse order.  Note that we rely on that
 	 * no fs request uses ELEVATOR_INSERT_FRONT and thus no fs
-	 * request gets inbetween ordered sequence. If this request is
-	 * an empty barrier, we don't need to do a postflush ever since
-	 * there will be no data written between the pre and post flush.
-	 * Hence a single flush will suffice.
+	 * request gets inbetween ordered sequence.
 	 */
-	if ((q->ordered & QUEUE_ORDERED_POSTFLUSH) && !blk_empty_barrier(rq))
-		queue_flush(q, QUEUE_ORDERED_POSTFLUSH);
-	else
-		q->ordseq |= QUEUE_ORDSEQ_POSTFLUSH;
+	if (q->ordered & QUEUE_ORDERED_DO_POSTFLUSH) {
+		queue_flush(q, QUEUE_ORDERED_DO_POSTFLUSH);
+		rq = &q->post_flush_rq;
+	} else
+		skip |= QUEUE_ORDSEQ_POSTFLUSH;
 
-	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
+	if (q->ordered & QUEUE_ORDERED_DO_BAR) {
+		rq = &q->bar_rq;
 
-	if (q->ordered & QUEUE_ORDERED_PREFLUSH) {
-		queue_flush(q, QUEUE_ORDERED_PREFLUSH);
+		/* initialize proxy request and queue it */
+		blk_rq_init(q, rq);
+		if (bio_data_dir(q->orig_bar_rq->bio) == WRITE)
+			rq->cmd_flags |= REQ_RW;
+		if (q->ordered & QUEUE_ORDERED_DO_FUA)
+			rq->cmd_flags |= REQ_FUA;
+		init_request_from_bio(rq, q->orig_bar_rq->bio);
+		rq->end_io = bar_end_io;
+
+		elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
+	} else
+		skip |= QUEUE_ORDSEQ_BAR;
+
+	if (q->ordered & QUEUE_ORDERED_DO_PREFLUSH) {
+		queue_flush(q, QUEUE_ORDERED_DO_PREFLUSH);
 		rq = &q->pre_flush_rq;
 	} else
-		q->ordseq |= QUEUE_ORDSEQ_PREFLUSH;
+		skip |= QUEUE_ORDSEQ_PREFLUSH;
 
-	if ((q->ordered & QUEUE_ORDERED_TAG) || q->in_flight == 0)
-		q->ordseq |= QUEUE_ORDSEQ_DRAIN;
-	else
+	if ((q->ordered & QUEUE_ORDERED_BY_DRAIN) && q->in_flight)
 		rq = NULL;
+	else
+		skip |= QUEUE_ORDSEQ_DRAIN;
 
-	return rq;
+	*rqp = rq;
+
+	/*
+	 * Complete skipped sequences.  If whole sequence is complete,
+	 * return false to tell elevator that this request is gone.
+	 */
+	return !blk_ordered_complete_seq(q, skip, 0);
 }
 
-int blk_do_ordered(struct request_queue *q, struct request **rqp)
+bool blk_do_ordered(struct request_queue *q, struct request **rqp)
 {
 	struct request *rq = *rqp;
 	const int is_barrier = blk_fs_request(rq) && blk_barrier_rq(rq);
 
 	if (!q->ordseq) {
 		if (!is_barrier)
-			return 1;
+			return true;
 
-		if (q->next_ordered != QUEUE_ORDERED_NONE) {
-			*rqp = start_ordered(q, rq);
-			return 1;
-		} else {
+		if (q->next_ordered != QUEUE_ORDERED_NONE)
+			return start_ordered(q, rqp);
+		else {
 			/*
-			 * This can happen when the queue switches to
-			 * ORDERED_NONE while this request is on it.
+			 * Queue ordering not supported.  Terminate
+			 * with prejudice.
 			 */
-			blkdev_dequeue_request(rq);
+			elv_dequeue_request(q, rq);
 			if (__blk_end_request(rq, -EOPNOTSUPP,
 					      blk_rq_bytes(rq)))
 				BUG();
 			*rqp = NULL;
-			return 0;
+			return false;
 		}
 	}
 
@@ -235,9 +267,9 @@ int blk_do_ordered(struct request_queue *q, struct request **rqp)
 	/* Special requests are not subject to ordering rules. */
 	if (!blk_fs_request(rq) &&
 	    rq != &q->pre_flush_rq && rq != &q->post_flush_rq)
-		return 1;
+		return true;
 
-	if (q->ordered & QUEUE_ORDERED_TAG) {
+	if (q->ordered & QUEUE_ORDERED_BY_TAG) {
 		/* Ordered by tag.  Blocking the next barrier is enough. */
 		if (is_barrier && rq != &q->bar_rq)
 			*rqp = NULL;
@@ -248,7 +280,7 @@ int blk_do_ordered(struct request_queue *q, struct request **rqp)
 			*rqp = NULL;
 	}
 
-	return 1;
+	return true;
 }
 
 static void bio_end_empty_barrier(struct bio *bio, int err)

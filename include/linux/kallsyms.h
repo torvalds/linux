@@ -93,12 +93,10 @@ static inline void print_symbol(const char *fmt, unsigned long addr)
 }
 
 /*
- * Pretty-print a function pointer.
- *
- * ia64 and ppc64 function pointers are really function descriptors,
- * which contain a pointer the real address.
+ * Pretty-print a function pointer.  This function is deprecated.
+ * Please use the "%pF" vsprintf format instead.
  */
-static inline void print_fn_descriptor_symbol(const char *fmt, void *addr)
+static inline void __deprecated print_fn_descriptor_symbol(const char *fmt, void *addr)
 {
 #if defined(CONFIG_IA64) || defined(CONFIG_PPC64)
 	addr = *(void **)addr;

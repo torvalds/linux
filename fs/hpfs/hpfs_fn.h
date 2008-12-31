@@ -275,7 +275,7 @@ void hpfs_init_inode(struct inode *);
 void hpfs_read_inode(struct inode *);
 void hpfs_write_inode(struct inode *);
 void hpfs_write_inode_nolock(struct inode *);
-int hpfs_notify_change(struct dentry *, struct iattr *);
+int hpfs_setattr(struct dentry *, struct iattr *);
 void hpfs_write_if_changed(struct inode *);
 void hpfs_delete_inode(struct inode *);
 

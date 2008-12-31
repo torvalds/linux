@@ -25,18 +25,16 @@
 #include <linux/sysdev.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <asm/dma.h>
+#include <mach/dma.h>
 
-#include <asm/mach/dma.h>
 #include <mach/map.h>
 
-#include <asm/plat-s3c24xx/dma.h>
+#include <plat/dma.h>
 
 /* io map for dma */
 static void __iomem *dma_base;
@@ -804,7 +802,7 @@ EXPORT_SYMBOL(s3c2410_dma_request);
  * allowed to go through.
 */
 
-int s3c2410_dma_free(dmach_t channel, struct s3c2410_dma_client *client)
+int s3c2410_dma_free(unsigned int channel, struct s3c2410_dma_client *client)
 {
 	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
 	unsigned long flags;
@@ -995,7 +993,7 @@ static int s3c2410_dma_started(struct s3c2410_dma_chan *chan)
 }
 
 int
-s3c2410_dma_ctrl(dmach_t channel, enum s3c2410_chan_op op)
+s3c2410_dma_ctrl(unsigned int channel, enum s3c2410_chan_op op)
 {
 	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
 
@@ -1043,7 +1041,7 @@ EXPORT_SYMBOL(s3c2410_dma_ctrl);
  * dcon:         base value of the DCONx register
 */
 
-int s3c2410_dma_config(dmach_t channel,
+int s3c2410_dma_config(unsigned int channel,
 		       int xferunit,
 		       int dcon)
 {
@@ -1092,7 +1090,7 @@ int s3c2410_dma_config(dmach_t channel,
 
 EXPORT_SYMBOL(s3c2410_dma_config);
 
-int s3c2410_dma_setflags(dmach_t channel, unsigned int flags)
+int s3c2410_dma_setflags(unsigned int channel, unsigned int flags)
 {
 	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
 
@@ -1113,7 +1111,7 @@ EXPORT_SYMBOL(s3c2410_dma_setflags);
  * irq?
 */
 
-int s3c2410_dma_set_opfn(dmach_t channel, s3c2410_dma_opfn_t rtn)
+int s3c2410_dma_set_opfn(unsigned int channel, s3c2410_dma_opfn_t rtn)
 {
 	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
 
@@ -1129,7 +1127,7 @@ int s3c2410_dma_set_opfn(dmach_t channel, s3c2410_dma_opfn_t rtn)
 
 EXPORT_SYMBOL(s3c2410_dma_set_opfn);
 
-int s3c2410_dma_set_buffdone_fn(dmach_t channel, s3c2410_dma_cbfn_t rtn)
+int s3c2410_dma_set_buffdone_fn(unsigned int channel, s3c2410_dma_cbfn_t rtn)
 {
 	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
 
@@ -1219,7 +1217,7 @@ EXPORT_SYMBOL(s3c2410_dma_devconfig);
  * returns the current transfer points for the dma source and destination
 */
 
-int s3c2410_dma_getposition(dmach_t channel, dma_addr_t *src, dma_addr_t *dst)
+int s3c2410_dma_getposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst)
 {
  	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
 

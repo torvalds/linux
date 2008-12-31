@@ -220,6 +220,13 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 		return (__force void __iomem *)phys_to_virt(phys_addr);
 
 	/*
+	 * Check if the request spans more than any BAR in the iomem resource
+	 * tree.
+	 */
+	WARN_ONCE(iomem_map_sanity_check(phys_addr, size),
+		  KERN_INFO "Info: mapping multiple BARs. Your kernel is fine.");
+
+	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
 	 */
 	for (pfn = phys_addr >> PAGE_SHIFT;
@@ -381,7 +388,7 @@ static void __iomem *ioremap_default(resource_size_t phys_addr,
 					unsigned long size)
 {
 	unsigned long flags;
-	void *ret;
+	void __iomem *ret;
 	int err;
 
 	/*
@@ -393,11 +400,11 @@ static void __iomem *ioremap_default(resource_size_t phys_addr,
 	if (err < 0)
 		return NULL;
 
-	ret = (void *) __ioremap_caller(phys_addr, size, flags,
-					__builtin_return_address(0));
+	ret = __ioremap_caller(phys_addr, size, flags,
+			       __builtin_return_address(0));
 
 	free_memtype(phys_addr, phys_addr + size);
-	return (void __iomem *)ret;
+	return ret;
 }
 
 void __iomem *ioremap_prot(resource_size_t phys_addr, unsigned long size,
@@ -616,7 +623,7 @@ static inline void __init early_clear_fixmap(enum fixed_addresses idx)
 		__early_set_fixmap(idx, 0, __pgprot(0));
 }
 
-static void *prev_map[FIX_BTMAPS_SLOTS] __initdata;
+static void __iomem *prev_map[FIX_BTMAPS_SLOTS] __initdata;
 static unsigned long prev_size[FIX_BTMAPS_SLOTS] __initdata;
 static int __init check_early_ioremap_leak(void)
 {
@@ -639,7 +646,7 @@ static int __init check_early_ioremap_leak(void)
 }
 late_initcall(check_early_ioremap_leak);
 
-static void __init *__early_ioremap(unsigned long phys_addr, unsigned long size, pgprot_t prot)
+static void __init __iomem *__early_ioremap(unsigned long phys_addr, unsigned long size, pgprot_t prot)
 {
 	unsigned long offset, last_addr;
 	unsigned int nrpages;
@@ -707,23 +714,23 @@ static void __init *__early_ioremap(unsigned long phys_addr, unsigned long size,
 	if (early_ioremap_debug)
 		printk(KERN_CONT "%08lx + %08lx\n", offset, fix_to_virt(idx0));
 
-	prev_map[slot] = (void *) (offset + fix_to_virt(idx0));
+	prev_map[slot] = (void __iomem *)(offset + fix_to_virt(idx0));
 	return prev_map[slot];
 }
 
 /* Remap an IO device */
-void __init *early_ioremap(unsigned long phys_addr, unsigned long size)
+void __init __iomem *early_ioremap(unsigned long phys_addr, unsigned long size)
 {
 	return __early_ioremap(phys_addr, size, PAGE_KERNEL_IO);
 }
 
 /* Remap memory */
-void __init *early_memremap(unsigned long phys_addr, unsigned long size)
+void __init __iomem *early_memremap(unsigned long phys_addr, unsigned long size)
 {
 	return __early_ioremap(phys_addr, size, PAGE_KERNEL);
 }
 
-void __init early_iounmap(void *addr, unsigned long size)
+void __init early_iounmap(void __iomem *addr, unsigned long size)
 {
 	unsigned long virt_addr;
 	unsigned long offset;
@@ -773,7 +780,7 @@ void __init early_iounmap(void *addr, unsigned long size)
 		--idx;
 		--nrpages;
 	}
-	prev_map[slot] = 0;
+	prev_map[slot] = NULL;
 }
 
 void __this_fixmap_does_not_exist(void)

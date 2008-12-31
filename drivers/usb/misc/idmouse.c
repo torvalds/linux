@@ -403,14 +403,15 @@ static void idmouse_disconnect(struct usb_interface *interface)
 		mutex_unlock(&dev->lock);
 	}
 
-	info("%s disconnected", DRIVER_DESC);
+	dev_info(&interface->dev, "disconnected\n");
 }
 
 static int __init usb_idmouse_init(void)
 {
 	int result;
 
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	/* register this driver with the USB subsystem */
 	result = usb_register(&idmouse_driver);

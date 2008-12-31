@@ -10,8 +10,8 @@
  *	14478 Potsdam, Germany
  *
  *	Most of this code is directly derived from his userspace driver.
- *	His driver works so send any reports to alan@redhat.com unless the
- *	userspace driver also doesn't work for you...
+ *	His driver works so send any reports to alan@lxorguk.ukuu.org.uk
+ *	unless the userspace driver also doesn't work for you...
  *
  *      Changes:
  *      08/07/2003        Daniele Bellucci <bellucda@tiscali.it>
@@ -680,8 +680,7 @@ static int pms_capture(struct pms_device *dev, char __user *buf, int rgb555, int
  *	Video4linux interfacing
  */
 
-static int pms_do_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, void *arg)
+static int pms_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
 	struct pms_device *pd=(struct pms_device *)dev;
@@ -866,7 +865,7 @@ static int pms_do_ioctl(struct inode *inode, struct file *file,
 static int pms_ioctl(struct inode *inode, struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, pms_do_ioctl);
+	return video_usercopy(file, cmd, arg, pms_do_ioctl);
 }
 
 static ssize_t pms_read(struct file *file, char __user *buf,

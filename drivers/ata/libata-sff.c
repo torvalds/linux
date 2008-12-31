@@ -1227,10 +1227,19 @@ fsm_start:
 			/* ATA PIO protocol */
 			if (unlikely((status & ATA_DRQ) == 0)) {
 				/* handle BSY=0, DRQ=0 as error */
-				if (likely(status & (ATA_ERR | ATA_DF)))
+				if (likely(status & (ATA_ERR | ATA_DF))) {
 					/* device stops HSM for abort/error */
 					qc->err_mask |= AC_ERR_DEV;
-				else {
+
+					/* If diagnostic failed and this is
+					 * IDENTIFY, it's likely a phantom
+					 * device.  Mark hint.
+					 */
+					if (qc->dev->horkage &
+					    ATA_HORKAGE_DIAGNOSTIC)
+						qc->err_mask |=
+							AC_ERR_NODEV_HINT;
+				} else {
 					/* HSM violation. Let EH handle this.
 					 * Phantom devices also trigger this
 					 * condition.  Mark hint.
@@ -2153,8 +2162,17 @@ void ata_sff_error_handler(struct ata_port *ap)
  */
 void ata_sff_post_internal_cmd(struct ata_queued_cmd *qc)
 {
-	if (qc->ap->ioaddr.bmdma_addr)
+	struct ata_port *ap = qc->ap;
+	unsigned long flags;
+
+	spin_lock_irqsave(ap->lock, flags);
+
+	ap->hsm_task_state = HSM_ST_IDLE;
+
+	if (ap->ioaddr.bmdma_addr)
 		ata_bmdma_stop(qc);
+
+	spin_unlock_irqrestore(ap->lock, flags);
 }
 
 /**

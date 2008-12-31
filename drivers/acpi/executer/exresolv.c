@@ -47,7 +47,6 @@
 #include <acpi/acdispat.h>
 #include <acpi/acinterp.h>
 #include <acpi/acnamesp.h>
-#include <acpi/acparser.h>
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exresolv")
@@ -141,7 +140,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 	acpi_status status = AE_OK;
 	union acpi_operand_object *stack_desc;
 	union acpi_operand_object *obj_desc = NULL;
-	u16 opcode;
+	u8 ref_type;
 
 	ACPI_FUNCTION_TRACE(ex_resolve_object_to_value);
 
@@ -152,19 +151,19 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 	switch (ACPI_GET_OBJECT_TYPE(stack_desc)) {
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
-		opcode = stack_desc->reference.opcode;
+		ref_type = stack_desc->reference.class;
 
-		switch (opcode) {
-		case AML_LOCAL_OP:
-		case AML_ARG_OP:
+		switch (ref_type) {
+		case ACPI_REFCLASS_LOCAL:
+		case ACPI_REFCLASS_ARG:
 
 			/*
 			 * Get the local from the method's state info
 			 * Note: this increments the local's object reference count
 			 */
-			status = acpi_ds_method_data_get_value(opcode,
+			status = acpi_ds_method_data_get_value(ref_type,
 							       stack_desc->
-							       reference.offset,
+							       reference.value,
 							       walk_state,
 							       &obj_desc);
 			if (ACPI_FAILURE(status)) {
@@ -173,7 +172,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 					  "[Arg/Local %X] ValueObj is %p\n",
-					  stack_desc->reference.offset,
+					  stack_desc->reference.value,
 					  obj_desc));
 
 			/*
@@ -184,7 +183,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 			*stack_ptr = obj_desc;
 			break;
 
-		case AML_INDEX_OP:
+		case ACPI_REFCLASS_INDEX:
 
 			switch (stack_desc->reference.target_type) {
 			case ACPI_TYPE_BUFFER_FIELD:
@@ -239,15 +238,15 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 			}
 			break;
 
-		case AML_REF_OF_OP:
-		case AML_DEBUG_OP:
-		case AML_LOAD_OP:
+		case ACPI_REFCLASS_REFOF:
+		case ACPI_REFCLASS_DEBUG:
+		case ACPI_REFCLASS_TABLE:
 
 			/* Just leave the object as-is, do not dereference */
 
 			break;
 
-		case AML_INT_NAMEPATH_OP:	/* Reference to a named object */
+		case ACPI_REFCLASS_NAME:	/* Reference to a named object */
 
 			/* Dereference the name */
 
@@ -273,8 +272,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unknown Reference opcode %X (%s) in %p",
-				    opcode, acpi_ps_get_opcode_name(opcode),
+				    "Unknown Reference type %X in %p", ref_type,
 				    stack_desc));
 			status = AE_AML_INTERNAL;
 			break;
@@ -388,13 +386,13 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 	 * traversing the list of possibly many nested references.
 	 */
 	while (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_LOCAL_REFERENCE) {
-		switch (obj_desc->reference.opcode) {
-		case AML_REF_OF_OP:
-		case AML_INT_NAMEPATH_OP:
+		switch (obj_desc->reference.class) {
+		case ACPI_REFCLASS_REFOF:
+		case ACPI_REFCLASS_NAME:
 
 			/* Dereference the reference pointer */
 
-			if (obj_desc->reference.opcode == AML_REF_OF_OP) {
+			if (obj_desc->reference.class == ACPI_REFCLASS_REFOF) {
 				node = obj_desc->reference.object;
 			} else {	/* AML_INT_NAMEPATH_OP */
 
@@ -429,7 +427,7 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 			}
 			break;
 
-		case AML_INDEX_OP:
+		case ACPI_REFCLASS_INDEX:
 
 			/* Get the type of this reference (index into another object) */
 
@@ -455,22 +453,22 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 			}
 			break;
 
-		case AML_LOAD_OP:
+		case ACPI_REFCLASS_TABLE:
 
 			type = ACPI_TYPE_DDB_HANDLE;
 			goto exit;
 
-		case AML_LOCAL_OP:
-		case AML_ARG_OP:
+		case ACPI_REFCLASS_LOCAL:
+		case ACPI_REFCLASS_ARG:
 
 			if (return_desc) {
 				status =
 				    acpi_ds_method_data_get_value(obj_desc->
 								  reference.
-								  opcode,
+								  class,
 								  obj_desc->
 								  reference.
-								  offset,
+								  value,
 								  walk_state,
 								  &obj_desc);
 				if (ACPI_FAILURE(status)) {
@@ -481,10 +479,10 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 				status =
 				    acpi_ds_method_data_get_node(obj_desc->
 								 reference.
-								 opcode,
+								 class,
 								 obj_desc->
 								 reference.
-								 offset,
+								 value,
 								 walk_state,
 								 &node);
 				if (ACPI_FAILURE(status)) {
@@ -499,7 +497,7 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 			}
 			break;
 
-		case AML_DEBUG_OP:
+		case ACPI_REFCLASS_DEBUG:
 
 			/* The Debug Object is of type "DebugObject" */
 
@@ -509,8 +507,8 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unknown Reference subtype %X",
-				    obj_desc->reference.opcode));
+				    "Unknown Reference Class %2.2X",
+				    obj_desc->reference.class));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 	}

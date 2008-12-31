@@ -2,7 +2,7 @@
 
 #include <xen/xenbus.h>
 
-#include <asm-x86/xen/hypervisor.h>
+#include <asm/xen/hypervisor.h>
 #include <asm/cpu.h>
 
 static void enable_hotplug_cpu(int cpu)

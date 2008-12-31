@@ -194,7 +194,7 @@ int __pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 		goto out;
 
 	ret = -ENOMEM;
-	rtd = kmalloc(sizeof(*rtd), GFP_KERNEL);
+	rtd = kzalloc(sizeof(*rtd), GFP_KERNEL);
 	if (!rtd)
 		goto out;
 	rtd->dma_desc_array =

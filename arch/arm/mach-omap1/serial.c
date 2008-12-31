@@ -67,8 +67,8 @@ static void __init omap_serial_reset(struct plat_serial8250_port *p)
 
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
-		.membase	= (char*)IO_ADDRESS(OMAP_UART1_BASE),
-		.mapbase	= (unsigned long)OMAP_UART1_BASE,
+		.membase	= IO_ADDRESS(OMAP_UART1_BASE),
+		.mapbase	= OMAP_UART1_BASE,
 		.irq		= INT_UART1,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -76,8 +76,8 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	},
 	{
-		.membase	= (char*)IO_ADDRESS(OMAP_UART2_BASE),
-		.mapbase	= (unsigned long)OMAP_UART2_BASE,
+		.membase	= IO_ADDRESS(OMAP_UART2_BASE),
+		.mapbase	= OMAP_UART2_BASE,
 		.irq		= INT_UART2,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -85,8 +85,8 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	},
 	{
-		.membase	= (char*)IO_ADDRESS(OMAP_UART3_BASE),
-		.mapbase	= (unsigned long)OMAP_UART3_BASE,
+		.membase	= IO_ADDRESS(OMAP_UART3_BASE),
+		.mapbase	= OMAP_UART3_BASE,
 		.irq		= INT_UART3,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -244,22 +244,22 @@ static void __init omap_serial_set_port_wakeup(int gpio_nr)
 {
 	int ret;
 
-	ret = omap_request_gpio(gpio_nr);
+	ret = gpio_request(gpio_nr, "UART wake");
 	if (ret < 0) {
 		printk(KERN_ERR "Could not request UART wake GPIO: %i\n",
 		       gpio_nr);
 		return;
 	}
-	omap_set_gpio_direction(gpio_nr, 1);
-	ret = request_irq(OMAP_GPIO_IRQ(gpio_nr), &omap_serial_wake_interrupt,
+	gpio_direction_input(gpio_nr);
+	ret = request_irq(gpio_to_irq(gpio_nr), &omap_serial_wake_interrupt,
 			  IRQF_TRIGGER_RISING, "serial wakeup", NULL);
 	if (ret) {
-		omap_free_gpio(gpio_nr);
+		gpio_free(gpio_nr);
 		printk(KERN_ERR "No interrupt for UART wake GPIO: %i\n",
 		       gpio_nr);
 		return;
 	}
-	enable_irq_wake(OMAP_GPIO_IRQ(gpio_nr));
+	enable_irq_wake(gpio_to_irq(gpio_nr));
 }
 
 static int __init omap_serial_wakeup_init(void)

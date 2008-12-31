@@ -33,7 +33,7 @@
 
 #include <asm/mach-types.h>
 
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/pm.h>
 
 #define COPYRIGHT ", (c) 2005 Simtec Electronics"
 

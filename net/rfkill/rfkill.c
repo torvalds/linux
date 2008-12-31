@@ -51,51 +51,7 @@ struct rfkill_gsw_state {
 
 static struct rfkill_gsw_state rfkill_global_states[RFKILL_TYPE_MAX];
 static unsigned long rfkill_states_lockdflt[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
-
-static BLOCKING_NOTIFIER_HEAD(rfkill_notifier_list);
-
-
-/**
- * register_rfkill_notifier - Add notifier to rfkill notifier chain
- * @nb: pointer to the new entry to add to the chain
- *
- * See blocking_notifier_chain_register() for return value and further
- * observations.
- *
- * Adds a notifier to the rfkill notifier chain.  The chain will be
- * called with a pointer to the relevant rfkill structure as a parameter,
- * refer to include/linux/rfkill.h for the possible events.
- *
- * Notifiers added to this chain are to always return NOTIFY_DONE.  This
- * chain is a blocking notifier chain: notifiers can sleep.
- *
- * Calls to this chain may have been done through a workqueue.  One must
- * assume unordered asynchronous behaviour, there is no way to know if
- * actions related to the event that generated the notification have been
- * carried out already.
- */
-int register_rfkill_notifier(struct notifier_block *nb)
-{
-	BUG_ON(!nb);
-	return blocking_notifier_chain_register(&rfkill_notifier_list, nb);
-}
-EXPORT_SYMBOL_GPL(register_rfkill_notifier);
-
-/**
- * unregister_rfkill_notifier - remove notifier from rfkill notifier chain
- * @nb: pointer to the entry to remove from the chain
- *
- * See blocking_notifier_chain_unregister() for return value and further
- * observations.
- *
- * Removes a notifier from the rfkill notifier chain.
- */
-int unregister_rfkill_notifier(struct notifier_block *nb)
-{
-	BUG_ON(!nb);
-	return blocking_notifier_chain_unregister(&rfkill_notifier_list, nb);
-}
-EXPORT_SYMBOL_GPL(unregister_rfkill_notifier);
+static bool rfkill_epo_lock_active;
 
 
 static void rfkill_led_trigger(struct rfkill *rfkill,
@@ -123,12 +79,9 @@ static void rfkill_led_trigger_activate(struct led_classdev *led)
 }
 #endif /* CONFIG_RFKILL_LEDS */
 
-static void notify_rfkill_state_change(struct rfkill *rfkill)
+static void rfkill_uevent(struct rfkill *rfkill)
 {
-	rfkill_led_trigger(rfkill, rfkill->state);
-	blocking_notifier_call_chain(&rfkill_notifier_list,
-			RFKILL_STATE_CHANGED,
-			rfkill);
+	kobject_uevent(&rfkill->dev.kobj, KOBJ_CHANGE);
 }
 
 static void update_rfkill_state(struct rfkill *rfkill)
@@ -141,7 +94,7 @@ static void update_rfkill_state(struct rfkill *rfkill)
 			oldstate = rfkill->state;
 			rfkill->state = newstate;
 			if (oldstate != newstate)
-				notify_rfkill_state_change(rfkill);
+				rfkill_uevent(rfkill);
 		}
 		mutex_unlock(&rfkill->mutex);
 	}
@@ -219,7 +172,7 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 	}
 
 	if (force || rfkill->state != oldstate)
-		notify_rfkill_state_change(rfkill);
+		rfkill_uevent(rfkill);
 
 	return retval;
 }
@@ -264,11 +217,14 @@ static void __rfkill_switch_all(const enum rfkill_type type,
  *
  * Acquires rfkill_global_mutex and calls __rfkill_switch_all(@type, @state).
  * Please refer to __rfkill_switch_all() for details.
+ *
+ * Does nothing if the EPO lock is active.
  */
 void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 {
 	mutex_lock(&rfkill_global_mutex);
-	__rfkill_switch_all(type, state);
+	if (!rfkill_epo_lock_active)
+		__rfkill_switch_all(type, state);
 	mutex_unlock(&rfkill_global_mutex);
 }
 EXPORT_SYMBOL(rfkill_switch_all);
@@ -289,6 +245,7 @@ void rfkill_epo(void)
 
 	mutex_lock(&rfkill_global_mutex);
 
+	rfkill_epo_lock_active = true;
 	list_for_each_entry(rfkill, &rfkill_list, node) {
 		mutex_lock(&rfkill->mutex);
 		rfkill_toggle_radio(rfkill, RFKILL_STATE_SOFT_BLOCKED, 1);
@@ -317,11 +274,54 @@ void rfkill_restore_states(void)
 
 	mutex_lock(&rfkill_global_mutex);
 
+	rfkill_epo_lock_active = false;
 	for (i = 0; i < RFKILL_TYPE_MAX; i++)
 		__rfkill_switch_all(i, rfkill_global_states[i].default_state);
 	mutex_unlock(&rfkill_global_mutex);
 }
 EXPORT_SYMBOL_GPL(rfkill_restore_states);
+
+/**
+ * rfkill_remove_epo_lock - unlock state changes
+ *
+ * Used by rfkill-input manually unlock state changes, when
+ * the EPO switch is deactivated.
+ */
+void rfkill_remove_epo_lock(void)
+{
+	mutex_lock(&rfkill_global_mutex);
+	rfkill_epo_lock_active = false;
+	mutex_unlock(&rfkill_global_mutex);
+}
+EXPORT_SYMBOL_GPL(rfkill_remove_epo_lock);
+
+/**
+ * rfkill_is_epo_lock_active - returns true EPO is active
+ *
+ * Returns 0 (false) if there is NOT an active EPO contidion,
+ * and 1 (true) if there is an active EPO contition, which
+ * locks all radios in one of the BLOCKED states.
+ *
+ * Can be called in atomic context.
+ */
+bool rfkill_is_epo_lock_active(void)
+{
+	return rfkill_epo_lock_active;
+}
+EXPORT_SYMBOL_GPL(rfkill_is_epo_lock_active);
+
+/**
+ * rfkill_get_global_state - returns global state for a type
+ * @type: the type to get the global state of
+ *
+ * Returns the current global state for a given wireless
+ * device type.
+ */
+enum rfkill_state rfkill_get_global_state(const enum rfkill_type type)
+{
+	return rfkill_global_states[type].current_state;
+}
+EXPORT_SYMBOL_GPL(rfkill_get_global_state);
 
 /**
  * rfkill_force_state - Force the internal rfkill radio state
@@ -357,7 +357,7 @@ int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state)
 	rfkill->state = state;
 
 	if (state != oldstate)
-		notify_rfkill_state_change(rfkill);
+		rfkill_uevent(rfkill);
 
 	mutex_unlock(&rfkill->mutex);
 
@@ -431,9 +431,15 @@ static ssize_t rfkill_state_store(struct device *dev,
 	    state != RFKILL_STATE_SOFT_BLOCKED)
 		return -EINVAL;
 
-	if (mutex_lock_interruptible(&rfkill->mutex))
-		return -ERESTARTSYS;
-	error = rfkill_toggle_radio(rfkill, state, 0);
+	error = mutex_lock_killable(&rfkill->mutex);
+	if (error)
+		return error;
+
+	if (!rfkill_epo_lock_active)
+		error = rfkill_toggle_radio(rfkill, state, 0);
+	else
+		error = -EPERM;
+
 	mutex_unlock(&rfkill->mutex);
 
 	return error ? error : count;
@@ -472,12 +478,12 @@ static ssize_t rfkill_claim_store(struct device *dev,
 	 * Take the global lock to make sure the kernel is not in
 	 * the middle of rfkill_switch_all
 	 */
-	error = mutex_lock_interruptible(&rfkill_global_mutex);
+	error = mutex_lock_killable(&rfkill_global_mutex);
 	if (error)
 		return error;
 
 	if (rfkill->user_claim != claim) {
-		if (!claim) {
+		if (!claim && !rfkill_epo_lock_active) {
 			mutex_lock(&rfkill->mutex);
 			rfkill_toggle_radio(rfkill,
 					rfkill_global_states[rfkill->type].current_state,
@@ -511,9 +517,14 @@ static void rfkill_release(struct device *dev)
 #ifdef CONFIG_PM
 static int rfkill_suspend(struct device *dev, pm_message_t state)
 {
+	struct rfkill *rfkill = to_rfkill(dev);
+
 	/* mark class device as suspended */
 	if (dev->power.power_state.event != state.event)
 		dev->power.power_state = state;
+
+	/* store state for the resume handler */
+	rfkill->state_for_resume = rfkill->state;
 
 	return 0;
 }
@@ -521,14 +532,33 @@ static int rfkill_suspend(struct device *dev, pm_message_t state)
 static int rfkill_resume(struct device *dev)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
+	enum rfkill_state newstate;
 
 	if (dev->power.power_state.event != PM_EVENT_ON) {
 		mutex_lock(&rfkill->mutex);
 
 		dev->power.power_state.event = PM_EVENT_ON;
 
-		/* restore radio state AND notify everybody */
-		rfkill_toggle_radio(rfkill, rfkill->state, 1);
+		/*
+		 * rfkill->state could have been modified before we got
+		 * called, and won't be updated by rfkill_toggle_radio()
+		 * in force mode.  Sync it FIRST.
+		 */
+		if (rfkill->get_state &&
+		    !rfkill->get_state(rfkill->data, &newstate))
+			rfkill->state = newstate;
+
+		/*
+		 * If we are under EPO, kick transmitter offline,
+		 * otherwise restore to pre-suspend state.
+		 *
+		 * Issue a notification in any case
+		 */
+		rfkill_toggle_radio(rfkill,
+				rfkill_epo_lock_active ?
+					RFKILL_STATE_SOFT_BLOCKED :
+					rfkill->state_for_resume,
+				1);
 
 		mutex_unlock(&rfkill->mutex);
 	}
@@ -539,28 +569,6 @@ static int rfkill_resume(struct device *dev)
 #define rfkill_suspend NULL
 #define rfkill_resume NULL
 #endif
-
-static int rfkill_blocking_uevent_notifier(struct notifier_block *nb,
-					unsigned long eventid,
-					void *data)
-{
-	struct rfkill *rfkill = (struct rfkill *)data;
-
-	switch (eventid) {
-	case RFKILL_STATE_CHANGED:
-		kobject_uevent(&rfkill->dev.kobj, KOBJ_CHANGE);
-		break;
-	default:
-		break;
-	}
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block rfkill_blocking_uevent_nb = {
-	.notifier_call	= rfkill_blocking_uevent_notifier,
-	.priority	= 0,
-};
 
 static int rfkill_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -603,7 +611,7 @@ static int rfkill_check_duplicity(const struct rfkill *rfkill)
 	}
 
 	/* 0: first switch of its kind */
-	return test_bit(rfkill->type, seen);
+	return (test_bit(rfkill->type, seen)) ? 1 : 0;
 }
 
 static int rfkill_add_switch(struct rfkill *rfkill)
@@ -711,7 +719,7 @@ static void rfkill_led_trigger_register(struct rfkill *rfkill)
 	int error;
 
 	if (!rfkill->led_trigger.name)
-		rfkill->led_trigger.name = rfkill->dev.bus_id;
+		rfkill->led_trigger.name = dev_name(&rfkill->dev);
 	if (!rfkill->led_trigger.activate)
 		rfkill->led_trigger.activate = rfkill_led_trigger_activate;
 	error = led_trigger_register(&rfkill->led_trigger);
@@ -752,8 +760,7 @@ int __must_check rfkill_register(struct rfkill *rfkill)
 			"badly initialized rfkill struct\n"))
 		return -EINVAL;
 
-	snprintf(dev->bus_id, sizeof(dev->bus_id),
-		 "rfkill%ld", (long)atomic_inc_return(&rfkill_no) - 1);
+	dev_set_name(dev, "rfkill%ld", (long)atomic_inc_return(&rfkill_no) - 1);
 
 	rfkill_led_trigger_register(rfkill);
 
@@ -833,6 +840,7 @@ int rfkill_set_default(enum rfkill_type type, enum rfkill_state state)
 
 	if (!test_and_set_bit(type, rfkill_states_lockdflt)) {
 		rfkill_global_states[type].default_state = state;
+		rfkill_global_states[type].current_state = state;
 		error = 0;
 	} else
 		error = -EPERM;
@@ -864,14 +872,11 @@ static int __init rfkill_init(void)
 		return error;
 	}
 
-	register_rfkill_notifier(&rfkill_blocking_uevent_nb);
-
 	return 0;
 }
 
 static void __exit rfkill_exit(void)
 {
-	unregister_rfkill_notifier(&rfkill_blocking_uevent_nb);
 	class_unregister(&rfkill_class);
 }
 

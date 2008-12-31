@@ -24,8 +24,8 @@ config DVB_USB_A800
 	tristate "AVerMedia AverTV DVB-T USB 2.0 (A800)"
 	depends on DVB_USB
 	select DVB_DIB3000MC
-	select MEDIA_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	select DVB_PLL if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_MT2060 if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Say Y here to support the AVerMedia AverTV DVB-T USB 2.0 (A800) receiver.
 
@@ -34,7 +34,7 @@ config DVB_USB_DIBUSB_MB
 	depends on DVB_USB
 	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_DIB3000MB
-	select MEDIA_TUNER_MT2060 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_MT2060 if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Support for USB 1.1 and 2.0 DVB-T receivers based on reference designs made by
 	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-B demodulator.
@@ -55,7 +55,7 @@ config DVB_USB_DIBUSB_MC
 	tristate "DiBcom USB DVB-T devices (based on the DiB3000M-C/P) (see help for device list)"
 	depends on DVB_USB
 	select DVB_DIB3000MC
-	select MEDIA_TUNER_MT2060 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_MT2060 if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Support for USB2.0 DVB-T receivers based on reference designs made by
 	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-C/P demodulator.
@@ -73,11 +73,11 @@ config DVB_USB_DIB0700
 	select DVB_DIB7000M
 	select DVB_DIB3000MC
 	select DVB_S5H1411 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_MT2060 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_MT2266 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_XC2028 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_XC5000 if !DVB_FE_CUSTOMIZE
 	select DVB_TUNER_DIB0070
+	select MEDIA_TUNER_MT2060 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_MT2266 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_XC5000 if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Support for USB2.0/1.1 DVB receivers based on the DiB0700 USB bridge. The
 	  USB bridge is also present in devices having the DiB7700 DVB-T-USB
@@ -95,7 +95,7 @@ config DVB_USB_UMT_010
 	depends on DVB_USB
 	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_DIB3000MC
-	select MEDIA_TUNER_MT2060 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_MT2060 if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Say Y here to support the HanfTek UMT-010 USB2.0 stick-sized DVB-T receiver.
 
@@ -107,11 +107,11 @@ config DVB_USB_CXUSB
 	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_SIMPLE if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_XC2028 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_MXL5005S if !DVB_FE_CUSTOMISE
 	select DVB_DIB7000P if !DVB_FE_CUSTOMISE
 	select DVB_TUNER_DIB0070 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_SIMPLE if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Say Y here to support the Conexant USB2.0 hybrid reference design.
 	  Currently, only DVB and ATSC modes are supported, analog mode
@@ -124,9 +124,9 @@ config DVB_USB_M920X
 	tristate "Uli m920x DVB-T USB2.0 support"
 	depends on DVB_USB
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_QT1010 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_TDA827X if !DVB_FE_CUSTOMISE
 	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_QT1010 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_TDA827X if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Say Y here to support the MSI Mega Sky 580 USB2.0 DVB-T receiver.
 	  Currently, only devices with a product id of
@@ -137,7 +137,7 @@ config DVB_USB_GL861
 	tristate "Genesys Logic GL861 USB2.0 support"
 	depends on DVB_USB
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_QT1010 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_QT1010 if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Say Y here to support the MSI Megasky 580 (55801) DVB-T USB2.0
 	  receiver with USB ID 0db0:5581.
@@ -146,7 +146,7 @@ config DVB_USB_AU6610
 	tristate "Alcor Micro AU6610 USB2.0 support"
 	depends on DVB_USB
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_QT1010 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_QT1010 if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Say Y here to support the Sigmatek DVB-110 DVB-T USB2.0 receiver.
 
@@ -198,8 +198,8 @@ config DVB_USB_NOVA_T_USB2
 	tristate "Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 support"
 	depends on DVB_USB
 	select DVB_DIB3000MC
-	select MEDIA_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	select DVB_PLL if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_MT2060 if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Say Y here to support the Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 receiver.
 
@@ -235,8 +235,8 @@ config DVB_USB_OPERA1
 config DVB_USB_AF9005
 	tristate "Afatech AF9005 DVB-T USB1.1 support"
 	depends on DVB_USB && EXPERIMENTAL
-	select MEDIA_TUNER_MT2060 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_QT1010 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_MT2060 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_QT1010 if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Say Y here to support the Afatech AF9005 based DVB-T USB1.1 receiver
 	  and the TerraTec Cinergy T USB XE (Rev.1)
@@ -261,7 +261,7 @@ config DVB_USB_DW2102
 	  Say Y here to support the DvbWorld DVB-S/S2 USB2.0 receivers
 	  and the TeVii S650.
 
-config 	DVB_USB_CINERGY_T2
+config DVB_USB_CINERGY_T2
 	tristate "Terratec CinergyT2/qanu USB 2.0 DVB-T receiver"
 	depends on DVB_USB
 	help
@@ -283,7 +283,8 @@ config DVB_USB_ANYSEE
 config DVB_USB_DTV5100
 	tristate "AME DTV-5100 USB2.0 DVB-T support"
 	depends on DVB_USB
-	select MEDIA_TUNER_QT1010 if !DVB_FE_CUSTOMISE
+	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_QT1010 if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Say Y here to support the AME DTV-5100 USB2.0 DVB-T receiver.
 
@@ -292,9 +293,9 @@ config DVB_USB_AF9015
 	depends on DVB_USB && EXPERIMENTAL
 	select DVB_AF9013
 	select DVB_PLL              if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_MT2060   if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_QT1010   if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_TDA18271 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_MXL5005S if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_MT2060   if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_QT1010   if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_TDA18271 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMIZE
 	help
 	  Say Y here to support the Afatech AF9015 based DVB-T USB2.0 receiver

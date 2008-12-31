@@ -169,6 +169,7 @@ struct drm_mm_node *drm_mm_get_block(struct drm_mm_node * parent,
 
 	return child;
 }
+EXPORT_SYMBOL(drm_mm_get_block);
 
 /*
  * Put a block. Merge with the previous and / or next block if they are free.
@@ -217,6 +218,7 @@ void drm_mm_put_block(struct drm_mm_node * cur)
 		drm_free(cur, sizeof(*cur), DRM_MEM_MM);
 	}
 }
+EXPORT_SYMBOL(drm_mm_put_block);
 
 struct drm_mm_node *drm_mm_search_free(const struct drm_mm * mm,
 				  unsigned long size,
@@ -265,6 +267,7 @@ int drm_mm_clean(struct drm_mm * mm)
 
 	return (head->next->next == head);
 }
+EXPORT_SYMBOL(drm_mm_search_free);
 
 int drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 {
@@ -273,7 +276,7 @@ int drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 
 	return drm_mm_create_tail_node(mm, start, size);
 }
-
+EXPORT_SYMBOL(drm_mm_init);
 
 void drm_mm_takedown(struct drm_mm * mm)
 {
@@ -293,3 +296,4 @@ void drm_mm_takedown(struct drm_mm * mm)
 
 	drm_free(entry, sizeof(*entry), DRM_MEM_MM);
 }
+EXPORT_SYMBOL(drm_mm_takedown);

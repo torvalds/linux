@@ -268,7 +268,7 @@ n:
  *   Loads the value of the constant expression 'expr' into register 'rn'
  *   using immediate instructions only.  Use this when it's important not
  *   to reference other data (i.e. on ppc64 when the TOC pointer is not
- *   valid).
+ *   valid) and when 'expr' is a constant or absolute address.
  *
  * LOAD_REG_ADDR(rn, name)
  *   Loads the address of label 'name' into register 'rn'.  Use this when
@@ -425,14 +425,14 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define fromreal(rd)	tovirt(rd,rd)
 
 #define tophys(rd,rs)				\
-0:	addis	rd,rs,-KERNELBASE@h;		\
+0:	addis	rd,rs,-PAGE_OFFSET@h;		\
 	.section ".vtop_fixup","aw";		\
 	.align  1;				\
 	.long   0b;				\
 	.previous
 
 #define tovirt(rd,rs)				\
-0:	addis	rd,rs,KERNELBASE@h;		\
+0:	addis	rd,rs,PAGE_OFFSET@h;		\
 	.section ".ptov_fixup","aw";		\
 	.align  1;				\
 	.long   0b;				\

@@ -721,6 +721,12 @@ static int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
 				 INFINIPATH_HWE_SERDESPLLFAILED);
 	}
 
+	dd->ibdeltainprog = 1;
+	dd->ibsymsnap =
+	     ipath_read_creg32(dd, dd->ipath_cregs->cr_ibsymbolerrcnt);
+	dd->iblnkerrsnap =
+	     ipath_read_creg32(dd, dd->ipath_cregs->cr_iblinkerrrecovcnt);
+
 	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_serdesconfig0);
 	config1 = ipath_read_kreg64(dd, dd->ipath_kregs->kr_serdesconfig1);
 
@@ -810,6 +816,36 @@ static void ipath_pe_quiet_serdes(struct ipath_devdata *dd)
 {
 	u64 val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_serdesconfig0);
 
+	if (dd->ibsymdelta || dd->iblnkerrdelta ||
+	    dd->ibdeltainprog) {
+		u64 diagc;
+		/* enable counter writes */
+		diagc = ipath_read_kreg64(dd, dd->ipath_kregs->kr_hwdiagctrl);
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_hwdiagctrl,
+				 diagc | INFINIPATH_DC_COUNTERWREN);
+
+		if (dd->ibsymdelta || dd->ibdeltainprog) {
+			val = ipath_read_creg32(dd,
+					dd->ipath_cregs->cr_ibsymbolerrcnt);
+			if (dd->ibdeltainprog)
+				val -= val - dd->ibsymsnap;
+			val -= dd->ibsymdelta;
+			ipath_write_creg(dd,
+				  dd->ipath_cregs->cr_ibsymbolerrcnt, val);
+		}
+		if (dd->iblnkerrdelta || dd->ibdeltainprog) {
+			val = ipath_read_creg32(dd,
+					dd->ipath_cregs->cr_iblinkerrrecovcnt);
+			if (dd->ibdeltainprog)
+				val -= val - dd->iblnkerrsnap;
+			val -= dd->iblnkerrdelta;
+			ipath_write_creg(dd,
+				   dd->ipath_cregs->cr_iblinkerrrecovcnt, val);
+	     }
+
+	     /* and disable counter writes */
+	     ipath_write_kreg(dd, dd->ipath_kregs->kr_hwdiagctrl, diagc);
+	}
 	val |= INFINIPATH_SERDC0_TXIDLE;
 	ipath_dbg("Setting TxIdleEn on serdes (config0 = %llx)\n",
 		  (unsigned long long) val);
@@ -1749,6 +1785,31 @@ static void ipath_pe_config_jint(struct ipath_devdata *dd, u16 a, u16 b)
 
 static int ipath_pe_ib_updown(struct ipath_devdata *dd, int ibup, u64 ibcs)
 {
+	if (ibup) {
+		if (dd->ibdeltainprog) {
+			dd->ibdeltainprog = 0;
+			dd->ibsymdelta +=
+				ipath_read_creg32(dd,
+				  dd->ipath_cregs->cr_ibsymbolerrcnt) -
+				dd->ibsymsnap;
+			dd->iblnkerrdelta +=
+				ipath_read_creg32(dd,
+				  dd->ipath_cregs->cr_iblinkerrrecovcnt) -
+				dd->iblnkerrsnap;
+		}
+	} else {
+		dd->ipath_lli_counter = 0;
+		if (!dd->ibdeltainprog) {
+			dd->ibdeltainprog = 1;
+			dd->ibsymsnap =
+				ipath_read_creg32(dd,
+				  dd->ipath_cregs->cr_ibsymbolerrcnt);
+			dd->iblnkerrsnap =
+				ipath_read_creg32(dd,
+				  dd->ipath_cregs->cr_iblinkerrrecovcnt);
+		}
+	}
+
 	ipath_setup_pe_setextled(dd, ipath_ib_linkstate(dd, ibcs),
 		ipath_ib_linktrstate(dd, ibcs));
 	return 0;

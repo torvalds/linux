@@ -116,6 +116,7 @@ static int nvhdmi_build_pcms(struct hda_codec *codec)
 	codec->pcm_info = info;
 
 	info->name = "NVIDIA HDMI";
+	info->pcm_type = HDA_PCM_TYPE_HDMI;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = nvhdmi_pcm_digital_playback;
 
 	return 0;
@@ -157,8 +158,34 @@ static int patch_nvhdmi(struct hda_codec *codec)
 /*
  * patch entries
  */
-struct hda_codec_preset snd_hda_preset_nvhdmi[] = {
-	{ .id = 0x10de0002, .name = "NVIDIA MCP78 HDMI", .patch = patch_nvhdmi },
-	{ .id = 0x10de0007, .name = "NVIDIA MCP7A HDMI", .patch = patch_nvhdmi },
+static struct hda_codec_preset snd_hda_preset_nvhdmi[] = {
+	{ .id = 0x10de0002, .name = "MCP78 HDMI", .patch = patch_nvhdmi },
+	{ .id = 0x10de0007, .name = "MCP7A HDMI", .patch = patch_nvhdmi },
+	{ .id = 0x10de0067, .name = "MCP67 HDMI", .patch = patch_nvhdmi },
 	{} /* terminator */
 };
+
+MODULE_ALIAS("snd-hda-codec-id:10de0002");
+MODULE_ALIAS("snd-hda-codec-id:10de0007");
+MODULE_ALIAS("snd-hda-codec-id:10de0067");
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Nvidia HDMI HD-audio codec");
+
+static struct hda_codec_preset_list nvhdmi_list = {
+	.preset = snd_hda_preset_nvhdmi,
+	.owner = THIS_MODULE,
+};
+
+static int __init patch_nvhdmi_init(void)
+{
+	return snd_hda_add_codec_preset(&nvhdmi_list);
+}
+
+static void __exit patch_nvhdmi_exit(void)
+{
+	snd_hda_delete_codec_preset(&nvhdmi_list);
+}
+
+module_init(patch_nvhdmi_init)
+module_exit(patch_nvhdmi_exit)

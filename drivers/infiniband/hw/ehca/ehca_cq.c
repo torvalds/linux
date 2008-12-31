@@ -132,9 +132,9 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 	if (cqe >= 0xFFFFFFFF - 64 - additional_cqe)
 		return ERR_PTR(-EINVAL);
 
-	if (!atomic_add_unless(&shca->num_cqs, 1, ehca_max_cq)) {
+	if (!atomic_add_unless(&shca->num_cqs, 1, shca->max_num_cqs)) {
 		ehca_err(device, "Unable to create CQ, max number of %i "
-			"CQs reached.", ehca_max_cq);
+			"CQs reached.", shca->max_num_cqs);
 		ehca_err(device, "To increase the maximum number of CQs "
 			"use the number_of_cqs module parameter.\n");
 		return ERR_PTR(-ENOSPC);

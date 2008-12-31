@@ -119,8 +119,8 @@ struct cppi {
 	void __iomem			*mregs;		/* Mentor regs */
 	void __iomem			*tibase;	/* TI/CPPI regs */
 
-	struct cppi_channel		tx[MUSB_C_NUM_EPT - 1];
-	struct cppi_channel		rx[MUSB_C_NUM_EPR - 1];
+	struct cppi_channel		tx[4];
+	struct cppi_channel		rx[4];
 
 	struct dma_pool			*pool;
 

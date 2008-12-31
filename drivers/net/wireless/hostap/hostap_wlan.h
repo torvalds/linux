@@ -6,6 +6,7 @@
 #include <linux/mutex.h>
 #include <net/iw_handler.h>
 #include <net/ieee80211_radiotap.h>
+#include <net/lib80211.h>
 
 #include "hostap_config.h"
 #include "hostap_common.h"
@@ -763,10 +764,7 @@ struct local_info {
 
 #define WEP_KEYS 4
 #define WEP_KEY_LEN 13
-	struct ieee80211_crypt_data *crypt[WEP_KEYS];
-	int tx_keyidx; /* default TX key index (crypt[tx_keyidx]) */
-	struct timer_list crypt_deinit_timer;
-	struct list_head crypt_deinit_list;
+	struct lib80211_crypt_info crypt_info;
 
 	int open_wep; /* allow unencrypted frames */
 	int host_encrypt;
@@ -822,7 +820,7 @@ struct local_info {
 	int last_scan_results_count;
 	enum { PRISM2_SCAN, PRISM2_HOSTSCAN } last_scan_type;
 	struct work_struct info_queue;
-	long pending_info; /* bit field of pending info_queue items */
+	unsigned long pending_info; /* bit field of pending info_queue items */
 #define PRISM2_INFO_PENDING_LINKSTATUS 0
 #define PRISM2_INFO_PENDING_SCANRESULTS 1
 	int prev_link_status; /* previous received LinkStatus info */
@@ -918,9 +916,12 @@ struct hostap_interface {
 
 /*
  * TX meta data - stored in skb->cb buffer, so this must not be increased over
- * the 40-byte limit
+ * the 48-byte limit.
+ * THE PADDING THIS STARTS WITH IS A HORRIBLE HACK THAT SHOULD NOT LIVE
+ * TO SEE THE DAY.
  */
 struct hostap_skb_tx_data {
+	unsigned int __padding_for_default_qdiscs;
 	u32 magic; /* HOSTAP_SKB_TX_DATA_MAGIC */
 	u8 rate; /* transmit rate */
 #define HOSTAP_TX_FLAGS_WDS BIT(0)

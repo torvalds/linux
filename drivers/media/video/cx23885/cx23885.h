@@ -37,7 +37,7 @@
 #include <linux/version.h>
 #include <linux/mutex.h>
 
-#define CX23885_VERSION_CODE KERNEL_VERSION(0,0,1)
+#define CX23885_VERSION_CODE KERNEL_VERSION(0, 0, 1)
 
 #define UNSET (-1U)
 
@@ -66,6 +66,7 @@
 #define CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP 10
 #define CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP 11
 #define CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H 12
+#define CX23885_BOARD_COMPRO_VIDEOMATE_E650F   13
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
 #define CX23885_NORMS (\
@@ -225,7 +226,7 @@ struct cx23885_tsport {
 	int                        nr;
 	int                        sram_chno;
 
-	struct videobuf_dvb        dvb;
+	struct videobuf_dvb_frontends frontends;
 
 	/* dma queues */
 	struct cx23885_dmaqueue    mpegq;
@@ -262,6 +263,9 @@ struct cx23885_tsport {
 	u32                        src_sel_val;
 	u32                        vld_misc_val;
 	u32                        hw_sop_ctrl_val;
+
+	/* Allow a single tsport to have multiple frontends */
+	u32                        num_frontends;
 };
 
 struct cx23885_dev {
@@ -367,14 +371,14 @@ struct sram_channel {
 /* ----------------------------------------------------------- */
 
 #define cx_read(reg)             readl(dev->lmmio + ((reg)>>2))
-#define cx_write(reg,value)      writel((value), dev->lmmio + ((reg)>>2))
+#define cx_write(reg, value)     writel((value), dev->lmmio + ((reg)>>2))
 
-#define cx_andor(reg,mask,value) \
+#define cx_andor(reg, mask, value) \
   writel((readl(dev->lmmio+((reg)>>2)) & ~(mask)) |\
   ((value) & (mask)), dev->lmmio+((reg)>>2))
 
-#define cx_set(reg,bit)          cx_andor((reg),(bit),(bit))
-#define cx_clear(reg,bit)        cx_andor((reg),(bit),0)
+#define cx_set(reg, bit)          cx_andor((reg), (bit), (bit))
+#define cx_clear(reg, bit)        cx_andor((reg), (bit), 0)
 
 /* ----------------------------------------------------------- */
 /* cx23885-core.c                                              */
@@ -411,7 +415,8 @@ extern const unsigned int cx23885_bcount;
 extern struct cx23885_subid cx23885_subids[];
 extern const unsigned int cx23885_idcount;
 
-extern int cx23885_tuner_callback(void *priv, int component, int command, int arg);
+extern int cx23885_tuner_callback(void *priv, int component,
+	int command, int arg);
 extern void cx23885_card_list(struct cx23885_dev *dev);
 extern int  cx23885_ir_init(struct cx23885_dev *dev);
 extern void cx23885_gpio_setup(struct cx23885_dev *dev);
@@ -479,11 +484,3 @@ static inline unsigned int norm_swidth(v4l2_std_id norm)
 {
 	return (norm & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 754 : 922;
 }
-
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
- */

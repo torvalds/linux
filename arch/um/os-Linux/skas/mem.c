@@ -20,7 +20,6 @@
 #include "user.h"
 #include "sysdep/ptrace.h"
 #include "sysdep/stub.h"
-#include "uml-config.h"
 
 extern unsigned long batch_syscall_stub, __syscall_stub_start;
 

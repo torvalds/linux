@@ -62,6 +62,10 @@ config GENERIC_TIME
 	bool
 	default y
 
+config GENERIC_BUG
+        bool
+        depends on BUG
+
 config TIME_LOW_RES
 	bool
 	default y
@@ -85,6 +89,8 @@ config HZ
 	default 100
 
 source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
 
 source "arch/h8300/Kconfig.cpu"
 
@@ -209,6 +215,8 @@ source "drivers/i2c/Kconfig"
 source "drivers/hwmon/Kconfig"
 
 source "drivers/usb/Kconfig"
+
+source "drivers/uwb/Kconfig"
 
 endmenu
 

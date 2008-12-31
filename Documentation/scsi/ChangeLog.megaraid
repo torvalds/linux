@@ -409,7 +409,7 @@ i.	Function reordering so that inline functions are defined before they
 	megaraid_mbox_prepare_pthru, megaraid_mbox_prepare_epthru,
 	megaraid_busywait_mbox
 
-		- Andrew Morton <akpm@osdl.org>, 08.19.2004
+		- Andrew Morton, 08.19.2004
 		linux-scsi mailing list
 
 	"Something else to clean up after inclusion: every instance of an
@@ -471,13 +471,13 @@ vi.	Add support for 64-bit applications. Current drivers assume only
 vii.	Move the function declarations for the management module from
 	megaraid_mm.h to megaraid_mm.c
 
-		- Andrew Morton <akpm@osdl.org>, 08.19.2004
+		- Andrew Morton, 08.19.2004
 		linux-scsi mailing list
 
 viii.	Change default values for MEGARAID_NEWGEN, MEGARAID_MM, and
 	MEGARAID_MAILBOX to 'n' in Kconfig.megaraid
 
-		- Andrew Morton <akpm@osdl.org>, 08.19.2004
+		- Andrew Morton, 08.19.2004
 		linux-scsi mailing list
 
 ix.	replace udelay with msleep

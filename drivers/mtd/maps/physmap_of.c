@@ -230,8 +230,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 
 #ifdef CONFIG_MTD_OF_PARTS
 	if (err == 0) {
-		err = of_mtd_parse_partitions(&dev->dev, info->mtd,
-		                              dp, &info->parts);
+		err = of_mtd_parse_partitions(&dev->dev, dp, &info->parts);
 		if (err < 0)
 			return err;
 	}

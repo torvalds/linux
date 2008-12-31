@@ -289,8 +289,6 @@ acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 	 */
 	status = acpi_hw_low_disable_gpe(gpe_event_info);
 	return_ACPI_STATUS(status);
-
-	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
