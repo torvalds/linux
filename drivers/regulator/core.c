@@ -1012,10 +1012,12 @@ static int _regulator_enable(struct regulator_dev *rdev)
  * regulator_enable - enable regulator output
  * @regulator: regulator source
  *
- * Enable the regulator output at the predefined voltage or current value.
+ * Request that the regulator be enabled with the regulator output at
+ * the predefined voltage or current value.  Calls to regulator_enable()
+ * must be balanced with calls to regulator_disable().
+ *
  * NOTE: the output value can be set by other drivers, boot loader or may be
- * hardwired in the regulator.  Calls to regulator_enable() must be balanced
- * with calls to regulator_disable().
+ * hardwired in the regulator.
  */
 int regulator_enable(struct regulator *regulator)
 {
@@ -1073,11 +1075,13 @@ static int _regulator_disable(struct regulator_dev *rdev)
  * regulator_disable - disable regulator output
  * @regulator: regulator source
  *
- * Disable the regulator output voltage or current.
+ * Disable the regulator output voltage or current.  Calls to
+ * regulator_enable() must be balanced with calls to
+ * regulator_disable().
  *
  * NOTE: this will only disable the regulator output if no other consumer
- * devices have it enabled.  Calls to regulator_enable() must be balanced with
- * calls to regulator_disable().
+ * devices have it enabled, the regulator device supports disabling and
+ * machine constraints permit this operation.
  */
 int regulator_disable(struct regulator *regulator)
 {
@@ -1936,7 +1940,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 EXPORT_SYMBOL_GPL(regulator_unregister);
 
 /**
- * regulator_suspend_prepare: prepare regulators for system wide suspend
+ * regulator_suspend_prepare - prepare regulators for system wide suspend
  * @state: system suspend state
  *
  * Configure each regulator with it's suspend operating parameters for state.
