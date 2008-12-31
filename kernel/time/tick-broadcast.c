@@ -512,7 +512,7 @@ static void tick_broadcast_init_next_event(struct cpumask *mask,
 	struct tick_device *td;
 	int cpu;
 
-	for_each_cpu_mask_nr(cpu, *mask) {
+	for_each_cpu(cpu, mask) {
 		td = &per_cpu(tick_cpu_device, cpu);
 		if (td->evtdev)
 			td->evtdev->next_event = expires;
