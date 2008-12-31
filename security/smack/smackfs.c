@@ -350,7 +350,7 @@ static void smk_cipso_doi(void)
 	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = smack_to_secid(current_security());
 
-	rc = netlbl_cfg_map_del(NULL, &audit_info);
+	rc = netlbl_cfg_map_del(NULL, PF_UNSPEC, NULL, NULL, &audit_info);
 	if (rc != 0)
 		printk(KERN_WARNING "%s:%d remove rc = %d\n",
 		       __func__, __LINE__, rc);
@@ -365,11 +365,20 @@ static void smk_cipso_doi(void)
 	for (rc = 1; rc < CIPSO_V4_TAG_MAXCNT; rc++)
 		doip->tags[rc] = CIPSO_V4_TAG_INVALID;
 
-	rc = netlbl_cfg_cipsov4_add_map(doip, NULL, &audit_info);
+	rc = netlbl_cfg_cipsov4_add(doip, &audit_info);
 	if (rc != 0) {
-		printk(KERN_WARNING "%s:%d add rc = %d\n",
+		printk(KERN_WARNING "%s:%d cipso add rc = %d\n",
 		       __func__, __LINE__, rc);
 		kfree(doip);
+		return;
+	}
+	rc = netlbl_cfg_cipsov4_map_add(doip->doi,
+					NULL, NULL, NULL, &audit_info);
+	if (rc != 0) {
+		printk(KERN_WARNING "%s:%d map add rc = %d\n",
+		       __func__, __LINE__, rc);
+		kfree(doip);
+		return;
 	}
 }
 
@@ -386,13 +395,15 @@ static void smk_unlbl_ambient(char *oldambient)
 	audit_info.secid = smack_to_secid(current_security());
 
 	if (oldambient != NULL) {
-		rc = netlbl_cfg_map_del(oldambient, &audit_info);
+		rc = netlbl_cfg_map_del(oldambient,
+					PF_UNSPEC, NULL, NULL, &audit_info);
 		if (rc != 0)
 			printk(KERN_WARNING "%s:%d remove rc = %d\n",
 			       __func__, __LINE__, rc);
 	}
 
-	rc = netlbl_cfg_unlbl_add_map(smack_net_ambient, &audit_info);
+	rc = netlbl_cfg_unlbl_map_add(smack_net_ambient,
+				      PF_INET, NULL, NULL, &audit_info);
 	if (rc != 0)
 		printk(KERN_WARNING "%s:%d add rc = %d\n",
 		       __func__, __LINE__, rc);
