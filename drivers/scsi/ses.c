@@ -345,44 +345,21 @@ static int ses_enclosure_find_by_addr(struct enclosure_device *edev,
 	return 0;
 }
 
-#define VPD_INQUIRY_SIZE 36
-
 static void ses_match_to_enclosure(struct enclosure_device *edev,
 				   struct scsi_device *sdev)
 {
-	unsigned char *buf = kmalloc(VPD_INQUIRY_SIZE, GFP_KERNEL);
+	unsigned char *buf;
 	unsigned char *desc;
-	u16 vpd_len;
+	unsigned int vpd_len;
 	struct efd efd = {
 		.addr = 0,
 	};
-	unsigned char cmd[] = {
-		INQUIRY,
-		1,
-		0x83,
-		VPD_INQUIRY_SIZE >> 8,
-		VPD_INQUIRY_SIZE & 0xff,
-		0
-	};
 
+	buf = scsi_get_vpd_page(sdev, 0x83);
 	if (!buf)
 		return;
 
-	if (scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buf,
-			     VPD_INQUIRY_SIZE, NULL, SES_TIMEOUT, SES_RETRIES,
-			     NULL))
-		goto free;
-
-	vpd_len = (buf[2] << 8) + buf[3];
-	kfree(buf);
-	buf = kmalloc(vpd_len, GFP_KERNEL);
-	if (!buf)
-		return;
-	cmd[3] = vpd_len >> 8;
-	cmd[4] = vpd_len & 0xff;
-	if (scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buf,
-			     vpd_len, NULL, SES_TIMEOUT, SES_RETRIES, NULL))
-		goto free;
+	vpd_len = ((buf[2] << 8) | buf[3]) + 4;
 
 	desc = buf + 4;
 	while (desc < buf + vpd_len) {
