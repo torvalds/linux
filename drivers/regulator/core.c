@@ -656,6 +656,7 @@ static void print_constraints(struct regulator_dev *rdev)
 /**
  * set_machine_constraints - sets regulator constraints
  * @rdev: regulator source
+ * @constraints: constraints to apply
  *
  * Allows platform initialisation code to define and constrain
  * regulator circuits e.g. valid voltage/current ranges, etc.  NOTE:
