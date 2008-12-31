@@ -298,25 +298,23 @@ static const struct soc_enum twl4030_handsfreer_enum =
 static const struct snd_kcontrol_new twl4030_dapm_handsfreer_control =
 SOC_DAPM_ENUM("Route", twl4030_handsfreer_enum);
 
-static int outmixer_event(struct snd_soc_dapm_widget *w,
+/*
+ * This function filters out the non valid mux settings, named as "Invalid"
+ * in the enum texts.
+ * Just refuse to set an invalid mux mode.
+ */
+static int twl4030_enum_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	int ret = 0;
 	int val;
 
-	switch (e->reg) {
-	case TWL4030_REG_PREDL_CTL:
-	case TWL4030_REG_PREDR_CTL:
-	case TWL4030_REG_EAR_CTL:
-		val = w->value >> e->shift_l;
-		if (val == 3) {
-			printk(KERN_WARNING
-			"Invalid MUX setting for register 0x%02x (%d)\n",
-			      e->reg, val);
-			ret = -1;
-		}
-		break;
+	val = w->value >> e->shift_l;
+	if (!strcmp("Invalid", e->texts[val])) {
+		printk(KERN_WARNING "Invalid MUX setting on 0x%02x (%d)\n",
+			e->reg, val);
+		ret = -1;
 	}
 
 	return ret;
@@ -810,14 +808,14 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	/* Output MUX controls */
 	/* Earpiece */
 	SND_SOC_DAPM_MUX_E("Earpiece Mux", SND_SOC_NOPM, 0, 0,
-		&twl4030_dapm_earpiece_control, outmixer_event,
+		&twl4030_dapm_earpiece_control, twl4030_enum_event,
 		SND_SOC_DAPM_PRE_REG),
 	/* PreDrivL/R */
 	SND_SOC_DAPM_MUX_E("PredriveL Mux", SND_SOC_NOPM, 0, 0,
-		&twl4030_dapm_predrivel_control, outmixer_event,
+		&twl4030_dapm_predrivel_control, twl4030_enum_event,
 		SND_SOC_DAPM_PRE_REG),
 	SND_SOC_DAPM_MUX_E("PredriveR Mux", SND_SOC_NOPM, 0, 0,
-		&twl4030_dapm_predriver_control, outmixer_event,
+		&twl4030_dapm_predriver_control, twl4030_enum_event,
 		SND_SOC_DAPM_PRE_REG),
 	/* HeadsetL/R */
 	SND_SOC_DAPM_MUX("HeadsetL Mux", SND_SOC_NOPM, 0, 0,
