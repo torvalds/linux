@@ -585,7 +585,10 @@ got:
 	spin_lock(&sbi->s_next_gen_lock);
 	inode->i_generation = sbi->s_next_generation++;
 	spin_unlock(&sbi->s_next_gen_lock);
-	insert_inode_hash(inode);
+	if (insert_inode_locked(inode) < 0) {
+		err = -EINVAL;
+		goto fail_drop;
+	}
 
 	if (DQUOT_ALLOC_INODE(inode)) {
 		err = -EDQUOT;
@@ -612,6 +615,7 @@ fail_drop:
 	DQUOT_DROP(inode);
 	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
+	unlock_new_inode(inode);
 	iput(inode);
 	return ERR_PTR(err);
 

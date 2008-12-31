@@ -127,7 +127,8 @@ asmlinkage long sys_uselib(const char __user * library)
 	if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
 		goto exit;
 
-	error = vfs_permission(&nd, MAY_READ | MAY_EXEC | MAY_OPEN);
+	error = inode_permission(nd.path.dentry->d_inode,
+				 MAY_READ | MAY_EXEC | MAY_OPEN);
 	if (error)
 		goto exit;
 
@@ -680,7 +681,7 @@ struct file *open_exec(const char *name)
 	if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
 		goto out_path_put;
 
-	err = vfs_permission(&nd, MAY_EXEC | MAY_OPEN);
+	err = inode_permission(nd.path.dentry->d_inode, MAY_EXEC | MAY_OPEN);
 	if (err)
 		goto out_path_put;
 

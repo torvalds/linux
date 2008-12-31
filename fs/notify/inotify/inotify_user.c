@@ -76,10 +76,10 @@ struct inotify_device {
 	struct mutex		ev_mutex;	/* protects event queue */
 	struct mutex		up_mutex;	/* synchronizes watch updates */
 	struct list_head 	events;		/* list of queued events */
-	atomic_t		count;		/* reference count */
 	struct user_struct	*user;		/* user who opened this dev */
 	struct inotify_handle	*ih;		/* inotify handle */
 	struct fasync_struct    *fa;            /* async notification */
+	atomic_t		count;		/* reference count */
 	unsigned int		queue_size;	/* size of the queue (bytes) */
 	unsigned int		event_count;	/* number of pending events */
 	unsigned int		max_events;	/* maximum number of events */
