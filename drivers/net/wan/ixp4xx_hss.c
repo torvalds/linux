@@ -654,7 +654,7 @@ static int hss_hdlc_poll(struct napi_struct *napi, int budget)
 			netif_rx_complete(dev, napi);
 			qmgr_enable_irq(rxq);
 			if (!qmgr_stat_empty(rxq) &&
-			    netif_rx_reschedule(dev, napi)) {
+			    netif_rx_reschedule(napi)) {
 #if DEBUG_RX
 				printk(KERN_DEBUG "%s: hss_hdlc_poll"
 				       " netif_rx_reschedule succeeded\n",

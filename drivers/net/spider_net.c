@@ -1277,7 +1277,6 @@ bad_desc:
 static int spider_net_poll(struct napi_struct *napi, int budget)
 {
 	struct spider_net_card *card = container_of(napi, struct spider_net_card, napi);
-	struct net_device *netdev = card->netdev;
 	int packets_done = 0;
 
 	while (packets_done < budget) {
