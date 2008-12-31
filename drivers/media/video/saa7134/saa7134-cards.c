@@ -5733,6 +5733,13 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x7128,
 		.driver_data  = SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xf31d,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS,
+
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -5771,13 +5778,6 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = PCI_ANY_ID,
 		.driver_data  = SAA7134_BOARD_UNKNOWN,
 	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xf31d,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS,
-
-	}, {
 		/* --- end of list --- */
 	}
 };
