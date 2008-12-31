@@ -204,6 +204,19 @@ lockd(void *vrqstp)
 	return 0;
 }
 
+static int create_lockd_listener(struct svc_serv *serv, char *name,
+				 unsigned short port)
+{
+	struct svc_xprt *xprt;
+
+	xprt = svc_find_xprt(serv, name, 0, 0);
+	if (xprt == NULL)
+		return svc_create_xprt(serv, name, port, SVC_SOCK_DEFAULTS);
+
+	svc_xprt_put(xprt);
+	return 0;
+}
+
 /*
  * Ensure there are active UDP and TCP listeners for lockd.
  *
@@ -217,23 +230,11 @@ lockd(void *vrqstp)
 static int make_socks(struct svc_serv *serv)
 {
 	static int warned;
-	struct svc_xprt *xprt;
 	int err = 0;
 
-	xprt = svc_find_xprt(serv, "udp", 0, 0);
-	if (!xprt)
-		err = svc_create_xprt(serv, "udp", nlm_udpport,
-				      SVC_SOCK_DEFAULTS);
-	else
-		svc_xprt_put(xprt);
-	if (err >= 0) {
-		xprt = svc_find_xprt(serv, "tcp", 0, 0);
-		if (!xprt)
-			err = svc_create_xprt(serv, "tcp", nlm_tcpport,
-					      SVC_SOCK_DEFAULTS);
-		else
-			svc_xprt_put(xprt);
-	}
+	err = create_lockd_listener(serv, "udp", nlm_udpport);
+	if (err >= 0)
+		err = create_lockd_listener(serv, "tcp", nlm_tcpport);
 	if (err >= 0) {
 		warned = 0;
 		err = 0;
