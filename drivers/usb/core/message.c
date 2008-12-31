@@ -1143,22 +1143,26 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
  * usb_enable_endpoint - Enable an endpoint for USB communications
  * @dev: the device whose interface is being enabled
  * @ep: the endpoint
+ * @reset_toggle: flag to set the endpoint's toggle back to 0
  *
- * Resets the endpoint toggle, and sets dev->ep_{in,out} pointers.
+ * Resets the endpoint toggle if asked, and sets dev->ep_{in,out} pointers.
  * For control endpoints, both the input and output sides are handled.
  */
-void usb_enable_endpoint(struct usb_device *dev, struct usb_host_endpoint *ep)
+void usb_enable_endpoint(struct usb_device *dev, struct usb_host_endpoint *ep,
+		bool reset_toggle)
 {
 	int epnum = usb_endpoint_num(&ep->desc);
 	int is_out = usb_endpoint_dir_out(&ep->desc);
 	int is_control = usb_endpoint_xfer_control(&ep->desc);
 
 	if (is_out || is_control) {
-		usb_settoggle(dev, epnum, 1, 0);
+		if (reset_toggle)
+			usb_settoggle(dev, epnum, 1, 0);
 		dev->ep_out[epnum] = ep;
 	}
 	if (!is_out || is_control) {
-		usb_settoggle(dev, epnum, 0, 0);
+		if (reset_toggle)
+			usb_settoggle(dev, epnum, 0, 0);
 		dev->ep_in[epnum] = ep;
 	}
 	ep->enabled = 1;
@@ -1168,17 +1172,18 @@ void usb_enable_endpoint(struct usb_device *dev, struct usb_host_endpoint *ep)
  * usb_enable_interface - Enable all the endpoints for an interface
  * @dev: the device whose interface is being enabled
  * @intf: pointer to the interface descriptor
+ * @reset_toggles: flag to set the endpoints' toggles back to 0
  *
  * Enables all the endpoints for the interface's current altsetting.
  */
-static void usb_enable_interface(struct usb_device *dev,
-				 struct usb_interface *intf)
+void usb_enable_interface(struct usb_device *dev,
+		struct usb_interface *intf, bool reset_toggles)
 {
 	struct usb_host_interface *alt = intf->cur_altsetting;
 	int i;
 
 	for (i = 0; i < alt->desc.bNumEndpoints; ++i)
-		usb_enable_endpoint(dev, &alt->endpoint[i]);
+		usb_enable_endpoint(dev, &alt->endpoint[i], reset_toggles);
 }
 
 /**
@@ -1303,7 +1308,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 * during the SETUP stage - hence EP0 toggles are "don't care" here.
 	 * (Likewise, EP0 never "halts" on well designed devices.)
 	 */
-	usb_enable_interface(dev, iface);
+	usb_enable_interface(dev, iface, true);
 	if (device_is_registered(&iface->dev)) {
 		usb_create_sysfs_intf_files(iface);
 		create_intf_ep_devs(iface);
@@ -1382,7 +1387,7 @@ int usb_reset_configuration(struct usb_device *dev)
 			usb_remove_sysfs_intf_files(intf);
 		}
 		intf->cur_altsetting = alt;
-		usb_enable_interface(dev, intf);
+		usb_enable_interface(dev, intf, true);
 		if (device_is_registered(&intf->dev)) {
 			usb_create_sysfs_intf_files(intf);
 			create_intf_ep_devs(intf);
@@ -1685,7 +1690,7 @@ free_interfaces:
 			alt = &intf->altsetting[0];
 
 		intf->cur_altsetting = alt;
-		usb_enable_interface(dev, intf);
+		usb_enable_interface(dev, intf, true);
 		intf->dev.parent = &dev->dev;
 		intf->dev.driver = NULL;
 		intf->dev.bus = &usb_bus_type;

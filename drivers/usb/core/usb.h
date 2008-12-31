@@ -12,7 +12,9 @@ extern int usb_create_ep_devs(struct device *parent,
 extern void usb_remove_ep_devs(struct usb_host_endpoint *endpoint);
 
 extern void usb_enable_endpoint(struct usb_device *dev,
-		struct usb_host_endpoint *ep);
+		struct usb_host_endpoint *ep, bool reset_toggle);
+extern void usb_enable_interface(struct usb_device *dev,
+		struct usb_interface *intf, bool reset_toggles);
 extern void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr);
 extern void usb_disable_interface(struct usb_device *dev,
 		struct usb_interface *intf);
