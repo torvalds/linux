@@ -727,8 +727,7 @@ static int w9966_wReg_i2c(struct w9966_dev* cam, int reg, int data)
  *	Video4linux interfacing
  */
 
-static int w9966_v4l_do_ioctl(struct inode *inode, struct file *file,
-			      unsigned int cmd, void *arg)
+static int w9966_v4l_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct w9966_dev *cam = video_drvdata(file);
 
@@ -881,7 +880,7 @@ static int w9966_v4l_do_ioctl(struct inode *inode, struct file *file,
 static int w9966_v4l_ioctl(struct inode *inode, struct file *file,
 			   unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, w9966_v4l_do_ioctl);
+	return video_usercopy(file, cmd, arg, w9966_v4l_do_ioctl);
 }
 
 // Capture data

@@ -1,4 +1,4 @@
-unifdef-y += drm.h drm_sarea.h
+unifdef-y += drm.h drm_sarea.h drm_mode.h
 unifdef-y += i810_drm.h
 unifdef-y += i830_drm.h
 unifdef-y += i915_drm.h

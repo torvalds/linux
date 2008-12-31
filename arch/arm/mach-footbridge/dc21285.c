@@ -17,6 +17,7 @@
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
 
 #include <asm/irq.h>
 #include <asm/system.h>

@@ -161,7 +161,7 @@ static int stop_streaming(struct em28xx_dvb *dvb)
 
 	em28xx_uninit_isoc(dev);
 
-	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+	em28xx_set_mode(dev, EM28XX_SUSPEND);
 
 	return 0;
 }
@@ -215,7 +215,7 @@ static int em28xx_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
 	if (acquire)
 		return em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	else
-		return em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+		return em28xx_set_mode(dev, EM28XX_SUSPEND);
 }
 
 /* ------------------------------------------------------------------ */
@@ -393,7 +393,7 @@ static int dvb_init(struct em28xx *dev)
 	int result = 0;
 	struct em28xx_dvb *dvb;
 
-	if (!dev->has_dvb) {
+	if (!dev->board.has_dvb) {
 		/* This device does not support the extension */
 		return 0;
 	}
@@ -409,8 +409,10 @@ static int dvb_init(struct em28xx *dev)
 	em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	/* init frontend */
 	switch (dev->model) {
+	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
+	case EM2883_BOARD_KWORLD_HYBRID_A316:
 	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
 		dvb->frontend = dvb_attach(lgdt330x_attach,
 					   &em2880_lgdt3303_dev,
@@ -466,12 +468,12 @@ static int dvb_init(struct em28xx *dev)
 	if (result < 0)
 		goto out_free;
 
-	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+	em28xx_set_mode(dev, EM28XX_SUSPEND);
 	printk(KERN_INFO "Successfully loaded em28xx-dvb\n");
 	return 0;
 
 out_free:
-	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+	em28xx_set_mode(dev, EM28XX_SUSPEND);
 	kfree(dvb);
 	dev->dvb = NULL;
 	return result;
@@ -479,7 +481,7 @@ out_free:
 
 static int dvb_fini(struct em28xx *dev)
 {
-	if (!dev->has_dvb) {
+	if (!dev->board.has_dvb) {
 		/* This device does not support the extension */
 		return 0;
 	}

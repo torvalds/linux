@@ -96,7 +96,6 @@ static int __devinit snd_card_pcsp_probe(int devnum, struct device *dev)
 		return -EINVAL;
 
 	hrtimer_init(&pcsp_chip.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	pcsp_chip.timer.cb_mode = HRTIMER_CB_IRQSAFE_UNLOCKED;
 	pcsp_chip.timer.function = pcsp_do_timer;
 
 	card = snd_card_new(index, id, THIS_MODULE, 0);

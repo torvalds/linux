@@ -62,6 +62,9 @@ config IDE_TIMINGS
 config IDE_ATAPI
 	bool
 
+config IDE_LEGACY
+	bool
+
 config BLK_DEV_IDE_SATA
 	bool "Support for SATA (deprecated; conflicts with libata SATA driver)"
 	default n
@@ -724,7 +727,7 @@ config BLK_DEV_IDE_TX4939
 
 config IDE_ARM
 	tristate "ARM IDE support"
-	depends on ARM && (ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
+	depends on ARM && (ARCH_RPC || ARCH_SHARK)
 	default y
 
 config BLK_DEV_IDE_ICSIDE
@@ -856,6 +859,7 @@ config BLK_DEV_4DRIVES
 config BLK_DEV_ALI14XX
 	tristate "ALI M14xx support"
 	select IDE_TIMINGS
+	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "ali14xx.probe" kernel
 	  boot parameter.  It enables support for the secondary IDE interface
@@ -866,6 +870,7 @@ config BLK_DEV_ALI14XX
 
 config BLK_DEV_DTC2278
 	tristate "DTC-2278 support"
+	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "dtc2278.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface
@@ -876,6 +881,7 @@ config BLK_DEV_DTC2278
 config BLK_DEV_HT6560B
 	tristate "Holtek HT6560B support"
 	select IDE_TIMINGS
+	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "ht6560b.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface
@@ -886,6 +892,7 @@ config BLK_DEV_HT6560B
 config BLK_DEV_QD65XX
 	tristate "QDI QD65xx support"
 	select IDE_TIMINGS
+	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "qd65xx.probe" kernel
 	  boot parameter.  It permits faster I/O speeds to be set.  See the
@@ -894,6 +901,7 @@ config BLK_DEV_QD65XX
 
 config BLK_DEV_UMC8672
 	tristate "UMC-8672 support"
+	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "umc8672.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface

@@ -507,7 +507,7 @@ ip_vs_lblc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	/* No cache entry or it is invalid, time to schedule */
 	dest = __ip_vs_lblc_schedule(svc);
 	if (!dest) {
-		IP_VS_DBG(1, "no destination available\n");
+		IP_VS_ERR_RL("LBLC: no destination available\n");
 		return NULL;
 	}
 

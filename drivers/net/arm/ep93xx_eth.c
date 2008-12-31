@@ -307,7 +307,7 @@ poll_some_more:
 		}
 		spin_unlock_irq(&ep->rx_lock);
 
-		if (more && netif_rx_reschedule(dev, napi))
+		if (more && netif_rx_reschedule(napi))
 			goto poll_some_more;
 	}
 

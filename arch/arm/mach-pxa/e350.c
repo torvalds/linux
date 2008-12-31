@@ -1,5 +1,5 @@
 /*
- * Hardware definitions for the Toshiba eseries PDAs
+ * Hardware definitions for the Toshiba e350 PDAs
  *
  * Copyright (c) 2003 Ian Molton <spyro@f2s.com>
  *
@@ -12,20 +12,54 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/clk.h>
+#include <linux/platform_device.h>
+#include <linux/mfd/t7l66xb.h>
 
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
 #include <mach/mfp-pxa25x.h>
+#include <mach/pxa-regs.h>
 #include <mach/hardware.h>
+#include <mach/eseries-gpio.h>
 #include <mach/udc.h>
 
 #include "generic.h"
 #include "eseries.h"
+#include "clock.h"
+
+/* -------------------- e350 t7l66xb parameters -------------------- */
+
+static struct t7l66xb_platform_data e350_t7l66xb_info = {
+	.irq_base               = IRQ_BOARD_START,
+	.enable                 = &eseries_tmio_enable,
+	.suspend                = &eseries_tmio_suspend,
+	.resume                 = &eseries_tmio_resume,
+};
+
+static struct platform_device e350_t7l66xb_device = {
+	.name           = "t7l66xb",
+	.id             = -1,
+	.dev            = {
+		.platform_data = &e350_t7l66xb_info,
+	},
+	.num_resources = 2,
+	.resource      = eseries_tmio_resources,
+};
+
+/* ---------------------------------------------------------- */
+
+static struct platform_device *devices[] __initdata = {
+	&e350_t7l66xb_device,
+};
 
 static void __init e350_init(void)
 {
+	eseries_register_clks();
+	eseries_get_tmio_gpios();
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_udc_info(&e7xx_udc_mach_info);
 }
 

@@ -83,7 +83,7 @@ struct nfs_open_context {
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
 	fl_owner_t lockowner;
-	int mode;
+	fmode_t mode;
 
 	unsigned long flags;
 #define NFS_CONTEXT_ERROR_WRITE		(0)
@@ -130,7 +130,10 @@ struct nfs_inode {
 	 *
 	 * We need to revalidate the cached attrs for this inode if
 	 *
-	 *	jiffies - read_cache_jiffies > attrtimeo
+	 *	jiffies - read_cache_jiffies >= attrtimeo
+	 *
+	 * Please note the comparison is greater than or equal
+	 * so that zero timeout values can be specified.
 	 */
 	unsigned long		read_cache_jiffies;
 	unsigned long		attrtimeo;
@@ -180,7 +183,7 @@ struct nfs_inode {
         /* NFSv4 state */
 	struct list_head	open_states;
 	struct nfs_delegation	*delegation;
-	int			 delegation_state;
+	fmode_t			 delegation_state;
 	struct rw_semaphore	rwsem;
 #endif /* CONFIG_NFS_V4*/
 	struct inode		vfs_inode;
@@ -342,7 +345,7 @@ extern int nfs_setattr(struct dentry *, struct iattr *);
 extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
-extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, int mode);
+extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, fmode_t mode);
 extern u64 nfs_compat_user_ino64(u64 fileid);
 extern void nfs_fattr_init(struct nfs_fattr *fattr);
 
@@ -531,12 +534,6 @@ static inline void nfs3_forget_cached_acls(struct inode *inode)
 {
 }
 #endif /* CONFIG_NFS_V3_ACL */
-
-/*
- * linux/fs/mount_clnt.c
- */
-extern int  nfs_mount(struct sockaddr *, size_t, char *, char *,
-		      int, int, struct nfs_fh *);
 
 /*
  * inline functions

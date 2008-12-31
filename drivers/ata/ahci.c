@@ -1119,14 +1119,14 @@ static void ahci_start_port(struct ata_port *ap)
 
 	/* turn on LEDs */
 	if (ap->flags & ATA_FLAG_EM) {
-		ata_port_for_each_link(link, ap) {
+		ata_for_each_link(link, ap, EDGE) {
 			emp = &pp->em_priv[link->pmp];
 			ahci_transmit_led_message(ap, emp->led_state, 4);
 		}
 	}
 
 	if (ap->flags & ATA_FLAG_SW_ACTIVITY)
-		ata_port_for_each_link(link, ap)
+		ata_for_each_link(link, ap, EDGE)
 			ahci_init_sw_activity(link);
 
 }
@@ -1361,7 +1361,7 @@ static ssize_t ahci_led_show(struct ata_port *ap, char *buf)
 	struct ahci_em_priv *emp;
 	int rc = 0;
 
-	ata_port_for_each_link(link, ap) {
+	ata_for_each_link(link, ap, EDGE) {
 		emp = &pp->em_priv[link->pmp];
 		rc += sprintf(buf, "%lx\n", emp->led_state);
 	}
@@ -1941,7 +1941,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 	u32 serror;
 
 	/* determine active link */
-	ata_port_for_each_link(link, ap)
+	ata_for_each_link(link, ap, EDGE)
 		if (ata_link_active(link))
 			break;
 	if (!link)

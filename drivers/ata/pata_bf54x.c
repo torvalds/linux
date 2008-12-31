@@ -356,7 +356,6 @@ static void bfin_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	bfin_set_dmamode - Initialize host controller PATA DMA timings
  *	@ap: Port whose timings we are configuring
  *	@adev: um
- *	@udma: udma mode, 0 - 6
  *
  *	Set UDMA mode for device.
  *

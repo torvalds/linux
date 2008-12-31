@@ -29,7 +29,6 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 
 #include <asm/irq.h>

@@ -299,7 +299,8 @@ struct init_cb_24xx {
 	uint32_t response_q_address[2];
 	uint32_t prio_request_q_address[2];
 
-	uint8_t reserved_2[8];
+	uint16_t msix;
+	uint8_t reserved_2[6];
 
 	uint16_t atio_q_inpointer;
 	uint16_t atio_q_length;
@@ -372,8 +373,9 @@ struct init_cb_24xx {
 	 * BIT 17-31 = Reserved
 	 */
 	uint32_t firmware_options_3;
-
-	uint8_t  reserved_3[24];
+	uint16_t qos;
+	uint16_t rid;
+	uint8_t  reserved_3[20];
 };
 
 /*
@@ -754,7 +756,8 @@ struct abort_entry_24xx {
 
 	uint32_t handle_to_abort;	/* System handle to abort. */
 
-	uint8_t reserved_1[32];
+	uint16_t req_que_no;
+	uint8_t reserved_1[30];
 
 	uint8_t port_id[3];		/* PortID of destination port. */
 	uint8_t vp_index;
@@ -1258,7 +1261,8 @@ struct qla_npiv_header {
 struct qla_npiv_entry {
 	uint16_t flags;
 	uint16_t vf_id;
-	uint16_t qos;
+	uint8_t q_qos;
+	uint8_t f_qos;
 	uint16_t unused1;
 	uint8_t port_name[WWN_SIZE];
 	uint8_t node_name[WWN_SIZE];

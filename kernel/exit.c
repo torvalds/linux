@@ -1037,8 +1037,6 @@ NORET_TYPE void do_exit(long code)
 		 * task into the wait for ever nirwana as well.
 		 */
 		tsk->flags |= PF_EXITPIDONE;
-		if (tsk->io_context)
-			exit_io_context();
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule();
 	}
@@ -1328,10 +1326,10 @@ static int wait_task_zombie(struct task_struct *p, int options,
 		 * group, which consolidates times for all threads in the
 		 * group including the group leader.
 		 */
+		thread_group_cputime(p, &cputime);
 		spin_lock_irq(&p->parent->sighand->siglock);
 		psig = p->parent->signal;
 		sig = p->signal;
-		thread_group_cputime(p, &cputime);
 		psig->cutime =
 			cputime_add(psig->cutime,
 			cputime_add(cputime.utime,

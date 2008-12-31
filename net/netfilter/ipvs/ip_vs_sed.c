@@ -84,6 +84,7 @@ ip_vs_sed_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 			goto nextstage;
 		}
 	}
+	IP_VS_ERR_RL("SED: no destination available\n");
 	return NULL;
 
 	/*

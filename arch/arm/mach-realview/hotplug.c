@@ -13,6 +13,8 @@
 #include <linux/smp.h>
 #include <linux/completion.h>
 
+#include <asm/cacheflush.h>
+
 extern volatile int pen_release;
 
 static DECLARE_COMPLETION(cpu_killed);
@@ -21,7 +23,8 @@ static inline void cpu_enter_lowpower(void)
 {
 	unsigned int v;
 
-	asm volatile(	"mcr	p15, 0, %1, c7, c14, 0\n"
+	flush_cache_all();
+	asm volatile(
 	"	mcr	p15, 0, %1, c7, c5, 0\n"
 	"	mcr	p15, 0, %1, c7, c10, 4\n"
 	/*

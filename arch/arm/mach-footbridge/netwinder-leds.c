@@ -32,7 +32,6 @@ static char led_state;
 static char hw_led_state;
 
 static DEFINE_SPINLOCK(leds_lock);
-extern spinlock_t gpio_lock;
 
 static void netwinder_leds_event(led_event_t evt)
 {
@@ -121,9 +120,9 @@ static void netwinder_leds_event(led_event_t evt)
 	spin_unlock_irqrestore(&leds_lock, flags);
 
 	if  (led_state & LED_STATE_ENABLED) {
-		spin_lock_irqsave(&gpio_lock, flags);
-		gpio_modify_op(GPIO_RED_LED | GPIO_GREEN_LED, hw_led_state);
-		spin_unlock_irqrestore(&gpio_lock, flags);
+		spin_lock_irqsave(&nw_gpio_lock, flags);
+		nw_gpio_modify_op(GPIO_RED_LED | GPIO_GREEN_LED, hw_led_state);
+		spin_unlock_irqrestore(&nw_gpio_lock, flags);
 	}
 }
 

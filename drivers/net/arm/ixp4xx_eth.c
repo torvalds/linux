@@ -504,7 +504,7 @@ static int eth_poll(struct napi_struct *napi, int budget)
 			netif_rx_complete(napi);
 			qmgr_enable_irq(rxq);
 			if (!qmgr_stat_empty(rxq) &&
-			    netif_rx_reschedule(dev, napi)) {
+			    netif_rx_reschedule(napi)) {
 #if DEBUG_RX
 				printk(KERN_DEBUG "%s: eth_poll"
 				       " netif_rx_reschedule successed\n",

@@ -26,7 +26,6 @@ struct scsi_ioctl_command;
 
 struct request_queue;
 struct elevator_queue;
-typedef struct elevator_queue elevator_t;
 struct request_pm_state;
 struct blk_trace;
 struct request;
@@ -313,7 +312,7 @@ struct request_queue
 	 */
 	struct list_head	queue_head;
 	struct request		*last_merge;
-	elevator_t		*elevator;
+	struct elevator_queue	*elevator;
 
 	/*
 	 * the queue request freelist, one for reads and one for writes
@@ -449,6 +448,7 @@ struct request_queue
 #define QUEUE_FLAG_FAIL_IO     12	/* fake timeout */
 #define QUEUE_FLAG_STACKABLE   13	/* supports request stacking */
 #define QUEUE_FLAG_NONROT      14	/* non-rotational device (SSD) */
+#define QUEUE_FLAG_VIRT        QUEUE_FLAG_NONROT /* paravirt device */
 
 static inline int queue_is_locked(struct request_queue *q)
 {
@@ -522,22 +522,32 @@ enum {
 	 * TAG_FLUSH	: ordering by tag w/ pre and post flushes
 	 * TAG_FUA	: ordering by tag w/ pre flush and FUA write
 	 */
-	QUEUE_ORDERED_NONE	= 0x00,
-	QUEUE_ORDERED_DRAIN	= 0x01,
-	QUEUE_ORDERED_TAG	= 0x02,
+	QUEUE_ORDERED_BY_DRAIN		= 0x01,
+	QUEUE_ORDERED_BY_TAG		= 0x02,
+	QUEUE_ORDERED_DO_PREFLUSH	= 0x10,
+	QUEUE_ORDERED_DO_BAR		= 0x20,
+	QUEUE_ORDERED_DO_POSTFLUSH	= 0x40,
+	QUEUE_ORDERED_DO_FUA		= 0x80,
 
-	QUEUE_ORDERED_PREFLUSH	= 0x10,
-	QUEUE_ORDERED_POSTFLUSH	= 0x20,
-	QUEUE_ORDERED_FUA	= 0x40,
+	QUEUE_ORDERED_NONE		= 0x00,
 
-	QUEUE_ORDERED_DRAIN_FLUSH = QUEUE_ORDERED_DRAIN |
-			QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_POSTFLUSH,
-	QUEUE_ORDERED_DRAIN_FUA	= QUEUE_ORDERED_DRAIN |
-			QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_FUA,
-	QUEUE_ORDERED_TAG_FLUSH	= QUEUE_ORDERED_TAG |
-			QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_POSTFLUSH,
-	QUEUE_ORDERED_TAG_FUA	= QUEUE_ORDERED_TAG |
-			QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_FUA,
+	QUEUE_ORDERED_DRAIN		= QUEUE_ORDERED_BY_DRAIN |
+					  QUEUE_ORDERED_DO_BAR,
+	QUEUE_ORDERED_DRAIN_FLUSH	= QUEUE_ORDERED_DRAIN |
+					  QUEUE_ORDERED_DO_PREFLUSH |
+					  QUEUE_ORDERED_DO_POSTFLUSH,
+	QUEUE_ORDERED_DRAIN_FUA		= QUEUE_ORDERED_DRAIN |
+					  QUEUE_ORDERED_DO_PREFLUSH |
+					  QUEUE_ORDERED_DO_FUA,
+
+	QUEUE_ORDERED_TAG		= QUEUE_ORDERED_BY_TAG |
+					  QUEUE_ORDERED_DO_BAR,
+	QUEUE_ORDERED_TAG_FLUSH		= QUEUE_ORDERED_TAG |
+					  QUEUE_ORDERED_DO_PREFLUSH |
+					  QUEUE_ORDERED_DO_POSTFLUSH,
+	QUEUE_ORDERED_TAG_FUA		= QUEUE_ORDERED_TAG |
+					  QUEUE_ORDERED_DO_PREFLUSH |
+					  QUEUE_ORDERED_DO_FUA,
 
 	/*
 	 * Ordered operation sequence
@@ -585,7 +595,6 @@ enum {
 #define blk_fua_rq(rq)		((rq)->cmd_flags & REQ_FUA)
 #define blk_discard_rq(rq)	((rq)->cmd_flags & REQ_DISCARD)
 #define blk_bidi_rq(rq)		((rq)->next_rq != NULL)
-#define blk_empty_barrier(rq)	(blk_barrier_rq(rq) && blk_fs_request(rq) && !(rq)->hard_nr_sectors)
 /* rq->queuelist of dequeued request must be list_empty() */
 #define blk_queued_rq(rq)	(!list_empty(&(rq)->queuelist))
 
@@ -855,10 +864,10 @@ extern void blk_queue_rq_timed_out(struct request_queue *, rq_timed_out_fn *);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
 extern int blk_queue_ordered(struct request_queue *, unsigned, prepare_flush_fn *);
-extern int blk_do_ordered(struct request_queue *, struct request **);
+extern bool blk_do_ordered(struct request_queue *, struct request **);
 extern unsigned blk_ordered_cur_seq(struct request_queue *);
 extern unsigned blk_ordered_req_seq(struct request *);
-extern void blk_ordered_complete_seq(struct request_queue *, unsigned, int);
+extern bool blk_ordered_complete_seq(struct request_queue *, unsigned, int);
 
 extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatterlist *);
 extern void blk_dump_rq_flags(struct request *, char *);
@@ -977,7 +986,6 @@ static inline void put_dev_sector(Sector p)
 
 struct work_struct;
 int kblockd_schedule_work(struct request_queue *q, struct work_struct *work);
-void kblockd_flush_work(struct work_struct *work);
 
 #define MODULE_ALIAS_BLOCKDEV(major,minor) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(minor))

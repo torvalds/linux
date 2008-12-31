@@ -67,7 +67,6 @@
 #define EM2820_BOARD_HERCULES_SMART_TV_USB2	  26
 #define EM2820_BOARD_PINNACLE_USB_2_FM1216ME	  27
 #define EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE 28
-#define EM2820_BOARD_PINNACLE_DVC_100		  29
 #define EM2820_BOARD_VIDEOLOGY_20K14XUSB	  30
 #define EM2821_BOARD_USBGEAR_VD204		  31
 #define EM2821_BOARD_SUPERCOMP_USB_2		  32
@@ -97,6 +96,8 @@
 #define EM2882_BOARD_PINNACLE_HYBRID_PRO	  56
 #define EM2883_BOARD_KWORLD_HYBRID_A316		  57
 #define EM2820_BOARD_COMPRO_VIDEOMATE_FORYOU	  58
+#define EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850	  60
+#define EM2820_BOARD_PROLINK_PLAYTV_BOX4_USB2	  61
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -159,7 +160,7 @@
 #define EM2800_I2C_WRITE_TIMEOUT 20
 
 enum em28xx_mode {
-	EM28XX_MODE_UNDEFINED,
+	EM28XX_SUSPEND,
 	EM28XX_ANALOG_MODE,
 	EM28XX_DIGITAL_MODE,
 };
@@ -207,9 +208,12 @@ struct em28xx_usb_isoc_ctl {
 
 };
 
+/* Struct to enumberate video formats */
 struct em28xx_fmt {
 	char  *name;
 	u32   fourcc;          /* v4l2 format id */
+	int   depth;
+	int   reg;
 };
 
 /* buffer for one video frame */
@@ -255,25 +259,52 @@ enum enum28xx_itype {
 	EM28XX_RADIO,
 };
 
+enum em28xx_ac97_mode {
+	EM28XX_NO_AC97 = 0,
+	EM28XX_AC97_EM202,
+	EM28XX_AC97_SIGMATEL,
+	EM28XX_AC97_OTHER,
+};
+
+struct em28xx_audio_mode {
+	enum em28xx_ac97_mode ac97;
+
+	u16 ac97_feat;
+	u32 ac97_vendor_id;
+
+	unsigned int has_audio:1;
+
+	unsigned int i2s_3rates:1;
+	unsigned int i2s_5rates:1;
+};
+
+/* em28xx has two audio inputs: tuner and line in.
+   However, on most devices, an auxiliary AC97 codec device is used.
+   The AC97 device may have several different inputs and outputs,
+   depending on their model. So, it is possible to use AC97 mixer to
+   address more than two different entries.
+ */
 enum em28xx_amux {
-	EM28XX_AMUX_VIDEO,
-	EM28XX_AMUX_LINE_IN,
-	EM28XX_AMUX_AC97_VIDEO,
-	EM28XX_AMUX_AC97_LINE_IN,
+	/* This is the only entry for em28xx tuner input */
+	EM28XX_AMUX_VIDEO,	/* em28xx tuner, AC97 mixer Video */
+
+	EM28XX_AMUX_LINE_IN,	/* AC97 mixer Line In */
+
+	/* Some less-common mixer setups */
+	EM28XX_AMUX_VIDEO2,	/* em28xx Line in, AC97 mixer Video */
+	EM28XX_AMUX_PHONE,
+	EM28XX_AMUX_MIC,
+	EM28XX_AMUX_CD,
+	EM28XX_AMUX_AUX,
+	EM28XX_AMUX_PCM_OUT,
 };
 
-struct em28xx_input {
-	enum enum28xx_itype type;
-	unsigned int vmux;
-	enum em28xx_amux amux;
-};
-
-#define INPUT(nr) (&em28xx_boards[dev->model].input[nr])
-
-enum em28xx_decoder {
-	EM28XX_TVP5150,
-	EM28XX_SAA7113,
-	EM28XX_SAA7114
+enum em28xx_aout {
+	EM28XX_AOUT_MASTER = 1 << 0,
+	EM28XX_AOUT_LINE   = 1 << 1,
+	EM28XX_AOUT_MONO   = 1 << 2,
+	EM28XX_AOUT_LFE    = 1 << 3,
+	EM28XX_AOUT_SURR   = 1 << 4,
 };
 
 struct em28xx_reg_seq {
@@ -282,27 +313,51 @@ struct em28xx_reg_seq {
 	int sleep;
 };
 
+struct em28xx_input {
+	enum enum28xx_itype type;
+	unsigned int vmux;
+	enum em28xx_amux amux;
+	enum em28xx_aout aout;
+	struct em28xx_reg_seq *gpio;
+};
+
+#define INPUT(nr) (&em28xx_boards[dev->model].input[nr])
+
+enum em28xx_decoder {
+	EM28XX_NODECODER,
+	EM28XX_TVP5150,
+	EM28XX_SAA711X,
+};
+
 struct em28xx_board {
 	char *name;
 	int vchannels;
 	int tuner_type;
+	int tuner_addr;
 
 	/* i2c flags */
 	unsigned int tda9887_conf;
 
+	/* GPIO sequences */
+	struct em28xx_reg_seq *dvb_gpio;
+	struct em28xx_reg_seq *suspend_gpio;
+	struct em28xx_reg_seq *tuner_gpio;
+
 	unsigned int is_em2800:1;
 	unsigned int has_msp34xx:1;
 	unsigned int mts_firmware:1;
-	unsigned int has_12mhz_i2s:1;
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 	unsigned int has_snapshot_button:1;
 	unsigned int valid:1;
 
+	unsigned char xclk, i2c_speed;
+
 	enum em28xx_decoder decoder;
 
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
 	struct em28xx_input	  radio;
+	IR_KEYTAB_TYPE            *ir_codes;
 };
 
 struct em28xx_eeprom {
@@ -369,32 +424,26 @@ struct em28xx {
 	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
-	unsigned int is_em2800:1;
-	unsigned int has_msp34xx:1;
-	unsigned int has_tda9887:1;
+	enum em28xx_chip_id chip_id;
+
+	struct em28xx_board board;
+
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;
-	unsigned int has_12mhz_i2s:1;
-	unsigned int max_range_640_480:1;
-	unsigned int has_dvb:1;
-	unsigned int has_snapshot_button:1;
-	unsigned int valid:1;		/* report for validated boards */
+	unsigned int has_alsa_audio:1;
+
+	struct em28xx_fmt *format;
+
+	struct em28xx_IR *ir;
 
 	/* Some older em28xx chips needs a waiting time after writing */
 	unsigned int wait_after_write;
 
-	/* GPIO sequences for analog and digital mode */
-	struct em28xx_reg_seq *analog_gpio, *digital_gpio;
-
-	/* GPIO sequences for tuner callbacks */
-	struct em28xx_reg_seq *tun_analog_gpio, *tun_digital_gpio;
-
-	int video_inputs;	/* number of video inputs */
 	struct list_head	devlist;
 
 	u32 i2s_speed;		/* I2S speed for audio digital stream */
 
-	enum em28xx_decoder decoder;
+	struct em28xx_audio_mode audio_mode;
 
 	int tuner_type;		/* type of the tuner */
 	int tuner_addr;		/* tuner address */
@@ -409,6 +458,7 @@ struct em28xx {
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_input;	/* selected input */
 	unsigned int ctl_ainput;/* selected audio input */
+	unsigned int ctl_aoutput;/* selected audio output */
 	int mute;
 	int volume;
 	/* frame properties */
@@ -469,6 +519,9 @@ struct em28xx {
 
 	enum em28xx_mode mode;
 
+	/* register numbers for GPO/GPIO registers */
+	u16 reg_gpo_num, reg_gpio_num;
+
 	/* Caches GPO and GPIO registers */
 	unsigned char	reg_gpo, reg_gpio;
 
@@ -508,11 +561,17 @@ int em28xx_read_reg(struct em28xx *dev, u16 reg);
 int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 			  int len);
 int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len);
+int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val);
+
+int em28xx_read_ac97(struct em28xx *dev, u8 reg);
+int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val);
+
 int em28xx_audio_analog_set(struct em28xx *dev);
+int em28xx_audio_setup(struct em28xx *dev);
 
 int em28xx_colorlevels_set_default(struct em28xx *dev);
 int em28xx_capture_start(struct em28xx *dev, int start);
-int em28xx_outfmt_set_yuv422(struct em28xx *dev);
+int em28xx_set_outfmt(struct em28xx *dev);
 int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
 int em28xx_init_isoc(struct em28xx *dev, int max_packets,
@@ -521,10 +580,20 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 void em28xx_uninit_isoc(struct em28xx *dev);
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
-
-/* Provided by em28xx-video.c */
+void em28xx_wake_i2c(struct em28xx *dev);
+void em28xx_remove_from_devlist(struct em28xx *dev);
+void em28xx_add_into_devlist(struct em28xx *dev);
+struct em28xx *em28xx_get_device(struct inode *inode,
+				 enum v4l2_buf_type *fh_type,
+				 int *has_radio);
 int em28xx_register_extension(struct em28xx_ops *dev);
 void em28xx_unregister_extension(struct em28xx_ops *dev);
+void em28xx_init_extension(struct em28xx *dev);
+void em28xx_close_extension(struct em28xx *dev);
+
+/* Provided by em28xx-video.c */
+int em28xx_register_analog_devices(struct em28xx *dev);
+void em28xx_release_analog_resources(struct em28xx *dev);
 
 /* Provided by em28xx-cards.c */
 extern int em2800_variant_detect(struct usb_device *udev, int model);
@@ -535,15 +604,18 @@ extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
 void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir);
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
+void em28xx_release_resources(struct em28xx *dev);
 
 /* Provided by em28xx-input.c */
-/* TODO: Check if the standard get_key handlers on ir-common can be used */
 int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 				     u32 *ir_raw);
 void em28xx_register_snapshot_button(struct em28xx *dev);
 void em28xx_deregister_snapshot_button(struct em28xx *dev);
+
+int em28xx_ir_init(struct em28xx *dev);
+int em28xx_ir_fini(struct em28xx *dev);
 
 /* printk macros */
 
@@ -564,7 +636,7 @@ void em28xx_deregister_snapshot_button(struct em28xx *dev);
 static inline int em28xx_compression_disable(struct em28xx *dev)
 {
 	/* side effect of disabling scaler and mixer */
-	return em28xx_write_regs(dev, EM28XX_R26_COMPR, "\x00", 1);
+	return em28xx_write_reg(dev, EM28XX_R26_COMPR, 0x00);
 }
 
 static inline int em28xx_contrast_get(struct em28xx *dev)
@@ -636,7 +708,7 @@ static inline int em28xx_gamma_set(struct em28xx *dev, s32 val)
 /*FIXME: maxw should be dependent of alt mode */
 static inline unsigned int norm_maxw(struct em28xx *dev)
 {
-	if (dev->max_range_640_480)
+	if (dev->board.max_range_640_480)
 		return 640;
 	else
 		return 720;
@@ -644,7 +716,7 @@ static inline unsigned int norm_maxw(struct em28xx *dev)
 
 static inline unsigned int norm_maxh(struct em28xx *dev)
 {
-	if (dev->max_range_640_480)
+	if (dev->board.max_range_640_480)
 		return 480;
 	else
 		return (dev->norm & V4L2_STD_625_50) ? 576 : 480;

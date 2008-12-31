@@ -200,6 +200,9 @@ static inline void SMC_outsl(struct smc911x_local *lp, int reg,
 
 
 #ifdef SMC_USE_PXA_DMA
+
+#include <mach/dma.h>
+
 /*
  * Define the request and free functions
  * These are unfortunately architecture specific as no generic allocation

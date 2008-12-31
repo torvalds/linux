@@ -628,10 +628,10 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 
 	class_dev->class = &class_ptr->class;
 	if (pvr2_hdw_get_sn(sfp->channel.hdw)) {
-		snprintf(class_dev->bus_id, BUS_ID_SIZE, "sn-%lu",
+		dev_set_name(class_dev, "sn-%lu",
 			 pvr2_hdw_get_sn(sfp->channel.hdw));
 	} else if (pvr2_hdw_get_unit_number(sfp->channel.hdw) >= 0) {
-		snprintf(class_dev->bus_id, BUS_ID_SIZE, "unit-%c",
+		dev_set_name(class_dev, "unit-%c",
 			 pvr2_hdw_get_unit_number(sfp->channel.hdw) + 'a');
 	} else {
 		kfree(class_dev);

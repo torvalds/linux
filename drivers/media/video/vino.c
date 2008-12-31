@@ -4237,8 +4237,7 @@ error:
 	return ret;
 }
 
-static int vino_do_ioctl(struct inode *inode, struct file *file,
-		      unsigned int cmd, void *arg)
+static int vino_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
 
@@ -4353,7 +4352,7 @@ static int vino_ioctl(struct inode *inode, struct file *file,
 	if (mutex_lock_interruptible(&vcs->mutex))
 		return -EINTR;
 
-	ret = video_usercopy(inode, file, cmd, arg, vino_do_ioctl);
+	ret = video_usercopy(file, cmd, arg, vino_do_ioctl);
 
 	mutex_unlock(&vcs->mutex);
 

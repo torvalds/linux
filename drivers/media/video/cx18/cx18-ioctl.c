@@ -4,6 +4,7 @@
  *  Derived from ivtv-ioctl.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -237,13 +238,12 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	if (id->type == CX18_ENC_STREAM_TYPE_VBI &&
-			cx->vbi.sliced_in->service_set &&
-			atomic_read(&cx->ana_capturing) > 0)
+	if (!cx18_raw_vbi(cx) && atomic_read(&cx->ana_capturing) > 0)
 		return -EBUSY;
 
 	cx->vbi.sliced_in->service_set = 0;
-	cx18_av_cmd(cx, VIDIOC_S_FMT, &cx->vbi.in);
+	cx->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
+	cx18_av_cmd(cx, VIDIOC_S_FMT, fmt);
 	return cx18_g_fmt_vbi_cap(file, fh, fmt);
 }
 
@@ -745,14 +745,12 @@ static int cx18_log_status(struct file *file, void *fh)
 			continue;
 		CX18_INFO("Stream %s: status 0x%04lx, %d%% of %d KiB (%d buffers) in use\n",
 			  s->name, s->s_flags,
-			  (s->buffers - atomic_read(&s->q_free.buffers))
-				* 100 / s->buffers,
+			  atomic_read(&s->q_full.buffers) * 100 / s->buffers,
 			  (s->buffers * s->buf_size) / 1024, s->buffers);
 	}
 	CX18_INFO("Read MPEG/VBI: %lld/%lld bytes\n",
 			(long long)cx->mpg_data_received,
 			(long long)cx->vbi_data_inserted);
-	cx18_log_statistics(cx);
 	CX18_INFO("==================  END STATUS CARD #%d  ==================\n", cx->num);
 	return 0;
 }
