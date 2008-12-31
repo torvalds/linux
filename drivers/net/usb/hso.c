@@ -2831,7 +2831,7 @@ static struct usb_endpoint_descriptor *hso_get_ep(struct usb_interface *intf,
 	for (i = 0; i < iface->desc.bNumEndpoints; i++) {
 		endp = &iface->endpoint[i].desc;
 		if (((endp->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == dir) &&
-		    ((endp->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == type))
+		    (usb_endpoint_type(endp) == type))
 			return endp;
 	}
 

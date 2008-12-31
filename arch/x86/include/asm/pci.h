@@ -84,6 +84,8 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 static inline void early_quirks(void) { }
 #endif
 
+extern void pci_iommu_alloc(void);
+
 #endif  /* __KERNEL__ */
 
 #ifdef CONFIG_X86_32

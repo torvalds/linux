@@ -85,20 +85,9 @@ static int zfcp_cfdc_copy_to_user(void __user  *user_buffer,
 
 static struct zfcp_adapter *zfcp_cfdc_get_adapter(u32 devno)
 {
-	struct zfcp_adapter *adapter = NULL, *cur_adapter;
-	struct ccw_dev_id dev_id;
-
-	read_lock_irq(&zfcp_data.config_lock);
-	list_for_each_entry(cur_adapter, &zfcp_data.adapter_list_head, list) {
-		ccw_device_get_id(cur_adapter->ccw_device, &dev_id);
-		if (dev_id.devno == devno) {
-			adapter = cur_adapter;
-			zfcp_adapter_get(adapter);
-			break;
-		}
-	}
-	read_unlock_irq(&zfcp_data.config_lock);
-	return adapter;
+	char busid[9];
+	snprintf(busid, sizeof(busid), "0.0.%04x", devno);
+	return zfcp_get_adapter_by_busid(busid);
 }
 
 static int zfcp_cfdc_set_fsf(struct zfcp_fsf_cfdc *fsf_cfdc, int command)

@@ -285,7 +285,7 @@ extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, unsigned long);
 #define kmalloc_node_track_caller(size, flags, node) \
 	kmalloc_track_caller(size, flags)
 
-#endif /* DEBUG_SLAB */
+#endif /* CONFIG_NUMA */
 
 /*
  * Shortcuts

@@ -907,8 +907,8 @@ void do_sys_times(struct tms *tms)
 	struct task_cputime cputime;
 	cputime_t cutime, cstime;
 
-	spin_lock_irq(&current->sighand->siglock);
 	thread_group_cputime(current, &cputime);
+	spin_lock_irq(&current->sighand->siglock);
 	cutime = current->signal->cutime;
 	cstime = current->signal->cstime;
 	spin_unlock_irq(&current->sighand->siglock);

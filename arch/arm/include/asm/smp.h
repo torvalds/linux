@@ -114,7 +114,7 @@ extern void local_timer_interrupt(void);
 /*
  * Stop a local timer interrupt.
  */
-extern void local_timer_stop(unsigned int cpu);
+extern void local_timer_stop(void);
 
 /*
  * Platform provides this to acknowledge a local timer IRQ
@@ -123,7 +123,7 @@ extern int local_timer_ack(void);
 
 #else
 
-static inline void local_timer_stop(unsigned int cpu)
+static inline void local_timer_stop(void)
 {
 }
 
@@ -132,7 +132,7 @@ static inline void local_timer_stop(unsigned int cpu)
 /*
  * Setup a local timer interrupt for a CPU.
  */
-extern void local_timer_setup(unsigned int cpu);
+extern void local_timer_setup(void);
 
 /*
  * show local interrupt info

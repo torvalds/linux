@@ -8,7 +8,7 @@
  *	you can add arbitary multiple teletext devices to Linux video4linux
  *	now (well 32 anyway).
  *
- *	Alan Cox <Alan.Cox@linux.org>
+ *	Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	The original driver was heavily modified to match the i2c interface
  *	It was truncated to use the WinTV boards, too.
@@ -190,8 +190,7 @@ static int i2c_getdata(struct saa5249_device *t, int count, u8 *buf)
  *	Standard character-device-driver functions
  */
 
-static int do_saa5249_ioctl(struct inode *inode, struct file *file,
-			    unsigned int cmd, void *arg)
+static int do_saa5249_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	static int virtual_mode = false;
 	struct saa5249_device *t = video_drvdata(file);
@@ -488,7 +487,7 @@ static int saa5249_ioctl(struct inode *inode, struct file *file,
 
 	cmd = vtx_fix_command(cmd);
 	mutex_lock(&t->lock);
-	err = video_usercopy(inode,file,cmd,arg,do_saa5249_ioctl);
+	err = video_usercopy(file, cmd, arg, do_saa5249_ioctl);
 	mutex_unlock(&t->lock);
 	return err;
 }

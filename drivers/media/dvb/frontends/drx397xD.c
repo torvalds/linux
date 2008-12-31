@@ -39,7 +39,7 @@ static const char mod_name[] = "drx397xD";
 #define F_SET_0D4h	2
 
 enum fw_ix {
-#define _FW_ENTRY(a, b)		b
+#define _FW_ENTRY(a, b, c)	b
 #include "drx397xD_fw.h"
 };
 
@@ -72,11 +72,11 @@ static struct {
 	int refcnt;
 	const u8 *data[ARRAY_SIZE(blob_name)];
 } fw[] = {
-#define _FW_ENTRY(a, b)		{			\
-			.name	= a,			\
-			.file	= 0,			\
-			.lock	= RW_LOCK_UNLOCKED,	\
-			.refcnt = 0,			\
+#define _FW_ENTRY(a, b, c)	{					\
+			.name	= a,					\
+			.file	= 0,					\
+			.lock	= __RW_LOCK_UNLOCKED(fw[c].lock),	\
+			.refcnt = 0,					\
 			.data	= { }		}
 #include "drx397xD_fw.h"
 };

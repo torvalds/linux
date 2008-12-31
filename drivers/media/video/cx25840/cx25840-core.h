@@ -22,6 +22,7 @@
 
 
 #include <linux/videodev2.h>
+#include <media/v4l2-device.h>
 #include <linux/i2c.h>
 
 /* ENABLE_PVR150_WORKAROUND activates a workaround for a hardware bug that is
@@ -34,6 +35,7 @@
 
 struct cx25840_state {
 	struct i2c_client *c;
+	struct v4l2_subdev sd;
 	int pvr150_workaround;
 	int radio;
 	v4l2_std_id std;
@@ -52,6 +54,11 @@ struct cx25840_state {
 	wait_queue_head_t fw_wait;    /* wake up when the fw load is finished */
 	struct work_struct fw_work;   /* work entry for fw load */
 };
+
+static inline struct cx25840_state *to_state(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct cx25840_state, sd);
+}
 
 /* ----------------------------------------------------------------------- */
 /* cx25850-core.c 							   */

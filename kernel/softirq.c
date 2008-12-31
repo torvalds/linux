@@ -102,20 +102,6 @@ void local_bh_disable(void)
 
 EXPORT_SYMBOL(local_bh_disable);
 
-void __local_bh_enable(void)
-{
-	WARN_ON_ONCE(in_irq());
-
-	/*
-	 * softirqs should never be enabled by __local_bh_enable(),
-	 * it always nests inside local_bh_enable() sections:
-	 */
-	WARN_ON_ONCE(softirq_count() == SOFTIRQ_OFFSET);
-
-	sub_preempt_count(SOFTIRQ_OFFSET);
-}
-EXPORT_SYMBOL_GPL(__local_bh_enable);
-
 /*
  * Special-case - softirqs can safely be enabled in
  * cond_resched_softirq(), or by __do_softirq(),
@@ -269,6 +255,7 @@ void irq_enter(void)
 {
 	int cpu = smp_processor_id();
 
+	rcu_irq_enter();
 	if (idle_cpu(cpu) && !in_interrupt()) {
 		__irq_enter();
 		tick_check_idle(cpu);
@@ -295,9 +282,9 @@ void irq_exit(void)
 
 #ifdef CONFIG_NO_HZ
 	/* Make sure that timer wheel updates are propagated */
-	if (!in_interrupt() && idle_cpu(smp_processor_id()) && !need_resched())
-		tick_nohz_stop_sched_tick(0);
 	rcu_irq_exit();
+	if (idle_cpu(smp_processor_id()) && !in_interrupt() && !need_resched())
+		tick_nohz_stop_sched_tick(0);
 #endif
 	preempt_enable_no_resched();
 }

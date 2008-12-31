@@ -313,7 +313,7 @@ static int fops_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 /*
 	DEB_EE(("inode:%p, file:%p, cmd:%d, arg:%li\n",inode, file, cmd, arg));
 */
-	return video_usercopy(inode, file, cmd, arg, saa7146_video_do_ioctl);
+	return video_usercopy(file, cmd, arg, saa7146_video_do_ioctl);
 }
 
 static int fops_mmap(struct file *file, struct vm_area_struct * vma)

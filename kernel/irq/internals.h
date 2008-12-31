@@ -13,6 +13,11 @@ extern void compat_irq_chip_set_default_handler(struct irq_desc *desc);
 extern int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		unsigned long flags);
 
+extern struct lock_class_key irq_desc_lock_class;
+extern void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr);
+extern spinlock_t sparse_irq_lock;
+extern struct irq_desc *irq_desc_ptrs[NR_IRQS];
+
 #ifdef CONFIG_PROC_FS
 extern void register_irq_proc(unsigned int irq, struct irq_desc *desc);
 extern void register_handler_proc(unsigned int irq, struct irqaction *action);

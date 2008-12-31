@@ -23,7 +23,7 @@
    Functions as standalone, loadable, and PCMCIA driver, the latter from
    Dave Hinds' PCMCIA package.
    
-   Cleaned up 26/10/2002 by Alan Cox <alan@redhat.com> as part of the 2.5
+   Cleaned up 26/10/2002 by Alan Cox <alan@lxorguk.ukuu.org.uk> as part of the 2.5
    SCSI driver cleanup and audit. This driver still needs work on the
    following
    	-	Non terminating hardware waits

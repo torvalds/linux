@@ -26,25 +26,7 @@
  */
 #define PHYS_OFFSET	UL(0xc0000000)
 
-/*
- * Virtual view <-> DMA view memory address translations
- * virt_to_bus: Used to translate the virtual address to an
- *              address suitable to be passed to set_dma_addr
- * bus_to_virt: Used to convert an address for DMA operations
- *              to an address that the kernel can use.
- */
-
-#if defined(CONFIG_ARCH_CDB89712)
-
-#define __virt_to_bus(x)	(x)
-#define __bus_to_virt(x)	(x)
-
-#elif defined (CONFIG_ARCH_AUTCPU12)
-
-#define __virt_to_bus(x)	(x)
-#define __bus_to_virt(x)	(x)
-
-#else
+#if !defined(CONFIG_ARCH_CDB89712) && !defined (CONFIG_ARCH_AUTCPU12)
 
 #define __virt_to_bus(x)	((x) - PAGE_OFFSET)
 #define __bus_to_virt(x)	((x) + PAGE_OFFSET)

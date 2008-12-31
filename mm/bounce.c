@@ -198,8 +198,13 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 		/*
 		 * irk, bounce it
 		 */
-		if (!bio)
-			bio = bio_alloc(GFP_NOIO, (*bio_orig)->bi_vcnt);
+		if (!bio) {
+			unsigned int cnt = (*bio_orig)->bi_vcnt;
+
+			bio = bio_alloc(GFP_NOIO, cnt);
+			memset(bio->bi_io_vec, 0, cnt * sizeof(struct bio_vec));
+		}
+			
 
 		to = bio->bi_io_vec + i;
 

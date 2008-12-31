@@ -66,11 +66,15 @@ ip_vs_lc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		}
 	}
 
-	if (least)
-	IP_VS_DBG_BUF(6, "LC: server %s:%u activeconns %d inactconns %d\n",
-		      IP_VS_DBG_ADDR(svc->af, &least->addr), ntohs(least->port),
-		      atomic_read(&least->activeconns),
-		      atomic_read(&least->inactconns));
+	if (!least)
+		IP_VS_ERR_RL("LC: no destination available\n");
+	else
+		IP_VS_DBG_BUF(6, "LC: server %s:%u activeconns %d "
+			      "inactconns %d\n",
+			      IP_VS_DBG_ADDR(svc->af, &least->addr),
+			      ntohs(least->port),
+			      atomic_read(&least->activeconns),
+			      atomic_read(&least->inactconns));
 
 	return least;
 }

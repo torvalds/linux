@@ -362,7 +362,7 @@ endchoice
 
 config FB_ACORN
 	bool "Acorn VIDC support"
-	depends on (FB = y) && ARM && (ARCH_ACORN || ARCH_CLPS7500)
+	depends on (FB = y) && ARM && ARCH_ACORN
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -1816,6 +1816,11 @@ config FB_PXA
 	  say M here and read <file:Documentation/kbuild/modules.txt>.
 
 	  If unsure, say N.
+
+config FB_PXA_OVERLAY
+	bool "Support PXA27x/PXA3xx Overlay(s) as framebuffer"
+	default n
+	depends on FB_PXA && (PXA27x || PXA3xx)
 
 config FB_PXA_SMARTPANEL
 	bool "PXA Smartpanel LCD support"

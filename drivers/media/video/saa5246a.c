@@ -15,7 +15,7 @@
  * <richard.guenther@student.uni-tuebingen.de>
  *
  * with changes by
- * Alan Cox <Alan.Cox@linux.org>
+ * Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * and
  *
@@ -804,8 +804,7 @@ static inline int saa5246a_stop_dau(struct saa5246a_device *t,
  *
  *  Returns 0 if successful
  */
-static int do_saa5246a_ioctl(struct inode *inode, struct file *file,
-			    unsigned int cmd, void *arg)
+static int do_saa5246a_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct saa5246a_device *t = video_drvdata(file);
 
@@ -953,7 +952,7 @@ static int saa5246a_ioctl(struct inode *inode, struct file *file,
 
 	cmd = vtx_fix_command(cmd);
 	mutex_lock(&t->lock);
-	err = video_usercopy(inode, file, cmd, arg, do_saa5246a_ioctl);
+	err = video_usercopy(file, cmd, arg, do_saa5246a_ioctl);
 	mutex_unlock(&t->lock);
 	return err;
 }

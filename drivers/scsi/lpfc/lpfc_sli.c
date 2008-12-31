@@ -542,6 +542,7 @@ lpfc_sli_submit_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 */
 	nextiocb->iocb.ulpIoTag = (nextiocb->iocb_cmpl) ? nextiocb->iotag : 0;
 
+
 	if (pring->ringno == LPFC_ELS_RING) {
 		lpfc_debugfs_slow_ring_trc(phba,
 			"IOCB cmd ring:   wd4:x%08x wd6:x%08x wd7:x%08x",
@@ -1259,68 +1260,6 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli_replace_hbqbuff: Replace the HBQ buffer with a new buffer.
- * @phba: Pointer to HBA context object.
- * @tag: Tag for the HBQ buffer.
- *
- * This function is called from unsolicited event handler code path to get the
- * HBQ buffer associated with an unsolicited iocb. This function is called with
- * no lock held. It returns the buffer associated with the given tag and posts
- * another buffer to the firmware. Note that the new buffer must be allocated
- * before taking the hbalock and that the hba lock must be held until it is
- * finished with the hbq entry swap.
- **/
-static struct lpfc_dmabuf *
-lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
-{
-	struct hbq_dmabuf *hbq_entry, *new_hbq_entry;
-	uint32_t hbqno;
-	void *virt;		/* virtual address ptr */
-	dma_addr_t phys;	/* mapped address */
-	unsigned long flags;
-
-	hbqno = tag >> 16;
-	new_hbq_entry = (phba->hbqs[hbqno].hbq_alloc_buffer)(phba);
-	/* Check whether HBQ is still in use */
-	spin_lock_irqsave(&phba->hbalock, flags);
-	if (!phba->hbq_in_use) {
-		if (new_hbq_entry)
-			(phba->hbqs[hbqno].hbq_free_buffer)(phba,
-							    new_hbq_entry);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		return NULL;
-	}
-
-	hbq_entry = lpfc_sli_hbqbuf_find(phba, tag);
-	if (hbq_entry == NULL) {
-		if (new_hbq_entry)
-			(phba->hbqs[hbqno].hbq_free_buffer)(phba,
-							    new_hbq_entry);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		return NULL;
-	}
-	list_del(&hbq_entry->dbuf.list);
-
-	if (new_hbq_entry == NULL) {
-		list_add_tail(&hbq_entry->dbuf.list, &phba->hbqbuf_in_list);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		return &hbq_entry->dbuf;
-	}
-	new_hbq_entry->tag = -1;
-	phys = new_hbq_entry->dbuf.phys;
-	virt = new_hbq_entry->dbuf.virt;
-	new_hbq_entry->dbuf.phys = hbq_entry->dbuf.phys;
-	new_hbq_entry->dbuf.virt = hbq_entry->dbuf.virt;
-	hbq_entry->dbuf.phys = phys;
-	hbq_entry->dbuf.virt = virt;
-	lpfc_sli_free_hbq(phba, hbq_entry);
-	list_add_tail(&new_hbq_entry->dbuf.list, &phba->hbqbuf_in_list);
-	spin_unlock_irqrestore(&phba->hbalock, flags);
-
-	return &new_hbq_entry->dbuf;
-}
-
-/**
  * lpfc_sli_get_buff: Get the buffer associated with the buffer tag.
  * @phba: Pointer to HBA context object.
  * @pring: Pointer to driver SLI ring object.
@@ -1334,13 +1273,17 @@ lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
  **/
 static struct lpfc_dmabuf *
 lpfc_sli_get_buff(struct lpfc_hba *phba,
-			struct lpfc_sli_ring *pring,
-			uint32_t tag)
+		  struct lpfc_sli_ring *pring,
+		  uint32_t tag)
 {
+	struct hbq_dmabuf *hbq_entry;
+
 	if (tag & QUE_BUFTAG_BIT)
 		return lpfc_sli_ring_taggedbuf_get(phba, pring, tag);
-	else
-		return lpfc_sli_replace_hbqbuff(phba, tag);
+	hbq_entry = lpfc_sli_hbqbuf_find(phba, tag);
+	if (!hbq_entry)
+		return NULL;
+	return &hbq_entry->dbuf;
 }
 
 
@@ -1372,8 +1315,6 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	match = 0;
 	irsp = &(saveq->iocb);
 
-	if (irsp->ulpStatus == IOSTAT_NEED_BUFFER)
-		return 1;
 	if (irsp->ulpCommand == CMD_ASYNC_STATUS) {
 		if (pring->lpfc_sli_rcv_async_status)
 			pring->lpfc_sli_rcv_async_status(phba, pring, saveq);
@@ -1982,7 +1923,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 			if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 				(irsp->un.ulpWord[4] == IOERR_NO_RESOURCES)) {
 				spin_unlock_irqrestore(&phba->hbalock, iflag);
-				lpfc_adjust_queue_depth(phba);
+				lpfc_rampdown_queue_depth(phba);
 				spin_lock_irqsave(&phba->hbalock, iflag);
 			}
 
@@ -2225,7 +2166,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 			if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 			     (irsp->un.ulpWord[4] == IOERR_NO_RESOURCES)) {
 				spin_unlock_irqrestore(&phba->hbalock, iflag);
-				lpfc_adjust_queue_depth(phba);
+				lpfc_rampdown_queue_depth(phba);
 				spin_lock_irqsave(&phba->hbalock, iflag);
 			}
 
@@ -2790,7 +2731,6 @@ lpfc_sli_brdrestart(struct lpfc_hba *phba)
 {
 	MAILBOX_t *mb;
 	struct lpfc_sli *psli;
-	uint16_t skip_post;
 	volatile uint32_t word0;
 	void __iomem *to_slim;
 
@@ -2815,13 +2755,10 @@ lpfc_sli_brdrestart(struct lpfc_hba *phba)
 	readl(to_slim); /* flush */
 
 	/* Only skip post after fc_ffinit is completed */
-	if (phba->pport->port_state) {
-		skip_post = 1;
+	if (phba->pport->port_state)
 		word0 = 1;	/* This is really setting up word1 */
-	} else {
-		skip_post = 0;
+	else
 		word0 = 0;	/* This is really setting up word1 */
-	}
 	to_slim = phba->MBslimaddr + sizeof (uint32_t);
 	writel(*(uint32_t *) mb, to_slim);
 	readl(to_slim); /* flush */
@@ -2835,10 +2772,8 @@ lpfc_sli_brdrestart(struct lpfc_hba *phba)
 	memset(&psli->lnk_stat_offsets, 0, sizeof(psli->lnk_stat_offsets));
 	psli->stats_start = get_seconds();
 
-	if (skip_post)
-		mdelay(100);
-	else
-		mdelay(2000);
+	/* Give the INITFF and Post time to settle. */
+	mdelay(100);
 
 	lpfc_hba_down_post(phba);
 
@@ -3084,7 +3019,6 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 		spin_unlock_irq(&phba->hbalock);
 		phba->pport->port_state = LPFC_VPORT_UNKNOWN;
 		lpfc_sli_brdrestart(phba);
-		msleep(2500);
 		rc = lpfc_sli_chipset_init(phba);
 		if (rc)
 			break;
@@ -3111,7 +3045,8 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 		phba->sli3_options &= ~(LPFC_SLI3_NPIV_ENABLED |
 					LPFC_SLI3_HBQ_ENABLED |
 					LPFC_SLI3_CRP_ENABLED |
-					LPFC_SLI3_INB_ENABLED);
+					LPFC_SLI3_INB_ENABLED |
+					LPFC_SLI3_BG_ENABLED);
 		if (rc != MBX_SUCCESS) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0442 Adapter failed to init, mbxCmd x%x "
@@ -3144,17 +3079,29 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 			phba->sli3_options |= LPFC_SLI3_CRP_ENABLED;
 		if (pmb->mb.un.varCfgPort.ginb) {
 			phba->sli3_options |= LPFC_SLI3_INB_ENABLED;
+			phba->hbq_get = phba->mbox->us.s3_inb_pgp.hbq_get;
 			phba->port_gp = phba->mbox->us.s3_inb_pgp.port;
 			phba->inb_ha_copy = &phba->mbox->us.s3_inb_pgp.ha_copy;
 			phba->inb_counter = &phba->mbox->us.s3_inb_pgp.counter;
 			phba->inb_last_counter =
 					phba->mbox->us.s3_inb_pgp.counter;
 		} else {
+			phba->hbq_get = phba->mbox->us.s3_pgp.hbq_get;
 			phba->port_gp = phba->mbox->us.s3_pgp.port;
 			phba->inb_ha_copy = NULL;
 			phba->inb_counter = NULL;
 		}
+
+		if (phba->cfg_enable_bg) {
+			if (pmb->mb.un.varCfgPort.gbg)
+				phba->sli3_options |= LPFC_SLI3_BG_ENABLED;
+			else
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"0443 Adapter did not grant "
+						"BlockGuard\n");
+		}
 	} else {
+		phba->hbq_get = NULL;
 		phba->port_gp = phba->mbox->us.s2.port;
 		phba->inb_ha_copy = NULL;
 		phba->inb_counter = NULL;
@@ -3304,10 +3251,6 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 	MAILBOX_t *mb = &pmbox->mb;
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
-
-	if (!(phba->pport->work_port_events & WORKER_MBOX_TMO)) {
-		return;
-	}
 
 	/* Mbox cmd <mbxCommand> timeout */
 	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
@@ -4005,7 +3948,7 @@ lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 	shost = lpfc_shost_from_vport(phba->pport);
 	fc_host_post_vendor_event(shost, fc_get_event_number(),
 		sizeof(temp_event_data), (char *) &temp_event_data,
-		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+		LPFC_NL_VENDOR_ID);
 
 }
 
@@ -5184,6 +5127,10 @@ lpfc_sli_check_eratt(struct lpfc_hba *phba)
 {
 	uint32_t ha_copy;
 
+	/* If PCI channel is offline, don't process it */
+	if (unlikely(pci_channel_offline(phba->pcidev)))
+		return 0;
+
 	/* If somebody is waiting to handle an eratt, don't process it
 	 * here. The brdkill function will do this.
 	 */
@@ -5242,6 +5189,7 @@ lpfc_sp_intr_handler(int irq, void *dev_id)
 	uint32_t ha_copy;
 	uint32_t work_ha_copy;
 	unsigned long status;
+	unsigned long iflag;
 	uint32_t control;
 
 	MAILBOX_t *mbox, *pmbox;
@@ -5274,7 +5222,7 @@ lpfc_sp_intr_handler(int irq, void *dev_id)
 		if (unlikely(phba->link_state < LPFC_LINK_DOWN))
 			return IRQ_NONE;
 		/* Need to read HA REG for slow-path events */
-		spin_lock(&phba->hbalock);
+		spin_lock_irqsave(&phba->hbalock, iflag);
 		ha_copy = readl(phba->HAregaddr);
 		/* If somebody is waiting to handle an eratt don't process it
 		 * here. The brdkill function will do this.
@@ -5294,7 +5242,7 @@ lpfc_sp_intr_handler(int irq, void *dev_id)
 		writel((ha_copy & (HA_MBATT | HA_R2_CLR_MSK)),
 			phba->HAregaddr);
 		readl(phba->HAregaddr); /* flush */
-		spin_unlock(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->hbalock, iflag);
 	} else
 		ha_copy = phba->ha_copy;
 
@@ -5307,13 +5255,13 @@ lpfc_sp_intr_handler(int irq, void *dev_id)
 				 * Turn off Link Attention interrupts
 				 * until CLEAR_LA done
 				 */
-				spin_lock(&phba->hbalock);
+				spin_lock_irqsave(&phba->hbalock, iflag);
 				phba->sli.sli_flag &= ~LPFC_PROCESS_LA;
 				control = readl(phba->HCregaddr);
 				control &= ~HC_LAINT_ENA;
 				writel(control, phba->HCregaddr);
 				readl(phba->HCregaddr); /* flush */
-				spin_unlock(&phba->hbalock);
+				spin_unlock_irqrestore(&phba->hbalock, iflag);
 			}
 			else
 				work_ha_copy &= ~HA_LATT;
@@ -5328,7 +5276,7 @@ lpfc_sp_intr_handler(int irq, void *dev_id)
 				(HA_RXMASK  << (4*LPFC_ELS_RING)));
 			status >>= (4*LPFC_ELS_RING);
 			if (status & HA_RXMASK) {
-				spin_lock(&phba->hbalock);
+				spin_lock_irqsave(&phba->hbalock, iflag);
 				control = readl(phba->HCregaddr);
 
 				lpfc_debugfs_slow_ring_trc(phba,
@@ -5357,10 +5305,10 @@ lpfc_sp_intr_handler(int irq, void *dev_id)
 						(uint32_t)((unsigned long)
 						&phba->work_waitq));
 				}
-				spin_unlock(&phba->hbalock);
+				spin_unlock_irqrestore(&phba->hbalock, iflag);
 			}
 		}
-		spin_lock(&phba->hbalock);
+		spin_lock_irqsave(&phba->hbalock, iflag);
 		if (work_ha_copy & HA_ERATT)
 			lpfc_sli_read_hs(phba);
 		if ((work_ha_copy & HA_MBATT) && (phba->sli.mbox_active)) {
@@ -5372,7 +5320,7 @@ lpfc_sp_intr_handler(int irq, void *dev_id)
 			/* First check out the status word */
 			lpfc_sli_pcimem_bcopy(mbox, pmbox, sizeof(uint32_t));
 			if (pmbox->mbxOwner != OWN_HOST) {
-				spin_unlock(&phba->hbalock);
+				spin_unlock_irqrestore(&phba->hbalock, iflag);
 				/*
 				 * Stray Mailbox Interrupt, mbxCommand <cmd>
 				 * mbxStatus <status>
@@ -5389,7 +5337,7 @@ lpfc_sp_intr_handler(int irq, void *dev_id)
 				work_ha_copy &= ~HA_MBATT;
 			} else {
 				phba->sli.mbox_active = NULL;
-				spin_unlock(&phba->hbalock);
+				spin_unlock_irqrestore(&phba->hbalock, iflag);
 				phba->last_completion_time = jiffies;
 				del_timer(&phba->sli.mbox_tmo);
 				if (pmb->mbox_cmpl) {
@@ -5438,14 +5386,18 @@ lpfc_sp_intr_handler(int irq, void *dev_id)
 						goto send_current_mbox;
 					}
 				}
-				spin_lock(&phba->pport->work_port_lock);
+				spin_lock_irqsave(
+						&phba->pport->work_port_lock,
+						iflag);
 				phba->pport->work_port_events &=
 					~WORKER_MBOX_TMO;
-				spin_unlock(&phba->pport->work_port_lock);
+				spin_unlock_irqrestore(
+						&phba->pport->work_port_lock,
+						iflag);
 				lpfc_mbox_cmpl_put(phba, pmb);
 			}
 		} else
-			spin_unlock(&phba->hbalock);
+			spin_unlock_irqrestore(&phba->hbalock, iflag);
 
 		if ((work_ha_copy & HA_MBATT) &&
 		    (phba->sli.mbox_active == NULL)) {
@@ -5461,9 +5413,9 @@ send_current_mbox:
 						"MBX_SUCCESS");
 		}
 
-		spin_lock(&phba->hbalock);
+		spin_lock_irqsave(&phba->hbalock, iflag);
 		phba->work_ha |= work_ha_copy;
-		spin_unlock(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		lpfc_worker_wake_up(phba);
 	}
 	return IRQ_HANDLED;
@@ -5495,6 +5447,7 @@ lpfc_fp_intr_handler(int irq, void *dev_id)
 	struct lpfc_hba  *phba;
 	uint32_t ha_copy;
 	unsigned long status;
+	unsigned long iflag;
 
 	/* Get the driver's phba structure from the dev_id and
 	 * assume the HBA is not interrupting.
@@ -5520,11 +5473,11 @@ lpfc_fp_intr_handler(int irq, void *dev_id)
 		/* Need to read HA REG for FCP ring and other ring events */
 		ha_copy = readl(phba->HAregaddr);
 		/* Clear up only attention source related to fast-path */
-		spin_lock(&phba->hbalock);
+		spin_lock_irqsave(&phba->hbalock, iflag);
 		writel((ha_copy & (HA_R0_CLR_MSK | HA_R1_CLR_MSK)),
 			phba->HAregaddr);
 		readl(phba->HAregaddr); /* flush */
-		spin_unlock(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->hbalock, iflag);
 	} else
 		ha_copy = phba->ha_copy;
 

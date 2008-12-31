@@ -91,6 +91,8 @@ void fixup_irqs(cpumask_t map)
 		int break_affinity = 0;
 		int set_affinity = 1;
 
+		if (!desc)
+			continue;
 		if (irq == 2)
 			continue;
 

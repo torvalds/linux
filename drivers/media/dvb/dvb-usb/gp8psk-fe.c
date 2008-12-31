@@ -25,6 +25,20 @@ struct gp8psk_fe_state {
 	unsigned long status_check_interval;
 };
 
+static int gp8psk_tuned_to_DCII(struct dvb_frontend *fe)
+{
+	struct gp8psk_fe_state *st = fe->demodulator_priv;
+	u8 status;
+	gp8psk_usb_in_op(st->d, GET_8PSK_CONFIG, 0, 0, &status, 1);
+	return status & bmDCtuned;
+}
+
+static int gp8psk_set_tuner_mode(struct dvb_frontend *fe, int mode)
+{
+	struct gp8psk_fe_state *state = fe->demodulator_priv;
+	return gp8psk_usb_out_op(state->d, SET_8PSK_CONFIG, mode, 0, NULL, 0);
+}
+
 static int gp8psk_fe_update_status(struct gp8psk_fe_state *st)
 {
 	u8 buf[6];
@@ -99,39 +113,114 @@ static int gp8psk_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_front
 	return 0;
 }
 
+static int gp8psk_fe_set_property(struct dvb_frontend *fe,
+	struct dtv_property *tvp)
+{
+	deb_fe("%s(..)\n", __func__);
+	return 0;
+}
+
+static int gp8psk_fe_get_property(struct dvb_frontend *fe,
+	struct dtv_property *tvp)
+{
+	deb_fe("%s(..)\n", __func__);
+	return 0;
+}
+
+
 static int gp8psk_fe_set_frontend(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters *fep)
 {
 	struct gp8psk_fe_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u8 cmd[10];
 	u32 freq = fep->frequency * 1000;
+	int gp_product_id = le16_to_cpu(state->d->udev->descriptor.idProduct);
+
+	deb_fe("%s()\n", __func__);
 
 	cmd[4] = freq         & 0xff;
 	cmd[5] = (freq >> 8)  & 0xff;
 	cmd[6] = (freq >> 16) & 0xff;
 	cmd[7] = (freq >> 24) & 0xff;
 
-	switch(fe->ops.info.type) {
-	case FE_QPSK:
-		cmd[0] =  fep->u.qpsk.symbol_rate        & 0xff;
-		cmd[1] = (fep->u.qpsk.symbol_rate >>  8) & 0xff;
-		cmd[2] = (fep->u.qpsk.symbol_rate >> 16) & 0xff;
-		cmd[3] = (fep->u.qpsk.symbol_rate >> 24) & 0xff;
-		cmd[8] = ADV_MOD_DVB_QPSK;
-		cmd[9] = 0x03; /*ADV_MOD_FEC_XXX*/
+	switch (c->delivery_system) {
+	case SYS_DVBS:
+		/* Only QPSK is supported for DVB-S */
+		if (c->modulation != QPSK) {
+			deb_fe("%s: unsupported modulation selected (%d)\n",
+				__func__, c->modulation);
+			return -EOPNOTSUPP;
+		}
+		c->fec_inner = FEC_AUTO;
 		break;
+	case SYS_DVBS2:
+		deb_fe("%s: DVB-S2 delivery system selected\n", __func__);
+		break;
+
 	default:
-		// other modes are unsuported right now
-		cmd[0] = 0;
-		cmd[1] = 0;
-		cmd[2] = 0;
-		cmd[3] = 0;
-		cmd[8] = 0;
-		cmd[9] = 0;
-		break;
+		deb_fe("%s: unsupported delivery system selected (%d)\n",
+			__func__, c->delivery_system);
+		return -EOPNOTSUPP;
 	}
 
-	gp8psk_usb_out_op(state->d,TUNE_8PSK,0,0,cmd,10);
+	cmd[0] =  c->symbol_rate        & 0xff;
+	cmd[1] = (c->symbol_rate >>  8) & 0xff;
+	cmd[2] = (c->symbol_rate >> 16) & 0xff;
+	cmd[3] = (c->symbol_rate >> 24) & 0xff;
+	switch (c->modulation) {
+	case QPSK:
+		if (gp_product_id == USB_PID_GENPIX_8PSK_REV_1_WARM)
+			if (gp8psk_tuned_to_DCII(fe))
+				gp8psk_bcm4500_reload(state->d);
+		switch (c->fec_inner) {
+		case FEC_1_2:
+			cmd[9] = 0; break;
+		case FEC_2_3:
+			cmd[9] = 1; break;
+		case FEC_3_4:
+			cmd[9] = 2; break;
+		case FEC_5_6:
+			cmd[9] = 3; break;
+		case FEC_7_8:
+			cmd[9] = 4; break;
+		case FEC_AUTO:
+			cmd[9] = 5; break;
+		default:
+			cmd[9] = 5; break;
+		}
+		cmd[8] = ADV_MOD_DVB_QPSK;
+		break;
+	case PSK_8: /* PSK_8 is for compatibility with DN */
+		cmd[8] = ADV_MOD_TURBO_8PSK;
+		switch (c->fec_inner) {
+		case FEC_2_3:
+			cmd[9] = 0; break;
+		case FEC_3_4:
+			cmd[9] = 1; break;
+		case FEC_3_5:
+			cmd[9] = 2; break;
+		case FEC_5_6:
+			cmd[9] = 3; break;
+		case FEC_8_9:
+			cmd[9] = 4; break;
+		default:
+			cmd[9] = 0; break;
+		}
+		break;
+	case QAM_16: /* QAM_16 is for compatibility with DN */
+		cmd[8] = ADV_MOD_TURBO_16QAM;
+		cmd[9] = 0;
+		break;
+	default: /* Unknown modulation */
+		deb_fe("%s: unsupported modulation selected (%d)\n",
+			__func__, c->modulation);
+		return -EOPNOTSUPP;
+	}
+
+	if (gp_product_id == USB_PID_GENPIX_8PSK_REV_1_WARM)
+		gp8psk_set_tuner_mode(fe, 0);
+	gp8psk_usb_out_op(state->d, TUNE_8PSK, 0, 0, cmd, 10);
 
 	state->lock = 0;
 	state->next_status_check = jiffies;
@@ -139,13 +228,6 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend* fe,
 
 	return 0;
 }
-
-static int gp8psk_fe_get_frontend(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters *fep)
-{
-	return 0;
-}
-
 
 static int gp8psk_fe_send_diseqc_msg (struct dvb_frontend* fe,
 				    struct dvb_diseqc_master_cmd *m)
@@ -261,9 +343,13 @@ static struct dvb_frontend_ops gp8psk_fe_ops = {
 		.symbol_rate_max        = 45000000,
 		.symbol_rate_tolerance  = 500,  /* ppm */
 		.caps = FE_CAN_INVERSION_AUTO |
-				FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
-				FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
-				FE_CAN_QPSK
+			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
+			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
+			/*
+			 * FE_CAN_QAM_16 is for compatibility
+			 * (Myth incorrectly detects Turbo-QPSK as plain QAM-16)
+			 */
+			FE_CAN_QPSK | FE_CAN_QAM_16
 	},
 
 	.release = gp8psk_fe_release,
@@ -271,8 +357,10 @@ static struct dvb_frontend_ops gp8psk_fe_ops = {
 	.init = NULL,
 	.sleep = NULL,
 
+	.set_property = gp8psk_fe_set_property,
+	.get_property = gp8psk_fe_get_property,
 	.set_frontend = gp8psk_fe_set_frontend,
-	.get_frontend = gp8psk_fe_get_frontend,
+
 	.get_tune_settings = gp8psk_fe_get_tune_settings,
 
 	.read_status = gp8psk_fe_read_status,

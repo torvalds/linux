@@ -68,23 +68,22 @@ struct platform_device colliescoop_device = {
 };
 
 static struct scoop_pcmcia_dev collie_pcmcia_scoop[] = {
-{
-       .dev        = &colliescoop_device.dev,
-       .irq        = COLLIE_IRQ_GPIO_CF_IRQ,
-       .cd_irq     = COLLIE_IRQ_GPIO_CF_CD,
-       .cd_irq_str = "PCMCIA0 CD",
-},
+	{
+	.dev		= &colliescoop_device.dev,
+	.irq		= COLLIE_IRQ_GPIO_CF_IRQ,
+	.cd_irq		= COLLIE_IRQ_GPIO_CF_CD,
+	.cd_irq_str	= "PCMCIA0 CD",
+	},
 };
 
 static struct scoop_pcmcia_config collie_pcmcia_config = {
-	.devs         = &collie_pcmcia_scoop[0],
-	.num_devs     = 1,
+	.devs		= &collie_pcmcia_scoop[0],
+	.num_devs	= 1,
 };
 
-
 static struct mcp_plat_data collie_mcp_data = {
-	.mccr0          = MCCR0_ADM | MCCR0_ExtClk,
-	.sclk_rate      = 9216000,
+	.mccr0		= MCCR0_ADM | MCCR0_ExtClk,
+	.sclk_rate	= 9216000,
 };
 
 #ifdef CONFIG_SHARP_LOCOMO
@@ -95,14 +94,14 @@ struct platform_device collie_locomo_device;
 
 static void collie_uart_set_mctrl(struct uart_port *port, u_int mctrl)
 {
- 	if (mctrl & TIOCM_RTS)
+	if (mctrl & TIOCM_RTS)
 		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_RTS, 0);
- 	else
+	else
 		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_RTS, 1);
 
- 	if (mctrl & TIOCM_DTR)
+	if (mctrl & TIOCM_DTR)
 		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_DTR, 0);
- 	else
+	else
 		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_DTR, 1);
 }
 
