@@ -132,7 +132,7 @@ EXPORT_SYMBOL(alloc_cpumask_var);
  * @mask: pointer to cpumask_var_t where the cpumask is returned
  *
  * Only defined when CONFIG_CPUMASK_OFFSTACK=y, otherwise is
- * a nop returning a constant 1 (in <linux/cpumask.h>)
+ * a nop (in <linux/cpumask.h>).
  * Either returns an allocated (zero-filled) cpumask, or causes the
  * system to panic.
  */
