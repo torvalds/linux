@@ -733,7 +733,7 @@ static int __cpuinit cpu_callback(struct notifier_block *nfb,
 			break;
 		/* Unbind so it can run.  Fall thru. */
 		kthread_bind(per_cpu(ksoftirqd, hotcpu),
-			     any_online_cpu(cpu_online_map));
+			     cpumask_any(cpu_online_mask));
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN: {
 		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
