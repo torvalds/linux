@@ -4642,6 +4642,38 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = 2,
 		},
 	},
+	[SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS] = {
+		.name           = "Avermedia AVerTV GO 007 FM Plus",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.gpiomask       = 0x00300003,
+		/* .gpiomask       = 0x8c240003, */
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+			.gpio = 0x01,
+		}, {
+			.name = name_svideo,
+			.vmux = 6,
+			.amux = LINE1,
+			.gpio = 0x02,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x00300001,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = TV,
+			.gpio = 0x01,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -5739,6 +5771,13 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = PCI_ANY_ID,
 		.driver_data  = SAA7134_BOARD_UNKNOWN,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xf31d,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS,
+
+	}, {
 		/* --- end of list --- */
 	}
 };
@@ -5929,6 +5968,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_GENIUS_TVGO_A11MCE:
 	case SAA7134_BOARD_REAL_ANGEL_220:
 	case SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG:
+	case SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
