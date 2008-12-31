@@ -3229,12 +3229,12 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 		return;
 
  repeat:
-	ata_port_for_each_link(link, ap) {
-		ata_link_for_each_dev(dev, link) {
+	ata_for_each_link(link, ap, EDGE) {
+		ata_for_each_dev(dev, link, ENABLED) {
 			struct scsi_device *sdev;
 			int channel = 0, id = 0;
 
-			if (!ata_dev_enabled(dev) || dev->sdev)
+			if (dev->sdev)
 				continue;
 
 			if (ata_is_host_link(link))
@@ -3255,9 +3255,9 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 	 * failure occurred, scan would have failed silently.  Check
 	 * whether all devices are attached.
 	 */
-	ata_port_for_each_link(link, ap) {
-		ata_link_for_each_dev(dev, link) {
-			if (ata_dev_enabled(dev) && !dev->sdev)
+	ata_for_each_link(link, ap, EDGE) {
+		ata_for_each_dev(dev, link, ENABLED) {
+			if (!dev->sdev)
 				goto exit_loop;
 		}
 	}
@@ -3381,7 +3381,7 @@ static void ata_scsi_handle_link_detach(struct ata_link *link)
 	struct ata_port *ap = link->ap;
 	struct ata_device *dev;
 
-	ata_link_for_each_dev(dev, link) {
+	ata_for_each_dev(dev, link, ALL) {
 		unsigned long flags;
 
 		if (!(dev->flags & ATA_DFLAG_DETACHED))
@@ -3496,7 +3496,7 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 	if (devno == SCAN_WILD_CARD) {
 		struct ata_link *link;
 
-		ata_port_for_each_link(link, ap) {
+		ata_for_each_link(link, ap, EDGE) {
 			struct ata_eh_info *ehi = &link->eh_info;
 			ehi->probe_mask |= ATA_ALL_DEVICES;
 			ehi->action |= ATA_EH_RESET;
@@ -3544,11 +3544,11 @@ void ata_scsi_dev_rescan(struct work_struct *work)
 
 	spin_lock_irqsave(ap->lock, flags);
 
-	ata_port_for_each_link(link, ap) {
-		ata_link_for_each_dev(dev, link) {
+	ata_for_each_link(link, ap, EDGE) {
+		ata_for_each_dev(dev, link, ENABLED) {
 			struct scsi_device *sdev = dev->sdev;
 
-			if (!ata_dev_enabled(dev) || !sdev)
+			if (!sdev)
 				continue;
 			if (scsi_device_get(sdev))
 				continue;
