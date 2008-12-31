@@ -230,17 +230,23 @@ static int create_lockd_listener(struct svc_serv *serv, char *name,
 static int make_socks(struct svc_serv *serv)
 {
 	static int warned;
-	int err = 0;
+	int err;
 
 	err = create_lockd_listener(serv, "udp", nlm_udpport);
-	if (err >= 0)
-		err = create_lockd_listener(serv, "tcp", nlm_tcpport);
-	if (err >= 0) {
-		warned = 0;
-		err = 0;
-	} else if (warned++ == 0)
+	if (err < 0)
+		goto out_err;
+
+	err = create_lockd_listener(serv, "tcp", nlm_tcpport);
+	if (err < 0)
+		goto out_err;
+
+	warned = 0;
+	return 0;
+
+out_err:
+	if (warned++ == 0)
 		printk(KERN_WARNING
-		       "lockd_up: makesock failed, error=%d\n", err);
+			"lockd_up: makesock failed, error=%d\n", err);
 	return err;
 }
 
