@@ -697,7 +697,7 @@ static enum hrtimer_restart ads7846_timer(struct hrtimer *handle)
 	struct ads7846	*ts = container_of(handle, struct ads7846, timer);
 	int		status = 0;
 
-	spin_lock_irq(&ts->lock);
+	spin_lock(&ts->lock);
 
 	if (unlikely(!get_pendown_state(ts) ||
 		     device_suspended(&ts->spi->dev))) {
@@ -728,7 +728,7 @@ static enum hrtimer_restart ads7846_timer(struct hrtimer *handle)
 			dev_err(&ts->spi->dev, "spi_async --> %d\n", status);
 	}
 
-	spin_unlock_irq(&ts->lock);
+	spin_unlock(&ts->lock);
 	return HRTIMER_NORESTART;
 }
 
