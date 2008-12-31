@@ -156,7 +156,8 @@ static int usb_bulk_urb_init(struct usb_data_stream *stream)
 				stream->props.u.bulk.buffersize,
 				usb_urb_complete, stream);
 
-		stream->urb_list[i]->transfer_flags = 0;
+		stream->urb_list[i]->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		stream->urb_list[i]->transfer_dma = stream->dma_addr[i];
 		stream->urbs_initialized++;
 	}
 	return 0;

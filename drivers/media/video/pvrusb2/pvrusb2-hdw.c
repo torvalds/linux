@@ -2395,7 +2395,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	scnprintf(hdw->bus_info,sizeof(hdw->bus_info),
 		  "usb %s address %d",
-		  hdw->usb_dev->dev.bus_id,
+		  dev_name(&hdw->usb_dev->dev),
 		  hdw->usb_dev->devnum);
 
 	ifnum = hdw->usb_intf->cur_altsetting->desc.bInterfaceNumber;

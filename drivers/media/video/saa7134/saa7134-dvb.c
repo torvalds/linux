@@ -954,19 +954,13 @@ static int dvb_init(struct saa7134_dev *dev)
 	/* FIXME: add support for multi-frontend */
 	mutex_init(&dev->frontends.lock);
 	INIT_LIST_HEAD(&dev->frontends.felist);
-	dev->frontends.active_fe_id = 0;
 
 	printk(KERN_INFO "%s() allocating 1 frontend\n", __func__);
-
-	if (videobuf_dvb_alloc_frontend(&dev->frontends, 1) == NULL) {
+	fe0 = videobuf_dvb_alloc_frontend(&dev->frontends, 1);
+	if (!fe0) {
 		printk(KERN_ERR "%s() failed to alloc\n", __func__);
 		return -ENOMEM;
 	}
-
-	/* Get the first frontend */
-	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
-	if (!fe0)
-		return -EINVAL;
 
 	/* init struct videobuf_dvb */
 	dev->ts.nr_bufs    = 32;
@@ -1376,7 +1370,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		};
 
 		if (!fe0->dvb.frontend)
-			return -1;
+			goto dettach_frontend;
 
 		fe = dvb_attach(xc2028_attach, fe0->dvb.frontend, &cfg);
 		if (!fe) {
@@ -1388,7 +1382,7 @@ static int dvb_init(struct saa7134_dev *dev)
 
 	if (NULL == fe0->dvb.frontend) {
 		printk(KERN_ERR "%s/dvb: frontend initialization failed\n", dev->name);
-		return -1;
+		goto dettach_frontend;
 	}
 	/* define general-purpose callback pointer */
 	fe0->dvb.frontend->callback = saa7134_tuner_callback;
@@ -1411,11 +1405,8 @@ static int dvb_init(struct saa7134_dev *dev)
 	return ret;
 
 dettach_frontend:
-	if (fe0->dvb.frontend)
-		dvb_frontend_detach(fe0->dvb.frontend);
-	fe0->dvb.frontend = NULL;
-
-	return -1;
+	videobuf_dvb_dealloc_frontends(&dev->frontends);
+	return -EINVAL;
 }
 
 static int dvb_fini(struct saa7134_dev *dev)
@@ -1454,8 +1445,7 @@ static int dvb_fini(struct saa7134_dev *dev)
 			}
 		}
 	}
-	if (fe0->dvb.frontend)
-		videobuf_dvb_unregister_bus(&dev->frontends);
+	videobuf_dvb_unregister_bus(&dev->frontends);
 	return 0;
 }
 

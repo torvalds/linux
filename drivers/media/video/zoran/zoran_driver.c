@@ -1940,11 +1940,7 @@ zoran_set_input (struct zoran *zr,
  *   ioctl routine
  */
 
-static int
-zoran_do_ioctl (struct inode *inode,
-		struct file  *file,
-		unsigned int  cmd,
-		void         *arg)
+static int zoran_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
@@ -4201,7 +4197,7 @@ zoran_ioctl (struct inode *inode,
 	     unsigned int  cmd,
 	     unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, zoran_do_ioctl);
+	return video_usercopy(file, cmd, arg, zoran_do_ioctl);
 }
 
 static unsigned int

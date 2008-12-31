@@ -823,12 +823,12 @@ static int konicawc_probe(struct usb_interface *intf, const struct usb_device_id
 			err("Alternate settings have different endpoint addresses!");
 			return -ENODEV;
 		}
-		if ((endpoint->bmAttributes & 0x03) != 0x01) {
+		if (usb_endpoint_type(endpoint) != USB_ENDPOINT_XFER_ISOC) {
 			err("Interface %d. has non-ISO endpoint!",
 			    interface->desc.bInterfaceNumber);
 			return -ENODEV;
 		}
-		if ((endpoint->bEndpointAddress & 0x80) == 0) {
+		if (usb_endpoint_dir_out(endpoint)) {
 			err("Interface %d. has ISO OUT endpoint!",
 			    interface->desc.bInterfaceNumber);
 			return -ENODEV;
