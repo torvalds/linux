@@ -148,7 +148,7 @@ static void clocksource_watchdog(unsigned long data)
 		int next_cpu = next_cpu_nr(raw_smp_processor_id(), cpu_online_map);
 
 		if (next_cpu >= nr_cpu_ids)
-			next_cpu = first_cpu(cpu_online_map);
+			next_cpu = cpumask_first(cpu_online_mask);
 		watchdog_timer.expires += WATCHDOG_INTERVAL;
 		add_timer_on(&watchdog_timer, next_cpu);
 	}
@@ -173,7 +173,7 @@ static void clocksource_check_watchdog(struct clocksource *cs)
 			watchdog_last = watchdog->read();
 			watchdog_timer.expires = jiffies + WATCHDOG_INTERVAL;
 			add_timer_on(&watchdog_timer,
-				     first_cpu(cpu_online_map));
+				     cpumask_first(cpu_online_mask));
 		}
 	} else {
 		if (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS)
@@ -195,7 +195,7 @@ static void clocksource_check_watchdog(struct clocksource *cs)
 				watchdog_timer.expires =
 					jiffies + WATCHDOG_INTERVAL;
 				add_timer_on(&watchdog_timer,
-					     first_cpu(cpu_online_map));
+					     cpumask_first(cpu_online_mask));
 			}
 		}
 	}
