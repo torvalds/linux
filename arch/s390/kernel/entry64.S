@@ -559,8 +559,8 @@ kernel_per:
  */
 	.globl io_int_handler
 io_int_handler:
-	stpt	__LC_ASYNC_ENTER_TIMER
 	stck	__LC_INT_CLOCK
+	stpt	__LC_ASYNC_ENTER_TIMER
 	SAVE_ALL_BASE __LC_SAVE_AREA+32
 	SAVE_ALL_ASYNC __LC_IO_OLD_PSW,__LC_SAVE_AREA+32
 	CREATE_STACK_FRAME __LC_IO_OLD_PSW,__LC_SAVE_AREA+32
@@ -721,8 +721,8 @@ io_notify_resume:
  */
 	.globl	ext_int_handler
 ext_int_handler:
-	stpt	__LC_ASYNC_ENTER_TIMER
 	stck	__LC_INT_CLOCK
+	stpt	__LC_ASYNC_ENTER_TIMER
 	SAVE_ALL_BASE __LC_SAVE_AREA+32
 	SAVE_ALL_ASYNC __LC_EXT_OLD_PSW,__LC_SAVE_AREA+32
 	CREATE_STACK_FRAME __LC_EXT_OLD_PSW,__LC_SAVE_AREA+32
@@ -746,6 +746,7 @@ __critical_end:
  */
 	.globl mcck_int_handler
 mcck_int_handler:
+	stck	__LC_INT_CLOCK
 	la	%r1,4095		# revalidate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# revalidate cpu timer
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# revalidate gprs
