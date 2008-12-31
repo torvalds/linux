@@ -4824,11 +4824,11 @@ S:	Supported
 
 XFS FILESYSTEM
 P:	Silicon Graphics Inc
-P:	Tim Shimmin
+P:	Bill O'Donnell
 M:	xfs-masters@oss.sgi.com
 L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs
-T:	git git://oss.sgi.com:8090/xfs/xfs-2.6.git
+T:	git://oss.sgi.com/xfs/xfs.git
 S:	Supported
 
 XILINX SYSTEMACE DRIVER
