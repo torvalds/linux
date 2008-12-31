@@ -141,7 +141,6 @@ ACPI_EXTERN u32 acpi_gbl_trace_flags;
 ACPI_EXTERN struct acpi_internal_rsdt acpi_gbl_root_table_list;
 ACPI_EXTERN struct acpi_table_fadt acpi_gbl_FADT;
 ACPI_EXTERN struct acpi_table_facs *acpi_gbl_FACS;
-extern u8 acpi_gbl_permanent_mmap;
 
 /* These addresses are calculated from FADT address values */
 

@@ -48,6 +48,8 @@
 #include "actypes.h"
 #include "actbl.h"
 
+extern u8 acpi_gbl_permanent_mmap;
+
 /*
  * Global interfaces
  */
