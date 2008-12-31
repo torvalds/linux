@@ -1811,10 +1811,10 @@ static void test_cpu_buff_start(struct trace_iterator *iter)
 	if (!(iter->iter_flags & TRACE_FILE_ANNOTATE))
 		return;
 
-	if (cpu_isset(iter->cpu, iter->started))
+	if (cpumask_test_cpu(iter->cpu, iter->started))
 		return;
 
-	cpu_set(iter->cpu, iter->started);
+	cpumask_set_cpu(iter->cpu, iter->started);
 	trace_seq_printf(s, "##### CPU %u buffer started ####\n", iter->cpu);
 }
 
@@ -3114,10 +3114,15 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 	if (!iter)
 		return -ENOMEM;
 
+	if (!alloc_cpumask_var(&iter->started, GFP_KERNEL)) {
+		kfree(iter);
+		return -ENOMEM;
+	}
+
 	mutex_lock(&trace_types_lock);
 
 	/* trace pipe does not show start of buffer */
-	cpus_setall(iter->started);
+	cpumask_setall(iter->started);
 
 	iter->tr = &global_trace;
 	iter->trace = current_trace;
@@ -3134,6 +3139,7 @@ static int tracing_release_pipe(struct inode *inode, struct file *file)
 {
 	struct trace_iterator *iter = file->private_data;
 
+	free_cpumask_var(iter->started);
 	kfree(iter);
 	atomic_dec(&tracing_reader);
 
