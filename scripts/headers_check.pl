@@ -78,6 +78,9 @@ sub check_config
 my $linux_asm_types;
 sub check_asm_types()
 {
+	if ($filename =~ /types.h|int-l64.h|int-ll64.h/o) {
+		return;
+	}
 	if ($lineno == 1) {
 		$linux_asm_types = 0;
 	} elsif ($linux_asm_types >= 1) {
@@ -95,6 +98,9 @@ sub check_asm_types()
 my $linux_types;
 sub check_sizetypes
 {
+	if ($filename =~ /types.h|int-l64.h|int-ll64.h/o) {
+		return;
+	}
 	if ($lineno == 1) {
 		$linux_types = 0;
 	} elsif ($linux_types >= 1) {
