@@ -38,6 +38,7 @@
 #include <linux/utsname.h>
 #include <linux/tick.h>
 #include <linux/elfcore.h>
+#include <linux/kernel_stat.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -79,30 +80,19 @@ DEFINE_PER_CPU(struct s390_idle_data, s390_idle) = {
 	.lock = __SPIN_LOCK_UNLOCKED(s390_idle.lock)
 };
 
-static int s390_idle_enter(void)
-{
-	struct s390_idle_data *idle;
-
-	idle = &__get_cpu_var(s390_idle);
-	spin_lock(&idle->lock);
-	idle->idle_count++;
-	idle->in_idle = 1;
-	idle->idle_enter = get_clock();
-	spin_unlock(&idle->lock);
-	vtime_stop_cpu_timer();
-	return NOTIFY_OK;
-}
-
 void s390_idle_leave(void)
 {
 	struct s390_idle_data *idle;
+	unsigned long long idle_time;
 
-	vtime_start_cpu_timer();
 	idle = &__get_cpu_var(s390_idle);
+	idle_time = S390_lowcore.int_clock - idle->idle_enter;
 	spin_lock(&idle->lock);
-	idle->idle_time += get_clock() - idle->idle_enter;
-	idle->in_idle = 0;
+	idle->idle_time += idle_time;
+	idle->idle_enter = 0ULL;
+	idle->idle_count++;
 	spin_unlock(&idle->lock);
+	vtime_start_cpu_timer();
 }
 
 extern void s390_handle_mcck(void);
@@ -111,13 +101,13 @@ extern void s390_handle_mcck(void);
  */
 static void default_idle(void)
 {
+	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
+	unsigned long addr;
+	psw_t psw;
+
 	/* CPU is going idle. */
 	local_irq_disable();
 	if (need_resched()) {
-		local_irq_enable();
-		return;
-	}
-	if (s390_idle_enter() == NOTIFY_BAD) {
 		local_irq_enable();
 		return;
 	}
@@ -138,9 +128,42 @@ static void default_idle(void)
 	trace_hardirqs_on();
 	/* Don't trace preempt off for idle. */
 	stop_critical_timings();
+	vtime_stop_cpu_timer();
+
+	/*
+	 * The inline assembly is equivalent to
+	 *	idle->idle_enter = get_clock();
+	 *	__load_psw_mask(psw_kernel_bits | PSW_MASK_WAIT |
+	 *			   PSW_MASK_IO | PSW_MASK_EXT);
+	 * The difference is that the inline assembly makes sure that
+	 * the stck instruction is right before the lpsw instruction.
+	 * This is done to increase the precision.
+	 */
+
 	/* Wait for external, I/O or machine check interrupt. */
-	__load_psw_mask(psw_kernel_bits | PSW_MASK_WAIT |
-			PSW_MASK_IO | PSW_MASK_EXT);
+	psw.mask = psw_kernel_bits|PSW_MASK_WAIT|PSW_MASK_IO|PSW_MASK_EXT;
+#ifndef __s390x__
+	asm volatile(
+		"	basr	%0,0\n"
+		"0:	ahi	%0,1f-0b\n"
+		"	st	%0,4(%2)\n"
+		"	stck	0(%3)\n"
+		"	lpsw	0(%2)\n"
+		"1:"
+		: "=&d" (addr), "=m" (idle->idle_enter)
+		: "a" (&psw), "a" (&idle->idle_enter), "m" (psw)
+		: "memory", "cc");
+#else /* __s390x__ */
+	asm volatile(
+		"	larl	%0,1f\n"
+		"	stg	%0,8(%2)\n"
+		"	stck	0(%3)\n"
+		"	lpswe	0(%2)\n"
+		"1:"
+		: "=&d" (addr), "=m" (idle->idle_enter)
+		: "a" (&psw), "a" (&idle->idle_enter), "m" (psw)
+		: "memory", "cc");
+#endif /* __s390x__ */
 	start_critical_timings();
 }
 

@@ -112,6 +112,7 @@ EXPORT_SYMBOL_GPL(account_system_vtime);
 
 static inline void set_vtimer(__u64 expires)
 {
+	struct vtimer_queue *vq = &__get_cpu_var(virt_cpu_timer);
 	__u64 timer;
 
 	asm volatile ("  STPT %0\n"  /* Store current cpu timer value */
@@ -121,7 +122,7 @@ static inline void set_vtimer(__u64 expires)
 	S390_lowcore.last_update_timer = expires;
 
 	/* store expire time for this CPU timer */
-	__get_cpu_var(virt_cpu_timer).to_expire = expires;
+	vq->to_expire = expires;
 }
 
 void vtime_start_cpu_timer(void)

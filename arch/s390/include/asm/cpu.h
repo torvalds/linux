@@ -14,7 +14,6 @@
 
 struct s390_idle_data {
 	spinlock_t lock;
-	unsigned int in_idle;
 	unsigned long long idle_count;
 	unsigned long long idle_enter;
 	unsigned long long idle_time;
@@ -26,7 +25,7 @@ void s390_idle_leave(void);
 
 static inline void s390_idle_check(void)
 {
-	if ((&__get_cpu_var(s390_idle))->in_idle)
+	if ((&__get_cpu_var(s390_idle))->idle_enter != 0ULL)
 		s390_idle_leave();
 }
 
