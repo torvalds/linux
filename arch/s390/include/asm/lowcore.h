@@ -106,8 +106,10 @@
 #define __LC_IPLDEV                     0xDB8
 #define __LC_CURRENT			0xDD8
 #define __LC_INT_CLOCK			0xDE8
+#define __LC_VDSO_PER_CPU		0xE38
 #endif /* __s390x__ */
 
+#define __LC_PASTE			0xE40
 
 #define __LC_PANIC_MAGIC		0xE00
 #ifndef __s390x__
@@ -381,7 +383,12 @@ struct _lowcore
         /* whether the kernel died with panic() or not */
         __u32        panic_magic;              /* 0xe00 */
 
-	__u8         pad13[0x11b8-0xe04];      /* 0xe04 */
+	/* Per cpu primary space access list */
+	__u8	     pad_0xe04[0xe3c-0xe04];   /* 0xe04 */
+	__u32	     vdso_per_cpu_data;	       /* 0xe3c */
+	__u32	     paste[16];		       /* 0xe40 */
+
+	__u8	     pad13[0x11b8-0xe80];      /* 0xe80 */
 
 	/* 64 bit extparam used for pfault, diag 250 etc  */
 	__u64        ext_params2;               /* 0x11B8 */

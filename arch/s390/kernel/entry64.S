@@ -177,8 +177,11 @@ _TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 	.if !\sync
 	ni	\psworg+1,0xfd		# clear wait state bit
 	.endif
-	lmg	%r0,%r15,SP_R0(%r15)	# load gprs 0-15 of user
+	lg	%r14,__LC_VDSO_PER_CPU
+	lmg	%r0,%r13,SP_R0(%r15)	# load gprs 0-13 of user
 	stpt	__LC_EXIT_TIMER
+	mvc	__VDSO_ECTG_BASE(16,%r14),__LC_EXIT_TIMER
+	lmg	%r14,%r15,SP_R14(%r15)	# load grps 14-15 of user
 	lpswe	\psworg			# back to caller
 	.endm
 
@@ -980,23 +983,23 @@ cleanup_sysc_return:
 
 cleanup_sysc_leave:
 	clc	8(8,%r12),BASED(cleanup_sysc_leave_insn)
-	je	2f
-	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
+	je	3f
 	clc	8(8,%r12),BASED(cleanup_sysc_leave_insn+8)
-	je	2f
-	mvc	__LC_RETURN_PSW(16),SP_PSW(%r15)
+	jhe	0f
+	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
+0:	mvc	__LC_RETURN_PSW(16),SP_PSW(%r15)
 	cghi	%r12,__LC_MCK_OLD_PSW
-	jne	0f
+	jne	1f
 	mvc	__LC_SAVE_AREA+64(32),SP_R12(%r15)
-	j	1f
-0:	mvc	__LC_SAVE_AREA+32(32),SP_R12(%r15)
-1:	lmg	%r0,%r11,SP_R0(%r15)
+	j	2f
+1:	mvc	__LC_SAVE_AREA+32(32),SP_R12(%r15)
+2:	lmg	%r0,%r11,SP_R0(%r15)
 	lg	%r15,SP_R15(%r15)
-2:	la	%r12,__LC_RETURN_PSW
+3:	la	%r12,__LC_RETURN_PSW
 	br	%r14
 cleanup_sysc_leave_insn:
 	.quad	sysc_done - 4
-	.quad	sysc_done - 8
+	.quad	sysc_done - 16
 
 cleanup_io_return:
 	mvc	__LC_RETURN_PSW(8),0(%r12)
@@ -1006,23 +1009,23 @@ cleanup_io_return:
 
 cleanup_io_leave:
 	clc	8(8,%r12),BASED(cleanup_io_leave_insn)
-	je	2f
-	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
+	je	3f
 	clc	8(8,%r12),BASED(cleanup_io_leave_insn+8)
-	je	2f
-	mvc	__LC_RETURN_PSW(16),SP_PSW(%r15)
+	jhe	0f
+	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
+0:	mvc	__LC_RETURN_PSW(16),SP_PSW(%r15)
 	cghi	%r12,__LC_MCK_OLD_PSW
-	jne	0f
+	jne	1f
 	mvc	__LC_SAVE_AREA+64(32),SP_R12(%r15)
-	j	1f
-0:	mvc	__LC_SAVE_AREA+32(32),SP_R12(%r15)
-1:	lmg	%r0,%r11,SP_R0(%r15)
+	j	2f
+1:	mvc	__LC_SAVE_AREA+32(32),SP_R12(%r15)
+2:	lmg	%r0,%r11,SP_R0(%r15)
 	lg	%r15,SP_R15(%r15)
-2:	la	%r12,__LC_RETURN_PSW
+3:	la	%r12,__LC_RETURN_PSW
 	br	%r14
 cleanup_io_leave_insn:
 	.quad	io_done - 4
-	.quad	io_done - 8
+	.quad	io_done - 16
 
 /*
  * Integer constants

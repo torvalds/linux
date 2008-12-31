@@ -47,6 +47,7 @@
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
 #include <asm/cpu.h>
+#include <asm/vdso.h>
 #include "entry.h"
 
 /*
@@ -506,6 +507,9 @@ static int __cpuinit smp_alloc_lowcore(int cpu)
 			goto out;
 		lowcore->extended_save_area_addr = (u32) save_area;
 	}
+#else
+	if (vdso_alloc_per_cpu(cpu, lowcore))
+		goto out;
 #endif
 	lowcore_ptr[cpu] = lowcore;
 	return 0;
@@ -528,6 +532,8 @@ static void smp_free_lowcore(int cpu)
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE)
 		free_page((unsigned long) lowcore->extended_save_area_addr);
+#else
+	vdso_free_per_cpu(cpu, lowcore);
 #endif
 	free_page(lowcore->panic_stack - PAGE_SIZE);
 	free_pages(lowcore->async_stack - ASYNC_SIZE, ASYNC_ORDER);
@@ -670,6 +676,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, lc_order);
 	panic_stack = __get_free_page(GFP_KERNEL);
 	async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
+	BUG_ON(!lowcore || !panic_stack || !async_stack);
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE)
 		save_area = get_zeroed_page(GFP_KERNEL);
@@ -683,6 +690,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE)
 		lowcore->extended_save_area_addr = (u32) save_area;
+#else
+	BUG_ON(vdso_alloc_per_cpu(smp_processor_id(), lowcore));
 #endif
 	set_prefix((u32)(unsigned long) lowcore);
 	local_mcck_enable();
