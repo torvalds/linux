@@ -54,7 +54,7 @@
  * 9/28/04 Christoph Hellwig <hch@lst.de>
  *	    - merge the two source files
  *	    - remove internal queueing code
- * 14/06/07 Alan Cox <alan@redhat.com>
+ * 14/06/07 Alan Cox <alan@lxorguk.ukuu.org.uk>
  *	 - Grand cleanup and Linuxisation
  */
 

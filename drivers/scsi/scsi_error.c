@@ -136,7 +136,7 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 	else
 		eh_timed_out = NULL;
 
-	if (eh_timed_out)
+	if (eh_timed_out) {
 		rtn = eh_timed_out(scmd);
 		switch (rtn) {
 		case BLK_EH_NOT_HANDLED:
@@ -144,6 +144,7 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 		default:
 			return rtn;
 		}
+	}
 
 	if (unlikely(!scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD))) {
 		scmd->result |= DID_TIME_OUT << 16;
@@ -1405,8 +1406,9 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		return ADD_TO_MLQUEUE;
 	case GOOD:
 	case COMMAND_TERMINATED:
-	case TASK_ABORTED:
 		return SUCCESS;
+	case TASK_ABORTED:
+		goto maybe_retry;
 	case CHECK_CONDITION:
 		rtn = scsi_check_sense(scmd);
 		if (rtn == NEEDS_RETRY)
