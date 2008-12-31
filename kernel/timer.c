@@ -1023,13 +1023,11 @@ void account_process_tick(struct task_struct *p, int user_tick)
 {
 	cputime_t one_jiffy = jiffies_to_cputime(1);
 
-	if (user_tick) {
-		account_user_time(p, one_jiffy);
-		account_user_time_scaled(p, cputime_to_scaled(one_jiffy));
-	} else {
-		account_system_time(p, HARDIRQ_OFFSET, one_jiffy);
-		account_system_time_scaled(p, cputime_to_scaled(one_jiffy));
-	}
+	if (user_tick)
+		account_user_time(p, one_jiffy, cputime_to_scaled(one_jiffy));
+	else
+		account_system_time(p, HARDIRQ_OFFSET, one_jiffy,
+				    cputime_to_scaled(one_jiffy));
 }
 #endif
 

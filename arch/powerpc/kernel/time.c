@@ -256,8 +256,7 @@ void account_system_vtime(struct task_struct *tsk)
 		delta += sys_time;
 		get_paca()->system_time = 0;
 	}
-	account_system_time(tsk, 0, delta);
-	account_system_time_scaled(tsk, deltascaled);
+	account_system_time(tsk, 0, delta, deltascaled);
 	per_cpu(cputime_last_delta, smp_processor_id()) = delta;
 	per_cpu(cputime_scaled_last_delta, smp_processor_id()) = deltascaled;
 	local_irq_restore(flags);
@@ -275,10 +274,8 @@ void account_process_tick(struct task_struct *tsk, int user_tick)
 
 	utime = get_paca()->user_time;
 	get_paca()->user_time = 0;
-	account_user_time(tsk, utime);
-
 	utimescaled = cputime_to_scaled(utime);
-	account_user_time_scaled(tsk, utimescaled);
+	account_user_time(tsk, utime, utimescaled);
 }
 
 /*

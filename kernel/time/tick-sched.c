@@ -420,6 +420,7 @@ void tick_nohz_restart_sched_tick(void)
 	int cpu = smp_processor_id();
 	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
 	unsigned long ticks;
+	cputime_t cputime;
 	ktime_t now;
 
 	local_irq_disable();
@@ -452,8 +453,8 @@ void tick_nohz_restart_sched_tick(void)
 	 */
 	if (ticks && ticks < LONG_MAX) {
 		add_preempt_count(HARDIRQ_OFFSET);
-		account_system_time(current, HARDIRQ_OFFSET,
-				    jiffies_to_cputime(ticks));
+		cputime = jiffies_to_cputime(ticks);
+		account_system_time(current, HARDIRQ_OFFSET, cputime, cputime);
 		sub_preempt_count(HARDIRQ_OFFSET);
 	}
 

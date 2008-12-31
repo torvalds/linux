@@ -50,12 +50,12 @@ void account_process_tick(struct task_struct *tsk, int user_tick)
 	rcu_user_flag = cputime != 0;
 	S390_lowcore.user_timer -= cputime << 12;
 	S390_lowcore.steal_clock -= cputime << 12;
-	account_user_time(tsk, cputime);
+	account_user_time(tsk, cputime, cputime);
 
 	cputime =  S390_lowcore.system_timer >> 12;
 	S390_lowcore.system_timer -= cputime << 12;
 	S390_lowcore.steal_clock -= cputime << 12;
-	account_system_time(tsk, HARDIRQ_OFFSET, cputime);
+	account_system_time(tsk, HARDIRQ_OFFSET, cputime, cputime);
 
 	cputime = S390_lowcore.steal_clock;
 	if ((__s64) cputime > 0) {
@@ -82,12 +82,12 @@ void account_vtime(struct task_struct *tsk)
 	cputime = S390_lowcore.user_timer >> 12;
 	S390_lowcore.user_timer -= cputime << 12;
 	S390_lowcore.steal_clock -= cputime << 12;
-	account_user_time(tsk, cputime);
+	account_user_time(tsk, cputime, cputime);
 
 	cputime =  S390_lowcore.system_timer >> 12;
 	S390_lowcore.system_timer -= cputime << 12;
 	S390_lowcore.steal_clock -= cputime << 12;
-	account_system_time(tsk, 0, cputime);
+	account_system_time(tsk, 0, cputime, cputime);
 }
 
 /*
@@ -107,7 +107,7 @@ void account_system_vtime(struct task_struct *tsk)
 	cputime =  S390_lowcore.system_timer >> 12;
 	S390_lowcore.system_timer -= cputime << 12;
 	S390_lowcore.steal_clock -= cputime << 12;
-	account_system_time(tsk, 0, cputime);
+	account_system_time(tsk, 0, cputime, cputime);
 }
 EXPORT_SYMBOL_GPL(account_system_vtime);
 
