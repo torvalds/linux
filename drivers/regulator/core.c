@@ -655,7 +655,7 @@ static void print_constraints(struct regulator_dev *rdev)
 
 /**
  * set_machine_constraints - sets regulator constraints
- * @regulator: regulator source
+ * @rdev: regulator source
  *
  * Allows platform initialisation code to define and constrain
  * regulator circuits e.g. valid voltage/current ranges, etc.  NOTE:
@@ -730,8 +730,8 @@ out:
 
 /**
  * set_supply - set regulator supply regulator
- * @regulator: regulator name
- * @supply: supply regulator name
+ * @rdev: regulator name
+ * @supply_rdev: supply regulator name
  *
  * Called by platform initialisation code to set the supply regulator for this
  * regulator. This ensures that a regulators supply will also be enabled by the
@@ -758,9 +758,9 @@ out:
 
 /**
  * set_consumer_device_supply: Bind a regulator to a symbolic supply
- * @regulator: regulator source
- * @dev:       device the supply applies to
- * @supply:    symbolic name for supply
+ * @rdev:         regulator source
+ * @consumer_dev: device the supply applies to
+ * @supply:       symbolic name for supply
  *
  * Allows platform initialisation code to map physical regulator
  * sources to symbolic names for supplies for use by devices.  Devices
@@ -1013,9 +1013,8 @@ static int _regulator_enable(struct regulator_dev *rdev)
  *
  * Enable the regulator output at the predefined voltage or current value.
  * NOTE: the output value can be set by other drivers, boot loader or may be
- * hardwired in the regulator.
- * NOTE: calls to regulator_enable() must be balanced with calls to
- * regulator_disable().
+ * hardwired in the regulator.  Calls to regulator_enable() must be balanced
+ * with calls to regulator_disable().
  */
 int regulator_enable(struct regulator *regulator)
 {
@@ -1074,10 +1073,10 @@ static int _regulator_disable(struct regulator_dev *rdev)
  * @regulator: regulator source
  *
  * Disable the regulator output voltage or current.
+ *
  * NOTE: this will only disable the regulator output if no other consumer
- * devices have it enabled.
- * NOTE: calls to regulator_enable() must be balanced with calls to
- * regulator_disable().
+ * devices have it enabled.  Calls to regulator_enable() must be balanced with
+ * calls to regulator_disable().
  */
 int regulator_disable(struct regulator *regulator)
 {
@@ -1200,7 +1199,7 @@ EXPORT_SYMBOL_GPL(regulator_is_enabled);
  *
  * NOTE: If the regulator is shared between several devices then the lowest
  * request voltage that meets the system constraints will be used.
- * NOTE: Regulator system constraints must be set for this regulator before
+ * Regulator system constraints must be set for this regulator before
  * calling this function otherwise this call will fail.
  */
 int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
@@ -1498,7 +1497,7 @@ EXPORT_SYMBOL_GPL(regulator_set_optimum_mode);
 /**
  * regulator_register_notifier - register regulator event notifier
  * @regulator: regulator source
- * @notifier_block: notifier block
+ * @nb: notifier block
  *
  * Register notifier block to receive regulator events.
  */
@@ -1513,7 +1512,7 @@ EXPORT_SYMBOL_GPL(regulator_register_notifier);
 /**
  * regulator_unregister_notifier - unregister regulator event notifier
  * @regulator: regulator source
- * @notifier_block: notifier block
+ * @nb: notifier block
  *
  * Unregister regulator event notifier block.
  */
@@ -1679,9 +1678,9 @@ EXPORT_SYMBOL_GPL(regulator_bulk_free);
 
 /**
  * regulator_notifier_call_chain - call regulator event notifier
- * @regulator: regulator source
+ * @rdev: regulator source
  * @event: notifier block
- * @data:
+ * @data: callback-specific data.
  *
  * Called by regulator drivers to notify clients a regulator event has
  * occurred. We also notify regulator clients downstream.
@@ -1808,8 +1807,9 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 
 /**
  * regulator_register - register regulator
- * @regulator: regulator source
- * @reg_data: private regulator data
+ * @regulator_desc: regulator to register
+ * @dev: struct device for the regulator
+ * @driver_data: private regulator data
  *
  * Called by regulator drivers to register a regulator.
  * Returns 0 on success.
@@ -1916,7 +1916,7 @@ EXPORT_SYMBOL_GPL(regulator_register);
 
 /**
  * regulator_unregister - unregister regulator
- * @regulator: regulator source
+ * @rdev: regulator to unregister
  *
  * Called by regulator drivers to unregister a regulator.
  */
@@ -1971,7 +1971,7 @@ EXPORT_SYMBOL_GPL(regulator_suspend_prepare);
 
 /**
  * rdev_get_drvdata - get rdev regulator driver data
- * @regulator: regulator
+ * @rdev: regulator
  *
  * Get rdev regulator driver private data. This call can be used in the
  * regulator driver context.
@@ -2008,7 +2008,7 @@ EXPORT_SYMBOL_GPL(regulator_set_drvdata);
 
 /**
  * regulator_get_id - get regulator ID
- * @regulator: regulator
+ * @rdev: regulator
  */
 int rdev_get_id(struct regulator_dev *rdev)
 {
