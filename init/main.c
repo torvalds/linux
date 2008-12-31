@@ -380,12 +380,7 @@ EXPORT_SYMBOL(nr_cpu_ids);
 /* An arch may set nr_cpu_ids earlier if needed, so this would be redundant */
 static void __init setup_nr_cpu_ids(void)
 {
-	int cpu, highest_cpu = 0;
-
-	for_each_possible_cpu(cpu)
-		highest_cpu = cpu;
-
-	nr_cpu_ids = highest_cpu + 1;
+	nr_cpu_ids = find_last_bit(cpumask_bits(cpu_possible_mask),NR_CPUS) + 1;
 }
 
 #ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
