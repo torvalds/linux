@@ -55,3 +55,7 @@ config MACH_OMAP_LDP
 config MACH_OVERO
 	bool "Gumstix Overo board"
 	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+
+config MACH_OMAP3_PANDORA
+	bool "OMAP3 Pandora"
+	depends on ARCH_OMAP3 && ARCH_OMAP34XX

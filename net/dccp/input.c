@@ -163,7 +163,7 @@ static void dccp_event_ack_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
-	if (dccp_msk(sk)->dccpms_send_ack_vector)
+	if (dp->dccps_hc_rx_ackvec != NULL)
 		dccp_ackvec_check_rcv_ackno(dp->dccps_hc_rx_ackvec, sk,
 					    DCCP_SKB_CB(skb)->dccpd_ack_seq);
 }
@@ -375,7 +375,7 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 		dccp_event_ack_recv(sk, skb);
 
-	if (dccp_msk(sk)->dccpms_send_ack_vector &&
+	if (dp->dccps_hc_rx_ackvec != NULL &&
 	    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
 			    DCCP_SKB_CB(skb)->dccpd_seq,
 			    DCCP_ACKVEC_STATE_RECEIVED))
@@ -421,19 +421,18 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 			goto out_invalid_packet;
 		}
 
+		/*
+		 * If option processing (Step 8) failed, return 1 here so that
+		 * dccp_v4_do_rcv() sends a Reset. The Reset code depends on
+		 * the option type and is set in dccp_parse_options().
+		 */
 		if (dccp_parse_options(sk, NULL, skb))
-			goto out_invalid_packet;
+			return 1;
 
 		/* Obtain usec RTT sample from SYN exchange (used by CCID 3) */
 		if (likely(dp->dccps_options_received.dccpor_timestamp_echo))
 			dp->dccps_syn_rtt = dccp_sample_rtt(sk, 10 * (tstamp -
 			    dp->dccps_options_received.dccpor_timestamp_echo));
-
-		if (dccp_msk(sk)->dccpms_send_ack_vector &&
-		    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
-				    DCCP_SKB_CB(skb)->dccpd_seq,
-				    DCCP_ACKVEC_STATE_RECEIVED))
-			goto out_invalid_packet; /* FIXME: change error code */
 
 		/* Stop the REQUEST timer */
 		inet_csk_clear_xmit_timer(sk, ICSK_TIME_RETRANS);
@@ -475,6 +474,15 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		 */
 		dccp_set_state(sk, DCCP_PARTOPEN);
 
+		/*
+		 * If feature negotiation was successful, activate features now;
+		 * an activation failure means that this host could not activate
+		 * one ore more features (e.g. insufficient memory), which would
+		 * leave at least one feature in an undefined state.
+		 */
+		if (dccp_feat_activate_values(sk, &dp->dccps_featneg))
+			goto unable_to_proceed;
+
 		/* Make sure socket is routed, for correct metrics. */
 		icsk->icsk_af_ops->rebuild_header(sk);
 
@@ -508,6 +516,16 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 out_invalid_packet:
 	/* dccp_v4_do_rcv will send a reset */
 	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_PACKET_ERROR;
+	return 1;
+
+unable_to_proceed:
+	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_ABORTED;
+	/*
+	 * We mark this socket as no longer usable, so that the loop in
+	 * dccp_sendmsg() terminates and the application gets notified.
+	 */
+	dccp_set_state(sk, DCCP_CLOSED);
+	sk->sk_err = ECOMM;
 	return 1;
 }
 
@@ -590,8 +608,6 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			if (inet_csk(sk)->icsk_af_ops->conn_request(sk,
 								    skb) < 0)
 				return 1;
-
-			/* FIXME: do congestion control initialization */
 			goto discard;
 		}
 		if (dh->dccph_type == DCCP_PKT_RESET)
@@ -602,7 +618,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		return 1;
 	}
 
-	if (sk->sk_state != DCCP_REQUESTING) {
+	if (sk->sk_state != DCCP_REQUESTING && sk->sk_state != DCCP_RESPOND) {
 		if (dccp_check_seqno(sk, skb))
 			goto discard;
 
@@ -615,7 +631,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (dcb->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 			dccp_event_ack_recv(sk, skb);
 
-		if (dccp_msk(sk)->dccpms_send_ack_vector &&
+		if (dp->dccps_hc_rx_ackvec != NULL &&
 		    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
 				    DCCP_SKB_CB(skb)->dccpd_seq,
 				    DCCP_ACKVEC_STATE_RECEIVED))
@@ -667,8 +683,6 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		return 1;
 
 	case DCCP_REQUESTING:
-		/* FIXME: do congestion control initialization */
-
 		queued = dccp_rcv_request_sent_state_process(sk, skb, dh, len);
 		if (queued >= 0)
 			return queued;

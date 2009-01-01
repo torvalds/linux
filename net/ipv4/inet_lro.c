@@ -120,7 +120,7 @@ static void lro_update_tcp_ip_header(struct net_lro_desc *lro_desc)
 	iph->check = ip_fast_csum((u8 *)lro_desc->iph, iph->ihl);
 
 	tcph->check = 0;
-	tcp_hdr_csum = csum_partial((u8 *)tcph, TCP_HDR_LEN(tcph), 0);
+	tcp_hdr_csum = csum_partial(tcph, TCP_HDR_LEN(tcph), 0);
 	lro_desc->data_csum = csum_add(lro_desc->data_csum, tcp_hdr_csum);
 	tcph->check = csum_tcpudp_magic(iph->saddr, iph->daddr,
 					lro_desc->ip_tot_len -
@@ -135,7 +135,7 @@ static __wsum lro_tcp_data_csum(struct iphdr *iph, struct tcphdr *tcph, int len)
 	__wsum tcp_ps_hdr_csum;
 
 	tcp_csum = ~csum_unfold(tcph->check);
-	tcp_hdr_csum = csum_partial((u8 *)tcph, TCP_HDR_LEN(tcph), tcp_csum);
+	tcp_hdr_csum = csum_partial(tcph, TCP_HDR_LEN(tcph), tcp_csum);
 
 	tcp_ps_hdr_csum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
 					     len + TCP_HDR_LEN(tcph),

@@ -571,12 +571,6 @@ struct signal_struct {
 	 */
 	struct rlimit rlim[RLIM_NLIMITS];
 
-	/* keep the process-shared keyrings here so that they do the right
-	 * thing in threads created with CLONE_THREAD */
-#ifdef CONFIG_KEYS
-	struct key *session_keyring;	/* keyring inherited over fork */
-	struct key *process_keyring;	/* keyring private to this process */
-#endif
 #ifdef CONFIG_BSD_PROCESS_ACCT
 	struct pacct_struct pacct;	/* per-process accounting information */
 #endif
@@ -647,6 +641,7 @@ struct user_struct {
 	/* Hash table maintenance information */
 	struct hlist_node uidhash_node;
 	uid_t uid;
+	struct user_namespace *user_ns;
 
 #ifdef CONFIG_USER_SCHED
 	struct task_group *tg;
@@ -664,6 +659,7 @@ extern struct user_struct *find_user(uid_t);
 extern struct user_struct root_user;
 #define INIT_USER (&root_user)
 
+
 struct backing_dev_info;
 struct reclaim_state;
 
@@ -671,8 +667,7 @@ struct reclaim_state;
 struct sched_info {
 	/* cumulative counters */
 	unsigned long pcount;	      /* # of times run on this cpu */
-	unsigned long long cpu_time,  /* time spent on the cpu */
-			   run_delay; /* time spent waiting on a runqueue */
+	unsigned long long run_delay; /* time spent waiting on a runqueue */
 
 	/* timestamps */
 	unsigned long long last_arrival,/* when we last ran on a cpu */
@@ -941,38 +936,7 @@ partition_sched_domains(int ndoms_new, struct cpumask *doms_new,
 #endif	/* !CONFIG_SMP */
 
 struct io_context;			/* See blkdev.h */
-#define NGROUPS_SMALL		32
-#define NGROUPS_PER_BLOCK	((unsigned int)(PAGE_SIZE / sizeof(gid_t)))
-struct group_info {
-	int ngroups;
-	atomic_t usage;
-	gid_t small_block[NGROUPS_SMALL];
-	int nblocks;
-	gid_t *blocks[0];
-};
 
-/*
- * get_group_info() must be called with the owning task locked (via task_lock())
- * when task != current.  The reason being that the vast majority of callers are
- * looking at current->group_info, which can not be changed except by the
- * current task.  Changing current->group_info requires the task lock, too.
- */
-#define get_group_info(group_info) do { \
-	atomic_inc(&(group_info)->usage); \
-} while (0)
-
-#define put_group_info(group_info) do { \
-	if (atomic_dec_and_test(&(group_info)->usage)) \
-		groups_free(group_info); \
-} while (0)
-
-extern struct group_info *groups_alloc(int gidsetsize);
-extern void groups_free(struct group_info *group_info);
-extern int set_current_groups(struct group_info *group_info);
-extern int groups_search(struct group_info *group_info, gid_t grp);
-/* access the groups "array" with this macro */
-#define GROUP_AT(gi, i) \
-    ((gi)->blocks[(i)/NGROUPS_PER_BLOCK][(i)%NGROUPS_PER_BLOCK])
 
 #ifdef ARCH_HAS_PREFETCH_SWITCH_STACK
 extern void prefetch_stack(struct task_struct *t);
@@ -1228,6 +1192,7 @@ struct task_struct {
 	 * The buffer to hold the BTS data.
 	 */
 	void *bts_buffer;
+	size_t bts_size;
 #endif /* CONFIG_X86_PTRACE_BTS */
 
 	/* PID/PID hash table linkage. */
@@ -1251,17 +1216,12 @@ struct task_struct {
 	struct list_head cpu_timers[3];
 
 /* process credentials */
-	uid_t uid,euid,suid,fsuid;
-	gid_t gid,egid,sgid,fsgid;
-	struct group_info *group_info;
-	kernel_cap_t   cap_effective, cap_inheritable, cap_permitted, cap_bset;
-	struct user_struct *user;
-	unsigned securebits;
-#ifdef CONFIG_KEYS
-	unsigned char jit_keyring;	/* default keyring to attach requested keys to */
-	struct key *request_key_auth;	/* assumed request_key authority */
-	struct key *thread_keyring;	/* keyring private to this thread */
-#endif
+	const struct cred *real_cred;	/* objective and real subjective task
+					 * credentials (COW) */
+	const struct cred *cred;	/* effective (overridable) subjective task
+					 * credentials (COW) */
+	struct mutex cred_exec_mutex;	/* execve vs ptrace cred calculation mutex */
+
 	char comm[TASK_COMM_LEN]; /* executable name excluding path
 				     - access with [gs]et_task_comm (which lock
 				       it with task_lock())
@@ -1298,9 +1258,6 @@ struct task_struct {
 	int (*notifier)(void *priv);
 	void *notifier_data;
 	sigset_t *notifier_mask;
-#ifdef CONFIG_SECURITY
-	void *security;
-#endif
 	struct audit_context *audit_context;
 #ifdef CONFIG_AUDITSYSCALL
 	uid_t loginuid;
@@ -1857,7 +1814,6 @@ static inline struct user_struct *get_uid(struct user_struct *u)
 	return u;
 }
 extern void free_uid(struct user_struct *);
-extern void switch_uid(struct user_struct *);
 extern void release_uids(struct user_namespace *ns);
 
 #include <asm/current.h>
@@ -1875,9 +1831,6 @@ extern void wake_up_new_task(struct task_struct *tsk,
 #endif
 extern void sched_fork(struct task_struct *p, int clone_flags);
 extern void sched_dead(struct task_struct *p);
-
-extern int in_group_p(gid_t);
-extern int in_egroup_p(gid_t);
 
 extern void proc_caches_init(void);
 extern void flush_signals(struct task_struct *);
@@ -2009,6 +1962,8 @@ static inline unsigned long wait_task_inactive(struct task_struct *p,
 
 #define for_each_process(p) \
 	for (p = &init_task ; (p = next_task(p)) != &init_task ; )
+
+extern bool is_single_threaded(struct task_struct *);
 
 /*
  * Careful: do_each_thread/while_each_thread is a double loop so

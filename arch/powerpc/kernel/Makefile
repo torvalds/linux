@@ -103,6 +103,10 @@ endif
 
 obj-$(CONFIG_PPC64)		+= $(obj64-y)
 
+ifneq ($(CONFIG_XMON)$(CONFIG_KEXEC),)
+obj-y				+= ppc_save_regs.o
+endif
+
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-$(CONFIG_PPC64)		+= entry_64.o
 

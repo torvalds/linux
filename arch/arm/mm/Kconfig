@@ -10,8 +10,7 @@ config CPU_32
 
 # ARM610
 config CPU_ARM610
-	bool "Support ARM610 processor"
-	depends on ARCH_RPC
+	bool "Support ARM610 processor" if ARCH_RPC
 	select CPU_32v3
 	select CPU_CACHE_V3
 	select CPU_CACHE_VIVT
@@ -43,8 +42,7 @@ config CPU_ARM7TDMI
 
 # ARM710
 config CPU_ARM710
-	bool "Support ARM710 processor" if !ARCH_CLPS7500 && ARCH_RPC
-	default y if ARCH_CLPS7500
+	bool "Support ARM710 processor" if ARCH_RPC
 	select CPU_32v3
 	select CPU_CACHE_V3
 	select CPU_CACHE_VIVT
@@ -63,8 +61,7 @@ config CPU_ARM710
 
 # ARM720T
 config CPU_ARM720T
-	bool "Support ARM720T processor" if !ARCH_CLPS711X && !ARCH_L7200 && !ARCH_CDB89712 && ARCH_INTEGRATOR
-	default y if ARCH_CLPS711X || ARCH_L7200 || ARCH_CDB89712 || ARCH_H720X
+	bool "Support ARM720T processor" if ARCH_INTEGRATOR
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
 	select CPU_PABRT_NOIFAR
@@ -114,9 +111,7 @@ config CPU_ARM9TDMI
 
 # ARM920T
 config CPU_ARM920T
-	bool "Support ARM920T processor"
-	depends on ARCH_EP93XX || ARCH_INTEGRATOR || CPU_S3C2410 || CPU_S3C2440 || CPU_S3C2442 || ARCH_IMX || ARCH_AAEC2000 || ARCH_AT91RM9200
-	default y if CPU_S3C2410 || CPU_S3C2440 || CPU_S3C2442 || ARCH_AT91RM9200
+	bool "Support ARM920T processor" if ARCH_INTEGRATOR
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
 	select CPU_PABRT_NOIFAR
@@ -138,8 +133,6 @@ config CPU_ARM920T
 # ARM922T
 config CPU_ARM922T
 	bool "Support ARM922T processor" if ARCH_INTEGRATOR
-	depends on ARCH_LH7A40X || ARCH_INTEGRATOR || ARCH_KS8695
-	default y if ARCH_LH7A40X || ARCH_KS8695
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
 	select CPU_PABRT_NOIFAR
@@ -159,8 +152,6 @@ config CPU_ARM922T
 # ARM925T
 config CPU_ARM925T
  	bool "Support ARM925T processor" if ARCH_OMAP1
- 	depends on ARCH_OMAP15XX
- 	default y if ARCH_OMAP15XX
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
 	select CPU_PABRT_NOIFAR
@@ -179,22 +170,7 @@ config CPU_ARM925T
 
 # ARM926T
 config CPU_ARM926T
-	bool "Support ARM926T processor"
-	depends on ARCH_INTEGRATOR || ARCH_VERSATILE_PB || \
-		MACH_VERSATILE_AB || ARCH_OMAP730 || \
-		ARCH_OMAP16XX || MACH_REALVIEW_EB || \
-		ARCH_PNX4008 || ARCH_NETX || CPU_S3C2412 || \
-		ARCH_AT91SAM9260 || ARCH_AT91SAM9261 || \
-		ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || \
-		ARCH_AT91SAM9G20 || ARCH_AT91CAP9 || \
-		ARCH_NS9XXX || ARCH_DAVINCI || ARCH_MX2
-	default y if ARCH_VERSATILE_PB || MACH_VERSATILE_AB || \
-		ARCH_OMAP730 || ARCH_OMAP16XX || \
-		ARCH_PNX4008 || ARCH_NETX || CPU_S3C2412 || \
-		ARCH_AT91SAM9260 || ARCH_AT91SAM9261 || \
-		ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || \
-		ARCH_AT91SAM9G20 || ARCH_AT91CAP9 || \
-		ARCH_NS9XXX || ARCH_DAVINCI || ARCH_MX2
+	bool "Support ARM926T processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
 	select CPU_PABRT_NOIFAR
@@ -247,8 +223,7 @@ config CPU_ARM946E
 
 # ARM1020 - needs validating
 config CPU_ARM1020
-	bool "Support ARM1020T (rev 0) processor"
-	depends on ARCH_INTEGRATOR
+	bool "Support ARM1020T (rev 0) processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
 	select CPU_PABRT_NOIFAR
@@ -266,8 +241,7 @@ config CPU_ARM1020
 
 # ARM1020E - needs validating
 config CPU_ARM1020E
-	bool "Support ARM1020E processor"
-	depends on ARCH_INTEGRATOR
+	bool "Support ARM1020E processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
 	select CPU_PABRT_NOIFAR
@@ -280,8 +254,7 @@ config CPU_ARM1020E
 
 # ARM1022E
 config CPU_ARM1022
-	bool "Support ARM1022E processor"
-	depends on ARCH_INTEGRATOR
+	bool "Support ARM1022E processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
 	select CPU_PABRT_NOIFAR
@@ -299,8 +272,7 @@ config CPU_ARM1022
 
 # ARM1026EJ-S
 config CPU_ARM1026
-	bool "Support ARM1026EJ-S processor"
-	depends on ARCH_INTEGRATOR
+	bool "Support ARM1026EJ-S processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
 	select CPU_PABRT_NOIFAR
@@ -317,8 +289,7 @@ config CPU_ARM1026
 
 # SA110
 config CPU_SA110
-	bool "Support StrongARM(R) SA-110 processor" if !ARCH_EBSA110 && !FOOTBRIDGE && !ARCH_TBOX && !ARCH_SHARK && !ARCH_NEXUSPCI && ARCH_RPC
-	default y if ARCH_EBSA110 || FOOTBRIDGE || ARCH_TBOX || ARCH_SHARK || ARCH_NEXUSPCI
+	bool "Support StrongARM(R) SA-110 processor" if ARCH_RPC
 	select CPU_32v3 if ARCH_RPC
 	select CPU_32v4 if !ARCH_RPC
 	select CPU_ABRT_EV4
@@ -340,8 +311,6 @@ config CPU_SA110
 # SA1100
 config CPU_SA1100
 	bool
-	depends on ARCH_SA1100
-	default y
 	select CPU_32v4
 	select CPU_ABRT_EV4
 	select CPU_PABRT_NOIFAR
@@ -353,8 +322,6 @@ config CPU_SA1100
 # XScale
 config CPU_XSCALE
 	bool
-	depends on ARCH_IOP32X || ARCH_IOP33X || PXA25x || PXA27x || ARCH_IXP4XX || ARCH_IXP2000
-	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
 	select CPU_PABRT_NOIFAR
@@ -365,8 +332,6 @@ config CPU_XSCALE
 # XScale Core Version 3
 config CPU_XSC3
 	bool
-	depends on ARCH_IXP23XX || ARCH_IOP13XX || PXA3xx
-	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
 	select CPU_PABRT_NOIFAR
@@ -378,8 +343,6 @@ config CPU_XSC3
 # Feroceon
 config CPU_FEROCEON
 	bool
-	depends on ARCH_ORION5X || ARCH_LOKI || ARCH_KIRKWOOD || ARCH_MV78XX0
-	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
 	select CPU_PABRT_NOIFAR
@@ -399,10 +362,7 @@ config CPU_FEROCEON_OLD_ID
 
 # ARMv6
 config CPU_V6
-	bool "Support ARM V6 processor"
-	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP2 || ARCH_MX3 || ARCH_MSM || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176
-	default y if ARCH_MX3
-	default y if ARCH_MSM
+	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_PABRT_NOIFAR
@@ -427,8 +387,7 @@ config CPU_32v6K
 
 # ARMv7
 config CPU_V7
-	bool "Support ARM V7 processor"
-	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP3
+	bool "Support ARM V7 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB
 	select CPU_32v6K
 	select CPU_32v7
 	select CPU_ABRT_EV7
@@ -745,7 +704,7 @@ config CACHE_FEROCEON_L2_WRITETHROUGH
 
 config CACHE_L2X0
 	bool "Enable the L2x0 outer cache controller"
-	depends on REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176
+	depends on REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176 || REALVIEW_EB_A9MP
 	default y
 	select OUTER_CACHE
 	help

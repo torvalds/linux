@@ -435,15 +435,18 @@ jme_check_link(struct net_device *netdev, int testonly)
 					GHC_DPX);
 		switch (phylink & PHY_LINK_SPEED_MASK) {
 		case PHY_LINK_SPEED_10M:
-			ghc |= GHC_SPEED_10M;
+			ghc |= GHC_SPEED_10M |
+				GHC_TO_CLK_PCIE | GHC_TXMAC_CLK_PCIE;
 			strcat(linkmsg, "10 Mbps, ");
 			break;
 		case PHY_LINK_SPEED_100M:
-			ghc |= GHC_SPEED_100M;
+			ghc |= GHC_SPEED_100M |
+				GHC_TO_CLK_PCIE | GHC_TXMAC_CLK_PCIE;
 			strcat(linkmsg, "100 Mbps, ");
 			break;
 		case PHY_LINK_SPEED_1000M:
-			ghc |= GHC_SPEED_1000M;
+			ghc |= GHC_SPEED_1000M |
+				GHC_TO_CLK_GPHY | GHC_TXMAC_CLK_GPHY;
 			strcat(linkmsg, "1000 Mbps, ");
 			break;
 		default:
@@ -463,14 +466,6 @@ jme_check_link(struct net_device *netdev, int testonly)
 				TXTRHD_TXREN |
 				((8 << TXTRHD_TXRL_SHIFT) & TXTRHD_TXRL));
 		}
-		strcat(linkmsg, (phylink & PHY_LINK_DUPLEX) ?
-					"Full-Duplex, " :
-					"Half-Duplex, ");
-
-		if (phylink & PHY_LINK_MDI_STAT)
-			strcat(linkmsg, "MDI-X");
-		else
-			strcat(linkmsg, "MDI");
 
 		gpreg1 = GPREG1_DEFAULT;
 		if (is_buggy250(jme->pdev->device, jme->chiprev)) {
@@ -492,11 +487,17 @@ jme_check_link(struct net_device *netdev, int testonly)
 				break;
 			}
 		}
+
 		jwrite32(jme, JME_GPREG1, gpreg1);
-
-		jme->reg_ghc = ghc;
 		jwrite32(jme, JME_GHC, ghc);
+		jme->reg_ghc = ghc;
 
+		strcat(linkmsg, (phylink & PHY_LINK_DUPLEX) ?
+					"Full-Duplex, " :
+					"Half-Duplex, ");
+		strcat(linkmsg, (phylink & PHY_LINK_MDI_STAT) ?
+					"MDI-X" :
+					"MDI");
 		msg_link(jme, "Link is up at %s.\n", linkmsg);
 		netif_carrier_on(netdev);
 	} else {
@@ -931,7 +932,6 @@ jme_alloc_and_feed_skb(struct jme_adapter *jme, int idx)
 		    cpu_to_le16(RXWBFLAG_DEST_MUL))
 			++(NET_STAT(jme).multicast);
 
-		jme->dev->last_rx = jiffies;
 		NET_STAT(jme).rx_bytes += framesize;
 		++(NET_STAT(jme).rx_packets);
 	}
@@ -1250,7 +1250,6 @@ static int
 jme_poll(JME_NAPI_HOLDER(holder), JME_NAPI_WEIGHT(budget))
 {
 	struct jme_adapter *jme = jme_napi_priv(holder);
-	struct net_device *netdev = jme->dev;
 	int rest;
 
 	rest = jme_process_receive(jme, JME_NAPI_WEIGHT_VAL(budget));
@@ -2591,14 +2590,6 @@ static const struct ethtool_ops jme_ethtool_ops = {
 static int
 jme_pci_dma64(struct pci_dev *pdev)
 {
-	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))
-			return 1;
-
-	if (!pci_set_dma_mask(pdev, DMA_40BIT_MASK))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_40BIT_MASK))
-			return 1;
-
 	if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK))
 		if (!pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))
 			return 0;
@@ -2625,6 +2616,18 @@ jme_check_hw_ver(struct jme_adapter *jme)
 	jme->fpgaver = (chipmode & CM_FPGAVER_MASK) >> CM_FPGAVER_SHIFT;
 	jme->chiprev = (chipmode & CM_CHIPREV_MASK) >> CM_CHIPREV_SHIFT;
 }
+
+static const struct net_device_ops jme_netdev_ops = {
+	.ndo_open		= jme_open,
+	.ndo_stop		= jme_close,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_start_xmit		= jme_start_xmit,
+	.ndo_set_mac_address	= jme_set_macaddr,
+	.ndo_set_multicast_list	= jme_set_multi,
+	.ndo_change_mtu		= jme_change_mtu,
+	.ndo_tx_timeout		= jme_tx_timeout,
+	.ndo_vlan_rx_register	= jme_vlan_rx_register,
+};
 
 static int __devinit
 jme_init_one(struct pci_dev *pdev,
@@ -2675,17 +2678,9 @@ jme_init_one(struct pci_dev *pdev,
 		rc = -ENOMEM;
 		goto err_out_release_regions;
 	}
-	netdev->open			= jme_open;
-	netdev->stop			= jme_close;
-	netdev->hard_start_xmit		= jme_start_xmit;
-	netdev->set_mac_address		= jme_set_macaddr;
-	netdev->set_multicast_list	= jme_set_multi;
-	netdev->change_mtu		= jme_change_mtu;
+	netdev->netdev_ops = &jme_netdev_ops;
 	netdev->ethtool_ops		= &jme_ethtool_ops;
-	netdev->tx_timeout		= jme_tx_timeout;
 	netdev->watchdog_timeo		= TX_TIMEOUT;
-	netdev->vlan_rx_register	= jme_vlan_rx_register;
-	NETDEV_GET_STATS(netdev, &jme_get_stats);
 	netdev->features		=	NETIF_F_HW_CSUM |
 						NETIF_F_SG |
 						NETIF_F_TSO |
@@ -2861,18 +2856,10 @@ jme_init_one(struct pci_dev *pdev,
 		goto err_out_free_shadow;
 	}
 
-	msg_probe(jme,
-		"JMC250 gigabit%s ver:%x rev:%x "
-		"macaddr:%02x:%02x:%02x:%02x:%02x:%02x\n",
+	msg_probe(jme, "JMC250 gigabit%s ver:%x rev:%x macaddr:%pM\n",
 		(jme->fpgaver != 0) ? " (FPGA)" : "",
 		(jme->fpgaver != 0) ? jme->fpgaver : jme->chiprev,
-		jme->rev,
-		netdev->dev_addr[0],
-		netdev->dev_addr[1],
-		netdev->dev_addr[2],
-		netdev->dev_addr[3],
-		netdev->dev_addr[4],
-		netdev->dev_addr[5]);
+		jme->rev, netdev->dev_addr);
 
 	return 0;
 

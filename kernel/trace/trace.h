@@ -28,7 +28,7 @@ enum trace_type {
 	TRACE_GRAPH_RET,
 	TRACE_GRAPH_ENT,
 	TRACE_USER_STACK,
-	TRACE_BTS,
+	TRACE_HW_BRANCHES,
 	TRACE_POWER,
 
 	__TRACE_LAST_TYPE
@@ -159,10 +159,10 @@ struct trace_branch {
 	char			correct;
 };
 
-struct bts_entry {
+struct hw_branch_entry {
 	struct trace_entry	ent;
-	unsigned long		from;
-	unsigned long		to;
+	u64			from;
+	u64			to;
 };
 
 struct trace_power {
@@ -278,7 +278,7 @@ extern void __ftrace_bad_type(void);
 			  TRACE_GRAPH_ENT);		\
 		IF_ASSIGN(var, ent, struct ftrace_graph_ret_entry,	\
 			  TRACE_GRAPH_RET);		\
-		IF_ASSIGN(var, ent, struct bts_entry, TRACE_BTS);\
+		IF_ASSIGN(var, ent, struct hw_branch_entry, TRACE_HW_BRANCHES);\
  		IF_ASSIGN(var, ent, struct trace_power, TRACE_POWER); \
 		__ftrace_bad_type();					\
 	} while (0)
@@ -368,12 +368,13 @@ struct trace_iterator {
 	loff_t			pos;
 	long			idx;
 
-	cpumask_t		started;
+	cpumask_var_t		started;
 };
 
 int tracing_is_enabled(void);
 void trace_wake_up(void);
 void tracing_reset(struct trace_array *tr, int cpu);
+void tracing_reset_online_cpus(struct trace_array *tr);
 int tracing_open_generic(struct inode *inode, struct file *filp);
 struct dentry *tracing_init_dentry(void);
 void init_tracer_sysprof_debugfs(struct dentry *d_tracer);
@@ -414,9 +415,7 @@ void trace_function(struct trace_array *tr,
 
 void trace_graph_return(struct ftrace_graph_ret *trace);
 int trace_graph_entry(struct ftrace_graph_ent *trace);
-void trace_bts(struct trace_array *tr,
-	       unsigned long from,
-	       unsigned long to);
+void trace_hw_branch(struct trace_array *tr, u64 from, u64 to);
 
 void tracing_start_cmdline_record(void);
 void tracing_stop_cmdline_record(void);
@@ -580,7 +579,8 @@ enum trace_iterator_flags {
 	TRACE_ITER_BRANCH		= 0x1000,
 	TRACE_ITER_ANNOTATE		= 0x2000,
 	TRACE_ITER_USERSTACKTRACE       = 0x4000,
-	TRACE_ITER_SYM_USEROBJ          = 0x8000
+	TRACE_ITER_SYM_USEROBJ          = 0x8000,
+	TRACE_ITER_PRINTK_MSGONLY	= 0x10000
 };
 
 /*

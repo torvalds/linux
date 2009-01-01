@@ -13,6 +13,9 @@
 #undef DEBUGDATA
 #undef DEBUGCCW
 
+#define KMSG_COMPONENT "ctcm"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -190,21 +193,22 @@ static void ctcmpc_chx_send_sweep(fsm_instance *fsm, int event, void *arg);
 void ctcm_ccw_check_rc(struct channel *ch, int rc, char *msg)
 {
 	CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
-			"%s(%s): %s: %04x\n",
-				CTCM_FUNTAIL, ch->id, msg, rc);
+		"%s(%s): %s: %04x\n",
+		CTCM_FUNTAIL, ch->id, msg, rc);
 	switch (rc) {
 	case -EBUSY:
-		ctcm_pr_warn("%s (%s): Busy !\n", ch->id, msg);
+		pr_info("%s: The communication peer is busy\n",
+			ch->id);
 		fsm_event(ch->fsm, CTC_EVENT_IO_EBUSY, ch);
 		break;
 	case -ENODEV:
-		ctcm_pr_emerg("%s (%s): Invalid device called for IO\n",
-			     ch->id, msg);
+		pr_err("%s: The specified target device is not valid\n",
+		       ch->id);
 		fsm_event(ch->fsm, CTC_EVENT_IO_ENODEV, ch);
 		break;
 	default:
-		ctcm_pr_emerg("%s (%s): Unknown error in do_IO %04x\n",
-			     ch->id, msg, rc);
+		pr_err("An I/O operation resulted in error %04x\n",
+		       rc);
 		fsm_event(ch->fsm, CTC_EVENT_IO_UNKNOWN, ch);
 	}
 }
@@ -886,8 +890,15 @@ static void ctcm_chx_rxiniterr(fsm_instance *fi, int event, void *arg)
 			fsm_newstate(fi, CTC_STATE_RXERR);
 			fsm_event(priv->fsm, DEV_EVENT_RXDOWN, dev);
 		}
-	} else
-		ctcm_pr_warn("%s: Error during RX init handshake\n", dev->name);
+	} else {
+		CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
+			"%s(%s): %s in %s", CTCM_FUNTAIL, ch->id,
+			ctc_ch_event_names[event], fsm_getstate_str(fi));
+
+		dev_warn(&dev->dev,
+			"Initialization failed with RX/TX init handshake "
+			"error %s\n", ctc_ch_event_names[event]);
+	}
 }
 
 /**
@@ -969,7 +980,9 @@ static void ctcm_chx_txiniterr(fsm_instance *fi, int event, void *arg)
 			"%s(%s): %s in %s", CTCM_FUNTAIL, ch->id,
 			ctc_ch_event_names[event], fsm_getstate_str(fi));
 
-		ctcm_pr_warn("%s: Error during TX init handshake\n", dev->name);
+		dev_warn(&dev->dev,
+			"Initialization failed with RX/TX init handshake "
+			"error %s\n", ctc_ch_event_names[event]);
 	}
 }
 
@@ -2101,14 +2114,11 @@ static void dev_action_restart(fsm_instance *fi, int event, void *arg)
 	CTCMY_DBF_DEV_NAME(TRACE, dev, "");
 
 	if (IS_MPC(priv)) {
-		ctcm_pr_info("ctcm: %s Restarting Device and "
-		       "MPC Group in 5 seconds\n",
-		       dev->name);
 		restart_timer = CTCM_TIME_1_SEC;
 	} else {
-		ctcm_pr_info("%s: Restarting\n", dev->name);
 		restart_timer = CTCM_TIME_5_SEC;
 	}
+	dev_info(&dev->dev, "Restarting device\n");
 
 	dev_action_stop(fi, event, arg);
 	fsm_event(priv->fsm, DEV_EVENT_STOP, dev);
@@ -2150,16 +2160,16 @@ static void dev_action_chup(fsm_instance *fi, int event, void *arg)
 	case DEV_STATE_STARTWAIT_RX:
 		if (event == DEV_EVENT_RXUP) {
 			fsm_newstate(fi, DEV_STATE_RUNNING);
-			ctcm_pr_info("%s: connected with remote side\n",
-				    dev->name);
+			dev_info(&dev->dev,
+				"Connected with remote side\n");
 			ctcm_clear_busy(dev);
 		}
 		break;
 	case DEV_STATE_STARTWAIT_TX:
 		if (event == DEV_EVENT_TXUP) {
 			fsm_newstate(fi, DEV_STATE_RUNNING);
-			ctcm_pr_info("%s: connected with remote side\n",
-				    dev->name);
+			dev_info(&dev->dev,
+				"Connected with remote side\n");
 			ctcm_clear_busy(dev);
 		}
 		break;

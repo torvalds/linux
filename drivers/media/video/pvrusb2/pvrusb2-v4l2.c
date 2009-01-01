@@ -168,8 +168,7 @@ static const char *get_v4l_name(int v4l_type)
  * This is part of Video 4 Linux API. The procedure handles ioctl() calls.
  *
  */
-static int __pvr2_v4l2_do_ioctl(struct file *file,
-			      unsigned int cmd, void *arg)
+static int pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_v4l2 *vp = fh->vhead;
@@ -864,7 +863,7 @@ static int __pvr2_v4l2_do_ioctl(struct file *file,
 
 	default :
 		ret = v4l_compat_translate_ioctl(file, cmd,
-						 arg, __pvr2_v4l2_do_ioctl);
+						 arg, pvr2_v4l2_do_ioctl);
 	}
 
 	pvr2_hdw_commit_ctl(hdw);
@@ -888,12 +887,6 @@ static int __pvr2_v4l2_do_ioctl(struct file *file,
 			   ret,ret);
 	}
 	return ret;
-}
-
-static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
-			      unsigned int cmd, void *arg)
-{
-	return __pvr2_v4l2_do_ioctl(file, cmd, arg);
 }
 
 static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
@@ -963,7 +956,7 @@ static int pvr2_v4l2_ioctl(struct inode *inode, struct file *file,
 #define IVTV_IOC_G_CODEC        0xFFEE7703
 #define IVTV_IOC_S_CODEC        0xFFEE7704
 	if (cmd == IVTV_IOC_G_CODEC || cmd == IVTV_IOC_S_CODEC) return 0;
-	return video_usercopy(inode, file, cmd, arg, pvr2_v4l2_do_ioctl);
+	return video_usercopy(file, cmd, arg, pvr2_v4l2_do_ioctl);
 }
 
 

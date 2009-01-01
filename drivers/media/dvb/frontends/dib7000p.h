@@ -66,7 +66,8 @@ struct i2c_adapter *dib7000p_get_i2c_master(struct dvb_frontend *fe,
 	return NULL;
 }
 
-extern int dib7000p_i2c_enumeration(struct i2c_adapter *i2c,
+static inline
+int dib7000p_i2c_enumeration(struct i2c_adapter *i2c,
 				    int no_of_demods, u8 default_addr,
 				    struct dib7000p_config cfg[])
 {
@@ -74,13 +75,15 @@ extern int dib7000p_i2c_enumeration(struct i2c_adapter *i2c,
 	return -ENODEV;
 }
 
-extern int dib7000p_set_gpio(struct dvb_frontend *fe, u8 num, u8 dir, u8 val)
+static inline
+int dib7000p_set_gpio(struct dvb_frontend *fe, u8 num, u8 dir, u8 val)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;
 }
 
-extern int dib7000p_set_wbd_ref(struct dvb_frontend *fe, u16 value)
+static inline
+int dib7000p_set_wbd_ref(struct dvb_frontend *fe, u16 value)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;

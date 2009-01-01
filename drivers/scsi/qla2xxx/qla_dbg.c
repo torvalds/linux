@@ -9,7 +9,7 @@
 #include <linux/delay.h>
 
 static inline void
-qla2xxx_prep_dump(scsi_qla_host_t *ha, struct qla2xxx_fw_dump *fw_dump)
+qla2xxx_prep_dump(struct qla_hw_data *ha, struct qla2xxx_fw_dump *fw_dump)
 {
 	fw_dump->fw_major_version = htonl(ha->fw_major_version);
 	fw_dump->fw_minor_version = htonl(ha->fw_minor_version);
@@ -23,22 +23,24 @@ qla2xxx_prep_dump(scsi_qla_host_t *ha, struct qla2xxx_fw_dump *fw_dump)
 }
 
 static inline void *
-qla2xxx_copy_queues(scsi_qla_host_t *ha, void *ptr)
+qla2xxx_copy_queues(struct qla_hw_data *ha, void *ptr)
 {
+	struct req_que *req = ha->req_q_map[0];
+	struct rsp_que *rsp = ha->rsp_q_map[0];
 	/* Request queue. */
-	memcpy(ptr, ha->request_ring, ha->request_q_length *
+	memcpy(ptr, req->ring, req->length *
 	    sizeof(request_t));
 
 	/* Response queue. */
-	ptr += ha->request_q_length * sizeof(request_t);
-	memcpy(ptr, ha->response_ring, ha->response_q_length  *
+	ptr += req->length * sizeof(request_t);
+	memcpy(ptr, rsp->ring, rsp->length  *
 	    sizeof(response_t));
 
-	return ptr + (ha->response_q_length * sizeof(response_t));
+	return ptr + (rsp->length * sizeof(response_t));
 }
 
 static int
-qla24xx_dump_ram(scsi_qla_host_t *ha, uint32_t addr, uint32_t *ram,
+qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
     uint32_t ram_dwords, void **nxt)
 {
 	int rval;
@@ -112,7 +114,7 @@ qla24xx_dump_ram(scsi_qla_host_t *ha, uint32_t addr, uint32_t *ram,
 }
 
 static int
-qla24xx_dump_memory(scsi_qla_host_t *ha, uint32_t *code_ram,
+qla24xx_dump_memory(struct qla_hw_data *ha, uint32_t *code_ram,
     uint32_t cram_size, void **nxt)
 {
 	int rval;
@@ -163,7 +165,7 @@ qla24xx_pause_risc(struct device_reg_24xx __iomem *reg)
 }
 
 static int
-qla24xx_soft_reset(scsi_qla_host_t *ha)
+qla24xx_soft_reset(struct qla_hw_data *ha)
 {
 	int rval = QLA_SUCCESS;
 	uint32_t cnt;
@@ -215,8 +217,8 @@ qla24xx_soft_reset(scsi_qla_host_t *ha)
 }
 
 static int
-qla2xxx_dump_ram(scsi_qla_host_t *ha, uint32_t addr, uint16_t *ram,
-    uint32_t ram_words, void **nxt)
+qla2xxx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint16_t *ram,
+    uint16_t ram_words, void **nxt)
 {
 	int rval;
 	uint32_t cnt, stat, timer, words, idx;
@@ -314,16 +316,17 @@ qla2xxx_read_window(struct device_reg_2xxx __iomem *reg, uint32_t count,
  * @hardware_locked: Called with the hardware_lock
  */
 void
-qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
+qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	int		rval;
 	uint32_t	cnt;
-
+	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint16_t __iomem *dmp_reg;
 	unsigned long	flags;
 	struct qla2300_fw_dump	*fw;
 	void		*nxt;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	flags = 0;
 
@@ -468,7 +471,7 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	} else {
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    ha->host_no, ha->fw_dump);
+		    base_vha->host_no, ha->fw_dump);
 		ha->fw_dumped = 1;
 	}
 
@@ -483,16 +486,18 @@ qla2300_fw_dump_failed:
  * @hardware_locked: Called with the hardware_lock
  */
 void
-qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
+qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	int		rval;
 	uint32_t	cnt, timer;
 	uint16_t	risc_address;
 	uint16_t	mb0, mb2;
+	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint16_t __iomem *dmp_reg;
 	unsigned long	flags;
 	struct qla2100_fw_dump	*fw;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	risc_address = 0;
 	mb0 = mb2 = 0;
@@ -673,7 +678,7 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	} else {
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    ha->host_no, ha->fw_dump);
+		    base_vha->host_no, ha->fw_dump);
 		ha->fw_dumped = 1;
 	}
 
@@ -683,12 +688,12 @@ qla2100_fw_dump_failed:
 }
 
 void
-qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
+qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	int		rval;
 	uint32_t	cnt;
 	uint32_t	risc_address;
-
+	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	uint32_t __iomem *dmp_reg;
 	uint32_t	*iter_reg;
@@ -697,6 +702,7 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	struct qla24xx_fw_dump *fw;
 	uint32_t	ext_mem_cnt;
 	void		*nxt;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	risc_address = ext_mem_cnt = 0;
 	flags = 0;
@@ -919,7 +925,7 @@ qla24xx_fw_dump_failed_0:
 	} else {
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    ha->host_no, ha->fw_dump);
+		    base_vha->host_no, ha->fw_dump);
 		ha->fw_dumped = 1;
 	}
 
@@ -929,13 +935,14 @@ qla24xx_fw_dump_failed:
 }
 
 void
-qla25xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
+qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	int		rval;
 	uint32_t	cnt;
 	uint32_t	risc_address;
-
+	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+	struct device_reg_25xxmq __iomem *reg25;
 	uint32_t __iomem *dmp_reg;
 	uint32_t	*iter_reg;
 	uint16_t __iomem *mbx_reg;
@@ -944,6 +951,11 @@ qla25xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	uint32_t	ext_mem_cnt;
 	void		*nxt;
 	struct qla2xxx_fce_chain *fcec;
+	struct qla2xxx_mq_chain *mq = NULL;
+	uint32_t	qreg_size;
+	uint8_t		req_cnt, rsp_cnt, que_cnt;
+	uint32_t	que_idx;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	risc_address = ext_mem_cnt = 0;
 	flags = 0;
@@ -988,6 +1000,29 @@ qla25xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg++));
 	fw->pcie_regs[2] = htonl(RD_REG_DWORD(dmp_reg));
 	fw->pcie_regs[3] = htonl(RD_REG_DWORD(&reg->iobase_window));
+
+	/* Multi queue registers */
+	if (ha->mqenable) {
+		qreg_size = sizeof(struct qla2xxx_mq_chain);
+		mq = kzalloc(qreg_size, GFP_KERNEL);
+		if (!mq)
+			goto qla25xx_fw_dump_failed_0;
+		req_cnt = find_first_zero_bit(ha->req_qid_map, ha->max_queues);
+		rsp_cnt = find_first_zero_bit(ha->rsp_qid_map, ha->max_queues);
+		que_cnt = req_cnt > rsp_cnt ? req_cnt : rsp_cnt;
+		mq->count = htonl(que_cnt);
+		mq->chain_size = htonl(qreg_size);
+		mq->type = __constant_htonl(DUMP_CHAIN_MQ);
+		for (cnt = 0; cnt < que_cnt; cnt++) {
+			reg25 = (struct device_reg_25xxmq *) ((void *)
+				ha->mqiobase + cnt * QLA_QUE_PAGE);
+			que_idx = cnt * 4;
+			mq->qregs[que_idx] = htonl(reg25->req_q_in);
+			mq->qregs[que_idx+1] = htonl(reg25->req_q_out);
+			mq->qregs[que_idx+2] = htonl(reg25->rsp_q_in);
+			mq->qregs[que_idx+3] = htonl(reg25->rsp_q_out);
+		}
+	}
 	WRT_REG_DWORD(&reg->iobase_window, 0x00);
 	RD_REG_DWORD(&reg->iobase_window);
 
@@ -1225,7 +1260,14 @@ qla25xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 	ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
 
-	fcec = nxt + ntohl(ha->fw_dump->eft_size);
+	if (ha->mqenable) {
+		nxt = nxt + ntohl(ha->fw_dump->eft_size);
+		memcpy(nxt, mq, qreg_size);
+		kfree(mq);
+		fcec = nxt + qreg_size;
+	} else {
+		fcec = nxt + ntohl(ha->fw_dump->eft_size);
+	}
 	fcec->type = __constant_htonl(DUMP_CHAIN_FCE | DUMP_CHAIN_LAST);
 	fcec->chain_size = htonl(sizeof(struct qla2xxx_fce_chain) +
 	    fce_calc_size(ha->fce_bufs));
@@ -1248,7 +1290,7 @@ qla25xx_fw_dump_failed_0:
 	} else {
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    ha->host_no, ha->fw_dump);
+		    base_vha->host_no, ha->fw_dump);
 		ha->fw_dumped = 1;
 	}
 
@@ -1256,15 +1298,15 @@ qla25xx_fw_dump_failed:
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
-
 /****************************************************************************/
 /*                         Driver Debug Functions.                          */
 /****************************************************************************/
 
 void
-qla2x00_dump_regs(scsi_qla_host_t *ha)
+qla2x00_dump_regs(scsi_qla_host_t *vha)
 {
 	int i;
+	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	struct device_reg_24xx __iomem *reg24 = &ha->iobase->isp24;
 	uint16_t __iomem *mbx_reg;
@@ -1274,7 +1316,7 @@ qla2x00_dump_regs(scsi_qla_host_t *ha)
 
 	printk("Mailbox registers:\n");
 	for (i = 0; i < 6; i++)
-		printk("scsi(%ld): mbox %d 0x%04x \n", ha->host_no, i,
+		printk("scsi(%ld): mbox %d 0x%04x \n", vha->host_no, i,
 		    RD_REG_WORD(mbx_reg++));
 }
 
@@ -1302,3 +1344,5 @@ qla2x00_dump_buffer(uint8_t * b, uint32_t size)
 	if (cnt % 16)
 		printk("\n");
 }
+
+

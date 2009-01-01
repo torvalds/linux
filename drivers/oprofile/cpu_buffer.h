@@ -15,6 +15,7 @@
 #include <linux/workqueue.h>
 #include <linux/cache.h>
 #include <linux/sched.h>
+#include <linux/ring_buffer.h>
 
 struct task_struct;
 
@@ -32,6 +33,12 @@ struct op_sample {
 	unsigned long event;
 };
 
+struct op_entry {
+	struct ring_buffer_event *event;
+	struct op_sample *sample;
+	unsigned long irq_flags;
+};
+
 struct oprofile_cpu_buffer {
 	volatile unsigned long head_pos;
 	volatile unsigned long tail_pos;
@@ -39,7 +46,6 @@ struct oprofile_cpu_buffer {
 	struct task_struct *last_task;
 	int last_is_kernel;
 	int tracing;
-	struct op_sample *buffer;
 	unsigned long sample_received;
 	unsigned long sample_lost_overflow;
 	unsigned long backtrace_aborted;
@@ -48,9 +54,68 @@ struct oprofile_cpu_buffer {
 	struct delayed_work work;
 };
 
+extern struct ring_buffer *op_ring_buffer_read;
+extern struct ring_buffer *op_ring_buffer_write;
 DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
 
-void cpu_buffer_reset(struct oprofile_cpu_buffer *cpu_buf);
+/*
+ * Resets the cpu buffer to a sane state.
+ *
+ * reset these to invalid values; the next sample collected will
+ * populate the buffer with proper values to initialize the buffer
+ */
+static inline void cpu_buffer_reset(int cpu)
+{
+	struct oprofile_cpu_buffer *cpu_buf = &per_cpu(cpu_buffer, cpu);
+
+	cpu_buf->last_is_kernel = -1;
+	cpu_buf->last_task = NULL;
+}
+
+static inline int cpu_buffer_write_entry(struct op_entry *entry)
+{
+	entry->event = ring_buffer_lock_reserve(op_ring_buffer_write,
+						sizeof(struct op_sample),
+						&entry->irq_flags);
+	if (entry->event)
+		entry->sample = ring_buffer_event_data(entry->event);
+	else
+		entry->sample = NULL;
+
+	if (!entry->sample)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static inline int cpu_buffer_write_commit(struct op_entry *entry)
+{
+	return ring_buffer_unlock_commit(op_ring_buffer_write, entry->event,
+					 entry->irq_flags);
+}
+
+static inline struct op_sample *cpu_buffer_read_entry(int cpu)
+{
+	struct ring_buffer_event *e;
+	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
+	if (e)
+		return ring_buffer_event_data(e);
+	if (ring_buffer_swap_cpu(op_ring_buffer_read,
+				 op_ring_buffer_write,
+				 cpu))
+		return NULL;
+	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
+	if (e)
+		return ring_buffer_event_data(e);
+	return NULL;
+}
+
+/* "acquire" as many cpu buffer slots as we can */
+static inline unsigned long cpu_buffer_entries(int cpu)
+{
+	return ring_buffer_entries_cpu(op_ring_buffer_read, cpu)
+		+ ring_buffer_entries_cpu(op_ring_buffer_write, cpu);
+}
 
 /* transient events for the CPU buffer -> event buffer */
 #define CPU_IS_KERNEL 1

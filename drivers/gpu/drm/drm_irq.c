@@ -116,6 +116,9 @@ void drm_vblank_cleanup(struct drm_device *dev)
 		 dev->num_crtcs, DRM_MEM_DRIVER);
 	drm_free(dev->last_vblank, sizeof(*dev->last_vblank) * dev->num_crtcs,
 		 DRM_MEM_DRIVER);
+	drm_free(dev->last_vblank_wait,
+		 sizeof(*dev->last_vblank_wait) * dev->num_crtcs,
+		 DRM_MEM_DRIVER);
 	drm_free(dev->vblank_inmodeset, sizeof(*dev->vblank_inmodeset) *
 		 dev->num_crtcs, DRM_MEM_DRIVER);
 
@@ -159,6 +162,11 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 
 	dev->last_vblank = drm_calloc(num_crtcs, sizeof(u32), DRM_MEM_DRIVER);
 	if (!dev->last_vblank)
+		goto err;
+
+	dev->last_vblank_wait = drm_calloc(num_crtcs, sizeof(u32),
+					   DRM_MEM_DRIVER);
+	if (!dev->last_vblank_wait)
 		goto err;
 
 	dev->vblank_inmodeset = drm_calloc(num_crtcs, sizeof(int),
@@ -305,12 +313,16 @@ int drm_control(struct drm_device *dev, void *data,
 	case DRM_INST_HANDLER:
 		if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 			return 0;
+		if (drm_core_check_feature(dev, DRIVER_MODESET))
+			return 0;
 		if (dev->if_version < DRM_IF_VERSION(1, 2) &&
 		    ctl->irq != dev->pdev->irq)
 			return -EINVAL;
 		return drm_irq_install(dev);
 	case DRM_UNINST_HANDLER:
 		if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
+			return 0;
+		if (drm_core_check_feature(dev, DRIVER_MODESET))
 			return 0;
 		return drm_irq_uninstall(dev);
 	default:
@@ -427,6 +439,45 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 EXPORT_SYMBOL(drm_vblank_put);
 
 /**
+ * drm_vblank_pre_modeset - account for vblanks across mode sets
+ * @dev: DRM device
+ * @crtc: CRTC in question
+ * @post: post or pre mode set?
+ *
+ * Account for vblank events across mode setting events, which will likely
+ * reset the hardware frame counter.
+ */
+void drm_vblank_pre_modeset(struct drm_device *dev, int crtc)
+{
+	/*
+	 * To avoid all the problems that might happen if interrupts
+	 * were enabled/disabled around or between these calls, we just
+	 * have the kernel take a reference on the CRTC (just once though
+	 * to avoid corrupting the count if multiple, mismatch calls occur),
+	 * so that interrupts remain enabled in the interim.
+	 */
+	if (!dev->vblank_inmodeset[crtc]) {
+		dev->vblank_inmodeset[crtc] = 1;
+		drm_vblank_get(dev, crtc);
+	}
+}
+EXPORT_SYMBOL(drm_vblank_pre_modeset);
+
+void drm_vblank_post_modeset(struct drm_device *dev, int crtc)
+{
+	unsigned long irqflags;
+
+	if (dev->vblank_inmodeset[crtc]) {
+		spin_lock_irqsave(&dev->vbl_lock, irqflags);
+		dev->vblank_disable_allowed = 1;
+		dev->vblank_inmodeset[crtc] = 0;
+		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+		drm_vblank_put(dev, crtc);
+	}
+}
+EXPORT_SYMBOL(drm_vblank_post_modeset);
+
+/**
  * drm_modeset_ctl - handle vblank event counter changes across mode switch
  * @DRM_IOCTL_ARGS: standard ioctl arguments
  *
@@ -441,7 +492,6 @@ int drm_modeset_ctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
 	struct drm_modeset_ctl *modeset = data;
-	unsigned long irqflags;
 	int crtc, ret = 0;
 
 	/* If drm_vblank_init() hasn't been called yet, just no-op */
@@ -454,28 +504,12 @@ int drm_modeset_ctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	/*
-	 * To avoid all the problems that might happen if interrupts
-	 * were enabled/disabled around or between these calls, we just
-	 * have the kernel take a reference on the CRTC (just once though
-	 * to avoid corrupting the count if multiple, mismatch calls occur),
-	 * so that interrupts remain enabled in the interim.
-	 */
 	switch (modeset->cmd) {
 	case _DRM_PRE_MODESET:
-		if (!dev->vblank_inmodeset[crtc]) {
-			dev->vblank_inmodeset[crtc] = 1;
-			drm_vblank_get(dev, crtc);
-		}
+		drm_vblank_pre_modeset(dev, crtc);
 		break;
 	case _DRM_POST_MODESET:
-		if (dev->vblank_inmodeset[crtc]) {
-			spin_lock_irqsave(&dev->vbl_lock, irqflags);
-			dev->vblank_disable_allowed = 1;
-			dev->vblank_inmodeset[crtc] = 0;
-			spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
-			drm_vblank_put(dev, crtc);
-		}
+		drm_vblank_post_modeset(dev, crtc);
 		break;
 	default:
 		ret = -EINVAL;
@@ -616,6 +650,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 	} else {
 		DRM_DEBUG("waiting on vblank count %d, crtc %d\n",
 			  vblwait->request.sequence, crtc);
+		dev->last_vblank_wait[crtc] = vblwait->request.sequence;
 		DRM_WAIT_ON(ret, dev->vbl_queue[crtc], 3 * DRM_HZ,
 			    ((drm_vblank_count(dev, crtc)
 			      - vblwait->request.sequence) <= (1 << 23)));

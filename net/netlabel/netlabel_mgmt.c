@@ -596,7 +596,6 @@ listdef_failure:
 /**
  * netlbl_mgmt_protocols_cb - Write an individual PROTOCOL message response
  * @skb: the skb to write to
- * @seq: the NETLINK sequence number
  * @cb: the NETLINK callback
  * @protocol: the NetLabel protocol to use in the message
  *

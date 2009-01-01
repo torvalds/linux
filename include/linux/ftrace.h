@@ -87,6 +87,14 @@ static inline void ftrace_stop(void) { }
 static inline void ftrace_start(void) { }
 #endif /* CONFIG_FUNCTION_TRACER */
 
+#ifdef CONFIG_STACK_TRACER
+extern int stack_tracer_enabled;
+int
+stack_trace_sysctl(struct ctl_table *table, int write,
+		   struct file *file, void __user *buffer, size_t *lenp,
+		   loff_t *ppos);
+#endif
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 /* asm/ftrace.h must be defined for archs supporting dynamic ftrace */
 #include <asm/ftrace.h>
@@ -295,7 +303,7 @@ extern void ftrace_dump(void);
 static inline void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3) { }
 static inline int
-ftrace_printk(const char *fmt, ...) __attribute__ ((format (printf, 1, 0)));
+ftrace_printk(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 static inline void tracing_start(void) { }
 static inline void tracing_stop(void) { }
@@ -378,6 +386,16 @@ struct ftrace_graph_ret {
  */
 #define __notrace_funcgraph		notrace
 
+/*
+ * We want to which function is an entrypoint of a hardirq.
+ * That will help us to put a signal on output.
+ */
+#define __irq_entry		 __attribute__((__section__(".irqentry.text")))
+
+/* Limits of hardirq entrypoints */
+extern char __irqentry_text_start[];
+extern char __irqentry_text_end[];
+
 #define FTRACE_RETFUNC_DEPTH 50
 #define FTRACE_RETSTACK_ALLOC_SIZE 32
 /* Type of the callback handlers for tracing function graph*/
@@ -415,6 +433,7 @@ static inline void unpause_graph_tracing(void)
 #else
 
 #define __notrace_funcgraph
+#define __irq_entry
 
 static inline void ftrace_graph_init_task(struct task_struct *t) { }
 static inline void ftrace_graph_exit_task(struct task_struct *t) { }

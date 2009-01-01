@@ -82,6 +82,14 @@ extern int dir_notify_enable;
    (specialy hack for floppy.c) */
 #define FMODE_WRITE_IOCTL	((__force fmode_t)128)
 
+/*
+ * Don't update ctime and mtime.
+ *
+ * Currently a special hack for the XFS open_by_handle ioctl, but we'll
+ * hopefully graduate it to a proper O_CMTIME flag supported by open(2) soon.
+ */
+#define FMODE_NOCMTIME		((__force fmode_t)2048)
+
 #define RW_MASK		1
 #define RWA_MASK	2
 #define READ 0
@@ -316,6 +324,7 @@ struct poll_table_struct;
 struct kstatfs;
 struct vm_area_struct;
 struct vfsmount;
+struct cred;
 
 extern void __init inode_init(void);
 extern void __init inode_init_early(void);
@@ -827,7 +836,7 @@ struct file {
 	fmode_t			f_mode;
 	loff_t			f_pos;
 	struct fown_struct	f_owner;
-	unsigned int		f_uid, f_gid;
+	const struct cred	*f_cred;
 	struct file_ra_state	f_ra;
 
 	u64			f_version;
@@ -1194,7 +1203,7 @@ enum {
 #define has_fs_excl() atomic_read(&current->fs_excl)
 
 #define is_owner_or_cap(inode)	\
-	((current->fsuid == (inode)->i_uid) || capable(CAP_FOWNER))
+	((current_fsuid() == (inode)->i_uid) || capable(CAP_FOWNER))
 
 /* not quite ready to be deprecated, but... */
 extern void lock_super(struct super_block *);
@@ -1674,7 +1683,8 @@ extern int do_truncate(struct dentry *, loff_t start, unsigned int time_attrs,
 extern long do_sys_open(int dfd, const char __user *filename, int flags,
 			int mode);
 extern struct file *filp_open(const char *, int, int);
-extern struct file * dentry_open(struct dentry *, struct vfsmount *, int);
+extern struct file * dentry_open(struct dentry *, struct vfsmount *, int,
+				 const struct cred *);
 extern int filp_close(struct file *, fl_owner_t id);
 extern char * getname(const char __user *);
 
@@ -1875,7 +1885,9 @@ extern loff_t default_llseek(struct file *file, loff_t offset, int origin);
 
 extern loff_t vfs_llseek(struct file *file, loff_t offset, int origin);
 
+extern struct inode * inode_init_always(struct super_block *, struct inode *);
 extern void inode_init_once(struct inode *);
+extern void inode_add_to_lists(struct super_block *, struct inode *);
 extern void iput(struct inode *);
 extern struct inode * igrab(struct inode *);
 extern ino_t iunique(struct super_block *, ino_t);

@@ -110,20 +110,22 @@ static void ide_disk_init_mult_count(ide_drive_t *drive)
  *	read and parse the results. This function is run with
  *	interrupts disabled. 
  */
- 
-static inline void do_identify (ide_drive_t *drive, u8 cmd)
+
+static void do_identify(ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	u16 *id = drive->id;
 	char *m = (char *)&id[ATA_ID_PROD];
+	unsigned long flags;
 	int bswap = 1, is_cfa;
 
+	/* local CPU only; some systems need this */
+	local_irq_save(flags);
 	/* read 512 bytes of id info */
 	hwif->tp_ops->input_data(drive, NULL, id, SECTOR_SIZE);
+	local_irq_restore(flags);
 
 	drive->dev_flags |= IDE_DFLAG_ID_READ;
-
-	local_irq_enable();
 #ifdef DEBUG
 	printk(KERN_INFO "%s: dumping identify data\n", drive->name);
 	ide_dump_identify((u8 *)id);
@@ -306,17 +308,12 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	s = tp_ops->read_status(hwif);
 
 	if (OK_STAT(s, ATA_DRQ, BAD_R_STAT)) {
-		unsigned long flags;
-
-		/* local CPU only; some systems need this */
-		local_irq_save(flags);
 		/* drive returned ID */
 		do_identify(drive, cmd);
 		/* drive responded with ID */
 		rc = 0;
 		/* clear drive IRQ */
 		(void)tp_ops->read_status(hwif);
-		local_irq_restore(flags);
 	} else {
 		/* drive refused ID */
 		rc = 2;
@@ -554,8 +551,8 @@ static void enable_nest (ide_drive_t *drive)
  *			1  device was found
  *			   (note: IDE_DFLAG_PRESENT might still be not set)
  */
- 
-static inline u8 probe_for_drive (ide_drive_t *drive)
+
+static u8 probe_for_drive(ide_drive_t *drive)
 {
 	char *m;
 
@@ -642,7 +639,7 @@ static int ide_register_port(ide_hwif_t *hwif)
 	int ret;
 
 	/* register with global device tree */
-	strlcpy(hwif->gendev.bus_id,hwif->name,BUS_ID_SIZE);
+	dev_set_name(&hwif->gendev, hwif->name);
 	hwif->gendev.driver_data = hwif;
 	if (hwif->gendev.parent == NULL) {
 		if (hwif->dev)
@@ -864,31 +861,6 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 }
 
 /*
- * save_match() is used to simplify logic in init_irq() below.
- *
- * A loophole here is that we may not know about a particular
- * hwif's irq until after that hwif is actually probed/initialized..
- * This could be a problem for the case where an hwif is on a
- * dual interface that requires serialization (eg. cmd640) and another
- * hwif using one of the same irqs is initialized beforehand.
- *
- * This routine detects and reports such situations, but does not fix them.
- */
-static void save_match(ide_hwif_t *hwif, ide_hwif_t *new, ide_hwif_t **match)
-{
-	ide_hwif_t *m = *match;
-
-	if (m && m->hwgroup && m->hwgroup != new->hwgroup) {
-		if (!new->hwgroup)
-			return;
-		printk(KERN_WARNING "%s: potential IRQ problem with %s and %s\n",
-			hwif->name, new->name, m->name);
-	}
-	if (!m || m->irq != hwif->irq) /* don't undo a prior perfect match */
-		*match = new;
-}
-
-/*
  * init request queue
  */
 static int ide_init_queue(ide_drive_t *drive)
@@ -906,7 +878,8 @@ static int ide_init_queue(ide_drive_t *drive)
 	 *	do not.
 	 */
 
-	q = blk_init_queue_node(do_ide_request, &ide_lock, hwif_to_node(hwif));
+	q = blk_init_queue_node(do_ide_request, &hwif->hwgroup->lock,
+				hwif_to_node(hwif));
 	if (!q)
 		return 1;
 
@@ -947,7 +920,7 @@ static void ide_add_drive_to_hwgroup(ide_drive_t *drive)
 {
 	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	if (!hwgroup->drive) {
 		/* first drive for hwgroup. */
 		drive->next = drive;
@@ -957,7 +930,7 @@ static void ide_add_drive_to_hwgroup(ide_drive_t *drive)
 		drive->next = hwgroup->drive->next;
 		hwgroup->drive->next = drive;
 	}
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 }
 
 /*
@@ -1002,7 +975,7 @@ void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 
 	ide_ports[hwif->index] = NULL;
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	/*
 	 * Remove us from the hwgroup, and free
 	 * the hwgroup if we were the only member
@@ -1030,7 +1003,7 @@ void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 		}
 		BUG_ON(hwgroup->hwif == hwif);
 	}
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 }
 
 /*
@@ -1051,27 +1024,13 @@ static int init_irq (ide_hwif_t *hwif)
 	mutex_lock(&ide_cfg_mtx);
 	hwif->hwgroup = NULL;
 
-	/*
-	 * Group up with any other hwifs that share our irq(s).
-	 */
 	for (index = 0; index < MAX_HWIFS; index++) {
 		ide_hwif_t *h = ide_ports[index];
 
 		if (h && h->hwgroup) {  /* scan only initialized ports */
-			if (hwif->irq == h->irq) {
-				hwif->sharing_irq = h->sharing_irq = 1;
-				if (hwif->chipset != ide_pci ||
-				    h->chipset != ide_pci) {
-					save_match(hwif, h, &match);
-				}
-			}
-			if (hwif->serialized) {
-				if (hwif->mate && hwif->mate->irq == h->irq)
-					save_match(hwif, h, &match);
-			}
-			if (h->serialized) {
-				if (h->mate && hwif->irq == h->mate->irq)
-					save_match(hwif, h, &match);
+			if (hwif->host->host_flags & IDE_HFLAG_SERIALIZE) {
+				if (hwif->host == h->host)
+					match = h;
 			}
 		}
 	}
@@ -1092,16 +1051,18 @@ static int init_irq (ide_hwif_t *hwif)
 		 * linked list, the first entry is the hwif that owns
 		 * hwgroup->handler - do not change that.
 		 */
-		spin_lock_irq(&ide_lock);
+		spin_lock_irq(&hwgroup->lock);
 		hwif->next = hwgroup->hwif->next;
 		hwgroup->hwif->next = hwif;
 		BUG_ON(hwif->next == hwif);
-		spin_unlock_irq(&ide_lock);
+		spin_unlock_irq(&hwgroup->lock);
 	} else {
 		hwgroup = kmalloc_node(sizeof(*hwgroup), GFP_KERNEL|__GFP_ZERO,
 				       hwif_to_node(hwif));
 		if (hwgroup == NULL)
 			goto out_up;
+
+		spin_lock_init(&hwgroup->lock);
 
 		hwif->hwgroup = hwgroup;
 		hwgroup->hwif = hwif->next = hwif;
@@ -1122,8 +1083,7 @@ static int init_irq (ide_hwif_t *hwif)
 		sa = IRQF_SHARED;
 #endif /* __mc68000__ */
 
-		if (hwif->chipset == ide_pci || hwif->chipset == ide_cmd646 ||
-		    hwif->chipset == ide_ali14xx)
+		if (hwif->chipset == ide_pci)
 			sa = IRQF_SHARED;
 
 		if (io_ports->ctl_addr)
@@ -1150,8 +1110,7 @@ static int init_irq (ide_hwif_t *hwif)
 		io_ports->data_addr, hwif->irq);
 #endif /* __mc68000__ */
 	if (match)
-		printk(KERN_CONT " (%sed with %s)",
-			hwif->sharing_irq ? "shar" : "serializ", match->name);
+		printk(KERN_CONT " (serialized with %s)", match->name);
 	printk(KERN_CONT "\n");
 
 	mutex_unlock(&ide_cfg_mtx);
@@ -1263,20 +1222,21 @@ static void ide_remove_drive_from_hwgroup(ide_drive_t *drive)
 static void drive_release_dev (struct device *dev)
 {
 	ide_drive_t *drive = container_of(dev, ide_drive_t, gendev);
+	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
 
 	ide_proc_unregister_device(drive);
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	ide_remove_drive_from_hwgroup(drive);
 	kfree(drive->id);
 	drive->id = NULL;
 	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 	/* Messed up locking ... */
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 	blk_cleanup_queue(drive->queue);
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	drive->queue = NULL;
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 
 	complete(&drive->gendev_rel_comp);
 }
@@ -1352,7 +1312,7 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
 
-		snprintf(dev->bus_id, BUS_ID_SIZE, "%u.%u", hwif->index, i);
+		dev_set_name(dev, "%u.%u", hwif->index, i);
 		dev->parent = &hwif->gendev;
 		dev->bus = &ide_bus_type;
 		dev->driver_data = drive;
@@ -1436,13 +1396,11 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	}
 
 	if ((d->host_flags & IDE_HFLAG_SERIALIZE) ||
-	    ((d->host_flags & IDE_HFLAG_SERIALIZE_DMA) && hwif->dma_base)) {
-		if (hwif->mate)
-			hwif->mate->serialized = hwif->serialized = 1;
-	}
+	    ((d->host_flags & IDE_HFLAG_SERIALIZE_DMA) && hwif->dma_base))
+		hwif->host->host_flags |= IDE_HFLAG_SERIALIZE;
 
-	if (d->host_flags & IDE_HFLAG_RQSIZE_256)
-		hwif->rqsize = 256;
+	if (d->max_sectors)
+		hwif->rqsize = d->max_sectors;
 
 	/* call chipset specific routine for each enabled port */
 	if (d->init_hwif)
@@ -1794,59 +1752,3 @@ void ide_port_scan(ide_hwif_t *hwif)
 	ide_proc_port_register_devices(hwif);
 }
 EXPORT_SYMBOL_GPL(ide_port_scan);
-
-static void ide_legacy_init_one(hw_regs_t **hws, hw_regs_t *hw,
-				u8 port_no, const struct ide_port_info *d,
-				unsigned long config)
-{
-	unsigned long base, ctl;
-	int irq;
-
-	if (port_no == 0) {
-		base = 0x1f0;
-		ctl  = 0x3f6;
-		irq  = 14;
-	} else {
-		base = 0x170;
-		ctl  = 0x376;
-		irq  = 15;
-	}
-
-	if (!request_region(base, 8, d->name)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
-				d->name, base, base + 7);
-		return;
-	}
-
-	if (!request_region(ctl, 1, d->name)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
-				d->name, ctl);
-		release_region(base, 8);
-		return;
-	}
-
-	ide_std_init_ports(hw, base, ctl);
-	hw->irq = irq;
-	hw->chipset = d->chipset;
-	hw->config = config;
-
-	hws[port_no] = hw;
-}
-
-int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)
-{
-	hw_regs_t hw[2], *hws[] = { NULL, NULL, NULL, NULL };
-
-	memset(&hw, 0, sizeof(hw));
-
-	if ((d->host_flags & IDE_HFLAG_QD_2ND_PORT) == 0)
-		ide_legacy_init_one(hws, &hw[0], 0, d, config);
-	ide_legacy_init_one(hws, &hw[1], 1, d, config);
-
-	if (hws[0] == NULL && hws[1] == NULL &&
-	    (d->host_flags & IDE_HFLAG_SINGLE))
-		return -ENOENT;
-
-	return ide_host_add(d, hws, NULL);
-}
-EXPORT_SYMBOL_GPL(ide_legacy_device_add);

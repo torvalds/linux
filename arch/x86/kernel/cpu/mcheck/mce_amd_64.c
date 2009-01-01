@@ -248,7 +248,7 @@ asmlinkage void mce_threshold_interrupt(void)
 		}
 	}
 out:
-	add_pda(irq_threshold_count, 1);
+	inc_irq_stat(irq_threshold_count);
 	irq_exit();
 }
 

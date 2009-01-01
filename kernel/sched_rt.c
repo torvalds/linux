@@ -77,7 +77,7 @@ static inline u64 sched_rt_period(struct rt_rq *rt_rq)
 }
 
 #define for_each_leaf_rt_rq(rt_rq, rq) \
-	list_for_each_entry(rt_rq, &rq->leaf_rt_rq_list, leaf_rt_rq_list)
+	list_for_each_entry_rcu(rt_rq, &rq->leaf_rt_rq_list, leaf_rt_rq_list)
 
 static inline struct rq *rq_of_rt_rq(struct rt_rq *rt_rq)
 {

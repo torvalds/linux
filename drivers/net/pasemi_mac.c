@@ -954,7 +954,6 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 {
 	const struct pasemi_mac_rxring *rxring = data;
 	struct pasemi_mac *mac = rxring->mac;
-	struct net_device *dev = mac->netdev;
 	const struct pasemi_dmachan *chan = &rxring->chan;
 	unsigned int reg;
 
@@ -971,7 +970,7 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 	if (*chan->status & PAS_STATUS_ERROR)
 		reg |= PAS_IOB_DMA_RXCH_RESET_DINTC;
 
-	netif_rx_schedule(dev, &mac->napi);
+	netif_rx_schedule(&mac->napi);
 
 	write_iob_reg(PAS_IOB_DMA_RXCH_RESET(chan->chno), reg);
 
@@ -1011,7 +1010,7 @@ static irqreturn_t pasemi_mac_tx_intr(int irq, void *data)
 
 	mod_timer(&txring->clean_timer, jiffies + (TX_CLEAN_INTERVAL)*2);
 
-	netif_rx_schedule(mac->netdev, &mac->napi);
+	netif_rx_schedule(&mac->napi);
 
 	if (reg)
 		write_iob_reg(PAS_IOB_DMA_TXCH_RESET(chan->chno), reg);
@@ -1105,7 +1104,8 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 		goto err;
 
 	phy_id = *prop;
-	snprintf(mac->phy_id, BUS_ID_SIZE, "%x:%02x", (int)r.start, phy_id);
+	snprintf(mac->phy_id, sizeof(mac->phy_id), "%x:%02x",
+		 (int)r.start, phy_id);
 
 	of_node_put(phy_dn);
 
@@ -1633,14 +1633,13 @@ static void pasemi_mac_set_rx_mode(struct net_device *dev)
 static int pasemi_mac_poll(struct napi_struct *napi, int budget)
 {
 	struct pasemi_mac *mac = container_of(napi, struct pasemi_mac, napi);
-	struct net_device *dev = mac->netdev;
 	int pkts;
 
 	pasemi_mac_clean_tx(tx_ring(mac));
 	pkts = pasemi_mac_clean_rx(rx_ring(mac), budget);
 	if (pkts < budget) {
 		/* all done, no more packets present */
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 
 		pasemi_mac_restart_rx_intr(mac);
 		pasemi_mac_restart_tx_intr(mac);
@@ -1742,7 +1741,6 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *dev;
 	struct pasemi_mac *mac;
 	int err;
-	DECLARE_MAC_BUF(mac_buf);
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -1849,9 +1847,9 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			err);
 		goto out;
 	} else if netif_msg_probe(mac)
-		printk(KERN_INFO "%s: PA Semi %s: intf %d, hw addr %s\n",
+		printk(KERN_INFO "%s: PA Semi %s: intf %d, hw addr %pM\n",
 		       dev->name, mac->type == MAC_TYPE_GMAC ? "GMAC" : "XAUI",
-		       mac->dma_if, print_mac(mac_buf, dev->dev_addr));
+		       mac->dma_if, dev->dev_addr);
 
 	return err;
 

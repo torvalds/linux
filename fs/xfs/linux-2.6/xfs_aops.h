@@ -43,4 +43,7 @@ typedef struct xfs_ioend {
 extern const struct address_space_operations xfs_address_space_operations;
 extern int xfs_get_blocks(struct inode *, sector_t, struct buffer_head *, int);
 
+extern void xfs_ioend_init(void);
+extern void xfs_ioend_wait(struct xfs_inode *);
+
 #endif /* __XFS_AOPS_H__ */

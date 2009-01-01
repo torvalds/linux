@@ -3012,6 +3012,16 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	rport->port_state = FC_PORTSTATE_NOTPRESENT;
 	rport->flags &= ~FC_RPORT_FAST_FAIL_TIMEDOUT;
 
+	/*
+	 * Pre-emptively kill I/O rather than waiting for the work queue
+	 * item to teardown the starget. (FCOE libFC folks prefer this
+	 * and to have the rport_port_id still set when it's done).
+	 */
+	spin_unlock_irqrestore(shost->host_lock, flags);
+	fc_terminate_rport_io(rport);
+
+	BUG_ON(rport->port_state != FC_PORTSTATE_NOTPRESENT);
+
 	/* remove the identifiers that aren't used in the consisting binding */
 	switch (fc_host->tgtid_bind_type) {
 	case FC_TGTID_BIND_BY_WWPN:
@@ -3035,9 +3045,6 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	 * went away and didn't come back - we'll remove
 	 * all attached scsi devices.
 	 */
-	spin_unlock_irqrestore(shost->host_lock, flags);
-
-	scsi_target_unblock(&rport->dev);
 	fc_queue_work(shost, &rport->stgt_delete_work);
 }
 

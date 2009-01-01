@@ -12,12 +12,13 @@ menuconfig USB_GSPCA
 	  "Video For Linux" to use this driver.
 
 	  To compile this driver as modules, choose M here: the
-	  modules will be called gspca_main.
+	  module will be called gspca_main.
 
 
 if USB_GSPCA && VIDEO_V4L2
 
 source "drivers/media/video/gspca/m5602/Kconfig"
+source "drivers/media/video/gspca/stv06xx/Kconfig"
 
 config USB_GSPCA_CONEX
 	tristate "Conexant Camera Driver"
@@ -64,6 +65,16 @@ config USB_GSPCA_OV519
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_ov519.
 
+config USB_GSPCA_OV534
+	tristate "OV534 USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the OV534 chip.
+	  (e.g. Sony Playstation EYE)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_ov534.
+
 config USB_GSPCA_PAC207
 	tristate "Pixart PAC207 USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
@@ -83,10 +94,11 @@ config USB_GSPCA_PAC7311
 	  module will be called gspca_pac7311.
 
 config USB_GSPCA_SONIXB
-	tristate "SN9C102 USB Camera Driver"
+	tristate "SONIX Bayer USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
 	help
-	  Say Y here if you want support for cameras based on the SONIXB chip.
+	  Say Y here if you want support for cameras based on the Sonix
+	  chips with Bayer format (SN9C101, SN9C102 and SN9C103).
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_sonixb.
@@ -95,7 +107,8 @@ config USB_GSPCA_SONIXJ
 	tristate "SONIX JPEG USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
 	help
-	  Say Y here if you want support for cameras based on the SONIXJ chip.
+	  Say Y here if you want support for cameras based on the Sonix
+	  chips with JPEG format (SN9C102P, SN9C105 and >= SN9C110).
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_sonixj
@@ -171,7 +184,7 @@ config USB_GSPCA_SUNPLUS
 	  SPCA504(abc) SPCA533 SPCA536 chips.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called gspca_spca5xx.
+	  module will be called gspca_sunplus.
 
 config USB_GSPCA_T613
 	tristate "T613 (JPEG Compliance) USB Camera Driver"

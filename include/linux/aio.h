@@ -5,6 +5,7 @@
 #include <linux/workqueue.h>
 #include <linux/aio_abi.h>
 #include <linux/uio.h>
+#include <linux/rcupdate.h>
 
 #include <asm/atomic.h>
 
@@ -183,7 +184,7 @@ struct kioctx {
 
 	/* This needs improving */
 	unsigned long		user_id;
-	struct kioctx		*next;
+	struct hlist_node	list;
 
 	wait_queue_head_t	wait;
 
@@ -199,6 +200,8 @@ struct kioctx {
 	struct aio_ring_info	ring_info;
 
 	struct delayed_work	wq;
+
+	struct rcu_head		rcu_head;
 };
 
 /* prototypes */

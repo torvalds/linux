@@ -109,7 +109,7 @@ extern void enable_irq(unsigned int irq);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_HARDIRQS)
 
-extern cpumask_t irq_default_affinity;
+extern cpumask_var_t irq_default_affinity;
 
 extern int irq_set_affinity(unsigned int irq, const struct cpumask *cpumask);
 extern int irq_can_set_affinity(unsigned int irq);
@@ -253,9 +253,6 @@ enum
 	BLOCK_SOFTIRQ,
 	TASKLET_SOFTIRQ,
 	SCHED_SOFTIRQ,
-#ifdef CONFIG_HIGH_RES_TIMERS
-	HRTIMER_SOFTIRQ,
-#endif
 	RCU_SOFTIRQ, 	/* Preferable RCU should always be the last softirq */
 
 	NR_SOFTIRQS

@@ -30,6 +30,7 @@
 #include <linux/random.h>
 #include <net/sock.h>
 #include <net/netfilter/nf_log.h>
+#include <net/netfilter/nfnetlink_log.h>
 
 #include <asm/atomic.h>
 
@@ -474,8 +475,9 @@ __build_packet_message(struct nfulnl_instance *inst,
 	if (skb->sk) {
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file) {
-			__be32 uid = htonl(skb->sk->sk_socket->file->f_uid);
-			__be32 gid = htonl(skb->sk->sk_socket->file->f_gid);
+			struct file *file = skb->sk->sk_socket->file;
+			__be32 uid = htonl(file->f_cred->fsuid);
+			__be32 gid = htonl(file->f_cred->fsgid);
 			/* need to unlock here since NLA_PUT may goto */
 			read_unlock_bh(&skb->sk->sk_callback_lock);
 			NLA_PUT_BE32(inst->skb, NFULA_UID, uid);
@@ -533,7 +535,7 @@ static struct nf_loginfo default_loginfo = {
 };
 
 /* log handler for internal netfilter logging api */
-static void
+void
 nfulnl_log_packet(u_int8_t pf,
 		  unsigned int hooknum,
 		  const struct sk_buff *skb,
@@ -648,6 +650,7 @@ alloc_failure:
 	/* FIXME: statistics */
 	goto unlock_and_release;
 }
+EXPORT_SYMBOL_GPL(nfulnl_log_packet);
 
 static int
 nfulnl_rcv_nl_event(struct notifier_block *this,

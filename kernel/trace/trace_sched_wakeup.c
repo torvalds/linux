@@ -211,7 +211,7 @@ static void wakeup_reset(struct trace_array *tr)
 }
 
 static void
-probe_wakeup(struct rq *rq, struct task_struct *p)
+probe_wakeup(struct rq *rq, struct task_struct *p, int success)
 {
 	int cpu = smp_processor_id();
 	unsigned long flags;

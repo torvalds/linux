@@ -232,6 +232,12 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_chip_ident)     (struct file *file, void *fh,
 					struct v4l2_chip_ident *chip);
 
+	int (*vidioc_enum_framesizes)   (struct file *file, void *fh,
+					 struct v4l2_frmsizeenum *fsize);
+
+	int (*vidioc_enum_frameintervals) (struct file *file, void *fh,
+					   struct v4l2_frmivalenum *fival);
+
 	/* For other private ioctls */
 	int (*vidioc_default)	       (struct file *file, void *fh,
 					int cmd, void *arg);
@@ -285,15 +291,13 @@ extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
 				unsigned long arg);
 
 /* Include support for obsoleted stuff */
-extern int video_usercopy(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg,
-			  int (*func)(struct inode *inode, struct file *file,
-				      unsigned int cmd, void *arg));
+extern int video_usercopy(struct file *file, unsigned int cmd,
+				unsigned long arg, v4l2_kioctl func);
 
 /* Standard handlers for V4L ioctl's */
 
 /* This prototype is used on fops.unlocked_ioctl */
-extern int __video_ioctl2(struct file *file,
+extern long __video_ioctl2(struct file *file,
 			unsigned int cmd, unsigned long arg);
 
 /* This prototype is used on fops.ioctl

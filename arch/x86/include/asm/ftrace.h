@@ -1,6 +1,33 @@
 #ifndef _ASM_X86_FTRACE_H
 #define _ASM_X86_FTRACE_H
 
+#ifdef __ASSEMBLY__
+
+	.macro MCOUNT_SAVE_FRAME
+	/* taken from glibc */
+	subq $0x38, %rsp
+	movq %rax, (%rsp)
+	movq %rcx, 8(%rsp)
+	movq %rdx, 16(%rsp)
+	movq %rsi, 24(%rsp)
+	movq %rdi, 32(%rsp)
+	movq %r8, 40(%rsp)
+	movq %r9, 48(%rsp)
+	.endm
+
+	.macro MCOUNT_RESTORE_FRAME
+	movq 48(%rsp), %r9
+	movq 40(%rsp), %r8
+	movq 32(%rsp), %rdi
+	movq 24(%rsp), %rsi
+	movq 16(%rsp), %rdx
+	movq 8(%rsp), %rcx
+	movq (%rsp), %rax
+	addq $0x38, %rsp
+	.endm
+
+#endif
+
 #ifdef CONFIG_FUNCTION_TRACER
 #define MCOUNT_ADDR		((long)(mcount))
 #define MCOUNT_INSN_SIZE	5 /* sizeof mcount call */
@@ -46,7 +73,7 @@ struct ftrace_ret_stack {
 /*
  * Primary handler of a function return.
  * It relays on ftrace_return_to_handler.
- * Defined in entry32.S
+ * Defined in entry_32/64.S
  */
 extern void return_to_handler(void);
 

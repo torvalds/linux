@@ -36,10 +36,15 @@ struct qdio_perf_stats {
 	atomic_long_t inbound_handler;
 	atomic_long_t outbound_handler;
 	atomic_long_t fast_requeue;
+	atomic_long_t outbound_target_full;
 
 	/* for debugging */
 	atomic_long_t debug_tl_out_timer;
 	atomic_long_t debug_stop_polling;
+	atomic_long_t debug_eqbs_all;
+	atomic_long_t debug_eqbs_incomplete;
+	atomic_long_t debug_sqbs_all;
+	atomic_long_t debug_sqbs_incomplete;
 };
 
 extern struct qdio_perf_stats perf_stats;

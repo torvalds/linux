@@ -97,7 +97,7 @@ static int omap_pcm_hw_params(struct snd_pcm_substream *substream,
 	prtd->dma_data = dma_data;
 	err = omap_request_dma(dma_data->dma_req, dma_data->name,
 			       omap_pcm_dma_irq, substream, &prtd->dma_ch);
-	if (!err & !cpu_is_omap1510()) {
+	if (!err && !cpu_is_omap1510()) {
 		/*
 		 * Link channel with itself so DMA doesn't need any
 		 * reprogramming while looping the buffer
@@ -233,7 +233,7 @@ static int omap_pcm_open(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		goto out;
 
-	prtd = kzalloc(sizeof(prtd), GFP_KERNEL);
+	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
 	if (prtd == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -353,6 +353,18 @@ struct snd_soc_platform omap_soc_platform = {
 	.pcm_free	= omap_pcm_free_dma_buffers,
 };
 EXPORT_SYMBOL_GPL(omap_soc_platform);
+
+static int __init omap_soc_platform_init(void)
+{
+	return snd_soc_register_platform(&omap_soc_platform);
+}
+module_init(omap_soc_platform_init);
+
+static void __exit omap_soc_platform_exit(void)
+{
+	snd_soc_unregister_platform(&omap_soc_platform);
+}
+module_exit(omap_soc_platform_exit);
 
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@nokia.com>");
 MODULE_DESCRIPTION("OMAP PCM DMA module");

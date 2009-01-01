@@ -25,7 +25,7 @@
 
 static int set_audclk_freq(struct i2c_client *client, u32 freq)
 {
-	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 
 	if (freq != 32000 && freq != 44100 && freq != 48000)
 		return -EINVAL;
@@ -193,7 +193,7 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 
 void cx25840_audio_set_path(struct i2c_client *client)
 {
-	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 
 	/* assert soft reset */
 	cx25840_and_or(client, 0x810, ~0x1, 0x01);
@@ -235,7 +235,7 @@ void cx25840_audio_set_path(struct i2c_client *client)
 
 static int get_volume(struct i2c_client *client)
 {
-	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 	int vol;
 
 	if (state->unmute_volume >= 0)
@@ -252,7 +252,7 @@ static int get_volume(struct i2c_client *client)
 
 static void set_volume(struct i2c_client *client, int volume)
 {
-	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 	int vol;
 
 	if (state->unmute_volume >= 0) {
@@ -340,14 +340,14 @@ static void set_balance(struct i2c_client *client, int balance)
 
 static int get_mute(struct i2c_client *client)
 {
-	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 
 	return state->unmute_volume >= 0;
 }
 
 static void set_mute(struct i2c_client *client, int mute)
 {
-	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 
 	if (mute && state->unmute_volume == -1) {
 		int vol = get_volume(client);
@@ -365,7 +365,7 @@ static void set_mute(struct i2c_client *client, int mute)
 
 int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg)
 {
-	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 	struct v4l2_control *ctrl = arg;
 	int retval;
 

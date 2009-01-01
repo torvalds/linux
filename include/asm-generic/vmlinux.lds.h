@@ -288,6 +288,16 @@
 		*(.kprobes.text)					\
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+#define IRQENTRY_TEXT							\
+		ALIGN_FUNCTION();					\
+		VMLINUX_SYMBOL(__irqentry_text_start) = .;		\
+		*(.irqentry.text)					\
+		VMLINUX_SYMBOL(__irqentry_text_end) = .;
+#else
+#define IRQENTRY_TEXT
+#endif
+
 /* Section used for early init (in .S files) */
 #define HEAD_TEXT  *(.head.text)
 

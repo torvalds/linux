@@ -125,13 +125,13 @@ void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
 
 static inline int tiqdio_inbound_q_done(struct qdio_q *q)
 {
-	unsigned char state;
+	unsigned char state = 0;
 
 	if (!atomic_read(&q->nr_buf_used))
 		return 1;
 
 	qdio_siga_sync_q(q);
-	get_buf_state(q, q->first_to_check, &state);
+	get_buf_state(q, q->first_to_check, &state, 0);
 
 	if (state == SLSB_P_INPUT_PRIMED)
 		/* more work coming */
@@ -258,8 +258,6 @@ static void tiqdio_thinint_handler(void *ind, void *drv_data)
 static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 {
 	struct scssc_area *scssc_area;
-	char dbf_text[15];
-	void *ptr;
 	int rc;
 
 	scssc_area = (struct scssc_area *)irq_ptr->chsc_page;
@@ -294,19 +292,15 @@ static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 
 	rc = chsc_error_from_response(scssc_area->response.code);
 	if (rc) {
-		sprintf(dbf_text, "sidR%4x", scssc_area->response.code);
-		QDIO_DBF_TEXT1(0, trace, dbf_text);
-		QDIO_DBF_TEXT1(0, setup, dbf_text);
-		ptr = &scssc_area->response;
-		QDIO_DBF_HEX2(1, setup, &ptr, QDIO_DBF_SETUP_LEN);
+		DBF_ERROR("%4x SSI r:%4x", irq_ptr->schid.sch_no,
+			  scssc_area->response.code);
+		DBF_ERROR_HEX(&scssc_area->response, sizeof(void *));
 		return rc;
 	}
 
-	QDIO_DBF_TEXT2(0, setup, "setscind");
-	QDIO_DBF_HEX2(0, setup, &scssc_area->summary_indicator_addr,
-		      sizeof(unsigned long));
-	QDIO_DBF_HEX2(0, setup, &scssc_area->subchannel_indicator_addr,
-		      sizeof(unsigned long));
+	DBF_EVENT("setscind");
+	DBF_HEX(&scssc_area->summary_indicator_addr, sizeof(unsigned long));
+	DBF_HEX(&scssc_area->subchannel_indicator_addr,	sizeof(unsigned long));
 	return 0;
 }
 
@@ -327,14 +321,11 @@ void tiqdio_free_memory(void)
 
 int __init tiqdio_register_thinints(void)
 {
-	char dbf_text[20];
-
 	isc_register(QDIO_AIRQ_ISC);
 	tiqdio_alsi = s390_register_adapter_interrupt(&tiqdio_thinint_handler,
 						      NULL, QDIO_AIRQ_ISC);
 	if (IS_ERR(tiqdio_alsi)) {
-		sprintf(dbf_text, "regthn%lx", PTR_ERR(tiqdio_alsi));
-		QDIO_DBF_TEXT0(0, setup, dbf_text);
+		DBF_EVENT("RTI:%lx", PTR_ERR(tiqdio_alsi));
 		tiqdio_alsi = NULL;
 		isc_unregister(QDIO_AIRQ_ISC);
 		return -ENOMEM;
@@ -360,7 +351,7 @@ void qdio_setup_thinint(struct qdio_irq *irq_ptr)
 	if (!is_thinint_irq(irq_ptr))
 		return;
 	irq_ptr->dsci = get_indicator();
-	QDIO_DBF_HEX1(0, setup, &irq_ptr->dsci, sizeof(void *));
+	DBF_HEX(&irq_ptr->dsci, sizeof(void *));
 }
 
 void qdio_shutdown_thinint(struct qdio_irq *irq_ptr)

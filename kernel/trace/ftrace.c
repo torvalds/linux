@@ -1047,6 +1047,13 @@ ftrace_match(unsigned char *buff, int len, int enable)
 	int type = MATCH_FULL;
 	unsigned long flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
 	unsigned i, match = 0, search_len = 0;
+	int not = 0;
+
+	if (buff[0] == '!') {
+		not = 1;
+		buff++;
+		len--;
+	}
 
 	for (i = 0; i < len; i++) {
 		if (buff[i] == '*') {
@@ -1100,8 +1107,12 @@ ftrace_match(unsigned char *buff, int len, int enable)
 					matched = 1;
 				break;
 			}
-			if (matched)
-				rec->flags |= flag;
+			if (matched) {
+				if (not)
+					rec->flags &= ~flag;
+				else
+					rec->flags |= flag;
+			}
 		}
 		pg = pg->next;
 	}

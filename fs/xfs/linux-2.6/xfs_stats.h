@@ -118,6 +118,71 @@ struct xfsstats {
 	__uint32_t		xb_page_retries;
 	__uint32_t		xb_page_found;
 	__uint32_t		xb_get_read;
+/* Version 2 btree counters */
+#define XFSSTAT_END_ABTB_V2		(XFSSTAT_END_BUF+15)
+	__uint32_t		xs_abtb_2_lookup;
+	__uint32_t		xs_abtb_2_compare;
+	__uint32_t		xs_abtb_2_insrec;
+	__uint32_t		xs_abtb_2_delrec;
+	__uint32_t		xs_abtb_2_newroot;
+	__uint32_t		xs_abtb_2_killroot;
+	__uint32_t		xs_abtb_2_increment;
+	__uint32_t		xs_abtb_2_decrement;
+	__uint32_t		xs_abtb_2_lshift;
+	__uint32_t		xs_abtb_2_rshift;
+	__uint32_t		xs_abtb_2_split;
+	__uint32_t		xs_abtb_2_join;
+	__uint32_t		xs_abtb_2_alloc;
+	__uint32_t		xs_abtb_2_free;
+	__uint32_t		xs_abtb_2_moves;
+#define XFSSTAT_END_ABTC_V2		(XFSSTAT_END_ABTB_V2+15)
+	__uint32_t		xs_abtc_2_lookup;
+	__uint32_t		xs_abtc_2_compare;
+	__uint32_t		xs_abtc_2_insrec;
+	__uint32_t		xs_abtc_2_delrec;
+	__uint32_t		xs_abtc_2_newroot;
+	__uint32_t		xs_abtc_2_killroot;
+	__uint32_t		xs_abtc_2_increment;
+	__uint32_t		xs_abtc_2_decrement;
+	__uint32_t		xs_abtc_2_lshift;
+	__uint32_t		xs_abtc_2_rshift;
+	__uint32_t		xs_abtc_2_split;
+	__uint32_t		xs_abtc_2_join;
+	__uint32_t		xs_abtc_2_alloc;
+	__uint32_t		xs_abtc_2_free;
+	__uint32_t		xs_abtc_2_moves;
+#define XFSSTAT_END_BMBT_V2		(XFSSTAT_END_ABTC_V2+15)
+	__uint32_t		xs_bmbt_2_lookup;
+	__uint32_t		xs_bmbt_2_compare;
+	__uint32_t		xs_bmbt_2_insrec;
+	__uint32_t		xs_bmbt_2_delrec;
+	__uint32_t		xs_bmbt_2_newroot;
+	__uint32_t		xs_bmbt_2_killroot;
+	__uint32_t		xs_bmbt_2_increment;
+	__uint32_t		xs_bmbt_2_decrement;
+	__uint32_t		xs_bmbt_2_lshift;
+	__uint32_t		xs_bmbt_2_rshift;
+	__uint32_t		xs_bmbt_2_split;
+	__uint32_t		xs_bmbt_2_join;
+	__uint32_t		xs_bmbt_2_alloc;
+	__uint32_t		xs_bmbt_2_free;
+	__uint32_t		xs_bmbt_2_moves;
+#define XFSSTAT_END_IBT_V2		(XFSSTAT_END_BMBT_V2+15)
+	__uint32_t		xs_ibt_2_lookup;
+	__uint32_t		xs_ibt_2_compare;
+	__uint32_t		xs_ibt_2_insrec;
+	__uint32_t		xs_ibt_2_delrec;
+	__uint32_t		xs_ibt_2_newroot;
+	__uint32_t		xs_ibt_2_killroot;
+	__uint32_t		xs_ibt_2_increment;
+	__uint32_t		xs_ibt_2_decrement;
+	__uint32_t		xs_ibt_2_lshift;
+	__uint32_t		xs_ibt_2_rshift;
+	__uint32_t		xs_ibt_2_split;
+	__uint32_t		xs_ibt_2_join;
+	__uint32_t		xs_ibt_2_alloc;
+	__uint32_t		xs_ibt_2_free;
+	__uint32_t		xs_ibt_2_moves;
 /* Extra precision counters */
 	__uint64_t		xs_xstrat_bytes;
 	__uint64_t		xs_write_bytes;

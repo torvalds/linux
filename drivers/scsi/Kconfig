@@ -352,6 +352,8 @@ config ISCSI_TCP
 
 	 http://open-iscsi.org
 
+source "drivers/scsi/cxgb3i/Kconfig"
+
 config SGIWD93_SCSI
 	tristate "SGI WD93C93 SCSI Driver"
 	depends on SGI_HAS_WD93 && SCSI
@@ -602,6 +604,19 @@ config SCSI_FLASHPOINT
 	  BusLogic SCSI driver. The FlashPoint SCCB Manager code is
 	  substantial, so users of MultiMaster Host Adapters may not
 	  wish to include it.
+
+config LIBFC
+	tristate "LibFC module"
+	select SCSI_FC_ATTRS
+	---help---
+	  Fibre Channel library module
+
+config FCOE
+	tristate "FCoE module"
+	depends on PCI
+	select LIBFC
+	---help---
+	  Fibre Channel over Ethernet module
 
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
@@ -1356,6 +1371,13 @@ config SCSI_LPFC
 	help
           This lpfc driver supports the Emulex LightPulse
           Family of Fibre Channel PCI host adapters.
+
+config SCSI_LPFC_DEBUG_FS
+	bool "Emulex LightPulse Fibre Channel debugfs Support"
+	depends on SCSI_LPFC && DEBUG_FS
+	help
+	  This makes debugging infomation from the lpfc driver
+	  available via the debugfs filesystem.
 
 config SCSI_SIM710
 	tristate "Simple 53c710 SCSI support (Compaq, NCR machines)"

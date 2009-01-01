@@ -578,6 +578,8 @@ static int idescsi_eh_abort (struct scsi_cmnd *cmd)
 {
 	idescsi_scsi_t *scsi  = scsihost_to_idescsi(cmd->device->host);
 	ide_drive_t    *drive = scsi->drive;
+	ide_hwif_t     *hwif;
+	ide_hwgroup_t  *hwgroup;
 	int		busy;
 	int             ret   = FAILED;
 
@@ -594,13 +596,16 @@ static int idescsi_eh_abort (struct scsi_cmnd *cmd)
 		goto no_drive;
 	}
 
-	/* First give it some more time, how much is "right" is hard to say :-( */
+	hwif = drive->hwif;
+	hwgroup = hwif->hwgroup;
 
-	busy = ide_wait_not_busy(HWIF(drive), 100);	/* FIXME - uses mdelay which causes latency? */
+	/* First give it some more time, how much is "right" is hard to say :-(
+	   FIXME - uses mdelay which causes latency? */
+	busy = ide_wait_not_busy(hwif, 100);
 	if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
 		printk (KERN_WARNING "ide-scsi: drive did%s become ready\n", busy?" not":"");
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 
 	/* If there is no pc running we're done (our interrupt took care of it) */
 	pc = drive->pc;
@@ -629,7 +634,7 @@ static int idescsi_eh_abort (struct scsi_cmnd *cmd)
 	}
 
 ide_unlock:
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 no_drive:
 	if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
 		printk (KERN_WARNING "ide-scsi: abort returns %s\n", ret == SUCCESS?"success":"failed");
@@ -642,6 +647,7 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 	struct request *req;
 	idescsi_scsi_t *scsi  = scsihost_to_idescsi(cmd->device->host);
 	ide_drive_t    *drive = scsi->drive;
+	ide_hwgroup_t  *hwgroup;
 	int             ready = 0;
 	int             ret   = SUCCESS;
 
@@ -658,14 +664,18 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
+	hwgroup = drive->hwif->hwgroup;
+
 	spin_lock_irq(cmd->device->host->host_lock);
-	spin_lock(&ide_lock);
+	spin_lock(&hwgroup->lock);
 
 	pc = drive->pc;
+	if (pc)
+		req = pc->rq;
 
-	if (pc == NULL || (req = pc->rq) != HWGROUP(drive)->rq || !HWGROUP(drive)->handler) {
+	if (pc == NULL || req != hwgroup->rq || hwgroup->handler == NULL) {
 		printk (KERN_WARNING "ide-scsi: No active request in idescsi_eh_reset\n");
-		spin_unlock(&ide_lock);
+		spin_unlock(&hwgroup->lock);
 		spin_unlock_irq(cmd->device->host->host_lock);
 		return FAILED;
 	}
@@ -685,10 +695,10 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 			BUG();
 	}
 
-	HWGROUP(drive)->rq = NULL;
-	HWGROUP(drive)->handler = NULL;
-	HWGROUP(drive)->busy = 1;		/* will set this to zero when ide reset finished */
-	spin_unlock(&ide_lock);
+	hwgroup->rq = NULL;
+	hwgroup->handler = NULL;
+	hwgroup->busy = 1; /* will set this to zero when ide reset finished */
+	spin_unlock(&hwgroup->lock);
 
 	ide_do_reset(drive);
 

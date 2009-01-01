@@ -502,15 +502,15 @@ static int bt3c_load_firmware(bt3c_info_t *info, const unsigned char *firmware,
 
 		memset(b, 0, sizeof(b));
 		memcpy(b, ptr + 2, 2);
-		size = simple_strtol(b, NULL, 16);
+		size = simple_strtoul(b, NULL, 16);
 
 		memset(b, 0, sizeof(b));
 		memcpy(b, ptr + 4, 8);
-		addr = simple_strtol(b, NULL, 16);
+		addr = simple_strtoul(b, NULL, 16);
 
 		memset(b, 0, sizeof(b));
 		memcpy(b, ptr + (size * 2) + 2, 2);
-		fcs = simple_strtol(b, NULL, 16);
+		fcs = simple_strtoul(b, NULL, 16);
 
 		memset(b, 0, sizeof(b));
 		for (tmp = 0, i = 0; i < size; i++) {
@@ -530,7 +530,7 @@ static int bt3c_load_firmware(bt3c_info_t *info, const unsigned char *firmware,
 			memset(b, 0, sizeof(b));
 			for (i = 0; i < (size - 4) / 2; i++) {
 				memcpy(b, ptr + (i * 4) + 12, 4);
-				tmp = simple_strtol(b, NULL, 16);
+				tmp = simple_strtoul(b, NULL, 16);
 				bt3c_put(iobase, tmp);
 			}
 		}

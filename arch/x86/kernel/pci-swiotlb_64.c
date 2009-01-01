@@ -3,6 +3,8 @@
 #include <linux/pci.h>
 #include <linux/cache.h>
 #include <linux/module.h>
+#include <linux/swiotlb.h>
+#include <linux/bootmem.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/iommu.h>
@@ -10,6 +12,31 @@
 #include <asm/dma.h>
 
 int swiotlb __read_mostly;
+
+void *swiotlb_alloc_boot(size_t size, unsigned long nslabs)
+{
+	return alloc_bootmem_low_pages(size);
+}
+
+void *swiotlb_alloc(unsigned order, unsigned long nslabs)
+{
+	return (void *)__get_free_pages(GFP_DMA | __GFP_NOWARN, order);
+}
+
+dma_addr_t swiotlb_phys_to_bus(phys_addr_t paddr)
+{
+	return paddr;
+}
+
+phys_addr_t swiotlb_bus_to_phys(dma_addr_t baddr)
+{
+	return baddr;
+}
+
+int __weak swiotlb_arch_range_needs_mapping(void *ptr, size_t size)
+{
+	return 0;
+}
 
 static dma_addr_t
 swiotlb_map_single_phys(struct device *hwdev, phys_addr_t paddr, size_t size,
@@ -50,8 +77,10 @@ struct dma_mapping_ops swiotlb_dma_ops = {
 void __init pci_swiotlb_init(void)
 {
 	/* don't initialize swiotlb if iommu=off (no_iommu=1) */
+#ifdef CONFIG_X86_64
 	if (!iommu_detected && !no_iommu && max_pfn > MAX_DMA32_PFN)
 	       swiotlb = 1;
+#endif
 	if (swiotlb_force)
 		swiotlb = 1;
 	if (swiotlb) {

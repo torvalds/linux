@@ -187,6 +187,21 @@ out:
 }
 #endif
 
+static const struct net_device_ops ultra_netdev_ops = {
+	.ndo_open		= ultra_open,
+	.ndo_stop		= ultra_close_card,
+
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller 	= ei_poll,
+#endif
+};
+
 static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 {
 	int i, retval;
@@ -198,7 +213,6 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 	unsigned char num_pages, irqreg, addr, piomode;
 	unsigned char idreg = inb(ioaddr + 7);
 	unsigned char reg4 = inb(ioaddr + 4) & 0x7f;
-	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, ULTRA_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -228,8 +242,8 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = inb(ioaddr + 8 + i);
 
-	printk("%s: %s at %#3x, %s", dev->name, model_name,
-	       ioaddr, print_mac(mac, dev->dev_addr));
+	printk("%s: %s at %#3x, %pM", dev->name, model_name,
+	       ioaddr, dev->dev_addr);
 
 	/* Switch from the station address to the alternate register set and
 	   read the useful registers there. */
@@ -301,11 +315,8 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 		ei_status.get_8390_hdr = &ultra_get_8390_hdr;
 	}
 	ei_status.reset_8390 = &ultra_reset_8390;
-	dev->open = &ultra_open;
-	dev->stop = &ultra_close_card;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
+
+	dev->netdev_ops = &ultra_netdev_ops;
 	NS8390_init(dev, 0);
 
 	retval = register_netdev(dev);

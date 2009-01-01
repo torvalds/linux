@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/dmi.h>
 #include <linux/dmar.h>
+#include <linux/ftrace.h>
 
 #include <asm/atomic.h>
 #include <asm/smp.h>
@@ -775,11 +776,7 @@ static void local_apic_timer_interrupt(void)
 	/*
 	 * the NMI deadlock-detector uses this.
 	 */
-#ifdef CONFIG_X86_64
-	add_pda(apic_timer_irqs, 1);
-#else
-	per_cpu(irq_stat, cpu).apic_timer_irqs++;
-#endif
+	inc_irq_stat(apic_timer_irqs);
 
 	evt->event_handler(evt);
 }
@@ -792,7 +789,7 @@ static void local_apic_timer_interrupt(void)
  * [ if a single-CPU system runs an SMP kernel then we call the local
  *   interrupt as well. Thus we cannot inline the local irq ... ]
  */
-void smp_apic_timer_interrupt(struct pt_regs *regs)
+void __irq_entry smp_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -806,9 +803,7 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
 	 * Besides, if we don't timer interrupts ignore the global
 	 * interrupt lock, which is the WrongThing (tm) to do.
 	 */
-#ifdef CONFIG_X86_64
 	exit_idle();
-#endif
 	irq_enter();
 	local_apic_timer_interrupt();
 	irq_exit();
@@ -1666,9 +1661,7 @@ void smp_spurious_interrupt(struct pt_regs *regs)
 {
 	u32 v;
 
-#ifdef CONFIG_X86_64
 	exit_idle();
-#endif
 	irq_enter();
 	/*
 	 * Check if this really is a spurious interrupt and ACK it
@@ -1679,14 +1672,11 @@ void smp_spurious_interrupt(struct pt_regs *regs)
 	if (v & (1 << (SPURIOUS_APIC_VECTOR & 0x1f)))
 		ack_APIC_irq();
 
-#ifdef CONFIG_X86_64
-	add_pda(irq_spurious_count, 1);
-#else
+	inc_irq_stat(irq_spurious_count);
+
 	/* see sw-dev-man vol 3, chapter 7.4.13.5 */
 	pr_info("spurious APIC interrupt on CPU#%d, "
 		"should never happen.\n", smp_processor_id());
-	__get_cpu_var(irq_stat).irq_spurious_count++;
-#endif
 	irq_exit();
 }
 
@@ -1697,9 +1687,7 @@ void smp_error_interrupt(struct pt_regs *regs)
 {
 	u32 v, v1;
 
-#ifdef CONFIG_X86_64
 	exit_idle();
-#endif
 	irq_enter();
 	/* First tickle the hardware, only then report what went on. -- REW */
 	v = apic_read(APIC_ESR);

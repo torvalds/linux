@@ -19,23 +19,18 @@
 #include <linux/proc_fs.h>
 #include <linux/if_bonding.h>
 #include <linux/kobject.h>
+#include <linux/in6.h>
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define DRV_VERSION	"3.3.0"
-#define DRV_RELDATE	"June 10, 2008"
+#define DRV_VERSION	"3.5.0"
+#define DRV_RELDATE	"November 4, 2008"
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
 #define BOND_MAX_ARP_TARGETS	16
 
-#ifdef BONDING_DEBUG
-#define dprintk(fmt, args...) \
-	printk(KERN_DEBUG     \
-	       DRV_NAME ": %s() %d: " fmt, __func__, __LINE__ , ## args )
-#else
-#define dprintk(fmt, args...)
-#endif /* BONDING_DEBUG */
+extern struct list_head bond_dev_list;
 
 #define IS_UP(dev)					   \
 	      ((((dev)->flags & IFF_UP) == IFF_UP)	&& \
@@ -126,6 +121,7 @@ struct bond_params {
 	int xmit_policy;
 	int miimon;
 	int num_grat_arp;
+	int num_unsol_na;
 	int arp_interval;
 	int arp_validate;
 	int use_carrier;
@@ -133,6 +129,7 @@ struct bond_params {
 	int updelay;
 	int downdelay;
 	int lacp_fast;
+	int ad_select;
 	char primary[IFNAMSIZ];
 	__be32 arp_targets[BOND_MAX_ARP_TARGETS];
 };
@@ -148,6 +145,9 @@ struct vlan_entry {
 	struct list_head vlan_list;
 	__be32 vlan_ip;
 	unsigned short vlan_id;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct in6_addr vlan_ipv6;
+#endif
 };
 
 struct slave {
@@ -195,6 +195,7 @@ struct bonding {
 	rwlock_t curr_slave_lock;
 	s8       kill_timers;
 	s8	 send_grat_arp;
+	s8	 send_unsol_na;
 	s8	 setup_by_slave;
 	struct   net_device_stats stats;
 #ifdef CONFIG_PROC_FS
@@ -218,6 +219,9 @@ struct bonding {
 	struct   delayed_work arp_work;
 	struct   delayed_work alb_work;
 	struct   delayed_work ad_work;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct   in6_addr master_ipv6;
+#endif
 };
 
 /**
@@ -245,7 +249,13 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 		return NULL;
 	}
 
-	return (struct bonding *)slave->dev->master->priv;
+	return (struct bonding *)netdev_priv(slave->dev->master);
+}
+
+static inline bool bond_is_lb(const struct bonding *bond)
+{
+	return bond->params.mode == BOND_MODE_TLB
+		|| bond->params.mode == BOND_MODE_ALB;
 }
 
 #define BOND_FOM_NONE			0
@@ -275,7 +285,7 @@ static inline unsigned long slave_last_rx(struct bonding *bond,
 
 static inline void bond_set_slave_inactive_flags(struct slave *slave)
 {
-	struct bonding *bond = slave->dev->master->priv;
+	struct bonding *bond = netdev_priv(slave->dev->master);
 	if (bond->params.mode != BOND_MODE_TLB &&
 	    bond->params.mode != BOND_MODE_ALB)
 		slave->state = BOND_STATE_BACKUP;
@@ -327,7 +337,7 @@ void bond_mii_monitor(struct work_struct *);
 void bond_loadbalance_arp_mon(struct work_struct *);
 void bond_activebackup_arp_mon(struct work_struct *);
 void bond_set_mode_ops(struct bonding *bond, int mode);
-int bond_parse_parm(const char *mode_arg, struct bond_parm_tbl *tbl);
+int bond_parse_parm(const char *mode_arg, const struct bond_parm_tbl *tbl);
 void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 void bond_register_arp(struct bonding *);
@@ -335,11 +345,35 @@ void bond_unregister_arp(struct bonding *);
 
 /* exported from bond_main.c */
 extern struct list_head bond_dev_list;
-extern struct bond_parm_tbl bond_lacp_tbl[];
-extern struct bond_parm_tbl bond_mode_tbl[];
-extern struct bond_parm_tbl xmit_hashtype_tbl[];
-extern struct bond_parm_tbl arp_validate_tbl[];
-extern struct bond_parm_tbl fail_over_mac_tbl[];
+extern const struct bond_parm_tbl bond_lacp_tbl[];
+extern const struct bond_parm_tbl bond_mode_tbl[];
+extern const struct bond_parm_tbl xmit_hashtype_tbl[];
+extern const struct bond_parm_tbl arp_validate_tbl[];
+extern const struct bond_parm_tbl fail_over_mac_tbl[];
+extern struct bond_params bonding_defaults;
+extern struct bond_parm_tbl ad_select_tbl[];
+
+/* exported from bond_sysfs.c */
+extern struct rw_semaphore bonding_rwsem;
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+void bond_send_unsolicited_na(struct bonding *bond);
+void bond_register_ipv6_notifier(void);
+void bond_unregister_ipv6_notifier(void);
+#else
+static inline void bond_send_unsolicited_na(struct bonding *bond)
+{
+	return;
+}
+static inline void bond_register_ipv6_notifier(void)
+{
+	return;
+}
+static inline void bond_unregister_ipv6_notifier(void)
+{
+	return;
+}
+#endif
 
 #endif /* _LINUX_BONDING_H */
 

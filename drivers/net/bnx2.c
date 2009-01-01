@@ -57,8 +57,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.8.1"
-#define DRV_MODULE_RELDATE	"Oct 7, 2008"
+#define DRV_MODULE_VERSION	"1.9.0"
+#define DRV_MODULE_RELDATE	"Dec 16, 2008"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -89,6 +89,7 @@ typedef enum {
 	BCM5709,
 	BCM5709S,
 	BCM5716,
+	BCM5716S,
 } board_t;
 
 /* indexed by board_t, above */
@@ -105,6 +106,7 @@ static struct {
 	{ "Broadcom NetXtreme II BCM5709 1000Base-T" },
 	{ "Broadcom NetXtreme II BCM5709 1000Base-SX" },
 	{ "Broadcom NetXtreme II BCM5716 1000Base-T" },
+	{ "Broadcom NetXtreme II BCM5716 1000Base-SX" },
 	};
 
 static DEFINE_PCI_DEVICE_TABLE(bnx2_pci_tbl) = {
@@ -128,6 +130,8 @@ static DEFINE_PCI_DEVICE_TABLE(bnx2_pci_tbl) = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5709S },
 	{ PCI_VENDOR_ID_BROADCOM, 0x163b,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5716 },
+	{ PCI_VENDOR_ID_BROADCOM, 0x163c,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5716S },
 	{ 0, }
 };
 
@@ -543,9 +547,9 @@ bnx2_free_rx_mem(struct bnx2 *bp)
 		for (j = 0; j < bp->rx_max_pg_ring; j++) {
 			if (rxr->rx_pg_desc_ring[j])
 				pci_free_consistent(bp->pdev, RXBD_RING_SIZE,
-						    rxr->rx_pg_desc_ring[i],
-						    rxr->rx_pg_desc_mapping[i]);
-			rxr->rx_pg_desc_ring[i] = NULL;
+						    rxr->rx_pg_desc_ring[j],
+						    rxr->rx_pg_desc_mapping[j]);
+			rxr->rx_pg_desc_ring[j] = NULL;
 		}
 		if (rxr->rx_pg_ring)
 			vfree(rxr->rx_pg_ring);
@@ -1652,7 +1656,7 @@ bnx2_setup_serdes_phy(struct bnx2 *bp, u8 port)
 		 * exchanging base pages plus 3 next pages and
 		 * normally completes in about 120 msec.
 		 */
-		bp->current_interval = SERDES_AN_TIMEOUT;
+		bp->current_interval = BNX2_SERDES_AN_TIMEOUT;
 		bp->serdes_an_pending = 1;
 		mod_timer(&bp->timer, jiffies + bp->current_interval);
 	} else {
@@ -2274,7 +2278,7 @@ bnx2_fw_sync(struct bnx2 *bp, u32 msg_data, int ack, int silent)
 		return 0;
 
 	/* wait for an acknowledgement. */
-	for (i = 0; i < (FW_ACK_TIME_OUT_MS / 10); i++) {
+	for (i = 0; i < (BNX2_FW_ACK_TIME_OUT_MS / 10); i++) {
 		msleep(10);
 
 		val = bnx2_shmem_rd(bp, BNX2_FW_MB);
@@ -3000,7 +3004,6 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 #endif
 			netif_receive_skb(skb);
 
-		bp->dev->last_rx = jiffies;
 		rx_pkt++;
 
 next_rx:
@@ -3040,7 +3043,6 @@ bnx2_msi(int irq, void *dev_instance)
 {
 	struct bnx2_napi *bnapi = dev_instance;
 	struct bnx2 *bp = bnapi->bp;
-	struct net_device *dev = bp->dev;
 
 	prefetch(bnapi->status_blk.msi);
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
@@ -3051,7 +3053,7 @@ bnx2_msi(int irq, void *dev_instance)
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	netif_rx_schedule(dev, &bnapi->napi);
+	netif_rx_schedule(&bnapi->napi);
 
 	return IRQ_HANDLED;
 }
@@ -3061,7 +3063,6 @@ bnx2_msi_1shot(int irq, void *dev_instance)
 {
 	struct bnx2_napi *bnapi = dev_instance;
 	struct bnx2 *bp = bnapi->bp;
-	struct net_device *dev = bp->dev;
 
 	prefetch(bnapi->status_blk.msi);
 
@@ -3069,7 +3070,7 @@ bnx2_msi_1shot(int irq, void *dev_instance)
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	netif_rx_schedule(dev, &bnapi->napi);
+	netif_rx_schedule(&bnapi->napi);
 
 	return IRQ_HANDLED;
 }
@@ -3079,7 +3080,6 @@ bnx2_interrupt(int irq, void *dev_instance)
 {
 	struct bnx2_napi *bnapi = dev_instance;
 	struct bnx2 *bp = bnapi->bp;
-	struct net_device *dev = bp->dev;
 	struct status_block *sblk = bnapi->status_blk.msi;
 
 	/* When using INTx, it is possible for the interrupt to arrive
@@ -3106,9 +3106,9 @@ bnx2_interrupt(int irq, void *dev_instance)
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	if (netif_rx_schedule_prep(dev, &bnapi->napi)) {
+	if (netif_rx_schedule_prep(&bnapi->napi)) {
 		bnapi->last_status_idx = sblk->status_idx;
-		__netif_rx_schedule(dev, &bnapi->napi);
+		__netif_rx_schedule(&bnapi->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -3218,7 +3218,7 @@ static int bnx2_poll_msix(struct napi_struct *napi, int budget)
 		rmb();
 		if (likely(!bnx2_has_fast_work(bnapi))) {
 
-			netif_rx_complete(bp->dev, napi);
+			netif_rx_complete(napi);
 			REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD, bnapi->int_num |
 			       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
 			       bnapi->last_status_idx);
@@ -3251,7 +3251,7 @@ static int bnx2_poll(struct napi_struct *napi, int budget)
 
 		rmb();
 		if (likely(!bnx2_has_work(bnapi))) {
-			netif_rx_complete(bp->dev, napi);
+			netif_rx_complete(napi);
 			if (likely(bp->flags & BNX2_FLAG_USING_MSI_OR_MSIX)) {
 				REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 				       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
@@ -4493,7 +4493,7 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 static int
 bnx2_init_chip(struct bnx2 *bp)
 {
-	u32 val;
+	u32 val, mtu;
 	int rc, i;
 
 	/* Make sure the interrupt is not active. */
@@ -4585,10 +4585,18 @@ bnx2_init_chip(struct bnx2 *bp)
 	REG_WR(bp, BNX2_EMAC_BACKOFF_SEED, val);
 
 	/* Program the MTU.  Also include 4 bytes for CRC32. */
-	val = bp->dev->mtu + ETH_HLEN + 4;
+	mtu = bp->dev->mtu;
+	val = mtu + ETH_HLEN + ETH_FCS_LEN;
 	if (val > (MAX_ETHERNET_PACKET_SIZE + 4))
 		val |= BNX2_EMAC_RX_MTU_SIZE_JUMBO_ENA;
 	REG_WR(bp, BNX2_EMAC_RX_MTU_SIZE, val);
+
+	if (mtu < 1500)
+		mtu = 1500;
+
+	bnx2_reg_wr_ind(bp, BNX2_RBUF_CONFIG, BNX2_RBUF_CONFIG_VAL(mtu));
+	bnx2_reg_wr_ind(bp, BNX2_RBUF_CONFIG2, BNX2_RBUF_CONFIG2_VAL(mtu));
+	bnx2_reg_wr_ind(bp, BNX2_RBUF_CONFIG3, BNX2_RBUF_CONFIG3_VAL(mtu));
 
 	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++)
 		bp->bnx2_napi[i].last_status_idx = 0;
@@ -5719,7 +5727,7 @@ bnx2_5708_serdes_timer(struct bnx2 *bp)
 		bnx2_read_phy(bp, bp->mii_bmcr, &bmcr);
 		if (bmcr & BMCR_ANENABLE) {
 			bnx2_enable_forced_2g5(bp);
-			bp->current_interval = SERDES_FORCED_TIMEOUT;
+			bp->current_interval = BNX2_SERDES_FORCED_TIMEOUT;
 		} else {
 			bnx2_disable_forced_2g5(bp);
 			bp->serdes_an_pending = 2;
@@ -5816,6 +5824,8 @@ bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 {
 	int i, rc;
 	struct msix_entry msix_ent[BNX2_MAX_MSIX_VEC];
+	struct net_device *dev = bp->dev;
+	const int len = sizeof(bp->irq_tbl[0].name);
 
 	bnx2_setup_msix_tbl(bp);
 	REG_WR(bp, BNX2_PCI_MSIX_CONTROL, BNX2_MAX_MSIX_HW_VEC - 1);
@@ -5826,7 +5836,7 @@ bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 		msix_ent[i].entry = i;
 		msix_ent[i].vector = 0;
 
-		strcpy(bp->irq_tbl[i].name, bp->dev->name);
+		snprintf(bp->irq_tbl[i].name, len, "%s-%d", dev->name, i);
 		bp->irq_tbl[i].handler = bnx2_msi_1shot;
 	}
 
@@ -6173,7 +6183,7 @@ bnx2_get_stats(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	struct statistics_block *stats_blk = bp->stats_blk;
-	struct net_device_stats *net_stats = &bp->net_stats;
+	struct net_device_stats *net_stats = &dev->stats;
 
 	if (bp->stats_blk == NULL) {
 		return net_stats;
@@ -6540,7 +6550,7 @@ bnx2_nway_reset(struct net_device *dev)
 
 		spin_lock_bh(&bp->phy_lock);
 
-		bp->current_interval = SERDES_AN_TIMEOUT;
+		bp->current_interval = BNX2_SERDES_AN_TIMEOUT;
 		bp->serdes_an_pending = 1;
 		mod_timer(&bp->timer, jiffies + bp->current_interval);
 	}
@@ -7615,7 +7625,8 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	if ((CHIP_ID(bp) == CHIP_ID_5708_A0) ||
 	    (CHIP_ID(bp) == CHIP_ID_5708_B0) ||
-	    (CHIP_ID(bp) == CHIP_ID_5708_B1)) {
+	    (CHIP_ID(bp) == CHIP_ID_5708_B1) ||
+	    !(REG_RD(bp, BNX2_PCI_CONFIG_3) & BNX2_PCI_CONFIG_3_VAUX_PRESET)) {
 		bp->flags |= BNX2_FLAG_NO_WOL;
 		bp->wol = 0;
 	}
@@ -7724,6 +7735,25 @@ bnx2_init_napi(struct bnx2 *bp)
 	}
 }
 
+static const struct net_device_ops bnx2_netdev_ops = {
+	.ndo_open		= bnx2_open,
+	.ndo_start_xmit		= bnx2_start_xmit,
+	.ndo_stop		= bnx2_close,
+	.ndo_get_stats		= bnx2_get_stats,
+	.ndo_set_rx_mode	= bnx2_set_rx_mode,
+	.ndo_do_ioctl		= bnx2_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= bnx2_change_mac_addr,
+	.ndo_change_mtu		= bnx2_change_mtu,
+	.ndo_tx_timeout		= bnx2_tx_timeout,
+#ifdef BCM_VLAN
+	.ndo_vlan_rx_register	= bnx2_vlan_rx_register,
+#endif
+#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
+	.ndo_poll_controller	= poll_bnx2,
+#endif
+};
+
 static int __devinit
 bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -7732,7 +7762,6 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct bnx2 *bp;
 	int rc;
 	char str[40];
-	DECLARE_MAC_BUF(mac);
 
 	if (version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -7749,27 +7778,12 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 	}
 
-	dev->open = bnx2_open;
-	dev->hard_start_xmit = bnx2_start_xmit;
-	dev->stop = bnx2_close;
-	dev->get_stats = bnx2_get_stats;
-	dev->set_rx_mode = bnx2_set_rx_mode;
-	dev->do_ioctl = bnx2_ioctl;
-	dev->set_mac_address = bnx2_change_mac_addr;
-	dev->change_mtu = bnx2_change_mtu;
-	dev->tx_timeout = bnx2_tx_timeout;
+	dev->netdev_ops = &bnx2_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#ifdef BCM_VLAN
-	dev->vlan_rx_register = bnx2_vlan_rx_register;
-#endif
 	dev->ethtool_ops = &bnx2_ethtool_ops;
 
 	bp = netdev_priv(dev);
 	bnx2_init_napi(bp);
-
-#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
-	dev->poll_controller = poll_bnx2;
-#endif
 
 	pci_set_drvdata(pdev, dev);
 
@@ -7799,14 +7813,14 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	printk(KERN_INFO "%s: %s (%c%d) %s found at mem %lx, "
-		"IRQ %d, node addr %s\n",
+		"IRQ %d, node addr %pM\n",
 		dev->name,
 		board_info[ent->driver_data].name,
 		((CHIP_ID(bp) & 0xf000) >> 12) + 'A',
 		((CHIP_ID(bp) & 0x0ff0) >> 4),
 		bnx2_bus_string(bp, str),
 		dev->base_addr,
-		bp->pdev->irq, print_mac(mac, dev->dev_addr));
+		bp->pdev->irq, dev->dev_addr);
 
 	return 0;
 }

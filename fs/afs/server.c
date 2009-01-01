@@ -105,7 +105,7 @@ struct afs_server *afs_lookup_server(struct afs_cell *cell,
 {
 	struct afs_server *server, *candidate;
 
-	_enter("%p,"NIPQUAD_FMT, cell, NIPQUAD(addr->s_addr));
+	_enter("%p,%pI4", cell, &addr->s_addr);
 
 	/* quick scan of the list to see if we already have the server */
 	read_lock(&cell->servers_lock);
@@ -168,9 +168,8 @@ found_server:
 server_in_two_cells:
 	write_unlock(&cell->servers_lock);
 	kfree(candidate);
-	printk(KERN_NOTICE "kAFS:"
-	       " Server "NIPQUAD_FMT" appears to be in two cells\n",
-	       NIPQUAD(*addr));
+	printk(KERN_NOTICE "kAFS: Server %pI4 appears to be in two cells\n",
+	       addr);
 	_leave(" = -EEXIST");
 	return ERR_PTR(-EEXIST);
 }
@@ -184,7 +183,7 @@ struct afs_server *afs_find_server(const struct in_addr *_addr)
 	struct rb_node *p;
 	struct in_addr addr = *_addr;
 
-	_enter(NIPQUAD_FMT, NIPQUAD(addr.s_addr));
+	_enter("%pI4", &addr.s_addr);
 
 	read_lock(&afs_servers_lock);
 

@@ -108,7 +108,7 @@ static struct net_device * __init ipddp_init(void)
  */
 static struct net_device_stats *ipddp_get_stats(struct net_device *dev)
 {
-        return dev->priv;
+	return netdev_priv(dev);
 }
 
 /*
@@ -170,8 +170,8 @@ static int ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
 
         skb->protocol = htons(ETH_P_ATALK);     /* Protocol has changed */
 
-	((struct net_device_stats *) dev->priv)->tx_packets++;
-        ((struct net_device_stats *) dev->priv)->tx_bytes+=skb->len;
+	((struct net_device_stats *) netdev_priv(dev))->tx_packets++;
+	((struct net_device_stats *) netdev_priv(dev))->tx_bytes += skb->len;
 
         if(aarp_send_ddp(rt->dev, skb, &rt->at, NULL) < 0)
                 dev_kfree_skb(skb);

@@ -39,7 +39,7 @@ static int power_trace_init(struct trace_array *tr)
 
 	trace_power_enabled = 1;
 
-	for_each_cpu_mask(cpu, cpu_possible_map)
+	for_each_cpu(cpu, cpu_possible_mask)
 		tracing_reset(tr, cpu);
 	return 0;
 }

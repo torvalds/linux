@@ -581,6 +581,62 @@ static char *resource_string(char *buf, char *end, struct resource *res, int fie
 	return string(buf, end, sym, field_width, precision, flags);
 }
 
+static char *mac_address_string(char *buf, char *end, u8 *addr, int field_width,
+				int precision, int flags)
+{
+	char mac_addr[6 * 3]; /* (6 * 2 hex digits), 5 colons and trailing zero */
+	char *p = mac_addr;
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		p = pack_hex_byte(p, addr[i]);
+		if (!(flags & SPECIAL) && i != 5)
+			*p++ = ':';
+	}
+	*p = '\0';
+
+	return string(buf, end, mac_addr, field_width, precision, flags & ~SPECIAL);
+}
+
+static char *ip6_addr_string(char *buf, char *end, u8 *addr, int field_width,
+			 int precision, int flags)
+{
+	char ip6_addr[8 * 5]; /* (8 * 4 hex digits), 7 colons and trailing zero */
+	char *p = ip6_addr;
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		p = pack_hex_byte(p, addr[2 * i]);
+		p = pack_hex_byte(p, addr[2 * i + 1]);
+		if (!(flags & SPECIAL) && i != 7)
+			*p++ = ':';
+	}
+	*p = '\0';
+
+	return string(buf, end, ip6_addr, field_width, precision, flags & ~SPECIAL);
+}
+
+static char *ip4_addr_string(char *buf, char *end, u8 *addr, int field_width,
+			 int precision, int flags)
+{
+	char ip4_addr[4 * 4]; /* (4 * 3 decimal digits), 3 dots and trailing zero */
+	char temp[3];	/* hold each IP quad in reverse order */
+	char *p = ip4_addr;
+	int i, digits;
+
+	for (i = 0; i < 4; i++) {
+		digits = put_dec_trunc(temp, addr[i]) - temp;
+		/* reverse the digits in the quad */
+		while (digits--)
+			*p++ = temp[digits];
+		if (i != 3)
+			*p++ = '.';
+	}
+	*p = '\0';
+
+	return string(buf, end, ip4_addr, field_width, precision, flags & ~SPECIAL);
+}
+
 /*
  * Show a '%p' thing.  A kernel extension is that the '%p' is followed
  * by an extra set of alphanumeric characters that are extended format
@@ -592,6 +648,12 @@ static char *resource_string(char *buf, char *end, struct resource *res, int fie
  * - 'S' For symbolic direct pointers
  * - 'R' For a struct resource pointer, it prints the range of
  *       addresses (not the name nor the flags)
+ * - 'M' For a 6-byte MAC address, it prints the address in the
+ *       usual colon-separated hex notation
+ * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way (dot-separated
+ *       decimal for v4 and colon separated network-order 16 bit hex for v6)
+ * - 'i' [46] for 'raw' IPv4/IPv6 addresses, IPv6 omits the colons, IPv4 is
+ *       currently the same
  *
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a
@@ -607,6 +669,21 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr, int field
 		return symbol_string(buf, end, ptr, field_width, precision, flags);
 	case 'R':
 		return resource_string(buf, end, ptr, field_width, precision, flags);
+	case 'm':
+		flags |= SPECIAL;
+		/* Fallthrough */
+	case 'M':
+		return mac_address_string(buf, end, ptr, field_width, precision, flags);
+	case 'i':
+		flags |= SPECIAL;
+		/* Fallthrough */
+	case 'I':
+		if (fmt[1] == '6')
+			return ip6_addr_string(buf, end, ptr, field_width, precision, flags);
+		if (fmt[1] == '4')
+			return ip4_addr_string(buf, end, ptr, field_width, precision, flags);
+		flags &= ~SPECIAL;
+		break;
 	}
 	flags |= SMALL;
 	if (field_width == -1) {

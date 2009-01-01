@@ -424,10 +424,10 @@ static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
-		.chipset	= ide_cmd646,
 		.port_ops	= &cmd64x_port_ops,
 		.dma_ops	= &cmd648_dma_ops,
-		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH,
+		.host_flags	= IDE_HFLAG_SERIALIZE |
+				  IDE_HFLAG_ABUSE_PREFETCH,
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA2,

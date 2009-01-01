@@ -116,12 +116,6 @@ EXPORT_SYMBOL(giveup_spe);
 
 #ifndef CONFIG_PPC64
 EXPORT_SYMBOL(flush_instruction_cache);
-EXPORT_SYMBOL(flush_tlb_kernel_range);
-EXPORT_SYMBOL(flush_tlb_page);
-EXPORT_SYMBOL(_tlbie);
-#if defined(CONFIG_4xx) || defined(CONFIG_8xx) || defined(CONFIG_FSL_BOOKE)
-EXPORT_SYMBOL(_tlbil_va);
-#endif
 #endif
 EXPORT_SYMBOL(__flush_icache_range);
 EXPORT_SYMBOL(flush_dcache_range);
@@ -174,8 +168,7 @@ EXPORT_SYMBOL(cacheable_memcpy);
 #endif
 
 #ifdef CONFIG_PPC32
-EXPORT_SYMBOL(next_mmu_context);
-EXPORT_SYMBOL(set_context);
+EXPORT_SYMBOL(switch_mmu_context);
 #endif
 
 #ifdef CONFIG_PPC_STD_MMU_32

@@ -26,12 +26,12 @@ MODULE_LICENSE("GPL");
 module_param(debug, uint, S_IRUGO | S_IWUSR);
 
 static LIST_HEAD(devices);
-DEFINE_RWLOCK(device_lock);
+static DEFINE_RWLOCK(device_lock);
 static u64		device_ids;
 #define MAX_DEVICE_ID	63
 
 static LIST_HEAD(Bprotocols);
-DEFINE_RWLOCK(bp_lock);
+static DEFINE_RWLOCK(bp_lock);
 
 struct mISDNdevice
 *get_mdevice(u_int id)
@@ -192,7 +192,7 @@ mISDN_unregister_Bprotocol(struct Bprotocol *bp)
 }
 EXPORT_SYMBOL(mISDN_unregister_Bprotocol);
 
-int
+static int
 mISDNInit(void)
 {
 	int	err;
@@ -224,7 +224,7 @@ error:
 	return err;
 }
 
-void mISDN_cleanup(void)
+static void mISDN_cleanup(void)
 {
 	misdn_sock_cleanup();
 	mISDN_timer_cleanup();

@@ -135,7 +135,6 @@
 /* various tuning parameters */
 #define HPT_RESET_STATE_ENGINE
 #undef	HPT_DELAY_INTERRUPT
-#define HPT_SERIALIZE_IO	0
 
 static const char *quirk_drives[] = {
 	"QUANTUM FIREBALLlct08 08",
@@ -1288,7 +1287,6 @@ static u8 hpt3xx_cable_detect(ide_hwif_t *hwif)
 static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 {
 	struct hpt_info *info	= hpt3xx_get_info(hwif->dev);
-	int serialize		= HPT_SERIALIZE_IO;
 	u8  chip_type		= info->chip_type;
 
 	/* Cache the channel's MISC. control registers' offset */
@@ -1305,13 +1303,9 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 		 * Clock is shared between the channels,
 		 * so we'll have to serialize them... :-(
 		 */
-		serialize = 1;
+		hwif->host->host_flags |= IDE_HFLAG_SERIALIZE;
 		hwif->rw_disk = &hpt3xxn_rw_disk;
 	}
-
-	/* Serialize access to this device if needed */
-	if (serialize && hwif->mate)
-		hwif->serialized = hwif->mate->serialized = 1;
 }
 
 static int __devinit init_dma_hpt366(ide_hwif_t *hwif,

@@ -422,11 +422,8 @@ out:
 }
 #endif
 
-
-#ifdef CONFIG_TRACE_IRQFLAGS
 void early_init_irq_lock_class(void)
 {
-#ifndef CONFIG_SPARSE_IRQ
 	struct irq_desc *desc;
 	int i;
 
@@ -436,9 +433,7 @@ void early_init_irq_lock_class(void)
 
 		lockdep_set_class(&desc->lock, &irq_desc_lock_class);
 	}
-#endif
 }
-#endif
 
 #ifdef CONFIG_SPARSE_IRQ
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)

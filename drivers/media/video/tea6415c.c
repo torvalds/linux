@@ -31,7 +31,7 @@
 #include <linux/module.h>
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 #include "tea6415c.h"
 
@@ -122,31 +122,57 @@ static int switch_matrix(struct i2c_client *client, int i, int o)
 	return ret;
 }
 
+static int tea6415c_ioctl(struct v4l2_subdev *sd, unsigned cmd, void *arg)
+{
+	if (cmd == TEA6415C_SWITCH) {
+		struct i2c_client *client = v4l2_get_subdevdata(sd);
+		struct tea6415c_multiplex *v = (struct tea6415c_multiplex *)arg;
+
+		return switch_matrix(client, v->in, v->out);
+	}
+	return -ENOIOCTLCMD;
+}
+
 static int tea6415c_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
-	struct tea6415c_multiplex *v = (struct tea6415c_multiplex *)arg;
-	int result = 0;
-
-	switch (cmd) {
-	case TEA6415C_SWITCH:
-		result = switch_matrix(client, v->in, v->out);
-		break;
-	default:
-		return -ENOIOCTLCMD;
-	}
-	return result;
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
 }
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops tea6415c_core_ops = {
+	.ioctl = tea6415c_ioctl,
+};
+
+static const struct v4l2_subdev_ops tea6415c_ops = {
+	.core = &tea6415c_core_ops,
+};
 
 /* this function is called by i2c_probe */
 static int tea6415c_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
+	struct v4l2_subdev *sd;
+
 	/* let's see whether this adapter can support what we need */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WRITE_BYTE))
 		return 0;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
+	sd = kmalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
+	if (sd == NULL)
+		return -ENOMEM;
+	v4l2_i2c_subdev_init(sd, client, &tea6415c_ops);
+	return 0;
+}
+
+static int tea6415c_remove(struct i2c_client *client)
+{
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	v4l2_device_unregister_subdev(sd);
+	kfree(sd);
 	return 0;
 }
 
@@ -168,6 +194,7 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.driverid = I2C_DRIVERID_TEA6415C,
 	.command = tea6415c_command,
 	.probe = tea6415c_probe,
+	.remove = tea6415c_remove,
 	.legacy_probe = tea6415c_legacy_probe,
 	.id_table = tea6415c_id,
 };

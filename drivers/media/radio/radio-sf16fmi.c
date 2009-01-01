@@ -3,7 +3,7 @@
  * (c) 1997 M. Kirkwood
  * (c) 1998 Petr Vandrovec, vandrove@vc.cvut.cz
  *
- * Fitted to new interface by Alan Cox <alan.cox@linux.org>
+ * Fitted to new interface by Alan Cox <alan@lxorguk.ukuu.org.uk>
  * Made working and cleaned up functions <mikael.hedin@irf.se>
  * Support for ISAPnP by Ladislav Michl <ladis@psi.cz>
  *

@@ -2472,10 +2472,9 @@ static void set_ir_ioapic_affinity_irq(unsigned int irq,
 asmlinkage void smp_irq_move_cleanup_interrupt(void)
 {
 	unsigned vector, me;
+
 	ack_APIC_irq();
-#ifdef CONFIG_X86_64
 	exit_idle();
-#endif
 	irq_enter();
 
 	me = smp_processor_id();
@@ -2520,7 +2519,7 @@ static void irq_complete_move(struct irq_desc **descp)
 		if (likely(!cfg->move_desc_pending))
 			return;
 
-		/* domain is not change, but affinity is changed */
+		/* domain has not changed, but affinity did */
 		me = smp_processor_id();
 		if (cpu_isset(me, desc->affinity)) {
 			*descp = desc = move_irq_desc(desc, me);

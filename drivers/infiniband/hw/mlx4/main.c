@@ -578,7 +578,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
 		ibdev->num_ports++;
 	ibdev->ib_dev.phys_port_cnt     = ibdev->num_ports;
-	ibdev->ib_dev.num_comp_vectors	= 1;
+	ibdev->ib_dev.num_comp_vectors	= dev->caps.num_comp_vectors;
 	ibdev->ib_dev.dma_device	= &dev->pdev->dev;
 
 	ibdev->ib_dev.uverbs_abi_ver	= MLX4_IB_UVERBS_ABI_VERSION;

@@ -209,9 +209,11 @@ struct meminfo {
 	struct membank bank[NR_BANKS];
 };
 
+extern struct meminfo meminfo;
+
 #define for_each_nodebank(iter,mi,no)			\
-	for (iter = 0; iter < mi->nr_banks; iter++)	\
-		if (mi->bank[iter].node == no)
+	for (iter = 0; iter < (mi)->nr_banks; iter++)	\
+		if ((mi)->bank[iter].node == no)
 
 #define bank_pfn_start(bank)	__phys_to_pfn((bank)->start)
 #define bank_pfn_end(bank)	__phys_to_pfn((bank)->start + (bank)->size)

@@ -282,7 +282,7 @@ static int __cpuinitdata unsafe_smp;
 /*
  * Activate a secondary processor.
  */
-static void __cpuinit start_secondary(void *unused)
+notrace static void __cpuinit start_secondary(void *unused)
 {
 	/*
 	 * Don't put *anything* before cpu_init(), SMP booting is too
@@ -496,7 +496,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 }
 
 /* maps the cpu to the sched domain representing multi-core */
-cpumask_t cpu_coregroup_map(int cpu)
+const struct cpumask *cpu_coregroup_mask(int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	/*
@@ -504,9 +504,14 @@ cpumask_t cpu_coregroup_map(int cpu)
 	 * And for power savings, we return cpu_core_map
 	 */
 	if (sched_mc_power_savings || sched_smt_power_savings)
-		return per_cpu(cpu_core_map, cpu);
+		return &per_cpu(cpu_core_map, cpu);
 	else
-		return c->llc_shared_map;
+		return &c->llc_shared_map;
+}
+
+cpumask_t cpu_coregroup_map(int cpu)
+{
+	return *cpu_coregroup_mask(cpu);
 }
 
 static void impress_friends(void)
@@ -1075,8 +1080,10 @@ static int __init smp_sanity_check(unsigned max_cpus)
 #endif
 
 	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
-		printk(KERN_WARNING "weird, boot CPU (#%d) not listed"
-				    "by the BIOS.\n", hard_smp_processor_id());
+		printk(KERN_WARNING
+			"weird, boot CPU (#%d) not listed by the BIOS.\n",
+			hard_smp_processor_id());
+
 		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
 	}
 

@@ -1246,7 +1246,6 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	dev->stats.rx_bytes += skb->len;
 	skb->protocol = eth_type_trans(skb, dev);
 	netif_receive_skb(skb);
-	dev->last_rx = jiffies;
 	dev->stats.rx_packets++;
 	return;
 }
@@ -1398,7 +1397,7 @@ static int pcnet32_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		spin_lock_irqsave(&lp->lock, flags);
 
-		__netif_rx_complete(dev, napi);
+		__netif_rx_complete(napi);
 
 		/* clear interrupt masks */
 		val = lp->a.read_csr(ioaddr, CSR3);
@@ -1747,8 +1746,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		memset(dev->dev_addr, 0, sizeof(dev->dev_addr));
 
 	if (pcnet32_debug & NETIF_MSG_PROBE) {
-		DECLARE_MAC_BUF(mac);
-		printk(" %s", print_mac(mac, dev->dev_addr));
+		printk(" %pM", dev->dev_addr);
 
 		/* Version 0x2623 and 0x2624 */
 		if (((chip_version + 1) & 0xfffe) == 0x2624) {
@@ -2588,14 +2586,14 @@ pcnet32_interrupt(int irq, void *dev_id)
 				       dev->name, csr0);
 			/* unlike for the lance, there is no restart needed */
 		}
-		if (netif_rx_schedule_prep(dev, &lp->napi)) {
+		if (netif_rx_schedule_prep(&lp->napi)) {
 			u16 val;
 			/* set interrupt masks */
 			val = lp->a.read_csr(ioaddr, CSR3);
 			val |= 0x5f00;
 			lp->a.write_csr(ioaddr, CSR3, val);
 			mmiowb();
-			__netif_rx_schedule(dev, &lp->napi);
+			__netif_rx_schedule(&lp->napi);
 			break;
 		}
 		csr0 = lp->a.read_csr(ioaddr, CSR0);

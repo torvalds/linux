@@ -816,7 +816,6 @@ static void _sc92031_rx_tasklet(struct net_device *dev)
 		}
 
 		skb->protocol = eth_type_trans(skb, dev);
-		dev->last_rx = jiffies;
 		netif_rx(skb);
 
 		dev->stats.rx_bytes += pkt_size;
@@ -1387,7 +1386,7 @@ static void sc92031_ethtool_get_ethtool_stats(struct net_device *dev,
 	spin_unlock_bh(&priv->lock);
 }
 
-static struct ethtool_ops sc92031_ethtool_ops = {
+static const struct ethtool_ops sc92031_ethtool_ops = {
 	.get_settings		= sc92031_ethtool_get_settings,
 	.set_settings		= sc92031_ethtool_set_settings,
 	.get_drvinfo		= sc92031_ethtool_get_drvinfo,
@@ -1398,6 +1397,21 @@ static struct ethtool_ops sc92031_ethtool_ops = {
 	.get_strings		= sc92031_ethtool_get_strings,
 	.get_sset_count		= sc92031_ethtool_get_sset_count,
 	.get_ethtool_stats	= sc92031_ethtool_get_ethtool_stats,
+};
+
+
+static const struct net_device_ops sc92031_netdev_ops = {
+	.ndo_get_stats		= sc92031_get_stats,
+	.ndo_start_xmit		= sc92031_start_xmit,
+	.ndo_open		= sc92031_open,
+	.ndo_stop		= sc92031_stop,
+	.ndo_set_multicast_list	= sc92031_set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_tx_timeout		= sc92031_tx_timeout,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= sc92031_poll_controller,
+#endif
 };
 
 static int __devinit sc92031_probe(struct pci_dev *pdev,
@@ -1453,17 +1467,9 @@ static int __devinit sc92031_probe(struct pci_dev *pdev,
 	/* faked with skb_copy_and_csum_dev */
 	dev->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_HIGHDMA;
 
-	dev->get_stats		= sc92031_get_stats;
-	dev->ethtool_ops	= &sc92031_ethtool_ops;
-	dev->hard_start_xmit	= sc92031_start_xmit;
+	dev->netdev_ops		= &sc92031_netdev_ops;
 	dev->watchdog_timeo	= TX_TIMEOUT;
-	dev->open		= sc92031_open;
-	dev->stop		= sc92031_stop;
-	dev->set_multicast_list	= sc92031_set_multicast_list;
-	dev->tx_timeout		= sc92031_tx_timeout;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller	= sc92031_poll_controller;
-#endif
+	dev->ethtool_ops	= &sc92031_ethtool_ops;
 
 	priv = netdev_priv(dev);
 	spin_lock_init(&priv->lock);

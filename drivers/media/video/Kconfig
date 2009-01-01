@@ -184,7 +184,7 @@ config VIDEO_MSP3400
 
 config VIDEO_CS5345
 	tristate "Cirrus Logic CS5345 audio ADC"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Cirrus Logic CS5345 24-bit, 192 kHz
 	  stereo A/D converter.
@@ -204,7 +204,7 @@ config VIDEO_CS53L32A
 
 config VIDEO_M52790
        tristate "Mitsubishi M52790 A/V switch"
-       depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+       depends on VIDEO_V4L2 && I2C
        ---help---
 	 Support for the Mitsubishi M52790 A/V switch.
 
@@ -242,7 +242,7 @@ config VIDEO_WM8739
 
 config VIDEO_VP27SMPX
 	tristate "Panasonic VP27s internal MPX"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the internal MPX of the Panasonic VP27s tuner.
 
@@ -361,6 +361,17 @@ config VIDEO_SAA7191
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7191.
 
+config VIDEO_TVP514X
+	tristate "Texas Instruments TVP514x video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the TI TVP5146/47
+	  decoder. It is currently working with the TI OMAP3 camera
+	  controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tvp514x.
+
 config VIDEO_TVP5150
 	tristate "Texas Instruments TVP5150 video decoder"
 	depends on VIDEO_V4L2 && I2C
@@ -387,7 +398,7 @@ comment "MPEG video encoders"
 
 config VIDEO_CX2341X
 	tristate "Conexant CX2341x MPEG encoders"
-	depends on VIDEO_V4L2 && EXPERIMENTAL && VIDEO_V4L2_COMMON
+	depends on VIDEO_V4L2 && VIDEO_V4L2_COMMON
 	---help---
 	  Support for the Conexant CX23416 MPEG encoders
 	  and CX23415 MPEG encoder/decoders.
@@ -725,10 +736,16 @@ config MT9M001_PCA9536_SWITCH
 	  extender to switch between 8 and 10 bit datawidth modes
 
 config SOC_CAMERA_MT9M111
-	tristate "mt9m111 support"
+	tristate "mt9m111 and mt9m112 support"
 	depends on SOC_CAMERA && I2C
 	help
-	  This driver supports MT9M111 cameras from Micron
+	  This driver supports MT9M111 and MT9M112 cameras from Micron
+
+config SOC_CAMERA_MT9T031
+	tristate "mt9t031 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports MT9T031 cameras from Micron.
 
 config SOC_CAMERA_MT9V022
 	tristate "mt9v022 support"
@@ -744,11 +761,23 @@ config MT9V022_PCA9536_SWITCH
 	  Select this if your MT9V022 camera uses a PCA9536 I2C GPIO
 	  extender to switch between 8 and 10 bit datawidth modes
 
+config SOC_CAMERA_TW9910
+	tristate "tw9910 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a tw9910 video driver
+
 config SOC_CAMERA_PLATFORM
 	tristate "platform camera support"
 	depends on SOC_CAMERA
 	help
 	  This is a generic SoC camera platform driver, useful for testing
+
+config SOC_CAMERA_OV772X
+	tristate "ov772x camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov772x camera driver
 
 config VIDEO_PXA27x
 	tristate "PXA27x Quick Capture Interface driver"
@@ -759,10 +788,17 @@ config VIDEO_PXA27x
 
 config VIDEO_SH_MOBILE_CEU
 	tristate "SuperH Mobile CEU Interface driver"
-	depends on VIDEO_DEV && SOC_CAMERA && HAS_DMA
+	depends on VIDEO_DEV && SOC_CAMERA && HAS_DMA && HAVE_CLK
 	select VIDEOBUF_DMA_CONTIG
 	---help---
 	  This is a v4l2 driver for the SuperH Mobile CEU Interface
+
+config VIDEO_OMAP2
+	tristate "OMAP2 Camera Capture Interface driver"
+	depends on VIDEO_DEV && ARCH_OMAP2
+	select VIDEOBUF_DMA_SG
+	---help---
+	  This is a v4l2 driver for the TI OMAP2 camera capture interface
 
 #
 # USB Multimedia device configuration
