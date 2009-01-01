@@ -1171,7 +1171,9 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	if (usb_register(&sd_driver) < 0)
+	int ret;
+	ret = usb_register(&sd_driver);
+	if (ret < 0)
 		return -1;
 	PDEBUG(D_PROBE, "registered");
 	return 0;
