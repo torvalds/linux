@@ -2213,7 +2213,7 @@ static int __init sd_mod_init(void)
 	int ret;
 	ret = usb_register(&sd_driver);
 	if (ret < 0)
-		return -1;
+		return ret;
 	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
