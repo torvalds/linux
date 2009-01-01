@@ -893,7 +893,6 @@ static void zr364xx_disconnect(struct usb_interface *intf)
 {
 	struct zr364xx_camera *cam = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
-	dev_set_drvdata(&intf->dev, NULL);
 	dev_info(&intf->dev, DRIVER_DESC " webcam unplugged\n");
 	if (cam->vdev)
 		video_unregister_device(cam->vdev);
