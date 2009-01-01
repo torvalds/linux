@@ -1298,6 +1298,8 @@ __init void prefill_possible_map(void)
 	else
 		possible = setup_possible_cpus;
 
+	total_cpus = max_t(int, possible, num_processors + disabled_cpus);
+
 	if (possible > CONFIG_NR_CPUS) {
 		printk(KERN_WARNING
 			"%d Processors exceeds NR_CPUS limit of %d\n",
