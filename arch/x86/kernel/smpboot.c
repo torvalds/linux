@@ -1154,7 +1154,7 @@ static void __init smp_cpu_index_default(void)
 	for_each_possible_cpu(i) {
 		c = &cpu_data(i);
 		/* mark all to hotplug */
-		c->cpu_index = NR_CPUS;
+		c->cpu_index = nr_cpu_ids;
 	}
 }
 

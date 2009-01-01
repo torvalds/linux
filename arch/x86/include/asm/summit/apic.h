@@ -52,7 +52,7 @@ static inline void init_apic_ldr(void)
 	int i;
 
 	/* Create logical APIC IDs by counting CPUs already in cluster. */
-	for (count = 0, i = NR_CPUS; --i >= 0; ) {
+	for (count = 0, i = nr_cpu_ids; --i >= 0; ) {
 		lid = cpu_2_logical_apicid[i];
 		if (lid != BAD_APICID && apicid_cluster(lid) == my_cluster)
 			++count;
@@ -97,8 +97,8 @@ static inline int apicid_to_node(int logical_apicid)
 static inline int cpu_to_logical_apicid(int cpu)
 {
 #ifdef CONFIG_SMP
-       if (cpu >= NR_CPUS)
-	       return BAD_APICID;
+	if (cpu >= nr_cpu_ids)
+		return BAD_APICID;
 	return (int)cpu_2_logical_apicid[cpu];
 #else
 	return logical_smp_processor_id();
@@ -107,7 +107,7 @@ static inline int cpu_to_logical_apicid(int cpu)
 
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
-	if (mps_cpu < NR_CPUS)
+	if (mps_cpu < nr_cpu_ids)
 		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
 	else
 		return BAD_APICID;
@@ -146,7 +146,7 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 
 	num_bits_set = cpus_weight(*cpumask);
 	/* Return id to all */
-	if (num_bits_set == NR_CPUS)
+	if (num_bits_set >= nr_cpu_ids)
 		return (int) 0xFF;
 	/*
 	 * The cpus in the mask must all be on the apic cluster.  If are not
@@ -173,42 +173,16 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *inmask,
 						  const struct cpumask *andmask)
 {
-	int num_bits_set;
-	int cpus_found = 0;
-	int cpu;
-	int apicid = 0xFF;
+	int apicid = cpu_to_logical_apicid(0);
 	cpumask_var_t cpumask;
 
 	if (!alloc_cpumask_var(&cpumask, GFP_ATOMIC))
-		return (int) 0xFF;
+		return apicid;
 
 	cpumask_and(cpumask, inmask, andmask);
 	cpumask_and(cpumask, cpumask, cpu_online_mask);
+	apicid = cpu_mask_to_apicid(cpumask);
 
-	num_bits_set = cpumask_weight(cpumask);
-	/* Return id to all */
-	if (num_bits_set == nr_cpu_ids)
-		goto exit;
-	/*
-	 * The cpus in the mask must all be on the apic cluster.  If are not
-	 * on the same apicid cluster return default value of TARGET_CPUS.
-	 */
-	cpu = cpumask_first(cpumask);
-	apicid = cpu_to_logical_apicid(cpu);
-	while (cpus_found < num_bits_set) {
-		if (cpumask_test_cpu(cpu, cpumask)) {
-			int new_apicid = cpu_to_logical_apicid(cpu);
-			if (apicid_cluster(apicid) !=
-					apicid_cluster(new_apicid)){
-				printk ("%s: Not a valid mask!\n", __func__);
-				return 0xFF;
-			}
-			apicid = apicid | new_apicid;
-			cpus_found++;
-		}
-		cpu++;
-	}
-exit:
 	free_cpumask_var(cpumask);
 	return apicid;
 }
