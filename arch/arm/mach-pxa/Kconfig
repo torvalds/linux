@@ -40,6 +40,9 @@ choice
 config GUMSTIX_AM200EPD
 	bool "Enable AM200EPD board support"
 
+config GUMSTIX_AM300EPD
+	bool "Enable AM300EPD board support"
+
 endchoice
 
 config MACH_INTELMOTE2
