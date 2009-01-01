@@ -133,7 +133,7 @@ print_cpus_func(present);
  */
 static ssize_t print_cpus_kernel_max(struct sysdev_class *class, char *buf)
 {
-	int n = snprintf(buf, PAGE_SIZE-2, "%d\n", CONFIG_NR_CPUS - 1);
+	int n = snprintf(buf, PAGE_SIZE-2, "%d\n", NR_CPUS - 1);
 	return n;
 }
 static SYSDEV_CLASS_ATTR(kernel_max, 0444, print_cpus_kernel_max, NULL);
