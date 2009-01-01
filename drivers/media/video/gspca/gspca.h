@@ -33,19 +33,13 @@ extern int gspca_debug;
 #endif
 #undef err
 #define err(fmt, args...) \
-	do {\
-		printk(KERN_ERR MODULE_NAME ": " fmt "\n", ## args); \
-	} while (0)
+	printk(KERN_ERR MODULE_NAME ": " fmt "\n", ## args)
 #undef info
 #define info(fmt, args...) \
-	do {\
-		printk(KERN_INFO MODULE_NAME ": " fmt "\n", ## args); \
-	} while (0)
+	printk(KERN_INFO MODULE_NAME ": " fmt "\n", ## args)
 #undef warn
 #define warn(fmt, args...) \
-	do {\
-		printk(KERN_WARNING MODULE_NAME ": " fmt "\n", ## args); \
-	} while (0)
+	printk(KERN_WARNING MODULE_NAME ": " fmt "\n", ## args)
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
 /* image transfers */
