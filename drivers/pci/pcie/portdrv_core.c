@@ -370,6 +370,14 @@ void pcie_port_device_remove(struct pci_dev *dev)
 		pci_disable_msi(dev);
 }
 
+/**
+ * pcie_port_probe_service - probe driver for given PCI Express port service
+ * @dev: PCI Express port service device to probe against
+ *
+ * If PCI Express port service driver is registered with
+ * pcie_port_service_register(), this function will be called by the driver core
+ * whenever match is found between the driver and a port service device.
+ */
 static int pcie_port_probe_service(struct device *dev)
 {
 	struct pcie_device *pciedev;
@@ -393,6 +401,15 @@ static int pcie_port_probe_service(struct device *dev)
 	return status;
 }
 
+/**
+ * pcie_port_remove_service - detach driver from given PCI Express port service
+ * @dev: PCI Express port service device to handle
+ *
+ * If PCI Express port service driver is registered with
+ * pcie_port_service_register(), this function will be called by the driver core
+ * when device_unregister() is called for the port service device associated
+ * with the driver.
+ */
 static int pcie_port_remove_service(struct device *dev)
 {
 	struct pcie_device *pciedev;
@@ -412,8 +429,21 @@ static int pcie_port_remove_service(struct device *dev)
 	return 0;
 }
 
+/**
+ * pcie_port_shutdown_service - shut down given PCI Express port service
+ * @dev: PCI Express port service device to handle
+ *
+ * If PCI Express port service driver is registered with
+ * pcie_port_service_register(), this function will be called by the driver core
+ * when device_shutdown() is called for the port service device associated
+ * with the driver.
+ */
 static void pcie_port_shutdown_service(struct device *dev) {}
 
+/**
+ * pcie_port_service_register - register PCI Express port service driver
+ * @new: PCI Express port service driver to register
+ */
 int pcie_port_service_register(struct pcie_port_service_driver *new)
 {
 	new->driver.name = (char *)new->name;
@@ -425,6 +455,10 @@ int pcie_port_service_register(struct pcie_port_service_driver *new)
 	return driver_register(&new->driver);
 }
 
+/**
+ * pcie_port_service_unregister - unregister PCI Express port service driver
+ * @drv: PCI Express port service driver to unregister
+ */
 void pcie_port_service_unregister(struct pcie_port_service_driver *drv)
 {
 	driver_unregister(&drv->driver);
