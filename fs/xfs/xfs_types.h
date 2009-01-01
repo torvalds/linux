@@ -111,8 +111,6 @@ typedef __uint64_t	xfs_fileoff_t;	/* block number in a file */
 typedef __int64_t	xfs_sfiloff_t;	/* signed block number in a file */
 typedef __uint64_t	xfs_filblks_t;	/* number of blocks in a file */
 
-typedef __uint8_t	xfs_arch_t;	/* architecture of an xfs fs */
-
 /*
  * Null values for the types.
  */
