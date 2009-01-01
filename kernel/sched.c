@@ -3715,7 +3715,7 @@ redo:
 		 * don't kick the migration_thread, if the curr
 		 * task on busiest cpu can't be moved to this_cpu
 		 */
-		if (!cpu_isset(this_cpu, busiest->curr->cpus_allowed)) {
+		if (!cpumask_test_cpu(this_cpu, &busiest->curr->cpus_allowed)) {
 			double_unlock_balance(this_rq, busiest);
 			all_pinned = 1;
 			return ld_moved;
@@ -6220,9 +6220,7 @@ static int __migrate_task_irq(struct task_struct *p, int src_cpu, int dest_cpu)
 static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 {
 	int dest_cpu;
-	/* FIXME: Use cpumask_of_node here. */
-	cpumask_t _nodemask = node_to_cpumask(cpu_to_node(dead_cpu));
-	const struct cpumask *nodemask = &_nodemask;
+	const struct cpumask *nodemask = cpumask_of_node(cpu_to_node(dead_cpu));
 
 again:
 	/* Look for allowed, online CPU in same node. */
@@ -7133,21 +7131,18 @@ static int find_next_best_node(int node, nodemask_t *used_nodes)
 static void sched_domain_node_span(int node, struct cpumask *span)
 {
 	nodemask_t used_nodes;
-	/* FIXME: use cpumask_of_node() */
-	node_to_cpumask_ptr(nodemask, node);
 	int i;
 
-	cpus_clear(*span);
+	cpumask_clear(span);
 	nodes_clear(used_nodes);
 
-	cpus_or(*span, *span, *nodemask);
+	cpumask_or(span, span, cpumask_of_node(node));
 	node_set(node, used_nodes);
 
 	for (i = 1; i < SD_NODES_PER_DOMAIN; i++) {
 		int next_node = find_next_best_node(node, &used_nodes);
 
-		node_to_cpumask_ptr_next(nodemask, next_node);
-		cpus_or(*span, *span, *nodemask);
+		cpumask_or(span, span, cpumask_of_node(next_node));
 	}
 }
 #endif /* CONFIG_NUMA */
@@ -7227,9 +7222,7 @@ cpu_to_phys_group(int cpu, const struct cpumask *cpu_map,
 {
 	int group;
 #ifdef CONFIG_SCHED_MC
-	/* FIXME: Use cpu_coregroup_mask. */
-	*mask = cpu_coregroup_map(cpu);
-	cpus_and(*mask, *mask, *cpu_map);
+	cpumask_and(mask, cpu_coregroup_mask(cpu), cpu_map);
 	group = cpumask_first(mask);
 #elif defined(CONFIG_SCHED_SMT)
 	cpumask_and(mask, &per_cpu(cpu_sibling_map, cpu), cpu_map);
@@ -7259,10 +7252,8 @@ static int cpu_to_allnodes_group(int cpu, const struct cpumask *cpu_map,
 				 struct cpumask *nodemask)
 {
 	int group;
-	/* FIXME: use cpumask_of_node */
-	node_to_cpumask_ptr(pnodemask, cpu_to_node(cpu));
 
-	cpumask_and(nodemask, pnodemask, cpu_map);
+	cpumask_and(nodemask, cpumask_of_node(cpu_to_node(cpu)), cpu_map);
 	group = cpumask_first(nodemask);
 
 	if (sg)
@@ -7313,10 +7304,8 @@ static void free_sched_groups(const struct cpumask *cpu_map,
 
 		for (i = 0; i < nr_node_ids; i++) {
 			struct sched_group *oldsg, *sg = sched_group_nodes[i];
-			/* FIXME: Use cpumask_of_node */
-			node_to_cpumask_ptr(pnodemask, i);
 
-			cpus_and(*nodemask, *pnodemask, *cpu_map);
+			cpumask_and(nodemask, cpumask_of_node(i), cpu_map);
 			if (cpumask_empty(nodemask))
 				continue;
 
@@ -7525,9 +7514,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 	for_each_cpu(i, cpu_map) {
 		struct sched_domain *sd = NULL, *p;
 
-		/* FIXME: use cpumask_of_node */
-		*nodemask = node_to_cpumask(cpu_to_node(i));
-		cpus_and(*nodemask, *nodemask, *cpu_map);
+		cpumask_and(nodemask, cpumask_of_node(cpu_to_node(i)), cpu_map);
 
 #ifdef CONFIG_NUMA
 		if (cpumask_weight(cpu_map) >
@@ -7568,9 +7555,8 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 		sd = &per_cpu(core_domains, i).sd;
 		SD_INIT(sd, MC);
 		set_domain_attribute(sd, attr);
-		*sched_domain_span(sd) = cpu_coregroup_map(i);
-		cpumask_and(sched_domain_span(sd),
-			    sched_domain_span(sd), cpu_map);
+		cpumask_and(sched_domain_span(sd), cpu_map,
+						   cpu_coregroup_mask(i));
 		sd->parent = p;
 		p->child = sd;
 		cpu_to_core_group(i, cpu_map, &sd->groups, tmpmask);
@@ -7606,9 +7592,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 #ifdef CONFIG_SCHED_MC
 	/* Set up multi-core groups */
 	for_each_cpu(i, cpu_map) {
-		/* FIXME: Use cpu_coregroup_mask */
-		*this_core_map = cpu_coregroup_map(i);
-		cpus_and(*this_core_map, *this_core_map, *cpu_map);
+		cpumask_and(this_core_map, cpu_coregroup_mask(i), cpu_map);
 		if (i != cpumask_first(this_core_map))
 			continue;
 
@@ -7620,9 +7604,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 
 	/* Set up physical groups */
 	for (i = 0; i < nr_node_ids; i++) {
-		/* FIXME: Use cpumask_of_node */
-		*nodemask = node_to_cpumask(i);
-		cpus_and(*nodemask, *nodemask, *cpu_map);
+		cpumask_and(nodemask, cpumask_of_node(i), cpu_map);
 		if (cpumask_empty(nodemask))
 			continue;
 
@@ -7644,11 +7626,8 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 		struct sched_group *sg, *prev;
 		int j;
 
-		/* FIXME: Use cpumask_of_node */
-		*nodemask = node_to_cpumask(i);
 		cpumask_clear(covered);
-
-		cpus_and(*nodemask, *nodemask, *cpu_map);
+		cpumask_and(nodemask, cpumask_of_node(i), cpu_map);
 		if (cpumask_empty(nodemask)) {
 			sched_group_nodes[i] = NULL;
 			continue;
@@ -7679,8 +7658,6 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 
 		for (j = 0; j < nr_node_ids; j++) {
 			int n = (i + j) % nr_node_ids;
-			/* FIXME: Use cpumask_of_node */
-			node_to_cpumask_ptr(pnodemask, n);
 
 			cpumask_complement(notcovered, covered);
 			cpumask_and(tmpmask, notcovered, cpu_map);
@@ -7688,7 +7665,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 			if (cpumask_empty(tmpmask))
 				break;
 
-			cpumask_and(tmpmask, tmpmask, pnodemask);
+			cpumask_and(tmpmask, tmpmask, cpumask_of_node(n));
 			if (cpumask_empty(tmpmask))
 				continue;
 
