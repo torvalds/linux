@@ -2596,6 +2596,13 @@ ath5k_init_leds(struct ath5k_softc *sc)
 		sc->led_pin = 1;
 		sc->led_on = 1;  /* active high */
 	}
+	/* Pin 3 on Foxconn chips used in Acer Aspire One (0x105b:e008) */
+	if (pdev->subsystem_vendor == PCI_VENDOR_ID_FOXCONN) {
+		__set_bit(ATH_STAT_LEDSOFT, sc->status);
+		sc->led_pin = 3;
+		sc->led_on = 0;  /* active low */
+	}
+
 	if (!test_bit(ATH_STAT_LEDSOFT, sc->status))
 		goto out;
 
