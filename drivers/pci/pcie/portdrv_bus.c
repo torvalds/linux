@@ -44,3 +44,13 @@ static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
 
 	return 1;
 }
+
+int pcie_port_bus_register(void)
+{
+	return bus_register(&pcie_port_bus_type);
+}
+
+void pcie_port_bus_unregister(void)
+{
+	bus_unregister(&pcie_port_bus_type);
+}

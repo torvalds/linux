@@ -19,50 +19,6 @@
 
 extern int pcie_mch_quirk;	/* MSI-quirk Indicator */
 
-static int pcie_port_probe_service(struct device *dev)
-{
-	struct pcie_device *pciedev;
-	struct pcie_port_service_driver *driver;
-	int status;
-
-	if (!dev || !dev->driver)
-		return -ENODEV;
-
- 	driver = to_service_driver(dev->driver);
-	if (!driver || !driver->probe)
-		return -ENODEV;
-
-	pciedev = to_pcie_device(dev);
-	status = driver->probe(pciedev, driver->id_table);
-	if (!status) {
-		dev_printk(KERN_DEBUG, dev, "service driver %s loaded\n",
-			driver->name);
-		get_device(dev);
-	}
-	return status;
-}
-
-static int pcie_port_remove_service(struct device *dev)
-{
-	struct pcie_device *pciedev;
-	struct pcie_port_service_driver *driver;
-
-	if (!dev || !dev->driver)
-		return 0;
-
-	pciedev = to_pcie_device(dev);
- 	driver = to_service_driver(dev->driver);
-	if (driver && driver->remove) { 
-		dev_printk(KERN_DEBUG, dev, "unloading service driver %s\n",
-			driver->name);
-		driver->remove(pciedev);
-		put_device(dev);
-	}
-	return 0;
-}
-
-static void pcie_port_shutdown_service(struct device *dev) {}
-
 /**
  * release_pcie_device - free PCI Express port service device structure
  * @dev: Port service device to release
@@ -414,15 +370,49 @@ void pcie_port_device_remove(struct pci_dev *dev)
 		pci_disable_msi(dev);
 }
 
-int pcie_port_bus_register(void)
+static int pcie_port_probe_service(struct device *dev)
 {
-	return bus_register(&pcie_port_bus_type);
+	struct pcie_device *pciedev;
+	struct pcie_port_service_driver *driver;
+	int status;
+
+	if (!dev || !dev->driver)
+		return -ENODEV;
+
+	driver = to_service_driver(dev->driver);
+	if (!driver || !driver->probe)
+		return -ENODEV;
+
+	pciedev = to_pcie_device(dev);
+	status = driver->probe(pciedev, driver->id_table);
+	if (!status) {
+		dev_printk(KERN_DEBUG, dev, "service driver %s loaded\n",
+			driver->name);
+		get_device(dev);
+	}
+	return status;
 }
 
-void pcie_port_bus_unregister(void)
+static int pcie_port_remove_service(struct device *dev)
 {
-	bus_unregister(&pcie_port_bus_type);
+	struct pcie_device *pciedev;
+	struct pcie_port_service_driver *driver;
+
+	if (!dev || !dev->driver)
+		return 0;
+
+	pciedev = to_pcie_device(dev);
+	driver = to_service_driver(dev->driver);
+	if (driver && driver->remove) {
+		dev_printk(KERN_DEBUG, dev, "unloading service driver %s\n",
+			driver->name);
+		driver->remove(pciedev);
+		put_device(dev);
+	}
+	return 0;
 }
+
+static void pcie_port_shutdown_service(struct device *dev) {}
 
 int pcie_port_service_register(struct pcie_port_service_driver *new)
 {
@@ -435,9 +425,9 @@ int pcie_port_service_register(struct pcie_port_service_driver *new)
 	return driver_register(&new->driver);
 }
 
-void pcie_port_service_unregister(struct pcie_port_service_driver *new)
+void pcie_port_service_unregister(struct pcie_port_service_driver *drv)
 {
-	driver_unregister(&new->driver);
+	driver_unregister(&drv->driver);
 }
 
 EXPORT_SYMBOL(pcie_port_service_register);
