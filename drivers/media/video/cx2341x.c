@@ -1,5 +1,5 @@
 /*
- * cx2341x - generic code for cx23415/6 based devices
+ * cx2341x - generic code for cx23415/6/8 based devices
  *
  * Copyright (C) 2006 Hans Verkuil <hverkuil@xs4all.nl>
  *
@@ -30,7 +30,7 @@
 #include <media/cx2341x.h>
 #include <media/v4l2-common.h>
 
-MODULE_DESCRIPTION("cx23415/6 driver");
+MODULE_DESCRIPTION("cx23415/6/8 driver");
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_LICENSE("GPL");
 
@@ -45,6 +45,7 @@ const u32 cx2341x_mpeg_ctrls[] = {
 	V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
 	V4L2_CID_MPEG_AUDIO_ENCODING,
 	V4L2_CID_MPEG_AUDIO_L2_BITRATE,
+	V4L2_CID_MPEG_AUDIO_AC3_BITRATE,
 	V4L2_CID_MPEG_AUDIO_MODE,
 	V4L2_CID_MPEG_AUDIO_MODE_EXTENSION,
 	V4L2_CID_MPEG_AUDIO_EMPHASIS,
@@ -94,6 +95,7 @@ static const struct cx2341x_mpeg_params default_params = {
 	.audio_sampling_freq = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000,
 	.audio_encoding = V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
 	.audio_l2_bitrate = V4L2_MPEG_AUDIO_L2_BITRATE_224K,
+	.audio_ac3_bitrate = V4L2_MPEG_AUDIO_AC3_BITRATE_224K,
 	.audio_mode = V4L2_MPEG_AUDIO_MODE_STEREO,
 	.audio_mode_extension = V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_4,
 	.audio_emphasis = V4L2_MPEG_AUDIO_EMPHASIS_NONE,
@@ -147,6 +149,9 @@ static int cx2341x_get_ctrl(const struct cx2341x_mpeg_params *params,
 		break;
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
 		ctrl->value = params->audio_l2_bitrate;
+		break;
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+		ctrl->value = params->audio_ac3_bitrate;
 		break;
 	case V4L2_CID_MPEG_AUDIO_MODE:
 		ctrl->value = params->audio_mode;
@@ -256,12 +261,23 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params, int busy,
 		params->audio_sampling_freq = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
+		if (busy)
+			return -EBUSY;
+		if (params->capabilities & CX2341X_CAP_HAS_AC3 &&
+		    ctrl->value != V4L2_MPEG_AUDIO_ENCODING_LAYER_2 &&
+		    ctrl->value != V4L2_MPEG_AUDIO_ENCODING_AC3)
+			return -EINVAL;
 		params->audio_encoding = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
 		if (busy)
 			return -EBUSY;
 		params->audio_l2_bitrate = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+		if (busy)
+			return -EBUSY;
+		params->audio_ac3_bitrate = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_AUDIO_MODE:
 		params->audio_mode = ctrl->value;
@@ -482,6 +498,12 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 
 	switch (qctrl->id) {
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
+		if (params->capabilities & CX2341X_CAP_HAS_AC3)
+			return v4l2_ctrl_query_fill(qctrl,
+					V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
+					V4L2_MPEG_AUDIO_ENCODING_AC3, 1,
+					default_params.audio_encoding);
+
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_2, 1,
@@ -496,6 +518,12 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
 	case V4L2_CID_MPEG_AUDIO_L3_BITRATE:
 		return -EINVAL;
+
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_48K,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_448K, 1,
+				default_params.audio_ac3_bitrate);
 
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION:
 		err = v4l2_ctrl_query_fill_std(qctrl);
@@ -671,6 +699,15 @@ const char **cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id)
 		NULL
 	};
 
+	static const char *mpeg_audio_encoding_l2_ac3[] = {
+		"",
+		"MPEG-1/2 Layer II",
+		"",
+		"",
+		"AC-3",
+		NULL
+	};
+
 	static const char *cx2341x_video_spatial_filter_mode_menu[] = {
 		"Manual",
 		"Auto",
@@ -711,6 +748,9 @@ const char **cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id)
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		return (p->capabilities & CX2341X_CAP_HAS_TS) ?
 			mpeg_stream_type_with_ts : mpeg_stream_type_without_ts;
+	case V4L2_CID_MPEG_AUDIO_ENCODING:
+		return (p->capabilities & CX2341X_CAP_HAS_AC3) ?
+			mpeg_audio_encoding_l2_ac3 : v4l2_ctrl_get_menu(id);
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
 	case V4L2_CID_MPEG_AUDIO_L3_BITRATE:
 		return NULL;
@@ -730,16 +770,34 @@ const char **cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id)
 }
 EXPORT_SYMBOL(cx2341x_ctrl_get_menu);
 
+/* definitions for audio properties bits 29-28 */
+#define CX2341X_AUDIO_ENCDING_METHOD_MPEG	0
+#define CX2341X_AUDIO_ENCDING_METHOD_AC3	1
+#define CX2341X_AUDIO_ENCDING_METHOD_LPCM	2
+
 static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 {
-	params->audio_properties = (params->audio_sampling_freq << 0) |
-		((3 - params->audio_encoding) << 2) |
-		((1 + params->audio_l2_bitrate) << 4) |
+	params->audio_properties =
+		(params->audio_sampling_freq << 0) |
 		(params->audio_mode << 8) |
 		(params->audio_mode_extension << 10) |
 		(((params->audio_emphasis == V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17)
 		  ? 3 : params->audio_emphasis) << 12) |
 		(params->audio_crc << 14);
+
+	if ((params->capabilities & CX2341X_CAP_HAS_AC3) &&
+	    params->audio_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3) {
+		params->audio_properties |=
+			/* Not sure if this MPEG Layer II setting is required */
+			((3 - V4L2_MPEG_AUDIO_ENCODING_LAYER_2) << 2) |
+			(params->audio_ac3_bitrate << 4) |
+			(CX2341X_AUDIO_ENCDING_METHOD_AC3 << 28);
+	} else {
+		/* Assuming MPEG Layer II */
+		params->audio_properties |=
+			((3 - params->audio_encoding) << 2) |
+			((1 + params->audio_l2_bitrate) << 4);
+	}
 }
 
 int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params, int busy,
@@ -1022,7 +1080,10 @@ void cx2341x_log_status(const struct cx2341x_mpeg_params *p, const char *prefix)
 		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_ENCODING),
-		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_L2_BITRATE),
+		cx2341x_menu_item(p,
+			   p->audio_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3
+					      ? V4L2_CID_MPEG_AUDIO_AC3_BITRATE
+					      : V4L2_CID_MPEG_AUDIO_L2_BITRATE),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_MODE),
 		p->audio_mute ? " (muted)" : "");
 	if (p->audio_mode == V4L2_MPEG_AUDIO_MODE_JOINT_STEREO)

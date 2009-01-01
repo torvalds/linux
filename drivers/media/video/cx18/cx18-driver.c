@@ -587,7 +587,8 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 		(cx->params.video_temporal_filter_mode << 1) |
 		(cx->params.video_median_filter_type << 2);
 	cx->params.port = CX2341X_PORT_MEMORY;
-	cx->params.capabilities = CX2341X_CAP_HAS_TS;
+	cx->params.capabilities = CX2341X_CAP_HAS_TS   | CX2341X_CAP_HAS_AC3 |
+				  CX2341X_CAP_HAS_LPCM;
 	init_waitqueue_head(&cx->cap_w);
 	init_waitqueue_head(&cx->mb_apu_waitq);
 	init_waitqueue_head(&cx->mb_cpu_waitq);

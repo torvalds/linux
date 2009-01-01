@@ -413,7 +413,7 @@ struct cx18 {
 
 	/* dualwatch */
 	unsigned long dualwatch_jiffies;
-	u16 dualwatch_stereo_mode;
+	u32 dualwatch_stereo_mode;
 
 	/* Digitizer type */
 	int digitizer;		/* 0x00EF = saa7114 0x00FO = saa7115 0x0106 = mic */

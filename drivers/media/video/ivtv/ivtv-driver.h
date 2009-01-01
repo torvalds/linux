@@ -696,7 +696,7 @@ struct ivtv {
 	u64 vbi_data_inserted;          /* number of VBI bytes inserted into the MPEG stream */
 	u32 last_dec_timing[3];         /* cache last retrieved pts/scr/frame values */
 	unsigned long dualwatch_jiffies;/* jiffies value of the previous dualwatch check */
-	u16 dualwatch_stereo_mode;      /* current detected dualwatch stereo mode */
+	u32 dualwatch_stereo_mode;      /* current detected dualwatch stereo mode */
 
 
 	/* VBI state info */

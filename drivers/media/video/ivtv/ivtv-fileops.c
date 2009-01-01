@@ -148,10 +148,10 @@ void ivtv_release_stream(struct ivtv_stream *s)
 static void ivtv_dualwatch(struct ivtv *itv)
 {
 	struct v4l2_tuner vt;
-	u16 new_bitmap;
-	u16 new_stereo_mode;
-	const u16 stereo_mask = 0x0300;
-	const u16 dual = 0x0200;
+	u32 new_bitmap;
+	u32 new_stereo_mode;
+	const u32 stereo_mask = 0x0300;
+	const u32 dual = 0x0200;
 
 	new_stereo_mode = itv->params.audio_properties & stereo_mask;
 	memset(&vt, 0, sizeof(vt));
