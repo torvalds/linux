@@ -115,9 +115,9 @@ int cx18_av_loadfw(struct cx18 *cx)
 	   are generated) */
 	cx18_av_write4(cx, CXADEC_I2S_OUT_CTL, 0x000001A0);
 
-	/* set alt I2s master clock to /16 and enable alt divider i2s
+	/* set alt I2s master clock to /0x16 and enable alt divider i2s
 	   passthrough */
-	cx18_av_write4(cx, CXADEC_PIN_CFG3, 0x5000B687);
+	cx18_av_write4(cx, CXADEC_PIN_CFG3, 0x5600B687);
 
 	cx18_av_write4_expect(cx, CXADEC_STD_DET_CTL, 0x000000F6, 0x000000F6,
 								  0x3F00FFFF);
