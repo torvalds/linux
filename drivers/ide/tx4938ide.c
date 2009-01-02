@@ -226,6 +226,7 @@ static const struct ide_port_info tx4938ide_port_info __initdata = {
 #endif
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
 	.pio_mask		= ATA_PIO5,
+	.chipset		= ide_generic,
 };
 
 static int __init tx4938ide_probe(struct platform_device *pdev)

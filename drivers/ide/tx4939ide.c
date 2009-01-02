@@ -650,6 +650,7 @@ static const struct ide_port_info tx4939ide_port_info __initdata = {
 	.pio_mask		= ATA_PIO4,
 	.mwdma_mask		= ATA_MWDMA2,
 	.udma_mask		= ATA_UDMA5,
+	.chipset		= ide_generic,
 };
 
 static int __init tx4939ide_probe(struct platform_device *pdev)

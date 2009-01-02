@@ -1655,9 +1655,6 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		if (hwif == NULL)
 			continue;
 
-		if (hwif->chipset == ide_unknown)
-			hwif->chipset = ide_generic;
-
 		if (hwif->present)
 			hwif_register_devices(hwif);
 	}
