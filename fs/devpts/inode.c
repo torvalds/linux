@@ -72,11 +72,9 @@ static inline struct super_block *pts_sb_from_inode(struct inode *inode)
 	return devpts_mnt->mnt_sb;
 }
 
-static int devpts_remount(struct super_block *sb, int *flags, char *data)
+static int parse_mount_options(char *data, struct pts_mount_opts *opts)
 {
 	char *p;
-	struct pts_fs_info *fsi = DEVPTS_SB(sb);
-	struct pts_mount_opts *opts = &fsi->mount_opts;
 
 	opts->setuid  = 0;
 	opts->setgid  = 0;
@@ -118,6 +116,14 @@ static int devpts_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	return 0;
+}
+
+static int devpts_remount(struct super_block *sb, int *flags, char *data)
+{
+	struct pts_fs_info *fsi = DEVPTS_SB(sb);
+	struct pts_mount_opts *opts = &fsi->mount_opts;
+
+	return parse_mount_options(data, opts);
 }
 
 static int devpts_show_options(struct seq_file *seq, struct vfsmount *vfs)
