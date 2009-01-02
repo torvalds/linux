@@ -790,10 +790,7 @@ void do_ide_request(struct request_queue *q)
 	/* caller must own hwgroup->lock */
 	BUG_ON(!irqs_disabled());
 
-	while (!hwgroup->busy) {
-		hwgroup->busy = 1;
-		/* for atari only */
-		ide_get_lock(ide_intr, hwgroup);
+	while (!ide_lock_hwgroup(hwgroup)) {
 		drive = choose_drive(hwgroup);
 		if (drive == NULL) {
 			int sleeping = 0;
@@ -825,17 +822,10 @@ void do_ide_request(struct request_queue *q)
 				hwgroup->sleeping = 1;
 				hwgroup->req_gen_timer = hwgroup->req_gen;
 				mod_timer(&hwgroup->timer, sleep);
-				/* we purposely leave hwgroup->busy==1
+				/* we purposely leave hwgroup locked
 				 * while sleeping */
-			} else {
-				/* Ugly, but how can we sleep for the lock
-				 * otherwise? perhaps from tq_disk?
-				 */
-
-				/* for atari only */
-				ide_release_lock();
-				hwgroup->busy = 0;
-			}
+			} else
+				ide_unlock_hwgroup(hwgroup);
 
 			/* no more work for this hwgroup (for now) */
 			goto plug_device;
@@ -865,7 +855,7 @@ void do_ide_request(struct request_queue *q)
 		 */
 		rq = elv_next_request(drive->queue);
 		if (!rq) {
-			hwgroup->busy = 0;
+			ide_unlock_hwgroup(hwgroup);
 			break;
 		}
 
@@ -885,8 +875,8 @@ void do_ide_request(struct request_queue *q)
 		if ((drive->dev_flags & IDE_DFLAG_BLOCKED) &&
 		    blk_pm_request(rq) == 0 &&
 		    (rq->cmd_flags & REQ_PREEMPT) == 0) {
-			/* We clear busy, there should be no pending ATA command at this point. */
-			hwgroup->busy = 0;
+			/* there should be no pending command at this point */
+			ide_unlock_hwgroup(hwgroup);
 			goto plug_device;
 		}
 
@@ -897,7 +887,7 @@ void do_ide_request(struct request_queue *q)
 		spin_lock_irq(&hwgroup->lock);
 
 		if (startstop == ide_stopped) {
-			hwgroup->busy = 0;
+			ide_unlock_hwgroup(hwgroup);
 			if (!elv_queue_empty(orig_drive->queue))
 				blk_plug_device(orig_drive->queue);
 		}
@@ -1001,7 +991,7 @@ void ide_timer_expiry (unsigned long data)
 		 */
 		if (hwgroup->sleeping) {
 			hwgroup->sleeping = 0;
-			hwgroup->busy = 0;
+			ide_unlock_hwgroup(hwgroup);
 		}
 	} else {
 		ide_drive_t *drive = hwgroup->drive;
@@ -1056,7 +1046,7 @@ void ide_timer_expiry (unsigned long data)
 			spin_lock_irq(&hwgroup->lock);
 			enable_irq(hwif->irq);
 			if (startstop == ide_stopped) {
-				hwgroup->busy = 0;
+				ide_unlock_hwgroup(hwgroup);
 				if (!elv_queue_empty(drive->queue))
 					blk_plug_device(drive->queue);
 			}
@@ -1249,7 +1239,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	drive->service_time = jiffies - drive->service_start;
 	if (startstop == ide_stopped) {
 		if (hwgroup->handler == NULL) {	/* paranoia */
-			hwgroup->busy = 0;
+			ide_unlock_hwgroup(hwgroup);
 			if (!elv_queue_empty(drive->queue))
 				blk_plug_device(drive->queue);
 		} else

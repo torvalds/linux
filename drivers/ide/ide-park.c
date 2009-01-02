@@ -22,7 +22,7 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 		if (reset_timer && hwgroup->sleeping &&
 		    del_timer(&hwgroup->timer)) {
 			hwgroup->sleeping = 0;
-			hwgroup->busy = 0;
+			ide_unlock_hwgroup(hwgroup);
 			blk_start_queueing(q);
 		}
 		spin_unlock_irq(&hwgroup->lock);

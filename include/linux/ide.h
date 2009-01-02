@@ -1280,6 +1280,26 @@ extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 
 extern void ide_timer_expiry(unsigned long);
 extern irqreturn_t ide_intr(int irq, void *dev_id);
+
+static inline int ide_lock_hwgroup(ide_hwgroup_t *hwgroup)
+{
+	if (hwgroup->busy)
+		return 1;
+
+	hwgroup->busy = 1;
+	/* for atari only */
+	ide_get_lock(ide_intr, hwgroup);
+
+	return 0;
+}
+
+static inline void ide_unlock_hwgroup(ide_hwgroup_t *hwgroup)
+{
+	/* for atari only */
+	ide_release_lock();
+	hwgroup->busy = 0;
+}
+
 extern void do_ide_request(struct request_queue *);
 
 void ide_init_disk(struct gendisk *, ide_drive_t *);
