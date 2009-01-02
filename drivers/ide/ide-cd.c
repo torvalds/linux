@@ -511,6 +511,9 @@ end_request:
 	return 1;
 }
 
+static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *);
+static ide_startstop_t cdrom_newpc_intr(ide_drive_t *);
+
 /*
  * Set up the device registers for transferring a packet command on DEV,
  * expecting to later transfer XFERLEN bytes.  HANDLER is the routine
@@ -519,8 +522,7 @@ end_request:
  * called when the interrupt from the drive arrives.  Otherwise, HANDLER
  * will be called immediately after the drive is prepared for the transfer.
  */
-static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
-						  ide_handler_t *handler)
+static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->hwgroup->rq;
@@ -544,13 +546,14 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 			drive->waiting_for_dma = 0;
 
 		/* packet command */
-		ide_execute_command(drive, ATA_CMD_PACKET, handler,
+		ide_execute_command(drive, ATA_CMD_PACKET,
+				    cdrom_transfer_packet_command,
 				    ATAPI_WAIT_PC, ide_cd_expiry);
 		return ide_started;
 	} else {
 		ide_execute_pkt_cmd(drive);
 
-		return (*handler) (drive);
+		return cdrom_transfer_packet_command(drive);
 	}
 }
 
@@ -561,11 +564,10 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
  * there's data ready.
  */
 #define ATAPI_MIN_CDB_BYTES 12
-static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
-					  struct request *rq,
-					  ide_handler_t *handler)
+static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct request *rq = hwif->hwgroup->rq;
 	int cmd_len;
 	ide_startstop_t startstop;
 
@@ -592,7 +594,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 	}
 
 	/* arm the interrupt handler */
-	ide_set_handler(drive, handler, rq->timeout, ide_cd_expiry);
+	ide_set_handler(drive, cdrom_newpc_intr, rq->timeout, ide_cd_expiry);
 
 	/* ATAPI commands get padded out to 12 bytes minimum */
 	cmd_len = COMMAND_SIZE(rq->cmd[0]);
@@ -680,8 +682,6 @@ static int ide_cd_check_transfer_size(ide_drive_t *drive, int len)
 	return 1;
 }
 
-static ide_startstop_t cdrom_newpc_intr(ide_drive_t *);
-
 static ide_startstop_t ide_cd_prepare_rw_request(ide_drive_t *drive,
 						 struct request *rq)
 {
@@ -721,20 +721,6 @@ static ide_startstop_t ide_cd_prepare_rw_request(ide_drive_t *drive,
 	rq->timeout = ATAPI_WAIT_PC;
 
 	return ide_started;
-}
-
-/*
- * Routine to send a read/write packet command to the drive. This is usually
- * called directly from cdrom_start_{read,write}(). However, for drq_interrupt
- * devices, it is called from an interrupt when the drive is ready to accept
- * the command.
- */
-static ide_startstop_t cdrom_start_rw_cont(ide_drive_t *drive)
-{
-	struct request *rq = drive->hwif->hwgroup->rq;
-
-	/* send the command to the drive and return */
-	return cdrom_transfer_packet_command(drive, rq, cdrom_newpc_intr);
 }
 
 /*
@@ -1126,13 +1112,6 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 	return ide_started;
 }
 
-static ide_startstop_t cdrom_do_newpc_cont(ide_drive_t *drive)
-{
-	struct request *rq = HWGROUP(drive)->rq;
-
-	return cdrom_transfer_packet_command(drive, rq, cdrom_newpc_intr);
-}
-
 static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 {
 
@@ -1177,16 +1156,12 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
-	ide_handler_t *fn;
-
 	ide_debug_log(IDE_DBG_RQ, "Call %s, rq->cmd[0]: 0x%x, "
 		      "rq->cmd_type: 0x%x, block: %llu\n",
 		      __func__, rq->cmd[0], rq->cmd_type,
 		      (unsigned long long)block);
 
 	if (blk_fs_request(rq)) {
-		fn = cdrom_start_rw_cont;
-
 		if (cdrom_start_rw(drive, rq) == ide_stopped)
 			return ide_stopped;
 
@@ -1194,8 +1169,6 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 			return ide_stopped;
 	} else if (blk_sense_request(rq) || blk_pc_request(rq) ||
 		   rq->cmd_type == REQ_TYPE_ATA_PC) {
-		fn = cdrom_do_newpc_cont;
-
 		if (!rq->timeout)
 			rq->timeout = ATAPI_WAIT_PC;
 
@@ -1210,7 +1183,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		return ide_stopped;
 	}
 
-	return cdrom_start_packet_command(drive, fn);
+	return cdrom_start_packet_command(drive);
 }
 
 /*
