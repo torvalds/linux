@@ -741,26 +741,6 @@ ext4_fsblk_t ext4_new_meta_block(handle_t *handle, struct inode *inode,
 	return ext4_new_meta_blocks(handle, inode, goal, &count, errp);
 }
 
-/*
- * ext4_new_blocks() -- allocate data blocks
- *
- * @handle:             handle to this transaction
- * @inode:              file inode
- * @goal:               given target block(filesystem wide)
- * @count:		total number of blocks need
- * @errp:               error code
- *
- * Return 1st allocated block numberon success, *count stores total account
- * error stores in errp pointer
- */
-
-ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
-				ext4_lblk_t iblock, ext4_fsblk_t goal,
-				unsigned long *count, int *errp)
-{
-	return do_blk_alloc(handle, inode, iblock, goal, count, errp, 0);
-}
-
 /**
  * ext4_count_free_blocks() -- count filesystem free blocks
  * @sb:		superblock
