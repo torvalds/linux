@@ -786,7 +786,6 @@ void do_ide_request(struct request_queue *q)
 	ide_hwif_t	*hwif;
 	struct request	*rq;
 	ide_startstop_t	startstop;
-	int             loops = 0;
 
 	/* caller must own hwgroup->lock */
 	BUG_ON(!irqs_disabled());
@@ -844,7 +843,7 @@ void do_ide_request(struct request_queue *q)
 
 		if (drive != orig_drive)
 			goto plug_device;
-again:
+
 		hwif = drive->hwif;
 
 		if (hwif != hwgroup->hwif) {
@@ -882,16 +881,10 @@ again:
 		 * though. I hope that doesn't happen too much, hopefully not
 		 * unless the subdriver triggers such a thing in its own PM
 		 * state machine.
-		 *
-		 * We count how many times we loop here to make sure we service
-		 * all drives in the hwgroup without looping for ever
 		 */
 		if ((drive->dev_flags & IDE_DFLAG_BLOCKED) &&
 		    blk_pm_request(rq) == 0 &&
 		    (rq->cmd_flags & REQ_PREEMPT) == 0) {
-			drive = drive->next ? drive->next : hwgroup->drive;
-			if (loops++ < 4 && !blk_queue_plugged(drive->queue))
-				goto again;
 			/* We clear busy, there should be no pending ATA command at this point. */
 			hwgroup->busy = 0;
 			goto plug_device;
