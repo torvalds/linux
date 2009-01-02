@@ -2679,7 +2679,7 @@ static int con_write_room(struct tty_struct *tty)
 {
 	if (tty->stopped)
 		return 0;
-	return 4096;		/* No limit, really; we're not buffering */
+	return 32768;		/* No limit, really; we're not buffering */
 }
 
 static int con_chars_in_buffer(struct tty_struct *tty)

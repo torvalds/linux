@@ -1111,9 +1111,7 @@ void tty_write_message(struct tty_struct *tty, char *msg)
  *		Locks the line discipline as required
  *		Writes to the tty driver are serialized by the atomic_write_lock
  *	and are then processed in chunks to the device. The line discipline
- *	write method will not be involked in parallel for each device
- *		The line discipline write method is called under the big
- *	kernel lock for historical reasons. New code should not rely on this.
+ *	write method will not be invoked in parallel for each device.
  */
 
 static ssize_t tty_write(struct file *file, const char __user *buf,
@@ -2785,6 +2783,8 @@ void initialize_tty_struct(struct tty_struct *tty,
 	INIT_WORK(&tty->hangup_work, do_tty_hangup);
 	mutex_init(&tty->atomic_read_lock);
 	mutex_init(&tty->atomic_write_lock);
+	mutex_init(&tty->output_lock);
+	mutex_init(&tty->echo_lock);
 	spin_lock_init(&tty->read_lock);
 	spin_lock_init(&tty->ctrl_lock);
 	INIT_LIST_HEAD(&tty->tty_files);
