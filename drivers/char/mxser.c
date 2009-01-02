@@ -591,11 +591,11 @@ static int mxser_block_til_ready(struct tty_struct *tty, struct file *filp,
 	retval = 0;
 	add_wait_queue(&port->open_wait, &wait);
 
-	spin_lock_irqsave(&mp->slock, flags);
+	spin_lock_irqsave(&port->lock, flags);
 	if (!tty_hung_up_p(filp))
 		port->count--;
-	spin_unlock_irqrestore(&mp->slock, flags);
 	port->blocked_open++;
+	spin_unlock_irqrestore(&port->lock, flags);
 	while (1) {
 		tty_port_raise_dtr_rts(port);
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -617,12 +617,13 @@ static int mxser_block_til_ready(struct tty_struct *tty, struct file *filp,
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&port->open_wait, &wait);
+	spin_lock_irqsave(&port->lock, flags);
 	if (!tty_hung_up_p(filp))
 		port->count++;
 	port->blocked_open--;
-	if (retval)
-		return retval;
-	port->flags |= ASYNC_NORMAL_ACTIVE;
+	if (retval == 0)
+		port->flags |= ASYNC_NORMAL_ACTIVE;
+	spin_unlock_irqrestore(&port->lock, flags);
 	return 0;
 }
 
@@ -1102,9 +1103,9 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	/*
 	 * Start up serial port
 	 */
-	spin_lock_irqsave(&info->slock, flags);
+	spin_lock_irqsave(&info->port.lock, flags);
 	info->port.count++;
-	spin_unlock_irqrestore(&info->slock, flags);
+	spin_unlock_irqrestore(&info->port.lock, flags);
 	retval = mxser_startup(tty);
 	if (retval)
 		return retval;
@@ -1157,10 +1158,10 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	if (!info)
 		return;
 
-	spin_lock_irqsave(&info->slock, flags);
+	spin_lock_irqsave(&info->port.lock, flags);
 
 	if (tty_hung_up_p(filp)) {
-		spin_unlock_irqrestore(&info->slock, flags);
+		spin_unlock_irqrestore(&info->port.lock, flags);
 		return;
 	}
 	if ((tty->count == 1) && (info->port.count != 1)) {
@@ -1181,11 +1182,11 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 		info->port.count = 0;
 	}
 	if (info->port.count) {
-		spin_unlock_irqrestore(&info->slock, flags);
+		spin_unlock_irqrestore(&info->port.lock, flags);
 		return;
 	}
 	info->port.flags |= ASYNC_CLOSING;
-	spin_unlock_irqrestore(&info->slock, flags);
+	spin_unlock_irqrestore(&info->port.lock, flags);
 	/*
 	 * Save the termios structure, since this port may have
 	 * separate termios for callout and dialin.
@@ -2161,10 +2162,7 @@ static void mxser_hangup(struct tty_struct *tty)
 
 	mxser_flush_buffer(tty);
 	mxser_shutdown(tty);
-	info->port.count = 0;
-	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
-	tty_port_tty_set(&info->port, NULL);
-	wake_up_interruptible(&info->port.open_wait);
+	tty_port_hangup(&info->port);
 }
 
 /*
