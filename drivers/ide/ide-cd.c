@@ -520,10 +520,13 @@ end_request:
  * will be called immediately after the drive is prepared for the transfer.
  */
 static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
-						  int xferlen,
 						  ide_handler_t *handler)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct request *rq = hwif->hwgroup->rq;
+	int xferlen;
+
+	xferlen = ide_cd_get_xferlen(rq);
 
 	ide_debug_log(IDE_DBG_PC, "Call %s, xferlen: %d\n", __func__, xferlen);
 
@@ -1175,14 +1178,11 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
 	ide_handler_t *fn;
-	int xferlen;
 
 	ide_debug_log(IDE_DBG_RQ, "Call %s, rq->cmd[0]: 0x%x, "
 		      "rq->cmd_type: 0x%x, block: %llu\n",
 		      __func__, rq->cmd[0], rq->cmd_type,
 		      (unsigned long long)block);
-
-	xferlen = ide_cd_get_xferlen(rq);
 
 	if (blk_fs_request(rq)) {
 		fn = cdrom_start_rw_cont;
@@ -1210,7 +1210,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		return ide_stopped;
 	}
 
-	return cdrom_start_packet_command(drive, xferlen, fn);
+	return cdrom_start_packet_command(drive, fn);
 }
 
 /*
