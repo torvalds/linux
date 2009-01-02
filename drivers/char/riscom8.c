@@ -874,90 +874,6 @@ static int carrier_raised(struct tty_port *port)
 	return CD;
 }
 
-static int block_til_ready(struct tty_struct *tty, struct file *filp,
-			   struct riscom_port *rp)
-{
-	DECLARE_WAITQUEUE(wait, current);
-	int    retval;
-	int    do_clocal = 0;
-	int    CD;
-	unsigned long flags;
-	struct tty_port *port = &rp->port;
-
-	/*
-	 * If the device is in the middle of being closed, then block
-	 * until it's done, and then try again.
-	 */
-	if (tty_hung_up_p(filp) || port->flags & ASYNC_CLOSING) {
-		interruptible_sleep_on(&port->close_wait);
-		if (port->flags & ASYNC_HUP_NOTIFY)
-			return -EAGAIN;
-		else
-			return -ERESTARTSYS;
-	}
-
-	/*
-	 * If non-blocking mode is set, or the port is not enabled,
-	 * then make the check up front and then exit.
-	 */
-	if ((filp->f_flags & O_NONBLOCK) ||
-	    (tty->flags & (1 << TTY_IO_ERROR))) {
-		port->flags |= ASYNC_NORMAL_ACTIVE;
-		return 0;
-	}
-
-	if (C_CLOCAL(tty))
-		do_clocal = 1;
-
-	/*
-	 * Block waiting for the carrier detect and the line to become
-	 * free (i.e., not in use by the callout).  While we are in
-	 * this loop, info->count is dropped by one, so that
-	 * rs_close() knows when to free things.  We restore it upon
-	 * exit, either normal or abnormal.
-	 */
-	retval = 0;
-	add_wait_queue(&port->open_wait, &wait);
-
-	spin_lock_irqsave(&port->lock, flags);
-	if (!tty_hung_up_p(filp))
-		port->count--;
-	port->blocked_open++;
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	while (1) {
-
-		CD = tty_port_carrier_raised(port);
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (tty_hung_up_p(filp) ||
-		    !(port->flags & ASYNC_INITIALIZED)) {
-			if (port->flags & ASYNC_HUP_NOTIFY)
-				retval = -EAGAIN;
-			else
-				retval = -ERESTARTSYS;
-			break;
-		}
-		if (!(port->flags & ASYNC_CLOSING) &&
-		    (do_clocal || CD))
-			break;
-		if (signal_pending(current)) {
-			retval = -ERESTARTSYS;
-			break;
-		}
-		schedule();
-	}
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&port->open_wait, &wait);
-	spin_lock_irqsave(&port->lock, flags);
-	if (!tty_hung_up_p(filp))
-		port->count++;
-	port->blocked_open--;
-	if (retval == 0)
-		port->flags |= ASYNC_NORMAL_ACTIVE;
-	spin_unlock_irqrestore(&port->lock, flags);
-	return 0;
-}
-
 static int rc_open(struct tty_struct *tty, struct file *filp)
 {
 	int board;
@@ -984,7 +900,7 @@ static int rc_open(struct tty_struct *tty, struct file *filp)
 
 	error = rc_setup_port(bp, port);
 	if (error == 0)
-		error = block_til_ready(tty, filp, port);
+		error = tty_port_block_til_ready(&port->port, tty, filp);
 	return error;
 }
 

@@ -838,82 +838,6 @@ static int isicom_carrier_raised(struct tty_port *port)
 	return (ip->status & ISI_DCD)?1 : 0;
 }
 
-static int block_til_ready(struct tty_struct *tty, struct file *filp,
-	struct isi_port *ip)
-{
-	struct tty_port *port = &ip->port;
-	int do_clocal = 0, retval;
-	unsigned long flags;
-	DECLARE_WAITQUEUE(wait, current);
-	int cd;
-
-	/* block if port is in the process of being closed */
-
-	if (tty_hung_up_p(filp) || port->flags & ASYNC_CLOSING) {
-		pr_dbg("block_til_ready: close in progress.\n");
-		interruptible_sleep_on(&port->close_wait);
-		if (port->flags & ASYNC_HUP_NOTIFY)
-			return -EAGAIN;
-		else
-			return -ERESTARTSYS;
-	}
-
-	/* if non-blocking mode is set ... */
-
-	if ((filp->f_flags & O_NONBLOCK) ||
-			(tty->flags & (1 << TTY_IO_ERROR))) {
-		pr_dbg("block_til_ready: non-block mode.\n");
-		port->flags |= ASYNC_NORMAL_ACTIVE;
-		return 0;
-	}
-
-	if (C_CLOCAL(tty))
-		do_clocal = 1;
-
-	/* block waiting for DCD to be asserted, and while
-						callout dev is busy */
-	retval = 0;
-	add_wait_queue(&port->open_wait, &wait);
-
-	spin_lock_irqsave(&port->lock, flags);
-	if (!tty_hung_up_p(filp))
-		port->count--;
-	port->blocked_open++;
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	while (1) {
-		tty_port_raise_dtr_rts(port);
-
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)) {
-			if (port->flags & ASYNC_HUP_NOTIFY)
-				retval = -EAGAIN;
-			else
-				retval = -ERESTARTSYS;
-			break;
-		}
-		cd = tty_port_carrier_raised(port);
-		if (!(port->flags & ASYNC_CLOSING) &&
-				(do_clocal || cd))
-			break;
-		if (signal_pending(current)) {
-			retval = -ERESTARTSYS;
-			break;
-		}
-		schedule();
-	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&port->open_wait, &wait);
-	spin_lock_irqsave(&port->lock, flags);
-	if (!tty_hung_up_p(filp))
-		port->count++;
-	port->blocked_open--;
-	if (retval == 0)
-		port->flags |= ASYNC_NORMAL_ACTIVE;
-	spin_unlock_irqrestore(&port->lock, flags);
-	return 0;
-}
-
 static int isicom_open(struct tty_struct *tty, struct file *filp)
 {
 	struct isi_port *port;
@@ -940,12 +864,13 @@ static int isicom_open(struct tty_struct *tty, struct file *filp)
 
 	isicom_setup_board(card);
 
+	/* FIXME: locking on port.count etc */
 	port->port.count++;
 	tty->driver_data = port;
 	tty_port_tty_set(&port->port, tty);
 	error = isicom_setup_port(tty);
 	if (error == 0)
-		error = block_til_ready(tty, filp, port);
+		error = tty_port_block_til_ready(&port->port, tty, filp);
 	return error;
 }
 

@@ -3401,6 +3401,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&port->open_wait, &wait);
 	
+	/* FIXME: Racy on hangup during close wait */
 	if (extra_count)
 		port->count++;
 	port->blocked_open--;

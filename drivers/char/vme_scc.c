@@ -631,8 +631,8 @@ static void scc_enable_rx_interrupts(void *ptr)
 
 static int scc_carrier_raised(struct tty_port *port)
 {
-	struct scc_port *scc = container_of(port, struct scc_port, gs.port);
-	unsigned channel = port->channel;
+	struct scc_port *sc = container_of(port, struct scc_port, gs.port);
+	unsigned channel = sc->channel;
 
 	return !!(scc_last_status_reg[channel] & SR_DCD);
 }
@@ -643,7 +643,7 @@ static void scc_shutdown_port(void *ptr)
 	struct scc_port *port = ptr;
 
 	port->gs.port.flags &= ~ GS_ACTIVE;
-	if (port->gs.port.tty && port->gs.port.tty->termios->c_cflag & HUPCL) {
+	if (port->gs.port.tty && (port->gs.port.tty->termios->c_cflag & HUPCL)) {
 		scc_setsignals (port, 0, 0);
 	}
 }
