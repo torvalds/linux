@@ -54,12 +54,12 @@ imx_dma_config_burstlen(int channel, unsigned int burstlen);
 int
 imx_dma_setup_single(int channel, dma_addr_t dma_address,
 		unsigned int dma_length, unsigned int dev_addr,
-		dmamode_t dmamode);
+		unsigned int dmamode);
 
 int
 imx_dma_setup_sg(int channel, struct scatterlist *sg,
 		unsigned int sgcount, unsigned int dma_length,
-		unsigned int dev_addr, dmamode_t dmamode);
+		unsigned int dev_addr, unsigned int dmamode);
 
 int
 imx_dma_setup_handlers(int channel,
