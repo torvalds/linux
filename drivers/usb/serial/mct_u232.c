@@ -721,10 +721,10 @@ static void mct_u232_break_ctl(struct tty_struct *tty, int break_state)
 
 	spin_lock_irqsave(&priv->lock, flags);
 	lcr = priv->last_lcr;
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (break_state)
 		lcr |= MCT_U232_SET_BREAK;
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	mct_u232_set_line_ctrl(serial, lcr);
 } /* mct_u232_break_ctl */

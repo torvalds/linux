@@ -1693,9 +1693,11 @@ static int ext4_add_nondir(handle_t *handle,
 	if (!err) {
 		ext4_mark_inode_dirty(handle, inode);
 		d_instantiate(dentry, inode);
+		unlock_new_inode(inode);
 		return 0;
 	}
 	drop_nlink(inode);
+	unlock_new_inode(inode);
 	iput(inode);
 	return err;
 }
@@ -1830,6 +1832,7 @@ retry:
 	if (err) {
 out_clear_inode:
 		clear_nlink(inode);
+		unlock_new_inode(inode);
 		ext4_mark_inode_dirty(handle, inode);
 		iput(inode);
 		goto out_stop;
@@ -1838,6 +1841,7 @@ out_clear_inode:
 	ext4_update_dx_flag(dir);
 	ext4_mark_inode_dirty(handle, dir);
 	d_instantiate(dentry, inode);
+	unlock_new_inode(inode);
 out_stop:
 	ext4_journal_stop(handle);
 	if (err == -ENOSPC && ext4_should_retry_alloc(dir->i_sb, &retries))
@@ -2212,6 +2216,7 @@ retry:
 				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
 		if (err) {
 			clear_nlink(inode);
+			unlock_new_inode(inode);
 			ext4_mark_inode_dirty(handle, inode);
 			iput(inode);
 			goto out_stop;
@@ -2262,7 +2267,14 @@ retry:
 	ext4_inc_count(handle, inode);
 	atomic_inc(&inode->i_count);
 
-	err = ext4_add_nondir(handle, dentry, inode);
+	err = ext4_add_entry(handle, dentry, inode);
+	if (!err) {
+		ext4_mark_inode_dirty(handle, inode);
+		d_instantiate(dentry, inode);
+	} else {
+		drop_nlink(inode);
+		iput(inode);
+	}
 	ext4_journal_stop(handle);
 	if (err == -ENOSPC && ext4_should_retry_alloc(dir->i_sb, &retries))
 		goto retry;

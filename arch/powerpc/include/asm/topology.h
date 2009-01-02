@@ -48,7 +48,6 @@ static inline int pcibus_to_node(struct pci_bus *bus)
 
 /* sched_domains SD_NODE_INIT for PPC64 machines */
 #define SD_NODE_INIT (struct sched_domain) {		\
-	.span			= CPU_MASK_NONE,	\
 	.parent			= NULL,			\
 	.child			= NULL,			\
 	.groups			= NULL,			\

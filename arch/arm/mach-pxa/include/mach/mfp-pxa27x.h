@@ -11,6 +11,12 @@
 #include <mach/mfp.h>
 #include <mach/mfp-pxa2xx.h>
 
+/* Note: GPIO3/GPIO4 will be driven by Power I2C when PCFR/PI2C_EN
+ * bit is set, regardless of the GPIO configuration
+ */
+#define GPIO3_GPIO		MFP_CFG_IN(GPIO3, AF0)
+#define GPIO4_GPIO		MFP_CFG_IN(GPIO4, AF0)
+
 /* GPIO */
 #define GPIO85_GPIO		MFP_CFG_IN(GPIO85, AF0)
 #define GPIO86_GPIO		MFP_CFG_IN(GPIO86, AF0)

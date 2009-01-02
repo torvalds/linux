@@ -529,7 +529,7 @@ static void hvc_set_winsz(struct work_struct *work)
 	tty = tty_kref_get(hp->tty);
 	spin_unlock_irqrestore(&hp->lock, hvc_flags);
 
-	tty_do_resize(tty, tty, &ws);
+	tty_do_resize(tty, &ws);
 	tty_kref_put(tty);
 }
 
@@ -695,6 +695,7 @@ void hvc_resize(struct hvc_struct *hp, struct winsize ws)
 	hp->ws = ws;
 	schedule_work(&hp->tty_resize);
 }
+EXPORT_SYMBOL_GPL(hvc_resize);
 
 /*
  * This kthread is either polling or interrupt driven.  This is determined by

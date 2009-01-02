@@ -191,7 +191,7 @@ static void print_other_cpu_stall(struct rcu_ctrlblk *rcp)
 
 	/* OK, time to rat on our buddy... */
 
-	printk(KERN_ERR "RCU detected CPU stalls:");
+	printk(KERN_ERR "INFO: RCU detected CPU stalls:");
 	for_each_possible_cpu(cpu) {
 		if (cpu_isset(cpu, rcp->cpumask))
 			printk(" %d", cpu);
@@ -204,7 +204,7 @@ static void print_cpu_stall(struct rcu_ctrlblk *rcp)
 {
 	unsigned long flags;
 
-	printk(KERN_ERR "RCU detected CPU %d stall (t=%lu/%lu jiffies)\n",
+	printk(KERN_ERR "INFO: RCU detected CPU %d stall (t=%lu/%lu jiffies)\n",
 			smp_processor_id(), jiffies,
 			jiffies - rcp->gp_start);
 	dump_stack();
@@ -393,7 +393,7 @@ static void rcu_start_batch(struct rcu_ctrlblk *rcp)
 		 * unnecessarily.
 		 */
 		smp_mb();
-		cpus_andnot(rcp->cpumask, cpu_online_map, nohz_cpu_mask);
+		cpumask_andnot(&rcp->cpumask, cpu_online_mask, nohz_cpu_mask);
 
 		rcp->signaled = 0;
 	}

@@ -60,7 +60,7 @@ obj-$(CONFIG_KVM) += kvm.o
 
 CFLAGS_vcpu.o += -mfixed-range=f2-f5,f12-f127
 kvm-intel-objs = vmm.o vmm_ivt.o trampoline.o vcpu.o optvfault.o mmio.o \
-	vtlb.o process.o
+	vtlb.o process.o kvm_lib.o
 #Add link memcpy and memset to avoid possible structure assignment error
 kvm-intel-objs += memcpy.o memset.o
 obj-$(CONFIG_KVM_INTEL) += kvm-intel.o

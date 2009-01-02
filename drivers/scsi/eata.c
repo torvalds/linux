@@ -1626,8 +1626,15 @@ static void map_dma(unsigned int i, struct hostdata *ha)
 
 	cpp->sense_len = SCSI_SENSE_BUFFERSIZE;
 
-	count = scsi_dma_map(SCpnt);
-	BUG_ON(count < 0);
+	if (!scsi_sg_count(SCpnt)) {
+		cpp->data_len = 0;
+		return;
+	}
+
+	count = pci_map_sg(ha->pdev, scsi_sglist(SCpnt), scsi_sg_count(SCpnt),
+			   pci_dir);
+	BUG_ON(!count);
+
 	scsi_for_each_sg(SCpnt, sg, count, k) {
 		cpp->sglist[k].address = H2DEV(sg_dma_address(sg));
 		cpp->sglist[k].num_bytes = H2DEV(sg_dma_len(sg));
@@ -1655,7 +1662,9 @@ static void unmap_dma(unsigned int i, struct hostdata *ha)
 		pci_unmap_single(ha->pdev, DEV2H(cpp->sense_addr),
 				 DEV2H(cpp->sense_len), PCI_DMA_FROMDEVICE);
 
-	scsi_dma_unmap(SCpnt);
+	if (scsi_sg_count(SCpnt))
+		pci_unmap_sg(ha->pdev, scsi_sglist(SCpnt), scsi_sg_count(SCpnt),
+			     pci_dir);
 
 	if (!DEV2H(cpp->data_len))
 		pci_dir = PCI_DMA_BIDIRECTIONAL;

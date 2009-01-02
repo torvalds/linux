@@ -1262,6 +1262,25 @@ static int stk_vidioc_g_parm(struct file *filp,
 	return 0;
 }
 
+static int stk_vidioc_enum_framesizes(struct file *filp,
+		void *priv, struct v4l2_frmsizeenum *frms)
+{
+	if (frms->index >= ARRAY_SIZE(stk_sizes))
+		return -EINVAL;
+	switch (frms->pixel_format) {
+	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_RGB565X:
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_SBGGR8:
+		frms->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+		frms->discrete.width = stk_sizes[frms->index].w;
+		frms->discrete.height = stk_sizes[frms->index].h;
+		return 0;
+	default: return -EINVAL;
+	}
+}
+
 static struct file_operations v4l_stk_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l_stk_open,
@@ -1296,6 +1315,7 @@ static const struct v4l2_ioctl_ops v4l_stk_ioctl_ops = {
 	.vidioc_g_ctrl = stk_vidioc_g_ctrl,
 	.vidioc_s_ctrl = stk_vidioc_s_ctrl,
 	.vidioc_g_parm = stk_vidioc_g_parm,
+	.vidioc_enum_framesizes = stk_vidioc_enum_framesizes,
 };
 
 static void stk_v4l_dev_release(struct video_device *vd)
@@ -1376,12 +1396,9 @@ static int stk_camera_probe(struct usb_interface *interface,
 		endpoint = &iface_desc->endpoint[i].desc;
 
 		if (!dev->isoc_ep
-			&& ((endpoint->bEndpointAddress
-				& USB_ENDPOINT_DIR_MASK) == USB_DIR_IN)
-			&& ((endpoint->bmAttributes
-				& USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_ISOC)) {
+			&& usb_endpoint_is_isoc_in(endpoint)) {
 			/* we found an isoc in endpoint */
-			dev->isoc_ep = (endpoint->bEndpointAddress & 0xF);
+			dev->isoc_ep = usb_endpoint_num(endpoint);
 			break;
 		}
 	}

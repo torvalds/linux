@@ -33,8 +33,8 @@ EXPORT_SYMBOL(cpu_cache);
 
 #ifdef CONFIG_MMU
 #ifndef MULTI_USER
-EXPORT_SYMBOL(__cpu_clear_user_page);
-EXPORT_SYMBOL(__cpu_copy_user_page);
+EXPORT_SYMBOL(__cpu_clear_user_highpage);
+EXPORT_SYMBOL(__cpu_copy_user_highpage);
 #else
 EXPORT_SYMBOL(cpu_user);
 #endif

@@ -91,6 +91,8 @@ typedef struct xfs_agf {
 #define	XFS_AGF_BLOCK(mp)	XFS_HDR_BLOCK(mp, XFS_AGF_DADDR(mp))
 #define	XFS_BUF_TO_AGF(bp)	((xfs_agf_t *)XFS_BUF_PTR(bp))
 
+extern int xfs_read_agf(struct xfs_mount *mp, struct xfs_trans *tp,
+			xfs_agnumber_t agno, int flags, struct xfs_buf **bpp);
 
 /*
  * Size of the unlinked inode hash table in the agi.
@@ -142,6 +144,9 @@ typedef struct xfs_agi {
 #define	XFS_AGI_BLOCK(mp)	XFS_HDR_BLOCK(mp, XFS_AGI_DADDR(mp))
 #define	XFS_BUF_TO_AGI(bp)	((xfs_agi_t *)XFS_BUF_PTR(bp))
 
+extern int xfs_read_agi(struct xfs_mount *mp, struct xfs_trans *tp,
+				xfs_agnumber_t agno, struct xfs_buf **bpp);
+
 /*
  * The third a.g. block contains the a.g. freelist, an array
  * of block pointers to blocks owned by the allocation btree code.
@@ -192,16 +197,22 @@ typedef struct xfs_perag
 	xfs_agino_t	pagi_freecount;	/* number of free inodes */
 	xfs_agino_t	pagi_count;	/* number of allocated inodes */
 	int		pagb_count;	/* pagb slots in use */
+	xfs_perag_busy_t *pagb_list;	/* unstable blocks */
 #ifdef __KERNEL__
 	spinlock_t	pagb_lock;	/* lock for pagb_list */
-#endif
-	xfs_perag_busy_t *pagb_list;	/* unstable blocks */
+
 	atomic_t        pagf_fstrms;    /* # of filestreams active in this AG */
 
 	int		pag_ici_init;	/* incore inode cache initialised */
 	rwlock_t	pag_ici_lock;	/* incore inode lock */
 	struct radix_tree_root pag_ici_root;	/* incore inode cache root */
+#endif
 } xfs_perag_t;
+
+/*
+ * tags for inode radix tree
+ */
+#define XFS_ICI_RECLAIM_TAG	0	/* inode is to be reclaimed */
 
 #define	XFS_AG_MAXLEVELS(mp)		((mp)->m_ag_maxlevels)
 #define	XFS_MIN_FREELIST_RAW(bl,cl,mp)	\

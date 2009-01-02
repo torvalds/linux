@@ -22,9 +22,53 @@
 #include <net/irda/wrapper.h>
 #include <net/irda/irda_device.h>
 
-#include <asm/dma.h>
+#include <mach/dma.h>
 #include <mach/irda.h>
+#include <mach/hardware.h>
 #include <mach/pxa-regs.h>
+#include <mach/regs-uart.h>
+
+#define FICP		__REG(0x40800000)  /* Start of FICP area */
+#define ICCR0		__REG(0x40800000)  /* ICP Control Register 0 */
+#define ICCR1		__REG(0x40800004)  /* ICP Control Register 1 */
+#define ICCR2		__REG(0x40800008)  /* ICP Control Register 2 */
+#define ICDR		__REG(0x4080000c)  /* ICP Data Register */
+#define ICSR0		__REG(0x40800014)  /* ICP Status Register 0 */
+#define ICSR1		__REG(0x40800018)  /* ICP Status Register 1 */
+
+#define ICCR0_AME	(1 << 7)	/* Address match enable */
+#define ICCR0_TIE	(1 << 6)	/* Transmit FIFO interrupt enable */
+#define ICCR0_RIE	(1 << 5)	/* Recieve FIFO interrupt enable */
+#define ICCR0_RXE	(1 << 4)	/* Receive enable */
+#define ICCR0_TXE	(1 << 3)	/* Transmit enable */
+#define ICCR0_TUS	(1 << 2)	/* Transmit FIFO underrun select */
+#define ICCR0_LBM	(1 << 1)	/* Loopback mode */
+#define ICCR0_ITR	(1 << 0)	/* IrDA transmission */
+
+#define ICCR2_RXP       (1 << 3)	/* Receive Pin Polarity select */
+#define ICCR2_TXP       (1 << 2)	/* Transmit Pin Polarity select */
+#define ICCR2_TRIG	(3 << 0)	/* Receive FIFO Trigger threshold */
+#define ICCR2_TRIG_8    (0 << 0)	/* 	>= 8 bytes */
+#define ICCR2_TRIG_16   (1 << 0)	/*	>= 16 bytes */
+#define ICCR2_TRIG_32   (2 << 0)	/*	>= 32 bytes */
+
+#ifdef CONFIG_PXA27x
+#define ICSR0_EOC	(1 << 6)	/* DMA End of Descriptor Chain */
+#endif
+#define ICSR0_FRE	(1 << 5)	/* Framing error */
+#define ICSR0_RFS	(1 << 4)	/* Receive FIFO service request */
+#define ICSR0_TFS	(1 << 3)	/* Transnit FIFO service request */
+#define ICSR0_RAB	(1 << 2)	/* Receiver abort */
+#define ICSR0_TUR	(1 << 1)	/* Trunsmit FIFO underun */
+#define ICSR0_EIF	(1 << 0)	/* End/Error in FIFO */
+
+#define ICSR1_ROR	(1 << 6)	/* Receiver FIFO underrun  */
+#define ICSR1_CRE	(1 << 5)	/* CRC error */
+#define ICSR1_EOF	(1 << 4)	/* End of frame */
+#define ICSR1_TNF	(1 << 3)	/* Transmit FIFO not full */
+#define ICSR1_RNE	(1 << 2)	/* Receive FIFO not empty */
+#define ICSR1_TBY	(1 << 1)	/* Tramsmiter busy flag */
+#define ICSR1_RSY	(1 << 0)	/* Recevier synchronized flag */
 
 #define IrSR_RXPL_NEG_IS_ZERO (1<<4)
 #define IrSR_RXPL_POS_IS_ZERO 0x0

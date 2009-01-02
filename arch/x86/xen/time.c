@@ -437,7 +437,7 @@ void xen_setup_timer(int cpu)
 	evt = &per_cpu(xen_clock_events, cpu);
 	memcpy(evt, xen_clockevent, sizeof(*evt));
 
-	evt->cpumask = cpumask_of_cpu(cpu);
+	evt->cpumask = cpumask_of(cpu);
 	evt->irq = irq;
 
 	setup_runstate_info(cpu);

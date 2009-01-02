@@ -1,0 +1,8 @@
+# arch/arm/mach-s3c6400/Kconfig
+#
+# Copyright 2008 Openmoko, Inc.
+#	Simtec Electronics, Ben Dooks <ben@simtec.co.uk>
+#
+# Licensed under GPLv2
+
+# Currently nothing here, this will be added later

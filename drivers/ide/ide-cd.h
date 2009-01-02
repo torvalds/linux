@@ -8,10 +8,14 @@
 #include <linux/cdrom.h>
 #include <asm/byteorder.h>
 
-/*
- * typical timeout for packet command
- */
-#define ATAPI_WAIT_PC		(60 * HZ)
+#define IDECD_DEBUG_LOG		0
+
+#if IDECD_DEBUG_LOG
+#define ide_debug_log(lvl, fmt, args...) __ide_debug_log(lvl, fmt, args)
+#else
+#define ide_debug_log(lvl, fmt, args...) do {} while (0)
+#endif
+
 #define ATAPI_WAIT_WRITE_BUSY	(10 * HZ)
 
 /************************************************************************/
@@ -88,8 +92,6 @@ struct cdrom_info {
 	struct request_sense sense_data;
 
 	struct request request_sense_request;
-	unsigned long last_block;
-	unsigned long start_seek;
 
 	u8 max_speed;		/* Max speed of the drive. */
 	u8 current_speed;	/* Current speed of the drive. */

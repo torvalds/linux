@@ -24,10 +24,16 @@ struct cgroup_cls_state
 	u32 classid;
 };
 
-static inline struct cgroup_cls_state *net_cls_state(struct cgroup *cgrp)
+static inline struct cgroup_cls_state *cgrp_cls_state(struct cgroup *cgrp)
 {
-	return (struct cgroup_cls_state *)
-		cgroup_subsys_state(cgrp, net_cls_subsys_id);
+	return container_of(cgroup_subsys_state(cgrp, net_cls_subsys_id),
+			    struct cgroup_cls_state, css);
+}
+
+static inline struct cgroup_cls_state *task_cls_state(struct task_struct *p)
+{
+	return container_of(task_subsys_state(p, net_cls_subsys_id),
+			    struct cgroup_cls_state, css);
 }
 
 static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
@@ -39,19 +45,19 @@ static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
 		return ERR_PTR(-ENOMEM);
 
 	if (cgrp->parent)
-		cs->classid = net_cls_state(cgrp->parent)->classid;
+		cs->classid = cgrp_cls_state(cgrp->parent)->classid;
 
 	return &cs->css;
 }
 
 static void cgrp_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
-	kfree(ss);
+	kfree(cgrp_cls_state(cgrp));
 }
 
 static u64 read_classid(struct cgroup *cgrp, struct cftype *cft)
 {
-	return net_cls_state(cgrp)->classid;
+	return cgrp_cls_state(cgrp)->classid;
 }
 
 static int write_classid(struct cgroup *cgrp, struct cftype *cft, u64 value)
@@ -59,7 +65,7 @@ static int write_classid(struct cgroup *cgrp, struct cftype *cft, u64 value)
 	if (!cgroup_lock_live_group(cgrp))
 		return -ENODEV;
 
-	net_cls_state(cgrp)->classid = (u32) value;
+	cgrp_cls_state(cgrp)->classid = (u32) value;
 
 	cgroup_unlock();
 
@@ -115,8 +121,7 @@ static int cls_cgroup_classify(struct sk_buff *skb, struct tcf_proto *tp,
 		return -1;
 
 	rcu_read_lock();
-	cs = (struct cgroup_cls_state *) task_subsys_state(current,
-							   net_cls_subsys_id);
+	cs = task_cls_state(current);
 	if (cs->classid && tcf_em_tree_match(skb, &head->ematches, NULL)) {
 		res->classid = cs->classid;
 		res->class = 0;

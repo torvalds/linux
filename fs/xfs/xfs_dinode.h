@@ -18,32 +18,29 @@
 #ifndef __XFS_DINODE_H__
 #define	__XFS_DINODE_H__
 
-struct xfs_buf;
-struct xfs_mount;
+#define	XFS_DINODE_MAGIC		0x494e	/* 'IN' */
+#define XFS_DINODE_GOOD_VERSION(v)	(((v) == 1 || (v) == 2))
 
-#define	XFS_DINODE_VERSION_1	1
-#define	XFS_DINODE_VERSION_2	2
-#define XFS_DINODE_GOOD_VERSION(v)	\
-	(((v) == XFS_DINODE_VERSION_1 || (v) == XFS_DINODE_VERSION_2))
-#define	XFS_DINODE_MAGIC	0x494e	/* 'IN' */
-
-/*
- * Disk inode structure.
- * This is just the header; the inode is expanded to fill a variable size
- * with the last field expanding.  It is split into the core and "other"
- * because we only need the core part in the in-core inode.
- */
 typedef struct xfs_timestamp {
 	__be32		t_sec;		/* timestamp seconds */
 	__be32		t_nsec;		/* timestamp nanoseconds */
 } xfs_timestamp_t;
 
 /*
- * Note: Coordinate changes to this structure with the XFS_DI_* #defines
- * below, the offsets table in xfs_ialloc_log_di() and struct xfs_icdinode
- * in xfs_inode.h.
+ * On-disk inode structure.
+ *
+ * This is just the header or "dinode core", the inode is expanded to fill a
+ * variable size the leftover area split into a data and an attribute fork.
+ * The format of the data and attribute fork depends on the format of the
+ * inode as indicated by di_format and di_aformat.  To access the data and
+ * attribute use the XFS_DFORK_PTR, XFS_DFORK_DPTR, and XFS_DFORK_PTR macros
+ * below.
+ *
+ * There is a very similar struct icdinode in xfs_inode which matches the
+ * layout of the first 96 bytes of this structure, but is kept in native
+ * format instead of big endian.
  */
-typedef struct xfs_dinode_core {
+typedef struct xfs_dinode {
 	__be16		di_magic;	/* inode magic # = XFS_DINODE_MAGIC */
 	__be16		di_mode;	/* mode and type of file */
 	__u8		di_version;	/* inode version */
@@ -69,34 +66,12 @@ typedef struct xfs_dinode_core {
 	__be16		di_dmstate;	/* DMIG state info */
 	__be16		di_flags;	/* random flags, XFS_DIFLAG_... */
 	__be32		di_gen;		/* generation number */
-} xfs_dinode_core_t;
+
+	/* di_next_unlinked is the only non-core field in the old dinode */
+	__be32		di_next_unlinked;/* agi unlinked list ptr */
+} __attribute__((packed)) xfs_dinode_t;
 
 #define DI_MAX_FLUSH 0xffff
-
-typedef struct xfs_dinode
-{
-	xfs_dinode_core_t	di_core;
-	/*
-	 * In adding anything between the core and the union, be
-	 * sure to update the macros like XFS_LITINO below and
-	 * XFS_BMAP_RBLOCK_DSIZE in xfs_bmap_btree.h.
-	 */
-	__be32			di_next_unlinked;/* agi unlinked list ptr */
-	union {
-		xfs_bmdr_block_t di_bmbt;	/* btree root block */
-		xfs_bmbt_rec_32_t di_bmx[1];	/* extent list */
-		xfs_dir2_sf_t	di_dir2sf;	/* shortform directory v2 */
-		char		di_c[1];	/* local contents */
-		__be32		di_dev;		/* device for S_IFCHR/S_IFBLK */
-		uuid_t		di_muuid;	/* mount point value */
-		char		di_symlink[1];	/* local symbolic link */
-	}		di_u;
-	union {
-		xfs_bmdr_block_t di_abmbt;	/* btree root block */
-		xfs_bmbt_rec_32_t di_abmx[1];	/* extent list */
-		xfs_attr_shortform_t di_attrsf;	/* shortform attribute list */
-	}		di_a;
-} xfs_dinode_t;
 
 /*
  * The 32 bit link count in the inode theoretically maxes out at UINT_MAX.
@@ -107,50 +82,14 @@ typedef struct xfs_dinode
 #define	XFS_MAXLINK_1		65535U
 
 /*
- * Bit names for logging disk inodes only
- */
-#define	XFS_DI_MAGIC		0x0000001
-#define	XFS_DI_MODE		0x0000002
-#define	XFS_DI_VERSION		0x0000004
-#define	XFS_DI_FORMAT		0x0000008
-#define	XFS_DI_ONLINK		0x0000010
-#define	XFS_DI_UID		0x0000020
-#define	XFS_DI_GID		0x0000040
-#define	XFS_DI_NLINK		0x0000080
-#define	XFS_DI_PROJID		0x0000100
-#define	XFS_DI_PAD		0x0000200
-#define	XFS_DI_ATIME		0x0000400
-#define	XFS_DI_MTIME		0x0000800
-#define	XFS_DI_CTIME		0x0001000
-#define	XFS_DI_SIZE		0x0002000
-#define	XFS_DI_NBLOCKS		0x0004000
-#define	XFS_DI_EXTSIZE		0x0008000
-#define	XFS_DI_NEXTENTS		0x0010000
-#define	XFS_DI_NAEXTENTS	0x0020000
-#define	XFS_DI_FORKOFF		0x0040000
-#define	XFS_DI_AFORMAT		0x0080000
-#define	XFS_DI_DMEVMASK		0x0100000
-#define	XFS_DI_DMSTATE		0x0200000
-#define	XFS_DI_FLAGS		0x0400000
-#define	XFS_DI_GEN		0x0800000
-#define	XFS_DI_NEXT_UNLINKED	0x1000000
-#define	XFS_DI_U		0x2000000
-#define	XFS_DI_A		0x4000000
-#define	XFS_DI_NUM_BITS		27
-#define	XFS_DI_ALL_BITS		((1 << XFS_DI_NUM_BITS) - 1)
-#define	XFS_DI_CORE_BITS	(XFS_DI_ALL_BITS & ~(XFS_DI_U|XFS_DI_A))
-
-/*
  * Values for di_format
  */
-typedef enum xfs_dinode_fmt
-{
-	XFS_DINODE_FMT_DEV,		/* CHR, BLK: di_dev */
-	XFS_DINODE_FMT_LOCAL,		/* DIR, REG: di_c */
-					/* LNK: di_symlink */
-	XFS_DINODE_FMT_EXTENTS,		/* DIR, REG, LNK: di_bmx */
-	XFS_DINODE_FMT_BTREE,		/* DIR, REG, LNK: di_bmbt */
-	XFS_DINODE_FMT_UUID		/* MNT: di_uuid */
+typedef enum xfs_dinode_fmt {
+	XFS_DINODE_FMT_DEV,		/* xfs_dev_t */
+	XFS_DINODE_FMT_LOCAL,		/* bulk data */
+	XFS_DINODE_FMT_EXTENTS,		/* struct xfs_bmbt_rec */
+	XFS_DINODE_FMT_BTREE,		/* struct xfs_bmdr_block */
+	XFS_DINODE_FMT_UUID		/* uuid_t */
 } xfs_dinode_fmt_t;
 
 /*
@@ -166,13 +105,13 @@ typedef enum xfs_dinode_fmt
  */
 #define	XFS_LITINO(mp)	((mp)->m_litino)
 #define	XFS_BROOT_SIZE_ADJ	\
-	(sizeof(xfs_bmbt_block_t) - sizeof(xfs_bmdr_block_t))
+	(XFS_BTREE_LBLOCK_LEN - sizeof(xfs_bmdr_block_t))
 
 /*
  * Inode data & attribute fork sizes, per inode.
  */
-#define XFS_DFORK_Q(dip)		((dip)->di_core.di_forkoff != 0)
-#define XFS_DFORK_BOFF(dip)		((int)((dip)->di_core.di_forkoff << 3))
+#define XFS_DFORK_Q(dip)		((dip)->di_forkoff != 0)
+#define XFS_DFORK_BOFF(dip)		((int)((dip)->di_forkoff << 3))
 
 #define XFS_DFORK_DSIZE(dip,mp) \
 	(XFS_DFORK_Q(dip) ? \
@@ -187,21 +126,40 @@ typedef enum xfs_dinode_fmt
 		XFS_DFORK_DSIZE(dip, mp) : \
 		XFS_DFORK_ASIZE(dip, mp))
 
-#define XFS_DFORK_DPTR(dip)		    ((dip)->di_u.di_c)
+/*
+ * Return pointers to the data or attribute forks.
+ */
+#define XFS_DFORK_DPTR(dip) \
+	((char *)(dip) + sizeof(struct xfs_dinode))
 #define XFS_DFORK_APTR(dip)	\
-	((dip)->di_u.di_c + XFS_DFORK_BOFF(dip))
+	(XFS_DFORK_DPTR(dip) + XFS_DFORK_BOFF(dip))
 #define XFS_DFORK_PTR(dip,w)	\
 	((w) == XFS_DATA_FORK ? XFS_DFORK_DPTR(dip) : XFS_DFORK_APTR(dip))
+
 #define XFS_DFORK_FORMAT(dip,w) \
 	((w) == XFS_DATA_FORK ? \
-		(dip)->di_core.di_format : \
-		(dip)->di_core.di_aformat)
+		(dip)->di_format : \
+		(dip)->di_aformat)
 #define XFS_DFORK_NEXTENTS(dip,w) \
 	((w) == XFS_DATA_FORK ? \
-	 	be32_to_cpu((dip)->di_core.di_nextents) : \
-	 	be16_to_cpu((dip)->di_core.di_anextents))
+		be32_to_cpu((dip)->di_nextents) : \
+		be16_to_cpu((dip)->di_anextents))
 
 #define	XFS_BUF_TO_DINODE(bp)	((xfs_dinode_t *)XFS_BUF_PTR(bp))
+
+/*
+ * For block and character special files the 32bit dev_t is stored at the
+ * beginning of the data fork.
+ */
+static inline xfs_dev_t xfs_dinode_get_rdev(struct xfs_dinode *dip)
+{
+	return be32_to_cpu(*(__be32 *)XFS_DFORK_DPTR(dip));
+}
+
+static inline void xfs_dinode_put_rdev(struct xfs_dinode *dip, xfs_dev_t rdev)
+{
+	*(__be32 *)XFS_DFORK_DPTR(dip) = cpu_to_be32(rdev);
+}
 
 /*
  * Values for di_flags

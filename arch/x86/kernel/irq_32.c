@@ -233,25 +233,28 @@ unsigned int do_IRQ(struct pt_regs *regs)
 #ifdef CONFIG_HOTPLUG_CPU
 #include <mach_apic.h>
 
-void fixup_irqs(cpumask_t map)
+/* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
+void fixup_irqs(void)
 {
 	unsigned int irq;
 	static int warned;
 	struct irq_desc *desc;
 
 	for_each_irq_desc(irq, desc) {
-		cpumask_t mask;
+		const struct cpumask *affinity;
 
+		if (!desc)
+			continue;
 		if (irq == 2)
 			continue;
 
-		cpus_and(mask, desc->affinity, map);
-		if (any_online_cpu(mask) == NR_CPUS) {
+		affinity = &desc->affinity;
+		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 			printk("Breaking affinity for irq %i\n", irq);
-			mask = map;
+			affinity = cpu_all_mask;
 		}
 		if (desc->chip->set_affinity)
-			desc->chip->set_affinity(irq, mask);
+			desc->chip->set_affinity(irq, affinity);
 		else if (desc->action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}

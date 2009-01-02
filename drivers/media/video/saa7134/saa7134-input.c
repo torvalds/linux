@@ -97,6 +97,15 @@ static int build_key(struct saa7134_dev *dev)
 	dprintk("build_key gpio=0x%x mask=0x%x data=%d\n",
 		gpio, ir->mask_keycode, data);
 
+	switch (dev->board) {
+	case SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG:
+		if (data == ir->mask_keycode)
+			ir_input_nokey(ir->dev, &ir->ir);
+		else
+			ir_input_keydown(ir->dev, &ir->ir, data, data);
+		return 0;
+	}
+
 	if (ir->polling) {
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
@@ -585,6 +594,11 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x3f00;
 		mask_keyup   = 0x4000;
 		polling = 50; /* ms */
+		break;
+	case SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG:
+		ir_codes     = ir_codes_kworld_plus_tv_analog;
+		mask_keycode = 0x7f;
+		polling = 40; /* ms */
 		break;
 	}
 	if (NULL == ir_codes) {

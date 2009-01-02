@@ -75,15 +75,6 @@
 #include <asm/smp.h>
 #endif
 
-/*
- * This is one of the first .c files built. Error out early if we have compiler
- * trouble.
- */
-
-#if __GNUC__ == 4 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ == 0
-#warning gcc-4.1.0 is known to miscompile the kernel.  A different compiler version is recommended.
-#endif
-
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -604,6 +595,8 @@ asmlinkage void __init start_kernel(void)
 	sort_main_extable();
 	trap_init();
 	rcu_init();
+	/* init some links before init_ISA_irqs() */
+	early_irq_init();
 	init_IRQ();
 	pidhash_init();
 	init_timers();

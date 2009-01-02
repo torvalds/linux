@@ -5,7 +5,6 @@
 
 /* sched_domains SD_NODE_INIT for sh machines */
 #define SD_NODE_INIT (struct sched_domain) {		\
-	.span			= CPU_MASK_NONE,	\
 	.parent			= NULL,			\
 	.child			= NULL,			\
 	.groups			= NULL,			\

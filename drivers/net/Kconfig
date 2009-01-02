@@ -2399,9 +2399,14 @@ config CHELSIO_T1_1G
           Enables support for Chelsio's gigabit Ethernet PCI cards.  If you
           are using only 10G cards say 'N' here.
 
+config CHELSIO_T3_DEPENDS
+	tristate
+	depends on PCI && INET
+	default y
+
 config CHELSIO_T3
 	tristate "Chelsio Communications T3 10Gb Ethernet support"
-	depends on PCI && INET
+	depends on CHELSIO_T3_DEPENDS
 	select FW_LOADER
 	select INET_LRO
 	help

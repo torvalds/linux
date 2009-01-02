@@ -8,7 +8,6 @@
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 
-static struct fs_struct init_fs = INIT_FS;
 static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
 static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
 struct mm_struct init_mm = INIT_MM(init_mm);
@@ -23,6 +22,5 @@ EXPORT_SYMBOL(init_task);
  * in etrap.S which assumes it.
  */
 union thread_union init_thread_union
-	__attribute__((section (".text\"\n\t#")))
-	__attribute__((aligned (THREAD_SIZE)))
+	__attribute__((section (".data.init_task")))
 	= { INIT_THREAD_INFO(init_task) };

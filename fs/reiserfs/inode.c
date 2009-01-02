@@ -1753,6 +1753,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		       struct inode *inode)
 {
 	struct super_block *sb;
+	struct reiserfs_iget_args args;
 	INITIALIZE_PATH(path_to_key);
 	struct cpu_key key;
 	struct item_head ih;
@@ -1778,6 +1779,14 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	ih.ih_key.k_objectid = cpu_to_le32(reiserfs_get_unused_objectid(th));
 	if (!ih.ih_key.k_objectid) {
 		err = -ENOMEM;
+		goto out_bad_inode;
+	}
+	args.objectid = inode->i_ino = le32_to_cpu(ih.ih_key.k_objectid);
+	memcpy(INODE_PKEY(inode), &(ih.ih_key), KEY_SIZE);
+	args.dirid = le32_to_cpu(ih.ih_key.k_dir_id);
+	if (insert_inode_locked4(inode, args.objectid,
+			     reiserfs_find_actor, &args) < 0) {
+		err = -EINVAL;
 		goto out_bad_inode;
 	}
 	if (old_format_only(sb))
@@ -1859,13 +1868,9 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	} else {
 		inode2sd(&sd, inode, inode->i_size);
 	}
-	// these do not go to on-disk stat data
-	inode->i_ino = le32_to_cpu(ih.ih_key.k_objectid);
-
 	// store in in-core inode the key of stat data and version all
 	// object items will have (directory items will have old offset
 	// format, other new objects will consist of new items)
-	memcpy(INODE_PKEY(inode), &(ih.ih_key), KEY_SIZE);
 	if (old_format_only(sb) || S_ISDIR(mode) || S_ISLNK(mode))
 		set_inode_item_key_version(inode, KEY_FORMAT_3_5);
 	else
@@ -1929,7 +1934,6 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		reiserfs_mark_inode_private(inode);
 	}
 
-	insert_inode_hash(inode);
 	reiserfs_update_sd(th, inode);
 	reiserfs_check_path(&path_to_key);
 
@@ -1956,6 +1960,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
       out_inserted_sd:
 	inode->i_nlink = 0;
 	th->t_trans_id = 0;	/* so the caller can't use this handle later */
+	unlock_new_inode(inode); /* OK to do even if we hadn't locked it */
 
 	/* If we were inheriting an ACL, we need to release the lock so that
 	 * iput doesn't deadlock in reiserfs_delete_xattrs. The locking

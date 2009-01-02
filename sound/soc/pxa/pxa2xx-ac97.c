@@ -21,6 +21,7 @@
 
 #include <mach/hardware.h>
 #include <mach/pxa-regs.h>
+#include <mach/regs-ac97.h>
 
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-ac97.h"

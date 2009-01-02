@@ -26,11 +26,12 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/mmc/host.h>
+#include <linux/io.h>
 
-#include <asm/dma.h>
-#include <asm/io.h>
 #include <asm/sizes.h>
 
+#include <mach/dma.h>
+#include <mach/hardware.h>
 #include <mach/pxa-regs.h>
 #include <mach/mmc.h>
 
@@ -533,7 +534,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	host->pdata = pdev->dev.platform_data;
 	host->clkrt = CLKRT_OFF;
 
-	host->clk = clk_get(&pdev->dev, "MMCCLK");
+	host->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
 		host->clk = NULL;

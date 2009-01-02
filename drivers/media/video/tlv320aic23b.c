@@ -30,7 +30,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 
 MODULE_DESCRIPTION("tlv320aic23b driver");
@@ -44,15 +44,22 @@ I2C_CLIENT_INSMOD;
 /* ----------------------------------------------------------------------- */
 
 struct tlv320aic23b_state {
+	struct v4l2_subdev sd;
 	u8 muted;
 };
 
-static int tlv320aic23b_write(struct i2c_client *client, int reg, u16 val)
+static inline struct tlv320aic23b_state *to_state(struct v4l2_subdev *sd)
 {
+	return container_of(sd, struct tlv320aic23b_state, sd);
+}
+
+static int tlv320aic23b_write(struct v4l2_subdev *sd, int reg, u16 val)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int i;
 
 	if ((reg < 0 || reg > 9) && (reg != 15)) {
-		v4l_err(client, "Invalid register R%d\n", reg);
+		v4l2_err(sd, "Invalid register R%d\n", reg);
 		return -1;
 	}
 
@@ -60,60 +67,81 @@ static int tlv320aic23b_write(struct i2c_client *client, int reg, u16 val)
 		if (i2c_smbus_write_byte_data(client,
 				(reg << 1) | (val >> 8), val & 0xff) == 0)
 			return 0;
-	v4l_err(client, "I2C: cannot write %03x to register R%d\n", val, reg);
+	v4l2_err(sd, "I2C: cannot write %03x to register R%d\n", val, reg);
 	return -1;
 }
 
-static int tlv320aic23b_command(struct i2c_client *client,
-				unsigned int cmd, void *arg)
+static int tlv320aic23b_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 {
-	struct tlv320aic23b_state *state = i2c_get_clientdata(client);
-	struct v4l2_control *ctrl = arg;
-	u32 *freq = arg;
-
-	switch (cmd) {
-	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-		switch (*freq) {
-		case 32000: /* set sample rate to 32 kHz */
-			tlv320aic23b_write(client, 8, 0x018);
-			break;
-		case 44100: /* set sample rate to 44.1 kHz */
-			tlv320aic23b_write(client, 8, 0x022);
-			break;
-		case 48000: /* set sample rate to 48 kHz */
-			tlv320aic23b_write(client, 8, 0x000);
-			break;
-		default:
-			return -EINVAL;
-		}
+	switch (freq) {
+	case 32000: /* set sample rate to 32 kHz */
+		tlv320aic23b_write(sd, 8, 0x018);
 		break;
-
-	case VIDIOC_G_CTRL:
-		if (ctrl->id != V4L2_CID_AUDIO_MUTE)
-			return -EINVAL;
-		ctrl->value = state->muted;
+	case 44100: /* set sample rate to 44.1 kHz */
+		tlv320aic23b_write(sd, 8, 0x022);
 		break;
-
-	case VIDIOC_S_CTRL:
-		if (ctrl->id != V4L2_CID_AUDIO_MUTE)
-			return -EINVAL;
-		state->muted = ctrl->value;
-		tlv320aic23b_write(client, 0, 0x180); /* mute both channels */
-		/* set gain on both channels to +3.0 dB */
-		if (!state->muted)
-			tlv320aic23b_write(client, 0, 0x119);
+	case 48000: /* set sample rate to 48 kHz */
+		tlv320aic23b_write(sd, 8, 0x000);
 		break;
-
-	case VIDIOC_LOG_STATUS:
-		v4l_info(client, "Input: %s\n",
-			    state->muted ? "muted" : "active");
-		break;
-
 	default:
 		return -EINVAL;
 	}
 	return 0;
 }
+
+static int tlv320aic23b_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct tlv320aic23b_state *state = to_state(sd);
+
+	if (ctrl->id != V4L2_CID_AUDIO_MUTE)
+		return -EINVAL;
+	ctrl->value = state->muted;
+	return 0;
+}
+
+static int tlv320aic23b_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct tlv320aic23b_state *state = to_state(sd);
+
+	if (ctrl->id != V4L2_CID_AUDIO_MUTE)
+		return -EINVAL;
+	state->muted = ctrl->value;
+	tlv320aic23b_write(sd, 0, 0x180); /* mute both channels */
+	/* set gain on both channels to +3.0 dB */
+	if (!state->muted)
+		tlv320aic23b_write(sd, 0, 0x119);
+	return 0;
+}
+
+static int tlv320aic23b_log_status(struct v4l2_subdev *sd)
+{
+	struct tlv320aic23b_state *state = to_state(sd);
+
+	v4l2_info(sd, "Input: %s\n", state->muted ? "muted" : "active");
+	return 0;
+}
+
+static int tlv320aic23b_command(struct i2c_client *client, unsigned cmd, void *arg)
+{
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
+}
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops tlv320aic23b_core_ops = {
+	.log_status = tlv320aic23b_log_status,
+	.g_ctrl = tlv320aic23b_g_ctrl,
+	.s_ctrl = tlv320aic23b_s_ctrl,
+};
+
+static const struct v4l2_subdev_audio_ops tlv320aic23b_audio_ops = {
+	.s_clock_freq = tlv320aic23b_s_clock_freq,
+};
+
+static const struct v4l2_subdev_ops tlv320aic23b_ops = {
+	.core = &tlv320aic23b_core_ops,
+	.audio = &tlv320aic23b_audio_ops,
+};
 
 /* ----------------------------------------------------------------------- */
 
@@ -128,6 +156,7 @@ static int tlv320aic23b_probe(struct i2c_client *client,
 			      const struct i2c_device_id *id)
 {
 	struct tlv320aic23b_state *state;
+	struct v4l2_subdev *sd;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -136,32 +165,36 @@ static int tlv320aic23b_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	state = kmalloc(sizeof(struct tlv320aic23b_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct tlv320aic23b_state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
+	sd = &state->sd;
+	v4l2_i2c_subdev_init(sd, client, &tlv320aic23b_ops);
 	state->muted = 0;
-	i2c_set_clientdata(client, state);
 
 	/* Initialize tlv320aic23b */
 
 	/* RESET */
-	tlv320aic23b_write(client, 15, 0x000);
+	tlv320aic23b_write(sd, 15, 0x000);
 	/* turn off DAC & mic input */
-	tlv320aic23b_write(client, 6, 0x00A);
+	tlv320aic23b_write(sd, 6, 0x00A);
 	/* left-justified, 24-bit, master mode */
-	tlv320aic23b_write(client, 7, 0x049);
+	tlv320aic23b_write(sd, 7, 0x049);
 	/* set gain on both channels to +3.0 dB */
-	tlv320aic23b_write(client, 0, 0x119);
+	tlv320aic23b_write(sd, 0, 0x119);
 	/* set sample rate to 48 kHz */
-	tlv320aic23b_write(client, 8, 0x000);
+	tlv320aic23b_write(sd, 8, 0x000);
 	/* activate digital interface */
-	tlv320aic23b_write(client, 9, 0x001);
+	tlv320aic23b_write(sd, 9, 0x001);
 	return 0;
 }
 
 static int tlv320aic23b_remove(struct i2c_client *client)
 {
-	kfree(i2c_get_clientdata(client));
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	v4l2_device_unregister_subdev(sd);
+	kfree(to_state(sd));
 	return 0;
 }
 

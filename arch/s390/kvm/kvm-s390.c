@@ -113,8 +113,6 @@ long kvm_arch_dev_ioctl(struct file *filp,
 int kvm_dev_ioctl_check_extension(long ext)
 {
 	switch (ext) {
-	case KVM_CAP_USER_MEMORY:
-		return 1;
 	default:
 		return 0;
 	}
@@ -185,8 +183,6 @@ struct kvm *kvm_arch_create_vm(void)
 	debug_register_view(kvm->arch.dbf, &debug_sprintf_view);
 	VM_EVENT(kvm, 3, "%s", "vm created");
 
-	try_module_get(THIS_MODULE);
-
 	return kvm;
 out_nodbf:
 	free_page((unsigned long)(kvm->arch.sca));
@@ -196,13 +192,33 @@ out_nokvm:
 	return ERR_PTR(rc);
 }
 
+void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
+{
+	VCPU_EVENT(vcpu, 3, "%s", "free cpu");
+	free_page((unsigned long)(vcpu->arch.sie_block));
+	kvm_vcpu_uninit(vcpu);
+	kfree(vcpu);
+}
+
+static void kvm_free_vcpus(struct kvm *kvm)
+{
+	unsigned int i;
+
+	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+		if (kvm->vcpus[i]) {
+			kvm_arch_vcpu_destroy(kvm->vcpus[i]);
+			kvm->vcpus[i] = NULL;
+		}
+	}
+}
+
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
-	debug_unregister(kvm->arch.dbf);
+	kvm_free_vcpus(kvm);
 	kvm_free_physmem(kvm);
 	free_page((unsigned long)(kvm->arch.sca));
+	debug_unregister(kvm->arch.dbf);
 	kfree(kvm);
-	module_put(THIS_MODULE);
 }
 
 /* Section: vcpu related */
@@ -213,8 +229,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
-	/* kvm common code refers to this, but does'nt call it */
-	BUG();
+	/* Nothing todo */
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -308,21 +323,11 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	VM_EVENT(kvm, 3, "create cpu %d at %p, sie block at %p", id, vcpu,
 		 vcpu->arch.sie_block);
 
-	try_module_get(THIS_MODULE);
-
 	return vcpu;
 out_free_cpu:
 	kfree(vcpu);
 out_nomem:
 	return ERR_PTR(rc);
-}
-
-void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
-{
-	VCPU_EVENT(vcpu, 3, "%s", "destroy cpu");
-	free_page((unsigned long)(vcpu->arch.sie_block));
-	kfree(vcpu);
-	module_put(THIS_MODULE);
 }
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)

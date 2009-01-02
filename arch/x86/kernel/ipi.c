@@ -116,18 +116,18 @@ static inline void __send_IPI_dest_field(unsigned long mask, int vector)
 /*
  * This is only used on smaller machines.
  */
-void send_IPI_mask_bitmask(cpumask_t cpumask, int vector)
+void send_IPI_mask_bitmask(const struct cpumask *cpumask, int vector)
 {
-	unsigned long mask = cpus_addr(cpumask)[0];
+	unsigned long mask = cpumask_bits(cpumask)[0];
 	unsigned long flags;
 
 	local_irq_save(flags);
-	WARN_ON(mask & ~cpus_addr(cpu_online_map)[0]);
+	WARN_ON(mask & ~cpumask_bits(cpu_online_mask)[0]);
 	__send_IPI_dest_field(mask, vector);
 	local_irq_restore(flags);
 }
 
-void send_IPI_mask_sequence(cpumask_t mask, int vector)
+void send_IPI_mask_sequence(const struct cpumask *mask, int vector)
 {
 	unsigned long flags;
 	unsigned int query_cpu;
@@ -139,12 +139,24 @@ void send_IPI_mask_sequence(cpumask_t mask, int vector)
 	 */
 
 	local_irq_save(flags);
-	for_each_possible_cpu(query_cpu) {
-		if (cpu_isset(query_cpu, mask)) {
+	for_each_cpu(query_cpu, mask)
+		__send_IPI_dest_field(cpu_to_logical_apicid(query_cpu), vector);
+	local_irq_restore(flags);
+}
+
+void send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
+{
+	unsigned long flags;
+	unsigned int query_cpu;
+	unsigned int this_cpu = smp_processor_id();
+
+	/* See Hack comment above */
+
+	local_irq_save(flags);
+	for_each_cpu(query_cpu, mask)
+		if (query_cpu != this_cpu)
 			__send_IPI_dest_field(cpu_to_logical_apicid(query_cpu),
 					      vector);
-		}
-	}
 	local_irq_restore(flags);
 }
 

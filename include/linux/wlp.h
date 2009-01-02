@@ -646,6 +646,7 @@ struct wlp_wss {
 struct wlp {
 	struct mutex mutex;
 	struct uwb_rc *rc;		/* UWB radio controller */
+	struct net_device *ndev;
 	struct uwb_pal pal;
 	struct wlp_eda eda;
 	struct wlp_uuid uuid;
@@ -675,7 +676,7 @@ struct wlp_wss_attribute {
 static struct wlp_wss_attribute wss_attr_##_name = __ATTR(_name, _mode,	\
 							  _show, _store)
 
-extern int wlp_setup(struct wlp *, struct uwb_rc *);
+extern int wlp_setup(struct wlp *, struct uwb_rc *, struct net_device *ndev);
 extern void wlp_remove(struct wlp *);
 extern ssize_t wlp_neighborhood_show(struct wlp *, char *);
 extern int wlp_wss_setup(struct net_device *, struct wlp_wss *);

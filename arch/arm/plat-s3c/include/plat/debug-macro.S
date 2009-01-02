@@ -20,7 +20,7 @@
 	.endm
 
 #ifndef fifo_level
-#define fifo_level fifo_level_s3c2410
+#define fifo_level fifo_level_s3c2440
 #endif
 
 	.macro  fifo_full_s3c2440 rd, rx

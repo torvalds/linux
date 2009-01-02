@@ -633,8 +633,6 @@ void inet_csk_listen_stop(struct sock *sk)
 
 		acc_req = req->dl_next;
 
-		percpu_counter_inc(sk->sk_prot->orphan_count);
-
 		local_bh_disable();
 		bh_lock_sock(child);
 		WARN_ON(sock_owned_by_user(child));
@@ -643,6 +641,8 @@ void inet_csk_listen_stop(struct sock *sk)
 		sk->sk_prot->disconnect(child, O_NONBLOCK);
 
 		sock_orphan(child);
+
+		percpu_counter_inc(sk->sk_prot->orphan_count);
 
 		inet_csk_destroy_sock(child);
 
