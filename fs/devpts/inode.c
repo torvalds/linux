@@ -34,7 +34,6 @@ static DEFINE_IDA(allocated_ptys);
 static DEFINE_MUTEX(allocated_ptys_lock);
 
 static struct vfsmount *devpts_mnt;
-static struct dentry *devpts_root;
 
 static struct {
 	int setuid;
@@ -55,6 +54,14 @@ static const match_table_t tokens = {
 	{Opt_mode, "mode=%o"},
 	{Opt_err, NULL}
 };
+
+static inline struct super_block *pts_sb_from_inode(struct inode *inode)
+{
+	if (inode->i_sb->s_magic == DEVPTS_SUPER_MAGIC)
+		return inode->i_sb;
+
+	return devpts_mnt->mnt_sb;
+}
 
 static int devpts_remount(struct super_block *sb, int *flags, char *data)
 {
@@ -142,7 +149,7 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	inode->i_fop = &simple_dir_operations;
 	inode->i_nlink = 2;
 
-	devpts_root = s->s_root = d_alloc_root(inode);
+	s->s_root = d_alloc_root(inode);
 	if (s->s_root)
 		return 0;
 	
@@ -211,7 +218,9 @@ int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 	struct tty_driver *driver = tty->driver;
 	dev_t device = MKDEV(driver->major, driver->minor_start+number);
 	struct dentry *dentry;
-	struct inode *inode = new_inode(devpts_mnt->mnt_sb);
+	struct super_block *sb = pts_sb_from_inode(ptmx_inode);
+	struct inode *inode = new_inode(sb);
+	struct dentry *root = sb->s_root;
 	char s[12];
 
 	/* We're supposed to be given the slave end of a pty */
@@ -231,15 +240,15 @@ int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 
 	sprintf(s, "%d", number);
 
-	mutex_lock(&devpts_root->d_inode->i_mutex);
+	mutex_lock(&root->d_inode->i_mutex);
 
-	dentry = d_alloc_name(devpts_root, s);
+	dentry = d_alloc_name(root, s);
 	if (!IS_ERR(dentry)) {
 		d_add(dentry, inode);
-		fsnotify_create(devpts_root->d_inode, dentry);
+		fsnotify_create(root->d_inode, dentry);
 	}
 
-	mutex_unlock(&devpts_root->d_inode->i_mutex);
+	mutex_unlock(&root->d_inode->i_mutex);
 
 	return 0;
 }
@@ -256,11 +265,13 @@ struct tty_struct *devpts_get_tty(struct inode *pts_inode, int number)
 void devpts_pty_kill(struct tty_struct *tty)
 {
 	struct inode *inode = tty->driver_data;
+	struct super_block *sb = pts_sb_from_inode(inode);
+	struct dentry *root = sb->s_root;
 	struct dentry *dentry;
 
 	BUG_ON(inode->i_rdev == MKDEV(TTYAUX_MAJOR, PTMX_MINOR));
 
-	mutex_lock(&devpts_root->d_inode->i_mutex);
+	mutex_lock(&root->d_inode->i_mutex);
 
 	dentry = d_find_alias(inode);
 	if (dentry && !IS_ERR(dentry)) {
@@ -269,7 +280,7 @@ void devpts_pty_kill(struct tty_struct *tty)
 		dput(dentry);
 	}
 
-	mutex_unlock(&devpts_root->d_inode->i_mutex);
+	mutex_unlock(&root->d_inode->i_mutex);
 }
 
 static int __init init_devpts_fs(void)
