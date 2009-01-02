@@ -34,7 +34,7 @@ typedef enum {
  * DMA registration
  */
 
-int __init pxa_init_dma(int num_ch);
+int __init pxa_init_dma(int irq, int num_ch);
 
 int pxa_request_dma (char *name,
 			 pxa_dma_prio prio,

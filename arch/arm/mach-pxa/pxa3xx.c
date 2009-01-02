@@ -594,7 +594,7 @@ static int __init pxa3xx_init(void)
 
 		clks_register(pxa3xx_clkregs, ARRAY_SIZE(pxa3xx_clkregs));
 
-		if ((ret = pxa_init_dma(32)))
+		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
 			return ret;
 
 		pxa3xx_init_pm();

@@ -113,7 +113,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int __init pxa_init_dma(int num_ch)
+int __init pxa_init_dma(int irq, int num_ch)
 {
 	int i, ret;
 
@@ -131,7 +131,7 @@ int __init pxa_init_dma(int num_ch)
 		dma_channels[i].prio = min((i & 0xf) >> 2, DMA_PRIO_LOW);
 	}
 
-	ret = request_irq(IRQ_DMA, dma_irq_handler, IRQF_DISABLED, "DMA", NULL);
+	ret = request_irq(irq, dma_irq_handler, IRQF_DISABLED, "DMA", NULL);
 	if (ret) {
 		printk (KERN_CRIT "Wow!  Can't register IRQ for DMA\n");
 		kfree(dma_channels);

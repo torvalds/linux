@@ -379,7 +379,7 @@ static int __init pxa27x_init(void)
 
 		clks_register(pxa27x_clkregs, ARRAY_SIZE(pxa27x_clkregs));
 
-		if ((ret = pxa_init_dma(32)))
+		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
 			return ret;
 
 		pxa27x_init_pm();

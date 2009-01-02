@@ -353,7 +353,7 @@ static int __init pxa25x_init(void)
 
 		clks_register(pxa25x_clkregs, ARRAY_SIZE(pxa25x_clkregs));
 
-		if ((ret = pxa_init_dma(16)))
+		if ((ret = pxa_init_dma(IRQ_DMA, 16)))
 			return ret;
 
 		pxa25x_init_pm();
