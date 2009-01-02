@@ -22,11 +22,6 @@
 #include <mach/isa-dma.h>
 
 /*
- * DMA modes
- */
-typedef unsigned int dmamode_t;
-
-/*
  * The DMA modes reflect the settings for the ISA DMA controller
  */
 #define DMA_MODE_MASK	 0xcc
@@ -125,7 +120,7 @@ extern void set_dma_count(unsigned int chan, unsigned long count);
  * DMA transfer direction immediately, but defer it to the
  * enable_dma().
  */
-extern void set_dma_mode(unsigned int chan, dmamode_t mode);
+extern void set_dma_mode(unsigned int chan, unsigned int mode);
 
 /* Set the transfer speed for this channel
  */

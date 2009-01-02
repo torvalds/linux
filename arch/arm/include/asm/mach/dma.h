@@ -34,7 +34,7 @@ struct dma_struct {
 	unsigned int	active:1;	/* Transfer active		*/
 	unsigned int	invalid:1;	/* Address/Count changed	*/
 
-	dmamode_t	dma_mode;	/* DMA mode			*/
+	unsigned int	dma_mode;	/* DMA mode			*/
 	int		speed;		/* DMA speed			*/
 
 	unsigned int	lock;		/* Device is allocated		*/

@@ -171,7 +171,7 @@ EXPORT_SYMBOL(set_dma_count);
 
 /* Set DMA direction mode
  */
-void set_dma_mode (unsigned int chan, dmamode_t mode)
+void set_dma_mode (unsigned int chan, unsigned int mode)
 {
 	dma_t *dma = dma_channel(chan);
 
