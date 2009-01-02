@@ -197,7 +197,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 
 	pc->retries++;
 
-	return ide_issue_pc(drive, WAIT_FLOPPY_CMD);
+	return ide_issue_pc(drive);
 }
 
 void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *pc)

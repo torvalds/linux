@@ -562,11 +562,12 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 	return ide_started;
 }
 
-ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout)
+ide_startstop_t ide_issue_pc(ide_drive_t *drive)
 {
 	struct ide_atapi_pc *pc;
 	ide_hwif_t *hwif = drive->hwif;
 	ide_expiry_t *expiry = NULL;
+	unsigned int timeout;
 	u32 tf_flags;
 	u16 bcount;
 
@@ -574,6 +575,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout)
 		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
 		bcount = ide_cd_get_xferlen(hwif->hwgroup->rq);
 		expiry = ide_cd_expiry;
+		timeout = ATAPI_WAIT_PC;
 
 		if (drive->dma)
 			drive->dma = !hwif->dma_ops->dma_setup(drive);
@@ -600,6 +602,9 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout)
 
 		if (!drive->dma)
 			pc->flags &= ~PC_FLAG_DMA_OK;
+
+		timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
+						       : WAIT_TAPE_CMD;
 	}
 
 	ide_pktcmd_tf_load(drive, tf_flags, bcount, drive->dma);
