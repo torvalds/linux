@@ -39,10 +39,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
 
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa27x.h>
+#include <mach/pxa27x.h>
 #include <mach/pxa2xx_spi.h>
 #include <mach/trizeps4.h>
 #include <mach/audio.h>

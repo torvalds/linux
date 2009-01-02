@@ -21,9 +21,7 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <mach/irqs.h>
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa27x.h>
+#include <mach/pxa27x.h>
 #include <mach/reset.h>
 #include <mach/ohci.h>
 #include <mach/pm.h>

@@ -28,8 +28,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
-#include <mach/pxa-regs.h>
-#include <mach/mfp-pxa27x.h>
+
+#include <mach/pxa27x.h>
 #include <mach/colibri.h>
 
 #include "generic.h"

@@ -16,7 +16,7 @@
 #include <mach/hardware.h>
 #include <asm/leds.h>
 #include <asm/system.h>
-#include <mach/pxa-regs.h>
+#include <mach/pxa25x.h>
 #include <mach/lubbock.h>
 
 #include "leds.h"

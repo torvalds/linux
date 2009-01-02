@@ -28,9 +28,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/mfp-pxa300.h>
-
-#include <mach/hardware.h>
+#include <mach/pxa300.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>

@@ -17,10 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
-#include <mach/hardware.h>
-#include <mach/mfp.h>
-#include <mach/pxa3xx-regs.h>
-#include <mach/mfp-pxa320.h>
+#include <mach/pxa320.h>
 
 #include "generic.h"
 #include "devices.h"

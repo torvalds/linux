@@ -38,13 +38,11 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
+
+#include <mach/pxa25x.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/gumstix.h>
-
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa25x.h>
 
 #include "generic.h"
 

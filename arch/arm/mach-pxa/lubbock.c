@@ -41,9 +41,7 @@
 
 #include <asm/hardware/sa1111.h>
 
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa25x.h>
+#include <mach/pxa25x.h>
 #include <mach/audio.h>
 #include <mach/lubbock.h>
 #include <mach/udc.h>
