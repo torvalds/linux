@@ -1107,6 +1107,7 @@ static inline void n_tty_receive_parity_error(struct tty_struct *tty,
 static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 {
 	unsigned long flags;
+	int parmrk;
 
 	if (tty->raw) {
 		put_tty_queue(c, tty);
@@ -1144,21 +1145,24 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 	 */
 	if (!test_bit(c, tty->process_char_map) || tty->lnext) {
 		tty->lnext = 0;
-		if (L_ECHO(tty)) {
-			finish_erasing(tty);
-			if (tty->read_cnt >= N_TTY_BUF_SIZE-1) {
-				/* beep if no space */
+		parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty)) ? 1 : 0;
+		if (tty->read_cnt >= (N_TTY_BUF_SIZE - parmrk - 1)) {
+			/* beep if no space */
+			if (L_ECHO(tty)) {
 				echo_char_raw('\a', tty);
 				process_echoes(tty);
-				return;
 			}
+			return;
+		}
+		if (L_ECHO(tty)) {
+			finish_erasing(tty);
 			/* Record the column of first canon char. */
 			if (tty->canon_head == tty->read_head)
 				echo_set_canon_col(tty);
 			echo_char(c, tty);
 			process_echoes(tty);
 		}
-		if (I_PARMRK(tty) && c == (unsigned char) '\377')
+		if (parmrk)
 			put_tty_queue(c, tty);
 		put_tty_queue(c, tty);
 		return;
@@ -1250,15 +1254,22 @@ send_signal:
 			return;
 		}
 		if (c == '\n') {
-			if (L_ECHO(tty) || L_ECHONL(tty)) {
-				if (tty->read_cnt >= N_TTY_BUF_SIZE-1)
+			if (tty->read_cnt >= N_TTY_BUF_SIZE) {
+				if (L_ECHO(tty)) {
 					echo_char_raw('\a', tty);
+					process_echoes(tty);
+				}
+				return;
+			}
+			if (L_ECHO(tty) || L_ECHONL(tty)) {
 				echo_char_raw('\n', tty);
 				process_echoes(tty);
 			}
 			goto handle_newline;
 		}
 		if (c == EOF_CHAR(tty)) {
+			if (tty->read_cnt >= N_TTY_BUF_SIZE)
+				return;
 			if (tty->canon_head != tty->read_head)
 				set_bit(TTY_PUSH, &tty->flags);
 			c = __DISABLED_CHAR;
@@ -1266,12 +1277,19 @@ send_signal:
 		}
 		if ((c == EOL_CHAR(tty)) ||
 		    (c == EOL2_CHAR(tty) && L_IEXTEN(tty))) {
+			parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty))
+				 ? 1 : 0;
+			if (tty->read_cnt >= (N_TTY_BUF_SIZE - parmrk)) {
+				if (L_ECHO(tty)) {
+					echo_char_raw('\a', tty);
+					process_echoes(tty);
+				}
+				return;
+			}
 			/*
 			 * XXX are EOL_CHAR and EOL2_CHAR echoed?!?
 			 */
 			if (L_ECHO(tty)) {
-				if (tty->read_cnt >= N_TTY_BUF_SIZE-1)
-					echo_char_raw('\a', tty);
 				/* Record the column of first canon char. */
 				if (tty->canon_head == tty->read_head)
 					echo_set_canon_col(tty);
@@ -1282,7 +1300,7 @@ send_signal:
 			 * XXX does PARMRK doubling happen for
 			 * EOL_CHAR and EOL2_CHAR?
 			 */
-			if (I_PARMRK(tty) && c == (unsigned char) '\377')
+			if (parmrk)
 				put_tty_queue(c, tty);
 
 handle_newline:
@@ -1299,14 +1317,17 @@ handle_newline:
 		}
 	}
 
-	if (L_ECHO(tty)) {
-		finish_erasing(tty);
-		if (tty->read_cnt >= N_TTY_BUF_SIZE-1) {
-			/* beep if no space */
+	parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty)) ? 1 : 0;
+	if (tty->read_cnt >= (N_TTY_BUF_SIZE - parmrk - 1)) {
+		/* beep if no space */
+		if (L_ECHO(tty)) {
 			echo_char_raw('\a', tty);
 			process_echoes(tty);
-			return;
 		}
+		return;
+	}
+	if (L_ECHO(tty)) {
+		finish_erasing(tty);
 		if (c == '\n')
 			echo_char_raw('\n', tty);
 		else {
@@ -1318,7 +1339,7 @@ handle_newline:
 		process_echoes(tty);
 	}
 
-	if (I_PARMRK(tty) && c == (unsigned char) '\377')
+	if (parmrk)
 		put_tty_queue(c, tty);
 
 	put_tty_queue(c, tty);
