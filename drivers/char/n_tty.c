@@ -1352,10 +1352,8 @@ static void n_tty_write_wakeup(struct tty_struct *tty)
 	/* Write out any echoed characters that are still pending */
 	process_echoes(tty);
 
-	if (tty->fasync) {
-		set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
+	if (tty->fasync && test_and_clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags))
 		kill_fasync(&tty->fasync, SIGIO, POLL_OUT);
-	}
 }
 
 /**
@@ -2014,6 +2012,8 @@ static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
 break_out:
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&tty->write_wait, &wait);
+	if (b - buf != nr && tty->fasync)
+		set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 	return (b - buf) ? b - buf : retval;
 }
 
