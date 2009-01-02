@@ -26,12 +26,15 @@
  */
 typedef unsigned int dmamode_t;
 
-#define DMA_MODE_MASK	3
+/*
+ * The DMA modes reflect the settings for the ISA DMA controller
+ */
+#define DMA_MODE_MASK	 0xcc
 
-#define DMA_MODE_READ	 0
-#define DMA_MODE_WRITE	 1
-#define DMA_MODE_CASCADE 2
-#define DMA_AUTOINIT	 4
+#define DMA_MODE_READ	 0x44
+#define DMA_MODE_WRITE	 0x48
+#define DMA_MODE_CASCADE 0xc0
+#define DMA_AUTOINIT	 0x10
 
 extern spinlock_t  dma_spin_lock;
 

@@ -24,11 +24,6 @@
 #include <asm/dma.h>
 #include <asm/mach/dma.h>
 
-#define ISA_DMA_MODE_READ	0x44
-#define ISA_DMA_MODE_WRITE	0x48
-#define ISA_DMA_MODE_CASCADE	0xc0
-#define ISA_DMA_AUTOINIT	0x10
-
 #define ISA_DMA_MASK		0
 #define ISA_DMA_MODE		1
 #define ISA_DMA_CLRFF		2
@@ -67,20 +62,17 @@ static void isa_enable_dma(unsigned int chan, dma_t *dma)
 		unsigned int mode;
 		enum dma_data_direction direction;
 
-		mode = chan & 3;
+		mode = (chan & 3) | dma->dma_mode;
 		switch (dma->dma_mode & DMA_MODE_MASK) {
 		case DMA_MODE_READ:
-			mode |= ISA_DMA_MODE_READ;
 			direction = DMA_FROM_DEVICE;
 			break;
 
 		case DMA_MODE_WRITE:
-			mode |= ISA_DMA_MODE_WRITE;
 			direction = DMA_TO_DEVICE;
 			break;
 
 		case DMA_MODE_CASCADE:
-			mode |= ISA_DMA_MODE_CASCADE;
 			direction = DMA_BIDIRECTIONAL;
 			break;
 
@@ -120,9 +112,6 @@ static void isa_enable_dma(unsigned int chan, dma_t *dma)
 
 		outb(length, isa_dma_port[chan][ISA_DMA_COUNT]);
 		outb(length >> 8, isa_dma_port[chan][ISA_DMA_COUNT]);
-
-		if (dma->dma_mode & DMA_AUTOINIT)
-			mode |= ISA_DMA_AUTOINIT;
 
 		outb(mode, isa_dma_port[chan][ISA_DMA_MODE]);
 		dma->invalid = 0;
