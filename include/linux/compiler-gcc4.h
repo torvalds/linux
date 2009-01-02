@@ -2,9 +2,6 @@
 #error "Please don't include <linux/compiler-gcc4.h> directly, include <linux/compiler.h> instead."
 #endif
 
-/* These definitions are for GCC v4.x.  */
-#include <linux/compiler-gcc.h>
-
 #define __used			__attribute__((__used__))
 #define __must_check 		__attribute__((warn_unused_result))
 #define __compiler_offsetof(a,b) __builtin_offsetof(a,b)
@@ -16,7 +13,7 @@
  */
 #define uninitialized_var(x) x = x
 
-#if !(__GNUC__ == 4 && __GNUC_MINOR__ < 3)
+#if __GNUC_MINOR__ >= 3
 /* Mark functions as cold. gcc will assume any path leading to a call
    to them will be unlikely.  This means a lot of manual unlikely()s
    are unnecessary now for any paths leading to the usual suspects
