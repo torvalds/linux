@@ -1456,7 +1456,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 	} else
 		intel_dvo_init(dev);
 
-	if (IS_I9XX(dev) && !IS_I915G(dev))
+	if (IS_I9XX(dev) && IS_MOBILE(dev))
 		intel_tv_init(dev);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
