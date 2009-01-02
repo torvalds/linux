@@ -550,8 +550,7 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 	}
 
 	ireason = ide_read_ireason(drive);
-	if (drive->media == ide_tape &&
-	    (drive->dev_flags & IDE_DFLAG_SCSI) == 0)
+	if (drive->media == ide_tape)
 		ireason = ide_wait_ireason(drive, ireason);
 
 	if ((ireason & ATAPI_COD) == 0 || (ireason & ATAPI_IO)) {
@@ -569,14 +568,9 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 		timeout = drive->pc_delay;
 		expiry = &ide_delayed_transfer_pc;
 	} else {
-		if (drive->dev_flags & IDE_DFLAG_SCSI) {
-			timeout = ide_scsi_get_timeout(pc);
-			expiry = ide_scsi_expiry;
-		} else {
-			timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
-							       : WAIT_TAPE_CMD;
-			expiry = NULL;
-		}
+		timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
+						       : WAIT_TAPE_CMD;
+		expiry = NULL;
 	}
 
 	/* Set the interrupt routine */
