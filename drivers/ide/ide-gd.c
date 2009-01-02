@@ -182,7 +182,7 @@ static int ide_gd_open(struct block_device *bdev, fmode_t mode)
 
 	drive = idkp->drive;
 
-	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
+	ide_debug_log(IDE_DBG_FUNC, "enter");
 
 	idkp->openers++;
 
@@ -232,7 +232,7 @@ static int ide_gd_release(struct gendisk *disk, fmode_t mode)
 	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 
-	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
+	ide_debug_log(IDE_DBG_FUNC, "enter");
 
 	if (idkp->openers == 1)
 		drive->disk_ops->flush(drive);

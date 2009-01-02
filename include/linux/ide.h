@@ -1045,10 +1045,11 @@ enum {
 };
 
 /* DRV_NAME has to be defined in the driver before using the macro below */
-#define __ide_debug_log(lvl, fmt, args...)			\
-{								\
-	if (unlikely(drive->debug_mask & lvl))			\
-		printk(KERN_INFO DRV_NAME ": " fmt, ## args);	\
+#define __ide_debug_log(lvl, fmt, args...)				\
+{									\
+	if (unlikely(drive->debug_mask & lvl))				\
+		printk(KERN_INFO DRV_NAME ": %s: " fmt "\n",		\
+					  __func__, ## args);		\
 }
 
 /*

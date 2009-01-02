@@ -74,7 +74,7 @@ static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 	struct request *rq = drive->hwif->rq;
 	int error;
 
-	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
+	ide_debug_log(IDE_DBG_FUNC, "enter");
 
 	switch (uptodate) {
 	case 0:
@@ -121,7 +121,7 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 	struct ide_atapi_pc *pc = drive->pc;
 	int uptodate = pc->error ? 0 : 1;
 
-	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
+	ide_debug_log(IDE_DBG_FUNC, "enter");
 
 	if (floppy->failed_pc == pc)
 		floppy->failed_pc = NULL;
@@ -140,11 +140,11 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 				(u16)get_unaligned((u16 *)&buf[16]) : 0x10000;
 
 			if (floppy->failed_pc)
-				ide_debug_log(IDE_DBG_PC, "pc = %x, ",
+				ide_debug_log(IDE_DBG_PC, "pc = %x",
 					      floppy->failed_pc->c[0]);
 
 			ide_debug_log(IDE_DBG_SENSE, "sense key = %x, asc = %x,"
-				      "ascq = %x\n", floppy->sense_key,
+				      "ascq = %x", floppy->sense_key,
 				      floppy->asc, floppy->ascq);
 		} else
 			printk(KERN_ERR PFX "Error in REQUEST SENSE itself - "
@@ -193,7 +193,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		return ide_stopped;
 	}
 
-	ide_debug_log(IDE_DBG_FUNC, "%s: Retry #%d\n", __func__, pc->retries);
+	ide_debug_log(IDE_DBG_FUNC, "retry #%d", pc->retries);
 
 	pc->retries++;
 
@@ -242,8 +242,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 	int blocks = rq->nr_sectors / floppy->bs_factor;
 	int cmd = rq_data_dir(rq);
 
-	ide_debug_log(IDE_DBG_FUNC, "%s: block: %d, blocks: %d\n", __func__,
-		      block, blocks);
+	ide_debug_log(IDE_DBG_FUNC, "block: %d, blocks: %d", block, blocks);
 
 	ide_init_pc(pc);
 	pc->c[0] = cmd == READ ? GPCMD_READ_10 : GPCMD_WRITE_10;
@@ -287,15 +286,10 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_atapi_pc *pc;
 
-	ide_debug_log(IDE_DBG_FUNC, "%s: dev: %s, cmd: 0x%x, cmd_type: %x, "
-		      "errors: %d\n",
-		      __func__, rq->rq_disk ? rq->rq_disk->disk_name : "?",
-		      rq->cmd[0], rq->cmd_type, rq->errors);
-
-	ide_debug_log(IDE_DBG_FUNC, "%s: sector: %ld, nr_sectors: %ld, "
-		      "current_nr_sectors: %d\n",
-		      __func__, (long)rq->sector, rq->nr_sectors,
-		      rq->current_nr_sectors);
+	if (drive->debug_mask & IDE_DBG_RQ)
+		blk_dump_rq_flags(rq, (rq->rq_disk
+					? rq->rq_disk->disk_name
+					: "dev?"));
 
 	if (rq->errors >= ERROR_MAX) {
 		if (floppy->failed_pc)
@@ -438,8 +432,9 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 		length = be16_to_cpup((__be16 *)&pc.buf[desc_start + 6]);
 
 		ide_debug_log(IDE_DBG_PROBE, "Descriptor %d: %dkB, %d blocks, "
-			      "%d sector size\n",
-			      i, blocks * length / 1024, blocks, length);
+					     "%d sector size",
+					     i, blocks * length / 1024,
+					     blocks, length);
 
 		if (i)
 			continue;
@@ -495,8 +490,8 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 				"in drive\n", drive->name);
 			break;
 		}
-		ide_debug_log(IDE_DBG_PROBE, "Descriptor 0 Code: %d\n",
-			      pc.buf[desc_start + 4] & 0x03);
+		ide_debug_log(IDE_DBG_PROBE, "Descriptor 0 Code: %d",
+					     pc.buf[desc_start + 4] & 0x03);
 	}
 
 	/* Clik! disk does not support get_flexible_disk_page */
