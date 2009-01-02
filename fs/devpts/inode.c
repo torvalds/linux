@@ -320,6 +320,7 @@ fail:
 	return -ENOMEM;
 }
 
+#ifdef CONFIG_DEVPTS_MULTIPLE_INSTANCES
 static int compare_init_pts_sb(struct super_block *s, void *p)
 {
 	if (devpts_mnt)
@@ -327,7 +328,6 @@ static int compare_init_pts_sb(struct super_block *s, void *p)
 	return 0;
 }
 
-#ifdef CONFIG_DEVPTS_MULTIPLE_INSTANCES
 /*
  * Safely parse the mount options in @data and update @opts.
  *
