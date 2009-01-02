@@ -986,7 +986,7 @@ static void __init bfin_serial_init_ports(void)
 
 }
 
-#ifdef CONFIG_SERIAL_BFIN_CONSOLE
+#if defined(CONFIG_SERIAL_BFIN_CONSOLE) || defined(CONFIG_EARLY_PRINTK)
 /*
  * If the port was already initialised (eg, by a boot loader),
  * try to determine the current setup.
@@ -1030,24 +1030,20 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 	}
 	pr_debug("%s:baud = %d, parity = %c, bits= %d\n", __func__, *baud, *parity, *bits);
 }
-#endif
 
-#if defined(CONFIG_SERIAL_BFIN_CONSOLE) || defined(CONFIG_EARLY_PRINTK)
 static struct uart_driver bfin_serial_reg;
 
 static int __init
 bfin_serial_console_setup(struct console *co, char *options)
 {
 	struct bfin_serial_port *uart;
-# ifdef CONFIG_SERIAL_BFIN_CONSOLE
 	int baud = 57600;
 	int bits = 8;
 	int parity = 'n';
-#  ifdef CONFIG_SERIAL_BFIN_CTSRTS
+# ifdef CONFIG_SERIAL_BFIN_CTSRTS
 	int flow = 'r';
-#  else
+# else
 	int flow = 'n';
-#  endif
 # endif
 
 	/*
@@ -1059,16 +1055,12 @@ bfin_serial_console_setup(struct console *co, char *options)
 		co->index = 0;
 	uart = &bfin_serial_ports[co->index];
 
-# ifdef CONFIG_SERIAL_BFIN_CONSOLE
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	else
 		bfin_serial_console_get_options(uart, &baud, &parity, &bits);
 
 	return uart_set_options(&uart->port, co, baud, parity, bits, flow);
-# else
-	return 0;
-# endif
 }
 #endif /* defined (CONFIG_SERIAL_BFIN_CONSOLE) ||
 				 defined (CONFIG_EARLY_PRINTK) */
@@ -1177,7 +1169,7 @@ struct console __init *bfin_earlyserial_init(unsigned int port,
 	return &bfin_early_serial_console;
 }
 
-#endif /* CONFIG_SERIAL_BFIN_CONSOLE */
+#endif /* CONFIG_EARLY_PRINTK */
 
 static struct uart_driver bfin_serial_reg = {
 	.owner			= THIS_MODULE,
