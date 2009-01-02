@@ -1211,7 +1211,7 @@ static void tty_line_name(struct tty_driver *driver, int index, char *p)
  *	be held until the 'fast-open' is also done. Will change once we
  *	have refcounting in the driver and per driver locking
  */
-struct tty_struct *tty_driver_lookup_tty(struct tty_driver *driver,
+static struct tty_struct *tty_driver_lookup_tty(struct tty_driver *driver,
 		struct inode *inode, int idx)
 {
 	struct tty_struct *tty;
