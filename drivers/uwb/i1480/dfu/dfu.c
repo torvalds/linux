@@ -34,10 +34,7 @@
 #include <linux/uwb.h>
 #include <linux/random.h>
 
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
-
-/**
+/*
  * i1480_rceb_check - Check RCEB for expected field values
  * @i1480: pointer to device for which RCEB is being checked
  * @rceb: RCEB being checked
@@ -83,7 +80,7 @@ int i1480_rceb_check(const struct i1480 *i1480, const struct uwb_rceb *rceb,
 EXPORT_SYMBOL_GPL(i1480_rceb_check);
 
 
-/**
+/*
  * Execute a Radio Control Command
  *
  * Command data has to be in i1480->cmd_buf.
@@ -101,7 +98,6 @@ ssize_t i1480_cmd(struct i1480 *i1480, const char *cmd_name, size_t cmd_size,
 	u8 expected_type = reply->bEventType;
 	u8 context;
 
-	d_fnstart(3, i1480->dev, "(%p, %s, %zu)\n", i1480, cmd_name, cmd_size);
 	init_completion(&i1480->evt_complete);
 	i1480->evt_result = -EINPROGRESS;
 	do {
@@ -150,8 +146,6 @@ ssize_t i1480_cmd(struct i1480 *i1480, const char *cmd_name, size_t cmd_size,
 	result = i1480_rceb_check(i1480, i1480->evt_buf, cmd_name, context,
 				  expected_type, expected_event);
 error:
-	d_fnend(3, i1480->dev, "(%p, %s, %zu) = %zd\n",
-		i1480, cmd_name, cmd_size, result);
 	return result;
 }
 EXPORT_SYMBOL_GPL(i1480_cmd);
