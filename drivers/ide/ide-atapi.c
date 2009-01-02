@@ -15,6 +15,8 @@
 #define debug_log(fmt, args...) do {} while (0)
 #endif
 
+#define ATAPI_MIN_CDB_BYTES	12
+
 static inline int dev_is_idecd(ide_drive_t *drive)
 {
 	return drive->media == ide_cdrom || drive->media == ide_optical;
@@ -492,6 +494,7 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 	struct request *rq = hwif->hwgroup->rq;
 	ide_expiry_t *expiry;
 	unsigned int timeout;
+	int cmd_len;
 	ide_startstop_t startstop;
 	u8 ireason;
 
@@ -513,8 +516,17 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 	if ((ireason & ATAPI_COD) == 0 || (ireason & ATAPI_IO)) {
 		printk(KERN_ERR "%s: (IO,CoD) != (0,1) while issuing "
 				"a packet command\n", drive->name);
+
 		return ide_do_reset(drive);
 	}
+
+	if (dev_is_idecd(drive)) {
+		/* ATAPI commands get padded out to 12 bytes minimum */
+		cmd_len = COMMAND_SIZE(rq->cmd[0]);
+		if (cmd_len < ATAPI_MIN_CDB_BYTES)
+			cmd_len = ATAPI_MIN_CDB_BYTES;
+	} else
+		cmd_len = ATAPI_MIN_CDB_BYTES;
 
 	/*
 	 * If necessary schedule the packet transfer to occur 'timeout'
@@ -541,7 +553,7 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 
 	/* Send the actual packet */
 	if ((drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) == 0)
-		hwif->tp_ops->output_data(drive, NULL, rq->cmd, 12);
+		hwif->tp_ops->output_data(drive, NULL, rq->cmd, cmd_len);
 
 	return ide_started;
 }
