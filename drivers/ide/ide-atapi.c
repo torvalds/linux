@@ -551,18 +551,24 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
 	u32 tf_flags;
-	u16 bcount;
+	u16 bcount = 0;
 	u8 scsi = !!(drive->dev_flags & IDE_DFLAG_SCSI);
 
 	/* We haven't transferred any data yet */
 	pc->xferred = 0;
 	pc->cur_pos = pc->buf;
 
-	/* Request to transfer the entire buffer at once */
-	if (drive->media == ide_tape && scsi == 0)
-		bcount = pc->req_xfer;
-	else
+	if (dev_is_idecd(drive)) {
+		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
+	} else if (scsi) {
+		tf_flags = 0;
 		bcount = min(pc->req_xfer, 63 * 1024);
+	} else {
+		tf_flags = IDE_TFLAG_OUT_DEVICE;
+		bcount = ((drive->media == ide_tape) ?
+				pc->req_xfer :
+				min(pc->req_xfer, 63 * 1024));
+	}
 
 	if (pc->flags & PC_FLAG_DMA_ERROR) {
 		pc->flags &= ~PC_FLAG_DMA_ERROR;
@@ -580,13 +586,6 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 
 	if (!drive->dma)
 		pc->flags &= ~PC_FLAG_DMA_OK;
-
-	if (scsi)
-		tf_flags = 0;
-	else if (dev_is_idecd(drive))
-		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
-	else
-		tf_flags = IDE_TFLAG_OUT_DEVICE;
 
 	ide_pktcmd_tf_load(drive, tf_flags, bcount, drive->dma);
 
