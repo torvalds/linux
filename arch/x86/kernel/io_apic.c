@@ -706,7 +706,7 @@ static void __unmask_IO_APIC_irq(struct irq_cfg *cfg)
 }
 
 #ifdef CONFIG_X86_64
-void io_apic_sync(struct irq_pin_list *entry)
+static void io_apic_sync(struct irq_pin_list *entry)
 {
 	/*
 	 * Synchronize the IO-APIC and the CPU by doing

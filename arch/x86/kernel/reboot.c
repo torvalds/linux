@@ -12,6 +12,7 @@
 #include <asm/proto.h>
 #include <asm/reboot_fixups.h>
 #include <asm/reboot.h>
+#include <asm/pci_x86.h>
 #include <asm/virtext.h>
 
 #ifdef CONFIG_X86_32
@@ -23,7 +24,6 @@
 #endif
 
 #include <mach_ipi.h>
-
 
 /*
  * Power off function, if any

@@ -34,8 +34,8 @@
 
 #include <asm/pat.h>
 #include <asm/e820.h>
+#include <asm/pci_x86.h>
 
-#include "pci.h"
 
 static int
 skip_isa_ioresource_align(struct pci_dev *dev) {
