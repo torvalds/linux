@@ -1248,12 +1248,6 @@ int ide_set_media_lock(ide_drive_t *, struct gendisk *, int);
 void ide_create_request_sense_cmd(ide_drive_t *, struct ide_atapi_pc *);
 void ide_retry_pc(ide_drive_t *, struct gendisk *);
 
-static inline unsigned long ide_scsi_get_timeout(struct ide_atapi_pc *pc)
-{
-	return max_t(unsigned long, WAIT_CMD, pc->timeout - jiffies);
-}
-
-int ide_scsi_expiry(ide_drive_t *);
 int ide_cd_expiry(ide_drive_t *);
 
 int ide_cd_get_xferlen(struct request *);
