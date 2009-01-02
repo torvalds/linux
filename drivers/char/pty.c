@@ -230,6 +230,55 @@ static void pty_set_termios(struct tty_struct *tty,
 	tty->termios->c_cflag |= (CS8 | CREAD);
 }
 
+/**
+ *	pty_do_resize		-	resize event
+ *	@tty: tty being resized
+ *	@real_tty: real tty (not the same as tty if using a pty/tty pair)
+ *	@rows: rows (character)
+ *	@cols: cols (character)
+ *
+ *	Update the termios variables and send the neccessary signals to
+ *	peform a terminal resize correctly
+ */
+
+int pty_resize(struct tty_struct *tty,  struct winsize *ws)
+{
+	struct pid *pgrp, *rpgrp;
+	unsigned long flags;
+	struct tty_struct *pty = tty->link;
+
+	/* For a PTY we need to lock the tty side */
+	mutex_lock(&tty->termios_mutex);
+	if (!memcmp(ws, &tty->winsize, sizeof(*ws)))
+		goto done;
+
+	/* Get the PID values and reference them so we can
+	   avoid holding the tty ctrl lock while sending signals.
+	   We need to lock these individually however. */
+
+	spin_lock_irqsave(&tty->ctrl_lock, flags);
+	pgrp = get_pid(tty->pgrp);
+	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+
+	spin_lock_irqsave(&pty->ctrl_lock, flags);
+	rpgrp = get_pid(pty->pgrp);
+	spin_unlock_irqrestore(&pty->ctrl_lock, flags);
+
+	if (pgrp)
+		kill_pgrp(pgrp, SIGWINCH, 1);
+	if (rpgrp != pgrp && rpgrp)
+		kill_pgrp(rpgrp, SIGWINCH, 1);
+
+	put_pid(pgrp);
+	put_pid(rpgrp);
+
+	tty->winsize = *ws;
+	pty->winsize = *ws;	/* Never used so will go away soon */
+done:
+	mutex_unlock(&tty->termios_mutex);
+	return 0;
+}
+
 static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	struct tty_struct *o_tty;
@@ -290,6 +339,7 @@ static const struct tty_operations pty_ops = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
+	.resize = pty_resize
 };
 
 /* Traditional BSD devices */
@@ -319,6 +369,7 @@ static const struct tty_operations pty_ops_bsd = {
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
 	.ioctl = pty_bsd_ioctl,
+	.resize = pty_resize
 };
 
 static void __init legacy_pty_init(void)
@@ -561,7 +612,8 @@ static const struct tty_operations ptm_unix98_ops = {
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
 	.ioctl = pty_unix98_ioctl,
-	.shutdown = pty_unix98_shutdown
+	.shutdown = pty_unix98_shutdown,
+	.resize = pty_resize
 };
 
 static const struct tty_operations pty_unix98_ops = {
