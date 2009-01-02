@@ -201,7 +201,7 @@ union fw_cdev_event {
  *		case, @rom_length is updated with the actual length of the
  *		configuration ROM.
  * @rom:	If non-zero, address of a buffer to be filled by a copy of the
- *		local node's configuration ROM
+ *		device's configuration ROM
  * @bus_reset:	If non-zero, address of a buffer to be filled by a
  *		&struct fw_cdev_event_bus_reset with the current state
  *		of the bus.  This does not cause a bus reset to happen.
