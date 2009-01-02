@@ -218,6 +218,7 @@ static void ov9650_dump_registers(struct sd *sd);
 
 int ov9650_probe(struct sd *sd)
 {
+	int err = 0;
 	u8 prod_id = 0, ver_id = 0, i;
 
 	if (force_sensor) {
@@ -233,14 +234,17 @@ int ov9650_probe(struct sd *sd)
 	info("Probing for an ov9650 sensor");
 
 	/* Run the pre-init to actually probe the unit */
-	for (i = 0; i < ARRAY_SIZE(preinit_ov9650); i++) {
+	for (i = 0; i < ARRAY_SIZE(preinit_ov9650) && !err; i++) {
 		u8 data = preinit_ov9650[i][2];
 		if (preinit_ov9650[i][0] == SENSOR)
-			m5602_write_sensor(sd,
+			err = m5602_write_sensor(sd,
 					    preinit_ov9650[i][1], &data, 1);
 		else
-			m5602_write_bridge(sd, preinit_ov9650[i][1], data);
+			err = m5602_write_bridge(sd, preinit_ov9650[i][1], data);
 	}
+
+	if (err < 0)
+		return err;
 
 	if (m5602_read_sensor(sd, OV9650_PID, &prod_id, 1))
 		return -ENODEV;
@@ -458,7 +462,10 @@ int ov9650_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	m5602_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
+	if (err < 0)
+		return err;
+
 	*val = (i2c_data & 0x03) << 8;
 
 	err = m5602_read_sensor(sd, OV9650_GAIN, &i2c_data, 1);
@@ -476,11 +483,16 @@ int ov9650_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	/* The 2 MSB */
 	/* Read the OV9650_VREF register first to avoid
 	   corrupting the VREF high and low bits */
-	m5602_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
+	if (err < 0)
+		return err;
+
 	/* Mask away all uninteresting bits */
 	i2c_data = ((val & 0x0300) >> 2) |
 			(i2c_data & 0x3F);
 	err = m5602_write_sensor(sd, OV9650_VREF, &i2c_data, 1);
+	if (err < 0)
+		return err;
 
 	/* The 8 LSBs */
 	i2c_data = val & 0xff;
