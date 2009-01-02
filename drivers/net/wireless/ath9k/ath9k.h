@@ -198,6 +198,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(19),
 	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(20),
 	ATH9K_HW_CAP_WOW_MATCHPATTERN_EXACT     = BIT(21),
+	ATH9K_HW_CAP_BT_COEX			= BIT(22)
 };
 
 enum ath9k_capability_type {
@@ -752,6 +753,7 @@ struct ath9k_node_stats {
 #define AR_GPIO_OUTPUT_MUX_AS_OUTPUT             0
 #define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
 #define AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED     2
+#define AR_GPIO_OUTPUT_MUX_AS_TX_FRAME           3
 #define AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED    5
 #define AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED      6
 
@@ -801,6 +803,8 @@ struct ath_hal {
 	u16 ah_rfsilent;
 	u32 ah_rfkill_gpio;
 	u32 ah_rfkill_polarity;
+	u32 ah_btactive_gpio;
+	u32 ah_wlanactive_gpio;
 
 #ifndef ATH_NF_PER_CHAN
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
@@ -1050,5 +1054,6 @@ void ath9k_hw_rxena(struct ath_hal *ah);
 void ath9k_hw_startpcureceive(struct ath_hal *ah);
 void ath9k_hw_stoppcurecv(struct ath_hal *ah);
 bool ath9k_hw_stopdmarecv(struct ath_hal *ah);
+void ath9k_hw_btcoex_enable(struct ath_hal *ah);
 
 #endif

@@ -431,12 +431,14 @@ static void ath_ani_calibrate(unsigned long data)
 /*
  * Update tx/rx chainmask. For legacy association,
  * hard code chainmask to 1x1, for 11n association, use
- * the chainmask configuration.
+ * the chainmask configuration, for bt coexistence, use
+ * the chainmask configuration even in legacy mode.
  */
 static void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 {
 	sc->sc_flags |= SC_OP_CHAINMASK_UPDATE;
-	if (is_ht) {
+	if (is_ht ||
+	    (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_BT_COEX)) {
 		sc->sc_tx_chainmask = sc->sc_ah->ah_caps.tx_chainmask;
 		sc->sc_rx_chainmask = sc->sc_ah->ah_caps.rx_chainmask;
 	} else {
@@ -1518,6 +1520,9 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 			sc->rates[IEEE80211_BAND_5GHZ];
 		sc->sbands[IEEE80211_BAND_5GHZ].band = IEEE80211_BAND_5GHZ;
 	}
+
+	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_BT_COEX)
+		ath9k_hw_btcoex_enable(sc->sc_ah);
 
 	return 0;
 bad2:

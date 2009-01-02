@@ -3341,6 +3341,12 @@ bool ath9k_hw_fill_cap_info(struct ath_hal *ah)
 	pCap->num_antcfg_2ghz =
 		ath9k_hw_get_num_ant_config(ah, ATH9K_HAL_FREQ_BAND_2GHZ);
 
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
+		pCap->hw_caps |= ATH9K_HW_CAP_BT_COEX;
+		ah->ah_btactive_gpio = 6;
+		ah->ah_wlanactive_gpio = 5;
+	}
+
 	return true;
 }
 
@@ -3835,4 +3841,31 @@ void ath9k_hw_set11nmac2040(struct ath_hal *ah, enum ath9k_ht_macmode mode)
 		macmode = 0;
 
 	REG_WRITE(ah, AR_2040_MODE, macmode);
+}
+
+/***************************/
+/*  Bluetooth Coexistence  */
+/***************************/
+
+void ath9k_hw_btcoex_enable(struct ath_hal *ah)
+{
+	/* connect bt_active to baseband */
+	REG_CLR_BIT(ah, AR_GPIO_INPUT_EN_VAL,
+			(AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_DEF |
+			 AR_GPIO_INPUT_EN_VAL_BT_FREQUENCY_DEF));
+
+	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
+			AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB);
+
+	/* Set input mux for bt_active to gpio pin */
+	REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
+			AR_GPIO_INPUT_MUX1_BT_ACTIVE,
+			ah->ah_btactive_gpio);
+
+	/* Configure the desired gpio port for input */
+	ath9k_hw_cfg_gpio_input(ah, ah->ah_btactive_gpio);
+
+	/* Configure the desired GPIO port for TX_FRAME output */
+	ath9k_hw_cfg_output(ah, ah->ah_wlanactive_gpio,
+			    AR_GPIO_OUTPUT_MUX_AS_TX_FRAME);
 }
