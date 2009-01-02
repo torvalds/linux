@@ -559,28 +559,26 @@ enum {
 	IDE_DFLAG_NODMA			= (1 << 16),
 	/* powermanagment told us not to do anything, so sleep nicely */
 	IDE_DFLAG_BLOCKED		= (1 << 17),
-	/* ide-scsi emulation */
-	IDE_DFLAG_SCSI			= (1 << 18),
 	/* sleeping & sleep field valid */
-	IDE_DFLAG_SLEEPING		= (1 << 19),
-	IDE_DFLAG_POST_RESET		= (1 << 20),
-	IDE_DFLAG_UDMA33_WARNED		= (1 << 21),
-	IDE_DFLAG_LBA48			= (1 << 22),
+	IDE_DFLAG_SLEEPING		= (1 << 18),
+	IDE_DFLAG_POST_RESET		= (1 << 19),
+	IDE_DFLAG_UDMA33_WARNED		= (1 << 20),
+	IDE_DFLAG_LBA48			= (1 << 21),
 	/* status of write cache */
-	IDE_DFLAG_WCACHE		= (1 << 23),
+	IDE_DFLAG_WCACHE		= (1 << 22),
 	/* used for ignoring ATA_DF */
-	IDE_DFLAG_NOWERR		= (1 << 24),
+	IDE_DFLAG_NOWERR		= (1 << 23),
 	/* retrying in PIO */
-	IDE_DFLAG_DMA_PIO_RETRY		= (1 << 25),
-	IDE_DFLAG_LBA			= (1 << 26),
+	IDE_DFLAG_DMA_PIO_RETRY		= (1 << 24),
+	IDE_DFLAG_LBA			= (1 << 25),
 	/* don't unload heads */
-	IDE_DFLAG_NO_UNLOAD		= (1 << 27),
+	IDE_DFLAG_NO_UNLOAD		= (1 << 26),
 	/* heads unloaded, please don't reset port */
-	IDE_DFLAG_PARKED		= (1 << 28),
-	IDE_DFLAG_MEDIA_CHANGED		= (1 << 29),
+	IDE_DFLAG_PARKED		= (1 << 27),
+	IDE_DFLAG_MEDIA_CHANGED		= (1 << 28),
 	/* write protect */
-	IDE_DFLAG_WP			= (1 << 30),
-	IDE_DFLAG_FORMAT_IN_PROGRESS	= (1 << 31),
+	IDE_DFLAG_WP			= (1 << 29),
+	IDE_DFLAG_FORMAT_IN_PROGRESS	= (1 << 30),
 };
 
 struct ide_drive_s {

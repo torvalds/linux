@@ -17,8 +17,7 @@
 
 static inline int dev_is_idecd(ide_drive_t *drive)
 {
-	return (drive->media == ide_cdrom || drive->media == ide_optical) &&
-		!(drive->dev_flags & IDE_DFLAG_SCSI);
+	return drive->media == ide_cdrom || drive->media == ide_optical;
 }
 
 /*

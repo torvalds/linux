@@ -1141,8 +1141,6 @@ static struct kobject *ata_probe(dev_t dev, int *part, void *data)
 
 	if (drive->media == ide_disk)
 		request_module("ide-disk");
-	if (drive->dev_flags & IDE_DFLAG_SCSI)
-		request_module("ide-scsi");
 	if (drive->media == ide_cdrom || drive->media == ide_optical)
 		request_module("ide-cd");
 	if (drive->media == ide_tape)
