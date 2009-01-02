@@ -362,8 +362,6 @@ static struct tty_driver *tty_drv;
 static struct hso_device *serial_table[HSO_SERIAL_TTY_MINORS];
 static struct hso_device *network_table[HSO_MAX_NET_DEVICES];
 static spinlock_t serial_table_lock;
-static struct ktermios *hso_serial_termios[HSO_SERIAL_TTY_MINORS];
-static struct ktermios *hso_serial_termios_locked[HSO_SERIAL_TTY_MINORS];
 
 static const s32 default_port_spec[] = {
 	HSO_INTF_MUX | HSO_PORT_NETWORK,
@@ -1009,23 +1007,11 @@ static void read_bulk_callback(struct urb *urb)
 
 /* Serial driver functions */
 
-static void _hso_serial_set_termios(struct tty_struct *tty,
-				    struct ktermios *old)
+static void hso_init_termios(struct ktermios *termios)
 {
-	struct hso_serial *serial = get_serial_by_tty(tty);
-	struct ktermios *termios;
-
-	if (!serial) {
-		printk(KERN_ERR "%s: no tty structures", __func__);
-		return;
-	}
-
-	D4("port %d", serial->minor);
-
 	/*
 	 * The default requirements for this device are:
 	 */
-	termios = tty->termios;
 	termios->c_iflag &=
 		~(IGNBRK	/* disable ignore break */
 		| BRKINT	/* disable break causes interrupt */
@@ -1057,15 +1043,38 @@ static void _hso_serial_set_termios(struct tty_struct *tty,
 	termios->c_cflag |= CS8;	/* character size 8 bits */
 
 	/* baud rate 115200 */
-	tty_encode_baud_rate(tty, 115200, 115200);
+	tty_termios_encode_baud_rate(termios, 115200, 115200);
+}
+
+static void _hso_serial_set_termios(struct tty_struct *tty,
+				    struct ktermios *old)
+{
+	struct hso_serial *serial = get_serial_by_tty(tty);
+	struct ktermios *termios;
+
+	if (!serial) {
+		printk(KERN_ERR "%s: no tty structures", __func__);
+		return;
+	}
+
+	D4("port %d", serial->minor);
 
 	/*
-	 * Force low_latency on; otherwise the pushes are scheduled;
-	 * this is bad as it opens up the possibility of dropping bytes
-	 * on the floor.  We don't want to drop bytes on the floor. :)
+	 *	Fix up unsupported bits
 	 */
-	tty->low_latency = 1;
-	return;
+	termios = tty->termios;
+	termios->c_iflag &= ~IXON; /* disable enable XON/XOFF flow control */
+
+	termios->c_cflag &=
+		~(CSIZE		/* no size */
+		| PARENB	/* disable parity bit */
+		| CBAUD		/* clear current baud rate */
+		| CBAUDEX);	/* clear current buad rate */
+
+	termios->c_cflag |= CS8;	/* character size 8 bits */
+
+	/* baud rate 115200 */
+	tty_encode_baud_rate(tty, 115200, 115200);
 }
 
 static void hso_resubmit_rx_bulk_urb(struct hso_serial *serial, struct urb *urb)
@@ -2969,9 +2978,7 @@ static int __init hso_init(void)
 	tty_drv->subtype = SERIAL_TYPE_NORMAL;
 	tty_drv->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_drv->init_termios = tty_std_termios;
-	tty_drv->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	tty_drv->termios = hso_serial_termios;
-	tty_drv->termios_locked = hso_serial_termios_locked;
+	hso_init_termios(&tty_drv->init_termios);
 	tty_set_operations(tty_drv, &hso_serial_ops);
 
 	/* register the tty driver */
