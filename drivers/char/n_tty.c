@@ -872,7 +872,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 
 	/* FIXME: locking needed ? */
 	if (tty->read_head == tty->canon_head) {
-		/* echo_char_raw('\a', tty); */ /* what do you think? */
+		/* process_output('\a', tty); */ /* what do you think? */
 		return;
 	}
 	if (c == ERASE_CHAR(tty))
@@ -1148,10 +1148,8 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 		parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty)) ? 1 : 0;
 		if (tty->read_cnt >= (N_TTY_BUF_SIZE - parmrk - 1)) {
 			/* beep if no space */
-			if (L_ECHO(tty)) {
-				echo_char_raw('\a', tty);
-				process_echoes(tty);
-			}
+			if (L_ECHO(tty))
+				process_output('\a', tty);
 			return;
 		}
 		if (L_ECHO(tty)) {
@@ -1255,10 +1253,8 @@ send_signal:
 		}
 		if (c == '\n') {
 			if (tty->read_cnt >= N_TTY_BUF_SIZE) {
-				if (L_ECHO(tty)) {
-					echo_char_raw('\a', tty);
-					process_echoes(tty);
-				}
+				if (L_ECHO(tty))
+					process_output('\a', tty);
 				return;
 			}
 			if (L_ECHO(tty) || L_ECHONL(tty)) {
@@ -1280,10 +1276,8 @@ send_signal:
 			parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty))
 				 ? 1 : 0;
 			if (tty->read_cnt >= (N_TTY_BUF_SIZE - parmrk)) {
-				if (L_ECHO(tty)) {
-					echo_char_raw('\a', tty);
-					process_echoes(tty);
-				}
+				if (L_ECHO(tty))
+					process_output('\a', tty);
 				return;
 			}
 			/*
@@ -1320,10 +1314,8 @@ handle_newline:
 	parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty)) ? 1 : 0;
 	if (tty->read_cnt >= (N_TTY_BUF_SIZE - parmrk - 1)) {
 		/* beep if no space */
-		if (L_ECHO(tty)) {
-			echo_char_raw('\a', tty);
-			process_echoes(tty);
-		}
+		if (L_ECHO(tty))
+			process_output('\a', tty);
 		return;
 	}
 	if (L_ECHO(tty)) {
