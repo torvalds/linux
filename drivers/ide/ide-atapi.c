@@ -602,7 +602,6 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout)
 	ide_expiry_t *expiry = NULL;
 	u32 tf_flags;
 	u16 bcount;
-	u8 scsi = !!(drive->dev_flags & IDE_DFLAG_SCSI);
 
 	/* We haven't transferred any data yet */
 	pc->xferred = 0;
@@ -612,10 +611,6 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout)
 		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
 		bcount = ide_cd_get_xferlen(hwif->hwgroup->rq);
 		expiry = ide_cd_expiry;
-	} else if (scsi) {
-		tf_flags = 0;
-		bcount = min(pc->req_xfer, 63 * 1024);
-		expiry = ide_scsi_expiry;
 	} else {
 		tf_flags = IDE_TFLAG_OUT_DEVICE;
 		bcount = ((drive->media == ide_tape) ?
@@ -630,13 +625,8 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout)
 
 	if (((pc->flags & PC_FLAG_DMA_OK) &&
 		(drive->dev_flags & IDE_DFLAG_USING_DMA)) ||
-	    drive->dma) {
-		if (scsi)
-			hwif->sg_mapped = 1;
+	    drive->dma)
 		drive->dma = !hwif->dma_ops->dma_setup(drive);
-		if (scsi)
-			hwif->sg_mapped = 0;
-	}
 
 	if (!drive->dma)
 		pc->flags &= ~PC_FLAG_DMA_OK;
