@@ -23,7 +23,6 @@
 #include <linux/spinlock.h>
 #include <linux/swiotlb.h>
 #include <linux/string.h>
-#include <linux/swiotlb.h>
 #include <linux/types.h>
 #include <linux/ctype.h>
 #include <linux/highmem.h>
