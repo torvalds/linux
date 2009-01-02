@@ -339,6 +339,10 @@ static int serial_chars_in_buffer(struct tty_struct *tty)
 	dbg("%s = port %d", __func__, port->number);
 
 	WARN_ON(!port->port.count);
+	/* if the device was unplugged then any remaining characters
+	   fell out of the connector ;) */
+	if (port->serial->disconnected)
+		return 0;
 	/* pass on to the driver specific version of this function */
 	return port->serial->type->chars_in_buffer(tty);
 }
