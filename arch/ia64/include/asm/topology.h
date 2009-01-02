@@ -55,7 +55,6 @@
 void build_cpu_to_node_map(void);
 
 #define SD_CPU_INIT (struct sched_domain) {		\
-	.span			= CPU_MASK_NONE,	\
 	.parent			= NULL,			\
 	.child			= NULL,			\
 	.groups			= NULL,			\
@@ -80,7 +79,6 @@ void build_cpu_to_node_map(void);
 
 /* sched_domains SD_NODE_INIT for IA64 NUMA machines */
 #define SD_NODE_INIT (struct sched_domain) {		\
-	.span			= CPU_MASK_NONE,	\
 	.parent			= NULL,			\
 	.child			= NULL,			\
 	.groups			= NULL,			\

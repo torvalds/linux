@@ -30,12 +30,12 @@ static int flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 1;
 }
 
-static cpumask_t flat_target_cpus(void)
+static const struct cpumask *flat_target_cpus(void)
 {
-	return cpu_online_map;
+	return cpu_online_mask;
 }
 
-static cpumask_t flat_vector_allocation_domain(int cpu)
+static void flat_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
 	 * specified in the interrupt destination when using lowest
@@ -45,8 +45,8 @@ static cpumask_t flat_vector_allocation_domain(int cpu)
 	 * deliver interrupts to the wrong hyperthread when only one
 	 * hyperthread was specified in the interrupt desitination.
 	 */
-	cpumask_t domain = { { [0] = APIC_ALL_CPUS, } };
-	return domain;
+	cpumask_clear(retmask);
+	cpumask_bits(retmask)[0] = APIC_ALL_CPUS;
 }
 
 /*
@@ -69,9 +69,8 @@ static void flat_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
+static inline void _flat_send_IPI_mask(unsigned long mask, int vector)
 {
-	unsigned long mask = cpus_addr(cpumask)[0];
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -79,20 +78,41 @@ static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 	local_irq_restore(flags);
 }
 
+static void flat_send_IPI_mask(const struct cpumask *cpumask, int vector)
+{
+	unsigned long mask = cpumask_bits(cpumask)[0];
+
+	_flat_send_IPI_mask(mask, vector);
+}
+
+static void flat_send_IPI_mask_allbutself(const struct cpumask *cpumask,
+					  int vector)
+{
+	unsigned long mask = cpumask_bits(cpumask)[0];
+	int cpu = smp_processor_id();
+
+	if (cpu < BITS_PER_LONG)
+		clear_bit(cpu, &mask);
+	_flat_send_IPI_mask(mask, vector);
+}
+
 static void flat_send_IPI_allbutself(int vector)
 {
+	int cpu = smp_processor_id();
 #ifdef	CONFIG_HOTPLUG_CPU
 	int hotplug = 1;
 #else
 	int hotplug = 0;
 #endif
 	if (hotplug || vector == NMI_VECTOR) {
-		cpumask_t allbutme = cpu_online_map;
+		if (!cpumask_equal(cpu_online_mask, cpumask_of(cpu))) {
+			unsigned long mask = cpumask_bits(cpu_online_mask)[0];
 
-		cpu_clear(smp_processor_id(), allbutme);
+			if (cpu < BITS_PER_LONG)
+				clear_bit(cpu, &mask);
 
-		if (!cpus_empty(allbutme))
-			flat_send_IPI_mask(allbutme, vector);
+			_flat_send_IPI_mask(mask, vector);
+		}
 	} else if (num_online_cpus() > 1) {
 		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector,APIC_DEST_LOGICAL);
 	}
@@ -101,7 +121,7 @@ static void flat_send_IPI_allbutself(int vector)
 static void flat_send_IPI_all(int vector)
 {
 	if (vector == NMI_VECTOR)
-		flat_send_IPI_mask(cpu_online_map, vector);
+		flat_send_IPI_mask(cpu_online_mask, vector);
 	else
 		__send_IPI_shortcut(APIC_DEST_ALLINC, vector, APIC_DEST_LOGICAL);
 }
@@ -135,9 +155,18 @@ static int flat_apic_id_registered(void)
 	return physid_isset(read_xapic_id(), phys_cpu_present_map);
 }
 
-static unsigned int flat_cpu_mask_to_apicid(cpumask_t cpumask)
+static unsigned int flat_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
-	return cpus_addr(cpumask)[0] & APIC_ALL_CPUS;
+	return cpumask_bits(cpumask)[0] & APIC_ALL_CPUS;
+}
+
+static unsigned int flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+						const struct cpumask *andmask)
+{
+	unsigned long mask1 = cpumask_bits(cpumask)[0] & APIC_ALL_CPUS;
+	unsigned long mask2 = cpumask_bits(andmask)[0] & APIC_ALL_CPUS;
+
+	return mask1 & mask2;
 }
 
 static unsigned int phys_pkg_id(int index_msb)
@@ -157,8 +186,10 @@ struct genapic apic_flat =  {
 	.send_IPI_all = flat_send_IPI_all,
 	.send_IPI_allbutself = flat_send_IPI_allbutself,
 	.send_IPI_mask = flat_send_IPI_mask,
+	.send_IPI_mask_allbutself = flat_send_IPI_mask_allbutself,
 	.send_IPI_self = apic_send_IPI_self,
 	.cpu_mask_to_apicid = flat_cpu_mask_to_apicid,
+	.cpu_mask_to_apicid_and = flat_cpu_mask_to_apicid_and,
 	.phys_pkg_id = phys_pkg_id,
 	.get_apic_id = get_apic_id,
 	.set_apic_id = set_apic_id,
@@ -188,35 +219,39 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;
 }
 
-static cpumask_t physflat_target_cpus(void)
+static const struct cpumask *physflat_target_cpus(void)
 {
-	return cpu_online_map;
+	return cpu_online_mask;
 }
 
-static cpumask_t physflat_vector_allocation_domain(int cpu)
+static void physflat_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
-	return cpumask_of_cpu(cpu);
+	cpumask_clear(retmask);
+	cpumask_set_cpu(cpu, retmask);
 }
 
-static void physflat_send_IPI_mask(cpumask_t cpumask, int vector)
+static void physflat_send_IPI_mask(const struct cpumask *cpumask, int vector)
 {
 	send_IPI_mask_sequence(cpumask, vector);
 }
 
+static void physflat_send_IPI_mask_allbutself(const struct cpumask *cpumask,
+					      int vector)
+{
+	send_IPI_mask_allbutself(cpumask, vector);
+}
+
 static void physflat_send_IPI_allbutself(int vector)
 {
-	cpumask_t allbutme = cpu_online_map;
-
-	cpu_clear(smp_processor_id(), allbutme);
-	physflat_send_IPI_mask(allbutme, vector);
+	send_IPI_mask_allbutself(cpu_online_mask, vector);
 }
 
 static void physflat_send_IPI_all(int vector)
 {
-	physflat_send_IPI_mask(cpu_online_map, vector);
+	physflat_send_IPI_mask(cpu_online_mask, vector);
 }
 
-static unsigned int physflat_cpu_mask_to_apicid(cpumask_t cpumask)
+static unsigned int physflat_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
 	int cpu;
 
@@ -224,11 +259,29 @@ static unsigned int physflat_cpu_mask_to_apicid(cpumask_t cpumask)
 	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
 	 * May as well be the first.
 	 */
-	cpu = first_cpu(cpumask);
+	cpu = cpumask_first(cpumask);
 	if ((unsigned)cpu < nr_cpu_ids)
 		return per_cpu(x86_cpu_to_apicid, cpu);
 	else
 		return BAD_APICID;
+}
+
+static unsigned int
+physflat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+				const struct cpumask *andmask)
+{
+	int cpu;
+
+	/*
+	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
+	 * May as well be the first.
+	 */
+	for_each_cpu_and(cpu, cpumask, andmask)
+		if (cpumask_test_cpu(cpu, cpu_online_mask))
+			break;
+	if (cpu < nr_cpu_ids)
+		return per_cpu(x86_cpu_to_apicid, cpu);
+	return BAD_APICID;
 }
 
 struct genapic apic_physflat =  {
@@ -243,8 +296,10 @@ struct genapic apic_physflat =  {
 	.send_IPI_all = physflat_send_IPI_all,
 	.send_IPI_allbutself = physflat_send_IPI_allbutself,
 	.send_IPI_mask = physflat_send_IPI_mask,
+	.send_IPI_mask_allbutself = physflat_send_IPI_mask_allbutself,
 	.send_IPI_self = apic_send_IPI_self,
 	.cpu_mask_to_apicid = physflat_cpu_mask_to_apicid,
+	.cpu_mask_to_apicid_and = physflat_cpu_mask_to_apicid_and,
 	.phys_pkg_id = phys_pkg_id,
 	.get_apic_id = get_apic_id,
 	.set_apic_id = set_apic_id,

@@ -1005,7 +1005,7 @@ static void __init versatile_timer_init(void)
 	timer0_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xf, &timer0_clockevent);
 
-	timer0_clockevent.cpumask = cpumask_of_cpu(0);
+	timer0_clockevent.cpumask = cpumask_of(0);
 	clockevents_register_device(&timer0_clockevent);
 }
 

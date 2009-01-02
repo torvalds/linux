@@ -112,7 +112,6 @@ static struct clock_event_device txx9tmr_clock_event_device = {
 	.name		= "TXx9",
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.rating		= 200,
-	.cpumask	= CPU_MASK_CPU0,
 	.set_mode	= txx9tmr_set_mode,
 	.set_next_event	= txx9tmr_set_next_event,
 };
@@ -150,6 +149,7 @@ void __init txx9_clockevent_init(unsigned long baseaddr, int irq,
 		clockevent_delta2ns(0xffffffff >> (32 - TXX9_TIMER_BITS), cd);
 	cd->min_delta_ns = clockevent_delta2ns(0xf, cd);
 	cd->irq = irq;
+	cd->cpumask = cpumask_of(0),
 	clockevents_register_device(cd);
 	setup_irq(irq, &txx9tmr_irq);
 	printk(KERN_INFO "TXx9: clockevent device at 0x%lx, irq %d\n",

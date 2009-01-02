@@ -320,16 +320,14 @@ static inline void set_intr_gate(unsigned int n, void *addr)
 	_set_gate(n, GATE_INTERRUPT, addr, 0, 0, __KERNEL_CS);
 }
 
-#define SYS_VECTOR_FREE		0
-#define SYS_VECTOR_ALLOCED	1
-
 extern int first_system_vector;
-extern char system_vectors[];
+/* used_vectors is BITMAP for irq is not managed by percpu vector_irq */
+extern unsigned long used_vectors[];
 
 static inline void alloc_system_vector(int vector)
 {
-	if (system_vectors[vector] == SYS_VECTOR_FREE) {
-		system_vectors[vector] = SYS_VECTOR_ALLOCED;
+	if (!test_bit(vector, used_vectors)) {
+		set_bit(vector, used_vectors);
 		if (first_system_vector > vector)
 			first_system_vector = vector;
 	} else

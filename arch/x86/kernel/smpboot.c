@@ -102,14 +102,8 @@ EXPORT_SYMBOL(smp_num_siblings);
 /* Last level cache ID of each logical CPU */
 DEFINE_PER_CPU(u16, cpu_llc_id) = BAD_APICID;
 
-/* bitmap of online cpus */
-cpumask_t cpu_online_map __read_mostly;
-EXPORT_SYMBOL(cpu_online_map);
-
 cpumask_t cpu_callin_map;
 cpumask_t cpu_callout_map;
-cpumask_t cpu_possible_map;
-EXPORT_SYMBOL(cpu_possible_map);
 
 /* representing HT siblings of each logical CPU */
 DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
@@ -1260,6 +1254,15 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	check_nmi_watchdog();
 }
 
+static int __initdata setup_possible_cpus = -1;
+static int __init _setup_possible_cpus(char *str)
+{
+	get_option(&str, &setup_possible_cpus);
+	return 0;
+}
+early_param("possible_cpus", _setup_possible_cpus);
+
+
 /*
  * cpu_possible_map should be static, it cannot change as cpu's
  * are onlined, or offlined. The reason is per-cpu data-structures
@@ -1272,7 +1275,7 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
  *
  * Three ways to find out the number of additional hotplug CPUs:
  * - If the BIOS specified disabled CPUs in ACPI/mptables use that.
- * - The user can overwrite it with additional_cpus=NUM
+ * - The user can overwrite it with possible_cpus=NUM
  * - Otherwise don't reserve additional CPUs.
  * We do this because additional CPUs waste a lot of memory.
  * -AK
@@ -1285,9 +1288,17 @@ __init void prefill_possible_map(void)
 	if (!num_processors)
 		num_processors = 1;
 
-	possible = num_processors + disabled_cpus;
-	if (possible > NR_CPUS)
-		possible = NR_CPUS;
+	if (setup_possible_cpus == -1)
+		possible = num_processors + disabled_cpus;
+	else
+		possible = setup_possible_cpus;
+
+	if (possible > CONFIG_NR_CPUS) {
+		printk(KERN_WARNING
+			"%d Processors exceeds NR_CPUS limit of %d\n",
+			possible, CONFIG_NR_CPUS);
+		possible = CONFIG_NR_CPUS;
+	}
 
 	printk(KERN_INFO "SMP: Allowing %d CPUs, %d hotplug CPUs\n",
 		possible, max_t(int, possible - num_processors, 0));
@@ -1352,7 +1363,7 @@ void cpu_disable_common(void)
 	lock_vector_lock();
 	remove_cpu_from_maps(cpu);
 	unlock_vector_lock();
-	fixup_irqs(cpu_online_map);
+	fixup_irqs();
 }
 
 int native_cpu_disable(void)

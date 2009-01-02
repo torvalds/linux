@@ -51,10 +51,10 @@ static int __init allowcpus(char *str)
 	int len;
 
 	cpus_clear(cpu_allow_map);
-	if (cpulist_parse(str, cpu_allow_map) == 0) {
+	if (cpulist_parse(str, &cpu_allow_map) == 0) {
 		cpu_set(0, cpu_allow_map);
 		cpus_and(cpu_possible_map, cpu_possible_map, cpu_allow_map);
-		len = cpulist_scnprintf(buf, sizeof(buf)-1, cpu_possible_map);
+		len = cpulist_scnprintf(buf, sizeof(buf)-1, &cpu_possible_map);
 		buf[len] = '\0';
 		pr_debug("Allowable CPUs: %s\n", buf);
 		return 1;
@@ -226,7 +226,7 @@ void __init cmp_smp_setup(void)
 
 	for (i = 1; i < NR_CPUS; i++) {
 		if (amon_cpu_avail(i)) {
-			cpu_set(i, phys_cpu_present_map);
+			cpu_set(i, cpu_possible_map);
 			__cpu_number_map[i]	= ++ncpu;
 			__cpu_logical_map[ncpu]	= i;
 		}

@@ -24,19 +24,20 @@
 cpumask_t cpu_present_map __read_mostly;
 EXPORT_SYMBOL(cpu_present_map);
 
-#ifndef CONFIG_SMP
-
 /*
  * Represents all cpu's that are currently online.
  */
-cpumask_t cpu_online_map __read_mostly = CPU_MASK_ALL;
+cpumask_t cpu_online_map __read_mostly;
 EXPORT_SYMBOL(cpu_online_map);
 
+#ifdef CONFIG_INIT_ALL_POSSIBLE
 cpumask_t cpu_possible_map __read_mostly = CPU_MASK_ALL;
+#else
+cpumask_t cpu_possible_map __read_mostly;
+#endif
 EXPORT_SYMBOL(cpu_possible_map);
 
-#else /* CONFIG_SMP */
-
+#ifdef CONFIG_SMP
 /* Serializes the updates to cpu_online_map, cpu_present_map */
 static DEFINE_MUTEX(cpu_add_remove_lock);
 

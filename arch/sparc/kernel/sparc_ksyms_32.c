@@ -112,10 +112,6 @@ EXPORT_PER_CPU_SYMBOL(__cpu_data);
 #ifdef CONFIG_SMP
 /* IRQ implementation. */
 EXPORT_SYMBOL(synchronize_irq);
-
-/* CPU online map and active count. */
-EXPORT_SYMBOL(cpu_online_map);
-EXPORT_SYMBOL(phys_cpu_present_map);
 #endif
 
 EXPORT_SYMBOL(__udelay);

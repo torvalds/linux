@@ -738,7 +738,7 @@ static void lguest_time_init(void)
 
 	/* We can't set cpumask in the initializer: damn C limitations!  Set it
 	 * here and register our timer device. */
-	lguest_clockevent.cpumask = cpumask_of_cpu(0);
+	lguest_clockevent.cpumask = cpumask_of(0);
 	clockevents_register_device(&lguest_clockevent);
 
 	/* Finally, we unblock the timer interrupt. */

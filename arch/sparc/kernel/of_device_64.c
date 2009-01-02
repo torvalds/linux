@@ -780,7 +780,7 @@ out:
 	if (nid != -1) {
 		cpumask_t numa_mask = node_to_cpumask(nid);
 
-		irq_set_affinity(irq, numa_mask);
+		irq_set_affinity(irq, &numa_mask);
 	}
 
 	return irq;

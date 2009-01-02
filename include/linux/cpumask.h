@@ -339,36 +339,6 @@ extern cpumask_t cpu_mask_all;
 #endif
 #define	CPUMASK_PTR(v, m) 	cpumask_t *v = &(m->v)
 
-#define cpumask_scnprintf(buf, len, src) \
-			__cpumask_scnprintf((buf), (len), &(src), NR_CPUS)
-static inline int __cpumask_scnprintf(char *buf, int len,
-					const cpumask_t *srcp, int nbits)
-{
-	return bitmap_scnprintf(buf, len, srcp->bits, nbits);
-}
-
-#define cpumask_parse_user(ubuf, ulen, dst) \
-			__cpumask_parse_user((ubuf), (ulen), &(dst), NR_CPUS)
-static inline int __cpumask_parse_user(const char __user *buf, int len,
-					cpumask_t *dstp, int nbits)
-{
-	return bitmap_parse_user(buf, len, dstp->bits, nbits);
-}
-
-#define cpulist_scnprintf(buf, len, src) \
-			__cpulist_scnprintf((buf), (len), &(src), NR_CPUS)
-static inline int __cpulist_scnprintf(char *buf, int len,
-					const cpumask_t *srcp, int nbits)
-{
-	return bitmap_scnlistprintf(buf, len, srcp->bits, nbits);
-}
-
-#define cpulist_parse(buf, dst) __cpulist_parse((buf), &(dst), NR_CPUS)
-static inline int __cpulist_parse(const char *buf, cpumask_t *dstp, int nbits)
-{
-	return bitmap_parselist(buf, dstp->bits, nbits);
-}
-
 #define cpu_remap(oldbit, old, new) \
 		__cpu_remap((oldbit), &(old), &(new), NR_CPUS)
 static inline int __cpu_remap(int oldbit,
@@ -540,9 +510,6 @@ extern cpumask_t cpu_active_map;
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD	\
 }
 
-/* This produces more efficient code. */
-#define nr_cpumask_bits	NR_CPUS
-
 #else /* NR_CPUS > BITS_PER_LONG */
 
 #define CPU_BITS_ALL						\
@@ -550,9 +517,15 @@ extern cpumask_t cpu_active_map;
 	[0 ... BITS_TO_LONGS(NR_CPUS)-2] = ~0UL,		\
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD		\
 }
-
-#define nr_cpumask_bits	nr_cpu_ids
 #endif /* NR_CPUS > BITS_PER_LONG */
+
+#ifdef CONFIG_CPUMASK_OFFSTACK
+/* Assuming NR_CPUS is huge, a runtime limit is more efficient.  Also,
+ * not all bits may be allocated. */
+#define nr_cpumask_bits	nr_cpu_ids
+#else
+#define nr_cpumask_bits	NR_CPUS
+#endif
 
 /* verify cpu argument to cpumask_* operators */
 static inline unsigned int cpumask_check(unsigned int cpu)
@@ -944,6 +917,63 @@ static inline void cpumask_copy(struct cpumask *dstp,
  * @cpu: the cpu (<= nr_cpu_ids)
  */
 #define cpumask_of(cpu) (get_cpu_mask(cpu))
+
+/**
+ * cpumask_scnprintf - print a cpumask into a string as comma-separated hex
+ * @buf: the buffer to sprintf into
+ * @len: the length of the buffer
+ * @srcp: the cpumask to print
+ *
+ * If len is zero, returns zero.  Otherwise returns the length of the
+ * (nul-terminated) @buf string.
+ */
+static inline int cpumask_scnprintf(char *buf, int len,
+				    const struct cpumask *srcp)
+{
+	return bitmap_scnprintf(buf, len, srcp->bits, nr_cpumask_bits);
+}
+
+/**
+ * cpumask_parse_user - extract a cpumask from a user string
+ * @buf: the buffer to extract from
+ * @len: the length of the buffer
+ * @dstp: the cpumask to set.
+ *
+ * Returns -errno, or 0 for success.
+ */
+static inline int cpumask_parse_user(const char __user *buf, int len,
+				     struct cpumask *dstp)
+{
+	return bitmap_parse_user(buf, len, dstp->bits, nr_cpumask_bits);
+}
+
+/**
+ * cpulist_scnprintf - print a cpumask into a string as comma-separated list
+ * @buf: the buffer to sprintf into
+ * @len: the length of the buffer
+ * @srcp: the cpumask to print
+ *
+ * If len is zero, returns zero.  Otherwise returns the length of the
+ * (nul-terminated) @buf string.
+ */
+static inline int cpulist_scnprintf(char *buf, int len,
+				    const struct cpumask *srcp)
+{
+	return bitmap_scnlistprintf(buf, len, srcp->bits, nr_cpumask_bits);
+}
+
+/**
+ * cpulist_parse_user - extract a cpumask from a user string of ranges
+ * @buf: the buffer to extract from
+ * @len: the length of the buffer
+ * @dstp: the cpumask to set.
+ *
+ * Returns -errno, or 0 for success.
+ */
+static inline int cpulist_parse(const char *buf, struct cpumask *dstp)
+{
+	return bitmap_parselist(buf, dstp->bits, nr_cpumask_bits);
+}
 
 /**
  * to_cpumask - convert an NR_CPUS bitmap to a struct cpumask *

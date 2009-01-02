@@ -330,25 +330,25 @@ unmask_irq (unsigned int irq)
 
 
 static void
-iosapic_set_affinity (unsigned int irq, cpumask_t mask)
+iosapic_set_affinity(unsigned int irq, const struct cpumask *mask)
 {
 #ifdef CONFIG_SMP
 	u32 high32, low32;
-	int dest, rte_index;
+	int cpu, dest, rte_index;
 	int redir = (irq & IA64_IRQ_REDIRECTED) ? 1 : 0;
 	struct iosapic_rte_info *rte;
 	struct iosapic *iosapic;
 
 	irq &= (~IA64_IRQ_REDIRECTED);
 
-	cpus_and(mask, mask, cpu_online_map);
-	if (cpus_empty(mask))
+	cpu = cpumask_first_and(cpu_online_mask, mask);
+	if (cpu >= nr_cpu_ids)
 		return;
 
-	if (irq_prepare_move(irq, first_cpu(mask)))
+	if (irq_prepare_move(irq, cpu))
 		return;
 
-	dest = cpu_physical_id(first_cpu(mask));
+	dest = cpu_physical_id(cpu);
 
 	if (!iosapic_intr_info[irq].count)
 		return;			/* not an IOSAPIC interrupt */

@@ -131,12 +131,12 @@ int cpu_check_affinity(unsigned int irq, cpumask_t *dest)
 	return 0;
 }
 
-static void cpu_set_affinity_irq(unsigned int irq, cpumask_t dest)
+static void cpu_set_affinity_irq(unsigned int irq, const struct cpumask *dest)
 {
-	if (cpu_check_affinity(irq, &dest))
+	if (cpu_check_affinity(irq, dest))
 		return;
 
-	irq_desc[irq].affinity = dest;
+	irq_desc[irq].affinity = *dest;
 }
 #endif
 

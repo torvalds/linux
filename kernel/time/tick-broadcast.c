@@ -150,7 +150,7 @@ static void tick_do_broadcast(cpumask_t mask)
 		 */
 		cpu = first_cpu(mask);
 		td = &per_cpu(tick_cpu_device, cpu);
-		td->evtdev->broadcast(mask);
+		td->evtdev->broadcast(&mask);
 	}
 }
 
