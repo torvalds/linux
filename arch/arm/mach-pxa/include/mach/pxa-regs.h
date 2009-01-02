@@ -65,65 +65,6 @@
 #define _PCMCIA1Attr	_PCMCIAAttr (1)	/* PCMCIA 1 Attribute              */
 #define _PCMCIA1Mem	_PCMCIAMem (1)	/* PCMCIA 1 Memory                 */
 
-
-
-/*
- * DMA Controller
- */
-#define DCSR(x)		__REG2(0x40000000, (x) << 2)
-
-#define DCSR_RUN	(1 << 31)	/* Run Bit (read / write) */
-#define DCSR_NODESC	(1 << 30)	/* No-Descriptor Fetch (read / write) */
-#define DCSR_STOPIRQEN	(1 << 29)	/* Stop Interrupt Enable (read / write) */
-#define DCSR_REQPEND	(1 << 8)	/* Request Pending (read-only) */
-#define DCSR_STOPSTATE	(1 << 3)	/* Stop State (read-only) */
-#define DCSR_ENDINTR	(1 << 2)	/* End Interrupt (read / write) */
-#define DCSR_STARTINTR	(1 << 1)	/* Start Interrupt (read / write) */
-#define DCSR_BUSERR	(1 << 0)	/* Bus Error Interrupt (read / write) */
-
-#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
-#define DCSR_EORIRQEN	(1 << 28)       /* End of Receive Interrupt Enable (R/W) */
-#define DCSR_EORJMPEN	(1 << 27)       /* Jump to next descriptor on EOR */
-#define DCSR_EORSTOPEN	(1 << 26)       /* STOP on an EOR */
-#define DCSR_SETCMPST	(1 << 25)       /* Set Descriptor Compare Status */
-#define DCSR_CLRCMPST	(1 << 24)       /* Clear Descriptor Compare Status */
-#define DCSR_CMPST	(1 << 10)       /* The Descriptor Compare Status */
-#define DCSR_EORINTR	(1 << 9)        /* The end of Receive */
-#endif
-
-#define DALGN		__REG(0x400000a0)  /* DMA Alignment Register */
-#define DINT		__REG(0x400000f0)  /* DMA Interrupt Register */
-
-#define DRCMR(n)	(*(((n) < 64) ? \
-			&__REG2(0x40000100, ((n) & 0x3f) << 2) : \
-			&__REG2(0x40001100, ((n) & 0x3f) << 2)))
-
-#define DRCMR_MAPVLD	(1 << 7)	/* Map Valid (read / write) */
-#define DRCMR_CHLNUM	0x1f		/* mask for Channel Number (read / write) */
-
-#define DDADR(x)	__REG2(0x40000200, (x) << 4)
-#define DSADR(x)	__REG2(0x40000204, (x) << 4)
-#define DTADR(x)	__REG2(0x40000208, (x) << 4)
-#define DCMD(x)		__REG2(0x4000020c, (x) << 4)
-
-#define DDADR_DESCADDR	0xfffffff0	/* Address of next descriptor (mask) */
-#define DDADR_STOP	(1 << 0)	/* Stop (read / write) */
-
-#define DCMD_INCSRCADDR	(1 << 31)	/* Source Address Increment Setting. */
-#define DCMD_INCTRGADDR	(1 << 30)	/* Target Address Increment Setting. */
-#define DCMD_FLOWSRC	(1 << 29)	/* Flow Control by the source. */
-#define DCMD_FLOWTRG	(1 << 28)	/* Flow Control by the target. */
-#define DCMD_STARTIRQEN	(1 << 22)	/* Start Interrupt Enable */
-#define DCMD_ENDIRQEN	(1 << 21)	/* End Interrupt Enable */
-#define DCMD_ENDIAN	(1 << 18)	/* Device Endian-ness. */
-#define DCMD_BURST8	(1 << 16)	/* 8 byte burst */
-#define DCMD_BURST16	(2 << 16)	/* 16 byte burst */
-#define DCMD_BURST32	(3 << 16)	/* 32 byte burst */
-#define DCMD_WIDTH1	(1 << 14)	/* 1 byte width */
-#define DCMD_WIDTH2	(2 << 14)	/* 2 byte width (HalfWord) */
-#define DCMD_WIDTH4	(3 << 14)	/* 4 byte width (Word) */
-#define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
-
 /*
  * Real Time Clock
  */

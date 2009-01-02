@@ -23,8 +23,6 @@
 #include <mach/hardware.h>
 #include <mach/dma.h>
 
-#include <mach/pxa-regs.h>
-
 struct dma_channel {
 	char *name;
 	pxa_dma_prio prio;
