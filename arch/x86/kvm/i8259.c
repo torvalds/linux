@@ -26,9 +26,39 @@
  *   Port from Qemu.
  */
 #include <linux/mm.h>
+#include <linux/bitops.h>
 #include "irq.h"
 
 #include <linux/kvm_host.h>
+
+static void pic_lock(struct kvm_pic *s)
+{
+	spin_lock(&s->lock);
+}
+
+static void pic_unlock(struct kvm_pic *s)
+{
+	struct kvm *kvm = s->kvm;
+	unsigned acks = s->pending_acks;
+	bool wakeup = s->wakeup_needed;
+	struct kvm_vcpu *vcpu;
+
+	s->pending_acks = 0;
+	s->wakeup_needed = false;
+
+	spin_unlock(&s->lock);
+
+	while (acks) {
+		kvm_notify_acked_irq(kvm, __ffs(acks));
+		acks &= acks - 1;
+	}
+
+	if (wakeup) {
+		vcpu = s->kvm->vcpus[0];
+		if (vcpu)
+			kvm_vcpu_kick(vcpu);
+	}
+}
 
 static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 {
@@ -136,17 +166,21 @@ static void pic_update_irq(struct kvm_pic *s)
 
 void kvm_pic_update_irq(struct kvm_pic *s)
 {
+	pic_lock(s);
 	pic_update_irq(s);
+	pic_unlock(s);
 }
 
 void kvm_pic_set_irq(void *opaque, int irq, int level)
 {
 	struct kvm_pic *s = opaque;
 
+	pic_lock(s);
 	if (irq >= 0 && irq < PIC_NUM_PINS) {
 		pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
 		pic_update_irq(s);
 	}
+	pic_unlock(s);
 }
 
 /*
@@ -172,6 +206,7 @@ int kvm_pic_read_irq(struct kvm *kvm)
 	int irq, irq2, intno;
 	struct kvm_pic *s = pic_irqchip(kvm);
 
+	pic_lock(s);
 	irq = pic_get_irq(&s->pics[0]);
 	if (irq >= 0) {
 		pic_intack(&s->pics[0], irq);
@@ -196,6 +231,7 @@ int kvm_pic_read_irq(struct kvm *kvm)
 		intno = s->pics[0].irq_base + irq;
 	}
 	pic_update_irq(s);
+	pic_unlock(s);
 	kvm_notify_acked_irq(kvm, irq);
 
 	return intno;
@@ -203,7 +239,7 @@ int kvm_pic_read_irq(struct kvm *kvm)
 
 void kvm_pic_reset(struct kvm_kpic_state *s)
 {
-	int irq, irqbase;
+	int irq, irqbase, n;
 	struct kvm *kvm = s->pics_state->irq_request_opaque;
 	struct kvm_vcpu *vcpu0 = kvm->vcpus[0];
 
@@ -214,8 +250,10 @@ void kvm_pic_reset(struct kvm_kpic_state *s)
 
 	for (irq = 0; irq < PIC_NUM_PINS/2; irq++) {
 		if (vcpu0 && kvm_apic_accept_pic_intr(vcpu0))
-			if (s->irr & (1 << irq) || s->isr & (1 << irq))
-				kvm_notify_acked_irq(kvm, irq+irqbase);
+			if (s->irr & (1 << irq) || s->isr & (1 << irq)) {
+				n = irq + irqbase;
+				s->pics_state->pending_acks |= 1 << n;
+			}
 	}
 	s->last_irr = 0;
 	s->irr = 0;
@@ -406,6 +444,7 @@ static void picdev_write(struct kvm_io_device *this,
 			printk(KERN_ERR "PIC: non byte write\n");
 		return;
 	}
+	pic_lock(s);
 	switch (addr) {
 	case 0x20:
 	case 0x21:
@@ -418,6 +457,7 @@ static void picdev_write(struct kvm_io_device *this,
 		elcr_ioport_write(&s->pics[addr & 1], addr, data);
 		break;
 	}
+	pic_unlock(s);
 }
 
 static void picdev_read(struct kvm_io_device *this,
@@ -431,6 +471,7 @@ static void picdev_read(struct kvm_io_device *this,
 			printk(KERN_ERR "PIC: non byte read\n");
 		return;
 	}
+	pic_lock(s);
 	switch (addr) {
 	case 0x20:
 	case 0x21:
@@ -444,6 +485,7 @@ static void picdev_read(struct kvm_io_device *this,
 		break;
 	}
 	*(unsigned char *)val = data;
+	pic_unlock(s);
 }
 
 /*
@@ -459,7 +501,7 @@ static void pic_irq_request(void *opaque, int level)
 	s->output = level;
 	if (vcpu && level && (s->pics[0].isr_ack & (1 << irq))) {
 		s->pics[0].isr_ack &= ~(1 << irq);
-		kvm_vcpu_kick(vcpu);
+		s->wakeup_needed = true;
 	}
 }
 
@@ -469,6 +511,8 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 	s = kzalloc(sizeof(struct kvm_pic), GFP_KERNEL);
 	if (!s)
 		return NULL;
+	spin_lock_init(&s->lock);
+	s->kvm = kvm;
 	s->pics[0].elcr_mask = 0xf8;
 	s->pics[1].elcr_mask = 0xde;
 	s->irq_request = pic_irq_request;

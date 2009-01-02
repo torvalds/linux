@@ -49,7 +49,7 @@
 
 u32 num_var_ranges = 0;
 
-unsigned int mtrr_usage_table[MAX_VAR_RANGES];
+unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 static DEFINE_MUTEX(mtrr_mutex);
 
 u64 size_or_mask, size_and_mask;
@@ -574,7 +574,7 @@ struct mtrr_value {
 	unsigned long	lsize;
 };
 
-static struct mtrr_value mtrr_state[MAX_VAR_RANGES];
+static struct mtrr_value mtrr_state[MTRR_MAX_VAR_RANGES];
 
 static int mtrr_save(struct sys_device * sysdev, pm_message_t state)
 {

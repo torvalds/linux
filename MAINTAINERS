@@ -2542,8 +2542,6 @@ W:	http://kvm.qumranet.com
 S:	Supported
 
 KERNEL VIRTUAL MACHINE For Itanium (KVM/IA64)
-P:	Anthony Xu
-M:	anthony.xu@intel.com
 P:	Xiantao Zhang
 M:	xiantao.zhang@intel.com
 L:	kvm-ia64@vger.kernel.org
