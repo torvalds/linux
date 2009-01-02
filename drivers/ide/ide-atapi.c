@@ -3,6 +3,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/cdrom.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
 #include <scsi/scsi.h>
@@ -251,6 +252,38 @@ int ide_scsi_expiry(ide_drive_t *drive)
 	return 0; /* we do not want the IDE subsystem to retry */
 }
 EXPORT_SYMBOL_GPL(ide_scsi_expiry);
+
+int ide_cd_expiry(ide_drive_t *drive)
+{
+	struct request *rq = HWGROUP(drive)->rq;
+	unsigned long wait = 0;
+
+	debug_log("%s: rq->cmd[0]: 0x%x\n", __func__, rq->cmd[0]);
+
+	/*
+	 * Some commands are *slow* and normally take a long time to complete.
+	 * Usually we can use the ATAPI "disconnect" to bypass this, but not all
+	 * commands/drives support that. Let ide_timer_expiry keep polling us
+	 * for these.
+	 */
+	switch (rq->cmd[0]) {
+	case GPCMD_BLANK:
+	case GPCMD_FORMAT_UNIT:
+	case GPCMD_RESERVE_RZONE_TRACK:
+	case GPCMD_CLOSE_TRACK:
+	case GPCMD_FLUSH_CACHE:
+		wait = ATAPI_WAIT_PC;
+		break;
+	default:
+		if (!(rq->cmd_flags & REQ_QUIET))
+			printk(KERN_INFO "cmd 0x%x timed out\n",
+					 rq->cmd[0]);
+		wait = 0;
+		break;
+	}
+	return wait;
+}
+EXPORT_SYMBOL_GPL(ide_cd_expiry);
 
 int ide_cd_get_xferlen(struct request *rq)
 {
@@ -562,11 +595,11 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 	return ide_started;
 }
 
-ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
-			     ide_expiry_t *expiry)
+ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout)
 {
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
+	ide_expiry_t *expiry = NULL;
 	u32 tf_flags;
 	u16 bcount;
 	u8 scsi = !!(drive->dev_flags & IDE_DFLAG_SCSI);
@@ -578,9 +611,11 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 	if (dev_is_idecd(drive)) {
 		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
 		bcount = ide_cd_get_xferlen(hwif->hwgroup->rq);
+		expiry = ide_cd_expiry;
 	} else if (scsi) {
 		tf_flags = 0;
 		bcount = min(pc->req_xfer, 63 * 1024);
+		expiry = ide_scsi_expiry;
 	} else {
 		tf_flags = IDE_TFLAG_OUT_DEVICE;
 		bcount = ((drive->media == ide_tape) ?
@@ -613,7 +648,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 		if (drive->dma)
 			drive->waiting_for_dma = 0;
 		ide_execute_command(drive, ATA_CMD_PACKET, ide_transfer_pc,
-				    timeout, NULL);
+				    timeout, expiry);
 		return ide_started;
 	} else {
 		ide_execute_pkt_cmd(drive);

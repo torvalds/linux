@@ -511,38 +511,6 @@ end_request:
 	return 1;
 }
 
-static int cdrom_timer_expiry(ide_drive_t *drive)
-{
-	struct request *rq = HWGROUP(drive)->rq;
-	unsigned long wait = 0;
-
-	ide_debug_log(IDE_DBG_RQ, "Call %s: rq->cmd[0]: 0x%x\n", __func__,
-		      rq->cmd[0]);
-
-	/*
-	 * Some commands are *slow* and normally take a long time to complete.
-	 * Usually we can use the ATAPI "disconnect" to bypass this, but not all
-	 * commands/drives support that. Let ide_timer_expiry keep polling us
-	 * for these.
-	 */
-	switch (rq->cmd[0]) {
-	case GPCMD_BLANK:
-	case GPCMD_FORMAT_UNIT:
-	case GPCMD_RESERVE_RZONE_TRACK:
-	case GPCMD_CLOSE_TRACK:
-	case GPCMD_FLUSH_CACHE:
-		wait = ATAPI_WAIT_PC;
-		break;
-	default:
-		if (!(rq->cmd_flags & REQ_QUIET))
-			printk(KERN_INFO PFX "cmd 0x%x timed out\n",
-					 rq->cmd[0]);
-		wait = 0;
-		break;
-	}
-	return wait;
-}
-
 /*
  * Set up the device registers for transferring a packet command on DEV,
  * expecting to later transfer XFERLEN bytes.  HANDLER is the routine
@@ -574,7 +542,7 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 
 		/* packet command */
 		ide_execute_command(drive, ATA_CMD_PACKET, handler,
-				    ATAPI_WAIT_PC, cdrom_timer_expiry);
+				    ATAPI_WAIT_PC, ide_cd_expiry);
 		return ide_started;
 	} else {
 		ide_execute_pkt_cmd(drive);
@@ -621,7 +589,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 	}
 
 	/* arm the interrupt handler */
-	ide_set_handler(drive, handler, rq->timeout, cdrom_timer_expiry);
+	ide_set_handler(drive, handler, rq->timeout, ide_cd_expiry);
 
 	/* ATAPI commands get padded out to 12 bytes minimum */
 	cmd_len = COMMAND_SIZE(rq->cmd[0]);
@@ -1088,7 +1056,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	} else {
 		timeout = ATAPI_WAIT_PC;
 		if (!blk_fs_request(rq))
-			expiry = cdrom_timer_expiry;
+			expiry = ide_cd_expiry;
 	}
 
 	ide_set_handler(drive, cdrom_newpc_intr, timeout, expiry);
