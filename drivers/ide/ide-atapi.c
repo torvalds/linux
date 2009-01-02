@@ -509,17 +509,6 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 			drive->waiting_for_dma = 1;
 	}
 
-	ireason = ide_read_ireason(drive);
-	if (drive->media == ide_tape)
-		ireason = ide_wait_ireason(drive, ireason);
-
-	if ((ireason & ATAPI_COD) == 0 || (ireason & ATAPI_IO)) {
-		printk(KERN_ERR "%s: (IO,CoD) != (0,1) while issuing "
-				"a packet command\n", drive->name);
-
-		return ide_do_reset(drive);
-	}
-
 	if (dev_is_idecd(drive)) {
 		/* ATAPI commands get padded out to 12 bytes minimum */
 		cmd_len = COMMAND_SIZE(rq->cmd[0]);
@@ -543,6 +532,17 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 			timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
 							       : WAIT_TAPE_CMD;
 			expiry = NULL;
+		}
+
+		ireason = ide_read_ireason(drive);
+		if (drive->media == ide_tape)
+			ireason = ide_wait_ireason(drive, ireason);
+
+		if ((ireason & ATAPI_COD) == 0 || (ireason & ATAPI_IO)) {
+			printk(KERN_ERR "%s: (IO,CoD) != (0,1) while issuing "
+					"a packet command\n", drive->name);
+
+			return ide_do_reset(drive);
 		}
 	}
 
