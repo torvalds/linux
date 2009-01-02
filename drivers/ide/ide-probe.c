@@ -641,14 +641,9 @@ static int ide_register_port(ide_hwif_t *hwif)
 	/* register with global device tree */
 	dev_set_name(&hwif->gendev, hwif->name);
 	hwif->gendev.driver_data = hwif;
-	if (hwif->gendev.parent == NULL) {
-		if (hwif->dev)
-			hwif->gendev.parent = hwif->dev;
-		else
-			/* Would like to do = &device_legacy */
-			hwif->gendev.parent = NULL;
-	}
+	hwif->gendev.parent = hwif->dev;
 	hwif->gendev.release = hwif_release_dev;
+
 	ret = device_register(&hwif->gendev);
 	if (ret < 0) {
 		printk(KERN_WARNING "IDE: %s: device_register error: %d\n",
