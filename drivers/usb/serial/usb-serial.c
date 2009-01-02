@@ -382,9 +382,7 @@ static int serial_ioctl(struct tty_struct *tty, struct file *file,
 	/* pass on to the driver specific version of this function
 	   if it is available */
 	if (port->serial->type->ioctl) {
-		lock_kernel();
 		retval = port->serial->type->ioctl(tty, file, cmd, arg);
-		unlock_kernel();
 	} else
 		retval = -ENOIOCTLCMD;
 	return retval;
@@ -413,11 +411,8 @@ static int serial_break(struct tty_struct *tty, int break_state)
 	WARN_ON(!port->port.count);
 	/* pass on to the driver specific version of this function
 	   if it is available */
-	if (port->serial->type->break_ctl) {
-		lock_kernel();
+	if (port->serial->type->break_ctl)
 		port->serial->type->break_ctl(tty, break_state);
-		unlock_kernel();
-	}
 	return 0;
 }
 

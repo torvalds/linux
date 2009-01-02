@@ -1054,6 +1054,8 @@ static int set_serial_info(struct tty_struct *tty,
 
 	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
 		return -EFAULT;
+
+	lock_kernel();
 	old_priv = *priv;
 
 	/* Do error checking and permission checking */
@@ -1069,8 +1071,10 @@ static int set_serial_info(struct tty_struct *tty,
 	}
 
 	if ((new_serial.baud_base != priv->baud_base) &&
-	    (new_serial.baud_base < 9600))
+	    (new_serial.baud_base < 9600)) {
+	    	unlock_kernel();
 		return -EINVAL;
+	}
 
 	/* Make the changes - these are privileged changes! */
 
@@ -1098,8 +1102,11 @@ check_and_exit:
 	     (priv->flags & ASYNC_SPD_MASK)) ||
 	    (((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST) &&
 	     (old_priv.custom_divisor != priv->custom_divisor))) {
+		unlock_kernel();
 		change_speed(tty, port);
 	}
+	else
+		unlock_kernel();
 	return 0;
 
 } /* set_serial_info */
