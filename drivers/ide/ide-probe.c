@@ -881,8 +881,7 @@ static int ide_init_queue(ide_drive_t *drive)
 	 *	do not.
 	 */
 
-	q = blk_init_queue_node(do_ide_request, &hwif->hwgroup->lock,
-				hwif_to_node(hwif));
+	q = blk_init_queue_node(do_ide_request, NULL, hwif_to_node(hwif));
 	if (!q)
 		return 1;
 

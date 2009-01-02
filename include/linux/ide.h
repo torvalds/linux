@@ -603,8 +603,6 @@ struct ide_drive_s {
 	unsigned long dev_flags;
 
 	unsigned long sleep;		/* sleep until this time */
-	unsigned long service_start;	/* time we started last request */
-	unsigned long service_time;	/* service time of last request */
 	unsigned long timeout;		/* max time to wait for irq */
 
 	special_t	special;	/* special action flags */
@@ -872,8 +870,6 @@ typedef struct hwgroup_s {
 
 		/* BOOL: protects all fields below */
 	volatile int busy;
-		/* BOOL: wake us up on timer expiry */
-	unsigned int sleeping	: 1;
 		/* BOOL: polling active & poll_timeout field valid */
 	unsigned int polling	: 1;
 
