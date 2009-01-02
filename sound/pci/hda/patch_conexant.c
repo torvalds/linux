@@ -1713,6 +1713,7 @@ static void cxt5051_hp_automute(struct hda_codec *codec)
 static void cxt5051_hp_unsol_event(struct hda_codec *codec,
 				   unsigned int res)
 {
+	int nid = (res & AC_UNSOL_RES_SUBTAG) >> 20;
 	switch (res >> 26) {
 	case CONEXANT_HP_EVENT:
 		cxt5051_hp_automute(codec);
@@ -1724,6 +1725,7 @@ static void cxt5051_hp_unsol_event(struct hda_codec *codec,
 		cxt5051_portc_automic(codec);
 		break;
 	}
+	conexant_report_jack(codec, nid);
 }
 
 static struct snd_kcontrol_new cxt5051_mixers[] = {
@@ -1798,6 +1800,7 @@ static struct hda_verb cxt5051_init_verbs[] = {
 static int cxt5051_init(struct hda_codec *codec)
 {
 	conexant_init(codec);
+	conexant_init_jacks(codec);
 	if (codec->patch_ops.unsol_event) {
 		cxt5051_hp_automute(codec);
 		cxt5051_portb_automic(codec);
