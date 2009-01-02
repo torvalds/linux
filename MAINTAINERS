@@ -2641,13 +2641,13 @@ W:	http://www.hansenpartnership.com/voyager
 S:	Maintained
 
 LINUX FOR POWERPC (32-BIT AND 64-BIT)
-P:	Paul Mackerras
-M:	paulus@samba.org
 P:	Benjamin Herrenschmidt
 M:	benh@kernel.crashing.org
+P:	Paul Mackerras
+M:	paulus@samba.org
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@ozlabs.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/paulus/powerpc.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/benh/powerpc.git
 S:	Supported
 
 LINUX FOR POWER MACINTOSH
