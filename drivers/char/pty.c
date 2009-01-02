@@ -5,8 +5,6 @@
  *
  *  Added support for a Unix98-style ptmx device.
  *    -- C. Scott Ananian <cananian@alumni.princeton.edu>, 14-Jan-1998
- *  Added TTY_DO_WRITE_WAKEUP to enable n_tty to send POLL_OUT to
- *      waiting writers -- Sapan Bhatia <sapan@corewars.org>
  *
  *  When reading this code see also fs/devpts. In particular note that the
  *  driver_data field is used by the devpts side as a binding to the devpts
@@ -217,7 +215,6 @@ static int pty_open(struct tty_struct *tty, struct file *filp)
 
 	clear_bit(TTY_OTHER_CLOSED, &tty->link->flags);
 	set_bit(TTY_THROTTLED, &tty->flags);
-	set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 	retval = 0;
 out:
 	return retval;
