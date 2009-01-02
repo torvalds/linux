@@ -48,10 +48,11 @@ struct pts_mount_opts {
 	gid_t   gid;
 	umode_t mode;
 	umode_t ptmxmode;
+	int newinstance;
 };
 
 enum {
-	Opt_uid, Opt_gid, Opt_mode, Opt_ptmxmode,
+	Opt_uid, Opt_gid, Opt_mode, Opt_ptmxmode, Opt_newinstance,
 	Opt_err
 };
 
@@ -61,6 +62,7 @@ static const match_table_t tokens = {
 	{Opt_mode, "mode=%o"},
 #ifdef CONFIG_DEVPTS_MULTIPLE_INSTANCES
 	{Opt_ptmxmode, "ptmxmode=%o"},
+	{Opt_newinstance, "newinstance"},
 #endif
 	{Opt_err, NULL}
 };
@@ -78,13 +80,17 @@ static inline struct pts_fs_info *DEVPTS_SB(struct super_block *sb)
 
 static inline struct super_block *pts_sb_from_inode(struct inode *inode)
 {
+#ifdef CONFIG_DEVPTS_MULTIPLE_INSTANCES
 	if (inode->i_sb->s_magic == DEVPTS_SUPER_MAGIC)
 		return inode->i_sb;
-
+#endif
 	return devpts_mnt->mnt_sb;
 }
 
-static int parse_mount_options(char *data, struct pts_mount_opts *opts)
+#define PARSE_MOUNT	0
+#define PARSE_REMOUNT	1
+
+static int parse_mount_options(char *data, int op, struct pts_mount_opts *opts)
 {
 	char *p;
 
@@ -94,6 +100,10 @@ static int parse_mount_options(char *data, struct pts_mount_opts *opts)
 	opts->gid     = 0;
 	opts->mode    = DEVPTS_DEFAULT_MODE;
 	opts->ptmxmode = DEVPTS_DEFAULT_PTMX_MODE;
+
+	/* newinstance makes sense only on initial mount */
+	if (op == PARSE_MOUNT)
+		opts->newinstance = 0;
 
 	while ((p = strsep(&data, ",")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
@@ -127,6 +137,11 @@ static int parse_mount_options(char *data, struct pts_mount_opts *opts)
 			if (match_octal(&args[0], &option))
 				return -EINVAL;
 			opts->ptmxmode = option & S_IALLUGO;
+			break;
+		case Opt_newinstance:
+			/* newinstance makes sense only on initial mount */
+			if (op == PARSE_MOUNT)
+				opts->newinstance = 1;
 			break;
 #endif
 		default:
@@ -214,7 +229,7 @@ static int devpts_remount(struct super_block *sb, int *flags, char *data)
 	struct pts_fs_info *fsi = DEVPTS_SB(sb);
 	struct pts_mount_opts *opts = &fsi->mount_opts;
 
-	err = parse_mount_options(data, opts);
+	err = parse_mount_options(data, PARSE_REMOUNT, opts);
 
 	/*
 	 * parse_mount_options() restores options to default values
@@ -309,8 +324,100 @@ static int compare_init_pts_sb(struct super_block *s, void *p)
 {
 	if (devpts_mnt)
 		return devpts_mnt->mnt_sb == s;
+	return 0;
+}
+
+#ifdef CONFIG_DEVPTS_MULTIPLE_INSTANCES
+/*
+ * Safely parse the mount options in @data and update @opts.
+ *
+ * devpts ends up parsing options two times during mount, due to the
+ * two modes of operation it supports. The first parse occurs in
+ * devpts_get_sb() when determining the mode (single-instance or
+ * multi-instance mode). The second parse happens in devpts_remount()
+ * or new_pts_mount() depending on the mode.
+ *
+ * Parsing of options modifies the @data making subsequent parsing
+ * incorrect. So make a local copy of @data and parse it.
+ *
+ * Return: 0 On success, -errno on error
+ */
+static int safe_parse_mount_options(void *data, struct pts_mount_opts *opts)
+{
+	int rc;
+	void *datacp;
+
+	if (!data)
+		return 0;
+
+	/* Use kstrdup() ?  */
+	datacp = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!datacp)
+		return -ENOMEM;
+
+	memcpy(datacp, data, PAGE_SIZE);
+	rc = parse_mount_options((char *)datacp, PARSE_MOUNT, opts);
+	kfree(datacp);
+
+	return rc;
+}
+
+/*
+ * Mount a new (private) instance of devpts.  PTYs created in this
+ * instance are independent of the PTYs in other devpts instances.
+ */
+static int new_pts_mount(struct file_system_type *fs_type, int flags,
+		void *data, struct vfsmount *mnt)
+{
+	int err;
+	struct pts_fs_info *fsi;
+	struct pts_mount_opts *opts;
+
+	printk(KERN_NOTICE "devpts: newinstance mount\n");
+
+	err = get_sb_nodev(fs_type, flags, data, devpts_fill_super, mnt);
+	if (err)
+		return err;
+
+	fsi = DEVPTS_SB(mnt->mnt_sb);
+	opts = &fsi->mount_opts;
+
+	err = parse_mount_options(data, PARSE_MOUNT, opts);
+	if (err)
+		goto fail;
+
+	err = mknod_ptmx(mnt->mnt_sb);
+	if (err)
+		goto fail;
 
 	return 0;
+
+fail:
+	dput(mnt->mnt_sb->s_root);
+	deactivate_super(mnt->mnt_sb);
+	return err;
+}
+
+/*
+ * Check if 'newinstance' mount option was specified in @data.
+ *
+ * Return: -errno  	on error (eg: invalid mount options specified)
+ * 	 : 1 		if 'newinstance' mount option was specified
+ * 	 : 0 		if 'newinstance' mount option was NOT specified
+ */
+static int is_new_instance_mount(void *data)
+{
+	int rc;
+	struct pts_mount_opts opts;
+
+	if (!data)
+		return 0;
+
+	rc = safe_parse_mount_options(data, &opts);
+	if (!rc)
+		rc = opts.newinstance;
+
+	return rc;
 }
 
 /*
@@ -358,11 +465,54 @@ static int get_init_pts_sb(struct file_system_type *fs_type, int flags,
         return simple_set_mnt(mnt, s);
 }
 
+/*
+ * Mount or remount the initial kernel mount of devpts. This type of
+ * mount maintains the legacy, single-instance semantics, while the
+ * kernel still allows multiple-instances.
+ */
+static int init_pts_mount(struct file_system_type *fs_type, int flags,
+		void *data, struct vfsmount *mnt)
+{
+	int err;
+
+	err = get_init_pts_sb(fs_type, flags, data, mnt);
+	if (err)
+		 return err;
+
+	err = mknod_ptmx(mnt->mnt_sb);
+	if (err) {
+		dput(mnt->mnt_sb->s_root);
+		deactivate_super(mnt->mnt_sb);
+	}
+
+	return err;
+}
+
 static int devpts_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_init_pts_sb(fs_type, flags, data, mnt);
+	int new;
+
+	new = is_new_instance_mount(data);
+	if (new < 0)
+		return new;
+
+	if (new)
+		return new_pts_mount(fs_type, flags, data, mnt);
+
+	return init_pts_mount(fs_type, flags, data, mnt);
 }
+#else
+/*
+ * This supports only the legacy single-instance semantics (no
+ * multiple-instance semantics)
+ */
+static int devpts_get_sb(struct file_system_type *fs_type, int flags,
+		const char *dev_name, void *data, struct vfsmount *mnt)
+{
+	return get_sb_single(fs_type, flags, data, devpts_fill_super, mnt);
+}
+#endif
 
 static void devpts_kill_sb(struct super_block *sb)
 {
@@ -488,12 +638,18 @@ void devpts_pty_kill(struct tty_struct *tty)
 	mutex_lock(&root->d_inode->i_mutex);
 
 	dentry = d_find_alias(inode);
-	if (dentry && !IS_ERR(dentry)) {
+	if (IS_ERR(dentry))
+		goto out;
+
+	if (dentry) {
 		inode->i_nlink--;
 		d_delete(dentry);
-		dput(dentry);
+		dput(dentry);	// d_alloc_name() in devpts_pty_new()
 	}
 
+	dput(dentry);		// d_find_alias above
+
+out:
 	mutex_unlock(&root->d_inode->i_mutex);
 }
 
