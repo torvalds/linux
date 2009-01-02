@@ -164,8 +164,6 @@ static int pc_write_room(struct tty_struct *);
 static int pc_chars_in_buffer(struct tty_struct *);
 static void pc_flush_buffer(struct tty_struct *);
 static void pc_flush_chars(struct tty_struct *);
-static int block_til_ready(struct tty_struct *, struct file *,
-			struct channel *);
 static int pc_open(struct tty_struct *, struct file *);
 static void post_fep_init(unsigned int crd);
 static void epcapoll(unsigned long);
@@ -422,7 +420,6 @@ static void pc_close(struct tty_struct *tty, struct file *filp)
 {
 	struct channel *ch;
 	struct tty_port *port;
-	unsigned long flags;
 	/*
 	 * verifyChannel returns the channel from the tty struct if it is
 	 * valid. This serves as a sanity check.
@@ -491,8 +488,6 @@ static void pc_hangup(struct tty_struct *tty)
 	 */
 	ch = verifyChannel(tty);
 	if (ch != NULL) {
-		unsigned long flags;
-
 		pc_flush_buffer(tty);
 		tty_ldisc_flush(tty);
 		shutdown(ch, tty);
@@ -750,7 +745,7 @@ static int epca_carrier_raised(struct tty_port *port)
 	return 0;
 }
 
-static void epca_raise_dtr_rts(struct tty_port *port0
+static void epca_raise_dtr_rts(struct tty_port *port)
 {
 }
 
@@ -1268,7 +1263,7 @@ static void post_fep_init(unsigned int crd)
 		u16 tseg, rseg;
 
 		tty_port_init(&ch->port);
-		ch->port.ops - &epca_port_ops;
+		ch->port.ops = &epca_port_ops;
 		ch->brdchan = bc;
 		ch->mailbox = gd;
 		INIT_WORK(&ch->tqueue, do_softint);
