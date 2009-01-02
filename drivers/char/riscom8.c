@@ -857,23 +857,40 @@ static void rc_shutdown_port(struct tty_struct *tty,
 		rc_shutdown_board(bp);
 }
 
+static int carrier_raised(struct tty_port *port)
+{
+	struct riscom_port *p = container_of(port, struct riscom_port, port);
+	struct riscom_board *bp = port_Board(p);
+	unsigned long flags;
+	int CD;
+	
+	spin_lock_irqsave(&riscom_lock, flags);
+	rc_out(bp, CD180_CAR, port_No(p));
+	CD = rc_in(bp, CD180_MSVR) & MSVR_CD;
+	rc_out(bp, CD180_MSVR, MSVR_RTS);
+	bp->DTR &= ~(1u << port_No(p));
+	rc_out(bp, RC_DTR, bp->DTR);
+	spin_unlock_irqrestore(&riscom_lock, flags);
+	return CD;
+}
+
 static int block_til_ready(struct tty_struct *tty, struct file *filp,
-			   struct riscom_port *port)
+			   struct riscom_port *rp)
 {
 	DECLARE_WAITQUEUE(wait, current);
-	struct riscom_board *bp = port_Board(port);
 	int    retval;
 	int    do_clocal = 0;
 	int    CD;
 	unsigned long flags;
+	struct tty_port *port = &rp->port;
 
 	/*
 	 * If the device is in the middle of being closed, then block
 	 * until it's done, and then try again.
 	 */
-	if (tty_hung_up_p(filp) || port->port.flags & ASYNC_CLOSING) {
-		interruptible_sleep_on(&port->port.close_wait);
-		if (port->port.flags & ASYNC_HUP_NOTIFY)
+	if (tty_hung_up_p(filp) || port->flags & ASYNC_CLOSING) {
+		interruptible_sleep_on(&port->close_wait);
+		if (port->flags & ASYNC_HUP_NOTIFY)
 			return -EAGAIN;
 		else
 			return -ERESTARTSYS;
@@ -885,7 +902,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	 */
 	if ((filp->f_flags & O_NONBLOCK) ||
 	    (tty->flags & (1 << TTY_IO_ERROR))) {
-		port->port.flags |= ASYNC_NORMAL_ACTIVE;
+		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
 
@@ -900,37 +917,29 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	 * exit, either normal or abnormal.
 	 */
 	retval = 0;
-	add_wait_queue(&port->port.open_wait, &wait);
+	add_wait_queue(&port->open_wait, &wait);
 
 	spin_lock_irqsave(&riscom_lock, flags);
 
 	if (!tty_hung_up_p(filp))
-		port->port.count--;
+		port->count--;
 
 	spin_unlock_irqrestore(&riscom_lock, flags);
 
-	port->port.blocked_open++;
+	port->blocked_open++;
 	while (1) {
-		spin_lock_irqsave(&riscom_lock, flags);
 
-		rc_out(bp, CD180_CAR, port_No(port));
-		CD = rc_in(bp, CD180_MSVR) & MSVR_CD;
-		rc_out(bp, CD180_MSVR, MSVR_RTS);
-		bp->DTR &= ~(1u << port_No(port));
-		rc_out(bp, RC_DTR, bp->DTR);
-
-		spin_unlock_irqrestore(&riscom_lock, flags);
-
+		CD = tty_port_carrier_raised(port);
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) ||
-		    !(port->port.flags & ASYNC_INITIALIZED)) {
-			if (port->port.flags & ASYNC_HUP_NOTIFY)
+		    !(port->flags & ASYNC_INITIALIZED)) {
+			if (port->flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
 			else
 				retval = -ERESTARTSYS;
 			break;
 		}
-		if (!(port->port.flags & ASYNC_CLOSING) &&
+		if (!(port->flags & ASYNC_CLOSING) &&
 		    (do_clocal || CD))
 			break;
 		if (signal_pending(current)) {
@@ -940,14 +949,14 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		schedule();
 	}
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&port->port.open_wait, &wait);
+	remove_wait_queue(&port->open_wait, &wait);
 	if (!tty_hung_up_p(filp))
-		port->port.count++;
-	port->port.blocked_open--;
+		port->count++;
+	port->blocked_open--;
 	if (retval)
 		return retval;
 
-	port->port.flags |= ASYNC_NORMAL_ACTIVE;
+	port->flags |= ASYNC_NORMAL_ACTIVE;
 	return 0;
 }
 
@@ -1510,6 +1519,11 @@ static const struct tty_operations riscom_ops = {
 	.break_ctl = rc_send_break,
 };
 
+static const struct tty_port_operations riscom_port_ops = {
+	.carrier_raised = carrier_raised,
+};
+
+
 static int __init rc_init_drivers(void)
 {
 	int error;
@@ -1541,6 +1555,7 @@ static int __init rc_init_drivers(void)
 	memset(rc_port, 0, sizeof(rc_port));
 	for (i = 0; i < RC_NPORT * RC_NBOARD; i++)  {
 		tty_port_init(&rc_port[i].port);
+		rc_port[i].port.ops = &riscom_port_ops;
 		rc_port[i].magic = RISCOM8_MAGIC;
 	}
 	return 0;

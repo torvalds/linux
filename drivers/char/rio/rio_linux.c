@@ -173,7 +173,7 @@ static void rio_disable_tx_interrupts(void *ptr);
 static void rio_enable_tx_interrupts(void *ptr);
 static void rio_disable_rx_interrupts(void *ptr);
 static void rio_enable_rx_interrupts(void *ptr);
-static int rio_get_CD(void *ptr);
+static int rio_carrier_raised(struct tty_port *port);
 static void rio_shutdown_port(void *ptr);
 static int rio_set_real_termios(void *ptr);
 static void rio_hungup(void *ptr);
@@ -224,7 +224,6 @@ static struct real_driver rio_real_driver = {
 	rio_enable_tx_interrupts,
 	rio_disable_rx_interrupts,
 	rio_enable_rx_interrupts,
-	rio_get_CD,
 	rio_shutdown_port,
 	rio_set_real_termios,
 	rio_chars_in_buffer,
@@ -476,9 +475,9 @@ static void rio_enable_rx_interrupts(void *ptr)
 
 
 /* Jeez. Isn't this simple?  */
-static int rio_get_CD(void *ptr)
+static int rio_carrier_raised(struct tty_port *port)
 {
-	struct Port *PortP = ptr;
+	struct Port *PortP = container_of(port, struct Port, gs.port);
 	int rv;
 
 	func_enter();
@@ -806,7 +805,9 @@ static void *ckmalloc(int size)
 	return p;
 }
 
-
+static const struct tty_port_operations rio_port_ops = {
+	.carrier_raised = rio_carrier_raised,
+};
 
 static int rio_init_datastructures(void)
 {
@@ -842,17 +843,14 @@ static int rio_init_datastructures(void)
 			goto free6;
 		}
 		rio_dprintk(RIO_DEBUG_INIT, "initing port %d (%d)\n", i, port->Mapped);
+		tty_port_init(&port->gs.port);
+		port->gs.port.ops = &rio_port_ops;
 		port->PortNum = i;
 		port->gs.magic = RIO_MAGIC;
 		port->gs.close_delay = HZ / 2;
 		port->gs.closing_wait = 30 * HZ;
 		port->gs.rd = &rio_real_driver;
 		spin_lock_init(&port->portSem);
-		/*
-		 * Initializing wait queue
-		 */
-		init_waitqueue_head(&port->gs.port.open_wait);
-		init_waitqueue_head(&port->gs.port.close_wait);
 	}
 #else
 	/* We could postpone initializing them to when they are configured. */

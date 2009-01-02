@@ -151,7 +151,7 @@ static char	*stli_drvversion = "5.6.0";
 static char	*stli_serialname = "ttyE";
 
 static struct tty_driver	*stli_serial;
-
+static const struct tty_port_operations stli_port_ops;
 
 #define	STLI_TXBUFSIZE		4096
 
@@ -1183,6 +1183,12 @@ static int stli_setport(struct tty_struct *tty)
 
 /*****************************************************************************/
 
+static int stli_carrier_raised(struct tty_port *port)
+{
+	struct stliport *portp = container_of(port, struct stliport, port);
+	return (portp->sigs & TIOCM_CD) ? 1 : 0;
+}
+
 /*
  *	Possibly need to wait for carrier (DCD signal) to come high. Say
  *	maybe because if we are clocal then we don't need to wait...
@@ -1193,6 +1199,7 @@ static int stli_waitcarrier(struct tty_struct *tty, struct stlibrd *brdp,
 {
 	unsigned long flags;
 	int rc, doclocal;
+	struct tty_port *port = &portp->port;
 
 	rc = 0;
 	doclocal = 0;
@@ -1203,7 +1210,7 @@ static int stli_waitcarrier(struct tty_struct *tty, struct stlibrd *brdp,
 	spin_lock_irqsave(&stli_lock, flags);
 	portp->openwaitcnt++;
 	if (! tty_hung_up_p(filp))
-		portp->port.count--;
+		port->count--;
 	spin_unlock_irqrestore(&stli_lock, flags);
 
 	for (;;) {
@@ -1212,27 +1219,27 @@ static int stli_waitcarrier(struct tty_struct *tty, struct stlibrd *brdp,
 		    &portp->asig, sizeof(asysigs_t), 0)) < 0)
 			break;
 		if (tty_hung_up_p(filp) ||
-		    ((portp->port.flags & ASYNC_INITIALIZED) == 0)) {
-			if (portp->port.flags & ASYNC_HUP_NOTIFY)
+		    ((port->flags & ASYNC_INITIALIZED) == 0)) {
+			if (port->flags & ASYNC_HUP_NOTIFY)
 				rc = -EBUSY;
 			else
 				rc = -ERESTARTSYS;
 			break;
 		}
-		if (((portp->port.flags & ASYNC_CLOSING) == 0) &&
-		    (doclocal || (portp->sigs & TIOCM_CD))) {
+		if (((port->flags & ASYNC_CLOSING) == 0) &&
+		    (doclocal || tty_port_carrier_raised(port))) {
 			break;
 		}
 		if (signal_pending(current)) {
 			rc = -ERESTARTSYS;
 			break;
 		}
-		interruptible_sleep_on(&portp->port.open_wait);
+		interruptible_sleep_on(&port->open_wait);
 	}
 
 	spin_lock_irqsave(&stli_lock, flags);
 	if (! tty_hung_up_p(filp))
-		portp->port.count++;
+		port->count++;
 	portp->openwaitcnt--;
 	spin_unlock_irqrestore(&stli_lock, flags);
 
@@ -2696,6 +2703,7 @@ static int stli_initports(struct stlibrd *brdp)
 			continue;
 		}
 		tty_port_init(&portp->port);
+		portp->port.ops = &stli_port_ops;
 		portp->magic = STLI_PORTMAGIC;
 		portp->portnr = i;
 		portp->brdnr = brdp->brdnr;
@@ -4516,6 +4524,10 @@ static const struct tty_operations stli_ops = {
 	.read_proc = stli_readproc,
 	.tiocmget = stli_tiocmget,
 	.tiocmset = stli_tiocmset,
+};
+
+static const struct tty_port_operations stli_port_ops = {
+	.carrier_raised = stli_carrier_raised,
 };
 
 /*****************************************************************************/

@@ -397,7 +397,8 @@ void gs_hangup(struct tty_struct *tty)
 
 int gs_block_til_ready(void *port_, struct file * filp)
 {
-	struct gs_port *port = port_;
+	struct gs_port *gp = port_;
+	struct tty_port *port = &gp->port;
 	DECLARE_WAITQUEUE(wait, current);
 	int    retval;
 	int    do_clocal = 0;
@@ -409,16 +410,16 @@ int gs_block_til_ready(void *port_, struct file * filp)
 
 	if (!port) return 0;
 
-	tty = port->port.tty;
+	tty = port->tty;
 
 	gs_dprintk (GS_DEBUG_BTR, "Entering gs_block_till_ready.\n"); 
 	/*
 	 * If the device is in the middle of being closed, then block
 	 * until it's done, and then try again.
 	 */
-	if (tty_hung_up_p(filp) || port->port.flags & ASYNC_CLOSING) {
-		interruptible_sleep_on(&port->port.close_wait);
-		if (port->port.flags & ASYNC_HUP_NOTIFY)
+	if (tty_hung_up_p(filp) || port->flags & ASYNC_CLOSING) {
+		interruptible_sleep_on(&port->close_wait);
+		if (port->flags & ASYNC_HUP_NOTIFY)
 			return -EAGAIN;
 		else
 			return -ERESTARTSYS;
@@ -432,7 +433,7 @@ int gs_block_til_ready(void *port_, struct file * filp)
 	 */
 	if ((filp->f_flags & O_NONBLOCK) ||
 	    (tty->flags & (1 << TTY_IO_ERROR))) {
-		port->port.flags |= ASYNC_NORMAL_ACTIVE;
+		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
 
@@ -444,34 +445,34 @@ int gs_block_til_ready(void *port_, struct file * filp)
 	/*
 	 * Block waiting for the carrier detect and the line to become
 	 * free (i.e., not in use by the callout).  While we are in
-	 * this loop, port->port.count is dropped by one, so that
+	 * this loop, port->count is dropped by one, so that
 	 * rs_close() knows when to free things.  We restore it upon
 	 * exit, either normal or abnormal.
 	 */
 	retval = 0;
 
-	add_wait_queue(&port->port.open_wait, &wait);
+	add_wait_queue(&port->open_wait, &wait);
 
 	gs_dprintk (GS_DEBUG_BTR, "after add waitq.\n"); 
-	spin_lock_irqsave(&port->driver_lock, flags);
+	spin_lock_irqsave(&gp->driver_lock, flags);
 	if (!tty_hung_up_p(filp)) {
-		port->port.count--;
+		port->count--;
 	}
-	spin_unlock_irqrestore(&port->driver_lock, flags);
-	port->port.blocked_open++;
+	spin_unlock_irqrestore(&gp->driver_lock, flags);
+	port->blocked_open++;
 	while (1) {
-		CD = port->rd->get_CD (port);
+		CD = tty_port_carrier_raised(port);
 		gs_dprintk (GS_DEBUG_BTR, "CD is now %d.\n", CD);
 		set_current_state (TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) ||
-		    !(port->port.flags & ASYNC_INITIALIZED)) {
-			if (port->port.flags & ASYNC_HUP_NOTIFY)
+		    !(port->flags & ASYNC_INITIALIZED)) {
+			if (port->flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
 			else
 				retval = -ERESTARTSYS;
 			break;
 		}
-		if (!(port->port.flags & ASYNC_CLOSING) &&
+		if (!(port->flags & ASYNC_CLOSING) &&
 		    (do_clocal || CD))
 			break;
 		gs_dprintk (GS_DEBUG_BTR, "signal_pending is now: %d (%lx)\n", 
@@ -483,17 +484,17 @@ int gs_block_til_ready(void *port_, struct file * filp)
 		schedule();
 	}
 	gs_dprintk (GS_DEBUG_BTR, "Got out of the loop. (%d)\n",
-		    port->port.blocked_open);
+		    port->blocked_open);
 	set_current_state (TASK_RUNNING);
-	remove_wait_queue(&port->port.open_wait, &wait);
+	remove_wait_queue(&port->open_wait, &wait);
 	if (!tty_hung_up_p(filp)) {
-		port->port.count++;
+		port->count++;
 	}
-	port->port.blocked_open--;
+	port->blocked_open--;
 	if (retval)
 		return retval;
 
-	port->port.flags |= ASYNC_NORMAL_ACTIVE;
+	port->flags |= ASYNC_NORMAL_ACTIVE;
 	func_exit ();
 	return 0;
 }			 

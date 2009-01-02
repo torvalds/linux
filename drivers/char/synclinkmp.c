@@ -558,6 +558,7 @@ static void release_resources(SLMP_INFO *info);
 
 static int  startup(SLMP_INFO *info);
 static int  block_til_ready(struct tty_struct *tty, struct file * filp,SLMP_INFO *info);
+static int carrier_raised(struct tty_port *port);
 static void shutdown(SLMP_INFO *info);
 static void program_hw(SLMP_INFO *info);
 static void change_params(SLMP_INFO *info);
@@ -3318,7 +3319,17 @@ static int tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
+static int carrier_raised(struct tty_port *port)
+{
+	SLMP_INFO *info = container_of(port, SLMP_INFO, port);
+	unsigned long flags;
 
+	spin_lock_irqsave(&info->lock,flags);
+ 	get_signals(info);
+	spin_unlock_irqrestore(&info->lock,flags);
+
+	return (info->serial_signals & SerialSignal_DCD) ? 1 : 0;
+}
 
 /* Block the current process until the specified port is ready to open.
  */
@@ -3330,6 +3341,8 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	bool		do_clocal = false;
 	bool		extra_count = false;
 	unsigned long	flags;
+	int		cd;
+	struct tty_port *port = &info->port;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s block_til_ready()\n",
@@ -3338,7 +3351,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	if (filp->f_flags & O_NONBLOCK || tty->flags & (1 << TTY_IO_ERROR)){
 		/* nonblock mode is set or port is not enabled */
 		/* just verify that callout device is not active */
-		info->port.flags |= ASYNC_NORMAL_ACTIVE;
+		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
 
@@ -3347,25 +3360,25 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 
 	/* Wait for carrier detect and the line to become
 	 * free (i.e., not in use by the callout).  While we are in
-	 * this loop, info->port.count is dropped by one, so that
+	 * this loop, port->count is dropped by one, so that
 	 * close() knows when to free things.  We restore it upon
 	 * exit, either normal or abnormal.
 	 */
 
 	retval = 0;
-	add_wait_queue(&info->port.open_wait, &wait);
+	add_wait_queue(&port->open_wait, &wait);
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s block_til_ready() before block, count=%d\n",
-			 __FILE__,__LINE__, tty->driver->name, info->port.count );
+			 __FILE__,__LINE__, tty->driver->name, port->count );
 
 	spin_lock_irqsave(&info->lock, flags);
 	if (!tty_hung_up_p(filp)) {
 		extra_count = true;
-		info->port.count--;
+		port->count--;
 	}
 	spin_unlock_irqrestore(&info->lock, flags);
-	info->port.blocked_open++;
+	port->blocked_open++;
 
 	while (1) {
 		if ((tty->termios->c_cflag & CBAUD)) {
@@ -3377,20 +3390,16 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		if (tty_hung_up_p(filp) || !(info->port.flags & ASYNC_INITIALIZED)){
-			retval = (info->port.flags & ASYNC_HUP_NOTIFY) ?
+		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)){
+			retval = (port->flags & ASYNC_HUP_NOTIFY) ?
 					-EAGAIN : -ERESTARTSYS;
 			break;
 		}
 
-		spin_lock_irqsave(&info->lock,flags);
-	 	get_signals(info);
-		spin_unlock_irqrestore(&info->lock,flags);
+		cd = tty_port_carrier_raised(port);
 
- 		if (!(info->port.flags & ASYNC_CLOSING) &&
- 		    (do_clocal || (info->serial_signals & SerialSignal_DCD)) ) {
+ 		if (!(port->flags & ASYNC_CLOSING) && (do_clocal || cd))
  			break;
-		}
 
 		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
@@ -3399,24 +3408,24 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 
 		if (debug_level >= DEBUG_LEVEL_INFO)
 			printk("%s(%d):%s block_til_ready() count=%d\n",
-				 __FILE__,__LINE__, tty->driver->name, info->port.count );
+				 __FILE__,__LINE__, tty->driver->name, port->count );
 
 		schedule();
 	}
 
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&info->port.open_wait, &wait);
+	remove_wait_queue(&port->open_wait, &wait);
 
 	if (extra_count)
-		info->port.count++;
-	info->port.blocked_open--;
+		port->count++;
+	port->blocked_open--;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s block_til_ready() after, count=%d\n",
-			 __FILE__,__LINE__, tty->driver->name, info->port.count );
+			 __FILE__,__LINE__, tty->driver->name, port->count );
 
 	if (!retval)
-		info->port.flags |= ASYNC_NORMAL_ACTIVE;
+		port->flags |= ASYNC_NORMAL_ACTIVE;
 
 	return retval;
 }
@@ -3782,6 +3791,10 @@ static void add_device(SLMP_INFO *info)
 #endif
 }
 
+static const struct tty_port_operations port_ops = {
+	.carrier_raised = carrier_raised,
+};
+
 /* Allocate and initialize a device instance structure
  *
  * Return Value:	pointer to SLMP_INFO if success, otherwise NULL
@@ -3798,6 +3811,7 @@ static SLMP_INFO *alloc_dev(int adapter_num, int port_num, struct pci_dev *pdev)
 			__FILE__,__LINE__, adapter_num, port_num);
 	} else {
 		tty_port_init(&info->port);
+		info->port.ops = &port_ops;
 		info->magic = MGSL_MAGIC;
 		INIT_WORK(&info->task, bh_handler);
 		info->max_frame_size = 4096;
@@ -3939,6 +3953,7 @@ static const struct tty_operations ops = {
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
 };
+
 
 static void synclinkmp_cleanup(void)
 {

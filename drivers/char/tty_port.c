@@ -94,3 +94,20 @@ void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 EXPORT_SYMBOL(tty_port_tty_set);
+
+/**
+ *	tty_port_carrier_raised	-	carrier raised check
+ *	@port: tty port
+ *
+ *	Wrapper for the carrier detect logic. For the moment this is used
+ *	to hide some internal details. This will eventually become entirely
+ *	internal to the tty port.
+ */
+
+int tty_port_carrier_raised(struct tty_port *port)
+{
+	if (port->ops->carrier_raised == NULL)
+		return 1;
+	return port->ops->carrier_raised(port);
+}
+EXPORT_SYMBOL(tty_port_carrier_raised);

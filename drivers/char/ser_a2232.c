@@ -122,7 +122,7 @@ static void a2232_disable_tx_interrupts(void *ptr);
 static void a2232_enable_tx_interrupts(void *ptr);
 static void a2232_disable_rx_interrupts(void *ptr);
 static void a2232_enable_rx_interrupts(void *ptr);
-static int  a2232_get_CD(void *ptr);
+static int  a2232_carrier_raised(struct tty_port *port);
 static void a2232_shutdown_port(void *ptr);
 static int  a2232_set_real_termios(void *ptr);
 static int  a2232_chars_in_buffer(void *ptr);
@@ -148,7 +148,6 @@ static struct real_driver a2232_real_driver = {
         a2232_enable_tx_interrupts,
         a2232_disable_rx_interrupts,
         a2232_enable_rx_interrupts,
-        a2232_get_CD,
         a2232_shutdown_port,
         a2232_set_real_termios,
         a2232_chars_in_buffer,
@@ -260,9 +259,10 @@ static void a2232_enable_rx_interrupts(void *ptr)
 	port->disable_rx = 0;
 }
 
-static int  a2232_get_CD(void *ptr)
+static int  a2232_carrier_raised(struct tty_port *port)
 {
-	return ((struct a2232_port *) ptr)->cd_status;
+	struct a2232_port *ap = container_of(port, struct a2232_port, gs.port);
+	return ap->cd_status;
 }
 
 static void a2232_shutdown_port(void *ptr)
@@ -638,6 +638,10 @@ int ch, err, n, p;
 	return IRQ_HANDLED;
 }
 
+static const struct tty_port_operations a2232_port_ops = {
+	.carrier_raised = a2232_carrier_raised,
+};
+
 static void a2232_init_portstructs(void)
 {
 	struct a2232_port *port;
@@ -645,6 +649,8 @@ static void a2232_init_portstructs(void)
 
 	for (i = 0; i < MAX_A2232_BOARDS*NUMLINES; i++) {
 		port = a2232_ports + i;
+		tty_port_init(&port->gs.port);
+		port->gs.port.ops = &a2232_port_ops;
 		port->which_a2232 = i/NUMLINES;
 		port->which_port_on_a2232 = i%NUMLINES;
 		port->disable_rx = port->throttle_input = port->cd_status = 0;
@@ -652,11 +658,6 @@ static void a2232_init_portstructs(void)
 		port->gs.close_delay = HZ/2;
 		port->gs.closing_wait = 30 * HZ;
 		port->gs.rd = &a2232_real_driver;
-#ifdef NEW_WRITE_LOCKING
-		mutex_init(&(port->gs.port_write_mutex));
-#endif
-		init_waitqueue_head(&port->gs.port.open_wait);
-		init_waitqueue_head(&port->gs.port.close_wait);
 	}
 }
 

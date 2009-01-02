@@ -830,20 +830,28 @@ static int isicom_setup_port(struct tty_struct *tty)
 	return 0;
 }
 
-static int block_til_ready(struct tty_struct *tty, struct file *filp,
-	struct isi_port *port)
+static int isicom_carrier_raised(struct tty_port *port)
 {
-	struct isi_board *card = port->card;
+	struct isi_port *ip = container_of(port, struct isi_port, port);
+	return (ip->status & ISI_DCD)?1 : 0;
+}
+
+static int block_til_ready(struct tty_struct *tty, struct file *filp,
+	struct isi_port *ip)
+{
+	struct isi_board *card = ip->card;
+	struct tty_port *port = &ip->port;
 	int do_clocal = 0, retval;
 	unsigned long flags;
 	DECLARE_WAITQUEUE(wait, current);
+	int cd;
 
 	/* block if port is in the process of being closed */
 
-	if (tty_hung_up_p(filp) || port->port.flags & ASYNC_CLOSING) {
+	if (tty_hung_up_p(filp) || port->flags & ASYNC_CLOSING) {
 		pr_dbg("block_til_ready: close in progress.\n");
-		interruptible_sleep_on(&port->port.close_wait);
-		if (port->port.flags & ASYNC_HUP_NOTIFY)
+		interruptible_sleep_on(&port->close_wait);
+		if (port->flags & ASYNC_HUP_NOTIFY)
 			return -EAGAIN;
 		else
 			return -ERESTARTSYS;
@@ -854,7 +862,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	if ((filp->f_flags & O_NONBLOCK) ||
 			(tty->flags & (1 << TTY_IO_ERROR))) {
 		pr_dbg("block_til_ready: non-block mode.\n");
-		port->port.flags |= ASYNC_NORMAL_ACTIVE;
+		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
 
@@ -864,29 +872,29 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	/* block waiting for DCD to be asserted, and while
 						callout dev is busy */
 	retval = 0;
-	add_wait_queue(&port->port.open_wait, &wait);
+	add_wait_queue(&port->open_wait, &wait);
 
 	spin_lock_irqsave(&card->card_lock, flags);
 	if (!tty_hung_up_p(filp))
-		port->port.count--;
-	port->port.blocked_open++;
+		port->count--;
+	port->blocked_open++;
 	spin_unlock_irqrestore(&card->card_lock, flags);
 
 	while (1) {
-		raise_dtr_rts(port);
+		raise_dtr_rts(ip);
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (tty_hung_up_p(filp) || !(port->port.flags & ASYNC_INITIALIZED)) {
-			if (port->port.flags & ASYNC_HUP_NOTIFY)
+		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)) {
+			if (port->flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
 			else
 				retval = -ERESTARTSYS;
 			break;
 		}
-		if (!(port->port.flags & ASYNC_CLOSING) &&
-				(do_clocal || (port->status & ISI_DCD))) {
+		cd = tty_port_carrier_raised(port);
+		if (!(port->flags & ASYNC_CLOSING) &&
+				(do_clocal || cd))
 			break;
-		}
 		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
 			break;
@@ -894,15 +902,15 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		schedule();
 	}
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&port->port.open_wait, &wait);
+	remove_wait_queue(&port->open_wait, &wait);
 	spin_lock_irqsave(&card->card_lock, flags);
 	if (!tty_hung_up_p(filp))
-		port->port.count++;
-	port->port.blocked_open--;
+		port->count++;
+	port->blocked_open--;
 	spin_unlock_irqrestore(&card->card_lock, flags);
 	if (retval)
 		return retval;
-	port->port.flags |= ASYNC_NORMAL_ACTIVE;
+	port->flags |= ASYNC_NORMAL_ACTIVE;
 	return 0;
 }
 
@@ -1452,6 +1460,10 @@ static const struct tty_operations isicom_ops = {
 	.break_ctl		= isicom_send_break,
 };
 
+static const struct tty_port_operations isicom_port_ops = {
+	.carrier_raised		= isicom_carrier_raised,
+};
+
 static int __devinit reset_card(struct pci_dev *pdev,
 	const unsigned int card, unsigned int *signature)
 {
@@ -1794,6 +1806,7 @@ static int __init isicom_init(void)
 		spin_lock_init(&isi_card[idx].card_lock);
 		for (channel = 0; channel < 16; channel++, port++) {
 			tty_port_init(&port->port);
+			port->port.ops = &isicom_port_ops;
 			port->magic = ISICOM_MAGIC;
 			port->card = &isi_card[idx];
 			port->channel = channel;

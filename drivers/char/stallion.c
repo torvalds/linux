@@ -130,6 +130,8 @@ static char		stl_unwanted[SC26198_RXFIFOSIZE];
 static DEFINE_MUTEX(stl_brdslock);
 static struct stlbrd		*stl_brds[STL_MAXBRDS];
 
+static const struct tty_port_operations stl_port_ops;
+
 /*
  *	Per board state flags. Used with the state field of the board struct.
  *	Not really much here!
@@ -786,6 +788,12 @@ static int stl_open(struct tty_struct *tty, struct file *filp)
 
 /*****************************************************************************/
 
+static int stl_carrier_raised(struct tty_port *port)
+{
+	struct stlport *portp = container_of(port, struct stlport, port);
+	return (portp->sigs & TIOCM_CD) ? 1 : 0;
+}
+
 /*
  *	Possibly need to wait for carrier (DCD signal) to come high. Say
  *	maybe because if we are clocal then we don't need to wait...
@@ -796,6 +804,7 @@ static int stl_waitcarrier(struct tty_struct *tty, struct stlport *portp,
 {
 	unsigned long	flags;
 	int		rc, doclocal;
+	struct tty_port *port = &portp->port;
 
 	pr_debug("stl_waitcarrier(portp=%p,filp=%p)\n", portp, filp);
 
@@ -809,32 +818,32 @@ static int stl_waitcarrier(struct tty_struct *tty, struct stlport *portp,
 
 	portp->openwaitcnt++;
 	if (! tty_hung_up_p(filp))
-		portp->port.count--;
+		port->count--;
 
 	for (;;) {
 		/* Takes brd_lock internally */
 		stl_setsignals(portp, 1, 1);
 		if (tty_hung_up_p(filp) ||
-		    ((portp->port.flags & ASYNC_INITIALIZED) == 0)) {
-			if (portp->port.flags & ASYNC_HUP_NOTIFY)
+		    ((port->flags & ASYNC_INITIALIZED) == 0)) {
+			if (port->flags & ASYNC_HUP_NOTIFY)
 				rc = -EBUSY;
 			else
 				rc = -ERESTARTSYS;
 			break;
 		}
-		if (((portp->port.flags & ASYNC_CLOSING) == 0) &&
-		    (doclocal || (portp->sigs & TIOCM_CD)))
+		if (((port->flags & ASYNC_CLOSING) == 0) &&
+		    (doclocal || tty_port_carrier_raised(port)))
 			break;
 		if (signal_pending(current)) {
 			rc = -ERESTARTSYS;
 			break;
 		}
 		/* FIXME */
-		interruptible_sleep_on(&portp->port.open_wait);
+		interruptible_sleep_on(&port->open_wait);
 	}
 
 	if (! tty_hung_up_p(filp))
-		portp->port.count++;
+		port->count++;
 	portp->openwaitcnt--;
 	spin_unlock_irqrestore(&stallion_lock, flags);
 
@@ -1776,6 +1785,7 @@ static int __devinit stl_initports(struct stlbrd *brdp, struct stlpanel *panelp)
 			break;
 		}
 		tty_port_init(&portp->port);
+		portp->port.ops = &stl_port_ops;
 		portp->magic = STL_PORTMAGIC;
 		portp->portnr = i;
 		portp->brdnr = panelp->brdnr;
@@ -2657,6 +2667,10 @@ static const struct tty_operations stl_ops = {
 	.read_proc = stl_readproc,
 	.tiocmget = stl_tiocmget,
 	.tiocmset = stl_tiocmset,
+};
+
+static const struct tty_port_operations stl_port_ops = {
+	.carrier_raised = stl_carrier_raised,
 };
 
 /*****************************************************************************/

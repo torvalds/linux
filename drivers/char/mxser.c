@@ -541,13 +541,21 @@ static unsigned char mxser_get_msr(int baseaddr, int mode, int port)
 	return status;
 }
 
+static int mxser_carrier_raised(struct tty_port *port)
+{
+	struct mxser_port *mp = container_of(port, struct mxser_port, port);
+	return (inb(mp->ioaddr + UART_MSR) & UART_MSR_DCD)?1:0;
+}
+
 static int mxser_block_til_ready(struct tty_struct *tty, struct file *filp,
-		struct mxser_port *port)
+		struct mxser_port *mp)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	int retval;
 	int do_clocal = 0;
 	unsigned long flags;
+	int cd;
+	struct tty_port *port = &mp->port;
 
 	/*
 	 * If non-blocking mode is set, or the port is not enabled,
@@ -555,7 +563,7 @@ static int mxser_block_til_ready(struct tty_struct *tty, struct file *filp,
 	 */
 	if ((filp->f_flags & O_NONBLOCK) ||
 			test_bit(TTY_IO_ERROR, &tty->flags)) {
-		port->port.flags |= ASYNC_NORMAL_ACTIVE;
+		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
 
@@ -565,34 +573,33 @@ static int mxser_block_til_ready(struct tty_struct *tty, struct file *filp,
 	/*
 	 * Block waiting for the carrier detect and the line to become
 	 * free (i.e., not in use by the callout).  While we are in
-	 * this loop, port->port.count is dropped by one, so that
+	 * this loop, port->count is dropped by one, so that
 	 * mxser_close() knows when to free things.  We restore it upon
 	 * exit, either normal or abnormal.
 	 */
 	retval = 0;
-	add_wait_queue(&port->port.open_wait, &wait);
+	add_wait_queue(&port->open_wait, &wait);
 
-	spin_lock_irqsave(&port->slock, flags);
+	spin_lock_irqsave(&mp->slock, flags);
 	if (!tty_hung_up_p(filp))
-		port->port.count--;
-	spin_unlock_irqrestore(&port->slock, flags);
-	port->port.blocked_open++;
+		port->count--;
+	spin_unlock_irqrestore(&mp->slock, flags);
+	port->blocked_open++;
 	while (1) {
-		spin_lock_irqsave(&port->slock, flags);
-		outb(inb(port->ioaddr + UART_MCR) |
-			UART_MCR_DTR | UART_MCR_RTS, port->ioaddr + UART_MCR);
-		spin_unlock_irqrestore(&port->slock, flags);
+		spin_lock_irqsave(&mp->slock, flags);
+		outb(inb(mp->ioaddr + UART_MCR) |
+			UART_MCR_DTR | UART_MCR_RTS, mp->ioaddr + UART_MCR);
+		spin_unlock_irqrestore(&mp->slock, flags);
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (tty_hung_up_p(filp) || !(port->port.flags & ASYNC_INITIALIZED)) {
-			if (port->port.flags & ASYNC_HUP_NOTIFY)
+		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)) {
+			if (port->flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
 			else
 				retval = -ERESTARTSYS;
 			break;
 		}
-		if (!(port->port.flags & ASYNC_CLOSING) &&
-				(do_clocal ||
-				(inb(port->ioaddr + UART_MSR) & UART_MSR_DCD)))
+		cd = tty_port_carrier_raised(port);
+		if (!(port->flags & ASYNC_CLOSING) && (do_clocal || cd))
 			break;
 		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
@@ -601,13 +608,13 @@ static int mxser_block_til_ready(struct tty_struct *tty, struct file *filp,
 		schedule();
 	}
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&port->port.open_wait, &wait);
+	remove_wait_queue(&port->open_wait, &wait);
 	if (!tty_hung_up_p(filp))
-		port->port.count++;
-	port->port.blocked_open--;
+		port->count++;
+	port->blocked_open--;
 	if (retval)
 		return retval;
-	port->port.flags |= ASYNC_NORMAL_ACTIVE;
+	port->flags |= ASYNC_NORMAL_ACTIVE;
 	return 0;
 }
 
@@ -2449,6 +2456,10 @@ static const struct tty_operations mxser_ops = {
 	.tiocmset = mxser_tiocmset,
 };
 
+struct tty_port_operations mxser_port_ops = {
+	.carrier_raised = mxser_carrier_raised,
+};
+
 /*
  * The MOXA Smartio/Industio serial driver boot-time initialization code!
  */
@@ -2482,6 +2493,7 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 	for (i = 0; i < brd->info->nports; i++) {
 		info = &brd->ports[i];
 		tty_port_init(&info->port);
+		info->port.ops = &mxser_port_ops;
 		info->board = brd;
 		info->stop_rx = 0;
 		info->ldisc_stop_rx = 0;

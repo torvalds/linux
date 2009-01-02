@@ -135,6 +135,7 @@ static int rcktpt_type[NUM_BOARDS];
 static int is_PCI[NUM_BOARDS];
 static rocketModel_t rocketModel[NUM_BOARDS];
 static int max_board;
+static const struct tty_port_operations rocket_port_ops;
 
 /*
  * The following arrays define the interrupt bits corresponding to each AIOP.
@@ -649,9 +650,8 @@ static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 	info->board = board;
 	info->aiop = aiop;
 	info->chan = chan;
-	info->port.closing_wait = 3000;
-	info->port.close_delay = 50;
-	init_waitqueue_head(&info->port.open_wait);
+	tty_port_init(&info->port);
+	info->port.ops = &rocket_port_ops;
 	init_completion(&info->close_wait);
 	info->flags &= ~ROCKET_MODE_MASK;
 	switch (pc104[board][line]) {
@@ -864,11 +864,18 @@ static void configure_r_port(struct r_port *info,
 	}
 }
 
+static int carrier_raised(struct tty_port *port)
+{
+	struct r_port *info = container_of(port, struct r_port, port);
+	return (sGetChanStatusLo(&info->channel) & CD_ACT) ? 1 : 0;
+}
+
 /*  info->port.count is considered critical, protected by spinlocks.  */
 static int block_til_ready(struct tty_struct *tty, struct file *filp,
 			   struct r_port *info)
 {
 	DECLARE_WAITQUEUE(wait, current);
+	struct tty_port *port = &info->port;
 	int retval;
 	int do_clocal = 0, extra_count = 0;
 	unsigned long flags;
@@ -898,13 +905,13 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 
 	/*
 	 * Block waiting for the carrier detect and the line to become free.  While we are in
-	 * this loop, info->port.count is dropped by one, so that rp_close() knows when to free things.
+	 * this loop, port->count is dropped by one, so that rp_close() knows when to free things.
          * We restore it upon exit, either normal or abnormal.
 	 */
 	retval = 0;
-	add_wait_queue(&info->port.open_wait, &wait);
+	add_wait_queue(&port->open_wait, &wait);
 #ifdef ROCKET_DEBUG_OPEN
-	printk(KERN_INFO "block_til_ready before block: ttyR%d, count = %d\n", info->line, info->port.count);
+	printk(KERN_INFO "block_til_ready before block: ttyR%d, count = %d\n", info->line, port->count);
 #endif
 	spin_lock_irqsave(&info->slock, flags);
 
@@ -913,10 +920,10 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 #else
 	if (!tty_hung_up_p(filp)) {
 		extra_count = 1;
-		info->port.count--;
+		port->count--;
 	}
 #endif
-	info->port.blocked_open++;
+	port->blocked_open++;
 
 	spin_unlock_irqrestore(&info->slock, flags);
 
@@ -933,7 +940,8 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 				retval = -ERESTARTSYS;
 			break;
 		}
-		if (!(info->flags & ROCKET_CLOSING) && (do_clocal || (sGetChanStatusLo(&info->channel) & CD_ACT)))
+		if (!(info->flags & ROCKET_CLOSING) &&
+			(do_clocal || tty_port_carrier_raised(port)))
 			break;
 		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
@@ -941,24 +949,24 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		}
 #ifdef ROCKET_DEBUG_OPEN
 		printk(KERN_INFO "block_til_ready blocking: ttyR%d, count = %d, flags=0x%0x\n",
-		     info->line, info->port.count, info->flags);
+		     info->line, port->count, info->flags);
 #endif
 		schedule();	/*  Don't hold spinlock here, will hang PC */
 	}
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&info->port.open_wait, &wait);
+	remove_wait_queue(&port->open_wait, &wait);
 
 	spin_lock_irqsave(&info->slock, flags);
 
 	if (extra_count)
-		info->port.count++;
-	info->port.blocked_open--;
+		port->count++;
+	port->blocked_open--;
 
 	spin_unlock_irqrestore(&info->slock, flags);
 
 #ifdef ROCKET_DEBUG_OPEN
 	printk(KERN_INFO "block_til_ready after blocking: ttyR%d, count = %d\n",
-	       info->line, info->port.count);
+	       info->line, port->count);
 #endif
 	if (retval)
 		return retval;
@@ -2369,6 +2377,10 @@ static const struct tty_operations rocket_ops = {
 	.wait_until_sent = rp_wait_until_sent,
 	.tiocmget = rp_tiocmget,
 	.tiocmset = rp_tiocmset,
+};
+
+static const struct tty_port_operations rocket_port_ops = {
+	.carrier_raised = carrier_raised,
 };
 
 /*
