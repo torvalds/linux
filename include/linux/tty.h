@@ -301,6 +301,7 @@ struct tty_struct {
 #define TTY_PUSH 		6	/* n_tty private */
 #define TTY_CLOSING 		7	/* ->close() in progress */
 #define TTY_LDISC 		9	/* Line discipline attached */
+#define TTY_LDISC_CHANGING 	10	/* Line discipline changing */
 #define TTY_HW_COOK_OUT 	14	/* Hardware can do output cooking */
 #define TTY_HW_COOK_IN 		15	/* Hardware can do input cooking */
 #define TTY_PTY_LOCK 		16	/* pty private */
