@@ -810,70 +810,18 @@ static void close(struct tty_struct *tty, struct file *filp)
 		printk("%s(%d):%s close() entry, count=%d\n",
 			 __FILE__,__LINE__, info->device_name, info->port.count);
 
-	if (!info->port.count)
-		return;
-
-	if (tty_hung_up_p(filp))
+	if (tty_port_close_start(&info->port, tty, filp) == 0)
 		goto cleanup;
-
-	if ((tty->count == 1) && (info->port.count != 1)) {
-		/*
-		 * tty->count is 1 and the tty structure will be freed.
-		 * info->port.count should be one in this case.
-		 * if it's not, correct it so that the port is shutdown.
-		 */
-		printk("%s(%d):%s close: bad refcount; tty->count is 1, "
-		       "info->port.count is %d\n",
-			 __FILE__,__LINE__, info->device_name, info->port.count);
-		info->port.count = 1;
-	}
-
-	info->port.count--;
-
-	/* if at least one open remaining, leave hardware active */
-	if (info->port.count)
-		goto cleanup;
-
-	info->port.flags |= ASYNC_CLOSING;
-
-	/* set tty->closing to notify line discipline to
-	 * only process XON/XOFF characters. Only the N_TTY
-	 * discipline appears to use this (ppp does not).
-	 */
-	tty->closing = 1;
-
-	/* wait for transmit data to clear all layers */
-
-	if (info->port.closing_wait != ASYNC_CLOSING_WAIT_NONE) {
-		if (debug_level >= DEBUG_LEVEL_INFO)
-			printk("%s(%d):%s close() calling tty_wait_until_sent\n",
-				 __FILE__,__LINE__, info->device_name );
-		tty_wait_until_sent(tty, info->port.closing_wait);
-	}
-
+		
  	if (info->port.flags & ASYNC_INITIALIZED)
  		wait_until_sent(tty, info->timeout);
 
 	flush_buffer(tty);
-
 	tty_ldisc_flush(tty);
-
 	shutdown(info);
 
-	tty->closing = 0;
+	tty_port_close_end(&info->port, tty);
 	info->port.tty = NULL;
-
-	if (info->port.blocked_open) {
-		if (info->port.close_delay) {
-			msleep_interruptible(jiffies_to_msecs(info->port.close_delay));
-		}
-		wake_up_interruptible(&info->port.open_wait);
-	}
-
-	info->port.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-
-	wake_up_interruptible(&info->port.close_wait);
-
 cleanup:
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s close() exit, count=%d\n", __FILE__,__LINE__,

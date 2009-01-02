@@ -1080,57 +1080,26 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 static void mxser_close(struct tty_struct *tty, struct file *filp)
 {
 	struct mxser_port *info = tty->driver_data;
+	struct tty_port *port = &info->port;
 
 	unsigned long timeout;
-	unsigned long flags;
 
 	if (tty->index == MXSER_PORTS)
 		return;
 	if (!info)
 		return;
 
-	spin_lock_irqsave(&info->port.lock, flags);
+	if (tty_port_close_start(port, tty, filp) == 0)
+		return;
 
-	if (tty_hung_up_p(filp)) {
-		spin_unlock_irqrestore(&info->port.lock, flags);
-		return;
-	}
-	if ((tty->count == 1) && (info->port.count != 1)) {
-		/*
-		 * Uh, oh.  tty->count is 1, which means that the tty
-		 * structure will be freed.  Info->port.count should always
-		 * be one in these conditions.  If it's greater than
-		 * one, we've got real problems, since it means the
-		 * serial port won't be shutdown.
-		 */
-		printk(KERN_ERR "mxser_close: bad serial port count; "
-			"tty->count is 1, info->port.count is %d\n", info->port.count);
-		info->port.count = 1;
-	}
-	if (--info->port.count < 0) {
-		printk(KERN_ERR "mxser_close: bad serial port count for "
-			"ttys%d: %d\n", tty->index, info->port.count);
-		info->port.count = 0;
-	}
-	if (info->port.count) {
-		spin_unlock_irqrestore(&info->port.lock, flags);
-		return;
-	}
-	info->port.flags |= ASYNC_CLOSING;
-	spin_unlock_irqrestore(&info->port.lock, flags);
 	/*
 	 * Save the termios structure, since this port may have
 	 * separate termios for callout and dialin.
+	 *
+	 * FIXME: Can this go ?
 	 */
 	if (info->port.flags & ASYNC_NORMAL_ACTIVE)
 		info->normal_termios = *tty->termios;
-	/*
-	 * Now we wait for the transmit buffer to clear; and we notify
-	 * the line discipline to only process XON/XOFF characters.
-	 */
-	tty->closing = 1;
-	if (info->port.closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, info->port.closing_wait);
 	/*
 	 * At this point we stop accepting input.  To do this, we
 	 * disable the receive line status interrupts, and tell the
@@ -1156,19 +1125,12 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 		}
 	}
 	mxser_shutdown(tty);
-
 	mxser_flush_buffer(tty);
-	tty_ldisc_flush(tty);
 
-	tty->closing = 0;
-	tty_port_tty_set(&info->port, NULL);
-	if (info->port.blocked_open) {
-		if (info->port.close_delay)
-			schedule_timeout_interruptible(info->port.close_delay);
-		wake_up_interruptible(&info->port.open_wait);
-	}
-
-	info->port.flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
+	/* Right now the tty_port set is done outside of the close_end helper
+	   as we don't yet have everyone using refcounts */	
+	tty_port_close_end(port, tty);
+	tty_port_tty_set(port, NULL);
 }
 
 static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int count)

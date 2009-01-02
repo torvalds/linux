@@ -833,39 +833,19 @@ static void stl_close(struct tty_struct *tty, struct file *filp)
 	pr_debug("stl_close(tty=%p,filp=%p)\n", tty, filp);
 
 	portp = tty->driver_data;
-	if (portp == NULL)
-		return;
+	BUG_ON(portp == NULL);
+
 	port = &portp->port;
 
-	spin_lock_irqsave(&port->lock, flags);
-	if (tty_hung_up_p(filp)) {
-		spin_unlock_irqrestore(&port->lock, flags);
+	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
-	}
-	if (tty->count == 1 && port->count != 1)
-		port->count = 1;
-	if (port->count-- > 1) {
-		spin_unlock_irqrestore(&port->lock, flags);
-		return;
-	}
-
-	port->count = 0;
-	port->flags |= ASYNC_CLOSING;
-
 /*
  *	May want to wait for any data to drain before closing. The BUSY
  *	flag keeps track of whether we are still sending or not - it is
  *	very accurate for the cd1400, not quite so for the sc26198.
  *	(The sc26198 has no "end-of-data" interrupt only empty FIFO)
  */
-	tty->closing = 1;
-
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	if (portp->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, portp->closing_wait);
 	stl_waituntilsent(tty, (HZ / 2));
-
 
 	spin_lock_irqsave(&port->lock, flags);
 	portp->port.flags &= ~ASYNC_INITIALIZED;
@@ -883,20 +863,9 @@ static void stl_close(struct tty_struct *tty, struct file *filp)
 		portp->tx.head = NULL;
 		portp->tx.tail = NULL;
 	}
-	set_bit(TTY_IO_ERROR, &tty->flags);
-	tty_ldisc_flush(tty);
 
-	tty->closing = 0;
+	tty_port_close_end(port, tty);
 	tty_port_tty_set(port, NULL);
-
-	if (port->blocked_open) {
-		if (portp->close_delay)
-			msleep_interruptible(jiffies_to_msecs(portp->close_delay));
-		wake_up_interruptible(&portp->port.open_wait);
-	}
-
-	portp->port.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&port->close_wait);
 }
 
 /*****************************************************************************/

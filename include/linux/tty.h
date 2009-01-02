@@ -441,6 +441,9 @@ extern void tty_port_raise_dtr_rts(struct tty_port *port);
 extern void tty_port_hangup(struct tty_port *port);
 extern int tty_port_block_til_ready(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp);
+extern int tty_port_close_start(struct tty_port *port,
+				struct tty_struct *tty, struct file *filp);
+extern void tty_port_close_end(struct tty_port *port, struct tty_struct *tty);
 
 extern int tty_register_ldisc(int disc, struct tty_ldisc_ops *new_ldisc);
 extern int tty_unregister_ldisc(int disc);

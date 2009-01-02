@@ -59,7 +59,6 @@ struct stliport {
 	unsigned int		devnr;
 	int			baud_base;
 	int			custom_divisor;
-	int			close_delay;
 	int			closing_wait;
 	int			rc;
 	int			argsize;

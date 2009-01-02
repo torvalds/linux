@@ -767,7 +767,7 @@ static int stli_parsebrd(struct stlconf *confp, char **argp)
 			break;
 	}
 	if (i == ARRAY_SIZE(stli_brdstr)) {
-		printk("STALLION: unknown board name, %s?\n", argp[0]);
+		printk(KERN_WARNING "istallion: unknown board name, %s?\n", argp[0]);
 		return 0;
 	}
 
@@ -855,21 +855,8 @@ static void stli_close(struct tty_struct *tty, struct file *filp)
 		return;
 	port = &portp->port;
 
-	spin_lock_irqsave(&port->lock, flags);
-	if (tty_hung_up_p(filp)) {
-		spin_unlock_irqrestore(&port->lock, flags);
+	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
-	}
-	if (tty->count == 1 && port->count != 1)
-		port->count = 1;
-	if (port->count-- > 1) {
-		spin_unlock_irqrestore(&port->lock, flags);
-		return;
-	}
-
-	port->flags |= ASYNC_CLOSING;
-	tty->closing = 1;
-	spin_unlock_irqrestore(&port->lock, flags);
 
 /*
  *	May want to wait for data to drain before closing. The BUSY flag
@@ -882,6 +869,8 @@ static void stli_close(struct tty_struct *tty, struct file *filp)
 		stli_flushchars(tty);
 	spin_unlock_irqrestore(&stli_lock, flags);
 
+	/* We end up doing this twice for the moment. This needs looking at
+	   eventually. Note we still use portp->closing_wait as a result */
 	if (portp->closing_wait != ASYNC_CLOSING_WAIT_NONE)
 		tty_wait_until_sent(tty, portp->closing_wait);
 
@@ -905,17 +894,8 @@ static void stli_close(struct tty_struct *tty, struct file *filp)
 	set_bit(ST_DOFLUSHRX, &portp->state);
 	stli_flushbuffer(tty);
 
-	tty->closing = 0;
-	tty_port_tty_set(&portp->port, NULL);
-
-	if (port->blocked_open) {
-		if (portp->close_delay)
-			msleep_interruptible(jiffies_to_msecs(portp->close_delay));
-		wake_up_interruptible(&port->open_wait);
-	}
-
-	port->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&port->close_wait);
+	tty_port_close_end(port, tty);
+	tty_port_tty_set(port, NULL);
 }
 
 /*****************************************************************************/
@@ -1482,7 +1462,7 @@ static int stli_getserial(struct stliport *portp, struct serial_struct __user *s
 	sio.irq = 0;
 	sio.flags = portp->port.flags;
 	sio.baud_base = portp->baud_base;
-	sio.close_delay = portp->close_delay;
+	sio.close_delay = portp->port.close_delay;
 	sio.closing_wait = portp->closing_wait;
 	sio.custom_divisor = portp->custom_divisor;
 	sio.xmit_fifo_size = 0;
@@ -1514,7 +1494,7 @@ static int stli_setserial(struct tty_struct *tty, struct serial_struct __user *s
 		return -EFAULT;
 	if (!capable(CAP_SYS_ADMIN)) {
 		if ((sio.baud_base != portp->baud_base) ||
-		    (sio.close_delay != portp->close_delay) ||
+		    (sio.close_delay != portp->port.close_delay) ||
 		    ((sio.flags & ~ASYNC_USR_MASK) !=
 		    (portp->port.flags & ~ASYNC_USR_MASK)))
 			return -EPERM;
@@ -1523,7 +1503,7 @@ static int stli_setserial(struct tty_struct *tty, struct serial_struct __user *s
 	portp->port.flags = (portp->port.flags & ~ASYNC_USR_MASK) |
 		(sio.flags & ASYNC_USR_MASK);
 	portp->baud_base = sio.baud_base;
-	portp->close_delay = sio.close_delay;
+	portp->port.close_delay = sio.close_delay;
 	portp->closing_wait = sio.closing_wait;
 	portp->custom_divisor = sio.custom_divisor;
 
@@ -2065,7 +2045,7 @@ static void __stli_sendcmd(struct stlibrd *brdp, struct stliport *portp, unsigne
 	unsigned char __iomem *bits;
 
 	if (test_bit(ST_CMDING, &portp->state)) {
-		printk(KERN_ERR "STALLION: command already busy, cmd=%x!\n",
+		printk(KERN_ERR "istallion: command already busy, cmd=%x!\n",
 				(int) cmd);
 		return;
 	}
@@ -2625,7 +2605,7 @@ static int stli_initports(struct stlibrd *brdp)
 	for (i = 0, panelnr = 0, panelport = 0; (i < brdp->nrports); i++) {
 		portp = kzalloc(sizeof(struct stliport), GFP_KERNEL);
 		if (!portp) {
-			printk("STALLION: failed to allocate port structure\n");
+			printk(KERN_WARNING "istallion: failed to allocate port structure\n");
 			continue;
 		}
 		tty_port_init(&portp->port);
@@ -2635,7 +2615,7 @@ static int stli_initports(struct stlibrd *brdp)
 		portp->brdnr = brdp->brdnr;
 		portp->panelnr = panelnr;
 		portp->baud_base = STL_BAUDBASE;
-		portp->close_delay = STL_CLOSEDELAY;
+		portp->port.close_delay = STL_CLOSEDELAY;
 		portp->closing_wait = 30 * HZ;
 		init_waitqueue_head(&portp->port.open_wait);
 		init_waitqueue_head(&portp->port.close_wait);
@@ -2692,7 +2672,7 @@ static void __iomem *stli_ecpgetmemptr(struct stlibrd *brdp, unsigned long offse
 	unsigned char val;
 
 	if (offset > brdp->memsize) {
-		printk(KERN_ERR "STALLION: shared memory pointer=%x out of "
+		printk(KERN_ERR "istallion: shared memory pointer=%x out of "
 				"range at line=%d(%d), brd=%d\n",
 			(int) offset, line, __LINE__, brdp->brdnr);
 		ptr = NULL;
@@ -2766,7 +2746,7 @@ static void __iomem *stli_ecpeigetmemptr(struct stlibrd *brdp, unsigned long off
 	unsigned char	val;
 
 	if (offset > brdp->memsize) {
-		printk(KERN_ERR "STALLION: shared memory pointer=%x out of "
+		printk(KERN_ERR "istallion: shared memory pointer=%x out of "
 				"range at line=%d(%d), brd=%d\n",
 			(int) offset, line, __LINE__, brdp->brdnr);
 		ptr = NULL;
@@ -2818,7 +2798,7 @@ static void __iomem *stli_ecpmcgetmemptr(struct stlibrd *brdp, unsigned long off
 	unsigned char val;
 
 	if (offset > brdp->memsize) {
-		printk(KERN_ERR "STALLION: shared memory pointer=%x out of "
+		printk(KERN_ERR "istallion: shared memory pointer=%x out of "
 				"range at line=%d(%d), brd=%d\n",
 			(int) offset, line, __LINE__, brdp->brdnr);
 		ptr = NULL;
@@ -2863,7 +2843,7 @@ static void __iomem *stli_ecppcigetmemptr(struct stlibrd *brdp, unsigned long of
 	unsigned char	val;
 
 	if (offset > brdp->memsize) {
-		printk(KERN_ERR "STALLION: shared memory pointer=%x out of "
+		printk(KERN_ERR "istallion: shared memory pointer=%x out of "
 				"range at line=%d(%d), board=%d\n",
 				(int) offset, line, __LINE__, brdp->brdnr);
 		ptr = NULL;
@@ -2928,7 +2908,7 @@ static void __iomem *stli_onbgetmemptr(struct stlibrd *brdp, unsigned long offse
 	void __iomem *ptr;
 
 	if (offset > brdp->memsize) {
-		printk(KERN_ERR "STALLION: shared memory pointer=%x out of "
+		printk(KERN_ERR "istallion: shared memory pointer=%x out of "
 				"range at line=%d(%d), brd=%d\n",
 				(int) offset, line, __LINE__, brdp->brdnr);
 		ptr = NULL;
@@ -2994,7 +2974,7 @@ static void __iomem *stli_onbegetmemptr(struct stlibrd *brdp, unsigned long offs
 	unsigned char val;
 
 	if (offset > brdp->memsize) {
-		printk(KERN_ERR "STALLION: shared memory pointer=%x out of "
+		printk(KERN_ERR "istallion: shared memory pointer=%x out of "
 				"range at line=%d(%d), brd=%d\n",
 			(int) offset, line, __LINE__, brdp->brdnr);
 		ptr = NULL;
@@ -3433,7 +3413,7 @@ static int stli_startbrd(struct stlibrd *brdp)
 #endif
 
 	if (nrdevs < (brdp->nrports + 1)) {
-		printk(KERN_ERR "STALLION: slave failed to allocate memory for "
+		printk(KERN_ERR "istallion: slave failed to allocate memory for "
 				"all devices, devices=%d\n", nrdevs);
 		brdp->nrports = nrdevs - 1;
 	}
@@ -3443,13 +3423,13 @@ static int stli_startbrd(struct stlibrd *brdp)
 	brdp->bitsize = (nrdevs + 7) / 8;
 	memoff = readl(&hdrp->memp);
 	if (memoff > brdp->memsize) {
-		printk(KERN_ERR "STALLION: corrupted shared memory region?\n");
+		printk(KERN_ERR "istallion: corrupted shared memory region?\n");
 		rc = -EIO;
 		goto stli_donestartup;
 	}
 	memp = (cdkmem_t __iomem *) EBRDGETMEMPTR(brdp, memoff);
 	if (readw(&memp->dtype) != TYP_ASYNCTRL) {
-		printk(KERN_ERR "STALLION: no slave control device found\n");
+		printk(KERN_ERR "istallion: no slave control device found\n");
 		goto stli_donestartup;
 	}
 	memp++;
@@ -3534,7 +3514,7 @@ static int __devinit stli_brdinit(struct stlibrd *brdp)
 		retval = stli_initonb(brdp);
 		break;
 	default:
-		printk(KERN_ERR "STALLION: board=%d is unknown board "
+		printk(KERN_ERR "istallion: board=%d is unknown board "
 				"type=%d\n", brdp->brdnr, brdp->brdtype);
 		retval = -ENODEV;
 	}
@@ -3543,7 +3523,7 @@ static int __devinit stli_brdinit(struct stlibrd *brdp)
 		return retval;
 
 	stli_initports(brdp);
-	printk(KERN_INFO "STALLION: %s found, board=%d io=%x mem=%x "
+	printk(KERN_INFO "istallion: %s found, board=%d io=%x mem=%x "
 		"nrpanels=%d nrports=%d\n", stli_brdnames[brdp->brdtype],
 		brdp->brdnr, brdp->iobase, (int) brdp->memaddr,
 		brdp->nrpanels, brdp->nrports);
@@ -3637,7 +3617,7 @@ static int stli_eisamemprobe(struct stlibrd *brdp)
 	if (! foundit) {
 		brdp->memaddr = 0;
 		brdp->membase = NULL;
-		printk(KERN_ERR "STALLION: failed to probe shared memory "
+		printk(KERN_ERR "istallion: failed to probe shared memory "
 				"region for %s in EISA slot=%d\n",
 			stli_brdnames[brdp->brdtype], (brdp->iobase >> 12));
 		return -ENODEV;
@@ -3782,7 +3762,7 @@ static int __devinit stli_pciprobe(struct pci_dev *pdev,
 	mutex_lock(&stli_brdslock);
 	brdnr = stli_getbrdnr();
 	if (brdnr < 0) {
-		printk(KERN_INFO "STALLION: too many boards found, "
+		printk(KERN_INFO "istallion: too many boards found, "
 			"maximum supported %d\n", STL_MAXBRDS);
 		mutex_unlock(&stli_brdslock);
 		retval = -EIO;
@@ -3854,7 +3834,7 @@ static struct stlibrd *stli_allocbrd(void)
 
 	brdp = kzalloc(sizeof(struct stlibrd), GFP_KERNEL);
 	if (!brdp) {
-		printk(KERN_ERR "STALLION: failed to allocate memory "
+		printk(KERN_ERR "istallion: failed to allocate memory "
 				"(size=%Zd)\n", sizeof(struct stlibrd));
 		return NULL;
 	}
@@ -4493,7 +4473,7 @@ static int __init istallion_module_init(void)
 
 	stli_txcookbuf = kmalloc(STLI_TXBUFSIZE, GFP_KERNEL);
 	if (!stli_txcookbuf) {
-		printk(KERN_ERR "STALLION: failed to allocate memory "
+		printk(KERN_ERR "istallion: failed to allocate memory "
 				"(size=%d)\n", STLI_TXBUFSIZE);
 		retval = -ENOMEM;
 		goto err;
@@ -4518,7 +4498,7 @@ static int __init istallion_module_init(void)
 
 	retval = tty_register_driver(stli_serial);
 	if (retval) {
-		printk(KERN_ERR "STALLION: failed to register serial driver\n");
+		printk(KERN_ERR "istallion: failed to register serial driver\n");
 		goto err_ttyput;
 	}
 
@@ -4532,7 +4512,7 @@ static int __init istallion_module_init(void)
  */
 	retval = register_chrdev(STL_SIOMEMMAJOR, "staliomem", &stli_fsiomem);
 	if (retval) {
-		printk(KERN_ERR "STALLION: failed to register serial memory "
+		printk(KERN_ERR "istallion: failed to register serial memory "
 				"device\n");
 		goto err_deinit;
 	}

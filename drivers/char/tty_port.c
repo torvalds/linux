@@ -257,3 +257,61 @@ int tty_port_block_til_ready(struct tty_port *port,
 }
 EXPORT_SYMBOL(tty_port_block_til_ready);
 
+int tty_port_close_start(struct tty_port *port, struct tty_struct *tty, struct file *filp)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	if (tty_hung_up_p(filp)) {
+		spin_unlock_irqrestore(&port->lock, flags);
+		return 0;
+	}
+
+	if( tty->count == 1 && port->count != 1) {
+		printk(KERN_WARNING
+		    "tty_port_close_start: tty->count = 1 port count = %d.\n",
+								port->count);
+		port->count = 1;
+	}
+	if (--port->count < 0) {
+		printk(KERN_WARNING "tty_port_close_start: count = %d\n",
+								port->count);
+		port->count = 0;
+	}
+
+	if (port->count) {
+		spin_unlock_irqrestore(&port->lock, flags);
+		return 0;
+	}
+	port->flags |= ASYNC_CLOSING;
+	tty->closing = 1;
+	spin_unlock_irqrestore(&port->lock, flags);
+	if (port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, port->closing_wait);
+	return 1;
+}
+EXPORT_SYMBOL(tty_port_close_start);
+
+void tty_port_close_end(struct tty_port *port, struct tty_struct *tty)
+{
+	unsigned long flags;
+
+	tty_ldisc_flush(tty);
+
+	spin_lock_irqsave(&port->lock, flags);
+	tty->closing = 0;
+
+	if (port->blocked_open) {
+		spin_unlock_irqrestore(&port->lock, flags);
+		if (port->close_delay) {
+			msleep_interruptible(
+				jiffies_to_msecs(port->close_delay));
+		}
+		spin_lock_irqsave(&port->lock, flags);
+		wake_up_interruptible(&port->open_wait);
+	}
+	port->flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
+	wake_up_interruptible(&port->close_wait);
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+EXPORT_SYMBOL(tty_port_close_end);

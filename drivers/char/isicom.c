@@ -945,76 +945,30 @@ static void isicom_flush_buffer(struct tty_struct *tty)
 
 static void isicom_close(struct tty_struct *tty, struct file *filp)
 {
-	struct isi_port *port = tty->driver_data;
+	struct isi_port *ip = tty->driver_data;
+	struct tty_port *port = &ip->port;
 	struct isi_board *card;
 	unsigned long flags;
 
-	if (!port)
+	BUG_ON(!ip);
+
+	card = ip->card;
+	if (isicom_paranoia_check(ip, tty->name, "isicom_close"))
 		return;
-	card = port->card;
-	if (isicom_paranoia_check(port, tty->name, "isicom_close"))
-		return;
 
-	pr_dbg("Close start!!!.\n");
-
-	spin_lock_irqsave(&port->port.lock, flags);
-	if (tty_hung_up_p(filp)) {
-		spin_unlock_irqrestore(&port->port.lock, flags);
-		return;
-	}
-
-	if (tty->count == 1 && port->port.count != 1) {
-		printk(KERN_WARNING "ISICOM:(0x%lx) isicom_close: bad port "
-			"count tty->count = 1 port count = %d.\n",
-			card->base, port->port.count);
-		port->port.count = 1;
-	}
-	if (--port->port.count < 0) {
-		printk(KERN_WARNING "ISICOM:(0x%lx) isicom_close: bad port "
-			"count for channel%d = %d", card->base, port->channel,
-			port->port.count);
-		port->port.count = 0;
-	}
-
-	if (port->port.count) {
-		spin_unlock_irqrestore(&port->port.lock, flags);
-		return;
-	}
-	port->port.flags |= ASYNC_CLOSING;
-	tty->closing = 1;
-	spin_unlock_irqrestore(&port->port.lock, flags);
-
-	if (port->port.closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, port->port.closing_wait);
 	/* indicate to the card that no more data can be received
 	   on this port */
 	spin_lock_irqsave(&card->card_lock, flags);
-	if (port->port.flags & ASYNC_INITIALIZED) {
-		card->port_status &= ~(1 << port->channel);
+	if (port->flags & ASYNC_INITIALIZED) {
+		card->port_status &= ~(1 << ip->channel);
 		outw(card->port_status, card->base + 0x02);
 	}
-	isicom_shutdown_port(port);
+	isicom_shutdown_port(ip);
 	spin_unlock_irqrestore(&card->card_lock, flags);
 
 	isicom_flush_buffer(tty);
-	tty_ldisc_flush(tty);
-
-	spin_lock_irqsave(&port->port.lock, flags);
-	tty->closing = 0;
-
-	if (port->port.blocked_open) {
-		spin_unlock_irqrestore(&port->port.lock, flags);
-		if (port->port.close_delay) {
-			pr_dbg("scheduling until time out.\n");
-			msleep_interruptible(
-				jiffies_to_msecs(port->port.close_delay));
-		}
-		spin_lock_irqsave(&port->port.lock, flags);
-		wake_up_interruptible(&port->port.open_wait);
-	}
-	port->port.flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
-	wake_up_interruptible(&port->port.close_wait);
-	spin_unlock_irqrestore(&port->port.lock, flags);
+	
+	tty_port_close_end(port, tty);
 }
 
 /* write et all */

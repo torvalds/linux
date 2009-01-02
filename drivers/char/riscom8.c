@@ -929,35 +929,11 @@ static void rc_close(struct tty_struct *tty, struct file *filp)
 	if (!port || rc_paranoia_check(port, tty->name, "close"))
 		return;
 
-	spin_lock_irqsave(&port->port.lock, flags);
-
-	if (tty_hung_up_p(filp))
-		goto out;
-
 	bp = port_Board(port);
-	if ((tty->count == 1) && (port->port.count != 1))  {
-		printk(KERN_INFO "rc%d: rc_close: bad port count;"
-		       " tty->count is 1, port count is %d\n",
-		       board_No(bp), port->port.count);
-		port->port.count = 1;
-	}
-	if (--port->port.count < 0)  {
-		printk(KERN_INFO "rc%d: rc_close: bad port count "
-				 "for tty%d: %d\n",
-		       board_No(bp), port_No(port), port->port.count);
-		port->port.count = 0;
-	}
-	if (port->port.count)
-		goto out;
-	port->port.flags |= ASYNC_CLOSING;
-	/*
-	 * Now we wait for the transmit buffer to clear; and we notify
-	 * the line discipline to only process XON/XOFF characters.
-	 */
-	tty->closing = 1;
-	spin_unlock_irqrestore(&port->port.lock, flags);
-	if (port->port.closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, port->port.closing_wait);
+	
+	if (tty_port_close_start(&port->port, tty, filp) == 0)
+		return;
+	
 	/*
 	 * At this point we stop accepting input.  To do this, we
 	 * disable the receive line status interrupts, and tell the
@@ -989,23 +965,8 @@ static void rc_close(struct tty_struct *tty, struct file *filp)
 	rc_shutdown_port(tty, bp, port);
 	rc_flush_buffer(tty);
 	spin_unlock_irqrestore(&riscom_lock, flags);
-	tty_ldisc_flush(tty);
 
-	spin_lock_irqsave(&port->port.lock, flags);
-	tty->closing = 0;
-	port->port.tty = NULL;
-	if (port->port.blocked_open) {
-		spin_unlock_irqrestore(&port->port.lock, flags);
-		if (port->port.close_delay)
-			msleep_interruptible(jiffies_to_msecs(port->port.close_delay));
-		wake_up_interruptible(&port->port.open_wait);
-		spin_lock_irqsave(&port->port.lock, flags);
-	}
-	port->port.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&port->port.close_wait);
-
-out:
-	spin_unlock_irqrestore(&riscom_lock, flags);
+	tty_port_close_end(&port->port, tty);
 }
 
 static int rc_write(struct tty_struct *tty,
