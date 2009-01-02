@@ -216,7 +216,8 @@ int tty_port_block_til_ready(struct tty_port *port,
 
 	while (1) {
 		/* Indicate we are open */
-		tty_port_raise_dtr_rts(port);
+		if (tty->termios->c_cflag & CBAUD)
+			tty_port_raise_dtr_rts(port);
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		/* Check for a hangup or uninitialised port. Return accordingly */
