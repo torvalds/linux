@@ -525,21 +525,25 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 		cmd_len = COMMAND_SIZE(rq->cmd[0]);
 		if (cmd_len < ATAPI_MIN_CDB_BYTES)
 			cmd_len = ATAPI_MIN_CDB_BYTES;
-	} else
+
+		timeout = rq->timeout;
+		expiry  = ide_cd_expiry;
+	} else {
 		cmd_len = ATAPI_MIN_CDB_BYTES;
 
-	/*
-	 * If necessary schedule the packet transfer to occur 'timeout'
-	 * miliseconds later in ide_delayed_transfer_pc() after the device
-	 * says it's ready for a packet.
-	 */
-	if (drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) {
-		timeout = drive->pc_delay;
-		expiry = &ide_delayed_transfer_pc;
-	} else {
-		timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
-						       : WAIT_TAPE_CMD;
-		expiry = NULL;
+		/*
+		 * If necessary schedule the packet transfer to occur 'timeout'
+		 * miliseconds later in ide_delayed_transfer_pc() after the
+		 * device says it's ready for a packet.
+		 */
+		if (drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) {
+			timeout = drive->pc_delay;
+			expiry = &ide_delayed_transfer_pc;
+		} else {
+			timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
+							       : WAIT_TAPE_CMD;
+			expiry = NULL;
+		}
 	}
 
 	/* Set the interrupt routine */
