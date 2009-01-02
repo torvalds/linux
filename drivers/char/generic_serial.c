@@ -511,7 +511,7 @@ void gs_close(struct tty_struct * tty, struct file * filp)
 	
 	func_enter ();
 
-	port = (struct gs_port *) tty->driver_data;
+	port = tty->driver_data;
 
 	if (!port) return;
 

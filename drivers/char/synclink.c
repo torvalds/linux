@@ -977,7 +977,7 @@ static void ldisc_receive_buf(struct tty_struct *tty,
  */
 static void mgsl_stop(struct tty_struct *tty)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_stop"))
@@ -1000,7 +1000,7 @@ static void mgsl_stop(struct tty_struct *tty)
  */
 static void mgsl_start(struct tty_struct *tty)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_start"))
@@ -2057,7 +2057,7 @@ static int mgsl_put_char(struct tty_struct *tty, unsigned char ch)
  */
 static void mgsl_flush_chars(struct tty_struct *tty)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 				
 	if ( debug_level >= DEBUG_LEVEL_INFO )
@@ -2109,7 +2109,7 @@ static int mgsl_write(struct tty_struct * tty,
 		    const unsigned char *buf, int count)
 {
 	int	c, ret = 0;
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
 	if ( debug_level >= DEBUG_LEVEL_INFO )
@@ -2232,7 +2232,7 @@ cleanup:
  */
 static int mgsl_write_room(struct tty_struct *tty)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	int	ret;
 				
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_write_room"))
@@ -2267,7 +2267,7 @@ static int mgsl_write_room(struct tty_struct *tty)
  */
 static int mgsl_chars_in_buffer(struct tty_struct *tty)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 			 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgsl_chars_in_buffer(%s)\n",
@@ -2301,7 +2301,7 @@ static int mgsl_chars_in_buffer(struct tty_struct *tty)
  */
 static void mgsl_flush_buffer(struct tty_struct *tty)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -2329,7 +2329,7 @@ static void mgsl_flush_buffer(struct tty_struct *tty)
  */
 static void mgsl_send_xchar(struct tty_struct *tty, char ch)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -2358,7 +2358,7 @@ static void mgsl_send_xchar(struct tty_struct *tty, char ch)
  */
 static void mgsl_throttle(struct tty_struct * tty)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -2388,7 +2388,7 @@ static void mgsl_throttle(struct tty_struct * tty)
  */
 static void mgsl_unthrottle(struct tty_struct * tty)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -2841,7 +2841,7 @@ static int modem_input_wait(struct mgsl_struct *info,int arg)
  */
 static int tiocmget(struct tty_struct *tty, struct file *file)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned int result;
  	unsigned long flags;
 
@@ -2867,7 +2867,7 @@ static int tiocmget(struct tty_struct *tty, struct file *file)
 static int tiocmset(struct tty_struct *tty, struct file *file,
 		    unsigned int set, unsigned int clear)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
  	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -2898,7 +2898,7 @@ static int tiocmset(struct tty_struct *tty, struct file *file,
  */
 static int mgsl_break(struct tty_struct *tty, int break_state)
 {
-	struct mgsl_struct * info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct * info = tty->driver_data;
 	unsigned long flags;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -2932,7 +2932,7 @@ static int mgsl_break(struct tty_struct *tty, int break_state)
 static int mgsl_ioctl(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg)
 {
-	struct mgsl_struct * info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct * info = tty->driver_data;
 	int ret;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -3042,7 +3042,7 @@ static int mgsl_ioctl_common(struct mgsl_struct *info, unsigned int cmd, unsigne
  */
 static void mgsl_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -3096,7 +3096,7 @@ static void mgsl_set_termios(struct tty_struct *tty, struct ktermios *old_termio
  */
 static void mgsl_close(struct tty_struct *tty, struct file * filp)
 {
-	struct mgsl_struct * info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct * info = tty->driver_data;
 
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_close"))
 		return;
@@ -3136,7 +3136,7 @@ cleanup:
  */
 static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 {
-	struct mgsl_struct * info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct * info = tty->driver_data;
 	unsigned long orig_jiffies, char_time;
 
 	if (!info )
@@ -3209,7 +3209,7 @@ exit:
  */
 static void mgsl_hangup(struct tty_struct *tty)
 {
-	struct mgsl_struct * info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct * info = tty->driver_data;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgsl_hangup(%s)\n",

@@ -1941,7 +1941,7 @@ static int sx_ioctl(struct tty_struct *tty, struct file *filp,
 
 static void sx_throttle(struct tty_struct *tty)
 {
-	struct sx_port *port = (struct sx_port *)tty->driver_data;
+	struct sx_port *port = tty->driver_data;
 
 	func_enter2();
 	/* If the port is using any type of input flow
@@ -1955,7 +1955,7 @@ static void sx_throttle(struct tty_struct *tty)
 
 static void sx_unthrottle(struct tty_struct *tty)
 {
-	struct sx_port *port = (struct sx_port *)tty->driver_data;
+	struct sx_port *port = tty->driver_data;
 
 	func_enter2();
 	/* Always unthrottle even if flow control is not enabled on

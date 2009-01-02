@@ -392,7 +392,7 @@ static struct channel *verifyChannel(struct tty_struct *tty)
 	 * through tty->driver_data this should catch it.
 	 */
 	if (tty) {
-		struct channel *ch = (struct channel *)tty->driver_data;
+		struct channel *ch = tty->driver_data;
 		if (ch >= &digi_channels[0] && ch < &digi_channels[nbdevs]) {
 			if (ch->magic == EPCA_MAGIC)
 				return ch;
@@ -2097,7 +2097,7 @@ static int info_ioctl(struct tty_struct *tty, struct file *file,
 
 static int pc_tiocmget(struct tty_struct *tty, struct file *file)
 {
-	struct channel *ch = (struct channel *) tty->driver_data;
+	struct channel *ch = tty->driver_data;
 	struct board_chan __iomem *bc;
 	unsigned int mstat, mflag = 0;
 	unsigned long flags;
@@ -2131,7 +2131,7 @@ static int pc_tiocmget(struct tty_struct *tty, struct file *file)
 static int pc_tiocmset(struct tty_struct *tty, struct file *file,
 		       unsigned int set, unsigned int clear)
 {
-	struct channel *ch = (struct channel *) tty->driver_data;
+	struct channel *ch = tty->driver_data;
 	unsigned long flags;
 
 	if (!ch)
@@ -2178,7 +2178,7 @@ static int pc_ioctl(struct tty_struct *tty, struct file *file,
 	unsigned int mflag, mstat;
 	unsigned char startc, stopc;
 	struct board_chan __iomem *bc;
-	struct channel *ch = (struct channel *) tty->driver_data;
+	struct channel *ch = tty->driver_data;
 	void __user *argp = (void __user *)arg;
 
 	if (ch)
@@ -2473,7 +2473,7 @@ static void pc_unthrottle(struct tty_struct *tty)
 
 static int pc_send_break(struct tty_struct *tty, int msec)
 {
-	struct channel *ch = (struct channel *) tty->driver_data;
+	struct channel *ch = tty->driver_data;
 	unsigned long flags;
 
 	if (msec == -1)

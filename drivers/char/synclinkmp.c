@@ -801,7 +801,7 @@ cleanup:
  */
 static void close(struct tty_struct *tty, struct file *filp)
 {
-	SLMP_INFO * info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO * info = tty->driver_data;
 
 	if (sanity_check(info, tty->name, "close"))
 		return;
@@ -833,7 +833,7 @@ cleanup:
  */
 static void hangup(struct tty_struct *tty)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s hangup()\n",
@@ -856,7 +856,7 @@ static void hangup(struct tty_struct *tty)
  */
 static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -909,7 +909,7 @@ static int write(struct tty_struct *tty,
 		 const unsigned char *buf, int count)
 {
 	int	c, ret = 0;
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -987,7 +987,7 @@ cleanup:
  */
 static int put_char(struct tty_struct *tty, unsigned char ch)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 	int ret = 0;
 
@@ -1024,7 +1024,7 @@ static int put_char(struct tty_struct *tty, unsigned char ch)
  */
 static void send_xchar(struct tty_struct *tty, char ch)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -1048,7 +1048,7 @@ static void send_xchar(struct tty_struct *tty, char ch)
  */
 static void wait_until_sent(struct tty_struct *tty, int timeout)
 {
-	SLMP_INFO * info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO * info = tty->driver_data;
 	unsigned long orig_jiffies, char_time;
 
 	if (!info )
@@ -1115,7 +1115,7 @@ exit:
  */
 static int write_room(struct tty_struct *tty)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	int ret;
 
 	if (sanity_check(info, tty->name, "write_room"))
@@ -1142,7 +1142,7 @@ static int write_room(struct tty_struct *tty)
  */
 static void flush_chars(struct tty_struct *tty)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
 	if ( debug_level >= DEBUG_LEVEL_INFO )
@@ -1181,7 +1181,7 @@ static void flush_chars(struct tty_struct *tty)
  */
 static void flush_buffer(struct tty_struct *tty)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -1203,7 +1203,7 @@ static void flush_buffer(struct tty_struct *tty)
  */
 static void tx_hold(struct tty_struct *tty)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
 	if (sanity_check(info, tty->name, "tx_hold"))
@@ -1223,7 +1223,7 @@ static void tx_hold(struct tty_struct *tty)
  */
 static void tx_release(struct tty_struct *tty)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
 	if (sanity_check(info, tty->name, "tx_release"))
@@ -1253,7 +1253,7 @@ static void tx_release(struct tty_struct *tty)
 static int do_ioctl(struct tty_struct *tty, struct file *file,
 		 unsigned int cmd, unsigned long arg)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	int error;
 	struct mgsl_icount cnow;	/* kernel counter temps */
 	struct serial_icounter_struct __user *p_cuser;	/* user space */
@@ -1464,7 +1464,7 @@ done:
  */
 static int chars_in_buffer(struct tty_struct *tty)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 
 	if (sanity_check(info, tty->name, "chars_in_buffer"))
 		return 0;
@@ -1480,7 +1480,7 @@ static int chars_in_buffer(struct tty_struct *tty)
  */
 static void throttle(struct tty_struct * tty)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -1505,7 +1505,7 @@ static void throttle(struct tty_struct * tty)
  */
 static void unthrottle(struct tty_struct * tty)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -1536,7 +1536,7 @@ static void unthrottle(struct tty_struct * tty)
 static int set_break(struct tty_struct *tty, int break_state)
 {
 	unsigned char RegValue;
-	SLMP_INFO * info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO * info = tty->driver_data;
 	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -3218,7 +3218,7 @@ static int modem_input_wait(SLMP_INFO *info,int arg)
  */
 static int tiocmget(struct tty_struct *tty, struct file *file)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
 	unsigned int result;
  	unsigned long flags;
 
@@ -3244,7 +3244,7 @@ static int tiocmget(struct tty_struct *tty, struct file *file)
 static int tiocmset(struct tty_struct *tty, struct file *file,
 		    unsigned int set, unsigned int clear)
 {
-	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
+	SLMP_INFO *info = tty->driver_data;
  	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)

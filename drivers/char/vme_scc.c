@@ -784,7 +784,7 @@ static void scc_setsignals(struct scc_port *port, int dtr, int rts)
 
 static void scc_send_xchar(struct tty_struct *tty, char ch)
 {
-	struct scc_port *port = (struct scc_port *)tty->driver_data;
+	struct scc_port *port = tty->driver_data;
 
 	port->x_char = ch;
 	if (ch)
@@ -911,7 +911,7 @@ static int scc_open (struct tty_struct * tty, struct file * filp)
 
 static void scc_throttle (struct tty_struct * tty)
 {
-	struct scc_port *port = (struct scc_port *)tty->driver_data;
+	struct scc_port *port = tty->driver_data;
 	unsigned long	flags;
 	SCC_ACCESS_INIT(port);
 
@@ -927,7 +927,7 @@ static void scc_throttle (struct tty_struct * tty)
 
 static void scc_unthrottle (struct tty_struct * tty)
 {
-	struct scc_port *port = (struct scc_port *)tty->driver_data;
+	struct scc_port *port = tty->driver_data;
 	unsigned long	flags;
 	SCC_ACCESS_INIT(port);
 
@@ -950,7 +950,7 @@ static int scc_ioctl(struct tty_struct *tty, struct file *file,
 
 static int scc_break_ctl(struct tty_struct *tty, int break_state)
 {
-	struct scc_port *port = (struct scc_port *)tty->driver_data;
+	struct scc_port *port = tty->driver_data;
 	unsigned long	flags;
 	SCC_ACCESS_INIT(port);
 

@@ -460,14 +460,14 @@ static void a2232_throttle(struct tty_struct *tty)
    if switched on. So the only thing we can do at this
    layer here is not taking any characters out of the
    A2232 buffer any more. */
-	struct a2232_port *port = (struct a2232_port *) tty->driver_data;
+	struct a2232_port *port = tty->driver_data;
 	port->throttle_input = -1;
 }
 
 static void a2232_unthrottle(struct tty_struct *tty)
 {
 /* Unthrottle: dual to "throttle()" above. */
-	struct a2232_port *port = (struct a2232_port *) tty->driver_data;
+	struct a2232_port *port = tty->driver_data;
 	port->throttle_input = 0;
 }
 

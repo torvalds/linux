@@ -906,7 +906,7 @@ static int rc_open(struct tty_struct *tty, struct file *filp)
 
 static void rc_flush_buffer(struct tty_struct *tty)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	unsigned long flags;
 
 	if (rc_paranoia_check(port, tty->name, "rc_flush_buffer"))
@@ -921,7 +921,7 @@ static void rc_flush_buffer(struct tty_struct *tty)
 
 static void rc_close(struct tty_struct *tty, struct file *filp)
 {
-	struct riscom_port *port = (struct riscom_port *) tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	struct riscom_board *bp;
 	unsigned long flags;
 	unsigned long timeout;
@@ -972,7 +972,7 @@ static void rc_close(struct tty_struct *tty, struct file *filp)
 static int rc_write(struct tty_struct *tty,
 		    const unsigned char *buf, int count)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	struct riscom_board *bp;
 	int c, total = 0;
 	unsigned long flags;
@@ -1015,7 +1015,7 @@ static int rc_write(struct tty_struct *tty,
 
 static int rc_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	unsigned long flags;
 	int ret = 0;
 
@@ -1039,7 +1039,7 @@ out:
 
 static void rc_flush_chars(struct tty_struct *tty)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	unsigned long flags;
 
 	if (rc_paranoia_check(port, tty->name, "rc_flush_chars"))
@@ -1059,7 +1059,7 @@ static void rc_flush_chars(struct tty_struct *tty)
 
 static int rc_write_room(struct tty_struct *tty)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	int	ret;
 
 	if (rc_paranoia_check(port, tty->name, "rc_write_room"))
@@ -1073,7 +1073,7 @@ static int rc_write_room(struct tty_struct *tty)
 
 static int rc_chars_in_buffer(struct tty_struct *tty)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 
 	if (rc_paranoia_check(port, tty->name, "rc_chars_in_buffer"))
 		return 0;
@@ -1083,7 +1083,7 @@ static int rc_chars_in_buffer(struct tty_struct *tty)
 
 static int rc_tiocmget(struct tty_struct *tty, struct file *file)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	struct riscom_board *bp;
 	unsigned char status;
 	unsigned int result;
@@ -1113,7 +1113,7 @@ static int rc_tiocmget(struct tty_struct *tty, struct file *file)
 static int rc_tiocmset(struct tty_struct *tty, struct file *file,
 		       unsigned int set, unsigned int clear)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	unsigned long flags;
 	struct riscom_board *bp;
 
@@ -1145,7 +1145,7 @@ static int rc_tiocmset(struct tty_struct *tty, struct file *file,
 
 static int rc_send_break(struct tty_struct *tty, int length)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	struct riscom_board *bp = port_Board(port);
 	unsigned long flags;
 
@@ -1238,7 +1238,7 @@ static int rc_get_serial_info(struct riscom_port *port,
 static int rc_ioctl(struct tty_struct *tty, struct file *filp,
 		    unsigned int cmd, unsigned long arg)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	void __user *argp = (void __user *)arg;
 	int retval;
 
@@ -1264,7 +1264,7 @@ static int rc_ioctl(struct tty_struct *tty, struct file *filp,
 
 static void rc_throttle(struct tty_struct *tty)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	struct riscom_board *bp;
 	unsigned long flags;
 
@@ -1286,7 +1286,7 @@ static void rc_throttle(struct tty_struct *tty)
 
 static void rc_unthrottle(struct tty_struct *tty)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	struct riscom_board *bp;
 	unsigned long flags;
 
@@ -1308,7 +1308,7 @@ static void rc_unthrottle(struct tty_struct *tty)
 
 static void rc_stop(struct tty_struct *tty)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	struct riscom_board *bp;
 	unsigned long flags;
 
@@ -1326,7 +1326,7 @@ static void rc_stop(struct tty_struct *tty)
 
 static void rc_start(struct tty_struct *tty)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	struct riscom_board *bp;
 	unsigned long flags;
 
@@ -1347,7 +1347,7 @@ static void rc_start(struct tty_struct *tty)
 
 static void rc_hangup(struct tty_struct *tty)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	struct riscom_board *bp;
 	unsigned long flags;
 
@@ -1368,7 +1368,7 @@ static void rc_hangup(struct tty_struct *tty)
 static void rc_set_termios(struct tty_struct *tty,
 					struct ktermios *old_termios)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	struct riscom_port *port = tty->driver_data;
 	unsigned long flags;
 
 	if (rc_paranoia_check(port, tty->name, "rc_set_termios"))

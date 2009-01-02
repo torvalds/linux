@@ -1094,7 +1094,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
  */
 static void rp_close(struct tty_struct *tty, struct file *filp)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	unsigned long flags;
 	int timeout;
 	CHANNEL_t *cp;
@@ -1208,7 +1208,7 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 static void rp_set_termios(struct tty_struct *tty,
 			   struct ktermios *old_termios)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	CHANNEL_t *cp;
 	unsigned cflag;
 
@@ -1251,7 +1251,7 @@ static void rp_set_termios(struct tty_struct *tty,
 
 static int rp_break(struct tty_struct *tty, int break_state)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	unsigned long flags;
 
 	if (rocket_paranoia_check(info, "rp_break"))
@@ -1297,7 +1297,7 @@ static int sGetChanRI(CHANNEL_T * ChP)
  */
 static int rp_tiocmget(struct tty_struct *tty, struct file *file)
 {
-	struct r_port *info = (struct r_port *)tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	unsigned int control, result, ChanStatus;
 
 	ChanStatus = sGetChanStatusLo(&info->channel);
@@ -1318,7 +1318,7 @@ static int rp_tiocmget(struct tty_struct *tty, struct file *file)
 static int rp_tiocmset(struct tty_struct *tty, struct file *file,
 		    unsigned int set, unsigned int clear)
 {
-	struct r_port *info = (struct r_port *)tty->driver_data;
+	struct r_port *info = tty->driver_data;
 
 	if (set & TIOCM_RTS)
 		info->channel.TxControl[3] |= SET_RTS;
@@ -1447,7 +1447,7 @@ static int get_version(struct r_port *info, struct rocket_version __user *retver
 static int rp_ioctl(struct tty_struct *tty, struct file *file,
 		    unsigned int cmd, unsigned long arg)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	void __user *argp = (void __user *)arg;
 	int ret = 0;
 
@@ -1485,7 +1485,7 @@ static int rp_ioctl(struct tty_struct *tty, struct file *file,
 
 static void rp_send_xchar(struct tty_struct *tty, char ch)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	CHANNEL_t *cp;
 
 	if (rocket_paranoia_check(info, "rp_send_xchar"))
@@ -1500,7 +1500,7 @@ static void rp_send_xchar(struct tty_struct *tty, char ch)
 
 static void rp_throttle(struct tty_struct *tty)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	CHANNEL_t *cp;
 
 #ifdef ROCKET_DEBUG_THROTTLE
@@ -1520,7 +1520,7 @@ static void rp_throttle(struct tty_struct *tty)
 
 static void rp_unthrottle(struct tty_struct *tty)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	CHANNEL_t *cp;
 #ifdef ROCKET_DEBUG_THROTTLE
 	printk(KERN_INFO "unthrottle %s: %d....\n", tty->name,
@@ -1547,7 +1547,7 @@ static void rp_unthrottle(struct tty_struct *tty)
  */
 static void rp_stop(struct tty_struct *tty)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 
 #ifdef ROCKET_DEBUG_FLOW
 	printk(KERN_INFO "stop %s: %d %d....\n", tty->name,
@@ -1563,7 +1563,7 @@ static void rp_stop(struct tty_struct *tty)
 
 static void rp_start(struct tty_struct *tty)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 
 #ifdef ROCKET_DEBUG_FLOW
 	printk(KERN_INFO "start %s: %d %d....\n", tty->name,
@@ -1583,7 +1583,7 @@ static void rp_start(struct tty_struct *tty)
  */
 static void rp_wait_until_sent(struct tty_struct *tty, int timeout)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	CHANNEL_t *cp;
 	unsigned long orig_jiffies;
 	int check_time, exit_time;
@@ -1640,7 +1640,7 @@ static void rp_wait_until_sent(struct tty_struct *tty, int timeout)
 static void rp_hangup(struct tty_struct *tty)
 {
 	CHANNEL_t *cp;
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 
 	if (rocket_paranoia_check(info, "rp_hangup"))
 		return;
@@ -1680,7 +1680,7 @@ static void rp_hangup(struct tty_struct *tty)
  */
 static int rp_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	CHANNEL_t *cp;
 	unsigned long flags;
 
@@ -1727,7 +1727,7 @@ static int rp_put_char(struct tty_struct *tty, unsigned char ch)
 static int rp_write(struct tty_struct *tty,
 		    const unsigned char *buf, int count)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	CHANNEL_t *cp;
 	const unsigned char *b;
 	int c, retval = 0;
@@ -1819,7 +1819,7 @@ end:
  */
 static int rp_write_room(struct tty_struct *tty)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	int ret;
 
 	if (rocket_paranoia_check(info, "rp_write_room"))
@@ -1840,7 +1840,7 @@ static int rp_write_room(struct tty_struct *tty)
  */
 static int rp_chars_in_buffer(struct tty_struct *tty)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	CHANNEL_t *cp;
 
 	if (rocket_paranoia_check(info, "rp_chars_in_buffer"))
@@ -1861,7 +1861,7 @@ static int rp_chars_in_buffer(struct tty_struct *tty)
  */
 static void rp_flush_buffer(struct tty_struct *tty)
 {
-	struct r_port *info = (struct r_port *) tty->driver_data;
+	struct r_port *info = tty->driver_data;
 	CHANNEL_t *cp;
 	unsigned long flags;
 
