@@ -269,15 +269,19 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 		return;
 	}
 
-	--port->port.count;
-	if (port->port.count == 0)
+	if (port->port.count == 1)
 		/* only call the device specific close if this
-		 * port is being closed by the last owner */
+		 * port is being closed by the last owner. Ensure we do
+		 * this before we drop the port count. The call is protected
+		 * by the port mutex
+		 */
 		port->serial->type->close(tty, port, filp);
 
-	if (port->port.count == (port->console? 1 : 0)) {
+	if (port->port.count == (port->console ? 2 : 1)) {
 		struct tty_struct *tty = tty_port_tty_get(&port->port);
 		if (tty) {
+			/* We must do this before we drop the port count to
+			   zero. */
 			if (tty->driver_data)
 				tty->driver_data = NULL;
 			tty_port_tty_set(&port->port, NULL);
@@ -285,13 +289,14 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 		}
 	}
 
-	if (port->port.count == 0) {
+	if (port->port.count == 1) {
 		mutex_lock(&port->serial->disc_mutex);
 		if (!port->serial->disconnected)
 			usb_autopm_put_interface(port->serial->interface);
 		mutex_unlock(&port->serial->disc_mutex);
 		module_put(port->serial->type->driver.owner);
 	}
+	--port->port.count;
 
 	mutex_unlock(&port->mutex);
 	usb_serial_put(port->serial);
