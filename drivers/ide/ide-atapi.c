@@ -511,6 +511,11 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 		return startstop;
 	}
 
+	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
+		if (drive->dma)
+			drive->waiting_for_dma = 1;
+	}
+
 	ireason = ide_read_ireason(drive);
 	if (drive->media == ide_tape &&
 	    (drive->dev_flags & IDE_DFLAG_SCSI) == 0)
@@ -605,6 +610,8 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 
 	/* Issue the packet command */
 	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
+		if (drive->dma)
+			drive->waiting_for_dma = 0;
 		ide_execute_command(drive, ATA_CMD_PACKET, ide_transfer_pc,
 				    timeout, NULL);
 		return ide_started;
