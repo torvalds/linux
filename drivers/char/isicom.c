@@ -841,7 +841,6 @@ static int isicom_carrier_raised(struct tty_port *port)
 static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	struct isi_port *ip)
 {
-	struct isi_board *card = ip->card;
 	struct tty_port *port = &ip->port;
 	int do_clocal = 0, retval;
 	unsigned long flags;
@@ -876,11 +875,11 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	retval = 0;
 	add_wait_queue(&port->open_wait, &wait);
 
-	spin_lock_irqsave(&card->card_lock, flags);
+	spin_lock_irqsave(&port->lock, flags);
 	if (!tty_hung_up_p(filp))
 		port->count--;
 	port->blocked_open++;
-	spin_unlock_irqrestore(&card->card_lock, flags);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	while (1) {
 		tty_port_raise_dtr_rts(port);
@@ -905,14 +904,13 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&port->open_wait, &wait);
-	spin_lock_irqsave(&card->card_lock, flags);
+	spin_lock_irqsave(&port->lock, flags);
 	if (!tty_hung_up_p(filp))
 		port->count++;
 	port->blocked_open--;
-	spin_unlock_irqrestore(&card->card_lock, flags);
-	if (retval)
-		return retval;
-	port->flags |= ASYNC_NORMAL_ACTIVE;
+	if (retval == 0)
+		port->flags |= ASYNC_NORMAL_ACTIVE;
+	spin_unlock_irqrestore(&port->lock, flags);
 	return 0;
 }
 
@@ -1034,9 +1032,9 @@ static void isicom_close(struct tty_struct *tty, struct file *filp)
 
 	pr_dbg("Close start!!!.\n");
 
-	spin_lock_irqsave(&card->card_lock, flags);
+	spin_lock_irqsave(&port->port.lock, flags);
 	if (tty_hung_up_p(filp)) {
-		spin_unlock_irqrestore(&card->card_lock, flags);
+		spin_unlock_irqrestore(&port->port.lock, flags);
 		return;
 	}
 
@@ -1054,12 +1052,12 @@ static void isicom_close(struct tty_struct *tty, struct file *filp)
 	}
 
 	if (port->port.count) {
-		spin_unlock_irqrestore(&card->card_lock, flags);
+		spin_unlock_irqrestore(&port->port.lock, flags);
 		return;
 	}
 	port->port.flags |= ASYNC_CLOSING;
 	tty->closing = 1;
-	spin_unlock_irqrestore(&card->card_lock, flags);
+	spin_unlock_irqrestore(&port->port.lock, flags);
 
 	if (port->port.closing_wait != ASYNC_CLOSING_WAIT_NONE)
 		tty_wait_until_sent(tty, port->port.closing_wait);
@@ -1076,22 +1074,22 @@ static void isicom_close(struct tty_struct *tty, struct file *filp)
 	isicom_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 
-	spin_lock_irqsave(&card->card_lock, flags);
+	spin_lock_irqsave(&port->port.lock, flags);
 	tty->closing = 0;
 
 	if (port->port.blocked_open) {
-		spin_unlock_irqrestore(&card->card_lock, flags);
+		spin_unlock_irqrestore(&port->port.lock, flags);
 		if (port->port.close_delay) {
 			pr_dbg("scheduling until time out.\n");
 			msleep_interruptible(
 				jiffies_to_msecs(port->port.close_delay));
 		}
-		spin_lock_irqsave(&card->card_lock, flags);
+		spin_lock_irqsave(&port->port.lock, flags);
 		wake_up_interruptible(&port->port.open_wait);
 	}
 	port->port.flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
 	wake_up_interruptible(&port->port.close_wait);
-	spin_unlock_irqrestore(&card->card_lock, flags);
+	spin_unlock_irqrestore(&port->port.lock, flags);
 }
 
 /* write et all */
@@ -1430,10 +1428,7 @@ static void isicom_hangup(struct tty_struct *tty)
 	isicom_shutdown_port(port);
 	spin_unlock_irqrestore(&port->card->card_lock, flags);
 
-	port->port.count = 0;
-	port->port.flags &= ~ASYNC_NORMAL_ACTIVE;
-	tty_port_tty_set(&port->port, NULL);
-	wake_up_interruptible(&port->port.open_wait);
+	tty_port_hangup(&port->port);
 }
 
 

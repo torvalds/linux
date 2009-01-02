@@ -3331,6 +3331,17 @@ static int carrier_raised(struct tty_port *port)
 	return (info->serial_signals & SerialSignal_DCD) ? 1 : 0;
 }
 
+static void raise_dtr_rts(struct tty_port *port)
+{
+	SLMP_INFO *info = container_of(port, SLMP_INFO, port);
+	unsigned long flags;
+
+	spin_lock_irqsave(&info->lock,flags);
+	info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+ 	set_signals(info);
+	spin_unlock_irqrestore(&info->lock,flags);
+}
+
 /* Block the current process until the specified port is ready to open.
  */
 static int block_til_ready(struct tty_struct *tty, struct file *filp,
@@ -3381,12 +3392,8 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	port->blocked_open++;
 
 	while (1) {
-		if ((tty->termios->c_cflag & CBAUD)) {
-			spin_lock_irqsave(&info->lock,flags);
-			info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
-		 	set_signals(info);
-			spin_unlock_irqrestore(&info->lock,flags);
-		}
+		if (tty->termios->c_cflag & CBAUD)
+			tty_port_raise_dtr_rts(port);
 
 		set_current_state(TASK_INTERRUPTIBLE);
 
@@ -3793,6 +3800,7 @@ static void add_device(SLMP_INFO *info)
 
 static const struct tty_port_operations port_ops = {
 	.carrier_raised = carrier_raised,
+	.raise_dtr_rts = raise_dtr_rts,
 };
 
 /* Allocate and initialize a device instance structure

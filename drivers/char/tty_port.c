@@ -7,6 +7,7 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
+#include <linux/serial.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -94,6 +95,29 @@ void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 EXPORT_SYMBOL(tty_port_tty_set);
+
+/**
+ *	tty_port_hangup		-	hangup helper
+ *	@port: tty port
+ *
+ *	Perform port level tty hangup flag and count changes. Drop the tty
+ *	reference.
+ */
+
+void tty_port_hangup(struct tty_port *port)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	port->count = 0;
+	port->flags &= ~ASYNC_NORMAL_ACTIVE;
+	if (port->tty)
+		tty_kref_put(port->tty);
+	port->tty = NULL;
+	spin_unlock_irqrestore(&port->lock, flags);
+	wake_up_interruptible(&port->open_wait);
+}
+EXPORT_SYMBOL(tty_port_hangup);
 
 /**
  *	tty_port_carrier_raised	-	carrier raised check
