@@ -2049,6 +2049,12 @@ M:	mikulas@artax.karlin.mff.cuni.cz
 W:	http://artax.karlin.mff.cuni.cz/~mikulas/vyplody/hpfs/index-e.cgi
 S:	Maintained
 
+HSO	3G Modem Driver (hso.c)
+P:	Denis Joseph Barrow
+M:	d.barow@option.com
+W:	http://www.pharscape.org
+S:	Maintained
+
 HTCPEN TOUCHSCREEN DRIVER
 P:	Pau Oliva Fora
 M:	pof@eslack.org

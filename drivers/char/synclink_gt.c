@@ -720,43 +720,8 @@ static void close(struct tty_struct *tty, struct file *filp)
 		return;
 	DBGINFO(("%s close entry, count=%d\n", info->device_name, info->port.count));
 
-	if (!info->port.count)
-		return;
-
-	if (tty_hung_up_p(filp))
+	if (tty_port_close_start(&info->port, tty, filp) == 0)
 		goto cleanup;
-
-	if ((tty->count == 1) && (info->port.count != 1)) {
-		/*
-		 * tty->count is 1 and the tty structure will be freed.
-		 * info->port.count should be one in this case.
-		 * if it's not, correct it so that the port is shutdown.
-		 */
-		DBGERR(("%s close: bad refcount; tty->count=1, "
-		       "info->port.count=%d\n", info->device_name, info->port.count));
-		info->port.count = 1;
-	}
-
-	info->port.count--;
-
-	/* if at least one open remaining, leave hardware active */
-	if (info->port.count)
-		goto cleanup;
-
-	info->port.flags |= ASYNC_CLOSING;
-
-	/* set tty->closing to notify line discipline to
-	 * only process XON/XOFF characters. Only the N_TTY
-	 * discipline appears to use this (ppp does not).
-	 */
-	tty->closing = 1;
-
-	/* wait for transmit data to clear all layers */
-
-	if (info->port.closing_wait != ASYNC_CLOSING_WAIT_NONE) {
-		DBGINFO(("%s call tty_wait_until_sent\n", info->device_name));
-		tty_wait_until_sent(tty, info->port.closing_wait);
-	}
 
  	if (info->port.flags & ASYNC_INITIALIZED)
  		wait_until_sent(tty, info->timeout);
@@ -765,20 +730,8 @@ static void close(struct tty_struct *tty, struct file *filp)
 
 	shutdown(info);
 
-	tty->closing = 0;
+	tty_port_close_end(&info->port, tty);
 	info->port.tty = NULL;
-
-	if (info->port.blocked_open) {
-		if (info->port.close_delay) {
-			msleep_interruptible(jiffies_to_msecs(info->port.close_delay));
-		}
-		wake_up_interruptible(&info->port.open_wait);
-	}
-
-	info->port.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-
-	wake_up_interruptible(&info->port.close_wait);
-
 cleanup:
 	DBGINFO(("%s close exit, count=%d\n", tty->driver->name, info->port.count));
 }
@@ -3132,6 +3085,29 @@ static int tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
+static int carrier_raised(struct tty_port *port)
+{
+	unsigned long flags;
+	struct slgt_info *info = container_of(port, struct slgt_info, port);
+
+	spin_lock_irqsave(&info->lock,flags);
+ 	get_signals(info);
+	spin_unlock_irqrestore(&info->lock,flags);
+	return (info->signals & SerialSignal_DCD) ? 1 : 0;
+}
+
+static void raise_dtr_rts(struct tty_port *port)
+{
+	unsigned long flags;
+	struct slgt_info *info = container_of(port, struct slgt_info, port);
+
+	spin_lock_irqsave(&info->lock,flags);
+	info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+ 	set_signals(info);
+	spin_unlock_irqrestore(&info->lock,flags);
+}
+
+
 /*
  *  block current process until the device is ready to open
  */
@@ -3143,12 +3119,14 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	bool		do_clocal = false;
 	bool		extra_count = false;
 	unsigned long	flags;
+	int		cd;
+	struct tty_port *port = &info->port;
 
 	DBGINFO(("%s block_til_ready\n", tty->driver->name));
 
 	if (filp->f_flags & O_NONBLOCK || tty->flags & (1 << TTY_IO_ERROR)){
 		/* nonblock mode is set or port is not enabled */
-		info->port.flags |= ASYNC_NORMAL_ACTIVE;
+		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
 
@@ -3157,46 +3135,38 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 
 	/* Wait for carrier detect and the line to become
 	 * free (i.e., not in use by the callout).  While we are in
-	 * this loop, info->port.count is dropped by one, so that
+	 * this loop, port->count is dropped by one, so that
 	 * close() knows when to free things.  We restore it upon
 	 * exit, either normal or abnormal.
 	 */
 
 	retval = 0;
-	add_wait_queue(&info->port.open_wait, &wait);
+	add_wait_queue(&port->open_wait, &wait);
 
 	spin_lock_irqsave(&info->lock, flags);
 	if (!tty_hung_up_p(filp)) {
 		extra_count = true;
-		info->port.count--;
+		port->count--;
 	}
 	spin_unlock_irqrestore(&info->lock, flags);
-	info->port.blocked_open++;
+	port->blocked_open++;
 
 	while (1) {
-		if ((tty->termios->c_cflag & CBAUD)) {
-			spin_lock_irqsave(&info->lock,flags);
-			info->signals |= SerialSignal_RTS + SerialSignal_DTR;
-		 	set_signals(info);
-			spin_unlock_irqrestore(&info->lock,flags);
-		}
+		if ((tty->termios->c_cflag & CBAUD))
+			tty_port_raise_dtr_rts(port);
 
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		if (tty_hung_up_p(filp) || !(info->port.flags & ASYNC_INITIALIZED)){
-			retval = (info->port.flags & ASYNC_HUP_NOTIFY) ?
+		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)){
+			retval = (port->flags & ASYNC_HUP_NOTIFY) ?
 					-EAGAIN : -ERESTARTSYS;
 			break;
 		}
 
-		spin_lock_irqsave(&info->lock,flags);
-	 	get_signals(info);
-		spin_unlock_irqrestore(&info->lock,flags);
+		cd = tty_port_carrier_raised(port);
 
- 		if (!(info->port.flags & ASYNC_CLOSING) &&
- 		    (do_clocal || (info->signals & SerialSignal_DCD)) ) {
+ 		if (!(port->flags & ASYNC_CLOSING) && (do_clocal || cd ))
  			break;
-		}
 
 		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
@@ -3208,14 +3178,14 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	}
 
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&info->port.open_wait, &wait);
+	remove_wait_queue(&port->open_wait, &wait);
 
 	if (extra_count)
-		info->port.count++;
-	info->port.blocked_open--;
+		port->count++;
+	port->blocked_open--;
 
 	if (!retval)
-		info->port.flags |= ASYNC_NORMAL_ACTIVE;
+		port->flags |= ASYNC_NORMAL_ACTIVE;
 
 	DBGINFO(("%s block_til_ready ready, rc=%d\n", tty->driver->name, retval));
 	return retval;
@@ -3444,6 +3414,11 @@ static void add_device(struct slgt_info *info)
 #endif
 }
 
+static const struct tty_port_operations slgt_port_ops = {
+	.carrier_raised = carrier_raised,
+	.raise_dtr_rts = raise_dtr_rts,
+};
+
 /*
  *  allocate device instance structure, return NULL on failure
  */
@@ -3458,6 +3433,7 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 			driver_name, adapter_num, port_num));
 	} else {
 		tty_port_init(&info->port);
+		info->port.ops = &slgt_port_ops;
 		info->magic = MGSL_MAGIC;
 		INIT_WORK(&info->task, bh_handler);
 		info->max_frame_size = 4096;
