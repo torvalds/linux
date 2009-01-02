@@ -575,8 +575,9 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 		ide_dma_off(drive);
 	}
 
-	if ((pc->flags & PC_FLAG_DMA_OK) &&
-	    (drive->dev_flags & IDE_DFLAG_USING_DMA)) {
+	if (((pc->flags & PC_FLAG_DMA_OK) &&
+		(drive->dev_flags & IDE_DFLAG_USING_DMA)) ||
+	    drive->dma) {
 		if (scsi)
 			hwif->sg_mapped = 1;
 		drive->dma = !hwif->dma_ops->dma_setup(drive);
