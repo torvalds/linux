@@ -2152,11 +2152,6 @@ M:	Gadi Oxman <gadio@netvision.net.il>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-IDE-SCSI DRIVER
-L:	linux-ide@vger.kernel.org
-L:	linux-scsi@vger.kernel.org
-S:	Orphan
-
 IDLE-I7300
 P:	Andy Henroid
 M:	andrew.d.henroid@intel.com

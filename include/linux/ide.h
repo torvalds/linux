@@ -32,13 +32,6 @@
 # define SUPPORT_VLB_SYNC 1
 #endif
 
-/*
- * Used to indicate "no IRQ", should be a value that cannot be an IRQ
- * number.
- */
- 
-#define IDE_NO_IRQ		(-1)
-
 typedef unsigned char	byte;	/* used everywhere */
 
 /*
@@ -403,6 +396,7 @@ enum {
  * This is used for several packet commands (not for READ/WRITE commands).
  */
 #define IDE_PC_BUFFER_SIZE	256
+#define ATAPI_WAIT_PC		(60 * HZ)
 
 struct ide_atapi_pc {
 	/* actual packet bytes */
@@ -480,53 +474,53 @@ enum {
 
 	/* ide-cd */
 	/* Drive cannot eject the disc. */
-	IDE_AFLAG_NO_EJECT		= (1 << 3),
+	IDE_AFLAG_NO_EJECT		= (1 << 1),
 	/* Drive is a pre ATAPI 1.2 drive. */
-	IDE_AFLAG_PRE_ATAPI12		= (1 << 4),
+	IDE_AFLAG_PRE_ATAPI12		= (1 << 2),
 	/* TOC addresses are in BCD. */
-	IDE_AFLAG_TOCADDR_AS_BCD	= (1 << 5),
+	IDE_AFLAG_TOCADDR_AS_BCD	= (1 << 3),
 	/* TOC track numbers are in BCD. */
-	IDE_AFLAG_TOCTRACKS_AS_BCD	= (1 << 6),
+	IDE_AFLAG_TOCTRACKS_AS_BCD	= (1 << 4),
 	/*
 	 * Drive does not provide data in multiples of SECTOR_SIZE
 	 * when more than one interrupt is needed.
 	 */
-	IDE_AFLAG_LIMIT_NFRAMES		= (1 << 7),
+	IDE_AFLAG_LIMIT_NFRAMES		= (1 << 5),
 	/* Saved TOC information is current. */
-	IDE_AFLAG_TOC_VALID		= (1 << 9),
+	IDE_AFLAG_TOC_VALID		= (1 << 6),
 	/* We think that the drive door is locked. */
-	IDE_AFLAG_DOOR_LOCKED		= (1 << 10),
+	IDE_AFLAG_DOOR_LOCKED		= (1 << 7),
 	/* SET_CD_SPEED command is unsupported. */
-	IDE_AFLAG_NO_SPEED_SELECT	= (1 << 11),
-	IDE_AFLAG_VERTOS_300_SSD	= (1 << 12),
-	IDE_AFLAG_VERTOS_600_ESD	= (1 << 13),
-	IDE_AFLAG_SANYO_3CD		= (1 << 14),
-	IDE_AFLAG_FULL_CAPS_PAGE	= (1 << 15),
-	IDE_AFLAG_PLAY_AUDIO_OK		= (1 << 16),
-	IDE_AFLAG_LE_SPEED_FIELDS	= (1 << 17),
+	IDE_AFLAG_NO_SPEED_SELECT	= (1 << 8),
+	IDE_AFLAG_VERTOS_300_SSD	= (1 << 9),
+	IDE_AFLAG_VERTOS_600_ESD	= (1 << 10),
+	IDE_AFLAG_SANYO_3CD		= (1 << 11),
+	IDE_AFLAG_FULL_CAPS_PAGE	= (1 << 12),
+	IDE_AFLAG_PLAY_AUDIO_OK		= (1 << 13),
+	IDE_AFLAG_LE_SPEED_FIELDS	= (1 << 14),
 
 	/* ide-floppy */
 	/* Avoid commands not supported in Clik drive */
-	IDE_AFLAG_CLIK_DRIVE		= (1 << 19),
+	IDE_AFLAG_CLIK_DRIVE		= (1 << 15),
 	/* Requires BH algorithm for packets */
-	IDE_AFLAG_ZIP_DRIVE		= (1 << 20),
+	IDE_AFLAG_ZIP_DRIVE		= (1 << 16),
 	/* Supports format progress report */
-	IDE_AFLAG_SRFP			= (1 << 22),
+	IDE_AFLAG_SRFP			= (1 << 17),
 
 	/* ide-tape */
-	IDE_AFLAG_IGNORE_DSC		= (1 << 23),
+	IDE_AFLAG_IGNORE_DSC		= (1 << 18),
 	/* 0 When the tape position is unknown */
-	IDE_AFLAG_ADDRESS_VALID		= (1 <<	24),
+	IDE_AFLAG_ADDRESS_VALID		= (1 <<	19),
 	/* Device already opened */
-	IDE_AFLAG_BUSY			= (1 << 25),
+	IDE_AFLAG_BUSY			= (1 << 20),
 	/* Attempt to auto-detect the current user block size */
-	IDE_AFLAG_DETECT_BS		= (1 << 26),
+	IDE_AFLAG_DETECT_BS		= (1 << 21),
 	/* Currently on a filemark */
-	IDE_AFLAG_FILEMARK		= (1 << 27),
+	IDE_AFLAG_FILEMARK		= (1 << 22),
 	/* 0 = no tape is loaded, so we don't rewind after ejecting */
-	IDE_AFLAG_MEDIUM_PRESENT	= (1 << 28),
+	IDE_AFLAG_MEDIUM_PRESENT	= (1 << 23),
 
-	IDE_AFLAG_NO_AUTOCLOSE		= (1 << 29),
+	IDE_AFLAG_NO_AUTOCLOSE		= (1 << 24),
 };
 
 /* device flags */
@@ -565,28 +559,26 @@ enum {
 	IDE_DFLAG_NODMA			= (1 << 16),
 	/* powermanagment told us not to do anything, so sleep nicely */
 	IDE_DFLAG_BLOCKED		= (1 << 17),
-	/* ide-scsi emulation */
-	IDE_DFLAG_SCSI			= (1 << 18),
 	/* sleeping & sleep field valid */
-	IDE_DFLAG_SLEEPING		= (1 << 19),
-	IDE_DFLAG_POST_RESET		= (1 << 20),
-	IDE_DFLAG_UDMA33_WARNED		= (1 << 21),
-	IDE_DFLAG_LBA48			= (1 << 22),
+	IDE_DFLAG_SLEEPING		= (1 << 18),
+	IDE_DFLAG_POST_RESET		= (1 << 19),
+	IDE_DFLAG_UDMA33_WARNED		= (1 << 20),
+	IDE_DFLAG_LBA48			= (1 << 21),
 	/* status of write cache */
-	IDE_DFLAG_WCACHE		= (1 << 23),
+	IDE_DFLAG_WCACHE		= (1 << 22),
 	/* used for ignoring ATA_DF */
-	IDE_DFLAG_NOWERR		= (1 << 24),
+	IDE_DFLAG_NOWERR		= (1 << 23),
 	/* retrying in PIO */
-	IDE_DFLAG_DMA_PIO_RETRY		= (1 << 25),
-	IDE_DFLAG_LBA			= (1 << 26),
+	IDE_DFLAG_DMA_PIO_RETRY		= (1 << 24),
+	IDE_DFLAG_LBA			= (1 << 25),
 	/* don't unload heads */
-	IDE_DFLAG_NO_UNLOAD		= (1 << 27),
+	IDE_DFLAG_NO_UNLOAD		= (1 << 26),
 	/* heads unloaded, please don't reset port */
-	IDE_DFLAG_PARKED		= (1 << 28),
-	IDE_DFLAG_MEDIA_CHANGED		= (1 << 29),
+	IDE_DFLAG_PARKED		= (1 << 27),
+	IDE_DFLAG_MEDIA_CHANGED		= (1 << 28),
 	/* write protect */
-	IDE_DFLAG_WP			= (1 << 30),
-	IDE_DFLAG_FORMAT_IN_PROGRESS	= (1 << 31),
+	IDE_DFLAG_WP			= (1 << 29),
+	IDE_DFLAG_FORMAT_IN_PROGRESS	= (1 << 30),
 };
 
 struct ide_drive_s {
@@ -610,8 +602,6 @@ struct ide_drive_s {
 	unsigned long dev_flags;
 
 	unsigned long sleep;		/* sleep until this time */
-	unsigned long service_start;	/* time we started last request */
-	unsigned long service_time;	/* service time of last request */
 	unsigned long timeout;		/* max time to wait for irq */
 
 	special_t	special;	/* special action flags */
@@ -879,8 +869,6 @@ typedef struct hwgroup_s {
 
 		/* BOOL: protects all fields below */
 	volatile int busy;
-		/* BOOL: wake us up on timer expiry */
-	unsigned int sleeping	: 1;
 		/* BOOL: polling active & poll_timeout field valid */
 	unsigned int polling	: 1;
 
@@ -1258,14 +1246,11 @@ int ide_set_media_lock(ide_drive_t *, struct gendisk *, int);
 void ide_create_request_sense_cmd(ide_drive_t *, struct ide_atapi_pc *);
 void ide_retry_pc(ide_drive_t *, struct gendisk *);
 
-static inline unsigned long ide_scsi_get_timeout(struct ide_atapi_pc *pc)
-{
-	return max_t(unsigned long, WAIT_CMD, pc->timeout - jiffies);
-}
+int ide_cd_expiry(ide_drive_t *);
 
-int ide_scsi_expiry(ide_drive_t *);
+int ide_cd_get_xferlen(struct request *);
 
-ide_startstop_t ide_issue_pc(ide_drive_t *, unsigned int, ide_expiry_t *);
+ide_startstop_t ide_issue_pc(ide_drive_t *);
 
 ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
 
@@ -1287,6 +1272,26 @@ extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 
 extern void ide_timer_expiry(unsigned long);
 extern irqreturn_t ide_intr(int irq, void *dev_id);
+
+static inline int ide_lock_hwgroup(ide_hwgroup_t *hwgroup)
+{
+	if (hwgroup->busy)
+		return 1;
+
+	hwgroup->busy = 1;
+	/* for atari only */
+	ide_get_lock(ide_intr, hwgroup);
+
+	return 0;
+}
+
+static inline void ide_unlock_hwgroup(ide_hwgroup_t *hwgroup)
+{
+	/* for atari only */
+	ide_release_lock();
+	hwgroup->busy = 0;
+}
+
 extern void do_ide_request(struct request_queue *);
 
 void ide_init_disk(struct gendisk *, ide_drive_t *);
@@ -1533,6 +1538,7 @@ void ide_unregister_region(struct gendisk *);
 void ide_undecoded_slave(ide_drive_t *);
 
 void ide_port_apply_params(ide_hwif_t *);
+int ide_sysfs_register_port(ide_hwif_t *);
 
 struct ide_host *ide_host_alloc(const struct ide_port_info *, hw_regs_t **);
 void ide_host_free(struct ide_host *);
@@ -1627,6 +1633,9 @@ extern struct mutex ide_cfg_mtx;
 
 #define local_irq_set(flags)	do { local_save_flags((flags)); local_irq_enable_in_hardirq(); } while (0)
 
+char *ide_media_string(ide_drive_t *);
+
+extern struct device_attribute ide_dev_attrs[];
 extern struct bus_type ide_bus_type;
 extern struct class *ide_port_class;
 

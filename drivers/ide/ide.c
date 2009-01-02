@@ -440,81 +440,13 @@ static int ide_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
-static char *media_string(ide_drive_t *drive)
-{
-	switch (drive->media) {
-	case ide_disk:
-		return "disk";
-	case ide_cdrom:
-		return "cdrom";
-	case ide_tape:
-		return "tape";
-	case ide_floppy:
-		return "floppy";
-	case ide_optical:
-		return "optical";
-	default:
-		return "UNKNOWN";
-	}
-}
-
-static ssize_t media_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", media_string(drive));
-}
-
-static ssize_t drivename_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", drive->name);
-}
-
-static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "ide:m-%s\n", media_string(drive));
-}
-
-static ssize_t model_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_PROD]);
-}
-
-static ssize_t firmware_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_FW_REV]);
-}
-
-static ssize_t serial_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_SERNO]);
-}
-
-static struct device_attribute ide_dev_attrs[] = {
-	__ATTR_RO(media),
-	__ATTR_RO(drivename),
-	__ATTR_RO(modalias),
-	__ATTR_RO(model),
-	__ATTR_RO(firmware),
-	__ATTR(serial, 0400, serial_show, NULL),
-	__ATTR(unload_heads, 0644, ide_park_show, ide_park_store),
-	__ATTR_NULL
-};
-
 static int ide_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	ide_drive_t *drive = to_ide_device(dev);
 
-	add_uevent_var(env, "MEDIA=%s", media_string(drive));
+	add_uevent_var(env, "MEDIA=%s", ide_media_string(drive));
 	add_uevent_var(env, "DRIVENAME=%s", drive->name);
-	add_uevent_var(env, "MODALIAS=ide:m-%s", media_string(drive));
+	add_uevent_var(env, "MODALIAS=ide:m-%s", ide_media_string(drive));
 	return 0;
 }
 
