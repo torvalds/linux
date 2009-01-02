@@ -3472,6 +3472,7 @@ static int radio_release(struct file *file)
 	struct bttv *btv = fh->btv;
 	struct rds_command cmd;
 
+	v4l2_prio_close(&btv->prio,&fh->prio);
 	file->private_data = NULL;
 	kfree(fh);
 
