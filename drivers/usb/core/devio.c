@@ -1317,7 +1317,7 @@ static int get_urb32(struct usbdevfs_urb *kurb,
 	if (__get_user(uptr, &uurb->buffer))
 		return -EFAULT;
 	kurb->buffer = compat_ptr(uptr);
-	if (__get_user(uptr, &uurb->buffer))
+	if (__get_user(uptr, &uurb->usercontext))
 		return -EFAULT;
 	kurb->usercontext = compat_ptr(uptr);
 
