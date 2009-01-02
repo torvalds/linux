@@ -489,7 +489,7 @@ static int ide_delayed_transfer_pc(ide_drive_t *drive)
 
 static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 {
-	struct ide_atapi_pc *pc = drive->pc;
+	struct ide_atapi_pc *uninitialized_var(pc);
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->hwgroup->rq;
 	ide_expiry_t *expiry;
@@ -518,6 +518,8 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 		timeout = rq->timeout;
 		expiry  = ide_cd_expiry;
 	} else {
+		pc = drive->pc;
+
 		cmd_len = ATAPI_MIN_CDB_BYTES;
 
 		/*
@@ -550,9 +552,14 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 	ide_set_handler(drive, ide_pc_intr, timeout, expiry);
 
 	/* Begin DMA, if necessary */
-	if (pc->flags & PC_FLAG_DMA_OK) {
-		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
-		hwif->dma_ops->dma_start(drive);
+	if (dev_is_idecd(drive)) {
+		if (drive->dma)
+			hwif->dma_ops->dma_start(drive);
+	} else {
+		if (pc->flags & PC_FLAG_DMA_OK) {
+			pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
+			hwif->dma_ops->dma_start(drive);
+		}
 	}
 
 	/* Send the actual packet */
