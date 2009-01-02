@@ -870,6 +870,13 @@ static int carrier_raised(struct tty_port *port)
 	return (sGetChanStatusLo(&info->channel) & CD_ACT) ? 1 : 0;
 }
 
+static void raise_dtr_rts(struct tty_port *port)
+{
+	struct r_port *info = container_of(port, struct r_port, port);
+	sSetDTR(&info->channel);
+	sSetRTS(&info->channel);
+}
+
 /*  info->port.count is considered critical, protected by spinlocks.  */
 static int block_til_ready(struct tty_struct *tty, struct file *filp,
 			   struct r_port *info)
@@ -928,10 +935,8 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	spin_unlock_irqrestore(&info->slock, flags);
 
 	while (1) {
-		if (tty->termios->c_cflag & CBAUD) {
-			sSetDTR(&info->channel);
-			sSetRTS(&info->channel);
-		}
+		if (tty->termios->c_cflag & CBAUD)
+			tty_port_raise_dtr_rts(port);
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) || !(info->flags & ROCKET_INITIALIZED)) {
 			if (info->flags & ROCKET_HUP_NOTIFY)
@@ -2381,6 +2386,7 @@ static const struct tty_operations rocket_ops = {
 
 static const struct tty_port_operations rocket_port_ops = {
 	.carrier_raised = carrier_raised,
+	.raise_dtr_rts = raise_dtr_rts,
 };
 
 /*

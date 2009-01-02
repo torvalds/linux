@@ -111,3 +111,19 @@ int tty_port_carrier_raised(struct tty_port *port)
 	return port->ops->carrier_raised(port);
 }
 EXPORT_SYMBOL(tty_port_carrier_raised);
+
+/**
+ *	tty_port_raise_dtr_rts	-	Riase DTR/RTS
+ *	@port: tty port
+ *
+ *	Wrapper for the DTR/RTS raise logic. For the moment this is used
+ *	to hide some internal details. This will eventually become entirely
+ *	internal to the tty port.
+ */
+
+void tty_port_raise_dtr_rts(struct tty_port *port)
+{
+	if (port->ops->raise_dtr_rts)
+		port->ops->raise_dtr_rts(port);
+}
+EXPORT_SYMBOL(tty_port_raise_dtr_rts);

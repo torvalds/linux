@@ -3298,6 +3298,18 @@ static int carrier_raised(struct tty_port *port)
 	return (info->serial_signals & SerialSignal_DCD) ? 1 : 0;
 }
 
+static void raise_dtr_rts(struct tty_port *port)
+{
+	struct mgsl_struct *info = container_of(port, struct mgsl_struct, port);
+	unsigned long flags;
+
+	spin_lock_irqsave(&info->irq_spinlock,flags);
+	info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+ 	usc_set_serial_signals(info);
+	spin_unlock_irqrestore(&info->irq_spinlock,flags);
+}
+
+
 /* block_til_ready()
  * 
  * 	Block the current process until the specified port
@@ -3358,12 +3370,8 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	port->blocked_open++;
 	
 	while (1) {
-		if (tty->termios->c_cflag & CBAUD) {
-			spin_lock_irqsave(&info->irq_spinlock,flags);
-			info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
-		 	usc_set_serial_signals(info);
-			spin_unlock_irqrestore(&info->irq_spinlock,flags);
-		}
+		if (tty->termios->c_cflag & CBAUD)
+			tty_port_raise_dtr_rts(port);
 		
 		set_current_state(TASK_INTERRUPTIBLE);
 		
@@ -4321,6 +4329,7 @@ static void mgsl_add_device( struct mgsl_struct *info )
 
 static const struct tty_port_operations mgsl_port_ops = {
 	.carrier_raised = carrier_raised,
+	.raise_dtr_rts = raise_dtr_rts,
 };
 
 

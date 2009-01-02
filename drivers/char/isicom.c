@@ -328,11 +328,13 @@ static inline void drop_rts(struct isi_port *port)
 }
 
 /* card->lock MUST NOT be held */
-static inline void raise_dtr_rts(struct isi_port *port)
+
+static void isicom_raise_dtr_rts(struct tty_port *port)
 {
-	struct isi_board *card = port->card;
+	struct isi_port *ip = container_of(port, struct isi_port, port);
+	struct isi_board *card = ip->card;
 	unsigned long base = card->base;
-	u16 channel = port->channel;
+	u16 channel = ip->channel;
 
 	if (!lock_card(card))
 		return;
@@ -340,7 +342,7 @@ static inline void raise_dtr_rts(struct isi_port *port)
 	outw(0x8000 | (channel << card->shift_count) | 0x02, base);
 	outw(0x0f04, base);
 	InterruptTheCard(base);
-	port->status |= (ISI_DTR | ISI_RTS);
+	ip->status |= (ISI_DTR | ISI_RTS);
 	unlock_card(card);
 }
 
@@ -881,7 +883,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	spin_unlock_irqrestore(&card->card_lock, flags);
 
 	while (1) {
-		raise_dtr_rts(ip);
+		tty_port_raise_dtr_rts(port);
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)) {
@@ -1462,6 +1464,7 @@ static const struct tty_operations isicom_ops = {
 
 static const struct tty_port_operations isicom_port_ops = {
 	.carrier_raised		= isicom_carrier_raised,
+	.raise_dtr_rts		= isicom_raise_dtr_rts,
 };
 
 static int __devinit reset_card(struct pci_dev *pdev,

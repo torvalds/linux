@@ -3143,6 +3143,18 @@ static int carrier_raised(struct tty_port *port)
 	return (info->signals & SerialSignal_DCD) ? 1 : 0;
 }
 
+static void raise_dtr_rts(struct tty_port *port)
+{
+	unsigned long flags;
+	struct slgt_info *info = container_of(port, struct slgt_info, port);
+
+	spin_lock_irqsave(&info->lock,flags);
+	info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+ 	set_signals(info);
+	spin_unlock_irqrestore(&info->lock,flags);
+}
+
+
 /*
  *  block current process until the device is ready to open
  */
@@ -3187,12 +3199,8 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	port->blocked_open++;
 
 	while (1) {
-		if ((tty->termios->c_cflag & CBAUD)) {
-			spin_lock_irqsave(&info->lock,flags);
-			info->signals |= SerialSignal_RTS + SerialSignal_DTR;
-		 	set_signals(info);
-			spin_unlock_irqrestore(&info->lock,flags);
-		}
+		if ((tty->termios->c_cflag & CBAUD))
+			tty_port_raise_dtr_rts(port);
 
 		set_current_state(TASK_INTERRUPTIBLE);
 
@@ -3455,6 +3463,7 @@ static void add_device(struct slgt_info *info)
 
 static const struct tty_port_operations slgt_port_ops = {
 	.carrier_raised = carrier_raised,
+	.raise_dtr_rts = raise_dtr_rts,
 };
 
 /*

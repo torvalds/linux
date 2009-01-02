@@ -547,6 +547,17 @@ static int mxser_carrier_raised(struct tty_port *port)
 	return (inb(mp->ioaddr + UART_MSR) & UART_MSR_DCD)?1:0;
 }
 
+static void mxser_raise_dtr_rts(struct tty_port *port)
+{
+	struct mxser_port *mp = container_of(port, struct mxser_port, port);
+	unsigned long flags;
+
+	spin_lock_irqsave(&mp->slock, flags);
+	outb(inb(mp->ioaddr + UART_MCR) |
+		UART_MCR_DTR | UART_MCR_RTS, mp->ioaddr + UART_MCR);
+	spin_unlock_irqrestore(&mp->slock, flags);
+}
+
 static int mxser_block_til_ready(struct tty_struct *tty, struct file *filp,
 		struct mxser_port *mp)
 {
@@ -586,10 +597,7 @@ static int mxser_block_til_ready(struct tty_struct *tty, struct file *filp,
 	spin_unlock_irqrestore(&mp->slock, flags);
 	port->blocked_open++;
 	while (1) {
-		spin_lock_irqsave(&mp->slock, flags);
-		outb(inb(mp->ioaddr + UART_MCR) |
-			UART_MCR_DTR | UART_MCR_RTS, mp->ioaddr + UART_MCR);
-		spin_unlock_irqrestore(&mp->slock, flags);
+		tty_port_raise_dtr_rts(port);
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)) {
 			if (port->flags & ASYNC_HUP_NOTIFY)
@@ -2458,6 +2466,7 @@ static const struct tty_operations mxser_ops = {
 
 struct tty_port_operations mxser_port_ops = {
 	.carrier_raised = mxser_carrier_raised,
+	.raise_dtr_rts = mxser_raise_dtr_rts,
 };
 
 /*
