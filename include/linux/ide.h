@@ -473,53 +473,53 @@ enum {
 
 	/* ide-cd */
 	/* Drive cannot eject the disc. */
-	IDE_AFLAG_NO_EJECT		= (1 << 3),
+	IDE_AFLAG_NO_EJECT		= (1 << 1),
 	/* Drive is a pre ATAPI 1.2 drive. */
-	IDE_AFLAG_PRE_ATAPI12		= (1 << 4),
+	IDE_AFLAG_PRE_ATAPI12		= (1 << 2),
 	/* TOC addresses are in BCD. */
-	IDE_AFLAG_TOCADDR_AS_BCD	= (1 << 5),
+	IDE_AFLAG_TOCADDR_AS_BCD	= (1 << 3),
 	/* TOC track numbers are in BCD. */
-	IDE_AFLAG_TOCTRACKS_AS_BCD	= (1 << 6),
+	IDE_AFLAG_TOCTRACKS_AS_BCD	= (1 << 4),
 	/*
 	 * Drive does not provide data in multiples of SECTOR_SIZE
 	 * when more than one interrupt is needed.
 	 */
-	IDE_AFLAG_LIMIT_NFRAMES		= (1 << 7),
+	IDE_AFLAG_LIMIT_NFRAMES		= (1 << 5),
 	/* Saved TOC information is current. */
-	IDE_AFLAG_TOC_VALID		= (1 << 9),
+	IDE_AFLAG_TOC_VALID		= (1 << 6),
 	/* We think that the drive door is locked. */
-	IDE_AFLAG_DOOR_LOCKED		= (1 << 10),
+	IDE_AFLAG_DOOR_LOCKED		= (1 << 7),
 	/* SET_CD_SPEED command is unsupported. */
-	IDE_AFLAG_NO_SPEED_SELECT	= (1 << 11),
-	IDE_AFLAG_VERTOS_300_SSD	= (1 << 12),
-	IDE_AFLAG_VERTOS_600_ESD	= (1 << 13),
-	IDE_AFLAG_SANYO_3CD		= (1 << 14),
-	IDE_AFLAG_FULL_CAPS_PAGE	= (1 << 15),
-	IDE_AFLAG_PLAY_AUDIO_OK		= (1 << 16),
-	IDE_AFLAG_LE_SPEED_FIELDS	= (1 << 17),
+	IDE_AFLAG_NO_SPEED_SELECT	= (1 << 8),
+	IDE_AFLAG_VERTOS_300_SSD	= (1 << 9),
+	IDE_AFLAG_VERTOS_600_ESD	= (1 << 10),
+	IDE_AFLAG_SANYO_3CD		= (1 << 11),
+	IDE_AFLAG_FULL_CAPS_PAGE	= (1 << 12),
+	IDE_AFLAG_PLAY_AUDIO_OK		= (1 << 13),
+	IDE_AFLAG_LE_SPEED_FIELDS	= (1 << 14),
 
 	/* ide-floppy */
 	/* Avoid commands not supported in Clik drive */
-	IDE_AFLAG_CLIK_DRIVE		= (1 << 19),
+	IDE_AFLAG_CLIK_DRIVE		= (1 << 15),
 	/* Requires BH algorithm for packets */
-	IDE_AFLAG_ZIP_DRIVE		= (1 << 20),
+	IDE_AFLAG_ZIP_DRIVE		= (1 << 16),
 	/* Supports format progress report */
-	IDE_AFLAG_SRFP			= (1 << 22),
+	IDE_AFLAG_SRFP			= (1 << 17),
 
 	/* ide-tape */
-	IDE_AFLAG_IGNORE_DSC		= (1 << 23),
+	IDE_AFLAG_IGNORE_DSC		= (1 << 18),
 	/* 0 When the tape position is unknown */
-	IDE_AFLAG_ADDRESS_VALID		= (1 <<	24),
+	IDE_AFLAG_ADDRESS_VALID		= (1 <<	19),
 	/* Device already opened */
-	IDE_AFLAG_BUSY			= (1 << 25),
+	IDE_AFLAG_BUSY			= (1 << 20),
 	/* Attempt to auto-detect the current user block size */
-	IDE_AFLAG_DETECT_BS		= (1 << 26),
+	IDE_AFLAG_DETECT_BS		= (1 << 21),
 	/* Currently on a filemark */
-	IDE_AFLAG_FILEMARK		= (1 << 27),
+	IDE_AFLAG_FILEMARK		= (1 << 22),
 	/* 0 = no tape is loaded, so we don't rewind after ejecting */
-	IDE_AFLAG_MEDIUM_PRESENT	= (1 << 28),
+	IDE_AFLAG_MEDIUM_PRESENT	= (1 << 23),
 
-	IDE_AFLAG_NO_AUTOCLOSE		= (1 << 29),
+	IDE_AFLAG_NO_AUTOCLOSE		= (1 << 24),
 };
 
 /* device flags */
