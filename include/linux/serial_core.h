@@ -316,35 +316,13 @@ struct uart_port {
 };
 
 /*
- * This is the state information which is persistent across opens.
- * The low level driver must not to touch any elements contained
- * within.
- */
-struct uart_state {
-	unsigned int		close_delay;		/* msec */
-	unsigned int		closing_wait;		/* msec */
-
-#define USF_CLOSING_WAIT_INF	(0)
-#define USF_CLOSING_WAIT_NONE	(~0U)
-
-	int			count;
-	int			pm_state;
-	struct uart_info	*info;
-	struct uart_port	*port;
-
-	struct mutex		mutex;
-};
-
-#define UART_XMIT_SIZE	PAGE_SIZE
-
-typedef unsigned int __bitwise__ uif_t;
-
-/*
  * This is the state information which is only valid when the port
- * is open; it may be freed by the core driver once the device has
+ * is open; it may be cleared the core driver once the device has
  * been closed.  Either the low level driver or the core can modify
  * stuff here.
  */
+typedef unsigned int __bitwise__ uif_t;
+
 struct uart_info {
 	struct tty_port		port;
 	struct circ_buf		xmit;
@@ -365,6 +343,29 @@ struct uart_info {
 	struct tasklet_struct	tlet;
 	wait_queue_head_t	delta_msr_wait;
 };
+
+/*
+ * This is the state information which is persistent across opens.
+ * The low level driver must not to touch any elements contained
+ * within.
+ */
+struct uart_state {
+	unsigned int		close_delay;		/* msec */
+	unsigned int		closing_wait;		/* msec */
+
+#define USF_CLOSING_WAIT_INF	(0)
+#define USF_CLOSING_WAIT_NONE	(~0U)
+
+	int			count;
+	int			pm_state;
+	struct uart_info	info;
+	struct uart_port	*port;
+
+	struct mutex		mutex;
+};
+
+#define UART_XMIT_SIZE	PAGE_SIZE
+
 
 /* number of characters left in xmit buffer before we ask for more */
 #define WAKEUP_CHARS		256
@@ -439,8 +440,13 @@ int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
 #define uart_circ_chars_free(circ)	\
 	(CIRC_SPACE((circ)->head, (circ)->tail, UART_XMIT_SIZE))
 
-#define uart_tx_stopped(portp)		\
-	((portp)->info->port.tty->stopped || (portp)->info->port.tty->hw_stopped)
+static inline int uart_tx_stopped(struct uart_port *port)
+{
+	struct tty_struct *tty = port->info->port.tty;
+	if(tty->stopped || tty->hw_stopped)
+		return 1;
+	return 0;
+}
 
 /*
  * The following are helper functions for the low level drivers.
@@ -451,7 +457,7 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 #ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
-			handle_sysrq(ch, port->info ? port->info->port.tty : NULL);
+			handle_sysrq(ch, port->info->port.tty);
 			port->sysrq = 0;
 			return 1;
 		}
