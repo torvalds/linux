@@ -820,6 +820,15 @@ static u32 simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 	int ret;
 	unsigned frequency = params->frequency / 62500;
 
+	if (!tun->stepsize) {
+		/* tuner-core was loaded before the digital tuner was
+		 * configured and somehow picked the wrong tuner type */
+		tuner_err("attempt to treat tuner %d (%s) as digital tuner "
+			  "without stepsize defined.\n",
+			  priv->type, priv->tun->name);
+		return 0; /* failure */
+	}
+
 	t_params = simple_tuner_params(fe, TUNER_PARAM_TYPE_DIGITAL);
 	ret = simple_config_lookup(fe, t_params, &frequency, &config, &cb);
 	if (ret < 0)
