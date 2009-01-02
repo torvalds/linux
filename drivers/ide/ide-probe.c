@@ -1420,58 +1420,6 @@ static void ide_port_cable_detect(ide_hwif_t *hwif)
 	}
 }
 
-static ssize_t store_delete_devices(struct device *portdev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t n)
-{
-	ide_hwif_t *hwif = dev_get_drvdata(portdev);
-
-	if (strncmp(buf, "1", n))
-		return -EINVAL;
-
-	ide_port_unregister_devices(hwif);
-
-	return n;
-};
-
-static DEVICE_ATTR(delete_devices, S_IWUSR, NULL, store_delete_devices);
-
-static ssize_t store_scan(struct device *portdev,
-			  struct device_attribute *attr,
-			  const char *buf, size_t n)
-{
-	ide_hwif_t *hwif = dev_get_drvdata(portdev);
-
-	if (strncmp(buf, "1", n))
-		return -EINVAL;
-
-	ide_port_unregister_devices(hwif);
-	ide_port_scan(hwif);
-
-	return n;
-};
-
-static DEVICE_ATTR(scan, S_IWUSR, NULL, store_scan);
-
-static struct device_attribute *ide_port_attrs[] = {
-	&dev_attr_delete_devices,
-	&dev_attr_scan,
-	NULL
-};
-
-static int ide_sysfs_register_port(ide_hwif_t *hwif)
-{
-	int i, uninitialized_var(rc);
-
-	for (i = 0; ide_port_attrs[i]; i++) {
-		rc = device_create_file(hwif->portdev, ide_port_attrs[i]);
-		if (rc)
-			break;
-	}
-
-	return rc;
-}
-
 static unsigned int ide_indexes;
 
 /**

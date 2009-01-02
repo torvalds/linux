@@ -1533,6 +1533,7 @@ void ide_unregister_region(struct gendisk *);
 void ide_undecoded_slave(ide_drive_t *);
 
 void ide_port_apply_params(ide_hwif_t *);
+int ide_sysfs_register_port(ide_hwif_t *);
 
 struct ide_host *ide_host_alloc(const struct ide_port_info *, hw_regs_t **);
 void ide_host_free(struct ide_host *);
@@ -1627,6 +1628,9 @@ extern struct mutex ide_cfg_mtx;
 
 #define local_irq_set(flags)	do { local_save_flags((flags)); local_irq_enable_in_hardirq(); } while (0)
 
+char *ide_media_string(ide_drive_t *);
+
+extern struct device_attribute ide_dev_attrs[];
 extern struct bus_type ide_bus_type;
 extern struct class *ide_port_class;
 
