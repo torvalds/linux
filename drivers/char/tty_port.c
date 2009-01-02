@@ -286,6 +286,9 @@ int tty_port_close_start(struct tty_port *port, struct tty_struct *tty, struct f
 	port->flags |= ASYNC_CLOSING;
 	tty->closing = 1;
 	spin_unlock_irqrestore(&port->lock, flags);
+	/* Don't block on a stalled port, just pull the chain */
+	if (tty->flow_stopped)
+		tty_driver_flush_buffer(tty);
 	if (port->flags & ASYNC_INITIALIZED &&
 			port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
 		tty_wait_until_sent(tty, port->closing_wait);
