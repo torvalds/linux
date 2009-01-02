@@ -550,7 +550,7 @@ got:
 
 	sb->s_dirt = 1;
 	mark_buffer_dirty(bh2);
-	inode->i_uid = current->fsuid;
+	inode->i_uid = current_fsuid();
 	if (test_opt (sb, GRPID))
 		inode->i_gid = dir->i_gid;
 	else if (dir->i_mode & S_ISGID) {
@@ -558,7 +558,7 @@ got:
 		if (S_ISDIR(mode))
 			mode |= S_ISGID;
 	} else
-		inode->i_gid = current->fsgid;
+		inode->i_gid = current_fsgid();
 	inode->i_mode = mode;
 
 	inode->i_ino = ino;
@@ -585,7 +585,10 @@ got:
 	spin_lock(&sbi->s_next_gen_lock);
 	inode->i_generation = sbi->s_next_generation++;
 	spin_unlock(&sbi->s_next_gen_lock);
-	insert_inode_hash(inode);
+	if (insert_inode_locked(inode) < 0) {
+		err = -EINVAL;
+		goto fail_drop;
+	}
 
 	if (DQUOT_ALLOC_INODE(inode)) {
 		err = -EDQUOT;
@@ -612,6 +615,7 @@ fail_drop:
 	DQUOT_DROP(inode);
 	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
+	unlock_new_inode(inode);
 	iput(inode);
 	return ERR_PTR(err);
 

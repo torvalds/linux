@@ -250,7 +250,7 @@ static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 	/* Figure out how many pages the ring will take, and map that memory */
 	lvq->pages = lguest_map((unsigned long)lvq->config.pfn << PAGE_SHIFT,
 				DIV_ROUND_UP(vring_size(lvq->config.num,
-							PAGE_SIZE),
+							LGUEST_VRING_ALIGN),
 					     PAGE_SIZE));
 	if (!lvq->pages) {
 		err = -ENOMEM;
@@ -259,8 +259,8 @@ static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 
 	/* OK, tell virtio_ring.c to set up a virtqueue now we know its size
 	 * and we've got a pointer to its pages. */
-	vq = vring_new_virtqueue(lvq->config.num, vdev, lvq->pages,
-				 lg_notify, callback);
+	vq = vring_new_virtqueue(lvq->config.num, LGUEST_VRING_ALIGN,
+				 vdev, lvq->pages, lg_notify, callback);
 	if (!vq) {
 		err = -ENOMEM;
 		goto unmap;
@@ -272,7 +272,7 @@ static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 	 * the interrupt as a source of randomness: it'd be nice to have that
 	 * back.. */
 	err = request_irq(lvq->config.irq, vring_interrupt, IRQF_SHARED,
-			  vdev->dev.bus_id, vq);
+			  dev_name(&vdev->dev), vq);
 	if (err)
 		goto destroy_vring;
 

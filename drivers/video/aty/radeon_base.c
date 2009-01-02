@@ -852,6 +852,7 @@ static int radeonfb_pan_display (struct fb_var_screeninfo *var,
         if (rinfo->asleep)
         	return 0;
 
+	radeon_fifo_wait(2);
         OUTREG(CRTC_OFFSET, ((var->yoffset * var->xres_virtual + var->xoffset)
 			     * var->bits_per_pixel / 8) & ~7);
         return 0;
@@ -881,6 +882,7 @@ static int radeonfb_ioctl (struct fb_info *info, unsigned int cmd,
 			if (rc)
 				return rc;
 
+			radeon_fifo_wait(2);
 			if (value & 0x01) {
 				tmp = INREG(LVDS_GEN_CNTL);
 
@@ -938,7 +940,7 @@ int radeon_screen_blank(struct radeonfb_info *rinfo, int blank, int mode_switch)
 	if (rinfo->lock_blank)
 		return 0;
 
-	radeon_engine_idle(rinfo);
+	radeon_engine_idle();
 
 	val = INREG(CRTC_EXT_CNTL);
         val &= ~(CRTC_DISPLAY_DIS | CRTC_HSYNC_DIS |
@@ -1046,7 +1048,7 @@ static int radeonfb_blank (int blank, struct fb_info *info)
 
 	if (rinfo->asleep)
 		return 0;
-
+		
 	return radeon_screen_blank(rinfo, blank, 0);
 }
 
@@ -1072,6 +1074,8 @@ static int radeon_setcolreg (unsigned regno, unsigned red, unsigned green,
         pindex = regno;
 
         if (!rinfo->asleep) {
+		radeon_fifo_wait(9);
+
 		if (rinfo->bpp == 16) {
 			pindex = regno * 8;
 
@@ -1240,6 +1244,8 @@ static void radeon_write_pll_regs(struct radeonfb_info *rinfo, struct radeon_reg
 {
 	int i;
 
+	radeon_fifo_wait(20);
+
 	/* Workaround from XFree */
 	if (rinfo->is_mobility) {
 	        /* A temporal workaround for the occational blanking on certain laptop
@@ -1335,7 +1341,7 @@ static void radeon_lvds_timer_func(unsigned long data)
 {
 	struct radeonfb_info *rinfo = (struct radeonfb_info *)data;
 
-	radeon_engine_idle(rinfo);
+	radeon_engine_idle();
 
 	OUTREG(LVDS_GEN_CNTL, rinfo->pending_lvds_gen_cntl);
 }
@@ -1353,11 +1359,10 @@ void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 	if (nomodeset)
 		return;
 
-	radeon_engine_idle(rinfo);
-
 	if (!regs_only)
 		radeon_screen_blank(rinfo, FB_BLANK_NORMAL, 0);
 
+	radeon_fifo_wait(31);
 	for (i=0; i<10; i++)
 		OUTREG(common_regs[i].reg, common_regs[i].val);
 
@@ -1385,6 +1390,7 @@ void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 	radeon_write_pll_regs(rinfo, mode);
 
 	if ((primary_mon == MT_DFP) || (primary_mon == MT_LCD)) {
+		radeon_fifo_wait(10);
 		OUTREG(FP_CRTC_H_TOTAL_DISP, mode->fp_crtc_h_total_disp);
 		OUTREG(FP_CRTC_V_TOTAL_DISP, mode->fp_crtc_v_total_disp);
 		OUTREG(FP_H_SYNC_STRT_WID, mode->fp_h_sync_strt_wid);
@@ -1399,6 +1405,7 @@ void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 	if (!regs_only)
 		radeon_screen_blank(rinfo, FB_BLANK_UNBLANK, 0);
 
+	radeon_fifo_wait(2);
 	OUTPLL(VCLK_ECP_CNTL, mode->vclk_ecp_cntl);
 	
 	return;
@@ -1549,7 +1556,7 @@ static int radeonfb_set_par(struct fb_info *info)
 	/* We always want engine to be idle on a mode switch, even
 	 * if we won't actually change the mode
 	 */
-	radeon_engine_idle(rinfo);
+	radeon_engine_idle();
 
 	hSyncStart = mode->xres + mode->right_margin;
 	hSyncEnd = hSyncStart + mode->hsync_len;
@@ -1844,6 +1851,7 @@ static int radeonfb_set_par(struct fb_info *info)
 	return 0;
 }
 
+
 static struct fb_ops radeonfb_ops = {
 	.owner			= THIS_MODULE,
 	.fb_check_var		= radeonfb_check_var,
@@ -1867,7 +1875,6 @@ static int __devinit radeon_set_fbinfo (struct radeonfb_info *rinfo)
 	info->par = rinfo;
 	info->pseudo_palette = rinfo->pseudo_palette;
 	info->flags = FBINFO_DEFAULT
-		    | FBINFO_HWACCEL_IMAGEBLIT
 		    | FBINFO_HWACCEL_COPYAREA
 		    | FBINFO_HWACCEL_FILLRECT
 		    | FBINFO_HWACCEL_XPAN
@@ -1875,7 +1882,6 @@ static int __devinit radeon_set_fbinfo (struct radeonfb_info *rinfo)
 	info->fbops = &radeonfb_ops;
 	info->screen_base = rinfo->fb_base;
 	info->screen_size = rinfo->mapped_vram;
-
 	/* Fill fix common fields */
 	strlcpy(info->fix.id, rinfo->name, sizeof(info->fix.id));
         info->fix.smem_start = rinfo->fb_base_phys;
@@ -1890,25 +1896,8 @@ static int __devinit radeon_set_fbinfo (struct radeonfb_info *rinfo)
         info->fix.mmio_len = RADEON_REGSIZE;
 	info->fix.accel = FB_ACCEL_ATI_RADEON;
 
-	/* Allocate colormap */
 	fb_alloc_cmap(&info->cmap, 256, 0);
 
-	/* Setup pixmap used for acceleration */
-#define PIXMAP_SIZE	(2048 * 4)
-
-	info->pixmap.addr = kmalloc(PIXMAP_SIZE, GFP_KERNEL);
-	if (!info->pixmap.addr) {
-		printk(KERN_ERR "radeonfb: Failed to allocate pixmap !\n");
-		noaccel = 1;
-		goto bail;
-	}
-	info->pixmap.size = PIXMAP_SIZE;
-	info->pixmap.flags = FB_PIXMAP_SYSTEM;
-	info->pixmap.scan_align = 4;
-	info->pixmap.buf_align = 4;
-	info->pixmap.access_align = 32;
-
-bail:
 	if (noaccel)
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 
@@ -2017,6 +2006,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
           u32 tom = INREG(NB_TOM);
           tmp = ((((tom >> 16) - (tom & 0xffff) + 1) << 6) * 1024);
 
+ 		radeon_fifo_wait(6);
           OUTREG(MC_FB_LOCATION, tom);
           OUTREG(DISPLAY_BASE_ADDR, (tom & 0xffff) << 16);
           OUTREG(CRTC2_DISPLAY_BASE_ADDR, (tom & 0xffff) << 16);

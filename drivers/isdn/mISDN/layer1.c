@@ -18,10 +18,11 @@
 
 #include <linux/module.h>
 #include <linux/mISDNhw.h>
+#include "core.h"
 #include "layer1.h"
 #include "fsm.h"
 
-static int *debug;
+static u_int *debug;
 
 struct layer1 {
 	u_long			Flags;

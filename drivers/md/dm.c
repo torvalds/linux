@@ -21,6 +21,7 @@
 #include <linux/idr.h>
 #include <linux/hdreg.h>
 #include <linux/blktrace_api.h>
+#include <trace/block.h>
 
 #define DM_MSG_PREFIX "core"
 
@@ -50,6 +51,8 @@ struct dm_target_io {
 	struct dm_target *ti;
 	union map_info info;
 };
+
+DEFINE_TRACE(block_bio_complete);
 
 union map_info *dm_get_mapinfo(struct bio *bio)
 {
@@ -504,8 +507,7 @@ static void dec_pending(struct dm_io *io, int error)
 		end_io_acct(io);
 
 		if (io->error != DM_ENDIO_REQUEUE) {
-			blk_add_trace_bio(io->md->queue, io->bio,
-					  BLK_TA_COMPLETE);
+			trace_block_bio_complete(io->md->queue, io->bio);
 
 			bio_endio(io->bio, io->error);
 		}
@@ -598,7 +600,7 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 	if (r == DM_MAPIO_REMAPPED) {
 		/* the bio has been remapped so dispatch it */
 
-		blk_add_trace_remap(bdev_get_queue(clone->bi_bdev), clone,
+		trace_block_remap(bdev_get_queue(clone->bi_bdev), clone,
 				    tio->io->bio->bi_bdev->bd_dev,
 				    clone->bi_sector, sector);
 
@@ -1091,7 +1093,7 @@ static struct mapped_device *alloc_dev(int minor)
 	if (!md->tio_pool)
 		goto bad_tio_pool;
 
-	md->bs = bioset_create(16, 16);
+	md->bs = bioset_create(16, 0);
 	if (!md->bs)
 		goto bad_no_bioset;
 

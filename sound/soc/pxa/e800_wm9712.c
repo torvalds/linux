@@ -29,7 +29,7 @@
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-ac97.h"
 
-static struct snd_soc_machine e800;
+static struct snd_soc_card e800;
 
 static struct snd_soc_dai_link e800_dai[] = {
 {
@@ -40,15 +40,15 @@ static struct snd_soc_dai_link e800_dai[] = {
 },
 };
 
-static struct snd_soc_machine e800 = {
+static struct snd_soc_card e800 = {
 	.name = "Toshiba e800",
+	.platform = &pxa2xx_soc_platform,
 	.dai_link = e800_dai,
 	.num_links = ARRAY_SIZE(e800_dai),
 };
 
 static struct snd_soc_device e800_snd_devdata = {
-	.machine = &e800,
-	.platform = &pxa2xx_soc_platform,
+	.card = &e800,
 	.codec_dev = &soc_codec_dev_wm9712,
 };
 

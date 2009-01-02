@@ -25,7 +25,7 @@
 /*
  * This implementation should follow RFC 4341
  */
-
+#include "../feat.h"
 #include "../ccid.h"
 #include "../dccp.h"
 #include "ccid2.h"
@@ -147,8 +147,8 @@ static void ccid2_change_l_ack_ratio(struct sock *sk, u32 val)
 		DCCP_WARN("Limiting Ack Ratio (%u) to %u\n", val, max_ratio);
 		val = max_ratio;
 	}
-	if (val > 0xFFFF)		/* RFC 4340, 11.3 */
-		val = 0xFFFF;
+	if (val > DCCPF_ACK_RATIO_MAX)
+		val = DCCPF_ACK_RATIO_MAX;
 
 	if (val == dp->dccps_l_ack_ratio)
 		return;

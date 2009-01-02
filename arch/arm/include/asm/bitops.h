@@ -237,6 +237,7 @@ extern int _find_next_bit_be(const unsigned long *p, int size, int offset);
 #if __LINUX_ARM_ARCH__ < 5
 
 #include <asm-generic/bitops/ffz.h>
+#include <asm-generic/bitops/__fls.h>
 #include <asm-generic/bitops/__ffs.h>
 #include <asm-generic/bitops/fls.h>
 #include <asm-generic/bitops/ffs.h>
@@ -277,16 +278,19 @@ static inline int constant_fls(int x)
  * the clz instruction for much better code efficiency.
  */
 
-#define __fls(x) \
-	( __builtin_constant_p(x) ? constant_fls(x) : \
-	  ({ int __r; asm("clz\t%0, %1" : "=r"(__r) : "r"(x) : "cc"); 32-__r; }) )
-
-/* Implement fls() in C so that 64-bit args are suitably truncated */
 static inline int fls(int x)
 {
-	return __fls(x);
+	int ret;
+
+	if (__builtin_constant_p(x))
+	       return constant_fls(x);
+
+	asm("clz\t%0, %1" : "=r" (ret) : "r" (x) : "cc");
+       	ret = 32 - ret;
+	return ret;
 }
 
+#define __fls(x) (fls(x) - 1)
 #define ffs(x) ({ unsigned long __t = (x); fls(__t & -__t); })
 #define __ffs(x) (ffs(x) - 1)
 #define ffz(x) __ffs( ~(x) )

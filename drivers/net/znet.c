@@ -167,7 +167,7 @@ static void znet_tx_timeout (struct net_device *dev);
 /* Request needed resources */
 static int znet_request_resources (struct net_device *dev)
 {
-	struct znet_private *znet = dev->priv;
+	struct znet_private *znet = netdev_priv(dev);
 	unsigned long flags;
 
 	if (request_irq (dev->irq, &znet_interrupt, 0, "ZNet", dev))
@@ -201,7 +201,7 @@ static int znet_request_resources (struct net_device *dev)
 
 static void znet_release_resources (struct net_device *dev)
 {
-	struct znet_private *znet = dev->priv;
+	struct znet_private *znet = netdev_priv(dev);
 	unsigned long flags;
 
 	release_region (znet->sia_base, znet->sia_size);
@@ -216,7 +216,7 @@ static void znet_release_resources (struct net_device *dev)
 /* Keep the magical SIA stuff in a single function... */
 static void znet_transceiver_power (struct net_device *dev, int on)
 {
-	struct znet_private *znet = dev->priv;
+	struct znet_private *znet = netdev_priv(dev);
 	unsigned char v;
 
 	/* Turn on/off the 82501 SIA, using zenith-specific magic. */
@@ -235,7 +235,7 @@ static void znet_transceiver_power (struct net_device *dev, int on)
    Also used from hardware_init. */
 static void znet_set_multicast_list (struct net_device *dev)
 {
-	struct znet_private *znet = dev->priv;
+	struct znet_private *znet = netdev_priv(dev);
 	short ioaddr = dev->base_addr;
 	struct i82593_conf_block *cfblk = &znet->i593_init;
 
@@ -370,7 +370,6 @@ static int __init znet_probe (void)
 	struct net_device *dev;
 	char *p;
 	int err = -ENOMEM;
-	DECLARE_MAC_BUF(mac);
 
 	/* This code scans the region 0xf0000 to 0xfffff for a "NETIDBLK". */
 	for(p = (char *)phys_to_virt(0xf0000); p < (char *)phys_to_virt(0x100000); p++)
@@ -387,7 +386,7 @@ static int __init znet_probe (void)
 	if (!dev)
 		return -ENOMEM;
 
-	znet = dev->priv;
+	znet = netdev_priv(dev);
 
 	netinfo = (struct netidblk *)p;
 	dev->base_addr = netinfo->iobase1;
@@ -397,9 +396,9 @@ static int __init znet_probe (void)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = netinfo->netid[i];
 
-	printk(KERN_INFO "%s: ZNET at %#3lx, %s"
+	printk(KERN_INFO "%s: ZNET at %#3lx, %pM"
 	       ", using IRQ %d DMA %d and %d.\n",
-	       dev->name, dev->base_addr, print_mac(mac, dev->dev_addr),
+	       dev->name, dev->base_addr, dev->dev_addr,
 	       dev->irq, netinfo->dma1, netinfo->dma2);
 
 	if (znet_debug > 1) {
@@ -531,7 +530,7 @@ static void znet_tx_timeout (struct net_device *dev)
 static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
-	struct znet_private *znet = dev->priv;
+	struct znet_private *znet = netdev_priv(dev);
 	unsigned long flags;
 	short length = skb->len;
 
@@ -601,7 +600,7 @@ static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 static irqreturn_t znet_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
-	struct znet_private *znet = dev->priv;
+	struct znet_private *znet = netdev_priv(dev);
 	int ioaddr;
 	int boguscnt = 20;
 	int handled = 0;
@@ -679,7 +678,7 @@ static irqreturn_t znet_interrupt(int irq, void *dev_id)
 
 static void znet_rx(struct net_device *dev)
 {
-	struct znet_private *znet = dev->priv;
+	struct znet_private *znet = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
 	int boguscount = 1;
 	short next_frame_end_offset = 0; 		/* Offset of next frame start. */
@@ -786,7 +785,6 @@ static void znet_rx(struct net_device *dev)
 		  }
 		  skb->protocol=eth_type_trans(skb,dev);
 		  netif_rx(skb);
-		  dev->last_rx = jiffies;
 		  dev->stats.rx_packets++;
 		  dev->stats.rx_bytes += pkt_len;
 		}
@@ -829,7 +827,7 @@ static void show_dma(struct net_device *dev)
 {
 	short ioaddr = dev->base_addr;
 	unsigned char stat = inb (ioaddr);
-	struct znet_private *znet = dev->priv;
+	struct znet_private *znet = netdev_priv(dev);
 	unsigned long flags;
 	short dma_port = ((znet->tx_dma&3)<<2) + IO_DMA2_BASE;
 	unsigned addr = inb(dma_port);
@@ -852,7 +850,7 @@ static void hardware_init(struct net_device *dev)
 {
 	unsigned long flags;
 	short ioaddr = dev->base_addr;
-	struct znet_private *znet = dev->priv;
+	struct znet_private *znet = netdev_priv(dev);
 
 	znet->rx_cur = znet->rx_start;
 	znet->tx_cur = znet->tx_start;
@@ -914,7 +912,7 @@ static void update_stop_hit(short ioaddr, unsigned short rx_stop_offset)
 static __exit void znet_cleanup (void)
 {
 	if (znet_dev) {
-		struct znet_private *znet = znet_dev->priv;
+		struct znet_private *znet = netdev_priv(znet_dev);
 
 		unregister_netdev (znet_dev);
 		kfree (znet->rx_start);

@@ -4011,8 +4011,7 @@ ov51x_v4l1_close(struct inode *inode, struct file *file)
 
 /* Do not call this function directly! */
 static int
-ov51x_v4l1_ioctl_internal(struct inode *inode, struct file *file,
-			  unsigned int cmd, void *arg)
+ov51x_v4l1_ioctl_internal(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = file->private_data;
 	struct usb_ov511 *ov = video_get_drvdata(vdev);
@@ -4461,7 +4460,7 @@ ov51x_v4l1_ioctl(struct inode *inode, struct file *file,
 	if (mutex_lock_interruptible(&ov->lock))
 		return -EINTR;
 
-	rc = video_usercopy(inode, file, cmd, arg, ov51x_v4l1_ioctl_internal);
+	rc = video_usercopy(file, cmd, arg, ov51x_v4l1_ioctl_internal);
 
 	mutex_unlock(&ov->lock);
 	return rc;

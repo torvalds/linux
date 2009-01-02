@@ -180,11 +180,10 @@ static struct tvnorm tvnorms[] = {
 	},{
 		.std   = V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H,
 		.name  = "SECAM-BGH",
-		.b     = ( cPositiveAmTV  |
+		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cTopDefault),
-		.e     = ( cGating_36	  |
-			   cAudioIF_5_5   |
+		.e     = ( cAudioIF_5_5   |
 			   cVideoIF_38_90 ),
 	},{
 		.std   = V4L2_STD_SECAM_L,

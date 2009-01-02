@@ -25,11 +25,10 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/videodev2.h>
-#include <media/v4l2-common.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
-
+#include <linux/videodev2.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 #include <media/i2c-addr.h>
 
 static int debug; /* insmod parameter */
@@ -46,13 +45,15 @@ I2C_CLIENT_INSMOD;
 
 /* This is a superset of the TDA9875 */
 struct tda9875 {
+	struct v4l2_subdev sd;
 	int rvol, lvol;
 	int bass, treble;
-	struct i2c_client c;
 };
 
-static struct i2c_driver driver;
-static struct i2c_client client_template;
+static inline struct tda9875 *to_state(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct tda9875, sd);
+}
 
 #define dprintk  if (debug) printk
 
@@ -105,15 +106,16 @@ static struct i2c_client client_template;
 
 /* Begin code */
 
-static int tda9875_write(struct i2c_client *client, int subaddr, unsigned char val)
+static int tda9875_write(struct v4l2_subdev *sd, int subaddr, unsigned char val)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	unsigned char buffer[2];
-	dprintk("In tda9875_write\n");
-	dprintk("Writing %d 0x%x\n", subaddr, val);
+
+	v4l2_dbg(1, debug, sd, "Writing %d 0x%x\n", subaddr, val);
 	buffer[0] = subaddr;
 	buffer[1] = val;
-	if (2 != i2c_master_send(client,buffer,2)) {
-		printk(KERN_WARNING "tda9875: I/O error, trying (write %d 0x%x)\n",
+	if (2 != i2c_master_send(client, buffer, 2)) {
+		v4l2_warn(sd, "I/O error, trying (write %d 0x%x)\n",
 		       subaddr, val);
 		return -1;
 	}
@@ -121,7 +123,7 @@ static int tda9875_write(struct i2c_client *client, int subaddr, unsigned char v
 }
 
 
-static int i2c_read_register(struct i2c_adapter *adap, int addr, int reg)
+static int i2c_read_register(struct i2c_client *client, int addr, int reg)
 {
 	unsigned char write[1];
 	unsigned char read[1];
@@ -129,150 +131,83 @@ static int i2c_read_register(struct i2c_adapter *adap, int addr, int reg)
 		{ addr, 0,        1, write },
 		{ addr, I2C_M_RD, 1, read  }
 	};
+
 	write[0] = reg;
 
-	if (2 != i2c_transfer(adap,msgs,2)) {
-		printk(KERN_WARNING "tda9875: I/O error (read2)\n");
+	if (2 != i2c_transfer(client->adapter, msgs, 2)) {
+		v4l_warn(client, "I/O error (read2)\n");
 		return -1;
 	}
-	dprintk("tda9875: chip_read2: reg%d=0x%x\n",reg,read[0]);
+	v4l_dbg(1, debug, client, "chip_read2: reg%d=0x%x\n", reg, read[0]);
 	return read[0];
 }
 
-static void tda9875_set(struct i2c_client *client)
+static void tda9875_set(struct v4l2_subdev *sd)
 {
-	struct tda9875 *tda = i2c_get_clientdata(client);
+	struct tda9875 *tda = to_state(sd);
 	unsigned char a;
 
-	dprintk(KERN_DEBUG "tda9875_set(%04x,%04x,%04x,%04x)\n",
-		tda->lvol,tda->rvol,tda->bass,tda->treble);
-
+	v4l2_dbg(1, debug, sd, "tda9875_set(%04x,%04x,%04x,%04x)\n",
+		tda->lvol, tda->rvol, tda->bass, tda->treble);
 
 	a = tda->lvol & 0xff;
-	tda9875_write(client, TDA9875_MVL, a);
+	tda9875_write(sd, TDA9875_MVL, a);
 	a =tda->rvol & 0xff;
-	tda9875_write(client, TDA9875_MVR, a);
+	tda9875_write(sd, TDA9875_MVR, a);
 	a =tda->bass & 0xff;
-	tda9875_write(client, TDA9875_MBA, a);
+	tda9875_write(sd, TDA9875_MBA, a);
 	a =tda->treble  & 0xff;
-	tda9875_write(client, TDA9875_MTR, a);
+	tda9875_write(sd, TDA9875_MTR, a);
 }
 
-static void do_tda9875_init(struct i2c_client *client)
+static void do_tda9875_init(struct v4l2_subdev *sd)
 {
-	struct tda9875 *t = i2c_get_clientdata(client);
-	dprintk("In tda9875_init\n");
-	tda9875_write(client, TDA9875_CFG, 0xd0 ); /*reg de config 0 (reset)*/
-	tda9875_write(client, TDA9875_MSR, 0x03 );    /* Monitor 0b00000XXX*/
-	tda9875_write(client, TDA9875_C1MSB, 0x00 );  /*Car1(FM) MSB XMHz*/
-	tda9875_write(client, TDA9875_C1MIB, 0x00 );  /*Car1(FM) MIB XMHz*/
-	tda9875_write(client, TDA9875_C1LSB, 0x00 );  /*Car1(FM) LSB XMHz*/
-	tda9875_write(client, TDA9875_C2MSB, 0x00 );  /*Car2(NICAM) MSB XMHz*/
-	tda9875_write(client, TDA9875_C2MIB, 0x00 );  /*Car2(NICAM) MIB XMHz*/
-	tda9875_write(client, TDA9875_C2LSB, 0x00 );  /*Car2(NICAM) LSB XMHz*/
-	tda9875_write(client, TDA9875_DCR, 0x00 );    /*Demod config 0x00*/
-	tda9875_write(client, TDA9875_DEEM, 0x44 );   /*DE-Emph 0b0100 0100*/
-	tda9875_write(client, TDA9875_FMAT, 0x00 );   /*FM Matrix reg 0x00*/
-	tda9875_write(client, TDA9875_SC1, 0x00 );    /* SCART 1 (SC1)*/
-	tda9875_write(client, TDA9875_SC2, 0x01 );    /* SCART 2 (sc2)*/
+	struct tda9875 *t = to_state(sd);
 
-	tda9875_write(client, TDA9875_CH1V, 0x10 );  /* Channel volume 1 mute*/
-	tda9875_write(client, TDA9875_CH2V, 0x10 );  /* Channel volume 2 mute */
-	tda9875_write(client, TDA9875_DACOS, 0x02 ); /* sig DAC i/o(in:nicam)*/
-	tda9875_write(client, TDA9875_ADCIS, 0x6f ); /* sig ADC input(in:mono)*/
-	tda9875_write(client, TDA9875_LOSR, 0x00 );  /* line out (in:mono)*/
-	tda9875_write(client, TDA9875_AER, 0x00 );   /*06 Effect (AVL+PSEUDO) */
-	tda9875_write(client, TDA9875_MCS, 0x44 );   /* Main ch select (DAC) */
-	tda9875_write(client, TDA9875_MVL, 0x03 );   /* Vol Main left 10dB */
-	tda9875_write(client, TDA9875_MVR, 0x03 );   /* Vol Main right 10dB*/
-	tda9875_write(client, TDA9875_MBA, 0x00 );   /* Main Bass Main 0dB*/
-	tda9875_write(client, TDA9875_MTR, 0x00 );   /* Main Treble Main 0dB*/
-	tda9875_write(client, TDA9875_ACS, 0x44 );   /* Aux chan select (dac)*/
-	tda9875_write(client, TDA9875_AVL, 0x00 );   /* Vol Aux left 0dB*/
-	tda9875_write(client, TDA9875_AVR, 0x00 );   /* Vol Aux right 0dB*/
-	tda9875_write(client, TDA9875_ABA, 0x00 );   /* Aux Bass Main 0dB*/
-	tda9875_write(client, TDA9875_ATR, 0x00 );   /* Aux Aigus Main 0dB*/
+	v4l2_dbg(1, debug, sd, "In tda9875_init\n");
+	tda9875_write(sd, TDA9875_CFG, 0xd0); /*reg de config 0 (reset)*/
+	tda9875_write(sd, TDA9875_MSR, 0x03);    /* Monitor 0b00000XXX*/
+	tda9875_write(sd, TDA9875_C1MSB, 0x00);  /*Car1(FM) MSB XMHz*/
+	tda9875_write(sd, TDA9875_C1MIB, 0x00);  /*Car1(FM) MIB XMHz*/
+	tda9875_write(sd, TDA9875_C1LSB, 0x00);  /*Car1(FM) LSB XMHz*/
+	tda9875_write(sd, TDA9875_C2MSB, 0x00);  /*Car2(NICAM) MSB XMHz*/
+	tda9875_write(sd, TDA9875_C2MIB, 0x00);  /*Car2(NICAM) MIB XMHz*/
+	tda9875_write(sd, TDA9875_C2LSB, 0x00);  /*Car2(NICAM) LSB XMHz*/
+	tda9875_write(sd, TDA9875_DCR, 0x00);    /*Demod config 0x00*/
+	tda9875_write(sd, TDA9875_DEEM, 0x44);   /*DE-Emph 0b0100 0100*/
+	tda9875_write(sd, TDA9875_FMAT, 0x00);   /*FM Matrix reg 0x00*/
+	tda9875_write(sd, TDA9875_SC1, 0x00);    /* SCART 1 (SC1)*/
+	tda9875_write(sd, TDA9875_SC2, 0x01);    /* SCART 2 (sc2)*/
 
-	tda9875_write(client, TDA9875_MUT, 0xcc );   /* General mute  */
+	tda9875_write(sd, TDA9875_CH1V, 0x10);  /* Channel volume 1 mute*/
+	tda9875_write(sd, TDA9875_CH2V, 0x10);  /* Channel volume 2 mute */
+	tda9875_write(sd, TDA9875_DACOS, 0x02); /* sig DAC i/o(in:nicam)*/
+	tda9875_write(sd, TDA9875_ADCIS, 0x6f); /* sig ADC input(in:mono)*/
+	tda9875_write(sd, TDA9875_LOSR, 0x00);  /* line out (in:mono)*/
+	tda9875_write(sd, TDA9875_AER, 0x00);   /*06 Effect (AVL+PSEUDO) */
+	tda9875_write(sd, TDA9875_MCS, 0x44);   /* Main ch select (DAC) */
+	tda9875_write(sd, TDA9875_MVL, 0x03);   /* Vol Main left 10dB */
+	tda9875_write(sd, TDA9875_MVR, 0x03);   /* Vol Main right 10dB*/
+	tda9875_write(sd, TDA9875_MBA, 0x00);   /* Main Bass Main 0dB*/
+	tda9875_write(sd, TDA9875_MTR, 0x00);   /* Main Treble Main 0dB*/
+	tda9875_write(sd, TDA9875_ACS, 0x44);   /* Aux chan select (dac)*/
+	tda9875_write(sd, TDA9875_AVL, 0x00);   /* Vol Aux left 0dB*/
+	tda9875_write(sd, TDA9875_AVR, 0x00);   /* Vol Aux right 0dB*/
+	tda9875_write(sd, TDA9875_ABA, 0x00);   /* Aux Bass Main 0dB*/
+	tda9875_write(sd, TDA9875_ATR, 0x00);   /* Aux Aigus Main 0dB*/
 
-	t->lvol=t->rvol =0;  	/* 0dB */
-	t->bass=0; 			/* 0dB */
-	t->treble=0;  		/* 0dB */
-	tda9875_set(client);
+	tda9875_write(sd, TDA9875_MUT, 0xcc);   /* General mute  */
 
+	t->lvol = t->rvol = 0;  	/* 0dB */
+	t->bass = 0; 			/* 0dB */
+	t->treble = 0;  		/* 0dB */
+	tda9875_set(sd);
 }
 
 
-/* *********************** *
- * i2c interface functions *
- * *********************** */
-
-static int tda9875_checkit(struct i2c_adapter *adap, int addr)
+static int tda9875_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	int dic,rev;
-
-	dic=i2c_read_register(adap,addr,254);
-	rev=i2c_read_register(adap,addr,255);
-
-	if(dic==0 || dic==2) { // tda9875 and tda9875A
-		printk("tda9875: TDA9875%s Rev.%d detected at 0x%x\n",
-		dic==0?"":"A", rev,addr<<1);
-		return 1;
-	}
-	printk("tda9875: no such chip at 0x%x (dic=0x%x rev=0x%x)\n",addr<<1,dic,rev);
-	return(0);
-}
-
-static int tda9875_attach(struct i2c_adapter *adap, int addr, int kind)
-{
-	struct tda9875 *t;
-	struct i2c_client *client;
-	dprintk("In tda9875_attach\n");
-
-	t = kzalloc(sizeof *t,GFP_KERNEL);
-	if (!t)
-		return -ENOMEM;
-
-	client = &t->c;
-	memcpy(client,&client_template,sizeof(struct i2c_client));
-	client->adapter = adap;
-	client->addr = addr;
-	i2c_set_clientdata(client, t);
-
-	if(!tda9875_checkit(adap,addr)) {
-		kfree(t);
-		return 1;
-	}
-
-	do_tda9875_init(client);
-	printk(KERN_INFO "tda9875: init\n");
-
-	i2c_attach_client(client);
-	return 0;
-}
-
-static int tda9875_probe(struct i2c_adapter *adap)
-{
-	if (adap->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adap, &addr_data, tda9875_attach);
-	return 0;
-}
-
-static int tda9875_detach(struct i2c_client *client)
-{
-	struct tda9875 *t  = i2c_get_clientdata(client);
-
-	do_tda9875_init(client);
-	i2c_detach_client(client);
-
-	kfree(t);
-	return 0;
-}
-
-static int tda9875_get_ctrl(struct i2c_client *client,
-			    struct v4l2_control *ctrl)
-{
-	struct tda9875 *t = i2c_get_clientdata(client);
+	struct tda9875 *t = to_state(sd);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_VOLUME:
@@ -304,10 +239,9 @@ static int tda9875_get_ctrl(struct i2c_client *client,
 	return -EINVAL;
 }
 
-static int tda9875_set_ctrl(struct i2c_client *client,
-			    struct v4l2_control *ctrl)
+static int tda9875_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct tda9875 *t = i2c_get_clientdata(client);
+	struct tda9875 *t = to_state(sd);
 	int chvol=0, volume, balance, left, right;
 
 	switch (ctrl->id) {
@@ -371,85 +305,105 @@ static int tda9875_set_ctrl(struct i2c_client *client,
 			t->rvol = -84 & 0xff;
 	}
 
-//printk("tda9875 bal:%04x vol:%04x bass:%04x treble:%04x\n",va->balance,va->volume,va->bass,va->treble);
-
-	tda9875_set(client);
-
+	tda9875_set(sd);
 	return 0;
 }
 
-
-static int tda9875_command(struct i2c_client *client,
-				unsigned int cmd, void *arg)
+static int tda9875_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 {
-	dprintk("In tda9875_command...\n");
-
-	switch (cmd) {
-	/* --- v4l ioctls --- */
-	/* take care: bttv does userspace copying, we'll get a
-	   kernel pointer here... */
-	case VIDIOC_QUERYCTRL:
-	{
-		struct v4l2_queryctrl *qc = arg;
-
-		switch (qc->id) {
-			case V4L2_CID_AUDIO_VOLUME:
-			case V4L2_CID_AUDIO_BASS:
-			case V4L2_CID_AUDIO_TREBLE:
-			default:
-				return -EINVAL;
-		}
+	switch (qc->id) {
+	case V4L2_CID_AUDIO_VOLUME:
+	case V4L2_CID_AUDIO_BASS:
+	case V4L2_CID_AUDIO_TREBLE:
 		return v4l2_ctrl_query_fill_std(qc);
 	}
-	case VIDIOC_S_CTRL:
-		return tda9875_set_ctrl(client, arg);
+	return -EINVAL;
+}
 
-	case VIDIOC_G_CTRL:
-		return tda9875_get_ctrl(client, arg);
+static int tda9875_command(struct i2c_client *client, unsigned cmd, void *arg)
+{
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
+}
 
-	default: /* Not VIDEOCGAUDIO or VIDEOCSAUDIO */
+/* ----------------------------------------------------------------------- */
 
-		/* nothing */
-		dprintk("Default\n");
+static const struct v4l2_subdev_core_ops tda9875_core_ops = {
+	.queryctrl = tda9875_queryctrl,
+	.g_ctrl = tda9875_g_ctrl,
+	.s_ctrl = tda9875_s_ctrl,
+};
 
-	} /* end of (cmd) switch */
+static const struct v4l2_subdev_ops tda9875_ops = {
+	.core = &tda9875_core_ops,
+};
 
+/* ----------------------------------------------------------------------- */
+
+
+/* *********************** *
+ * i2c interface functions *
+ * *********************** */
+
+static int tda9875_checkit(struct i2c_client *client, int addr)
+{
+	int dic, rev;
+
+	dic = i2c_read_register(client, addr, 254);
+	rev = i2c_read_register(client, addr, 255);
+
+	if (dic == 0 || dic == 2) { /* tda9875 and tda9875A */
+		v4l_info(client, "tda9875%s rev. %d detected at 0x%02x\n",
+			dic == 0 ? "" : "A", rev, addr << 1);
+		return 1;
+	}
+	v4l_info(client, "no such chip at 0x%02x (dic=0x%x rev=0x%x)\n",
+			addr << 1, dic, rev);
 	return 0;
 }
 
-
-static struct i2c_driver driver = {
-	.driver = {
-		.name   = "tda9875",
-	},
-	.id             = I2C_DRIVERID_TDA9875,
-	.attach_adapter = tda9875_probe,
-	.detach_client  = tda9875_detach,
-	.command        = tda9875_command,
-};
-
-static struct i2c_client client_template =
+static int tda9875_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
-	.name      = "tda9875",
-	.driver    = &driver,
-};
+	struct tda9875 *t;
+	struct v4l2_subdev *sd;
 
-static int __init tda9875_init(void)
-{
-	return i2c_add_driver(&driver);
+	v4l_info(client, "chip found @ 0x%02x (%s)\n",
+			client->addr << 1, client->adapter->name);
+
+	if (!tda9875_checkit(client, client->addr))
+		return -ENODEV;
+
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	if (!t)
+		return -ENOMEM;
+	sd = &t->sd;
+	v4l2_i2c_subdev_init(sd, client, &tda9875_ops);
+
+	do_tda9875_init(sd);
+	return 0;
 }
 
-static void __exit tda9875_fini(void)
+static int tda9875_remove(struct i2c_client *client)
 {
-	i2c_del_driver(&driver);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	do_tda9875_init(sd);
+	v4l2_device_unregister_subdev(sd);
+	kfree(to_state(sd));
+	return 0;
 }
 
-module_init(tda9875_init);
-module_exit(tda9875_fini);
+static const struct i2c_device_id tda9875_id[] = {
+	{ "tda9875", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, tda9875_id);
 
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
-
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "tda9875",
+	.driverid = I2C_DRIVERID_TDA9875,
+	.command = tda9875_command,
+	.probe = tda9875_probe,
+	.remove = tda9875_remove,
+	.id_table = tda9875_id,
+};

@@ -371,7 +371,6 @@ static void ksdazzle_rcv_irq(struct urb *urb)
 			async_unwrap_char(kingsun->netdev, &kingsun->stats,
 					  &kingsun->rx_unwrap_buff, bytes[i]);
 		}
-		kingsun->netdev->last_rx = jiffies;
 		kingsun->receiving =
 		    (kingsun->rx_unwrap_buff.state != OUTSIDE_FRAME) ? 1 : 0;
 	}

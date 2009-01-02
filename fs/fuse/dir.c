@@ -869,18 +869,25 @@ int fuse_update_attributes(struct inode *inode, struct kstat *stat,
  */
 int fuse_allow_task(struct fuse_conn *fc, struct task_struct *task)
 {
+	const struct cred *cred;
+	int ret;
+
 	if (fc->flags & FUSE_ALLOW_OTHER)
 		return 1;
 
-	if (task->euid == fc->user_id &&
-	    task->suid == fc->user_id &&
-	    task->uid == fc->user_id &&
-	    task->egid == fc->group_id &&
-	    task->sgid == fc->group_id &&
-	    task->gid == fc->group_id)
-		return 1;
+	rcu_read_lock();
+	ret = 0;
+	cred = __task_cred(task);
+	if (cred->euid == fc->user_id &&
+	    cred->suid == fc->user_id &&
+	    cred->uid  == fc->user_id &&
+	    cred->egid == fc->group_id &&
+	    cred->sgid == fc->group_id &&
+	    cred->gid  == fc->group_id)
+		ret = 1;
+	rcu_read_unlock();
 
-	return 0;
+	return ret;
 }
 
 static int fuse_access(struct inode *inode, int mask)

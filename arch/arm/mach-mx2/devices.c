@@ -190,38 +190,72 @@ struct platform_device mxc_wdt = {
 	.resource = mxc_wdt_resources,
 };
 
+static struct resource mxc_w1_master_resources[] = {
+	{
+		.start = OWIRE_BASE_ADDR,
+		.end   = OWIRE_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+struct platform_device mxc_w1_master_device = {
+	.name = "mxc_w1",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_w1_master_resources),
+	.resource = mxc_w1_master_resources,
+};
+
+static struct resource mxc_nand_resources[] = {
+	{
+		.start	= NFC_BASE_ADDR,
+		.end	= NFC_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM
+	}, {
+		.start	= MXC_INT_NANDFC,
+		.end	= MXC_INT_NANDFC,
+		.flags	= IORESOURCE_IRQ
+	},
+};
+
+struct platform_device mxc_nand_device = {
+	.name = "mxc_nand",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_nand_resources),
+	.resource = mxc_nand_resources,
+};
+
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	[0] = {
 		.chip.label = "gpio-0",
 		.irq = MXC_INT_GPIO,
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 0),
-		.virtual_irq_start = MXC_MAX_INT_LINES,
+		.virtual_irq_start = MXC_GPIO_IRQ_START,
 	},
 	[1] = {
 		.chip.label = "gpio-1",
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 1),
-		.virtual_irq_start = MXC_MAX_INT_LINES + 32,
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 32,
 	},
 	[2] = {
 		.chip.label = "gpio-2",
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 2),
-		.virtual_irq_start = MXC_MAX_INT_LINES + 64,
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 64,
 	},
 	[3] = {
 		.chip.label = "gpio-3",
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 3),
-		.virtual_irq_start = MXC_MAX_INT_LINES + 96,
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 96,
 	},
 	[4] = {
 		.chip.label = "gpio-4",
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 4),
-		.virtual_irq_start = MXC_MAX_INT_LINES + 128,
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 128,
 	},
 	[5] = {
 		.chip.label = "gpio-5",
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 5),
-		.virtual_irq_start = MXC_MAX_INT_LINES + 160,
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 160,
 	}
 };
 

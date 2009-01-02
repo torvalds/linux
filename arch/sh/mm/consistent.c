@@ -42,6 +42,8 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 		return NULL;
 	}
 
+	split_page(pfn_to_page(virt_to_phys(ret) >> PAGE_SHIFT), order);
+
 	*dma_handle = virt_to_phys(ret);
 	return ret_nocache;
 }
@@ -51,10 +53,13 @@ void dma_free_coherent(struct device *dev, size_t size,
 			 void *vaddr, dma_addr_t dma_handle)
 {
 	int order = get_order(size);
+	unsigned long pfn = dma_handle >> PAGE_SHIFT;
+	int k;
 
 	if (!dma_release_from_coherent(dev, order, vaddr)) {
 		WARN_ON(irqs_disabled());	/* for portability */
-		free_pages((unsigned long)phys_to_virt(dma_handle), order);
+		for (k = 0; k < (1 << order); k++)
+			__free_pages(pfn_to_page(pfn + k), 0);
 		iounmap(vaddr);
 	}
 }

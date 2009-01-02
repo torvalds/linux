@@ -24,6 +24,7 @@
 #include <linux/iommu-helper.h>
 #include <asm/proto.h>
 #include <asm/iommu.h>
+#include <asm/gart.h>
 #include <asm/amd_iommu_types.h>
 #include <asm/amd_iommu.h>
 
@@ -235,8 +236,9 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 	status &= ~MMIO_STATUS_COM_WAIT_INT_MASK;
 	writel(status, iommu->mmio_base + MMIO_STATUS_OFFSET);
 
-	if (unlikely((i == EXIT_LOOP_COUNT) && printk_ratelimit()))
-		printk(KERN_WARNING "AMD IOMMU: Completion wait loop failed\n");
+	if (unlikely(i == EXIT_LOOP_COUNT))
+		panic("AMD IOMMU: Completion wait loop failed\n");
+
 out:
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
@@ -344,7 +346,7 @@ static int iommu_map(struct protection_domain *dom,
 	u64 __pte, *pte, *page;
 
 	bus_addr  = PAGE_ALIGN(bus_addr);
-	phys_addr = PAGE_ALIGN(bus_addr);
+	phys_addr = PAGE_ALIGN(phys_addr);
 
 	/* only support 512GB address spaces for now */
 	if (bus_addr > IOMMU_MAP_SIZE_L3 || !(prot & IOMMU_PROT_MASK))
@@ -600,7 +602,7 @@ static void dma_ops_free_pagetable(struct dma_ops_domain *dma_dom)
 			continue;
 
 		p2 = IOMMU_PTE_PAGE(p1[i]);
-		for (j = 0; j < 512; ++i) {
+		for (j = 0; j < 512; ++j) {
 			if (!IOMMU_PTE_PRESENT(p2[j]))
 				continue;
 			p3 = IOMMU_PTE_PAGE(p2[j]);
@@ -910,7 +912,7 @@ static void dma_ops_domain_unmap(struct amd_iommu *iommu,
 	if (address >= dom->aperture_size)
 		return;
 
-	WARN_ON(address & 0xfffULL || address > dom->aperture_size);
+	WARN_ON(address & ~PAGE_MASK || address >= dom->aperture_size);
 
 	pte  = dom->pte_pages[IOMMU_PTE_L1_INDEX(address)];
 	pte += IOMMU_PTE_L0_INDEX(address);
@@ -922,8 +924,8 @@ static void dma_ops_domain_unmap(struct amd_iommu *iommu,
 
 /*
  * This function contains common code for mapping of a physically
- * contiguous memory region into DMA address space. It is uses by all
- * mapping functions provided by this IOMMU driver.
+ * contiguous memory region into DMA address space. It is used by all
+ * mapping functions provided with this IOMMU driver.
  * Must be called with the domain lock held.
  */
 static dma_addr_t __map_single(struct device *dev,
@@ -983,7 +985,8 @@ static void __unmap_single(struct amd_iommu *iommu,
 	dma_addr_t i, start;
 	unsigned int pages;
 
-	if ((dma_addr == 0) || (dma_addr + size > dma_dom->aperture_size))
+	if ((dma_addr == bad_dma_address) ||
+	    (dma_addr + size > dma_dom->aperture_size))
 		return;
 
 	pages = iommu_num_pages(dma_addr, size, PAGE_SIZE);

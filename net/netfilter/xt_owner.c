@@ -34,12 +34,12 @@ owner_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 		return false;
 
 	if (info->match & IPT_OWNER_UID)
-		if ((filp->f_uid != info->uid) ^
+		if ((filp->f_cred->fsuid != info->uid) ^
 		    !!(info->invert & IPT_OWNER_UID))
 			return false;
 
 	if (info->match & IPT_OWNER_GID)
-		if ((filp->f_gid != info->gid) ^
+		if ((filp->f_cred->fsgid != info->gid) ^
 		    !!(info->invert & IPT_OWNER_GID))
 			return false;
 
@@ -60,12 +60,12 @@ owner_mt6_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 		return false;
 
 	if (info->match & IP6T_OWNER_UID)
-		if ((filp->f_uid != info->uid) ^
+		if ((filp->f_cred->fsuid != info->uid) ^
 		    !!(info->invert & IP6T_OWNER_UID))
 			return false;
 
 	if (info->match & IP6T_OWNER_GID)
-		if ((filp->f_gid != info->gid) ^
+		if ((filp->f_cred->fsgid != info->gid) ^
 		    !!(info->invert & IP6T_OWNER_GID))
 			return false;
 
@@ -93,14 +93,14 @@ owner_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		       (XT_OWNER_UID | XT_OWNER_GID)) == 0;
 
 	if (info->match & XT_OWNER_UID)
-		if ((filp->f_uid >= info->uid_min &&
-		    filp->f_uid <= info->uid_max) ^
+		if ((filp->f_cred->fsuid >= info->uid_min &&
+		    filp->f_cred->fsuid <= info->uid_max) ^
 		    !(info->invert & XT_OWNER_UID))
 			return false;
 
 	if (info->match & XT_OWNER_GID)
-		if ((filp->f_gid >= info->gid_min &&
-		    filp->f_gid <= info->gid_max) ^
+		if ((filp->f_cred->fsgid >= info->gid_min &&
+		    filp->f_cred->fsgid <= info->gid_max) ^
 		    !(info->invert & XT_OWNER_GID))
 			return false;
 

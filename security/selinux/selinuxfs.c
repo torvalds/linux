@@ -95,13 +95,18 @@ extern void selnl_notify_setenforce(int val);
 static int task_has_security(struct task_struct *tsk,
 			     u32 perms)
 {
-	struct task_security_struct *tsec;
+	const struct task_security_struct *tsec;
+	u32 sid = 0;
 
-	tsec = tsk->security;
+	rcu_read_lock();
+	tsec = __task_cred(tsk)->security;
+	if (tsec)
+		sid = tsec->sid;
+	rcu_read_unlock();
 	if (!tsec)
 		return -EACCES;
 
-	return avc_has_perm(tsec->sid, SECINITSID_SECURITY,
+	return avc_has_perm(sid, SECINITSID_SECURITY,
 			    SECCLASS_SECURITY, perms, NULL);
 }
 

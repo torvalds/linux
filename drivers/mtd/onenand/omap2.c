@@ -32,19 +32,18 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-
-#include <asm/io.h>
-#include <asm/mach/flash.h>
-#include <asm/arch/gpmc.h>
-#include <asm/arch/onenand.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/pm.h>
-
 #include <linux/dma-mapping.h>
-#include <asm/dma-mapping.h>
-#include <asm/arch/dma.h>
+#include <linux/io.h>
 
-#include <asm/arch/board.h>
+#include <asm/mach/flash.h>
+#include <mach/gpmc.h>
+#include <mach/onenand.h>
+#include <mach/gpio.h>
+#include <mach/pm.h>
+
+#include <mach/dma.h>
+
+#include <mach/board.h>
 
 #define DRIVER_NAME "omap2-onenand"
 
@@ -150,7 +149,7 @@ static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 
 		INIT_COMPLETION(c->irq_done);
 		if (c->gpio_irq) {
-			result = omap_get_gpio_datain(c->gpio_irq);
+			result = gpio_get_value(c->gpio_irq);
 			if (result == -1) {
 				ctrl = read_reg(c, ONENAND_REG_CTRL_STATUS);
 				intr = read_reg(c, ONENAND_REG_INTERRUPT);
@@ -635,9 +634,9 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 				"OneNAND\n", c->gpio_irq);
 			goto err_iounmap;
 	}
-	omap_set_gpio_direction(c->gpio_irq, 1);
+	gpio_direction_input(c->gpio_irq);
 
-	if ((r = request_irq(OMAP_GPIO_IRQ(c->gpio_irq),
+	if ((r = request_irq(gpio_to_irq(c->gpio_irq),
 			     omap2_onenand_interrupt, IRQF_TRIGGER_RISING,
 			     pdev->dev.driver->name, c)) < 0)
 		goto err_release_gpio;
@@ -724,7 +723,7 @@ err_release_dma:
 	if (c->dma_channel != -1)
 		omap_free_dma(c->dma_channel);
 	if (c->gpio_irq)
-		free_irq(OMAP_GPIO_IRQ(c->gpio_irq), c);
+		free_irq(gpio_to_irq(c->gpio_irq), c);
 err_release_gpio:
 	if (c->gpio_irq)
 		omap_free_gpio(c->gpio_irq);
@@ -761,7 +760,7 @@ static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 	omap2_onenand_shutdown(pdev);
 	platform_set_drvdata(pdev, NULL);
 	if (c->gpio_irq) {
-		free_irq(OMAP_GPIO_IRQ(c->gpio_irq), c);
+		free_irq(gpio_to_irq(c->gpio_irq), c);
 		omap_free_gpio(c->gpio_irq);
 	}
 	iounmap(c->onenand.base);

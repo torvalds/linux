@@ -432,18 +432,19 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		goto err_out_release_ctlr;
 	}
 
+	/* Check if slot is occupied */
 	t_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
-
-	t_slot->hpc_ops->get_adapter_status(t_slot, &value); /* Check if slot is occupied */
-	if (value && pciehp_force) {
-		rc = pciehp_enable_slot(t_slot);
-		if (rc)	/* -ENODEV: shouldn't happen, but deal with it */
-			value = 0;
-	}
-	if ((POWER_CTRL(ctrl)) && !value) {
-		rc = t_slot->hpc_ops->power_off_slot(t_slot); /* Power off slot if not occupied*/
-		if (rc)
-			goto err_out_free_ctrl_slot;
+	t_slot->hpc_ops->get_adapter_status(t_slot, &value);
+	if (value) {
+		if (pciehp_force)
+			pciehp_enable_slot(t_slot);
+	} else {
+		/* Power off slot if not occupied */
+		if (POWER_CTRL(ctrl)) {
+			rc = t_slot->hpc_ops->power_off_slot(t_slot);
+			if (rc)
+				goto err_out_free_ctrl_slot;
+		}
 	}
 
 	return 0;

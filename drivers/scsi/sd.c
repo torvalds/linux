@@ -884,7 +884,7 @@ static int sd_sync_cache(struct scsi_disk *sdkp)
 		 * flush everything.
 		 */
 		res = scsi_execute_req(sdp, cmd, DMA_NONE, NULL, 0, &sshdr,
-				       SD_TIMEOUT, SD_MAX_RETRIES);
+				       SD_TIMEOUT, SD_MAX_RETRIES, NULL);
 		if (res == 0)
 			break;
 	}
@@ -1134,7 +1134,7 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			the_result = scsi_execute_req(sdkp->device, cmd,
 						      DMA_NONE, NULL, 0,
 						      &sshdr, SD_TIMEOUT,
-						      SD_MAX_RETRIES);
+						      SD_MAX_RETRIES, NULL);
 
 			/*
 			 * If the drive has indicated to us that it
@@ -1192,7 +1192,8 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 					cmd[4] |= 1 << 4;
 				scsi_execute_req(sdkp->device, cmd, DMA_NONE,
 						 NULL, 0, &sshdr,
-						 SD_TIMEOUT, SD_MAX_RETRIES);
+						 SD_TIMEOUT, SD_MAX_RETRIES,
+						 NULL);
 				spintime_expire = jiffies + 100 * HZ;
 				spintime = 1;
 			}
@@ -1306,7 +1307,7 @@ repeat:
 		
 		the_result = scsi_execute_req(sdp, cmd, DMA_FROM_DEVICE,
 					      buffer, longrc ? 13 : 8, &sshdr,
-					      SD_TIMEOUT, SD_MAX_RETRIES);
+					      SD_TIMEOUT, SD_MAX_RETRIES, NULL);
 
 		if (media_not_present(sdkp, &sshdr))
 			return;
@@ -1986,7 +1987,7 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 		return -ENODEV;
 
 	res = scsi_execute_req(sdp, cmd, DMA_NONE, NULL, 0, &sshdr,
-			       SD_TIMEOUT, SD_MAX_RETRIES);
+			       SD_TIMEOUT, SD_MAX_RETRIES, NULL);
 	if (res) {
 		sd_printk(KERN_WARNING, sdkp, "START_STOP FAILED\n");
 		sd_print_result(sdkp, res);

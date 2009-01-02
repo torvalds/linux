@@ -467,6 +467,17 @@ const char *dmi_get_system_info(int field)
 }
 EXPORT_SYMBOL(dmi_get_system_info);
 
+/**
+ *	dmi_name_in_serial - 	Check if string is in the DMI product serial
+ *				information.
+ */
+int dmi_name_in_serial(const char *str)
+{
+	int f = DMI_PRODUCT_SERIAL;
+	if (dmi_ident[f] && strstr(dmi_ident[f], str))
+		return 1;
+	return 0;
+}
 
 /**
  *	dmi_name_in_vendors - Check if string is anywhere in the DMI vendor information.
@@ -571,3 +582,19 @@ int dmi_walk(void (*decode)(const struct dmi_header *))
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dmi_walk);
+
+/**
+ * dmi_match - compare a string to the dmi field (if exists)
+ *
+ * Returns true if the requested field equals to the str (including NULL).
+ */
+bool dmi_match(enum dmi_field f, const char *str)
+{
+	const char *info = dmi_get_system_info(f);
+
+	if (info == NULL || str == NULL)
+		return info == str;
+
+	return !strcmp(info, str);
+}
+EXPORT_SYMBOL_GPL(dmi_match);

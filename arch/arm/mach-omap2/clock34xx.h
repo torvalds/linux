@@ -1374,7 +1374,7 @@ static struct clk core_96m_fck = {
 
 static struct clk mmchs3_fck = {
 	.name		= "mmchs_fck",
-	.id		= 3,
+	.id		= 2,
 	.parent		= &core_96m_fck,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
 	.enable_bit	= OMAP3430ES2_EN_MMC3_SHIFT,
@@ -1385,7 +1385,7 @@ static struct clk mmchs3_fck = {
 
 static struct clk mmchs2_fck = {
 	.name		= "mmchs_fck",
-	.id		= 2,
+	.id		= 1,
 	.parent		= &core_96m_fck,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
 	.enable_bit	= OMAP3430_EN_MMC2_SHIFT,
@@ -1406,7 +1406,6 @@ static struct clk mspro_fck = {
 
 static struct clk mmchs1_fck = {
 	.name		= "mmchs_fck",
-	.id		= 1,
 	.parent		= &core_96m_fck,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
 	.enable_bit	= OMAP3430_EN_MMC1_SHIFT,
@@ -1722,7 +1721,7 @@ static struct clk usbtll_ick = {
 
 static struct clk mmchs3_ick = {
 	.name		= "mmchs_ick",
-	.id		= 3,
+	.id		= 2,
 	.parent		= &core_l4_ick,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
 	.enable_bit	= OMAP3430ES2_EN_MMC3_SHIFT,
@@ -1774,7 +1773,7 @@ static struct clk des2_ick = {
 
 static struct clk mmchs2_ick = {
 	.name		= "mmchs_ick",
-	.id		= 2,
+	.id		= 1,
 	.parent		= &core_l4_ick,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
 	.enable_bit	= OMAP3430_EN_MMC2_SHIFT,
@@ -1785,7 +1784,6 @@ static struct clk mmchs2_ick = {
 
 static struct clk mmchs1_ick = {
 	.name		= "mmchs_ick",
-	.id		= 1,
 	.parent		= &core_l4_ick,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
 	.enable_bit	= OMAP3430_EN_MMC1_SHIFT,
@@ -2280,8 +2278,8 @@ static struct clk wkup_32k_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk gpio1_fck = {
-	.name		= "gpio1_fck",
+static struct clk gpio1_dbck = {
+	.name		= "gpio1_dbck",
 	.parent		= &wkup_32k_fck,
 	.enable_reg	= OMAP_CM_REGADDR(WKUP_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO1_SHIFT,
@@ -2527,8 +2525,8 @@ static struct clk per_32k_alwon_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk gpio6_fck = {
-	.name		= "gpio6_fck",
+static struct clk gpio6_dbck = {
+	.name		= "gpio6_dbck",
 	.parent		= &per_32k_alwon_fck,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_PER_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO6_SHIFT,
@@ -2537,8 +2535,8 @@ static struct clk gpio6_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk gpio5_fck = {
-	.name		= "gpio5_fck",
+static struct clk gpio5_dbck = {
+	.name		= "gpio5_dbck",
 	.parent		= &per_32k_alwon_fck,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_PER_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO5_SHIFT,
@@ -2547,8 +2545,8 @@ static struct clk gpio5_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk gpio4_fck = {
-	.name		= "gpio4_fck",
+static struct clk gpio4_dbck = {
+	.name		= "gpio4_dbck",
 	.parent		= &per_32k_alwon_fck,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_PER_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO4_SHIFT,
@@ -2557,8 +2555,8 @@ static struct clk gpio4_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk gpio3_fck = {
-	.name		= "gpio3_fck",
+static struct clk gpio3_dbck = {
+	.name		= "gpio3_dbck",
 	.parent		= &per_32k_alwon_fck,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_PER_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO3_SHIFT,
@@ -2567,8 +2565,8 @@ static struct clk gpio3_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk gpio2_fck = {
-	.name		= "gpio2_fck",
+static struct clk gpio2_dbck = {
+	.name		= "gpio2_dbck",
 	.parent		= &per_32k_alwon_fck,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_PER_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO2_SHIFT,
@@ -3170,7 +3168,7 @@ static struct clk *onchip_34xx_clks[] __initdata = {
 	&usim_fck,
 	&gpt1_fck,
 	&wkup_32k_fck,
-	&gpio1_fck,
+	&gpio1_dbck,
 	&wdt2_fck,
 	&wkup_l4_ick,
 	&usim_ick,
@@ -3192,11 +3190,11 @@ static struct clk *onchip_34xx_clks[] __initdata = {
 	&gpt8_fck,
 	&gpt9_fck,
 	&per_32k_alwon_fck,
-	&gpio6_fck,
-	&gpio5_fck,
-	&gpio4_fck,
-	&gpio3_fck,
-	&gpio2_fck,
+	&gpio6_dbck,
+	&gpio5_dbck,
+	&gpio4_dbck,
+	&gpio3_dbck,
+	&gpio2_dbck,
 	&wdt3_fck,
 	&per_l4_ick,
 	&gpio6_ick,

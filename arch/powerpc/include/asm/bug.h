@@ -3,6 +3,7 @@
 #ifdef __KERNEL__
 
 #include <asm/asm-compat.h>
+
 /*
  * Define an illegal instr to trap on the bug.
  * We don't use 0 because that marks the end of a function
@@ -14,6 +15,7 @@
 #ifdef CONFIG_BUG
 
 #ifdef __ASSEMBLY__
+#include <asm/asm-offsets.h>
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 .macro EMIT_BUG_ENTRY addr,file,line,flags
 	 .section __bug_table,"a"
@@ -26,7 +28,7 @@
 	 .previous
 .endm
 #else
- .macro EMIT_BUG_ENTRY addr,file,line,flags
+.macro EMIT_BUG_ENTRY addr,file,line,flags
 	 .section __bug_table,"a"
 5001:	 PPC_LONG \addr
 	 .short \flags
@@ -113,6 +115,13 @@
 #define HAVE_ARCH_BUG_ON
 #define HAVE_ARCH_WARN_ON
 #endif /* __ASSEMBLY __ */
+#else
+#ifdef __ASSEMBLY__
+.macro EMIT_BUG_ENTRY addr,file,line,flags
+.endm
+#else /* !__ASSEMBLY__ */
+#define _EMIT_BUG_ENTRY
+#endif
 #endif /* CONFIG_BUG */
 
 #include <asm-generic/bug.h>

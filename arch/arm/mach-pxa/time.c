@@ -22,8 +22,8 @@
 #include <asm/div64.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
+#include <mach/hardware.h>
 #include <mach/pxa-regs.h>
-#include <asm/mach-types.h>
 
 /*
  * This is PXA's sched_clock implementation. This has a resolution
@@ -150,17 +150,10 @@ static struct irqaction pxa_ost0_irq = {
 
 static void __init pxa_timer_init(void)
 {
-	unsigned long clock_tick_rate;
+	unsigned long clock_tick_rate = get_clock_tick_rate();
 
 	OIER = 0;
 	OSSR = OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3;
-
-	if (cpu_is_pxa25x())
-		clock_tick_rate = 3686400;
-	else if (machine_is_mainstone())
-		clock_tick_rate = 3249600;
-	else
-		clock_tick_rate = 3250000;
 
 	set_oscr2ns_scale(clock_tick_rate);
 

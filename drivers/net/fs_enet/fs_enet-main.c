@@ -209,7 +209,7 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 
 	if (received < budget) {
 		/* done */
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		(*fep->ops->napi_enable_rx)(dev);
 	}
 	return received;
@@ -478,7 +478,7 @@ fs_enet_interrupt(int irq, void *dev_id)
 				/* NOTE: it is possible for FCCs in NAPI mode    */
 				/* to submit a spurious interrupt while in poll  */
 				if (napi_ok)
-					__netif_rx_schedule(dev, &fep->napi);
+					__netif_rx_schedule(&fep->napi);
 			}
 		}
 
@@ -1117,10 +1117,7 @@ static int __devinit fs_enet_probe(struct of_device *ofdev,
 	if (ret)
 		goto out_free_bd;
 
-	printk(KERN_INFO "%s: fs_enet: %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       ndev->name,
-	       ndev->dev_addr[0], ndev->dev_addr[1], ndev->dev_addr[2],
-	       ndev->dev_addr[3], ndev->dev_addr[4], ndev->dev_addr[5]);
+	printk(KERN_INFO "%s: fs_enet: %pM\n", ndev->name, ndev->dev_addr);
 
 	return 0;
 

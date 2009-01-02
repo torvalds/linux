@@ -18,7 +18,7 @@
 #include <linux/mISDNif.h>
 #include "core.h"
 
-static int	*debug;
+static u_int	*debug;
 
 static struct proto mISDN_proto = {
 	.name		= "misdn",

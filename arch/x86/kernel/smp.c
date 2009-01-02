@@ -140,19 +140,6 @@ void native_send_call_func_ipi(cpumask_t mask)
 		send_IPI_mask(mask, CALL_FUNCTION_VECTOR);
 }
 
-static void stop_this_cpu(void *dummy)
-{
-	local_irq_disable();
-	/*
-	 * Remove this CPU:
-	 */
-	cpu_clear(smp_processor_id(), cpu_online_map);
-	disable_local_APIC();
-	if (hlt_works(smp_processor_id()))
-		for (;;) halt();
-	for (;;);
-}
-
 /*
  * this function calls the 'stop' function on all other CPUs in the system.
  */
@@ -178,11 +165,7 @@ static void native_smp_send_stop(void)
 void smp_reschedule_interrupt(struct pt_regs *regs)
 {
 	ack_APIC_irq();
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_resched_count++;
-#else
-	add_pda(irq_resched_count, 1);
-#endif
+	inc_irq_stat(irq_resched_count);
 }
 
 void smp_call_function_interrupt(struct pt_regs *regs)
@@ -190,11 +173,7 @@ void smp_call_function_interrupt(struct pt_regs *regs)
 	ack_APIC_irq();
 	irq_enter();
 	generic_smp_call_function_interrupt();
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_call_count++;
-#else
-	add_pda(irq_call_count, 1);
-#endif
+	inc_irq_stat(irq_call_count);
 	irq_exit();
 }
 
@@ -203,11 +182,7 @@ void smp_call_function_single_interrupt(struct pt_regs *regs)
 	ack_APIC_irq();
 	irq_enter();
 	generic_smp_call_function_single_interrupt();
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_call_count++;
-#else
-	add_pda(irq_call_count, 1);
-#endif
+	inc_irq_stat(irq_call_count);
 	irq_exit();
 }
 

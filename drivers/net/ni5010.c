@@ -203,7 +203,6 @@ static int __init ni5010_probe1(struct net_device *dev, int ioaddr)
 	unsigned int data = 0;
 	int boguscount = 40;
 	int err = -ENODEV;
-	DECLARE_MAC_BUF(mac);
 
 	dev->base_addr = ioaddr;
 	dev->irq = irq;
@@ -271,7 +270,7 @@ static int __init ni5010_probe1(struct net_device *dev, int ioaddr)
 		outw(i, IE_GP);
 		dev->dev_addr[i] = inb(IE_SAPROM);
 	}
-	printk("%s ", print_mac(mac, dev->dev_addr));
+	printk("%pM ", dev->dev_addr);
 
 	PRINTK2((KERN_DEBUG "%s: I/O #4 passed!\n", dev->name));
 
@@ -329,7 +328,7 @@ static int __init ni5010_probe1(struct net_device *dev, int ioaddr)
         	outb(0, IE_RBUF);	/* set buffer byte 0 to 0 again */
 	}
         printk("-> bufsize rcv/xmt=%d/%d\n", bufsize_rcv, NI5010_BUFSIZE);
-	memset(dev->priv, 0, sizeof(struct ni5010_local));
+	memset(netdev_priv(dev), 0, sizeof(struct ni5010_local));
 
 	dev->open		= ni5010_open;
 	dev->stop		= ni5010_close;
@@ -570,7 +569,6 @@ static void ni5010_rx(struct net_device *dev)
 
 	skb->protocol = eth_type_trans(skb,dev);
 	netif_rx(skb);
-	dev->last_rx = jiffies;
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += i_pkt_size;
 
@@ -768,12 +766,3 @@ module_init(ni5010_init_module);
 module_exit(ni5010_cleanup_module);
 #endif /* MODULE */
 MODULE_LICENSE("GPL");
-
-/*
- * Local variables:
- *  compile-command: "gcc -D__KERNEL__ -I/usr/src/linux/net/inet -Wall -Wstrict-prototypes -O6 -m486 -c ni5010.c"
- *  version-control: t
- *  kept-new-versions: 5
- *  tab-width: 4
- * End:
- */

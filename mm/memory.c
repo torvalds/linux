@@ -669,6 +669,16 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	if (is_vm_hugetlb_page(vma))
 		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
 
+	if (unlikely(is_pfn_mapping(vma))) {
+		/*
+		 * We do not free on error cases below as remove_vma
+		 * gets called on error from higher level routine
+		 */
+		ret = track_pfn_vma_copy(vma);
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 * We need to invalidate the secondary MMU mappings only when
 	 * there could be a permission downgrade on the ptes of the
@@ -914,6 +924,9 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
 
 		if (vma->vm_flags & VM_ACCOUNT)
 			*nr_accounted += (end - start) >> PAGE_SHIFT;
+
+		if (unlikely(is_pfn_mapping(vma)))
+			untrack_pfn_vma(vma, 0, 0);
 
 		while (start != end) {
 			if (!tlb_start_valid) {
@@ -1430,6 +1443,7 @@ out:
 int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn)
 {
+	int ret;
 	/*
 	 * Technically, architectures with pte_special can avoid all these
 	 * restrictions (same for remap_pfn_range).  However we would like
@@ -1444,7 +1458,15 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 
 	if (addr < vma->vm_start || addr >= vma->vm_end)
 		return -EFAULT;
-	return insert_pfn(vma, addr, pfn, vma->vm_page_prot);
+	if (track_pfn_vma_new(vma, vma->vm_page_prot, pfn, PAGE_SIZE))
+		return -EINVAL;
+
+	ret = insert_pfn(vma, addr, pfn, vma->vm_page_prot);
+
+	if (ret)
+		untrack_pfn_vma(vma, pfn, PAGE_SIZE);
+
+	return ret;
 }
 EXPORT_SYMBOL(vm_insert_pfn);
 
@@ -1575,13 +1597,16 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	 * behaviour that some programs depend on. We mark the "original"
 	 * un-COW'ed pages by matching them up with "vma->vm_pgoff".
 	 */
-	if (is_cow_mapping(vma->vm_flags)) {
-		if (addr != vma->vm_start || end != vma->vm_end)
-			return -EINVAL;
+	if (addr == vma->vm_start && end == vma->vm_end)
 		vma->vm_pgoff = pfn;
-	}
+	else if (is_cow_mapping(vma->vm_flags))
+		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
+
+	err = track_pfn_vma_new(vma, prot, pfn, PAGE_ALIGN(size));
+	if (err)
+		return -EINVAL;
 
 	BUG_ON(addr >= end);
 	pfn -= addr >> PAGE_SHIFT;
@@ -1594,6 +1619,10 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 		if (err)
 			break;
 	} while (pgd++, addr = next, addr != end);
+
+	if (err)
+		untrack_pfn_vma(vma, pfn, PAGE_ALIGN(size));
+
 	return err;
 }
 EXPORT_SYMBOL(remap_pfn_range);
@@ -2865,9 +2894,9 @@ int in_gate_area_no_task(unsigned long addr)
 #endif	/* __HAVE_ARCH_GATE_AREA */
 
 #ifdef CONFIG_HAVE_IOREMAP_PROT
-static resource_size_t follow_phys(struct vm_area_struct *vma,
-			unsigned long address, unsigned int flags,
-			unsigned long *prot)
+int follow_phys(struct vm_area_struct *vma,
+		unsigned long address, unsigned int flags,
+		unsigned long *prot, resource_size_t *phys)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -2876,24 +2905,26 @@ static resource_size_t follow_phys(struct vm_area_struct *vma,
 	spinlock_t *ptl;
 	resource_size_t phys_addr = 0;
 	struct mm_struct *mm = vma->vm_mm;
+	int ret = -EINVAL;
 
-	VM_BUG_ON(!(vma->vm_flags & (VM_IO | VM_PFNMAP)));
+	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
+		goto out;
 
 	pgd = pgd_offset(mm, address);
 	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		goto no_page_table;
+		goto out;
 
 	pud = pud_offset(pgd, address);
 	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
-		goto no_page_table;
+		goto out;
 
 	pmd = pmd_offset(pud, address);
 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
-		goto no_page_table;
+		goto out;
 
 	/* We cannot handle huge page PFN maps. Luckily they don't exist. */
 	if (pmd_huge(*pmd))
-		goto no_page_table;
+		goto out;
 
 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
 	if (!ptep)
@@ -2908,13 +2939,13 @@ static resource_size_t follow_phys(struct vm_area_struct *vma,
 	phys_addr <<= PAGE_SHIFT; /* Shift here to avoid overflow on PAE */
 
 	*prot = pgprot_val(pte_pgprot(pte));
+	*phys = phys_addr;
+	ret = 0;
 
 unlock:
 	pte_unmap_unlock(ptep, ptl);
 out:
-	return phys_addr;
-no_page_table:
-	return 0;
+	return ret;
 }
 
 int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
@@ -2925,12 +2956,7 @@ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 	void *maddr;
 	int offset = addr & (PAGE_SIZE-1);
 
-	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
-		return -EINVAL;
-
-	phys_addr = follow_phys(vma, addr, write, &prot);
-
-	if (!phys_addr)
+	if (follow_phys(vma, addr, write, &prot, &phys_addr))
 		return -EINVAL;
 
 	maddr = ioremap_prot(phys_addr, PAGE_SIZE, prot);
@@ -3049,3 +3075,18 @@ void print_vma_addr(char *prefix, unsigned long ip)
 	}
 	up_read(&current->mm->mmap_sem);
 }
+
+#ifdef CONFIG_PROVE_LOCKING
+void might_fault(void)
+{
+	might_sleep();
+	/*
+	 * it would be nicer only to annotate paths which are not under
+	 * pagefault_disable, however that requires a larger audit and
+	 * providing helpers like get_user_atomic.
+	 */
+	if (!in_atomic() && current->mm)
+		might_lock_read(&current->mm->mmap_sem);
+}
+EXPORT_SYMBOL(might_fault);
+#endif

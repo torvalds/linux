@@ -53,7 +53,8 @@ struct mac_esp_priv {
 	void __iomem *pdma_io;
 	int error;
 };
-static struct platform_device *internal_esp, *external_esp;
+static struct platform_device *internal_pdev, *external_pdev;
+static struct esp *esp_chips[2];
 
 #define MAC_ESP_GET_PRIV(esp) ((struct mac_esp_priv *) \
 			       platform_get_drvdata((struct platform_device *) \
@@ -170,7 +171,7 @@ static inline int mac_esp_wait_for_dreq(struct esp *esp)
 
 #define MAC_ESP_PDMA_LOOP(operands) \
 	asm volatile ( \
-	     "       tstw %2                   \n" \
+	     "       tstw %1                   \n" \
 	     "       jbeq 20f                  \n" \
 	     "1:     movew " operands "        \n" \
 	     "2:     movew " operands "        \n" \
@@ -188,14 +189,14 @@ static inline int mac_esp_wait_for_dreq(struct esp *esp)
 	     "14:    movew " operands "        \n" \
 	     "15:    movew " operands "        \n" \
 	     "16:    movew " operands "        \n" \
-	     "       subqw #1,%2               \n" \
+	     "       subqw #1,%1               \n" \
 	     "       jbne 1b                   \n" \
-	     "20:    tstw %3                   \n" \
+	     "20:    tstw %2                   \n" \
 	     "       jbeq 30f                  \n" \
 	     "21:    movew " operands "        \n" \
-	     "       subqw #1,%3               \n" \
+	     "       subqw #1,%2               \n" \
 	     "       jbne 21b                  \n" \
-	     "30:    tstw %4                   \n" \
+	     "30:    tstw %3                   \n" \
 	     "       jbeq 40f                  \n" \
 	     "31:    moveb " operands "        \n" \
 	     "32:    nop                       \n" \
@@ -223,8 +224,8 @@ static inline int mac_esp_wait_for_dreq(struct esp *esp)
 	     "       .long  31b,40b            \n" \
 	     "       .long  32b,40b            \n" \
 	     "       .previous                 \n" \
-	     : "+a" (addr) \
-	     : "a" (mep->pdma_io), "r" (count32), "r" (count2), "g" (esp_count))
+	     : "+a" (addr), "+r" (count32), "+r" (count2) \
+	     : "g" (count1), "a" (mep->pdma_io))
 
 static void mac_esp_send_pdma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 				  u32 dma_count, int write, u8 cmd)
@@ -247,19 +248,20 @@ static void mac_esp_send_pdma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 	do {
 		unsigned int count32 = esp_count >> 5;
 		unsigned int count2 = (esp_count & 0x1F) >> 1;
+		unsigned int count1 = esp_count & 1;
 		unsigned int start_addr = addr;
 
 		if (mac_esp_wait_for_dreq(esp))
 			break;
 
 		if (write) {
-			MAC_ESP_PDMA_LOOP("%1@,%0@+");
+			MAC_ESP_PDMA_LOOP("%4@,%0@+");
 
 			esp_count -= addr - start_addr;
 		} else {
 			unsigned int n;
 
-			MAC_ESP_PDMA_LOOP("%0@+,%1@");
+			MAC_ESP_PDMA_LOOP("%0@+,%4@");
 
 			if (mac_esp_wait_for_empty_fifo(esp))
 				break;
@@ -442,6 +444,32 @@ static u32 mac_esp_dma_length_limit(struct esp *esp, u32 dma_addr, u32 dma_len)
 	return dma_len > 0xFFFF ? 0xFFFF : dma_len;
 }
 
+static irqreturn_t mac_scsi_esp_intr(int irq, void *dev_id)
+{
+	int got_intr;
+
+	/*
+	 * This is an edge triggered IRQ, so we have to be careful to
+	 * avoid missing a transition when it is shared by two ESP devices.
+	 */
+
+	do {
+		got_intr = 0;
+		if (esp_chips[0] &&
+		    (mac_esp_read8(esp_chips[0], ESP_STATUS) & ESP_STAT_INTR)) {
+			(void)scsi_esp_intr(irq, esp_chips[0]);
+			got_intr = 1;
+		}
+		if (esp_chips[1] &&
+		    (mac_esp_read8(esp_chips[1], ESP_STATUS) & ESP_STAT_INTR)) {
+			(void)scsi_esp_intr(irq, esp_chips[1]);
+			got_intr = 1;
+		}
+	} while (got_intr);
+
+	return IRQ_HANDLED;
+}
+
 static struct esp_driver_ops mac_esp_ops = {
 	.esp_write8       = mac_esp_write8,
 	.esp_read8        = mac_esp_read8,
@@ -556,10 +584,16 @@ static int __devinit esp_mac_probe(struct platform_device *dev)
 	}
 
 	host->irq = IRQ_MAC_SCSI;
-	err = request_irq(host->irq, scsi_esp_intr, IRQF_SHARED, "Mac ESP",
-			  esp);
-	if (err < 0)
-		goto fail_free_priv;
+	esp_chips[dev->id] = esp;
+	mb();
+	if (esp_chips[!dev->id] == NULL) {
+		err = request_irq(host->irq, mac_scsi_esp_intr, 0,
+		                  "Mac ESP", NULL);
+		if (err < 0) {
+			esp_chips[dev->id] = NULL;
+			goto fail_free_priv;
+		}
+	}
 
 	err = scsi_esp_register(esp, &dev->dev);
 	if (err)
@@ -568,7 +602,8 @@ static int __devinit esp_mac_probe(struct platform_device *dev)
 	return 0;
 
 fail_free_irq:
-	free_irq(host->irq, esp);
+	if (esp_chips[!dev->id] == NULL)
+		free_irq(host->irq, esp);
 fail_free_priv:
 	kfree(mep);
 fail_free_command_block:
@@ -587,7 +622,9 @@ static int __devexit esp_mac_remove(struct platform_device *dev)
 
 	scsi_esp_unregister(esp);
 
-	free_irq(irq, esp);
+	esp_chips[dev->id] = NULL;
+	if (!(esp_chips[0] || esp_chips[1]))
+		free_irq(irq, NULL);
 
 	kfree(mep);
 
@@ -614,19 +651,18 @@ static int __init mac_esp_init(void)
 	if (err)
 		return err;
 
-	internal_esp = platform_device_alloc(DRV_MODULE_NAME, 0);
-	if (internal_esp && platform_device_add(internal_esp)) {
-		platform_device_put(internal_esp);
-		internal_esp = NULL;
+	internal_pdev = platform_device_alloc(DRV_MODULE_NAME, 0);
+	if (internal_pdev && platform_device_add(internal_pdev)) {
+		platform_device_put(internal_pdev);
+		internal_pdev = NULL;
+	}
+	external_pdev = platform_device_alloc(DRV_MODULE_NAME, 1);
+	if (external_pdev && platform_device_add(external_pdev)) {
+		platform_device_put(external_pdev);
+		external_pdev = NULL;
 	}
 
-	external_esp = platform_device_alloc(DRV_MODULE_NAME, 1);
-	if (external_esp && platform_device_add(external_esp)) {
-		platform_device_put(external_esp);
-		external_esp = NULL;
-	}
-
-	if (internal_esp || external_esp) {
+	if (internal_pdev || external_pdev) {
 		return 0;
 	} else {
 		platform_driver_unregister(&esp_mac_driver);
@@ -638,13 +674,13 @@ static void __exit mac_esp_exit(void)
 {
 	platform_driver_unregister(&esp_mac_driver);
 
-	if (internal_esp) {
-		platform_device_unregister(internal_esp);
-		internal_esp = NULL;
+	if (internal_pdev) {
+		platform_device_unregister(internal_pdev);
+		internal_pdev = NULL;
 	}
-	if (external_esp) {
-		platform_device_unregister(external_esp);
-		external_esp = NULL;
+	if (external_pdev) {
+		platform_device_unregister(external_pdev);
+		external_pdev = NULL;
 	}
 }
 

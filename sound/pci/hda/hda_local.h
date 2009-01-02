@@ -96,6 +96,8 @@ struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 					    const char *name);
 int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 			unsigned int *tlv, const char **slaves);
+void snd_hda_codec_reset(struct hda_codec *codec);
+int snd_hda_codec_configure(struct hda_codec *codec);
 
 /* amp value bits */
 #define HDA_AMP_MUTE	0x80
@@ -282,6 +284,12 @@ int snd_hda_codec_proc_new(struct hda_codec *codec);
 static inline int snd_hda_codec_proc_new(struct hda_codec *codec) { return 0; }
 #endif
 
+#define SND_PRINT_RATES_ADVISED_BUFSIZE	80
+void snd_print_pcm_rates(int pcm, char *buf, int buflen);
+
+#define SND_PRINT_BITS_ADVISED_BUFSIZE	16
+void snd_print_pcm_bits(int pcm, char *buf, int buflen);
+
 /*
  * Misc
  */
@@ -364,17 +372,17 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 /* amp values */
 #define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))
 #define AMP_IN_UNMUTE(idx)	(0x7000 | ((idx)<<8))
-#define AMP_OUT_MUTE	0xb080
-#define AMP_OUT_UNMUTE	0xb000
-#define AMP_OUT_ZERO	0xb000
+#define AMP_OUT_MUTE		0xb080
+#define AMP_OUT_UNMUTE		0xb000
+#define AMP_OUT_ZERO		0xb000
 /* pinctl values */
 #define PIN_IN			(AC_PINCTL_IN_EN)
-#define PIN_VREFHIZ	(AC_PINCTL_IN_EN | AC_PINCTL_VREF_HIZ)
+#define PIN_VREFHIZ		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_HIZ)
 #define PIN_VREF50		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_50)
-#define PIN_VREFGRD	(AC_PINCTL_IN_EN | AC_PINCTL_VREF_GRD)
+#define PIN_VREFGRD		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_GRD)
 #define PIN_VREF80		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_80)
-#define PIN_VREF100	(AC_PINCTL_IN_EN | AC_PINCTL_VREF_100)
-#define PIN_OUT		(AC_PINCTL_OUT_EN)
+#define PIN_VREF100		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_100)
+#define PIN_OUT			(AC_PINCTL_OUT_EN)
 #define PIN_HP			(AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN)
 #define PIN_HP_AMP		(AC_PINCTL_HP_EN)
 
@@ -393,10 +401,26 @@ u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction);
 int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps);
 
+int snd_hda_ctl_add(struct hda_codec *codec, struct snd_kcontrol *kctl);
+void snd_hda_ctls_clear(struct hda_codec *codec);
+
 /*
  * hwdep interface
  */
+#ifdef CONFIG_SND_HDA_HWDEP
 int snd_hda_create_hwdep(struct hda_codec *codec);
+#else
+static inline int snd_hda_create_hwdep(struct hda_codec *codec) { return 0; }
+#endif
+
+#ifdef CONFIG_SND_HDA_RECONFIG
+int snd_hda_hwdep_add_sysfs(struct hda_codec *codec);
+#else
+static inline int snd_hda_hwdep_add_sysfs(struct hda_codec *codec)
+{
+	return 0;
+}
+#endif
 
 /*
  * power-management
@@ -429,5 +453,67 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 #define get_amp_channels(kc)	(((kc)->private_value >> 16) & 0x3)
 #define get_amp_direction(kc)	(((kc)->private_value >> 18) & 0x1)
 #define get_amp_index(kc)	(((kc)->private_value >> 19) & 0xf)
+
+/*
+ * CEA Short Audio Descriptor data
+ */
+struct cea_sad {
+	int	channels;
+	int	format;		/* (format == 0) indicates invalid SAD */
+	int	rates;
+	int	sample_bits;	/* for LPCM */
+	int	max_bitrate;	/* for AC3...ATRAC */
+	int	profile;	/* for WMAPRO */
+};
+
+#define ELD_FIXED_BYTES	20
+#define ELD_MAX_MNL	16
+#define ELD_MAX_SAD	16
+
+/*
+ * ELD: EDID Like Data
+ */
+struct hdmi_eld {
+	int	eld_size;
+	int	baseline_len;
+	int	eld_ver;	/* (eld_ver == 0) indicates invalid ELD */
+	int	cea_edid_ver;
+	char	monitor_name[ELD_MAX_MNL + 1];
+	int	manufacture_id;
+	int	product_id;
+	u64	port_id;
+	int	support_hdcp;
+	int	support_ai;
+	int	conn_type;
+	int	aud_synch_delay;
+	int	spk_alloc;
+	int	sad_count;
+	struct cea_sad sad[ELD_MAX_SAD];
+#ifdef CONFIG_PROC_FS
+	struct snd_info_entry *proc_entry;
+#endif
+};
+
+int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid);
+int snd_hdmi_get_eld(struct hdmi_eld *, struct hda_codec *, hda_nid_t);
+void snd_hdmi_show_eld(struct hdmi_eld *eld);
+
+#ifdef CONFIG_PROC_FS
+int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld);
+void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld);
+#else
+static inline int snd_hda_eld_proc_new(struct hda_codec *codec,
+				       struct hdmi_eld *eld)
+{
+	return 0;
+}
+static inline void snd_hda_eld_proc_free(struct hda_codec *codec,
+					 struct hdmi_eld *eld)
+{
+}
+#endif
+
+#define SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE 80
+void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen);
 
 #endif /* __SOUND_HDA_LOCAL_H */

@@ -18,7 +18,8 @@
 static struct dst_ops xfrm4_dst_ops;
 static struct xfrm_policy_afinfo xfrm4_policy_afinfo;
 
-static struct dst_entry *xfrm4_dst_lookup(int tos, xfrm_address_t *saddr,
+static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
+					  xfrm_address_t *saddr,
 					  xfrm_address_t *daddr)
 {
 	struct flowi fl = {
@@ -36,19 +37,20 @@ static struct dst_entry *xfrm4_dst_lookup(int tos, xfrm_address_t *saddr,
 	if (saddr)
 		fl.fl4_src = saddr->a4;
 
-	err = __ip_route_output_key(&init_net, &rt, &fl);
+	err = __ip_route_output_key(net, &rt, &fl);
 	dst = &rt->u.dst;
 	if (err)
 		dst = ERR_PTR(err);
 	return dst;
 }
 
-static int xfrm4_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
+static int xfrm4_get_saddr(struct net *net,
+			   xfrm_address_t *saddr, xfrm_address_t *daddr)
 {
 	struct dst_entry *dst;
 	struct rtable *rt;
 
-	dst = xfrm4_dst_lookup(0, NULL, daddr);
+	dst = xfrm4_dst_lookup(net, 0, NULL, daddr);
 	if (IS_ERR(dst))
 		return -EHOSTUNREACH;
 
@@ -65,7 +67,7 @@ __xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 
 	read_lock_bh(&policy->lock);
 	for (dst = policy->bundles; dst; dst = dst->next) {
-		struct xfrm_dst *xdst = (struct xfrm_dst*)dst;
+		struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 		if (xdst->u.rt.fl.oif == fl->oif &&	/*XXX*/
 		    xdst->u.rt.fl.fl4_dst == fl->fl4_dst &&
 		    xdst->u.rt.fl.fl4_src == fl->fl4_src &&
@@ -187,7 +189,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 
 static inline int xfrm4_garbage_collect(struct dst_ops *ops)
 {
-	xfrm4_policy_afinfo.garbage_collect();
+	xfrm4_policy_afinfo.garbage_collect(&init_net);
 	return (atomic_read(&xfrm4_dst_ops.entries) > xfrm4_dst_ops.gc_thresh*2);
 }
 
@@ -246,7 +248,6 @@ static struct dst_ops xfrm4_dst_ops = {
 	.ifdown =		xfrm4_dst_ifdown,
 	.local_out =		__ip_local_out,
 	.gc_thresh =		1024,
-	.entry_size =		sizeof(struct xfrm_dst),
 	.entries =		ATOMIC_INIT(0),
 };
 

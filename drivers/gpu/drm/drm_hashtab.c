@@ -127,6 +127,7 @@ int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(drm_ht_insert_item);
 
 /*
  * Just insert an item and return any "bits" bit key that hasn't been
@@ -188,6 +189,7 @@ int drm_ht_remove_item(struct drm_open_hash *ht, struct drm_hash_item *item)
 	ht->fill--;
 	return 0;
 }
+EXPORT_SYMBOL(drm_ht_remove_item);
 
 void drm_ht_remove(struct drm_open_hash *ht)
 {

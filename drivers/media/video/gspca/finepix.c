@@ -72,7 +72,7 @@ struct usb_fpix {
 }
 
 /* These cameras only support 320x200. */
-static struct v4l2_pix_format fpix_mode[1] = {
+static const struct v4l2_pix_format fpix_mode[1] = {
 	{ 320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
@@ -313,9 +313,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	struct usb_fpix *dev = (struct usb_fpix *) gspca_dev;
 	int ret;
 	int size_ret;
-
-	/* Reset bulk in endpoint */
-	usb_clear_halt(gspca_dev->dev, gspca_dev->cam.epaddr);
 
 	/* Init the device */
 	memset(gspca_dev->usb_buf, 0, 12);

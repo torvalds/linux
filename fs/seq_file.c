@@ -357,7 +357,18 @@ int seq_printf(struct seq_file *m, const char *f, ...)
 }
 EXPORT_SYMBOL(seq_printf);
 
-static char *mangle_path(char *s, char *p, char *esc)
+/**
+ *	mangle_path -	mangle and copy path to buffer beginning
+ *	@s: buffer start
+ *	@p: beginning of path in above buffer
+ *	@esc: set of characters that need escaping
+ *
+ *      Copy the path from @p to @s, replacing each occurrence of character from
+ *      @esc with usual octal escape.
+ *      Returns pointer past last written character in @s, or NULL in case of
+ *      failure.
+ */
+char *mangle_path(char *s, char *p, char *esc)
 {
 	while (s <= p) {
 		char c = *p++;
@@ -376,9 +387,16 @@ static char *mangle_path(char *s, char *p, char *esc)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL(mangle_path);
 
-/*
- * return the absolute path of 'dentry' residing in mount 'mnt'.
+/**
+ * seq_path - seq_file interface to print a pathname
+ * @m: the seq_file handle
+ * @path: the struct path to print
+ * @esc: set of characters to escape in the output
+ *
+ * return the absolute path of 'path', as represented by the
+ * dentry / mnt pair in the path parameter.
  */
 int seq_path(struct seq_file *m, struct path *path, char *esc)
 {

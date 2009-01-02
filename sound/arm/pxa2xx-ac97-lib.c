@@ -22,7 +22,7 @@
 
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <mach/pxa-regs.h>
+#include <mach/regs-ac97.h>
 #include <mach/pxa2xx-gpio.h>
 #include <mach/audio.h>
 

@@ -515,6 +515,7 @@ config CPU_SUP_UMC_32
 config X86_DS
 	def_bool X86_PTRACE_BTS
 	depends on X86_DEBUGCTLMSR
+	select HAVE_HW_BRANCH_TRACER
 
 config X86_PTRACE_BTS
 	bool "Branch Trace Store"

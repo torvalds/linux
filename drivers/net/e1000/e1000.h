@@ -284,7 +284,6 @@ struct e1000_adapter {
 			     int cleaned_count);
 	struct e1000_rx_ring *rx_ring;      /* One per active queue */
 	struct napi_struct napi;
-	struct net_device *polling_netdev;  /* One per active queue */
 
 	int num_tx_queues;
 	int num_rx_queues;

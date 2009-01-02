@@ -62,6 +62,8 @@ struct sparc_stackf {
 
 #ifdef __KERNEL__
 
+#include <asm/system.h>
+
 static inline bool pt_regs_is_syscall(struct pt_regs *regs)
 {
 	return (regs->psr & PSR_SYSCALL);
@@ -71,6 +73,14 @@ static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
 {
 	return (regs->psr &= ~PSR_SYSCALL);
 }
+
+#define arch_ptrace_stop_needed(exit_code, info) \
+({	flush_user_windows(); \
+	current_thread_info()->w_saved != 0;	\
+})
+
+#define arch_ptrace_stop(exit_code, info) \
+	synchronize_user_stack()
 
 #define user_mode(regs) (!((regs)->psr & PSR_PS))
 #define instruction_pointer(regs) ((regs)->pc)

@@ -467,6 +467,8 @@ static struct regbit {
 	{MSR_VEC,	"VEC"},
 	{MSR_VSX,	"VSX"},
 	{MSR_ME,	"ME"},
+	{MSR_CE,	"CE"},
+	{MSR_DE,	"DE"},
 	{MSR_IR,	"IR"},
 	{MSR_DR,	"DR"},
 	{0,		NULL}
@@ -998,7 +1000,7 @@ unsigned long get_wchan(struct task_struct *p)
 	return 0;
 }
 
-static int kstack_depth_to_print = 64;
+static int kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
 
 void show_stack(struct task_struct *tsk, unsigned long *stack)
 {

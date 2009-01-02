@@ -62,6 +62,20 @@
 #define PORT_PSELC	0xA4050128UL
 #define PORT_PSELD	0xA405012AUL
 
+#elif defined(CONFIG_CPU_SUBTYPE_SH7709)
+
+/* Control registers */
+#define PORT_PACR       0xa4000100UL
+#define PORT_PBCR       0xa4000102UL
+#define PORT_PCCR       0xa4000104UL
+#define PORT_PFCR       0xa400010aUL
+
+/* Data registers */
+#define PORT_PADR       0xa4000120UL
+#define PORT_PBDR       0xa4000122UL
+#define PORT_PCDR       0xa4000124UL
+#define PORT_PFDR       0xa400012aUL
+
 #endif
 
 #endif

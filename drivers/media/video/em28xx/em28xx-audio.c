@@ -424,11 +424,12 @@ static int em28xx_audio_init(struct em28xx *dev)
 	struct snd_pcm      *pcm;
 	struct snd_card     *card;
 	static int          devnr;
-	int                 ret, err;
+	int                 err;
 
-	if (dev->has_audio_class) {
+	if (dev->has_alsa_audio != 1) {
 		/* This device does not support the extension (in this case
-		   the device is expecting the snd-usb-audio module */
+		   the device is expecting the snd-usb-audio module or
+		   doesn't have analog audio support at all) */
 		return 0;
 	}
 
@@ -449,7 +450,12 @@ static int em28xx_audio_init(struct em28xx *dev)
 	}
 
 	spin_lock_init(&adev->slock);
-	ret = snd_pcm_new(card, "Em28xx Audio", 0, 0, 1, &pcm);
+	err = snd_pcm_new(card, "Em28xx Audio", 0, 0, 1, &pcm);
+	if (err < 0) {
+		snd_card_free(card);
+		return err;
+	}
+
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_em28xx_pcm_capture);
 	pcm->info_flags = 0;
 	pcm->private_data = dev;
@@ -461,7 +467,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 	err = snd_card_register(card);
 	if (err < 0) {
 		snd_card_free(card);
-		return -ENOMEM;
+		return err;
 	}
 	adev->sndcard = card;
 	adev->udev = dev->udev;
@@ -475,9 +481,10 @@ static int em28xx_audio_fini(struct em28xx *dev)
 	if (dev == NULL)
 		return 0;
 
-	if (dev->has_audio_class) {
+	if (dev->has_alsa_audio != 1) {
 		/* This device does not support the extension (in this case
-		   the device is expecting the snd-usb-audio module */
+		   the device is expecting the snd-usb-audio module or
+		   doesn't have analog audio support at all) */
 		return 0;
 	}
 

@@ -370,16 +370,18 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		return 0;
 	}
 
-	ret = chip->set_type(irq, flags & IRQF_TRIGGER_MASK);
+	/* caller masked out all except trigger mode flags */
+	ret = chip->set_type(irq, flags);
 
 	if (ret)
 		pr_err("setting trigger mode %d for irq %u failed (%pF)\n",
-				(int)(flags & IRQF_TRIGGER_MASK),
-				irq, chip->set_type);
+				(int)flags, irq, chip->set_type);
 	else {
+		if (flags & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
+			flags |= IRQ_LEVEL;
 		/* note that IRQF_TRIGGER_MASK == IRQ_TYPE_SENSE_MASK */
-		desc->status &= ~IRQ_TYPE_SENSE_MASK;
-		desc->status |= flags & IRQ_TYPE_SENSE_MASK;
+		desc->status &= ~(IRQ_LEVEL | IRQ_TYPE_SENSE_MASK);
+		desc->status |= flags;
 	}
 
 	return ret;
@@ -459,7 +461,8 @@ __setup_irq(unsigned int irq, struct irq_desc * desc, struct irqaction *new)
 
 		/* Setup the type (level, edge polarity) if configured: */
 		if (new->flags & IRQF_TRIGGER_MASK) {
-			ret = __irq_set_trigger(desc, irq, new->flags);
+			ret = __irq_set_trigger(desc, irq,
+					new->flags & IRQF_TRIGGER_MASK);
 
 			if (ret) {
 				spin_unlock_irqrestore(&desc->lock, flags);
@@ -672,6 +675,18 @@ int request_irq(unsigned int irq, irq_handler_t handler,
 	struct irqaction *action;
 	struct irq_desc *desc;
 	int retval;
+
+	/*
+	 * handle_IRQ_event() always ignores IRQF_DISABLED except for
+	 * the _first_ irqaction (sigh).  That can cause oopsing, but
+	 * the behavior is classified as "will not fix" so we need to
+	 * start nudging drivers away from using that idiom.
+	 */
+	if ((irqflags & (IRQF_SHARED|IRQF_DISABLED))
+			== (IRQF_SHARED|IRQF_DISABLED))
+		pr_warning("IRQ %d/%s: IRQF_DISABLED is not "
+				"guaranteed on shared IRQs\n",
+				irq, devname);
 
 #ifdef CONFIG_LOCKDEP
 	/*

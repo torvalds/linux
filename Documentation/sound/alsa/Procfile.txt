@@ -153,6 +153,16 @@ card*/codec#*
 	Shows the general codec information and the attribute of each
 	widget node.
 
+card*/eld#*
+	Available for HDMI or DisplayPort interfaces.
+	Shows ELD(EDID Like Data) info retrieved from the attached HDMI sink,
+	and describes its audio capabilities and configurations.
+
+	Some ELD fields may be modified by doing `echo name hex_value > eld#*`.
+	Only do this if you are sure the HDMI sink provided value is wrong.
+	And if that makes your HDMI audio work, please report to us so that we
+	can fix it in future kernel releases.
+
 
 Sequencer Information
 ---------------------

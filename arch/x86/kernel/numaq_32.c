@@ -31,7 +31,7 @@
 #include <asm/numaq.h>
 #include <asm/topology.h>
 #include <asm/processor.h>
-#include <asm/mpspec.h>
+#include <asm/genapic.h>
 #include <asm/e820.h>
 #include <asm/setup.h>
 
@@ -235,6 +235,13 @@ static int __init numaq_setup_ioapic_ids(void)
 	return 1;
 }
 
+static int __init numaq_update_genapic(void)
+{
+	genapic->wakeup_cpu = wakeup_secondary_cpu_via_nmi;
+
+	return 0;
+}
+
 static struct x86_quirks numaq_x86_quirks __initdata = {
 	.arch_pre_time_init	= numaq_pre_time_init,
 	.arch_time_init		= NULL,
@@ -250,6 +257,7 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.mpc_oem_pci_bus	= mpc_oem_pci_bus,
 	.smp_read_mpc_oem	= smp_read_mpc_oem,
 	.setup_ioapic_ids	= numaq_setup_ioapic_ids,
+	.update_genapic		= numaq_update_genapic,
 };
 
 void numaq_mps_oem_check(struct mp_config_table *mpc, char *oem,

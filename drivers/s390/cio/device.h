@@ -76,6 +76,7 @@ extern wait_queue_head_t ccw_device_init_wq;
 extern atomic_t ccw_device_init_count;
 
 void io_subchannel_recog_done(struct ccw_device *cdev);
+void io_subchannel_init_config(struct subchannel *sch);
 
 int ccw_device_cancel_halt_clear(struct ccw_device *);
 

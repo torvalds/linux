@@ -120,13 +120,6 @@ Who:	Christoph Hellwig <hch@lst.de>
 
 ---------------------------
 
-What:   eepro100 network driver
-When:   January 2007
-Why:    replaced by the e100 driver
-Who:    Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
 What:	Unused EXPORT_SYMBOL/EXPORT_SYMBOL_GPL exports
 	(temporary transition config option provided until then)
 	The transition config option will also be removed at the same time.
@@ -243,18 +236,6 @@ Why:	The support code for the old firmware hurts code readability/maintainabilit
 Who:	Michael Buesch <mb@bu3sch.de>
 
 ---------------------------
-
-What:	init_mm export
-When:	2.6.26
-Why:	Not used in-tree. The current out-of-tree users used it to
-	work around problems in the CPA code which should be resolved
-	by now. One usecase was described to provide verification code
-	of the CPA operation. That's a good idea in general, but such
-	code / infrastructure should be in the kernel and not in some
-	out-of-tree driver.
-Who:	Thomas Gleixner <tglx@linutronix.de>
-
-----------------------------
 
 What:	usedac i386 kernel parameter
 When:	2.6.27

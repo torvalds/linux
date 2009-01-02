@@ -21,18 +21,12 @@
 #include <linux/types.h>
 
 /*
- * Some types are conditional depending on the target system.
  * XFS_BIG_BLKNOS needs block layer disk addresses to be 64 bits.
- * XFS_BIG_INUMS needs the VFS inode number to be 64 bits, as well
- * as requiring XFS_BIG_BLKNOS to be set.
+ * XFS_BIG_INUMS requires XFS_BIG_BLKNOS to be set.
  */
 #if defined(CONFIG_LBD) || (BITS_PER_LONG == 64)
 # define XFS_BIG_BLKNOS	1
-# if BITS_PER_LONG == 64
-#  define XFS_BIG_INUMS	1
-# else
-#  define XFS_BIG_INUMS	0
-# endif
+# define XFS_BIG_INUMS	1
 #else
 # define XFS_BIG_BLKNOS	0
 # define XFS_BIG_INUMS	0
@@ -77,6 +71,7 @@
 #include <linux/spinlock.h>
 #include <linux/random.h>
 #include <linux/ctype.h>
+#include <linux/writeback.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>
@@ -85,7 +80,6 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#include <xfs_vfs.h>
 #include <xfs_cred.h>
 #include <xfs_vnode.h>
 #include <xfs_stats.h>
@@ -107,7 +101,6 @@
 #undef  HAVE_PERCPU_SB	/* per cpu superblock counters are a 2.6 feature */
 #endif
 
-#define restricted_chown	xfs_params.restrict_chown.val
 #define irix_sgid_inherit	xfs_params.sgid_inherit.val
 #define irix_symlink_mode	xfs_params.symlink_mode.val
 #define xfs_panic_mask		xfs_params.panic_mask.val

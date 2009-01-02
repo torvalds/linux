@@ -60,12 +60,6 @@ struct dma_mapping_ops {
 				dma_addr_t *dma_handle, gfp_t flag);
 	void		(*free_coherent)(struct device *dev, size_t size,
 				void *vaddr, dma_addr_t dma_handle);
-	dma_addr_t	(*map_single)(struct device *dev, void *ptr,
-				size_t size, enum dma_data_direction direction,
-				struct dma_attrs *attrs);
-	void		(*unmap_single)(struct device *dev, dma_addr_t dma_addr,
-				size_t size, enum dma_data_direction direction,
-				struct dma_attrs *attrs);
 	int		(*map_sg)(struct device *dev, struct scatterlist *sg,
 				int nents, enum dma_data_direction direction,
 				struct dma_attrs *attrs);
@@ -82,6 +76,22 @@ struct dma_mapping_ops {
 				dma_addr_t dma_address, size_t size,
 				enum dma_data_direction direction,
 				struct dma_attrs *attrs);
+#ifdef CONFIG_PPC_NEED_DMA_SYNC_OPS
+	void            (*sync_single_range_for_cpu)(struct device *hwdev,
+				dma_addr_t dma_handle, unsigned long offset,
+				size_t size,
+				enum dma_data_direction direction);
+	void            (*sync_single_range_for_device)(struct device *hwdev,
+				dma_addr_t dma_handle, unsigned long offset,
+				size_t size,
+				enum dma_data_direction direction);
+	void            (*sync_sg_for_cpu)(struct device *hwdev,
+				struct scatterlist *sg, int nelems,
+				enum dma_data_direction direction);
+	void            (*sync_sg_for_device)(struct device *hwdev,
+				struct scatterlist *sg, int nelems,
+				enum dma_data_direction direction);
+#endif
 };
 
 /*
@@ -149,10 +159,9 @@ static inline int dma_set_mask(struct device *dev, u64 dma_mask)
 }
 
 /*
- * TODO: map_/unmap_single will ideally go away, to be completely
- * replaced by map/unmap_page.   Until then, we allow dma_ops to have
- * one or the other, or both by checking to see if the specific
- * function requested exists; and if not, falling back on the other set.
+ * map_/unmap_single actually call through to map/unmap_page now that all the
+ * dma_mapping_ops have been converted over. We just have to get the page and
+ * offset to pass through to map_page
  */
 static inline dma_addr_t dma_map_single_attrs(struct device *dev,
 					      void *cpu_addr,
@@ -163,10 +172,6 @@ static inline dma_addr_t dma_map_single_attrs(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-
-	if (dma_ops->map_single)
-		return dma_ops->map_single(dev, cpu_addr, size, direction,
-					   attrs);
 
 	return dma_ops->map_page(dev, virt_to_page(cpu_addr),
 				 (unsigned long)cpu_addr % PAGE_SIZE, size,
@@ -183,11 +188,6 @@ static inline void dma_unmap_single_attrs(struct device *dev,
 
 	BUG_ON(!dma_ops);
 
-	if (dma_ops->unmap_single) {
-		dma_ops->unmap_single(dev, dma_addr, size, direction, attrs);
-		return;
-	}
-
 	dma_ops->unmap_page(dev, dma_addr, size, direction, attrs);
 }
 
@@ -201,12 +201,7 @@ static inline dma_addr_t dma_map_page_attrs(struct device *dev,
 
 	BUG_ON(!dma_ops);
 
-	if (dma_ops->map_page)
-		return dma_ops->map_page(dev, page, offset, size, direction,
-					 attrs);
-
-	return dma_ops->map_single(dev, page_address(page) + offset, size,
-				   direction, attrs);
+	return dma_ops->map_page(dev, page, offset, size, direction, attrs);
 }
 
 static inline void dma_unmap_page_attrs(struct device *dev,
@@ -219,12 +214,7 @@ static inline void dma_unmap_page_attrs(struct device *dev,
 
 	BUG_ON(!dma_ops);
 
-	if (dma_ops->unmap_page) {
-		dma_ops->unmap_page(dev, dma_address, size, direction, attrs);
-		return;
-	}
-
-	dma_ops->unmap_single(dev, dma_address, size, direction, attrs);
+	dma_ops->unmap_page(dev, dma_address, size, direction, attrs);
 }
 
 static inline int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
@@ -308,47 +298,107 @@ static inline void dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 	dma_unmap_sg_attrs(dev, sg, nhwentries, direction, NULL);
 }
 
+#ifdef CONFIG_PPC_NEED_DMA_SYNC_OPS
 static inline void dma_sync_single_for_cpu(struct device *dev,
 		dma_addr_t dma_handle, size_t size,
 		enum dma_data_direction direction)
 {
-	BUG_ON(direction == DMA_NONE);
-	__dma_sync(bus_to_virt(dma_handle), size, direction);
+	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
+
+	BUG_ON(!dma_ops);
+	dma_ops->sync_single_range_for_cpu(dev, dma_handle, 0,
+					   size, direction);
 }
 
 static inline void dma_sync_single_for_device(struct device *dev,
 		dma_addr_t dma_handle, size_t size,
 		enum dma_data_direction direction)
 {
-	BUG_ON(direction == DMA_NONE);
-	__dma_sync(bus_to_virt(dma_handle), size, direction);
+	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
+
+	BUG_ON(!dma_ops);
+	dma_ops->sync_single_range_for_device(dev, dma_handle,
+					      0, size, direction);
 }
 
 static inline void dma_sync_sg_for_cpu(struct device *dev,
 		struct scatterlist *sgl, int nents,
 		enum dma_data_direction direction)
 {
-	struct scatterlist *sg;
-	int i;
+	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
-	BUG_ON(direction == DMA_NONE);
-
-	for_each_sg(sgl, sg, nents, i)
-		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
+	BUG_ON(!dma_ops);
+	dma_ops->sync_sg_for_cpu(dev, sgl, nents, direction);
 }
 
 static inline void dma_sync_sg_for_device(struct device *dev,
 		struct scatterlist *sgl, int nents,
 		enum dma_data_direction direction)
 {
-	struct scatterlist *sg;
-	int i;
+	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
-	BUG_ON(direction == DMA_NONE);
-
-	for_each_sg(sgl, sg, nents, i)
-		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
+	BUG_ON(!dma_ops);
+	dma_ops->sync_sg_for_device(dev, sgl, nents, direction);
 }
+
+static inline void dma_sync_single_range_for_cpu(struct device *dev,
+		dma_addr_t dma_handle, unsigned long offset, size_t size,
+		enum dma_data_direction direction)
+{
+	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
+
+	BUG_ON(!dma_ops);
+	dma_ops->sync_single_range_for_cpu(dev, dma_handle,
+					   offset, size, direction);
+}
+
+static inline void dma_sync_single_range_for_device(struct device *dev,
+		dma_addr_t dma_handle, unsigned long offset, size_t size,
+		enum dma_data_direction direction)
+{
+	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
+
+	BUG_ON(!dma_ops);
+	dma_ops->sync_single_range_for_device(dev, dma_handle, offset,
+					      size, direction);
+}
+#else /* CONFIG_PPC_NEED_DMA_SYNC_OPS */
+static inline void dma_sync_single_for_cpu(struct device *dev,
+		dma_addr_t dma_handle, size_t size,
+		enum dma_data_direction direction)
+{
+}
+
+static inline void dma_sync_single_for_device(struct device *dev,
+		dma_addr_t dma_handle, size_t size,
+		enum dma_data_direction direction)
+{
+}
+
+static inline void dma_sync_sg_for_cpu(struct device *dev,
+		struct scatterlist *sgl, int nents,
+		enum dma_data_direction direction)
+{
+}
+
+static inline void dma_sync_sg_for_device(struct device *dev,
+		struct scatterlist *sgl, int nents,
+		enum dma_data_direction direction)
+{
+}
+
+static inline void dma_sync_single_range_for_cpu(struct device *dev,
+		dma_addr_t dma_handle, unsigned long offset, size_t size,
+		enum dma_data_direction direction)
+{
+}
+
+static inline void dma_sync_single_range_for_device(struct device *dev,
+		dma_addr_t dma_handle, unsigned long offset, size_t size,
+		enum dma_data_direction direction)
+{
+}
+#endif
 
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
@@ -380,22 +430,6 @@ static inline int dma_get_cache_alignment(void)
 	 */
 	return L1_CACHE_BYTES;
 #endif
-}
-
-static inline void dma_sync_single_range_for_cpu(struct device *dev,
-		dma_addr_t dma_handle, unsigned long offset, size_t size,
-		enum dma_data_direction direction)
-{
-	/* just sync everything for now */
-	dma_sync_single_for_cpu(dev, dma_handle, offset + size, direction);
-}
-
-static inline void dma_sync_single_range_for_device(struct device *dev,
-		dma_addr_t dma_handle, unsigned long offset, size_t size,
-		enum dma_data_direction direction)
-{
-	/* just sync everything for now */
-	dma_sync_single_for_device(dev, dma_handle, offset + size, direction);
 }
 
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,

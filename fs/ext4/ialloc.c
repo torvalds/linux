@@ -787,7 +787,7 @@ got:
 		spin_unlock(sb_bgl_lock(sbi, flex_group));
 	}
 
-	inode->i_uid = current->fsuid;
+	inode->i_uid = current_fsuid();
 	if (test_opt(sb, GRPID))
 		inode->i_gid = dir->i_gid;
 	else if (dir->i_mode & S_ISGID) {
@@ -795,7 +795,7 @@ got:
 		if (S_ISDIR(mode))
 			mode |= S_ISGID;
 	} else
-		inode->i_gid = current->fsgid;
+		inode->i_gid = current_fsgid();
 	inode->i_mode = mode;
 
 	inode->i_ino = ino + group * EXT4_INODES_PER_GROUP(sb);
@@ -826,7 +826,10 @@ got:
 	ext4_set_inode_flags(inode);
 	if (IS_DIRSYNC(inode))
 		handle->h_sync = 1;
-	insert_inode_hash(inode);
+	if (insert_inode_locked(inode) < 0) {
+		err = -EINVAL;
+		goto fail_drop;
+	}
 	spin_lock(&sbi->s_next_gen_lock);
 	inode->i_generation = sbi->s_next_generation++;
 	spin_unlock(&sbi->s_next_gen_lock);
@@ -881,6 +884,7 @@ fail_drop:
 	DQUOT_DROP(inode);
 	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
+	unlock_new_inode(inode);
 	iput(inode);
 	brelse(bitmap_bh);
 	return ERR_PTR(err);

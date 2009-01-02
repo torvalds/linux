@@ -28,6 +28,9 @@
 #include <linux/if_ether.h>	/* ETH_ALEN */
 #include <linux/kernel.h>	/* ARRAY_SIZE */
 #include <linux/wireless.h>
+#include <linux/ieee80211.h>
+
+#include <net/lib80211.h>
 
 #define IEEE80211_VERSION "git-1.1.13"
 
@@ -127,10 +130,6 @@ static inline bool ieee80211_ratelimit_debug(u32 level)
 }
 #endif				/* CONFIG_IEEE80211_DEBUG */
 
-/* escape_essid() is intended to be used in debug (and possibly error)
- * messages. It should never be used for passing essid to user space. */
-const char *escape_essid(const char *essid, u8 essid_len);
-
 /*
  * To use the debug system:
  *
@@ -217,94 +216,6 @@ struct ieee80211_snap_hdr {
 
 #define WLAN_GET_SEQ_FRAG(seq) ((seq) & IEEE80211_SCTL_FRAG)
 #define WLAN_GET_SEQ_SEQ(seq)  (((seq) & IEEE80211_SCTL_SEQ) >> 4)
-
-/* Authentication algorithms */
-#define WLAN_AUTH_OPEN 0
-#define WLAN_AUTH_SHARED_KEY 1
-#define WLAN_AUTH_LEAP 2
-
-#define WLAN_AUTH_CHALLENGE_LEN 128
-
-#define WLAN_CAPABILITY_ESS (1<<0)
-#define WLAN_CAPABILITY_IBSS (1<<1)
-#define WLAN_CAPABILITY_CF_POLLABLE (1<<2)
-#define WLAN_CAPABILITY_CF_POLL_REQUEST (1<<3)
-#define WLAN_CAPABILITY_PRIVACY (1<<4)
-#define WLAN_CAPABILITY_SHORT_PREAMBLE (1<<5)
-#define WLAN_CAPABILITY_PBCC (1<<6)
-#define WLAN_CAPABILITY_CHANNEL_AGILITY (1<<7)
-#define WLAN_CAPABILITY_SPECTRUM_MGMT (1<<8)
-#define WLAN_CAPABILITY_QOS (1<<9)
-#define WLAN_CAPABILITY_SHORT_SLOT_TIME (1<<10)
-#define WLAN_CAPABILITY_DSSS_OFDM (1<<13)
-
-/* 802.11g ERP information element */
-#define WLAN_ERP_NON_ERP_PRESENT (1<<0)
-#define WLAN_ERP_USE_PROTECTION (1<<1)
-#define WLAN_ERP_BARKER_PREAMBLE (1<<2)
-
-/* Status codes */
-enum ieee80211_statuscode {
-	WLAN_STATUS_SUCCESS = 0,
-	WLAN_STATUS_UNSPECIFIED_FAILURE = 1,
-	WLAN_STATUS_CAPS_UNSUPPORTED = 10,
-	WLAN_STATUS_REASSOC_NO_ASSOC = 11,
-	WLAN_STATUS_ASSOC_DENIED_UNSPEC = 12,
-	WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG = 13,
-	WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION = 14,
-	WLAN_STATUS_CHALLENGE_FAIL = 15,
-	WLAN_STATUS_AUTH_TIMEOUT = 16,
-	WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA = 17,
-	WLAN_STATUS_ASSOC_DENIED_RATES = 18,
-	/* 802.11b */
-	WLAN_STATUS_ASSOC_DENIED_NOSHORTPREAMBLE = 19,
-	WLAN_STATUS_ASSOC_DENIED_NOPBCC = 20,
-	WLAN_STATUS_ASSOC_DENIED_NOAGILITY = 21,
-	/* 802.11h */
-	WLAN_STATUS_ASSOC_DENIED_NOSPECTRUM = 22,
-	WLAN_STATUS_ASSOC_REJECTED_BAD_POWER = 23,
-	WLAN_STATUS_ASSOC_REJECTED_BAD_SUPP_CHAN = 24,
-	/* 802.11g */
-	WLAN_STATUS_ASSOC_DENIED_NOSHORTTIME = 25,
-	WLAN_STATUS_ASSOC_DENIED_NODSSSOFDM = 26,
-	/* 802.11i */
-	WLAN_STATUS_INVALID_IE = 40,
-	WLAN_STATUS_INVALID_GROUP_CIPHER = 41,
-	WLAN_STATUS_INVALID_PAIRWISE_CIPHER = 42,
-	WLAN_STATUS_INVALID_AKMP = 43,
-	WLAN_STATUS_UNSUPP_RSN_VERSION = 44,
-	WLAN_STATUS_INVALID_RSN_IE_CAP = 45,
-	WLAN_STATUS_CIPHER_SUITE_REJECTED = 46,
-};
-
-/* Reason codes */
-enum ieee80211_reasoncode {
-	WLAN_REASON_UNSPECIFIED = 1,
-	WLAN_REASON_PREV_AUTH_NOT_VALID = 2,
-	WLAN_REASON_DEAUTH_LEAVING = 3,
-	WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY = 4,
-	WLAN_REASON_DISASSOC_AP_BUSY = 5,
-	WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA = 6,
-	WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA = 7,
-	WLAN_REASON_DISASSOC_STA_HAS_LEFT = 8,
-	WLAN_REASON_STA_REQ_ASSOC_WITHOUT_AUTH = 9,
-	/* 802.11h */
-	WLAN_REASON_DISASSOC_BAD_POWER = 10,
-	WLAN_REASON_DISASSOC_BAD_SUPP_CHAN = 11,
-	/* 802.11i */
-	WLAN_REASON_INVALID_IE = 13,
-	WLAN_REASON_MIC_FAILURE = 14,
-	WLAN_REASON_4WAY_HANDSHAKE_TIMEOUT = 15,
-	WLAN_REASON_GROUP_KEY_HANDSHAKE_TIMEOUT = 16,
-	WLAN_REASON_IE_DIFFERENT = 17,
-	WLAN_REASON_INVALID_GROUP_CIPHER = 18,
-	WLAN_REASON_INVALID_PAIRWISE_CIPHER = 19,
-	WLAN_REASON_INVALID_AKMP = 20,
-	WLAN_REASON_UNSUPP_RSN_VERSION = 21,
-	WLAN_REASON_INVALID_RSN_IE_CAP = 22,
-	WLAN_REASON_IEEE8021X_FAILED = 23,
-	WLAN_REASON_CIPHER_SUITE_REJECTED = 24,
-};
 
 /* Action categories - 802.11h */
 enum ieee80211_actioncategories {
@@ -446,8 +357,6 @@ struct ieee80211_stats {
 
 struct ieee80211_device;
 
-#include "ieee80211_crypt.h"
-
 #define SEC_KEY_1		(1<<0)
 #define SEC_KEY_2		(1<<1)
 #define SEC_KEY_3		(1<<2)
@@ -476,9 +385,8 @@ struct ieee80211_device;
 #define SCM_TEMPORAL_KEY_LENGTH	16
 
 struct ieee80211_security {
-	u16 active_key:2,
-	    enabled:1,
-	    auth_mode:2, auth_algo:4, unicast_uses_group:1, encrypt:1;
+	u16 active_key:2, enabled:1, unicast_uses_group:1, encrypt:1;
+	u8 auth_mode;
 	u8 encode_alg[WEP_KEYS];
 	u8 key_sizes[WEP_KEYS];
 	u8 keys[WEP_KEYS][SCM_KEY_LEN];
@@ -534,15 +442,6 @@ enum ieee80211_mfie {
 	MFIE_TYPE_QOS_PARAMETER = 222,
 };
 
-/* Minimal header; can be used for passing 802.11 frames with sufficient
- * information to determine what type of underlying data type is actually
- * stored in the data. */
-struct ieee80211_hdr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 payload[0];
-} __attribute__ ((packed));
-
 struct ieee80211_hdr_1addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
@@ -586,18 +485,6 @@ struct ieee80211_hdr_3addrqos {
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
 	__le16 seq_ctl;
-	u8 payload[0];
-	__le16 qos_ctl;
-} __attribute__ ((packed));
-
-struct ieee80211_hdr_4addrqos {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	__le16 seq_ctl;
-	u8 addr4[ETH_ALEN];
 	u8 payload[0];
 	__le16 qos_ctl;
 } __attribute__ ((packed));
@@ -733,7 +620,6 @@ struct ieee80211_txb {
 
 #define MAX_WPA_IE_LEN 64
 
-#define NETWORK_EMPTY_ESSID    (1<<0)
 #define NETWORK_HAS_OFDM       (1<<1)
 #define NETWORK_HAS_CCK        (1<<2)
 
@@ -1050,11 +936,7 @@ struct ieee80211_device {
 	size_t wpa_ie_len;
 	u8 *wpa_ie;
 
-	struct list_head crypt_deinit_list;
-	struct ieee80211_crypt_data *crypt[WEP_KEYS];
-	int tx_keyidx;		/* default TX key index (crypt[tx_keyidx]) */
-	struct timer_list crypt_deinit_timer;
-	int crypt_quiesced;
+	struct lib80211_crypt_info crypt_info;
 
 	int bcrx_sta_key;	/* use individual keys to override default keys even
 				 * with RX of broad/multicast frames */
@@ -1135,22 +1017,6 @@ static inline void *ieee80211_priv(struct net_device *dev)
 	return ((struct ieee80211_device *)netdev_priv(dev))->priv;
 }
 
-static inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
-{
-	/* Single white space is for Linksys APs */
-	if (essid_len == 1 && essid[0] == ' ')
-		return 1;
-
-	/* Otherwise, if the entire essid is 0, we assume it is hidden */
-	while (essid_len) {
-		essid_len--;
-		if (essid[essid_len] != '\0')
-			return 0;
-	}
-
-	return 1;
-}
-
 static inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee,
 					  int mode)
 {
@@ -1208,7 +1074,7 @@ static inline int ieee80211_get_hdrlen(u16 fc)
 
 static inline u8 *ieee80211_get_payload(struct ieee80211_hdr *hdr)
 {
-	switch (ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl))) {
+	switch (ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control))) {
 	case IEEE80211_1ADDR_LEN:
 		return ((struct ieee80211_hdr_1addr *)hdr)->payload;
 	case IEEE80211_2ADDR_LEN:

@@ -355,7 +355,6 @@ static int __devinit w840_probe1 (struct pci_dev *pdev,
 	int irq;
 	int i, option = find_cnt < MAX_UNITS ? options[find_cnt] : 0;
 	void __iomem *ioaddr;
-	DECLARE_MAC_BUF(mac);
 
 	i = pci_enable_device(pdev);
 	if (i) return i;
@@ -435,9 +434,9 @@ static int __devinit w840_probe1 (struct pci_dev *pdev,
 	if (i)
 		goto err_out_cleardev;
 
-	printk(KERN_INFO "%s: %s at %p, %s, IRQ %d.\n",
+	printk(KERN_INFO "%s: %s at %p, %pM, IRQ %d.\n",
 	       dev->name, pci_id_tbl[chip_idx].name, ioaddr,
-	       print_mac(mac, dev->dev_addr), irq);
+	       dev->dev_addr, irq);
 
 	if (np->drv_flags & CanHaveMII) {
 		int phy, phy_idx = 0;
@@ -1245,20 +1244,15 @@ static int netdev_rx(struct net_device *dev)
 			}
 #ifndef final_version				/* Remove after testing. */
 			/* You will want this info for the initial debug. */
-			if (debug > 5) {
-				DECLARE_MAC_BUF(mac);
-				DECLARE_MAC_BUF(mac2);
-
-				printk(KERN_DEBUG "  Rx data %s %s"
+			if (debug > 5)
+				printk(KERN_DEBUG "  Rx data %pM %pM"
 				       " %2.2x%2.2x %d.%d.%d.%d.\n",
-				       print_mac(mac, &skb->data[0]), print_mac(mac2, &skb->data[6]),
+				       &skb->data[0], &skb->data[6],
 				       skb->data[12], skb->data[13],
 				       skb->data[14], skb->data[15], skb->data[16], skb->data[17]);
-			}
 #endif
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			np->stats.rx_packets++;
 			np->stats.rx_bytes += pkt_len;
 		}

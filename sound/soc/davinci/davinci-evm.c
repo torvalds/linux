@@ -28,6 +28,8 @@
 
 #define EVM_CODEC_CLOCK 22579200
 
+#define AUDIO_FORMAT (SND_SOC_DAIFMT_DSP_B | \
+		SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_IB_NF)
 static int evm_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *params)
 {
@@ -37,14 +39,12 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 	int ret = 0;
 
 	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-					 SND_SOC_DAIFMT_CBM_CFM);
+	ret = snd_soc_dai_set_fmt(codec_dai, AUDIO_FORMAT);
 	if (ret < 0)
 		return ret;
 
 	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBM_CFM |
-				       SND_SOC_DAIFMT_IB_NF);
+	ret = snd_soc_dai_set_fmt(cpu_dai, AUDIO_FORMAT);
 	if (ret < 0)
 		return ret;
 
@@ -128,8 +128,9 @@ static struct snd_soc_dai_link evm_dai = {
 };
 
 /* davinci-evm audio machine driver */
-static struct snd_soc_machine snd_soc_machine_evm = {
+static struct snd_soc_card snd_soc_card_evm = {
 	.name = "DaVinci EVM",
+	.platform = &davinci_soc_platform,
 	.dai_link = &evm_dai,
 	.num_links = 1,
 };
@@ -142,8 +143,7 @@ static struct aic3x_setup_data evm_aic3x_setup = {
 
 /* evm audio subsystem */
 static struct snd_soc_device evm_snd_devdata = {
-	.machine = &snd_soc_machine_evm,
-	.platform = &davinci_soc_platform,
+	.card = &snd_soc_card_evm,
 	.codec_dev = &soc_codec_dev_aic3x,
 	.codec_data = &evm_aic3x_setup,
 };

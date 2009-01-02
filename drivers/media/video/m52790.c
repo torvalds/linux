@@ -28,7 +28,7 @@
 #include <linux/i2c-id.h>
 #include <linux/videodev2.h>
 #include <media/m52790.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv.h>
 
@@ -38,89 +38,130 @@ MODULE_LICENSE("GPL");
 
 
 struct m52790_state {
+	struct v4l2_subdev sd;
 	u16 input;
 	u16 output;
 };
 
+static inline struct m52790_state *to_state(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct m52790_state, sd);
+}
+
 /* ----------------------------------------------------------------------- */
 
-static int m52790_write(struct i2c_client *client)
+static int m52790_write(struct v4l2_subdev *sd)
 {
-	struct m52790_state *state = i2c_get_clientdata(client);
+	struct m52790_state *state = to_state(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 	u8 sw1 = (state->input | state->output) & 0xff;
 	u8 sw2 = (state->input | state->output) >> 8;
 
 	return i2c_smbus_write_byte_data(client, sw1, sw2);
 }
 
-static int m52790_command(struct i2c_client *client, unsigned int cmd,
-			    void *arg)
+/* Note: audio and video are linked and cannot be switched separately.
+   So audio and video routing commands are identical for this chip.
+   In theory the video amplifier and audio modes could be handled
+   separately for the output, but that seems to be overkill right now.
+   The same holds for implementing an audio mute control, this is now
+   part of the audio output routing. The normal case is that another
+   chip takes care of the actual muting so making it part of the
+   output routing seems to be the right thing to do for now. */
+static int m52790_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
 {
-	struct m52790_state *state = i2c_get_clientdata(client);
-	struct v4l2_routing *route = arg;
+	struct m52790_state *state = to_state(sd);
 
-	/* Note: audio and video are linked and cannot be switched separately.
-	   So audio and video routing commands are identical for this chip.
-	   In theory the video amplifier and audio modes could be handled
-	   separately for the output, but that seems to be overkill right now.
-	   The same holds for implementing an audio mute control, this is now
-	   part of the audio output routing. The normal case is that another
-	   chip takes care of the actual muting so making it part of the
-	   output routing seems to be the right thing to do for now. */
-	switch (cmd) {
-	case VIDIOC_INT_G_AUDIO_ROUTING:
-	case VIDIOC_INT_G_VIDEO_ROUTING:
-		route->input = state->input;
-		route->output = state->output;
-		break;
-
-	case VIDIOC_INT_S_AUDIO_ROUTING:
-	case VIDIOC_INT_S_VIDEO_ROUTING:
-		state->input = route->input;
-		state->output = route->output;
-		m52790_write(client);
-		break;
-
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	case VIDIOC_DBG_G_REGISTER:
-	case VIDIOC_DBG_S_REGISTER:
-	{
-		struct v4l2_register *reg = arg;
-
-		if (!v4l2_chip_match_i2c_client(client,
-					reg->match_type, reg->match_chip))
-			return -EINVAL;
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		if (reg->reg != 0)
-			return -EINVAL;
-		if (cmd == VIDIOC_DBG_G_REGISTER)
-			reg->val = state->input | state->output;
-		else {
-			state->input = reg->val & 0x0303;
-			state->output = reg->val & ~0x0303;
-			m52790_write(client);
-		}
-		break;
-	}
-#endif
-
-	case VIDIOC_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client, arg,
-				V4L2_IDENT_M52790, 0);
-
-	case VIDIOC_LOG_STATUS:
-		v4l_info(client, "Switch 1: %02x\n",
-				(state->input | state->output) & 0xff);
-		v4l_info(client, "Switch 2: %02x\n",
-				(state->input | state->output) >> 8);
-		break;
-
-	default:
-		return -EINVAL;
-	}
+	state->input = route->input;
+	state->output = route->output;
+	m52790_write(sd);
 	return 0;
 }
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int m52790_g_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
+{
+	struct m52790_state *state = to_state(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	if (!v4l2_chip_match_i2c_client(client,
+				reg->match_type, reg->match_chip))
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (reg->reg != 0)
+		return -EINVAL;
+	reg->val = state->input | state->output;
+	return 0;
+}
+
+static int m52790_s_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
+{
+	struct m52790_state *state = to_state(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	if (!v4l2_chip_match_i2c_client(client,
+				reg->match_type, reg->match_chip))
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (reg->reg != 0)
+		return -EINVAL;
+	state->input = reg->val & 0x0303;
+	state->output = reg->val & ~0x0303;
+	m52790_write(sd);
+	return 0;
+}
+#endif
+
+static int m52790_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_M52790, 0);
+}
+
+static int m52790_log_status(struct v4l2_subdev *sd)
+{
+	struct m52790_state *state = to_state(sd);
+
+	v4l2_info(sd, "Switch 1: %02x\n",
+			(state->input | state->output) & 0xff);
+	v4l2_info(sd, "Switch 2: %02x\n",
+			(state->input | state->output) >> 8);
+	return 0;
+}
+
+static int m52790_command(struct i2c_client *client, unsigned cmd, void *arg)
+{
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
+}
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops m52790_core_ops = {
+	.log_status = m52790_log_status,
+	.g_chip_ident = m52790_g_chip_ident,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.g_register = m52790_g_register,
+	.s_register = m52790_s_register,
+#endif
+};
+
+static const struct v4l2_subdev_audio_ops m52790_audio_ops = {
+	.s_routing = m52790_s_routing,
+};
+
+static const struct v4l2_subdev_video_ops m52790_video_ops = {
+	.s_routing = m52790_s_routing,
+};
+
+static const struct v4l2_subdev_ops m52790_ops = {
+	.core = &m52790_core_ops,
+	.audio = &m52790_audio_ops,
+	.video = &m52790_video_ops,
+};
 
 /* ----------------------------------------------------------------------- */
 
@@ -130,6 +171,7 @@ static int m52790_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct m52790_state *state;
+	struct v4l2_subdev *sd;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -142,16 +184,20 @@ static int m52790_probe(struct i2c_client *client,
 	if (state == NULL)
 		return -ENOMEM;
 
+	sd = &state->sd;
+	v4l2_i2c_subdev_init(sd, client, &m52790_ops);
 	state->input = M52790_IN_TUNER;
 	state->output = M52790_OUT_STEREO;
-	i2c_set_clientdata(client, state);
-	m52790_write(client);
+	m52790_write(sd);
 	return 0;
 }
 
 static int m52790_remove(struct i2c_client *client)
 {
-	kfree(i2c_get_clientdata(client));
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	v4l2_device_unregister_subdev(sd);
+	kfree(to_state(sd));
 	return 0;
 }
 

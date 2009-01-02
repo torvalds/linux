@@ -12,7 +12,7 @@
 struct user_namespace {
 	struct kref		kref;
 	struct hlist_head	uidhash_table[UIDHASH_SZ];
-	struct user_struct	*root_user;
+	struct user_struct	*creator;
 };
 
 extern struct user_namespace init_user_ns;
@@ -26,8 +26,7 @@ static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
 	return ns;
 }
 
-extern struct user_namespace *copy_user_ns(int flags,
-					   struct user_namespace *old_ns);
+extern int create_user_ns(struct cred *new);
 extern void free_user_ns(struct kref *kref);
 
 static inline void put_user_ns(struct user_namespace *ns)
@@ -43,13 +42,9 @@ static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
 	return &init_user_ns;
 }
 
-static inline struct user_namespace *copy_user_ns(int flags,
-						  struct user_namespace *old_ns)
+static inline int create_user_ns(struct cred *new)
 {
-	if (flags & CLONE_NEWUSER)
-		return ERR_PTR(-EINVAL);
-
-	return old_ns;
+	return -EINVAL;
 }
 
 static inline void put_user_ns(struct user_namespace *ns)

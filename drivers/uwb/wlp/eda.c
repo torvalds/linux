@@ -351,19 +351,13 @@ ssize_t wlp_eda_show(struct wlp *wlp, char *buf)
 			   "tag state virt_addr\n");
 	list_for_each_entry(entry, &eda->cache, list_node) {
 		result += scnprintf(buf + result, PAGE_SIZE - result,
-				    "%02x:%02x:%02x:%02x:%02x:%02x %02x:%02x "
-				    "%p 0x%02x %s "
-				    "%02x:%02x:%02x:%02x:%02x:%02x\n",
-				    entry->eth_addr[0], entry->eth_addr[1],
-				    entry->eth_addr[2], entry->eth_addr[3],
-				    entry->eth_addr[4], entry->eth_addr[5],
+				    "%pM %02x:%02x %p 0x%02x %s %pM\n",
+				    entry->eth_addr,
 				    entry->dev_addr.data[1],
 				    entry->dev_addr.data[0], entry->wss,
 				    entry->tag,
 				    wlp_wss_connect_state_str(entry->state),
-				    entry->virt_addr[0], entry->virt_addr[1],
-				    entry->virt_addr[2], entry->virt_addr[3],
-				    entry->virt_addr[4], entry->virt_addr[5]);
+				    entry->virt_addr);
 		if (result >= PAGE_SIZE)
 			break;
 	}
