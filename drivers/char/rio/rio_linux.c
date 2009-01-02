@@ -796,15 +796,6 @@ static int rio_init_drivers(void)
 	return 1;
 }
 
-
-static void *ckmalloc(int size)
-{
-	void *p;
-
-	p = kzalloc(size, GFP_KERNEL);
-	return p;
-}
-
 static const struct tty_port_operations rio_port_ops = {
 	.carrier_raised = rio_carrier_raised,
 };
@@ -827,18 +818,18 @@ static int rio_init_datastructures(void)
 #define TMIO_SZ sizeof(struct termios *)
 	rio_dprintk(RIO_DEBUG_INIT, "getting : %Zd %Zd %Zd %Zd %Zd bytes\n", RI_SZ, RIO_HOSTS * HOST_SZ, RIO_PORTS * PORT_SZ, RIO_PORTS * TMIO_SZ, RIO_PORTS * TMIO_SZ);
 
-	if (!(p = ckmalloc(RI_SZ)))
+	if (!(p = kzalloc(RI_SZ, GFP_KERNEL)))
 		goto free0;
-	if (!(p->RIOHosts = ckmalloc(RIO_HOSTS * HOST_SZ)))
+	if (!(p->RIOHosts = kzalloc(RIO_HOSTS * HOST_SZ, GFP_KERNEL)))
 		goto free1;
-	if (!(p->RIOPortp = ckmalloc(RIO_PORTS * PORT_SZ)))
+	if (!(p->RIOPortp = kzalloc(RIO_PORTS * PORT_SZ, GFP_KERNEL)))
 		goto free2;
 	p->RIOConf = RIOConf;
 	rio_dprintk(RIO_DEBUG_INIT, "Got : %p %p %p\n", p, p->RIOHosts, p->RIOPortp);
 
 #if 1
 	for (i = 0; i < RIO_PORTS; i++) {
-		port = p->RIOPortp[i] = ckmalloc(sizeof(struct Port));
+		port = p->RIOPortp[i] = kzalloc(sizeof(struct Port), GFP_KERNEL);
 		if (!port) {
 			goto free6;
 		}
