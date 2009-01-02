@@ -549,6 +549,8 @@
 /** GM965 GM45 render standby register */
 #define MCHBAR_RENDER_STANDBY	0x111B8
 
+#define PEG_BAND_GAP_DATA	0x14d68
+
 /*
  * Overlay regs
  */
@@ -612,6 +614,9 @@
 
 /* Hotplug control (945+ only) */
 #define PORT_HOTPLUG_EN		0x61110
+#define   HDMIB_HOTPLUG_INT_EN			(1 << 29)
+#define   HDMIC_HOTPLUG_INT_EN			(1 << 28)
+#define   HDMID_HOTPLUG_INT_EN			(1 << 27)
 #define   SDVOB_HOTPLUG_INT_EN			(1 << 26)
 #define   SDVOC_HOTPLUG_INT_EN			(1 << 25)
 #define   TV_HOTPLUG_INT_EN			(1 << 18)
@@ -619,6 +624,9 @@
 #define   CRT_HOTPLUG_FORCE_DETECT		(1 << 3)
 
 #define PORT_HOTPLUG_STAT	0x61114
+#define   HDMIB_HOTPLUG_INT_STATUS		(1 << 29)
+#define   HDMIC_HOTPLUG_INT_STATUS		(1 << 28)
+#define   HDMID_HOTPLUG_INT_STATUS		(1 << 27)
 #define   CRT_HOTPLUG_INT_STATUS		(1 << 11)
 #define   TV_HOTPLUG_INT_STATUS			(1 << 10)
 #define   CRT_HOTPLUG_MONITOR_MASK		(3 << 8)
@@ -648,7 +656,16 @@
 #define   SDVO_PHASE_SELECT_DEFAULT	(6 << 19)
 #define   SDVO_CLOCK_OUTPUT_INVERT	(1 << 18)
 #define   SDVOC_GANG_MODE		(1 << 16)
+#define   SDVO_ENCODING_SDVO		(0x0 << 10)
+#define   SDVO_ENCODING_HDMI		(0x2 << 10)
+/** Requird for HDMI operation */
+#define   SDVO_NULL_PACKETS_DURING_VSYNC (1 << 9)
 #define   SDVO_BORDER_ENABLE		(1 << 7)
+#define   SDVO_AUDIO_ENABLE		(1 << 6)
+/** New with 965, default is to be set */
+#define   SDVO_VSYNC_ACTIVE_HIGH	(1 << 4)
+/** New with 965, default is to be set */
+#define   SDVO_HSYNC_ACTIVE_HIGH	(1 << 3)
 #define   SDVOB_PCIE_CONCURRENCY	(1 << 3)
 #define   SDVO_DETECTED			(1 << 2)
 /* Bits to be preserved when writing */

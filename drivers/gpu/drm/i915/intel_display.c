@@ -751,6 +751,7 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 			is_lvds = true;
 			break;
 		case INTEL_OUTPUT_SDVO:
+		case INTEL_OUTPUT_HDMI:
 			is_sdvo = true;
 			break;
 		case INTEL_OUTPUT_DVO:
@@ -1443,8 +1444,15 @@ static void intel_setup_outputs(struct drm_device *dev)
 		intel_lvds_init(dev);
 
 	if (IS_I9XX(dev)) {
-		intel_sdvo_init(dev, SDVOB);
-		intel_sdvo_init(dev, SDVOC);
+		int found;
+
+		found = intel_sdvo_init(dev, SDVOB);
+		if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+			intel_hdmi_init(dev, SDVOB);
+
+		found = intel_sdvo_init(dev, SDVOC);
+		if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+			intel_hdmi_init(dev, SDVOC);
 	} else
 		intel_dvo_init(dev);
 
@@ -1458,6 +1466,11 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		/* valid crtcs */
 		switch(intel_output->type) {
+		case INTEL_OUTPUT_HDMI:
+			crtc_mask = ((1 << 0)|
+				     (1 << 1));
+			clone_mask = ((1 << INTEL_OUTPUT_HDMI));
+			break;
 		case INTEL_OUTPUT_DVO:
 		case INTEL_OUTPUT_SDVO:
 			crtc_mask = ((1 << 0)|
