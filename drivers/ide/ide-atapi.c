@@ -252,6 +252,18 @@ int ide_scsi_expiry(ide_drive_t *drive)
 }
 EXPORT_SYMBOL_GPL(ide_scsi_expiry);
 
+int ide_cd_get_xferlen(struct request *rq)
+{
+	if (blk_fs_request(rq))
+		return 32768;
+	else if (blk_sense_request(rq) || blk_pc_request(rq) ||
+			 rq->cmd_type == REQ_TYPE_ATA_PC)
+		return rq->data_len;
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(ide_cd_get_xferlen);
+
 /*
  * This is the usual interrupt handler which will be called during a packet
  * command.  We will transfer some of the data (as requested by the drive)
@@ -551,7 +563,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
 	u32 tf_flags;
-	u16 bcount = 0;
+	u16 bcount;
 	u8 scsi = !!(drive->dev_flags & IDE_DFLAG_SCSI);
 
 	/* We haven't transferred any data yet */
@@ -560,6 +572,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 
 	if (dev_is_idecd(drive)) {
 		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
+		bcount = ide_cd_get_xferlen(hwif->hwgroup->rq);
 	} else if (scsi) {
 		tf_flags = 0;
 		bcount = min(pc->req_xfer, 63 * 1024);

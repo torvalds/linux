@@ -1214,8 +1214,9 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		      __func__, rq->cmd[0], rq->cmd_type,
 		      (unsigned long long)block);
 
+	xferlen = ide_cd_get_xferlen(rq);
+
 	if (blk_fs_request(rq)) {
-		xferlen = 32768;
 		fn = cdrom_start_rw_cont;
 
 		if (cdrom_start_rw(drive, rq) == ide_stopped)
@@ -1225,7 +1226,6 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 			return ide_stopped;
 	} else if (blk_sense_request(rq) || blk_pc_request(rq) ||
 		   rq->cmd_type == REQ_TYPE_ATA_PC) {
-		xferlen = rq->data_len;
 		fn = cdrom_do_newpc_cont;
 
 		if (!rq->timeout)
