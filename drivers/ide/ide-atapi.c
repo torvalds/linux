@@ -14,6 +14,12 @@
 #define debug_log(fmt, args...) do {} while (0)
 #endif
 
+static inline int dev_is_idecd(ide_drive_t *drive)
+{
+	return (drive->media == ide_cdrom || drive->media == ide_optical) &&
+		!(drive->dev_flags & IDE_DFLAG_SCSI);
+}
+
 /*
  * Check whether we can support a device,
  * based on the ATAPI IDENTIFY command results.
@@ -577,7 +583,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 
 	if (scsi)
 		tf_flags = 0;
-	else if (drive->media == ide_cdrom || drive->media == ide_optical)
+	else if (dev_is_idecd(drive))
 		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
 	else
 		tf_flags = IDE_TFLAG_OUT_DEVICE;
