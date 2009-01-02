@@ -190,7 +190,7 @@ config DIGIEPCA
 
 config ESPSERIAL
 	tristate "Hayes ESP serial port support"
-	depends on SERIAL_NONSTANDARD && ISA && ISA_DMA_API
+	depends on SERIAL_NONSTANDARD && ISA && ISA_DMA_API && BROKEN
 	help
 	  This is a driver which supports Hayes ESP serial ports.  Both single
 	  port cards and multiport cards are supported.  Make sure to read
