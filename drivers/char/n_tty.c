@@ -351,10 +351,12 @@ static int do_output_char(unsigned char c, struct tty_struct *tty, int space)
 			tty->column--;
 		break;
 	default:
-		if (O_OLCUC(tty))
-			c = toupper(c);
-		if (!iscntrl(c) && !is_continuation(c, tty))
-			tty->column++;
+		if (!iscntrl(c)) {
+			if (O_OLCUC(tty))
+				c = toupper(c);
+			if (!is_continuation(c, tty))
+				tty->column++;
+		}
 		break;
 	}
 
@@ -425,7 +427,9 @@ static ssize_t process_output_block(struct tty_struct *tty,
 		nr = space;
 
 	for (i = 0, cp = buf; i < nr; i++, cp++) {
-		switch (*cp) {
+		unsigned char c = *cp;
+
+		switch (c) {
 		case '\n':
 			if (O_ONLRET(tty))
 				tty->column = 0;
@@ -447,10 +451,12 @@ static ssize_t process_output_block(struct tty_struct *tty,
 				tty->column--;
 			break;
 		default:
-			if (O_OLCUC(tty))
-				goto break_out;
-			if (!iscntrl(*cp))
-				tty->column++;
+			if (!iscntrl(c)) {
+				if (O_OLCUC(tty))
+					goto break_out;
+				if (!is_continuation(c, tty))
+					tty->column++;
+			}
 			break;
 		}
 	}
