@@ -32,13 +32,6 @@
 # define SUPPORT_VLB_SYNC 1
 #endif
 
-/*
- * Used to indicate "no IRQ", should be a value that cannot be an IRQ
- * number.
- */
- 
-#define IDE_NO_IRQ		(-1)
-
 typedef unsigned char	byte;	/* used everywhere */
 
 /*

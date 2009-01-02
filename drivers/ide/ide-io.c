@@ -778,8 +778,10 @@ repeat:
  * the driver.  This makes the driver much more friendlier to shared IRQs
  * than previous designs, while remaining 100% (?) SMP safe and capable.
  */
-static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
+void do_ide_request(struct request_queue *q)
 {
+	ide_drive_t	*orig_drive = q->queuedata;
+	ide_hwgroup_t	*hwgroup = orig_drive->hwif->hwgroup;
 	ide_drive_t	*drive;
 	ide_hwif_t	*hwif;
 	struct request	*rq;
@@ -837,10 +839,14 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 			}
 
 			/* no more work for this hwgroup (for now) */
-			return;
+			goto plug_device;
 		}
-	again:
-		hwif = HWIF(drive);
+
+		if (drive != orig_drive)
+			goto plug_device;
+again:
+		hwif = drive->hwif;
+
 		if (hwif != hwgroup->hwif) {
 			/*
 			 * set nIEN for previous hwif, drives in the
@@ -888,41 +894,26 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 				goto again;
 			/* We clear busy, there should be no pending ATA command at this point. */
 			hwgroup->busy = 0;
-			break;
+			goto plug_device;
 		}
 
 		hwgroup->rq = rq;
 
-		/*
-		 * Some systems have trouble with IDE IRQs arriving while
-		 * the driver is still setting things up.  So, here we disable
-		 * the IRQ used by this interface while the request is being started.
-		 * This may look bad at first, but pretty much the same thing
-		 * happens anyway when any interrupt comes in, IDE or otherwise
-		 *  -- the kernel masks the IRQ while it is being handled.
-		 */
-		if (masked_irq != IDE_NO_IRQ && hwif->irq != masked_irq)
-			disable_irq_nosync(hwif->irq);
-		spin_unlock(&hwgroup->lock);
-		local_irq_enable_in_hardirq();
-			/* allow other IRQs while we start this request */
+		spin_unlock_irq(&hwgroup->lock);
 		startstop = start_request(drive, rq);
 		spin_lock_irq(&hwgroup->lock);
-		if (masked_irq != IDE_NO_IRQ && hwif->irq != masked_irq)
-			enable_irq(hwif->irq);
-		if (startstop == ide_stopped)
+
+		if (startstop == ide_stopped) {
 			hwgroup->busy = 0;
+			if (!elv_queue_empty(orig_drive->queue))
+				blk_plug_device(orig_drive->queue);
+		}
 	}
-}
+	return;
 
-/*
- * Passes the stuff to ide_do_request
- */
-void do_ide_request(struct request_queue *q)
-{
-	ide_drive_t *drive = q->queuedata;
-
-	ide_do_request(HWGROUP(drive), IDE_NO_IRQ);
+plug_device:
+	if (!elv_queue_empty(orig_drive->queue))
+		blk_plug_device(orig_drive->queue);
 }
 
 /*
@@ -1074,11 +1065,13 @@ void ide_timer_expiry (unsigned long data)
 			drive->service_time = jiffies - drive->service_start;
 			spin_lock_irq(&hwgroup->lock);
 			enable_irq(hwif->irq);
-			if (startstop == ide_stopped)
+			if (startstop == ide_stopped) {
 				hwgroup->busy = 0;
+				if (!elv_queue_empty(drive->queue))
+					blk_plug_device(drive->queue);
+			}
 		}
 	}
-	ide_do_request(hwgroup, IDE_NO_IRQ);
 	spin_unlock_irqrestore(&hwgroup->lock, flags);
 }
 
@@ -1271,11 +1264,11 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	if (startstop == ide_stopped) {
 		if (hwgroup->handler == NULL) {	/* paranoia */
 			hwgroup->busy = 0;
-			ide_do_request(hwgroup, hwif->irq);
-		} else {
-			printk(KERN_ERR "%s: ide_intr: huh? expected NULL handler "
-				"on exit\n", drive->name);
-		}
+			if (!elv_queue_empty(drive->queue))
+				blk_plug_device(drive->queue);
+		} else
+			printk(KERN_ERR "%s: %s: huh? expected NULL handler "
+					"on exit\n", __func__, drive->name);
 	}
 out_handled:
 	irq_ret = IRQ_HANDLED;
