@@ -80,7 +80,7 @@ struct mpc_config_processor {
 	unsigned int mpc_reserved[2];
 };
 
-struct mpc_config_bus {
+struct mpc_bus {
 	unsigned char mpc_type;
 	unsigned char mpc_busid;
 	unsigned char mpc_bustype[6];

@@ -74,7 +74,7 @@ static void __init MP_processor_info(struct mpc_config_processor *m)
 }
 
 #ifdef CONFIG_X86_IO_APIC
-static void __init MP_bus_info(struct mpc_config_bus *m)
+static void __init MP_bus_info(struct mpc_bus *m)
 {
 	char str[7];
 	memcpy(str, m->mpc_bustype, 6);
@@ -338,8 +338,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 			}
 		case MP_BUS:
 			{
-				struct mpc_config_bus *m =
-				    (struct mpc_config_bus *)mpt;
+				struct mpc_bus *m = (struct mpc_bus *)mpt;
 #ifdef CONFIG_X86_IO_APIC
 				MP_bus_info(m);
 #endif
@@ -488,7 +487,7 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 static void __init construct_ioapic_table(int mpc_default_type)
 {
 	struct mpc_config_ioapic ioapic;
-	struct mpc_config_bus bus;
+	struct mpc_bus bus;
 
 	bus.mpc_type = MP_BUS;
 	bus.mpc_busid = 0;
@@ -656,7 +655,7 @@ static void __init __get_smp_config(unsigned int early)
 		 * ISA defaults and hope it will work.
 		 */
 		if (!mp_irq_entries) {
-			struct mpc_config_bus bus;
+			struct mpc_bus bus;
 
 			printk(KERN_ERR "BIOS bug, no explicit IRQ entries, "
 			       "using default mptable. "
@@ -867,8 +866,7 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 			}
 		case MP_BUS:
 			{
-				struct mpc_config_bus *m =
-				    (struct mpc_config_bus *)mpt;
+				struct mpc_bus *m = (struct mpc_bus *)mpt;
 				mpt += sizeof(*m);
 				count += sizeof(*m);
 				break;

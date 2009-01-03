@@ -135,7 +135,7 @@ int mp_bus_id_to_node[MAX_MP_BUSSES];
 int mp_bus_id_to_local[MAX_MP_BUSSES];
 
 /* x86_quirks member */
-static void mpc_oem_bus_info(struct mpc_config_bus *m, char *name)
+static void mpc_oem_bus_info(struct mpc_bus *m, char *name)
 {
 	int quad = translation_table[mpc_record]->trans_quad;
 	int local = translation_table[mpc_record]->trans_local;
@@ -149,7 +149,7 @@ static void mpc_oem_bus_info(struct mpc_config_bus *m, char *name)
 int quad_local_to_mp_bus_id [NR_CPUS/4][4];
 
 /* x86_quirks member */
-static void mpc_oem_pci_bus(struct mpc_config_bus *m)
+static void mpc_oem_pci_bus(struct mpc_bus *m)
 {
 	int quad = translation_table[mpc_record]->trans_quad;
 	int local = translation_table[mpc_record]->trans_local;
