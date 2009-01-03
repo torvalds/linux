@@ -27,7 +27,7 @@ extern int wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip);
  */
 struct mpc_cpu;
 struct mpc_bus;
-struct mp_config_oemtable;
+struct mpc_oemtable;
 struct x86_quirks {
 	int (*arch_pre_time_init)(void);
 	int (*arch_time_init)(void);
@@ -42,7 +42,7 @@ struct x86_quirks {
 	int (*mpc_apic_id)(struct mpc_cpu *m);
 	void (*mpc_oem_bus_info)(struct mpc_bus *m, char *name);
 	void (*mpc_oem_pci_bus)(struct mpc_bus *m);
-	void (*smp_read_mpc_oem)(struct mp_config_oemtable *oemtable,
+	void (*smp_read_mpc_oem)(struct mpc_oemtable *oemtable,
                                     unsigned short oemsize);
 	int (*setup_ioapic_ids)(void);
 	int (*update_genapic)(void);

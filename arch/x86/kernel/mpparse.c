@@ -313,7 +313,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 		return 1;
 
 	if (mpc->mpc_oemptr && x86_quirks->smp_read_mpc_oem) {
-		struct mp_config_oemtable *oem_table = (struct mp_config_oemtable *)(unsigned long)mpc->mpc_oemptr;
+		struct mpc_oemtable *oem_table = (void *)(long)mpc->mpc_oemptr;
 		x86_quirks->smp_read_mpc_oem(oem_table, mpc->mpc_oemsize);
 	}
 

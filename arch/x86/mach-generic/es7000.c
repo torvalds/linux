@@ -47,8 +47,8 @@ static __init int
 mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
 	if (mpc->mpc_oemptr) {
-		struct mp_config_oemtable *oem_table =
-			(struct mp_config_oemtable *)mpc->mpc_oemptr;
+		struct mpc_oemtable *oem_table =
+			(struct mpc_oemtable *)mpc->mpc_oemptr;
 		if (!strncmp(oem, "UNISYS", 6))
 			return parse_unisys_oem((char *)oem_table);
 	}

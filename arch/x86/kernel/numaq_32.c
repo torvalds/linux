@@ -186,7 +186,7 @@ static int __init mpf_checksum(unsigned char *mp, int len)
  * Read/parse the MPC oem tables
  */
 
-static void __init smp_read_mpc_oem(struct mp_config_oemtable *oemtable,
+static void __init smp_read_mpc_oem(struct mpc_oemtable *oemtable,
 				    unsigned short oemsize)
 {
 	int count = sizeof(*oemtable);	/* the header size */
