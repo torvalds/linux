@@ -39,7 +39,7 @@ struct intel_mp_floating {
 
 #define MPC_SIGNATURE "PCMP"
 
-struct mp_config_table {
+struct mpc_table {
 	char mpc_signature[4];
 	unsigned short mpc_length;	/* Size of table */
 	char mpc_spec;			/* 0x01 */

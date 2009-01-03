@@ -260,8 +260,7 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.update_genapic		= numaq_update_genapic,
 };
 
-void numaq_mps_oem_check(struct mp_config_table *mpc, char *oem,
-				 char *productid)
+void numaq_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
 	if (strncmp(oem, "IBM NUMA", 8))
 		printk("Warning!  Not a NUMA-Q system!\n");

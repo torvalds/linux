@@ -246,8 +246,7 @@ static void __init MP_lintsrc_info(struct mpc_config_lintsrc *m)
  * Read/parse the MPC
  */
 
-static int __init smp_check_mpc(struct mp_config_table *mpc, char *oem,
-				char *str)
+static int __init smp_check_mpc(struct mpc_table *mpc, char *oem, char *str)
 {
 
 	if (memcmp(mpc->mpc_signature, MPC_SIGNATURE, 4)) {
@@ -283,7 +282,7 @@ static int __init smp_check_mpc(struct mp_config_table *mpc, char *oem,
 	return 1;
 }
 
-static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
+static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 {
 	char str[16];
 	char oem[10];
@@ -843,7 +842,7 @@ static int  __init get_MP_intsrc_index(struct mpc_config_intsrc *m)
 static struct mpc_config_intsrc __initdata *m_spare[SPARE_SLOT_NUM];
 #endif
 
-static int  __init replace_intsrc_all(struct mp_config_table *mpc,
+static int  __init replace_intsrc_all(struct mpc_table *mpc,
 					unsigned long mpc_new_phys,
 					unsigned long mpc_new_length)
 {
@@ -1014,8 +1013,7 @@ static int __init update_mp_table(void)
 	char str[16];
 	char oem[10];
 	struct intel_mp_floating *mpf;
-	struct mp_config_table *mpc;
-	struct mp_config_table *mpc_new;
+	struct mpc_table *mpc, *mpc_new;
 
 	if (!enable_update_mptable)
 		return 0;
