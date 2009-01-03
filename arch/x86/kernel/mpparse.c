@@ -133,7 +133,7 @@ static int bad_ioapic(unsigned long address)
 	return 0;
 }
 
-static void __init MP_ioapic_info(struct mpc_config_ioapic *m)
+static void __init MP_ioapic_info(struct mpc_ioapic *m)
 {
 	if (!(m->mpc_flags & MPC_APIC_USABLE))
 		return;
@@ -348,12 +348,11 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 		case MP_IOAPIC:
 			{
 #ifdef CONFIG_X86_IO_APIC
-				struct mpc_config_ioapic *m =
-				    (struct mpc_config_ioapic *)mpt;
+				struct mpc_ioapic *m = (struct mpc_ioapic *)mpt;
 				MP_ioapic_info(m);
 #endif
-				mpt += sizeof(struct mpc_config_ioapic);
-				count += sizeof(struct mpc_config_ioapic);
+				mpt += sizeof(struct mpc_ioapic);
+				count += sizeof(struct mpc_ioapic);
 				break;
 			}
 		case MP_INTSRC:
@@ -485,7 +484,7 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 
 static void __init construct_ioapic_table(int mpc_default_type)
 {
-	struct mpc_config_ioapic ioapic;
+	struct mpc_ioapic ioapic;
 	struct mpc_bus bus;
 
 	bus.mpc_type = MP_BUS;
@@ -871,8 +870,8 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 			}
 		case MP_IOAPIC:
 			{
-				mpt += sizeof(struct mpc_config_ioapic);
-				count += sizeof(struct mpc_config_ioapic);
+				mpt += sizeof(struct mpc_ioapic);
+				count += sizeof(struct mpc_ioapic);
 				break;
 			}
 		case MP_INTSRC:

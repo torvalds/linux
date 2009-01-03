@@ -108,7 +108,7 @@ struct mpc_bus {
 
 #define MPC_APIC_USABLE		0x01
 
-struct mpc_config_ioapic {
+struct mpc_ioapic {
 	unsigned char mpc_type;
 	unsigned char mpc_apicid;
 	unsigned char mpc_apicver;
