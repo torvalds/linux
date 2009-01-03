@@ -371,12 +371,7 @@ EXPORT_SYMBOL(nr_cpu_ids);
 /* An arch may set nr_cpu_ids earlier if needed, so this would be redundant */
 static void __init setup_nr_cpu_ids(void)
 {
-	int cpu, highest_cpu = 0;
-
-	for_each_possible_cpu(cpu)
-		highest_cpu = cpu;
-
-	nr_cpu_ids = highest_cpu + 1;
+	nr_cpu_ids = find_last_bit(cpumask_bits(cpu_possible_mask),NR_CPUS) + 1;
 }
 
 #ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
@@ -518,9 +513,9 @@ static void __init boot_cpu_init(void)
 {
 	int cpu = smp_processor_id();
 	/* Mark the boot cpu "present", "online" etc for SMP and UP case */
-	cpu_set(cpu, cpu_online_map);
-	cpu_set(cpu, cpu_present_map);
-	cpu_set(cpu, cpu_possible_map);
+	set_cpu_online(cpu, true);
+	set_cpu_present(cpu, true);
+	set_cpu_possible(cpu, true);
 }
 
 void __init __weak smp_setup_processor_id(void)

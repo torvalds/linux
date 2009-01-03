@@ -1383,7 +1383,8 @@ static inline void init_sched_rt_class(void)
 	unsigned int i;
 
 	for_each_possible_cpu(i)
-		alloc_cpumask_var(&per_cpu(local_cpu_mask, i), GFP_KERNEL);
+		alloc_cpumask_var_node(&per_cpu(local_cpu_mask, i),
+					GFP_KERNEL, cpu_to_node(i));
 }
 #endif /* CONFIG_SMP */
 

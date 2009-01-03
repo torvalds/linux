@@ -357,9 +357,8 @@ void __init find_smp_config(void)
 	printk("VOYAGER SMP: Boot cpu is %d\n", boot_cpu_id);
 
 	/* initialize the CPU structures (moved from smp_boot_cpus) */
-	for (i = 0; i < NR_CPUS; i++) {
+	for (i = 0; i < nr_cpu_ids; i++)
 		cpu_irq_affinity[i] = ~0;
-	}
 	cpu_online_map = cpumask_of_cpu(boot_cpu_id);
 
 	/* The boot CPU must be extended */
@@ -1227,7 +1226,7 @@ int setup_profiling_timer(unsigned int multiplier)
 	 * new values until the next timer interrupt in which they do process
 	 * accounting.
 	 */
-	for (i = 0; i < NR_CPUS; ++i)
+	for (i = 0; i < nr_cpu_ids; ++i)
 		per_cpu(prof_multiplier, i) = multiplier;
 
 	return 0;
@@ -1257,7 +1256,7 @@ void __init voyager_smp_intr_init(void)
 	int i;
 
 	/* initialize the per cpu irq mask to all disabled */
-	for (i = 0; i < NR_CPUS; i++)
+	for (i = 0; i < nr_cpu_ids; i++)
 		vic_irq_mask[i] = 0xFFFF;
 
 	VIC_SET_GATE(VIC_CPI_LEVEL0, vic_cpi_interrupt);

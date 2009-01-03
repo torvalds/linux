@@ -496,7 +496,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 }
 
 /* maps the cpu to the sched domain representing multi-core */
-cpumask_t cpu_coregroup_map(int cpu)
+const struct cpumask *cpu_coregroup_mask(int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	/*
@@ -504,9 +504,14 @@ cpumask_t cpu_coregroup_map(int cpu)
 	 * And for power savings, we return cpu_core_map
 	 */
 	if (sched_mc_power_savings || sched_smt_power_savings)
-		return per_cpu(cpu_core_map, cpu);
+		return &per_cpu(cpu_core_map, cpu);
 	else
-		return c->llc_shared_map;
+		return &c->llc_shared_map;
+}
+
+cpumask_t cpu_coregroup_map(int cpu)
+{
+	return *cpu_coregroup_mask(cpu);
 }
 
 static void impress_friends(void)
@@ -1149,7 +1154,7 @@ static void __init smp_cpu_index_default(void)
 	for_each_possible_cpu(i) {
 		c = &cpu_data(i);
 		/* mark all to hotplug */
-		c->cpu_index = NR_CPUS;
+		c->cpu_index = nr_cpu_ids;
 	}
 }
 
@@ -1292,6 +1297,8 @@ __init void prefill_possible_map(void)
 		possible = num_processors + disabled_cpus;
 	else
 		possible = setup_possible_cpus;
+
+	total_cpus = max_t(int, possible, num_processors + disabled_cpus);
 
 	if (possible > CONFIG_NR_CPUS) {
 		printk(KERN_WARNING
