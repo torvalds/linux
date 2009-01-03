@@ -316,8 +316,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * b) the guest used a large mapping which we're faking
 			 * Either way, we need to satisfy the fault without
 			 * invoking the guest. */
-			kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlbe->tid,
-			               gtlbe->word2, get_tlb_bytes(gtlbe), gtlb_index);
+			kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlb_index);
 			kvmppc_account_exit(vcpu, DTLB_VIRT_MISS_EXITS);
 			r = RESUME_GUEST;
 		} else {
@@ -364,8 +363,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * b) the guest used a large mapping which we're faking
 			 * Either way, we need to satisfy the fault without
 			 * invoking the guest. */
-			kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlbe->tid,
-			               gtlbe->word2, get_tlb_bytes(gtlbe), gtlb_index);
+			kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlb_index);
 		} else {
 			/* Guest mapped and leaped at non-RAM! */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_MACHINE_CHECK);
