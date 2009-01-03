@@ -347,7 +347,9 @@ lightweight_exit:
 	lwz	r3, VCPU_SHADOW_PID(r4)
 	mtspr	SPRN_PID, r3
 
+#ifdef CONFIG_44x
 	iccci	0, 0 /* XXX hack */
+#endif
 
 	/* Load some guest volatiles. */
 	lwz	r0, VCPU_GPR(r0)(r4)
