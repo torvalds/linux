@@ -71,7 +71,7 @@ unmap_pages:
 
 static int kvm_iommu_map_memslots(struct kvm *kvm)
 {
-	int i, r;
+	int i, r = 0;
 
 	down_read(&kvm->slots_lock);
 	for (i = 0; i < kvm->nmemslots; i++) {
