@@ -233,7 +233,7 @@ static void __init MP_intsrc_info(struct mpc_intsrc *m)
 
 #endif
 
-static void __init MP_lintsrc_info(struct mpc_config_lintsrc *m)
+static void __init MP_lintsrc_info(struct mpc_lintsrc *m)
 {
 	apic_printk(APIC_VERBOSE, "Lint: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC LINT %02x\n",
@@ -368,8 +368,8 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 			}
 		case MP_LINTSRC:
 			{
-				struct mpc_config_lintsrc *m =
-				    (struct mpc_config_lintsrc *)mpt;
+				struct mpc_lintsrc *m =
+				    (struct mpc_lintsrc *)mpt;
 				MP_lintsrc_info(m);
 				mpt += sizeof(*m);
 				count += sizeof(*m);
@@ -532,7 +532,7 @@ static inline void __init construct_ioapic_table(int mpc_default_type) { }
 static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 {
 	struct mpc_cpu processor;
-	struct mpc_config_lintsrc lintsrc;
+	struct mpc_lintsrc lintsrc;
 	int linttypes[2] = { mp_ExtINT, mp_NMI };
 	int i;
 
@@ -903,8 +903,8 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 			}
 		case MP_LINTSRC:
 			{
-				struct mpc_config_lintsrc *m =
-				    (struct mpc_config_lintsrc *)mpt;
+				struct mpc_lintsrc *m =
+				    (struct mpc_lintsrc *)mpt;
 				mpt += sizeof(*m);
 				count += sizeof(*m);
 				break;
