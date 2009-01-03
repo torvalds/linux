@@ -207,6 +207,7 @@ static __inline__ unsigned long __ffs(unsigned long word)
 #endif /* __KERNEL__ */
 
 #include <asm-generic/bitops/fls.h>
+#include <asm-generic/bitops/__fls.h>
 #include <asm-generic/bitops/fls64.h>
 
 #endif /* _H8300_BITOPS_H */
