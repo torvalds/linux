@@ -16,6 +16,7 @@ AFLAGS_booke_interrupts.o := -I$(obj)
 
 kvm-440-objs := \
 	booke.o \
+	booke_emulate.o \
 	booke_interrupts.o \
 	44x.o \
 	44x_tlb.o \

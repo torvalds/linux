@@ -22,6 +22,7 @@
 
 #include <linux/types.h>
 #include <linux/kvm_host.h>
+#include <asm/kvm_ppc.h>
 #include "timing.h"
 
 /* interrupt priortity ordering */
@@ -56,5 +57,10 @@ static inline void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
 	};
 }
+
+int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
+                            unsigned int inst, int *advance);
+int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt);
+int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs);
 
 #endif /* __KVM_BOOKE_H__ */
