@@ -248,7 +248,7 @@ static void kvmppc_44x_shadow_release(struct kvmppc_vcpu_44x *vcpu_44x,
 	KVMTRACE_1D(STLB_INVAL, &vcpu_44x->vcpu, stlb_index, handler);
 }
 
-void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu)
+void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	int i;
