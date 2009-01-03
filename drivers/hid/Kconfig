@@ -246,6 +246,13 @@ config GREENASIA_FF
 	(like MANTA Warior MM816 and SpeedLink Strike2 SL-6635) or adapter
 	and want to enable force feedback support for it.
 
+config HID_TOPSEED
+	tristate "TopSeed Cyberlink remote control support" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Say Y if you have a TopSeed Cyberlink remote control.
+
 config THRUSTMASTER_FF
 	tristate "ThrustMaster devices support"
 	depends on USB_HID
