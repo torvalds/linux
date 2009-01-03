@@ -29,7 +29,6 @@ enum cx2341x_cap {
 	CX2341X_CAP_HAS_SLICED_VBI = 1 << 0,
 	CX2341X_CAP_HAS_TS 	   = 1 << 1,
 	CX2341X_CAP_HAS_AC3 	   = 1 << 2,
-	CX2341X_CAP_HAS_LPCM	   = 1 << 3,
 };
 
 struct cx2341x_mpeg_params {

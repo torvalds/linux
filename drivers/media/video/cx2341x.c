@@ -263,10 +263,10 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params, int busy,
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
 		if (busy)
 			return -EBUSY;
-		if (params->capabilities & CX2341X_CAP_HAS_AC3 &&
-		    ctrl->value != V4L2_MPEG_AUDIO_ENCODING_LAYER_2 &&
-		    ctrl->value != V4L2_MPEG_AUDIO_ENCODING_AC3)
-			return -EINVAL;
+		if (params->capabilities & CX2341X_CAP_HAS_AC3)
+			if (ctrl->value != V4L2_MPEG_AUDIO_ENCODING_LAYER_2 &&
+			    ctrl->value != V4L2_MPEG_AUDIO_ENCODING_AC3)
+				return -ERANGE;
 		params->audio_encoding = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
@@ -277,6 +277,8 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params, int busy,
 	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
 		if (busy)
 			return -EBUSY;
+		if (!(params->capabilities & CX2341X_CAP_HAS_AC3))
+			return -EINVAL;
 		params->audio_ac3_bitrate = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_AUDIO_MODE:
@@ -498,11 +500,18 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 
 	switch (qctrl->id) {
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
-		if (params->capabilities & CX2341X_CAP_HAS_AC3)
+		if (params->capabilities & CX2341X_CAP_HAS_AC3) {
+			/*
+			 * The state of L2 & AC3 bitrate controls can change
+			 * when this control changes, but v4l2_ctrl_query_fill()
+			 * already sets V4L2_CTRL_FLAG_UPDATE for
+			 * V4L2_CID_MPEG_AUDIO_ENCODING, so we don't here.
+			 */
 			return v4l2_ctrl_query_fill(qctrl,
 					V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
 					V4L2_MPEG_AUDIO_ENCODING_AC3, 1,
 					default_params.audio_encoding);
+		}
 
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
@@ -510,20 +519,35 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 				default_params.audio_encoding);
 
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
-		return v4l2_ctrl_query_fill(qctrl,
+		err = v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_L2_BITRATE_192K,
 				V4L2_MPEG_AUDIO_L2_BITRATE_384K, 1,
 				default_params.audio_l2_bitrate);
+		if (err)
+			return err;
+		if (params->capabilities & CX2341X_CAP_HAS_AC3 &&
+		    params->audio_encoding != V4L2_MPEG_AUDIO_ENCODING_LAYER_2)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		return 0;
 
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
 	case V4L2_CID_MPEG_AUDIO_L3_BITRATE:
 		return -EINVAL;
 
 	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
-		return v4l2_ctrl_query_fill(qctrl,
+		err = v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_AC3_BITRATE_48K,
 				V4L2_MPEG_AUDIO_AC3_BITRATE_448K, 1,
 				default_params.audio_ac3_bitrate);
+		if (err)
+			return err;
+		if (params->capabilities & CX2341X_CAP_HAS_AC3) {
+			if (params->audio_encoding !=
+						   V4L2_MPEG_AUDIO_ENCODING_AC3)
+				qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		} else
+			qctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
+		return 0;
 
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION:
 		err = v4l2_ctrl_query_fill_std(qctrl);
@@ -771,9 +795,9 @@ const char **cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id)
 EXPORT_SYMBOL(cx2341x_ctrl_get_menu);
 
 /* definitions for audio properties bits 29-28 */
-#define CX2341X_AUDIO_ENCDING_METHOD_MPEG	0
-#define CX2341X_AUDIO_ENCDING_METHOD_AC3	1
-#define CX2341X_AUDIO_ENCDING_METHOD_LPCM	2
+#define CX2341X_AUDIO_ENCODING_METHOD_MPEG	0
+#define CX2341X_AUDIO_ENCODING_METHOD_AC3	1
+#define CX2341X_AUDIO_ENCODING_METHOD_LPCM	2
 
 static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 {
@@ -791,7 +815,7 @@ static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 			/* Not sure if this MPEG Layer II setting is required */
 			((3 - V4L2_MPEG_AUDIO_ENCODING_LAYER_2) << 2) |
 			(params->audio_ac3_bitrate << 4) |
-			(CX2341X_AUDIO_ENCDING_METHOD_AC3 << 28);
+			(CX2341X_AUDIO_ENCODING_METHOD_AC3 << 28);
 	} else {
 		/* Assuming MPEG Layer II */
 		params->audio_properties |=
