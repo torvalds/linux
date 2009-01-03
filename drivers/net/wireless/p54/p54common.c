@@ -138,6 +138,7 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 	u8 *fw_version = NULL;
 	size_t len;
 	int i;
+	int maxlen;
 
 	if (priv->rx_start)
 		return 0;
@@ -195,6 +196,16 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 			else
 				priv->rx_mtu = (size_t)
 					0x620 - priv->tx_hdr_len;
+			maxlen = priv->tx_hdr_len + /* USB devices */
+				 sizeof(struct p54_rx_data) +
+				 4 + /* rx alignment */
+				 IEEE80211_MAX_FRAG_THRESHOLD;
+			if (priv->rx_mtu > maxlen && PAGE_SIZE == 4096) {
+				printk(KERN_INFO "p54: rx_mtu reduced from %d "
+					         "to %d\n", priv->rx_mtu,
+						 maxlen);
+				priv->rx_mtu = maxlen;
+			}
 			break;
 			}
 		case BR_CODE_EXPOSED_IF:
