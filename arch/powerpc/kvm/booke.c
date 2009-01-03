@@ -286,8 +286,6 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	/* XXX move to a 440-specific file. */
 	case BOOKE_INTERRUPT_DTLB_MISS: {
-		struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
-		struct kvmppc_44x_tlbe *gtlbe;
 		unsigned long eaddr = vcpu->arch.fault_dear;
 		int gtlb_index;
 		gpa_t gpaddr;
@@ -305,8 +303,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			break;
 		}
 
-		gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
-		gpaddr = tlb_xlate(gtlbe, eaddr);
+		gpaddr = kvmppc_mmu_xlate(vcpu, gtlb_index, eaddr);
 		gfn = gpaddr >> PAGE_SHIFT;
 
 		if (kvm_is_visible_gfn(vcpu->kvm, gfn)) {
@@ -332,8 +329,6 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	/* XXX move to a 440-specific file. */
 	case BOOKE_INTERRUPT_ITLB_MISS: {
-		struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
-		struct kvmppc_44x_tlbe *gtlbe;
 		unsigned long eaddr = vcpu->arch.pc;
 		gpa_t gpaddr;
 		gfn_t gfn;
@@ -352,8 +347,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 		kvmppc_account_exit(vcpu, ITLB_VIRT_MISS_EXITS);
 
-		gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
-		gpaddr = tlb_xlate(gtlbe, eaddr);
+		gpaddr = kvmppc_mmu_xlate(vcpu, gtlb_index, eaddr);
 		gfn = gpaddr >> PAGE_SHIFT;
 
 		if (kvm_is_visible_gfn(vcpu->kvm, gfn)) {

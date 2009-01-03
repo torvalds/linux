@@ -149,8 +149,6 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 int kvmppc_core_vcpu_translate(struct kvm_vcpu *vcpu,
                                struct kvm_translation *tr)
 {
-	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
-	struct kvmppc_44x_tlbe *gtlbe;
 	int index;
 	gva_t eaddr;
 	u8 pid;
@@ -166,9 +164,7 @@ int kvmppc_core_vcpu_translate(struct kvm_vcpu *vcpu,
 		return 0;
 	}
 
-	gtlbe = &vcpu_44x->guest_tlb[index];
-
-	tr->physical_address = tlb_xlate(gtlbe, eaddr);
+	tr->physical_address = kvmppc_mmu_xlate(vcpu, index, eaddr);
 	/* XXX what does "writeable" and "usermode" even mean? */
 	tr->valid = 1;
 

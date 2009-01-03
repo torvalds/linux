@@ -208,6 +208,16 @@ int kvmppc_44x_tlb_index(struct kvm_vcpu *vcpu, gva_t eaddr, unsigned int pid,
 	return -1;
 }
 
+gpa_t kvmppc_mmu_xlate(struct kvm_vcpu *vcpu, unsigned int gtlb_index,
+                       gva_t eaddr)
+{
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
+	struct kvmppc_44x_tlbe *gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
+	unsigned int pgmask = get_tlb_bytes(gtlbe) - 1;
+
+	return get_tlb_raddr(gtlbe) | (eaddr & pgmask);
+}
+
 int kvmppc_44x_itlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
 {
 	unsigned int as = !!(vcpu->arch.msr & MSR_IS);
