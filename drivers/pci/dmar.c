@@ -491,7 +491,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	int map_size;
 	u32 ver;
 	static int iommu_allocated = 0;
-	int agaw;
+	int agaw = 0;
 
 	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
@@ -507,6 +507,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	iommu->cap = dmar_readq(iommu->reg + DMAR_CAP_REG);
 	iommu->ecap = dmar_readq(iommu->reg + DMAR_ECAP_REG);
 
+#ifdef CONFIG_DMAR
 	agaw = iommu_calculate_agaw(iommu);
 	if (agaw < 0) {
 		printk(KERN_ERR
@@ -514,6 +515,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 			iommu->seq_id);
 		goto error;
 	}
+#endif
 	iommu->agaw = agaw;
 
 	/* the registers might be more than one page */
