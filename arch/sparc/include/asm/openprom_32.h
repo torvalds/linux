@@ -229,16 +229,6 @@ struct linux_prom_pci_ranges {
 	unsigned int size_lo;
 };
 
-struct linux_prom_pci_assigned_addresses {
-	unsigned int which_io;
-
-	unsigned int phys_hi;
-	unsigned int phys_lo;
-
-	unsigned int size_hi;
-	unsigned int size_lo;
-};
-
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* !(__SPARC_OPENPROM_H) */
