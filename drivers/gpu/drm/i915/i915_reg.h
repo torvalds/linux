@@ -35,7 +35,7 @@
 #define INTEL_GMCH_MEM_64M	0x1
 #define INTEL_GMCH_MEM_128M	0
 
-#define INTEL_855_GMCH_GMS_MASK		(0x7 << 4)
+#define INTEL_GMCH_GMS_MASK		(0xf << 4)
 #define INTEL_855_GMCH_GMS_DISABLED	(0x0 << 4)
 #define INTEL_855_GMCH_GMS_STOLEN_1M	(0x1 << 4)
 #define INTEL_855_GMCH_GMS_STOLEN_4M	(0x2 << 4)
@@ -45,6 +45,12 @@
 
 #define INTEL_915G_GMCH_GMS_STOLEN_48M	(0x6 << 4)
 #define INTEL_915G_GMCH_GMS_STOLEN_64M	(0x7 << 4)
+#define INTEL_GMCH_GMS_STOLEN_128M	(0x8 << 4)
+#define INTEL_GMCH_GMS_STOLEN_256M	(0x9 << 4)
+#define INTEL_GMCH_GMS_STOLEN_96M	(0xa << 4)
+#define INTEL_GMCH_GMS_STOLEN_160M	(0xb << 4)
+#define INTEL_GMCH_GMS_STOLEN_224M	(0xc << 4)
+#define INTEL_GMCH_GMS_STOLEN_352M	(0xd << 4)
 
 /* PCI config space */
 
