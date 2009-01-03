@@ -111,6 +111,8 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		vcpu->arch.dbcr0 = vcpu->arch.gpr[rs]; break;
 	case SPRN_DBCR1:
 		vcpu->arch.dbcr1 = vcpu->arch.gpr[rs]; break;
+	case SPRN_DBSR:
+		vcpu->arch.dbsr &= ~vcpu->arch.gpr[rs]; break;
 	case SPRN_TSR:
 		vcpu->arch.tsr &= ~vcpu->arch.gpr[rs]; break;
 	case SPRN_TCR:
@@ -204,6 +206,8 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		vcpu->arch.gpr[rt] = vcpu->arch.dbcr0; break;
 	case SPRN_DBCR1:
 		vcpu->arch.gpr[rt] = vcpu->arch.dbcr1; break;
+	case SPRN_DBSR:
+		vcpu->arch.gpr[rt] = vcpu->arch.dbsr; break;
 
 	case SPRN_IVOR0:
 		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_CRITICAL];

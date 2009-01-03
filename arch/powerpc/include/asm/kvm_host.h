@@ -163,6 +163,7 @@ struct kvm_vcpu_arch {
 	u32 ccr1;
 	u32 dbcr0;
 	u32 dbcr1;
+	u32 dbsr;
 
 #ifdef CONFIG_KVM_EXIT_TIMING
 	struct kvmppc_exit_timing timing_exit;
