@@ -22,13 +22,6 @@ struct tt_entry {
 /* We set this to _start in system setup. */
 extern struct tt_entry *sparc_ttable;
 
-static inline unsigned long get_tbr(void)
-{
-	unsigned long tbr;
-
-	__asm__ __volatile__("rd %%tbr, %0\n\t" : "=r" (tbr));
-	return tbr;
-}
 #endif /* (__KERNEL__) */
 #endif /* !(__ASSEMBLY__) */
 
