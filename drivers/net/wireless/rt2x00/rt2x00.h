@@ -33,6 +33,7 @@
 #include <linux/leds.h>
 #include <linux/mutex.h>
 #include <linux/etherdevice.h>
+#include <linux/input-polldev.h>
 
 #include <net/mac80211.h>
 
@@ -638,8 +639,8 @@ struct rt2x00_dev {
 	unsigned long rfkill_state;
 #define RFKILL_STATE_ALLOCATED		1
 #define RFKILL_STATE_REGISTERED		2
-	struct rfkill *rfkill;
-	struct delayed_work rfkill_work;
+#define RFKILL_STATE_BLOCKED		3
+	struct input_polled_dev *rfkill_poll_dev;
 #endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 	/*
