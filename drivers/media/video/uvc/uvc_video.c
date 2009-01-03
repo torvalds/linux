@@ -114,7 +114,7 @@ static int uvc_get_video_ctrl(struct uvc_video_device *video,
 		ctrl->wCompQuality = le16_to_cpup((__le16 *)data);
 		ret = 0;
 		goto out;
-	} else if (query == GET_DEF && probe == 1) {
+	} else if (query == GET_DEF && probe == 1 && ret != size) {
 		/* Many cameras don't support the GET_DEF request on their
 		 * video probe control. Warn once and return, the caller will
 		 * fall back to GET_CUR.
