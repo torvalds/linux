@@ -116,7 +116,7 @@ struct mpc_ioapic {
 	unsigned int mpc_apicaddr;
 };
 
-struct mpc_config_intsrc {
+struct mpc_intsrc {
 	unsigned char mpc_type;
 	unsigned char mpc_irqtype;
 	unsigned short mpc_irqflag;
