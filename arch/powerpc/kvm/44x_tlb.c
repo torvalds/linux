@@ -218,14 +218,14 @@ gpa_t kvmppc_mmu_xlate(struct kvm_vcpu *vcpu, unsigned int gtlb_index,
 	return get_tlb_raddr(gtlbe) | (eaddr & pgmask);
 }
 
-int kvmppc_44x_itlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
+int kvmppc_mmu_itlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
 {
 	unsigned int as = !!(vcpu->arch.msr & MSR_IS);
 
 	return kvmppc_44x_tlb_index(vcpu, eaddr, vcpu->arch.pid, as);
 }
 
-int kvmppc_44x_dtlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
+int kvmppc_mmu_dtlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
 {
 	unsigned int as = !!(vcpu->arch.msr & MSR_DS);
 

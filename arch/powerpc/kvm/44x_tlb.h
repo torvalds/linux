@@ -25,8 +25,6 @@
 
 extern int kvmppc_44x_tlb_index(struct kvm_vcpu *vcpu, gva_t eaddr,
                                 unsigned int pid, unsigned int as);
-extern int kvmppc_44x_dtlb_index(struct kvm_vcpu *vcpu, gva_t eaddr);
-extern int kvmppc_44x_itlb_index(struct kvm_vcpu *vcpu, gva_t eaddr);
 
 extern int kvmppc_44x_emul_tlbsx(struct kvm_vcpu *vcpu, u8 rt, u8 ra, u8 rb,
                                  u8 rc);

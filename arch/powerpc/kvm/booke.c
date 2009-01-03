@@ -292,7 +292,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		gfn_t gfn;
 
 		/* Check the guest TLB. */
-		gtlb_index = kvmppc_44x_dtlb_index(vcpu, eaddr);
+		gtlb_index = kvmppc_mmu_dtlb_index(vcpu, eaddr);
 		if (gtlb_index < 0) {
 			/* The guest didn't have a mapping for it. */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DTLB_MISS);
@@ -337,7 +337,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 
 		/* Check the guest TLB. */
-		gtlb_index = kvmppc_44x_itlb_index(vcpu, eaddr);
+		gtlb_index = kvmppc_mmu_itlb_index(vcpu, eaddr);
 		if (gtlb_index < 0) {
 			/* The guest didn't have a mapping for it. */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ITLB_MISS);
