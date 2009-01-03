@@ -203,12 +203,6 @@ struct linux_prom_ranges {
 	unsigned int or_size;
 };
 
-struct linux_prom64_ranges {
-	unsigned long ot_child_base;		/* Bus feels this */
-	unsigned long ot_parent_base;		/* CPU looks from here */
-	unsigned long or_size;
-};
-
 /* Ranges and reg properties are a bit different for PCI. */
 struct linux_prom_pci_registers {
 	unsigned int phys_hi;
