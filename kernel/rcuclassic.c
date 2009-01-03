@@ -394,7 +394,8 @@ static void rcu_start_batch(struct rcu_ctrlblk *rcp)
 		 * unnecessarily.
 		 */
 		smp_mb();
-		cpumask_andnot(&rcp->cpumask, cpu_online_mask, nohz_cpu_mask);
+		cpumask_andnot(to_cpumask(rcp->cpumask),
+			       cpu_online_mask, nohz_cpu_mask);
 
 		rcp->signaled = 0;
 	}
