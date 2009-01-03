@@ -163,7 +163,7 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 	unsigned int priority;
 
 	priority = __ffs(*pending);
-	while (priority <= BOOKE_MAX_INTERRUPT) {
+	while (priority <= BOOKE_IRQPRIO_MAX) {
 		if (kvmppc_booke_irqprio_deliver(vcpu, priority))
 			break;
 

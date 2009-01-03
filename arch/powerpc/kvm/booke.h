@@ -42,6 +42,7 @@
 #define BOOKE_IRQPRIO_EXTERNAL 13
 #define BOOKE_IRQPRIO_FIT 14
 #define BOOKE_IRQPRIO_DECREMENTER 15
+#define BOOKE_IRQPRIO_MAX 15
 
 /* Helper function for "full" MSR writes. No need to call this if only EE is
  * changing. */
