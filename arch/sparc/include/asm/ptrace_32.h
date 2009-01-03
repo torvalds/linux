@@ -41,7 +41,7 @@ struct pt_regs {
 #define UREG_RETPC     UREG_I7
 
 /* A register window */
-struct reg_window {
+struct reg_window32 {
 	unsigned long locals[8];
 	unsigned long ins[8];
 };

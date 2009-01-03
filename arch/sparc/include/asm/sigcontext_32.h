@@ -9,7 +9,7 @@
 #define __SUNOS_MAXWIN   31
 
 /* This is what SunOS does, so shall I. */
-struct sigcontext {
+struct sigcontext32 {
 	int sigc_onstack;      /* state to restore */
 	int sigc_mask;         /* sigmask to restore */
 	int sigc_sp;           /* stack pointer */
@@ -28,10 +28,7 @@ struct sigcontext {
 	char *sigc_spbuf[__SUNOS_MAXWIN];
 
 	/* Windows to restore after signal */
-	struct {
-		unsigned long	locals[8];
-		unsigned long	ins[8];
-	} sigc_wbuf[__SUNOS_MAXWIN];
+	struct reg_window32 sigc_wbuf[__SUNOS_MAXWIN];
 };
 
 typedef struct {
@@ -43,7 +40,7 @@ typedef struct {
 		unsigned long u_regs[16]; /* globals and ins */
 	}		si_regs;
 	int		si_mask;
-} __siginfo_t;
+} __siginfo32_t;
 
 typedef struct {
 	unsigned   long si_float_regs [32];
