@@ -249,7 +249,7 @@ config GREENASIA_FF
 config HID_TOPSEED
 	tristate "TopSeed Cyberlink remote control support" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Say Y if you have a TopSeed Cyberlink remote control.
 
