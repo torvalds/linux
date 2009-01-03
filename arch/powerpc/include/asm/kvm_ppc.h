@@ -63,6 +63,8 @@ extern int kvmppc_mmu_dtlb_index(struct kvm_vcpu *vcpu, gva_t eaddr);
 extern int kvmppc_mmu_itlb_index(struct kvm_vcpu *vcpu, gva_t eaddr);
 extern gpa_t kvmppc_mmu_xlate(struct kvm_vcpu *vcpu, unsigned int gtlb_index,
                               gva_t eaddr);
+extern void kvmppc_mmu_dtlb_miss(struct kvm_vcpu *vcpu);
+extern void kvmppc_mmu_itlb_miss(struct kvm_vcpu *vcpu);
 
 extern struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm,
                                                 unsigned int id);

@@ -295,6 +295,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DTLB_MISS);
 			vcpu->arch.dear = vcpu->arch.fault_dear;
 			vcpu->arch.esr = vcpu->arch.fault_esr;
+			kvmppc_mmu_dtlb_miss(vcpu);
 			kvmppc_account_exit(vcpu, DTLB_REAL_MISS_EXITS);
 			r = RESUME_GUEST;
 			break;
@@ -337,6 +338,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		if (gtlb_index < 0) {
 			/* The guest didn't have a mapping for it. */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ITLB_MISS);
+			kvmppc_mmu_itlb_miss(vcpu);
 			kvmppc_account_exit(vcpu, ITLB_REAL_MISS_EXITS);
 			break;
 		}

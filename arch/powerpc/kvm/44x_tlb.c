@@ -232,6 +232,14 @@ int kvmppc_mmu_dtlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
 	return kvmppc_44x_tlb_index(vcpu, eaddr, vcpu->arch.pid, as);
 }
 
+void kvmppc_mmu_itlb_miss(struct kvm_vcpu *vcpu)
+{
+}
+
+void kvmppc_mmu_dtlb_miss(struct kvm_vcpu *vcpu)
+{
+}
+
 static void kvmppc_44x_shadow_release(struct kvmppc_vcpu_44x *vcpu_44x,
                                       unsigned int stlb_index)
 {
