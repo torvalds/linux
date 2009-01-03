@@ -965,6 +965,7 @@ ifneq ($(KBUILD_SRC),)
 	    mkdir -p include2;                                          \
 	    ln -fsn $(srctree)/include/asm-$(SRCARCH) include2/asm;     \
 	fi
+	ln -fsn $(srctree) source
 endif
 
 # prepare2 creates a makefile if using a separate output directory
