@@ -1830,7 +1830,7 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 		cancel_delayed_work(&priv->rf_kill);
 	}
 
-	/* Kill the firmare hang check timer */
+	/* Kill the firmware hang check timer */
 	if (!priv->stop_hang_check) {
 		priv->stop_hang_check = 1;
 		cancel_delayed_work(&priv->hang_check);
