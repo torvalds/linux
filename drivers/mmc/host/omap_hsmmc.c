@@ -100,6 +100,7 @@
  */
 #define OMAP_MMC1_DEVID		0
 #define OMAP_MMC2_DEVID		1
+#define OMAP_MMC3_DEVID		2
 
 #define MMC_TIMEOUT_MS		20
 #define OMAP_MMC_MASTER_CLOCK	96000000
@@ -144,6 +145,7 @@ struct mmc_omap_host {
 	int			irq;
 	int			carddetect;
 	int			use_dma, dma_ch;
+	int			dma_line_tx, dma_line_rx;
 	int			slot_id;
 	int			dbclk_enabled;
 	int			response_busy;
@@ -602,17 +604,10 @@ static int mmc_omap_get_dma_sync_dev(struct mmc_omap_host *host,
 {
 	int sync_dev;
 
-	if (data->flags & MMC_DATA_WRITE) {
-		if (host->id == OMAP_MMC1_DEVID)
-			sync_dev = OMAP24XX_DMA_MMC1_TX;
-		else
-			sync_dev = OMAP24XX_DMA_MMC2_TX;
-	} else {
-		if (host->id == OMAP_MMC1_DEVID)
-			sync_dev = OMAP24XX_DMA_MMC1_RX;
-		else
-			sync_dev = OMAP24XX_DMA_MMC2_RX;
-	}
+	if (data->flags & MMC_DATA_WRITE)
+		sync_dev = host->dma_line_tx;
+	else
+		sync_dev = host->dma_line_rx;
 	return sync_dev;
 }
 
@@ -1074,6 +1069,25 @@ static int __init omap_mmc_probe(struct platform_device *pdev)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
 	omap_hsmmc_init(host);
+
+	/* Select DMA lines */
+	switch (host->id) {
+	case OMAP_MMC1_DEVID:
+		host->dma_line_tx = OMAP24XX_DMA_MMC1_TX;
+		host->dma_line_rx = OMAP24XX_DMA_MMC1_RX;
+		break;
+	case OMAP_MMC2_DEVID:
+		host->dma_line_tx = OMAP24XX_DMA_MMC2_TX;
+		host->dma_line_rx = OMAP24XX_DMA_MMC2_RX;
+		break;
+	case OMAP_MMC3_DEVID:
+		host->dma_line_tx = OMAP34XX_DMA_MMC3_TX;
+		host->dma_line_rx = OMAP34XX_DMA_MMC3_RX;
+		break;
+	default:
+		dev_err(mmc_dev(host->mmc), "Invalid MMC id\n");
+		goto err_irq;
+	}
 
 	/* Request IRQ for MMC operations */
 	ret = request_irq(host->irq, mmc_omap_irq, IRQF_DISABLED,
