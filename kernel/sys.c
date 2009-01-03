@@ -1627,6 +1627,8 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 	utime = stime = cputime_zero;
 
 	if (who == RUSAGE_THREAD) {
+		utime = task_utime(current);
+		stime = task_stime(current);
 		accumulate_thread_rusage(p, r);
 		goto out;
 	}
