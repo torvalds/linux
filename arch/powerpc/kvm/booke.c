@@ -290,6 +290,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		struct kvmppc_44x_tlbe *gtlbe;
 		unsigned long eaddr = vcpu->arch.fault_dear;
 		int gtlb_index;
+		gpa_t gpaddr;
 		gfn_t gfn;
 
 		/* Check the guest TLB. */
@@ -305,8 +306,8 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		}
 
 		gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
-		vcpu->arch.paddr_accessed = tlb_xlate(gtlbe, eaddr);
-		gfn = vcpu->arch.paddr_accessed >> PAGE_SHIFT;
+		gpaddr = tlb_xlate(gtlbe, eaddr);
+		gfn = gpaddr >> PAGE_SHIFT;
 
 		if (kvm_is_visible_gfn(vcpu->kvm, gfn)) {
 			/* The guest TLB had a mapping, but the shadow TLB
@@ -315,13 +316,14 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * b) the guest used a large mapping which we're faking
 			 * Either way, we need to satisfy the fault without
 			 * invoking the guest. */
-			kvmppc_mmu_map(vcpu, eaddr, vcpu->arch.paddr_accessed, gtlbe->tid,
+			kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlbe->tid,
 			               gtlbe->word2, get_tlb_bytes(gtlbe), gtlb_index);
 			kvmppc_account_exit(vcpu, DTLB_VIRT_MISS_EXITS);
 			r = RESUME_GUEST;
 		} else {
 			/* Guest has mapped and accessed a page which is not
 			 * actually RAM. */
+			vcpu->arch.paddr_accessed = gpaddr;
 			r = kvmppc_emulate_mmio(run, vcpu);
 			kvmppc_account_exit(vcpu, MMIO_EXITS);
 		}
