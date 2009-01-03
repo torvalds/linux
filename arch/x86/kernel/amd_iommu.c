@@ -426,7 +426,6 @@ static void iommu_flush_tlb(struct amd_iommu *iommu, u16 domid)
 	iommu_queue_inv_iommu_pages(iommu, address, domid, 0, 1);
 }
 
-#ifdef CONFIG_IOMMU_API
 /*
  * This function is used to flush the IO/TLB for a given protection domain
  * on every IOMMU in the system
@@ -450,7 +449,6 @@ static void iommu_flush_domain(u16 domid)
 		spin_unlock_irqrestore(&iommu->lock, flags);
 	}
 }
-#endif
 
 /****************************************************************************
  *
@@ -516,7 +514,6 @@ static int iommu_map_page(struct protection_domain *dom,
 	return 0;
 }
 
-#ifdef CONFIG_IOMMU_API
 static void iommu_unmap_page(struct protection_domain *dom,
 			     unsigned long bus_addr)
 {
@@ -538,7 +535,6 @@ static void iommu_unmap_page(struct protection_domain *dom,
 
 	*pte = 0;
 }
-#endif
 
 /*
  * This function checks if a specific unity mapping entry is needed for
@@ -723,7 +719,6 @@ static u16 domain_id_alloc(void)
 	return id;
 }
 
-#ifdef CONFIG_IOMMU_API
 static void domain_id_free(int id)
 {
 	unsigned long flags;
@@ -733,7 +728,6 @@ static void domain_id_free(int id)
 		__clear_bit(id, amd_iommu_pd_alloc_bitmap);
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 }
-#endif
 
 /*
  * Used to reserve address ranges in the aperture (e.g. for exclusion
@@ -1702,9 +1696,7 @@ int __init amd_iommu_init_dma_ops(void)
 	/* Make the driver finally visible to the drivers */
 	dma_ops = &amd_iommu_dma_ops;
 
-#ifdef CONFIG_IOMMU_API
 	register_iommu(&amd_iommu_ops);
-#endif
 
 	bus_register_notifier(&pci_bus_type, &device_nb);
 
@@ -1731,8 +1723,6 @@ free_domains:
  * which is not possible with the dma_ops interface.
  *
  *****************************************************************************/
-
-#ifdef CONFIG_IOMMU_API
 
 static void cleanup_domain(struct protection_domain *domain)
 {
@@ -1944,4 +1934,3 @@ static struct iommu_ops amd_iommu_ops = {
 	.iova_to_phys = amd_iommu_iova_to_phys,
 };
 
-#endif
