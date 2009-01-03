@@ -31,6 +31,7 @@
 #include <linux/bitops.h>
 #include <linux/hrtimer.h>
 #include <linux/uaccess.h>
+#include <linux/iommu.h>
 #include <linux/intel-iommu.h>
 
 #include <asm/pgtable.h>
@@ -188,7 +189,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
 		break;
 	case KVM_CAP_IOMMU:
-		r = intel_iommu_found();
+		r = iommu_found();
 		break;
 	default:
 		r = 0;

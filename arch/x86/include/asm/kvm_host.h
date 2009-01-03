@@ -360,7 +360,7 @@ struct kvm_arch{
 	struct list_head active_mmu_pages;
 	struct list_head assigned_dev_head;
 	struct list_head oos_global_pages;
-	struct dmar_domain *intel_iommu_domain;
+	struct iommu_domain *iommu_domain;
 	struct kvm_pic *vpic;
 	struct kvm_ioapic *vioapic;
 	struct kvm_pit *vpit;
