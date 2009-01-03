@@ -82,6 +82,16 @@ static inline int fls (unsigned int x)
 	return 32 - __cntlz(x);
 }
 
+/**
+ * __fls - find last (most-significant) set bit in a long word
+ * @word: the word to search
+ *
+ * Undefined if no set bit exists, so code should check against 0 first.
+ */
+static inline unsigned long __fls(unsigned long word)
+{
+	return 31 - __cntlz(word);
+}
 #else
 
 /* Use the generic implementation if we don't have the nsa/nsau instructions. */
@@ -90,6 +100,7 @@ static inline int fls (unsigned int x)
 # include <asm-generic/bitops/__ffs.h>
 # include <asm-generic/bitops/ffz.h>
 # include <asm-generic/bitops/fls.h>
+# include <asm-generic/bitops/__fls.h>
 
 #endif
 
