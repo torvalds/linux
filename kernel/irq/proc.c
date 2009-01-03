@@ -54,7 +54,7 @@ static ssize_t irq_affinity_proc_write(struct file *file,
 	if (err)
 		goto free_cpumask;
 
-	if (!is_affinity_mask_valid(*new_value)) {
+	if (!is_affinity_mask_valid(new_value)) {
 		err = -EINVAL;
 		goto free_cpumask;
 	}
