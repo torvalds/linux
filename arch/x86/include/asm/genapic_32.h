@@ -17,7 +17,7 @@
 
 struct mpc_bus;
 struct mpc_table;
-struct mpc_config_processor;
+struct mpc_cpu;
 
 struct genapic {
 	char *name;

@@ -176,7 +176,7 @@ static int __init visws_get_smp_config(unsigned int early)
  * No problem for Linux.
  */
 
-static void __init MP_processor_info(struct mpc_config_processor *m)
+static void __init MP_processor_info(struct mpc_cpu *m)
 {
 	int ver, logical_apicid;
 	physid_mask_t apic_cpus;
@@ -218,7 +218,7 @@ static void __init MP_processor_info(struct mpc_config_processor *m)
 
 static int __init visws_find_smp_config(unsigned int reserve)
 {
-	struct mpc_config_processor *mp = phys_to_virt(CO_CPU_TAB_PHYS);
+	struct mpc_cpu *mp = phys_to_virt(CO_CPU_TAB_PHYS);
 	unsigned short ncpus = readw(phys_to_virt(CO_CPU_NUM_PHYS));
 
 	if (ncpus > CO_CPU_MAX) {

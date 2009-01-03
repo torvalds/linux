@@ -49,7 +49,7 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 	return sum & 0xFF;
 }
 
-static void __init MP_processor_info(struct mpc_config_processor *m)
+static void __init MP_processor_info(struct mpc_cpu *m)
 {
 	int apicid;
 	char *bootup_cpu = "";
@@ -327,8 +327,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 		switch (*mpt) {
 		case MP_PROCESSOR:
 			{
-				struct mpc_config_processor *m =
-				    (struct mpc_config_processor *)mpt;
+				struct mpc_cpu *m = (struct mpc_cpu *)mpt;
 				/* ACPI may have already provided this data */
 				if (!acpi_lapic)
 					MP_processor_info(m);
@@ -534,7 +533,7 @@ static inline void __init construct_ioapic_table(int mpc_default_type) { }
 
 static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 {
-	struct mpc_config_processor processor;
+	struct mpc_cpu processor;
 	struct mpc_config_lintsrc lintsrc;
 	int linttypes[2] = { mp_ExtINT, mp_NMI };
 	int i;
@@ -858,8 +857,7 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 		switch (*mpt) {
 		case MP_PROCESSOR:
 			{
-				struct mpc_config_processor *m =
-				    (struct mpc_config_processor *)mpt;
+				struct mpc_cpu *m = (struct mpc_cpu *)mpt;
 				mpt += sizeof(*m);
 				count += sizeof(*m);
 				break;

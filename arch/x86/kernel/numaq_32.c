@@ -117,7 +117,7 @@ static inline int generate_logical_apicid(int quad, int phys_apicid)
 }
 
 /* x86_quirks member */
-static int mpc_apic_id(struct mpc_config_processor *m)
+static int mpc_apic_id(struct mpc_cpu *m)
 {
 	int quad = translation_table[mpc_record]->trans_quad;
 	int logical_apicid = generate_logical_apicid(quad, m->mpc_apicid);

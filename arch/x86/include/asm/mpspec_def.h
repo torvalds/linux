@@ -70,7 +70,7 @@ struct mpc_table {
 #define CPU_MODEL_MASK		0x00F0
 #define CPU_FAMILY_MASK		0x0F00
 
-struct mpc_config_processor {
+struct mpc_cpu {
 	unsigned char mpc_type;
 	unsigned char mpc_apicid;	/* Local APIC number */
 	unsigned char mpc_apicver;	/* Its versions */
