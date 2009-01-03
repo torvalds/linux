@@ -95,12 +95,10 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file, u
 	int has_dumped = 0;
 	unsigned long dump_start, dump_size;
 	struct user dump;
-#if defined(__alpha__)
+#ifdef __alpha__
 #       define START_DATA(u)	(u.start_data)
-#elif defined(__arm__)
+#else
 #	define START_DATA(u)	((u.u_tsize << PAGE_SHIFT) + u.start_code)
-#elif defined(__i386__) || defined(__mc68000__) || defined(__arch_um__)
-#       define START_DATA(u)	(u.u_tsize << PAGE_SHIFT)
 #endif
 #       define START_STACK(u)   (u.start_stack)
 
@@ -176,18 +174,18 @@ static unsigned long __user *create_aout_tables(char __user *p, struct linux_bin
 	put_user(0, --sp);
 	if (bprm->loader) {
 		put_user(0, --sp);
-		put_user(0x3eb, --sp);
+		put_user(1003, --sp);
 		put_user(bprm->loader, --sp);
-		put_user(0x3ea, --sp);
+		put_user(1002, --sp);
 	}
 	put_user(bprm->exec, --sp);
-	put_user(0x3e9, --sp);
+	put_user(1001, --sp);
 #endif
 	sp -= envc+1;
 	envp = (char __user * __user *) sp;
 	sp -= argc+1;
 	argv = (char __user * __user *) sp;
-#if defined(__i386__) || defined(__mc68000__) || defined(__arm__) || defined(__arch_um__)
+#ifndef __alpha__
 	put_user((unsigned long) envp,--sp);
 	put_user((unsigned long) argv,--sp);
 #endif
@@ -260,7 +258,7 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		return retval;
 
 	/* OK, This is the point of no return */
-#if defined(__alpha__)
+#ifdef __alpha__
 	SET_AOUT_PERSONALITY(bprm, ex);
 #else
 	set_personality(PER_LINUX);
