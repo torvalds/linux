@@ -30,10 +30,8 @@
 #include <asm/kvm_ppc.h>
 #include "timing.h"
 #include <asm/cacheflush.h>
-#include <asm/kvm_44x.h>
 
 #include "booke.h"
-#include "44x_tlb.h"
 
 unsigned long kvmppc_booke_handlers;
 
@@ -284,7 +282,6 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 
-	/* XXX move to a 440-specific file. */
 	case BOOKE_INTERRUPT_DTLB_MISS: {
 		unsigned long eaddr = vcpu->arch.fault_dear;
 		int gtlb_index;
@@ -327,7 +324,6 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	}
 
-	/* XXX move to a 440-specific file. */
 	case BOOKE_INTERRUPT_ITLB_MISS: {
 		unsigned long eaddr = vcpu->arch.pc;
 		gpa_t gpaddr;
