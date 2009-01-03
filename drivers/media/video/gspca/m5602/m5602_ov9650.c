@@ -220,6 +220,7 @@ int ov9650_probe(struct sd *sd)
 {
 	int err = 0;
 	u8 prod_id = 0, ver_id = 0, i;
+	s32 *sensor_settings;
 
 	if (force_sensor) {
 		if (force_sensor == OV9650_SENSOR) {
@@ -238,9 +239,10 @@ int ov9650_probe(struct sd *sd)
 		u8 data = preinit_ov9650[i][2];
 		if (preinit_ov9650[i][0] == SENSOR)
 			err = m5602_write_sensor(sd,
-					    preinit_ov9650[i][1], &data, 1);
+				preinit_ov9650[i][1], &data, 1);
 		else
-			err = m5602_write_bridge(sd, preinit_ov9650[i][1], data);
+			err = m5602_write_bridge(sd,
+				preinit_ov9650[i][1], data);
 	}
 
 	if (err < 0)
@@ -260,10 +262,21 @@ int ov9650_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
+
+	sensor_settings = kmalloc(
+		ARRAY_SIZE(ov9650_ctrls) * sizeof(s32), GFP_KERNEL);
+	if (!sensor_settings)
+		return -ENOMEM;
+
 	sd->gspca_dev.cam.cam_mode = ov9650_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(ov9650_modes);
 	sd->desc->ctrls = ov9650_ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(ov9650_ctrls);
+
+	for (i = 0; i < ARRAY_SIZE(ov9650_ctrls); i++)
+		sensor_settings[i] = ov9650_ctrls[i].qctrl.default_value;
+	sd->sensor_priv = sensor_settings;
+
 	return 0;
 }
 
@@ -324,7 +337,8 @@ int ov9650_start(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, ((ver_offs >> 8) & 0xff));
+	err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA,
+				 ((ver_offs >> 8) & 0xff));
 	if (err < 0)
 		return err;
 
@@ -344,13 +358,13 @@ int ov9650_start(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	for (i = 0; i < 2 && !err; i++) {
+	for (i = 0; i < 2 && !err; i++)
 		err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, 0);
-	}
 	if (err < 0)
 		return err;
 
-	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA, (hor_offs >> 8) & 0xff);
+	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA,
+				 (hor_offs >> 8) & 0xff);
 	if (err < 0)
 		return err;
 
@@ -358,11 +372,13 @@ int ov9650_start(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA, ((width + hor_offs) >> 8) & 0xff);
+	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA,
+				 ((width + hor_offs) >> 8) & 0xff);
 	if (err < 0)
 		return err;
 
-	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA, ((width + hor_offs) & 0xff));
+	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA,
+				 ((width + hor_offs) & 0xff));
 	if (err < 0)
 		return err;
 
@@ -429,6 +445,16 @@ int ov9650_power_down(struct sd *sd)
 	}
 
 	return err;
+}
+
+void ov9650_disconnect(struct sd *sd)
+{
+	ov9650_stop(sd);
+	ov9650_power_down(sd);
+
+	sd->sensor = NULL;
+
+	kfree(sd->sensor_priv);
 }
 
 int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)

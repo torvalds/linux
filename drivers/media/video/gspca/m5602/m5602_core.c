@@ -362,6 +362,17 @@ static int m5602_probe(struct usb_interface *intf,
 			       THIS_MODULE);
 }
 
+void m5602_disconnect(struct usb_interface *intf)
+{
+	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->sensor->disconnect)
+		sd->sensor->disconnect(sd);
+
+	gspca_disconnect(intf);
+}
+
 static struct usb_driver sd_driver = {
 	.name = MODULE_NAME,
 	.id_table = m5602_table,
@@ -370,7 +381,7 @@ static struct usb_driver sd_driver = {
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
 #endif
-	.disconnect = gspca_disconnect
+	.disconnect = m5602_disconnect
 };
 
 /* -- module insert / remove -- */

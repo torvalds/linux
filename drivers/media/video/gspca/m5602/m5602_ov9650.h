@@ -138,6 +138,7 @@ int ov9650_init(struct sd *sd);
 int ov9650_start(struct sd *sd);
 int ov9650_stop(struct sd *sd);
 int ov9650_power_down(struct sd *sd);
+void ov9650_disconnect(struct sd *sd);
 
 int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
 int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
@@ -167,6 +168,7 @@ const static struct m5602_sensor ov9650 = {
 	.start = ov9650_start,
 	.stop = ov9650_stop,
 	.power_down = ov9650_power_down,
+	.disconnect = ov9650_disconnect,
 };
 
 static const unsigned char preinit_ov9650[][3] =

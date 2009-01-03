@@ -117,6 +117,9 @@ struct sd {
 
 	struct sd_desc *desc;
 
+	/* Sensor private data */
+	void *sensor_priv;
+
 	/* The current frame's id, used to detect frame boundaries */
 	u8 frame_id;
 
