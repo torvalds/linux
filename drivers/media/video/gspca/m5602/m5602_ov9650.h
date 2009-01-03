@@ -328,7 +328,7 @@ static const unsigned char power_down_ov9650[][3] =
 
 static const unsigned char res_init_ov9650[][3] =
 {
-	{SENSOR, OV9650_COM2, (1 << 0)},
+	{SENSOR, OV9650_COM2, OV9650_OUTPUT_DRIVE_2X},
 
 	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x82},
 	{BRIDGE, M5602_XB_LINE_OF_FRAME_L, 0x00},
