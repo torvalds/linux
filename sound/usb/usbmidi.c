@@ -1392,8 +1392,7 @@ static int snd_usbmidi_get_ms_info(struct snd_usb_midi* umidi,
 	for (i = 0; i < intfd->bNumEndpoints; ++i) {
 		hostep = &hostif->endpoint[i];
 		ep = get_ep_desc(hostep);
-		if (usb_endpoint_type(ep) != USB_ENDPOINT_XFER_BULK &&
-		    usb_endpoint_type(ep) != USB_ENDPOINT_XFER_INT)
+		if (!usb_endpoint_xfer_bulk(ep) && !usb_endpoint_xfer_int(ep))
 			continue;
 		ms_ep = (struct usb_ms_endpoint_descriptor*)hostep->extra;
 		if (hostep->extralen < 4 ||
@@ -1495,8 +1494,8 @@ static int snd_usbmidi_detect_endpoints(struct snd_usb_midi* umidi,
 
 	for (i = 0; i < intfd->bNumEndpoints; ++i) {
 		epd = get_endpoint(hostif, i);
-		if (usb_endpoint_type(epd) != USB_ENDPOINT_XFER_BULK &&
-		    usb_endpoint_type(epd) != USB_ENDPOINT_XFER_INT)
+		if (!usb_endpoint_xfer_bulk(epd) &&
+		    !usb_endpoint_xfer_int(epd))
 			continue;
 		if (out_eps < max_endpoints &&
 		    usb_endpoint_dir_out(epd)) {
@@ -1607,21 +1606,19 @@ static int snd_usbmidi_create_endpoints_midiman(struct snd_usb_midi* umidi,
 	}
 
 	epd = get_endpoint(hostif, 0);
-	if (usb_endpoint_dir_out(epd) ||
-	    usb_endpoint_type(epd) != USB_ENDPOINT_XFER_INT) {
+	if (!usb_endpoint_dir_in(epd) || !usb_endpoint_xfer_int(epd)) {
 		snd_printdd(KERN_ERR "endpoint[0] isn't interrupt\n");
 		return -ENXIO;
 	}
 	epd = get_endpoint(hostif, 2);
-	if (usb_endpoint_dir_in(epd) ||
-	    usb_endpoint_type(epd) != USB_ENDPOINT_XFER_BULK) {
+	if (!usb_endpoint_dir_out(epd) || !usb_endpoint_xfer_bulk(epd)) {
 		snd_printdd(KERN_ERR "endpoint[2] isn't bulk output\n");
 		return -ENXIO;
 	}
 	if (endpoint->out_cables > 0x0001) {
 		epd = get_endpoint(hostif, 4);
-		if (usb_endpoint_dir_in(epd) ||
-		    usb_endpoint_type(epd) != USB_ENDPOINT_XFER_BULK) {
+		if (!usb_endpoint_dir_out(epd) ||
+		    !usb_endpoint_xfer_bulk(epd)) {
 			snd_printdd(KERN_ERR "endpoint[4] isn't bulk output\n");
 			return -ENXIO;
 		}

@@ -1755,8 +1755,7 @@ static int snd_usb_mixer_status_create(struct usb_mixer_interface *mixer)
 	if (get_iface_desc(hostif)->bNumEndpoints < 1)
 		return 0;
 	ep = get_endpoint(hostif, 0);
-	if (usb_endpoint_dir_out(ep) ||
-	    usb_endpoint_type(ep) != USB_ENDPOINT_XFER_INT)
+	if (!usb_endpoint_dir_in(ep) || !usb_endpoint_xfer_int(ep))
 		return 0;
 
 	epnum = usb_endpoint_num(ep);
