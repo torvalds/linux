@@ -9,8 +9,6 @@ header-y += sigcontext_32.h
 header-y += sigcontext_64.h
 header-y += siginfo_32.h
 header-y += siginfo_64.h
-header-y += signal_32.h
-header-y += signal_64.h
 
 header-y += apc.h
 header-y += asi.h
