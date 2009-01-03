@@ -44,7 +44,7 @@ struct linux_dev_v2_funcs {
 
 struct linux_mlist_v0 {
 	struct linux_mlist_v0 *theres_more;
-	unsigned start_adr;
+	unsigned int start_adr;
 	unsigned num_bytes;
 };
 
@@ -167,9 +167,9 @@ struct linux_romvec {
 struct linux_nodeops {
 	int (*no_nextnode)(int node);
 	int (*no_child)(int node);
-	int (*no_proplen)(int node, char *name);
-	int (*no_getprop)(int node, char *name, char *val);
-	int (*no_setprop)(int node, char *name, char *val, int len);
+	int (*no_proplen)(int node, const char *name);
+	int (*no_getprop)(int node, const char *name, char *val);
+	int (*no_setprop)(int node, const char *name, char *val, int len);
 	char * (*no_nextprop)(int node, char *name);
 };
 
@@ -179,9 +179,9 @@ struct linux_nodeops {
 #define PROMINTR_MAX    32
 
 struct linux_prom_registers {
-	unsigned which_io;	/* hi part of physical address			*/
-	unsigned phys_addr;	/* The physical address of this register	*/
-	int reg_size;		/* How many bytes does this register take up?	*/
+	unsigned int which_io;	/* hi part of physical address */
+	unsigned int phys_addr;	/* The physical address of this register */
+	unsigned int reg_size;	/* How many bytes does this register take up? */
 };
 
 struct linux_prom64_registers {

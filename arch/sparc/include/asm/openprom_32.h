@@ -47,7 +47,7 @@ struct linux_dev_v2_funcs {
 
 struct linux_mlist_v0 {
 	struct linux_mlist_v0 *theres_more;
-	char *start_adr;
+	unsigned int start_adr;
 	unsigned num_bytes;
 };
 
@@ -182,9 +182,9 @@ struct linux_nodeops {
 #define PROMINTR_MAX    15
 
 struct linux_prom_registers {
-	unsigned int which_io;         /* is this in OBIO space? */
-	unsigned int phys_addr;        /* The physical address of this register */
-	unsigned int reg_size;         /* How many bytes does this register take up? */
+	unsigned int which_io;	/* is this in OBIO space? */
+	unsigned int phys_addr;	/* The physical address of this register */
+	unsigned int reg_size;	/* How many bytes does this register take up? */
 };
 
 struct linux_prom_irqs {
