@@ -51,7 +51,7 @@ int m5602_read_bridge(struct sd *sd, u8 address, u8 *i2c_data)
 	       address, *i2c_data);
 
 	/* usb_control_msg(...) returns the number of bytes sent upon success,
-	mask that and return zero upon success instead*/
+	mask that and return zero instead*/
 	return (err < 0) ? err : 0;
 }
 
@@ -76,7 +76,7 @@ int m5602_write_bridge(struct sd *sd, u8 address, u8 i2c_data)
 				4, M5602_URB_MSG_TIMEOUT);
 
 	/* usb_control_msg(...) returns the number of bytes sent upon success,
-	   mask that and return zero upon success instead */
+	   mask that and return zero instead */
 	return (err < 0) ? err : 0;
 }
 
