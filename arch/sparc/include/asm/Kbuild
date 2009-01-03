@@ -5,8 +5,6 @@ header-y += ipcbuf_32.h
 header-y += ipcbuf_64.h
 header-y += ptrace_32.h
 header-y += ptrace_64.h
-header-y += sigcontext_32.h
-header-y += sigcontext_64.h
 header-y += siginfo_32.h
 header-y += siginfo_64.h
 
