@@ -1990,8 +1990,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		int check_interface = 1;
 		isoc_pipe = 1;
 		endpoint = &interface->cur_altsetting->endpoint[1].desc;
-		if (usb_endpoint_type(endpoint) !=
-		    USB_ENDPOINT_XFER_ISOC)
+		if (!usb_endpoint_xfer_isoc(endpoint))
 			check_interface = 0;
 
 		if (usb_endpoint_dir_out(endpoint))
