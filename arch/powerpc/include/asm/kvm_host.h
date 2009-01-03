@@ -64,13 +64,6 @@ struct kvm_vcpu_stat {
 	u32 halt_wakeup;
 };
 
-struct kvmppc_44x_tlbe {
-	u32 tid; /* Only the low 8 bits are used. */
-	u32 word0;
-	u32 word1;
-	u32 word2;
-};
-
 enum kvm_exit_types {
 	MMIO_EXITS,
 	DCR_EXITS,
