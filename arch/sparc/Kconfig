@@ -188,14 +188,6 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
-config ARCH_HAS_ILOG2_U32
-	bool
-	default n
-
-config ARCH_HAS_ILOG2_U64
-	bool
-	default n
-
 config EMULATED_CMPXCHG
 	bool
 	default y if SPARC32
@@ -442,26 +434,6 @@ config SERIAL_CONSOLE
 endmenu
 
 menu "Bus options (PCI etc.)"
-config ISA
-	bool
-	help
-	  ISA is found on Espresso only and is not supported currently.
-
-config ISAPNP
-	bool
-	help
-	  ISAPNP is not supported
-
-config EISA
-	bool
-	help
-	  EISA is not supported.
-
-config MCA
-	bool
-	help
-	  MCA is not supported.
-
 config SBUS
 	bool
 	default y
