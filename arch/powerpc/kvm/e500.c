@@ -21,6 +21,7 @@
 #include <asm/kvm_e500.h>
 #include <asm/kvm_ppc.h>
 
+#include "booke.h"
 #include "e500_tlb.h"
 
 void kvmppc_core_load_host_debugstate(struct kvm_vcpu *vcpu)
@@ -133,11 +134,28 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 
 static int kvmppc_e500_init(void)
 {
-	int r;
+	int r, i;
+	unsigned long ivor[3];
+	unsigned long max_ivor = 0;
 
 	r = kvmppc_booke_init();
 	if (r)
 		return r;
+
+	/* copy extra E500 exception handlers */
+	ivor[0] = mfspr(SPRN_IVOR32);
+	ivor[1] = mfspr(SPRN_IVOR33);
+	ivor[2] = mfspr(SPRN_IVOR34);
+	for (i = 0; i < 3; i++) {
+		if (ivor[i] > max_ivor)
+			max_ivor = ivor[i];
+
+		memcpy((void *)kvmppc_booke_handlers + ivor[i],
+		       kvmppc_handlers_start + (i + 16) * kvmppc_handler_len,
+		       kvmppc_handler_len);
+	}
+	flush_icache_range(kvmppc_booke_handlers,
+			kvmppc_booke_handlers + max_ivor + kvmppc_handler_len);
 
 	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_e500), THIS_MODULE);
 }

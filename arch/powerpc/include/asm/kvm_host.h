@@ -150,7 +150,7 @@ struct kvm_vcpu_arch {
 	u32 tbu;
 	u32 tcr;
 	u32 tsr;
-	u32 ivor[16];
+	u32 ivor[64];
 	ulong ivpr;
 	u32 pir;
 

@@ -107,6 +107,20 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	case SPRN_HID1:
 		vcpu_e500->hid1 = vcpu->arch.gpr[rs]; break;
 
+	/* extra exceptions */
+	case SPRN_IVOR32:
+		vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_UNAVAIL] = vcpu->arch.gpr[rs];
+		break;
+	case SPRN_IVOR33:
+		vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_FP_DATA] = vcpu->arch.gpr[rs];
+		break;
+	case SPRN_IVOR34:
+		vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_FP_ROUND] = vcpu->arch.gpr[rs];
+		break;
+	case SPRN_IVOR35:
+		vcpu->arch.ivor[BOOKE_IRQPRIO_PERFORMANCE_MONITOR] = vcpu->arch.gpr[rs];
+		break;
+
 	default:
 		emulated = kvmppc_booke_emulate_mtspr(vcpu, sprn, rs);
 	}
@@ -160,6 +174,19 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	case SPRN_HID1:
 		vcpu->arch.gpr[rt] = vcpu_e500->hid1; break;
 
+	/* extra exceptions */
+	case SPRN_IVOR32:
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_UNAVAIL];
+		break;
+	case SPRN_IVOR33:
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_FP_DATA];
+		break;
+	case SPRN_IVOR34:
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_FP_ROUND];
+		break;
+	case SPRN_IVOR35:
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_PERFORMANCE_MONITOR];
+		break;
 	default:
 		emulated = kvmppc_booke_emulate_mfspr(vcpu, sprn, rt);
 	}
