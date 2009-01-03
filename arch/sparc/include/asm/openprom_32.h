@@ -239,17 +239,6 @@ struct linux_prom_pci_assigned_addresses {
 	unsigned int size_lo;
 };
 
-struct linux_prom_ebus_ranges {
-	unsigned int child_phys_hi;
-	unsigned int child_phys_lo;
-
-	unsigned int parent_phys_hi;
-	unsigned int parent_phys_mid;
-	unsigned int parent_phys_lo;
-
-	unsigned int size;
-};
-
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* !(__SPARC_OPENPROM_H) */

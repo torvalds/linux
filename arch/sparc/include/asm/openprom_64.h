@@ -249,32 +249,6 @@ struct linux_prom_pci_intmask {
 	unsigned int interrupt;
 };
 
-struct linux_prom_ebus_ranges {
-	unsigned int child_phys_hi;
-	unsigned int child_phys_lo;
-
-	unsigned int parent_phys_hi;
-	unsigned int parent_phys_mid;
-	unsigned int parent_phys_lo;
-
-	unsigned int size;
-};
-
-struct linux_prom_ebus_intmap {
-	unsigned int phys_hi;
-	unsigned int phys_lo;
-
-	unsigned int interrupt;
-
-	int          cnode;
-	unsigned int cinterrupt;
-};
-
-struct linux_prom_ebus_intmask {
-	unsigned int phys_hi;
-	unsigned int phys_lo;
-	unsigned int interrupt;
-};
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* !(__SPARC64_OPENPROM_H) */
