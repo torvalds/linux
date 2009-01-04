@@ -662,12 +662,7 @@ int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
 
 	sensor_settings[HFLIP_IDX] = val;
-	err = m5602_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
-	if (err < 0)
-		return err;
-
-	i2c_data = ((i2c_data & 0xdf) | ((val & 0x01) << 5));
-
+	i2c_data = ((val & 0x01) << 5) | (sensor_settings[VFLIP_IDX] << 4);
 	err = m5602_write_sensor(sd, OV9650_MVFP, &i2c_data, 1);
 
 	return err;
@@ -692,19 +687,14 @@ int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	s32 *sensor_settings = sd->sensor_priv;
 
 	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
-
 	sensor_settings[VFLIP_IDX] = val;
-	err = m5602_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
-	if (err < 0)
-		return err;
 
-	i2c_data = ((i2c_data & 0xef) | ((val & 0x01) << 4));
-
+	i2c_data = ((val & 0x01) << 4) | (sensor_settings[VFLIP_IDX] << 5);
 	err = m5602_write_sensor(sd, OV9650_MVFP, &i2c_data, 1);
-
 	if (err < 0)
 		return err;
 
+	/* When vflip is toggled we need to readjust the bridge hsync/vsync */
 	if (gspca_dev->streaming)
 		err = ov9650_start(sd);
 
