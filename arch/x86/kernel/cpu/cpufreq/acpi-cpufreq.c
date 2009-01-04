@@ -245,6 +245,30 @@ static u32 get_cur_val(const struct cpumask *mask)
 	return cmd.val;
 }
 
+struct perf_cur {
+	union {
+		struct {
+			u32 lo;
+			u32 hi;
+		} split;
+		u64 whole;
+	} aperf_cur, mperf_cur;
+};
+
+
+static long read_measured_perf_ctrs(void *_cur)
+{
+	struct perf_cur *cur = _cur;
+
+	rdmsr(MSR_IA32_APERF, cur->aperf_cur.split.lo, cur->aperf_cur.split.hi);
+	rdmsr(MSR_IA32_MPERF, cur->mperf_cur.split.lo, cur->mperf_cur.split.hi);
+
+	wrmsr(MSR_IA32_APERF, 0, 0);
+	wrmsr(MSR_IA32_MPERF, 0, 0);
+
+	return 0;
+}
+
 /*
  * Return the measured active (C0) frequency on this CPU since last call
  * to this function.
@@ -261,31 +285,12 @@ static u32 get_cur_val(const struct cpumask *mask)
 static unsigned int get_measured_perf(struct cpufreq_policy *policy,
 				      unsigned int cpu)
 {
-	union {
-		struct {
-			u32 lo;
-			u32 hi;
-		} split;
-		u64 whole;
-	} aperf_cur, mperf_cur;
-
-	cpumask_t saved_mask;
+	struct perf_cur cur;
 	unsigned int perf_percent;
 	unsigned int retval;
 
-	saved_mask = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-	if (get_cpu() != cpu) {
-		/* We were not able to run on requested processor */
-		put_cpu();
+	if (!work_on_cpu(cpu, read_measured_perf_ctrs, &cur))
 		return 0;
-	}
-
-	rdmsr(MSR_IA32_APERF, aperf_cur.split.lo, aperf_cur.split.hi);
-	rdmsr(MSR_IA32_MPERF, mperf_cur.split.lo, mperf_cur.split.hi);
-
-	wrmsr(MSR_IA32_APERF, 0,0);
-	wrmsr(MSR_IA32_MPERF, 0,0);
 
 #ifdef __i386__
 	/*
@@ -293,37 +298,39 @@ static unsigned int get_measured_perf(struct cpufreq_policy *policy,
 	 * Get an approximate value. Return failure in case we cannot get
 	 * an approximate value.
 	 */
-	if (unlikely(aperf_cur.split.hi || mperf_cur.split.hi)) {
+	if (unlikely(cur.aperf_cur.split.hi || cur.mperf_cur.split.hi)) {
 		int shift_count;
 		u32 h;
 
-		h = max_t(u32, aperf_cur.split.hi, mperf_cur.split.hi);
+		h = max_t(u32, cur.aperf_cur.split.hi, cur.mperf_cur.split.hi);
 		shift_count = fls(h);
 
-		aperf_cur.whole >>= shift_count;
-		mperf_cur.whole >>= shift_count;
+		cur.aperf_cur.whole >>= shift_count;
+		cur.mperf_cur.whole >>= shift_count;
 	}
 
-	if (((unsigned long)(-1) / 100) < aperf_cur.split.lo) {
+	if (((unsigned long)(-1) / 100) < cur.aperf_cur.split.lo) {
 		int shift_count = 7;
-		aperf_cur.split.lo >>= shift_count;
-		mperf_cur.split.lo >>= shift_count;
+		cur.aperf_cur.split.lo >>= shift_count;
+		cur.mperf_cur.split.lo >>= shift_count;
 	}
 
-	if (aperf_cur.split.lo && mperf_cur.split.lo)
-		perf_percent = (aperf_cur.split.lo * 100) / mperf_cur.split.lo;
+	if (cur.aperf_cur.split.lo && cur.mperf_cur.split.lo)
+		perf_percent = (cur.aperf_cur.split.lo * 100) /
+				cur.mperf_cur.split.lo;
 	else
 		perf_percent = 0;
 
 #else
-	if (unlikely(((unsigned long)(-1) / 100) < aperf_cur.whole)) {
+	if (unlikely(((unsigned long)(-1) / 100) < cur.aperf_cur.whole)) {
 		int shift_count = 7;
-		aperf_cur.whole >>= shift_count;
-		mperf_cur.whole >>= shift_count;
+		cur.aperf_cur.whole >>= shift_count;
+		cur.mperf_cur.whole >>= shift_count;
 	}
 
-	if (aperf_cur.whole && mperf_cur.whole)
-		perf_percent = (aperf_cur.whole * 100) / mperf_cur.whole;
+	if (cur.aperf_cur.whole && cur.mperf_cur.whole)
+		perf_percent = (cur.aperf_cur.whole * 100) /
+				cur.mperf_cur.whole;
 	else
 		perf_percent = 0;
 
@@ -331,10 +338,6 @@ static unsigned int get_measured_perf(struct cpufreq_policy *policy,
 
 	retval = per_cpu(drv_data, policy->cpu)->max_freq * perf_percent / 100;
 
-	put_cpu();
-	set_cpus_allowed_ptr(current, &saved_mask);
-
-	dprintk("cpu %d: performance percent %d\n", cpu, perf_percent);
 	return retval;
 }
 
@@ -352,7 +355,7 @@ static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 	}
 
 	cached_freq = data->freq_table[data->acpi_data->state].frequency;
-	freq = extract_freq(get_cur_val(&cpumask_of_cpu(cpu)), data);
+	freq = extract_freq(get_cur_val(cpumask_of(cpu)), data);
 	if (freq != cached_freq) {
 		/*
 		 * The dreaded BIOS frequency change behind our back.
