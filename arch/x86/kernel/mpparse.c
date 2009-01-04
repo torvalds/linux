@@ -237,9 +237,8 @@ static void __init MP_lintsrc_info(struct mpc_lintsrc *m)
 {
 	apic_printk(APIC_VERBOSE, "Lint: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC LINT %02x\n",
-		m->mpc_irqtype, m->mpc_irqflag & 3,
-		(m->mpc_irqflag >> 2) & 3, m->mpc_srcbusid,
-		m->mpc_srcbusirq, m->mpc_destapic, m->mpc_destapiclint);
+		m->irqtype, m->irqflag & 3, (m->irqflag >> 2) & 3, m->srcbusid,
+		m->srcbusirq, m->destapic, m->destapiclint);
 }
 
 /*
@@ -560,14 +559,14 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 
 	construct_ioapic_table(mpc_default_type);
 
-	lintsrc.mpc_type = MP_LINTSRC;
-	lintsrc.mpc_irqflag = 0;	/* conforming */
-	lintsrc.mpc_srcbusid = 0;
-	lintsrc.mpc_srcbusirq = 0;
-	lintsrc.mpc_destapic = MP_APIC_ALL;
+	lintsrc.type = MP_LINTSRC;
+	lintsrc.irqflag = 0;		/* conforming */
+	lintsrc.srcbusid = 0;
+	lintsrc.srcbusirq = 0;
+	lintsrc.destapic = MP_APIC_ALL;
 	for (i = 0; i < 2; i++) {
-		lintsrc.mpc_irqtype = linttypes[i];
-		lintsrc.mpc_destapiclint = i;
+		lintsrc.irqtype = linttypes[i];
+		lintsrc.destapiclint = i;
 		MP_lintsrc_info(&lintsrc);
 	}
 }

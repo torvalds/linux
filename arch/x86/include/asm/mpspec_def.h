@@ -140,13 +140,13 @@ enum mp_irq_source_types {
 #define MP_APIC_ALL	0xFF
 
 struct mpc_lintsrc {
-	unsigned char mpc_type;
-	unsigned char mpc_irqtype;
-	unsigned short mpc_irqflag;
-	unsigned char mpc_srcbusid;
-	unsigned char mpc_srcbusirq;
-	unsigned char mpc_destapic;
-	unsigned char mpc_destapiclint;
+	unsigned char type;
+	unsigned char irqtype;
+	unsigned short irqflag;
+	unsigned char srcbusid;
+	unsigned char srcbusirq;
+	unsigned char destapic;
+	unsigned char destapiclint;
 };
 
 #define MPC_OEM_SIGNATURE "_OEM"
