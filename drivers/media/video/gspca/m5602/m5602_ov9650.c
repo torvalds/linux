@@ -345,7 +345,6 @@ int ov9650_init(struct sd *sd)
 		return err;
 
 	err = ov9650_set_auto_gain(&sd->gspca_dev, sensor_settings[AUTO_GAIN_CTRL_IDX]);
-
 	return err;
 }
 
@@ -366,9 +365,6 @@ int ov9650_start(struct sd *sd)
 
 	if (width <= 320)
 		hor_offs /= 2;
-
-	if (err < 0)
-		return err;
 
 	/* Synthesize the vsync/hsync setup */
 	for (i = 0; i < ARRAY_SIZE(res_init_ov9650) && !err; i++) {
@@ -435,9 +431,7 @@ int ov9650_start(struct sd *sd)
 
 		data = OV9650_VGA_SELECT | OV9650_RGB_SELECT |
 		       OV9650_RAW_RGB_SELECT;
-
 		err = m5602_write_sensor(sd, OV9650_COM7, &data, 1);
-
 		break;
 
 	case 352:
@@ -445,9 +439,7 @@ int ov9650_start(struct sd *sd)
 
 		data = OV9650_CIF_SELECT | OV9650_RGB_SELECT |
 				OV9650_RAW_RGB_SELECT;
-
 		err = m5602_write_sensor(sd, OV9650_COM7, &data, 1);
-
 		break;
 
 	case 320:
@@ -455,9 +447,7 @@ int ov9650_start(struct sd *sd)
 
 		data = OV9650_QVGA_SELECT | OV9650_RGB_SELECT |
 				OV9650_RAW_RGB_SELECT;
-
 		err = m5602_write_sensor(sd, OV9650_COM7, &data, 1);
-
 		break;
 
 	case 176:
@@ -465,7 +455,6 @@ int ov9650_start(struct sd *sd)
 
 		data = OV9650_QCIF_SELECT | OV9650_RGB_SELECT |
 			OV9650_RAW_RGB_SELECT;
-
 		err = m5602_write_sensor(sd, OV9650_COM7, &data, 1);
 		break;
 	}
@@ -500,7 +489,6 @@ void ov9650_disconnect(struct sd *sd)
 	ov9650_power_down(sd);
 
 	sd->sensor = NULL;
-
 	kfree(sd->sensor_priv);
 }
 
@@ -524,7 +512,6 @@ int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set exposure to %d", val);
 
 	sensor_settings[EXPOSURE_IDX] = val;
-
 	/* The 6 MSBs */
 	i2c_data = (val >> 10) & 0x3f;
 	err = m5602_write_sensor(sd, OV9650_AECHM,
@@ -542,7 +529,6 @@ int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	/* The 2 LSBs */
 	i2c_data = val & 0x03;
 	err = m5602_write_sensor(sd, OV9650_COM1, &i2c_data, 1);
-
 	return err;
 }
 
@@ -610,7 +596,6 @@ int ov9650_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 
 	i2c_data = val & 0xff;
 	err = m5602_write_sensor(sd, OV9650_RED, &i2c_data, 1);
-
 	return err;
 }
 
@@ -638,7 +623,6 @@ int ov9650_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 
 	i2c_data = val & 0xff;
 	err = m5602_write_sensor(sd, OV9650_BLUE, &i2c_data, 1);
-
 	return err;
 }
 
@@ -646,9 +630,9 @@ int ov9650_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
+
 	*val = sensor_settings[HFLIP_IDX];
 	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
-
 	return 0;
 }
 
