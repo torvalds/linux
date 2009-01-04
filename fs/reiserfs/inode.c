@@ -2561,7 +2561,7 @@ static int reiserfs_write_begin(struct file *file,
 	}
 
 	index = pos >> PAGE_CACHE_SHIFT;
-	page = __grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;
