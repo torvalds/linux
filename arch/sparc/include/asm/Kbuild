@@ -1,9 +1,6 @@
 # User exported sparc header files
 include include/asm-generic/Kbuild.asm
 
-header-y += ipcbuf_32.h
-header-y += ipcbuf_64.h
-
 header-y += apc.h
 header-y += asi.h
 header-y += display7seg.h
