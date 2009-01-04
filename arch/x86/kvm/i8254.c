@@ -539,6 +539,16 @@ void kvm_pit_reset(struct kvm_pit *pit)
 	pit->pit_state.irq_ack = 1;
 }
 
+static void pit_mask_notifer(struct kvm_irq_mask_notifier *kimn, bool mask)
+{
+	struct kvm_pit *pit = container_of(kimn, struct kvm_pit, mask_notifier);
+
+	if (!mask) {
+		atomic_set(&pit->pit_state.pit_timer.pending, 0);
+		pit->pit_state.irq_ack = 1;
+	}
+}
+
 struct kvm_pit *kvm_create_pit(struct kvm *kvm)
 {
 	struct kvm_pit *pit;
@@ -586,6 +596,9 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm)
 
 	kvm_pit_reset(pit);
 
+	pit->mask_notifier.func = pit_mask_notifer;
+	kvm_register_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
+
 	return pit;
 }
 
@@ -594,6 +607,8 @@ void kvm_free_pit(struct kvm *kvm)
 	struct hrtimer *timer;
 
 	if (kvm->arch.vpit) {
+		kvm_unregister_irq_mask_notifier(kvm, 0,
+					       &kvm->arch.vpit->mask_notifier);
 		mutex_lock(&kvm->arch.vpit->pit_state.lock);
 		timer = &kvm->arch.vpit->pit_state.pit_timer.timer;
 		hrtimer_cancel(timer);
