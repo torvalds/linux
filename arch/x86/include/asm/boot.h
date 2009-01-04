@@ -15,11 +15,21 @@
 				+ (CONFIG_PHYSICAL_ALIGN - 1)) \
 				& ~(CONFIG_PHYSICAL_ALIGN - 1))
 
+#if (defined CONFIG_KERNEL_BZIP2)
+#define BOOT_HEAP_SIZE             0x400000
+#else
+
 #ifdef CONFIG_X86_64
 #define BOOT_HEAP_SIZE	0x7000
-#define BOOT_STACK_SIZE	0x4000
 #else
 #define BOOT_HEAP_SIZE	0x4000
+#endif
+
+#endif
+
+#ifdef CONFIG_X86_64
+#define BOOT_STACK_SIZE	0x4000
+#else
 #define BOOT_STACK_SIZE	0x1000
 #endif
 
