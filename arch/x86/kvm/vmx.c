@@ -1784,14 +1784,16 @@ static bool code_segment_valid(struct kvm_vcpu *vcpu)
 	vmx_get_segment(vcpu, &cs, VCPU_SREG_CS);
 	cs_rpl = cs.selector & SELECTOR_RPL_MASK;
 
+	if (cs.unusable)
+		return false;
 	if (~cs.type & (AR_TYPE_CODE_MASK|AR_TYPE_ACCESSES_MASK))
 		return false;
 	if (!cs.s)
 		return false;
-	if (!(~cs.type & (AR_TYPE_CODE_MASK|AR_TYPE_WRITEABLE_MASK))) {
+	if (cs.type & AR_TYPE_WRITEABLE_MASK) {
 		if (cs.dpl > cs_rpl)
 			return false;
-	} else if (cs.type & AR_TYPE_CODE_MASK) {
+	} else {
 		if (cs.dpl != cs_rpl)
 			return false;
 	}
@@ -1810,7 +1812,9 @@ static bool stack_segment_valid(struct kvm_vcpu *vcpu)
 	vmx_get_segment(vcpu, &ss, VCPU_SREG_SS);
 	ss_rpl = ss.selector & SELECTOR_RPL_MASK;
 
-	if ((ss.type != 3) || (ss.type != 7))
+	if (ss.unusable)
+		return true;
+	if (ss.type != 3 && ss.type != 7)
 		return false;
 	if (!ss.s)
 		return false;
@@ -1830,6 +1834,8 @@ static bool data_segment_valid(struct kvm_vcpu *vcpu, int seg)
 	vmx_get_segment(vcpu, &var, seg);
 	rpl = var.selector & SELECTOR_RPL_MASK;
 
+	if (var.unusable)
+		return true;
 	if (!var.s)
 		return false;
 	if (!var.present)
@@ -1851,9 +1857,11 @@ static bool tr_valid(struct kvm_vcpu *vcpu)
 
 	vmx_get_segment(vcpu, &tr, VCPU_SREG_TR);
 
+	if (tr.unusable)
+		return false;
 	if (tr.selector & SELECTOR_TI_MASK)	/* TI = 1 */
 		return false;
-	if ((tr.type != 3) || (tr.type != 11)) /* TODO: Check if guest is in IA32e mode */
+	if (tr.type != 3 && tr.type != 11) /* TODO: Check if guest is in IA32e mode */
 		return false;
 	if (!tr.present)
 		return false;
@@ -1867,6 +1875,8 @@ static bool ldtr_valid(struct kvm_vcpu *vcpu)
 
 	vmx_get_segment(vcpu, &ldtr, VCPU_SREG_LDTR);
 
+	if (ldtr.unusable)
+		return true;
 	if (ldtr.selector & SELECTOR_TI_MASK)	/* TI = 1 */
 		return false;
 	if (ldtr.type != 2)
