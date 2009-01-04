@@ -111,11 +111,6 @@ struct kvm_arch {
 struct kvm_vcpu_arch {
 	u32 host_stack;
 	u32 host_pid;
-	u32 host_dbcr0;
-	u32 host_dbcr1;
-	u32 host_dbcr2;
-	u32 host_iac[4];
-	u32 host_msr;
 
 	u64 fpr[32];
 	ulong gpr[32];
