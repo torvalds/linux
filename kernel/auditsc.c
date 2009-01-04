@@ -235,6 +235,10 @@ struct audit_context {
 			mode_t			mode;
 			struct mq_attr		attr;
 		} mq_open;
+		struct {
+			pid_t			pid;
+			struct audit_cap_data	cap;
+		} capset;
 	};
 	int fds[2];
 
@@ -1291,6 +1295,12 @@ static void show_special(struct audit_context *context, int *call_panic)
 			attr->mq_flags, attr->mq_maxmsg,
 			attr->mq_msgsize, attr->mq_curmsgs);
 		break; }
+	case AUDIT_CAPSET: {
+		audit_log_format(ab, "pid=%d", context->capset.pid);
+		audit_log_cap(ab, "cap_pi", &context->capset.cap.inheritable);
+		audit_log_cap(ab, "cap_pp", &context->capset.cap.permitted);
+		audit_log_cap(ab, "cap_pe", &context->capset.cap.effective);
+		break; }
 	}
 	audit_log_end(ab);
 }
@@ -1390,14 +1400,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			audit_log_cap(ab, "new_pp", &axs->new_pcap.permitted);
 			audit_log_cap(ab, "new_pi", &axs->new_pcap.inheritable);
 			audit_log_cap(ab, "new_pe", &axs->new_pcap.effective);
-			break; }
-
-		case AUDIT_CAPSET: {
-			struct audit_aux_data_capset *axs = (void *)aux;
-			audit_log_format(ab, "pid=%d", axs->pid);
-			audit_log_cap(ab, "cap_pi", &axs->cap.inheritable);
-			audit_log_cap(ab, "cap_pp", &axs->cap.permitted);
-			audit_log_cap(ab, "cap_pe", &axs->cap.effective);
 			break; }
 
 		}
@@ -2456,29 +2458,15 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
  * Record the aguments userspace sent to sys_capset for later printing by the
  * audit system if applicable
  */
-int __audit_log_capset(pid_t pid,
+void __audit_log_capset(pid_t pid,
 		       const struct cred *new, const struct cred *old)
 {
-	struct audit_aux_data_capset *ax;
 	struct audit_context *context = current->audit_context;
-
-	if (likely(!audit_enabled || !context || context->dummy))
-		return 0;
-
-	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
-	if (!ax)
-		return -ENOMEM;
-
-	ax->d.type = AUDIT_CAPSET;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
-
-	ax->pid = pid;
-	ax->cap.effective   = new->cap_effective;
-	ax->cap.inheritable = new->cap_effective;
-	ax->cap.permitted   = new->cap_permitted;
-
-	return 0;
+	context->capset.pid = pid;
+	context->capset.cap.effective   = new->cap_effective;
+	context->capset.cap.inheritable = new->cap_effective;
+	context->capset.cap.permitted   = new->cap_permitted;
+	context->type = AUDIT_CAPSET;
 }
 
 /**

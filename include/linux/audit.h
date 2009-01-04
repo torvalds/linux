@@ -457,7 +457,7 @@ extern void __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat);
 extern int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 				  const struct cred *new,
 				  const struct cred *old);
-extern int __audit_log_capset(pid_t pid, const struct cred *new, const struct cred *old);
+extern void __audit_log_capset(pid_t pid, const struct cred *new, const struct cred *old);
 
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -504,12 +504,11 @@ static inline int audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	return 0;
 }
 
-static inline int audit_log_capset(pid_t pid, const struct cred *new,
+static inline void audit_log_capset(pid_t pid, const struct cred *new,
 				   const struct cred *old)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_log_capset(pid, new, old);
-	return 0;
+		__audit_log_capset(pid, new, old);
 }
 
 extern int audit_n_rules;
@@ -544,7 +543,7 @@ extern int audit_signals;
 #define audit_mq_notify(d,n) ((void)0)
 #define audit_mq_getsetattr(d,s) ((void)0)
 #define audit_log_bprm_fcaps(b, ncr, ocr) ({ 0; })
-#define audit_log_capset(pid, ncr, ocr) ({ 0; })
+#define audit_log_capset(pid, ncr, ocr) ((void)0)
 #define audit_ptrace(t) ((void)0)
 #define audit_n_rules 0
 #define audit_signals 0
