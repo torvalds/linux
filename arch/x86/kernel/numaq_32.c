@@ -194,18 +194,18 @@ static void __init smp_read_mpc_oem(struct mpc_oemtable *oemtable,
 	mpc_record = 0;
 	printk(KERN_INFO "Found an OEM MPC table at %8p - parsing it ... \n",
 	       oemtable);
-	if (memcmp(oemtable->oem_signature, MPC_OEM_SIGNATURE, 4)) {
+	if (memcmp(oemtable->signature, MPC_OEM_SIGNATURE, 4)) {
 		printk(KERN_WARNING
 		       "SMP mpc oemtable: bad signature [%c%c%c%c]!\n",
-		       oemtable->oem_signature[0], oemtable->oem_signature[1],
-		       oemtable->oem_signature[2], oemtable->oem_signature[3]);
+		       oemtable->signature[0], oemtable->signature[1],
+		       oemtable->signature[2], oemtable->signature[3]);
 		return;
 	}
-	if (mpf_checksum((unsigned char *)oemtable, oemtable->oem_length)) {
+	if (mpf_checksum((unsigned char *)oemtable, oemtable->length)) {
 		printk(KERN_WARNING "SMP oem mptable: checksum error!\n");
 		return;
 	}
-	while (count < oemtable->oem_length) {
+	while (count < oemtable->length) {
 		switch (*oemptr) {
 		case MP_TRANSLATION:
 			{

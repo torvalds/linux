@@ -152,11 +152,11 @@ struct mpc_lintsrc {
 #define MPC_OEM_SIGNATURE "_OEM"
 
 struct mpc_oemtable {
-	char oem_signature[4];
-	unsigned short oem_length;	/* Size of table */
-	char  oem_rev;			/* 0x01 */
-	char  oem_checksum;
-	char  mpc_oem[8];
+	char signature[4];
+	unsigned short length;		/* Size of table */
+	char  rev;			/* 0x01 */
+	char  checksum;
+	char  mpc[8];
 };
 
 /*
