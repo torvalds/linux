@@ -389,11 +389,14 @@ static int __init write_buffer(char *buf, unsigned len)
 	return len - count;
 }
 
-static void __init flush_buffer(char *buf, unsigned len)
+
+static int __init flush_buffer(void *bufv, unsigned len)
 {
+	char *buf = (char *) bufv;
 	int written;
+	int origLen = len;
 	if (message)
-		return;
+		return -1;
 	while ((written = write_buffer(buf, len)) < len && !message) {
 		char c = buf[written];
 		if (c == '0') {
@@ -407,73 +410,14 @@ static void __init flush_buffer(char *buf, unsigned len)
 		} else
 			error("junk in compressed archive");
 	}
+	return origLen;
 }
 
-/*
- * gzip declarations
- */
+static unsigned my_inptr;   /* index of next byte to be processed in inbuf */
 
-#define OF(args)  args
-
-#ifndef memzero
-#define memzero(s, n)     memset ((s), 0, (n))
-#endif
-
-typedef unsigned char  uch;
-typedef unsigned short ush;
-typedef unsigned long  ulg;
-
-#define WSIZE 0x8000    /* window size--must be a power of two, and */
-			/*  at least 32K for zip's deflate method */
-
-static uch *inbuf;
-static uch *window;
-
-static unsigned insize;  /* valid bytes in inbuf */
-static unsigned inptr;   /* index of next byte to be processed in inbuf */
-static unsigned outcnt;  /* bytes in output buffer */
-static long bytes_out;
-
-#define get_byte()  (inptr < insize ? inbuf[inptr++] : -1)
-		
-/* Diagnostic functions (stubbed out) */
-#define Assert(cond,msg)
-#define Trace(x)
-#define Tracev(x)
-#define Tracevv(x)
-#define Tracec(c,x)
-#define Tracecv(c,x)
-
-#define STATIC static
-#define INIT __init
-
-static void __init flush_window(void);
-static void __init error(char *m);
-
-#define NO_INFLATE_MALLOC
-
-#include "../lib/inflate.c"
-
-/* ===========================================================================
- * Write the output window window[0..outcnt-1] and update crc and bytes_out.
- * (Used for the decompressed data only.)
- */
-static void __init flush_window(void)
-{
-	ulg c = crc;         /* temporary variable */
-	unsigned n;
-	uch *in, ch;
-
-	flush_buffer(window, outcnt);
-	in = window;
-	for (n = 0; n < outcnt; n++) {
-		ch = *in++;
-		c = crc_32_tab[((int)c ^ ch) & 0xff] ^ (c >> 8);
-	}
-	crc = c;
-	bytes_out += (ulg)outcnt;
-	outcnt = 0;
-}
+#include <linux/decompress/bunzip2.h>
+#include <linux/decompress/unlzma.h>
+#include <linux/decompress/inflate.h>
 
 static char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
 {
@@ -482,9 +426,10 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
 	header_buf = kmalloc(110, GFP_KERNEL);
 	symlink_buf = kmalloc(PATH_MAX + N_ALIGN(PATH_MAX) + 1, GFP_KERNEL);
 	name_buf = kmalloc(N_ALIGN(PATH_MAX), GFP_KERNEL);
-	window = kmalloc(WSIZE, GFP_KERNEL);
-	if (!window || !header_buf || !symlink_buf || !name_buf)
+
+	if (!header_buf || !symlink_buf || !name_buf)
 		panic("can't allocate buffers");
+
 	state = Start;
 	this_header = 0;
 	message = NULL;
@@ -504,22 +449,38 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
 			continue;
 		}
 		this_header = 0;
-		insize = len;
-		inbuf = buf;
-		inptr = 0;
-		outcnt = 0;		/* bytes in output buffer */
-		bytes_out = 0;
-		crc = (ulg)0xffffffffL; /* shift register contents */
-		makecrc();
-		gunzip();
+		if (!gunzip(buf, len, NULL, flush_buffer, NULL,
+			    &my_inptr, error) &&
+		    message == NULL)
+			goto ok;
+
+#ifdef CONFIG_RD_BZIP2
+		message = NULL; /* Zero out message, or else cpio will
+				   think an error has already occured */
+		if (!bunzip2(buf, len, NULL, flush_buffer, NULL,
+			     &my_inptr, error) &&
+		    message == NULL) {
+			goto ok;
+		}
+#endif
+
+#ifdef CONFIG_RD_LZMA
+		message = NULL; /* Zero out message, or else cpio will
+				   think an error has already occured */
+		if (!unlzma(buf, len, NULL, flush_buffer, NULL,
+			    &my_inptr, error) &&
+		    message == NULL) {
+			goto ok;
+		}
+#endif
+ok:
 		if (state != Reset)
-			error("junk in gzipped archive");
-		this_header = saved_offset + inptr;
-		buf += inptr;
-		len -= inptr;
+			error("junk in compressed archive");
+		this_header = saved_offset + my_inptr;
+		buf += my_inptr;
+		len -= my_inptr;
 	}
 	dir_utime();
-	kfree(window);
 	kfree(name_buf);
 	kfree(symlink_buf);
 	kfree(header_buf);

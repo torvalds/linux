@@ -10,6 +10,12 @@
 
 #include "do_mounts.h"
 
+#include <linux/decompress/generic.h>
+
+#include <linux/decompress/bunzip2.h>
+#include <linux/decompress/unlzma.h>
+#include <linux/decompress/inflate.h>
+
 int __initdata rd_prompt = 1;/* 1 = prompt for RAM disk, 0 = don't prompt */
 
 static int __init prompt_ramdisk(char *str)
@@ -28,7 +34,7 @@ static int __init ramdisk_start_setup(char *str)
 }
 __setup("ramdisk_start=", ramdisk_start_setup);
 
-static int __init crd_load(int in_fd, int out_fd);
+static int __init crd_load(int in_fd, int out_fd, decompress_fn deco);
 
 /*
  * This routine tries to find a RAM disk image to load, and returns the
@@ -44,7 +50,7 @@ static int __init crd_load(int in_fd, int out_fd);
  * 	gzip
  */
 static int __init 
-identify_ramdisk_image(int fd, int start_block)
+identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 {
 	const int size = 512;
 	struct minix_super_block *minixsb;
@@ -70,6 +76,7 @@ identify_ramdisk_image(int fd, int start_block)
 	sys_lseek(fd, start_block * BLOCK_SIZE, 0);
 	sys_read(fd, buf, size);
 
+#ifdef CONFIG_RD_GZIP
 	/*
 	 * If it matches the gzip magic numbers, return 0
 	 */
@@ -77,9 +84,39 @@ identify_ramdisk_image(int fd, int start_block)
 		printk(KERN_NOTICE
 		       "RAMDISK: Compressed image found at block %d\n",
 		       start_block);
+		*decompressor = gunzip;
 		nblocks = 0;
 		goto done;
 	}
+#endif
+
+#ifdef CONFIG_RD_BZIP2
+	/*
+	 * If it matches the bzip2 magic numbers, return -1
+	 */
+	if (buf[0] == 0x42 && (buf[1] == 0x5a)) {
+		printk(KERN_NOTICE
+		       "RAMDISK: Bzipped image found at block %d\n",
+		       start_block);
+		*decompressor = bunzip2;
+		nblocks = 0;
+		goto done;
+	}
+#endif
+
+#ifdef CONFIG_RD_LZMA
+	/*
+	 * If it matches the lzma magic numbers, return -1
+	 */
+	if (buf[0] == 0x5d && (buf[1] == 0x00)) {
+		printk(KERN_NOTICE
+		       "RAMDISK: Lzma image found at block %d\n",
+		       start_block);
+		*decompressor = unlzma;
+		nblocks = 0;
+		goto done;
+	}
+#endif
 
 	/* romfs is at block zero too */
 	if (romfsb->word0 == ROMSB_WORD0 &&
@@ -143,6 +180,7 @@ int __init rd_load_image(char *from)
 	int nblocks, i, disk;
 	char *buf = NULL;
 	unsigned short rotate = 0;
+	decompress_fn decompressor = NULL;
 #if !defined(CONFIG_S390) && !defined(CONFIG_PPC_ISERIES)
 	char rotator[4] = { '|' , '/' , '-' , '\\' };
 #endif
@@ -155,12 +193,12 @@ int __init rd_load_image(char *from)
 	if (in_fd < 0)
 		goto noclose_input;
 
-	nblocks = identify_ramdisk_image(in_fd, rd_image_start);
+	nblocks = identify_ramdisk_image(in_fd, rd_image_start, &decompressor);
 	if (nblocks < 0)
 		goto done;
 
 	if (nblocks == 0) {
-		if (crd_load(in_fd, out_fd) == 0)
+		if (crd_load(in_fd, out_fd, decompressor) == 0)
 			goto successful_load;
 		goto done;
 	}
@@ -259,138 +297,48 @@ int __init rd_load_disk(int n)
 	return rd_load_image("/dev/root");
 }
 
-/*
- * gzip declarations
- */
-
-#define OF(args)  args
-
-#ifndef memzero
-#define memzero(s, n)     memset ((s), 0, (n))
-#endif
-
-typedef unsigned char  uch;
-typedef unsigned short ush;
-typedef unsigned long  ulg;
-
-#define INBUFSIZ 4096
-#define WSIZE 0x8000    /* window size--must be a power of two, and */
-			/*  at least 32K for zip's deflate method */
-
-static uch *inbuf;
-static uch *window;
-
-static unsigned insize;  /* valid bytes in inbuf */
-static unsigned inptr;   /* index of next byte to be processed in inbuf */
-static unsigned outcnt;  /* bytes in output buffer */
 static int exit_code;
-static int unzip_error;
-static long bytes_out;
+static int decompress_error;
 static int crd_infd, crd_outfd;
 
-#define get_byte()  (inptr < insize ? inbuf[inptr++] : fill_inbuf())
-		
-/* Diagnostic functions (stubbed out) */
-#define Assert(cond,msg)
-#define Trace(x)
-#define Tracev(x)
-#define Tracevv(x)
-#define Tracec(c,x)
-#define Tracecv(c,x)
-
-#define STATIC static
-#define INIT __init
-
-static int  __init fill_inbuf(void);
-static void __init flush_window(void);
-static void __init error(char *m);
-
-#define NO_INFLATE_MALLOC
-
-#include "../lib/inflate.c"
-
-/* ===========================================================================
- * Fill the input buffer. This is called only when the buffer is empty
- * and at least one byte is really needed.
- * Returning -1 does not guarantee that gunzip() will ever return.
- */
-static int __init fill_inbuf(void)
+static int __init compr_fill(void *buf, unsigned int len)
 {
-	if (exit_code) return -1;
-	
-	insize = sys_read(crd_infd, inbuf, INBUFSIZ);
-	if (insize == 0) {
-		error("RAMDISK: ran out of compressed data");
-		return -1;
-	}
-
-	inptr = 1;
-
-	return inbuf[0];
+	int r = sys_read(crd_infd, buf, len);
+	if (r < 0)
+		printk(KERN_ERR "RAMDISK: error while reading compressed data");
+	else if (r == 0)
+		printk(KERN_ERR "RAMDISK: EOF while reading compressed data");
+	return r;
 }
 
-/* ===========================================================================
- * Write the output window window[0..outcnt-1] and update crc and bytes_out.
- * (Used for the decompressed data only.)
- */
-static void __init flush_window(void)
+static int __init compr_flush(void *window, unsigned int outcnt)
 {
-    ulg c = crc;         /* temporary variable */
-    unsigned n, written;
-    uch *in, ch;
-    
-    written = sys_write(crd_outfd, window, outcnt);
-    if (written != outcnt && unzip_error == 0) {
-	printk(KERN_ERR "RAMDISK: incomplete write (%d != %d) %ld\n",
-	       written, outcnt, bytes_out);
-	unzip_error = 1;
-    }
-    in = window;
-    for (n = 0; n < outcnt; n++) {
-	    ch = *in++;
-	    c = crc_32_tab[((int)c ^ ch) & 0xff] ^ (c >> 8);
-    }
-    crc = c;
-    bytes_out += (ulg)outcnt;
-    outcnt = 0;
+	int written = sys_write(crd_outfd, window, outcnt);
+	if (written != outcnt) {
+		if (decompress_error == 0)
+			printk(KERN_ERR
+			       "RAMDISK: incomplete write (%d != %d)\n",
+			       written, outcnt);
+		decompress_error = 1;
+		return -1;
+	}
+	return outcnt;
 }
 
 static void __init error(char *x)
 {
 	printk(KERN_ERR "%s\n", x);
 	exit_code = 1;
-	unzip_error = 1;
+	decompress_error = 1;
 }
 
-static int __init crd_load(int in_fd, int out_fd)
+static int __init crd_load(int in_fd, int out_fd, decompress_fn deco)
 {
 	int result;
-
-	insize = 0;		/* valid bytes in inbuf */
-	inptr = 0;		/* index of next byte to be processed in inbuf */
-	outcnt = 0;		/* bytes in output buffer */
-	exit_code = 0;
-	bytes_out = 0;
-	crc = (ulg)0xffffffffL; /* shift register contents */
-
 	crd_infd = in_fd;
 	crd_outfd = out_fd;
-	inbuf = kmalloc(INBUFSIZ, GFP_KERNEL);
-	if (!inbuf) {
-		printk(KERN_ERR "RAMDISK: Couldn't allocate gzip buffer\n");
-		return -1;
-	}
-	window = kmalloc(WSIZE, GFP_KERNEL);
-	if (!window) {
-		printk(KERN_ERR "RAMDISK: Couldn't allocate gzip window\n");
-		kfree(inbuf);
-		return -1;
-	}
-	makecrc();
-	result = gunzip();
-	if (unzip_error)
+	result = deco(NULL, 0, compr_fill, compr_flush, NULL, NULL, error);
+	if (decompress_error)
 		result = 1;
-	kfree(inbuf);
-	kfree(window);
 	return result;
 }
