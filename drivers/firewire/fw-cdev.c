@@ -518,10 +518,10 @@ static void complete_transaction(struct fw_card *card, int rcode,
 	client_put(client);
 }
 
-static int ioctl_send_request(struct client *client, void *buffer)
+static int init_request(struct client *client,
+			struct fw_cdev_send_request *request,
+			int destination_id, int speed)
 {
-	struct fw_device *device = client->device;
-	struct fw_cdev_send_request *request = buffer;
 	struct outbound_transaction_event *e;
 	int ret;
 
@@ -544,6 +544,34 @@ static int ioctl_send_request(struct client *client, void *buffer)
 		goto failed;
 	}
 
+	e->r.resource.release = release_transaction;
+	ret = add_client_resource(client, &e->r.resource, GFP_KERNEL);
+	if (ret < 0)
+		goto failed;
+
+	/* Get a reference for the transaction callback */
+	client_get(client);
+
+	fw_send_request(client->device->card, &e->r.transaction,
+			request->tcode & 0x1f, destination_id,
+			request->generation, speed, request->offset,
+			e->response.data, request->length,
+			complete_transaction, e);
+
+	if (request->data)
+		return sizeof(request) + request->length;
+	else
+		return sizeof(request);
+ failed:
+	kfree(e);
+
+	return ret;
+}
+
+static int ioctl_send_request(struct client *client, void *buffer)
+{
+	struct fw_cdev_send_request *request = buffer;
+
 	switch (request->tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
 	case TCODE_WRITE_BLOCK_REQUEST:
@@ -558,35 +586,11 @@ static int ioctl_send_request(struct client *client, void *buffer)
 	case TCODE_LOCK_VENDOR_DEPENDENT:
 		break;
 	default:
-		ret = -EINVAL;
-		goto failed;
+		return -EINVAL;
 	}
 
-	e->r.resource.release = release_transaction;
-	ret = add_client_resource(client, &e->r.resource, GFP_KERNEL);
-	if (ret < 0)
-		goto failed;
-
-	/* Get a reference for the transaction callback */
-	client_get(client);
-
-	fw_send_request(device->card, &e->r.transaction,
-			request->tcode & 0x1f,
-			device->node->node_id,
-			request->generation,
-			device->max_speed,
-			request->offset,
-			e->response.data, request->length,
-			complete_transaction, e);
-
-	if (request->data)
-		return sizeof(request) + request->length;
-	else
-		return sizeof(request);
- failed:
-	kfree(e);
-
-	return ret;
+	return init_request(client, request, client->device->node->node_id,
+			    client->device->max_speed);
 }
 
 static void release_request(struct client *client,
@@ -1229,6 +1233,21 @@ static int ioctl_get_speed(struct client *client, void *buffer)
 	return 0;
 }
 
+static int ioctl_send_broadcast_request(struct client *client, void *buffer)
+{
+	struct fw_cdev_send_request *request = buffer;
+
+	switch (request->tcode) {
+	case TCODE_WRITE_QUADLET_REQUEST:
+	case TCODE_WRITE_BLOCK_REQUEST:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return init_request(client, request, LOCAL_BUS | 0x3f, SCODE_100);
+}
+
 static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
 	ioctl_get_info,
 	ioctl_send_request,
@@ -1248,6 +1267,7 @@ static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
 	ioctl_allocate_iso_resource_once,
 	ioctl_deallocate_iso_resource_once,
 	ioctl_get_speed,
+	ioctl_send_broadcast_request,
 };
 
 static int dispatch_ioctl(struct client *client,
