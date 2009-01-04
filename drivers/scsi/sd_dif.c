@@ -374,7 +374,10 @@ void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix, unsig
 	else
 		csum_convert = 0;
 
+	BUG_ON(dif && (scmd->cmnd[0] == READ_6 || scmd->cmnd[0] == WRITE_6));
+
 	switch (scmd->cmnd[0]) {
+	case READ_6:
 	case READ_10:
 	case READ_12:
 	case READ_16:
@@ -390,6 +393,7 @@ void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix, unsig
 
 		break;
 
+	case WRITE_6:
 	case WRITE_10:
 	case WRITE_12:
 	case WRITE_16:
