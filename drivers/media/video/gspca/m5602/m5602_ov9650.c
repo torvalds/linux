@@ -65,7 +65,7 @@ static
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aurora m9700")
 		}
 	},
-	{ }
+	{}
 };
 
 const static struct ctrl ov9650_ctrls[] = {
@@ -249,7 +249,7 @@ int ov9650_probe(struct sd *sd)
 
 	info("Probing for an ov9650 sensor");
 
-	/* Run the pre-init to actually probe the unit */
+	/* Run the pre-init before probing the sensor */
 	for (i = 0; i < ARRAY_SIZE(preinit_ov9650) && !err; i++) {
 		u8 data = preinit_ov9650[i][2];
 		if (preinit_ov9650[i][0] == SENSOR)
@@ -273,11 +273,9 @@ int ov9650_probe(struct sd *sd)
 		info("Detected an ov9650 sensor");
 		goto sensor_found;
 	}
-
 	return -ENODEV;
 
 sensor_found:
-
 	sensor_settings = kmalloc(
 		ARRAY_SIZE(ov9650_ctrls) * sizeof(s32), GFP_KERNEL);
 	if (!sensor_settings)
@@ -292,6 +290,11 @@ sensor_found:
 		sensor_settings[i] = ov9650_ctrls[i].qctrl.default_value;
 	sd->sensor_priv = sensor_settings;
 
+	if (dmi_check_system(ov9650_flip_dmi_table) && !err) {
+		info("vflip quirk active");
+		sensor_settings[VFLIP_IDX] = 1;
+	}
+
 	return 0;
 }
 
@@ -299,6 +302,7 @@ int ov9650_init(struct sd *sd)
 {
 	int i, err = 0;
 	u8 data;
+	s32 *sensor_settings = sd->sensor_priv;
 
 	if (dump_sensor)
 		ov9650_dump_registers(sd);
@@ -312,11 +316,35 @@ int ov9650_init(struct sd *sd)
 			err = m5602_write_bridge(sd, init_ov9650[i][1], data);
 	}
 
-	if (dmi_check_system(ov9650_flip_dmi_table) && !err) {
-		info("vflip quirk active");
-		data = 0x30;
-		err = m5602_write_sensor(sd, OV9650_MVFP, &data, 1);
-	}
+	err = ov9650_set_exposure(&sd->gspca_dev, sensor_settings[EXPOSURE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = ov9650_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
+	if (err < 0)
+		return err;
+
+	err = ov9650_set_red_balance(&sd->gspca_dev, sensor_settings[RED_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = ov9650_set_blue_balance(&sd->gspca_dev, sensor_settings[BLUE_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = ov9650_set_hflip(&sd->gspca_dev, sensor_settings[HFLIP_IDX]);
+	if (err < 0)
+		return err;
+
+	err = ov9650_set_vflip(&sd->gspca_dev, sensor_settings[VFLIP_IDX]);
+	if (err < 0)
+		return err;
+
+	err = ov9650_set_auto_white_balance(&sd->gspca_dev, sensor_settings[AUTO_WHITE_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = ov9650_set_auto_gain(&sd->gspca_dev, sensor_settings[AUTO_GAIN_CTRL_IDX]);
 
 	return err;
 }
@@ -338,6 +366,9 @@ int ov9650_start(struct sd *sd)
 
 	if (width <= 320)
 		hor_offs /= 2;
+
+	if (err < 0)
+		return err;
 
 	/* Synthesize the vsync/hsync setup */
 	for (i = 0; i < ARRAY_SIZE(res_init_ov9650) && !err; i++) {
@@ -635,12 +666,7 @@ int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		return err;
 
-	if (dmi_check_system(ov9650_flip_dmi_table))
-		i2c_data = ((i2c_data & 0xdf) |
-			   (((val ? 0 : 1) & 0x01) << 5));
-	else
-		i2c_data = ((i2c_data & 0xdf) |
-			   ((val & 0x01) << 5));
+	i2c_data = ((i2c_data & 0xdf) | ((val & 0x01) << 5));
 
 	err = m5602_write_sensor(sd, OV9650_MVFP, &i2c_data, 1);
 
@@ -672,12 +698,7 @@ int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		return err;
 
-	if (dmi_check_system(ov9650_flip_dmi_table))
-		i2c_data = ((i2c_data & 0xef) |
-				(((val ? 0 : 1) & 0x01) << 4));
-	else
-		i2c_data = ((i2c_data & 0xef) |
-				((val & 0x01) << 4));
+	i2c_data = ((i2c_data & 0xef) | ((val & 0x01) << 4));
 
 	err = m5602_write_sensor(sd, OV9650_MVFP, &i2c_data, 1);
 

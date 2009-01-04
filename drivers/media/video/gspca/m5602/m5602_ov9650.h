@@ -218,6 +218,10 @@ static const unsigned char init_ov9650[][3] =
 
 	/* Reset chip */
 	{SENSOR, OV9650_COM7, OV9650_REGISTER_RESET},
+	/* One extra reset is needed in order to make the sensor behave
+	   properly when resuming from ram */
+	{SENSOR, OV9650_COM7, OV9650_REGISTER_RESET},
+
 	/* Enable double clock */
 	{SENSOR, OV9650_CLKRC, 0x80},
 	/* Do something out of spec with the power */
