@@ -156,9 +156,8 @@ static void print_MP_intsrc_info(struct mpc_intsrc *m)
 {
 	apic_printk(APIC_VERBOSE, "Int: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC INT %02x\n",
-		m->mpc_irqtype, m->mpc_irqflag & 3,
-		(m->mpc_irqflag >> 2) & 3, m->mpc_srcbus,
-		m->mpc_srcbusirq, m->mpc_dstapic, m->mpc_dstirq);
+		m->irqtype, m->irqflag & 3, (m->irqflag >> 2) & 3, m->srcbus,
+		m->srcbusirq, m->dstapic, m->dstirq);
 }
 
 static void __init print_mp_irq_info(struct mp_config_intsrc *mp_irq)
@@ -173,43 +172,43 @@ static void __init print_mp_irq_info(struct mp_config_intsrc *mp_irq)
 static void __init assign_to_mp_irq(struct mpc_intsrc *m,
 				    struct mp_config_intsrc *mp_irq)
 {
-	mp_irq->mp_dstapic = m->mpc_dstapic;
-	mp_irq->mp_type = m->mpc_type;
-	mp_irq->mp_irqtype = m->mpc_irqtype;
-	mp_irq->mp_irqflag = m->mpc_irqflag;
-	mp_irq->mp_srcbus = m->mpc_srcbus;
-	mp_irq->mp_srcbusirq = m->mpc_srcbusirq;
-	mp_irq->mp_dstirq = m->mpc_dstirq;
+	mp_irq->mp_dstapic = m->dstapic;
+	mp_irq->mp_type = m->type;
+	mp_irq->mp_irqtype = m->irqtype;
+	mp_irq->mp_irqflag = m->irqflag;
+	mp_irq->mp_srcbus = m->srcbus;
+	mp_irq->mp_srcbusirq = m->srcbusirq;
+	mp_irq->mp_dstirq = m->dstirq;
 }
 
 static void __init assign_to_mpc_intsrc(struct mp_config_intsrc *mp_irq,
 					struct mpc_intsrc *m)
 {
-	m->mpc_dstapic = mp_irq->mp_dstapic;
-	m->mpc_type = mp_irq->mp_type;
-	m->mpc_irqtype = mp_irq->mp_irqtype;
-	m->mpc_irqflag = mp_irq->mp_irqflag;
-	m->mpc_srcbus = mp_irq->mp_srcbus;
-	m->mpc_srcbusirq = mp_irq->mp_srcbusirq;
-	m->mpc_dstirq = mp_irq->mp_dstirq;
+	m->dstapic = mp_irq->mp_dstapic;
+	m->type = mp_irq->mp_type;
+	m->irqtype = mp_irq->mp_irqtype;
+	m->irqflag = mp_irq->mp_irqflag;
+	m->srcbus = mp_irq->mp_srcbus;
+	m->srcbusirq = mp_irq->mp_srcbusirq;
+	m->dstirq = mp_irq->mp_dstirq;
 }
 
 static int __init mp_irq_mpc_intsrc_cmp(struct mp_config_intsrc *mp_irq,
 					struct mpc_intsrc *m)
 {
-	if (mp_irq->mp_dstapic != m->mpc_dstapic)
+	if (mp_irq->mp_dstapic != m->dstapic)
 		return 1;
-	if (mp_irq->mp_type != m->mpc_type)
+	if (mp_irq->mp_type != m->type)
 		return 2;
-	if (mp_irq->mp_irqtype != m->mpc_irqtype)
+	if (mp_irq->mp_irqtype != m->irqtype)
 		return 3;
-	if (mp_irq->mp_irqflag != m->mpc_irqflag)
+	if (mp_irq->mp_irqflag != m->irqflag)
 		return 4;
-	if (mp_irq->mp_srcbus != m->mpc_srcbus)
+	if (mp_irq->mp_srcbus != m->srcbus)
 		return 5;
-	if (mp_irq->mp_srcbusirq != m->mpc_srcbusirq)
+	if (mp_irq->mp_srcbusirq != m->srcbusirq)
 		return 6;
-	if (mp_irq->mp_dstirq != m->mpc_dstirq)
+	if (mp_irq->mp_dstirq != m->dstirq)
 		return 7;
 
 	return 0;
@@ -415,12 +414,12 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	int i;
 	int ELCR_fallback = 0;
 
-	intsrc.mpc_type = MP_INTSRC;
-	intsrc.mpc_irqflag = 0;	/* conforming */
-	intsrc.mpc_srcbus = 0;
-	intsrc.mpc_dstapic = mp_ioapics[0].mp_apicid;
+	intsrc.type = MP_INTSRC;
+	intsrc.irqflag = 0;	/* conforming */
+	intsrc.srcbus = 0;
+	intsrc.dstapic = mp_ioapics[0].mp_apicid;
 
-	intsrc.mpc_irqtype = mp_INT;
+	intsrc.irqtype = mp_INT;
 
 	/*
 	 *  If true, we have an ISA/PCI system with no IRQ entries
@@ -463,19 +462,19 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 			 *  irqflag field (level sensitive, active high polarity).
 			 */
 			if (ELCR_trigger(i))
-				intsrc.mpc_irqflag = 13;
+				intsrc.irqflag = 13;
 			else
-				intsrc.mpc_irqflag = 0;
+				intsrc.irqflag = 0;
 		}
 
-		intsrc.mpc_srcbusirq = i;
-		intsrc.mpc_dstirq = i ? i : 2;	/* IRQ0 to INTIN2 */
+		intsrc.srcbusirq = i;
+		intsrc.dstirq = i ? i : 2;	/* IRQ0 to INTIN2 */
 		MP_intsrc_info(&intsrc);
 	}
 
-	intsrc.mpc_irqtype = mp_ExtINT;
-	intsrc.mpc_srcbusirq = 0;
-	intsrc.mpc_dstirq = 0;	/* 8259A to INTIN0 */
+	intsrc.irqtype = mp_ExtINT;
+	intsrc.srcbusirq = 0;
+	intsrc.dstirq = 0;	/* 8259A to INTIN0 */
 	MP_intsrc_info(&intsrc);
 }
 
@@ -801,10 +800,10 @@ static int  __init get_MP_intsrc_index(struct mpc_intsrc *m)
 {
 	int i;
 
-	if (m->mpc_irqtype != mp_INT)
+	if (m->irqtype != mp_INT)
 		return 0;
 
-	if (m->mpc_irqflag != 0x0f)
+	if (m->irqflag != 0x0f)
 		return 0;
 
 	/* not legacy */
@@ -816,9 +815,9 @@ static int  __init get_MP_intsrc_index(struct mpc_intsrc *m)
 		if (mp_irqs[i].mp_irqflag != 0x0f)
 			continue;
 
-		if (mp_irqs[i].mp_srcbus != m->mpc_srcbus)
+		if (mp_irqs[i].mp_srcbus != m->srcbus)
 			continue;
-		if (mp_irqs[i].mp_srcbusirq != m->mpc_srcbusirq)
+		if (mp_irqs[i].mp_srcbusirq != m->srcbusirq)
 			continue;
 		if (irq_used[i]) {
 			/* already claimed */
