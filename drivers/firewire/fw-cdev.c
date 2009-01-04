@@ -1245,6 +1245,10 @@ static int ioctl_send_broadcast_request(struct client *client, void *buffer)
 		return -EINVAL;
 	}
 
+	/* Security policy: Only allow accesses to Units Space. */
+	if (request->offset < CSR_REGISTER_BASE + CSR_CONFIG_ROM_END)
+		return -EACCES;
+
 	return init_request(client, request, LOCAL_BUS | 0x3f, SCODE_100);
 }
 
