@@ -3715,7 +3715,7 @@ redo:
 		 * don't kick the migration_thread, if the curr
 		 * task on busiest cpu can't be moved to this_cpu
 		 */
-		if (!cpu_isset(this_cpu, busiest->curr->cpus_allowed)) {
+		if (!cpumask_test_cpu(this_cpu, &busiest->curr->cpus_allowed)) {
 			double_unlock_balance(this_rq, busiest);
 			all_pinned = 1;
 			return ld_moved;
@@ -4150,13 +4150,17 @@ unsigned long long task_delta_exec(struct task_struct *p)
  * Account user cpu time to a process.
  * @p: the process that the cpu time gets accounted to
  * @cputime: the cpu time spent in user space since the last update
+ * @cputime_scaled: cputime scaled by cpu frequency
  */
-void account_user_time(struct task_struct *p, cputime_t cputime)
+void account_user_time(struct task_struct *p, cputime_t cputime,
+		       cputime_t cputime_scaled)
 {
 	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
 	cputime64_t tmp;
 
+	/* Add user time to process. */
 	p->utime = cputime_add(p->utime, cputime);
+	p->utimescaled = cputime_add(p->utimescaled, cputime_scaled);
 	account_group_user_time(p, cputime);
 
 	/* Add user time to cpustat. */
@@ -4173,30 +4177,25 @@ void account_user_time(struct task_struct *p, cputime_t cputime)
  * Account guest cpu time to a process.
  * @p: the process that the cpu time gets accounted to
  * @cputime: the cpu time spent in virtual machine since the last update
+ * @cputime_scaled: cputime scaled by cpu frequency
  */
-static void account_guest_time(struct task_struct *p, cputime_t cputime)
+static void account_guest_time(struct task_struct *p, cputime_t cputime,
+			       cputime_t cputime_scaled)
 {
 	cputime64_t tmp;
 	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
 
 	tmp = cputime_to_cputime64(cputime);
 
+	/* Add guest time to process. */
 	p->utime = cputime_add(p->utime, cputime);
+	p->utimescaled = cputime_add(p->utimescaled, cputime_scaled);
 	account_group_user_time(p, cputime);
 	p->gtime = cputime_add(p->gtime, cputime);
 
+	/* Add guest time to cpustat. */
 	cpustat->user = cputime64_add(cpustat->user, tmp);
 	cpustat->guest = cputime64_add(cpustat->guest, tmp);
-}
-
-/*
- * Account scaled user cpu time to a process.
- * @p: the process that the cpu time gets accounted to
- * @cputime: the cpu time spent in user space since the last update
- */
-void account_user_time_scaled(struct task_struct *p, cputime_t cputime)
-{
-	p->utimescaled = cputime_add(p->utimescaled, cputime);
 }
 
 /*
@@ -4204,20 +4203,22 @@ void account_user_time_scaled(struct task_struct *p, cputime_t cputime)
  * @p: the process that the cpu time gets accounted to
  * @hardirq_offset: the offset to subtract from hardirq_count()
  * @cputime: the cpu time spent in kernel space since the last update
+ * @cputime_scaled: cputime scaled by cpu frequency
  */
 void account_system_time(struct task_struct *p, int hardirq_offset,
-			 cputime_t cputime)
+			 cputime_t cputime, cputime_t cputime_scaled)
 {
 	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
-	struct rq *rq = this_rq();
 	cputime64_t tmp;
 
 	if ((p->flags & PF_VCPU) && (irq_count() - hardirq_offset == 0)) {
-		account_guest_time(p, cputime);
+		account_guest_time(p, cputime, cputime_scaled);
 		return;
 	}
 
+	/* Add system time to process. */
 	p->stime = cputime_add(p->stime, cputime);
+	p->stimescaled = cputime_add(p->stimescaled, cputime_scaled);
 	account_group_system_time(p, cputime);
 
 	/* Add system time to cpustat. */
@@ -4226,47 +4227,83 @@ void account_system_time(struct task_struct *p, int hardirq_offset,
 		cpustat->irq = cputime64_add(cpustat->irq, tmp);
 	else if (softirq_count())
 		cpustat->softirq = cputime64_add(cpustat->softirq, tmp);
-	else if (p != rq->idle)
-		cpustat->system = cputime64_add(cpustat->system, tmp);
-	else if (atomic_read(&rq->nr_iowait) > 0)
-		cpustat->iowait = cputime64_add(cpustat->iowait, tmp);
 	else
-		cpustat->idle = cputime64_add(cpustat->idle, tmp);
+		cpustat->system = cputime64_add(cpustat->system, tmp);
+
 	/* Account for system time used */
 	acct_update_integrals(p);
 }
 
 /*
- * Account scaled system cpu time to a process.
- * @p: the process that the cpu time gets accounted to
- * @hardirq_offset: the offset to subtract from hardirq_count()
- * @cputime: the cpu time spent in kernel space since the last update
+ * Account for involuntary wait time.
+ * @steal: the cpu time spent in involuntary wait
  */
-void account_system_time_scaled(struct task_struct *p, cputime_t cputime)
+void account_steal_time(cputime_t cputime)
 {
-	p->stimescaled = cputime_add(p->stimescaled, cputime);
+	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
+	cputime64_t cputime64 = cputime_to_cputime64(cputime);
+
+	cpustat->steal = cputime64_add(cpustat->steal, cputime64);
 }
 
 /*
- * Account for involuntary wait time.
- * @p: the process from which the cpu time has been stolen
- * @steal: the cpu time spent in involuntary wait
+ * Account for idle time.
+ * @cputime: the cpu time spent in idle wait
  */
-void account_steal_time(struct task_struct *p, cputime_t steal)
+void account_idle_time(cputime_t cputime)
 {
 	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
-	cputime64_t tmp = cputime_to_cputime64(steal);
+	cputime64_t cputime64 = cputime_to_cputime64(cputime);
 	struct rq *rq = this_rq();
 
-	if (p == rq->idle) {
-		p->stime = cputime_add(p->stime, steal);
-		if (atomic_read(&rq->nr_iowait) > 0)
-			cpustat->iowait = cputime64_add(cpustat->iowait, tmp);
-		else
-			cpustat->idle = cputime64_add(cpustat->idle, tmp);
-	} else
-		cpustat->steal = cputime64_add(cpustat->steal, tmp);
+	if (atomic_read(&rq->nr_iowait) > 0)
+		cpustat->iowait = cputime64_add(cpustat->iowait, cputime64);
+	else
+		cpustat->idle = cputime64_add(cpustat->idle, cputime64);
 }
+
+#ifndef CONFIG_VIRT_CPU_ACCOUNTING
+
+/*
+ * Account a single tick of cpu time.
+ * @p: the process that the cpu time gets accounted to
+ * @user_tick: indicates if the tick is a user or a system tick
+ */
+void account_process_tick(struct task_struct *p, int user_tick)
+{
+	cputime_t one_jiffy = jiffies_to_cputime(1);
+	cputime_t one_jiffy_scaled = cputime_to_scaled(one_jiffy);
+	struct rq *rq = this_rq();
+
+	if (user_tick)
+		account_user_time(p, one_jiffy, one_jiffy_scaled);
+	else if (p != rq->idle)
+		account_system_time(p, HARDIRQ_OFFSET, one_jiffy,
+				    one_jiffy_scaled);
+	else
+		account_idle_time(one_jiffy);
+}
+
+/*
+ * Account multiple ticks of steal time.
+ * @p: the process from which the cpu time has been stolen
+ * @ticks: number of stolen ticks
+ */
+void account_steal_ticks(unsigned long ticks)
+{
+	account_steal_time(jiffies_to_cputime(ticks));
+}
+
+/*
+ * Account multiple ticks of idle time.
+ * @ticks: number of stolen ticks
+ */
+void account_idle_ticks(unsigned long ticks)
+{
+	account_idle_time(jiffies_to_cputime(ticks));
+}
+
+#endif
 
 /*
  * Use precise platform statistics if available:
@@ -6220,9 +6257,7 @@ static int __migrate_task_irq(struct task_struct *p, int src_cpu, int dest_cpu)
 static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 {
 	int dest_cpu;
-	/* FIXME: Use cpumask_of_node here. */
-	cpumask_t _nodemask = node_to_cpumask(cpu_to_node(dead_cpu));
-	const struct cpumask *nodemask = &_nodemask;
+	const struct cpumask *nodemask = cpumask_of_node(cpu_to_node(dead_cpu));
 
 again:
 	/* Look for allowed, online CPU in same node. */
@@ -7133,21 +7168,18 @@ static int find_next_best_node(int node, nodemask_t *used_nodes)
 static void sched_domain_node_span(int node, struct cpumask *span)
 {
 	nodemask_t used_nodes;
-	/* FIXME: use cpumask_of_node() */
-	node_to_cpumask_ptr(nodemask, node);
 	int i;
 
-	cpus_clear(*span);
+	cpumask_clear(span);
 	nodes_clear(used_nodes);
 
-	cpus_or(*span, *span, *nodemask);
+	cpumask_or(span, span, cpumask_of_node(node));
 	node_set(node, used_nodes);
 
 	for (i = 1; i < SD_NODES_PER_DOMAIN; i++) {
 		int next_node = find_next_best_node(node, &used_nodes);
 
-		node_to_cpumask_ptr_next(nodemask, next_node);
-		cpus_or(*span, *span, *nodemask);
+		cpumask_or(span, span, cpumask_of_node(next_node));
 	}
 }
 #endif /* CONFIG_NUMA */
@@ -7227,9 +7259,7 @@ cpu_to_phys_group(int cpu, const struct cpumask *cpu_map,
 {
 	int group;
 #ifdef CONFIG_SCHED_MC
-	/* FIXME: Use cpu_coregroup_mask. */
-	*mask = cpu_coregroup_map(cpu);
-	cpus_and(*mask, *mask, *cpu_map);
+	cpumask_and(mask, cpu_coregroup_mask(cpu), cpu_map);
 	group = cpumask_first(mask);
 #elif defined(CONFIG_SCHED_SMT)
 	cpumask_and(mask, &per_cpu(cpu_sibling_map, cpu), cpu_map);
@@ -7259,10 +7289,8 @@ static int cpu_to_allnodes_group(int cpu, const struct cpumask *cpu_map,
 				 struct cpumask *nodemask)
 {
 	int group;
-	/* FIXME: use cpumask_of_node */
-	node_to_cpumask_ptr(pnodemask, cpu_to_node(cpu));
 
-	cpumask_and(nodemask, pnodemask, cpu_map);
+	cpumask_and(nodemask, cpumask_of_node(cpu_to_node(cpu)), cpu_map);
 	group = cpumask_first(nodemask);
 
 	if (sg)
@@ -7313,10 +7341,8 @@ static void free_sched_groups(const struct cpumask *cpu_map,
 
 		for (i = 0; i < nr_node_ids; i++) {
 			struct sched_group *oldsg, *sg = sched_group_nodes[i];
-			/* FIXME: Use cpumask_of_node */
-			node_to_cpumask_ptr(pnodemask, i);
 
-			cpus_and(*nodemask, *pnodemask, *cpu_map);
+			cpumask_and(nodemask, cpumask_of_node(i), cpu_map);
 			if (cpumask_empty(nodemask))
 				continue;
 
@@ -7525,9 +7551,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 	for_each_cpu(i, cpu_map) {
 		struct sched_domain *sd = NULL, *p;
 
-		/* FIXME: use cpumask_of_node */
-		*nodemask = node_to_cpumask(cpu_to_node(i));
-		cpus_and(*nodemask, *nodemask, *cpu_map);
+		cpumask_and(nodemask, cpumask_of_node(cpu_to_node(i)), cpu_map);
 
 #ifdef CONFIG_NUMA
 		if (cpumask_weight(cpu_map) >
@@ -7568,9 +7592,8 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 		sd = &per_cpu(core_domains, i).sd;
 		SD_INIT(sd, MC);
 		set_domain_attribute(sd, attr);
-		*sched_domain_span(sd) = cpu_coregroup_map(i);
-		cpumask_and(sched_domain_span(sd),
-			    sched_domain_span(sd), cpu_map);
+		cpumask_and(sched_domain_span(sd), cpu_map,
+						   cpu_coregroup_mask(i));
 		sd->parent = p;
 		p->child = sd;
 		cpu_to_core_group(i, cpu_map, &sd->groups, tmpmask);
@@ -7606,9 +7629,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 #ifdef CONFIG_SCHED_MC
 	/* Set up multi-core groups */
 	for_each_cpu(i, cpu_map) {
-		/* FIXME: Use cpu_coregroup_mask */
-		*this_core_map = cpu_coregroup_map(i);
-		cpus_and(*this_core_map, *this_core_map, *cpu_map);
+		cpumask_and(this_core_map, cpu_coregroup_mask(i), cpu_map);
 		if (i != cpumask_first(this_core_map))
 			continue;
 
@@ -7620,9 +7641,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 
 	/* Set up physical groups */
 	for (i = 0; i < nr_node_ids; i++) {
-		/* FIXME: Use cpumask_of_node */
-		*nodemask = node_to_cpumask(i);
-		cpus_and(*nodemask, *nodemask, *cpu_map);
+		cpumask_and(nodemask, cpumask_of_node(i), cpu_map);
 		if (cpumask_empty(nodemask))
 			continue;
 
@@ -7644,11 +7663,8 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 		struct sched_group *sg, *prev;
 		int j;
 
-		/* FIXME: Use cpumask_of_node */
-		*nodemask = node_to_cpumask(i);
 		cpumask_clear(covered);
-
-		cpus_and(*nodemask, *nodemask, *cpu_map);
+		cpumask_and(nodemask, cpumask_of_node(i), cpu_map);
 		if (cpumask_empty(nodemask)) {
 			sched_group_nodes[i] = NULL;
 			continue;
@@ -7679,8 +7695,6 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 
 		for (j = 0; j < nr_node_ids; j++) {
 			int n = (i + j) % nr_node_ids;
-			/* FIXME: Use cpumask_of_node */
-			node_to_cpumask_ptr(pnodemask, n);
 
 			cpumask_complement(notcovered, covered);
 			cpumask_and(tmpmask, notcovered, cpu_map);
@@ -7688,7 +7702,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 			if (cpumask_empty(tmpmask))
 				break;
 
-			cpumask_and(tmpmask, tmpmask, pnodemask);
+			cpumask_and(tmpmask, tmpmask, cpumask_of_node(n));
 			if (cpumask_empty(tmpmask))
 				continue;
 

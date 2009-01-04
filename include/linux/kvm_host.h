@@ -316,6 +316,7 @@ struct kvm_assigned_dev_kernel {
 #define KVM_ASSIGNED_DEV_HOST_MSI	(1 << 9)
 	unsigned long irq_requested_type;
 	int irq_source_id;
+	int flags;
 	struct pci_dev *dev;
 	struct kvm *kvm;
 };
@@ -327,13 +328,16 @@ void kvm_unregister_irq_ack_notifier(struct kvm_irq_ack_notifier *kian);
 int kvm_request_irq_source_id(struct kvm *kvm);
 void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 
-#ifdef CONFIG_DMAR
+#ifdef CONFIG_IOMMU_API
 int kvm_iommu_map_pages(struct kvm *kvm, gfn_t base_gfn,
 			unsigned long npages);
-int kvm_iommu_map_guest(struct kvm *kvm,
-			struct kvm_assigned_dev_kernel *assigned_dev);
+int kvm_iommu_map_guest(struct kvm *kvm);
 int kvm_iommu_unmap_guest(struct kvm *kvm);
-#else /* CONFIG_DMAR */
+int kvm_assign_device(struct kvm *kvm,
+		      struct kvm_assigned_dev_kernel *assigned_dev);
+int kvm_deassign_device(struct kvm *kvm,
+			struct kvm_assigned_dev_kernel *assigned_dev);
+#else /* CONFIG_IOMMU_API */
 static inline int kvm_iommu_map_pages(struct kvm *kvm,
 				      gfn_t base_gfn,
 				      unsigned long npages)
@@ -341,9 +345,7 @@ static inline int kvm_iommu_map_pages(struct kvm *kvm,
 	return 0;
 }
 
-static inline int kvm_iommu_map_guest(struct kvm *kvm,
-				      struct kvm_assigned_dev_kernel
-				      *assigned_dev)
+static inline int kvm_iommu_map_guest(struct kvm *kvm)
 {
 	return -ENODEV;
 }
@@ -352,7 +354,19 @@ static inline int kvm_iommu_unmap_guest(struct kvm *kvm)
 {
 	return 0;
 }
-#endif /* CONFIG_DMAR */
+
+static inline int kvm_assign_device(struct kvm *kvm,
+		struct kvm_assigned_dev_kernel *assigned_dev)
+{
+	return 0;
+}
+
+static inline int kvm_deassign_device(struct kvm *kvm,
+		struct kvm_assigned_dev_kernel *assigned_dev)
+{
+	return 0;
+}
+#endif /* CONFIG_IOMMU_API */
 
 static inline void kvm_guest_enter(void)
 {

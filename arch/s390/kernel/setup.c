@@ -427,6 +427,8 @@ setup_lowcore(void)
 		/* enable extended save area */
 		__ctl_set_bit(14, 29);
 	}
+#else
+	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 #endif
 	set_prefix((u32)(unsigned long) lc);
 }

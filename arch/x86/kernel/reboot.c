@@ -12,6 +12,7 @@
 #include <asm/proto.h>
 #include <asm/reboot_fixups.h>
 #include <asm/reboot.h>
+#include <asm/pci_x86.h>
 #include <asm/virtext.h>
 
 #ifdef CONFIG_X86_32
@@ -23,7 +24,6 @@
 #endif
 
 #include <mach_ipi.h>
-
 
 /*
  * Power off function, if any
@@ -501,7 +501,7 @@ void native_machine_shutdown(void)
 
 #ifdef CONFIG_X86_32
 	/* See if there has been given a command line override */
-	if ((reboot_cpu != -1) && (reboot_cpu < NR_CPUS) &&
+	if ((reboot_cpu != -1) && (reboot_cpu < nr_cpu_ids) &&
 		cpu_online(reboot_cpu))
 		reboot_cpu_id = reboot_cpu;
 #endif
@@ -511,7 +511,7 @@ void native_machine_shutdown(void)
 		reboot_cpu_id = smp_processor_id();
 
 	/* Make certain I only run on the appropriate processor */
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(reboot_cpu_id));
+	set_cpus_allowed_ptr(current, cpumask_of(reboot_cpu_id));
 
 	/* O.K Now that I'm on the appropriate processor,
 	 * stop all of the others.

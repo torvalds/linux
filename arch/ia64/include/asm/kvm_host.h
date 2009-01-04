@@ -467,7 +467,7 @@ struct kvm_arch {
 	struct kvm_sal_data rdv_sal_data;
 
 	struct list_head assigned_dev_head;
-	struct dmar_domain *intel_iommu_domain;
+	struct iommu_domain *iommu_domain;
 	struct hlist_head irq_ack_notifier_list;
 
 	unsigned long irq_sources_bitmap;

@@ -8,6 +8,7 @@
 #include <linux/shm.h>
 #include <linux/ipc.h>
 #include <linux/compat.h>
+#include <asm/sys_ia32.h>
 
 asmlinkage long sys32_ipc(u32 call, int first, int second, int third,
 			  compat_uptr_t ptr, u32 fifth)

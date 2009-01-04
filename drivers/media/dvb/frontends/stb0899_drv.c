@@ -1618,6 +1618,7 @@ static struct dvb_frontend_ops stb0899_ops = {
 
 		.caps 			= FE_CAN_INVERSION_AUTO	|
 					  FE_CAN_FEC_AUTO	|
+					  FE_CAN_2G_MODULATION	|
 					  FE_CAN_QPSK
 	},
 

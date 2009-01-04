@@ -824,16 +824,14 @@ static int enable_mtrr_cleanup __initdata =
 
 static int __init disable_mtrr_cleanup_setup(char *str)
 {
-	if (enable_mtrr_cleanup != -1)
-		enable_mtrr_cleanup = 0;
+	enable_mtrr_cleanup = 0;
 	return 0;
 }
 early_param("disable_mtrr_cleanup", disable_mtrr_cleanup_setup);
 
 static int __init enable_mtrr_cleanup_setup(char *str)
 {
-	if (enable_mtrr_cleanup != -1)
-		enable_mtrr_cleanup = 1;
+	enable_mtrr_cleanup = 1;
 	return 0;
 }
 early_param("enable_mtrr_cleanup", enable_mtrr_cleanup_setup);

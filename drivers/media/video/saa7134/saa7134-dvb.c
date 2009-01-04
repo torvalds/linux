@@ -49,6 +49,8 @@
 #include "lnbp21.h"
 #include "tuner-simple.h"
 
+#include "zl10353.h"
+
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
@@ -854,6 +856,12 @@ static struct tda1004x_config ads_tech_duo_config = {
 	.request_firmware = philips_tda1004x_request_firmware
 };
 
+static struct zl10353_config behold_h6_config = {
+	.demod_address = 0x1e>>1,
+	.no_tuner      = 1,
+	.parallel_ts   = 1,
+};
+
 /* ==================================================================
  * tda10086 based DVB-S cards, helper functions
  */
@@ -1356,6 +1364,16 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (configure_tda827x_fe(dev, &philips_tiger_config,
 					 &tda827x_cfg_0) < 0)
 			goto dettach_frontend;
+		break;
+	case SAA7134_BOARD_BEHOLD_H6:
+		fe0->dvb.frontend = dvb_attach(zl10353_attach,
+						&behold_h6_config,
+						&dev->i2c_adap);
+		if (fe0->dvb.frontend) {
+			dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
+				   &dev->i2c_adap, 0x61,
+				   TUNER_PHILIPS_FMD1216ME_MK3);
+		}
 		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");

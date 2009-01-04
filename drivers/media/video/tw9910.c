@@ -575,7 +575,7 @@ static unsigned long tw9910_query_bus_param(struct soc_camera_device *icd)
 }
 
 static int tw9910_get_chip_id(struct soc_camera_device *icd,
-			      struct v4l2_chip_ident *id)
+			      struct v4l2_dbg_chip_ident *id)
 {
 	id->ident = V4L2_IDENT_TW9910;
 	id->revision = 0;
@@ -606,7 +606,7 @@ static int tw9910_enum_input(struct soc_camera_device *icd,
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int tw9910_get_register(struct soc_camera_device *icd,
-			       struct v4l2_register *reg)
+			       struct v4l2_dbg_register *reg)
 {
 	struct tw9910_priv *priv = container_of(icd, struct tw9910_priv, icd);
 	int ret;
@@ -627,7 +627,7 @@ static int tw9910_get_register(struct soc_camera_device *icd,
 }
 
 static int tw9910_set_register(struct soc_camera_device *icd,
-			       struct v4l2_register *reg)
+			       struct v4l2_dbg_register *reg)
 {
 	struct tw9910_priv *priv = container_of(icd, struct tw9910_priv, icd);
 

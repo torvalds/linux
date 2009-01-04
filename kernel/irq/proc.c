@@ -20,7 +20,7 @@ static struct proc_dir_entry *root_irq_dir;
 static int irq_affinity_proc_show(struct seq_file *m, void *v)
 {
 	struct irq_desc *desc = irq_to_desc((long)m->private);
-	cpumask_t *mask = &desc->affinity;
+	const struct cpumask *mask = &desc->affinity;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	if (desc->status & IRQ_MOVE_PENDING)
@@ -54,7 +54,7 @@ static ssize_t irq_affinity_proc_write(struct file *file,
 	if (err)
 		goto free_cpumask;
 
-	if (!is_affinity_mask_valid(*new_value)) {
+	if (!is_affinity_mask_valid(new_value)) {
 		err = -EINVAL;
 		goto free_cpumask;
 	}
@@ -93,7 +93,7 @@ static const struct file_operations irq_affinity_proc_fops = {
 
 static int default_affinity_show(struct seq_file *m, void *v)
 {
-	seq_cpumask(m, &irq_default_affinity);
+	seq_cpumask(m, irq_default_affinity);
 	seq_putc(m, '\n');
 	return 0;
 }
@@ -101,27 +101,37 @@ static int default_affinity_show(struct seq_file *m, void *v)
 static ssize_t default_affinity_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *ppos)
 {
-	cpumask_t new_value;
+	cpumask_var_t new_value;
 	int err;
 
-	err = cpumask_parse_user(buffer, count, &new_value);
-	if (err)
-		return err;
+	if (!alloc_cpumask_var(&new_value, GFP_KERNEL))
+		return -ENOMEM;
 
-	if (!is_affinity_mask_valid(new_value))
-		return -EINVAL;
+	err = cpumask_parse_user(buffer, count, new_value);
+	if (err)
+		goto out;
+
+	if (!is_affinity_mask_valid(new_value)) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	/*
 	 * Do not allow disabling IRQs completely - it's a too easy
 	 * way to make the system unusable accidentally :-) At least
 	 * one online CPU still has to be targeted.
 	 */
-	if (!cpus_intersects(new_value, cpu_online_map))
-		return -EINVAL;
+	if (!cpumask_intersects(new_value, cpu_online_mask)) {
+		err = -EINVAL;
+		goto out;
+	}
 
-	irq_default_affinity = new_value;
+	cpumask_copy(irq_default_affinity, new_value);
+	err = count;
 
-	return count;
+out:
+	free_cpumask_var(new_value);
+	return err;
 }
 
 static int default_affinity_open(struct inode *inode, struct file *file)

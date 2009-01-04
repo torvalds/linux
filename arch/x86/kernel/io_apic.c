@@ -214,11 +214,11 @@ static struct irq_cfg *get_one_free_irq_cfg(int cpu)
 
 	cfg = kzalloc_node(sizeof(*cfg), GFP_ATOMIC, node);
 	if (cfg) {
-		/* FIXME: needs alloc_cpumask_var_node() */
-		if (!alloc_cpumask_var(&cfg->domain, GFP_ATOMIC)) {
+		if (!alloc_cpumask_var_node(&cfg->domain, GFP_ATOMIC, node)) {
 			kfree(cfg);
 			cfg = NULL;
-		} else if (!alloc_cpumask_var(&cfg->old_domain, GFP_ATOMIC)) {
+		} else if (!alloc_cpumask_var_node(&cfg->old_domain,
+							  GFP_ATOMIC, node)) {
 			free_cpumask_var(cfg->domain);
 			kfree(cfg);
 			cfg = NULL;
@@ -706,7 +706,7 @@ static void __unmask_IO_APIC_irq(struct irq_cfg *cfg)
 }
 
 #ifdef CONFIG_X86_64
-void io_apic_sync(struct irq_pin_list *entry)
+static void io_apic_sync(struct irq_pin_list *entry)
 {
 	/*
 	 * Synchronize the IO-APIC and the CPU by doing

@@ -161,12 +161,12 @@ static unsigned int phys_pkg_id(int index_msb)
 	return current_cpu_data.initial_apicid >> index_msb;
 }
 
-void x2apic_send_IPI_self(int vector)
+static void x2apic_send_IPI_self(int vector)
 {
 	apic_write(APIC_SELF_IPI, vector);
 }
 
-void init_x2apic_ldr(void)
+static void init_x2apic_ldr(void)
 {
 	return;
 }

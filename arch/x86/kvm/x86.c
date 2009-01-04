@@ -34,6 +34,7 @@
 #include <linux/module.h>
 #include <linux/mman.h>
 #include <linux/highmem.h>
+#include <linux/iommu.h>
 #include <linux/intel-iommu.h>
 
 #include <asm/uaccess.h>
@@ -989,7 +990,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = !tdp_enabled;
 		break;
 	case KVM_CAP_IOMMU:
-		r = intel_iommu_found();
+		r = iommu_found();
 		break;
 	default:
 		r = 0;

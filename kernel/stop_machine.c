@@ -69,10 +69,10 @@ static void stop_cpu(struct work_struct *unused)
 	int err;
 
 	if (!active_cpus) {
-		if (cpu == first_cpu(cpu_online_map))
+		if (cpu == cpumask_first(cpu_online_mask))
 			smdata = &active;
 	} else {
-		if (cpu_isset(cpu, *active_cpus))
+		if (cpumask_test_cpu(cpu, active_cpus))
 			smdata = &active;
 	}
 	/* Simple state machine */
@@ -109,7 +109,7 @@ static int chill(void *unused)
 	return 0;
 }
 
-int __stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus)
+int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
 {
 	struct work_struct *sm_work;
 	int i, ret;
@@ -142,7 +142,7 @@ int __stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus)
 	return ret;
 }
 
-int stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus)
+int stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
 {
 	int ret;
 

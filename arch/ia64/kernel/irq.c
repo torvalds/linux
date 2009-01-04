@@ -112,11 +112,11 @@ void set_irq_affinity_info (unsigned int irq, int hwid, int redir)
 	}
 }
 
-bool is_affinity_mask_valid(cpumask_t cpumask)
+bool is_affinity_mask_valid(cpumask_var_t cpumask)
 {
 	if (ia64_platform_is("sn2")) {
 		/* Only allow one CPU to be specified in the smp_affinity mask */
-		if (cpus_weight(cpumask) != 1)
+		if (cpumask_weight(cpumask) != 1)
 			return false;
 	}
 	return true;

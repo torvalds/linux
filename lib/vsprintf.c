@@ -661,6 +661,9 @@ static char *ip4_addr_string(char *buf, char *end, u8 *addr, int field_width,
  */
 static char *pointer(const char *fmt, char *buf, char *end, void *ptr, int field_width, int precision, int flags)
 {
+	if (!ptr)
+		return string(buf, end, "(null)", field_width, precision, flags);
+
 	switch (*fmt) {
 	case 'F':
 		ptr = dereference_function_descriptor(ptr);

@@ -292,8 +292,10 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = 8;
 
-	/* This is always a kernel trap and never fixable (and thus must
-	   never return). */
+	/*
+	 * This is always a kernel trap and never fixable (and thus must
+	 * never return).
+	 */
 	for (;;)
 		die(str, regs, error_code);
 }
@@ -520,9 +522,11 @@ dotraplinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
 }
 
 #ifdef CONFIG_X86_64
-/* Help handler running on IST stack to switch back to user stack
-   for scheduling or signal handling. The actual stack switch is done in
-   entry.S */
+/*
+ * Help handler running on IST stack to switch back to user stack
+ * for scheduling or signal handling. The actual stack switch is done in
+ * entry.S
+ */
 asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
 	struct pt_regs *regs = eregs;
@@ -532,8 +536,10 @@ asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
 	/* Exception from user space */
 	else if (user_mode(eregs))
 		regs = task_pt_regs(current);
-	/* Exception from kernel and interrupts are enabled. Move to
-	   kernel process stack. */
+	/*
+	 * Exception from kernel and interrupts are enabled. Move to
+	 * kernel process stack.
+	 */
 	else if (eregs->flags & X86_EFLAGS_IF)
 		regs = (struct pt_regs *)(eregs->sp -= sizeof(struct pt_regs));
 	if (eregs != regs)
@@ -685,12 +691,7 @@ void math_error(void __user *ip)
 	cwd = get_fpu_cwd(task);
 	swd = get_fpu_swd(task);
 
-	err = swd & ~cwd & 0x3f;
-
-#ifdef CONFIG_X86_32
-	if (!err)
-		return;
-#endif
+	err = swd & ~cwd;
 
 	if (err & 0x001) {	/* Invalid op */
 		/*
@@ -708,7 +709,11 @@ void math_error(void __user *ip)
 	} else if (err & 0x020) { /* Precision */
 		info.si_code = FPE_FLTRES;
 	} else {
-		info.si_code = __SI_FAULT|SI_KERNEL; /* WTF? */
+		/*
+		 * If we're using IRQ 13, or supposedly even some trap 16
+		 * implementations, it's possible we get a spurious trap...
+		 */
+		return;		/* Spurious trap, no error */
 	}
 	force_sig_info(SIGFPE, &info, task);
 }

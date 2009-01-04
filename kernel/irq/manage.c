@@ -16,8 +16,15 @@
 #include "internals.h"
 
 #ifdef CONFIG_SMP
+cpumask_var_t irq_default_affinity;
 
-cpumask_t irq_default_affinity = CPU_MASK_ALL;
+static int init_irq_default_affinity(void)
+{
+	alloc_cpumask_var(&irq_default_affinity, GFP_KERNEL);
+	cpumask_setall(irq_default_affinity);
+	return 0;
+}
+core_initcall(init_irq_default_affinity);
 
 /**
  *	synchronize_irq - wait for pending IRQ handlers (on other CPUs)
@@ -127,7 +134,7 @@ int do_irq_select_affinity(unsigned int irq, struct irq_desc *desc)
 			desc->status &= ~IRQ_AFFINITY_SET;
 	}
 
-	cpumask_and(&desc->affinity, cpu_online_mask, &irq_default_affinity);
+	cpumask_and(&desc->affinity, cpu_online_mask, irq_default_affinity);
 set_affinity:
 	desc->chip->set_affinity(irq, &desc->affinity);
 
