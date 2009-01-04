@@ -402,16 +402,6 @@ static inline int scsi_is_wlun(unsigned int lun)
 #define DRIVER_HARD         0x07
 #define DRIVER_SENSE	    0x08
 
-#define SUGGEST_RETRY       0x10
-#define SUGGEST_ABORT       0x20
-#define SUGGEST_REMAP       0x30
-#define SUGGEST_DIE         0x40
-#define SUGGEST_SENSE       0x80
-#define SUGGEST_IS_OK       0xff
-
-#define DRIVER_MASK         0x0f
-#define SUGGEST_MASK        0xf0
-
 /*
  * Internal return values.
  */
@@ -447,7 +437,6 @@ static inline int scsi_is_wlun(unsigned int lun)
 #define msg_byte(result)    (((result) >> 8) & 0xff)
 #define host_byte(result)   (((result) >> 16) & 0xff)
 #define driver_byte(result) (((result) >> 24) & 0xff)
-#define suggestion(result)  (driver_byte(result) & SUGGEST_MASK)
 
 static inline void set_msg_byte(struct scsi_cmnd *cmd, char status)
 {

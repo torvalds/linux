@@ -259,7 +259,7 @@ static void fc_fcp_retry_cmd(struct fc_fcp_pkt *fsp)
 	}
 
 	fsp->state &= ~FC_SRB_ABORT_PENDING;
-	fsp->io_status = SUGGEST_RETRY << 24;
+	fsp->io_status = 0;
 	fsp->status_code = FC_ERROR;
 	fc_fcp_complete_locked(fsp);
 }
@@ -859,7 +859,7 @@ static void fc_fcp_complete_locked(struct fc_fcp_pkt *fsp)
 		    (!(fsp->scsi_comp_flags & FCP_RESID_UNDER) ||
 		     fsp->xfer_len < fsp->data_len - fsp->scsi_resid)) {
 			fsp->status_code = FC_DATA_UNDRUN;
-			fsp->io_status = SUGGEST_RETRY << 24;
+			fsp->io_status = 0;
 		}
 	}
 
@@ -1267,7 +1267,7 @@ static void fc_fcp_rec(struct fc_fcp_pkt *fsp)
 	rp = rport->dd_data;
 	if (!fsp->seq_ptr || rp->rp_state != RPORT_ST_READY) {
 		fsp->status_code = FC_HRD_ERROR;
-		fsp->io_status = SUGGEST_RETRY << 24;
+		fsp->io_status = 0;
 		fc_fcp_complete_locked(fsp);
 		return;
 	}
