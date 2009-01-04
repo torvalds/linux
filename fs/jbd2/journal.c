@@ -131,8 +131,9 @@ static int kjournald2(void *arg)
 	journal->j_task = current;
 	wake_up(&journal->j_wait_done_commit);
 
-	printk(KERN_INFO "kjournald2 starting.  Commit interval %ld seconds\n",
-			journal->j_commit_interval / HZ);
+	printk(KERN_INFO "kjournald2 starting: pid %d, dev %s, "
+	       "commit interval %ld seconds\n", current->pid,
+	       journal->j_devname, journal->j_commit_interval / HZ);
 
 	/*
 	 * And now, wait forever for commit wakeup events.
