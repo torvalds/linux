@@ -109,11 +109,11 @@ struct mpc_bus {
 #define MPC_APIC_USABLE		0x01
 
 struct mpc_ioapic {
-	unsigned char mpc_type;
-	unsigned char mpc_apicid;
-	unsigned char mpc_apicver;
-	unsigned char mpc_flags;
-	unsigned int mpc_apicaddr;
+	unsigned char type;
+	unsigned char apicid;
+	unsigned char apicver;
+	unsigned char flags;
+	unsigned int apicaddr;
 };
 
 struct mpc_intsrc {

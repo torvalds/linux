@@ -135,20 +135,20 @@ static int bad_ioapic(unsigned long address)
 
 static void __init MP_ioapic_info(struct mpc_ioapic *m)
 {
-	if (!(m->mpc_flags & MPC_APIC_USABLE))
+	if (!(m->flags & MPC_APIC_USABLE))
 		return;
 
 	printk(KERN_INFO "I/O APIC #%d Version %d at 0x%X.\n",
-	       m->mpc_apicid, m->mpc_apicver, m->mpc_apicaddr);
+	       m->apicid, m->apicver, m->apicaddr);
 
-	if (bad_ioapic(m->mpc_apicaddr))
+	if (bad_ioapic(m->apicaddr))
 		return;
 
-	mp_ioapics[nr_ioapics].mp_apicaddr = m->mpc_apicaddr;
-	mp_ioapics[nr_ioapics].mp_apicid = m->mpc_apicid;
-	mp_ioapics[nr_ioapics].mp_type = m->mpc_type;
-	mp_ioapics[nr_ioapics].mp_apicver = m->mpc_apicver;
-	mp_ioapics[nr_ioapics].mp_flags = m->mpc_flags;
+	mp_ioapics[nr_ioapics].mp_apicaddr = m->apicaddr;
+	mp_ioapics[nr_ioapics].mp_apicid = m->apicid;
+	mp_ioapics[nr_ioapics].mp_type = m->type;
+	mp_ioapics[nr_ioapics].mp_apicver = m->apicver;
+	mp_ioapics[nr_ioapics].mp_flags = m->flags;
 	nr_ioapics++;
 }
 
@@ -513,11 +513,11 @@ static void __init construct_ioapic_table(int mpc_default_type)
 		MP_bus_info(&bus);
 	}
 
-	ioapic.mpc_type = MP_IOAPIC;
-	ioapic.mpc_apicid = 2;
-	ioapic.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
-	ioapic.mpc_flags = MPC_APIC_USABLE;
-	ioapic.mpc_apicaddr = 0xFEC00000;
+	ioapic.type = MP_IOAPIC;
+	ioapic.apicid = 2;
+	ioapic.apicver = mpc_default_type > 4 ? 0x10 : 0x01;
+	ioapic.flags = MPC_APIC_USABLE;
+	ioapic.apicaddr = 0xFEC00000;
 	MP_ioapic_info(&ioapic);
 
 	/*
