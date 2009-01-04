@@ -32,6 +32,7 @@ static struct v4l2_pix_format mt9m111_modes[] = {
 };
 
 const static struct ctrl mt9m111_ctrls[] = {
+#define VFLIP_IDX 0
 	{
 		{
 			.id		= V4L2_CID_VFLIP,
@@ -44,7 +45,9 @@ const static struct ctrl mt9m111_ctrls[] = {
 		},
 		.set = mt9m111_set_vflip,
 		.get = mt9m111_get_vflip
-	}, {
+	},
+#define HFLIP_IDX 1
+	{
 		{
 			.id             = V4L2_CID_HFLIP,
 			.type           = V4L2_CTRL_TYPE_BOOLEAN,
@@ -56,7 +59,9 @@ const static struct ctrl mt9m111_ctrls[] = {
 		},
 		.set = mt9m111_set_hflip,
 		.get = mt9m111_get_hflip
-	}, {
+	},
+#define GAIN_IDX 2
+	{
 		{
 			.id             = V4L2_CID_GAIN,
 			.type           = V4L2_CTRL_TYPE_INTEGER,
@@ -79,6 +84,7 @@ int mt9m111_probe(struct sd *sd)
 {
 	u8 data[2] = {0x00, 0x00};
 	int i;
+	s32 *sensor_settings;
 
 	if (force_sensor) {
 		if (force_sensor == MT9M111_SENSOR) {
@@ -117,10 +123,19 @@ int mt9m111_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
+	sensor_settings = kmalloc(ARRAY_SIZE(mt9m111_ctrls) * sizeof(s32), GFP_KERNEL);
+	if (!sensor_settings)
+		return -ENOMEM;
+
 	sd->gspca_dev.cam.cam_mode = mt9m111_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(mt9m111_modes);
 	sd->desc->ctrls = mt9m111_ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(mt9m111_ctrls);
+
+	for (i = 0; i < ARRAY_SIZE(mt9m111_ctrls); i++)
+		sensor_settings[i] = mt9m111_ctrls[i].qctrl.default_value;
+	sd->sensor_priv = sensor_settings;
+
 	return 0;
 }
 
@@ -155,18 +170,21 @@ int mt9m111_power_down(struct sd *sd)
 	return 0;
 }
 
+void mt9m111_disconnect(struct sd *sd)
+{
+	sd->sensor = NULL;
+	kfree(sd->sensor_priv);
+}
+
 int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
-	int err;
-	u8 data[2] = {0x00, 0x00};
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 
-	err = m5602_read_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
-				  data, 2);
-	*val = data[0] & MT9M111_RMB_MIRROR_ROWS;
+	*val = sensor_settings[VFLIP_IDX];
 	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
 
-	return err;
+	return 0;
 }
 
 int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
@@ -174,8 +192,11 @@ int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 	u8 data[2] = {0x00, 0x00};
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 
 	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
+
+	sensor_settings[VFLIP_IDX] = val;
 
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
@@ -194,16 +215,13 @@ int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 
 int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
-	int err;
-	u8 data[2] = {0x00, 0x00};
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 
-	err = m5602_read_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
-				  data, 2);
-	*val = data[0] & MT9M111_RMB_MIRROR_COLS;
+	*val = sensor_settings[HFLIP_IDX];
 	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
 
-	return err;
+	return 0;
 }
 
 int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
@@ -211,9 +229,11 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 	u8 data[2] = {0x00, 0x00};
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 
 	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
 
+	sensor_settings[HFLIP_IDX] = val;
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
@@ -231,21 +251,13 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 
 int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 {
-	int err, tmp;
-	u8 data[2] = {0x00, 0x00};
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 
-	err = m5602_read_sensor(sd, MT9M111_SC_GLOBAL_GAIN, data, 2);
-	tmp = ((data[1] << 8) | data[0]);
-
-	*val = ((tmp & (1 << 10)) * 2) |
-	      ((tmp & (1 <<  9)) * 2) |
-	      ((tmp & (1 <<  8)) * 2) |
-	       (tmp & 0x7f);
-
+	*val = sensor_settings[GAIN_IDX];
 	PDEBUG(D_V4L2, "Read gain %d", *val);
 
-	return err;
+	return 0;
 }
 
 int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
@@ -253,6 +265,9 @@ int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	int err, tmp;
 	u8 data[2] = {0x00, 0x00};
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	sensor_settings[GAIN_IDX] = val;
 
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
