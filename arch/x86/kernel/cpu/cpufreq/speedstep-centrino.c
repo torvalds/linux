@@ -492,8 +492,8 @@ static int centrino_target (struct cpufreq_policy *policy,
 	}
 
 	first_cpu = 1;
-	for_each_cpu_mask_nr(j, policy->cpus) {
-		const cpumask_t *mask;
+	for_each_cpu(j, policy->cpus) {
+		const struct cpumask *mask;
 
 		/* cpufreq holds the hotplug lock, so we are safe here */
 		if (!cpu_online(j))
@@ -504,9 +504,9 @@ static int centrino_target (struct cpufreq_policy *policy,
 		 * Make sure we are running on CPU that wants to change freq
 		 */
 		if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
-			mask = &policy->cpus;
+			mask = policy->cpus;
 		else
-			mask = &cpumask_of_cpu(j);
+			mask = cpumask_of(j);
 
 		set_cpus_allowed_ptr(current, mask);
 		preempt_disable();
@@ -538,7 +538,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 			dprintk("target=%dkHz old=%d new=%d msr=%04x\n",
 				target_freq, freqs.old, freqs.new, msr);
 
-			for_each_cpu_mask_nr(k, policy->cpus) {
+			for_each_cpu(k, policy->cpus) {
 				if (!cpu_online(k))
 					continue;
 				freqs.cpu = k;
@@ -563,7 +563,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 		preempt_enable();
 	}
 
-	for_each_cpu_mask_nr(k, policy->cpus) {
+	for_each_cpu(k, policy->cpus) {
 		if (!cpu_online(k))
 			continue;
 		freqs.cpu = k;
@@ -586,7 +586,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 		tmp = freqs.new;
 		freqs.new = freqs.old;
 		freqs.old = tmp;
-		for_each_cpu_mask_nr(j, policy->cpus) {
+		for_each_cpu(j, policy->cpus) {
 			if (!cpu_online(j))
 				continue;
 			cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);

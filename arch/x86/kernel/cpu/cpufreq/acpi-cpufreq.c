@@ -411,7 +411,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 
 #ifdef CONFIG_HOTPLUG_CPU
 	/* cpufreq holds the hotplug lock, so we are safe from here on */
-	cpus_and(online_policy_cpus, cpu_online_map, policy->cpus);
+	cpumask_and(&online_policy_cpus, cpu_online_mask, policy->cpus);
 #else
 	online_policy_cpus = policy->cpus;
 #endif
@@ -626,15 +626,15 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	 */
 	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL ||
 	    policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
-		cpumask_copy(&policy->cpus, perf->shared_cpu_map);
+		cpumask_copy(policy->cpus, perf->shared_cpu_map);
 	}
-	cpumask_copy(&policy->related_cpus, perf->shared_cpu_map);
+	cpumask_copy(policy->related_cpus, perf->shared_cpu_map);
 
 #ifdef CONFIG_SMP
 	dmi_check_system(sw_any_bug_dmi_table);
-	if (bios_with_sw_any_bug && cpus_weight(policy->cpus) == 1) {
+	if (bios_with_sw_any_bug && cpumask_weight(policy->cpus) == 1) {
 		policy->shared_type = CPUFREQ_SHARED_TYPE_ALL;
-		policy->cpus = per_cpu(cpu_core_map, cpu);
+		cpumask_copy(policy->cpus, cpu_core_mask(cpu));
 	}
 #endif
 
