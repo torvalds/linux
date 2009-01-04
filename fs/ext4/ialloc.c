@@ -124,8 +124,8 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 	if (desc->bg_flags & cpu_to_le16(EXT4_BG_INODE_UNINIT)) {
 		ext4_init_inode_bitmap(sb, bh, block_group, desc);
 		set_buffer_uptodate(bh);
-		unlock_buffer(bh);
 		spin_unlock(sb_bgl_lock(EXT4_SB(sb), block_group));
+		unlock_buffer(bh);
 		return bh;
 	}
 	spin_unlock(sb_bgl_lock(EXT4_SB(sb), block_group));
@@ -585,8 +585,8 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode)
 {
 	struct super_block *sb;
-	struct buffer_head *bitmap_bh = NULL;
-	struct buffer_head *bh2;
+	struct buffer_head *inode_bitmap_bh = NULL;
+	struct buffer_head *group_desc_bh;
 	ext4_group_t group = 0;
 	unsigned long ino = 0;
 	struct inode *inode;
@@ -634,41 +634,44 @@ got_group:
 	for (i = 0; i < sbi->s_groups_count; i++) {
 		err = -EIO;
 
-		gdp = ext4_get_group_desc(sb, group, &bh2);
+		gdp = ext4_get_group_desc(sb, group, &group_desc_bh);
 		if (!gdp)
 			goto fail;
 
-		brelse(bitmap_bh);
-		bitmap_bh = ext4_read_inode_bitmap(sb, group);
-		if (!bitmap_bh)
+		brelse(inode_bitmap_bh);
+		inode_bitmap_bh = ext4_read_inode_bitmap(sb, group);
+		if (!inode_bitmap_bh)
 			goto fail;
 
 		ino = 0;
 
 repeat_in_this_group:
 		ino = ext4_find_next_zero_bit((unsigned long *)
-				bitmap_bh->b_data, EXT4_INODES_PER_GROUP(sb), ino);
+					      inode_bitmap_bh->b_data,
+					      EXT4_INODES_PER_GROUP(sb), ino);
+
 		if (ino < EXT4_INODES_PER_GROUP(sb)) {
 
-			BUFFER_TRACE(bitmap_bh, "get_write_access");
-			err = ext4_journal_get_write_access(handle, bitmap_bh);
+			BUFFER_TRACE(inode_bitmap_bh, "get_write_access");
+			err = ext4_journal_get_write_access(handle,
+							    inode_bitmap_bh);
 			if (err)
 				goto fail;
 
 			if (!ext4_set_bit_atomic(sb_bgl_lock(sbi, group),
-						ino, bitmap_bh->b_data)) {
+						ino, inode_bitmap_bh->b_data)) {
 				/* we won it */
-				BUFFER_TRACE(bitmap_bh,
+				BUFFER_TRACE(inode_bitmap_bh,
 					"call ext4_handle_dirty_metadata");
 				err = ext4_handle_dirty_metadata(handle,
-								inode,
-								bitmap_bh);
+								 inode,
+							inode_bitmap_bh);
 				if (err)
 					goto fail;
 				goto got;
 			}
 			/* we lost it */
-			ext4_handle_release_buffer(handle, bitmap_bh);
+			ext4_handle_release_buffer(handle, inode_bitmap_bh);
 
 			if (++ino < EXT4_INODES_PER_GROUP(sb))
 				goto repeat_in_this_group;
@@ -699,19 +702,21 @@ got:
 		goto fail;
 	}
 
-	BUFFER_TRACE(bh2, "get_write_access");
-	err = ext4_journal_get_write_access(handle, bh2);
-	if (err) goto fail;
+	BUFFER_TRACE(group_desc_bh, "get_write_access");
+	err = ext4_journal_get_write_access(handle, group_desc_bh);
+	if (err)
+		goto fail;
 
 	/* We may have to initialize the block bitmap if it isn't already */
 	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_GDT_CSUM) &&
 	    gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
-		struct buffer_head *block_bh = ext4_read_block_bitmap(sb, group);
+		struct buffer_head *block_bitmap_bh;
 
-		BUFFER_TRACE(block_bh, "get block bitmap access");
-		err = ext4_journal_get_write_access(handle, block_bh);
+		block_bitmap_bh = ext4_read_block_bitmap(sb, group);
+		BUFFER_TRACE(block_bitmap_bh, "get block bitmap access");
+		err = ext4_journal_get_write_access(handle, block_bitmap_bh);
 		if (err) {
-			brelse(block_bh);
+			brelse(block_bitmap_bh);
 			goto fail;
 		}
 
@@ -719,8 +724,8 @@ got:
 		spin_lock(sb_bgl_lock(sbi, group));
 		/* recheck and clear flag under lock if we still need to */
 		if (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
-			gdp->bg_flags &= cpu_to_le16(~EXT4_BG_BLOCK_UNINIT);
 			free = ext4_free_blocks_after_init(sb, group, gdp);
+			gdp->bg_flags &= cpu_to_le16(~EXT4_BG_BLOCK_UNINIT);
 			ext4_free_blks_set(sb, gdp, free);
 			gdp->bg_checksum = ext4_group_desc_csum(sbi, group,
 								gdp);
@@ -729,12 +734,12 @@ got:
 
 		/* Don't need to dirty bitmap block if we didn't change it */
 		if (free) {
-			BUFFER_TRACE(block_bh, "dirty block bitmap");
+			BUFFER_TRACE(block_bitmap_bh, "dirty block bitmap");
 			err = ext4_handle_dirty_metadata(handle,
-							NULL, block_bh);
+							NULL, block_bitmap_bh);
 		}
 
-		brelse(block_bh);
+		brelse(block_bitmap_bh);
 		if (err)
 			goto fail;
 	}
@@ -778,8 +783,8 @@ got:
 	}
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, group, gdp);
 	spin_unlock(sb_bgl_lock(sbi, group));
-	BUFFER_TRACE(bh2, "call ext4_handle_dirty_metadata");
-	err = ext4_handle_dirty_metadata(handle, NULL, bh2);
+	BUFFER_TRACE(group_desc_bh, "call ext4_handle_dirty_metadata");
+	err = ext4_handle_dirty_metadata(handle, NULL, group_desc_bh);
 	if (err) goto fail;
 
 	percpu_counter_dec(&sbi->s_freeinodes_counter);
@@ -881,7 +886,7 @@ out:
 	iput(inode);
 	ret = ERR_PTR(err);
 really_out:
-	brelse(bitmap_bh);
+	brelse(inode_bitmap_bh);
 	return ret;
 
 fail_free_drop:
@@ -893,7 +898,7 @@ fail_drop:
 	inode->i_nlink = 0;
 	unlock_new_inode(inode);
 	iput(inode);
-	brelse(bitmap_bh);
+	brelse(inode_bitmap_bh);
 	return ERR_PTR(err);
 }
 

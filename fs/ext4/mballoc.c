@@ -804,8 +804,8 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 			ext4_init_block_bitmap(sb, bh[i],
 						first_group + i, desc);
 			set_buffer_uptodate(bh[i]);
-			unlock_buffer(bh[i]);
 			spin_unlock(sb_bgl_lock(EXT4_SB(sb), first_group + i));
+			unlock_buffer(bh[i]);
 			continue;
 		}
 		spin_unlock(sb_bgl_lock(EXT4_SB(sb), first_group + i));
