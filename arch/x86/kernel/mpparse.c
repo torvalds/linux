@@ -247,35 +247,35 @@ static void __init MP_lintsrc_info(struct mpc_lintsrc *m)
 static int __init smp_check_mpc(struct mpc_table *mpc, char *oem, char *str)
 {
 
-	if (memcmp(mpc->mpc_signature, MPC_SIGNATURE, 4)) {
+	if (memcmp(mpc->signature, MPC_SIGNATURE, 4)) {
 		printk(KERN_ERR "MPTABLE: bad signature [%c%c%c%c]!\n",
-		       mpc->mpc_signature[0], mpc->mpc_signature[1],
-		       mpc->mpc_signature[2], mpc->mpc_signature[3]);
+		       mpc->signature[0], mpc->signature[1],
+		       mpc->signature[2], mpc->signature[3]);
 		return 0;
 	}
-	if (mpf_checksum((unsigned char *)mpc, mpc->mpc_length)) {
+	if (mpf_checksum((unsigned char *)mpc, mpc->length)) {
 		printk(KERN_ERR "MPTABLE: checksum error!\n");
 		return 0;
 	}
-	if (mpc->mpc_spec != 0x01 && mpc->mpc_spec != 0x04) {
+	if (mpc->spec != 0x01 && mpc->spec != 0x04) {
 		printk(KERN_ERR "MPTABLE: bad table version (%d)!!\n",
-		       mpc->mpc_spec);
+		       mpc->spec);
 		return 0;
 	}
-	if (!mpc->mpc_lapic) {
+	if (!mpc->lapic) {
 		printk(KERN_ERR "MPTABLE: null local APIC address!\n");
 		return 0;
 	}
-	memcpy(oem, mpc->mpc_oem, 8);
+	memcpy(oem, mpc->oem, 8);
 	oem[8] = 0;
 	printk(KERN_INFO "MPTABLE: OEM ID: %s\n", oem);
 
-	memcpy(str, mpc->mpc_productid, 12);
+	memcpy(str, mpc->productid, 12);
 	str[12] = 0;
 
 	printk(KERN_INFO "MPTABLE: Product ID: %s\n", str);
 
-	printk(KERN_INFO "MPTABLE: APIC at: 0x%X\n", mpc->mpc_lapic);
+	printk(KERN_INFO "MPTABLE: APIC at: 0x%X\n", mpc->lapic);
 
 	return 1;
 }
@@ -305,14 +305,14 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 #endif
 	/* save the local APIC address, it might be non-default */
 	if (!acpi_lapic)
-		mp_lapic_addr = mpc->mpc_lapic;
+		mp_lapic_addr = mpc->lapic;
 
 	if (early)
 		return 1;
 
-	if (mpc->mpc_oemptr && x86_quirks->smp_read_mpc_oem) {
-		struct mpc_oemtable *oem_table = (void *)(long)mpc->mpc_oemptr;
-		x86_quirks->smp_read_mpc_oem(oem_table, mpc->mpc_oemsize);
+	if (mpc->oemptr && x86_quirks->smp_read_mpc_oem) {
+		struct mpc_oemtable *oem_table = (void *)(long)mpc->oemptr;
+		x86_quirks->smp_read_mpc_oem(oem_table, mpc->oemsize);
 	}
 
 	/*
@@ -321,7 +321,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 	if (x86_quirks->mpc_record)
 		*x86_quirks->mpc_record = 0;
 
-	while (count < mpc->mpc_length) {
+	while (count < mpc->length) {
 		switch (*mpt) {
 		case MP_PROCESSOR:
 			{
@@ -378,8 +378,8 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 			printk(KERN_ERR "Your mptable is wrong, contact your HW vendor!\n");
 			printk(KERN_ERR "type %x\n", *mpt);
 			print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_ADDRESS, 16,
-					1, mpc, mpc->mpc_length, 1);
-			count = mpc->mpc_length;
+					1, mpc, mpc->length, 1);
+			count = mpc->length;
 			break;
 		}
 		if (x86_quirks->mpc_record)
@@ -848,8 +848,8 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 	int count = sizeof(*mpc);
 	unsigned char *mpt = ((unsigned char *)mpc) + count;
 
-	printk(KERN_INFO "mpc_length %x\n", mpc->mpc_length);
-	while (count < mpc->mpc_length) {
+	printk(KERN_INFO "mpc_length %x\n", mpc->length);
+	while (count < mpc->length) {
 		switch (*mpt) {
 		case MP_PROCESSOR:
 			{
@@ -912,7 +912,7 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 			printk(KERN_ERR "Your mptable is wrong, contact your HW vendor!\n");
 			printk(KERN_ERR "type %x\n", *mpt);
 			print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_ADDRESS, 16,
-					1, mpc, mpc->mpc_length, 1);
+					1, mpc, mpc->length, 1);
 			goto out;
 		}
 	}
@@ -947,7 +947,7 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 				}
 			}
 			assign_to_mpc_intsrc(&mp_irqs[i], m);
-			mpc->mpc_length = count;
+			mpc->length = count;
 			mpt += sizeof(struct mpc_intsrc);
 		}
 		print_mp_irq_info(&mp_irqs[i]);
@@ -955,9 +955,8 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 #endif
 out:
 	/* update checksum */
-	mpc->mpc_checksum = 0;
-	mpc->mpc_checksum -= mpf_checksum((unsigned char *)mpc,
-					   mpc->mpc_length);
+	mpc->checksum = 0;
+	mpc->checksum -= mpf_checksum((unsigned char *)mpc, mpc->length);
 
 	return 0;
 }
@@ -1029,7 +1028,7 @@ static int __init update_mp_table(void)
 	printk(KERN_INFO "mpf: %lx\n", virt_to_phys(mpf));
 	printk(KERN_INFO "mpf_physptr: %x\n", mpf->mpf_physptr);
 
-	if (mpc_new_phys && mpc->mpc_length > mpc_new_length) {
+	if (mpc_new_phys && mpc->length > mpc_new_length) {
 		mpc_new_phys = 0;
 		printk(KERN_INFO "mpc_new_length is %ld, please use alloc_mptable=8k\n",
 			 mpc_new_length);
@@ -1038,10 +1037,10 @@ static int __init update_mp_table(void)
 	if (!mpc_new_phys) {
 		unsigned char old, new;
 		/* check if we can change the postion */
-		mpc->mpc_checksum = 0;
-		old = mpf_checksum((unsigned char *)mpc, mpc->mpc_length);
-		mpc->mpc_checksum = 0xff;
-		new = mpf_checksum((unsigned char *)mpc, mpc->mpc_length);
+		mpc->checksum = 0;
+		old = mpf_checksum((unsigned char *)mpc, mpc->length);
+		mpc->checksum = 0xff;
+		new = mpf_checksum((unsigned char *)mpc, mpc->length);
 		if (old == new) {
 			printk(KERN_INFO "mpc is readonly, please try alloc_mptable instead\n");
 			return 0;
@@ -1050,7 +1049,7 @@ static int __init update_mp_table(void)
 	} else {
 		mpf->mpf_physptr = mpc_new_phys;
 		mpc_new = phys_to_virt(mpc_new_phys);
-		memcpy(mpc_new, mpc, mpc->mpc_length);
+		memcpy(mpc_new, mpc, mpc->length);
 		mpc = mpc_new;
 		/* check if we can modify that */
 		if (mpc_new_phys - mpf->mpf_physptr) {

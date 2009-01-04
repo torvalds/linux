@@ -40,16 +40,16 @@ struct intel_mp_floating {
 #define MPC_SIGNATURE "PCMP"
 
 struct mpc_table {
-	char mpc_signature[4];
-	unsigned short mpc_length;	/* Size of table */
-	char mpc_spec;			/* 0x01 */
-	char mpc_checksum;
-	char mpc_oem[8];
-	char mpc_productid[12];
-	unsigned int mpc_oemptr;	/* 0 if not present */
-	unsigned short mpc_oemsize;	/* 0 if not present */
-	unsigned short mpc_oemcount;
-	unsigned int mpc_lapic;	/* APIC address */
+	char signature[4];
+	unsigned short length;		/* Size of table */
+	char spec;			/* 0x01 */
+	char checksum;
+	char oem[8];
+	char productid[12];
+	unsigned int oemptr;		/* 0 if not present */
+	unsigned short oemsize;		/* 0 if not present */
+	unsigned short oemcount;
+	unsigned int lapic;		/* APIC address */
 	unsigned int reserved;
 };
 
