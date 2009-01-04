@@ -81,9 +81,9 @@ struct mpc_cpu {
 };
 
 struct mpc_bus {
-	unsigned char mpc_type;
-	unsigned char mpc_busid;
-	unsigned char mpc_bustype[6];
+	unsigned char type;
+	unsigned char busid;
+	unsigned char bustype[6];
 };
 
 /* List of Bus Type string values, Intel MP Spec. */

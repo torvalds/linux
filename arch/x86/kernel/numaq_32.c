@@ -139,10 +139,10 @@ static void mpc_oem_bus_info(struct mpc_bus *m, char *name)
 	int quad = translation_table[mpc_record]->trans_quad;
 	int local = translation_table[mpc_record]->trans_local;
 
-	mp_bus_id_to_node[m->mpc_busid] = quad;
-	mp_bus_id_to_local[m->mpc_busid] = local;
+	mp_bus_id_to_node[m->busid] = quad;
+	mp_bus_id_to_local[m->busid] = local;
 	printk(KERN_INFO "Bus #%d is %s (node %d)\n",
-	       m->mpc_busid, name, quad);
+	       m->busid, name, quad);
 }
 
 int quad_local_to_mp_bus_id [NR_CPUS/4][4];
@@ -153,7 +153,7 @@ static void mpc_oem_pci_bus(struct mpc_bus *m)
 	int quad = translation_table[mpc_record]->trans_quad;
 	int local = translation_table[mpc_record]->trans_local;
 
-	quad_local_to_mp_bus_id[quad][local] = m->mpc_busid;
+	quad_local_to_mp_bus_id[quad][local] = m->busid;
 }
 
 static void __init MP_translation_info(struct mpc_config_translation *m)

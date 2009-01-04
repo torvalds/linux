@@ -77,39 +77,39 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 static void __init MP_bus_info(struct mpc_bus *m)
 {
 	char str[7];
-	memcpy(str, m->mpc_bustype, 6);
+	memcpy(str, m->bustype, 6);
 	str[6] = 0;
 
 	if (x86_quirks->mpc_oem_bus_info)
 		x86_quirks->mpc_oem_bus_info(m, str);
 	else
-		apic_printk(APIC_VERBOSE, "Bus #%d is %s\n", m->mpc_busid, str);
+		apic_printk(APIC_VERBOSE, "Bus #%d is %s\n", m->busid, str);
 
 #if MAX_MP_BUSSES < 256
-	if (m->mpc_busid >= MAX_MP_BUSSES) {
+	if (m->busid >= MAX_MP_BUSSES) {
 		printk(KERN_WARNING "MP table busid value (%d) for bustype %s "
 		       " is too large, max. supported is %d\n",
-		       m->mpc_busid, str, MAX_MP_BUSSES - 1);
+		       m->busid, str, MAX_MP_BUSSES - 1);
 		return;
 	}
 #endif
 
 	if (strncmp(str, BUSTYPE_ISA, sizeof(BUSTYPE_ISA) - 1) == 0) {
-		set_bit(m->mpc_busid, mp_bus_not_pci);
+		set_bit(m->busid, mp_bus_not_pci);
 #if defined(CONFIG_EISA) || defined(CONFIG_MCA)
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
+		mp_bus_id_to_type[m->busid] = MP_BUS_ISA;
 #endif
 	} else if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI) - 1) == 0) {
 		if (x86_quirks->mpc_oem_pci_bus)
 			x86_quirks->mpc_oem_pci_bus(m);
 
-		clear_bit(m->mpc_busid, mp_bus_not_pci);
+		clear_bit(m->busid, mp_bus_not_pci);
 #if defined(CONFIG_EISA) || defined(CONFIG_MCA)
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_PCI;
+		mp_bus_id_to_type[m->busid] = MP_BUS_PCI;
 	} else if (strncmp(str, BUSTYPE_EISA, sizeof(BUSTYPE_EISA) - 1) == 0) {
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_EISA;
+		mp_bus_id_to_type[m->busid] = MP_BUS_EISA;
 	} else if (strncmp(str, BUSTYPE_MCA, sizeof(BUSTYPE_MCA) - 1) == 0) {
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_MCA;
+		mp_bus_id_to_type[m->busid] = MP_BUS_MCA;
 #endif
 	} else
 		printk(KERN_WARNING "Unknown bustype %s - ignoring\n", str);
@@ -484,8 +484,8 @@ static void __init construct_ioapic_table(int mpc_default_type)
 	struct mpc_ioapic ioapic;
 	struct mpc_bus bus;
 
-	bus.mpc_type = MP_BUS;
-	bus.mpc_busid = 0;
+	bus.type = MP_BUS;
+	bus.busid = 0;
 	switch (mpc_default_type) {
 	default:
 		printk(KERN_ERR "???\nUnknown standard configuration %d\n",
@@ -493,21 +493,21 @@ static void __init construct_ioapic_table(int mpc_default_type)
 		/* fall through */
 	case 1:
 	case 5:
-		memcpy(bus.mpc_bustype, "ISA   ", 6);
+		memcpy(bus.bustype, "ISA   ", 6);
 		break;
 	case 2:
 	case 6:
 	case 3:
-		memcpy(bus.mpc_bustype, "EISA  ", 6);
+		memcpy(bus.bustype, "EISA  ", 6);
 		break;
 	case 4:
 	case 7:
-		memcpy(bus.mpc_bustype, "MCA   ", 6);
+		memcpy(bus.bustype, "MCA   ", 6);
 	}
 	MP_bus_info(&bus);
 	if (mpc_default_type > 4) {
-		bus.mpc_busid = 1;
-		memcpy(bus.mpc_bustype, "PCI   ", 6);
+		bus.busid = 1;
+		memcpy(bus.bustype, "PCI   ", 6);
 		MP_bus_info(&bus);
 	}
 
@@ -656,9 +656,9 @@ static void __init __get_smp_config(unsigned int early)
 			       "using default mptable. "
 			       "(tell your hw vendor)\n");
 
-			bus.mpc_type = MP_BUS;
-			bus.mpc_busid = 0;
-			memcpy(bus.mpc_bustype, "ISA   ", 6);
+			bus.type = MP_BUS;
+			bus.busid = 0;
+			memcpy(bus.bustype, "ISA   ", 6);
 			MP_bus_info(&bus);
 
 			construct_default_ioirq_mptable(0);
