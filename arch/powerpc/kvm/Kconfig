@@ -2,6 +2,9 @@
 # KVM configuration
 #
 
+config HAVE_KVM_IRQCHIP
+       bool
+
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
 	---help---
