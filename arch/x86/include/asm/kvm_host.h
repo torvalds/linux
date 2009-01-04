@@ -227,6 +227,18 @@ struct kvm_pv_mmu_op_buffer {
 	char buf[512] __aligned(sizeof(long));
 };
 
+struct kvm_pio_request {
+	unsigned long count;
+	int cur_count;
+	gva_t guest_gva;
+	int in;
+	int port;
+	int size;
+	int string;
+	int down;
+	int rep;
+};
+
 /*
  * x86 supports 3 paging modes (4-level 64-bit, 3-level 64-bit, and 2-level
  * 32-bit).  The kvm_mmu structure abstracts the details of the current mmu
