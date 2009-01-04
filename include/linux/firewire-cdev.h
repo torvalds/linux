@@ -229,6 +229,7 @@ union fw_cdev_event {
 #define FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE      _IOW('#', 0x0e, struct fw_cdev_deallocate)
 #define FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE_ONCE   _IOW('#', 0x0f, struct fw_cdev_allocate_iso_resource)
 #define FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE_ONCE _IOW('#', 0x10, struct fw_cdev_allocate_iso_resource)
+#define FW_CDEV_IOC_GET_SPEED                    _IOR('#', 0x11, struct fw_cdev_get_speed)
 
 /* FW_CDEV_VERSION History
  *
@@ -573,6 +574,15 @@ struct fw_cdev_allocate_iso_resource {
 	__u64 channels;
 	__u32 bandwidth;
 	__u32 handle;
+};
+
+/**
+ * struct fw_cdev_get_speed - Query maximum speed to or from this device
+ * @max_speed:	Speed code; minimum of the device's link speed, the local node's
+ *		link speed, and all PHY port speeds between the two links
+ */
+struct fw_cdev_get_speed {
+	__u32 max_speed;
 };
 
 #endif /* _LINUX_FIREWIRE_CDEV_H */

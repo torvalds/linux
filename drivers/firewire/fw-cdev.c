@@ -1220,6 +1220,15 @@ static int ioctl_deallocate_iso_resource_once(struct client *client, void *buffe
 	return init_iso_resource(client, request, ISO_RES_DEALLOC_ONCE);
 }
 
+static int ioctl_get_speed(struct client *client, void *buffer)
+{
+	struct fw_cdev_get_speed *request = buffer;
+
+	request->max_speed = client->device->max_speed;
+
+	return 0;
+}
+
 static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
 	ioctl_get_info,
 	ioctl_send_request,
@@ -1238,6 +1247,7 @@ static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
 	ioctl_deallocate_iso_resource,
 	ioctl_allocate_iso_resource_once,
 	ioctl_deallocate_iso_resource_once,
+	ioctl_get_speed,
 };
 
 static int dispatch_ioctl(struct client *client,
