@@ -1,5 +1,7 @@
 /*
- * Isochronous IO functionality
+ * Isochronous I/O functionality:
+ *   - Isochronous DMA context management
+ *   - Isochronous bus resource management (channels, bandwidth), client side
  *
  * Copyright (C) 2006 Kristian Hoegsberg <krh@bitplanet.net>
  *
@@ -18,15 +20,20 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/dma-mapping.h>
-#include <linux/vmalloc.h>
+#include <linux/errno.h>
+#include <linux/firewire-constants.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/spinlock.h>
+#include <linux/vmalloc.h>
 
-#include "fw-transaction.h"
 #include "fw-topology.h"
-#include "fw-device.h"
+#include "fw-transaction.h"
+
+/*
+ * Isochronous DMA context management
+ */
 
 int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
 		       int page_count, enum dma_data_direction direction)
@@ -152,4 +159,161 @@ int fw_iso_context_queue(struct fw_iso_context *ctx,
 int fw_iso_context_stop(struct fw_iso_context *ctx)
 {
 	return ctx->card->driver->stop_iso(ctx);
+}
+
+/*
+ * Isochronous bus resource management (channels, bandwidth), client side
+ */
+
+static int manage_bandwidth(struct fw_card *card, int irm_id, int generation,
+			    int bandwidth, bool allocate)
+{
+	__be32 data[2];
+	int try, new, old = allocate ? BANDWIDTH_AVAILABLE_INITIAL : 0;
+
+	/*
+	 * On a 1394a IRM with low contention, try < 1 is enough.
+	 * On a 1394-1995 IRM, we need at least try < 2.
+	 * Let's just do try < 5.
+	 */
+	for (try = 0; try < 5; try++) {
+		new = allocate ? old - bandwidth : old + bandwidth;
+		if (new < 0 || new > BANDWIDTH_AVAILABLE_INITIAL)
+			break;
+
+		data[0] = cpu_to_be32(old);
+		data[1] = cpu_to_be32(new);
+		switch (fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
+				irm_id, generation, SCODE_100,
+				CSR_REGISTER_BASE + CSR_BANDWIDTH_AVAILABLE,
+				data, sizeof(data))) {
+		case RCODE_GENERATION:
+			/* A generation change frees all bandwidth. */
+			return allocate ? -EAGAIN : bandwidth;
+
+		case RCODE_COMPLETE:
+			if (be32_to_cpup(data) == old)
+				return bandwidth;
+
+			old = be32_to_cpup(data);
+			/* Fall through. */
+		}
+	}
+
+	return -EIO;
+}
+
+static int manage_channel(struct fw_card *card, int irm_id, int generation,
+			  __be32 channels_mask, u64 offset, bool allocate)
+{
+	__be32 data[2], c, old = allocate ? cpu_to_be32(~0) : 0;
+	int i, retry = 5;
+
+	for (i = 0; i < 32; i++) {
+		c = cpu_to_be32(1 << (31 - i));
+		if (!(channels_mask & c))
+			continue;
+
+		if (allocate == !(old & c))
+			continue;
+
+		data[0] = old;
+		data[1] = old ^ c;
+		switch (fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
+					   irm_id, generation, SCODE_100,
+					   offset, data, sizeof(data))) {
+		case RCODE_GENERATION:
+			/* A generation change frees all channels. */
+			return allocate ? -EAGAIN : i;
+
+		case RCODE_COMPLETE:
+			if (data[0] == old)
+				return i;
+
+			old = data[0];
+
+			/* Is the IRM 1394a-2000 compliant? */
+			if ((data[0] & c) != (data[1] & c))
+				continue;
+
+			/* 1394-1995 IRM, fall through to retry. */
+		default:
+			if (retry--)
+				i--;
+		}
+	}
+
+	return -EIO;
+}
+
+static void deallocate_channel(struct fw_card *card, int irm_id,
+			       int generation, int channel)
+{
+	__be32 mask;
+	u64 offset;
+
+	mask = channel < 32 ? cpu_to_be32(1 << (31 - channel)) :
+			      cpu_to_be32(1 << (63 - channel));
+	offset = channel < 32 ? CSR_REGISTER_BASE + CSR_CHANNELS_AVAILABLE_HI :
+				CSR_REGISTER_BASE + CSR_CHANNELS_AVAILABLE_LO;
+
+	manage_channel(card, irm_id, generation, mask, offset, false);
+}
+
+/**
+ * fw_iso_resource_manage - Allocate or deallocate a channel and/or bandwidth
+ *
+ * In parameters: card, generation, channels_mask, bandwidth, allocate
+ * Out parameters: channel, bandwidth
+ * This function blocks (sleeps) during communication with the IRM.
+ * Allocates or deallocates at most one channel out of channels_mask.
+ *
+ * Returns channel < 0 if no channel was allocated or deallocated.
+ * Returns bandwidth = 0 if no bandwidth was allocated or deallocated.
+ *
+ * If generation is stale, deallocations succeed but allocations fail with
+ * channel = -EAGAIN.
+ *
+ * If channel (de)allocation fails, bandwidth (de)allocation fails too.
+ * If bandwidth allocation fails, no channel will be allocated either.
+ * If bandwidth deallocation fails, channel deallocation may still have been
+ * successful.
+ */
+void fw_iso_resource_manage(struct fw_card *card, int generation,
+			    u64 channels_mask, int *channel, int *bandwidth,
+			    bool allocate)
+{
+	__be32 channels_hi = cpu_to_be32(channels_mask >> 32);
+	__be32 channels_lo = cpu_to_be32(channels_mask);
+	int irm_id, ret, c = -EINVAL;
+
+	spin_lock_irq(&card->lock);
+	irm_id = card->irm_node->node_id;
+	spin_unlock_irq(&card->lock);
+
+	if (channels_hi)
+		c = manage_channel(card, irm_id, generation, channels_hi,
+		    CSR_REGISTER_BASE + CSR_CHANNELS_AVAILABLE_HI, allocate);
+	if (channels_lo && c < 0) {
+		c = manage_channel(card, irm_id, generation, channels_lo,
+		    CSR_REGISTER_BASE + CSR_CHANNELS_AVAILABLE_LO, allocate);
+		if (c >= 0)
+			c += 32;
+	}
+	*channel = c;
+
+	if (channels_mask != 0 && c < 0)
+		*bandwidth = 0;
+
+	if (*bandwidth == 0)
+		return;
+
+	ret = manage_bandwidth(card, irm_id, generation, *bandwidth, allocate);
+	if (ret < 0)
+		*bandwidth = 0;
+
+	if (ret < 0 && c >= 0 && allocate) {
+		deallocate_channel(card, irm_id, generation, c);
+		*channel = ret;
+	}
 }

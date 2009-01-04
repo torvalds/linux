@@ -25,10 +25,12 @@
 #include <linux/types.h>
 #include <linux/firewire-constants.h>
 
-#define FW_CDEV_EVENT_BUS_RESET		0x00
-#define FW_CDEV_EVENT_RESPONSE		0x01
-#define FW_CDEV_EVENT_REQUEST		0x02
-#define FW_CDEV_EVENT_ISO_INTERRUPT	0x03
+#define FW_CDEV_EVENT_BUS_RESET			0x00
+#define FW_CDEV_EVENT_RESPONSE			0x01
+#define FW_CDEV_EVENT_REQUEST			0x02
+#define FW_CDEV_EVENT_ISO_INTERRUPT		0x03
+#define FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED	0x04
+#define FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED	0x05
 
 /**
  * struct fw_cdev_event_common - Common part of all fw_cdev_event_ types
@@ -147,12 +149,46 @@ struct fw_cdev_event_iso_interrupt {
 };
 
 /**
+ * struct fw_cdev_event_iso_resource - Iso resources were allocated or freed
+ * @closure:	See &fw_cdev_event_common;
+ *		set by %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE ioctl
+ * @type:	%FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED or
+ *		%FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED
+ * @handle:	Reference by which an allocated resource can be deallocated
+ * @channel:	Isochronous channel which was (de)allocated, if any
+ * @bandwidth:	Bandwidth allocation units which were (de)allocated, if any
+ * @channels_available:  Last known availability of channels
+ * @bandwidth_available: Last known availability of bandwidth
+ *
+ * An %FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED event is sent after an isochronous
+ * resource was allocated at the IRM.  The client has to check @channel and
+ * @bandwidth for whether the allocation actually succeeded.
+ *
+ * @channel is <0 if no channel was allocated.
+ * @bandwidth is 0 if no bandwidth was allocated.
+ *
+ * An %FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED event is sent after an isochronous
+ * resource was deallocated at the IRM.  It is also sent when automatic
+ * reallocation after a bus reset failed.
+ */
+struct fw_cdev_event_iso_resource {
+	__u64 closure;
+	__u32 type;
+	__u32 handle;
+	__s32 channel;
+	__s32 bandwidth;
+};
+
+/**
  * union fw_cdev_event - Convenience union of fw_cdev_event_ types
  * @common:        Valid for all types
  * @bus_reset:     Valid if @common.type == %FW_CDEV_EVENT_BUS_RESET
  * @response:      Valid if @common.type == %FW_CDEV_EVENT_RESPONSE
  * @request:       Valid if @common.type == %FW_CDEV_EVENT_REQUEST
  * @iso_interrupt: Valid if @common.type == %FW_CDEV_EVENT_ISO_INTERRUPT
+ * @iso_resource:  Valid if @common.type ==
+ *				%FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED or
+ *				%FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED
  *
  * Convenience union for userspace use.  Events could be read(2) into an
  * appropriately aligned char buffer and then cast to this union for further
@@ -163,13 +199,15 @@ struct fw_cdev_event_iso_interrupt {
  * not fit will be discarded so that the next read(2) will return a new event.
  */
 union fw_cdev_event {
-	struct fw_cdev_event_common common;
-	struct fw_cdev_event_bus_reset bus_reset;
-	struct fw_cdev_event_response response;
-	struct fw_cdev_event_request request;
-	struct fw_cdev_event_iso_interrupt iso_interrupt;
+	struct fw_cdev_event_common		common;
+	struct fw_cdev_event_bus_reset		bus_reset;
+	struct fw_cdev_event_response		response;
+	struct fw_cdev_event_request		request;
+	struct fw_cdev_event_iso_interrupt	iso_interrupt;
+	struct fw_cdev_event_iso_resource	iso_resource;
 };
 
+/* available since kernel version 2.6.22 */
 #define FW_CDEV_IOC_GET_INFO		_IOWR('#', 0x00, struct fw_cdev_get_info)
 #define FW_CDEV_IOC_SEND_REQUEST	_IOW('#', 0x01, struct fw_cdev_send_request)
 #define FW_CDEV_IOC_ALLOCATE		_IOWR('#', 0x02, struct fw_cdev_allocate)
@@ -178,12 +216,17 @@ union fw_cdev_event {
 #define FW_CDEV_IOC_INITIATE_BUS_RESET	_IOW('#', 0x05, struct fw_cdev_initiate_bus_reset)
 #define FW_CDEV_IOC_ADD_DESCRIPTOR	_IOWR('#', 0x06, struct fw_cdev_add_descriptor)
 #define FW_CDEV_IOC_REMOVE_DESCRIPTOR	_IOW('#', 0x07, struct fw_cdev_remove_descriptor)
-
 #define FW_CDEV_IOC_CREATE_ISO_CONTEXT	_IOWR('#', 0x08, struct fw_cdev_create_iso_context)
 #define FW_CDEV_IOC_QUEUE_ISO		_IOWR('#', 0x09, struct fw_cdev_queue_iso)
 #define FW_CDEV_IOC_START_ISO		_IOW('#', 0x0a, struct fw_cdev_start_iso)
 #define FW_CDEV_IOC_STOP_ISO		_IOW('#', 0x0b, struct fw_cdev_stop_iso)
+
+/* available since kernel version 2.6.24 */
 #define FW_CDEV_IOC_GET_CYCLE_TIMER	_IOR('#', 0x0c, struct fw_cdev_get_cycle_timer)
+
+/* available since kernel version 2.6.30 */
+#define FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE   _IOWR('#', 0x0d, struct fw_cdev_allocate_iso_resource)
+#define FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE _IOW('#', 0x0e, struct fw_cdev_deallocate)
 
 /* FW_CDEV_VERSION History
  *
@@ -284,9 +327,9 @@ struct fw_cdev_allocate {
 };
 
 /**
- * struct fw_cdev_deallocate - Free an address range allocation
- * @handle:	Handle to the address range, as returned by the kernel when the
- *		range was allocated
+ * struct fw_cdev_deallocate - Free a CSR address range or isochronous resource
+ * @handle:	Handle to the address range or iso resource, as returned by the
+ *		kernel when the range or resource was allocated
  */
 struct fw_cdev_deallocate {
 	__u32 handle;
@@ -477,6 +520,37 @@ struct fw_cdev_stop_iso {
 struct fw_cdev_get_cycle_timer {
 	__u64 local_time;
 	__u32 cycle_timer;
+};
+
+/**
+ * struct fw_cdev_allocate_iso_resource - Allocate a channel or bandwidth
+ * @closure:	Passed back to userspace in correponding iso resource events
+ * @channels:	Isochronous channels of which one is to be allocated
+ * @bandwidth:	Isochronous bandwidth units to be allocated
+ * @handle:	Handle to the allocation, written by the kernel
+ *
+ * The %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE ioctl initiates allocation of an
+ * isochronous channel and/or of isochronous bandwidth at the isochronous
+ * resource manager (IRM).  Only one of the channels specified in @channels is
+ * allocated.  An %FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED is sent after
+ * communication with the IRM, indicating success or failure in the event data.
+ * The kernel will automatically reallocate the resources after bus resets.
+ * Should a reallocation fail, an %FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED event
+ * will be sent.  The kernel will also automatically deallocate the resources
+ * when the file descriptor is closed.
+ *
+ * @channels is a host-endian bitfield with the most significant bit
+ * representing channel 0 and the least significant bit representing channel 63:
+ * 1ULL << (63 - c)
+ *
+ * @bandwidth is expressed in bandwidth allocation units, i.e. the time to send
+ * one quadlet of data (payload or header data) at speed S1600.
+ */
+struct fw_cdev_allocate_iso_resource {
+	__u64 closure;
+	__u64 channels;
+	__u32 bandwidth;
+	__u32 handle;
 };
 
 #endif /* _LINUX_FIREWIRE_CDEV_H */

@@ -82,6 +82,7 @@
 #define CSR_SPEED_MAP			0x2000
 #define CSR_SPEED_MAP_END		0x3000
 
+#define BANDWIDTH_AVAILABLE_INITIAL	4915
 #define BROADCAST_CHANNEL_INITIAL	(1 << 31 | 31)
 #define BROADCAST_CHANNEL_VALID		(1 << 30)
 
@@ -342,6 +343,9 @@ int fw_iso_context_start(struct fw_iso_context *ctx,
 			 int cycle, int sync, int tags);
 int fw_iso_context_stop(struct fw_iso_context *ctx);
 void fw_iso_context_destroy(struct fw_iso_context *ctx);
+
+void fw_iso_resource_manage(struct fw_card *card, int generation,
+		u64 channels_mask, int *channel, int *bandwidth, bool allocate);
 
 struct fw_card_driver {
 	/*
