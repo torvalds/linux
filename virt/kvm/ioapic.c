@@ -101,6 +101,7 @@ static void ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx)
 static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 {
 	unsigned index;
+	bool mask_before, mask_after;
 
 	switch (ioapic->ioregsel) {
 	case IOAPIC_REG_VERSION:
@@ -120,6 +121,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		ioapic_debug("change redir index %x val %x\n", index, val);
 		if (index >= IOAPIC_NUM_PINS)
 			return;
+		mask_before = ioapic->redirtbl[index].fields.mask;
 		if (ioapic->ioregsel & 1) {
 			ioapic->redirtbl[index].bits &= 0xffffffff;
 			ioapic->redirtbl[index].bits |= (u64) val << 32;
@@ -128,6 +130,9 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 			ioapic->redirtbl[index].bits |= (u32) val;
 			ioapic->redirtbl[index].fields.remote_irr = 0;
 		}
+		mask_after = ioapic->redirtbl[index].fields.mask;
+		if (mask_before != mask_after)
+			kvm_fire_mask_notifiers(ioapic->kvm, index, mask_after);
 		if (ioapic->irr & (1 << index))
 			ioapic_service(ioapic, index);
 		break;
@@ -426,3 +431,4 @@ int kvm_ioapic_init(struct kvm *kvm)
 	kvm_io_bus_register_dev(&kvm->mmio_bus, &ioapic->dev);
 	return 0;
 }
+

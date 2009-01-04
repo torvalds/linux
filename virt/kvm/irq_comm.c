@@ -99,3 +99,27 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 		clear_bit(irq_source_id, &kvm->arch.irq_states[i]);
 	clear_bit(irq_source_id, &kvm->arch.irq_sources_bitmap);
 }
+
+void kvm_register_irq_mask_notifier(struct kvm *kvm, int irq,
+				    struct kvm_irq_mask_notifier *kimn)
+{
+	kimn->irq = irq;
+	hlist_add_head(&kimn->link, &kvm->mask_notifier_list);
+}
+
+void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
+				      struct kvm_irq_mask_notifier *kimn)
+{
+	hlist_del(&kimn->link);
+}
+
+void kvm_fire_mask_notifiers(struct kvm *kvm, int irq, bool mask)
+{
+	struct kvm_irq_mask_notifier *kimn;
+	struct hlist_node *n;
+
+	hlist_for_each_entry(kimn, n, &kvm->mask_notifier_list, link)
+		if (kimn->irq == irq)
+			kimn->func(kimn, mask);
+}
+
