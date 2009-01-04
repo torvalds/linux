@@ -208,7 +208,7 @@ static int hidraw_release(struct inode * inode, struct file * file)
 
 	list_del(&list->node);
 	dev = hidraw_table[minor];
-	if (!dev->open--) {
+	if (!--dev->open) {
 		if (list->hidraw->exist)
 			dev->hid->ll_driver->close(dev->hid);
 		else
