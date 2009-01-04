@@ -525,9 +525,8 @@ static int init_request(struct client *client,
 	struct outbound_transaction_event *e;
 	int ret;
 
-	/* What is the biggest size we'll accept, really? */
-	if (request->length > 4096)
-		return -EINVAL;
+	if (request->length > 4096 || request->length > 512 << speed)
+		return -EIO;
 
 	e = kmalloc(sizeof(*e) + request->length, GFP_KERNEL);
 	if (e == NULL)
