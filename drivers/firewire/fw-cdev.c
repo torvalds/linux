@@ -20,6 +20,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/wait.h>
 #include <linux/errno.h>
 #include <linux/device.h>
@@ -94,7 +95,26 @@ struct client {
 	unsigned long vm_start;
 
 	struct list_head link;
+	struct kref kref;
 };
+
+static inline void client_get(struct client *client)
+{
+	kref_get(&client->kref);
+}
+
+static void client_release(struct kref *kref)
+{
+	struct client *client = container_of(kref, struct client, kref);
+
+	fw_device_put(client->device);
+	kfree(client);
+}
+
+static void client_put(struct client *client)
+{
+	kref_put(&client->kref, client_release);
+}
 
 static inline void __user *u64_to_uptr(__u64 value)
 {
@@ -131,6 +151,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	idr_init(&client->resource_idr);
 	INIT_LIST_HEAD(&client->event_list);
 	init_waitqueue_head(&client->wait);
+	kref_init(&client->kref);
 
 	file->private_data = client;
 
@@ -326,6 +347,8 @@ static int add_client_resource(struct client *client,
 	else
 		ret = idr_get_new(&client->resource_idr, resource,
 				  &resource->handle);
+	if (ret >= 0)
+		client_get(client);
 	spin_unlock_irqrestore(&client->lock, flags);
 
 	if (ret == -EAGAIN)
@@ -358,6 +381,8 @@ static int release_client_resource(struct client *client, u32 handle,
 	else
 		r->release(client, r);
 
+	client_put(client);
+
 	return 0;
 }
 
@@ -385,11 +410,21 @@ static void complete_transaction(struct fw_card *card, int rcode,
 
 	spin_lock_irqsave(&client->lock, flags);
 	/*
-	 * If called while in shutdown, the idr tree must be left untouched.
-	 * The idr handle will be removed later.
+	 * 1. If called while in shutdown, the idr tree must be left untouched.
+	 *    The idr handle will be removed and the client reference will be
+	 *    dropped later.
+	 * 2. If the call chain was release_client_resource ->
+	 *    release_transaction -> complete_transaction (instead of a normal
+	 *    conclusion of the transaction), i.e. if this resource was already
+	 *    unregistered from the idr, the client reference will be dropped
+	 *    by release_client_resource and we must not drop it here.
 	 */
-	if (!client->in_shutdown)
+	if (!client->in_shutdown &&
+	    idr_find(&client->resource_idr, response->resource.handle)) {
 		idr_remove(&client->resource_idr, response->resource.handle);
+		/* Drop the idr's reference */
+		client_put(client);
+	}
 	spin_unlock_irqrestore(&client->lock, flags);
 
 	r->type   = FW_CDEV_EVENT_RESPONSE;
@@ -408,6 +443,9 @@ static void complete_transaction(struct fw_card *card, int rcode,
 	else
 		queue_event(client, &response->event, r, sizeof(*r) + r->length,
 			    NULL, 0);
+
+	/* Drop the transaction callback's reference */
+	client_put(client);
 }
 
 static int ioctl_send_request(struct client *client, void *buffer)
@@ -458,6 +496,9 @@ static int ioctl_send_request(struct client *client, void *buffer)
 	ret = add_client_resource(client, &response->resource, GFP_KERNEL);
 	if (ret < 0)
 		goto failed;
+
+	/* Get a reference for the transaction callback */
+	client_get(client);
 
 	fw_send_request(device->card, &response->transaction,
 			request->tcode & 0x1f,
@@ -1044,6 +1085,7 @@ static int shutdown_resource(int id, void *p, void *data)
 	struct client *client = data;
 
 	r->release(client, r);
+	client_put(client);
 
 	return 0;
 }
@@ -1076,12 +1118,7 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	list_for_each_entry_safe(e, next_e, &client->event_list, link)
 		kfree(e);
 
-	/*
-	 * FIXME: client should be reference-counted.  It's extremely unlikely
-	 * but there may still be transactions being completed at this point.
-	 */
-	fw_device_put(client->device);
-	kfree(client);
+	client_put(client);
 
 	return 0;
 }
