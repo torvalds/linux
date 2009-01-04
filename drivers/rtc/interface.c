@@ -307,6 +307,60 @@ int rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 }
 EXPORT_SYMBOL_GPL(rtc_set_alarm);
 
+int rtc_alarm_irq_enable(struct rtc_device *rtc, unsigned int enabled)
+{
+	int err = mutex_lock_interruptible(&rtc->ops_lock);
+	if (err)
+		return err;
+
+	if (!rtc->ops)
+		err = -ENODEV;
+	else if (!rtc->ops->alarm_irq_enable)
+		err = -EINVAL;
+	else
+		err = rtc->ops->alarm_irq_enable(rtc->dev.parent, enabled);
+
+	mutex_unlock(&rtc->ops_lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(rtc_alarm_irq_enable);
+
+int rtc_update_irq_enable(struct rtc_device *rtc, unsigned int enabled)
+{
+	int err = mutex_lock_interruptible(&rtc->ops_lock);
+	if (err)
+		return err;
+
+#ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
+	if (enabled == 0 && rtc->uie_irq_active) {
+		mutex_unlock(&rtc->ops_lock);
+		return rtc_dev_update_irq_enable_emul(rtc, enabled);
+	}
+#endif
+
+	if (!rtc->ops)
+		err = -ENODEV;
+	else if (!rtc->ops->update_irq_enable)
+		err = -EINVAL;
+	else
+		err = rtc->ops->update_irq_enable(rtc->dev.parent, enabled);
+
+	mutex_unlock(&rtc->ops_lock);
+
+#ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
+	/*
+	 * Enable emulation if the driver did not provide
+	 * the update_irq_enable function pointer or if returned
+	 * -EINVAL to signal that it has been configured without
+	 * interrupts or that are not available at the moment.
+	 */
+	if (err == -EINVAL)
+		err = rtc_dev_update_irq_enable_emul(rtc, enabled);
+#endif
+	return err;
+}
+EXPORT_SYMBOL_GPL(rtc_update_irq_enable);
+
 /**
  * rtc_update_irq - report RTC periodic, alarm, and/or update irqs
  * @rtc: the rtc device
