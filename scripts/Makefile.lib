@@ -193,10 +193,10 @@ cmd_gzip = gzip -f -9 < $< > $@
 size_append=$(CONFIG_SHELL) $(srctree)/scripts/bin_size
 
 quiet_cmd_bzip2 = BZIP2    $@
-cmd_bzip2 = (bzip2 -9 < $< ; $(size_append) $<) > $@ || (rm -f $@ ; false)
+cmd_bzip2 = (bzip2 -9 < $< && $(size_append) $<) > $@ || (rm -f $@ ; false)
 
 # Lzma
 # ---------------------------------------------------------------------------
 
 quiet_cmd_lzma = LZMA    $@
-cmd_lzma = (lzma -9 -c $< ; $(size_append) $<) >$@ || (rm -f $@ ; false)
+cmd_lzma = (lzma -9 -c $< && $(size_append) $<) >$@ || (rm -f $@ ; false)
