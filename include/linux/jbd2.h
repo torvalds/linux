@@ -956,6 +956,14 @@ struct journal_s
 	 */
 	u64			j_average_commit_time;
 
+	/*
+	 * minimum and maximum times that we should wait for
+	 * additional filesystem operations to get batched into a
+	 * synchronous handle in microseconds
+	 */
+	u32			j_min_batch_time;
+	u32			j_max_batch_time;
+
 	/* This function is called when a transaction is closed */
 	void			(*j_commit_callback)(journal_t *,
 						     transaction_t *);

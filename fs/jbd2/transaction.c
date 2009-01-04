@@ -1255,8 +1255,10 @@ int jbd2_journal_stop(handle_t *handle)
 		trans_time = ktime_to_ns(ktime_sub(ktime_get(),
 						   transaction->t_start_time));
 
+		commit_time = max_t(u64, commit_time,
+				    1000*journal->j_min_batch_time);
 		commit_time = min_t(u64, commit_time,
-				    1000*jiffies_to_usecs(1));
+				    1000*journal->j_max_batch_time);
 
 		if (trans_time < commit_time) {
 			ktime_t expires = ktime_add_ns(ktime_get(),

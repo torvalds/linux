@@ -328,6 +328,7 @@ struct ext4_mount_options {
 	uid_t s_resuid;
 	gid_t s_resgid;
 	unsigned long s_commit_interval;
+	u32 s_min_batch_time, s_max_batch_time;
 #ifdef CONFIG_QUOTA
 	int s_jquota_fmt;
 	char *s_qf_names[MAXQUOTAS];
@@ -804,6 +805,12 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 #define EXT4_DEFM_JMODE_DATA	0x0020
 #define EXT4_DEFM_JMODE_ORDERED	0x0040
 #define EXT4_DEFM_JMODE_WBACK	0x0060
+
+/*
+ * Default journal batch times
+ */
+#define EXT4_DEF_MIN_BATCH_TIME	0
+#define EXT4_DEF_MAX_BATCH_TIME	15000 /* 15ms */
 
 /*
  * Structure of a directory entry

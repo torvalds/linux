@@ -705,10 +705,19 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 #endif
 	if (!test_opt(sb, RESERVATION))
 		seq_puts(seq, ",noreservation");
-	if (sbi->s_commit_interval) {
+	if (sbi->s_commit_interval != JBD2_DEFAULT_MAX_COMMIT_AGE*HZ) {
 		seq_printf(seq, ",commit=%u",
 			   (unsigned) (sbi->s_commit_interval / HZ));
 	}
+	if (sbi->s_min_batch_time != EXT4_DEF_MIN_BATCH_TIME) {
+		seq_printf(seq, ",min_batch_time=%u",
+			   (unsigned) sbi->s_min_batch_time);
+	}
+	if (sbi->s_max_batch_time != EXT4_DEF_MAX_BATCH_TIME) {
+		seq_printf(seq, ",max_batch_time=%u",
+			   (unsigned) sbi->s_min_batch_time);
+	}
+
 	/*
 	 * We're changing the default of barrier mount option, so
 	 * let's always display its mount state so it's clear what its
@@ -874,7 +883,8 @@ enum {
 	Opt_nouid32, Opt_debug, Opt_oldalloc, Opt_orlov,
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
 	Opt_reservation, Opt_noreservation, Opt_noload, Opt_nobh, Opt_bh,
-	Opt_commit, Opt_journal_update, Opt_journal_inum, Opt_journal_dev,
+	Opt_commit, Opt_min_batch_time, Opt_max_batch_time,
+	Opt_journal_update, Opt_journal_inum, Opt_journal_dev,
 	Opt_journal_checksum, Opt_journal_async_commit,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
 	Opt_data_err_abort, Opt_data_err_ignore,
@@ -913,6 +923,8 @@ static const match_table_t tokens = {
 	{Opt_nobh, "nobh"},
 	{Opt_bh, "bh"},
 	{Opt_commit, "commit=%u"},
+	{Opt_min_batch_time, "min_batch_time=%u"},
+	{Opt_max_batch_time, "max_batch_time=%u"},
 	{Opt_journal_update, "journal=update"},
 	{Opt_journal_inum, "journal=%u"},
 	{Opt_journal_dev, "journal_dev=%u"},
@@ -1130,6 +1142,22 @@ static int parse_options(char *options, struct super_block *sb,
 			if (option == 0)
 				option = JBD2_DEFAULT_MAX_COMMIT_AGE;
 			sbi->s_commit_interval = HZ * option;
+			break;
+		case Opt_max_batch_time:
+			if (match_int(&args[0], &option))
+				return 0;
+			if (option < 0)
+				return 0;
+			if (option == 0)
+				option = EXT4_DEF_MAX_BATCH_TIME;
+			sbi->s_max_batch_time = option;
+			break;
+		case Opt_min_batch_time:
+			if (match_int(&args[0], &option))
+				return 0;
+			if (option < 0)
+				return 0;
+			sbi->s_min_batch_time = option;
 			break;
 		case Opt_data_journal:
 			data_opt = EXT4_MOUNT_JOURNAL_DATA;
@@ -1979,6 +2007,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 
 	sbi->s_resuid = le16_to_cpu(es->s_def_resuid);
 	sbi->s_resgid = le16_to_cpu(es->s_def_resgid);
+	sbi->s_commit_interval = JBD2_DEFAULT_MAX_COMMIT_AGE * HZ;
+	sbi->s_min_batch_time = EXT4_DEF_MIN_BATCH_TIME;
+	sbi->s_max_batch_time = EXT4_DEF_MAX_BATCH_TIME;
 
 	set_opt(sbi->s_mount_opt, RESERVATION);
 	set_opt(sbi->s_mount_opt, BARRIER);
@@ -2524,11 +2555,9 @@ static void ext4_init_journal_params(struct super_block *sb, journal_t *journal)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	if (sbi->s_commit_interval)
-		journal->j_commit_interval = sbi->s_commit_interval;
-	/* We could also set up an ext4-specific default for the commit
-	 * interval here, but for now we'll just fall back to the jbd
-	 * default. */
+	journal->j_commit_interval = sbi->s_commit_interval;
+	journal->j_min_batch_time = sbi->s_min_batch_time;
+	journal->j_max_batch_time = sbi->s_max_batch_time;
 
 	spin_lock(&journal->j_state_lock);
 	if (test_opt(sb, BARRIER))
@@ -3042,6 +3071,8 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	old_opts.s_resuid = sbi->s_resuid;
 	old_opts.s_resgid = sbi->s_resgid;
 	old_opts.s_commit_interval = sbi->s_commit_interval;
+	old_opts.s_min_batch_time = sbi->s_min_batch_time;
+	old_opts.s_max_batch_time = sbi->s_max_batch_time;
 #ifdef CONFIG_QUOTA
 	old_opts.s_jquota_fmt = sbi->s_jquota_fmt;
 	for (i = 0; i < MAXQUOTAS; i++)
@@ -3178,6 +3209,8 @@ restore_opts:
 	sbi->s_resuid = old_opts.s_resuid;
 	sbi->s_resgid = old_opts.s_resgid;
 	sbi->s_commit_interval = old_opts.s_commit_interval;
+	sbi->s_min_batch_time = old_opts.s_min_batch_time;
+	sbi->s_max_batch_time = old_opts.s_max_batch_time;
 #ifdef CONFIG_QUOTA
 	sbi->s_jquota_fmt = old_opts.s_jquota_fmt;
 	for (i = 0; i < MAXQUOTAS; i++) {

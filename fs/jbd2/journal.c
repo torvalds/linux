@@ -964,6 +964,8 @@ static journal_t * journal_init_common (void)
 	spin_lock_init(&journal->j_state_lock);
 
 	journal->j_commit_interval = (HZ * JBD2_DEFAULT_MAX_COMMIT_AGE);
+	journal->j_min_batch_time = 0;
+	journal->j_max_batch_time = 15000; /* 15ms */
 
 	/* The journal is marked for error until we succeed with recovery! */
 	journal->j_flags = JBD2_ABORT;

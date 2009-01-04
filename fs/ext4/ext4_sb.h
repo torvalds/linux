@@ -74,6 +74,8 @@ struct ext4_sb_info {
 	struct journal_s *s_journal;
 	struct list_head s_orphan;
 	unsigned long s_commit_interval;
+	u32 s_max_batch_time;
+	u32 s_min_batch_time;
 	struct block_device *journal_bdev;
 #ifdef CONFIG_JBD2_DEBUG
 	struct timer_list turn_ro_timer;	/* For turning read-only (crash simulation) */
