@@ -54,7 +54,7 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 	int apicid;
 	char *bootup_cpu = "";
 
-	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
+	if (!(m->cpuflag & CPU_ENABLED)) {
 		disabled_cpus++;
 		return;
 	}
@@ -62,15 +62,15 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 	if (x86_quirks->mpc_apic_id)
 		apicid = x86_quirks->mpc_apic_id(m);
 	else
-		apicid = m->mpc_apicid;
+		apicid = m->apicid;
 
-	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
+	if (m->cpuflag & CPU_BOOTPROCESSOR) {
 		bootup_cpu = " (Bootup-CPU)";
-		boot_cpu_physical_apicid = m->mpc_apicid;
+		boot_cpu_physical_apicid = m->apicid;
 	}
 
-	printk(KERN_INFO "Processor #%d%s\n", m->mpc_apicid, bootup_cpu);
-	generic_processor_info(apicid, m->mpc_apicver);
+	printk(KERN_INFO "Processor #%d%s\n", m->apicid, bootup_cpu);
+	generic_processor_info(apicid, m->apicver);
 }
 
 #ifdef CONFIG_X86_IO_APIC
@@ -542,17 +542,17 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	/*
 	 * 2 CPUs, numbered 0 & 1.
 	 */
-	processor.mpc_type = MP_PROCESSOR;
+	processor.type = MP_PROCESSOR;
 	/* Either an integrated APIC or a discrete 82489DX. */
-	processor.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
-	processor.mpc_cpuflag = CPU_ENABLED;
-	processor.mpc_cpufeature = (boot_cpu_data.x86 << 8) |
+	processor.apicver = mpc_default_type > 4 ? 0x10 : 0x01;
+	processor.cpuflag = CPU_ENABLED;
+	processor.cpufeature = (boot_cpu_data.x86 << 8) |
 	    (boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_mask;
-	processor.mpc_featureflag = boot_cpu_data.x86_capability[0];
-	processor.mpc_reserved[0] = 0;
-	processor.mpc_reserved[1] = 0;
+	processor.featureflag = boot_cpu_data.x86_capability[0];
+	processor.reserved[0] = 0;
+	processor.reserved[1] = 0;
 	for (i = 0; i < 2; i++) {
-		processor.mpc_apicid = i;
+		processor.apicid = i;
 		MP_processor_info(&processor);
 	}
 

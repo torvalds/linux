@@ -120,13 +120,12 @@ static inline int generate_logical_apicid(int quad, int phys_apicid)
 static int mpc_apic_id(struct mpc_cpu *m)
 {
 	int quad = translation_table[mpc_record]->trans_quad;
-	int logical_apicid = generate_logical_apicid(quad, m->mpc_apicid);
+	int logical_apicid = generate_logical_apicid(quad, m->apicid);
 
 	printk(KERN_DEBUG "Processor #%d %u:%u APIC version %d (quad %d, apic %d)\n",
-	       m->mpc_apicid,
-	       (m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
-	       (m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
-	       m->mpc_apicver, quad, logical_apicid);
+	       m->apicid, (m->cpufeature & CPU_FAMILY_MASK) >> 8,
+	       (m->cpufeature & CPU_MODEL_MASK) >> 4,
+	       m->apicver, quad, logical_apicid);
 	return logical_apicid;
 }
 

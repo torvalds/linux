@@ -71,13 +71,13 @@ struct mpc_table {
 #define CPU_FAMILY_MASK		0x0F00
 
 struct mpc_cpu {
-	unsigned char mpc_type;
-	unsigned char mpc_apicid;	/* Local APIC number */
-	unsigned char mpc_apicver;	/* Its versions */
-	unsigned char mpc_cpuflag;
-	unsigned int mpc_cpufeature;
-	unsigned int mpc_featureflag;	/* CPUID feature value */
-	unsigned int mpc_reserved[2];
+	unsigned char type;
+	unsigned char apicid;		/* Local APIC number */
+	unsigned char apicver;		/* Its versions */
+	unsigned char cpuflag;
+	unsigned int cpufeature;
+	unsigned int featureflag;	/* CPUID feature value */
+	unsigned int reserved[2];
 };
 
 struct mpc_bus {
