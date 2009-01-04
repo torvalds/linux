@@ -151,7 +151,7 @@ struct fw_cdev_event_iso_interrupt {
 /**
  * struct fw_cdev_event_iso_resource - Iso resources were allocated or freed
  * @closure:	See &fw_cdev_event_common;
- *		set by %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE ioctl
+ *		set by %FW_CDEV_IOC_(DE)ALLOCATE_ISO_RESOURCE(_ONCE) ioctl
  * @type:	%FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED or
  *		%FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED
  * @handle:	Reference by which an allocated resource can be deallocated
@@ -164,12 +164,12 @@ struct fw_cdev_event_iso_interrupt {
  * resource was allocated at the IRM.  The client has to check @channel and
  * @bandwidth for whether the allocation actually succeeded.
  *
- * @channel is <0 if no channel was allocated.
- * @bandwidth is 0 if no bandwidth was allocated.
- *
  * An %FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED event is sent after an isochronous
  * resource was deallocated at the IRM.  It is also sent when automatic
  * reallocation after a bus reset failed.
+ *
+ * @channel is <0 if no channel was (de)allocated or if reallocation failed.
+ * @bandwidth is 0 if no bandwidth was (de)allocated or if reallocation failed.
  */
 struct fw_cdev_event_iso_resource {
 	__u64 closure;
@@ -225,8 +225,10 @@ union fw_cdev_event {
 #define FW_CDEV_IOC_GET_CYCLE_TIMER	_IOR('#', 0x0c, struct fw_cdev_get_cycle_timer)
 
 /* available since kernel version 2.6.30 */
-#define FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE   _IOWR('#', 0x0d, struct fw_cdev_allocate_iso_resource)
-#define FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE _IOW('#', 0x0e, struct fw_cdev_deallocate)
+#define FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE       _IOWR('#', 0x0d, struct fw_cdev_allocate_iso_resource)
+#define FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE      _IOW('#', 0x0e, struct fw_cdev_deallocate)
+#define FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE_ONCE   _IOW('#', 0x0f, struct fw_cdev_allocate_iso_resource)
+#define FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE_ONCE _IOW('#', 0x10, struct fw_cdev_allocate_iso_resource)
 
 /* FW_CDEV_VERSION History
  *
@@ -523,11 +525,12 @@ struct fw_cdev_get_cycle_timer {
 };
 
 /**
- * struct fw_cdev_allocate_iso_resource - Allocate a channel or bandwidth
+ * struct fw_cdev_allocate_iso_resource - (De)allocate a channel or bandwidth
  * @closure:	Passed back to userspace in correponding iso resource events
- * @channels:	Isochronous channels of which one is to be allocated
- * @bandwidth:	Isochronous bandwidth units to be allocated
- * @handle:	Handle to the allocation, written by the kernel
+ * @channels:	Isochronous channels of which one is to be (de)allocated
+ * @bandwidth:	Isochronous bandwidth units to be (de)allocated
+ * @handle:	Handle to the allocation, written by the kernel (only valid in
+ *		case of %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE ioctls)
  *
  * The %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE ioctl initiates allocation of an
  * isochronous channel and/or of isochronous bandwidth at the isochronous
@@ -538,6 +541,25 @@ struct fw_cdev_get_cycle_timer {
  * Should a reallocation fail, an %FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED event
  * will be sent.  The kernel will also automatically deallocate the resources
  * when the file descriptor is closed.
+ *
+ * The %FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE ioctl can be used to initiate
+ * deallocation of resources which were allocated as described above.
+ * An %FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED event concludes this operation.
+ *
+ * The %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE_ONCE ioctl is a variant of allocation
+ * without automatic re- or deallocation.
+ * An %FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED event concludes this operation,
+ * indicating success or failure in its data.
+ *
+ * The %FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE_ONCE ioctl works like
+ * %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE_ONCE except that resources are freed
+ * instead of allocated.  At most one channel may be specified in this ioctl.
+ * An %FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED event concludes this operation.
+ *
+ * To summarize, %FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE allocates iso resources
+ * for the lifetime of the fd or handle.
+ * In contrast, %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE_ONCE allocates iso resources
+ * for the duration of a bus generation.
  *
  * @channels is a host-endian bitfield with the most significant bit
  * representing channel 0 and the least significant bit representing channel 63:
