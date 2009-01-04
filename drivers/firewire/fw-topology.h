@@ -19,6 +19,11 @@
 #ifndef __fw_topology_h
 #define __fw_topology_h
 
+#include <linux/list.h>
+#include <linux/slab.h>
+
+#include <asm/atomic.h>
+
 enum {
 	FW_NODE_CREATED,
 	FW_NODE_UPDATED,
@@ -64,6 +69,7 @@ static inline void fw_node_put(struct fw_node *node)
 		kfree(node);
 }
 
+struct fw_card;
 void fw_destroy_nodes(struct fw_card *card);
 
 int fw_compute_block_crc(u32 *block);
