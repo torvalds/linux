@@ -35,7 +35,9 @@ static int drm_sysfs_suspend(struct device *dev, pm_message_t state)
 	struct drm_minor *drm_minor = to_drm_minor(dev);
 	struct drm_device *drm_dev = drm_minor->dev;
 
-	if (drm_minor->type == DRM_MINOR_LEGACY && drm_dev->driver->suspend)
+	if (drm_minor->type == DRM_MINOR_LEGACY &&
+	    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
+	    drm_dev->driver->suspend)
 		return drm_dev->driver->suspend(drm_dev, state);
 
 	return 0;
@@ -53,7 +55,9 @@ static int drm_sysfs_resume(struct device *dev)
 	struct drm_minor *drm_minor = to_drm_minor(dev);
 	struct drm_device *drm_dev = drm_minor->dev;
 
-	if (drm_minor->type == DRM_MINOR_LEGACY && drm_dev->driver->resume)
+	if (drm_minor->type == DRM_MINOR_LEGACY &&
+	    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
+	    drm_dev->driver->resume)
 		return drm_dev->driver->resume(drm_dev);
 
 	return 0;
