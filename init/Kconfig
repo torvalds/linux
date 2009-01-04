@@ -101,10 +101,20 @@ config LOCALVERSION_AUTO
 
 	  which is done within the script "scripts/setlocalversion".)
 
+config HAVE_KERNEL_GZIP
+	bool
+
+config HAVE_KERNEL_BZIP2
+	bool
+
+config HAVE_KERNEL_LZMA
+	bool
+
 choice
-        prompt "Kernel compression mode"
-        default KERNEL_GZIP
-        help
+	prompt "Kernel compression mode"
+	default KERNEL_GZIP
+	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA
+	help
 	  The linux kernel is a kind of self-extracting executable.
 	  Several compression algorithms are available, which differ
 	  in efficiency, compression and decompression speed.
@@ -123,33 +133,33 @@ choice
 	  If in doubt, select 'gzip'
 
 config KERNEL_GZIP
-       bool "Gzip"
-       help
-         The old and tried gzip compression. Its compression ratio is
-	 the poorest among the 3 choices; however its speed (both
-	 compression and decompression) is the fastest.
+	bool "Gzip"
+	depends on HAVE_KERNEL_GZIP
+	help
+	  The old and tried gzip compression. Its compression ratio is
+	  the poorest among the 3 choices; however its speed (both
+	  compression and decompression) is the fastest.
 
 config KERNEL_BZIP2
 	bool "Bzip2"
+	depends on HAVE_KERNEL_BZIP2
 	help
 	  Its compression ratio and speed is intermediate.
-	  Decompression speed is slowest among the 3.
-	  The kernel size is about 10 per cent smaller with bzip2,
-	  in comparison to gzip.
-	  Bzip2 uses a large amount of memory. For modern kernels
-	  you will need at least 8MB RAM or more for booting.
+	  Decompression speed is slowest among the three.  The kernel
+	  size is about 10% smaller with bzip2, in comparison to gzip.
+	  Bzip2 uses a large amount of memory. For modern kernels you
+	  will need at least 8MB RAM or more for booting.
 
 config KERNEL_LZMA
-       bool "LZMA"
-       help
-         The most recent compression algorithm.
-	 Its ratio is best, decompression speed is between the other
-	 2. Compression is slowest.
-	 The kernel size is about 33 per cent smaller with lzma,
-	 in comparison to gzip.
+	bool "LZMA"
+	depends on HAVE_KERNEL_LZMA
+	help
+	  The most recent compression algorithm.
+	  Its ratio is best, decompression speed is between the other
+	  two. Compression is slowest.	The kernel size is about 33%
+	  smaller with LZMA in comparison to gzip.
 
 endchoice
-
 
 config SWAP
 	bool "Support for paging of anonymous memory (swap)"
