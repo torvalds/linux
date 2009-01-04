@@ -237,7 +237,6 @@ static void queue_event(struct client *client, struct event *event,
 static int dequeue_event(struct client *client,
 			 char __user *buffer, size_t count)
 {
-	unsigned long flags;
 	struct event *event;
 	size_t size, total;
 	int i, ret;
@@ -252,10 +251,10 @@ static int dequeue_event(struct client *client,
 		       fw_device_is_shutdown(client->device))
 		return -ENODEV;
 
-	spin_lock_irqsave(&client->lock, flags);
+	spin_lock_irq(&client->lock);
 	event = list_first_entry(&client->event_list, struct event, link);
 	list_del(&event->link);
-	spin_unlock_irqrestore(&client->lock, flags);
+	spin_unlock_irq(&client->lock);
 
 	total = 0;
 	for (i = 0; i < ARRAY_SIZE(event->v) && total < count; i++) {
@@ -286,9 +285,8 @@ static void fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 				 struct client *client)
 {
 	struct fw_card *card = client->device->card;
-	unsigned long flags;
 
-	spin_lock_irqsave(&card->lock, flags);
+	spin_lock_irq(&card->lock);
 
 	event->closure	     = client->bus_reset_closure;
 	event->type          = FW_CDEV_EVENT_BUS_RESET;
@@ -299,7 +297,7 @@ static void fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 	event->irm_node_id   = card->irm_node->node_id;
 	event->root_node_id  = card->root_node->node_id;
 
-	spin_unlock_irqrestore(&card->lock, flags);
+	spin_unlock_irq(&card->lock);
 }
 
 static void for_each_client(struct fw_device *device,
@@ -432,16 +430,15 @@ static int release_client_resource(struct client *client, u32 handle,
 				   struct client_resource **resource)
 {
 	struct client_resource *r;
-	unsigned long flags;
 
-	spin_lock_irqsave(&client->lock, flags);
+	spin_lock_irq(&client->lock);
 	if (client->in_shutdown)
 		r = NULL;
 	else
 		r = idr_find(&client->resource_idr, handle);
 	if (r && r->release == release)
 		idr_remove(&client->resource_idr, handle);
-	spin_unlock_irqrestore(&client->lock, flags);
+	spin_unlock_irq(&client->lock);
 
 	if (!(r && r->release == release))
 		return -EINVAL;
@@ -1384,7 +1381,6 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 {
 	struct client *client = file->private_data;
 	struct event *e, *next_e;
-	unsigned long flags;
 
 	mutex_lock(&client->device->client_list_mutex);
 	list_del(&client->link);
@@ -1397,9 +1393,9 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 		fw_iso_context_destroy(client->iso_context);
 
 	/* Freeze client->resource_idr and client->event_list */
-	spin_lock_irqsave(&client->lock, flags);
+	spin_lock_irq(&client->lock);
 	client->in_shutdown = true;
-	spin_unlock_irqrestore(&client->lock, flags);
+	spin_unlock_irq(&client->lock);
 
 	idr_for_each(&client->resource_idr, shutdown_resource, client);
 	idr_remove_all(&client->resource_idr);
