@@ -4185,7 +4185,7 @@ static int selinux_sock_rcv_skb_iptables_compat(struct sock *sk,
 static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
 				       u16 family)
 {
-	int err;
+	int err = 0;
 	struct sk_security_struct *sksec = sk->sk_security;
 	u32 peer_sid;
 	u32 sk_sid = sksec->sid;
@@ -4202,7 +4202,7 @@ static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
 	if (selinux_compat_net)
 		err = selinux_sock_rcv_skb_iptables_compat(sk, skb, &ad,
 							   family, addrp);
-	else
+	else if (selinux_secmark_enabled())
 		err = avc_has_perm(sk_sid, skb->secmark, SECCLASS_PACKET,
 				   PACKET__RECV, &ad);
 	if (err)
@@ -4705,7 +4705,7 @@ static unsigned int selinux_ip_postroute_compat(struct sk_buff *skb,
 		if (selinux_ip_postroute_iptables_compat(skb->sk, ifindex,
 							 &ad, family, addrp))
 			return NF_DROP;
-	} else {
+	} else if (selinux_secmark_enabled()) {
 		if (avc_has_perm(sksec->sid, skb->secmark,
 				 SECCLASS_PACKET, PACKET__SEND, &ad))
 			return NF_DROP;
