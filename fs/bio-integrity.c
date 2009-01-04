@@ -140,7 +140,6 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 
 	iv = bip_vec_idx(bip, bip->bip_vcnt);
 	BUG_ON(iv == NULL);
-	BUG_ON(iv->bv_page != NULL);
 
 	iv->bv_page = page;
 	iv->bv_len = len;
