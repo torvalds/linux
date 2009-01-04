@@ -980,6 +980,8 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		return;
 	this_count = blk_rq_bytes(req);
 
+	error = -EIO;
+
 	if (host_byte(result) == DID_RESET) {
 		/* Third party bus reset or reset for error recovery
 		 * reasons.  Just retry the command and see what
@@ -1021,13 +1023,18 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				/* This will issue a new 6-byte command. */
 				cmd->device->use_10_for_rw = 0;
 				action = ACTION_REPREP;
+			} else if (sshdr.asc == 0x10) /* DIX */ {
+				description = "Host Data Integrity Failure";
+				action = ACTION_FAIL;
+				error = -EILSEQ;
 			} else
 				action = ACTION_FAIL;
 			break;
 		case ABORTED_COMMAND:
 			if (sshdr.asc == 0x10) { /* DIF */
+				description = "Target Data Integrity Failure";
 				action = ACTION_FAIL;
-				description = "Data Integrity Failure";
+				error = -EILSEQ;
 			} else
 				action = ACTION_RETRY;
 			break;
