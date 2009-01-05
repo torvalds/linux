@@ -134,11 +134,12 @@ static int wbsoft_start(struct ieee80211_hw *dev)
 	return 0;
 }
 
-static int wbsoft_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
+static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 {
 	struct wbsoft_priv *priv = dev->priv;
-
+	struct ieee80211_conf *conf = &dev->conf;
 	ChanInfo ch;
+
 	printk("wbsoft_config called\n");
 
 	ch.band = 1;
