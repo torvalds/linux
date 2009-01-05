@@ -56,18 +56,6 @@ extern ia64_mv_readw_t __sn_readw_relaxed;
 extern ia64_mv_readl_t __sn_readl_relaxed;
 extern ia64_mv_readq_t __sn_readq_relaxed;
 extern ia64_mv_dma_init			sn_dma_init;
-extern ia64_mv_dma_alloc_coherent	sn_dma_alloc_coherent;
-extern ia64_mv_dma_free_coherent	sn_dma_free_coherent;
-extern ia64_mv_dma_map_single_attrs	sn_dma_map_single_attrs;
-extern ia64_mv_dma_unmap_single_attrs	sn_dma_unmap_single_attrs;
-extern ia64_mv_dma_map_sg_attrs		sn_dma_map_sg_attrs;
-extern ia64_mv_dma_unmap_sg_attrs	sn_dma_unmap_sg_attrs;
-extern ia64_mv_dma_sync_single_for_cpu	sn_dma_sync_single_for_cpu;
-extern ia64_mv_dma_sync_sg_for_cpu	sn_dma_sync_sg_for_cpu;
-extern ia64_mv_dma_sync_single_for_device sn_dma_sync_single_for_device;
-extern ia64_mv_dma_sync_sg_for_device	sn_dma_sync_sg_for_device;
-extern ia64_mv_dma_mapping_error	sn_dma_mapping_error;
-extern ia64_mv_dma_supported		sn_dma_supported;
 extern ia64_mv_migrate_t		sn_migrate;
 extern ia64_mv_kernel_launch_event_t	sn_kernel_launch_event;
 extern ia64_mv_setup_msi_irq_t		sn_setup_msi_irq;
@@ -112,18 +100,6 @@ extern ia64_mv_pci_fixup_bus_t		sn_pci_fixup_bus;
 #define platform_pci_legacy_read	sn_pci_legacy_read
 #define platform_pci_legacy_write	sn_pci_legacy_write
 #define platform_dma_init		sn_dma_init
-#define platform_dma_alloc_coherent	sn_dma_alloc_coherent
-#define platform_dma_free_coherent	sn_dma_free_coherent
-#define platform_dma_map_single_attrs	sn_dma_map_single_attrs
-#define platform_dma_unmap_single_attrs	sn_dma_unmap_single_attrs
-#define platform_dma_map_sg_attrs	sn_dma_map_sg_attrs
-#define platform_dma_unmap_sg_attrs	sn_dma_unmap_sg_attrs
-#define platform_dma_sync_single_for_cpu sn_dma_sync_single_for_cpu
-#define platform_dma_sync_sg_for_cpu	sn_dma_sync_sg_for_cpu
-#define platform_dma_sync_single_for_device sn_dma_sync_single_for_device
-#define platform_dma_sync_sg_for_device	sn_dma_sync_sg_for_device
-#define platform_dma_mapping_error		sn_dma_mapping_error
-#define platform_dma_supported		sn_dma_supported
 #define platform_migrate		sn_migrate
 #define platform_kernel_launch_event    sn_kernel_launch_event
 #ifdef CONFIG_PCI_MSI

@@ -22,14 +22,18 @@ extern int swiotlb_late_init_with_default_size (size_t size);
 
 /* hwiommu declarations & definitions: */
 
-extern ia64_mv_dma_alloc_coherent	sba_alloc_coherent;
-extern ia64_mv_dma_free_coherent	sba_free_coherent;
-extern ia64_mv_dma_map_single_attrs	sba_map_single_attrs;
-extern ia64_mv_dma_unmap_single_attrs	sba_unmap_single_attrs;
-extern ia64_mv_dma_map_sg_attrs		sba_map_sg_attrs;
-extern ia64_mv_dma_unmap_sg_attrs	sba_unmap_sg_attrs;
-extern ia64_mv_dma_supported		sba_dma_supported;
-extern ia64_mv_dma_mapping_error	sba_dma_mapping_error;
+extern void *sba_alloc_coherent(struct device *, size_t, dma_addr_t *, gfp_t);
+extern void sba_free_coherent (struct device *, size_t, void *, dma_addr_t);
+extern dma_addr_t sba_map_single_attrs(struct device *, void *, size_t, int,
+				       struct dma_attrs *);
+extern void sba_unmap_single_attrs(struct device *, dma_addr_t, size_t, int,
+				   struct dma_attrs *);
+extern int sba_map_sg_attrs(struct device *, struct scatterlist *, int, int,
+			    struct dma_attrs *);
+extern void sba_unmap_sg_attrs(struct device *, struct scatterlist *, int, int,
+			       struct dma_attrs *);
+extern int sba_dma_supported (struct device *, u64);
+extern int sba_dma_mapping_error(struct device *, dma_addr_t);
 
 #define hwiommu_alloc_coherent		sba_alloc_coherent
 #define hwiommu_free_coherent		sba_free_coherent
