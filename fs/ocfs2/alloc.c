@@ -3402,8 +3402,8 @@ static int ocfs2_merge_rec_left(struct inode *inode,
 			has_empty_extent = 1;
 	}
 
-	ret = ocfs2_path_bh_journal_access(handle, inode, left_path,
-					   path_num_items(left_path) - 1);
+	ret = ocfs2_path_bh_journal_access(handle, inode, right_path,
+					   path_num_items(right_path) - 1);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
