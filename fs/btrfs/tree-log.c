@@ -50,6 +50,9 @@
 static int __btrfs_log_inode(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root, struct inode *inode,
 			     int inode_only);
+static int link_to_fixup_dir(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root,
+			     struct btrfs_path *path, u64 objectid);
 
 /*
  * tree logging is a special write ahead log used to make sure that
@@ -638,8 +641,10 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 	inode = read_one_inode(root, location.objectid);
 	BUG_ON(!inode);
 
-	btrfs_inc_nlink(inode);
+	ret = link_to_fixup_dir(trans, root, path, location.objectid);
+	BUG_ON(ret);
 	ret = btrfs_unlink_inode(trans, root, dir, inode, name, name_len);
+	BUG_ON(ret);
 	kfree(name);
 
 	iput(inode);
