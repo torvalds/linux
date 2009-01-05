@@ -267,8 +267,6 @@ config HW_BRANCH_TRACER
 config KMEMTRACE
 	bool "Trace SLAB allocations"
 	select TRACING
-	select MARKERS
-	select RELAY
 	help
 	  kmemtrace provides tracing for slab allocator functions, such as
 	  kmalloc, kfree, kmem_cache_alloc, kmem_cache_free etc.. Collected
