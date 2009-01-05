@@ -35,7 +35,7 @@
 #include <linux/dmi.h>
 
 #define DRV_NAME "pata_ali"
-#define DRV_VERSION "0.7.7"
+#define DRV_VERSION "0.7.8"
 
 static int ali_atapi_dma = 0;
 module_param_named(atapi_dma, ali_atapi_dma, int, 0644);
@@ -341,6 +341,23 @@ static int ali_check_atapi_dma(struct ata_queued_cmd *qc)
 	return 0;
 }
 
+static void ali_c2_c3_postreset(struct ata_link *link, unsigned int *classes)
+{
+	u8 r;
+	int port_bit = 4 << link->ap->port_no;
+
+	/* If our bridge is an ALI 1533 then do the extra work */
+	if (isa_bridge) {
+		/* Tristate and re-enable the bus signals */
+		pci_read_config_byte(isa_bridge, 0x58, &r);
+		r &= ~port_bit;
+		pci_write_config_byte(isa_bridge, 0x58, r);
+		r |= port_bit;
+		pci_write_config_byte(isa_bridge, 0x58, r);
+	}
+	ata_sff_postreset(link, classes);
+}
+
 static struct scsi_host_template ali_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
@@ -377,6 +394,17 @@ static struct ata_port_operations ali_20_port_ops = {
  *	Port operations for DMA capable ALi with cable detect
  */
 static struct ata_port_operations ali_c2_port_ops = {
+	.inherits	= &ali_dma_base_ops,
+	.check_atapi_dma = ali_check_atapi_dma,
+	.cable_detect	= ali_c2_cable_detect,
+	.dev_config	= ali_lock_sectors,
+	.postreset	= ali_c2_c3_postreset,
+};
+
+/*
+ *	Port operations for DMA capable ALi with cable detect
+ */
+static struct ata_port_operations ali_c4_port_ops = {
 	.inherits	= &ali_dma_base_ops,
 	.check_atapi_dma = ali_check_atapi_dma,
 	.cable_detect	= ali_c2_cable_detect,
@@ -504,7 +532,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.udma_mask = ATA_UDMA5,
-		.port_ops = &ali_c2_port_ops
+		.port_ops = &ali_c4_port_ops
 	};
 	/* Revision 0xC5 is UDMA133 with LBA48 DMA */
 	static const struct ata_port_info info_c5 = {
