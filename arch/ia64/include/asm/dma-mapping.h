@@ -20,6 +20,13 @@ struct dma_mapping_ops {
 				size_t size, int direction);
 	void            (*unmap_single)(struct device *dev, dma_addr_t addr,
 				size_t size, int direction);
+	dma_addr_t      (*map_single_attrs)(struct device *dev, void *cpu_addr,
+					    size_t size, int direction,
+					    struct dma_attrs *attrs);
+	void		(*unmap_single_attrs)(struct device *dev,
+					      dma_addr_t dma_addr,
+					      size_t size, int direction,
+					      struct dma_attrs *attrs);
 	void            (*sync_single_for_cpu)(struct device *hwdev,
 				dma_addr_t dma_handle, size_t size,
 				int direction);
@@ -43,6 +50,13 @@ struct dma_mapping_ops {
 	void            (*unmap_sg)(struct device *hwdev,
 				struct scatterlist *sg, int nents,
 				int direction);
+	int             (*map_sg_attrs)(struct device *dev,
+					struct scatterlist *sg, int nents,
+					int direction, struct dma_attrs *attrs);
+	void            (*unmap_sg_attrs)(struct device *dev,
+					  struct scatterlist *sg, int nents,
+					  int direction,
+					  struct dma_attrs *attrs);
 	int             (*dma_supported_op)(struct device *hwdev, u64 mask);
 	int		is_phys;
 };
