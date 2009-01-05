@@ -2149,7 +2149,7 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
  * __audit_mq_open - record audit data for a POSIX MQ open
  * @oflag: open flag
  * @mode: mode bits
- * @u_attr: queue attributes
+ * @attr: queue attributes
  *
  */
 void __audit_mq_open(int oflag, mode_t mode, struct mq_attr *attr)
@@ -2196,7 +2196,7 @@ void __audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio,
 /**
  * __audit_mq_notify - record audit data for a POSIX MQ notify
  * @mqdes: MQ descriptor
- * @u_notification: Notification event
+ * @notification: Notification event
  *
  */
 
