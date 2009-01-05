@@ -255,10 +255,13 @@ static dma_addr_t dma_map_area(struct device *dev, dma_addr_t phys_mem,
 }
 
 /* Map a single area into the IOMMU */
-static dma_addr_t
-gart_map_single(struct device *dev, phys_addr_t paddr, size_t size, int dir)
+static dma_addr_t gart_map_page(struct device *dev, struct page *page,
+				unsigned long offset, size_t size,
+				enum dma_data_direction dir,
+				struct dma_attrs *attrs)
 {
 	unsigned long bus;
+	phys_addr_t paddr = page_to_phys(page) + offset;
 
 	if (!dev)
 		dev = &x86_dma_fallback_dev;
@@ -272,11 +275,19 @@ gart_map_single(struct device *dev, phys_addr_t paddr, size_t size, int dir)
 	return bus;
 }
 
+static dma_addr_t gart_map_single(struct device *dev, phys_addr_t paddr,
+				  size_t size, int dir)
+{
+	return gart_map_page(dev, pfn_to_page(paddr >> PAGE_SHIFT),
+			     paddr & ~PAGE_MASK, size, dir, NULL);
+}
+
 /*
  * Free a DMA mapping.
  */
-static void gart_unmap_single(struct device *dev, dma_addr_t dma_addr,
-			      size_t size, int direction)
+static void gart_unmap_page(struct device *dev, dma_addr_t dma_addr,
+			    size_t size, enum dma_data_direction dir,
+			    struct dma_attrs *attrs)
 {
 	unsigned long iommu_page;
 	int npages;
@@ -293,6 +304,12 @@ static void gart_unmap_single(struct device *dev, dma_addr_t dma_addr,
 		CLEAR_LEAK(iommu_page + i);
 	}
 	free_iommu(iommu_page, npages);
+}
+
+static void gart_unmap_single(struct device *dev, dma_addr_t dma_addr,
+			      size_t size, int direction)
+{
+	gart_unmap_page(dev, dma_addr, size, direction, NULL);
 }
 
 /*
@@ -712,6 +729,8 @@ static struct dma_mapping_ops gart_dma_ops = {
 	.unmap_single			= gart_unmap_single,
 	.map_sg				= gart_map_sg,
 	.unmap_sg			= gart_unmap_sg,
+	.map_page			= gart_map_page,
+	.unmap_page			= gart_unmap_page,
 	.alloc_coherent			= gart_alloc_coherent,
 	.free_coherent			= gart_free_coherent,
 };
