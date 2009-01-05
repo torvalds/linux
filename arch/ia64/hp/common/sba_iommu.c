@@ -36,6 +36,7 @@
 #include <linux/bitops.h>         /* hweight64() */
 #include <linux/crash_dump.h>
 #include <linux/iommu-helper.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/delay.h>		/* ia64_get_itc() */
 #include <asm/io.h>
@@ -2180,3 +2181,18 @@ EXPORT_SYMBOL(sba_dma_mapping_error);
 EXPORT_SYMBOL(sba_dma_supported);
 EXPORT_SYMBOL(sba_alloc_coherent);
 EXPORT_SYMBOL(sba_free_coherent);
+
+struct dma_mapping_ops sba_dma_ops = {
+	.alloc_coherent		= sba_alloc_coherent,
+	.free_coherent		= sba_free_coherent,
+	.map_single_attrs	= sba_map_single_attrs,
+	.unmap_single_attrs	= sba_unmap_single_attrs,
+	.map_sg_attrs		= sba_map_sg_attrs,
+	.unmap_sg_attrs		= sba_unmap_sg_attrs,
+	.sync_single_for_cpu	= machvec_dma_sync_single,
+	.sync_sg_for_cpu	= machvec_dma_sync_sg,
+	.sync_single_for_device	= machvec_dma_sync_single,
+	.sync_sg_for_device	= machvec_dma_sync_sg,
+	.dma_supported_op	= sba_dma_supported,
+	.mapping_error		= sba_dma_mapping_error,
+};
