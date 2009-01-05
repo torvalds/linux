@@ -340,7 +340,7 @@ static void clear_state_cb(struct extent_io_tree *tree,
 			   struct extent_state *state,
 			   unsigned long bits)
 {
-	if (tree->ops && tree->ops->set_bit_hook) {
+	if (tree->ops && tree->ops->clear_bit_hook) {
 		tree->ops->clear_bit_hook(tree->mapping->host, state->start,
 					  state->end, state->state, bits);
 	}
