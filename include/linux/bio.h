@@ -144,7 +144,7 @@ struct bio {
  * bit 1 -- rw-ahead when set
  * bit 2 -- barrier
  *	Insert a serialization point in the IO queue, forcing previously
- *	submitted IO to be completed before this oen is issued.
+ *	submitted IO to be completed before this one is issued.
  * bit 3 -- synchronous I/O hint: the block layer will unplug immediately
  *	Note that this does NOT indicate that the IO itself is sync, just
  *	that the block layer will not postpone issue of this IO by plugging.
