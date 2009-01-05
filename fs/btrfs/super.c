@@ -429,7 +429,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 	error = btrfs_parse_early_options(data, mode, fs_type,
 					  &subvol_name, &fs_devices);
 	if (error)
-		goto error;
+		return error;
 
 	error = btrfs_scan_one_device(dev_name, mode, fs_type, &fs_devices);
 	if (error)
@@ -468,7 +468,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 		if (error) {
 			up_write(&s->s_umount);
 			deactivate_super(s);
-			goto error;
+			goto error_free_subvol_name;
 		}
 
 		btrfs_sb(s)->fs_info->bdev_holder = fs_type;
@@ -485,14 +485,14 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 			up_write(&s->s_umount);
 			deactivate_super(s);
 			error = PTR_ERR(root);
-			goto error;
+			goto error_free_subvol_name;
 		}
 		if (!root->d_inode) {
 			dput(root);
 			up_write(&s->s_umount);
 			deactivate_super(s);
 			error = -ENXIO;
-			goto error;
+			goto error_free_subvol_name;
 		}
 	}
 
@@ -508,7 +508,6 @@ error_close_devices:
 	btrfs_close_devices(fs_devices);
 error_free_subvol_name:
 	kfree(subvol_name);
-error:
 	return error;
 }
 
