@@ -336,6 +336,15 @@ struct pci_bus {
 #define pci_bus_b(n)	list_entry(n, struct pci_bus, node)
 #define to_pci_bus(n)	container_of(n, struct pci_bus, dev)
 
+#ifdef CONFIG_PCI_MSI
+static inline bool pci_dev_msi_enabled(struct pci_dev *pci_dev)
+{
+	return pci_dev->msi_enabled || pci_dev->msix_enabled;
+}
+#else
+static inline bool pci_dev_msi_enabled(struct pci_dev *pci_dev) { return false; }
+#endif
+
 /*
  * Error values that may be returned by PCI functions.
  */
