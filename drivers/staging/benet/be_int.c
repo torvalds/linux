@@ -728,7 +728,7 @@ int be_poll(struct napi_struct *napi, int budget)
 
 	/* All consumed */
 	if (work_done < budget) {
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		/* enable intr */
 		be_notify_cmpl(pnob, work_done, pnob->rx_cq_id, 1);
 	} else {
@@ -763,7 +763,7 @@ static inline u32 process_events(struct be_net_object *pnob)
 		rid = AMAP_GET_BITS_PTR(EQ_ENTRY, ResourceID, eqp);
 		if (rid == pnob->rx_cq_id) {
 			adapter->be_stat.bes_rx_events++;
-			netif_rx_schedule(netdev, &pnob->napi);
+			netif_rx_schedule(&pnob->napi);
 		} else if (rid == pnob->tx_cq_id) {
 			process_nic_tx_completions(pnob);
 		} else if (rid == pnob->mcc_cq_id) {
