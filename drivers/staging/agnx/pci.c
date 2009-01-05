@@ -324,12 +324,6 @@ static int agnx_config_interface(struct ieee80211_hw *dev,
 		sta_power_init(priv, BSSID_STAID);
 		agnx_write32(ctl, AGNX_BM_MTSM, 0xff & ~0x1);
 	}
-	if (conf->ssid_len != priv->ssid_len ||
-	    memcmp(conf->ssid, priv->ssid, conf->ssid_len)) {
-		agnx_set_ssid(priv, conf->ssid, conf->ssid_len);
-		priv->ssid_len = conf->ssid_len;
-		memcpy(priv->ssid, conf->ssid, conf->ssid_len);
-	}
 	spin_unlock(&priv->lock);
 	return 0;
 } /* agnx_config_interface */

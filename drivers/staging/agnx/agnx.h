@@ -115,8 +115,6 @@ struct agnx_priv {
 	int mode;
 	int channel;
 	u8 bssid[ETH_ALEN];
-	u8 ssid[32];
-	size_t ssid_len;
 
 	u8 mac_addr[ETH_ALEN];
 	u8 revid;
