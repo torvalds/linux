@@ -1486,24 +1486,22 @@ int may_open(struct path *path, int acc_mode, int flag)
 	if (!inode)
 		return -ENOENT;
 
-	if (S_ISLNK(inode->i_mode))
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFLNK:
 		return -ELOOP;
-	
-	if (S_ISDIR(inode->i_mode) && (acc_mode & MAY_WRITE))
-		return -EISDIR;
-
-	/*
-	 * FIFO's, sockets and device files are special: they don't
-	 * actually live on the filesystem itself, and as such you
-	 * can write to them even if the filesystem is read-only.
-	 */
-	if (S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
-	    	flag &= ~O_TRUNC;
-	} else if (S_ISBLK(inode->i_mode) || S_ISCHR(inode->i_mode)) {
+	case S_IFDIR:
+		if (acc_mode & MAY_WRITE)
+			return -EISDIR;
+		break;
+	case S_IFBLK:
+	case S_IFCHR:
 		if (path->mnt->mnt_flags & MNT_NODEV)
 			return -EACCES;
-
+		/*FALLTHRU*/
+	case S_IFIFO:
+	case S_IFSOCK:
 		flag &= ~O_TRUNC;
+		break;
 	}
 
 	error = inode_permission(inode, acc_mode);
