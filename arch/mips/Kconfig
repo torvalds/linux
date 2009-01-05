@@ -1365,7 +1365,7 @@ config CPU_SUPPORTS_64BIT_KERNEL
 #
 config HARDWARE_WATCHPOINTS
        bool
-       default y if CPU_MIPS32 || CPU_MIPS64
+       default y if CPU_MIPSR1 || CPU_MIPSR2
 
 menu "Kernel type"
 
