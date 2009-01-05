@@ -225,13 +225,6 @@ tEplKernel PUBLIC EplTimerHighReskAddInstance(void)
 		hrtimer_init(pTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 
 		pTimer->function = EplTimerHighReskCallback;
-
-		/*
-		 * We use HRTIMER_CB_SOFTIRQ here.
-		 * HRTIMER_CB_IRQSAFE is critical as the callback function
-		 * would be called with IRQs disabled.
-		 */
-		pTimer->cb_mode = HRTIMER_CB_SOFTIRQ;
 	}
 
 	return Ret;
