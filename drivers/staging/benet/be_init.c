@@ -1057,7 +1057,7 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 		status = -ENOMEM;
 		goto cleanup;
 	}
-	pnob = netdev->priv;
+	pnob = netdev_priv(netdev);
 	adapter->net_obj = pnob;
 	adapter->netdevp = netdev;
 	pnob->adapter = adapter;
@@ -1220,7 +1220,7 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev =  adapter->netdevp;
-	struct be_net_object *pnob = (struct be_net_object *)netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 
 	adapter->dev_pm_state = adapter->dev_state;
 	adapter->dev_state = BE_DEV_STATE_SUSPEND;
@@ -1252,7 +1252,7 @@ static int be_resume(struct pci_dev *pdev)
 	int status = 0;
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev =  adapter->netdevp;
-	struct be_net_object *pnob = (struct be_net_object *)netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 
 	netif_device_detach(netdev);
 

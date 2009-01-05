@@ -120,7 +120,7 @@ be_get_frag_header(struct skb_frag_struct *frag, void **mac_hdr,
 
 static int benet_open(struct net_device *netdev)
 {
-	struct be_net_object *pnob = (struct be_net_object *)netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 	struct net_lro_mgr *lro_mgr;
 
@@ -169,7 +169,7 @@ static int benet_open(struct net_device *netdev)
 
 static int benet_close(struct net_device *netdev)
 {
-	struct be_net_object *pnob = (struct be_net_object *)netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 
 	netif_stop_queue(netdev);
@@ -196,9 +196,7 @@ static int benet_close(struct net_device *netdev)
 static int benet_set_mac_addr(struct net_device *netdev, void *p)
 {
 	struct sockaddr *addr = p;
-	struct be_net_object *pnob;
-
-	pnob = (struct be_net_object *)netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	be_rxf_mac_address_read_write(&pnob->fn_obj, 0, 0, false, true, false,
@@ -243,7 +241,7 @@ void be_get_stat_cb(void *context, int status,
 
 struct net_device_stats *benet_get_stats(struct net_device *dev)
 {
-	struct be_net_object *pnob = dev->priv;
+	struct be_net_object *pnob = netdev_priv(dev);
 	struct be_adapter *adapter = pnob->adapter;
 	u64 pa;
 	struct be_timer_ctxt *ctxt = &adapter->timer_ctxt;
@@ -497,7 +495,7 @@ static inline void be_tx_wrb_info_remember(struct be_net_object *pnob,
 
 static int benet_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 	u32 wrb_cnt, copied = 0;
 	u32 start = pnob->tx_q_hd;
@@ -557,7 +555,7 @@ static int benet_change_mtu(struct net_device *netdev, int new_mtu)
 static void benet_vlan_register(struct net_device *netdev,
 				struct vlan_group *grp)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 
 	be_disable_eq_intr(pnob);
 	pnob->vlan_grp = grp;
@@ -571,7 +569,7 @@ static void benet_vlan_register(struct net_device *netdev,
  */
 static void benet_vlan_add_vid(struct net_device *netdev, u16 vlan_id)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 
 	if (pnob->num_vlans == (BE_NUM_VLAN_SUPPORTED - 1)) {
 		/* no  way to return an error */
@@ -592,7 +590,7 @@ static void benet_vlan_add_vid(struct net_device *netdev, u16 vlan_id)
  */
 static void benet_vlan_rem_vid(struct net_device *netdev, u16 vlan_id)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 
 	u32 i, value;
 
@@ -629,7 +627,7 @@ static void benet_vlan_rem_vid(struct net_device *netdev, u16 vlan_id)
  */
 static void be_set_multicast_filter(struct net_device *netdev)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct dev_mc_list *mc_ptr;
 	u8 mac_addr[32][ETH_ALEN];
 	int i;
@@ -659,7 +657,7 @@ static void be_set_multicast_filter(struct net_device *netdev)
  */
 static void benet_set_multicast_list(struct net_device *netdev)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 
 	if (netdev->flags & IFF_PROMISC) {
 		be_rxf_promiscuous(&pnob->fn_obj, 1, 1, NULL, NULL, NULL);
@@ -671,7 +669,7 @@ static void benet_set_multicast_list(struct net_device *netdev)
 
 int benet_init(struct net_device *netdev)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 
 	ether_setup(netdev);

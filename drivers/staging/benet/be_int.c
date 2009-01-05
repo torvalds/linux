@@ -691,7 +691,7 @@ void be_post_eth_rx_buffs(struct be_net_object *pnob)
 irqreturn_t be_int(int irq, void *dev)
 {
 	struct net_device *netdev = dev;
-	struct be_net_object *pnob = (struct be_net_object *)(netdev->priv);
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 	u32 isr;
 
@@ -718,7 +718,7 @@ irqreturn_t be_int(int irq, void *dev)
 int be_poll(struct napi_struct *napi, int budget)
 {
 	struct net_device *netdev = napi->dev;
-	struct be_net_object *pnob = (struct be_net_object *)netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 	u32 work_done;
 

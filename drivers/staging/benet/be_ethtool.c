@@ -79,7 +79,7 @@ static const char benet_gstrings_stats[][ETH_GSTRING_LEN] = {
 static void
 be_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 
 	strncpy(drvinfo->driver, be_driver_name, 32);
@@ -94,7 +94,7 @@ be_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 static int
 be_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 
 	coalesce->rx_max_coalesced_frames = adapter->max_rx_coal;
@@ -120,7 +120,7 @@ be_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 static int
 be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 	struct be_eq_object *eq_objectp;
 	u32 max, min, cur;
@@ -170,14 +170,14 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 
 static u32 be_get_rx_csum(struct net_device *netdev)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 	return adapter->rx_csum;
 }
 
 static int be_set_rx_csum(struct net_device *netdev, uint32_t data)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 
 	if (data)
@@ -208,7 +208,7 @@ static void
 be_get_ethtool_stats(struct net_device *netdev,
 		     struct ethtool_stats *stats, uint64_t *data)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	struct be_adapter *adapter = pnob->adapter;
 	int i;
 
@@ -251,7 +251,7 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 static void
 be_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 
 	/* Pre Set Maxims */
 	ring->rx_max_pending = pnob->rx_q_len;
@@ -270,7 +270,7 @@ be_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 static void
 be_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	bool rxfc, txfc;
 	int status;
 
@@ -300,7 +300,7 @@ be_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 static int
 be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 {
-	struct be_net_object *pnob = netdev->priv;
+	struct be_net_object *pnob = netdev_priv(netdev);
 	bool txfc, rxfc;
 	int status;
 
