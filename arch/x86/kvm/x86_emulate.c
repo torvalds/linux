@@ -178,7 +178,7 @@ static u32 opcode_table[256] = {
 	0, ImplicitOps | Stack, 0, 0,
 	ByteOp | DstMem | SrcImm | ModRM | Mov, DstMem | SrcImm | ModRM | Mov,
 	/* 0xC8 - 0xCF */
-	0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, ImplicitOps | Stack, 0, 0, 0, 0,
 	/* 0xD0 - 0xD7 */
 	ByteOp | DstMem | SrcImplicit | ModRM, DstMem | SrcImplicit | ModRM,
 	ByteOp | DstMem | SrcImplicit | ModRM, DstMem | SrcImplicit | ModRM,
@@ -1278,6 +1278,25 @@ static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
 	return 0;
 }
 
+static int emulate_ret_far(struct x86_emulate_ctxt *ctxt,
+			   struct x86_emulate_ops *ops)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc;
+	unsigned long cs;
+
+	rc = emulate_pop(ctxt, ops, &c->eip, c->op_bytes);
+	if (rc)
+		return rc;
+	if (c->op_bytes == 4)
+		c->eip = (u32)c->eip;
+	rc = emulate_pop(ctxt, ops, &cs, c->op_bytes);
+	if (rc)
+		return rc;
+	rc = kvm_load_segment_descriptor(ctxt->vcpu, (u16)cs, 1, VCPU_SREG_CS);
+	return rc;
+}
+
 static inline int writeback(struct x86_emulate_ctxt *ctxt,
 			    struct x86_emulate_ops *ops)
 {
@@ -1734,6 +1753,11 @@ special_insn:
 	case 0xc6 ... 0xc7:	/* mov (sole member of Grp11) */
 	mov:
 		c->dst.val = c->src.val;
+		break;
+	case 0xcb:		/* ret far */
+		rc = emulate_ret_far(ctxt, ops);
+		if (rc)
+			goto done;
 		break;
 	case 0xd0 ... 0xd1:	/* Grp2 */
 		c->src.val = 1;
