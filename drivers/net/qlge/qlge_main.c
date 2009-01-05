@@ -963,6 +963,11 @@ static void ql_update_sbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 						     sbq_desc->p.skb->data,
 						     rx_ring->sbq_buf_size /
 						     2, PCI_DMA_FROMDEVICE);
+				if (pci_dma_mapping_error(qdev->pdev, map)) {
+					QPRINTK(qdev, IFUP, ERR, "PCI mapping failed.\n");
+					rx_ring->sbq_clean_idx = clean_idx;
+					return;
+				}
 				pci_unmap_addr_set(sbq_desc, mapaddr, map);
 				pci_unmap_len_set(sbq_desc, maplen,
 						  rx_ring->sbq_buf_size / 2);
