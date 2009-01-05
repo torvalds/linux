@@ -81,7 +81,7 @@ iommu_dma_init(void)
 
 int iommu_dma_supported(struct device *dev, u64 mask)
 {
-	struct dma_mapping_ops *ops = get_dma_ops(dev);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
 
 	if (ops->dma_supported_op)
 		return ops->dma_supported_op(dev, mask);

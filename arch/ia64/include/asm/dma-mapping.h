@@ -68,13 +68,15 @@ extern void set_iommu_machvec(void);
 static inline void *dma_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *daddr, gfp_t gfp)
 {
-	return dma_ops->alloc_coherent(dev, size, daddr, gfp | GFP_DMA);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	return ops->alloc_coherent(dev, size, daddr, gfp | GFP_DMA);
 }
 
 static inline void dma_free_coherent(struct device *dev, size_t size,
 				     void *caddr, dma_addr_t daddr)
 {
-	dma_ops->free_coherent(dev, size, caddr, daddr);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	ops->free_coherent(dev, size, caddr, daddr);
 }
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
@@ -85,7 +87,8 @@ static inline dma_addr_t dma_map_single_attrs(struct device *dev,
 					      enum dma_data_direction dir,
 					      struct dma_attrs *attrs)
 {
-	return dma_ops->map_single_attrs(dev, caddr, size, dir, attrs);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	return ops->map_single_attrs(dev, caddr, size, dir, attrs);
 }
 
 static inline void dma_unmap_single_attrs(struct device *dev, dma_addr_t daddr,
@@ -93,7 +96,8 @@ static inline void dma_unmap_single_attrs(struct device *dev, dma_addr_t daddr,
 					  enum dma_data_direction dir,
 					  struct dma_attrs *attrs)
 {
-	dma_ops->unmap_single_attrs(dev, daddr, size, dir, attrs);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	ops->unmap_single_attrs(dev, daddr, size, dir, attrs);
 }
 
 #define dma_map_single(d, a, s, r) dma_map_single_attrs(d, a, s, r, NULL)
@@ -103,7 +107,8 @@ static inline int dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
 				   int nents, enum dma_data_direction dir,
 				   struct dma_attrs *attrs)
 {
-	return dma_ops->map_sg_attrs(dev, sgl, nents, dir, attrs);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	return ops->map_sg_attrs(dev, sgl, nents, dir, attrs);
 }
 
 static inline void dma_unmap_sg_attrs(struct device *dev,
@@ -111,7 +116,8 @@ static inline void dma_unmap_sg_attrs(struct device *dev,
 				      enum dma_data_direction dir,
 				      struct dma_attrs *attrs)
 {
-	dma_ops->unmap_sg_attrs(dev, sgl, nents, dir, attrs);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	ops->unmap_sg_attrs(dev, sgl, nents, dir, attrs);
 }
 
 #define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, NULL)
@@ -121,14 +127,16 @@ static inline void dma_sync_single_for_cpu(struct device *dev, dma_addr_t daddr,
 					   size_t size,
 					   enum dma_data_direction dir)
 {
-	dma_ops->sync_single_for_cpu(dev, daddr, size, dir);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	ops->sync_single_for_cpu(dev, daddr, size, dir);
 }
 
 static inline void dma_sync_sg_for_cpu(struct device *dev,
 				       struct scatterlist *sgl,
 				       int nents, enum dma_data_direction dir)
 {
-	dma_ops->sync_sg_for_cpu(dev, sgl, nents, dir);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	ops->sync_sg_for_cpu(dev, sgl, nents, dir);
 }
 
 static inline void dma_sync_single_for_device(struct device *dev,
@@ -136,7 +144,8 @@ static inline void dma_sync_single_for_device(struct device *dev,
 					      size_t size,
 					      enum dma_data_direction dir)
 {
-	dma_ops->sync_single_for_device(dev, daddr, size, dir);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	ops->sync_single_for_device(dev, daddr, size, dir);
 }
 
 static inline void dma_sync_sg_for_device(struct device *dev,
@@ -144,12 +153,14 @@ static inline void dma_sync_sg_for_device(struct device *dev,
 					  int nents,
 					  enum dma_data_direction dir)
 {
-	dma_ops->sync_sg_for_device(dev, sgl, nents, dir);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	ops->sync_sg_for_device(dev, sgl, nents, dir);
 }
 
 static inline int dma_mapping_error(struct device *dev, dma_addr_t daddr)
 {
-	return dma_ops->mapping_error(dev, daddr);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	return ops->mapping_error(dev, daddr);
 }
 
 #define dma_map_page(dev, pg, off, size, dir)				\
@@ -169,7 +180,8 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t daddr)
 
 static inline int dma_supported(struct device *dev, u64 mask)
 {
-	return dma_ops->dma_supported_op(dev, mask);
+	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	return ops->dma_supported_op(dev, mask);
 }
 
 static inline int
@@ -195,10 +207,5 @@ dma_cache_sync (struct device *dev, void *vaddr, size_t size,
 }
 
 #define dma_is_consistent(d, h)	(1)	/* all we do is coherent memory... */
-
-static inline struct dma_mapping_ops *get_dma_ops(struct device *dev)
-{
-	return dma_ops;
-}
 
 #endif /* _ASM_IA64_DMA_MAPPING_H */
