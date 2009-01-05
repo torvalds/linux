@@ -850,6 +850,11 @@ static void svc_age_temp_xprts(unsigned long closure)
 void svc_delete_xprt(struct svc_xprt *xprt)
 {
 	struct svc_serv	*serv = xprt->xpt_server;
+	struct svc_deferred_req *dr;
+
+	/* Only do this once */
+	if (test_and_set_bit(XPT_DEAD, &xprt->xpt_flags))
+		return;
 
 	dprintk("svc: svc_delete_xprt(%p)\n", xprt);
 	xprt->xpt_ops->xpo_detach(xprt);
@@ -864,12 +869,16 @@ void svc_delete_xprt(struct svc_xprt *xprt)
 	 * while still attached to a queue, the queue itself
 	 * is about to be destroyed (in svc_destroy).
 	 */
-	if (!test_and_set_bit(XPT_DEAD, &xprt->xpt_flags)) {
-		BUG_ON(atomic_read(&xprt->xpt_ref.refcount) < 2);
-		if (test_bit(XPT_TEMP, &xprt->xpt_flags))
-			serv->sv_tmpcnt--;
+	if (test_bit(XPT_TEMP, &xprt->xpt_flags))
+		serv->sv_tmpcnt--;
+
+	for (dr = svc_deferred_dequeue(xprt); dr;
+	     dr = svc_deferred_dequeue(xprt)) {
 		svc_xprt_put(xprt);
+		kfree(dr);
 	}
+
+	svc_xprt_put(xprt);
 	spin_unlock_bh(&serv->sv_lock);
 }
 
@@ -915,17 +924,19 @@ static void svc_revisit(struct cache_deferred_req *dreq, int too_many)
 		container_of(dreq, struct svc_deferred_req, handle);
 	struct svc_xprt *xprt = dr->xprt;
 
-	if (too_many) {
+	spin_lock(&xprt->xpt_lock);
+	set_bit(XPT_DEFERRED, &xprt->xpt_flags);
+	if (too_many || test_bit(XPT_DEAD, &xprt->xpt_flags)) {
+		spin_unlock(&xprt->xpt_lock);
+		dprintk("revisit canceled\n");
 		svc_xprt_put(xprt);
 		kfree(dr);
 		return;
 	}
 	dprintk("revisit queued\n");
 	dr->xprt = NULL;
-	spin_lock(&xprt->xpt_lock);
 	list_add(&dr->handle.recent, &xprt->xpt_deferred);
 	spin_unlock(&xprt->xpt_lock);
-	set_bit(XPT_DEFERRED, &xprt->xpt_flags);
 	svc_xprt_enqueue(xprt);
 	svc_xprt_put(xprt);
 }
