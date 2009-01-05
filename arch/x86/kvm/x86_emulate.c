@@ -1136,18 +1136,19 @@ static inline void emulate_push(struct x86_emulate_ctxt *ctxt)
 }
 
 static int emulate_pop(struct x86_emulate_ctxt *ctxt,
-		       struct x86_emulate_ops *ops)
+		       struct x86_emulate_ops *ops,
+		       void *dest, int len)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
 
 	rc = ops->read_emulated(register_address(c, ss_base(ctxt),
 						 c->regs[VCPU_REGS_RSP]),
-				&c->src.val, c->src.bytes, ctxt->vcpu);
+				dest, len, ctxt->vcpu);
 	if (rc != 0)
 		return rc;
 
-	register_address_increment(c, &c->regs[VCPU_REGS_RSP], c->src.bytes);
+	register_address_increment(c, &c->regs[VCPU_REGS_RSP], len);
 	return rc;
 }
 
@@ -1157,11 +1158,9 @@ static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt,
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
 
-	c->src.bytes = c->dst.bytes;
-	rc = emulate_pop(ctxt, ops);
+	rc = emulate_pop(ctxt, ops, &c->dst.val, c->dst.bytes);
 	if (rc != 0)
 		return rc;
-	c->dst.val = c->src.val;
 	return 0;
 }
 
@@ -1467,11 +1466,9 @@ special_insn:
 		break;
 	case 0x58 ... 0x5f: /* pop reg */
 	pop_instruction:
-		c->src.bytes = c->op_bytes;
-		rc = emulate_pop(ctxt, ops);
+		rc = emulate_pop(ctxt, ops, &c->dst.val, c->op_bytes);
 		if (rc != 0)
 			goto done;
-		c->dst.val = c->src.val;
 		break;
 	case 0x63:		/* movsxd */
 		if (ctxt->mode != X86EMUL_MODE_PROT64)
