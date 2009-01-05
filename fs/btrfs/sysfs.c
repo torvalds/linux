@@ -212,14 +212,13 @@ int btrfs_sysfs_add_super(struct btrfs_fs_info *fs)
 	fs->super_kobj.kset = btrfs_kset;
 	error = kobject_init_and_add(&fs->super_kobj, &btrfs_super_ktype,
 				     NULL, "%s", name);
+	kfree(name);
 	if (error)
 		goto fail;
 
-	kfree(name);
 	return 0;
 
 fail:
-	kfree(name);
 	printk(KERN_ERR "btrfs: sysfs creation for super failed\n");
 	return error;
 }
