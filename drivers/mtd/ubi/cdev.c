@@ -518,6 +518,20 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 		err = ubi_wl_flush(ubi);
 		break;
 	}
+
+	/* Logical eraseblock map command */
+	case UBI_IOCEBMAP:
+	{
+		struct ubi_map_req req;
+
+		err = copy_from_user(&req, argp, sizeof(struct ubi_map_req));
+		if (err) {
+			err = -EFAULT;
+			break;
+		}
+		err = ubi_leb_map(desc, req.lnum, req.dtype);
+		break;
+	}
 #endif
 
 	default:

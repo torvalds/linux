@@ -133,6 +133,9 @@
 #define UBI_IOCEBER _IOW(UBI_VOL_IOC_MAGIC, 1, int32_t)
 /* An atomic eraseblock change command */
 #define UBI_IOCEBCH _IOW(UBI_VOL_IOC_MAGIC, 2, int32_t)
+/* Map an eraseblock, used for debugging, disabled by default */
+#define UBI_IOCEBMAP _IOW(UBI_VOL_IOC_MAGIC, 3, struct ubi_map_req)
+
 
 /* Maximum MTD device name length supported by UBI */
 #define MAX_UBI_MTD_NAME_LEN 127
@@ -317,6 +320,18 @@ struct ubi_leb_change_req {
 	int32_t bytes;
 	int8_t  dtype;
 	int8_t  padding[7];
+} __attribute__ ((packed));
+
+/**
+ * struct ubi_map_req - a data structure used in map eraseblock requests.
+ * @lnum: logical eraseblock number to unmap
+ * @dtype: data type (%UBI_LONGTERM, %UBI_SHORTTERM, %UBI_UNKNOWN)
+ * @padding: reserved for future, not used, has to be zeroed
+ */
+struct ubi_map_req {
+	int32_t lnum;
+	int8_t  dtype;
+	int8_t  padding[3];
 } __attribute__ ((packed));
 
 #endif /* __UBI_USER_H__ */
