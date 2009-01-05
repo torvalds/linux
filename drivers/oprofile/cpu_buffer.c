@@ -309,8 +309,6 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 
 #ifdef CONFIG_OPROFILE_IBS
 
-#define MAX_IBS_SAMPLE_SIZE 14
-
 void oprofile_add_ibs_sample(struct pt_regs * const regs,
 			     unsigned int * const ibs_sample, int ibs_code)
 {
