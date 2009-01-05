@@ -1842,7 +1842,7 @@ void em28xx_release_resources(struct em28xx *dev)
  * em28xx_init_dev()
  * allocates and inits the device structs, registers i2c bus and v4l device
  */
-int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
+static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			   int minor)
 {
 	struct em28xx *dev = *devhandle;
