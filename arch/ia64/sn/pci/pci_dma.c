@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/dma-attrs.h>
+#include <linux/dma-mapping.h>
 #include <asm/dma.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/pcibus_provider_defs.h>
@@ -465,3 +466,18 @@ int sn_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
  out:
 	return ret;
 }
+
+struct dma_mapping_ops sn_dma_ops = {
+	.alloc_coherent		= sn_dma_alloc_coherent,
+	.free_coherent		= sn_dma_free_coherent,
+	.map_single_attrs	= sn_dma_map_single_attrs,
+	.unmap_single_attrs	= sn_dma_unmap_single_attrs,
+	.map_sg_attrs		= sn_dma_map_sg_attrs,
+	.unmap_sg_attrs		= sn_dma_unmap_sg_attrs,
+	.sync_single_for_cpu 	= sn_dma_sync_single_for_cpu,
+	.sync_sg_for_cpu	= sn_dma_sync_sg_for_cpu,
+	.sync_single_for_device = sn_dma_sync_single_for_device,
+	.sync_sg_for_device	= sn_dma_sync_sg_for_device,
+	.mapping_error		= sn_dma_mapping_error,
+	.dma_supported_op	= sn_dma_supported,
+};
