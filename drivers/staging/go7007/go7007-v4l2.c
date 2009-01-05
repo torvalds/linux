@@ -375,8 +375,7 @@ static int clip_to_modet_map(struct go7007 *go, int region,
 	return 0;
 }
 
-static int go7007_do_ioctl(struct inode *inode, struct file *file,
-		unsigned int cmd, void *arg)
+static long go7007_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct go7007_file *gofh = file->private_data;
 	struct go7007 *go = gofh->go;
@@ -1335,7 +1334,7 @@ static int go7007_ioctl(struct inode *inode, struct file *file,
 	if (gofh->go->status != STATUS_ONLINE)
 		return -EIO;
 
-	return video_usercopy(inode, file, cmd, arg, go7007_do_ioctl);
+	return video_usercopy(file, cmd, arg, go7007_do_ioctl);
 }
 
 static ssize_t go7007_read(struct file *file, char __user *data,
