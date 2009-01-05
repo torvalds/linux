@@ -360,3 +360,14 @@ License: GPLv2 or OpenIB.org BSD license, no source visible
 
 --------------------------------------------------------------------------
 
+Driver: acenic -- Alteon AceNIC Gigabit Ethernet card
+
+File: acenic/tg1.bin
+File: acenic/tg2.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source, but source allegedly available at
+http://alteon.shareable.org/
+
+--------------------------------------------------------------------------
