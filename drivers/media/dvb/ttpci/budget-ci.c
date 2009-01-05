@@ -1337,7 +1337,7 @@ static struct stb0899_config tt3200_config = {
 	.tuner_set_rfsiggain	= NULL
 };
 
-struct stb6100_config tt3200_stb6100_config = {
+static struct stb6100_config tt3200_stb6100_config = {
 	.tuner_address	= 0x60,
 	.refclock	= 27000000,
 };
