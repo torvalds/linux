@@ -139,12 +139,14 @@ struct sxg_stats {
 /* Indications array size */
 #define SXG_RCV_ARRAYSIZE	64
 
-#define SXG_ALLOCATE_RCV_PACKET(_pAdapt, _RcvDataBufferHdr) {		\
-	struct sk_buff * skb;						\
-    skb = netdev_alloc_skb(_pAdapt->netdev, 2048);                      \
+#define SXG_ALLOCATE_RCV_PACKET(_pAdapt, _RcvDataBufferHdr, BufferSize) {\
+    struct sk_buff * skb;						\
+    skb = netdev_alloc_skb(_pAdapt->netdev, BufferSize);                \
     if (skb) {                                                          \
     	(_RcvDataBufferHdr)->skb = skb;                                	\
         skb->next = NULL;                                               \
+	_RcvDataBufferHdr->PhysicalAddress = pci_map_single(adapter->pcidev,\
+	    _RcvDataBufferHdr->skb->data, BufferSize, PCI_DMA_FROMDEVICE);	\
     } else {                                                            \
     	(_RcvDataBufferHdr)->skb = NULL;                                \
     }                                                                  	\
@@ -212,8 +214,8 @@ struct sxg_stats {
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DumbRcv",		\
 			   (_RcvDataBufferHdr), (_Packet),			\
 			   (_Event)->Status, 0);	                    	\
-	ASSERT((_Event)->Length <= (_RcvDataBufferHdr)->Size);			\
-    skb_put(Packet, (_Event)->Length);						\
+	/* ASSERT((_Event)->Length <= (_RcvDataBufferHdr)->Size); */		\
+	skb_put(Packet, (_Event)->Length);					\
 }
 
 /*
@@ -236,7 +238,7 @@ struct sxg_stats {
 #define SXG_FREE_RCV_DATA_BUFFER(_pAdapt, _Hdr) {				\
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "RtnDHdr",		\
 			   (_Hdr), (_pAdapt)->FreeRcvBufferCount,		\
-			   (_Hdr)->State, (_Hdr)->VirtualAddress);		\
+			   (_Hdr)->State, 0/*(_Hdr)->VirtualAddress*/);		\
 /*	SXG_RESTORE_MDL_OFFSET(_Hdr);	*/					\
 	(_pAdapt)->FreeRcvBufferCount++;					\
 	ASSERT(((_pAdapt)->AllRcvBlockCount * SXG_RCV_DESCRIPTORS_PER_BLOCK) 	\

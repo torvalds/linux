@@ -705,12 +705,8 @@ struct sxg_rcv_data_buffer_hdr {
 	 * Note - DO NOT USE the VirtualAddress field to locate data.
 	 * Use the sxg.h:SXG_RECEIVE_DATA_LOCATION macro instead.
 	 */
-	void			*VirtualAddress;	/* Start of buffer */
-	u32			Size;   	/* Buffer size */
-	struct sxg_rcv_data_buffer_hdr	*Next;	/* Fastpath data buffer queue */
 	struct list_entry	FreeList;	/* Free queue of buffers */
 	unsigned char		State;		/* See SXG_BUFFER state above */
-	unsigned char		Status;		/* Event status (to log PUSH) */
 	struct sk_buff          * skb;		/* Double mapped (nbl and pkt)*/
 };
 
@@ -721,10 +717,11 @@ struct sxg_rcv_data_buffer_hdr {
 #define SxgDumbRcvPacket	        skb
 
 /* Space for struct sxg_rcv_data_buffer_hdr */
-#define SXG_RCV_DATA_HDR_SIZE		256
+#define SXG_RCV_DATA_HDR_SIZE		sizeof(struct sxg_rcv_data_buffer_hdr)
 /* Non jumbo = 2k including HDR */
 #define SXG_RCV_DATA_BUFFER_SIZE	2048
-#define SXG_RCV_JUMBO_BUFFER_SIZE	10240	/* jumbo = 10k including HDR */
+/* jumbo = 10k including HDR */
+#define SXG_RCV_JUMBO_BUFFER_SIZE	10240
 
 /* Receive data descriptor */
 struct sxg_rcv_data_descriptor {
@@ -954,20 +951,26 @@ struct sxg_scatter_gather {
 	 ((SxgSglPoolProperties[_Pool].SGEntries - 1) * 		\
 				sizeof(struct sxg_x64_sge)))
 
+/* Force NDIS to give us it's own buffer so we can reformat to our own */
+#define SXG_SGL_BUFFER(_SxgSgl)                 NULL	//VSS change this value and test
+#define SXG_SGL_BUFFER_LENGTH(_SxgSgl)          0	//VSS change this value and test
+#define SXG_SGL_BUF_SIZE                        0	//VSS change this value and test
+
+/*
 #if defined(CONFIG_X86_64)
 #define SXG_SGL_BUFFER(_SxgSgl)		    (&_SxgSgl->Sgl)
 #define SXG_SGL_BUFFER_LENGTH(_SxgSgl)	((_SxgSgl)->Entries * 		\
 					sizeof(struct sxg_x64_sge))
 #define SXG_SGL_BUF_SIZE			    sizeof(struct sxg_x64_sgl)
 #elif defined(CONFIG_X86)
-/* Force NDIS to give us it's own buffer so we can reformat to our own */
+// Force NDIS to give us it's own buffer so we can reformat to our own
 #define SXG_SGL_BUFFER(_SxgSgl)		        NULL
 #define SXG_SGL_BUFFER_LENGTH(_SxgSgl)		0
 #define SXG_SGL_BUF_SIZE			0
 #else
 #error staging: sxg: driver is for X86 only!
 #endif
-
+*/
 /* Microcode statistics */
 struct sxg_ucode_stats {
 	u32  RPDQOflow;		/* PDQ overflow (unframed ie dq & drop 1st) */
