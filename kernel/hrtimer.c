@@ -1243,6 +1243,22 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 	}
 }
 
+/*
+ * local version of hrtimer_peek_ahead_timers() called with interrupts
+ * disabled.
+ */
+static void __hrtimer_peek_ahead_timers(void)
+{
+	struct tick_device *td;
+
+	if (!hrtimer_hres_active())
+		return;
+
+	td = &__get_cpu_var(tick_cpu_device);
+	if (td && td->evtdev)
+		hrtimer_interrupt(td->evtdev);
+}
+
 /**
  * hrtimer_peek_ahead_timers -- run soft-expired timers now
  *
@@ -1254,16 +1270,10 @@ void hrtimer_interrupt(struct clock_event_device *dev)
  */
 void hrtimer_peek_ahead_timers(void)
 {
-	struct tick_device *td;
 	unsigned long flags;
 
-	if (!hrtimer_hres_active())
-		return;
-
 	local_irq_save(flags);
-	td = &__get_cpu_var(tick_cpu_device);
-	if (td && td->evtdev)
-		hrtimer_interrupt(td->evtdev);
+	__hrtimer_peek_ahead_timers();
 	local_irq_restore(flags);
 }
 
