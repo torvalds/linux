@@ -76,58 +76,6 @@ int ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
 	return err;
 }
 
-#ifdef ___OLD_INTERFACE_TO_BE_REMOVED___
-static u8 builtin_ccids[] = {
-	DCCPC_CCID2,		/* CCID2 is supported by default */
-#if defined(CONFIG_IP_DCCP_CCID3) || defined(CONFIG_IP_DCCP_CCID3_MODULE)
-	DCCPC_CCID3,
-#endif
-};
-
-static struct ccid_operations *ccids[CCID_MAX];
-#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
-static atomic_t ccids_lockct = ATOMIC_INIT(0);
-static DEFINE_SPINLOCK(ccids_lock);
-
-/*
- * The strategy is: modifications ccids vector are short, do not sleep and
- * veeery rare, but read access should be free of any exclusive locks.
- */
-static void ccids_write_lock(void)
-{
-	spin_lock(&ccids_lock);
-	while (atomic_read(&ccids_lockct) != 0) {
-		spin_unlock(&ccids_lock);
-		yield();
-		spin_lock(&ccids_lock);
-	}
-}
-
-static inline void ccids_write_unlock(void)
-{
-	spin_unlock(&ccids_lock);
-}
-
-static inline void ccids_read_lock(void)
-{
-	atomic_inc(&ccids_lockct);
-	smp_mb__after_atomic_inc();
-	spin_unlock_wait(&ccids_lock);
-}
-
-static inline void ccids_read_unlock(void)
-{
-	atomic_dec(&ccids_lockct);
-}
-
-#else
-#define ccids_write_lock() do { } while(0)
-#define ccids_write_unlock() do { } while(0)
-#define ccids_read_lock() do { } while(0)
-#define ccids_read_unlock() do { } while(0)
-#endif
-#endif /* ___OLD_INTERFACE_TO_BE_REMOVED___ */
-
 static struct kmem_cache *ccid_kmem_cache_create(int obj_size, const char *fmt,...)
 {
 	struct kmem_cache *slab;
@@ -157,49 +105,6 @@ static void ccid_kmem_cache_destroy(struct kmem_cache *slab)
 		kfree(name);
 	}
 }
-
-#ifdef ___OLD_INTERFACE_TO_BE_REMOVED___
-/* check that up to @array_len members in @ccid_array are supported */
-bool ccid_support_check(u8 const *ccid_array, u8 array_len)
-{
-	u8 i, j, found;
-
-	for (i = 0, found = 0; i < array_len; i++, found = 0) {
-		for (j = 0; !found && j < ARRAY_SIZE(builtin_ccids); j++)
-			found = (ccid_array[i] == builtin_ccids[j]);
-		if (!found)
-			return false;
-	}
-	return true;
-}
-
-/**
- * ccid_get_builtin_ccids  -  Provide copy of `builtin' CCID array
- * @ccid_array: pointer to copy into
- * @array_len: value to return length into
- * This function allocates memory - caller must see that it is freed after use.
- */
-int ccid_get_builtin_ccids(u8 **ccid_array, u8 *array_len)
-{
-	*ccid_array = kmemdup(builtin_ccids, sizeof(builtin_ccids), gfp_any());
-	if (*ccid_array == NULL)
-		return -ENOBUFS;
-	*array_len = ARRAY_SIZE(builtin_ccids);
-	return 0;
-}
-
-int ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
-				    char __user *optval, int __user *optlen)
-{
-	if (len < sizeof(builtin_ccids))
-		return -EINVAL;
-
-	if (put_user(sizeof(builtin_ccids), optlen) ||
-	    copy_to_user(optval, builtin_ccids, sizeof(builtin_ccids)))
-		return -EFAULT;
-	return 0;
-}
-#endif /* ___OLD_INTERFACE_TO_BE_REMOVED___ */
 
 static int ccid_activate(struct ccid_operations *ccid_ops)
 {
@@ -241,7 +146,7 @@ static void ccid_deactivate(struct ccid_operations *ccid_ops)
 		ccid_ops->ccid_id, ccid_ops->ccid_name);
 }
 
-struct ccid *ccid_new(unsigned char id, struct sock *sk, int rx, gfp_t gfp)
+struct ccid *ccid_new(const u8 id, struct sock *sk, bool rx)
 {
 	struct ccid_operations *ccid_ops = ccid_by_number(id);
 	struct ccid *ccid = NULL;
@@ -250,7 +155,7 @@ struct ccid *ccid_new(unsigned char id, struct sock *sk, int rx, gfp_t gfp)
 		goto out;
 
 	ccid = kmem_cache_alloc(rx ? ccid_ops->ccid_hc_rx_slab :
-				     ccid_ops->ccid_hc_tx_slab, gfp);
+				     ccid_ops->ccid_hc_tx_slab, gfp_any());
 	if (ccid == NULL)
 		goto out;
 	ccid->ccid_ops = ccid_ops;
@@ -274,40 +179,23 @@ out_free_ccid:
 	goto out;
 }
 
-EXPORT_SYMBOL_GPL(ccid_new);
-
-static void ccid_delete(struct ccid *ccid, struct sock *sk, int rx)
+void ccid_hc_rx_delete(struct ccid *ccid, struct sock *sk)
 {
-	struct ccid_operations *ccid_ops;
-
-	if (ccid == NULL)
-		return;
-
-	ccid_ops = ccid->ccid_ops;
-	if (rx) {
-		if (ccid_ops->ccid_hc_rx_exit != NULL)
-			ccid_ops->ccid_hc_rx_exit(sk);
-		kmem_cache_free(ccid_ops->ccid_hc_rx_slab,  ccid);
-	} else {
-		if (ccid_ops->ccid_hc_tx_exit != NULL)
-			ccid_ops->ccid_hc_tx_exit(sk);
-		kmem_cache_free(ccid_ops->ccid_hc_tx_slab,  ccid);
+	if (ccid != NULL) {
+		if (ccid->ccid_ops->ccid_hc_rx_exit != NULL)
+			ccid->ccid_ops->ccid_hc_rx_exit(sk);
+		kmem_cache_free(ccid->ccid_ops->ccid_hc_rx_slab, ccid);
 	}
 }
 
-void ccid_hc_rx_delete(struct ccid *ccid, struct sock *sk)
-{
-	ccid_delete(ccid, sk, 1);
-}
-
-EXPORT_SYMBOL_GPL(ccid_hc_rx_delete);
-
 void ccid_hc_tx_delete(struct ccid *ccid, struct sock *sk)
 {
-	ccid_delete(ccid, sk, 0);
+	if (ccid != NULL) {
+		if (ccid->ccid_ops->ccid_hc_tx_exit != NULL)
+			ccid->ccid_ops->ccid_hc_tx_exit(sk);
+		kmem_cache_free(ccid->ccid_ops->ccid_hc_tx_slab, ccid);
+	}
 }
-
-EXPORT_SYMBOL_GPL(ccid_hc_tx_delete);
 
 int __init ccid_initialize_builtins(void)
 {

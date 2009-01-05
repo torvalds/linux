@@ -34,7 +34,7 @@
 static int dccp_hdlr_ccid(struct sock *sk, u64 ccid, bool rx)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid *new_ccid = ccid_new(ccid, sk, rx, gfp_any());
+	struct ccid *new_ccid = ccid_new(ccid, sk, rx);
 
 	if (new_ccid == NULL)
 		return -ENOMEM;

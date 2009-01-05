@@ -111,8 +111,7 @@ extern int  ccid_get_builtin_ccids(u8 **ccid_array, u8 *array_len);
 extern int  ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
 					  char __user *, int __user *);
 
-extern struct ccid *ccid_new(unsigned char id, struct sock *sk, int rx,
-			     gfp_t gfp);
+extern struct ccid *ccid_new(const u8 id, struct sock *sk, bool rx);
 
 static inline int ccid_get_current_rx_ccid(struct dccp_sock *dp)
 {
