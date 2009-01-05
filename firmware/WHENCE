@@ -390,3 +390,22 @@ Licence:
 Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: ADAPTEC_STARFIRE - Adaptec Starfire/DuraLAN support
+
+File: adaptec/starfire_rx.bin
+File: adaptec/starfire_tx.bin
+
+Licence: Allegedly GPLv2, but no source visible.
+
+Found in hex form in kernel source, with the following notice:
+
+ BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE IT IS LICENSED "AS IS" AND
+ THERE IS NO WARRANTY FOR THE PROGRAM, INCLUDING BUT NOT LIMITED TO THE
+ IMPLIED WARRANTIES OF MERCHANTIBILITY OR FITNESS FOR A PARTICULAR PURPOSE
+ (TO THE EXTENT PERMITTED BY APPLICABLE LAW). USE OF THE PROGRAM IS AT YOUR
+ OWN RISK. IN NO EVENT WILL ADAPTEC OR ITS LICENSORS BE LIABLE TO YOU FOR
+ DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES
+ ARISING OUT OF THE USE OR INABILITY TO USE THE PROGRAM.
+
+--------------------------------------------------------------------------

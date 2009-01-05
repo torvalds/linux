@@ -42,11 +42,11 @@
 #include <linux/mii.h>
 #include <linux/if_vlan.h>
 #include <linux/mm.h>
+#include <linux/firmware.h>
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-#include "starfire_firmware.h"
 /*
  * The current frame processor firmware fails to checksum a fragment
  * of length 1. If and when this is fixed, the #define below can be removed.
@@ -173,6 +173,10 @@ static int full_duplex[MAX_UNITS] = {0, };
 #define skb_first_frag_len(skb)	skb_headlen(skb)
 #define skb_num_frags(skb) (skb_shinfo(skb)->nr_frags + 1)
 
+/* Firmware names */
+#define FIRMWARE_RX	"adaptec/starfire_rx.bin"
+#define FIRMWARE_TX	"adaptec/starfire_tx.bin"
+
 /* These identify the driver base version and may not be removed. */
 static char version[] =
 KERN_INFO "starfire.c:v1.03 7/26/2000  Written by Donald Becker <becker@scyld.com>\n"
@@ -182,6 +186,8 @@ MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Adaptec Starfire Ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
+MODULE_FIRMWARE(FIRMWARE_RX);
+MODULE_FIRMWARE(FIRMWARE_TX);
 
 module_param(max_interrupt_work, int, 0);
 module_param(mtu, int, 0);
@@ -902,9 +908,12 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 
 static int netdev_open(struct net_device *dev)
 {
+	const struct firmware *fw_rx, *fw_tx;
+	const __be32 *fw_rx_data, *fw_tx_data;
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
 	int i, retval;
+	size_t tx_size, rx_size;
 	size_t tx_done_q_size, rx_done_q_size, tx_ring_size, rx_ring_size;
 
 	/* Do we ever need to reset the chip??? */
@@ -1040,11 +1049,40 @@ static int netdev_open(struct net_device *dev)
 	writel(ETH_P_8021Q, ioaddr + VlanType);
 #endif /* VLAN_SUPPORT */
 
+	retval = request_firmware(&fw_rx, FIRMWARE_RX, &np->pci_dev->dev);
+	if (retval) {
+		printk(KERN_ERR "starfire: Failed to load firmware \"%s\"\n",
+		       FIRMWARE_RX);
+		return retval;
+	}
+	if (fw_rx->size % 4) {
+		printk(KERN_ERR "starfire: bogus length %zu in \"%s\"\n",
+		       fw_rx->size, FIRMWARE_RX);
+		retval = -EINVAL;
+		goto out_rx;
+	}
+	retval = request_firmware(&fw_tx, FIRMWARE_TX, &np->pci_dev->dev);
+	if (retval) {
+		printk(KERN_ERR "starfire: Failed to load firmware \"%s\"\n",
+		       FIRMWARE_TX);
+		goto out_rx;
+	}
+	if (fw_tx->size % 4) {
+		printk(KERN_ERR "starfire: bogus length %zu in \"%s\"\n",
+		       fw_tx->size, FIRMWARE_TX);
+		retval = -EINVAL;
+		goto out_tx;
+	}
+	fw_rx_data = (const __be32 *)&fw_rx->data[0];
+	fw_tx_data = (const __be32 *)&fw_tx->data[0];
+	rx_size = fw_rx->size / 4;
+	tx_size = fw_tx->size / 4;
+
 	/* Load Rx/Tx firmware into the frame processors */
-	for (i = 0; i < FIRMWARE_RX_SIZE * 2; i++)
-		writel(firmware_rx[i], ioaddr + RxGfpMem + i * 4);
-	for (i = 0; i < FIRMWARE_TX_SIZE * 2; i++)
-		writel(firmware_tx[i], ioaddr + TxGfpMem + i * 4);
+	for (i = 0; i < rx_size; i++)
+		writel(be32_to_cpup(&fw_rx_data[i]), ioaddr + RxGfpMem + i * 4);
+	for (i = 0; i < tx_size; i++)
+		writel(be32_to_cpup(&fw_tx_data[i]), ioaddr + TxGfpMem + i * 4);
 	if (enable_hw_cksum)
 		/* Enable the Rx and Tx units, and the Rx/Tx frame processors. */
 		writel(TxEnable|TxGFPEnable|RxEnable|RxGFPEnable, ioaddr + GenCtrl);
@@ -1056,7 +1094,11 @@ static int netdev_open(struct net_device *dev)
 		printk(KERN_DEBUG "%s: Done netdev_open().\n",
 		       dev->name);
 
-	return 0;
+out_tx:
+	release_firmware(fw_tx);
+out_rx:
+	release_firmware(fw_rx);
+	return retval;
 }
 
 
