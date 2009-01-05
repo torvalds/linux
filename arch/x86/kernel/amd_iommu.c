@@ -22,6 +22,7 @@
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/scatterlist.h>
+#include <linux/dma-mapping.h>
 #include <linux/iommu-helper.h>
 #ifdef CONFIG_IOMMU_API
 #include <linux/iommu.h>
@@ -1297,8 +1298,10 @@ static void __unmap_single(struct amd_iommu *iommu,
 /*
  * The exported map_single function for dma_ops.
  */
-static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
-			     size_t size, int dir)
+static dma_addr_t map_page(struct device *dev, struct page *page,
+			   unsigned long offset, size_t size,
+			   enum dma_data_direction dir,
+			   struct dma_attrs *attrs)
 {
 	unsigned long flags;
 	struct amd_iommu *iommu;
@@ -1306,6 +1309,7 @@ static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
 	u16 devid;
 	dma_addr_t addr;
 	u64 dma_mask;
+	phys_addr_t paddr = page_to_phys(page) + offset;
 
 	INC_STATS_COUNTER(cnt_map_single);
 
@@ -1337,11 +1341,18 @@ out:
 	return addr;
 }
 
+static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
+			     size_t size, int dir)
+{
+	return map_page(dev, pfn_to_page(paddr >> PAGE_SHIFT),
+			paddr & ~PAGE_MASK, size, dir, NULL);
+}
+
 /*
  * The exported unmap_single function for dma_ops.
  */
-static void unmap_single(struct device *dev, dma_addr_t dma_addr,
-			 size_t size, int dir)
+static void unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
+		       enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	unsigned long flags;
 	struct amd_iommu *iommu;
@@ -1365,6 +1376,12 @@ static void unmap_single(struct device *dev, dma_addr_t dma_addr,
 	iommu_completion_wait(iommu);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
+}
+
+static void unmap_single(struct device *dev, dma_addr_t dma_addr,
+			 size_t size, int dir)
+{
+	return unmap_page(dev, dma_addr, size, dir, NULL);
 }
 
 /*
@@ -1649,6 +1666,8 @@ static struct dma_mapping_ops amd_iommu_dma_ops = {
 	.free_coherent = free_coherent,
 	.map_single = map_single,
 	.unmap_single = unmap_single,
+	.map_page = map_page,
+	.unmap_page = unmap_page,
 	.map_sg = map_sg,
 	.unmap_sg = unmap_sg,
 	.dma_supported = amd_iommu_dma_supported,
