@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/dma-mapping.h>
 #include <linux/intel-iommu.h>
 
 void *
@@ -57,3 +58,20 @@ vtd_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vtd_dma_mapping_error);
+
+extern int iommu_dma_supported(struct device *dev, u64 mask);
+
+struct dma_mapping_ops vtd_dma_ops = {
+	.alloc_coherent		= vtd_alloc_coherent,
+	.free_coherent		= vtd_free_coherent,
+	.map_single_attrs	= vtd_map_single_attrs,
+	.unmap_single_attrs	= vtd_unmap_single_attrs,
+	.map_sg_attrs		= vtd_map_sg_attrs,
+	.unmap_sg_attrs		= vtd_unmap_sg_attrs,
+	.sync_single_for_cpu	= machvec_dma_sync_single,
+	.sync_sg_for_cpu	= machvec_dma_sync_sg,
+	.sync_single_for_device	= machvec_dma_sync_single,
+	.sync_sg_for_device	= machvec_dma_sync_sg,
+	.dma_supported_op	= iommu_dma_supported,
+	.mapping_error		= vtd_dma_mapping_error,
+};
