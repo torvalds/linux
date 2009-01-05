@@ -2057,9 +2057,10 @@ exit:
 	return 0;
 }
 
-static int at76_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
+static int at76_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct at76_priv *priv = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
 
 	at76_dbg(DBG_MAC80211, "%s(): channel %d radio %d",
 		 __func__, conf->channel->hw_value, conf->radio_enabled);
@@ -2089,15 +2090,13 @@ static int at76_config_interface(struct ieee80211_hw *hw,
 {
 	struct at76_priv *priv = hw->priv;
 
-	at76_dbg(DBG_MAC80211, "%s(): ssid_len=%zd", __func__, conf->ssid_len);
-	at76_dbg_dump(DBG_MAC80211, conf->ssid, conf->ssid_len, "ssid:");
 	at76_dbg_dump(DBG_MAC80211, conf->bssid, ETH_ALEN, "bssid:");
 
 	mutex_lock(&priv->mtx);
 
 	memcpy(priv->bssid, conf->bssid, ETH_ALEN);
-	memcpy(priv->essid, conf->ssid, conf->ssid_len);
-	priv->essid_size = conf->ssid_len;
+//	memcpy(priv->essid, conf->ssid, conf->ssid_len);
+//	priv->essid_size = conf->ssid_len;
 
 	if (is_valid_ether_addr(priv->bssid)) {
 		/* mac80211 is joining a bss */
