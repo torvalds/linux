@@ -187,7 +187,6 @@ struct req_que;
  * SCSI Request Block
  */
 typedef struct srb {
-	struct scsi_qla_host *vha;	/* HA the SP is queued on */
 	struct req_que *que;
 	struct fc_port *fcport;
 

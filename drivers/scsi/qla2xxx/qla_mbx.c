@@ -3145,7 +3145,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp,
 	mcp->mb[7] = LSW(MSD(rsp->dma));
 	mcp->mb[5] = rsp->length;
 	mcp->mb[11] = rsp->vp_idx;
-	mcp->mb[14] = rsp->msix->vector;
+	mcp->mb[14] = rsp->msix->entry;
 	mcp->mb[13] = rsp->rid;
 
 	reg = (struct device_reg_25xxmq *)((void *)(ha->mqiobase) +

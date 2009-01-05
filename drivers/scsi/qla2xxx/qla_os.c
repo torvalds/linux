@@ -438,7 +438,6 @@ qla2x00_get_new_sp(scsi_qla_host_t *vha, fc_port_t *fcport,
 	if (!sp)
 		return sp;
 
-	sp->vha = vha;
 	sp->fcport = fcport;
 	sp->cmd = cmd;
 	sp->que = ha->req_q_map[0];
@@ -1182,7 +1181,7 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 			continue;
 		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
 			sp = req->outstanding_cmds[cnt];
-			if (sp && sp->vha == vha) {
+			if (sp && sp->fcport->vha == vha) {
 				req->outstanding_cmds[cnt] = NULL;
 				sp->cmd->result = res;
 				qla2x00_sp_compl(ha, sp);

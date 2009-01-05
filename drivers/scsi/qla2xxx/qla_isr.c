@@ -2026,7 +2026,7 @@ qla2x00_get_rsp_host(struct rsp_que *rsp)
 		if (pkt && pkt->handle < MAX_OUTSTANDING_COMMANDS) {
 			sp = req->outstanding_cmds[pkt->handle];
 			if (sp)
-				vha = sp->vha;
+				vha = sp->fcport->vha;
 		}
 	}
 	if (!vha)
