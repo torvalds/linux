@@ -56,9 +56,12 @@ use_swiotlb (struct device *dev)
 	return dev && dev->dma_mask && !hwiommu_dma_supported(dev, *dev->dma_mask);
 }
 
+struct dma_mapping_ops hwsw_dma_ops;
+
 void __init
 hwsw_init (void)
 {
+	dma_ops = &hwsw_dma_ops;
 	/* default to a smallish 2MB sw I/O TLB */
 	if (swiotlb_late_init_with_default_size (2 * (1<<20)) != 0) {
 #ifdef CONFIG_IA64_GENERIC

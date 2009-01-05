@@ -481,3 +481,8 @@ struct dma_mapping_ops sn_dma_ops = {
 	.mapping_error		= sn_dma_mapping_error,
 	.dma_supported_op	= sn_dma_supported,
 };
+
+void sn_dma_init(void)
+{
+	dma_ops = &sn_dma_ops;
+}

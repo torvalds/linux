@@ -2065,6 +2065,8 @@ static struct acpi_driver acpi_sba_ioc_driver = {
 	},
 };
 
+extern struct dma_mapping_ops swiotlb_dma_ops;
+
 static int __init
 sba_init(void)
 {
@@ -2078,6 +2080,7 @@ sba_init(void)
 	 * a successful kdump kernel boot is to use the swiotlb.
 	 */
 	if (is_kdump_kernel()) {
+		dma_ops = &swiotlb_dma_ops;
 		if (swiotlb_late_init_with_default_size(64 * (1<<20)) != 0)
 			panic("Unable to initialize software I/O TLB:"
 				  " Try machvec=dig boot option");
@@ -2093,6 +2096,7 @@ sba_init(void)
 		 * If we didn't find something sba_iommu can claim, we
 		 * need to setup the swiotlb and switch to the dig machvec.
 		 */
+		dma_ops = &swiotlb_dma_ops;
 		if (swiotlb_late_init_with_default_size(64 * (1<<20)) != 0)
 			panic("Unable to find SBA IOMMU or initialize "
 			      "software I/O TLB: Try machvec=dig boot option");
@@ -2196,3 +2200,8 @@ struct dma_mapping_ops sba_dma_ops = {
 	.dma_supported_op	= sba_dma_supported,
 	.mapping_error		= sba_dma_mapping_error,
 };
+
+void sba_dma_init(void)
+{
+	dma_ops = &sba_dma_ops;
+}

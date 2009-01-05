@@ -298,6 +298,8 @@ extern void machvec_init_from_cmdline(const char *cmdline);
 #  error Unknown configuration.  Update arch/ia64/include/asm/machvec.h.
 # endif /* CONFIG_IA64_GENERIC */
 
+extern void swiotlb_dma_init(void);
+
 /*
  * Define default versions so we can extend machvec for new platforms without having
  * to update the machvec files for all existing platforms.
@@ -328,7 +330,7 @@ extern void machvec_init_from_cmdline(const char *cmdline);
 # define platform_kernel_launch_event	machvec_noop
 #endif
 #ifndef platform_dma_init
-# define platform_dma_init		swiotlb_init
+# define platform_dma_init		swiotlb_dma_init
 #endif
 #ifndef platform_dma_alloc_coherent
 # define platform_dma_alloc_coherent	swiotlb_alloc_coherent

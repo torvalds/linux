@@ -41,8 +41,11 @@ struct device fallback_dev = {
 	.dma_mask = &fallback_dev.coherent_dma_mask,
 };
 
+extern struct dma_mapping_ops vtd_dma_ops;
+
 void __init pci_iommu_alloc(void)
 {
+	dma_ops = &vtd_dma_ops;
 	/*
 	 * The order of these functions is important for
 	 * fall-back/fail-over reasons
@@ -75,9 +78,6 @@ iommu_dma_init(void)
 {
 	return;
 }
-
-struct dma_mapping_ops *dma_ops;
-EXPORT_SYMBOL(dma_ops);
 
 int iommu_dma_supported(struct device *dev, u64 mask)
 {

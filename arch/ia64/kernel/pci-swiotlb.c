@@ -37,6 +37,12 @@ struct dma_mapping_ops swiotlb_dma_ops = {
 	.mapping_error = swiotlb_dma_mapping_error,
 };
 
+void swiotlb_dma_init(void)
+{
+	dma_ops = &swiotlb_dma_ops;
+	swiotlb_init();
+}
+
 void __init pci_swiotlb_init(void)
 {
 	if (!iommu_detected) {
