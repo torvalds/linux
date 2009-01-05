@@ -242,7 +242,7 @@ rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
 #endif
 
 #define RT28XX_IRQ_REQUEST(net_dev)							\
-{	PRTMP_ADAPTER _pAd = (PRTMP_ADAPTER)((net_dev)->priv);	\
+{	PRTMP_ADAPTER _pAd = (PRTMP_ADAPTER)((net_dev)->ml_priv);	\
 	POS_COOKIE _pObj = (POS_COOKIE)(_pAd->OS_Cookie);		\
 	RTMP_MSI_ENABLE(_pAd);									\
 	if ((retval = request_irq(_pObj->pci_dev->irq, 		\
@@ -253,7 +253,7 @@ rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 #define RT28XX_IRQ_RELEASE(net_dev)								\
-{	PRTMP_ADAPTER _pAd = (PRTMP_ADAPTER)((net_dev)->priv);		\
+{	PRTMP_ADAPTER _pAd = (PRTMP_ADAPTER)((net_dev)->ml_priv);		\
 	POS_COOKIE _pObj = (POS_COOKIE)(_pAd->OS_Cookie);			\
 	synchronize_irq(_pObj->pci_dev->irq);						\
 	free_irq(_pObj->pci_dev->irq, (net_dev));					\

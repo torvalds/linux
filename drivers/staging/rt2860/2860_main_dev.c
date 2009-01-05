@@ -170,7 +170,7 @@ static int rt2860_suspend(
 	}
 	else
 	{
-		pAd = (PRTMP_ADAPTER)net_dev->priv;
+		pAd = net_dev->ml_priv;
 
 		/* we can not use IFF_UP because ra0 down but ra1 up */
 		/* and 1 suspend/resume function for 1 module, not for each interface */
@@ -249,7 +249,7 @@ static int rt2860_resume(
 		DBGPRINT(RT_DEBUG_ERROR, ("net_dev == NULL!\n"));
 	}
 	else
-		pAd = (PRTMP_ADAPTER)net_dev->priv;
+		pAd = net_dev->ml_priv;
 
 	if (pAd != NULL)
 	{
@@ -336,7 +336,7 @@ static VOID __devexit rt2860_remove_one(
     IN  struct pci_dev  *pci_dev)
 {
     struct net_device   *net_dev = pci_get_drvdata(pci_dev);
-    RTMP_ADAPTER        *pAd = net_dev->priv;
+    RTMP_ADAPTER        *pAd = net_dev->ml_priv;
 
     DBGPRINT(RT_DEBUG_TRACE, ("===> rt2860_remove_one\n"));
 
@@ -765,7 +765,7 @@ rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 #endif
 {
 	struct net_device *net_dev = (struct net_device *) dev_instance;
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) net_dev->priv;
+	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 	INT_SOURCE_CSR_STRUC	IntSource;
 	POS_COOKIE pObj;
 
@@ -1300,7 +1300,7 @@ VOID rt2860_stop(struct net_device *net_dev)
 		DBGPRINT(RT_DEBUG_ERROR, ("net_dev == NULL!\n"));
 	}
 	else
-		pAd = (PRTMP_ADAPTER)net_dev->priv;
+		pAd = net_dev->ml_priv;
 
 	if (pAd != NULL)
 	{

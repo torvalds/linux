@@ -135,7 +135,7 @@ Note:
 */
 int MainVirtualIF_close(IN struct net_device *net_dev)
 {
-    RTMP_ADAPTER *pAd = net_dev->priv;
+    RTMP_ADAPTER *pAd = net_dev->ml_priv;
 
 	// Sanity check for pAd
 	if (pAd == NULL)
@@ -174,7 +174,7 @@ Note:
 */
 int MainVirtualIF_open(IN struct net_device *net_dev)
 {
-    RTMP_ADAPTER *pAd = net_dev->priv;
+    RTMP_ADAPTER *pAd = net_dev->ml_priv;
 
 	// Sanity check for pAd
 	if (pAd == NULL)
@@ -216,7 +216,7 @@ Note:
 int rt28xx_close(IN PNET_DEV dev)
 {
 	struct net_device * net_dev = (struct net_device *)dev;
-    RTMP_ADAPTER	*pAd = net_dev->priv;
+    RTMP_ADAPTER	*pAd = net_dev->ml_priv;
 	BOOLEAN 		Cancelled = FALSE;
 	UINT32			i = 0;
 
@@ -396,7 +396,7 @@ int rt28xx_close(IN PNET_DEV dev)
 
 static int rt28xx_init(IN struct net_device *net_dev)
 {
-	PRTMP_ADAPTER 			pAd = (PRTMP_ADAPTER)net_dev->priv;
+	PRTMP_ADAPTER 			pAd = (PRTMP_ADAPTER)net_dev->ml_priv;
 	UINT					index;
 	UCHAR					TmpPhy;
 	NDIS_STATUS				Status;
@@ -605,8 +605,8 @@ err1:
 #endif // DOT11_N_SUPPORT //
 	RT28XX_IRQ_RELEASE(net_dev);
 
-	// shall not set priv to NULL here because the priv didn't been free yet.
-	//net_dev->priv = 0;
+	// shall not set ml_priv to NULL here because the ml_priv didn't been free yet.
+	//net_dev->ml_priv = 0;
 #ifdef INF_AMAZON_SE
 err0:
 #endif // INF_AMAZON_SE //
@@ -633,7 +633,7 @@ Note:
 int rt28xx_open(IN PNET_DEV dev)
 {
 	struct net_device * net_dev = (struct net_device *)dev;
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER)net_dev->priv;
+	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 	int retval = 0;
  	POS_COOKIE pObj;
 
@@ -642,7 +642,7 @@ int rt28xx_open(IN PNET_DEV dev)
 	if (pAd == NULL)
 	{
 		/* if 1st open fail, pAd will be free;
-		   So the net_dev->priv will be NULL in 2rd open */
+		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -1;
 	}
 
@@ -1303,7 +1303,7 @@ INT __devinit   rt28xx_probe(
 	if (status != NDIS_STATUS_SUCCESS)
 		goto err_out_free_netdev;
 
-	net_dev->priv = (PVOID)pAd;
+	net_dev->ml_priv = (PVOID)pAd;
     pAd->net_dev = net_dev; // must be before RT28XXNetDevInit()
 
 	RT28XXNetDevInit(_dev_p, net_dev, pAd);
@@ -1399,7 +1399,7 @@ Note:
 int rt28xx_packet_xmit(struct sk_buff *skb)
 {
 	struct net_device *net_dev = skb->dev;
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) net_dev->priv;
+	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 	int status = 0;
 	PNDIS_PACKET pPacket = (PNDIS_PACKET) skb;
 
@@ -1478,7 +1478,7 @@ INT rt28xx_send_packets(
 	IN struct sk_buff 		*skb_p,
 	IN struct net_device 	*net_dev)
 {
-    RTMP_ADAPTER *pAd = net_dev->priv;
+    RTMP_ADAPTER *pAd = net_dev->ml_priv;
 	if (!(net_dev->flags & IFF_UP))
 	{
 		RELEASE_NDIS_PACKET(pAd, (PNDIS_PACKET)skb_p, NDIS_STATUS_FAILURE);
@@ -1540,7 +1540,7 @@ void CfgInitHook(PRTMP_ADAPTER pAd)
 struct iw_statistics *rt28xx_get_wireless_stats(
     IN struct net_device *net_dev)
 {
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) net_dev->priv;
+	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 
 
 	DBGPRINT(RT_DEBUG_TRACE, ("rt28xx_get_wireless_stats --->\n"));
@@ -1592,18 +1592,18 @@ INT rt28xx_ioctl(
 
 	if (net_dev->priv_flags == INT_MAIN)
 	{
-		pAd = net_dev->priv;
+		pAd = net_dev->ml_priv;
 	}
 	else
 	{
-		pVirtualAd = net_dev->priv;
-		pAd = pVirtualAd->RtmpDev->priv;
+		pVirtualAd = net_dev->ml_priv;
+		pAd = pVirtualAd->RtmpDev->ml_priv;
 	}
 
 	if (pAd == NULL)
 	{
 		/* if 1st open fail, pAd will be free;
-		   So the net_dev->priv will be NULL in 2rd open */
+		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
 
@@ -1640,7 +1640,7 @@ struct net_device_stats *RT28xx_get_ether_stats(
     RTMP_ADAPTER *pAd = NULL;
 
 	if (net_dev)
-		pAd = net_dev->priv;
+		pAd = net_dev->ml_priv;
 
 	if (pAd)
 	{
