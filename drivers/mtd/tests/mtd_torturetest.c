@@ -450,7 +450,7 @@ static void report_corrupt(unsigned char *read, unsigned char *written)
 		printk("-------------------------------------------------------"
 		       "----------------------------------\n");
 
-		printk(PRINT_PREF "Page %d has %d bytes/%d bits failing verify,"
+		printk(PRINT_PREF "Page %zd has %d bytes/%d bits failing verify,"
 		       " starting at offset 0x%x\n",
 		       (mtd->erasesize - check_len + i) / pgsize,
 		       bytes, bits, first);

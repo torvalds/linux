@@ -125,7 +125,7 @@ static int write_eraseblock(int ebnum)
 		       (long long)addr);
 		if (written != subpgsize) {
 			printk(PRINT_PREF "  write size: %#x\n", subpgsize);
-			printk(PRINT_PREF "  written: %#x\n", written);
+			printk(PRINT_PREF "  written: %#zx\n", written);
 		}
 		return err ? err : -1;
 	}
@@ -139,7 +139,7 @@ static int write_eraseblock(int ebnum)
 		       (long long)addr);
 		if (written != subpgsize) {
 			printk(PRINT_PREF "  write size: %#x\n", subpgsize);
-			printk(PRINT_PREF "  written: %#x\n", written);
+			printk(PRINT_PREF "  written: %#zx\n", written);
 		}
 		return err ? err : -1;
 	}
@@ -164,7 +164,7 @@ static int write_eraseblock2(int ebnum)
 			if (written != subpgsize) {
 				printk(PRINT_PREF "  write size: %#x\n",
 				       subpgsize * k);
-				printk(PRINT_PREF "  written: %#08x\n",
+				printk(PRINT_PREF "  written: %#08zx\n",
 				       written);
 			}
 			return err ? err : -1;
