@@ -13,8 +13,8 @@
  */
 
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/swiotlb.h>
-
 #include <asm/machvec.h>
 
 /* swiotlb declarations & definitions: */
@@ -193,3 +193,18 @@ EXPORT_SYMBOL(hwsw_sync_single_for_cpu);
 EXPORT_SYMBOL(hwsw_sync_single_for_device);
 EXPORT_SYMBOL(hwsw_sync_sg_for_cpu);
 EXPORT_SYMBOL(hwsw_sync_sg_for_device);
+
+struct dma_mapping_ops hwsw_dma_ops = {
+	.alloc_coherent		= hwsw_alloc_coherent,
+	.free_coherent		= hwsw_free_coherent,
+	.map_single_attrs	= hwsw_map_single_attrs,
+	.unmap_single_attrs	= hwsw_unmap_single_attrs,
+	.map_sg_attrs		= hwsw_map_sg_attrs,
+	.unmap_sg_attrs		= hwsw_unmap_sg_attrs,
+	.sync_single_for_cpu	= hwsw_sync_single_for_cpu,
+	.sync_sg_for_cpu	= hwsw_sync_sg_for_cpu,
+	.sync_single_for_device	= hwsw_sync_single_for_device,
+	.sync_sg_for_device	= hwsw_sync_sg_for_device,
+	.dma_supported_op	= hwsw_dma_supported,
+	.mapping_error		= hwsw_dma_mapping_error,
+};
