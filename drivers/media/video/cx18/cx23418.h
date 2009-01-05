@@ -56,6 +56,22 @@
 #define APU_CMD_MASK 				0x10000000
 #define APU_CMD_MASK_ACK 			(APU_CMD_MASK | 0x80000000)
 
+#define CX18_APU_ENCODING_METHOD_MPEG		(0 << 28)
+#define CX18_APU_ENCODING_METHOD_AC3		(1 << 28)
+
+/* Description: Command APU to start audio
+   IN[0] - audio parameters (same as CX18_CPU_SET_AUDIO_PARAMETERS?)
+   IN[1] - caller buffer address, or 0
+   ReturnCode - ??? */
+#define CX18_APU_START				(APU_CMD_MASK | 0x01)
+
+/* Description: Command APU to stop audio
+   IN[0] - encoding method to stop
+   ReturnCode - ??? */
+#define CX18_APU_STOP				(APU_CMD_MASK | 0x02)
+
+/* Description: Command APU to reset the AI
+   ReturnCode - ??? */
 #define CX18_APU_RESETAI 			(APU_CMD_MASK | 0x05)
 
 /* Description: This command indicates that a Memory Descriptor List has been
