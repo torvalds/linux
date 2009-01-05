@@ -1609,6 +1609,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		goto fail_iput;
 
 	memcpy(&fs_info->super_copy, bh->b_data, sizeof(fs_info->super_copy));
+	memcpy(&fs_info->super_for_commit, &fs_info->super_copy,
+	       sizeof(fs_info->super_for_commit));
 	brelse(bh);
 
 	memcpy(fs_info->fsid, fs_info->super_copy.fsid, BTRFS_FSID_SIZE);
@@ -1790,7 +1792,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	btrfs_read_block_groups(extent_root);
 
-	fs_info->generation = generation + 1;
+	fs_info->generation = generation;
 	fs_info->last_trans_committed = generation;
 	fs_info->data_alloc_profile = (u64)-1;
 	fs_info->metadata_alloc_profile = (u64)-1;
