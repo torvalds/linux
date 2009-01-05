@@ -2273,6 +2273,15 @@ error:
 	return 0;
 }
 
+static dma_addr_t intel_map_page(struct device *dev, struct page *page,
+				 unsigned long offset, size_t size,
+				 enum dma_data_direction dir,
+				 struct dma_attrs *attrs)
+{
+	return __intel_map_single(dev, page_to_phys(page) + offset, size,
+				  dir, to_pci_dev(dev)->dma_mask);
+}
+
 dma_addr_t intel_map_single(struct device *hwdev, phys_addr_t paddr,
 			    size_t size, int dir)
 {
@@ -2341,8 +2350,9 @@ static void add_unmap(struct dmar_domain *dom, struct iova *iova)
 	spin_unlock_irqrestore(&async_umap_flush_lock, flags);
 }
 
-void intel_unmap_single(struct device *dev, dma_addr_t dev_addr, size_t size,
-			int dir)
+static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
+			     size_t size, enum dma_data_direction dir,
+			     struct dma_attrs *attrs)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct dmar_domain *domain;
@@ -2384,6 +2394,12 @@ void intel_unmap_single(struct device *dev, dma_addr_t dev_addr, size_t size,
 		 * cpu used up by the iotlb flush operation...
 		 */
 	}
+}
+
+void intel_unmap_single(struct device *dev, dma_addr_t dev_addr, size_t size,
+			int dir)
+{
+	intel_unmap_page(dev, dev_addr, size, dir, NULL);
 }
 
 void *intel_alloc_coherent(struct device *hwdev, size_t size,
@@ -2570,6 +2586,10 @@ static struct dma_mapping_ops intel_dma_ops = {
 	.unmap_single = intel_unmap_single,
 	.map_sg = intel_map_sg,
 	.unmap_sg = intel_unmap_sg,
+#ifdef CONFIG_X86_64
+	.map_page = intel_map_page,
+	.unmap_page = intel_unmap_page,
+#endif
 };
 
 static inline int iommu_domain_cache_init(void)
