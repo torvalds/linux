@@ -1504,11 +1504,6 @@ static void __cpuinit init_hrtimers_cpu(int cpu)
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-static void tickle_timers(void *arg)
-{
-	hrtimer_peek_ahead_timers();
-}
-
 static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 				struct hrtimer_clock_base *new_base)
 {
@@ -1547,20 +1542,19 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 static void migrate_hrtimers(int scpu)
 {
 	struct hrtimer_cpu_base *old_base, *new_base;
-	int dcpu, i;
+	int i;
 
 	BUG_ON(cpu_online(scpu));
-	old_base = &per_cpu(hrtimer_bases, scpu);
-	new_base = &get_cpu_var(hrtimer_bases);
-
-	dcpu = smp_processor_id();
-
 	tick_cancel_sched_timer(scpu);
+
+	local_irq_disable();
+	old_base = &per_cpu(hrtimer_bases, scpu);
+	new_base = &__get_cpu_var(hrtimer_bases);
 	/*
 	 * The caller is globally serialized and nobody else
 	 * takes two locks at once, deadlock is not possible.
 	 */
-	spin_lock_irq(&new_base->lock);
+	spin_lock(&new_base->lock);
 	spin_lock_nested(&old_base->lock, SINGLE_DEPTH_NESTING);
 
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
@@ -1569,10 +1563,11 @@ static void migrate_hrtimers(int scpu)
 	}
 
 	spin_unlock(&old_base->lock);
-	spin_unlock_irq(&new_base->lock);
-	put_cpu_var(hrtimer_bases);
+	spin_unlock(&new_base->lock);
 
-	smp_call_function_single(dcpu, tickle_timers, NULL, 0);
+	/* Check, if we got expired work to do */
+	__hrtimer_peek_ahead_timers();
+	local_irq_enable();
 }
 
 #endif /* CONFIG_HOTPLUG_CPU */
