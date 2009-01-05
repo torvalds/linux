@@ -29,7 +29,8 @@
 
 #if defined(CONFIG_PPC_85xx) || defined(CONFIG_PPC_86xx)
 /* atmu setup for fsl pci/pcie controller */
-void __init setup_pci_atmu(struct pci_controller *hose, struct resource *rsrc)
+static void __init setup_pci_atmu(struct pci_controller *hose,
+				  struct resource *rsrc)
 {
 	struct ccsr_pci __iomem *pci;
 	int i;
@@ -86,7 +87,7 @@ void __init setup_pci_atmu(struct pci_controller *hose, struct resource *rsrc)
 	out_be32(&pci->piw[2].piwar, PIWAR_2G);
 }
 
-void __init setup_pci_cmd(struct pci_controller *hose)
+static void __init setup_pci_cmd(struct pci_controller *hose)
 {
 	u16 cmd;
 	int cap_x;
@@ -130,7 +131,7 @@ static void __init quirk_fsl_pcie_header(struct pci_dev *dev)
 	return ;
 }
 
-int __init fsl_pcie_check_link(struct pci_controller *hose)
+static int __init fsl_pcie_check_link(struct pci_controller *hose)
 {
 	u32 val;
 	early_read_config_dword(hose, 0, 0, PCIE_LTSSM, &val);
