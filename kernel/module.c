@@ -1725,15 +1725,15 @@ static const struct kernel_symbol *lookup_symbol(const char *name,
 	return NULL;
 }
 
-static int is_exported(const char *name, const struct module *mod)
+static int is_exported(const char *name, unsigned long value,
+		       const struct module *mod)
 {
-	if (!mod && lookup_symbol(name, __start___ksymtab, __stop___ksymtab))
-		return 1;
+	const struct kernel_symbol *ks;
+	if (!mod)
+		ks = lookup_symbol(name, __start___ksymtab, __stop___ksymtab);
 	else
-		if (mod && lookup_symbol(name, mod->syms, mod->syms + mod->num_syms))
-			return 1;
-		else
-			return 0;
+		ks = lookup_symbol(name, mod->syms, mod->syms + mod->num_syms);
+	return ks != NULL && ks->value == value;
 }
 
 /* As per nm */
@@ -2504,7 +2504,7 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 			strlcpy(name, mod->strtab + mod->symtab[symnum].st_name,
 				KSYM_NAME_LEN);
 			strlcpy(module_name, mod->name, MODULE_NAME_LEN);
-			*exported = is_exported(name, mod);
+			*exported = is_exported(name, *value, mod);
 			preempt_enable();
 			return 0;
 		}
