@@ -1386,11 +1386,11 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	list_del(&client->link);
 	mutex_unlock(&client->device->client_list_mutex);
 
-	if (client->buffer.pages)
-		fw_iso_buffer_destroy(&client->buffer, client->device->card);
-
 	if (client->iso_context)
 		fw_iso_context_destroy(client->iso_context);
+
+	if (client->buffer.pages)
+		fw_iso_buffer_destroy(&client->buffer, client->device->card);
 
 	/* Freeze client->resource_idr and client->event_list */
 	spin_lock_irq(&client->lock);
