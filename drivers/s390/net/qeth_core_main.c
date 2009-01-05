@@ -287,8 +287,15 @@ int qeth_set_large_send(struct qeth_card *card,
 	card->options.large_send = type;
 	switch (card->options.large_send) {
 	case QETH_LARGE_SEND_EDDP:
-		card->dev->features |= NETIF_F_TSO | NETIF_F_SG |
+		if (card->info.type != QETH_CARD_TYPE_IQD) {
+			card->dev->features |= NETIF_F_TSO | NETIF_F_SG |
 					NETIF_F_HW_CSUM;
+		} else {
+			card->dev->features &= ~(NETIF_F_TSO | NETIF_F_SG |
+						NETIF_F_HW_CSUM);
+			card->options.large_send = QETH_LARGE_SEND_NO;
+			rc = -EOPNOTSUPP;
+		}
 		break;
 	case QETH_LARGE_SEND_TSO:
 		if (qeth_is_supported(card, IPA_OUTBOUND_TSO)) {
