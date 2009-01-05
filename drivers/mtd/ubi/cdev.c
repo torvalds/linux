@@ -546,6 +546,20 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 		err = ubi_leb_unmap(desc, lnum);
 		break;
 	}
+
+	/* Check if logical eraseblock is mapped command */
+	case UBI_IOCEBISMAP:
+	{
+		int32_t lnum;
+
+		err = get_user(lnum, (__user int32_t *)argp);
+		if (err) {
+			err = -EFAULT;
+			break;
+		}
+		err = ubi_is_mapped(desc, lnum);
+		break;
+	}
 #endif
 
 	default:
