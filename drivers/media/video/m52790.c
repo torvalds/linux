@@ -80,29 +80,28 @@ static int m52790_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *r
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-static int m52790_g_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
+static int m52790_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	struct m52790_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!v4l2_chip_match_i2c_client(client,
-				reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	if (reg->reg != 0)
 		return -EINVAL;
+	reg->size = 1;
 	reg->val = state->input | state->output;
 	return 0;
 }
 
-static int m52790_s_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
+static int m52790_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	struct m52790_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!v4l2_chip_match_i2c_client(client,
-				reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -115,7 +114,7 @@ static int m52790_s_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
 }
 #endif
 
-static int m52790_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip)
+static int m52790_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

@@ -136,7 +136,7 @@ void tick_setup_periodic(struct clock_event_device *dev, int broadcast)
  */
 static void tick_setup_device(struct tick_device *td,
 			      struct clock_event_device *newdev, int cpu,
-			      const cpumask_t *cpumask)
+			      const struct cpumask *cpumask)
 {
 	ktime_t next_event;
 	void (*handler)(struct clock_event_device *) = NULL;
@@ -171,8 +171,8 @@ static void tick_setup_device(struct tick_device *td,
 	 * When the device is not per cpu, pin the interrupt to the
 	 * current cpu:
 	 */
-	if (!cpus_equal(newdev->cpumask, *cpumask))
-		irq_set_affinity(newdev->irq, *cpumask);
+	if (!cpumask_equal(newdev->cpumask, cpumask))
+		irq_set_affinity(newdev->irq, cpumask);
 
 	/*
 	 * When global broadcasting is active, check if the current
@@ -202,14 +202,14 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 	spin_lock_irqsave(&tick_device_lock, flags);
 
 	cpu = smp_processor_id();
-	if (!cpu_isset(cpu, newdev->cpumask))
+	if (!cpumask_test_cpu(cpu, newdev->cpumask))
 		goto out_bc;
 
 	td = &per_cpu(tick_cpu_device, cpu);
 	curdev = td->evtdev;
 
 	/* cpu local device ? */
-	if (!cpus_equal(newdev->cpumask, cpumask_of_cpu(cpu))) {
+	if (!cpumask_equal(newdev->cpumask, cpumask_of(cpu))) {
 
 		/*
 		 * If the cpu affinity of the device interrupt can not
@@ -222,7 +222,7 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 		 * If we have a cpu local device already, do not replace it
 		 * by a non cpu local device
 		 */
-		if (curdev && cpus_equal(curdev->cpumask, cpumask_of_cpu(cpu)))
+		if (curdev && cpumask_equal(curdev->cpumask, cpumask_of(cpu)))
 			goto out_bc;
 	}
 
@@ -254,7 +254,7 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 		curdev = NULL;
 	}
 	clockevents_exchange_device(curdev, newdev);
-	tick_setup_device(td, newdev, cpu, &cpumask_of_cpu(cpu));
+	tick_setup_device(td, newdev, cpu, cpumask_of(cpu));
 	if (newdev->features & CLOCK_EVT_FEAT_ONESHOT)
 		tick_oneshot_notify();
 
@@ -299,9 +299,9 @@ static void tick_shutdown(unsigned int *cpup)
 	}
 	/* Transfer the do_timer job away from this cpu */
 	if (*cpup == tick_do_timer_cpu) {
-		int cpu = first_cpu(cpu_online_map);
+		int cpu = cpumask_first(cpu_online_mask);
 
-		tick_do_timer_cpu = (cpu != NR_CPUS) ? cpu :
+		tick_do_timer_cpu = (cpu < nr_cpu_ids) ? cpu :
 			TICK_DO_TIMER_NONE;
 	}
 	spin_unlock_irqrestore(&tick_device_lock, flags);

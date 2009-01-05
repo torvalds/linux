@@ -43,24 +43,22 @@
 #include "ivtv-cards.h"
 #include "ivtv-streams.h"
 
-static const struct file_operations ivtv_v4l2_enc_fops = {
+static const struct v4l2_file_operations ivtv_v4l2_enc_fops = {
 	.owner = THIS_MODULE,
 	.read = ivtv_v4l2_read,
 	.write = ivtv_v4l2_write,
 	.open = ivtv_v4l2_open,
 	.unlocked_ioctl = ivtv_v4l2_ioctl,
-	.compat_ioctl = v4l_compat_ioctl32,
 	.release = ivtv_v4l2_close,
 	.poll = ivtv_v4l2_enc_poll,
 };
 
-static const struct file_operations ivtv_v4l2_dec_fops = {
+static const struct v4l2_file_operations ivtv_v4l2_dec_fops = {
 	.owner = THIS_MODULE,
 	.read = ivtv_v4l2_read,
 	.write = ivtv_v4l2_write,
 	.open = ivtv_v4l2_open,
 	.unlocked_ioctl = ivtv_v4l2_ioctl,
-	.compat_ioctl = v4l_compat_ioctl32,
 	.release = ivtv_v4l2_close,
 	.poll = ivtv_v4l2_dec_poll,
 };
@@ -78,7 +76,7 @@ static struct {
 	int num_offset;
 	int dma, pio;
 	enum v4l2_buf_type buf_type;
-	const struct file_operations *fops;
+	const struct v4l2_file_operations *fops;
 } ivtv_stream_info[] = {
 	{	/* IVTV_ENC_STREAM_TYPE_MPG */
 		"encoder MPG",

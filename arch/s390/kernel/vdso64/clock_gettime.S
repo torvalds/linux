@@ -22,8 +22,10 @@ __kernel_clock_gettime:
 	larl	%r5,_vdso_data
 	cghi	%r2,CLOCK_REALTIME
 	je	4f
+	cghi	%r2,-2		/* CLOCK_THREAD_CPUTIME_ID for this thread */
+	je	9f
 	cghi	%r2,CLOCK_MONOTONIC
-	jne	9f
+	jne	12f
 
 	/* CLOCK_MONOTONIC */
 	ltgr	%r3,%r3
@@ -42,7 +44,7 @@ __kernel_clock_gettime:
 	alg	%r0,__VDSO_WTOM_SEC(%r5)
 	clg	%r4,__VDSO_UPD_COUNT(%r5)	/* check update counter */
 	jne	0b
-	larl	%r5,10f
+	larl	%r5,13f
 1:	clg	%r1,0(%r5)
 	jl	2f
 	slg	%r1,0(%r5)
@@ -68,7 +70,7 @@ __kernel_clock_gettime:
 	lg	%r0,__VDSO_XTIME_SEC(%r5)
 	clg	%r4,__VDSO_UPD_COUNT(%r5)	/* check update counter */
 	jne	5b
-	larl	%r5,10f
+	larl	%r5,13f
 6:	clg	%r1,0(%r5)
 	jl	7f
 	slg	%r1,0(%r5)
@@ -79,11 +81,38 @@ __kernel_clock_gettime:
 8:	lghi	%r2,0
 	br	%r14
 
+	/* CLOCK_THREAD_CPUTIME_ID for this thread */
+9:	icm	%r0,15,__VDSO_ECTG_OK(%r5)
+	jz	12f
+	ear	%r2,%a4
+	llilh	%r4,0x0100
+	sar	%a4,%r4
+	lghi	%r4,0
+	sacf	512				/* Magic ectg instruction */
+	.insn	ssf,0xc80100000000,__VDSO_ECTG_BASE(4),__VDSO_ECTG_USER(4),4
+	sacf	0
+	sar	%a4,%r2
+	algr	%r1,%r0				/* r1 = cputime as TOD value */
+	mghi	%r1,1000			/* convert to nanoseconds */
+	srlg	%r1,%r1,12			/* r1 = cputime in nanosec */
+	lgr	%r4,%r1
+	larl	%r5,13f
+	srlg	%r1,%r1,9			/* divide by 1000000000 */
+	mlg	%r0,8(%r5)
+	srlg	%r0,%r0,11			/* r0 = tv_sec */
+	stg	%r0,0(%r3)
+	msg	%r0,0(%r5)			/* calculate tv_nsec */
+	slgr	%r4,%r0				/* r4 = tv_nsec */
+	stg	%r4,8(%r3)
+	lghi	%r2,0
+	br	%r14
+
 	/* Fallback to system call */
-9:	lghi	%r1,__NR_clock_gettime
+12:	lghi	%r1,__NR_clock_gettime
 	svc	0
 	br	%r14
 
-10:	.quad	1000000000
+13:	.quad	1000000000
+14:	.quad	19342813113834067
 	.cfi_endproc
 	.size	__kernel_clock_gettime,.-__kernel_clock_gettime

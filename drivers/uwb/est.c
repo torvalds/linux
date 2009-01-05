@@ -40,10 +40,8 @@
  *   uwb_est_get_size()
  */
 #include <linux/spinlock.h>
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
-#include "uwb-internal.h"
 
+#include "uwb-internal.h"
 
 struct uwb_est {
 	u16 type_event_high;
@@ -51,7 +49,6 @@ struct uwb_est {
 	u8 entries;
 	const struct uwb_est_entry *entry;
 };
-
 
 static struct uwb_est *uwb_est;
 static u8 uwb_est_size;
@@ -440,21 +437,12 @@ ssize_t uwb_est_find_size(struct uwb_rc *rc, const struct uwb_rceb *rceb,
 	u8 *ptr = (u8 *) rceb;
 
 	read_lock_irqsave(&uwb_est_lock, flags);
-	d_printf(2, dev, "Size query for event 0x%02x/%04x/%02x,"
-		 " buffer size %ld\n",
-		 (unsigned) rceb->bEventType,
-		 (unsigned) le16_to_cpu(rceb->wEvent),
-		 (unsigned) rceb->bEventContext,
-		 (long) rceb_size);
 	size = -ENOSPC;
 	if (rceb_size < sizeof(*rceb))
 		goto out;
 	event = le16_to_cpu(rceb->wEvent);
 	type_event_high = rceb->bEventType << 8 | (event & 0xff00) >> 8;
 	for (itr = 0; itr < uwb_est_used; itr++) {
-		d_printf(3, dev, "Checking EST 0x%04x/%04x/%04x\n",
-			uwb_est[itr].type_event_high, uwb_est[itr].vendor,
-			uwb_est[itr].product);
 		if (uwb_est[itr].type_event_high != type_event_high)
 			continue;
 		size = uwb_est_get_size(rc, &uwb_est[itr],

@@ -112,11 +112,11 @@ void set_irq_affinity_info (unsigned int irq, int hwid, int redir)
 	}
 }
 
-bool is_affinity_mask_valid(cpumask_t cpumask)
+bool is_affinity_mask_valid(cpumask_var_t cpumask)
 {
 	if (ia64_platform_is("sn2")) {
 		/* Only allow one CPU to be specified in the smp_affinity mask */
-		if (cpus_weight(cpumask) != 1)
+		if (cpumask_weight(cpumask) != 1)
 			return false;
 	}
 	return true;
@@ -133,7 +133,6 @@ unsigned int vectors_in_migration[NR_IRQS];
  */
 static void migrate_irqs(void)
 {
-	cpumask_t	mask;
 	irq_desc_t *desc;
 	int 		irq, new_cpu;
 
@@ -152,15 +151,14 @@ static void migrate_irqs(void)
 		if (desc->status == IRQ_PER_CPU)
 			continue;
 
-		cpus_and(mask, irq_desc[irq].affinity, cpu_online_map);
-		if (any_online_cpu(mask) == NR_CPUS) {
+		if (cpumask_any_and(&irq_desc[irq].affinity, cpu_online_mask)
+		    >= nr_cpu_ids) {
 			/*
 			 * Save it for phase 2 processing
 			 */
 			vectors_in_migration[irq] = irq;
 
 			new_cpu = any_online_cpu(cpu_online_map);
-			mask = cpumask_of_cpu(new_cpu);
 
 			/*
 			 * Al three are essential, currently WARN_ON.. maybe panic?
@@ -168,7 +166,8 @@ static void migrate_irqs(void)
 			if (desc->chip && desc->chip->disable &&
 				desc->chip->enable && desc->chip->set_affinity) {
 				desc->chip->disable(irq);
-				desc->chip->set_affinity(irq, mask);
+				desc->chip->set_affinity(irq,
+							 cpumask_of(new_cpu));
 				desc->chip->enable(irq);
 			} else {
 				WARN_ON((!(desc->chip) || !(desc->chip->disable) ||

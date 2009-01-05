@@ -1154,7 +1154,7 @@ static int em28xx_reg_len(int reg)
 }
 
 static int vidioc_g_chip_ident(struct file *file, void *priv,
-	       struct v4l2_chip_ident *chip)
+	       struct v4l2_dbg_chip_ident *chip)
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
@@ -1162,20 +1162,20 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
 
-	em28xx_i2c_call_clients(dev, VIDIOC_G_CHIP_IDENT, chip);
+	em28xx_i2c_call_clients(dev, VIDIOC_DBG_G_CHIP_IDENT, chip);
 
 	return 0;
 }
 
 
 static int vidioc_g_register(struct file *file, void *priv,
-			     struct v4l2_register *reg)
+			     struct v4l2_dbg_register *reg)
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 	int ret;
 
-	switch (reg->match_type) {
+	switch (reg->match.type) {
 	case V4L2_CHIP_MATCH_AC97:
 		mutex_lock(&dev->lock);
 		ret = em28xx_read_ac97(dev, reg->reg);
@@ -1184,6 +1184,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 			return ret;
 
 		reg->val = ret;
+		reg->size = 1;
 		return 0;
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
 		em28xx_i2c_call_clients(dev, VIDIOC_DBG_G_REGISTER, reg);
@@ -1192,12 +1193,13 @@ static int vidioc_g_register(struct file *file, void *priv,
 		/* Not supported yet */
 		return -EINVAL;
 	default:
-		if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+		if (!v4l2_chip_match_host(&reg->match))
 			return -EINVAL;
 	}
 
 	/* Match host */
-	if (em28xx_reg_len(reg->reg) == 1) {
+	reg->size = em28xx_reg_len(reg->reg);
+	if (reg->size == 1) {
 		mutex_lock(&dev->lock);
 		ret = em28xx_read_reg(dev, reg->reg);
 		mutex_unlock(&dev->lock);
@@ -1207,7 +1209,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 
 		reg->val = ret;
 	} else {
-		__le64 val = 0;
+		__le16 val = 0;
 		mutex_lock(&dev->lock);
 		ret = em28xx_read_reg_req_len(dev, USB_REQ_GET_STATUS,
 						   reg->reg, (char *)&val, 2);
@@ -1215,21 +1217,21 @@ static int vidioc_g_register(struct file *file, void *priv,
 		if (ret < 0)
 			return ret;
 
-		reg->val = le64_to_cpu(val);
+		reg->val = le16_to_cpu(val);
 	}
 
 	return 0;
 }
 
 static int vidioc_s_register(struct file *file, void *priv,
-			     struct v4l2_register *reg)
+			     struct v4l2_dbg_register *reg)
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	__le64 buf;
+	__le16 buf;
 	int    rc;
 
-	switch (reg->match_type) {
+	switch (reg->match.type) {
 	case V4L2_CHIP_MATCH_AC97:
 		mutex_lock(&dev->lock);
 		rc = em28xx_write_ac97(dev, reg->reg, reg->val);
@@ -1243,12 +1245,12 @@ static int vidioc_s_register(struct file *file, void *priv,
 		/* Not supported yet */
 		return -EINVAL;
 	default:
-		if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+		if (!v4l2_chip_match_host(&reg->match))
 			return -EINVAL;
 	}
 
 	/* Match host */
-	buf = cpu_to_le64(reg->val);
+	buf = cpu_to_le16(reg->val);
 
 	mutex_lock(&dev->lock);
 	rc = em28xx_write_regs(dev, reg->reg, (char *)&buf,
@@ -1582,15 +1584,15 @@ static int radio_queryctrl(struct file *file, void *priv,
  * em28xx_v4l2_open()
  * inits the device and starts isoc transfer
  */
-static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
+static int em28xx_v4l2_open(struct file *filp)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(filp)->minor;
 	int errCode = 0, radio;
 	struct em28xx *dev;
 	enum v4l2_buf_type fh_type;
 	struct em28xx_fh *fh;
 
-	dev = em28xx_get_device(inode, &fh_type, &radio);
+	dev = em28xx_get_device(minor, &fh_type, &radio);
 
 	if (NULL == dev)
 		return -ENODEV;
@@ -1686,7 +1688,7 @@ void em28xx_release_analog_resources(struct em28xx *dev)
  * stops streaming and deallocates all resources allocated by the v4l2
  * calls and ioctls
  */
-static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
+static int em28xx_v4l2_close(struct file *filp)
 {
 	struct em28xx_fh *fh  = filp->private_data;
 	struct em28xx    *dev = fh->dev;
@@ -1826,7 +1828,7 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	return rc;
 }
 
-static const struct file_operations em28xx_v4l_fops = {
+static const struct v4l2_file_operations em28xx_v4l_fops = {
 	.owner         = THIS_MODULE,
 	.open          = em28xx_v4l2_open,
 	.release       = em28xx_v4l2_close,
@@ -1834,8 +1836,6 @@ static const struct file_operations em28xx_v4l_fops = {
 	.poll          = em28xx_v4l2_poll,
 	.mmap          = em28xx_v4l2_mmap,
 	.ioctl	       = video_ioctl2,
-	.llseek        = no_llseek,
-	.compat_ioctl  = v4l_compat_ioctl32,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
@@ -1890,13 +1890,11 @@ static const struct video_device em28xx_video_template = {
 	.current_norm               = V4L2_STD_PAL,
 };
 
-static const struct file_operations radio_fops = {
+static const struct v4l2_file_operations radio_fops = {
 	.owner         = THIS_MODULE,
 	.open          = em28xx_v4l2_open,
 	.release       = em28xx_v4l2_close,
 	.ioctl	       = video_ioctl2,
-	.compat_ioctl  = v4l_compat_ioctl32,
-	.llseek        = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {

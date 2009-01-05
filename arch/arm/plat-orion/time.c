@@ -149,7 +149,6 @@ static struct clock_event_device orion_clkevt = {
 	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
 	.shift		= 32,
 	.rating		= 300,
-	.cpumask	= CPU_MASK_CPU0,
 	.set_next_event	= orion_clkevt_next_event,
 	.set_mode	= orion_clkevt_mode,
 };
@@ -199,5 +198,6 @@ void __init orion_time_init(unsigned int irq, unsigned int tclk)
 	orion_clkevt.mult = div_sc(tclk, NSEC_PER_SEC, orion_clkevt.shift);
 	orion_clkevt.max_delta_ns = clockevent_delta2ns(0xfffffffe, &orion_clkevt);
 	orion_clkevt.min_delta_ns = clockevent_delta2ns(1, &orion_clkevt);
+	orion_clkevt.cpumask = cpumask_of(0);
 	clockevents_register_device(&orion_clkevt);
 }

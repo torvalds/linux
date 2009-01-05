@@ -8,12 +8,12 @@
 
 #define APIC_DFR_VALUE	(APIC_DFR_FLAT)
 
-static inline cpumask_t target_cpus(void)
+static inline const struct cpumask *target_cpus(void)
 { 
 #ifdef CONFIG_SMP
-	return cpu_online_map;
+	return cpu_online_mask;
 #else
-	return cpumask_of_cpu(0);
+	return cpumask_of(0);
 #endif
 } 
 
@@ -28,6 +28,7 @@ static inline cpumask_t target_cpus(void)
 #define apic_id_registered (genapic->apic_id_registered)
 #define init_apic_ldr (genapic->init_apic_ldr)
 #define cpu_mask_to_apicid (genapic->cpu_mask_to_apicid)
+#define cpu_mask_to_apicid_and (genapic->cpu_mask_to_apicid_and)
 #define phys_pkg_id	(genapic->phys_pkg_id)
 #define vector_allocation_domain    (genapic->vector_allocation_domain)
 #define read_apic_id()  (GET_APIC_ID(apic_read(APIC_ID)))
@@ -61,9 +62,19 @@ static inline int apic_id_registered(void)
 	return physid_isset(read_apic_id(), phys_cpu_present_map);
 }
 
-static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
+static inline unsigned int cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
-	return cpus_addr(cpumask)[0];
+	return cpumask_bits(cpumask)[0];
+}
+
+static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+						  const struct cpumask *andmask)
+{
+	unsigned long mask1 = cpumask_bits(cpumask)[0];
+	unsigned long mask2 = cpumask_bits(andmask)[0];
+	unsigned long mask3 = cpumask_bits(cpu_online_mask)[0];
+
+	return (unsigned int)(mask1 & mask2 & mask3);
 }
 
 static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
@@ -88,7 +99,7 @@ static inline int apicid_to_node(int logical_apicid)
 #endif
 }
 
-static inline cpumask_t vector_allocation_domain(int cpu)
+static inline void vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
         /* Careful. Some cpus do not strictly honor the set of cpus
          * specified in the interrupt destination when using lowest
@@ -98,8 +109,7 @@ static inline cpumask_t vector_allocation_domain(int cpu)
          * deliver interrupts to the wrong hyperthread when only one
          * hyperthread was specified in the interrupt desitination.
          */
-        cpumask_t domain = { { [0] = APIC_ALL_CPUS, } };
-        return domain;
+	*retmask = (cpumask_t) { { [0] = APIC_ALL_CPUS } };
 }
 #endif
 
@@ -131,7 +141,7 @@ static inline int cpu_to_logical_apicid(int cpu)
 
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
-	if (mps_cpu < NR_CPUS && cpu_present(mps_cpu))
+	if (mps_cpu < nr_cpu_ids && cpu_present(mps_cpu))
 		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
 	else
 		return BAD_APICID;

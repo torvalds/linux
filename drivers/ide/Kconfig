@@ -137,6 +137,7 @@ config BLK_DEV_DELKIN
 
 config BLK_DEV_IDECD
 	tristate "Include IDE/ATAPI CDROM support"
+	select IDE_ATAPI
 	---help---
 	  If you have a CD-ROM drive using the ATAPI protocol, say Y. ATAPI is
 	  a newer protocol used by IDE CD-ROM and TAPE drives, similar to the
@@ -184,23 +185,6 @@ config BLK_DEV_IDETAPE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ide-tape.
-
-config BLK_DEV_IDESCSI
-	tristate "SCSI emulation support (DEPRECATED)"
-	depends on SCSI
-	select IDE_ATAPI
-	---help---
-	  WARNING: ide-scsi is no longer needed for cd writing applications!
-	  The 2.6 kernel supports direct writing to ide-cd, which eliminates
-	  the need for ide-scsi + the entire scsi stack just for writing a
-	  cd. The new method is more efficient in every way.
-
-	  This will provide SCSI host adapter emulation for IDE ATAPI devices,
-	  and will allow you to use a SCSI device driver instead of a native
-	  ATAPI driver.
-
-	  If both this SCSI emulation and native ATAPI support are compiled
-	  into the kernel, the native support will be used.
 
 config BLK_DEV_IDEACPI
 	bool "IDE ACPI support"

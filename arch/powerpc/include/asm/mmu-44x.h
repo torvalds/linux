@@ -56,6 +56,7 @@
 #ifndef __ASSEMBLY__
 
 extern unsigned int tlb_44x_hwater;
+extern unsigned int tlb_44x_index;
 
 typedef struct {
 	unsigned int	id;

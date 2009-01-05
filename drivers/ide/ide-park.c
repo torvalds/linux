@@ -16,16 +16,19 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 	spin_lock_irq(&hwgroup->lock);
 	if (drive->dev_flags & IDE_DFLAG_PARKED) {
 		int reset_timer = time_before(timeout, drive->sleep);
+		int start_queue = 0;
 
 		drive->sleep = timeout;
 		wake_up_all(&ide_park_wq);
-		if (reset_timer && hwgroup->sleeping &&
-		    del_timer(&hwgroup->timer)) {
-			hwgroup->sleeping = 0;
-			hwgroup->busy = 0;
-			blk_start_queueing(q);
-		}
+		if (reset_timer && del_timer(&hwgroup->timer))
+			start_queue = 1;
 		spin_unlock_irq(&hwgroup->lock);
+
+		if (start_queue) {
+			spin_lock_irq(q->queue_lock);
+			blk_start_queueing(q);
+			spin_unlock_irq(q->queue_lock);
+		}
 		return;
 	}
 	spin_unlock_irq(&hwgroup->lock);

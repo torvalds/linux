@@ -1679,7 +1679,7 @@ static int find_best_unit(struct file *fp,
 	 * InfiniPath chip to that processor (we assume reasonable connectivity,
 	 * for now).  This code assumes that if affinity has been set
 	 * before this point, that at most one cpu is set; for now this
-	 * is reasonable.  I check for both cpus_empty() and cpus_full(),
+	 * is reasonable.  I check for both cpumask_empty() and cpumask_full(),
 	 * in case some kernel variant sets none of the bits when no
 	 * affinity is set.  2.6.11 and 12 kernels have all present
 	 * cpus set.  Some day we'll have to fix it up further to handle
@@ -1688,11 +1688,11 @@ static int find_best_unit(struct file *fp,
 	 * information.  There may be some issues with dual core numbering
 	 * as well.  This needs more work prior to release.
 	 */
-	if (!cpus_empty(current->cpus_allowed) &&
-	    !cpus_full(current->cpus_allowed)) {
+	if (!cpumask_empty(&current->cpus_allowed) &&
+	    !cpumask_full(&current->cpus_allowed)) {
 		int ncpus = num_online_cpus(), curcpu = -1, nset = 0;
 		for (i = 0; i < ncpus; i++)
-			if (cpu_isset(i, current->cpus_allowed)) {
+			if (cpumask_test_cpu(i, &current->cpus_allowed)) {
 				ipath_cdbg(PROC, "%s[%u] affinity set for "
 					   "cpu %d/%d\n", current->comm,
 					   current->pid, i, ncpus);

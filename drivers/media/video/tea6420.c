@@ -90,7 +90,7 @@ static int tea6420_switch(struct i2c_client *client, int i, int o, int g)
 	return 0;
 }
 
-static int tea6420_ioctl(struct v4l2_subdev *sd, unsigned cmd, void *arg)
+static long tea6420_ioctl(struct v4l2_subdev *sd, unsigned cmd, void *arg)
 {
 	if (cmd == TEA6420_SWITCH) {
 		struct i2c_client *client = v4l2_get_subdevdata(sd);

@@ -25,12 +25,25 @@
 #define VFL_TYPE_MAX		4
 
 struct v4l2_ioctl_callbacks;
+struct video_device;
 struct v4l2_device;
 
 /* Flag to mark the video_device struct as unregistered.
    Drivers can set this flag if they want to block all future
    device access. It is set by video_unregister_device. */
 #define V4L2_FL_UNREGISTERED	(0)
+
+struct v4l2_file_operations {
+	struct module *owner;
+	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
+	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
+	unsigned int (*poll) (struct file *, struct poll_table_struct *);
+	long (*ioctl) (struct file *, unsigned int, unsigned long);
+	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
+	int (*mmap) (struct file *, struct vm_area_struct *);
+	int (*open) (struct file *);
+	int (*release) (struct file *);
+};
 
 /*
  * Newer version of video_device, handled by videodev2.c
@@ -41,7 +54,7 @@ struct v4l2_device;
 struct video_device
 {
 	/* device ops */
-	const struct file_operations *fops;
+	const struct v4l2_file_operations *fops;
 
 	/* sysfs */
 	struct device dev;		/* v4l device */

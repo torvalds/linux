@@ -875,7 +875,7 @@ static void gspca_release(struct video_device *vfd)
 	kfree(gspca_dev);
 }
 
-static int dev_open(struct inode *inode, struct file *file)
+static int dev_open(struct file *file)
 {
 	struct gspca_dev *gspca_dev;
 	int ret;
@@ -922,7 +922,7 @@ out:
 	return ret;
 }
 
-static int dev_close(struct inode *inode, struct file *file)
+static int dev_close(struct file *file)
 {
 	struct gspca_dev *gspca_dev = file->private_data;
 
@@ -1802,17 +1802,13 @@ out:
 	return ret;
 }
 
-static struct file_operations dev_fops = {
+static struct v4l2_file_operations dev_fops = {
 	.owner = THIS_MODULE,
 	.open = dev_open,
 	.release = dev_close,
 	.read = dev_read,
 	.mmap = dev_mmap,
-	.unlocked_ioctl = __video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l_compat_ioctl32,
-#endif
-	.llseek = no_llseek,
+	.unlocked_ioctl = video_ioctl2,
 	.poll	= dev_poll,
 };
 

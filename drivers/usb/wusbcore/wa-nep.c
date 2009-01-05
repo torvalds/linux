@@ -51,7 +51,7 @@
  */
 #include <linux/workqueue.h>
 #include <linux/ctype.h>
-#include <linux/uwb/debug.h>
+
 #include "wa-hc.h"
 #include "wusbhc.h"
 
@@ -139,13 +139,10 @@ static void wa_notif_dispatch(struct work_struct *ws)
 			/* FIXME: unimplemented WA NOTIFs */
 			/* fallthru */
 		default:
-			if (printk_ratelimit()) {
-				dev_err(dev, "HWA: unknown notification 0x%x, "
-					"%zu bytes; discarding\n",
-					notif_hdr->bNotifyType,
-					(size_t)notif_hdr->bLength);
-				dump_bytes(dev, notif_hdr, 16);
-			}
+			dev_err(dev, "HWA: unknown notification 0x%x, "
+				"%zu bytes; discarding\n",
+				notif_hdr->bNotifyType,
+				(size_t)notif_hdr->bLength);
 			break;
 		}
 	}
@@ -160,12 +157,9 @@ out:
 	 * discard the data, as this should not happen.
 	 */
 exhausted_buffer:
-	if (!printk_ratelimit())
-		goto out;
 	dev_warn(dev, "HWA: device sent short notification, "
 		 "%d bytes missing; discarding %d bytes.\n",
 		 missing, (int)size);
-	dump_bytes(dev, itr, size);
 	goto out;
 }
 

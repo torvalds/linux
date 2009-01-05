@@ -53,14 +53,6 @@
 
 #include "ide-cd.h"
 
-#define IDECD_DEBUG_LOG		1
-
-#if IDECD_DEBUG_LOG
-#define ide_debug_log(lvl, fmt, args...) __ide_debug_log(lvl, fmt, args)
-#else
-#define ide_debug_log(lvl, fmt, args...) do {} while (0)
-#endif
-
 static DEFINE_MUTEX(idecd_ref_mutex);
 
 static void ide_cd_release(struct kref *);
@@ -519,37 +511,8 @@ end_request:
 	return 1;
 }
 
-static int cdrom_timer_expiry(ide_drive_t *drive)
-{
-	struct request *rq = HWGROUP(drive)->rq;
-	unsigned long wait = 0;
-
-	ide_debug_log(IDE_DBG_RQ, "Call %s: rq->cmd[0]: 0x%x\n", __func__,
-		      rq->cmd[0]);
-
-	/*
-	 * Some commands are *slow* and normally take a long time to complete.
-	 * Usually we can use the ATAPI "disconnect" to bypass this, but not all
-	 * commands/drives support that. Let ide_timer_expiry keep polling us
-	 * for these.
-	 */
-	switch (rq->cmd[0]) {
-	case GPCMD_BLANK:
-	case GPCMD_FORMAT_UNIT:
-	case GPCMD_RESERVE_RZONE_TRACK:
-	case GPCMD_CLOSE_TRACK:
-	case GPCMD_FLUSH_CACHE:
-		wait = ATAPI_WAIT_PC;
-		break;
-	default:
-		if (!(rq->cmd_flags & REQ_QUIET))
-			printk(KERN_INFO PFX "cmd 0x%x timed out\n",
-					 rq->cmd[0]);
-		wait = 0;
-		break;
-	}
-	return wait;
-}
+static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *);
+static ide_startstop_t cdrom_newpc_intr(ide_drive_t *);
 
 /*
  * Set up the device registers for transferring a packet command on DEV,
@@ -559,11 +522,13 @@ static int cdrom_timer_expiry(ide_drive_t *drive)
  * called when the interrupt from the drive arrives.  Otherwise, HANDLER
  * will be called immediately after the drive is prepared for the transfer.
  */
-static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
-						  int xferlen,
-						  ide_handler_t *handler)
+static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct request *rq = hwif->hwgroup->rq;
+	int xferlen;
+
+	xferlen = ide_cd_get_xferlen(rq);
 
 	ide_debug_log(IDE_DBG_PC, "Call %s, xferlen: %d\n", __func__, xferlen);
 
@@ -581,13 +546,14 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 			drive->waiting_for_dma = 0;
 
 		/* packet command */
-		ide_execute_command(drive, ATA_CMD_PACKET, handler,
-				    ATAPI_WAIT_PC, cdrom_timer_expiry);
+		ide_execute_command(drive, ATA_CMD_PACKET,
+				    cdrom_transfer_packet_command,
+				    ATAPI_WAIT_PC, ide_cd_expiry);
 		return ide_started;
 	} else {
 		ide_execute_pkt_cmd(drive);
 
-		return (*handler) (drive);
+		return cdrom_transfer_packet_command(drive);
 	}
 }
 
@@ -598,11 +564,10 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
  * there's data ready.
  */
 #define ATAPI_MIN_CDB_BYTES 12
-static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
-					  struct request *rq,
-					  ide_handler_t *handler)
+static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct request *rq = hwif->hwgroup->rq;
 	int cmd_len;
 	ide_startstop_t startstop;
 
@@ -629,7 +594,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 	}
 
 	/* arm the interrupt handler */
-	ide_set_handler(drive, handler, rq->timeout, cdrom_timer_expiry);
+	ide_set_handler(drive, cdrom_newpc_intr, rq->timeout, ide_cd_expiry);
 
 	/* ATAPI commands get padded out to 12 bytes minimum */
 	cmd_len = COMMAND_SIZE(rq->cmd[0]);
@@ -717,8 +682,6 @@ static int ide_cd_check_transfer_size(ide_drive_t *drive, int len)
 	return 1;
 }
 
-static ide_startstop_t cdrom_newpc_intr(ide_drive_t *);
-
 static ide_startstop_t ide_cd_prepare_rw_request(ide_drive_t *drive,
 						 struct request *rq)
 {
@@ -758,20 +721,6 @@ static ide_startstop_t ide_cd_prepare_rw_request(ide_drive_t *drive,
 	rq->timeout = ATAPI_WAIT_PC;
 
 	return ide_started;
-}
-
-/*
- * Routine to send a read/write packet command to the drive. This is usually
- * called directly from cdrom_start_{read,write}(). However, for drq_interrupt
- * devices, it is called from an interrupt when the drive is ready to accept
- * the command.
- */
-static ide_startstop_t cdrom_start_rw_cont(ide_drive_t *drive)
-{
-	struct request *rq = drive->hwif->hwgroup->rq;
-
-	/* send the command to the drive and return */
-	return cdrom_transfer_packet_command(drive, rq, cdrom_newpc_intr);
 }
 
 /*
@@ -1096,7 +1045,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	} else {
 		timeout = ATAPI_WAIT_PC;
 		if (!blk_fs_request(rq))
-			expiry = cdrom_timer_expiry;
+			expiry = ide_cd_expiry;
 	}
 
 	ide_set_handler(drive, cdrom_newpc_intr, timeout, expiry);
@@ -1163,13 +1112,6 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 	return ide_started;
 }
 
-static ide_startstop_t cdrom_do_newpc_cont(ide_drive_t *drive)
-{
-	struct request *rq = HWGROUP(drive)->rq;
-
-	return cdrom_transfer_packet_command(drive, rq, cdrom_newpc_intr);
-}
-
 static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 {
 
@@ -1214,18 +1156,12 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
-	ide_handler_t *fn;
-	int xferlen;
-
 	ide_debug_log(IDE_DBG_RQ, "Call %s, rq->cmd[0]: 0x%x, "
 		      "rq->cmd_type: 0x%x, block: %llu\n",
 		      __func__, rq->cmd[0], rq->cmd_type,
 		      (unsigned long long)block);
 
 	if (blk_fs_request(rq)) {
-		xferlen = 32768;
-		fn = cdrom_start_rw_cont;
-
 		if (cdrom_start_rw(drive, rq) == ide_stopped)
 			return ide_stopped;
 
@@ -1233,9 +1169,6 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 			return ide_stopped;
 	} else if (blk_sense_request(rq) || blk_pc_request(rq) ||
 		   rq->cmd_type == REQ_TYPE_ATA_PC) {
-		xferlen = rq->data_len;
-		fn = cdrom_do_newpc_cont;
-
 		if (!rq->timeout)
 			rq->timeout = ATAPI_WAIT_PC;
 
@@ -1250,7 +1183,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		return ide_stopped;
 	}
 
-	return cdrom_start_packet_command(drive, xferlen, fn);
+	return cdrom_start_packet_command(drive);
 }
 
 /*

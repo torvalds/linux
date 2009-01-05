@@ -57,11 +57,6 @@
 #include <asm/tlb.h>
 #include "internal.h"
 
-#ifdef __alpha__
-/* for /sbin/loader handling in search_binary_handler() */
-#include <linux/a.out.h>
-#endif
-
 int core_uses_pid;
 char core_pattern[CORENAME_MAX_SIZE] = "core";
 int suid_dumpable = 0;
@@ -1172,41 +1167,7 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 	unsigned int depth = bprm->recursion_depth;
 	int try,retval;
 	struct linux_binfmt *fmt;
-#ifdef __alpha__
-	/* handle /sbin/loader.. */
-	{
-	    struct exec * eh = (struct exec *) bprm->buf;
 
-	    if (!bprm->loader && eh->fh.f_magic == 0x183 &&
-		(eh->fh.f_flags & 0x3000) == 0x3000)
-	    {
-		struct file * file;
-		unsigned long loader;
-
-		allow_write_access(bprm->file);
-		fput(bprm->file);
-		bprm->file = NULL;
-
-		loader = bprm->vma->vm_end - sizeof(void *);
-
-		file = open_exec("/sbin/loader");
-		retval = PTR_ERR(file);
-		if (IS_ERR(file))
-			return retval;
-
-		/* Remember if the application is TASO.  */
-		bprm->taso = eh->ah.entry < 0x100000000UL;
-
-		bprm->file = file;
-		bprm->loader = loader;
-		retval = prepare_binprm(bprm);
-		if (retval<0)
-			return retval;
-		/* should call search_binary_handler recursively here,
-		   but it does not matter */
-	    }
-	}
-#endif
 	retval = security_bprm_check(bprm);
 	if (retval)
 		return retval;

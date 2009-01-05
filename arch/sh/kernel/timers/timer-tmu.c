@@ -263,7 +263,7 @@ static int tmu_timer_init(void)
 	tmu0_clockevent.min_delta_ns =
 			clockevent_delta2ns(1, &tmu0_clockevent);
 
-	tmu0_clockevent.cpumask = cpumask_of_cpu(0);
+	tmu0_clockevent.cpumask = cpumask_of(0);
 
 	clockevents_register_device(&tmu0_clockevent);
 
