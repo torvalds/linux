@@ -1047,7 +1047,7 @@ static int qeth_l3_setadapter_parms(struct qeth_card *card)
 		rc = qeth_setadpparms_change_macaddr(card);
 		if (rc)
 			dev_warn(&card->gdev->dev, "Reading the adapter MAC"
-				" address failed\n", rc);
+				" address failed\n");
 	}
 
 	if ((card->info.link_type == QETH_LINK_TYPE_HSTR) ||
