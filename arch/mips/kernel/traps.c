@@ -944,6 +944,9 @@ asmlinkage void do_mdmx(struct pt_regs *regs)
 	force_sig(SIGILL, current);
 }
 
+/*
+ * Called with interrupts disabled.
+ */
 asmlinkage void do_watch(struct pt_regs *regs)
 {
 	u32 cause;
@@ -963,9 +966,12 @@ asmlinkage void do_watch(struct pt_regs *regs)
 	 */
 	if (test_tsk_thread_flag(current, TIF_LOAD_WATCH)) {
 		mips_read_watch_registers();
+		local_irq_enable();
 		force_sig(SIGTRAP, current);
-	} else
+	} else {
 		mips_clear_watch_registers();
+		local_irq_enable();
+	}
 }
 
 asmlinkage void do_mcheck(struct pt_regs *regs)
