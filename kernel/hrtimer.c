@@ -1268,7 +1268,11 @@ static void run_hrtimer_softirq(struct softirq_action *h)
 	hrtimer_peek_ahead_timers();
 }
 
-#endif	/* CONFIG_HIGH_RES_TIMERS */
+#else /* CONFIG_HIGH_RES_TIMERS */
+
+static inline void __hrtimer_peek_ahead_timers(void) { }
+
+#endif	/* !CONFIG_HIGH_RES_TIMERS */
 
 /*
  * Called from timer softirq every jiffy, expire hrtimers:
