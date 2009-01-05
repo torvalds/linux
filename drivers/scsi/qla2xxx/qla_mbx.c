@@ -568,7 +568,6 @@ int
 qla2x00_mbx_reg_test(scsi_qla_host_t *vha)
 {
 	int rval;
-	struct qla_hw_data *ha = vha->hw;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 
@@ -595,14 +594,6 @@ qla2x00_mbx_reg_test(scsi_qla_host_t *vha)
 		if (mcp->mb[5] != 0xA5A5 || mcp->mb[6] != 0x5A5A ||
 		    mcp->mb[7] != 0x2525)
 			rval = QLA_FUNCTION_FAILED;
-		if (rval == QLA_FUNCTION_FAILED) {
-			struct device_reg_24xx __iomem *reg =
-			    &ha->iobase->isp24;
-
-			qla2xxx_hw_event_log(vha, HW_EVENT_ISP_ERR, 0,
-			    LSW(RD_REG_DWORD(&reg->hccr)),
-			    LSW(RD_REG_DWORD(&reg->istatus)));
-		}
 	}
 
 	if (rval != QLA_SUCCESS) {

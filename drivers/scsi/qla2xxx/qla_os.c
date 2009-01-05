@@ -2458,23 +2458,6 @@ qla2x00_post_aen_work(struct scsi_qla_host *vha, enum fc_host_event_code code,
 	return qla2x00_post_work(vha, e, 1);
 }
 
-int
-qla2x00_post_hwe_work(struct scsi_qla_host *vha, uint16_t code, uint16_t d1,
-    uint16_t d2, uint16_t d3)
-{
-	struct qla_work_evt *e;
-
-	e = qla2x00_alloc_work(vha, QLA_EVT_HWE_LOG, 1);
-	if (!e)
-		return QLA_FUNCTION_FAILED;
-
-	e->u.hwe.code = code;
-	e->u.hwe.d1 = d1;
-	e->u.hwe.d2 = d2;
-	e->u.hwe.d3 = d3;
-	return qla2x00_post_work(vha, e, 1);
-}
-
 static void
 qla2x00_do_work(struct scsi_qla_host *vha)
 {
@@ -2491,10 +2474,6 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		case QLA_EVT_AEN:
 			fc_host_post_event(vha->host, fc_get_event_number(),
 			    e->u.aen.code, e->u.aen.data);
-			break;
-		case QLA_EVT_HWE_LOG:
-			qla2xxx_hw_event_log(vha, e->u.hwe.code, e->u.hwe.d1,
-			    e->u.hwe.d2, e->u.hwe.d3);
 			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)

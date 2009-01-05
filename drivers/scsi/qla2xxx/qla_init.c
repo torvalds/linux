@@ -552,10 +552,6 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 		d2 = RD_REG_DWORD(&reg->ctrl_status);
 		barrier();
 	}
-	if (cnt == 0 || hw_evt)
-		qla2xxx_hw_event_log(vha, HW_EVENT_RESET_ERR,
-		    RD_REG_WORD(&reg->mailbox1), RD_REG_WORD(&reg->mailbox2),
-		    RD_REG_WORD(&reg->mailbox3));
 
 	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_RESET);
 	RD_REG_DWORD(&reg->hccr);
@@ -1664,10 +1660,6 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 		    nv->nvram_version);
 		qla_printk(KERN_WARNING, ha, "Falling back to functioning (yet "
 		    "invalid -- WWPN) defaults.\n");
-
-		if (chksum)
-			qla2xxx_hw_event_log(vha, HW_EVENT_NVRAM_CHKSUM_ERR, 0,
-			    MSW(chksum), LSW(chksum));
 
 		/*
 		 * Set default initialization control block.

@@ -2136,7 +2136,6 @@ struct qla_msix_entry {
 /* Work events.  */
 enum qla_work_type {
 	QLA_EVT_AEN,
-	QLA_EVT_HWE_LOG,
 };
 
 
@@ -2151,10 +2150,6 @@ struct qla_work_evt {
 			enum fc_host_event_code code;
 			u32 data;
 		} aen;
-		struct {
-			uint16_t code;
-			uint16_t d1, d2, d3;
-		} hwe;
 	} u;
 };
 
@@ -2489,10 +2484,6 @@ struct qla_hw_data {
 	uint64_t	fce_wr, fce_rd;
 	struct mutex	fce_mutex;
 
-	uint32_t	hw_event_start;
-	uint32_t	hw_event_ptr;
-	uint32_t	hw_event_pause_errors;
-
 	uint32_t	pci_attr;
 	uint16_t	chip_revision;
 
@@ -2533,7 +2524,6 @@ struct qla_hw_data {
 	uint32_t        flt_region_boot;
 	uint32_t        flt_region_fw;
 	uint32_t        flt_region_vpd_nvram;
-	uint32_t        flt_region_hw_event;
 	uint32_t        flt_region_npiv_conf;
 
 	/* Needed for BEACON */

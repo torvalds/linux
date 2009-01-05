@@ -676,14 +676,6 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		case FLT_REG_FDT:
 			ha->flt_region_fdt = start;
 			break;
-		case FLT_REG_HW_EVENT_0:
-			if (!PCI_FUNC(ha->pdev->devfn))
-				ha->flt_region_hw_event = start;
-			break;
-		case FLT_REG_HW_EVENT_1:
-			if (PCI_FUNC(ha->pdev->devfn))
-				ha->flt_region_hw_event = start;
-			break;
 		case FLT_REG_NPIV_CONF_0:
 			if (!PCI_FUNC(ha->pdev->devfn))
 				ha->flt_region_npiv_conf = start;
@@ -704,17 +696,14 @@ no_flash_data:
 	ha->flt_region_vpd_nvram = FA_VPD_NVRAM_ADDR;
 	ha->flt_region_fdt = IS_QLA24XX_TYPE(ha) ? FA_FLASH_DESCR_ADDR_24:
 	    FA_FLASH_DESCR_ADDR;
-	ha->flt_region_hw_event = !PCI_FUNC(ha->pdev->devfn) ?
-	    FA_HW_EVENT0_ADDR: FA_HW_EVENT1_ADDR;
 	ha->flt_region_npiv_conf = !PCI_FUNC(ha->pdev->devfn) ?
 	    (IS_QLA24XX_TYPE(ha) ? FA_NPIV_CONF0_ADDR_24: FA_NPIV_CONF0_ADDR):
 	    (IS_QLA24XX_TYPE(ha) ? FA_NPIV_CONF1_ADDR_24: FA_NPIV_CONF1_ADDR);
 done:
 	DEBUG2(qla_printk(KERN_DEBUG, ha, "FLT[%s]: boot=0x%x fw=0x%x "
-	    "vpd_nvram=0x%x fdt=0x%x flt=0x%x hwe=0x%x npiv=0x%x.\n", loc,
+	    "vpd_nvram=0x%x fdt=0x%x flt=0x%x npiv=0x%x.\n", loc,
 	    ha->flt_region_boot, ha->flt_region_fw, ha->flt_region_vpd_nvram,
-	    ha->flt_region_fdt, ha->flt_region_flt, ha->flt_region_hw_event,
-	    ha->flt_region_npiv_conf));
+	    ha->flt_region_fdt, ha->flt_region_flt, ha->flt_region_npiv_conf));
 }
 
 static void
@@ -2647,109 +2636,4 @@ qla2xxx_get_vpd_field(scsi_qla_host_t *vha, char *key, char *str, size_t size)
 		return snprintf(str, size, "%.*s", len, pos + 3);
 
 	return 0;
-}
-
-static int
-qla2xxx_hw_event_store(scsi_qla_host_t *vha, uint32_t *fdata)
-{
-	uint32_t d[2], faddr;
-	struct qla_hw_data *ha = vha->hw;
-
-	/* Locate first empty entry. */
-	for (;;) {
-		if (ha->hw_event_ptr >=
-		    ha->flt_region_hw_event + FA_HW_EVENT_SIZE) {
-			DEBUG2(qla_printk(KERN_WARNING, ha,
-			    "HW event -- Log Full!\n"));
-			return QLA_MEMORY_ALLOC_FAILED;
-		}
-
-		qla24xx_read_flash_data(vha, d, ha->hw_event_ptr, 2);
-		faddr = flash_data_to_access_addr(ha->hw_event_ptr);
-		ha->hw_event_ptr += FA_HW_EVENT_ENTRY_SIZE;
-		if (d[0] == __constant_cpu_to_le32(0xffffffff) &&
-		    d[1] == __constant_cpu_to_le32(0xffffffff)) {
-			qla24xx_unprotect_flash(ha);
-
-			qla24xx_write_flash_dword(ha, faddr++,
-			    cpu_to_le32(jiffies));
-			qla24xx_write_flash_dword(ha, faddr++, 0);
-			qla24xx_write_flash_dword(ha, faddr++, *fdata++);
-			qla24xx_write_flash_dword(ha, faddr++, *fdata);
-
-			qla24xx_protect_flash(ha);
-			break;
-		}
-	}
-	return QLA_SUCCESS;
-}
-
-int
-qla2xxx_hw_event_log(scsi_qla_host_t *vha, uint16_t code, uint16_t d1,
-    uint16_t d2, uint16_t d3)
-{
-#define QMARK(a, b, c, d) \
-    cpu_to_le32(LSB(a) << 24 | LSB(b) << 16 | LSB(c) << 8 | LSB(d))
-	struct qla_hw_data *ha = vha->hw;
-	int rval;
-	uint32_t marker[2], fdata[4];
-
-	if (ha->flt_region_hw_event == 0)
-		return QLA_FUNCTION_FAILED;
-
-	DEBUG2(qla_printk(KERN_WARNING, ha,
-	    "HW event -- code=%x, d1=%x, d2=%x, d3=%x.\n", code, d1, d2, d3));
-
-	/* If marker not already found, locate or write.  */
-	if (!ha->flags.hw_event_marker_found) {
-		/* Create marker. */
-		marker[0] = QMARK('L', ha->fw_major_version,
-		    ha->fw_minor_version, ha->fw_subminor_version);
-		marker[1] = QMARK(QLA_DRIVER_MAJOR_VER, QLA_DRIVER_MINOR_VER,
-		    QLA_DRIVER_PATCH_VER, QLA_DRIVER_BETA_VER);
-
-		/* Locate marker. */
-		ha->hw_event_ptr = ha->flt_region_hw_event;
-		for (;;) {
-			qla24xx_read_flash_data(vha, fdata, ha->hw_event_ptr,
-			    4);
-			if (fdata[0] == __constant_cpu_to_le32(0xffffffff) &&
-			    fdata[1] == __constant_cpu_to_le32(0xffffffff))
-				break;
-			ha->hw_event_ptr += FA_HW_EVENT_ENTRY_SIZE;
-			if (ha->hw_event_ptr >=
-			    ha->flt_region_hw_event + FA_HW_EVENT_SIZE) {
-				DEBUG2(qla_printk(KERN_WARNING, ha,
-				    "HW event -- Log Full!\n"));
-				return QLA_MEMORY_ALLOC_FAILED;
-			}
-			if (fdata[2] == marker[0] && fdata[3] == marker[1]) {
-				ha->flags.hw_event_marker_found = 1;
-				break;
-			}
-		}
-		/* No marker, write it. */
-		if (!ha->flags.hw_event_marker_found) {
-			rval = qla2xxx_hw_event_store(vha, marker);
-			if (rval != QLA_SUCCESS) {
-				DEBUG2(qla_printk(KERN_WARNING, ha,
-				    "HW event -- Failed marker write=%x.!\n",
-				    rval));
-				return rval;
-			}
-			ha->flags.hw_event_marker_found = 1;
-		}
-	}
-
-	/* Store error.  */
-	fdata[0] = cpu_to_le32(code << 16 | d1);
-	fdata[1] = cpu_to_le32(d2 << 16 | d3);
-	rval = qla2xxx_hw_event_store(vha, fdata);
-	if (rval != QLA_SUCCESS) {
-		DEBUG2(qla_printk(KERN_WARNING, ha,
-		    "HW event -- Failed error write=%x.!\n",
-		    rval));
-	}
-
-	return rval;
 }

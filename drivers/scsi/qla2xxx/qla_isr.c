@@ -362,7 +362,6 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 		    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh.\n",
 		    mb[1], mb[2], mb[3]);
 
-		qla2x00_post_hwe_work(vha, mb[0], mb[1], mb[2], mb[3]);
 		ha->isp_ops->fw_dump(vha, 1);
 
 		if (IS_FWI2_CAPABLE(ha)) {
@@ -387,7 +386,6 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 		    vha->host_no));
 		qla_printk(KERN_WARNING, ha, "ISP Request Transfer Error.\n");
 
-		qla2x00_post_hwe_work(vha, mb[0], mb[1], mb[2], mb[3]);
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
 
@@ -396,7 +394,6 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 		    vha->host_no));
 		qla_printk(KERN_WARNING, ha, "ISP Response Transfer Error.\n");
 
-		qla2x00_post_hwe_work(vha, mb[0], mb[1], mb[2], mb[3]);
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
 
@@ -1590,12 +1587,6 @@ qla24xx_intr_handler(int irq, void *dev_id)
 			if (pci_channel_offline(ha->pdev))
 				break;
 
-			if (ha->hw_event_pause_errors == 0)
-				qla2x00_post_hwe_work(vha, HW_EVENT_PARITY_ERR,
-				    0, MSW(stat), LSW(stat));
-			else if (ha->hw_event_pause_errors < 0xffffffff)
-				ha->hw_event_pause_errors++;
-
 			hccr = RD_REG_DWORD(&reg->hccr);
 
 			qla_printk(KERN_INFO, ha, "RISC paused -- HCCR=%x, "
@@ -1739,12 +1730,6 @@ qla24xx_msix_default(int irq, void *dev_id)
 		if (stat & HSRX_RISC_PAUSED) {
 			if (pci_channel_offline(ha->pdev))
 				break;
-
-			if (ha->hw_event_pause_errors == 0)
-				qla2x00_post_hwe_work(vha, HW_EVENT_PARITY_ERR,
-				    0, MSW(stat), LSW(stat));
-			else if (ha->hw_event_pause_errors < 0xffffffff)
-				ha->hw_event_pause_errors++;
 
 			hccr = RD_REG_DWORD(&reg->hccr);
 
