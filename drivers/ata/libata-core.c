@@ -5951,6 +5951,12 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 			 */
 		}
 	}
+
+	/* in order to keep device order, we need to synchronize at this point */
+	async_synchronize_cookie(cookie);
+
+	ata_scsi_scan_host(ap, 1);
+
 }
 /**
  *	ata_host_register - register initialized ATA host
@@ -6033,15 +6039,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 		struct ata_port *ap = host->ports[i];
 		async_schedule(async_port_probe, ap);
 	}
-	async_synchronize_full();
-	/* probes are done, now scan each port's disk(s) */
-	DPRINTK("host probe begin\n");
-	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-
-		ata_scsi_scan_host(ap, 1);
-	}
-	DPRINTK("host probe end\n");
+	DPRINTK("probe end\n");
 
 	return 0;
 }
