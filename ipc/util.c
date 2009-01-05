@@ -624,10 +624,9 @@ void ipc_rcu_putref(void *ptr)
 int ipcperms (struct kern_ipc_perm *ipcp, short flag)
 {	/* flag will most probably be 0 or S_...UGO from <linux/stat.h> */
 	uid_t euid = current_euid();
-	int requested_mode, granted_mode, err;
+	int requested_mode, granted_mode;
 
-	if (unlikely((err = audit_ipc_obj(ipcp))))
-		return err;
+	audit_ipc_obj(ipcp);
 	requested_mode = (flag >> 6) | (flag >> 3) | flag;
 	granted_mode = ipcp->mode;
 	if (euid == ipcp->cuid ||
@@ -803,16 +802,10 @@ struct kern_ipc_perm *ipcctl_pre_down(struct ipc_ids *ids, int id, int cmd,
 		goto out_up;
 	}
 
-	err = audit_ipc_obj(ipcp);
-	if (err)
-		goto out_unlock;
-
-	if (cmd == IPC_SET) {
-		err = audit_ipc_set_perm(extra_perm, perm->uid,
+	audit_ipc_obj(ipcp);
+	if (cmd == IPC_SET)
+		audit_ipc_set_perm(extra_perm, perm->uid,
 					 perm->gid, perm->mode);
-		if (err)
-			goto out_unlock;
-	}
 
 	euid = current_euid();
 	if (euid == ipcp->cuid ||
@@ -820,7 +813,6 @@ struct kern_ipc_perm *ipcctl_pre_down(struct ipc_ids *ids, int id, int cmd,
 		return ipcp;
 
 	err = -EPERM;
-out_unlock:
 	ipc_unlock(ipcp);
 out_up:
 	up_write(&ids->rw_mutex);
