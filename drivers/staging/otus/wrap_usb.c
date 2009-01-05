@@ -41,7 +41,7 @@ u32_t zfLnxUsbOut(zdev_t* dev, u8_t *hdr, u16_t hdrlen, u8_t *snap, u16_t snapLe
 u32_t zfLnxUsbWriteReg(zdev_t* dev, u32_t* cmd, u16_t cmdLen);
 
 void zfwUsbRegisterCallBack(zdev_t* dev, struct zfCbUsbFuncTbl *zfUsbFunc) {
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     macp->usbCbFunctions.zfcbUsbRecv = zfUsbFunc->zfcbUsbRecv;
     macp->usbCbFunctions.zfcbUsbRegIn = zfUsbFunc->zfcbUsbRegIn;
@@ -52,18 +52,18 @@ void zfwUsbRegisterCallBack(zdev_t* dev, struct zfCbUsbFuncTbl *zfUsbFunc) {
 
 u32_t zfwUsbGetFreeTxQSize(zdev_t* dev)
 {
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u32_t        freeTxQSize;
     unsigned long irqFlag;
     //zmw_declare_for_critical_section();
 
     //zmw_enter_critical_section(dev);
-    spin_lock_irqsave(&(((struct usbdrv_private *)(dev->priv))->cs_lock), irqFlag);
+    spin_lock_irqsave(&macp->cs_lock, irqFlag);
 
     freeTxQSize = ZM_MAX_TX_BUF_NUM - macp->TxBufCnt;
 
     //zmw_leave_critical_section(dev);
-    spin_unlock_irqrestore(&(((struct usbdrv_private *)(dev->priv))->cs_lock), irqFlag);
+    spin_unlock_irqrestore(&macp->cs_lock, irqFlag);
 
     return freeTxQSize;
 }
@@ -98,7 +98,7 @@ u32_t zfwUsbSubmitControl(zdev_t* dev, u8_t req, u16_t value, u16_t index, void 
 {
     int result = 0;
     u32_t ret = 0;
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u8_t* buf;
 
     if (size > 0)
@@ -134,7 +134,7 @@ u32_t zfwUsbSubmitControl(zdev_t* dev, u8_t req, u16_t value, u16_t index, void 
 
 void zfwUsbCmd(zdev_t* dev, u8_t endpt, u32_t* cmd, u16_t cmdLen)
 {
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u32_t ret;
 
     //MPUsbCommand(dev, endpt, cmd, cmdLen);

@@ -46,7 +46,7 @@ void zfLnxRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo)
     u16_t frameCtrl;
     u16_t frameSubtype;
     zbuf_t *skb1;
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     //frameCtrl = zmw_buf_readb(dev, buf, 0);
     frameCtrl = *(u8_t*)((u8_t*)buf->data);
@@ -88,6 +88,7 @@ void zfLnxRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo)
 #define ZM_AVOID_UDP_LARGE_PACKET_FAIL
 void zfLnxRecvEth(zdev_t* dev, zbuf_t* buf, u16_t port)
 {
+    struct usbdrv_private *macp = dev->ml_priv;
 #ifdef ZM_AVOID_UDP_LARGE_PACKET_FAIL
     zbuf_t *new_buf;
 
@@ -165,10 +166,8 @@ void zfLnxRecvEth(zdev_t* dev, zbuf_t* buf, u16_t port)
     case NET_RX_CN_HIGH:
         break;
     default:
-            ((struct usbdrv_private*)(dev->priv))->
-                    drv_stats.net_stats.rx_packets++;
-            ((struct usbdrv_private*)(dev->priv))->
-                    drv_stats.net_stats.rx_bytes += buf->len;
+            macp->drv_stats.net_stats.rx_packets++;
+            macp->drv_stats.net_stats.rx_bytes += buf->len;
         break;
     }
 

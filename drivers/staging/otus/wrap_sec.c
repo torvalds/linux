@@ -112,7 +112,7 @@ void copyToIntTxBuffer(zdev_t* dev, zbuf_t* buf, u8_t* src,
 
 u16_t zfwStaAddIeWpaRsn(zdev_t* dev, zbuf_t* buf, u16_t offset, u8_t frameType)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     //zm_msg1_mm(ZM_LV_0, "CWY - add wpaie content Length : ", macp->supIe[1]);
     if (macp->supIe[1] != 0)
     {

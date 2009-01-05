@@ -43,7 +43,7 @@ u16_t zfLnxAuthNotify(zdev_t* dev, u16_t* macAddr)
 u16_t zfLnxAsocNotify(zdev_t* dev, u16_t* macAddr, u8_t* body, u16_t bodySize, u16_t port)
 {
 //#ifdef ZM_HOSTAPD_SUPPORT
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     union iwreq_data wreq;
     u8_t *addr = (u8_t *) macAddr;
     u16_t i, j;
@@ -141,7 +141,7 @@ void zfLnxConnectNotify(zdev_t* dev, u16_t status, u16_t* bssid)
 {
     union iwreq_data wreq;
     u8_t *addr = (u8_t *) bssid;
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if (bssid != NULL)
     {

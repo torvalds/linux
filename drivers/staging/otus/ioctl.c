@@ -166,7 +166,7 @@ int usbdrv_chan2freq(int chan)
 int usbdrv_ioctl_setessid(struct net_device *dev, struct iw_point *erq)
 {
 #ifdef ZM_HOSTAPD_SUPPORT
-    //struct usbdrv_private *macp = dev->priv;
+    //struct usbdrv_private *macp = dev->ml_priv;
     char essidbuf[IW_ESSID_MAX_SIZE+1];
     int i;
 
@@ -224,7 +224,7 @@ int usbdrv_ioctl_setessid(struct net_device *dev, struct iw_point *erq)
 
 int usbdrv_ioctl_getessid(struct net_device *dev, struct iw_point *erq)
 {
-     //struct usbdrv_private *macp = dev->priv;
+     //struct usbdrv_private *macp = dev->ml_priv;
      u8_t essidbuf[IW_ESSID_MAX_SIZE+1];
      u8_t len;
      u8_t i;
@@ -587,7 +587,7 @@ int usbdrvwext_giwname(struct net_device *dev,
             struct iw_request_info *info,
             union iwreq_data *wrq, char *extra)
 {
-    //struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    //struct usbdrv_private *macp = dev->ml_priv;
 
     strcpy(wrq->name, "IEEE 802.11-MIMO");
 
@@ -599,7 +599,7 @@ int usbdrvwext_siwfreq(struct net_device *dev,
             struct iw_freq *freq, char *extra)
 {
     u32_t FreqKHz;
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if(!netif_running(dev))
         return -EINVAL;
@@ -664,7 +664,7 @@ int usbdrvwext_giwfreq(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_freq *freq, char *extra)
 {
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if (macp->DeviceOpened != 1)
         return 0;
@@ -679,7 +679,7 @@ int usbdrvwext_siwmode(struct net_device *dev,
             struct iw_request_info *info,
             union iwreq_data *wrq, char *extra)
 {
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u8_t WlanMode;
 
     if(!netif_running(dev))
@@ -716,7 +716,7 @@ int usbdrvwext_giwmode(struct net_device *dev,
             __u32 *mode, char *extra)
 {
     unsigned long irqFlag;
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if(!netif_running(dev))
         return -EINVAL;
@@ -724,7 +724,7 @@ int usbdrvwext_giwmode(struct net_device *dev,
     if (macp->DeviceOpened != 1)
         return 0;
 
-    spin_lock_irqsave(&(((struct usbdrv_private *)(dev->priv))->cs_lock), irqFlag);
+    spin_lock_irqsave(&macp->cs_lock, irqFlag);
 
     switch(zfiWlanQueryWlanMode(dev))
     {
@@ -742,7 +742,7 @@ int usbdrvwext_giwmode(struct net_device *dev,
             break;
     }
 
-    spin_unlock_irqrestore(&(((struct usbdrv_private *)(dev->priv))->cs_lock), irqFlag);
+    spin_unlock_irqrestore(&macp->cs_lock, irqFlag);
 
     return 0;
 }
@@ -872,7 +872,7 @@ int usbdrvwext_giwrange(struct net_device *dev,
 int usbdrvwext_siwap(struct net_device *dev, struct iw_request_info *info,
         struct sockaddr *MacAddr, char *extra)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if(!netif_running(dev))
         return -EINVAL;
@@ -899,7 +899,7 @@ int usbdrvwext_giwap(struct net_device *dev,
             struct iw_request_info *info,
             struct sockaddr *MacAddr, char *extra)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if (macp->DeviceOpened != 1)
         return 0;
@@ -934,7 +934,7 @@ int usbdrvwext_iwaplist(struct net_device *dev,
 int usbdrvwext_siwscan(struct net_device *dev, struct iw_request_info *info,
         struct iw_point *data, char *extra)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if (macp->DeviceOpened != 1)
         return 0;
@@ -950,7 +950,7 @@ int usbdrvwext_giwscan(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_point *data, char *extra)
 {
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     //struct zsWlanDev* wd = (struct zsWlanDev*) zmw_wlan_dev(dev);
     char *current_ev = extra;
     char *end_buf;
@@ -1015,7 +1015,7 @@ int usbdrvwext_siwessid(struct net_device *dev,
             struct iw_point *essid, char *extra)
 {
     char EssidBuf[IW_ESSID_MAX_SIZE+1];
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if(!netif_running(dev))
         return -EINVAL;
@@ -1053,7 +1053,7 @@ int usbdrvwext_giwessid(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_point *essid, char *extra)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u8_t EssidLen;
     char EssidBuf[IW_ESSID_MAX_SIZE+1];
     int ssid_len;
@@ -1104,7 +1104,7 @@ int usbdrvwext_giwnickn(struct net_device *dev,
 			struct iw_request_info *info,
 			struct iw_point *data, char *nickname)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u8_t EssidLen;
     char EssidBuf[IW_ESSID_MAX_SIZE+1];
 
@@ -1126,7 +1126,7 @@ int usbdrvwext_siwrate(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_param *frq, char *extra)
 {
-	struct usbdrv_private *macp = dev->priv;
+	struct usbdrv_private *macp = dev->ml_priv;
     //Array to Define Rate Number that Send to Driver
     u16_t zcIndextoRateBG[16] = {1000, 2000, 5500, 11000, 0, 0, 0, 0, 48000,
                                24000, 12000, 6000, 54000, 36000, 18000, 9000};
@@ -1171,7 +1171,7 @@ int usbdrvwext_giwrate(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_param *frq, char *extra)
 {
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if(!netif_running(dev))
         return -EINVAL;
@@ -1190,7 +1190,7 @@ int usbdrvwext_siwrts(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_param *rts, char *extra)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     int val = rts->value;
 
     if (macp->DeviceOpened != 1)
@@ -1211,7 +1211,7 @@ int usbdrvwext_giwrts(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_param *rts, char *extra)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if(!netif_running(dev))
         return -EINVAL;
@@ -1231,7 +1231,7 @@ int usbdrvwext_siwfrag(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_param *frag, char *extra)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u16_t fragThreshold;
 
     if (macp->DeviceOpened != 1)
@@ -1251,7 +1251,7 @@ int usbdrvwext_giwfrag(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_param *frag, char *extra)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u16 val;
     unsigned long irqFlag;
 
@@ -1261,7 +1261,7 @@ int usbdrvwext_giwfrag(struct net_device *dev,
     if (macp->DeviceOpened != 1)
         return 0;
 
-    spin_lock_irqsave(&(((struct usbdrv_private *)(dev->priv))->cs_lock), irqFlag);
+    spin_lock_irqsave(&macp->cs_lock, irqFlag);
 
     val = zfiWlanQueryFragThreshold(dev);
 
@@ -1270,7 +1270,7 @@ int usbdrvwext_giwfrag(struct net_device *dev,
     frag->disabled = (val >= 2346);
     frag->fixed = 1;
 
-    spin_unlock_irqrestore(&(((struct usbdrv_private *)(dev->priv))->cs_lock), irqFlag);
+    spin_unlock_irqrestore(&macp->cs_lock, irqFlag);
 
     return 0;
 }
@@ -1313,7 +1313,7 @@ int usbdrvwext_siwencode(struct net_device *dev,
 {
     struct zsKeyInfo keyInfo;
     int i, WepState = ZM_ENCRYPTION_WEP_DISABLED;
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if(!netif_running(dev))
         return -EINVAL;
@@ -1358,7 +1358,7 @@ int usbdrvwext_giwencode(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_point *erq, char *key)
 {
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u8_t EncryptionMode;
     u8_t keyLen = 0;
 
@@ -1421,7 +1421,7 @@ int usbdrvwext_siwpower(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_param *frq, char *extra)
 {
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u8_t PSMode;
 
     if (macp->DeviceOpened != 1)
@@ -1442,19 +1442,19 @@ int usbdrvwext_giwpower(struct net_device *dev,
             struct iw_param *frq, char *extra)
 {
     unsigned long irqFlag;
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     if (macp->DeviceOpened != 1)
         return 0;
 
-    spin_lock_irqsave(&(((struct usbdrv_private *)(dev->priv))->cs_lock), irqFlag);
+    spin_lock_irqsave(&macp->cs_lock, irqFlag);
 
     if (zfiWlanQueryPowerSaveMode(dev) == ZM_STA_PS_NONE)
         frq->disabled = 1;
     else
         frq->disabled = 0;
 
-    spin_unlock_irqrestore(&(((struct usbdrv_private *)(dev->priv))->cs_lock), irqFlag);
+    spin_unlock_irqrestore(&macp->cs_lock, irqFlag);
 
     return 0;
 }
@@ -1462,7 +1462,7 @@ int usbdrvwext_giwpower(struct net_device *dev,
 //int usbdrvwext_setparam(struct net_device *dev, struct iw_request_info *info,
 //		   	 void *w, char *extra)
 //{
-//	struct ieee80211vap *vap = dev->priv;
+//	struct ieee80211vap *vap = dev->ml_priv;
 //	struct ieee80211com *ic = vap->iv_ic;
 //	struct ieee80211_rsnparms *rsn = &vap->iv_bss->ni_rsn;
 //	int *i = (int *) extra;
@@ -1969,7 +1969,7 @@ int usbdrvwext_setmode(struct net_device *dev, struct iw_request_info *info,
 int usbdrvwext_getmode(struct net_device *dev, struct iw_request_info *info,
 			void *w, char *extra)
 {
-	//struct usbdrv_private *macp = dev->priv;
+	//struct usbdrv_private *macp = dev->ml_priv;
 	struct iw_point *wri = (struct iw_point *)extra;
 	char mode[8];
 
@@ -2147,7 +2147,7 @@ int usbdrv_wpa_ioctl(struct net_device *dev, struct athr_wlan_param *zdparm)
     u8_t bc_addr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
     u8_t mac_addr[80];
     struct zsKeyInfo keyInfo;
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u16_t vapId = 0;
 
     //zmw_get_wlan_dev(dev);
@@ -2410,7 +2410,7 @@ int usbdrv_wpa_ioctl(struct net_device *dev, struct athr_wlan_param *zdparm)
 #ifdef ZM_ENABLE_CENC
 int usbdrv_cenc_ioctl(struct net_device *dev, struct zydas_cenc_param *zdparm)
 {
-    //struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+    //struct usbdrv_private *macp = dev->ml_priv;
     struct zsKeyInfo keyInfo;
     u16_t apId;
     u8_t bc_addr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -2508,12 +2508,11 @@ int usbdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
     struct zdap_ioctl zdreq;
     struct iwreq *wrq = (struct iwreq *)ifr;
     struct athr_wlan_param zdparm;
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     int err = 0;
     int changed = 0;
 
-//    macp = dev->priv;
 //    regp = macp->regp;
 
     if(!netif_running(dev))

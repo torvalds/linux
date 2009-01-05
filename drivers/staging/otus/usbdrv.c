@@ -326,7 +326,7 @@ void usbdrv_intr(int irq, void *dev_inst, struct pt_regs *regs)
     struct usbdrv_private *macp;
 
     dev = dev_inst;
-    macp = dev->priv;
+    macp = dev->ml_priv;
 
 
     /* Read register error, card may be unpluged */
@@ -367,7 +367,7 @@ void usbdrv_intr(int irq, void *dev_inst, struct pt_regs *regs)
 
 int usbdrv_open(struct net_device *dev)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     int rc = 0;
     u16_t size;
     void* mem;
@@ -516,7 +516,7 @@ exit:
 
 struct net_device_stats * usbdrv_get_stats(struct net_device *dev)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     macp->drv_stats.net_stats.tx_errors =
         macp->drv_stats.net_stats.tx_carrier_errors +
@@ -548,7 +548,7 @@ int usbdrv_set_mac(struct net_device *dev, void *addr)
     struct usbdrv_private *macp;
     int rc = -1;
 
-    macp = dev->priv;
+    macp = dev->ml_priv;
     read_lock(&(macp->isolate_lock));
 
     if (macp->driver_isolated) {
@@ -599,7 +599,7 @@ int usbdrv_close(struct net_device *dev)
 {
 extern void zfHpLedCtrl(struct net_device *dev, u16_t ledId, u8_t mode);
 
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     printk(KERN_DEBUG "usbdrv_close\n");
 
@@ -653,7 +653,7 @@ extern void zfHpLedCtrl(struct net_device *dev, u16_t ledId, u8_t mode);
 int usbdrv_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
     int notify_stop = FALSE;
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
 #if 0
     /* Test code */
@@ -715,7 +715,7 @@ void usbdrv_set_multi(struct net_device *dev)
  */
 void usbdrv_clear_structs(struct net_device *dev)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
 
 #if (WLAN_HOSTIF == WLAN_PCI)
@@ -740,7 +740,7 @@ void usbdrv_remove1(struct pci_dev *pcid)
     if (!(dev = (struct net_device *) pci_get_drvdata(pcid)))
         return;
 
-    macp = dev->priv;
+    macp = dev->ml_priv;
     unregister_netdev(dev);
 
     usbdrv_clear_structs(dev);
@@ -749,7 +749,7 @@ void usbdrv_remove1(struct pci_dev *pcid)
 
 void zfLnx10msTimer(struct net_device* dev)
 {
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
 
     mod_timer(&(macp->hbTimer10ms), jiffies + (1*HZ)/100);   //10 ms
     zfiHeartBeat(dev);
@@ -814,7 +814,7 @@ int zfLnxVapClose(struct net_device *dev)
 int zfLnxVapXmitFrame(struct sk_buff *skb, struct net_device *dev)
 {
     int notify_stop = FALSE;
-    struct usbdrv_private *macp = dev->priv;
+    struct usbdrv_private *macp = dev->ml_priv;
     u16_t vapId;
 
     vapId = zfLnxGetVapId(dev);
@@ -871,7 +871,7 @@ int zfLnxRegisterVapDev(struct net_device* parentDev, u16_t vapId)
     vap[vapId].dev->base_addr = parentDev->base_addr;
     vap[vapId].dev->mem_start = parentDev->mem_start;
     vap[vapId].dev->mem_end = parentDev->mem_end;
-    vap[vapId].dev->priv = parentDev->priv;
+    vap[vapId].dev->ml_priv = parentDev->ml_priv;
 
     //dev->hard_start_xmit = &zd1212_wds_xmit_frame;
     vap[vapId].dev->hard_start_xmit = &zfLnxVapXmitFrame;

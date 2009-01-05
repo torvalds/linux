@@ -64,19 +64,20 @@ void zfwSleep(zdev_t* dev, u32_t ms)
 #ifdef ZM_HALPLUS_LOCK
 asmlinkage struct zsWlanDev *zfwGetWlanDev(zdev_t* dev)
 {
-    return ((struct zsWlanDev*)(((struct usbdrv_private*)dev->priv)->wd));
+	struct usbdrv_private *macp = dev->ml_priv;
+	return macp->wd;
 }
 
 asmlinkage void zfwEnterCriticalSection(zdev_t* dev)
 {
-    spin_lock_irqsave(&(((struct usbdrv_private *)(dev->priv))->cs_lock),
-            (((struct usbdrv_private *)(dev->priv))->hal_irqFlag));
+	struct usbdrv_private *macp = dev->ml_priv;
+	spin_lock_irqsave(&macp->cs_lock, macp->hal_irqFlag);
 }
 
 asmlinkage void zfwLeaveCriticalSection(zdev_t* dev)
 {
-    spin_unlock_irqrestore(&(((struct usbdrv_private *)(dev->priv))->cs_lock),
-            (((struct usbdrv_private *)(dev->priv))->hal_irqFlag));
+	struct usbdrv_private *macp = dev->ml_priv;
+	spin_unlock_irqrestore(&macp->cs_lock, macp->hal_irqFlag);
 }
 
 asmlinkage u8_t zfwBufReadByte(zdev_t* dev, zbuf_t* buf, u16_t offset)

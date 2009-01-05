@@ -141,7 +141,7 @@ static int zfLnxProbe(struct usb_interface *interface,
     SET_MODULE_OWNER(net);
 #endif
 
-    net->priv = macp;   //kernel 2.6
+    net->ml_priv = macp;   //kernel 2.6
     macp->udev = dev;
     macp->device = net;
 
