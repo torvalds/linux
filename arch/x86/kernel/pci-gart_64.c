@@ -302,8 +302,8 @@ static void gart_unmap_page(struct device *dev, dma_addr_t dma_addr,
 /*
  * Wrapper for pci_unmap_single working with scatterlists.
  */
-static void
-gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
+static void gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
+			  enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	struct scatterlist *s;
 	int i;
@@ -333,7 +333,7 @@ static int dma_map_sg_nonforce(struct device *dev, struct scatterlist *sg,
 			addr = dma_map_area(dev, addr, s->length, dir, 0);
 			if (addr == bad_dma_address) {
 				if (i > 0)
-					gart_unmap_sg(dev, sg, i, dir);
+					gart_unmap_sg(dev, sg, i, dir, NULL);
 				nents = 0;
 				sg[0].dma_length = 0;
 				break;
@@ -404,8 +404,8 @@ dma_map_cont(struct device *dev, struct scatterlist *start, int nelems,
  * DMA map all entries in a scatterlist.
  * Merge chunks that have page aligned sizes into a continuous mapping.
  */
-static int
-gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
+static int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents,
+		       enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	struct scatterlist *s, *ps, *start_sg, *sgmap;
 	int need = 0, nextneed, i, out, start;
@@ -472,7 +472,7 @@ gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 
 error:
 	flush_gart();
-	gart_unmap_sg(dev, sg, out, dir);
+	gart_unmap_sg(dev, sg, out, dir, NULL);
 
 	/* When it was forced or merged try again in a dumb way */
 	if (force_iommu || iommu_merge) {
@@ -711,7 +711,7 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	return -1;
 }
 
-static struct dma_mapping_ops gart_dma_ops = {
+static struct dma_map_ops gart_dma_ops = {
 	.map_sg				= gart_map_sg,
 	.unmap_sg			= gart_unmap_sg,
 	.map_page			= gart_map_page,

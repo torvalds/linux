@@ -909,11 +909,13 @@ sba_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
  *
  * See Documentation/DMA-mapping.txt
  */
-static dma_addr_t
-sba_map_single_attrs(struct device *dev, void *addr, size_t size, int dir,
-		     struct dma_attrs *attrs)
+static dma_addr_t sba_map_page(struct device *dev, struct page *page,
+			       unsigned long poff, size_t size,
+			       enum dma_data_direction dir,
+			       struct dma_attrs *attrs)
 {
 	struct ioc *ioc;
+	void *addr = page_address(page) + poff;
 	dma_addr_t iovp;
 	dma_addr_t offset;
 	u64 *pdir_start;
@@ -992,6 +994,14 @@ sba_map_single_attrs(struct device *dev, void *addr, size_t size, int dir,
 	return SBA_IOVA(ioc, iovp, offset);
 }
 
+static dma_addr_t sba_map_single_attrs(struct device *dev, void *addr,
+				       size_t size, enum dma_data_direction dir,
+				       struct dma_attrs *attrs)
+{
+	return sba_map_page(dev, virt_to_page(addr),
+			    (unsigned long)addr & ~PAGE_MASK, size, dir, attrs);
+}
+
 #ifdef ENABLE_MARK_CLEAN
 static SBA_INLINE void
 sba_mark_clean(struct ioc *ioc, dma_addr_t iova, size_t size)
@@ -1026,8 +1036,8 @@ sba_mark_clean(struct ioc *ioc, dma_addr_t iova, size_t size)
  *
  * See Documentation/DMA-mapping.txt
  */
-static void sba_unmap_single_attrs(struct device *dev, dma_addr_t iova, size_t size,
-				   int dir, struct dma_attrs *attrs)
+static void sba_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
+			   enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	struct ioc *ioc;
 #if DELAYED_RESOURCE_CNT > 0
@@ -1093,6 +1103,12 @@ static void sba_unmap_single_attrs(struct device *dev, dma_addr_t iova, size_t s
 	READ_REG(ioc->ioc_hpa+IOC_PCOM);	/* flush purges */
 	spin_unlock_irqrestore(&ioc->res_lock, flags);
 #endif /* DELAYED_RESOURCE_CNT == 0 */
+}
+
+void sba_unmap_single_attrs(struct device *dev, dma_addr_t iova, size_t size,
+			    enum dma_data_direction dir, struct dma_attrs *attrs)
+{
+	sba_unmap_page(dev, iova, size, dir, attrs);
 }
 
 /**
@@ -1423,7 +1439,8 @@ sba_coalesce_chunks(struct ioc *ioc, struct device *dev,
  * See Documentation/DMA-mapping.txt
  */
 static int sba_map_sg_attrs(struct device *dev, struct scatterlist *sglist,
-			    int nents, int dir, struct dma_attrs *attrs)
+			    int nents, enum dma_data_direction dir,
+			    struct dma_attrs *attrs)
 {
 	struct ioc *ioc;
 	int coalesced, filled = 0;
@@ -1514,7 +1531,8 @@ static int sba_map_sg_attrs(struct device *dev, struct scatterlist *sglist,
  * See Documentation/DMA-mapping.txt
  */
 static void sba_unmap_sg_attrs(struct device *dev, struct scatterlist *sglist,
-			       int nents, int dir, struct dma_attrs *attrs)
+			       int nents, enum dma_data_direction dir,
+			       struct dma_attrs *attrs)
 {
 #ifdef ASSERT_PDIR_SANITY
 	struct ioc *ioc;
@@ -2062,7 +2080,7 @@ static struct acpi_driver acpi_sba_ioc_driver = {
 	},
 };
 
-extern struct dma_mapping_ops swiotlb_dma_ops;
+extern struct dma_map_ops swiotlb_dma_ops;
 
 static int __init
 sba_init(void)
@@ -2176,18 +2194,18 @@ sba_page_override(char *str)
 
 __setup("sbapagesize=",sba_page_override);
 
-struct dma_mapping_ops sba_dma_ops = {
+struct dma_map_ops sba_dma_ops = {
 	.alloc_coherent		= sba_alloc_coherent,
 	.free_coherent		= sba_free_coherent,
-	.map_single_attrs	= sba_map_single_attrs,
-	.unmap_single_attrs	= sba_unmap_single_attrs,
-	.map_sg_attrs		= sba_map_sg_attrs,
-	.unmap_sg_attrs		= sba_unmap_sg_attrs,
+	.map_page		= sba_map_page,
+	.unmap_page		= sba_unmap_page,
+	.map_sg			= sba_map_sg_attrs,
+	.unmap_sg		= sba_unmap_sg_attrs,
 	.sync_single_for_cpu	= machvec_dma_sync_single,
 	.sync_sg_for_cpu	= machvec_dma_sync_sg,
 	.sync_single_for_device	= machvec_dma_sync_single,
 	.sync_sg_for_device	= machvec_dma_sync_sg,
-	.dma_supported_op	= sba_dma_supported,
+	.dma_supported		= sba_dma_supported,
 	.mapping_error		= sba_dma_mapping_error,
 };
 

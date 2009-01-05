@@ -54,7 +54,8 @@ static dma_addr_t nommu_map_page(struct device *dev, struct page *page,
  * the same here.
  */
 static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
-	       int nents, int direction)
+			int nents, enum dma_data_direction dir,
+			struct dma_attrs *attrs)
 {
 	struct scatterlist *s;
 	int i;
@@ -78,7 +79,7 @@ static void nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
 	free_pages((unsigned long)vaddr, get_order(size));
 }
 
-struct dma_mapping_ops nommu_dma_ops = {
+struct dma_map_ops nommu_dma_ops = {
 	.alloc_coherent = dma_generic_alloc_coherent,
 	.free_coherent = nommu_free_coherent,
 	.map_sg = nommu_map_sg,

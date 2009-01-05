@@ -10,7 +10,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/dma-attrs.h>
 #include <linux/dma-mapping.h>
 #include <asm/dma.h>
 #include <asm/sn/intr.h>
@@ -171,10 +170,12 @@ static void sn_dma_free_coherent(struct device *dev, size_t size, void *cpu_addr
  * TODO: simplify our interface;
  *       figure out how to save dmamap handle so can use two step.
  */
-static dma_addr_t sn_dma_map_single_attrs(struct device *dev, void *cpu_addr,
-					  size_t size, int direction,
-					  struct dma_attrs *attrs)
+static dma_addr_t sn_dma_map_page(struct device *dev, struct page *page,
+				  unsigned long offset, size_t size,
+				  enum dma_data_direction dir,
+				  struct dma_attrs *attrs)
 {
+	void *cpu_addr = page_address(page) + offset;
 	dma_addr_t dma_addr;
 	unsigned long phys_addr;
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -212,20 +213,20 @@ static dma_addr_t sn_dma_map_single_attrs(struct device *dev, void *cpu_addr,
  * by @dma_handle into the coherence domain.  On SN, we're always cache
  * coherent, so we just need to free any ATEs associated with this mapping.
  */
-static void sn_dma_unmap_single_attrs(struct device *dev, dma_addr_t dma_addr,
-				      size_t size, int direction,
-				      struct dma_attrs *attrs)
+static void sn_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
+			      size_t size, enum dma_data_direction dir,
+			      struct dma_attrs *attrs)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
 	BUG_ON(dev->bus != &pci_bus_type);
 
-	provider->dma_unmap(pdev, dma_addr, direction);
+	provider->dma_unmap(pdev, dma_addr, dir);
 }
 
 /**
- * sn_dma_unmap_sg_attrs - unmap a DMA scatterlist
+ * sn_dma_unmap_sg - unmap a DMA scatterlist
  * @dev: device to unmap
  * @sg: scatterlist to unmap
  * @nhwentries: number of scatterlist entries
@@ -234,9 +235,9 @@ static void sn_dma_unmap_single_attrs(struct device *dev, dma_addr_t dma_addr,
  *
  * Unmap a set of streaming mode DMA translations.
  */
-static void sn_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sgl,
-				  int nhwentries, int direction,
-				  struct dma_attrs *attrs)
+static void sn_dma_unmap_sg(struct device *dev, struct scatterlist *sgl,
+			    int nhwentries, enum dma_data_direction dir,
+			    struct dma_attrs *attrs)
 {
 	int i;
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -246,14 +247,14 @@ static void sn_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sgl,
 	BUG_ON(dev->bus != &pci_bus_type);
 
 	for_each_sg(sgl, sg, nhwentries, i) {
-		provider->dma_unmap(pdev, sg->dma_address, direction);
+		provider->dma_unmap(pdev, sg->dma_address, dir);
 		sg->dma_address = (dma_addr_t) NULL;
 		sg->dma_length = 0;
 	}
 }
 
 /**
- * sn_dma_map_sg_attrs - map a scatterlist for DMA
+ * sn_dma_map_sg - map a scatterlist for DMA
  * @dev: device to map for
  * @sg: scatterlist to map
  * @nhwentries: number of entries
@@ -267,8 +268,9 @@ static void sn_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sgl,
  *
  * Maps each entry of @sg for DMA.
  */
-static int sn_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
-			       int nhwentries, int direction, struct dma_attrs *attrs)
+static int sn_dma_map_sg(struct device *dev, struct scatterlist *sgl,
+			 int nhwentries, enum dma_data_direction dir,
+			 struct dma_attrs *attrs)
 {
 	unsigned long phys_addr;
 	struct scatterlist *saved_sg = sgl, *sg;
@@ -305,8 +307,7 @@ static int sn_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
 			 * Free any successfully allocated entries.
 			 */
 			if (i > 0)
-				sn_dma_unmap_sg_attrs(dev, saved_sg, i,
-						      direction, attrs);
+				sn_dma_unmap_sg(dev, saved_sg, i, dir, attrs);
 			return 0;
 		}
 
@@ -317,25 +318,26 @@ static int sn_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
 }
 
 static void sn_dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,
-				       size_t size, int direction)
+				       size_t size, enum dma_data_direction dir)
 {
 	BUG_ON(dev->bus != &pci_bus_type);
 }
 
 static void sn_dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
-					  size_t size, int direction)
+					  size_t size,
+					  enum dma_data_direction dir)
 {
 	BUG_ON(dev->bus != &pci_bus_type);
 }
 
 static void sn_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
-				   int nelems, int direction)
+				   int nelems, enum dma_data_direction dir)
 {
 	BUG_ON(dev->bus != &pci_bus_type);
 }
 
 static void sn_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
-				      int nelems, int direction)
+				      int nelems, enum dma_data_direction dir)
 {
 	BUG_ON(dev->bus != &pci_bus_type);
 }
@@ -455,19 +457,19 @@ int sn_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 	return ret;
 }
 
-static struct dma_mapping_ops sn_dma_ops = {
+static struct dma_map_ops sn_dma_ops = {
 	.alloc_coherent		= sn_dma_alloc_coherent,
 	.free_coherent		= sn_dma_free_coherent,
-	.map_single_attrs	= sn_dma_map_single_attrs,
-	.unmap_single_attrs	= sn_dma_unmap_single_attrs,
-	.map_sg_attrs		= sn_dma_map_sg_attrs,
-	.unmap_sg_attrs		= sn_dma_unmap_sg_attrs,
+	.map_page		= sn_dma_map_page,
+	.unmap_page		= sn_dma_unmap_page,
+	.map_sg			= sn_dma_map_sg,
+	.unmap_sg		= sn_dma_unmap_sg,
 	.sync_single_for_cpu 	= sn_dma_sync_single_for_cpu,
 	.sync_sg_for_cpu	= sn_dma_sync_sg_for_cpu,
 	.sync_single_for_device = sn_dma_sync_single_for_device,
 	.sync_sg_for_device	= sn_dma_sync_sg_for_device,
 	.mapping_error		= sn_dma_mapping_error,
-	.dma_supported_op	= sn_dma_supported,
+	.dma_supported		= sn_dma_supported,
 };
 
 void sn_dma_init(void)

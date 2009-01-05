@@ -2441,7 +2441,8 @@ void intel_free_coherent(struct device *hwdev, size_t size, void *vaddr,
 #define SG_ENT_VIRT_ADDRESS(sg)	(sg_virt((sg)))
 
 void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
-		    int nelems, int dir)
+		    int nelems, enum dma_data_direction dir,
+		    struct dma_attrs *attrs)
 {
 	int i;
 	struct pci_dev *pdev = to_pci_dev(hwdev);
@@ -2499,7 +2500,7 @@ static int intel_nontranslate_map_sg(struct device *hddev,
 }
 
 int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
-		 int dir)
+		 enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	void *addr;
 	int i;
@@ -2579,15 +2580,13 @@ int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 	return nelems;
 }
 
-static struct dma_mapping_ops intel_dma_ops = {
+struct dma_map_ops intel_dma_ops = {
 	.alloc_coherent = intel_alloc_coherent,
 	.free_coherent = intel_free_coherent,
 	.map_sg = intel_map_sg,
 	.unmap_sg = intel_unmap_sg,
-#ifdef CONFIG_X86_64
 	.map_page = intel_map_page,
 	.unmap_page = intel_unmap_page,
-#endif
 };
 
 static inline int iommu_domain_cache_init(void)

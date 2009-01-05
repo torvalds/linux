@@ -16,24 +16,36 @@ EXPORT_SYMBOL(swiotlb);
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly;
 
-struct dma_mapping_ops swiotlb_dma_ops = {
+static dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
+				   unsigned long offset, size_t size,
+				   enum dma_data_direction dir,
+				   struct dma_attrs *attrs)
+{
+	return swiotlb_map_single_attrs(dev, page_address(page) + offset, size,
+					dir, attrs);
+}
+
+static void swiotlb_unmap_page(struct device *dev, dma_addr_t dma_handle,
+			       size_t size, enum dma_data_direction dir,
+			       struct dma_attrs *attrs)
+{
+	swiotlb_unmap_single_attrs(dev, dma_handle, size, dir, attrs);
+}
+
+struct dma_map_ops swiotlb_dma_ops = {
 	.alloc_coherent = swiotlb_alloc_coherent,
 	.free_coherent = swiotlb_free_coherent,
-	.map_single = swiotlb_map_single,
-	.unmap_single = swiotlb_unmap_single,
-	.map_single_attrs = swiotlb_map_single_attrs,
-	.unmap_single_attrs = swiotlb_unmap_single_attrs,
-	.map_sg_attrs = swiotlb_map_sg_attrs,
-	.unmap_sg_attrs	= swiotlb_unmap_sg_attrs,
+	.map_page = swiotlb_map_page,
+	.unmap_page = swiotlb_unmap_page,
+	.map_sg = swiotlb_map_sg_attrs,
+	.unmap_sg = swiotlb_unmap_sg_attrs,
 	.sync_single_for_cpu = swiotlb_sync_single_for_cpu,
 	.sync_single_for_device = swiotlb_sync_single_for_device,
 	.sync_single_range_for_cpu = swiotlb_sync_single_range_for_cpu,
 	.sync_single_range_for_device = swiotlb_sync_single_range_for_device,
 	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,
 	.sync_sg_for_device = swiotlb_sync_sg_for_device,
-	.map_sg = swiotlb_map_sg,
-	.unmap_sg = swiotlb_unmap_sg,
-	.dma_supported_op = swiotlb_dma_supported,
+	.dma_supported = swiotlb_dma_supported,
 	.mapping_error = swiotlb_dma_mapping_error,
 };
 

@@ -41,21 +41,7 @@ struct device fallback_dev = {
 	.dma_mask = &fallback_dev.coherent_dma_mask,
 };
 
-extern struct dma_mapping_ops vtd_dma_ops;
-
-void __init pci_iommu_alloc(void)
-{
-	dma_ops = &vtd_dma_ops;
-	/*
-	 * The order of these functions is important for
-	 * fall-back/fail-over reasons
-	 */
-	detect_intel_iommu();
-
-#ifdef CONFIG_SWIOTLB
-	pci_swiotlb_init();
-#endif
-}
+extern struct dma_map_ops intel_dma_ops;
 
 static int __init pci_iommu_init(void)
 {
@@ -81,10 +67,10 @@ iommu_dma_init(void)
 
 int iommu_dma_supported(struct device *dev, u64 mask)
 {
-	struct dma_mapping_ops *ops = platform_dma_get_ops(dev);
+	struct dma_map_ops *ops = platform_dma_get_ops(dev);
 
-	if (ops->dma_supported_op)
-		return ops->dma_supported_op(dev, mask);
+	if (ops->dma_supported)
+		return ops->dma_supported(dev, mask);
 
 	/* Copied from i386. Doesn't make much sense, because it will
 	   only work for pci_alloc_coherent.
@@ -112,5 +98,32 @@ int iommu_dma_supported(struct device *dev, u64 mask)
 	return 1;
 }
 EXPORT_SYMBOL(iommu_dma_supported);
+
+static int vtd_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return 0;
+}
+
+void __init pci_iommu_alloc(void)
+{
+	dma_ops = &intel_dma_ops;
+
+	dma_ops->sync_single_for_cpu = machvec_dma_sync_single;
+	dma_ops->sync_sg_for_cpu = machvec_dma_sync_sg;
+	dma_ops->sync_single_for_device = machvec_dma_sync_single;
+	dma_ops->sync_sg_for_device = machvec_dma_sync_sg;
+	dma_ops->dma_supported = iommu_dma_supported;
+	dma_ops->mapping_error = vtd_dma_mapping_error;
+
+	/*
+	 * The order of these functions is important for
+	 * fall-back/fail-over reasons
+	 */
+	detect_intel_iommu();
+
+#ifdef CONFIG_SWIOTLB
+	pci_swiotlb_init();
+#endif
+}
 
 #endif
