@@ -17,6 +17,7 @@
 #include <linux/linkage.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/atmel-mci.h>
 #include <linux/atmel-pwm-bl.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -76,6 +77,14 @@ static struct spi_board_info __initdata spi1_board_info[] = {
 		.chip_select	= 0,
 		.bus_num	= 1,
 		.platform_data	= &ads7843_data,
+	},
+};
+
+static struct mci_platform_data __initdata mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= -ENODEV,
+		.wp_pin		= -ENODEV,
 	},
 };
 
@@ -321,7 +330,7 @@ static int __init favr32_init(void)
 
 	at32_add_device_pwm(1 << atmel_pwm_bl_pdata.pwm_channel);
 	at32_add_device_spi(1, spi1_board_info, ARRAY_SIZE(spi1_board_info));
-	at32_add_device_mci(0, NULL);
+	at32_add_device_mci(0, &mci0_data);
 	at32_add_device_usba(0, NULL);
 	at32_add_device_lcdc(0, &favr32_lcdc_data, fbmem_start, fbmem_size, 0);
 

@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/atmel-mci.h>
 #include <linux/clk.h>
 #include <linux/fb.h>
 #include <linux/etherdevice.h>
@@ -85,6 +86,14 @@ struct atmel_lcdfb_info __initdata hammerhead_lcdc_data = {
 	.guard_time		= 2,
 };
 #endif
+
+static struct mci_platform_data __initdata mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= -ENODEV,
+		.wp_pin		= -ENODEV,
+	},
+};
 
 struct eth_addr {
 	u8 addr[6];
@@ -204,7 +213,7 @@ static int __init hammerhead_init(void)
 #ifdef CONFIG_BOARD_HAMMERHEAD_FPGA
 	at32_add_device_hh_fpga();
 #endif
-	at32_add_device_mci(0, NULL);
+	at32_add_device_mci(0, &mci0_data);
 
 #ifdef CONFIG_BOARD_HAMMERHEAD_USB
 	at32_add_device_usba(0, NULL);
