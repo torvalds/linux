@@ -1094,7 +1094,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 					PAGE_CACHE_SHIFT;
 
 		WARN_ON(num_pages > nrptrs);
-		memset(pages, 0, sizeof(pages));
+		memset(pages, 0, sizeof(struct page *) * nrptrs);
 
 		ret = btrfs_check_free_space(root, write_bytes, 0);
 		if (ret)
