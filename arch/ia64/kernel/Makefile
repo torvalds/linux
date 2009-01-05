@@ -43,9 +43,7 @@ ifneq ($(CONFIG_IA64_ESI),)
 obj-y				+= esi_stub.o	# must be in kernel proper
 endif
 obj-$(CONFIG_DMAR)		+= pci-dma.o
-ifeq ($(CONFIG_DMAR), y)
 obj-$(CONFIG_SWIOTLB)		+= pci-swiotlb.o
-endif
 
 # The gate DSO image is built using a special linker script.
 targets += gate.so gate-syms.o
