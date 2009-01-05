@@ -638,10 +638,7 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 
 	/* case MBA_RIO_RESPONSE: */
 	case MBA_ZIO_RESPONSE:
-		DEBUG2(printk("scsi(%ld): [R|Z]IO update completion.\n",
-		    vha->host_no));
-		DEBUG(printk(KERN_INFO
-		    "scsi(%ld): [R|Z]IO update completion.\n",
+		DEBUG3(printk("scsi(%ld): [R|Z]IO update completion.\n",
 		    vha->host_no));
 
 		if (IS_FWI2_CAPABLE(ha))
