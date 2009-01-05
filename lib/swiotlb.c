@@ -636,11 +636,14 @@ swiotlb_full(struct device *dev, size_t size, int dir, int do_panic)
  * Once the device is given the dma address, the device owns this memory until
  * either swiotlb_unmap_single or swiotlb_dma_sync_single is performed.
  */
-dma_addr_t
-swiotlb_map_single_attrs(struct device *hwdev, void *ptr, size_t size,
-			 int dir, struct dma_attrs *attrs)
+dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
+			    unsigned long offset, size_t size,
+			    enum dma_data_direction dir,
+			    struct dma_attrs *attrs)
 {
-	dma_addr_t dev_addr = swiotlb_virt_to_bus(hwdev, ptr);
+	phys_addr_t phys = page_to_phys(page) + offset;
+	void *ptr = page_address(page) + offset;
+	dma_addr_t dev_addr = swiotlb_phys_to_bus(dev, phys);
 	void *map;
 
 	BUG_ON(dir == DMA_NONE);
@@ -649,37 +652,30 @@ swiotlb_map_single_attrs(struct device *hwdev, void *ptr, size_t size,
 	 * we can safely return the device addr and not worry about bounce
 	 * buffering it.
 	 */
-	if (!address_needs_mapping(hwdev, dev_addr, size) &&
+	if (!address_needs_mapping(dev, dev_addr, size) &&
 	    !range_needs_mapping(ptr, size))
 		return dev_addr;
 
 	/*
 	 * Oh well, have to allocate and map a bounce buffer.
 	 */
-	map = map_single(hwdev, virt_to_phys(ptr), size, dir);
+	map = map_single(dev, phys, size, dir);
 	if (!map) {
-		swiotlb_full(hwdev, size, dir, 1);
+		swiotlb_full(dev, size, dir, 1);
 		map = io_tlb_overflow_buffer;
 	}
 
-	dev_addr = swiotlb_virt_to_bus(hwdev, map);
+	dev_addr = swiotlb_virt_to_bus(dev, map);
 
 	/*
 	 * Ensure that the address returned is DMA'ble
 	 */
-	if (address_needs_mapping(hwdev, dev_addr, size))
+	if (address_needs_mapping(dev, dev_addr, size))
 		panic("map_single: bounce buffer is not DMA'ble");
 
 	return dev_addr;
 }
-EXPORT_SYMBOL(swiotlb_map_single_attrs);
-
-dma_addr_t
-swiotlb_map_single(struct device *hwdev, void *ptr, size_t size, int dir)
-{
-	return swiotlb_map_single_attrs(hwdev, ptr, size, dir, NULL);
-}
-EXPORT_SYMBOL(swiotlb_map_single);
+EXPORT_SYMBOL_GPL(swiotlb_map_page);
 
 /*
  * Unmap a single streaming mode DMA translation.  The dma_addr and size must
@@ -689,9 +685,9 @@ EXPORT_SYMBOL(swiotlb_map_single);
  * After this call, reads by the cpu to the buffer are guaranteed to see
  * whatever the device wrote there.
  */
-void
-swiotlb_unmap_single_attrs(struct device *hwdev, dma_addr_t dev_addr,
-			   size_t size, int dir, struct dma_attrs *attrs)
+void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
+			size_t size, enum dma_data_direction dir,
+			struct dma_attrs *attrs)
 {
 	char *dma_addr = swiotlb_bus_to_virt(dev_addr);
 
@@ -701,15 +697,7 @@ swiotlb_unmap_single_attrs(struct device *hwdev, dma_addr_t dev_addr,
 	else if (dir == DMA_FROM_DEVICE)
 		dma_mark_clean(dma_addr, size);
 }
-EXPORT_SYMBOL(swiotlb_unmap_single_attrs);
-
-void
-swiotlb_unmap_single(struct device *hwdev, dma_addr_t dev_addr, size_t size,
-		     int dir)
-{
-	return swiotlb_unmap_single_attrs(hwdev, dev_addr, size, dir, NULL);
-}
-EXPORT_SYMBOL(swiotlb_unmap_single);
+EXPORT_SYMBOL_GPL(swiotlb_unmap_page);
 
 /*
  * Make physical memory consistent for a single streaming mode DMA translation

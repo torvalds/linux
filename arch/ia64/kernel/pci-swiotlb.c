@@ -16,22 +16,6 @@ EXPORT_SYMBOL(swiotlb);
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly;
 
-static dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
-				   unsigned long offset, size_t size,
-				   enum dma_data_direction dir,
-				   struct dma_attrs *attrs)
-{
-	return swiotlb_map_single_attrs(dev, page_address(page) + offset, size,
-					dir, attrs);
-}
-
-static void swiotlb_unmap_page(struct device *dev, dma_addr_t dma_handle,
-			       size_t size, enum dma_data_direction dir,
-			       struct dma_attrs *attrs)
-{
-	swiotlb_unmap_single_attrs(dev, dma_handle, size, dir, attrs);
-}
-
 struct dma_map_ops swiotlb_dma_ops = {
 	.alloc_coherent = swiotlb_alloc_coherent,
 	.free_coherent = swiotlb_free_coherent,

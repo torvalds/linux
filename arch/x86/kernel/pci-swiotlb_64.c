@@ -38,23 +38,6 @@ int __weak swiotlb_arch_range_needs_mapping(void *ptr, size_t size)
 	return 0;
 }
 
-/* these will be moved to lib/swiotlb.c later on */
-
-static dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
-				   unsigned long offset, size_t size,
-				   enum dma_data_direction dir,
-				   struct dma_attrs *attrs)
-{
-	return swiotlb_map_single(dev, page_address(page) + offset, size, dir);
-}
-
-static void swiotlb_unmap_page(struct device *dev, dma_addr_t dma_handle,
-			       size_t size, enum dma_data_direction dir,
-			       struct dma_attrs *attrs)
-{
-	swiotlb_unmap_single(dev, dma_handle, size, dir);
-}
-
 static void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flags)
 {
