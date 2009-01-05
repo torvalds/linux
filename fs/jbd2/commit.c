@@ -138,7 +138,7 @@ static int journal_submit_commit_record(journal_t *journal,
 		set_buffer_ordered(bh);
 		barrier_done = 1;
 	}
-	ret = submit_bh(WRITE, bh);
+	ret = submit_bh(WRITE_SYNC, bh);
 	if (barrier_done)
 		clear_buffer_ordered(bh);
 
@@ -159,7 +159,7 @@ static int journal_submit_commit_record(journal_t *journal,
 		lock_buffer(bh);
 		set_buffer_uptodate(bh);
 		clear_buffer_dirty(bh);
-		ret = submit_bh(WRITE, bh);
+		ret = submit_bh(WRITE_SYNC, bh);
 	}
 	*cbh = bh;
 	return ret;
