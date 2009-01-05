@@ -38,13 +38,6 @@ int __weak swiotlb_arch_range_needs_mapping(void *ptr, size_t size)
 	return 0;
 }
 
-static dma_addr_t
-swiotlb_map_single_phys(struct device *hwdev, phys_addr_t paddr, size_t size,
-			int direction)
-{
-	return swiotlb_map_single(hwdev, phys_to_virt(paddr), size, direction);
-}
-
 /* these will be moved to lib/swiotlb.c later on */
 
 static dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
@@ -78,8 +71,6 @@ struct dma_mapping_ops swiotlb_dma_ops = {
 	.mapping_error = swiotlb_dma_mapping_error,
 	.alloc_coherent = x86_swiotlb_alloc_coherent,
 	.free_coherent = swiotlb_free_coherent,
-	.map_single = swiotlb_map_single_phys,
-	.unmap_single = swiotlb_unmap_single,
 	.sync_single_for_cpu = swiotlb_sync_single_for_cpu,
 	.sync_single_for_device = swiotlb_sync_single_for_device,
 	.sync_single_range_for_cpu = swiotlb_sync_single_range_for_cpu,

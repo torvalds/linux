@@ -24,10 +24,6 @@ struct dma_mapping_ops {
 				dma_addr_t *dma_handle, gfp_t gfp);
 	void            (*free_coherent)(struct device *dev, size_t size,
 				void *vaddr, dma_addr_t dma_handle);
-	dma_addr_t      (*map_single)(struct device *hwdev, phys_addr_t ptr,
-				size_t size, int direction);
-	void            (*unmap_single)(struct device *dev, dma_addr_t addr,
-				size_t size, int direction);
 	void            (*sync_single_for_cpu)(struct device *hwdev,
 				dma_addr_t dma_handle, size_t size,
 				int direction);
@@ -103,7 +99,9 @@ dma_map_single(struct device *hwdev, void *ptr, size_t size,
 	struct dma_mapping_ops *ops = get_dma_ops(hwdev);
 
 	BUG_ON(!valid_dma_direction(direction));
-	return ops->map_single(hwdev, virt_to_phys(ptr), size, direction);
+	return ops->map_page(hwdev, virt_to_page(ptr),
+			     (unsigned long)ptr & ~PAGE_MASK, size,
+			     direction, NULL);
 }
 
 static inline void
@@ -113,8 +111,8 @@ dma_unmap_single(struct device *dev, dma_addr_t addr, size_t size,
 	struct dma_mapping_ops *ops = get_dma_ops(dev);
 
 	BUG_ON(!valid_dma_direction(direction));
-	if (ops->unmap_single)
-		ops->unmap_single(dev, addr, size, direction);
+	if (ops->unmap_page)
+		ops->unmap_page(dev, addr, size, direction, NULL);
 }
 
 static inline int
@@ -221,8 +219,7 @@ static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
 	struct dma_mapping_ops *ops = get_dma_ops(dev);
 
 	BUG_ON(!valid_dma_direction(direction));
-	return ops->map_single(dev, page_to_phys(page) + offset,
-			       size, direction);
+	return ops->map_page(dev, page, offset, size, direction, NULL);
 }
 
 static inline void dma_unmap_page(struct device *dev, dma_addr_t addr,

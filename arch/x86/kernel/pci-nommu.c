@@ -38,13 +38,6 @@ static dma_addr_t nommu_map_page(struct device *dev, struct page *page,
 	return bus;
 }
 
-static dma_addr_t nommu_map_single(struct device *hwdev, phys_addr_t paddr,
-				   size_t size, int direction)
-{
-	return nommu_map_page(hwdev, pfn_to_page(paddr >> PAGE_SHIFT),
-			      paddr & ~PAGE_MASK, size, direction, NULL);
-}
-
 /* Map a set of buffers described by scatterlist in streaming
  * mode for DMA.  This is the scatter-gather version of the
  * above pci_map_single interface.  Here the scatter gather list
@@ -88,7 +81,6 @@ static void nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
 struct dma_mapping_ops nommu_dma_ops = {
 	.alloc_coherent = dma_generic_alloc_coherent,
 	.free_coherent = nommu_free_coherent,
-	.map_single = nommu_map_single,
 	.map_sg = nommu_map_sg,
 	.map_page = nommu_map_page,
 	.is_phys = 1,

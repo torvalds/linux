@@ -2582,8 +2582,6 @@ int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 static struct dma_mapping_ops intel_dma_ops = {
 	.alloc_coherent = intel_alloc_coherent,
 	.free_coherent = intel_free_coherent,
-	.map_single = intel_map_single,
-	.unmap_single = intel_unmap_single,
 	.map_sg = intel_map_sg,
 	.unmap_sg = intel_unmap_sg,
 #ifdef CONFIG_X86_64

@@ -275,13 +275,6 @@ static dma_addr_t gart_map_page(struct device *dev, struct page *page,
 	return bus;
 }
 
-static dma_addr_t gart_map_single(struct device *dev, phys_addr_t paddr,
-				  size_t size, int dir)
-{
-	return gart_map_page(dev, pfn_to_page(paddr >> PAGE_SHIFT),
-			     paddr & ~PAGE_MASK, size, dir, NULL);
-}
-
 /*
  * Free a DMA mapping.
  */
@@ -306,12 +299,6 @@ static void gart_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	free_iommu(iommu_page, npages);
 }
 
-static void gart_unmap_single(struct device *dev, dma_addr_t dma_addr,
-			      size_t size, int direction)
-{
-	gart_unmap_page(dev, dma_addr, size, direction, NULL);
-}
-
 /*
  * Wrapper for pci_unmap_single working with scatterlists.
  */
@@ -324,7 +311,7 @@ gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 	for_each_sg(sg, s, nents, i) {
 		if (!s->dma_length || !s->length)
 			break;
-		gart_unmap_single(dev, s->dma_address, s->dma_length, dir);
+		gart_unmap_page(dev, s->dma_address, s->dma_length, dir, NULL);
 	}
 }
 
@@ -538,7 +525,7 @@ static void
 gart_free_coherent(struct device *dev, size_t size, void *vaddr,
 		   dma_addr_t dma_addr)
 {
-	gart_unmap_single(dev, dma_addr, size, DMA_BIDIRECTIONAL);
+	gart_unmap_page(dev, dma_addr, size, DMA_BIDIRECTIONAL, NULL);
 	free_pages((unsigned long)vaddr, get_order(size));
 }
 
@@ -725,8 +712,6 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 }
 
 static struct dma_mapping_ops gart_dma_ops = {
-	.map_single			= gart_map_single,
-	.unmap_single			= gart_unmap_single,
 	.map_sg				= gart_map_sg,
 	.unmap_sg			= gart_unmap_sg,
 	.map_page			= gart_map_page,
