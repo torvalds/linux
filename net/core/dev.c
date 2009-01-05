@@ -2365,6 +2365,7 @@ static int napi_gro_complete(struct sk_buff *skb)
 	}
 
 out:
+	skb_shinfo(skb)->gso_size = 0;
 	__skb_push(skb, -skb_network_offset(skb));
 	return netif_receive_skb(skb);
 }
@@ -2446,6 +2447,7 @@ int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	}
 
 	NAPI_GRO_CB(skb)->count = 1;
+	skb_shinfo(skb)->gso_size = skb->len;
 	skb->next = napi->gro_list;
 	napi->gro_list = skb;
 

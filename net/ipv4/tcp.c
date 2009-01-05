@@ -2519,9 +2519,7 @@ found:
 	flush |= memcmp(th + 1, th2 + 1, thlen - sizeof(*th));
 
 	total = p->len;
-	mss = total;
-	if (skb_shinfo(p)->frag_list)
-		mss = skb_shinfo(p)->frag_list->len;
+	mss = skb_shinfo(p)->gso_size;
 
 	flush |= skb->len > mss || skb->len <= 0;
 	flush |= ntohl(th2->seq) + total != ntohl(th->seq);
@@ -2557,7 +2555,6 @@ int tcp_gro_complete(struct sk_buff *skb)
 	skb->csum_offset = offsetof(struct tcphdr, check);
 	skb->ip_summed = CHECKSUM_PARTIAL;
 
-	skb_shinfo(skb)->gso_size = skb_shinfo(skb)->frag_list->len;
 	skb_shinfo(skb)->gso_segs = NAPI_GRO_CB(skb)->count;
 
 	if (th->cwr)
