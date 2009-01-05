@@ -12,6 +12,7 @@
  */
 
 #include "ccid.h"
+#include "ccids/lib/tfrc.h"
 
 static struct ccid_operations *ccids[] = {
 	&ccid2_ops,
@@ -199,7 +200,10 @@ void ccid_hc_tx_delete(struct ccid *ccid, struct sock *sk)
 
 int __init ccid_initialize_builtins(void)
 {
-	int i, err;
+	int i, err = tfrc_lib_init();
+
+	if (err)
+		return err;
 
 	for (i = 0; i < ARRAY_SIZE(ccids); i++) {
 		err = ccid_activate(ccids[i]);
@@ -211,6 +215,7 @@ int __init ccid_initialize_builtins(void)
 unwind_registrations:
 	while(--i >= 0)
 		ccid_deactivate(ccids[i]);
+	tfrc_lib_exit();
 	return err;
 }
 
@@ -220,4 +225,5 @@ void ccid_cleanup_builtins(void)
 
 	for (i = 0; i < ARRAY_SIZE(ccids); i++)
 		ccid_deactivate(ccids[i]);
+	tfrc_lib_exit();
 }
