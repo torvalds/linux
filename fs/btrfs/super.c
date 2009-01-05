@@ -589,6 +589,9 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 	int ret = 0;
 	int len;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	vol = kmalloc(sizeof(*vol), GFP_KERNEL);
 	if (copy_from_user(vol, (void __user *)arg, sizeof(*vol))) {
 		ret = -EFAULT;

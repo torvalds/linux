@@ -453,6 +453,9 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 	if (root->fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
 
 	if (!vol_args)
@@ -638,22 +641,33 @@ static int btrfs_ioctl_defrag(struct file *file)
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFDIR:
+		if (!capable(CAP_SYS_ADMIN)) {
+			ret = -EPERM;
+			goto out;
+		}
 		btrfs_defrag_root(root, 0);
 		btrfs_defrag_root(root->fs_info->extent_root, 0);
 		break;
 	case S_IFREG:
+		if (!(file->f_mode & FMODE_WRITE)) {
+			ret = -EINVAL;
+			goto out;
+		}
 		btrfs_defrag_file(file);
 		break;
 	}
-
+out:
 	mnt_drop_write(file->f_path.mnt);
-	return 0;
+	return ret;
 }
 
 static long btrfs_ioctl_add_dev(struct btrfs_root *root, void __user *arg)
 {
 	struct btrfs_ioctl_vol_args *vol_args;
 	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
 
@@ -676,6 +690,9 @@ static long btrfs_ioctl_rm_dev(struct btrfs_root *root, void __user *arg)
 {
 	struct btrfs_ioctl_vol_args *vol_args;
 	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if (root->fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
@@ -725,6 +742,10 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	 * - allow ranges within the same file to be cloned (provided
 	 *   they don't overlap)?
 	 */
+
+	/* the destination must be opened for writing */
+	if (!(file->f_mode & FMODE_WRITE))
+		return -EINVAL;
 
 	ret = mnt_want_write(file->f_path.mnt);
 	if (ret)
