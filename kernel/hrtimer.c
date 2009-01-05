@@ -1504,6 +1504,11 @@ static void __cpuinit init_hrtimers_cpu(int cpu)
 
 #ifdef CONFIG_HOTPLUG_CPU
 
+static void tickle_timers(void *arg)
+{
+	hrtimer_peek_ahead_timers();
+}
+
 static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 				struct hrtimer_clock_base *new_base)
 {
@@ -1539,7 +1544,7 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 	}
 }
 
-static int migrate_hrtimers(int scpu)
+static void migrate_hrtimers(int scpu)
 {
 	struct hrtimer_cpu_base *old_base, *new_base;
 	int dcpu, i;
@@ -1567,12 +1572,7 @@ static int migrate_hrtimers(int scpu)
 	spin_unlock_irq(&new_base->lock);
 	put_cpu_var(hrtimer_bases);
 
-	return dcpu;
-}
-
-static void tickle_timers(void *arg)
-{
-	hrtimer_peek_ahead_timers();
+	smp_call_function_single(dcpu, tickle_timers, NULL, 0);
 }
 
 #endif /* CONFIG_HOTPLUG_CPU */
@@ -1593,11 +1593,8 @@ static int __cpuinit hrtimer_cpu_notify(struct notifier_block *self,
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 	{
-		int dcpu;
-
 		clockevents_notify(CLOCK_EVT_NOTIFY_CPU_DEAD, &scpu);
-		dcpu = migrate_hrtimers(scpu);
-		smp_call_function_single(dcpu, tickle_timers, NULL, 0);
+		migrate_hrtimers(scpu);
 		break;
 	}
 #endif
