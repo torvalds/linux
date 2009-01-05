@@ -2082,9 +2082,11 @@ static int qeth_l3_stop_card(struct qeth_card *card, int recovery_mode)
 		if (recovery_mode)
 			qeth_l3_stop(card->dev);
 		else {
-			rtnl_lock();
-			dev_close(card->dev);
-			rtnl_unlock();
+			if (card->dev) {
+				rtnl_lock();
+				dev_close(card->dev);
+				rtnl_unlock();
+			}
 		}
 		if (!card->use_hard_stop) {
 			rc = qeth_send_stoplan(card);
