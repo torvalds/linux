@@ -532,13 +532,26 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 		err = ubi_leb_map(desc, req.lnum, req.dtype);
 		break;
 	}
+
+	/* Logical eraseblock un-map command */
+	case UBI_IOCEBUNMAP:
+	{
+		int32_t lnum;
+
+		err = get_user(lnum, (__user int32_t *)argp);
+		if (err) {
+			err = -EFAULT;
+			break;
+		}
+		err = ubi_leb_unmap(desc, lnum);
+		break;
+	}
 #endif
 
 	default:
 		err = -ENOTTY;
 		break;
 	}
-
 	return err;
 }
 
