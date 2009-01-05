@@ -55,12 +55,12 @@
 #define SXG_ASSERT_ENABLED
 #ifdef SXG_ASSERT_ENABLED
 #ifndef ASSERT
-#define ASSERT(a)                                                                 \
-    {                                                                             \
-        if (!(a)) {                                                               \
-            DBG_ERROR("ASSERT() Failure: file %s, function %s  line %d\n",\
-                __FILE__, __func__, __LINE__);                                \
-        }                                                                         \
+#define ASSERT(a)                                                          \
+    {                                                                      \
+        if (!(a)) {                                                        \
+            DBG_ERROR("ASSERT() Failure: file %s, function %s  line %d\n", \
+                __FILE__, __func__, __LINE__);                             \
+        }                                                                  \
     }
 #endif
 #else
@@ -88,16 +88,17 @@ extern ulong ATKTimerDiv;
  * parameters.
  */
 struct trace_entry {
-        char      name[8];        /* 8 character name - like 's'i'm'b'a'r'c'v' */
-        u32   time;           /* Current clock tic */
-        unsigned char     cpu;            /* Current CPU */
-        unsigned char     irql;           /* Current IRQL */
-        unsigned char     driver;         /* The driver which added the trace call */
-        unsigned char     pad2;           /* pad to 4 byte boundary - will probably get used */
-        u32   arg1;           /* Caller arg1 */
-        u32   arg2;           /* Caller arg2 */
-        u32   arg3;           /* Caller arg3 */
-        u32   arg4;           /* Caller arg4 */
+        char      	name[8];/* 8 character name - like 's'i'm'b'a'r'c'v' */
+        u32   		time;  /* Current clock tic */
+        unsigned char   cpu;   /* Current CPU */
+        unsigned char   irql;  /* Current IRQL */
+        unsigned char   driver;/* The driver which added the trace call */
+	/* pad to 4 byte boundary - will probably get used */
+        unsigned char   pad2;
+        u32		arg1;           /* Caller arg1 */
+        u32		arg2;           /* Caller arg2 */
+        u32		arg3;           /* Caller arg3 */
+        u32		arg4;           /* Caller arg4 */
 };
 
 /* Driver types for driver field in struct trace_entry */
@@ -108,11 +109,12 @@ struct trace_entry {
 #define TRACE_ENTRIES   1024
 
 struct sxg_trace_buffer {
-        unsigned int                    size;                  /* aid for windbg extension */
-        unsigned int                    in;                    /* Where to add */
-        unsigned int                    level;                 /* Current Trace level */
-	spinlock_t	lock;                  /* For MP tracing */
-        struct trace_entry           entries[TRACE_ENTRIES];/* The circular buffer */
+	/* aid for windbg extension */
+	unsigned int            size;
+	unsigned int            in;                    /* Where to add */
+	unsigned int            level;                 /* Current Trace level */
+	spinlock_t		lock;                  /* For MP tracing */
+	struct trace_entry	entries[TRACE_ENTRIES];/* The circular buffer */
 };
 
 /*
@@ -143,22 +145,22 @@ struct sxg_trace_buffer {
 /*The trace macro.  This is active only if ATK_TRACE_ENABLED is set. */
 #if ATK_TRACE_ENABLED
 #define SXG_TRACE(tdriver, buffer, tlevel, tname, a1, a2, a3, a4) {        \
-        if ((buffer) && ((buffer)->level >= (tlevel))) {                      \
-                unsigned int            trace_irql = 0;    /* ?????? FIX THIS  */    \
-                unsigned int            trace_len;                                   \
-                struct trace_entry	*trace_entry;				\
-                struct timeval  timev;                                       \
-                                                                             \
-                spin_lock(&(buffer)->lock);                       \
-                trace_entry = &(buffer)->entries[(buffer)->in];              \
-                do_gettimeofday(&timev);                                     \
-                                                                             \
-                memset(trace_entry->name, 0, 8);                             \
-                trace_len = strlen(tname);                                   \
-                trace_len = trace_len > 8 ? 8 : trace_len;                   \
-                memcpy(trace_entry->name, (tname), trace_len);               \
-                trace_entry->time = timev.tv_usec;                           \
-                trace_entry->cpu = (unsigned char)(smp_processor_id() & 0xFF);       \
+        if ((buffer) && ((buffer)->level >= (tlevel))) {                   \
+                unsigned int            trace_irql = 0;/* ?????? FIX THIS */\
+                unsigned int            trace_len;                          \
+                struct trace_entry	*trace_entry;			    \
+                struct timeval  timev;                                      \
+                                                                            \
+                spin_lock(&(buffer)->lock);                       	    \
+                trace_entry = &(buffer)->entries[(buffer)->in];             \
+                do_gettimeofday(&timev);                                    \
+                                                                            \
+                memset(trace_entry->name, 0, 8);                            \
+                trace_len = strlen(tname);                                  \
+                trace_len = trace_len > 8 ? 8 : trace_len;                  \
+                memcpy(trace_entry->name, (tname), trace_len);              \
+                trace_entry->time = timev.tv_usec;                          \
+                trace_entry->cpu = (unsigned char)(smp_processor_id() & 0xFF);\
                 trace_entry->driver = (tdriver);                             \
                 trace_entry->irql = trace_irql;                              \
                 trace_entry->arg1 = (ulong)(a1);                             \

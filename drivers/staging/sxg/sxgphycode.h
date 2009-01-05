@@ -14,7 +14,10 @@
  * type of transceiver.
  */
 
-/* Download for AEL2005C PHY with SR/LR transceiver (10GBASE-SR or 10GBASE-LR) */
+/*
+ * Download for AEL2005C PHY with SR/LR transceiver
+ * (10GBASE-SR or 10GBASE-LR)
+ */
 static struct phy_ucode PhyUcode[] = {
 	/*
 	 * NOTE:  An address of 0 is a special case.  When the download routine

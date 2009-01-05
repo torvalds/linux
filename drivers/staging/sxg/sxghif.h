@@ -12,82 +12,82 @@
 /* UCODE Registers */
 struct sxg_ucode_regs {
 	/* Address 0 - 0x3F = Command codes 0-15 for TCB 0.  Excode 0 */
-	u32		Icr;		/* Code = 0 (extended), ExCode = 0 - Int control */
-	u32		RsvdReg1;	/* Code = 1 - TOE -NA */
-	u32		RsvdReg2;	/* Code = 2 - TOE -NA */
-	u32		RsvdReg3;	/* Code = 3 - TOE -NA */
-	u32		RsvdReg4;	/* Code = 4 - TOE -NA */
-	u32		RsvdReg5;	/* Code = 5 - TOE -NA */
-	u32		CardUp;		/* Code = 6 - Microcode initialized when 1 */
-	u32		RsvdReg7;	/* Code = 7 - TOE -NA */
-	u32  		ConfigStat;     /* Code = 8 - Configuration data load status */
-	u32    		RsvdReg9;	/* Code = 9 - TOE -NA */
-	u32		CodeNotUsed[6];	/* Codes 10-15 not used.  ExCode = 0 */
+	u32	Icr;		/* Code = 0 (extended), ExCode = 0 - Int control */
+	u32	RsvdReg1;	/* Code = 1 - TOE -NA */
+	u32	RsvdReg2;	/* Code = 2 - TOE -NA */
+	u32	RsvdReg3;	/* Code = 3 - TOE -NA */
+	u32	RsvdReg4;	/* Code = 4 - TOE -NA */
+	u32	RsvdReg5;	/* Code = 5 - TOE -NA */
+	u32	CardUp;		/* Code = 6 - Microcode initialized when 1 */
+	u32	RsvdReg7;	/* Code = 7 - TOE -NA */
+	u32	ConfigStat;     /* Code = 8 - Configuration data load status */
+	u32  	RsvdReg9;	/* Code = 9 - TOE -NA */
+	u32	CodeNotUsed[6];	/* Codes 10-15 not used.  ExCode = 0 */
 	/* This brings us to ExCode 1 at address 0x40 = Interrupt status pointer */
-	u32		Isp;		/* Code = 0 (extended), ExCode = 1 */
-	u32		PadEx1[15];	/* Codes 1-15 not used with extended codes */
+	u32	Isp;		/* Code = 0 (extended), ExCode = 1 */
+	u32	PadEx1[15];	/* Codes 1-15 not used with extended codes */
 	/* ExCode 2 = Interrupt Status Register */
-	u32		Isr;		/* Code = 0 (extended), ExCode = 2 */
+	u32	Isr;		/* Code = 0 (extended), ExCode = 2 */
 	u32 PadEx2[15];
 	/* ExCode 3 = Event base register.  Location of event rings */
-	u32		EventBase;	/* Code = 0 (extended), ExCode = 3 */
+	u32	EventBase;	/* Code = 0 (extended), ExCode = 3 */
 	u32 PadEx3[15];
 	/* ExCode 4 = Event ring size */
-	u32		EventSize;	/* Code = 0 (extended), ExCode = 4 */
+	u32	EventSize;	/* Code = 0 (extended), ExCode = 4 */
 	u32 PadEx4[15];
 	/* ExCode 5 = TCB Buffers base address */
-	u32		TcbBase;	/* Code = 0 (extended), ExCode = 5 */
+	u32	TcbBase;	/* Code = 0 (extended), ExCode = 5 */
 	u32 PadEx5[15];
 	/* ExCode 6 = TCB Composite Buffers base address */
-	u32		TcbCompBase;	/* Code = 0 (extended), ExCode = 6 */
+	u32	TcbCompBase;	/* Code = 0 (extended), ExCode = 6 */
 	u32 PadEx6[15];
 	/* ExCode 7 = Transmit ring base address */
-	u32		XmtBase;	/* Code = 0 (extended), ExCode = 7 */
+	u32	XmtBase;	/* Code = 0 (extended), ExCode = 7 */
 	u32 PadEx7[15];
 	/* ExCode 8 = Transmit ring size */
-	u32		XmtSize;	/* Code = 0 (extended), ExCode = 8 */
+	u32	XmtSize;	/* Code = 0 (extended), ExCode = 8 */
 	u32 PadEx8[15];
 	/* ExCode 9 = Receive ring base address */
-	u32		RcvBase;	/* Code = 0 (extended), ExCode = 9 */
+	u32	RcvBase;	/* Code = 0 (extended), ExCode = 9 */
 	u32 PadEx9[15];
 	/* ExCode 10 = Receive ring size */
-	u32		RcvSize;	/* Code = 0 (extended), ExCode = 10 */
+	u32	RcvSize;	/* Code = 0 (extended), ExCode = 10 */
 	u32 PadEx10[15];
 	/* ExCode 11 = Read EEPROM/Flash Config */
-	u32		Config;		/* Code = 0 (extended), ExCode = 11 */
+	u32	Config;		/* Code = 0 (extended), ExCode = 11 */
 	u32 PadEx11[15];
 	/* ExCode 12 = Multicast bits 31:0 */
-	u32		McastLow;	/* Code = 0 (extended), ExCode = 12 */
+	u32	McastLow;	/* Code = 0 (extended), ExCode = 12 */
 	u32 PadEx12[15];
 	/* ExCode 13 = Multicast bits 63:32 */
-	u32		McastHigh;	/* Code = 0 (extended), ExCode = 13 */
+	u32	McastHigh;	/* Code = 0 (extended), ExCode = 13 */
 	u32 PadEx13[15];
 	/* ExCode 14 = Ping */
-	u32		Ping;		/* Code = 0 (extended), ExCode = 14 */
+	u32	Ping;		/* Code = 0 (extended), ExCode = 14 */
 	u32 PadEx14[15];
 	/* ExCode 15 = Link MTU */
-	u32		LinkMtu;	/* Code = 0 (extended), ExCode = 15 */
+	u32	LinkMtu;	/* Code = 0 (extended), ExCode = 15 */
 	u32 PadEx15[15];
 	/* ExCode 16 = Download synchronization */
-	u32		LoadSync;	/* Code = 0 (extended), ExCode = 16 */
+	u32	LoadSync;	/* Code = 0 (extended), ExCode = 16 */
 	u32 PadEx16[15];
 	/* ExCode 17 = Upper DRAM address bits on 32-bit systems */
-	u32		Upper;		/* Code = 0 (extended), ExCode = 17 */
+	u32	Upper;		/* Code = 0 (extended), ExCode = 17 */
 	u32 PadEx17[15];
 	/* ExCode 18 = Slowpath Send Index Address */
-	u32		SPSendIndex;	/* Code = 0 (extended), ExCode = 18 */
+	u32	SPSendIndex;	/* Code = 0 (extended), ExCode = 18 */
 	u32 PadEx18[15];
 	/* ExCode 19 = Get ucode statistics */
-	u32		GetUcodeStats;	/* Code = 0 (extended), ExCode = 19 */
+	u32	GetUcodeStats;	/* Code = 0 (extended), ExCode = 19 */
 	u32 PadEx19[15];
 	/* ExCode 20 = Aggregation - See sxgmisc.c:SxgSetInterruptAggregation */
-	u32		Aggregation;	/* Code = 0 (extended), ExCode = 20 */
+	u32	Aggregation;	/* Code = 0 (extended), ExCode = 20 */
 	u32 PadEx20[15];
 	/* ExCode 21 = Receive MDL push timer */
-	u32		PushTicks;	/* Code = 0 (extended), ExCode = 21 */
+	u32	PushTicks;	/* Code = 0 (extended), ExCode = 21 */
 	u32 PadEx21[15];
 	/* ExCode 22 = ACK Frequency */
-	u32		AckFrequency;	/* Code = 0 (extended), ExCode = 22 */
+	u32	AckFrequency;	/* Code = 0 (extended), ExCode = 22 */
 	u32 PadEx22[15];
 	/* ExCode 23 = TOE NA */
 	u32 RsvdReg23;
@@ -96,31 +96,31 @@ struct sxg_ucode_regs {
 	u32 RsvdReg24;
 	u32 PadEx24[15];
 	/* ExCode 25 = TOE NA */
-	u32		RsvdReg25;	/* Code = 0 (extended), ExCode = 25 */
+	u32	RsvdReg25;	/* Code = 0 (extended), ExCode = 25 */
 	u32 PadEx25[15];
 	/* ExCode 26 = Receive checksum requirements */
-	u32		ReceiveChecksum;	/* Code = 0 (extended), ExCode = 26 */
+	u32	ReceiveChecksum;	/* Code = 0 (extended), ExCode = 26 */
 	u32 PadEx26[15];
 	/* ExCode 27 = RSS Requirements */
-	u32		Rss;		/* Code = 0 (extended), ExCode = 27 */
+	u32	Rss;		/* Code = 0 (extended), ExCode = 27 */
 	u32 PadEx27[15];
 	/* ExCode 28 = RSS Table */
-	u32		RssTable;	/* Code = 0 (extended), ExCode = 28 */
+	u32	RssTable;	/* Code = 0 (extended), ExCode = 28 */
 	u32 PadEx28[15];
 	/* ExCode 29 = Event ring release entries */
-	u32		EventRelease;	/* Code = 0 (extended), ExCode = 29 */
+	u32	EventRelease;	/* Code = 0 (extended), ExCode = 29 */
 	u32 PadEx29[15];
 	/* ExCode 30 = Number of receive bufferlist commands on ring 0 */
-	u32		RcvCmd;		/* Code = 0 (extended), ExCode = 30 */
+	u32	RcvCmd;		/* Code = 0 (extended), ExCode = 30 */
 	u32 PadEx30[15];
 	/* ExCode 31 = slowpath transmit command - Data[31:0] = 1 */
-	u32		XmtCmd;		/* Code = 0 (extended), ExCode = 31 */
+	u32	XmtCmd;		/* Code = 0 (extended), ExCode = 31 */
 	u32 PadEx31[15];
 	/* ExCode 32 = Dump command */
-	u32		DumpCmd;	/* Code = 0 (extended), ExCode = 32 */
+	u32	DumpCmd;	/* Code = 0 (extended), ExCode = 32 */
 	u32 PadEx32[15];
 	/* ExCode 33 = Debug command */
-	u32		DebugCmd;	/* Code = 0 (extended), ExCode = 33 */
+	u32	DebugCmd;	/* Code = 0 (extended), ExCode = 33 */
 	u32 PadEx33[15];
 	/*
 	 * There are 128 possible extended commands - each of account for 16
@@ -129,7 +129,7 @@ struct sxg_ucode_regs {
 	 * base.  As extended codes are added, reduce the first array value in
 	 * the following field
 	 */
-	u32 PadToNextCpu[94][16];	/* 94 = 128 - 34 (34 = Excodes 0 - 33) */
+	u32 PadToNextCpu[94][16];	/* 94 = 128 - 34 (34 = Excodes 0 - 33)*/
 };
 
 /* Interrupt control register (0) values */
@@ -142,10 +142,11 @@ struct sxg_ucode_regs {
 	((((_MessageId) << SXG_ICR_MSGID_SHIFT) &	\
 	  SXG_ICR_MSGID_MASK) | (_Data))
 
-#define SXG_MIN_AGG_DEFAULT	0x0010		/* Minimum aggregation default */
-#define SXG_MAX_AGG_DEFAULT	0x0040		/* Maximum aggregation default */
-#define SXG_MAX_AGG_SHIFT	16		/* Maximum in top 16 bits of register */
-#define SXG_AGG_XMT_DISABLE	0x80000000	/* Disable interrupt aggregation on xmt */
+#define SXG_MIN_AGG_DEFAULT	0x0010	/* Minimum aggregation default */
+#define SXG_MAX_AGG_DEFAULT	0x0040	/* Maximum aggregation default */
+#define SXG_MAX_AGG_SHIFT	16	/* Maximum in top 16 bits of register */
+/* Disable interrupt aggregation on xmt */
+#define SXG_AGG_XMT_DISABLE	0x80000000
 
 /* The Microcode supports up to 8 RSS queues */
 #define SXG_MAX_RSS				8
@@ -170,11 +171,11 @@ struct sxg_ucode_regs {
  * Status returned by ucode in the ConfigStat reg (see above) when attempted
  * to load configuration data from the EEPROM/Flash.
  */
-#define	SXG_CFG_TIMEOUT			1	/* init value - timeout if unchanged */
-#define	SXG_CFG_LOAD_EEPROM		2	/* config data loaded from EEPROM */
-#define	SXG_CFG_LOAD_FLASH		3	/* config data loaded from flash */
-#define	SXG_CFG_LOAD_INVALID		4	/* no valid config data found */
-#define	SXG_CFG_LOAD_ERROR		5	/* hardware error */
+#define	SXG_CFG_TIMEOUT		1	/* init value - timeout if unchanged */
+#define	SXG_CFG_LOAD_EEPROM	2	/* config data loaded from EEPROM */
+#define	SXG_CFG_LOAD_FLASH	3	/* config data loaded from flash */
+#define	SXG_CFG_LOAD_INVALID	4	/* no valid config data found */
+#define	SXG_CFG_LOAD_ERROR	5	/* hardware error */
 
 #define SXG_CHECK_FOR_HANG_TIME		5
 
@@ -186,17 +187,17 @@ struct sxg_ucode_regs {
  * struct sxg_ucode_regs definition above
  */
 struct sxg_tcb_regs {
-	u32 ExCode;		/* Extended codes - see SXG_UCODE_REGS */
-	u32 Xmt;		/* Code = 1 - # of Xmt descriptors added to ring */
-	u32 Rcv;		/* Code = 2 - # of Rcv descriptors added to ring */
-	u32 Rsvd1;		/* Code = 3 - TOE NA */
-	u32 Rsvd2;		/* Code = 4 - TOE NA */
-	u32 Rsvd3;		/* Code = 5 - TOE NA */
-	u32 Invalid1;		/* Code = 6 - Reserved for "CardUp" see above */
-	u32 Rsvd4;		/* Code = 7 - TOE NA */
-	u32 Invalid2;		/* Code = 8 - Reserved for "ConfigStat" see above */
-	u32 Rsvd5;		/* Code = 9 - TOE NA */
-	u32 Pad[6];		/* Codes 10-15 - Not used. */
+	u32 ExCode;	/* Extended codes - see SXG_UCODE_REGS */
+	u32 Xmt;	/* Code = 1 - # of Xmt descriptors added to ring */
+	u32 Rcv;	/* Code = 2 - # of Rcv descriptors added to ring */
+	u32 Rsvd1;	/* Code = 3 - TOE NA */
+	u32 Rsvd2;	/* Code = 4 - TOE NA */
+	u32 Rsvd3;	/* Code = 5 - TOE NA */
+	u32 Invalid1;	/* Code = 6 - Reserved for "CardUp" see above */
+	u32 Rsvd4;	/* Code = 7 - TOE NA */
+	u32 Invalid2;	/* Code = 8 - Reserved for "ConfigStat" see above */
+	u32 Rsvd5;	/* Code = 9 - TOE NA */
+	u32 Pad[6];	/* Codes 10-15 - Not used. */
 };
 
 /***************************************************************************
@@ -226,7 +227,7 @@ struct sxg_tcb_regs {
 #define SXG_ISR_ERR		0x80000000	/* Error */
 #define SXG_ISR_EVENT		0x40000000	/* Event ring event */
 #define SXG_ISR_NONE1		0x20000000	/* Not used */
-#define SXG_ISR_UPC		0x10000000	/* Dump/debug command complete */
+#define SXG_ISR_UPC		0x10000000	/* Dump/debug command complete*/
 #define SXG_ISR_LINK		0x08000000	/* Link event */
 #define SXG_ISR_PDQF		0x04000000	/* Processed data queue full */
 #define SXG_ISR_RMISS		0x02000000	/* Drop - no host buf */
@@ -335,7 +336,8 @@ struct sxg_event {
  */
 #define EVENT_RING_SIZE		4096
 #define EVENT_RING_BATCH	16	/* Hand entries back 16 at a time. */
-#define EVENT_BATCH_LIMIT	256	/* Stop processing events after 4096 (256 * 16) */
+/* Stop processing events after 4096 (256 * 16) */
+#define EVENT_BATCH_LIMIT	256
 
 struct sxg_event_ring {
 	struct sxg_event Ring[EVENT_RING_SIZE];
@@ -352,34 +354,34 @@ struct sxg_event_ring {
  * offloaded connections, 10:4 if we support 2k and so on.
  */
 #define SXG_TCB_BUCKET_SHIFT	4
-#define SXG_TCB_PER_BUCKET		16
-#define SXG_TCB_BUCKET_MASK		0xFF0	/* Bucket portion of TCB ID */
-#define SXG_TCB_ELEMENT_MASK		0x00F	/* Element within bucket */
-#define SXG_TCB_BUCKETS			256		/* 256 * 16 = 4k */
+#define SXG_TCB_PER_BUCKET	16
+#define SXG_TCB_BUCKET_MASK	0xFF0	/* Bucket portion of TCB ID */
+#define SXG_TCB_ELEMENT_MASK	0x00F	/* Element within bucket */
+#define SXG_TCB_BUCKETS		256		/* 256 * 16 = 4k */
 
 #define SXG_TCB_BUFFER_SIZE	512	/* ASSERT format is correct */
 
-#define SXG_TCB_RCVQ_SIZE		736
+#define SXG_TCB_RCVQ_SIZE	736
 
 #define SXG_TCB_COMPOSITE_BUFFER_SIZE	1024
 
-#define SXG_LOCATE_TCP_FRAME_HDR(_TcpObject, _IPv6)							\
-	(((_TcpObject)->VlanId) ?												\
-	 ((_IPv6) ?		/* Vlan frame header = yes */							\
-	  &(_TcpObject)->CompBuffer->Frame.HasVlan.TcpIp6.SxgTcp			:	\
-	  &(_TcpObject)->CompBuffer->Frame.HasVlan.TcpIp.SxgTcp)			: 	\
-	 ((_IPv6) ?		/* Vlan frame header = No */							\
-	  &(_TcpObject)->CompBuffer->Frame.NoVlan.TcpIp6.SxgTcp				: 	\
+#define SXG_LOCATE_TCP_FRAME_HDR(_TcpObject, _IPv6)			\
+	(((_TcpObject)->VlanId) ?					\
+	 ((_IPv6) ?		/* Vlan frame header = yes */		\
+	  &(_TcpObject)->CompBuffer->Frame.HasVlan.TcpIp6.SxgTcp:	\
+	  &(_TcpObject)->CompBuffer->Frame.HasVlan.TcpIp.SxgTcp): 	\
+	 ((_IPv6) ?		/* Vlan frame header = No */		\
+	  &(_TcpObject)->CompBuffer->Frame.NoVlan.TcpIp6.SxgTcp	: 	\
 	  &(_TcpObject)->CompBuffer->Frame.NoVlan.TcpIp.SxgTcp))
 
-#define SXG_LOCATE_IP_FRAME_HDR(_TcpObject)									\
-	(_TcpObject)->VlanId ?													\
-	&(_TcpObject)->CompBuffer->Frame.HasVlan.TcpIp.Ip				: 		\
+#define SXG_LOCATE_IP_FRAME_HDR(_TcpObject)				\
+	(_TcpObject)->VlanId ?						\
+	&(_TcpObject)->CompBuffer->Frame.HasVlan.TcpIp.Ip: 		\
 	&(_TcpObject)->CompBuffer->Frame.NoVlan.TcpIp.Ip
 
-#define SXG_LOCATE_IP6_FRAME_HDR(_TcpObject)								\
-	(_TcpObject)->VlanId ?													\
-	&(_TcpObject)->CompBuffer->Frame.HasVlan.TcpIp6.Ip				:		\
+#define SXG_LOCATE_IP6_FRAME_HDR(TcpObject)				\
+	(_TcpObject)->VlanId ?						\
+	&(_TcpObject)->CompBuffer->Frame.HasVlan.TcpIp6.Ip:		\
 	&(_TcpObject)->CompBuffer->Frame.NoVlan.TcpIp6.Ip
 
 #if DBG
@@ -391,16 +393,18 @@ struct sxg_event_ring {
  * Obviously this is DBG only.  Maybe remove later, or #if 0 so we
  * can set it when needed
  */
-#define SXG_DBG_HOP_LIMIT(_TcpObject, _FastPath) {								\
-	PIPV6_HDR		_Ip6FrameHdr;												\
-	if((_TcpObject)->IPv6) {													\
-		_Ip6FrameHdr = SXG_LOCATE_IP6_FRAME_HDR((_TcpObject));					\
-		if(_FastPath) {															\
-			_Ip6FrameHdr->HopLimit = (_TcpObject)->Cached.TtlOrHopLimit - 2;	\
-		} else {																\
-			_Ip6FrameHdr->HopLimit = (_TcpObject)->Cached.TtlOrHopLimit - 1;	\
-		}																		\
-	}																			\
+#define SXG_DBG_HOP_LIMIT(_TcpObject, _FastPath) {			\
+	PIPV6_HDR		_Ip6FrameHdr;				\
+	if ((_TcpObject)->IPv6) {					\
+		_Ip6FrameHdr = SXG_LOCATE_IP6_FRAME_HDR((_TcpObject));	\
+		if (_FastPath) {					\
+			_Ip6FrameHdr->HopLimit = 			\
+				(_TcpObject)->Cached.TtlOrHopLimit - 2;	\
+		} else {						\
+			_Ip6FrameHdr->HopLimit = 			\
+				(_TcpObject)->Cached.TtlOrHopLimit - 1;	\
+		}							\
+	}								\
 }
 #else
 /* Do nothing with free build */
@@ -415,41 +419,47 @@ struct sxg_event_ring {
 
 /* Structure and macros to manage a ring */
 struct sxg_ring_info {
-	unsigned char Head;	/* Where we add entries - Note unsigned char:RING_SIZE */
+	/* Where we add entries - Note unsigned char:RING_SIZE */
+	unsigned char Head;
 	unsigned char Tail;	/* Where we pull off completed entries */
 	ushort	Size;		/* Ring size - Must be multiple of 2 */
 	void *	Context[SXG_MAX_RING_SIZE];	/* Shadow ring */
 };
 
-#define SXG_INITIALIZE_RING(_ring, _size) {							\
-	(_ring).Head = 0;												\
-	(_ring).Tail = 0;												\
-	(_ring).Size = (_size);											\
+#define SXG_INITIALIZE_RING(_ring, _size) {				\
+	(_ring).Head = 0;						\
+	(_ring).Tail = 0;						\
+	(_ring).Size = (_size);						\
 }
-#define SXG_ADVANCE_INDEX(_index, _size) ((_index) = ((_index) + 1) & ((_size) - 1))
-#define SXG_PREVIOUS_INDEX(_index, _size) (((_index) - 1) &((_size) - 1))
+
+#define SXG_ADVANCE_INDEX(_index, _size) 				\
+			((_index) = ((_index) + 1) & ((_size) - 1))
+#define SXG_PREVIOUS_INDEX(_index, _size) 				\
+			(((_index) - 1) &((_size) - 1))
 #define SXG_RING_EMPTY(_ring) ((_ring)->Head == (_ring)->Tail)
-#define SXG_RING_FULL(_ring) ((((_ring)->Head + 1) & ((_ring)->Size - 1)) == (_ring)->Tail)
-#define SXG_RING_ADVANCE_HEAD(_ring) SXG_ADVANCE_INDEX((_ring)->Head, ((_ring)->Size))
-#define SXG_RING_RETREAT_HEAD(_ring) ((_ring)->Head =				\
-									  SXG_PREVIOUS_INDEX((_ring)->Head, (_ring)->Size))
-#define SXG_RING_ADVANCE_TAIL(_ring) {								\
-	ASSERT((_ring)->Tail != (_ring)->Head);							\
-	SXG_ADVANCE_INDEX((_ring)->Tail, ((_ring)->Size));				\
+#define SXG_RING_FULL(_ring) 						\
+		((((_ring)->Head + 1) & ((_ring)->Size - 1)) == (_ring)->Tail)
+#define SXG_RING_ADVANCE_HEAD(_ring) 					\
+		SXG_ADVANCE_INDEX((_ring)->Head, ((_ring)->Size))
+#define SXG_RING_RETREAT_HEAD(_ring) ((_ring)->Head =			\
+		SXG_PREVIOUS_INDEX((_ring)->Head, (_ring)->Size))
+#define SXG_RING_ADVANCE_TAIL(_ring) {					\
+	ASSERT((_ring)->Tail != (_ring)->Head);				\
+	SXG_ADVANCE_INDEX((_ring)->Tail, ((_ring)->Size));		\
 }
 /*
  * Set cmd to the next available ring entry, set the shadow context
  * entry and advance the ring.
  * The appropriate lock must be held when calling this macro
  */
-#define SXG_GET_CMD(_ring, _ringinfo, _cmd, _context) {				\
-	if(SXG_RING_FULL(_ringinfo)) {									\
-		(_cmd) = NULL;												\
-	} else {														\
-		(_cmd) = &(_ring)->Descriptors[(_ringinfo)->Head];			\
+#define SXG_GET_CMD(_ring, _ringinfo, _cmd, _context) {			\
+	if(SXG_RING_FULL(_ringinfo)) {					\
+		(_cmd) = NULL;						\
+	} else {							\
+		(_cmd) = &(_ring)->Descriptors[(_ringinfo)->Head];	\
 		(_ringinfo)->Context[(_ringinfo)->Head] = (void *)(_context);\
-		SXG_RING_ADVANCE_HEAD(_ringinfo);							\
-	}																\
+		SXG_RING_ADVANCE_HEAD(_ringinfo);			\
+	}								\
 }
 
 /*
@@ -457,21 +467,21 @@ struct sxg_ring_info {
  * NOTE - The appopriate lock MUST NOT BE DROPPED between the SXG_GET_CMD
  * and SXG_ABORT_CMD calls.
  */
-#define SXG_ABORT_CMD(_ringinfo) {									\
-	ASSERT(!(SXG_RING_EMPTY(_ringinfo)));							\
-	SXG_RING_RETREAT_HEAD(_ringinfo);								\
-	(_ringinfo)->Context[(_ringinfo)->Head] = NULL;					\
+#define SXG_ABORT_CMD(_ringinfo) {					\
+	ASSERT(!(SXG_RING_EMPTY(_ringinfo)));				\
+	SXG_RING_RETREAT_HEAD(_ringinfo);				\
+	(_ringinfo)->Context[(_ringinfo)->Head] = NULL;			\
 }
 
 /*
  * For the given ring, return a pointer to the tail cmd and context,
  * clear the context and advance the tail
  */
-#define SXG_RETURN_CMD(_ring, _ringinfo, _cmd, _context) {			\
-	(_cmd) = &(_ring)->Descriptors[(_ringinfo)->Tail];				\
+#define SXG_RETURN_CMD(_ring, _ringinfo, _cmd, _context) {		\
+	(_cmd) = &(_ring)->Descriptors[(_ringinfo)->Tail];		\
 	(_context) = (_ringinfo)->Context[(_ringinfo)->Tail];       	\
-	(_ringinfo)->Context[(_ringinfo)->Tail] = NULL;					\
-	SXG_RING_ADVANCE_TAIL(_ringinfo);								\
+	(_ringinfo)->Context[(_ringinfo)->Tail] = NULL;			\
+	SXG_RING_ADVANCE_TAIL(_ringinfo);				\
 }
 
 /***************************************************************
@@ -507,7 +517,8 @@ struct sxg_cmd {
 			union {
 				u32  Rsvd1;	   /* TOE NA */
 				u32  SgeOffset; /* Slowpath - 2nd SGE offset */
-				u32  Resid;	/* MDL completion - clobbers update */
+				/* MDL completion - clobbers update */
+				u32  Resid;
 			};
 			union {
 				u32  TotalLength; /* Total transfer length */
@@ -639,10 +650,10 @@ enum sxg_buffer_type {
  * Further complicating matters is the fact that the receive
  * buffers must be variable in length in order to accomodate
  * jumbo frame configurations.  We configure the buffer
- * length so that the buffer and it's corresponding struct sxg_rcv_data_buffer_hdr
- * structure add up to an even boundary.  Then we place the
- * remaining data structures after 128 of them as shown in
- * the following diagram:
+ * length so that the buffer and it's corresponding struct
+ * sxg_rcv_data_buffer_hdr structure add up to an even
+ * boundary.  Then we place the remaining data structures after 128
+ *  of them as shown in the following diagram:
  *
  *  _________________________________________
  * |                                         |
@@ -683,7 +694,8 @@ enum sxg_buffer_type {
  */
 #define SXG_RCV_DATA_BUFFERS		8192	/* Amount to give to the card */
 #define SXG_INITIAL_RCV_DATA_BUFFERS	16384	/* Initial pool of buffers */
-#define SXG_MIN_RCV_DATA_BUFFERS	4096	/* Minimum amount and when to get more */
+/* Minimum amount and when to get more */
+#define SXG_MIN_RCV_DATA_BUFFERS	4096
 #define SXG_MAX_RCV_BLOCKS		256	/* = 32k receive buffers */
 
 /* Receive buffer header */
@@ -699,7 +711,7 @@ struct sxg_rcv_data_buffer_hdr {
 	struct list_entry	FreeList;	/* Free queue of buffers */
 	unsigned char		State;		/* See SXG_BUFFER state above */
 	unsigned char		Status;		/* Event status (to log PUSH) */
-	struct sk_buff          * skb;		/* Double mapped (nbl and pkt) */
+	struct sk_buff          * skb;		/* Double mapped (nbl and pkt)*/
 };
 
 /*
@@ -708,15 +720,17 @@ struct sxg_rcv_data_buffer_hdr {
  */
 #define SxgDumbRcvPacket	        skb
 
-#define SXG_RCV_DATA_HDR_SIZE			256		/* Space for struct sxg_rcv_data_buffer_hdr */
-#define SXG_RCV_DATA_BUFFER_SIZE		2048	/* Non jumbo = 2k including HDR */
-#define SXG_RCV_JUMBO_BUFFER_SIZE		10240	/* jumbo = 10k including HDR */
+/* Space for struct sxg_rcv_data_buffer_hdr */
+#define SXG_RCV_DATA_HDR_SIZE		256
+/* Non jumbo = 2k including HDR */
+#define SXG_RCV_DATA_BUFFER_SIZE	2048
+#define SXG_RCV_JUMBO_BUFFER_SIZE	10240	/* jumbo = 10k including HDR */
 
 /* Receive data descriptor */
 struct sxg_rcv_data_descriptor {
 	union {
 		struct sk_buff *VirtualAddress;	/* Host handle */
-		u64		ForceTo8Bytes;	/* Force x86 to 8-byte boundary */
+		u64		ForceTo8Bytes;	/*Force x86 to 8-byte boundary*/
 	};
 	dma_addr_t PhysicalAddress;
 };
@@ -731,32 +745,32 @@ struct sxg_rcv_descriptor_block {
 
 /* Receive descriptor block header */
 struct sxg_rcv_descriptor_block_hdr {
-	void 			*VirtualAddress;	/* start of 2k buffer */
-	dma_addr_t		PhysicalAddress;	/* ..and it's physical address */
-	struct list_entry	FreeList;	/* free queue of descriptor blocks */
-	unsigned char		State;		/* see sxg_buffer state above */
+	void 		*VirtualAddress;	/* start of 2k buffer */
+	dma_addr_t	PhysicalAddress;	/* ..and it's physical address */
+	struct list_entry	FreeList;/* free queue of descriptor blocks */
+	unsigned char	State;	/* see sxg_buffer state above */
 };
 
 /* Receive block header */
 struct sxg_rcv_block_hdr {
 	void		*VirtualAddress;	/* Start of virtual memory */
-	dma_addr_t	PhysicalAddress;	/* ..and it's physical address */
-	struct list_entry	AllList;	/* Queue of all SXG_RCV_BLOCKS */
+	dma_addr_t	PhysicalAddress;	/* ..and it's physical address*/
+	struct list_entry	AllList;	/* Queue of all SXG_RCV_BLOCKS*/
 };
 
 /* Macros to determine data structure offsets into receive block */
-#define SXG_RCV_BLOCK_SIZE(_Buffersize) 					\
+#define SXG_RCV_BLOCK_SIZE(_Buffersize) 				\
 	(((_Buffersize) * SXG_RCV_DESCRIPTORS_PER_BLOCK) +		\
-	 (sizeof(struct sxg_rcv_descriptor_block))              +		\
-	 (sizeof(struct sxg_rcv_descriptor_block_hdr))          +		\
+	 (sizeof(struct sxg_rcv_descriptor_block))              +	\
+	 (sizeof(struct sxg_rcv_descriptor_block_hdr))          +	\
 	 (sizeof(struct sxg_rcv_block_hdr)))
 #define SXG_RCV_BUFFER_DATA_SIZE(_Buffersize)				\
 	((_Buffersize) - SXG_RCV_DATA_HDR_SIZE)
 #define SXG_RCV_DATA_BUFFER_HDR_OFFSET(_Buffersize)			\
 	((_Buffersize) - SXG_RCV_DATA_HDR_SIZE)
-#define SXG_RCV_DESCRIPTOR_BLOCK_OFFSET(_Buffersize)		\
+#define SXG_RCV_DESCRIPTOR_BLOCK_OFFSET(_Buffersize)			\
 	((_Buffersize) * SXG_RCV_DESCRIPTORS_PER_BLOCK)
-#define SXG_RCV_DESCRIPTOR_BLOCK_HDR_OFFSET(_Buffersize)	\
+#define SXG_RCV_DESCRIPTOR_BLOCK_HDR_OFFSET(_Buffersize)		\
 	(((_Buffersize) * SXG_RCV_DESCRIPTORS_PER_BLOCK) +		\
 	 (sizeof(struct sxg_rcv_descriptor_block)))
 #define SXG_RCV_BLOCK_HDR_OFFSET(_Buffersize)				\
@@ -766,12 +780,13 @@ struct sxg_rcv_block_hdr {
 
 /* Scatter gather list buffer */
 #define SXG_INITIAL_SGL_BUFFERS	8192	/* Initial pool of SGL buffers */
-#define SXG_MIN_SGL_BUFFERS	2048	/* Minimum amount and when to get more */
-#define SXG_MAX_SGL_BUFFERS	16384	/* Maximum to allocate (note ADAPT:ushort) */
+#define SXG_MIN_SGL_BUFFERS	2048	/* Minimum amount and when to get more*/
+/* Maximum to allocate (note ADAPT:ushort) */
+#define SXG_MAX_SGL_BUFFERS	16384
 
 /*
- * SXG_SGL_POOL_PROPERTIES - This structure is used to define a pool of SGL buffers.
- * These buffers are allocated out of shared memory and used to
+ * SXG_SGL_POOL_PROPERTIES - This structure is used to define a pool of SGL
+ * buffers. These buffers are allocated out of shared memory and used to
  * contain a physical scatter gather list structure that is shared
  * with the card.
  *
@@ -801,39 +816,38 @@ struct sxg_sgl_pool_properties {
 
 /*
  * At the moment I'm going to statically initialize 4 pools:
- *	100k buffer pool: The vast majority of the expected buffers are expected to
- *						be less than or equal to 100k.  At 30 entries per and
- * 						8k initial buffers amounts to ~4MB of memory
- *                      NOTE - This used to be 64K with 20 entries, but during
- *                             WHQL NDIS 6.0 Testing (2c_mini6stress) MS does their
- *                             best to send absurd NBL's with ridiculous SGLs, we
- *                             have received 400byte sends contained in SGL's that
- *                             have 28 entries
- *	1M buffer pool: Buffers between 64k and 1M.  Allocate 256 initial buffers
- *						with 300 entries each => ~2MB of memory
- *	5M buffer pool: Not expected often, if at all.  32 initial buffers
- *						at 1500 entries each => ~1MB of memory
+ *	100k buffer pool: The vast majority of the expected buffers are expected
+ *			to be less than or equal to 100k.  At 30 entries per and
+ * 			8k initial buffers amounts to ~4MB of memory
+ *                 NOTE - This used to be 64K with 20 entries, but during
+ *                        WHQL NDIS 6.0 Testing (2c_mini6stress) MS does their
+ *                        best to send absurd NBL's with ridiculous SGLs, we
+ *                        have received 400byte sends contained in SGL's that
+ *                        have 28 entries
+ *	  1M buffer pool: Buffers between 64k and 1M.  Allocate 256 initial
+ *	  		  buffers with 300 entries each => ~2MB of memory
+ *	  5M buffer pool: Not expected often, if at all.  32 initial buffers
+ *			  at 1500 entries each => ~1MB of memory
  * 10M buffer pool: Not expected at all, except under pathelogical conditions.
- * 					Allocate one at initialization time.
- *						Note - 10M is the current limit of what we can
- *						realistically support due to the sahara SGL
- * 					bug described in the SAHARA SGL WORKAROUND below
- *
- * We will likely adjust the number of pools and/or pool properties over time..
+ * 		    Allocate one at initialization time.
+ * 		  Note - 10M is the current limit of what we can realistically
+ * 		  	 support due to the sahara SGL bug described in the
+ * 		  	 SAHARA SGL WORKAROUND below. We will likely adjust the
+ * 		  	 number of pools and/or pool properties over time.
  */
 #define SXG_NUM_SGL_POOLS	4
-#define INITIALIZE_SGL_POOL_PROPERTIES								\
-struct sxg_sgl_pool_properties SxgSglPoolProperties[SXG_NUM_SGL_POOLS] = 	\
-{ 																	\
-	{  102400,   30, 8192, 2048, 16384, 256},						\
-	{ 1048576,  300,  256,  128,  1024, 16},						\
-	{ 5252880, 1500,   32,   16,   512, 0},							\
-	{10485760, 2700,    2,    4,    32, 0},							\
+#define INITIALIZE_SGL_POOL_PROPERTIES					\
+struct sxg_sgl_pool_properties SxgSglPoolProperties[SXG_NUM_SGL_POOLS] =\
+{ 									\
+	{  102400,   30, 8192, 2048, 16384, 256},			\
+	{ 1048576,  300,  256,  128,  1024, 16},			\
+	{ 5252880, 1500,   32,   16,   512, 0},				\
+	{10485760, 2700,    2,    4,    32, 0},				\
 };
 
 extern struct sxg_sgl_pool_properties SxgSglPoolProperties[];
 
-#define SXG_MAX_SGL_BUFFER_SIZE										\
+#define SXG_MAX_SGL_BUFFER_SIZE						\
 	SxgSglPoolProperties[SXG_NUM_SGL_POOLS - 1].NBSize
 
 /*
@@ -847,9 +861,9 @@ extern struct sxg_sgl_pool_properties SxgSglPoolProperties[];
  * We currently workaround this issue by allocating SGL buffers
  * in 64k blocks and skipping over buffers that straddle the boundary.
  */
-#define SXG_INVALID_SGL(_SxgSgl)										\
-	(((_SxgSgl)->PhysicalAddress.LowPart & 0xFFFF0000) !=				\
-	 (((_SxgSgl)->PhysicalAddress.LowPart +								\
+#define SXG_INVALID_SGL(_SxgSgl)					\
+	(((_SxgSgl)->PhysicalAddress.LowPart & 0xFFFF0000) !=		\
+	 (((_SxgSgl)->PhysicalAddress.LowPart +				\
 	   SXG_SGL_SIZE((_SxgSgl)->Pool)) & 0xFFFF0000))
 
 /*
@@ -858,17 +872,19 @@ extern struct sxg_sgl_pool_properties SxgSglPoolProperties[];
  * struct sxg_sgl_block_hdr, plus one for padding
  */
 #define SXG_SGL_BLOCK_SIZE				65536
-#define SXG_SGL_ALLOCATION_SIZE(_Pool)	SXG_SGL_BLOCK_SIZE + SXG_SGL_SIZE(_Pool)
+#define SXG_SGL_ALLOCATION_SIZE(_Pool)					\
+	SXG_SGL_BLOCK_SIZE + SXG_SGL_SIZE(_Pool)
 
 struct sxg_sgl_block_hdr {
-	ushort							Pool;			/* Associated SGL pool */
-	struct list_entry						List;			/* struct sxg_scatter_gather blocks */
-	dma64_addr_t        			PhysicalAddress;/* physical address */
+	ushort			Pool;		/* Associated SGL pool */
+	/* struct sxg_scatter_gather blocks */
+	struct list_entry	List;
+	dma64_addr_t        	PhysicalAddress;/* physical address */
 };
 
 /*
  * The following definition denotes the maximum block of memory that the
- * card can DMA to.  It is specified in the call to NdisMRegisterScatterGatherDma.
+ * card can DMA to.It is specified in the call to NdisMRegisterScatterGatherDma.
  * For now, use the same value as used in the Slic/Oasis driver, which
  * is 128M.  That should cover any expected MDL that I can think of.
  */
@@ -876,9 +892,9 @@ struct sxg_sgl_block_hdr {
 
 /* Self identifying structure type */
 enum SXG_SGL_TYPE {
-	SXG_SGL_DUMB,				/* Dumb NIC SGL */
-	SXG_SGL_SLOW,				/* Slowpath protocol header - see below */
-	SXG_SGL_CHIMNEY				/* Chimney offload SGL */
+	SXG_SGL_DUMB,		/* Dumb NIC SGL */
+	SXG_SGL_SLOW,		/* Slowpath protocol header - see below */
+	SXG_SGL_CHIMNEY		/* Chimney offload SGL */
 };
 
 /*
@@ -912,13 +928,16 @@ struct sxg_scatter_gather {
 	ushort			Pool;		/* Associated SGL pool */
 	ushort			Entries;	/* SGL total entries */
 	void *   		adapter;	/* Back pointer to adapter */
-	struct list_entry	FreeList;	/* Free struct sxg_scatter_gather blocks */
-	struct list_entry	AllList;	/* All struct sxg_scatter_gather blocks */
+	/* Free struct sxg_scatter_gather blocks */
+	struct list_entry	FreeList;
+	/* All struct sxg_scatter_gather blocks */
+	struct list_entry	AllList;
 	dma_addr_t		PhysicalAddress;/* physical address */
 	unsigned char		State;		/* See SXG_BUFFER state above */
 	unsigned char		CmdIndex;	/* Command ring index */
 	struct sk_buff         	*DumbPacket;	/* Associated Packet */
-	u32			Direction;	/* For asynchronous completions */
+	/* For asynchronous completions */
+	u32			Direction;
 	u32			CurOffset;	/* Current SGL offset */
 	u32			SglRef;		/* SGL reference count */
 	struct vlan_hdr		VlanTag;	/* VLAN tag to be inserted into SGL */
@@ -926,7 +945,10 @@ struct sxg_scatter_gather {
 	struct sxg_x64_sgl	Sgl;		/* SGL handed to card */
 };
 
-/* Note - the "- 1" is because struct sxg_scatter_gather=>struct sxg_x64_sgl includes 1 SGE.. */
+/*
+ * Note - the "- 1" is because struct sxg_scatter_gather=>struct sxg_x64_sgl
+ * includes 1 SGE..
+ */
 #define SXG_SGL_SIZE(_Pool) 						\
 	(sizeof(struct sxg_scatter_gather) +				\
 	 ((SxgSglPoolProperties[_Pool].SGEntries - 1) * 		\
@@ -934,7 +956,8 @@ struct sxg_scatter_gather {
 
 #if defined(CONFIG_X86_64)
 #define SXG_SGL_BUFFER(_SxgSgl)		    (&_SxgSgl->Sgl)
-#define SXG_SGL_BUFFER_LENGTH(_SxgSgl)	((_SxgSgl)->Entries * sizeof(struct sxg_x64_sge))
+#define SXG_SGL_BUFFER_LENGTH(_SxgSgl)	((_SxgSgl)->Entries * 		\
+					sizeof(struct sxg_x64_sge))
 #define SXG_SGL_BUF_SIZE			    sizeof(struct sxg_x64_sgl)
 #elif defined(CONFIG_X86)
 /* Force NDIS to give us it's own buffer so we can reformat to our own */
@@ -952,7 +975,8 @@ struct sxg_ucode_stats {
 	u32  ERDrops;		/* Rcv drops due to ER full */
 	u32  NBDrops;		/* Rcv drops due to out of host buffers */
 	u32  PQDrops;		/* Rcv drops due to PDQ full */
-	u32  BFDrops;		/* Rcv drops due to bad frame: no link addr match, frlen > max */
+	/* Rcv drops due to bad frame: no link addr match, frlen > max */
+	u32  BFDrops;
 	u32  UPDrops;		/* Rcv drops due to UPFq full */
 	u32  XNoBufs;		/* Xmt drop due to no DRAM Xmit buffer or PxyBuf */
 };

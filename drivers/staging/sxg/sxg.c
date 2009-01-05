@@ -82,28 +82,30 @@
 
 static int sxg_allocate_buffer_memory(struct adapter_t *adapter, u32 Size,
 				      enum sxg_buffer_type BufferType);
-static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter, void *RcvBlock,
-					   dma_addr_t PhysicalAddress,
-					   u32 Length);
+static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
+						void *RcvBlock,
+						dma_addr_t PhysicalAddress,
+						u32 Length);
 static void sxg_allocate_sgl_buffer_complete(struct adapter_t *adapter,
 					     struct sxg_scatter_gather *SxgSgl,
 					     dma_addr_t PhysicalAddress,
 					     u32 Length);
 
 static void sxg_mcast_init_crc32(void);
-
 static int sxg_entry_open(struct net_device *dev);
 static int sxg_entry_halt(struct net_device *dev);
 static int sxg_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int sxg_send_packets(struct sk_buff *skb, struct net_device *dev);
 static int sxg_transmit_packet(struct adapter_t *adapter, struct sk_buff *skb);
-static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl, struct sxg_scatter_gather *SxgSgl);
+static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
+				struct sxg_scatter_gather *SxgSgl);
 
 static void sxg_handle_interrupt(struct adapter_t *adapter);
 static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId);
 static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId);
 static void sxg_complete_slow_send(struct adapter_t *adapter);
-static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter, struct sxg_event *Event);
+static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter,
+					struct sxg_event *Event);
 static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus);
 static bool sxg_mac_filter(struct adapter_t *adapter,
 			   struct ether_header *EtherHdr, ushort length);
@@ -129,7 +131,8 @@ static int sxg_initialize_link(struct adapter_t *adapter);
 static int sxg_phy_init(struct adapter_t *adapter);
 static void sxg_link_event(struct adapter_t *adapter);
 static enum SXG_LINK_STATE sxg_get_link_state(struct adapter_t *adapter);
-static void sxg_link_state(struct adapter_t *adapter, enum SXG_LINK_STATE LinkState);
+static void sxg_link_state(struct adapter_t *adapter,
+				enum SXG_LINK_STATE LinkState);
 static int sxg_write_mdio_reg(struct adapter_t *adapter,
 			      u32 DevAddr, u32 RegAddr, u32 Value);
 static int sxg_read_mdio_reg(struct adapter_t *adapter,
@@ -137,7 +140,8 @@ static int sxg_read_mdio_reg(struct adapter_t *adapter,
 
 static unsigned int sxg_first_init = 1;
 static char *sxg_banner =
-    "Alacritech SLIC Technology(tm) Server and Storage 10Gbe Accelerator (Non-Accelerated)\n";
+    "Alacritech SLIC Technology(tm) Server and Storage \
+	 10Gbe Accelerator (Non-Accelerated)\n";
 
 static int sxg_debug = 1;
 static int debug = -1;
@@ -152,8 +156,10 @@ static u32 dynamic_intagg = 0;
 #define DRV_NAME	"sxg"
 #define DRV_VERSION	"1.0.1"
 #define DRV_AUTHOR	"Alacritech, Inc. Engineering"
-#define DRV_DESCRIPTION	"Alacritech SLIC Techonology(tm) Non-Accelerated 10Gbe Driver"
-#define DRV_COPYRIGHT	"Copyright 2000-2008 Alacritech, Inc.  All rights reserved."
+#define DRV_DESCRIPTION							\
+	"Alacritech SLIC Techonology(tm) Non-Accelerated 10Gbe Driver"
+#define DRV_COPYRIGHT							\
+	"Copyright 2000-2008 Alacritech, Inc.  All rights reserved."
 
 MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
@@ -236,14 +242,15 @@ static struct sxg_trace_buffer *SxgTraceBuffer = NULL;
  * Return
  *	int
  */
-static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL UcodeSel)
+static bool sxg_download_microcode(struct adapter_t *adapter,
+						enum SXG_UCODE_SEL UcodeSel)
 {
 	struct sxg_hw_regs *HwRegs = adapter->HwRegs;
 	u32 Section;
 	u32 ThisSectionSize;
 	u32 *Instruction = NULL;
 	u32 BaseAddress, AddressOffset, Address;
-/*      u32                         Failure; */
+	/* u32 Failure; */
 	u32 ValueRead;
 	u32 i;
 	u32 numSections = 0;
@@ -289,7 +296,8 @@ static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL
 			break;
 		}
 		BaseAddress = sectionStart[Section];
-		ThisSectionSize = sectionSize[Section] / 12;	/* Size in instructions */
+		/* Size in instructions */
+		ThisSectionSize = sectionSize[Section] / 12;
 		for (AddressOffset = 0; AddressOffset < ThisSectionSize;
 		     AddressOffset++) {
 			Address = BaseAddress + AddressOffset;
@@ -333,7 +341,8 @@ static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL
 			break;
 		}
 		BaseAddress = sectionStart[Section];
-		ThisSectionSize = sectionSize[Section] / 12;	/* Size in instructions */
+		/* Size in instructions */
+		ThisSectionSize = sectionSize[Section] / 12;
 		for (AddressOffset = 0; AddressOffset < ThisSectionSize;
 		     AddressOffset++) {
 			Address = BaseAddress + AddressOffset;
@@ -346,7 +355,7 @@ static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL
 				DBG_ERROR("sxg: %s PARITY ERROR\n",
 					  __func__);
 
-				return (FALSE);	/* Parity error */
+				return FALSE;	/* Parity error */
 			}
 			ASSERT((ValueRead & MICROCODE_ADDRESS_MASK) == Address);
 			/* Read the instruction back and compare */
@@ -354,19 +363,19 @@ static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL
 			if (ValueRead != *Instruction) {
 				DBG_ERROR("sxg: %s MISCOMPARE LOW\n",
 					  __func__);
-				return (FALSE);	/* Miscompare */
+				return FALSE;	/* Miscompare */
 			}
 			READ_REG(HwRegs->UcodeDataMiddle, ValueRead);
 			if (ValueRead != *(Instruction + 1)) {
 				DBG_ERROR("sxg: %s MISCOMPARE MIDDLE\n",
 					  __func__);
-				return (FALSE);	/* Miscompare */
+				return FALSE;	/* Miscompare */
 			}
 			READ_REG(HwRegs->UcodeDataHigh, ValueRead);
 			if (ValueRead != *(Instruction + 2)) {
 				DBG_ERROR("sxg: %s MISCOMPARE HIGH\n",
 					  __func__);
-				return (FALSE);	/* Miscompare */
+				return FALSE;	/* Miscompare */
 			}
 			/* Advance 3 u32S to start of next instruction */
 			Instruction += 3;
@@ -391,7 +400,7 @@ static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL
 	if (i == 10000) {
 		DBG_ERROR("sxg: %s TIMEOUT\n", __func__);
 
-		return (FALSE);	/* Timeout */
+		return FALSE;	/* Timeout */
 	}
 	/*
 	 * Now write the LoadSync register.  This is used to
@@ -413,18 +422,17 @@ static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL
  * sxg_allocate_resources - Allocate memory and locks
  *
  * Arguments -
- *	adapter		- A pointer to our adapter structure
+ *	adapter	- A pointer to our adapter structure
  *
- * Return
- *	int
+ * Return - int
  */
 static int sxg_allocate_resources(struct adapter_t *adapter)
 {
 	int status;
 	u32 i;
 	u32 RssIds, IsrCount;
-/*      struct sxg_xmt_ring                                   *XmtRing; */
-/*      struct sxg_rcv_ring                                   *RcvRing; */
+	/* struct sxg_xmt_ring	*XmtRing; */
+	/* struct sxg_rcv_ring	*RcvRing; */
 
 	DBG_ERROR("%s ENTER\n", __func__);
 
@@ -470,14 +478,15 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 			  (unsigned int)(sizeof(struct sxg_xmt_ring) * 1));
 
 		/*
-		 * Start with big items first - receive and transmit rings.  At the moment
-		 * I'm going to keep the ring size fixed and adjust the
-		 * TCBs if we fail.  Later we might consider reducing the ring size as well..
+		 * Start with big items first - receive and transmit rings.
+		 * At the moment I'm going to keep the ring size fixed and
+		 * adjust the TCBs if we fail.  Later we might
+		 * consider reducing the ring size as well..
 		 */
 		adapter->XmtRings = pci_alloc_consistent(adapter->pcidev,
-							 sizeof(struct sxg_xmt_ring) *
-							 1,
-							 &adapter->PXmtRings);
+						 sizeof(struct sxg_xmt_ring) *
+						 1,
+						 &adapter->PXmtRings);
 		DBG_ERROR("%s XmtRings[%p]\n", __func__, adapter->XmtRings);
 
 		if (!adapter->XmtRings) {
@@ -533,15 +542,15 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 	 * a corresponding descriptor block at once.  See sxghw.h:SXG_RCV_BLOCK
 	 */
 	for (i = 0; i < SXG_INITIAL_RCV_DATA_BUFFERS;
-	     i += SXG_RCV_DESCRIPTORS_PER_BLOCK) {
-		sxg_allocate_buffer_memory(adapter,
-					   SXG_RCV_BLOCK_SIZE(adapter->
-							      ReceiveBufferSize),
+				i += SXG_RCV_DESCRIPTORS_PER_BLOCK) {
+			sxg_allocate_buffer_memory(adapter,
+				SXG_RCV_BLOCK_SIZE(adapter->ReceiveBufferSize),
 					   SXG_BUFFER_TYPE_RCV);
 	}
 	/*
-	 * NBL resource allocation can fail in the 'AllocateComplete' routine, which
-	 * doesn't return status.  Make sure we got the number of buffers we requested
+	 * NBL resource allocation can fail in the 'AllocateComplete' routine,
+	 * which doesn't return status.  Make sure we got the number of buffers
+	 * we requested
 	 */
 	if (adapter->FreeRcvBufferCount < SXG_INITIAL_RCV_DATA_BUFFERS) {
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAResF6",
@@ -555,12 +564,13 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 
 	/* Allocate event queues. */
 	adapter->EventRings = pci_alloc_consistent(adapter->pcidev,
-						   sizeof(struct sxg_event_ring) *
-						   RssIds,
-						   &adapter->PEventRings);
+					   sizeof(struct sxg_event_ring) *
+					   RssIds,
+					   &adapter->PEventRings);
 
 	if (!adapter->EventRings) {
-		/* Caller will call SxgFreeAdapter to clean up above allocations */
+		/* Caller will call SxgFreeAdapter to clean up above
+		 * allocations */
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAResF8",
 			  adapter, SXG_MAX_ENTRIES, 0, 0);
 		status = STATUS_RESOURCES;
@@ -573,7 +583,8 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 	adapter->Isr = pci_alloc_consistent(adapter->pcidev,
 					    IsrCount, &adapter->PIsr);
 	if (!adapter->Isr) {
-		/* Caller will call SxgFreeAdapter to clean up above allocations */
+		/* Caller will call SxgFreeAdapter to clean up above
+		 * allocations */
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAResF9",
 			  adapter, SXG_MAX_ENTRIES, 0, 0);
 		status = STATUS_RESOURCES;
@@ -620,12 +631,19 @@ static void sxg_config_pci(struct pci_dev *pcidev)
 	pci_read_config_word(pcidev, PCI_COMMAND, &pci_command);
 	DBG_ERROR("sxg: %s  PCI command[%4.4x]\n", __func__, pci_command);
 	/* Set the command register */
-	new_command = pci_command | (PCI_COMMAND_MEMORY |	/* Memory Space Enable */
-				     PCI_COMMAND_MASTER |	/* Bus master enable */
-				     PCI_COMMAND_INVALIDATE |	/* Memory write and invalidate */
-				     PCI_COMMAND_PARITY |	/* Parity error response */
-				     PCI_COMMAND_SERR |	/* System ERR */
-				     PCI_COMMAND_FAST_BACK);	/* Fast back-to-back */
+	new_command = pci_command | (
+				     /* Memory Space Enable */
+				     PCI_COMMAND_MEMORY |
+				     /* Bus master enable */
+				     PCI_COMMAND_MASTER |
+			     	     /* Memory write and invalidate */
+				     PCI_COMMAND_INVALIDATE |
+				     /* Parity error response */
+				     PCI_COMMAND_PARITY |
+				     /* System ERR */
+				     PCI_COMMAND_SERR |
+				     /* Fast back-to-back */
+				     PCI_COMMAND_FAST_BACK);
 	if (pci_command != new_command) {
 		DBG_ERROR("%s -- Updating PCI COMMAND register %4.4x->%4.4x.\n",
 			  __func__, pci_command, new_command);
@@ -633,7 +651,8 @@ static void sxg_config_pci(struct pci_dev *pcidev)
 	}
 }
 
-static unsigned char temp_mac_address[6] = { 0x00, 0xab, 0xcd, 0xef, 0x12, 0x69 };
+static unsigned char temp_mac_address[6] =
+					{ 0x00, 0xab, 0xcd, 0xef, 0x12, 0x69 };
 /*
  * sxg_read_config
  * 	@adapter : Pointer to the adapter structure for the card
@@ -647,13 +666,15 @@ static inline int sxg_read_config(struct adapter_t *adapter)
 	unsigned long		status;
 	unsigned long		i;
 
-	data = pci_alloc_consistent(adapter->pcidev, sizeof(struct sw_cfg_data), &p_addr);
+	data = pci_alloc_consistent(adapter->pcidev,
+					sizeof(struct sw_cfg_data), &p_addr);
 	if(!data) {
 		/*
 		 * We cant get even this much memory. Raise a hell
  		 * Get out of here
  		 */
-		printk(KERN_ERR"%s : Could not allocate memory for reading EEPROM\n", __FUNCTION__);
+		printk(KERN_ERR"%s : Could not allocate memory for reading \
+				 EEPROM\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 
@@ -668,22 +689,26 @@ static inline int sxg_read_config(struct adapter_t *adapter)
 	}
 
 	switch(status) {
-		case SXG_CFG_LOAD_EEPROM:	/*Config read from EEPROM succeeded */
-		case SXG_CFG_LOAD_FLASH:	/* onfig read from Flash succeeded */
-			/* Copy the MAC address to adapter structure */
-			memcpy(temp_mac_address, data->MacAddr[0].MacAddr, 6);
-			/* TODO: We are not doing the remaining part : FRU, etc */
-			break;
-
-		case SXG_CFG_TIMEOUT:
-		case SXG_CFG_LOAD_INVALID:
-		case SXG_CFG_LOAD_ERROR:
-		default:			/* Fix default handler later */
-			printk(KERN_WARNING"%s  : We could not read the config word."
-					"Status = %ld\n", __FUNCTION__, status);
-			break;
+	/* Config read from EEPROM succeeded */
+	case SXG_CFG_LOAD_EEPROM:
+	/* Config read from Flash succeeded */
+	case SXG_CFG_LOAD_FLASH:
+	/* Copy the MAC address to adapter structure */
+		memcpy(temp_mac_address, data->MacAddr[0].MacAddr, 6);
+		/* TODO: We are not doing the remaining part : FRU,
+		 * etc
+		 */
+		break;
+	case SXG_CFG_TIMEOUT:
+	case SXG_CFG_LOAD_INVALID:
+	case SXG_CFG_LOAD_ERROR:
+	default:	/* Fix default handler later */
+		printk(KERN_WARNING"%s  : We could not read the config \
+			word. Status = %ld\n", __FUNCTION__, status);
+		break;
 	}
-	pci_free_consistent(adapter->pcidev, sizeof(struct sw_cfg_data), data, p_addr);
+	pci_free_consistent(adapter->pcidev, sizeof(struct sw_cfg_data), data,
+				p_addr);
 	if (adapter->netdev) {
 		memcpy(adapter->netdev->dev_addr, adapter->currmacaddr, 6);
 		memcpy(adapter->netdev->perm_addr, adapter->currmacaddr, 6);
@@ -782,9 +807,9 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 		goto err_out_free_mmio_region;
 	}
 
-	DBG_ERROR
-	    ("sxg: %s found Alacritech SXG PCI, MMIO at %p, start[%lx] len[%lx], IRQ %d.\n",
-	     __func__, memmapped_ioaddr, mmio_start, mmio_len, pcidev->irq);
+	DBG_ERROR("sxg: %s found Alacritech SXG PCI, MMIO at %p, start[%lx] \
+	      len[%lx], IRQ %d.\n", __func__, memmapped_ioaddr, mmio_start,
+					      mmio_len, pcidev->irq);
 
 	adapter->HwRegs = (void *)memmapped_ioaddr;
 	adapter->base_addr = memmapped_ioaddr;
@@ -832,12 +857,12 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 		adapter->ReceiveBufferSize = SXG_RCV_DATA_BUFFER_SIZE;
 	}
 
-/*
- *    status = SXG_READ_EEPROM(adapter);
- *    if (!status) {
- *        goto sxg_init_bad;
- *    }
- */
+	/*
+	 *    status = SXG_READ_EEPROM(adapter);
+	 *    if (!status) {
+	 *        goto sxg_init_bad;
+	 *    }
+	 */
 
 	DBG_ERROR("sxg: %s ENTER sxg_config_pci\n", __func__);
 	sxg_config_pci(pcidev);
@@ -894,7 +919,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	netdev->set_multicast_list = sxg_mcast_set_list;
 
 	strcpy(netdev->name, "eth%d");
-/*  strcpy(netdev->name, pci_name(pcidev)); */
+	/*  strcpy(netdev->name, pci_name(pcidev)); */
 	if ((err = register_netdev(netdev))) {
 		DBG_ERROR("Cannot register net device, aborting. %s\n",
 			  netdev->name);
@@ -902,14 +927,15 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	}
 
 	DBG_ERROR
-	    ("sxg: %s addr 0x%lx, irq %d, MAC addr %02X:%02X:%02X:%02X:%02X:%02X\n",
+	    ("sxg: %s addr 0x%lx, irq %d, MAC addr \
+		%02X:%02X:%02X:%02X:%02X:%02X\n",
 	     netdev->name, netdev->base_addr, pcidev->irq, netdev->dev_addr[0],
 	     netdev->dev_addr[1], netdev->dev_addr[2], netdev->dev_addr[3],
 	     netdev->dev_addr[4], netdev->dev_addr[5]);
 
-/*sxg_init_bad: */
+	/* sxg_init_bad: */
 	ASSERT(status == FALSE);
-/*      sxg_free_adapter(adapter); */
+	/* sxg_free_adapter(adapter); */
 
 	DBG_ERROR("sxg: %s EXIT status[%x] jiffies[%lx] cpu %d\n", __func__,
 		  status, jiffies, smp_processor_id());
@@ -991,18 +1017,17 @@ static void sxg_enable_interrupt(struct adapter_t *adapter)
  * sxg_isr - Process an line-based interrupt
  *
  * Arguments:
- * 		Context			- Our adapter structure
+ * 		Context		- Our adapter structure
  *		QueueDefault 	- Output parameter to queue to default CPU
- *		TargetCpus		- Output bitmap to schedule DPC's
+ *		TargetCpus	- Output bitmap to schedule DPC's
  *
- * Return Value:
- * 	TRUE if our interrupt
+ * Return Value: TRUE if our interrupt
  */
 static irqreturn_t sxg_isr(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
-/*      u32                 CpuMask = 0, i; */
+	/* u32 CpuMask = 0, i; */
 
 	adapter->Stats.NumInts++;
 	if (adapter->Isr[0] == 0) {
@@ -1023,7 +1048,7 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 	adapter->IsrCopy[0] = adapter->Isr[0];
 	adapter->Isr[0] = 0;
 	WRITE_REG(adapter->UcodeRegs[0].Icr, SXG_ICR(0, SXG_ICR_MASK), TRUE);
-/*      ASSERT(adapter->IsrDpcsPending == 0); */
+	/* ASSERT(adapter->IsrDpcsPending == 0); */
 #if XXXTODO			/* RSS Stuff */
 	/*
 	 * If RSS is enabled and the ISR specifies SXG_ISR_EVENT, then
@@ -1033,7 +1058,8 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 		for (i = 0;
 		     i < adapter->RssSystemInfo->ProcessorInfo.RssCpuCount;
 		     i++) {
-			struct sxg_event_ring *EventRing = &adapter->EventRings[i];
+			struct sxg_event_ring *EventRing =
+						&adapter->EventRings[i];
 			struct sxg_event *Event =
 			    &EventRing->Ring[adapter->NextEvent[i]];
 			unsigned char Cpu =
@@ -1044,7 +1070,8 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 			}
 		}
 	}
-	/* Now, either schedule the CPUs specified by the CpuMask,
+	/*
+	 * Now, either schedule the CPUs specified by the CpuMask,
 	 * or queue default
 	 */
 	if (CpuMask) {
@@ -1065,7 +1092,7 @@ int debug_inthandler = 0;
 
 static void sxg_handle_interrupt(struct adapter_t *adapter)
 {
-/*    unsigned char           RssId   = 0; */
+	/* unsigned char           RssId   = 0; */
 	u32 NewIsr;
 
 	if (++debug_inthandler  < 20) {
@@ -1154,10 +1181,12 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 		}
 		/* Card crash */
 		if (Isr & SXG_ISR_DEAD) {
-			/* Set aside the crash info and set the adapter state to RESET */
-			adapter->CrashCpu =
-			    (unsigned char)((Isr & SXG_ISR_CPU) >>
-					    SXG_ISR_CPU_SHIFT);
+			/*
+			 * Set aside the crash info and set the adapter state
+ 			 * to RESET
+ 			 */
+			adapter->CrashCpu = (unsigned char)
+				((Isr & SXG_ISR_CPU) >> SXG_ISR_CPU_SHIFT);
 			adapter->CrashLocation = (ushort) (Isr & SXG_ISR_CRASH);
 			adapter->Dead = TRUE;
 			DBG_ERROR("%s: ISR_DEAD %x, CPU: %d\n", __func__,
@@ -1188,7 +1217,8 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 	}
 	/* Dump */
 	if (Isr & SXG_ISR_UPC) {
-		ASSERT(adapter->DumpCmdRunning);	/* Maybe change when debug is added.. */
+		/* Maybe change when debug is added.. */
+		ASSERT(adapter->DumpCmdRunning);
 		adapter->DumpCmdRunning = FALSE;
 	}
 	/* Link event */
@@ -1199,8 +1229,8 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 	if (Isr & SXG_ISR_BREAK) {
 		/*
 		 * At the moment AGDB isn't written to support interactive
-		 * debug sessions.  When it is, this interrupt will be used
-		 * to signal AGDB that it has hit a breakpoint.  For now, ASSERT.
+		 * debug sessions.  When it is, this interrupt will be used to
+		 * signal AGDB that it has hit a breakpoint.  For now, ASSERT.
 		 */
 		ASSERT(0);
 	}
@@ -1261,7 +1291,8 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 			  adapter->NextEvent);
 		switch (Event->Code) {
 		case EVENT_CODE_BUFFERS:
-			ASSERT(!(Event->CommandIndex & 0xFF00));	/* struct sxg_ring_info Head & Tail == unsigned char */
+			/* struct sxg_ring_info Head & Tail == unsigned char */
+			ASSERT(!(Event->CommandIndex & 0xFF00));
 			sxg_complete_descriptor_blocks(adapter,
 						       Event->CommandIndex);
 			break;
@@ -1279,8 +1310,9 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 				 * capability of an indication list.
 				 */
 #else
-/* CHECK            skb_pull(skb, INIC_RCVBUF_HEADSIZE); */
-				rx_bytes = Event->Length;	/* (rcvbuf->length & IRHDDR_FLEN_MSK); */
+				/* CHECK skb_pull(skb, INIC_RCVBUF_HEADSIZE); */
+				/* (rcvbuf->length & IRHDDR_FLEN_MSK); */
+				rx_bytes = Event->Length;
 				adapter->stats.rx_packets++;
 				adapter->stats.rx_bytes += rx_bytes;
 #if SXG_OFFLOAD_IP_CHECKSUM
@@ -1294,7 +1326,7 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 		default:
 			DBG_ERROR("%s: ERROR  Invalid EventCode %d\n",
 				  __func__, Event->Code);
-/*                      ASSERT(0); */
+		/* ASSERT(0); */
 		}
 		/*
 		 * See if we need to restock card receive buffers.
@@ -1404,7 +1436,8 @@ static void sxg_complete_slow_send(struct adapter_t *adapter)
 		case SXG_SGL_DUMB:
 			{
 				struct sk_buff *skb;
-				struct sxg_scatter_gather *SxgSgl = (struct sxg_scatter_gather *)ContextType;
+				struct sxg_scatter_gather *SxgSgl =
+					(struct sxg_scatter_gather *)ContextType;
 
 				/* Dumb-nic send.  Command context is the dumb-nic SGL */
 				skb = (struct sk_buff *)ContextType;
@@ -1415,13 +1448,14 @@ static void sxg_complete_slow_send(struct adapter_t *adapter)
 					  0, 0);
 				printk("ASK:sxg_complete_slow_send: freeing an skb [%p]\n", skb);
 				ASSERT(adapter->Stats.XmtQLen);
-				adapter->Stats.XmtQLen--;	/* within XmtZeroLock */
+				adapter->Stats.XmtQLen--;/* within XmtZeroLock */
 				adapter->Stats.XmtOk++;
 				/*
-				 * Now drop the lock and complete the send back to
-				 * Microsoft.  We need to drop the lock because
-				 * Microsoft can come back with a chimney send, which
-				 * results in a double trip in SxgTcpOuput
+				 * Now drop the lock and complete the send
+				 * back to Microsoft.  We need to drop the lock
+				 * because Microsoft can come back with a
+				 * chimney send, which results in a double trip
+				 * in SxgTcpOuput
 				 */
 				spin_unlock(&adapter->XmtZeroLock);
 				SXG_COMPLETE_DUMB_SEND(adapter, skb);
@@ -1445,10 +1479,10 @@ static void sxg_complete_slow_send(struct adapter_t *adapter)
  *	adapter		- A pointer to our adapter structure
  *	Event		- Receive event
  *
- * Return
- *	 skb
+ * Return - skb
  */
-static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter, struct sxg_event *Event)
+static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter,
+						struct sxg_event *Event)
 {
 	struct sxg_rcv_data_buffer_hdr *RcvDataBufferHdr;
 	struct sk_buff *Packet;
@@ -1476,12 +1510,15 @@ static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter, struct sxg_ev
 		goto drop;
 	}
 
-	printk("ASK:sxg_slow_receive: event host handle %p\n", RcvDataBufferHdr);
+	printk("ASK:sxg_slow_receive:event host handle %p\n", RcvDataBufferHdr);
 	data = SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr);
 	for (i = 0; i < 32; i++)
 		dptr += sprintf(dptr, "%02x ", (unsigned)data[i]);
 	printk("ASK:sxg_slow_receive: data %s\n", dstr);
-	/* memcpy(SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr), RcvDataBufferHdr->VirtualAddress, Event->Length);*/
+	/*
+	 * memcpy(SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr),
+	 * 		RcvDataBufferHdr->VirtualAddress, Event->Length);
+	 */
 
 	/* Change buffer state to UPSTREAM */
 	RcvDataBufferHdr->State = SXG_BUFFER_UPSTREAM;
@@ -1498,8 +1535,9 @@ static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter, struct sxg_ev
 	}
 #if XXXTODO			/* VLAN stuff */
 	/* If there's a VLAN tag, extract it and validate it */
-	if (((struct ether_header*) (SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr)))->
-	    EtherType == ETHERTYPE_VLAN) {
+	if (((struct ether_header *)
+		(SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr)))->EtherType
+							== ETHERTYPE_VLAN) {
 		if (SxgExtractVlanHeader(adapter, RcvDataBufferHdr, Event) !=
 		    STATUS_SUCCESS) {
 			SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY,
@@ -1526,7 +1564,8 @@ static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter, struct sxg_ev
 	Packet = RcvDataBufferHdr->SxgDumbRcvPacket;
 	SXG_ADJUST_RCV_PACKET(Packet, RcvDataBufferHdr, Event);
 	Packet->protocol = eth_type_trans(Packet, adapter->netdev);
-	printk("ASK:sxg_slow_receive: protocol %x\n", (unsigned) Packet->protocol);
+	printk("ASK:sxg_slow_receive: protocol %x\n",
+				(unsigned) Packet->protocol);
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_IMPORTANT, "DumbRcv",
 		  RcvDataBufferHdr, Packet, Event->Length, 0);
@@ -1554,8 +1593,7 @@ static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter, struct sxg_ev
  *		adapter		- Adapter structure
  *		ErrorStatus	- 4-byte receive error status
  *
- * Return Value:
- * 	None
+ * Return Value		: None
  */
 static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus)
 {
@@ -1633,11 +1671,10 @@ static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus)
  *		pether		- Ethernet header
  *		length		- Frame length
  *
- * Return Value:
- * 	TRUE if the frame is to be allowed
+ * Return Value : TRUE if the frame is to be allowed
  */
-static bool sxg_mac_filter(struct adapter_t *adapter, struct ether_header *EtherHdr,
-			   ushort length)
+static bool sxg_mac_filter(struct adapter_t *adapter,
+		struct ether_header *EtherHdr, ushort length)
 {
 	bool EqualAddr;
 
@@ -1927,17 +1964,19 @@ static int sxg_entry_halt(struct net_device *dev)
 static int sxg_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	ASSERT(rq);
-/*      DBG_ERROR("sxg: %s cmd[%x] rq[%p] dev[%p]\n", __func__, cmd, rq, dev); */
+/*      DBG_ERROR("sxg: %s cmd[%x] rq[%p] dev[%p]\n", __func__, cmd, rq, dev);*/
 	switch (cmd) {
 	case SIOCSLICSETINTAGG:
 		{
-/*                      struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev); */
+			/* struct adapter_t *adapter = (struct adapter_t *)
+			 * netdev_priv(dev);
+			 */
 			u32 data[7];
 			u32 intagg;
 
 			if (copy_from_user(data, rq->ifr_data, 28)) {
-				DBG_ERROR
-				    ("copy_from_user FAILED  getting initial params\n");
+				DBG_ERROR("copy_from_user FAILED  getting \
+					 initial params\n");
 				return -EFAULT;
 			}
 			intagg = data[0];
@@ -1948,7 +1987,7 @@ static int sxg_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		}
 
 	default:
-/*              DBG_ERROR("sxg: %s UNSUPPORTED[%x]\n", __func__, cmd); */
+		/* DBG_ERROR("sxg: %s UNSUPPORTED[%x]\n", __func__, cmd); */
 		return -EOPNOTSUPP;
 	}
 	return 0;
@@ -1960,8 +1999,8 @@ static int sxg_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  * sxg_send_packets - Send a skb packet
  *
  * Arguments:
- *			skb                     - The packet to send
- *			dev                     - Our linux net device that refs our adapter
+ *			skb - The packet to send
+ *			dev - Our linux net device that refs our adapter
  *
  * Return:
  *		0   regardless of outcome    XXXTODO refer to e1000 driver
@@ -2013,7 +2052,7 @@ static int sxg_send_packets(struct sk_buff *skb, struct net_device *dev)
 	/* reject & complete all the packets if they cant be sent */
 	if (status != STATUS_SUCCESS) {
 #if XXXTODO
-/*      sxg_send_packets_fail(adapter, skb, status); */
+	/* sxg_send_packets_fail(adapter, skb, status); */
 #else
 		SXG_DROP_DUMB_SEND(adapter, skb);
 		adapter->stats.tx_dropped++;
@@ -2035,8 +2074,7 @@ static int sxg_send_packets(struct sk_buff *skb, struct net_device *dev)
  *		adapter			- Pointer to our adapter structure
  *      skb             - The packet to be sent
  *
- * Return -
- * 		STATUS of send
+ * Return - STATUS of send
  */
 static int sxg_transmit_packet(struct adapter_t *adapter, struct sk_buff *skb)
 {
@@ -2072,7 +2110,7 @@ static int sxg_transmit_packet(struct adapter_t *adapter, struct sk_buff *skb)
 
 	/* Call the common sxg_dumb_sgl routine to complete the send. */
 	sxg_dumb_sgl(pSgl, SxgSgl);
-	/* Return success   sxg_dumb_sgl (or something later) will complete it. */
+	/* Return success sxg_dumb_sgl (or something later) will complete it.*/
 	return (STATUS_SUCCESS);
 }
 
@@ -2086,7 +2124,8 @@ static int sxg_transmit_packet(struct adapter_t *adapter, struct sk_buff *skb)
  * Return Value:
  * 	None.
  */
-static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl, struct sxg_scatter_gather *SxgSgl)
+static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
+				struct sxg_scatter_gather *SxgSgl)
 {
 	struct adapter_t *adapter = SxgSgl->adapter;
 	struct sk_buff *skb = SxgSgl->DumbPacket;
@@ -2094,10 +2133,10 @@ static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl, struct sxg_scatter_gather *Sx
 	struct sxg_xmt_ring *XmtRing = &adapter->XmtRings[0];
 	struct sxg_ring_info *XmtRingInfo = &adapter->XmtRingZeroInfo;
 	struct sxg_cmd *XmtCmd = NULL;
-/*      u32                         Index = 0; */
+	/* u32 Index = 0; */
 	u32 DataLength = skb->len;
-/*  unsigned int                                BufLen; */
-/*      u32                         SglOffset; */
+	/* unsigned int BufLen; */
+	/* u32 SglOffset; */
 	u64 phys_addr;
 	unsigned char*data;
 	int i;
@@ -2167,8 +2206,7 @@ static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl, struct sxg_scatter_gather *Sx
 	 * Fill in the command
 	 * Copy out the first SGE to the command and adjust for offset
 	 */
-	phys_addr =
-	    pci_map_single(adapter->pcidev, skb->data, skb->len,
+	phys_addr = pci_map_single(adapter->pcidev, skb->data, skb->len,
 			   PCI_DMA_TODEVICE);
 	memset(XmtCmd, '\0', sizeof(*XmtCmd));
 	XmtCmd->Buffer.FirstSgeAddress = phys_addr;
@@ -2210,8 +2248,8 @@ static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl, struct sxg_scatter_gather *Sx
 	adapter->Stats.XmtErrors++;
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_IMPORTANT, "DumSGFal",
 		  pSgl, SxgSgl, XmtRingInfo->Head, XmtRingInfo->Tail);
-
-	SXG_COMPLETE_DUMB_SEND(adapter, SxgSgl->DumbPacket);	/* SxgSgl->DumbPacket is the skb */
+	/* SxgSgl->DumbPacket is the skb */
+	SXG_COMPLETE_DUMB_SEND(adapter, SxgSgl->DumbPacket);
 }
 
 /*
@@ -2277,15 +2315,24 @@ static int sxg_initialize_link(struct adapter_t *adapter)
 	WRITE_REG(HwRegs->MacConfig0, 0, TRUE);
 
 	/* Configure MAC */
-	WRITE_REG(HwRegs->MacConfig1, (AXGMAC_CFG1_XMT_PAUSE |	/* Allow sending of pause */
-				       AXGMAC_CFG1_XMT_EN |	/* Enable XMT */
-				       AXGMAC_CFG1_RCV_PAUSE |	/* Enable detection of pause */
-				       AXGMAC_CFG1_RCV_EN |	/* Enable receive */
-				       AXGMAC_CFG1_SHORT_ASSERT |	/* short frame detection */
-				       AXGMAC_CFG1_CHECK_LEN |	/* Verify frame length */
-				       AXGMAC_CFG1_GEN_FCS |	/* Generate FCS */
-				       AXGMAC_CFG1_PAD_64),	/* Pad frames to 64 bytes */
-		  TRUE);
+	WRITE_REG(HwRegs->MacConfig1, (
+					/* Allow sending of pause */
+					AXGMAC_CFG1_XMT_PAUSE |
+					/* Enable XMT */
+				       	AXGMAC_CFG1_XMT_EN |
+					/* Enable detection of pause */
+				       	AXGMAC_CFG1_RCV_PAUSE |
+					/* Enable receive */
+				       	AXGMAC_CFG1_RCV_EN |
+					/* short frame detection */
+					AXGMAC_CFG1_SHORT_ASSERT |
+					/* Verify frame length */
+				       	AXGMAC_CFG1_CHECK_LEN |
+					/* Generate FCS */
+				       	AXGMAC_CFG1_GEN_FCS |
+					/* Pad frames to 64 bytes */
+				       	AXGMAC_CFG1_PAD_64),
+				  TRUE);
 
 	/* Set AXGMAC max frame length if jumbo.  Not needed for standard MTU */
 	if (adapter->JumboEnabled) {
@@ -2314,15 +2361,20 @@ static int sxg_initialize_link(struct adapter_t *adapter)
 
 	/*
 	 * Per information given by Aeluros, wait 100 ms after removing reset.
-	 * It's not enough to wait for the self-clearing reset bit in reg 0 to clear.
+	 * It's not enough to wait for the self-clearing reset bit in reg 0 to
+	 * clear.
 	 */
 	mdelay(100);
 
-	/* Verify the PHY has come up by checking that the Reset bit has cleared. */
-	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PMA,	/* PHY PMA/PMD module */
-				   PHY_PMA_CONTROL1,	/* PMA/PMD control register */
-				   &Value);
-    DBG_ERROR("After sxg_read_mdio_reg Value[%x] fail=%x\n", Value, (Value & PMA_CONTROL1_RESET));
+	/* Verify the PHY has come up by checking that the Reset bit has
+	 * cleared.
+	 */
+	status = sxg_read_mdio_reg(adapter,
+				MIIM_DEV_PHY_PMA, /* PHY PMA/PMD module */
+				PHY_PMA_CONTROL1, /* PMA/PMD control register */
+				&Value);
+	DBG_ERROR("After sxg_read_mdio_reg Value[%x] fail=%x\n", Value,
+					 (Value & PMA_CONTROL1_RESET));
 	if (status != STATUS_SUCCESS)
 		return (STATUS_FAILURE);
 	if (Value & PMA_CONTROL1_RESET)	/* reset complete if bit is 0 */
@@ -2343,16 +2395,26 @@ static int sxg_initialize_link(struct adapter_t *adapter)
 		return (STATUS_FAILURE);
 
 	/* Enable the Link Alarm */
-	status = sxg_write_mdio_reg(adapter, MIIM_DEV_PHY_PMA,	/* PHY PMA/PMD module */
-				    LASI_CONTROL,	/* LASI control register */
-				    LASI_CTL_LS_ALARM_ENABLE);	/* enable link alarm bit */
+
+	/* MIIM_DEV_PHY_PMA		- PHY PMA/PMD module
+	 * LASI_CONTROL			- LASI control register
+	 * LASI_CTL_LS_ALARM_ENABLE	- enable link alarm bit
+	 */
+	status = sxg_write_mdio_reg(adapter, MIIM_DEV_PHY_PMA,
+				    LASI_CONTROL,
+				    LASI_CTL_LS_ALARM_ENABLE);
 	if (status != STATUS_SUCCESS)
 		return (STATUS_FAILURE);
 
 	/* XXXTODO - temporary - verify bit is set */
-	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PMA,	/* PHY PMA/PMD module */
-				   LASI_CONTROL,	/* LASI control register */
+
+	/* MIIM_DEV_PHY_PMA		- PHY PMA/PMD module
+	 * LASI_CONTROL			- LASI control register
+	 */
+	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PMA,
+				   LASI_CONTROL,
 				   &Value);
+
 	if (status != STATUS_SUCCESS)
 		return (STATUS_FAILURE);
 	if (!(Value & LASI_CTL_LS_ALARM_ENABLE)) {
@@ -2397,16 +2459,20 @@ static int sxg_phy_init(struct adapter_t *adapter)
 
 	DBG_ERROR("ENTER %s\n", __func__);
 
-	/* Read a register to identify the PHY type */
-	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PMA,	/* PHY PMA/PMD module */
-				   0xC205,	/* PHY ID register (?) */
-				   &Value);	/*    XXXTODO - add def */
+	/* MIIM_DEV_PHY_PMA - PHY PMA/PMD module
+	 * 0xC205 - PHY ID register (?)
+	 * &Value - XXXTODO - add def
+	 */
+	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PMA,
+				   0xC205,
+				   &Value);
 	if (status != STATUS_SUCCESS)
 		return (STATUS_FAILURE);
 
-	if (Value == 0x0012) {	/* 0x0012 == AEL2005C PHY(?) - XXXTODO - add def */
-		DBG_ERROR
-		    ("AEL2005C PHY detected.  Downloading PHY microcode.\n");
+	if (Value == 0x0012) {
+		/* 0x0012 == AEL2005C PHY(?) - XXXTODO - add def */
+		DBG_ERROR("AEL2005C PHY detected.  Downloading PHY \
+				 microcode.\n");
 
 		/* Initialize AEL2005C PHY and download PHY microcode */
 		for (p = PhyUcode; p->Addr != 0xFFFF; p++) {
@@ -2414,10 +2480,13 @@ static int sxg_phy_init(struct adapter_t *adapter)
 				/* if address == 0, data == sleep time in ms */
 				mdelay(p->Data);
 			} else {
-				/* write the given data to the specified address */
-				status = sxg_write_mdio_reg(adapter, MIIM_DEV_PHY_PMA,	/* PHY PMA/PMD module */
-							    p->Addr,	/* PHY address */
-							    p->Data);	/* PHY data */
+			/* write the given data to the specified address */
+				status = sxg_write_mdio_reg(adapter,
+							MIIM_DEV_PHY_PMA,
+							/* PHY address */
+							    p->Addr,
+							/* PHY data */
+							    p->Data);
 				if (status != STATUS_SUCCESS)
 					return (STATUS_FAILURE);
 			}
@@ -2458,13 +2527,15 @@ static void sxg_link_event(struct adapter_t *adapter)
 		mdelay(10);
 
 		/* Now clear the alarm by reading the LASI status register. */
-		status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PMA,	/* PHY PMA/PMD module */
-					   LASI_STATUS,	/* LASI status register */
+		/* MIIM_DEV_PHY_PMA - PHY PMA/PMD module */
+		status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PMA,
+					/* LASI status register */
+					   LASI_STATUS,
 					   &Value);
 		if (status != STATUS_SUCCESS) {
 			DBG_ERROR("Error reading LASI Status MDIO register!\n");
 			sxg_link_state(adapter, SXG_LINK_DOWN);
-/*                      ASSERT(0); */
+		/* ASSERT(0); */
 		}
 		ASSERT(Value & LASI_STATUS_LS_ALARM);
 
@@ -2483,7 +2554,7 @@ static void sxg_link_event(struct adapter_t *adapter)
 	 	 */
 		DBG_ERROR("SXG: sxg_link_event: Can't get here!\n");
 		DBG_ERROR("SXG: Link Status == 0x%08X.\n", Value);
-/*              ASSERT(0); */
+		/* ASSERT(0); */
 	}
 	DBG_ERROR("EXIT %s\n", __func__);
 
@@ -2512,8 +2583,11 @@ static enum SXG_LINK_STATE sxg_get_link_state(struct adapter_t *adapter)
 	 * Per the Xenpak spec (and the IEEE 10Gb spec?), the link is up if
 	 * the following 3 bits (from 3 different MDIO registers) are all true.
 	 */
-	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PMA,	/* PHY PMA/PMD module */
-				   PHY_PMA_RCV_DET,	/* PMA/PMD Receive Signal Detect register */
+
+	/* MIIM_DEV_PHY_PMA -  PHY PMA/PMD module */
+	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PMA,
+				/* PMA/PMD Receive Signal Detect register */
+				   PHY_PMA_RCV_DET,
 				   &Value);
 	if (status != STATUS_SUCCESS)
 		goto bad;
@@ -2522,8 +2596,10 @@ static enum SXG_LINK_STATE sxg_get_link_state(struct adapter_t *adapter)
 	if (!(Value & PMA_RCV_DETECT))
 		return (SXG_LINK_DOWN);
 
-	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PCS,	/* PHY PCS module */
-				   PHY_PCS_10G_STATUS1,	/* PCS 10GBASE-R Status 1 register */
+	/* MIIM_DEV_PHY_PCS - PHY PCS module */
+	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PCS,
+				/* PCS 10GBASE-R Status 1 register */
+				   PHY_PCS_10G_STATUS1,
 				   &Value);
 	if (status != STATUS_SUCCESS)
 		goto bad;
@@ -2532,8 +2608,9 @@ static enum SXG_LINK_STATE sxg_get_link_state(struct adapter_t *adapter)
 	if (!(Value & PCS_10B_BLOCK_LOCK))
 		return (SXG_LINK_DOWN);
 
-	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_XS,	/* PHY XS module */
-				   PHY_XS_LANE_STATUS,	/* XS Lane Status register */
+	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_XS,/* PHY XS module */
+				/* XS Lane Status register */
+				   PHY_XS_LANE_STATUS,
 				   &Value);
 	if (status != STATUS_SUCCESS)
 		goto bad;
@@ -2548,7 +2625,7 @@ static enum SXG_LINK_STATE sxg_get_link_state(struct adapter_t *adapter)
 	return (SXG_LINK_UP);
 
       bad:
-	/* An error occurred reading an MDIO register.  This shouldn't happen. */
+	/* An error occurred reading an MDIO register. This shouldn't happen. */
 	DBG_ERROR("Error reading an MDIO register!\n");
 	ASSERT(0);
 	return (SXG_LINK_DOWN);
@@ -2581,7 +2658,8 @@ static void sxg_indicate_link_state(struct adapter_t *adapter,
  * Return
  *	None
  */
-static void sxg_link_state(struct adapter_t *adapter, enum SXG_LINK_STATE LinkState)
+static void sxg_link_state(struct adapter_t *adapter,
+				enum SXG_LINK_STATE LinkState)
 {
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_IMPORTANT, "LnkINDCT",
 		  adapter, LinkState, adapter->LinkState, adapter->State);
@@ -2596,7 +2674,8 @@ static void sxg_link_state(struct adapter_t *adapter, enum SXG_LINK_STATE LinkSt
 	if (LinkState == adapter->LinkState) {
 		/* Nothing changed.. */
 		spin_unlock(&adapter->AdapterLock);
-		DBG_ERROR("EXIT #0 %s\n", __func__);
+		DBG_ERROR("EXIT #0 %s. Link status = %d\n",
+					 __func__, LinkState);
 		return;
 	}
 	/* Save the adapter state */
@@ -2625,13 +2704,15 @@ static int sxg_write_mdio_reg(struct adapter_t *adapter,
 			      u32 DevAddr, u32 RegAddr, u32 Value)
 {
 	struct sxg_hw_regs *HwRegs = adapter->HwRegs;
-	u32 AddrOp;		/* Address operation (written to MIIM field reg) */
-	u32 WriteOp;		/* Write operation (written to MIIM field reg) */
-	u32 Cmd;		/* Command (written to MIIM command reg) */
+	/* Address operation (written to MIIM field reg) */
+	u32 AddrOp;
+	/* Write operation (written to MIIM field reg) */
+	u32 WriteOp;
+	u32 Cmd;/* Command (written to MIIM command reg) */
 	u32 ValueRead;
 	u32 Timeout;
 
-/*  DBG_ERROR("ENTER %s\n", __func__); */
+	/* DBG_ERROR("ENTER %s\n", __func__); */
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "WrtMDIO",
 		  adapter, 0, 0, 0);
@@ -2694,7 +2775,7 @@ static int sxg_write_mdio_reg(struct adapter_t *adapter,
 		}
 	} while (ValueRead & AXGMAC_AMIIM_INDC_BUSY);
 
-/*  DBG_ERROR("EXIT %s\n", __func__); */
+	/* DBG_ERROR("EXIT %s\n", __func__); */
 
 	return (STATUS_SUCCESS);
 }
@@ -2706,7 +2787,7 @@ static int sxg_write_mdio_reg(struct adapter_t *adapter,
  *	adapter		- A pointer to our adapter structure
  *  DevAddr     - MDIO device number being addressed
  *  RegAddr     - register address for the specified MDIO device
- *  pValue		- pointer to where to put data read from the MDIO register
+ *  pValue	- pointer to where to put data read from the MDIO register
  *
  * Return
  *	status
@@ -2715,15 +2796,15 @@ static int sxg_read_mdio_reg(struct adapter_t *adapter,
 			     u32 DevAddr, u32 RegAddr, u32 *pValue)
 {
 	struct sxg_hw_regs *HwRegs = adapter->HwRegs;
-	u32 AddrOp;		/* Address operation (written to MIIM field reg) */
-	u32 ReadOp;		/* Read operation (written to MIIM field reg) */
-	u32 Cmd;		/* Command (written to MIIM command reg) */
+	u32 AddrOp;	/* Address operation (written to MIIM field reg) */
+	u32 ReadOp;	/* Read operation (written to MIIM field reg) */
+	u32 Cmd;	/* Command (written to MIIM command reg) */
 	u32 ValueRead;
 	u32 Timeout;
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "WrtMDIO",
 		  adapter, 0, 0, 0);
-    DBG_ERROR("ENTER %s\n", __FUNCTION__);
+	DBG_ERROR("ENTER %s\n", __FUNCTION__);
 
 	/* Ensure values don't exceed field width */
 	DevAddr &= 0x001F;	/* 5-bit field */
@@ -2790,7 +2871,7 @@ static int sxg_read_mdio_reg(struct adapter_t *adapter,
 	READ_REG(HwRegs->MacAmiimField, *pValue);
 	*pValue &= 0xFFFF;	/* data is in the lower 16 bits */
 
-    DBG_ERROR("EXIT %s\n", __FUNCTION__);
+	DBG_ERROR("EXIT %s\n", __FUNCTION__);
 
 	return (STATUS_SUCCESS);
 }
@@ -2799,21 +2880,21 @@ static int sxg_read_mdio_reg(struct adapter_t *adapter,
  * Functions to obtain the CRC corresponding to the destination mac address.
  * This is a standard ethernet CRC in that it is a 32-bit, reflected CRC using
  * the polynomial:
- *   x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x^1.
+ *   x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5
+ *    + x^4 + x^2 + x^1.
  *
- * After the CRC for the 6 bytes is generated (but before the value is complemented),
- * we must then transpose the value and return bits 30-23.
+ * After the CRC for the 6 bytes is generated (but before the value is
+ * complemented), we must then transpose the value and return bits 30-23.
  */
-static u32 sxg_crc_table[256];	/* Table of CRC's for all possible byte values */
+static u32 sxg_crc_table[256];/* Table of CRC's for all possible byte values */
+static u32 sxg_crc_init;	/* Is table initialized */
 
-/*
- *  Contruct the CRC32 table
- */
+/* Contruct the CRC32 table */
 static void sxg_mcast_init_crc32(void)
 {
-	u32 c;			/*  CRC shit reg                 */
-	u32 e = 0;		/*  Poly X-or pattern            */
-	int i;			/*  counter                      */
+	u32 c;			/*  CRC shit reg */
+	u32 e = 0;		/*  Poly X-or pattern */
+	int i;			/*  counter */
 	int k;			/*  byte being shifted into crc  */
 
 	static int p[] = { 0, 1, 2, 4, 5, 7, 8, 10, 11, 12, 16, 22, 23, 26 };
@@ -2831,7 +2912,6 @@ static void sxg_mcast_init_crc32(void)
 	}
 }
 
-static u32 sxg_crc_init;	/* Is table initialized */
 /*
  *  Return the MAC hast as described above.
  */
@@ -2870,19 +2950,23 @@ static void sxg_mcast_set_mask(struct adapter_t *adapter)
 
 	if (adapter->MacFilter & (MAC_ALLMCAST | MAC_PROMISC)) {
 		/*
-		 * Turn on all multicast addresses. We have to do this for promiscuous
-		 * mode as well as ALLMCAST mode.  It saves the Microcode from having
-		 * to keep state about the MAC configuration.
+		 * Turn on all multicast addresses. We have to do this for
+		 * promiscuous mode as well as ALLMCAST mode.  It saves the
+		 * Microcode from having keep state about the MAC configuration
 		 */
-/*              DBG_ERROR("sxg: %s macopts = MAC_ALLMCAST | MAC_PROMISC\n      SLUT MODE!!!\n",__func__); */
+		/* DBG_ERROR("sxg: %s macopts = MAC_ALLMCAST | MAC_PROMISC\n
+		 * 				SLUT MODE!!!\n",__func__);
+		 */
 		WRITE_REG(sxg_regs->McastLow, 0xFFFFFFFF, FLUSH);
 		WRITE_REG(sxg_regs->McastHigh, 0xFFFFFFFF, FLUSH);
-/*        DBG_ERROR("%s (%s) WRITE to slic_regs slic_mcastlow&high 0xFFFFFFFF\n",__func__, adapter->netdev->name); */
+		/* DBG_ERROR("%s (%s) WRITE to slic_regs slic_mcastlow&high \
+		 * 0xFFFFFFFF\n",__func__, adapter->netdev->name);
+		 */
 
 	} else {
 		/*
-		 * Commit our multicast mast to the SLIC by writing to the multicast
-		 * address mask registers
+		 * Commit our multicast mast to the SLIC by writing to the
+		 * multicast address mask registers
 		 */
 		DBG_ERROR("%s (%s) WRITE mcastlow[%lx] mcasthigh[%lx]\n",
 			  __func__, adapter->netdev->name,
@@ -3173,7 +3257,8 @@ static int sxg_allocate_buffer_memory(struct adapter_t *adapter,
 }
 
 /*
- * sxg_allocate_rcvblock_complete - Complete a receive descriptor block allocation
+ * sxg_allocate_rcvblock_complete - Complete a receive descriptor
+ * 					block allocation
  *
  * Arguments -
  *	adapter				- A pointer to our adapter structure
@@ -3223,16 +3308,18 @@ static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 
 			RcvDataBufferHdr =
 			    (struct sxg_rcv_data_buffer_hdr*) (RcvDataBuffer +
-							SXG_RCV_DATA_BUFFER_HDR_OFFSET
-							(BufferSize));
+						SXG_RCV_DATA_BUFFER_HDR_OFFSET
+						(BufferSize));
 			RcvDataBufferHdr->VirtualAddress = RcvDataBuffer;
-			RcvDataBufferHdr->State = SXG_BUFFER_UPSTREAM;	/* For FREE macro assertion */
+			/* For FREE macro assertion */
+			RcvDataBufferHdr->State = SXG_BUFFER_UPSTREAM;
 			RcvDataBufferHdr->Size =
 			    SXG_RCV_BUFFER_DATA_SIZE(BufferSize);
 
 			SXG_ALLOCATE_RCV_PACKET(adapter, RcvDataBufferHdr);
 			/* ASK hardcoded 2048 */
-			RcvDataBufferHdr->PhysicalAddress = pci_map_single(adapter->pcidev,
+			RcvDataBufferHdr->PhysicalAddress =
+				pci_map_single(adapter->pcidev,
 				RcvDataBufferHdr->SxgDumbRcvPacket->data,
 				2048,
 				PCI_DMA_FROMDEVICE);
@@ -3255,13 +3342,14 @@ static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 	InsertTailList(&adapter->AllRcvBlocks, &RcvBlockHdr->AllList);
 	spin_unlock(&adapter->RcvQLock);
 
-	/* Now free the contained receive data buffers that we initialized above */
+	/* Now free the contained receive data buffers that we
+	 * initialized above */
 	RcvDataBuffer = RcvBlock;
 	for (i = 0, Paddr = PhysicalAddress;
 	     i < SXG_RCV_DESCRIPTORS_PER_BLOCK;
 	     i++, Paddr += BufferSize, RcvDataBuffer += BufferSize) {
-		RcvDataBufferHdr = (struct sxg_rcv_data_buffer_hdr*) (RcvDataBuffer +
-							       SXG_RCV_DATA_BUFFER_HDR_OFFSET
+		RcvDataBufferHdr = (struct sxg_rcv_data_buffer_hdr*)
+				(RcvDataBuffer + SXG_RCV_DATA_BUFFER_HDR_OFFSET
 							       (BufferSize));
 		spin_lock(&adapter->RcvQLock);
 		SXG_FREE_RCV_DATA_BUFFER(adapter, RcvDataBufferHdr);
@@ -3285,7 +3373,7 @@ static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAlRBlk",
 		  adapter, RcvBlock, Length, 0);
 	return;
-      fail:
+fail:
 	/* Free any allocated resources */
 	if (RcvBlock) {
 		RcvDataBuffer = RcvBlock;
@@ -3293,7 +3381,7 @@ static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 		     i++, RcvDataBuffer += BufferSize) {
 			RcvDataBufferHdr =
 			    (struct sxg_rcv_data_buffer_hdr *) (RcvDataBuffer +
-							SXG_RCV_DATA_BUFFER_HDR_OFFSET
+						SXG_RCV_DATA_BUFFER_HDR_OFFSET
 							(BufferSize));
 			SXG_FREE_RCV_PACKET(RcvDataBufferHdr);
 		}
@@ -3328,8 +3416,10 @@ static void sxg_allocate_sgl_buffer_complete(struct adapter_t *adapter,
 	spin_lock(&adapter->SglQLock);
 	adapter->AllSglBufferCount++;
 	memset(SxgSgl, 0, sizeof(struct sxg_scatter_gather));
-	SxgSgl->PhysicalAddress = PhysicalAddress;	/* *PhysicalAddress; */
-	SxgSgl->adapter = adapter;	/* Initialize backpointer once */
+	/* *PhysicalAddress; */
+	SxgSgl->PhysicalAddress = PhysicalAddress;
+	/* Initialize backpointer once */
+	SxgSgl->adapter = adapter;
 	InsertTailList(&adapter->AllSglBuffers, &SxgSgl->AllList);
 	spin_unlock(&adapter->SglQLock);
 	SxgSgl->State = SXG_BUFFER_BUSY;
@@ -3341,15 +3431,21 @@ static void sxg_allocate_sgl_buffer_complete(struct adapter_t *adapter,
 
 static void sxg_adapter_set_hwaddr(struct adapter_t *adapter)
 {
-/*
- *  DBG_ERROR ("%s ENTER card->config_set[%x] port[%d] physport[%d] funct#[%d]\n", __func__,
- *             card->config_set, adapter->port, adapter->physport, adapter->functionnumber);
- *  sxg_dbg_macaddrs(adapter);
- */
+	/*
+	 *  DBG_ERROR ("%s ENTER card->config_set[%x] port[%d] physport[%d] \
+	 *  funct#[%d]\n", __func__, card->config_set,
+	 *  adapter->port, adapter->physport, adapter->functionnumber);
+	 *
+	 *  sxg_dbg_macaddrs(adapter);
+	 */
+	memcpy(adapter->macaddr, temp_mac_address,
+			sizeof(struct sxg_config_mac));
+	/* DBG_ERROR ("%s AFTER copying from config.macinfo into currmacaddr\n",
+	 *	   		__FUNCTION__);
+	 */
 
-	memcpy(adapter->macaddr, temp_mac_address, sizeof(struct sxg_config_mac));
-/*      DBG_ERROR ("%s AFTER copying from config.macinfo into currmacaddr\n", __func__); */
-/*      sxg_dbg_macaddrs(adapter); */
+	/* sxg_dbg_macaddrs(adapter); */
+
 	if (!(adapter->currmacaddr[0] ||
 	      adapter->currmacaddr[1] ||
 	      adapter->currmacaddr[2] ||
@@ -3361,7 +3457,7 @@ static void sxg_adapter_set_hwaddr(struct adapter_t *adapter)
 		memcpy(adapter->netdev->dev_addr, adapter->currmacaddr, 6);
 		memcpy(adapter->netdev->perm_addr, adapter->currmacaddr, 6);
 	}
-/*  DBG_ERROR ("%s EXIT port %d\n", __func__, adapter->port); */
+	/* DBG_ERROR ("%s EXIT port %d\n", __func__, adapter->port); */
 	sxg_dbg_macaddrs(adapter);
 
 }
@@ -3514,8 +3610,7 @@ static int sxg_initialize_adapter(struct adapter_t *adapter)
  *	status
  */
 static int sxg_fill_descriptor_block(struct adapter_t *adapter,
-				     struct sxg_rcv_descriptor_block_hdr
-				     *RcvDescriptorBlockHdr)
+	     struct sxg_rcv_descriptor_block_hdr *RcvDescriptorBlockHdr)
 {
 	u32 i;
 	struct sxg_ring_info *RcvRingInfo = &adapter->RcvRingZeroInfo;
@@ -3544,8 +3639,8 @@ static int sxg_fill_descriptor_block(struct adapter_t *adapter,
 		    RcvRingInfo, RingDescriptorCmd, RcvDescriptorBlockHdr);
 	ASSERT(RingDescriptorCmd);
 	RcvDescriptorBlockHdr->State = SXG_BUFFER_ONCARD;
-	RcvDescriptorBlock =
-	    (struct sxg_rcv_descriptor_block *) RcvDescriptorBlockHdr->VirtualAddress;
+	RcvDescriptorBlock = (struct sxg_rcv_descriptor_block *)
+				 RcvDescriptorBlockHdr->VirtualAddress;
 
 	/* Fill in the descriptor block */
 	for (i = 0; i < SXG_RCV_DESCRIPTORS_PER_BLOCK; i++) {
@@ -3555,11 +3650,13 @@ static int sxg_fill_descriptor_block(struct adapter_t *adapter,
 		SXG_REINIATIALIZE_PACKET(RcvDataBufferHdr->SxgDumbRcvPacket);
 		RcvDataBufferHdr->State = SXG_BUFFER_ONCARD;
 		RcvDescriptorBlock->Descriptors[i].VirtualAddress =
-		    (void *)RcvDataBufferHdr;
+					    (void *)RcvDataBufferHdr;
 		if (i == 0)
-			printk("ASK:sxg_fill_descriptor_block: first virt address %p\n", RcvDataBufferHdr);
+			printk("ASK:sxg_fill_descriptor_block: first virt \
+				address %p\n", RcvDataBufferHdr);
 		if (i == (SXG_RCV_DESCRIPTORS_PER_BLOCK - 1))
-			printk("ASK:sxg_fill_descriptor_block: last virt address %p\n", RcvDataBufferHdr);
+			printk("ASK:sxg_fill_descriptor_block: last virt \
+				address %p\n", RcvDataBufferHdr);
 
 		RcvDescriptorBlock->Descriptors[i].PhysicalAddress =
 		    RcvDataBufferHdr->PhysicalAddress;
@@ -3616,7 +3713,8 @@ static void sxg_stock_rcv_buffers(struct adapter_t *adapter)
 							      ReceiveBufferSize),
 					   SXG_BUFFER_TYPE_RCV);
 	}
-	printk("ASK:sxg_stock_rcv_buffers: RcvBuffersOnCard %d\n", adapter->RcvBuffersOnCard);
+	printk("ASK:sxg_stock_rcv_buffers: RcvBuffersOnCard %d\n",
+						adapter->RcvBuffersOnCard);
 	/* Now grab the RcvQLock lock and proceed */
 	spin_lock(&adapter->RcvQLock);
 	while (adapter->RcvBuffersOnCard < SXG_RCV_DATA_BUFFERS) {
@@ -3699,11 +3797,10 @@ static void sxg_complete_descriptor_blocks(struct adapter_t *adapter,
 		 * header.  The card will be restocked later via the
 		 * RcvBuffersOnCard test
 		 */
-		if (sxg_fill_descriptor_block(adapter, RcvDescriptorBlockHdr) ==
-		    STATUS_FAILURE) {
+		if (sxg_fill_descriptor_block(adapter,
+			 RcvDescriptorBlockHdr) == STATUS_FAILURE)
 			SXG_FREE_RCV_DESCRIPTOR_BLOCK(adapter,
 						      RcvDescriptorBlockHdr);
-		}
 	}
 	spin_unlock(&adapter->RcvQLock);
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XCRBlks",
@@ -3719,7 +3816,7 @@ static struct pci_driver sxg_driver = {
 	.suspend = sxgpm_suspend,
 	.resume = sxgpm_resume,
 #endif
-/*    .shutdown   =     slic_shutdown,  MOOK_INVESTIGATE */
+	/* .shutdown   =     slic_shutdown,  MOOK_INVESTIGATE */
 };
 
 static int __init sxg_module_init(void)

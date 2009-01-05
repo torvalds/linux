@@ -62,13 +62,13 @@ struct sxg_stats {
 	u64	DumbXmtUcastBytes;	/* OID_GEN_DIRECTED_BYTES_XMIT */
 	u64	DumbXmtMcastBytes;	/* OID_GEN_MULTICAST_BYTES_XMIT */
 	u64	DumbXmtBcastBytes;	/* OID_GEN_BROADCAST_BYTES_XMIT */
-	u64	XmtErrors;			/* OID_GEN_XMIT_ERROR */
+	u64	XmtErrors;		/* OID_GEN_XMIT_ERROR */
 	u64	XmtDiscards;		/* OID_GEN_XMIT_DISCARDS */
-	u64	XmtOk;				/* OID_GEN_XMIT_OK */
-	u64	XmtQLen;			/* OID_GEN_TRANSMIT_QUEUE_LENGTH */
+	u64	XmtOk;			/* OID_GEN_XMIT_OK */
+	u64	XmtQLen;		/* OID_GEN_TRANSMIT_QUEUE_LENGTH */
 	u64	XmtZeroFull;		/* Transmit ring zero full */
 	/* Rcv */
-	u32	RcvNBL;				/* Offload recieve NBL count */
+	u32	RcvNBL;			/* Offload recieve NBL count */
 	u64	DumbRcvBytes;		/* dumbnic recv bytes */
 	u64  	DumbRcvUcastBytes;	/* OID_GEN_DIRECTED_BYTES_RCV */
 	u64    	DumbRcvMcastBytes;	/* OID_GEN_MULTICAST_BYTES_RCV */
@@ -116,14 +116,14 @@ struct sxg_stats {
 
 /* DUMB-NIC Send path definitions */
 
-#define SXG_COMPLETE_DUMB_SEND(_pAdapt, _skb) {                     		    	\
-	ASSERT(_skb);													    			\
-    dev_kfree_skb_irq(_skb);                                                        \
+#define SXG_COMPLETE_DUMB_SEND(_pAdapt, _skb) {                     	\
+	ASSERT(_skb);							\
+    dev_kfree_skb_irq(_skb);                                            \
 }
 
-#define SXG_DROP_DUMB_SEND(_pAdapt, _skb) {                           		    	\
-	ASSERT(_skb);													    			\
-    dev_kfree_skb(_skb);                                                            \
+#define SXG_DROP_DUMB_SEND(_pAdapt, _skb) {                            	\
+	ASSERT(_skb);							\
+    dev_kfree_skb(_skb);                                                \
 }
 
 /*
@@ -139,21 +139,21 @@ struct sxg_stats {
 /* Indications array size */
 #define SXG_RCV_ARRAYSIZE	64
 
-#define SXG_ALLOCATE_RCV_PACKET(_pAdapt, _RcvDataBufferHdr) {				\
-	struct sk_buff * skb;												    \
-    skb = netdev_alloc_skb(_pAdapt->netdev, 2048);                                 \
-    if (skb) {                                                              \
-    	(_RcvDataBufferHdr)->skb = skb;                                     \
-        skb->next = NULL;                                                   \
-    } else {                                                                \
-    	(_RcvDataBufferHdr)->skb = NULL;                                    \
-    }                                                                       \
+#define SXG_ALLOCATE_RCV_PACKET(_pAdapt, _RcvDataBufferHdr) {		\
+	struct sk_buff * skb;						\
+    skb = netdev_alloc_skb(_pAdapt->netdev, 2048);                      \
+    if (skb) {                                                          \
+    	(_RcvDataBufferHdr)->skb = skb;                                	\
+        skb->next = NULL;                                               \
+    } else {                                                            \
+    	(_RcvDataBufferHdr)->skb = NULL;                                \
+    }                                                                  	\
 }
 
-#define SXG_FREE_RCV_PACKET(_RcvDataBufferHdr) {							\
-	if((_RcvDataBufferHdr)->skb) {											\
-		dev_kfree_skb((_RcvDataBufferHdr)->skb);						    \
-    }                                                                       \
+#define SXG_FREE_RCV_PACKET(_RcvDataBufferHdr) {			\
+	if((_RcvDataBufferHdr)->skb) {					\
+		dev_kfree_skb((_RcvDataBufferHdr)->skb);		\
+    }                                                                  	\
 }
 
 /*
@@ -161,54 +161,58 @@ struct sxg_stats {
  * If we fill up our array of packet pointers, then indicate this
  * block up now and start on a new one.
  */
-#define	SXG_ADD_RCV_PACKET(_pAdapt, _Packet, _PrevPacket, _IndicationList, _NumPackets) { \
-	(_IndicationList)[_NumPackets] = (_Packet);										\
-	(_NumPackets)++;																\
-	if((_NumPackets) == SXG_RCV_ARRAYSIZE) {										\
-		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "IndicRcv",				\
-				   (_NumPackets), 0, 0, 0);											\
-        netif_rx((_IndicationList),(_NumPackets));                                  \
-		(_NumPackets) = 0;															\
-	}																				\
+#define	SXG_ADD_RCV_PACKET(_pAdapt, _Packet, _PrevPacket, _IndicationList, \
+				_NumPackets) { 				\
+	(_IndicationList)[_NumPackets] = (_Packet);			\
+	(_NumPackets)++;						\
+	if((_NumPackets) == SXG_RCV_ARRAYSIZE) {			\
+		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "IndicRcv",	\
+				   (_NumPackets), 0, 0, 0);		\
+        netif_rx((_IndicationList),(_NumPackets));                     	\
+		(_NumPackets) = 0;					\
+	}								\
 }
 
-#define SXG_INDICATE_PACKETS(_pAdapt, _IndicationList, _NumPackets) {			\
-	if(_NumPackets) {															\
-		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "IndicRcv",			\
-				   (_NumPackets), 0, 0, 0);										\
-        netif_rx((_IndicationList),(_NumPackets));                              \
-		(_NumPackets) = 0;														\
-	}																			\
+#define SXG_INDICATE_PACKETS(_pAdapt, _IndicationList, _NumPackets) {	\
+	if(_NumPackets) {						\
+		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "IndicRcv",	\
+				   (_NumPackets), 0, 0, 0);		\
+        netif_rx((_IndicationList),(_NumPackets));                     	\
+		(_NumPackets) = 0;					\
+	}								\
 }
 
-#define SXG_REINIATIALIZE_PACKET(_Packet)										\
-	{}  /*_NdisReinitializePacket(_Packet)*/  /*  this is not necessary with an skb */
+#define SXG_REINIATIALIZE_PACKET(_Packet)				\
+	{}  /*_NdisReinitializePacket(_Packet)*/
+		 /*  this is not necessary with an skb */
 
 /* Definitions to initialize Dumb-nic Receive NBLs */
-#define SXG_RCV_PACKET_BUFFER_HDR(_Packet) (((struct sxg_rcv_nbl_reserved *)((_Packet)->MiniportReservedEx))->RcvDataBufferHdr)
+#define SXG_RCV_PACKET_BUFFER_HDR(_Packet) (((struct sxg_rcv_nbl_reserved *)\
+			((_Packet)->MiniportReservedEx))->RcvDataBufferHdr)
 
-#define SXG_RCV_SET_CHECKSUM_INFO(_Packet, _Cpi)	\
-	NDIS_PER_PACKET_INFO_FROM_PACKET((_Packet), TcpIpChecksumPacketInfo) = (PVOID)(_Cpi)
+#define SXG_RCV_SET_CHECKSUM_INFO(_Packet, _Cpi)				\
+	NDIS_PER_PACKET_INFO_FROM_PACKET((_Packet), 				\
+			TcpIpChecksumPacketInfo) = (PVOID)(_Cpi)
 
 #define SXG_RCV_SET_TOEPLITZ(_Packet, _Toeplitz, _Type, _Function) {		\
-	NDIS_PACKET_SET_HASH_VALUE((_Packet), (_Toeplitz));						\
-	NDIS_PACKET_SET_HASH_TYPE((_Packet), (_Type));							\
-	NDIS_PACKET_SET_HASH_FUNCTION((_Packet), (_Function));					\
+	NDIS_PACKET_SET_HASH_VALUE((_Packet), (_Toeplitz));			\
+	NDIS_PACKET_SET_HASH_TYPE((_Packet), (_Type));				\
+	NDIS_PACKET_SET_HASH_FUNCTION((_Packet), (_Function));			\
 }
 
-#define SXG_RCV_SET_VLAN_INFO(_Packet, _VlanId, _Priority) {					\
-	NDIS_PACKET_8021Q_INFO	_Packet8021qInfo;									\
-	_Packet8021qInfo.TagHeader.VlanId = (_VlanId);								\
-	_Packet8021qInfo.TagHeader.UserPriority = (_Priority);						\
+#define SXG_RCV_SET_VLAN_INFO(_Packet, _VlanId, _Priority) {			\
+	NDIS_PACKET_8021Q_INFO	_Packet8021qInfo;				\
+	_Packet8021qInfo.TagHeader.VlanId = (_VlanId);				\
+	_Packet8021qInfo.TagHeader.UserPriority = (_Priority);			\
 	NDIS_PER_PACKET_INFO_FROM_PACKET((_Packet), Ieee8021QNetBufferListInfo) = 	\
-		_Packet8021qInfo.Value;													\
+		_Packet8021qInfo.Value;						\
 }
 
-#define SXG_ADJUST_RCV_PACKET(_Packet, _RcvDataBufferHdr, _Event) {			\
-	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DumbRcv",			\
-			   (_RcvDataBufferHdr), (_Packet),								\
-			   (_Event)->Status, 0);	                    				\
-	ASSERT((_Event)->Length <= (_RcvDataBufferHdr)->Size);					\
+#define SXG_ADJUST_RCV_PACKET(_Packet, _RcvDataBufferHdr, _Event) {		\
+	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DumbRcv",		\
+			   (_RcvDataBufferHdr), (_Packet),			\
+			   (_Event)->Status, 0);	                    	\
+	ASSERT((_Event)->Length <= (_RcvDataBufferHdr)->Size);			\
     skb_put(Packet, (_Event)->Length);						\
 }
 
@@ -216,47 +220,49 @@ struct sxg_stats {
  * Macros to free a receive data buffer and receive data descriptor block
  * NOTE - Lock must be held with RCV macros
  */
-#define SXG_GET_RCV_DATA_BUFFER(_pAdapt, _Hdr) {								\
-	struct list_entry *_ple;										\
-	_Hdr = NULL;																\
-	if((_pAdapt)->FreeRcvBufferCount) {											\
-		ASSERT(!(IsListEmpty(&(_pAdapt)->FreeRcvBuffers)));						\
-		_ple = RemoveHeadList(&(_pAdapt)->FreeRcvBuffers);	    				\
-		(_Hdr) = container_of(_ple, struct sxg_rcv_data_buffer_hdr, FreeList);	        \
-		(_pAdapt)->FreeRcvBufferCount--;										\
-		ASSERT((_Hdr)->State == SXG_BUFFER_FREE);								\
-	}																			\
+#define SXG_GET_RCV_DATA_BUFFER(_pAdapt, _Hdr) {				\
+	struct list_entry *_ple;						\
+	_Hdr = NULL;								\
+	if((_pAdapt)->FreeRcvBufferCount) {					\
+		ASSERT(!(IsListEmpty(&(_pAdapt)->FreeRcvBuffers)));		\
+		_ple = RemoveHeadList(&(_pAdapt)->FreeRcvBuffers);	    	\
+		(_Hdr) = container_of(_ple, struct sxg_rcv_data_buffer_hdr, 	\
+						FreeList);	        	\
+		(_pAdapt)->FreeRcvBufferCount--;				\
+		ASSERT((_Hdr)->State == SXG_BUFFER_FREE);			\
+	}									\
 }
 
-#define SXG_FREE_RCV_DATA_BUFFER(_pAdapt, _Hdr) {							\
-	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "RtnDHdr",			\
-			   (_Hdr), (_pAdapt)->FreeRcvBufferCount,						\
-			   (_Hdr)->State, (_Hdr)->VirtualAddress);						\
-/*	SXG_RESTORE_MDL_OFFSET(_Hdr);	*/										\
-	(_pAdapt)->FreeRcvBufferCount++;										\
-	ASSERT(((_pAdapt)->AllRcvBlockCount * SXG_RCV_DESCRIPTORS_PER_BLOCK) >= (_pAdapt)->FreeRcvBufferCount); \
-	ASSERT((_Hdr)->State != SXG_BUFFER_FREE);								\
-	(_Hdr)->State = SXG_BUFFER_FREE;										\
-	InsertTailList(&(_pAdapt)->FreeRcvBuffers, &((_Hdr)->FreeList));		\
+#define SXG_FREE_RCV_DATA_BUFFER(_pAdapt, _Hdr) {				\
+	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "RtnDHdr",		\
+			   (_Hdr), (_pAdapt)->FreeRcvBufferCount,		\
+			   (_Hdr)->State, (_Hdr)->VirtualAddress);		\
+/*	SXG_RESTORE_MDL_OFFSET(_Hdr);	*/					\
+	(_pAdapt)->FreeRcvBufferCount++;					\
+	ASSERT(((_pAdapt)->AllRcvBlockCount * SXG_RCV_DESCRIPTORS_PER_BLOCK) 	\
+				>= (_pAdapt)->FreeRcvBufferCount); 		\
+	ASSERT((_Hdr)->State != SXG_BUFFER_FREE);				\
+	(_Hdr)->State = SXG_BUFFER_FREE;					\
+	InsertTailList(&(_pAdapt)->FreeRcvBuffers, &((_Hdr)->FreeList));	\
 }
 
-#define SXG_FREE_RCV_DESCRIPTOR_BLOCK(_pAdapt, _Hdr) {						\
-	ASSERT((_Hdr)->State != SXG_BUFFER_FREE);								\
-	(_Hdr)->State = SXG_BUFFER_FREE;										\
-	(_pAdapt)->FreeRcvBlockCount++;											\
+#define SXG_FREE_RCV_DESCRIPTOR_BLOCK(_pAdapt, _Hdr) {				\
+	ASSERT((_Hdr)->State != SXG_BUFFER_FREE);				\
+	(_Hdr)->State = SXG_BUFFER_FREE;					\
+	(_pAdapt)->FreeRcvBlockCount++;						\
 	ASSERT((_pAdapt)->AllRcvBlockCount >= (_pAdapt)->FreeRcvBlockCount);	\
-	InsertTailList(&(_pAdapt)->FreeRcvBlocks, &(_Hdr)->FreeList);			\
+	InsertTailList(&(_pAdapt)->FreeRcvBlocks, &(_Hdr)->FreeList);		\
 }
 
 /* SGL macros */
-#define SXG_FREE_SGL_BUFFER(_pAdapt, _Sgl, _NB) {	\
-	spin_lock(&(_pAdapt)->SglQLock);		\
-	(_pAdapt)->FreeSglBufferCount++;		\
-	ASSERT((_pAdapt)->AllSglBufferCount >= (_pAdapt)->FreeSglBufferCount);\
-	ASSERT(!((_Sgl)->State & SXG_BUFFER_FREE));	\
-	(_Sgl)->State = SXG_BUFFER_FREE;		\
-	InsertTailList(&(_pAdapt)->FreeSglBuffers, &(_Sgl)->FreeList);	\
-	spin_unlock(&(_pAdapt)->SglQLock);		\
+#define SXG_FREE_SGL_BUFFER(_pAdapt, _Sgl, _NB) {				\
+	spin_lock(&(_pAdapt)->SglQLock);					\
+	(_pAdapt)->FreeSglBufferCount++;					\
+	ASSERT((_pAdapt)->AllSglBufferCount >= (_pAdapt)->FreeSglBufferCount);	\
+	ASSERT(!((_Sgl)->State & SXG_BUFFER_FREE));				\
+	(_Sgl)->State = SXG_BUFFER_FREE;					\
+	InsertTailList(&(_pAdapt)->FreeSglBuffers, &(_Sgl)->FreeList);		\
+	spin_unlock(&(_pAdapt)->SglQLock);					\
 }
 
 /*
@@ -267,7 +273,7 @@ struct sxg_stats {
  * and not grabbing it avoids a possible double-trip.
  */
 #define SXG_GET_SGL_BUFFER(_pAdapt, _Sgl) {				\
-	struct list_entry *_ple;						\
+	struct list_entry *_ple;					\
 	if ((_pAdapt->FreeSglBufferCount < SXG_MIN_SGL_BUFFERS) &&	\
 	   (_pAdapt->AllSglBufferCount < SXG_MAX_SGL_BUFFERS) &&	\
 	   (_pAdapt->AllocationsPending == 0)) {			\
@@ -280,7 +286,8 @@ struct sxg_stats {
 	if((_pAdapt)->FreeSglBufferCount) {				\
 		ASSERT(!(IsListEmpty(&(_pAdapt)->FreeSglBuffers)));	\
 		_ple = RemoveHeadList(&(_pAdapt)->FreeSglBuffers);	\
-		(_Sgl) = container_of(_ple, struct sxg_scatter_gather, FreeList); \
+		(_Sgl) = container_of(_ple, struct sxg_scatter_gather, 	\
+						FreeList); 		\
             (_pAdapt)->FreeSglBufferCount--;				\
 		ASSERT((_Sgl)->State == SXG_BUFFER_FREE);		\
 		(_Sgl)->State = SXG_BUFFER_BUSY;			\
@@ -294,7 +301,7 @@ struct sxg_stats {
  * Linked list of multicast addresses.
  */
 struct sxg_multicast_address {
-	unsigned char							Address[6];
+	unsigned char			Address[6];
 	struct sxg_multicast_address	*Next;
 };
 
@@ -319,20 +326,20 @@ struct sxg_buffer_queue {
 #define		SXG_FAST_SEND_BUFFER	1
 #define 	SXG_RECEIVE_BUFFER		2
 
-#define SXG_INIT_BUFFER(_Buffer, _Type) { 						\
-	(_Buffer)->Type = (_Type);									\
-	if((_Type) == SXG_RECEIVE_BUFFER) {							\
-		(_Buffer)->Direction = 0;								\
-	} else {													\
+#define SXG_INIT_BUFFER(_Buffer, _Type) { 				\
+	(_Buffer)->Type = (_Type);					\
+	if((_Type) == SXG_RECEIVE_BUFFER) {				\
+		(_Buffer)->Direction = 0;				\
+	} else {							\
 		(_Buffer)->Direction = NDIS_SG_LIST_WRITE_TO_DEVICE;	\
-	}															\
-	(_Buffer)->Bytes = 0;										\
-	(_Buffer)->Head = NULL;										\
-	(_Buffer)->Tail = NULL;										\
+	}								\
+	(_Buffer)->Bytes = 0;						\
+	(_Buffer)->Head = NULL;						\
+	(_Buffer)->Tail = NULL;						\
 }
 
 
-#define SXG_RSS_CPU_COUNT(_pAdapt) 								\
+#define SXG_RSS_CPU_COUNT(_pAdapt) 					\
 	((_pAdapt)->RssEnabled 	?  NR_CPUS : 1)
 
 /* DRIVER and ADAPTER structures */
@@ -367,9 +374,9 @@ enum SXG_LINK_STATE {
 
 /* Microcode file selection codes */
 enum SXG_UCODE_SEL {
-	SXG_UCODE_SAHARA,			/* Sahara ucode */
-	SXG_UCODE_SDIAGCPU,			/* Sahara CPU diagnostic ucode */
-	SXG_UCODE_SDIAGSYS			/* Sahara system diagnostic ucode */
+	SXG_UCODE_SAHARA,	/* Sahara ucode */
+	SXG_UCODE_SDIAGCPU,	/* Sahara CPU diagnostic ucode */
+	SXG_UCODE_SDIAGSYS	/* Sahara system diagnostic ucode */
 };
 
 
@@ -378,8 +385,9 @@ enum SXG_UCODE_SEL {
 
 /* This probably lives in a proto.h file.  Move later */
 #define SXG_MULTICAST_PACKET(_pether) ((_pether)->ether_dhost[0] & 0x01)
-#define SXG_BROADCAST_PACKET(_pether) ((*(u32 *)(_pether)->ether_dhost == 0xFFFFFFFF) && \
-				(*(u16 *)&(_pether)->ether_dhost[4] == 0xFFFF))
+#define SXG_BROADCAST_PACKET(_pether) 					\
+		((*(u32 *)(_pether)->ether_dhost == 0xFFFFFFFF) && 	\
+		(*(u16 *)&(_pether)->ether_dhost[4] == 0xFFFF))
 
 /* For DbgPrints */
 #define SXG_ID      DPFLTR_IHVNETWORK_ID
@@ -420,28 +428,28 @@ struct sxg_driver {
  * Mojave supports 16K, Oasis supports 16K-1, so
  * just set this at 15K, shouldnt make that much of a diff.
  */
-#define DUMP_BUF_SIZE               0x3C00
+#define DUMP_BUF_SIZE	0x3C00
 #endif
 
 #define MIN(a, b) ((u32)(a) < (u32)(b) ? (a) : (b))
 #define MAX(a, b) ((u32)(a) > (u32)(b) ? (a) : (b))
 
 struct mcast_address {
-    unsigned char                     address[6];
+    unsigned char	   address[6];
     struct mcast_address   *next;
 };
 
-#define CARD_DOWN        0x00000000
-#define CARD_UP          0x00000001
-#define CARD_FAIL        0x00000002
-#define CARD_DIAG        0x00000003
-#define CARD_SLEEP       0x00000004
+#define CARD_DOWN        		0x00000000
+#define CARD_UP          		0x00000001
+#define CARD_FAIL	        	0x00000002
+#define CARD_DIAG       		0x00000003
+#define CARD_SLEEP       		0x00000004
 
-#define ADAPT_DOWN             0x00
-#define ADAPT_UP               0x01
-#define ADAPT_FAIL             0x02
-#define ADAPT_RESET            0x03
-#define ADAPT_SLEEP            0x04
+#define ADAPT_DOWN	             	0x00
+#define ADAPT_UP        	       	0x01
+#define ADAPT_FAIL             		0x02
+#define ADAPT_RESET            		0x03
+#define ADAPT_SLEEP            		0x04
 
 #define ADAPT_FLAGS_BOOTTIME            0x0001
 #define ADAPT_FLAGS_IS64BIT             0x0002
@@ -453,29 +461,30 @@ struct mcast_address {
 #define ADAPT_FLAGS_STATS_TIMER_SET     0x0080
 #define ADAPT_FLAGS_RESET_TIMER_SET     0x0100
 
-#define LINK_DOWN              0x00
-#define LINK_CONFIG            0x01
-#define LINK_UP                0x02
+#define LINK_DOWN			0x00
+#define LINK_CONFIG  			0x01
+#define LINK_UP    			0x02
 
-#define LINK_10MB              0x00
-#define LINK_100MB             0x01
-#define LINK_AUTOSPEED         0x02
-#define LINK_1000MB            0x03
-#define LINK_10000MB           0x04
+#define LINK_10MB    			0x00
+#define LINK_100MB         		0x01
+#define LINK_AUTOSPEED  		0x02
+#define LINK_1000MB        		0x03
+#define LINK_10000MB          		0x04
 
-#define LINK_HALFD             0x00
-#define LINK_FULLD             0x01
-#define LINK_AUTOD             0x02
+#define LINK_HALFD       		0x00
+#define LINK_FULLD     			0x01
+#define LINK_AUTOD 			0x02
 
-#define MAC_DIRECTED     0x00000001
-#define MAC_BCAST        0x00000002
-#define MAC_MCAST        0x00000004
-#define MAC_PROMISC      0x00000008
-#define MAC_LOOPBACK     0x00000010
-#define MAC_ALLMCAST     0x00000020
+#define MAC_DIRECTED 			0x00000001
+#define MAC_BCAST 			0x00000002
+#define MAC_MCAST  			0x00000004
+#define MAC_PROMISC  			0x00000008
+#define MAC_LOOPBACK   			0x00000010
+#define MAC_ALLMCAST  			0x00000020
 
 #define SLIC_DUPLEX(x)    ((x==LINK_FULLD) ? "FDX" : "HDX")
-#define SLIC_SPEED(x)     ((x==LINK_100MB) ? "100Mb" : ((x==LINK_1000MB) ? "1000Mb" : " 10Mb"))
+#define SLIC_SPEED(x)     ((x==LINK_100MB) ? "100Mb" : 			\
+				((x==LINK_1000MB) ? "1000Mb" : " 10Mb"))
 #define SLIC_LINKSTATE(x) ((x==LINK_DOWN) ? "Down" : "Up  ")
 #define SLIC_ADAPTER_STATE(x) ((x==ADAPT_UP) ? "UP" : "Down")
 #define SLIC_CARD_STATE(x)    ((x==CARD_UP) ? "UP" : "Down")
@@ -492,8 +501,8 @@ struct ether_header {
 #define NUM_CFG_REGS        64
 
 struct physcard {
-    struct adapter_t  *adapter[SLIC_MAX_PORTS];
-    struct physcard *next;
+    struct adapter_t		*adapter[SLIC_MAX_PORTS];
+    struct physcard		*next;
     unsigned int                adapters_allocd;
 };
 
@@ -687,7 +696,6 @@ struct adapter_t {
 	/*	PSXG_DUMP_CMD	DumpBuffer; */			/* 68k - Cmd and Buffer */
 	/*	dma_addr_t	PDumpBuffer; */		/* Physical address */
 	/*#endif */ /* SXG_FAILURE_DUMP */
-
 };
 
 #if SLIC_DUMP_ENABLED
@@ -721,13 +729,13 @@ struct slic_crash_info {
     (largestat) += ((newstat) - (oldstat));                              \
 }
 
-#define ETHER_EQ_ADDR(_AddrA, _AddrB, _Result)                           \
-{                                                                        \
-    _Result = TRUE;                                                      \
-    if (*(u32 *)(_AddrA) != *(u32 *)(_AddrB))                      \
-        _Result = FALSE;                                                 \
-    if (*(u16 *)(&((_AddrA)[4])) != *(u16 *)(&((_AddrB)[4])))        \
-        _Result = FALSE;                                                 \
+#define ETHER_EQ_ADDR(_AddrA, _AddrB, _Result)                          \
+{                                                                       \
+    _Result = TRUE;                                                     \
+    if (*(u32 *)(_AddrA) != *(u32 *)(_AddrB))                      	\
+        _Result = FALSE;                                                \
+    if (*(u16 *)(&((_AddrA)[4])) != *(u16 *)(&((_AddrB)[4])))        	\
+        _Result = FALSE;                                                \
 }
 
 #define ETHERMAXFRAME   1514
@@ -735,7 +743,8 @@ struct slic_crash_info {
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
 #define   SXG_GET_ADDR_LOW(_addr)  (u32)((u64)(_addr) & 0x00000000FFFFFFFF)
-#define   SXG_GET_ADDR_HIGH(_addr)  (u32)(((u64)(_addr) >> 32) & 0x00000000FFFFFFFF)
+#define   SXG_GET_ADDR_HIGH(_addr)  					\
+			(u32)(((u64)(_addr) >> 32) & 0x00000000FFFFFFFF)
 #else
 #define   SXG_GET_ADDR_LOW(_addr)   (u32)_addr
 #define   SXG_GET_ADDR_HIGH(_addr)  (u32)0
@@ -744,8 +753,8 @@ struct slic_crash_info {
 #define FLUSH       TRUE
 #define DONT_FLUSH  FALSE
 
-#define SIOCSLICDUMPCARD         SIOCDEVPRIVATE+9
-#define SIOCSLICSETINTAGG        SIOCDEVPRIVATE+10
-#define SIOCSLICTRACEDUMP        SIOCDEVPRIVATE+11
+#define SIOCSLICDUMPCARD         (SIOCDEVPRIVATE+9)
+#define SIOCSLICSETINTAGG        (SIOCDEVPRIVATE+10)
+#define SIOCSLICTRACEDUMP        (SIOCDEVPRIVATE+11)
 
 #endif /*  __SXG_DRIVER_H__ */
