@@ -91,6 +91,7 @@ struct vcpu_vmx {
 	} rmode;
 	int vpid;
 	bool emulation_required;
+	enum emulation_result invalid_state_emulation_result;
 
 	/* Support for vnmi-less CPUs */
 	int soft_vnmi_blocked;
@@ -3130,7 +3131,8 @@ static int handle_nmi_window(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 static void handle_invalid_guest_state(struct kvm_vcpu *vcpu,
 				struct kvm_run *kvm_run)
 {
-	int err;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	enum emulation_result err = EMULATE_DONE;
 
 	preempt_enable();
 	local_irq_enable();
@@ -3154,6 +3156,8 @@ static void handle_invalid_guest_state(struct kvm_vcpu *vcpu,
 
 	local_irq_disable();
 	preempt_disable();
+
+	vmx->invalid_state_emulation_result = err;
 }
 
 /*
@@ -3205,7 +3209,7 @@ static int kvm_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	if (vmx->emulation_required && emulate_invalid_guest_state) {
 		if (guest_state_valid(vcpu))
 			vmx->emulation_required = 0;
-		return 0;
+		return vmx->invalid_state_emulation_result != EMULATE_DO_MMIO;
 	}
 
 	/* Access CR3 don't cause VMExit in paging mode, so we need
