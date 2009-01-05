@@ -171,12 +171,6 @@ static struct pci_device_id sxg_pci_tbl[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, sxg_pci_tbl);
 
-/***********************************************************************
-************************************************************************
-************************************************************************
-************************************************************************
-************************************************************************/
-
 static inline void sxg_reg32_write(void __iomem *reg, u32 value, bool flush)
 {
 	writel(value, reg);
@@ -278,10 +272,12 @@ static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL
 	/* First, reset the card */
 	WRITE_REG(HwRegs->Reset, 0xDEAD, FLUSH);
 
-	/* Download each section of the microcode as specified in */
-	/* its download file.  The *download.c file is generated using */
-	/* the saharaobjtoc facility which converts the metastep .obj */
-	/* file to a .c file which contains a two dimentional array. */
+	/*
+	 * Download each section of the microcode as specified in
+	 * its download file.  The *download.c file is generated using
+	 * the saharaobjtoc facility which converts the metastep .obj
+	 * file to a .c file which contains a two dimentional array.
+	 */
 	for (Section = 0; Section < numSections; Section++) {
 		DBG_ERROR("sxg: SECTION # %d\n", Section);
 		switch (UcodeSel) {
@@ -309,19 +305,23 @@ static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL
 			/* Write instruction address with the WRITE bit set */
 			WRITE_REG(HwRegs->UcodeAddr,
 				  (Address | MICROCODE_ADDRESS_WRITE), FLUSH);
-			/* Sahara bug in the ucode download logic - the write to DataLow */
-			/* for the next instruction could get corrupted.  To avoid this, */
-			/* write to DataLow again for this instruction (which may get */
-			/* corrupted, but it doesn't matter), then increment the address */
-			/* and write the data for the next instruction to DataLow.  That */
-			/* write should succeed. */
+			/*
+			 * Sahara bug in the ucode download logic - the write to DataLow
+			 * for the next instruction could get corrupted.  To avoid this,
+			 * write to DataLow again for this instruction (which may get
+			 * corrupted, but it doesn't matter), then increment the address
+			 * and write the data for the next instruction to DataLow.  That
+			 * write should succeed.
+			 */
 			WRITE_REG(HwRegs->UcodeDataLow, *Instruction, TRUE);
 			/* Advance 3 u32S to start of next instruction */
 			Instruction += 3;
 		}
 	}
-	/* Now repeat the entire operation reading the instruction back and */
-	/* checking for parity errors */
+	/*
+	 * Now repeat the entire operation reading the instruction back and
+	 * checking for parity errors
+	 */
 	for (Section = 0; Section < numSections; Section++) {
 		DBG_ERROR("sxg: check SECTION # %d\n", Section);
 		switch (UcodeSel) {
@@ -376,8 +376,10 @@ static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL
 	/* Everything OK, Go. */
 	WRITE_REG(HwRegs->UcodeAddr, MICROCODE_ADDRESS_GO, FLUSH);
 
-	/* Poll the CardUp register to wait for microcode to initialize */
-	/* Give up after 10,000 attemps (500ms). */
+	/*
+	 * Poll the CardUp register to wait for microcode to initialize
+	 * Give up after 10,000 attemps (500ms).
+	 */
 	for (i = 0; i < 10000; i++) {
 		udelay(50);
 		READ_REG(adapter->UcodeRegs[0].CardUp, ValueRead);
@@ -391,9 +393,11 @@ static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL
 
 		return (FALSE);	/* Timeout */
 	}
-	/* Now write the LoadSync register.  This is used to */
-	/* synchronize with the card so it can scribble on the memory */
-	/* that contained 0xCAFE from the "CardUp" step above */
+	/*
+	 * Now write the LoadSync register.  This is used to
+	 * synchronize with the card so it can scribble on the memory
+	 * that contained 0xCAFE from the "CardUp" step above
+	 */
 	if (UcodeSel == SXG_UCODE_SAHARA) {
 		WRITE_REG(adapter->UcodeRegs[0].LoadSync, 0, FLUSH);
 	}
@@ -449,21 +453,27 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 	InitializeListHead(&adapter->FreeSglBuffers);
 	InitializeListHead(&adapter->AllSglBuffers);
 
-	/* Mark these basic allocations done.  This flags essentially */
-	/* tells the SxgFreeResources routine that it can grab spinlocks */
-	/* and reference listheads. */
+	/*
+	 * Mark these basic allocations done.  This flags essentially
+	 * tells the SxgFreeResources routine that it can grab spinlocks
+	 * and reference listheads.
+	 */
 	adapter->BasicAllocations = TRUE;
-	/* Main allocation loop.  Start with the maximum supported by */
-	/* the microcode and back off if memory allocation */
-	/* fails.  If we hit a minimum, fail. */
+	/*
+	 * Main allocation loop.  Start with the maximum supported by
+	 * the microcode and back off if memory allocation
+	 * fails.  If we hit a minimum, fail.
+	 */
 
 	for (;;) {
 		DBG_ERROR("%s Allocate XmtRings size[%x]\n", __func__,
 			  (unsigned int)(sizeof(struct sxg_xmt_ring) * 1));
 
-		/* Start with big items first - receive and transmit rings.  At the moment */
-		/* I'm going to keep the ring size fixed and adjust the number of */
-		/* TCBs if we fail.  Later we might consider reducing the ring size as well.. */
+		/*
+		 * Start with big items first - receive and transmit rings.  At the moment
+		 * I'm going to keep the ring size fixed and adjust the
+		 * TCBs if we fail.  Later we might consider reducing the ring size as well..
+		 */
 		adapter->XmtRings = pci_alloc_consistent(adapter->pcidev,
 							 sizeof(struct sxg_xmt_ring) *
 							 1,
@@ -518,8 +528,10 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 	ASSERT(sizeof(struct sxg_rcv_descriptor_block) ==
 	       SXG_RCV_DESCRIPTOR_BLOCK_SIZE);
 
-	/* Allocate receive data buffers.  We allocate a block of buffers and */
-	/* a corresponding descriptor block at once.  See sxghw.h:SXG_RCV_BLOCK */
+	/*
+	 * Allocate receive data buffers.  We allocate a block of buffers and
+	 * a corresponding descriptor block at once.  See sxghw.h:SXG_RCV_BLOCK
+	 */
 	for (i = 0; i < SXG_INITIAL_RCV_DATA_BUFFERS;
 	     i += SXG_RCV_DESCRIPTORS_PER_BLOCK) {
 		sxg_allocate_buffer_memory(adapter,
@@ -527,8 +539,10 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 							      ReceiveBufferSize),
 					   SXG_BUFFER_TYPE_RCV);
 	}
-	/* NBL resource allocation can fail in the 'AllocateComplete' routine, which */
-	/* doesn't return status.  Make sure we got the number of buffers we requested */
+	/*
+	 * NBL resource allocation can fail in the 'AllocateComplete' routine, which
+	 * doesn't return status.  Make sure we got the number of buffers we requested
+	 */
 	if (adapter->FreeRcvBufferCount < SXG_INITIAL_RCV_DATA_BUFFERS) {
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAResF6",
 			  adapter, adapter->FreeRcvBufferCount, SXG_MAX_ENTRIES,
@@ -597,7 +611,6 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
  *
  * Arguments -
  *		pcidev			- A pointer to our adapter structure
- *
  */
 static void sxg_config_pci(struct pci_dev *pcidev)
 {
@@ -628,7 +641,7 @@ static unsigned char temp_mac_address[6] = { 0x00, 0xab, 0xcd, 0xef, 0x12, 0x69 
  */
 static inline int sxg_read_config(struct adapter_t *adapter)
 {
-	//struct sxg_config	data;
+	/* struct sxg_config	data; */
 	struct sw_cfg_data	*data;
 	dma_addr_t		p_addr;
 	unsigned long		status;
@@ -636,7 +649,8 @@ static inline int sxg_read_config(struct adapter_t *adapter)
 
 	data = pci_alloc_consistent(adapter->pcidev, sizeof(struct sw_cfg_data), &p_addr);
 	if(!data) {
-		/* We cant get even this much memory. Raise a hell
+		/*
+		 * We cant get even this much memory. Raise a hell
  		 * Get out of here
  		 */
 		printk(KERN_ERR"%s : Could not allocate memory for reading EEPROM\n", __FUNCTION__);
@@ -797,8 +811,10 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	adapter->UcodeRegs = (void *)memmapped_ioaddr;
 
 	adapter->State = SXG_STATE_INITIALIZING;
-	/* Maintain a list of all adapters anchored by */
-	/* the global SxgDriver structure. */
+	/*
+	 * Maintain a list of all adapters anchored by
+	 * the global SxgDriver structure.
+	 */
 	adapter->Next = SxgDriver.Adapters;
 	SxgDriver.Adapters = adapter;
 	adapter->AdapterID = ++SxgDriver.AdapterID;
@@ -816,10 +832,12 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 		adapter->ReceiveBufferSize = SXG_RCV_DATA_BUFFER_SIZE;
 	}
 
-/*    status = SXG_READ_EEPROM(adapter); */
-/*    if (!status) { */
-/*        goto sxg_init_bad; */
-/*    } */
+/*
+ *    status = SXG_READ_EEPROM(adapter);
+ *    if (!status) {
+ *        goto sxg_init_bad;
+ *    }
+ */
 
 	DBG_ERROR("sxg: %s ENTER sxg_config_pci\n", __func__);
 	sxg_config_pci(pcidev);
@@ -911,10 +929,8 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	return -ENODEV;
 }
 
-/***********************************************************************
- * LINE BASE Interrupt routines..
- ***********************************************************************/
 /*
+ * LINE BASE Interrupt routines..
  *
  * sxg_disable_interrupt
  *
@@ -934,9 +950,7 @@ static void sxg_disable_interrupt(struct adapter_t *adapter)
 	/* For now, RSS is disabled with line based interrupts */
 	ASSERT(adapter->RssEnabled == FALSE);
 	ASSERT(adapter->MsiEnabled == FALSE);
-	/* */
 	/* Turn off interrupts by writing to the icr register. */
-	/* */
 	WRITE_REG(adapter->UcodeRegs[0].Icr, SXG_ICR(0, SXG_ICR_DISABLE), TRUE);
 
 	adapter->InterruptsEnabled = 0;
@@ -946,7 +960,6 @@ static void sxg_disable_interrupt(struct adapter_t *adapter)
 }
 
 /*
- *
  * sxg_enable_interrupt
  *
  * EnableInterrupt Handler
@@ -965,9 +978,7 @@ static void sxg_enable_interrupt(struct adapter_t *adapter)
 	/* For now, RSS is disabled with line based interrupts */
 	ASSERT(adapter->RssEnabled == FALSE);
 	ASSERT(adapter->MsiEnabled == FALSE);
-	/* */
 	/* Turn on interrupts by writing to the icr register. */
-	/* */
 	WRITE_REG(adapter->UcodeRegs[0].Icr, SXG_ICR(0, SXG_ICR_ENABLE), TRUE);
 
 	adapter->InterruptsEnabled = 1;
@@ -977,7 +988,6 @@ static void sxg_enable_interrupt(struct adapter_t *adapter)
 }
 
 /*
- *
  * sxg_isr - Process an line-based interrupt
  *
  * Arguments:
@@ -996,25 +1006,29 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 
 	adapter->Stats.NumInts++;
 	if (adapter->Isr[0] == 0) {
-		/* The SLIC driver used to experience a number of spurious interrupts */
-		/* due to the delay associated with the masking of the interrupt */
-		/* (we'd bounce back in here).  If we see that again with Sahara, */
-		/* add a READ_REG of the Icr register after the WRITE_REG below. */
+		/*
+		 * The SLIC driver used to experience a number of spurious
+		 * interrupts due to the delay associated with the masking of
+		 * the interrupt (we'd bounce back in here).  If we see that
+		 * again with Sahara,add a READ_REG of the Icr register after
+		 * the WRITE_REG below.
+		 */
 		adapter->Stats.FalseInts++;
 		return IRQ_NONE;
 	}
-	/* */
-	/* Move the Isr contents and clear the value in */
-	/* shared memory, and mask interrupts */
-	/* */
+	/*
+	 * Move the Isr contents and clear the value in
+	 * shared memory, and mask interrupts
+	 */
 	adapter->IsrCopy[0] = adapter->Isr[0];
 	adapter->Isr[0] = 0;
 	WRITE_REG(adapter->UcodeRegs[0].Icr, SXG_ICR(0, SXG_ICR_MASK), TRUE);
 /*      ASSERT(adapter->IsrDpcsPending == 0); */
 #if XXXTODO			/* RSS Stuff */
-	/* If RSS is enabled and the ISR specifies */
-	/* SXG_ISR_EVENT, then schedule DPC's */
-	/* based on event queues. */
+	/*
+	 * If RSS is enabled and the ISR specifies SXG_ISR_EVENT, then
+	 * schedule DPC's based on event queues.
+	 */
 	if (adapter->RssEnabled && (adapter->IsrCopy[0] & SXG_ISR_EVENT)) {
 		for (i = 0;
 		     i < adapter->RssSystemInfo->ProcessorInfo.RssCpuCount;
@@ -1030,8 +1044,9 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 			}
 		}
 	}
-	/* Now, either schedule the CPUs specified by the CpuMask, */
-	/* or queue default */
+	/* Now, either schedule the CPUs specified by the CpuMask,
+	 * or queue default
+	 */
 	if (CpuMask) {
 		*QueueDefault = FALSE;
 	} else {
@@ -1040,9 +1055,7 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 	}
 	*TargetCpus = CpuMask;
 #endif
-	/* */
 	/*  There are no DPCs in Linux, so call the handler now */
-	/* */
 	sxg_handle_interrupt(adapter);
 
 	return IRQ_HANDLED;
@@ -1065,7 +1078,6 @@ static void sxg_handle_interrupt(struct adapter_t *adapter)
 	ASSERT(adapter->RssEnabled == FALSE);
 	ASSERT(adapter->MsiEnabled == FALSE);
 	ASSERT(adapter->IsrCopy[0]);
-/*/////////////////////////// */
 
 	/* Always process the event queue. */
 	sxg_process_event_queue(adapter,
@@ -1080,13 +1092,9 @@ static void sxg_handle_interrupt(struct adapter_t *adapter)
 		return;
 	}
 #endif
-	/* */
 	/* Last (or only) DPC processes the ISR and clears the interrupt. */
-	/* */
 	NewIsr = sxg_process_isr(adapter, 0);
-	/* */
 	/* Reenable interrupts */
-	/* */
 	adapter->IsrCopy[0] = 0;
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "ClearIsr",
 		  adapter, NewIsr, 0, 0);
@@ -1103,7 +1111,6 @@ static void sxg_handle_interrupt(struct adapter_t *adapter)
 }
 
 /*
- *
  * sxg_process_isr - Process an interrupt.  Called from the line-based and
  *			message based interrupt DPC routines
  *
@@ -1122,6 +1129,7 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "ProcIsr",
 		  adapter, Isr, 0, 0);
 
+	DBG_ERROR("%s: Entering with %d ISR value\n", __FUNCTION__, Isr);
 	/* Error */
 	if (Isr & SXG_ISR_ERR) {
 		if (Isr & SXG_ISR_PDQF) {
@@ -1130,12 +1138,14 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 		}
 		/* No host buffer */
 		if (Isr & SXG_ISR_RMISS) {
-			/* There is a bunch of code in the SLIC driver which */
-			/* attempts to process more receive events per DPC */
-			/* if we start to fall behind.  We'll probably */
-			/* need to do something similar here, but hold */
-			/* off for now.  I don't want to make the code more */
-			/* complicated than strictly needed. */
+			/*
+			 * There is a bunch of code in the SLIC driver which
+			 * attempts to process more receive events per DPC
+			 * if we start to fall behind.  We'll probablyd
+			 * need to do something similar here, but hold
+			 * off for now.  I don't want to make the code more
+			 * complicated than strictly needed.
+			 */
 			adapter->Stats.RcvNoBuffer++;
 			if (adapter->Stats.RcvNoBuffer < 5) {
 				DBG_ERROR("%s: SXG_ISR_ERR  RMISS!!\n",
@@ -1155,10 +1165,12 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 		}
 		/* Event ring full */
 		if (Isr & SXG_ISR_ERFULL) {
-			/* Same issue as RMISS, really.  This means the */
-			/* host is falling behind the card.  Need to increase */
-			/* event ring size, process more events per interrupt, */
-			/* and/or reduce/remove interrupt aggregation. */
+			/*
+			 * Same issue as RMISS, really.  This means the
+			 * host is falling behind the card.  Need to increase
+			 * event ring size, process more events per interrupt,
+			 * and/or reduce/remove interrupt aggregation.
+			 */
 			adapter->Stats.EventRingFull++;
 			DBG_ERROR("%s: SXG_ISR_ERR  EVENT RING FULL!!\n",
 				  __func__);
@@ -1185,9 +1197,11 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 	}
 	/* Debug - breakpoint hit */
 	if (Isr & SXG_ISR_BREAK) {
-		/* At the moment AGDB isn't written to support interactive */
-		/* debug sessions.  When it is, this interrupt will be used */
-		/* to signal AGDB that it has hit a breakpoint.  For now, ASSERT. */
+		/*
+		 * At the moment AGDB isn't written to support interactive
+		 * debug sessions.  When it is, this interrupt will be used
+		 * to signal AGDB that it has hit a breakpoint.  For now, ASSERT.
+		 */
 		ASSERT(0);
 	}
 	/* Heartbeat response */
@@ -1201,7 +1215,6 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 }
 
 /*
- *
  * sxg_process_event_queue - Process our event queue
  *
  * Arguments:
@@ -1230,14 +1243,18 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 	       (adapter->State == SXG_STATE_PAUSING) ||
 	       (adapter->State == SXG_STATE_PAUSED) ||
 	       (adapter->State == SXG_STATE_HALTING));
-	/* We may still have unprocessed events on the queue if */
-	/* the card crashed.  Don't process them. */
+	/*
+	 * We may still have unprocessed events on the queue if
+	 * the card crashed.  Don't process them.
+	 */
 	if (adapter->Dead) {
 		return (0);
 	}
-	/* In theory there should only be a single processor that */
-	/* accesses this queue, and only at interrupt-DPC time.  So */
-	/* we shouldn't need a lock for any of this. */
+	/*
+	 *  In theory there should only be a single processor that
+	 * accesses this queue, and only at interrupt-DPC time.  So/
+	 * we shouldn't need a lock for any of this.
+	 */
 	while (Event->Status & EVENT_STATUS_VALID) {
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "Event",
 			  Event, Event->Code, Event->Status,
@@ -1245,10 +1262,8 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 		switch (Event->Code) {
 		case EVENT_CODE_BUFFERS:
 			ASSERT(!(Event->CommandIndex & 0xFF00));	/* struct sxg_ring_info Head & Tail == unsigned char */
-			/* */
 			sxg_complete_descriptor_blocks(adapter,
 						       Event->CommandIndex);
-			/* */
 			break;
 		case EVENT_CODE_SLOWRCV:
 			--adapter->RcvBuffersOnCard;
@@ -1258,8 +1273,11 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 				/* Add it to our indication list */
 				SXG_ADD_RCV_PACKET(adapter, skb, prev_skb,
 						   IndicationList, num_skbs);
-				/*  In Linux, we just pass up each skb to the protocol above at this point, */
-				/*  there is no capability of an indication list. */
+				/*
+				 * Linux, we just pass up each skb to the
+				 * protocol above at this point, there is no
+				 * capability of an indication list.
+				 */
 #else
 /* CHECK            skb_pull(skb, INIC_RCVBUF_HEADSIZE); */
 				rx_bytes = Event->Length;	/* (rcvbuf->length & IRHDDR_FLEN_MSK); */
@@ -1278,29 +1296,36 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 				  __func__, Event->Code);
 /*                      ASSERT(0); */
 		}
-		/* See if we need to restock card receive buffers. */
-		/* There are two things to note here: */
-		/*      First - This test is not SMP safe.  The */
-		/*              adapter->BuffersOnCard field is protected via atomic interlocked calls, but */
-		/*              we do not protect it with respect to these tests.  The only way to do that */
-		/*      is with a lock, and I don't want to grab a lock every time we adjust the */
-		/*      BuffersOnCard count.  Instead, we allow the buffer replenishment to be off */
-		/*      once in a while.  The worst that can happen is the card is given one */
-		/*      more-or-less descriptor block than the arbitrary value we've chosen. */
-		/*      No big deal */
-		/*      In short DO NOT ADD A LOCK HERE, OR WHERE RcvBuffersOnCard is adjusted. */
-		/*      Second - We expect this test to rarely evaluate to true.  We attempt to */
-		/*      refill descriptor blocks as they are returned to us */
-		/*      (sxg_complete_descriptor_blocks), so The only time this should evaluate */
-		/*      to true is when sxg_complete_descriptor_blocks failed to allocate */
-		/*              receive buffers. */
+		/*
+		 * See if we need to restock card receive buffers.
+		 * There are two things to note here:
+		 *  First - This test is not SMP safe.  The
+		 *    adapter->BuffersOnCard field is protected via atomic
+		 *    interlocked calls, but we do not protect it with respect
+		 *    to these tests.  The only way to do that is with a lock,
+		 *    and I don't want to grab a lock every time we adjust the
+		 *    BuffersOnCard count.  Instead, we allow the buffer
+		 *    replenishment to be off once in a while. The worst that
+		 *    can happen is the card is given on more-or-less descriptor
+		 *    block than the arbitrary value we've chosen. No big deal
+		 *    In short DO NOT ADD A LOCK HERE, OR WHERE RcvBuffersOnCard
+		 *    is adjusted.
+		 *  Second - We expect this test to rarely
+		 *    evaluate to true.  We attempt to refill descriptor blocks
+		 *    as they are returned to us (sxg_complete_descriptor_blocks)
+		 *    so The only time this should evaluate to true is when
+		 *    sxg_complete_descriptor_blocks failed to allocate
+		 *    receive buffers.
+		 */
 		if (adapter->RcvBuffersOnCard < SXG_RCV_DATA_BUFFERS) {
 			sxg_stock_rcv_buffers(adapter);
 		}
-		/* It's more efficient to just set this to zero. */
-		/* But clearing the top bit saves potential debug info... */
+		/*
+		 * It's more efficient to just set this to zero.
+		 * But clearing the top bit saves potential debug info...
+		 */
 		Event->Status &= ~EVENT_STATUS_VALID;
-		/* Advanct to the next event */
+		/* Advance to the next event */
 		SXG_ADVANCE_INDEX(adapter->NextEvent[RssId], EVENT_RING_SIZE);
 		Event = &EventRing->Ring[adapter->NextEvent[RssId]];
 		EventsProcessed++;
@@ -1309,9 +1334,11 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 			WRITE_REG(adapter->UcodeRegs[RssId].EventRelease,
 				  EVENT_RING_BATCH, FALSE);
 			EventsProcessed = 0;
-			/* If we've processed our batch limit, break out of the */
-			/* loop and return SXG_ISR_EVENT to arrange for us to */
-			/* be called again */
+			/*
+			 * If we've processed our batch limit, break out of the
+			 * loop and return SXG_ISR_EVENT to arrange for us to
+			 * be called again
+			 */
 			if (Batches++ == EVENT_BATCH_LIMIT) {
 				SXG_TRACE(TRACE_SXG, SxgTraceBuffer,
 					  TRACE_NOISY, "EvtLimit", Batches,
@@ -1322,14 +1349,10 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 		}
 	}
 #ifdef LINUX_HANDLES_RCV_INDICATION_LISTS
-	/* */
 	/* Indicate any received dumb-nic frames */
-	/* */
 	SXG_INDICATE_PACKETS(adapter, IndicationList, num_skbs);
 #endif
-	/* */
 	/* Release events back to the card. */
-	/* */
 	if (EventsProcessed) {
 		WRITE_REG(adapter->UcodeRegs[RssId].EventRelease,
 			  EventsProcessed, FALSE);
@@ -1356,16 +1379,20 @@ static void sxg_complete_slow_send(struct adapter_t *adapter)
 	u32 *ContextType;
 	struct sxg_cmd *XmtCmd;
 
-	/* NOTE - This lock is dropped and regrabbed in this loop. */
-	/* This means two different processors can both be running */
-	/* through this loop. Be *very* careful. */
+	/*
+	 * NOTE - This lock is dropped and regrabbed in this loop.
+	 * This means two different processors can both be running/
+	 * through this loop. Be *very* careful.
+	 */
 	spin_lock(&adapter->XmtZeroLock);
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "CmpSnds",
 		  adapter, XmtRingInfo->Head, XmtRingInfo->Tail, 0);
 
 	while (XmtRingInfo->Tail != *adapter->XmtRingZeroIndex) {
-		/* Locate the current Cmd (ring descriptor entry), and */
-		/* associated SGL, and advance the tail */
+		/*
+		 * Locate the current Cmd (ring descriptor entry), and
+		 * associated SGL, and advance the tail
+		 */
 		SXG_RETURN_CMD(XmtRing, XmtRingInfo, XmtCmd, ContextType);
 		ASSERT(ContextType);
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "CmpSnd",
@@ -1390,10 +1417,12 @@ static void sxg_complete_slow_send(struct adapter_t *adapter)
 				ASSERT(adapter->Stats.XmtQLen);
 				adapter->Stats.XmtQLen--;	/* within XmtZeroLock */
 				adapter->Stats.XmtOk++;
-				/* Now drop the lock and complete the send back to */
-				/* Microsoft.  We need to drop the lock because */
-				/* Microsoft can come back with a chimney send, which */
-				/* results in a double trip in SxgTcpOuput */
+				/*
+				 * Now drop the lock and complete the send back to
+				 * Microsoft.  We need to drop the lock because
+				 * Microsoft can come back with a chimney send, which
+				 * results in a double trip in SxgTcpOuput
+				 */
 				spin_unlock(&adapter->XmtZeroLock);
 				SXG_COMPLETE_DUMB_SEND(adapter, skb);
 				/* and reacquire.. */
@@ -1452,7 +1481,7 @@ static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter, struct sxg_ev
 	for (i = 0; i < 32; i++)
 		dptr += sprintf(dptr, "%02x ", (unsigned)data[i]);
 	printk("ASK:sxg_slow_receive: data %s\n", dstr);
-	//memcpy(SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr), RcvDataBufferHdr->VirtualAddress, Event->Length);
+	/* memcpy(SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr), RcvDataBufferHdr->VirtualAddress, Event->Length);*/
 
 	/* Change buffer state to UPSTREAM */
 	RcvDataBufferHdr->State = SXG_BUFFER_UPSTREAM;
@@ -1481,17 +1510,18 @@ static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter, struct sxg_ev
 		}
 	}
 #endif
-	/* */
 	/* Dumb-nic frame.  See if it passes our mac filter and update stats */
-	/* */
-	/* ASK if (!sxg_mac_filter(adapter,
-			    SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr),
-			    Event->Length)) {
-		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "RcvFiltr",
-			  Event, SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr),
-			  Event->Length, 0);
-		goto drop;
-	} */
+
+	/*
+	 * ASK if (!sxg_mac_filter(adapter,
+	 *    		SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr),
+	 *		Event->Length)) {
+	 * 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "RcvFiltr",
+	 * Event, SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr),
+	 * Event->Length, 0);
+	 *	goto drop;
+	 * }
+	 */
 
 	Packet = RcvDataBufferHdr->SxgDumbRcvPacket;
 	SXG_ADJUST_RCV_PACKET(Packet, RcvDataBufferHdr, Event);
@@ -1500,9 +1530,7 @@ static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter, struct sxg_ev
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_IMPORTANT, "DumbRcv",
 		  RcvDataBufferHdr, Packet, Event->Length, 0);
-	/* */
 	/* Lastly adjust the receive packet length. */
-	/* */
 	RcvDataBufferHdr->SxgDumbRcvPacket = NULL;
 
 	SXG_FREE_RCV_DATA_BUFFER(adapter, RcvDataBufferHdr);
@@ -1654,9 +1682,11 @@ static bool sxg_mac_filter(struct adapter_t *adapter, struct ether_header *Ether
 			}
 		}
 	} else if (adapter->MacFilter & MAC_DIRECTED) {
-		/* Not broadcast or multicast.  Must be directed at us or */
-		/* the card is in promiscuous mode.  Either way, consider it */
-		/* ours if MAC_DIRECTED is set */
+		/*
+		 * Not broadcast or multicast.  Must be directed at us or
+		 * the card is in promiscuous mode.  Either way, consider it
+		 * ours if MAC_DIRECTED is set
+		 */
 		adapter->Stats.DumbRcvUcastPkts++;
 		adapter->Stats.DumbRcvUcastBytes += length;
 		adapter->Stats.DumbRcvPkts++;
@@ -1784,9 +1814,7 @@ static int sxg_if_init(struct adapter_t *adapter)
 
 	adapter->state = ADAPT_UP;
 
-	/*
-	 *    clear any pending events, then enable interrupts
-	 */
+	/*    clear any pending events, then enable interrupts */
 	DBG_ERROR("sxg: %s ENABLE interrupts(slic)\n", __func__);
 
 	return (STATUS_SUCCESS);
@@ -1929,7 +1957,6 @@ static int sxg_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #define NORMAL_ETHFRAME     0
 
 /*
- *
  * sxg_send_packets - Send a skb packet
  *
  * Arguments:
@@ -1944,8 +1971,10 @@ static int sxg_send_packets(struct sk_buff *skb, struct net_device *dev)
 	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 	u32 status = STATUS_SUCCESS;
 
-	//DBG_ERROR("sxg: %s ENTER sxg_send_packets skb[%p]\n", __FUNCTION__,
-	//	  skb);
+	/*
+	 * DBG_ERROR("sxg: %s ENTER sxg_send_packets skb[%p]\n", __FUNCTION__,
+	 *	  skb);
+	 */
 	printk("ASK:sxg_send_packets: skb[%p]\n", skb);
 
 	/* Check the adapter state */
@@ -2016,8 +2045,10 @@ static int sxg_transmit_packet(struct adapter_t *adapter, struct sk_buff *skb)
 	void *SglBuffer;
 	u32 SglBufferLength;
 
-	/* The vast majority of work is done in the shared */
-	/* sxg_dumb_sgl routine. */
+	/*
+	 * The vast majority of work is done in the shared
+	 * sxg_dumb_sgl routine.
+	 */
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DumbSend",
 		  adapter, skb, 0, 0);
 
@@ -2089,8 +2120,10 @@ static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl, struct sxg_scatter_gather *Sx
 	ASSERT(SxgSgl->VlanTag.VlanTci == 0);
 	ASSERT(SxgSgl->VlanTag.VlanTpid == 0);
 
-	/* From here below we work with the SGL placed in our */
-	/* buffer. */
+	/*
+	 * From here below we work with the SGL placed in our
+	 * buffer.
+	 */
 
 	SxgSgl->Sgl.NumberOfElements = 1;
 
@@ -2098,8 +2131,10 @@ static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl, struct sxg_scatter_gather *Sx
 	spin_lock(&adapter->XmtZeroLock);
 	SXG_GET_CMD(XmtRing, XmtRingInfo, XmtCmd, SxgSgl);
 	if (XmtCmd == NULL) {
-		/* Call sxg_complete_slow_send to see if we can */
-		/* free up any XmtRingZero entries and then try again */
+		/*
+		 * Call sxg_complete_slow_send to see if we can
+		 * free up any XmtRingZero entries and then try again
+		 */
 		spin_unlock(&adapter->XmtZeroLock);
 		sxg_complete_slow_send(adapter);
 		spin_lock(&adapter->XmtZeroLock);
@@ -2128,8 +2163,10 @@ static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl, struct sxg_scatter_gather *Sx
 		adapter->Stats.DumbXmtUcastBytes += DataLength;
 	}
 #endif
-	/* Fill in the command */
-	/* Copy out the first SGE to the command and adjust for offset */
+	/*
+	 * Fill in the command
+	 * Copy out the first SGE to the command and adjust for offset
+	 */
 	phys_addr =
 	    pci_map_single(adapter->pcidev, skb->data, skb->len,
 			   PCI_DMA_TODEVICE);
@@ -2141,16 +2178,13 @@ static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl, struct sxg_scatter_gather *Sx
 	XmtCmd->SgEntries = 1;
 	XmtCmd->Flags = 0;
 	printk("ASK:sxg_dumb_sgl: wrote to xmit register\n");
-	/* */
-	/* Advance transmit cmd descripter by 1. */
-	/* NOTE - See comments in SxgTcpOutput where we write */
-	/* to the XmtCmd register regarding CPU ID values and/or */
-	/* multiple commands. */
-	/* */
-	/* */
+	/*
+	 * Advance transmit cmd descripter by 1.
+	 * NOTE - See comments in SxgTcpOutput where we write
+	 * to the XmtCmd register regarding CPU ID values and/or
+	 * multiple commands.
+	 */
 	WRITE_REG(adapter->UcodeRegs[0].XmtCmd, 1, TRUE);
-	/* */
-	/* */
 	adapter->Stats.XmtQLen++;	/* Stats within lock */
 	spin_unlock(&adapter->XmtZeroLock);
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XDumSgl2",
@@ -2158,17 +2192,21 @@ static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl, struct sxg_scatter_gather *Sx
 	return;
 
       abortcmd:
-	/* NOTE - Only jump to this label AFTER grabbing the */
-	/* XmtZeroLock, and DO NOT DROP IT between the */
-	/* command allocation and the following abort. */
+	/*
+	 * NOTE - Only jump to this label AFTER grabbing the
+	 * XmtZeroLock, and DO NOT DROP IT between the
+	 * command allocation and the following abort.
+	 */
 	if (XmtCmd) {
 		SXG_ABORT_CMD(XmtRingInfo);
 	}
 	spin_unlock(&adapter->XmtZeroLock);
 
-/* failsgl: */
-	/* Jump to this label if failure occurs before the */
-	/* XmtZeroLock is grabbed */
+/*
+ * failsgl:
+ * 	Jump to this label if failure occurs before the
+ *	XmtZeroLock is grabbed
+ */
 	adapter->Stats.XmtErrors++;
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_IMPORTANT, "DumSGFal",
 		  pSgl, SxgSgl, XmtRingInfo->Head, XmtRingInfo->Tail);
@@ -2176,11 +2214,9 @@ static void sxg_dumb_sgl(struct sxg_x64_sgl *pSgl, struct sxg_scatter_gather *Sx
 	SXG_COMPLETE_DUMB_SEND(adapter, SxgSgl->DumbPacket);	/* SxgSgl->DumbPacket is the skb */
 }
 
-/***************************************************************
- * Link management functions
- ***************************************************************/
-
 /*
+ * Link management functions
+ *
  * sxg_initialize_link - Initialize the link stuff
  *
  * Arguments -
@@ -2212,10 +2248,12 @@ static int sxg_initialize_link(struct adapter_t *adapter)
 	/* Reset all MAC modules */
 	WRITE_REG(HwRegs->MacConfig0, AXGMAC_CFG0_SUB_RESET, TRUE);
 
-	/* Link address 0 */
-	/* XXXTODO - This assumes the MAC address (0a:0b:0c:0d:0e:0f) */
-	/* is stored with the first nibble (0a) in the byte 0 */
-	/* of the Mac address.  Possibly reverse? */
+	/*
+	 * Link address 0
+	 * XXXTODO - This assumes the MAC address (0a:0b:0c:0d:0e:0f)
+	 * is stored with the first nibble (0a) in the byte 0
+	 * of the Mac address.  Possibly reverse?
+	 */
 	Value = *(u32 *) adapter->macaddr;
 	WRITE_REG(HwRegs->LinkAddress0Low, Value, TRUE);
 	/* also write the MAC address to the MAC.  Endian is reversed. */
@@ -2253,16 +2291,18 @@ static int sxg_initialize_link(struct adapter_t *adapter)
 	if (adapter->JumboEnabled) {
 		WRITE_REG(HwRegs->MacMaxFrameLen, AXGMAC_MAXFRAME_JUMBO, TRUE);
 	}
-	/* AMIIM Configuration Register - */
-	/* The value placed in the AXGMAC_AMIIM_CFG_HALF_CLOCK portion */
-	/* (bottom bits) of this register is used to determine the */
-	/* MDC frequency as specified in the A-XGMAC Design Document. */
-	/* This value must not be zero.  The following value (62 or 0x3E) */
-	/* is based on our MAC transmit clock frequency (MTCLK) of 312.5 MHz. */
-	/* Given a maximum MDIO clock frequency of 2.5 MHz (see the PHY spec), */
-	/* we get:  312.5/(2*(X+1)) < 2.5  ==> X = 62. */
-	/* This value happens to be the default value for this register, */
-	/* so we really don't have to do this. */
+	/*
+	 * AMIIM Configuration Register -
+	 * The value placed in the AXGMAC_AMIIM_CFG_HALF_CLOCK portion
+	 * (bottom bits) of this register is used to determine the MDC frequency
+	 * as specified in the A-XGMAC Design Document. This value must not be
+	 * zero.  The following value (62 or 0x3E) is based on our MAC transmit
+	 * clock frequency (MTCLK) of 312.5 MHz. Given a maximum MDIO clock
+	 * frequency of 2.5 MHz (see the PHY spec), we get:
+	 * 	312.5/(2*(X+1)) < 2.5  ==> X = 62.
+	 * This value happens to be the default value for this register, so we
+	 * really don't have to do this.
+	 */
 	WRITE_REG(HwRegs->MacAmiimConfig, 0x0000003E, TRUE);
 
 	/* Power up and enable PHY and XAUI/XGXS/Serdes logic */
@@ -2272,8 +2312,10 @@ static int sxg_initialize_link(struct adapter_t *adapter)
 		   LS_XGXS_CTL | LS_PHY_CLK_EN | LS_ATTN_ALARM), TRUE);
 	DBG_ERROR("After Power Up and enable PHY in sxg_initialize_link\n");
 
-	/* Per information given by Aeluros, wait 100 ms after removing reset. */
-	/* It's not enough to wait for the self-clearing reset bit in reg 0 to clear. */
+	/*
+	 * Per information given by Aeluros, wait 100 ms after removing reset.
+	 * It's not enough to wait for the self-clearing reset bit in reg 0 to clear.
+	 */
 	mdelay(100);
 
 	/* Verify the PHY has come up by checking that the Reset bit has cleared. */
@@ -2409,8 +2451,10 @@ static void sxg_link_event(struct adapter_t *adapter)
 	/* Check the Link Status register.  We should have a Link Alarm. */
 	READ_REG(HwRegs->LinkStatus, Value);
 	if (Value & LS_LINK_ALARM) {
-		/* We got a Link Status alarm.  First, pause to let the */
-		/* link state settle (it can bounce a number of times) */
+		/*
+		 * We got a Link Status alarm.  First, pause to let the
+		 * link state settle (it can bounce a number of times)
+		 */
 		mdelay(10);
 
 		/* Now clear the alarm by reading the LASI status register. */
@@ -2430,11 +2474,13 @@ static void sxg_link_event(struct adapter_t *adapter)
 		DBG_ERROR("SXG: Link Alarm occurred.  Link is %s\n",
 			  ((LinkState == SXG_LINK_UP) ? "UP" : "DOWN"));
 	} else {
-		/* XXXTODO - Assuming Link Attention is only being generated for the */
-		/* Link Alarm pin (and not for a XAUI Link Status change), then it's */
-		/* impossible to get here.  Yet we've gotten here twice (under extreme */
-		/* conditions - bouncing the link up and down many times a second). */
-		/* Needs further investigation. */
+		/*
+	 	 * XXXTODO - Assuming Link Attention is only being generated
+	 	 * for the Link Alarm pin (and not for a XAUI Link Status change)
+	 	 * , then it's impossible to get here.  Yet we've gotten here
+	 	 * twice (under extreme conditions - bouncing the link up and
+	 	 * down many times a second). Needs further investigation.
+	 	 */
 		DBG_ERROR("SXG: sxg_link_event: Can't get here!\n");
 		DBG_ERROR("SXG: Link Status == 0x%08X.\n", Value);
 /*              ASSERT(0); */
@@ -2462,8 +2508,10 @@ static enum SXG_LINK_STATE sxg_get_link_state(struct adapter_t *adapter)
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "GetLink",
 		  adapter, 0, 0, 0);
 
-	/* Per the Xenpak spec (and the IEEE 10Gb spec?), the link is up if */
-	/* the following 3 bits (from 3 different MDIO registers) are all true. */
+	/*
+	 * Per the Xenpak spec (and the IEEE 10Gb spec?), the link is up if
+	 * the following 3 bits (from 3 different MDIO registers) are all true.
+	 */
 	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PMA,	/* PHY PMA/PMD module */
 				   PHY_PMA_RCV_DET,	/* PMA/PMD Receive Signal Detect register */
 				   &Value);
@@ -2540,8 +2588,10 @@ static void sxg_link_state(struct adapter_t *adapter, enum SXG_LINK_STATE LinkSt
 
 	DBG_ERROR("ENTER %s\n", __func__);
 
-	/* Hold the adapter lock during this routine.  Maybe move */
-	/* the lock to the caller. */
+	/*
+	 * Hold the adapter lock during this routine.  Maybe move
+	 * the lock to the caller.
+	 */
 	spin_lock(&adapter->AdapterLock);
 	if (LinkState == adapter->LinkState) {
 		/* Nothing changed.. */
@@ -2753,7 +2803,6 @@ static int sxg_read_mdio_reg(struct adapter_t *adapter,
  *
  * After the CRC for the 6 bytes is generated (but before the value is complemented),
  * we must then transpose the value and return bits 30-23.
- *
  */
 static u32 sxg_crc_table[256];	/* Table of CRC's for all possible byte values */
 
@@ -2820,7 +2869,8 @@ static void sxg_mcast_set_mask(struct adapter_t *adapter)
 		  adapter->MulticastMask);
 
 	if (adapter->MacFilter & (MAC_ALLMCAST | MAC_PROMISC)) {
-		/* Turn on all multicast addresses. We have to do this for promiscuous
+		/*
+		 * Turn on all multicast addresses. We have to do this for promiscuous
 		 * mode as well as ALLMCAST mode.  It saves the Microcode from having
 		 * to keep state about the MAC configuration.
 		 */
@@ -2830,7 +2880,8 @@ static void sxg_mcast_set_mask(struct adapter_t *adapter)
 /*        DBG_ERROR("%s (%s) WRITE to slic_regs slic_mcastlow&high 0xFFFFFFFF\n",__func__, adapter->netdev->name); */
 
 	} else {
-		/* Commit our multicast mast to the SLIC by writing to the multicast
+		/*
+		 * Commit our multicast mast to the SLIC by writing to the multicast
 		 * address mask registers
 		 */
 		DBG_ERROR("%s (%s) WRITE mcastlow[%lx] mcasthigh[%lx]\n",
@@ -2886,7 +2937,8 @@ static void sxg_mcast_set_bit(struct adapter_t *adapter, char *address)
 	/* Get the CRC polynomial for the mac address */
 	crcpoly = sxg_mcast_get_mac_hash(address);
 
-	/* We only have space on the SLIC for 64 entries.  Lop
+	/*
+	 * We only have space on the SLIC for 64 entries.  Lop
 	 * off the top two bits. (2^6 = 64)
 	 */
 	crcpoly &= 0x3F;
@@ -2911,10 +2963,12 @@ static void sxg_mcast_set_list(struct net_device *dev)
 static void sxg_unmap_mmio_space(struct adapter_t *adapter)
 {
 #if LINUX_FREES_ADAPTER_RESOURCES
-/*      if (adapter->Regs) { */
-/*              iounmap(adapter->Regs); */
-/*      } */
-/*      adapter->slic_regs = NULL; */
+/*
+ *       if (adapter->Regs) {
+ *              iounmap(adapter->Regs);
+ *      }
+ *      adapter->slic_regs = NULL;
+ */
 #endif
 }
 
@@ -2942,8 +2996,10 @@ void SxgFreeResources(struct adapter_t *adapter)
 	IsrCount = adapter->MsiEnabled ? RssIds : 1;
 
 	if (adapter->BasicAllocations == FALSE) {
-		/* No allocations have been made, including spinlocks, */
-		/* or listhead initializations.  Return. */
+		/*
+		 * No allocations have been made, including spinlocks,
+		 * or listhead initializations.  Return.
+		 */
 		return;
 	}
 
@@ -3080,14 +3136,17 @@ static int sxg_allocate_buffer_memory(struct adapter_t *adapter,
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "AllocMem",
 		  adapter, Size, BufferType, 0);
-	/* Grab the adapter lock and check the state. */
-	/* If we're in anything other than INITIALIZING or */
-	/* RUNNING state, fail.  This is to prevent */
-	/* allocations in an improper driver state */
+	/*
+	 * Grab the adapter lock and check the state. If we're in anything other
+	 * than INITIALIZING or RUNNING state, fail.  This is to prevent
+	 * allocations in an improper driver state
+	 */
 	spin_lock(&adapter->AdapterLock);
 
-	/* Increment the AllocationsPending count while holding */
-	/* the lock.  Pause processing relies on this */
+	/*
+	 * Increment the AllocationsPending count while holding
+	 * the lock.  Pause processing relies on this
+	 */
 	++adapter->AllocationsPending;
 	spin_unlock(&adapter->AdapterLock);
 
@@ -3095,8 +3154,10 @@ static int sxg_allocate_buffer_memory(struct adapter_t *adapter,
 	Buffer = pci_alloc_consistent(adapter->pcidev, Size, &pBuffer);
 	if (Buffer == NULL) {
 		spin_lock(&adapter->AdapterLock);
-		/* Decrement the AllocationsPending count while holding */
-		/* the lock.  Pause processing relies on this */
+		/*
+		 * Decrement the AllocationsPending count while holding
+		 * the lock.  Pause processing relies on this
+		 */
 		--adapter->AllocationsPending;
 		spin_unlock(&adapter->AdapterLock);
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "AlcMemF1",
@@ -3121,7 +3182,6 @@ static int sxg_allocate_buffer_memory(struct adapter_t *adapter,
  *	Length				- Memory length
  *
  * Return
- *
  */
 static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 					   void *RcvBlock,
@@ -3146,10 +3206,11 @@ static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 	ASSERT((BufferSize == SXG_RCV_DATA_BUFFER_SIZE) ||
 	       (BufferSize == SXG_RCV_JUMBO_BUFFER_SIZE));
 	ASSERT(Length == SXG_RCV_BLOCK_SIZE(BufferSize));
-	/* First, initialize the contained pool of receive data */
-	/* buffers.  This initialization requires NBL/NB/MDL allocations, */
-	/* If any of them fail, free the block and return without */
-	/* queueing the shared memory */
+	/*
+	 * First, initialize the contained pool of receive data buffers.
+	 * This initialization requires NBL/NB/MDL allocations, if any of them
+	 * fail, free the block and return without queueing the shared memory
+	 */
 	RcvDataBuffer = RcvBlock;
 #if 0
 	for (i = 0, Paddr = *PhysicalAddress;
@@ -3159,7 +3220,7 @@ static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 		for (i = 0, Paddr = PhysicalAddress;
 		     i < SXG_RCV_DESCRIPTORS_PER_BLOCK;
 		     i++, Paddr += BufferSize, RcvDataBuffer += BufferSize) {
-			/* */
+
 			RcvDataBufferHdr =
 			    (struct sxg_rcv_data_buffer_hdr*) (RcvDataBuffer +
 							SXG_RCV_DATA_BUFFER_HDR_OFFSET
@@ -3170,7 +3231,7 @@ static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 			    SXG_RCV_BUFFER_DATA_SIZE(BufferSize);
 
 			SXG_ALLOCATE_RCV_PACKET(adapter, RcvDataBufferHdr);
-			//ASK hardcoded 2048
+			/* ASK hardcoded 2048 */
 			RcvDataBufferHdr->PhysicalAddress = pci_map_single(adapter->pcidev,
 				RcvDataBufferHdr->SxgDumbRcvPacket->data,
 				2048,
@@ -3180,8 +3241,10 @@ static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 
 		}
 
-	/* Place this entire block of memory on the AllRcvBlocks queue so it can be */
-	/* free later */
+	/*
+	 * Place this entire block of memory on the AllRcvBlocks queue so it
+	 * can be free later
+	 */
 	RcvBlockHdr =
 	    (struct sxg_rcv_block_hdr*) ((unsigned char *)RcvBlock +
 				  SXG_RCV_BLOCK_HDR_OFFSET(BufferSize));
@@ -3254,7 +3317,6 @@ static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
  *	Length				- Memory length
  *
  * Return
- *
  */
 static void sxg_allocate_sgl_buffer_complete(struct adapter_t *adapter,
 					     struct sxg_scatter_gather *SxgSgl,
@@ -3279,10 +3341,11 @@ static void sxg_allocate_sgl_buffer_complete(struct adapter_t *adapter,
 
 static void sxg_adapter_set_hwaddr(struct adapter_t *adapter)
 {
-/*  DBG_ERROR ("%s ENTER card->config_set[%x] port[%d] physport[%d] funct#[%d]\n", __func__, */
-/*             card->config_set, adapter->port, adapter->physport, adapter->functionnumber); */
-/* */
-/*  sxg_dbg_macaddrs(adapter); */
+/*
+ *  DBG_ERROR ("%s ENTER card->config_set[%x] port[%d] physport[%d] funct#[%d]\n", __func__,
+ *             card->config_set, adapter->port, adapter->physport, adapter->functionnumber);
+ *  sxg_dbg_macaddrs(adapter);
+ */
 
 	memcpy(adapter->macaddr, temp_mac_address, sizeof(struct sxg_config_mac));
 /*      DBG_ERROR ("%s AFTER copying from config.macinfo into currmacaddr\n", __func__); */
@@ -3335,18 +3398,15 @@ static int sxg_mac_set_address(struct net_device *dev, void *ptr)
 }
 #endif
 
-/*****************************************************************************/
-/*************  SXG DRIVER FUNCTIONS  (below) ********************************/
-/*****************************************************************************/
-
 /*
+ * SXG DRIVER FUNCTIONS  (below)
+ *
  * sxg_initialize_adapter - Initialize adapter
  *
  * Arguments -
  *	adapter		- A pointer to our adapter structure
  *
- * Return
- *	int
+ * Return - int
  */
 static int sxg_initialize_adapter(struct adapter_t *adapter)
 {
@@ -3360,8 +3420,10 @@ static int sxg_initialize_adapter(struct adapter_t *adapter)
 	RssIds = 1;		/*  XXXTODO  SXG_RSS_CPU_COUNT(adapter); */
 	IsrCount = adapter->MsiEnabled ? RssIds : 1;
 
-	/* Sanity check SXG_UCODE_REGS structure definition to */
-	/* make sure the length is correct */
+	/*
+	 * Sanity check SXG_UCODE_REGS structure definition to
+	 * make sure the length is correct
+	 */
 	ASSERT(sizeof(struct sxg_ucode_regs) == SXG_REGISTER_SIZE_PER_CPU);
 
 	/* Disable interrupts */
@@ -3410,11 +3472,12 @@ static int sxg_initialize_adapter(struct adapter_t *adapter)
 	/* Populate the card with receive buffers */
 	sxg_stock_rcv_buffers(adapter);
 
-	/* Initialize checksum offload capabilities.  At the moment */
-	/* we always enable IP and TCP receive checksums on the card. */
-	/* Depending on the checksum configuration specified by the */
-	/* user, we can choose to report or ignore the checksum */
-	/* information provided by the card. */
+	/*
+	 * Initialize checksum offload capabilities.  At the moment we always
+	 * enable IP and TCP receive checksums on the card. Depending on the
+	 * checksum configuration specified by the user, we can choose to
+	 * report or ignore the checksum information provided by the card.
+	 */
 	WRITE_REG(adapter->UcodeRegs[0].ReceiveChecksum,
 		  SXG_RCV_TCP_CSUM_ENABLED | SXG_RCV_IP_CSUM_ENABLED, TRUE);
 
@@ -3426,8 +3489,10 @@ static int sxg_initialize_adapter(struct adapter_t *adapter)
 	if (status != STATUS_SUCCESS) {
 		return (status);
 	}
-	/* Initialize Dead to FALSE. */
-	/* SlicCheckForHang or SlicDumpThread will take it from here. */
+	/*
+	 * Initialize Dead to FALSE.
+	 * SlicCheckForHang or SlicDumpThread will take it from here.
+	 */
 	adapter->Dead = FALSE;
 	adapter->PingOutstanding = FALSE;
 	adapter->State = SXG_STATE_RUNNING;
@@ -3465,8 +3530,10 @@ static int sxg_fill_descriptor_block(struct adapter_t *adapter,
 
 	ASSERT(RcvDescriptorBlockHdr);
 
-	/* If we don't have the resources to fill the descriptor block, */
-	/* return failure */
+	/*
+	 * If we don't have the resources to fill the descriptor block,
+	 * return failure
+	 */
 	if ((adapter->FreeRcvBufferCount < SXG_RCV_DESCRIPTORS_PER_BLOCK) ||
 	    SXG_RING_FULL(RcvRingInfo)) {
 		adapter->Stats.NoMem++;
@@ -3500,10 +3567,12 @@ static int sxg_fill_descriptor_block(struct adapter_t *adapter,
 	/* Add the descriptor block to receive descriptor ring 0 */
 	RingDescriptorCmd->Sgl = RcvDescriptorBlockHdr->PhysicalAddress;
 
-	/* RcvBuffersOnCard is not protected via the receive lock (see */
-	/* sxg_process_event_queue) We don't want to grap a lock every time a */
-	/* buffer is returned to us, so we use atomic interlocked functions */
-	/* instead. */
+	/*
+	 * RcvBuffersOnCard is not protected via the receive lock (see
+	 * sxg_process_event_queue) We don't want to grap a lock every time a
+	 * buffer is returned to us, so we use atomic interlocked functions
+	 * instead.
+	 */
 	adapter->RcvBuffersOnCard += SXG_RCV_DESCRIPTORS_PER_BLOCK;
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DscBlk",
@@ -3533,10 +3602,12 @@ static void sxg_stock_rcv_buffers(struct adapter_t *adapter)
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "StockBuf",
 		  adapter, adapter->RcvBuffersOnCard,
 		  adapter->FreeRcvBufferCount, adapter->AllRcvBlockCount);
-	/* First, see if we've got less than our minimum threshold of */
-	/* receive buffers, there isn't an allocation in progress, and */
-	/* we haven't exceeded our maximum.. get another block of buffers */
-	/* None of this needs to be SMP safe.  It's round numbers. */
+	/*
+	 * First, see if we've got less than our minimum threshold of
+	 * receive buffers, there isn't an allocation in progress, and
+	 * we haven't exceeded our maximum.. get another block of buffers
+	 * None of this needs to be SMP safe.  It's round numbers.
+	 */
 	if ((adapter->FreeRcvBufferCount < SXG_MIN_RCV_DATA_BUFFERS) &&
 	    (adapter->AllRcvBlockCount < SXG_MAX_RCV_BLOCKS) &&
 	    (adapter->AllocationsPending == 0)) {
@@ -3608,11 +3679,11 @@ static void sxg_complete_descriptor_blocks(struct adapter_t *adapter,
 	spin_lock(&adapter->RcvQLock);
 	ASSERT(Index != RcvRingInfo->Tail);
 	while (RcvRingInfo->Tail != Index) {
-		/* */
-		/* Locate the current Cmd (ring descriptor entry), and */
-		/* associated receive descriptor block, and advance */
-		/* the tail */
-		/* */
+		/*
+		 * Locate the current Cmd (ring descriptor entry), and
+		 * associated receive descriptor block, and advance
+		 * the tail
+		 */
 		SXG_RETURN_CMD(RingZero,
 			       RcvRingInfo,
 			       RingDescriptorCmd, RcvDescriptorBlockHdr);
@@ -3622,10 +3693,12 @@ static void sxg_complete_descriptor_blocks(struct adapter_t *adapter,
 
 		/* Clear the SGL field */
 		RingDescriptorCmd->Sgl = 0;
-		/* Attempt to refill it and hand it right back to the */
-		/* card.  If we fail to refill it, free the descriptor block */
-		/* header.  The card will be restocked later via the */
-		/* RcvBuffersOnCard test */
+		/*
+		 * Attempt to refill it and hand it right back to the
+		 * card.  If we fail to refill it, free the descriptor block
+		 * header.  The card will be restocked later via the
+		 * RcvBuffersOnCard test
+		 */
 		if (sxg_fill_descriptor_block(adapter, RcvDescriptorBlockHdr) ==
 		    STATUS_FAILURE) {
 			SXG_FREE_RCV_DESCRIPTOR_BLOCK(adapter,

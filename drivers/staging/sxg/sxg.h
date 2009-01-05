@@ -43,78 +43,78 @@
 #define __SXG_DRIVER_H__
 
 #define p_net_device struct net_device *
-// struct sxg_stats - Probably move these to someplace where
-// the slicstat (sxgstat?) program can get them.
+/*
+ * struct sxg_stats - Probably move these to someplace where
+ * the slicstat (sxgstat?) program can get them.
+ */
 struct sxg_stats {
-	// Xmt
-	u32				XmtNBL;				// Offload send NBL count
-	u64				DumbXmtBytes;		// Dumbnic send bytes
-	u64				SlowXmtBytes;		// Slowpath send bytes
-	u64				FastXmtBytes;		// Fastpath send bytes
-	u64				DumbXmtPkts;		// Dumbnic send packets
-	u64				SlowXmtPkts;		// Slowpath send packets
-	u64				FastXmtPkts;		// Fastpath send packets
-    u64				DumbXmtUcastPkts;	// directed packets
-    u64				DumbXmtMcastPkts;	// Multicast packets
-    u64				DumbXmtBcastPkts;	// OID_GEN_BROADCAST_FRAMES_RCV
-    u64				DumbXmtUcastBytes;	// OID_GEN_DIRECTED_BYTES_XMIT
-    u64				DumbXmtMcastBytes;	// OID_GEN_MULTICAST_BYTES_XMIT
-    u64				DumbXmtBcastBytes;	// OID_GEN_BROADCAST_BYTES_XMIT
-    u64				XmtErrors;			// OID_GEN_XMIT_ERROR
-    u64				XmtDiscards;		// OID_GEN_XMIT_DISCARDS
-	u64				XmtOk;				// OID_GEN_XMIT_OK
-	u64				XmtQLen;			// OID_GEN_TRANSMIT_QUEUE_LENGTH
-	u64				XmtZeroFull;		// Transmit ring zero full
-	// Rcv
-	u32				RcvNBL;				// Offload recieve NBL count
-	u64				DumbRcvBytes;		// dumbnic recv bytes
-    u64             DumbRcvUcastBytes;	// OID_GEN_DIRECTED_BYTES_RCV
-    u64             DumbRcvMcastBytes;	// OID_GEN_MULTICAST_BYTES_RCV
-    u64             DumbRcvBcastBytes;	// OID_GEN_BROADCAST_BYTES_RCV
-	u64				SlowRcvBytes;		// Slowpath recv bytes
-	u64				FastRcvBytes;		// Fastpath recv bytes
-    u64				DumbRcvPkts;		// OID_GEN_DIRECTED_FRAMES_RCV
-	u64				DumbRcvTcpPkts;		// See SxgCollectStats
-    u64				DumbRcvUcastPkts;	// directed packets
-    u64				DumbRcvMcastPkts;	// Multicast packets
-    u64				DumbRcvBcastPkts;	// OID_GEN_BROADCAST_FRAMES_RCV
-	u64				SlowRcvPkts;		// OID_GEN_DIRECTED_FRAMES_RCV
-    u64				RcvErrors;			// OID_GEN_RCV_ERROR
-    u64				RcvDiscards;		// OID_GEN_RCV_DISCARDS
-	u64				RcvNoBuffer;		// OID_GEN_RCV_NO_BUFFER
-    u64 			PdqFull;			// Processed Data Queue Full
-	u64				EventRingFull;		// Event ring full
-	// Verbose stats
-	u64				MaxSends;			// Max sends outstanding
-	u64				NoSglBuf;			// SGL buffer allocation failure
-	u64				SglFail;			// NDIS SGL failure
-	u64				SglAsync;			// NDIS SGL failure
-	u64				NoMem;				// Memory allocation failure
-	u64				NumInts;			// Interrupts
-	u64				FalseInts;			// Interrupt with ISR == 0
-	u64				XmtDrops;			// No sahara DRAM buffer for xmt
-	// Sahara receive status
-	u64				TransportCsum;		// SXG_RCV_STATUS_TRANSPORT_CSUM
-	u64				TransportUflow;		// SXG_RCV_STATUS_TRANSPORT_UFLOW
-	u64				TransportHdrLen;	// SXG_RCV_STATUS_TRANSPORT_HDRLEN
-	u64				NetworkCsum;		// SXG_RCV_STATUS_NETWORK_CSUM:
-	u64				NetworkUflow;		// SXG_RCV_STATUS_NETWORK_UFLOW:
-	u64				NetworkHdrLen;		// SXG_RCV_STATUS_NETWORK_HDRLEN:
-	u64				Parity;				// SXG_RCV_STATUS_PARITY
-	u64				LinkParity;			// SXG_RCV_STATUS_LINK_PARITY:
-	u64				LinkEarly;			// SXG_RCV_STATUS_LINK_EARLY:
-	u64				LinkBufOflow;		// SXG_RCV_STATUS_LINK_BUFOFLOW:
-	u64				LinkCode;			// SXG_RCV_STATUS_LINK_CODE:
-	u64				LinkDribble;		// SXG_RCV_STATUS_LINK_DRIBBLE:
-	u64				LinkCrc;			// SXG_RCV_STATUS_LINK_CRC:
-	u64				LinkOflow;			// SXG_RCV_STATUS_LINK_OFLOW:
-	u64				LinkUflow;			// SXG_RCV_STATUS_LINK_UFLOW:
+	/* Xmt */
+	u32	XmtNBL;			/* Offload send NBL count */
+	u64	DumbXmtBytes;		/* Dumbnic send bytes */
+	u64	SlowXmtBytes;		/* Slowpath send bytes */
+	u64	FastXmtBytes;		/* Fastpath send bytes */
+	u64	DumbXmtPkts;		/* Dumbnic send packets */
+	u64	SlowXmtPkts;		/* Slowpath send packets */
+	u64	FastXmtPkts;		/* Fastpath send packets */
+	u64	DumbXmtUcastPkts;	/* directed packets */
+	u64	DumbXmtMcastPkts;	/* Multicast packets */
+	u64	DumbXmtBcastPkts;	/* OID_GEN_BROADCAST_FRAMES_RCV */
+	u64	DumbXmtUcastBytes;	/* OID_GEN_DIRECTED_BYTES_XMIT */
+	u64	DumbXmtMcastBytes;	/* OID_GEN_MULTICAST_BYTES_XMIT */
+	u64	DumbXmtBcastBytes;	/* OID_GEN_BROADCAST_BYTES_XMIT */
+	u64	XmtErrors;			/* OID_GEN_XMIT_ERROR */
+	u64	XmtDiscards;		/* OID_GEN_XMIT_DISCARDS */
+	u64	XmtOk;				/* OID_GEN_XMIT_OK */
+	u64	XmtQLen;			/* OID_GEN_TRANSMIT_QUEUE_LENGTH */
+	u64	XmtZeroFull;		/* Transmit ring zero full */
+	/* Rcv */
+	u32	RcvNBL;				/* Offload recieve NBL count */
+	u64	DumbRcvBytes;		/* dumbnic recv bytes */
+	u64  	DumbRcvUcastBytes;	/* OID_GEN_DIRECTED_BYTES_RCV */
+	u64    	DumbRcvMcastBytes;	/* OID_GEN_MULTICAST_BYTES_RCV */
+	u64   	DumbRcvBcastBytes;	/* OID_GEN_BROADCAST_BYTES_RCV */
+	u64	SlowRcvBytes;		/* Slowpath recv bytes */
+	u64	FastRcvBytes;		/* Fastpath recv bytes */
+	u64	DumbRcvPkts;		/* OID_GEN_DIRECTED_FRAMES_RCV */
+	u64	DumbRcvTcpPkts;		/* See SxgCollectStats */
+	u64	DumbRcvUcastPkts;	/* directed packets */
+	u64	DumbRcvMcastPkts;	/* Multicast packets */
+	u64	DumbRcvBcastPkts;	/* OID_GEN_BROADCAST_FRAMES_RCV */
+	u64	SlowRcvPkts;		/* OID_GEN_DIRECTED_FRAMES_RCV */
+	u64	RcvErrors;		/* OID_GEN_RCV_ERROR */
+	u64	RcvDiscards;		/* OID_GEN_RCV_DISCARDS */
+	u64	RcvNoBuffer;		/* OID_GEN_RCV_NO_BUFFER */
+	u64 	PdqFull;		/* Processed Data Queue Full */
+	u64	EventRingFull;		/* Event ring full */
+	/* Verbose stats */
+	u64	MaxSends;		/* Max sends outstanding */
+	u64	NoSglBuf;		/* SGL buffer allocation failure */
+	u64	SglFail;		/* NDIS SGL failure */
+	u64	SglAsync;		/* NDIS SGL failure */
+	u64	NoMem;			/* Memory allocation failure */
+	u64	NumInts;		/* Interrupts */
+	u64	FalseInts;		/* Interrupt with ISR == 0 */
+	u64	XmtDrops;		/* No sahara DRAM buffer for xmt */
+	/* Sahara receive status */
+	u64	TransportCsum;		/* SXG_RCV_STATUS_TRANSPORT_CSUM */
+	u64	TransportUflow;		/* SXG_RCV_STATUS_TRANSPORT_UFLOW */
+	u64	TransportHdrLen;	/* SXG_RCV_STATUS_TRANSPORT_HDRLEN */
+	u64	NetworkCsum;		/* SXG_RCV_STATUS_NETWORK_CSUM: */
+	u64	NetworkUflow;		/* SXG_RCV_STATUS_NETWORK_UFLOW: */
+	u64	NetworkHdrLen;		/* SXG_RCV_STATUS_NETWORK_HDRLEN: */
+	u64	Parity;			/* SXG_RCV_STATUS_PARITY */
+	u64	LinkParity;		/* SXG_RCV_STATUS_LINK_PARITY: */
+	u64	LinkEarly;		/* SXG_RCV_STATUS_LINK_EARLY: */
+	u64	LinkBufOflow;		/* SXG_RCV_STATUS_LINK_BUFOFLOW: */
+	u64	LinkCode;		/* SXG_RCV_STATUS_LINK_CODE: */
+	u64	LinkDribble;		/* SXG_RCV_STATUS_LINK_DRIBBLE: */
+	u64	LinkCrc;		/* SXG_RCV_STATUS_LINK_CRC: */
+	u64	LinkOflow;		/* SXG_RCV_STATUS_LINK_OFLOW: */
+	u64	LinkUflow;		/* SXG_RCV_STATUS_LINK_UFLOW: */
 };
 
 
-/****************************************************************************
- * DUMB-NIC Send path definitions
- ****************************************************************************/
+/* DUMB-NIC Send path definitions */
 
 #define SXG_COMPLETE_DUMB_SEND(_pAdapt, _skb) {                     		    	\
 	ASSERT(_skb);													    			\
@@ -126,17 +126,17 @@ struct sxg_stats {
     dev_kfree_skb(_skb);                                                            \
 }
 
-// Locate current receive header buffer location.  Use this
-// instead of RcvDataHdr->VirtualAddress since the data
-// may have been offset by SXG_ADVANCE_MDL_OFFSET
+/*
+ * Locate current receive header buffer location.  Use this
+ * instead of RcvDataHdr->VirtualAddress since the data
+ * may have been offset by SXG_ADVANCE_MDL_OFFSET
+ */
 #define SXG_RECEIVE_DATA_LOCATION(_RcvDataHdr)        (_RcvDataHdr)->skb->data
 
-/************************************************************************
- * Dumb-NIC receive processing
- ************************************************************************/
-// Define an SXG_PACKET as an NDIS_PACKET
+/* Dumb-NIC receive processing */
+/* Define an SXG_PACKET as an NDIS_PACKET */
 #define PSXG_PACKET       struct sk_buff *
-// Indications array size
+/* Indications array size */
 #define SXG_RCV_ARRAYSIZE	64
 
 #define SXG_ALLOCATE_RCV_PACKET(_pAdapt, _RcvDataBufferHdr) {				\
@@ -156,9 +156,11 @@ struct sxg_stats {
     }                                                                       \
 }
 
-// Macro to add a NDIS_PACKET to an indication array
-// If we fill up our array of packet pointers, then indicate this
-// block up now and start on a new one.
+/*
+ * Macro to add a NDIS_PACKET to an indication array
+ * If we fill up our array of packet pointers, then indicate this
+ * block up now and start on a new one.
+ */
 #define	SXG_ADD_RCV_PACKET(_pAdapt, _Packet, _PrevPacket, _IndicationList, _NumPackets) { \
 	(_IndicationList)[_NumPackets] = (_Packet);										\
 	(_NumPackets)++;																\
@@ -182,7 +184,7 @@ struct sxg_stats {
 #define SXG_REINIATIALIZE_PACKET(_Packet)										\
 	{}  /*_NdisReinitializePacket(_Packet)*/  /*  this is not necessary with an skb */
 
-// Definitions to initialize Dumb-nic Receive NBLs
+/* Definitions to initialize Dumb-nic Receive NBLs */
 #define SXG_RCV_PACKET_BUFFER_HDR(_Packet) (((struct sxg_rcv_nbl_reserved *)((_Packet)->MiniportReservedEx))->RcvDataBufferHdr)
 
 #define SXG_RCV_SET_CHECKSUM_INFO(_Packet, _Cpi)	\
@@ -210,10 +212,10 @@ struct sxg_stats {
     skb_put(Packet, (_Event)->Length);						\
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Macros to free a receive data buffer and receive data descriptor block
-///////////////////////////////////////////////////////////////////////////////
-// NOTE - Lock must be held with RCV macros
+/*
+ * Macros to free a receive data buffer and receive data descriptor block
+ * NOTE - Lock must be held with RCV macros
+ */
 #define SXG_GET_RCV_DATA_BUFFER(_pAdapt, _Hdr) {								\
 	struct list_entry *_ple;										\
 	_Hdr = NULL;																\
@@ -246,7 +248,7 @@ struct sxg_stats {
 	InsertTailList(&(_pAdapt)->FreeRcvBlocks, &(_Hdr)->FreeList);			\
 }
 
-// SGL macros
+/* SGL macros */
 #define SXG_FREE_SGL_BUFFER(_pAdapt, _Sgl, _NB) {	\
 	spin_lock(&(_pAdapt)->SglQLock);		\
 	(_pAdapt)->FreeSglBufferCount++;		\
@@ -257,11 +259,13 @@ struct sxg_stats {
 	spin_unlock(&(_pAdapt)->SglQLock);		\
 }
 
-// Get an SGL buffer from the free queue.  The first part of this macro
-// attempts to keep ahead of buffer depletion by allocating more when
-// we hit a minimum threshold.  Note that we don't grab the lock
-// until after that.  We're dealing with round numbers here, so we don't need to,
-// and not grabbing it avoids a possible double-trip.
+/*
+ * Get an SGL buffer from the free queue.  The first part of this macro
+ * attempts to keep ahead of buffer depletion by allocating more when
+ * we hit a minimum threshold.  Note that we don't grab the lock
+ * until after that.  We're dealing with round numbers here, so we don't need to,
+ * and not grabbing it avoids a possible double-trip.
+ */
 #define SXG_GET_SGL_BUFFER(_pAdapt, _Sgl) {				\
 	struct list_entry *_ple;						\
 	if ((_pAdapt->FreeSglBufferCount < SXG_MIN_SGL_BUFFERS) &&	\
@@ -285,28 +289,30 @@ struct sxg_stats {
 	spin_unlock(&(_pAdapt)->SglQLock);				\
 }
 
-//
-//  struct sxg_multicast_address
-//
-// Linked list of multicast addresses.
+/*
+ * struct sxg_multicast_address
+ * Linked list of multicast addresses.
+ */
 struct sxg_multicast_address {
 	unsigned char							Address[6];
 	struct sxg_multicast_address	*Next;
 };
 
-// Structure to maintain chimney send and receive buffer queues.
-// This structure maintains NET_BUFFER_LIST queues that are
-// given to us via the Chimney MiniportTcpOffloadSend and
-// MiniportTcpOffloadReceive routines.  This structure DOES NOT
-// manage our data buffer queue
+/*
+ * Structure to maintain chimney send and receive buffer queues.
+ * This structure maintains NET_BUFFER_LIST queues that are
+ * given to us via the Chimney MiniportTcpOffloadSend and
+ * MiniportTcpOffloadReceive routines.  This structure DOES NOT
+ * manage our data buffer queue
+ */
 struct sxg_buffer_queue {
-	u32						Type;			// Slow or fast - See below
-	u32						Direction;		// Xmt or Rcv
-	u32						Bytes;			// Byte count
-	u32 *        			Head;			// Send queue head
-	u32 *        			Tail;			// Send queue tail
-//	PNET_BUFFER_LIST			NextNBL;		// Short cut - next NBL
-//	PNET_BUFFER					NextNB;			// Short cut - next NB
+	u32	Type;			/* Slow or fast - See below */
+	u32	Direction;		/* Xmt or Rcv */
+	u32	Bytes;			/* Byte count */
+	u32 *  	Head;			/* Send queue head */
+	u32 *  	Tail;			/* Send queue tail */
+/*	PNET_BUFFER_LIST	NextNBL;*/	/* Short cut - next NBL */
+/*	PNET_BUFFER		NextNB;	*/	/* Short cut - next NB */
 };
 
 #define		SXG_SLOW_SEND_BUFFER	0
@@ -329,64 +335,66 @@ struct sxg_buffer_queue {
 #define SXG_RSS_CPU_COUNT(_pAdapt) 								\
 	((_pAdapt)->RssEnabled 	?  NR_CPUS : 1)
 
-/****************************************************************************
- * DRIVER and ADAPTER structures
- ****************************************************************************/
+/* DRIVER and ADAPTER structures */
 
-// Adapter states - These states closely match the adapter states
-// documented in the DDK (with a few exceptions).
+/*
+ * Adapter states - These states closely match the adapter states
+ * documented in the DDK (with a few exceptions).
+ */
 enum SXG_STATE {
-	SXG_STATE_INITIALIZING,			// Initializing
-	SXG_STATE_BOOTDIAG,				// Boot-Diagnostic mode
-	SXG_STATE_PAUSING,				// Pausing
-	SXG_STATE_PAUSED,				// Paused
-	SXG_STATE_RUNNING,				// Running
-	SXG_STATE_RESETTING,			// Reset in progress
-	SXG_STATE_SLEEP,				// Sleeping
-	SXG_STATE_DIAG,					// Diagnostic mode
-	SXG_STATE_HALTING,				// Halting
-	SXG_STATE_HALTED,				// Down or not-initialized
-	SXG_STATE_SHUTDOWN				// shutdown
+	SXG_STATE_INITIALIZING,			/* Initializing */
+	SXG_STATE_BOOTDIAG,			/* Boot-Diagnostic mode */
+	SXG_STATE_PAUSING,			/* Pausing */
+	SXG_STATE_PAUSED,			/* Paused */
+	SXG_STATE_RUNNING,			/* Running */
+	SXG_STATE_RESETTING,			/* Reset in progress */
+	SXG_STATE_SLEEP,			/* Sleeping */
+	SXG_STATE_DIAG,				/* Diagnostic mode */
+	SXG_STATE_HALTING,			/* Halting */
+	SXG_STATE_HALTED,			/* Down or not-initialized */
+	SXG_STATE_SHUTDOWN			/* shutdown */
 };
 
-// Link state
+/* Link state */
 enum SXG_LINK_STATE {
 	SXG_LINK_DOWN,
 	SXG_LINK_UP
 };
 
-// Link initialization timeout in 100us units
-#define SXG_LINK_TIMEOUT	100000		// 10 Seconds - REDUCE!
+/* Link initialization timeout in 100us units */
+#define SXG_LINK_TIMEOUT	100000		/* 10 Seconds - REDUCE! */
 
 
-// Microcode file selection codes
+/* Microcode file selection codes */
 enum SXG_UCODE_SEL {
-	SXG_UCODE_SAHARA,				// Sahara ucode
-	SXG_UCODE_SDIAGCPU,				// Sahara CPU diagnostic ucode
-	SXG_UCODE_SDIAGSYS				// Sahara system diagnostic ucode
+	SXG_UCODE_SAHARA,			/* Sahara ucode */
+	SXG_UCODE_SDIAGCPU,			/* Sahara CPU diagnostic ucode */
+	SXG_UCODE_SDIAGSYS			/* Sahara system diagnostic ucode */
 };
 
 
 #define SXG_DISABLE_ALL_INTERRUPTS(_padapt) sxg_disable_interrupt(_padapt)
 #define SXG_ENABLE_ALL_INTERRUPTS(_padapt) sxg_enable_interrupt(_padapt)
 
-// This probably lives in a proto.h file.  Move later
+/* This probably lives in a proto.h file.  Move later */
 #define SXG_MULTICAST_PACKET(_pether) ((_pether)->ether_dhost[0] & 0x01)
 #define SXG_BROADCAST_PACKET(_pether) ((*(u32 *)(_pether)->ether_dhost == 0xFFFFFFFF) && \
 				(*(u16 *)&(_pether)->ether_dhost[4] == 0xFFFF))
 
-// For DbgPrints
+/* For DbgPrints */
 #define SXG_ID      DPFLTR_IHVNETWORK_ID
 #define SXG_ERROR   DPFLTR_ERROR_LEVEL
 
-//
-// struct sxg_driver structure -
-//
-// contains information about the sxg driver.  There is only
-// one of these, and it is defined as a global.
+/*
+ * struct sxg_driver structure -
+ *
+ * contains information about the sxg driver.  There is only
+ * one of these, and it is defined as a global.
+ */
+
 struct sxg_driver {
-	struct adapter_t	*Adapters;		// Linked list of adapters
-	ushort				AdapterID;		// Maintain unique adapter ID
+	struct adapter_t	*Adapters;	/* Linked list of adapters */
+	ushort			AdapterID;	/* Maintain unique adapter ID */
 };
 
 #ifdef STATUS_SUCCESS
@@ -404,12 +412,14 @@ struct sxg_driver {
 #define SLIC_MAX_CARDS              32
 #define SLIC_MAX_PORTS              4        /* Max # of ports per card   */
 #if SLIC_DUMP_ENABLED
-// Dump buffer size
-//
-// This cannot be bigger than the max DMA size the card supports,
-// given the current code structure in the host and ucode.
-// Mojave supports 16K, Oasis supports 16K-1, so
-// just set this at 15K, shouldnt make that much of a diff.
+
+/*
+ * Dump buffer size
+ * This cannot be bigger than the max DMA size the card supports,
+ * given the current code structure in the host and ucode.
+ * Mojave supports 16K, Oasis supports 16K-1, so
+ * just set this at 15K, shouldnt make that much of a diff.
+ */
 #define DUMP_BUF_SIZE               0x3C00
 #endif
 
@@ -560,123 +570,123 @@ struct adapter_t {
 	u32             rcv_interrupt_yields;
 	u32             intagg_period;
 	struct net_device_stats stats;
-	u32 *					MiniportHandle;		// Our miniport handle
-	enum SXG_STATE					State;				// Adapter state
-	enum SXG_LINK_STATE				LinkState;			// Link state
-	u64						LinkSpeed;			// Link Speed
-	u32						PowerState;			// NDIS power state
-	struct adapter_t   		*Next;				// Linked list
-	ushort						AdapterID;			// 1..n
+	u32 *			MiniportHandle;		/* Our miniport handle */
+	enum SXG_STATE 		State;			/* Adapter state */
+	enum SXG_LINK_STATE 	LinkState;		/* Link state */
+	u64			LinkSpeed;		/* Link Speed */
+	u32			PowerState;		/* NDIS power state */
+	struct adapter_t  	*Next;			/* Linked list */
+	ushort			AdapterID;		/* 1..n */
 	struct net_device *         netdev;
 	struct net_device *         next_netdevice;
-	struct pci_dev            * pcidev;
+	struct pci_dev            *pcidev;
 
-	struct sxg_multicast_address		*MulticastAddrs;		// Multicast list
-	u64     				MulticastMask;		// Multicast mask
-	u32 *					InterruptHandle;	// Register Interrupt handle
-	u32						InterruptLevel;		// From Resource list
-	u32						InterruptVector;	// From Resource list
-	spinlock_t	AdapterLock;	/* Serialize access adapter routines */
-	spinlock_t	Bit64RegLock;	/* For writing 64-bit addresses */
-	struct sxg_hw_regs			*HwRegs;				// Sahara HW Register Memory (BAR0/1)
-	struct sxg_ucode_regs			*UcodeRegs;			// Microcode Register Memory (BAR2/3)
-	struct sxg_tcb_regs			*TcbRegs;			// Same as Ucode regs - See sxghw.h
-	ushort                                  FrameSize;	              // Maximum frame size
-	u32 *					DmaHandle;			// NDIS DMA handle
-	u32 *					PacketPoolHandle;	// Used with NDIS 5.2 only.  Don't ifdef out
-	u32 *					BufferPoolHandle;	// Used with NDIS 5.2 only.  Don't ifdef out
-	u32						MacFilter;			// NDIS MAC Filter
-	struct sxg_event_ring			*EventRings;			// Host event rings.  1/CPU to 16 max
-	dma_addr_t              	PEventRings;		// Physical address
-	u32						NextEvent[SXG_MAX_RSS];	// Current location in ring
-	dma_addr_t          		PTcbBuffers;		// TCB Buffers - physical address
-	dma_addr_t	            	PTcbCompBuffers;	// TCB Composite Buffers - phys addr
-	struct sxg_xmt_ring				*XmtRings;			// Transmit rings
-	dma_addr_t		            PXmtRings;			// Transmit rings - physical address
-	struct sxg_ring_info				XmtRingZeroInfo;	// Transmit ring 0 info
+	struct sxg_multicast_address	*MulticastAddrs; /* Multicast list */
+	u64     		MulticastMask;		/* Multicast mask */
+	u32 			*InterruptHandle;	/* Register Interrupt handle */
+	u32			InterruptLevel;		/* From Resource list */
+	u32			InterruptVector;	/* From Resource list */
+	spinlock_t		AdapterLock;	/* Serialize access adapter routines */
+	spinlock_t		Bit64RegLock;	/* For writing 64-bit addresses */
+	struct sxg_hw_regs	*HwRegs;	/* Sahara HW Register Memory (BAR0/1) */
+	struct sxg_ucode_regs	*UcodeRegs;	/* Microcode Register Memory (BAR2/3) */
+	struct sxg_tcb_regs	*TcbRegs;	/* Same as Ucode regs - See sxghw.h */
+	ushort         	FrameSize;	/* Maximum frame size */
+	u32 *		DmaHandle;	/* NDIS DMA handle */
+	u32 *		PacketPoolHandle;	/* Used with NDIS 5.2 only.  Don't ifdef out */
+	u32 *		BufferPoolHandle;	/* Used with NDIS 5.2 only.  Don't ifdef out */
+	u32		MacFilter;		/* NDIS MAC Filter */
+	struct sxg_event_ring	*EventRings;	/* Host event rings.  1/CPU to 16 max */
+	dma_addr_t             	PEventRings;	/* Physical address */
+	u32		NextEvent[SXG_MAX_RSS];	/* Current location in ring */
+	dma_addr_t     	PTcbBuffers;		/* TCB Buffers - physical address */
+	dma_addr_t	PTcbCompBuffers;	/* TCB Composite Buffers - phys addr */
+	struct sxg_xmt_ring	*XmtRings;	/* Transmit rings */
+	dma_addr_t		PXmtRings;	/* Transmit rings - physical address */
+	struct sxg_ring_info	XmtRingZeroInfo;	/* Transmit ring 0 info */
+
 	spinlock_t	XmtZeroLock;	/* Transmit ring 0 lock */
-	u32 *					XmtRingZeroIndex;	// Shared XMT ring 0 index
-	dma_addr_t          		PXmtRingZeroIndex;	// Shared XMT ring 0 index - physical
-	struct list_entry					FreeProtocolHeaders;// Free protocol headers
-	u32						FreeProtoHdrCount;	// Count
-	void *						ProtocolHeaders;	// Block of protocol header
-	dma_addr_t	            	PProtocolHeaders;	// Block of protocol headers - phys
+	u32 *		XmtRingZeroIndex;	/* Shared XMT ring 0 index */
+	dma_addr_t     	PXmtRingZeroIndex;	/* Shared XMT ring 0 index - physical */
+	struct list_entry	FreeProtocolHeaders;/* Free protocol headers */
+	u32		FreeProtoHdrCount;	/* Count */
+	void *		ProtocolHeaders;	/* Block of protocol header */
+	dma_addr_t	PProtocolHeaders;	/* Block of protocol headers - phys */
 
-	struct sxg_rcv_ring		*RcvRings;			// Receive rings
-	dma_addr_t	            	PRcvRings;			// Receive rings - physical address
-	struct sxg_ring_info		RcvRingZeroInfo;	// Receive ring 0 info
+	struct sxg_rcv_ring	*RcvRings;	/* Receive rings */
+	dma_addr_t	PRcvRings;		/* Receive rings - physical address */
+	struct sxg_ring_info	RcvRingZeroInfo;	/* Receive ring 0 info */
 
-	u32 *					Isr;				// Interrupt status register
-	dma_addr_t	            	PIsr;				// ISR - physical address
-	u32						IsrCopy[SXG_MAX_RSS];	// Copy of ISR
-	ushort						InterruptsEnabled;	// Bitmask of enabled vectors
-	unsigned char *						IndirectionTable;	// RSS indirection table
-	dma_addr_t	            	PIndirectionTable;	// Physical address
-	ushort						RssTableSize;		// From NDIS_RECEIVE_SCALE_PARAMETERS
-	ushort						HashKeySize;		// From NDIS_RECEIVE_SCALE_PARAMETERS
-	unsigned char						HashSecretKey[40];	// rss key
-	u32						HashInformation;
-	// Receive buffer queues
-	spinlock_t	RcvQLock;	/* Receive Queue Lock */
-	struct list_entry					FreeRcvBuffers;		// Free SXG_DATA_BUFFER queue
-	struct list_entry					FreeRcvBlocks;		// Free SXG_RCV_DESCRIPTOR_BLOCK Q
-	struct list_entry					AllRcvBlocks;		// All SXG_RCV_BLOCKs
-	ushort						FreeRcvBufferCount;	// Number of free rcv data buffers
-	ushort						FreeRcvBlockCount;	// # of free rcv descriptor blocks
-	ushort						AllRcvBlockCount;	// Number of total receive blocks
-	ushort						ReceiveBufferSize;	// SXG_RCV_DATA/JUMBO_BUFFER_SIZE only
-	u32						AllocationsPending;	// Receive allocation pending
-	u32						RcvBuffersOnCard;	// SXG_DATA_BUFFERS owned by card
-	// SGL buffers
+	u32 *		Isr;		/* Interrupt status register */
+	dma_addr_t	PIsr;		/* ISR - physical address */
+	u32		IsrCopy[SXG_MAX_RSS];	/* Copy of ISR */
+	ushort		InterruptsEnabled;	/* Bitmask of enabled vectors */
+	unsigned char 	*IndirectionTable;	/* RSS indirection table */
+	dma_addr_t	PIndirectionTable;	/* Physical address */
+	ushort		RssTableSize;		/* From NDIS_RECEIVE_SCALE_PARAMETERS */
+	ushort		HashKeySize;		/* From NDIS_RECEIVE_SCALE_PARAMETERS */
+	unsigned char	HashSecretKey[40];	/* rss key */
+	u32		HashInformation;
+	/* Receive buffer queues */
+	spinlock_t      RcvQLock;       	/* Receive Queue Lock */
+	struct list_entry	FreeRcvBuffers;		/* Free SXG_DATA_BUFFER queue */
+	struct list_entry	FreeRcvBlocks;		/* Free SXG_RCV_DESCRIPTOR_BLOCK Q */
+	struct list_entry	AllRcvBlocks;		/* All SXG_RCV_BLOCKs */
+	ushort		FreeRcvBufferCount;	/* Number of free rcv data buffers */
+	ushort		FreeRcvBlockCount;	/* # of free rcv descriptor blocks */
+	ushort		AllRcvBlockCount;	/* Number of total receive blocks */
+	ushort		ReceiveBufferSize;	/* SXG_RCV_DATA/JUMBO_BUFFER_SIZE only */
+	u32		AllocationsPending;	/* Receive allocation pending */
+	u32		RcvBuffersOnCard;	/* SXG_DATA_BUFFERS owned by card */
+	/* SGL buffers */
 	spinlock_t	SglQLock;	/* SGL Queue Lock */
-	struct list_entry					FreeSglBuffers;		// Free SXG_SCATTER_GATHER
-	struct list_entry					AllSglBuffers;		// All SXG_SCATTER_GATHER
-	ushort						FreeSglBufferCount;	// Number of free SGL buffers
-	ushort						AllSglBufferCount;	// Number of total SGL buffers
-	u32						CurrentTime;		// Tick count
-	u32						FastpathConnections;// # of fastpath connections
-	// Various single-bit flags:
-	u32						BasicAllocations:1;	// Locks and listheads
-	u32						IntRegistered:1;	// Interrupt registered
-	u32						PingOutstanding:1;	// Ping outstanding to card
-	u32						Dead:1;				// Card dead
-	u32						DumpDriver:1;		// OID_SLIC_DRIVER_DUMP request
-	u32						DumpCard:1;			// OID_SLIC_CARD_DUMP request
-	u32						DumpCmdRunning:1;	// Dump command in progress
-	u32						DebugRunning:1;		// AGDB debug in progress
-	u32						JumboEnabled:1;		// Jumbo frames enabled
-	u32						MsiEnabled:1;		// MSI interrupt enabled
-	u32						RssEnabled:1;		// RSS Enabled
-	u32						FailOnBadEeprom:1;	// Fail on Bad Eeprom
-	u32						DiagStart:1;		// Init adapter for diagnostic start
-	// Stats
-	u32						PendingRcvCount;	// Outstanding rcv indications
-	u32						PendingXmtCount;	// Outstanding send requests
-	struct sxg_stats				Stats;				// Statistics
-	u32						ReassBufs;			// Number of reassembly buffers
-	// Card Crash Info
-	ushort						CrashLocation;		// Microcode crash location
-	unsigned char						CrashCpu;			// Sahara CPU ID
-	// Diagnostics
-	//	PDIAG_CMD					DiagCmds;			// List of free diagnostic commands
-	//	PDIAG_BUFFER				DiagBuffers;		// List of free diagnostic buffers
-	//	PDIAG_REQ					DiagReqQ;			// List of outstanding (asynchronous) diag requests
-	//	u32						DiagCmdTimeout;		// Time out for diag cmds (seconds) XXXTODO - replace with SXG_PARAM var?
-	//	unsigned char						DiagDmaDesc[DMA_CPU_CTXS];		// Free DMA descriptors bit field (32 CPU ctx * 8 DMA ctx)
-
-	/////////////////////////////////////////////////////////////////////
-	// Put preprocessor-conditional fields at the end so we don't
-	// have to recompile sxgdbg everytime we reconfigure the driver
-	/////////////////////////////////////////////////////////////////////
+	struct list_entry	FreeSglBuffers;		/* Free struct sxg_scatter_gather */
+	struct list_entry	AllSglBuffers;		/* All struct sxg_scatter_gather */
+	ushort		FreeSglBufferCount;	/* Number of free SGL buffers */
+	ushort		AllSglBufferCount;	/* Number of total SGL buffers */
+	u32		CurrentTime;		/* Tick count */
+	u32		FastpathConnections;/* # of fastpath connections */
+	/* Various single-bit flags: */
+	u32		BasicAllocations:1;	/* Locks and listheads */
+	u32		IntRegistered:1;	/* Interrupt registered */
+	u32		PingOutstanding:1;	/* Ping outstanding to card */
+	u32		Dead:1;				/* Card dead */
+	u32		DumpDriver:1;		/* OID_SLIC_DRIVER_DUMP request */
+	u32		DumpCard:1;			/* OID_SLIC_CARD_DUMP request */
+	u32		DumpCmdRunning:1;	/* Dump command in progress */
+	u32		DebugRunning:1;		/* AGDB debug in progress */
+	u32		JumboEnabled:1;		/* Jumbo frames enabled */
+	u32		MsiEnabled:1;		/* MSI interrupt enabled */
+	u32		RssEnabled:1;		/* RSS Enabled */
+	u32		FailOnBadEeprom:1;	/* Fail on Bad Eeprom */
+	u32		DiagStart:1;		/* Init adapter for diagnostic start */
+	/* Stats */
+	u32		PendingRcvCount;	/* Outstanding rcv indications */
+	u32		PendingXmtCount;	/* Outstanding send requests */
+	struct sxg_stats	Stats;				/* Statistics */
+	u32		ReassBufs;			/* Number of reassembly buffers */
+	/* Card Crash Info */
+	ushort		CrashLocation;		/* Microcode crash location */
+	unsigned char	CrashCpu;			/* Sahara CPU ID */
+	/* Diagnostics */
+	/*	PDIAG_CMD	DiagCmds; */			/* List of free diagnostic commands */
+	/*	PDIAG_BUFFER	DiagBuffers; */		/* List of free diagnostic buffers */
+	/*	PDIAG_REQ	DiagReqQ; */			/* List of outstanding (asynchronous) diag requests */
+	/*	u32		DiagCmdTimeout; */		/* Time out for diag cmds (seconds) XXXTODO - replace with SXG_PARAM var? */
+	/*	unsigned char	DiagDmaDesc[DMA_CPU_CTXS]; */		/* Free DMA descriptors bit field (32 CPU ctx * 8 DMA ctx) */
+	/*
+	 * Put preprocessor-conditional fields at the end so we don't
+	 * have to recompile sxgdbg everytime we reconfigure the driver
+	 */
 #if defined(CONFIG_X86)
-	u32						AddrUpper;			// Upper 32 bits of 64-bit register
+	u32		AddrUpper;			/* Upper 32 bits of 64-bit register */
 #endif
-	//#if SXG_FAILURE_DUMP
-	//	NDIS_EVENT					DumpThreadEvent;	// syncronize dump thread
-	//	BOOLEAN						DumpThreadRunning;	// termination flag
-	//	PSXG_DUMP_CMD				DumpBuffer;			// 68k - Cmd and Buffer
-	//	dma_addr_t		PDumpBuffer;		// Physical address
-	//#endif // SXG_FAILURE_DUMP
+	/*#if SXG_FAILURE_DUMP */
+	/*	NDIS_EVENT	DumpThreadEvent; */	/* syncronize dump thread */
+	/*	BOOLEAN		DumpThreadRunning; */	/* termination flag */
+	/*	PSXG_DUMP_CMD	DumpBuffer; */			/* 68k - Cmd and Buffer */
+	/*	dma_addr_t	PDumpBuffer; */		/* Physical address */
+	/*#endif */ /* SXG_FAILURE_DUMP */
 
 };
 
@@ -685,12 +695,10 @@ struct adapter_t {
 #define SLIC_DUMP_IN_PROGRESS    2
 #define SLIC_DUMP_DONE           3
 
-/****************************************************************************
- *
+/*
  * Microcode crash information structure.  This
  * structure is written out to the card's SRAM when the microcode panic's.
- *
- ****************************************************************************/
+ */
 struct slic_crash_info {
     ushort  cpu_id;
     ushort  crash_pc;

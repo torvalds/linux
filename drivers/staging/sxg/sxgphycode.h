@@ -1,23 +1,20 @@
-/*
+/********************************************************************
  * Copyright (C) 1997-2008 Alacritech, Inc. All rights reserved
  *
  * sxgphycode.h:
  *
  * This file PHY microcode and register initialization data.
- */
+ ********************************************************************/
 
-/**********************************************************************
+/*
  * PHY Microcode
  *
  * The following contains both PHY microcode and PHY register
  * initialization data.  It is specific to both the PHY and the
  * type of transceiver.
- *
- **********************************************************************/
-
-/*
- * Download for AEL2005C PHY with SR/LR transceiver (10GBASE-SR or 10GBASE-LR)
  */
+
+/* Download for AEL2005C PHY with SR/LR transceiver (10GBASE-SR or 10GBASE-LR) */
 static struct phy_ucode PhyUcode[] = {
 	/*
 	 * NOTE:  An address of 0 is a special case.  When the download routine

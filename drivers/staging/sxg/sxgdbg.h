@@ -100,9 +100,7 @@ struct trace_entry {
         u32   arg4;           /* Caller arg4 */
 };
 
-/*
- * Driver types for driver field in struct trace_entry
- */
+/* Driver types for driver field in struct trace_entry */
 #define TRACE_SXG             1
 #define TRACE_VPCI            2
 #define TRACE_SLIC            3
@@ -129,11 +127,7 @@ struct sxg_trace_buffer {
 #define TRACE_NOISY             10  /* Everything in the world */
 
 
-/**********************************************************************
- *
- * The macros themselves -
- *
- *********************************************************************/
+/* The macros themselves */
 #if ATK_TRACE_ENABLED
 #define SXG_TRACE_INIT(buffer, tlevel)				\
 {								\
@@ -146,9 +140,7 @@ struct sxg_trace_buffer {
 #define SXG_TRACE_INIT(buffer, tlevel)
 #endif
 
-/*
- * The trace macro.  This is active only if ATK_TRACE_ENABLED is set.
- */
+/*The trace macro.  This is active only if ATK_TRACE_ENABLED is set. */
 #if ATK_TRACE_ENABLED
 #define SXG_TRACE(tdriver, buffer, tlevel, tname, a1, a2, a3, a4) {        \
         if ((buffer) && ((buffer)->level >= (tlevel))) {                      \

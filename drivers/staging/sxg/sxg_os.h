@@ -128,7 +128,7 @@ static __inline struct list_entry *RemoveTailList(struct list_entry *l)
 #define SLIC_TIMESTAMP(value)
 #endif
 
-/******************  SXG DEFINES  *****************************************/
+/* SXG DEFINES */
 
 #ifdef  ATKDBG
 #define SXG_TIMESTAMP(value) {                                             \
