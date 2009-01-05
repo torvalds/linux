@@ -123,8 +123,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 	/* Wait for mbx cmd completion until timeout */
 
-	if (!abort_active && io_lock_on) {
-
+	if ((!abort_active && io_lock_on) || IS_NOPOLLING_TYPE(ha)) {
 		set_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 
 		if (IS_FWI2_CAPABLE(ha))
@@ -218,7 +217,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	/* Clean up */
 	ha->mcp = NULL;
 
-	if (abort_active || !io_lock_on) {
+	if ((abort_active || !io_lock_on) && !IS_NOPOLLING_TYPE(ha)) {
 		DEBUG11(printk("%s(%ld): checking for additional resp "
 		    "interrupt.\n", __func__, base_vha->host_no));
 

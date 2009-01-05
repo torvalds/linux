@@ -1329,6 +1329,8 @@ qla24xx_disable_intrs(struct qla_hw_data *ha)
 	unsigned long flags = 0;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 
+	if (IS_NOPOLLING_TYPE(ha))
+		return;
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	ha->interrupts_on = 0;
 	WRT_REG_DWORD(&reg->ictrl, 0);

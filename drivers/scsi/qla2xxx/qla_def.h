@@ -2370,6 +2370,8 @@ struct qla_hw_data {
 				IS_QLA84XX(ha))
 #define IS_QLA2XXX_MIDTYPE(ha)	(IS_QLA24XX(ha) || IS_QLA84XX(ha) || \
 				IS_QLA25XX(ha))
+#define IS_NOPOLLING_TYPE(ha)	(IS_QLA25XX(ha) && \
+				(ha)->flags.msix_enabled)
 
 #define IS_IIDMA_CAPABLE(ha)    ((ha)->device_type & DT_IIDMA)
 #define IS_FWI2_CAPABLE(ha)     ((ha)->device_type & DT_FWI2)
