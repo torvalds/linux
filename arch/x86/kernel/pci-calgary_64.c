@@ -445,10 +445,12 @@ error:
 	return 0;
 }
 
-static dma_addr_t calgary_map_single(struct device *dev, phys_addr_t paddr,
-	size_t size, int direction)
+static dma_addr_t calgary_map_page(struct device *dev, struct page *page,
+				   unsigned long offset, size_t size,
+				   enum dma_data_direction dir,
+				   struct dma_attrs *attrs)
 {
-	void *vaddr = phys_to_virt(paddr);
+	void *vaddr = page_address(page) + offset;
 	unsigned long uaddr;
 	unsigned int npages;
 	struct iommu_table *tbl = find_iommu_table(dev);
@@ -456,17 +458,32 @@ static dma_addr_t calgary_map_single(struct device *dev, phys_addr_t paddr,
 	uaddr = (unsigned long)vaddr;
 	npages = iommu_num_pages(uaddr, size, PAGE_SIZE);
 
-	return iommu_alloc(dev, tbl, vaddr, npages, direction);
+	return iommu_alloc(dev, tbl, vaddr, npages, dir);
 }
 
-static void calgary_unmap_single(struct device *dev, dma_addr_t dma_handle,
-	size_t size, int direction)
+static dma_addr_t calgary_map_single(struct device *dev, phys_addr_t paddr,
+				     size_t size, int direction)
+{
+	return calgary_map_page(dev, pfn_to_page(paddr >> PAGE_SHIFT),
+				paddr & ~PAGE_MASK, size,
+				direction, NULL);
+}
+
+static void calgary_unmap_page(struct device *dev, dma_addr_t dma_addr,
+			       size_t size, enum dma_data_direction dir,
+			       struct dma_attrs *attrs)
 {
 	struct iommu_table *tbl = find_iommu_table(dev);
 	unsigned int npages;
 
-	npages = iommu_num_pages(dma_handle, size, PAGE_SIZE);
-	iommu_free(tbl, dma_handle, npages);
+	npages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
+	iommu_free(tbl, dma_addr, npages);
+}
+
+static void calgary_unmap_single(struct device *dev, dma_addr_t dma_handle,
+				 size_t size, int direction)
+{
+	calgary_unmap_page(dev, dma_handle, size, direction, NULL);
 }
 
 static void* calgary_alloc_coherent(struct device *dev, size_t size,
@@ -522,6 +539,8 @@ static struct dma_mapping_ops calgary_dma_ops = {
 	.unmap_single = calgary_unmap_single,
 	.map_sg = calgary_map_sg,
 	.unmap_sg = calgary_unmap_sg,
+	.map_page = calgary_map_page,
+	.unmap_page = calgary_unmap_page,
 };
 
 static inline void __iomem * busno_to_bbar(unsigned char num)
