@@ -1091,7 +1091,6 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 
    The two functions bellow implements the newer ioctls
 */
-#if 0
 static int vidioc_enum_framesizes(struct file *filp, void *priv,
 				  struct v4l2_frmsizeenum *fsize)
 {
@@ -1133,7 +1132,6 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 
 	return 0;
 }
-#endif
 
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 {
@@ -1819,10 +1817,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_frequency       = vidioc_s_frequency,
 	.vidioc_g_parm            = vidioc_g_parm,
 	.vidioc_s_parm            = vidioc_s_parm,
-#if 0  /* FIXME take out after 2.6.29-rc1 merge happens */
 	.vidioc_enum_framesizes   = vidioc_enum_framesizes,
 	.vidioc_enum_frameintervals = vidioc_enum_frameintervals,
-#endif
 	.vidioc_cropcap           = vidioc_cropcap,
 	.vidioc_g_crop            = vidioc_g_crop,
 	.vidioc_s_crop            = vidioc_s_crop,
