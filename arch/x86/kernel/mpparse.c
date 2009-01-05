@@ -17,7 +17,6 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/smp.h>
-#include <linux/acpi.h>
 
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
