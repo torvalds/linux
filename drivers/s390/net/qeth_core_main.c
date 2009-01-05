@@ -1685,6 +1685,7 @@ int qeth_send_control_data(struct qeth_card *card, int len,
 	unsigned long flags;
 	struct qeth_reply *reply = NULL;
 	unsigned long timeout;
+	struct qeth_ipa_cmd *cmd;
 
 	QETH_DBF_TEXT(TRACE, 2, "sendctl");
 
@@ -1731,17 +1732,34 @@ int qeth_send_control_data(struct qeth_card *card, int len,
 		wake_up(&card->wait_q);
 		return rc;
 	}
-	while (!atomic_read(&reply->received)) {
-		if (time_after(jiffies, timeout)) {
-			spin_lock_irqsave(&reply->card->lock, flags);
-			list_del_init(&reply->list);
-			spin_unlock_irqrestore(&reply->card->lock, flags);
-			reply->rc = -ETIME;
-			atomic_inc(&reply->received);
-			wake_up(&reply->wait_q);
-		}
-		cpu_relax();
-	};
+
+	/* we have only one long running ipassist, since we can ensure
+	   process context of this command we can sleep */
+	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	if ((cmd->hdr.command == IPA_CMD_SETIP) &&
+	    (cmd->hdr.prot_version == QETH_PROT_IPV4)) {
+		if (!wait_event_timeout(reply->wait_q,
+		    atomic_read(&reply->received), timeout))
+			goto time_err;
+	} else {
+		while (!atomic_read(&reply->received)) {
+			if (time_after(jiffies, timeout))
+				goto time_err;
+			cpu_relax();
+		};
+	}
+
+	rc = reply->rc;
+	qeth_put_reply(reply);
+	return rc;
+
+time_err:
+	spin_lock_irqsave(&reply->card->lock, flags);
+	list_del_init(&reply->list);
+	spin_unlock_irqrestore(&reply->card->lock, flags);
+	reply->rc = -ETIME;
+	atomic_inc(&reply->received);
+	wake_up(&reply->wait_q);
 	rc = reply->rc;
 	qeth_put_reply(reply);
 	return rc;
