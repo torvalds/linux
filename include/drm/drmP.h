@@ -688,7 +688,6 @@ struct drm_driver {
 	int (*kernel_context_switch) (struct drm_device *dev, int old,
 				      int new);
 	void (*kernel_context_switch_unlock) (struct drm_device *dev);
-	int (*dri_library_name) (struct drm_device *dev, char *buf);
 
 	/**
 	 * get_vblank_counter - get raw hardware vblank counter

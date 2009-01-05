@@ -122,20 +122,6 @@ void drm_sysfs_destroy(void)
 	class_destroy(drm_class);
 }
 
-static ssize_t show_dri(struct device *device, struct device_attribute *attr,
-			char *buf)
-{
-	struct drm_minor *drm_minor = to_drm_minor(device);
-	struct drm_device *drm_dev = drm_minor->dev;
-	if (drm_dev->driver->dri_library_name)
-		return drm_dev->driver->dri_library_name(drm_dev, buf);
-	return snprintf(buf, PAGE_SIZE, "%s\n", drm_dev->driver->pci_driver.name);
-}
-
-static struct device_attribute device_attrs[] = {
-	__ATTR(dri_library_name, S_IRUGO, show_dri, NULL),
-};
-
 /**
  * drm_sysfs_device_release - do nothing
  * @dev: Linux device
@@ -478,7 +464,6 @@ void drm_sysfs_hotplug_event(struct drm_device *dev)
 int drm_sysfs_device_add(struct drm_minor *minor)
 {
 	int err;
-	int i, j;
 	char *minor_str;
 
 	minor->kdev.parent = &minor->dev->pdev->dev;
@@ -500,18 +485,8 @@ int drm_sysfs_device_add(struct drm_minor *minor)
 		goto err_out;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(device_attrs); i++) {
-		err = device_create_file(&minor->kdev, &device_attrs[i]);
-		if (err)
-			goto err_out_files;
-	}
-
 	return 0;
 
-err_out_files:
-	if (i > 0)
-		for (j = 0; j < i; j++)
-			device_remove_file(&minor->kdev, &device_attrs[j]);
 	device_unregister(&minor->kdev);
 err_out:
 
@@ -527,9 +502,5 @@ err_out:
  */
 void drm_sysfs_device_remove(struct drm_minor *minor)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(device_attrs); i++)
-		device_remove_file(&minor->kdev, &device_attrs[i]);
 	device_unregister(&minor->kdev);
 }

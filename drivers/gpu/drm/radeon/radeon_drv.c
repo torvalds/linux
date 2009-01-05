@@ -41,17 +41,6 @@ int radeon_no_wb;
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
 
-static int dri_library_name(struct drm_device *dev, char *buf)
-{
-	drm_radeon_private_t *dev_priv = dev->dev_private;
-	int family = dev_priv->flags & RADEON_FAMILY_MASK;
-
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-		        (family < CHIP_R200) ? "radeon" :
-		        ((family < CHIP_R300) ? "r200" :
-		        "r300"));
-}
-
 static int radeon_suspend(struct drm_device *dev, pm_message_t state)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -95,7 +84,6 @@ static struct drm_driver driver = {
 	.get_vblank_counter = radeon_get_vblank_counter,
 	.enable_vblank = radeon_enable_vblank,
 	.disable_vblank = radeon_disable_vblank,
-	.dri_library_name = dri_library_name,
 	.master_create = radeon_master_create,
 	.master_destroy = radeon_master_destroy,
 	.irq_preinstall = radeon_driver_irq_preinstall,

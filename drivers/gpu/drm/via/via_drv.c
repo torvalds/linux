@@ -28,11 +28,6 @@
 
 #include "drm_pciids.h"
 
-static int dri_library_name(struct drm_device *dev, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "unichrome");
-}
-
 static struct pci_device_id pciidlist[] = {
 	viadrv_PCI_IDS
 };
@@ -52,7 +47,6 @@ static struct drm_driver driver = {
 	.irq_uninstall = via_driver_irq_uninstall,
 	.irq_handler = via_driver_irq_handler,
 	.dma_quiescent = via_driver_dma_quiescent,
-	.dri_library_name = dri_library_name,
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.reclaim_buffers_locked = NULL,
 	.reclaim_buffers_idlelocked = via_reclaim_buffers_locked,
