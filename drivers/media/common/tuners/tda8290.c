@@ -766,7 +766,8 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 	fe->ops.analog_ops.info.name = name;
 
 	if (priv->ver & TDA8290) {
-		tda8290_init_tuner(fe);
+		if (priv->ver & (TDA8275 | TDA8275A))
+			tda8290_init_tuner(fe);
 		tda8290_init_if(fe);
 	} else if (priv->ver & TDA8295)
 		tda8295_init_if(fe);
