@@ -371,3 +371,22 @@ Found in hex form in kernel source, but source allegedly available at
 http://alteon.shareable.org/
 
 --------------------------------------------------------------------------
+
+Driver: tigon3 -- Broadcom Tigon3 based gigabit Ethernet cards
+
+File: tigon/tg3.bin
+File: tigon/tg3_tso.bin
+File: tigon/tg3_tso5.bin
+
+Licence:
+ * Firmware is:
+ *	Derived from proprietary unpublished source code,
+ *	Copyright (C) 2000-2003 Broadcom Corporation.
+ *
+ *	Permission is hereby granted for the distribution of this firmware
+ *	data in hexadecimal or equivalent format, provided this copyright
+ *	notice is accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
