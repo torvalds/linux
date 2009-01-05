@@ -22,6 +22,7 @@
 
 #include "op_x86_model.h"
 #include "op_counter.h"
+#include "../../../drivers/oprofile/cpu_buffer.h"
 
 #define NUM_COUNTERS 4
 #define NUM_CONTROLS 4
@@ -60,51 +61,16 @@ static unsigned long reset_value[NUM_COUNTERS];
 #define IBS_OP_LOW_VALID_BIT		(1ULL<<18)	/* bit 18 */
 #define IBS_OP_LOW_ENABLE		(1ULL<<17)	/* bit 17 */
 
-/* Codes used in cpu_buffer.c */
-/* This produces duplicate code, need to be fixed */
-#define IBS_FETCH_BEGIN         (1UL << 4)
-#define IBS_OP_BEGIN            (1UL << 5)
-
 /*
  * The function interface needs to be fixed, something like add
  * data. Should then be added to linux/oprofile.h.
  */
-extern void
-oprofile_add_ibs_sample(struct pt_regs * const regs,
-			unsigned int * const ibs_sample, int ibs_code);
+extern
+void oprofile_add_data(struct op_entry *entry, struct pt_regs * const regs,
+		       unsigned long pc, int code, int size);
 
-struct ibs_fetch_sample {
-	/* MSRC001_1031 IBS Fetch Linear Address Register */
-	unsigned int ibs_fetch_lin_addr_low;
-	unsigned int ibs_fetch_lin_addr_high;
-	/* MSRC001_1030 IBS Fetch Control Register */
-	unsigned int ibs_fetch_ctl_low;
-	unsigned int ibs_fetch_ctl_high;
-	/* MSRC001_1032 IBS Fetch Physical Address Register */
-	unsigned int ibs_fetch_phys_addr_low;
-	unsigned int ibs_fetch_phys_addr_high;
-};
-
-struct ibs_op_sample {
-	/* MSRC001_1034 IBS Op Logical Address Register (IbsRIP) */
-	unsigned int ibs_op_rip_low;
-	unsigned int ibs_op_rip_high;
-	/* MSRC001_1035 IBS Op Data Register */
-	unsigned int ibs_op_data1_low;
-	unsigned int ibs_op_data1_high;
-	/* MSRC001_1036 IBS Op Data 2 Register */
-	unsigned int ibs_op_data2_low;
-	unsigned int ibs_op_data2_high;
-	/* MSRC001_1037 IBS Op Data 3 Register */
-	unsigned int ibs_op_data3_low;
-	unsigned int ibs_op_data3_high;
-	/* MSRC001_1038 IBS DC Linear Address Register (IbsDcLinAd) */
-	unsigned int ibs_dc_linear_low;
-	unsigned int ibs_dc_linear_high;
-	/* MSRC001_1039 IBS DC Physical Address Register (IbsDcPhysAd) */
-	unsigned int ibs_dc_phys_low;
-	unsigned int ibs_dc_phys_high;
-};
+#define IBS_FETCH_SIZE	6
+#define IBS_OP_SIZE	12
 
 static int has_ibs;	/* AMD Family10h and later */
 
@@ -197,9 +163,9 @@ static inline int
 op_amd_handle_ibs(struct pt_regs * const regs,
 		  struct op_msrs const * const msrs)
 {
-	unsigned int low, high;
-	struct ibs_fetch_sample ibs_fetch;
-	struct ibs_op_sample ibs_op;
+	u32 low, high;
+	u64 msr;
+	struct op_entry entry;
 
 	if (!has_ibs)
 		return 1;
@@ -207,21 +173,19 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 	if (ibs_config.fetch_enabled) {
 		rdmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 		if (high & IBS_FETCH_HIGH_VALID_BIT) {
-			ibs_fetch.ibs_fetch_ctl_high = high;
-			ibs_fetch.ibs_fetch_ctl_low = low;
-			rdmsr(MSR_AMD64_IBSFETCHLINAD, low, high);
-			ibs_fetch.ibs_fetch_lin_addr_high = high;
-			ibs_fetch.ibs_fetch_lin_addr_low = low;
-			rdmsr(MSR_AMD64_IBSFETCHPHYSAD, low, high);
-			ibs_fetch.ibs_fetch_phys_addr_high = high;
-			ibs_fetch.ibs_fetch_phys_addr_low = low;
-
-			oprofile_add_ibs_sample(regs,
-						(unsigned int *)&ibs_fetch,
-						IBS_FETCH_BEGIN);
+			rdmsrl(MSR_AMD64_IBSFETCHLINAD, msr);
+			oprofile_add_data(&entry, regs, msr, IBS_FETCH_CODE,
+					  IBS_FETCH_SIZE);
+			op_cpu_buffer_add_data(&entry, (u32)msr);
+			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			op_cpu_buffer_add_data(&entry, low);
+			op_cpu_buffer_add_data(&entry, high);
+			rdmsrl(MSR_AMD64_IBSFETCHPHYSAD, msr);
+			op_cpu_buffer_add_data(&entry, (u32)msr);
+			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			op_cpu_buffer_write_commit(&entry);
 
 			/* reenable the IRQ */
-			rdmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 			high &= ~IBS_FETCH_HIGH_VALID_BIT;
 			high |= IBS_FETCH_HIGH_ENABLE;
 			low &= IBS_FETCH_LOW_MAX_CNT_MASK;
@@ -232,30 +196,29 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 	if (ibs_config.op_enabled) {
 		rdmsr(MSR_AMD64_IBSOPCTL, low, high);
 		if (low & IBS_OP_LOW_VALID_BIT) {
-			rdmsr(MSR_AMD64_IBSOPRIP, low, high);
-			ibs_op.ibs_op_rip_low = low;
-			ibs_op.ibs_op_rip_high = high;
-			rdmsr(MSR_AMD64_IBSOPDATA, low, high);
-			ibs_op.ibs_op_data1_low = low;
-			ibs_op.ibs_op_data1_high = high;
-			rdmsr(MSR_AMD64_IBSOPDATA2, low, high);
-			ibs_op.ibs_op_data2_low = low;
-			ibs_op.ibs_op_data2_high = high;
-			rdmsr(MSR_AMD64_IBSOPDATA3, low, high);
-			ibs_op.ibs_op_data3_low = low;
-			ibs_op.ibs_op_data3_high = high;
-			rdmsr(MSR_AMD64_IBSDCLINAD, low, high);
-			ibs_op.ibs_dc_linear_low = low;
-			ibs_op.ibs_dc_linear_high = high;
-			rdmsr(MSR_AMD64_IBSDCPHYSAD, low, high);
-			ibs_op.ibs_dc_phys_low = low;
-			ibs_op.ibs_dc_phys_high = high;
+			rdmsrl(MSR_AMD64_IBSOPRIP, msr);
+			oprofile_add_data(&entry, regs, msr, IBS_OP_CODE,
+					  IBS_OP_SIZE);
+			op_cpu_buffer_add_data(&entry, (u32)msr);
+			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			rdmsrl(MSR_AMD64_IBSOPDATA, msr);
+			op_cpu_buffer_add_data(&entry, (u32)msr);
+			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			rdmsrl(MSR_AMD64_IBSOPDATA2, msr);
+			op_cpu_buffer_add_data(&entry, (u32)msr);
+			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			rdmsrl(MSR_AMD64_IBSOPDATA3, msr);
+			op_cpu_buffer_add_data(&entry, (u32)msr);
+			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			rdmsrl(MSR_AMD64_IBSDCLINAD, msr);
+			op_cpu_buffer_add_data(&entry, (u32)msr);
+			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			rdmsrl(MSR_AMD64_IBSDCPHYSAD, msr);
+			op_cpu_buffer_add_data(&entry, (u32)msr);
+			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			op_cpu_buffer_write_commit(&entry);
 
 			/* reenable the IRQ */
-			oprofile_add_ibs_sample(regs,
-						(unsigned int *)&ibs_op,
-						IBS_OP_BEGIN);
-			rdmsr(MSR_AMD64_IBSOPCTL, low, high);
 			high = 0;
 			low &= ~IBS_OP_LOW_VALID_BIT;
 			low |= IBS_OP_LOW_ENABLE;

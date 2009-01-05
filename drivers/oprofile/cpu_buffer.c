@@ -363,31 +363,38 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 
 #ifdef CONFIG_OPROFILE_IBS
 
-void oprofile_add_ibs_sample(struct pt_regs * const regs,
-			     unsigned int * const ibs_sample, int ibs_code)
+/*
+ * Add samples with data to the ring buffer.
+ *
+ * Use op_cpu_buffer_add_data(&entry, val) to add data and
+ * op_cpu_buffer_write_commit(&entry) to commit the sample.
+ */
+void oprofile_add_data(struct op_entry *entry, struct pt_regs * const regs,
+		       unsigned long pc, int code, int size)
 {
+	struct op_sample *sample;
 	int is_kernel = !user_mode(regs);
 	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
-	int fail = 0;
 
 	cpu_buf->sample_received++;
 
-	/* backtraces disabled for ibs */
-	fail = fail || op_add_code(cpu_buf, 0, is_kernel, current);
+	/* no backtraces for samples with data */
+	if (op_add_code(cpu_buf, 0, is_kernel, current))
+		goto fail;
 
-	fail = fail || op_add_sample(cpu_buf, ESCAPE_CODE,   ibs_code);
-	fail = fail || op_add_sample(cpu_buf, ibs_sample[0], ibs_sample[1]);
-	fail = fail || op_add_sample(cpu_buf, ibs_sample[2], ibs_sample[3]);
-	fail = fail || op_add_sample(cpu_buf, ibs_sample[4], ibs_sample[5]);
+	sample = op_cpu_buffer_write_reserve(entry, size + 2);
+	if (!sample)
+		goto fail;
+	sample->eip = ESCAPE_CODE;
+	sample->event = 0;		/* no flags */
 
-	if (ibs_code == IBS_OP_BEGIN) {
-		fail = fail || op_add_sample(cpu_buf, ibs_sample[6], ibs_sample[7]);
-		fail = fail || op_add_sample(cpu_buf, ibs_sample[8], ibs_sample[9]);
-		fail = fail || op_add_sample(cpu_buf, ibs_sample[10], ibs_sample[11]);
-	}
+	op_cpu_buffer_add_data(entry, code);
+	op_cpu_buffer_add_data(entry, pc);
 
-	if (fail)
-		cpu_buf->sample_lost_overflow++;
+	return;
+
+fail:
+	cpu_buf->sample_lost_overflow++;
 }
 
 #endif

@@ -115,7 +115,5 @@ int op_cpu_buffer_get_data(struct op_entry *entry, unsigned long *val)
 #define IS_KERNEL		(1UL << 1)
 #define TRACE_BEGIN		(1UL << 2)
 #define USER_CTX_SWITCH		(1UL << 3)
-#define IBS_FETCH_BEGIN		(1UL << 4)
-#define IBS_OP_BEGIN		(1UL << 5)
 
 #endif /* OPROFILE_CPU_BUFFER_H */

@@ -318,29 +318,18 @@ static void add_trace_begin(void)
 
 #ifdef CONFIG_OPROFILE_IBS
 
-#define IBS_FETCH_CODE_SIZE	2
-#define IBS_OP_CODE_SIZE	5
-
-/*
- * Add IBS fetch and op entries to event buffer
- */
-static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
+static void add_data(struct op_entry *entry, struct mm_struct *mm)
 {
-	unsigned long pc;
-	int i, count;
-	unsigned long cookie = 0;
+	unsigned long code, pc, val;
+	unsigned long cookie;
 	off_t offset;
-	struct op_entry entry;
-	struct op_sample *sample;
 
-	sample = op_cpu_buffer_read_entry(&entry, cpu);
-	if (!sample)
+	if (!op_cpu_buffer_get_data(entry, &code))
 		return;
-	pc = sample->eip;
-
-#ifdef __LP64__
-	pc += sample->event << 32;
-#endif
+	if (!op_cpu_buffer_get_data(entry, &pc))
+		return;
+	if (!op_cpu_buffer_get_size(entry))
+		return;
 
 	if (mm) {
 		cookie = lookup_dcookie(mm, pc, &offset);
@@ -362,24 +351,8 @@ static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
 	add_event_entry(code);
 	add_event_entry(offset);	/* Offset from Dcookie */
 
-	/* we send the Dcookie offset, but send the raw Linear Add also*/
-	add_event_entry(sample->eip);
-	add_event_entry(sample->event);
-
-	if (code == IBS_FETCH_CODE)
-		count = IBS_FETCH_CODE_SIZE;	/*IBS FETCH is 2 int64s*/
-	else
-		count = IBS_OP_CODE_SIZE;	/*IBS OP is 5 int64s*/
-
-	for (i = 0; i < count; i++) {
-		sample = op_cpu_buffer_read_entry(&entry, cpu);
-		if (!sample)
-			return;
-		add_event_entry(sample->eip);
-		add_event_entry(sample->event);
-	}
-
-	return;
+	while (op_cpu_buffer_get_data(entry, &val))
+		add_event_entry(val);
 }
 
 #endif
@@ -572,10 +545,8 @@ void sync_buffer(int cpu)
 				add_user_ctx_switch(new, cookie);
 			}
 #ifdef CONFIG_OPROFILE_IBS
-			if (flags & IBS_FETCH_BEGIN)
-				add_ibs_begin(cpu, IBS_FETCH_CODE, mm);
-			if (flags & IBS_OP_BEGIN)
-				add_ibs_begin(cpu, IBS_OP_CODE, mm);
+			if (op_cpu_buffer_get_size(&entry))
+				add_data(&entry, mm);
 #endif
 			continue;
 		}
