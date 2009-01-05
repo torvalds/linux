@@ -1143,9 +1143,9 @@ static void __run_hrtimer(struct hrtimer *timer)
 	spin_lock(&cpu_base->lock);
 
 	/*
-	 * Note: We clear the CALLBACK bit after enqueue_hrtimer to avoid
-	 * reprogramming of the event hardware. This happens at the end of this
-	 * function anyway.
+	 * Note: We clear the CALLBACK bit after enqueue_hrtimer and
+	 * we do not reprogramm the event hardware. Happens either in
+	 * hrtimer_start_range_ns() or in hrtimer_interrupt()
 	 */
 	if (restart != HRTIMER_NORESTART) {
 		BUG_ON(timer->state != HRTIMER_STATE_CALLBACK);
@@ -1514,14 +1514,12 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 		__remove_hrtimer(timer, old_base, HRTIMER_STATE_MIGRATE, 0);
 		timer->base = new_base;
 		/*
-		 * Enqueue the timers on the new cpu, but do not reprogram 
-		 * the timer as that would enable a deadlock between
-		 * hrtimer_enqueue_reprogramm() running the timer and us still
-		 * holding a nested base lock.
-		 *
-		 * Instead we tickle the hrtimer interrupt after the migration
-		 * is done, which will run all expired timers and re-programm
-		 * the timer device.
+		 * Enqueue the timers on the new cpu. This does not
+		 * reprogram the event device in case the timer
+		 * expires before the earliest on this CPU, but we run
+		 * hrtimer_interrupt after we migrated everything to
+		 * sort out already expired timers and reprogram the
+		 * event device.
 		 */
 		enqueue_hrtimer(timer, new_base);
 
