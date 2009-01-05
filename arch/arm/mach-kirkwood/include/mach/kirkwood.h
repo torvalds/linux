@@ -117,7 +117,4 @@
 #define SATA_PHYS_BASE		(KIRKWOOD_REGS_PHYS_BASE | 0x80000)
 
 
-#define GPIO_MAX		50
-
-
 #endif

@@ -223,8 +223,13 @@ static int ipath_get_base_info(struct file *fp,
 			(unsigned long long) kinfo->spi_subport_rcvhdr_base);
 	}
 
-	kinfo->spi_pioindex = (kinfo->spi_piobufbase - dd->ipath_piobufbase) /
-		dd->ipath_palign;
+	/*
+	 * All user buffers are 2KB buffers.  If we ever support
+	 * giving 4KB buffers to user processes, this will need some
+	 * work.
+	 */
+	kinfo->spi_pioindex = (kinfo->spi_piobufbase -
+		(dd->ipath_piobufbase & 0xffffffff)) / dd->ipath_palign;
 	kinfo->spi_pioalign = dd->ipath_palign;
 
 	kinfo->spi_qpair = IPATH_KD_QP;
@@ -1674,7 +1679,7 @@ static int find_best_unit(struct file *fp,
 	 * InfiniPath chip to that processor (we assume reasonable connectivity,
 	 * for now).  This code assumes that if affinity has been set
 	 * before this point, that at most one cpu is set; for now this
-	 * is reasonable.  I check for both cpus_empty() and cpus_full(),
+	 * is reasonable.  I check for both cpumask_empty() and cpumask_full(),
 	 * in case some kernel variant sets none of the bits when no
 	 * affinity is set.  2.6.11 and 12 kernels have all present
 	 * cpus set.  Some day we'll have to fix it up further to handle
@@ -1683,11 +1688,11 @@ static int find_best_unit(struct file *fp,
 	 * information.  There may be some issues with dual core numbering
 	 * as well.  This needs more work prior to release.
 	 */
-	if (!cpus_empty(current->cpus_allowed) &&
-	    !cpus_full(current->cpus_allowed)) {
+	if (!cpumask_empty(&current->cpus_allowed) &&
+	    !cpumask_full(&current->cpus_allowed)) {
 		int ncpus = num_online_cpus(), curcpu = -1, nset = 0;
 		for (i = 0; i < ncpus; i++)
-			if (cpu_isset(i, current->cpus_allowed)) {
+			if (cpumask_test_cpu(i, &current->cpus_allowed)) {
 				ipath_cdbg(PROC, "%s[%u] affinity set for "
 					   "cpu %d/%d\n", current->comm,
 					   current->pid, i, ncpus);
@@ -2041,7 +2046,9 @@ static int ipath_close(struct inode *in, struct file *fp)
 	struct ipath_filedata *fd;
 	struct ipath_portdata *pd;
 	struct ipath_devdata *dd;
+	unsigned long flags;
 	unsigned port;
+	struct pid *pid;
 
 	ipath_cdbg(VERBOSE, "close on dev %lx, private data %p\n",
 		   (long)in->i_rdev, fp->private_data);
@@ -2074,14 +2081,13 @@ static int ipath_close(struct inode *in, struct file *fp)
 		mutex_unlock(&ipath_mutex);
 		goto bail;
 	}
+	/* early; no interrupt users after this */
+	spin_lock_irqsave(&dd->ipath_uctxt_lock, flags);
 	port = pd->port_port;
-
-	if (pd->port_hdrqfull) {
-		ipath_cdbg(PROC, "%s[%u] had %u rcvhdrqfull errors "
-			   "during run\n", pd->port_comm, pid_nr(pd->port_pid),
-			   pd->port_hdrqfull);
-		pd->port_hdrqfull = 0;
-	}
+	dd->ipath_pd[port] = NULL;
+	pid = pd->port_pid;
+	pd->port_pid = NULL;
+	spin_unlock_irqrestore(&dd->ipath_uctxt_lock, flags);
 
 	if (pd->port_rcvwait_to || pd->port_piowait_to
 	    || pd->port_rcvnowait || pd->port_pionowait) {
@@ -2138,13 +2144,11 @@ static int ipath_close(struct inode *in, struct file *fp)
 			unlock_expected_tids(pd);
 		ipath_stats.sps_ports--;
 		ipath_cdbg(PROC, "%s[%u] closed port %u:%u\n",
-			   pd->port_comm, pid_nr(pd->port_pid),
+			   pd->port_comm, pid_nr(pid),
 			   dd->ipath_unit, port);
 	}
 
-	put_pid(pd->port_pid);
-	pd->port_pid = NULL;
-	dd->ipath_pd[pd->port_port] = NULL; /* before releasing mutex */
+	put_pid(pid);
 	mutex_unlock(&ipath_mutex);
 	ipath_free_pddata(dd, pd); /* after releasing the mutex */
 

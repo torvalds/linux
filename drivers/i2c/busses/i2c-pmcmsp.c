@@ -486,7 +486,7 @@ static enum pmcmsptwi_xfer_result pmcmsptwi_xfer_cmd(
 
 	if (cmd->type == MSP_TWI_CMD_WRITE ||
 	    cmd->type == MSP_TWI_CMD_WRITE_READ) {
-		__be64 tmp = cpu_to_be64p((u64 *)cmd->write_data);
+		u64 tmp = be64_to_cpup((__be64 *)cmd->write_data);
 		tmp >>= (MSP_MAX_BYTES_PER_RW - cmd->write_len) * 8;
 		dev_dbg(&pmcmsptwi_adapter.dev, "Writing 0x%016llx\n", tmp);
 		pmcmsptwi_writel(tmp & 0x00000000ffffffffLL,

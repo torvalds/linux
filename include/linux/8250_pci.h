@@ -31,7 +31,7 @@ struct pciserial_board {
 struct serial_private;
 
 struct serial_private *
-pciserial_init_ports(struct pci_dev *dev, struct pciserial_board *board);
+pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board);
 void pciserial_remove_ports(struct serial_private *priv);
 void pciserial_suspend_ports(struct serial_private *priv);
 void pciserial_resume_ports(struct serial_private *priv);

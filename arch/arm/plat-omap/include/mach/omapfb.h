@@ -353,8 +353,8 @@ struct omapfb_device {
 	u32			pseudo_palette[17];
 
 	struct lcd_panel	*panel;			/* LCD panel */
-	struct lcd_ctrl         *ctrl;			/* LCD controller */
-	struct lcd_ctrl		*int_ctrl;		/* internal LCD ctrl */
+	const struct lcd_ctrl	*ctrl;			/* LCD controller */
+	const struct lcd_ctrl	*int_ctrl;		/* internal LCD ctrl */
 	struct lcd_ctrl_extif	*ext_if;		/* LCD ctrl external
 							   interface */
 	struct device		*dev;

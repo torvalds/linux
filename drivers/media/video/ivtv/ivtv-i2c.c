@@ -90,26 +90,6 @@
 #define IVTV_M52790_I2C_ADDR      	0x48
 
 /* This array should match the IVTV_HW_ defines */
-static const u8 hw_driverids[] = {
-	I2C_DRIVERID_CX25840,
-	I2C_DRIVERID_SAA711X,
-	I2C_DRIVERID_SAA7127,
-	I2C_DRIVERID_MSP3400,
-	I2C_DRIVERID_TUNER,
-	I2C_DRIVERID_WM8775,
-	I2C_DRIVERID_CS53L32A,
-	I2C_DRIVERID_TVEEPROM,
-	I2C_DRIVERID_SAA711X,
-	I2C_DRIVERID_UPD64031A,
-	I2C_DRIVERID_UPD64083,
-	I2C_DRIVERID_SAA717X,
-	I2C_DRIVERID_WM8739,
-	I2C_DRIVERID_VP27SMPX,
-	I2C_DRIVERID_M52790,
-	0 		/* IVTV_HW_GPIO dummy driver ID */
-};
-
-/* This array should match the IVTV_HW_ defines */
 static const u8 hw_addrs[] = {
 	IVTV_CX25840_I2C_ADDR,
 	IVTV_SAA7115_I2C_ADDR,
@@ -127,6 +107,26 @@ static const u8 hw_addrs[] = {
 	IVTV_VP27SMPX_I2C_ADDR,
 	IVTV_M52790_I2C_ADDR,
 	0 		/* IVTV_HW_GPIO dummy driver ID */
+};
+
+/* This array should match the IVTV_HW_ defines */
+static const char *hw_modules[] = {
+	"cx25840",
+	"saa7115",
+	"saa7127",
+	"msp3400",
+	"tuner",
+	"wm8775",
+	"cs53l32a",
+	NULL,
+	"saa7115",
+	"upd64031a",
+	"upd64083",
+	"saa717x",
+	"wm8739",
+	"vp27smpx",
+	"m52790",
+	NULL
 };
 
 /* This array should match the IVTV_HW_ defines */
@@ -151,80 +151,58 @@ static const char * const hw_devicenames[] = {
 
 int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 {
-	struct i2c_board_info info;
-	struct i2c_client *c;
-	u8 id;
-	int i;
+	struct v4l2_subdev *sd;
+	struct i2c_adapter *adap = &itv->i2c_adap;
+	const char *mod = hw_modules[idx];
+	const char *type = hw_devicenames[idx];
+	u32 hw = 1 << idx;
 
-	IVTV_DEBUG_I2C("i2c client register\n");
-	if (idx >= ARRAY_SIZE(hw_driverids) || hw_driverids[idx] == 0)
+	if (idx >= ARRAY_SIZE(hw_addrs))
 		return -1;
-	id = hw_driverids[idx];
-	memset(&info, 0, sizeof(info));
-	strlcpy(info.type, hw_devicenames[idx], sizeof(info.type));
-	info.addr = hw_addrs[idx];
-	for (i = 0; itv->i2c_clients[i] && i < I2C_CLIENTS_MAX; i++) {}
-
-	if (i == I2C_CLIENTS_MAX) {
-		IVTV_ERR("insufficient room for new I2C client!\n");
-		return -ENOMEM;
+	if (hw == IVTV_HW_TUNER) {
+		/* special tuner handling */
+		sd = v4l2_i2c_new_probed_subdev(adap, mod, type,
+				itv->card_i2c->radio);
+		if (sd)
+			sd->grp_id = 1 << idx;
+		sd = v4l2_i2c_new_probed_subdev(adap, mod, type,
+				itv->card_i2c->demod);
+		if (sd)
+			sd->grp_id = 1 << idx;
+		sd = v4l2_i2c_new_probed_subdev(adap, mod, type,
+				itv->card_i2c->tv);
+		if (sd)
+			sd->grp_id = 1 << idx;
+		return sd ? 0 : -1;
 	}
+	if (!hw_addrs[idx])
+		return -1;
+	if (hw == IVTV_HW_UPD64031A || hw == IVTV_HW_UPD6408X) {
+		unsigned short addrs[2] = { hw_addrs[idx], I2C_CLIENT_END };
 
-	if (id != I2C_DRIVERID_TUNER) {
-		if (id == I2C_DRIVERID_UPD64031A ||
-		    id == I2C_DRIVERID_UPD64083) {
-			unsigned short addrs[2] = { info.addr, I2C_CLIENT_END };
-
-			c = i2c_new_probed_device(&itv->i2c_adap, &info, addrs);
-		} else
-			c = i2c_new_device(&itv->i2c_adap, &info);
-		if (c && c->driver == NULL)
-			i2c_unregister_device(c);
-		else if (c)
-			itv->i2c_clients[i] = c;
-		return itv->i2c_clients[i] ? 0 : -ENODEV;
+		sd = v4l2_i2c_new_probed_subdev(adap, mod, type, addrs);
+	} else {
+		sd = v4l2_i2c_new_subdev(adap, mod, type, hw_addrs[idx]);
 	}
-
-	/* special tuner handling */
-	c = i2c_new_probed_device(&itv->i2c_adap, &info, itv->card_i2c->radio);
-	if (c && c->driver == NULL)
-		i2c_unregister_device(c);
-	else if (c)
-		itv->i2c_clients[i++] = c;
-	c = i2c_new_probed_device(&itv->i2c_adap, &info, itv->card_i2c->demod);
-	if (c && c->driver == NULL)
-		i2c_unregister_device(c);
-	else if (c)
-		itv->i2c_clients[i++] = c;
-	c = i2c_new_probed_device(&itv->i2c_adap, &info, itv->card_i2c->tv);
-	if (c && c->driver == NULL)
-		i2c_unregister_device(c);
-	else if (c)
-		itv->i2c_clients[i++] = c;
-	return 0;
+	if (sd)
+		sd->grp_id = 1 << idx;
+	return sd ? 0 : -1;
 }
 
-static int attach_inform(struct i2c_client *client)
+struct v4l2_subdev *ivtv_find_hw(struct ivtv *itv, u32 hw)
 {
-	return 0;
-}
+	struct v4l2_subdev *result = NULL;
+	struct v4l2_subdev *sd;
 
-static int detach_inform(struct i2c_client *client)
-{
-	int i;
-	struct ivtv *itv = (struct ivtv *)i2c_get_adapdata(client->adapter);
-
-	IVTV_DEBUG_I2C("i2c client detach\n");
-	for (i = 0; i < I2C_CLIENTS_MAX; i++) {
-		if (itv->i2c_clients[i] == client) {
-			itv->i2c_clients[i] = NULL;
+	spin_lock(&itv->device.lock);
+	v4l2_device_for_each_subdev(sd, &itv->device) {
+		if (sd->grp_id == hw) {
+			result = sd;
 			break;
 		}
 	}
-	IVTV_DEBUG_I2C("i2c detach [client=%s,%s]\n",
-		   client->name, (i < I2C_CLIENTS_MAX) ? "ok" : "failed");
-
-	return 0;
+	spin_unlock(&itv->device.lock);
+	return result;
 }
 
 /* Set the serial clock line to the desired state */
@@ -494,7 +472,8 @@ static int ivtv_read(struct ivtv *itv, unsigned char addr, unsigned char *data, 
    intervening stop condition */
 static int ivtv_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
 {
-	struct ivtv *itv = i2c_get_adapdata(i2c_adap);
+	struct v4l2_device *drv = i2c_get_adapdata(i2c_adap);
+	struct ivtv *itv = to_ivtv(drv);
 	int retval;
 	int i;
 
@@ -530,8 +509,6 @@ static struct i2c_adapter ivtv_i2c_adap_hw_template = {
 	.id = I2C_HW_B_CX2341X,
 	.algo = &ivtv_algo,
 	.algo_data = NULL,			/* filled from template */
-	.client_register = attach_inform,
-	.client_unregister = detach_inform,
 	.owner = THIS_MODULE,
 };
 
@@ -583,8 +560,6 @@ static struct i2c_adapter ivtv_i2c_adap_template = {
 	.id = I2C_HW_B_CX2341X,
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */
-	.client_register = attach_inform,
-	.client_unregister = detach_inform,
 	.owner = THIS_MODULE,
 };
 
@@ -601,160 +576,6 @@ static struct i2c_client ivtv_i2c_client_template = {
 	.name = "ivtv internal",
 };
 
-int ivtv_call_i2c_client(struct ivtv *itv, int addr, unsigned int cmd, void *arg)
-{
-	struct i2c_client *client;
-	int retval;
-	int i;
-
-	IVTV_DEBUG_I2C("call_i2c_client addr=%02x\n", addr);
-	for (i = 0; i < I2C_CLIENTS_MAX; i++) {
-		client = itv->i2c_clients[i];
-		if (client == NULL || client->driver == NULL ||
-		    client->driver->command == NULL)
-			continue;
-		if (addr == client->addr) {
-			retval = client->driver->command(client, cmd, arg);
-			return retval;
-		}
-	}
-	if (cmd != VIDIOC_G_CHIP_IDENT)
-		IVTV_ERR("i2c addr 0x%02x not found for command 0x%x\n", addr, cmd);
-	return -ENODEV;
-}
-
-/* Find the i2c device based on the driver ID and return
-   its i2c address or -ENODEV if no matching device was found. */
-static int ivtv_i2c_id_addr(struct ivtv *itv, u32 id)
-{
-	struct i2c_client *client;
-	int retval = -ENODEV;
-	int i;
-
-	for (i = 0; i < I2C_CLIENTS_MAX; i++) {
-		client = itv->i2c_clients[i];
-		if (client == NULL || client->driver == NULL)
-			continue;
-		if (id == client->driver->id) {
-			retval = client->addr;
-			break;
-		}
-	}
-	return retval;
-}
-
-/* Find the i2c device name matching the DRIVERID */
-static const char *ivtv_i2c_id_name(u32 id)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hw_driverids); i++)
-		if (hw_driverids[i] == id)
-			return hw_devicenames[i];
-	return "unknown device";
-}
-
-/* Find the i2c device name matching the IVTV_HW_ flag */
-static const char *ivtv_i2c_hw_name(u32 hw)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hw_driverids); i++)
-		if (1 << i == hw)
-			return hw_devicenames[i];
-	return "unknown device";
-}
-
-/* Find the i2c device matching the IVTV_HW_ flag and return
-   its i2c address or -ENODEV if no matching device was found. */
-int ivtv_i2c_hw_addr(struct ivtv *itv, u32 hw)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hw_driverids); i++)
-		if (1 << i == hw)
-			return ivtv_i2c_id_addr(itv, hw_driverids[i]);
-	return -ENODEV;
-}
-
-/* Calls i2c device based on IVTV_HW_ flag. If hw == 0, then do nothing.
-   If hw == IVTV_HW_GPIO then call the gpio handler. */
-int ivtv_i2c_hw(struct ivtv *itv, u32 hw, unsigned int cmd, void *arg)
-{
-	int addr;
-
-	if (hw == IVTV_HW_GPIO)
-		return ivtv_gpio(itv, cmd, arg);
-	if (hw == 0)
-		return 0;
-
-	addr = ivtv_i2c_hw_addr(itv, hw);
-	if (addr < 0) {
-		IVTV_ERR("i2c hardware 0x%08x (%s) not found for command 0x%x\n",
-			       hw, ivtv_i2c_hw_name(hw), cmd);
-		return addr;
-	}
-	return ivtv_call_i2c_client(itv, addr, cmd, arg);
-}
-
-/* Calls i2c device based on I2C driver ID. */
-int ivtv_i2c_id(struct ivtv *itv, u32 id, unsigned int cmd, void *arg)
-{
-	int addr;
-
-	addr = ivtv_i2c_id_addr(itv, id);
-	if (addr < 0) {
-		if (cmd != VIDIOC_G_CHIP_IDENT)
-			IVTV_ERR("i2c ID 0x%08x (%s) not found for command 0x%x\n",
-				id, ivtv_i2c_id_name(id), cmd);
-		return addr;
-	}
-	return ivtv_call_i2c_client(itv, addr, cmd, arg);
-}
-
-int ivtv_cx25840(struct ivtv *itv, unsigned int cmd, void *arg)
-{
-	return ivtv_call_i2c_client(itv, IVTV_CX25840_I2C_ADDR, cmd, arg);
-}
-
-int ivtv_saa7115(struct ivtv *itv, unsigned int cmd, void *arg)
-{
-	return ivtv_call_i2c_client(itv, IVTV_SAA7115_I2C_ADDR, cmd, arg);
-}
-
-int ivtv_saa7127(struct ivtv *itv, unsigned int cmd, void *arg)
-{
-	return ivtv_call_i2c_client(itv, IVTV_SAA7127_I2C_ADDR, cmd, arg);
-}
-EXPORT_SYMBOL(ivtv_saa7127);
-
-int ivtv_saa717x(struct ivtv *itv, unsigned int cmd, void *arg)
-{
-	return ivtv_call_i2c_client(itv, IVTV_SAA717x_I2C_ADDR, cmd, arg);
-}
-
-int ivtv_upd64031a(struct ivtv *itv, unsigned int cmd, void *arg)
-{
-	return ivtv_call_i2c_client(itv, IVTV_UPD64031A_I2C_ADDR, cmd, arg);
-}
-
-int ivtv_upd64083(struct ivtv *itv, unsigned int cmd, void *arg)
-{
-	return ivtv_call_i2c_client(itv, IVTV_UPD64083_I2C_ADDR, cmd, arg);
-}
-
-/* broadcast cmd for all I2C clients and for the gpio subsystem */
-void ivtv_call_i2c_clients(struct ivtv *itv, unsigned int cmd, void *arg)
-{
-	if (itv->i2c_adap.algo == NULL) {
-		IVTV_ERR("Adapter is not set");
-		return;
-	}
-	i2c_clients_command(&itv->i2c_adap, cmd, arg);
-	if (itv->hw_flags & IVTV_HW_GPIO)
-		ivtv_gpio(itv, cmd, arg);
-}
-
 /* init + register i2c algo-bit adapter */
 int init_ivtv_i2c(struct ivtv *itv)
 {
@@ -763,10 +584,9 @@ int init_ivtv_i2c(struct ivtv *itv)
 	/* Sanity checks for the I2C hardware arrays. They must be the
 	 * same size and GPIO must be the last entry.
 	 */
-	if (ARRAY_SIZE(hw_driverids) != ARRAY_SIZE(hw_addrs) ||
-	    ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_addrs) ||
-	    IVTV_HW_GPIO != (1 << (ARRAY_SIZE(hw_addrs) - 1)) ||
-	    hw_driverids[ARRAY_SIZE(hw_addrs) - 1]) {
+	if (ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_addrs) ||
+	    ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_modules) ||
+	    IVTV_HW_GPIO != (1 << (ARRAY_SIZE(hw_addrs) - 1))) {
 		IVTV_ERR("Mismatched I2C hardware arrays\n");
 		return -ENODEV;
 	}
@@ -783,8 +603,8 @@ int init_ivtv_i2c(struct ivtv *itv)
 	itv->i2c_adap.algo_data = &itv->i2c_algo;
 
 	sprintf(itv->i2c_adap.name + strlen(itv->i2c_adap.name), " #%d",
-		itv->num);
-	i2c_set_adapdata(&itv->i2c_adap, itv);
+		itv->instance);
+	i2c_set_adapdata(&itv->i2c_adap, &itv->device);
 
 	memcpy(&itv->i2c_client, &ivtv_i2c_client_template,
 	       sizeof(struct i2c_client));

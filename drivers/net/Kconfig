@@ -61,6 +61,7 @@ config DUMMY
 config BONDING
 	tristate "Bonding driver support"
 	depends on INET
+	depends on IPV6 || IPV6=n
 	---help---
 	  Say 'Y' or 'M' if you wish to be able to 'bond' multiple Ethernet
 	  Channels together. This is called 'Etherchannel' by Cisco,
@@ -978,6 +979,20 @@ config SMC911X
 	  called smc911x.  If you want to compile it as a module, say M 
 	  here and read <file:Documentation/kbuild/modules.txt>
 
+config SMSC911X
+	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
+	depends on ARM || SUPERH
+	select CRC32
+	select MII
+	select PHYLIB
+	---help---
+	  Say Y here if you want support for SMSC LAN911x and LAN921x families
+	  of ethernet controllers.
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/networking/net-modules.txt>. The module
+	  will be called smsc911x.
+
 config NET_VENDOR_RACAL
 	bool "Racal-Interlan (Micom) NI cards"
 	depends on ISA
@@ -1414,19 +1429,6 @@ config TC35815
 	depends on NET_PCI && PCI && MIPS
 	select PHYLIB
 
-config EEPRO100
-	tristate "EtherExpressPro/100 support (eepro100, original Becker driver)"
-	depends on NET_PCI && PCI
-	select MII
-	help
-	  If you have an Intel EtherExpress PRO/100 PCI network (Ethernet)
-	  card, say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called eepro100.
-
-
 config E100
 	tristate "Intel(R) PRO/100+ support"
 	depends on NET_PCI && PCI
@@ -1635,6 +1637,22 @@ config EPIC100
 	  which is based on the SMC83c17x (EPIC/100).
 	  More specific information and updates are available from
 	  <http://www.scyld.com/network/epic100.html>.
+
+config SMSC9420
+	tristate "SMSC LAN9420 PCI ethernet adapter support"
+	depends on NET_PCI && PCI
+	select CRC32
+	select PHYLIB
+	select SMSC_PHY
+	help
+	  This is a driver for SMSC's LAN9420 PCI ethernet adapter.
+	  Say Y if you want it compiled into the kernel,
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.linuxdoc.org/docs.html#howto>.
+
+	  This driver is also available as a module. The module will be
+	  called smsc9420.  If you want to compile it as a module, say M
+	  here and read <file:Documentation/kbuild/modules.txt>
 
 config SUNDANCE
 	tristate "Sundance Alta support"
@@ -1981,10 +1999,10 @@ config IP1000
 	  will be called ipg.  This is recommended.
 
 config IGB
-       tristate "Intel(R) 82575 PCI-Express Gigabit Ethernet support"
+       tristate "Intel(R) 82575/82576 PCI-Express Gigabit Ethernet support"
        depends on PCI
        ---help---
-         This driver supports Intel(R) 82575 gigabit ethernet family of
+         This driver supports Intel(R) 82575/82576 gigabit ethernet family of
          adapters.  For more information on how to identify your adapter, go
          to the Adapter & Driver ID Guide at:
 
@@ -2276,10 +2294,6 @@ config UGETH_MAGIC_PACKET
 	bool "Magic Packet detection support"
 	depends on UCC_GETH
 
-config UGETH_FILTERING
-	bool "Mac address filtering support"
-	depends on UCC_GETH
-
 config UGETH_TX_ON_DEMAND
 	bool "Transmit on Demand support"
 	depends on UCC_GETH
@@ -2385,9 +2399,14 @@ config CHELSIO_T1_1G
           Enables support for Chelsio's gigabit Ethernet PCI cards.  If you
           are using only 10G cards say 'N' here.
 
+config CHELSIO_T3_DEPENDS
+	tristate
+	depends on PCI && INET
+	default y
+
 config CHELSIO_T3
 	tristate "Chelsio Communications T3 10Gb Ethernet support"
-	depends on PCI && INET
+	depends on CHELSIO_T3_DEPENDS
 	select FW_LOADER
 	select INET_LRO
 	help
@@ -2449,6 +2468,16 @@ config IXGBE_DCA
 	  Say Y here if you want to use Direct Cache Access (DCA) in the
 	  driver.  DCA is a method for warming the CPU cache before data
 	  is used, with the intent of lessening the impact of cache misses.
+
+config IXGBE_DCB
+	bool "Data Center Bridging (DCB) Support"
+	default n
+	depends on IXGBE && DCB
+	---help---
+	  Say Y here if you want to use Data Center Bridging (DCB) in the
+	  driver.
+
+	  If unsure, say N.
 
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
@@ -2626,7 +2655,7 @@ config RIONET_RX_SIZE
 	default "128"
 
 config FDDI
-	bool "FDDI driver support"
+	tristate "FDDI driver support"
 	depends on (PCI || EISA || TC)
 	help
 	  Fiber Distributed Data Interface is a high speed local area network

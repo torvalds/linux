@@ -11,6 +11,7 @@
 #define __VMLINUX_LDS__
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/thread_info.h>
+#include <asm/page.h>
 
 OUTPUT_FORMAT("elf32-am33lin", "elf32-am33lin", "elf32-am33lin")
 OUTPUT_ARCH(mn10300)
@@ -55,13 +56,13 @@ SECTIONS
 	CONSTRUCTORS
 	}
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __nosave_begin = .;
   .data_nosave : { *(.data.nosave) }
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __nosave_end = .;
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .data.page_aligned : { *(.data.idt) }
 
   . = ALIGN(32);
@@ -78,7 +79,7 @@ SECTIONS
   .data.init_task : { *(.data.init_task) }
 
   /* might get freed after init */
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .smp_locks : AT(ADDR(.smp_locks) - LOAD_OFFSET) {
   	__smp_locks = .;
 	*(.smp_locks)
@@ -86,7 +87,7 @@ SECTIONS
   }
 
   /* will be freed after init */
-  . = ALIGN(4096);		/* Init code and data */
+  . = ALIGN(PAGE_SIZE);		/* Init code and data */
   __init_begin = .;
   .init.text : {
 	_sinittext = .;
@@ -120,17 +121,14 @@ SECTIONS
   .exit.data : { *(.exit.data) }
 
 #ifdef CONFIG_BLK_DEV_INITRD
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
   __initramfs_end = .;
 #endif
 
-  . = ALIGN(32);
-  __per_cpu_start = .;
-  .data.percpu  : { *(.data.percpu) }
-  __per_cpu_end = .;
-  . = ALIGN(4096);
+  PERCPU(32)
+  . = ALIGN(PAGE_SIZE);
   __init_end = .;
   /* freed after init ends here */
 
@@ -145,7 +143,7 @@ SECTIONS
   _end = . ;
 
   /* This is where the kernel creates the early boot page tables */
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   pg0 = .;
 
   /* Sections to be discarded */

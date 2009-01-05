@@ -4,7 +4,7 @@
 #include <linux/irq.h>
 #include <linux/dmi.h>
 #include <asm/numa.h>
-#include "pci.h"
+#include <asm/pci_x86.h>
 
 struct pci_root_info {
 	char *name;

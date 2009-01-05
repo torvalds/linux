@@ -19,6 +19,8 @@
 #include <linux/slab.h>
 #include "internal.h"
 
+#define key_negative_timeout	60	/* default timeout on a negative key's existence */
+
 /*
  * wait_on_bit() sleep function for uninterruptible waiting
  */
@@ -64,7 +66,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 				 const char *op,
 				 void *aux)
 {
-	struct task_struct *tsk = current;
+	const struct cred *cred = current_cred();
 	key_serial_t prkey, sskey;
 	struct key *key = cons->key, *authkey = cons->authkey, *keyring;
 	char *argv[9], *envp[3], uid_str[12], gid_str[12];
@@ -74,15 +76,17 @@ static int call_sbin_request_key(struct key_construction *cons,
 
 	kenter("{%d},{%d},%s", key->serial, authkey->serial, op);
 
-	ret = install_user_keyrings(tsk);
+	ret = install_user_keyrings();
 	if (ret < 0)
 		goto error_alloc;
 
 	/* allocate a new session keyring */
 	sprintf(desc, "_req.%u", key->serial);
 
-	keyring = keyring_alloc(desc, current->fsuid, current->fsgid, current,
+	cred = get_current_cred();
+	keyring = keyring_alloc(desc, cred->fsuid, cred->fsgid, cred,
 				KEY_ALLOC_QUOTA_OVERRUN, NULL);
+	put_cred(cred);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error_alloc;
@@ -94,29 +98,24 @@ static int call_sbin_request_key(struct key_construction *cons,
 		goto error_link;
 
 	/* record the UID and GID */
-	sprintf(uid_str, "%d", current->fsuid);
-	sprintf(gid_str, "%d", current->fsgid);
+	sprintf(uid_str, "%d", cred->fsuid);
+	sprintf(gid_str, "%d", cred->fsgid);
 
 	/* we say which key is under construction */
 	sprintf(key_str, "%d", key->serial);
 
 	/* we specify the process's default keyrings */
 	sprintf(keyring_str[0], "%d",
-		tsk->thread_keyring ? tsk->thread_keyring->serial : 0);
+		cred->thread_keyring ? cred->thread_keyring->serial : 0);
 
 	prkey = 0;
-	if (tsk->signal->process_keyring)
-		prkey = tsk->signal->process_keyring->serial;
+	if (cred->tgcred->process_keyring)
+		prkey = cred->tgcred->process_keyring->serial;
 
-	sprintf(keyring_str[1], "%d", prkey);
-
-	if (tsk->signal->session_keyring) {
-		rcu_read_lock();
-		sskey = rcu_dereference(tsk->signal->session_keyring)->serial;
-		rcu_read_unlock();
-	} else {
-		sskey = tsk->user->session_keyring->serial;
-	}
+	if (cred->tgcred->session_keyring)
+		sskey = rcu_dereference(cred->tgcred->session_keyring)->serial;
+	else
+		sskey = cred->user->session_keyring->serial;
 
 	sprintf(keyring_str[2], "%d", sskey);
 
@@ -157,8 +156,8 @@ error_link:
 	key_put(keyring);
 
 error_alloc:
-	kleave(" = %d", ret);
 	complete_request_key(cons, ret);
+	kleave(" = %d", ret);
 	return ret;
 }
 
@@ -167,7 +166,8 @@ error_alloc:
  * - we ignore program failure and go on key status instead
  */
 static int construct_key(struct key *key, const void *callout_info,
-			 size_t callout_len, void *aux)
+			 size_t callout_len, void *aux,
+			 struct key *dest_keyring)
 {
 	struct key_construction *cons;
 	request_key_actor_t actor;
@@ -181,7 +181,8 @@ static int construct_key(struct key *key, const void *callout_info,
 		return -ENOMEM;
 
 	/* allocate an authorisation key */
-	authkey = request_key_auth_new(key, callout_info, callout_len);
+	authkey = request_key_auth_new(key, callout_info, callout_len,
+				       dest_keyring);
 	if (IS_ERR(authkey)) {
 		kfree(cons);
 		ret = PTR_ERR(authkey);
@@ -209,46 +210,67 @@ static int construct_key(struct key *key, const void *callout_info,
 }
 
 /*
- * link a key to the appropriate destination keyring
- * - the caller must hold a write lock on the destination keyring
+ * get the appropriate destination keyring for the request
+ * - we return whatever keyring we select with an extra reference upon it which
+ *   the caller must release
  */
-static void construct_key_make_link(struct key *key, struct key *dest_keyring)
+static void construct_get_dest_keyring(struct key **_dest_keyring)
 {
-	struct task_struct *tsk = current;
-	struct key *drop = NULL;
+	struct request_key_auth *rka;
+	const struct cred *cred = current_cred();
+	struct key *dest_keyring = *_dest_keyring, *authkey;
 
-	kenter("{%d},%p", key->serial, dest_keyring);
+	kenter("%p", dest_keyring);
 
 	/* find the appropriate keyring */
-	if (!dest_keyring) {
-		switch (tsk->jit_keyring) {
+	if (dest_keyring) {
+		/* the caller supplied one */
+		key_get(dest_keyring);
+	} else {
+		/* use a default keyring; falling through the cases until we
+		 * find one that we actually have */
+		switch (cred->jit_keyring) {
 		case KEY_REQKEY_DEFL_DEFAULT:
+		case KEY_REQKEY_DEFL_REQUESTOR_KEYRING:
+			if (cred->request_key_auth) {
+				authkey = cred->request_key_auth;
+				down_read(&authkey->sem);
+				rka = authkey->payload.data;
+				if (!test_bit(KEY_FLAG_REVOKED,
+					      &authkey->flags))
+					dest_keyring =
+						key_get(rka->dest_keyring);
+				up_read(&authkey->sem);
+				if (dest_keyring)
+					break;
+			}
+
 		case KEY_REQKEY_DEFL_THREAD_KEYRING:
-			dest_keyring = tsk->thread_keyring;
+			dest_keyring = key_get(cred->thread_keyring);
 			if (dest_keyring)
 				break;
 
 		case KEY_REQKEY_DEFL_PROCESS_KEYRING:
-			dest_keyring = tsk->signal->process_keyring;
+			dest_keyring = key_get(cred->tgcred->process_keyring);
 			if (dest_keyring)
 				break;
 
 		case KEY_REQKEY_DEFL_SESSION_KEYRING:
 			rcu_read_lock();
 			dest_keyring = key_get(
-				rcu_dereference(tsk->signal->session_keyring));
+				rcu_dereference(cred->tgcred->session_keyring));
 			rcu_read_unlock();
-			drop = dest_keyring;
 
 			if (dest_keyring)
 				break;
 
 		case KEY_REQKEY_DEFL_USER_SESSION_KEYRING:
-			dest_keyring = tsk->user->session_keyring;
+			dest_keyring =
+				key_get(cred->user->session_keyring);
 			break;
 
 		case KEY_REQKEY_DEFL_USER_KEYRING:
-			dest_keyring = tsk->user->uid_keyring;
+			dest_keyring = key_get(cred->user->uid_keyring);
 			break;
 
 		case KEY_REQKEY_DEFL_GROUP_KEYRING:
@@ -257,10 +279,9 @@ static void construct_key_make_link(struct key *key, struct key *dest_keyring)
 		}
 	}
 
-	/* and attach the key to it */
-	__key_link(dest_keyring, key);
-	key_put(drop);
-	kleave("");
+	*_dest_keyring = dest_keyring;
+	kleave(" [dk %d]", key_serial(dest_keyring));
+	return;
 }
 
 /*
@@ -275,6 +296,7 @@ static int construct_alloc_key(struct key_type *type,
 			       struct key_user *user,
 			       struct key **_key)
 {
+	const struct cred *cred = current_cred();
 	struct key *key;
 	key_ref_t key_ref;
 
@@ -282,33 +304,28 @@ static int construct_alloc_key(struct key_type *type,
 
 	mutex_lock(&user->cons_lock);
 
-	key = key_alloc(type, description,
-			current->fsuid, current->fsgid, current, KEY_POS_ALL,
-			flags);
+	key = key_alloc(type, description, cred->fsuid, cred->fsgid, cred,
+			KEY_POS_ALL, flags);
 	if (IS_ERR(key))
 		goto alloc_failed;
 
 	set_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags);
 
-	if (dest_keyring)
-		down_write(&dest_keyring->sem);
+	down_write(&dest_keyring->sem);
 
 	/* attach the key to the destination keyring under lock, but we do need
 	 * to do another check just in case someone beat us to it whilst we
 	 * waited for locks */
 	mutex_lock(&key_construction_mutex);
 
-	key_ref = search_process_keyrings(type, description, type->match,
-					  current);
+	key_ref = search_process_keyrings(type, description, type->match, cred);
 	if (!IS_ERR(key_ref))
 		goto key_already_present;
 
-	if (dest_keyring)
-		construct_key_make_link(key, dest_keyring);
+	__key_link(dest_keyring, key);
 
 	mutex_unlock(&key_construction_mutex);
-	if (dest_keyring)
-		up_write(&dest_keyring->sem);
+	up_write(&dest_keyring->sem);
 	mutex_unlock(&user->cons_lock);
 	*_key = key;
 	kleave(" = 0 [%d]", key_serial(key));
@@ -346,25 +363,36 @@ static struct key *construct_key_and_link(struct key_type *type,
 	struct key *key;
 	int ret;
 
-	user = key_user_lookup(current->fsuid);
+	kenter("");
+
+	user = key_user_lookup(current_fsuid());
 	if (!user)
 		return ERR_PTR(-ENOMEM);
+
+	construct_get_dest_keyring(&dest_keyring);
 
 	ret = construct_alloc_key(type, description, dest_keyring, flags, user,
 				  &key);
 	key_user_put(user);
 
 	if (ret == 0) {
-		ret = construct_key(key, callout_info, callout_len, aux);
-		if (ret < 0)
+		ret = construct_key(key, callout_info, callout_len, aux,
+				    dest_keyring);
+		if (ret < 0) {
+			kdebug("cons failed");
 			goto construction_failed;
+		}
 	}
 
+	key_put(dest_keyring);
+	kleave(" = key %d", key_serial(key));
 	return key;
 
 construction_failed:
 	key_negate_and_link(key, key_negative_timeout, NULL, NULL);
 	key_put(key);
+	key_put(dest_keyring);
+	kleave(" = %d", ret);
 	return ERR_PTR(ret);
 }
 
@@ -383,6 +411,7 @@ struct key *request_key_and_link(struct key_type *type,
 				 struct key *dest_keyring,
 				 unsigned long flags)
 {
+	const struct cred *cred = current_cred();
 	struct key *key;
 	key_ref_t key_ref;
 
@@ -392,7 +421,7 @@ struct key *request_key_and_link(struct key_type *type,
 
 	/* search all the process keyrings for a key */
 	key_ref = search_process_keyrings(type, description, type->match,
-					  current);
+					  cred);
 
 	if (!IS_ERR(key_ref)) {
 		key = key_ref_to_ptr(key_ref);

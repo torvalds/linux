@@ -369,10 +369,10 @@ P: 1024/8462A731 4C 55 86 34 44 59 A7 99  2B 97 88 4A 88 9A 0D 97
 D: sun4 port, Sparc hacker
 
 N: Hugh Blemings
-E: hugh@misc.nu
-W: http://misc.nu/hugh/
-D: Author and maintainer of the Keyspan USB to Serial drivers
-S: Po Box 234
+E: hugh@blemings.org
+W: http://blemings.org/hugh
+D: Original author of the Keyspan USB to serial drivers, random PowerPC hacker
+S: PO Box 234
 S: Belconnen ACT 2616
 S: Australia
 

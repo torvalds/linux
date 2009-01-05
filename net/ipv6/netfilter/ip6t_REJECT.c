@@ -97,7 +97,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	dst = ip6_route_output(net, NULL, &fl);
 	if (dst == NULL)
 		return;
-	if (dst->error || xfrm_lookup(&dst, &fl, NULL, 0))
+	if (dst->error || xfrm_lookup(net, &dst, &fl, NULL, 0))
 		return;
 
 	hh_len = (dst->dev->hard_header_len + 15)&~15;

@@ -156,11 +156,21 @@ extern int sis_apic_bug;
 /* 1 if "noapic" boot option passed */
 extern int skip_ioapic_setup;
 
+/* 1 if "noapic" boot option passed */
+extern int noioapicquirk;
+
+/* -1 if "noapic" boot option passed */
+extern int noioapicreroute;
+
 /* 1 if the timer IRQ uses the '8259A Virtual Wire' mode */
 extern int timer_through_8259;
 
 static inline void disable_ioapic_setup(void)
 {
+#ifdef CONFIG_PCI
+	noioapicquirk = 1;
+	noioapicreroute = -1;
+#endif
 	skip_ioapic_setup = 1;
 }
 
@@ -188,17 +198,14 @@ extern void restore_IO_APIC_setup(void);
 extern void reinit_intr_remapped_IO_APIC(int);
 #endif
 
-extern int probe_nr_irqs(void);
+extern void probe_nr_irqs_gsi(void);
 
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
 static const int timer_through_8259 = 0;
-static inline void ioapic_init_mappings(void) { }
+static inline void ioapic_init_mappings(void)	{ }
 
-static inline int probe_nr_irqs(void)
-{
-	return NR_IRQS;
-}
+static inline void probe_nr_irqs_gsi(void)	{ }
 #endif
 
 #endif /* _ASM_X86_IO_APIC_H */

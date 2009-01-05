@@ -69,7 +69,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
-#include <linux/thread_info.h>
 #include <linux/wanrouter.h>
 #include <linux/if_bridge.h>
 #include <linux/if_frad.h>
@@ -491,8 +490,8 @@ static struct socket *sock_alloc(void)
 	sock = SOCKET_I(inode);
 
 	inode->i_mode = S_IFSOCK | S_IRWXUGO;
-	inode->i_uid = current->fsuid;
-	inode->i_gid = current->fsgid;
+	inode->i_uid = current_fsuid();
+	inode->i_gid = current_fsgid();
 
 	get_cpu_var(sockets_in_use)++;
 	put_cpu_var(sockets_in_use);
@@ -1314,13 +1313,7 @@ asmlinkage long sys_socketpair(int family, int type, int protocol,
 		goto out_fd1;
 	}
 
-	err = audit_fd_pair(fd1, fd2);
-	if (err < 0) {
-		fput(newfile1);
-		fput(newfile2);
-		goto out_fd;
-	}
-
+	audit_fd_pair(fd1, fd2);
 	fd_install(fd1, newfile1);
 	fd_install(fd2, newfile2);
 	/* fd1 and fd2 may be already another descriptors.
@@ -1350,7 +1343,6 @@ out_fd2:
 out_fd1:
 	put_filp(newfile2);
 	sock_release(sock2);
-out_fd:
 	put_unused_fd(fd1);
 	put_unused_fd(fd2);
 	goto out;
@@ -2066,9 +2058,7 @@ asmlinkage long sys_socketcall(int call, unsigned long __user *args)
 	if (copy_from_user(a, args, nargs[call]))
 		return -EFAULT;
 
-	err = audit_socketcall(nargs[call] / sizeof(unsigned long), a);
-	if (err)
-		return err;
+	audit_socketcall(nargs[call] / sizeof(unsigned long), a);
 
 	a0 = a[0];
 	a1 = a[1];
@@ -2307,6 +2297,7 @@ int kernel_accept(struct socket *sock, struct socket **newsock, int flags)
 	}
 
 	(*newsock)->ops = sock->ops;
+	__module_get((*newsock)->ops->owner);
 
 done:
 	return err;

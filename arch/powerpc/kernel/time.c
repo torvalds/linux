@@ -164,8 +164,6 @@ static u64 tb_to_ns_scale __read_mostly;
 static unsigned tb_to_ns_shift __read_mostly;
 static unsigned long boot_tb __read_mostly;
 
-static struct gettimeofday_struct do_gtod;
-
 extern struct timezone sys_tz;
 static long timezone_offset;
 
@@ -258,8 +256,10 @@ void account_system_vtime(struct task_struct *tsk)
 		delta += sys_time;
 		get_paca()->system_time = 0;
 	}
-	account_system_time(tsk, 0, delta);
-	account_system_time_scaled(tsk, deltascaled);
+	if (in_irq() || idle_task(smp_processor_id()) != tsk)
+		account_system_time(tsk, 0, delta, deltascaled);
+	else
+		account_idle_time(delta);
 	per_cpu(cputime_last_delta, smp_processor_id()) = delta;
 	per_cpu(cputime_scaled_last_delta, smp_processor_id()) = deltascaled;
 	local_irq_restore(flags);
@@ -277,10 +277,8 @@ void account_process_tick(struct task_struct *tsk, int user_tick)
 
 	utime = get_paca()->user_time;
 	get_paca()->user_time = 0;
-	account_user_time(tsk, utime);
-
 	utimescaled = cputime_to_scaled(utime);
-	account_user_time_scaled(tsk, utimescaled);
+	account_user_time(tsk, utime, utimescaled);
 }
 
 /*
@@ -340,8 +338,12 @@ void calculate_steal_time(void)
 	tb = mftb();
 	purr = mfspr(SPRN_PURR);
 	stolen = (tb - pme->tb) - (purr - pme->purr);
-	if (stolen > 0)
-		account_steal_time(current, stolen);
+	if (stolen > 0) {
+		if (idle_task(smp_processor_id()) != current)
+			account_steal_time(stolen);
+		else
+			account_idle_time(stolen);
+	}
 	pme->tb = tb;
 	pme->purr = purr;
 }
@@ -415,31 +417,9 @@ void udelay(unsigned long usecs)
 }
 EXPORT_SYMBOL(udelay);
 
-
-/*
- * There are two copies of tb_to_xs and stamp_xsec so that no
- * lock is needed to access and use these values in
- * do_gettimeofday.  We alternate the copies and as long as a
- * reasonable time elapses between changes, there will never
- * be inconsistent values.  ntpd has a minimum of one minute
- * between updates.
- */
 static inline void update_gtod(u64 new_tb_stamp, u64 new_stamp_xsec,
 			       u64 new_tb_to_xs)
 {
-	unsigned temp_idx;
-	struct gettimeofday_vars *temp_varp;
-
-	temp_idx = (do_gtod.var_idx == 0);
-	temp_varp = &do_gtod.vars[temp_idx];
-
-	temp_varp->tb_to_xs = new_tb_to_xs;
-	temp_varp->tb_orig_stamp = new_tb_stamp;
-	temp_varp->stamp_xsec = new_stamp_xsec;
-	smp_mb();
-	do_gtod.varp = temp_varp;
-	do_gtod.var_idx = temp_idx;
-
 	/*
 	 * tb_update_count is used to allow the userspace gettimeofday code
 	 * to assure itself that it sees a consistent view of the tb_to_xs and
@@ -456,6 +436,7 @@ static inline void update_gtod(u64 new_tb_stamp, u64 new_stamp_xsec,
 	vdso_data->tb_to_xs = new_tb_to_xs;
 	vdso_data->wtom_clock_sec = wall_to_monotonic.tv_sec;
 	vdso_data->wtom_clock_nsec = wall_to_monotonic.tv_nsec;
+	vdso_data->stamp_xtime = xtime;
 	smp_wmb();
 	++(vdso_data->tb_update_count);
 }
@@ -514,9 +495,7 @@ static int __init iSeries_tb_recal(void)
 				tb_ticks_per_sec   = new_tb_ticks_per_sec;
 				calc_cputime_factors();
 				div128_by_32( XSEC_PER_SEC, 0, tb_ticks_per_sec, &divres );
-				do_gtod.tb_ticks_per_sec = tb_ticks_per_sec;
 				tb_to_xs = divres.result_low;
-				do_gtod.varp->tb_to_xs = tb_to_xs;
 				vdso_data->tb_ticks_per_sec = tb_ticks_per_sec;
 				vdso_data->tb_to_xs = tb_to_xs;
 			}
@@ -869,7 +848,7 @@ static void register_decrementer_clockevent(int cpu)
 	struct clock_event_device *dec = &per_cpu(decrementers, cpu).event;
 
 	*dec = decrementer_clockevent;
-	dec->cpumask = cpumask_of_cpu(cpu);
+	dec->cpumask = cpumask_of(cpu);
 
 	printk(KERN_DEBUG "clockevent: %s mult[%lx] shift[%d] cpu[%d]\n",
 	       dec->name, dec->mult, dec->shift, cpu);
@@ -987,15 +966,6 @@ void __init time_init(void)
 		sys_tz.tz_minuteswest = -timezone_offset / 60;
 		sys_tz.tz_dsttime = 0;
         }
-
-	do_gtod.varp = &do_gtod.vars[0];
-	do_gtod.var_idx = 0;
-	do_gtod.varp->tb_orig_stamp = tb_last_jiffy;
-	__get_cpu_var(last_jiffy) = tb_last_jiffy;
-	do_gtod.varp->stamp_xsec = (u64) xtime.tv_sec * XSEC_PER_SEC;
-	do_gtod.tb_ticks_per_sec = tb_ticks_per_sec;
-	do_gtod.varp->tb_to_xs = tb_to_xs;
-	do_gtod.tb_to_us = tb_to_us;
 
 	vdso_data->tb_orig_stamp = tb_last_jiffy;
 	vdso_data->tb_update_count = 0;

@@ -145,25 +145,23 @@ int security_capget(struct task_struct *target,
 	return security_ops->capget(target, effective, inheritable, permitted);
 }
 
-int security_capset_check(struct task_struct *target,
-			   kernel_cap_t *effective,
-			   kernel_cap_t *inheritable,
-			   kernel_cap_t *permitted)
+int security_capset(struct cred *new, const struct cred *old,
+		    const kernel_cap_t *effective,
+		    const kernel_cap_t *inheritable,
+		    const kernel_cap_t *permitted)
 {
-	return security_ops->capset_check(target, effective, inheritable, permitted);
-}
-
-void security_capset_set(struct task_struct *target,
-			  kernel_cap_t *effective,
-			  kernel_cap_t *inheritable,
-			  kernel_cap_t *permitted)
-{
-	security_ops->capset_set(target, effective, inheritable, permitted);
+	return security_ops->capset(new, old,
+				    effective, inheritable, permitted);
 }
 
 int security_capable(struct task_struct *tsk, int cap)
 {
-	return security_ops->capable(tsk, cap);
+	return security_ops->capable(tsk, cap, SECURITY_CAP_AUDIT);
+}
+
+int security_capable_noaudit(struct task_struct *tsk, int cap)
+{
+	return security_ops->capable(tsk, cap, SECURITY_CAP_NOAUDIT);
 }
 
 int security_acct(struct file *file)
@@ -215,34 +213,24 @@ int security_vm_enough_memory_kern(long pages)
 	return security_ops->vm_enough_memory(current->mm, pages);
 }
 
-int security_bprm_alloc(struct linux_binprm *bprm)
+int security_bprm_set_creds(struct linux_binprm *bprm)
 {
-	return security_ops->bprm_alloc_security(bprm);
-}
-
-void security_bprm_free(struct linux_binprm *bprm)
-{
-	security_ops->bprm_free_security(bprm);
-}
-
-void security_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
-{
-	security_ops->bprm_apply_creds(bprm, unsafe);
-}
-
-void security_bprm_post_apply_creds(struct linux_binprm *bprm)
-{
-	security_ops->bprm_post_apply_creds(bprm);
-}
-
-int security_bprm_set(struct linux_binprm *bprm)
-{
-	return security_ops->bprm_set_security(bprm);
+	return security_ops->bprm_set_creds(bprm);
 }
 
 int security_bprm_check(struct linux_binprm *bprm)
 {
 	return security_ops->bprm_check_security(bprm);
+}
+
+void security_bprm_committing_creds(struct linux_binprm *bprm)
+{
+	security_ops->bprm_committing_creds(bprm);
+}
+
+void security_bprm_committed_creds(struct linux_binprm *bprm)
+{
+	security_ops->bprm_committed_creds(bprm);
 }
 
 int security_bprm_secureexec(struct linux_binprm *bprm)
@@ -266,9 +254,9 @@ int security_sb_copy_data(char *orig, char *copy)
 }
 EXPORT_SYMBOL(security_sb_copy_data);
 
-int security_sb_kern_mount(struct super_block *sb, void *data)
+int security_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
-	return security_ops->sb_kern_mount(sb, data);
+	return security_ops->sb_kern_mount(sb, flags, data);
 }
 
 int security_sb_show_options(struct seq_file *m, struct super_block *sb)
@@ -366,6 +354,72 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 	return security_ops->inode_init_security(inode, dir, name, value, len);
 }
 EXPORT_SYMBOL(security_inode_init_security);
+
+#ifdef CONFIG_SECURITY_PATH
+int security_path_mknod(struct path *path, struct dentry *dentry, int mode,
+			unsigned int dev)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_mknod(path, dentry, mode, dev);
+}
+EXPORT_SYMBOL(security_path_mknod);
+
+int security_path_mkdir(struct path *path, struct dentry *dentry, int mode)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_mkdir(path, dentry, mode);
+}
+
+int security_path_rmdir(struct path *path, struct dentry *dentry)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_rmdir(path, dentry);
+}
+
+int security_path_unlink(struct path *path, struct dentry *dentry)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_unlink(path, dentry);
+}
+
+int security_path_symlink(struct path *path, struct dentry *dentry,
+			  const char *old_name)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_symlink(path, dentry, old_name);
+}
+
+int security_path_link(struct dentry *old_dentry, struct path *new_dir,
+		       struct dentry *new_dentry)
+{
+	if (unlikely(IS_PRIVATE(old_dentry->d_inode)))
+		return 0;
+	return security_ops->path_link(old_dentry, new_dir, new_dentry);
+}
+
+int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
+			 struct path *new_dir, struct dentry *new_dentry)
+{
+	if (unlikely(IS_PRIVATE(old_dentry->d_inode) ||
+		     (new_dentry->d_inode && IS_PRIVATE(new_dentry->d_inode))))
+		return 0;
+	return security_ops->path_rename(old_dir, old_dentry, new_dir,
+					 new_dentry);
+}
+
+int security_path_truncate(struct path *path, loff_t length,
+			   unsigned int time_attrs)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_truncate(path, length, time_attrs);
+}
+#endif
 
 int security_inode_create(struct inode *dir, struct dentry *dentry, int mode)
 {
@@ -603,9 +657,9 @@ int security_file_receive(struct file *file)
 	return security_ops->file_receive(file);
 }
 
-int security_dentry_open(struct file *file)
+int security_dentry_open(struct file *file, const struct cred *cred)
 {
-	return security_ops->dentry_open(file);
+	return security_ops->dentry_open(file, cred);
 }
 
 int security_task_create(unsigned long clone_flags)
@@ -613,14 +667,29 @@ int security_task_create(unsigned long clone_flags)
 	return security_ops->task_create(clone_flags);
 }
 
-int security_task_alloc(struct task_struct *p)
+void security_cred_free(struct cred *cred)
 {
-	return security_ops->task_alloc_security(p);
+	security_ops->cred_free(cred);
 }
 
-void security_task_free(struct task_struct *p)
+int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp)
 {
-	security_ops->task_free_security(p);
+	return security_ops->cred_prepare(new, old, gfp);
+}
+
+void security_commit_creds(struct cred *new, const struct cred *old)
+{
+	security_ops->cred_commit(new, old);
+}
+
+int security_kernel_act_as(struct cred *new, u32 secid)
+{
+	return security_ops->kernel_act_as(new, secid);
+}
+
+int security_kernel_create_files_as(struct cred *new, struct inode *inode)
+{
+	return security_ops->kernel_create_files_as(new, inode);
 }
 
 int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
@@ -628,10 +697,10 @@ int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
 	return security_ops->task_setuid(id0, id1, id2, flags);
 }
 
-int security_task_post_setuid(uid_t old_ruid, uid_t old_euid,
-			       uid_t old_suid, int flags)
+int security_task_fix_setuid(struct cred *new, const struct cred *old,
+			     int flags)
 {
-	return security_ops->task_post_setuid(old_ruid, old_euid, old_suid, flags);
+	return security_ops->task_fix_setuid(new, old, flags);
 }
 
 int security_task_setgid(gid_t id0, gid_t id1, gid_t id2, int flags)
@@ -713,14 +782,9 @@ int security_task_wait(struct task_struct *p)
 }
 
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
-			 unsigned long arg4, unsigned long arg5, long *rc_p)
+			 unsigned long arg4, unsigned long arg5)
 {
-	return security_ops->task_prctl(option, arg2, arg3, arg4, arg5, rc_p);
-}
-
-void security_task_reparent_to_init(struct task_struct *p)
-{
-	security_ops->task_reparent_to_init(p);
+	return security_ops->task_prctl(option, arg2, arg3, arg4, arg5);
 }
 
 void security_task_to_inode(struct task_struct *p, struct inode *inode)
@@ -1120,9 +1184,10 @@ EXPORT_SYMBOL(security_skb_classify_flow);
 
 #ifdef CONFIG_KEYS
 
-int security_key_alloc(struct key *key, struct task_struct *tsk, unsigned long flags)
+int security_key_alloc(struct key *key, const struct cred *cred,
+		       unsigned long flags)
 {
-	return security_ops->key_alloc(key, tsk, flags);
+	return security_ops->key_alloc(key, cred, flags);
 }
 
 void security_key_free(struct key *key)
@@ -1131,9 +1196,9 @@ void security_key_free(struct key *key)
 }
 
 int security_key_permission(key_ref_t key_ref,
-			    struct task_struct *context, key_perm_t perm)
+			    const struct cred *cred, key_perm_t perm)
 {
-	return security_ops->key_permission(key_ref, context, perm);
+	return security_ops->key_permission(key_ref, cred, perm);
 }
 
 int security_key_getsecurity(struct key *key, char **_buffer)

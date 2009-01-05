@@ -54,7 +54,6 @@ extern int disable_apic;
 extern int is_vsmp_box(void);
 extern void xapic_wait_icr_idle(void);
 extern u32 safe_xapic_wait_icr_idle(void);
-extern u64 xapic_icr_read(void);
 extern void xapic_icr_write(u32, u32);
 extern int setup_profiling_timer(unsigned int);
 
@@ -93,7 +92,7 @@ static inline u32 native_apic_msr_read(u32 reg)
 }
 
 #ifndef CONFIG_X86_32
-extern int x2apic, x2apic_preenabled;
+extern int x2apic;
 extern void check_x2apic(void);
 extern void enable_x2apic(void);
 extern void enable_IR_x2apic(void);
@@ -193,6 +192,7 @@ extern u8 setup_APIC_eilvt_ibs(u8 vector, u8 msg_type, u8 mask);
 static inline void lapic_shutdown(void) { }
 #define local_apic_timer_c2_ok		1
 static inline void init_apic_mappings(void) { }
+static inline void disable_local_APIC(void) { }
 
 #endif /* !CONFIG_X86_LOCAL_APIC */
 

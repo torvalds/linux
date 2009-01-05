@@ -29,7 +29,7 @@
 #include <linux/init.h>
 #include <asm/olpc.h>
 #include <asm/geode.h>
-#include "pci.h"
+#include <asm/pci_x86.h>
 
 /*
  * In the tables below, the first two line (8 longwords) are the

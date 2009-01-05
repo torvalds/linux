@@ -1721,7 +1721,7 @@ static loff_t ext4_max_size(int blkbits, int has_huge_files)
 	/* small i_blocks in vfs inode? */
 	if (!has_huge_files || sizeof(blkcnt_t) < sizeof(u64)) {
 		/*
-		 * CONFIG_LSF is not enabled implies the inode
+		 * CONFIG_LBD is not enabled implies the inode
 		 * i_block represent total blocks in 512 bytes
 		 * 32 == size of vfs inode i_blocks * 8
 		 */
@@ -1764,7 +1764,7 @@ static loff_t ext4_max_bitmap_size(int bits, int has_huge_files)
 
 	if (!has_huge_files || sizeof(blkcnt_t) < sizeof(u64)) {
 		/*
-		 * !has_huge_files or CONFIG_LSF is not enabled
+		 * !has_huge_files or CONFIG_LBD is not enabled
 		 * implies the inode i_block represent total blocks in
 		 * 512 bytes 32 == size of vfs inode i_blocks * 8
 		 */
@@ -2021,13 +2021,13 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (has_huge_files) {
 		/*
 		 * Large file size enabled file system can only be
-		 * mount if kernel is build with CONFIG_LSF
+		 * mount if kernel is build with CONFIG_LBD
 		 */
 		if (sizeof(root->i_blocks) < sizeof(u64) &&
 				!(sb->s_flags & MS_RDONLY)) {
 			printk(KERN_ERR "EXT4-fs: %s: Filesystem with huge "
 					"files cannot be mounted read-write "
-					"without CONFIG_LSF.\n", sb->s_id);
+					"without CONFIG_LBD.\n", sb->s_id);
 			goto failed_mount;
 		}
 	}

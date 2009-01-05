@@ -81,10 +81,9 @@ void __init s3c2443_init_uarts(struct s3c2410_uartcfg *cfg, int no)
  * machine specific initialisation.
  */
 
-void __init s3c2443_map_io(struct map_desc *mach_desc, int mach_size)
+void __init s3c2443_map_io(void)
 {
 	iotable_init(s3c2443_iodesc, ARRAY_SIZE(s3c2443_iodesc));
-	iotable_init(mach_desc, mach_size);
 }
 
 /* need to register class before we actually register the device, and

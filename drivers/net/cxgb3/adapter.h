@@ -63,6 +63,7 @@ struct port_info {
 	struct link_config link_config;
 	struct net_device_stats netstats;
 	int activity;
+	__be32 iscsi_ipv4addr;
 };
 
 enum {				/* adapter flags */
@@ -196,6 +197,7 @@ struct sge_qset {		/* an SGE queue set */
 	int lro_frag_len;
 	void *lro_va;
 	struct net_device *netdev;
+	struct netdev_queue *tx_q;	/* associated netdev TX queue */
 	unsigned long txq_stopped;	/* which Tx queues are stopped */
 	struct timer_list tx_reclaim_timer;	/* reclaims TX buffers */
 	unsigned long port_stats[SGE_PSTAT_MAX];
@@ -294,7 +296,8 @@ int t3_mgmt_tx(struct adapter *adap, struct sk_buff *skb);
 void t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p);
 int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 		      int irq_vec_idx, const struct qset_params *p,
-		      int ntxq, struct net_device *dev);
+		      int ntxq, struct net_device *dev,
+		      struct netdev_queue *netdevq);
 int t3_get_desc(const struct sge_qset *qs, unsigned int qnum, unsigned int idx,
 		unsigned char *data);
 irqreturn_t t3_sge_intr_msix(int irq, void *cookie);

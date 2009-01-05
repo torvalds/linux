@@ -31,12 +31,6 @@
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
 int __cpu_logical_map[NR_CPUS];		/* Map logical to physical */
 
-cpumask_t cpu_possible_map;
-EXPORT_SYMBOL(cpu_possible_map);
-
-cpumask_t cpu_online_map;
-EXPORT_SYMBOL(cpu_online_map);
-
 static inline void __init smp_store_cpu_info(unsigned int cpu)
 {
 	struct sh_cpuinfo *c = cpu_data + cpu;
@@ -190,11 +184,11 @@ void arch_send_call_function_single_ipi(int cpu)
 	plat_send_ipi(cpu, SMP_MSG_FUNCTION_SINGLE);
 }
 
-void smp_timer_broadcast(cpumask_t mask)
+void smp_timer_broadcast(const struct cpumask *mask)
 {
 	int cpu;
 
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu(cpu, mask)
 		plat_send_ipi(cpu, SMP_MSG_TIMER);
 }
 

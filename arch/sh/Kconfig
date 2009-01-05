@@ -13,6 +13,7 @@ config SUPERH
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IOREMAP_PROT if MMU
+	select HAVE_ARCH_TRACEHOOK
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -23,8 +24,10 @@ config SUPERH32
 	def_bool !SUPERH64
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
-	select HAVE_ARCH_TRACEHOOK
 	select HAVE_FUNCTION_TRACER
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_ARCH_KGDB
 
 config SUPERH64
 	def_bool y if CPU_SH5
@@ -83,10 +86,17 @@ config GENERIC_LOCKBREAK
 
 config SYS_SUPPORTS_PM
 	bool
+	depends on !SMP
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool n
+
+config ARCH_HIBERNATION_POSSIBLE
+	def_bool n
 
 config SYS_SUPPORTS_APM_EMULATION
 	bool
-	select SYS_SUPPORTS_PM
+	select ARCH_SUSPEND_POSSIBLE
 
 config SYS_SUPPORTS_SMP
 	bool
@@ -181,6 +191,11 @@ config CPU_SUBTYPE_SH7619
 
 # SH-2A Processor Support
 
+config CPU_SUBTYPE_SH7201
+	bool "Support SH7201 processor"
+	select CPU_SH2A
+	select CPU_HAS_FPU
+ 
 config CPU_SUBTYPE_SH7203
 	bool "Support SH7203 processor"
 	select CPU_SH2A
@@ -454,8 +469,12 @@ config SH_CPU_FREQ
 	depends on CPU_FREQ
 	select CPU_FREQ_TABLE
 	help
-	  This adds the cpufreq driver for SuperH. At present, only
-	  the SH-4 is supported.
+	  This adds the cpufreq driver for SuperH. Any CPU that supports
+	  clock rate rounding through the clock framework can use this
+	  driver. While it will make the kernel slightly larger, this is
+	  harmless for CPUs that don't support rate rounding. The driver
+	  will also generate a notice in the boot log before disabling
+	  itself if the CPU in question is not capable of rate rounding.
 
 	  For details, take a look at <file:Documentation/cpu-freq>.
 
@@ -466,9 +485,6 @@ endmenu
 source "arch/sh/drivers/Kconfig"
 
 endmenu
-
-config ISA_DMA_API
-	bool
 
 menu "Kernel features"
 
@@ -686,49 +702,6 @@ config MAPLE
          Dreamcast with a serial line terminal or a remote network
          connection.
 
-config CF_ENABLER
-	bool "Compact Flash Enabler support"
-	depends on SOLUTION_ENGINE || SH_SH03
-	---help---
-	  Compact Flash is a small, removable mass storage device introduced
-	  in 1994 originally as a PCMCIA device.  If you say `Y' here, you
-	  compile in support for Compact Flash devices directly connected to
-	  a SuperH processor.  A Compact Flash FAQ is available at
-	  <http://www.compactflash.org/faqs/faq.htm>.
-
-	  If your board has "Directly Connected" CompactFlash at area 5 or 6,
-	  you may want to enable this option.  Then, you can use CF as
-	  primary IDE drive (only tested for SanDisk).
-
-	  If in doubt, select 'N'.
-
-choice
-	prompt "Compact Flash Connection Area"
-	depends on CF_ENABLER
-	default CF_AREA6
-
-config CF_AREA5
-	bool "Area5"
-	help
-	  If your board has "Directly Connected" CompactFlash, You should
-	  select the area where your CF is connected to.
-
-	  - "Area5" if CompactFlash is connected to Area 5 (0x14000000)
-	  - "Area6" if it is connected to Area 6 (0x18000000)
-
-	  "Area6" will work for most boards.
-
-config CF_AREA6
-	bool "Area6"
-
-endchoice
-
-config CF_BASE_ADDR
-	hex
-	depends on CF_ENABLER
-	default "0xb8000000" if CF_AREA6
-	default "0xb4000000" if CF_AREA5
-
 source "arch/sh/drivers/pci/Kconfig"
 
 source "drivers/pci/Kconfig"
@@ -746,13 +719,11 @@ source "fs/Kconfig.binfmt"
 endmenu
 
 menu "Power management options (EXPERIMENTAL)"
-depends on EXPERIMENTAL && SYS_SUPPORTS_PM
+depends on EXPERIMENTAL
 
-config ARCH_SUSPEND_POSSIBLE
-	def_bool y
-	depends on !SMP
+source "kernel/power/Kconfig"
 
-source kernel/power/Kconfig
+source "drivers/cpuidle/Kconfig"
 
 endmenu
 

@@ -52,7 +52,7 @@ static u32 *iommu_gatt_base;		/* Remapping table */
  * to trigger bugs with some popular PCI cards, in particular 3ware (but
  * has been also also seen with Qlogic at least).
  */
-int iommu_fullflush = 1;
+static int iommu_fullflush = 1;
 
 /* Allocation bitmap for the remapping area: */
 static DEFINE_SPINLOCK(iommu_bitmap_lock);
@@ -745,10 +745,8 @@ void __init gart_iommu_init(void)
 	unsigned long scratch;
 	long i;
 
-	if (cache_k8_northbridges() < 0 || num_k8_northbridges == 0) {
-		printk(KERN_INFO "PCI-GART: No AMD GART found.\n");
+	if (cache_k8_northbridges() < 0 || num_k8_northbridges == 0)
 		return;
-	}
 
 #ifndef CONFIG_AGP_AMD64
 	no_agp = 1;

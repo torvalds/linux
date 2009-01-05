@@ -6,6 +6,7 @@ obj-$(CONFIG_UWB_I1480U)	+= i1480/
 
 uwb-objs :=		\
 	address.o	\
+	allocator.o	\
 	beacon.o	\
 	driver.o	\
 	drp.o		\
@@ -13,10 +14,12 @@ uwb-objs :=		\
 	drp-ie.o	\
 	est.o		\
 	ie.o		\
+	ie-rcv.o	\
 	lc-dev.o	\
 	lc-rc.o		\
 	neh.o		\
 	pal.o		\
+	radio.o		\
 	reset.o		\
 	rsv.o		\
 	scan.o		\

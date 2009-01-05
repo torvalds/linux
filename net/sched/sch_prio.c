@@ -93,33 +93,19 @@ prio_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	return ret;
 }
 
-
-static int
-prio_requeue(struct sk_buff *skb, struct Qdisc* sch)
+static struct sk_buff *prio_peek(struct Qdisc *sch)
 {
-	struct Qdisc *qdisc;
-	int ret;
+	struct prio_sched_data *q = qdisc_priv(sch);
+	int prio;
 
-	qdisc = prio_classify(skb, sch, &ret);
-#ifdef CONFIG_NET_CLS_ACT
-	if (qdisc == NULL) {
-		if (ret & __NET_XMIT_BYPASS)
-			sch->qstats.drops++;
-		kfree_skb(skb);
-		return ret;
+	for (prio = 0; prio < q->bands; prio++) {
+		struct Qdisc *qdisc = q->queues[prio];
+		struct sk_buff *skb = qdisc->ops->peek(qdisc);
+		if (skb)
+			return skb;
 	}
-#endif
-
-	if ((ret = qdisc->ops->requeue(skb, qdisc)) == NET_XMIT_SUCCESS) {
-		sch->q.qlen++;
-		sch->qstats.requeues++;
-		return NET_XMIT_SUCCESS;
-	}
-	if (net_xmit_drop_count(ret))
-		sch->qstats.drops++;
-	return ret;
+	return NULL;
 }
-
 
 static struct sk_buff *prio_dequeue(struct Qdisc* sch)
 {
@@ -201,7 +187,8 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt)
 	memcpy(q->prio2band, qopt->priomap, TC_PRIO_MAX+1);
 
 	for (i=q->bands; i<TCQ_PRIO_BANDS; i++) {
-		struct Qdisc *child = xchg(&q->queues[i], &noop_qdisc);
+		struct Qdisc *child = q->queues[i];
+		q->queues[i] = &noop_qdisc;
 		if (child != &noop_qdisc) {
 			qdisc_tree_decrease_qlen(child, child->q.qlen);
 			qdisc_destroy(child);
@@ -211,18 +198,19 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt)
 
 	for (i=0; i<q->bands; i++) {
 		if (q->queues[i] == &noop_qdisc) {
-			struct Qdisc *child;
+			struct Qdisc *child, *old;
 			child = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
 						  &pfifo_qdisc_ops,
 						  TC_H_MAKE(sch->handle, i + 1));
 			if (child) {
 				sch_tree_lock(sch);
-				child = xchg(&q->queues[i], child);
+				old = q->queues[i];
+				q->queues[i] = child;
 
-				if (child != &noop_qdisc) {
-					qdisc_tree_decrease_qlen(child,
-								 child->q.qlen);
-					qdisc_destroy(child);
+				if (old != &noop_qdisc) {
+					qdisc_tree_decrease_qlen(old,
+								 old->q.qlen);
+					qdisc_destroy(old);
 				}
 				sch_tree_unlock(sch);
 			}
@@ -421,7 +409,7 @@ static struct Qdisc_ops prio_qdisc_ops __read_mostly = {
 	.priv_size	=	sizeof(struct prio_sched_data),
 	.enqueue	=	prio_enqueue,
 	.dequeue	=	prio_dequeue,
-	.requeue	=	prio_requeue,
+	.peek		=	prio_peek,
 	.drop		=	prio_drop,
 	.init		=	prio_init,
 	.reset		=	prio_reset,

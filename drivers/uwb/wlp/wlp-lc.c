@@ -21,12 +21,9 @@
  *
  * FIXME: docs
  */
-
 #include <linux/wlp.h>
-#define D_LOCAL 6
-#include <linux/uwb/debug.h>
-#include "wlp-internal.h"
 
+#include "wlp-internal.h"
 
 static
 void wlp_neighbor_init(struct wlp_neighbor_e *neighbor)
@@ -61,11 +58,6 @@ int __wlp_alloc_device_info(struct wlp *wlp)
 static
 void __wlp_fill_device_info(struct wlp *wlp)
 {
-	struct device *dev = &wlp->rc->uwb_dev.dev;
-
-	BUG_ON(wlp->fill_device_info == NULL);
-	d_printf(6, dev, "Retrieving device information "
-			 "from device driver.\n");
 	wlp->fill_device_info(wlp, wlp->dev_info);
 }
 
@@ -127,7 +119,7 @@ void wlp_remove_neighbor_tmp_info(struct wlp_neighbor_e *neighbor)
 	}
 }
 
-/**
+/*
  * Populate WLP neighborhood cache with neighbor information
  *
  * A new neighbor is found. If it is discoverable then we add it to the
@@ -141,10 +133,7 @@ int wlp_add_neighbor(struct wlp *wlp, struct uwb_dev *dev)
 	int discoverable;
 	struct wlp_neighbor_e *neighbor;
 
-	d_fnstart(6, &dev->dev, "uwb %p \n", dev);
-	d_printf(6, &dev->dev, "Found neighbor device %02x:%02x \n",
-		 dev->dev_addr.data[1], dev->dev_addr.data[0]);
-	/**
+	/*
 	 * FIXME:
 	 * Use contents of WLP IE found in beacon cache to determine if
 	 * neighbor is discoverable.
@@ -167,7 +156,6 @@ int wlp_add_neighbor(struct wlp *wlp, struct uwb_dev *dev)
 		list_add(&neighbor->node, &wlp->neighbors);
 	}
 error_no_mem:
-	d_fnend(6, &dev->dev, "uwb %p, result = %d \n", dev, result);
 	return result;
 }
 
@@ -255,8 +243,6 @@ int wlp_d1d2_exchange(struct wlp *wlp, struct wlp_neighbor_e *neighbor,
 		dev_err(dev, "Unable to send D1 frame to neighbor "
 			"%02x:%02x (%d)\n", dev_addr->data[1],
 			dev_addr->data[0], result);
-		d_printf(6, dev, "Add placeholders into buffer next to "
-			 "neighbor information we have (dev address).\n");
 		goto out;
 	}
 	/* Create session, wait for response */
@@ -284,8 +270,6 @@ int wlp_d1d2_exchange(struct wlp *wlp, struct wlp_neighbor_e *neighbor,
 	/* Parse message in session->data: it will be either D2 or F0 */
 	skb = session.data;
 	resp = (void *) skb->data;
-	d_printf(6, dev, "Received response to D1 frame. \n");
-	d_dump(6, dev, skb->data, skb->len > 72 ? 72 : skb->len);
 
 	if (resp->type == WLP_ASSOC_F0) {
 		result = wlp_parse_f0(wlp, skb);
@@ -337,10 +321,9 @@ int wlp_enroll_neighbor(struct wlp *wlp, struct wlp_neighbor_e *neighbor,
 	struct device *dev = &wlp->rc->uwb_dev.dev;
 	char buf[WLP_WSS_UUID_STRSIZE];
 	struct uwb_dev_addr *dev_addr = &neighbor->uwb_dev->dev_addr;
+
 	wlp_wss_uuid_print(buf, sizeof(buf), wssid);
-	d_fnstart(6, dev, "wlp %p, neighbor %p, wss %p, wssid %p (%s)\n",
-		  wlp, neighbor, wss, wssid, buf);
-	d_printf(6, dev, "Complete me.\n");
+
 	result =  wlp_d1d2_exchange(wlp, neighbor, wss, wssid);
 	if (result < 0) {
 		dev_err(dev, "WLP: D1/D2 message exchange for enrollment "
@@ -360,13 +343,10 @@ int wlp_enroll_neighbor(struct wlp *wlp, struct wlp_neighbor_e *neighbor,
 		goto error;
 	} else {
 		wss->state = WLP_WSS_STATE_ENROLLED;
-		d_printf(2, dev, "WLP: Success Enrollment into unsecure WSS "
-			 "%s using neighbor %02x:%02x. \n", buf,
-			 dev_addr->data[1], dev_addr->data[0]);
+		dev_dbg(dev, "WLP: Success Enrollment into unsecure WSS "
+			"%s using neighbor %02x:%02x. \n",
+			buf, dev_addr->data[1], dev_addr->data[0]);
 	}
-
-	d_fnend(6, dev, "wlp %p, neighbor %p, wss %p, wssid %p (%s)\n",
-		  wlp, neighbor, wss, wssid, buf);
 out:
 	return result;
 error:
@@ -449,7 +429,6 @@ ssize_t wlp_discover(struct wlp *wlp)
 	int result = 0;
 	struct device *dev = &wlp->rc->uwb_dev.dev;
 
-	d_fnstart(6, dev, "wlp %p \n", wlp);
 	mutex_lock(&wlp->nbmutex);
 	/* Clear current neighborhood cache. */
 	__wlp_neighbors_release(wlp);
@@ -469,7 +448,6 @@ ssize_t wlp_discover(struct wlp *wlp)
 	}
 error_dev_for_each:
 	mutex_unlock(&wlp->nbmutex);
-	d_fnend(6, dev, "wlp %p \n", wlp);
 	return result;
 }
 
@@ -492,9 +470,6 @@ void wlp_uwb_notifs_cb(void *_wlp, struct uwb_dev *uwb_dev,
 	int result;
 	switch (event) {
 	case UWB_NOTIF_ONAIR:
-		d_printf(6, dev, "UWB device %02x:%02x is onair\n",
-				uwb_dev->dev_addr.data[1],
-				uwb_dev->dev_addr.data[0]);
 		result = wlp_eda_create_node(&wlp->eda,
 					     uwb_dev->mac_addr.data,
 					     &uwb_dev->dev_addr);
@@ -505,18 +480,11 @@ void wlp_uwb_notifs_cb(void *_wlp, struct uwb_dev *uwb_dev,
 				uwb_dev->dev_addr.data[0]);
 		break;
 	case UWB_NOTIF_OFFAIR:
-		d_printf(6, dev, "UWB device %02x:%02x is offair\n",
-				uwb_dev->dev_addr.data[1],
-				uwb_dev->dev_addr.data[0]);
 		wlp_eda_rm_node(&wlp->eda, &uwb_dev->dev_addr);
 		mutex_lock(&wlp->nbmutex);
-		list_for_each_entry_safe(neighbor, next, &wlp->neighbors,
-					 node) {
-			if (neighbor->uwb_dev == uwb_dev) {
-				d_printf(6, dev, "Removing device from "
-					 "neighborhood.\n");
+		list_for_each_entry_safe(neighbor, next, &wlp->neighbors, node) {
+			if (neighbor->uwb_dev == uwb_dev)
 				__wlp_neighbor_release(neighbor);
-			}
 		}
 		mutex_unlock(&wlp->nbmutex);
 		break;
@@ -526,38 +494,47 @@ void wlp_uwb_notifs_cb(void *_wlp, struct uwb_dev *uwb_dev,
 	}
 }
 
-int wlp_setup(struct wlp *wlp, struct uwb_rc *rc)
+static void wlp_channel_changed(struct uwb_pal *pal, int channel)
 {
-	struct device *dev = &rc->uwb_dev.dev;
+	struct wlp *wlp = container_of(pal, struct wlp, pal);
+
+	if (channel < 0)
+		netif_carrier_off(wlp->ndev);
+	else
+		netif_carrier_on(wlp->ndev);
+}
+
+int wlp_setup(struct wlp *wlp, struct uwb_rc *rc, struct net_device *ndev)
+{
 	int result;
 
-	d_fnstart(6, dev, "wlp %p\n", wlp);
 	BUG_ON(wlp->fill_device_info == NULL);
 	BUG_ON(wlp->xmit_frame == NULL);
 	BUG_ON(wlp->stop_queue == NULL);
 	BUG_ON(wlp->start_queue == NULL);
+
 	wlp->rc = rc;
+	wlp->ndev = ndev;
 	wlp_eda_init(&wlp->eda);/* Set up address cache */
 	wlp->uwb_notifs_handler.cb = wlp_uwb_notifs_cb;
 	wlp->uwb_notifs_handler.data = wlp;
 	uwb_notifs_register(rc, &wlp->uwb_notifs_handler);
 
 	uwb_pal_init(&wlp->pal);
-	result = uwb_pal_register(rc, &wlp->pal);
+	wlp->pal.rc = rc;
+	wlp->pal.channel_changed = wlp_channel_changed;
+	result = uwb_pal_register(&wlp->pal);
 	if (result < 0)
 		uwb_notifs_deregister(wlp->rc, &wlp->uwb_notifs_handler);
 
-	d_fnend(6, dev, "wlp %p, result = %d\n", wlp, result);
 	return result;
 }
 EXPORT_SYMBOL_GPL(wlp_setup);
 
 void wlp_remove(struct wlp *wlp)
 {
-	struct device *dev = &wlp->rc->uwb_dev.dev;
-	d_fnstart(6, dev, "wlp %p\n", wlp);
 	wlp_neighbors_release(wlp);
-	uwb_pal_unregister(wlp->rc, &wlp->pal);
+	uwb_pal_unregister(&wlp->pal);
 	uwb_notifs_deregister(wlp->rc, &wlp->uwb_notifs_handler);
 	wlp_eda_release(&wlp->eda);
 	mutex_lock(&wlp->mutex);
@@ -565,9 +542,6 @@ void wlp_remove(struct wlp *wlp)
 		kfree(wlp->dev_info);
 	mutex_unlock(&wlp->mutex);
 	wlp->rc = NULL;
-	/* We have to use NULL here because this function can be called
-	 * when the device disappeared. */
-	d_fnend(6, NULL, "wlp %p\n", wlp);
 }
 EXPORT_SYMBOL_GPL(wlp_remove);
 

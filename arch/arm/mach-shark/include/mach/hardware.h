@@ -28,8 +28,6 @@
 #define ROMCARD_SIZE		0x08000000
 #define ROMCARD_START		0x10000000
 
-#define PCIO_BASE		0xe0000000
-
 
 /* defines for the Framebuffer */
 #define FB_START		0x06000000

@@ -77,6 +77,38 @@ lpfc_dump_mem(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb, uint16_t offset)
 }
 
 /**
+ * lpfc_dump_mem: Prepare a mailbox command for retrieving wakeup params.
+ * @phba: pointer to lpfc hba data structure.
+ * @pmb: pointer to the driver internal queue element for mailbox command.
+ * This function create a dump memory mailbox command to dump wake up
+ * parameters.
+ */
+void
+lpfc_dump_wakeup_param(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	MAILBOX_t *mb;
+	void *ctx;
+
+	mb = &pmb->mb;
+	/* Save context so that we can restore after memset */
+	ctx = pmb->context2;
+
+	/* Setup to dump VPD region */
+	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
+	mb->mbxCommand = MBX_DUMP_MEMORY;
+	mb->mbxOwner = OWN_HOST;
+	mb->un.varDmp.cv = 1;
+	mb->un.varDmp.type = DMP_NV_PARAMS;
+	mb->un.varDmp.entry_index = 0;
+	mb->un.varDmp.region_id = WAKE_UP_PARMS_REGION_ID;
+	mb->un.varDmp.word_cnt = WAKE_UP_PARMS_WORD_SIZE;
+	mb->un.varDmp.co = 0;
+	mb->un.varDmp.resp_offset = 0;
+	pmb->context2 = ctx;
+	return;
+}
+
+/**
  * lpfc_read_nv: Prepare a mailbox command for reading HBA's NVRAM param.
  * @phba: pointer to lpfc hba data structure.
  * @pmb: pointer to the driver internal queue element for mailbox command.
@@ -1061,9 +1093,14 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mb->un.varCfgPort.pcbLow = putPaddrLow(pdma_addr);
 	mb->un.varCfgPort.pcbHigh = putPaddrHigh(pdma_addr);
 
+	/* Always Host Group Pointer is in SLIM */
+	mb->un.varCfgPort.hps = 1;
+
 	/* If HBA supports SLI=3 ask for it */
 
 	if (phba->sli_rev == 3 && phba->vpd.sli3Feat.cerbm) {
+		if (phba->cfg_enable_bg)
+			mb->un.varCfgPort.cbg = 1; /* configure BlockGuard */
 		mb->un.varCfgPort.cerbm = 1; /* Request HBQs */
 		mb->un.varCfgPort.ccrp = 1; /* Command Ring Polling */
 		mb->un.varCfgPort.cinb = 1; /* Interrupt Notification Block */
@@ -1163,16 +1200,11 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				    sizeof(*phba->host_gp));
 	}
 
-	/* Setup Port Group ring pointer */
-	if (phba->sli3_options & LPFC_SLI3_INB_ENABLED) {
-		pgp_offset = offsetof(struct lpfc_sli2_slim,
-				      mbx.us.s3_inb_pgp.port);
-		phba->hbq_get = phba->mbox->us.s3_inb_pgp.hbq_get;
-	} else if (phba->sli_rev == 3) {
+	/* Setup Port Group offset */
+	if (phba->sli_rev == 3)
 		pgp_offset = offsetof(struct lpfc_sli2_slim,
 				      mbx.us.s3_pgp.port);
-		phba->hbq_get = phba->mbox->us.s3_pgp.hbq_get;
-	} else
+	else
 		pgp_offset = offsetof(struct lpfc_sli2_slim, mbx.us.s2.port);
 	pdma_addr = phba->slim2p.phys + pgp_offset;
 	phba->pcb->pgpAddrHigh = putPaddrHigh(pdma_addr);
@@ -1285,10 +1317,12 @@ lpfc_mbox_get(struct lpfc_hba * phba)
 void
 lpfc_mbox_cmpl_put(struct lpfc_hba * phba, LPFC_MBOXQ_t * mbq)
 {
+	unsigned long iflag;
+
 	/* This function expects to be called from interrupt context */
-	spin_lock(&phba->hbalock);
+	spin_lock_irqsave(&phba->hbalock, iflag);
 	list_add_tail(&mbq->list, &phba->sli.mboxq_cmpl);
-	spin_unlock(&phba->hbalock);
+	spin_unlock_irqrestore(&phba->hbalock, iflag);
 	return;
 }
 

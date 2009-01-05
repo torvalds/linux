@@ -23,7 +23,7 @@
  *
  * This can be thought of as a very heavy write lock, equivalent to
  * grabbing every spinlock in the kernel. */
-int stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus);
+int stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus);
 
 /**
  * __stop_machine: freeze the machine on all CPUs and run this function
@@ -34,11 +34,11 @@ int stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus);
  * Description: This is a special version of the above, which assumes cpus
  * won't come or go while it's being called.  Used by hotplug cpu.
  */
-int __stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus);
+int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus);
 #else
 
 static inline int stop_machine(int (*fn)(void *), void *data,
-			       const cpumask_t *cpus)
+			       const struct cpumask *cpus)
 {
 	int ret;
 	local_irq_disable();

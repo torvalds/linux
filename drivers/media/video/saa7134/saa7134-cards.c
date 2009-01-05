@@ -4462,6 +4462,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 3,
@@ -4480,8 +4481,6 @@ struct saa7134_board saa7134_boards[] = {
 			.name = name_radio,
 			.amux = LINE2,
 		},
-		/* no DVB support for now */
-		/* .mpeg           = SAA7134_MPEG_DVB, */
 	},
 	[SAA7134_BOARD_ASUSTeK_TIGER_3IN1] = {
 		.name           = "Asus Tiger 3in1",
@@ -4604,6 +4603,75 @@ struct saa7134_board saa7134_boards[] = {
 			.name   = name_radio,
 			.amux   = TV,
 			.gpio   = 0x0200000,
+		},
+	},
+	[SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG] = {
+		.name           = "Kworld Plus TV Analog Lite PCI",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_YMEC_TVF_5533MF,
+		.radio_type     = TUNER_TEA5767,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.gpiomask       = 0x80000700,
+		.inputs = { {
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = LINE2,
+			.tv     = 1,
+			.gpio   = 0x100,
+		}, {
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE1,
+			.gpio   = 0x200,
+		}, {
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE1,
+			.gpio   = 0x200,
+		} },
+		.radio = {
+			.name   = name_radio,
+			.vmux   = 1,
+			.amux   = LINE1,
+			.gpio   = 0x100,
+		},
+		.mute = {
+			.name = name_mute,
+			.vmux = 8,
+			.amux = 2,
+		},
+	},
+	[SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS] = {
+		.name           = "Avermedia AVerTV GO 007 FM Plus",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.gpiomask       = 0x00300003,
+		/* .gpiomask       = 0x8c240003, */
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+			.gpio = 0x01,
+		}, {
+			.name = name_svideo,
+			.vmux = 6,
+			.amux = LINE1,
+			.gpio = 0x02,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x00300001,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = TV,
+			.gpio = 0x01,
 		},
 	},
 };
@@ -4735,6 +4803,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x0003,
 		.driver_data  = SAA7134_BOARD_MD7134,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x16be, /* CTX946 analog TV, HW mpeg, DVB-T */
+		.subdevice    = 0x5000, /* only analog TV and DVB-T for now */
+		.driver_data  = SAA7134_BOARD_MD7134,
+	}, {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
 		.subvendor    = 0x1048,
@@ -5653,6 +5727,19 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x4878, /* REV:1.02G */
 		.driver_data  = SAA7134_BOARD_ASUSTeK_TIGER_3IN1,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x17de,
+		.subdevice    = 0x7128,
+		.driver_data  = SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xf31d,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS,
+
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -5880,6 +5967,8 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_507_9FM:
 	case SAA7134_BOARD_GENIUS_TVGO_A11MCE:
 	case SAA7134_BOARD_REAL_ANGEL_220:
+	case SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG:
+	case SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
@@ -5975,6 +6064,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_M6:
 	case SAA7134_BOARD_BEHOLD_M63:
 	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
+	case SAA7134_BOARD_BEHOLD_H6:
 		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A169_B:
@@ -6048,7 +6138,7 @@ static void saa7134_tuner_setup(struct saa7134_dev *dev)
 		struct v4l2_priv_tun_config  xc2028_cfg;
 		struct xc2028_ctrl           ctl;
 
-		memset(&xc2028_cfg, 0, sizeof(ctl));
+		memset(&xc2028_cfg, 0, sizeof(xc2028_cfg));
 		memset(&ctl, 0, sizeof(ctl));
 
 		ctl.fname   = XC2028_DEFAULT_FIRMWARE;

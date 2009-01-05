@@ -12,8 +12,6 @@
 /* bttv address list */
 #define I2C_ADDR_TSA5522	0xc2
 #define I2C_ADDR_TDA7432	0x8a
-#define I2C_ADDR_BT832_ALT1	0x88
-#define I2C_ADDR_BT832_ALT2	0x8a // alternate setting
 #define I2C_ADDR_TDA8425	0x82
 #define I2C_ADDR_TDA9840	0x84
 #define I2C_ADDR_TDA9850	0xb6 /* also used by 9855,9873 */

@@ -101,6 +101,82 @@ static void ide_disk_init_mult_count(ide_drive_t *drive)
 	}
 }
 
+static void ide_classify_ata_dev(ide_drive_t *drive)
+{
+	u16 *id = drive->id;
+	char *m = (char *)&id[ATA_ID_PROD];
+	int is_cfa = ata_id_is_cfa(id);
+
+	/* CF devices are *not* removable in Linux definition of the term */
+	if (is_cfa == 0 && (id[ATA_ID_CONFIG] & (1 << 7)))
+		drive->dev_flags |= IDE_DFLAG_REMOVABLE;
+
+	drive->media = ide_disk;
+
+	if (!ata_id_has_unload(drive->id))
+		drive->dev_flags |= IDE_DFLAG_NO_UNLOAD;
+
+	printk(KERN_INFO "%s: %s, %s DISK drive\n", drive->name, m,
+		is_cfa ? "CFA" : "ATA");
+}
+
+static void ide_classify_atapi_dev(ide_drive_t *drive)
+{
+	u16 *id = drive->id;
+	char *m = (char *)&id[ATA_ID_PROD];
+	u8 type = (id[ATA_ID_CONFIG] >> 8) & 0x1f;
+
+	printk(KERN_INFO "%s: %s, ATAPI ", drive->name, m);
+	switch (type) {
+	case ide_floppy:
+		if (!strstr(m, "CD-ROM")) {
+			if (!strstr(m, "oppy") &&
+			    !strstr(m, "poyp") &&
+			    !strstr(m, "ZIP"))
+				printk(KERN_CONT "cdrom or floppy?, assuming ");
+			if (drive->media != ide_cdrom) {
+				printk(KERN_CONT "FLOPPY");
+				drive->dev_flags |= IDE_DFLAG_REMOVABLE;
+				break;
+			}
+		}
+		/* Early cdrom models used zero */
+		type = ide_cdrom;
+	case ide_cdrom:
+		drive->dev_flags |= IDE_DFLAG_REMOVABLE;
+#ifdef CONFIG_PPC
+		/* kludge for Apple PowerBook internal zip */
+		if (!strstr(m, "CD-ROM") && strstr(m, "ZIP")) {
+			printk(KERN_CONT "FLOPPY");
+			type = ide_floppy;
+			break;
+		}
+#endif
+		printk(KERN_CONT "CD/DVD-ROM");
+		break;
+	case ide_tape:
+		printk(KERN_CONT "TAPE");
+		break;
+	case ide_optical:
+		printk(KERN_CONT "OPTICAL");
+		drive->dev_flags |= IDE_DFLAG_REMOVABLE;
+		break;
+	default:
+		printk(KERN_CONT "UNKNOWN (type %d)", type);
+		break;
+	}
+
+	printk(KERN_CONT " drive\n");
+	drive->media = type;
+	/* an ATAPI device ignores DRDY */
+	drive->ready_stat = 0;
+	if (ata_id_cdb_intr(id))
+		drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
+	drive->dev_flags |= IDE_DFLAG_DOORLOCKING;
+	/* we don't do head unloading on ATAPI devices */
+	drive->dev_flags |= IDE_DFLAG_NO_UNLOAD;
+}
+
 /**
  *	do_identify	-	identify a drive
  *	@drive: drive to identify 
@@ -110,20 +186,22 @@ static void ide_disk_init_mult_count(ide_drive_t *drive)
  *	read and parse the results. This function is run with
  *	interrupts disabled. 
  */
- 
-static inline void do_identify (ide_drive_t *drive, u8 cmd)
+
+static void do_identify(ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	u16 *id = drive->id;
 	char *m = (char *)&id[ATA_ID_PROD];
-	int bswap = 1, is_cfa;
+	unsigned long flags;
+	int bswap = 1;
 
+	/* local CPU only; some systems need this */
+	local_irq_save(flags);
 	/* read 512 bytes of id info */
 	hwif->tp_ops->input_data(drive, NULL, id, SECTOR_SIZE);
+	local_irq_restore(flags);
 
 	drive->dev_flags |= IDE_DFLAG_ID_READ;
-
-	local_irq_enable();
 #ifdef DEBUG
 	printk(KERN_INFO "%s: dumping identify data\n", drive->name);
 	ide_dump_identify((u8 *)id);
@@ -152,91 +230,23 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	if (strstr(m, "E X A B Y T E N E S T"))
 		goto err_misc;
 
-	printk(KERN_INFO "%s: %s, ", drive->name, m);
-
 	drive->dev_flags |= IDE_DFLAG_PRESENT;
 	drive->dev_flags &= ~IDE_DFLAG_DEAD;
 
 	/*
 	 * Check for an ATAPI device
 	 */
-	if (cmd == ATA_CMD_ID_ATAPI) {
-		u8 type = (id[ATA_ID_CONFIG] >> 8) & 0x1f;
-
-		printk(KERN_CONT "ATAPI ");
-		switch (type) {
-			case ide_floppy:
-				if (!strstr(m, "CD-ROM")) {
-					if (!strstr(m, "oppy") &&
-					    !strstr(m, "poyp") &&
-					    !strstr(m, "ZIP"))
-						printk(KERN_CONT "cdrom or floppy?, assuming ");
-					if (drive->media != ide_cdrom) {
-						printk(KERN_CONT "FLOPPY");
-						drive->dev_flags |= IDE_DFLAG_REMOVABLE;
-						break;
-					}
-				}
-				/* Early cdrom models used zero */
-				type = ide_cdrom;
-			case ide_cdrom:
-				drive->dev_flags |= IDE_DFLAG_REMOVABLE;
-#ifdef CONFIG_PPC
-				/* kludge for Apple PowerBook internal zip */
-				if (!strstr(m, "CD-ROM") && strstr(m, "ZIP")) {
-					printk(KERN_CONT "FLOPPY");
-					type = ide_floppy;
-					break;
-				}
-#endif
-				printk(KERN_CONT "CD/DVD-ROM");
-				break;
-			case ide_tape:
-				printk(KERN_CONT "TAPE");
-				break;
-			case ide_optical:
-				printk(KERN_CONT "OPTICAL");
-				drive->dev_flags |= IDE_DFLAG_REMOVABLE;
-				break;
-			default:
-				printk(KERN_CONT "UNKNOWN (type %d)", type);
-				break;
-		}
-		printk(KERN_CONT " drive\n");
-		drive->media = type;
-		/* an ATAPI device ignores DRDY */
-		drive->ready_stat = 0;
-		if (ata_id_cdb_intr(id))
-			drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
-		drive->dev_flags |= IDE_DFLAG_DOORLOCKING;
-		/* we don't do head unloading on ATAPI devices */
-		drive->dev_flags |= IDE_DFLAG_NO_UNLOAD;
-		return;
-	}
-
+	if (cmd == ATA_CMD_ID_ATAPI)
+		ide_classify_atapi_dev(drive);
+	else
 	/*
 	 * Not an ATAPI device: looks like a "regular" hard disk
 	 */
-
-	is_cfa = ata_id_is_cfa(id);
-
-	/* CF devices are *not* removable in Linux definition of the term */
-	if (is_cfa == 0 && (id[ATA_ID_CONFIG] & (1 << 7)))
-		drive->dev_flags |= IDE_DFLAG_REMOVABLE;
-
-	drive->media = ide_disk;
-
-	if (!ata_id_has_unload(drive->id))
-		drive->dev_flags |= IDE_DFLAG_NO_UNLOAD;
-
-	printk(KERN_CONT "%s DISK drive\n", is_cfa ? "CFA" : "ATA");
-
+		ide_classify_ata_dev(drive);
 	return;
-
 err_misc:
 	kfree(id);
 	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
-	return;
 }
 
 /**
@@ -306,17 +316,12 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	s = tp_ops->read_status(hwif);
 
 	if (OK_STAT(s, ATA_DRQ, BAD_R_STAT)) {
-		unsigned long flags;
-
-		/* local CPU only; some systems need this */
-		local_irq_save(flags);
 		/* drive returned ID */
 		do_identify(drive, cmd);
 		/* drive responded with ID */
 		rc = 0;
 		/* clear drive IRQ */
 		(void)tp_ops->read_status(hwif);
-		local_irq_restore(flags);
 	} else {
 		/* drive refused ID */
 		rc = 2;
@@ -554,8 +559,8 @@ static void enable_nest (ide_drive_t *drive)
  *			1  device was found
  *			   (note: IDE_DFLAG_PRESENT might still be not set)
  */
- 
-static inline u8 probe_for_drive (ide_drive_t *drive)
+
+static u8 probe_for_drive(ide_drive_t *drive)
 {
 	char *m;
 
@@ -642,16 +647,11 @@ static int ide_register_port(ide_hwif_t *hwif)
 	int ret;
 
 	/* register with global device tree */
-	strlcpy(hwif->gendev.bus_id,hwif->name,BUS_ID_SIZE);
+	dev_set_name(&hwif->gendev, hwif->name);
 	hwif->gendev.driver_data = hwif;
-	if (hwif->gendev.parent == NULL) {
-		if (hwif->dev)
-			hwif->gendev.parent = hwif->dev;
-		else
-			/* Would like to do = &device_legacy */
-			hwif->gendev.parent = NULL;
-	}
+	hwif->gendev.parent = hwif->dev;
 	hwif->gendev.release = hwif_release_dev;
+
 	ret = device_register(&hwif->gendev);
 	if (ret < 0) {
 		printk(KERN_WARNING "IDE: %s: device_register error: %d\n",
@@ -864,31 +864,6 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 }
 
 /*
- * save_match() is used to simplify logic in init_irq() below.
- *
- * A loophole here is that we may not know about a particular
- * hwif's irq until after that hwif is actually probed/initialized..
- * This could be a problem for the case where an hwif is on a
- * dual interface that requires serialization (eg. cmd640) and another
- * hwif using one of the same irqs is initialized beforehand.
- *
- * This routine detects and reports such situations, but does not fix them.
- */
-static void save_match(ide_hwif_t *hwif, ide_hwif_t *new, ide_hwif_t **match)
-{
-	ide_hwif_t *m = *match;
-
-	if (m && m->hwgroup && m->hwgroup != new->hwgroup) {
-		if (!new->hwgroup)
-			return;
-		printk(KERN_WARNING "%s: potential IRQ problem with %s and %s\n",
-			hwif->name, new->name, m->name);
-	}
-	if (!m || m->irq != hwif->irq) /* don't undo a prior perfect match */
-		*match = new;
-}
-
-/*
  * init request queue
  */
 static int ide_init_queue(ide_drive_t *drive)
@@ -906,7 +881,7 @@ static int ide_init_queue(ide_drive_t *drive)
 	 *	do not.
 	 */
 
-	q = blk_init_queue_node(do_ide_request, &ide_lock, hwif_to_node(hwif));
+	q = blk_init_queue_node(do_ide_request, NULL, hwif_to_node(hwif));
 	if (!q)
 		return 1;
 
@@ -947,7 +922,7 @@ static void ide_add_drive_to_hwgroup(ide_drive_t *drive)
 {
 	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	if (!hwgroup->drive) {
 		/* first drive for hwgroup. */
 		drive->next = drive;
@@ -957,7 +932,7 @@ static void ide_add_drive_to_hwgroup(ide_drive_t *drive)
 		drive->next = hwgroup->drive->next;
 		hwgroup->drive->next = drive;
 	}
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 }
 
 /*
@@ -1002,7 +977,7 @@ void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 
 	ide_ports[hwif->index] = NULL;
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	/*
 	 * Remove us from the hwgroup, and free
 	 * the hwgroup if we were the only member
@@ -1030,7 +1005,7 @@ void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 		}
 		BUG_ON(hwgroup->hwif == hwif);
 	}
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 }
 
 /*
@@ -1051,27 +1026,13 @@ static int init_irq (ide_hwif_t *hwif)
 	mutex_lock(&ide_cfg_mtx);
 	hwif->hwgroup = NULL;
 
-	/*
-	 * Group up with any other hwifs that share our irq(s).
-	 */
 	for (index = 0; index < MAX_HWIFS; index++) {
 		ide_hwif_t *h = ide_ports[index];
 
 		if (h && h->hwgroup) {  /* scan only initialized ports */
-			if (hwif->irq == h->irq) {
-				hwif->sharing_irq = h->sharing_irq = 1;
-				if (hwif->chipset != ide_pci ||
-				    h->chipset != ide_pci) {
-					save_match(hwif, h, &match);
-				}
-			}
-			if (hwif->serialized) {
-				if (hwif->mate && hwif->mate->irq == h->irq)
-					save_match(hwif, h, &match);
-			}
-			if (h->serialized) {
-				if (h->mate && hwif->irq == h->mate->irq)
-					save_match(hwif, h, &match);
+			if (hwif->host->host_flags & IDE_HFLAG_SERIALIZE) {
+				if (hwif->host == h->host)
+					match = h;
 			}
 		}
 	}
@@ -1092,16 +1053,18 @@ static int init_irq (ide_hwif_t *hwif)
 		 * linked list, the first entry is the hwif that owns
 		 * hwgroup->handler - do not change that.
 		 */
-		spin_lock_irq(&ide_lock);
+		spin_lock_irq(&hwgroup->lock);
 		hwif->next = hwgroup->hwif->next;
 		hwgroup->hwif->next = hwif;
 		BUG_ON(hwif->next == hwif);
-		spin_unlock_irq(&ide_lock);
+		spin_unlock_irq(&hwgroup->lock);
 	} else {
 		hwgroup = kmalloc_node(sizeof(*hwgroup), GFP_KERNEL|__GFP_ZERO,
 				       hwif_to_node(hwif));
 		if (hwgroup == NULL)
 			goto out_up;
+
+		spin_lock_init(&hwgroup->lock);
 
 		hwif->hwgroup = hwgroup;
 		hwgroup->hwif = hwif->next = hwif;
@@ -1122,8 +1085,7 @@ static int init_irq (ide_hwif_t *hwif)
 		sa = IRQF_SHARED;
 #endif /* __mc68000__ */
 
-		if (hwif->chipset == ide_pci || hwif->chipset == ide_cmd646 ||
-		    hwif->chipset == ide_ali14xx)
+		if (hwif->chipset == ide_pci)
 			sa = IRQF_SHARED;
 
 		if (io_ports->ctl_addr)
@@ -1150,8 +1112,7 @@ static int init_irq (ide_hwif_t *hwif)
 		io_ports->data_addr, hwif->irq);
 #endif /* __mc68000__ */
 	if (match)
-		printk(KERN_CONT " (%sed with %s)",
-			hwif->sharing_irq ? "shar" : "serializ", match->name);
+		printk(KERN_CONT " (serialized with %s)", match->name);
 	printk(KERN_CONT "\n");
 
 	mutex_unlock(&ide_cfg_mtx);
@@ -1180,8 +1141,6 @@ static struct kobject *ata_probe(dev_t dev, int *part, void *data)
 
 	if (drive->media == ide_disk)
 		request_module("ide-disk");
-	if (drive->dev_flags & IDE_DFLAG_SCSI)
-		request_module("ide-scsi");
 	if (drive->media == ide_cdrom || drive->media == ide_optical)
 		request_module("ide-cd");
 	if (drive->media == ide_tape)
@@ -1263,20 +1222,21 @@ static void ide_remove_drive_from_hwgroup(ide_drive_t *drive)
 static void drive_release_dev (struct device *dev)
 {
 	ide_drive_t *drive = container_of(dev, ide_drive_t, gendev);
+	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
 
 	ide_proc_unregister_device(drive);
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	ide_remove_drive_from_hwgroup(drive);
 	kfree(drive->id);
 	drive->id = NULL;
 	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 	/* Messed up locking ... */
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 	blk_cleanup_queue(drive->queue);
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwgroup->lock);
 	drive->queue = NULL;
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwgroup->lock);
 
 	complete(&drive->gendev_rel_comp);
 }
@@ -1352,7 +1312,7 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
 
-		snprintf(dev->bus_id, BUS_ID_SIZE, "%u.%u", hwif->index, i);
+		dev_set_name(dev, "%u.%u", hwif->index, i);
 		dev->parent = &hwif->gendev;
 		dev->bus = &ide_bus_type;
 		dev->driver_data = drive;
@@ -1436,13 +1396,11 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	}
 
 	if ((d->host_flags & IDE_HFLAG_SERIALIZE) ||
-	    ((d->host_flags & IDE_HFLAG_SERIALIZE_DMA) && hwif->dma_base)) {
-		if (hwif->mate)
-			hwif->mate->serialized = hwif->serialized = 1;
-	}
+	    ((d->host_flags & IDE_HFLAG_SERIALIZE_DMA) && hwif->dma_base))
+		hwif->host->host_flags |= IDE_HFLAG_SERIALIZE;
 
-	if (d->host_flags & IDE_HFLAG_RQSIZE_256)
-		hwif->rqsize = 256;
+	if (d->max_sectors)
+		hwif->rqsize = d->max_sectors;
 
 	/* call chipset specific routine for each enabled port */
 	if (d->init_hwif)
@@ -1457,58 +1415,6 @@ static void ide_port_cable_detect(ide_hwif_t *hwif)
 		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 			hwif->cbl = port_ops->cable_detect(hwif);
 	}
-}
-
-static ssize_t store_delete_devices(struct device *portdev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t n)
-{
-	ide_hwif_t *hwif = dev_get_drvdata(portdev);
-
-	if (strncmp(buf, "1", n))
-		return -EINVAL;
-
-	ide_port_unregister_devices(hwif);
-
-	return n;
-};
-
-static DEVICE_ATTR(delete_devices, S_IWUSR, NULL, store_delete_devices);
-
-static ssize_t store_scan(struct device *portdev,
-			  struct device_attribute *attr,
-			  const char *buf, size_t n)
-{
-	ide_hwif_t *hwif = dev_get_drvdata(portdev);
-
-	if (strncmp(buf, "1", n))
-		return -EINVAL;
-
-	ide_port_unregister_devices(hwif);
-	ide_port_scan(hwif);
-
-	return n;
-};
-
-static DEVICE_ATTR(scan, S_IWUSR, NULL, store_scan);
-
-static struct device_attribute *ide_port_attrs[] = {
-	&dev_attr_delete_devices,
-	&dev_attr_scan,
-	NULL
-};
-
-static int ide_sysfs_register_port(ide_hwif_t *hwif)
-{
-	int i, uninitialized_var(rc);
-
-	for (i = 0; ide_port_attrs[i]; i++) {
-		rc = device_create_file(hwif->portdev, ide_port_attrs[i]);
-		if (rc)
-			break;
-	}
-
-	return rc;
 }
 
 static unsigned int ide_indexes;
@@ -1697,9 +1603,6 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		if (hwif == NULL)
 			continue;
 
-		if (hwif->chipset == ide_unknown)
-			hwif->chipset = ide_generic;
-
 		if (hwif->present)
 			hwif_register_devices(hwif);
 	}
@@ -1794,59 +1697,3 @@ void ide_port_scan(ide_hwif_t *hwif)
 	ide_proc_port_register_devices(hwif);
 }
 EXPORT_SYMBOL_GPL(ide_port_scan);
-
-static void ide_legacy_init_one(hw_regs_t **hws, hw_regs_t *hw,
-				u8 port_no, const struct ide_port_info *d,
-				unsigned long config)
-{
-	unsigned long base, ctl;
-	int irq;
-
-	if (port_no == 0) {
-		base = 0x1f0;
-		ctl  = 0x3f6;
-		irq  = 14;
-	} else {
-		base = 0x170;
-		ctl  = 0x376;
-		irq  = 15;
-	}
-
-	if (!request_region(base, 8, d->name)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
-				d->name, base, base + 7);
-		return;
-	}
-
-	if (!request_region(ctl, 1, d->name)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
-				d->name, ctl);
-		release_region(base, 8);
-		return;
-	}
-
-	ide_std_init_ports(hw, base, ctl);
-	hw->irq = irq;
-	hw->chipset = d->chipset;
-	hw->config = config;
-
-	hws[port_no] = hw;
-}
-
-int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)
-{
-	hw_regs_t hw[2], *hws[] = { NULL, NULL, NULL, NULL };
-
-	memset(&hw, 0, sizeof(hw));
-
-	if ((d->host_flags & IDE_HFLAG_QD_2ND_PORT) == 0)
-		ide_legacy_init_one(hws, &hw[0], 0, d, config);
-	ide_legacy_init_one(hws, &hw[1], 1, d, config);
-
-	if (hws[0] == NULL && hws[1] == NULL &&
-	    (d->host_flags & IDE_HFLAG_SINGLE))
-		return -ENOENT;
-
-	return ide_host_add(d, hws, NULL);
-}
-EXPORT_SYMBOL_GPL(ide_legacy_device_add);

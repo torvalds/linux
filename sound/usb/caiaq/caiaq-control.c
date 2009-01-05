@@ -247,69 +247,56 @@ static struct caiaq_controller a8dj_controller[] = {
 	{ "Software lock", 			40 		}
 };
 
+static int __devinit add_controls(struct caiaq_controller *c, int num,
+				  struct snd_usb_caiaqdev *dev)
+{
+	int i, ret;
+	struct snd_kcontrol *kc;
+
+	for (i = 0; i < num; i++, c++) {
+		kcontrol_template.name = c->name;
+		kcontrol_template.private_value = c->index;
+		kc = snd_ctl_new1(&kcontrol_template, dev);
+		ret = snd_ctl_add(dev->chip.card, kc);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 int __devinit snd_usb_caiaq_control_init(struct snd_usb_caiaqdev *dev)
 {
-	int i;
-	struct snd_kcontrol *kc;
+	int ret = 0;
 
 	switch (dev->chip.usb_id) {
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AK1):
-		for (i = 0; i < ARRAY_SIZE(ak1_controller); i++) {
-			struct caiaq_controller *c = ak1_controller + i;
-			kcontrol_template.name = c->name;
-			kcontrol_template.private_value = c->index;
-			kc = snd_ctl_new1(&kcontrol_template, dev);
-			snd_ctl_add(dev->chip.card, kc);
-		}
-
+		ret = add_controls(ak1_controller,
+			ARRAY_SIZE(ak1_controller), dev);
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL2):
-		for (i = 0; i < ARRAY_SIZE(rk2_controller); i++) {
-			struct caiaq_controller *c = rk2_controller + i;
-			kcontrol_template.name = c->name;
-			kcontrol_template.private_value = c->index;
-			kc = snd_ctl_new1(&kcontrol_template, dev);
-			snd_ctl_add(dev->chip.card, kc);
-		}
-
+		ret = add_controls(rk2_controller,
+			ARRAY_SIZE(rk2_controller), dev);
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL3):
-		for (i = 0; i < ARRAY_SIZE(rk3_controller); i++) {
-			struct caiaq_controller *c = rk3_controller + i;
-			kcontrol_template.name = c->name;
-			kcontrol_template.private_value = c->index;
-			kc = snd_ctl_new1(&kcontrol_template, dev);
-			snd_ctl_add(dev->chip.card, kc);
-		}
-
+		ret = add_controls(rk3_controller,
+			ARRAY_SIZE(rk3_controller), dev);
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER2):
-		for (i = 0; i < ARRAY_SIZE(kore_controller); i++) {
-			struct caiaq_controller *c = kore_controller + i;
-			kcontrol_template.name = c->name;
-			kcontrol_template.private_value = c->index;
-			kc = snd_ctl_new1(&kcontrol_template, dev);
-			snd_ctl_add(dev->chip.card, kc);
-		}
-
+		ret = add_controls(kore_controller,
+			ARRAY_SIZE(kore_controller), dev);
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ):
-		for (i = 0; i < ARRAY_SIZE(a8dj_controller); i++) {
-			struct caiaq_controller *c = a8dj_controller + i;
-			kcontrol_template.name = c->name;
-			kcontrol_template.private_value = c->index;
-			kc = snd_ctl_new1(&kcontrol_template, dev);
-			snd_ctl_add(dev->chip.card, kc);
-		}
-
+		ret = add_controls(a8dj_controller,
+			ARRAY_SIZE(a8dj_controller), dev);
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 

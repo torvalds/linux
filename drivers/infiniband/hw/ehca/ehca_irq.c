@@ -659,12 +659,12 @@ static inline int find_next_online_cpu(struct ehca_comp_pool *pool)
 
 	WARN_ON_ONCE(!in_interrupt());
 	if (ehca_debug_level >= 3)
-		ehca_dmp(&cpu_online_map, sizeof(cpumask_t), "");
+		ehca_dmp(cpu_online_mask, cpumask_size(), "");
 
 	spin_lock_irqsave(&pool->last_cpu_lock, flags);
-	cpu = next_cpu_nr(pool->last_cpu, cpu_online_map);
+	cpu = cpumask_next(pool->last_cpu, cpu_online_mask);
 	if (cpu >= nr_cpu_ids)
-		cpu = first_cpu(cpu_online_map);
+		cpu = cpumask_first(cpu_online_mask);
 	pool->last_cpu = cpu;
 	spin_unlock_irqrestore(&pool->last_cpu_lock, flags);
 
@@ -855,7 +855,7 @@ static int __cpuinit comp_pool_callback(struct notifier_block *nfb,
 	case CPU_UP_CANCELED_FROZEN:
 		ehca_gen_dbg("CPU: %x (CPU_CANCELED)", cpu);
 		cct = per_cpu_ptr(pool->cpu_comp_tasks, cpu);
-		kthread_bind(cct->task, any_online_cpu(cpu_online_map));
+		kthread_bind(cct->task, cpumask_any(cpu_online_mask));
 		destroy_comp_task(pool, cpu);
 		break;
 	case CPU_ONLINE:
@@ -902,7 +902,7 @@ int ehca_create_comp_pool(void)
 		return -ENOMEM;
 
 	spin_lock_init(&pool->last_cpu_lock);
-	pool->last_cpu = any_online_cpu(cpu_online_map);
+	pool->last_cpu = cpumask_any(cpu_online_mask);
 
 	pool->cpu_comp_tasks = alloc_percpu(struct ehca_cpu_comp_task);
 	if (pool->cpu_comp_tasks == NULL) {
@@ -934,10 +934,9 @@ void ehca_destroy_comp_pool(void)
 
 	unregister_hotcpu_notifier(&comp_pool_callback_nb);
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_online(i))
-			destroy_comp_task(pool, i);
-	}
+	for_each_online_cpu(i)
+		destroy_comp_task(pool, i);
+
 	free_percpu(pool->cpu_comp_tasks);
 	kfree(pool);
 }

@@ -186,9 +186,14 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 		 * access control settings being in effect, we cannot
 		 * fix that case easily.
 		 */
-		current->cap_effective =
-			cap_raise_nfsd_set(current->cap_effective,
-					   current->cap_permitted);
+		struct cred *new = prepare_creds();
+		if (!new)
+			return nfserrno(-ENOMEM);
+		new->cap_effective =
+			cap_raise_nfsd_set(new->cap_effective,
+					   new->cap_permitted);
+		put_cred(override_creds(new));
+		put_cred(new);
 	} else {
 		error = nfsd_setuser_and_check_port(rqstp, exp);
 		if (error)

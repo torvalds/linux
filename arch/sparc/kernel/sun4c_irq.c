@@ -160,6 +160,7 @@ static void __init sun4c_init_timers(irq_handler_t counter_fn)
 	sun4c_timers = (void __iomem *) (unsigned long) addr[0];
 
 	irq = of_get_property(dp, "intr", NULL);
+	of_node_put(dp);
 	if (!irq) {
 		prom_printf("sun4c_init_timers: No intr property\n");
 		prom_halt();
@@ -200,6 +201,7 @@ void __init sun4c_init_IRQ(void)
 	}
 
 	addr = of_get_property(dp, "address", NULL);
+	of_node_put(dp);
 	if (!addr) {
 		prom_printf("sun4c_init_IRQ: No address property\n");
 		prom_halt();

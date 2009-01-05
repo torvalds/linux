@@ -141,6 +141,15 @@ clkevt32k_next_event(unsigned long delta, struct clock_event_device *dev)
 	/* Use "raw" primitives so we behave correctly on RT kernels. */
 	raw_local_irq_save(flags);
 
+	/*
+	 * According to Thomas Gleixner irqs are already disabled here.  Simply
+	 * removing raw_local_irq_save above (and the matching
+	 * raw_local_irq_restore) was not accepted.  See
+	 * http://thread.gmane.org/gmane.linux.ports.arm.kernel/41174
+	 * So for now (2008-11-20) just warn once if irqs were not disabled ...
+	 */
+	WARN_ON_ONCE(!raw_irqs_disabled_flags(flags));
+
 	/* The alarm IRQ uses absolute time (now+delta), not the relative
 	 * time (delta) in our calling convention.  Like all clockevents
 	 * using such "match" hardware, we have a race to defend against.
@@ -169,7 +178,6 @@ static struct clock_event_device clkevt = {
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
 	.rating		= 150,
-	.cpumask	= CPU_MASK_CPU0,
 	.set_next_event	= clkevt32k_next_event,
 	.set_mode	= clkevt32k_mode,
 };
@@ -197,7 +205,7 @@ void __init at91rm9200_timer_init(void)
 	clkevt.mult = div_sc(AT91_SLOW_CLOCK, NSEC_PER_SEC, clkevt.shift);
 	clkevt.max_delta_ns = clockevent_delta2ns(AT91_ST_ALMV, &clkevt);
 	clkevt.min_delta_ns = clockevent_delta2ns(2, &clkevt) + 1;
-	clkevt.cpumask = cpumask_of_cpu(0);
+	clkevt.cpumask = cpumask_of(0);
 	clockevents_register_device(&clkevt);
 
 	/* register clocksource */

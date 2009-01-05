@@ -74,9 +74,6 @@ static const u8 ide_hwif_to_major[] = { IDE0_MAJOR, IDE1_MAJOR,
 
 DEFINE_MUTEX(ide_cfg_mtx);
 
-__cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
-EXPORT_SYMBOL(ide_lock);
-
 static void ide_port_init_devices_data(ide_hwif_t *);
 
 /*
@@ -130,7 +127,6 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 	}
 }
 
-/* Called with ide_lock held. */
 static void __ide_port_unregister_devices(ide_hwif_t *hwif)
 {
 	int i;
@@ -139,10 +135,8 @@ static void __ide_port_unregister_devices(ide_hwif_t *hwif)
 		ide_drive_t *drive = &hwif->drives[i];
 
 		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
-			spin_unlock_irq(&ide_lock);
 			device_unregister(&drive->gendev);
 			wait_for_completion(&drive->gendev_rel_comp);
-			spin_lock_irq(&ide_lock);
 		}
 	}
 }
@@ -150,11 +144,9 @@ static void __ide_port_unregister_devices(ide_hwif_t *hwif)
 void ide_port_unregister_devices(ide_hwif_t *hwif)
 {
 	mutex_lock(&ide_cfg_mtx);
-	spin_lock_irq(&ide_lock);
 	__ide_port_unregister_devices(hwif);
 	hwif->present = 0;
 	ide_port_init_devices_data(hwif);
-	spin_unlock_irq(&ide_lock);
 	mutex_unlock(&ide_cfg_mtx);
 }
 EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
@@ -192,12 +184,10 @@ void ide_unregister(ide_hwif_t *hwif)
 
 	mutex_lock(&ide_cfg_mtx);
 
-	spin_lock_irq(&ide_lock);
 	if (hwif->present) {
 		__ide_port_unregister_devices(hwif);
 		hwif->present = 0;
 	}
-	spin_unlock_irq(&ide_lock);
 
 	ide_proc_unregister_port(hwif);
 
@@ -340,6 +330,7 @@ static int set_pio_mode_abuse(ide_hwif_t *hwif, u8 req_pio)
 static int set_pio_mode(ide_drive_t *drive, int arg)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 
 	if (arg < 0 || arg > 255)
@@ -354,9 +345,9 @@ static int set_pio_mode(ide_drive_t *drive, int arg)
 			unsigned long flags;
 
 			/* take lock for IDE_DFLAG_[NO_]UNMASK/[NO_]IO_32BIT */
-			spin_lock_irqsave(&ide_lock, flags);
+			spin_lock_irqsave(&hwgroup->lock, flags);
 			port_ops->set_pio_mode(drive, arg);
-			spin_unlock_irqrestore(&ide_lock, flags);
+			spin_unlock_irqrestore(&hwgroup->lock, flags);
 		} else
 			port_ops->set_pio_mode(drive, arg);
 	} else {
@@ -396,80 +387,6 @@ ide_ext_devset_rw_sync(keepsettings, ksettings);
 ide_ext_devset_rw_sync(unmaskirq, unmaskirq);
 ide_ext_devset_rw_sync(using_dma, using_dma);
 __IDE_DEVSET(pio_mode, DS_SYNC, NULL, set_pio_mode);
-
-static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
-{
-	ide_drive_t *drive = dev->driver_data, *pair = ide_get_pair_dev(drive);
-	ide_hwif_t *hwif = HWIF(drive);
-	struct request *rq;
-	struct request_pm_state rqpm;
-	ide_task_t args;
-	int ret;
-
-	/* call ACPI _GTM only once */
-	if ((drive->dn & 1) == 0 || pair == NULL)
-		ide_acpi_get_timing(hwif);
-
-	memset(&rqpm, 0, sizeof(rqpm));
-	memset(&args, 0, sizeof(args));
-	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_PM_SUSPEND;
-	rq->special = &args;
-	rq->data = &rqpm;
-	rqpm.pm_step = IDE_PM_START_SUSPEND;
-	if (mesg.event == PM_EVENT_PRETHAW)
-		mesg.event = PM_EVENT_FREEZE;
-	rqpm.pm_state = mesg.event;
-
-	ret = blk_execute_rq(drive->queue, NULL, rq, 0);
-	blk_put_request(rq);
-
-	/* call ACPI _PS3 only after both devices are suspended */
-	if (ret == 0 && ((drive->dn & 1) || pair == NULL))
-		ide_acpi_set_state(hwif, 0);
-
-	return ret;
-}
-
-static int generic_ide_resume(struct device *dev)
-{
-	ide_drive_t *drive = dev->driver_data, *pair = ide_get_pair_dev(drive);
-	ide_hwif_t *hwif = HWIF(drive);
-	struct request *rq;
-	struct request_pm_state rqpm;
-	ide_task_t args;
-	int err;
-
-	/* call ACPI _PS0 / _STM only once */
-	if ((drive->dn & 1) == 0 || pair == NULL) {
-		ide_acpi_set_state(hwif, 1);
-		ide_acpi_push_timing(hwif);
-	}
-
-	ide_acpi_exec_tfs(drive);
-
-	memset(&rqpm, 0, sizeof(rqpm));
-	memset(&args, 0, sizeof(args));
-	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_PM_RESUME;
-	rq->cmd_flags |= REQ_PREEMPT;
-	rq->special = &args;
-	rq->data = &rqpm;
-	rqpm.pm_step = IDE_PM_START_RESUME;
-	rqpm.pm_state = PM_EVENT_ON;
-
-	err = blk_execute_rq(drive->queue, NULL, rq, 1);
-	blk_put_request(rq);
-
-	if (err == 0 && dev->driver) {
-		ide_driver_t *drv = to_ide_driver(dev->driver);
-
-		if (drv->resume)
-			drv->resume(drive);
-	}
-
-	return err;
-}
 
 /**
  * ide_device_get	-	get an additional reference to a ide_drive_t
@@ -523,81 +440,13 @@ static int ide_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
-static char *media_string(ide_drive_t *drive)
-{
-	switch (drive->media) {
-	case ide_disk:
-		return "disk";
-	case ide_cdrom:
-		return "cdrom";
-	case ide_tape:
-		return "tape";
-	case ide_floppy:
-		return "floppy";
-	case ide_optical:
-		return "optical";
-	default:
-		return "UNKNOWN";
-	}
-}
-
-static ssize_t media_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", media_string(drive));
-}
-
-static ssize_t drivename_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", drive->name);
-}
-
-static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "ide:m-%s\n", media_string(drive));
-}
-
-static ssize_t model_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_PROD]);
-}
-
-static ssize_t firmware_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_FW_REV]);
-}
-
-static ssize_t serial_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_SERNO]);
-}
-
-static struct device_attribute ide_dev_attrs[] = {
-	__ATTR_RO(media),
-	__ATTR_RO(drivename),
-	__ATTR_RO(modalias),
-	__ATTR_RO(model),
-	__ATTR_RO(firmware),
-	__ATTR(serial, 0400, serial_show, NULL),
-	__ATTR(unload_heads, 0644, ide_park_show, ide_park_store),
-	__ATTR_NULL
-};
-
 static int ide_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	ide_drive_t *drive = to_ide_device(dev);
 
-	add_uevent_var(env, "MEDIA=%s", media_string(drive));
+	add_uevent_var(env, "MEDIA=%s", ide_media_string(drive));
 	add_uevent_var(env, "DRIVENAME=%s", drive->name);
-	add_uevent_var(env, "MODALIAS=ide:m-%s", media_string(drive));
+	add_uevent_var(env, "MODALIAS=ide:m-%s", ide_media_string(drive));
 	return 0;
 }
 

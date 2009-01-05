@@ -8,6 +8,9 @@
  *		 Arnd Bergmann (arndb@de.ibm.com)
  */
 
+#define KMSG_COMPONENT "cio"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -333,6 +336,7 @@ static void chsc_process_sei_chp_config(struct chsc_sei_area *sei_area)
 	struct chp_config_data *data;
 	struct chp_id chpid;
 	int num;
+	char *events[3] = {"configure", "deconfigure", "cancel deconfigure"};
 
 	CIO_CRW_EVENT(4, "chsc: channel-path-configuration notification\n");
 	if (sei_area->rs != 0)
@@ -343,8 +347,8 @@ static void chsc_process_sei_chp_config(struct chsc_sei_area *sei_area)
 		if (!chp_test_bit(data->map, num))
 			continue;
 		chpid.id = num;
-		printk(KERN_WARNING "cio: processing configure event %d for "
-		       "chpid %x.%02x\n", data->op, chpid.cssid, chpid.id);
+		pr_notice("Processing %s for channel path %x.%02x\n",
+			  events[data->op], chpid.cssid, chpid.id);
 		switch (data->op) {
 		case 0:
 			chp_cfg_schedule(chpid, 1);

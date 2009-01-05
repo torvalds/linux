@@ -53,10 +53,12 @@ int __ref arch_register_cpu(int num)
 }
 EXPORT_SYMBOL(arch_register_cpu);
 
-void arch_unregister_cpu(int num)
+void __ref arch_unregister_cpu(int num)
 {
 	unregister_cpu(&sysfs_cpus[num].cpu);
+#ifdef CONFIG_ACPI
 	unmap_cpu_from_node(num, cpu_to_node(num));
+#endif
 }
 EXPORT_SYMBOL(arch_unregister_cpu);
 #else
@@ -217,7 +219,7 @@ static ssize_t show_shared_cpu_map(struct cache_info *this_leaf, char *buf)
 	cpumask_t shared_cpu_map;
 
 	cpus_and(shared_cpu_map, this_leaf->shared_cpu_map, cpu_online_map);
-	len = cpumask_scnprintf(buf, NR_CPUS+1, shared_cpu_map);
+	len = cpumask_scnprintf(buf, NR_CPUS+1, &shared_cpu_map);
 	len += sprintf(buf+len, "\n");
 	return len;
 }

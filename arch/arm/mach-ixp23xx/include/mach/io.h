@@ -20,8 +20,6 @@
 #define __io(p)		((void __iomem*)((p) + IXP23XX_PCI_IO_VIRT))
 #define __mem_pci(a)	(a)
 
-#include <linux/kernel.h>	/* For BUG */
-
 static inline void __iomem *
 ixp23xx_ioremap(unsigned long addr, unsigned long size, unsigned int mtype)
 {

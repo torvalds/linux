@@ -80,8 +80,11 @@ static struct dsa_platform_data rd88f6281_switch_data = {
 	.port_names[1]	= "lan2",
 	.port_names[2]	= "lan3",
 	.port_names[3]	= "lan4",
-	.port_names[4]	= "wan",
 	.port_names[5]	= "cpu",
+};
+
+static struct mv643xx_eth_platform_data rd88f6281_ge01_data = {
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(11),
 };
 
 static struct mv_sata_platform_data rd88f6281_sata_data = {
@@ -90,14 +93,25 @@ static struct mv_sata_platform_data rd88f6281_sata_data = {
 
 static void __init rd88f6281_init(void)
 {
+	u32 dev, rev;
+
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
 	kirkwood_init();
 
 	kirkwood_ehci_init();
+
 	kirkwood_ge00_init(&rd88f6281_ge00_data);
+	kirkwood_pcie_id(&dev, &rev);
+	if (rev == MV88F6281_REV_A0) {
+		rd88f6281_switch_data.sw_addr = 10;
+		kirkwood_ge01_init(&rd88f6281_ge01_data);
+	} else {
+		rd88f6281_switch_data.port_names[4] = "wan";
+	}
 	kirkwood_ge00_switch_init(&rd88f6281_switch_data, NO_IRQ);
+
 	kirkwood_rtc_init();
 	kirkwood_sata_init(&rd88f6281_sata_data);
 	kirkwood_uart0_init();

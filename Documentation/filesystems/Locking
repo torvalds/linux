@@ -394,7 +394,6 @@ prototypes:
 	unsigned long (*get_unmapped_area)(struct file *, unsigned long,
 			unsigned long, unsigned long, unsigned long);
 	int (*check_flags)(int);
-	int (*dir_notify)(struct file *, unsigned long);
 };
 
 locking rules:
@@ -424,7 +423,6 @@ sendfile:		no
 sendpage:		no
 get_unmapped_area:	no
 check_flags:		no
-dir_notify:		no
 
 ->llseek() locking has moved from llseek to the individual llseek
 implementations.  If your fs is not using generic_file_llseek, you

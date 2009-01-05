@@ -118,10 +118,10 @@ EXPORT_SYMBOL(request_module);
 struct subprocess_info {
 	struct work_struct work;
 	struct completion *complete;
+	struct cred *cred;
 	char *path;
 	char **argv;
 	char **envp;
-	struct key *ring;
 	enum umh_wait wait;
 	int retval;
 	struct file *stdin;
@@ -134,19 +134,20 @@ struct subprocess_info {
 static int ____call_usermodehelper(void *data)
 {
 	struct subprocess_info *sub_info = data;
-	struct key *new_session, *old_session;
 	int retval;
 
-	/* Unblock all signals and set the session keyring. */
-	new_session = key_get(sub_info->ring);
+	BUG_ON(atomic_read(&sub_info->cred->usage) != 1);
+
+	/* Unblock all signals */
 	spin_lock_irq(&current->sighand->siglock);
-	old_session = __install_session_keyring(current, new_session);
 	flush_signal_handlers(current, 1);
 	sigemptyset(&current->blocked);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	key_put(old_session);
+	/* Install the credentials */
+	commit_creds(sub_info->cred);
+	sub_info->cred = NULL;
 
 	/* Install input pipe when needed */
 	if (sub_info->stdin) {
@@ -185,6 +186,8 @@ void call_usermodehelper_freeinfo(struct subprocess_info *info)
 {
 	if (info->cleanup)
 		(*info->cleanup)(info->argv, info->envp);
+	if (info->cred)
+		put_cred(info->cred);
 	kfree(info);
 }
 EXPORT_SYMBOL(call_usermodehelper_freeinfo);
@@ -239,6 +242,8 @@ static void __call_usermodehelper(struct work_struct *work)
 		container_of(work, struct subprocess_info, work);
 	pid_t pid;
 	enum umh_wait wait = sub_info->wait;
+
+	BUG_ON(atomic_read(&sub_info->cred->usage) != 1);
 
 	/* CLONE_VFORK: wait until the usermode helper has execve'd
 	 * successfully We need the data structures to stay around
@@ -362,6 +367,9 @@ struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
 	sub_info->path = path;
 	sub_info->argv = argv;
 	sub_info->envp = envp;
+	sub_info->cred = prepare_usermodehelper_creds();
+	if (!sub_info->cred)
+		return NULL;
 
   out:
 	return sub_info;
@@ -376,7 +384,13 @@ EXPORT_SYMBOL(call_usermodehelper_setup);
 void call_usermodehelper_setkeys(struct subprocess_info *info,
 				 struct key *session_keyring)
 {
-	info->ring = session_keyring;
+#ifdef CONFIG_KEYS
+	struct thread_group_cred *tgcred = info->cred->tgcred;
+	key_put(tgcred->session_keyring);
+	tgcred->session_keyring = key_get(session_keyring);
+#else
+	BUG();
+#endif
 }
 EXPORT_SYMBOL(call_usermodehelper_setkeys);
 
@@ -443,6 +457,8 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info,
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 	int retval = 0;
+
+	BUG_ON(atomic_read(&sub_info->cred->usage) != 1);
 
 	helper_lock();
 	if (sub_info->path[0] == '\0')

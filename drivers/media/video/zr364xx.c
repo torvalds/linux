@@ -634,7 +634,7 @@ static int zr364xx_vidioc_streamoff(struct file *file, void *priv,
 
 
 /* open the camera */
-static int zr364xx_open(struct inode *inode, struct file *file)
+static int zr364xx_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct zr364xx_camera *cam = video_get_drvdata(vdev);
@@ -688,7 +688,7 @@ out:
 
 
 /* release the camera */
-static int zr364xx_release(struct inode *inode, struct file *file)
+static int zr364xx_release(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct zr364xx_camera *cam;
@@ -761,14 +761,13 @@ static int zr364xx_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 
-static const struct file_operations zr364xx_fops = {
+static const struct v4l2_file_operations zr364xx_fops = {
 	.owner = THIS_MODULE,
 	.open = zr364xx_open,
 	.release = zr364xx_release,
 	.read = zr364xx_read,
 	.mmap = zr364xx_mmap,
 	.ioctl = video_ioctl2,
-	.llseek = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops zr364xx_ioctl_ops = {
@@ -894,7 +893,6 @@ static void zr364xx_disconnect(struct usb_interface *intf)
 {
 	struct zr364xx_camera *cam = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
-	dev_set_drvdata(&intf->dev, NULL);
 	dev_info(&intf->dev, DRIVER_DESC " webcam unplugged\n");
 	if (cam->vdev)
 		video_unregister_device(cam->vdev);

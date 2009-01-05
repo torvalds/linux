@@ -69,6 +69,7 @@ ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		q = q->next;
 	} while (q != p);
 	write_unlock(&svc->sched_lock);
+	IP_VS_ERR_RL("RR: no destination available\n");
 	return NULL;
 
   out:
@@ -89,9 +90,6 @@ static struct ip_vs_scheduler ip_vs_rr_scheduler = {
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
 	.n_list =		LIST_HEAD_INIT(ip_vs_rr_scheduler.n_list),
-#ifdef CONFIG_IP_VS_IPV6
-	.supports_ipv6 =	1,
-#endif
 	.init_service =		ip_vs_rr_init_svc,
 	.update_service =	ip_vs_rr_update_svc,
 	.schedule =		ip_vs_rr_schedule,

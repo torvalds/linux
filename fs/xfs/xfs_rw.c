@@ -406,7 +406,7 @@ xfs_bwrite(
 	 * XXXsup how does this work for quotas.
 	 */
 	XFS_BUF_SET_BDSTRAT_FUNC(bp, xfs_bdstrat_cb);
-	XFS_BUF_SET_FSPRIVATE3(bp, mp);
+	bp->b_mount = mp;
 	XFS_BUF_WRITE(bp);
 
 	if ((error = XFS_bwrite(bp))) {

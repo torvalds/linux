@@ -337,7 +337,7 @@ static int twl4030_rtc_ioctl(struct device *dev, unsigned int cmd,
 }
 
 #else
-#define	omap_rtc_ioctl	NULL
+#define	twl4030_rtc_ioctl	NULL
 #endif
 
 static irqreturn_t twl4030_rtc_interrupt(int irq, void *rtc)

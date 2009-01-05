@@ -44,9 +44,10 @@ struct cq_desc {
 	u8 type_color;
 };
 
-#define CQ_DESC_TYPE_BITS        7
+#define CQ_DESC_TYPE_BITS        4
 #define CQ_DESC_TYPE_MASK        ((1 << CQ_DESC_TYPE_BITS) - 1)
 #define CQ_DESC_COLOR_MASK       1
+#define CQ_DESC_COLOR_SHIFT      7
 #define CQ_DESC_Q_NUM_BITS       10
 #define CQ_DESC_Q_NUM_MASK       ((1 << CQ_DESC_Q_NUM_BITS) - 1)
 #define CQ_DESC_COMP_NDX_BITS    12
@@ -58,7 +59,7 @@ static inline void cq_desc_dec(const struct cq_desc *desc_arg,
 	const struct cq_desc *desc = desc_arg;
 	const u8 type_color = desc->type_color;
 
-	*color = (type_color >> CQ_DESC_TYPE_BITS) & CQ_DESC_COLOR_MASK;
+	*color = (type_color >> CQ_DESC_COLOR_SHIFT) & CQ_DESC_COLOR_MASK;
 
 	/*
 	 * Make sure color bit is read from desc *before* other fields
