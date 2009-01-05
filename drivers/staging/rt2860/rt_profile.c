@@ -925,9 +925,11 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 	// Save uid and gid used for filesystem access.
 	// Set user and group to 0 (root)
-	orgfsuid = current->fsuid;
-	orgfsgid = current->fsgid;
-	current->fsuid=current->fsgid = 0;
+	orgfsuid = current_fsuid();
+	orgfsgid = current_fsgid();
+	/* Hm, can't really do this nicely anymore, so rely on these files
+	 * being set to the proper permission to read them... */
+	/* current->cred->fsuid = current->cred->fsgid = 0; */
     orgfs = get_fs();
     set_fs(KERNEL_DS);
 
@@ -1551,8 +1553,11 @@ NDIS_STATUS	RTMPReadParametersHook(
 	}
 
 	set_fs(orgfs);
-	current->fsuid = orgfsuid;
-	current->fsgid = orgfsgid;
+
+#if 0
+	current->cred->fsuid = orgfsuid;
+	current->cred->fsgid = orgfsgid;
+#endif
 
 	kfree(buffer);
 	kfree(tmpbuf);
