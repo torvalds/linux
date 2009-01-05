@@ -1928,6 +1928,9 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 	case MSR_VM_CR:
 		*data = 0;
 		break;
+	case MSR_IA32_UCODE_REV:
+		*data = 0x01000065;
+		break;
 	default:
 		return kvm_get_msr_common(vcpu, ecx, data);
 	}
