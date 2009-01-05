@@ -626,8 +626,8 @@ static inline void fill_agnx_hdr(struct agnx_priv *priv, struct agnx_info *tx_in
 	txhdr->reg0 = cpu_to_be32(reg);
 
 	/* Set the long and short retry limits */
- 	txhdr->tx.short_retry_limit = tx_info->txi->control.retry_limit;
- 	txhdr->tx.long_retry_limit = tx_info->txi->control.retry_limit;
+ 	txhdr->tx.short_retry_limit = tx_info->txi->control.rates[0].count;
+ 	txhdr->tx.long_retry_limit = tx_info->txi->control.rates[0].count;
 
 	/* FIXME */
 	len = tx_info->skb->len - sizeof(*txhdr) + tx_info->hdr_len + FCS_LEN;
@@ -649,7 +649,7 @@ static void txm_power_set(struct agnx_priv *priv,
 	u32 reg;
 
 	/* FIXME */
-	if (txi->tx_rate_idx < 0) {
+	if (txi->control.rates[0].idx < 0) {
 		/* For B mode Short Preamble */
 		reg = agnx_set_bits(PHY_MODE, PHY_MODE_SHIFT, AGNX_MODE_80211B_SHORT);
 //		control->tx_rate = -control->tx_rate;
