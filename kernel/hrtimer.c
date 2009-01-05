@@ -634,7 +634,6 @@ static inline void hrtimer_init_timer_hres(struct hrtimer *timer)
 {
 }
 
-static void __run_hrtimer(struct hrtimer *timer);
 
 /*
  * When High resolution timers are active, try to reprogram. Note, that in case
@@ -646,13 +645,9 @@ static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
 					    struct hrtimer_clock_base *base)
 {
 	if (base->cpu_base->hres_active && hrtimer_reprogram(timer, base)) {
-		/*
-		 * XXX: recursion check?
-		 * hrtimer_forward() should round up with timer granularity
-		 * so that we never get into inf recursion here,
-		 * it doesn't do that though
-		 */
-		__run_hrtimer(timer);
+		spin_unlock(&base->cpu_base->lock);
+		raise_softirq_irqoff(HRTIMER_SOFTIRQ);
+		spin_lock(&base->cpu_base->lock);
 		return 1;
 	}
 	return 0;
@@ -705,11 +700,6 @@ static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
 }
 static inline void hrtimer_init_hres(struct hrtimer_cpu_base *base) { }
 static inline void hrtimer_init_timer_hres(struct hrtimer *timer) { }
-static inline int hrtimer_reprogram(struct hrtimer *timer,
-				    struct hrtimer_clock_base *base)
-{
-	return 0;
-}
 
 #endif /* CONFIG_HIGH_RES_TIMERS */
 
@@ -780,9 +770,11 @@ EXPORT_SYMBOL_GPL(hrtimer_forward);
  *
  * The timer is inserted in expiry order. Insertion into the
  * red black tree is O(log(n)). Must hold the base lock.
+ *
+ * Returns 1 when the new timer is the leftmost timer in the tree.
  */
-static void enqueue_hrtimer(struct hrtimer *timer,
-			    struct hrtimer_clock_base *base, int reprogram)
+static int enqueue_hrtimer(struct hrtimer *timer,
+			   struct hrtimer_clock_base *base)
 {
 	struct rb_node **link = &base->active.rb_node;
 	struct rb_node *parent = NULL;
@@ -814,20 +806,8 @@ static void enqueue_hrtimer(struct hrtimer *timer,
 	 * Insert the timer to the rbtree and check whether it
 	 * replaces the first pending timer
 	 */
-	if (leftmost) {
-		/*
-		 * Reprogram the clock event device. When the timer is already
-		 * expired hrtimer_enqueue_reprogram has either called the
-		 * callback or added it to the pending list and raised the
-		 * softirq.
-		 *
-		 * This is a NOP for !HIGHRES
-		 */
-		if (reprogram && hrtimer_enqueue_reprogram(timer, base))
-			return;
-
+	if (leftmost)
 		base->first = &timer->node;
-	}
 
 	rb_link_node(&timer->node, parent, link);
 	rb_insert_color(&timer->node, &base->active);
@@ -836,6 +816,8 @@ static void enqueue_hrtimer(struct hrtimer *timer,
 	 * state of a possibly running callback.
 	 */
 	timer->state |= HRTIMER_STATE_ENQUEUED;
+
+	return leftmost;
 }
 
 /*
@@ -912,7 +894,7 @@ hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, unsigned long delta_n
 {
 	struct hrtimer_clock_base *base, *new_base;
 	unsigned long flags;
-	int ret;
+	int ret, leftmost;
 
 	base = lock_hrtimer_base(timer, &flags);
 
@@ -940,12 +922,16 @@ hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, unsigned long delta_n
 
 	timer_stats_hrtimer_set_start_info(timer);
 
+	leftmost = enqueue_hrtimer(timer, new_base);
+
 	/*
 	 * Only allow reprogramming if the new base is on this CPU.
 	 * (it might still be on another CPU if the timer was pending)
+	 *
+	 * XXX send_remote_softirq() ?
 	 */
-	enqueue_hrtimer(timer, new_base,
-			new_base->cpu_base == &__get_cpu_var(hrtimer_bases));
+	if (leftmost && new_base->cpu_base == &__get_cpu_var(hrtimer_bases))
+		hrtimer_enqueue_reprogram(timer, new_base);
 
 	unlock_hrtimer_base(timer, &flags);
 
@@ -1163,7 +1149,7 @@ static void __run_hrtimer(struct hrtimer *timer)
 	 */
 	if (restart != HRTIMER_NORESTART) {
 		BUG_ON(timer->state != HRTIMER_STATE_CALLBACK);
-		enqueue_hrtimer(timer, base, 0);
+		enqueue_hrtimer(timer, base);
 	}
 	timer->state &= ~HRTIMER_STATE_CALLBACK;
 }
@@ -1275,6 +1261,11 @@ void hrtimer_peek_ahead_timers(void)
 	local_irq_save(flags);
 	__hrtimer_peek_ahead_timers();
 	local_irq_restore(flags);
+}
+
+static void run_hrtimer_softirq(struct softirq_action *h)
+{
+	hrtimer_peek_ahead_timers();
 }
 
 #endif	/* CONFIG_HIGH_RES_TIMERS */
@@ -1532,7 +1523,7 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 		 * is done, which will run all expired timers and re-programm
 		 * the timer device.
 		 */
-		enqueue_hrtimer(timer, new_base, 0);
+		enqueue_hrtimer(timer, new_base);
 
 		/* Clear the migration state bit */
 		timer->state &= ~HRTIMER_STATE_MIGRATE;
@@ -1610,6 +1601,9 @@ void __init hrtimers_init(void)
 	hrtimer_cpu_notify(&hrtimers_nb, (unsigned long)CPU_UP_PREPARE,
 			  (void *)(long)smp_processor_id());
 	register_cpu_notifier(&hrtimers_nb);
+#ifdef CONFIG_HIGH_RES_TIMERS
+	open_softirq(HRTIMER_SOFTIRQ, run_hrtimer_softirq);
+#endif
 }
 
 /**
