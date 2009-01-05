@@ -147,6 +147,10 @@ static noinline int create_subvol(struct btrfs_root *root,
 	if (ret)
 		goto fail;
 
+	btrfs_i_size_write(dir, dir->i_size + namelen * 2);
+	ret = btrfs_update_inode(trans, root, dir);
+	BUG_ON(ret);
+
 	/* add the backref first */
 	ret = btrfs_add_root_ref(trans, root->fs_info->tree_root,
 				 objectid, BTRFS_ROOT_BACKREF_KEY,

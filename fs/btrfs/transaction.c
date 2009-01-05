@@ -819,6 +819,10 @@ static noinline int finish_pending_snapshot(struct btrfs_fs_info *fs_info,
 	if (ret)
 		goto fail;
 
+	btrfs_i_size_write(parent_inode, parent_inode->i_size + namelen * 2);
+	ret = btrfs_update_inode(trans, parent_root, parent_inode);
+	BUG_ON(ret);
+
 	/* add the backref first */
 	ret = btrfs_add_root_ref(trans, parent_root->fs_info->tree_root,
 				 pending->root_key.objectid,
