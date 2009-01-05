@@ -493,7 +493,7 @@ static void binder_insert_free_buffer(
 	new_buffer_size = binder_buffer_size(proc, new_buffer);
 
 	if (binder_debug_mask & BINDER_DEBUG_BUFFER_ALLOC)
-		printk(KERN_INFO "binder: %d: add free buffer, size %d, "
+		printk(KERN_INFO "binder: %d: add free buffer, size %zd, "
 		       "at %p\n", proc->pid, new_buffer_size, new_buffer);
 
 	while (*p) {
@@ -679,14 +679,14 @@ static struct binder_buffer *binder_alloc_buf(struct binder_proc *proc,
 
 	if (size < data_size || size < offsets_size) {
 		binder_user_error("binder: %d: got transaction with invalid "
-			"size %d-%d\n", proc->pid, data_size, offsets_size);
+			"size %zd-%zd\n", proc->pid, data_size, offsets_size);
 		return NULL;
 	}
 
 	if (is_async &&
 	    proc->free_async_space < size + sizeof(struct binder_buffer)) {
 		if (binder_debug_mask & BINDER_DEBUG_BUFFER_ALLOC)
-			printk(KERN_ERR "binder: %d: binder_alloc_buf size %d f"
+			printk(KERN_ERR "binder: %d: binder_alloc_buf size %zd f"
 			       "ailed, no async space left\n", proc->pid, size);
 		return NULL;
 	}
@@ -707,7 +707,7 @@ static struct binder_buffer *binder_alloc_buf(struct binder_proc *proc,
 		}
 	}
 	if (best_fit == NULL) {
-		printk(KERN_ERR "binder: %d: binder_alloc_buf size %d failed, "
+		printk(KERN_ERR "binder: %d: binder_alloc_buf size %zd failed, "
 		       "no address space\n", proc->pid, size);
 		return NULL;
 	}
@@ -716,8 +716,8 @@ static struct binder_buffer *binder_alloc_buf(struct binder_proc *proc,
 		buffer_size = binder_buffer_size(proc, buffer);
 	}
 	if (binder_debug_mask & BINDER_DEBUG_BUFFER_ALLOC)
-		printk(KERN_INFO "binder: %d: binder_alloc_buf size %d got buff"
-		       "er %p size %d\n", proc->pid, size, buffer, buffer_size);
+		printk(KERN_INFO "binder: %d: binder_alloc_buf size %zd got buff"
+		       "er %p size %zd\n", proc->pid, size, buffer, buffer_size);
 
 	has_page_addr =
 		(void *)(((size_t)buffer->data + buffer_size) & PAGE_MASK);
@@ -744,7 +744,7 @@ static struct binder_buffer *binder_alloc_buf(struct binder_proc *proc,
 		binder_insert_free_buffer(proc, new_buffer);
 	}
 	if (binder_debug_mask & BINDER_DEBUG_BUFFER_ALLOC)
-		printk(KERN_INFO "binder: %d: binder_alloc_buf size %d got "
+		printk(KERN_INFO "binder: %d: binder_alloc_buf size %zd got "
 		       "%p\n", proc->pid, size, buffer);
 	buffer->data_size = data_size;
 	buffer->offsets_size = offsets_size;
@@ -752,8 +752,8 @@ static struct binder_buffer *binder_alloc_buf(struct binder_proc *proc,
 	if (is_async) {
 		proc->free_async_space -= size + sizeof(struct binder_buffer);
 		if (binder_debug_mask & BINDER_DEBUG_BUFFER_ALLOC_ASYNC)
-			printk(KERN_INFO "binder: %d: binder_alloc_buf size %d "
-			       "async free %d\n", proc->pid, size,
+			printk(KERN_INFO "binder: %d: binder_alloc_buf size %zd "
+			       "async free %zd\n", proc->pid, size,
 			       proc->free_async_space);
 	}
 
@@ -827,8 +827,8 @@ static void binder_free_buf(
 	size = ALIGN(buffer->data_size, sizeof(void *)) +
 		ALIGN(buffer->offsets_size, sizeof(void *));
 	if (binder_debug_mask & BINDER_DEBUG_BUFFER_ALLOC)
-		printk(KERN_INFO "binder: %d: binder_free_buf %p size %d buffer"
-		       "_size %d\n", proc->pid, buffer, size, buffer_size);
+		printk(KERN_INFO "binder: %d: binder_free_buf %p size %zd buffer"
+		       "_size %zd\n", proc->pid, buffer, size, buffer_size);
 
 	BUG_ON(buffer->free);
 	BUG_ON(size > buffer_size);
@@ -839,8 +839,8 @@ static void binder_free_buf(
 	if (buffer->async_transaction) {
 		proc->free_async_space += size + sizeof(struct binder_buffer);
 		if (binder_debug_mask & BINDER_DEBUG_BUFFER_ALLOC_ASYNC)
-			printk(KERN_INFO "binder: %d: binder_free_buf size %d "
-			       "async free %d\n", proc->pid, size,
+			printk(KERN_INFO "binder: %d: binder_free_buf size %zd "
+			       "async free %zd\n", proc->pid, size,
 			       proc->free_async_space);
 	}
 
@@ -1383,14 +1383,14 @@ binder_transaction(struct binder_proc *proc, struct binder_thread *thread,
 	if (binder_debug_mask & BINDER_DEBUG_TRANSACTION) {
 		if (reply)
 			printk(KERN_INFO "binder: %d:%d BC_REPLY %d -> %d:%d, "
-			       "data %p-%p size %d-%d\n",
+			       "data %p-%p size %zd-%zd\n",
 			       proc->pid, thread->pid, t->debug_id,
 			       target_proc->pid, target_thread->pid,
 			       tr->data.ptr.buffer, tr->data.ptr.offsets,
 			       tr->data_size, tr->offsets_size);
 		else
 			printk(KERN_INFO "binder: %d:%d BC_TRANSACTION %d -> "
-			       "%d - node %d, data %p-%p size %d-%d\n",
+			       "%d - node %d, data %p-%p size %zd-%zd\n",
 			       proc->pid, thread->pid, t->debug_id,
 			       target_proc->pid, target_node->debug_id,
 			       tr->data.ptr.buffer, tr->data.ptr.offsets,
@@ -1439,7 +1439,7 @@ binder_transaction(struct binder_proc *proc, struct binder_thread *thread,
 		struct flat_binder_object *fp;
 		if (*offp > t->buffer->data_size - sizeof(*fp)) {
 			binder_user_error("binder: %d:%d got transaction with "
-				"invalid offset, %d\n",
+				"invalid offset, %zd\n",
 				proc->pid, thread->pid, *offp);
 			return_error = BR_FAILED_REPLY;
 			goto err_bad_offset;
@@ -1615,7 +1615,8 @@ err_dead_binder:
 err_invalid_target_handle:
 err_no_context_mgr_node:
 	if (binder_debug_mask & BINDER_DEBUG_FAILED_TRANSACTION)
-		printk(KERN_INFO "binder: %d:%d transaction failed %d, size %d-%d\n",
+		printk(KERN_INFO "binder: %d:%d transaction failed %d, size"
+				"%zd-%zd\n",
 			   proc->pid, thread->pid, return_error,
 			   tr->data_size, tr->offsets_size);
 
@@ -1640,7 +1641,7 @@ binder_transaction_buffer_release(struct binder_proc *proc, struct binder_buffer
 	int debug_id = buffer->debug_id;
 
 	if (binder_debug_mask & BINDER_DEBUG_TRANSACTION)
-		printk(KERN_INFO "binder: %d buffer release %d, size %d-%d, failed at %p\n",
+		printk(KERN_INFO "binder: %d buffer release %d, size %zd-%zd, failed at %p\n",
 			   proc->pid, buffer->debug_id,
 			   buffer->data_size, buffer->offsets_size, failed_at);
 
@@ -1655,7 +1656,8 @@ binder_transaction_buffer_release(struct binder_proc *proc, struct binder_buffer
 	for (; offp < off_end; offp++) {
 		struct flat_binder_object *fp;
 		if (*offp > buffer->data_size - sizeof(*fp)) {
-			printk(KERN_ERR "binder: transaction release %d bad offset %d, size %d\n", debug_id, *offp, buffer->data_size);
+			printk(KERN_ERR "binder: transaction release %d bad"
+					"offset %zd, size %zd\n", debug_id, *offp, buffer->data_size);
 			continue;
 		}
 		fp = (struct flat_binder_object *)(buffer->data + *offp);
@@ -2350,7 +2352,8 @@ retry:
 
 		binder_stat_br(proc, thread, cmd);
 		if (binder_debug_mask & BINDER_DEBUG_TRANSACTION)
-			printk(KERN_INFO "binder: %d:%d %s %d %d:%d, cmd %d size %d-%d ptr %p-%p\n",
+			printk(KERN_INFO "binder: %d:%d %s %d %d:%d, cmd %d"
+				"size %zd-%zd ptr %p-%p\n",
 			       proc->pid, thread->pid,
 			       (cmd == BR_TRANSACTION) ? "BR_TRANSACTION" : "BR_REPLY",
 			       t->debug_id, t->from ? t->from->proc->pid : 0,
@@ -2929,7 +2932,7 @@ static char *print_binder_transaction(char *buf, char *end, const char *prefix, 
 		if (buf >= end)
 			return buf;
 	}
-	buf += snprintf(buf, end - buf, " size %d:%d data %p\n",
+	buf += snprintf(buf, end - buf, " size %zd:%zd data %p\n",
 			t->buffer->data_size, t->buffer->offsets_size,
 			t->buffer->data);
 	return buf;
@@ -2937,7 +2940,7 @@ static char *print_binder_transaction(char *buf, char *end, const char *prefix, 
 
 static char *print_binder_buffer(char *buf, char *end, const char *prefix, struct binder_buffer *buffer)
 {
-	buf += snprintf(buf, end - buf, "%s %d: %p size %d:%d %s\n",
+	buf += snprintf(buf, end - buf, "%s %d: %p size %zd:%zd %s\n",
 			prefix, buffer->debug_id, buffer->data,
 			buffer->data_size, buffer->offsets_size,
 			buffer->transaction ? "active" : "delivered");
@@ -3207,7 +3210,7 @@ static char *print_binder_proc_stats(char *buf, char *end, struct binder_proc *p
 		return buf;
 	buf += snprintf(buf, end - buf, "  requested threads: %d+%d/%d\n"
 			"  ready threads %d\n"
-			"  free async space %d\n", proc->requested_threads,
+			"  free async space %zd\n", proc->requested_threads,
 			proc->requested_threads_started, proc->max_threads,
 			proc->ready_threads, proc->free_async_space);
 	if (buf >= end)
