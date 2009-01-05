@@ -11,7 +11,7 @@
 
 
 /*******************************************************************************
- * Configuration space
+ * PCI Configuration space
  *******************************************************************************/
 /*  PCI Vendor ID */
 #define SXG_VENDOR_ID			0x139A	/* Alacritech's Vendor ID */
@@ -214,6 +214,11 @@ struct SXG_HW_REGS {
 #define	RCV_CONFIG_TZIPV4		0x00800000	// Include TCP port w/ IPv4 toeplitz
 #define	RCV_CONFIG_FLUSH		0x00400000	// Flush buffers
 #define	RCV_CONFIG_PRIORITY_MASK	0x00300000	// Priority level
+#define	RCV_CONFIG_CONN_MASK		0x000C0000	// Number of connections
+#define	RCV_CONFIG_CONN_4K		0x00000000	// 4k connections
+#define	RCV_CONFIG_CONN_2K		0x00040000	// 2k connections
+#define	RCV_CONFIG_CONN_1K		0x00080000	// 1k connections
+#define	RCV_CONFIG_CONN_512		0x000C0000	// 512 connections
 #define	RCV_CONFIG_HASH_MASK		0x00030000	// Hash depth
 #define	RCV_CONFIG_HASH_8		0x00000000	// Hash depth 8
 #define	RCV_CONFIG_HASH_16		0x00010000	// Hash depth 16
@@ -526,6 +531,21 @@ struct PHY_UCODE {
 
 
 /*****************************************************************************
+ * Slow Bus Register Definitions
+ *****************************************************************************/
+
+// Module 0 registers
+#define GPIO_L_IN		0x15		// GPIO input (low)
+#define GPIO_L_OUT		0x16		// GPIO output (low)
+#define GPIO_L_DIR		0x17		// GPIO direction (low)
+#define GPIO_H_IN		0x19		// GPIO input (high)
+#define GPIO_H_OUT		0x1A		// GPIO output (high)
+#define GPIO_H_DIR		0x1B		// GPIO direction (high)
+
+// Definitions for other slow bus registers can be added as needed
+
+
+/*****************************************************************************
  * Transmit Sequencer Command Descriptor definitions
  *****************************************************************************/
 
@@ -613,8 +633,8 @@ struct RCV_BUF_HDR {
 	ushort	SktHash;			// Socket hash
 	unsigned char	TcpHdrOffset;		// TCP header offset into packet
 	unsigned char	IpHdrOffset;		// IP header offset into packet
-	u32	TpzHash;			// Toeplitz hash
-	ushort	Reserved;			// Reserved
+	u32	            TpzHash;			// Toeplitz hash
+	ushort	        Reserved;			// Reserved
 };
 #pragma pack(pop)
 
@@ -662,26 +682,43 @@ struct RCV_BUF_HDR {
 /*****************************************************************************
  * SXG EEPROM/Flash Configuration Definitions
  *****************************************************************************/
-#pragma pack(push, 1)
+// Location of configuration data in EEPROM or Flash
+#define	EEPROM_CONFIG_START_ADDR	0x00	// start addr for config info in EEPROM
+#define	FLASH_CONFIG_START_ADDR		0x80	// start addr for config info in Flash
 
-/* */
+// Configuration data section defines
+#define	HW_CFG_SECTION_SIZE	512		// size of H/W section
+#define	HW_CFG_SECTION_SIZE_A	256		// size of H/W section (Sahara rev A)
+#define	SW_CFG_SECTION_START	512		// starting location (offset) of S/W section
+#define	SW_CFG_SECTION_START_A	256		// starting location (offset) of S/W section (Sahara rev A)
+#define	SW_CFG_SECTION_SIZE	128		// size of S/W section
+
+#define	HW_CFG_MAGIC_WORD	0xA5A5		// H/W configuration data magic word
+//    Goes in Addr field of first HW_CFG_DATA entry
+#define	HW_CFG_TERMINATOR	0xFFFF		// H/W configuration data terminator
+//    Goes in Addr field of last HW_CFG_DATA entry
+#define	SW_CFG_MAGIC_WORD	0x5A5A		// S/W configuration data magic word
+
+#pragma pack(push, 1)
+// Structure for an element of H/W configuration data.
+// Read by the Sahara hardware
 struct HW_CFG_DATA {
 	ushort		Addr;
-	union {
-		ushort	Data;
-		ushort	Checksum;
-	};
+	ushort	    Data;
 };
 
-/* */
-#define	NUM_HW_CFG_ENTRIES	((128/sizeof(struct HW_CFG_DATA)) - 4)
+// Number of HW_CFG_DATA structures to put in the configuration data
+// data structure (SXG_CONFIG or SXG_CONFIG_A).  The number is computed
+// to fill the entire H/W config section of the structure.
+#define	NUM_HW_CFG_ENTRIES		(HW_CFG_SECTION_SIZE / sizeof(struct HW_CFG_DATA))
+#define	NUM_HW_CFG_ENTRIES_A	(HW_CFG_SECTION_SIZE_A / sizeof(struct HW_CFG_DATA))
 
-/* MAC address */
+/* MAC address structure */
 struct SXG_CONFIG_MAC {
 	unsigned char		MacAddr[6];			/* MAC Address */
 };
 
-/* */
+/* FRU data structure */
 struct ATK_FRU {
 	unsigned char		PartNum[6];
 	unsigned char		Revision[2];
@@ -697,30 +734,109 @@ struct ATK_FRU {
 #define EMC_FRU_FORMAT		0x0005
 #define NO_FRU_FORMAT		0xFFFF
 
+#define	ATK_OEM_ASSY_SIZE	10		// assy num is 9 chars plus \0
+
+// OEM FRU structure for Alacritech
+struct ATK_OEM {
+	unsigned char Assy[ATK_OEM_ASSY_SIZE];
+};
+
+#define	OEM_EEPROM_FRUSIZE	74		// size of OEM fru info - size
+// chosen to fill out the S/W section
+
+union OEM_FRU {			// OEM FRU information
+	unsigned char OemFru[OEM_EEPROM_FRUSIZE];
+	struct ATK_OEM AtkOem;
+};
+
+// Structure to hold the S/W configuration data.
+struct SW_CFG_DATA {
+	ushort			MagicWord;			// Magic word for section 2
+	ushort			Version;			// Format version
+	struct SXG_CONFIG_MAC	MacAddr[4];			// space for 4 MAC addresses
+	struct ATK_FRU		AtkFru;				// FRU information
+	ushort			OemFruFormat;		// OEM FRU format type
+	union OEM_FRU		OemFru;				// OEM FRU information
+	ushort			Checksum;			// Checksum of section 2
+};
+
+
 /* EEPROM/Flash Format */
 struct SXG_CONFIG {
-	/* */
-	/* Section 1 (128 bytes) */
-	/* */
-	ushort			MagicWord;			/* EEPROM/FLASH Magic code 'A5A5' */
-	ushort			SpiClks;			/* SPI bus clock dividers */
+	/*
+	* H/W Section - Read by Sahara hardware (512 bytes)
+	*/
 	struct HW_CFG_DATA		HwCfg[NUM_HW_CFG_ENTRIES];
-	/* */
-	/* */
-	/* */
-	ushort			Version;			/* EEPROM format version */
-	struct SXG_CONFIG_MAC	MacAddr[4];			/* space for 4 MAC addresses */
-	struct ATK_FRU			AtkFru;				/* FRU information */
-	ushort			OemFruFormat;		/* OEM FRU format type */
-	unsigned char			OemFru[76];			/* OEM FRU information (optional) */
-	ushort			Checksum;			/* Checksum of section 2 */
-	/* CS info XXXTODO */
+	/*
+	 * S/W Section - Other configuration data (128 bytes)
+	 */
+	struct SW_CFG_DATA	SwCfg;
 };
+
+// EEPROM/Flash Format (Sahara rev A)
+struct SXG_CONFIG_A {
+	/*
+	 * H/W Section - Read by Sahara hardware (256 bytes)
+	 */
+	struct HW_CFG_DATA		HwCfg[NUM_HW_CFG_ENTRIES_A];
+
+	/*
+	 * S/W Section - Other configuration data (128 bytes)
+	 */
+	struct SW_CFG_DATA		SwCfg;
+};
+
+#ifdef WINDOWS_COMPILER
+// The following macro is something of a kludge, but it is the only way
+// that I could find to catch certain programming errors at compile time.
+// If the asserted condition is true, then nothing happens.  If false, then
+// the compiler tries to typedef an array with -1 members, which generates
+// an error.  Unfortunately, the error message is meaningless, but at least
+// it catches the problem.  This macro would be unnecessary if the compiler
+// allowed the sizeof and offsetof macros to be used in the #if directive.
+#define compile_time_assert(cond) \
+    typedef char comp_error[(cond) ? 1 : -1]
+
+// A compiler error on either of the next two lines indicates that the SXG_CONFIG
+// structure was built incorrectly.  Unfortunately, the error message produced
+// is meaningless.  But this is apparently the only way to catch this problem
+// at compile time.
+compile_time_assert (offsetof(SXG_CONFIG, SwCfg) == SW_CFG_SECTION_START);
+compile_time_assert (sizeof(SXG_CONFIG) == HW_CFG_SECTION_SIZE + SW_CFG_SECTION_SIZE);
+
+compile_time_assert (offsetof(SXG_CONFIG_A, SwCfg) == SW_CFG_SECTION_START_A);
+compile_time_assert (sizeof(SXG_CONFIG_A) == HW_CFG_SECTION_SIZE_A + SW_CFG_SECTION_SIZE);
+#endif
+/*
+ * Structure used to pass information between driver and user-mode
+ * control application
+ */
+struct ADAPT_USERINFO {
+	bool		    LinkUp;
+	// u32  	    LinkState;		// use LinkUp - any need for other states?
+	u32 		    LinkSpeed;		// not currently needed
+	u32 		    LinkDuplex;		// not currently needed
+	u32 		    Port;			// not currently needed
+	u32 		    PhysPort;		// not currently needed
+	ushort		    PciLanes;
+	unsigned char	MacAddr[6];
+	unsigned char   CurrMacAddr[6];
+	struct ATK_FRU	    AtkFru;
+	ushort  	    OemFruFormat;
+	union OEM_FRU	    OemFru;
+};
+
 #pragma pack(pop)
 
 /*****************************************************************************
  * Miscellaneous Hardware definitions
  *****************************************************************************/
+
+// Type of ASIC in use
+enum ASIC_TYPE{
+	SAHARA_REV_A,
+	SAHARA_REV_B
+};
 
 // Sahara (ASIC level) defines
 #define SAHARA_GRAM_SIZE		0x020000		// GRAM size - 128 KB
@@ -730,5 +846,6 @@ struct SXG_CONFIG {
 
 // Arabia (board level) defines
 #define	FLASH_SIZE			0x080000		// 512 KB (4 Mb)
-#define	EEPROM_SIZE_XFMR		512			// true EEPROM size (bytes), including xfmr area
-#define	EEPROM_SIZE_NO_XFMR		256			// EEPROM size excluding xfmr area
+#define	EEPROM_SIZE_XFMR		1024			// EEPROM size (bytes), including xfmr area
+#define	EEPROM_SIZE_NO_XFMR		640				// EEPROM size excluding xfmr area (512 + 128)
+#define	EEPROM_SIZE_REV_A		512				// EEPROM size for Sahara rev A

@@ -46,12 +46,13 @@
 #define ATKDBG  1
 #define ATK_TRACE_ENABLED 1
 
-#define DBG_ERROR(n, args...)	printk(KERN_EMERG n, ##args)
+#define DBG_ERROR(n, args...)	printk(KERN_WARNING n, ##args)
 
 #ifdef ASSERT
 #undef ASSERT
 #endif
 
+#define SXG_ASSERT_ENABLED
 #ifdef SXG_ASSERT_ENABLED
 #ifndef ASSERT
 #define ASSERT(a)                                                                 \

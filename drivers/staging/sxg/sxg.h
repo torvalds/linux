@@ -141,7 +141,7 @@ struct SXG_STATS {
 
 #define SXG_ALLOCATE_RCV_PACKET(_pAdapt, _RcvDataBufferHdr) {				\
 	struct sk_buff * skb;												    \
-    skb = alloc_skb(2048, GFP_ATOMIC);                                      \
+    skb = netdev_alloc_skb(_pAdapt->netdev, 2048);                                 \
     if (skb) {                                                              \
     	(_RcvDataBufferHdr)->skb = skb;                                     \
         skb->next = NULL;                                                   \
@@ -207,7 +207,7 @@ struct SXG_STATS {
 			   (_RcvDataBufferHdr), (_Packet),								\
 			   (_Event)->Status, 0);	                    				\
 	ASSERT((_Event)->Length <= (_RcvDataBufferHdr)->Size);					\
-    Packet->len = (_Event)->Length;                                         \
+    skb_put(Packet, (_Event)->Length);						\
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -503,10 +503,6 @@ struct adapter_t {
 	unsigned int                port;
 	struct physcard_t        *physcard;
 	unsigned int                physport;
-	unsigned int                cardindex;
-	unsigned int                card_size;
-	unsigned int                chipid;
-	unsigned int                busnumber;
 	unsigned int                slotnumber;
 	unsigned int                functionnumber;
 	ushort              vendid;
@@ -514,25 +510,15 @@ struct adapter_t {
 	ushort              subsysid;
 	u32             irq;
 
-	void *               sxg_adapter;
-	u32             nBusySend;
-
 	void __iomem *	base_addr;
 	u32             memorylength;
 	u32             drambase;
 	u32             dramlength;
-	unsigned int                queues_initialized;
-	unsigned int                allocated;
 	unsigned int                activated;
 	u32             intrregistered;
 	unsigned int                isp_initialized;
-	unsigned int                gennumber;
-	u32             curaddrupper;
-	u32             isrcopy;
 	unsigned char               state;
 	unsigned char               linkstate;
-	unsigned char               linkspeed;
-	unsigned char               linkduplex;
 	unsigned int                flags;
 	unsigned char               macaddr[6];
 	unsigned char               currmacaddr[6];
@@ -581,8 +567,6 @@ struct adapter_t {
 	u32						PowerState;			// NDIS power state
 	struct adapter_t   		*Next;				// Linked list
 	ushort						AdapterID;			// 1..n
-	unsigned char						MacAddr[6];			// Our permanent HW mac address
-	unsigned char						CurrMacAddr[6];		// Our Current mac address
 	p_net_device                netdev;
 	p_net_device                next_netdevice;
 	struct pci_dev            * pcidev;
@@ -597,17 +581,11 @@ struct adapter_t {
 	struct SXG_HW_REGS			*HwRegs;				// Sahara HW Register Memory (BAR0/1)
 	struct SXG_UCODE_REGS			*UcodeRegs;			// Microcode Register Memory (BAR2/3)
 	struct SXG_TCB_REGS			*TcbRegs;			// Same as Ucode regs - See sxghw.h
-	ushort						ResetDpcCount;		// For timeout
-	ushort						RssDpcCount;		// For timeout
-	ushort						VendorID;			// Vendor ID
-	ushort						DeviceID;			// Device ID
-	ushort						SubSystemID;		// Sub-System ID
-	ushort						FrameSize;			// Maximum frame size
+	ushort                                  FrameSize;	              // Maximum frame size
 	u32 *					DmaHandle;			// NDIS DMA handle
 	u32 *					PacketPoolHandle;	// Used with NDIS 5.2 only.  Don't ifdef out
 	u32 *					BufferPoolHandle;	// Used with NDIS 5.2 only.  Don't ifdef out
 	u32						MacFilter;			// NDIS MAC Filter
-	ushort						IpId;				// For slowpath
 	struct SXG_EVENT_RING			*EventRings;			// Host event rings.  1/CPU to 16 max
 	dma_addr_t              	PEventRings;		// Physical address
 	u32						NextEvent[SXG_MAX_RSS];	// Current location in ring
@@ -690,9 +668,6 @@ struct adapter_t {
 	// Put preprocessor-conditional fields at the end so we don't
 	// have to recompile sxgdbg everytime we reconfigure the driver
 	/////////////////////////////////////////////////////////////////////
-	void *						PendingSetRss;		// Pending RSS parameter change
-	u32						IPv4HdrSize;		// Shared 5.2/6.0 encap param
-	unsigned char *          			InterruptInfo;		// Allocated by us during AddDevice
 #if defined(CONFIG_X86)
 	u32						AddrUpper;			// Upper 32 bits of 64-bit register
 #endif

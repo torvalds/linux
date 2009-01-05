@@ -22,7 +22,9 @@ struct SXG_UCODE_REGS {
 	u32 RsvdReg5;		// Code = 5 - TOE -NA
 	u32 CardUp;		// Code = 6 - Microcode initialized when 1
 	u32 RsvdReg7;		// Code = 7 - TOE -NA
-	u32 CodeNotUsed[8];	// Codes 8-15 not used.  ExCode = 0
+    u32     ConfigStat;     // Code = 8 - Configuration data load status
+    u32     RsvdReg9;		// Code = 9 - TOE -NA
+	u32		CodeNotUsed[6];		// Codes 10-15 not used.  ExCode = 0
 	// This brings us to ExCode 1 at address 0x40 = Interrupt status pointer
 	u32 Isp;		// Code = 0 (extended), ExCode = 1
 	u32 PadEx1[15];		// Codes 1-15 not used with extended codes
@@ -53,7 +55,7 @@ struct SXG_UCODE_REGS {
 	// ExCode 10 = Receive ring size
 	u32 RcvSize;		// Code = 0 (extended), ExCode = 10
 	u32 PadEx10[15];
-	// ExCode 11 = Read EEPROM Config
+	// ExCode 11 = Read EEPROM/Flash Config
 	u32 Config;		// Code = 0 (extended), ExCode = 11
 	u32 PadEx11[15];
 	// ExCode 12 = Multicast bits 31:0
@@ -77,15 +79,16 @@ struct SXG_UCODE_REGS {
 	// ExCode 18 = Slowpath Send Index Address
 	u32 SPSendIndex;	// Code = 0 (extended), ExCode = 18
 	u32 PadEx18[15];
-	u32 RsvdXF;		// Code = 0 (extended), ExCode = 19
+	// ExCode 19 = Get ucode statistics
+	u32		GetUcodeStats;			// Code = 0 (extended), ExCode = 19
 	u32 PadEx19[15];
-	// ExCode 20 = Aggregation
+	// ExCode 20 = Aggregation - See sxgmisc.c:SxgSetInterruptAggregation
 	u32 Aggregation;	// Code = 0 (extended), ExCode = 20
 	u32 PadEx20[15];
 	// ExCode 21 = Receive MDL push timer
 	u32 PushTicks;		// Code = 0 (extended), ExCode = 21
 	u32 PadEx21[15];
-	// ExCode 22 = TOE NA
+	// ExCode 22 = ACK Frequency
 	u32 AckFrequency;	// Code = 0 (extended), ExCode = 22
 	u32 PadEx22[15];
 	// ExCode 23 = TOE NA
@@ -139,8 +142,14 @@ struct SXG_UCODE_REGS {
 	((((_MessageId) << SXG_ICR_MSGID_SHIFT) &	\
 	  SXG_ICR_MSGID_MASK) | (_Data))
 
-// The Microcode supports up to 16 RSS queues
-#define SXG_MAX_RSS				16
+#define SXG_MIN_AGG_DEFAULT			0x0010		// Minimum aggregation default
+#define SXG_MAX_AGG_DEFAULT			0x0040		// Maximum aggregation default
+#define SXG_MAX_AGG_SHIFT			16			// Maximum in top 16 bits of register
+#define SXG_AGG_XMT_DISABLE			0x80000000	// Disable interrupt aggregation on xmt
+
+// The Microcode supports up to 8 RSS queues
+#define SXG_MAX_RSS				8
+
 #define SXG_MAX_RSS_TABLE_SIZE	256	// 256-byte max
 
 #define SXG_RSS_TCP6				0x00000001	// RSS TCP over IPv6
@@ -156,11 +165,15 @@ struct SXG_UCODE_REGS {
 
 #define SXG_XMT_CPUID_SHIFT			16
 
-#if VPCI
-#define SXG_CHECK_FOR_HANG_TIME		3000
-#else
+// Status returned by ucode in the ConfigStat reg (see above) when attempted
+// to load configuration data from the EEPROM/Flash.
+#define	SXG_CFG_TIMEOUT				1		// init value - timeout if unchanged
+#define	SXG_CFG_LOAD_EEPROM			2		// config data loaded from EEPROM
+#define	SXG_CFG_LOAD_FLASH			3		// config data loaded from flash
+#define	SXG_CFG_LOAD_INVALID		4		// no valid config data found
+#define	SXG_CFG_LOAD_ERROR			5		// hardware error
+
 #define SXG_CHECK_FOR_HANG_TIME		5
-#endif
 
 /*
  * TCB registers - This is really the same register memory area as UCODE_REGS
@@ -176,10 +189,11 @@ struct SXG_TCB_REGS {
 	u32 Rsvd1;		/* Code = 3 - TOE NA */
 	u32 Rsvd2;		/* Code = 4 - TOE NA */
 	u32 Rsvd3;		/* Code = 5 - TOE NA */
-	u32 Invalid;		/* Code = 6 - Reserved for "CardUp" see above */
+	u32 Invalid1;		/* Code = 6 - Reserved for "CardUp" see above */
 	u32 Rsvd4;		/* Code = 7 - TOE NA */
-	u32 Rsvd5;		/* Code = 8 - TOE NA */
-	u32 Pad[7];		/* Codes 8-15 - Not used. */
+	u32 Invalid2;		/* Code = 8 - Reserved for "ConfigStat" see above */
+	u32 Rsvd5;		/* Code = 9 - TOE NA */
+	u32 Pad[6];		/* Codes 10-15 - Not used. */
 };
 
 /***************************************************************************
@@ -319,7 +333,7 @@ struct SXG_EVENT {
 // Size must be power of 2, between 128 and 16k
 #define EVENT_RING_SIZE		4096	// ??
 #define EVENT_RING_BATCH	16	// Hand entries back 16 at a time.
-#define EVENT_BATCH_LIMIT	256	// Stop processing events after 256 (16 * 16)
+#define EVENT_BATCH_LIMIT	256	    // Stop processing events after 4096 (256 * 16)
 
 struct SXG_EVENT_RING {
 	struct SXG_EVENT Ring[EVENT_RING_SIZE];
@@ -664,23 +678,22 @@ enum SXG_BUFFER_TYPE {
  *    => Total = ~1282k/block
  *
  ***************************************************************************/
-#define SXG_RCV_DATA_BUFFERS			4096	// Amount to give to the card
-#define SXG_INITIAL_RCV_DATA_BUFFERS	8192	// Initial pool of buffers
-#define SXG_MIN_RCV_DATA_BUFFERS		2048	// Minimum amount and when to get more
-#define SXG_MAX_RCV_BLOCKS				128	// = 16384 receive buffers
+#define SXG_RCV_DATA_BUFFERS			8192	// Amount to give to the card
+#define SXG_INITIAL_RCV_DATA_BUFFERS	16384	// Initial pool of buffers
+#define SXG_MIN_RCV_DATA_BUFFERS		4096	// Minimum amount and when to get more
+#define SXG_MAX_RCV_BLOCKS				256		// = 32k receive buffers
 
 // Receive buffer header
 struct SXG_RCV_DATA_BUFFER_HDR {
 	dma_addr_t PhysicalAddress;	// Buffer physical address
 	// Note - DO NOT USE the VirtualAddress field to locate data.
 	// Use the sxg.h:SXG_RECEIVE_DATA_LOCATION macro instead.
-	void *VirtualAddress;	// Start of buffer
-	struct LIST_ENTRY FreeList;	// Free queue of buffers
+	void                            *VirtualAddress;	// Start of buffer
+	u32                             Size;			// Buffer size
 	struct SXG_RCV_DATA_BUFFER_HDR *Next;	// Fastpath data buffer queue
-	u32 Size;		// Buffer size
-	u32 ByteOffset;		// See SXG_RESTORE_MDL_OFFSET
-	unsigned char State;	// See SXG_BUFFER state above
-	unsigned char Status;	// Event status (to log PUSH)
+	struct LIST_ENTRY               FreeList;		// Free queue of buffers
+	unsigned char			State;			// See SXG_BUFFER state above
+	unsigned char			Status;			// Event status (to log PUSH)
 	struct sk_buff *skb;	// Double mapped (nbl and pkt)
 };
 
@@ -744,15 +757,6 @@ struct SXG_RCV_BLOCK_HDR {
 	 (sizeof(struct SXG_RCV_DESCRIPTOR_BLOCK))              +		\
 	 (sizeof(struct SXG_RCV_DESCRIPTOR_BLOCK_HDR)))
 
-// Use the miniport reserved portion of the NBL to locate
-// our SXG_RCV_DATA_BUFFER_HDR structure.
-struct SXG_RCV_NBL_RESERVED {
-	struct SXG_RCV_DATA_BUFFER_HDR *RcvDataBufferHdr;
-	void *Available;
-};
-
-#define SXG_RCV_NBL_BUFFER_HDR(_NBL) (((PSXG_RCV_NBL_RESERVED)NET_BUFFER_LIST_MINIPORT_RESERVED(_NBL))->RcvDataBufferHdr)
-
 /***************************************************************************
  * Scatter gather list buffer
  ***************************************************************************/
@@ -760,38 +764,108 @@ struct SXG_RCV_NBL_RESERVED {
 #define SXG_MIN_SGL_BUFFERS			2048	// Minimum amount and when to get more
 #define SXG_MAX_SGL_BUFFERS			16384	// Maximum to allocate (note ADAPT:ushort)
 
+// SXG_SGL_POOL_PROPERTIES - This structure is used to define a pool of SGL buffers.
+// These buffers are allocated out of shared memory and used to
+// contain a physical scatter gather list structure that is shared
+// with the card.
+//
+// We split our SGL buffers into multiple pools based on size.  The motivation
+// is that some applications perform very large I/Os (1MB for example), so
+// we need to be able to allocate an SGL to accommodate such a request.
+// But such an SGL would require 256 24-byte SG entries - ~6k.
+// Given that the vast majority of I/Os are much smaller than 1M, allocating
+// a single pool of SGL buffers would be a horribly inefficient use of
+// memory.
+//
+// The following structure includes two fields relating to its size.
+// The NBSize field specifies the largest NET_BUFFER that can be handled
+// by the particular pool.  The SGEntries field defines the size, in
+// entries, of the SGL for that pool.  The SGEntries is determined by
+// dividing the NBSize by the expected page size (4k), and then padding
+// it by some appropriate amount as insurance (20% or so..??).
+typedef struct _SXG_SGL_POOL_PROPERTIES {
+	u32			NBSize;			// Largest NET_BUFFER size for this pool
+	ushort			SGEntries;		// Number of entries in SGL
+	ushort			InitialBuffers;	// Number to allocate at initializationtime
+	ushort			MinBuffers;		// When to get more
+	ushort			MaxBuffers;		// When to stop
+	ushort			PerCpuThreshold;// See sxgh.h:SXG_RESOURCES
+} SXG_SGL_POOL_PROPERTIES, *PSXG_SGL_POOL_PROPERTIES;
+
+// At the moment I'm going to statically initialize 4 pools:
+//	100k buffer pool: The vast majority of the expected buffers are expected to
+//						be less than or equal to 100k.  At 30 entries per and
+// 						8k initial buffers amounts to ~4MB of memory
+//                      NOTE - This used to be 64K with 20 entries, but during
+//                             WHQL NDIS 6.0 Testing (2c_mini6stress) MS does their
+//                             best to send absurd NBL's with ridiculous SGLs, we
+//                             have received 400byte sends contained in SGL's that
+//                             have 28 entries
+//	1M buffer pool: Buffers between 64k and 1M.  Allocate 256 initial buffers
+//						with 300 entries each => ~2MB of memory
+//	5M buffer pool: Not expected often, if at all.  32 initial buffers
+//						at 1500 entries each => ~1MB of memory
+// 10M buffer pool: Not expected at all, except under pathelogical conditions.
+//						Allocate one at initialization time.
+//						Note - 10M is the current limit of what we can
+//						realistically support due to the sahara SGL
+//						bug described in the SAHARA SGL WORKAROUND below
+//
+// We will likely adjust the number of pools and/or pool properties over time..
+#define SXG_NUM_SGL_POOLS	4
+#define INITIALIZE_SGL_POOL_PROPERTIES								\
+SXG_SGL_POOL_PROPERTIES SxgSglPoolProperties[SXG_NUM_SGL_POOLS] = 	\
+{ 																	\
+	{  102400,   30, 8192, 2048, 16384, 256},						\
+	{ 1048576,  300,  256,  128,  1024, 16},						\
+	{ 5252880, 1500,   32,   16,   512, 0},							\
+	{10485760, 2700,    2,    4,    32, 0},							\
+};
+
+extern SXG_SGL_POOL_PROPERTIES SxgSglPoolProperties[];
+
+#define SXG_MAX_SGL_BUFFER_SIZE										\
+	SxgSglPoolProperties[SXG_NUM_SGL_POOLS - 1].NBSize
+
+// SAHARA SGL WORKAROUND!!
+// The current Sahara card uses a 16-bit counter when advancing
+// SGL address locations.  This means that if an SGL crosses
+// a 64k boundary, the hardware will actually skip back to
+// the start of the previous 64k boundary, with obviously
+// undesirable results.
+//
+// We currently workaround this issue by allocating SGL buffers
+// in 64k blocks and skipping over buffers that straddle the boundary.
+#define SXG_INVALID_SGL(_SxgSgl)										\
+	(((_SxgSgl)->PhysicalAddress.LowPart & 0xFFFF0000) !=				\
+	 (((_SxgSgl)->PhysicalAddress.LowPart +								\
+	   SXG_SGL_SIZE((_SxgSgl)->Pool)) & 0xFFFF0000))
+
+// Allocate SGLs in blocks so we can skip over invalid entries.
+// We allocation 64k worth of SGL buffers, including the
+// SXG_SGL_BLOCK_HDR, plus one for padding
+#define SXG_SGL_BLOCK_SIZE				65536
+#define SXG_SGL_ALLOCATION_SIZE(_Pool)	SXG_SGL_BLOCK_SIZE + SXG_SGL_SIZE(_Pool)
+
+typedef struct _SXG_SGL_BLOCK_HDR {
+	ushort							Pool;			// Associated SGL pool
+	struct LIST_ENTRY					List;			// SXG_SCATTER_GATHER blocks
+	dma64_addr_t        			PhysicalAddress;// physical address
+} SXG_SGL_BLOCK_HDR, *PSXG_SGL_BLOCK_HDR;
+
+
+// The following definition denotes the maximum block of memory that the
+// card can DMA to.  It is specified in the call to NdisMRegisterScatterGatherDma.
+// For now, use the same value as used in the Slic/Oasis driver, which
+// is 128M.  That should cover any expected MDL that I can think of.
+#define SXG_MAX_PHYS_MAP	(1024 * 1024 * 128)
+
 // Self identifying structure type
 enum SXG_SGL_TYPE {
 	SXG_SGL_DUMB,		// Dumb NIC SGL
 	SXG_SGL_SLOW,		// Slowpath protocol header - see below
 	SXG_SGL_CHIMNEY		// Chimney offload SGL
 };
-
-// Note - the description below is Microsoft specific
-//
-// The following definition specifies the amount of shared memory to allocate
-// for the SCATTER_GATHER_LIST portion of the SXG_SCATTER_GATHER data structure.
-// The following considerations apply when setting this value:
-// - First, the Sahara card is designed to read the Microsoft SGL structure
-//       straight out of host memory.  This means that the SGL must reside in
-//       shared memory.  If the length here is smaller than the SGL for the
-//       NET_BUFFER, then NDIS will allocate its own buffer.  The buffer
-//       that NDIS allocates is not in shared memory, so when this happens,
-//       the SGL will need to be copied to a set of SXG_SCATTER_GATHER buffers.
-//       In other words.. we don't want this value to be too small.
-// - On the other hand.. we're allocating up to 16k of these things.  If
-//       we make this too big, we start to consume a ton of memory..
-// At the moment, I'm going to limit the number of SG entries to 150.
-// If each entry maps roughly 4k, then this should cover roughly 600kB
-// NET_BUFFERs.  Furthermore, since each entry is 24 bytes, the total
-// SGE portion of the structure consumes 3600 bytes, which should allow
-// the entire SXG_SCATTER_GATHER structure to reside comfortably within
-// a 4k block, providing the remaining fields stay under 500 bytes.
-//
-// So with 150 entries, the SXG_SCATTER_GATHER structure becomes roughly
-// 4k.  At 16k of them, that amounts to 64M of shared memory.  A ton, but
-// manageable.
-#define SXG_SGL_ENTRIES		150
 
 // The ucode expects an NDIS SGL structure that
 // is formatted for an x64 system.  When running
@@ -806,31 +880,19 @@ struct SXG_X64_SGE {
 	u64 Reserved;		// u32 * in wdm.h.  Force to 8 bytes
 };
 
-struct SCATTER_GATHER_ELEMENT {
-	dma64_addr_t Address;	// same as wdm.h
-	u32 Length;		// same as wdm.h
-	u32 CompilerPad;	// The compiler pads to 8-bytes
-	u64 Reserved;		// u32 * in wdm.h.  Force to 8 bytes
-};
-
-struct SCATTER_GATHER_LIST {
-	u32 NumberOfElements;
-	u32 *Reserved;
-	struct SCATTER_GATHER_ELEMENT Elements[];
-};
-
-// The card doesn't care about anything except elements, so
-// we can leave the u32 * reserved field alone in the following
-// SGL structure.  But redefine from wdm.h:SCATTER_GATHER_LIST so
-// we can specify SXG_X64_SGE and define a fixed number of elements
+// Our SGL structure - Essentially the same as
+// wdm.h:SCATTER_GATHER_LIST.  Note the variable number of
+// elements based on the pool specified above
 struct SXG_X64_SGL {
 	u32 NumberOfElements;
 	u32 *Reserved;
-	struct SXG_X64_SGE Elements[SXG_SGL_ENTRIES];
+	struct SXG_X64_SGE Elements[1];   // Variable
 };
 
 struct SXG_SCATTER_GATHER {
 	enum SXG_SGL_TYPE Type;	// FIRST! Dumb-nic or offload
+	ushort Pool;		// Associated SGL pool
+	ushort Entries;		// SGL total entries
 	void *adapter;		// Back pointer to adapter
 	struct LIST_ENTRY FreeList;	// Free SXG_SCATTER_GATHER blocks
 	struct LIST_ENTRY AllList;	// All SXG_SCATTER_GATHER blocks
@@ -842,17 +904,40 @@ struct SXG_SCATTER_GATHER {
 	u32 CurOffset;		// Current SGL offset
 	u32 SglRef;		// SGL reference count
 	struct VLAN_HDR VlanTag;	// VLAN tag to be inserted into SGL
-	struct SCATTER_GATHER_LIST *pSgl;	// SGL Addr. Possibly &Sgl
-	struct SXG_X64_SGL Sgl;	// SGL handed to card
+	struct SXG_X64_SGL *pSgl;		// SGL Addr. Possibly &Sgl
+	struct SXG_X64_SGL Sgl;		// SGL handed to card
 };
 
+// Note - the "- 1" is because SXG_SCATTER_GATHER=>SXG_X64_SGL includes 1 SGE..
+#define SXG_SGL_SIZE(_Pool) 											\
+	(sizeof(struct SXG_SCATTER_GATHER) +										\
+	 ((SxgSglPoolProperties[_Pool].SGEntries - 1) * sizeof(struct SXG_X64_SGE)))
+
 #if defined(CONFIG_X86_64)
-#define SXG_SGL_BUFFER(_SxgSgl)		(&_SxgSgl->Sgl)
-#define SXG_SGL_BUF_SIZE			sizeof(struct SXG_X64_SGL)
+#define SXG_SGL_BUFFER(_SxgSgl)		    (&_SxgSgl->Sgl)
+#define SXG_SGL_BUFFER_LENGTH(_SxgSgl)	((_SxgSgl)->Entries * sizeof(struct SXG_X64_SGE))
+#define SXG_SGL_BUF_SIZE			    sizeof(struct SXG_X64_SGL)
 #elif defined(CONFIG_X86)
 // Force NDIS to give us it's own buffer so we can reformat to our own
-#define SXG_SGL_BUFFER(_SxgSgl)		NULL
+#define SXG_SGL_BUFFER(_SxgSgl)		        NULL
+#define SXG_SGL_BUFFER_LENGTH(_SxgSgl)		0
 #define SXG_SGL_BUF_SIZE			0
 #else
 #error staging: sxg: driver is for X86 only!
 #endif
+
+/***************************************************************************
+ * Microcode statistics
+ ***************************************************************************/
+typedef struct _SXG_UCODE_STATS {
+	u32  RPDQOflow;			// PDQ overflow (unframed ie dq & drop 1st)
+	u32  XDrops;				// Xmt drops due to no xmt buffer
+	u32  ERDrops;				// Rcv drops due to ER full
+	u32  NBDrops;				// Rcv drops due to out of host buffers
+	u32  PQDrops;				// Rcv drops due to PDQ full
+	u32  BFDrops;				// Rcv drops due to bad frame: no link addr match, frlen > max
+	u32  UPDrops;				// Rcv drops due to UPFq full
+	u32  XNoBufs;				// Xmt drop due to no DRAM Xmit buffer or PxyBuf
+} SXG_UCODE_STATS, *PSXG_UCODE_STATS;
+
+
