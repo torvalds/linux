@@ -151,8 +151,7 @@ static void ali_fifo_control(struct ata_port *ap, struct ata_device *adev, int o
 
 	pci_read_config_byte(pdev, pio_fifo, &fifo);
 	fifo &= ~(0x0F << shift);
-	if (on)
-		fifo |= (on << shift);
+	fifo |= (on << shift);
 	pci_write_config_byte(pdev, pio_fifo, fifo);
 }
 
@@ -370,10 +369,11 @@ static struct ata_port_operations ali_early_port_ops = {
 	.inherits	= &ata_sff_port_ops,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= ali_set_piomode,
+	.sff_data_xfer  = ata_sff_data_xfer32,
 };
 
 static const struct ata_port_operations ali_dma_base_ops = {
-	.inherits	= &ata_bmdma_port_ops,
+	.inherits	= &ata_bmdma32_port_ops,
 	.set_piomode	= ali_set_piomode,
 	.set_dmamode	= ali_set_dmamode,
 };

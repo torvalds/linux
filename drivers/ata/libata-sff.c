@@ -78,6 +78,13 @@ const struct ata_port_operations ata_bmdma_port_ops = {
 	.bmdma_status		= ata_bmdma_status,
 };
 
+const struct ata_port_operations ata_bmdma32_port_ops = {
+	.inherits		= &ata_bmdma_port_ops,
+
+	.sff_data_xfer		= ata_sff_data_xfer32,
+};
+EXPORT_SYMBOL_GPL(ata_bmdma32_port_ops);
+
 /**
  *	ata_fill_sg - Fill PCI IDE PRD table
  *	@qc: Metadata associated with taskfile to be transferred
@@ -717,6 +724,52 @@ unsigned int ata_sff_data_xfer(struct ata_device *dev, unsigned char *buf,
 
 	return words << 1;
 }
+
+/**
+ *	ata_sff_data_xfer32 - Transfer data by PIO
+ *	@dev: device to target
+ *	@buf: data buffer
+ *	@buflen: buffer length
+ *	@rw: read/write
+ *
+ *	Transfer data from/to the device data register by PIO using 32bit
+ *	I/O operations.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ *	RETURNS:
+ *	Bytes consumed.
+ */
+
+unsigned int ata_sff_data_xfer32(struct ata_device *dev, unsigned char *buf,
+			       unsigned int buflen, int rw)
+{
+	struct ata_port *ap = dev->link->ap;
+	void __iomem *data_addr = ap->ioaddr.data_addr;
+	unsigned int words = buflen >> 2;
+	int slop = buflen & 3;
+
+	/* Transfer multiple of 4 bytes */
+	if (rw == READ)
+		ioread32_rep(data_addr, buf, words);
+	else
+		iowrite32_rep(data_addr, buf, words);
+
+	if (unlikely(slop)) {
+		__le32 pad;
+		if (rw == READ) {
+			pad = cpu_to_le32(ioread32(ap->ioaddr.data_addr));
+			memcpy(buf + buflen - slop, &pad, slop);
+		} else {
+			memcpy(&pad, buf + buflen - slop, slop);
+			iowrite32(le32_to_cpu(pad), ap->ioaddr.data_addr);
+		}
+		words++;
+	}
+	return words << 2;
+}
+EXPORT_SYMBOL_GPL(ata_sff_data_xfer32);
 
 /**
  *	ata_sff_data_xfer_noirq - Transfer data by PIO
