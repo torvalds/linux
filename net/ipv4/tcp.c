@@ -597,10 +597,6 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 					ret = -ENOTCONN;
 				break;
 			}
-			if (flags & SPLICE_F_NONBLOCK) {
-				ret = -EAGAIN;
-				break;
-			}
 			if (!timeo) {
 				ret = -EAGAIN;
 				break;
