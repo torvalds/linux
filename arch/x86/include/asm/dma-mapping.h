@@ -7,6 +7,7 @@
  */
 
 #include <linux/scatterlist.h>
+#include <linux/dma-attrs.h>
 #include <asm/io.h>
 #include <asm/swiotlb.h>
 #include <asm-generic/dma-coherent.h>
@@ -50,6 +51,13 @@ struct dma_mapping_ops {
 	void            (*unmap_sg)(struct device *hwdev,
 				struct scatterlist *sg, int nents,
 				int direction);
+	dma_addr_t	(*map_page)(struct device *dev, struct page *page,
+				    unsigned long offset, size_t size,
+				    enum dma_data_direction dir,
+				    struct dma_attrs *attrs);
+	void 		(*unmap_page)(struct device *dev, dma_addr_t dma_handle,
+				      size_t size, enum dma_data_direction dir,
+				      struct dma_attrs *attrs);
 	int             (*dma_supported)(struct device *hwdev, u64 mask);
 	int		is_phys;
 };
