@@ -850,7 +850,9 @@ cont_alloc:
 
 	dump_size = offsetof(struct qla2xxx_fw_dump, isp);
 	dump_size += fixed_size + mem_size + req_q_size + rsp_q_size +
-	    mq_size + eft_size + fce_size;
+	    eft_size;
+	ha->chain_offset = dump_size;
+	dump_size += mq_size + fce_size;
 
 	ha->fw_dump = vmalloc(dump_size);
 	if (!ha->fw_dump) {

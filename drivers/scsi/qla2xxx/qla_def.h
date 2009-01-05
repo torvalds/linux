@@ -2477,6 +2477,7 @@ struct qla_hw_data {
 	dma_addr_t	eft_dma;
 	void		*eft;
 
+	uint32_t	chain_offset;
 	struct dentry *dfs_dir;
 	struct dentry *dfs_fce;
 	dma_addr_t	fce_dma;
