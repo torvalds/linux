@@ -84,7 +84,7 @@ struct dccp_ackvec_record {
 struct sock;
 struct sk_buff;
 
-#ifdef CONFIG_IP_DCCP_ACKVEC
+#ifndef ___OLD_INTERFACE_TO_BE_REMOVED___
 extern int dccp_ackvec_init(void);
 extern void dccp_ackvec_exit(void);
 
@@ -106,7 +106,7 @@ static inline int dccp_ackvec_pending(const struct dccp_ackvec *av)
 {
 	return av->av_vec_len;
 }
-#else /* CONFIG_IP_DCCP_ACKVEC */
+#else /* ___OLD_INTERFACE_TO_BE_REMOVED___ */
 static inline int dccp_ackvec_init(void)
 {
 	return 0;
