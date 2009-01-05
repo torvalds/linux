@@ -103,7 +103,6 @@ static void svc_reclassify_socket(struct socket *sock)
 static void svc_release_skb(struct svc_rqst *rqstp)
 {
 	struct sk_buff *skb = rqstp->rq_xprt_ctxt;
-	struct svc_deferred_req *dr = rqstp->rq_deferred;
 
 	if (skb) {
 		struct svc_sock *svsk =
@@ -112,10 +111,6 @@ static void svc_release_skb(struct svc_rqst *rqstp)
 
 		dprintk("svc: service %p, releasing skb %p\n", rqstp, skb);
 		skb_free_datagram(svsk->sk_sk, skb);
-	}
-	if (dr) {
-		rqstp->rq_deferred = NULL;
-		kfree(dr);
 	}
 }
 

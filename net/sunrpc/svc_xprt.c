@@ -448,6 +448,9 @@ static void svc_xprt_release(struct svc_rqst *rqstp)
 
 	rqstp->rq_xprt->xpt_ops->xpo_release_rqst(rqstp);
 
+	kfree(rqstp->rq_deferred);
+	rqstp->rq_deferred = NULL;
+
 	svc_free_res_pages(rqstp);
 	rqstp->rq_res.page_len = 0;
 	rqstp->rq_res.page_base = 0;
