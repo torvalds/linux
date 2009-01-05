@@ -275,7 +275,7 @@ void
 qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 {
 #define LS_UNKNOWN	2
-	static char	*link_speeds[5] = { "1", "2", "?", "4", "8" };
+	static char	*link_speeds[] = { "1", "2", "?", "4", "8", "10" };
 	char		*link_speed;
 	uint16_t	handle_cnt;
 	uint16_t	cnt;
@@ -288,6 +288,8 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 
 	/* Setup to process RIO completion. */
 	handle_cnt = 0;
+	if (IS_QLA81XX(ha))
+		goto skip_rio;
 	switch (mb[0]) {
 	case MBA_SCSI_COMPLETION:
 		handles[0] = le32_to_cpu((uint32_t)((mb[2] << 16) | mb[1]));
@@ -339,7 +341,7 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 	default:
 		break;
 	}
-
+skip_rio:
 	switch (mb[0]) {
 	case MBA_SCSI_COMPLETION:	/* Fast Post */
 		if (!vha->flags.online)
@@ -433,6 +435,8 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 			link_speed = link_speeds[LS_UNKNOWN];
 			if (mb[1] < 5)
 				link_speed = link_speeds[mb[1]];
+			else if (mb[1] == 0x13)
+				link_speed = link_speeds[5];
 			ha->link_data_rate = mb[1];
 		}
 
@@ -492,12 +496,17 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 		qla2x00_post_aen_work(vha, FCH_EVT_LIPRESET, mb[1]);
 		break;
 
+	/* case MBA_DCBX_COMPLETE: */
 	case MBA_POINT_TO_POINT:	/* Point-to-Point */
 		if (IS_QLA2100(ha))
 			break;
 
-		DEBUG2(printk("scsi(%ld): Asynchronous P2P MODE received.\n",
-		    vha->host_no));
+		if (IS_QLA81XX(ha))
+			DEBUG2(printk("scsi(%ld): DCBX Completed -- %04x %04x "
+			    "%04x\n", vha->host_no, mb[1], mb[2], mb[3]));
+		else
+			DEBUG2(printk("scsi(%ld): Asynchronous P2P MODE "
+			    "received.\n", vha->host_no));
 
 		/*
 		 * Until there's a transition from loop down to loop up, treat
@@ -691,6 +700,35 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 			    mb[1], mb[2], mb[3]);
 		}
 		spin_unlock_irqrestore(&ha->cs84xx->access_lock, flags);
+		break;
+	case MBA_DCBX_START:
+		DEBUG2(printk("scsi(%ld): DCBX Started -- %04x %04x %04x\n",
+		    vha->host_no, mb[1], mb[2], mb[3]));
+		break;
+	case MBA_DCBX_PARAM_UPDATE:
+		DEBUG2(printk("scsi(%ld): DCBX Parameters Updated -- "
+		    "%04x %04x %04x\n", vha->host_no, mb[1], mb[2], mb[3]));
+		break;
+	case MBA_FCF_CONF_ERR:
+		DEBUG2(printk("scsi(%ld): FCF Configuration Error -- "
+		    "%04x %04x %04x\n", vha->host_no, mb[1], mb[2], mb[3]));
+		break;
+	case MBA_IDC_COMPLETE:
+		DEBUG2(printk("scsi(%ld): Inter-Driver Commucation "
+		    "Complete -- %04x %04x %04x\n", vha->host_no, mb[1], mb[2],
+		    mb[3]));
+		break;
+	case MBA_IDC_NOTIFY:
+		DEBUG2(printk("scsi(%ld): Inter-Driver Commucation "
+		    "Request Notification -- %04x %04x %04x\n", vha->host_no,
+		    mb[1], mb[2], mb[3]));
+		/**** Mailbox registers 4 - 7 valid!!! */
+		break;
+	case MBA_IDC_TIME_EXT:
+		DEBUG2(printk("scsi(%ld): Inter-Driver Commucation "
+		    "Time Extension -- %04x %04x %04x\n", vha->host_no, mb[1],
+		    mb[2], mb[3]));
+		/**** Mailbox registers 4 - 7 valid!!! */
 		break;
 	}
 
@@ -1504,7 +1542,7 @@ qla2xxx_check_risc_status(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 
-	if (!IS_QLA25XX(ha))
+	if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha))
 		return;
 
 	rval = QLA_SUCCESS;
@@ -1926,7 +1964,8 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 	device_reg_t __iomem *reg = ha->iobase;
 
 	/* If possible, enable MSI-X. */
-	if (!IS_QLA2432(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha))
+	if (!IS_QLA2432(ha) && !IS_QLA2532(ha) &&
+	    !IS_QLA8432(ha) && !IS_QLA8001(ha))
 		goto skip_msix;
 
 	if (IS_QLA2432(ha) && (ha->pdev->revision < QLA_MSIX_CHIP_REV_24XX ||
@@ -1961,7 +2000,8 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 	    "MSI-X: Falling back-to INTa mode -- %d.\n", ret);
 skip_msix:
 
-	if (!IS_QLA24XX(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha))
+	if (!IS_QLA24XX(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha) &&
+	    !IS_QLA8001(ha))
 		goto skip_msi;
 
 	ret = pci_enable_msi(ha->pdev);
@@ -1982,6 +2022,12 @@ skip_msi:
 	ha->flags.inta_enabled = 1;
 clear_risc_ints:
 
+	/*
+	 * FIXME: Noted that 8014s were being dropped during NK testing.
+	 * Timing deltas during MSI-X/INTa transitions?
+	 */
+	if (IS_QLA81XX(ha))
+		goto fail;
 	spin_lock_irq(&ha->hardware_lock);
 	if (IS_FWI2_CAPABLE(ha)) {
 		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_HOST_INT);
