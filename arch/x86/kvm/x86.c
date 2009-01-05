@@ -1837,10 +1837,16 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		break;
 	case KVM_CREATE_PIT:
+		mutex_lock(&kvm->lock);
+		r = -EEXIST;
+		if (kvm->arch.vpit)
+			goto create_pit_unlock;
 		r = -ENOMEM;
 		kvm->arch.vpit = kvm_create_pit(kvm);
 		if (kvm->arch.vpit)
 			r = 0;
+	create_pit_unlock:
+		mutex_unlock(&kvm->lock);
 		break;
 	case KVM_IRQ_LINE: {
 		struct kvm_irq_level irq_event;
