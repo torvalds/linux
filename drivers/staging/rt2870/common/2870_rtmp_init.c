@@ -763,7 +763,7 @@ Note:
 NDIS_STATUS	 CreateThreads(
 	IN	struct net_device *net_dev)
 {
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) net_dev->priv;
+	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 	pid_t pid_number = -1;
 
