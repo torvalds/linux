@@ -79,7 +79,7 @@
 extern ulong ATKTimerDiv;
 
 /*
- * trace_entry_t -
+ * trace_entry -
  *
  * This structure defines an entry in the trace buffer.  The
  * first few fields mean the same from entry to entry, while
@@ -87,7 +87,7 @@ extern ulong ATKTimerDiv;
  * needs of the trace entry.  Typically they are function call
  * parameters.
  */
-struct trace_entry_t {
+struct trace_entry {
         char      name[8];        /* 8 character name - like 's'i'm'b'a'r'c'v' */
         u32   time;           /* Current clock tic */
         unsigned char     cpu;            /* Current CPU */
@@ -101,7 +101,7 @@ struct trace_entry_t {
 };
 
 /*
- * Driver types for driver field in trace_entry_t
+ * Driver types for driver field in struct trace_entry
  */
 #define TRACE_SXG             1
 #define TRACE_VPCI            2
@@ -109,12 +109,12 @@ struct trace_entry_t {
 
 #define TRACE_ENTRIES   1024
 
-struct sxg_trace_buffer_t {
+struct sxg_trace_buffer {
         unsigned int                    size;                  /* aid for windbg extension */
         unsigned int                    in;                    /* Where to add */
         unsigned int                    level;                 /* Current Trace level */
 	spinlock_t	lock;                  /* For MP tracing */
-        struct trace_entry_t           entries[TRACE_ENTRIES];/* The circular buffer */
+        struct trace_entry           entries[TRACE_ENTRIES];/* The circular buffer */
 };
 
 /*
@@ -137,7 +137,7 @@ struct sxg_trace_buffer_t {
 #if ATK_TRACE_ENABLED
 #define SXG_TRACE_INIT(buffer, tlevel)				\
 {								\
-	memset((buffer), 0, sizeof(struct sxg_trace_buffer_t));	\
+	memset((buffer), 0, sizeof(struct sxg_trace_buffer));	\
 	(buffer)->level = (tlevel);				\
 	(buffer)->size = TRACE_ENTRIES;				\
 	spin_lock_init(&(buffer)->lock);			\
@@ -154,7 +154,7 @@ struct sxg_trace_buffer_t {
         if ((buffer) && ((buffer)->level >= (tlevel))) {                      \
                 unsigned int            trace_irql = 0;    /* ?????? FIX THIS  */    \
                 unsigned int            trace_len;                                   \
-                struct trace_entry_t	*trace_entry;				\
+                struct trace_entry	*trace_entry;				\
                 struct timeval  timev;                                       \
                                                                              \
                 spin_lock(&(buffer)->lock);                       \

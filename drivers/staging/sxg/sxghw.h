@@ -48,7 +48,7 @@
 #define SXG_HWREG_MEMSIZE	0x4000		// 16k
 
 #pragma pack(push, 1)
-struct SXG_HW_REGS {
+struct sxg_hw_regs {
 	u32		Reset;				// Write 0xdead to invoke soft reset
 	u32		Pad1;				// No register defined at offset 4
 	u32		InterruptMask0;		// Deassert legacy interrupt on function 0
@@ -240,7 +240,7 @@ struct SXG_HW_REGS {
 #define	XMT_CONFIG_INITIAL_IPID		0x0000FFFF	// Initial IPID
 
 /***************************************************************************
- * A-XGMAC Registers - Occupy 0x80 - 0xD4 of the SXG_HW_REGS
+ * A-XGMAC Registers - Occupy 0x80 - 0xD4 of the struct sxg_hw_regs
  *
  * Full register descriptions can be found in axgmac.pdf
  ***************************************************************************/
@@ -524,7 +524,7 @@ struct SXG_HW_REGS {
 #define	XS_LANE_ALIGN			0x1000			// XS transmit lanes aligned
 
 // PHY Microcode download data structure
-struct PHY_UCODE {
+struct phy_ucode {
 	ushort	Addr;
 	ushort	Data;
 };
@@ -557,7 +557,7 @@ struct PHY_UCODE {
 // all commands - see the Sahara spec for details.  Note that this structure is
 // only valid when compiled on a little endian machine.
 #pragma pack(push, 1)
-struct XMT_DESC {
+struct xmt_desc {
 	ushort	XmtLen;			// word 0, bits [15:0] -  transmit length
 	unsigned char	XmtCtl;			// word 0, bits [23:16] - transmit control byte
 	unsigned char	Cmd;			// word 0, bits [31:24] - transmit command plus misc.
@@ -574,7 +574,7 @@ struct XMT_DESC {
 };
 #pragma pack(pop)
 
-// XMT_DESC Cmd byte definitions
+// struct xmt_desc Cmd byte definitions
 		// command codes
 #define XMT_DESC_CMD_RAW_SEND		0		// raw send descriptor
 #define XMT_DESC_CMD_CSUM_INSERT	1		// checksum insert descriptor
@@ -587,7 +587,7 @@ struct XMT_DESC {
 #define XMT_FORMAT			(XMT_DESC_CMD_FORMAT      << XMT_DESC_CMD_CODE_SHFT)
 #define XMT_PRIME			(XMT_DESC_CMD_PRIME       << XMT_DESC_CMD_CODE_SHFT)
 
-// XMT_DESC Control Byte (XmtCtl) definitions
+// struct xmt_desc Control Byte (XmtCtl) definitions
 // NOTE:  These bits do not work on Sahara (Rev A)!
 #define	XMT_CTL_PAUSE_FRAME		0x80	// current frame is a pause control frame (for statistics)
 #define	XMT_CTL_CONTROL_FRAME		0x40	// current frame is a control frame (for statistics)
@@ -602,7 +602,7 @@ struct XMT_DESC {
 #define	XMT_CTL_DELAY_FCS_2		0x02	// delay FCS calculation by 2 (4-byte) words
 #define	XMT_CTL_DELAY_FCS_3		0x03	// delay FCS calculation by 3 (4-byte) words
 
-// XMT_DESC XmtBufId definition
+// struct xmt_desc XmtBufId definition
 #define XMT_BUF_ID_SHFT		8	// The Xmt buffer ID is formed by dividing
 					// the buffer (DRAM) address by 256 (or << 8)
 
@@ -620,7 +620,7 @@ struct XMT_DESC {
 // Format of the 18 byte Receive Buffer returned by the
 // Receive Sequencer for received packets
 #pragma pack(push, 1)
-struct RCV_BUF_HDR {
+struct rcv_buf_hdr {
 	u32	Status;				// Status word from Rcv Seq Parser
 	ushort	Length;				// Rcv packet byte count
 	union {
@@ -702,24 +702,24 @@ struct RCV_BUF_HDR {
 #pragma pack(push, 1)
 // Structure for an element of H/W configuration data.
 // Read by the Sahara hardware
-struct HW_CFG_DATA {
+struct hw_cfg_data {
 	ushort		Addr;
 	ushort	    Data;
 };
 
-// Number of HW_CFG_DATA structures to put in the configuration data
-// data structure (SXG_CONFIG or SXG_CONFIG_A).  The number is computed
+// Number of struct hw_cfg_data structures to put in the configuration data
+// data structure (struct sxg_config or struct sxg_config_a).  The number is computed
 // to fill the entire H/W config section of the structure.
-#define	NUM_HW_CFG_ENTRIES		(HW_CFG_SECTION_SIZE / sizeof(struct HW_CFG_DATA))
-#define	NUM_HW_CFG_ENTRIES_A	(HW_CFG_SECTION_SIZE_A / sizeof(struct HW_CFG_DATA))
+#define	NUM_HW_CFG_ENTRIES	(HW_CFG_SECTION_SIZE / sizeof(struct hw_cfg_data))
+#define	NUM_HW_CFG_ENTRIES_A	(HW_CFG_SECTION_SIZE_A / sizeof(struct hw_cfg_data))
 
 /* MAC address structure */
-struct SXG_CONFIG_MAC {
+struct sxg_config_mac {
 	unsigned char		MacAddr[6];			/* MAC Address */
 };
 
 /* FRU data structure */
-struct ATK_FRU {
+struct atk_fru {
 	unsigned char		PartNum[6];
 	unsigned char		Revision[2];
 	unsigned char		Serial[14];
@@ -737,53 +737,53 @@ struct ATK_FRU {
 #define	ATK_OEM_ASSY_SIZE	10		// assy num is 9 chars plus \0
 
 // OEM FRU structure for Alacritech
-struct ATK_OEM {
+struct atk_oem {
 	unsigned char Assy[ATK_OEM_ASSY_SIZE];
 };
 
 #define	OEM_EEPROM_FRUSIZE	74		// size of OEM fru info - size
 // chosen to fill out the S/W section
 
-union OEM_FRU {			// OEM FRU information
+union oem_fru {			// OEM FRU information
 	unsigned char OemFru[OEM_EEPROM_FRUSIZE];
-	struct ATK_OEM AtkOem;
+	struct atk_oem AtkOem;
 };
 
 // Structure to hold the S/W configuration data.
-struct SW_CFG_DATA {
+struct sw_cfg_data {
 	ushort			MagicWord;			// Magic word for section 2
 	ushort			Version;			// Format version
-	struct SXG_CONFIG_MAC	MacAddr[4];			// space for 4 MAC addresses
-	struct ATK_FRU		AtkFru;				// FRU information
+	struct sxg_config_mac	MacAddr[4];			// space for 4 MAC addresses
+	struct atk_fru		AtkFru;				// FRU information
 	ushort			OemFruFormat;		// OEM FRU format type
-	union OEM_FRU		OemFru;				// OEM FRU information
+	union oem_fru		OemFru;				// OEM FRU information
 	ushort			Checksum;			// Checksum of section 2
 };
 
 
 /* EEPROM/Flash Format */
-struct SXG_CONFIG {
+struct sxg_config {
 	/*
 	* H/W Section - Read by Sahara hardware (512 bytes)
 	*/
-	struct HW_CFG_DATA		HwCfg[NUM_HW_CFG_ENTRIES];
+	struct hw_cfg_data		HwCfg[NUM_HW_CFG_ENTRIES];
 	/*
 	 * S/W Section - Other configuration data (128 bytes)
 	 */
-	struct SW_CFG_DATA	SwCfg;
+	struct sw_cfg_data	SwCfg;
 };
 
 // EEPROM/Flash Format (Sahara rev A)
-struct SXG_CONFIG_A {
+struct sxg_config_a {
 	/*
 	 * H/W Section - Read by Sahara hardware (256 bytes)
 	 */
-	struct HW_CFG_DATA		HwCfg[NUM_HW_CFG_ENTRIES_A];
+	struct hw_cfg_data		HwCfg[NUM_HW_CFG_ENTRIES_A];
 
 	/*
 	 * S/W Section - Other configuration data (128 bytes)
 	 */
-	struct SW_CFG_DATA		SwCfg;
+	struct sw_cfg_data		SwCfg;
 };
 
 #ifdef WINDOWS_COMPILER
@@ -801,17 +801,17 @@ struct SXG_CONFIG_A {
 // structure was built incorrectly.  Unfortunately, the error message produced
 // is meaningless.  But this is apparently the only way to catch this problem
 // at compile time.
-compile_time_assert (offsetof(SXG_CONFIG, SwCfg) == SW_CFG_SECTION_START);
-compile_time_assert (sizeof(SXG_CONFIG) == HW_CFG_SECTION_SIZE + SW_CFG_SECTION_SIZE);
+compile_time_assert (offsetof(struct sxg_config, SwCfg) == SW_CFG_SECTION_START);
+compile_time_assert (sizeof(struct sxg_config) == HW_CFG_SECTION_SIZE + SW_CFG_SECTION_SIZE);
 
-compile_time_assert (offsetof(SXG_CONFIG_A, SwCfg) == SW_CFG_SECTION_START_A);
-compile_time_assert (sizeof(SXG_CONFIG_A) == HW_CFG_SECTION_SIZE_A + SW_CFG_SECTION_SIZE);
+compile_time_assert (offsetof(struct sxg_config_a, SwCfg) == SW_CFG_SECTION_START_A);
+compile_time_assert (sizeof(struct sxg_config_a) == HW_CFG_SECTION_SIZE_A + SW_CFG_SECTION_SIZE);
 #endif
 /*
  * Structure used to pass information between driver and user-mode
  * control application
  */
-struct ADAPT_USERINFO {
+struct adapt_userinfo {
 	bool		    LinkUp;
 	// u32  	    LinkState;		// use LinkUp - any need for other states?
 	u32 		    LinkSpeed;		// not currently needed
@@ -821,9 +821,9 @@ struct ADAPT_USERINFO {
 	ushort		    PciLanes;
 	unsigned char	MacAddr[6];
 	unsigned char   CurrMacAddr[6];
-	struct ATK_FRU	    AtkFru;
+	struct atk_fru	    AtkFru;
 	ushort  	    OemFruFormat;
-	union OEM_FRU	    OemFru;
+	union oem_fru	    OemFru;
 };
 
 #pragma pack(pop)

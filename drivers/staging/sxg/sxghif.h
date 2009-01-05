@@ -12,7 +12,7 @@
 /*******************************************************************************
  * UCODE Registers
  *******************************************************************************/
-struct SXG_UCODE_REGS {
+struct sxg_ucode_regs {
 	// Address 0 - 0x3F = Command codes 0-15 for TCB 0.  Excode 0
 	u32 Icr;		// Code = 0 (extended), ExCode = 0 - Int control
 	u32 RsvdReg1;		// Code = 1 - TOE -NA
@@ -180,9 +180,9 @@ struct SXG_UCODE_REGS {
  * above, but defined differently.  Bits 17:06 of the address define the TCB,
  * which means each TCB area occupies 0x40 (64) bytes, or 16 u32S.  What really
  * is happening is that these registers occupy the "PadEx[15]" areas in the
- * SXG_UCODE_REGS definition above
+ * struct sxg_ucode_regs definition above
  */
-struct SXG_TCB_REGS {
+struct sxg_tcb_regs {
 	u32 ExCode;		/* Extended codes - see SXG_UCODE_REGS */
 	u32 Xmt;		/* Code = 1 - # of Xmt descriptors added to ring */
 	u32 Rcv;		/* Code = 2 - # of Rcv descriptors added to ring */
@@ -286,7 +286,7 @@ struct SXG_TCB_REGS {
  *
  */
 #pragma pack(push, 1)
-struct SXG_EVENT {
+struct sxg_event {
 	u32 Pad[1];		// not used
 	u32 SndUna;		// SndUna value
 	u32 Resid;		// receive MDL resid
@@ -335,8 +335,8 @@ struct SXG_EVENT {
 #define EVENT_RING_BATCH	16	// Hand entries back 16 at a time.
 #define EVENT_BATCH_LIMIT	256	    // Stop processing events after 4096 (256 * 16)
 
-struct SXG_EVENT_RING {
-	struct SXG_EVENT Ring[EVENT_RING_SIZE];
+struct sxg_event_ring {
+	struct sxg_event Ring[EVENT_RING_SIZE];
 };
 
 /***************************************************************************
@@ -414,7 +414,7 @@ struct SXG_EVENT_RING {
 #define SXG_MAX_ENTRIES     4096
 
 // Structure and macros to manage a ring
-struct SXG_RING_INFO {
+struct sxg_ring_info {
 	unsigned char Head;	// Where we add entries - Note unsigned char:RING_SIZE
 	unsigned char Tail;	// Where we pull off completed entries
 	ushort Size;		// Ring size - Must be multiple of 2
@@ -495,7 +495,7 @@ struct SXG_RING_INFO {
  *  |_________|_________|_________|_________|28		0x1c
  */
 #pragma pack(push, 1)
-struct SXG_CMD {
+struct sxg_cmd {
 	dma_addr_t Sgl;		// Physical address of SGL
 	union {
 		struct {
@@ -536,7 +536,7 @@ struct SXG_CMD {
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-struct VLAN_HDR {
+struct vlan_hdr {
 	ushort VlanTci;
 	ushort VlanTpid;
 };
@@ -578,19 +578,19 @@ struct VLAN_HDR {
 #define SXG_SLOWCMD_CSUM_TCP		0x02	// Checksum TCP
 #define SXG_SLOWCMD_LSO				0x04	// Large segment send
 
-struct SXG_XMT_RING {
-	struct SXG_CMD Descriptors[SXG_XMT_RING_SIZE];
+struct sxg_xmt_ring {
+	struct sxg_cmd Descriptors[SXG_XMT_RING_SIZE];
 };
 
-struct SXG_RCV_RING {
-	struct SXG_CMD Descriptors[SXG_RCV_RING_SIZE];
+struct sxg_rcv_ring {
+	struct sxg_cmd Descriptors[SXG_RCV_RING_SIZE];
 };
 
 /***************************************************************************
  * Share memory buffer types - Used to identify asynchronous
  * shared memory allocation
  ***************************************************************************/
-enum SXG_BUFFER_TYPE {
+enum sxg_buffer_type {
 	SXG_BUFFER_TYPE_RCV,	// Receive buffer
 	SXG_BUFFER_TYPE_SGL	// SGL buffer
 };
@@ -611,32 +611,32 @@ enum SXG_BUFFER_TYPE {
  * DMA data into, and a virtual address, which is given back
  * to the host in the "HostHandle" portion of an event.
  * The receive descriptor data structure is defined below
- * as SXG_RCV_DATA_DESCRIPTOR, and the corresponding block
- * is defined as SXG_RCV_DESCRIPTOR_BLOCK.
+ * as sxg_rcv_data_descriptor, and the corresponding block
+ * is defined as sxg_rcv_descriptor_block.
  *
  * This receive descriptor block is given to the card by filling
- * in the Sgl field of a SXG_CMD entry from pAdapt->RcvRings[0]
+ * in the Sgl field of a sxg_cmd entry from pAdapt->RcvRings[0]
  * with the physical address of the receive descriptor block.
  *
  * Both the receive buffers and the receive descriptor blocks
  * require additional data structures to maintain them
  * on a free queue and contain other information associated with them.
- * Those data structures are defined as the SXG_RCV_DATA_BUFFER_HDR
- * and SXG_RCV_DESCRIPTOR_BLOCK_HDR respectively.
+ * Those data structures are defined as the sxg_rcv_data_buffer_hdr
+ * and sxg_rcv_descriptor_block_hdr respectively.
  *
  * Since both the receive buffers and the receive descriptor block
  * must be accessible by the card, both must be allocated out of
  * shared memory.  To ensure that we always have a descriptor
  * block available for every 128 buffers, we allocate all of
  * these resources together in a single block.  This entire
- * block is managed by a SXG_RCV_BLOCK_HDR, who's sole purpose
+ * block is managed by a struct sxg_rcv_block_hdr, who's sole purpose
  * is to maintain address information so that the entire block
  * can be free later.
  *
  * Further complicating matters is the fact that the receive
  * buffers must be variable in length in order to accomodate
  * jumbo frame configurations.  We configure the buffer
- * length so that the buffer and it's corresponding SXG_RCV_DATA_BUFFER_HDR
+ * length so that the buffer and it's corresponding struct sxg_rcv_data_buffer_hdr
  * structure add up to an even boundary.  Then we place the
  * remaining data structures after 128 of them as shown in
  * the following diagram:
@@ -646,35 +646,35 @@ enum SXG_BUFFER_TYPE {
  * |    Variable length receive buffer #1    |
  * |_________________________________________|
  * |                                         |
- * |       SXG_RCV_DATA_BUFFER_HDR #1        |
+ * |       sxg_rcv_data_buffer_hdr #1        |
  * |_________________________________________| <== Even 2k or 10k boundary
  * |                                         |
  * |         ... repeat 2-128 ..             |
  * |_________________________________________|
  * |                                         |
- * |      SXG_RCV_DESCRIPTOR_BLOCK           |
- * |  Contains SXG_RCV_DATA_DESCRIPTOR * 128 |
+ * |      struct sxg_rcv_descriptor_block    |
+ * |  Contains sxg_rcv_data_descriptor * 128 |
  * |_________________________________________|
  * |                                         |
- * |      SXG_RCV_DESCRIPTOR_BLOCK_HDR       |
+ * |   struct sxg_rcv_descriptor_block_hdr   |
  * |_________________________________________|
  * |                                         |
- * |          SXG_RCV_BLOCK_HDR              |
+ * |      struct sxg_rcv_block_hdr           |
  * |_________________________________________|
  *
  * Memory consumption:
  *	  Non-jumbo:
- *      Buffers and SXG_RCV_DATA_BUFFER_HDR = 2k * 128 = 256k
- *    + SXG_RCV_DESCRIPTOR_BLOCK = 2k
- *    + SXG_RCV_DESCRIPTOR_BLOCK_HDR = ~32
- *    + SXG_RCV_BLOCK_HDR = ~32
+ *      Buffers and sxg_rcv_data_buffer_hdr = 2k * 128 = 256k
+ *    + struct sxg_rcv_descriptor_block = 2k
+ *    + struct sxg_rcv_descriptor_block_hdr = ~32
+ *    + struct sxg_rcv_block_hdr = ~32
  *    => Total = ~258k/block
  *
  *	  Jumbo:
- *      Buffers and SXG_RCV_DATA_BUFFER_HDR = 10k * 128 = 1280k
- *    + SXG_RCV_DESCRIPTOR_BLOCK = 2k
- *    + SXG_RCV_DESCRIPTOR_BLOCK_HDR = ~32
- *    + SXG_RCV_BLOCK_HDR = ~32
+ *      Buffers and sxg_rcv_data_buffer_hdr = 10k * 128 = 1280k
+ *    + struct sxg_rcv_descriptor_block = 2k
+ *    + struct sxg_rcv_descriptor_block_hdr = ~32
+ *    + struct sxg_rcv_block_hdr = ~32
  *    => Total = ~1282k/block
  *
  ***************************************************************************/
@@ -684,29 +684,29 @@ enum SXG_BUFFER_TYPE {
 #define SXG_MAX_RCV_BLOCKS				256		// = 32k receive buffers
 
 // Receive buffer header
-struct SXG_RCV_DATA_BUFFER_HDR {
+struct sxg_rcv_data_buffer_hdr {
 	dma_addr_t PhysicalAddress;	// Buffer physical address
 	// Note - DO NOT USE the VirtualAddress field to locate data.
 	// Use the sxg.h:SXG_RECEIVE_DATA_LOCATION macro instead.
 	void                            *VirtualAddress;	// Start of buffer
 	u32                             Size;			// Buffer size
-	struct SXG_RCV_DATA_BUFFER_HDR *Next;	// Fastpath data buffer queue
-	struct LIST_ENTRY               FreeList;		// Free queue of buffers
+	struct sxg_rcv_data_buffer_hdr *Next;	// Fastpath data buffer queue
+	struct list_entry               FreeList;		// Free queue of buffers
 	unsigned char			State;			// See SXG_BUFFER state above
 	unsigned char			Status;			// Event status (to log PUSH)
 	struct sk_buff *skb;	// Double mapped (nbl and pkt)
 };
 
 // SxgSlowReceive uses the PACKET (skb) contained
-// in the SXG_RCV_DATA_BUFFER_HDR when indicating dumb-nic data
+// in the struct sxg_rcv_data_buffer_hdr when indicating dumb-nic data
 #define SxgDumbRcvPacket	        skb
 
-#define SXG_RCV_DATA_HDR_SIZE			256	// Space for SXG_RCV_DATA_BUFFER_HDR
+#define SXG_RCV_DATA_HDR_SIZE			256	// Space for struct sxg_rcv_data_buffer_hdr
 #define SXG_RCV_DATA_BUFFER_SIZE		2048	// Non jumbo = 2k including HDR
 #define SXG_RCV_JUMBO_BUFFER_SIZE		10240	// jumbo = 10k including HDR
 
 // Receive data descriptor
-struct SXG_RCV_DATA_DESCRIPTOR {
+struct sxg_rcv_data_descriptor {
 	union {
 		struct sk_buff *VirtualAddress;	// Host handle
 		u64 ForceTo8Bytes;	// Force x86 to 8-byte boundary
@@ -718,31 +718,31 @@ struct SXG_RCV_DATA_DESCRIPTOR {
 #define SXG_RCV_DESCRIPTORS_PER_BLOCK		128
 #define SXG_RCV_DESCRIPTOR_BLOCK_SIZE		2048	// For sanity check
 
-struct SXG_RCV_DESCRIPTOR_BLOCK {
-	struct SXG_RCV_DATA_DESCRIPTOR Descriptors[SXG_RCV_DESCRIPTORS_PER_BLOCK];
+struct sxg_rcv_descriptor_block {
+	struct sxg_rcv_data_descriptor Descriptors[SXG_RCV_DESCRIPTORS_PER_BLOCK];
 };
 
 // Receive descriptor block header
-struct SXG_RCV_DESCRIPTOR_BLOCK_HDR {
+struct sxg_rcv_descriptor_block_hdr {
 	void *VirtualAddress;	// Start of 2k buffer
 	dma_addr_t PhysicalAddress;	// ..and it's physical address
-	struct LIST_ENTRY FreeList;	// Free queue of descriptor blocks
+	struct list_entry FreeList;	// Free queue of descriptor blocks
 	unsigned char State;	// See SXG_BUFFER state above
 };
 
 // Receive block header
-struct SXG_RCV_BLOCK_HDR {
+struct sxg_rcv_block_hdr {
 	void *VirtualAddress;	// Start of virtual memory
 	dma_addr_t PhysicalAddress;	// ..and it's physical address
-	struct LIST_ENTRY AllList;	// Queue of all SXG_RCV_BLOCKS
+	struct list_entry AllList;	// Queue of all SXG_RCV_BLOCKS
 };
 
 // Macros to determine data structure offsets into receive block
 #define SXG_RCV_BLOCK_SIZE(_Buffersize) 					\
 	(((_Buffersize) * SXG_RCV_DESCRIPTORS_PER_BLOCK) +		\
-	 (sizeof(struct SXG_RCV_DESCRIPTOR_BLOCK))              +		\
-	 (sizeof(struct SXG_RCV_DESCRIPTOR_BLOCK_HDR))          +		\
-	 (sizeof(struct SXG_RCV_BLOCK_HDR)))
+	 (sizeof(struct sxg_rcv_descriptor_block))              +		\
+	 (sizeof(struct sxg_rcv_descriptor_block_hdr))          +		\
+	 (sizeof(struct sxg_rcv_block_hdr)))
 #define SXG_RCV_BUFFER_DATA_SIZE(_Buffersize)				\
 	((_Buffersize) - SXG_RCV_DATA_HDR_SIZE)
 #define SXG_RCV_DATA_BUFFER_HDR_OFFSET(_Buffersize)			\
@@ -751,11 +751,11 @@ struct SXG_RCV_BLOCK_HDR {
 	((_Buffersize) * SXG_RCV_DESCRIPTORS_PER_BLOCK)
 #define SXG_RCV_DESCRIPTOR_BLOCK_HDR_OFFSET(_Buffersize)	\
 	(((_Buffersize) * SXG_RCV_DESCRIPTORS_PER_BLOCK) +		\
-	 (sizeof(struct SXG_RCV_DESCRIPTOR_BLOCK)))
+	 (sizeof(struct sxg_rcv_descriptor_block)))
 #define SXG_RCV_BLOCK_HDR_OFFSET(_Buffersize)				\
 	(((_Buffersize) * SXG_RCV_DESCRIPTORS_PER_BLOCK) +		\
-	 (sizeof(struct SXG_RCV_DESCRIPTOR_BLOCK))              +		\
-	 (sizeof(struct SXG_RCV_DESCRIPTOR_BLOCK_HDR)))
+	 (sizeof(struct sxg_rcv_descriptor_block))              +	\
+	 (sizeof(struct sxg_rcv_descriptor_block_hdr)))
 
 /***************************************************************************
  * Scatter gather list buffer
@@ -783,14 +783,14 @@ struct SXG_RCV_BLOCK_HDR {
 // entries, of the SGL for that pool.  The SGEntries is determined by
 // dividing the NBSize by the expected page size (4k), and then padding
 // it by some appropriate amount as insurance (20% or so..??).
-typedef struct _SXG_SGL_POOL_PROPERTIES {
+struct sxg_sgl_pool_properties {
 	u32			NBSize;			// Largest NET_BUFFER size for this pool
 	ushort			SGEntries;		// Number of entries in SGL
 	ushort			InitialBuffers;	// Number to allocate at initializationtime
 	ushort			MinBuffers;		// When to get more
 	ushort			MaxBuffers;		// When to stop
 	ushort			PerCpuThreshold;// See sxgh.h:SXG_RESOURCES
-} SXG_SGL_POOL_PROPERTIES, *PSXG_SGL_POOL_PROPERTIES;
+};
 
 // At the moment I'm going to statically initialize 4 pools:
 //	100k buffer pool: The vast majority of the expected buffers are expected to
@@ -814,7 +814,7 @@ typedef struct _SXG_SGL_POOL_PROPERTIES {
 // We will likely adjust the number of pools and/or pool properties over time..
 #define SXG_NUM_SGL_POOLS	4
 #define INITIALIZE_SGL_POOL_PROPERTIES								\
-SXG_SGL_POOL_PROPERTIES SxgSglPoolProperties[SXG_NUM_SGL_POOLS] = 	\
+struct sxg_sgl_pool_properties SxgSglPoolProperties[SXG_NUM_SGL_POOLS] = 	\
 { 																	\
 	{  102400,   30, 8192, 2048, 16384, 256},						\
 	{ 1048576,  300,  256,  128,  1024, 16},						\
@@ -822,7 +822,7 @@ SXG_SGL_POOL_PROPERTIES SxgSglPoolProperties[SXG_NUM_SGL_POOLS] = 	\
 	{10485760, 2700,    2,    4,    32, 0},							\
 };
 
-extern SXG_SGL_POOL_PROPERTIES SxgSglPoolProperties[];
+extern struct sxg_sgl_pool_properties SxgSglPoolProperties[];
 
 #define SXG_MAX_SGL_BUFFER_SIZE										\
 	SxgSglPoolProperties[SXG_NUM_SGL_POOLS - 1].NBSize
@@ -843,15 +843,15 @@ extern SXG_SGL_POOL_PROPERTIES SxgSglPoolProperties[];
 
 // Allocate SGLs in blocks so we can skip over invalid entries.
 // We allocation 64k worth of SGL buffers, including the
-// SXG_SGL_BLOCK_HDR, plus one for padding
+// struct sxg_sgl_block_hdr, plus one for padding
 #define SXG_SGL_BLOCK_SIZE				65536
 #define SXG_SGL_ALLOCATION_SIZE(_Pool)	SXG_SGL_BLOCK_SIZE + SXG_SGL_SIZE(_Pool)
 
-typedef struct _SXG_SGL_BLOCK_HDR {
-	ushort							Pool;			// Associated SGL pool
-	struct LIST_ENTRY					List;			// SXG_SCATTER_GATHER blocks
-	dma64_addr_t        			PhysicalAddress;// physical address
-} SXG_SGL_BLOCK_HDR, *PSXG_SGL_BLOCK_HDR;
+struct sxg_sgl_block_hdr {
+	ushort			Pool;		// Associated SGL pool
+	struct list_entry	List;		// SXG_SCATTER_GATHER blocks
+	dma64_addr_t        	PhysicalAddress;// physical address
+};
 
 
 // The following definition denotes the maximum block of memory that the
@@ -873,7 +873,7 @@ enum SXG_SGL_TYPE {
 // to the card directly.  For x86 systems we must reconstruct
 // the SGL.  The following structure defines an x64
 // formatted SGL entry
-struct SXG_X64_SGE {
+struct sxg_x64_sge {
 	dma64_addr_t Address;	// same as wdm.h
 	u32 Length;		// same as wdm.h
 	u32 CompilerPad;	// The compiler pads to 8-bytes
@@ -883,19 +883,19 @@ struct SXG_X64_SGE {
 // Our SGL structure - Essentially the same as
 // wdm.h:SCATTER_GATHER_LIST.  Note the variable number of
 // elements based on the pool specified above
-struct SXG_X64_SGL {
+struct sxg_x64_sgl {
 	u32 NumberOfElements;
 	u32 *Reserved;
-	struct SXG_X64_SGE Elements[1];   // Variable
+	struct sxg_x64_sge Elements[1];   // Variable
 };
 
-struct SXG_SCATTER_GATHER {
+struct sxg_scatter_gather {
 	enum SXG_SGL_TYPE Type;	// FIRST! Dumb-nic or offload
 	ushort Pool;		// Associated SGL pool
 	ushort Entries;		// SGL total entries
 	void *adapter;		// Back pointer to adapter
-	struct LIST_ENTRY FreeList;	// Free SXG_SCATTER_GATHER blocks
-	struct LIST_ENTRY AllList;	// All SXG_SCATTER_GATHER blocks
+	struct list_entry FreeList;	// Free SXG_SCATTER_GATHER blocks
+	struct list_entry AllList;	// All SXG_SCATTER_GATHER blocks
 	dma_addr_t PhysicalAddress;	// physical address
 	unsigned char State;	// See SXG_BUFFER state above
 	unsigned char CmdIndex;	// Command ring index
@@ -903,20 +903,21 @@ struct SXG_SCATTER_GATHER {
 	u32 Direction;		// For asynchronous completions
 	u32 CurOffset;		// Current SGL offset
 	u32 SglRef;		// SGL reference count
-	struct VLAN_HDR VlanTag;	// VLAN tag to be inserted into SGL
-	struct SXG_X64_SGL *pSgl;		// SGL Addr. Possibly &Sgl
-	struct SXG_X64_SGL Sgl;		// SGL handed to card
+	struct vlan_hdr VlanTag;	// VLAN tag to be inserted into SGL
+	struct sxg_x64_sgl *pSgl;		// SGL Addr. Possibly &Sgl
+	struct sxg_x64_sgl Sgl;		// SGL handed to card
 };
 
-// Note - the "- 1" is because SXG_SCATTER_GATHER=>SXG_X64_SGL includes 1 SGE..
-#define SXG_SGL_SIZE(_Pool) 											\
-	(sizeof(struct SXG_SCATTER_GATHER) +										\
-	 ((SxgSglPoolProperties[_Pool].SGEntries - 1) * sizeof(struct SXG_X64_SGE)))
+// Note - the "- 1" is because SXG_SCATTER_GATHER=>struct sxg_x64_sgl includes 1 SGE..
+#define SXG_SGL_SIZE(_Pool) 						\
+	(sizeof(struct sxg_scatter_gather) +				\
+	 ((SxgSglPoolProperties[_Pool].SGEntries - 1) * 		\
+				sizeof(struct sxg_x64_sge)))
 
 #if defined(CONFIG_X86_64)
 #define SXG_SGL_BUFFER(_SxgSgl)		    (&_SxgSgl->Sgl)
-#define SXG_SGL_BUFFER_LENGTH(_SxgSgl)	((_SxgSgl)->Entries * sizeof(struct SXG_X64_SGE))
-#define SXG_SGL_BUF_SIZE			    sizeof(struct SXG_X64_SGL)
+#define SXG_SGL_BUFFER_LENGTH(_SxgSgl)	((_SxgSgl)->Entries * sizeof(struct sxg_x64_sge))
+#define SXG_SGL_BUF_SIZE			    sizeof(struct sxg_x64_sgl)
 #elif defined(CONFIG_X86)
 // Force NDIS to give us it's own buffer so we can reformat to our own
 #define SXG_SGL_BUFFER(_SxgSgl)		        NULL
@@ -929,7 +930,7 @@ struct SXG_SCATTER_GATHER {
 /***************************************************************************
  * Microcode statistics
  ***************************************************************************/
-typedef struct _SXG_UCODE_STATS {
+struct sxg_ucode_stats {
 	u32  RPDQOflow;			// PDQ overflow (unframed ie dq & drop 1st)
 	u32  XDrops;				// Xmt drops due to no xmt buffer
 	u32  ERDrops;				// Rcv drops due to ER full
@@ -938,6 +939,6 @@ typedef struct _SXG_UCODE_STATS {
 	u32  BFDrops;				// Rcv drops due to bad frame: no link addr match, frlen > max
 	u32  UPDrops;				// Rcv drops due to UPFq full
 	u32  XNoBufs;				// Xmt drop due to no DRAM Xmit buffer or PxyBuf
-} SXG_UCODE_STATS, *PSXG_UCODE_STATS;
+};
 
 
