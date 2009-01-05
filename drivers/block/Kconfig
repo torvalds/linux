@@ -358,10 +358,20 @@ config BLK_DEV_XIP
 	  will prevent RAM block device backing store memory from being
 	  allocated from highmem (only a problem for highmem systems).
 
+config RD_GZIP
+	bool "Initial ramdisk compressed using gzip"
+	default y
+	depends on BLK_DEV_INITRD=y
+	select DECOMPRESS_GZIP
+	help
+	  Support loading of a gzip encoded initial ramdisk or cpio buffer.
+	  If unsure, say Y.
+
 config RD_BZIP2
 	bool "Initial ramdisk compressed using bzip2"
 	default n
 	depends on BLK_DEV_INITRD=y
+	select DECOMPRESS_BZIP2
 	help
 	  Support loading of a bzip2 encoded initial ramdisk or cpio buffer
 	  If unsure, say N.
@@ -370,18 +380,10 @@ config RD_LZMA
 	bool "Initial ramdisk compressed using lzma"
 	default n
 	depends on BLK_DEV_INITRD=y
+	select DECOMPRESS_LZMA
 	help
 	  Support loading of a lzma encoded initial ramdisk or cpio buffer
 	  If unsure, say N.
-
-config RD_GZIP
-	bool "Initial ramdisk compressed using gzip"
-	default y
-	depends on BLK_DEV_INITRD=y
-	select ZLIB_INFLATE
-	help
-	  Support loading of a gzip encoded initial ramdisk or cpio buffer.
-	  If unsure, say Y.
 
 config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media"
