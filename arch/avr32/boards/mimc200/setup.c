@@ -24,7 +24,7 @@ extern struct atmel_lcdfb_info mimc200_lcdc_data;
 #include <video/atmel_lcdc.h>
 #include <linux/fb.h>
 
-#include <asm/atmel-mci.h>
+#include <linux/atmel-mci.h>
 #include <linux/io.h>
 #include <asm/setup.h>
 
