@@ -325,36 +325,36 @@ static void add_trace_begin(void)
  */
 static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
 {
-	unsigned long rip;
+	unsigned long pc;
 	int i, count;
-	unsigned long ibs_cookie = 0;
+	unsigned long cookie = 0;
 	off_t offset;
 	struct op_sample *sample;
 
 	sample = op_cpu_buffer_read_entry(cpu);
 	if (!sample)
 		return;
-	rip = sample->eip;
+	pc = sample->eip;
 
 #ifdef __LP64__
-	rip += sample->event << 32;
+	pc += sample->event << 32;
 #endif
 
 	if (mm) {
-		ibs_cookie = lookup_dcookie(mm, rip, &offset);
+		cookie = lookup_dcookie(mm, pc, &offset);
 
-		if (ibs_cookie == NO_COOKIE)
-			offset = rip;
-		if (ibs_cookie == INVALID_COOKIE) {
+		if (cookie == NO_COOKIE)
+			offset = pc;
+		if (cookie == INVALID_COOKIE) {
 			atomic_inc(&oprofile_stats.sample_lost_no_mapping);
-			offset = rip;
+			offset = pc;
 		}
-		if (ibs_cookie != last_cookie) {
-			add_cookie_switch(ibs_cookie);
-			last_cookie = ibs_cookie;
+		if (cookie != last_cookie) {
+			add_cookie_switch(cookie);
+			last_cookie = cookie;
 		}
 	} else
-		offset = rip;
+		offset = pc;
 
 	add_event_entry(ESCAPE_CODE);
 	add_event_entry(code);
