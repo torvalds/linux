@@ -81,7 +81,7 @@ static int go7007_streamoff(struct go7007 *go)
 	return 0;
 }
 
-static int go7007_open(struct inode *inode, struct file *file)
+static int go7007_open(struct file *file)
 {
 	struct go7007 *go = video_get_drvdata(video_devdata(file));
 	struct go7007_file *gofh;
@@ -99,7 +99,7 @@ static int go7007_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int go7007_release(struct inode *inode, struct file *file)
+static int go7007_release(struct file *file)
 {
 	struct go7007_file *gofh = file->private_data;
 	struct go7007 *go = gofh->go;
@@ -1326,8 +1326,7 @@ unlock_and_return:
 	return retval;
 }
 
-static int go7007_ioctl(struct inode *inode, struct file *file,
-		unsigned int cmd, unsigned long arg)
+static long go7007_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct go7007_file *gofh = file->private_data;
 
@@ -1440,12 +1439,11 @@ static void go7007_vfl_release(struct video_device *vfd)
 		kfree(go);
 }
 
-static struct file_operations go7007_fops = {
+static struct v4l2_file_operations go7007_fops = {
 	.owner		= THIS_MODULE,
 	.open		= go7007_open,
 	.release	= go7007_release,
 	.ioctl		= go7007_ioctl,
-	.llseek		= no_llseek,
 	.read		= go7007_read,
 	.mmap		= go7007_mmap,
 	.poll		= go7007_poll,
