@@ -42,7 +42,7 @@ static ssize_t do_coredump_read(int num, struct spu_context *ctx, void *buffer,
 		return spufs_coredump_read[num].read(ctx, buffer, size, off);
 
 	data = spufs_coredump_read[num].get(ctx);
-	ret = snprintf(buffer, size, "0x%.16lx", data);
+	ret = snprintf(buffer, size, "0x%.16llx", data);
 	if (ret >= size)
 		return size;
 	return ++ret; /* count trailing NULL */

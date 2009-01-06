@@ -470,7 +470,7 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 	if (bus->self) {
 		pr_debug("IO mapping for PCI-PCI bridge %s\n",
 			 pci_name(bus->self));
-		pr_debug("  virt=0x%016lx...0x%016lx\n",
+		pr_debug("  virt=0x%016llx...0x%016llx\n",
 			 bus->resource[0]->start + _IO_BASE,
 			 bus->resource[0]->end + _IO_BASE);
 		return 0;
@@ -502,7 +502,7 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 					      hose->io_base_phys - phys_page);
 
 	pr_debug("IO mapping for PHB %s\n", hose->dn->full_name);
-	pr_debug("  phys=0x%016lx, virt=0x%p (alloc=0x%p)\n",
+	pr_debug("  phys=0x%016llx, virt=0x%p (alloc=0x%p)\n",
 		 hose->io_base_phys, hose->io_base_virt, hose->io_base_alloc);
 	pr_debug("  size=0x%016lx (alloc=0x%016lx)\n",
 		 hose->pci_io_size, size_page);
@@ -517,7 +517,7 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 	hose->io_resource.start += io_virt_offset;
 	hose->io_resource.end += io_virt_offset;
 
-	pr_debug("  hose->io_resource=0x%016lx...0x%016lx\n",
+	pr_debug("  hose->io_resource=0x%016llx...0x%016llx\n",
 		 hose->io_resource.start, hose->io_resource.end);
 
 	return 0;
