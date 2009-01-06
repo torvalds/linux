@@ -1238,8 +1238,6 @@ bad_proto:
 	if (netif_queue_stopped(dev))
 		netif_wake_queue(dev);
 
-	dev->last_rx = jiffies;
-
 	return 0;
 }
 
