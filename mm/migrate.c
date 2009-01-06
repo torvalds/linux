@@ -848,12 +848,6 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
 		struct vm_area_struct *vma;
 		struct page *page;
 
-		/*
-		 * A valid page pointer that will not match any of the
-		 * pages that will be moved.
-		 */
-		pp->page = ZERO_PAGE(0);
-
 		err = -EFAULT;
 		vma = find_vma(mm, pp->addr);
 		if (!vma || !vma_migratable(vma))
