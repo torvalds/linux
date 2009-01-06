@@ -532,7 +532,7 @@ static int autofs_dev_ioctl_expire(struct file *fp,
 	how = param->expire.how;
 	mnt = fp->f_path.mnt;
 
-	if (sbi->type & AUTOFS_TYPE_TRIGGER)
+	if (autofs_type_trigger(sbi->type))
 		dentry = autofs4_expire_direct(sbi->sb, mnt, sbi, how);
 	else
 		dentry = autofs4_expire_indirect(sbi->sb, mnt, sbi, how);
@@ -615,7 +615,7 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 	param->ismountpoint.out.magic = magic = 0;
 
 	if (!fp || param->ioctlfd == -1) {
-		if (type == AUTOFS_TYPE_ANY) {
+		if (autofs_type_any(type)) {
 			struct super_block *sb;
 
 			err = path_lookup(path, LOOKUP_FOLLOW, &nd);
