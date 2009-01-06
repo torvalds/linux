@@ -556,10 +556,6 @@ next_slot:
 					inode_sub_bytes(inode, old_num -
 							new_num);
 				}
-				if (!compression && !encryption) {
-					btrfs_set_file_extent_ram_bytes(leaf,
-							extent, new_num);
-				}
 				btrfs_set_file_extent_num_bytes(leaf,
 							extent, new_num);
 				btrfs_mark_buffer_dirty(leaf);
