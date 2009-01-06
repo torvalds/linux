@@ -983,12 +983,15 @@ continue_unlock:
 
 			if (wbc->sync_mode == WB_SYNC_NONE) {
 				wbc->nr_to_write--;
-				if (wbc->nr_to_write <= 0)
+				if (wbc->nr_to_write <= 0) {
 					done = 1;
+					break;
+				}
 			}
 			if (wbc->nonblocking && bdi_write_congested(bdi)) {
 				wbc->encountered_congestion = 1;
 				done = 1;
+				break;
 			}
 		}
 		pagevec_release(&pvec);
