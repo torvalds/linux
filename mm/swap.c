@@ -398,28 +398,6 @@ void __pagevec_release(struct pagevec *pvec)
 EXPORT_SYMBOL(__pagevec_release);
 
 /*
- * pagevec_release() for pages which are known to not be on the LRU
- *
- * This function reinitialises the caller's pagevec.
- */
-void __pagevec_release_nonlru(struct pagevec *pvec)
-{
-	int i;
-	struct pagevec pages_to_free;
-
-	pagevec_init(&pages_to_free, pvec->cold);
-	for (i = 0; i < pagevec_count(pvec); i++) {
-		struct page *page = pvec->pages[i];
-
-		VM_BUG_ON(PageLRU(page));
-		if (put_page_testzero(page))
-			pagevec_add(&pages_to_free, page);
-	}
-	pagevec_free(&pages_to_free);
-	pagevec_reinit(pvec);
-}
-
-/*
  * Add the passed pages to the LRU, then drop the caller's refcount
  * on them.  Reinitialises the caller's pagevec.
  */
