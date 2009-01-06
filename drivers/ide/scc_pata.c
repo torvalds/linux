@@ -292,7 +292,7 @@ static void scc_dma_host_set(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	u8 unit = drive->dn & 1;
-	u8 dma_stat = scc_ide_inb(hwif->dma_base + 4);
+	u8 dma_stat = scc_dma_sff_read_status(hwif);
 
 	if (on)
 		dma_stat |= (1 << (5 + unit));
@@ -338,7 +338,7 @@ static int scc_dma_setup(ide_drive_t *drive)
 	out_be32((void __iomem *)hwif->dma_base, reading);
 
 	/* read DMA status for INTR & ERROR flags */
-	dma_stat = in_be32((void __iomem *)(hwif->dma_base + 4));
+	dma_stat = scc_dma_sff_read_status(hwif);
 
 	/* clear INTR & ERROR flags */
 	out_be32((void __iomem *)(hwif->dma_base + 4), dma_stat | 6);
@@ -367,7 +367,7 @@ static int __scc_dma_end(ide_drive_t *drive)
 	/* stop DMA */
 	scc_ide_outb(dma_cmd & ~1, hwif->dma_base);
 	/* get DMA status */
-	dma_stat = scc_ide_inb(hwif->dma_base + 4);
+	dma_stat = scc_dma_sff_read_status(hwif);
 	/* clear the INTR & ERROR bits */
 	scc_ide_outb(dma_stat | 6, hwif->dma_base + 4);
 	/* purge DMA mappings */
