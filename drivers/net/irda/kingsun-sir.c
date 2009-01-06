@@ -105,7 +105,7 @@ struct kingsun_cb {
 	struct usb_device *usbdev;      /* init: probe_irda */
 	struct net_device *netdev;      /* network layer */
 	struct irlap_cb   *irlap;       /* The link layer we are binded to */
-	struct net_device_stats stats;	/* network statistics */
+
 	struct qos_info   qos;
 
 	__u8		  *in_buf;	/* receive buffer */
@@ -186,12 +186,12 @@ static int kingsun_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 		case -EPIPE:
 			break;
 		default:
-			kingsun->stats.tx_errors++;
+			netdev->stats.tx_errors++;
 			netif_start_queue(netdev);
 		}
 	} else {
-		kingsun->stats.tx_packets++;
-		kingsun->stats.tx_bytes += skb->len;
+		netdev->stats.tx_packets++;
+		netdev->stats.tx_bytes += skb->len;
 	}
 
 	dev_kfree_skb(skb);
@@ -232,7 +232,7 @@ static void kingsun_rcv_irq(struct urb *urb)
 		if (bytes[0] >= 1 && bytes[0] < kingsun->max_rx) {
 			for (i = 1; i <= bytes[0]; i++) {
 				async_unwrap_char(kingsun->netdev,
-						  &kingsun->stats,
+						  &kingsun->netdev->stats,
 						  &kingsun->rx_buff, bytes[i]);
 			}
 			do_gettimeofday(&kingsun->rx_time);
@@ -418,15 +418,6 @@ static int kingsun_net_ioctl(struct net_device *netdev, struct ifreq *rq,
 	return ret;
 }
 
-/*
- * Get device stats (for /proc/net/dev and ifconfig)
- */
-static struct net_device_stats *
-kingsun_net_get_stats(struct net_device *netdev)
-{
-	struct kingsun_cb *kingsun = netdev_priv(netdev);
-	return &kingsun->stats;
-}
 
 /*
  * This routine is called by the USB subsystem for each new device
@@ -532,7 +523,6 @@ static int kingsun_probe(struct usb_interface *intf,
 	net->hard_start_xmit = kingsun_hard_xmit;
 	net->open            = kingsun_net_open;
 	net->stop            = kingsun_net_close;
-	net->get_stats	     = kingsun_net_get_stats;
 	net->do_ioctl        = kingsun_net_ioctl;
 
 	ret = register_netdev(net);
