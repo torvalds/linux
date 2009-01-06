@@ -852,6 +852,7 @@ struct ide_host {
 	unsigned int	(*init_chipset)(struct pci_dev *);
 	unsigned long	host_flags;
 	void		*host_priv;
+	ide_hwif_t	*cur_port;	/* for hosts requiring serialization */
 };
 
 /*

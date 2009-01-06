@@ -726,7 +726,7 @@ void do_ide_request(struct request_queue *q)
 	if (!ide_lock_hwgroup(hwgroup)) {
 		ide_hwif_t *prev_port;
 repeat:
-		prev_port = hwgroup->hwif;
+		prev_port = hwif->host->cur_port;
 		hwgroup->rq = NULL;
 
 		if (drive->dev_flags & IDE_DFLAG_SLEEPING) {
@@ -736,15 +736,17 @@ repeat:
 			}
 		}
 
-		if (hwif != prev_port) {
+		if ((hwif->host->host_flags & IDE_HFLAG_SERIALIZE) &&
+		    hwif != prev_port) {
 			/*
 			 * set nIEN for previous port, drives in the
 			 * quirk_list may not like intr setups/cleanups
 			 */
-			if (hwgroup->drive->quirk_list == 0)
+			if (prev_port && hwgroup->drive->quirk_list == 0)
 				prev_port->tp_ops->set_irq(prev_port, 0);
+
+			hwif->host->cur_port = hwif;
 		}
-		hwgroup->hwif = hwif;
 		hwgroup->drive = drive;
 		drive->dev_flags &= ~(IDE_DFLAG_SLEEPING | IDE_DFLAG_PARKED);
 
@@ -976,7 +978,7 @@ void ide_timer_expiry (unsigned long data)
 /**
  *	unexpected_intr		-	handle an unexpected IDE interrupt
  *	@irq: interrupt line
- *	@hwgroup: hwgroup being processed
+ *	@hwif: port being processed
  *
  *	There's nothing really useful we can do with an unexpected interrupt,
  *	other than reading the status register (to clear it), and logging it.
@@ -1005,11 +1007,11 @@ void ide_timer_expiry (unsigned long data)
  *	is doing the current command, but we don't know which hwif burped
  *	mysteriously.
  */
- 
-static void unexpected_intr (int irq, ide_hwgroup_t *hwgroup)
+
+static void unexpected_intr(int irq, ide_hwif_t *hwif)
 {
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	u8 stat;
-	ide_hwif_t *hwif = hwgroup->hwif;
 
 	/*
 	 * handle the unexpected interrupt
@@ -1044,7 +1046,7 @@ static void unexpected_intr (int irq, ide_hwgroup_t *hwgroup)
  *	not need to override it. If you do be aware it is subtle in
  *	places
  *
- *	hwgroup->hwif is the interface in the group currently performing
+ *	hwif is the interface in the group currently performing
  *	a command. hwgroup->drive is the drive and hwgroup->handler is
  *	the IRQ handler to call. As we issue a command the handlers
  *	step through multiple states, reassigning the handler to the
@@ -1069,6 +1071,9 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	ide_startstop_t startstop;
 	irqreturn_t irq_ret = IRQ_NONE;
 	int plug_device = 0;
+
+	if (hwif->host->host_flags & IDE_HFLAG_SERIALIZE)
+		hwif = hwif->host->cur_port;
 
 	spin_lock_irqsave(&hwgroup->lock, flags);
 
@@ -1099,7 +1104,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 			 * Probably not a shared PCI interrupt,
 			 * so we can safely try to do something about it:
 			 */
-			unexpected_intr(irq, hwgroup);
+			unexpected_intr(irq, hwif);
 #ifdef CONFIG_BLK_DEV_IDEPCI
 		} else {
 			/*
