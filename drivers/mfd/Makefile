@@ -8,6 +8,8 @@ obj-$(CONFIG_MFD_ASIC3)		+= asic3.o
 obj-$(CONFIG_HTC_EGPIO)		+= htc-egpio.o
 obj-$(CONFIG_HTC_PASIC3)	+= htc-pasic3.o
 
+obj-$(CONFIG_MFD_DM355EVM_MSP)	+= dm355evm_msp.o
+
 obj-$(CONFIG_MFD_T7L66XB)	+= t7l66xb.o
 obj-$(CONFIG_MFD_TC6387XB)	+= tc6387xb.o
 obj-$(CONFIG_MFD_TC6393XB)	+= tc6393xb.o
@@ -16,6 +18,9 @@ obj-$(CONFIG_MFD_WM8400)	+= wm8400-core.o
 wm8350-objs			:= wm8350-core.o wm8350-regmap.o wm8350-gpio.o
 obj-$(CONFIG_MFD_WM8350)	+= wm8350.o
 obj-$(CONFIG_MFD_WM8350_I2C)	+= wm8350-i2c.o
+
+obj-$(CONFIG_TPS65010)		+= tps65010.o
+obj-$(CONFIG_MENELAUS)		+= menelaus.o
 
 obj-$(CONFIG_TWL4030_CORE)	+= twl4030-core.o twl4030-irq.o
 

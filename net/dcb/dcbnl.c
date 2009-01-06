@@ -191,7 +191,7 @@ static int dcbnl_reply(u8 value, u8 event, u8 cmd, u8 attr, u32 pid,
 	return 0;
 nlmsg_failure:
 err:
-	kfree(dcbnl_skb);
+	kfree_skb(dcbnl_skb);
 	return ret;
 }
 
@@ -272,7 +272,7 @@ static int dcbnl_getpfccfg(struct net_device *netdev, struct nlattr **tb,
 	return 0;
 nlmsg_failure:
 err:
-	kfree(dcbnl_skb);
+	kfree_skb(dcbnl_skb);
 err_out:
 	return -EINVAL;
 }
@@ -314,7 +314,7 @@ static int dcbnl_getperm_hwaddr(struct net_device *netdev, struct nlattr **tb,
 
 nlmsg_failure:
 err:
-	kfree(dcbnl_skb);
+	kfree_skb(dcbnl_skb);
 err_out:
 	return -EINVAL;
 }
@@ -380,7 +380,7 @@ static int dcbnl_getcap(struct net_device *netdev, struct nlattr **tb,
 	return 0;
 nlmsg_failure:
 err:
-	kfree(dcbnl_skb);
+	kfree_skb(dcbnl_skb);
 err_out:
 	return -EINVAL;
 }
@@ -458,7 +458,7 @@ static int dcbnl_getnumtcs(struct net_device *netdev, struct nlattr **tb,
 	return 0;
 nlmsg_failure:
 err:
-	kfree(dcbnl_skb);
+	kfree_skb(dcbnl_skb);
 err_out:
 	return ret;
 }
@@ -687,7 +687,7 @@ err_pg:
 	nla_nest_cancel(dcbnl_skb, pg_nest);
 nlmsg_failure:
 err:
-	kfree(dcbnl_skb);
+	kfree_skb(dcbnl_skb);
 err_out:
 	ret  = -EINVAL;
 	return ret;
@@ -949,7 +949,7 @@ err_bcn:
 	nla_nest_cancel(dcbnl_skb, bcn_nest);
 nlmsg_failure:
 err:
-	kfree(dcbnl_skb);
+	kfree_skb(dcbnl_skb);
 err_out:
 	ret  = -EINVAL;
 	return ret;

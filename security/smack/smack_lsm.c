@@ -2492,7 +2492,7 @@ static int smack_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	if (field != AUDIT_SUBJ_USER && field != AUDIT_OBJ_USER)
 		return -EINVAL;
 
-	if (op != AUDIT_EQUAL && op != AUDIT_NOT_EQUAL)
+	if (op != Audit_equal && op != Audit_not_equal)
 		return -EINVAL;
 
 	*rule = smk_import(rulestr, 0);
@@ -2556,9 +2556,9 @@ static int smack_audit_rule_match(u32 secid, u32 field, u32 op, void *vrule,
 	 * both pointers will point to the same smack_known
 	 * label.
 	 */
-	if (op == AUDIT_EQUAL)
+	if (op == Audit_equal)
 		return (rule == smack);
-	if (op == AUDIT_NOT_EQUAL)
+	if (op == Audit_not_equal)
 		return (rule != smack);
 
 	return 0;
