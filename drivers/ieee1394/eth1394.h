@@ -54,7 +54,6 @@ enum eth1394_bc_states { ETHER1394_BC_ERROR,
 
 /* Private structure for our ethernet driver */
 struct eth1394_priv {
-	struct net_device_stats stats;	/* Device stats			 */
 	struct hpsb_host *host;		/* The card for this dev	 */
 	u16 bc_maxpayload;		/* Max broadcast payload	 */
 	u8 bc_sspd;			/* Max broadcast speed		 */
