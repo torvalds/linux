@@ -1629,6 +1629,13 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	if (!bss)
 		return;
 
+	if (elems->ch_switch_elem && (elems->ch_switch_elem_len == 3) &&
+	    (memcmp(mgmt->bssid, sdata->u.sta.bssid, ETH_ALEN) == 0)) {
+		struct ieee80211_channel_sw_ie *sw_elem =
+			(struct ieee80211_channel_sw_ie *)elems->ch_switch_elem;
+		ieee80211_process_chanswitch(sdata, sw_elem, bss);
+	}
+
 	/* was just updated in ieee80211_bss_info_update */
 	beacon_timestamp = bss->timestamp;
 
@@ -1763,6 +1770,9 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	if (!(ifsta->flags & IEEE80211_STA_ASSOCIATED) ||
 	    memcmp(ifsta->bssid, mgmt->bssid, ETH_ALEN) != 0)
+		return;
+
+	if (rx_status->freq != local->hw.conf.channel->center_freq)
 		return;
 
 	ieee80211_sta_wmm_params(local, ifsta, elems.wmm_param,
@@ -2425,7 +2435,10 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 
 	ifsta = &sdata->u.sta;
 	INIT_WORK(&ifsta->work, ieee80211_sta_work);
+	INIT_WORK(&ifsta->chswitch_work, ieee80211_chswitch_work);
 	setup_timer(&ifsta->timer, ieee80211_sta_timer,
+		    (unsigned long) sdata);
+	setup_timer(&ifsta->chswitch_timer, ieee80211_chswitch_timer,
 		    (unsigned long) sdata);
 	skb_queue_head_init(&ifsta->skb_queue);
 

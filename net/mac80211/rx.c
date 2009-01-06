@@ -1552,7 +1552,9 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_local *local = rx->local;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
+	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
+	struct ieee80211_bss *bss;
 	int len = rx->skb->len;
 
 	if (!ieee80211_is_action(mgmt->frame_control))
@@ -1600,6 +1602,24 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 				   sizeof(mgmt->u.action.u.measurement)))
 				return RX_DROP_MONITOR;
 			ieee80211_process_measurement_req(sdata, mgmt, len);
+			break;
+		case WLAN_ACTION_SPCT_CHL_SWITCH:
+			if (len < (IEEE80211_MIN_ACTION_SIZE +
+				   sizeof(mgmt->u.action.u.chan_switch)))
+				return RX_DROP_MONITOR;
+
+			if (memcmp(mgmt->bssid, ifsta->bssid, ETH_ALEN) != 0)
+				return RX_DROP_MONITOR;
+
+			bss = ieee80211_rx_bss_get(local, ifsta->bssid,
+					   local->hw.conf.channel->center_freq,
+					   ifsta->ssid, ifsta->ssid_len);
+			if (!bss)
+				return RX_DROP_MONITOR;
+
+			ieee80211_process_chanswitch(sdata,
+				     &mgmt->u.action.u.chan_switch.sw_elem, bss);
+			ieee80211_rx_bss_put(local, bss);
 			break;
 		}
 		break;

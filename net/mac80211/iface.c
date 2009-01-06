@@ -443,6 +443,7 @@ static int ieee80211_stop(struct net_device *dev)
 						WLAN_REASON_DEAUTH_LEAVING);
 
 		memset(sdata->u.sta.bssid, 0, ETH_ALEN);
+		del_timer_sync(&sdata->u.sta.chswitch_timer);
 		del_timer_sync(&sdata->u.sta.timer);
 		/*
 		 * If the timer fired while we waited for it, it will have
@@ -452,6 +453,7 @@ static int ieee80211_stop(struct net_device *dev)
 		 * it no longer is.
 		 */
 		cancel_work_sync(&sdata->u.sta.work);
+		cancel_work_sync(&sdata->u.sta.chswitch_work);
 		/*
 		 * When we get here, the interface is marked down.
 		 * Call synchronize_rcu() to wait for the RX path

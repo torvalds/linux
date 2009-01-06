@@ -259,6 +259,7 @@ struct mesh_preq_queue {
 #define IEEE80211_STA_AUTO_CHANNEL_SEL	BIT(12)
 #define IEEE80211_STA_PRIVACY_INVOKED	BIT(13)
 #define IEEE80211_STA_TKIP_WEP_USED	BIT(14)
+#define IEEE80211_STA_CSA_RECEIVED	BIT(15)
 /* flags for MLME request */
 #define IEEE80211_STA_REQ_SCAN 0
 #define IEEE80211_STA_REQ_DIRECT_PROBE 1
@@ -283,7 +284,9 @@ enum ieee80211_sta_mlme_state {
 
 struct ieee80211_if_sta {
 	struct timer_list timer;
+	struct timer_list chswitch_timer;
 	struct work_struct work;
+	struct work_struct chswitch_work;
 	u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	enum ieee80211_sta_mlme_state state;
@@ -542,6 +545,7 @@ enum {
 enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_DRIVER,
 	IEEE80211_QUEUE_STOP_REASON_PS,
+	IEEE80211_QUEUE_STOP_REASON_CSA
 };
 
 /* maximum number of hardware queues we support. */
@@ -631,7 +635,7 @@ struct ieee80211_local {
 	unsigned long last_scan_completed;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data *scan_sdata;
-	struct ieee80211_channel *oper_channel, *scan_channel;
+	struct ieee80211_channel *oper_channel, *scan_channel, *csa_channel;
 	enum nl80211_channel_type oper_channel_type;
 	u8 scan_ssid[IEEE80211_MAX_SSID_LEN];
 	size_t scan_ssid_len;
@@ -964,6 +968,11 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_mgmt *mgmt,
 				       size_t len);
+void ieee80211_chswitch_timer(unsigned long data);
+void ieee80211_chswitch_work(struct work_struct *work);
+void ieee80211_process_chanswitch(struct ieee80211_sub_if_data *sdata,
+				  struct ieee80211_channel_sw_ie *sw_elem,
+				  struct ieee80211_bss *bss);
 
 /* utility functions/constants */
 extern void *mac80211_wiphy_privid; /* for wiphy privid */
