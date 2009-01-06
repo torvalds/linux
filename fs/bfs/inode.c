@@ -390,6 +390,18 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 			- le32_to_cpu(bfs_sb->s_start)) >> BFS_BSIZE_BITS;
 	info->si_freei = 0;
 	info->si_lf_eblk = 0;
+
+	/* can we read the last block? */
+	bh = sb_bread(s, info->si_blocks - 1);
+	if (!bh) {
+		printf("Last block not available: %lu\n", info->si_blocks - 1);
+		iput(inode);
+		ret = -EIO;
+		kfree(info->si_imap);
+		goto out;
+	}
+	brelse(bh);
+
 	bh = NULL;
 	for (i = BFS_ROOT_INO; i <= info->si_lasti; i++) {
 		struct bfs_inode *di;
