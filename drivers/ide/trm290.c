@@ -184,7 +184,7 @@ static void trm290_dma_exec_cmd(ide_drive_t *drive, u8 command)
 static int trm290_dma_setup(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	unsigned int count, rw;
 
 	if (rq_data_dir(rq)) {

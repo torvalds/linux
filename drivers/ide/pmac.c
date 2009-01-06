@@ -1516,7 +1516,7 @@ pmac_ide_dma_setup(ide_drive_t *drive)
 	ide_hwif_t *hwif = HWIF(drive);
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
-	struct request *rq = HWGROUP(drive)->rq;
+	struct request *rq = hwif->rq;
 	u8 unit = drive->dn & 1, ata4 = (pmif->kind == controller_kl_ata4);
 
 	if (!pmac_ide_build_dmatable(drive, rq)) {

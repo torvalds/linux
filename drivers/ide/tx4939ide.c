@@ -293,7 +293,7 @@ static int tx4939ide_dma_setup(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	void __iomem *base = TX4939IDE_BASE(hwif);
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	u8 reading;
 	int nent;
 

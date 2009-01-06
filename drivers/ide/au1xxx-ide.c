@@ -213,7 +213,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 {
 	int i, iswrite, count = 0;
 	ide_hwif_t *hwif = HWIF(drive);
-	struct request *rq = HWGROUP(drive)->rq;
+	struct request *rq = hwif->rq;
 	_auide_hwif *ahwif = &auide_hwif;
 	struct scatterlist *sg;
 
@@ -309,8 +309,8 @@ static void auide_dma_exec_cmd(ide_drive_t *drive, u8 command)
 }
 
 static int auide_dma_setup(ide_drive_t *drive)
-{       	
-	struct request *rq = HWGROUP(drive)->rq;
+{
+	struct request *rq = drive->hwif->rq;
 
 	if (!auide_build_dmatable(drive)) {
 		ide_map_sg(drive, rq);

@@ -64,11 +64,10 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	ide_expiry_t *expiry	= ide_get_hwifdata(hwif);
-	ide_hwgroup_t *hwgroup	= HWGROUP(drive);
 	u8 dma_stat		= inb(hwif->dma_base + ATA_DMA_STATUS);
 
 	/* Restore a higher level driver's expiry handler first. */
-	hwgroup->expiry	= expiry;
+	hwif->expiry = expiry;
 
 	if ((dma_stat & 5) == 1) {	/* DMA active and no interrupt */
 		unsigned long sc_base	= hwif->config_data;
@@ -111,10 +110,9 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 static void tc86c001_dma_start(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	ide_hwgroup_t *hwgroup	= HWGROUP(drive);
 	unsigned long sc_base	= hwif->config_data;
 	unsigned long twcr_port	= sc_base + (drive->dn ? 0x06 : 0x04);
-	unsigned long nsectors	= hwgroup->rq->nr_sectors;
+	unsigned long nsectors	= hwif->rq->nr_sectors;
 
 	/*
 	 * We have to manually load the sector count and size into
@@ -125,8 +123,8 @@ static void tc86c001_dma_start(ide_drive_t *drive)
 	outw(SECTOR_SIZE / 2, twcr_port); /* Transfer Word Count 1/2 */
 
 	/* Install our timeout expiry hook, saving the current handler... */
-	ide_set_hwifdata(hwif, hwgroup->expiry);
-	hwgroup->expiry = &tc86c001_timer_expiry;
+	ide_set_hwifdata(hwif, hwif->expiry);
+	hwif->expiry = &tc86c001_timer_expiry;
 
 	ide_dma_start(drive);
 }

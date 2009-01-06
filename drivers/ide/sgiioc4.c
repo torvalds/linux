@@ -492,7 +492,7 @@ use_pio_instead:
 
 static int sgiioc4_dma_setup(ide_drive_t *drive)
 {
-	struct request *rq = HWGROUP(drive)->rq;
+	struct request *rq = drive->hwif->rq;
 	unsigned int count = 0;
 	int ddir;
 

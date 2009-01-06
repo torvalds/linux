@@ -175,7 +175,7 @@ EXPORT_SYMBOL_GPL(ide_build_dmatable);
 int ide_dma_setup(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	unsigned int reading = rq_data_dir(rq) ? 0 : ATA_DMA_WR;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 	u8 dma_stat;
@@ -240,7 +240,7 @@ static int dma_timer_expiry(ide_drive_t *drive)
 	if ((dma_stat & 0x18) == 0x18)	/* BUSY Stupid Early Timer !! */
 		return WAIT_CMD;
 
-	hwif->hwgroup->expiry = NULL;	/* one free ride for now */
+	hwif->expiry = NULL;	/* one free ride for now */
 
 	if (dma_stat & ATA_DMA_ERR)	/* ERROR */
 		return -1;

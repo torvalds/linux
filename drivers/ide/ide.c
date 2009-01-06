@@ -189,8 +189,6 @@ void ide_unregister(ide_hwif_t *hwif)
 
 	free_irq(hwif->irq, hwif);
 
-	ide_remove_port_from_hwgroup(hwif);
-
 	device_unregister(hwif->portdev);
 	device_unregister(&hwif->gendev);
 	wait_for_completion(&hwif->gendev_rel_comp);
@@ -315,7 +313,6 @@ static int set_pio_mode_abuse(ide_hwif_t *hwif, u8 req_pio)
 static int set_pio_mode(ide_drive_t *drive, int arg)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 
 	if (arg < 0 || arg > 255)
@@ -330,9 +327,9 @@ static int set_pio_mode(ide_drive_t *drive, int arg)
 			unsigned long flags;
 
 			/* take lock for IDE_DFLAG_[NO_]UNMASK/[NO_]IO_32BIT */
-			spin_lock_irqsave(&hwgroup->lock, flags);
+			spin_lock_irqsave(&hwif->lock, flags);
 			port_ops->set_pio_mode(drive, arg);
-			spin_unlock_irqrestore(&hwgroup->lock, flags);
+			spin_unlock_irqrestore(&hwif->lock, flags);
 		} else
 			port_ops->set_pio_mode(drive, arg);
 	} else {

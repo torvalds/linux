@@ -312,7 +312,7 @@ static int icside_dma_setup(ide_drive_t *drive)
 	ide_hwif_t *hwif = HWIF(drive);
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 	struct icside_state *state = ecard_get_drvdata(ec);
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	unsigned int dma_mode;
 
 	if (rq_data_dir(rq))

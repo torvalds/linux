@@ -949,79 +949,20 @@ static int ide_port_setup_devices(ide_hwif_t *hwif)
 	return j;
 }
 
-static ide_hwif_t *ide_ports[MAX_HWIFS];
-
-void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
-{
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
-
-	ide_ports[hwif->index] = NULL;
-
-	spin_lock_irq(&hwgroup->lock);
-	/* Free the hwgroup if we were the only member. */
-	if (--hwgroup->port_count == 0)
-		kfree(hwgroup);
-	spin_unlock_irq(&hwgroup->lock);
-}
-
 /*
- * This routine sets up the irq for an ide interface, and creates a new
- * hwgroup for the irq/hwif if none was previously assigned.
- *
- * Much of the code is for correctly detecting/handling irq sharing
- * and irq serialization situations.  This is somewhat complex because
- * it handles static as well as dynamic (PCMCIA) IDE interfaces.
+ * This routine sets up the IRQ for an IDE interface.
  */
 static int init_irq (ide_hwif_t *hwif)
 {
 	struct ide_io_ports *io_ports = &hwif->io_ports;
-	unsigned int index;
-	ide_hwgroup_t *hwgroup;
-	ide_hwif_t *match = NULL;
 	int sa = 0;
 
 	mutex_lock(&ide_cfg_mtx);
-	hwif->hwgroup = NULL;
+	spin_lock_init(&hwif->lock);
 
-	for (index = 0; index < MAX_HWIFS; index++) {
-		ide_hwif_t *h = ide_ports[index];
-
-		if (h && h->hwgroup) {  /* scan only initialized ports */
-			if (hwif->host->host_flags & IDE_HFLAG_SERIALIZE) {
-				if (hwif->host == h->host)
-					match = h;
-			}
-		}
-	}
-
-	/*
-	 * If we are still without a hwgroup, then form a new one
-	 */
-	if (match) {
-		hwgroup = match->hwgroup;
-		hwif->hwgroup = hwgroup;
-
-		spin_lock_irq(&hwgroup->lock);
-		hwgroup->port_count++;
-		spin_unlock_irq(&hwgroup->lock);
-	} else {
-		hwgroup = kmalloc_node(sizeof(*hwgroup), GFP_KERNEL|__GFP_ZERO,
-				       hwif_to_node(hwif));
-		if (hwgroup == NULL)
-			goto out_up;
-
-		spin_lock_init(&hwgroup->lock);
-
-		hwif->hwgroup = hwgroup;
-
-		hwgroup->port_count = 1;
-
-		init_timer(&hwgroup->timer);
-		hwgroup->timer.function = &ide_timer_expiry;
-		hwgroup->timer.data = (unsigned long) hwgroup;
-	}
-
-	ide_ports[hwif->index] = hwif;
+	init_timer(&hwif->timer);
+	hwif->timer.function = &ide_timer_expiry;
+	hwif->timer.data = (unsigned long)hwif;
 
 #if defined(__mc68000__)
 	sa = IRQF_SHARED;
@@ -1034,7 +975,7 @@ static int init_irq (ide_hwif_t *hwif)
 		hwif->tp_ops->set_irq(hwif, 1);
 
 	if (request_irq(hwif->irq, &ide_intr, sa, hwif->name, hwif))
-		goto out_unlink;
+		goto out_up;
 
 	if (!hwif->rqsize) {
 		if ((hwif->host_flags & IDE_HFLAG_NO_LBA48) ||
@@ -1052,14 +993,12 @@ static int init_irq (ide_hwif_t *hwif)
 	printk(KERN_INFO "%s at 0x%08lx on irq %d", hwif->name,
 		io_ports->data_addr, hwif->irq);
 #endif /* __mc68000__ */
-	if (match)
-		printk(KERN_CONT " (serialized with %s)", match->name);
+	if (hwif->host->host_flags & IDE_HFLAG_SERIALIZE)
+		printk(KERN_CONT " (serialized)");
 	printk(KERN_CONT "\n");
 
 	mutex_unlock(&ide_cfg_mtx);
 	return 0;
-out_unlink:
-	ide_remove_port_from_hwgroup(hwif);
 out_up:
 	mutex_unlock(&ide_cfg_mtx);
 	return 1;
@@ -1140,20 +1079,20 @@ EXPORT_SYMBOL_GPL(ide_init_disk);
 static void drive_release_dev (struct device *dev)
 {
 	ide_drive_t *drive = container_of(dev, ide_drive_t, gendev);
-	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
+	ide_hwif_t *hwif = drive->hwif;
 
 	ide_proc_unregister_device(drive);
 
-	spin_lock_irq(&hwgroup->lock);
+	spin_lock_irq(&hwif->lock);
 	kfree(drive->id);
 	drive->id = NULL;
 	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 	/* Messed up locking ... */
-	spin_unlock_irq(&hwgroup->lock);
+	spin_unlock_irq(&hwif->lock);
 	blk_cleanup_queue(drive->queue);
-	spin_lock_irq(&hwgroup->lock);
+	spin_lock_irq(&hwif->lock);
 	drive->queue = NULL;
-	spin_unlock_irq(&hwgroup->lock);
+	spin_unlock_irq(&hwif->lock);
 
 	complete(&drive->gendev_rel_comp);
 }

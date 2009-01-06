@@ -239,7 +239,7 @@ static void cdrom_queue_request_sense(ide_drive_t *drive, void *sense,
 
 static void cdrom_end_request(ide_drive_t *drive, int uptodate)
 {
-	struct request *rq = HWGROUP(drive)->rq;
+	struct request *rq = drive->hwif->rq;
 	int nsectors = rq->hard_cur_sectors;
 
 	ide_debug_log(IDE_DBG_FUNC, "Call %s, cmd: 0x%x, uptodate: 0x%x, "
@@ -306,8 +306,7 @@ static void ide_dump_status_no_sense(ide_drive_t *drive, const char *msg, u8 st)
 static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
-	struct request *rq = hwgroup->rq;
+	struct request *rq = hwif->rq;
 	int stat, err, sense_key;
 
 	/* check for errors */
@@ -502,7 +501,7 @@ end_request:
 		blkdev_dequeue_request(rq);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 
-		hwgroup->rq = NULL;
+		hwif->rq = NULL;
 
 		cdrom_queue_request_sense(drive, rq->sense, rq);
 	} else
@@ -525,7 +524,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *);
 static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	int xferlen;
 
 	xferlen = ide_cd_get_xferlen(rq);
@@ -567,7 +566,7 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive)
 static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	int cmd_len;
 	ide_startstop_t startstop;
 
@@ -854,8 +853,7 @@ static int cdrom_newpc_intr_dummy_cb(struct request *rq)
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
-	struct request *rq = hwgroup->rq;
+	struct request *rq = hwif->rq;
 	xfer_func_t *xferfunc;
 	ide_expiry_t *expiry = NULL;
 	int dma_error = 0, dma, stat, thislen, uptodate = 0;
@@ -1061,7 +1059,7 @@ end_request:
 		if (blk_end_request(rq, 0, dlen))
 			BUG();
 
-		hwgroup->rq = NULL;
+		hwif->rq = NULL;
 	} else {
 		if (!uptodate)
 			rq->cmd_flags |= REQ_FAILED;

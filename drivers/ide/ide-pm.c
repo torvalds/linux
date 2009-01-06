@@ -194,7 +194,7 @@ void ide_complete_pm_request(ide_drive_t *drive, struct request *rq)
 	}
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
-	drive->hwif->hwgroup->rq = NULL;
+	drive->hwif->rq = NULL;
 
 	if (blk_end_request(rq, 0, 0))
 		BUG();

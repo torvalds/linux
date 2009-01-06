@@ -42,7 +42,6 @@ typedef unsigned char	byte;	/* used everywhere */
 #define ERROR_RECAL	1	/* Recalibrate every 2nd retry */
 
 #define HWIF(drive)		((ide_hwif_t *)((drive)->hwif))
-#define HWGROUP(drive)		((ide_hwgroup_t *)(HWIF(drive)->hwgroup))
 
 /*
  * Definitions for accessing IDE controller registers
@@ -750,7 +749,6 @@ struct ide_host;
 
 typedef struct hwif_s {
 	struct hwif_s *mate;		/* other hwif from same PCI chip */
-	struct hwgroup_s *hwgroup;	/* actually (ide_hwgroup_t *) */
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
 
 	struct ide_host *host;
@@ -840,6 +838,30 @@ typedef struct hwif_s {
 #ifdef CONFIG_BLK_DEV_IDEACPI
 	struct ide_acpi_hwif_link *acpidata;
 #endif
+
+	/* IRQ handler, if active */
+	ide_startstop_t	(*handler)(ide_drive_t *);
+
+	/* BOOL: polling active & poll_timeout field valid */
+	unsigned int polling : 1;
+
+	/* current drive */
+	ide_drive_t *cur_dev;
+
+	/* current request */
+	struct request *rq;
+
+	/* failsafe timer */
+	struct timer_list timer;
+	/* timeout value during long polls */
+	unsigned long poll_timeout;
+	/* queried upon timeouts */
+	int (*expiry)(ide_drive_t *);
+
+	int req_gen;
+	int req_gen_timer;
+
+	spinlock_t lock;
 } ____cacheline_internodealigned_in_smp ide_hwif_t;
 
 #define MAX_HOST_PORTS 4
@@ -867,34 +889,6 @@ typedef int (ide_expiry_t)(ide_drive_t *);
 
 /* used by ide-cd, ide-floppy, etc. */
 typedef void (xfer_func_t)(ide_drive_t *, struct request *rq, void *, unsigned);
-
-typedef struct hwgroup_s {
-		/* irq handler, if active */
-	ide_startstop_t	(*handler)(ide_drive_t *);
-
-		/* BOOL: polling active & poll_timeout field valid */
-	unsigned int polling	: 1;
-
-		/* current drive */
-	ide_drive_t *cur_dev;
-
-		/* current request */
-	struct request *rq;
-
-		/* failsafe timer */
-	struct timer_list timer;
-		/* timeout value during long polls */
-	unsigned long poll_timeout;
-		/* queried upon timeouts */
-	int (*expiry)(ide_drive_t *);
-
-	int req_gen;
-	int req_gen_timer;
-
-	spinlock_t lock;
-
-	int port_count;
-} ide_hwgroup_t;
 
 typedef struct ide_driver_s ide_driver_t;
 
@@ -1512,7 +1506,6 @@ static inline void ide_acpi_port_init_devices(ide_hwif_t *hwif) { ; }
 static inline void ide_acpi_set_state(ide_hwif_t *hwif, int on) {}
 #endif
 
-void ide_remove_port_from_hwgroup(ide_hwif_t *);
 void ide_unregister(ide_hwif_t *);
 
 void ide_register_region(struct gendisk *);

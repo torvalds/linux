@@ -479,7 +479,7 @@ static void ide_tape_kfree_buffer(idetape_tape_t *tape)
 
 static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 {
-	struct request *rq = HWGROUP(drive)->rq;
+	struct request *rq = drive->hwif->rq;
 	idetape_tape_t *tape = drive->driver_data;
 	unsigned long flags;
 	int error;
@@ -531,7 +531,7 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 			printk(KERN_ERR "ide-tape: Error in REQUEST SENSE "
 					"itself - Aborting request!\n");
 	} else if (pc->c[0] == READ_6 || pc->c[0] == WRITE_6) {
-		struct request *rq = drive->hwif->hwgroup->rq;
+		struct request *rq = drive->hwif->rq;
 		int blocks = pc->xferred / tape->blk_size;
 
 		tape->avg_size += blocks * tape->blk_size;
@@ -576,7 +576,7 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 
 /*
  * Postpone the current request so that ide.c will be able to service requests
- * from another device on the same hwgroup while we are polling for DSC.
+ * from another device on the same port while we are polling for DSC.
  */
 static void idetape_postpone_request(ide_drive_t *drive)
 {
@@ -584,7 +584,8 @@ static void idetape_postpone_request(ide_drive_t *drive)
 
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
 
-	tape->postponed_rq = HWGROUP(drive)->rq;
+	tape->postponed_rq = drive->hwif->rq;
+
 	ide_stall_queue(drive, tape->dsc_poll_freq);
 }
 

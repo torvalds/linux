@@ -198,7 +198,7 @@ static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 static int ali15x3_dma_setup(ide_drive_t *drive)
 {
 	if (m5229_revision < 0xC2 && drive->media != ide_disk) {
-		if (rq_data_dir(drive->hwif->hwgroup->rq))
+		if (rq_data_dir(drive->hwif->rq))
 			return 1;	/* try PIO instead of DMA */
 	}
 	return ide_dma_setup(drive);

@@ -316,7 +316,7 @@ static void scc_dma_host_set(ide_drive_t *drive, int on)
 static int scc_dma_setup(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = HWGROUP(drive)->rq;
+	struct request *rq = hwif->rq;
 	unsigned int reading;
 	u8 dma_stat;
 
@@ -405,7 +405,7 @@ static int scc_dma_end(ide_drive_t *drive)
 			       drive->name);
 			data_loss = 1;
 			if (retry++) {
-				struct request *rq = HWGROUP(drive)->rq;
+				struct request *rq = hwif->rq;
 				int unit;
 				/* ERROR_RESET and drive->crc_count are needed
 				 * to reduce DMA transfer mode in retry process.
