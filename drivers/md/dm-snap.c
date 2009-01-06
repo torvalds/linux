@@ -21,6 +21,7 @@
 #include <linux/log2.h>
 #include <linux/dm-kcopyd.h>
 
+#include "dm-exception-store.h"
 #include "dm-snap.h"
 #include "dm-bio-list.h"
 
