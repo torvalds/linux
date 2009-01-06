@@ -410,7 +410,7 @@ void __kprobes recycle_rp_inst(struct kretprobe_instance *ri,
 		hlist_add_head(&ri->hlist, head);
 }
 
-void kretprobe_hash_lock(struct task_struct *tsk,
+void __kprobes kretprobe_hash_lock(struct task_struct *tsk,
 			 struct hlist_head **head, unsigned long *flags)
 {
 	unsigned long hash = hash_ptr(tsk, KPROBE_HASH_BITS);
@@ -421,13 +421,15 @@ void kretprobe_hash_lock(struct task_struct *tsk,
 	spin_lock_irqsave(hlist_lock, *flags);
 }
 
-static void kretprobe_table_lock(unsigned long hash, unsigned long *flags)
+static void __kprobes kretprobe_table_lock(unsigned long hash,
+	unsigned long *flags)
 {
 	spinlock_t *hlist_lock = kretprobe_table_lock_ptr(hash);
 	spin_lock_irqsave(hlist_lock, *flags);
 }
 
-void kretprobe_hash_unlock(struct task_struct *tsk, unsigned long *flags)
+void __kprobes kretprobe_hash_unlock(struct task_struct *tsk,
+	unsigned long *flags)
 {
 	unsigned long hash = hash_ptr(tsk, KPROBE_HASH_BITS);
 	spinlock_t *hlist_lock;
@@ -436,7 +438,7 @@ void kretprobe_hash_unlock(struct task_struct *tsk, unsigned long *flags)
 	spin_unlock_irqrestore(hlist_lock, *flags);
 }
 
-void kretprobe_table_unlock(unsigned long hash, unsigned long *flags)
+void __kprobes kretprobe_table_unlock(unsigned long hash, unsigned long *flags)
 {
 	spinlock_t *hlist_lock = kretprobe_table_lock_ptr(hash);
 	spin_unlock_irqrestore(hlist_lock, *flags);
@@ -762,7 +764,7 @@ static void __kprobes __unregister_kprobe_bottom(struct kprobe *p)
 	}
 }
 
-static int __register_kprobes(struct kprobe **kps, int num,
+static int __kprobes __register_kprobes(struct kprobe **kps, int num,
 	unsigned long called_from)
 {
 	int i, ret = 0;
@@ -828,7 +830,7 @@ unsigned long __weak arch_deref_entry_point(void *entry)
 	return (unsigned long)entry;
 }
 
-static int __register_jprobes(struct jprobe **jps, int num,
+static int __kprobes __register_jprobes(struct jprobe **jps, int num,
 	unsigned long called_from)
 {
 	struct jprobe *jp;
@@ -990,7 +992,7 @@ static int __kprobes __register_kretprobe(struct kretprobe *rp,
 	return ret;
 }
 
-static int __register_kretprobes(struct kretprobe **rps, int num,
+static int __kprobes __register_kretprobes(struct kretprobe **rps, int num,
 	unsigned long called_from)
 {
 	int ret = 0, i;
