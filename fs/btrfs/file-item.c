@@ -27,6 +27,12 @@
 #define MAX_CSUM_ITEMS(r, size) ((((BTRFS_LEAF_DATA_SIZE(r) - \
 				   sizeof(struct btrfs_item) * 2) / \
 				  size) - 1))
+
+#define MAX_ORDERED_SUM_BYTES(r) ((PAGE_SIZE - \
+				   sizeof(struct btrfs_ordered_sum)) / \
+				   sizeof(struct btrfs_sector_sum) * \
+				   (r)->sectorsize - (r)->sectorsize)
+
 int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     u64 objectid, u64 pos,
@@ -259,8 +265,7 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 	key.offset = start;
 	key.type = BTRFS_EXTENT_CSUM_KEY;
 
-	ret = btrfs_search_slot(NULL, root->fs_info->csum_root,
-				&key, path, 0, 0);
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto fail;
 	if (ret > 0 && path->slots[0] > 0) {
@@ -279,7 +284,7 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 	while (start <= end) {
 		leaf = path->nodes[0];
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
-			ret = btrfs_next_leaf(root->fs_info->csum_root, path);
+			ret = btrfs_next_leaf(root, path);
 			if (ret < 0)
 				goto fail;
 			if (ret > 0)
@@ -306,33 +311,38 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 			continue;
 		}
 
-		size = min(csum_end, end + 1) - start;
-		sums = kzalloc(btrfs_ordered_sum_size(root, size), GFP_NOFS);
-		BUG_ON(!sums);
-
-		sector_sum = sums->sums;
-		sums->bytenr = start;
-		sums->len = size;
-
-		offset = (start - key.offset) >>
-			 root->fs_info->sb->s_blocksize_bits;
-		offset *= csum_size;
-
+		csum_end = min(csum_end, end + 1);
 		item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				      struct btrfs_csum_item);
-		while (size > 0) {
-			read_extent_buffer(path->nodes[0], &sector_sum->sum,
-					   ((unsigned long)item) + offset,
-					   csum_size);
-			sector_sum->bytenr = start;
+		while (start < csum_end) {
+			size = min_t(size_t, csum_end - start,
+					MAX_ORDERED_SUM_BYTES(root));
+			sums = kzalloc(btrfs_ordered_sum_size(root, size),
+					GFP_NOFS);
+			BUG_ON(!sums);
 
-			size -= root->sectorsize;
-			start += root->sectorsize;
-			offset += csum_size;
-			sector_sum++;
+			sector_sum = sums->sums;
+			sums->bytenr = start;
+			sums->len = size;
+
+			offset = (start - key.offset) >>
+				root->fs_info->sb->s_blocksize_bits;
+			offset *= csum_size;
+
+			while (size > 0) {
+				read_extent_buffer(path->nodes[0],
+						&sector_sum->sum,
+						((unsigned long)item) +
+						offset, csum_size);
+				sector_sum->bytenr = start;
+
+				size -= root->sectorsize;
+				start += root->sectorsize;
+				offset += csum_size;
+				sector_sum++;
+			}
+			list_add_tail(&sums->list, list);
 		}
-		list_add_tail(&sums->list, list);
-
 		path->slots[0]++;
 	}
 	ret = 0;

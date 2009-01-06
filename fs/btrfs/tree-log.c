@@ -433,49 +433,6 @@ insert:
 						   trans->transid);
 		}
 	}
-
-	if (overwrite_root &&
-	    key->type == BTRFS_EXTENT_DATA_KEY) {
-		int extent_type;
-		struct btrfs_file_extent_item *fi;
-
-		fi = (struct btrfs_file_extent_item *)dst_ptr;
-		extent_type = btrfs_file_extent_type(path->nodes[0], fi);
-		if (extent_type == BTRFS_FILE_EXTENT_REG ||
-		    extent_type == BTRFS_FILE_EXTENT_PREALLOC) {
-			struct btrfs_key ins;
-			ins.objectid = btrfs_file_extent_disk_bytenr(
-							path->nodes[0], fi);
-			ins.offset = btrfs_file_extent_disk_num_bytes(
-							path->nodes[0], fi);
-			ins.type = BTRFS_EXTENT_ITEM_KEY;
-
-			/*
-			 * is this extent already allocated in the extent
-			 * allocation tree?  If so, just add a reference
-			 */
-			ret = btrfs_lookup_extent(root, ins.objectid,
-						  ins.offset);
-			if (ret == 0) {
-				ret = btrfs_inc_extent_ref(trans, root,
-						ins.objectid, ins.offset,
-						path->nodes[0]->start,
-						root->root_key.objectid,
-						trans->transid, key->objectid);
-			} else {
-				/*
-				 * insert the extent pointer in the extent
-				 * allocation tree
-				 */
-				ret = btrfs_alloc_logged_extent(trans, root,
-						path->nodes[0]->start,
-						root->root_key.objectid,
-						trans->transid, key->objectid,
-						&ins);
-				BUG_ON(ret);
-			}
-		}
-	}
 no_copy:
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	btrfs_release_path(root, path);
@@ -530,6 +487,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	u64 extent_end;
 	u64 alloc_hint;
 	u64 start = key->offset;
+	u64 saved_nbytes;
 	struct btrfs_file_extent_item *item;
 	struct inode *inode = NULL;
 	unsigned long size;
@@ -591,17 +549,95 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	}
 	btrfs_release_path(root, path);
 
+	saved_nbytes = inode_get_bytes(inode);
 	/* drop any overlapping extents */
 	ret = btrfs_drop_extents(trans, root, inode,
 			 start, extent_end, start, &alloc_hint);
 	BUG_ON(ret);
 
-	/* insert the extent */
-	ret = overwrite_item(trans, root, path, eb, slot, key);
-	BUG_ON(ret);
+	if (found_type == BTRFS_FILE_EXTENT_REG ||
+	    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
+		unsigned long dest_offset;
+		struct btrfs_key ins;
 
-	/* btrfs_drop_extents changes i_bytes & i_blocks, update it here */
-	inode_add_bytes(inode, extent_end - start);
+		ret = btrfs_insert_empty_item(trans, root, path, key,
+					      sizeof(*item));
+		BUG_ON(ret);
+		dest_offset = btrfs_item_ptr_offset(path->nodes[0],
+						    path->slots[0]);
+		copy_extent_buffer(path->nodes[0], eb, dest_offset,
+				(unsigned long)item,  sizeof(*item));
+
+		ins.objectid = btrfs_file_extent_disk_bytenr(eb, item);
+		ins.offset = btrfs_file_extent_disk_num_bytes(eb, item);
+		ins.type = BTRFS_EXTENT_ITEM_KEY;
+
+		if (ins.objectid > 0) {
+			u64 csum_start;
+			u64 csum_end;
+			LIST_HEAD(ordered_sums);
+			/*
+			 * is this extent already allocated in the extent
+			 * allocation tree?  If so, just add a reference
+			 */
+			ret = btrfs_lookup_extent(root, ins.objectid,
+						ins.offset);
+			if (ret == 0) {
+				ret = btrfs_inc_extent_ref(trans, root,
+						ins.objectid, ins.offset,
+						path->nodes[0]->start,
+						root->root_key.objectid,
+						trans->transid, key->objectid);
+			} else {
+				/*
+				 * insert the extent pointer in the extent
+				 * allocation tree
+				 */
+				ret = btrfs_alloc_logged_extent(trans, root,
+						path->nodes[0]->start,
+						root->root_key.objectid,
+						trans->transid, key->objectid,
+						&ins);
+				BUG_ON(ret);
+			}
+			btrfs_release_path(root, path);
+
+			if (btrfs_file_extent_compression(eb, item)) {
+				csum_start = ins.objectid;
+				csum_end = csum_start + ins.offset;
+			} else {
+				csum_start = ins.objectid +
+					btrfs_file_extent_offset(eb, item);
+				csum_end = csum_start +
+					btrfs_file_extent_num_bytes(eb, item);
+			}
+
+			ret = btrfs_lookup_csums_range(root->log_root,
+						csum_start, csum_end - 1,
+						&ordered_sums);
+			BUG_ON(ret);
+			while (!list_empty(&ordered_sums)) {
+				struct btrfs_ordered_sum *sums;
+				sums = list_entry(ordered_sums.next,
+						struct btrfs_ordered_sum,
+						list);
+				ret = btrfs_csum_file_blocks(trans,
+						root->fs_info->csum_root,
+						sums);
+				BUG_ON(ret);
+				list_del(&sums->list);
+				kfree(sums);
+			}
+		} else {
+			btrfs_release_path(root, path);
+		}
+	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
+		/* inline extents are easy, we just overwrite them */
+		ret = overwrite_item(trans, root, path, eb, slot, key);
+		BUG_ON(ret);
+	}
+
+	inode_set_bytes(inode, saved_nbytes);
 	btrfs_update_inode(trans, root, inode);
 out:
 	if (inode)
@@ -902,70 +938,6 @@ out_nowrite:
 	return 0;
 }
 
-/*
- * replay one csum item from the log tree into the subvolume 'root'
- * eb, slot and key all refer to the log tree
- * path is for temp use by this function and should be released on return
- *
- * This copies the checksums out of the log tree and inserts them into
- * the subvolume.  Any existing checksums for this range in the file
- * are overwritten, and new items are added where required.
- *
- * We keep this simple by reusing the btrfs_ordered_sum code from
- * the data=ordered mode.  This basically means making a copy
- * of all the checksums in ram, which we have to do anyway for kmap
- * rules.
- *
- * The copy is then sent down to btrfs_csum_file_blocks, which
- * does all the hard work of finding existing items in the file
- * or adding new ones.
- */
-static noinline int replay_one_csum(struct btrfs_trans_handle *trans,
-				      struct btrfs_root *root,
-				      struct btrfs_path *path,
-				      struct extent_buffer *eb, int slot,
-				      struct btrfs_key *key)
-{
-	int ret;
-	u32 item_size = btrfs_item_size_nr(eb, slot);
-	u64 cur_offset;
-	u16 csum_size =
-		btrfs_super_csum_size(&root->fs_info->super_copy);
-	unsigned long file_bytes;
-	struct btrfs_ordered_sum *sums;
-	struct btrfs_sector_sum *sector_sum;
-	unsigned long ptr;
-
-	file_bytes = (item_size / csum_size) * root->sectorsize;
-	sums = kzalloc(btrfs_ordered_sum_size(root, file_bytes), GFP_NOFS);
-	if (!sums)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&sums->list);
-	sums->len = file_bytes;
-	sums->bytenr = key->offset;
-
-	/*
-	 * copy all the sums into the ordered sum struct
-	 */
-	sector_sum = sums->sums;
-	cur_offset = key->offset;
-	ptr = btrfs_item_ptr_offset(eb, slot);
-	while (item_size > 0) {
-		sector_sum->bytenr = cur_offset;
-		read_extent_buffer(eb, &sector_sum->sum, ptr, csum_size);
-		sector_sum++;
-		item_size -= csum_size;
-		ptr += csum_size;
-		cur_offset += root->sectorsize;
-	}
-
-	/* let btrfs_csum_file_blocks add them into the file */
-	ret = btrfs_csum_file_blocks(trans, root->fs_info->csum_root, sums);
-	BUG_ON(ret);
-	kfree(sums);
-	return 0;
-}
 /*
  * There are a few corners where the link count of the file can't
  * be properly maintained during replay.  So, instead of adding
@@ -1659,10 +1631,6 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 			ret = replay_one_extent(wc->trans, root, path,
 						eb, i, &key);
 			BUG_ON(ret);
-		} else if (key.type == BTRFS_EXTENT_CSUM_KEY) {
-			ret = replay_one_csum(wc->trans, root, path,
-					      eb, i, &key);
-			BUG_ON(ret);
 		} else if (key.type == BTRFS_DIR_ITEM_KEY ||
 			   key.type == BTRFS_DIR_INDEX_KEY) {
 			ret = replay_one_dir_item(wc->trans, root, path,
@@ -2021,7 +1989,7 @@ int btrfs_free_log(struct btrfs_trans_handle *trans, struct btrfs_root *root)
 		.process_func = process_one_buffer
 	};
 
-	if (!root->log_root)
+	if (!root->log_root || root->fs_info->log_root_recovering)
 		return 0;
 
 	log = root->log_root;
@@ -2453,86 +2421,6 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static noinline int copy_extent_csums(struct btrfs_trans_handle *trans,
-				      struct list_head *list,
-				      struct btrfs_root *root,
-				      u64 disk_bytenr, u64 len)
-{
-	struct btrfs_ordered_sum *sums;
-	struct btrfs_sector_sum *sector_sum;
-	int ret;
-	struct btrfs_path *path;
-	struct btrfs_csum_item *item = NULL;
-	u64 end = disk_bytenr + len;
-	u64 item_start_offset = 0;
-	u64 item_last_offset = 0;
-	u32 diff;
-	u32 sum;
-	u16 csum_size = btrfs_super_csum_size(&root->fs_info->super_copy);
-
-	sums = kzalloc(btrfs_ordered_sum_size(root, len), GFP_NOFS);
-
-	sector_sum = sums->sums;
-	sums->bytenr = disk_bytenr;
-	sums->len = len;
-	list_add_tail(&sums->list, list);
-
-	path = btrfs_alloc_path();
-	while (disk_bytenr < end) {
-		if (!item || disk_bytenr < item_start_offset ||
-		    disk_bytenr >= item_last_offset) {
-			struct btrfs_key found_key;
-			u32 item_size;
-
-			if (item)
-				btrfs_release_path(root, path);
-			item = btrfs_lookup_csum(NULL, root, path,
-						 disk_bytenr, 0);
-			if (IS_ERR(item)) {
-				ret = PTR_ERR(item);
-				if (ret == -ENOENT || ret == -EFBIG)
-					ret = 0;
-				sum = 0;
-				printk(KERN_INFO "log no csum found for "
-				       "byte %llu\n",
-				       (unsigned long long)disk_bytenr);
-				item = NULL;
-				btrfs_release_path(root, path);
-				goto found;
-			}
-			btrfs_item_key_to_cpu(path->nodes[0], &found_key,
-					      path->slots[0]);
-
-			item_start_offset = found_key.offset;
-			item_size = btrfs_item_size_nr(path->nodes[0],
-						       path->slots[0]);
-			item_last_offset = item_start_offset +
-				(item_size / csum_size) *
-				root->sectorsize;
-			item = btrfs_item_ptr(path->nodes[0], path->slots[0],
-					      struct btrfs_csum_item);
-		}
-		/*
-		 * this byte range must be able to fit inside
-		 * a single leaf so it will also fit inside a u32
-		 */
-		diff = disk_bytenr - item_start_offset;
-		diff = diff / root->sectorsize;
-		diff = diff * csum_size;
-
-		read_extent_buffer(path->nodes[0], &sum,
-				   ((unsigned long)item) + diff,
-				   csum_size);
-found:
-		sector_sum->bytenr = disk_bytenr;
-		sector_sum->sum = sum;
-		disk_bytenr += root->sectorsize;
-		sector_sum++;
-	}
-	btrfs_free_path(path);
-	return 0;
-}
-
 static noinline int copy_items(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *log,
 			       struct btrfs_path *dst_path,
@@ -2622,10 +2510,10 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 						   trans->transid,
 						   ins_keys[i].objectid);
 					BUG_ON(ret);
-					ret = copy_extent_csums(trans,
-						&ordered_sums,
-						log->fs_info->csum_root,
-						ds + cs, cl);
+					ret = btrfs_lookup_csums_range(
+						   log->fs_info->csum_root,
+						   ds + cs, ds + cs + cl - 1,
+						   &ordered_sums);
 					BUG_ON(ret);
 				}
 			}
@@ -2942,9 +2830,9 @@ again:
 		tmp_key.offset = (u64)-1;
 
 		wc.replay_dest = btrfs_read_fs_root_no_name(fs_info, &tmp_key);
-
 		BUG_ON(!wc.replay_dest);
 
+		wc.replay_dest->log_root = log;
 		btrfs_record_root_in_trans(wc.replay_dest);
 		ret = walk_log_tree(trans, log, &wc);
 		BUG_ON(ret);
@@ -2961,6 +2849,7 @@ again:
 		}
 
 		key.offset = found_key.offset - 1;
+		wc.replay_dest->log_root = NULL;
 		free_extent_buffer(log->node);
 		kfree(log);
 

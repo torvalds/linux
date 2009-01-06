@@ -157,7 +157,6 @@ static noinline int insert_inline_extent(struct btrfs_trans_handle *trans,
 	key.objectid = inode->i_ino;
 	key.offset = start;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_DATA_KEY);
-	inode_add_bytes(inode, size);
 	datasize = btrfs_file_extent_calc_inline_size(cur_size);
 
 	inode_add_bytes(inode, size);
@@ -920,8 +919,8 @@ static noinline int csum_exist_in_range(struct btrfs_root *root,
 	struct btrfs_ordered_sum *sums;
 	LIST_HEAD(list);
 
-	ret = btrfs_lookup_csums_range(root, bytenr, bytenr + num_bytes - 1,
-				       &list);
+	ret = btrfs_lookup_csums_range(root->fs_info->csum_root, bytenr,
+				       bytenr + num_bytes - 1, &list);
 	if (ret == 0 && list_empty(&list))
 		return 0;
 
