@@ -116,7 +116,6 @@ void extent_io_tree_init(struct extent_io_tree *tree,
 	spin_lock_init(&tree->buffer_lock);
 	tree->mapping = mapping;
 }
-EXPORT_SYMBOL(extent_io_tree_init);
 
 static struct extent_state *alloc_extent_state(gfp_t mask)
 {
@@ -140,7 +139,6 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
 	init_waitqueue_head(&state->wq);
 	return state;
 }
-EXPORT_SYMBOL(alloc_extent_state);
 
 static void free_extent_state(struct extent_state *state)
 {
@@ -159,7 +157,6 @@ static void free_extent_state(struct extent_state *state)
 		kmem_cache_free(extent_state_cache, state);
 	}
 }
-EXPORT_SYMBOL(free_extent_state);
 
 static struct rb_node *tree_insert(struct rb_root *root, u64 offset,
 				   struct rb_node *node)
@@ -580,7 +577,6 @@ search_again:
 		cond_resched();
 	goto again;
 }
-EXPORT_SYMBOL(clear_extent_bit);
 
 static int wait_on_state(struct extent_io_tree *tree,
 			 struct extent_state *state)
@@ -644,7 +640,6 @@ out:
 	spin_unlock(&tree->lock);
 	return 0;
 }
-EXPORT_SYMBOL(wait_extent_bit);
 
 static void set_state_bits(struct extent_io_tree *tree,
 			   struct extent_state *state,
@@ -821,7 +816,6 @@ search_again:
 		cond_resched();
 	goto again;
 }
-EXPORT_SYMBOL(set_extent_bit);
 
 /* wrappers around set/clear extent bit */
 int set_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
@@ -830,14 +824,12 @@ int set_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 	return set_extent_bit(tree, start, end, EXTENT_DIRTY, 0, NULL,
 			      mask);
 }
-EXPORT_SYMBOL(set_extent_dirty);
 
 int set_extent_ordered(struct extent_io_tree *tree, u64 start, u64 end,
 		       gfp_t mask)
 {
 	return set_extent_bit(tree, start, end, EXTENT_ORDERED, 0, NULL, mask);
 }
-EXPORT_SYMBOL(set_extent_ordered);
 
 int set_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		    int bits, gfp_t mask)
@@ -845,14 +837,12 @@ int set_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	return set_extent_bit(tree, start, end, bits, 0, NULL,
 			      mask);
 }
-EXPORT_SYMBOL(set_extent_bits);
 
 int clear_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		      int bits, gfp_t mask)
 {
 	return clear_extent_bit(tree, start, end, bits, 0, 0, mask);
 }
-EXPORT_SYMBOL(clear_extent_bits);
 
 int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
 		     gfp_t mask)
@@ -861,7 +851,6 @@ int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
 			      EXTENT_DELALLOC | EXTENT_DIRTY,
 			      0, NULL, mask);
 }
-EXPORT_SYMBOL(set_extent_delalloc);
 
 int clear_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 		       gfp_t mask)
@@ -869,14 +858,12 @@ int clear_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 	return clear_extent_bit(tree, start, end,
 				EXTENT_DIRTY | EXTENT_DELALLOC, 0, 0, mask);
 }
-EXPORT_SYMBOL(clear_extent_dirty);
 
 int clear_extent_ordered(struct extent_io_tree *tree, u64 start, u64 end,
 			 gfp_t mask)
 {
 	return clear_extent_bit(tree, start, end, EXTENT_ORDERED, 1, 0, mask);
 }
-EXPORT_SYMBOL(clear_extent_ordered);
 
 int set_extent_new(struct extent_io_tree *tree, u64 start, u64 end,
 		     gfp_t mask)
@@ -884,7 +871,6 @@ int set_extent_new(struct extent_io_tree *tree, u64 start, u64 end,
 	return set_extent_bit(tree, start, end, EXTENT_NEW, 0, NULL,
 			      mask);
 }
-EXPORT_SYMBOL(set_extent_new);
 
 static int clear_extent_new(struct extent_io_tree *tree, u64 start, u64 end,
 		       gfp_t mask)
@@ -898,7 +884,6 @@ int set_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
 	return set_extent_bit(tree, start, end, EXTENT_UPTODATE, 0, NULL,
 			      mask);
 }
-EXPORT_SYMBOL(set_extent_uptodate);
 
 static int clear_extent_uptodate(struct extent_io_tree *tree, u64 start,
 				 u64 end, gfp_t mask)
@@ -923,7 +908,6 @@ int wait_on_extent_writeback(struct extent_io_tree *tree, u64 start, u64 end)
 {
 	return wait_extent_bit(tree, start, end, EXTENT_WRITEBACK);
 }
-EXPORT_SYMBOL(wait_on_extent_writeback);
 
 /*
  * either insert or lock state struct between start and end use mask to tell
@@ -946,7 +930,6 @@ int lock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask)
 	}
 	return err;
 }
-EXPORT_SYMBOL(lock_extent);
 
 int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 		    gfp_t mask)
@@ -964,14 +947,12 @@ int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 	}
 	return 1;
 }
-EXPORT_SYMBOL(try_lock_extent);
 
 int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 		  gfp_t mask)
 {
 	return clear_extent_bit(tree, start, end, EXTENT_LOCKED, 1, 0, mask);
 }
-EXPORT_SYMBOL(unlock_extent);
 
 /*
  * helper function to set pages and extents in the tree dirty
@@ -992,7 +973,6 @@ int set_range_dirty(struct extent_io_tree *tree, u64 start, u64 end)
 	set_extent_dirty(tree, start, end, GFP_NOFS);
 	return 0;
 }
-EXPORT_SYMBOL(set_range_dirty);
 
 /*
  * helper function to set both pages and extents in the tree writeback
@@ -1053,7 +1033,6 @@ out:
 	spin_unlock(&tree->lock);
 	return ret;
 }
-EXPORT_SYMBOL(find_first_extent_bit);
 
 /* find the first state struct with 'bits' set after 'start', and
  * return it.  tree->lock must be held.  NULL will returned if
@@ -1085,7 +1064,6 @@ struct extent_state *find_first_extent_bit_state(struct extent_io_tree *tree,
 out:
 	return NULL;
 }
-EXPORT_SYMBOL(find_first_extent_bit_state);
 
 /*
  * find a contiguous range of bytes in the file marked as delalloc, not
@@ -1372,7 +1350,6 @@ int extent_clear_unlock_delalloc(struct inode *inode,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(extent_clear_unlock_delalloc);
 
 /*
  * count the number of bytes in the tree that have a given bit(s)
@@ -1598,7 +1575,6 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	spin_unlock(&tree->lock);
 	return bitset;
 }
-EXPORT_SYMBOL(test_range_bit);
 
 /*
  * helper function to set a given page up to date if all the
@@ -1952,7 +1928,6 @@ void set_page_extent_mapped(struct page *page)
 		set_page_private(page, EXTENT_PAGE_PRIVATE);
 	}
 }
-EXPORT_SYMBOL(set_page_extent_mapped);
 
 static void set_page_extent_head(struct page *page, unsigned long len)
 {
@@ -2128,7 +2103,6 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 		submit_one_bio(READ, bio, 0, bio_flags);
 	return ret;
 }
-EXPORT_SYMBOL(extent_read_full_page);
 
 /*
  * the writepage semantics are similar to regular writepage.  extent
@@ -2533,7 +2507,6 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 		submit_one_bio(WRITE, epd.bio, 0, 0);
 	return ret;
 }
-EXPORT_SYMBOL(extent_write_full_page);
 
 int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
 			      u64 start, u64 end, get_extent_t *get_extent,
@@ -2579,8 +2552,6 @@ int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
 		submit_one_bio(WRITE, epd.bio, 0, 0);
 	return ret;
 }
-EXPORT_SYMBOL(extent_write_locked_range);
-
 
 int extent_writepages(struct extent_io_tree *tree,
 		      struct address_space *mapping,
@@ -2602,7 +2573,6 @@ int extent_writepages(struct extent_io_tree *tree,
 		submit_one_bio(WRITE, epd.bio, 0, 0);
 	return ret;
 }
-EXPORT_SYMBOL(extent_writepages);
 
 int extent_readpages(struct extent_io_tree *tree,
 		     struct address_space *mapping,
@@ -2643,7 +2613,6 @@ int extent_readpages(struct extent_io_tree *tree,
 		submit_one_bio(READ, bio, 0, bio_flags);
 	return 0;
 }
-EXPORT_SYMBOL(extent_readpages);
 
 /*
  * basic invalidatepage code, this waits on any locked or writeback
@@ -2668,7 +2637,6 @@ int extent_invalidatepage(struct extent_io_tree *tree,
 			 1, 1, GFP_NOFS);
 	return 0;
 }
-EXPORT_SYMBOL(extent_invalidatepage);
 
 /*
  * simple commit_write call, set_range_dirty is used to mark both
@@ -2689,7 +2657,6 @@ int extent_commit_write(struct extent_io_tree *tree,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(extent_commit_write);
 
 int extent_prepare_write(struct extent_io_tree *tree,
 			 struct inode *inode, struct page *page,
@@ -2787,7 +2754,6 @@ err:
 	/* FIXME, zero out newly allocated blocks on error */
 	return err;
 }
-EXPORT_SYMBOL(extent_prepare_write);
 
 /*
  * a helper for releasepage, this tests for areas of the page that
@@ -2813,7 +2779,6 @@ int try_release_extent_state(struct extent_map_tree *map,
 	}
 	return ret;
 }
-EXPORT_SYMBOL(try_release_extent_state);
 
 /*
  * a helper for releasepage.  As long as there are no locked extents
@@ -2863,7 +2828,6 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 	}
 	return try_release_extent_state(map, tree, page, mask);
 }
-EXPORT_SYMBOL(try_release_extent_mapping);
 
 sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
 		get_extent_t *get_extent)
@@ -3042,7 +3006,6 @@ free_eb:
 	__free_extent_buffer(eb);
 	return exists;
 }
-EXPORT_SYMBOL(alloc_extent_buffer);
 
 struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 					 u64 start, unsigned long len,
@@ -3061,7 +3024,6 @@ struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 
 	return eb;
 }
-EXPORT_SYMBOL(find_extent_buffer);
 
 void free_extent_buffer(struct extent_buffer *eb)
 {
@@ -3073,7 +3035,6 @@ void free_extent_buffer(struct extent_buffer *eb)
 
 	WARN_ON(1);
 }
-EXPORT_SYMBOL(free_extent_buffer);
 
 int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			      struct extent_buffer *eb)
@@ -3128,7 +3089,6 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(clear_extent_buffer_dirty);
 
 int wait_on_extent_buffer_writeback(struct extent_io_tree *tree,
 				    struct extent_buffer *eb)
@@ -3136,7 +3096,6 @@ int wait_on_extent_buffer_writeback(struct extent_io_tree *tree,
 	return wait_on_extent_writeback(tree, eb->start,
 					eb->start + eb->len - 1);
 }
-EXPORT_SYMBOL(wait_on_extent_buffer_writeback);
 
 int set_extent_buffer_dirty(struct extent_io_tree *tree,
 			     struct extent_buffer *eb)
@@ -3167,7 +3126,6 @@ int set_extent_buffer_dirty(struct extent_io_tree *tree,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(set_extent_buffer_dirty);
 
 int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
 				struct extent_buffer *eb)
@@ -3212,7 +3170,6 @@ int set_extent_buffer_uptodate(struct extent_io_tree *tree,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(set_extent_buffer_uptodate);
 
 int extent_range_uptodate(struct extent_io_tree *tree,
 			  u64 start, u64 end)
@@ -3267,7 +3224,6 @@ int extent_buffer_uptodate(struct extent_io_tree *tree,
 	}
 	return pg_uptodate;
 }
-EXPORT_SYMBOL(extent_buffer_uptodate);
 
 int read_extent_buffer_pages(struct extent_io_tree *tree,
 			     struct extent_buffer *eb,
@@ -3366,7 +3322,6 @@ unlock_exit:
 	}
 	return ret;
 }
-EXPORT_SYMBOL(read_extent_buffer_pages);
 
 void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 			unsigned long start,
@@ -3399,7 +3354,6 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 		i++;
 	}
 }
-EXPORT_SYMBOL(read_extent_buffer);
 
 int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 			       unsigned long min_len, char **token, char **map,
@@ -3439,7 +3393,6 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 	*map_len = PAGE_CACHE_SIZE - offset;
 	return 0;
 }
-EXPORT_SYMBOL(map_private_extent_buffer);
 
 int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		      unsigned long min_len,
@@ -3465,13 +3418,11 @@ int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 	}
 	return err;
 }
-EXPORT_SYMBOL(map_extent_buffer);
 
 void unmap_extent_buffer(struct extent_buffer *eb, char *token, int km)
 {
 	kunmap_atomic(token, km);
 }
-EXPORT_SYMBOL(unmap_extent_buffer);
 
 int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,
 			  unsigned long start,
@@ -3509,7 +3460,6 @@ int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,
 	}
 	return ret;
 }
-EXPORT_SYMBOL(memcmp_extent_buffer);
 
 void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
 			 unsigned long start, unsigned long len)
@@ -3542,7 +3492,6 @@ void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
 		i++;
 	}
 }
-EXPORT_SYMBOL(write_extent_buffer);
 
 void memset_extent_buffer(struct extent_buffer *eb, char c,
 			  unsigned long start, unsigned long len)
@@ -3573,7 +3522,6 @@ void memset_extent_buffer(struct extent_buffer *eb, char c,
 		i++;
 	}
 }
-EXPORT_SYMBOL(memset_extent_buffer);
 
 void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
 			unsigned long dst_offset, unsigned long src_offset,
@@ -3608,7 +3556,6 @@ void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
 		i++;
 	}
 }
-EXPORT_SYMBOL(copy_extent_buffer);
 
 static void move_pages(struct page *dst_page, struct page *src_page,
 		       unsigned long dst_off, unsigned long src_off,
@@ -3692,7 +3639,6 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		len -= cur;
 	}
 }
-EXPORT_SYMBOL(memcpy_extent_buffer);
 
 void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 			   unsigned long src_offset, unsigned long len)
@@ -3741,7 +3687,6 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		len -= cur;
 	}
 }
-EXPORT_SYMBOL(memmove_extent_buffer);
 
 int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
 {
@@ -3770,4 +3715,3 @@ out:
 	spin_unlock(&tree->buffer_lock);
 	return ret;
 }
-EXPORT_SYMBOL(try_release_extent_buffer);
