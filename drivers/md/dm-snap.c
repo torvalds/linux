@@ -1406,6 +1406,12 @@ static int __init dm_snapshot_init(void)
 {
 	int r;
 
+	r = dm_exception_store_init();
+	if (r) {
+		DMERR("Failed to initialize exception stores");
+		return r;
+	}
+
 	r = dm_register_target(&snapshot_target);
 	if (r) {
 		DMERR("snapshot target register failed %d", r);
@@ -1454,17 +1460,17 @@ static int __init dm_snapshot_init(void)
 
 	return 0;
 
-      bad_pending_pool:
+bad_pending_pool:
 	kmem_cache_destroy(tracked_chunk_cache);
-      bad5:
+bad5:
 	kmem_cache_destroy(pending_cache);
-      bad4:
+bad4:
 	kmem_cache_destroy(exception_cache);
-      bad3:
+bad3:
 	exit_origin_hash();
-      bad2:
+bad2:
 	dm_unregister_target(&origin_target);
-      bad1:
+bad1:
 	dm_unregister_target(&snapshot_target);
 	return r;
 }
@@ -1480,6 +1486,8 @@ static void __exit dm_snapshot_exit(void)
 	kmem_cache_destroy(pending_cache);
 	kmem_cache_destroy(exception_cache);
 	kmem_cache_destroy(tracked_chunk_cache);
+
+	dm_exception_store_exit();
 }
 
 /* Module hooks */

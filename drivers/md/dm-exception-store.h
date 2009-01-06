@@ -122,9 +122,18 @@ static inline void dm_consecutive_chunk_count_inc(struct dm_snap_exception *e)
 
 #  endif
 
+int dm_exception_store_init(void);
+void dm_exception_store_exit(void);
+
 /*
  * Two exception store implementations.
  */
+int dm_persistent_snapshot_init(void);
+void dm_persistent_snapshot_exit(void);
+
+int dm_transient_snapshot_init(void);
+void dm_transient_snapshot_exit(void);
+
 int dm_create_persistent(struct dm_exception_store *store);
 
 int dm_create_transient(struct dm_exception_store *store);
