@@ -155,22 +155,14 @@ EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
  *	ide_unregister		-	free an IDE interface
  *	@hwif: IDE interface
  *
- *	Perform the final unregister of an IDE interface. At the moment
- *	we don't refcount interfaces so this will also get split up.
+ *	Perform the final unregister of an IDE interface.
  *
  *	Locking:
- *	The caller must not hold the IDE locks
- *	The drive present/vanishing is not yet properly locked
- *	Take care with the callbacks. These have been split to avoid
- *	deadlocking the IDE layer. The shutdown callback is called
- *	before we take the lock and free resources. It is up to the
- *	caller to be sure there is no pending I/O here, and that
- *	the interface will not be reopened (present/vanishing locking
- *	isn't yet done BTW). After we commit to the final kill we
- *	call the cleanup callback with the ide locks held.
+ *	The caller must not hold the IDE locks.
  *
- *	Unregister restores the hwif structures to the default state.
- *	This is raving bonkers.
+ *	It is up to the caller to be sure there is no pending I/O here,
+ *	and that the interface will not be reopened (present/vanishing
+ *	locking isn't yet done BTW).
  */
 
 void ide_unregister(ide_hwif_t *hwif)
