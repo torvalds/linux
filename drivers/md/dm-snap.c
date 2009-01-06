@@ -9,6 +9,7 @@
 #include <linux/blkdev.h>
 #include <linux/ctype.h>
 #include <linux/device-mapper.h>
+#include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kdev_t.h>
@@ -735,7 +736,7 @@ static void snapshot_dtr(struct dm_target *ti)
 	unregister_snapshot(s);
 
 	while (atomic_read(&s->pending_exceptions_count))
-		yield();
+		msleep(1);
 	/*
 	 * Ensure instructions in mempool_destroy aren't reordered
 	 * before atomic_read.
@@ -888,10 +889,10 @@ static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 
 	/*
 	 * Check for conflicting reads. This is extremely improbable,
-	 * so yield() is sufficient and there is no need for a wait queue.
+	 * so msleep(1) is sufficient and there is no need for a wait queue.
 	 */
 	while (__chunk_is_tracked(s, pe->e.old_chunk))
-		yield();
+		msleep(1);
 
 	/*
 	 * Add a proper exception, and remove the
