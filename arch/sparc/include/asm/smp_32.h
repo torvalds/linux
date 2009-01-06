@@ -170,7 +170,4 @@ void smp_setup_cpu_possible_map(void);
 #define smp_setup_cpu_possible_map() do { } while (0)
 
 #endif /* !(SMP) */
-
-#define NO_PROC_ID            0xFF
-
 #endif /* !(_SPARC_SMP_H) */

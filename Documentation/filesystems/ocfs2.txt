@@ -31,7 +31,6 @@ Features which OCFS2 does not support yet:
 	- quotas
 	- Directory change notification (F_NOTIFY)
 	- Distributed Caching (F_SETLEASE/F_GETLEASE/break_lease)
-	- POSIX ACLs
 
 Mount options
 =============
@@ -79,3 +78,5 @@ inode64			Indicates that Ocfs2 is allowed to create inodes at
 			bits of significance.
 user_xattr	(*)	Enables Extended User Attributes.
 nouser_xattr		Disables Extended User Attributes.
+acl			Enables POSIX Access Control Lists support.
+noacl		(*)	Disables POSIX Access Control Lists support.

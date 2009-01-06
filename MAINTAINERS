@@ -4015,10 +4015,12 @@ L:	alsa-devel@alsa-project.org (subscribers-only)
 W:	http://alsa-project.org/main/index.php/ASoC
 S:	Supported
 
-SPARC (sparc32)
-P:	William L. Irwin
-M:	wli@holomorphy.com
+SPARC + UltraSPARC (sparc/sparc64)
+P:	David S. Miller
+M:	davem@davemloft.net
 L:	sparclinux@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-2.6.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
 S:	Maintained
 
 SPECIALIX IO8+ MULTIPORT SERIAL CARD DRIVER
@@ -4300,13 +4302,6 @@ UFS FILESYSTEM
 P:	Evgeniy Dushistov
 M:	dushistov@mail.ru
 L:	linux-kernel@vger.kernel.org
-S:	Maintained
-
-UltraSPARC (sparc64)
-P:	David S. Miller
-M:	davem@davemloft.net
-L:	sparclinux@vger.kernel.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-2.6.git
 S:	Maintained
 
 ULTRA-WIDEBAND (UWB) SUBSYSTEM:

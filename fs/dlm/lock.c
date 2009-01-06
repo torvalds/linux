@@ -307,7 +307,7 @@ static void queue_cast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rv)
 	lkb->lkb_lksb->sb_status = rv;
 	lkb->lkb_lksb->sb_flags = lkb->lkb_sbflags;
 
-	dlm_add_ast(lkb, AST_COMP);
+	dlm_add_ast(lkb, AST_COMP, 0);
 }
 
 static inline void queue_cast_overlap(struct dlm_rsb *r, struct dlm_lkb *lkb)
@@ -318,12 +318,12 @@ static inline void queue_cast_overlap(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 static void queue_bast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rqmode)
 {
+	lkb->lkb_time_bast = ktime_get();
+
 	if (is_master_copy(lkb))
 		send_bast(r, lkb, rqmode);
-	else {
-		lkb->lkb_bastmode = rqmode;
-		dlm_add_ast(lkb, AST_BAST);
-	}
+	else
+		dlm_add_ast(lkb, AST_BAST, rqmode);
 }
 
 /*
@@ -744,6 +744,8 @@ static void add_lkb(struct dlm_rsb *r, struct dlm_lkb *lkb, int status)
 
 	DLM_ASSERT(!lkb->lkb_status, dlm_print_lkb(lkb););
 
+	lkb->lkb_timestamp = ktime_get();
+
 	lkb->lkb_status = status;
 
 	switch (status) {
@@ -1013,10 +1015,8 @@ static void add_timeout(struct dlm_lkb *lkb)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 
-	if (is_master_copy(lkb)) {
-		lkb->lkb_timestamp = jiffies;
+	if (is_master_copy(lkb))
 		return;
-	}
 
 	if (test_bit(LSFL_TIMEWARN, &ls->ls_flags) &&
 	    !(lkb->lkb_exflags & DLM_LKF_NODLCKWT)) {
@@ -1031,7 +1031,6 @@ static void add_timeout(struct dlm_lkb *lkb)
 	DLM_ASSERT(list_empty(&lkb->lkb_time_list), dlm_print_lkb(lkb););
 	mutex_lock(&ls->ls_timeout_mutex);
 	hold_lkb(lkb);
-	lkb->lkb_timestamp = jiffies;
 	list_add_tail(&lkb->lkb_time_list, &ls->ls_timeout);
 	mutex_unlock(&ls->ls_timeout_mutex);
 }
@@ -1059,6 +1058,7 @@ void dlm_scan_timeout(struct dlm_ls *ls)
 	struct dlm_rsb *r;
 	struct dlm_lkb *lkb;
 	int do_cancel, do_warn;
+	s64 wait_us;
 
 	for (;;) {
 		if (dlm_locking_stopped(ls))
@@ -1069,14 +1069,15 @@ void dlm_scan_timeout(struct dlm_ls *ls)
 		mutex_lock(&ls->ls_timeout_mutex);
 		list_for_each_entry(lkb, &ls->ls_timeout, lkb_time_list) {
 
+			wait_us = ktime_to_us(ktime_sub(ktime_get(),
+					      		lkb->lkb_timestamp));
+
 			if ((lkb->lkb_exflags & DLM_LKF_TIMEOUT) &&
-			    time_after_eq(jiffies, lkb->lkb_timestamp +
-					  lkb->lkb_timeout_cs * HZ/100))
+			    wait_us >= (lkb->lkb_timeout_cs * 10000))
 				do_cancel = 1;
 
 			if ((lkb->lkb_flags & DLM_IFL_WATCH_TIMEWARN) &&
-			    time_after_eq(jiffies, lkb->lkb_timestamp +
-				   	   dlm_config.ci_timewarn_cs * HZ/100))
+			    wait_us >= dlm_config.ci_timewarn_cs * 10000)
 				do_warn = 1;
 
 			if (!do_cancel && !do_warn)
@@ -1122,12 +1123,12 @@ void dlm_scan_timeout(struct dlm_ls *ls)
 void dlm_adjust_timeouts(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb;
-	long adj = jiffies - ls->ls_recover_begin;
+	u64 adj_us = jiffies_to_usecs(jiffies - ls->ls_recover_begin);
 
 	ls->ls_recover_begin = 0;
 	mutex_lock(&ls->ls_timeout_mutex);
 	list_for_each_entry(lkb, &ls->ls_timeout, lkb_time_list)
-		lkb->lkb_timestamp += adj;
+		lkb->lkb_timestamp = ktime_add_us(lkb->lkb_timestamp, adj_us);
 	mutex_unlock(&ls->ls_timeout_mutex);
 }
 

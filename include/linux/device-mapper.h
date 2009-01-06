@@ -45,6 +45,8 @@ typedef void (*dm_dtr_fn) (struct dm_target *ti);
  */
 typedef int (*dm_map_fn) (struct dm_target *ti, struct bio *bio,
 			  union map_info *map_context);
+typedef int (*dm_map_request_fn) (struct dm_target *ti, struct request *clone,
+				  union map_info *map_context);
 
 /*
  * Returns:
@@ -57,6 +59,9 @@ typedef int (*dm_map_fn) (struct dm_target *ti, struct bio *bio,
 typedef int (*dm_endio_fn) (struct dm_target *ti,
 			    struct bio *bio, int error,
 			    union map_info *map_context);
+typedef int (*dm_request_endio_fn) (struct dm_target *ti,
+				    struct request *clone, int error,
+				    union map_info *map_context);
 
 typedef void (*dm_flush_fn) (struct dm_target *ti);
 typedef void (*dm_presuspend_fn) (struct dm_target *ti);
@@ -74,6 +79,13 @@ typedef int (*dm_ioctl_fn) (struct dm_target *ti, unsigned int cmd,
 
 typedef int (*dm_merge_fn) (struct dm_target *ti, struct bvec_merge_data *bvm,
 			    struct bio_vec *biovec, int max_size);
+
+/*
+ * Returns:
+ *    0: The target can handle the next I/O immediately.
+ *    1: The target can't handle the next I/O immediately.
+ */
+typedef int (*dm_busy_fn) (struct dm_target *ti);
 
 void dm_error(const char *message);
 
@@ -100,14 +112,23 @@ void dm_put_device(struct dm_target *ti, struct dm_dev *d);
 /*
  * Information about a target type
  */
+
+/*
+ * Target features
+ */
+#define DM_TARGET_SUPPORTS_BARRIERS 0x00000001
+
 struct target_type {
+	uint64_t features;
 	const char *name;
 	struct module *module;
 	unsigned version[3];
 	dm_ctr_fn ctr;
 	dm_dtr_fn dtr;
 	dm_map_fn map;
+	dm_map_request_fn map_rq;
 	dm_endio_fn end_io;
+	dm_request_endio_fn rq_end_io;
 	dm_flush_fn flush;
 	dm_presuspend_fn presuspend;
 	dm_postsuspend_fn postsuspend;
@@ -117,6 +138,7 @@ struct target_type {
 	dm_message_fn message;
 	dm_ioctl_fn ioctl;
 	dm_merge_fn merge;
+	dm_busy_fn busy;
 };
 
 struct io_restrictions {
@@ -157,8 +179,7 @@ struct dm_target {
 };
 
 int dm_register_target(struct target_type *t);
-int dm_unregister_target(struct target_type *t);
-
+void dm_unregister_target(struct target_type *t);
 
 /*-----------------------------------------------------------------
  * Functions for creating and manipulating mapped devices.
@@ -275,6 +296,9 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
  * Macros.
  *---------------------------------------------------------------*/
 #define DM_NAME "device-mapper"
+
+#define DMCRIT(f, arg...) \
+	printk(KERN_CRIT DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
 
 #define DMERR(f, arg...) \
 	printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)

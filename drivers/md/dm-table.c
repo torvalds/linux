@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001 Sistina Software (UK) Limited.
- * Copyright (C) 2004 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
+#include <linux/delay.h>
 #include <asm/atomic.h>
 
 #define DM_MSG_PREFIX "table"
@@ -23,6 +24,19 @@
 #define NODE_SIZE L1_CACHE_BYTES
 #define KEYS_PER_NODE (NODE_SIZE / sizeof(sector_t))
 #define CHILDREN_PER_NODE (KEYS_PER_NODE + 1)
+
+/*
+ * The table has always exactly one reference from either mapped_device->map
+ * or hash_cell->new_map. This reference is not counted in table->holders.
+ * A pair of dm_create_table/dm_destroy_table functions is used for table
+ * creation/destruction.
+ *
+ * Temporary references from the other code increase table->holders. A pair
+ * of dm_table_get/dm_table_put functions is used to manipulate it.
+ *
+ * When the table is about to be destroyed, we wait for table->holders to
+ * drop to zero.
+ */
 
 struct dm_table {
 	struct mapped_device *md;
@@ -37,6 +51,8 @@ struct dm_table {
 	unsigned int num_allocated;
 	sector_t *highs;
 	struct dm_target *targets;
+
+	unsigned barriers_supported:1;
 
 	/*
 	 * Indicates the rw permissions for the new logical
@@ -226,7 +242,8 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&t->devices);
-	atomic_set(&t->holders, 1);
+	atomic_set(&t->holders, 0);
+	t->barriers_supported = 1;
 
 	if (!num_targets)
 		num_targets = KEYS_PER_NODE;
@@ -256,9 +273,13 @@ static void free_devices(struct list_head *devices)
 	}
 }
 
-static void table_destroy(struct dm_table *t)
+void dm_table_destroy(struct dm_table *t)
 {
 	unsigned int i;
+
+	while (atomic_read(&t->holders))
+		msleep(1);
+	smp_mb();
 
 	/* free the indexes (see dm_table_complete) */
 	if (t->depth >= 2)
@@ -297,8 +318,8 @@ void dm_table_put(struct dm_table *t)
 	if (!t)
 		return;
 
-	if (atomic_dec_and_test(&t->holders))
-		table_destroy(t);
+	smp_mb__before_atomic_dec();
+	atomic_dec(&t->holders);
 }
 
 /*
@@ -728,6 +749,10 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	/* FIXME: the plan is to combine high here and then have
 	 * the merge fn apply the target level restrictions. */
 	combine_restrictions_low(&t->limits, &tgt->limits);
+
+	if (!(tgt->type->features & DM_TARGET_SUPPORTS_BARRIERS))
+		t->barriers_supported = 0;
+
 	return 0;
 
  bad:
@@ -771,6 +796,12 @@ int dm_table_complete(struct dm_table *t)
 	unsigned int leaf_nodes;
 
 	check_for_valid_limits(&t->limits);
+
+	/*
+	 * We only support barriers if there is exactly one underlying device.
+	 */
+	if (!list_is_singular(&t->devices))
+		t->barriers_supported = 0;
 
 	/* how many indexes will the btree have ? */
 	leaf_nodes = dm_div_up(t->num_targets, KEYS_PER_NODE);
@@ -985,6 +1016,12 @@ struct mapped_device *dm_table_get_md(struct dm_table *t)
 
 	return t->md;
 }
+
+int dm_table_barrier_ok(struct dm_table *t)
+{
+	return t->barriers_supported;
+}
+EXPORT_SYMBOL(dm_table_barrier_ok);
 
 EXPORT_SYMBOL(dm_vcalloc);
 EXPORT_SYMBOL(dm_get_device);

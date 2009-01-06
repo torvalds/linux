@@ -86,7 +86,7 @@ do_expand:
 	i_size_write(inode, offset);
 
 out_truncate:
-	if (inode->i_op && inode->i_op->truncate)
+	if (inode->i_op->truncate)
 		inode->i_op->truncate(inode);
 	return 0;
 out_sig:
