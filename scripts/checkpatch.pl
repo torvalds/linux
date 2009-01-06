@@ -405,6 +405,7 @@ sub ctx_statement_block {
 
 	my $type = '';
 	my $level = 0;
+	my @stack = ([$type, $level]);
 	my $p;
 	my $c;
 	my $len = 0;
@@ -436,6 +437,16 @@ sub ctx_statement_block {
 		$remainder = substr($blk, $off);
 
 		#warn "CSB: c<$c> type<$type> level<$level> remainder<$remainder> coff_set<$coff_set>\n";
+
+		# Handle nested #if/#else.
+		if ($remainder =~ /^#\s*(?:ifndef|ifdef|if)\s/) {
+			push(@stack, [ $type, $level ]);
+		} elsif ($remainder =~ /^#\s*(?:else|elif)\b/) {
+			($type, $level) = @{$stack[$#stack - 1]};
+		} elsif ($remainder =~ /^#\s*endif\b/) {
+			($type, $level) = @{pop(@stack)};
+		}
+
 		# Statement ends at the ';' or a close '}' at the
 		# outermost level.
 		if ($level == 0 && $c eq ';') {
@@ -582,11 +593,22 @@ sub ctx_block_get {
 	my @res = ();
 
 	my $level = 0;
+	my @stack = ($level);
 	for ($line = $start; $remain > 0; $line++) {
 		next if ($rawlines[$line] =~ /^-/);
 		$remain--;
 
 		$blk .= $rawlines[$line];
+
+		# Handle nested #if/#else.
+		if ($rawlines[$line] =~ /^.\s*#\s*(?:ifndef|ifdef|if)\s/) {
+			push(@stack, $level);
+		} elsif ($rawlines[$line] =~ /^.\s*#\s*(?:else|elif)\b/) {
+			$level = $stack[$#stack - 1];
+		} elsif ($rawlines[$line] =~ /^.\s*#\s*endif\b/) {
+			$level = pop(@stack);
+		}
+
 		foreach my $c (split(//, $rawlines[$line])) {
 			##print "C<$c>L<$level><$open$close>O<$off>\n";
 			if ($off > 0) {
