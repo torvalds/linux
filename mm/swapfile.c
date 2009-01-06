@@ -348,68 +348,23 @@ int reuse_swap_page(struct page *page)
 }
 
 /*
- * Work out if there are any other processes sharing this
- * swap cache page. Free it if you can. Return success.
+ * If swap is getting full, or if there are no more mappings of this page,
+ * then try_to_free_swap is called to free its swap space.
  */
-static int remove_exclusive_swap_page_count(struct page *page, int count)
+int try_to_free_swap(struct page *page)
 {
-	int retval;
-	struct swap_info_struct * p;
-	swp_entry_t entry;
-
 	VM_BUG_ON(!PageLocked(page));
 
 	if (!PageSwapCache(page))
 		return 0;
 	if (PageWriteback(page))
 		return 0;
-	if (page_count(page) != count) /* us + cache + ptes */
+	if (page_swapcount(page))
 		return 0;
 
-	entry.val = page_private(page);
-	p = swap_info_get(entry);
-	if (!p)
-		return 0;
-
-	/* Is the only swap cache user the cache itself? */
-	retval = 0;
-	if (p->swap_map[swp_offset(entry)] == 1) {
-		/* Recheck the page count with the swapcache lock held.. */
-		spin_lock_irq(&swapper_space.tree_lock);
-		if ((page_count(page) == count) && !PageWriteback(page)) {
-			__delete_from_swap_cache(page);
-			SetPageDirty(page);
-			retval = 1;
-		}
-		spin_unlock_irq(&swapper_space.tree_lock);
-	}
-	spin_unlock(&swap_lock);
-
-	if (retval) {
-		swap_free(entry);
-		page_cache_release(page);
-	}
-
-	return retval;
-}
-
-/*
- * Most of the time the page should have two references: one for the
- * process and one for the swap cache.
- */
-int remove_exclusive_swap_page(struct page *page)
-{
-	return remove_exclusive_swap_page_count(page, 2);
-}
-
-/*
- * The pageout code holds an extra reference to the page.  That raises
- * the reference count to test for to 2 for a page that is only in the
- * swap cache plus 1 for each process that maps the page.
- */
-int remove_exclusive_swap_page_ref(struct page *page)
-{
-	return remove_exclusive_swap_page_count(page, 2 + page_mapcount(page));
+	delete_from_swap_cache(page);
+	SetPageDirty(page);
+	return 1;
 }
 
 /*
@@ -436,13 +391,12 @@ void free_swap_and_cache(swp_entry_t entry)
 		spin_unlock(&swap_lock);
 	}
 	if (page) {
-		int one_user;
-
-		one_user = (page_count(page) == 2);
-		/* Only cache user (+us), or swap space full? Free it! */
-		/* Also recheck PageSwapCache after page is locked (above) */
+		/*
+		 * Not mapped elsewhere, or swap space full? Free it!
+		 * Also recheck PageSwapCache now page is locked (above).
+		 */
 		if (PageSwapCache(page) && !PageWriteback(page) &&
-					(one_user || vm_swap_full())) {
+				(!page_mapped(page) || vm_swap_full())) {
 			delete_from_swap_cache(page);
 			SetPageDirty(page);
 		}

@@ -98,7 +98,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
 	struct bio *bio;
 	int ret = 0, rw = WRITE;
 
-	if (remove_exclusive_swap_page(page)) {
+	if (try_to_free_swap(page)) {
 		unlock_page(page);
 		goto out;
 	}

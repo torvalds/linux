@@ -2403,7 +2403,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	swap_free(entry);
 	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
-		remove_exclusive_swap_page(page);
+		try_to_free_swap(page);
 	unlock_page(page);
 
 	if (write_access) {

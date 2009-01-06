@@ -454,8 +454,7 @@ void pagevec_swap_free(struct pagevec *pvec)
 		struct page *page = pvec->pages[i];
 
 		if (PageSwapCache(page) && trylock_page(page)) {
-			if (PageSwapCache(page))
-				remove_exclusive_swap_page_ref(page);
+			try_to_free_swap(page);
 			unlock_page(page);
 		}
 	}

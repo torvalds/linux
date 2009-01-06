@@ -759,7 +759,7 @@ cull_mlocked:
 activate_locked:
 		/* Not a candidate for swapping, so reclaim swap space. */
 		if (PageSwapCache(page) && vm_swap_full())
-			remove_exclusive_swap_page_ref(page);
+			try_to_free_swap(page);
 		VM_BUG_ON(PageActive(page));
 		SetPageActive(page);
 		pgactivate++;
