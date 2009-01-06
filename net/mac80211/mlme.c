@@ -2009,6 +2009,10 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata,
 	if (ieee80211_sta_active_ibss(sdata))
 		return;
 
+	if ((sdata->u.sta.flags & IEEE80211_STA_BSSID_SET) &&
+	    (!(sdata->u.sta.flags & IEEE80211_STA_AUTO_CHANNEL_SEL)))
+		return;
+
 	printk(KERN_DEBUG "%s: No active IBSS STAs - trying to scan for other "
 	       "IBSS networks with same SSID (merge)\n", sdata->dev->name);
 	ieee80211_request_scan(sdata, ifsta->ssid, ifsta->ssid_len);
