@@ -24,9 +24,8 @@ static struct backlight_properties corgibl_data;
 static struct backlight_device *corgi_backlight_device;
 static struct generic_bl_info *bl_machinfo;
 
-static unsigned long corgibl_flags;
-#define CORGIBL_SUSPENDED     0x01
-#define CORGIBL_BATTLOW       0x02
+/* Flag to signal when the battery is low */
+#define CORGIBL_BATTLOW       BL_CORE_DRIVER1
 
 static int corgibl_send_intensity(struct backlight_device *bd)
 {
@@ -34,11 +33,11 @@ static int corgibl_send_intensity(struct backlight_device *bd)
 
 	if (bd->props.power != FB_BLANK_UNBLANK)
 		intensity = 0;
-	if (bd->props.fb_blank != FB_BLANK_UNBLANK)
+	if (bd->props.state & BL_CORE_FBBLANK)
 		intensity = 0;
-	if (corgibl_flags & CORGIBL_SUSPENDED)
+	if (bd->props.state & BL_CORE_SUSPENDED)
 		intensity = 0;
-	if (corgibl_flags & CORGIBL_BATTLOW)
+	if (bd->props.state & CORGIBL_BATTLOW)
 		intensity &= bl_machinfo->limit_mask;
 
 	bl_machinfo->set_bl_intensity(intensity);
@@ -51,29 +50,6 @@ static int corgibl_send_intensity(struct backlight_device *bd)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int corgibl_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	struct backlight_device *bd = platform_get_drvdata(pdev);
-
-	corgibl_flags |= CORGIBL_SUSPENDED;
-	backlight_update_status(bd);
-	return 0;
-}
-
-static int corgibl_resume(struct platform_device *pdev)
-{
-	struct backlight_device *bd = platform_get_drvdata(pdev);
-
-	corgibl_flags &= ~CORGIBL_SUSPENDED;
-	backlight_update_status(bd);
-	return 0;
-}
-#else
-#define corgibl_suspend	NULL
-#define corgibl_resume	NULL
-#endif
-
 static int corgibl_get_intensity(struct backlight_device *bd)
 {
 	return corgibl_intensity;
@@ -85,16 +61,21 @@ static int corgibl_get_intensity(struct backlight_device *bd)
  */
 void corgibl_limit_intensity(int limit)
 {
+	struct backlight_device *bd = corgi_backlight_device;
+
+	mutex_lock(&bd->ops_lock);
 	if (limit)
-		corgibl_flags |= CORGIBL_BATTLOW;
+		bd->props.state |= CORGIBL_BATTLOW;
 	else
-		corgibl_flags &= ~CORGIBL_BATTLOW;
+		bd->props.state &= ~CORGIBL_BATTLOW;
 	backlight_update_status(corgi_backlight_device);
+	mutex_unlock(&bd->ops_lock);
 }
 EXPORT_SYMBOL(corgibl_limit_intensity);
 
 
 static struct backlight_ops corgibl_ops = {
+	.options = BL_CORE_SUSPENDRESUME,
 	.get_brightness = corgibl_get_intensity,
 	.update_status  = corgibl_send_intensity,
 };
@@ -144,8 +125,6 @@ static int corgibl_remove(struct platform_device *pdev)
 static struct platform_driver corgibl_driver = {
 	.probe		= corgibl_probe,
 	.remove		= corgibl_remove,
-	.suspend	= corgibl_suspend,
-	.resume		= corgibl_resume,
 	.driver		= {
 		.name	= "generic-bl",
 	},

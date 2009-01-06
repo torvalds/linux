@@ -40,6 +40,10 @@ static int fb_notifier_callback(struct notifier_block *self,
 		if (!bd->ops->check_fb ||
 		    bd->ops->check_fb(evdata->info)) {
 			bd->props.fb_blank = *(int *)evdata->data;
+			if (bd->props.fb_blank == FB_BLANK_UNBLANK)
+				bd->props.state &= ~BL_CORE_FBBLANK;
+			else
+				bd->props.state |= BL_CORE_FBBLANK;
 			backlight_update_status(bd);
 		}
 	mutex_unlock(&bd->ops_lock);
@@ -165,6 +169,34 @@ static ssize_t backlight_show_actual_brightness(struct device *dev,
 
 static struct class *backlight_class;
 
+static int backlight_suspend(struct device *dev, pm_message_t state)
+{
+	struct backlight_device *bd = to_backlight_device(dev);
+
+	if (bd->ops->options & BL_CORE_SUSPENDRESUME) {
+		mutex_lock(&bd->ops_lock);
+		bd->props.state |= BL_CORE_SUSPENDED;
+		backlight_update_status(bd);
+		mutex_unlock(&bd->ops_lock);
+	}
+
+	return 0;
+}
+
+static int backlight_resume(struct device *dev)
+{
+	struct backlight_device *bd = to_backlight_device(dev);
+
+	if (bd->ops->options & BL_CORE_SUSPENDRESUME) {
+		mutex_lock(&bd->ops_lock);
+		bd->props.state &= ~BL_CORE_SUSPENDED;
+		backlight_update_status(bd);
+		mutex_unlock(&bd->ops_lock);
+	}
+
+	return 0;
+}
+
 static void bl_device_release(struct device *dev)
 {
 	struct backlight_device *bd = to_backlight_device(dev);
@@ -281,6 +313,8 @@ static int __init backlight_class_init(void)
 	}
 
 	backlight_class->dev_attrs = bl_device_attributes;
+	backlight_class->suspend = backlight_suspend;
+	backlight_class->resume = backlight_resume;
 	return 0;
 }
 
