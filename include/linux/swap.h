@@ -371,6 +371,11 @@ static inline struct page *lookup_swap_cache(swp_entry_t swp)
 	return NULL;
 }
 
+static inline int add_to_swap(struct page *page)
+{
+	return 0;
+}
+
 static inline int add_to_swap_cache(struct page *page, swp_entry_t entry,
 							gfp_t gfp_mask)
 {

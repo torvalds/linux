@@ -617,7 +617,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 					referenced && page_mapping_inuse(page))
 			goto activate_locked;
 
-#ifdef CONFIG_SWAP
 		/*
 		 * Anonymous process memory has backing store?
 		 * Try to allocate it some swap space here.
@@ -629,7 +628,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 				goto activate_locked;
 			may_enter_fs = 1;
 		}
-#endif /* CONFIG_SWAP */
 
 		mapping = page_mapping(page);
 
