@@ -963,8 +963,10 @@ retry:
 				}
  			}
 
-			if (--nr_to_write <= 0)
-				done = 1;
+			if (wbc->sync_mode == WB_SYNC_NONE) {
+				if (--wbc->nr_to_write <= 0)
+					done = 1;
+			}
 			if (wbc->nonblocking && bdi_write_congested(bdi)) {
 				wbc->encountered_congestion = 1;
 				done = 1;
