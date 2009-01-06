@@ -116,7 +116,8 @@ our $Attribute	= qr{
 			__(?:mem|cpu|dev|)(?:initdata|init)|
 			____cacheline_aligned|
 			____cacheline_aligned_in_smp|
-			____cacheline_internodealigned_in_smp
+			____cacheline_internodealigned_in_smp|
+			__weak
 		  }x;
 our $Modifier;
 our $Inline	= qr{inline|__always_inline|noinline};
