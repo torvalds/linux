@@ -1237,6 +1237,13 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		list_add(&page->lru, &l_inactive);
 	}
 
+	/*
+	 * Move the pages to the [file or anon] inactive list.
+	 */
+	pagevec_init(&pvec, 1);
+	pgmoved = 0;
+	lru = LRU_BASE + file * LRU_FILE;
+
 	spin_lock_irq(&zone->lru_lock);
 	/*
 	 * Count referenced pages from currently used mappings as
@@ -1247,13 +1254,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	if (scan_global_lru(sc))
 		zone->recent_rotated[!!file] += pgmoved;
 
-	/*
-	 * Move the pages to the [file or anon] inactive list.
-	 */
-	pagevec_init(&pvec, 1);
-
-	pgmoved = 0;
-	lru = LRU_BASE + file * LRU_FILE;
 	while (!list_empty(&l_inactive)) {
 		page = lru_to_page(&l_inactive);
 		prefetchw_prev_lru_page(page, &l_inactive, flags);
