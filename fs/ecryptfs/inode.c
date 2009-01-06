@@ -52,8 +52,7 @@ static void unlock_dir(struct dentry *dir)
 /**
  * ecryptfs_create_underlying_file
  * @lower_dir_inode: inode of the parent in the lower fs of the new file
- * @lower_dentry: New file's dentry in the lower fs
- * @ecryptfs_dentry: New file's dentry in ecryptfs
+ * @dentry: New file's dentry
  * @mode: The mode of the new file
  * @nd: nameidata of ecryptfs' parent's dentry & vfsmount
  *
