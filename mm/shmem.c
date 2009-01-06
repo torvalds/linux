@@ -1444,7 +1444,6 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (error)
 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
 
-	mark_page_accessed(vmf->page);
 	return ret | VM_FAULT_LOCKED;
 }
 
