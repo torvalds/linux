@@ -289,12 +289,6 @@ sensor_found:
 	for (i = 0; i < ARRAY_SIZE(ov9650_ctrls); i++)
 		sensor_settings[i] = ov9650_ctrls[i].qctrl.default_value;
 	sd->sensor_priv = sensor_settings;
-
-	if (dmi_check_system(ov9650_flip_dmi_table) && !err) {
-		info("vflip quirk active");
-		sensor_settings[VFLIP_IDX] = 1;
-	}
-
 	return 0;
 }
 
@@ -360,7 +354,10 @@ int ov9650_start(struct sd *sd)
 	int ver_offs = cam->cam_mode[sd->gspca_dev.curr_mode].priv;
 	int hor_offs = OV9650_LEFT_OFFSET;
 
-	if (sensor_settings[VFLIP_IDX])
+	if ((!dmi_check_system(ov9650_flip_dmi_table) &&
+		sensor_settings[VFLIP_IDX]) ||
+		(dmi_check_system(ov9650_flip_dmi_table) &&
+		!sensor_settings[VFLIP_IDX]))
 		ver_offs--;
 
 	if (width <= 320)
@@ -629,7 +626,12 @@ int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
 
 	sensor_settings[HFLIP_IDX] = val;
-	i2c_data = ((val & 0x01) << 5) | (sensor_settings[VFLIP_IDX] << 4);
+
+	if (!dmi_check_system(ov9650_flip_dmi_table))
+		i2c_data = ((val & 0x01) << 5) | (sensor_settings[VFLIP_IDX] << 4);
+	else
+		i2c_data = ((val & 0x01) << 5) | (!sensor_settings[VFLIP_IDX] << 4);
+
 	err = m5602_write_sensor(sd, OV9650_MVFP, &i2c_data, 1);
 
 	return err;
@@ -655,6 +657,9 @@ int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 
 	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
 	sensor_settings[VFLIP_IDX] = val;
+
+	if (dmi_check_system(ov9650_flip_dmi_table))
+		val = !val;
 
 	i2c_data = ((val & 0x01) << 4) | (sensor_settings[VFLIP_IDX] << 5);
 	err = m5602_write_sensor(sd, OV9650_MVFP, &i2c_data, 1);
