@@ -78,6 +78,8 @@ extern int current_cpuset_is_being_rebound(void);
 
 extern void rebuild_sched_domains(void);
 
+extern void cpuset_print_task_mems_allowed(struct task_struct *p);
+
 #else /* !CONFIG_CPUSETS */
 
 static inline int cpuset_init_early(void) { return 0; }
@@ -157,6 +159,10 @@ static inline int current_cpuset_is_being_rebound(void)
 static inline void rebuild_sched_domains(void)
 {
 	partition_sched_domains(1, NULL, NULL);
+}
+
+static inline void cpuset_print_task_mems_allowed(struct task_struct *p)
+{
 }
 
 #endif /* !CONFIG_CPUSETS */

@@ -392,6 +392,9 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 		printk(KERN_WARNING "%s invoked oom-killer: "
 			"gfp_mask=0x%x, order=%d, oomkilladj=%d\n",
 			current->comm, gfp_mask, order, current->oomkilladj);
+		task_lock(current);
+		cpuset_print_task_mems_allowed(current);
+		task_unlock(current);
 		dump_stack();
 		show_mem();
 		if (sysctl_oom_dump_tasks)
