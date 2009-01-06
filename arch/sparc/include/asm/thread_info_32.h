@@ -45,7 +45,7 @@ struct thread_info {
 	/* A place to store user windows and stack pointers
 	 * when the stack needs inspection.
 	 */
-	struct reg_window	reg_window[NSWINS];	/* align for ldd! */
+	struct reg_window32	reg_window[NSWINS];	/* align for ldd! */
 	unsigned long		rwbuf_stkptrs[NSWINS];
 	unsigned long		w_saved;
 
