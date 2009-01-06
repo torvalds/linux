@@ -742,12 +742,12 @@ repeat:
 			 * set nIEN for previous port, drives in the
 			 * quirk_list may not like intr setups/cleanups
 			 */
-			if (prev_port && hwgroup->drive->quirk_list == 0)
+			if (prev_port && hwgroup->cur_dev->quirk_list == 0)
 				prev_port->tp_ops->set_irq(prev_port, 0);
 
 			hwif->host->cur_port = hwif;
 		}
-		hwgroup->drive = drive;
+		hwgroup->cur_dev = drive;
 		drive->dev_flags &= ~(IDE_DFLAG_SLEEPING | IDE_DFLAG_PARKED);
 
 		spin_unlock_irq(&hwgroup->lock);
@@ -913,9 +913,9 @@ void ide_timer_expiry (unsigned long data)
 		 * Either way, we don't really want to complain about anything.
 		 */
 	} else {
-		drive = hwgroup->drive;
+		drive = hwgroup->cur_dev;
 		if (!drive) {
-			printk(KERN_ERR "ide_timer_expiry: hwgroup->drive was NULL\n");
+			printk(KERN_ERR "%s: ->cur_dev was NULL\n", __func__);
 			hwgroup->handler = NULL;
 		} else {
 			ide_hwif_t *hwif;
@@ -1033,7 +1033,7 @@ static void unexpected_intr(int irq, ide_hwif_t *hwif)
  *	places
  *
  *	hwif is the interface in the group currently performing
- *	a command. hwgroup->drive is the drive and hwgroup->handler is
+ *	a command. hwgroup->cur_dev is the drive and hwgroup->handler is
  *	the IRQ handler to call. As we issue a command the handlers
  *	step through multiple states, reassigning the handler to the
  *	next step in the process. Unlike a smart SCSI controller IDE
@@ -1105,7 +1105,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 		goto out;
 	}
 
-	drive = hwgroup->drive;
+	drive = hwgroup->cur_dev;
 	if (!drive) {
 		/*
 		 * This should NEVER happen, and there isn't much

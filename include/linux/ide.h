@@ -588,7 +588,6 @@ struct ide_drive_s {
 	struct request_queue	*queue;	/* request queue */
 
 	struct request		*rq;	/* current request */
-	struct ide_drive_s 	*next;	/* circular list of hwgroup drives */
 	void		*driver_data;	/* extra driver data */
 	u16			*id;	/* identification info */
 #ifdef CONFIG_IDE_PROC_FS
@@ -750,7 +749,6 @@ struct ide_dma_ops {
 struct ide_host;
 
 typedef struct hwif_s {
-	struct hwif_s *next;		/* for linked-list in ide_hwgroup_t */
 	struct hwif_s *mate;		/* other hwif from same PCI chip */
 	struct hwgroup_s *hwgroup;	/* actually (ide_hwgroup_t *) */
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
@@ -874,9 +872,7 @@ typedef struct hwgroup_s {
 	unsigned int polling	: 1;
 
 		/* current drive */
-	ide_drive_t *drive;
-		/* ptr to current hwif in linked-list */
-	ide_hwif_t *hwif;
+	ide_drive_t *cur_dev;
 
 		/* current request */
 	struct request *rq;
@@ -892,6 +888,8 @@ typedef struct hwgroup_s {
 	int req_gen_timer;
 
 	spinlock_t lock;
+
+	int port_count;
 } ide_hwgroup_t;
 
 typedef struct ide_driver_s ide_driver_t;
@@ -1622,12 +1620,7 @@ extern struct mutex ide_cfg_mtx;
 /*
  * Structure locking:
  *
- * ide_cfg_mtx and hwgroup->lock together protect changes to
- * ide_hwif_t->next
- * ide_drive_t->next
- *
  * ide_hwgroup_t->busy: hwgroup->lock
- * ide_hwgroup_t->hwif: hwgroup->lock
  * ide_hwif_t->{hwgroup,mate}: constant, no locking
  * ide_drive_t->hwif: constant, no locking
  */

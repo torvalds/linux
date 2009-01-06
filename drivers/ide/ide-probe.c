@@ -918,27 +918,9 @@ static int ide_init_queue(ide_drive_t *drive)
 	return 0;
 }
 
-static void ide_add_drive_to_hwgroup(ide_drive_t *drive)
-{
-	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
-
-	spin_lock_irq(&hwgroup->lock);
-	if (!hwgroup->drive) {
-		/* first drive for hwgroup. */
-		drive->next = drive;
-		hwgroup->drive = drive;
-		hwgroup->hwif = HWIF(hwgroup->drive);
-	} else {
-		drive->next = hwgroup->drive->next;
-		hwgroup->drive->next = drive;
-	}
-	spin_unlock_irq(&hwgroup->lock);
-}
-
 /*
  * For any present drive:
  * - allocate the block device queue
- * - link drive into the hwgroup
  */
 static int ide_port_setup_devices(ide_hwif_t *hwif)
 {
@@ -961,8 +943,6 @@ static int ide_port_setup_devices(ide_hwif_t *hwif)
 		}
 
 		j++;
-
-		ide_add_drive_to_hwgroup(drive);
 	}
 	mutex_unlock(&ide_cfg_mtx);
 
@@ -978,33 +958,9 @@ void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 	ide_ports[hwif->index] = NULL;
 
 	spin_lock_irq(&hwgroup->lock);
-	/*
-	 * Remove us from the hwgroup, and free
-	 * the hwgroup if we were the only member
-	 */
-	if (hwif->next == hwif) {
-		BUG_ON(hwgroup->hwif != hwif);
+	/* Free the hwgroup if we were the only member. */
+	if (--hwgroup->port_count == 0)
 		kfree(hwgroup);
-	} else {
-		/* There is another interface in hwgroup.
-		 * Unlink us, and set hwgroup->drive and ->hwif to
-		 * something sane.
-		 */
-		ide_hwif_t *g = hwgroup->hwif;
-
-		while (g->next != hwif)
-			g = g->next;
-		g->next = hwif->next;
-		if (hwgroup->hwif == hwif) {
-			/* Chose a random hwif for hwgroup->hwif.
-			 * It's guaranteed that there are no drives
-			 * left in the hwgroup.
-			 */
-			BUG_ON(hwgroup->drive != NULL);
-			hwgroup->hwif = g;
-		}
-		BUG_ON(hwgroup->hwif == hwif);
-	}
 	spin_unlock_irq(&hwgroup->lock);
 }
 
@@ -1044,20 +1000,9 @@ static int init_irq (ide_hwif_t *hwif)
 	if (match) {
 		hwgroup = match->hwgroup;
 		hwif->hwgroup = hwgroup;
-		/*
-		 * Link us into the hwgroup.
-		 * This must be done early, do ensure that unexpected_intr
-		 * can find the hwif and prevent irq storms.
-		 * No drives are attached to the new hwif, choose_drive
-		 * can't do anything stupid (yet).
-		 * Add ourself as the 2nd entry to the hwgroup->hwif
-		 * linked list, the first entry is the hwif that owns
-		 * hwgroup->handler - do not change that.
-		 */
+
 		spin_lock_irq(&hwgroup->lock);
-		hwif->next = hwgroup->hwif->next;
-		hwgroup->hwif->next = hwif;
-		BUG_ON(hwif->next == hwif);
+		hwgroup->port_count++;
 		spin_unlock_irq(&hwgroup->lock);
 	} else {
 		hwgroup = kmalloc_node(sizeof(*hwgroup), GFP_KERNEL|__GFP_ZERO,
@@ -1068,7 +1013,8 @@ static int init_irq (ide_hwif_t *hwif)
 		spin_lock_init(&hwgroup->lock);
 
 		hwif->hwgroup = hwgroup;
-		hwgroup->hwif = hwif->next = hwif;
+
+		hwgroup->port_count = 1;
 
 		init_timer(&hwgroup->timer);
 		hwgroup->timer.function = &ide_timer_expiry;
@@ -1191,29 +1137,6 @@ void ide_init_disk(struct gendisk *disk, ide_drive_t *drive)
 
 EXPORT_SYMBOL_GPL(ide_init_disk);
 
-static void ide_remove_drive_from_hwgroup(ide_drive_t *drive)
-{
-	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
-
-	if (drive == drive->next) {
-		/* special case: last drive from hwgroup. */
-		BUG_ON(hwgroup->drive != drive);
-		hwgroup->drive = NULL;
-	} else {
-		ide_drive_t *walk;
-
-		walk = hwgroup->drive;
-		while (walk->next != drive)
-			walk = walk->next;
-		walk->next = drive->next;
-		if (hwgroup->drive == drive) {
-			hwgroup->drive = drive->next;
-			hwgroup->hwif = hwgroup->drive->hwif;
-		}
-	}
-	BUG_ON(hwgroup->drive == drive);
-}
-
 static void drive_release_dev (struct device *dev)
 {
 	ide_drive_t *drive = container_of(dev, ide_drive_t, gendev);
@@ -1222,7 +1145,6 @@ static void drive_release_dev (struct device *dev)
 	ide_proc_unregister_device(drive);
 
 	spin_lock_irq(&hwgroup->lock);
-	ide_remove_drive_from_hwgroup(drive);
 	kfree(drive->id);
 	drive->id = NULL;
 	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
