@@ -4014,7 +4014,7 @@ make_io:
 			num = EXT4_INODES_PER_GROUP(sb);
 			if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
 				       EXT4_FEATURE_RO_COMPAT_GDT_CSUM))
-				num -= le16_to_cpu(gdp->bg_itable_unused);
+				num -= ext4_itable_unused_count(sb, gdp);
 			table += num / inodes_per_block;
 			if (end > table)
 				end = table;

@@ -102,9 +102,9 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
 			ext4_error(sb, __func__,
 				  "Checksum bad for group %u", block_group);
-			gdp->bg_free_blocks_count = 0;
-			gdp->bg_free_inodes_count = 0;
-			gdp->bg_itable_unused = 0;
+			ext4_free_blks_set(sb, gdp, 0);
+			ext4_free_inodes_set(sb, gdp, 0);
+			ext4_itable_unused_set(sb, gdp, 0);
 			memset(bh->b_data, 0xff, sb->s_blocksize);
 			return 0;
 		}
@@ -372,7 +372,7 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	struct ext4_group_desc *desc;
 	struct ext4_super_block *es;
 	struct ext4_sb_info *sbi;
-	int err = 0, ret;
+	int err = 0, ret, blk_free_count;
 	ext4_grpblk_t blocks_freed;
 	struct ext4_group_info *grp;
 
@@ -444,7 +444,8 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 		}
 	}
 	spin_lock(sb_bgl_lock(sbi, block_group));
-	le16_add_cpu(&desc->bg_free_blocks_count, blocks_freed);
+	blk_free_count = blocks_freed + ext4_free_blks_count(sb, desc);
+	ext4_free_blks_set(sb, desc, blk_free_count);
 	desc->bg_checksum = ext4_group_desc_csum(sbi, block_group, desc);
 	spin_unlock(sb_bgl_lock(sbi, block_group));
 	percpu_counter_add(&sbi->s_freeblocks_counter, blocks_freed);
@@ -685,7 +686,7 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 		gdp = ext4_get_group_desc(sb, i, NULL);
 		if (!gdp)
 			continue;
-		desc_count += le16_to_cpu(gdp->bg_free_blocks_count);
+		desc_count += ext4_free_blks_count(sb, gdp);
 	}
 
 	return desc_count;

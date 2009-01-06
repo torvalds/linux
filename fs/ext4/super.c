@@ -93,6 +93,38 @@ ext4_fsblk_t ext4_inode_table(struct super_block *sb,
 		(ext4_fsblk_t)le32_to_cpu(bg->bg_inode_table_hi) << 32 : 0);
 }
 
+__u32 ext4_free_blks_count(struct super_block *sb,
+			      struct ext4_group_desc *bg)
+{
+	return le16_to_cpu(bg->bg_free_blocks_count_lo) |
+		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
+		(__u32)le16_to_cpu(bg->bg_free_blocks_count_hi) << 16 : 0);
+}
+
+__u32 ext4_free_inodes_count(struct super_block *sb,
+			      struct ext4_group_desc *bg)
+{
+	return le16_to_cpu(bg->bg_free_inodes_count_lo) |
+		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
+		(__u32)le16_to_cpu(bg->bg_free_inodes_count_hi) << 16 : 0);
+}
+
+__u32 ext4_used_dirs_count(struct super_block *sb,
+			      struct ext4_group_desc *bg)
+{
+	return le16_to_cpu(bg->bg_used_dirs_count_lo) |
+		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
+		(__u32)le16_to_cpu(bg->bg_used_dirs_count_hi) << 16 : 0);
+}
+
+__u32 ext4_itable_unused_count(struct super_block *sb,
+			      struct ext4_group_desc *bg)
+{
+	return le16_to_cpu(bg->bg_itable_unused_lo) |
+		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
+		(__u32)le16_to_cpu(bg->bg_itable_unused_hi) << 16 : 0);
+}
+
 void ext4_block_bitmap_set(struct super_block *sb,
 			   struct ext4_group_desc *bg, ext4_fsblk_t blk)
 {
@@ -115,6 +147,38 @@ void ext4_inode_table_set(struct super_block *sb,
 	bg->bg_inode_table_lo = cpu_to_le32((u32)blk);
 	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
 		bg->bg_inode_table_hi = cpu_to_le32(blk >> 32);
+}
+
+void ext4_free_blks_set(struct super_block *sb,
+			  struct ext4_group_desc *bg, __u32 count)
+{
+	bg->bg_free_blocks_count_lo = cpu_to_le16((__u16)count);
+	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
+		bg->bg_free_blocks_count_hi = cpu_to_le16(count >> 16);
+}
+
+void ext4_free_inodes_set(struct super_block *sb,
+			  struct ext4_group_desc *bg, __u32 count)
+{
+	bg->bg_free_inodes_count_lo = cpu_to_le16((__u16)count);
+	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
+		bg->bg_free_inodes_count_hi = cpu_to_le16(count >> 16);
+}
+
+void ext4_used_dirs_set(struct super_block *sb,
+			  struct ext4_group_desc *bg, __u32 count)
+{
+	bg->bg_used_dirs_count_lo = cpu_to_le16((__u16)count);
+	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
+		bg->bg_used_dirs_count_hi = cpu_to_le16(count >> 16);
+}
+
+void ext4_itable_unused_set(struct super_block *sb,
+			  struct ext4_group_desc *bg, __u32 count)
+{
+	bg->bg_itable_unused_lo = cpu_to_le16((__u16)count);
+	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
+		bg->bg_itable_unused_hi = cpu_to_le16(count >> 16);
 }
 
 /*
@@ -1561,9 +1625,9 @@ static int ext4_fill_flex_info(struct super_block *sb)
 
 		flex_group = ext4_flex_group(sbi, i);
 		sbi->s_flex_groups[flex_group].free_inodes +=
-			le16_to_cpu(gdp->bg_free_inodes_count);
+			ext4_free_inodes_count(sb, gdp);
 		sbi->s_flex_groups[flex_group].free_blocks +=
-			le16_to_cpu(gdp->bg_free_blocks_count);
+			ext4_free_blks_count(sb, gdp);
 	}
 
 	return 1;

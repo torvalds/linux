@@ -2515,7 +2515,7 @@ int ext4_mb_add_groupinfo(struct super_block *sb, ext4_group_t group,
 			ext4_free_blocks_after_init(sb, group, desc);
 	} else {
 		meta_group_info[i]->bb_free =
-			le16_to_cpu(desc->bg_free_blocks_count);
+			ext4_free_blks_count(sb, desc);
 	}
 
 	INIT_LIST_HEAD(&meta_group_info[i]->bb_prealloc_list);
@@ -3046,12 +3046,12 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 				ac->ac_b_ex.fe_start, ac->ac_b_ex.fe_len);
 	if (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
 		gdp->bg_flags &= cpu_to_le16(~EXT4_BG_BLOCK_UNINIT);
-		gdp->bg_free_blocks_count =
-			cpu_to_le16(ext4_free_blocks_after_init(sb,
-						ac->ac_b_ex.fe_group,
-						gdp));
+		ext4_free_blks_set(sb, gdp,
+					ext4_free_blocks_after_init(sb,
+					ac->ac_b_ex.fe_group, gdp));
 	}
-	le16_add_cpu(&gdp->bg_free_blocks_count, -ac->ac_b_ex.fe_len);
+	len = ext4_free_blks_count(sb, gdp) - ac->ac_b_ex.fe_len;
+	ext4_free_blks_set(sb, gdp, len);
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, ac->ac_b_ex.fe_group, gdp);
 	spin_unlock(sb_bgl_lock(sbi, ac->ac_b_ex.fe_group));
 	percpu_counter_sub(&sbi->s_freeblocks_counter, ac->ac_b_ex.fe_len);
@@ -4823,7 +4823,8 @@ do_more:
 	}
 
 	spin_lock(sb_bgl_lock(sbi, block_group));
-	le16_add_cpu(&gdp->bg_free_blocks_count, count);
+	ret = ext4_free_blks_count(sb, gdp) + count;
+	ext4_free_blks_set(sb, gdp, ret);
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, block_group, gdp);
 	spin_unlock(sb_bgl_lock(sbi, block_group));
 	percpu_counter_add(&sbi->s_freeblocks_counter, count);

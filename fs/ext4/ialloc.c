@@ -76,9 +76,9 @@ unsigned ext4_init_inode_bitmap(struct super_block *sb, struct buffer_head *bh,
 	if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
 		ext4_error(sb, __func__, "Checksum bad for group %u",
 			   block_group);
-		gdp->bg_free_blocks_count = 0;
-		gdp->bg_free_inodes_count = 0;
-		gdp->bg_itable_unused = 0;
+		ext4_free_blks_set(sb, gdp, 0);
+		ext4_free_inodes_set(sb, gdp, 0);
+		ext4_itable_unused_set(sb, gdp, 0);
 		memset(bh->b_data, 0xff, sb->s_blocksize);
 		return 0;
 	}
@@ -168,7 +168,7 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	struct ext4_group_desc *gdp;
 	struct ext4_super_block *es;
 	struct ext4_sb_info *sbi;
-	int fatal = 0, err;
+	int fatal = 0, err, count;
 	ext4_group_t flex_group;
 
 	if (atomic_read(&inode->i_count) > 1) {
@@ -236,9 +236,12 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 
 		if (gdp) {
 			spin_lock(sb_bgl_lock(sbi, block_group));
-			le16_add_cpu(&gdp->bg_free_inodes_count, 1);
-			if (is_directory)
-				le16_add_cpu(&gdp->bg_used_dirs_count, -1);
+			count = ext4_free_inodes_count(sb, gdp) + 1;
+			ext4_free_inodes_set(sb, gdp, count);
+			if (is_directory) {
+				count = ext4_used_dirs_count(sb, gdp) - 1;
+				ext4_used_dirs_set(sb, gdp, count);
+			}
 			gdp->bg_checksum = ext4_group_desc_csum(sbi,
 							block_group, gdp);
 			spin_unlock(sb_bgl_lock(sbi, block_group));
@@ -291,13 +294,13 @@ static int find_group_dir(struct super_block *sb, struct inode *parent,
 
 	for (group = 0; group < ngroups; group++) {
 		desc = ext4_get_group_desc(sb, group, NULL);
-		if (!desc || !desc->bg_free_inodes_count)
+		if (!desc || !ext4_free_inodes_count(sb, desc))
 			continue;
-		if (le16_to_cpu(desc->bg_free_inodes_count) < avefreei)
+		if (ext4_free_inodes_count(sb, desc) < avefreei)
 			continue;
 		if (!best_desc ||
-		    (le16_to_cpu(desc->bg_free_blocks_count) >
-		     le16_to_cpu(best_desc->bg_free_blocks_count))) {
+		    (ext4_free_blks_count(sb, desc) >
+		     ext4_free_blks_count(sb, best_desc))) {
 			*best_group = group;
 			best_desc = desc;
 			ret = 0;
@@ -369,7 +372,7 @@ found_flexbg:
 	for (i = best_flex * flex_size; i < ngroups &&
 		     i < (best_flex + 1) * flex_size; i++) {
 		desc = ext4_get_group_desc(sb, i, &bh);
-		if (le16_to_cpu(desc->bg_free_inodes_count)) {
+		if (ext4_free_inodes_count(sb, desc)) {
 			*best_group = i;
 			goto out;
 		}
@@ -443,17 +446,17 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 		for (i = 0; i < ngroups; i++) {
 			grp = (parent_group + i) % ngroups;
 			desc = ext4_get_group_desc(sb, grp, NULL);
-			if (!desc || !desc->bg_free_inodes_count)
+			if (!desc || !ext4_free_inodes_count(sb, desc))
 				continue;
-			if (le16_to_cpu(desc->bg_used_dirs_count) >= best_ndir)
+			if (ext4_used_dirs_count(sb, desc) >= best_ndir)
 				continue;
-			if (le16_to_cpu(desc->bg_free_inodes_count) < avefreei)
+			if (ext4_free_inodes_count(sb, desc) < avefreei)
 				continue;
-			if (le16_to_cpu(desc->bg_free_blocks_count) < avefreeb)
+			if (ext4_free_blks_count(sb, desc) < avefreeb)
 				continue;
 			*group = grp;
 			ret = 0;
-			best_ndir = le16_to_cpu(desc->bg_used_dirs_count);
+			best_ndir = ext4_used_dirs_count(sb, desc);
 		}
 		if (ret == 0)
 			return ret;
@@ -479,13 +482,13 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	for (i = 0; i < ngroups; i++) {
 		*group = (parent_group + i) % ngroups;
 		desc = ext4_get_group_desc(sb, *group, NULL);
-		if (!desc || !desc->bg_free_inodes_count)
+		if (!desc || !ext4_free_inodes_count(sb, desc))
 			continue;
-		if (le16_to_cpu(desc->bg_used_dirs_count) >= max_dirs)
+		if (ext4_used_dirs_count(sb, desc) >= max_dirs)
 			continue;
-		if (le16_to_cpu(desc->bg_free_inodes_count) < min_inodes)
+		if (ext4_free_inodes_count(sb, desc) < min_inodes)
 			continue;
-		if (le16_to_cpu(desc->bg_free_blocks_count) < min_blocks)
+		if (ext4_free_blks_count(sb, desc) < min_blocks)
 			continue;
 		return 0;
 	}
@@ -494,8 +497,8 @@ fallback:
 	for (i = 0; i < ngroups; i++) {
 		*group = (parent_group + i) % ngroups;
 		desc = ext4_get_group_desc(sb, *group, NULL);
-		if (desc && desc->bg_free_inodes_count &&
-			le16_to_cpu(desc->bg_free_inodes_count) >= avefreei)
+		if (desc && ext4_free_inodes_count(sb, desc) &&
+			ext4_free_inodes_count(sb, desc) >= avefreei)
 			return 0;
 	}
 
@@ -524,8 +527,8 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	 */
 	*group = parent_group;
 	desc = ext4_get_group_desc(sb, *group, NULL);
-	if (desc && le16_to_cpu(desc->bg_free_inodes_count) &&
-			le16_to_cpu(desc->bg_free_blocks_count))
+	if (desc && ext4_free_inodes_count(sb, desc) &&
+			ext4_free_blks_count(sb, desc))
 		return 0;
 
 	/*
@@ -548,8 +551,8 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 		if (*group >= ngroups)
 			*group -= ngroups;
 		desc = ext4_get_group_desc(sb, *group, NULL);
-		if (desc && le16_to_cpu(desc->bg_free_inodes_count) &&
-				le16_to_cpu(desc->bg_free_blocks_count))
+		if (desc && ext4_free_inodes_count(sb, desc) &&
+				ext4_free_blks_count(sb, desc))
 			return 0;
 	}
 
@@ -562,7 +565,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 		if (++*group >= ngroups)
 			*group = 0;
 		desc = ext4_get_group_desc(sb, *group, NULL);
-		if (desc && le16_to_cpu(desc->bg_free_inodes_count))
+		if (desc && ext4_free_inodes_count(sb, desc))
 			return 0;
 	}
 
@@ -591,7 +594,7 @@ struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode)
 	struct ext4_super_block *es;
 	struct ext4_inode_info *ei;
 	struct ext4_sb_info *sbi;
-	int ret2, err = 0;
+	int ret2, err = 0, count;
 	struct inode *ret;
 	ext4_group_t i;
 	int free = 0;
@@ -718,7 +721,7 @@ got:
 		if (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
 			gdp->bg_flags &= cpu_to_le16(~EXT4_BG_BLOCK_UNINIT);
 			free = ext4_free_blocks_after_init(sb, group, gdp);
-			gdp->bg_free_blocks_count = cpu_to_le16(free);
+			ext4_free_blks_set(sb, gdp, free);
 			gdp->bg_checksum = ext4_group_desc_csum(sbi, group,
 								gdp);
 		}
@@ -753,7 +756,7 @@ got:
 			free = 0;
 		} else {
 			free = EXT4_INODES_PER_GROUP(sb) -
-				le16_to_cpu(gdp->bg_itable_unused);
+				ext4_itable_unused_count(sb, gdp);
 		}
 
 		/*
@@ -763,13 +766,15 @@ got:
 		 *
 		 */
 		if (ino > free)
-			gdp->bg_itable_unused =
-				cpu_to_le16(EXT4_INODES_PER_GROUP(sb) - ino);
+			ext4_itable_unused_set(sb, gdp,
+					(EXT4_INODES_PER_GROUP(sb) - ino));
 	}
 
-	le16_add_cpu(&gdp->bg_free_inodes_count, -1);
+	count = ext4_free_inodes_count(sb, gdp) - 1;
+	ext4_free_inodes_set(sb, gdp, count);
 	if (S_ISDIR(mode)) {
-		le16_add_cpu(&gdp->bg_used_dirs_count, 1);
+		count = ext4_used_dirs_count(sb, gdp) + 1;
+		ext4_used_dirs_set(sb, gdp, count);
 	}
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, group, gdp);
 	spin_unlock(sb_bgl_lock(sbi, group));
@@ -987,7 +992,7 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 		gdp = ext4_get_group_desc(sb, i, NULL);
 		if (!gdp)
 			continue;
-		desc_count += le16_to_cpu(gdp->bg_free_inodes_count);
+		desc_count += ext4_free_inodes_count(sb, gdp);
 		brelse(bitmap_bh);
 		bitmap_bh = ext4_read_inode_bitmap(sb, i);
 		if (!bitmap_bh)
@@ -995,7 +1000,7 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 
 		x = ext4_count_free(bitmap_bh, EXT4_INODES_PER_GROUP(sb) / 8);
 		printk(KERN_DEBUG "group %lu: stored = %d, counted = %lu\n",
-			i, le16_to_cpu(gdp->bg_free_inodes_count), x);
+			i, ext4_free_inodes_count(sb, gdp), x);
 		bitmap_count += x;
 	}
 	brelse(bitmap_bh);
@@ -1009,7 +1014,7 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 		gdp = ext4_get_group_desc(sb, i, NULL);
 		if (!gdp)
 			continue;
-		desc_count += le16_to_cpu(gdp->bg_free_inodes_count);
+		desc_count += ext4_free_inodes_count(sb, gdp);
 		cond_resched();
 	}
 	return desc_count;
@@ -1026,7 +1031,7 @@ unsigned long ext4_count_dirs(struct super_block * sb)
 		struct ext4_group_desc *gdp = ext4_get_group_desc(sb, i, NULL);
 		if (!gdp)
 			continue;
-		count += le16_to_cpu(gdp->bg_used_dirs_count);
+		count += ext4_used_dirs_count(sb, gdp);
 	}
 	return count;
 }

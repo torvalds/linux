@@ -156,12 +156,12 @@ struct ext4_group_desc
 	__le32	bg_block_bitmap_lo;	/* Blocks bitmap block */
 	__le32	bg_inode_bitmap_lo;	/* Inodes bitmap block */
 	__le32	bg_inode_table_lo;	/* Inodes table block */
-	__le16	bg_free_blocks_count;	/* Free blocks count */
-	__le16	bg_free_inodes_count;	/* Free inodes count */
-	__le16	bg_used_dirs_count;	/* Directories count */
+	__le16	bg_free_blocks_count_lo;/* Free blocks count */
+	__le16	bg_free_inodes_count_lo;/* Free inodes count */
+	__le16	bg_used_dirs_count_lo;	/* Directories count */
 	__le16	bg_flags;		/* EXT4_BG_flags (INODE_UNINIT, etc) */
 	__u32	bg_reserved[2];		/* Likely block/inode bitmap checksum */
-	__le16  bg_itable_unused;	/* Unused inodes count */
+	__le16  bg_itable_unused_lo;	/* Unused inodes count */
 	__le16  bg_checksum;		/* crc16(sb_uuid+group+desc) */
 	__le32	bg_block_bitmap_hi;	/* Blocks bitmap block MSB */
 	__le32	bg_inode_bitmap_hi;	/* Inodes bitmap block MSB */
@@ -169,7 +169,7 @@ struct ext4_group_desc
 	__le16	bg_free_blocks_count_hi;/* Free blocks count MSB */
 	__le16	bg_free_inodes_count_hi;/* Free inodes count MSB */
 	__le16	bg_used_dirs_count_hi;	/* Directories count MSB */
-	__le16	bg_itable_unused_hi;	/* Unused inodes count MSB */
+	__le16  bg_itable_unused_hi;    /* Unused inodes count MSB */
 	__u32	bg_reserved2[3];
 };
 
@@ -1142,12 +1142,28 @@ extern ext4_fsblk_t ext4_inode_bitmap(struct super_block *sb,
 				      struct ext4_group_desc *bg);
 extern ext4_fsblk_t ext4_inode_table(struct super_block *sb,
 				     struct ext4_group_desc *bg);
+extern __u32 ext4_free_blks_count(struct super_block *sb,
+				struct ext4_group_desc *bg);
+extern __u32 ext4_free_inodes_count(struct super_block *sb,
+				 struct ext4_group_desc *bg);
+extern __u32 ext4_used_dirs_count(struct super_block *sb,
+				struct ext4_group_desc *bg);
+extern __u32 ext4_itable_unused_count(struct super_block *sb,
+				   struct ext4_group_desc *bg);
 extern void ext4_block_bitmap_set(struct super_block *sb,
 				  struct ext4_group_desc *bg, ext4_fsblk_t blk);
 extern void ext4_inode_bitmap_set(struct super_block *sb,
 				  struct ext4_group_desc *bg, ext4_fsblk_t blk);
 extern void ext4_inode_table_set(struct super_block *sb,
 				 struct ext4_group_desc *bg, ext4_fsblk_t blk);
+extern void ext4_free_blks_set(struct super_block *sb,
+			       struct ext4_group_desc *bg, __u32 count);
+extern void ext4_free_inodes_set(struct super_block *sb,
+				struct ext4_group_desc *bg, __u32 count);
+extern void ext4_used_dirs_set(struct super_block *sb,
+				struct ext4_group_desc *bg, __u32 count);
+extern void ext4_itable_unused_set(struct super_block *sb,
+				   struct ext4_group_desc *bg, __u32 count);
 
 static inline ext4_fsblk_t ext4_blocks_count(struct ext4_super_block *es)
 {
