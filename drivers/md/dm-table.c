@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001 Sistina Software (UK) Limited.
- * Copyright (C) 2004 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
+#include <linux/delay.h>
 #include <asm/atomic.h>
 
 #define DM_MSG_PREFIX "table"
@@ -23,6 +24,19 @@
 #define NODE_SIZE L1_CACHE_BYTES
 #define KEYS_PER_NODE (NODE_SIZE / sizeof(sector_t))
 #define CHILDREN_PER_NODE (KEYS_PER_NODE + 1)
+
+/*
+ * The table has always exactly one reference from either mapped_device->map
+ * or hash_cell->new_map. This reference is not counted in table->holders.
+ * A pair of dm_create_table/dm_destroy_table functions is used for table
+ * creation/destruction.
+ *
+ * Temporary references from the other code increase table->holders. A pair
+ * of dm_table_get/dm_table_put functions is used to manipulate it.
+ *
+ * When the table is about to be destroyed, we wait for table->holders to
+ * drop to zero.
+ */
 
 struct dm_table {
 	struct mapped_device *md;
@@ -228,7 +242,7 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&t->devices);
-	atomic_set(&t->holders, 1);
+	atomic_set(&t->holders, 0);
 	t->barriers_supported = 1;
 
 	if (!num_targets)
@@ -259,9 +273,13 @@ static void free_devices(struct list_head *devices)
 	}
 }
 
-static void table_destroy(struct dm_table *t)
+void dm_table_destroy(struct dm_table *t)
 {
 	unsigned int i;
+
+	while (atomic_read(&t->holders))
+		msleep(1);
+	smp_mb();
 
 	/* free the indexes (see dm_table_complete) */
 	if (t->depth >= 2)
@@ -300,8 +318,8 @@ void dm_table_put(struct dm_table *t)
 	if (!t)
 		return;
 
-	if (atomic_dec_and_test(&t->holders))
-		table_destroy(t);
+	smp_mb__before_atomic_dec();
+	atomic_dec(&t->holders);
 }
 
 /*

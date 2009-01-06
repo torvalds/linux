@@ -977,8 +977,6 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
 	struct mapped_device *md = congested_data;
 	struct dm_table *map;
 
-	atomic_inc(&md->pending);
-
 	if (!test_bit(DMF_BLOCK_IO, &md->flags)) {
 		map = dm_get_table(md);
 		if (map) {
@@ -986,10 +984,6 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
 			dm_table_put(map);
 		}
 	}
-
-	if (!atomic_dec_return(&md->pending))
-		/* nudge anyone waiting on suspend queue */
-		wake_up(&md->wait);
 
 	return r;
 }
@@ -1250,10 +1244,12 @@ static int __bind(struct mapped_device *md, struct dm_table *t)
 
 	if (md->suspended_bdev)
 		__set_size(md, size);
-	if (size == 0)
-		return 0;
 
-	dm_table_get(t);
+	if (!size) {
+		dm_table_destroy(t);
+		return 0;
+	}
+
 	dm_table_event_callback(t, event_callback, md);
 
 	write_lock(&md->map_lock);
@@ -1275,7 +1271,7 @@ static void __unbind(struct mapped_device *md)
 	write_lock(&md->map_lock);
 	md->map = NULL;
 	write_unlock(&md->map_lock);
-	dm_table_put(map);
+	dm_table_destroy(map);
 }
 
 /*
