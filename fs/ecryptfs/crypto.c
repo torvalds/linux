@@ -1931,7 +1931,7 @@ static unsigned char *portable_filename_chars = ("-.0123456789ABCD"
 
 /* We could either offset on every reverse map or just pad some 0x00's
  * at the front here */
-static unsigned char filename_rev_map[] = {
+static const unsigned char filename_rev_map[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 7 */
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 15 */
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 23 */
@@ -2012,16 +2012,30 @@ out:
 	return;
 }
 
-int ecryptfs_decode_from_filename(unsigned char *dst, size_t *dst_size,
-				  const unsigned char *src, size_t src_size)
+/**
+ * ecryptfs_decode_from_filename
+ * @dst: If NULL, this function only sets @dst_size and returns. If
+ *       non-NULL, this function decodes the encoded octets in @src
+ *       into the memory that @dst points to.
+ * @dst_size: Set to the size of the decoded string.
+ * @src: The encoded set of octets to decode.
+ * @src_size: The size of the encoded set of octets to decode.
+ */
+static void
+ecryptfs_decode_from_filename(unsigned char *dst, size_t *dst_size,
+			      const unsigned char *src, size_t src_size)
 {
 	u8 current_bit_offset = 0;
 	size_t src_byte_offset = 0;
 	size_t dst_byte_offset = 0;
-	int rc = 0;
 
 	if (dst == NULL) {
-		/* Not exact; conservatively long */
+		/* Not exact; conservatively long. Every block of 4
+		 * encoded characters decodes into a block of 3
+		 * decoded characters. This segment of code provides
+		 * the caller with the maximum amount of allocated
+		 * space that @dst will need to point to in a
+		 * subsequent call. */
 		(*dst_size) = (((src_size + 1) * 3) / 4);
 		goto out;
 	}
@@ -2055,7 +2069,7 @@ int ecryptfs_decode_from_filename(unsigned char *dst, size_t *dst_size,
 	}
 	(*dst_size) = dst_byte_offset;
 out:
-	return rc;
+	return;
 }
 
 /**
@@ -2208,16 +2222,8 @@ int ecryptfs_decode_and_decrypt_filename(char **plaintext_name,
 
 		name += ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE;
 		name_size -= ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE;
-		rc = ecryptfs_decode_from_filename(NULL, &decoded_name_size,
-						   name, name_size);
-		if (rc) {
-			printk(KERN_ERR "%s: Error attempting to decode "
-			       "filename; rc = [%d]\n", __func__, rc);
-			rc = ecryptfs_copy_filename(plaintext_name,
-						    plaintext_name_size,
-						    orig_name, orig_name_size);
-			goto out;
-		}
+		ecryptfs_decode_from_filename(NULL, &decoded_name_size,
+					      name, name_size);
 		decoded_name = kmalloc(decoded_name_size, GFP_KERNEL);
 		if (!decoded_name) {
 			printk(KERN_ERR "%s: Out of memory whilst attempting "
@@ -2226,17 +2232,8 @@ int ecryptfs_decode_and_decrypt_filename(char **plaintext_name,
 			rc = -ENOMEM;
 			goto out;
 		}
-		rc = ecryptfs_decode_from_filename(decoded_name,
-						   &decoded_name_size,
-						   name, name_size);
-		if (rc) {
-			printk(KERN_ERR "%s: Error attempting to decode "
-			       "filename; rc = [%d]\n", __func__, rc);
-			rc = ecryptfs_copy_filename(plaintext_name,
-						    plaintext_name_size,
-						    orig_name, orig_name_size);
-			goto out_free;
-		}
+		ecryptfs_decode_from_filename(decoded_name, &decoded_name_size,
+					      name, name_size);
 		rc = ecryptfs_parse_tag_70_packet(plaintext_name,
 						  plaintext_name_size,
 						  &packet_size,
