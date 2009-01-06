@@ -308,7 +308,7 @@ int capable(int cap)
 		BUG();
 	}
 
-	if (security_capable(cap) == 0) {
+	if (has_capability(current, cap)) {
 		current->flags |= PF_SUPERPRIV;
 		return 1;
 	}

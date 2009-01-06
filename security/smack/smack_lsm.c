@@ -2827,7 +2827,6 @@ struct security_operations smack_ops = {
 	.capget = 			cap_capget,
 	.capset = 			cap_capset,
 	.capable = 			cap_capable,
-	.task_capable = 		cap_task_capable,
 	.syslog = 			smack_syslog,
 	.settime = 			cap_settime,
 	.vm_enough_memory = 		cap_vm_enough_memory,

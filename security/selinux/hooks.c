@@ -1433,13 +1433,12 @@ static int current_has_perm(const struct task_struct *tsk,
 
 /* Check whether a task is allowed to use a capability. */
 static int task_has_capability(struct task_struct *tsk,
-			       const struct cred *cred,
 			       int cap, int audit)
 {
 	struct avc_audit_data ad;
 	struct av_decision avd;
 	u16 sclass;
-	u32 sid = cred_sid(cred);
+	u32 sid = task_sid(tsk);
 	u32 av = CAP_TO_MASK(cap);
 	int rc;
 
@@ -1866,27 +1865,15 @@ static int selinux_capset(struct cred *new, const struct cred *old,
 	return cred_has_perm(old, new, PROCESS__SETCAP);
 }
 
-static int selinux_capable(int cap, int audit)
+static int selinux_capable(struct task_struct *tsk, int cap, int audit)
 {
 	int rc;
 
-	rc = secondary_ops->capable(cap, audit);
+	rc = secondary_ops->capable(tsk, cap, audit);
 	if (rc)
 		return rc;
 
-	return task_has_capability(current, current_cred(), cap, audit);
-}
-
-static int selinux_task_capable(struct task_struct *tsk,
-				const struct cred *cred, int cap, int audit)
-{
-	int rc;
-
-	rc = secondary_ops->task_capable(tsk, cred, cap, audit);
-	if (rc)
-		return rc;
-
-	return task_has_capability(tsk, cred, cap, audit);
+	return task_has_capability(tsk, cap, audit);
 }
 
 static int selinux_sysctl_get_sid(ctl_table *table, u16 tclass, u32 *sid)
@@ -2050,7 +2037,7 @@ static int selinux_vm_enough_memory(struct mm_struct *mm, long pages)
 {
 	int rc, cap_sys_admin = 0;
 
-	rc = selinux_capable(CAP_SYS_ADMIN, SECURITY_CAP_NOAUDIT);
+	rc = selinux_capable(current, CAP_SYS_ADMIN, SECURITY_CAP_NOAUDIT);
 	if (rc == 0)
 		cap_sys_admin = 1;
 
@@ -2893,7 +2880,7 @@ static int selinux_inode_getsecurity(const struct inode *inode, const char *name
 	 * and lack of permission just means that we fall back to the
 	 * in-core context value, not a denial.
 	 */
-	error = selinux_capable(CAP_MAC_ADMIN, SECURITY_CAP_NOAUDIT);
+	error = selinux_capable(current, CAP_MAC_ADMIN, SECURITY_CAP_NOAUDIT);
 	if (!error)
 		error = security_sid_to_context_force(isec->sid, &context,
 						      &size);
@@ -5581,7 +5568,6 @@ static struct security_operations selinux_ops = {
 	.capset =			selinux_capset,
 	.sysctl =			selinux_sysctl,
 	.capable =			selinux_capable,
-	.task_capable =			selinux_task_capable,
 	.quotactl =			selinux_quotactl,
 	.quota_on =			selinux_quota_on,
 	.syslog =			selinux_syslog,

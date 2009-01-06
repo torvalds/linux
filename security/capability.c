@@ -826,7 +826,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, capset);
 	set_to_cap_if_null(ops, acct);
 	set_to_cap_if_null(ops, capable);
-	set_to_cap_if_null(ops, task_capable);
 	set_to_cap_if_null(ops, quotactl);
 	set_to_cap_if_null(ops, quota_on);
 	set_to_cap_if_null(ops, sysctl);
