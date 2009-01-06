@@ -1117,6 +1117,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.
 
+	lmb=debug	[KNL] Enable lmb debug messages.
+
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
 			See Documentation/blockdev/ramdisk.txt.
 
@@ -1568,6 +1570,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/sysctl/vm.txt for details.
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
+
+	ohci1394_dma=early	[HW] enable debugging via the ohci1394 driver.
+			See Documentation/debugging-via-ohci1394.txt for more
+			info.
 
 	olpc_ec_timeout= [OLPC] ms delay when issuing EC commands
 			Rather than timing out after 20 ms if an EC
