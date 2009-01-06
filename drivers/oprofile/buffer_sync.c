@@ -524,6 +524,7 @@ void sync_buffer(int cpu)
 {
 	struct mm_struct *mm = NULL;
 	struct mm_struct *oldmm;
+	unsigned long val;
 	struct task_struct *new;
 	unsigned long cookie = 0;
 	int in_kernel = 1;
@@ -559,10 +560,11 @@ void sync_buffer(int cpu)
 					state = sb_sample_start;
 				add_kernel_ctx_switch(flags & IS_KERNEL);
 			}
-			if (flags & USER_CTX_SWITCH) {
+			if (flags & USER_CTX_SWITCH
+			    && op_cpu_buffer_get_data(&entry, &val)) {
 				/* userspace context switch */
+				new = (struct task_struct *)val;
 				oldmm = mm;
-				new = (struct task_struct *)sample->data[0];
 				release_mm(oldmm);
 				mm = take_tasks_mm(new);
 				if (mm != oldmm)

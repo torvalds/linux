@@ -90,6 +90,26 @@ int op_cpu_buffer_add_data(struct op_entry *entry, unsigned long val)
 	return entry->size;
 }
 
+/* returns the size of data in the entry */
+static inline
+int op_cpu_buffer_get_size(struct op_entry *entry)
+{
+	return entry->size;
+}
+
+/* returns 0 if empty or the size of data including the current value */
+static inline
+int op_cpu_buffer_get_data(struct op_entry *entry, unsigned long *val)
+{
+	int size = entry->size;
+	if (!size)
+		return 0;
+	*val = *entry->data;
+	entry->size--;
+	entry->data++;
+	return size;
+}
+
 /* extra data flags */
 #define KERNEL_CTX_SWITCH	(1UL << 0)
 #define IS_KERNEL		(1UL << 1)
