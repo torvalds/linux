@@ -767,7 +767,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 			else {
 				if (pte_dirty(ptent))
 					set_page_dirty(page);
-				if (pte_young(ptent))
+				if (pte_young(ptent) &&
+				    likely(!VM_SequentialReadHint(vma)))
 					mark_page_accessed(page);
 				file_rss--;
 			}
