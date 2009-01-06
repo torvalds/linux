@@ -1973,6 +1973,8 @@ static void adjust_link(struct net_device *dev)
 			case 1000:
 				tempval =
 				    ((tempval & ~(MACCFG2_IF)) | MACCFG2_GMII);
+
+				ecntrl &= ~(ECNTRL_R100);
 				break;
 			case 100:
 			case 10:
