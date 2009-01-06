@@ -1461,7 +1461,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	int nr_extents = 0;
 	sector_t span;
 	unsigned long maxpages = 1;
-	int swapfilesize;
+	unsigned long swapfilepages;
 	unsigned short *swap_map = NULL;
 	struct page *page = NULL;
 	struct inode *inode = NULL;
@@ -1539,7 +1539,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		goto bad_swap;
 	}
 
-	swapfilesize = i_size_read(inode) >> PAGE_SHIFT;
+	swapfilepages = i_size_read(inode) >> PAGE_SHIFT;
 
 	/*
 	 * Read the swap header.
@@ -1616,7 +1616,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		error = -EINVAL;
 		if (!maxpages)
 			goto bad_swap;
-		if (swapfilesize && maxpages > swapfilesize) {
+		if (swapfilepages && maxpages > swapfilepages) {
 			printk(KERN_WARNING
 			       "Swap area shorter than signature indicates\n");
 			goto bad_swap;
