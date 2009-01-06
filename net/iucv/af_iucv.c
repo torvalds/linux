@@ -521,6 +521,13 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 		release_sock(sk);
 		return -ECONNREFUSED;
 	}
+
+	if (err) {
+		iucv_path_sever(iucv->path, NULL);
+		iucv_path_free(iucv->path);
+		iucv->path = NULL;
+	}
+
 done:
 	release_sock(sk);
 	return err;
