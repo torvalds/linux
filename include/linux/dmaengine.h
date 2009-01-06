@@ -113,7 +113,7 @@ struct dma_chan_percpu {
  * @device: ptr to the dma device who supplies this channel, always !%NULL
  * @cookie: last cookie value returned to client
  * @chan_id: channel ID for sysfs
- * @class_dev: class device for sysfs
+ * @dev: class device for sysfs
  * @refcount: kref, used in "bigref" slow-mode
  * @slow_ref: indicates that the DMA channel is free
  * @rcu: the DMA channel's RCU head
@@ -128,7 +128,7 @@ struct dma_chan {
 
 	/* sysfs */
 	int chan_id;
-	struct device dev;
+	struct dma_chan_dev *dev;
 
 	struct list_head device_node;
 	struct dma_chan_percpu *local;
@@ -136,7 +136,20 @@ struct dma_chan {
 	int table_count;
 };
 
-#define to_dma_chan(p) container_of(p, struct dma_chan, dev)
+/**
+ * struct dma_chan_dev - relate sysfs device node to backing channel device
+ * @chan - driver channel device
+ * @device - sysfs device
+ */
+struct dma_chan_dev {
+	struct dma_chan *chan;
+	struct device device;
+};
+
+static inline const char *dma_chan_name(struct dma_chan *chan)
+{
+	return dev_name(&chan->dev->device);
+}
 
 void dma_chan_cleanup(struct kref *kref);
 

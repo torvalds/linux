@@ -64,36 +64,75 @@ static long dmaengine_ref_count;
 
 /* --- sysfs implementation --- */
 
+/**
+ * dev_to_dma_chan - convert a device pointer to the its sysfs container object
+ * @dev - device node
+ *
+ * Must be called under dma_list_mutex
+ */
+static struct dma_chan *dev_to_dma_chan(struct device *dev)
+{
+	struct dma_chan_dev *chan_dev;
+
+	chan_dev = container_of(dev, typeof(*chan_dev), device);
+	return chan_dev->chan;
+}
+
 static ssize_t show_memcpy_count(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct dma_chan *chan = to_dma_chan(dev);
+	struct dma_chan *chan;
 	unsigned long count = 0;
 	int i;
+	int err;
 
-	for_each_possible_cpu(i)
-		count += per_cpu_ptr(chan->local, i)->memcpy_count;
+	mutex_lock(&dma_list_mutex);
+	chan = dev_to_dma_chan(dev);
+	if (chan) {
+		for_each_possible_cpu(i)
+			count += per_cpu_ptr(chan->local, i)->memcpy_count;
+		err = sprintf(buf, "%lu\n", count);
+	} else
+		err = -ENODEV;
+	mutex_unlock(&dma_list_mutex);
 
-	return sprintf(buf, "%lu\n", count);
+	return err;
 }
 
 static ssize_t show_bytes_transferred(struct device *dev, struct device_attribute *attr,
 				      char *buf)
 {
-	struct dma_chan *chan = to_dma_chan(dev);
+	struct dma_chan *chan;
 	unsigned long count = 0;
 	int i;
+	int err;
 
-	for_each_possible_cpu(i)
-		count += per_cpu_ptr(chan->local, i)->bytes_transferred;
+	mutex_lock(&dma_list_mutex);
+	chan = dev_to_dma_chan(dev);
+	if (chan) {
+		for_each_possible_cpu(i)
+			count += per_cpu_ptr(chan->local, i)->bytes_transferred;
+		err = sprintf(buf, "%lu\n", count);
+	} else
+		err = -ENODEV;
+	mutex_unlock(&dma_list_mutex);
 
-	return sprintf(buf, "%lu\n", count);
+	return err;
 }
 
 static ssize_t show_in_use(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct dma_chan *chan = to_dma_chan(dev);
+	struct dma_chan *chan;
+	int err;
 
-	return sprintf(buf, "%d\n", chan->client_count);
+	mutex_lock(&dma_list_mutex);
+	chan = dev_to_dma_chan(dev);
+	if (chan)
+		err = sprintf(buf, "%d\n", chan->client_count);
+	else
+		err = -ENODEV;
+	mutex_unlock(&dma_list_mutex);
+
+	return err;
 }
 
 static struct device_attribute dma_attrs[] = {
@@ -103,9 +142,18 @@ static struct device_attribute dma_attrs[] = {
 	__ATTR_NULL
 };
 
+static void chan_dev_release(struct device *dev)
+{
+	struct dma_chan_dev *chan_dev;
+
+	chan_dev = container_of(dev, typeof(*chan_dev), device);
+	kfree(chan_dev);
+}
+
 static struct class dma_devclass = {
 	.name		= "dma",
 	.dev_attrs	= dma_attrs,
+	.dev_release	= chan_dev_release,
 };
 
 /* --- client and device registration --- */
@@ -420,7 +468,7 @@ static struct dma_chan *private_candidate(dma_cap_mask_t *mask, struct dma_devic
 	list_for_each_entry(chan, &dev->channels, device_node) {
 		if (chan->client_count) {
 			pr_debug("%s: %s busy\n",
-				 __func__, dev_name(&chan->dev));
+				 __func__, dma_chan_name(chan));
 			continue;
 		}
 		ret = chan;
@@ -466,22 +514,22 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 
 			if (err == -ENODEV) {
 				pr_debug("%s: %s module removed\n", __func__,
-					 dev_name(&chan->dev));
+					 dma_chan_name(chan));
 				list_del_rcu(&device->global_node);
 			} else if (err)
 				pr_err("dmaengine: failed to get %s: (%d)\n",
-				       dev_name(&chan->dev), err);
+				       dma_chan_name(chan), err);
 			else
 				break;
 		} else
 			pr_debug("%s: %s filter said false\n",
-				 __func__, dev_name(&chan->dev));
+				 __func__, dma_chan_name(chan));
 		chan = NULL;
 	}
 	mutex_unlock(&dma_list_mutex);
 
 	pr_debug("%s: %s (%s)\n", __func__, chan ? "success" : "fail",
-		 chan ? dev_name(&chan->dev) : NULL);
+		 chan ? dma_chan_name(chan) : NULL);
 
 	return chan;
 }
@@ -521,7 +569,7 @@ void dmaengine_get(void)
 				break;
 			} else if (err)
 				pr_err("dmaengine: failed to get %s: (%d)\n",
-				       dev_name(&chan->dev), err);
+				       dma_chan_name(chan), err);
 		}
 	}
 
@@ -601,14 +649,20 @@ int dma_async_device_register(struct dma_device *device)
 		chan->local = alloc_percpu(typeof(*chan->local));
 		if (chan->local == NULL)
 			continue;
+		chan->dev = kzalloc(sizeof(*chan->dev), GFP_KERNEL);
+		if (chan->dev == NULL) {
+			free_percpu(chan->local);
+			continue;
+		}
 
 		chan->chan_id = chancnt++;
-		chan->dev.class = &dma_devclass;
-		chan->dev.parent = device->dev;
-		dev_set_name(&chan->dev, "dma%dchan%d",
+		chan->dev->device.class = &dma_devclass;
+		chan->dev->device.parent = device->dev;
+		chan->dev->chan = chan;
+		dev_set_name(&chan->dev->device, "dma%dchan%d",
 			     device->dev_id, chan->chan_id);
 
-		rc = device_register(&chan->dev);
+		rc = device_register(&chan->dev->device);
 		if (rc) {
 			free_percpu(chan->local);
 			chan->local = NULL;
@@ -645,7 +699,10 @@ err_out:
 	list_for_each_entry(chan, &device->channels, device_node) {
 		if (chan->local == NULL)
 			continue;
-		device_unregister(&chan->dev);
+		mutex_lock(&dma_list_mutex);
+		chan->dev->chan = NULL;
+		mutex_unlock(&dma_list_mutex);
+		device_unregister(&chan->dev->device);
 		free_percpu(chan->local);
 	}
 	return rc;
@@ -672,7 +729,10 @@ void dma_async_device_unregister(struct dma_device *device)
 		WARN_ONCE(chan->client_count,
 			  "%s called while %d clients hold a reference\n",
 			  __func__, chan->client_count);
-		device_unregister(&chan->dev);
+		mutex_lock(&dma_list_mutex);
+		chan->dev->chan = NULL;
+		mutex_unlock(&dma_list_mutex);
+		device_unregister(&chan->dev->device);
 	}
 }
 EXPORT_SYMBOL(dma_async_device_unregister);
@@ -845,7 +905,7 @@ dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
 		return DMA_SUCCESS;
 
 	WARN_ONCE(tx->parent, "%s: speculatively walking dependency chain for"
-		  " %s\n", __func__, dev_name(&tx->chan->dev));
+		  " %s\n", __func__, dma_chan_name(tx->chan));
 
 	/* poll through the dependency chain, return when tx is complete */
 	do {

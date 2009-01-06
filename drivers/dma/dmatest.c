@@ -80,7 +80,7 @@ static bool dmatest_match_channel(struct dma_chan *chan)
 {
 	if (test_channel[0] == '\0')
 		return true;
-	return strcmp(dev_name(&chan->dev), test_channel) == 0;
+	return strcmp(dma_chan_name(chan), test_channel) == 0;
 }
 
 static bool dmatest_match_device(struct dma_device *device)
@@ -325,7 +325,7 @@ static int dmatest_add_channel(struct dma_chan *chan)
 
 	dtc = kmalloc(sizeof(struct dmatest_chan), GFP_KERNEL);
 	if (!dtc) {
-		pr_warning("dmatest: No memory for %s\n", dev_name(&chan->dev));
+		pr_warning("dmatest: No memory for %s\n", dma_chan_name(chan));
 		return -ENOMEM;
 	}
 
@@ -336,16 +336,16 @@ static int dmatest_add_channel(struct dma_chan *chan)
 		thread = kzalloc(sizeof(struct dmatest_thread), GFP_KERNEL);
 		if (!thread) {
 			pr_warning("dmatest: No memory for %s-test%u\n",
-				   dev_name(&chan->dev), i);
+				   dma_chan_name(chan), i);
 			break;
 		}
 		thread->chan = dtc->chan;
 		smp_wmb();
 		thread->task = kthread_run(dmatest_func, thread, "%s-test%u",
-				dev_name(&chan->dev), i);
+				dma_chan_name(chan), i);
 		if (IS_ERR(thread->task)) {
 			pr_warning("dmatest: Failed to run thread %s-test%u\n",
-					dev_name(&chan->dev), i);
+					dma_chan_name(chan), i);
 			kfree(thread);
 			break;
 		}
@@ -355,7 +355,7 @@ static int dmatest_add_channel(struct dma_chan *chan)
 		list_add_tail(&thread->node, &dtc->threads);
 	}
 
-	pr_info("dmatest: Started %u threads using %s\n", i, dev_name(&chan->dev));
+	pr_info("dmatest: Started %u threads using %s\n", i, dma_chan_name(chan));
 
 	list_add_tail(&dtc->node, &dmatest_channels);
 	nr_channels++;
@@ -408,7 +408,7 @@ static void __exit dmatest_exit(void)
 		list_del(&dtc->node);
 		dmatest_cleanup_channel(dtc);
 		pr_debug("dmatest: dropped channel %s\n",
-			 dev_name(&dtc->chan->dev));
+			 dma_chan_name(dtc->chan));
 		dma_release_channel(dtc->chan);
 	}
 }
