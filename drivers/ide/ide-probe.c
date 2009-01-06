@@ -1694,8 +1694,8 @@ void ide_port_scan(ide_hwif_t *hwif)
 	hwif->present = 1;
 
 	ide_port_tune_devices(hwif);
-	ide_acpi_port_init_devices(hwif);
 	ide_port_setup_devices(hwif);
+	ide_acpi_port_init_devices(hwif);
 	hwif_register_devices(hwif);
 	ide_proc_port_register_devices(hwif);
 }
