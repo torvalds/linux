@@ -2966,7 +2966,7 @@ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 {
 	resource_size_t phys_addr;
 	unsigned long prot = 0;
-	void *maddr;
+	void __iomem *maddr;
 	int offset = addr & (PAGE_SIZE-1);
 
 	if (follow_phys(vma, addr, write, &prot, &phys_addr))
