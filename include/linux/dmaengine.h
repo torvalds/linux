@@ -142,10 +142,6 @@ struct dma_chan {
 	int chan_id;
 	struct device dev;
 
-	struct kref refcount;
-	int slow_ref;
-	struct rcu_head rcu;
-
 	struct list_head device_node;
 	struct dma_chan_percpu *local;
 	int client_count;
@@ -232,9 +228,6 @@ struct dma_device {
 	struct list_head global_node;
 	dma_cap_mask_t  cap_mask;
 	int max_xor;
-
-	struct kref refcount;
-	struct completion done;
 
 	int dev_id;
 	struct device *dev;
