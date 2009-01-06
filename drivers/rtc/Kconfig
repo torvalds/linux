@@ -317,7 +317,8 @@ config RTC_DRV_DS1305
 config RTC_DRV_DS1390
 	tristate "Dallas/Maxim DS1390/93/94"
 	help
-	  If you say yes here you get support for the DS1390/93/94 chips.
+	  If you say yes here you get support for the
+	  Dallas/Maxim DS1390/93/94 chips.
 
 	  This driver only supports the RTC feature, and not other chip
 	  features such as alarms and trickle charging.
