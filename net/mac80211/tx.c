@@ -1053,7 +1053,6 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 	if (skb) {
 		if (netif_subqueue_stopped(local->mdev, skb))
 			return IEEE80211_TX_AGAIN;
-		info =  IEEE80211_SKB_CB(skb);
 
 		ret = local->ops->tx(local_to_hw(local), skb);
 		if (ret)
