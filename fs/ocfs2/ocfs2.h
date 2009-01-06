@@ -47,6 +47,9 @@
 #include "ocfs2_fs.h"
 #include "ocfs2_lockid.h"
 
+/* For struct ocfs2_blockcheck_stats */
+#include "blockcheck.h"
+
 /* Most user visible OCFS2 inodes will have very few pieces of
  * metadata, but larger files (including bitmaps, etc) must be taken
  * into account when designing an access scheme. We allow a small
@@ -305,6 +308,7 @@ struct ocfs2_super
 	struct ocfs2_dinode *local_alloc_copy;
 	struct ocfs2_quota_recovery *quota_rec;
 
+	struct ocfs2_blockcheck_stats osb_ecc_stats;
 	struct ocfs2_alloc_stats alloc_stats;
 	char dev_str[20];		/* "major,minor" of the device */
 
