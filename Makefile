@@ -1008,7 +1008,7 @@ define check-symlink
 endef
 
 # We create the target directory of the symlink if it does
-# not exist so the test in chack-symlink works and we have a
+# not exist so the test in check-symlink works and we have a
 # directory for generated filesas used by some architectures.
 define create-symlink
 	if [ ! -L include/asm ]; then                                      \
