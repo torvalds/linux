@@ -488,6 +488,7 @@ MODULE_PARM_DESC(ignore_cable, "ignore cable detection");
 
 void ide_port_apply_params(ide_hwif_t *hwif)
 {
+	ide_drive_t *drive;
 	int i;
 
 	if (ide_ignore_cable & (1 << hwif->index)) {
@@ -496,8 +497,8 @@ void ide_port_apply_params(ide_hwif_t *hwif)
 		hwif->cbl = ATA_CBL_PATA40_SHORT;
 	}
 
-	for (i = 0; i < MAX_DRIVES; i++)
-		ide_dev_apply_params(hwif->devices[i], i);
+	ide_port_for_each_dev(i, drive, hwif)
+		ide_dev_apply_params(drive, i);
 }
 
 /*

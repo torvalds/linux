@@ -697,7 +697,8 @@ out:
 
 static int ide_port_wait_ready(ide_hwif_t *hwif)
 {
-	int unit, rc;
+	ide_drive_t *drive;
+	int i, rc;
 
 	printk(KERN_DEBUG "Probing IDE interface %s...\n", hwif->name);
 
@@ -714,9 +715,7 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 		return rc;
 
 	/* Now make sure both master & slave are ready */
-	for (unit = 0; unit < MAX_DRIVES; unit++) {
-		ide_drive_t *drive = hwif->devices[unit];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		/* Ignore disks that we will not probe for later. */
 		if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0 ||
 		    (drive->dev_flags & IDE_DFLAG_PRESENT)) {
@@ -732,7 +731,7 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 	}
 out:
 	/* Exit function with master reselected (let's be sane) */
-	if (unit)
+	if (i)
 		SELECT_DRIVE(hwif->devices[0]);
 
 	return rc;
@@ -778,9 +777,10 @@ EXPORT_SYMBOL_GPL(ide_undecoded_slave);
 
 static int ide_probe_port(ide_hwif_t *hwif)
 {
+	ide_drive_t *drive;
 	unsigned long flags;
 	unsigned int irqd;
-	int unit, rc = -ENODEV;
+	int i, rc = -ENODEV;
 
 	BUG_ON(hwif->present);
 
@@ -806,9 +806,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	 * Second drive should only exist if first drive was found,
 	 * but a lot of cdrom drives are configured as single slaves.
 	 */
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t *drive = hwif->devices[unit];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		(void) probe_for_drive(drive);
 		if (drive->dev_flags & IDE_DFLAG_PRESENT)
 			rc = 0;
@@ -829,20 +827,17 @@ static int ide_probe_port(ide_hwif_t *hwif)
 static void ide_port_tune_devices(ide_hwif_t *hwif)
 {
 	const struct ide_port_ops *port_ops = hwif->port_ops;
-	int unit;
+	ide_drive_t *drive;
+	int i;
 
-	for (unit = 0; unit < MAX_DRIVES; unit++) {
-		ide_drive_t *drive = hwif->devices[unit];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 			if (port_ops && port_ops->quirkproc)
 				port_ops->quirkproc(drive);
 		}
 	}
 
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t *drive = hwif->devices[unit];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 			ide_set_max_pio(drive);
 
@@ -853,9 +848,7 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 		}
 	}
 
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t *drive = hwif->devices[unit];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		if ((hwif->host_flags & IDE_HFLAG_NO_IO_32BIT) ||
 		    drive->id[ATA_ID_DWORD_IO])
 			drive->dev_flags |= IDE_DFLAG_NO_IO_32BIT;
@@ -927,12 +920,11 @@ static DEFINE_MUTEX(ide_cfg_mtx);
  */
 static int ide_port_setup_devices(ide_hwif_t *hwif)
 {
+	ide_drive_t *drive;
 	int i, j = 0;
 
 	mutex_lock(&ide_cfg_mtx);
-	for (i = 0; i < MAX_DRIVES; i++) {
-		ide_drive_t *drive = hwif->devices[i];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
 
@@ -1161,10 +1153,10 @@ out:
 
 static void hwif_register_devices(ide_hwif_t *hwif)
 {
+	ide_drive_t *drive;
 	unsigned int i;
 
-	for (i = 0; i < MAX_DRIVES; i++) {
-		ide_drive_t *drive = hwif->devices[i];
+	ide_port_for_each_dev(i, drive, hwif) {
 		struct device *dev = &drive->gendev;
 		int ret;
 
@@ -1187,11 +1179,10 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 static void ide_port_init_devices(ide_hwif_t *hwif)
 {
 	const struct ide_port_ops *port_ops = hwif->port_ops;
+	ide_drive_t *drive;
 	int i;
 
-	for (i = 0; i < MAX_DRIVES; i++) {
-		ide_drive_t *drive = hwif->devices[i];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		drive->dn = i + hwif->channel * 2;
 
 		if (hwif->host_flags & IDE_HFLAG_IO_32BIT)
@@ -1282,16 +1273,16 @@ static const u8 ide_hwif_to_major[] =
 
 static void ide_port_init_devices_data(ide_hwif_t *hwif)
 {
-	int unit;
+	ide_drive_t *drive;
+	int i;
 
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t *drive = hwif->devices[unit];
-		u8 j = (hwif->index * MAX_DRIVES) + unit;
+	ide_port_for_each_dev(i, drive, hwif) {
+		u8 j = (hwif->index * MAX_DRIVES) + i;
 
 		memset(drive, 0, sizeof(*drive));
 
 		drive->media			= ide_disk;
-		drive->select			= (unit << 4) | ATA_DEVICE_OBS;
+		drive->select			= (i << 4) | ATA_DEVICE_OBS;
 		drive->hwif			= hwif;
 		drive->ready_stat		= ATA_DRDY;
 		drive->bad_wstat		= BAD_W_STAT;
@@ -1387,10 +1378,11 @@ static void ide_free_port_slot(int idx)
 
 static void ide_port_free_devices(ide_hwif_t *hwif)
 {
+	ide_drive_t *drive;
 	int i;
 
-	for (i = 0; i < MAX_DRIVES; i++)
-		kfree(hwif->devices[i]);
+	ide_port_for_each_dev(i, drive, hwif)
+		kfree(drive);
 }
 
 static int ide_port_alloc_devices(ide_hwif_t *hwif, int node)
@@ -1478,9 +1470,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 	ide_hwif_t *hwif, *mate = NULL;
 	int i, j = 0;
 
-	for (i = 0; i < MAX_HOST_PORTS; i++) {
-		hwif = host->ports[i];
-
+	ide_host_for_each_port(i, hwif, host) {
 		if (hwif == NULL) {
 			mate = NULL;
 			continue;
@@ -1506,9 +1496,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		ide_port_init_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HOST_PORTS; i++) {
-		hwif = host->ports[i];
-
+	ide_host_for_each_port(i, hwif, host) {
 		if (hwif == NULL)
 			continue;
 
@@ -1523,9 +1511,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 			ide_port_tune_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HOST_PORTS; i++) {
-		hwif = host->ports[i];
-
+	ide_host_for_each_port(i, hwif, host) {
 		if (hwif == NULL)
 			continue;
 
@@ -1550,9 +1536,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 			ide_acpi_port_init_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HOST_PORTS; i++) {
-		hwif = host->ports[i];
-
+	ide_host_for_each_port(i, hwif, host) {
 		if (hwif == NULL)
 			continue;
 
@@ -1560,9 +1544,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 			hwif_register_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HOST_PORTS; i++) {
-		hwif = host->ports[i];
-
+	ide_host_for_each_port(i, hwif, host) {
 		if (hwif == NULL)
 			continue;
 
@@ -1602,11 +1584,10 @@ EXPORT_SYMBOL_GPL(ide_host_add);
 
 static void __ide_port_unregister_devices(ide_hwif_t *hwif)
 {
+	ide_drive_t *drive;
 	int i;
 
-	for (i = 0; i < MAX_DRIVES; i++) {
-		ide_drive_t *drive = hwif->devices[i];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 			device_unregister(&drive->gendev);
 			wait_for_completion(&drive->gendev_rel_comp);
@@ -1675,9 +1656,7 @@ void ide_host_free(struct ide_host *host)
 	ide_hwif_t *hwif;
 	int i;
 
-	for (i = 0; i < MAX_HOST_PORTS; i++) {
-		hwif = host->ports[i];
-
+	ide_host_for_each_port(i, hwif, host) {
 		if (hwif == NULL)
 			continue;
 
@@ -1692,11 +1671,12 @@ EXPORT_SYMBOL_GPL(ide_host_free);
 
 void ide_host_remove(struct ide_host *host)
 {
+	ide_hwif_t *hwif;
 	int i;
 
-	for (i = 0; i < MAX_HOST_PORTS; i++) {
-		if (host->ports[i])
-			ide_unregister(host->ports[i]);
+	ide_host_for_each_port(i, hwif, host) {
+		if (hwif)
+			ide_unregister(hwif);
 	}
 
 	ide_host_free(host);

@@ -753,7 +753,7 @@ typedef struct hwif_s {
 
 	unsigned long	sata_scr[SATA_NR_PORTS];
 
-	ide_drive_t	*devices[MAX_DRIVES];
+	ide_drive_t	*devices[MAX_DRIVES + 1];
 
 	u8 major;	/* our major number */
 	u8 index;	/* 0 for ide0; 1 for ide1; ... */
@@ -861,7 +861,7 @@ typedef struct hwif_s {
 #define MAX_HOST_PORTS 4
 
 struct ide_host {
-	ide_hwif_t	*ports[MAX_HOST_PORTS];
+	ide_hwif_t	*ports[MAX_HOST_PORTS + 1];
 	unsigned int	n_ports;
 	struct device	*dev[2];
 	unsigned int	(*init_chipset)(struct pci_dev *);
@@ -1604,4 +1604,11 @@ static inline ide_drive_t *ide_get_pair_dev(ide_drive_t *drive)
 
 	return (peer->dev_flags & IDE_DFLAG_PRESENT) ? peer : NULL;
 }
+
+#define ide_port_for_each_dev(i, dev, port) \
+	for ((i) = 0; ((dev) = (port)->devices[i]) || (i) < MAX_DRIVES; (i)++)
+
+#define ide_host_for_each_port(i, port, host) \
+	for ((i) = 0; ((port) = (host)->ports[i]) || (i) < MAX_HOST_PORTS; (i)++)
+
 #endif /* _IDE_H */

@@ -593,14 +593,13 @@ EXPORT_SYMBOL(ide_proc_unregister_driver);
 
 void ide_proc_port_register_devices(ide_hwif_t *hwif)
 {
-	int	d;
 	struct proc_dir_entry *ent;
 	struct proc_dir_entry *parent = hwif->proc;
+	ide_drive_t *drive;
 	char name[64];
+	int i;
 
-	for (d = 0; d < MAX_DRIVES; d++) {
-		ide_drive_t *drive = hwif->devices[d];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0 || drive->proc)
 			continue;
 

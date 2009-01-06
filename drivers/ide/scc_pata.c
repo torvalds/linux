@@ -406,17 +406,17 @@ static int scc_dma_end(ide_drive_t *drive)
 			data_loss = 1;
 			if (retry++) {
 				struct request *rq = hwif->rq;
-				int unit;
+				ide_drive_t *drive;
+				int i;
+
 				/* ERROR_RESET and drive->crc_count are needed
 				 * to reduce DMA transfer mode in retry process.
 				 */
 				if (rq)
 					rq->errors |= ERROR_RESET;
-				for (unit = 0; unit < MAX_DRIVES; unit++) {
-					ide_drive_t *drive = hwif->devices[unit];
 
+				ide_port_for_each_dev(i, drive, hwif)
 					drive->crc_count++;
-				}
 			}
 		}
 	}

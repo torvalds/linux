@@ -1081,8 +1081,9 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	const struct ide_port_ops *port_ops;
+	ide_drive_t *tdrive;
 	unsigned long flags, timeout;
-	unsigned int unit;
+	int i;
 	DEFINE_WAIT(wait);
 
 	spin_lock_irqsave(&hwif->lock, flags);
@@ -1110,9 +1111,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 
 		prepare_to_wait(&ide_park_wq, &wait, TASK_UNINTERRUPTIBLE);
 		timeout = jiffies;
-		for (unit = 0; unit < MAX_DRIVES; unit++) {
-			ide_drive_t *tdrive = hwif->devices[unit];
-
+		ide_port_for_each_dev(i, tdrive, hwif) {
 			if (tdrive->dev_flags & IDE_DFLAG_PRESENT &&
 			    tdrive->dev_flags & IDE_DFLAG_PARKED &&
 			    time_after(tdrive->sleep, timeout))
@@ -1133,8 +1132,8 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	 * First, reset any device state data we were maintaining
 	 * for any of the drives on this interface.
 	 */
-	for (unit = 0; unit < MAX_DRIVES; ++unit)
-		pre_reset(hwif->devices[unit]);
+	ide_port_for_each_dev(i, tdrive, hwif)
+		pre_reset(tdrive);
 
 	if (io_ports->ctl_addr == 0) {
 		spin_unlock_irqrestore(&hwif->lock, flags);

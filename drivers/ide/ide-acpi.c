@@ -641,7 +641,8 @@ void ide_acpi_push_timing(ide_hwif_t *hwif)
  */
 void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 {
-	int unit;
+	ide_drive_t *drive;
+	int i;
 
 	if (ide_noacpi || ide_noacpi_psx)
 		return;
@@ -655,9 +656,8 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 	/* channel first and then drives for power on and verse versa for power off */
 	if (on)
 		acpi_bus_set_power(hwif->acpidata->obj_handle, ACPI_STATE_D0);
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t *drive = hwif->devices[unit];
 
+	ide_port_for_each_dev(i, drive, hwif) {
 		if (!drive->acpidata->obj_handle)
 			drive->acpidata->obj_handle = ide_acpi_drive_get_handle(drive);
 
@@ -717,9 +717,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	/*
 	 * Send IDENTIFY for each drive
 	 */
-	for (i = 0; i < MAX_DRIVES; i++) {
-		drive = hwif->devices[i];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		memset(drive->acpidata, 0, sizeof(*drive->acpidata));
 
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
@@ -744,9 +742,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	ide_acpi_get_timing(hwif);
 	ide_acpi_push_timing(hwif);
 
-	for (i = 0; i < MAX_DRIVES; i++) {
-		drive = hwif->devices[i];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		if (drive->dev_flags & IDE_DFLAG_PRESENT)
 			/* Execute ACPI startup code */
 			ide_acpi_exec_tfs(drive);
