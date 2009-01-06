@@ -45,18 +45,6 @@ static DEFINE_SPINLOCK(async_tx_lock);
 
 static LIST_HEAD(async_tx_master_list);
 
-/* async_tx_issue_pending_all - start all transactions on all channels */
-void async_tx_issue_pending_all(void)
-{
-	struct dma_chan_ref *ref;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(ref, &async_tx_master_list, node)
-		ref->chan->device->device_issue_pending(ref->chan);
-	rcu_read_unlock();
-}
-EXPORT_SYMBOL_GPL(async_tx_issue_pending_all);
-
 static void
 free_dma_chan_ref(struct rcu_head *rcu)
 {

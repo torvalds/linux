@@ -70,6 +70,7 @@
 #include <linux/rcupdate.h>
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
+#include <linux/rculist.h>
 
 static DEFINE_MUTEX(dma_list_mutex);
 static LIST_HEAD(dma_device_list);
@@ -366,6 +367,26 @@ struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
 EXPORT_SYMBOL(dma_find_channel);
 
 /**
+ * dma_issue_pending_all - flush all pending operations across all channels
+ */
+void dma_issue_pending_all(void)
+{
+	struct dma_device *device;
+	struct dma_chan *chan;
+
+	WARN_ONCE(dmaengine_ref_count == 0,
+		  "client called %s without a reference", __func__);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(device, &dma_device_list, global_node)
+		list_for_each_entry(chan, &device->channels, device_node)
+			if (chan->client_count)
+				device->device_issue_pending(chan);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(dma_issue_pending_all);
+
+/**
  * nth_chan - returns the nth channel of the given capability
  * @cap: capability to match
  * @n: nth channel desired
@@ -490,7 +511,7 @@ void dma_async_client_register(struct dma_client *client)
 			err = dma_chan_get(chan);
 			if (err == -ENODEV) {
 				/* module removed before we could use it */
-				list_del_init(&device->global_node);
+				list_del_rcu(&device->global_node);
 				break;
 			} else if (err)
 				pr_err("dmaengine: failed to get %s: (%d)\n",
@@ -635,7 +656,7 @@ int dma_async_device_register(struct dma_device *device)
 				goto err_out;
 			}
 		}
-	list_add_tail(&device->global_node, &dma_device_list);
+	list_add_tail_rcu(&device->global_node, &dma_device_list);
 	dma_channel_rebalance();
 	mutex_unlock(&dma_list_mutex);
 
@@ -677,7 +698,7 @@ void dma_async_device_unregister(struct dma_device *device)
 	struct dma_chan *chan;
 
 	mutex_lock(&dma_list_mutex);
-	list_del(&device->global_node);
+	list_del_rcu(&device->global_node);
 	dma_channel_rebalance();
 	mutex_unlock(&dma_list_mutex);
 

@@ -2635,14 +2635,7 @@ out:
 	 * There may not be any more sk_buffs coming right now, so push
 	 * any pending DMA copies to hardware
 	 */
-	if (!cpus_empty(net_dma.channel_mask)) {
-		int chan_idx;
-		for_each_cpu_mask_nr(chan_idx, net_dma.channel_mask) {
-			struct dma_chan *chan = net_dma.channels[chan_idx];
-			if (chan)
-				dma_async_memcpy_issue_pending(chan);
-		}
-	}
+	dma_issue_pending_all();
 #endif
 
 	return;
