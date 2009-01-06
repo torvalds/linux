@@ -1005,7 +1005,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 	return page;
 }
 
-__attribute__((weak)) int alloc_bootmem_huge_page(struct hstate *h)
+int __weak alloc_bootmem_huge_page(struct hstate *h)
 {
 	struct huge_bootmem_page *m;
 	int nr_nodes = nodes_weight(node_online_map);
@@ -1024,8 +1024,7 @@ __attribute__((weak)) int alloc_bootmem_huge_page(struct hstate *h)
 			 * puts them into the mem_map).
 			 */
 			m = addr;
-			if (m)
-				goto found;
+			goto found;
 		}
 		hstate_next_node(h);
 		nr_nodes--;
