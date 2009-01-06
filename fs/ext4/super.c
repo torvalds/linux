@@ -829,8 +829,6 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",journal_async_commit");
 	if (test_opt(sb, NOBH))
 		seq_puts(seq, ",nobh");
-	if (!test_opt(sb, EXTENTS))
-		seq_puts(seq, ",noextents");
 	if (test_opt(sb, I_VERSION))
 		seq_puts(seq, ",i_version");
 	if (!test_opt(sb, DELALLOC))
@@ -1011,7 +1009,7 @@ enum {
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
-	Opt_grpquota, Opt_extents, Opt_noextents, Opt_i_version,
+	Opt_grpquota, Opt_i_version,
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc,
 	Opt_inode_readahead_blks, Opt_journal_ioprio
 };
@@ -1066,8 +1064,6 @@ static const match_table_t tokens = {
 	{Opt_quota, "quota"},
 	{Opt_usrquota, "usrquota"},
 	{Opt_barrier, "barrier=%u"},
-	{Opt_extents, "extents"},
-	{Opt_noextents, "noextents"},
 	{Opt_i_version, "i_version"},
 	{Opt_stripe, "stripe=%u"},
 	{Opt_resize, "resize"},
@@ -1115,7 +1111,6 @@ static int parse_options(char *options, struct super_block *sb,
 	int qtype, qfmt;
 	char *qname;
 #endif
-	ext4_fsblk_t last_block;
 
 	if (!options)
 		return 1;
@@ -1444,33 +1439,6 @@ set_qf_format:
 			break;
 		case Opt_bh:
 			clear_opt(sbi->s_mount_opt, NOBH);
-			break;
-		case Opt_extents:
-			if (!EXT4_HAS_INCOMPAT_FEATURE(sb,
-					EXT4_FEATURE_INCOMPAT_EXTENTS)) {
-				ext4_warning(sb, __func__,
-					"extents feature not enabled "
-					"on this filesystem, use tune2fs");
-				return 0;
-			}
-			set_opt(sbi->s_mount_opt, EXTENTS);
-			break;
-		case Opt_noextents:
-			/*
-			 * When e2fsprogs support resizing an already existing
-			 * ext3 file system to greater than 2**32 we need to
-			 * add support to block allocator to handle growing
-			 * already existing block  mapped inode so that blocks
-			 * allocated for them fall within 2**32
-			 */
-			last_block = ext4_blocks_count(sbi->s_es) - 1;
-			if (last_block  > 0xffffffffULL) {
-				printk(KERN_ERR "EXT4-fs: Filesystem too "
-						"large to mount with "
-						"-o noextents options\n");
-				return 0;
-			}
-			clear_opt(sbi->s_mount_opt, EXTENTS);
 			break;
 		case Opt_i_version:
 			set_opt(sbi->s_mount_opt, I_VERSION);
@@ -2134,18 +2102,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 
 	set_opt(sbi->s_mount_opt, RESERVATION);
 	set_opt(sbi->s_mount_opt, BARRIER);
-
-	/*
-	 * turn on extents feature by default in ext4 filesystem
-	 * only if feature flag already set by mkfs or tune2fs.
-	 * Use -o noextents to turn it off
-	 */
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS))
-		set_opt(sbi->s_mount_opt, EXTENTS);
-	else
-		ext4_warning(sb, __func__,
-			"extents feature not enabled on this filesystem, "
-			"use tune2fs.");
 
 	/*
 	 * enable delayed allocation by default
@@ -3825,7 +3781,7 @@ static void __exit exit_ext4_fs(void)
 }
 
 MODULE_AUTHOR("Remy Card, Stephen Tweedie, Andrew Morton, Andreas Dilger, Theodore Ts'o and others");
-MODULE_DESCRIPTION("Fourth Extended Filesystem with extents");
+MODULE_DESCRIPTION("Fourth Extended Filesystem");
 MODULE_LICENSE("GPL");
 module_init(init_ext4_fs)
 module_exit(exit_ext4_fs)

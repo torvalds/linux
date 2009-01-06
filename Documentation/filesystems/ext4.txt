@@ -131,11 +131,6 @@ ro                   	Mount filesystem read only. Note that ext4 will
                      	mount options "ro,noload" can be used to prevent
 		     	writes to the filesystem.
 
-extents		(*)	ext4 will use extents to address file data.  The
-			file system will no longer be mountable by ext3.
-
-noextents		ext4 will not use extents for newly created files
-
 journal_checksum	Enable checksumming of the journal transactions.
 			This will allow the recovery code in e2fsck and the
 			kernel to detect corruption in the kernel.  It is a

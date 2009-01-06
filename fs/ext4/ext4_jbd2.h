@@ -32,8 +32,8 @@
  * 5 levels of tree + root which are stored in the inode. */
 
 #define EXT4_SINGLEDATA_TRANS_BLOCKS(sb)				\
-	(EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS)	\
-		|| test_opt(sb, EXTENTS) ? 27U : 8U)
+	(EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS)   \
+	 ? 27U : 8U)
 
 /* Extended attribute operations touch at most two data buffers,
  * two bitmap buffers, and two group summaries, in addition to the inode
