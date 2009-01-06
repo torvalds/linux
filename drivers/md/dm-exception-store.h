@@ -36,28 +36,29 @@ struct dm_snap_exception {
  * Abstraction to handle the meta/layout of exception stores (the
  * COW device).
  */
-struct exception_store {
+struct dm_exception_store {
+
 	/*
 	 * Destroys this object when you've finished with it.
 	 */
-	void (*destroy) (struct exception_store *store);
+	void (*destroy) (struct dm_exception_store *store);
 
 	/*
 	 * The target shouldn't read the COW device until this is
 	 * called.
 	 */
-	int (*read_metadata) (struct exception_store *store);
+	int (*read_metadata) (struct dm_exception_store *store);
 
 	/*
 	 * Find somewhere to store the next exception.
 	 */
-	int (*prepare_exception) (struct exception_store *store,
+	int (*prepare_exception) (struct dm_exception_store *store,
 				  struct dm_snap_exception *e);
 
 	/*
 	 * Update the metadata with this exception.
 	 */
-	void (*commit_exception) (struct exception_store *store,
+	void (*commit_exception) (struct dm_exception_store *store,
 				  struct dm_snap_exception *e,
 				  void (*callback) (void *, int success),
 				  void *callback_context);
@@ -65,12 +66,12 @@ struct exception_store {
 	/*
 	 * The snapshot is invalid, note this in the metadata.
 	 */
-	void (*drop_snapshot) (struct exception_store *store);
+	void (*drop_snapshot) (struct dm_exception_store *store);
 
 	/*
 	 * Return how full the snapshot is.
 	 */
-	void (*fraction_full) (struct exception_store *store,
+	void (*fraction_full) (struct dm_exception_store *store,
 			       sector_t *numerator,
 			       sector_t *denominator);
 
@@ -124,8 +125,8 @@ static inline void dm_consecutive_chunk_count_inc(struct dm_snap_exception *e)
 /*
  * Two exception store implementations.
  */
-int dm_create_persistent(struct exception_store *store);
+int dm_create_persistent(struct dm_exception_store *store);
 
-int dm_create_transient(struct exception_store *store);
+int dm_create_transient(struct dm_exception_store *store);
 
 #endif /* _LINUX_DM_EXCEPTION_STORE */

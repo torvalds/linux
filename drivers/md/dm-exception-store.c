@@ -462,19 +462,19 @@ static int read_exceptions(struct pstore *ps)
 	return 0;
 }
 
-static struct pstore *get_info(struct exception_store *store)
+static struct pstore *get_info(struct dm_exception_store *store)
 {
 	return (struct pstore *) store->context;
 }
 
-static void persistent_fraction_full(struct exception_store *store,
+static void persistent_fraction_full(struct dm_exception_store *store,
 				     sector_t *numerator, sector_t *denominator)
 {
 	*numerator = get_info(store)->next_free * store->snap->chunk_size;
 	*denominator = get_dev_size(store->snap->cow->bdev);
 }
 
-static void persistent_destroy(struct exception_store *store)
+static void persistent_destroy(struct dm_exception_store *store)
 {
 	struct pstore *ps = get_info(store);
 
@@ -485,7 +485,7 @@ static void persistent_destroy(struct exception_store *store)
 	kfree(ps);
 }
 
-static int persistent_read_metadata(struct exception_store *store)
+static int persistent_read_metadata(struct dm_exception_store *store)
 {
 	int r, uninitialized_var(new_snapshot);
 	struct pstore *ps = get_info(store);
@@ -551,7 +551,7 @@ static int persistent_read_metadata(struct exception_store *store)
 	return 0;
 }
 
-static int persistent_prepare(struct exception_store *store,
+static int persistent_prepare(struct dm_exception_store *store,
 			      struct dm_snap_exception *e)
 {
 	struct pstore *ps = get_info(store);
@@ -578,7 +578,7 @@ static int persistent_prepare(struct exception_store *store,
 	return 0;
 }
 
-static void persistent_commit(struct exception_store *store,
+static void persistent_commit(struct dm_exception_store *store,
 			      struct dm_snap_exception *e,
 			      void (*callback) (void *, int success),
 			      void *callback_context)
@@ -640,7 +640,7 @@ static void persistent_commit(struct exception_store *store,
 	ps->callback_count = 0;
 }
 
-static void persistent_drop(struct exception_store *store)
+static void persistent_drop(struct dm_exception_store *store)
 {
 	struct pstore *ps = get_info(store);
 
@@ -649,7 +649,7 @@ static void persistent_drop(struct exception_store *store)
 		DMWARN("write header failed");
 }
 
-int dm_create_persistent(struct exception_store *store)
+int dm_create_persistent(struct dm_exception_store *store)
 {
 	struct pstore *ps;
 
@@ -694,17 +694,17 @@ struct transient_c {
 	sector_t next_free;
 };
 
-static void transient_destroy(struct exception_store *store)
+static void transient_destroy(struct dm_exception_store *store)
 {
 	kfree(store->context);
 }
 
-static int transient_read_metadata(struct exception_store *store)
+static int transient_read_metadata(struct dm_exception_store *store)
 {
 	return 0;
 }
 
-static int transient_prepare(struct exception_store *store,
+static int transient_prepare(struct dm_exception_store *store,
 			     struct dm_snap_exception *e)
 {
 	struct transient_c *tc = (struct transient_c *) store->context;
@@ -719,7 +719,7 @@ static int transient_prepare(struct exception_store *store,
 	return 0;
 }
 
-static void transient_commit(struct exception_store *store,
+static void transient_commit(struct dm_exception_store *store,
 			     struct dm_snap_exception *e,
 			     void (*callback) (void *, int success),
 			     void *callback_context)
@@ -728,14 +728,14 @@ static void transient_commit(struct exception_store *store,
 	callback(callback_context, 1);
 }
 
-static void transient_fraction_full(struct exception_store *store,
+static void transient_fraction_full(struct dm_exception_store *store,
 				    sector_t *numerator, sector_t *denominator)
 {
 	*numerator = ((struct transient_c *) store->context)->next_free;
 	*denominator = get_dev_size(store->snap->cow->bdev);
 }
 
-int dm_create_transient(struct exception_store *store)
+int dm_create_transient(struct dm_exception_store *store)
 {
 	struct transient_c *tc;
 
