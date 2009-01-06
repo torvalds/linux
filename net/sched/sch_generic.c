@@ -270,6 +270,8 @@ static void dev_watchdog_down(struct net_device *dev)
 void netif_carrier_on(struct net_device *dev)
 {
 	if (test_and_clear_bit(__LINK_STATE_NOCARRIER, &dev->state)) {
+		if (dev->reg_state == NETREG_UNINITIALIZED)
+			return;
 		linkwatch_fire_event(dev);
 		if (netif_running(dev))
 			__netdev_watchdog_up(dev);
@@ -286,6 +288,8 @@ EXPORT_SYMBOL(netif_carrier_on);
 void netif_carrier_off(struct net_device *dev)
 {
 	if (!test_and_set_bit(__LINK_STATE_NOCARRIER, &dev->state)) {
+		if (dev->reg_state == NETREG_UNINITIALIZED)
+			return;
 		linkwatch_fire_event(dev);
 	}
 }
