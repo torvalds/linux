@@ -191,7 +191,7 @@ sub build_types {
 		  }x;
 	$Type	= qr{
 			$NonptrType
-			(?:\s*\*+\s*const|\s*\*+|(?:\s*\[\s*\])+)?
+			(?:[\s\*]+\s*const|[\s\*]+|(?:\s*\[\s*\])+)?
 			(?:\s+$Inline|\s+$Modifier)*
 		  }x;
 	$Declare	= qr{(?:$Storage\s+)?$Type};
@@ -1344,7 +1344,7 @@ sub process {
 			}
 
 			# any (foo ... *) is a pointer cast, and foo is a type
-			while ($s =~ /\(($Ident)(?:\s+$Sparse)*\s*\*+\s*\)/sg) {
+			while ($s =~ /\(($Ident)(?:\s+$Sparse)*[\s\*]+\s*\)/sg) {
 				possible($1, "C:" . $s);
 			}
 
@@ -1618,21 +1618,39 @@ sub process {
 		}
 
 # * goes on variable not on type
-		if ($line =~ m{\($NonptrType(\*+)(?:\s+const)?\)}) {
-			ERROR("\"(foo$1)\" should be \"(foo $1)\"\n" .
-				$herecurr);
+		# (char*[ const])
+		if ($line =~ m{\($NonptrType(\s*\*[\s\*]*(?:$Modifier\s*)*)\)}) {
+			my ($from, $to) = ($1, $1);
 
-		} elsif ($line =~ m{\($NonptrType\s+(\*+)(?!\s+const)\s+\)}) {
-			ERROR("\"(foo $1 )\" should be \"(foo $1)\"\n" .
-				$herecurr);
+			# Should start with a space.
+			$to =~ s/^(\S)/ $1/;
+			# Should not end with a space.
+			$to =~ s/\s+$//;
+			# '*'s should not have spaces between.
+			while ($to =~ s/(.)\s\*/$1\*/) {
+			}
 
-		} elsif ($line =~ m{\b$NonptrType(\*+)(?:\s+(?:$Attribute|$Sparse))?\s+[A-Za-z\d_]+}) {
-			ERROR("\"foo$1 bar\" should be \"foo $1bar\"\n" .
-				$herecurr);
+			#print "from<$from> to<$to>\n";
+			if ($from ne $to) {
+				ERROR("\"(foo$from)\" should be \"(foo$to)\"\n" .  $herecurr);
+			}
+		} elsif ($line =~ m{\b$NonptrType(\s*\*[\s\*]*(?:$Modifier\s*)?)($Ident)}) {
+			my ($from, $to, $ident) = ($1, $1, $2);
 
-		} elsif ($line =~ m{\b$NonptrType\s+(\*+)(?!\s+(?:$Attribute|$Sparse))\s+[A-Za-z\d_]+}) {
-			ERROR("\"foo $1 bar\" should be \"foo $1bar\"\n" .
-				$herecurr);
+			# Should start with a space.
+			$to =~ s/^(\S)/ $1/;
+			# Should not end with a space.
+			$to =~ s/\s+$//;
+			# '*'s should not have spaces between.
+			while ($to =~ s/(.)\s\*/$1\*/) {
+			}
+			# Modifiers should have spaces.
+			$to =~ s/(\b$Modifier$)/$1 /;
+
+			#print "from<$from> to<$to>\n";
+			if ($from ne $to) {
+				ERROR("\"foo${from}bar\" should be \"foo${to}bar\"\n" .  $herecurr);
+			}
 		}
 
 # # no BUG() or BUG_ON()
