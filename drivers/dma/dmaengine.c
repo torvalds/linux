@@ -318,7 +318,7 @@ static int __init dma_channel_table_init(void)
 
 	return err;
 }
-subsys_initcall(dma_channel_table_init);
+arch_initcall(dma_channel_table_init);
 
 /**
  * dma_find_channel - find a channel to carry out the operation
@@ -990,6 +990,6 @@ static int __init dma_bus_init(void)
 	mutex_init(&dma_list_mutex);
 	return class_register(&dma_devclass);
 }
-subsys_initcall(dma_bus_init);
+arch_initcall(dma_bus_init);
 
 
