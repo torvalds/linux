@@ -808,12 +808,6 @@ static void free_context(struct mirror_set *ms, struct dm_target *ti,
 	kfree(ms);
 }
 
-static inline int _check_region_size(struct dm_target *ti, uint32_t size)
-{
-	return !(size % (PAGE_SIZE >> 9) || !is_power_of_2(size) ||
-		 size > ti->len);
-}
-
 static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 		      unsigned int mirror, char **argv)
 {
@@ -869,12 +863,6 @@ static struct dm_dirty_log *create_dirty_log(struct dm_target *ti,
 	dl = dm_dirty_log_create(argv[0], ti, param_count, argv + 2);
 	if (!dl) {
 		ti->error = "Error creating mirror dirty log";
-		return NULL;
-	}
-
-	if (!_check_region_size(ti, dl->type->get_region_size(dl))) {
-		ti->error = "Invalid region size";
-		dm_dirty_log_destroy(dl);
 		return NULL;
 	}
 

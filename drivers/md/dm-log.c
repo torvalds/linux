@@ -360,6 +360,17 @@ static int read_header(struct log_c *log)
 	return 0;
 }
 
+static int _check_region_size(struct dm_target *ti, uint32_t region_size)
+{
+	if (region_size < 2 || region_size > ti->len)
+		return 0;
+
+	if (!is_power_of_2(region_size))
+		return 0;
+
+	return 1;
+}
+
 /*----------------------------------------------------------------
  * core log constructor/destructor
  *
@@ -395,8 +406,9 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		}
 	}
 
-	if (sscanf(argv[0], "%u", &region_size) != 1) {
-		DMWARN("invalid region size string");
+	if (sscanf(argv[0], "%u", &region_size) != 1 ||
+	    !_check_region_size(ti, region_size)) {
+		DMWARN("invalid region size %s", argv[0]);
 		return -EINVAL;
 	}
 
