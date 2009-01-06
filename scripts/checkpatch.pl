@@ -2466,6 +2466,15 @@ sub process {
 				last;
 			}
 		}
+
+# whine mightly about in_atomic
+		if ($line =~ /\bin_atomic\s*\(/) {
+			if ($realfile =~ m@^drivers/@) {
+				ERROR("do not use in_atomic in drivers\n" . $herecurr);
+			} else {
+				WARN("use of in_atomic() is incorrect outside core kernel code\n" . $herecurr);
+			}
+		}
 	}
 
 	# If we have no input at all, then there is nothing to report on
