@@ -1149,19 +1149,20 @@ ecryptfs_cipher_code_str_map[] = {
 
 /**
  * ecryptfs_code_for_cipher_string
- * @crypt_stat: The cryptographic context
+ * @cipher_name: The string alias for the cipher
+ * @key_bytes: Length of key in bytes; used for AES code selection
  *
  * Returns zero on no match, or the cipher code on match
  */
-u8 ecryptfs_code_for_cipher_string(struct ecryptfs_crypt_stat *crypt_stat)
+u8 ecryptfs_code_for_cipher_string(char *cipher_name, size_t key_bytes)
 {
 	int i;
 	u8 code = 0;
 	struct ecryptfs_cipher_code_str_map_elem *map =
 		ecryptfs_cipher_code_str_map;
 
-	if (strcmp(crypt_stat->cipher, "aes") == 0) {
-		switch (crypt_stat->key_size) {
+	if (strcmp(cipher_name, "aes") == 0) {
+		switch (key_bytes) {
 		case 16:
 			code = RFC2440_CIPHER_AES_128;
 			break;
@@ -1173,7 +1174,7 @@ u8 ecryptfs_code_for_cipher_string(struct ecryptfs_crypt_stat *crypt_stat)
 		}
 	} else {
 		for (i = 0; i < ARRAY_SIZE(ecryptfs_cipher_code_str_map); i++)
-			if (strcmp(crypt_stat->cipher, map[i].cipher_str) == 0){
+			if (strcmp(cipher_name, map[i].cipher_str) == 0) {
 				code = map[i].cipher_code;
 				break;
 			}
