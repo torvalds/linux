@@ -669,7 +669,9 @@ void __init init_IRQ(void)
 	btfixup();
 }
 
+#ifdef CONFIG_PROC_FS
 void init_irq_proc(void)
 {
 	/* For now, nothing... */
 }
+#endif /* CONFIG_PROC_FS */
