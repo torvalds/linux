@@ -2387,7 +2387,7 @@ void napi_gro_flush(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(napi_gro_flush);
 
-static int __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
+int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
 	struct sk_buff **pp = NULL;
 	struct packet_type *ptype;
@@ -2417,11 +2417,14 @@ static int __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 
 		for (p = napi->gro_list; p; p = p->next) {
 			count++;
-			NAPI_GRO_CB(p)->same_flow =
-				p->mac_len == mac_len &&
-				!memcmp(skb_mac_header(p), skb_mac_header(skb),
-					mac_len);
-			NAPI_GRO_CB(p)->flush = 0;
+
+			if (!NAPI_GRO_CB(p)->same_flow)
+				continue;
+
+			if (p->mac_len != mac_len ||
+			    memcmp(skb_mac_header(p), skb_mac_header(skb),
+				   mac_len))
+				NAPI_GRO_CB(p)->same_flow = 0;
 		}
 
 		pp = ptype->gro_receive(&napi->gro_list, skb);
@@ -2463,6 +2466,19 @@ ok:
 normal:
 	return -1;
 }
+EXPORT_SYMBOL(dev_gro_receive);
+
+static int __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
+{
+	struct sk_buff *p;
+
+	for (p = napi->gro_list; p; p = p->next) {
+		NAPI_GRO_CB(p)->same_flow = 1;
+		NAPI_GRO_CB(p)->flush = 0;
+	}
+
+	return dev_gro_receive(napi, skb);
+}
 
 int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
@@ -2479,11 +2495,26 @@ int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(napi_gro_receive);
 
-int napi_gro_frags(struct napi_struct *napi, struct napi_gro_fraginfo *info)
+void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
+{
+	skb_shinfo(skb)->nr_frags = 0;
+
+	skb->len -= skb->data_len;
+	skb->truesize -= skb->data_len;
+	skb->data_len = 0;
+
+	__skb_pull(skb, skb_headlen(skb));
+	skb_reserve(skb, NET_IP_ALIGN - skb_headroom(skb));
+
+	napi->skb = skb;
+}
+EXPORT_SYMBOL(napi_reuse_skb);
+
+struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
+				  struct napi_gro_fraginfo *info)
 {
 	struct net_device *dev = napi->dev;
 	struct sk_buff *skb = napi->skb;
-	int err = NET_RX_DROP;
 
 	napi->skb = NULL;
 
@@ -2503,15 +2534,30 @@ int napi_gro_frags(struct napi_struct *napi, struct napi_gro_fraginfo *info)
 	skb->len += info->len;
 	skb->truesize += info->len;
 
-	if (!pskb_may_pull(skb, ETH_HLEN))
-		goto reuse;
-
-	err = NET_RX_SUCCESS;
+	if (!pskb_may_pull(skb, ETH_HLEN)) {
+		napi_reuse_skb(napi, skb);
+		goto out;
+	}
 
 	skb->protocol = eth_type_trans(skb, dev);
 
 	skb->ip_summed = info->ip_summed;
 	skb->csum = info->csum;
+
+out:
+	return skb;
+}
+EXPORT_SYMBOL(napi_fraginfo_skb);
+
+int napi_gro_frags(struct napi_struct *napi, struct napi_gro_fraginfo *info)
+{
+	struct sk_buff *skb = napi_fraginfo_skb(napi, info);
+	int err = NET_RX_DROP;
+
+	if (!skb)
+		goto out;
+
+	err = NET_RX_SUCCESS;
 
 	switch (__napi_gro_receive(napi, skb)) {
 	case -1:
@@ -2521,17 +2567,7 @@ int napi_gro_frags(struct napi_struct *napi, struct napi_gro_fraginfo *info)
 		goto out;
 	}
 
-reuse:
-	skb_shinfo(skb)->nr_frags = 0;
-
-	skb->len -= skb->data_len;
-	skb->truesize -= skb->data_len;
-	skb->data_len = 0;
-
-	__skb_pull(skb, skb_headlen(skb));
-	skb_reserve(skb, NET_IP_ALIGN - skb_headroom(skb));
-
-	napi->skb = skb;
+	napi_reuse_skb(napi, skb);
 
 out:
 	return err;
