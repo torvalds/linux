@@ -29,11 +29,11 @@ config HID
 
 	  For docs and specs, see http://www.usb.org/developers/hidpage/
 
-	  If unsure, say Y
+	  If unsure, say Y.
 
 config HID_DEBUG
 	bool "HID debugging support"
-	default y if !EMBEDDED
+	default y
 	depends on HID
 	---help---
 	This option lets the HID layer output diagnostics about its internal
@@ -44,7 +44,7 @@ config HID_DEBUG
 	This feature is useful for those who are either debugging the HID parser
 	or any HID hardware device.
 
-	If unsure, say N
+	If unsure, say Y.
 
 config HIDRAW
 	bool "/dev/hidraw raw HID device support"
