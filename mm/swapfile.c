@@ -889,7 +889,16 @@ static int try_to_unuse(unsigned int type)
 			lock_page(page);
 			wait_on_page_writeback(page);
 		}
-		if (PageSwapCache(page))
+
+		/*
+		 * It is conceivable that a racing task removed this page from
+		 * swap cache just before we acquired the page lock at the top,
+		 * or while we dropped it in unuse_mm().  The page might even
+		 * be back in swap cache on another swap area: that we must not
+		 * delete, since it may not have been written out to swap yet.
+		 */
+		if (PageSwapCache(page) &&
+		    likely(page_private(page) == entry.val))
 			delete_from_swap_cache(page);
 
 		/*
