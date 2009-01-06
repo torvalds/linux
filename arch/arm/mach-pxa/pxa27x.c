@@ -21,6 +21,7 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <mach/irqs.h>
+#include <mach/gpio.h>
 #include <mach/pxa27x.h>
 #include <mach/reset.h>
 #include <mach/ohci.h>
@@ -330,7 +331,7 @@ static int pxa27x_set_wake(unsigned int irq, unsigned int on)
 void __init pxa27x_init_irq(void)
 {
 	pxa_init_irq(34, pxa27x_set_wake);
-	pxa_init_gpio(121, pxa27x_set_wake);
+	pxa_init_gpio(IRQ_GPIO_2_x, 2, 120, pxa27x_set_wake);
 }
 
 /*

@@ -23,6 +23,7 @@
 #include <linux/sysdev.h>
 
 #include <mach/hardware.h>
+#include <mach/gpio.h>
 #include <mach/pxa3xx-regs.h>
 #include <mach/reset.h>
 #include <mach/ohci.h>
@@ -538,7 +539,7 @@ void __init pxa3xx_init_irq(void)
 	__asm__ __volatile__("mcr p15, 0, %0, c15, c1, 0\n": :"r"(value));
 
 	pxa_init_irq(56, pxa3xx_set_wake);
-	pxa_init_gpio(128, NULL);
+	pxa_init_gpio(IRQ_GPIO_2_x, 2, 127, NULL);
 }
 
 /*
