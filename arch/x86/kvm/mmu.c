@@ -1471,11 +1471,20 @@ static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 
 static void mmu_unshadow(struct kvm *kvm, gfn_t gfn)
 {
+	unsigned index;
+	struct hlist_head *bucket;
 	struct kvm_mmu_page *sp;
+	struct hlist_node *node, *nn;
 
-	while ((sp = kvm_mmu_lookup_page(kvm, gfn)) != NULL) {
-		pgprintk("%s: zap %lx %x\n", __func__, gfn, sp->role.word);
-		kvm_mmu_zap_page(kvm, sp);
+	index = kvm_page_table_hashfn(gfn);
+	bucket = &kvm->arch.mmu_page_hash[index];
+	hlist_for_each_entry_safe(sp, node, nn, bucket, hash_link) {
+		if (sp->gfn == gfn && !sp->role.metaphysical
+		    && !sp->role.invalid) {
+			pgprintk("%s: zap %lx %x\n",
+				 __func__, gfn, sp->role.word);
+			kvm_mmu_zap_page(kvm, sp);
+		}
 	}
 }
 
