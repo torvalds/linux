@@ -400,6 +400,12 @@ __dma_cap_set(enum dma_transaction_type tx_type, dma_cap_mask_t *dstp)
 	set_bit(tx_type, dstp->bits);
 }
 
+#define dma_cap_zero(mask) __dma_cap_zero(&(mask))
+static inline void __dma_cap_zero(dma_cap_mask_t *dstp)
+{
+	bitmap_zero(dstp->bits, DMA_TX_TYPE_END);
+}
+
 #define dma_has_cap(tx, mask) __dma_has_cap((tx), &(mask))
 static inline int
 __dma_has_cap(enum dma_transaction_type tx_type, dma_cap_mask_t *srcp)
