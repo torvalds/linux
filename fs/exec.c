@@ -1686,7 +1686,7 @@ int get_dumpable(struct mm_struct *mm)
 	return (ret >= 2) ? 2 : ret;
 }
 
-int do_coredump(long signr, int exit_code, struct pt_regs * regs)
+void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 {
 	struct core_state core_state;
 	char corename[CORENAME_MAX_SIZE + 1];
@@ -1842,5 +1842,5 @@ fail_unlock:
 	put_cred(cred);
 	coredump_finish(mm);
 fail:
-	return retval;
+	return;
 }
