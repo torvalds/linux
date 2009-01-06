@@ -397,6 +397,11 @@ static void dm9601_set_multicast(struct net_device *net)
 	dm_write_reg_async(dev, DM_RX_CTRL, rx_ctl);
 }
 
+static void __dm9601_set_mac_address(struct usbnet *dev)
+{
+	dm_write_async(dev, DM_PHY_ADDR, ETH_ALEN, dev->net->dev_addr);
+}
+
 static int dm9601_set_mac_address(struct net_device *net, void *p)
 {
 	struct sockaddr *addr = p;
@@ -406,7 +411,7 @@ static int dm9601_set_mac_address(struct net_device *net, void *p)
 		return -EINVAL;
 
 	memcpy(net->dev_addr, addr->sa_data, net->addr_len);
-	dm_write_async(dev, DM_PHY_ADDR, net->addr_len, net->dev_addr);
+	__dm9601_set_mac_address(dev);
 
 	return 0;
 }
@@ -450,6 +455,8 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 	 */
 	if (is_valid_ether_addr(mac))
 		memcpy(dev->net->dev_addr, mac, ETH_ALEN);
+	else
+		__dm9601_set_mac_address(dev);
 
 	/* power up phy */
 	dm_write_reg(dev, DM_GPR_CTRL, 1);
