@@ -454,10 +454,10 @@ static void dma_channel_rebalance(void)
 		}
 }
 
-static struct dma_chan *private_candidate(dma_cap_mask_t *mask, struct dma_device *dev)
+static struct dma_chan *private_candidate(dma_cap_mask_t *mask, struct dma_device *dev,
+					  dma_filter_fn fn, void *fn_param)
 {
 	struct dma_chan *chan;
-	struct dma_chan *ret = NULL;
 
 	if (!__dma_device_satisfies_mask(dev, mask)) {
 		pr_debug("%s: wrong capabilities\n", __func__);
@@ -479,11 +479,15 @@ static struct dma_chan *private_candidate(dma_cap_mask_t *mask, struct dma_devic
 				 __func__, dma_chan_name(chan));
 			continue;
 		}
-		ret = chan;
-		break;
+		if (fn && !fn(chan, fn_param)) {
+			pr_debug("%s: %s filter said false\n",
+				 __func__, dma_chan_name(chan));
+			continue;
+		}
+		return chan;
 	}
 
-	return ret;
+	return NULL;
 }
 
 /**
@@ -496,22 +500,13 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 {
 	struct dma_device *device, *_d;
 	struct dma_chan *chan = NULL;
-	bool ack;
 	int err;
 
 	/* Find a channel */
 	mutex_lock(&dma_list_mutex);
 	list_for_each_entry_safe(device, _d, &dma_device_list, global_node) {
-		chan = private_candidate(mask, device);
-		if (!chan)
-			continue;
-
-		if (fn)
-			ack = fn(chan, fn_param);
-		else
-			ack = true;
-
-		if (ack) {
+		chan = private_candidate(mask, device, fn, fn_param);
+		if (chan) {
 			/* Found a suitable channel, try to grab, prep, and
 			 * return it.  We first set DMA_PRIVATE to disable
 			 * balance_ref_count as this channel will not be
@@ -529,10 +524,8 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 				       dma_chan_name(chan), err);
 			else
 				break;
-		} else
-			pr_debug("%s: %s filter said false\n",
-				 __func__, dma_chan_name(chan));
-		chan = NULL;
+			chan = NULL;
+		}
 	}
 	mutex_unlock(&dma_list_mutex);
 
