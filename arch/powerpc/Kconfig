@@ -326,7 +326,8 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
-	depends on (PPC64 && RELOCATABLE) || 6xx
+	depends on PPC64 || 6xx
+	select RELOCATABLE if PPC64
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
 	  The same kernel binary can be used as production kernel and dump
