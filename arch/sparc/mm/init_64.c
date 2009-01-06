@@ -779,8 +779,8 @@ static int find_node(unsigned long addr)
 	return -1;
 }
 
-static unsigned long nid_range(unsigned long start, unsigned long end,
-			       int *nid)
+static unsigned long long nid_range(unsigned long long start,
+				    unsigned long long end, int *nid)
 {
 	*nid = find_node(start);
 	start += PAGE_SIZE;
@@ -798,8 +798,8 @@ static unsigned long nid_range(unsigned long start, unsigned long end,
 	return start;
 }
 #else
-static unsigned long nid_range(unsigned long start, unsigned long end,
-			       int *nid)
+static unsigned long long nid_range(unsigned long long start,
+				    unsigned long long end, int *nid)
 {
 	*nid = 0;
 	return end;
@@ -1026,8 +1026,8 @@ static int __init grab_mlgroups(struct mdesc_handle *md)
 		val = mdesc_get_property(md, node, "address-mask", NULL);
 		m->mask = *val;
 
-		numadbg("MLGROUP[%d]: node[%lx] latency[%lx] "
-			"match[%lx] mask[%lx]\n",
+		numadbg("MLGROUP[%d]: node[%llx] latency[%llx] "
+			"match[%llx] mask[%llx]\n",
 			count - 1, m->node, m->latency, m->match, m->mask);
 	}
 
@@ -1066,7 +1066,7 @@ static int __init grab_mblocks(struct mdesc_handle *md)
 					 "address-congruence-offset", NULL);
 		m->offset = *val;
 
-		numadbg("MBLOCK[%d]: base[%lx] size[%lx] offset[%lx]\n",
+		numadbg("MBLOCK[%d]: base[%llx] size[%llx] offset[%llx]\n",
 			count - 1, m->base, m->size, m->offset);
 	}
 
@@ -1137,7 +1137,7 @@ static int __init numa_attach_mlgroup(struct mdesc_handle *md, u64 grp,
 	n->mask = candidate->mask;
 	n->val = candidate->match;
 
-	numadbg("NUMA NODE[%d]: mask[%lx] val[%lx] (latency[%lx])\n",
+	numadbg("NUMA NODE[%d]: mask[%lx] val[%lx] (latency[%llx])\n",
 		index, n->mask, n->val, candidate->latency);
 
 	return 0;

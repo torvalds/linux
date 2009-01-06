@@ -94,7 +94,7 @@ static void psycho_check_stc_error(struct pci_pbm_info *pbm)
 		if (saw_error != 0) {
 			u64 tagval = stc_tag_buf[i];
 			u64 lineval = stc_line_buf[i];
-			printk(KERN_ERR "%s: STC_TAG(%d)[PA(%016lx)VA(%08lx)"
+			printk(KERN_ERR "%s: STC_TAG(%d)[PA(%016llx)VA(%08llx)"
 			       "V(%d)W(%d)]\n",
 			       pbm->name,
 			       i,
@@ -102,8 +102,8 @@ static void psycho_check_stc_error(struct pci_pbm_info *pbm)
 			       (tagval & PSYCHO_STCTAG_VPN),
 			       ((tagval & PSYCHO_STCTAG_VALID) ? 1 : 0),
 			       ((tagval & PSYCHO_STCTAG_WRITE) ? 1 : 0));
-			printk(KERN_ERR "%s: STC_LINE(%d)[LIDX(%lx)SP(%lx)"
-			       "LADDR(%lx)EP(%lx)V(%d)FOFN(%d)]\n",
+			printk(KERN_ERR "%s: STC_LINE(%d)[LIDX(%llx)SP(%llx)"
+			       "LADDR(%llx)EP(%llx)V(%d)FOFN(%d)]\n",
 			       pbm->name,
 			       i,
 			       ((lineval & PSYCHO_STCLINE_LINDX) >> 21UL),
@@ -179,14 +179,14 @@ static void psycho_dump_iommu_tags_and_data(struct pci_pbm_info *pbm,
 		}
 
 		printk(KERN_ERR "%s: IOMMU TAG(%d)[error(%s) wr(%d) "
-		       "str(%d) sz(%dK) vpg(%08lx)]\n",
+		       "str(%d) sz(%dK) vpg(%08llx)]\n",
 		       pbm->name, i, type_str,
 		       ((tag_val & PSYCHO_IOMMU_TAG_WRITE) ? 1 : 0),
 		       ((tag_val & PSYCHO_IOMMU_TAG_STREAM) ? 1 : 0),
 		       ((tag_val & PSYCHO_IOMMU_TAG_SIZE) ? 64 : 8),
 		       (tag_val & PSYCHO_IOMMU_TAG_VPAGE) << IOMMU_PAGE_SHIFT);
 		printk(KERN_ERR "%s: IOMMU DATA(%d)[valid(%d) cache(%d) "
-		       "ppg(%016lx)]\n",
+		       "ppg(%016llx)]\n",
 		       pbm->name, i,
 		       ((data_val & PSYCHO_IOMMU_DATA_VALID) ? 1 : 0),
 		       ((data_val & PSYCHO_IOMMU_DATA_CACHE) ? 1 : 0),
@@ -326,12 +326,12 @@ irqreturn_t psycho_pcierr_intr(int irq, void *dev_id)
 		   "Excessive Retries" :
 		   ((error_bits & PSYCHO_PCIAFSR_PPERR) ?
 		    "Parity Error" : "???"))))));
-	printk(KERN_ERR "%s: bytemask[%04lx] UPA_MID[%02lx] was_block(%d)\n",
+	printk(KERN_ERR "%s: bytemask[%04llx] UPA_MID[%02llx] was_block(%d)\n",
 	       pbm->name,
 	       (afsr & PSYCHO_PCIAFSR_BMSK) >> 32UL,
 	       (afsr & PSYCHO_PCIAFSR_MID) >> 25UL,
 	       (afsr & PSYCHO_PCIAFSR_BLK) ? 1 : 0);
-	printk(KERN_ERR "%s: PCI AFAR [%016lx]\n", pbm->name, afar);
+	printk(KERN_ERR "%s: PCI AFAR [%016llx]\n", pbm->name, afar);
 	printk(KERN_ERR "%s: PCI Secondary errors [", pbm->name);
 	reported = 0;
 	if (afsr & PSYCHO_PCIAFSR_SMA) {
