@@ -71,6 +71,11 @@ The @argument descriptions must begin on the very next line following
 this opening short function description line, with no intervening
 empty comment lines.
 
+If a function parameter is "..." (varargs), it should be listed in
+kernel-doc notation as:
+ * @...: description
+
+
 Example kernel-doc data structure comment.
 
 /**
