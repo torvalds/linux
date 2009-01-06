@@ -107,6 +107,14 @@ module_param_call(mpt_debug_level, mpt_set_debug_level, param_get_int,
 MODULE_PARM_DESC(mpt_debug_level, " debug level - refer to mptdebug.h \
 	- (default=0)");
 
+int mpt_fwfault_debug;
+EXPORT_SYMBOL(mpt_fwfault_debug);
+module_param_call(mpt_fwfault_debug, param_set_int, param_get_int,
+	  &mpt_fwfault_debug, 0600);
+MODULE_PARM_DESC(mpt_fwfault_debug, "Enable detection of Firmware fault"
+	" and halt Firmware on fault - (default=0)");
+
+
 
 #ifdef MFCNT
 static int mfcounter = 0;
@@ -6337,6 +6345,33 @@ mpt_print_ioc_summary(MPT_ADAPTER *ioc, char *buffer, int *size, int len, int sh
 	*size = y;
 }
 
+
+/**
+ *	mpt_halt_firmware - Halts the firmware if it is operational and panic
+ *	the kernel
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *
+ **/
+void
+mpt_halt_firmware(MPT_ADAPTER *ioc)
+{
+	u32	 ioc_raw_state;
+
+	ioc_raw_state = mpt_GetIocState(ioc, 0);
+
+	if ((ioc_raw_state & MPI_IOC_STATE_MASK) == MPI_IOC_STATE_FAULT) {
+		printk(MYIOC_s_ERR_FMT "IOC is in FAULT state (%04xh)!!!\n",
+			ioc->name, ioc_raw_state & MPI_DOORBELL_DATA_MASK);
+		panic("%s: IOC Fault (%04xh)!!!\n", ioc->name,
+			ioc_raw_state & MPI_DOORBELL_DATA_MASK);
+	} else {
+		CHIPREG_WRITE32(&ioc->chip->Doorbell, 0xC0FFEE00);
+		panic("%s: Firmware is halted due to command timeout\n",
+			ioc->name);
+	}
+}
+EXPORT_SYMBOL(mpt_halt_firmware);
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *	Reset Handling
@@ -6369,6 +6404,8 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 	printk(MYIOC_s_INFO_FMT "HardResetHandler Entered!\n", ioc->name);
 	printk("MF count 0x%x !\n", ioc->mfcnt);
 #endif
+	if (mpt_fwfault_debug)
+		mpt_halt_firmware(ioc);
 
 	/* Reset the adapter. Prevent more than 1 call to
 	 * mpt_do_ioc_recovery at any instant in time.
