@@ -258,21 +258,16 @@ static inline void tsb_insert(struct tsb *ent, unsigned long tag, unsigned long 
 unsigned long _PAGE_ALL_SZ_BITS __read_mostly;
 unsigned long _PAGE_SZBITS __read_mostly;
 
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+static void flush_dcache(unsigned long pfn)
 {
-	struct mm_struct *mm;
-	struct tsb *tsb;
-	unsigned long tag, flags;
-	unsigned long tsb_index, tsb_hash_shift;
+	struct page *page;
 
-	if (tlb_type != hypervisor) {
-		unsigned long pfn = pte_pfn(pte);
+	page = pfn_to_page(pfn);
+	if (page && page_mapping(page)) {
 		unsigned long pg_flags;
-		struct page *page;
 
-		if (pfn_valid(pfn) &&
-		    (page = pfn_to_page(pfn), page_mapping(page)) &&
-		    ((pg_flags = page->flags) & (1UL << PG_dcache_dirty))) {
+		pg_flags = page->flags;
+		if (pg_flags & (1UL << PG_dcache_dirty)) {
 			int cpu = ((pg_flags >> PG_dcache_cpu_shift) &
 				   PG_dcache_cpu_mask);
 			int this_cpu = get_cpu();
@@ -289,6 +284,21 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 
 			put_cpu();
 		}
+	}
+}
+
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+{
+	struct mm_struct *mm;
+	struct tsb *tsb;
+	unsigned long tag, flags;
+	unsigned long tsb_index, tsb_hash_shift;
+
+	if (tlb_type != hypervisor) {
+		unsigned long pfn = pte_pfn(pte);
+
+		if (pfn_valid(pfn))
+			flush_dcache(pfn);
 	}
 
 	mm = vma->vm_mm;
