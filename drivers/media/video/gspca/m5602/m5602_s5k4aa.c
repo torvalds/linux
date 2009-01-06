@@ -65,6 +65,7 @@ static struct v4l2_pix_format s5k4aa_modes[] = {
 };
 
 const static struct ctrl s5k4aa_ctrls[] = {
+#define VFLIP_IDX 0
 	{
 		{
 			.id 		= V4L2_CID_VFLIP,
@@ -77,8 +78,9 @@ const static struct ctrl s5k4aa_ctrls[] = {
 		},
 		.set = s5k4aa_set_vflip,
 		.get = s5k4aa_get_vflip
-
-	}, {
+	},
+#define HFLIP_IDX 1
+	{
 		{
 			.id 		= V4L2_CID_HFLIP,
 			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
@@ -90,8 +92,9 @@ const static struct ctrl s5k4aa_ctrls[] = {
 		},
 		.set = s5k4aa_set_hflip,
 		.get = s5k4aa_get_hflip
-
-	}, {
+	},
+#define GAIN_IDX 2
+	{
 		{
 			.id		= V4L2_CID_GAIN,
 			.type		= V4L2_CTRL_TYPE_INTEGER,
@@ -104,7 +107,9 @@ const static struct ctrl s5k4aa_ctrls[] = {
 		},
 		.set = s5k4aa_set_gain,
 		.get = s5k4aa_get_gain
-	}, {
+	},
+#define EXPOSURE_IDX 3
+	{
 		{
 			.id		= V4L2_CID_EXPOSURE,
 			.type		= V4L2_CTRL_TYPE_INTEGER,
@@ -127,6 +132,7 @@ int s5k4aa_probe(struct sd *sd)
 	u8 prod_id[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	const u8 expected_prod_id[6] = {0x00, 0x10, 0x00, 0x4b, 0x33, 0x75};
 	int i, err = 0;
+	s32 *sensor_settings;
 
 	if (force_sensor) {
 		if (force_sensor == S5K4AA_SENSOR) {
@@ -185,10 +191,19 @@ int s5k4aa_probe(struct sd *sd)
 		info("Detected a s5k4aa sensor");
 
 sensor_found:
+	sensor_settings = kmalloc(
+		ARRAY_SIZE(s5k4aa_ctrls) * sizeof(s32), GFP_KERNEL);
+	if (!sensor_settings)
+		return -ENOMEM;
+
 	sd->gspca_dev.cam.cam_mode = s5k4aa_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(s5k4aa_modes);
 	sd->desc->ctrls = s5k4aa_ctrls;
 	sd->desc->nctrls = ARRAY_SIZE(s5k4aa_ctrls);
+
+	for (i = 0; i < ARRAY_SIZE(s5k4aa_ctrls); i++)
+		sensor_settings[i] = s5k4aa_ctrls[i].qctrl.default_value;
+	sd->sensor_priv = sensor_settings;
 	return 0;
 }
 
@@ -301,31 +316,22 @@ int s5k4aa_power_down(struct sd *sd)
 int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 data = S5K4AA_PAGE_MAP_2;
-	int err;
+	s32 *sensor_settings = sd->sensor_priv;
 
-	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
-	if (err < 0)
-		return err;
-
-	err = m5602_read_sensor(sd, S5K4AA_EXPOSURE_HI, &data, 1);
-	if (err < 0)
-		return err;
-
-	*val = data << 8;
-	err = m5602_read_sensor(sd, S5K4AA_EXPOSURE_LO, &data, 1);
-	*val |= data;
+	*val = sensor_settings[EXPOSURE_IDX];
 	PDEBUG(D_V4L2, "Read exposure %d", *val);
 
-	return err;
+	return 0;
 }
 
 int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
+	sensor_settings[EXPOSURE_IDX] = val;
 	PDEBUG(D_V4L2, "Set exposure to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
@@ -343,25 +349,22 @@ int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 data = S5K4AA_PAGE_MAP_2;
-	int err;
+	s32 *sensor_settings = sd->sensor_priv;
 
-	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
-	if (err < 0)
-		return err;
-
-	err = m5602_read_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
-	*val = (data & S5K4AA_RM_V_FLIP) >> 7;
+	*val = sensor_settings[VFLIP_IDX];
 	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
 
-	return err;
+	return 0;
 }
 
 int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
+
+	sensor_settings[VFLIP_IDX] = val;
 
 	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
@@ -370,6 +373,10 @@ int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
 		return err;
+
+	if (dmi_check_system(s5k4aa_vflip_dmi_table))
+		val = !val;
+
 	data = ((data & ~S5K4AA_RM_V_FLIP)
 			| ((val & 0x01) << 7));
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
@@ -398,28 +405,24 @@ int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 data = S5K4AA_PAGE_MAP_2;
-	int err;
+	s32 *sensor_settings = sd->sensor_priv;
 
-	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
-	if (err < 0)
-		return err;
-
-	err = m5602_read_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
-	*val = (data & S5K4AA_RM_H_FLIP) >> 6;
+	*val = sensor_settings[HFLIP_IDX];
 	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
 
-	return err;
+	return 0;
 }
 
 int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(D_V4L2, "Set horizontal flip to %d",
-	       val);
+	sensor_settings[HFLIP_IDX] = val;
+
+	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
@@ -454,25 +457,21 @@ int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 data = S5K4AA_PAGE_MAP_2;
-	int err;
+	s32 *sensor_settings = sd->sensor_priv;
 
-	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
-	if (err < 0)
-		return err;
-
-	err = m5602_read_sensor(sd, S5K4AA_GAIN_2, &data, 1);
-	*val = data;
+	*val = sensor_settings[GAIN_IDX];
 	PDEBUG(D_V4L2, "Read gain %d", *val);
-
-	return err;
+	return 0;
 }
 
 int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
+
+	sensor_settings[GAIN_IDX] = val;
 
 	PDEBUG(D_V4L2, "Set gain to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
@@ -483,6 +482,12 @@ int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, S5K4AA_GAIN_2, &data, 1);
 
 	return err;
+}
+
+void s5k4aa_disconnect(struct sd *sd)
+{
+	sd->sensor = NULL;
+	kfree(sd->sensor_priv);
 }
 
 static void s5k4aa_dump_registers(struct sd *sd)
