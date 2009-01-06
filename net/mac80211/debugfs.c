@@ -136,8 +136,6 @@ DEBUGFS_STATS_FILE(multicast_received_frame_count, 20, "%u",
 		   local->dot11MulticastReceivedFrameCount);
 DEBUGFS_STATS_FILE(transmitted_frame_count, 20, "%u",
 		   local->dot11TransmittedFrameCount);
-DEBUGFS_STATS_FILE(wep_undecryptable_count, 20, "%u",
-		   local->dot11WEPUndecryptableCount);
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 DEBUGFS_STATS_FILE(tx_handlers_drop, 20, "%u",
 		   local->tx_handlers_drop);
@@ -221,7 +219,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_STATS_ADD(received_fragment_count);
 	DEBUGFS_STATS_ADD(multicast_received_frame_count);
 	DEBUGFS_STATS_ADD(transmitted_frame_count);
-	DEBUGFS_STATS_ADD(wep_undecryptable_count);
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	DEBUGFS_STATS_ADD(tx_handlers_drop);
 	DEBUGFS_STATS_ADD(tx_handlers_queued);
@@ -268,7 +265,6 @@ void debugfs_hw_del(struct ieee80211_local *local)
 	DEBUGFS_STATS_DEL(received_fragment_count);
 	DEBUGFS_STATS_DEL(multicast_received_frame_count);
 	DEBUGFS_STATS_DEL(transmitted_frame_count);
-	DEBUGFS_STATS_DEL(wep_undecryptable_count);
 	DEBUGFS_STATS_DEL(num_scans);
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	DEBUGFS_STATS_DEL(tx_handlers_drop);

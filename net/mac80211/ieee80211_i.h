@@ -654,7 +654,6 @@ struct ieee80211_local {
 	u32 dot11ReceivedFragmentCount;
 	u32 dot11MulticastReceivedFrameCount;
 	u32 dot11TransmittedFrameCount;
-	u32 dot11WEPUndecryptableCount;
 
 #ifdef CONFIG_MAC80211_LEDS
 	int tx_led_counter, rx_led_counter;
