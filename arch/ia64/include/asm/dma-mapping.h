@@ -13,6 +13,11 @@ extern struct dma_map_ops *dma_ops;
 extern struct ia64_machine_vector ia64_mv;
 extern void set_iommu_machvec(void);
 
+extern void machvec_dma_sync_single(struct device *, dma_addr_t, size_t,
+				    enum dma_data_direction);
+extern void machvec_dma_sync_sg(struct device *, struct scatterlist *, int,
+				enum dma_data_direction);
+
 static inline void *dma_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *daddr, gfp_t gfp)
 {
