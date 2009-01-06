@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2000-2001 LSI Corporation. All rights reserved.
+ *  Copyright (c) 2000-2008 LSI Corporation. All rights reserved.
  *
  *  NAME:           fc_log.h
  *  SUMMARY:        MPI IocLogInfo definitions for the SYMFC9xx chips
