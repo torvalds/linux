@@ -24,11 +24,79 @@
 #ifndef __ASM_ARCH_PXA_GPIO_H
 #define __ASM_ARCH_PXA_GPIO_H
 
-#include <mach/pxa-regs.h>
-#include <asm/irq.h>
+#include <mach/irqs.h>
 #include <mach/hardware.h>
-
 #include <asm-generic/gpio.h>
+
+#define GPIO_REGS_VIRT	io_p2v(0x40E00000)
+
+#define BANK_OFF(n)	(((n) > 3) ? (n) << 2 : 0x100 + (((n) - 3) << 2))
+#define GPIO_REG(x)	(*(volatile u32 *)(GPIO_REGS_VIRT + (x)))
+
+/* GPIO Pin Level Registers */
+#define GPLR0		GPIO_REG(BANK_OFF(0) + 0x00)
+#define GPLR1		GPIO_REG(BANK_OFF(1) + 0x00)
+#define GPLR2		GPIO_REG(BANK_OFF(2) + 0x00)
+#define GPLR3		GPIO_REG(BANK_OFF(3) + 0x00)
+
+/* GPIO Pin Direction Registers */
+#define GPDR0		GPIO_REG(BANK_OFF(0) + 0x0c)
+#define GPDR1		GPIO_REG(BANK_OFF(1) + 0x0c)
+#define GPDR2		GPIO_REG(BANK_OFF(2) + 0x0c)
+#define GPDR3		GPIO_REG(BANK_OFF(3) + 0x0c)
+
+/* GPIO Pin Output Set Registers */
+#define GPSR0		GPIO_REG(BANK_OFF(0) + 0x18)
+#define GPSR1		GPIO_REG(BANK_OFF(1) + 0x18)
+#define GPSR2		GPIO_REG(BANK_OFF(2) + 0x18)
+#define GPSR3		GPIO_REG(BANK_OFF(3) + 0x18)
+
+/* GPIO Pin Output Clear Registers */
+#define GPCR0		GPIO_REG(BANK_OFF(0) + 0x24)
+#define GPCR1		GPIO_REG(BANK_OFF(1) + 0x24)
+#define GPCR2		GPIO_REG(BANK_OFF(2) + 0x24)
+#define GPCR3		GPIO_REG(BANK_OFF(3) + 0x24)
+
+/* GPIO Rising Edge Detect Registers */
+#define GRER0		GPIO_REG(BANK_OFF(0) + 0x30)
+#define GRER1		GPIO_REG(BANK_OFF(1) + 0x30)
+#define GRER2		GPIO_REG(BANK_OFF(2) + 0x30)
+#define GRER3		GPIO_REG(BANK_OFF(3) + 0x30)
+
+/* GPIO Falling Edge Detect Registers */
+#define GFER0		GPIO_REG(BANK_OFF(0) + 0x3c)
+#define GFER1		GPIO_REG(BANK_OFF(1) + 0x3c)
+#define GFER2		GPIO_REG(BANK_OFF(2) + 0x3c)
+#define GFER3		GPIO_REG(BANK_OFF(3) + 0x3c)
+
+/* GPIO Edge Detect Status Registers */
+#define GEDR0		GPIO_REG(BANK_OFF(0) + 0x48)
+#define GEDR1		GPIO_REG(BANK_OFF(1) + 0x48)
+#define GEDR2		GPIO_REG(BANK_OFF(2) + 0x48)
+#define GEDR3		GPIO_REG(BANK_OFF(3) + 0x48)
+
+/* GPIO Alternate Function Select Registers */
+#define GAFR0_L		GPIO_REG(0x0054)
+#define GAFR0_U		GPIO_REG(0x0058)
+#define GAFR1_L		GPIO_REG(0x005C)
+#define GAFR1_U		GPIO_REG(0x0060)
+#define GAFR2_L		GPIO_REG(0x0064)
+#define GAFR2_U		GPIO_REG(0x0068)
+#define GAFR3_L		GPIO_REG(0x006C)
+#define GAFR3_U		GPIO_REG(0x0070)
+
+/* More handy macros.  The argument is a literal GPIO number. */
+
+#define GPIO_bit(x)	(1 << ((x) & 0x1f))
+
+#define GPLR(x)		GPIO_REG(BANK_OFF((x) >> 5) + 0x00)
+#define GPDR(x)		GPIO_REG(BANK_OFF((x) >> 5) + 0x0c)
+#define GPSR(x)		GPIO_REG(BANK_OFF((x) >> 5) + 0x18)
+#define GPCR(x)		GPIO_REG(BANK_OFF((x) >> 5) + 0x24)
+#define GRER(x)		GPIO_REG(BANK_OFF((x) >> 5) + 0x30)
+#define GFER(x)		GPIO_REG(BANK_OFF((x) >> 5) + 0x3c)
+#define GEDR(x)		GPIO_REG(BANK_OFF((x) >> 5) + 0x48)
+#define GAFR(x)		GPIO_REG(0x54 + (((x) & 0x70) >> 2))
 
 
 /* NOTE: some PXAs have fewer on-chip GPIOs (like PXA255, with 85).

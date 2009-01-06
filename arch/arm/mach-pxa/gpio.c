@@ -18,16 +18,12 @@
 #include <linux/sysdev.h>
 #include <linux/io.h>
 
-#include <asm/gpio.h>
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
+#include <mach/gpio.h>
 
-#include "generic.h"
-
-#define GPIO0_BASE	((void __iomem *)io_p2v(0x40E00000))
-#define GPIO1_BASE	((void __iomem *)io_p2v(0x40E00004))
-#define GPIO2_BASE	((void __iomem *)io_p2v(0x40E00008))
-#define GPIO3_BASE	((void __iomem *)io_p2v(0x40E00100))
+#define GPIO0_BASE	(GPIO_REGS_VIRT + 0x0000)
+#define GPIO1_BASE	(GPIO_REGS_VIRT + 0x0004)
+#define GPIO2_BASE	(GPIO_REGS_VIRT + 0x0008)
+#define GPIO3_BASE	(GPIO_REGS_VIRT + 0x0100)
 
 #define GPLR_OFFSET	0x00
 #define GPDR_OFFSET	0x0C

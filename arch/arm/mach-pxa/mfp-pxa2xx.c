@@ -18,8 +18,7 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
+#include <mach/gpio.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/mfp-pxa2xx.h>
 

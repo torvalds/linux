@@ -42,6 +42,7 @@
 #include <asm/hardware/sa1111.h>
 
 #include <mach/pxa25x.h>
+#include <mach/gpio.h>
 #include <mach/audio.h>
 #include <mach/lubbock.h>
 #include <mach/udc.h>

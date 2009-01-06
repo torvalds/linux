@@ -26,8 +26,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach-types.h>
 
-#include <mach/pxa-regs.h>
 #include <mach/reset.h>
+#include <mach/gpio.h>
 #include <mach/pxa2xx-gpio.h>
 
 #include "generic.h"

@@ -42,6 +42,7 @@
 #include <asm/mach/flash.h>
 
 #include <mach/pxa27x.h>
+#include <mach/gpio.h>
 #include <mach/mainstone.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
