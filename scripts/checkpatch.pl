@@ -1057,6 +1057,7 @@ sub process {
 	my $in_comment = 0;
 	my $comment_edge = 0;
 	my $first_line = 0;
+	my $p1_prefix = '';
 
 	my $prev_values = 'E';
 
@@ -1205,7 +1206,12 @@ sub process {
 		# extract the filename as it passes
 		if ($line=~/^\+\+\+\s+(\S+)/) {
 			$realfile = $1;
-			$realfile =~ s@^[^/]*/@@;
+			$realfile =~ s@^([^/]*)/@@;
+
+			$p1_prefix = $1;
+			if ($tree && $p1_prefix ne '' && -e "$root/$p1_prefix") {
+				WARN("patch prefix '$p1_prefix' exists, appears to be a -p0 patch\n");
+			}
 
 			if ($realfile =~ m@^include/asm/@) {
 				ERROR("do not modify files in include/asm, change architecture specific files in include/asm-<architecture>\n" . "$here$rawline\n");
