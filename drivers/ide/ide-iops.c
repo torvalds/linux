@@ -451,7 +451,7 @@ EXPORT_SYMBOL(ide_fixstring);
  */
 int drive_is_ready (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	u8 stat			= 0;
 
 	if (drive->waiting_for_dma)
@@ -965,7 +965,7 @@ static void ide_reset_report_error(ide_hwif_t *hwif, u8 err)
  */
 static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 	u8 tmp;
 	int err = 0;

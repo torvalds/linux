@@ -218,7 +218,7 @@ static acpi_handle ide_acpi_hwif_get_handle(ide_hwif_t *hwif)
  */
 static acpi_handle ide_acpi_drive_get_handle(ide_drive_t *drive)
 {
-	ide_hwif_t	*hwif = HWIF(drive);
+	ide_hwif_t	*hwif = drive->hwif;
 	int		 port;
 	acpi_handle	 drive_handle;
 
@@ -263,7 +263,7 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	acpi_status			status;
 	struct acpi_buffer		output;
 	union acpi_object 		*out_obj;
-	ide_hwif_t			*hwif = HWIF(drive);
+	ide_hwif_t			*hwif = drive->hwif;
 	struct device			*dev = hwif->gendev.parent;
 	int				err = -ENODEV;
 	int				port;

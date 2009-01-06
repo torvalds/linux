@@ -189,7 +189,7 @@ static void ide_classify_atapi_dev(ide_drive_t *drive)
 
 static void do_identify(ide_drive_t *drive, u8 cmd)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	u16 *id = drive->id;
 	char *m = (char *)&id[ATA_ID_PROD];
 	unsigned long flags;
@@ -266,7 +266,7 @@ err_misc:
 
 static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	int use_altstatus = 0, rc;
@@ -341,7 +341,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
  
 static int try_to_identify (ide_drive_t *drive, u8 cmd)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	int retval;
 	int autoprobe = 0;
@@ -438,7 +438,7 @@ static u8 ide_read_device(ide_drive_t *drive)
 
 static int do_probe (ide_drive_t *drive, u8 cmd)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	int rc;
 	u8 present = !!(drive->dev_flags & IDE_DFLAG_PRESENT), stat;
@@ -522,7 +522,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
  */
 static void enable_nest (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	u8 stat;
 
@@ -869,7 +869,7 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 static int ide_init_queue(ide_drive_t *drive)
 {
 	struct request_queue *q;
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	int max_sectors = 256;
 	int max_sg_entries = PRD_ENTRIES;
 

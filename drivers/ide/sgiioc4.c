@@ -123,7 +123,7 @@ static int
 sgiioc4_clearirq(ide_drive_t * drive)
 {
 	u32 intr_reg;
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	unsigned long other_ir = io_ports->irq_addr + (IOC4_INTR_REG << 2);
 
@@ -181,7 +181,7 @@ sgiioc4_clearirq(ide_drive_t * drive)
 
 static void sgiioc4_dma_start(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned long ioc4_dma_addr = hwif->dma_base + IOC4_DMA_CTRL * 4;
 	unsigned int reg = readl((void __iomem *)ioc4_dma_addr);
 	unsigned int temp_reg = reg | IOC4_S_DMA_START;
@@ -209,7 +209,7 @@ sgiioc4_ide_dma_stop(ide_hwif_t *hwif, u64 dma_base)
 static int sgiioc4_dma_end(ide_drive_t *drive)
 {
 	u32 ioc4_dma, bc_dev, bc_mem, num, valid = 0, cnt = 0;
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned long dma_base = hwif->dma_base;
 	int dma_stat = 0;
 	unsigned long *ending_dma = ide_get_hwifdata(hwif);
@@ -271,7 +271,7 @@ static void sgiioc4_set_dma_mode(ide_drive_t *drive, const u8 speed)
 /* returns 1 if dma irq issued, 0 otherwise */
 static int sgiioc4_dma_test_irq(ide_drive_t *drive)
 {
-	return sgiioc4_checkirq(HWIF(drive));
+	return sgiioc4_checkirq(drive->hwif);
 }
 
 static void sgiioc4_dma_host_set(ide_drive_t *drive, int on)
@@ -367,7 +367,7 @@ static void
 sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 {
 	u32 ioc4_dma;
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned long dma_base = hwif->dma_base;
 	unsigned long ioc4_dma_addr = dma_base + IOC4_DMA_CTRL * 4;
 	u32 dma_addr, ending_dma_addr;
@@ -427,7 +427,7 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 static unsigned int
 sgiioc4_build_dma_table(ide_drive_t * drive, struct request *rq, int ddir)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned int *table = hwif->dmatable_cpu;
 	unsigned int count = 0, i = 1;
 	struct scatterlist *sg;

@@ -68,7 +68,7 @@ static struct pci_dev *isa_dev;
 
 static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
 	int s_time = t->setup, a_time = t->active, c_time = t->cycle;
@@ -150,7 +150,7 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 
 static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 speed1		= speed;
 	u8 unit			= drive->dn & 1;

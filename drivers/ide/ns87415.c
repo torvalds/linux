@@ -138,12 +138,12 @@ static unsigned int ns87415_count = 0, ns87415_control[MAX_HWIFS] = { 0 };
 
 /*
  * This routine either enables/disables (according to IDE_DFLAG_PRESENT)
- * the IRQ associated with the port (HWIF(drive)),
+ * the IRQ associated with the port,
  * and selects either PIO or DMA handshaking for the next I/O operation.
  */
 static void ns87415_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned int bit, other, new, *old = (unsigned int *) hwif->select_data;
 	unsigned long flags;
@@ -197,7 +197,7 @@ static void ns87415_selectproc (ide_drive_t *drive)
 
 static int ns87415_dma_end(ide_drive_t *drive)
 {
-	ide_hwif_t      *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	u8 dma_stat = 0, dma_cmd = 0;
 
 	drive->waiting_for_dma = 0;

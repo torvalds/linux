@@ -463,7 +463,7 @@ EXPORT_SYMBOL_GPL(ide_init_sg_cmd);
 static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		struct request *rq)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	ide_task_t *task = rq->special;
 
 	if (task) {
@@ -587,7 +587,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 
 #ifdef DEBUG
 	printk("%s: start_request: current=0x%08lx\n",
-		HWIF(drive)->name, (unsigned long) rq);
+		drive->hwif->name, (unsigned long) rq);
 #endif
 
 	/* bail early if we've exceeded max_failures */
@@ -833,7 +833,7 @@ plug_device_2:
  */
 static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq;
 	ide_startstop_t ret = ide_stopped;
 
@@ -955,7 +955,7 @@ void ide_timer_expiry (unsigned long data)
 			 * globally mask the specific IRQ:
 			 */
 			spin_unlock(&hwif->lock);
-			hwif  = HWIF(drive);
+			hwif = drive->hwif;
 			/* disable_irq_nosync ?? */
 			disable_irq(hwif->irq);
 			/* local CPU only,

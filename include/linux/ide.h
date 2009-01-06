@@ -42,8 +42,6 @@ typedef unsigned char	byte;	/* used everywhere */
 #define ERROR_RESET	3	/* Reset controller every 4th retry */
 #define ERROR_RECAL	1	/* Recalibrate every 2nd retry */
 
-#define HWIF(drive)		((ide_hwif_t *)((drive)->hwif))
-
 /*
  * Definitions for accessing IDE controller registers
  */

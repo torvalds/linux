@@ -144,7 +144,7 @@
 
 static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	u16 reg = 0;
 	unsigned long flags;
 
@@ -222,15 +222,15 @@ static int trm290_dma_end(ide_drive_t *drive)
 	drive->waiting_for_dma = 0;
 	/* purge DMA mappings */
 	ide_destroy_dmatable(drive);
-	status = inw(HWIF(drive)->dma_base + 2);
+	status = inw(drive->hwif->dma_base + 2);
+
 	return status != 0x00ff;
 }
 
 static int trm290_dma_test_irq(ide_drive_t *drive)
 {
-	u16 status;
+	u16 status = inw(drive->hwif->dma_base + 2);
 
-	status = inw(HWIF(drive)->dma_base + 2);
 	return status == 0x00ff;
 }
 

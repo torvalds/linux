@@ -15,7 +15,7 @@
 
 static void tc86c001_set_mode(ide_drive_t *drive, const u8 speed)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	unsigned long scr_port	= hwif->config_data + (drive->dn ? 0x02 : 0x00);
 	u16 mode, scr		= inw(scr_port);
 
@@ -62,7 +62,7 @@ static void tc86c001_set_pio_mode(ide_drive_t *drive, const u8 pio)
  */
 static int tc86c001_timer_expiry(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	ide_expiry_t *expiry	= ide_get_hwifdata(hwif);
 	u8 dma_stat		= inb(hwif->dma_base + ATA_DMA_STATUS);
 
@@ -109,7 +109,7 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 
 static void tc86c001_dma_start(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	unsigned long sc_base	= hwif->config_data;
 	unsigned long twcr_port	= sc_base + (drive->dn ? 0x06 : 0x04);
 	unsigned long nsectors	= hwif->rq->nr_sectors;
