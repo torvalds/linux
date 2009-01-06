@@ -1217,6 +1217,3 @@ int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
 	}
 	return -EBUSY;
 }
-
-EXPORT_SYMBOL_GPL(ide_wait_not_busy);
-
