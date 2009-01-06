@@ -241,7 +241,6 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
 				first_hole = page_block;
 			page_block++;
 			block_in_file++;
-			clear_buffer_mapped(map_bh);
 			continue;
 		}
 
