@@ -549,7 +549,10 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 	}
 
 	/* Set the interrupt routine */
-	ide_set_handler(drive, ide_pc_intr, timeout, expiry);
+	ide_set_handler(drive,
+			(dev_is_idecd(drive) ? drive->irq_handler
+					     : ide_pc_intr),
+			timeout, expiry);
 
 	/* Begin DMA, if necessary */
 	if (dev_is_idecd(drive)) {

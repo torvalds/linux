@@ -510,99 +510,6 @@ end_request:
 	return 1;
 }
 
-static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *);
-static ide_startstop_t cdrom_newpc_intr(ide_drive_t *);
-
-/*
- * Set up the device registers for transferring a packet command on DEV,
- * expecting to later transfer XFERLEN bytes.  HANDLER is the routine
- * which actually transfers the command to the drive.  If this is a
- * drq_interrupt device, this routine will arrange for HANDLER to be
- * called when the interrupt from the drive arrives.  Otherwise, HANDLER
- * will be called immediately after the drive is prepared for the transfer.
- */
-static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->rq;
-	int xferlen;
-
-	xferlen = ide_cd_get_xferlen(rq);
-
-	ide_debug_log(IDE_DBG_PC, "Call %s, xferlen: %d\n", __func__, xferlen);
-
-	/* FIXME: for Virtual DMA we must check harder */
-	if (drive->dma)
-		drive->dma = !hwif->dma_ops->dma_setup(drive);
-
-	/* set up the controller registers */
-	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL,
-			   xferlen, drive->dma);
-
-	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
-		/* waiting for CDB interrupt, not DMA yet. */
-		if (drive->dma)
-			drive->waiting_for_dma = 0;
-
-		/* packet command */
-		ide_execute_command(drive, ATA_CMD_PACKET,
-				    cdrom_transfer_packet_command,
-				    ATAPI_WAIT_PC, ide_cd_expiry);
-		return ide_started;
-	} else {
-		ide_execute_pkt_cmd(drive);
-
-		return cdrom_transfer_packet_command(drive);
-	}
-}
-
-/*
- * Send a packet command to DRIVE described by CMD_BUF and CMD_LEN. The device
- * registers must have already been prepared by cdrom_start_packet_command.
- * HANDLER is the interrupt handler to call when the command completes or
- * there's data ready.
- */
-#define ATAPI_MIN_CDB_BYTES 12
-static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->rq;
-	int cmd_len;
-	ide_startstop_t startstop;
-
-	ide_debug_log(IDE_DBG_PC, "Call %s\n", __func__);
-
-	/* we must wait for DRQ to get set */
-	if (ide_wait_stat(&startstop, drive, ATA_DRQ, ATA_BUSY, WAIT_READY)) {
-		printk(KERN_ERR "%s: timeout while waiting for DRQ to assert\n",
-				drive->name);
-		return startstop;
-	}
-
-	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
-		/* ok, next interrupt will be DMA interrupt */
-		if (drive->dma)
-			drive->waiting_for_dma = 1;
-	}
-
-	/* arm the interrupt handler */
-	ide_set_handler(drive, cdrom_newpc_intr, rq->timeout, ide_cd_expiry);
-
-	/* ATAPI commands get padded out to 12 bytes minimum */
-	cmd_len = COMMAND_SIZE(rq->cmd[0]);
-	if (cmd_len < ATAPI_MIN_CDB_BYTES)
-		cmd_len = ATAPI_MIN_CDB_BYTES;
-
-	/* start the DMA if need be */
-	if (drive->dma)
-		hwif->dma_ops->dma_start(drive);
-
-	/* send the command to the device */
-	hwif->tp_ops->output_data(drive, NULL, rq->cmd, cmd_len);
-
-	return ide_started;
-}
-
 /*
  * Check the contents of the interrupt reason register from the cdrom
  * and attempt to recover if there are problems.  Returns  0 if everything's
@@ -1174,7 +1081,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		return ide_stopped;
 	}
 
-	return cdrom_start_packet_command(drive);
+	return ide_issue_pc(drive);
 }
 
 /*
@@ -2072,6 +1979,7 @@ static int ide_cd_probe(ide_drive_t *drive)
 	}
 
 	drive->debug_mask = debug_mask;
+	drive->irq_handler = cdrom_newpc_intr;
 
 	info = kzalloc(sizeof(struct cdrom_info), GFP_KERNEL);
 	if (info == NULL) {

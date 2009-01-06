@@ -654,6 +654,8 @@ struct ide_drive_s {
 	int  (*pc_io_buffers)(struct ide_drive_s *, struct ide_atapi_pc *,
 			      unsigned int, int);
 
+	ide_startstop_t (*irq_handler)(struct ide_drive_s *);
+
 	unsigned long atapi_flags;
 
 	struct ide_atapi_pc request_sense_pc;
