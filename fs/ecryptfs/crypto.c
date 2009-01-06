@@ -175,8 +175,8 @@ out:
  *
  * Returns zero on success; non-zero on error.
  */
-static int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
-			      loff_t offset)
+int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
+		       loff_t offset)
 {
 	int rc = 0;
 	char dst[MD5_DIGEST_SIZE];
