@@ -29,18 +29,6 @@
 #include <linux/dma-mapping.h>
 
 /**
- * enum dma_state_client - state of the channel in the client
- * @DMA_ACK: client would like to use, or was using this channel
- * @DMA_DUP: client has already seen this channel, or is not using this channel
- * @DMA_NAK: client does not want to see any more channels
- */
-enum dma_state_client {
-	DMA_ACK,
-	DMA_DUP,
-	DMA_NAK,
-};
-
-/**
  * typedef dma_cookie_t - an opaque DMA cookie
  *
  * if dma_cookie_t is >0 it's a DMA request cookie, <0 it's an error code
@@ -160,9 +148,10 @@ void dma_chan_cleanup(struct kref *kref);
  * When this optional parameter is specified in a call to dma_request_channel a
  * suitable channel is passed to this routine for further dispositioning before
  * being returned.  Where 'suitable' indicates a non-busy channel that
- * satisfies the given capability mask.
+ * satisfies the given capability mask.  It returns 'true' to indicate that the
+ * channel is suitable.
  */
-typedef enum dma_state_client (*dma_filter_fn)(struct dma_chan *chan, void *filter_param);
+typedef bool (*dma_filter_fn)(struct dma_chan *chan, void *filter_param);
 
 typedef void (*dma_async_tx_callback)(void *dma_async_param);
 /**

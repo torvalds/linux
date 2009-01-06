@@ -440,7 +440,7 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 {
 	struct dma_device *device, *_d;
 	struct dma_chan *chan = NULL;
-	enum dma_state_client ack;
+	bool ack;
 	int err;
 
 	/* Find a channel */
@@ -453,9 +453,9 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 		if (fn)
 			ack = fn(chan, fn_param);
 		else
-			ack = DMA_ACK;
+			ack = true;
 
-		if (ack == DMA_ACK) {
+		if (ack) {
 			/* Found a suitable channel, try to grab, prep, and
 			 * return it.  We first set DMA_PRIVATE to disable
 			 * balance_ref_count as this channel will not be
@@ -473,15 +473,9 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 				       dev_name(&chan->dev), err);
 			else
 				break;
-		} else if (ack == DMA_DUP) {
-			pr_debug("%s: %s filter said DMA_DUP\n",
-				 __func__, dev_name(&chan->dev));
-		} else if (ack == DMA_NAK) {
-			pr_debug("%s: %s filter said DMA_NAK\n",
-				 __func__, dev_name(&chan->dev));
-			break;
 		} else
-			WARN_ONCE(1, "filter_fn: unknown response?\n");
+			pr_debug("%s: %s filter said false\n",
+				 __func__, dev_name(&chan->dev));
 		chan = NULL;
 	}
 	mutex_unlock(&dma_list_mutex);

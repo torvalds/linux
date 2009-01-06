@@ -363,12 +363,12 @@ static int dmatest_add_channel(struct dma_chan *chan)
 	return 0;
 }
 
-static enum dma_state_client filter(struct dma_chan *chan, void *param)
+static bool filter(struct dma_chan *chan, void *param)
 {
 	if (!dmatest_match_channel(chan) || !dmatest_match_device(chan->device))
-		return DMA_DUP;
+		return false;
 	else
-		return DMA_ACK;
+		return true;
 }
 
 static int __init dmatest_init(void)

@@ -1544,14 +1544,14 @@ static void __exit atmci_cleanup_slot(struct atmel_mci_slot *slot,
 }
 
 #ifdef CONFIG_MMC_ATMELMCI_DMA
-static enum dma_state_client filter(struct dma_chan *chan, void *slave)
+static bool filter(struct dma_chan *chan, void *slave)
 {
 	struct dw_dma_slave *dws = slave;
 
 	if (dws->dma_dev == chan->device->dev)
-		return DMA_ACK;
+		return true;
 	else
-		return DMA_DUP;
+		return false;
 }
 #endif
 
