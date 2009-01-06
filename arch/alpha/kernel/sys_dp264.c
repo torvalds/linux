@@ -177,19 +177,19 @@ cpu_set_irq_affinity(unsigned int irq, cpumask_t affinity)
 }
 
 static void
-dp264_set_affinity(unsigned int irq, cpumask_t affinity)
+dp264_set_affinity(unsigned int irq, const struct cpumask *affinity)
 { 
 	spin_lock(&dp264_irq_lock);
-	cpu_set_irq_affinity(irq, affinity);
+	cpu_set_irq_affinity(irq, *affinity);
 	tsunami_update_irq_hw(cached_irq_mask);
 	spin_unlock(&dp264_irq_lock);
 }
 
 static void
-clipper_set_affinity(unsigned int irq, cpumask_t affinity)
+clipper_set_affinity(unsigned int irq, const struct cpumask *affinity)
 { 
 	spin_lock(&dp264_irq_lock);
-	cpu_set_irq_affinity(irq - 16, affinity);
+	cpu_set_irq_affinity(irq - 16, *affinity);
 	tsunami_update_irq_hw(cached_irq_mask);
 	spin_unlock(&dp264_irq_lock);
 }

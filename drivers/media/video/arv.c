@@ -396,7 +396,7 @@ out_up:
 	return ret;
 }
 
-static int ar_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long ar_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
 	struct ar_device *ar = video_get_drvdata(dev);
@@ -539,7 +539,7 @@ static int ar_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int ar_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
+static long ar_ioctl(struct file *file, unsigned int cmd,
 		    unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, ar_do_ioctl);
@@ -744,27 +744,23 @@ void ar_release(struct video_device *vfd)
  ****************************************************************************/
 static struct ar_device ardev;
 
-static int ar_exclusive_open(struct inode *inode, struct file *file)
+static int ar_exclusive_open(struct file *file)
 {
 	return test_and_set_bit(0, &ardev.in_use) ? -EBUSY : 0;
 }
 
-static int ar_exclusive_release(struct inode *inode, struct file *file)
+static int ar_exclusive_release(struct file *file)
 {
 	clear_bit(0, &ardev.in_use);
 	return 0;
 }
 
-static const struct file_operations ar_fops = {
+static const struct v4l2_file_operations ar_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ar_exclusive_open,
 	.release	= ar_exclusive_release,
 	.read		= ar_read,
 	.ioctl		= ar_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek		= no_llseek,
 };
 
 static struct video_device ar_template = {

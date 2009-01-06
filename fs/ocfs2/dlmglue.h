@@ -49,6 +49,19 @@ struct ocfs2_meta_lvb {
 	__be32       lvb_reserved2;
 };
 
+#define OCFS2_QINFO_LVB_VERSION 1
+
+struct ocfs2_qinfo_lvb {
+	__u8	lvb_version;
+	__u8	lvb_reserved[3];
+	__be32	lvb_bgrace;
+	__be32	lvb_igrace;
+	__be32	lvb_syncms;
+	__be32	lvb_blocks;
+	__be32	lvb_free_blk;
+	__be32	lvb_free_entry;
+};
+
 /* ocfs2_inode_lock_full() 'arg_flags' flags */
 /* don't wait on recovery. */
 #define OCFS2_META_LOCK_RECOVERY	(0x01)
@@ -69,6 +82,9 @@ void ocfs2_dentry_lock_res_init(struct ocfs2_dentry_lock *dl,
 struct ocfs2_file_private;
 void ocfs2_file_lock_res_init(struct ocfs2_lock_res *lockres,
 			      struct ocfs2_file_private *fp);
+struct ocfs2_mem_dqinfo;
+void ocfs2_qinfo_lock_res_init(struct ocfs2_lock_res *lockres,
+                               struct ocfs2_mem_dqinfo *info);
 void ocfs2_lock_res_free(struct ocfs2_lock_res *res);
 int ocfs2_create_new_inode_locks(struct inode *inode);
 int ocfs2_drop_inode_locks(struct inode *inode);
@@ -103,6 +119,9 @@ int ocfs2_dentry_lock(struct dentry *dentry, int ex);
 void ocfs2_dentry_unlock(struct dentry *dentry, int ex);
 int ocfs2_file_lock(struct file *file, int ex, int trylock);
 void ocfs2_file_unlock(struct file *file);
+int ocfs2_qinfo_lock(struct ocfs2_mem_dqinfo *oinfo, int ex);
+void ocfs2_qinfo_unlock(struct ocfs2_mem_dqinfo *oinfo, int ex);
+
 
 void ocfs2_mark_lockres_freeing(struct ocfs2_lock_res *lockres);
 void ocfs2_simple_drop_lockres(struct ocfs2_super *osb,

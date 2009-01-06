@@ -505,8 +505,10 @@ void dlm_change_lockres_owner(struct dlm_ctxt *dlm,
 static void dlm_lockres_release(struct kref *kref)
 {
 	struct dlm_lock_resource *res;
+	struct dlm_ctxt *dlm;
 
 	res = container_of(kref, struct dlm_lock_resource, refs);
+	dlm = res->dlm;
 
 	/* This should not happen -- all lockres' have a name
 	 * associated with them at init time. */
@@ -515,6 +517,7 @@ static void dlm_lockres_release(struct kref *kref)
 	mlog(0, "destroying lockres %.*s\n", res->lockname.len,
 	     res->lockname.name);
 
+	spin_lock(&dlm->track_lock);
 	if (!list_empty(&res->tracking))
 		list_del_init(&res->tracking);
 	else {
@@ -522,6 +525,9 @@ static void dlm_lockres_release(struct kref *kref)
 		     res->lockname.len, res->lockname.name);
 		dlm_print_one_lock_resource(res);
 	}
+	spin_unlock(&dlm->track_lock);
+
+	dlm_put(dlm);
 
 	if (!hlist_unhashed(&res->hash_node) ||
 	    !list_empty(&res->granted) ||
@@ -594,6 +600,10 @@ static void dlm_init_lockres(struct dlm_ctxt *dlm,
 	atomic_set(&res->asts_reserved, 0);
 	res->migration_pending = 0;
 	res->inflight_locks = 0;
+
+	/* put in dlm_lockres_release */
+	dlm_grab(dlm);
+	res->dlm = dlm;
 
 	kref_init(&res->refs);
 
@@ -722,14 +732,21 @@ lookup:
 	if (tmpres) {
 		int dropping_ref = 0;
 
+		spin_unlock(&dlm->spinlock);
+
 		spin_lock(&tmpres->spinlock);
+		/* We wait for the other thread that is mastering the resource */
+		if (tmpres->owner == DLM_LOCK_RES_OWNER_UNKNOWN) {
+			__dlm_wait_on_lockres(tmpres);
+			BUG_ON(tmpres->owner == DLM_LOCK_RES_OWNER_UNKNOWN);
+		}
+
 		if (tmpres->owner == dlm->node_num) {
 			BUG_ON(tmpres->state & DLM_LOCK_RES_DROPPING_REF);
 			dlm_lockres_grab_inflight_ref(dlm, tmpres);
 		} else if (tmpres->state & DLM_LOCK_RES_DROPPING_REF)
 			dropping_ref = 1;
 		spin_unlock(&tmpres->spinlock);
-		spin_unlock(&dlm->spinlock);
 
 		/* wait until done messaging the master, drop our ref to allow
 		 * the lockres to be purged, start over. */
@@ -2949,7 +2966,7 @@ static int dlm_do_migrate_request(struct dlm_ctxt *dlm,
 				  struct dlm_node_iter *iter)
 {
 	struct dlm_migrate_request migrate;
-	int ret, status = 0;
+	int ret, skip, status = 0;
 	int nodenum;
 
 	memset(&migrate, 0, sizeof(migrate));
@@ -2966,12 +2983,27 @@ static int dlm_do_migrate_request(struct dlm_ctxt *dlm,
 		    nodenum == new_master)
 			continue;
 
+		/* We could race exit domain. If exited, skip. */
+		spin_lock(&dlm->spinlock);
+		skip = (!test_bit(nodenum, dlm->domain_map));
+		spin_unlock(&dlm->spinlock);
+		if (skip) {
+			clear_bit(nodenum, iter->node_map);
+			continue;
+		}
+
 		ret = o2net_send_message(DLM_MIGRATE_REQUEST_MSG, dlm->key,
 					 &migrate, sizeof(migrate), nodenum,
 					 &status);
-		if (ret < 0)
-			mlog_errno(ret);
-		else if (status < 0) {
+		if (ret < 0) {
+			mlog(0, "migrate_request returned %d!\n", ret);
+			if (!dlm_is_host_down(ret)) {
+				mlog(ML_ERROR, "unhandled error=%d!\n", ret);
+				BUG();
+			}
+			clear_bit(nodenum, iter->node_map);
+			ret = 0;
+		} else if (status < 0) {
 			mlog(0, "migrate request (node %u) returned %d!\n",
 			     nodenum, status);
 			ret = status;

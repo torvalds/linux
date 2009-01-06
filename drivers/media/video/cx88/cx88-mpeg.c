@@ -578,9 +578,8 @@ static int cx8802_resume_common(struct pci_dev *pci_dev)
 
 #if defined(CONFIG_VIDEO_CX88_BLACKBIRD) || \
     defined(CONFIG_VIDEO_CX88_BLACKBIRD_MODULE)
-struct cx8802_dev * cx8802_get_device(struct inode *inode)
+struct cx8802_dev *cx8802_get_device(int minor)
 {
-	int minor = iminor(inode);
 	struct cx8802_dev *dev;
 
 	list_for_each_entry(dev, &cx8802_devlist, devlist)

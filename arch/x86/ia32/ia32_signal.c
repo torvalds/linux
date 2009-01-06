@@ -24,15 +24,14 @@
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/i387.h>
-#include <asm/ia32.h>
 #include <asm/ptrace.h>
 #include <asm/ia32_unistd.h>
 #include <asm/user32.h>
 #include <asm/sigcontext32.h>
 #include <asm/proto.h>
 #include <asm/vdso.h>
-
 #include <asm/sigframe.h>
+#include <asm/sys_ia32.h>
 
 #define DEBUG_SIG 0
 

@@ -1,6 +1,6 @@
 #include <linux/pci.h>
 #include <linux/init.h>
-#include "pci.h"
+#include <asm/pci_x86.h>
 
 /* arch_initcall has too random ordering, so call the initializers
    in the right sequence from here. */

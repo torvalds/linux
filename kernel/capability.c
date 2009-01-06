@@ -280,9 +280,7 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 	if (ret < 0)
 		goto error;
 
-	ret = audit_log_capset(pid, new, current_cred());
-	if (ret < 0)
-		return ret;
+	audit_log_capset(pid, new, current_cred());
 
 	return commit_creds(new);
 

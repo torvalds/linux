@@ -916,13 +916,16 @@ config MODULE_SRCVERSION_ALL
 	  the version).  With this option, such a "srcversion" field
 	  will be created for all modules.  If unsure, say N.
 
-config KMOD
-	def_bool y
-	help
-	  This is being removed soon.  These days, CONFIG_MODULES
-	  implies CONFIG_KMOD, so use that instead.
-
 endif # MODULES
+
+config INIT_ALL_POSSIBLE
+	bool
+	help
+	  Back when each arch used to define their own cpu_online_map and
+	  cpu_possible_map, some of them chose to initialize cpu_possible_map
+	  with all 1s, and others with all 0s.  When they were centralised,
+	  it was better to provide this option than to break all the archs
+	  and have several arch maintainers persuing me down dark alleys.
 
 config STOP_MACHINE
 	bool

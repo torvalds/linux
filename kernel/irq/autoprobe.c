@@ -40,9 +40,6 @@ unsigned long probe_irq_on(void)
 	 * flush such a longstanding irq before considering it as spurious.
 	 */
 	for_each_irq_desc_reverse(i, desc) {
-		if (!desc)
-			continue;
-
 		spin_lock_irq(&desc->lock);
 		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
 			/*
@@ -71,9 +68,6 @@ unsigned long probe_irq_on(void)
 	 * happened in the previous stage, it may have masked itself)
 	 */
 	for_each_irq_desc_reverse(i, desc) {
-		if (!desc)
-			continue;
-
 		spin_lock_irq(&desc->lock);
 		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
 			desc->status |= IRQ_AUTODETECT | IRQ_WAITING;
@@ -92,9 +86,6 @@ unsigned long probe_irq_on(void)
 	 * Now filter out any obviously spurious interrupts
 	 */
 	for_each_irq_desc(i, desc) {
-		if (!desc)
-			continue;
-
 		spin_lock_irq(&desc->lock);
 		status = desc->status;
 
@@ -133,9 +124,6 @@ unsigned int probe_irq_mask(unsigned long val)
 	int i;
 
 	for_each_irq_desc(i, desc) {
-		if (!desc)
-			continue;
-
 		spin_lock_irq(&desc->lock);
 		status = desc->status;
 
@@ -178,9 +166,6 @@ int probe_irq_off(unsigned long val)
 	unsigned int status;
 
 	for_each_irq_desc(i, desc) {
-		if (!desc)
-			continue;
-
 		spin_lock_irq(&desc->lock);
 		status = desc->status;
 

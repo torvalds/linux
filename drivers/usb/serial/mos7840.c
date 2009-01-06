@@ -1343,6 +1343,7 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 	else
 		data = mos7840_port->shadowLCR & ~LCR_SET_BREAK;
 
+	/* FIXME: no locking on shadowLCR anywhere in driver */
 	mos7840_port->shadowLCR = data;
 	dbg("mcs7840_break mos7840_port->shadowLCR is %x\n",
 	    mos7840_port->shadowLCR);
@@ -2214,10 +2215,12 @@ static int mos7840_set_modem_info(struct moschip_port *mos7840_port,
 		break;
 	}
 
+	lock_kernel();
 	mos7840_port->shadowMCR = mcr;
 
 	Data = mos7840_port->shadowMCR;
 	status = mos7840_set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
+	unlock_kernel();
 	if (status < 0) {
 		dbg("setting MODEM_CONTROL_REGISTER Failed\n");
 		return -1;

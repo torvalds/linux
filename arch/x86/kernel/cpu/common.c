@@ -355,7 +355,7 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 		printk(KERN_INFO  "CPU: Hyper-Threading is disabled\n");
 	} else if (smp_num_siblings > 1) {
 
-		if (smp_num_siblings > NR_CPUS) {
+		if (smp_num_siblings > nr_cpu_ids) {
 			printk(KERN_WARNING "CPU: Unsupported number of siblings %d",
 					smp_num_siblings);
 			smp_num_siblings = 1;

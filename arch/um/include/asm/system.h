@@ -11,21 +11,21 @@ extern int get_signals(void);
 extern void block_signals(void);
 extern void unblock_signals(void);
 
-#define raw_local_save_flags(flags) do { typecheck(unsigned long, flags); \
+#define local_save_flags(flags) do { typecheck(unsigned long, flags); \
 				     (flags) = get_signals(); } while(0)
-#define raw_local_irq_restore(flags) do { typecheck(unsigned long, flags); \
+#define local_irq_restore(flags) do { typecheck(unsigned long, flags); \
 				      set_signals(flags); } while(0)
 
-#define raw_local_irq_save(flags) do { raw_local_save_flags(flags); \
-                                   raw_local_irq_disable(); } while(0)
+#define local_irq_save(flags) do { local_save_flags(flags); \
+                                   local_irq_disable(); } while(0)
 
-#define raw_local_irq_enable() unblock_signals()
-#define raw_local_irq_disable() block_signals()
+#define local_irq_enable() unblock_signals()
+#define local_irq_disable() block_signals()
 
 #define irqs_disabled()                 \
 ({                                      \
         unsigned long flags;            \
-        raw_local_save_flags(flags);        \
+        local_save_flags(flags);        \
         (flags == 0);                   \
 })
 

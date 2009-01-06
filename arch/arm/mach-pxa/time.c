@@ -122,7 +122,6 @@ static struct clock_event_device ckevt_pxa_osmr0 = {
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
 	.rating		= 200,
-	.cpumask	= CPU_MASK_CPU0,
 	.set_next_event	= pxa_osmr0_set_next_event,
 	.set_mode	= pxa_osmr0_set_mode,
 };
@@ -163,6 +162,7 @@ static void __init pxa_timer_init(void)
 		clockevent_delta2ns(0x7fffffff, &ckevt_pxa_osmr0);
 	ckevt_pxa_osmr0.min_delta_ns =
 		clockevent_delta2ns(MIN_OSCR_DELTA * 2, &ckevt_pxa_osmr0) + 1;
+	ckevt_pxa_osmr0.cpumask = cpumask_of(0);
 
 	cksrc_pxa_oscr0.mult =
 		clocksource_hz2mult(clock_tick_rate, cksrc_pxa_oscr0.shift);

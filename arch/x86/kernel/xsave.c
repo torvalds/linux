@@ -159,7 +159,7 @@ int save_i387_xstate(void __user *buf)
  * Restore the extended state if present. Otherwise, restore the FP/SSE
  * state.
  */
-int restore_user_xstate(void __user *buf)
+static int restore_user_xstate(void __user *buf)
 {
 	struct _fpx_sw_bytes fx_sw_user;
 	u64 mask;

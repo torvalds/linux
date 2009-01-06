@@ -50,6 +50,7 @@ EXPORT_SYMBOL(jbd2_journal_unlock_updates);
 EXPORT_SYMBOL(jbd2_journal_get_write_access);
 EXPORT_SYMBOL(jbd2_journal_get_create_access);
 EXPORT_SYMBOL(jbd2_journal_get_undo_access);
+EXPORT_SYMBOL(jbd2_journal_set_triggers);
 EXPORT_SYMBOL(jbd2_journal_dirty_metadata);
 EXPORT_SYMBOL(jbd2_journal_release_buffer);
 EXPORT_SYMBOL(jbd2_journal_forget);
@@ -290,6 +291,7 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 	struct page *new_page;
 	unsigned int new_offset;
 	struct buffer_head *bh_in = jh2bh(jh_in);
+	struct jbd2_buffer_trigger_type *triggers;
 
 	/*
 	 * The buffer really shouldn't be locked: only the current committing
@@ -314,12 +316,22 @@ repeat:
 		done_copy_out = 1;
 		new_page = virt_to_page(jh_in->b_frozen_data);
 		new_offset = offset_in_page(jh_in->b_frozen_data);
+		triggers = jh_in->b_frozen_triggers;
 	} else {
 		new_page = jh2bh(jh_in)->b_page;
 		new_offset = offset_in_page(jh2bh(jh_in)->b_data);
+		triggers = jh_in->b_triggers;
 	}
 
 	mapped_data = kmap_atomic(new_page, KM_USER0);
+	/*
+	 * Fire any commit trigger.  Do this before checking for escaping,
+	 * as the trigger may modify the magic offset.  If a copy-out
+	 * happens afterwards, it will have the correct data in the buffer.
+	 */
+	jbd2_buffer_commit_trigger(jh_in, mapped_data + new_offset,
+				   triggers);
+
 	/*
 	 * Check for escaping
 	 */
@@ -352,6 +364,13 @@ repeat:
 		new_page = virt_to_page(tmp);
 		new_offset = offset_in_page(tmp);
 		done_copy_out = 1;
+
+		/*
+		 * This isn't strictly necessary, as we're using frozen
+		 * data for the escaping, but it keeps consistency with
+		 * b_frozen_data usage.
+		 */
+		jh_in->b_frozen_triggers = jh_in->b_triggers;
 	}
 
 	/*

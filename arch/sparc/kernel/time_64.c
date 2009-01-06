@@ -763,7 +763,7 @@ void __devinit setup_sparc64_timer(void)
 	sevt = &__get_cpu_var(sparc64_events);
 
 	memcpy(sevt, &sparc64_clockevent, sizeof(*sevt));
-	sevt->cpumask = cpumask_of_cpu(smp_processor_id());
+	sevt->cpumask = cpumask_of(smp_processor_id());
 
 	clockevents_register_device(sevt);
 }

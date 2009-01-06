@@ -113,7 +113,7 @@ static int vp27smpx_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int vp27smpx_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip)
+static int vp27smpx_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

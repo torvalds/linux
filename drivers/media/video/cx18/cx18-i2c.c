@@ -242,7 +242,7 @@ int cx18_call_i2c_client(struct cx18 *cx, int addr, unsigned cmd, void *arg)
 			return retval;
 		}
 	}
-	if (cmd != VIDIOC_G_CHIP_IDENT)
+	if (cmd != VIDIOC_DBG_G_CHIP_IDENT)
 		CX18_ERR("i2c addr 0x%02x not found for cmd 0x%x!\n",
 			       addr, cmd);
 	return -ENODEV;
@@ -266,17 +266,6 @@ static int cx18_i2c_id_addr(struct cx18 *cx, u32 id)
 		}
 	}
 	return retval;
-}
-
-/* Find the i2c device name matching the DRIVERID */
-static const char *cx18_i2c_id_name(u32 id)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hw_driverids); i++)
-		if (hw_driverids[i] == id)
-			return hw_devicenames[i];
-	return "unknown device";
 }
 
 /* Find the i2c device name matching the CX18_HW_ flag */
@@ -321,21 +310,6 @@ int cx18_i2c_hw(struct cx18 *cx, u32 hw, unsigned int cmd, void *arg)
 	if (addr < 0) {
 		CX18_ERR("i2c hardware 0x%08x (%s) not found for cmd 0x%x!\n",
 			       hw, cx18_i2c_hw_name(hw), cmd);
-		return addr;
-	}
-	return cx18_call_i2c_client(cx, addr, cmd, arg);
-}
-
-/* Calls i2c device based on I2C driver ID. */
-int cx18_i2c_id(struct cx18 *cx, u32 id, unsigned int cmd, void *arg)
-{
-	int addr;
-
-	addr = cx18_i2c_id_addr(cx, id);
-	if (addr < 0) {
-		if (cmd != VIDIOC_G_CHIP_IDENT)
-			CX18_ERR("i2c ID 0x%08x (%s) not found for cmd 0x%x!\n",
-				id, cx18_i2c_id_name(id), cmd);
 		return addr;
 	}
 	return cx18_call_i2c_client(cx, addr, cmd, arg);

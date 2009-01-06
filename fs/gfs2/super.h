@@ -10,6 +10,8 @@
 #ifndef __SUPER_DOT_H__
 #define __SUPER_DOT_H__
 
+#include <linux/fs.h>
+#include <linux/dcache.h>
 #include "incore.h"
 
 void gfs2_lm_unmount(struct gfs2_sbd *sdp);
@@ -23,12 +25,9 @@ static inline unsigned int gfs2_jindex_size(struct gfs2_sbd *sdp)
 	return x;
 }
 
-int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh);
 void gfs2_jindex_free(struct gfs2_sbd *sdp);
 
 struct gfs2_jdesc *gfs2_jdesc_find(struct gfs2_sbd *sdp, unsigned int jid);
-void gfs2_jdesc_make_dirty(struct gfs2_sbd *sdp, unsigned int jid);
-struct gfs2_jdesc *gfs2_jdesc_find_dirty(struct gfs2_sbd *sdp);
 int gfs2_jdesc_check(struct gfs2_jdesc *jd);
 
 int gfs2_lookup_in_master_dir(struct gfs2_sbd *sdp, char *filename,
@@ -40,11 +39,15 @@ int gfs2_statfs_init(struct gfs2_sbd *sdp);
 void gfs2_statfs_change(struct gfs2_sbd *sdp,
 			s64 total, s64 free, s64 dinodes);
 int gfs2_statfs_sync(struct gfs2_sbd *sdp);
-int gfs2_statfs_i(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *sc);
-int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *sc);
 
 int gfs2_freeze_fs(struct gfs2_sbd *sdp);
 void gfs2_unfreeze_fs(struct gfs2_sbd *sdp);
+
+extern struct file_system_type gfs2_fs_type;
+extern struct file_system_type gfs2meta_fs_type;
+extern const struct export_operations gfs2_export_ops;
+extern const struct super_operations gfs2_super_ops;
+extern struct dentry_operations gfs2_dops;
 
 #endif /* __SUPER_DOT_H__ */
 

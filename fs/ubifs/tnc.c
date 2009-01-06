@@ -2245,12 +2245,11 @@ int ubifs_tnc_replace(struct ubifs_info *c, const union ubifs_key *key,
 			if (found) {
 				/* Ensure the znode is dirtied */
 				if (znode->cnext || !ubifs_zn_dirty(znode)) {
-					    znode = dirty_cow_bottom_up(c,
-									znode);
-					    if (IS_ERR(znode)) {
-						    err = PTR_ERR(znode);
-						    goto out_unlock;
-					    }
+					znode = dirty_cow_bottom_up(c, znode);
+					if (IS_ERR(znode)) {
+						err = PTR_ERR(znode);
+						goto out_unlock;
+					}
 				}
 				zbr = &znode->zbranch[n];
 				lnc_free(zbr);
@@ -2317,11 +2316,11 @@ int ubifs_tnc_add_nm(struct ubifs_info *c, const union ubifs_key *key,
 
 		/* Ensure the znode is dirtied */
 		if (znode->cnext || !ubifs_zn_dirty(znode)) {
-			    znode = dirty_cow_bottom_up(c, znode);
-			    if (IS_ERR(znode)) {
-				    err = PTR_ERR(znode);
-				    goto out_unlock;
-			    }
+			znode = dirty_cow_bottom_up(c, znode);
+			if (IS_ERR(znode)) {
+				err = PTR_ERR(znode);
+				goto out_unlock;
+			}
 		}
 
 		if (found == 1) {
@@ -2627,11 +2626,11 @@ int ubifs_tnc_remove_range(struct ubifs_info *c, union ubifs_key *from_key,
 
 		/* Ensure the znode is dirtied */
 		if (znode->cnext || !ubifs_zn_dirty(znode)) {
-			    znode = dirty_cow_bottom_up(c, znode);
-			    if (IS_ERR(znode)) {
-				    err = PTR_ERR(znode);
-				    goto out_unlock;
-			    }
+			znode = dirty_cow_bottom_up(c, znode);
+			if (IS_ERR(znode)) {
+				err = PTR_ERR(znode);
+				goto out_unlock;
+			}
 		}
 
 		/* Remove all keys in range except the first */

@@ -137,7 +137,7 @@ static int tda9840_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *t)
 	return 0;
 }
 
-static int tda9840_ioctl(struct v4l2_subdev *sd, unsigned cmd, void *arg)
+static long tda9840_ioctl(struct v4l2_subdev *sd, unsigned cmd, void *arg)
 {
 	int byte;
 

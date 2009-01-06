@@ -1746,7 +1746,7 @@ static void sn9c102_release_resources(struct kref *kref)
 }
 
 
-static int sn9c102_open(struct inode* inode, struct file* filp)
+static int sn9c102_open(struct file *filp)
 {
 	struct sn9c102_device* cam;
 	int err = 0;
@@ -1857,7 +1857,7 @@ out:
 }
 
 
-static int sn9c102_release(struct inode* inode, struct file* filp)
+static int sn9c102_release(struct file *filp)
 {
 	struct sn9c102_device* cam;
 
@@ -3092,8 +3092,8 @@ sn9c102_vidioc_s_audio(struct sn9c102_device* cam, void __user * arg)
 }
 
 
-static int sn9c102_ioctl_v4l2(struct inode* inode, struct file* filp,
-			      unsigned int cmd, void __user * arg)
+static long sn9c102_ioctl_v4l2(struct file *filp,
+			      unsigned int cmd, void __user *arg)
 {
 	struct sn9c102_device *cam = video_drvdata(filp);
 
@@ -3196,7 +3196,7 @@ static int sn9c102_ioctl_v4l2(struct inode* inode, struct file* filp,
 }
 
 
-static int sn9c102_ioctl(struct inode* inode, struct file* filp,
+static long sn9c102_ioctl(struct file *filp,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct sn9c102_device *cam = video_drvdata(filp);
@@ -3220,7 +3220,7 @@ static int sn9c102_ioctl(struct inode* inode, struct file* filp,
 
 	V4LDBG(3, "sn9c102", cmd);
 
-	err = sn9c102_ioctl_v4l2(inode, filp, cmd, (void __user *)arg);
+	err = sn9c102_ioctl_v4l2(filp, cmd, (void __user *)arg);
 
 	mutex_unlock(&cam->fileop_mutex);
 
@@ -3229,18 +3229,14 @@ static int sn9c102_ioctl(struct inode* inode, struct file* filp,
 
 /*****************************************************************************/
 
-static const struct file_operations sn9c102_fops = {
+static const struct v4l2_file_operations sn9c102_fops = {
 	.owner = THIS_MODULE,
 	.open = sn9c102_open,
 	.release = sn9c102_release,
 	.ioctl = sn9c102_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l_compat_ioctl32,
-#endif
 	.read = sn9c102_read,
 	.poll = sn9c102_poll,
 	.mmap = sn9c102_mmap,
-	.llseek = no_llseek,
 };
 
 /*****************************************************************************/

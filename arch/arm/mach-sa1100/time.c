@@ -73,7 +73,6 @@ static struct clock_event_device ckevt_sa1100_osmr0 = {
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
 	.rating		= 200,
-	.cpumask	= CPU_MASK_CPU0,
 	.set_next_event	= sa1100_osmr0_set_next_event,
 	.set_mode	= sa1100_osmr0_set_mode,
 };
@@ -110,6 +109,7 @@ static void __init sa1100_timer_init(void)
 		clockevent_delta2ns(0x7fffffff, &ckevt_sa1100_osmr0);
 	ckevt_sa1100_osmr0.min_delta_ns =
 		clockevent_delta2ns(MIN_OSCR_DELTA * 2, &ckevt_sa1100_osmr0) + 1;
+	ckevt_sa1100_osmr0.cpumask = cpumask_of(0);
 
 	cksrc_sa1100_oscr.mult =
 		clocksource_hz2mult(CLOCK_TICK_RATE, cksrc_sa1100_oscr.shift);

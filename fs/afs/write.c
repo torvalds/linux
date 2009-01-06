@@ -144,7 +144,7 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 	candidate->state = AFS_WBACK_PENDING;
 	init_waitqueue_head(&candidate->waitq);
 
-	page = __grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page) {
 		kfree(candidate);
 		return -ENOMEM;

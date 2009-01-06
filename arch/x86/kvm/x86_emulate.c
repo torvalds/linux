@@ -58,6 +58,7 @@
 #define SrcMem32    (4<<4)	/* Memory operand (32-bit). */
 #define SrcImm      (5<<4)	/* Immediate operand. */
 #define SrcImmByte  (6<<4)	/* 8-bit sign-extended immediate operand. */
+#define SrcOne      (7<<4)	/* Implied '1' */
 #define SrcMask     (7<<4)
 /* Generic ModRM decode. */
 #define ModRM       (1<<7)
@@ -70,17 +71,23 @@
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 #define GroupMask   0xff        /* Group number stored in bits 0:7 */
+/* Source 2 operand type */
+#define Src2None    (0<<29)
+#define Src2CL      (1<<29)
+#define Src2ImmByte (2<<29)
+#define Src2One     (3<<29)
+#define Src2Mask    (7<<29)
 
 enum {
 	Group1_80, Group1_81, Group1_82, Group1_83,
 	Group1A, Group3_Byte, Group3, Group4, Group5, Group7,
 };
 
-static u16 opcode_table[256] = {
+static u32 opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	0, 0, 0, 0,
+	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm, 0, 0,
 	/* 0x08 - 0x0F */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
@@ -195,7 +202,7 @@ static u16 opcode_table[256] = {
 	ImplicitOps, ImplicitOps, Group | Group4, Group | Group5,
 };
 
-static u16 twobyte_table[256] = {
+static u32 twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	0, Group | GroupDual | Group7, 0, 0, 0, 0, ImplicitOps, 0,
 	ImplicitOps, ImplicitOps, 0, 0, 0, ImplicitOps | ModRM, 0, 0,
@@ -230,9 +237,14 @@ static u16 twobyte_table[256] = {
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xA0 - 0xA7 */
-	0, 0, 0, DstMem | SrcReg | ModRM | BitOp, 0, 0, 0, 0,
+	0, 0, 0, DstMem | SrcReg | ModRM | BitOp,
+	DstMem | SrcReg | Src2ImmByte | ModRM,
+	DstMem | SrcReg | Src2CL | ModRM, 0, 0,
 	/* 0xA8 - 0xAF */
-	0, 0, 0, DstMem | SrcReg | ModRM | BitOp, 0, 0, ModRM, 0,
+	0, 0, 0, DstMem | SrcReg | ModRM | BitOp,
+	DstMem | SrcReg | Src2ImmByte | ModRM,
+	DstMem | SrcReg | Src2CL | ModRM,
+	ModRM, 0,
 	/* 0xB0 - 0xB7 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM, 0,
 	    DstMem | SrcReg | ModRM | BitOp,
@@ -253,7 +265,7 @@ static u16 twobyte_table[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static u16 group_table[] = {
+static u32 group_table[] = {
 	[Group1_80*8] =
 	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
 	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
@@ -297,9 +309,9 @@ static u16 group_table[] = {
 	SrcMem16 | ModRM | Mov, SrcMem | ModRM | ByteOp,
 };
 
-static u16 group2_table[] = {
+static u32 group2_table[] = {
 	[Group7*8] =
-	SrcNone | ModRM, 0, 0, 0,
+	SrcNone | ModRM, 0, 0, SrcNone | ModRM,
 	SrcNone | ModRM | DstMem | Mov, 0,
 	SrcMem16 | ModRM | Mov, 0,
 };
@@ -359,49 +371,48 @@ static u16 group2_table[] = {
 	"andl %"_msk",%"_LO32 _tmp"; "		\
 	"orl  %"_LO32 _tmp",%"_sav"; "
 
+#ifdef CONFIG_X86_64
+#define ON64(x) x
+#else
+#define ON64(x)
+#endif
+
+#define ____emulate_2op(_op, _src, _dst, _eflags, _x, _y, _suffix)	\
+	do {								\
+		__asm__ __volatile__ (					\
+			_PRE_EFLAGS("0", "4", "2")			\
+			_op _suffix " %"_x"3,%1; "			\
+			_POST_EFLAGS("0", "4", "2")			\
+			: "=m" (_eflags), "=m" ((_dst).val),		\
+			  "=&r" (_tmp)					\
+			: _y ((_src).val), "i" (EFLAGS_MASK));		\
+	} while (0)
+
+
 /* Raw emulation: instruction has two explicit operands. */
 #define __emulate_2op_nobyte(_op,_src,_dst,_eflags,_wx,_wy,_lx,_ly,_qx,_qy) \
-	do { 								    \
-		unsigned long _tmp;					    \
-									    \
-		switch ((_dst).bytes) {					    \
-		case 2:							    \
-			__asm__ __volatile__ (				    \
-				_PRE_EFLAGS("0", "4", "2")		    \
-				_op"w %"_wx"3,%1; "			    \
-				_POST_EFLAGS("0", "4", "2")		    \
-				: "=m" (_eflags), "=m" ((_dst).val),        \
-				  "=&r" (_tmp)				    \
-				: _wy ((_src).val), "i" (EFLAGS_MASK));     \
-			break;						    \
-		case 4:							    \
-			__asm__ __volatile__ (				    \
-				_PRE_EFLAGS("0", "4", "2")		    \
-				_op"l %"_lx"3,%1; "			    \
-				_POST_EFLAGS("0", "4", "2")		    \
-				: "=m" (_eflags), "=m" ((_dst).val),	    \
-				  "=&r" (_tmp)				    \
-				: _ly ((_src).val), "i" (EFLAGS_MASK));     \
-			break;						    \
-		case 8:							    \
-			__emulate_2op_8byte(_op, _src, _dst,		    \
-					    _eflags, _qx, _qy);		    \
-			break;						    \
-		}							    \
+	do {								\
+		unsigned long _tmp;					\
+									\
+		switch ((_dst).bytes) {					\
+		case 2:							\
+			____emulate_2op(_op,_src,_dst,_eflags,_wx,_wy,"w"); \
+			break;						\
+		case 4:							\
+			____emulate_2op(_op,_src,_dst,_eflags,_lx,_ly,"l"); \
+			break;						\
+		case 8:							\
+			ON64(____emulate_2op(_op,_src,_dst,_eflags,_qx,_qy,"q")); \
+			break;						\
+		}							\
 	} while (0)
 
 #define __emulate_2op(_op,_src,_dst,_eflags,_bx,_by,_wx,_wy,_lx,_ly,_qx,_qy) \
 	do {								     \
-		unsigned long __tmp;					     \
+		unsigned long _tmp;					     \
 		switch ((_dst).bytes) {				             \
 		case 1:							     \
-			__asm__ __volatile__ (				     \
-				_PRE_EFLAGS("0", "4", "2")		     \
-				_op"b %"_bx"3,%1; "			     \
-				_POST_EFLAGS("0", "4", "2")		     \
-				: "=m" (_eflags), "=m" ((_dst).val),	     \
-				  "=&r" (__tmp)				     \
-				: _by ((_src).val), "i" (EFLAGS_MASK));      \
+			____emulate_2op(_op,_src,_dst,_eflags,_bx,_by,"b");  \
 			break;						     \
 		default:						     \
 			__emulate_2op_nobyte(_op, _src, _dst, _eflags,	     \
@@ -425,71 +436,68 @@ static u16 group2_table[] = {
 	__emulate_2op_nobyte(_op, _src, _dst, _eflags,			\
 			     "w", "r", _LO32, "r", "", "r")
 
-/* Instruction has only one explicit operand (no source operand). */
-#define emulate_1op(_op, _dst, _eflags)                                    \
+/* Instruction has three operands and one operand is stored in ECX register */
+#define __emulate_2op_cl(_op, _cl, _src, _dst, _eflags, _suffix, _type) 	\
+	do {									\
+		unsigned long _tmp;						\
+		_type _clv  = (_cl).val;  					\
+		_type _srcv = (_src).val;    					\
+		_type _dstv = (_dst).val;					\
+										\
+		__asm__ __volatile__ (						\
+			_PRE_EFLAGS("0", "5", "2")				\
+			_op _suffix " %4,%1 \n"					\
+			_POST_EFLAGS("0", "5", "2")				\
+			: "=m" (_eflags), "+r" (_dstv), "=&r" (_tmp)		\
+			: "c" (_clv) , "r" (_srcv), "i" (EFLAGS_MASK)		\
+			); 							\
+										\
+		(_cl).val  = (unsigned long) _clv;				\
+		(_src).val = (unsigned long) _srcv;				\
+		(_dst).val = (unsigned long) _dstv;				\
+	} while (0)
+
+#define emulate_2op_cl(_op, _cl, _src, _dst, _eflags)				\
+	do {									\
+		switch ((_dst).bytes) {						\
+		case 2:								\
+			__emulate_2op_cl(_op, _cl, _src, _dst, _eflags,  	\
+						"w", unsigned short);         	\
+			break;							\
+		case 4: 							\
+			__emulate_2op_cl(_op, _cl, _src, _dst, _eflags,  	\
+						"l", unsigned int);           	\
+			break;							\
+		case 8:								\
+			ON64(__emulate_2op_cl(_op, _cl, _src, _dst, _eflags,	\
+						"q", unsigned long));  		\
+			break;							\
+		}								\
+	} while (0)
+
+#define __emulate_1op(_op, _dst, _eflags, _suffix)			\
 	do {								\
 		unsigned long _tmp;					\
 									\
+		__asm__ __volatile__ (					\
+			_PRE_EFLAGS("0", "3", "2")			\
+			_op _suffix " %1; "				\
+			_POST_EFLAGS("0", "3", "2")			\
+			: "=m" (_eflags), "+m" ((_dst).val),		\
+			  "=&r" (_tmp)					\
+			: "i" (EFLAGS_MASK));				\
+	} while (0)
+
+/* Instruction has only one explicit operand (no source operand). */
+#define emulate_1op(_op, _dst, _eflags)                                    \
+	do {								\
 		switch ((_dst).bytes) {				        \
-		case 1:							\
-			__asm__ __volatile__ (				\
-				_PRE_EFLAGS("0", "3", "2")		\
-				_op"b %1; "				\
-				_POST_EFLAGS("0", "3", "2")		\
-				: "=m" (_eflags), "=m" ((_dst).val),	\
-				  "=&r" (_tmp)				\
-				: "i" (EFLAGS_MASK));			\
-			break;						\
-		case 2:							\
-			__asm__ __volatile__ (				\
-				_PRE_EFLAGS("0", "3", "2")		\
-				_op"w %1; "				\
-				_POST_EFLAGS("0", "3", "2")		\
-				: "=m" (_eflags), "=m" ((_dst).val),	\
-				  "=&r" (_tmp)				\
-				: "i" (EFLAGS_MASK));			\
-			break;						\
-		case 4:							\
-			__asm__ __volatile__ (				\
-				_PRE_EFLAGS("0", "3", "2")		\
-				_op"l %1; "				\
-				_POST_EFLAGS("0", "3", "2")		\
-				: "=m" (_eflags), "=m" ((_dst).val),	\
-				  "=&r" (_tmp)				\
-				: "i" (EFLAGS_MASK));			\
-			break;						\
-		case 8:							\
-			__emulate_1op_8byte(_op, _dst, _eflags);	\
-			break;						\
+		case 1:	__emulate_1op(_op, _dst, _eflags, "b"); break;	\
+		case 2:	__emulate_1op(_op, _dst, _eflags, "w"); break;	\
+		case 4:	__emulate_1op(_op, _dst, _eflags, "l"); break;	\
+		case 8:	ON64(__emulate_1op(_op, _dst, _eflags, "q")); break; \
 		}							\
 	} while (0)
-
-/* Emulate an instruction with quadword operands (x86/64 only). */
-#if defined(CONFIG_X86_64)
-#define __emulate_2op_8byte(_op, _src, _dst, _eflags, _qx, _qy)           \
-	do {								  \
-		__asm__ __volatile__ (					  \
-			_PRE_EFLAGS("0", "4", "2")			  \
-			_op"q %"_qx"3,%1; "				  \
-			_POST_EFLAGS("0", "4", "2")			  \
-			: "=m" (_eflags), "=m" ((_dst).val), "=&r" (_tmp) \
-			: _qy ((_src).val), "i" (EFLAGS_MASK));		\
-	} while (0)
-
-#define __emulate_1op_8byte(_op, _dst, _eflags)                           \
-	do {								  \
-		__asm__ __volatile__ (					  \
-			_PRE_EFLAGS("0", "3", "2")			  \
-			_op"q %1; "					  \
-			_POST_EFLAGS("0", "3", "2")			  \
-			: "=m" (_eflags), "=m" ((_dst).val), "=&r" (_tmp) \
-			: "i" (EFLAGS_MASK));				  \
-	} while (0)
-
-#elif defined(__i386__)
-#define __emulate_2op_8byte(_op, _src, _dst, _eflags, _qx, _qy)
-#define __emulate_1op_8byte(_op, _dst, _eflags)
-#endif				/* __i386__ */
 
 /* Fetch next part of the instruction being emulated. */
 #define insn_fetch(_type, _size, _eip)                                  \
@@ -1041,6 +1049,33 @@ done_prefixes:
 		c->src.bytes = 1;
 		c->src.val = insn_fetch(s8, 1, c->eip);
 		break;
+	case SrcOne:
+		c->src.bytes = 1;
+		c->src.val = 1;
+		break;
+	}
+
+	/*
+	 * Decode and fetch the second source operand: register, memory
+	 * or immediate.
+	 */
+	switch (c->d & Src2Mask) {
+	case Src2None:
+		break;
+	case Src2CL:
+		c->src2.bytes = 1;
+		c->src2.val = c->regs[VCPU_REGS_RCX] & 0x8;
+		break;
+	case Src2ImmByte:
+		c->src2.type = OP_IMM;
+		c->src2.ptr = (unsigned long *)c->eip;
+		c->src2.bytes = 1;
+		c->src2.val = insn_fetch(u8, 1, c->eip);
+		break;
+	case Src2One:
+		c->src2.bytes = 1;
+		c->src2.val = 1;
+		break;
 	}
 
 	/* Decode and fetch the destination operand: register or memory. */
@@ -1100,20 +1135,33 @@ static inline void emulate_push(struct x86_emulate_ctxt *ctxt)
 					       c->regs[VCPU_REGS_RSP]);
 }
 
+static int emulate_pop(struct x86_emulate_ctxt *ctxt,
+		       struct x86_emulate_ops *ops)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc;
+
+	rc = ops->read_emulated(register_address(c, ss_base(ctxt),
+						 c->regs[VCPU_REGS_RSP]),
+				&c->src.val, c->src.bytes, ctxt->vcpu);
+	if (rc != 0)
+		return rc;
+
+	register_address_increment(c, &c->regs[VCPU_REGS_RSP], c->src.bytes);
+	return rc;
+}
+
 static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt,
 				struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
 
-	rc = ops->read_std(register_address(c, ss_base(ctxt),
-					    c->regs[VCPU_REGS_RSP]),
-			   &c->dst.val, c->dst.bytes, ctxt->vcpu);
+	c->src.bytes = c->dst.bytes;
+	rc = emulate_pop(ctxt, ops);
 	if (rc != 0)
 		return rc;
-
-	register_address_increment(c, &c->regs[VCPU_REGS_RSP], c->dst.bytes);
-
+	c->dst.val = c->src.val;
 	return 0;
 }
 
@@ -1415,24 +1463,15 @@ special_insn:
 		emulate_1op("dec", c->dst, ctxt->eflags);
 		break;
 	case 0x50 ... 0x57:  /* push reg */
-		c->dst.type  = OP_MEM;
-		c->dst.bytes = c->op_bytes;
-		c->dst.val = c->src.val;
-		register_address_increment(c, &c->regs[VCPU_REGS_RSP],
-					   -c->op_bytes);
-		c->dst.ptr = (void *) register_address(
-			c, ss_base(ctxt), c->regs[VCPU_REGS_RSP]);
+		emulate_push(ctxt);
 		break;
 	case 0x58 ... 0x5f: /* pop reg */
 	pop_instruction:
-		if ((rc = ops->read_std(register_address(c, ss_base(ctxt),
-			c->regs[VCPU_REGS_RSP]), c->dst.ptr,
-			c->op_bytes, ctxt->vcpu)) != 0)
+		c->src.bytes = c->op_bytes;
+		rc = emulate_pop(ctxt, ops);
+		if (rc != 0)
 			goto done;
-
-		register_address_increment(c, &c->regs[VCPU_REGS_RSP],
-					   c->op_bytes);
-		c->dst.type = OP_NONE;	/* Disable writeback. */
+		c->dst.val = c->src.val;
 		break;
 	case 0x63:		/* movsxd */
 		if (ctxt->mode != X86EMUL_MODE_PROT64)
@@ -1591,7 +1630,9 @@ special_insn:
 		emulate_push(ctxt);
 		break;
 	case 0x9d: /* popf */
+		c->dst.type = OP_REG;
 		c->dst.ptr = (unsigned long *) &ctxt->eflags;
+		c->dst.bytes = c->op_bytes;
 		goto pop_instruction;
 	case 0xa0 ... 0xa1:	/* mov */
 		c->dst.ptr = (unsigned long *)&c->regs[VCPU_REGS_RAX];
@@ -1689,7 +1730,9 @@ special_insn:
 		emulate_grp2(ctxt);
 		break;
 	case 0xc3: /* ret */
+		c->dst.type = OP_REG;
 		c->dst.ptr = &c->eip;
+		c->dst.bytes = c->op_bytes;
 		goto pop_instruction;
 	case 0xc6 ... 0xc7:	/* mov (sole member of Grp11) */
 	mov:
@@ -1778,7 +1821,7 @@ special_insn:
 			c->eip = saved_eip;
 			goto cannot_emulate;
 		}
-		return 0;
+		break;
 	case 0xf4:              /* hlt */
 		ctxt->vcpu->arch.halt_request = 1;
 		break;
@@ -1999,11 +2042,19 @@ twobyte_insn:
 		c->src.val &= (c->dst.bytes << 3) - 1;
 		emulate_2op_SrcV_nobyte("bt", c->src, c->dst, ctxt->eflags);
 		break;
+	case 0xa4: /* shld imm8, r, r/m */
+	case 0xa5: /* shld cl, r, r/m */
+		emulate_2op_cl("shld", c->src2, c->src, c->dst, ctxt->eflags);
+		break;
 	case 0xab:
 	      bts:		/* bts */
 		/* only subword offset */
 		c->src.val &= (c->dst.bytes << 3) - 1;
 		emulate_2op_SrcV_nobyte("bts", c->src, c->dst, ctxt->eflags);
+		break;
+	case 0xac: /* shrd imm8, r, r/m */
+	case 0xad: /* shrd cl, r, r/m */
+		emulate_2op_cl("shrd", c->src2, c->src, c->dst, ctxt->eflags);
 		break;
 	case 0xae:              /* clflush */
 		break;

@@ -180,13 +180,13 @@ static DEFINE_SPINLOCK(sparc_backtrace_lock);
 
 void __show_backtrace(unsigned long fp)
 {
-	struct reg_window *rw;
+	struct reg_window32 *rw;
 	unsigned long flags;
 	int cpu = smp_processor_id();
 
 	spin_lock_irqsave(&sparc_backtrace_lock, flags);
 
-	rw = (struct reg_window *)fp;
+	rw = (struct reg_window32 *)fp;
         while(rw && (((unsigned long) rw) >= PAGE_OFFSET) &&
             !(((unsigned long) rw) & 0x7)) {
 		printk("CPU[%d]: ARGS[%08lx,%08lx,%08lx,%08lx,%08lx,%08lx] "
@@ -196,7 +196,7 @@ void __show_backtrace(unsigned long fp)
 		       rw->ins[6],
 		       rw->ins[7]);
 		printk("%pS\n", (void *) rw->ins[7]);
-		rw = (struct reg_window *) rw->ins[6];
+		rw = (struct reg_window32 *) rw->ins[6];
 	}
 	spin_unlock_irqrestore(&sparc_backtrace_lock, flags);
 }
@@ -258,7 +258,7 @@ void show_stackframe(struct sparc_stackf *sf)
 
 void show_regs(struct pt_regs *r)
 {
-	struct reg_window *rw = (struct reg_window *) r->u_regs[14];
+	struct reg_window32 *rw = (struct reg_window32 *) r->u_regs[14];
 
         printk("PSR: %08lx PC: %08lx NPC: %08lx Y: %08lx    %s\n",
 	       r->psr, r->pc, r->npc, r->y, print_tainted());
@@ -287,7 +287,7 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 {
 	unsigned long pc, fp;
 	unsigned long task_base;
-	struct reg_window *rw;
+	struct reg_window32 *rw;
 	int count = 0;
 
 	if (tsk != NULL)
@@ -301,7 +301,7 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 		if (fp < (task_base + sizeof(struct thread_info)) ||
 		    fp >= (task_base + (PAGE_SIZE << 1)))
 			break;
-		rw = (struct reg_window *) fp;
+		rw = (struct reg_window32 *) fp;
 		pc = rw->ins[7];
 		printk("[%08lx : ", pc);
 		printk("%pS ] ", (void *) pc);
@@ -679,7 +679,7 @@ unsigned long get_wchan(struct task_struct *task)
 	unsigned long pc, fp, bias = 0;
 	unsigned long task_base = (unsigned long) task;
         unsigned long ret = 0;
-	struct reg_window *rw;
+	struct reg_window32 *rw;
 	int count = 0;
 
 	if (!task || task == current ||
@@ -692,7 +692,7 @@ unsigned long get_wchan(struct task_struct *task)
 		if (fp < (task_base + sizeof(struct thread_info)) ||
 		    fp >= (task_base + (2 * PAGE_SIZE)))
 			break;
-		rw = (struct reg_window *) fp;
+		rw = (struct reg_window32 *) fp;
 		pc = rw->ins[7];
 		if (!in_sched_functions(pc)) {
 			ret = pc;

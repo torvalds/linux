@@ -2049,6 +2049,12 @@ M:	mikulas@artax.karlin.mff.cuni.cz
 W:	http://artax.karlin.mff.cuni.cz/~mikulas/vyplody/hpfs/index-e.cgi
 S:	Maintained
 
+HSO	3G Modem Driver (hso.c)
+P:	Denis Joseph Barrow
+M:	d.barow@option.com
+W:	http://www.pharscape.org
+S:	Maintained
+
 HTCPEN TOUCHSCREEN DRIVER
 P:	Pau Oliva Fora
 M:	pof@eslack.org
@@ -2145,11 +2151,6 @@ P:	Gadi Oxman
 M:	Gadi Oxman <gadio@netvision.net.il>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
-
-IDE-SCSI DRIVER
-L:	linux-ide@vger.kernel.org
-L:	linux-scsi@vger.kernel.org
-S:	Orphan
 
 IDLE-I7300
 P:	Andy Henroid
@@ -2541,8 +2542,6 @@ W:	http://kvm.qumranet.com
 S:	Supported
 
 KERNEL VIRTUAL MACHINE For Itanium (KVM/IA64)
-P:	Anthony Xu
-M:	anthony.xu@intel.com
 P:	Xiantao Zhang
 M:	xiantao.zhang@intel.com
 L:	kvm-ia64@vger.kernel.org
@@ -2641,13 +2640,13 @@ W:	http://www.hansenpartnership.com/voyager
 S:	Maintained
 
 LINUX FOR POWERPC (32-BIT AND 64-BIT)
-P:	Paul Mackerras
-M:	paulus@samba.org
 P:	Benjamin Herrenschmidt
 M:	benh@kernel.crashing.org
+P:	Paul Mackerras
+M:	paulus@samba.org
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@ozlabs.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/paulus/powerpc.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/benh/powerpc.git
 S:	Supported
 
 LINUX FOR POWER MACINTOSH
@@ -4022,10 +4021,12 @@ L:	alsa-devel@alsa-project.org (subscribers-only)
 W:	http://alsa-project.org/main/index.php/ASoC
 S:	Supported
 
-SPARC (sparc32)
-P:	William L. Irwin
-M:	wli@holomorphy.com
+SPARC + UltraSPARC (sparc/sparc64)
+P:	David S. Miller
+M:	davem@davemloft.net
 L:	sparclinux@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-2.6.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
 S:	Maintained
 
 SPECIALIX IO8+ MULTIPORT SERIAL CARD DRIVER
@@ -4307,13 +4308,6 @@ UFS FILESYSTEM
 P:	Evgeniy Dushistov
 M:	dushistov@mail.ru
 L:	linux-kernel@vger.kernel.org
-S:	Maintained
-
-UltraSPARC (sparc64)
-P:	David S. Miller
-M:	davem@davemloft.net
-L:	sparclinux@vger.kernel.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-2.6.git
 S:	Maintained
 
 ULTRA-WIDEBAND (UWB) SUBSYSTEM:

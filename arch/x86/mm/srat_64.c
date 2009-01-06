@@ -382,7 +382,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 		if (!node_online(i))
 			setup_node_bootmem(i, nodes[i].start, nodes[i].end);
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for (i = 0; i < nr_cpu_ids; i++) {
 		int node = early_cpu_to_node(i);
 
 		if (node == NUMA_NO_NODE)

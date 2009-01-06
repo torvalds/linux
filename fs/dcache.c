@@ -34,7 +34,6 @@
 #include <linux/bootmem.h>
 #include "internal.h"
 
-
 int sysctl_vfs_cache_pressure __read_mostly = 100;
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
 
@@ -948,9 +947,6 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 	dentry->d_op = NULL;
 	dentry->d_fsdata = NULL;
 	dentry->d_mounted = 0;
-#ifdef CONFIG_PROFILING
-	dentry->d_cookie = NULL;
-#endif
 	INIT_HLIST_NODE(&dentry->d_hash);
 	INIT_LIST_HEAD(&dentry->d_lru);
 	INIT_LIST_HEAD(&dentry->d_subdirs);
@@ -1336,7 +1332,7 @@ err_out:
  *
  * Searches the children of the parent dentry for the name in question. If
  * the dentry is found its reference count is incremented and the dentry
- * is returned. The caller must use d_put to free the entry when it has
+ * is returned. The caller must use dput to free the entry when it has
  * finished using it. %NULL is returned on failure.
  *
  * __d_lookup is dcache_lock free. The hash list is protected using RCU.
@@ -1620,8 +1616,11 @@ static void switch_names(struct dentry *dentry, struct dentry *target)
 			 */
 			memcpy(dentry->d_iname, target->d_name.name,
 					target->d_name.len + 1);
+			dentry->d_name.len = target->d_name.len;
+			return;
 		}
 	}
+	do_switch(dentry->d_name.len, target->d_name.len);
 }
 
 /*
@@ -1681,7 +1680,6 @@ already_unhashed:
 
 	/* Switch the names.. */
 	switch_names(dentry, target);
-	do_switch(dentry->d_name.len, target->d_name.len);
 	do_switch(dentry->d_name.hash, target->d_name.hash);
 
 	/* ... and switch the parents */
@@ -1791,7 +1789,6 @@ static void __d_materialise_dentry(struct dentry *dentry, struct dentry *anon)
 	struct dentry *dparent, *aparent;
 
 	switch_names(dentry, anon);
-	do_switch(dentry->d_name.len, anon->d_name.len);
 	do_switch(dentry->d_name.hash, anon->d_name.hash);
 
 	dparent = dentry->d_parent;
@@ -1911,7 +1908,8 @@ static int prepend_name(char **buffer, int *buflen, struct qstr *name)
  * Convert a dentry into an ASCII path name. If the entry has been deleted
  * the string " (deleted)" is appended. Note that this is ambiguous.
  *
- * Returns the buffer or an error code if the path was too long.
+ * Returns a pointer into the buffer or an error code if the
+ * path was too long.
  *
  * "buflen" should be positive. Caller holds the dcache_lock.
  *
@@ -1987,7 +1985,10 @@ Elong:
  * Convert a dentry into an ASCII path name. If the entry has been deleted
  * the string " (deleted)" is appended. Note that this is ambiguous.
  *
- * Returns the buffer or an error code if the path was too long.
+ * Returns a pointer into the buffer or an error code if the path was
+ * too long. Note: Callers should use the returned pointer, not the passed
+ * in buffer, to use the name! The implementation often starts at an offset
+ * into the buffer, and may leave 0 bytes at the start.
  *
  * "buflen" should be positive.
  */
@@ -2313,9 +2314,6 @@ static void __init dcache_init(void)
 /* SLAB cache for __getname() consumers */
 struct kmem_cache *names_cachep __read_mostly;
 
-/* SLAB cache for file structures */
-struct kmem_cache *filp_cachep __read_mostly;
-
 EXPORT_SYMBOL(d_genocide);
 
 void __init vfs_caches_init_early(void)
@@ -2335,9 +2333,6 @@ void __init vfs_caches_init(unsigned long mempages)
 	mempages -= reserve;
 
 	names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
-
-	filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 
 	dcache_init();

@@ -113,7 +113,8 @@ struct irq_chip {
 	void		(*eoi)(unsigned int irq);
 
 	void		(*end)(unsigned int irq);
-	void		(*set_affinity)(unsigned int irq, cpumask_t dest);
+	void		(*set_affinity)(unsigned int irq,
+					const struct cpumask *dest);
 	int		(*retrigger)(unsigned int irq);
 	int		(*set_type)(unsigned int irq, unsigned int flow_type);
 	int		(*set_wake)(unsigned int irq, unsigned int on);
@@ -193,42 +194,23 @@ struct irq_desc {
 	const char		*name;
 } ____cacheline_internodealigned_in_smp;
 
-extern void early_irq_init(void);
-extern void arch_early_irq_init(void);
-extern void arch_init_chip_data(struct irq_desc *desc, int cpu);
 extern void arch_init_copy_chip_data(struct irq_desc *old_desc,
 					struct irq_desc *desc, int cpu);
 extern void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc);
 
 #ifndef CONFIG_SPARSE_IRQ
 extern struct irq_desc irq_desc[NR_IRQS];
-
-static inline struct irq_desc *irq_to_desc(unsigned int irq)
-{
-	return (irq < NR_IRQS) ? irq_desc + irq : NULL;
-}
-static inline struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
-{
-	return irq_to_desc(irq);
-}
-
-#else
-
-extern struct irq_desc *irq_to_desc(unsigned int irq);
-extern struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu);
+#else /* CONFIG_SPARSE_IRQ */
 extern struct irq_desc *move_irq_desc(struct irq_desc *old_desc, int cpu);
-
-# define for_each_irq_desc(irq, desc)		\
-	for (irq = 0, desc = irq_to_desc(irq); irq < nr_irqs; irq++, desc = irq_to_desc(irq))
-# define for_each_irq_desc_reverse(irq, desc)                          \
-	for (irq = nr_irqs - 1, desc = irq_to_desc(irq); irq >= 0; irq--, desc = irq_to_desc(irq))
 
 #define kstat_irqs_this_cpu(DESC) \
 	((DESC)->kstat_irqs[smp_processor_id()])
 #define kstat_incr_irqs_this_cpu(irqno, DESC) \
 	((DESC)->kstat_irqs[smp_processor_id()]++)
 
-#endif
+#endif /* CONFIG_SPARSE_IRQ */
+
+extern struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu);
 
 static inline struct irq_desc *
 irq_remap_to_desc(unsigned int irq, struct irq_desc *desc)

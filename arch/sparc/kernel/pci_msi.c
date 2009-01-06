@@ -286,9 +286,9 @@ static int bringup_one_msi_queue(struct pci_pbm_info *pbm,
 
 	nid = pbm->numa_node;
 	if (nid != -1) {
-		cpumask_t numa_mask = node_to_cpumask(nid);
+		cpumask_t numa_mask = *cpumask_of_node(nid);
 
-		irq_set_affinity(irq, numa_mask);
+		irq_set_affinity(irq, &numa_mask);
 	}
 	err = request_irq(irq, sparc64_msiq_interrupt, 0,
 			  "MSIQ",

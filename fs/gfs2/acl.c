@@ -91,7 +91,7 @@ static int acl_get(struct gfs2_inode *ip, int access, struct posix_acl **acl,
 	struct gfs2_ea_location el_this;
 	int error;
 
-	if (!ip->i_di.di_eattr)
+	if (!ip->i_eattr)
 		return 0;
 
 	memset(&er, 0, sizeof(struct gfs2_ea_request));
