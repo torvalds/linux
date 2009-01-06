@@ -1051,10 +1051,7 @@ NORET_TYPE void do_exit(long code)
 				preempt_count());
 
 	acct_update_integrals(tsk);
-	if (tsk->mm) {
-		update_hiwater_rss(tsk->mm);
-		update_hiwater_vm(tsk->mm);
-	}
+
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
 		hrtimer_cancel(&tsk->signal->real_timer);
