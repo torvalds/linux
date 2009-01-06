@@ -116,11 +116,25 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 		int page = bitmap_find_free_region(mem->bitmap, mem->size,
 						     order);
 		if (page >= 0) {
+			/*
+			 * Memory was found in the per-device arena.
+			 */
 			*dma_handle = mem->device_base + (page << PAGE_SHIFT);
 			*ret = mem->virt_base + (page << PAGE_SHIFT);
 			memset(*ret, 0, size);
-		} else if (mem->flags & DMA_MEMORY_EXCLUSIVE)
+		} else if (mem->flags & DMA_MEMORY_EXCLUSIVE) {
+			/*
+			 * The per-device arena is exhausted and we are not
+			 * permitted to fall back to generic memory.
+			 */
 			*ret = NULL;
+		} else {
+			/*
+			 * The per-device arena is exhausted and we are
+			 * permitted to fall back to generic memory.
+			 */
+			 return 0;
+		}
 	}
 	return (mem != NULL);
 }
