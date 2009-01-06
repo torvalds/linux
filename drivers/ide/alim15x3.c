@@ -490,8 +490,6 @@ static int __devinit init_dma_ali15x3(ide_hwif_t *hwif,
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
 
-	hwif->dma_ops = &sff_dma_ops;
-
 	return 0;
 }
 
@@ -519,6 +517,7 @@ static const struct ide_port_info ali15x3_chipset __devinitdata = {
 	.init_hwif	= init_hwif_ali15x3,
 	.init_dma	= init_dma_ali15x3,
 	.port_ops	= &ali_port_ops,
+	.dma_ops	= &sff_dma_ops,
 	.pio_mask	= ATA_PIO5,
 	.swdma_mask	= ATA_SWDMA2,
 	.mwdma_mask	= ATA_MWDMA2,
