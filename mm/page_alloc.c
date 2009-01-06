@@ -3469,9 +3469,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 			PAGE_ALIGN(size * sizeof(struct page)) >> PAGE_SHIFT;
 		if (realsize >= memmap_pages) {
 			realsize -= memmap_pages;
-			printk(KERN_DEBUG
-				"  %s zone: %lu pages used for memmap\n",
-				zone_names[j], memmap_pages);
+			if (memmap_pages)
+				printk(KERN_DEBUG
+				       "  %s zone: %lu pages used for memmap\n",
+				       zone_names[j], memmap_pages);
 		} else
 			printk(KERN_WARNING
 				"  %s zone: %lu pages exceeds realsize %lu\n",
