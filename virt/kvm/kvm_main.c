@@ -891,6 +891,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 {
 	struct mm_struct *mm = kvm->mm;
 
+	kvm_arch_sync_events(kvm);
 	spin_lock(&kvm_lock);
 	list_del(&kvm->vm_list);
 	spin_unlock(&kvm_lock);
