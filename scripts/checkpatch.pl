@@ -844,11 +844,11 @@ sub annotate_values {
 			$type = 'V';
 			$av_pending = 'V';
 
-		} elsif ($cur =~ /^($Ident\s*):/) {
-			if ($type eq 'E') {
-				$av_pend_colon = 'L';
-			} elsif ($type eq 'T') {
+		} elsif ($cur =~ /^($Ident\s*):(?:\s*\d+\s*(,|=|;))?/) {
+			if (defined $2 && $type eq 'C' || $type eq 'T') {
 				$av_pend_colon = 'B';
+			} elsif ($type eq 'E') {
+				$av_pend_colon = 'L';
 			}
 			print "IDENT_COLON($1,$type>$av_pend_colon)\n" if ($dbg_values > 1);
 			$type = 'V';
@@ -866,6 +866,10 @@ sub annotate_values {
 			$type = 'E';
 			$av_pend_colon = 'O';
 
+		} elsif ($cur =~/^(,)/) {
+			print "COMMA($1)\n" if ($dbg_values > 1);
+			$type = 'C';
+
 		} elsif ($cur =~ /^(\?)/o) {
 			print "QUESTION($1)\n" if ($dbg_values > 1);
 			$type = 'N';
@@ -881,7 +885,7 @@ sub annotate_values {
 			}
 			$av_pend_colon = 'O';
 
-		} elsif ($cur =~ /^(;|\[)/o) {
+		} elsif ($cur =~ /^(\[)/o) {
 			print "CLOSE($1)\n" if ($dbg_values > 1);
 			$type = 'N';
 
