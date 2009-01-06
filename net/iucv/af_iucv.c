@@ -494,7 +494,21 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 	if (err) {
 		iucv_path_free(iucv->path);
 		iucv->path = NULL;
-		err = -ECONNREFUSED;
+		switch (err) {
+		case 0x0b:	/* Target communicator is not logged on */
+			err = -ENETUNREACH;
+			break;
+		case 0x0d:	/* Max connections for this guest exceeded */
+		case 0x0e:	/* Max connections for target guest exceeded */
+			err = -EAGAIN;
+			break;
+		case 0x0f:	/* Missing IUCV authorization */
+			err = -EACCES;
+			break;
+		default:
+			err = -ECONNREFUSED;
+			break;
+		}
 		goto done;
 	}
 
