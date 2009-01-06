@@ -1863,26 +1863,10 @@ static int do_write(struct fsg_dev *fsg)
 static int fsync_sub(struct lun *curlun)
 {
 	struct file	*filp = curlun->filp;
-	struct inode	*inode;
-	int		rc, err;
 
 	if (curlun->ro || !filp)
 		return 0;
-	if (!filp->f_op->fsync)
-		return -EINVAL;
-
-	inode = filp->f_path.dentry->d_inode;
-	mutex_lock(&inode->i_mutex);
-	rc = filemap_fdatawrite(inode->i_mapping);
-	err = filp->f_op->fsync(filp, filp->f_path.dentry, 1);
-	if (!rc)
-		rc = err;
-	err = filemap_fdatawait(inode->i_mapping);
-	if (!rc)
-		rc = err;
-	mutex_unlock(&inode->i_mutex);
-	VLDBG(curlun, "fdatasync -> %d\n", rc);
-	return rc;
+	return vfs_fsync(filp, filp->f_path.dentry, 1);
 }
 
 static void fsync_all(struct fsg_dev *fsg)

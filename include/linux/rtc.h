@@ -145,6 +145,8 @@ struct rtc_class_ops {
 	int (*irq_set_state)(struct device *, int enabled);
 	int (*irq_set_freq)(struct device *, int freq);
 	int (*read_callback)(struct device *, int data);
+	int (*alarm_irq_enable)(struct device *, unsigned int enabled);
+	int (*update_irq_enable)(struct device *, unsigned int enabled);
 };
 
 #define RTC_DEVICE_NAME_SIZE 20
@@ -181,7 +183,7 @@ struct rtc_device
 	struct timer_list uie_timer;
 	/* Those fields are protected by rtc->irq_lock */
 	unsigned int oldsecs;
-	unsigned int irq_active:1;
+	unsigned int uie_irq_active:1;
 	unsigned int stop_uie_polling:1;
 	unsigned int uie_task_active:1;
 	unsigned int uie_timer_active:1;
@@ -216,6 +218,10 @@ extern int rtc_irq_set_state(struct rtc_device *rtc,
 				struct rtc_task *task, int enabled);
 extern int rtc_irq_set_freq(struct rtc_device *rtc,
 				struct rtc_task *task, int freq);
+extern int rtc_update_irq_enable(struct rtc_device *rtc, unsigned int enabled);
+extern int rtc_alarm_irq_enable(struct rtc_device *rtc, unsigned int enabled);
+extern int rtc_dev_update_irq_enable_emul(struct rtc_device *rtc,
+						unsigned int enabled);
 
 typedef struct rtc_task {
 	void (*func)(void *private_data);

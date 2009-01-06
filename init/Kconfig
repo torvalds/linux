@@ -916,12 +916,6 @@ config MODULE_SRCVERSION_ALL
 	  the version).  With this option, such a "srcversion" field
 	  will be created for all modules.  If unsure, say N.
 
-config KMOD
-	def_bool y
-	help
-	  This is being removed soon.  These days, CONFIG_MODULES
-	  implies CONFIG_KMOD, so use that instead.
-
 endif # MODULES
 
 config INIT_ALL_POSSIBLE

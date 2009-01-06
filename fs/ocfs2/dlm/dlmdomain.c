@@ -1550,6 +1550,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	spin_lock_init(&dlm->spinlock);
 	spin_lock_init(&dlm->master_lock);
 	spin_lock_init(&dlm->ast_lock);
+	spin_lock_init(&dlm->track_lock);
 	INIT_LIST_HEAD(&dlm->list);
 	INIT_LIST_HEAD(&dlm->dirty_list);
 	INIT_LIST_HEAD(&dlm->reco.resources);

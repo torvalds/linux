@@ -54,10 +54,10 @@ static unsigned long rfkill_states_lockdflt[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
 static bool rfkill_epo_lock_active;
 
 
+#ifdef CONFIG_RFKILL_LEDS
 static void rfkill_led_trigger(struct rfkill *rfkill,
 			       enum rfkill_state state)
 {
-#ifdef CONFIG_RFKILL_LEDS
 	struct led_trigger *led = &rfkill->led_trigger;
 
 	if (!led->name)
@@ -66,10 +66,8 @@ static void rfkill_led_trigger(struct rfkill *rfkill,
 		led_trigger_event(led, LED_OFF);
 	else
 		led_trigger_event(led, LED_FULL);
-#endif /* CONFIG_RFKILL_LEDS */
 }
 
-#ifdef CONFIG_RFKILL_LEDS
 static void rfkill_led_trigger_activate(struct led_classdev *led)
 {
 	struct rfkill *rfkill = container_of(led->trigger,

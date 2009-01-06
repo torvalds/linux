@@ -1322,11 +1322,7 @@ static int __init dm_crypt_init(void)
 
 static void __exit dm_crypt_exit(void)
 {
-	int r = dm_unregister_target(&crypt_target);
-
-	if (r < 0)
-		DMERR("unregister failed %d", r);
-
+	dm_unregister_target(&crypt_target);
 	kmem_cache_destroy(_crypt_io_pool);
 }
 

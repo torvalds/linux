@@ -78,8 +78,8 @@ int twl4030_i2c_read_u8(u8 mod_no, u8 *val, u8 reg);
  * IMPORTANT:  For twl4030_i2c_write(), allocate num_bytes + 1
  * for the value, and populate your data starting at offset 1.
  */
-int twl4030_i2c_write(u8 mod_no, u8 *value, u8 reg, u8 num_bytes);
-int twl4030_i2c_read(u8 mod_no, u8 *value, u8 reg, u8 num_bytes);
+int twl4030_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
+int twl4030_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 
 /*----------------------------------------------------------------------*/
 
@@ -278,39 +278,24 @@ struct twl4030_platform_data {
 	struct twl4030_keypad_data		*keypad;
 	struct twl4030_usb_data			*usb;
 
+	/* LDO regulators */
+	struct regulator_init_data		*vdac;
+	struct regulator_init_data		*vpll1;
+	struct regulator_init_data		*vpll2;
+	struct regulator_init_data		*vmmc1;
+	struct regulator_init_data		*vmmc2;
+	struct regulator_init_data		*vsim;
+	struct regulator_init_data		*vaux1;
+	struct regulator_init_data		*vaux2;
+	struct regulator_init_data		*vaux3;
+	struct regulator_init_data		*vaux4;
+
 	/* REVISIT more to come ... _nothing_ should be hard-wired */
 };
 
 /*----------------------------------------------------------------------*/
 
 int twl4030_sih_setup(int module);
-
-/*
- * FIXME completely stop using TWL4030_IRQ_BASE ... instead, pass the
- * IRQ data to subsidiary devices using platform device resources.
- */
-
-/* IRQ information-need base */
-#include <mach/irqs.h>
-/* TWL4030 interrupts */
-
-/* #define TWL4030_MODIRQ_GPIO		(TWL4030_IRQ_BASE + 0) */
-#define TWL4030_MODIRQ_KEYPAD		(TWL4030_IRQ_BASE + 1)
-#define TWL4030_MODIRQ_BCI		(TWL4030_IRQ_BASE + 2)
-#define TWL4030_MODIRQ_MADC		(TWL4030_IRQ_BASE + 3)
-/* #define TWL4030_MODIRQ_USB		(TWL4030_IRQ_BASE + 4) */
-/* #define TWL4030_MODIRQ_PWR		(TWL4030_IRQ_BASE + 5) */
-
-#define TWL4030_PWRIRQ_PWRBTN		(TWL4030_PWR_IRQ_BASE + 0)
-/* #define TWL4030_PWRIRQ_CHG_PRES		(TWL4030_PWR_IRQ_BASE + 1) */
-/* #define TWL4030_PWRIRQ_USB_PRES		(TWL4030_PWR_IRQ_BASE + 2) */
-/* #define TWL4030_PWRIRQ_RTC		(TWL4030_PWR_IRQ_BASE + 3) */
-/* #define TWL4030_PWRIRQ_HOT_DIE		(TWL4030_PWR_IRQ_BASE + 4) */
-/* #define TWL4030_PWRIRQ_PWROK_TIMEOUT	(TWL4030_PWR_IRQ_BASE + 5) */
-/* #define TWL4030_PWRIRQ_MBCHG		(TWL4030_PWR_IRQ_BASE + 6) */
-/* #define TWL4030_PWRIRQ_SC_DETECT	(TWL4030_PWR_IRQ_BASE + 7) */
-
-/* Rest are unsued currently*/
 
 /* Offsets to Power Registers */
 #define TWL4030_VDAC_DEV_GRP		0x3B
@@ -321,10 +306,6 @@ int twl4030_sih_setup(int module);
 #define TWL4030_VAUX2_DEDICATED		0x1E
 #define TWL4030_VAUX3_DEV_GRP		0x1F
 #define TWL4030_VAUX3_DEDICATED		0x22
-
-/* TWL4030 GPIO interrupt definitions */
-
-#define TWL4030_GPIO_IRQ_NO(n)		(TWL4030_GPIO_IRQ_BASE + (n))
 
 /*
  * Exported TWL4030 GPIO APIs
@@ -339,5 +320,39 @@ int twl4030_set_gpio_debounce(int gpio, int enable);
 #else
 	static inline int twl4030charger_usb_en(int enable) { return 0; }
 #endif
+
+/*----------------------------------------------------------------------*/
+
+/* Linux-specific regulator identifiers ... for now, we only support
+ * the LDOs, and leave the three buck converters alone.  VDD1 and VDD2
+ * need to tie into hardware based voltage scaling (cpufreq etc), while
+ * VIO is generally fixed.
+ */
+
+/* EXTERNAL dc-to-dc buck converters */
+#define TWL4030_REG_VDD1	0
+#define TWL4030_REG_VDD2	1
+#define TWL4030_REG_VIO		2
+
+/* EXTERNAL LDOs */
+#define TWL4030_REG_VDAC	3
+#define TWL4030_REG_VPLL1	4
+#define TWL4030_REG_VPLL2	5	/* not on all chips */
+#define TWL4030_REG_VMMC1	6
+#define TWL4030_REG_VMMC2	7	/* not on all chips */
+#define TWL4030_REG_VSIM	8	/* not on all chips */
+#define TWL4030_REG_VAUX1	9	/* not on all chips */
+#define TWL4030_REG_VAUX2_4030	10	/* (twl4030-specific) */
+#define TWL4030_REG_VAUX2	11	/* (twl5030 and newer) */
+#define TWL4030_REG_VAUX3	12	/* not on all chips */
+#define TWL4030_REG_VAUX4	13	/* not on all chips */
+
+/* INTERNAL LDOs */
+#define TWL4030_REG_VINTANA1	14
+#define TWL4030_REG_VINTANA2	15
+#define TWL4030_REG_VINTDIG	16
+#define TWL4030_REG_VUSB1V5	17
+#define TWL4030_REG_VUSB1V8	18
+#define TWL4030_REG_VUSB3V1	19
 
 #endif /* End of __TWL4030_H */

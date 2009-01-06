@@ -20,6 +20,15 @@ fw-external-y := $(subst ",,$(CONFIG_EXTRA_FIRMWARE))
 # accurate. In the latter case it doesn't matter -- it'll use $(fw-shipped-all).
 # But be aware that the config file might not be included at all.
 
+ifdef CONFIG_ACENIC_OMIT_TIGON_I
+acenic-objs := acenic/tg2.bin
+fw-shipped- += acenic/tg1.bin
+else
+acenic-objs := acenic/tg1.bin acenic/tg2.bin
+endif
+fw-shipped-$(CONFIG_ACENIC) += $(acenic-objs)
+fw-shipped-$(CONFIG_ADAPTEC_STARFIRE) += adaptec/starfire_rx.bin \
+					 adaptec/starfire_tx.bin
 fw-shipped-$(CONFIG_ATARI_DSP56K) += dsp56k/bootstrap.bin
 fw-shipped-$(CONFIG_ATM_AMBASSADOR) += atmsar11.fw
 fw-shipped-$(CONFIG_CASSINI) += sun/cassini.bin
@@ -38,6 +47,8 @@ fw-shipped-$(CONFIG_SND_SB16_CSP) += sb16/mulaw_main.csp sb16/alaw_main.csp \
 				     sb16/ima_adpcm_capture.csp
 fw-shipped-$(CONFIG_SND_YMFPCI) += yamaha/ds1_ctrl.fw yamaha/ds1_dsp.fw \
 				   yamaha/ds1e_ctrl.fw
+fw-shipped-$(CONFIG_TIGON3) += tigon/tg3.bin tigon/tg3_tso.bin \
+			       tigon/tg3_tso5.bin
 fw-shipped-$(CONFIG_USB_DABUSB) += dabusb/firmware.fw dabusb/bitstream.bin
 fw-shipped-$(CONFIG_USB_EMI26) += emi26/loader.fw emi26/firmware.fw \
 				  emi26/bitstream.fw

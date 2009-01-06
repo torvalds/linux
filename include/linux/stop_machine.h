@@ -35,6 +35,24 @@ int stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus);
  * won't come or go while it's being called.  Used by hotplug cpu.
  */
 int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus);
+
+/**
+ * stop_machine_create: create all stop_machine threads
+ *
+ * Description: This causes all stop_machine threads to be created before
+ * stop_machine actually gets called. This can be used by subsystems that
+ * need a non failing stop_machine infrastructure.
+ */
+int stop_machine_create(void);
+
+/**
+ * stop_machine_destroy: destroy all stop_machine threads
+ *
+ * Description: This causes all stop_machine threads which were created with
+ * stop_machine_create to be destroyed again.
+ */
+void stop_machine_destroy(void);
+
 #else
 
 static inline int stop_machine(int (*fn)(void *), void *data,
@@ -46,5 +64,9 @@ static inline int stop_machine(int (*fn)(void *), void *data,
 	local_irq_enable();
 	return ret;
 }
+
+static inline int stop_machine_create(void) { return 0; }
+static inline void stop_machine_destroy(void) { }
+
 #endif /* CONFIG_SMP */
 #endif /* _LINUX_STOP_MACHINE */

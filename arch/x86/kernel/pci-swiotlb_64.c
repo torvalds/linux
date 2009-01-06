@@ -13,7 +13,7 @@
 
 int swiotlb __read_mostly;
 
-void *swiotlb_alloc_boot(size_t size, unsigned long nslabs)
+void * __init swiotlb_alloc_boot(size_t size, unsigned long nslabs)
 {
 	return alloc_bootmem_low_pages(size);
 }

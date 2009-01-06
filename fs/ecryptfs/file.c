@@ -275,18 +275,9 @@ static int ecryptfs_release(struct inode *inode, struct file *file)
 static int
 ecryptfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
-	struct file *lower_file = ecryptfs_file_to_lower(file);
-	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	struct inode *lower_inode = lower_dentry->d_inode;
-	int rc = -EINVAL;
-
-	if (lower_inode->i_fop->fsync) {
-		mutex_lock(&lower_inode->i_mutex);
-		rc = lower_inode->i_fop->fsync(lower_file, lower_dentry,
-					       datasync);
-		mutex_unlock(&lower_inode->i_mutex);
-	}
-	return rc;
+	return vfs_fsync(ecryptfs_file_to_lower(file),
+			 ecryptfs_dentry_to_lower(dentry),
+			 datasync);
 }
 
 static int ecryptfs_fasync(int fd, struct file *file, int flag)

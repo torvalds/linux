@@ -747,9 +747,7 @@ asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf)
 			goto out;
 		}
 
-		err = audit_ipc_obj(&(shp->shm_perm));
-		if (err)
-			goto out_unlock;
+		audit_ipc_obj(&(shp->shm_perm));
 
 		if (!capable(CAP_IPC_LOCK)) {
 			uid_t euid = current_euid();

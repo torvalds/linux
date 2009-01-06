@@ -2266,7 +2266,7 @@ int vmtruncate(struct inode * inode, loff_t offset)
 		unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
 	}
 
-	if (inode->i_op && inode->i_op->truncate)
+	if (inode->i_op->truncate)
 		inode->i_op->truncate(inode);
 	return 0;
 
@@ -2286,7 +2286,7 @@ int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
 	 * a way to truncate a range of blocks (punch a hole) -
 	 * we should return failure right now.
 	 */
-	if (!inode->i_op || !inode->i_op->truncate_range)
+	if (!inode->i_op->truncate_range)
 		return -ENOSYS;
 
 	mutex_lock(&inode->i_mutex);

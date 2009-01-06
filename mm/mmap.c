@@ -3,7 +3,7 @@
  *
  * Written by obz.
  *
- * Address space accounting code	<alan@redhat.com>
+ * Address space accounting code	<alan@lxorguk.ukuu.org.uk>
  */
 
 #include <linux/slab.h>
