@@ -35,6 +35,7 @@
 
 static DEFINE_SPINLOCK(swap_lock);
 static unsigned int nr_swapfiles;
+long nr_swap_pages;
 long total_swap_pages;
 static int swap_overflow;
 static int least_priority;
