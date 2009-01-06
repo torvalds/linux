@@ -333,6 +333,7 @@ enum ps3_match_sub_id {
 #define PS3_MODULE_ALIAS_STOR_FLASH	"ps3:8:0"
 #define PS3_MODULE_ALIAS_SOUND		"ps3:9:0"
 #define PS3_MODULE_ALIAS_GPU_FB		"ps3:10:1"
+#define PS3_MODULE_ALIAS_GPU_RAMDISK	"ps3:10:2"
 #define PS3_MODULE_ALIAS_LPM		"ps3:11:0"
 
 enum ps3_system_bus_device_type {
