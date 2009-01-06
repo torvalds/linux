@@ -853,8 +853,11 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 		ps = true;
 		break;
 	default:                /* Otherwise we ignore */
-		break;
+		return -EINVAL;
 	}
+
+	if (wrq->flags & ~(IW_POWER_MODE | IW_POWER_TIMEOUT))
+		return -EINVAL;
 
 	if (wrq->flags & IW_POWER_TIMEOUT)
 		timeout = wrq->value / 1000;
