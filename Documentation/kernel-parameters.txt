@@ -469,8 +469,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	clearcpuid=BITNUM [X86]
 			Disable CPUID feature X for the kernel. See
-			include/asm-x86/cpufeature.h for the valid bit numbers.
-			Note the Linux specific bits are not necessarily
+			arch/x86/include/asm/cpufeature.h for the valid bit
+			numbers. Note the Linux specific bits are not necessarily
 			stable over kernel options, but the vendor specific
 			ones should be.
 			Also note that user programs calling CPUID directly
