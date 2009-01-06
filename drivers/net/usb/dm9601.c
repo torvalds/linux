@@ -414,6 +414,7 @@ static int dm9601_set_mac_address(struct net_device *net, void *p)
 static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret;
+	u8 mac[ETH_ALEN];
 
 	ret = usbnet_get_endpoints(dev, intf);
 	if (ret)
@@ -438,11 +439,17 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 	udelay(20);
 
 	/* read MAC */
-	if (dm_read(dev, DM_PHY_ADDR, ETH_ALEN, dev->net->dev_addr) < 0) {
+	if (dm_read(dev, DM_PHY_ADDR, ETH_ALEN, mac) < 0) {
 		printk(KERN_ERR "Error reading MAC address\n");
 		ret = -ENODEV;
 		goto out;
 	}
+
+	/*
+	 * Overwrite the auto-generated address only with good ones.
+	 */
+	if (is_valid_ether_addr(mac))
+		memcpy(dev->net->dev_addr, mac, ETH_ALEN);
 
 	/* power up phy */
 	dm_write_reg(dev, DM_GPR_CTRL, 1);
