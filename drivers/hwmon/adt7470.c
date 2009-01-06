@@ -137,8 +137,6 @@ I2C_CLIENT_INSMOD_1(adt7470);
 #define FAN_PERIOD_INVALID	65535
 #define FAN_DATA_VALID(x)	((x) && (x) != FAN_PERIOD_INVALID)
 
-#define ROUND_DIV(x, divisor)	(((x) + ((divisor) / 2)) / (divisor))
-
 struct adt7470_data {
 	struct device		*hwmon_dev;
 	struct attribute_group	attrs;
@@ -360,7 +358,7 @@ static ssize_t set_temp_min(struct device *dev,
 	if (strict_strtol(buf, 10, &temp))
 		return -EINVAL;
 
-	temp = ROUND_DIV(temp, 1000);
+	temp = DIV_ROUND_CLOSEST(temp, 1000);
 	temp = SENSORS_LIMIT(temp, 0, 255);
 
 	mutex_lock(&data->lock);
@@ -394,7 +392,7 @@ static ssize_t set_temp_max(struct device *dev,
 	if (strict_strtol(buf, 10, &temp))
 		return -EINVAL;
 
-	temp = ROUND_DIV(temp, 1000);
+	temp = DIV_ROUND_CLOSEST(temp, 1000);
 	temp = SENSORS_LIMIT(temp, 0, 255);
 
 	mutex_lock(&data->lock);
@@ -671,7 +669,7 @@ static ssize_t set_pwm_tmin(struct device *dev,
 	if (strict_strtol(buf, 10, &temp))
 		return -EINVAL;
 
-	temp = ROUND_DIV(temp, 1000);
+	temp = DIV_ROUND_CLOSEST(temp, 1000);
 	temp = SENSORS_LIMIT(temp, 0, 255);
 
 	mutex_lock(&data->lock);
