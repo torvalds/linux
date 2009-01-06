@@ -677,6 +677,16 @@ int __kprobes register_kprobe(struct kprobe *p)
 			preempt_enable();
 			return -EINVAL;
 		}
+		/*
+		 * If the module freed .init.text, we couldn't insert
+		 * kprobes in there.
+		 */
+		if (within_module_init((unsigned long)p->addr, probed_mod) &&
+		    probed_mod->state != MODULE_STATE_COMING) {
+			module_put(probed_mod);
+			preempt_enable();
+			return -EINVAL;
+		}
 	}
 	preempt_enable();
 
@@ -1073,19 +1083,24 @@ static int __kprobes kprobes_module_callback(struct notifier_block *nb,
 	struct hlist_node *node;
 	struct kprobe *p;
 	unsigned int i;
+	int checkcore = (val == MODULE_STATE_GOING);
 
-	if (val != MODULE_STATE_GOING)
+	if (val != MODULE_STATE_GOING && val != MODULE_STATE_LIVE)
 		return NOTIFY_DONE;
 
 	/*
-	 * module .text section will be freed. We need to
-	 * disable kprobes which have been inserted in the section.
+	 * When MODULE_STATE_GOING was notified, both of module .text and
+	 * .init.text sections would be freed. When MODULE_STATE_LIVE was
+	 * notified, only .init.text section would be freed. We need to
+	 * disable kprobes which have been inserted in the sections.
 	 */
 	mutex_lock(&kprobe_mutex);
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
 		hlist_for_each_entry_rcu(p, node, head, hlist)
-			if (within_module_core((unsigned long)p->addr, mod)) {
+			if (within_module_init((unsigned long)p->addr, mod) ||
+			    (checkcore &&
+			     within_module_core((unsigned long)p->addr, mod))) {
 				/*
 				 * The vaddr this probe is installed will soon
 				 * be vfreed buy not synced to disk. Hence,
