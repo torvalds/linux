@@ -669,6 +669,17 @@ config RTC_DRV_PPC
 	 the RTC. This exposes that functionality through the generic RTC
 	 class.
 
+config RTC_DRV_PXA
+       tristate "PXA27x/PXA3xx"
+       depends on ARCH_PXA
+       help
+         If you say Y here you will get access to the real time clock
+         built into your PXA27x or PXA3xx CPU.
+
+         This RTC driver uses PXA RTC registers available since pxa27x
+         series (RDxR, RYxR) instead of legacy RCNR, RTAR.
+
+
 config RTC_DRV_SUN4V
 	bool "SUN4V Hypervisor RTC"
 	depends on SPARC64
