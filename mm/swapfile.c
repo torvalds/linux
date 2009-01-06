@@ -92,7 +92,7 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 	unsigned long offset, last_in_cluster;
 	int latency_ration = LATENCY_LIMIT;
 
-	/* 
+	/*
 	 * We try to cluster swap pages by allocating them sequentially
 	 * in swap.  Once we've allocated SWAPFILE_CLUSTER pages this
 	 * way, however, we resort to first-free allocation, starting
@@ -269,7 +269,7 @@ bad_nofile:
 	printk(KERN_ERR "swap_free: %s%08lx\n", Bad_file, entry.val);
 out:
 	return NULL;
-}	
+}
 
 static int swap_entry_free(struct swap_info_struct *p, unsigned long offset)
 {
@@ -736,10 +736,10 @@ static int try_to_unuse(unsigned int type)
 			break;
 		}
 
-		/* 
+		/*
 		 * Get a page for the entry, using the existing swap
 		 * cache page if there is one.  Otherwise, get a clean
-		 * page and read the swap into it. 
+		 * page and read the swap into it.
 		 */
 		swap_map = &si->swap_map[i];
 		entry = swp_entry(type, i);
@@ -1202,7 +1202,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	char * pathname;
 	int i, type, prev;
 	int err;
-	
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -1395,12 +1395,12 @@ static int swap_show(struct seq_file *swap, void *v)
 	file = ptr->swap_file;
 	len = seq_path(swap, &file->f_path, " \t\n\\");
 	seq_printf(swap, "%*s%s\t%u\t%u\t%d\n",
-		       len < 40 ? 40 - len : 1, " ",
-		       S_ISBLK(file->f_path.dentry->d_inode->i_mode) ?
+			len < 40 ? 40 - len : 1, " ",
+			S_ISBLK(file->f_path.dentry->d_inode->i_mode) ?
 				"partition" : "file\t",
-		       ptr->pages << (PAGE_SHIFT - 10),
-		       ptr->inuse_pages << (PAGE_SHIFT - 10),
-		       ptr->prio);
+			ptr->pages << (PAGE_SHIFT - 10),
+			ptr->inuse_pages << (PAGE_SHIFT - 10),
+			ptr->prio);
 	return 0;
 }
 
@@ -1565,7 +1565,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		error = -EINVAL;
 		goto bad_swap;
 	}
-	
+
 	switch (swap_header_version) {
 	case 1:
 		printk(KERN_ERR "version 0 swap is no longer supported. "
