@@ -2167,9 +2167,10 @@ sub process {
 				MODULE_PARAM_DESC|
 				DECLARE_PER_CPU|
 				DEFINE_PER_CPU|
-				__typeof__\(
+				__typeof__\(|
+				\.$Ident\s*=\s*
 			}x;
-			#print "REST<$rest>\n";
+			#print "REST<$rest> dstat<$dstat>\n";
 			if ($rest ne '') {
 				if ($rest !~ /while\s*\(/ &&
 				    $dstat !~ /$exceptions/)
