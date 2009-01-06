@@ -54,14 +54,15 @@
 static int dapm_up_seq[] = {
 	snd_soc_dapm_pre, snd_soc_dapm_micbias, snd_soc_dapm_mic,
 	snd_soc_dapm_mux, snd_soc_dapm_value_mux, snd_soc_dapm_dac,
-	snd_soc_dapm_mixer, snd_soc_dapm_pga, snd_soc_dapm_adc, snd_soc_dapm_hp,
-	snd_soc_dapm_spk, snd_soc_dapm_post
+	snd_soc_dapm_mixer, snd_soc_dapm_mixer_named_ctl, snd_soc_dapm_pga,
+	snd_soc_dapm_adc, snd_soc_dapm_hp, snd_soc_dapm_spk, snd_soc_dapm_post
 };
+
 static int dapm_down_seq[] = {
 	snd_soc_dapm_pre, snd_soc_dapm_adc, snd_soc_dapm_hp, snd_soc_dapm_spk,
-	snd_soc_dapm_pga, snd_soc_dapm_mixer, snd_soc_dapm_dac, snd_soc_dapm_mic,
-	snd_soc_dapm_micbias, snd_soc_dapm_mux, snd_soc_dapm_value_mux,
-	snd_soc_dapm_post
+	snd_soc_dapm_pga, snd_soc_dapm_mixer_named_ctl, snd_soc_dapm_mixer,
+	snd_soc_dapm_dac, snd_soc_dapm_mic, snd_soc_dapm_micbias,
+	snd_soc_dapm_mux, snd_soc_dapm_value_mux, snd_soc_dapm_post
 };
 
 static int dapm_status = 1;
@@ -101,7 +102,8 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 {
 	switch (w->id) {
 	case snd_soc_dapm_switch:
-	case snd_soc_dapm_mixer: {
+	case snd_soc_dapm_mixer:
+	case snd_soc_dapm_mixer_named_ctl: {
 		int val;
 		struct soc_mixer_control *mc = (struct soc_mixer_control *)
 			w->kcontrols[i].private_value;
@@ -347,15 +349,33 @@ static int dapm_new_mixer(struct snd_soc_codec *codec,
 			if (path->name != (char*)w->kcontrols[i].name)
 				continue;
 
-			/* add dapm control with long name */
-			name_len = 2 + strlen(w->name)
-				+ strlen(w->kcontrols[i].name);
+			/* add dapm control with long name.
+			 * for dapm_mixer this is the concatenation of the
+			 * mixer and kcontrol name.
+			 * for dapm_mixer_named_ctl this is simply the
+			 * kcontrol name.
+			 */
+			name_len = strlen(w->kcontrols[i].name) + 1;
+			if (w->id == snd_soc_dapm_mixer)
+				name_len += 1 + strlen(w->name);
+
 			path->long_name = kmalloc(name_len, GFP_KERNEL);
+
 			if (path->long_name == NULL)
 				return -ENOMEM;
 
-			snprintf(path->long_name, name_len, "%s %s",
-				 w->name, w->kcontrols[i].name);
+			switch (w->id) {
+			case snd_soc_dapm_mixer:
+			default:
+				snprintf(path->long_name, name_len, "%s %s",
+					 w->name, w->kcontrols[i].name);
+			break;
+			case snd_soc_dapm_mixer_named_ctl:
+				snprintf(path->long_name, name_len, "%s",
+					 w->kcontrols[i].name);
+			break;
+			}
+
 			path->long_name[name_len - 1] = '\0';
 
 			path->kcontrol = snd_soc_cnew(&w->kcontrols[i], w,
@@ -711,6 +731,7 @@ static void dbg_dump_dapm(struct snd_soc_codec* codec, const char *action)
 		case snd_soc_dapm_adc:
 		case snd_soc_dapm_pga:
 		case snd_soc_dapm_mixer:
+		case snd_soc_dapm_mixer_named_ctl:
 			if (w->name) {
 				in = is_connected_input_ep(w);
 				dapm_clear_walk(w->codec);
@@ -822,6 +843,7 @@ static int dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
 	int found = 0;
 
 	if (widget->id != snd_soc_dapm_mixer &&
+	    widget->id != snd_soc_dapm_mixer_named_ctl &&
 	    widget->id != snd_soc_dapm_switch)
 		return -ENODEV;
 
@@ -875,6 +897,7 @@ static ssize_t dapm_widget_show(struct device *dev,
 		case snd_soc_dapm_adc:
 		case snd_soc_dapm_pga:
 		case snd_soc_dapm_mixer:
+		case snd_soc_dapm_mixer_named_ctl:
 			if (w->name)
 				count += sprintf(buf + count, "%s: %s\n",
 					w->name, w->power ? "On":"Off");
@@ -1058,6 +1081,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
 		break;
 	case snd_soc_dapm_switch:
 	case snd_soc_dapm_mixer:
+	case snd_soc_dapm_mixer_named_ctl:
 		ret = dapm_connect_mixer(codec, wsource, wsink, path, control);
 		if (ret != 0)
 			goto err;
@@ -1135,6 +1159,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_codec *codec)
 		switch(w->id) {
 		case snd_soc_dapm_switch:
 		case snd_soc_dapm_mixer:
+		case snd_soc_dapm_mixer_named_ctl:
 			dapm_new_mixer(codec, w);
 			break;
 		case snd_soc_dapm_mux:
