@@ -2048,7 +2048,7 @@ sub process {
 		    $line =~ /\b(?:if|while|for)\s*\(/ && $line !~ /^.\s*#/) {
 			my ($s, $c) = ($stat, $cond);
 
-			if ($c =~ /\bif\s*\(.*[^<>!=]=[^=].*/) {
+			if ($c =~ /\bif\s*\(.*[^<>!=]=[^=].*/s) {
 				ERROR("do not use assignment in if condition\n" . $herecurr);
 			}
 
