@@ -874,7 +874,6 @@ static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 {
 	int clean_idx = rx_ring->lbq_clean_idx;
 	struct bq_desc *lbq_desc;
-	struct bq_element *bq;
 	u64 map;
 	int i;
 
@@ -884,7 +883,6 @@ static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 				"lbq: try cleaning clean_idx = %d.\n",
 				clean_idx);
 			lbq_desc = &rx_ring->lbq[clean_idx];
-			bq = lbq_desc->bq;
 			if (lbq_desc->p.lbq_page == NULL) {
 				QPRINTK(qdev, RX_STATUS, DEBUG,
 					"lbq: getting new page for index %d.\n",
@@ -906,10 +904,7 @@ static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 				}
 				pci_unmap_addr_set(lbq_desc, mapaddr, map);
 				pci_unmap_len_set(lbq_desc, maplen, PAGE_SIZE);
-				bq->addr_lo =	/*lbq_desc->addr_lo = */
-				    cpu_to_le32(map);
-				bq->addr_hi =	/*lbq_desc->addr_hi = */
-				    cpu_to_le32(map >> 32);
+				*lbq_desc->addr = cpu_to_le64(map);
 			}
 			clean_idx++;
 			if (clean_idx == rx_ring->lbq_len)
@@ -934,7 +929,6 @@ static void ql_update_sbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 {
 	int clean_idx = rx_ring->sbq_clean_idx;
 	struct bq_desc *sbq_desc;
-	struct bq_element *bq;
 	u64 map;
 	int i;
 
@@ -944,7 +938,6 @@ static void ql_update_sbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 			QPRINTK(qdev, RX_STATUS, DEBUG,
 				"sbq: try cleaning clean_idx = %d.\n",
 				clean_idx);
-			bq = sbq_desc->bq;
 			if (sbq_desc->p.skb == NULL) {
 				QPRINTK(qdev, RX_STATUS, DEBUG,
 					"sbq: getting new skb for index %d.\n",
@@ -971,8 +964,7 @@ static void ql_update_sbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 				pci_unmap_addr_set(sbq_desc, mapaddr, map);
 				pci_unmap_len_set(sbq_desc, maplen,
 						  rx_ring->sbq_buf_size / 2);
-				bq->addr_lo = cpu_to_le32(map);
-				bq->addr_hi = cpu_to_le32(map >> 32);
+				*sbq_desc->addr = cpu_to_le64(map);
 			}
 
 			clean_idx++;
@@ -1340,7 +1332,7 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 		 *          eventually be in trouble.
 		 */
 		int size, offset, i = 0;
-		struct bq_element *bq, bq_array[8];
+		__le64 *bq, bq_array[8];
 		sbq_desc = ql_get_curr_sbuf(rx_ring);
 		pci_unmap_single(qdev->pdev,
 				 pci_unmap_addr(sbq_desc, mapaddr),
@@ -1366,16 +1358,10 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 		} else {
 			QPRINTK(qdev, RX_STATUS, DEBUG,
 				"Headers in small, %d bytes of data in chain of large.\n", length);
-			bq = (struct bq_element *)sbq_desc->p.skb->data;
+			bq = (__le64 *)sbq_desc->p.skb->data;
 		}
 		while (length > 0) {
 			lbq_desc = ql_get_curr_lbuf(rx_ring);
-			if ((bq->addr_lo & ~BQ_MASK) != lbq_desc->bq->addr_lo) {
-				QPRINTK(qdev, RX_STATUS, ERR,
-					"Panic!!! bad large buffer address, expected 0x%.08x, got 0x%.08x.\n",
-					lbq_desc->bq->addr_lo, bq->addr_lo);
-				return NULL;
-			}
 			pci_unmap_page(qdev->pdev,
 				       pci_unmap_addr(lbq_desc,
 						      mapaddr),
@@ -2093,8 +2079,6 @@ static void ql_free_lbq_buffers(struct ql_adapter *qdev, struct rx_ring *rx_ring
 			put_page(lbq_desc->p.lbq_page);
 			lbq_desc->p.lbq_page = NULL;
 		}
-		lbq_desc->bq->addr_lo = 0;
-		lbq_desc->bq->addr_hi = 0;
 	}
 }
 
@@ -2107,12 +2091,12 @@ static int ql_alloc_lbq_buffers(struct ql_adapter *qdev,
 	int i;
 	struct bq_desc *lbq_desc;
 	u64 map;
-	struct bq_element *bq = rx_ring->lbq_base;
+	__le64 *bq = rx_ring->lbq_base;
 
 	for (i = 0; i < rx_ring->lbq_len; i++) {
 		lbq_desc = &rx_ring->lbq[i];
 		memset(lbq_desc, 0, sizeof(lbq_desc));
-		lbq_desc->bq = bq;
+		lbq_desc->addr = bq;
 		lbq_desc->index = i;
 		lbq_desc->p.lbq_page = alloc_page(GFP_ATOMIC);
 		if (unlikely(!lbq_desc->p.lbq_page)) {
@@ -2129,8 +2113,7 @@ static int ql_alloc_lbq_buffers(struct ql_adapter *qdev,
 			}
 			pci_unmap_addr_set(lbq_desc, mapaddr, map);
 			pci_unmap_len_set(lbq_desc, maplen, PAGE_SIZE);
-			bq->addr_lo = cpu_to_le32(map);
-			bq->addr_hi = cpu_to_le32(map >> 32);
+			*lbq_desc->addr = cpu_to_le64(map);
 		}
 		bq++;
 	}
@@ -2159,13 +2142,6 @@ static void ql_free_sbq_buffers(struct ql_adapter *qdev, struct rx_ring *rx_ring
 			dev_kfree_skb(sbq_desc->p.skb);
 			sbq_desc->p.skb = NULL;
 		}
-		if (sbq_desc->bq == NULL) {
-			QPRINTK(qdev, IFUP, ERR, "sbq_desc->bq %d is NULL.\n",
-				i);
-			return;
-		}
-		sbq_desc->bq->addr_lo = 0;
-		sbq_desc->bq->addr_hi = 0;
 	}
 }
 
@@ -2177,13 +2153,13 @@ static int ql_alloc_sbq_buffers(struct ql_adapter *qdev,
 	struct bq_desc *sbq_desc;
 	struct sk_buff *skb;
 	u64 map;
-	struct bq_element *bq = rx_ring->sbq_base;
+	__le64 *bq = rx_ring->sbq_base;
 
 	for (i = 0; i < rx_ring->sbq_len; i++) {
 		sbq_desc = &rx_ring->sbq[i];
 		memset(sbq_desc, 0, sizeof(sbq_desc));
 		sbq_desc->index = i;
-		sbq_desc->bq = bq;
+		sbq_desc->addr = bq;
 		skb = netdev_alloc_skb(qdev->ndev, rx_ring->sbq_buf_size);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
@@ -2209,10 +2185,7 @@ static int ql_alloc_sbq_buffers(struct ql_adapter *qdev,
 		}
 		pci_unmap_addr_set(sbq_desc, mapaddr, map);
 		pci_unmap_len_set(sbq_desc, maplen, rx_ring->sbq_buf_size / 2);
-		bq->addr_lo =	/*sbq_desc->addr_lo = */
-		    cpu_to_le32(map);
-		bq->addr_hi =	/*sbq_desc->addr_hi = */
-		    cpu_to_le32(map >> 32);
+		*sbq_desc->addr = cpu_to_le64(map);
 		bq++;
 	}
 	return 0;
@@ -3356,11 +3329,11 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 			    rx_ring->cq_len * sizeof(struct ql_net_rsp_iocb);
 			rx_ring->lbq_len = NUM_LARGE_BUFFERS;
 			rx_ring->lbq_size =
-			    rx_ring->lbq_len * sizeof(struct bq_element);
+			    rx_ring->lbq_len * sizeof(__le64);
 			rx_ring->lbq_buf_size = LARGE_BUFFER_SIZE;
 			rx_ring->sbq_len = NUM_SMALL_BUFFERS;
 			rx_ring->sbq_size =
-			    rx_ring->sbq_len * sizeof(struct bq_element);
+			    rx_ring->sbq_len * sizeof(__le64);
 			rx_ring->sbq_buf_size = SMALL_BUFFER_SIZE * 2;
 			rx_ring->type = DEFAULT_Q;
 		} else if (i < qdev->rss_ring_first_cq_id) {
@@ -3387,11 +3360,11 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 			    rx_ring->cq_len * sizeof(struct ql_net_rsp_iocb);
 			rx_ring->lbq_len = NUM_LARGE_BUFFERS;
 			rx_ring->lbq_size =
-			    rx_ring->lbq_len * sizeof(struct bq_element);
+			    rx_ring->lbq_len * sizeof(__le64);
 			rx_ring->lbq_buf_size = LARGE_BUFFER_SIZE;
 			rx_ring->sbq_len = NUM_SMALL_BUFFERS;
 			rx_ring->sbq_size =
-			    rx_ring->sbq_len * sizeof(struct bq_element);
+			    rx_ring->sbq_len * sizeof(__le64);
 			rx_ring->sbq_buf_size = SMALL_BUFFER_SIZE * 2;
 			rx_ring->type = RX_Q;
 		}

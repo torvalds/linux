@@ -818,15 +818,6 @@ struct tx_doorbell_context {
 };
 
 /* DATA STRUCTURES SHARED WITH HARDWARE. */
-
-struct bq_element {
-	u32 addr_lo;
-#define BQ_END	0x00000001
-#define BQ_CONT	0x00000002
-#define BQ_MASK	0x00000003
-	u32 addr_hi;
-} __attribute((packed));
-
 struct tx_buf_desc {
 	__le64 addr;
 	__le32 len;
@@ -1139,7 +1130,7 @@ struct bq_desc {
 		struct page *lbq_page;
 		struct sk_buff *skb;
 	} p;
-	struct bq_element *bq;
+	__le64 *addr;
 	int index;
 	 DECLARE_PCI_UNMAP_ADDR(mapaddr);
 	 DECLARE_PCI_UNMAP_LEN(maplen);
