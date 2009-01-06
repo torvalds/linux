@@ -946,7 +946,6 @@ void ide_timer_expiry (unsigned long data)
 			 * globally mask the specific IRQ:
 			 */
 			spin_unlock(&hwif->lock);
-			hwif = drive->hwif;
 			/* disable_irq_nosync ?? */
 			disable_irq(hwif->irq);
 			/* local CPU only,
