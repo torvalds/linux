@@ -1426,8 +1426,6 @@ static struct inode *proc_pid_make_inode(struct super_block * sb, struct task_st
 	if (!ei->pid)
 		goto out_unlock;
 
-	inode->i_uid = 0;
-	inode->i_gid = 0;
 	if (task_dumpable(task)) {
 		rcu_read_lock();
 		cred = __task_cred(task);
@@ -2349,8 +2347,6 @@ static struct dentry *proc_base_instantiate(struct inode *dir,
 	if (!ei->pid)
 		goto out_iput;
 
-	inode->i_uid = 0;
-	inode->i_gid = 0;
 	inode->i_mode = p->mode;
 	if (S_ISDIR(inode->i_mode))
 		inode->i_nlink = 2;
