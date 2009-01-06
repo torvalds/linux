@@ -1550,8 +1550,10 @@ int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid)
 		goto out;
 	}
 
-	strcpy(name, hc->name);
-	strcpy(uuid, hc->uuid ? : "");
+	if (name)
+		strcpy(name, hc->name);
+	if (uuid)
+		strcpy(uuid, hc->uuid ? : "");
 
 out:
 	up_read(&_hash_lock);
