@@ -567,7 +567,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	if (unlikely(!dws || !sg_len))
 		return NULL;
 
-	reg_width = dws->slave.reg_width;
+	reg_width = dws->reg_width;
 	prev = first = NULL;
 
 	sg_len = dma_map_sg(chan->dev.parent, sgl, sg_len, direction);
@@ -579,7 +579,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				| DWC_CTLL_DST_FIX
 				| DWC_CTLL_SRC_INC
 				| DWC_CTLL_FC_M2P);
-		reg = dws->slave.tx_reg;
+		reg = dws->tx_reg;
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct dw_desc	*desc;
 			u32		len;
@@ -625,7 +625,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				| DWC_CTLL_SRC_FIX
 				| DWC_CTLL_FC_P2M);
 
-		reg = dws->slave.rx_reg;
+		reg = dws->rx_reg;
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct dw_desc	*desc;
 			u32		len;
@@ -764,19 +764,12 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan,
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	struct dw_dma		*dw = to_dw_dma(chan->device);
 	struct dw_desc		*desc;
-	struct dma_slave	*slave;
 	struct dw_dma_slave	*dws;
 	int			i;
 	u32			cfghi;
 	u32			cfglo;
 
 	dev_vdbg(&chan->dev, "alloc_chan_resources\n");
-
-	/* Channels doing slave DMA can only handle one client. */
-	if (dwc->dws || (client && client->slave)) {
-		if (chan->client_count)
-			return -EBUSY;
-	}
 
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
@@ -789,23 +782,17 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan,
 	cfghi = DWC_CFGH_FIFO_MODE;
 	cfglo = 0;
 
-	slave = client->slave;
-	if (slave) {
+	dws = dwc->dws;
+	if (dws) {
 		/*
 		 * We need controller-specific data to set up slave
 		 * transfers.
 		 */
-		BUG_ON(!slave->dma_dev || slave->dma_dev != dw->dma.dev);
+		BUG_ON(!dws->dma_dev || dws->dma_dev != dw->dma.dev);
 
-		dws = container_of(slave, struct dw_dma_slave, slave);
-
-		dwc->dws = dws;
 		cfghi = dws->cfg_hi;
 		cfglo = dws->cfg_lo;
-	} else {
-		dwc->dws = NULL;
 	}
-
 	channel_writel(dwc, CFG_LO, cfglo);
 	channel_writel(dwc, CFG_HI, cfghi);
 

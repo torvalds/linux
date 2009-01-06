@@ -1441,60 +1441,6 @@ static irqreturn_t atmci_detect_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_MMC_ATMELMCI_DMA
-
-static inline struct atmel_mci *
-dma_client_to_atmel_mci(struct dma_client *client)
-{
-	return container_of(client, struct atmel_mci, dma.client);
-}
-
-static enum dma_state_client atmci_dma_event(struct dma_client *client,
-		struct dma_chan *chan, enum dma_state state)
-{
-	struct atmel_mci	*host;
-	enum dma_state_client	ret = DMA_NAK;
-
-	host = dma_client_to_atmel_mci(client);
-
-	switch (state) {
-	case DMA_RESOURCE_AVAILABLE:
-		spin_lock_bh(&host->lock);
-		if (!host->dma.chan) {
-			host->dma.chan = chan;
-			ret = DMA_ACK;
-		}
-		spin_unlock_bh(&host->lock);
-
-		if (ret == DMA_ACK)
-			dev_info(&host->pdev->dev,
-					"Using %s for DMA transfers\n",
-					chan->dev.bus_id);
-		break;
-
-	case DMA_RESOURCE_REMOVED:
-		spin_lock_bh(&host->lock);
-		if (host->dma.chan == chan) {
-			host->dma.chan = NULL;
-			ret = DMA_ACK;
-		}
-		spin_unlock_bh(&host->lock);
-
-		if (ret == DMA_ACK)
-			dev_info(&host->pdev->dev,
-					"Lost %s, falling back to PIO\n",
-					chan->dev.bus_id);
-		break;
-
-	default:
-		break;
-	}
-
-
-	return ret;
-}
-#endif /* CONFIG_MMC_ATMELMCI_DMA */
-
 static int __init atmci_init_slot(struct atmel_mci *host,
 		struct mci_slot_pdata *slot_data, unsigned int id,
 		u32 sdc_reg)
@@ -1598,6 +1544,18 @@ static void __exit atmci_cleanup_slot(struct atmel_mci_slot *slot,
 	mmc_free_host(slot->mmc);
 }
 
+#ifdef CONFIG_MMC_ATMELMCI_DMA
+static enum dma_state_client filter(struct dma_chan *chan, void *slave)
+{
+	struct dw_dma_slave *dws = slave;
+
+	if (dws->dma_dev == chan->device->dev)
+		return DMA_ACK;
+	else
+		return DMA_DUP;
+}
+#endif
+
 static int __init atmci_probe(struct platform_device *pdev)
 {
 	struct mci_platform_data	*pdata;
@@ -1650,22 +1608,20 @@ static int __init atmci_probe(struct platform_device *pdev)
 		goto err_request_irq;
 
 #ifdef CONFIG_MMC_ATMELMCI_DMA
-	if (pdata->dma_slave) {
-		struct dma_slave *slave = pdata->dma_slave;
+	if (pdata->dma_slave.dma_dev) {
+		struct dw_dma_slave *dws = &pdata->dma_slave;
+		dma_cap_mask_t mask;
 
-		slave->tx_reg = regs->start + MCI_TDR;
-		slave->rx_reg = regs->start + MCI_RDR;
+		dws->tx_reg = regs->start + MCI_TDR;
+		dws->rx_reg = regs->start + MCI_RDR;
 
 		/* Try to grab a DMA channel */
-		host->dma.client.event_callback = atmci_dma_event;
-		dma_cap_set(DMA_SLAVE, host->dma.client.cap_mask);
-		host->dma.client.slave = slave;
-
-		dma_async_client_register(&host->dma.client);
-		dma_async_client_chan_request(&host->dma.client);
-	} else {
-		dev_notice(&pdev->dev, "DMA not available, using PIO\n");
+		dma_cap_zero(mask);
+		dma_cap_set(DMA_SLAVE, mask);
+		host->dma.chan = dma_request_channel(mask, filter, dws);
 	}
+	if (!host->dma.chan)
+		dev_notice(&pdev->dev, "DMA not available, using PIO\n");
 #endif /* CONFIG_MMC_ATMELMCI_DMA */
 
 	platform_set_drvdata(pdev, host);
@@ -1697,8 +1653,8 @@ static int __init atmci_probe(struct platform_device *pdev)
 
 err_init_slot:
 #ifdef CONFIG_MMC_ATMELMCI_DMA
-	if (pdata->dma_slave)
-		dma_async_client_unregister(&host->dma.client);
+	if (host->dma.chan)
+		dma_release_channel(host->dma.chan);
 #endif
 	free_irq(irq, host);
 err_request_irq:
@@ -1729,8 +1685,8 @@ static int __exit atmci_remove(struct platform_device *pdev)
 	clk_disable(host->mck);
 
 #ifdef CONFIG_MMC_ATMELMCI_DMA
-	if (host->dma.client.slave)
-		dma_async_client_unregister(&host->dma.client);
+	if (host->dma.chan)
+		dma_release_channel(host->dma.chan);
 #endif
 
 	free_irq(platform_get_irq(pdev, 0), host);
@@ -1759,7 +1715,7 @@ static void __exit atmci_exit(void)
 	platform_driver_unregister(&atmci_driver);
 }
 
-module_init(atmci_init);
+late_initcall(atmci_init); /* try to load after dma driver when built-in */
 module_exit(atmci_exit);
 
 MODULE_DESCRIPTION("Atmel Multimedia Card Interface driver");

@@ -96,17 +96,6 @@ enum dma_transaction_type {
 /* last transaction type for creation of the capabilities mask */
 #define DMA_TX_TYPE_END (DMA_SLAVE + 1)
 
-/**
- * enum dma_slave_width - DMA slave register access width.
- * @DMA_SLAVE_WIDTH_8BIT: Do 8-bit slave register accesses
- * @DMA_SLAVE_WIDTH_16BIT: Do 16-bit slave register accesses
- * @DMA_SLAVE_WIDTH_32BIT: Do 32-bit slave register accesses
- */
-enum dma_slave_width {
-	DMA_SLAVE_WIDTH_8BIT,
-	DMA_SLAVE_WIDTH_16BIT,
-	DMA_SLAVE_WIDTH_32BIT,
-};
 
 /**
  * enum dma_ctrl_flags - DMA flags to augment operation preparation,
@@ -131,32 +120,6 @@ enum dma_ctrl_flags {
  * See linux/cpumask.h
  */
 typedef struct { DECLARE_BITMAP(bits, DMA_TX_TYPE_END); } dma_cap_mask_t;
-
-/**
- * struct dma_slave - Information about a DMA slave
- * @dev: device acting as DMA slave
- * @dma_dev: required DMA master device. If non-NULL, the client can not be
- *	bound to other masters than this.
- * @tx_reg: physical address of data register used for
- *	memory-to-peripheral transfers
- * @rx_reg: physical address of data register used for
- *	peripheral-to-memory transfers
- * @reg_width: peripheral register width
- *
- * If dma_dev is non-NULL, the client can not be bound to other DMA
- * masters than the one corresponding to this device. The DMA master
- * driver may use this to determine if there is controller-specific
- * data wrapped around this struct. Drivers of platform code that sets
- * the dma_dev field must therefore make sure to use an appropriate
- * controller-specific dma slave structure wrapping this struct.
- */
-struct dma_slave {
-	struct device		*dev;
-	struct device		*dma_dev;
-	dma_addr_t		tx_reg;
-	dma_addr_t		rx_reg;
-	enum dma_slave_width	reg_width;
-};
 
 /**
  * struct dma_chan_percpu - the per-CPU part of struct dma_chan
@@ -248,7 +211,6 @@ typedef enum dma_state_client (*dma_filter_fn)(struct dma_chan *chan, void *filt
 struct dma_client {
 	dma_event_callback	event_callback;
 	dma_cap_mask_t		cap_mask;
-	struct dma_slave	*slave;
 	struct list_head	global_node;
 };
 
