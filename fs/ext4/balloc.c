@@ -20,6 +20,7 @@
 #include "ext4.h"
 #include "ext4_jbd2.h"
 #include "group.h"
+#include "mballoc.h"
 
 /*
  * balloc.c contains the blocks allocation and deallocation routines
@@ -350,62 +351,43 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 }
 
 /**
- * ext4_free_blocks_sb() -- Free given blocks and update quota
+ * ext4_add_groupblocks() -- Add given blocks to an existing group
  * @handle:			handle to this transaction
  * @sb:				super block
- * @block:			start physcial block to free
+ * @block:			start physcial block to add to the block group
  * @count:			number of blocks to free
- * @pdquot_freed_blocks:	pointer to quota
  *
- * XXX This function is only used by the on-line resizing code, which
- * should probably be fixed up to call the mballoc variant.  There
- * this needs to be cleaned up later; in fact, I'm not convinced this
- * is 100% correct in the face of the mballoc code.  The online resizing
- * code needs to be fixed up to more tightly (and correctly) interlock
- * with the mballoc code.
+ * This marks the blocks as free in the bitmap. We ask the
+ * mballoc to reload the buddy after this by setting group
+ * EXT4_GROUP_INFO_NEED_INIT_BIT flag
  */
-void ext4_free_blocks_sb(handle_t *handle, struct super_block *sb,
-			 ext4_fsblk_t block, unsigned long count,
-			 unsigned long *pdquot_freed_blocks)
+void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
+			 ext4_fsblk_t block, unsigned long count)
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct buffer_head *gd_bh;
 	ext4_group_t block_group;
 	ext4_grpblk_t bit;
 	unsigned int i;
-	unsigned int overflow;
 	struct ext4_group_desc *desc;
 	struct ext4_super_block *es;
 	struct ext4_sb_info *sbi;
 	int err = 0, ret;
-	ext4_grpblk_t group_freed;
+	ext4_grpblk_t blocks_freed;
+	struct ext4_group_info *grp;
 
-	*pdquot_freed_blocks = 0;
 	sbi = EXT4_SB(sb);
 	es = sbi->s_es;
-	if (block < le32_to_cpu(es->s_first_data_block) ||
-	    block + count < block ||
-	    block + count > ext4_blocks_count(es)) {
-		ext4_error(sb, "ext4_free_blocks",
-			   "Freeing blocks not in datazone - "
-			   "block = %llu, count = %lu", block, count);
-		goto error_return;
-	}
+	ext4_debug("Adding block(s) %llu-%llu\n", block, block + count - 1);
 
-	ext4_debug("freeing block(s) %llu-%llu\n", block, block + count - 1);
-
-do_more:
-	overflow = 0;
 	ext4_get_group_no_and_offset(sb, block, &block_group, &bit);
 	/*
 	 * Check to see if we are freeing blocks across a group
 	 * boundary.
 	 */
 	if (bit + count > EXT4_BLOCKS_PER_GROUP(sb)) {
-		overflow = bit + count - EXT4_BLOCKS_PER_GROUP(sb);
-		count -= overflow;
+		goto error_return;
 	}
-	brelse(bitmap_bh);
 	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
 	if (!bitmap_bh)
 		goto error_return;
@@ -418,18 +400,17 @@ do_more:
 	    in_range(block, ext4_inode_table(sb, desc), sbi->s_itb_per_group) ||
 	    in_range(block + count - 1, ext4_inode_table(sb, desc),
 		     sbi->s_itb_per_group)) {
-		ext4_error(sb, "ext4_free_blocks",
-			   "Freeing blocks in system zones - "
+		ext4_error(sb, __func__,
+			   "Adding blocks in system zones - "
 			   "Block = %llu, count = %lu",
 			   block, count);
 		goto error_return;
 	}
 
 	/*
-	 * We are about to start releasing blocks in the bitmap,
+	 * We are about to add blocks to the bitmap,
 	 * so we need undo access.
 	 */
-	/* @@@ check errors */
 	BUFFER_TRACE(bitmap_bh, "getting undo access");
 	err = ext4_journal_get_undo_access(handle, bitmap_bh);
 	if (err)
@@ -445,87 +426,28 @@ do_more:
 	if (err)
 		goto error_return;
 
-	jbd_lock_bh_state(bitmap_bh);
-
-	for (i = 0, group_freed = 0; i < count; i++) {
-		/*
-		 * An HJ special.  This is expensive...
-		 */
-#ifdef CONFIG_JBD2_DEBUG
-		jbd_unlock_bh_state(bitmap_bh);
-		{
-			struct buffer_head *debug_bh;
-			debug_bh = sb_find_get_block(sb, block + i);
-			if (debug_bh) {
-				BUFFER_TRACE(debug_bh, "Deleted!");
-				if (!bh2jh(bitmap_bh)->b_committed_data)
-					BUFFER_TRACE(debug_bh,
-						"No commited data in bitmap");
-				BUFFER_TRACE2(debug_bh, bitmap_bh, "bitmap");
-				__brelse(debug_bh);
-			}
-		}
-		jbd_lock_bh_state(bitmap_bh);
-#endif
-		if (need_resched()) {
-			jbd_unlock_bh_state(bitmap_bh);
-			cond_resched();
-			jbd_lock_bh_state(bitmap_bh);
-		}
-		/* @@@ This prevents newly-allocated data from being
-		 * freed and then reallocated within the same
-		 * transaction.
-		 *
-		 * Ideally we would want to allow that to happen, but to
-		 * do so requires making jbd2_journal_forget() capable of
-		 * revoking the queued write of a data block, which
-		 * implies blocking on the journal lock.  *forget()
-		 * cannot block due to truncate races.
-		 *
-		 * Eventually we can fix this by making jbd2_journal_forget()
-		 * return a status indicating whether or not it was able
-		 * to revoke the buffer.  On successful revoke, it is
-		 * safe not to set the allocation bit in the committed
-		 * bitmap, because we know that there is no outstanding
-		 * activity on the buffer any more and so it is safe to
-		 * reallocate it.
-		 */
-		BUFFER_TRACE(bitmap_bh, "set in b_committed_data");
-		J_ASSERT_BH(bitmap_bh,
-				bh2jh(bitmap_bh)->b_committed_data != NULL);
-		ext4_set_bit_atomic(sb_bgl_lock(sbi, block_group), bit + i,
-				bh2jh(bitmap_bh)->b_committed_data);
-
-		/*
-		 * We clear the bit in the bitmap after setting the committed
-		 * data bit, because this is the reverse order to that which
-		 * the allocator uses.
-		 */
+	for (i = 0, blocks_freed = 0; i < count; i++) {
 		BUFFER_TRACE(bitmap_bh, "clear bit");
 		if (!ext4_clear_bit_atomic(sb_bgl_lock(sbi, block_group),
 						bit + i, bitmap_bh->b_data)) {
-			jbd_unlock_bh_state(bitmap_bh);
 			ext4_error(sb, __func__,
 				   "bit already cleared for block %llu",
 				   (ext4_fsblk_t)(block + i));
-			jbd_lock_bh_state(bitmap_bh);
 			BUFFER_TRACE(bitmap_bh, "bit already cleared");
 		} else {
-			group_freed++;
+			blocks_freed++;
 		}
 	}
-	jbd_unlock_bh_state(bitmap_bh);
-
 	spin_lock(sb_bgl_lock(sbi, block_group));
-	le16_add_cpu(&desc->bg_free_blocks_count, group_freed);
+	le16_add_cpu(&desc->bg_free_blocks_count, blocks_freed);
 	desc->bg_checksum = ext4_group_desc_csum(sbi, block_group, desc);
 	spin_unlock(sb_bgl_lock(sbi, block_group));
-	percpu_counter_add(&sbi->s_freeblocks_counter, count);
+	percpu_counter_add(&sbi->s_freeblocks_counter, blocks_freed);
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
 		spin_lock(sb_bgl_lock(sbi, flex_group));
-		sbi->s_flex_groups[flex_group].free_blocks += count;
+		sbi->s_flex_groups[flex_group].free_blocks += blocks_freed;
 		spin_unlock(sb_bgl_lock(sbi, flex_group));
 	}
 
@@ -536,15 +458,17 @@ do_more:
 	/* And the group descriptor block */
 	BUFFER_TRACE(gd_bh, "dirtied group descriptor block");
 	ret = ext4_handle_dirty_metadata(handle, NULL, gd_bh);
-	if (!err) err = ret;
-	*pdquot_freed_blocks += group_freed;
-
-	if (overflow && !err) {
-		block += count;
-		count = overflow;
-		goto do_more;
-	}
+	if (!err)
+		err = ret;
 	sb->s_dirt = 1;
+	/*
+	 * request to reload the buddy with the
+	 * new bitmap information
+	 */
+	grp = ext4_get_group_info(sb, block_group);
+	set_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &(grp->bb_state));
+	ext4_mb_update_group_info(grp, blocks_freed);
+
 error_return:
 	brelse(bitmap_bh);
 	ext4_std_error(sb, err);

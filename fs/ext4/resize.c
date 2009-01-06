@@ -977,9 +977,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	struct buffer_head *bh;
 	handle_t *handle;
 	int err;
-	unsigned long freed_blocks;
 	ext4_group_t group;
-	struct ext4_group_info *grp;
 
 	/* We don't need to worry about locking wrt other resizers just
 	 * yet: we're going to revalidate es->s_blocks_count after
@@ -1077,7 +1075,8 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	unlock_super(sb);
 	ext4_debug("freeing blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
-	ext4_free_blocks_sb(handle, sb, o_blocks_count, add, &freed_blocks);
+	/* We add the blocks to the bitmap and set the group need init bit */
+	ext4_add_groupblocks(handle, sb, o_blocks_count, add);
 	ext4_debug("freed blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
 	if ((err = ext4_journal_stop(handle)))
@@ -1120,12 +1119,6 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 			ClearPageUptodate(page);
 			page_cache_release(page);
 		}
-
-		/* Get the info on the last group */
-		grp = ext4_get_group_info(sb, group);
-
-		/* Update free blocks in group info */
-		ext4_mb_update_group_info(grp, add);
 	}
 
 	if (test_opt(sb, DEBUG))
