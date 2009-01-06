@@ -25,6 +25,7 @@
 #include <linux/crc32.h>
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
+#include <linux/bio.h>
 
 /*
  * Default IO end handler for temporary BJ_IO buffer_heads.
@@ -168,12 +169,34 @@ static int journal_submit_commit_record(journal_t *journal,
  * This function along with journal_submit_commit_record
  * allows to write the commit record asynchronously.
  */
-static int journal_wait_on_commit_record(struct buffer_head *bh)
+static int journal_wait_on_commit_record(journal_t *journal,
+					 struct buffer_head *bh)
 {
 	int ret = 0;
 
+retry:
 	clear_buffer_dirty(bh);
 	wait_on_buffer(bh);
+	if (buffer_eopnotsupp(bh) && (journal->j_flags & JBD2_BARRIER)) {
+		printk(KERN_WARNING
+		       "JBD2: wait_on_commit_record: sync failed on %s - "
+		       "disabling barriers\n", journal->j_devname);
+		spin_lock(&journal->j_state_lock);
+		journal->j_flags &= ~JBD2_BARRIER;
+		spin_unlock(&journal->j_state_lock);
+
+		lock_buffer(bh);
+		clear_buffer_dirty(bh);
+		set_buffer_uptodate(bh);
+		bh->b_end_io = journal_end_buffer_io_sync;
+
+		ret = submit_bh(WRITE_SYNC, bh);
+		if (ret) {
+			unlock_buffer(bh);
+			return ret;
+		}
+		goto retry;
+	}
 
 	if (unlikely(!buffer_uptodate(bh)))
 		ret = -EIO;
@@ -799,7 +822,7 @@ wait_for_iobuf:
 			__jbd2_journal_abort_hard(journal);
 	}
 	if (!err && !is_journal_aborted(journal))
-		err = journal_wait_on_commit_record(cbh);
+		err = journal_wait_on_commit_record(journal, cbh);
 
 	if (err)
 		jbd2_journal_abort(journal, err);
