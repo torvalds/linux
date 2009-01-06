@@ -18,7 +18,6 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/async_tx.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
@@ -340,7 +339,7 @@ mv_xor_run_tx_complete_actions(struct mv_xor_desc_slot *desc,
 	}
 
 	/* run dependent operations */
-	async_tx_run_dependencies(&desc->async_tx);
+	dma_run_dependencies(&desc->async_tx);
 
 	return cookie;
 }

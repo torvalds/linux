@@ -626,6 +626,90 @@ void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 }
 EXPORT_SYMBOL(dma_async_tx_descriptor_init);
 
+/* dma_wait_for_async_tx - spin wait for a transaction to complete
+ * @tx: in-flight transaction to wait on
+ *
+ * This routine assumes that tx was obtained from a call to async_memcpy,
+ * async_xor, async_memset, etc which ensures that tx is "in-flight" (prepped
+ * and submitted).  Walking the parent chain is only meant to cover for DMA
+ * drivers that do not implement the DMA_INTERRUPT capability and may race with
+ * the driver's descriptor cleanup routine.
+ */
+enum dma_status
+dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
+{
+	enum dma_status status;
+	struct dma_async_tx_descriptor *iter;
+	struct dma_async_tx_descriptor *parent;
+
+	if (!tx)
+		return DMA_SUCCESS;
+
+	WARN_ONCE(tx->parent, "%s: speculatively walking dependency chain for"
+		  " %s\n", __func__, dev_name(&tx->chan->dev));
+
+	/* poll through the dependency chain, return when tx is complete */
+	do {
+		iter = tx;
+
+		/* find the root of the unsubmitted dependency chain */
+		do {
+			parent = iter->parent;
+			if (!parent)
+				break;
+			else
+				iter = parent;
+		} while (parent);
+
+		/* there is a small window for ->parent == NULL and
+		 * ->cookie == -EBUSY
+		 */
+		while (iter->cookie == -EBUSY)
+			cpu_relax();
+
+		status = dma_sync_wait(iter->chan, iter->cookie);
+	} while (status == DMA_IN_PROGRESS || (iter != tx));
+
+	return status;
+}
+EXPORT_SYMBOL_GPL(dma_wait_for_async_tx);
+
+/* dma_run_dependencies - helper routine for dma drivers to process
+ *	(start) dependent operations on their target channel
+ * @tx: transaction with dependencies
+ */
+void dma_run_dependencies(struct dma_async_tx_descriptor *tx)
+{
+	struct dma_async_tx_descriptor *dep = tx->next;
+	struct dma_async_tx_descriptor *dep_next;
+	struct dma_chan *chan;
+
+	if (!dep)
+		return;
+
+	chan = dep->chan;
+
+	/* keep submitting up until a channel switch is detected
+	 * in that case we will be called again as a result of
+	 * processing the interrupt from async_tx_channel_switch
+	 */
+	for (; dep; dep = dep_next) {
+		spin_lock_bh(&dep->lock);
+		dep->parent = NULL;
+		dep_next = dep->next;
+		if (dep_next && dep_next->chan == chan)
+			dep->next = NULL; /* ->next will be submitted */
+		else
+			dep_next = NULL; /* submit current dep and terminate */
+		spin_unlock_bh(&dep->lock);
+
+		dep->tx_submit(dep);
+	}
+
+	chan->device->device_issue_pending(chan);
+}
+EXPORT_SYMBOL_GPL(dma_run_dependencies);
+
 static int __init dma_bus_init(void)
 {
 	mutex_init(&dma_list_mutex);

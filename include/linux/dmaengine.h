@@ -475,11 +475,20 @@ static inline enum dma_status dma_async_is_complete(dma_cookie_t cookie,
 }
 
 enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie);
+#ifdef CONFIG_DMA_ENGINE
+enum dma_status dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx);
+#else
+static inline enum dma_status dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
+{
+	return DMA_SUCCESS;
+}
+#endif
 
 /* --- DMA device --- */
 
 int dma_async_device_register(struct dma_device *device);
 void dma_async_device_unregister(struct dma_device *device);
+void dma_run_dependencies(struct dma_async_tx_descriptor *tx);
 
 /* --- Helper iov-locking functions --- */
 

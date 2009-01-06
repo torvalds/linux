@@ -24,7 +24,6 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/async_tx.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
@@ -116,7 +115,7 @@ iop_adma_run_tx_complete_actions(struct iop_adma_desc_slot *desc,
 	}
 
 	/* run dependent operations */
-	async_tx_run_dependencies(&desc->async_tx);
+	dma_run_dependencies(&desc->async_tx);
 
 	return cookie;
 }
