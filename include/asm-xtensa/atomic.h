@@ -14,8 +14,7 @@
 #define _XTENSA_ATOMIC_H
 
 #include <linux/stringify.h>
-
-typedef struct { volatile int counter; } atomic_t;
+#include <linux/types.h>
 
 #ifdef __KERNEL__
 #include <asm/processor.h>
