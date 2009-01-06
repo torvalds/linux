@@ -869,11 +869,7 @@ static noinline int remove_extent_backref(struct btrfs_trans_handle *trans,
 static void btrfs_issue_discard(struct block_device *bdev,
 				u64 start, u64 len)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
 	blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_KERNEL);
-#else
-	blkdev_issue_discard(bdev, start >> 9, len >> 9);
-#endif
 }
 #endif
 
