@@ -127,6 +127,7 @@ our $Lval	= qr{$Ident(?:$Member)*};
 
 our $Constant	= qr{(?:[0-9]+|0x[0-9a-fA-F]+)[UL]*};
 our $Assignment	= qr{(?:\*\=|/=|%=|\+=|-=|<<=|>>=|&=|\^=|\|=|=)};
+our $Compare    = qr{<=|>=|==|!=|<|>};
 our $Operators	= qr{
 			<=|>=|==|!=|
 			=>|->|<<|>>|<|>|!|~|
@@ -1983,9 +1984,9 @@ sub process {
 			my $spacing = $1;
 			my $value = $2;
 
-			# Flatten any parentheses and braces
+			# Flatten any parentheses
 			$value =~ s/\)\(/\) \(/g;
-			while ($value =~ s/\([^\(\)]*\)/1/) {
+			while ($value !~ /(?:$Ident|-?$Constant)\s*$Compare\s*(?:$Ident|-?$Constant)/ && $value =~ s/\([^\(\)]*\)/1/) {
 			}
 
 			if ($value =~ /^(?:$Ident|-?$Constant)$/) {
