@@ -337,6 +337,11 @@ static struct tracer kmem_tracer __read_mostly = {
 	.flags		= &kmem_tracer_flags
 };
 
+void kmemtrace_init(void)
+{
+	/* earliest opportunity to start kmem tracing */
+}
+
 static int __init init_kmem_tracer(void)
 {
 	return register_tracer(&kmem_tracer);
