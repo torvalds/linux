@@ -1167,11 +1167,6 @@ static inline void note_zone_scanning_priority(struct zone *zone, int priority)
 		zone->prev_priority = priority;
 }
 
-static inline int zone_is_near_oom(struct zone *zone)
-{
-	return zone->pages_scanned >= (zone_lru_pages(zone) * 3);
-}
-
 /*
  * This moves pages from the active list to the inactive list.
  *
