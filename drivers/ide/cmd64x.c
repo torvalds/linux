@@ -138,10 +138,12 @@ static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 	 * the slowest address setup timing ourselves.
 	 */
 	if (hwif->channel) {
-		ide_drive_t *drives = hwif->drives;
+		ide_drive_t *pair = ide_get_pair_dev(drive);
 
 		drive->drive_data = setup_count;
-		setup_count = max(drives[0].drive_data, drives[1].drive_data);
+
+		if (pair)
+			setup_count = max_t(u8, setup_count, pair->drive_data);
 	}
 
 	if (setup_count > 5)		/* shouldn't actually happen... */
