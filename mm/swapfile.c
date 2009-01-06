@@ -1222,7 +1222,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	spin_lock(&swap_lock);
 	for (type = swap_list.head; type >= 0; type = swap_info[type].next) {
 		p = swap_info + type;
-		if ((p->flags & SWP_ACTIVE) == SWP_ACTIVE) {
+		if (p->flags & SWP_WRITEOK) {
 			if (p->swap_file->f_mapping == mapping)
 				break;
 		}
@@ -1674,7 +1674,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	else
 		p->prio = --least_priority;
 	p->swap_map = swap_map;
-	p->flags = SWP_ACTIVE;
+	p->flags |= SWP_WRITEOK;
 	nr_swap_pages += nr_good_pages;
 	total_swap_pages += nr_good_pages;
 
