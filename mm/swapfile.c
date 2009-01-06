@@ -169,6 +169,7 @@ static int wait_for_discard(void *word)
 static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 {
 	unsigned long offset;
+	unsigned long scan_base;
 	unsigned long last_in_cluster = 0;
 	int latency_ration = LATENCY_LIMIT;
 	int found_free_cluster = 0;
@@ -181,10 +182,11 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 	 * all over the entire swap partition, so that we reduce
 	 * overall disk seek times between swap pages.  -- sct
 	 * But we do now try to find an empty cluster.  -Andrea
+	 * And we let swap pages go all over an SSD partition.  Hugh
 	 */
 
 	si->flags += SWP_SCANNING;
-	offset = si->cluster_next;
+	scan_base = offset = si->cluster_next;
 
 	if (unlikely(!si->cluster_nr--)) {
 		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER) {
@@ -206,7 +208,16 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 		}
 		spin_unlock(&swap_lock);
 
-		offset = si->lowest_bit;
+		/*
+		 * If seek is expensive, start searching for new cluster from
+		 * start of partition, to minimize the span of allocated swap.
+		 * But if seek is cheap, search from our current position, so
+		 * that swap is allocated from all over the partition: if the
+		 * Flash Translation Layer only remaps within limited zones,
+		 * we don't want to wear out the first zone too quickly.
+		 */
+		if (!(si->flags & SWP_SOLIDSTATE))
+			scan_base = offset = si->lowest_bit;
 		last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
 
 		/* Locate the first empty (unaligned) cluster */
@@ -228,6 +239,27 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 		}
 
 		offset = si->lowest_bit;
+		last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
+
+		/* Locate the first empty (unaligned) cluster */
+		for (; last_in_cluster < scan_base; offset++) {
+			if (si->swap_map[offset])
+				last_in_cluster = offset + SWAPFILE_CLUSTER;
+			else if (offset == last_in_cluster) {
+				spin_lock(&swap_lock);
+				offset -= SWAPFILE_CLUSTER - 1;
+				si->cluster_next = offset;
+				si->cluster_nr = SWAPFILE_CLUSTER - 1;
+				found_free_cluster = 1;
+				goto checks;
+			}
+			if (unlikely(--latency_ration < 0)) {
+				cond_resched();
+				latency_ration = LATENCY_LIMIT;
+			}
+		}
+
+		offset = scan_base;
 		spin_lock(&swap_lock);
 		si->cluster_nr = SWAPFILE_CLUSTER - 1;
 		si->lowest_alloc = 0;
@@ -239,7 +271,7 @@ checks:
 	if (!si->highest_bit)
 		goto no_page;
 	if (offset > si->highest_bit)
-		offset = si->lowest_bit;
+		scan_base = offset = si->lowest_bit;
 	if (si->swap_map[offset])
 		goto scan;
 
@@ -323,8 +355,18 @@ scan:
 			latency_ration = LATENCY_LIMIT;
 		}
 	}
+	offset = si->lowest_bit;
+	while (++offset < scan_base) {
+		if (!si->swap_map[offset]) {
+			spin_lock(&swap_lock);
+			goto checks;
+		}
+		if (unlikely(--latency_ration < 0)) {
+			cond_resched();
+			latency_ration = LATENCY_LIMIT;
+		}
+	}
 	spin_lock(&swap_lock);
-	goto checks;
 
 no_page:
 	si->flags -= SWP_SCANNING;
