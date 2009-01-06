@@ -1125,6 +1125,8 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 
 	if (bio_sync(bio))
 		req->cmd_flags |= REQ_RW_SYNC;
+	if (bio_unplug(bio))
+		req->cmd_flags |= REQ_UNPLUG;
 	if (bio_rw_meta(bio))
 		req->cmd_flags |= REQ_RW_META;
 
@@ -1141,6 +1143,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	int el_ret, nr_sectors;
 	const unsigned short prio = bio_prio(bio);
 	const int sync = bio_sync(bio);
+	const int unplug = bio_unplug(bio);
 	int rw_flags;
 
 	nr_sectors = bio_sectors(bio);
@@ -1244,7 +1247,7 @@ get_rq:
 		blk_plug_device(q);
 	add_request(q, req);
 out:
-	if (sync || blk_queue_nonrot(q))
+	if (unplug || blk_queue_nonrot(q))
 		__generic_unplug_device(q);
 	spin_unlock_irq(q->queue_lock);
 	return 0;
