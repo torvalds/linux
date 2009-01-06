@@ -572,24 +572,17 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive)
 
 	ide_debug_log(IDE_DBG_PC, "Call %s\n", __func__);
 
+	/* we must wait for DRQ to get set */
+	if (ide_wait_stat(&startstop, drive, ATA_DRQ, ATA_BUSY, WAIT_READY)) {
+		printk(KERN_ERR "%s: timeout while waiting for DRQ to assert\n",
+				drive->name);
+		return startstop;
+	}
+
 	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
-		/*
-		 * Here we should have been called after receiving an interrupt
-		 * from the device.  DRQ should how be set.
-		 */
-
-		/* check for errors */
-		if (cdrom_decode_status(drive, ATA_DRQ, NULL))
-			return ide_stopped;
-
 		/* ok, next interrupt will be DMA interrupt */
 		if (drive->dma)
 			drive->waiting_for_dma = 1;
-	} else {
-		/* otherwise, we must wait for DRQ to get set */
-		if (ide_wait_stat(&startstop, drive, ATA_DRQ,
-				  ATA_BUSY, WAIT_READY))
-			return startstop;
 	}
 
 	/* arm the interrupt handler */
