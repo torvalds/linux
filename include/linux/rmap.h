@@ -63,9 +63,6 @@ void anon_vma_unlink(struct vm_area_struct *);
 void anon_vma_link(struct vm_area_struct *);
 void __anon_vma_link(struct vm_area_struct *);
 
-extern struct anon_vma *page_lock_anon_vma(struct page *page);
-extern void page_unlock_anon_vma(struct anon_vma *anon_vma);
-
 /*
  * rmap interfaces called when adding or removing pte of page
  */
