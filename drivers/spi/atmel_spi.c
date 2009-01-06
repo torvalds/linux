@@ -30,13 +30,6 @@
  * The core SPI transfer engine just talks to a register bank to set up
  * DMA transfers; transfer queue progress is driven by IRQs.  The clock
  * framework provides the base clock, subdivided for each spi_device.
- *
- * Newer controllers, marked with "new_1" flag, have:
- *  - CR.LASTXFER
- *  - SPI_MR.DIV32 may become FDIV or must-be-zero (here: always zero)
- *  - SPI_SR.TXEMPTY, SPI_SR.NSSR (and corresponding irqs)
- *  - SPI_CSRx.CSAAT
- *  - SPI_CSRx.SBCR allows faster clocking
  */
 struct atmel_spi {
 	spinlock_t		lock;
@@ -45,7 +38,6 @@ struct atmel_spi {
 	int			irq;
 	struct clk		*clk;
 	struct platform_device	*pdev;
-	unsigned		new_1:1;
 	struct spi_device	*stay;
 
 	u8			stopping;
@@ -61,6 +53,23 @@ struct atmel_spi {
 
 #define BUFFER_SIZE		PAGE_SIZE
 #define INVALID_DMA_ADDRESS	0xffffffff
+
+/*
+ * Version 2 of the SPI controller has
+ *  - CR.LASTXFER
+ *  - SPI_MR.DIV32 may become FDIV or must-be-zero (here: always zero)
+ *  - SPI_SR.TXEMPTY, SPI_SR.NSSR (and corresponding irqs)
+ *  - SPI_CSRx.CSAAT
+ *  - SPI_CSRx.SBCR allows faster clocking
+ *
+ * We can determine the controller version by reading the VERSION
+ * register, but I haven't checked that it exists on all chips, and
+ * this is cheaper anyway.
+ */
+static bool atmel_spi_is_v2(void)
+{
+	return !cpu_is_at91rm9200();
+}
 
 /*
  * Earlier SPI controllers (e.g. on at91rm9200) have a design bug whereby
@@ -105,7 +114,7 @@ static void cs_activate(struct atmel_spi *as, struct spi_device *spi)
 			gpio, active ? " (high)" : "",
 			mr);
 
-	if (!(cpu_is_at91rm9200() && spi->chip_select == 0))
+	if (atmel_spi_is_v2() || spi->chip_select != 0)
 		gpio_set_value(gpio, active);
 	spi_writel(as, MR, mr);
 }
@@ -129,7 +138,7 @@ static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 			gpio, active ? " (low)" : "",
 			mr);
 
-	if (!(cpu_is_at91rm9200() && spi->chip_select == 0))
+	if (atmel_spi_is_v2() || spi->chip_select != 0)
 		gpio_set_value(gpio, !active);
 }
 
@@ -536,19 +545,16 @@ static int atmel_spi_setup(struct spi_device *spi)
 	}
 
 	/* see notes above re chipselect */
-	if (cpu_is_at91rm9200()
+	if (!atmel_spi_is_v2()
 			&& spi->chip_select == 0
 			&& (spi->mode & SPI_CS_HIGH)) {
 		dev_dbg(&spi->dev, "setup: can't be active-high\n");
 		return -EINVAL;
 	}
 
-	/*
-	 * Pre-new_1 chips start out at half the peripheral
-	 * bus speed.
-	 */
+	/* v1 chips start out at half the peripheral bus speed. */
 	bus_hz = clk_get_rate(as->clk);
-	if (!as->new_1)
+	if (!atmel_spi_is_v2())
 		bus_hz /= 2;
 
 	if (spi->max_speed_hz) {
@@ -755,8 +761,6 @@ static int __init atmel_spi_probe(struct platform_device *pdev)
 		goto out_free_buffer;
 	as->irq = irq;
 	as->clk = clk;
-	if (!cpu_is_at91rm9200())
-		as->new_1 = 1;
 
 	ret = request_irq(irq, atmel_spi_interrupt, 0,
 			pdev->dev.bus_id, master);
