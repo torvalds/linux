@@ -2352,6 +2352,8 @@ sys_init_module(void __user *umod,
 	/* Now it's a first class citizen!  Wake up anyone waiting for it. */
 	mod->state = MODULE_STATE_LIVE;
 	wake_up(&module_wq);
+	blocking_notifier_call_chain(&module_notify_list,
+				     MODULE_STATE_LIVE, mod);
 
 	mutex_lock(&module_mutex);
 	/* Drop initial reference. */
