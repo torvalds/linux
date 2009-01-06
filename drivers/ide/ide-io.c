@@ -724,7 +724,9 @@ void do_ide_request(struct request_queue *q)
 	spin_lock_irq(&hwgroup->lock);
 
 	if (!ide_lock_hwgroup(hwgroup)) {
+		ide_hwif_t *prev_port;
 repeat:
+		prev_port = hwgroup->hwif;
 		hwgroup->rq = NULL;
 
 		if (drive->dev_flags & IDE_DFLAG_SLEEPING) {
@@ -734,13 +736,13 @@ repeat:
 			}
 		}
 
-		if (hwif != hwgroup->hwif) {
+		if (hwif != prev_port) {
 			/*
-			 * set nIEN for previous hwif, drives in the
+			 * set nIEN for previous port, drives in the
 			 * quirk_list may not like intr setups/cleanups
 			 */
-			if (drive->quirk_list == 0)
-				hwif->tp_ops->set_irq(hwif, 0);
+			if (hwgroup->drive->quirk_list == 0)
+				prev_port->tp_ops->set_irq(prev_port, 0);
 		}
 		hwgroup->hwif = hwif;
 		hwgroup->drive = drive;
