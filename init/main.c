@@ -447,7 +447,7 @@ static void __init setup_command_line(char *command_line)
  * gcc-3.4 accidentally inlines this function, so use noinline.
  */
 
-static void noinline __init_refok rest_init(void)
+static noinline void __init_refok rest_init(void)
 	__releases(kernel_lock)
 {
 	int pid;
@@ -786,7 +786,7 @@ static void run_init_process(char *init_filename)
 /* This is a non __init function. Force it to be noinline otherwise gcc
  * makes it inline to init() and it becomes part of init.text section
  */
-static int noinline init_post(void)
+static noinline int init_post(void)
 {
 	free_initmem();
 	unlock_kernel();
