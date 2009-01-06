@@ -223,6 +223,30 @@ static inline int bad_range(struct zone *zone, struct page *page)
 
 static void bad_page(struct page *page)
 {
+	static unsigned long resume;
+	static unsigned long nr_shown;
+	static unsigned long nr_unshown;
+
+	/*
+	 * Allow a burst of 60 reports, then keep quiet for that minute;
+	 * or allow a steady drip of one report per second.
+	 */
+	if (nr_shown == 60) {
+		if (time_before(jiffies, resume)) {
+			nr_unshown++;
+			goto out;
+		}
+		if (nr_unshown) {
+			printk(KERN_EMERG
+				"Bad page state: %lu messages suppressed\n",
+				nr_unshown);
+			nr_unshown = 0;
+		}
+		nr_shown = 0;
+	}
+	if (nr_shown++ == 0)
+		resume = jiffies + 60 * HZ;
+
 	printk(KERN_EMERG "Bad page state in process %s  pfn:%05lx\n",
 		current->comm, page_to_pfn(page));
 	printk(KERN_EMERG
@@ -232,7 +256,7 @@ static void bad_page(struct page *page)
 	printk(KERN_EMERG "Trying to fix it up, but a reboot is needed\n");
 
 	dump_stack();
-
+out:
 	/* Leave bad fields for debug, except PageBuddy could make trouble */
 	__ClearPageBuddy(page);
 	add_taint(TAINT_BAD_PAGE);

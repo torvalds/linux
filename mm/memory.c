@@ -383,6 +383,29 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
 	pmd_t *pmd = pmd_offset(pud, addr);
 	struct address_space *mapping;
 	pgoff_t index;
+	static unsigned long resume;
+	static unsigned long nr_shown;
+	static unsigned long nr_unshown;
+
+	/*
+	 * Allow a burst of 60 reports, then keep quiet for that minute;
+	 * or allow a steady drip of one report per second.
+	 */
+	if (nr_shown == 60) {
+		if (time_before(jiffies, resume)) {
+			nr_unshown++;
+			return;
+		}
+		if (nr_unshown) {
+			printk(KERN_EMERG
+				"Bad page map: %lu messages suppressed\n",
+				nr_unshown);
+			nr_unshown = 0;
+		}
+		nr_shown = 0;
+	}
+	if (nr_shown++ == 0)
+		resume = jiffies + 60 * HZ;
 
 	mapping = vma->vm_file ? vma->vm_file->f_mapping : NULL;
 	index = linear_page_index(vma, addr);
