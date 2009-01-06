@@ -644,8 +644,7 @@ static kprobe_opcode_t __kprobes *kprobe_addr(struct kprobe *p)
 	return (kprobe_opcode_t *)(((char *)addr) + p->offset);
 }
 
-static int __kprobes __register_kprobe(struct kprobe *p,
-	unsigned long called_from)
+int __kprobes register_kprobe(struct kprobe *p)
 {
 	int ret = 0;
 	struct kprobe *old_p;
@@ -670,19 +669,14 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 	 */
 	probed_mod = __module_text_address((unsigned long) p->addr);
 	if (probed_mod) {
-		struct module *calling_mod;
-		calling_mod = __module_text_address(called_from);
 		/*
 		 * We must hold a refcount of the probed module while updating
 		 * its code to prohibit unexpected unloading.
 		 */
-		if (calling_mod != probed_mod) {
-			if (unlikely(!try_module_get(probed_mod))) {
-				preempt_enable();
-				return -EINVAL;
-			}
-		} else
-			probed_mod = NULL;
+		if (unlikely(!try_module_get(probed_mod))) {
+			preempt_enable();
+			return -EINVAL;
+		}
 	}
 	preempt_enable();
 
@@ -776,15 +770,14 @@ static void __kprobes __unregister_kprobe_bottom(struct kprobe *p)
 	}
 }
 
-static int __kprobes __register_kprobes(struct kprobe **kps, int num,
-	unsigned long called_from)
+int __kprobes register_kprobes(struct kprobe **kps, int num)
 {
 	int i, ret = 0;
 
 	if (num <= 0)
 		return -EINVAL;
 	for (i = 0; i < num; i++) {
-		ret = __register_kprobe(kps[i], called_from);
+		ret = register_kprobe(kps[i]);
 		if (ret < 0) {
 			if (i > 0)
 				unregister_kprobes(kps, i);
@@ -794,24 +787,9 @@ static int __kprobes __register_kprobes(struct kprobe **kps, int num,
 	return ret;
 }
 
-/*
- * Registration and unregistration functions for kprobe.
- */
-int __kprobes register_kprobe(struct kprobe *p)
-{
-	return __register_kprobes(&p, 1,
-				  (unsigned long)__builtin_return_address(0));
-}
-
 void __kprobes unregister_kprobe(struct kprobe *p)
 {
 	unregister_kprobes(&p, 1);
-}
-
-int __kprobes register_kprobes(struct kprobe **kps, int num)
-{
-	return __register_kprobes(kps, num,
-				  (unsigned long)__builtin_return_address(0));
 }
 
 void __kprobes unregister_kprobes(struct kprobe **kps, int num)
@@ -842,8 +820,7 @@ unsigned long __weak arch_deref_entry_point(void *entry)
 	return (unsigned long)entry;
 }
 
-static int __kprobes __register_jprobes(struct jprobe **jps, int num,
-	unsigned long called_from)
+int __kprobes register_jprobes(struct jprobe **jps, int num)
 {
 	struct jprobe *jp;
 	int ret = 0, i;
@@ -861,7 +838,7 @@ static int __kprobes __register_jprobes(struct jprobe **jps, int num,
 			/* Todo: Verify probepoint is a function entry point */
 			jp->kp.pre_handler = setjmp_pre_handler;
 			jp->kp.break_handler = longjmp_break_handler;
-			ret = __register_kprobe(&jp->kp, called_from);
+			ret = register_kprobe(&jp->kp);
 		}
 		if (ret < 0) {
 			if (i > 0)
@@ -874,19 +851,12 @@ static int __kprobes __register_jprobes(struct jprobe **jps, int num,
 
 int __kprobes register_jprobe(struct jprobe *jp)
 {
-	return __register_jprobes(&jp, 1,
-		(unsigned long)__builtin_return_address(0));
+	return register_jprobes(&jp, 1);
 }
 
 void __kprobes unregister_jprobe(struct jprobe *jp)
 {
 	unregister_jprobes(&jp, 1);
-}
-
-int __kprobes register_jprobes(struct jprobe **jps, int num)
-{
-	return __register_jprobes(jps, num,
-		(unsigned long)__builtin_return_address(0));
 }
 
 void __kprobes unregister_jprobes(struct jprobe **jps, int num)
@@ -951,8 +921,7 @@ static int __kprobes pre_handler_kretprobe(struct kprobe *p,
 	return 0;
 }
 
-static int __kprobes __register_kretprobe(struct kretprobe *rp,
-					  unsigned long called_from)
+int __kprobes register_kretprobe(struct kretprobe *rp)
 {
 	int ret = 0;
 	struct kretprobe_instance *inst;
@@ -998,21 +967,20 @@ static int __kprobes __register_kretprobe(struct kretprobe *rp,
 
 	rp->nmissed = 0;
 	/* Establish function entry probe point */
-	ret = __register_kprobe(&rp->kp, called_from);
+	ret = register_kprobe(&rp->kp);
 	if (ret != 0)
 		free_rp_inst(rp);
 	return ret;
 }
 
-static int __kprobes __register_kretprobes(struct kretprobe **rps, int num,
-	unsigned long called_from)
+int __kprobes register_kretprobes(struct kretprobe **rps, int num)
 {
 	int ret = 0, i;
 
 	if (num <= 0)
 		return -EINVAL;
 	for (i = 0; i < num; i++) {
-		ret = __register_kretprobe(rps[i], called_from);
+		ret = register_kretprobe(rps[i]);
 		if (ret < 0) {
 			if (i > 0)
 				unregister_kretprobes(rps, i);
@@ -1022,21 +990,9 @@ static int __kprobes __register_kretprobes(struct kretprobe **rps, int num,
 	return ret;
 }
 
-int __kprobes register_kretprobe(struct kretprobe *rp)
-{
-	return __register_kretprobes(&rp, 1,
-			(unsigned long)__builtin_return_address(0));
-}
-
 void __kprobes unregister_kretprobe(struct kretprobe *rp)
 {
 	unregister_kretprobes(&rp, 1);
-}
-
-int __kprobes register_kretprobes(struct kretprobe **rps, int num)
-{
-	return __register_kretprobes(rps, num,
-			(unsigned long)__builtin_return_address(0));
 }
 
 void __kprobes unregister_kretprobes(struct kretprobe **rps, int num)
