@@ -1330,8 +1330,8 @@ void dm_put(struct mapped_device *md)
 			dm_table_presuspend_targets(map);
 			dm_table_postsuspend_targets(map);
 		}
-		__unbind(md);
 		dm_table_put(map);
+		__unbind(md);
 		free_dev(md);
 	}
 }
