@@ -11,6 +11,7 @@
 #define _LINUX_DM_EXCEPTION_STORE
 
 #include <linux/blkdev.h>
+#include <linux/device-mapper.h>
 
 /*
  * The snapshot code deals with largish chunks of the disk at a
@@ -37,7 +38,6 @@ struct dm_snap_exception {
  * COW device).
  */
 struct dm_exception_store {
-
 	/*
 	 * Destroys this object when you've finished with it.
 	 */
@@ -45,9 +45,13 @@ struct dm_exception_store {
 
 	/*
 	 * The target shouldn't read the COW device until this is
-	 * called.
+	 * called.  As exceptions are read from the COW, they are
+	 * reported back via the callback.
 	 */
-	int (*read_metadata) (struct dm_exception_store *store);
+	int (*read_metadata) (struct dm_exception_store *store,
+			      int (*callback)(void *callback_context,
+					      chunk_t old, chunk_t new),
+			      void *callback_context);
 
 	/*
 	 * Find somewhere to store the next exception.
@@ -67,6 +71,9 @@ struct dm_exception_store {
 	 * The snapshot is invalid, note this in the metadata.
 	 */
 	void (*drop_snapshot) (struct dm_exception_store *store);
+
+	int (*status) (struct dm_exception_store *store, status_type_t status,
+		       char *result, unsigned int maxlen);
 
 	/*
 	 * Return how full the snapshot is.

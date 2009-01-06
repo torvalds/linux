@@ -76,12 +76,6 @@ struct dm_snapshot {
 };
 
 /*
- * Used by the exception stores to load exceptions hen
- * initialising.
- */
-int dm_add_exception(struct dm_snapshot *s, chunk_t old, chunk_t new);
-
-/*
  * Return the number of sectors in the device.
  */
 static inline sector_t get_dev_size(struct block_device *bdev)

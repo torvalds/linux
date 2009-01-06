@@ -28,13 +28,16 @@ static void transient_destroy(struct dm_exception_store *store)
 	kfree(store->context);
 }
 
-static int transient_read_metadata(struct dm_exception_store *store)
+static int transient_read_metadata(struct dm_exception_store *store,
+				   int (*callback)(void *callback_context,
+						   chunk_t old, chunk_t new),
+				   void *callback_context)
 {
 	return 0;
 }
 
-static int transient_prepare(struct dm_exception_store *store,
-			     struct dm_snap_exception *e)
+static int transient_prepare_exception(struct dm_exception_store *store,
+				       struct dm_snap_exception *e)
 {
 	struct transient_c *tc = (struct transient_c *) store->context;
 	sector_t size = get_dev_size(store->snap->cow->bdev);
@@ -48,10 +51,10 @@ static int transient_prepare(struct dm_exception_store *store,
 	return 0;
 }
 
-static void transient_commit(struct dm_exception_store *store,
-			     struct dm_snap_exception *e,
-			     void (*callback) (void *, int success),
-			     void *callback_context)
+static void transient_commit_exception(struct dm_exception_store *store,
+				       struct dm_snap_exception *e,
+				       void (*callback) (void *, int success),
+				       void *callback_context)
 {
 	/* Just succeed */
 	callback(callback_context, 1);
@@ -70,8 +73,8 @@ int dm_create_transient(struct dm_exception_store *store)
 
 	store->destroy = transient_destroy;
 	store->read_metadata = transient_read_metadata;
-	store->prepare_exception = transient_prepare;
-	store->commit_exception = transient_commit;
+	store->prepare_exception = transient_prepare_exception;
+	store->commit_exception = transient_commit_exception;
 	store->drop_snapshot = NULL;
 	store->fraction_full = transient_fraction_full;
 

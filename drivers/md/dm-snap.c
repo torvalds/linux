@@ -430,8 +430,13 @@ out:
 	list_add(&new_e->hash_list, e ? &e->hash_list : l);
 }
 
-int dm_add_exception(struct dm_snapshot *s, chunk_t old, chunk_t new)
+/*
+ * Callback used by the exception stores to load exceptions when
+ * initialising.
+ */
+static int dm_add_exception(void *context, chunk_t old, chunk_t new)
 {
+	struct dm_snapshot *s = context;
 	struct dm_snap_exception *e;
 
 	e = alloc_exception();
@@ -660,7 +665,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	spin_lock_init(&s->tracked_chunk_lock);
 
 	/* Metadata must only be loaded into one table at once */
-	r = s->store.read_metadata(&s->store);
+	r = s->store.read_metadata(&s->store, dm_add_exception, (void *)s);
 	if (r < 0) {
 		ti->error = "Failed to read snapshot metadata";
 		goto bad_load_and_register;

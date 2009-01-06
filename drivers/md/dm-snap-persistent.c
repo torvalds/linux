@@ -395,7 +395,11 @@ static void write_exception(struct pstore *ps,
  * 'full' is filled in to indicate if the area has been
  * filled.
  */
-static int insert_exceptions(struct pstore *ps, int *full)
+static int insert_exceptions(struct pstore *ps,
+			     int (*callback)(void *callback_context,
+					     chunk_t old, chunk_t new),
+			     void *callback_context,
+			     int *full)
 {
 	int r;
 	unsigned int i;
@@ -428,7 +432,7 @@ static int insert_exceptions(struct pstore *ps, int *full)
 		/*
 		 * Otherwise we add the exception to the snapshot.
 		 */
-		r = dm_add_exception(ps->snap, de.old_chunk, de.new_chunk);
+		r = callback(callback_context, de.old_chunk, de.new_chunk);
 		if (r)
 			return r;
 	}
@@ -436,7 +440,10 @@ static int insert_exceptions(struct pstore *ps, int *full)
 	return 0;
 }
 
-static int read_exceptions(struct pstore *ps)
+static int read_exceptions(struct pstore *ps,
+			   int (*callback)(void *callback_context, chunk_t old,
+					   chunk_t new),
+			   void *callback_context)
 {
 	int r, full = 1;
 
@@ -449,7 +456,7 @@ static int read_exceptions(struct pstore *ps)
 		if (r)
 			return r;
 
-		r = insert_exceptions(ps, &full);
+		r = insert_exceptions(ps, callback, callback_context, &full);
 		if (r)
 			return r;
 	}
@@ -482,7 +489,10 @@ static void persistent_destroy(struct dm_exception_store *store)
 	kfree(ps);
 }
 
-static int persistent_read_metadata(struct dm_exception_store *store)
+static int persistent_read_metadata(struct dm_exception_store *store,
+				    int (*callback)(void *callback_context,
+						    chunk_t old, chunk_t new),
+				    void *callback_context)
 {
 	int r, uninitialized_var(new_snapshot);
 	struct pstore *ps = get_info(store);
@@ -540,7 +550,7 @@ static int persistent_read_metadata(struct dm_exception_store *store)
 		/*
 		 * Read the metadata.
 		 */
-		r = read_exceptions(ps);
+		r = read_exceptions(ps, callback, callback_context);
 		if (r)
 			return r;
 	}
@@ -548,8 +558,8 @@ static int persistent_read_metadata(struct dm_exception_store *store)
 	return 0;
 }
 
-static int persistent_prepare(struct dm_exception_store *store,
-			      struct dm_snap_exception *e)
+static int persistent_prepare_exception(struct dm_exception_store *store,
+					struct dm_snap_exception *e)
 {
 	struct pstore *ps = get_info(store);
 	uint32_t stride;
@@ -575,10 +585,10 @@ static int persistent_prepare(struct dm_exception_store *store,
 	return 0;
 }
 
-static void persistent_commit(struct dm_exception_store *store,
-			      struct dm_snap_exception *e,
-			      void (*callback) (void *, int success),
-			      void *callback_context)
+static void persistent_commit_exception(struct dm_exception_store *store,
+					struct dm_snap_exception *e,
+					void (*callback) (void *, int success),
+					void *callback_context)
 {
 	unsigned int i;
 	struct pstore *ps = get_info(store);
@@ -637,7 +647,7 @@ static void persistent_commit(struct dm_exception_store *store,
 	ps->callback_count = 0;
 }
 
-static void persistent_drop(struct dm_exception_store *store)
+static void persistent_drop_snapshot(struct dm_exception_store *store)
 {
 	struct pstore *ps = get_info(store);
 
@@ -675,9 +685,9 @@ int dm_create_persistent(struct dm_exception_store *store)
 
 	store->destroy = persistent_destroy;
 	store->read_metadata = persistent_read_metadata;
-	store->prepare_exception = persistent_prepare;
-	store->commit_exception = persistent_commit;
-	store->drop_snapshot = persistent_drop;
+	store->prepare_exception = persistent_prepare_exception;
+	store->commit_exception = persistent_commit_exception;
+	store->drop_snapshot = persistent_drop_snapshot;
 	store->fraction_full = persistent_fraction_full;
 	store->context = ps;
 

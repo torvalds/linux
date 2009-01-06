@@ -11,7 +11,6 @@
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
-#include <linux/device-mapper.h>
 
 #define DM_MSG_PREFIX "snapshot exception stores"
 
