@@ -634,7 +634,7 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 		 * avoid incrementing the module refcount, so as to allow
 		 * unloading of self probing modules.
 		 */
-		if (calling_mod && calling_mod != probed_mod) {
+		if (calling_mod != probed_mod) {
 			if (unlikely(!try_module_get(probed_mod))) {
 				preempt_enable();
 				return -EINVAL;
