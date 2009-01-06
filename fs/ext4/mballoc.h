@@ -20,6 +20,7 @@
 #include <linux/version.h>
 #include <linux/blkdev.h>
 #include <linux/marker.h>
+#include <linux/mutex.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "group.h"
@@ -130,6 +131,7 @@ struct ext4_group_info {
 #ifdef DOUBLE_CHECK
 	void		*bb_bitmap;
 #endif
+	struct rw_semaphore alloc_sem;
 	unsigned short	bb_counters[];
 };
 
@@ -250,6 +252,7 @@ struct ext4_buddy {
 	struct super_block *bd_sb;
 	__u16 bd_blkbits;
 	ext4_group_t bd_group;
+	struct rw_semaphore *alloc_semp;
 };
 #define EXT4_MB_BITMAP(e4b)	((e4b)->bd_bitmap)
 #define EXT4_MB_BUDDY(e4b)	((e4b)->bd_buddy)

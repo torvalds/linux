@@ -1060,12 +1060,13 @@ extern int __init init_ext4_mballoc(void);
 extern void exit_ext4_mballoc(void);
 extern void ext4_mb_free_blocks(handle_t *, struct inode *,
 		unsigned long, unsigned long, int, unsigned long *);
-extern int ext4_mb_add_more_groupinfo(struct super_block *sb,
+extern int ext4_mb_add_groupinfo(struct super_block *sb,
 		ext4_group_t i, struct ext4_group_desc *desc);
 extern void ext4_mb_update_group_info(struct ext4_group_info *grp,
 		ext4_grpblk_t add);
-
-
+extern int ext4_mb_get_buddy_cache_lock(struct super_block *, ext4_group_t);
+extern void ext4_mb_put_buddy_cache_lock(struct super_block *,
+						ext4_group_t, int);
 /* inode.c */
 int ext4_forget(handle_t *handle, int is_metadata, struct inode *inode,
 		struct buffer_head *bh, ext4_fsblk_t blocknr);

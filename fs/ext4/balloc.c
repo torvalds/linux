@@ -381,6 +381,7 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	ext4_debug("Adding block(s) %llu-%llu\n", block, block + count - 1);
 
 	ext4_get_group_no_and_offset(sb, block, &block_group, &bit);
+	grp = ext4_get_group_info(sb, block_group);
 	/*
 	 * Check to see if we are freeing blocks across a group
 	 * boundary.
@@ -425,7 +426,11 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	err = ext4_journal_get_write_access(handle, gd_bh);
 	if (err)
 		goto error_return;
-
+	/*
+	 * make sure we don't allow a parallel init on other groups in the
+	 * same buddy cache
+	 */
+	down_write(&grp->alloc_sem);
 	for (i = 0, blocks_freed = 0; i < count; i++) {
 		BUFFER_TRACE(bitmap_bh, "clear bit");
 		if (!ext4_clear_bit_atomic(sb_bgl_lock(sbi, block_group),
@@ -450,6 +455,13 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 		sbi->s_flex_groups[flex_group].free_blocks += blocks_freed;
 		spin_unlock(sb_bgl_lock(sbi, flex_group));
 	}
+	/*
+	 * request to reload the buddy with the
+	 * new bitmap information
+	 */
+	set_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &(grp->bb_state));
+	ext4_mb_update_group_info(grp, blocks_freed);
+	up_write(&grp->alloc_sem);
 
 	/* We dirtied the bitmap block */
 	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
@@ -461,13 +473,6 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	if (!err)
 		err = ret;
 	sb->s_dirt = 1;
-	/*
-	 * request to reload the buddy with the
-	 * new bitmap information
-	 */
-	grp = ext4_get_group_info(sb, block_group);
-	set_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &(grp->bb_state));
-	ext4_mb_update_group_info(grp, blocks_freed);
 
 error_return:
 	brelse(bitmap_bh);
