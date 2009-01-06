@@ -1391,9 +1391,11 @@ static void ide_free_port_slot(int idx)
 struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 {
 	struct ide_host *host;
+	struct device *dev = hws[0] ? hws[0]->dev : NULL;
+	int node = dev ? dev_to_node(dev) : -1;
 	int i;
 
-	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	host = kzalloc_node(sizeof(*host), GFP_KERNEL, node);
 	if (host == NULL)
 		return NULL;
 
@@ -1404,7 +1406,7 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 		if (hws[i] == NULL)
 			continue;
 
-		hwif = kzalloc(sizeof(*hwif), GFP_KERNEL);
+		hwif = kzalloc_node(sizeof(*hwif), GFP_KERNEL, node);
 		if (hwif == NULL)
 			continue;
 
@@ -1429,8 +1431,7 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 		return NULL;
 	}
 
-	if (hws[0])
-		host->dev[0] = hws[0]->dev;
+	host->dev[0] = dev;
 
 	if (d) {
 		host->init_chipset = d->init_chipset;
