@@ -1727,7 +1727,7 @@ static struct s3c2410_udc memory = {
 		.ep0		= &memory.ep[0].ep,
 		.name		= gadget_name,
 		.dev = {
-			.bus_id		= "gadget",
+			.init_name	= "gadget",
 		},
 	},
 
