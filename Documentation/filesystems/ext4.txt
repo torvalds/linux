@@ -308,6 +308,13 @@ min_batch_time=usec	This parameter sets the commit time (as
 			multi-threaded, synchronous workloads on very
 			fast disks, at the cost of increasing latency.
 
+journal_ioprio=prio	The I/O priority (from 0 to 7, where 0 is the
+			highest priorty) which should be used for I/O
+			operations submitted by kjournald2 during a
+			commit operation.  This defaults to 3, which is
+			a slightly higher priority than the default I/O
+			priority.
+
 Data Mode
 =========
 There are 3 different data modes:

@@ -1013,7 +1013,7 @@ enum {
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
 	Opt_grpquota, Opt_extents, Opt_noextents, Opt_i_version,
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc,
-	Opt_inode_readahead_blks
+	Opt_inode_readahead_blks, Opt_journal_ioprio
 };
 
 static const match_table_t tokens = {
@@ -1074,6 +1074,7 @@ static const match_table_t tokens = {
 	{Opt_delalloc, "delalloc"},
 	{Opt_nodelalloc, "nodelalloc"},
 	{Opt_inode_readahead_blks, "inode_readahead_blks=%u"},
+	{Opt_journal_ioprio, "journal_ioprio=%u"},
 	{Opt_err, NULL},
 };
 
@@ -1098,8 +1099,11 @@ static ext4_fsblk_t get_sb_block(void **data)
 	return sb_block;
 }
 
+#define DEFAULT_JOURNAL_IOPRIO (IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 3))
+
 static int parse_options(char *options, struct super_block *sb,
 			 unsigned long *journal_devnum,
+			 unsigned int *journal_ioprio,
 			 ext4_fsblk_t *n_blocks_count, int is_remount)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -1491,6 +1495,14 @@ set_qf_format:
 			if (option < 0 || option > (1 << 30))
 				return 0;
 			sbi->s_inode_readahead_blks = option;
+			break;
+		case Opt_journal_ioprio:
+			if (match_int(&args[0], &option))
+				return 0;
+			if (option < 0 || option > 7)
+				break;
+			*journal_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE,
+							    option);
 			break;
 		default:
 			printk(KERN_ERR
@@ -2035,6 +2047,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	int features;
 	__u64 blocks_count;
 	int err;
+	unsigned int journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
@@ -2141,7 +2154,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	set_opt(sbi->s_mount_opt, DELALLOC);
 
 
-	if (!parse_options((char *) data, sb, &journal_devnum, NULL, 0))
+	if (!parse_options((char *) data, sb, &journal_devnum,
+			   &journal_ioprio, NULL, 0))
 		goto failed_mount;
 
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
@@ -2506,6 +2520,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	default:
 		break;
 	}
+	set_task_ioprio(sbi->s_journal->j_task, journal_ioprio);
 
 no_journal:
 
@@ -3127,6 +3142,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	unsigned long old_sb_flags;
 	struct ext4_mount_options old_opts;
 	ext4_group_t g;
+	unsigned int journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
 	int err;
 #ifdef CONFIG_QUOTA
 	int i;
@@ -3145,11 +3161,14 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	for (i = 0; i < MAXQUOTAS; i++)
 		old_opts.s_qf_names[i] = sbi->s_qf_names[i];
 #endif
+	if (sbi->s_journal && sbi->s_journal->j_task->io_context)
+		journal_ioprio = sbi->s_journal->j_task->io_context->ioprio;
 
 	/*
 	 * Allow the "check" option to be passed as a remount option.
 	 */
-	if (!parse_options(data, sb, NULL, &n_blocks_count, 1)) {
+	if (!parse_options(data, sb, NULL, &journal_ioprio,
+			   &n_blocks_count, 1)) {
 		err = -EINVAL;
 		goto restore_opts;
 	}
@@ -3162,8 +3181,10 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 
 	es = sbi->s_es;
 
-	if (sbi->s_journal)
+	if (sbi->s_journal) {
 		ext4_init_journal_params(sb, sbi->s_journal);
+		set_task_ioprio(sbi->s_journal->j_task, journal_ioprio);
+	}
 
 	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY) ||
 		n_blocks_count > ext4_blocks_count(es)) {
