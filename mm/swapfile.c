@@ -96,7 +96,7 @@ static int discard_swap(struct swap_info_struct *si)
 
 	list_for_each_entry(se, &si->extent_list, list) {
 		sector_t start_block = se->start_block << (PAGE_SHIFT - 9);
-		pgoff_t nr_blocks = se->nr_pages << (PAGE_SHIFT - 9);
+		sector_t nr_blocks = (sector_t)se->nr_pages << (PAGE_SHIFT - 9);
 
 		if (se->start_page == 0) {
 			/* Do not discard the swap header page! */
@@ -133,7 +133,7 @@ static void discard_swap_cluster(struct swap_info_struct *si,
 		    start_page < se->start_page + se->nr_pages) {
 			pgoff_t offset = start_page - se->start_page;
 			sector_t start_block = se->start_block + offset;
-			pgoff_t nr_blocks = se->nr_pages - offset;
+			sector_t nr_blocks = se->nr_pages - offset;
 
 			if (nr_blocks > nr_pages)
 				nr_blocks = nr_pages;
