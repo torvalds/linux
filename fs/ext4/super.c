@@ -505,7 +505,7 @@ static struct block_device *ext4_blkdev_get(dev_t dev)
 	return bdev;
 
 fail:
-	printk(KERN_ERR "EXT4: failed to open journal device %s: %ld\n",
+	printk(KERN_ERR "EXT4-fs: failed to open journal device %s: %ld\n",
 			__bdevname(dev, b), PTR_ERR(bdev));
 	return NULL;
 }
@@ -2485,7 +2485,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (ext4_blocks_count(es) > 0xffffffffULL &&
 	    !jbd2_journal_set_features(EXT4_SB(sb)->s_journal, 0, 0,
 				       JBD2_FEATURE_INCOMPAT_64BIT)) {
-		printk(KERN_ERR "ext4: Failed to set 64-bit journal feature\n");
+		printk(KERN_ERR "EXT4-fs: Failed to set 64-bit journal feature\n");
 		goto failed_mount4;
 	}
 
@@ -2766,7 +2766,7 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 
 	if (bd_claim(bdev, sb)) {
 		printk(KERN_ERR
-			"EXT4: failed to claim external journal device.\n");
+			"EXT4-fs: failed to claim external journal device.\n");
 		blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
 		return NULL;
 	}
@@ -2949,7 +2949,7 @@ static void ext4_commit_super(struct super_block *sb,
 		 * be remapped.  Nothing we can do but to retry the
 		 * write and hope for the best.
 		 */
-		printk(KERN_ERR "ext4: previous I/O error to "
+		printk(KERN_ERR "EXT4-fs: previous I/O error to "
 		       "superblock detected for %s.\n", sb->s_id);
 		clear_buffer_write_io_error(sbh);
 		set_buffer_uptodate(sbh);
@@ -2965,7 +2965,7 @@ static void ext4_commit_super(struct super_block *sb,
 	if (sync) {
 		sync_dirty_buffer(sbh);
 		if (buffer_write_io_error(sbh)) {
-			printk(KERN_ERR "ext4: I/O error while writing "
+			printk(KERN_ERR "EXT4-fs: I/O error while writing "
 			       "superblock for %s.\n", sb->s_id);
 			clear_buffer_write_io_error(sbh);
 			set_buffer_uptodate(sbh);

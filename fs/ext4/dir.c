@@ -405,7 +405,7 @@ static int call_filldir(struct file *filp, void *dirent,
 	sb = inode->i_sb;
 
 	if (!fname) {
-		printk(KERN_ERR "ext4: call_filldir: called with "
+		printk(KERN_ERR "EXT4-fs: call_filldir: called with "
 		       "null fname?!?\n");
 		return 0;
 	}
