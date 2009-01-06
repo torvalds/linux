@@ -69,7 +69,9 @@ my $dbg_possible = 0;
 my $dbg_type = 0;
 my $dbg_attr = 0;
 for my $key (keys %debug) {
-	eval "\${dbg_$key} = '$debug{$key}';"
+	## no critic
+	eval "\${dbg_$key} = '$debug{$key}';";
+	die "$@" if ($@);
 }
 
 if ($terse) {
@@ -206,9 +208,9 @@ my @dep_includes = ();
 my @dep_functions = ();
 my $removal = "Documentation/feature-removal-schedule.txt";
 if ($tree && -f "$root/$removal") {
-	open(REMOVE, "<$root/$removal") ||
+	open(my $REMOVE, '<', "$root/$removal") ||
 				die "$P: $removal: open failed - $!\n";
-	while (<REMOVE>) {
+	while (<$REMOVE>) {
 		if (/^Check:\s+(.*\S)/) {
 			for my $entry (split(/[, ]+/, $1)) {
 				if ($entry =~ m@include/(.*)@) {
@@ -220,17 +222,21 @@ if ($tree && -f "$root/$removal") {
 			}
 		}
 	}
+	close($REMOVE);
 }
 
 my @rawlines = ();
 my @lines = ();
 my $vname;
 for my $filename (@ARGV) {
+	my $FILE;
 	if ($file) {
-		open(FILE, "diff -u /dev/null $filename|") ||
+		open($FILE, '-|', "diff -u /dev/null $filename") ||
 			die "$P: $filename: diff failed - $!\n";
+	} elsif ($filename eq '-') {
+		open($FILE, '<&STDIN');
 	} else {
-		open(FILE, "<$filename") ||
+		open($FILE, '<', "$filename") ||
 			die "$P: $filename: open failed - $!\n";
 	}
 	if ($filename eq '-') {
@@ -238,11 +244,11 @@ for my $filename (@ARGV) {
 	} else {
 		$vname = $filename;
 	}
-	while (<FILE>) {
+	while (<$FILE>) {
 		chomp;
 		push(@rawlines, $_);
 	}
-	close(FILE);
+	close($FILE);
 	if (!process($filename)) {
 		$exit = 1;
 	}
