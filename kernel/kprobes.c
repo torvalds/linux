@@ -69,7 +69,7 @@ static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 /* NOTE: change this value only with kprobe_mutex held */
 static bool kprobe_enabled;
 
-DEFINE_MUTEX(kprobe_mutex);		/* Protects kprobe_table */
+static DEFINE_MUTEX(kprobe_mutex);	/* Protects kprobe_table */
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
 static struct {
 	spinlock_t lock ____cacheline_aligned_in_smp;
@@ -115,6 +115,7 @@ enum kprobe_slot_state {
 	SLOT_USED = 2,
 };
 
+static DEFINE_MUTEX(kprobe_insn_mutex);	/* Protects kprobe_insn_pages */
 static struct hlist_head kprobe_insn_pages;
 static int kprobe_garbage_slots;
 static int collect_garbage_slots(void);
@@ -144,10 +145,10 @@ loop_end:
 }
 
 /**
- * get_insn_slot() - Find a slot on an executable page for an instruction.
+ * __get_insn_slot() - Find a slot on an executable page for an instruction.
  * We allocate an executable page if there's no room on existing ones.
  */
-kprobe_opcode_t __kprobes *get_insn_slot(void)
+static kprobe_opcode_t __kprobes *__get_insn_slot(void)
 {
 	struct kprobe_insn_page *kip;
 	struct hlist_node *pos;
@@ -196,6 +197,15 @@ kprobe_opcode_t __kprobes *get_insn_slot(void)
 	return kip->insns;
 }
 
+kprobe_opcode_t __kprobes *get_insn_slot(void)
+{
+	kprobe_opcode_t *ret;
+	mutex_lock(&kprobe_insn_mutex);
+	ret = __get_insn_slot();
+	mutex_unlock(&kprobe_insn_mutex);
+	return ret;
+}
+
 /* Return 1 if all garbages are collected, otherwise 0. */
 static int __kprobes collect_one_slot(struct kprobe_insn_page *kip, int idx)
 {
@@ -226,9 +236,13 @@ static int __kprobes collect_garbage_slots(void)
 {
 	struct kprobe_insn_page *kip;
 	struct hlist_node *pos, *next;
+	int safety;
 
 	/* Ensure no-one is preepmted on the garbages */
-	if (check_safety() != 0)
+	mutex_unlock(&kprobe_insn_mutex);
+	safety = check_safety();
+	mutex_lock(&kprobe_insn_mutex);
+	if (safety != 0)
 		return -EAGAIN;
 
 	hlist_for_each_entry_safe(kip, pos, next, &kprobe_insn_pages, hlist) {
@@ -251,6 +265,7 @@ void __kprobes free_insn_slot(kprobe_opcode_t * slot, int dirty)
 	struct kprobe_insn_page *kip;
 	struct hlist_node *pos;
 
+	mutex_lock(&kprobe_insn_mutex);
 	hlist_for_each_entry(kip, pos, &kprobe_insn_pages, hlist) {
 		if (kip->insns <= slot &&
 		    slot < kip->insns + (INSNS_PER_PAGE * MAX_INSN_SIZE)) {
@@ -267,6 +282,8 @@ void __kprobes free_insn_slot(kprobe_opcode_t * slot, int dirty)
 
 	if (dirty && ++kprobe_garbage_slots > INSNS_PER_PAGE)
 		collect_garbage_slots();
+
+	mutex_unlock(&kprobe_insn_mutex);
 }
 #endif
 
