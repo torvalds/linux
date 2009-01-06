@@ -2093,7 +2093,7 @@ int ecryptfs_encrypt_and_encode_filename(
 		filename = kzalloc(sizeof(*filename), GFP_KERNEL);
 		if (!filename) {
 			printk(KERN_ERR "%s: Out of memory whilst attempting "
-			       "to kzalloc [%d] bytes\n", __func__,
+			       "to kzalloc [%zd] bytes\n", __func__,
 			       sizeof(*filename));
 			rc = -ENOMEM;
 			goto out;
@@ -2127,7 +2127,7 @@ int ecryptfs_encrypt_and_encode_filename(
 		(*encoded_name) = kmalloc((*encoded_name_size) + 1, GFP_KERNEL);
 		if (!(*encoded_name)) {
 			printk(KERN_ERR "%s: Out of memory whilst attempting "
-			       "to kzalloc [%d] bytes\n", __func__,
+			       "to kzalloc [%zd] bytes\n", __func__,
 			       (*encoded_name_size));
 			rc = -ENOMEM;
 			kfree(filename->encrypted_filename);

@@ -556,8 +556,8 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 		goto out_unlock;
 	}
 	if (s->max_packet_size > (*remaining_bytes)) {
-		printk(KERN_WARNING "%s: Require [%d] bytes to write; only "
-		       "[%d] available\n", __func__, s->max_packet_size,
+		printk(KERN_WARNING "%s: Require [%zd] bytes to write; only "
+		       "[%zd] available\n", __func__, s->max_packet_size,
 		       (*remaining_bytes));
 		rc = -EINVAL;
 		goto out_unlock;
@@ -594,7 +594,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 		mount_crypt_stat->global_default_fn_cipher_key_bytes);
 	if (s->cipher_code == 0) {
 		printk(KERN_WARNING "%s: Unable to generate code for "
-		       "cipher [%s] with key bytes [%d]\n", __func__,
+		       "cipher [%s] with key bytes [%zd]\n", __func__,
 		       mount_crypt_stat->global_default_fn_cipher_name,
 		       mount_crypt_stat->global_default_fn_cipher_key_bytes);
 		rc = -EINVAL;
@@ -693,7 +693,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 		printk(KERN_ERR "%s: Internal error whilst attempting to "
 		       "convert filename memory to scatterlist; "
 		       "expected rc = 1; got rc = [%d]. "
-		       "block_aligned_filename_size = [%d]\n", __func__, rc,
+		       "block_aligned_filename_size = [%zd]\n", __func__, rc,
 		       s->block_aligned_filename_size);
 		goto out_release_free_unlock;
 	}
@@ -703,7 +703,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 		printk(KERN_ERR "%s: Internal error whilst attempting to "
 		       "convert encrypted filename memory to scatterlist; "
 		       "expected rc = 1; got rc = [%d]. "
-		       "block_aligned_filename_size = [%d]\n", __func__, rc,
+		       "block_aligned_filename_size = [%zd]\n", __func__, rc,
 		       s->block_aligned_filename_size);
 		goto out_release_free_unlock;
 	}
@@ -787,7 +787,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s) {
 		printk(KERN_ERR "%s: Out of memory whilst trying to kmalloc "
-		       "[%d] bytes of kernel memory\n", __func__, sizeof(*s));
+		       "[%zd] bytes of kernel memory\n", __func__, sizeof(*s));
 		goto out;
 	}
 	s->desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
@@ -825,8 +825,8 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 					  - ECRYPTFS_SIG_SIZE - 1);
 	if ((1 + s->packet_size_len + s->parsed_tag_70_packet_size)
 	    > max_packet_size) {
-		printk(KERN_WARNING "%s: max_packet_size is [%d]; real packet "
-		       "size is [%d]\n", __func__, max_packet_size,
+		printk(KERN_WARNING "%s: max_packet_size is [%zd]; real packet "
+		       "size is [%zd]\n", __func__, max_packet_size,
 		       (1 + s->packet_size_len + 1
 			+ s->block_aligned_filename_size));
 		rc = -EINVAL;
@@ -860,7 +860,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 		printk(KERN_ERR "%s: Internal error whilst attempting to "
 		       "convert encrypted filename memory to scatterlist; "
 		       "expected rc = 1; got rc = [%d]. "
-		       "block_aligned_filename_size = [%d]\n", __func__, rc,
+		       "block_aligned_filename_size = [%zd]\n", __func__, rc,
 		       s->block_aligned_filename_size);
 		goto out_unlock;
 	}
@@ -869,7 +869,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 					GFP_KERNEL);
 	if (!s->decrypted_filename) {
 		printk(KERN_ERR "%s: Out of memory whilst attempting to "
-		       "kmalloc [%d] bytes\n", __func__,
+		       "kmalloc [%zd] bytes\n", __func__,
 		       s->block_aligned_filename_size);
 		rc = -ENOMEM;
 		goto out_unlock;
@@ -880,7 +880,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 		printk(KERN_ERR "%s: Internal error whilst attempting to "
 		       "convert decrypted filename memory to scatterlist; "
 		       "expected rc = 1; got rc = [%d]. "
-		       "block_aligned_filename_size = [%d]\n", __func__, rc,
+		       "block_aligned_filename_size = [%zd]\n", __func__, rc,
 		       s->block_aligned_filename_size);
 		goto out_free_unlock;
 	}
@@ -944,7 +944,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	(*filename) = kmalloc(((*filename_size) + 1), GFP_KERNEL);
 	if (!(*filename)) {
 		printk(KERN_ERR "%s: Out of memory whilst attempting to "
-		       "kmalloc [%d] bytes\n", __func__,
+		       "kmalloc [%zd] bytes\n", __func__,
 		       ((*filename_size) + 1));
 		rc = -ENOMEM;
 		goto out_free_unlock;

@@ -362,7 +362,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 				      struct nameidata *ecryptfs_nd)
 {
 	char *encrypted_and_encoded_name = NULL;
-	int encrypted_and_encoded_name_size;
+	size_t encrypted_and_encoded_name_size;
 	struct ecryptfs_crypt_stat *crypt_stat = NULL;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat = NULL;
 	struct ecryptfs_inode_info *inode_info;

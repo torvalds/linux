@@ -82,7 +82,7 @@ ecryptfs_filldir(void *dirent, const char *lower_name, int lower_namelen,
 {
 	struct ecryptfs_getdents_callback *buf =
 	    (struct ecryptfs_getdents_callback *)dirent;
-	int name_size;
+	size_t name_size;
 	char *name;
 	int rc;
 
