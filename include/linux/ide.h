@@ -1300,11 +1300,11 @@ static inline int ide_hwif_setup_dma(ide_hwif_t *hwif,
 }
 #endif
 
-typedef struct ide_pci_enablebit_s {
+struct ide_pci_enablebit {
 	u8	reg;	/* byte pci reg holding the enable-bit */
 	u8	mask;	/* mask to isolate the enable-bit */
 	u8	val;	/* value of masked reg when "enabled" */
-} ide_pci_enablebit_t;
+};
 
 enum {
 	/* Uses ISA control ports not PCI ones. */
@@ -1393,7 +1393,8 @@ struct ide_port_info {
 	const struct ide_port_ops	*port_ops;
 	const struct ide_dma_ops	*dma_ops;
 
-	ide_pci_enablebit_t	enablebits[2];
+	struct ide_pci_enablebit	enablebits[2];
+
 	hwif_chipset_t		chipset;
 
 	u16			max_sectors;	/* if < than the default one */

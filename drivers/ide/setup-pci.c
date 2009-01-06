@@ -471,7 +471,7 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d,
 	 */
 
 	for (port = 0; port < channels; ++port) {
-		const ide_pci_enablebit_t *e = &(d->enablebits[port]);
+		const struct ide_pci_enablebit *e = &d->enablebits[port];
 
 		if (e->reg && (pci_read_config_byte(dev, e->reg, &tmp) ||
 		    (tmp & e->mask) != e->val)) {
