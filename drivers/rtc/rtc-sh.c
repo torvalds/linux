@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
+#include <linux/log2.h>
 #include <asm/rtc.h>
 
 #define DRV_NAME	"sh-rtc"
@@ -551,6 +552,8 @@ static int sh_rtc_irq_set_state(struct device *dev, int enabled)
 
 static int sh_rtc_irq_set_freq(struct device *dev, int freq)
 {
+	if (!is_power_of_2(freq))
+		return -EINVAL;
 	return sh_rtc_ioctl(dev, RTC_IRQP_SET, freq);
 }
 

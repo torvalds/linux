@@ -27,6 +27,7 @@
 #include <linux/rtc.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/log2.h>
 
 #include <asm/div64.h>
 #include <asm/io.h>
@@ -210,6 +211,8 @@ static int vr41xx_rtc_irq_set_freq(struct device *dev, int freq)
 {
 	unsigned long count;
 
+	if (!is_power_of_2(freq))
+		return -EINVAL;
 	count = RTC_FREQUENCY;
 	do_div(count, freq);
 

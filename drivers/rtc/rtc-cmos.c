@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
 #include <linux/mod_devicetable.h>
+#include <linux/log2.h>
 
 /* this is for "generic access to PC-style RTC" using CMOS_READ/CMOS_WRITE */
 #include <asm-generic/rtc.h>
@@ -384,6 +385,8 @@ static int cmos_irq_set_freq(struct device *dev, int freq)
 	if (!is_valid_irq(cmos->irq))
 		return -ENXIO;
 
+	if (!is_power_of_2(freq))
+		return -EINVAL;
 	/* 0 = no irqs; 1 = 2^15 Hz ... 15 = 2^0 Hz */
 	f = ffs(freq);
 	if (f-- > 16)

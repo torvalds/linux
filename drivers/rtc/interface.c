@@ -504,9 +504,6 @@ int rtc_irq_set_freq(struct rtc_device *rtc, struct rtc_task *task, int freq)
 	if (rtc->ops->irq_set_freq == NULL)
 		return -ENXIO;
 
-	if (!is_power_of_2(freq))
-		return -EINVAL;
-
 	spin_lock_irqsave(&rtc->irq_task_lock, flags);
 	if (rtc->irq_task != NULL && task == NULL)
 		err = -EBUSY;
