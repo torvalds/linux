@@ -326,17 +326,24 @@ static inline int page_swapcount(struct page *page)
 }
 
 /*
- * We can use this swap cache entry directly
- * if there are no other references to it.
+ * We can write to an anon page without COW if there are no other references
+ * to it.  And as a side-effect, free up its swap: because the old content
+ * on disk will never be read, and seeking back there to write new content
+ * later would only waste time away from clustering.
  */
-int can_share_swap_page(struct page *page)
+int reuse_swap_page(struct page *page)
 {
 	int count;
 
 	VM_BUG_ON(!PageLocked(page));
 	count = page_mapcount(page);
-	if (count <= 1 && PageSwapCache(page))
+	if (count <= 1 && PageSwapCache(page)) {
 		count += page_swapcount(page);
+		if (count == 1 && !PageWriteback(page)) {
+			delete_from_swap_cache(page);
+			SetPageDirty(page);
+		}
+	}
 	return count == 1;
 }
 

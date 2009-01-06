@@ -304,7 +304,7 @@ extern unsigned int count_swap_pages(int, int);
 extern sector_t map_swap_page(struct swap_info_struct *, pgoff_t);
 extern sector_t swapdev_block(int, pgoff_t);
 extern struct swap_info_struct *get_swap_info_struct(unsigned);
-extern int can_share_swap_page(struct page *);
+extern int reuse_swap_page(struct page *);
 extern int remove_exclusive_swap_page(struct page *);
 extern int remove_exclusive_swap_page_ref(struct page *);
 struct backing_dev_info;
@@ -372,8 +372,6 @@ static inline struct page *lookup_swap_cache(swp_entry_t swp)
 	return NULL;
 }
 
-#define can_share_swap_page(p)			(page_mapcount(p) == 1)
-
 static inline int add_to_swap_cache(struct page *page, swp_entry_t entry,
 							gfp_t gfp_mask)
 {
@@ -388,7 +386,7 @@ static inline void delete_from_swap_cache(struct page *page)
 {
 }
 
-#define swap_token_default_timeout		0
+#define reuse_swap_page(page)	(page_mapcount(page) == 1)
 
 static inline int remove_exclusive_swap_page(struct page *p)
 {
