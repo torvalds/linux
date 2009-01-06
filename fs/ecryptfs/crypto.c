@@ -1679,7 +1679,7 @@ ecryptfs_encrypt_filename(struct ecryptfs_filename *filename,
 			kmalloc(filename->encrypted_filename_size, GFP_KERNEL);
 		if (!filename->encrypted_filename) {
 			printk(KERN_ERR "%s: Out of memory whilst attempting "
-			       "to kmalloc [%Zd] bytes\n", __func__,
+			       "to kmalloc [%zd] bytes\n", __func__,
 			       filename->encrypted_filename_size);
 			rc = -ENOMEM;
 			goto out;
@@ -1752,7 +1752,7 @@ ecryptfs_process_key_cipher(struct crypto_blkcipher **key_tfm,
 	*key_tfm = NULL;
 	if (*key_size > ECRYPTFS_MAX_KEY_BYTES) {
 		rc = -EINVAL;
-		printk(KERN_ERR "Requested key size is [%Zd] bytes; maximum "
+		printk(KERN_ERR "Requested key size is [%zd] bytes; maximum "
 		      "allowable is [%d]\n", *key_size, ECRYPTFS_MAX_KEY_BYTES);
 		goto out;
 	}
@@ -1777,7 +1777,7 @@ ecryptfs_process_key_cipher(struct crypto_blkcipher **key_tfm,
 	get_random_bytes(dummy_key, *key_size);
 	rc = crypto_blkcipher_setkey(*key_tfm, dummy_key, *key_size);
 	if (rc) {
-		printk(KERN_ERR "Error attempting to set key of size [%Zd] for "
+		printk(KERN_ERR "Error attempting to set key of size [%zd] for "
 		       "cipher [%s]; rc = [%d]\n", *key_size, cipher_name, rc);
 		rc = -EINVAL;
 		goto out;
@@ -2221,7 +2221,7 @@ int ecryptfs_decode_and_decrypt_filename(char **plaintext_name,
 		decoded_name = kmalloc(decoded_name_size, GFP_KERNEL);
 		if (!decoded_name) {
 			printk(KERN_ERR "%s: Out of memory whilst attempting "
-			       "to kmalloc [%Zd] bytes\n", __func__,
+			       "to kmalloc [%zd] bytes\n", __func__,
 			       decoded_name_size);
 			rc = -ENOMEM;
 			goto out;

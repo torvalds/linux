@@ -358,7 +358,7 @@ parse_tag_67_packet(struct ecryptfs_key_record *key_rec,
 	/* verify that everything through the encrypted FEK size is present */
 	if (message_len < 4) {
 		rc = -EIO;
-		printk(KERN_ERR "%s: message_len is [%Zd]; minimum acceptable "
+		printk(KERN_ERR "%s: message_len is [%zd]; minimum acceptable "
 		       "message length is [%d]\n", __func__, message_len, 4);
 		goto out;
 	}
@@ -385,13 +385,13 @@ parse_tag_67_packet(struct ecryptfs_key_record *key_rec,
 	i += data_len;
 	if (message_len < (i + key_rec->enc_key_size)) {
 		rc = -EIO;
-		printk(KERN_ERR "%s: message_len [%Zd]; max len is [%Zd]\n",
+		printk(KERN_ERR "%s: message_len [%zd]; max len is [%zd]\n",
 		       __func__, message_len, (i + key_rec->enc_key_size));
 		goto out;
 	}
 	if (key_rec->enc_key_size > ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES) {
 		rc = -EIO;
-		printk(KERN_ERR "%s: Encrypted key_size [%Zd] larger than "
+		printk(KERN_ERR "%s: Encrypted key_size [%zd] larger than "
 		       "the maximum key size [%d]\n", __func__,
 		       key_rec->enc_key_size,
 		       ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES);
@@ -511,7 +511,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s) {
 		printk(KERN_ERR "%s: Out of memory whilst trying to kmalloc "
-		       "[%d] bytes of kernel memory\n", __func__, sizeof(*s));
+		       "[%zd] bytes of kernel memory\n", __func__, sizeof(*s));
 		goto out;
 	}
 	s->desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
@@ -566,7 +566,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 					    GFP_KERNEL);
 	if (!s->block_aligned_filename) {
 		printk(KERN_ERR "%s: Out of kernel memory whilst attempting to "
-		       "kzalloc [%Zd] bytes\n", __func__,
+		       "kzalloc [%zd] bytes\n", __func__,
 		       s->block_aligned_filename_size);
 		rc = -ENOMEM;
 		goto out_unlock;
@@ -721,7 +721,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 		printk(KERN_ERR "%s: Error setting key for crypto context; "
 		       "rc = [%d]. s->auth_tok->token.password.session_key_"
 		       "encryption_key = [0x%p]; mount_crypt_stat->"
-		       "global_default_fn_cipher_key_bytes = [%Zd]\n", __func__,
+		       "global_default_fn_cipher_key_bytes = [%zd]\n", __func__,
 		       rc,
 		       s->auth_tok->token.password.session_key_encryption_key,
 		       mount_crypt_stat->global_default_fn_cipher_key_bytes);
@@ -792,7 +792,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	}
 	s->desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 	if (max_packet_size < (1 + 1 + ECRYPTFS_SIG_SIZE + 1 + 1)) {
-		printk(KERN_WARNING "%s: max_packet_size is [%Zd]; it must be "
+		printk(KERN_WARNING "%s: max_packet_size is [%zd]; it must be "
 		       "at least [%d]\n", __func__, max_packet_size,
 			(1 + 1 + ECRYPTFS_SIG_SIZE + 1 + 1));
 		rc = -EINVAL;
@@ -909,7 +909,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 		printk(KERN_ERR "%s: Error setting key for crypto context; "
 		       "rc = [%d]. s->auth_tok->token.password.session_key_"
 		       "encryption_key = [0x%p]; mount_crypt_stat->"
-		       "global_default_fn_cipher_key_bytes = [%Zd]\n", __func__,
+		       "global_default_fn_cipher_key_bytes = [%zd]\n", __func__,
 		       rc,
 		       s->auth_tok->token.password.session_key_encryption_key,
 		       mount_crypt_stat->global_default_fn_cipher_key_bytes);
@@ -936,7 +936,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	s->i++;
 	(*filename_size) = (s->block_aligned_filename_size - s->i);
 	if (!((*filename_size) > 0 && (*filename_size < PATH_MAX))) {
-		printk(KERN_WARNING "%s: Filename size is [%Zd], which is "
+		printk(KERN_WARNING "%s: Filename size is [%zd], which is "
 		       "invalid\n", __func__, (*filename_size));
 		rc = -EINVAL;
 		goto out_free_unlock;
