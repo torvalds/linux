@@ -1884,7 +1884,7 @@ static void ql_hw_csum_setup(struct sk_buff *skb,
 {
 	int len;
 	struct iphdr *iph = ip_hdr(skb);
-	u16 *check;
+	__sum16 *check;
 	mac_iocb_ptr->opcode = OPCODE_OB_MAC_TSO_IOCB;
 	mac_iocb_ptr->frame_len = cpu_to_le32((u32) skb->len);
 	mac_iocb_ptr->net_trans_offset =
