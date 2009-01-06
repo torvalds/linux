@@ -13,7 +13,7 @@
 struct mtd_info *mtd_concat_create(
     struct mtd_info *subdev[],  /* subdevices to concatenate */
     int num_devs,               /* number of subdevices      */
-    char *name);                /* name for the new device   */
+    const char *name);          /* name for the new device   */
 
 void mtd_concat_destroy(struct mtd_info *mtd);
 

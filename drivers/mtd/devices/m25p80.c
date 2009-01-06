@@ -170,7 +170,7 @@ static int wait_till_ready(struct m25p *flash)
 static int erase_chip(struct m25p *flash)
 {
 	DEBUG(MTD_DEBUG_LEVEL3, "%s: %s %dKiB\n",
-			flash->spi->dev.bus_id, __func__,
+			dev_name(&flash->spi->dev), __func__,
 			flash->mtd.size / 1024);
 
 	/* Wait until finished previous write command. */
@@ -197,7 +197,7 @@ static int erase_chip(struct m25p *flash)
 static int erase_sector(struct m25p *flash, u32 offset)
 {
 	DEBUG(MTD_DEBUG_LEVEL3, "%s: %s %dKiB at 0x%08x\n",
-			flash->spi->dev.bus_id, __func__,
+			dev_name(&flash->spi->dev), __func__,
 			flash->mtd.erasesize / 1024, offset);
 
 	/* Wait until finished previous write command. */
@@ -234,7 +234,7 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 	u32 addr,len;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %d\n",
-			flash->spi->dev.bus_id, __func__, "at",
+			dev_name(&flash->spi->dev), __func__, "at",
 			(u32)instr->addr, instr->len);
 
 	/* sanity checks */
@@ -295,7 +295,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct spi_message m;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
-			flash->spi->dev.bus_id, __func__, "from",
+			dev_name(&flash->spi->dev), __func__, "from",
 			(u32)from, len);
 
 	/* sanity checks */
@@ -367,7 +367,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct spi_message m;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
-			flash->spi->dev.bus_id, __func__, "to",
+			dev_name(&flash->spi->dev), __func__, "to",
 			(u32)to, len);
 
 	if (retlen)
@@ -563,7 +563,7 @@ static struct flash_info *__devinit jedec_probe(struct spi_device *spi)
 	tmp = spi_write_then_read(spi, &code, 1, id, 5);
 	if (tmp < 0) {
 		DEBUG(MTD_DEBUG_LEVEL0, "%s: error %d reading JEDEC ID\n",
-			spi->dev.bus_id, tmp);
+			dev_name(&spi->dev), tmp);
 		return NULL;
 	}
 	jedec = id[0];
@@ -617,7 +617,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		/* unrecognized chip? */
 		if (i == ARRAY_SIZE(m25p_data)) {
 			DEBUG(MTD_DEBUG_LEVEL0, "%s: unrecognized id %s\n",
-					spi->dev.bus_id, data->type);
+					dev_name(&spi->dev), data->type);
 			info = NULL;
 
 		/* recognized; is that chip really what's there? */
@@ -658,7 +658,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	if (data && data->name)
 		flash->mtd.name = data->name;
 	else
-		flash->mtd.name = spi->dev.bus_id;
+		flash->mtd.name = dev_name(&spi->dev);
 
 	flash->mtd.type = MTD_NORFLASH;
 	flash->mtd.writesize = 1;
