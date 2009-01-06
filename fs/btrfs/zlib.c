@@ -152,7 +152,7 @@ static int free_workspace(struct workspace *workspace)
 static void free_workspaces(void)
 {
 	struct workspace *workspace;
-	while(!list_empty(&idle_workspace)) {
+	while (!list_empty(&idle_workspace)) {
 		workspace = list_entry(idle_workspace.next, struct workspace,
 				       list);
 		list_del(&workspace->list);
@@ -397,12 +397,10 @@ int btrfs_zlib_decompress_biovec(struct page **pages_in,
 		ret = -1;
 		goto out;
 	}
-	while(workspace->inf_strm.total_in < srclen) {
+	while (workspace->inf_strm.total_in < srclen) {
 		ret = zlib_inflate(&workspace->inf_strm, Z_NO_FLUSH);
-		if (ret != Z_OK && ret != Z_STREAM_END) {
+		if (ret != Z_OK && ret != Z_STREAM_END)
 			break;
-		}
-
 		/*
 		 * buf start is the byte offset we're of the start of
 		 * our workspace buffer
@@ -424,16 +422,14 @@ int btrfs_zlib_decompress_biovec(struct page **pages_in,
 			/* we didn't make progress in this inflate
 			 * call, we're done
 			 */
-			if (ret != Z_STREAM_END) {
+			if (ret != Z_STREAM_END)
 				ret = -1;
-			}
 			break;
 		}
 
 		/* we haven't yet hit data corresponding to this page */
-		if (total_out <= start_byte) {
+		if (total_out <= start_byte)
 			goto next;
-		}
 
 		/*
 		 * the start of the data we care about is offset into
@@ -448,7 +444,7 @@ int btrfs_zlib_decompress_biovec(struct page **pages_in,
 		current_buf_start = buf_start;
 
 		/* copy bytes from the working buffer into the pages */
-		while(working_bytes > 0) {
+		while (working_bytes > 0) {
 			bytes = min(PAGE_CACHE_SIZE - pg_offset,
 				    PAGE_CACHE_SIZE - buf_offset);
 			bytes = min(bytes, working_bytes);
@@ -471,6 +467,7 @@ int btrfs_zlib_decompress_biovec(struct page **pages_in,
 					ret = 0;
 					goto done;
 				}
+
 				page_out = bvec[page_out_index].bv_page;
 				pg_offset = 0;
 				page_bytes_left = PAGE_CACHE_SIZE;
@@ -480,9 +477,8 @@ int btrfs_zlib_decompress_biovec(struct page **pages_in,
 				 * make sure our new page is covered by this
 				 * working buffer
 				 */
-				if (total_out <= start_byte) {
+				if (total_out <= start_byte)
 					goto next;
-				}
 
 				/* the next page in the biovec might not
 				 * be adjacent to the last page, but it
@@ -517,11 +513,10 @@ next:
 							   PAGE_CACHE_SIZE);
 		}
 	}
-	if (ret != Z_STREAM_END) {
+	if (ret != Z_STREAM_END)
 		ret = -1;
-	} else {
+	else
 		ret = 0;
-	}
 done:
 	zlib_inflateEnd(&workspace->inf_strm);
 	if (data_in)
@@ -579,16 +574,15 @@ int btrfs_zlib_decompress(unsigned char *data_in,
 		goto out;
 	}
 
-	while(bytes_left > 0) {
+	while (bytes_left > 0) {
 		unsigned long buf_start;
 		unsigned long buf_offset;
 		unsigned long bytes;
 		unsigned long pg_offset = 0;
 
 		ret = zlib_inflate(&workspace->inf_strm, Z_NO_FLUSH);
-		if (ret != Z_OK && ret != Z_STREAM_END) {
+		if (ret != Z_OK && ret != Z_STREAM_END)
 			break;
-		}
 
 		buf_start = total_out;
 		total_out = workspace->inf_strm.total_out;
@@ -598,15 +592,13 @@ int btrfs_zlib_decompress(unsigned char *data_in,
 			break;
 		}
 
-		if (total_out <= start_byte) {
+		if (total_out <= start_byte)
 			goto next;
-		}
 
-		if (total_out > start_byte && buf_start < start_byte) {
+		if (total_out > start_byte && buf_start < start_byte)
 			buf_offset = start_byte - buf_start;
-		} else {
+		else
 			buf_offset = 0;
-		}
 
 		bytes = min(PAGE_CACHE_SIZE - pg_offset,
 			    PAGE_CACHE_SIZE - buf_offset);
@@ -622,11 +614,12 @@ next:
 		workspace->inf_strm.next_out = workspace->buf;
 		workspace->inf_strm.avail_out = PAGE_CACHE_SIZE;
 	}
-	if (ret != Z_STREAM_END && bytes_left != 0) {
+
+	if (ret != Z_STREAM_END && bytes_left != 0)
 		ret = -1;
-	} else {
+	else
 		ret = 0;
-	}
+
 	zlib_inflateEnd(&workspace->inf_strm);
 out:
 	free_workspace(workspace);

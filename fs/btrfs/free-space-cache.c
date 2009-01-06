@@ -213,10 +213,13 @@ static int __btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 		info->offset = offset;
 		info->bytes += bytes;
 	} else if (right_info && right_info->offset != offset+bytes) {
-		printk(KERN_ERR "adding space in the middle of an existing "
-		       "free space area. existing: offset=%Lu, bytes=%Lu. "
-		       "new: offset=%Lu, bytes=%Lu\n", right_info->offset,
-		       right_info->bytes, offset, bytes);
+		printk(KERN_ERR "btrfs adding space in the middle of an "
+		       "existing free space area. existing: "
+		       "offset=%llu, bytes=%llu. new: offset=%llu, "
+		       "bytes=%llu\n", (unsigned long long)right_info->offset,
+		       (unsigned long long)right_info->bytes,
+		       (unsigned long long)offset,
+		       (unsigned long long)bytes);
 		BUG();
 	}
 
@@ -225,11 +228,14 @@ static int __btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 
 		if (unlikely((left_info->offset + left_info->bytes) !=
 			     offset)) {
-			printk(KERN_ERR "free space to the left of new free "
-			       "space isn't quite right. existing: offset=%Lu,"
-			       " bytes=%Lu. new: offset=%Lu, bytes=%Lu\n",
-			       left_info->offset, left_info->bytes, offset,
-			       bytes);
+			printk(KERN_ERR "btrfs free space to the left "
+			       "of new free space isn't "
+			       "quite right. existing: offset=%llu, "
+			       "bytes=%llu. new: offset=%llu, bytes=%llu\n",
+			       (unsigned long long)left_info->offset,
+			       (unsigned long long)left_info->bytes,
+			       (unsigned long long)offset,
+			       (unsigned long long)bytes);
 			BUG();
 		}
 
@@ -265,8 +271,7 @@ out:
 			BUG();
 	}
 
-	if (alloc_info)
-		kfree(alloc_info);
+	kfree(alloc_info);
 
 	return ret;
 }
@@ -283,9 +288,11 @@ __btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
 
 	if (info && info->offset == offset) {
 		if (info->bytes < bytes) {
-			printk(KERN_ERR "Found free space at %Lu, size %Lu,"
-			       "trying to use %Lu\n",
-			       info->offset, info->bytes, bytes);
+			printk(KERN_ERR "Found free space at %llu, size %llu,"
+			       "trying to use %llu\n",
+			       (unsigned long long)info->offset,
+			       (unsigned long long)info->bytes,
+			       (unsigned long long)bytes);
 			WARN_ON(1);
 			ret = -EINVAL;
 			goto out;
@@ -401,8 +408,6 @@ void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 		info = rb_entry(n, struct btrfs_free_space, offset_index);
 		if (info->bytes >= bytes)
 			count++;
-		//printk(KERN_INFO "offset=%Lu, bytes=%Lu\n", info->offset,
-		//       info->bytes);
 	}
 	printk(KERN_INFO "%d blocks of free space at or bigger than bytes is"
 	       "\n", count);

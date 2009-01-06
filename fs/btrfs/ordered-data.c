@@ -39,11 +39,11 @@ static u64 entry_end(struct btrfs_ordered_extent *entry)
 static struct rb_node *tree_insert(struct rb_root *root, u64 file_offset,
 				   struct rb_node *node)
 {
-	struct rb_node ** p = &root->rb_node;
-	struct rb_node * parent = NULL;
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
 	struct btrfs_ordered_extent *entry;
 
-	while(*p) {
+	while (*p) {
 		parent = *p;
 		entry = rb_entry(parent, struct btrfs_ordered_extent, rb_node);
 
@@ -67,13 +67,13 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 file_offset,
 static struct rb_node *__tree_search(struct rb_root *root, u64 file_offset,
 				     struct rb_node **prev_ret)
 {
-	struct rb_node * n = root->rb_node;
+	struct rb_node *n = root->rb_node;
 	struct rb_node *prev = NULL;
 	struct rb_node *test;
 	struct btrfs_ordered_extent *entry;
 	struct btrfs_ordered_extent *prev_entry = NULL;
 
-	while(n) {
+	while (n) {
 		entry = rb_entry(n, struct btrfs_ordered_extent, rb_node);
 		prev = n;
 		prev_entry = entry;
@@ -88,7 +88,7 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 file_offset,
 	if (!prev_ret)
 		return NULL;
 
-	while(prev && file_offset >= entry_end(prev_entry)) {
+	while (prev && file_offset >= entry_end(prev_entry)) {
 		test = rb_next(prev);
 		if (!test)
 			break;
@@ -102,7 +102,7 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 file_offset,
 	if (prev)
 		prev_entry = rb_entry(prev, struct btrfs_ordered_extent,
 				      rb_node);
-	while(prev && file_offset < entry_end(prev_entry)) {
+	while (prev && file_offset < entry_end(prev_entry)) {
 		test = rb_prev(prev);
 		if (!test)
 			break;
@@ -193,10 +193,8 @@ int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 
 	node = tree_insert(&tree->tree, file_offset,
 			   &entry->rb_node);
-	if (node) {
-		printk("warning dup entry from add_ordered_extent\n");
-		BUG();
-	}
+	BUG_ON(node);
+
 	set_extent_ordered(&BTRFS_I(inode)->io_tree, file_offset,
 			   entry_end(entry) - 1, GFP_NOFS);
 
@@ -282,7 +280,7 @@ int btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 	struct btrfs_ordered_sum *sum;
 
 	if (atomic_dec_and_test(&entry->refs)) {
-		while(!list_empty(&entry->list)) {
+		while (!list_empty(&entry->list)) {
 			cur = entry->list.next;
 			sum = list_entry(cur, struct btrfs_ordered_sum, list);
 			list_del(&sum->list);
@@ -432,11 +430,10 @@ again:
 					   orig_end >> PAGE_CACHE_SHIFT);
 
 	end = orig_end;
-	while(1) {
+	while (1) {
 		ordered = btrfs_lookup_first_ordered_extent(inode, end);
-		if (!ordered) {
+		if (!ordered)
 			break;
-		}
 		if (ordered->file_offset > orig_end) {
 			btrfs_put_ordered_extent(ordered);
 			break;
@@ -492,7 +489,7 @@ out:
  * if none is found
  */
 struct btrfs_ordered_extent *
-btrfs_lookup_first_ordered_extent(struct inode * inode, u64 file_offset)
+btrfs_lookup_first_ordered_extent(struct inode *inode, u64 file_offset)
 {
 	struct btrfs_ordered_inode_tree *tree;
 	struct rb_node *node;
@@ -553,7 +550,7 @@ int btrfs_ordered_update_i_size(struct inode *inode,
 	 * yet
 	 */
 	node = &ordered->rb_node;
-	while(1) {
+	while (1) {
 		node = rb_prev(node);
 		if (!node)
 			break;
@@ -581,9 +578,8 @@ int btrfs_ordered_update_i_size(struct inode *inode,
 		 * between our ordered extent and the next one.
 		 */
 		test = rb_entry(node, struct btrfs_ordered_extent, rb_node);
-		if (test->file_offset > entry_end(ordered)) {
+		if (test->file_offset > entry_end(ordered))
 			i_size_test = test->file_offset;
-		}
 	} else {
 		i_size_test = i_size_read(inode);
 	}

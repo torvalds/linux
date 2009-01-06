@@ -67,7 +67,8 @@ struct btrfs_root_attr {
 };
 
 #define ROOT_ATTR(name, mode, show, store) \
-static struct btrfs_root_attr btrfs_root_attr_##name = __ATTR(name, mode, show, store)
+static struct btrfs_root_attr btrfs_root_attr_##name = __ATTR(name, mode, \
+							      show, store)
 
 ROOT_ATTR(blocks_used,	0444,	root_blocks_used_show,	NULL);
 ROOT_ATTR(block_limit,	0644,	root_block_limit_show,	NULL);
@@ -86,7 +87,8 @@ struct btrfs_super_attr {
 };
 
 #define SUPER_ATTR(name, mode, show, store) \
-static struct btrfs_super_attr btrfs_super_attr_##name = __ATTR(name, mode, show, store)
+static struct btrfs_super_attr btrfs_super_attr_##name = __ATTR(name, mode, \
+								show, store)
 
 SUPER_ATTR(blocks_used,		0444,	super_blocks_used_show,		NULL);
 SUPER_ATTR(total_blocks,	0444,	super_total_blocks_show,	NULL);

@@ -161,8 +161,7 @@ static int btrfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	ret = __btrfs_setxattr(inode, name, value, size, 0);
 
 out:
-	if (value)
-		kfree(value);
+	kfree(value);
 
 	if (!ret)
 		btrfs_update_cached_acl(inode, p_acl, acl);
@@ -213,7 +212,7 @@ static int btrfs_xattr_acl_default_get(struct inode *inode, const char *name,
 }
 
 static int btrfs_xattr_acl_default_set(struct inode *inode, const char *name,
-				       const void *value, size_t size, int flags)
+			       const void *value, size_t size, int flags)
 {
 	return btrfs_xattr_set_acl(inode, ACL_TYPE_DEFAULT, value, size);
 }

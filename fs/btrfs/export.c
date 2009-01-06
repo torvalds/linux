@@ -7,9 +7,11 @@
 #include "export.h"
 #include "compat.h"
 
-#define BTRFS_FID_SIZE_NON_CONNECTABLE		(offsetof(struct btrfs_fid, parent_objectid)/4)
-#define BTRFS_FID_SIZE_CONNECTABLE		(offsetof(struct btrfs_fid, parent_root_objectid)/4)
-#define BTRFS_FID_SIZE_CONNECTABLE_ROOT		(sizeof(struct btrfs_fid)/4)
+#define BTRFS_FID_SIZE_NON_CONNECTABLE (offsetof(struct btrfs_fid, \
+						 parent_objectid) / 4)
+#define BTRFS_FID_SIZE_CONNECTABLE (offsetof(struct btrfs_fid, \
+					     parent_root_objectid) / 4)
+#define BTRFS_FID_SIZE_CONNECTABLE_ROOT (sizeof(struct btrfs_fid) / 4)
 
 static int btrfs_encode_fh(struct dentry *dentry, u32 *fh, int *max_len,
 			   int connectable)

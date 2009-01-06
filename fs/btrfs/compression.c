@@ -137,7 +137,8 @@ static int check_compressed_csum(struct inode *inode,
 		kunmap_atomic(kaddr, KM_USER0);
 
 		if (csum != *cb_sum) {
-			printk("btrfs csum failed ino %lu extent %llu csum %u "
+			printk(KERN_INFO "btrfs csum failed ino %lu "
+			       "extent %llu csum %u "
 			       "wanted %u mirror %d\n", inode->i_ino,
 			       (unsigned long long)disk_start,
 			       csum, *cb_sum, cb->mirror_num);
@@ -217,7 +218,7 @@ csum_failed:
 		 * we have verified the checksum already, set page
 		 * checked so the end_io handlers know about it
 		 */
-		while(bio_index < cb->orig_bio->bi_vcnt) {
+		while (bio_index < cb->orig_bio->bi_vcnt) {
 			SetPageChecked(bvec->bv_page);
 			bvec++;
 			bio_index++;
@@ -246,7 +247,7 @@ static noinline int end_compressed_writeback(struct inode *inode, u64 start,
 	int i;
 	int ret;
 
-	while(nr_pages > 0) {
+	while (nr_pages > 0) {
 		ret = find_get_pages_contig(inode->i_mapping, index,
 				     min_t(unsigned long,
 				     nr_pages, ARRAY_SIZE(pages)), pages);
@@ -463,7 +464,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 	end_index = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
 
 	pagevec_init(&pvec, 0);
-	while(last_offset < compressed_end) {
+	while (last_offset < compressed_end) {
 		page_index = last_offset >> PAGE_CACHE_SHIFT;
 
 		if (page_index > end_index)
@@ -697,9 +698,8 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	ret = btrfs_bio_wq_end_io(root->fs_info, comp_bio, 0);
 	BUG_ON(ret);
 
-	if (!btrfs_test_flag(inode, NODATASUM)) {
+	if (!btrfs_test_flag(inode, NODATASUM))
 		btrfs_lookup_bio_sums(root, inode, comp_bio, sums);
-	}
 
 	ret = btrfs_map_bio(root, READ, comp_bio, mirror_num, 0);
 	BUG_ON(ret);

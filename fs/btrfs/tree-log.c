@@ -829,7 +829,7 @@ conflict_again:
 		 */
 		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
 		ptr_end = ptr + btrfs_item_size_nr(leaf, path->slots[0]);
-		while(ptr < ptr_end) {
+		while (ptr < ptr_end) {
 			victim_ref = (struct btrfs_inode_ref *)ptr;
 			victim_name_len = btrfs_inode_ref_name_len(leaf,
 								   victim_ref);
@@ -938,9 +938,8 @@ static noinline int replay_one_csum(struct btrfs_trans_handle *trans,
 
 	file_bytes = (item_size / csum_size) * root->sectorsize;
 	sums = kzalloc(btrfs_ordered_sum_size(root, file_bytes), GFP_NOFS);
-	if (!sums) {
+	if (!sums)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&sums->list);
 	sums->len = file_bytes;
@@ -952,7 +951,7 @@ static noinline int replay_one_csum(struct btrfs_trans_handle *trans,
 	sector_sum = sums->sums;
 	cur_offset = key->offset;
 	ptr = btrfs_item_ptr_offset(eb, slot);
-	while(item_size > 0) {
+	while (item_size > 0) {
 		sector_sum->bytenr = cur_offset;
 		read_extent_buffer(eb, &sector_sum->sum, ptr, csum_size);
 		sector_sum++;
@@ -995,7 +994,7 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 
-	while(1) {
+	while (1) {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			break;
@@ -1012,7 +1011,7 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 		ptr = btrfs_item_ptr_offset(path->nodes[0], path->slots[0]);
 		ptr_end = ptr + btrfs_item_size_nr(path->nodes[0],
 						   path->slots[0]);
-		while(ptr < ptr_end) {
+		while (ptr < ptr_end) {
 			struct btrfs_inode_ref *ref;
 
 			ref = (struct btrfs_inode_ref *)ptr;
@@ -1048,7 +1047,7 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 	key.objectid = BTRFS_TREE_LOG_FIXUP_OBJECTID;
 	key.type = BTRFS_ORPHAN_ITEM_KEY;
 	key.offset = (u64)-1;
-	while(1) {
+	while (1) {
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 		if (ret < 0)
 			break;
@@ -1206,8 +1205,7 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	if (key->type == BTRFS_DIR_ITEM_KEY) {
 		dst_di = btrfs_lookup_dir_item(trans, root, path, key->objectid,
 				       name, name_len, 1);
-	}
-	else if (key->type == BTRFS_DIR_INDEX_KEY) {
+	} else if (key->type == BTRFS_DIR_INDEX_KEY) {
 		dst_di = btrfs_lookup_dir_index_item(trans, root, path,
 						     key->objectid,
 						     key->offset, name,
@@ -1282,7 +1280,7 @@ static noinline int replay_one_dir_item(struct btrfs_trans_handle *trans,
 
 	ptr = btrfs_item_ptr_offset(eb, slot);
 	ptr_end = ptr + item_size;
-	while(ptr < ptr_end) {
+	while (ptr < ptr_end) {
 		di = (struct btrfs_dir_item *)ptr;
 		name_len = btrfs_dir_name_len(eb, di);
 		ret = replay_one_name(trans, root, path, eb, di, key);
@@ -1408,7 +1406,7 @@ again:
 	item_size = btrfs_item_size_nr(eb, slot);
 	ptr = btrfs_item_ptr_offset(eb, slot);
 	ptr_end = ptr + item_size;
-	while(ptr < ptr_end) {
+	while (ptr < ptr_end) {
 		di = (struct btrfs_dir_item *)ptr;
 		name_len = btrfs_dir_name_len(eb, di);
 		name = kmalloc(name_len, GFP_NOFS);
@@ -1513,14 +1511,14 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 again:
 	range_start = 0;
 	range_end = 0;
-	while(1) {
+	while (1) {
 		ret = find_dir_range(log, path, dirid, key_type,
 				     &range_start, &range_end);
 		if (ret != 0)
 			break;
 
 		dir_key.offset = range_start;
-		while(1) {
+		while (1) {
 			int nritems;
 			ret = btrfs_search_slot(NULL, root, &dir_key, path,
 						0, 0);
@@ -1676,7 +1674,7 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 	return 0;
 }
 
-static int noinline walk_down_log_tree(struct btrfs_trans_handle *trans,
+static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct btrfs_path *path, int *level,
 				   struct walk_control *wc)
@@ -1694,7 +1692,7 @@ static int noinline walk_down_log_tree(struct btrfs_trans_handle *trans,
 	WARN_ON(*level < 0);
 	WARN_ON(*level >= BTRFS_MAX_LEVEL);
 
-	while(*level > 0) {
+	while (*level > 0) {
 		WARN_ON(*level < 0);
 		WARN_ON(*level >= BTRFS_MAX_LEVEL);
 		cur = path->nodes[*level];
@@ -1753,11 +1751,11 @@ static int noinline walk_down_log_tree(struct btrfs_trans_handle *trans,
 	WARN_ON(*level < 0);
 	WARN_ON(*level >= BTRFS_MAX_LEVEL);
 
-	if (path->nodes[*level] == root->node) {
+	if (path->nodes[*level] == root->node)
 		parent = path->nodes[*level];
-	} else {
+	else
 		parent = path->nodes[*level + 1];
-	}
+
 	bytenr = path->nodes[*level]->start;
 
 	blocksize = btrfs_level_size(root, *level);
@@ -1790,7 +1788,7 @@ static int noinline walk_down_log_tree(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int noinline walk_up_log_tree(struct btrfs_trans_handle *trans,
+static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct btrfs_path *path, int *level,
 				 struct walk_control *wc)
@@ -1801,7 +1799,7 @@ static int noinline walk_up_log_tree(struct btrfs_trans_handle *trans,
 	int slot;
 	int ret;
 
-	for(i = *level; i < BTRFS_MAX_LEVEL - 1 && path->nodes[i]; i++) {
+	for (i = *level; i < BTRFS_MAX_LEVEL - 1 && path->nodes[i]; i++) {
 		slot = path->slots[i];
 		if (slot < btrfs_header_nritems(path->nodes[i]) - 1) {
 			struct extent_buffer *node;
@@ -1875,7 +1873,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 	extent_buffer_get(log->node);
 	path->slots[level] = 0;
 
-	while(1) {
+	while (1) {
 		wret = walk_down_log_tree(trans, log, path, &level, wc);
 		if (wret > 0)
 			break;
@@ -1941,7 +1939,7 @@ static int wait_log_commit(struct btrfs_root *log)
 			schedule();
 		finish_wait(&log->fs_info->tree_log_wait, &wait);
 		mutex_lock(&log->fs_info->tree_log_mutex);
-	} while(transid == log->fs_info->tree_log_transid &&
+	} while (transid == log->fs_info->tree_log_transid &&
 		atomic_read(&log->fs_info->tree_log_commit));
 	return 0;
 }
@@ -1965,13 +1963,13 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	}
 	atomic_set(&log->fs_info->tree_log_commit, 1);
 
-	while(1) {
+	while (1) {
 		batch = log->fs_info->tree_log_batch;
 		mutex_unlock(&log->fs_info->tree_log_mutex);
 		schedule_timeout_uninterruptible(1);
 		mutex_lock(&log->fs_info->tree_log_mutex);
 
-		while(atomic_read(&log->fs_info->tree_log_writers)) {
+		while (atomic_read(&log->fs_info->tree_log_writers)) {
 			DEFINE_WAIT(wait);
 			prepare_to_wait(&log->fs_info->tree_log_wait, &wait,
 					TASK_UNINTERRUPTIBLE);
@@ -2030,7 +2028,7 @@ int btrfs_free_log(struct btrfs_trans_handle *trans, struct btrfs_root *root)
 	ret = walk_log_tree(trans, log, &wc);
 	BUG_ON(ret);
 
-	while(1) {
+	while (1) {
 		ret = find_first_extent_bit(&log->dirty_log_pages,
 				    0, &start, &end, EXTENT_DIRTY);
 		if (ret)
@@ -2287,9 +2285,8 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 			struct btrfs_key tmp;
 			btrfs_item_key_to_cpu(path->nodes[0], &tmp,
 					      path->slots[0]);
-			if (key_type == tmp.type) {
+			if (key_type == tmp.type)
 				first_offset = max(min_offset, tmp.offset) + 1;
-			}
 		}
 		goto done;
 	}
@@ -2319,7 +2316,7 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 	 * we have a block from this transaction, log every item in it
 	 * from our directory
 	 */
-	while(1) {
+	while (1) {
 		struct btrfs_key tmp;
 		src = path->nodes[0];
 		nritems = btrfs_header_nritems(src);
@@ -2396,7 +2393,7 @@ static noinline int log_directory_changes(struct btrfs_trans_handle *trans,
 again:
 	min_key = 0;
 	max_key = 0;
-	while(1) {
+	while (1) {
 		ret = log_dir_items(trans, root, inode, path,
 				    dst_path, key_type, min_key,
 				    &max_key);
@@ -2432,7 +2429,7 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 	key.type = max_key_type;
 	key.offset = (u64)-1;
 
-	while(1) {
+	while (1) {
 		ret = btrfs_search_slot(trans, log, &key, path, -1, 1);
 
 		if (ret != 1)
@@ -2481,7 +2478,7 @@ static noinline int copy_extent_csums(struct btrfs_trans_handle *trans,
 	list_add_tail(&sums->list, list);
 
 	path = btrfs_alloc_path();
-	while(disk_bytenr < end) {
+	while (disk_bytenr < end) {
 		if (!item || disk_bytenr < item_start_offset ||
 		    disk_bytenr >= item_last_offset) {
 			struct btrfs_key found_key;
@@ -2496,7 +2493,8 @@ static noinline int copy_extent_csums(struct btrfs_trans_handle *trans,
 				if (ret == -ENOENT || ret == -EFBIG)
 					ret = 0;
 				sum = 0;
-				printk("log no csum found for byte %llu\n",
+				printk(KERN_INFO "log no csum found for "
+				       "byte %llu\n",
 				       (unsigned long long)disk_bytenr);
 				item = NULL;
 				btrfs_release_path(root, path);
@@ -2643,7 +2641,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	 * we have to do this after the loop above to avoid changing the
 	 * log tree while trying to change the log tree.
 	 */
-	while(!list_empty(&ordered_sums)) {
+	while (!list_empty(&ordered_sums)) {
 		struct btrfs_ordered_sum *sums = list_entry(ordered_sums.next,
 						   struct btrfs_ordered_sum,
 						   list);
@@ -2736,7 +2734,7 @@ static int __btrfs_log_inode(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 	path->keep_locks = 1;
 
-	while(1) {
+	while (1) {
 		ins_nr = 0;
 		ret = btrfs_search_forward(root, &min_key, &max_key,
 					   path, 0, trans->transid);
@@ -2848,7 +2846,7 @@ int btrfs_log_dentry(struct btrfs_trans_handle *trans,
 
 	start_log_trans(trans, root);
 	sb = dentry->d_inode->i_sb;
-	while(1) {
+	while (1) {
 		ret = __btrfs_log_inode(trans, root, dentry->d_inode,
 					inode_only);
 		BUG_ON(ret);
@@ -2919,7 +2917,7 @@ again:
 	key.offset = (u64)-1;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
 
-	while(1) {
+	while (1) {
 		ret = btrfs_search_slot(NULL, log_root_tree, &key, path, 0, 0);
 		if (ret < 0)
 			break;

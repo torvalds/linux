@@ -23,7 +23,7 @@
 #include <linux/swap.h>
 #include <linux/radix-tree.h>
 #include <linux/writeback.h>
-#include <linux/buffer_head.h> // for block_sync_page
+#include <linux/buffer_head.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
@@ -39,19 +39,6 @@
 #include "locking.h"
 #include "ref-cache.h"
 #include "tree-log.h"
-
-#if 0
-static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
-{
-	if (extent_buffer_blocknr(buf) != btrfs_header_blocknr(buf)) {
-		printk(KERN_CRIT "buf blocknr(buf) is %llu, header is %llu\n",
-		       (unsigned long long)extent_buffer_blocknr(buf),
-		       (unsigned long long)btrfs_header_blocknr(buf));
-		return 1;
-	}
-	return 0;
-}
-#endif
 
 static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
@@ -128,23 +115,13 @@ static struct extent_map *btree_get_extent(struct inode *inode,
 		u64 failed_start = em->start;
 		u64 failed_len = em->len;
 
-		printk("failed to insert %Lu %Lu -> %Lu into tree\n",
-		       em->start, em->len, em->block_start);
 		free_extent_map(em);
 		em = lookup_extent_mapping(em_tree, start, len);
 		if (em) {
-			printk("after failing, found %Lu %Lu %Lu\n",
-			       em->start, em->len, em->block_start);
 			ret = 0;
 		} else {
 			em = lookup_extent_mapping(em_tree, failed_start,
 						   failed_len);
-			if (em) {
-				printk("double failure lookup gives us "
-				       "%Lu %Lu -> %Lu\n", em->start,
-				       em->len, em->block_start);
-				free_extent_map(em);
-			}
 			ret = -EIO;
 		}
 	} else if (ret) {
@@ -191,15 +168,12 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 	unsigned long inline_result;
 
 	len = buf->len - offset;
-	while(len > 0) {
+	while (len > 0) {
 		err = map_private_extent_buffer(buf, offset, 32,
 					&map_token, &kaddr,
 					&map_start, &map_len, KM_USER0);
-		if (err) {
-			printk("failed to map extent buffer! %lu\n",
-			       offset);
+		if (err)
 			return 1;
-		}
 		cur_len = min(len, map_len - (offset - map_start));
 		crc = btrfs_csum_data(root, kaddr + offset - map_start,
 				      crc, cur_len);
@@ -218,15 +192,14 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 	btrfs_csum_final(crc, result);
 
 	if (verify) {
-		/* FIXME, this is not good */
 		if (memcmp_extent_buffer(buf, result, 0, csum_size)) {
 			u32 val;
 			u32 found = 0;
 			memcpy(&found, result, csum_size);
 
 			read_extent_buffer(buf, &val, 0, csum_size);
-			printk("btrfs: %s checksum verify failed on %llu "
-			       "wanted %X found %X level %d\n",
+			printk(KERN_INFO "btrfs: %s checksum verify failed "
+			       "on %llu wanted %X found %X level %d\n",
 			       root->fs_info->sb->s_id,
 			       buf->start, val, found, btrfs_header_level(buf));
 			if (result != (char *)&inline_result)
@@ -293,7 +266,7 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 		if (!ret &&
 		    !verify_parent_transid(io_tree, eb, parent_transid))
 			return ret;
-printk("read extent buffer pages failed with ret %d mirror no %d\n", ret, mirror_num);
+
 		num_copies = btrfs_num_copies(&root->fs_info->mapping_tree,
 					      eb->start, eb->len);
 		if (num_copies == 1)
@@ -307,9 +280,10 @@ printk("read extent buffer pages failed with ret %d mirror no %d\n", ret, mirror
 }
 
 /*
- * checksum a dirty tree block before IO.  This has extra checks to make
- * sure we only fill in the checksum field in the first page of a multi-page block
+ * checksum a dirty tree block before IO.  This has extra checks to make sure
+ * we only fill in the checksum field in the first page of a multi-page block
  */
+
 static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 {
 	struct extent_io_tree *tree;
@@ -327,28 +301,22 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	if (!page->private)
 		goto out;
 	len = page->private >> 2;
-	if (len == 0) {
-		WARN_ON(1);
-	}
+	WARN_ON(len == 0);
+
 	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
 	ret = btree_read_extent_buffer_pages(root, eb, start + PAGE_CACHE_SIZE,
 					     btrfs_header_generation(eb));
 	BUG_ON(ret);
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
-		printk("warning: eb start incorrect %Lu buffer %Lu len %lu\n",
-		       start, found_start, len);
 		WARN_ON(1);
 		goto err;
 	}
 	if (eb->first_page != page) {
-		printk("bad first page %lu %lu\n", eb->first_page->index,
-		       page->index);
 		WARN_ON(1);
 		goto err;
 	}
 	if (!PageUptodate(page)) {
-		printk("csum not up to date page %lu\n", page->index);
 		WARN_ON(1);
 		goto err;
 	}
@@ -396,29 +364,30 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		goto out;
 	if (!page->private)
 		goto out;
+
 	len = page->private >> 2;
-	if (len == 0) {
-		WARN_ON(1);
-	}
+	WARN_ON(len == 0);
+
 	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
-		printk("bad tree block start %llu %llu\n",
+		printk(KERN_INFO "btrfs bad tree block start %llu %llu\n",
 		       (unsigned long long)found_start,
 		       (unsigned long long)eb->start);
 		ret = -EIO;
 		goto err;
 	}
 	if (eb->first_page != page) {
-		printk("bad first page %lu %lu\n", eb->first_page->index,
-		       page->index);
+		printk(KERN_INFO "btrfs bad first page %lu %lu\n",
+		       eb->first_page->index, page->index);
 		WARN_ON(1);
 		ret = -EIO;
 		goto err;
 	}
 	if (check_tree_block_fsid(root, eb)) {
-		printk("bad fsid on block %Lu\n", eb->start);
+		printk(KERN_INFO "btrfs bad fsid on block %llu\n",
+		       (unsigned long long)eb->start);
 		ret = -EIO;
 		goto err;
 	}
@@ -578,7 +547,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 			   HZ/10);
 	}
 #endif
-	while(atomic_read(&fs_info->async_submit_draining) &&
+	while (atomic_read(&fs_info->async_submit_draining) &&
 	      atomic_read(&fs_info->nr_async_submits)) {
 		wait_event(fs_info->async_submit_wait,
 			   (atomic_read(&fs_info->nr_async_submits) == 0));
@@ -594,7 +563,7 @@ static int btree_csum_one_bio(struct bio *bio)
 	struct btrfs_root *root;
 
 	WARN_ON(bio->bi_vcnt <= 0);
-	while(bio_index < bio->bi_vcnt) {
+	while (bio_index < bio->bi_vcnt) {
 		root = BTRFS_I(bvec->bv_page->mapping->host)->root;
 		csum_dirty_buffer(root, bvec->bv_page);
 		bio_index++;
@@ -680,9 +649,8 @@ static int btree_writepages(struct address_space *mapping,
 
 		num_dirty = count_range_bits(tree, &start, (u64)-1,
 					     thresh, EXTENT_DIRTY);
-		if (num_dirty < thresh) {
+		if (num_dirty < thresh)
 			return 0;
-		}
 	}
 	return extent_writepages(tree, mapping, btree_get_extent, wbc);
 }
@@ -701,15 +669,14 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	int ret;
 
 	if (PageWriteback(page) || PageDirty(page))
-	    return 0;
+		return 0;
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
 
 	ret = try_release_extent_state(map, tree, page, gfp_flags);
-	if (!ret) {
+	if (!ret)
 		return 0;
-	}
 
 	ret = try_release_extent_buffer(tree, page);
 	if (ret == 1) {
@@ -728,8 +695,8 @@ static void btree_invalidatepage(struct page *page, unsigned long offset)
 	extent_invalidatepage(tree, page, offset);
 	btree_releasepage(page, GFP_NOFS);
 	if (PagePrivate(page)) {
-		printk("warning page private not zero on page %Lu\n",
-		       page_offset(page));
+		printk(KERN_WARNING "btrfs warning page private not zero "
+		       "on page %llu\n", (unsigned long long)page_offset(page));
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
 		page_cache_release(page);
@@ -813,7 +780,7 @@ int btrfs_write_tree_block(struct extent_buffer *buf)
 int btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
 {
 	return btrfs_wait_on_page_writeback_range(buf->first_page->mapping,
-				  buf->start, buf->start + buf->len -1);
+				  buf->start, buf->start + buf->len - 1);
 }
 
 struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
@@ -832,11 +799,10 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 
 	ret = btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
 
-	if (ret == 0) {
+	if (ret == 0)
 		buf->flags |= EXTENT_UPTODATE;
-	} else {
+	else
 		WARN_ON(1);
-	}
 	return buf;
 
 }
@@ -944,7 +910,7 @@ int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
 	if (!log_root_tree)
 		return 0;
 
-	while(1) {
+	while (1) {
 		ret = find_first_extent_bit(&log_root_tree->dirty_log_pages,
 				    0, &start, &end, EXTENT_DIRTY);
 		if (ret)
@@ -1165,24 +1131,6 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 	root->in_sysfs = 1;
 	return root;
 }
-#if 0
-static int add_hasher(struct btrfs_fs_info *info, char *type) {
-	struct btrfs_hasher *hasher;
-
-	hasher = kmalloc(sizeof(*hasher), GFP_NOFS);
-	if (!hasher)
-		return -ENOMEM;
-	hasher->hash_tfm = crypto_alloc_hash(type, 0, CRYPTO_ALG_ASYNC);
-	if (!hasher->hash_tfm) {
-		kfree(hasher);
-		return -EINVAL;
-	}
-	spin_lock(&info->hash_lock);
-	list_add(&hasher->list, &info->hashers);
-	spin_unlock(&info->hash_lock);
-	return 0;
-}
-#endif
 
 static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 {
@@ -1226,9 +1174,8 @@ static void __unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 			continue;
 
 		bdi = blk_get_backing_dev_info(device->bdev);
-		if (bdi->unplug_io_fn) {
+		if (bdi->unplug_io_fn)
 			bdi->unplug_io_fn(bdi, page);
-		}
 	}
 }
 
@@ -1420,8 +1367,9 @@ static int transaction_kthread(void *arg)
 		mutex_lock(&root->fs_info->transaction_kthread_mutex);
 
 		if (root->fs_info->total_ref_cache_size > 20 * 1024 * 1024) {
-			printk("btrfs: total reference cache size %Lu\n",
-				root->fs_info->total_ref_cache_size);
+			printk(KERN_INFO "btrfs: total reference cache "
+			       "size %llu\n",
+			       root->fs_info->total_ref_cache_size);
 		}
 
 		mutex_lock(&root->fs_info->trans_mutex);
@@ -1592,14 +1540,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	atomic_set(&fs_info->tree_log_writers, 0);
 	fs_info->tree_log_transid = 0;
 
-#if 0
-	ret = add_hasher(fs_info, "crc32c");
-	if (ret) {
-		printk("btrfs: failed hash setup, modprobe cryptomgr?\n");
-		err = -ENOMEM;
-		goto fail_iput;
-	}
-#endif
 	__setup_root(4096, 4096, 4096, 4096, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
@@ -1720,7 +1660,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	if (strncmp((char *)(&disk_super->magic), BTRFS_MAGIC,
 		    sizeof(disk_super->magic))) {
-		printk("btrfs: valid FS not found on %s\n", sb->s_id);
+		printk(KERN_INFO "btrfs: valid FS not found on %s\n", sb->s_id);
 		goto fail_sb_buffer;
 	}
 
@@ -1728,8 +1668,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	ret = btrfs_read_sys_array(tree_root);
 	mutex_unlock(&fs_info->chunk_mutex);
 	if (ret) {
-		printk("btrfs: failed to read the system array on %s\n",
-		       sb->s_id);
+		printk(KERN_WARNING "btrfs: failed to read the system "
+		       "array on %s\n", sb->s_id);
 		goto fail_sys_array;
 	}
 
@@ -1746,14 +1686,15 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	BUG_ON(!chunk_root->node);
 
 	read_extent_buffer(chunk_root->node, fs_info->chunk_tree_uuid,
-	         (unsigned long)btrfs_header_chunk_tree_uuid(chunk_root->node),
-		 BTRFS_UUID_SIZE);
+	   (unsigned long)btrfs_header_chunk_tree_uuid(chunk_root->node),
+	   BTRFS_UUID_SIZE);
 
 	mutex_lock(&fs_info->chunk_mutex);
 	ret = btrfs_read_chunk_tree(chunk_root);
 	mutex_unlock(&fs_info->chunk_mutex);
 	if (ret) {
-		printk("btrfs: failed to read chunk tree on %s\n", sb->s_id);
+		printk(KERN_WARNING "btrfs: failed to read chunk tree on %s\n",
+		       sb->s_id);
 		goto fail_chunk_root;
 	}
 
@@ -1812,7 +1753,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		u64 bytenr = btrfs_super_log_root(disk_super);
 
 		if (fs_devices->rw_devices == 0) {
-			printk("Btrfs log replay required on RO media\n");
+			printk(KERN_WARNING "Btrfs log replay required "
+			       "on RO media\n");
 			err = -EIO;
 			goto fail_trans_kthread;
 		}
@@ -2097,7 +2039,8 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 			total_errors++;
 	}
 	if (total_errors > max_errors) {
-		printk("btrfs: %d errors while writing supers\n", total_errors);
+		printk(KERN_ERR "btrfs: %d errors while writing supers\n",
+		       total_errors);
 		BUG();
 	}
 
@@ -2114,7 +2057,8 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 			total_errors++;
 	}
 	if (total_errors > max_errors) {
-		printk("btrfs: %d errors while writing supers\n", total_errors);
+		printk(KERN_ERR "btrfs: %d errors while writing supers\n",
+		       total_errors);
 		BUG();
 	}
 	return 0;
@@ -2137,16 +2081,11 @@ int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 		down_write(&root->anon_super.s_umount);
 		kill_anon_super(&root->anon_super);
 	}
-#if 0
-	if (root->in_sysfs)
-		btrfs_sysfs_del_root(root);
-#endif
 	if (root->node)
 		free_extent_buffer(root->node);
 	if (root->commit_root)
 		free_extent_buffer(root->commit_root);
-	if (root->name)
-		kfree(root->name);
+	kfree(root->name);
 	kfree(root);
 	return 0;
 }
@@ -2157,7 +2096,7 @@ static int del_fs_roots(struct btrfs_fs_info *fs_info)
 	struct btrfs_root *gang[8];
 	int i;
 
-	while(1) {
+	while (1) {
 		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
 					     (void **)gang, 0,
 					     ARRAY_SIZE(gang));
@@ -2228,18 +2167,17 @@ int close_ctree(struct btrfs_root *root)
 
 	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
 		ret =  btrfs_commit_super(root);
-		if (ret) {
-			printk("btrfs: commit super returns %d\n", ret);
-		}
+		if (ret)
+			printk(KERN_ERR "btrfs: commit super ret %d\n", ret);
 	}
 
 	if (fs_info->delalloc_bytes) {
-		printk("btrfs: at unmount delalloc count %Lu\n",
+		printk(KERN_INFO "btrfs: at unmount delalloc count %llu\n",
 		       fs_info->delalloc_bytes);
 	}
 	if (fs_info->total_ref_cache_size) {
-		printk("btrfs: at umount reference cache size %Lu\n",
-			fs_info->total_ref_cache_size);
+		printk(KERN_INFO "btrfs: at umount reference cache size %llu\n",
+		       (unsigned long long)fs_info->total_ref_cache_size);
 	}
 
 	if (fs_info->extent_root->node)
@@ -2248,13 +2186,13 @@ int close_ctree(struct btrfs_root *root)
 	if (fs_info->tree_root->node)
 		free_extent_buffer(fs_info->tree_root->node);
 
-	if (root->fs_info->chunk_root->node);
+	if (root->fs_info->chunk_root->node)
 		free_extent_buffer(root->fs_info->chunk_root->node);
 
-	if (root->fs_info->dev_root->node);
+	if (root->fs_info->dev_root->node)
 		free_extent_buffer(root->fs_info->dev_root->node);
 
-	if (root->fs_info->csum_root->node);
+	if (root->fs_info->csum_root->node)
 		free_extent_buffer(root->fs_info->csum_root->node);
 
 	btrfs_free_block_groups(root->fs_info);
@@ -2273,7 +2211,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_stop_workers(&fs_info->submit_workers);
 
 #if 0
-	while(!list_empty(&fs_info->hashers)) {
+	while (!list_empty(&fs_info->hashers)) {
 		struct btrfs_hasher *hasher;
 		hasher = list_entry(fs_info->hashers.next, struct btrfs_hasher,
 				    hashers);
@@ -2324,9 +2262,11 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 
 	WARN_ON(!btrfs_tree_locked(buf));
 	if (transid != root->fs_info->generation) {
-		printk(KERN_CRIT "transid mismatch buffer %llu, found %Lu running %Lu\n",
+		printk(KERN_CRIT "btrfs transid mismatch buffer %llu, "
+		       "found %llu running %llu\n",
 			(unsigned long long)buf->start,
-			transid, root->fs_info->generation);
+			(unsigned long long)transid,
+			(unsigned long long)root->fs_info->generation);
 		WARN_ON(1);
 	}
 	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree, buf);
@@ -2361,9 +2301,8 @@ int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)
 	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
 	int ret;
 	ret = btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
-	if (ret == 0) {
+	if (ret == 0)
 		buf->flags |= EXTENT_UPTODATE;
-	}
 	return ret;
 }
 

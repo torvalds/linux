@@ -311,7 +311,7 @@ static noinline int btrfs_mksubvol(struct path *parent, char *name,
 		 * to see if is references the subvolume where we are
 		 * placing this new snapshot.
 		 */
-		while(1) {
+		while (1) {
 			if (!test ||
 			    dir == snap_src->fs_info->sb->s_root ||
 			    test == snap_src->fs_info->sb->s_root ||
@@ -319,7 +319,8 @@ static noinline int btrfs_mksubvol(struct path *parent, char *name,
 				break;
 			}
 			if (S_ISLNK(test->d_inode->i_mode)) {
-				printk("Symlink in snapshot path, failed\n");
+				printk(KERN_INFO "Btrfs symlink in snapshot "
+				       "path, failed\n");
 				error = -EMLINK;
 				btrfs_free_path(path);
 				goto out_drop_write;
@@ -329,7 +330,8 @@ static noinline int btrfs_mksubvol(struct path *parent, char *name,
 			ret = btrfs_find_root_ref(snap_src->fs_info->tree_root,
 				  path, test_oid, parent_oid);
 			if (ret == 0) {
-				printk("Snapshot creation failed, looping\n");
+				printk(KERN_INFO "Btrfs snapshot creation "
+				       "failed, looping\n");
 				error = -EMLINK;
 				btrfs_free_path(path);
 				goto out_drop_write;
@@ -617,7 +619,8 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 
 		src_inode = src_file->f_path.dentry->d_inode;
 		if (src_inode->i_sb != file->f_path.dentry->d_inode->i_sb) {
-			printk("btrfs: Snapshot src from another FS\n");
+			printk(KERN_INFO "btrfs: Snapshot src from "
+			       "another FS\n");
 			ret = -EINVAL;
 			fput(src_file);
 			goto out;
@@ -810,9 +813,6 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	    ((off + len) & (bs-1)))
 		goto out_unlock;
 
-	printk("final src extent is %llu~%llu\n", off, len);
-	printk("final dst extent is %llu~%llu\n", destoff, len);
-
 	/* do any pending delalloc/csum calc on src, one way or
 	   another, and lock file content */
 	while (1) {
@@ -883,10 +883,13 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			comp = btrfs_file_extent_compression(leaf, extent);
 			type = btrfs_file_extent_type(leaf, extent);
 			if (type == BTRFS_FILE_EXTENT_REG) {
-				disko = btrfs_file_extent_disk_bytenr(leaf, extent);
-				diskl = btrfs_file_extent_disk_num_bytes(leaf, extent);
+				disko = btrfs_file_extent_disk_bytenr(leaf,
+								      extent);
+				diskl = btrfs_file_extent_disk_num_bytes(leaf,
+								 extent);
 				datao = btrfs_file_extent_offset(leaf, extent);
-				datal = btrfs_file_extent_num_bytes(leaf, extent);
+				datal = btrfs_file_extent_num_bytes(leaf,
+								    extent);
 			} else if (type == BTRFS_FILE_EXTENT_INLINE) {
 				/* take upper bound, may be compressed */
 				datal = btrfs_file_extent_ram_bytes(leaf,
@@ -916,8 +919,6 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 				extent = btrfs_item_ptr(leaf, slot,
 						struct btrfs_file_extent_item);
-				printk("  orig disk %llu~%llu data %llu~%llu\n",
-				       disko, diskl, datao, datal);
 
 				if (off > key.offset) {
 					datao += off - key.offset;
@@ -929,8 +930,6 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 				/* disko == 0 means it's a hole */
 				if (!disko)
 					datao = 0;
-				printk(" final disk %llu~%llu data %llu~%llu\n",
-				       disko, diskl, datao, datal);
 
 				btrfs_set_file_extent_offset(leaf, extent,
 							     datao);
@@ -952,12 +951,11 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 					skip = off - key.offset;
 					new_key.offset += skip;
 				}
+
 				if (key.offset + datal > off+len)
 					trim = key.offset + datal - (off+len);
-				printk("len %lld skip %lld trim %lld\n",
-				       datal, skip, trim);
+
 				if (comp && (skip || trim)) {
-					printk("btrfs clone_range can't split compressed inline extents yet\n");
 					ret = -EINVAL;
 					goto out;
 				}
@@ -969,7 +967,8 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 					goto out;
 
 				if (skip) {
-					u32 start = btrfs_file_extent_calc_inline_size(0);
+					u32 start =
+					  btrfs_file_extent_calc_inline_size(0);
 					memmove(buf+start, buf+start+skip,
 						datal);
 				}
@@ -985,7 +984,7 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			btrfs_mark_buffer_dirty(leaf);
 		}
 
-	next:
+next:
 		btrfs_release_path(root, path);
 		key.offset++;
 	}

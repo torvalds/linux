@@ -49,10 +49,10 @@ struct pending_extent_op {
 	int del;
 };
 
-static int finish_current_insert(struct btrfs_trans_handle *trans, struct
-				 btrfs_root *extent_root, int all);
-static int del_pending_extents(struct btrfs_trans_handle *trans, struct
-			       btrfs_root *extent_root, int all);
+static int finish_current_insert(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *extent_root, int all);
+static int del_pending_extents(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *extent_root, int all);
 static int pin_down_bytes(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root,
 			  u64 bytenr, u64 num_bytes, int is_data);
@@ -247,7 +247,7 @@ static int cache_block_group(struct btrfs_root *root,
 	if (ret < 0)
 		goto err;
 
-	while(1) {
+	while (1) {
 		leaf = path->nodes[0];
 		slot = path->slots[0];
 		if (slot >= btrfs_header_nritems(leaf)) {
@@ -292,9 +292,8 @@ err:
 /*
  * return the block group that starts at or after bytenr
  */
-static struct btrfs_block_group_cache *btrfs_lookup_first_block_group(struct
-						       btrfs_fs_info *info,
-							 u64 bytenr)
+static struct btrfs_block_group_cache *
+btrfs_lookup_first_block_group(struct btrfs_fs_info *info, u64 bytenr)
 {
 	struct btrfs_block_group_cache *cache;
 
@@ -306,9 +305,9 @@ static struct btrfs_block_group_cache *btrfs_lookup_first_block_group(struct
 /*
  * return the block group that contains teh given bytenr
  */
-struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
-							 btrfs_fs_info *info,
-							 u64 bytenr)
+struct btrfs_block_group_cache *btrfs_lookup_block_group(
+						 struct btrfs_fs_info *info,
+						 u64 bytenr)
 {
 	struct btrfs_block_group_cache *cache;
 
@@ -492,7 +491,7 @@ int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len)
  * to the key objectid.
  */
 
-static int noinline lookup_extent_backref(struct btrfs_trans_handle *trans,
+static noinline int lookup_extent_backref(struct btrfs_trans_handle *trans,
 					  struct btrfs_root *root,
 					  struct btrfs_path *path,
 					  u64 bytenr, u64 parent,
@@ -537,7 +536,7 @@ out:
  * updates all the backrefs that are pending on update_list for the
  * extent_root
  */
-static int noinline update_backrefs(struct btrfs_trans_handle *trans,
+static noinline int update_backrefs(struct btrfs_trans_handle *trans,
 				    struct btrfs_root *extent_root,
 				    struct btrfs_path *path,
 				    struct list_head *update_list)
@@ -573,9 +572,11 @@ loop:
 	    btrfs_ref_generation(leaf, ref) != op->orig_generation ||
 	    (ref_objectid != op->level &&
 	     ref_objectid != BTRFS_MULTIPLE_OBJECTIDS)) {
-		printk(KERN_ERR "couldn't find %Lu, parent %Lu, root %Lu, "
-		       "owner %u\n", op->bytenr, op->orig_parent,
-		       ref_root, op->level);
+		printk(KERN_ERR "btrfs couldn't find %llu, parent %llu, "
+		       "root %llu, owner %u\n",
+		       (unsigned long long)op->bytenr,
+		       (unsigned long long)op->orig_parent,
+		       (unsigned long long)ref_root, op->level);
 		btrfs_print_leaf(extent_root, leaf);
 		BUG();
 	}
@@ -620,7 +621,7 @@ out:
 	return 0;
 }
 
-static int noinline insert_extents(struct btrfs_trans_handle *trans,
+static noinline int insert_extents(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *extent_root,
 				   struct btrfs_path *path,
 				   struct list_head *insert_list, int nr)
@@ -781,7 +782,7 @@ static int noinline insert_extents(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static int noinline insert_extent_backref(struct btrfs_trans_handle *trans,
+static noinline int insert_extent_backref(struct btrfs_trans_handle *trans,
 					  struct btrfs_root *root,
 					  struct btrfs_path *path,
 					  u64 bytenr, u64 parent,
@@ -840,7 +841,7 @@ out:
 	return ret;
 }
 
-static int noinline remove_extent_backref(struct btrfs_trans_handle *trans,
+static noinline int remove_extent_backref(struct btrfs_trans_handle *trans,
 					  struct btrfs_root *root,
 					  struct btrfs_path *path)
 {
@@ -868,7 +869,7 @@ static int noinline remove_extent_backref(struct btrfs_trans_handle *trans,
 static void btrfs_issue_discard(struct block_device *bdev,
 				u64 start, u64 len)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
 	blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_KERNEL);
 #else
 	blkdev_issue_discard(bdev, start >> 9, len >> 9);
@@ -908,7 +909,7 @@ static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 #endif
 }
 
-static int noinline free_extents(struct btrfs_trans_handle *trans,
+static noinline int free_extents(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *extent_root,
 				 struct list_head *del_list)
 {
@@ -937,10 +938,11 @@ search:
 				    extent_root->root_key.objectid,
 				    op->orig_generation, op->level, 1);
 	if (ret) {
-		printk("Unable to find backref byte nr %Lu root %Lu gen %Lu "
-		       "owner %u\n", op->bytenr,
-		       extent_root->root_key.objectid, op->orig_generation,
-		       op->level);
+		printk(KERN_ERR "btrfs unable to find backref byte nr %llu "
+		       "root %llu gen %llu owner %u\n",
+		       (unsigned long long)op->bytenr,
+		       (unsigned long long)extent_root->root_key.objectid,
+		       (unsigned long long)op->orig_generation, op->level);
 		btrfs_print_leaf(extent_root, path->nodes[0]);
 		WARN_ON(1);
 		goto out;
@@ -1282,7 +1284,9 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	btrfs_item_key_to_cpu(l, &key, path->slots[0]);
 	if (key.objectid != bytenr) {
 		btrfs_print_leaf(root->fs_info->extent_root, path->nodes[0]);
-		printk("wanted %Lu found %Lu\n", bytenr, key.objectid);
+		printk(KERN_ERR "btrfs wanted %llu found %llu\n",
+		       (unsigned long long)bytenr,
+		       (unsigned long long)key.objectid);
 		BUG();
 	}
 	BUG_ON(key.type != BTRFS_EXTENT_ITEM_KEY);
@@ -1353,7 +1357,8 @@ int btrfs_lookup_extent_ref(struct btrfs_trans_handle *trans,
 		goto out;
 	if (ret != 0) {
 		btrfs_print_leaf(root, path->nodes[0]);
-		printk("failed to find block number %Lu\n", bytenr);
+		printk(KERN_INFO "btrfs failed to find block number %llu\n",
+		       (unsigned long long)bytenr);
 		BUG();
 	}
 	l = path->nodes[0];
@@ -1738,7 +1743,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
-	while(1) {
+	while (1) {
 		cache = NULL;
 		spin_lock(&root->fs_info->block_group_cache_lock);
 		for (n = rb_first(&root->fs_info->block_group_cache_tree);
@@ -1921,10 +1926,8 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	spin_unlock(&space_info->lock);
 
 	ret = btrfs_alloc_chunk(trans, extent_root, flags);
-	if (ret) {
-printk("space info full %Lu\n", flags);
+	if (ret)
 		space_info->full = 1;
-	}
 out:
 	mutex_unlock(&extent_root->fs_info->chunk_mutex);
 	return ret;
@@ -1941,7 +1944,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 	u64 old_val;
 	u64 byte_in_group;
 
-	while(total) {
+	while (total) {
 		cache = btrfs_lookup_block_group(info, bytenr);
 		if (!cache)
 			return -1;
@@ -2089,7 +2092,7 @@ int btrfs_copy_pinned(struct btrfs_root *root, struct extent_io_tree *copy)
 	int ret;
 
 	mutex_lock(&root->fs_info->pinned_mutex);
-	while(1) {
+	while (1) {
 		ret = find_first_extent_bit(pinned_extents, last,
 					    &start, &end, EXTENT_DIRTY);
 		if (ret)
@@ -2110,7 +2113,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 	int ret;
 
 	mutex_lock(&root->fs_info->pinned_mutex);
-	while(1) {
+	while (1) {
 		ret = find_first_extent_bit(unpin, 0, &start, &end,
 					    EXTENT_DIRTY);
 		if (ret)
@@ -2400,7 +2403,7 @@ static int __free_extent(struct btrfs_trans_handle *trans,
 	if (ret == 0) {
 		struct btrfs_key found_key;
 		extent_slot = path->slots[0];
-		while(extent_slot > 0) {
+		while (extent_slot > 0) {
 			extent_slot--;
 			btrfs_item_key_to_cpu(path->nodes[0], &found_key,
 					      extent_slot);
@@ -2422,8 +2425,8 @@ static int __free_extent(struct btrfs_trans_handle *trans,
 						&key, path, -1, 1);
 			if (ret) {
 				printk(KERN_ERR "umm, got %d back from search"
-				       ", was looking for %Lu\n", ret,
-				       bytenr);
+				       ", was looking for %llu\n", ret,
+				       (unsigned long long)bytenr);
 				btrfs_print_leaf(extent_root, path->nodes[0]);
 			}
 			BUG_ON(ret);
@@ -2432,9 +2435,12 @@ static int __free_extent(struct btrfs_trans_handle *trans,
 	} else {
 		btrfs_print_leaf(extent_root, path->nodes[0]);
 		WARN_ON(1);
-		printk("Unable to find ref byte nr %Lu root %Lu "
-		       "gen %Lu owner %Lu\n", bytenr,
-		       root_objectid, ref_generation, owner_objectid);
+		printk(KERN_ERR "btrfs unable to find ref byte nr %llu "
+		       "root %llu gen %llu owner %llu\n",
+		       (unsigned long long)bytenr,
+		       (unsigned long long)root_objectid,
+		       (unsigned long long)ref_generation,
+		       (unsigned long long)owner_objectid);
 	}
 
 	leaf = path->nodes[0];
@@ -2517,8 +2523,8 @@ static int __free_extent(struct btrfs_trans_handle *trans,
  * find all the blocks marked as pending in the radix tree and remove
  * them from the extent map
  */
-static int del_pending_extents(struct btrfs_trans_handle *trans, struct
-			       btrfs_root *extent_root, int all)
+static int del_pending_extents(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *extent_root, int all)
 {
 	int ret;
 	int err = 0;
@@ -2539,7 +2545,7 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 
 again:
 	mutex_lock(&info->extent_ins_mutex);
-	while(1) {
+	while (1) {
 		ret = find_first_extent_bit(pending_del, search, &start, &end,
 					    EXTENT_WRITEBACK);
 		if (ret) {
@@ -2753,7 +2759,7 @@ static u64 stripe_align(struct btrfs_root *root, u64 val)
  * ins->offset == number of blocks
  * Any available blocks before search_start are skipped.
  */
-static int noinline find_free_extent(struct btrfs_trans_handle *trans,
+static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *orig_root,
 				     u64 num_bytes, u64 empty_size,
 				     u64 search_start, u64 search_end,
@@ -2762,7 +2768,7 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 				     int data)
 {
 	int ret = 0;
-	struct btrfs_root * root = orig_root->fs_info->extent_root;
+	struct btrfs_root *root = orig_root->fs_info->extent_root;
 	u64 total_needed = num_bytes;
 	u64 *last_ptr = NULL;
 	u64 last_wanted = 0;
@@ -2995,8 +3001,10 @@ loop_check:
 			*last_ptr = ins->objectid + ins->offset;
 		ret = 0;
 	} else if (!ret) {
-		printk(KERN_ERR "we were searching for %Lu bytes, num_bytes %Lu,"
-		       " loop %d, allowed_alloc %d\n", total_needed, num_bytes,
+		printk(KERN_ERR "btrfs searching for %llu bytes, "
+		       "num_bytes %llu, loop %d, allowed_alloc %d\n",
+		       (unsigned long long)total_needed,
+		       (unsigned long long)num_bytes,
 		       loop, allowed_chunk_alloc);
 		ret = -ENOSPC;
 	}
@@ -3012,19 +3020,22 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes)
 	struct btrfs_block_group_cache *cache;
 	struct list_head *l;
 
-	printk(KERN_INFO "space_info has %Lu free, is %sfull\n",
-	       info->total_bytes - info->bytes_used - info->bytes_pinned -
-	       info->bytes_reserved, (info->full) ? "" : "not ");
+	printk(KERN_INFO "space_info has %llu free, is %sfull\n",
+	       (unsigned long long)(info->total_bytes - info->bytes_used -
+				    info->bytes_pinned - info->bytes_reserved),
+	       (info->full) ? "" : "not ");
 
 	down_read(&info->groups_sem);
 	list_for_each(l, &info->block_groups) {
 		cache = list_entry(l, struct btrfs_block_group_cache, list);
 		spin_lock(&cache->lock);
-		printk(KERN_INFO "block group %Lu has %Lu bytes, %Lu used "
-		       "%Lu pinned %Lu reserved\n",
-		       cache->key.objectid, cache->key.offset,
-		       btrfs_block_group_used(&cache->item),
-		       cache->pinned, cache->reserved);
+		printk(KERN_INFO "block group %llu has %llu bytes, %llu used "
+		       "%llu pinned %llu reserved\n",
+		       (unsigned long long)cache->key.objectid,
+		       (unsigned long long)cache->key.offset,
+		       (unsigned long long)btrfs_block_group_used(&cache->item),
+		       (unsigned long long)cache->pinned,
+		       (unsigned long long)cache->reserved);
 		btrfs_dump_free_space(cache, bytes);
 		spin_unlock(&cache->lock);
 	}
@@ -3045,15 +3056,15 @@ static int __btrfs_reserve_extent(struct btrfs_trans_handle *trans,
 
 	if (data) {
 		alloc_profile = info->avail_data_alloc_bits &
-			        info->data_alloc_profile;
+			info->data_alloc_profile;
 		data = BTRFS_BLOCK_GROUP_DATA | alloc_profile;
 	} else if (root == root->fs_info->chunk_root) {
 		alloc_profile = info->avail_system_alloc_bits &
-			        info->system_alloc_profile;
+			info->system_alloc_profile;
 		data = BTRFS_BLOCK_GROUP_SYSTEM | alloc_profile;
 	} else {
 		alloc_profile = info->avail_metadata_alloc_bits &
-			        info->metadata_alloc_profile;
+			info->metadata_alloc_profile;
 		data = BTRFS_BLOCK_GROUP_METADATA | alloc_profile;
 	}
 again:
@@ -3092,8 +3103,9 @@ again:
 		struct btrfs_space_info *sinfo;
 
 		sinfo = __find_space_info(root->fs_info, data);
-		printk("allocation failed flags %Lu, wanted %Lu\n",
-		       data, num_bytes);
+		printk(KERN_ERR "btrfs allocation failed flags %llu, "
+		       "wanted %llu\n", (unsigned long long)data,
+		       (unsigned long long)num_bytes);
 		dump_space_info(sinfo, num_bytes);
 		BUG();
 	}
@@ -3108,7 +3120,8 @@ int btrfs_free_reserved_extent(struct btrfs_root *root, u64 start, u64 len)
 
 	cache = btrfs_lookup_block_group(root->fs_info, start);
 	if (!cache) {
-		printk(KERN_ERR "Unable to find block group for %Lu\n", start);
+		printk(KERN_ERR "Unable to find block group for %llu\n",
+		       (unsigned long long)start);
 		return -ENOSPC;
 	}
 
@@ -3235,10 +3248,12 @@ static int __btrfs_alloc_reserved_extent(struct btrfs_trans_handle *trans,
 	}
 
 update_block:
-	ret = update_block_group(trans, root, ins->objectid, ins->offset, 1, 0);
+	ret = update_block_group(trans, root, ins->objectid,
+				 ins->offset, 1, 0);
 	if (ret) {
-		printk("update block group failed for %Lu %Lu\n",
-		       ins->objectid, ins->offset);
+		printk(KERN_ERR "btrfs update block group failed for %llu "
+		       "%llu\n", (unsigned long long)ins->objectid,
+		       (unsigned long long)ins->offset);
 		BUG();
 	}
 out:
@@ -3420,7 +3435,7 @@ int btrfs_drop_leaf_ref(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int noinline cache_drop_leaf_ref(struct btrfs_trans_handle *trans,
+static noinline int cache_drop_leaf_ref(struct btrfs_trans_handle *trans,
 					struct btrfs_root *root,
 					struct btrfs_leaf_ref *ref)
 {
@@ -3445,15 +3460,15 @@ static int noinline cache_drop_leaf_ref(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start, u64 len,
-			      u32 *refs)
+static int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start,
+				     u64 len, u32 *refs)
 {
 	int ret;
 
 	ret = btrfs_lookup_extent_ref(NULL, root, start, len, refs);
 	BUG_ON(ret);
 
-#if 0 // some debugging code in case we see problems here
+#if 0 /* some debugging code in case we see problems here */
 	/* if the refs count is one, it won't get increased again.  But
 	 * if the ref count is > 1, someone may be decreasing it at
 	 * the same time we are.
@@ -3474,8 +3489,8 @@ static int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start, u64 len
 			free_extent_buffer(eb);
 		}
 		if (*refs == 1) {
-			printk("block %llu went down to one during drop_snap\n",
-			       (unsigned long long)start);
+			printk(KERN_ERR "btrfs block %llu went down to one "
+			       "during drop_snap\n", (unsigned long long)start);
 		}
 
 	}
@@ -3489,7 +3504,7 @@ static int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start, u64 len
  * helper function for drop_snapshot, this walks down the tree dropping ref
  * counts as it goes.
  */
-static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
+static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct btrfs_path *path, int *level)
 {
@@ -3516,7 +3531,7 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 	/*
 	 * walk down to the last node level and free all the leaves
 	 */
-	while(*level >= 0) {
+	while (*level >= 0) {
 		WARN_ON(*level < 0);
 		WARN_ON(*level >= BTRFS_MAX_LEVEL);
 		cur = path->nodes[*level];
@@ -3575,10 +3590,6 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 				btrfs_free_leaf_ref(root, ref);
 				*level = 0;
 				break;
-			}
-			if (printk_ratelimit()) {
-				printk("leaf ref miss for bytenr %llu\n",
-				       (unsigned long long)bytenr);
 			}
 		}
 		next = btrfs_find_tree_block(root, bytenr, blocksize);
@@ -3641,7 +3652,7 @@ out:
  * walk_down_tree. The main difference is that it checks reference
  * counts while tree blocks are locked.
  */
-static int noinline walk_down_subtree(struct btrfs_trans_handle *trans,
+static noinline int walk_down_subtree(struct btrfs_trans_handle *trans,
 				      struct btrfs_root *root,
 				      struct btrfs_path *path, int *level)
 {
@@ -3730,7 +3741,7 @@ out:
  * to find the first node higher up where we haven't yet gone through
  * all the slots
  */
-static int noinline walk_up_tree(struct btrfs_trans_handle *trans,
+static noinline int walk_up_tree(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct btrfs_path *path,
 				 int *level, int max_level)
@@ -3839,7 +3850,7 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			}
 		}
 	}
-	while(1) {
+	while (1) {
 		wret = walk_down_tree(trans, root, path, &level);
 		if (wret > 0)
 			break;
@@ -3920,7 +3931,7 @@ static unsigned long calc_ra(unsigned long start, unsigned long last,
 	return min(last, start + nr - 1);
 }
 
-static int noinline relocate_inode_pages(struct inode *inode, u64 start,
+static noinline int relocate_inode_pages(struct inode *inode, u64 start,
 					 u64 len)
 {
 	u64 page_start;
@@ -4011,7 +4022,7 @@ out_unlock:
 	return ret;
 }
 
-static int noinline relocate_data_extent(struct inode *reloc_inode,
+static noinline int relocate_data_extent(struct inode *reloc_inode,
 					 struct btrfs_key *extent_key,
 					 u64 offset)
 {
@@ -4087,7 +4098,7 @@ static int is_cowonly_root(u64 root_objectid)
 	return 0;
 }
 
-static int noinline __next_ref_path(struct btrfs_trans_handle *trans,
+static noinline int __next_ref_path(struct btrfs_trans_handle *trans,
 				    struct btrfs_root *extent_root,
 				    struct btrfs_ref_path *ref_path,
 				    int first_time)
@@ -4119,11 +4130,10 @@ walk_down:
 		if (level < ref_path->lowest_level)
 			break;
 
-		if (level >= 0) {
+		if (level >= 0)
 			bytenr = ref_path->nodes[level];
-		} else {
+		else
 			bytenr = ref_path->extent_start;
-		}
 		BUG_ON(bytenr == 0);
 
 		parent = ref_path->nodes[level + 1];
@@ -4170,11 +4180,12 @@ walk_up:
 	level = ref_path->current_level;
 	while (level < BTRFS_MAX_LEVEL - 1) {
 		u64 ref_objectid;
-		if (level >= 0) {
+
+		if (level >= 0)
 			bytenr = ref_path->nodes[level];
-		} else {
+		else
 			bytenr = ref_path->extent_start;
-		}
+
 		BUG_ON(bytenr == 0);
 
 		key.objectid = bytenr;
@@ -4299,7 +4310,7 @@ static int btrfs_next_ref_path(struct btrfs_trans_handle *trans,
 	return __next_ref_path(trans, extent_root, ref_path, 0);
 }
 
-static int noinline get_new_locations(struct inode *reloc_inode,
+static noinline int get_new_locations(struct inode *reloc_inode,
 				      struct btrfs_key *extent_key,
 				      u64 offset, int no_fragment,
 				      struct disk_extent **extents,
@@ -4420,7 +4431,7 @@ out:
 	return ret;
 }
 
-static int noinline replace_one_extent(struct btrfs_trans_handle *trans,
+static noinline int replace_one_extent(struct btrfs_trans_handle *trans,
 					struct btrfs_root *root,
 					struct btrfs_path *path,
 					struct btrfs_key *extent_key,
@@ -4778,7 +4789,7 @@ int btrfs_reloc_tree_cache_ref(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int noinline invalidate_extent_cache(struct btrfs_root *root,
+static noinline int invalidate_extent_cache(struct btrfs_root *root,
 					struct extent_buffer *leaf,
 					struct btrfs_block_group_cache *group,
 					struct btrfs_root *target_root)
@@ -4826,7 +4837,7 @@ static int noinline invalidate_extent_cache(struct btrfs_root *root,
 	return 0;
 }
 
-static int noinline replace_extents_in_leaf(struct btrfs_trans_handle *trans,
+static noinline int replace_extents_in_leaf(struct btrfs_trans_handle *trans,
 					struct btrfs_root *root,
 					struct extent_buffer *leaf,
 					struct btrfs_block_group_cache *group,
@@ -5035,7 +5046,7 @@ int btrfs_cleanup_reloc_trees(struct btrfs_root *root)
 	return 0;
 }
 
-static int noinline init_reloc_tree(struct btrfs_trans_handle *trans,
+static noinline int init_reloc_tree(struct btrfs_trans_handle *trans,
 				    struct btrfs_root *root)
 {
 	struct btrfs_root *reloc_root;
@@ -5102,7 +5113,7 @@ static int noinline init_reloc_tree(struct btrfs_trans_handle *trans,
  * tree blocks are shared between reloc trees, so they are also shared
  * between subvols.
  */
-static int noinline relocate_one_path(struct btrfs_trans_handle *trans,
+static noinline int relocate_one_path(struct btrfs_trans_handle *trans,
 				      struct btrfs_root *root,
 				      struct btrfs_path *path,
 				      struct btrfs_key *first_key,
@@ -5199,7 +5210,7 @@ static int noinline relocate_one_path(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int noinline relocate_tree_block(struct btrfs_trans_handle *trans,
+static noinline int relocate_tree_block(struct btrfs_trans_handle *trans,
 					struct btrfs_root *root,
 					struct btrfs_path *path,
 					struct btrfs_key *first_key,
@@ -5217,7 +5228,7 @@ static int noinline relocate_tree_block(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int noinline del_extent_zero(struct btrfs_trans_handle *trans,
+static noinline int del_extent_zero(struct btrfs_trans_handle *trans,
 				    struct btrfs_root *extent_root,
 				    struct btrfs_path *path,
 				    struct btrfs_key *extent_key)
@@ -5233,7 +5244,7 @@ out:
 	return ret;
 }
 
-static struct btrfs_root noinline *read_ref_root(struct btrfs_fs_info *fs_info,
+static noinline struct btrfs_root *read_ref_root(struct btrfs_fs_info *fs_info,
 						struct btrfs_ref_path *ref_path)
 {
 	struct btrfs_key root_key;
@@ -5248,7 +5259,7 @@ static struct btrfs_root noinline *read_ref_root(struct btrfs_fs_info *fs_info,
 	return btrfs_read_fs_root_no_name(fs_info, &root_key);
 }
 
-static int noinline relocate_one_extent(struct btrfs_root *extent_root,
+static noinline int relocate_one_extent(struct btrfs_root *extent_root,
 					struct btrfs_path *path,
 					struct btrfs_key *extent_key,
 					struct btrfs_block_group_cache *group,
@@ -5276,8 +5287,8 @@ static int noinline relocate_one_extent(struct btrfs_root *extent_root,
 
 	ref_path = kmalloc(sizeof(*ref_path), GFP_NOFS);
 	if (!ref_path) {
-	       ret = -ENOMEM;
-	       goto out;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	for (loops = 0; ; loops++) {
@@ -5497,7 +5508,7 @@ out:
 	return ret;
 }
 
-static struct inode noinline *create_reloc_inode(struct btrfs_fs_info *fs_info,
+static noinline struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 					struct btrfs_block_group_cache *group)
 {
 	struct inode *inode = NULL;
@@ -5617,7 +5628,7 @@ int btrfs_relocate_block_group(struct btrfs_root *root, u64 group_start)
 	block_group = btrfs_lookup_block_group(info, group_start);
 	BUG_ON(!block_group);
 
-	printk("btrfs relocating block group %llu flags %llu\n",
+	printk(KERN_INFO "btrfs relocating block group %llu flags %llu\n",
 	       (unsigned long long)block_group->key.objectid,
 	       (unsigned long long)block_group->flags);
 
@@ -5649,7 +5660,7 @@ again:
 	btrfs_remove_leaf_refs(info->tree_root, (u64)-1, 1);
 	mutex_unlock(&root->fs_info->cleaner_mutex);
 
-	while(1) {
+	while (1) {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto out;
@@ -5712,7 +5723,7 @@ next:
 	}
 
 	if (total_found > 0) {
-		printk("btrfs found %llu extents in pass %d\n",
+		printk(KERN_INFO "btrfs found %llu extents in pass %d\n",
 		       (unsigned long long)total_found, pass);
 		pass++;
 		if (total_found == skipped && pass > 2) {
@@ -5754,7 +5765,7 @@ static int find_first_block_group(struct btrfs_root *root,
 	if (ret < 0)
 		goto out;
 
-	while(1) {
+	while (1) {
 		slot = path->slots[0];
 		leaf = path->nodes[0];
 		if (slot >= btrfs_header_nritems(leaf)) {
@@ -5825,7 +5836,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	if (!path)
 		return -ENOMEM;
 
-	while(1) {
+	while (1) {
 		ret = find_first_block_group(root, path, &key);
 		if (ret > 0) {
 			ret = 0;

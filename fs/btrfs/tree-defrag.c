@@ -23,10 +23,11 @@
 #include "transaction.h"
 #include "locking.h"
 
-/* defrag all the leaves in a given btree.  If cache_only == 1, don't read things
- * from disk, otherwise read all the leaves and try to get key order to
+/* defrag all the leaves in a given btree.  If cache_only == 1, don't read
+ * things from disk, otherwise read all the leaves and try to get key order to
  * better reflect disk order
  */
+
 int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, int cache_only)
 {
@@ -65,9 +66,9 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	level = btrfs_header_level(root->node);
 	orig_level = level;
 
-	if (level == 0) {
+	if (level == 0)
 		goto out;
-	}
+
 	if (root->defrag_progress.objectid == 0) {
 		struct extent_buffer *root_node;
 		u32 nritems;

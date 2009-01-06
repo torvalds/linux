@@ -132,8 +132,9 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	if (ret != 0) {
 		btrfs_print_leaf(root, path->nodes[0]);
-		printk("unable to update root key %Lu %u %Lu\n",
-		       key->objectid, key->type, key->offset);
+		printk(KERN_CRIT "unable to update root key %llu %u %llu\n",
+		       (unsigned long long)key->objectid, key->type,
+		       (unsigned long long)key->offset);
 		BUG_ON(1);
 	}
 
@@ -159,9 +160,9 @@ int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root
 
 /*
  * at mount time we want to find all the old transaction snapshots that were in
- * the process of being deleted if we crashed.  This is any root item with an offset
- * lower than the latest root.  They need to be queued for deletion to finish
- * what was happening when we crashed.
+ * the process of being deleted if we crashed.  This is any root item with an
+ * offset lower than the latest root.  They need to be queued for deletion to
+ * finish what was happening when we crashed.
  */
 int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
 			  struct btrfs_root *latest)
@@ -188,7 +189,7 @@ again:
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto err;
-	while(1) {
+	while (1) {
 		leaf = path->nodes[0];
 		nritems = btrfs_header_nritems(leaf);
 		slot = path->slots[0];
@@ -258,11 +259,7 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	ret = btrfs_search_slot(trans, root, key, path, -1, 1);
 	if (ret < 0)
 		goto out;
-	if (ret) {
-btrfs_print_leaf(root, path->nodes[0]);
-printk("failed to del %Lu %u %Lu\n", key->objectid, key->type, key->offset);
 
-	}
 	BUG_ON(ret != 0);
 	leaf = path->nodes[0];
 	ri = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_root_item);

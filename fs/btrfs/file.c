@@ -44,10 +44,10 @@
 /* simple helper to fault in pages and copy.  This should go away
  * and be replaced with calls into generic code.
  */
-static int noinline btrfs_copy_from_user(loff_t pos, int num_pages,
+static noinline int btrfs_copy_from_user(loff_t pos, int num_pages,
 					 int write_bytes,
 					 struct page **prepared_pages,
-					 const char __user * buf)
+					 const char __user *buf)
 {
 	long page_fault = 0;
 	int i;
@@ -78,7 +78,7 @@ static int noinline btrfs_copy_from_user(loff_t pos, int num_pages,
 /*
  * unlocks pages after btrfs_file_write is done with them
  */
-static void noinline btrfs_drop_pages(struct page **pages, size_t num_pages)
+static noinline void btrfs_drop_pages(struct page **pages, size_t num_pages)
 {
 	size_t i;
 	for (i = 0; i < num_pages; i++) {
@@ -103,7 +103,7 @@ static void noinline btrfs_drop_pages(struct page **pages, size_t num_pages)
  * this also makes the decision about creating an inline extent vs
  * doing real data extents, marking pages dirty and delalloc as required.
  */
-static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
+static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct file *file,
 				   struct page **pages,
@@ -137,9 +137,6 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	btrfs_set_trans_block_group(trans, inode);
 	hint_byte = 0;
 
-	if ((end_of_last_block & 4095) == 0) {
-		printk("strange end of last %Lu %zu %Lu\n", start_pos, write_bytes, end_of_last_block);
-	}
 	set_extent_uptodate(io_tree, start_pos, end_of_last_block, GFP_NOFS);
 
 	/* check for reserved extents on each page, we don't want
@@ -185,7 +182,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		len = (u64)-1;
 		testend = 0;
 	}
-	while(1) {
+	while (1) {
 		if (!split)
 			split = alloc_extent_map(GFP_NOFS);
 		if (!split2)
@@ -295,7 +292,7 @@ int btrfs_check_file(struct btrfs_root *root, struct inode *inode)
 	path = btrfs_alloc_path();
 	ret = btrfs_lookup_file_extent(NULL, root, path, inode->i_ino,
 				       last_offset, 0);
-	while(1) {
+	while (1) {
 		nritems = btrfs_header_nritems(path->nodes[0]);
 		if (path->slots[0] >= nritems) {
 			ret = btrfs_next_leaf(root, path);
@@ -314,8 +311,10 @@ int btrfs_check_file(struct btrfs_root *root, struct inode *inode)
 		if (found_key.offset < last_offset) {
 			WARN_ON(1);
 			btrfs_print_leaf(root, leaf);
-			printk("inode %lu found offset %Lu expected %Lu\n",
-			       inode->i_ino, found_key.offset, last_offset);
+			printk(KERN_ERR "inode %lu found offset %llu "
+			       "expected %llu\n", inode->i_ino,
+			       (unsigned long long)found_key.offset,
+			       (unsigned long long)last_offset);
 			err = 1;
 			goto out;
 		}
@@ -331,7 +330,7 @@ int btrfs_check_file(struct btrfs_root *root, struct inode *inode)
 			extent_end = found_key.offset +
 			     btrfs_file_extent_inline_len(leaf, extent);
 			extent_end = (extent_end + root->sectorsize - 1) &
-				~((u64)root->sectorsize -1 );
+				~((u64)root->sectorsize - 1);
 		}
 		last_offset = extent_end;
 		path->slots[0]++;
@@ -339,8 +338,9 @@ int btrfs_check_file(struct btrfs_root *root, struct inode *inode)
 	if (0 && last_offset < inode->i_size) {
 		WARN_ON(1);
 		btrfs_print_leaf(root, leaf);
-		printk("inode %lu found offset %Lu size %Lu\n", inode->i_ino,
-		       last_offset, inode->i_size);
+		printk(KERN_ERR "inode %lu found offset %llu size %llu\n",
+		       inode->i_ino, (unsigned long long)last_offset,
+		       (unsigned long long)inode->i_size);
 		err = 1;
 
 	}
@@ -362,7 +362,7 @@ out:
  * inline_limit is used to tell this code which offsets in the file to keep
  * if they contain inline extents.
  */
-int noinline btrfs_drop_extents(struct btrfs_trans_handle *trans,
+noinline int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
 		       u64 start, u64 end, u64 inline_limit, u64 *hint_byte)
 {
@@ -398,7 +398,7 @@ int noinline btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	while(1) {
+	while (1) {
 		recow = 0;
 		btrfs_release_path(root, path);
 		ret = btrfs_lookup_file_extent(trans, root, path, inode->i_ino,
@@ -649,16 +649,15 @@ next_slot:
 			if (disk_bytenr != 0) {
 				ret = btrfs_update_extent_ref(trans, root,
 						disk_bytenr, orig_parent,
-					        leaf->start,
+						leaf->start,
 						root->root_key.objectid,
 						trans->transid, ins.objectid);
 
 				BUG_ON(ret);
 			}
 			btrfs_release_path(root, path);
-			if (disk_bytenr != 0) {
+			if (disk_bytenr != 0)
 				inode_add_bytes(inode, extent_end - end);
-			}
 		}
 
 		if (found_extent && !keep) {
@@ -944,7 +943,7 @@ done:
  * waits for data=ordered extents to finish before allowing the pages to be
  * modified.
  */
-static int noinline prepare_pages(struct btrfs_root *root, struct file *file,
+static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 			 struct page **pages, size_t num_pages,
 			 loff_t pos, unsigned long first_index,
 			 unsigned long last_index, size_t write_bytes)
@@ -979,7 +978,8 @@ again:
 		struct btrfs_ordered_extent *ordered;
 		lock_extent(&BTRFS_I(inode)->io_tree,
 			    start_pos, last_pos - 1, GFP_NOFS);
-		ordered = btrfs_lookup_first_ordered_extent(inode, last_pos -1);
+		ordered = btrfs_lookup_first_ordered_extent(inode,
+							    last_pos - 1);
 		if (ordered &&
 		    ordered->file_offset + ordered->len > start_pos &&
 		    ordered->file_offset < last_pos) {
@@ -1085,7 +1085,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		}
 	}
 
-	while(count > 0) {
+	while (count > 0) {
 		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
 		size_t write_bytes = min(count, nrptrs *
 					(size_t)PAGE_CACHE_SIZE -
@@ -1178,7 +1178,7 @@ out_nolock:
 	return num_written ? num_written : err;
 }
 
-int btrfs_release_file(struct inode * inode, struct file * filp)
+int btrfs_release_file(struct inode *inode, struct file *filp)
 {
 	if (filp->private_data)
 		btrfs_ioctl_trans_end(filp);
@@ -1237,9 +1237,8 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	}
 
 	ret = btrfs_log_dentry_safe(trans, root, file->f_dentry);
-	if (ret < 0) {
+	if (ret < 0)
 		goto out;
-	}
 
 	/* we've logged all the items and now have a consistent
 	 * version of the file in the log.  It is possible that

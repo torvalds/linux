@@ -74,11 +74,11 @@ void btrfs_free_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 static struct rb_node *tree_insert(struct rb_root *root, u64 bytenr,
 				   struct rb_node *node)
 {
-	struct rb_node ** p = &root->rb_node;
-	struct rb_node * parent = NULL;
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
 	struct btrfs_leaf_ref *entry;
 
-	while(*p) {
+	while (*p) {
 		parent = *p;
 		entry = rb_entry(parent, struct btrfs_leaf_ref, rb_node);
 
@@ -98,10 +98,10 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 bytenr,
 
 static struct rb_node *tree_search(struct rb_root *root, u64 bytenr)
 {
-	struct rb_node * n = root->rb_node;
+	struct rb_node *n = root->rb_node;
 	struct btrfs_leaf_ref *entry;
 
-	while(n) {
+	while (n) {
 		entry = rb_entry(n, struct btrfs_leaf_ref, rb_node);
 		WARN_ON(!entry->in_tree);
 
@@ -127,7 +127,7 @@ int btrfs_remove_leaf_refs(struct btrfs_root *root, u64 max_root_gen,
 		return 0;
 
 	spin_lock(&tree->lock);
-	while(!list_empty(&tree->list)) {
+	while (!list_empty(&tree->list)) {
 		ref = list_entry(tree->list.next, struct btrfs_leaf_ref, list);
 		BUG_ON(ref->tree != tree);
 		if (ref->root_gen > max_root_gen)

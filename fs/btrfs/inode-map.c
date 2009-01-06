@@ -129,7 +129,6 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 		last_ino = key.objectid + 1;
 		path->slots[0]++;
 	}
-	// FIXME -ENOSPC
 	BUG_ON(1);
 found:
 	btrfs_release_path(root, path);

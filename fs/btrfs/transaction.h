@@ -66,9 +66,9 @@ static inline void btrfs_set_trans_block_group(struct btrfs_trans_handle *trans,
 	trans->block_group = BTRFS_I(inode)->block_group;
 }
 
-static inline void btrfs_update_inode_block_group(struct
-						  btrfs_trans_handle *trans,
-						  struct inode *inode)
+static inline void btrfs_update_inode_block_group(
+					  struct btrfs_trans_handle *trans,
+					  struct inode *inode)
 {
 	BTRFS_I(inode)->block_group = trans->block_group;
 }

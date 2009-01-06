@@ -24,7 +24,7 @@
 #include "transaction.h"
 #include "print-tree.h"
 
-#define MAX_CSUM_ITEMS(r,size) ((((BTRFS_LEAF_DATA_SIZE(r) - \
+#define MAX_CSUM_ITEMS(r, size) ((((BTRFS_LEAF_DATA_SIZE(r) - \
 				   sizeof(struct btrfs_item) * 2) / \
 				  size) - 1))
 int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
@@ -166,7 +166,7 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 	WARN_ON(bio->bi_vcnt <= 0);
 
 	disk_bytenr = (u64)bio->bi_sector << 9;
-	while(bio_index < bio->bi_vcnt) {
+	while (bio_index < bio->bi_vcnt) {
 		offset = page_offset(bvec->bv_page) + bvec->bv_offset;
 		ret = btrfs_find_ordered_sum(inode, offset, disk_bytenr, &sum);
 		if (ret == 0)
@@ -192,8 +192,9 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 						offset + bvec->bv_len - 1,
 						EXTENT_NODATASUM, GFP_NOFS);
 				} else {
-					printk("no csum found for inode %lu "
-					       "start %llu\n", inode->i_ino,
+					printk(KERN_INFO "btrfs no csum found "
+					       "for inode %lu start %llu\n",
+					       inode->i_ino,
 					       (unsigned long long)offset);
 				}
 				item = NULL;
@@ -373,7 +374,7 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 	BUG_ON(!ordered);
 	sums->bytenr = ordered->start;
 
-	while(bio_index < bio->bi_vcnt) {
+	while (bio_index < bio->bi_vcnt) {
 		if (!contig)
 			offset = page_offset(bvec->bv_page) + bvec->bv_offset;
 
@@ -507,7 +508,7 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 
-	while(1) {
+	while (1) {
 		key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
 		key.offset = end_byte - 1;
 		key.type = BTRFS_EXTENT_CSUM_KEY;
@@ -715,9 +716,8 @@ again:
 			goto csum;
 
 		diff = diff - btrfs_item_size_nr(leaf, path->slots[0]);
-		if (diff != csum_size) {
+		if (diff != csum_size)
 			goto insert;
-		}
 
 		ret = btrfs_extend_item(trans, root, path, diff);
 		BUG_ON(ret);
@@ -732,7 +732,7 @@ insert:
 		u64 next_sector = sector_sum->bytenr;
 		struct btrfs_sector_sum *next = sector_sum + 1;
 
-		while(tmp < sums->len) {
+		while (tmp < sums->len) {
 			if (next_sector + root->sectorsize != next->bytenr)
 				break;
 			tmp += root->sectorsize;

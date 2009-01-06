@@ -66,7 +66,7 @@ u##bits btrfs_##name(struct extent_buffer *eb,				\
 		unsigned long map_len;					\
 		u##bits res;						\
 		err = map_extent_buffer(eb, offset,			\
-			        sizeof(((type *)0)->member),		\
+				sizeof(((type *)0)->member),		\
 				&map_token, &kaddr,			\
 				&map_start, &map_len, KM_USER1);	\
 		if (err) {						\
@@ -103,7 +103,7 @@ void btrfs_set_##name(struct extent_buffer *eb,				\
 		unsigned long map_start;				\
 		unsigned long map_len;					\
 		err = map_extent_buffer(eb, offset,			\
-			        sizeof(((type *)0)->member),		\
+				sizeof(((type *)0)->member),		\
 				&map_token, &kaddr,			\
 				&map_start, &map_len, KM_USER1);	\
 		if (err) {						\

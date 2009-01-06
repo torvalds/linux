@@ -104,7 +104,7 @@ static noinline int run_ordered_completions(struct btrfs_workers *workers,
 
 	spin_lock_irqsave(&workers->lock, flags);
 
-	while(!list_empty(&workers->order_list)) {
+	while (!list_empty(&workers->order_list)) {
 		work = list_entry(workers->order_list.next,
 				  struct btrfs_work, order_list);
 
@@ -143,7 +143,7 @@ static int worker_loop(void *arg)
 	struct btrfs_work *work;
 	do {
 		spin_lock_irq(&worker->lock);
-		while(!list_empty(&worker->pending)) {
+		while (!list_empty(&worker->pending)) {
 			cur = worker->pending.next;
 			work = list_entry(cur, struct btrfs_work, list);
 			list_del(&work->list);
@@ -188,7 +188,7 @@ int btrfs_stop_workers(struct btrfs_workers *workers)
 	struct btrfs_worker_thread *worker;
 
 	list_splice_init(&workers->idle_list, &workers->worker_list);
-	while(!list_empty(&workers->worker_list)) {
+	while (!list_empty(&workers->worker_list)) {
 		cur = workers->worker_list.next;
 		worker = list_entry(cur, struct btrfs_worker_thread,
 				    worker_list);

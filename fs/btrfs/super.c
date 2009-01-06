@@ -55,18 +55,12 @@
 
 static struct super_operations btrfs_super_ops;
 
-static void btrfs_put_super (struct super_block * sb)
+static void btrfs_put_super(struct super_block *sb)
 {
 	struct btrfs_root *root = btrfs_sb(sb);
 	int ret;
 
 	ret = close_ctree(root);
-	if (ret) {
-		printk("close ctree returns %d\n", ret);
-	}
-#if 0
-	btrfs_sysfs_del_super(root->fs_info);
-#endif
 	sb->s_fs_info = NULL;
 }
 
@@ -299,12 +293,12 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 	return error;
 }
 
-static int btrfs_fill_super(struct super_block * sb,
+static int btrfs_fill_super(struct super_block *sb,
 			    struct btrfs_fs_devices *fs_devices,
-			    void * data, int silent)
+			    void *data, int silent)
 {
-	struct inode * inode;
-	struct dentry * root_dentry;
+	struct inode *inode;
+	struct dentry *root_dentry;
 	struct btrfs_super_block *disk_super;
 	struct btrfs_root *tree_root;
 	struct btrfs_inode *bi;
@@ -479,8 +473,10 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 		root = dget(s->s_root);
 	else {
 		mutex_lock(&s->s_root->d_inode->i_mutex);
-		root = lookup_one_len(subvol_name, s->s_root, strlen(subvol_name));
+		root = lookup_one_len(subvol_name, s->s_root,
+				      strlen(subvol_name));
 		mutex_unlock(&s->s_root->d_inode->i_mutex);
+
 		if (IS_ERR(root)) {
 			up_write(&s->s_umount);
 			deactivate_super(s);
@@ -557,8 +553,9 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail = buf->f_bfree;
 	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_type = BTRFS_SUPER_MAGIC;
+
 	/* We treat it as constant endianness (it doesn't matter _which_)
-	   because we want the fsid to come out the same whether mounted 
+	   because we want the fsid to come out the same whether mounted
 	   on a big-endian or little-endian host */
 	buf->f_fsid.val[0] = be32_to_cpu(fsid[0]) ^ be32_to_cpu(fsid[2]);
 	buf->f_fsid.val[1] = be32_to_cpu(fsid[1]) ^ be32_to_cpu(fsid[3]);
@@ -658,7 +655,7 @@ static int btrfs_interface_init(void)
 static void btrfs_interface_exit(void)
 {
 	if (misc_deregister(&btrfs_misc) < 0)
-		printk("misc_deregister failed for control device");
+		printk(KERN_INFO "misc_deregister failed for control device");
 }
 
 static int __init init_btrfs_fs(void)

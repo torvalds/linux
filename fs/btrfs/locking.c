@@ -31,9 +31,10 @@
  * difference in almost every workload, but spinning for the right amount of
  * time needs some help.
  *
- * In general, we want to spin as long as the lock holder is doing btree searches,
- * and we should give up if they are in more expensive code.
+ * In general, we want to spin as long as the lock holder is doing btree
+ * searches, and we should give up if they are in more expensive code.
  */
+
 int btrfs_tree_lock(struct extent_buffer *eb)
 {
 	int i;
