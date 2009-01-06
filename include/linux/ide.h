@@ -37,6 +37,7 @@ typedef unsigned char	byte;	/* used everywhere */
 /*
  * Probably not wise to fiddle with these
  */
+#define IDE_DEFAULT_MAX_FAILURES	1
 #define ERROR_MAX	8	/* Max read/write errors per sector */
 #define ERROR_RESET	3	/* Reset controller every 4th retry */
 #define ERROR_RECAL	1	/* Recalibrate every 2nd retry */
@@ -183,9 +184,6 @@ typedef struct hw_regs_s {
 	struct device	*dev, *parent;
 	unsigned long	config;
 } hw_regs_t;
-
-void ide_init_port_data(struct hwif_s *, unsigned int);
-void ide_init_port_hw(struct hwif_s *, hw_regs_t *);
 
 static inline void ide_std_init_ports(hw_regs_t *hw,
 				      unsigned long io_addr,
@@ -1506,8 +1504,6 @@ static inline void ide_acpi_port_init_devices(ide_hwif_t *hwif) { ; }
 static inline void ide_acpi_set_state(ide_hwif_t *hwif, int on) {}
 #endif
 
-void ide_unregister(ide_hwif_t *);
-
 void ide_register_region(struct gendisk *);
 void ide_unregister_region(struct gendisk *);
 
@@ -1591,9 +1587,6 @@ static inline void ide_set_max_pio(ide_drive_t *drive)
 {
 	ide_set_pio(drive, 255);
 }
-
-extern spinlock_t ide_lock;
-extern struct mutex ide_cfg_mtx;
 
 #define local_irq_set(flags)	do { local_save_flags((flags)); local_irq_enable_in_hardirq(); } while (0)
 
