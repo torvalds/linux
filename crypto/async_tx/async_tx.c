@@ -38,25 +38,10 @@ static struct dma_client async_tx_dma = {
 };
 
 /**
- * dma_cap_mask_all - enable iteration over all operation types
- */
-static dma_cap_mask_t dma_cap_mask_all;
-
-/**
- * chan_ref_percpu - tracks channel allocations per core/opertion
- */
-struct chan_ref_percpu {
-	struct dma_chan_ref *ref;
-};
-
-static int channel_table_initialized;
-static struct chan_ref_percpu *channel_table[DMA_TX_TYPE_END];
-
-/**
  * async_tx_lock - protect modification of async_tx_master_list and serialize
  *	rebalance operations
  */
-static spinlock_t async_tx_lock;
+static DEFINE_SPINLOCK(async_tx_lock);
 
 static LIST_HEAD(async_tx_master_list);
 
@@ -87,85 +72,6 @@ init_dma_chan_ref(struct dma_chan_ref *ref, struct dma_chan *chan)
 	INIT_RCU_HEAD(&ref->rcu);
 	ref->chan = chan;
 	atomic_set(&ref->count, 0);
-}
-
-/**
- * get_chan_ref_by_cap - returns the nth channel of the given capability
- * 	defaults to returning the channel with the desired capability and the
- * 	lowest reference count if the index can not be satisfied
- * @cap: capability to match
- * @index: nth channel desired, passing -1 has the effect of forcing the
- *  default return value
- */
-static struct dma_chan_ref *
-get_chan_ref_by_cap(enum dma_transaction_type cap, int index)
-{
-	struct dma_chan_ref *ret_ref = NULL, *min_ref = NULL, *ref;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(ref, &async_tx_master_list, node)
-		if (dma_has_cap(cap, ref->chan->device->cap_mask)) {
-			if (!min_ref)
-				min_ref = ref;
-			else if (atomic_read(&ref->count) <
-				atomic_read(&min_ref->count))
-				min_ref = ref;
-
-			if (index-- == 0) {
-				ret_ref = ref;
-				break;
-			}
-		}
-	rcu_read_unlock();
-
-	if (!ret_ref)
-		ret_ref = min_ref;
-
-	if (ret_ref)
-		atomic_inc(&ret_ref->count);
-
-	return ret_ref;
-}
-
-/**
- * async_tx_rebalance - redistribute the available channels, optimize
- * for cpu isolation in the SMP case, and opertaion isolation in the
- * uniprocessor case
- */
-static void async_tx_rebalance(void)
-{
-	int cpu, cap, cpu_idx = 0;
-	unsigned long flags;
-
-	if (!channel_table_initialized)
-		return;
-
-	spin_lock_irqsave(&async_tx_lock, flags);
-
-	/* undo the last distribution */
-	for_each_dma_cap_mask(cap, dma_cap_mask_all)
-		for_each_possible_cpu(cpu) {
-			struct dma_chan_ref *ref =
-				per_cpu_ptr(channel_table[cap], cpu)->ref;
-			if (ref) {
-				atomic_set(&ref->count, 0);
-				per_cpu_ptr(channel_table[cap], cpu)->ref =
-									NULL;
-			}
-		}
-
-	for_each_dma_cap_mask(cap, dma_cap_mask_all)
-		for_each_online_cpu(cpu) {
-			struct dma_chan_ref *new;
-			if (NR_CPUS > 1)
-				new = get_chan_ref_by_cap(cap, cpu_idx++);
-			else
-				new = get_chan_ref_by_cap(cap, -1);
-
-			per_cpu_ptr(channel_table[cap], cpu)->ref = new;
-		}
-
-	spin_unlock_irqrestore(&async_tx_lock, flags);
 }
 
 static enum dma_state_client
@@ -211,8 +117,6 @@ dma_channel_add_remove(struct dma_client *client,
 				" (-ENOMEM)\n");
 			return 0;
 		}
-
-		async_tx_rebalance();
 		break;
 	case DMA_RESOURCE_REMOVED:
 		found = 0;
@@ -233,8 +137,6 @@ dma_channel_add_remove(struct dma_client *client,
 			ack = DMA_ACK;
 		else
 			break;
-
-		async_tx_rebalance();
 		break;
 	case DMA_RESOURCE_SUSPEND:
 	case DMA_RESOURCE_RESUME:
@@ -248,51 +150,18 @@ dma_channel_add_remove(struct dma_client *client,
 	return ack;
 }
 
-static int __init
-async_tx_init(void)
+static int __init async_tx_init(void)
 {
-	enum dma_transaction_type cap;
-
-	spin_lock_init(&async_tx_lock);
-	bitmap_fill(dma_cap_mask_all.bits, DMA_TX_TYPE_END);
-
-	/* an interrupt will never be an explicit operation type.
-	 * clearing this bit prevents allocation to a slot in 'channel_table'
-	 */
-	clear_bit(DMA_INTERRUPT, dma_cap_mask_all.bits);
-
-	for_each_dma_cap_mask(cap, dma_cap_mask_all) {
-		channel_table[cap] = alloc_percpu(struct chan_ref_percpu);
-		if (!channel_table[cap])
-			goto err;
-	}
-
-	channel_table_initialized = 1;
 	dma_async_client_register(&async_tx_dma);
 	dma_async_client_chan_request(&async_tx_dma);
 
 	printk(KERN_INFO "async_tx: api initialized (async)\n");
 
 	return 0;
-err:
-	printk(KERN_ERR "async_tx: initialization failure\n");
-
-	while (--cap >= 0)
-		free_percpu(channel_table[cap]);
-
-	return 1;
 }
 
 static void __exit async_tx_exit(void)
 {
-	enum dma_transaction_type cap;
-
-	channel_table_initialized = 0;
-
-	for_each_dma_cap_mask(cap, dma_cap_mask_all)
-		if (channel_table[cap])
-			free_percpu(channel_table[cap]);
-
 	dma_async_client_unregister(&async_tx_dma);
 }
 
@@ -308,16 +177,9 @@ __async_tx_find_channel(struct dma_async_tx_descriptor *depend_tx,
 {
 	/* see if we can keep the chain on one channel */
 	if (depend_tx &&
-		dma_has_cap(tx_type, depend_tx->chan->device->cap_mask))
+	    dma_has_cap(tx_type, depend_tx->chan->device->cap_mask))
 		return depend_tx->chan;
-	else if (likely(channel_table_initialized)) {
-		struct dma_chan_ref *ref;
-		int cpu = get_cpu();
-		ref = per_cpu_ptr(channel_table[tx_type], cpu)->ref;
-		put_cpu();
-		return ref ? ref->chan : NULL;
-	} else
-		return NULL;
+	return dma_find_channel(tx_type);
 }
 EXPORT_SYMBOL_GPL(__async_tx_find_channel);
 #else

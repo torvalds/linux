@@ -182,6 +182,7 @@ struct dma_chan_percpu {
  * @device_node: used to add this to the device chan list
  * @local: per-cpu pointer to a struct dma_chan_percpu
  * @client-count: how many clients are using this channel
+ * @table_count: number of appearances in the mem-to-mem allocation table
  */
 struct dma_chan {
 	struct dma_device *device;
@@ -198,6 +199,7 @@ struct dma_chan {
 	struct list_head device_node;
 	struct dma_chan_percpu *local;
 	int client_count;
+	int table_count;
 };
 
 #define to_dma_chan(p) container_of(p, struct dma_chan, dev)
@@ -468,6 +470,7 @@ static inline enum dma_status dma_wait_for_async_tx(struct dma_async_tx_descript
 int dma_async_device_register(struct dma_device *device);
 void dma_async_device_unregister(struct dma_device *device);
 void dma_run_dependencies(struct dma_async_tx_descriptor *tx);
+struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type);
 
 /* --- Helper iov-locking functions --- */
 

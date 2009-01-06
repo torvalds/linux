@@ -295,6 +295,164 @@ static void dma_chan_release(struct dma_chan *chan)
 }
 
 /**
+ * dma_cap_mask_all - enable iteration over all operation types
+ */
+static dma_cap_mask_t dma_cap_mask_all;
+
+/**
+ * dma_chan_tbl_ent - tracks channel allocations per core/operation
+ * @chan - associated channel for this entry
+ */
+struct dma_chan_tbl_ent {
+	struct dma_chan *chan;
+};
+
+/**
+ * channel_table - percpu lookup table for memory-to-memory offload providers
+ */
+static struct dma_chan_tbl_ent *channel_table[DMA_TX_TYPE_END];
+
+static int __init dma_channel_table_init(void)
+{
+	enum dma_transaction_type cap;
+	int err = 0;
+
+	bitmap_fill(dma_cap_mask_all.bits, DMA_TX_TYPE_END);
+
+	/* 'interrupt' and 'slave' are channel capabilities, but are not
+	 * associated with an operation so they do not need an entry in the
+	 * channel_table
+	 */
+	clear_bit(DMA_INTERRUPT, dma_cap_mask_all.bits);
+	clear_bit(DMA_SLAVE, dma_cap_mask_all.bits);
+
+	for_each_dma_cap_mask(cap, dma_cap_mask_all) {
+		channel_table[cap] = alloc_percpu(struct dma_chan_tbl_ent);
+		if (!channel_table[cap]) {
+			err = -ENOMEM;
+			break;
+		}
+	}
+
+	if (err) {
+		pr_err("dmaengine: initialization failure\n");
+		for_each_dma_cap_mask(cap, dma_cap_mask_all)
+			if (channel_table[cap])
+				free_percpu(channel_table[cap]);
+	}
+
+	return err;
+}
+subsys_initcall(dma_channel_table_init);
+
+/**
+ * dma_find_channel - find a channel to carry out the operation
+ * @tx_type: transaction type
+ */
+struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
+{
+	struct dma_chan *chan;
+	int cpu;
+
+	WARN_ONCE(dmaengine_ref_count == 0,
+		  "client called %s without a reference", __func__);
+
+	cpu = get_cpu();
+	chan = per_cpu_ptr(channel_table[tx_type], cpu)->chan;
+	put_cpu();
+
+	return chan;
+}
+EXPORT_SYMBOL(dma_find_channel);
+
+/**
+ * nth_chan - returns the nth channel of the given capability
+ * @cap: capability to match
+ * @n: nth channel desired
+ *
+ * Defaults to returning the channel with the desired capability and the
+ * lowest reference count when 'n' cannot be satisfied.  Must be called
+ * under dma_list_mutex.
+ */
+static struct dma_chan *nth_chan(enum dma_transaction_type cap, int n)
+{
+	struct dma_device *device;
+	struct dma_chan *chan;
+	struct dma_chan *ret = NULL;
+	struct dma_chan *min = NULL;
+
+	list_for_each_entry(device, &dma_device_list, global_node) {
+		if (!dma_has_cap(cap, device->cap_mask))
+			continue;
+		list_for_each_entry(chan, &device->channels, device_node) {
+			if (!chan->client_count)
+				continue;
+			if (!min)
+				min = chan;
+			else if (chan->table_count < min->table_count)
+				min = chan;
+
+			if (n-- == 0) {
+				ret = chan;
+				break; /* done */
+			}
+		}
+		if (ret)
+			break; /* done */
+	}
+
+	if (!ret)
+		ret = min;
+
+	if (ret)
+		ret->table_count++;
+
+	return ret;
+}
+
+/**
+ * dma_channel_rebalance - redistribute the available channels
+ *
+ * Optimize for cpu isolation (each cpu gets a dedicated channel for an
+ * operation type) in the SMP case,  and operation isolation (avoid
+ * multi-tasking channels) in the non-SMP case.  Must be called under
+ * dma_list_mutex.
+ */
+static void dma_channel_rebalance(void)
+{
+	struct dma_chan *chan;
+	struct dma_device *device;
+	int cpu;
+	int cap;
+	int n;
+
+	/* undo the last distribution */
+	for_each_dma_cap_mask(cap, dma_cap_mask_all)
+		for_each_possible_cpu(cpu)
+			per_cpu_ptr(channel_table[cap], cpu)->chan = NULL;
+
+	list_for_each_entry(device, &dma_device_list, global_node)
+		list_for_each_entry(chan, &device->channels, device_node)
+			chan->table_count = 0;
+
+	/* don't populate the channel_table if no clients are available */
+	if (!dmaengine_ref_count)
+		return;
+
+	/* redistribute available channels */
+	n = 0;
+	for_each_dma_cap_mask(cap, dma_cap_mask_all)
+		for_each_online_cpu(cpu) {
+			if (num_possible_cpus() > 1)
+				chan = nth_chan(cap, n++);
+			else
+				chan = nth_chan(cap, -1);
+
+			per_cpu_ptr(channel_table[cap], cpu)->chan = chan;
+		}
+}
+
+/**
  * dma_chans_notify_available - broadcast available channels to the clients
  */
 static void dma_clients_notify_available(void)
@@ -339,7 +497,12 @@ void dma_async_client_register(struct dma_client *client)
 				       dev_name(&chan->dev), err);
 		}
 
-
+	/* if this is the first reference and there were channels
+	 * waiting we need to rebalance to get those channels
+	 * incorporated into the channel table
+	 */
+	if (dmaengine_ref_count == 1)
+		dma_channel_rebalance();
 	list_add_tail(&client->global_node, &dma_client_list);
 	mutex_unlock(&dma_list_mutex);
 }
@@ -473,6 +636,7 @@ int dma_async_device_register(struct dma_device *device)
 			}
 		}
 	list_add_tail(&device->global_node, &dma_device_list);
+	dma_channel_rebalance();
 	mutex_unlock(&dma_list_mutex);
 
 	dma_clients_notify_available();
@@ -514,6 +678,7 @@ void dma_async_device_unregister(struct dma_device *device)
 
 	mutex_lock(&dma_list_mutex);
 	list_del(&device->global_node);
+	dma_channel_rebalance();
 	mutex_unlock(&dma_list_mutex);
 
 	list_for_each_entry(chan, &device->channels, device_node) {
@@ -767,4 +932,5 @@ static int __init dma_bus_init(void)
 	return class_register(&dma_devclass);
 }
 subsys_initcall(dma_bus_init);
+
 
