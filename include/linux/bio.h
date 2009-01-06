@@ -173,6 +173,24 @@ struct bio {
 
 #define BIO_RW_SYNC	(BIO_RW_SYNCIO | BIO_RW_UNPLUG)
 
+#define bio_rw_flagged(bio, flag)	((bio)->bi_rw & (1 << (flag)))
+
+/*
+ * Old defines, these should eventually be replaced by direct usage of
+ * bio_rw_flagged()
+ */
+#define bio_barrier(bio)	bio_rw_flagged(bio, BIO_RW_BARRIER)
+#define bio_sync(bio)		bio_rw_flagged(bio, BIO_RW_SYNCIO)
+#define bio_unplug(bio)		bio_rw_flagged(bio, BIO_RW_UNPLUG)
+#define bio_failfast_dev(bio)	bio_rw_flagged(bio, BIO_RW_FAILFAST_DEV)
+#define bio_failfast_transport(bio)	\
+		bio_rw_flagged(bio, BIO_RW_FAILFAST_TRANSPORT)
+#define bio_failfast_driver(bio) 	\
+		bio_rw_flagged(bio, BIO_RW_FAILFAST_DRIVER)
+#define bio_rw_ahead(bio)	bio_rw_flagged(bio, BIO_RW_AHEAD)
+#define bio_rw_meta(bio)	bio_rw_flagged(bio, BIO_RW_META)
+#define bio_discard(bio)	bio_rw_flagged(bio, BIO_RW_DISCARD)
+
 /*
  * upper 16 bits of bi_rw define the io priority of this bio
  */
@@ -196,16 +214,6 @@ struct bio {
 #define bio_offset(bio)		bio_iovec((bio))->bv_offset
 #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
 #define bio_sectors(bio)	((bio)->bi_size >> 9)
-#define bio_barrier(bio)	((bio)->bi_rw & (1 << BIO_RW_BARRIER))
-#define bio_sync(bio)		((bio)->bi_rw & (1 << BIO_RW_SYNCIO))
-#define bio_unplug(bio)		((bio)->bi_rw & (1 << BIO_RW_UNPLUG))
-#define bio_failfast_dev(bio)	((bio)->bi_rw &	(1 << BIO_RW_FAILFAST_DEV))
-#define bio_failfast_transport(bio)	\
-	((bio)->bi_rw & (1 << BIO_RW_FAILFAST_TRANSPORT))
-#define bio_failfast_driver(bio) ((bio)->bi_rw & (1 << BIO_RW_FAILFAST_DRIVER))
-#define bio_rw_ahead(bio)	((bio)->bi_rw & (1 << BIO_RW_AHEAD))
-#define bio_rw_meta(bio)	((bio)->bi_rw & (1 << BIO_RW_META))
-#define bio_discard(bio)	((bio)->bi_rw & (1 << BIO_RW_DISCARD))
 #define bio_empty_barrier(bio)	(bio_barrier(bio) && !bio_has_data(bio) && !bio_discard(bio))
 
 static inline unsigned int bio_cur_sectors(struct bio *bio)
