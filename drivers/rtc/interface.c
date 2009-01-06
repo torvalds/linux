@@ -50,10 +50,15 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 
 	if (!rtc->ops)
 		err = -ENODEV;
-	else if (!rtc->ops->set_time)
-		err = -EINVAL;
-	else
+	else if (rtc->ops->set_time)
 		err = rtc->ops->set_time(rtc->dev.parent, tm);
+	else if (rtc->ops->set_mmss) {
+		unsigned long secs;
+		err = rtc_tm_to_time(tm, &secs);
+		if (err == 0)
+			err = rtc->ops->set_mmss(rtc->dev.parent, secs);
+	} else
+		err = -EINVAL;
 
 	mutex_unlock(&rtc->ops_lock);
 	return err;
