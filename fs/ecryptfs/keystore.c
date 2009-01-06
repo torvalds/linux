@@ -771,6 +771,17 @@ struct ecryptfs_parse_tag_70_packet_silly_stack {
 /**
  * parse_tag_70_packet - Parse and process FNEK-encrypted passphrase packet
  * @filename: This function kmalloc's the memory for the filename
+ * @filename_size: This function sets this to the amount of memory
+ *                 kmalloc'd for the filename
+ * @packet_size: This function sets this to the the number of octets
+ *               in the packet parsed
+ * @mount_crypt_stat: The mount-wide cryptographic context
+ * @data: The memory location containing the start of the tag 70
+ *        packet
+ * @max_packet_size: The maximum legal size of the packet to be parsed
+ *                   from @data
+ *
+ * Returns zero on success; non-zero otherwise
  */
 int
 ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
