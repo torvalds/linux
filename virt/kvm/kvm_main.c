@@ -296,8 +296,8 @@ static int assigned_device_update_intx(struct kvm *kvm,
 
 	if (irqchip_in_kernel(kvm)) {
 		if (!msi2intx &&
-		    adev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI) {
-			free_irq(adev->host_irq, (void *)kvm);
+		    (adev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI)) {
+			free_irq(adev->host_irq, (void *)adev);
 			pci_disable_msi(adev->dev);
 		}
 
