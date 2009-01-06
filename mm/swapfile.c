@@ -571,13 +571,13 @@ int try_to_free_swap(struct page *page)
  * Free the swap entry like above, but also try to
  * free the page cache entry if it is the last user.
  */
-void free_swap_and_cache(swp_entry_t entry)
+int free_swap_and_cache(swp_entry_t entry)
 {
-	struct swap_info_struct * p;
+	struct swap_info_struct *p;
 	struct page *page = NULL;
 
 	if (is_migration_entry(entry))
-		return;
+		return 1;
 
 	p = swap_info_get(entry);
 	if (p) {
@@ -603,6 +603,7 @@ void free_swap_and_cache(swp_entry_t entry)
 		unlock_page(page);
 		page_cache_release(page);
 	}
+	return p != NULL;
 }
 
 #ifdef CONFIG_HIBERNATION
