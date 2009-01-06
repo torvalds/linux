@@ -768,7 +768,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 				if (pte_dirty(ptent))
 					set_page_dirty(page);
 				if (pte_young(ptent))
-					SetPageReferenced(page);
+					mark_page_accessed(page);
 				file_rss--;
 			}
 			page_remove_rmap(page, vma);
