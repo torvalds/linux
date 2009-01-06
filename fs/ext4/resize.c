@@ -50,7 +50,7 @@ static int verify_group_input(struct super_block *sb,
 	ext4_get_group_no_and_offset(sb, start, NULL, &offset);
 	if (group != sbi->s_groups_count)
 		ext4_warning(sb, __func__,
-			     "Cannot add at group %u (only %lu groups)",
+			     "Cannot add at group %u (only %u groups)",
 			     input->group, sbi->s_groups_count);
 	else if (offset != 0)
 			ext4_warning(sb, __func__, "Last group not full");
@@ -716,7 +716,7 @@ static void update_backups(struct super_block *sb,
 exit_err:
 	if (err) {
 		ext4_warning(sb, __func__,
-			     "can't update backup for group %lu (err %d), "
+			     "can't update backup for group %u (err %d), "
 			     "forcing fsck on next reboot", group, err);
 		sbi->s_mount_state &= ~EXT4_VALID_FS;
 		sbi->s_es->s_state &= cpu_to_le16(~EXT4_VALID_FS);

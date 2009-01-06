@@ -31,7 +31,7 @@ typedef unsigned long long ext4_fsblk_t;
 typedef __u32 ext4_lblk_t;
 
 /* data type for block group number */
-typedef unsigned long ext4_group_t;
+typedef unsigned int ext4_group_t;
 
 #define rsv_start rsv_window._rsv_start
 #define rsv_end rsv_window._rsv_end

@@ -100,7 +100,7 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		 * essentially implementing a per-group read-only flag. */
 		if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
 			ext4_error(sb, __func__,
-				  "Checksum bad for group %lu", block_group);
+				  "Checksum bad for group %u", block_group);
 			gdp->bg_free_blocks_count = 0;
 			gdp->bg_free_inodes_count = 0;
 			gdp->bg_itable_unused = 0;
@@ -213,7 +213,7 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block *sb,
 	if (block_group >= sbi->s_groups_count) {
 		ext4_error(sb, "ext4_get_group_desc",
 			   "block_group >= groups_count - "
-			   "block_group = %lu, groups_count = %lu",
+			   "block_group = %u, groups_count = %u",
 			   block_group, sbi->s_groups_count);
 
 		return NULL;
@@ -225,7 +225,7 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block *sb,
 	if (!sbi->s_group_desc[group_desc]) {
 		ext4_error(sb, "ext4_get_group_desc",
 			   "Group descriptor not loaded - "
-			   "block_group = %lu, group_desc = %lu, desc = %lu",
+			   "block_group = %u, group_desc = %lu, desc = %lu",
 			   block_group, group_desc, offset);
 		return NULL;
 	}
@@ -315,7 +315,7 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	if (unlikely(!bh)) {
 		ext4_error(sb, __func__,
 			    "Cannot read block bitmap - "
-			    "block_group = %lu, block_bitmap = %llu",
+			    "block_group = %u, block_bitmap = %llu",
 			    block_group, bitmap_blk);
 		return NULL;
 	}
@@ -337,7 +337,7 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 		put_bh(bh);
 		ext4_error(sb, __func__,
 			    "Cannot read block bitmap - "
-			    "block_group = %lu, block_bitmap = %llu",
+			    "block_group = %u, block_bitmap = %llu",
 			    block_group, bitmap_blk);
 		return NULL;
 	}

@@ -965,7 +965,7 @@ ext4_group_first_block_no(struct super_block *sb, ext4_group_t group_no)
 #define ERR_BAD_DX_DIR	-75000
 
 void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
-			unsigned long *blockgrpp, ext4_grpblk_t *offsetp);
+			ext4_group_t *blockgrpp, ext4_grpblk_t *offsetp);
 
 extern struct proc_dir_entry *ext4_proc_root;
 

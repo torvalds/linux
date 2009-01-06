@@ -1470,7 +1470,7 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 
 	ext4_commit_super(sb, es, 1);
 	if (test_opt(sb, DEBUG))
-		printk(KERN_INFO "[EXT4 FS bs=%lu, gc=%lu, "
+		printk(KERN_INFO "[EXT4 FS bs=%lu, gc=%u, "
 				"bpg=%lu, ipg=%lu, mo=%04lx]\n",
 			sb->s_blocksize,
 			sbi->s_groups_count,
@@ -1514,7 +1514,7 @@ static int ext4_fill_flex_info(struct super_block *sb)
 				     sizeof(struct flex_groups), GFP_KERNEL);
 	if (sbi->s_flex_groups == NULL) {
 		printk(KERN_ERR "EXT4-fs: not enough memory for "
-				"%lu flex groups\n", flex_group_count);
+				"%u flex groups\n", flex_group_count);
 		goto failed;
 	}
 
@@ -1599,14 +1599,14 @@ static int ext4_check_descriptors(struct super_block *sb)
 		block_bitmap = ext4_block_bitmap(sb, gdp);
 		if (block_bitmap < first_block || block_bitmap > last_block) {
 			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
-			       "Block bitmap for group %lu not in group "
+			       "Block bitmap for group %u not in group "
 			       "(block %llu)!\n", i, block_bitmap);
 			return 0;
 		}
 		inode_bitmap = ext4_inode_bitmap(sb, gdp);
 		if (inode_bitmap < first_block || inode_bitmap > last_block) {
 			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
-			       "Inode bitmap for group %lu not in group "
+			       "Inode bitmap for group %u not in group "
 			       "(block %llu)!\n", i, inode_bitmap);
 			return 0;
 		}
@@ -1614,14 +1614,14 @@ static int ext4_check_descriptors(struct super_block *sb)
 		if (inode_table < first_block ||
 		    inode_table + sbi->s_itb_per_group - 1 > last_block) {
 			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
-			       "Inode table for group %lu not in group "
+			       "Inode table for group %u not in group "
 			       "(block %llu)!\n", i, inode_table);
 			return 0;
 		}
 		spin_lock(sb_bgl_lock(sbi, i));
 		if (!ext4_group_desc_csum_verify(sbi, i, gdp)) {
 			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
-			       "Checksum for group %lu failed (%u!=%u)\n",
+			       "Checksum for group %u failed (%u!=%u)\n",
 			       i, le16_to_cpu(ext4_group_desc_csum(sbi, i,
 			       gdp)), le16_to_cpu(gdp->bg_checksum));
 			if (!(sb->s_flags & MS_RDONLY)) {
@@ -3154,7 +3154,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 				if (!ext4_group_desc_csum_verify(sbi, g, gdp)) {
 					printk(KERN_ERR
 	       "EXT4-fs: ext4_remount: "
-		"Checksum for group %lu failed (%u!=%u)\n",
+		"Checksum for group %u failed (%u!=%u)\n",
 		g, le16_to_cpu(ext4_group_desc_csum(sbi, g, gdp)),
 					       le16_to_cpu(gdp->bg_checksum));
 					err = -EINVAL;

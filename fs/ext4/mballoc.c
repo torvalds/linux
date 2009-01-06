@@ -447,7 +447,7 @@ static void mb_free_blocks_double(struct inode *inode, struct ext4_buddy *e4b,
 			    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
 
 			ext4_error(sb, __func__, "double-free of inode"
-				   " %lu's block %llu(bit %u in group %lu)",
+				   " %lu's block %llu(bit %u in group %u)",
 				   inode ? inode->i_ino : 0, blocknr,
 				   first + i, e4b->bd_group);
 		}
@@ -477,7 +477,7 @@ static void mb_cmp_bitmaps(struct ext4_buddy *e4b, void *bitmap)
 		b2 = (unsigned char *) bitmap;
 		for (i = 0; i < e4b->bd_sb->s_blocksize; i++) {
 			if (b1[i] != b2[i]) {
-				printk(KERN_ERR "corruption in group %lu "
+				printk(KERN_ERR "corruption in group %u "
 				       "at byte %u(%u): %x in copy != %x "
 				       "on disk/prealloc\n",
 				       e4b->bd_group, i, i * 8, b1[i], b2[i]);
@@ -691,7 +691,7 @@ static void ext4_mb_generate_buddy(struct super_block *sb,
 
 	if (free != grp->bb_free) {
 		ext4_error(sb, __func__,
-			"EXT4-fs: group %lu: %u blocks in bitmap, %u in gd",
+			"EXT4-fs: group %u: %u blocks in bitmap, %u in gd",
 			group, free, grp->bb_free);
 		/*
 		 * If we intent to continue, we consider group descritor
@@ -800,7 +800,7 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 		get_bh(bh[i]);
 		bh[i]->b_end_io = end_buffer_read_sync;
 		submit_bh(READ, bh[i]);
-		mb_debug("read bitmap for group %lu\n", first_group + i);
+		mb_debug("read bitmap for group %u\n", first_group + i);
 	}
 
 	/* wait for I/O completion */
@@ -895,7 +895,7 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
 	struct page *page;
 	int ret;
 
-	mb_debug("load group %lu\n", group);
+	mb_debug("load group %u\n", group);
 
 	blocks_per_page = PAGE_CACHE_SIZE / sb->s_blocksize;
 
@@ -1096,7 +1096,7 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 			    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
 			ext4_unlock_group(sb, e4b->bd_group);
 			ext4_error(sb, __func__, "double-free of inode"
-				   " %lu's block %llu(bit %u in group %lu)",
+				   " %lu's block %llu(bit %u in group %u)",
 				   inode ? inode->i_ino : 0, blocknr, block,
 				   e4b->bd_group);
 			ext4_lock_group(sb, e4b->bd_group);
@@ -1934,13 +1934,13 @@ static int ext4_mb_seq_history_show(struct seq_file *seq, void *v)
 	if (hs->op == EXT4_MB_HISTORY_ALLOC) {
 		fmt = "%-5u %-8u %-23s %-23s %-23s %-5u %-5u %-2u "
 			"%-5u %-5s %-5u %-6u\n";
-		sprintf(buf2, "%lu/%d/%u@%u", hs->result.fe_group,
+		sprintf(buf2, "%u/%d/%u@%u", hs->result.fe_group,
 			hs->result.fe_start, hs->result.fe_len,
 			hs->result.fe_logical);
-		sprintf(buf, "%lu/%d/%u@%u", hs->orig.fe_group,
+		sprintf(buf, "%u/%d/%u@%u", hs->orig.fe_group,
 			hs->orig.fe_start, hs->orig.fe_len,
 			hs->orig.fe_logical);
-		sprintf(buf3, "%lu/%d/%u@%u", hs->goal.fe_group,
+		sprintf(buf3, "%u/%d/%u@%u", hs->goal.fe_group,
 			hs->goal.fe_start, hs->goal.fe_len,
 			hs->goal.fe_logical);
 		seq_printf(seq, fmt, hs->pid, hs->ino, buf, buf3, buf2,
@@ -1949,20 +1949,20 @@ static int ext4_mb_seq_history_show(struct seq_file *seq, void *v)
 				hs->buddy ? 1 << hs->buddy : 0);
 	} else if (hs->op == EXT4_MB_HISTORY_PREALLOC) {
 		fmt = "%-5u %-8u %-23s %-23s %-23s\n";
-		sprintf(buf2, "%lu/%d/%u@%u", hs->result.fe_group,
+		sprintf(buf2, "%u/%d/%u@%u", hs->result.fe_group,
 			hs->result.fe_start, hs->result.fe_len,
 			hs->result.fe_logical);
-		sprintf(buf, "%lu/%d/%u@%u", hs->orig.fe_group,
+		sprintf(buf, "%u/%d/%u@%u", hs->orig.fe_group,
 			hs->orig.fe_start, hs->orig.fe_len,
 			hs->orig.fe_logical);
 		seq_printf(seq, fmt, hs->pid, hs->ino, buf, "", buf2);
 	} else if (hs->op == EXT4_MB_HISTORY_DISCARD) {
-		sprintf(buf2, "%lu/%d/%u", hs->result.fe_group,
+		sprintf(buf2, "%u/%d/%u", hs->result.fe_group,
 			hs->result.fe_start, hs->result.fe_len);
 		seq_printf(seq, "%-5u %-8u %-23s discard\n",
 				hs->pid, hs->ino, buf2);
 	} else if (hs->op == EXT4_MB_HISTORY_FREE) {
-		sprintf(buf2, "%lu/%d/%u", hs->result.fe_group,
+		sprintf(buf2, "%u/%d/%u", hs->result.fe_group,
 			hs->result.fe_start, hs->result.fe_len);
 		seq_printf(seq, "%-5u %-8u %-23s free\n",
 				hs->pid, hs->ino, buf2);
@@ -2075,7 +2075,7 @@ static void *ext4_mb_seq_groups_start(struct seq_file *seq, loff_t *pos)
 		return NULL;
 
 	group = *pos + 1;
-	return (void *) group;
+	return (void *) ((unsigned long) group);
 }
 
 static void *ext4_mb_seq_groups_next(struct seq_file *seq, void *v, loff_t *pos)
@@ -2088,13 +2088,13 @@ static void *ext4_mb_seq_groups_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (*pos < 0 || *pos >= sbi->s_groups_count)
 		return NULL;
 	group = *pos + 1;
-	return (void *) group;;
+	return (void *) ((unsigned long) group);
 }
 
 static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 {
 	struct super_block *sb = seq->private;
-	long group = (long) v;
+	ext4_group_t group = (ext4_group_t) ((unsigned long) v);
 	int i;
 	int err;
 	struct ext4_buddy e4b;
@@ -2116,7 +2116,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 		sizeof(struct ext4_group_info);
 	err = ext4_mb_load_buddy(sb, group, &e4b);
 	if (err) {
-		seq_printf(seq, "#%-5lu: I/O error\n", group);
+		seq_printf(seq, "#%-5u: I/O error\n", group);
 		return 0;
 	}
 	ext4_lock_group(sb, group);
@@ -2124,7 +2124,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 	ext4_unlock_group(sb, group);
 	ext4_mb_release_desc(&e4b);
 
-	seq_printf(seq, "#%-5lu: %-5u %-5u %-5u [", group, sg.info.bb_free,
+	seq_printf(seq, "#%-5u: %-5u %-5u %-5u [", group, sg.info.bb_free,
 			sg.info.bb_fragments, sg.info.bb_first_free);
 	for (i = 0; i <= 13; i++)
 		seq_printf(seq, " %-5u", i <= sb->s_blocksize_bits + 1 ?
@@ -2459,7 +2459,7 @@ static int ext4_mb_init_backend(struct super_block *sb)
 		desc = ext4_get_group_desc(sb, i, NULL);
 		if (desc == NULL) {
 			printk(KERN_ERR
-				"EXT4-fs: can't read descriptor %lu\n", i);
+				"EXT4-fs: can't read descriptor %u\n", i);
 			goto err_freebuddy;
 		}
 		if (ext4_mb_add_groupinfo(sb, i, desc) != 0)
@@ -2657,7 +2657,7 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 	list_for_each_safe(l, ltmp, &txn->t_private_list) {
 		entry = list_entry(l, struct ext4_free_data, list);
 
-		mb_debug("gonna free %u blocks in group %lu (0x%p):",
+		mb_debug("gonna free %u blocks in group %u (0x%p):",
 			 entry->count, entry->group, entry);
 
 		err = ext4_mb_load_buddy(sb, entry->group, &e4b);
@@ -2829,7 +2829,7 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	if (!gdp)
 		goto out_err;
 
-	ext4_debug("using block group %lu(%d)\n", ac->ac_b_ex.fe_group,
+	ext4_debug("using block group %u(%d)\n", ac->ac_b_ex.fe_group,
 			gdp->bg_free_blocks_count);
 
 	err = ext4_journal_get_write_access(handle, gdp_bh);
@@ -3351,7 +3351,7 @@ static void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
 		preallocated += len;
 		count++;
 	}
-	mb_debug("prellocated %u for group %lu\n", preallocated, group);
+	mb_debug("prellocated %u for group %u\n", preallocated, group);
 }
 
 static void ext4_mb_pa_callback(struct rcu_head *head)
@@ -3368,7 +3368,7 @@ static void ext4_mb_pa_callback(struct rcu_head *head)
 static void ext4_mb_put_pa(struct ext4_allocation_context *ac,
 			struct super_block *sb, struct ext4_prealloc_space *pa)
 {
-	unsigned long grp;
+	ext4_group_t grp;
 
 	if (!atomic_dec_and_test(&pa->pa_count) || pa->pa_free != 0)
 		return;
@@ -3697,7 +3697,7 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 	int busy = 0;
 	int free = 0;
 
-	mb_debug("discard preallocation for group %lu\n", group);
+	mb_debug("discard preallocation for group %u\n", group);
 
 	if (list_empty(&grp->bb_prealloc_list))
 		return 0;
@@ -3705,14 +3705,14 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 	bitmap_bh = ext4_read_block_bitmap(sb, group);
 	if (bitmap_bh == NULL) {
 		ext4_error(sb, __func__, "Error in reading block "
-				"bitmap for %lu", group);
+				"bitmap for %u", group);
 		return 0;
 	}
 
 	err = ext4_mb_load_buddy(sb, group, &e4b);
 	if (err) {
 		ext4_error(sb, __func__, "Error in loading buddy "
-				"information for %lu", group);
+				"information for %u", group);
 		put_bh(bitmap_bh);
 		return 0;
 	}
@@ -3879,14 +3879,14 @@ repeat:
 		err = ext4_mb_load_buddy(sb, group, &e4b);
 		if (err) {
 			ext4_error(sb, __func__, "Error in loading buddy "
-					"information for %lu", group);
+					"information for %u", group);
 			continue;
 		}
 
 		bitmap_bh = ext4_read_block_bitmap(sb, group);
 		if (bitmap_bh == NULL) {
 			ext4_error(sb, __func__, "Error in reading block "
-					"bitmap for %lu", group);
+					"bitmap for %u", group);
 			ext4_mb_release_desc(&e4b);
 			continue;
 		}
@@ -4151,7 +4151,7 @@ ext4_mb_discard_lg_preallocations(struct super_block *sb,
 		ext4_get_group_no_and_offset(sb, pa->pa_pstart, &group, NULL);
 		if (ext4_mb_load_buddy(sb, group, &e4b)) {
 			ext4_error(sb, __func__, "Error in loading buddy "
-					"information for %lu", group);
+					"information for %u", group);
 			continue;
 		}
 		ext4_lock_group(sb, group);

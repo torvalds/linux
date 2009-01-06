@@ -74,7 +74,7 @@ unsigned ext4_init_inode_bitmap(struct super_block *sb, struct buffer_head *bh,
 	/* If checksum is bad mark all blocks and inodes use to prevent
 	 * allocation, essentially implementing a per-group read-only flag. */
 	if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
-		ext4_error(sb, __func__, "Checksum bad for group %lu",
+		ext4_error(sb, __func__, "Checksum bad for group %u",
 			   block_group);
 		gdp->bg_free_blocks_count = 0;
 		gdp->bg_free_inodes_count = 0;
@@ -111,7 +111,7 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 	if (unlikely(!bh)) {
 		ext4_error(sb, __func__,
 			    "Cannot read inode bitmap - "
-			    "block_group = %lu, inode_bitmap = %llu",
+			    "block_group = %u, inode_bitmap = %llu",
 			    block_group, bitmap_blk);
 		return NULL;
 	}
@@ -133,7 +133,7 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 		put_bh(bh);
 		ext4_error(sb, __func__,
 			    "Cannot read inode bitmap - "
-			    "block_group = %lu, inode_bitmap = %llu",
+			    "block_group = %u, inode_bitmap = %llu",
 			    block_group, bitmap_blk);
 		return NULL;
 	}
@@ -690,7 +690,7 @@ got:
 	    ino > EXT4_INODES_PER_GROUP(sb)) {
 		ext4_error(sb, __func__,
 			   "reserved inode or inode > inodes count - "
-			   "block_group = %lu, inode=%lu", group,
+			   "block_group = %u, inode=%lu", group,
 			   ino + group * EXT4_INODES_PER_GROUP(sb));
 		err = -EIO;
 		goto fail;
