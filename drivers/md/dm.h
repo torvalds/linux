@@ -74,6 +74,14 @@ int dm_interface_init(void);
 void dm_interface_exit(void);
 
 /*
+ * sysfs interface
+ */
+int dm_sysfs_init(struct mapped_device *md);
+void dm_sysfs_exit(struct mapped_device *md);
+struct kobject *dm_kobject(struct mapped_device *md);
+struct mapped_device *dm_get_from_kobject(struct kobject *kobj);
+
+/*
  * Targets for linear and striped mappings
  */
 int dm_linear_init(void);

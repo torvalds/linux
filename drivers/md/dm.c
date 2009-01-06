@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001, 2002 Sistina Software (UK) Limited.
- * Copyright (C) 2004-2006 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -167,6 +167,9 @@ struct mapped_device {
 
 	/* forced geometry settings */
 	struct hd_geometry geometry;
+
+	/* sysfs handle */
+	struct kobject kobj;
 };
 
 #define MIN_IOS 256
@@ -1285,6 +1288,8 @@ int dm_create(int minor, struct mapped_device **result)
 	if (!md)
 		return -ENXIO;
 
+	dm_sysfs_init(md);
+
 	*result = md;
 	return 0;
 }
@@ -1360,6 +1365,7 @@ void dm_put(struct mapped_device *md)
 			dm_table_presuspend_targets(map);
 			dm_table_postsuspend_targets(map);
 		}
+		dm_sysfs_exit(md);
 		dm_table_put(map);
 		__unbind(md);
 		free_dev(md);
@@ -1697,6 +1703,27 @@ void dm_uevent_add(struct mapped_device *md, struct list_head *elist)
 struct gendisk *dm_disk(struct mapped_device *md)
 {
 	return md->disk;
+}
+
+struct kobject *dm_kobject(struct mapped_device *md)
+{
+	return &md->kobj;
+}
+
+/*
+ * struct mapped_device should not be exported outside of dm.c
+ * so use this check to verify that kobj is part of md structure
+ */
+struct mapped_device *dm_get_from_kobject(struct kobject *kobj)
+{
+	struct mapped_device *md;
+
+	md = container_of(kobj, struct mapped_device, kobj);
+	if (&md->kobj != kobj)
+		return NULL;
+
+	dm_get(md);
+	return md;
 }
 
 int dm_suspended(struct mapped_device *md)
