@@ -67,7 +67,7 @@ int generic_ide_resume(struct device *dev)
 	blk_put_request(rq);
 
 	if (err == 0 && dev->driver) {
-		ide_driver_t *drv = to_ide_driver(dev->driver);
+		struct ide_driver *drv = to_ide_driver(dev->driver);
 
 		if (drv->resume)
 			drv->resume(drive);

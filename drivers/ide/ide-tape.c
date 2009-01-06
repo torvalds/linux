@@ -166,10 +166,10 @@ struct idetape_bh {
  * to an interrupt or a timer event is stored in the struct defined below.
  */
 typedef struct ide_tape_obj {
-	ide_drive_t	*drive;
-	ide_driver_t	*driver;
-	struct gendisk	*disk;
-	struct kref	kref;
+	ide_drive_t		*drive;
+	struct ide_driver	*driver;
+	struct gendisk		*disk;
+	struct kref		kref;
 
 	/*
 	 *	failed_pc points to the last failed packet command, or contains
@@ -2313,7 +2313,7 @@ static const struct ide_proc_devset *ide_tape_proc_devsets(ide_drive_t *drive)
 
 static int ide_tape_probe(ide_drive_t *);
 
-static ide_driver_t idetape_driver = {
+static struct ide_driver idetape_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
 		.name		= "ide-tape",

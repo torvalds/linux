@@ -1914,7 +1914,7 @@ static void ide_cd_release(struct kref *kref)
 
 static int ide_cd_probe(ide_drive_t *);
 
-static ide_driver_t ide_cdrom_driver = {
+static struct ide_driver ide_cdrom_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
 		.name		= "ide-cdrom",

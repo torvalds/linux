@@ -199,9 +199,9 @@ EXPORT_SYMBOL(ide_end_drive_cmd);
 static void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 {
 	if (rq->rq_disk) {
-		ide_driver_t *drv;
+		struct ide_driver *drv;
 
-		drv = *(ide_driver_t **)rq->rq_disk->private_data;
+		drv = *(struct ide_driver **)rq->rq_disk->private_data;
 		drv->end_request(drive, 0, 0);
 	} else
 		ide_end_request(drive, 0, 0);
@@ -333,9 +333,9 @@ ide_startstop_t ide_error (ide_drive_t *drive, const char *msg, u8 stat)
 	}
 
 	if (rq->rq_disk) {
-		ide_driver_t *drv;
+		struct ide_driver *drv;
 
-		drv = *(ide_driver_t **)rq->rq_disk->private_data;
+		drv = *(struct ide_driver **)rq->rq_disk->private_data;
 		return drv->error(drive, rq, stat, err);
 	} else
 		return __ide_error(drive, rq, stat, err);
@@ -606,7 +606,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 		return startstop;
 	}
 	if (!drive->special.all) {
-		ide_driver_t *drv;
+		struct ide_driver *drv;
 
 		/*
 		 * We reset the drive so we need to issue a SETFEATURES.
@@ -639,7 +639,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 			 */
 			return ide_special_rq(drive, rq);
 
-		drv = *(ide_driver_t **)rq->rq_disk->private_data;
+		drv = *(struct ide_driver **)rq->rq_disk->private_data;
 
 		return drv->do_request(drive, rq, rq->sector);
 	}

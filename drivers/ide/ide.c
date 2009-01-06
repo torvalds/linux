@@ -281,7 +281,7 @@ static int ide_uevent(struct device *dev, struct kobj_uevent_env *env)
 static int generic_ide_probe(struct device *dev)
 {
 	ide_drive_t *drive = to_ide_device(dev);
-	ide_driver_t *drv = to_ide_driver(dev->driver);
+	struct ide_driver *drv = to_ide_driver(dev->driver);
 
 	return drv->probe ? drv->probe(drive) : -ENODEV;
 }
@@ -289,7 +289,7 @@ static int generic_ide_probe(struct device *dev)
 static int generic_ide_remove(struct device *dev)
 {
 	ide_drive_t *drive = to_ide_device(dev);
-	ide_driver_t *drv = to_ide_driver(dev->driver);
+	struct ide_driver *drv = to_ide_driver(dev->driver);
 
 	if (drv->remove)
 		drv->remove(drive);
@@ -300,7 +300,7 @@ static int generic_ide_remove(struct device *dev)
 static void generic_ide_shutdown(struct device *dev)
 {
 	ide_drive_t *drive = to_ide_device(dev);
-	ide_driver_t *drv = to_ide_driver(dev->driver);
+	struct ide_driver *drv = to_ide_driver(dev->driver);
 
 	if (dev->driver && drv->shutdown)
 		drv->shutdown(drive);

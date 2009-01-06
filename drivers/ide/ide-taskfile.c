@@ -309,9 +309,9 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 		}
 
 		if (sectors > 0) {
-			ide_driver_t *drv;
+			struct ide_driver *drv;
 
-			drv = *(ide_driver_t **)rq->rq_disk->private_data;
+			drv = *(struct ide_driver **)rq->rq_disk->private_data;
 			drv->end_request(drive, 1, sectors);
 		}
 	}
@@ -328,9 +328,9 @@ void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 	}
 
 	if (rq->rq_disk) {
-		ide_driver_t *drv;
+		struct ide_driver *drv;
 
-		drv = *(ide_driver_t **)rq->rq_disk->private_data;;
+		drv = *(struct ide_driver **)rq->rq_disk->private_data;;
 		drv->end_request(drive, 1, rq->nr_sectors);
 	} else
 		ide_end_request(drive, 1, rq->nr_sectors);

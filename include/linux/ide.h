@@ -437,7 +437,7 @@ struct ide_atapi_pc {
 };
 
 struct ide_devset;
-struct ide_driver_s;
+struct ide_driver;
 
 #ifdef CONFIG_BLK_DEV_IDEACPI
 struct ide_acpi_drive_link;
@@ -884,8 +884,6 @@ typedef int (ide_expiry_t)(ide_drive_t *);
 /* used by ide-cd, ide-floppy, etc. */
 typedef void (xfer_func_t)(ide_drive_t *, struct request *rq, void *, unsigned);
 
-typedef struct ide_driver_s ide_driver_t;
-
 extern struct mutex ide_setting_mtx;
 
 /*
@@ -1011,8 +1009,8 @@ void ide_proc_register_port(ide_hwif_t *);
 void ide_proc_port_register_devices(ide_hwif_t *);
 void ide_proc_unregister_device(ide_drive_t *);
 void ide_proc_unregister_port(ide_hwif_t *);
-void ide_proc_register_driver(ide_drive_t *, ide_driver_t *);
-void ide_proc_unregister_driver(ide_drive_t *, ide_driver_t *);
+void ide_proc_register_driver(ide_drive_t *, struct ide_driver *);
+void ide_proc_unregister_driver(ide_drive_t *, struct ide_driver *);
 
 read_proc_t proc_ide_read_capacity;
 read_proc_t proc_ide_read_geometry;
@@ -1039,8 +1037,10 @@ static inline void ide_proc_register_port(ide_hwif_t *hwif) { ; }
 static inline void ide_proc_port_register_devices(ide_hwif_t *hwif) { ; }
 static inline void ide_proc_unregister_device(ide_drive_t *drive) { ; }
 static inline void ide_proc_unregister_port(ide_hwif_t *hwif) { ; }
-static inline void ide_proc_register_driver(ide_drive_t *drive, ide_driver_t *driver) { ; }
-static inline void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver) { ; }
+static inline void ide_proc_register_driver(ide_drive_t *drive,
+					    struct ide_driver *driver) { ; }
+static inline void ide_proc_unregister_driver(ide_drive_t *drive,
+					      struct ide_driver *driver) { ; }
 #define PROC_IDE_READ_RETURN(page,start,off,count,eof,len) return 0;
 #endif
 
@@ -1109,7 +1109,7 @@ void ide_check_pm_state(ide_drive_t *, struct request *);
  * The gendriver.owner field should be set to the module owner of this driver.
  * The gendriver.name field should be set to the name of this driver
  */
-struct ide_driver_s {
+struct ide_driver {
 	const char			*version;
 	ide_startstop_t	(*do_request)(ide_drive_t *, struct request *, sector_t);
 	int		(*end_request)(ide_drive_t *, int, int);
@@ -1125,7 +1125,7 @@ struct ide_driver_s {
 #endif
 };
 
-#define to_ide_driver(drv) container_of(drv, ide_driver_t, gen_driver)
+#define to_ide_driver(drv) container_of(drv, struct ide_driver, gen_driver)
 
 int ide_device_get(ide_drive_t *);
 void ide_device_put(ide_drive_t *);

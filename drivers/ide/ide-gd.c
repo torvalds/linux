@@ -149,7 +149,7 @@ static int ide_gd_end_request(ide_drive_t *drive, int uptodate, int nrsecs)
 	return drive->disk_ops->end_request(drive, uptodate, nrsecs);
 }
 
-static ide_driver_t ide_gd_driver = {
+static struct ide_driver ide_gd_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
 		.name		= "ide-gd",
