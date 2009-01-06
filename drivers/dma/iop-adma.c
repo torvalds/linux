@@ -1113,25 +1113,12 @@ static int __devexit iop_adma_remove(struct platform_device *dev)
 	struct iop_adma_device *device = platform_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 	struct iop_adma_chan *iop_chan;
-	int i;
 	struct iop_adma_platform_data *plat_data = dev->dev.platform_data;
 
 	dma_async_device_unregister(&device->common);
 
-	for (i = 0; i < 3; i++) {
-		unsigned int irq;
-		irq = platform_get_irq(dev, i);
-		free_irq(irq, device);
-	}
-
 	dma_free_coherent(&dev->dev, plat_data->pool_size,
 			device->dma_desc_pool_virt, device->dma_desc_pool);
-
-	do {
-		struct resource *res;
-		res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-		release_mem_region(res->start, res->end - res->start);
-	} while (0);
 
 	list_for_each_entry_safe(chan, _chan, &device->common.channels,
 				device_node) {
