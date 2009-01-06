@@ -31,14 +31,11 @@
  *
  * LOCKING:
  *
- * The subsystem keeps two global lists, dma_device_list and dma_client_list.
- * Both of these are protected by a mutex, dma_list_mutex.
+ * The subsystem keeps a global list of dma_device structs it is protected by a
+ * mutex, dma_list_mutex.
  *
  * Each device has a channels list, which runs unlocked but is never modified
  * once the device is registered, it's just setup by the driver.
- *
- * Each client is responsible for keeping track of the channels it uses.  See
- * the definition of dma_event_callback in dmaengine.h.
  *
  * Each device has a kref, which is initialized to 1 when the device is
  * registered. A kref_get is done for each device registered.  When the
@@ -74,7 +71,6 @@
 
 static DEFINE_MUTEX(dma_list_mutex);
 static LIST_HEAD(dma_device_list);
-static LIST_HEAD(dma_client_list);
 static long dmaengine_ref_count;
 
 /* --- sysfs implementation --- */
@@ -189,7 +185,7 @@ static int dma_chan_get(struct dma_chan *chan)
 
 	/* allocate upon first client reference */
 	if (chan->client_count == 1 && err == 0) {
-		int desc_cnt = chan->device->device_alloc_chan_resources(chan, NULL);
+		int desc_cnt = chan->device->device_alloc_chan_resources(chan);
 
 		if (desc_cnt < 0) {
 			err = desc_cnt;
@@ -216,40 +212,6 @@ static void dma_chan_put(struct dma_chan *chan)
 	module_put(dma_chan_to_owner(chan));
 	if (chan->client_count == 0)
 		chan->device->device_free_chan_resources(chan);
-}
-
-/**
- * dma_client_chan_alloc - try to allocate channels to a client
- * @client: &dma_client
- *
- * Called with dma_list_mutex held.
- */
-static void dma_client_chan_alloc(struct dma_client *client)
-{
-	struct dma_device *device;
-	struct dma_chan *chan;
-	enum dma_state_client ack;
-
-	/* Find a channel */
-	list_for_each_entry(device, &dma_device_list, global_node) {
-		if (dma_has_cap(DMA_PRIVATE, device->cap_mask))
-			continue;
-		if (!dma_device_satisfies_mask(device, client->cap_mask))
-			continue;
-
-		list_for_each_entry(chan, &device->channels, device_node) {
-			if (!chan->client_count)
-				continue;
-			ack = client->event_callback(client, chan,
-						     DMA_RESOURCE_AVAILABLE);
-
-			/* we are done once this client rejects
-			 * an available resource
-			 */
-			if (ack == DMA_NAK)
-				return;
-		}
-	}
 }
 
 enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
@@ -585,21 +547,6 @@ void dma_release_channel(struct dma_chan *chan)
 EXPORT_SYMBOL_GPL(dma_release_channel);
 
 /**
- * dma_chans_notify_available - broadcast available channels to the clients
- */
-static void dma_clients_notify_available(void)
-{
-	struct dma_client *client;
-
-	mutex_lock(&dma_list_mutex);
-
-	list_for_each_entry(client, &dma_client_list, global_node)
-		dma_client_chan_alloc(client);
-
-	mutex_unlock(&dma_list_mutex);
-}
-
-/**
  * dmaengine_get - register interest in dma_channels
  */
 void dmaengine_get(void)
@@ -658,19 +605,6 @@ void dmaengine_put(void)
 	mutex_unlock(&dma_list_mutex);
 }
 EXPORT_SYMBOL(dmaengine_put);
-
-/**
- * dma_async_client_chan_request - send all available channels to the
- * client that satisfy the capability mask
- * @client - requester
- */
-void dma_async_client_chan_request(struct dma_client *client)
-{
-	mutex_lock(&dma_list_mutex);
-	dma_client_chan_alloc(client);
-	mutex_unlock(&dma_list_mutex);
-}
-EXPORT_SYMBOL(dma_async_client_chan_request);
 
 /**
  * dma_async_device_register - registers DMA devices found
@@ -764,8 +698,6 @@ int dma_async_device_register(struct dma_device *device)
 	list_add_tail_rcu(&device->global_node, &dma_device_list);
 	dma_channel_rebalance();
 	mutex_unlock(&dma_list_mutex);
-
-	dma_clients_notify_available();
 
 	return 0;
 

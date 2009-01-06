@@ -167,25 +167,6 @@ static DEFINE_SPINLOCK(ptype_lock);
 static struct list_head ptype_base[PTYPE_HASH_SIZE] __read_mostly;
 static struct list_head ptype_all __read_mostly;	/* Taps */
 
-#ifdef CONFIG_NET_DMA
-struct net_dma {
-	struct dma_client client;
-	spinlock_t lock;
-	cpumask_t channel_mask;
-	struct dma_chan **channels;
-};
-
-static enum dma_state_client
-netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
-	enum dma_state state);
-
-static struct net_dma net_dma = {
-	.client = {
-		.event_callback = netdev_dma_event,
-	},
-};
-#endif
-
 /*
  * The @dev_base_head list is protected by @dev_base_lock and the rtnl
  * semaphore.
@@ -4826,81 +4807,6 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-#ifdef CONFIG_NET_DMA
-/**
- * netdev_dma_event - event callback for the net_dma_client
- * @client: should always be net_dma_client
- * @chan: DMA channel for the event
- * @state: DMA state to be handled
- */
-static enum dma_state_client
-netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
-	enum dma_state state)
-{
-	int i, found = 0, pos = -1;
-	struct net_dma *net_dma =
-		container_of(client, struct net_dma, client);
-	enum dma_state_client ack = DMA_DUP; /* default: take no action */
-
-	spin_lock(&net_dma->lock);
-	switch (state) {
-	case DMA_RESOURCE_AVAILABLE:
-		for (i = 0; i < nr_cpu_ids; i++)
-			if (net_dma->channels[i] == chan) {
-				found = 1;
-				break;
-			} else if (net_dma->channels[i] == NULL && pos < 0)
-				pos = i;
-
-		if (!found && pos >= 0) {
-			ack = DMA_ACK;
-			net_dma->channels[pos] = chan;
-			cpu_set(pos, net_dma->channel_mask);
-		}
-		break;
-	case DMA_RESOURCE_REMOVED:
-		for (i = 0; i < nr_cpu_ids; i++)
-			if (net_dma->channels[i] == chan) {
-				found = 1;
-				pos = i;
-				break;
-			}
-
-		if (found) {
-			ack = DMA_ACK;
-			cpu_clear(pos, net_dma->channel_mask);
-			net_dma->channels[i] = NULL;
-		}
-		break;
-	default:
-		break;
-	}
-	spin_unlock(&net_dma->lock);
-
-	return ack;
-}
-
-/**
- * netdev_dma_register - register the networking subsystem as a DMA client
- */
-static int __init netdev_dma_register(void)
-{
-	net_dma.channels = kzalloc(nr_cpu_ids * sizeof(struct net_dma),
-								GFP_KERNEL);
-	if (unlikely(!net_dma.channels)) {
-		printk(KERN_NOTICE
-				"netdev_dma: no memory for net_dma.channels\n");
-		return -ENOMEM;
-	}
-	spin_lock_init(&net_dma.lock);
-	dma_cap_set(DMA_MEMCPY, net_dma.client.cap_mask);
-	dmaengine_get();
-	return 0;
-}
-
-#else
-static int __init netdev_dma_register(void) { return -ENODEV; }
-#endif /* CONFIG_NET_DMA */
 
 /**
  *	netdev_increment_features - increment feature set by one
@@ -5120,14 +5026,15 @@ static int __init net_dev_init(void)
 	if (register_pernet_device(&default_device_ops))
 		goto out;
 
-	netdev_dma_register();
-
 	open_softirq(NET_TX_SOFTIRQ, net_tx_action);
 	open_softirq(NET_RX_SOFTIRQ, net_rx_action);
 
 	hotcpu_notifier(dev_cpu_callback, 0);
 	dst_init();
 	dev_mcast_init();
+	#ifdef CONFIG_NET_DMA
+	dmaengine_get();
+	#endif
 	rc = 0;
 out:
 	return rc;

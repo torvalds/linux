@@ -366,8 +366,7 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(
  *
  * Return - The number of descriptors allocated.
  */
-static int fsl_dma_alloc_chan_resources(struct dma_chan *chan,
-					struct dma_client *client)
+static int fsl_dma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct fsl_dma_chan *fsl_chan = to_fsl_chan(chan);
 

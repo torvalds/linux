@@ -758,8 +758,7 @@ static void dwc_issue_pending(struct dma_chan *chan)
 	spin_unlock_bh(&dwc->lock);
 }
 
-static int dwc_alloc_chan_resources(struct dma_chan *chan,
-		struct dma_client *client)
+static int dwc_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	struct dw_dma		*dw = to_dw_dma(chan->device);

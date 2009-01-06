@@ -29,20 +29,6 @@
 #include <linux/dma-mapping.h>
 
 /**
- * enum dma_state - resource PNP/power management state
- * @DMA_RESOURCE_SUSPEND: DMA device going into low power state
- * @DMA_RESOURCE_RESUME: DMA device returning to full power
- * @DMA_RESOURCE_AVAILABLE: DMA device available to the system
- * @DMA_RESOURCE_REMOVED: DMA device removed from the system
- */
-enum dma_state {
-	DMA_RESOURCE_SUSPEND,
-	DMA_RESOURCE_RESUME,
-	DMA_RESOURCE_AVAILABLE,
-	DMA_RESOURCE_REMOVED,
-};
-
-/**
  * enum dma_state_client - state of the channel in the client
  * @DMA_ACK: client would like to use, or was using this channel
  * @DMA_DUP: client has already seen this channel, or is not using this channel
@@ -170,23 +156,6 @@ struct dma_chan {
 
 void dma_chan_cleanup(struct kref *kref);
 
-/*
- * typedef dma_event_callback - function pointer to a DMA event callback
- * For each channel added to the system this routine is called for each client.
- * If the client would like to use the channel it returns '1' to signal (ack)
- * the dmaengine core to take out a reference on the channel and its
- * corresponding device.  A client must not 'ack' an available channel more
- * than once.  When a channel is removed all clients are notified.  If a client
- * is using the channel it must 'ack' the removal.  A client must not 'ack' a
- * removed channel more than once.
- * @client - 'this' pointer for the client context
- * @chan - channel to be acted upon
- * @state - available or removed
- */
-struct dma_client;
-typedef enum dma_state_client (*dma_event_callback) (struct dma_client *client,
-		struct dma_chan *chan, enum dma_state state);
-
 /**
  * typedef dma_filter_fn - callback filter for dma_request_channel
  * @chan: channel to be reviewed
@@ -198,21 +167,6 @@ typedef enum dma_state_client (*dma_event_callback) (struct dma_client *client,
  * satisfies the given capability mask.
  */
 typedef enum dma_state_client (*dma_filter_fn)(struct dma_chan *chan, void *filter_param);
-
-/**
- * struct dma_client - info on the entity making use of DMA services
- * @event_callback: func ptr to call when something happens
- * @cap_mask: only return channels that satisfy the requested capabilities
- *  a value of zero corresponds to any capability
- * @slave: data for preparing slave transfer. Must be non-NULL iff the
- *  DMA_SLAVE capability is requested.
- * @global_node: list_head for global dma_client_list
- */
-struct dma_client {
-	dma_event_callback	event_callback;
-	dma_cap_mask_t		cap_mask;
-	struct list_head	global_node;
-};
 
 typedef void (*dma_async_tx_callback)(void *dma_async_param);
 /**
@@ -285,8 +239,7 @@ struct dma_device {
 	int dev_id;
 	struct device *dev;
 
-	int (*device_alloc_chan_resources)(struct dma_chan *chan,
-			struct dma_client *client);
+	int (*device_alloc_chan_resources)(struct dma_chan *chan);
 	void (*device_free_chan_resources)(struct dma_chan *chan);
 
 	struct dma_async_tx_descriptor *(*device_prep_dma_memcpy)(
@@ -320,7 +273,6 @@ struct dma_device {
 
 void dmaengine_get(void);
 void dmaengine_put(void);
-void dma_async_client_chan_request(struct dma_client *client);
 dma_cookie_t dma_async_memcpy_buf_to_buf(struct dma_chan *chan,
 	void *dest, void *src, size_t len);
 dma_cookie_t dma_async_memcpy_buf_to_pg(struct dma_chan *chan,

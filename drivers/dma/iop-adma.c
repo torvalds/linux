@@ -470,8 +470,7 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan);
  * greater than 2x the number slots needed to satisfy a device->max_xor
  * request.
  * */
-static int iop_adma_alloc_chan_resources(struct dma_chan *chan,
-					 struct dma_client *client)
+static int iop_adma_alloc_chan_resources(struct dma_chan *chan)
 {
 	char *hw_desc;
 	int idx;
@@ -865,7 +864,7 @@ static int __devinit iop_adma_memcpy_self_test(struct iop_adma_device *device)
 	dma_chan = container_of(device->common.channels.next,
 				struct dma_chan,
 				device_node);
-	if (iop_adma_alloc_chan_resources(dma_chan, NULL) < 1) {
+	if (iop_adma_alloc_chan_resources(dma_chan) < 1) {
 		err = -ENODEV;
 		goto out;
 	}
@@ -963,7 +962,7 @@ iop_adma_xor_zero_sum_self_test(struct iop_adma_device *device)
 	dma_chan = container_of(device->common.channels.next,
 				struct dma_chan,
 				device_node);
-	if (iop_adma_alloc_chan_resources(dma_chan, NULL) < 1) {
+	if (iop_adma_alloc_chan_resources(dma_chan) < 1) {
 		err = -ENODEV;
 		goto out;
 	}

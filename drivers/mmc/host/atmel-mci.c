@@ -55,7 +55,6 @@ enum atmel_mci_state {
 
 struct atmel_mci_dma {
 #ifdef CONFIG_MMC_ATMELMCI_DMA
-	struct dma_client		client;
 	struct dma_chan			*chan;
 	struct dma_async_tx_descriptor	*data_desc;
 #endif
