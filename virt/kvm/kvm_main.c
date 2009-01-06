@@ -173,15 +173,12 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 		assigned_dev->host_irq_disabled = false;
 	}
 	mutex_unlock(&assigned_dev->kvm->lock);
-	kvm_put_kvm(assigned_dev->kvm);
 }
 
 static irqreturn_t kvm_assigned_dev_intr(int irq, void *dev_id)
 {
 	struct kvm_assigned_dev_kernel *assigned_dev =
 		(struct kvm_assigned_dev_kernel *) dev_id;
-
-	kvm_get_kvm(assigned_dev->kvm);
 
 	schedule_work(&assigned_dev->interrupt_work);
 
@@ -213,6 +210,7 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 	}
 }
 
+/* The function implicit hold kvm->lock mutex due to cancel_work_sync() */
 static void kvm_free_assigned_irq(struct kvm *kvm,
 				  struct kvm_assigned_dev_kernel *assigned_dev)
 {
@@ -228,11 +226,24 @@ static void kvm_free_assigned_irq(struct kvm *kvm,
 	if (!assigned_dev->irq_requested_type)
 		return;
 
-	if (cancel_work_sync(&assigned_dev->interrupt_work))
-		/* We had pending work. That means we will have to take
-		 * care of kvm_put_kvm.
-		 */
-		kvm_put_kvm(kvm);
+	/*
+	 * In kvm_free_device_irq, cancel_work_sync return true if:
+	 * 1. work is scheduled, and then cancelled.
+	 * 2. work callback is executed.
+	 *
+	 * The first one ensured that the irq is disabled and no more events
+	 * would happen. But for the second one, the irq may be enabled (e.g.
+	 * for MSI). So we disable irq here to prevent further events.
+	 *
+	 * Notice this maybe result in nested disable if the interrupt type is
+	 * INTx, but it's OK for we are going to free it.
+	 *
+	 * If this function is a part of VM destroy, please ensure that till
+	 * now, the kvm state is still legal for probably we also have to wait
+	 * interrupt_work done.
+	 */
+	disable_irq_nosync(assigned_dev->host_irq);
+	cancel_work_sync(&assigned_dev->interrupt_work);
 
 	free_irq(assigned_dev->host_irq, (void *)assigned_dev);
 
