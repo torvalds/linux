@@ -91,7 +91,7 @@ int mISDN_dsp_element_register(struct mISDN_dsp_element *elem)
 
 	entry->dev.class = elements_class;
 	dev_set_drvdata(&entry->dev, elem);
-	snprintf(entry->dev.bus_id, BUS_ID_SIZE, elem->name);
+	dev_set_name(&entry->dev, elem->name);
 	ret = device_register(&entry->dev);
 	if (ret) {
 		printk(KERN_ERR "%s: failed to register %s\n",
