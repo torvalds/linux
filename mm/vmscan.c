@@ -1410,6 +1410,8 @@ static void shrink_zone(int priority, struct zone *zone,
 	unsigned long nr_to_scan;
 	unsigned long percent[2];	/* anon @ 0; file @ 1 */
 	enum lru_list l;
+	unsigned long nr_reclaimed = sc->nr_reclaimed;
+	unsigned long swap_cluster_max = sc->swap_cluster_max;
 
 	get_scan_ratio(zone, sc, percent);
 
@@ -1425,7 +1427,7 @@ static void shrink_zone(int priority, struct zone *zone,
 			}
 			zone->lru[l].nr_scan += scan;
 			nr[l] = zone->lru[l].nr_scan;
-			if (nr[l] >= sc->swap_cluster_max)
+			if (nr[l] >= swap_cluster_max)
 				zone->lru[l].nr_scan = 0;
 			else
 				nr[l] = 0;
@@ -1444,12 +1446,11 @@ static void shrink_zone(int priority, struct zone *zone,
 					nr[LRU_INACTIVE_FILE]) {
 		for_each_evictable_lru(l) {
 			if (nr[l]) {
-				nr_to_scan = min(nr[l],
-					(unsigned long)sc->swap_cluster_max);
+				nr_to_scan = min(nr[l], swap_cluster_max);
 				nr[l] -= nr_to_scan;
 
-				sc->nr_reclaimed += shrink_list(l, nr_to_scan,
-							zone, sc, priority);
+				nr_reclaimed += shrink_list(l, nr_to_scan,
+							    zone, sc, priority);
 			}
 		}
 		/*
@@ -1460,10 +1461,12 @@ static void shrink_zone(int priority, struct zone *zone,
 		 * with multiple processes reclaiming pages, the total
 		 * freeing target can get unreasonably large.
 		 */
-		if (sc->nr_reclaimed > sc->swap_cluster_max &&
+		if (nr_reclaimed > swap_cluster_max &&
 			priority < DEF_PRIORITY && !current_is_kswapd())
 			break;
 	}
+
+	sc->nr_reclaimed = nr_reclaimed;
 
 	/*
 	 * Even if we did not try to evict anon pages at all, we want to
