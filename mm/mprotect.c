@@ -4,7 +4,7 @@
  *  (C) Copyright 1994 Linus Torvalds
  *  (C) Copyright 2002 Christoph Hellwig
  *
- *  Address space accounting code	<alan@redhat.com>
+ *  Address space accounting code	<alan@lxorguk.ukuu.org.uk>
  *  (C) Copyright 2002 Red Hat Inc, All Rights Reserved
  */
 

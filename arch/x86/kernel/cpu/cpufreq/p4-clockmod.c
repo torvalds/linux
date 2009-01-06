@@ -160,6 +160,7 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 		switch (c->x86_model) {
 		case 0x0E: /* Core */
 		case 0x0F: /* Core Duo */
+		case 0x16: /* Celeron Core */
 			p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
 			return speedstep_get_processor_frequency(SPEEDSTEP_PROCESSOR_PCORE);
 		case 0x0D: /* Pentium M (Dothan) */
@@ -171,7 +172,9 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 	}
 
 	if (c->x86 != 0xF) {
-		printk(KERN_WARNING PFX "Unknown p4-clockmod-capable CPU. Please send an e-mail to <cpufreq@vger.kernel.org>\n");
+		if (!cpu_has(c, X86_FEATURE_EST))
+			printk(KERN_WARNING PFX "Unknown p4-clockmod-capable CPU. "
+				"Please send an e-mail to <cpufreq@vger.kernel.org>\n");
 		return 0;
 	}
 
@@ -274,6 +277,7 @@ static struct cpufreq_driver p4clockmod_driver = {
 	.name		= "p4-clockmod",
 	.owner		= THIS_MODULE,
 	.attr		= p4clockmod_attr,
+	.hide_interface	= 1,
 };
 
 

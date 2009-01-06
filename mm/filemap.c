@@ -1766,7 +1766,7 @@ int should_remove_suid(struct dentry *dentry)
 	if (unlikely((mode & S_ISGID) && (mode & S_IXGRP)))
 		kill |= ATTR_KILL_SGID;
 
-	if (unlikely(kill && !capable(CAP_FSETID)))
+	if (unlikely(kill && !capable(CAP_FSETID) && S_ISREG(mode)))
 		return kill;
 
 	return 0;
@@ -2140,19 +2140,24 @@ EXPORT_SYMBOL(generic_file_direct_write);
  * Find or create a page at the given pagecache position. Return the locked
  * page. This function is specifically for buffered writes.
  */
-struct page *__grab_cache_page(struct address_space *mapping, pgoff_t index)
+struct page *grab_cache_page_write_begin(struct address_space *mapping,
+					pgoff_t index, unsigned flags)
 {
 	int status;
 	struct page *page;
+	gfp_t gfp_notmask = 0;
+	if (flags & AOP_FLAG_NOFS)
+		gfp_notmask = __GFP_FS;
 repeat:
 	page = find_lock_page(mapping, index);
 	if (likely(page))
 		return page;
 
-	page = page_cache_alloc(mapping);
+	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~gfp_notmask);
 	if (!page)
 		return NULL;
-	status = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
+	status = add_to_page_cache_lru(page, mapping, index,
+						GFP_KERNEL & ~gfp_notmask);
 	if (unlikely(status)) {
 		page_cache_release(page);
 		if (status == -EEXIST)
@@ -2161,7 +2166,7 @@ repeat:
 	}
 	return page;
 }
-EXPORT_SYMBOL(__grab_cache_page);
+EXPORT_SYMBOL(grab_cache_page_write_begin);
 
 static ssize_t generic_perform_write(struct file *file,
 				struct iov_iter *i, loff_t pos)

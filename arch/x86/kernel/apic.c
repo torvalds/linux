@@ -31,9 +31,11 @@
 #include <linux/dmi.h>
 #include <linux/dmar.h>
 #include <linux/ftrace.h>
+#include <linux/smp.h>
+#include <linux/nmi.h>
+#include <linux/timex.h>
 
 #include <asm/atomic.h>
-#include <asm/smp.h>
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
 #include <asm/desc.h>
@@ -41,10 +43,8 @@
 #include <asm/hpet.h>
 #include <asm/pgalloc.h>
 #include <asm/i8253.h>
-#include <asm/nmi.h>
 #include <asm/idle.h>
 #include <asm/proto.h>
-#include <asm/timex.h>
 #include <asm/apic.h>
 #include <asm/i8259.h>
 
@@ -140,7 +140,7 @@ static int lapic_next_event(unsigned long delta,
 			    struct clock_event_device *evt);
 static void lapic_timer_setup(enum clock_event_mode mode,
 			      struct clock_event_device *evt);
-static void lapic_timer_broadcast(const cpumask_t *mask);
+static void lapic_timer_broadcast(const struct cpumask *mask);
 static void apic_pm_activate(void);
 
 /*
@@ -453,7 +453,7 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 /*
  * Local APIC timer broadcast function
  */
-static void lapic_timer_broadcast(const cpumask_t *mask)
+static void lapic_timer_broadcast(const struct cpumask *mask)
 {
 #ifdef CONFIG_SMP
 	send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
@@ -687,7 +687,7 @@ static int __init calibrate_APIC_clock(void)
 		local_irq_enable();
 
 	if (levt->features & CLOCK_EVT_FEAT_DUMMY) {
-		pr_warning("APIC timer disabled due to verification failure.\n");
+		pr_warning("APIC timer disabled due to verification failure\n");
 			return -1;
 	}
 
@@ -2087,14 +2087,12 @@ __cpuinit int apic_is_clustered_box(void)
 		/* are we being called early in kernel startup? */
 		if (bios_cpu_apicid) {
 			id = bios_cpu_apicid[i];
-		}
-		else if (i < nr_cpu_ids) {
+		} else if (i < nr_cpu_ids) {
 			if (cpu_present(i))
 				id = per_cpu(x86_bios_cpu_apicid, i);
 			else
 				continue;
-		}
-		else
+		} else
 			break;
 
 		if (id != BAD_APICID)

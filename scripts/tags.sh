@@ -84,7 +84,6 @@ docscope()
 
 exuberant()
 {
-	all_sources > all
 	all_sources | xargs $1 -a                               \
 	-I __initdata,__exitdata,__acquires,__releases          \
 	-I __read_mostly,____cacheline_aligned                  \

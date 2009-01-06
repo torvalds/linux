@@ -95,6 +95,9 @@ no_chk_data_crc		skip checking of CRCs on data nodes in order to
 			of this option is that corruption of the contents
 			of a file can go unnoticed.
 chk_data_crc (*)	do not skip checking CRCs on data nodes
+compr=none              override default compressor and set it to "none"
+compr=lzo               override default compressor and set it to "lzo"
+compr=zlib              override default compressor and set it to "zlib"
 
 
 Quick usage instructions

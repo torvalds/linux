@@ -859,7 +859,7 @@ static int __cafe_cam_reset(struct cafe_camera *cam)
  */
 static int cafe_cam_init(struct cafe_camera *cam)
 {
-	struct v4l2_chip_ident chip = { V4L2_CHIP_MATCH_I2C_ADDR, 0, 0, 0 };
+	struct v4l2_dbg_chip_ident chip;
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
@@ -869,8 +869,9 @@ static int cafe_cam_init(struct cafe_camera *cam)
 	ret = __cafe_cam_reset(cam);
 	if (ret)
 		goto out;
-	chip.match_chip = cam->sensor->addr;
-	ret = __cafe_cam_cmd(cam, VIDIOC_G_CHIP_IDENT, &chip);
+	chip.match.type = V4L2_CHIP_MATCH_I2C_ADDR;
+	chip.match.addr = cam->sensor->addr;
+	ret = __cafe_cam_cmd(cam, VIDIOC_DBG_G_CHIP_IDENT, &chip);
 	if (ret)
 		goto out;
 	cam->sensor_type = chip.ident;
@@ -1472,11 +1473,11 @@ static int cafe_v4l_mmap(struct file *filp, struct vm_area_struct *vma)
 
 
 
-static int cafe_v4l_open(struct inode *inode, struct file *filp)
+static int cafe_v4l_open(struct file *filp)
 {
 	struct cafe_camera *cam;
 
-	cam = cafe_find_dev(iminor(inode));
+	cam = cafe_find_dev(video_devdata(filp)->minor);
 	if (cam == NULL)
 		return -ENODEV;
 	filp->private_data = cam;
@@ -1494,7 +1495,7 @@ static int cafe_v4l_open(struct inode *inode, struct file *filp)
 }
 
 
-static int cafe_v4l_release(struct inode *inode, struct file *filp)
+static int cafe_v4l_release(struct file *filp)
 {
 	struct cafe_camera *cam = filp->private_data;
 
@@ -1759,7 +1760,7 @@ static void cafe_v4l_dev_release(struct video_device *vd)
  * clone it for specific real devices.
  */
 
-static const struct file_operations cafe_v4l_fops = {
+static const struct v4l2_file_operations cafe_v4l_fops = {
 	.owner = THIS_MODULE,
 	.open = cafe_v4l_open,
 	.release = cafe_v4l_release,
@@ -1767,7 +1768,6 @@ static const struct file_operations cafe_v4l_fops = {
 	.poll = cafe_v4l_poll,
 	.mmap = cafe_v4l_mmap,
 	.ioctl = video_ioctl2,
-	.llseek = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops cafe_v4l_ioctl_ops = {

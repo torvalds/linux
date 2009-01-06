@@ -517,6 +517,7 @@ static int iucv_enable(void)
 	size_t alloc_size;
 	int cpu, rc;
 
+	get_online_cpus();
 	rc = -ENOMEM;
 	alloc_size = iucv_max_pathid * sizeof(struct iucv_path);
 	iucv_path_table = kzalloc(alloc_size, GFP_KERNEL);
@@ -524,19 +525,17 @@ static int iucv_enable(void)
 		goto out;
 	/* Declare per cpu buffers. */
 	rc = -EIO;
-	get_online_cpus();
 	for_each_online_cpu(cpu)
 		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 1);
 	if (cpus_empty(iucv_buffer_cpumask))
 		/* No cpu could declare an iucv buffer. */
-		goto out_path;
+		goto out;
 	put_online_cpus();
 	return 0;
-
-out_path:
-	put_online_cpus();
-	kfree(iucv_path_table);
 out:
+	kfree(iucv_path_table);
+	iucv_path_table = NULL;
+	put_online_cpus();
 	return rc;
 }
 
@@ -551,8 +550,9 @@ static void iucv_disable(void)
 {
 	get_online_cpus();
 	on_each_cpu(iucv_retrieve_cpu, NULL, 1);
-	put_online_cpus();
 	kfree(iucv_path_table);
+	iucv_path_table = NULL;
+	put_online_cpus();
 }
 
 static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
@@ -589,10 +589,14 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 	case CPU_ONLINE_FROZEN:
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
+		if (!iucv_path_table)
+			break;
 		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 1);
 		break;
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
+		if (!iucv_path_table)
+			break;
 		cpumask = iucv_buffer_cpumask;
 		cpu_clear(cpu, cpumask);
 		if (cpus_empty(cpumask))

@@ -100,26 +100,22 @@ static unsigned long in_use;
 #define BITS2FREQ(x)	((x) * FREQ_STEP - FREQ_IF)
 
 
-static int maxiradio_exclusive_open(struct inode *inode, struct file *file)
+static int maxiradio_exclusive_open(struct file *file)
 {
 	return test_and_set_bit(0, &in_use) ? -EBUSY : 0;
 }
 
-static int maxiradio_exclusive_release(struct inode *inode, struct file *file)
+static int maxiradio_exclusive_release(struct file *file)
 {
 	clear_bit(0, &in_use);
 	return 0;
 }
 
-static const struct file_operations maxiradio_fops = {
+static const struct v4l2_file_operations maxiradio_fops = {
 	.owner		= THIS_MODULE,
 	.open           = maxiradio_exclusive_open,
 	.release        = maxiradio_exclusive_release,
 	.ioctl          = video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek         = no_llseek,
 };
 
 static struct radio_device

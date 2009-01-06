@@ -3915,7 +3915,7 @@ ov51x_dealloc(struct usb_ov511 *ov)
  ***************************************************************************/
 
 static int
-ov51x_v4l1_open(struct inode *inode, struct file *file)
+ov51x_v4l1_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct usb_ov511 *ov = video_get_drvdata(vdev);
@@ -3972,7 +3972,7 @@ out:
 }
 
 static int
-ov51x_v4l1_close(struct inode *inode, struct file *file)
+ov51x_v4l1_close(struct file *file)
 {
 	struct video_device *vdev = file->private_data;
 	struct usb_ov511 *ov = video_get_drvdata(vdev);
@@ -4010,7 +4010,7 @@ ov51x_v4l1_close(struct inode *inode, struct file *file)
 }
 
 /* Do not call this function directly! */
-static int
+static long
 ov51x_v4l1_ioctl_internal(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = file->private_data;
@@ -4449,8 +4449,8 @@ redo:
 	return 0;
 }
 
-static int
-ov51x_v4l1_ioctl(struct inode *inode, struct file *file,
+static long
+ov51x_v4l1_ioctl(struct file *file,
 		 unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vdev = file->private_data;
@@ -4661,17 +4661,13 @@ ov51x_v4l1_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static const struct file_operations ov511_fops = {
+static const struct v4l2_file_operations ov511_fops = {
 	.owner =	THIS_MODULE,
 	.open =		ov51x_v4l1_open,
 	.release =	ov51x_v4l1_close,
 	.read =		ov51x_v4l1_read,
 	.mmap =		ov51x_v4l1_mmap,
 	.ioctl =	ov51x_v4l1_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l_compat_ioctl32,
-#endif
-	.llseek =	no_llseek,
 };
 
 static struct video_device vdev_template = {

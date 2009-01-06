@@ -360,3 +360,52 @@ License: GPLv2 or OpenIB.org BSD license, no source visible
 
 --------------------------------------------------------------------------
 
+Driver: acenic -- Alteon AceNIC Gigabit Ethernet card
+
+File: acenic/tg1.bin
+File: acenic/tg2.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source, but source allegedly available at
+http://alteon.shareable.org/
+
+--------------------------------------------------------------------------
+
+Driver: tigon3 -- Broadcom Tigon3 based gigabit Ethernet cards
+
+File: tigon/tg3.bin
+File: tigon/tg3_tso.bin
+File: tigon/tg3_tso5.bin
+
+Licence:
+ * Firmware is:
+ *	Derived from proprietary unpublished source code,
+ *	Copyright (C) 2000-2003 Broadcom Corporation.
+ *
+ *	Permission is hereby granted for the distribution of this firmware
+ *	data in hexadecimal or equivalent format, provided this copyright
+ *	notice is accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ADAPTEC_STARFIRE - Adaptec Starfire/DuraLAN support
+
+File: adaptec/starfire_rx.bin
+File: adaptec/starfire_tx.bin
+
+Licence: Allegedly GPLv2, but no source visible.
+
+Found in hex form in kernel source, with the following notice:
+
+ BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE IT IS LICENSED "AS IS" AND
+ THERE IS NO WARRANTY FOR THE PROGRAM, INCLUDING BUT NOT LIMITED TO THE
+ IMPLIED WARRANTIES OF MERCHANTIBILITY OR FITNESS FOR A PARTICULAR PURPOSE
+ (TO THE EXTENT PERMITTED BY APPLICABLE LAW). USE OF THE PROGRAM IS AT YOUR
+ OWN RISK. IN NO EVENT WILL ADAPTEC OR ITS LICENSORS BE LIABLE TO YOU FOR
+ DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES
+ ARISING OUT OF THE USE OR INABILITY TO USE THE PROGRAM.
+
+--------------------------------------------------------------------------

@@ -50,7 +50,8 @@ int irq_select_affinity(unsigned int irq)
 	if (!irq_desc[irq].chip->set_affinity || irq_user_affinity[irq])
 		return 1;
 
-	while (!cpu_possible(cpu) || !cpu_isset(cpu, irq_default_affinity))
+	while (!cpu_possible(cpu) ||
+	       !cpumask_test_cpu(cpu, irq_default_affinity))
 		cpu = (cpu < (NR_CPUS-1) ? cpu + 1 : 0);
 	last_cpu = cpu;
 

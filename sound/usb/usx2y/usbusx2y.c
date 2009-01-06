@@ -392,7 +392,7 @@ static int snd_usX2Y_probe(struct usb_interface *intf, const struct usb_device_i
 	void *chip;
 	chip = usX2Y_usb_probe(interface_to_usbdev(intf), intf, id);
 	if (chip) {
-		dev_set_drvdata(&intf->dev, chip);
+		usb_set_intfdata(intf, chip);
 		return 0;
 	} else
 		return -EIO;
@@ -401,7 +401,7 @@ static int snd_usX2Y_probe(struct usb_interface *intf, const struct usb_device_i
 static void snd_usX2Y_disconnect(struct usb_interface *intf)
 {
 	usX2Y_usb_disconnect(interface_to_usbdev(intf),
-				 dev_get_drvdata(&intf->dev));
+				 usb_get_intfdata(intf));
 }
 
 MODULE_DEVICE_TABLE(usb, snd_usX2Y_usb_id_table);

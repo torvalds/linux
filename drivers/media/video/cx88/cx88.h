@@ -643,7 +643,7 @@ int cx88_audio_thread(void *data);
 
 int cx8802_register_driver(struct cx8802_driver *drv);
 int cx8802_unregister_driver(struct cx8802_driver *drv);
-struct cx8802_dev * cx8802_get_device(struct inode *inode);
+struct cx8802_dev *cx8802_get_device(int minor);
 struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype);
 
 /* ----------------------------------------------------------- */

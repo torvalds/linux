@@ -67,7 +67,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 	__RESTORE; __RESTORE; __RESTORE; __RESTORE;
 
 	{
-		struct reg_window *rw = (struct reg_window *)regs->u_regs[UREG_FP];
+		struct reg_window32 *rw = (struct reg_window32 *)regs->u_regs[UREG_FP];
 
 		/* Stop the back trace when we hit userland or we
 		 * find some badly aligned kernel stack. Set an upper
@@ -79,7 +79,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 		      !(((unsigned long) rw) & 0x7)) {
 			printk("Caller[%08lx]: %pS\n", rw->ins[7],
 			       (void *) rw->ins[7]);
-			rw = (struct reg_window *)rw->ins[6];
+			rw = (struct reg_window32 *)rw->ins[6];
 		}
 	}
 	printk("Instruction DUMP:");

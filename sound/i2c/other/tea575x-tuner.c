@@ -84,7 +84,7 @@ static void snd_tea575x_set_freq(struct snd_tea575x *tea)
  * Linux Video interface
  */
 
-static int snd_tea575x_ioctl(struct inode *inode, struct file *file,
+static long snd_tea575x_ioctl(struct file *file,
 			     unsigned int cmd, unsigned long data)
 {
 	struct snd_tea575x *tea = video_drvdata(file);
@@ -174,14 +174,14 @@ static void snd_tea575x_release(struct video_device *vfd)
 {
 }
 
-static int snd_tea575x_exclusive_open(struct inode *inode, struct file *file)
+static int snd_tea575x_exclusive_open(struct file *file)
 {
 	struct snd_tea575x *tea = video_drvdata(file);
 
 	return test_and_set_bit(0, &tea->in_use) ? -EBUSY : 0;
 }
 
-static int snd_tea575x_exclusive_release(struct inode *inode, struct file *file)
+static int snd_tea575x_exclusive_release(struct file *file)
 {
 	struct snd_tea575x *tea = video_drvdata(file);
 

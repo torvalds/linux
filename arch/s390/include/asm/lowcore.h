@@ -67,11 +67,11 @@
 #define __LC_SYNC_ENTER_TIMER		0x248
 #define __LC_ASYNC_ENTER_TIMER		0x250
 #define __LC_EXIT_TIMER			0x258
-#define __LC_LAST_UPDATE_TIMER		0x260
-#define __LC_USER_TIMER			0x268
-#define __LC_SYSTEM_TIMER		0x270
-#define __LC_LAST_UPDATE_CLOCK		0x278
-#define __LC_STEAL_CLOCK		0x280
+#define __LC_USER_TIMER			0x260
+#define __LC_SYSTEM_TIMER		0x268
+#define __LC_STEAL_TIMER		0x270
+#define __LC_LAST_UPDATE_TIMER		0x278
+#define __LC_LAST_UPDATE_CLOCK		0x280
 #define __LC_RETURN_MCCK_PSW            0x288
 #define __LC_KERNEL_STACK               0xC40
 #define __LC_THREAD_INFO		0xC44
@@ -89,11 +89,11 @@
 #define __LC_SYNC_ENTER_TIMER		0x250
 #define __LC_ASYNC_ENTER_TIMER		0x258
 #define __LC_EXIT_TIMER			0x260
-#define __LC_LAST_UPDATE_TIMER		0x268
-#define __LC_USER_TIMER			0x270
-#define __LC_SYSTEM_TIMER		0x278
-#define __LC_LAST_UPDATE_CLOCK		0x280
-#define __LC_STEAL_CLOCK		0x288
+#define __LC_USER_TIMER			0x268
+#define __LC_SYSTEM_TIMER		0x270
+#define __LC_STEAL_TIMER		0x278
+#define __LC_LAST_UPDATE_TIMER		0x280
+#define __LC_LAST_UPDATE_CLOCK		0x288
 #define __LC_RETURN_MCCK_PSW            0x290
 #define __LC_KERNEL_STACK               0xD40
 #define __LC_THREAD_INFO		0xD48
@@ -106,8 +106,10 @@
 #define __LC_IPLDEV                     0xDB8
 #define __LC_CURRENT			0xDD8
 #define __LC_INT_CLOCK			0xDE8
+#define __LC_VDSO_PER_CPU		0xE38
 #endif /* __s390x__ */
 
+#define __LC_PASTE			0xE40
 
 #define __LC_PANIC_MAGIC		0xE00
 #ifndef __s390x__
@@ -252,11 +254,11 @@ struct _lowcore
 	__u64        sync_enter_timer;         /* 0x248 */
 	__u64        async_enter_timer;        /* 0x250 */
 	__u64        exit_timer;               /* 0x258 */
-	__u64        last_update_timer;        /* 0x260 */
-	__u64        user_timer;               /* 0x268 */
-	__u64        system_timer;             /* 0x270 */
-	__u64        last_update_clock;        /* 0x278 */
-	__u64        steal_clock;              /* 0x280 */
+	__u64	     user_timer;	       /* 0x260 */
+	__u64	     system_timer;	       /* 0x268 */
+	__u64	     steal_timer;	       /* 0x270 */
+	__u64	     last_update_timer;        /* 0x278 */
+	__u64	     last_update_clock;        /* 0x280 */
         psw_t        return_mcck_psw;          /* 0x288 */
 	__u8         pad8[0xc00-0x290];        /* 0x290 */
 
@@ -343,11 +345,11 @@ struct _lowcore
 	__u64        sync_enter_timer;         /* 0x250 */
 	__u64        async_enter_timer;        /* 0x258 */
 	__u64        exit_timer;               /* 0x260 */
-	__u64        last_update_timer;        /* 0x268 */
-	__u64        user_timer;               /* 0x270 */
-	__u64        system_timer;             /* 0x278 */
-	__u64        last_update_clock;        /* 0x280 */
-	__u64        steal_clock;              /* 0x288 */
+	__u64	     user_timer;	       /* 0x268 */
+	__u64	     system_timer;	       /* 0x270 */
+	__u64	     steal_timer;	       /* 0x278 */
+	__u64	     last_update_timer;        /* 0x280 */
+	__u64	     last_update_clock;        /* 0x288 */
         psw_t        return_mcck_psw;          /* 0x290 */
         __u8         pad8[0xc00-0x2a0];        /* 0x2a0 */
         /* System info area */
@@ -381,7 +383,12 @@ struct _lowcore
         /* whether the kernel died with panic() or not */
         __u32        panic_magic;              /* 0xe00 */
 
-	__u8         pad13[0x11b8-0xe04];      /* 0xe04 */
+	/* Per cpu primary space access list */
+	__u8	     pad_0xe04[0xe3c-0xe04];   /* 0xe04 */
+	__u32	     vdso_per_cpu_data;	       /* 0xe3c */
+	__u32	     paste[16];		       /* 0xe40 */
+
+	__u8	     pad13[0x11b8-0xe80];      /* 0xe80 */
 
 	/* 64 bit extparam used for pfault, diag 250 etc  */
 	__u64        ext_params2;               /* 0x11B8 */

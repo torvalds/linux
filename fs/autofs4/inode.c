@@ -455,11 +455,7 @@ struct inode *autofs4_get_inode(struct super_block *sb,
 	if (sb->s_root) {
 		inode->i_uid = sb->s_root->d_inode->i_uid;
 		inode->i_gid = sb->s_root->d_inode->i_gid;
-	} else {
-		inode->i_uid = 0;
-		inode->i_gid = 0;
 	}
-	inode->i_blocks = 0;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 
 	if (S_ISDIR(inf->mode)) {

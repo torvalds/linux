@@ -238,7 +238,7 @@ int cap_inode_need_killpriv(struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 	int error;
 
-	if (!inode->i_op || !inode->i_op->getxattr)
+	if (!inode->i_op->getxattr)
 	       return 0;
 
 	error = inode->i_op->getxattr(dentry, XATTR_NAME_CAPS, NULL, 0);
@@ -259,7 +259,7 @@ int cap_inode_killpriv(struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 
-	if (!inode->i_op || !inode->i_op->removexattr)
+	if (!inode->i_op->removexattr)
 	       return 0;
 
 	return inode->i_op->removexattr(dentry, XATTR_NAME_CAPS);
@@ -317,7 +317,7 @@ int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data 
 
 	memset(cpu_caps, 0, sizeof(struct cpu_vfs_cap_data));
 
-	if (!inode || !inode->i_op || !inode->i_op->getxattr)
+	if (!inode || !inode->i_op->getxattr)
 		return -ENODATA;
 
 	size = inode->i_op->getxattr((struct dentry *)dentry, XATTR_NAME_CAPS, &caps,

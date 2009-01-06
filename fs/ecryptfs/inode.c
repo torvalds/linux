@@ -612,8 +612,7 @@ ecryptfs_readlink(struct dentry *dentry, char __user * buf, int bufsiz)
 	struct ecryptfs_crypt_stat *crypt_stat;
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	if (!lower_dentry->d_inode->i_op ||
-	    !lower_dentry->d_inode->i_op->readlink) {
+	if (!lower_dentry->d_inode->i_op->readlink) {
 		rc = -EINVAL;
 		goto out;
 	}
