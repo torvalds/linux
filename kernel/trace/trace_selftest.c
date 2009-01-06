@@ -9,7 +9,6 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_FN:
 	case TRACE_CTX:
 	case TRACE_WAKE:
-	case TRACE_CONT:
 	case TRACE_STACK:
 	case TRACE_PRINT:
 	case TRACE_SPECIAL:

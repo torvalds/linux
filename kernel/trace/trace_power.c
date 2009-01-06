@@ -16,6 +16,7 @@
 #include <linux/module.h>
 
 #include "trace.h"
+#include "trace_output.h"
 
 static struct trace_array *power_trace;
 static int __read_mostly trace_power_enabled;

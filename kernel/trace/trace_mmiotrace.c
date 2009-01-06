@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 
 #include "trace.h"
+#include "trace_output.h"
 
 struct header_iter {
 	struct pci_dev *dev;
@@ -261,9 +262,6 @@ static enum print_line_t mmio_print_mark(struct trace_iterator *iter)
 	ret = trace_seq_printf(s, "MARK %lu.%06lu %s", secs, usec_rem, msg);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
-
-	if (entry->flags & TRACE_FLAG_CONT)
-		trace_seq_print_cont(s, iter);
 
 	return TRACE_TYPE_HANDLED;
 }

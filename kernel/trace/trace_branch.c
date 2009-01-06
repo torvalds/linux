@@ -14,12 +14,17 @@
 #include <linux/hash.h>
 #include <linux/fs.h>
 #include <asm/local.h>
+
 #include "trace.h"
+#include "trace_output.h"
+
+static struct tracer branch_trace;
 
 #ifdef CONFIG_BRANCH_TRACER
 
 static int branch_tracing_enabled __read_mostly;
 static DEFINE_MUTEX(branch_tracing_mutex);
+
 static struct trace_array *branch_tracer;
 
 static void
@@ -142,22 +147,50 @@ static void branch_trace_reset(struct trace_array *tr)
 	stop_branch_trace(tr);
 }
 
-struct tracer branch_trace __read_mostly =
+static int
+trace_print_print(struct trace_seq *s, struct trace_entry *entry, int flags)
 {
-	.name		= "branch",
-	.init		= branch_trace_init,
-	.reset		= branch_trace_reset,
-#ifdef CONFIG_FTRACE_SELFTEST
-	.selftest	= trace_selftest_startup_branch,
-#endif
-};
+	struct print_entry *field;
 
-__init static int init_branch_trace(void)
-{
-	return register_tracer(&branch_trace);
+	trace_assign_type(field, entry);
+
+	if (seq_print_ip_sym(s, field->ip, flags))
+		goto partial;
+
+	if (trace_seq_printf(s, ": %s", field->buf))
+		goto partial;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-device_initcall(init_branch_trace);
+static int
+trace_branch_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+{
+	struct trace_branch *field;
+
+	trace_assign_type(field, entry);
+
+	if (trace_seq_printf(s, "[%s] %s:%s:%d\n",
+			     field->correct ? "  ok  " : " MISS ",
+			     field->func,
+			     field->file,
+			     field->line))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return 0;
+}
+
+
+static struct trace_event trace_branch_event = {
+	.type	 	= TRACE_BRANCH,
+	.trace		= trace_branch_print,
+	.latency_trace	= trace_branch_print,
+	.raw		= trace_nop_print,
+	.hex		= trace_nop_print,
+	.binary		= trace_nop_print,
+};
+
 #else
 static inline
 void trace_likely_condition(struct ftrace_branch_data *f, int val, int expect)
@@ -183,65 +216,38 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect)
 }
 EXPORT_SYMBOL(ftrace_likely_update);
 
-struct ftrace_pointer {
-	void		*start;
-	void		*stop;
-	int		hit;
-};
+extern unsigned long __start_annotated_branch_profile[];
+extern unsigned long __stop_annotated_branch_profile[];
 
-static void *
-t_next(struct seq_file *m, void *v, loff_t *pos)
+static int annotated_branch_stat_headers(struct seq_file *m)
 {
-	const struct ftrace_pointer *f = m->private;
-	struct ftrace_branch_data *p = v;
-
-	(*pos)++;
-
-	if (v == (void *)1)
-		return f->start;
-
-	++p;
-
-	if ((void *)p >= (void *)f->stop)
-		return NULL;
-
-	return p;
-}
-
-static void *t_start(struct seq_file *m, loff_t *pos)
-{
-	void *t = (void *)1;
-	loff_t l = 0;
-
-	for (; t && l < *pos; t = t_next(m, t, &l))
-		;
-
-	return t;
-}
-
-static void t_stop(struct seq_file *m, void *p)
-{
-}
-
-static int t_show(struct seq_file *m, void *v)
-{
-	const struct ftrace_pointer *fp = m->private;
-	struct ftrace_branch_data *p = v;
-	const char *f;
-	long percent;
-
-	if (v == (void *)1) {
-		if (fp->hit)
-			seq_printf(m, "   miss      hit    %% ");
-		else
-			seq_printf(m, " correct incorrect  %% ");
-		seq_printf(m, "       Function                "
+	seq_printf(m, " correct incorrect  %% ");
+	seq_printf(m, "       Function                "
 			      "  File              Line\n"
 			      " ------- ---------  - "
 			      "       --------                "
 			      "  ----              ----\n");
-		return 0;
-	}
+	return 0;
+}
+
+static inline long get_incorrect_percent(struct ftrace_branch_data *p)
+{
+	long percent;
+
+	if (p->correct) {
+		percent = p->incorrect * 100;
+		percent /= p->correct + p->incorrect;
+	} else
+		percent = p->incorrect ? 100 : -1;
+
+	return percent;
+}
+
+static int branch_stat_show(struct seq_file *m, void *v)
+{
+	struct ftrace_branch_data *p = v;
+	const char *f;
+	long percent;
 
 	/* Only print the file, not the path */
 	f = p->file + strlen(p->file);
@@ -252,11 +258,7 @@ static int t_show(struct seq_file *m, void *v)
 	/*
 	 * The miss is overlayed on correct, and hit on incorrect.
 	 */
-	if (p->correct) {
-		percent = p->incorrect * 100;
-		percent /= p->correct + p->incorrect;
-	} else
-		percent = p->incorrect ? 100 : -1;
+	percent = get_incorrect_percent(p);
 
 	seq_printf(m, "%8lu %8lu ",  p->correct, p->incorrect);
 	if (percent < 0)
@@ -267,76 +269,143 @@ static int t_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations tracing_likely_seq_ops = {
-	.start		= t_start,
-	.next		= t_next,
-	.stop		= t_stop,
-	.show		= t_show,
-};
-
-static int tracing_branch_open(struct inode *inode, struct file *file)
+static void *annotated_branch_stat_start(void)
 {
-	int ret;
-
-	ret = seq_open(file, &tracing_likely_seq_ops);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		m->private = (void *)inode->i_private;
-	}
-
-	return ret;
+	return __start_annotated_branch_profile;
 }
 
-static const struct file_operations tracing_branch_fops = {
-	.open		= tracing_branch_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-};
+static void *
+annotated_branch_stat_next(void *v, int idx)
+{
+	struct ftrace_branch_data *p = v;
+
+	++p;
+
+	if ((void *)p >= (void *)__stop_annotated_branch_profile)
+		return NULL;
+
+	return p;
+}
+
+static int annotated_branch_stat_cmp(void *p1, void *p2)
+{
+	struct ftrace_branch_data *a = p1;
+	struct ftrace_branch_data *b = p2;
+
+	long percent_a, percent_b;
+
+	percent_a = get_incorrect_percent(a);
+	percent_b = get_incorrect_percent(b);
+
+	if (percent_a < percent_b)
+		return -1;
+	if (percent_a > percent_b)
+		return 1;
+	else
+		return 0;
+}
 
 #ifdef CONFIG_PROFILE_ALL_BRANCHES
+enum {
+	TRACE_BRANCH_OPT_ALL = 0x1
+};
+
+static struct tracer_opt branch_opts[] = {
+	{ TRACER_OPT(stat_all_branch, TRACE_BRANCH_OPT_ALL) },
+	{ }
+};
+
+static struct tracer_flags branch_flags = {
+	.val = 0,
+	.opts = branch_opts
+};
+
 extern unsigned long __start_branch_profile[];
 extern unsigned long __stop_branch_profile[];
 
-static const struct ftrace_pointer ftrace_branch_pos = {
-	.start			= __start_branch_profile,
-	.stop			= __stop_branch_profile,
-	.hit			= 1,
-};
-
-#endif /* CONFIG_PROFILE_ALL_BRANCHES */
-
-extern unsigned long __start_annotated_branch_profile[];
-extern unsigned long __stop_annotated_branch_profile[];
-
-static const struct ftrace_pointer ftrace_annotated_branch_pos = {
-	.start			= __start_annotated_branch_profile,
-	.stop			= __stop_annotated_branch_profile,
-};
-
-static __init int ftrace_branch_init(void)
+static int all_branch_stat_headers(struct seq_file *m)
 {
-	struct dentry *d_tracer;
-	struct dentry *entry;
-
-	d_tracer = tracing_init_dentry();
-
-	entry = debugfs_create_file("profile_annotated_branch", 0444, d_tracer,
-				    (void *)&ftrace_annotated_branch_pos,
-				    &tracing_branch_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'profile_annotatet_branch' entry\n");
-
-#ifdef CONFIG_PROFILE_ALL_BRANCHES
-	entry = debugfs_create_file("profile_branch", 0444, d_tracer,
-				    (void *)&ftrace_branch_pos,
-				    &tracing_branch_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs"
-			   " 'profile_branch' entry\n");
-#endif
-
+	seq_printf(m, "   miss      hit    %% ");
+	seq_printf(m, "       Function                "
+			      "  File              Line\n"
+			      " ------- ---------  - "
+			      "       --------                "
+			      "  ----              ----\n");
 	return 0;
 }
 
-device_initcall(ftrace_branch_init);
+static void *all_branch_stat_start(void)
+{
+	return __start_branch_profile;
+}
+
+static void *
+all_branch_stat_next(void *v, int idx)
+{
+	struct ftrace_branch_data *p = v;
+
+	++p;
+
+	if ((void *)p >= (void *)__stop_branch_profile)
+		return NULL;
+
+	return p;
+}
+
+static int branch_set_flag(u32 old_flags, u32 bit, int set)
+{
+	if (bit == TRACE_BRANCH_OPT_ALL) {
+		if (set) {
+			branch_trace.stat_headers = all_branch_stat_headers;
+			branch_trace.stat_start = all_branch_stat_start;
+			branch_trace.stat_next = all_branch_stat_next;
+			branch_trace.stat_cmp = NULL;
+		} else {
+			branch_trace.stat_headers =
+				annotated_branch_stat_headers;
+			branch_trace.stat_start = annotated_branch_stat_start;
+			branch_trace.stat_next = annotated_branch_stat_next;
+			branch_trace.stat_cmp = annotated_branch_stat_cmp;
+		}
+		init_tracer_stat(&branch_trace);
+	}
+	return 0;
+}
+
+#endif /* CONFIG_PROFILE_ALL_BRANCHES */
+
+static struct tracer branch_trace __read_mostly =
+{
+	.name		= "branch",
+#ifdef CONFIG_BRANCH_TRACER
+	.init		= branch_trace_init,
+	.reset		= branch_trace_reset,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest	= trace_selftest_startup_branch,
+#endif /* CONFIG_FTRACE_SELFTEST */
+#endif /* CONFIG_BRANCH_TRACER */
+	.stat_start	=	annotated_branch_stat_start,
+	.stat_next	= annotated_branch_stat_next,
+	.stat_show	= branch_stat_show,
+	.stat_headers	= annotated_branch_stat_headers,
+	.stat_cmp	= annotated_branch_stat_cmp,
+#ifdef CONFIG_PROFILE_ALL_BRANCHES
+	.flags	= &branch_flags,
+	.set_flag	= branch_set_flag,
+#endif
+};
+
+__init static int init_branch_trace(void)
+{
+#ifdef CONFIG_BRANCH_TRACER
+	int ret;
+	ret = register_ftrace_event(&trace_branch_event);
+	if (!ret) {
+		printk(KERN_WARNING "Warning: could not register branch events\n");
+		return 1;
+	}
+#endif
+
+	return register_tracer(&branch_trace);
+}
+device_initcall(init_branch_trace);

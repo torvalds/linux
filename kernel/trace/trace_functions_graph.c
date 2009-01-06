@@ -12,6 +12,7 @@
 #include <linux/fs.h>
 
 #include "trace.h"
+#include "trace_output.h"
 
 #define TRACE_GRAPH_INDENT	2
 
@@ -588,9 +589,6 @@ print_graph_comment(struct print_entry *trace, struct trace_seq *s,
 	ret = trace_seq_printf(s, "/* %s", trace->buf);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
-
-	if (ent->flags & TRACE_FLAG_CONT)
-		trace_seq_print_cont(s, iter);
 
 	/* Strip ending newline */
 	if (s->buffer[s->len - 1] == '\n') {
