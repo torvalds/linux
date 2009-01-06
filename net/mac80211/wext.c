@@ -863,17 +863,19 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 		timeout = wrq->value / 1000;
 
 set:
-	if (ps == local->powersave && timeout == local->dynamic_ps_timeout)
+	if (ps == local->powersave && timeout == conf->dynamic_ps_timeout)
 		return ret;
 
 	local->powersave = ps;
-	local->dynamic_ps_timeout = timeout;
+	conf->dynamic_ps_timeout = timeout;
 
-	if (!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS) &&
-			(sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED)) {
-		if (local->dynamic_ps_timeout > 0)
+	if (local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS) {
+		ret = ieee80211_hw_config(local,
+					  IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT);
+	} else if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
+		if (conf->dynamic_ps_timeout > 0)
 			mod_timer(&local->dynamic_ps_timer, jiffies +
-				  msecs_to_jiffies(local->dynamic_ps_timeout));
+				  msecs_to_jiffies(conf->dynamic_ps_timeout));
 		else {
 			if (local->powersave) {
 				ieee80211_send_nullfunc(local, sdata, 1);

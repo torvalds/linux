@@ -515,6 +515,7 @@ static inline int __deprecated __IEEE80211_CONF_SHORT_SLOT_TIME(void)
  * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
  * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
  * @IEEE80211_CONF_CHANGE_PS: the PS flag changed
+ * @IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT: the dynamic PS timeout changed
  * @IEEE80211_CONF_CHANGE_POWER: the TX power changed
  * @IEEE80211_CONF_CHANGE_CHANNEL: the channel/channel_type changed
  * @IEEE80211_CONF_CHANGE_RETRY_LIMITS: retry limits changed
@@ -525,9 +526,10 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
 	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
-	IEEE80211_CONF_CHANGE_POWER		= BIT(5),
-	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
-	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(7),
+	IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT	= BIT(5),
+	IEEE80211_CONF_CHANGE_POWER		= BIT(6),
+	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(7),
+	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(8),
 };
 
 /**
@@ -540,6 +542,7 @@ enum ieee80211_conf_changed {
  * @listen_interval: listen interval in units of beacon interval
  * @flags: configuration flags defined above
  * @power_level: requested transmit power (in dBm)
+ * @dynamic_ps_timeout: dynamic powersave timeout (in ms)
  * @channel: the channel to tune to
  * @channel_type: the channel (HT) type
  * @long_frame_max_tx_count: Maximum number of transmissions for a "long" frame
@@ -552,7 +555,7 @@ enum ieee80211_conf_changed {
 struct ieee80211_conf {
 	int beacon_int;
 	u32 flags;
-	int power_level;
+	int power_level, dynamic_ps_timeout;
 
 	u16 listen_interval;
 	bool radio_enabled;

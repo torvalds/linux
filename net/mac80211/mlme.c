@@ -777,9 +777,10 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	if (local->powersave &&
 			!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS)) {
-		if (local->dynamic_ps_timeout > 0)
+		if (local->hw.conf.dynamic_ps_timeout > 0)
 			mod_timer(&local->dynamic_ps_timer, jiffies +
-				  msecs_to_jiffies(local->dynamic_ps_timeout));
+				  msecs_to_jiffies(
+					local->hw.conf.dynamic_ps_timeout));
 		else {
 			ieee80211_send_nullfunc(local, sdata, 1);
 			conf->flags |= IEEE80211_CONF_PS;
