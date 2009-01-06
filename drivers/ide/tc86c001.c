@@ -188,6 +188,7 @@ static const struct ide_dma_ops tc86c001_dma_ops = {
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timeout		= ide_dma_timeout,
+	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 static const struct ide_port_info tc86c001_chipset __devinitdata = {

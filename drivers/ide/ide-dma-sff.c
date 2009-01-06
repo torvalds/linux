@@ -50,6 +50,17 @@ int config_drive_for_dma(ide_drive_t *drive)
 	return 0;
 }
 
+u8 ide_dma_sff_read_status(ide_hwif_t *hwif)
+{
+	unsigned long addr = hwif->dma_base + ATA_DMA_STATUS;
+
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		return readb((void __iomem *)addr);
+	else
+		return inb(addr);
+}
+EXPORT_SYMBOL_GPL(ide_dma_sff_read_status);
+
 /**
  *	ide_dma_host_set	-	Enable/disable DMA on a host
  *	@drive: drive to control
@@ -62,7 +73,7 @@ void ide_dma_host_set(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	u8 unit = drive->dn & 1;
-	u8 dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	u8 dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
 
 	if (on)
 		dma_stat |= (1 << (5 + unit));
@@ -200,7 +211,7 @@ int ide_dma_setup(ide_drive_t *drive)
 		outb(reading, hwif->dma_base + ATA_DMA_CMD);
 
 	/* read DMA status for INTR & ERROR flags */
-	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
 
 	/* clear INTR & ERROR flags */
 	if (mmio)
@@ -232,7 +243,7 @@ EXPORT_SYMBOL_GPL(ide_dma_setup);
 static int dma_timer_expiry(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	u8 dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
 
 	printk(KERN_WARNING "%s: %s: DMA status (0x%02x)\n",
 		drive->name, __func__, dma_stat);
@@ -305,7 +316,7 @@ int ide_dma_end(ide_drive_t *drive)
 	}
 
 	/* get DMA status */
-	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
 
 	if (mmio)
 		/* clear the INTR & ERROR bits */
@@ -331,7 +342,7 @@ EXPORT_SYMBOL_GPL(ide_dma_end);
 int ide_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	u8 dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
 
 	return (dma_stat & ATA_DMA_INTR) ? 1 : 0;
 }
@@ -346,5 +357,6 @@ const struct ide_dma_ops sff_dma_ops = {
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 EXPORT_SYMBOL_GPL(sff_dma_ops);

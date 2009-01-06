@@ -955,7 +955,6 @@ static const struct ide_tp_ops pmac_tp_ops = {
 	.exec_command		= pmac_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
-	.read_sff_dma_status	= ide_read_sff_dma_status,
 
 	.set_irq		= pmac_set_irq,
 

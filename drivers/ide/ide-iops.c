@@ -105,15 +105,6 @@ u8 ide_read_altstatus(ide_hwif_t *hwif)
 }
 EXPORT_SYMBOL_GPL(ide_read_altstatus);
 
-u8 ide_read_sff_dma_status(ide_hwif_t *hwif)
-{
-	if (hwif->host_flags & IDE_HFLAG_MMIO)
-		return readb((void __iomem *)(hwif->dma_base + ATA_DMA_STATUS));
-	else
-		return inb(hwif->dma_base + ATA_DMA_STATUS);
-}
-EXPORT_SYMBOL_GPL(ide_read_sff_dma_status);
-
 void ide_set_irq(ide_hwif_t *hwif, int on)
 {
 	u8 ctl = ATA_DEVCTL_OBS;
@@ -388,7 +379,6 @@ const struct ide_tp_ops default_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
-	.read_sff_dma_status	= ide_read_sff_dma_status,
 
 	.set_irq		= ide_set_irq,
 

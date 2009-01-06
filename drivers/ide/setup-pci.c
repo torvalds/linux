@@ -130,7 +130,7 @@ int ide_pci_check_simplex(ide_hwif_t *hwif, const struct ide_port_info *d)
 	 * we tune the drive then try to grab DMA ownership if we want to be
 	 * the DMA end.  This has to be become dynamic to handle hot-plug.
 	 */
-	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
 	if ((dma_stat & 0x80) && hwif->mate && hwif->mate->dma_base) {
 		printk(KERN_INFO "%s %s: simplex device: DMA disabled\n",
 			d->name, pci_name(dev));
@@ -377,6 +377,9 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 
 		hwif->dma_base = base;
 
+		if (hwif->dma_ops == NULL)
+			hwif->dma_ops = &sff_dma_ops;
+
 		if (ide_pci_check_simplex(hwif, d) < 0)
 			return -1;
 
@@ -393,8 +396,6 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 
 		if (ide_allocate_dma_engine(hwif))
 			return -1;
-
-		hwif->dma_ops = &sff_dma_ops;
 	}
 
 	return 0;

@@ -674,7 +674,6 @@ struct ide_tp_ops {
 	void	(*exec_command)(struct hwif_s *, u8);
 	u8	(*read_status)(struct hwif_s *);
 	u8	(*read_altstatus)(struct hwif_s *);
-	u8	(*read_sff_dma_status)(struct hwif_s *);
 
 	void	(*set_irq)(struct hwif_s *, int);
 
@@ -735,6 +734,11 @@ struct ide_dma_ops {
 	int	(*dma_test_irq)(struct ide_drive_s *);
 	void	(*dma_lost_irq)(struct ide_drive_s *);
 	void	(*dma_timeout)(struct ide_drive_s *);
+	/*
+	 * The following method is optional and only required to be
+	 * implemented for the SFF-8038i compatible controllers.
+	 */
+	u8	(*dma_sff_read_status)(struct hwif_s *);
 };
 
 struct ide_host;
@@ -1177,7 +1181,6 @@ void ide_tf_dump(const char *, struct ide_taskfile *);
 void ide_exec_command(ide_hwif_t *, u8);
 u8 ide_read_status(ide_hwif_t *);
 u8 ide_read_altstatus(ide_hwif_t *);
-u8 ide_read_sff_dma_status(ide_hwif_t *);
 
 void ide_set_irq(ide_hwif_t *, int);
 
@@ -1458,6 +1461,7 @@ void ide_dma_exec_cmd(ide_drive_t *, u8);
 extern void ide_dma_start(ide_drive_t *);
 int ide_dma_end(ide_drive_t *);
 int ide_dma_test_irq(ide_drive_t *);
+u8 ide_dma_sff_read_status(ide_hwif_t *);
 extern const struct ide_dma_ops sff_dma_ops;
 #else
 static inline int config_drive_for_dma(ide_drive_t *drive) { return 0; }

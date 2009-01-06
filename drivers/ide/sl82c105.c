@@ -299,6 +299,7 @@ static const struct ide_dma_ops sl82c105_dma_ops = {
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= sl82c105_dma_lost_irq,
 	.dma_timeout		= sl82c105_dma_timeout,
+	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 static const struct ide_port_info sl82c105_chipset __devinitdata = {

@@ -1229,6 +1229,8 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0) {
 		int rc;
 
+		hwif->dma_ops = d->dma_ops;
+
 		if (d->init_dma)
 			rc = d->init_dma(hwif, d);
 		else
@@ -1236,12 +1238,13 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 
 		if (rc < 0) {
 			printk(KERN_INFO "%s: DMA disabled\n", hwif->name);
+
+			hwif->dma_ops = NULL;
 			hwif->dma_base = 0;
 			hwif->swdma_mask = 0;
 			hwif->mwdma_mask = 0;
 			hwif->ultra_mask = 0;
-		} else if (d->dma_ops)
-			hwif->dma_ops = d->dma_ops;
+		}
 	}
 
 	if ((d->host_flags & IDE_HFLAG_SERIALIZE) ||

@@ -337,6 +337,7 @@ static const struct ide_dma_ops pdc20246_dma_ops = {
 	.dma_test_irq		= pdc202xx_dma_test_irq,
 	.dma_lost_irq		= pdc202xx_dma_lost_irq,
 	.dma_timeout		= pdc202xx_dma_timeout,
+	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 static const struct ide_dma_ops pdc2026x_dma_ops = {
@@ -348,6 +349,7 @@ static const struct ide_dma_ops pdc2026x_dma_ops = {
 	.dma_test_irq		= pdc202xx_dma_test_irq,
 	.dma_lost_irq		= pdc202xx_dma_lost_irq,
 	.dma_timeout		= pdc202xx_dma_timeout,
+	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 #define DECLARE_PDC2026X_DEV(udma, sectors) \
