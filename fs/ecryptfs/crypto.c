@@ -924,6 +924,15 @@ static void ecryptfs_copy_mount_wide_flags_to_inode_flags(
 		crypt_stat->flags |= ECRYPTFS_METADATA_IN_XATTR;
 	if (mount_crypt_stat->flags & ECRYPTFS_ENCRYPTED_VIEW_ENABLED)
 		crypt_stat->flags |= ECRYPTFS_VIEW_AS_ENCRYPTED;
+	if (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES) {
+		crypt_stat->flags |= ECRYPTFS_ENCRYPT_FILENAMES;
+		if (mount_crypt_stat->flags
+		    & ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK)
+			crypt_stat->flags |= ECRYPTFS_ENCFN_USE_MOUNT_FNEK;
+		else if (mount_crypt_stat->flags
+			 & ECRYPTFS_GLOBAL_ENCFN_USE_FEK)
+			crypt_stat->flags |= ECRYPTFS_ENCFN_USE_FEK;
+	}
 }
 
 static int ecryptfs_copy_mount_wide_sigs_to_inode_sigs(
@@ -1060,7 +1069,8 @@ struct ecryptfs_flag_map_elem {
 static struct ecryptfs_flag_map_elem ecryptfs_flag_map[] = {
 	{0x00000001, ECRYPTFS_ENABLE_HMAC},
 	{0x00000002, ECRYPTFS_ENCRYPTED},
-	{0x00000004, ECRYPTFS_METADATA_IN_XATTR}
+	{0x00000004, ECRYPTFS_METADATA_IN_XATTR},
+	{0x00000008, ECRYPTFS_ENCRYPT_FILENAMES}
 };
 
 /**
@@ -1213,6 +1223,8 @@ int ecryptfs_read_and_validate_header_region(char *data,
 		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
 	int rc;
 
+	if (crypt_stat->extent_size == 0)
+		crypt_stat->extent_size = ECRYPTFS_DEFAULT_EXTENT_SIZE;
 	rc = ecryptfs_read_lower(data, 0, crypt_stat->extent_size,
 				 ecryptfs_inode);
 	if (rc) {
@@ -1222,7 +1234,6 @@ int ecryptfs_read_and_validate_header_region(char *data,
 	}
 	if (!contains_ecryptfs_marker(data + ECRYPTFS_FILE_SIZE_BYTES)) {
 		rc = -EINVAL;
-		ecryptfs_printk(KERN_DEBUG, "Valid marker not found\n");
 	}
 out:
 	return rc;
@@ -1626,98 +1637,6 @@ out:
 		kmem_cache_free(ecryptfs_header_cache_1, page_virt);
 	}
 	return rc;
-}
-
-/**
- * ecryptfs_encode_filename - converts a plaintext file name to cipher text
- * @crypt_stat: The crypt_stat struct associated with the file anem to encode
- * @name: The plaintext name
- * @length: The length of the plaintext
- * @encoded_name: The encypted name
- *
- * Encrypts and encodes a filename into something that constitutes a
- * valid filename for a filesystem, with printable characters.
- *
- * We assume that we have a properly initialized crypto context,
- * pointed to by crypt_stat->tfm.
- *
- * TODO: Implement filename decoding and decryption here, in place of
- * memcpy. We are keeping the framework around for now to (1)
- * facilitate testing of the components needed to implement filename
- * encryption and (2) to provide a code base from which other
- * developers in the community can easily implement this feature.
- *
- * Returns the length of encoded filename; negative if error
- */
-int
-ecryptfs_encode_filename(struct ecryptfs_crypt_stat *crypt_stat,
-			 const char *name, int length, char **encoded_name)
-{
-	int error = 0;
-
-	(*encoded_name) = kmalloc(length + 2, GFP_KERNEL);
-	if (!(*encoded_name)) {
-		error = -ENOMEM;
-		goto out;
-	}
-	/* TODO: Filename encryption is a scheduled feature for a
-	 * future version of eCryptfs. This function is here only for
-	 * the purpose of providing a framework for other developers
-	 * to easily implement filename encryption. Hint: Replace this
-	 * memcpy() with a call to encrypt and encode the
-	 * filename, the set the length accordingly. */
-	memcpy((void *)(*encoded_name), (void *)name, length);
-	(*encoded_name)[length] = '\0';
-	error = length + 1;
-out:
-	return error;
-}
-
-/**
- * ecryptfs_decode_filename - converts the cipher text name to plaintext
- * @crypt_stat: The crypt_stat struct associated with the file
- * @name: The filename in cipher text
- * @length: The length of the cipher text name
- * @decrypted_name: The plaintext name
- *
- * Decodes and decrypts the filename.
- *
- * We assume that we have a properly initialized crypto context,
- * pointed to by crypt_stat->tfm.
- *
- * TODO: Implement filename decoding and decryption here, in place of
- * memcpy. We are keeping the framework around for now to (1)
- * facilitate testing of the components needed to implement filename
- * encryption and (2) to provide a code base from which other
- * developers in the community can easily implement this feature.
- *
- * Returns the length of decoded filename; negative if error
- */
-int
-ecryptfs_decode_filename(struct ecryptfs_crypt_stat *crypt_stat,
-			 const char *name, int length, char **decrypted_name)
-{
-	int error = 0;
-
-	(*decrypted_name) = kmalloc(length + 2, GFP_KERNEL);
-	if (!(*decrypted_name)) {
-		error = -ENOMEM;
-		goto out;
-	}
-	/* TODO: Filename encryption is a scheduled feature for a
-	 * future version of eCryptfs. This function is here only for
-	 * the purpose of providing a framework for other developers
-	 * to easily implement filename encryption. Hint: Replace this
-	 * memcpy() with a call to decode and decrypt the
-	 * filename, the set the length accordingly. */
-	memcpy((void *)(*decrypted_name), (void *)name, length);
-	(*decrypted_name)[length + 1] = '\0';	/* Only for convenience
-						 * in printing out the
-						 * string in debug
-						 * messages */
-	error = length;
-out:
-	return error;
 }
 
 /**
