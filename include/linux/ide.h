@@ -1586,8 +1586,6 @@ static inline void ide_set_max_pio(ide_drive_t *drive)
 	ide_set_pio(drive, 255);
 }
 
-#define local_irq_set(flags)	do { local_save_flags((flags)); local_irq_enable_in_hardirq(); } while (0)
-
 char *ide_media_string(ide_drive_t *);
 
 extern struct device_attribute ide_dev_attrs[];
