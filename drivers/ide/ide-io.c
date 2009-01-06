@@ -1197,7 +1197,6 @@ void ide_do_drive_cmd(ide_drive_t *drive, struct request *rq)
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
-	blk_start_queueing(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(ide_do_drive_cmd);
