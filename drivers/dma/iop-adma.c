@@ -1413,16 +1413,12 @@ static int __init iop_adma_init (void)
 	return platform_driver_register(&iop_adma_driver);
 }
 
-/* it's currently unsafe to unload this module */
-#if 0
 static void __exit iop_adma_exit (void)
 {
 	platform_driver_unregister(&iop_adma_driver);
 	return;
 }
 module_exit(iop_adma_exit);
-#endif
-
 module_init(iop_adma_init);
 
 MODULE_AUTHOR("Intel Corporation");
