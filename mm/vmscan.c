@@ -625,15 +625,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		if (PageAnon(page) && !PageSwapCache(page)) {
 			if (!(sc->gfp_mask & __GFP_IO))
 				goto keep_locked;
-			switch (try_to_munlock(page)) {
-			case SWAP_FAIL:		/* shouldn't happen */
-			case SWAP_AGAIN:
-				goto keep_locked;
-			case SWAP_MLOCK:
-				goto cull_mlocked;
-			case SWAP_SUCCESS:
-				; /* fall thru'; add to swap cache */
-			}
 			if (!add_to_swap(page, GFP_ATOMIC))
 				goto activate_locked;
 			may_enter_fs = 1;
@@ -752,6 +743,8 @@ free_it:
 		continue;
 
 cull_mlocked:
+		if (PageSwapCache(page))
+			try_to_free_swap(page);
 		unlock_page(page);
 		putback_lru_page(page);
 		continue;
