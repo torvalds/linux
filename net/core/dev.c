@@ -4894,8 +4894,7 @@ static int __init netdev_dma_register(void)
 	}
 	spin_lock_init(&net_dma.lock);
 	dma_cap_set(DMA_MEMCPY, net_dma.client.cap_mask);
-	dma_async_client_register(&net_dma.client);
-	dma_async_client_chan_request(&net_dma.client);
+	dmaengine_get();
 	return 0;
 }
 

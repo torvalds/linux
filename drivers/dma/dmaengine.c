@@ -600,10 +600,9 @@ static void dma_clients_notify_available(void)
 }
 
 /**
- * dma_async_client_register - register a &dma_client
- * @client: ptr to a client structure with valid 'event_callback' and 'cap_mask'
+ * dmaengine_get - register interest in dma_channels
  */
-void dma_async_client_register(struct dma_client *client)
+void dmaengine_get(void)
 {
 	struct dma_device *device, *_d;
 	struct dma_chan *chan;
@@ -634,24 +633,17 @@ void dma_async_client_register(struct dma_client *client)
 	 */
 	if (dmaengine_ref_count == 1)
 		dma_channel_rebalance();
-	list_add_tail(&client->global_node, &dma_client_list);
 	mutex_unlock(&dma_list_mutex);
 }
-EXPORT_SYMBOL(dma_async_client_register);
+EXPORT_SYMBOL(dmaengine_get);
 
 /**
- * dma_async_client_unregister - unregister a client and free the &dma_client
- * @client: &dma_client to free
- *
- * Force frees any allocated DMA channels, frees the &dma_client memory
+ * dmaengine_put - let dma drivers be removed when ref_count == 0
  */
-void dma_async_client_unregister(struct dma_client *client)
+void dmaengine_put(void)
 {
 	struct dma_device *device;
 	struct dma_chan *chan;
-
-	if (!client)
-		return;
 
 	mutex_lock(&dma_list_mutex);
 	dmaengine_ref_count--;
@@ -663,11 +655,9 @@ void dma_async_client_unregister(struct dma_client *client)
 		list_for_each_entry(chan, &device->channels, device_node)
 			dma_chan_put(chan);
 	}
-
-	list_del(&client->global_node);
 	mutex_unlock(&dma_list_mutex);
 }
-EXPORT_SYMBOL(dma_async_client_unregister);
+EXPORT_SYMBOL(dmaengine_put);
 
 /**
  * dma_async_client_chan_request - send all available channels to the

@@ -28,120 +28,9 @@
 #include <linux/async_tx.h>
 
 #ifdef CONFIG_DMA_ENGINE
-static enum dma_state_client
-dma_channel_add_remove(struct dma_client *client,
-	struct dma_chan *chan, enum dma_state state);
-
-static struct dma_client async_tx_dma = {
-	.event_callback = dma_channel_add_remove,
-	/* .cap_mask == 0 defaults to all channels */
-};
-
-/**
- * async_tx_lock - protect modification of async_tx_master_list and serialize
- *	rebalance operations
- */
-static DEFINE_SPINLOCK(async_tx_lock);
-
-static LIST_HEAD(async_tx_master_list);
-
-static void
-free_dma_chan_ref(struct rcu_head *rcu)
-{
-	struct dma_chan_ref *ref;
-	ref = container_of(rcu, struct dma_chan_ref, rcu);
-	kfree(ref);
-}
-
-static void
-init_dma_chan_ref(struct dma_chan_ref *ref, struct dma_chan *chan)
-{
-	INIT_LIST_HEAD(&ref->node);
-	INIT_RCU_HEAD(&ref->rcu);
-	ref->chan = chan;
-	atomic_set(&ref->count, 0);
-}
-
-static enum dma_state_client
-dma_channel_add_remove(struct dma_client *client,
-	struct dma_chan *chan, enum dma_state state)
-{
-	unsigned long found, flags;
-	struct dma_chan_ref *master_ref, *ref;
-	enum dma_state_client ack = DMA_DUP; /* default: take no action */
-
-	switch (state) {
-	case DMA_RESOURCE_AVAILABLE:
-		found = 0;
-		rcu_read_lock();
-		list_for_each_entry_rcu(ref, &async_tx_master_list, node)
-			if (ref->chan == chan) {
-				found = 1;
-				break;
-			}
-		rcu_read_unlock();
-
-		pr_debug("async_tx: dma resource available [%s]\n",
-			found ? "old" : "new");
-
-		if (!found)
-			ack = DMA_ACK;
-		else
-			break;
-
-		/* add the channel to the generic management list */
-		master_ref = kmalloc(sizeof(*master_ref), GFP_KERNEL);
-		if (master_ref) {
-			init_dma_chan_ref(master_ref, chan);
-			spin_lock_irqsave(&async_tx_lock, flags);
-			list_add_tail_rcu(&master_ref->node,
-				&async_tx_master_list);
-			spin_unlock_irqrestore(&async_tx_lock,
-				flags);
-		} else {
-			printk(KERN_WARNING "async_tx: unable to create"
-				" new master entry in response to"
-				" a DMA_RESOURCE_ADDED event"
-				" (-ENOMEM)\n");
-			return 0;
-		}
-		break;
-	case DMA_RESOURCE_REMOVED:
-		found = 0;
-		spin_lock_irqsave(&async_tx_lock, flags);
-		list_for_each_entry(ref, &async_tx_master_list, node)
-			if (ref->chan == chan) {
-				list_del_rcu(&ref->node);
-				call_rcu(&ref->rcu, free_dma_chan_ref);
-				found = 1;
-				break;
-			}
-		spin_unlock_irqrestore(&async_tx_lock, flags);
-
-		pr_debug("async_tx: dma resource removed [%s]\n",
-			found ? "ours" : "not ours");
-
-		if (found)
-			ack = DMA_ACK;
-		else
-			break;
-		break;
-	case DMA_RESOURCE_SUSPEND:
-	case DMA_RESOURCE_RESUME:
-		printk(KERN_WARNING "async_tx: does not support dma channel"
-			" suspend/resume\n");
-		break;
-	default:
-		BUG();
-	}
-
-	return ack;
-}
-
 static int __init async_tx_init(void)
 {
-	dma_async_client_register(&async_tx_dma);
-	dma_async_client_chan_request(&async_tx_dma);
+	dmaengine_get();
 
 	printk(KERN_INFO "async_tx: api initialized (async)\n");
 
@@ -150,7 +39,7 @@ static int __init async_tx_init(void)
 
 static void __exit async_tx_exit(void)
 {
-	dma_async_client_unregister(&async_tx_dma);
+	dmaengine_put();
 }
 
 /**

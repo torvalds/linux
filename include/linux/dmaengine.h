@@ -318,8 +318,8 @@ struct dma_device {
 
 /* --- public DMA engine API --- */
 
-void dma_async_client_register(struct dma_client *client);
-void dma_async_client_unregister(struct dma_client *client);
+void dmaengine_get(void);
+void dmaengine_put(void);
 void dma_async_client_chan_request(struct dma_client *client);
 dma_cookie_t dma_async_memcpy_buf_to_buf(struct dma_chan *chan,
 	void *dest, void *src, size_t len);
