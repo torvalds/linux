@@ -74,7 +74,7 @@ unsigned ext4_init_inode_bitmap(struct super_block *sb, struct buffer_head *bh,
 	/* If checksum is bad mark all blocks and inodes use to prevent
 	 * allocation, essentially implementing a per-group read-only flag. */
 	if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
-		ext4_error(sb, __func__, "Checksum bad for group %lu\n",
+		ext4_error(sb, __func__, "Checksum bad for group %lu",
 			   block_group);
 		gdp->bg_free_blocks_count = 0;
 		gdp->bg_free_inodes_count = 0;

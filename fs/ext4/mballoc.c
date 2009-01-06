@@ -447,7 +447,7 @@ static void mb_free_blocks_double(struct inode *inode, struct ext4_buddy *e4b,
 			    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
 
 			ext4_error(sb, __func__, "double-free of inode"
-				   " %lu's block %llu(bit %u in group %lu)\n",
+				   " %lu's block %llu(bit %u in group %lu)",
 				   inode ? inode->i_ino : 0, blocknr,
 				   first + i, e4b->bd_group);
 		}
@@ -691,7 +691,7 @@ static void ext4_mb_generate_buddy(struct super_block *sb,
 
 	if (free != grp->bb_free) {
 		ext4_error(sb, __func__,
-			"EXT4-fs: group %lu: %u blocks in bitmap, %u in gd\n",
+			"EXT4-fs: group %lu: %u blocks in bitmap, %u in gd",
 			group, free, grp->bb_free);
 		/*
 		 * If we intent to continue, we consider group descritor
@@ -1096,7 +1096,7 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 			    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
 			ext4_unlock_group(sb, e4b->bd_group);
 			ext4_error(sb, __func__, "double-free of inode"
-				   " %lu's block %llu(bit %u in group %lu)\n",
+				   " %lu's block %llu(bit %u in group %lu)",
 				   inode ? inode->i_ino : 0, blocknr, block,
 				   e4b->bd_group);
 			ext4_lock_group(sb, e4b->bd_group);
@@ -1576,7 +1576,7 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 			 * we have free blocks
 			 */
 			ext4_error(sb, __func__, "%d free blocks as per "
-					"group info. But bitmap says 0\n",
+					"group info. But bitmap says 0",
 					free);
 			break;
 		}
@@ -1585,7 +1585,7 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 		BUG_ON(ex.fe_len <= 0);
 		if (free < ex.fe_len) {
 			ext4_error(sb, __func__, "%d free blocks as per "
-					"group info. But got %d blocks\n",
+					"group info. But got %d blocks",
 					free, ex.fe_len);
 			/*
 			 * The number of free blocks differs. This mostly
@@ -3629,7 +3629,7 @@ ext4_mb_release_inode_pa(struct ext4_buddy *e4b, struct buffer_head *bitmap_bh,
 			pa, (unsigned long) pa->pa_lstart,
 			(unsigned long) pa->pa_pstart,
 			(unsigned long) pa->pa_len);
-		ext4_error(sb, __func__, "free %u, pa_free %u\n",
+		ext4_error(sb, __func__, "free %u, pa_free %u",
 						free, pa->pa_free);
 		/*
 		 * pa is already deleted so we use the value obtained
@@ -3703,14 +3703,14 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 	bitmap_bh = ext4_read_block_bitmap(sb, group);
 	if (bitmap_bh == NULL) {
 		ext4_error(sb, __func__, "Error in reading block "
-				"bitmap for %lu\n", group);
+				"bitmap for %lu", group);
 		return 0;
 	}
 
 	err = ext4_mb_load_buddy(sb, group, &e4b);
 	if (err) {
 		ext4_error(sb, __func__, "Error in loading buddy "
-				"information for %lu\n", group);
+				"information for %lu", group);
 		put_bh(bitmap_bh);
 		return 0;
 	}
@@ -3877,14 +3877,14 @@ repeat:
 		err = ext4_mb_load_buddy(sb, group, &e4b);
 		if (err) {
 			ext4_error(sb, __func__, "Error in loading buddy "
-					"information for %lu\n", group);
+					"information for %lu", group);
 			continue;
 		}
 
 		bitmap_bh = ext4_read_block_bitmap(sb, group);
 		if (bitmap_bh == NULL) {
 			ext4_error(sb, __func__, "Error in reading block "
-					"bitmap for %lu\n", group);
+					"bitmap for %lu", group);
 			ext4_mb_release_desc(&e4b);
 			continue;
 		}
@@ -4149,7 +4149,7 @@ ext4_mb_discard_lg_preallocations(struct super_block *sb,
 		ext4_get_group_no_and_offset(sb, pa->pa_pstart, &group, NULL);
 		if (ext4_mb_load_buddy(sb, group, &e4b)) {
 			ext4_error(sb, __func__, "Error in loading buddy "
-					"information for %lu\n", group);
+					"information for %lu", group);
 			continue;
 		}
 		ext4_lock_group(sb, group);
@@ -4446,7 +4446,7 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
 		else {
 			ext4_unlock_group(sb, group);
 			ext4_error(sb, __func__,
-			    "Double free of blocks %d (%d %d)\n",
+			    "Double free of blocks %d (%d %d)",
 			    block, entry->start_blk, entry->count);
 			return 0;
 		}

@@ -762,13 +762,13 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 
 	if (ext4_blocks_count(es) + input->blocks_count <
 	    ext4_blocks_count(es)) {
-		ext4_warning(sb, __func__, "blocks_count overflow\n");
+		ext4_warning(sb, __func__, "blocks_count overflow");
 		return -EINVAL;
 	}
 
 	if (le32_to_cpu(es->s_inodes_count) + EXT4_INODES_PER_GROUP(sb) <
 	    le32_to_cpu(es->s_inodes_count)) {
-		ext4_warning(sb, __func__, "inodes_count overflow\n");
+		ext4_warning(sb, __func__, "inodes_count overflow");
 		return -EINVAL;
 	}
 
@@ -999,8 +999,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 			" too large to resize to %llu blocks safely\n",
 			sb->s_id, n_blocks_count);
 		if (sizeof(sector_t) < 8)
-			ext4_warning(sb, __func__,
-			"CONFIG_LBD not enabled\n");
+			ext4_warning(sb, __func__, "CONFIG_LBD not enabled");
 		return -EINVAL;
 	}
 

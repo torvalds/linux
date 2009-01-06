@@ -100,7 +100,7 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		 * essentially implementing a per-group read-only flag. */
 		if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
 			ext4_error(sb, __func__,
-				  "Checksum bad for group %lu\n", block_group);
+				  "Checksum bad for group %lu", block_group);
 			gdp->bg_free_blocks_count = 0;
 			gdp->bg_free_inodes_count = 0;
 			gdp->bg_itable_unused = 0;
