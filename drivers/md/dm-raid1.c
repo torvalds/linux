@@ -1300,11 +1300,7 @@ static int __init dm_mirror_init(void)
 
 static void __exit dm_mirror_exit(void)
 {
-	int r;
-
-	r = dm_unregister_target(&mirror_target);
-	if (r < 0)
-		DMERR("unregister failed %d", r);
+	dm_unregister_target(&mirror_target);
 }
 
 /* Module hooks */

@@ -157,8 +157,7 @@ struct dm_target {
 };
 
 int dm_register_target(struct target_type *t);
-int dm_unregister_target(struct target_type *t);
-
+void dm_unregister_target(struct target_type *t);
 
 /*-----------------------------------------------------------------
  * Functions for creating and manipulating mapped devices.
@@ -275,6 +274,9 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
  * Macros.
  *---------------------------------------------------------------*/
 #define DM_NAME "device-mapper"
+
+#define DMCRIT(f, arg...) \
+	printk(KERN_CRIT DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
 
 #define DMERR(f, arg...) \
 	printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)

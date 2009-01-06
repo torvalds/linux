@@ -1495,14 +1495,10 @@ static int __init dm_multipath_init(void)
 
 static void __exit dm_multipath_exit(void)
 {
-	int r;
-
 	destroy_workqueue(kmpath_handlerd);
 	destroy_workqueue(kmultipathd);
 
-	r = dm_unregister_target(&multipath_target);
-	if (r < 0)
-		DMERR("target unregister failed %d", r);
+	dm_unregister_target(&multipath_target);
 	kmem_cache_destroy(_mpio_cache);
 }
 

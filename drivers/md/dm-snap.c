@@ -1470,17 +1470,10 @@ static int __init dm_snapshot_init(void)
 
 static void __exit dm_snapshot_exit(void)
 {
-	int r;
-
 	destroy_workqueue(ksnapd);
 
-	r = dm_unregister_target(&snapshot_target);
-	if (r)
-		DMERR("snapshot unregister failed %d", r);
-
-	r = dm_unregister_target(&origin_target);
-	if (r)
-		DMERR("origin unregister failed %d", r);
+	dm_unregister_target(&snapshot_target);
+	dm_unregister_target(&origin_target);
 
 	exit_origin_hash();
 	kmem_cache_destroy(pending_cache);
