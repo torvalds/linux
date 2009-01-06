@@ -32,6 +32,7 @@ static unsigned int _major = 0;
 
 static DEFINE_SPINLOCK(_minor_lock);
 /*
+ * For bio-based dm.
  * One of these is allocated per bio.
  */
 struct dm_io {
@@ -43,6 +44,7 @@ struct dm_io {
 };
 
 /*
+ * For bio-based dm.
  * One of these is allocated per target within a bio.  Hopefully
  * this will be simplified out one day.
  */
@@ -53,6 +55,27 @@ struct dm_target_io {
 };
 
 DEFINE_TRACE(block_bio_complete);
+
+/*
+ * For request-based dm.
+ * One of these is allocated per request.
+ */
+struct dm_rq_target_io {
+	struct mapped_device *md;
+	struct dm_target *ti;
+	struct request *orig, clone;
+	int error;
+	union map_info info;
+};
+
+/*
+ * For request-based dm.
+ * One of these is allocated per bio.
+ */
+struct dm_rq_clone_bio_info {
+	struct bio *orig;
+	struct request *rq;
+};
 
 union map_info *dm_get_mapinfo(struct bio *bio)
 {
@@ -149,6 +172,8 @@ struct mapped_device {
 #define MIN_IOS 256
 static struct kmem_cache *_io_cache;
 static struct kmem_cache *_tio_cache;
+static struct kmem_cache *_rq_tio_cache;
+static struct kmem_cache *_rq_bio_info_cache;
 
 static int __init local_init(void)
 {
@@ -164,9 +189,17 @@ static int __init local_init(void)
 	if (!_tio_cache)
 		goto out_free_io_cache;
 
+	_rq_tio_cache = KMEM_CACHE(dm_rq_target_io, 0);
+	if (!_rq_tio_cache)
+		goto out_free_tio_cache;
+
+	_rq_bio_info_cache = KMEM_CACHE(dm_rq_clone_bio_info, 0);
+	if (!_rq_bio_info_cache)
+		goto out_free_rq_tio_cache;
+
 	r = dm_uevent_init();
 	if (r)
-		goto out_free_tio_cache;
+		goto out_free_rq_bio_info_cache;
 
 	_major = major;
 	r = register_blkdev(_major, _name);
@@ -180,6 +213,10 @@ static int __init local_init(void)
 
 out_uevent_exit:
 	dm_uevent_exit();
+out_free_rq_bio_info_cache:
+	kmem_cache_destroy(_rq_bio_info_cache);
+out_free_rq_tio_cache:
+	kmem_cache_destroy(_rq_tio_cache);
 out_free_tio_cache:
 	kmem_cache_destroy(_tio_cache);
 out_free_io_cache:
@@ -190,6 +227,8 @@ out_free_io_cache:
 
 static void local_exit(void)
 {
+	kmem_cache_destroy(_rq_bio_info_cache);
+	kmem_cache_destroy(_rq_tio_cache);
 	kmem_cache_destroy(_tio_cache);
 	kmem_cache_destroy(_io_cache);
 	unregister_blkdev(_major, _name);
