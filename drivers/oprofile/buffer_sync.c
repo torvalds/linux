@@ -316,8 +316,6 @@ static void add_trace_begin(void)
 	add_event_entry(TRACE_BEGIN_CODE);
 }
 
-#ifdef CONFIG_OPROFILE_IBS
-
 static void add_data(struct op_entry *entry, struct mm_struct *mm)
 {
 	unsigned long code, pc, val;
@@ -354,8 +352,6 @@ static void add_data(struct op_entry *entry, struct mm_struct *mm)
 	while (op_cpu_buffer_get_data(entry, &val))
 		add_event_entry(val);
 }
-
-#endif
 
 static inline void add_sample_entry(unsigned long offset, unsigned long event)
 {
@@ -544,10 +540,8 @@ void sync_buffer(int cpu)
 					cookie = get_exec_dcookie(mm);
 				add_user_ctx_switch(new, cookie);
 			}
-#ifdef CONFIG_OPROFILE_IBS
 			if (op_cpu_buffer_get_size(&entry))
 				add_data(&entry, mm);
-#endif
 			continue;
 		}
 

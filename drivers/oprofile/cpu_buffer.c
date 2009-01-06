@@ -361,8 +361,6 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 	__oprofile_add_ext_sample(pc, regs, event, is_kernel);
 }
 
-#ifdef CONFIG_OPROFILE_IBS
-
 /*
  * Add samples with data to the ring buffer.
  *
@@ -396,8 +394,6 @@ void oprofile_add_data(struct op_entry *entry, struct pt_regs * const regs,
 fail:
 	cpu_buf->sample_lost_overflow++;
 }
-
-#endif
 
 void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event)
 {
