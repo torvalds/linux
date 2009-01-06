@@ -127,6 +127,7 @@ extern int dump_sensor;
 int po1030_probe(struct sd *sd);
 int po1030_init(struct sd *sd);
 int po1030_power_down(struct sd *sd);
+void po1030_disconnect(struct sd *sd);
 
 int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
 int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
@@ -150,6 +151,7 @@ static const struct m5602_sensor po1030 = {
 	.probe = po1030_probe,
 	.init = po1030_init,
 	.power_down = po1030_power_down,
+	.disconnect = po1030_disconnect,
 };
 
 static const unsigned char preinit_po1030[][3] =
