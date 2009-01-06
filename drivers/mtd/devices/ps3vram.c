@@ -87,9 +87,6 @@ struct ps3vram_priv {
 #define DMA_NOTIFIER_HANDLE_BASE 0x66604200 /* first DMA notifier handle */
 #define DMA_NOTIFIER_OFFSET_BASE 0x1000     /* first DMA notifier offset */
 #define DMA_NOTIFIER_SIZE        0x40
-
-#define NUM_NOTIFIERS		16
-
 #define NOTIFIER 7	/* notifier used for completion report */
 
 /* A trailing '-' means to subtract off ps3fb_videomemory.size */
@@ -129,28 +126,6 @@ static int ps3vram_notifier_wait(struct mtd_info *mtd, int timeout_ms)
 	} while (timeout_ms--);
 
 	return -1;
-}
-
-static void ps3vram_dump_ring(struct mtd_info *mtd)
-{
-	struct ps3vram_priv *priv = mtd->priv;
-	uint32_t *fifo;
-
-	pr_info("PUT = %08x GET = %08x\n", priv->ctrl[CTRL_PUT],
-		priv->ctrl[CTRL_GET]);
-	for (fifo = priv->fifo_base; fifo < priv->fifo_ptr; fifo++)
-		pr_info("%p: %08x\n", fifo, *fifo);
-}
-
-static void ps3vram_dump_reports(struct mtd_info *mtd)
-{
-	struct ps3vram_priv *priv = mtd->priv;
-	int i;
-
-	for (i = 0; i < NUM_NOTIFIERS; i++) {
-		uint32_t *n = ps3vram_get_notifier(priv->reports, i);
-		pr_info("%p: %08x\n", n, *n);
-	}
 }
 
 static void ps3vram_init_ring(struct mtd_info *mtd)
@@ -284,8 +259,6 @@ static int ps3vram_upload(struct mtd_info *mtd, unsigned int src_offset,
 	ps3vram_fire_ring(mtd);
 	if (ps3vram_notifier_wait(mtd, 200) < 0) {
 		pr_err("notifier timeout\n");
-		ps3vram_dump_ring(mtd);
-		ps3vram_dump_reports(mtd);
 		return -1;
 	}
 
@@ -317,8 +290,6 @@ static int ps3vram_download(struct mtd_info *mtd, unsigned int src_offset,
 	ps3vram_fire_ring(mtd);
 	if (ps3vram_notifier_wait(mtd, 200) < 0) {
 		pr_err("notifier timeout\n");
-		ps3vram_dump_ring(mtd);
-		ps3vram_dump_reports(mtd);
 		return -1;
 	}
 
