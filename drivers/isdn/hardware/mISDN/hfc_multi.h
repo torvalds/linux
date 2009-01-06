@@ -2,10 +2,6 @@
  * see notice in hfc_multi.c
  */
 
-extern void ztdummy_extern_interrupt(void);
-extern void ztdummy_register_interrupt(void);
-extern int ztdummy_unregister_interrupt(void);
-
 #define DEBUG_HFCMULTI_FIFO	0x00010000
 #define	DEBUG_HFCMULTI_CRC	0x00020000
 #define	DEBUG_HFCMULTI_INIT	0x00040000
