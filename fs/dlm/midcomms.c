@@ -112,7 +112,7 @@ int dlm_process_incoming_buffer(int nodeid, const void *base,
 		   ordinary messages). */
 
 		if (msglen > sizeof(__tmp) && p == &__tmp.p) {
-			p = kmalloc(dlm_config.ci_buffer_size, GFP_KERNEL);
+			p = kmalloc(dlm_config.ci_buffer_size, GFP_NOFS);
 			if (p == NULL)
 				return ret;
 		}
