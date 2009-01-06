@@ -367,7 +367,7 @@ sub sanitise_line {
 			}
 		}
 
-		#print "SQ:$sanitise_quote\n";
+		#print "c<$c> SQ<$sanitise_quote>\n";
 		if ($off != 0 && $sanitise_quote eq '*/' && $c ne "\t") {
 			substr($res, $off, 1, $;);
 		} elsif ($off != 0 && $sanitise_quote && $c ne "\t") {
@@ -1103,8 +1103,11 @@ sub process {
 				$cnt--;
 				#print "RAW<$rawlines[$ln - 1]>\n";
 				last if (!defined $rawlines[$ln - 1]);
-				($edge) = ($rawlines[$ln - 1] =~ m@(/\*|\*/)@);
-				last if (defined $edge);
+				if ($rawlines[$ln - 1] =~ m@(/\*|\*/)@ &&
+				    $rawlines[$ln - 1] !~ m@"[^"]*(?:/\*|\*/)[^"]*"@) {
+					($edge) = $1;
+					last;
+				}
 			}
 			if (defined $edge && $edge eq '*/') {
 				$in_comment = 1;
