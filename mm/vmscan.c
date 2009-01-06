@@ -625,7 +625,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		if (PageAnon(page) && !PageSwapCache(page)) {
 			if (!(sc->gfp_mask & __GFP_IO))
 				goto keep_locked;
-			if (!add_to_swap(page, GFP_ATOMIC))
+			if (!add_to_swap(page))
 				goto activate_locked;
 			may_enter_fs = 1;
 		}

@@ -128,7 +128,7 @@ void __delete_from_swap_cache(struct page *page)
  * Allocate swap space for the page and add the page to the
  * swap cache.  Caller needs to hold the page lock. 
  */
-int add_to_swap(struct page * page, gfp_t gfp_mask)
+int add_to_swap(struct page *page)
 {
 	swp_entry_t entry;
 	int err;
@@ -153,7 +153,7 @@ int add_to_swap(struct page * page, gfp_t gfp_mask)
 		 * Add it to the swap cache and mark it dirty
 		 */
 		err = add_to_swap_cache(page, entry,
-				gfp_mask|__GFP_NOMEMALLOC|__GFP_NOWARN);
+				__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
 
 		switch (err) {
 		case 0:				/* Success */
