@@ -435,7 +435,7 @@ static void __init mpic_scan_ht_msi(struct mpic *mpic, u8 __iomem *devbase,
 		addr = addr | ((u64)readl(base + HT_MSI_ADDR_HI) << 32);
 	}
 
-	printk(KERN_DEBUG "mpic:   - HT:%02x.%x %s MSI mapping found @ 0x%lx\n",
+	printk(KERN_DEBUG "mpic:   - HT:%02x.%x %s MSI mapping found @ 0x%llx\n",
 		PCI_SLOT(devfn), PCI_FUNC(devfn),
 		flags & HT_MSI_FLAGS_ENABLE ? "enabled" : "disabled", addr);
 
