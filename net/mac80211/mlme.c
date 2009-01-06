@@ -1842,8 +1842,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 					struct ieee80211_if_sta *ifsta,
 					struct ieee80211_mgmt *mgmt,
-					size_t len,
-					struct ieee80211_rx_status *rx_status)
+					size_t len)
 {
 	struct ieee80211_local *local = sdata->local;
 	int tx_last_beacon;
@@ -1958,8 +1957,7 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 
 	switch (fc & IEEE80211_FCTL_STYPE) {
 	case IEEE80211_STYPE_PROBE_REQ:
-		ieee80211_rx_mgmt_probe_req(sdata, ifsta, mgmt, skb->len,
-					    rx_status);
+		ieee80211_rx_mgmt_probe_req(sdata, ifsta, mgmt, skb->len);
 		break;
 	case IEEE80211_STYPE_PROBE_RESP:
 		ieee80211_rx_mgmt_probe_resp(sdata, mgmt, skb->len, rx_status);
