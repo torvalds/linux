@@ -175,10 +175,6 @@ EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
 
 void ide_unregister(ide_hwif_t *hwif)
 {
-	ide_hwif_t *g;
-	ide_hwgroup_t *hwgroup;
-	int irq_count = 0;
-
 	BUG_ON(in_interrupt());
 	BUG_ON(irqs_disabled());
 
@@ -191,18 +187,7 @@ void ide_unregister(ide_hwif_t *hwif)
 
 	ide_proc_unregister_port(hwif);
 
-	hwgroup = hwif->hwgroup;
-	/*
-	 * free the irq if we were the only hwif using it
-	 */
-	g = hwgroup->hwif;
-	do {
-		if (g->irq == hwif->irq)
-			++irq_count;
-		g = g->next;
-	} while (g != hwgroup->hwif);
-	if (irq_count == 1)
-		free_irq(hwif->irq, hwgroup);
+	free_irq(hwif->irq, hwif);
 
 	ide_remove_port_from_hwgroup(hwif);
 

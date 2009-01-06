@@ -723,7 +723,7 @@ void do_ide_request(struct request_queue *q)
 	spin_unlock_irq(q->queue_lock);
 	spin_lock_irq(&hwgroup->lock);
 
-	if (!ide_lock_hwgroup(hwgroup)) {
+	if (!ide_lock_hwgroup(hwgroup, hwif)) {
 		ide_hwif_t *prev_port;
 repeat:
 		prev_port = hwif->host->cur_port;
@@ -1002,44 +1002,30 @@ void ide_timer_expiry (unsigned long data)
  *	before completing the issuance of any new drive command, so we will not
  *	be accidentally invoked as a result of any valid command completion
  *	interrupt.
- *
- *	Note that we must walk the entire hwgroup here. We know which hwif
- *	is doing the current command, but we don't know which hwif burped
- *	mysteriously.
  */
 
 static void unexpected_intr(int irq, ide_hwif_t *hwif)
 {
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
-	u8 stat;
+	u8 stat = hwif->tp_ops->read_status(hwif);
 
-	/*
-	 * handle the unexpected interrupt
-	 */
-	do {
-		if (hwif->irq == irq) {
-			stat = hwif->tp_ops->read_status(hwif);
+	if (!OK_STAT(stat, ATA_DRDY, BAD_STAT)) {
+		/* Try to not flood the console with msgs */
+		static unsigned long last_msgtime, count;
+		++count;
 
-			if (!OK_STAT(stat, ATA_DRDY, BAD_STAT)) {
-				/* Try to not flood the console with msgs */
-				static unsigned long last_msgtime, count;
-				++count;
-				if (time_after(jiffies, last_msgtime + HZ)) {
-					last_msgtime = jiffies;
-					printk(KERN_ERR "%s%s: unexpected interrupt, "
-						"status=0x%02x, count=%ld\n",
-						hwif->name,
-						(hwif->next==hwgroup->hwif) ? "" : "(?)", stat, count);
-				}
-			}
+		if (time_after(jiffies, last_msgtime + HZ)) {
+			last_msgtime = jiffies;
+			printk(KERN_ERR "%s: unexpected interrupt, "
+				"status=0x%02x, count=%ld\n",
+				hwif->name, stat, count);
 		}
-	} while ((hwif = hwif->next) != hwgroup->hwif);
+	}
 }
 
 /**
  *	ide_intr	-	default IDE interrupt handler
  *	@irq: interrupt number
- *	@dev_id: hwif group
+ *	@dev_id: hwif
  *	@regs: unused weirdness from the kernel irq layer
  *
  *	This is the default IRQ handler for the IDE layer. You should
@@ -1063,17 +1049,19 @@ static void unexpected_intr(int irq, ide_hwif_t *hwif)
  
 irqreturn_t ide_intr (int irq, void *dev_id)
 {
-	unsigned long flags;
-	ide_hwgroup_t *hwgroup = (ide_hwgroup_t *)dev_id;
-	ide_hwif_t *hwif = hwgroup->hwif;
+	ide_hwif_t *hwif = (ide_hwif_t *)dev_id;
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	ide_drive_t *uninitialized_var(drive);
 	ide_handler_t *handler;
+	unsigned long flags;
 	ide_startstop_t startstop;
 	irqreturn_t irq_ret = IRQ_NONE;
 	int plug_device = 0;
 
-	if (hwif->host->host_flags & IDE_HFLAG_SERIALIZE)
-		hwif = hwif->host->cur_port;
+	if (hwif->host->host_flags & IDE_HFLAG_SERIALIZE) {
+		if (hwif != hwif->host->cur_port)
+			goto out_early;
+	}
 
 	spin_lock_irqsave(&hwgroup->lock, flags);
 
@@ -1172,7 +1160,7 @@ out_handled:
 	irq_ret = IRQ_HANDLED;
 out:
 	spin_unlock_irqrestore(&hwgroup->lock, flags);
-
+out_early:
 	if (plug_device)
 		ide_plug_device(drive);
 

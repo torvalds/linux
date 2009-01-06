@@ -1022,6 +1022,7 @@ static int init_irq (ide_hwif_t *hwif)
 	unsigned int index;
 	ide_hwgroup_t *hwgroup;
 	ide_hwif_t *match = NULL;
+	int sa = 0;
 
 	mutex_lock(&ide_cfg_mtx);
 	hwif->hwgroup = NULL;
@@ -1076,24 +1077,18 @@ static int init_irq (ide_hwif_t *hwif)
 
 	ide_ports[hwif->index] = hwif;
 
-	/*
-	 * Allocate the irq, if not already obtained for another hwif
-	 */
-	if (!match || match->irq != hwif->irq) {
-		int sa = 0;
 #if defined(__mc68000__)
-		sa = IRQF_SHARED;
+	sa = IRQF_SHARED;
 #endif /* __mc68000__ */
 
-		if (hwif->chipset == ide_pci)
-			sa = IRQF_SHARED;
+	if (hwif->chipset == ide_pci)
+		sa = IRQF_SHARED;
 
-		if (io_ports->ctl_addr)
-			hwif->tp_ops->set_irq(hwif, 1);
+	if (io_ports->ctl_addr)
+		hwif->tp_ops->set_irq(hwif, 1);
 
-		if (request_irq(hwif->irq,&ide_intr,sa,hwif->name,hwgroup))
-	       		goto out_unlink;
-	}
+	if (request_irq(hwif->irq, &ide_intr, sa, hwif->name, hwif))
+		goto out_unlink;
 
 	if (!hwif->rqsize) {
 		if ((hwif->host_flags & IDE_HFLAG_NO_LBA48) ||

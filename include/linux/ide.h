@@ -1274,14 +1274,14 @@ extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 extern void ide_timer_expiry(unsigned long);
 extern irqreturn_t ide_intr(int irq, void *dev_id);
 
-static inline int ide_lock_hwgroup(ide_hwgroup_t *hwgroup)
+static inline int ide_lock_hwgroup(ide_hwgroup_t *hwgroup, ide_hwif_t *hwif)
 {
 	if (hwgroup->busy)
 		return 1;
 
 	hwgroup->busy = 1;
 	/* for atari only */
-	ide_get_lock(ide_intr, hwgroup);
+	ide_get_lock(ide_intr, hwif);
 
 	return 0;
 }
