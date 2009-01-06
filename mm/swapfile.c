@@ -1851,7 +1851,6 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 
 	if (blk_queue_nonrot(bdev_get_queue(p->bdev))) {
 		p->flags |= SWP_SOLIDSTATE;
-		srandom32((u32)get_seconds());
 		p->cluster_next = 1 + (random32() % p->highest_bit);
 	}
 	if (discard_swap(p) == 0)
