@@ -16,6 +16,7 @@
 #include <linux/namei.h>
 #include <linux/shm.h>
 #include <linux/blkdev.h>
+#include <linux/random.h>
 #include <linux/writeback.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -1806,6 +1807,11 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		goto bad_swap;
 	}
 
+	if (blk_queue_nonrot(bdev_get_queue(p->bdev))) {
+		p->flags |= SWP_SOLIDSTATE;
+		srandom32((u32)get_seconds());
+		p->cluster_next = 1 + (random32() % p->highest_bit);
+	}
 	if (discard_swap(p) == 0)
 		p->flags |= SWP_DISCARDABLE;
 
@@ -1822,10 +1828,11 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	total_swap_pages += nr_good_pages;
 
 	printk(KERN_INFO "Adding %uk swap on %s.  "
-			"Priority:%d extents:%d across:%lluk%s\n",
+			"Priority:%d extents:%d across:%lluk %s%s\n",
 		nr_good_pages<<(PAGE_SHIFT-10), name, p->prio,
 		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
-		(p->flags & SWP_DISCARDABLE) ? " D" : "");
+		(p->flags & SWP_SOLIDSTATE) ? "SS" : "",
+		(p->flags & SWP_DISCARDABLE) ? "D" : "");
 
 	/* insert swap space into swap_list: */
 	prev = -1;
