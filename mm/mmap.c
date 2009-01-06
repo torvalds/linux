@@ -2090,6 +2090,9 @@ void exit_mmap(struct mm_struct *mm)
 	arch_exit_mmap(mm);
 	mmu_notifier_release(mm);
 
+	if (!mm->mmap)	/* Can happen if dup_mmap() received an OOM */
+		return;
+
 	if (mm->locked_vm) {
 		vma = mm->mmap;
 		while (vma) {
