@@ -1097,8 +1097,8 @@ sub process {
 					 $rawlines[$ln - 1] =~ /^-/);
 				$cnt--;
 				#print "RAW<$rawlines[$ln - 1]>\n";
-				($edge) = (defined $rawlines[$ln - 1] &&
-					$rawlines[$ln - 1] =~ m@(/\*|\*/)@);
+				last if (!defined $rawlines[$ln - 1]);
+				($edge) = ($rawlines[$ln - 1] =~ m@(/\*|\*/)@);
 				last if (defined $edge);
 			}
 			if (defined $edge && $edge eq '*/') {
