@@ -2324,7 +2324,6 @@ static struct ide_driver idetape_driver = {
 	.version		= IDETAPE_VERSION,
 	.do_request		= idetape_do_request,
 	.end_request		= idetape_end_request,
-	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc_entries		= ide_tape_proc_entries,
 	.proc_devsets		= ide_tape_proc_devsets,

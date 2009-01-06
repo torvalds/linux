@@ -1113,7 +1113,6 @@ struct ide_driver {
 	const char			*version;
 	ide_startstop_t	(*do_request)(ide_drive_t *, struct request *, sector_t);
 	int		(*end_request)(ide_drive_t *, int, int);
-	ide_startstop_t	(*error)(ide_drive_t *, struct request *rq, u8, u8);
 	struct device_driver	gen_driver;
 	int		(*probe)(ide_drive_t *);
 	void		(*remove)(ide_drive_t *);
@@ -1156,8 +1155,6 @@ void ide_execute_command(ide_drive_t *, u8, ide_handler_t *, unsigned int,
 void ide_execute_pkt_cmd(ide_drive_t *);
 
 void ide_pad_transfer(ide_drive_t *, int, int);
-
-ide_startstop_t __ide_error(ide_drive_t *, struct request *, u8, u8);
 
 ide_startstop_t ide_error(ide_drive_t *, const char *, u8);
 
