@@ -14,7 +14,6 @@
 #include <linux/irqflags.h>
 #include <linux/smp.h>
 #include <linux/percpu.h>
-#include <linux/irqnr.h>
 
 #include <asm/atomic.h>
 #include <asm/ptrace.h>
