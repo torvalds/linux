@@ -289,7 +289,7 @@ static DEFINE_MUTEX(ftrace_regex_lock);
 
 struct ftrace_page {
 	struct ftrace_page	*next;
-	unsigned long		index;
+	int			index;
 	struct dyn_ftrace	records[];
 };
 
@@ -786,7 +786,7 @@ enum {
 
 struct ftrace_iterator {
 	struct ftrace_page	*pg;
-	unsigned		idx;
+	int			idx;
 	unsigned		flags;
 	unsigned char		buffer[FTRACE_BUFF_MAX+1];
 	unsigned		buffer_idx;
