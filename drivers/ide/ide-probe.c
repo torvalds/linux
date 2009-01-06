@@ -463,7 +463,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	if (ide_read_device(drive) != drive->select && present == 0) {
 		if (drive->dn & 1) {
 			/* exit with drive0 selected */
-			SELECT_DRIVE(&hwif->drives[0]);
+			SELECT_DRIVE(hwif->devices[0]);
 			/* allow ATA_BUSY to assert & clear */
 			msleep(50);
 		}
@@ -509,7 +509,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	}
 	if (drive->dn & 1) {
 		/* exit with drive0 selected */
-		SELECT_DRIVE(&hwif->drives[0]);
+		SELECT_DRIVE(hwif->devices[0]);
 		msleep(50);
 		/* ensure drive irq is clear */
 		(void)tp_ops->read_status(hwif);
@@ -715,7 +715,7 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 
 	/* Now make sure both master & slave are ready */
 	for (unit = 0; unit < MAX_DRIVES; unit++) {
-		ide_drive_t *drive = &hwif->drives[unit];
+		ide_drive_t *drive = hwif->devices[unit];
 
 		/* Ignore disks that we will not probe for later. */
 		if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0 ||
@@ -733,7 +733,7 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 out:
 	/* Exit function with master reselected (let's be sane) */
 	if (unit)
-		SELECT_DRIVE(&hwif->drives[0]);
+		SELECT_DRIVE(hwif->devices[0]);
 
 	return rc;
 }
@@ -749,7 +749,7 @@ out:
 
 void ide_undecoded_slave(ide_drive_t *dev1)
 {
-	ide_drive_t *dev0 = &dev1->hwif->drives[0];
+	ide_drive_t *dev0 = dev1->hwif->devices[0];
 
 	if ((dev1->dn & 1) == 0 || (dev0->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		return;
@@ -784,8 +784,8 @@ static int ide_probe_port(ide_hwif_t *hwif)
 
 	BUG_ON(hwif->present);
 
-	if ((hwif->drives[0].dev_flags & IDE_DFLAG_NOPROBE) &&
-	    (hwif->drives[1].dev_flags & IDE_DFLAG_NOPROBE))
+	if ((hwif->devices[0]->dev_flags & IDE_DFLAG_NOPROBE) &&
+	    (hwif->devices[1]->dev_flags & IDE_DFLAG_NOPROBE))
 		return -EACCES;
 
 	/*
@@ -807,7 +807,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	 * but a lot of cdrom drives are configured as single slaves.
 	 */
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t *drive = &hwif->drives[unit];
+		ide_drive_t *drive = hwif->devices[unit];
 
 		(void) probe_for_drive(drive);
 		if (drive->dev_flags & IDE_DFLAG_PRESENT)
@@ -832,7 +832,7 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	int unit;
 
 	for (unit = 0; unit < MAX_DRIVES; unit++) {
-		ide_drive_t *drive = &hwif->drives[unit];
+		ide_drive_t *drive = hwif->devices[unit];
 
 		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 			if (port_ops && port_ops->quirkproc)
@@ -841,7 +841,7 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	}
 
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t *drive = &hwif->drives[unit];
+		ide_drive_t *drive = hwif->devices[unit];
 
 		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 			ide_set_max_pio(drive);
@@ -854,7 +854,7 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	}
 
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t *drive = &hwif->drives[unit];
+		ide_drive_t *drive = hwif->devices[unit];
 
 		if ((hwif->host_flags & IDE_HFLAG_NO_IO_32BIT) ||
 		    drive->id[ATA_ID_DWORD_IO])
@@ -931,7 +931,7 @@ static int ide_port_setup_devices(ide_hwif_t *hwif)
 
 	mutex_lock(&ide_cfg_mtx);
 	for (i = 0; i < MAX_DRIVES; i++) {
-		ide_drive_t *drive = &hwif->drives[i];
+		ide_drive_t *drive = hwif->devices[i];
 
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
@@ -1017,7 +1017,7 @@ static struct kobject *ata_probe(dev_t dev, int *part, void *data)
 {
 	ide_hwif_t *hwif = data;
 	int unit = *part >> PARTN_BITS;
-	ide_drive_t *drive = &hwif->drives[unit];
+	ide_drive_t *drive = hwif->devices[unit];
 
 	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		return NULL;
@@ -1164,7 +1164,7 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 	unsigned int i;
 
 	for (i = 0; i < MAX_DRIVES; i++) {
-		ide_drive_t *drive = &hwif->drives[i];
+		ide_drive_t *drive = hwif->devices[i];
 		struct device *dev = &drive->gendev;
 		int ret;
 
@@ -1190,7 +1190,7 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 	int i;
 
 	for (i = 0; i < MAX_DRIVES; i++) {
-		ide_drive_t *drive = &hwif->drives[i];
+		ide_drive_t *drive = hwif->devices[i];
 
 		drive->dn = i + hwif->channel * 2;
 
@@ -1285,7 +1285,7 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 	int unit;
 
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t *drive = &hwif->drives[unit];
+		ide_drive_t *drive = hwif->devices[unit];
 		u8 j = (hwif->index * MAX_DRIVES) + unit;
 
 		memset(drive, 0, sizeof(*drive));
@@ -1309,9 +1309,6 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 
 static void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 {
-	/* bulk initialize hwif & drive info with zeros */
-	memset(hwif, 0, sizeof(ide_hwif_t));
-
 	/* fill in any non-zero initial values */
 	hwif->index	= index;
 	hwif->major	= ide_hwif_to_major[index];
@@ -1388,6 +1385,34 @@ static void ide_free_port_slot(int idx)
 	mutex_unlock(&ide_cfg_mtx);
 }
 
+static void ide_port_free_devices(ide_hwif_t *hwif)
+{
+	int i;
+
+	for (i = 0; i < MAX_DRIVES; i++)
+		kfree(hwif->devices[i]);
+}
+
+static int ide_port_alloc_devices(ide_hwif_t *hwif, int node)
+{
+	int i;
+
+	for (i = 0; i < MAX_DRIVES; i++) {
+		ide_drive_t *drive;
+
+		drive = kzalloc_node(sizeof(*drive), GFP_KERNEL, node);
+		if (drive == NULL)
+			goto out_nomem;
+
+		hwif->devices[i] = drive;
+	}
+	return 0;
+
+out_nomem:
+	ide_port_free_devices(hwif);
+	return -ENOMEM;
+}
+
 struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 {
 	struct ide_host *host;
@@ -1409,6 +1434,11 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 		hwif = kzalloc_node(sizeof(*hwif), GFP_KERNEL, node);
 		if (hwif == NULL)
 			continue;
+
+		if (ide_port_alloc_devices(hwif, node) < 0) {
+			kfree(hwif);
+			continue;
+		}
 
 		idx = ide_find_port_slot(d);
 		if (idx < 0) {
@@ -1575,7 +1605,7 @@ static void __ide_port_unregister_devices(ide_hwif_t *hwif)
 	int i;
 
 	for (i = 0; i < MAX_DRIVES; i++) {
-		ide_drive_t *drive = &hwif->drives[i];
+		ide_drive_t *drive = hwif->devices[i];
 
 		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 			device_unregister(&drive->gendev);
@@ -1651,6 +1681,7 @@ void ide_host_free(struct ide_host *host)
 		if (hwif == NULL)
 			continue;
 
+		ide_port_free_devices(hwif);
 		ide_free_port_slot(hwif->index);
 		kfree(hwif);
 	}

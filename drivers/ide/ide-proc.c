@@ -599,7 +599,7 @@ void ide_proc_port_register_devices(ide_hwif_t *hwif)
 	char name[64];
 
 	for (d = 0; d < MAX_DRIVES; d++) {
-		ide_drive_t *drive = &hwif->drives[d];
+		ide_drive_t *drive = hwif->devices[d];
 
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0 || drive->proc)
 			continue;

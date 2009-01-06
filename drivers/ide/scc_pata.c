@@ -259,7 +259,7 @@ static void scc_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	unsigned long scrcst_port = ctl_base + 0x014;
 	unsigned long udenvt_port = ctl_base + 0x018;
 	unsigned long tdvhsel_port   = ctl_base + 0x020;
-	int is_slave = (&hwif->drives[1] == drive);
+	int is_slave = drive->dn & 1;
 	int offset, idx;
 	unsigned long reg;
 	unsigned long jcactsel;
@@ -413,7 +413,8 @@ static int scc_dma_end(ide_drive_t *drive)
 				if (rq)
 					rq->errors |= ERROR_RESET;
 				for (unit = 0; unit < MAX_DRIVES; unit++) {
-					ide_drive_t *drive = &hwif->drives[unit];
+					ide_drive_t *drive = hwif->devices[unit];
+
 					drive->crc_count++;
 				}
 			}

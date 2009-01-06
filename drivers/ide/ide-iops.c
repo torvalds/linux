@@ -1111,7 +1111,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		prepare_to_wait(&ide_park_wq, &wait, TASK_UNINTERRUPTIBLE);
 		timeout = jiffies;
 		for (unit = 0; unit < MAX_DRIVES; unit++) {
-			ide_drive_t *tdrive = &hwif->drives[unit];
+			ide_drive_t *tdrive = hwif->devices[unit];
 
 			if (tdrive->dev_flags & IDE_DFLAG_PRESENT &&
 			    tdrive->dev_flags & IDE_DFLAG_PARKED &&
@@ -1134,7 +1134,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	 * for any of the drives on this interface.
 	 */
 	for (unit = 0; unit < MAX_DRIVES; ++unit)
-		pre_reset(&hwif->drives[unit]);
+		pre_reset(hwif->devices[unit]);
 
 	if (io_ports->ctl_addr == 0) {
 		spin_unlock_irqrestore(&hwif->lock, flags);

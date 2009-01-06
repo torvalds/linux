@@ -753,7 +753,7 @@ typedef struct hwif_s {
 
 	unsigned long	sata_scr[SATA_NR_PORTS];
 
-	ide_drive_t	drives[MAX_DRIVES];	/* drive info */
+	ide_drive_t	*devices[MAX_DRIVES];
 
 	u8 major;	/* our major number */
 	u8 index;	/* 0 for ide0; 1 for ide1; ... */
@@ -1600,7 +1600,7 @@ static inline int hwif_to_node(ide_hwif_t *hwif)
 
 static inline ide_drive_t *ide_get_pair_dev(ide_drive_t *drive)
 {
-	ide_drive_t *peer = &drive->hwif->drives[(drive->dn ^ 1) & 1];
+	ide_drive_t *peer = drive->hwif->devices[(drive->dn ^ 1) & 1];
 
 	return (peer->dev_flags & IDE_DFLAG_PRESENT) ? peer : NULL;
 }

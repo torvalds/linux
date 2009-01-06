@@ -497,7 +497,7 @@ void ide_port_apply_params(ide_hwif_t *hwif)
 	}
 
 	for (i = 0; i < MAX_DRIVES; i++)
-		ide_dev_apply_params(&hwif->drives[i], i);
+		ide_dev_apply_params(hwif->devices[i], i);
 }
 
 /*
