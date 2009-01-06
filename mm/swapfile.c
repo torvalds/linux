@@ -84,6 +84,37 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 	up_read(&swap_unplug_sem);
 }
 
+/*
+ * swapon tell device that all the old swap contents can be discarded,
+ * to allow the swap device to optimize its wear-levelling.
+ */
+static int discard_swap(struct swap_info_struct *si)
+{
+	struct swap_extent *se;
+	int err = 0;
+
+	list_for_each_entry(se, &si->extent_list, list) {
+		sector_t start_block = se->start_block << (PAGE_SHIFT - 9);
+		pgoff_t nr_blocks = se->nr_pages << (PAGE_SHIFT - 9);
+
+		if (se->start_page == 0) {
+			/* Do not discard the swap header page! */
+			start_block += 1 << (PAGE_SHIFT - 9);
+			nr_blocks -= 1 << (PAGE_SHIFT - 9);
+			if (!nr_blocks)
+				continue;
+		}
+
+		err = blkdev_issue_discard(si->bdev, start_block,
+						nr_blocks, GFP_KERNEL);
+		if (err)
+			break;
+
+		cond_resched();
+	}
+	return err;		/* That will often be -EOPNOTSUPP */
+}
+
 #define SWAPFILE_CLUSTER	256
 #define LATENCY_LIMIT		256
 
@@ -1658,6 +1689,9 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		goto bad_swap;
 	}
 
+	if (discard_swap(p) == 0)
+		p->flags |= SWP_DISCARDABLE;
+
 	mutex_lock(&swapon_mutex);
 	spin_lock(&swap_lock);
 	if (swap_flags & SWAP_FLAG_PREFER)
@@ -1671,9 +1705,10 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	total_swap_pages += nr_good_pages;
 
 	printk(KERN_INFO "Adding %uk swap on %s.  "
-			"Priority:%d extents:%d across:%lluk\n",
+			"Priority:%d extents:%d across:%lluk%s\n",
 		nr_good_pages<<(PAGE_SHIFT-10), name, p->prio,
-		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10));
+		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
+		(p->flags & SWP_DISCARDABLE) ? " D" : "");
 
 	/* insert swap space into swap_list: */
 	prev = -1;
