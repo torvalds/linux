@@ -9,10 +9,8 @@
 #include <linux/cpu.h>
 #include <linux/module.h>
 
-#ifdef CONFIG_HOTPLUG_CPU
 static LIST_HEAD(percpu_counters);
 static DEFINE_MUTEX(percpu_counters_lock);
-#endif
 
 void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
 {
@@ -111,13 +109,24 @@ void percpu_counter_destroy(struct percpu_counter *fbc)
 }
 EXPORT_SYMBOL(percpu_counter_destroy);
 
-#ifdef CONFIG_HOTPLUG_CPU
+int percpu_counter_batch __read_mostly = 32;
+EXPORT_SYMBOL(percpu_counter_batch);
+
+static void compute_batch_value(void)
+{
+	int nr = num_online_cpus();
+
+	percpu_counter_batch = max(32, nr*2);
+}
+
 static int __cpuinit percpu_counter_hotcpu_callback(struct notifier_block *nb,
 					unsigned long action, void *hcpu)
 {
+#ifdef CONFIG_HOTPLUG_CPU
 	unsigned int cpu;
 	struct percpu_counter *fbc;
 
+	compute_batch_value();
 	if (action != CPU_DEAD)
 		return NOTIFY_OK;
 
@@ -134,13 +143,14 @@ static int __cpuinit percpu_counter_hotcpu_callback(struct notifier_block *nb,
 		spin_unlock_irqrestore(&fbc->lock, flags);
 	}
 	mutex_unlock(&percpu_counters_lock);
+#endif
 	return NOTIFY_OK;
 }
 
 static int __init percpu_counter_startup(void)
 {
+	compute_batch_value();
 	hotcpu_notifier(percpu_counter_hotcpu_callback, 0);
 	return 0;
 }
 module_init(percpu_counter_startup);
-#endif
