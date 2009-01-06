@@ -22,21 +22,10 @@
 
 static u32 rand1, preh_val, posth_val, jph_val;
 static int errors, handler_errors, num_tests;
+static u32 (*target)(u32 value);
 
 static noinline u32 kprobe_target(u32 value)
 {
-	/*
-	 * gcc ignores noinline on some architectures unless we stuff
-	 * sufficient lard into the function. The get_kprobe() here is
-	 * just for that.
-	 *
-	 * NOTE: We aren't concerned about the correctness of get_kprobe()
-	 * here; hence, this call is neither under !preempt nor with the
-	 * kprobe_mutex held. This is fine(tm)
-	 */
-	if (get_kprobe((void *)0xdeadbeef))
-		printk(KERN_INFO "Kprobe smoke test: probe on 0xdeadbeef!\n");
-
 	return (value / div_factor);
 }
 
@@ -74,7 +63,7 @@ static int test_kprobe(void)
 		return ret;
 	}
 
-	ret = kprobe_target(rand1);
+	ret = target(rand1);
 	unregister_kprobe(&kp);
 
 	if (preh_val == 0) {
@@ -121,7 +110,7 @@ static int test_jprobe(void)
 		return ret;
 	}
 
-	ret = kprobe_target(rand1);
+	ret = target(rand1);
 	unregister_jprobe(&jp);
 	if (jph_val == 0) {
 		printk(KERN_ERR "Kprobe smoke test failed: "
@@ -177,7 +166,7 @@ static int test_kretprobe(void)
 		return ret;
 	}
 
-	ret = kprobe_target(rand1);
+	ret = target(rand1);
 	unregister_kretprobe(&rp);
 	if (krph_val != rand1) {
 		printk(KERN_ERR "Kprobe smoke test failed: "
@@ -192,6 +181,8 @@ static int test_kretprobe(void)
 int init_test_probes(void)
 {
 	int ret;
+
+	target = kprobe_target;
 
 	do {
 		rand1 = random32();
