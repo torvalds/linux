@@ -333,7 +333,7 @@ int can_share_swap_page(struct page *page)
 {
 	int count;
 
-	BUG_ON(!PageLocked(page));
+	VM_BUG_ON(!PageLocked(page));
 	count = page_mapcount(page);
 	if (count <= 1 && PageSwapCache(page))
 		count += page_swapcount(page);
@@ -350,8 +350,7 @@ static int remove_exclusive_swap_page_count(struct page *page, int count)
 	struct swap_info_struct * p;
 	swp_entry_t entry;
 
-	BUG_ON(PagePrivate(page));
-	BUG_ON(!PageLocked(page));
+	VM_BUG_ON(!PageLocked(page));
 
 	if (!PageSwapCache(page))
 		return 0;
@@ -432,7 +431,6 @@ void free_swap_and_cache(swp_entry_t entry)
 	if (page) {
 		int one_user;
 
-		BUG_ON(PagePrivate(page));
 		one_user = (page_count(page) == 2);
 		/* Only cache user (+us), or swap space full? Free it! */
 		/* Also recheck PageSwapCache after page is locked (above) */
@@ -1209,7 +1207,7 @@ int page_queue_congested(struct page *page)
 {
 	struct backing_dev_info *bdi;
 
-	BUG_ON(!PageLocked(page));	/* It pins the swap_info_struct */
+	VM_BUG_ON(!PageLocked(page));	/* It pins the swap_info_struct */
 
 	if (PageSwapCache(page)) {
 		swp_entry_t entry = { .val = page_private(page) };
