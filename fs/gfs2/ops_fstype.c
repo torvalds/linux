@@ -25,7 +25,6 @@
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
-#include "mount.h"
 #include "recovery.h"
 #include "rgrp.h"
 #include "super.h"
@@ -1116,11 +1115,19 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	}
 
-	error = gfs2_mount_args(sdp, (char *)data, 0);
+	sdp->sd_args.ar_quota = GFS2_QUOTA_DEFAULT;
+	sdp->sd_args.ar_data = GFS2_DATA_DEFAULT;
+
+	error = gfs2_mount_args(sdp, &sdp->sd_args, data);
 	if (error) {
 		printk(KERN_WARNING "GFS2: can't parse mount arguments\n");
 		goto fail;
 	}
+
+	if (sdp->sd_args.ar_spectator)
+                sb->s_flags |= MS_RDONLY;
+	if (sdp->sd_args.ar_posix_acl)
+		sb->s_flags |= MS_POSIXACL;
 
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;

@@ -17,7 +17,7 @@
 
 #include "gfs2.h"
 #include "incore.h"
-#include "mount.h"
+#include "super.h"
 #include "sys.h"
 #include "util.h"
 
@@ -77,101 +77,46 @@ static const match_table_t tokens = {
  * Return: errno
  */
 
-int gfs2_mount_args(struct gfs2_sbd *sdp, char *data_arg, int remount)
+int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 {
-	struct gfs2_args *args = &sdp->sd_args;
-	char *data = data_arg;
-	char *options, *o, *v;
-	int error = 0;
-
-	if (!remount) {
-		/*  Set some defaults  */
-		args->ar_quota = GFS2_QUOTA_DEFAULT;
-		args->ar_data = GFS2_DATA_DEFAULT;
-	}
+	char *o;
+	int token;
+	substring_t tmp[MAX_OPT_ARGS];
 
 	/* Split the options into tokens with the "," character and
 	   process them */
 
-	for (options = data; (o = strsep(&options, ",")); ) {
-		int token;
-		substring_t tmp[MAX_OPT_ARGS];
-
-		if (!*o)
+	while (1) {
+		o = strsep(&options, ",");
+		if (o == NULL)
+			break;
+		if (*o == '\0')
 			continue;
 
 		token = match_token(o, tokens, tmp);
 		switch (token) {
 		case Opt_lockproto:
-			v = match_strdup(&tmp[0]);
-			if (!v) {
-				fs_info(sdp, "no memory for lockproto\n");
-				error = -ENOMEM;
-				goto out_error;
-			}
-
-			if (remount && strcmp(v, args->ar_lockproto)) {
-				kfree(v);
-				goto cant_remount;
-			}
-			
-			strncpy(args->ar_lockproto, v, GFS2_LOCKNAME_LEN);
-			args->ar_lockproto[GFS2_LOCKNAME_LEN - 1] = 0;
-			kfree(v);
+			match_strlcpy(args->ar_lockproto, &tmp[0],
+				      GFS2_LOCKNAME_LEN);
 			break;
 		case Opt_locktable:
-			v = match_strdup(&tmp[0]);
-			if (!v) {
-				fs_info(sdp, "no memory for locktable\n");
-				error = -ENOMEM;
-				goto out_error;
-			}
-
-			if (remount && strcmp(v, args->ar_locktable)) {
-				kfree(v);
-				goto cant_remount;
-			}
-
-			strncpy(args->ar_locktable, v, GFS2_LOCKNAME_LEN);
-			args->ar_locktable[GFS2_LOCKNAME_LEN - 1]  = 0;
-			kfree(v);
+			match_strlcpy(args->ar_locktable, &tmp[0],
+				      GFS2_LOCKNAME_LEN);
 			break;
 		case Opt_hostdata:
-			v = match_strdup(&tmp[0]);
-			if (!v) {
-				fs_info(sdp, "no memory for hostdata\n");
-				error = -ENOMEM;
-				goto out_error;
-			}
-
-			if (remount && strcmp(v, args->ar_hostdata)) {
-				kfree(v);
-				goto cant_remount;
-			}
-
-			strncpy(args->ar_hostdata, v, GFS2_LOCKNAME_LEN);
-			args->ar_hostdata[GFS2_LOCKNAME_LEN - 1] = 0;
-			kfree(v);
+			match_strlcpy(args->ar_hostdata, &tmp[0],
+				      GFS2_LOCKNAME_LEN);
 			break;
 		case Opt_spectator:
-			if (remount && !args->ar_spectator)
-				goto cant_remount;
 			args->ar_spectator = 1;
-			sdp->sd_vfs->s_flags |= MS_RDONLY;
 			break;
 		case Opt_ignore_local_fs:
-			if (remount && !args->ar_ignore_local_fs)
-				goto cant_remount;
 			args->ar_ignore_local_fs = 1;
 			break;
 		case Opt_localflocks:
-			if (remount && !args->ar_localflocks)
-				goto cant_remount;
 			args->ar_localflocks = 1;
 			break;
 		case Opt_localcaching:
-			if (remount && !args->ar_localcaching)
-				goto cant_remount;
 			args->ar_localcaching = 1;
 			break;
 		case Opt_debug:
@@ -181,17 +126,13 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, char *data_arg, int remount)
 			args->ar_debug = 0;
 			break;
 		case Opt_upgrade:
-			if (remount && !args->ar_upgrade)
-				goto cant_remount;
 			args->ar_upgrade = 1;
 			break;
 		case Opt_acl:
 			args->ar_posix_acl = 1;
-			sdp->sd_vfs->s_flags |= MS_POSIXACL;
 			break;
 		case Opt_noacl:
 			args->ar_posix_acl = 0;
-			sdp->sd_vfs->s_flags &= ~MS_POSIXACL;
 			break;
 		case Opt_quota_off:
 			args->ar_quota = GFS2_QUOTA_OFF;
@@ -215,29 +156,15 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, char *data_arg, int remount)
 			args->ar_data = GFS2_DATA_ORDERED;
 			break;
 		case Opt_meta:
-			if (remount && args->ar_meta != 1)
-				goto cant_remount;
 			args->ar_meta = 1;
 			break;
 		case Opt_err:
 		default:
-			fs_info(sdp, "unknown option: %s\n", o);
-			error = -EINVAL;
-			goto out_error;
+			fs_info(sdp, "invalid mount option: %s\n", o);
+			return -EINVAL;
 		}
 	}
 
-out_error:
-	if (error)
-		fs_info(sdp, "invalid mount option(s)\n");
-
-	if (data != data_arg)
-		kfree(data);
-
-	return error;
-
-cant_remount:
-	fs_info(sdp, "can't remount with option %s\n", o);
-	return -EINVAL;
+	return 0;
 }
 
