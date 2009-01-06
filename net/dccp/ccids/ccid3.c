@@ -940,10 +940,9 @@ static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 	return 0;
 }
 
-static struct ccid_operations ccid3 = {
+struct ccid_operations ccid3_ops = {
 	.ccid_id		   = DCCPC_CCID3,
 	.ccid_name		   = "TCP-Friendly Rate Control",
-	.ccid_owner		   = THIS_MODULE,
 	.ccid_hc_tx_obj_size	   = sizeof(struct ccid3_hc_tx_sock),
 	.ccid_hc_tx_init	   = ccid3_hc_tx_init,
 	.ccid_hc_tx_exit	   = ccid3_hc_tx_exit,
@@ -964,23 +963,5 @@ static struct ccid_operations ccid3 = {
 
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 module_param(ccid3_debug, bool, 0644);
-MODULE_PARM_DESC(ccid3_debug, "Enable debug messages");
+MODULE_PARM_DESC(ccid3_debug, "Enable CCID-3 debug messages");
 #endif
-
-static __init int ccid3_module_init(void)
-{
-	return ccid_register(&ccid3);
-}
-module_init(ccid3_module_init);
-
-static __exit void ccid3_module_exit(void)
-{
-	ccid_unregister(&ccid3);
-}
-module_exit(ccid3_module_exit);
-
-MODULE_AUTHOR("Ian McDonald <ian.mcdonald@jandi.co.nz>, "
-	      "Arnaldo Carvalho de Melo <acme@ghostprotocols.net>");
-MODULE_DESCRIPTION("DCCP TFRC CCID3 CCID");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("net-dccp-ccid-3");
