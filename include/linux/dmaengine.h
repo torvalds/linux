@@ -89,6 +89,7 @@ enum dma_transaction_type {
 	DMA_MEMSET,
 	DMA_MEMCPY_CRC32C,
 	DMA_INTERRUPT,
+	DMA_PRIVATE,
 	DMA_SLAVE,
 };
 
@@ -222,6 +223,18 @@ void dma_chan_cleanup(struct kref *kref);
 struct dma_client;
 typedef enum dma_state_client (*dma_event_callback) (struct dma_client *client,
 		struct dma_chan *chan, enum dma_state state);
+
+/**
+ * typedef dma_filter_fn - callback filter for dma_request_channel
+ * @chan: channel to be reviewed
+ * @filter_param: opaque parameter passed through dma_request_channel
+ *
+ * When this optional parameter is specified in a call to dma_request_channel a
+ * suitable channel is passed to this routine for further dispositioning before
+ * being returned.  Where 'suitable' indicates a non-busy channel that
+ * satisfies the given capability mask.
+ */
+typedef enum dma_state_client (*dma_filter_fn)(struct dma_chan *chan, void *filter_param);
 
 /**
  * struct dma_client - info on the entity making use of DMA services
@@ -472,6 +485,9 @@ void dma_async_device_unregister(struct dma_device *device);
 void dma_run_dependencies(struct dma_async_tx_descriptor *tx);
 struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type);
 void dma_issue_pending_all(void);
+#define dma_request_channel(mask, x, y) __dma_request_channel(&(mask), x, y)
+struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, void *fn_param);
+void dma_release_channel(struct dma_chan *chan);
 
 /* --- Helper iov-locking functions --- */
 

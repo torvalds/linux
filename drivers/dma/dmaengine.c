@@ -134,14 +134,14 @@ static struct class dma_devclass = {
 
 /* --- client and device registration --- */
 
-#define dma_chan_satisfies_mask(chan, mask) \
-	__dma_chan_satisfies_mask((chan), &(mask))
+#define dma_device_satisfies_mask(device, mask) \
+	__dma_device_satisfies_mask((device), &(mask))
 static int
-__dma_chan_satisfies_mask(struct dma_chan *chan, dma_cap_mask_t *want)
+__dma_device_satisfies_mask(struct dma_device *device, dma_cap_mask_t *want)
 {
 	dma_cap_mask_t has;
 
-	bitmap_and(has.bits, want->bits, chan->device->cap_mask.bits,
+	bitmap_and(has.bits, want->bits, device->cap_mask.bits,
 		DMA_TX_TYPE_END);
 	return bitmap_equal(want->bits, has.bits, DMA_TX_TYPE_END);
 }
@@ -195,7 +195,7 @@ static int dma_chan_get(struct dma_chan *chan)
 			err = desc_cnt;
 			chan->client_count = 0;
 			module_put(owner);
-		} else
+		} else if (!dma_has_cap(DMA_PRIVATE, chan->device->cap_mask))
 			balance_ref_count(chan);
 	}
 
@@ -232,14 +232,16 @@ static void dma_client_chan_alloc(struct dma_client *client)
 
 	/* Find a channel */
 	list_for_each_entry(device, &dma_device_list, global_node) {
+		if (dma_has_cap(DMA_PRIVATE, device->cap_mask))
+			continue;
 		/* Does the client require a specific DMA controller? */
 		if (client->slave && client->slave->dma_dev
 				&& client->slave->dma_dev != device->dev)
 			continue;
+		if (!dma_device_satisfies_mask(device, client->cap_mask))
+			continue;
 
 		list_for_each_entry(chan, &device->channels, device_node) {
-			if (!dma_chan_satisfies_mask(chan, client->cap_mask))
-				continue;
 			if (!chan->client_count)
 				continue;
 			ack = client->event_callback(client, chan,
@@ -320,11 +322,12 @@ static int __init dma_channel_table_init(void)
 
 	bitmap_fill(dma_cap_mask_all.bits, DMA_TX_TYPE_END);
 
-	/* 'interrupt' and 'slave' are channel capabilities, but are not
-	 * associated with an operation so they do not need an entry in the
-	 * channel_table
+	/* 'interrupt', 'private', and 'slave' are channel capabilities,
+	 * but are not associated with an operation so they do not need
+	 * an entry in the channel_table
 	 */
 	clear_bit(DMA_INTERRUPT, dma_cap_mask_all.bits);
+	clear_bit(DMA_PRIVATE, dma_cap_mask_all.bits);
 	clear_bit(DMA_SLAVE, dma_cap_mask_all.bits);
 
 	for_each_dma_cap_mask(cap, dma_cap_mask_all) {
@@ -378,10 +381,13 @@ void dma_issue_pending_all(void)
 		  "client called %s without a reference", __func__);
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(device, &dma_device_list, global_node)
+	list_for_each_entry_rcu(device, &dma_device_list, global_node) {
+		if (dma_has_cap(DMA_PRIVATE, device->cap_mask))
+			continue;
 		list_for_each_entry(chan, &device->channels, device_node)
 			if (chan->client_count)
 				device->device_issue_pending(chan);
+	}
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(dma_issue_pending_all);
@@ -403,7 +409,8 @@ static struct dma_chan *nth_chan(enum dma_transaction_type cap, int n)
 	struct dma_chan *min = NULL;
 
 	list_for_each_entry(device, &dma_device_list, global_node) {
-		if (!dma_has_cap(cap, device->cap_mask))
+		if (!dma_has_cap(cap, device->cap_mask) ||
+		    dma_has_cap(DMA_PRIVATE, device->cap_mask))
 			continue;
 		list_for_each_entry(chan, &device->channels, device_node) {
 			if (!chan->client_count)
@@ -452,9 +459,12 @@ static void dma_channel_rebalance(void)
 		for_each_possible_cpu(cpu)
 			per_cpu_ptr(channel_table[cap], cpu)->chan = NULL;
 
-	list_for_each_entry(device, &dma_device_list, global_node)
+	list_for_each_entry(device, &dma_device_list, global_node) {
+		if (dma_has_cap(DMA_PRIVATE, device->cap_mask))
+			continue;
 		list_for_each_entry(chan, &device->channels, device_node)
 			chan->table_count = 0;
+	}
 
 	/* don't populate the channel_table if no clients are available */
 	if (!dmaengine_ref_count)
@@ -472,6 +482,111 @@ static void dma_channel_rebalance(void)
 			per_cpu_ptr(channel_table[cap], cpu)->chan = chan;
 		}
 }
+
+static struct dma_chan *private_candidate(dma_cap_mask_t *mask, struct dma_device *dev)
+{
+	struct dma_chan *chan;
+	struct dma_chan *ret = NULL;
+
+	if (!__dma_device_satisfies_mask(dev, mask)) {
+		pr_debug("%s: wrong capabilities\n", __func__);
+		return NULL;
+	}
+	/* devices with multiple channels need special handling as we need to
+	 * ensure that all channels are either private or public.
+	 */
+	if (dev->chancnt > 1 && !dma_has_cap(DMA_PRIVATE, dev->cap_mask))
+		list_for_each_entry(chan, &dev->channels, device_node) {
+			/* some channels are already publicly allocated */
+			if (chan->client_count)
+				return NULL;
+		}
+
+	list_for_each_entry(chan, &dev->channels, device_node) {
+		if (chan->client_count) {
+			pr_debug("%s: %s busy\n",
+				 __func__, dev_name(&chan->dev));
+			continue;
+		}
+		ret = chan;
+		break;
+	}
+
+	return ret;
+}
+
+/**
+ * dma_request_channel - try to allocate an exclusive channel
+ * @mask: capabilities that the channel must satisfy
+ * @fn: optional callback to disposition available channels
+ * @fn_param: opaque parameter to pass to dma_filter_fn
+ */
+struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, void *fn_param)
+{
+	struct dma_device *device, *_d;
+	struct dma_chan *chan = NULL;
+	enum dma_state_client ack;
+	int err;
+
+	/* Find a channel */
+	mutex_lock(&dma_list_mutex);
+	list_for_each_entry_safe(device, _d, &dma_device_list, global_node) {
+		chan = private_candidate(mask, device);
+		if (!chan)
+			continue;
+
+		if (fn)
+			ack = fn(chan, fn_param);
+		else
+			ack = DMA_ACK;
+
+		if (ack == DMA_ACK) {
+			/* Found a suitable channel, try to grab, prep, and
+			 * return it.  We first set DMA_PRIVATE to disable
+			 * balance_ref_count as this channel will not be
+			 * published in the general-purpose allocator
+			 */
+			dma_cap_set(DMA_PRIVATE, device->cap_mask);
+			err = dma_chan_get(chan);
+
+			if (err == -ENODEV) {
+				pr_debug("%s: %s module removed\n", __func__,
+					 dev_name(&chan->dev));
+				list_del_rcu(&device->global_node);
+			} else if (err)
+				pr_err("dmaengine: failed to get %s: (%d)\n",
+				       dev_name(&chan->dev), err);
+			else
+				break;
+		} else if (ack == DMA_DUP) {
+			pr_debug("%s: %s filter said DMA_DUP\n",
+				 __func__, dev_name(&chan->dev));
+		} else if (ack == DMA_NAK) {
+			pr_debug("%s: %s filter said DMA_NAK\n",
+				 __func__, dev_name(&chan->dev));
+			break;
+		} else
+			WARN_ONCE(1, "filter_fn: unknown response?\n");
+		chan = NULL;
+	}
+	mutex_unlock(&dma_list_mutex);
+
+	pr_debug("%s: %s (%s)\n", __func__, chan ? "success" : "fail",
+		 chan ? dev_name(&chan->dev) : NULL);
+
+	return chan;
+}
+EXPORT_SYMBOL_GPL(__dma_request_channel);
+
+void dma_release_channel(struct dma_chan *chan)
+{
+	mutex_lock(&dma_list_mutex);
+	WARN_ONCE(chan->client_count != 1,
+		  "chan reference count %d != 1\n", chan->client_count);
+	dma_chan_put(chan);
+	mutex_unlock(&dma_list_mutex);
+}
+EXPORT_SYMBOL_GPL(dma_release_channel);
 
 /**
  * dma_chans_notify_available - broadcast available channels to the clients
@@ -506,7 +621,9 @@ void dma_async_client_register(struct dma_client *client)
 	dmaengine_ref_count++;
 
 	/* try to grab channels */
-	list_for_each_entry_safe(device, _d, &dma_device_list, global_node)
+	list_for_each_entry_safe(device, _d, &dma_device_list, global_node) {
+		if (dma_has_cap(DMA_PRIVATE, device->cap_mask))
+			continue;
 		list_for_each_entry(chan, &device->channels, device_node) {
 			err = dma_chan_get(chan);
 			if (err == -ENODEV) {
@@ -517,6 +634,7 @@ void dma_async_client_register(struct dma_client *client)
 				pr_err("dmaengine: failed to get %s: (%d)\n",
 				       dev_name(&chan->dev), err);
 		}
+	}
 
 	/* if this is the first reference and there were channels
 	 * waiting we need to rebalance to get those channels
@@ -547,9 +665,12 @@ void dma_async_client_unregister(struct dma_client *client)
 	dmaengine_ref_count--;
 	BUG_ON(dmaengine_ref_count < 0);
 	/* drop channel references */
-	list_for_each_entry(device, &dma_device_list, global_node)
+	list_for_each_entry(device, &dma_device_list, global_node) {
+		if (dma_has_cap(DMA_PRIVATE, device->cap_mask))
+			continue;
 		list_for_each_entry(chan, &device->channels, device_node)
 			dma_chan_put(chan);
+	}
 
 	list_del(&client->global_node);
 	mutex_unlock(&dma_list_mutex);
@@ -639,9 +760,11 @@ int dma_async_device_register(struct dma_device *device)
 		chan->slow_ref = 0;
 		INIT_RCU_HEAD(&chan->rcu);
 	}
+	device->chancnt = chancnt;
 
 	mutex_lock(&dma_list_mutex);
-	if (dmaengine_ref_count)
+	/* take references on public channels */
+	if (dmaengine_ref_count && !dma_has_cap(DMA_PRIVATE, device->cap_mask))
 		list_for_each_entry(chan, &device->channels, device_node) {
 			/* if clients are already waiting for channels we need
 			 * to take references on their behalf
