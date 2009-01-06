@@ -57,10 +57,12 @@
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
 #include <linux/rculist.h>
+#include <linux/idr.h>
 
 static DEFINE_MUTEX(dma_list_mutex);
 static LIST_HEAD(dma_device_list);
 static long dmaengine_ref_count;
+static struct idr dma_idr;
 
 /* --- sysfs implementation --- */
 
@@ -147,6 +149,12 @@ static void chan_dev_release(struct device *dev)
 	struct dma_chan_dev *chan_dev;
 
 	chan_dev = container_of(dev, typeof(*chan_dev), device);
+	if (atomic_dec_and_test(chan_dev->idr_ref)) {
+		mutex_lock(&dma_list_mutex);
+		idr_remove(&dma_idr, chan_dev->dev_id);
+		mutex_unlock(&dma_list_mutex);
+		kfree(chan_dev->idr_ref);
+	}
 	kfree(chan_dev);
 }
 
@@ -611,9 +619,9 @@ EXPORT_SYMBOL(dmaengine_put);
  */
 int dma_async_device_register(struct dma_device *device)
 {
-	static int id;
 	int chancnt = 0, rc;
 	struct dma_chan* chan;
+	atomic_t *idr_ref;
 
 	if (!device)
 		return -ENODEV;
@@ -640,9 +648,20 @@ int dma_async_device_register(struct dma_device *device)
 	BUG_ON(!device->device_issue_pending);
 	BUG_ON(!device->dev);
 
+	idr_ref = kmalloc(sizeof(*idr_ref), GFP_KERNEL);
+	if (!idr_ref)
+		return -ENOMEM;
+	atomic_set(idr_ref, 0);
+ idr_retry:
+	if (!idr_pre_get(&dma_idr, GFP_KERNEL))
+		return -ENOMEM;
 	mutex_lock(&dma_list_mutex);
-	device->dev_id = id++;
+	rc = idr_get_new(&dma_idr, NULL, &device->dev_id);
 	mutex_unlock(&dma_list_mutex);
+	if (rc == -EAGAIN)
+		goto idr_retry;
+	else if (rc != 0)
+		return rc;
 
 	/* represent channels in sysfs. Probably want devs too */
 	list_for_each_entry(chan, &device->channels, device_node) {
@@ -659,6 +678,9 @@ int dma_async_device_register(struct dma_device *device)
 		chan->dev->device.class = &dma_devclass;
 		chan->dev->device.parent = device->dev;
 		chan->dev->chan = chan;
+		chan->dev->idr_ref = idr_ref;
+		chan->dev->dev_id = device->dev_id;
+		atomic_inc(idr_ref);
 		dev_set_name(&chan->dev->device, "dma%dchan%d",
 			     device->dev_id, chan->chan_id);
 
@@ -971,6 +993,7 @@ EXPORT_SYMBOL_GPL(dma_run_dependencies);
 
 static int __init dma_bus_init(void)
 {
+	idr_init(&dma_idr);
 	mutex_init(&dma_list_mutex);
 	return class_register(&dma_devclass);
 }

@@ -140,10 +140,14 @@ struct dma_chan {
  * struct dma_chan_dev - relate sysfs device node to backing channel device
  * @chan - driver channel device
  * @device - sysfs device
+ * @dev_id - parent dma_device dev_id
+ * @idr_ref - reference count to gate release of dma_device dev_id
  */
 struct dma_chan_dev {
 	struct dma_chan *chan;
 	struct device device;
+	int dev_id;
+	atomic_t *idr_ref;
 };
 
 static inline const char *dma_chan_name(struct dma_chan *chan)
