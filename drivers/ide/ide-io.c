@@ -1159,12 +1159,9 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	 * won't allow another of the same (on any CPU) until we return.
 	 */
 	if (startstop == ide_stopped) {
-		if (hwif->handler == NULL) {	/* paranoia */
-			ide_unlock_port(hwif);
-			plug_device = 1;
-		} else
-			printk(KERN_ERR "%s: %s: huh? expected NULL handler "
-					"on exit\n", __func__, drive->name);
+		BUG_ON(hwif->handler);
+		ide_unlock_port(hwif);
+		plug_device = 1;
 	}
 out_handled:
 	irq_ret = IRQ_HANDLED;
