@@ -426,12 +426,8 @@ struct ide_atapi_pc {
 	struct idetape_bh *bh;
 	char *b_data;
 
-	/* idescsi only for now */
 	struct scatterlist *sg;
 	unsigned int sg_cnt;
-
-	struct scsi_cmnd *scsi_cmd;
-	void (*done) (struct scsi_cmnd *);
 
 	unsigned long timeout;
 };
