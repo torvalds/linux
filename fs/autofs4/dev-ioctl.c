@@ -180,7 +180,7 @@ static int autofs_dev_ioctl_protover(struct file *fp,
 				     struct autofs_sb_info *sbi,
 				     struct autofs_dev_ioctl *param)
 {
-	param->arg1 = sbi->version;
+	param->protover.version = sbi->version;
 	return 0;
 }
 
@@ -189,7 +189,7 @@ static int autofs_dev_ioctl_protosubver(struct file *fp,
 					struct autofs_sb_info *sbi,
 					struct autofs_dev_ioctl *param)
 {
-	param->arg1 = sbi->sub_version;
+	param->protosubver.sub_version = sbi->sub_version;
 	return 0;
 }
 
@@ -335,13 +335,13 @@ static int autofs_dev_ioctl_openmount(struct file *fp,
 	int err, fd;
 
 	/* param->path has already been checked */
-	if (!param->arg1)
+	if (!param->openmount.devid)
 		return -EINVAL;
 
 	param->ioctlfd = -1;
 
 	path = param->path;
-	devid = param->arg1;
+	devid = param->openmount.devid;
 
 	err = 0;
 	fd = autofs_dev_ioctl_open_mountpoint(path, devid);
@@ -373,7 +373,7 @@ static int autofs_dev_ioctl_ready(struct file *fp,
 {
 	autofs_wqt_t token;
 
-	token = (autofs_wqt_t) param->arg1;
+	token = (autofs_wqt_t) param->ready.token;
 	return autofs4_wait_release(sbi, token, 0);
 }
 
@@ -388,8 +388,8 @@ static int autofs_dev_ioctl_fail(struct file *fp,
 	autofs_wqt_t token;
 	int status;
 
-	token = (autofs_wqt_t) param->arg1;
-	status = param->arg2 ? param->arg2 : -ENOENT;
+	token = (autofs_wqt_t) param->fail.token;
+	status = param->fail.status ? param->fail.status : -ENOENT;
 	return autofs4_wait_release(sbi, token, status);
 }
 
@@ -412,10 +412,10 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 	int pipefd;
 	int err = 0;
 
-	if (param->arg1 == -1)
+	if (param->setpipefd.pipefd == -1)
 		return -EINVAL;
 
-	pipefd = param->arg1;
+	pipefd = param->setpipefd.pipefd;
 
 	mutex_lock(&sbi->wq_mutex);
 	if (!sbi->catatonic) {
@@ -457,8 +457,8 @@ static int autofs_dev_ioctl_timeout(struct file *fp,
 {
 	unsigned long timeout;
 
-	timeout = param->arg1;
-	param->arg1 = sbi->exp_timeout / HZ;
+	timeout = param->timeout.timeout;
+	param->timeout.timeout = sbi->exp_timeout / HZ;
 	sbi->exp_timeout = timeout * HZ;
 	return 0;
 }
@@ -489,7 +489,7 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 	path = param->path;
 	devid = sbi->sb->s_dev;
 
-	param->arg1 = param->arg2 = -1;
+	param->requester.uid = param->requester.gid = -1;
 
 	/* Get nameidata of the parent directory */
 	err = path_lookup(path, LOOKUP_PARENT, &nd);
@@ -505,8 +505,8 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 		err = 0;
 		autofs4_expire_wait(nd.path.dentry);
 		spin_lock(&sbi->fs_lock);
-		param->arg1 = ino->uid;
-		param->arg2 = ino->gid;
+		param->requester.uid = ino->uid;
+		param->requester.gid = ino->gid;
 		spin_unlock(&sbi->fs_lock);
 	}
 
@@ -529,7 +529,7 @@ static int autofs_dev_ioctl_expire(struct file *fp,
 	int err = -EAGAIN;
 	int how;
 
-	how = param->arg1;
+	how = param->expire.how;
 	mnt = fp->f_path.mnt;
 
 	if (sbi->type & AUTOFS_TYPE_TRIGGER)
@@ -565,9 +565,9 @@ static int autofs_dev_ioctl_askumount(struct file *fp,
 				      struct autofs_sb_info *sbi,
 				      struct autofs_dev_ioctl *param)
 {
-	param->arg1 = 0;
+	param->askumount.may_umount = 0;
 	if (may_umount(fp->f_path.mnt))
-		param->arg1 = 1;
+		param->askumount.may_umount = 1;
 	return 0;
 }
 
@@ -600,6 +600,7 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 	struct nameidata nd;
 	const char *path;
 	unsigned int type;
+	unsigned int devid, magic;
 	int err = -ENOENT;
 
 	if (param->size <= sizeof(*param)) {
@@ -608,10 +609,10 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 	}
 
 	path = param->path;
-	type = param->arg1;
+	type = param->ismountpoint.in.type;
 
-	param->arg1 = 0;
-	param->arg2 = 0;
+	param->ismountpoint.out.devid = devid = 0;
+	param->ismountpoint.out.magic = magic = 0;
 
 	if (!fp || param->ioctlfd == -1) {
 		if (type == AUTOFS_TYPE_ANY) {
@@ -622,7 +623,7 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 				goto out;
 
 			sb = nd.path.dentry->d_sb;
-			param->arg1 = new_encode_dev(sb->s_dev);
+			devid = new_encode_dev(sb->s_dev);
 		} else {
 			struct autofs_info *ino;
 
@@ -635,14 +636,14 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 				goto out_release;
 
 			ino = autofs4_dentry_ino(nd.path.dentry);
-			param->arg1 = autofs4_get_dev(ino->sbi);
+			devid = autofs4_get_dev(ino->sbi);
 		}
 
 		err = 0;
 		if (nd.path.dentry->d_inode &&
 		    nd.path.mnt->mnt_root == nd.path.dentry) {
 			err = 1;
-			param->arg2 = nd.path.dentry->d_inode->i_sb->s_magic;
+			magic = nd.path.dentry->d_inode->i_sb->s_magic;
 		}
 	} else {
 		dev_t devid = new_encode_dev(sbi->sb->s_dev);
@@ -655,17 +656,20 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 		if (err)
 			goto out_release;
 
-		param->arg1 = autofs4_get_dev(sbi);
+		devid = autofs4_get_dev(sbi);
 
 		err = have_submounts(nd.path.dentry);
 
 		if (nd.path.mnt->mnt_mountpoint != nd.path.mnt->mnt_root) {
 			if (follow_down(&nd.path.mnt, &nd.path.dentry)) {
 				struct inode *inode = nd.path.dentry->d_inode;
-				param->arg2 = inode->i_sb->s_magic;
+				magic = inode->i_sb->s_magic;
 			}
 		}
 	}
+
+	param->ismountpoint.out.devid = devid;
+	param->ismountpoint.out.magic = magic;
 
 out_release:
 	path_put(&nd.path);
