@@ -343,6 +343,14 @@ static int assigned_device_update_msi(struct kvm *kvm,
 		adev->irq_requested_type &= ~KVM_ASSIGNED_DEV_GUEST_MSI;
 		adev->guest_irq = airq->guest_irq;
 		adev->ack_notifier.gsi = airq->guest_irq;
+	} else {
+		/*
+		 * Guest require to disable device MSI, we disable MSI and
+		 * re-enable INTx by default again. Notice it's only for
+		 * non-msi2intx.
+		 */
+		assigned_device_update_intx(kvm, adev, airq);
+		return 0;
 	}
 
 	if (adev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI)
@@ -379,6 +387,7 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 {
 	int r = 0;
 	struct kvm_assigned_dev_kernel *match;
+	u32 current_flags = 0, changed_flags;
 
 	mutex_lock(&kvm->lock);
 
@@ -416,8 +425,13 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 		}
 	}
 
-	if ((!msi2intx &&
-	     (assigned_irq->flags & KVM_DEV_IRQ_ASSIGN_ENABLE_MSI)) ||
+	if ((match->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI) &&
+		 (match->irq_requested_type & KVM_ASSIGNED_DEV_GUEST_MSI))
+		current_flags |= KVM_DEV_IRQ_ASSIGN_ENABLE_MSI;
+
+	changed_flags = assigned_irq->flags ^ current_flags;
+
+	if ((changed_flags & KVM_DEV_IRQ_ASSIGN_MSI_ACTION) ||
 	    (msi2intx && match->dev->msi_enabled)) {
 #ifdef CONFIG_X86
 		r = assigned_device_update_msi(kvm, match, assigned_irq);

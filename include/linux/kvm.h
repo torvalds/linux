@@ -550,6 +550,7 @@ struct kvm_assigned_irq {
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 
+#define KVM_DEV_IRQ_ASSIGN_MSI_ACTION	KVM_DEV_IRQ_ASSIGN_ENABLE_MSI
 #define KVM_DEV_IRQ_ASSIGN_ENABLE_MSI	(1 << 0)
 
 #endif
