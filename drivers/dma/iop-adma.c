@@ -269,8 +269,6 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 			break;
 	}
 
-	BUG_ON(!seen_current);
-
 	if (cookie > 0) {
 		iop_chan->completed_cookie = cookie;
 		pr_debug("\tcompleted cookie %d\n", cookie);
