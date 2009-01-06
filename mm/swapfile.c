@@ -89,7 +89,8 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 
 static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 {
-	unsigned long offset, last_in_cluster;
+	unsigned long offset;
+	unsigned long last_in_cluster;
 	int latency_ration = LATENCY_LIMIT;
 
 	/*
@@ -103,10 +104,13 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 	 */
 
 	si->flags += SWP_SCANNING;
-	if (unlikely(!si->cluster_nr)) {
-		si->cluster_nr = SWAPFILE_CLUSTER - 1;
-		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER)
-			goto lowest;
+	offset = si->cluster_next;
+
+	if (unlikely(!si->cluster_nr--)) {
+		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER) {
+			si->cluster_nr = SWAPFILE_CLUSTER - 1;
+			goto checks;
+		}
 		spin_unlock(&swap_lock);
 
 		offset = si->lowest_bit;
@@ -118,43 +122,47 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 				last_in_cluster = offset + SWAPFILE_CLUSTER;
 			else if (offset == last_in_cluster) {
 				spin_lock(&swap_lock);
-				si->cluster_next = offset-SWAPFILE_CLUSTER+1;
-				goto cluster;
+				offset -= SWAPFILE_CLUSTER - 1;
+				si->cluster_next = offset;
+				si->cluster_nr = SWAPFILE_CLUSTER - 1;
+				goto checks;
 			}
 			if (unlikely(--latency_ration < 0)) {
 				cond_resched();
 				latency_ration = LATENCY_LIMIT;
 			}
 		}
+
+		offset = si->lowest_bit;
 		spin_lock(&swap_lock);
-		goto lowest;
+		si->cluster_nr = SWAPFILE_CLUSTER - 1;
 	}
 
-	si->cluster_nr--;
-cluster:
-	offset = si->cluster_next;
-	if (offset > si->highest_bit)
-lowest:		offset = si->lowest_bit;
-checks:	if (!(si->flags & SWP_WRITEOK))
+checks:
+	if (!(si->flags & SWP_WRITEOK))
 		goto no_page;
 	if (!si->highest_bit)
 		goto no_page;
-	if (!si->swap_map[offset]) {
-		if (offset == si->lowest_bit)
-			si->lowest_bit++;
-		if (offset == si->highest_bit)
-			si->highest_bit--;
-		si->inuse_pages++;
-		if (si->inuse_pages == si->pages) {
-			si->lowest_bit = si->max;
-			si->highest_bit = 0;
-		}
-		si->swap_map[offset] = 1;
-		si->cluster_next = offset + 1;
-		si->flags -= SWP_SCANNING;
-		return offset;
-	}
+	if (offset > si->highest_bit)
+		offset = si->lowest_bit;
+	if (si->swap_map[offset])
+		goto scan;
 
+	if (offset == si->lowest_bit)
+		si->lowest_bit++;
+	if (offset == si->highest_bit)
+		si->highest_bit--;
+	si->inuse_pages++;
+	if (si->inuse_pages == si->pages) {
+		si->lowest_bit = si->max;
+		si->highest_bit = 0;
+	}
+	si->swap_map[offset] = 1;
+	si->cluster_next = offset + 1;
+	si->flags -= SWP_SCANNING;
+	return offset;
+
+scan:
 	spin_unlock(&swap_lock);
 	while (++offset <= si->highest_bit) {
 		if (!si->swap_map[offset]) {
@@ -167,7 +175,7 @@ checks:	if (!(si->flags & SWP_WRITEOK))
 		}
 	}
 	spin_lock(&swap_lock);
-	goto lowest;
+	goto checks;
 
 no_page:
 	si->flags -= SWP_SCANNING;

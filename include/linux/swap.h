@@ -133,14 +133,14 @@ enum {
  * The in-memory structure used to track swap areas.
  */
 struct swap_info_struct {
-	unsigned int flags;
+	unsigned long flags;
 	int prio;			/* swap priority */
+	int next;			/* next entry on swap list */
 	struct file *swap_file;
 	struct block_device *bdev;
 	struct list_head extent_list;
 	struct swap_extent *curr_swap_extent;
-	unsigned old_block_size;
-	unsigned short * swap_map;
+	unsigned short *swap_map;
 	unsigned int lowest_bit;
 	unsigned int highest_bit;
 	unsigned int cluster_next;
@@ -148,7 +148,7 @@ struct swap_info_struct {
 	unsigned int pages;
 	unsigned int max;
 	unsigned int inuse_pages;
-	int next;			/* next entry on swap list */
+	unsigned int old_block_size;
 };
 
 struct swap_list_t {
