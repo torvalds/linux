@@ -828,6 +828,7 @@ typedef struct hwif_s {
 
 	unsigned	present    : 1;	/* this interface exists */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
+	unsigned	busy	   : 1; /* serializes devices on a port */
 
 	struct device		gendev;
 	struct device		*portdev;
@@ -851,7 +852,12 @@ struct ide_host {
 	unsigned long	host_flags;
 	void		*host_priv;
 	ide_hwif_t	*cur_port;	/* for hosts requiring serialization */
+
+	/* used for hosts requiring serialization */
+	volatile long	host_busy;
 };
+
+#define IDE_HOST_BUSY 0
 
 /*
  *  internal ide interrupt handler type
@@ -866,8 +872,6 @@ typedef struct hwgroup_s {
 		/* irq handler, if active */
 	ide_startstop_t	(*handler)(ide_drive_t *);
 
-		/* BOOL: protects all fields below */
-	volatile int busy;
 		/* BOOL: polling active & poll_timeout field valid */
 	unsigned int polling	: 1;
 
@@ -1271,26 +1275,6 @@ extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 
 extern void ide_timer_expiry(unsigned long);
 extern irqreturn_t ide_intr(int irq, void *dev_id);
-
-static inline int ide_lock_hwgroup(ide_hwgroup_t *hwgroup, ide_hwif_t *hwif)
-{
-	if (hwgroup->busy)
-		return 1;
-
-	hwgroup->busy = 1;
-	/* for atari only */
-	ide_get_lock(ide_intr, hwif);
-
-	return 0;
-}
-
-static inline void ide_unlock_hwgroup(ide_hwgroup_t *hwgroup)
-{
-	/* for atari only */
-	ide_release_lock();
-	hwgroup->busy = 0;
-}
-
 extern void do_ide_request(struct request_queue *);
 
 void ide_init_disk(struct gendisk *, ide_drive_t *);
@@ -1617,13 +1601,6 @@ static inline void ide_set_max_pio(ide_drive_t *drive)
 
 extern spinlock_t ide_lock;
 extern struct mutex ide_cfg_mtx;
-/*
- * Structure locking:
- *
- * ide_hwgroup_t->busy: hwgroup->lock
- * ide_hwif_t->{hwgroup,mate}: constant, no locking
- * ide_drive_t->hwif: constant, no locking
- */
 
 #define local_irq_set(flags)	do { local_save_flags((flags)); local_irq_enable_in_hardirq(); } while (0)
 

@@ -666,45 +666,54 @@ void ide_stall_queue (ide_drive_t *drive, unsigned long timeout)
 }
 EXPORT_SYMBOL(ide_stall_queue);
 
+static inline int ide_lock_port(ide_hwif_t *hwif)
+{
+	if (hwif->busy)
+		return 1;
+
+	hwif->busy = 1;
+
+	return 0;
+}
+
+static inline void ide_unlock_port(ide_hwif_t *hwif)
+{
+	hwif->busy = 0;
+}
+
+static inline int ide_lock_host(struct ide_host *host, ide_hwif_t *hwif)
+{
+	int rc = 0;
+
+	if (host->host_flags & IDE_HFLAG_SERIALIZE) {
+		rc = test_and_set_bit_lock(IDE_HOST_BUSY, &host->host_busy);
+		if (rc == 0) {
+			/* for atari only */
+			ide_get_lock(ide_intr, hwif);
+		}
+	}
+	return rc;
+}
+
+static inline void ide_unlock_host(struct ide_host *host)
+{
+	if (host->host_flags & IDE_HFLAG_SERIALIZE) {
+		/* for atari only */
+		ide_release_lock();
+		clear_bit_unlock(IDE_HOST_BUSY, &host->host_busy);
+	}
+}
+
 /*
  * Issue a new request to a drive from hwgroup
- *
- * A hwgroup is a serialized group of IDE interfaces.  Usually there is
- * exactly one hwif (interface) per hwgroup, but buggy controllers (eg. CMD640)
- * may have both interfaces in a single hwgroup to "serialize" access.
- * Or possibly multiple ISA interfaces can share a common IRQ by being grouped
- * together into one hwgroup for serialized access.
- *
- * Note also that several hwgroups can end up sharing a single IRQ,
- * possibly along with many other devices.  This is especially common in
- * PCI-based systems with off-board IDE controller cards.
- *
- * The IDE driver uses a per-hwgroup lock to protect the hwgroup->busy flag.
- *
- * The first thread into the driver for a particular hwgroup sets the
- * hwgroup->busy flag to indicate that this hwgroup is now active,
- * and then initiates processing of the top request from the request queue.
- *
- * Other threads attempting entry notice the busy setting, and will simply
- * queue their new requests and exit immediately.  Note that hwgroup->busy
- * remains set even when the driver is merely awaiting the next interrupt.
- * Thus, the meaning is "this hwgroup is busy processing a request".
- *
- * When processing of a request completes, the completing thread or IRQ-handler
- * will start the next request from the queue.  If no more work remains,
- * the driver will clear the hwgroup->busy flag and exit.
- *
- * The per-hwgroup spinlock is used to protect all access to the
- * hwgroup->busy flag, but is otherwise not needed for most processing in
- * the driver.  This makes the driver much more friendlier to shared IRQs
- * than previous designs, while remaining 100% (?) SMP safe and capable.
  */
 void do_ide_request(struct request_queue *q)
 {
 	ide_drive_t	*drive = q->queuedata;
 	ide_hwif_t	*hwif = drive->hwif;
+	struct ide_host *host = hwif->host;
 	ide_hwgroup_t	*hwgroup = hwif->hwgroup;
-	struct request	*rq;
+	struct request	*rq = NULL;
 	ide_startstop_t	startstop;
 
 	/*
@@ -721,9 +730,13 @@ void do_ide_request(struct request_queue *q)
 		blk_remove_plug(q);
 
 	spin_unlock_irq(q->queue_lock);
+
+	if (ide_lock_host(host, hwif))
+		goto plug_device_2;
+
 	spin_lock_irq(&hwgroup->lock);
 
-	if (!ide_lock_hwgroup(hwgroup, hwif)) {
+	if (!ide_lock_port(hwif)) {
 		ide_hwif_t *prev_port;
 repeat:
 		prev_port = hwif->host->cur_port;
@@ -731,7 +744,7 @@ repeat:
 
 		if (drive->dev_flags & IDE_DFLAG_SLEEPING) {
 			if (time_before(drive->sleep, jiffies)) {
-				ide_unlock_hwgroup(hwgroup);
+				ide_unlock_port(hwif);
 				goto plug_device;
 			}
 		}
@@ -761,7 +774,7 @@ repeat:
 		spin_lock_irq(&hwgroup->lock);
 
 		if (!rq) {
-			ide_unlock_hwgroup(hwgroup);
+			ide_unlock_port(hwif);
 			goto out;
 		}
 
@@ -782,7 +795,7 @@ repeat:
 		    blk_pm_request(rq) == 0 &&
 		    (rq->cmd_flags & REQ_PREEMPT) == 0) {
 			/* there should be no pending command at this point */
-			ide_unlock_hwgroup(hwgroup);
+			ide_unlock_port(hwif);
 			goto plug_device;
 		}
 
@@ -798,11 +811,15 @@ repeat:
 		goto plug_device;
 out:
 	spin_unlock_irq(&hwgroup->lock);
+	if (rq == NULL)
+		ide_unlock_host(host);
 	spin_lock_irq(q->queue_lock);
 	return;
 
 plug_device:
 	spin_unlock_irq(&hwgroup->lock);
+	ide_unlock_host(host);
+plug_device_2:
 	spin_lock_irq(q->queue_lock);
 
 	if (!elv_queue_empty(q))
@@ -844,9 +861,9 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	ide_dma_off_quietly(drive);
 
 	/*
-	 * un-busy drive etc (hwgroup->busy is cleared on return) and
-	 * make sure request is sane
+	 * un-busy drive etc and make sure request is sane
 	 */
+
 	rq = HWGROUP(drive)->rq;
 
 	if (!rq)
@@ -895,6 +912,7 @@ static void ide_plug_device(ide_drive_t *drive)
 void ide_timer_expiry (unsigned long data)
 {
 	ide_hwgroup_t	*hwgroup = (ide_hwgroup_t *) data;
+	ide_hwif_t	*uninitialized_var(hwif);
 	ide_drive_t	*uninitialized_var(drive);
 	ide_handler_t	*handler;
 	ide_expiry_t	*expiry;
@@ -918,7 +936,6 @@ void ide_timer_expiry (unsigned long data)
 			printk(KERN_ERR "%s: ->cur_dev was NULL\n", __func__);
 			hwgroup->handler = NULL;
 		} else {
-			ide_hwif_t *hwif;
 			ide_startstop_t startstop = ide_stopped;
 
 			if ((expiry = hwgroup->expiry) != NULL) {
@@ -964,15 +981,17 @@ void ide_timer_expiry (unsigned long data)
 			spin_lock_irq(&hwgroup->lock);
 			enable_irq(hwif->irq);
 			if (startstop == ide_stopped) {
-				ide_unlock_hwgroup(hwgroup);
+				ide_unlock_port(hwif);
 				plug_device = 1;
 			}
 		}
 	}
 	spin_unlock_irqrestore(&hwgroup->lock, flags);
 
-	if (plug_device)
+	if (plug_device) {
+		ide_unlock_host(hwif->host);
 		ide_plug_device(drive);
+	}
 }
 
 /**
@@ -1150,7 +1169,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	 */
 	if (startstop == ide_stopped) {
 		if (hwgroup->handler == NULL) {	/* paranoia */
-			ide_unlock_hwgroup(hwgroup);
+			ide_unlock_port(hwif);
 			plug_device = 1;
 		} else
 			printk(KERN_ERR "%s: %s: huh? expected NULL handler "
@@ -1161,8 +1180,10 @@ out_handled:
 out:
 	spin_unlock_irqrestore(&hwgroup->lock, flags);
 out_early:
-	if (plug_device)
+	if (plug_device) {
+		ide_unlock_host(hwif->host);
 		ide_plug_device(drive);
+	}
 
 	return irq_ret;
 }
