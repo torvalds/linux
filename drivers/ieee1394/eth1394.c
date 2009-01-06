@@ -516,16 +516,20 @@ static const struct header_ops ether1394_header_ops = {
 	.parse		= ether1394_header_parse,
 };
 
+static const struct net_device_ops ether1394_netdev_ops = {
+	.ndo_open	= ether1394_open,
+	.ndo_stop	= ether1394_stop,
+	.ndo_start_xmit	= ether1394_tx,
+	.ndo_get_stats	= ether1394_stats,
+	.ndo_tx_timeout	= ether1394_tx_timeout,
+	.ndo_change_mtu	= ether1394_change_mtu,
+};
+
 static void ether1394_init_dev(struct net_device *dev)
 {
-	dev->open		= ether1394_open;
-	dev->stop		= ether1394_stop;
-	dev->hard_start_xmit	= ether1394_tx;
-	dev->get_stats		= ether1394_stats;
-	dev->tx_timeout		= ether1394_tx_timeout;
-	dev->change_mtu		= ether1394_change_mtu;
 
 	dev->header_ops		= &ether1394_header_ops;
+	dev->netdev_ops		= &ether1394_netdev_ops;
 
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
 
