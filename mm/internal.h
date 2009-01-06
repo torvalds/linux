@@ -49,6 +49,7 @@ extern void putback_lru_page(struct page *page);
 /*
  * in mm/page_alloc.c
  */
+extern unsigned long highest_memmap_pfn;
 extern void __free_pages_bootmem(struct page *page, unsigned int order);
 
 /*
