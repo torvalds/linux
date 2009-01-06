@@ -2506,7 +2506,7 @@ void scan_zone_unevictable_pages(struct zone *zone)
  * that has possibly/probably made some previously unevictable pages
  * evictable.
  */
-void scan_all_zones_unevictable_pages(void)
+static void scan_all_zones_unevictable_pages(void)
 {
 	struct zone *zone;
 
