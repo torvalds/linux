@@ -279,7 +279,7 @@ static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
  *	the shared MWDMA/PIO timing register.
  */
 
-static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
+static void it821x_tune_mwdma(ide_drive_t *drive, u8 mode_wanted)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
@@ -316,7 +316,7 @@ static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
  *	controller when doing UDMA modes in pass through.
  */
 
-static void it821x_tune_udma (ide_drive_t *drive, byte mode_wanted)
+static void it821x_tune_udma(ide_drive_t *drive, u8 mode_wanted)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);

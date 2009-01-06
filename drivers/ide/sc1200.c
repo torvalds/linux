@@ -172,7 +172,7 @@ static int sc1200_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	unsigned long dma_base = hwif->dma_base;
-	byte dma_stat;
+	u8 dma_stat;
 
 	dma_stat = inb(dma_base+2);		/* get DMA status */
 

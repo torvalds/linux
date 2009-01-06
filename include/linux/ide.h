@@ -32,8 +32,6 @@
 # define SUPPORT_VLB_SYNC 1
 #endif
 
-typedef unsigned char	byte;	/* used everywhere */
-
 /*
  * Probably not wise to fiddle with these
  */
@@ -1161,7 +1159,7 @@ void ide_pad_transfer(ide_drive_t *, int, int);
 
 ide_startstop_t __ide_error(ide_drive_t *, struct request *, u8, u8);
 
-ide_startstop_t ide_error (ide_drive_t *drive, const char *msg, byte stat);
+ide_startstop_t ide_error(ide_drive_t *, const char *, u8);
 
 void ide_fix_driveid(u16 *);
 
