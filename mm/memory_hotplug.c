@@ -627,14 +627,11 @@ int scan_lru_pages(unsigned long start, unsigned long end)
 }
 
 static struct page *
-hotremove_migrate_alloc(struct page *page,
-			unsigned long private,
-			int **x)
+hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
 {
-	/* This should be improoooooved!! */
-	return alloc_page(GFP_HIGHUSER_PAGECACHE);
+	/* This should be improooooved!! */
+	return alloc_page(GFP_HIGHUSER_MOVABLE);
 }
-
 
 #define NR_OFFLINE_AT_ONCE_PAGES	(256)
 static int
