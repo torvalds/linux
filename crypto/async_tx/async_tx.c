@@ -198,8 +198,6 @@ dma_channel_add_remove(struct dma_client *client,
 		/* add the channel to the generic management list */
 		master_ref = kmalloc(sizeof(*master_ref), GFP_KERNEL);
 		if (master_ref) {
-			/* keep a reference until async_tx is unloaded */
-			dma_chan_get(chan);
 			init_dma_chan_ref(master_ref, chan);
 			spin_lock_irqsave(&async_tx_lock, flags);
 			list_add_tail_rcu(&master_ref->node,
@@ -221,8 +219,6 @@ dma_channel_add_remove(struct dma_client *client,
 		spin_lock_irqsave(&async_tx_lock, flags);
 		list_for_each_entry(ref, &async_tx_master_list, node)
 			if (ref->chan == chan) {
-				/* permit backing devices to go away */
-				dma_chan_put(ref->chan);
 				list_del_rcu(&ref->node);
 				call_rcu(&ref->rcu, free_dma_chan_ref);
 				found = 1;

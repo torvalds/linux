@@ -215,7 +215,6 @@ static int dmatest_func(void *data)
 
 	smp_rmb();
 	chan = thread->chan;
-	dma_chan_get(chan);
 
 	while (!kthread_should_stop()) {
 		total_tests++;
@@ -293,7 +292,6 @@ static int dmatest_func(void *data)
 	}
 
 	ret = 0;
-	dma_chan_put(chan);
 	kfree(thread->dstbuf);
 err_dstbuf:
 	kfree(thread->srcbuf);

@@ -165,7 +165,6 @@ struct dma_slave {
  */
 
 struct dma_chan_percpu {
-	local_t refcount;
 	/* stats */
 	unsigned long memcpy_count;
 	unsigned long bytes_transferred;
@@ -204,26 +203,6 @@ struct dma_chan {
 #define to_dma_chan(p) container_of(p, struct dma_chan, dev)
 
 void dma_chan_cleanup(struct kref *kref);
-
-static inline void dma_chan_get(struct dma_chan *chan)
-{
-	if (unlikely(chan->slow_ref))
-		kref_get(&chan->refcount);
-	else {
-		local_inc(&(per_cpu_ptr(chan->local, get_cpu())->refcount));
-		put_cpu();
-	}
-}
-
-static inline void dma_chan_put(struct dma_chan *chan)
-{
-	if (unlikely(chan->slow_ref))
-		kref_put(&chan->refcount, dma_chan_cleanup);
-	else {
-		local_dec(&(per_cpu_ptr(chan->local, get_cpu())->refcount));
-		put_cpu();
-	}
-}
 
 /*
  * typedef dma_event_callback - function pointer to a DMA event callback

@@ -593,10 +593,8 @@ atmci_submit_data_dma(struct atmel_mci *host, struct mmc_data *data)
 
 	/* If we don't have a channel, we can't do DMA */
 	chan = host->dma.chan;
-	if (chan) {
-		dma_chan_get(chan);
+	if (chan)
 		host->data_chan = chan;
-	}
 
 	if (!chan)
 		return -ENODEV;

@@ -773,7 +773,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan,
 	dev_vdbg(&chan->dev, "alloc_chan_resources\n");
 
 	/* Channels doing slave DMA can only handle one client. */
-	if (dwc->dws || client->slave) {
+	if (dwc->dws || (client && client->slave)) {
 		if (chan->client_count)
 			return -EBUSY;
 	}

@@ -74,6 +74,7 @@
 static DEFINE_MUTEX(dma_list_mutex);
 static LIST_HEAD(dma_device_list);
 static LIST_HEAD(dma_client_list);
+static long dmaengine_ref_count;
 
 /* --- sysfs implementation --- */
 
@@ -105,19 +106,8 @@ static ssize_t show_bytes_transferred(struct device *dev, struct device_attribut
 static ssize_t show_in_use(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct dma_chan *chan = to_dma_chan(dev);
-	int in_use = 0;
 
-	if (unlikely(chan->slow_ref) &&
-		atomic_read(&chan->refcount.refcount) > 1)
-		in_use = 1;
-	else {
-		if (local_read(&(per_cpu_ptr(chan->local,
-			get_cpu())->refcount)) > 0)
-			in_use = 1;
-		put_cpu();
-	}
-
-	return sprintf(buf, "%d\n", in_use);
+	return sprintf(buf, "%d\n", chan->client_count);
 }
 
 static struct device_attribute dma_attrs[] = {
@@ -155,6 +145,78 @@ __dma_chan_satisfies_mask(struct dma_chan *chan, dma_cap_mask_t *want)
 	return bitmap_equal(want->bits, has.bits, DMA_TX_TYPE_END);
 }
 
+static struct module *dma_chan_to_owner(struct dma_chan *chan)
+{
+	return chan->device->dev->driver->owner;
+}
+
+/**
+ * balance_ref_count - catch up the channel reference count
+ * @chan - channel to balance ->client_count versus dmaengine_ref_count
+ *
+ * balance_ref_count must be called under dma_list_mutex
+ */
+static void balance_ref_count(struct dma_chan *chan)
+{
+	struct module *owner = dma_chan_to_owner(chan);
+
+	while (chan->client_count < dmaengine_ref_count) {
+		__module_get(owner);
+		chan->client_count++;
+	}
+}
+
+/**
+ * dma_chan_get - try to grab a dma channel's parent driver module
+ * @chan - channel to grab
+ *
+ * Must be called under dma_list_mutex
+ */
+static int dma_chan_get(struct dma_chan *chan)
+{
+	int err = -ENODEV;
+	struct module *owner = dma_chan_to_owner(chan);
+
+	if (chan->client_count) {
+		__module_get(owner);
+		err = 0;
+	} else if (try_module_get(owner))
+		err = 0;
+
+	if (err == 0)
+		chan->client_count++;
+
+	/* allocate upon first client reference */
+	if (chan->client_count == 1 && err == 0) {
+		int desc_cnt = chan->device->device_alloc_chan_resources(chan, NULL);
+
+		if (desc_cnt < 0) {
+			err = desc_cnt;
+			chan->client_count = 0;
+			module_put(owner);
+		} else
+			balance_ref_count(chan);
+	}
+
+	return err;
+}
+
+/**
+ * dma_chan_put - drop a reference to a dma channel's parent driver module
+ * @chan - channel to release
+ *
+ * Must be called under dma_list_mutex
+ */
+static void dma_chan_put(struct dma_chan *chan)
+{
+	if (!chan->client_count)
+		return; /* this channel failed alloc_chan_resources */
+	chan->client_count--;
+	module_put(dma_chan_to_owner(chan));
+	if (chan->client_count == 0)
+		chan->device->device_free_chan_resources(chan);
+}
+
 /**
  * dma_client_chan_alloc - try to allocate channels to a client
  * @client: &dma_client
@@ -165,7 +227,6 @@ static void dma_client_chan_alloc(struct dma_client *client)
 {
 	struct dma_device *device;
 	struct dma_chan *chan;
-	int desc;	/* allocated descriptor count */
 	enum dma_state_client ack;
 
 	/* Find a channel */
@@ -178,23 +239,16 @@ static void dma_client_chan_alloc(struct dma_client *client)
 		list_for_each_entry(chan, &device->channels, device_node) {
 			if (!dma_chan_satisfies_mask(chan, client->cap_mask))
 				continue;
+			if (!chan->client_count)
+				continue;
+			ack = client->event_callback(client, chan,
+						     DMA_RESOURCE_AVAILABLE);
 
-			desc = chan->device->device_alloc_chan_resources(
-					chan, client);
-			if (desc >= 0) {
-				ack = client->event_callback(client,
-						chan,
-						DMA_RESOURCE_AVAILABLE);
-
-				/* we are done once this client rejects
-				 * an available resource
-				 */
-				if (ack == DMA_ACK) {
-					dma_chan_get(chan);
-					chan->client_count++;
-				} else if (ack == DMA_NAK)
-					return;
-			}
+			/* we are done once this client rejects
+			 * an available resource
+			 */
+			if (ack == DMA_NAK)
+				return;
 		}
 	}
 }
@@ -224,7 +278,6 @@ EXPORT_SYMBOL(dma_sync_wait);
 void dma_chan_cleanup(struct kref *kref)
 {
 	struct dma_chan *chan = container_of(kref, struct dma_chan, refcount);
-	chan->device->device_free_chan_resources(chan);
 	kref_put(&chan->device->refcount, dma_async_device_cleanup);
 }
 EXPORT_SYMBOL(dma_chan_cleanup);
@@ -232,18 +285,12 @@ EXPORT_SYMBOL(dma_chan_cleanup);
 static void dma_chan_free_rcu(struct rcu_head *rcu)
 {
 	struct dma_chan *chan = container_of(rcu, struct dma_chan, rcu);
-	int bias = 0x7FFFFFFF;
-	int i;
-	for_each_possible_cpu(i)
-		bias -= local_read(&per_cpu_ptr(chan->local, i)->refcount);
-	atomic_sub(bias, &chan->refcount.refcount);
+
 	kref_put(&chan->refcount, dma_chan_cleanup);
 }
 
 static void dma_chan_release(struct dma_chan *chan)
 {
-	atomic_add(0x7FFFFFFF, &chan->refcount.refcount);
-	chan->slow_ref = 1;
 	call_rcu(&chan->rcu, dma_chan_free_rcu);
 }
 
@@ -263,43 +310,36 @@ static void dma_clients_notify_available(void)
 }
 
 /**
- * dma_chans_notify_available - tell the clients that a channel is going away
- * @chan: channel on its way out
- */
-static void dma_clients_notify_removed(struct dma_chan *chan)
-{
-	struct dma_client *client;
-	enum dma_state_client ack;
-
-	mutex_lock(&dma_list_mutex);
-
-	list_for_each_entry(client, &dma_client_list, global_node) {
-		ack = client->event_callback(client, chan,
-				DMA_RESOURCE_REMOVED);
-
-		/* client was holding resources for this channel so
-		 * free it
-		 */
-		if (ack == DMA_ACK) {
-			dma_chan_put(chan);
-			chan->client_count--;
-		}
-	}
-
-	mutex_unlock(&dma_list_mutex);
-}
-
-/**
  * dma_async_client_register - register a &dma_client
  * @client: ptr to a client structure with valid 'event_callback' and 'cap_mask'
  */
 void dma_async_client_register(struct dma_client *client)
 {
+	struct dma_device *device, *_d;
+	struct dma_chan *chan;
+	int err;
+
 	/* validate client data */
 	BUG_ON(dma_has_cap(DMA_SLAVE, client->cap_mask) &&
 		!client->slave);
 
 	mutex_lock(&dma_list_mutex);
+	dmaengine_ref_count++;
+
+	/* try to grab channels */
+	list_for_each_entry_safe(device, _d, &dma_device_list, global_node)
+		list_for_each_entry(chan, &device->channels, device_node) {
+			err = dma_chan_get(chan);
+			if (err == -ENODEV) {
+				/* module removed before we could use it */
+				list_del_init(&device->global_node);
+				break;
+			} else if (err)
+				pr_err("dmaengine: failed to get %s: (%d)\n",
+				       dev_name(&chan->dev), err);
+		}
+
+
 	list_add_tail(&client->global_node, &dma_client_list);
 	mutex_unlock(&dma_list_mutex);
 }
@@ -315,23 +355,17 @@ void dma_async_client_unregister(struct dma_client *client)
 {
 	struct dma_device *device;
 	struct dma_chan *chan;
-	enum dma_state_client ack;
 
 	if (!client)
 		return;
 
 	mutex_lock(&dma_list_mutex);
-	/* free all channels the client is holding */
+	dmaengine_ref_count--;
+	BUG_ON(dmaengine_ref_count < 0);
+	/* drop channel references */
 	list_for_each_entry(device, &dma_device_list, global_node)
-		list_for_each_entry(chan, &device->channels, device_node) {
-			ack = client->event_callback(client, chan,
-				DMA_RESOURCE_REMOVED);
-
-			if (ack == DMA_ACK) {
-				dma_chan_put(chan);
-				chan->client_count--;
-			}
-		}
+		list_for_each_entry(chan, &device->channels, device_node)
+			dma_chan_put(chan);
 
 	list_del(&client->global_node);
 	mutex_unlock(&dma_list_mutex);
@@ -423,6 +457,21 @@ int dma_async_device_register(struct dma_device *device)
 	}
 
 	mutex_lock(&dma_list_mutex);
+	if (dmaengine_ref_count)
+		list_for_each_entry(chan, &device->channels, device_node) {
+			/* if clients are already waiting for channels we need
+			 * to take references on their behalf
+			 */
+			if (dma_chan_get(chan) == -ENODEV) {
+				/* note we can only get here for the first
+				 * channel as the remaining channels are
+				 * guaranteed to get a reference
+				 */
+				rc = -ENODEV;
+				mutex_unlock(&dma_list_mutex);
+				goto err_out;
+			}
+		}
 	list_add_tail(&device->global_node, &dma_device_list);
 	mutex_unlock(&dma_list_mutex);
 
@@ -456,7 +505,7 @@ static void dma_async_device_cleanup(struct kref *kref)
 }
 
 /**
- * dma_async_device_unregister - unregisters DMA devices
+ * dma_async_device_unregister - unregister a DMA device
  * @device: &dma_device
  */
 void dma_async_device_unregister(struct dma_device *device)
@@ -468,7 +517,9 @@ void dma_async_device_unregister(struct dma_device *device)
 	mutex_unlock(&dma_list_mutex);
 
 	list_for_each_entry(chan, &device->channels, device_node) {
-		dma_clients_notify_removed(chan);
+		WARN_ONCE(chan->client_count,
+			  "%s called while %d clients hold a reference\n",
+			  __func__, chan->client_count);
 		device_unregister(&chan->dev);
 		dma_chan_release(chan);
 	}
