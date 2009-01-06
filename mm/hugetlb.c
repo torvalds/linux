@@ -400,8 +400,10 @@ static void clear_huge_page(struct page *page,
 {
 	int i;
 
-	if (unlikely(sz > MAX_ORDER_NR_PAGES))
-		return clear_gigantic_page(page, addr, sz);
+	if (unlikely(sz > MAX_ORDER_NR_PAGES)) {
+		clear_gigantic_page(page, addr, sz);
+		return;
+	}
 
 	might_sleep();
 	for (i = 0; i < sz/PAGE_SIZE; i++) {
@@ -433,8 +435,10 @@ static void copy_huge_page(struct page *dst, struct page *src,
 	int i;
 	struct hstate *h = hstate_vma(vma);
 
-	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES))
-		return copy_gigantic_page(dst, src, addr, vma);
+	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
+		copy_gigantic_page(dst, src, addr, vma);
+		return;
+	}
 
 	might_sleep();
 	for (i = 0; i < pages_per_huge_page(h); i++) {
