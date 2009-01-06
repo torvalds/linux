@@ -920,59 +920,54 @@ void ide_timer_expiry (unsigned long data)
 		 * Either way, we don't really want to complain about anything.
 		 */
 	} else {
-		drive = hwif->cur_dev;
-		if (!drive) {
-			printk(KERN_ERR "%s: ->cur_dev was NULL\n", __func__);
-			hwif->handler = NULL;
-		} else {
-			ide_expiry_t *expiry = hwif->expiry;
-			ide_startstop_t startstop = ide_stopped;
+		ide_expiry_t *expiry = hwif->expiry;
+		ide_startstop_t startstop = ide_stopped;
 
-			if (expiry) {
-				/* continue */
-				if ((wait = expiry(drive)) > 0) {
-					/* reset timer */
-					hwif->timer.expires  = jiffies + wait;
-					hwif->req_gen_timer = hwif->req_gen;
-					add_timer(&hwif->timer);
-					spin_unlock_irqrestore(&hwif->lock, flags);
-					return;
-				}
+		drive = hwif->cur_dev;
+
+		if (expiry) {
+			wait = expiry(drive);
+			if (wait > 0) { /* continue */
+				/* reset timer */
+				hwif->timer.expires = jiffies + wait;
+				hwif->req_gen_timer = hwif->req_gen;
+				add_timer(&hwif->timer);
+				spin_unlock_irqrestore(&hwif->lock, flags);
+				return;
 			}
-			hwif->handler = NULL;
-			/*
-			 * We need to simulate a real interrupt when invoking
-			 * the handler() function, which means we need to
-			 * globally mask the specific IRQ:
-			 */
-			spin_unlock(&hwif->lock);
-			/* disable_irq_nosync ?? */
-			disable_irq(hwif->irq);
-			/* local CPU only,
-			 * as if we were handling an interrupt */
-			local_irq_disable();
-			if (hwif->polling) {
-				startstop = handler(drive);
-			} else if (drive_is_ready(drive)) {
-				if (drive->waiting_for_dma)
-					hwif->dma_ops->dma_lost_irq(drive);
-				(void)ide_ack_intr(hwif);
-				printk(KERN_WARNING "%s: lost interrupt\n", drive->name);
-				startstop = handler(drive);
-			} else {
-				if (drive->waiting_for_dma) {
-					startstop = ide_dma_timeout_retry(drive, wait);
-				} else
-					startstop =
-					ide_error(drive, "irq timeout",
-						  hwif->tp_ops->read_status(hwif));
-			}
-			spin_lock_irq(&hwif->lock);
-			enable_irq(hwif->irq);
-			if (startstop == ide_stopped) {
-				ide_unlock_port(hwif);
-				plug_device = 1;
-			}
+		}
+		hwif->handler = NULL;
+		/*
+		 * We need to simulate a real interrupt when invoking
+		 * the handler() function, which means we need to
+		 * globally mask the specific IRQ:
+		 */
+		spin_unlock(&hwif->lock);
+		/* disable_irq_nosync ?? */
+		disable_irq(hwif->irq);
+		/* local CPU only, as if we were handling an interrupt */
+		local_irq_disable();
+		if (hwif->polling) {
+			startstop = handler(drive);
+		} else if (drive_is_ready(drive)) {
+			if (drive->waiting_for_dma)
+				hwif->dma_ops->dma_lost_irq(drive);
+			(void)ide_ack_intr(hwif);
+			printk(KERN_WARNING "%s: lost interrupt\n",
+				drive->name);
+			startstop = handler(drive);
+		} else {
+			if (drive->waiting_for_dma)
+				startstop = ide_dma_timeout_retry(drive, wait);
+			else
+				startstop = ide_error(drive, "irq timeout",
+					hwif->tp_ops->read_status(hwif));
+		}
+		spin_lock_irq(&hwif->lock);
+		enable_irq(hwif->irq);
+		if (startstop == ide_stopped) {
+			ide_unlock_port(hwif);
+			plug_device = 1;
 		}
 	}
 	spin_unlock_irqrestore(&hwif->lock, flags);
@@ -1115,15 +1110,6 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	}
 
 	drive = hwif->cur_dev;
-	if (!drive) {
-		/*
-		 * This should NEVER happen, and there isn't much
-		 * we could do about it here.
-		 *
-		 * [Note - this can occur if the drive is hot unplugged]
-		 */
-		goto out_handled;
-	}
 
 	if (!drive_is_ready(drive))
 		/*
@@ -1162,7 +1148,6 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 		ide_unlock_port(hwif);
 		plug_device = 1;
 	}
-out_handled:
 	irq_ret = IRQ_HANDLED;
 out:
 	spin_unlock_irqrestore(&hwif->lock, flags);
