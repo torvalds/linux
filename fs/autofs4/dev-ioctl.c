@@ -646,17 +646,17 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 			magic = nd.path.dentry->d_inode->i_sb->s_magic;
 		}
 	} else {
-		dev_t devid = new_encode_dev(sbi->sb->s_dev);
+		dev_t dev = autofs4_get_dev(sbi);
 
 		err = path_lookup(path, LOOKUP_PARENT, &nd);
 		if (err)
 			goto out;
 
-		err = autofs_dev_ioctl_find_super(&nd, devid);
+		err = autofs_dev_ioctl_find_super(&nd, dev);
 		if (err)
 			goto out_release;
 
-		devid = autofs4_get_dev(sbi);
+		devid = dev;
 
 		err = have_submounts(nd.path.dentry);
 
