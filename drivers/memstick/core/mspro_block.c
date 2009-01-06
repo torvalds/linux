@@ -887,14 +887,14 @@ try_again:
 	if (rc) {
 		printk(KERN_WARNING
 		       "%s: could not switch to 4-bit mode, error %d\n",
-		       card->dev.bus_id, rc);
+		       dev_name(&card->dev), rc);
 		return 0;
 	}
 
 	msb->system = MEMSTICK_SYS_PAR4;
 	host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_PAR4);
 	printk(KERN_INFO "%s: switching to 4-bit parallel mode\n",
-	       card->dev.bus_id);
+	       dev_name(&card->dev));
 
 	if (msb->caps & MEMSTICK_CAP_PAR8) {
 		rc = mspro_block_set_interface(card, MEMSTICK_SYS_PAR8);
@@ -905,11 +905,11 @@ try_again:
 					MEMSTICK_PAR8);
 			printk(KERN_INFO
 			       "%s: switching to 8-bit parallel mode\n",
-			       card->dev.bus_id);
+			       dev_name(&card->dev));
 		} else
 			printk(KERN_WARNING
 			       "%s: could not switch to 8-bit mode, error %d\n",
-			       card->dev.bus_id, rc);
+			       dev_name(&card->dev), rc);
 	}
 
 	card->next_request = h_mspro_block_req_init;
@@ -922,7 +922,7 @@ try_again:
 	if (rc) {
 		printk(KERN_WARNING
 		       "%s: interface error, trying to fall back to serial\n",
-		       card->dev.bus_id);
+		       dev_name(&card->dev));
 		msb->system = MEMSTICK_SYS_SERIAL;
 		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
 		msleep(10);
@@ -992,14 +992,14 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 
 	if (be16_to_cpu(attr->signature) != MSPRO_BLOCK_SIGNATURE) {
 		printk(KERN_ERR "%s: unrecognized device signature %x\n",
-		       card->dev.bus_id, be16_to_cpu(attr->signature));
+		       dev_name(&card->dev), be16_to_cpu(attr->signature));
 		rc = -ENODEV;
 		goto out_free_attr;
 	}
 
 	if (attr->count > MSPRO_BLOCK_MAX_ATTRIBUTES) {
 		printk(KERN_WARNING "%s: way too many attribute entries\n",
-		       card->dev.bus_id);
+		       dev_name(&card->dev));
 		attr_count = MSPRO_BLOCK_MAX_ATTRIBUTES;
 	} else
 		attr_count = attr->count;
