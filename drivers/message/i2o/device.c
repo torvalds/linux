@@ -134,7 +134,7 @@ static void i2o_device_release(struct device *dev)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(dev);
 
-	pr_debug("i2o: device %s released\n", dev->bus_id);
+	pr_debug("i2o: device %s released\n", dev_name(dev));
 
 	kfree(i2o_dev);
 }
@@ -229,8 +229,8 @@ static int i2o_device_add(struct i2o_controller *c, i2o_lct_entry *entry)
 
 	i2o_dev->lct_data = *entry;
 
-	snprintf(i2o_dev->device.bus_id, BUS_ID_SIZE, "%d:%03x", c->unit,
-		 i2o_dev->lct_data.tid);
+	dev_set_name(&i2o_dev->device, "%d:%03x", c->unit,
+		     i2o_dev->lct_data.tid);
 
 	i2o_dev->iop = c;
 	i2o_dev->device.parent = &c->device;
@@ -281,7 +281,7 @@ static int i2o_device_add(struct i2o_controller *c, i2o_lct_entry *entry)
 
 	i2o_driver_notify_device_add_all(i2o_dev);
 
-	pr_debug("i2o: device %s added\n", i2o_dev->device.bus_id);
+	pr_debug("i2o: device %s added\n", dev_name(&i2o_dev->device));
 
 	return 0;
 
