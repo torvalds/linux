@@ -4828,44 +4828,6 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 
 #ifdef CONFIG_NET_DMA
 /**
- * net_dma_rebalance - try to maintain one DMA channel per CPU
- * @net_dma: DMA client and associated data (lock, channels, channel_mask)
- *
- * This is called when the number of channels allocated to the net_dma client
- * changes.  The net_dma client tries to have one DMA channel per CPU.
- */
-
-static void net_dma_rebalance(struct net_dma *net_dma)
-{
-	unsigned int cpu, i, n, chan_idx;
-	struct dma_chan *chan;
-
-	if (cpus_empty(net_dma->channel_mask)) {
-		for_each_online_cpu(cpu)
-			rcu_assign_pointer(per_cpu(softnet_data, cpu).net_dma, NULL);
-		return;
-	}
-
-	i = 0;
-	cpu = first_cpu(cpu_online_map);
-
-	for_each_cpu_mask_nr(chan_idx, net_dma->channel_mask) {
-		chan = net_dma->channels[chan_idx];
-
-		n = ((num_online_cpus() / cpus_weight(net_dma->channel_mask))
-		   + (i < (num_online_cpus() %
-			cpus_weight(net_dma->channel_mask)) ? 1 : 0));
-
-		while(n) {
-			per_cpu(softnet_data, cpu).net_dma = chan;
-			cpu = next_cpu(cpu, cpu_online_map);
-			n--;
-		}
-		i++;
-	}
-}
-
-/**
  * netdev_dma_event - event callback for the net_dma_client
  * @client: should always be net_dma_client
  * @chan: DMA channel for the event
@@ -4894,7 +4856,6 @@ netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
 			ack = DMA_ACK;
 			net_dma->channels[pos] = chan;
 			cpu_set(pos, net_dma->channel_mask);
-			net_dma_rebalance(net_dma);
 		}
 		break;
 	case DMA_RESOURCE_REMOVED:
@@ -4909,7 +4870,6 @@ netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
 			ack = DMA_ACK;
 			cpu_clear(pos, net_dma->channel_mask);
 			net_dma->channels[i] = NULL;
-			net_dma_rebalance(net_dma);
 		}
 		break;
 	default:
