@@ -121,6 +121,7 @@ enum {
 	SWP_USED	= (1 << 0),	/* is slot in swap_info[] used? */
 	SWP_WRITEOK	= (1 << 1),	/* ok to write to this swap?	*/
 	SWP_DISCARDABLE = (1 << 2),	/* blkdev supports discard */
+	SWP_DISCARDING	= (1 << 3),	/* now discarding a free cluster */
 					/* add others here before... */
 	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
 };
@@ -144,6 +145,8 @@ struct swap_info_struct {
 	unsigned short *swap_map;
 	unsigned int lowest_bit;
 	unsigned int highest_bit;
+	unsigned int lowest_alloc;	/* while preparing discard cluster */
+	unsigned int highest_alloc;	/* while preparing discard cluster */
 	unsigned int cluster_next;
 	unsigned int cluster_nr;
 	unsigned int pages;
