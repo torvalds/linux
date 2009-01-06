@@ -851,8 +851,8 @@ struct ob_mac_iocb_req {
 	__le16 frame_len;
 #define OB_MAC_IOCB_LEN_MASK 0x3ffff
 	__le16 reserved2;
-	__le32 tid;
-	__le32 txq_idx;
+	u32 tid;
+	u32 txq_idx;
 	__le32 reserved3;
 	__le16 vlan_tci;
 	__le16 reserved4;
@@ -871,8 +871,8 @@ struct ob_mac_iocb_rsp {
 	u8 flags2;		/* */
 	u8 flags3;		/* */
 #define OB_MAC_IOCB_RSP_B	0x80	/* */
-	__le32 tid;
-	__le32 txq_idx;
+	u32 tid;
+	u32 txq_idx;
 	__le32 reserved[13];
 } __attribute((packed));
 
@@ -894,8 +894,8 @@ struct ob_mac_tso_iocb_req {
 #define OB_MAC_TSO_IOCB_V	0x04
 	__le32 reserved1[2];
 	__le32 frame_len;
-	__le32 tid;
-	__le32 txq_idx;
+	u32 tid;
+	u32 txq_idx;
 	__le16 total_hdrs_len;
 	__le16 net_trans_offset;
 #define OB_MAC_TRANSPORT_HDR_SHIFT 6
@@ -916,8 +916,8 @@ struct ob_mac_tso_iocb_rsp {
 	u8 flags2;		/* */
 	u8 flags3;		/* */
 #define OB_MAC_TSO_IOCB_RSP_B	0x8000
-	__le32 tid;
-	__le32 txq_idx;
+	u32 tid;
+	u32 txq_idx;
 	__le32 reserved2[13];
 } __attribute((packed));
 
@@ -1118,7 +1118,7 @@ struct map_list {
 struct tx_ring_desc {
 	struct sk_buff *skb;
 	struct ob_mac_iocb_req *queue_entry;
-	int index;
+	u32 index;
 	struct oal oal;
 	struct map_list map[MAX_SKB_FRAGS + 1];
 	int map_cnt;
@@ -1131,7 +1131,7 @@ struct bq_desc {
 		struct sk_buff *skb;
 	} p;
 	__le64 *addr;
-	int index;
+	u32 index;
 	 DECLARE_PCI_UNMAP_ADDR(mapaddr);
 	 DECLARE_PCI_UNMAP_LEN(maplen);
 };
