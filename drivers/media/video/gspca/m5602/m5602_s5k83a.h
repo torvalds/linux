@@ -47,7 +47,6 @@ int s5k83a_probe(struct sd *sd);
 int s5k83a_init(struct sd *sd);
 int s5k83a_start(struct sd *sd);
 int s5k83a_stop(struct sd *sd);
-int s5k83a_power_down(struct sd *sd);
 void s5k83a_disconnect(struct sd *sd);
 
 int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val);
@@ -67,7 +66,6 @@ static const struct m5602_sensor s5k83a = {
 	.init = s5k83a_init,
 	.start = s5k83a_start,
 	.stop = s5k83a_stop,
-	.power_down = s5k83a_power_down,
 	.disconnect = s5k83a_disconnect,
 	.i2c_slave_id = 0x5a,
 	.i2c_regW = 2,

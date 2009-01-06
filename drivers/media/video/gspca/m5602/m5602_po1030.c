@@ -397,11 +397,6 @@ int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int po1030_power_down(struct sd *sd)
-{
-	return 0;
-}
-
 void po1030_disconnect(struct sd *sd)
 {
 	sd->sensor = NULL;

@@ -61,9 +61,6 @@ struct m5602_sensor {
 
 	/* Executed when the device is disconnected */
 	void (*disconnect)(struct sd *sd);
-
-	/* Performs a power down sequence */
-	int (*power_down)(struct sd *sd);
 };
 
 #endif

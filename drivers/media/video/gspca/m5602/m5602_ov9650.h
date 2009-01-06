@@ -137,7 +137,6 @@ int ov9650_probe(struct sd *sd);
 int ov9650_init(struct sd *sd);
 int ov9650_start(struct sd *sd);
 int ov9650_stop(struct sd *sd);
-int ov9650_power_down(struct sd *sd);
 void ov9650_disconnect(struct sd *sd);
 
 int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
@@ -167,7 +166,6 @@ const static struct m5602_sensor ov9650 = {
 	.init = ov9650_init,
 	.start = ov9650_start,
 	.stop = ov9650_stop,
-	.power_down = ov9650_power_down,
 	.disconnect = ov9650_disconnect,
 };
 
@@ -310,26 +308,6 @@ static const unsigned char init_ov9650[][3] =
 
 	/* Put the sensor in soft sleep mode */
 	{SENSOR, OV9650_COM2, OV9650_SOFT_SLEEP | OV9650_OUTPUT_DRIVE_2X},
-};
-
-static const unsigned char power_down_ov9650[][3] =
-{
-	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x04},
-	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
-	{SENSOR, OV9650_COM7, 0x80},
-	{SENSOR, OV9650_OFON, 0xf4},
-	{SENSOR, OV9650_MVFP, 0x80},
-	{SENSOR, OV9650_DBLV, 0x3f},
-	{SENSOR, OV9650_RSVD36, 0x49},
-	{SENSOR, OV9650_COM7, 0x05},
-
-	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
-	{BRIDGE, M5602_XB_GPIO_DAT, 0x04},
-	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
-	{BRIDGE, M5602_XB_GPIO_EN_L, 0x06},
-	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x02},
-	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x04},
-	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
 };
 
 static const unsigned char res_init_ov9650[][3] =

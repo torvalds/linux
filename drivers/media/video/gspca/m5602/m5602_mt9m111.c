@@ -165,11 +165,6 @@ int mt9m111_init(struct sd *sd)
 	return (err < 0) ? err : 0;
 }
 
-int mt9m111_power_down(struct sd *sd)
-{
-	return 0;
-}
-
 void mt9m111_disconnect(struct sd *sd)
 {
 	sd->sensor = NULL;

@@ -85,7 +85,6 @@ extern int dump_sensor;
 
 int mt9m111_probe(struct sd *sd);
 int mt9m111_init(struct sd *sd);
-int mt9m111_power_down(struct sd *sd);
 void mt9m111_disconnect(struct sd *sd);
 
 int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
@@ -103,7 +102,6 @@ const static struct m5602_sensor mt9m111 = {
 
 	.probe = mt9m111_probe,
 	.init = mt9m111_init,
-	.power_down = mt9m111_power_down,
 	.disconnect = mt9m111_disconnect,
 };
 

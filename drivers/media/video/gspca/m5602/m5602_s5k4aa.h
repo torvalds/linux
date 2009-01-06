@@ -66,7 +66,6 @@ extern int dump_sensor;
 int s5k4aa_probe(struct sd *sd);
 int s5k4aa_init(struct sd *sd);
 int s5k4aa_start(struct sd *sd);
-int s5k4aa_power_down(struct sd *sd);
 void s5k4aa_disconnect(struct sd *sd);
 
 int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
@@ -86,7 +85,6 @@ static const struct m5602_sensor s5k4aa = {
 	.probe = s5k4aa_probe,
 	.init = s5k4aa_init,
 	.start = s5k4aa_start,
-	.power_down = s5k4aa_power_down,
 	.disconnect = s5k4aa_disconnect,
 };
 

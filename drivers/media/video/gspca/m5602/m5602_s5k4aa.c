@@ -308,11 +308,6 @@ int s5k4aa_init(struct sd *sd)
 	return (err < 0) ? err : 0;
 }
 
-int s5k4aa_power_down(struct sd *sd)
-{
-	return 0;
-}
-
 int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;

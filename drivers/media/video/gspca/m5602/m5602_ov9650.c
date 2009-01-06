@@ -467,26 +467,9 @@ int ov9650_stop(struct sd *sd)
 	return m5602_write_sensor(sd, OV9650_COM2, &data, 1);
 }
 
-int ov9650_power_down(struct sd *sd)
-{
-	int i, err = 0;
-	for (i = 0; i < ARRAY_SIZE(power_down_ov9650) && !err; i++) {
-		u8 data = power_down_ov9650[i][2];
-		if (power_down_ov9650[i][0] == SENSOR)
-			err = m5602_write_sensor(sd,
-					    power_down_ov9650[i][1], &data, 1);
-		else
-			err = m5602_write_bridge(sd, power_down_ov9650[i][1],
-						 data);
-	}
-
-	return err;
-}
-
 void ov9650_disconnect(struct sd *sd)
 {
 	ov9650_stop(sd);
-	ov9650_power_down(sd);
 
 	sd->sensor = NULL;
 	kfree(sd->sensor_priv);
