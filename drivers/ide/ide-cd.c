@@ -593,12 +593,12 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive)
 	if (cmd_len < ATAPI_MIN_CDB_BYTES)
 		cmd_len = ATAPI_MIN_CDB_BYTES;
 
-	/* send the command to the device */
-	hwif->tp_ops->output_data(drive, NULL, rq->cmd, cmd_len);
-
 	/* start the DMA if need be */
 	if (drive->dma)
 		hwif->dma_ops->dma_start(drive);
+
+	/* send the command to the device */
+	hwif->tp_ops->output_data(drive, NULL, rq->cmd, cmd_len);
 
 	return ide_started;
 }
