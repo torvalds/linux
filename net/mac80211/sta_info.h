@@ -382,8 +382,6 @@ static inline u32 get_sta_flags(struct sta_info *sta)
 }
 
 
-/* Maximum number of concurrently registered stations */
-#define MAX_STA_COUNT 2007
 
 #define STA_HASH_SIZE 256
 #define STA_HASH(sta) (sta[5])
