@@ -945,11 +945,20 @@ continue_unlock:
 				goto continue_unlock;
 			}
 
-			if (wbc->sync_mode != WB_SYNC_NONE)
-				wait_on_page_writeback(page);
+			if (!PageDirty(page)) {
+				/* someone wrote it for us */
+				goto continue_unlock;
+			}
 
-			if (PageWriteback(page) ||
-			    !clear_page_dirty_for_io(page))
+			if (PageWriteback(page)) {
+				if (wbc->sync_mode != WB_SYNC_NONE)
+					wait_on_page_writeback(page);
+				else
+					goto continue_unlock;
+			}
+
+			BUG_ON(PageWriteback(page));
+			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
 			ret = (*writepage)(page, wbc, data);
