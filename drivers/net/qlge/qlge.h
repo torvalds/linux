@@ -979,10 +979,11 @@ struct ib_mac_iocb_rsp {
 
 	__le16 reserved1;
 	__le32 reserved2[6];
-	__le32 flags4;
-#define IB_MAC_IOCB_RSP_HV	0x20000000	/* */
-#define IB_MAC_IOCB_RSP_HS	0x40000000	/* */
-#define IB_MAC_IOCB_RSP_HL	0x80000000	/* */
+	u8 reserved3[3];
+	u8 flags4;
+#define IB_MAC_IOCB_RSP_HV	0x20
+#define IB_MAC_IOCB_RSP_HS	0x40
+#define IB_MAC_IOCB_RSP_HL	0x80
 	__le32 hdr_len;		/* */
 	__le32 hdr_addr_lo;	/* */
 	__le32 hdr_addr_hi;	/* */
