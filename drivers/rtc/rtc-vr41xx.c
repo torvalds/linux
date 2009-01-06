@@ -84,8 +84,8 @@ static DEFINE_SPINLOCK(rtc_lock);
 static char rtc_name[] = "RTC";
 static unsigned long periodic_count;
 static unsigned int alarm_enabled;
-static int aie_irq = -1;
-static int pie_irq = -1;
+static int aie_irq;
+static int pie_irq;
 
 static inline unsigned long read_elapsed_second(void)
 {
@@ -360,7 +360,7 @@ static int __devinit rtc_probe(struct platform_device *pdev)
 	spin_unlock_irq(&rtc_lock);
 
 	aie_irq = platform_get_irq(pdev, 0);
-	if (aie_irq < 0 || aie_irq >= nr_irqs) {
+	if (aie_irq <= 0) {
 		retval = -EBUSY;
 		goto err_device_unregister;
 	}
@@ -371,7 +371,7 @@ static int __devinit rtc_probe(struct platform_device *pdev)
 		goto err_device_unregister;
 
 	pie_irq = platform_get_irq(pdev, 1);
-	if (pie_irq < 0 || pie_irq >= nr_irqs)
+	if (pie_irq <= 0)
 		goto err_free_irq;
 
 	retval = request_irq(pie_irq, rtclong1_interrupt, IRQF_DISABLED,
