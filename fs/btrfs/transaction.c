@@ -800,7 +800,7 @@ static noinline int finish_pending_snapshot(struct btrfs_fs_info *fs_info,
 
 	parent_inode = pending->dentry->d_parent->d_inode;
 	parent_root = BTRFS_I(parent_inode)->root;
-	trans = btrfs_start_transaction(parent_root, 1);
+	trans = btrfs_join_transaction(parent_root, 1);
 
 	/*
 	 * insert the directory item
