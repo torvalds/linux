@@ -1126,6 +1126,9 @@ extern void ext4_abort(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern void ext4_warning(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
+extern void ext4_grp_locked_error(struct super_block *, ext4_group_t,
+				const char *, const char *, ...)
+	__attribute__ ((format (printf, 4, 5)));
 extern void ext4_update_dynamic_rev(struct super_block *sb);
 extern int ext4_update_compat_feature(handle_t *handle, struct super_block *sb,
 					__u32 compat);
@@ -1247,6 +1250,50 @@ static inline void ext4_update_i_disksize(struct inode *inode, loff_t newsize)
 		EXT4_I(inode)->i_disksize = newsize;
 	up_write(&EXT4_I(inode)->i_data_sem);
 	return ;
+}
+
+struct ext4_group_info {
+	unsigned long   bb_state;
+	struct rb_root  bb_free_root;
+	unsigned short  bb_first_free;
+	unsigned short  bb_free;
+	unsigned short  bb_fragments;
+	struct          list_head bb_prealloc_list;
+#ifdef DOUBLE_CHECK
+	void            *bb_bitmap;
+#endif
+	struct rw_semaphore alloc_sem;
+	unsigned short  bb_counters[];
+};
+
+#define EXT4_GROUP_INFO_NEED_INIT_BIT	0
+#define EXT4_GROUP_INFO_LOCKED_BIT	1
+
+#define EXT4_MB_GRP_NEED_INIT(grp)	\
+	(test_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &((grp)->bb_state)))
+
+static inline void ext4_lock_group(struct super_block *sb, ext4_group_t group)
+{
+	struct ext4_group_info *grinfo = ext4_get_group_info(sb, group);
+
+	bit_spin_lock(EXT4_GROUP_INFO_LOCKED_BIT, &(grinfo->bb_state));
+}
+
+static inline void ext4_unlock_group(struct super_block *sb,
+					ext4_group_t group)
+{
+	struct ext4_group_info *grinfo = ext4_get_group_info(sb, group);
+
+	bit_spin_unlock(EXT4_GROUP_INFO_LOCKED_BIT, &(grinfo->bb_state));
+}
+
+static inline int ext4_is_group_locked(struct super_block *sb,
+					ext4_group_t group)
+{
+	struct ext4_group_info *grinfo = ext4_get_group_info(sb, group);
+
+	return bit_spin_is_locked(EXT4_GROUP_INFO_LOCKED_BIT,
+						&(grinfo->bb_state));
 }
 
 /*

@@ -457,8 +457,8 @@ static void mb_free_blocks_double(struct inode *inode, struct ext4_buddy *e4b,
 			blocknr += first + i;
 			blocknr +=
 			    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
-
-			ext4_error(sb, __func__, "double-free of inode"
+			ext4_grp_locked_error(sb, e4b->bd_group,
+				   __func__, "double-free of inode"
 				   " %lu's block %llu(bit %u in group %u)",
 				   inode ? inode->i_ino : 0, blocknr,
 				   first + i, e4b->bd_group);
@@ -702,7 +702,7 @@ static void ext4_mb_generate_buddy(struct super_block *sb,
 	grp->bb_fragments = fragments;
 
 	if (free != grp->bb_free) {
-		ext4_error(sb, __func__,
+		ext4_grp_locked_error(sb, group,  __func__,
 			"EXT4-fs: group %u: %u blocks in bitmap, %u in gd",
 			group, free, grp->bb_free);
 		/*
@@ -1095,8 +1095,6 @@ static void mb_set_bits(spinlock_t *lock, void *bm, int cur, int len)
 
 static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 			  int first, int count)
-__releases(bitlock)
-__acquires(bitlock)
 {
 	int block = 0;
 	int max = 0;
@@ -1135,12 +1133,11 @@ __acquires(bitlock)
 			blocknr += block;
 			blocknr +=
 			    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
-			ext4_unlock_group(sb, e4b->bd_group);
-			ext4_error(sb, __func__, "double-free of inode"
+			ext4_grp_locked_error(sb, e4b->bd_group,
+				   __func__, "double-free of inode"
 				   " %lu's block %llu(bit %u in group %u)",
 				   inode ? inode->i_ino : 0, blocknr, block,
 				   e4b->bd_group);
-			ext4_lock_group(sb, e4b->bd_group);
 		}
 		mb_clear_bit(block, EXT4_MB_BITMAP(e4b));
 		e4b->bd_info->bb_counters[order]++;
@@ -1623,7 +1620,8 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 			 * free blocks even though group info says we
 			 * we have free blocks
 			 */
-			ext4_error(sb, __func__, "%d free blocks as per "
+			ext4_grp_locked_error(sb, e4b->bd_group,
+					__func__, "%d free blocks as per "
 					"group info. But bitmap says 0",
 					free);
 			break;
@@ -1632,7 +1630,8 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 		mb_find_extent(e4b, 0, i, ac->ac_g_ex.fe_len, &ex);
 		BUG_ON(ex.fe_len <= 0);
 		if (free < ex.fe_len) {
-			ext4_error(sb, __func__, "%d free blocks as per "
+			ext4_grp_locked_error(sb, e4b->bd_group,
+					__func__, "%d free blocks as per "
 					"group info. But got %d blocks",
 					free, ex.fe_len);
 			/*
@@ -3822,8 +3821,9 @@ ext4_mb_release_inode_pa(struct ext4_buddy *e4b, struct buffer_head *bitmap_bh,
 			pa, (unsigned long) pa->pa_lstart,
 			(unsigned long) pa->pa_pstart,
 			(unsigned long) pa->pa_len);
-		ext4_error(sb, __func__, "free %u, pa_free %u",
-						free, pa->pa_free);
+		ext4_grp_locked_error(sb, group,
+					__func__, "free %u, pa_free %u",
+					free, pa->pa_free);
 		/*
 		 * pa is already deleted so we use the value obtained
 		 * from the bitmap and continue.
@@ -4633,9 +4633,9 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
 		else if (block >= (entry->start_blk + entry->count))
 			n = &(*n)->rb_right;
 		else {
-			ext4_error(sb, __func__,
-			    "Double free of blocks %d (%d %d)",
-			    block, entry->start_blk, entry->count);
+			ext4_grp_locked_error(sb, e4b->bd_group, __func__,
+					"Double free of blocks %d (%d %d)",
+					block, entry->start_blk, entry->count);
 			return 0;
 		}
 	}
