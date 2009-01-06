@@ -51,8 +51,6 @@ struct proc_dir_entry *ext4_proc_root;
 
 static int ext4_load_journal(struct super_block *, struct ext4_super_block *,
 			     unsigned long journal_devnum);
-static int ext4_create_journal(struct super_block *, struct ext4_super_block *,
-			       unsigned int);
 static void ext4_commit_super(struct super_block *sb,
 			      struct ext4_super_block *es, int sync);
 static void ext4_mark_recovery_complete(struct super_block *sb,
@@ -1006,7 +1004,7 @@ enum {
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
 	Opt_reservation, Opt_noreservation, Opt_noload, Opt_nobh, Opt_bh,
 	Opt_commit, Opt_min_batch_time, Opt_max_batch_time,
-	Opt_journal_update, Opt_journal_inum, Opt_journal_dev,
+	Opt_journal_update, Opt_journal_dev,
 	Opt_journal_checksum, Opt_journal_async_commit,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
 	Opt_data_err_abort, Opt_data_err_ignore,
@@ -1048,7 +1046,6 @@ static const match_table_t tokens = {
 	{Opt_min_batch_time, "min_batch_time=%u"},
 	{Opt_max_batch_time, "max_batch_time=%u"},
 	{Opt_journal_update, "journal=update"},
-	{Opt_journal_inum, "journal=%u"},
 	{Opt_journal_dev, "journal_dev=%u"},
 	{Opt_journal_checksum, "journal_checksum"},
 	{Opt_journal_async_commit, "journal_async_commit"},
@@ -1102,7 +1099,7 @@ static ext4_fsblk_t get_sb_block(void **data)
 }
 
 static int parse_options(char *options, struct super_block *sb,
-			 unsigned int *inum, unsigned long *journal_devnum,
+			 unsigned long *journal_devnum,
 			 ext4_fsblk_t *n_blocks_count, int is_remount)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -1225,16 +1222,6 @@ static int parse_options(char *options, struct super_block *sb,
 				return 0;
 			}
 			set_opt(sbi->s_mount_opt, UPDATE_JOURNAL);
-			break;
-		case Opt_journal_inum:
-			if (is_remount) {
-				printk(KERN_ERR "EXT4-fs: cannot specify "
-				       "journal on remount\n");
-				return 0;
-			}
-			if (match_int(&args[0], &option))
-				return 0;
-			*inum = option;
 			break;
 		case Opt_journal_dev:
 			if (is_remount) {
@@ -2035,7 +2022,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	ext4_fsblk_t sb_block = get_sb_block(&data);
 	ext4_fsblk_t logical_sb_block;
 	unsigned long offset = 0;
-	unsigned int journal_inum = 0;
 	unsigned long journal_devnum = 0;
 	unsigned long def_mount_opts;
 	struct inode *root;
@@ -2155,8 +2141,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	set_opt(sbi->s_mount_opt, DELALLOC);
 
 
-	if (!parse_options((char *) data, sb, &journal_inum, &journal_devnum,
-			   NULL, 0))
+	if (!parse_options((char *) data, sb, &journal_devnum, NULL, 0))
 		goto failed_mount;
 
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
@@ -2460,9 +2445,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 				goto failed_mount4;
 			}
 		}
-	} else if (journal_inum) {
-		if (ext4_create_journal(sb, es, journal_inum))
-			goto failed_mount3;
 	} else if (test_opt(sb, NOLOAD) && !(sb->s_flags & MS_RDONLY) &&
 	      EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER)) {
 		printk(KERN_ERR "EXT4-fs: required journal recovery "
@@ -2926,48 +2908,6 @@ static int ext4_load_journal(struct super_block *sb,
 	return 0;
 }
 
-static int ext4_create_journal(struct super_block *sb,
-			       struct ext4_super_block *es,
-			       unsigned int journal_inum)
-{
-	journal_t *journal;
-	int err;
-
-	if (sb->s_flags & MS_RDONLY) {
-		printk(KERN_ERR "EXT4-fs: readonly filesystem when trying to "
-				"create journal.\n");
-		return -EROFS;
-	}
-
-	journal = ext4_get_journal(sb, journal_inum);
-	if (!journal)
-		return -EINVAL;
-
-	printk(KERN_INFO "EXT4-fs: creating new journal on inode %u\n",
-	       journal_inum);
-
-	err = jbd2_journal_create(journal);
-	if (err) {
-		printk(KERN_ERR "EXT4-fs: error creating journal.\n");
-		jbd2_journal_destroy(journal);
-		return -EIO;
-	}
-
-	EXT4_SB(sb)->s_journal = journal;
-
-	ext4_update_dynamic_rev(sb);
-	EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
-	EXT4_SET_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_HAS_JOURNAL);
-
-	es->s_journal_inum = cpu_to_le32(journal_inum);
-	sb->s_dirt = 1;
-
-	/* Make sure we flush the recovery flag to disk. */
-	ext4_commit_super(sb, es, 1);
-
-	return 0;
-}
-
 static void ext4_commit_super(struct super_block *sb,
 			      struct ext4_super_block *es, int sync)
 {
@@ -3209,7 +3149,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	/*
 	 * Allow the "check" option to be passed as a remount option.
 	 */
-	if (!parse_options(data, sb, NULL, NULL, &n_blocks_count, 1)) {
+	if (!parse_options(data, sb, NULL, &n_blocks_count, 1)) {
 		err = -EINVAL;
 		goto restore_opts;
 	}

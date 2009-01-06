@@ -66,7 +66,6 @@ EXPORT_SYMBOL(jbd2_journal_update_format);
 EXPORT_SYMBOL(jbd2_journal_check_used_features);
 EXPORT_SYMBOL(jbd2_journal_check_available_features);
 EXPORT_SYMBOL(jbd2_journal_set_features);
-EXPORT_SYMBOL(jbd2_journal_create);
 EXPORT_SYMBOL(jbd2_journal_load);
 EXPORT_SYMBOL(jbd2_journal_destroy);
 EXPORT_SYMBOL(jbd2_journal_abort);
@@ -1160,77 +1159,6 @@ static int journal_reset(journal_t *journal)
 	/* Add the dynamic fields and write it to disk. */
 	jbd2_journal_update_superblock(journal, 1);
 	return jbd2_journal_start_thread(journal);
-}
-
-/**
- * int jbd2_journal_create() - Initialise the new journal file
- * @journal: Journal to create. This structure must have been initialised
- *
- * Given a journal_t structure which tells us which disk blocks we can
- * use, create a new journal superblock and initialise all of the
- * journal fields from scratch.
- **/
-int jbd2_journal_create(journal_t *journal)
-{
-	unsigned long long blocknr;
-	struct buffer_head *bh;
-	journal_superblock_t *sb;
-	int i, err;
-
-	if (journal->j_maxlen < JBD2_MIN_JOURNAL_BLOCKS) {
-		printk (KERN_ERR "Journal length (%d blocks) too short.\n",
-			journal->j_maxlen);
-		journal_fail_superblock(journal);
-		return -EINVAL;
-	}
-
-	if (journal->j_inode == NULL) {
-		/*
-		 * We don't know what block to start at!
-		 */
-		printk(KERN_EMERG
-		       "%s: creation of journal on external device!\n",
-		       __func__);
-		BUG();
-	}
-
-	/* Zero out the entire journal on disk.  We cannot afford to
-	   have any blocks on disk beginning with JBD2_MAGIC_NUMBER. */
-	jbd_debug(1, "JBD: Zeroing out journal blocks...\n");
-	for (i = 0; i < journal->j_maxlen; i++) {
-		err = jbd2_journal_bmap(journal, i, &blocknr);
-		if (err)
-			return err;
-		bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
-		lock_buffer(bh);
-		memset (bh->b_data, 0, journal->j_blocksize);
-		BUFFER_TRACE(bh, "marking dirty");
-		mark_buffer_dirty(bh);
-		BUFFER_TRACE(bh, "marking uptodate");
-		set_buffer_uptodate(bh);
-		unlock_buffer(bh);
-		__brelse(bh);
-	}
-
-	sync_blockdev(journal->j_dev);
-	jbd_debug(1, "JBD: journal cleared.\n");
-
-	/* OK, fill in the initial static fields in the new superblock */
-	sb = journal->j_superblock;
-
-	sb->s_header.h_magic	 = cpu_to_be32(JBD2_MAGIC_NUMBER);
-	sb->s_header.h_blocktype = cpu_to_be32(JBD2_SUPERBLOCK_V2);
-
-	sb->s_blocksize	= cpu_to_be32(journal->j_blocksize);
-	sb->s_maxlen	= cpu_to_be32(journal->j_maxlen);
-	sb->s_first	= cpu_to_be32(1);
-
-	journal->j_transaction_sequence = 1;
-
-	journal->j_flags &= ~JBD2_ABORT;
-	journal->j_format_version = 2;
-
-	return journal_reset(journal);
 }
 
 /**
