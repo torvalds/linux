@@ -33,7 +33,7 @@ struct dma_map_ops swiotlb_dma_ops = {
 	.mapping_error = swiotlb_dma_mapping_error,
 };
 
-void swiotlb_dma_init(void)
+void __init swiotlb_dma_init(void)
 {
 	dma_ops = &swiotlb_dma_ops;
 	swiotlb_init();
