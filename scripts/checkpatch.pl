@@ -1793,7 +1793,7 @@ sub process {
 					$c = 'C' if ($elements[$n + 2] =~ /^$;/);
 					$c = 'B' if ($elements[$n + 2] =~ /^(\)|\]|;)/);
 					$c = 'O' if ($elements[$n + 2] eq '');
-					$c = 'E' if ($elements[$n + 2] =~ /\s*\\$/);
+					$c = 'E' if ($elements[$n + 2] =~ /^\s*\\$/);
 				} else {
 					$c = 'E';
 				}
