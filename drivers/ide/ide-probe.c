@@ -849,8 +849,7 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	}
 
 	ide_port_for_each_dev(i, drive, hwif) {
-		if ((hwif->host_flags & IDE_HFLAG_NO_IO_32BIT) ||
-		    drive->id[ATA_ID_DWORD_IO])
+		if (hwif->host_flags & IDE_HFLAG_NO_IO_32BIT)
 			drive->dev_flags |= IDE_DFLAG_NO_IO_32BIT;
 		else
 			drive->dev_flags &= ~IDE_DFLAG_NO_IO_32BIT;
