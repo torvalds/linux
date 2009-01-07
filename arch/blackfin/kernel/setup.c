@@ -876,9 +876,12 @@ void __init setup_arch(char **cmdline_p)
 			if (bfin_compiled_revid() == -1)
 				printk(KERN_ERR "Warning: Compiled for Rev none, but running on Rev %d\n",
 				       bfin_revid());
-			else if (bfin_compiled_revid() != 0xffff)
+			else if (bfin_compiled_revid() != 0xffff) {
 				printk(KERN_ERR "Warning: Compiled for Rev %d, but running on Rev %d\n",
 				       bfin_compiled_revid(), bfin_revid());
+				if (bfin_compiled_revid() > bfin_revid())
+					panic("Error: you are missing anomaly workarounds for this rev\n");
+			}
 		}
 		if (bfin_revid() < CONFIG_BF_REV_MIN || bfin_revid() > CONFIG_BF_REV_MAX)
 			printk(KERN_ERR "Warning: Unsupported Chip Revision ADSP-%s Rev 0.%d detected\n",
