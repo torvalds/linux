@@ -956,17 +956,18 @@ static int __init early_init_clkin_hz(char *buf)
 early_param("clkin_hz=", early_init_clkin_hz);
 
 /* Get the voltage input multiplier */
-static u_long cached_vco_pll_ctl, cached_vco;
 static u_long get_vco(void)
 {
-	u_long msel;
+	static u_long cached_vco;
+	u_long msel, pll_ctl;
 
-	u_long pll_ctl = bfin_read_PLL_CTL();
-	if (pll_ctl == cached_vco_pll_ctl)
+	/* The assumption here is that VCO never changes at runtime.
+	 * If, someday, we support that, then we'll have to change this.
+	 */
+	if (cached_vco)
 		return cached_vco;
-	else
-		cached_vco_pll_ctl = pll_ctl;
 
+	pll_ctl = bfin_read_PLL_CTL();
 	msel = (pll_ctl >> 9) & 0x3F;
 	if (0 == msel)
 		msel = 64;
@@ -978,9 +979,9 @@ static u_long get_vco(void)
 }
 
 /* Get the Core clock */
-static u_long cached_cclk_pll_div, cached_cclk;
 u_long get_cclk(void)
 {
+	static u_long cached_cclk_pll_div, cached_cclk;
 	u_long csel, ssel;
 
 	if (bfin_read_PLL_STAT() & 0x1)
@@ -1003,21 +1004,21 @@ u_long get_cclk(void)
 EXPORT_SYMBOL(get_cclk);
 
 /* Get the System clock */
-static u_long cached_sclk_pll_div, cached_sclk;
 u_long get_sclk(void)
 {
+	static u_long cached_sclk;
 	u_long ssel;
+
+	/* The assumption here is that SCLK never changes at runtime.
+	 * If, someday, we support that, then we'll have to change this.
+	 */
+	if (cached_sclk)
+		return cached_sclk;
 
 	if (bfin_read_PLL_STAT() & 0x1)
 		return get_clkin_hz();
 
-	ssel = bfin_read_PLL_DIV();
-	if (ssel == cached_sclk_pll_div)
-		return cached_sclk;
-	else
-		cached_sclk_pll_div = ssel;
-
-	ssel &= 0xf;
+	ssel = bfin_read_PLL_DIV() & 0xf;
 	if (0 == ssel) {
 		printk(KERN_WARNING "Invalid System Clock\n");
 		ssel = 1;
