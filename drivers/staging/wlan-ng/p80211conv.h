@@ -86,22 +86,22 @@ typedef struct p80211_rxmeta
 {
 	struct wlandevice	*wlandev;
 
-	UINT64	mactime;	/* Hi-rez MAC-supplied time value */
-	UINT64	hosttime;	/* Best-rez host supplied time value */
+	u64	mactime;	/* Hi-rez MAC-supplied time value */
+	u64	hosttime;	/* Best-rez host supplied time value */
 
-	UINT	rxrate;		/* Receive data rate in 100kbps */
-	UINT	priority;	/* 0-15, 0=contention, 6=CF */
-	INT	signal;		/* An SSI, see p80211netdev.h */
-	INT	noise;		/* An SSI, see p80211netdev.h */
-	UINT	channel;	/* Receive channel (mostly for snifs) */
-	UINT	preamble;	/* P80211ENUM_preambletype_* */
-	UINT	encoding;	/* P80211ENUM_encoding_* */
+	unsigned int	rxrate;		/* Receive data rate in 100kbps */
+	unsigned int	priority;	/* 0-15, 0=contention, 6=CF */
+	int	signal;		/* An SSI, see p80211netdev.h */
+	int	noise;		/* An SSI, see p80211netdev.h */
+	unsigned int	channel;	/* Receive channel (mostly for snifs) */
+	unsigned int	preamble;	/* P80211ENUM_preambletype_* */
+	unsigned int	encoding;	/* P80211ENUM_encoding_* */
 
 } p80211_rxmeta_t;
 
 typedef struct p80211_frmmeta
 {
-	UINT			magic;
+	unsigned int			magic;
 	p80211_rxmeta_t		*rx;
 } p80211_frmmeta_t;
 
@@ -117,20 +117,20 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb);
  */
 typedef struct p80211_caphdr
 {
-	UINT32		version;
-	UINT32		length;
-	UINT64		mactime;
-	UINT64		hosttime;
-	UINT32		phytype;
-	UINT32		channel;
-	UINT32		datarate;
-	UINT32		antenna;
-	UINT32		priority;
-	UINT32		ssi_type;
-	INT32		ssi_signal;
-	INT32		ssi_noise;
-	UINT32		preamble;
-	UINT32		encoding;
+	u32		version;
+	u32		length;
+	u64		mactime;
+	u64		hosttime;
+	u32		phytype;
+	u32		channel;
+	u32		datarate;
+	u32		antenna;
+	u32		priority;
+	u32		ssi_type;
+	s32		ssi_signal;
+	s32		ssi_noise;
+	u32		preamble;
+	u32		encoding;
 } p80211_caphdr_t;
 
 /* buffer free method pointer type */
@@ -138,31 +138,31 @@ typedef void (* freebuf_method_t)(void *buf, int size);
 
 typedef struct p80211_metawep {
 	void  *data;
-	UINT8 iv[4];
-	UINT8 icv[4];
+	u8 iv[4];
+	u8 icv[4];
 } p80211_metawep_t;
 
 /* local ether header type */
 typedef struct wlan_ethhdr
 {
-	UINT8	daddr[WLAN_ETHADDR_LEN];
-	UINT8	saddr[WLAN_ETHADDR_LEN];
-	UINT16	type;
+	u8	daddr[WLAN_ETHADDR_LEN];
+	u8	saddr[WLAN_ETHADDR_LEN];
+	u16	type;
 } __WLAN_ATTRIB_PACK__ wlan_ethhdr_t;
 
 /* local llc header type */
 typedef struct wlan_llc
 {
-	UINT8	dsap;
-	UINT8	ssap;
-	UINT8	ctl;
+	u8	dsap;
+	u8	ssap;
+	u8	ctl;
 } __WLAN_ATTRIB_PACK__ wlan_llc_t;
 
 /* local snap header type */
 typedef struct wlan_snap
 {
-	UINT8	oui[WLAN_IEEE_OUI_LEN];
-	UINT16	type;
+	u8	oui[WLAN_IEEE_OUI_LEN];
+	u16	type;
 } __WLAN_ATTRIB_PACK__ wlan_snap_t;
 
 /* Circular include trick */
@@ -174,13 +174,13 @@ struct wlandevice;
 /*================================================================*/
 /*Function Declarations */
 
-int skb_p80211_to_ether( struct wlandevice *wlandev, UINT32 ethconv,
+int skb_p80211_to_ether( struct wlandevice *wlandev, u32 ethconv,
 			 struct sk_buff *skb);
-int skb_ether_to_p80211( struct wlandevice *wlandev, UINT32 ethconv,
+int skb_ether_to_p80211( struct wlandevice *wlandev, u32 ethconv,
 			 struct sk_buff *skb, p80211_hdr_t *p80211_hdr,
 			 p80211_metawep_t *p80211_wep );
 
-int p80211_stt_findproto(UINT16 proto);
-int p80211_stt_addproto(UINT16 proto);
+int p80211_stt_findproto(u16 proto);
+int p80211_stt_addproto(u16 proto);
 
 #endif
