@@ -28,6 +28,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/io.h>
+#include <linux/acpi.h>
 
 #define DRVNAME "f71882fg"
 
@@ -1929,6 +1930,10 @@ static int __init f71882fg_device_add(unsigned short address,
 		return -ENOMEM;
 
 	res.name = f71882fg_pdev->name;
+	err = acpi_check_resource_conflict(&res);
+	if (err)
+		return err;
+
 	err = platform_device_add_resources(f71882fg_pdev, &res, 1);
 	if (err) {
 		printk(KERN_ERR DRVNAME ": Device resource addition failed\n");
