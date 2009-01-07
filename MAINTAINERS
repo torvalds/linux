@@ -3783,6 +3783,7 @@ M:	jmorris@namei.org
 L:	linux-kernel@vger.kernel.org
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
 T:	git kernel.org:pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+W:	http://security.wiki.kernel.org/
 S:	Supported
 
 SECURITY CONTACT
