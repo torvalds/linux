@@ -1386,7 +1386,7 @@ static void __devinit it87_init_device(struct platform_device *pdev)
 			it87_write_value(data, IT87_REG_TEMP_HIGH(i), 127);
 	}
 
-	/* Check if temperature channnels are reset manually or by some reason */
+	/* Check if temperature channels are reset manually or by some reason */
 	tmp = it87_read_value(data, IT87_REG_TEMP_ENABLE);
 	if ((tmp & 0x3f) == 0) {
 		/* Temp1,Temp3=thermistor; Temp2=thermal diode */

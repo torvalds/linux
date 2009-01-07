@@ -503,7 +503,7 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 		}
 
 		for (i = 0; i < 4; i++) {
-			/* pwmcfg, tolarance mapped for i=0, i=1 to same reg */
+			/* pwmcfg, tolerance mapped for i=0, i=1 to same reg */
 			if (i != 1) {
 				pwmcfg = w83627ehf_read_value(data,
 						W83627EHF_REG_PWM_ENABLE[i]);
