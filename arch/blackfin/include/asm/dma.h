@@ -205,7 +205,9 @@ static inline unsigned long get_dma_curr_addr(unsigned int channel)
 
 static inline void set_dma_sg(unsigned int channel, struct dmasg *sg, int ndsize)
 {
-	dma_ch[channel].regs->cfg |= ((ndsize & 0x0F) << 8);
+	dma_ch[channel].regs->cfg =
+		(dma_ch[channel].regs->cfg & ~(0xf << 8)) |
+		((ndsize & 0xf) << 8);
 	dma_ch[channel].regs->next_desc_ptr = sg;
 }
 
