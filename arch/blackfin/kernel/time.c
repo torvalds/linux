@@ -32,7 +32,7 @@ static struct irqaction bfin_timer_irq = {
 };
 
 #ifdef CONFIG_TICK_SOURCE_SYSTMR0
-void setup_system_timer0(void)
+void __init setup_system_timer0(void)
 {
 	/* Power down the core timer, just to play safe. */
 	bfin_write_TCNTL(0);
@@ -49,7 +49,7 @@ void setup_system_timer0(void)
 	enable_gptimers(TIMER0bit);
 }
 #else
-void setup_core_timer(void)
+void __init setup_core_timer(void)
 {
 	u32 tcount;
 
@@ -71,7 +71,7 @@ void setup_core_timer(void)
 }
 #endif
 
-static void
+static void __init
 time_sched_init(irqreturn_t(*timer_routine) (int, void *))
 {
 #ifdef CONFIG_TICK_SOURCE_SYSTMR0
