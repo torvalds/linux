@@ -87,7 +87,8 @@ void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 {
 	struct input_polled_dev *poll_dev;
 
-	if (test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state))
+	if (test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state) ||
+	    !test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
 		return;
 
 	poll_dev = input_allocate_polled_device();
