@@ -488,7 +488,7 @@ int drm_sysfs_device_add(struct drm_minor *minor)
         else
                 minor_str = "card%d";
 
-	snprintf(minor->kdev.bus_id, BUS_ID_SIZE, minor_str, minor->index);
+	dev_set_name(&minor->kdev, minor_str, minor->index);
 
 	err = device_register(&minor->kdev);
 	if (err) {

@@ -2545,7 +2545,7 @@ static int __devinit qe_udc_probe(struct of_device *ofdev,
 
 	device_initialize(&udc_controller->gadget.dev);
 
-	strcpy(udc_controller->gadget.dev.bus_id, "gadget");
+	dev_set_name(&udc_controller->gadget.dev, "gadget");
 
 	udc_controller->gadget.dev.release = qe_udc_release;
 	udc_controller->gadget.dev.parent = &ofdev->dev;

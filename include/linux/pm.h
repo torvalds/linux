@@ -41,7 +41,7 @@ typedef struct pm_message {
 } pm_message_t;
 
 /**
- * struct pm_ops - device PM callbacks
+ * struct dev_pm_ops - device PM callbacks
  *
  * Several driver power state transitions are externally visible, affecting
  * the state of pending I/O queues and (for drivers that touch hardware)
@@ -126,46 +126,6 @@ typedef struct pm_message {
  *	On most platforms, there are no restrictions on availability of
  *	resources like clocks during @restore().
  *
- * All of the above callbacks, except for @complete(), return error codes.
- * However, the error codes returned by the resume operations, @resume(),
- * @thaw(), and @restore(), do not cause the PM core to abort the resume
- * transition during which they are returned.  The error codes returned in
- * that cases are only printed by the PM core to the system logs for debugging
- * purposes.  Still, it is recommended that drivers only return error codes
- * from their resume methods in case of an unrecoverable failure (i.e. when the
- * device being handled refuses to resume and becomes unusable) to allow us to
- * modify the PM core in the future, so that it can avoid attempting to handle
- * devices that failed to resume and their children.
- *
- * It is allowed to unregister devices while the above callbacks are being
- * executed.  However, it is not allowed to unregister a device from within any
- * of its own callbacks.
- */
-
-struct pm_ops {
-	int (*prepare)(struct device *dev);
-	void (*complete)(struct device *dev);
-	int (*suspend)(struct device *dev);
-	int (*resume)(struct device *dev);
-	int (*freeze)(struct device *dev);
-	int (*thaw)(struct device *dev);
-	int (*poweroff)(struct device *dev);
-	int (*restore)(struct device *dev);
-};
-
-/**
- * struct pm_ext_ops - extended device PM callbacks
- *
- * Some devices require certain operations related to suspend and hibernation
- * to be carried out with interrupts disabled.  Thus, 'struct pm_ext_ops' below
- * is defined, adding callbacks to be executed with interrupts disabled to
- * 'struct pm_ops'.
- *
- * The following callbacks included in 'struct pm_ext_ops' are executed with
- * the nonboot CPUs switched off and with interrupts disabled on the only
- * functional CPU.  They also are executed with the PM core list of devices
- * locked, so they must NOT unregister any devices.
- *
  * @suspend_noirq: Complete the operations of ->suspend() by carrying out any
  *	actions required for suspending the device that need interrupts to be
  *	disabled
@@ -190,18 +150,32 @@ struct pm_ops {
  *	actions required for restoring the operations of the device that need
  *	interrupts to be disabled
  *
- * All of the above callbacks return error codes, but the error codes returned
- * by the resume operations, @resume_noirq(), @thaw_noirq(), and
- * @restore_noirq(), do not cause the PM core to abort the resume transition
- * during which they are returned.  The error codes returned in that cases are
- * only printed by the PM core to the system logs for debugging purposes.
- * Still, as stated above, it is recommended that drivers only return error
- * codes from their resume methods if the device being handled fails to resume
- * and is not usable any more.
+ * All of the above callbacks, except for @complete(), return error codes.
+ * However, the error codes returned by the resume operations, @resume(),
+ * @thaw(), @restore(), @resume_noirq(), @thaw_noirq(), and @restore_noirq() do
+ * not cause the PM core to abort the resume transition during which they are
+ * returned.  The error codes returned in that cases are only printed by the PM
+ * core to the system logs for debugging purposes.  Still, it is recommended
+ * that drivers only return error codes from their resume methods in case of an
+ * unrecoverable failure (i.e. when the device being handled refuses to resume
+ * and becomes unusable) to allow us to modify the PM core in the future, so
+ * that it can avoid attempting to handle devices that failed to resume and
+ * their children.
+ *
+ * It is allowed to unregister devices while the above callbacks are being
+ * executed.  However, it is not allowed to unregister a device from within any
+ * of its own callbacks.
  */
 
-struct pm_ext_ops {
-	struct pm_ops base;
+struct dev_pm_ops {
+	int (*prepare)(struct device *dev);
+	void (*complete)(struct device *dev);
+	int (*suspend)(struct device *dev);
+	int (*resume)(struct device *dev);
+	int (*freeze)(struct device *dev);
+	int (*thaw)(struct device *dev);
+	int (*poweroff)(struct device *dev);
+	int (*restore)(struct device *dev);
 	int (*suspend_noirq)(struct device *dev);
 	int (*resume_noirq)(struct device *dev);
 	int (*freeze_noirq)(struct device *dev);
@@ -278,7 +252,7 @@ struct pm_ext_ops {
 #define PM_EVENT_SLEEP		(PM_EVENT_SUSPEND | PM_EVENT_HIBERNATE)
 #define PM_EVENT_USER_SUSPEND	(PM_EVENT_USER | PM_EVENT_SUSPEND)
 #define PM_EVENT_USER_RESUME	(PM_EVENT_USER | PM_EVENT_RESUME)
-#define PM_EVENT_REMOTE_WAKEUP	(PM_EVENT_REMOTE | PM_EVENT_RESUME)
+#define PM_EVENT_REMOTE_RESUME	(PM_EVENT_REMOTE | PM_EVENT_RESUME)
 #define PM_EVENT_AUTO_SUSPEND	(PM_EVENT_AUTO | PM_EVENT_SUSPEND)
 #define PM_EVENT_AUTO_RESUME	(PM_EVENT_AUTO | PM_EVENT_RESUME)
 
@@ -291,15 +265,15 @@ struct pm_ext_ops {
 #define PMSG_THAW	((struct pm_message){ .event = PM_EVENT_THAW, })
 #define PMSG_RESTORE	((struct pm_message){ .event = PM_EVENT_RESTORE, })
 #define PMSG_RECOVER	((struct pm_message){ .event = PM_EVENT_RECOVER, })
-#define PMSG_USER_SUSPEND	((struct pm_messge) \
+#define PMSG_USER_SUSPEND	((struct pm_message) \
 					{ .event = PM_EVENT_USER_SUSPEND, })
-#define PMSG_USER_RESUME	((struct pm_messge) \
+#define PMSG_USER_RESUME	((struct pm_message) \
 					{ .event = PM_EVENT_USER_RESUME, })
-#define PMSG_REMOTE_RESUME	((struct pm_messge) \
+#define PMSG_REMOTE_RESUME	((struct pm_message) \
 					{ .event = PM_EVENT_REMOTE_RESUME, })
-#define PMSG_AUTO_SUSPEND	((struct pm_messge) \
+#define PMSG_AUTO_SUSPEND	((struct pm_message) \
 					{ .event = PM_EVENT_AUTO_SUSPEND, })
-#define PMSG_AUTO_RESUME		((struct pm_messge) \
+#define PMSG_AUTO_RESUME	((struct pm_message) \
 					{ .event = PM_EVENT_AUTO_RESUME, })
 
 /**
