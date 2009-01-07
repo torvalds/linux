@@ -28,6 +28,7 @@ static int jack_types[] = {
 	SW_MICROPHONE_INSERT,
 	SW_LINEOUT_INSERT,
 	SW_JACK_PHYSICAL_INSERT,
+	SW_VIDEOOUT_INSERT,
 };
 
 static int snd_jack_dev_free(struct snd_device *device)
