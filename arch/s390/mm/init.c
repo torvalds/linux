@@ -183,7 +183,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	rc = vmem_add_mapping(start, size);
 	if (rc)
 		return rc;
-	rc = __add_pages(zone, PFN_DOWN(start), PFN_DOWN(size));
+	rc = __add_pages(nid, zone, PFN_DOWN(start), PFN_DOWN(size));
 	if (rc)
 		vmem_remove_mapping(start, size);
 	return rc;

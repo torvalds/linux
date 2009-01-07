@@ -114,9 +114,6 @@
 /* System Includes */
 #define WLAN_DBVAR	prism2_debug
 
-#include "version.h"
-
-
 #include <linux/version.h>
 
 #include <linux/module.h>
@@ -136,63 +133,7 @@
 
 #include "wlan_compat.h"
 
-#if (WLAN_HOSTIF != WLAN_USB)
-#error "This file is specific to USB"
-#endif
-
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-static int
-wait_for_completion_interruptible(struct completion *x)
-{
-  int ret = 0;
-
-  might_sleep();
-
-  spin_lock_irq(&x->wait.lock);
-  if (!x->done) {
-    DECLARE_WAITQUEUE(wait, current);
-
-    wait.flags |= WQ_FLAG_EXCLUSIVE;
-    __add_wait_queue_tail(&x->wait, &wait);
-    do {
-      if (signal_pending(current)) {
-        ret = -ERESTARTSYS;
-        __remove_wait_queue(&x->wait, &wait);
-        goto out;
-      }
-      __set_current_state(TASK_INTERRUPTIBLE);
-      spin_unlock_irq(&x->wait.lock);
-      schedule();
-      spin_lock_irq(&x->wait.lock);
-    } while (!x->done);
-    __remove_wait_queue(&x->wait, &wait);
-  }
-  x->done--;
-out:
-  spin_unlock_irq(&x->wait.lock);
-
-  return ret;
-}
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,69)
-static void
-usb_init_urb(struct urb *urb)
-{
-	memset(urb, 0, sizeof(*urb));
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) /* tune me! */
-	urb->count = (atomic_t)ATOMIC_INIT(1);
-#endif
-	spin_lock_init(&urb->lock);
-}
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) /* tune me! */
-#  define SUBMIT_URB(u,f)  usb_submit_urb(u,f)
-#else
-#  define SUBMIT_URB(u,f)  usb_submit_urb(u)
-#endif
+#define SUBMIT_URB(u,f)  usb_submit_urb(u,f)
 
 /*================================================================*/
 /* Project Includes */
@@ -257,21 +198,12 @@ submit_tx_urb(hfa384x_t *hw, struct urb *tx_urb, gfp_t flags);
 
 /*---------------------------------------------------*/
 /* Callbacks */
-#ifdef URB_ONLY_CALLBACK
 static void
 hfa384x_usbout_callback(struct urb *urb);
 static void
 hfa384x_ctlxout_callback(struct urb *urb);
 static void
 hfa384x_usbin_callback(struct urb *urb);
-#else
-static void
-hfa384x_usbout_callback(struct urb *urb, struct pt_regs *regs);
-static void
-hfa384x_ctlxout_callback(struct urb *urb, struct pt_regs *regs);
-static void
-hfa384x_usbin_callback(struct urb *urb, struct pt_regs *regs);
-#endif
 
 static void
 hfa384x_usbin_txcompl(wlandevice_t *wlandev, hfa384x_usbin_t *usbin);
@@ -358,9 +290,9 @@ static int
 hfa384x_dorrid(
 	hfa384x_t *hw,
 	CMD_MODE mode,
-	UINT16	rid,
+	u16	rid,
 	void	*riddata,
-	UINT	riddatalen,
+	unsigned int	riddatalen,
 	ctlx_cmdcb_t cmdcb,
 	ctlx_usercb_t usercb,
 	void	*usercb_data);
@@ -369,9 +301,9 @@ static int
 hfa384x_dowrid(
 	hfa384x_t *hw,
 	CMD_MODE mode,
-	UINT16	rid,
+	u16	rid,
 	void	*riddata,
-	UINT	riddatalen,
+	unsigned int	riddatalen,
 	ctlx_cmdcb_t cmdcb,
 	ctlx_usercb_t usercb,
 	void	*usercb_data);
@@ -380,10 +312,10 @@ static int
 hfa384x_dormem(
 	hfa384x_t *hw,
 	CMD_MODE mode,
-	UINT16	page,
-	UINT16	offset,
+	u16	page,
+	u16	offset,
 	void	*data,
-	UINT	len,
+	unsigned int	len,
 	ctlx_cmdcb_t cmdcb,
 	ctlx_usercb_t usercb,
 	void	*usercb_data);
@@ -392,16 +324,16 @@ static int
 hfa384x_dowmem(
 	hfa384x_t *hw,
 	CMD_MODE mode,
-	UINT16	page,
-	UINT16	offset,
+	u16	page,
+	u16	offset,
 	void	*data,
-	UINT	len,
+	unsigned int	len,
 	ctlx_cmdcb_t cmdcb,
 	ctlx_usercb_t usercb,
 	void	*usercb_data);
 
 static int
-hfa384x_isgood_pdrcode(UINT16 pdrcode);
+hfa384x_isgood_pdrcode(u16 pdrcode);
 
 /*================================================================*/
 /* Function Definitions */
@@ -435,17 +367,17 @@ dbprint_urb(struct urb* urb)
 	WLAN_LOG_DEBUG(3,"urb->pipe=0x%08x\n", urb->pipe);
 	WLAN_LOG_DEBUG(3,"urb->status=0x%08x\n", urb->status);
 	WLAN_LOG_DEBUG(3,"urb->transfer_flags=0x%08x\n", urb->transfer_flags);
-	WLAN_LOG_DEBUG(3,"urb->transfer_buffer=0x%08x\n", (UINT)urb->transfer_buffer);
+	WLAN_LOG_DEBUG(3,"urb->transfer_buffer=0x%08x\n", (unsigned int)urb->transfer_buffer);
 	WLAN_LOG_DEBUG(3,"urb->transfer_buffer_length=0x%08x\n", urb->transfer_buffer_length);
 	WLAN_LOG_DEBUG(3,"urb->actual_length=0x%08x\n", urb->actual_length);
 	WLAN_LOG_DEBUG(3,"urb->bandwidth=0x%08x\n", urb->bandwidth);
-	WLAN_LOG_DEBUG(3,"urb->setup_packet(ctl)=0x%08x\n", (UINT)urb->setup_packet);
+	WLAN_LOG_DEBUG(3,"urb->setup_packet(ctl)=0x%08x\n", (unsigned int)urb->setup_packet);
 	WLAN_LOG_DEBUG(3,"urb->start_frame(iso/irq)=0x%08x\n", urb->start_frame);
 	WLAN_LOG_DEBUG(3,"urb->interval(irq)=0x%08x\n", urb->interval);
 	WLAN_LOG_DEBUG(3,"urb->error_count(iso)=0x%08x\n", urb->error_count);
 	WLAN_LOG_DEBUG(3,"urb->timeout=0x%08x\n", urb->timeout);
-	WLAN_LOG_DEBUG(3,"urb->context=0x%08x\n", (UINT)urb->context);
-	WLAN_LOG_DEBUG(3,"urb->complete=0x%08x\n", (UINT)urb->complete);
+	WLAN_LOG_DEBUG(3,"urb->context=0x%08x\n", (unsigned int)urb->context);
+	WLAN_LOG_DEBUG(3,"urb->complete=0x%08x\n", (unsigned int)urb->complete);
 }
 #endif
 
@@ -652,7 +584,7 @@ hfa384x_usb_defer(struct work_struct *data)
 
 	/* Resume transmitting. */
 	if ( test_and_clear_bit(WORK_TX_RESUME, &hw->usb_flags) ) {
-		p80211netdev_wake_queue(hw->wlandev);
+		netif_wake_queue(hw->wlandev->netdev);
 	}
 
 	DBFEXIT;
@@ -711,8 +643,8 @@ hfa384x_create( hfa384x_t *hw, struct usb_device *usb)
 	tasklet_init(&hw->completion_bh,
 	             hfa384x_usbctlx_completion_task,
 	             (unsigned long)hw);
-	INIT_WORK2(&hw->link_bh, prism2sta_processing_defer);
-	INIT_WORK2(&hw->usb_work, hfa384x_usb_defer);
+	INIT_WORK(&hw->link_bh, prism2sta_processing_defer);
+	INIT_WORK(&hw->usb_work, hfa384x_usb_defer);
 
 	init_timer(&hw->throttle);
 	hw->throttle.function = hfa384x_usb_throttlefn;
@@ -733,7 +665,7 @@ hfa384x_create( hfa384x_t *hw, struct usb_device *usb)
 	hw->link_status = HFA384x_LINK_NOTCONNECTED;
 	hw->state = HFA384x_STATE_INIT;
 
-        INIT_WORK2(&hw->commsqual_bh, prism2sta_commsqual_defer);
+        INIT_WORK(&hw->commsqual_bh, prism2sta_commsqual_defer);
 	init_timer(&hw->commsqual_timer);
 	hw->commsqual_timer.data = (unsigned long) hw;
 	hw->commsqual_timer.function = prism2sta_commsqual_timer;
@@ -888,7 +820,7 @@ struct usbctlx_rrid_completor
 
 	const hfa384x_usb_rridresp_t	*rridresp;
 	void			*riddata;
-	UINT			riddatalen;
+	unsigned int			riddatalen;
 };
 typedef struct usbctlx_rrid_completor usbctlx_rrid_completor_t;
 
@@ -919,7 +851,7 @@ static inline usbctlx_completor_t*
 init_rrid_completor(usbctlx_rrid_completor_t *completor,
                     const hfa384x_usb_rridresp_t *rridresp,
                     void *riddata,
-                    UINT riddatalen)
+                    unsigned int riddatalen)
 {
 	completor->head.complete = usbctlx_rrid_completor_fn;
 	completor->rridresp = rridresp;
@@ -952,7 +884,7 @@ struct usbctlx_rmem_completor
 
         const hfa384x_usb_rmemresp_t  *rmemresp;
         void                          *data;
-        UINT                          len;
+        unsigned int                          len;
 };
 typedef struct usbctlx_rmem_completor usbctlx_rmem_completor_t;
 
@@ -969,7 +901,7 @@ static inline usbctlx_completor_t*
 init_rmem_completor(usbctlx_rmem_completor_t *completor,
                     hfa384x_usb_rmemresp_t *rmemresp,
                     void *data,
-                    UINT len)
+                    unsigned int len)
 {
 	completor->head.complete = usbctlx_rmem_completor_fn;
 	completor->rmemresp = rmemresp;
@@ -1080,7 +1012,7 @@ hfa384x_docmd_async(hfa384x_t *hw,
 }
 
 static inline int
-hfa384x_dorrid_wait(hfa384x_t *hw, UINT16 rid, void *riddata, UINT riddatalen)
+hfa384x_dorrid_wait(hfa384x_t *hw, u16 rid, void *riddata, unsigned int riddatalen)
 {
 	return hfa384x_dorrid(hw, DOWAIT,
 	                      rid, riddata, riddatalen,
@@ -1089,7 +1021,7 @@ hfa384x_dorrid_wait(hfa384x_t *hw, UINT16 rid, void *riddata, UINT riddatalen)
 
 static inline int
 hfa384x_dorrid_async(hfa384x_t *hw,
-                     UINT16 rid, void *riddata, UINT riddatalen,
+                     u16 rid, void *riddata, unsigned int riddatalen,
                      ctlx_cmdcb_t cmdcb,
                      ctlx_usercb_t usercb,
                      void *usercb_data)
@@ -1100,7 +1032,7 @@ hfa384x_dorrid_async(hfa384x_t *hw,
 }
 
 static inline int
-hfa384x_dowrid_wait(hfa384x_t *hw, UINT16 rid, void *riddata, UINT riddatalen)
+hfa384x_dowrid_wait(hfa384x_t *hw, u16 rid, void *riddata, unsigned int riddatalen)
 {
 	return hfa384x_dowrid(hw, DOWAIT,
 	                      rid, riddata, riddatalen,
@@ -1109,7 +1041,7 @@ hfa384x_dowrid_wait(hfa384x_t *hw, UINT16 rid, void *riddata, UINT riddatalen)
 
 static inline int
 hfa384x_dowrid_async(hfa384x_t *hw,
-                     UINT16 rid, void *riddata, UINT riddatalen,
+                     u16 rid, void *riddata, unsigned int riddatalen,
                      ctlx_cmdcb_t cmdcb,
                      ctlx_usercb_t usercb,
                      void *usercb_data)
@@ -1121,7 +1053,7 @@ hfa384x_dowrid_async(hfa384x_t *hw,
 
 static inline int
 hfa384x_dormem_wait(hfa384x_t *hw,
-                    UINT16 page, UINT16 offset, void *data, UINT len)
+                    u16 page, u16 offset, void *data, unsigned int len)
 {
 	return hfa384x_dormem(hw, DOWAIT,
 	                      page, offset, data, len,
@@ -1130,7 +1062,7 @@ hfa384x_dormem_wait(hfa384x_t *hw,
 
 static inline int
 hfa384x_dormem_async(hfa384x_t *hw,
-                     UINT16 page, UINT16 offset, void *data, UINT len,
+                     u16 page, u16 offset, void *data, unsigned int len,
                      ctlx_cmdcb_t cmdcb,
                      ctlx_usercb_t usercb,
                      void *usercb_data)
@@ -1143,10 +1075,10 @@ hfa384x_dormem_async(hfa384x_t *hw,
 static inline int
 hfa384x_dowmem_wait(
         hfa384x_t *hw,
-        UINT16  page,
-        UINT16  offset,
+        u16  page,
+        u16  offset,
         void    *data,
-        UINT    len)
+        unsigned int    len)
 {
 	return hfa384x_dowmem(hw, DOWAIT,
                                   page, offset, data, len,
@@ -1156,10 +1088,10 @@ hfa384x_dowmem_wait(
 static inline int
 hfa384x_dowmem_async(
         hfa384x_t *hw,
-        UINT16  page,
-        UINT16  offset,
+        u16  page,
+        u16  offset,
         void    *data,
-        UINT    len,
+        unsigned int    len,
         ctlx_cmdcb_t cmdcb,
         ctlx_usercb_t usercb,
         void    *usercb_data)
@@ -1246,7 +1178,7 @@ hfa384x_cmd_initialize(hfa384x_t *hw)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_cmd_disable(hfa384x_t *hw, UINT16 macport)
+int hfa384x_cmd_disable(hfa384x_t *hw, u16 macport)
 {
 	int	result = 0;
 	hfa384x_metacmd_t cmd;
@@ -1286,7 +1218,7 @@ int hfa384x_cmd_disable(hfa384x_t *hw, UINT16 macport)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_cmd_enable(hfa384x_t *hw, UINT16 macport)
+int hfa384x_cmd_enable(hfa384x_t *hw, u16 macport)
 {
 	int	result = 0;
 	hfa384x_metacmd_t cmd;
@@ -1304,95 +1236,6 @@ int hfa384x_cmd_enable(hfa384x_t *hw, UINT16 macport)
 	DBFEXIT;
 	return result;
 }
-
-
-/*----------------------------------------------------------------
-* hfa384x_cmd_notify
-*
-* Sends an info frame to the firmware to alter the behavior
-* of the f/w asynch processes.  Can only be called when the MAC
-* is in the enabled state.
-*
-* Arguments:
-*	hw		device structure
-*	reclaim		[0|1] indicates whether the given FID will
-*			be handed back (via Alloc event) for reuse.
-*			(host order)
-*	fid		FID of buffer containing the frame that was
-*			previously copied to MAC memory via the bap.
-*			(host order)
-*
-* Returns:
-*	0		success
-*	>0		f/w reported failure - f/w status code
-*	<0		driver reported error (timeout|bad arg)
-*
-* Side effects:
-*	hw->resp0 will contain the FID being used by async notify
-*	process.  If reclaim==0, resp0 will be the same as the fid
-*	argument.  If reclaim==1, resp0 will be the different.
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
-int hfa384x_cmd_notify(hfa384x_t *hw, UINT16 reclaim, UINT16 fid,
-		       void *buf, UINT16 len)
-{
-#if 0
-	int	result = 0;
-	UINT16	cmd;
-	DBFENTER;
-	cmd =	HFA384x_CMD_CMDCODE_SET(HFA384x_CMDCODE_NOTIFY) |
-		HFA384x_CMD_RECL_SET(reclaim);
-	result = hfa384x_docmd_wait(hw, cmd);
-
-	DBFEXIT;
-	return result;
-#endif
-return 0;
-}
-
-
-#if 0
-/*----------------------------------------------------------------
-* hfa384x_cmd_inquiry
-*
-* Requests an info frame from the firmware.  The info frame will
-* be delivered asynchronously via the Info event.
-*
-* Arguments:
-*	hw		device structure
-*	fid		FID of the info frame requested. (host order)
-*
-* Returns:
-*	0		success
-*	>0		f/w reported failure - f/w status code
-*	<0		driver reported error (timeout|bad arg)
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
-int hfa384x_cmd_inquiry(hfa384x_t *hw, UINT16 fid)
-{
-	int	result = 0;
-	hfa384x_metacmd_t cmd;
-
-	DBFENTER;
-
-	cmd.cmd = HFA384x_CMD_CMDCODE_SET(HFA384x_CMDCODE_INQ);
-	cmd.parm0 = 0;
-	cmd.parm1 = 0;
-	cmd.parm2 = 0;
-
-	result = hfa384x_docmd_wait(hw, &cmd);
-
-	DBFEXIT;
-	return result;
-}
-#endif
-
 
 /*----------------------------------------------------------------
 * hfa384x_cmd_monitor
@@ -1423,7 +1266,7 @@ int hfa384x_cmd_inquiry(hfa384x_t *hw, UINT16 fid)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_cmd_monitor(hfa384x_t *hw, UINT16 enable)
+int hfa384x_cmd_monitor(hfa384x_t *hw, u16 enable)
 {
 	int	result = 0;
 	hfa384x_metacmd_t cmd;
@@ -1481,8 +1324,8 @@ int hfa384x_cmd_monitor(hfa384x_t *hw, UINT16 enable)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_cmd_download(hfa384x_t *hw, UINT16 mode, UINT16 lowaddr,
-				UINT16 highaddr, UINT16 codelen)
+int hfa384x_cmd_download(hfa384x_t *hw, u16 mode, u16 lowaddr,
+				u16 highaddr, u16 codelen)
 {
 	int	result = 0;
 	hfa384x_metacmd_t cmd;
@@ -1532,7 +1375,7 @@ int hfa384x_cmd_download(hfa384x_t *hw, UINT16 mode, UINT16 lowaddr,
 ----------------------------------------------------------------*/
 void
 hfa384x_copy_from_aux(
-	hfa384x_t *hw, UINT32 cardaddr, UINT32 auxctl, void *buf, UINT len)
+	hfa384x_t *hw, u32 cardaddr, u32 auxctl, void *buf, unsigned int len)
 {
 	DBFENTER;
 	WLAN_LOG_ERROR("not used in USB.\n");
@@ -1566,7 +1409,7 @@ hfa384x_copy_from_aux(
 ----------------------------------------------------------------*/
 void
 hfa384x_copy_to_aux(
-	hfa384x_t *hw, UINT32 cardaddr, UINT32 auxctl, void *buf, UINT len)
+	hfa384x_t *hw, u32 cardaddr, u32 auxctl, void *buf, unsigned int len)
 {
 	DBFENTER;
 	WLAN_LOG_ERROR("not used in USB.\n");
@@ -1599,77 +1442,9 @@ hfa384x_copy_to_aux(
 ----------------------------------------------------------------*/
 int hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis)
 {
-#if 0
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	struct usb_device	*parent = hw->usb->parent;
-	int			i;
-	int			port = -1;
-#endif
-#endif
 	int 			result = 0;
 
-
-#define P2_USB_RT_PORT		(USB_TYPE_CLASS | USB_RECIP_OTHER)
-#define P2_USB_FEAT_RESET	4
-#define P2_USB_FEAT_C_RESET	20
-
 	DBFENTER;
-
-#if 0
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	/* Find the hub port */
-	for ( i = 0; i < parent->maxchild; i++) {
-		if (parent->children[i] == hw->usb) {
-			port = i;
-			break;
-		}
-	}
-	if (port < 0) return -ENOENT;
-
-	/* Set and clear the reset */
-	usb_control_msg(parent, usb_sndctrlpipe(parent, 0),
-		USB_REQ_SET_FEATURE, P2_USB_RT_PORT, P2_USB_FEAT_RESET,
-		port+1, NULL, 0, 1*HZ);
-	wait_ms(holdtime);
-	usb_control_msg(parent, usb_sndctrlpipe(parent, 0),
-		USB_REQ_CLEAR_FEATURE, P2_USB_RT_PORT, P2_USB_FEAT_C_RESET,
-		port+1, NULL, 0, 1*HZ);
-	wait_ms(settletime);
-
-	/* Set the device address */
-	result=usb_set_address(hw->usb);
-	if (result < 0) {
-		WLAN_LOG_ERROR("reset_usbdev: Dev not accepting address, "
-			"result=%d\n", result);
-		clear_bit(hw->usb->devnum, &hw->usb->bus->devmap.devicemap);
-		hw->usb->devnum = -1;
-		goto done;
-	}
-	/* Let the address settle */
-	wait_ms(20);
-
-	/* Assume we're reusing the original descriptor data */
-
-	/* Set the configuration. */
-	WLAN_LOG_DEBUG(3, "Setting Configuration %d\n",
-		hw->usb->config[0].bConfigurationValue);
-	result=usb_set_configuration(hw->usb, hw->usb->config[0].bConfigurationValue);
-	if ( result ) {
-		WLAN_LOG_ERROR("usb_set_configuration() failed, result=%d.\n",
-				result);
-		goto done;
-	}
-	/* Let the configuration settle */
-	wait_ms(20);
-
- done:
-#else
-	result=usb_reset_device(hw->usb);
-	if(result<0) {
-		WLAN_LOG_ERROR("usb_reset_device() failed, result=%d.\n",result);
-	}
-#endif
-#endif
 
 	result=usb_reset_device(hw->usb);
 	if(result<0) {
@@ -1925,9 +1700,9 @@ static int
 hfa384x_dorrid(
 	hfa384x_t *hw,
 	CMD_MODE mode,
-	UINT16	rid,
+	u16	rid,
 	void	*riddata,
-	UINT	riddatalen,
+	unsigned int	riddatalen,
         ctlx_cmdcb_t cmdcb,
 	ctlx_usercb_t usercb,
 	void	*usercb_data)
@@ -2011,9 +1786,9 @@ static int
 hfa384x_dowrid(
 	hfa384x_t *hw,
 	CMD_MODE mode,
-	UINT16	rid,
+	u16	rid,
 	void	*riddata,
-	UINT	riddatalen,
+	unsigned int	riddatalen,
 	ctlx_cmdcb_t cmdcb,
 	ctlx_usercb_t usercb,
 	void	*usercb_data)
@@ -2104,10 +1879,10 @@ static int
 hfa384x_dormem(
 	hfa384x_t *hw,
 	CMD_MODE mode,
-	UINT16	page,
-	UINT16	offset,
+	u16	page,
+	u16	offset,
 	void	*data,
-	UINT	len,
+	unsigned int	len,
 	ctlx_cmdcb_t cmdcb,
 	ctlx_usercb_t usercb,
 	void	*usercb_data)
@@ -2205,10 +1980,10 @@ static int
 hfa384x_dowmem(
 	hfa384x_t *hw,
 	CMD_MODE mode,
-	UINT16	page,
-	UINT16	offset,
+	u16	page,
+	u16	offset,
 	void	*data,
-	UINT	len,
+	unsigned int	len,
 	ctlx_cmdcb_t cmdcb,
 	ctlx_usercb_t usercb,
 	void	*usercb_data)
@@ -2325,7 +2100,7 @@ int hfa384x_drvr_commtallies( hfa384x_t *hw )
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_disable(hfa384x_t *hw, UINT16 macport)
+int hfa384x_drvr_disable(hfa384x_t *hw, u16 macport)
 {
 	int	result = 0;
 
@@ -2367,7 +2142,7 @@ int hfa384x_drvr_disable(hfa384x_t *hw, UINT16 macport)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_enable(hfa384x_t *hw, UINT16 macport)
+int hfa384x_drvr_enable(hfa384x_t *hw, u16 macport)
 {
 	int	result = 0;
 
@@ -2520,22 +2295,22 @@ int hfa384x_drvr_flashdl_disable(hfa384x_t *hw)
 int
 hfa384x_drvr_flashdl_write(
 	hfa384x_t	*hw,
-	UINT32		daddr,
+	u32		daddr,
 	void		*buf,
-	UINT32		len)
+	u32		len)
 {
 	int		result = 0;
-	UINT32		dlbufaddr;
+	u32		dlbufaddr;
 	int		nburns;
-	UINT32		burnlen;
-	UINT32		burndaddr;
-	UINT16		burnlo;
-	UINT16		burnhi;
+	u32		burnlen;
+	u32		burndaddr;
+	u16		burnlo;
+	u16		burnhi;
 	int		nwrites;
-	UINT8		*writebuf;
-	UINT16		writepage;
-	UINT16		writeoffset;
-	UINT32		writelen;
+	u8		*writebuf;
+	u16		writepage;
+	u16		writeoffset;
+	u32		writelen;
 	int		i;
 	int		j;
 
@@ -2686,7 +2461,7 @@ exit_proc:
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_getconfig(hfa384x_t *hw, UINT16 rid, void *buf, UINT16 len)
+int hfa384x_drvr_getconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len)
 {
 	int 			result;
 	DBFENTER;
@@ -2727,7 +2502,7 @@ int hfa384x_drvr_getconfig(hfa384x_t *hw, UINT16 rid, void *buf, UINT16 len)
 int
 hfa384x_drvr_getconfig_async(
          hfa384x_t               *hw,
-         UINT16                  rid,
+         u16                  rid,
          ctlx_usercb_t           usercb,
          void                    *usercb_data)
 {
@@ -2761,9 +2536,9 @@ hfa384x_drvr_getconfig_async(
 int
 hfa384x_drvr_setconfig_async(
          hfa384x_t       *hw,
-         UINT16          rid,
+         u16          rid,
          void            *buf,
-         UINT16          len,
+         u16          len,
          ctlx_usercb_t   usercb,
          void            *usercb_data)
 {
@@ -2790,7 +2565,7 @@ hfa384x_drvr_setconfig_async(
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_handover( hfa384x_t *hw, UINT8 *addr)
+int hfa384x_drvr_handover( hfa384x_t *hw, u8 *addr)
 {
         DBFENTER;
 	WLAN_LOG_ERROR("Not currently supported in USB!\n");
@@ -2822,88 +2597,6 @@ int hfa384x_drvr_low_level(hfa384x_t *hw, hfa384x_metacmd_t *cmd)
 	DBFEXIT;
 	return result;
 }
-
-/*----------------------------------------------------------------
-* hfa384x_drvr_mmi_read
-*
-* Read mmi registers.  mmi is intersil-speak for the baseband
-* processor registers.
-*
-* Arguments:
-*       hw              device structure
-*       register        The test register to be accessed (must be even #).
-*
-* Returns:
-*       0               success
-*       >0              f/w reported error - f/w status code
-*       <0              driver reported error
-*
-* Side effects:
-*
-* Call context:
-*       process
-----------------------------------------------------------------*/
-int hfa384x_drvr_mmi_read(hfa384x_t *hw, UINT32 addr, UINT32 *resp)
-{
-#if 0
-        int             result = 0;
-        UINT16  cmd_code = (UINT16) 0x30;
-        UINT16 param = (UINT16) addr;
-        DBFENTER;
-
-        /* Do i need a host2hfa... conversion ? */
-        result = hfa384x_docmd_wait(hw, cmd_code);
-
-        DBFEXIT;
-        return result;
-#endif
-return 0;
-}
-
-/*----------------------------------------------------------------
-* hfa384x_drvr_mmi_write
-*
-* Read mmi registers.  mmi is intersil-speak for the baseband
-* processor registers.
-*
-* Arguments:
-*       hw              device structure
-*       addr            The test register to be accessed (must be even #).
-*       data            The data value to write to the register.
-*
-* Returns:
-*       0               success
-*       >0              f/w reported error - f/w status code
-*       <0              driver reported error
-*
-* Side effects:
-*
-* Call context:
-*       process
-----------------------------------------------------------------*/
-
-int
-hfa384x_drvr_mmi_write(hfa384x_t *hw, UINT32 addr, UINT32 data)
-{
-#if 0
-        int             result = 0;
-        UINT16  cmd_code = (UINT16) 0x31;
-        UINT16 param0 = (UINT16) addr;
-        UINT16 param1 = (UINT16) data;
-        DBFENTER;
-
-        WLAN_LOG_DEBUG(1,"mmi write : addr = 0x%08lx\n", addr);
-        WLAN_LOG_DEBUG(1,"mmi write : data = 0x%08lx\n", data);
-
-        /* Do i need a host2hfa... conversion ? */
-        result = hfa384x_docmd_wait(hw, cmd_code);
-
-        DBFEXIT;
-        return result;
-#endif
-return 0;
-}
-
 
 /*----------------------------------------------------------------
 * hfa384x_drvr_ramdl_disable
@@ -2969,11 +2662,11 @@ hfa384x_drvr_ramdl_disable(hfa384x_t *hw)
 *	process
 ----------------------------------------------------------------*/
 int
-hfa384x_drvr_ramdl_enable(hfa384x_t *hw, UINT32 exeaddr)
+hfa384x_drvr_ramdl_enable(hfa384x_t *hw, u32 exeaddr)
 {
 	int		result = 0;
-	UINT16		lowaddr;
-	UINT16		hiaddr;
+	u16		lowaddr;
+	u16		hiaddr;
 	int		i;
 	DBFENTER;
 	/* Check that a port isn't active */
@@ -3044,16 +2737,16 @@ hfa384x_drvr_ramdl_enable(hfa384x_t *hw, UINT32 exeaddr)
 *	process
 ----------------------------------------------------------------*/
 int
-hfa384x_drvr_ramdl_write(hfa384x_t *hw, UINT32 daddr, void* buf, UINT32 len)
+hfa384x_drvr_ramdl_write(hfa384x_t *hw, u32 daddr, void* buf, u32 len)
 {
 	int		result = 0;
 	int		nwrites;
-	UINT8		*data = buf;
+	u8		*data = buf;
 	int		i;
-	UINT32		curraddr;
-	UINT16		currpage;
-	UINT16		curroffset;
-	UINT16		currlen;
+	u32		curraddr;
+	u16		currpage;
+	u16		curroffset;
+	u16		currlen;
 	DBFENTER;
 	/* Check that we're in the ram download state */
 	if ( hw->dlstate != HFA384x_DLSTATE_RAMENABLED ) {
@@ -3125,21 +2818,21 @@ hfa384x_drvr_ramdl_write(hfa384x_t *hw, UINT32 daddr, void* buf, UINT32 len)
 * Call context:
 *	process or non-card interrupt.
 ----------------------------------------------------------------*/
-int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, UINT len)
+int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, unsigned int len)
 {
 	int		result = 0;
-	UINT16		*pda = buf;
+	u16		*pda = buf;
 	int		pdaok = 0;
 	int		morepdrs = 1;
 	int		currpdr = 0;	/* word offset of the current pdr */
 	size_t		i;
-	UINT16		pdrlen;		/* pdr length in bytes, host order */
-	UINT16		pdrcode;	/* pdr code, host order */
-	UINT16		currpage;
-	UINT16		curroffset;
+	u16		pdrlen;		/* pdr length in bytes, host order */
+	u16		pdrcode;	/* pdr code, host order */
+	u16		currpage;
+	u16		curroffset;
 	struct pdaloc {
-		UINT32	cardaddr;
-		UINT16	auxctl;
+		u32	cardaddr;
+		u16	auxctl;
 	} pdaloc[] =
 	{
 		{ HFA3842_PDA_BASE,		0},
@@ -3243,7 +2936,7 @@ int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, UINT len)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_setconfig(hfa384x_t *hw, UINT16 rid, void *buf, UINT16 len)
+int hfa384x_drvr_setconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len)
 {
 	return hfa384x_dowrid_wait(hw, rid, buf, len);
 }
@@ -3267,19 +2960,38 @@ int hfa384x_drvr_setconfig(hfa384x_t *hw, UINT16 rid, void *buf, UINT16 len)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
+
 int hfa384x_drvr_start(hfa384x_t *hw)
 {
-	int		result;
+	int		result, result1, result2;
+	u16		status;
 	DBFENTER;
 
 	might_sleep();
 
-	if (usb_clear_halt(hw->usb, hw->endp_in)) {
+	/* Clear endpoint stalls - but only do this if the endpoint
+	 * is showing a stall status. Some prism2 cards seem to behave
+	 * badly if a clear_halt is called when the endpoint is already
+	 * ok
+	 */
+	result = usb_get_status(hw->usb, USB_RECIP_ENDPOINT, hw->endp_in, &status);
+	if (result < 0) {
+		WLAN_LOG_ERROR(
+			"Cannot get bulk in endpoint status.\n");
+		goto done;
+	}
+	if ((status == 1) && usb_clear_halt(hw->usb, hw->endp_in)) {
 		WLAN_LOG_ERROR(
 			"Failed to reset bulk in endpoint.\n");
 	}
 
-	if (usb_clear_halt(hw->usb, hw->endp_out)) {
+	result = usb_get_status(hw->usb, USB_RECIP_ENDPOINT, hw->endp_out, &status);
+	if (result < 0) {
+		WLAN_LOG_ERROR(
+			"Cannot get bulk out endpoint status.\n");
+		goto done;
+	}
+	if ((status == 1) && usb_clear_halt(hw->usb, hw->endp_out)) {
 		WLAN_LOG_ERROR(
 			"Failed to reset bulk out endpoint.\n");
 	}
@@ -3296,14 +3008,37 @@ int hfa384x_drvr_start(hfa384x_t *hw)
 		goto done;
 	}
 
-	/* call initialize */
-	result = hfa384x_cmd_initialize(hw);
-	if (result != 0) {
-		usb_kill_urb(&hw->rx_urb);
-		WLAN_LOG_ERROR(
-			"cmd_initialize() failed, result=%d\n",
-			result);
-		goto done;
+	/* Call initialize twice, with a 1 second sleep in between.
+	 * This is a nasty work-around since many prism2 cards seem to
+	 * need time to settle after an init from cold. The second
+	 * call to initialize in theory is not necessary - but we call
+	 * it anyway as a double insurance policy:
+	 * 1) If the first init should fail, the second may well succeed
+	 *    and the card can still be used
+	 * 2) It helps ensures all is well with the card after the first
+	 *    init and settle time.
+	 */
+	result1 = hfa384x_cmd_initialize(hw);
+	msleep(1000);
+	result = result2 = hfa384x_cmd_initialize(hw);
+	if (result1 != 0) {
+		if (result2 != 0) {
+			WLAN_LOG_ERROR(
+				"cmd_initialize() failed on two attempts, results %d and %d\n",
+				result1, result2);
+			usb_kill_urb(&hw->rx_urb);
+			goto done;
+		} else {
+			WLAN_LOG_DEBUG(0, "First cmd_initialize() failed (result %d),\n",
+				result1);
+			WLAN_LOG_DEBUG(0, "but second attempt succeeded. All should be ok\n");
+		}
+	} else if (result2 != 0) {
+		WLAN_LOG_WARNING(
+			"First cmd_initialize() succeeded, but second attempt failed (result=%d)\n",
+			result2);
+		WLAN_LOG_WARNING("Most likely the card will be functional\n");
+			goto done;
 	}
 
 	hw->state = HFA384x_STATE_RUNNING;
@@ -3849,11 +3584,7 @@ hfa384x_usbctlxq_run(hfa384x_t	*hw)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-#ifdef URB_ONLY_CALLBACK
 static void hfa384x_usbin_callback(struct urb *urb)
-#else
-static void hfa384x_usbin_callback(struct urb *urb, struct pt_regs *regs)
-#endif
 {
 	wlandevice_t		*wlandev = urb->context;
 	hfa384x_t		*hw;
@@ -3861,7 +3592,7 @@ static void hfa384x_usbin_callback(struct urb *urb, struct pt_regs *regs)
 	struct sk_buff          *skb = NULL;
 	int			result;
 	int                     urb_status;
-	UINT16			type;
+	u16			type;
 
 	enum USBIN_ACTION {
 		HANDLE,
@@ -3873,7 +3604,7 @@ static void hfa384x_usbin_callback(struct urb *urb, struct pt_regs *regs)
 
 	if ( !wlandev ||
 	     !wlandev->netdev ||
-	     !netif_device_present(wlandev->netdev) )
+	     wlandev->hwremoved )
 		goto exit;
 
 	hw = wlandev->priv;
@@ -4088,7 +3819,7 @@ retry:
 		if (unlocked_usbctlx_cancel_async(hw, ctlx) == 0)
 			run_queue = 1;
 	} else {
-		const UINT16 intype = (usbin->type&~host2hfa384x_16(0x8000));
+		const u16 intype = (usbin->type&~host2hfa384x_16(0x8000));
 
 		/*
 		 * Check that our message is what we're expecting ...
@@ -4168,7 +3899,7 @@ unlock:
 ----------------------------------------------------------------*/
 static void hfa384x_usbin_txcompl(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 {
-	UINT16			status;
+	u16			status;
 	DBFENTER;
 
 	status = hfa384x2host_16(usbin->type); /* yeah I know it says type...*/
@@ -4208,8 +3939,8 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 	hfa384x_t               *hw = wlandev->priv;
 	int                     hdrlen;
 	p80211_rxmeta_t         *rxmeta;
-	UINT16                  data_len;
-	UINT16                  fc;
+	u16                  data_len;
+	u16                  fc;
 
 	DBFENTER;
 
@@ -4315,12 +4046,11 @@ done:
 static void hfa384x_int_rxmonitor( wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *rxfrm)
 {
 	hfa384x_rx_frame_t              *rxdesc = &(rxfrm->desc);
-	UINT				hdrlen = 0;
-	UINT				datalen = 0;
-	UINT				skblen = 0;
-	p80211msg_lnxind_wlansniffrm_t	*msg;
-	UINT8				*datap;
-	UINT16				fc;
+	unsigned int				hdrlen = 0;
+	unsigned int				datalen = 0;
+	unsigned int				skblen = 0;
+	u8				*datap;
+	u16				fc;
 	struct sk_buff			*skb;
 	hfa384x_t		        *hw = wlandev->priv;
 
@@ -4333,15 +4063,15 @@ static void hfa384x_int_rxmonitor( wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *r
 	datalen = hfa384x2host_16(rxdesc->data_len);
 
 	/* Allocate an ind message+framesize skb */
-	skblen = sizeof(p80211msg_lnxind_wlansniffrm_t) +
+	skblen = sizeof(p80211_caphdr_t) +
 		hdrlen + datalen + WLAN_CRC_LEN;
 
 	/* sanity check the length */
 	if ( skblen >
-		(sizeof(p80211msg_lnxind_wlansniffrm_t) +
-		WLAN_HDR_A4_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN) ) {
+	     (sizeof(p80211_caphdr_t) +
+	      WLAN_HDR_A4_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN) ) {
 		WLAN_LOG_DEBUG(1, "overlen frm: len=%zd\n",
-			skblen - sizeof(p80211msg_lnxind_wlansniffrm_t));
+			       skblen - sizeof(p80211_caphdr_t));
 	}
 
 	if ( (skb = dev_alloc_skb(skblen)) == NULL ) {
@@ -4351,66 +4081,7 @@ static void hfa384x_int_rxmonitor( wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *r
 
 	/* only prepend the prism header if in the right mode */
 	if ((wlandev->netdev->type == ARPHRD_IEEE80211_PRISM) &&
-	    (hw->sniffhdr == 0)) {
-		datap = skb_put(skb, sizeof(p80211msg_lnxind_wlansniffrm_t));
-		msg = (p80211msg_lnxind_wlansniffrm_t*) datap;
-
-		/* Initialize the message members */
-		msg->msgcode = DIDmsg_lnxind_wlansniffrm;
-		msg->msglen = sizeof(p80211msg_lnxind_wlansniffrm_t);
-		strcpy(msg->devname, wlandev->name);
-
-		msg->hosttime.did = DIDmsg_lnxind_wlansniffrm_hosttime;
-		msg->hosttime.status = 0;
-		msg->hosttime.len = 4;
-		msg->hosttime.data = jiffies;
-
-		msg->mactime.did = DIDmsg_lnxind_wlansniffrm_mactime;
-		msg->mactime.status = 0;
-		msg->mactime.len = 4;
-		msg->mactime.data = rxdesc->time;
-
-		msg->channel.did = DIDmsg_lnxind_wlansniffrm_channel;
-		msg->channel.status = 0;
-		msg->channel.len = 4;
-		msg->channel.data = hw->sniff_channel;
-
-		msg->rssi.did = DIDmsg_lnxind_wlansniffrm_rssi;
-		msg->rssi.status = P80211ENUM_msgitem_status_no_value;
-		msg->rssi.len = 4;
-		msg->rssi.data = 0;
-
-		msg->sq.did = DIDmsg_lnxind_wlansniffrm_sq;
-		msg->sq.status = P80211ENUM_msgitem_status_no_value;
-		msg->sq.len = 4;
-		msg->sq.data = 0;
-
-		msg->signal.did = DIDmsg_lnxind_wlansniffrm_signal;
-		msg->signal.status = 0;
-		msg->signal.len = 4;
-		msg->signal.data = rxdesc->signal;
-
-		msg->noise.did = DIDmsg_lnxind_wlansniffrm_noise;
-		msg->noise.status = 0;
-		msg->noise.len = 4;
-		msg->noise.data = rxdesc->silence;
-
-		msg->rate.did = DIDmsg_lnxind_wlansniffrm_rate;
-		msg->rate.status = 0;
-		msg->rate.len = 4;
-		msg->rate.data = rxdesc->rate / 5; /* set to 802.11 units */
-
-		msg->istx.did = DIDmsg_lnxind_wlansniffrm_istx;
-		msg->istx.status = 0;
-		msg->istx.len = 4;
-		msg->istx.data = P80211ENUM_truth_false;
-
-		msg->frmlen.did = DIDmsg_lnxind_wlansniffrm_frmlen;
-		msg->frmlen.status = 0;
-		msg->frmlen.len = 4;
-		msg->frmlen.data = hdrlen + datalen + WLAN_CRC_LEN;
-	} else if ((wlandev->netdev->type == ARPHRD_IEEE80211_PRISM) &&
-		   (hw->sniffhdr != 0)) {
+	    (hw->sniffhdr != 0)) {
 		p80211_caphdr_t		*caphdr;
 		/* The NEW header format! */
 		datap = skb_put(skb, sizeof(p80211_caphdr_t));
@@ -4508,11 +4179,7 @@ static void hfa384x_usbin_info(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-#ifdef URB_ONLY_CALLBACK
 static void hfa384x_usbout_callback(struct urb *urb)
-#else
-static void hfa384x_usbout_callback(struct urb *urb, struct pt_regs *regs)
-#endif
 {
 	wlandevice_t		*wlandev = urb->context;
 	hfa384x_usbout_t	*usbout = urb->transfer_buffer;
@@ -4589,11 +4256,7 @@ static void hfa384x_usbout_callback(struct urb *urb, struct pt_regs *regs)
 * Call context:
 * interrupt
 ----------------------------------------------------------------*/
-#ifdef URB_ONLY_CALLBACK
 static void hfa384x_ctlxout_callback(struct urb *urb)
-#else
-static void hfa384x_ctlxout_callback(struct urb *urb, struct pt_regs *regs)
-#endif
 {
 	hfa384x_t	*hw = urb->context;
 	int             delete_resptimer = 0;
@@ -4969,7 +4632,7 @@ static void hfa384x_usbout_tx(wlandevice_t *wlandev, hfa384x_usbout_t *usbout)
 * Call context:
 ----------------------------------------------------------------*/
 static int
-hfa384x_isgood_pdrcode(UINT16 pdrcode)
+hfa384x_isgood_pdrcode(u16 pdrcode)
 {
 	switch(pdrcode) {
 	case HFA384x_PDR_END_OF_PDA:

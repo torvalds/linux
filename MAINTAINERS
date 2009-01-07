@@ -616,7 +616,7 @@ M:	mkpetch@internode.on.net
 S:	Maintained
 
 ARM/TOSA MACHINE SUPPORT
-P:	Dmitry Baryshkov
+P:	Dmitry Eremin-Solenikov
 M:	dbaryshkov@gmail.com
 P:	Dirk Opfer
 M:	dirk@opfer-online.de
@@ -1092,11 +1092,8 @@ S:	Maintained
 
 CHECKPATCH
 P:	Andy Whitcroft
-M:	apw@shadowen.org
-P:	Randy Dunlap
-M:	rdunlap@xenotime.net
-P:	Joel Schopp
-M:	jschopp@austin.ibm.com
+M:	apw@canonical.com
+L:	linux-kernel@vger.kernel.org
 S:	Supported
 
 CISCO 10G ETHERNET DRIVER

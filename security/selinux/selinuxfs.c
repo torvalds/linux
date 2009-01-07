@@ -47,13 +47,7 @@ static char *policycap_names[] = {
 
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
 
-#ifdef CONFIG_SECURITY_SELINUX_ENABLE_SECMARK_DEFAULT
-#define SELINUX_COMPAT_NET_VALUE 0
-#else
-#define SELINUX_COMPAT_NET_VALUE 1
-#endif
-
-int selinux_compat_net = SELINUX_COMPAT_NET_VALUE;
+int selinux_compat_net = 0;
 
 static int __init checkreqprot_setup(char *str)
 {
@@ -494,7 +488,13 @@ static ssize_t sel_write_compat_net(struct file *file, const char __user *buf,
 	if (sscanf(page, "%d", &new_value) != 1)
 		goto out;
 
-	selinux_compat_net = new_value ? 1 : 0;
+	if (new_value) {
+		printk(KERN_NOTICE
+		       "SELinux: compat_net is deprecated, please use secmark"
+		       " instead\n");
+		selinux_compat_net = 1;
+	} else
+		selinux_compat_net = 0;
 	length = count;
 out:
 	free_page((unsigned long) page);

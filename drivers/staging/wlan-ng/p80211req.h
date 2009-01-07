@@ -63,6 +63,6 @@
 /*================================================================*/
 /* Function Declarations */
 
-int	p80211req_dorequest(wlandevice_t *wlandev, UINT8 *msgbuf);
+int	p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf);
 
 #endif

@@ -721,7 +721,20 @@ config CONFIGFS_FS
 
 endmenu
 
-menu "Miscellaneous filesystems"
+menuconfig MISC_FILESYSTEMS
+	bool "Miscellaneous filesystems"
+	default y
+	---help---
+	  Say Y here to get to see options for various miscellaneous
+	  filesystems, such as filesystems that came from other
+	  operating systems.
+
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and
+	  disabled; if unsure, say Y here.
+
+if MISC_FILESYSTEMS
 
 config ADFS_FS
 	tristate "ADFS file system support (EXPERIMENTAL)"
@@ -1091,7 +1104,7 @@ config UFS_DEBUG
 	  Y here.  This will result in _many_ additional debugging messages to be
 	  written to the system log.
 
-endmenu
+endif # MISC_FILESYSTEMS
 
 menuconfig NETWORK_FILESYSTEMS
 	bool "Network File Systems"

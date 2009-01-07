@@ -101,7 +101,7 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
 }
 
 /* __alloc_bootmem...() is protected by !slab_available() */
-int __init_refok init_section_page_cgroup(unsigned long pfn)
+static int __init_refok init_section_page_cgroup(unsigned long pfn)
 {
 	struct mem_section *section;
 	struct page_cgroup *base, *pc;

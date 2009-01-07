@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/err.h>
 
-#include <asm/s390_rdev.h>
 #include <asm/ccwdev.h>
 #include <asm/ccwgroup.h>
 
@@ -120,12 +119,12 @@ cu3088_init (void)
 {
 	int rc;
 
-	cu3088_root_dev = s390_root_dev_register("cu3088");
+	cu3088_root_dev = root_device_register("cu3088");
 	if (IS_ERR(cu3088_root_dev))
 		return PTR_ERR(cu3088_root_dev);
 	rc = ccw_driver_register(&cu3088_driver);
 	if (rc)
-		s390_root_dev_unregister(cu3088_root_dev);
+		root_device_unregister(cu3088_root_dev);
 
 	return rc;
 }
@@ -134,7 +133,7 @@ static void __exit
 cu3088_exit (void)
 {
 	ccw_driver_unregister(&cu3088_driver);
-	s390_root_dev_unregister(cu3088_root_dev);
+	root_device_unregister(cu3088_root_dev);
 }
 
 MODULE_DEVICE_TABLE(ccw,cu3088_ids);

@@ -243,7 +243,7 @@ EXPORT_SYMBOL_GPL(ide_retry_pc);
 
 int ide_cd_expiry(ide_drive_t *drive)
 {
-	struct request *rq = HWGROUP(drive)->rq;
+	struct request *rq = drive->hwif->rq;
 	unsigned long wait = 0;
 
 	debug_log("%s: rq->cmd[0]: 0x%x\n", __func__, rq->cmd[0]);
@@ -294,7 +294,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 {
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	xfer_func_t *xferfunc;
 	unsigned int timeout, temp;
@@ -491,7 +491,7 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 {
 	struct ide_atapi_pc *uninitialized_var(pc);
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	ide_expiry_t *expiry;
 	unsigned int timeout;
 	int cmd_len;
@@ -549,7 +549,10 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 	}
 
 	/* Set the interrupt routine */
-	ide_set_handler(drive, ide_pc_intr, timeout, expiry);
+	ide_set_handler(drive,
+			(dev_is_idecd(drive) ? drive->irq_handler
+					     : ide_pc_intr),
+			timeout, expiry);
 
 	/* Begin DMA, if necessary */
 	if (dev_is_idecd(drive)) {
@@ -580,7 +583,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive)
 
 	if (dev_is_idecd(drive)) {
 		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
-		bcount = ide_cd_get_xferlen(hwif->hwgroup->rq);
+		bcount = ide_cd_get_xferlen(hwif->rq);
 		expiry = ide_cd_expiry;
 		timeout = ATAPI_WAIT_PC;
 

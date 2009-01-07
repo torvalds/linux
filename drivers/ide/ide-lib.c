@@ -273,7 +273,7 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 
 static void ide_dump_opcode(ide_drive_t *drive)
 {
-	struct request *rq = drive->hwif->hwgroup->rq;
+	struct request *rq = drive->hwif->rq;
 	ide_task_t *task = NULL;
 
 	if (!rq)
@@ -346,10 +346,13 @@ static void ide_dump_ata_error(ide_drive_t *drive, u8 err)
 	printk(KERN_CONT "}");
 	if ((err & (ATA_BBK | ATA_ABORTED)) == ATA_BBK ||
 	    (err & (ATA_UNC | ATA_IDNF | ATA_AMNF))) {
+		struct request *rq = drive->hwif->rq;
+
 		ide_dump_sector(drive);
-		if (HWGROUP(drive) && HWGROUP(drive)->rq)
+
+		if (rq)
 			printk(KERN_CONT ", sector=%llu",
-			       (unsigned long long)HWGROUP(drive)->rq->sector);
+			       (unsigned long long)rq->sector);
 	}
 	printk(KERN_CONT "\n");
 }

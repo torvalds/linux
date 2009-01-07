@@ -2030,7 +2030,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 		if (!tries)
 			printk(KERN_ERR "%s%s%s%d: Unable to drain "
 					"transmitter\n",
-			       port->dev ? port->dev->bus_id : "",
+			       port->dev ? dev_name(port->dev) : "",
 			       port->dev ? ": " : "",
 			       drv->dev_name,
 			       drv->tty_driver->name_base + port->line);
@@ -2156,7 +2156,7 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 	}
 
 	printk(KERN_INFO "%s%s%s%d at %s (irq = %d) is a %s\n",
-	       port->dev ? port->dev->bus_id : "",
+	       port->dev ? dev_name(port->dev) : "",
 	       port->dev ? ": " : "",
 	       drv->dev_name,
 	       drv->tty_driver->name_base + port->line,

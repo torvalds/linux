@@ -91,7 +91,7 @@ void clk_put(struct clk *clk)
 
 static struct amba_device fb_device = {
 	.dev		= {
-		.bus_id	= "fb",
+		.init_name = "fb",
 		.coherent_dma_mask = ~0,
 	},
 	.res		= {

@@ -31,8 +31,8 @@
 
 #define QD_CONFIG(hwif)		((hwif)->config_data & 0x00ff)
 
-#define QD_TIMING(drive)	(byte)(((drive)->drive_data) & 0x00ff)
-#define QD_TIMREG(drive)	(byte)((((drive)->drive_data) & 0xff00) >> 8)
+#define QD_TIMING(drive)	(u8)(((drive)->drive_data) & 0x00ff)
+#define QD_TIMREG(drive)	(u8)((((drive)->drive_data) & 0xff00) >> 8)
 
 #define QD6500_DEF_DATA		((QD_TIM1_PORT<<8) | (QD_ID3 ? 0x0c : 0x08))
 #define QD6580_DEF_DATA		((QD_TIM1_PORT<<8) | (QD_ID3 ? 0x0a : 0x00))
