@@ -596,11 +596,18 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 }
 EXPORT_SYMBOL(dma_memcpy);
 
+/**
+ *	safe_dma_memcpy - DMA memcpy w/argument checking
+ *
+ * Verify arguments are safe before heading to dma_memcpy().
+ */
 void *safe_dma_memcpy(void *dest, const void *src, size_t size)
 {
-	void *addr;
-	addr = dma_memcpy(dest, src, size);
-	return addr;
+	if (!access_ok(VERIFY_WRITE, dst, size))
+		return NULL;
+	if (!access_ok(VERIFY_READ, src, size))
+		return NULL;
+	return dma_memcpy(dst, src, size);
 }
 EXPORT_SYMBOL(safe_dma_memcpy);
 
