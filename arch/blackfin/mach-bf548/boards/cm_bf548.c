@@ -187,43 +187,106 @@ static struct platform_device bfin_uart_device = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-static struct resource bfin_sir_resources[] = {
 #ifdef CONFIG_BFIN_SIR0
+static struct resource bfin_sir0_resources[] = {
 	{
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART0_RX,
+		.end = IRQ_UART0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART0_RX,
+		.end = CH_UART0_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+static struct platform_device bfin_sir0_device = {
+	.name = "bfin_sir",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sir0_resources),
+	.resource = bfin_sir0_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR1
+static struct resource bfin_sir1_resources[] = {
 	{
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART1_RX,
+		.end = IRQ_UART1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART1_RX,
+		.end = CH_UART1_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+static struct platform_device bfin_sir1_device = {
+	.name = "bfin_sir",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_sir1_resources),
+	.resource = bfin_sir1_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR2
+static struct resource bfin_sir2_resources[] = {
 	{
 		.start = 0xFFC02100,
 		.end = 0xFFC021FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART2_RX,
+		.end = IRQ_UART2_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART2_RX,
+		.end = CH_UART2_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+static struct platform_device bfin_sir2_device = {
+	.name = "bfin_sir",
+	.id = 2,
+	.num_resources = ARRAY_SIZE(bfin_sir2_resources),
+	.resource = bfin_sir2_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR3
+static struct resource bfin_sir3_resources[] = {
 	{
 		.start = 0xFFC03100,
 		.end = 0xFFC031FF,
 		.flags = IORESOURCE_MEM,
 	},
-#endif
+	{
+		.start = IRQ_UART3_RX,
+		.end = IRQ_UART3_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART3_RX,
+		.end = CH_UART3_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
 };
-
-static struct platform_device bfin_sir_device = {
+static struct platform_device bfin_sir3_device = {
 	.name = "bfin_sir",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(bfin_sir_resources),
-	.resource = bfin_sir_resources,
+	.id = 3,
+	.num_resources = ARRAY_SIZE(bfin_sir3_resources),
+	.resource = bfin_sir3_resources,
 };
+#endif
 #endif
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
@@ -696,7 +759,18 @@ static struct platform_device *cm_bf548_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-	&bfin_sir_device,
+#ifdef CONFIG_BFIN_SIR0
+	&bfin_sir0_device,
+#endif
+#ifdef CONFIG_BFIN_SIR1
+	&bfin_sir1_device,
+#endif
+#ifdef CONFIG_BFIN_SIR2
+	&bfin_sir2_device,
+#endif
+#ifdef CONFIG_BFIN_SIR3
+	&bfin_sir3_device,
+#endif
 #endif
 
 #if defined(CONFIG_FB_BF54X_LQ043) || defined(CONFIG_FB_BF54X_LQ043_MODULE)
