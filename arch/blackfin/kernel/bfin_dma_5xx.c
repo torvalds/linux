@@ -304,7 +304,7 @@ static void __dma_memcpy(u32 daddr, s16 dmod, u32 saddr, s16 smod, size_t cnt, u
  *	_dma_memcpy - translate C memcpy settings into MDMA settings
  *
  * Handle all the high level steps before we touch the MDMA registers.  So
- * handle caching, tweaking of sizes, and formatting of addresses.
+ * handle direction, tweaking of sizes, and formatting of addresses.
  */
 static void *_dma_memcpy(void *pdst, const void *psrc, size_t size)
 {
@@ -315,12 +315,6 @@ static void *_dma_memcpy(void *pdst, const void *psrc, size_t size)
 
 	if (size == 0)
 		return NULL;
-
-	if (bfin_addr_dcachable(src))
-		blackfin_dcache_flush_range(src, src + size);
-
-	if (bfin_addr_dcachable(dst))
-		blackfin_dcache_invalidate_range(dst, dst + size);
 
 	if (dst % 4 == 0 && src % 4 == 0 && size % 4 == 0) {
 		conf = WDSIZE_32;
@@ -360,15 +354,24 @@ static void *_dma_memcpy(void *pdst, const void *psrc, size_t size)
  * up into two pieces.  The first transfer is in multiples of 64k and the
  * second transfer is the piece smaller than 64k.
  */
-void *dma_memcpy(void *dst, const void *src, size_t size)
+void *dma_memcpy(void *pdst, const void *psrc, size_t size)
 {
+	unsigned long dst = (unsigned long)pdst;
+	unsigned long src = (unsigned long)psrc;
 	size_t bulk, rest;
+
+	if (bfin_addr_dcachable(src))
+		blackfin_dcache_flush_range(src, src + size);
+
+	if (bfin_addr_dcachable(dst))
+		blackfin_dcache_invalidate_range(dst, dst + size);
+
 	bulk = size & ~0xffff;
 	rest = size - bulk;
 	if (bulk)
-		_dma_memcpy(dst, src, bulk);
-	_dma_memcpy(dst + bulk, src + bulk, rest);
-	return dst;
+		_dma_memcpy(pdst, psrc, bulk);
+	_dma_memcpy(pdst + bulk, psrc + bulk, rest);
+	return pdst;
 }
 EXPORT_SYMBOL(dma_memcpy);
 
