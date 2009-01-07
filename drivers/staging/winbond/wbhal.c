@@ -1,4 +1,4 @@
-#include "os_common.h"
+#include "sysdef.h"
 #include "wbhal_f.h"
 #include "wblinux_f.h"
 

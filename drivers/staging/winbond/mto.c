@@ -22,7 +22,7 @@
 //============================================================================
 
 // LA20040210_DTO kevin
-#include "os_common.h"
+#include "sysdef.h"
 #include "sme_api.h"
 #include "gl_80211.h"
 #include "wbhal_f.h"

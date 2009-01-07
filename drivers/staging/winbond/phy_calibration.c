@@ -10,7 +10,7 @@
  */
 
 /****************** INCLUDE FILES SECTION ***********************************/
-#include "os_common.h"
+#include "sysdef.h"
 #include "phy_calibration.h"
 #include "wbhal_f.h"
 
