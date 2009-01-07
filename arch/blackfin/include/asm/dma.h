@@ -109,7 +109,7 @@ struct dma_channel {
 	struct mutex dmalock;
 	const char *device_id;
 	enum dma_chan_status chan_status;
-	struct dma_register *regs;
+	volatile struct dma_register *regs;
 	struct dmasg *sg;		/* large mode descriptor */
 	unsigned int irq;
 	void *data;
