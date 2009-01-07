@@ -29,7 +29,9 @@
 
 #include <linux/errno.h>
 #include <linux/module.h>
+#include <linux/proc_fs.h>
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
@@ -67,25 +69,59 @@ static int __init blackfin_dma_init(void)
 		mutex_init(&(dma_ch[i].dmalock));
 	}
 	/* Mark MEMDMA Channel 0 as requested since we're using it internally */
-	dma_ch[CH_MEM_STREAM0_DEST].chan_status = DMA_CHANNEL_REQUESTED;
-	dma_ch[CH_MEM_STREAM0_SRC].chan_status = DMA_CHANNEL_REQUESTED;
+	request_dma(CH_MEM_STREAM0_DEST, "Blackfin dma_memcpy");
+	request_dma(CH_MEM_STREAM0_SRC, "Blackfin dma_memcpy");
 
 #if defined(CONFIG_DEB_DMA_URGENT)
 	bfin_write_EBIU_DDRQUE(bfin_read_EBIU_DDRQUE()
 			 | DEB1_URGENT | DEB2_URGENT | DEB3_URGENT);
 #endif
+
+	return 0;
+}
+arch_initcall(blackfin_dma_init);
+
+#ifdef CONFIG_PROC_FS
+
+static int proc_dma_show(struct seq_file *m, void *v)
+{
+	int i;
+
+	for (i = 0 ; i < MAX_BLACKFIN_DMA_CHANNEL; ++i)
+		if (dma_ch[i].chan_status != DMA_CHANNEL_FREE)
+			seq_printf(m, "%2d: %s\n", i, dma_ch[i].device_id);
+
 	return 0;
 }
 
-arch_initcall(blackfin_dma_init);
+static int proc_dma_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_dma_show, NULL);
+}
+
+static const struct file_operations proc_dma_operations = {
+	.open		= proc_dma_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init proc_dma_init(void)
+{
+	return proc_create("dma", 0, NULL, &proc_dma_operations) != NULL;
+}
+late_initcall(proc_dma_init);
+#endif
 
 /*------------------------------------------------------------------------------
  *	Request the specific DMA channel from the system.
  *-----------------------------------------------------------------------------*/
 int request_dma(unsigned int channel, char *device_id)
 {
-
 	pr_debug("request_dma() : BEGIN \n");
+
+	if (device_id == NULL)
+		printk(KERN_WARNING "request_dma(%u): no device_id given\n", channel);
 
 #if defined(CONFIG_BF561) && ANOMALY_05000182
 	if (channel >= CH_IMEM_STREAM0_DEST && channel <= CH_IMEM_STREAM1_DEST) {
