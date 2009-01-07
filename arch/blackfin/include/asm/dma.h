@@ -8,16 +8,10 @@
 #ifndef _BLACKFIN_DMA_H_
 #define _BLACKFIN_DMA_H_
 
-#include <asm/io.h>
-#include <linux/slab.h>
-#include <asm/irq.h>
-#include <asm/signal.h>
-
-#include <linux/kernel.h>
-#include <mach/dma.h>
-#include <linux/mm.h>
 #include <linux/interrupt.h>
+#include <mach/dma.h>
 #include <asm/blackfin.h>
+#include <asm/page.h>
 
 #define MAX_DMA_ADDRESS PAGE_OFFSET
 
@@ -110,6 +104,7 @@ struct dma_register {
 
 };
 
+struct mutex;
 struct dma_channel {
 	struct mutex dmalock;
 	const char *device_id;
