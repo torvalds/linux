@@ -1056,7 +1056,7 @@ static void garmin_write_bulk_callback(struct urb *urb)
 
 		if (status) {
 			dbg("%s - nonzero write bulk status received: %d",
-			    __func__, urb->status);
+			    __func__, status);
 			spin_lock_irqsave(&garmin_data_p->lock, flags);
 			garmin_data_p->flags |= CLEAR_HALT_REQUIRED;
 			spin_unlock_irqrestore(&garmin_data_p->lock, flags);

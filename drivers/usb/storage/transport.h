@@ -113,8 +113,6 @@ struct bulk_cs_wrap {
 
 #define US_CBI_ADSC		0
 
-extern int usb_stor_CBI_transport(struct scsi_cmnd *, struct us_data*);
-
 extern int usb_stor_CB_transport(struct scsi_cmnd *, struct us_data*);
 extern int usb_stor_CB_reset(struct us_data*);
 

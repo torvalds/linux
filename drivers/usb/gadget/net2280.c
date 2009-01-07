@@ -669,7 +669,7 @@ fill_dma_desc (struct net2280_ep *ep, struct net2280_request *req, int valid)
 
 	/* 2280 may be polling VALID_BIT through ep->dma->dmadesc */
 	wmb ();
-	td->dmacount = cpu_to_le32p (&dmacount);
+	td->dmacount = cpu_to_le32(dmacount);
 }
 
 static const u32 dmactl_default =

@@ -350,17 +350,16 @@ static int mts_scsi_abort(struct scsi_cmnd *srb)
 static int mts_scsi_host_reset(struct scsi_cmnd *srb)
 {
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
-	int result, rc;
+	int result;
 
 	MTS_DEBUG_GOT_HERE();
 	mts_debug_dump(desc);
 
-	rc = usb_lock_device_for_reset(desc->usb_dev, desc->usb_intf);
-	if (rc < 0)
-		return FAILED;
-	result = usb_reset_device(desc->usb_dev);
-	if (rc)
+	result = usb_lock_device_for_reset(desc->usb_dev, desc->usb_intf);
+	if (result == 0) {
+		result = usb_reset_device(desc->usb_dev);
 		usb_unlock_device(desc->usb_dev);
+	}
 	return result ? FAILED : SUCCESS;
 }
 
