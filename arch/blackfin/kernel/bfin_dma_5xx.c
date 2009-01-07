@@ -116,7 +116,7 @@ late_initcall(proc_dma_init);
 /*------------------------------------------------------------------------------
  *	Request the specific DMA channel from the system.
  *-----------------------------------------------------------------------------*/
-int request_dma(unsigned int channel, char *device_id)
+int request_dma(unsigned int channel, const char *device_id)
 {
 	pr_debug("request_dma() : BEGIN \n");
 

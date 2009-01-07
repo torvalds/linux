@@ -135,7 +135,7 @@ typedef irqreturn_t(*dma_interrupt_t) (int irq, void *dev_id);
 
 struct dma_channel {
 	struct mutex dmalock;
-	char *device_id;
+	const char *device_id;
 	enum dma_chan_status chan_status;
 	struct dma_register *regs;
 	struct dmasg *sg;		/* large mode descriptor */
@@ -191,7 +191,7 @@ void free_dma(unsigned int channel);
 int dma_channel_active(unsigned int channel); /* check if a channel is in use */
 void disable_dma(unsigned int channel);
 void enable_dma(unsigned int channel);
-int request_dma(unsigned int channel, char *device_id);
+int request_dma(unsigned int channel, const char *device_id);
 int set_dma_callback(unsigned int channel, dma_interrupt_t callback,
 		     void *data);
 void dma_disable_irq(unsigned int channel);
