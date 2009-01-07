@@ -130,6 +130,27 @@ static ssize_t queue_max_hw_sectors_show(struct request_queue *q, char *page)
 	return queue_var_show(max_hw_sectors_kb, (page));
 }
 
+static ssize_t queue_nonrot_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(!blk_queue_nonrot(q), page);
+}
+
+static ssize_t queue_nonrot_store(struct request_queue *q, const char *page,
+				  size_t count)
+{
+	unsigned long nm;
+	ssize_t ret = queue_var_store(&nm, page, count);
+
+	spin_lock_irq(q->queue_lock);
+	if (nm)
+		queue_flag_clear(QUEUE_FLAG_NONROT, q);
+	else
+		queue_flag_set(QUEUE_FLAG_NONROT, q);
+	spin_unlock_irq(q->queue_lock);
+
+	return ret;
+}
+
 static ssize_t queue_nomerges_show(struct request_queue *q, char *page)
 {
 	return queue_var_show(blk_queue_nomerges(q), page);
@@ -146,8 +167,8 @@ static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
 		queue_flag_set(QUEUE_FLAG_NOMERGES, q);
 	else
 		queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
-
 	spin_unlock_irq(q->queue_lock);
+
 	return ret;
 }
 
@@ -210,6 +231,12 @@ static struct queue_sysfs_entry queue_hw_sector_size_entry = {
 	.show = queue_hw_sector_size_show,
 };
 
+static struct queue_sysfs_entry queue_nonrot_entry = {
+	.attr = {.name = "rotational", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_nonrot_show,
+	.store = queue_nonrot_store,
+};
+
 static struct queue_sysfs_entry queue_nomerges_entry = {
 	.attr = {.name = "nomerges", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_nomerges_show,
@@ -229,6 +256,7 @@ static struct attribute *default_attrs[] = {
 	&queue_max_sectors_entry.attr,
 	&queue_iosched_entry.attr,
 	&queue_hw_sector_size_entry.attr,
+	&queue_nonrot_entry.attr,
 	&queue_nomerges_entry.attr,
 	&queue_rq_affinity_entry.attr,
 	NULL,
