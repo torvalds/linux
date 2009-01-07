@@ -961,7 +961,7 @@ static void dapm_free_widgets(struct snd_soc_codec *codec)
 }
 
 static int snd_soc_dapm_set_pin(struct snd_soc_codec *codec,
-	char *pin, int status)
+				const char *pin, int status)
 {
 	struct snd_soc_dapm_widget *w;
 
@@ -1643,7 +1643,7 @@ int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
  * NOTE: snd_soc_dapm_sync() needs to be called after this for DAPM to
  * do any widget power switching.
  */
-int snd_soc_dapm_enable_pin(struct snd_soc_codec *codec, char *pin)
+int snd_soc_dapm_enable_pin(struct snd_soc_codec *codec, const char *pin)
 {
 	return snd_soc_dapm_set_pin(codec, pin, 1);
 }
@@ -1658,7 +1658,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_enable_pin);
  * NOTE: snd_soc_dapm_sync() needs to be called after this for DAPM to
  * do any widget power switching.
  */
-int snd_soc_dapm_disable_pin(struct snd_soc_codec *codec, char *pin)
+int snd_soc_dapm_disable_pin(struct snd_soc_codec *codec, const char *pin)
 {
 	return snd_soc_dapm_set_pin(codec, pin, 0);
 }
@@ -1678,7 +1678,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_disable_pin);
  * NOTE: snd_soc_dapm_sync() needs to be called after this for DAPM to
  * do any widget power switching.
  */
-int snd_soc_dapm_nc_pin(struct snd_soc_codec *codec, char *pin)
+int snd_soc_dapm_nc_pin(struct snd_soc_codec *codec, const char *pin)
 {
 	return snd_soc_dapm_set_pin(codec, pin, 0);
 }
@@ -1693,7 +1693,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_nc_pin);
  *
  * Returns 1 for connected otherwise 0.
  */
-int snd_soc_dapm_get_pin_status(struct snd_soc_codec *codec, char *pin)
+int snd_soc_dapm_get_pin_status(struct snd_soc_codec *codec, const char *pin)
 {
 	struct snd_soc_dapm_widget *w;
 
