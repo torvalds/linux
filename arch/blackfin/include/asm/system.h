@@ -37,20 +37,16 @@
 #include <linux/linkage.h>
 #include <linux/compiler.h>
 #include <mach/anomaly.h>
+#include <asm/pda.h>
+#include <asm/processor.h>
+
+/* Forward decl needed due to cdef inter dependencies */
+static inline uint32_t __pure bfin_dspid(void);
+#define blackfin_core_id() (bfin_dspid() & 0xff)
 
 /*
  * Interrupt configuring macros.
  */
-
-extern unsigned long irq_flags;
-
-#define local_irq_enable() \
-	__asm__ __volatile__( \
-		"sti %0;" \
-		: \
-		: "d" (irq_flags) \
-	)
-
 #define local_irq_disable() \
 	do { \
 		int __tmp_dummy; \
@@ -66,6 +62,18 @@ extern unsigned long irq_flags;
 # define NOP_PAD_ANOMALY_05000244
 #endif
 
+#ifdef CONFIG_SMP
+# define irq_flags cpu_pda[blackfin_core_id()].imask
+#else
+extern unsigned long irq_flags;
+#endif
+
+#define local_irq_enable() \
+	__asm__ __volatile__( \
+		"sti %0;" \
+		: \
+		: "d" (irq_flags) \
+	)
 #define idle_with_irq_disabled() \
 	__asm__ __volatile__( \
 		NOP_PAD_ANOMALY_05000244 \
@@ -129,22 +137,85 @@ extern unsigned long irq_flags;
 #define rmb()  asm volatile (""   : : :"memory")
 #define wmb()  asm volatile (""   : : :"memory")
 #define set_mb(var, value) do { (void) xchg(&var, value); } while (0)
-
 #define read_barrier_depends() 		do { } while(0)
 
 #ifdef CONFIG_SMP
-#define smp_mb()	mb()
-#define smp_rmb()	rmb()
-#define smp_wmb()	wmb()
-#define smp_read_barrier_depends()	read_barrier_depends()
+asmlinkage unsigned long __raw_xchg_1_asm(volatile void *ptr, unsigned long value);
+asmlinkage unsigned long __raw_xchg_2_asm(volatile void *ptr, unsigned long value);
+asmlinkage unsigned long __raw_xchg_4_asm(volatile void *ptr, unsigned long value);
+asmlinkage unsigned long __raw_cmpxchg_1_asm(volatile void *ptr,
+					unsigned long new, unsigned long old);
+asmlinkage unsigned long __raw_cmpxchg_2_asm(volatile void *ptr,
+					unsigned long new, unsigned long old);
+asmlinkage unsigned long __raw_cmpxchg_4_asm(volatile void *ptr,
+					unsigned long new, unsigned long old);
+
+#ifdef __ARCH_SYNC_CORE_DCACHE
+# define smp_mb()	do { barrier(); smp_check_barrier(); smp_mark_barrier(); } while (0)
+# define smp_rmb()	do { barrier(); smp_check_barrier(); } while (0)
+# define smp_wmb()	do { barrier(); smp_mark_barrier(); } while (0)
 #else
+# define smp_mb()	barrier()
+# define smp_rmb()	barrier()
+# define smp_wmb()	barrier()
+#endif
+
+static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
+				   int size)
+{
+	unsigned long tmp;
+
+	switch (size) {
+	case 1:
+		tmp = __raw_xchg_1_asm(ptr, x);
+		break;
+	case 2:
+		tmp = __raw_xchg_2_asm(ptr, x);
+		break;
+	case 4:
+		tmp = __raw_xchg_4_asm(ptr, x);
+		break;
+	}
+
+	return tmp;
+}
+
+/*
+ * Atomic compare and exchange.  Compare OLD with MEM, if identical,
+ * store NEW in MEM.  Return the initial value in MEM.  Success is
+ * indicated by comparing RETURN with OLD.
+ */
+static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
+				      unsigned long new, int size)
+{
+	unsigned long tmp;
+
+	switch (size) {
+	case 1:
+		tmp = __raw_cmpxchg_1_asm(ptr, new, old);
+		break;
+	case 2:
+		tmp = __raw_cmpxchg_2_asm(ptr, new, old);
+		break;
+	case 4:
+		tmp = __raw_cmpxchg_4_asm(ptr, new, old);
+		break;
+	}
+
+	return tmp;
+}
+#define cmpxchg(ptr, o, n) \
+	((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o), \
+		(unsigned long)(n), sizeof(*(ptr))))
+
+#define smp_read_barrier_depends()	smp_check_barrier()
+
+#else /* !CONFIG_SMP */
+
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()
 #define smp_wmb()	barrier()
 #define smp_read_barrier_depends()	do { } while(0)
-#endif
-
-#define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
 struct __xchg_dummy {
 	unsigned long a[100];
@@ -194,9 +265,12 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
 			(unsigned long)(n), sizeof(*(ptr))))
 #define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
 
-#ifndef CONFIG_SMP
 #include <asm-generic/cmpxchg.h>
-#endif
+
+#endif /* !CONFIG_SMP */
+
+#define xchg(ptr, x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x), (ptr), sizeof(*(ptr))))
+#define tas(ptr) ((void)xchg((ptr), 1))
 
 #define prepare_to_switch()     do { } while(0)
 
@@ -218,4 +292,4 @@ do {    \
 	(last) = resume (prev, next);   \
 } while (0)
 
-#endif				/* _BLACKFIN_SYSTEM_H */
+#endif	/* _BLACKFIN_SYSTEM_H */

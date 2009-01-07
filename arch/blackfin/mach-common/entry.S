@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/unistd.h>
+#include <linux/threads.h>
 #include <asm/blackfin.h>
 #include <asm/errno.h>
 #include <asm/fixed_code.h>
@@ -75,11 +76,11 @@ ENTRY(_ex_workaround_261)
 	 * handle it.
 	 */
 	P4 = R7;	/* Store EXCAUSE */
-	p5.l = _last_cplb_fault_retx;
-	p5.h = _last_cplb_fault_retx;
-	r7 = [p5];
+
+	GET_PDA(p5, r7);
+	r7 = [p5 + PDA_LFRETX];
 	r6 = retx;
-	[p5] = r6;
+	[p5 + PDA_LFRETX] = r6;
 	cc = r6 == r7;
 	if !cc jump _bfin_return_from_exception;
 	/* fall through */
@@ -324,7 +325,9 @@ ENTRY(_ex_trap_c)
 	[p4] = p5;
 	csync;
 
+	GET_PDA(p5, r6);
 #ifndef CONFIG_DEBUG_DOUBLEFAULT
+
 	/*
 	 * Save these registers, as they are only valid in exception context
 	 *  (where we are now - as soon as we defer to IRQ5, they can change)
@@ -335,29 +338,25 @@ ENTRY(_ex_trap_c)
 	p4.l = lo(DCPLB_FAULT_ADDR);
 	p4.h = hi(DCPLB_FAULT_ADDR);
 	r7 = [p4];
-	p5.h = _saved_dcplb_fault_addr;
-	p5.l = _saved_dcplb_fault_addr;
-	[p5] = r7;
+	[p5 + PDA_DCPLB] = r7;
 
-	r7 = [p4 + (ICPLB_FAULT_ADDR - DCPLB_FAULT_ADDR)];
-	p5.h = _saved_icplb_fault_addr;
-	p5.l = _saved_icplb_fault_addr;
-	[p5] = r7;
+	p4.l = lo(ICPLB_FAULT_ADDR);
+	p4.h = hi(ICPLB_FAULT_ADDR);
+	r6 = [p4];
+	[p5 + PDA_ICPLB] = r6;
 
 	r6 = retx;
-	p4.l = _saved_retx;
-	p4.h = _saved_retx;
-	[p4] = r6;
+	[p5 + PDA_RETX] = r6;
 #endif
 	r6 = SYSCFG;
-	[p4 + 4] = r6;
+	[p5 + PDA_SYSCFG] = r6;
 	BITCLR(r6, 0);
 	SYSCFG = r6;
 
 	/* Disable all interrupts, but make sure level 5 is enabled so
 	 * we can switch to that level.  Save the old mask.  */
 	cli r6;
-	[p4 + 8] = r6;
+	[p5 + PDA_EXIMASK] = r6;
 
 	p4.l = lo(SAFE_USER_INSTRUCTION);
 	p4.h = hi(SAFE_USER_INSTRUCTION);
@@ -424,17 +423,16 @@ ENDPROC(_double_fault)
 ENTRY(_exception_to_level5)
 	SAVE_ALL_SYS
 
-	p4.l = _saved_retx;
-	p4.h = _saved_retx;
-	r6 = [p4];
+	GET_PDA(p4, r7);        /* Fetch current PDA */
+	r6 = [p4 + PDA_RETX];
 	[sp + PT_PC] = r6;
 
-	r6 = [p4 + 4];
+	r6 = [p4 + PDA_SYSCFG];
 	[sp + PT_SYSCFG] = r6;
 
 	/* Restore interrupt mask.  We haven't pushed RETI, so this
 	 * doesn't enable interrupts until we return from this handler.  */
-	r6 = [p4 + 8];
+	r6 = [p4 + PDA_EXIMASK];
 	sti r6;
 
 	/* Restore the hardware error vector.  */
@@ -478,8 +476,8 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	 * scratch register (for want of a better option).
 	 */
 	EX_SCRATCH_REG = sp;
-	sp.l = _exception_stack_top;
-	sp.h = _exception_stack_top;
+	GET_PDA_SAFE(sp);
+	sp = [sp + PDA_EXSTACK]
 	/* Try to deal with syscalls quickly.  */
 	[--sp] = ASTAT;
 	[--sp] = (R7:6,P5:4);
@@ -501,27 +499,22 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	 * but they are not very interesting, so don't save them
 	 */
 
+	GET_PDA(p5, r7);
 	p4.l = lo(DCPLB_FAULT_ADDR);
 	p4.h = hi(DCPLB_FAULT_ADDR);
 	r7 = [p4];
-	p5.h = _saved_dcplb_fault_addr;
-	p5.l = _saved_dcplb_fault_addr;
-	[p5] = r7;
+	[p5 + PDA_DCPLB] = r7;
 
-	r7 = [p4 + (ICPLB_FAULT_ADDR - DCPLB_FAULT_ADDR)];
-	p5.h = _saved_icplb_fault_addr;
-	p5.l = _saved_icplb_fault_addr;
-	[p5] = r7;
+	p4.l = lo(ICPLB_FAULT_ADDR);
+	p4.h = hi(ICPLB_FAULT_ADDR);
+	r7 = [p4];
+	[p5 + PDA_ICPLB] = r7;
 
-	p4.l = _saved_retx;
-	p4.h = _saved_retx;
 	r6 = retx;
-	[p4] = r6;
+	[p5 + PDA_RETX] = r6;
 
 	r7 = SEQSTAT;		/* reason code is in bit 5:0 */
-	p4.l = _saved_seqstat;
-	p4.h = _saved_seqstat;
-	[p4] = r7;
+	[p5 + PDA_SEQSTAT] = r7;
 #else
 	r7 = SEQSTAT;           /* reason code is in bit 5:0 */
 #endif
@@ -546,11 +539,11 @@ ENTRY(_kernel_execve)
 	p0 = sp;
 	r3 = SIZEOF_PTREGS / 4;
 	r4 = 0(x);
-0:
+.Lclear_regs:
 	[p0++] = r4;
 	r3 += -1;
 	cc = r3 == 0;
-	if !cc jump 0b (bp);
+	if !cc jump .Lclear_regs (bp);
 
 	p0 = sp;
 	sp += -16;
@@ -558,7 +551,7 @@ ENTRY(_kernel_execve)
 	call _do_execve;
 	SP += 16;
 	cc = r0 == 0;
-	if ! cc jump 1f;
+	if ! cc jump .Lexecve_failed;
 	/* Success.  Copy our temporary pt_regs to the top of the kernel
 	 * stack and do a normal exception return.
 	 */
@@ -574,12 +567,12 @@ ENTRY(_kernel_execve)
 	p0 = fp;
 	r4 = [p0--];
 	r3 = SIZEOF_PTREGS / 4;
-0:
+.Lcopy_regs:
 	r4 = [p0--];
 	[p1--] = r4;
 	r3 += -1;
 	cc = r3 == 0;
-	if ! cc jump 0b (bp);
+	if ! cc jump .Lcopy_regs (bp);
 
 	r0 = (KERNEL_STACK_SIZE - SIZEOF_PTREGS) (z);
 	p1 = r0;
@@ -591,7 +584,7 @@ ENTRY(_kernel_execve)
 
 	RESTORE_CONTEXT;
 	rti;
-1:
+.Lexecve_failed:
 	unlink;
 	rts;
 ENDPROC(_kernel_execve)
@@ -925,9 +918,14 @@ _schedule_and_signal_from_int:
 	p1 = rets;
 	[sp + PT_RESERVED] = p1;
 
+#ifdef CONFIG_SMP
+	GET_PDA(p0, r0); 	/* Fetch current PDA (can't migrate to other CPU here) */
+	r0 = [p0 + PDA_IRQFLAGS];
+#else
 	p0.l = _irq_flags;
 	p0.h = _irq_flags;
 	r0 = [p0];
+#endif
 	sti r0;
 
 	r0 = sp;
@@ -1539,12 +1537,6 @@ ENTRY(_sys_call_table)
 	.endr
 END(_sys_call_table)
 
-#if ANOMALY_05000261
-/* Used by the assembly entry point to work around an anomaly.  */
-_last_cplb_fault_retx:
-	.long 0;
-#endif
-
 #ifdef CONFIG_EXCEPTION_L1_SCRATCH
 /* .section .l1.bss.scratch */
 .set _exception_stack_top, L1_SCRATCH_START + L1_SCRATCH_LENGTH
@@ -1554,8 +1546,8 @@ _last_cplb_fault_retx:
 #else
 .bss
 #endif
-_exception_stack:
-	.rept 1024
+ENTRY(_exception_stack)
+	.rept 1024 * NR_CPUS
 	.long 0
 	.endr
 _exception_stack_top:

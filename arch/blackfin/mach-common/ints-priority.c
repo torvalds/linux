@@ -55,6 +55,7 @@
  * -
  */
 
+#ifndef CONFIG_SMP
 /* Initialize this to an actual value to force it into the .data
  * section so that we know it is properly initialized at entry into
  * the kernel but before bss is initialized to zero (which is where
@@ -63,6 +64,7 @@
  */
 unsigned long irq_flags = 0x1f;
 EXPORT_SYMBOL(irq_flags);
+#endif
 
 /* The number of spurious interrupts */
 atomic_t num_spurious;
@@ -163,6 +165,10 @@ static void bfin_internal_mask_irq(unsigned int irq)
 	mask_bit = SIC_SYSIRQ(irq) % 32;
 	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) &
 			     ~(1 << mask_bit));
+#ifdef CONFIG_SMP
+	bfin_write_SICB_IMASK(mask_bank, bfin_read_SICB_IMASK(mask_bank) &
+			     ~(1 << mask_bit));
+#endif
 #endif
 }
 
@@ -177,6 +183,10 @@ static void bfin_internal_unmask_irq(unsigned int irq)
 	mask_bit = SIC_SYSIRQ(irq) % 32;
 	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) |
 			     (1 << mask_bit));
+#ifdef CONFIG_SMP
+	bfin_write_SICB_IMASK(mask_bank, bfin_read_SICB_IMASK(mask_bank) |
+			     (1 << mask_bit));
+#endif
 #endif
 }
 
@@ -896,7 +906,7 @@ static struct irq_chip bfin_gpio_irqchip = {
 #endif
 };
 
-void __init init_exception_vectors(void)
+void __cpuinit init_exception_vectors(void)
 {
 	/* cannot program in software:
 	 * evt0 - emulation (jtag)
@@ -934,6 +944,10 @@ int __init init_arch_irq(void)
 	bfin_write_SIC_IMASK1(SIC_UNMASK_ALL);
 # ifdef CONFIG_BF54x
 	bfin_write_SIC_IMASK2(SIC_UNMASK_ALL);
+# endif
+# ifdef CONFIG_SMP
+	bfin_write_SICB_IMASK0(SIC_UNMASK_ALL);
+	bfin_write_SICB_IMASK1(SIC_UNMASK_ALL);
 # endif
 #else
 	bfin_write_SIC_IMASK(SIC_UNMASK_ALL);
@@ -995,6 +1009,17 @@ int __init init_arch_irq(void)
 
 			break;
 #endif
+#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+		case IRQ_TIMER0:
+			set_irq_handler(irq, handle_percpu_irq);
+			break;
+#endif
+#ifdef CONFIG_SMP
+		case IRQ_SUPPLE_0:
+		case IRQ_SUPPLE_1:
+			set_irq_handler(irq, handle_percpu_irq);
+			break;
+#endif
 		default:
 			set_irq_handler(irq, handle_simple_irq);
 			break;
@@ -1029,7 +1054,7 @@ int __init init_arch_irq(void)
 	search_IAR();
 
 	/* Enable interrupts IVG7-15 */
-	irq_flags = irq_flags | IMASK_IVG15 |
+	irq_flags |= IMASK_IVG15 |
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
@@ -1070,8 +1095,16 @@ void do_irq(int vec, struct pt_regs *fp)
 	|| defined(BF538_FAMILY) || defined(CONFIG_BF51x)
 		unsigned long sic_status[3];
 
-		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
-		sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
+		if (smp_processor_id()) {
+#ifdef CONFIG_SMP
+			/* This will be optimized out in UP mode. */
+			sic_status[0] = bfin_read_SICB_ISR0() & bfin_read_SICB_IMASK0();
+			sic_status[1] = bfin_read_SICB_ISR1() & bfin_read_SICB_IMASK1();
+#endif
+		} else {
+			sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
+			sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
+		}
 #ifdef CONFIG_BF54x
 		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
 #endif

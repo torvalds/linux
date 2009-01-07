@@ -303,9 +303,14 @@
 	RETI = [sp++];
 	RETS = [sp++];
 
+#ifdef CONFIG_SMP
+	GET_PDA(p0, r0);
+	r0 = [p0 + PDA_IRQFLAGS];
+#else
 	p0.h = _irq_flags;
 	p0.l = _irq_flags;
 	r0 = [p0];
+#endif
 	sti r0;
 
 	sp += 4;	/* Skip Reserved */
@@ -352,4 +357,3 @@
 	SYSCFG = [sp++];
 	csync;
 .endm
-

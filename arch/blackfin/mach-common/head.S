@@ -13,6 +13,7 @@
 #include <asm/blackfin.h>
 #include <asm/thread_info.h>
 #include <asm/trace.h>
+#include <asm/asm-offsets.h>
 
 __INIT
 
@@ -111,33 +112,26 @@ ENTRY(__start)
 	 * This happens here, since L1 gets clobbered
 	 * below
 	 */
-	p0.l = _saved_retx;
-	p0.h = _saved_retx;
+	GET_PDA(p0, r0);
+	r7 = [p0 + PDA_RETX];
 	p1.l = _init_saved_retx;
 	p1.h = _init_saved_retx;
-	r0 = [p0];
-	[p1] = r0;
+	[p1] = r7;
 
-	p0.l = _saved_dcplb_fault_addr;
-	p0.h = _saved_dcplb_fault_addr;
+	r7 = [p0 + PDA_DCPLB];
 	p1.l = _init_saved_dcplb_fault_addr;
 	p1.h = _init_saved_dcplb_fault_addr;
-	r0 = [p0];
-	[p1] = r0;
+	[p1] = r7;
 
-	p0.l = _saved_icplb_fault_addr;
-	p0.h = _saved_icplb_fault_addr;
+	r7 = [p0 + PDA_ICPLB];
 	p1.l = _init_saved_icplb_fault_addr;
 	p1.h = _init_saved_icplb_fault_addr;
-	r0 = [p0];
-	[p1] = r0;
+	[p1] = r7;
 
-	p0.l = _saved_seqstat;
-	p0.h = _saved_seqstat;
+	r7 = [p0 + PDA_SEQSTAT];
 	p1.l = _init_saved_seqstat;
 	p1.h = _init_saved_seqstat;
-	r0 = [p0];
-	[p1] = r0;
+	[p1] = r7;
 #endif
 
 	/* Initialize stack pointer */
@@ -255,6 +249,9 @@ ENTRY(_real_start)
 	sp = sp + p1;
 	usp = sp;
 	fp = sp;
+	sp += -12;
+	call _init_pda
+	sp += 12;
 	jump.l _start_kernel;
 ENDPROC(_real_start)
 
