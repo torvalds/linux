@@ -970,6 +970,32 @@ void pcim_pin_device(struct pci_dev *pdev)
  */
 void __attribute__ ((weak)) pcibios_disable_device (struct pci_dev *dev) {}
 
+static void do_pci_disable_device(struct pci_dev *dev)
+{
+	u16 pci_command;
+
+	pci_read_config_word(dev, PCI_COMMAND, &pci_command);
+	if (pci_command & PCI_COMMAND_MASTER) {
+		pci_command &= ~PCI_COMMAND_MASTER;
+		pci_write_config_word(dev, PCI_COMMAND, pci_command);
+	}
+
+	pcibios_disable_device(dev);
+}
+
+/**
+ * pci_disable_enabled_device - Disable device without updating enable_cnt
+ * @dev: PCI device to disable
+ *
+ * NOTE: This function is a backend of PCI power management routines and is
+ * not supposed to be called drivers.
+ */
+void pci_disable_enabled_device(struct pci_dev *dev)
+{
+	if (atomic_read(&dev->enable_cnt))
+		do_pci_disable_device(dev);
+}
+
 /**
  * pci_disable_device - Disable PCI device after use
  * @dev: PCI device to be disabled
@@ -984,7 +1010,6 @@ void
 pci_disable_device(struct pci_dev *dev)
 {
 	struct pci_devres *dr;
-	u16 pci_command;
 
 	dr = find_pci_dr(dev);
 	if (dr)
@@ -993,14 +1018,9 @@ pci_disable_device(struct pci_dev *dev)
 	if (atomic_sub_return(1, &dev->enable_cnt) != 0)
 		return;
 
-	pci_read_config_word(dev, PCI_COMMAND, &pci_command);
-	if (pci_command & PCI_COMMAND_MASTER) {
-		pci_command &= ~PCI_COMMAND_MASTER;
-		pci_write_config_word(dev, PCI_COMMAND, pci_command);
-	}
-	dev->is_busmaster = 0;
+	do_pci_disable_device(dev);
 
-	pcibios_disable_device(dev);
+	dev->is_busmaster = 0;
 }
 
 /**
