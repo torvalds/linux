@@ -314,14 +314,6 @@ static void pci_device_shutdown(struct device *dev)
 
 #ifdef CONFIG_PM_SLEEP
 
-static bool pci_has_legacy_pm_support(struct pci_dev *pci_dev)
-{
-	struct pci_driver *drv = pci_dev->driver;
-
-	return drv && (drv->suspend || drv->suspend_late || drv->resume
-		|| drv->resume_early);
-}
-
 /*
  * Default "suspend" method for devices that have no driver provided suspend,
  * or not even a driver at all (first part).
@@ -456,6 +448,14 @@ static void pci_pm_default_suspend(struct pci_dev *pci_dev)
 
 	if (!pci_is_bridge(pci_dev))
 		pci_prepare_to_sleep(pci_dev);
+}
+
+static bool pci_has_legacy_pm_support(struct pci_dev *pci_dev)
+{
+	struct pci_driver *drv = pci_dev->driver;
+
+	return drv && (drv->suspend || drv->suspend_late || drv->resume
+		|| drv->resume_early);
 }
 
 /* New power management framework */
