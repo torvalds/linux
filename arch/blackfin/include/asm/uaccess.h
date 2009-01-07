@@ -197,8 +197,8 @@ static inline int bad_user_access_length(void)
 #define copy_from_user_ret(to,from,n,retval) ({ if (copy_from_user(to,from,n))\
                                                    return retval; })
 
-static inline long copy_from_user(void *to,
-				  const void __user * from, unsigned long n)
+static inline unsigned long __must_check
+copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	if (access_ok(VERIFY_READ, from, n))
 		memcpy(to, from, n);
@@ -207,8 +207,8 @@ static inline long copy_from_user(void *to,
 	return 0;
 }
 
-static inline long copy_to_user(void *to,
-				const void __user * from, unsigned long n)
+static inline unsigned long __must_check
+copy_to_user(void *to, const void __user *from, unsigned long n)
 {
 	if (access_ok(VERIFY_WRITE, to, n))
 		memcpy(to, from, n);
@@ -221,8 +221,8 @@ static inline long copy_to_user(void *to,
  * Copy a null terminated string from userspace.
  */
 
-static inline long strncpy_from_user(char *dst,
-                                     const char *src, long count)
+static inline long __must_check
+strncpy_from_user(char *dst, const char *src, long count)
 {
 	char *tmp;
 	if (!access_ok(VERIFY_READ, src, 1))
@@ -248,7 +248,8 @@ static inline long strnlen_user(const char *src, long n)
  * Zero Userspace
  */
 
-static inline unsigned long __clear_user(void *to, unsigned long n)
+static inline unsigned long __must_check
+__clear_user(void *to, unsigned long n)
 {
 	memset(to, 0, n);
 	return 0;
