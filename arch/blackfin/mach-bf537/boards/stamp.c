@@ -73,7 +73,7 @@ static struct resource bfin_isp1760_resources[] = {
 	[1] = {
 		.start  = IRQ_PF7,
 		.end    = IRQ_PF7,
-		.flags  = IORESOURCE_IRQ,
+		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
 
