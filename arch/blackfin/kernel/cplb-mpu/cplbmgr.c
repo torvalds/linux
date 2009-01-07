@@ -25,8 +25,13 @@
 #include <asm/cplbinit.h>
 #include <asm/mmu_context.h>
 
-#define FAULT_RW	(1 << 16)
-#define FAULT_USERSUPV	(1 << 17)
+/*
+ * WARNING
+ *
+ * This file is compiled with certain -ffixed-reg options.  We have to
+ * make sure not to call any functions here that could clobber these
+ * registers.
+ */
 
 int page_mask_nelts;
 int page_mask_order;

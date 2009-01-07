@@ -20,8 +20,6 @@ static char const page_strtbl[][3] = { "1K", "4K", "1M", "4M" };
 #define page(flags)    (((flags) & 0x30000) >> 16)
 #define strpage(flags) page_strtbl[page(flags)]
 
-#ifdef CONFIG_MPU
-
 struct cplbinfo_data {
 	loff_t pos;
 	char cplb_type;
@@ -74,88 +72,6 @@ static void cplbinfo_seq_init(struct cplbinfo_data *cdata, unsigned int cpu)
 		cdata->switched = first_switched_dcplb;
 	}
 }
-
-#else
-
-struct cplbinfo_data {
-	loff_t pos;
-	char cplb_type;
-	u32 mem_control;
-	unsigned long *pdt_tables, *pdt_swapcount;
-	unsigned long cplb_addr, cplb_data;
-};
-
-extern int page_size_table[];
-
-static int cplb_find_entry(unsigned long addr_tbl, unsigned long data_tbl,
-                           unsigned long addr_find, unsigned long data_find)
-{
-	int i;
-
-	for (i = 0; i < 16; ++i) {
-		unsigned long cplb_addr = bfin_read32(addr_tbl + i * 4);
-		unsigned long cplb_data = bfin_read32(data_tbl + i * 4);
-		if (addr_find >= cplb_addr &&
-		    addr_find < cplb_addr + page_size_table[page(cplb_data)] &&
-		    cplb_data == data_find)
-			return i;
-	}
-
-	return -1;
-}
-
-static void cplbinfo_print_header(struct seq_file *m)
-{
-	seq_printf(m, "Address\t\tData\tSize\tValid\tLocked\tSwapin\tiCount\toCount\n");
-}
-
-static int cplbinfo_nomore(struct cplbinfo_data *cdata)
-{
-	return cdata->pdt_tables[cdata->pos * 2] == 0xffffffff;
-}
-
-static int cplbinfo_show(struct seq_file *m, void *p)
-{
-	struct cplbinfo_data *cdata;
-	unsigned long data, addr;
-	int entry;
-	loff_t pos;
-
-	cdata = p;
-	pos = cdata->pos * 2;
-	addr = cdata->pdt_tables[pos];
-	data = cdata->pdt_tables[pos + 1];
-	entry = cplb_find_entry(cdata->cplb_addr, cdata->cplb_data, addr, data);
-
-	seq_printf(m,
-		"0x%08lx\t0x%05lx\t%s\t%c\t%c\t%2d\t%ld\t%ld\n",
-		addr, data, strpage(data),
-		(data & CPLB_VALID) ? 'Y' : 'N',
-		(data & CPLB_LOCK) ? 'Y' : 'N', entry,
-		cdata->pdt_swapcount[pos],
-		cdata->pdt_swapcount[pos + 1]);
-
-	return 0;
-}
-
-static void cplbinfo_seq_init(struct cplbinfo_data *cdata, unsigned int cpu)
-{
-	if (cdata->cplb_type == 'I') {
-		cdata->mem_control = bfin_read_IMEM_CONTROL();
-		cdata->pdt_tables = ipdt_tables[cpu];
-		cdata->pdt_swapcount = ipdt_swapcount_tables[cpu];
-		cdata->cplb_addr = ICPLB_ADDR0;
-		cdata->cplb_data = ICPLB_DATA0;
-	} else {
-		cdata->mem_control = bfin_read_DMEM_CONTROL();
-		cdata->pdt_tables = dpdt_tables[cpu];
-		cdata->pdt_swapcount = dpdt_swapcount_tables[cpu];
-		cdata->cplb_addr = DCPLB_ADDR0;
-		cdata->cplb_data = DCPLB_DATA0;
-	}
-}
-
-#endif
 
 static void *cplbinfo_start(struct seq_file *m, loff_t *pos)
 {

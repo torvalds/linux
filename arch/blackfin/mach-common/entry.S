@@ -112,24 +112,21 @@ ENTRY(_ex_dcplb_viol)
 ENTRY(_ex_dcplb_miss)
 ENTRY(_ex_icplb_miss)
 	(R7:6,P5:4) = [sp++];
-	ASTAT = [sp++];
-	SAVE_ALL_SYS
-#ifdef CONFIG_MPU
+	/* We leave the previously pushed ASTAT on the stack.  */
+	SAVE_CONTEXT_CPLB
+
 	/* We must load R1 here, _before_ DEBUG_HWTRACE_SAVE, since that
 	 * will change the stack pointer.  */
 	R0 = SEQSTAT;
 	R1 = SP;
-#endif
+
 	DEBUG_HWTRACE_SAVE(p5, r7)
-#ifdef CONFIG_MPU
+
 	sp += -12;
 	call _cplb_hdr;
 	sp += 12;
 	CC = R0 == 0;
 	IF !CC JUMP _handle_bad_cplb;
-#else
-	call __cplb_hdr;
-#endif
 
 #ifdef CONFIG_DEBUG_DOUBLEFAULT
 	/* While we were processing this, did we double fault? */
@@ -143,7 +140,8 @@ ENTRY(_ex_icplb_miss)
 #endif
 
 	DEBUG_HWTRACE_RESTORE(p5, r7)
-	RESTORE_ALL_SYS
+	RESTORE_CONTEXT_CPLB
+	ASTAT = [SP++];
 	SP = EX_SCRATCH_REG;
 	rtx;
 ENDPROC(_ex_icplb_miss)
@@ -298,9 +296,8 @@ ENTRY(_handle_bad_cplb)
 	 * the stack to get ready so, we can fall through - we
 	 * need to make a CPLB exception look like a normal exception
 	 */
-
-	RESTORE_ALL_SYS
-	[--sp] = ASTAT;
+	RESTORE_CONTEXT_CPLB
+	/* ASTAT is still on the stack, where it is needed.  */
 	[--sp] = (R7:6,P5:4);
 
 ENTRY(_ex_replaceable)

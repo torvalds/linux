@@ -119,16 +119,6 @@ asmlinkage void init_pda(void)
 
 	cpu_pda[cpu].ex_stack = exception_stack[cpu + 1];
 
-#ifdef CONFIG_MPU
-#else
-	cpu_pda[cpu].ipdt = ipdt_tables[cpu];
-	cpu_pda[cpu].dpdt = dpdt_tables[cpu];
-#ifdef CONFIG_CPLB_INFO
-	cpu_pda[cpu].ipdt_swapcount = ipdt_swapcount_tables[cpu];
-	cpu_pda[cpu].dpdt_swapcount = dpdt_swapcount_tables[cpu];
-#endif
-#endif
-
 #ifdef CONFIG_SMP
 	cpu_pda[cpu].imask = 0x1f;
 #endif

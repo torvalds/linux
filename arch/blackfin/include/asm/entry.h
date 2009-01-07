@@ -53,9 +53,11 @@
 /* This one pushes RETI without using CLI.  Interrupts are enabled.  */
 #define SAVE_CONTEXT_SYSCALL	save_context_syscall
 #define SAVE_CONTEXT		save_context_with_interrupts
+#define SAVE_CONTEXT_CPLB	save_context_cplb
 
 #define RESTORE_ALL_SYS		restore_context_no_interrupts
 #define RESTORE_CONTEXT		restore_context_with_interrupts
+#define RESTORE_CONTEXT_CPLB	restore_context_cplb
 
 #endif				/* __ASSEMBLY__ */
 #endif				/* __BFIN_ENTRY_H */

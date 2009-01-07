@@ -107,3 +107,7 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 	while (i_i < MAX_CPLBS)
 		icplb_tbl[cpu][i_i++].data = 0;
 }
+
+void generate_cplb_tables_all(void)
+{
+}

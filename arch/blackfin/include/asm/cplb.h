@@ -116,4 +116,8 @@
 #define CPLB_INOCACHE   	CPLB_USER_RD | CPLB_VALID
 #define CPLB_IDOCACHE   	CPLB_INOCACHE | CPLB_L1_CHBL
 
+#define FAULT_RW        (1 << 16)
+#define FAULT_USERSUPV  (1 << 17)
+#define FAULT_CPLBBITS  0x0000ffff
+
 #endif				/* _CPLB_H */

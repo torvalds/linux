@@ -88,6 +88,7 @@ void __init generate_cplb_tables(void)
 {
 	unsigned int cpu;
 
+	generate_cplb_tables_all();
 	/* Generate per-CPU I&D CPLB tables */
 	for (cpu = 0; cpu < num_possible_cpus(); ++cpu)
 		generate_cplb_tables_cpu(cpu);
@@ -97,19 +98,11 @@ void __init generate_cplb_tables(void)
 void __cpuinit bfin_setup_caches(unsigned int cpu)
 {
 #ifdef CONFIG_BFIN_ICACHE
-#ifdef CONFIG_MPU
 	bfin_icache_init(icplb_tbl[cpu]);
-#else
-	bfin_icache_init(icplb_tables[cpu]);
-#endif
 #endif
 
 #ifdef CONFIG_BFIN_DCACHE
-#ifdef CONFIG_MPU
 	bfin_dcache_init(dcplb_tbl[cpu]);
-#else
-	bfin_dcache_init(dcplb_tables[cpu]);
-#endif
 #endif
 
 	/*

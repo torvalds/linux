@@ -357,3 +357,42 @@
 	SYSCFG = [sp++];
 	csync;
 .endm
+
+.macro save_context_cplb
+	[--sp] = (R7:0, P5:0);
+	[--sp] = fp;
+
+	[--sp] = a0.x;
+	[--sp] = a0.w;
+	[--sp] = a1.x;
+	[--sp] = a1.w;
+
+	[--sp] = LC0;
+	[--sp] = LC1;
+	[--sp] = LT0;
+	[--sp] = LT1;
+	[--sp] = LB0;
+	[--sp] = LB1;
+
+	[--sp] = RETS;
+.endm
+
+.macro restore_context_cplb
+	RETS = [sp++];
+
+	LB1 = [sp++];
+	LB0 = [sp++];
+	LT1 = [sp++];
+	LT0 = [sp++];
+	LC1 = [sp++];
+	LC0 = [sp++];
+
+	a1.w = [sp++];
+	a1.x = [sp++];
+	a0.w = [sp++];
+	a0.x = [sp++];
+
+	fp = [sp++];
+
+	(R7:0, P5:0) = [SP++];
+.endm

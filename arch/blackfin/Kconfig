@@ -524,14 +524,6 @@ config MEM_SDGCTL
 	default 0x0
 endmenu
 
-config MAX_MEM_SIZE
-	int "Max SDRAM Memory Size in MBytes"
-	depends on !MPU
-	default 512
-	help
-	  This is the max memory size that the kernel will create CPLB
-	  tables for.  Your system will not be able to handle any more.
-
 #
 # Max & Min Speeds for various Chips
 #
