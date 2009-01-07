@@ -102,6 +102,7 @@ config LZO_DECOMPRESS
 # ZLIB_INFLATE; DECOMPRESS_GZIP is just a wrapper.)
 #
 config DECOMPRESS_GZIP
+	select ZLIB_INFLATE
 	tristate
 
 config DECOMPRESS_BZIP2
