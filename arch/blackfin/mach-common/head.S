@@ -147,7 +147,7 @@ ENTRY(__start)
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bfin_relocate_l1_mem;
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
-	call _start_dma_code;
+	call _init_clocks;
 #endif
 
 	/* This section keeps the processor in supervisor mode

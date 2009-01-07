@@ -91,7 +91,7 @@ KBUILD_AFLAGS += -mcpu=$(cpu-y)-$(rev-y)
 CHECKFLAGS_SILICON = $(shell echo "" | $(CPP) $(KBUILD_CFLAGS) -dD - 2>/dev/null | awk '$$2 == "__SILICON_REVISION__" { print $$3 }')
 CHECKFLAGS += -D__SILICON_REVISION__=$(CHECKFLAGS_SILICON) -Dl1_text=__used__
 
-head-y   := arch/$(ARCH)/mach-$(MACHINE)/head.o arch/$(ARCH)/kernel/init_task.o
+head-y   := arch/$(ARCH)/kernel/init_task.o
 
 core-y   += arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/ arch/$(ARCH)/mach-common/
 

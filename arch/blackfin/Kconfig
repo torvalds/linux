@@ -473,6 +473,61 @@ config MEM_MT46V32M16_5B
 	bool "MT46V32M16_5B"
 endchoice
 
+choice
+	prompt "DDR/SDRAM Timing"
+	depends on BFIN_KERNEL_CLOCK
+	default BFIN_KERNEL_CLOCK_MEMINIT_CALC
+	help
+	  This option allows you to specify Blackfin SDRAM/DDR Timing parameters
+	  The calculated SDRAM timing parameters may not be 100%
+	  accurate - This option is therefore marked experimental.
+
+config BFIN_KERNEL_CLOCK_MEMINIT_CALC
+	bool "Calculate Timings (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+
+config BFIN_KERNEL_CLOCK_MEMINIT_SPEC
+	bool "Provide accurate Timings based on target SCLK"
+	help
+	  Please consult the Blackfin Hardware Reference Manuals as well
+	  as the memory device datasheet.
+	  http://docs.blackfin.uclinux.org/doku.php?id=bfin:sdram
+endchoice
+
+menu "Memory Init Control"
+	depends on BFIN_KERNEL_CLOCK_MEMINIT_SPEC
+
+config MEM_DDRCTL0
+	depends on BF54x
+	hex "DDRCTL0"
+	default 0x0
+
+config MEM_DDRCTL1
+	depends on BF54x
+	hex "DDRCTL1"
+	default 0x0
+
+config MEM_DDRCTL2
+	depends on BF54x
+	hex "DDRCTL2"
+	default 0x0
+
+config MEM_EBIU_DDRQUE
+	depends on BF54x
+	hex "DDRQUE"
+	default 0x0
+
+config MEM_SDRRC
+	depends on !BF54x
+	hex "SDRRC"
+	default 0x0
+
+config MEM_SDGCTL
+	depends on !BF54x
+	hex "SDGCTL"
+	default 0x0
+endmenu
+
 config MAX_MEM_SIZE
 	int "Max SDRAM Memory Size in MBytes"
 	depends on !MPU
@@ -1104,13 +1159,13 @@ config BFIN_CPU_FREQ
 
 config CPU_VOLTAGE
 	bool "CPU Voltage scaling"
-	depends on EXPERIMENTAL	
+	depends on EXPERIMENTAL
 	depends on CPU_FREQ
 	default n
 	help
 	  Say Y here if you want CPU voltage scaling according to the CPU frequency.
 	  This option violates the PLL BYPASS recommendation in the Blackfin Processor
-	  manuals. There is a theoretical risk that during VDDINT transitions 
+	  manuals. There is a theoretical risk that during VDDINT transitions
 	  the PLL may unlock.
 
 endmenu
