@@ -44,6 +44,7 @@
 #include <asm/reboot.h>
 #include <asm/portmux.h>
 #include <asm/dpmc.h>
+#include <asm/bfin_sdh.h>
 #include <linux/spi/ad7877.h>
 
 /*
@@ -522,6 +523,23 @@ static struct platform_device bfin_device_gpiokeys = {
 };
 #endif
 
+#if defined(CONFIG_SDH_BFIN) || defined(CONFIG_SDH_BFIN_MODULE)
+
+static struct bfin_sd_host bfin_sdh_data = {
+	.dma_chan = CH_RSI,
+	.irq_int0 = IRQ_RSI_INT0,
+	.pin_req = {P_RSI_DATA0, P_RSI_DATA1, P_RSI_DATA2, P_RSI_DATA3, P_RSI_CMD, P_RSI_CLK, 0},
+};
+
+static struct platform_device bf51x_sdh_device = {
+	.name = "bfin-sdh",
+	.id = 0,
+	.dev = {
+		.platform_data = &bfin_sdh_data,
+	},
+};
+#endif
+
 static struct resource bfin_gpios_resources = {
 	.start = 0,
 	.end   = MAX_BLACKFIN_GPIOS - 1,
@@ -598,6 +616,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 	&bfin_device_gpiokeys,
+#endif
+
+#if defined(CONFIG_SDH_BFIN) || defined(CONFIG_SDH_BFIN_MODULE)
+	&bf51x_sdh_device,
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)

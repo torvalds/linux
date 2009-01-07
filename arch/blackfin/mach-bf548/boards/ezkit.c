@@ -45,6 +45,7 @@
 #include <asm/nand.h>
 #include <asm/dpmc.h>
 #include <asm/portmux.h>
+#include <asm/bfin_sdh.h>
 #include <mach/bf54x_keys.h>
 #include <linux/input.h>
 #include <linux/spi/ad7877.h>
@@ -504,9 +505,19 @@ static struct platform_device bf5xx_nand_device = {
 #endif
 
 #if defined(CONFIG_SDH_BFIN) || defined(CONFIG_SDH_BFIN_MODULE)
+
+static struct bfin_sd_host bfin_sdh_data = {
+	.dma_chan = CH_SDH,
+	.irq_int0 = IRQ_SDH_MASK0,
+	.pin_req = {P_SD_D0, P_SD_D1, P_SD_D2, P_SD_D3, P_SD_CLK, P_SD_CMD, 0},
+};
+
 static struct platform_device bf54x_sdh_device = {
 	.name = "bfin-sdh",
 	.id = 0,
+	.dev = {
+		.platform_data = &bfin_sdh_data,
+	},
 };
 #endif
 
