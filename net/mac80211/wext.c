@@ -837,6 +837,9 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 	int ret = 0, timeout = 0;
 	bool ps;
 
+	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
+		return -EOPNOTSUPP;
+
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EINVAL;
 
@@ -862,32 +865,37 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 	if (wrq->flags & IW_POWER_TIMEOUT)
 		timeout = wrq->value / 1000;
 
-set:
+ set:
 	if (ps == local->powersave && timeout == conf->dynamic_ps_timeout)
 		return ret;
 
 	local->powersave = ps;
 	conf->dynamic_ps_timeout = timeout;
 
-	if (local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS) {
+	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
 		ret = ieee80211_hw_config(local,
 					  IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT);
-	} else if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
-		if (conf->dynamic_ps_timeout > 0)
-			mod_timer(&local->dynamic_ps_timer, jiffies +
-				  msecs_to_jiffies(conf->dynamic_ps_timeout));
-		else {
-			if (local->powersave) {
+
+	if (!(sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED))
+		return ret;
+
+	if (conf->dynamic_ps_timeout > 0 &&
+	    !(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)) {
+		mod_timer(&local->dynamic_ps_timer, jiffies +
+			  msecs_to_jiffies(conf->dynamic_ps_timeout));
+	} else {
+		if (local->powersave) {
+			if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
 				ieee80211_send_nullfunc(local, sdata, 1);
-				conf->flags |= IEEE80211_CONF_PS;
-				ret = ieee80211_hw_config(local,
-						IEEE80211_CONF_CHANGE_PS);
-			} else {
-				conf->flags &= ~IEEE80211_CONF_PS;
-				ret = ieee80211_hw_config(local,
-						IEEE80211_CONF_CHANGE_PS);
+			conf->flags |= IEEE80211_CONF_PS;
+			ret = ieee80211_hw_config(local,
+					IEEE80211_CONF_CHANGE_PS);
+		} else {
+			conf->flags &= ~IEEE80211_CONF_PS;
+			ret = ieee80211_hw_config(local,
+					IEEE80211_CONF_CHANGE_PS);
+			if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
 				ieee80211_send_nullfunc(local, sdata, 0);
-			}
 		}
 	}
 

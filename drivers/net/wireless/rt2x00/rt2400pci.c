@@ -1449,7 +1449,9 @@ static int rt2400pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 * Initialize all hw fields.
 	 */
 	rt2x00dev->hw->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-			       IEEE80211_HW_SIGNAL_DBM;
+			       IEEE80211_HW_SIGNAL_DBM |
+			       IEEE80211_HW_SUPPORTS_PS |
+			       IEEE80211_HW_PS_NULLFUNC_STACK;
 	rt2x00dev->hw->extra_tx_headroom = 0;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);

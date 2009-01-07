@@ -775,17 +775,17 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	bss_info_changed |= BSS_CHANGED_BASIC_RATES;
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
-	if (local->powersave &&
-			!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS)) {
-		if (local->hw.conf.dynamic_ps_timeout > 0)
+	if (local->powersave) {
+		if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS) &&
+		    local->hw.conf.dynamic_ps_timeout > 0) {
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 				  msecs_to_jiffies(
 					local->hw.conf.dynamic_ps_timeout));
-		else {
-			ieee80211_send_nullfunc(local, sdata, 1);
+		} else {
+			if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+				ieee80211_send_nullfunc(local, sdata, 1);
 			conf->flags |= IEEE80211_CONF_PS;
-			ieee80211_hw_config(local,
-					    IEEE80211_CONF_CHANGE_PS);
+			ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 		}
 	}
 
@@ -1779,16 +1779,14 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	ieee80211_sta_wmm_params(local, ifsta, elems.wmm_param,
 				 elems.wmm_param_len);
 
-	if (!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS)) {
+	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK &&
+	    local->hw.conf.flags & IEEE80211_CONF_PS) {
 		directed_tim = check_tim(&elems, ifsta->aid, &is_mc);
 
 		if (directed_tim || is_mc) {
-			if (local->hw.conf.flags && IEEE80211_CONF_PS) {
-				local->hw.conf.flags &= ~IEEE80211_CONF_PS;
-				ieee80211_hw_config(local,
-						IEEE80211_CONF_CHANGE_PS);
-				ieee80211_send_nullfunc(local, sdata, 0);
-			}
+			local->hw.conf.flags &= ~IEEE80211_CONF_PS;
+			ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+			ieee80211_send_nullfunc(local, sdata, 0);
 		}
 	}
 
@@ -2694,9 +2692,10 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
 
-	ieee80211_send_nullfunc(local, sdata, 1);
-	local->hw.conf.flags |= IEEE80211_CONF_PS;
+	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+		ieee80211_send_nullfunc(local, sdata, 1);
 
+	local->hw.conf.flags |= IEEE80211_CONF_PS;
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 }
 

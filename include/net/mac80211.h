@@ -850,10 +850,15 @@ enum ieee80211_tkip_key_type {
  * @IEEE80211_HW_AMPDU_AGGREGATION:
  *	Hardware supports 11n A-MPDU aggregation.
  *
- * @IEEE80211_HW_NO_STACK_DYNAMIC_PS:
- *	Hardware which has dynamic power save support, meaning
- *	that power save is enabled in idle periods, and don't need support
- *	from stack.
+ * @IEEE80211_HW_SUPPORTS_PS:
+ *	Hardware has power save support (i.e. can go to sleep).
+ *
+ * @IEEE80211_HW_PS_NULLFUNC_STACK:
+ *	Hardware requires nullfunc frame handling in stack, implies
+ *	stack support for dynamic PS.
+ *
+ * @IEEE80211_HW_SUPPORTS_DYNAMIC_PS:
+ *	Hardware has support for dynamic PS.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
@@ -866,7 +871,9 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_NOISE_DBM				= 1<<8,
 	IEEE80211_HW_SPECTRUM_MGMT			= 1<<9,
 	IEEE80211_HW_AMPDU_AGGREGATION			= 1<<10,
-	IEEE80211_HW_NO_STACK_DYNAMIC_PS		= 1<<11,
+	IEEE80211_HW_SUPPORTS_PS			= 1<<11,
+	IEEE80211_HW_PS_NULLFUNC_STACK			= 1<<12,
+	IEEE80211_HW_SUPPORTS_DYNAMIC_PS		= 1<<13,
 };
 
 /**
@@ -1050,6 +1057,42 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * rekeying), it will not include a valid phase 1 key. The valid phase 1 key is
  * provided by update_tkip_key only. The trigger that makes mac80211 call this
  * handler is software decryption with wrap around of iv16.
+ */
+
+/**
+ * DOC: Powersave support
+ *
+ * mac80211 has support for various powersave implementations.
+ *
+ * First, it can support hardware that handles all powersaving by
+ * itself, such hardware should simply set the %IEEE80211_HW_SUPPORTS_PS
+ * hardware flag. In that case, it will be told about the desired
+ * powersave mode depending on the association status, and the driver
+ * must take care of sending nullfunc frames when necessary, i.e. when
+ * entering and leaving powersave mode. The driver is required to look at
+ * the AID in beacons and signal to the AP that it woke up when it finds
+ * traffic directed to it. This mode supports dynamic PS by simply
+ * enabling/disabling PS.
+ *
+ * Additionally, such hardware may set the %IEEE80211_HW_SUPPORTS_DYNAMIC_PS
+ * flag to indicate that it can support dynamic PS mode itself (see below).
+ *
+ * Other hardware designs cannot send nullfunc frames by themselves and also
+ * need software support for parsing the TIM bitmap. This is also supported
+ * by mac80211 by combining the %IEEE80211_HW_SUPPORTS_PS and
+ * %IEEE80211_HW_PS_NULLFUNC_STACK flags. The hardware is of course still
+ * required to pass up beacons. Additionally, in this case, mac80211 will
+ * wake up the hardware when multicast traffic is announced in the beacon.
+ *
+ * FIXME: I don't think we can be fast enough in software when we want to
+ *	  receive multicast traffic?
+ *
+ * Dynamic powersave mode is an extension to normal powersave mode in which
+ * the hardware stays awake for a user-specified period of time after sending
+ * a frame so that reply frames need not be buffered and therefore delayed
+ * to the next wakeup. This can either be supported by hardware, in which case
+ * the driver needs to look at the @dynamic_ps_timeout hardware configuration
+ * value, or by the stack if all nullfunc handling is in the stack.
  */
 
 /**
