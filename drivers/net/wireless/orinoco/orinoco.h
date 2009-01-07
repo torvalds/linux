@@ -59,14 +59,6 @@ struct xbss_element {
 	struct list_head list;
 };
 
-struct hermes_rx_descriptor;
-
-struct orinoco_rx_data {
-	struct hermes_rx_descriptor *desc;
-	struct sk_buff *skb;
-	struct list_head list;
-};
-
 struct firmware;
 
 struct orinoco_private {
@@ -83,7 +75,6 @@ struct orinoco_private {
 	/* Interrupt tasklets */
 	struct tasklet_struct rx_tasklet;
 	struct list_head rx_list;
-	struct orinoco_rx_data *rx_data;
 
 	/* driver state */
 	int open;

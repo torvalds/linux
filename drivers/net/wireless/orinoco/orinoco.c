@@ -235,6 +235,12 @@ struct hermes_rx_descriptor {
 	__le16 data_len;
 } __attribute__ ((packed));
 
+struct orinoco_rx_data {
+	struct hermes_rx_descriptor *desc;
+	struct sk_buff *skb;
+	struct list_head list;
+};
+
 /********************************************************************/
 /* Function prototypes                                              */
 /********************************************************************/
