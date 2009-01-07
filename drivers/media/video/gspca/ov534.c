@@ -555,8 +555,6 @@ static const struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x06f8, 0x3002)},	/* Hercules Blog Webcam */
-	{USB_DEVICE(0x06f8, 0x3003)},	/* Hercules Dualpix HD Weblog */
 	{USB_DEVICE(0x1415, 0x2000)},	/* Sony HD Eye for PS3 (SLEH 00201) */
 	{}
 };
