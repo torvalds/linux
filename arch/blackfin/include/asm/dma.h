@@ -178,6 +178,7 @@ void dma_enable_irq(unsigned int channel);
 void clear_dma_irqstat(unsigned int channel);
 void *dma_memcpy(void *dest, const void *src, size_t count);
 void *safe_dma_memcpy(void *dest, const void *src, size_t count);
+void blackfin_dma_early_init(void);
 
 extern int channel2irq(unsigned int channel);
 extern struct dma_register *dma_io_base_addr[MAX_DMA_CHANNELS];

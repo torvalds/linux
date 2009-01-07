@@ -154,6 +154,8 @@ void __init bfin_relocate_l1_mem(void)
 	unsigned long l1_data_b_length;
 	unsigned long l2_length;
 
+	blackfin_dma_early_init();
+
 	l1_code_length = _etext_l1 - _stext_l1;
 	if (l1_code_length > L1_CODE_LENGTH)
 		panic("L1 Instruction SRAM Overflow\n");
