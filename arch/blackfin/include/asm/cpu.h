@@ -30,7 +30,6 @@ struct task_struct;
 struct blackfin_cpudata {
 	struct cpu cpu;
 	struct task_struct *idle;
-	unsigned long cclk;
 	unsigned int imemctl;
 	unsigned int dmemctl;
 	unsigned long loops_per_jiffy;

@@ -135,7 +135,6 @@ void __cpuinit bfin_setup_cpudata(unsigned int cpu)
 
 	cpudata->idle = current;
 	cpudata->loops_per_jiffy = loops_per_jiffy;
-	cpudata->cclk = get_cclk();
 	cpudata->imemctl = bfin_read_IMEM_CONTROL();
 	cpudata->dmemctl = bfin_read_DMEM_CONTROL();
 }
