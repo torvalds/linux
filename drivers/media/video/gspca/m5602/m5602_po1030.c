@@ -127,7 +127,7 @@ static void po1030_dump_registers(struct sd *sd);
 int po1030_probe(struct sd *sd)
 {
 	u8 prod_id = 0, ver_id = 0, i;
-	s32 *sensor_settings = sd->sensor_priv;
+	s32 *sensor_settings;
 
 	if (force_sensor) {
 		if (force_sensor == PO1030_SENSOR) {
@@ -177,11 +177,16 @@ sensor_found:
 	for (i = 0; i < ARRAY_SIZE(po1030_ctrls); i++)
 		sensor_settings[i] = po1030_ctrls[i].qctrl.default_value;
 	sd->sensor_priv = sensor_settings;
+
+	if (dump_sensor)
+		po1030_dump_registers(sd);
+
 	return 0;
 }
 
 int po1030_init(struct sd *sd)
 {
+	s32 *sensor_settings = sd->sensor_priv;
 	int i, err = 0;
 
 	/* Init the sensor */
@@ -206,10 +211,33 @@ int po1030_init(struct sd *sd)
 			return -EINVAL;
 		}
 	}
+	if (err < 0)
+		return err;
 
-	if (dump_sensor)
-		po1030_dump_registers(sd);
+	err = po1030_set_exposure(&sd->gspca_dev,
+				   sensor_settings[EXPOSURE_IDX]);
+	if (err < 0)
+		return err;
 
+	err = po1030_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
+	if (err < 0)
+		return err;
+
+	err = po1030_set_hflip(&sd->gspca_dev, sensor_settings[HFLIP_IDX]);
+	if (err < 0)
+		return err;
+
+	err = po1030_set_vflip(&sd->gspca_dev, sensor_settings[VFLIP_IDX]);
+	if (err < 0)
+		return err;
+
+	err = po1030_set_red_balance(&sd->gspca_dev,
+				      sensor_settings[RED_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = po1030_set_red_balance(&sd->gspca_dev,
+				      sensor_settings[BLUE_BALANCE_IDX]);
 	return err;
 }
 

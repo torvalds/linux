@@ -371,6 +371,7 @@ static const unsigned char init_po1030[][4] =
 	{SENSOR, PO1030_GC6, 0xc0},
 	{SENSOR, PO1030_GC7, 0xff},
 	/*end of sequence 4*/
+
 	/*sequence 5*/
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x06},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
@@ -396,30 +397,11 @@ static const unsigned char init_po1030[][4] =
 	{BRIDGE, M5602_XB_SIG_INI, 0x00},
 	/*end of sequence 5*/
 	/*sequence 6*/
-	/* Changing 40 in f0 the image becomes green in bayer mode and red in
-	 * rgb mode */
-	{SENSOR, PO1030_RED_GAIN, PO1030_RED_GAIN_DEFAULT},
-	/* in changing 40 in f0 the image becomes green in bayer mode and red in
-	 * rgb mode */
-	{SENSOR, PO1030_BLUE_GAIN, PO1030_BLUE_GAIN_DEFAULT},
 
 	/* with a very low lighted environment increase the exposure but
 	 * decrease the FPS (Frame Per Second) */
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
-
-	/* Controls high exposure more than SENSOR_LOW_EXPOSURE, use only in
-	 * low lighted environment (f0 is more than ff ?)*/
-	{SENSOR, PO1030_INTEGLINES_H, ((PO1030_EXPOSURE_DEFAULT >> 2)
-		& 0xff)},
-
-	/* Controls middle exposure, use only in high lighted environment */
-	{SENSOR, PO1030_INTEGLINES_M, PO1030_EXPOSURE_DEFAULT & 0xff},
-
-	/* Controls clarity (not sure) */
-	{SENSOR, PO1030_INTEGLINES_L, 0x00},
-	/* Controls gain (the image is more lighted) */
-	{SENSOR, PO1030_GLOBALGAIN, PO1030_GLOBAL_GAIN_DEFAULT},
 
 	/* Sets the width */
 	{SENSOR, PO1030_FRAMEWIDTH_H, 0x02},
