@@ -288,6 +288,30 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 };
 #endif
 
+#if defined(CONFIG_TOUCHSCREEN_AD7879) || defined(CONFIG_TOUCHSCREEN_AD7879_MODULE)
+#include <linux/spi/ad7879.h>
+static const struct ad7879_platform_data bfin_ad7879_ts_info = {
+	.model			= 7879,	/* Model = AD7879 */
+	.x_plate_ohms		= 620,	/* 620 Ohm from the touch datasheet */
+	.pressure_max		= 10000,
+	.pressure_min		= 0,
+	.first_conversion_delay = 3,	/* wait 512us before do a first conversion */
+	.acquisition_time 	= 1,	/* 4us acquisition time per sample */
+	.median			= 2,	/* do 8 measurements */
+	.averaging 		= 1,	/* take the average of 4 middle samples */
+	.pen_down_acc_interval 	= 255,	/* 9.4 ms */
+	.gpio_output		= 1,	/* configure AUX/VBAT/GPIO as GPIO output */
+	.gpio_default 		= 1,	/* During initialization set GPIO = HIGH */
+};
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_AD7879_SPI) || defined(CONFIG_TOUCHSCREEN_AD7879_SPI_MODULE)
+static struct bfin5xx_spi_chip spi_ad7879_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
 #if defined(CONFIG_SND_SOC_WM8731) || defined(CONFIG_SND_SOC_WM8731_MODULE) \
 	 && defined(CONFIG_SND_SOC_WM8731_SPI)
 static struct bfin5xx_spi_chip spi_wm8731_chip_info = {
@@ -384,6 +408,18 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.bus_num	= 0,
 		.chip_select  = 2,
 		.controller_data = &spi_ad7877_chip_info,
+	},
+#endif
+#if defined(CONFIG_TOUCHSCREEN_AD7879_SPI) || defined(CONFIG_TOUCHSCREEN_AD7879_SPI_MODULE)
+	{
+		.modalias = "ad7879",
+		.platform_data = &bfin_ad7879_ts_info,
+		.irq = IRQ_PG0,
+		.max_speed_hz = 5000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5,
+		.controller_data = &spi_ad7879_chip_info,
+		.mode = SPI_CPHA | SPI_CPOL,
 	},
 #endif
 #if defined(CONFIG_SND_SOC_WM8731) || defined(CONFIG_SND_SOC_WM8731_MODULE) \
