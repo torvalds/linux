@@ -172,7 +172,6 @@ extern int safe_smp_processor_id(void);
 
 #else /* !CONFIG_X86_32_SMP && !CONFIG_X86_64_SMP */
 #define cpu_physical_id(cpu)		boot_cpu_physical_apicid
-#define safe_smp_processor_id()		0
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
