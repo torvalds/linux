@@ -305,9 +305,13 @@ config SENSORS_F75375S
 	  will be called f75375s.
 
 config SENSORS_FSCHER
-	tristate "FSC Hermes"
+	tristate "FSC Hermes (DEPRECATED)"
 	depends on X86 && I2C
 	help
+	  This driver is DEPRECATED please use the new merged fschmd
+	  ("FSC Poseidon, Scylla, Hermes, Heimdall and Heracles") driver
+	  instead.
+
 	  If you say yes here you get support for Fujitsu Siemens
 	  Computers Hermes sensor chips.
 
@@ -315,9 +319,13 @@ config SENSORS_FSCHER
 	  will be called fscher.
 
 config SENSORS_FSCPOS
-	tristate "FSC Poseidon"
+	tristate "FSC Poseidon (DEPRECATED)"
 	depends on X86 && I2C
 	help
+	  This driver is DEPRECATED please use the new merged fschmd
+	  ("FSC Poseidon, Scylla, Hermes, Heimdall and Heracles") driver
+	  instead.
+
 	  If you say yes here you get support for Fujitsu Siemens
 	  Computers Poseidon sensor chips.
 
@@ -326,15 +334,15 @@ config SENSORS_FSCPOS
 
 config SENSORS_FSCHMD
 	tristate "FSC Poseidon, Scylla, Hermes, Heimdall and Heracles"
-	depends on X86 && I2C && EXPERIMENTAL
+	depends on X86 && I2C
 	help
 	  If you say yes here you get support for various Fujitsu Siemens
 	  Computers sensor chips, including support for the integrated
 	  watchdog.
 
-	  This is a new merged driver for FSC sensor chips which is intended
-	  as a replacement for the fscpos, fscscy and fscher drivers and adds
-	  support for several other FCS sensor chips.
+	  This is a merged driver for FSC sensor chips replacing the fscpos,
+	  fscscy and fscher drivers and adding support for several other FSC
+	  sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called fschmd.
