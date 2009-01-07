@@ -120,7 +120,21 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 		desc = &bad_irq_desc;
 
 	irq_enter();
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
+	/* Debugging check for stack overflow: is there less than STACK_WARN free? */
+	{
+		long sp;
 
+		sp = __get_SP() & (THREAD_SIZE-1);
+
+		if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN))) {
+			dump_stack();
+			printk(KERN_EMERG "%s: possible stack overflow while handling irq %i "
+					" only %ld bytes free\n",
+				__func__, irq, sp - sizeof(struct thread_info));
+		}
+	}
+#endif
 	generic_handle_irq(irq);
 
 	/* If we're the only interrupt running (ignoring IRQ15 which is for

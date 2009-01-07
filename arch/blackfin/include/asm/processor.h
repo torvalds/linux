@@ -24,6 +24,14 @@ static inline void wrusp(unsigned long usp)
 	__asm__ __volatile__("usp = %0;\n\t"::"da"(usp));
 }
 
+static inline unsigned long __get_SP(void)
+{
+	unsigned long sp;
+
+	__asm__ __volatile__("%0 = sp;\n\t" : "=da"(sp));
+	return sp;
+}
+
 /*
  * User space process size: 1st byte beyond user address space.
  * Fairly meaningless on nommu.  Parts of user programs can be scattered

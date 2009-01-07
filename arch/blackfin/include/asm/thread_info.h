@@ -44,6 +44,7 @@
  */
 #define THREAD_SIZE_ORDER	1
 #define THREAD_SIZE		8192	/* 2 pages */
+#define STACK_WARN		(THREAD_SIZE/8)
 
 #ifndef __ASSEMBLY__
 
