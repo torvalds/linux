@@ -416,7 +416,7 @@ static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 	if (seq->op == &format3_seq_ops)
 		ri->format = 3;
 
-	read_lock(&ls->ls_rsbtbl[bucket].lock);
+	spin_lock(&ls->ls_rsbtbl[bucket].lock);
 	if (!list_empty(&ls->ls_rsbtbl[bucket].list)) {
 		list_for_each_entry(r, &ls->ls_rsbtbl[bucket].list,
 				    res_hashchain) {
@@ -424,12 +424,12 @@ static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 				dlm_hold_rsb(r);
 				ri->rsb = r;
 				ri->bucket = bucket;
-				read_unlock(&ls->ls_rsbtbl[bucket].lock);
+				spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 				return ri;
 			}
 		}
 	}
-	read_unlock(&ls->ls_rsbtbl[bucket].lock);
+	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 
 	/*
 	 * move to the first rsb in the next non-empty bucket
@@ -447,18 +447,18 @@ static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 			return NULL;
 		}
 
-		read_lock(&ls->ls_rsbtbl[bucket].lock);
+		spin_lock(&ls->ls_rsbtbl[bucket].lock);
 		if (!list_empty(&ls->ls_rsbtbl[bucket].list)) {
 			r = list_first_entry(&ls->ls_rsbtbl[bucket].list,
 					     struct dlm_rsb, res_hashchain);
 			dlm_hold_rsb(r);
 			ri->rsb = r;
 			ri->bucket = bucket;
-			read_unlock(&ls->ls_rsbtbl[bucket].lock);
+			spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 			*pos = n;
 			return ri;
 		}
-		read_unlock(&ls->ls_rsbtbl[bucket].lock);
+		spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 	}
 }
 
@@ -477,7 +477,7 @@ static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 	 * move to the next rsb in the same bucket
 	 */
 
-	read_lock(&ls->ls_rsbtbl[bucket].lock);
+	spin_lock(&ls->ls_rsbtbl[bucket].lock);
 	rp = ri->rsb;
 	next = rp->res_hashchain.next;
 
@@ -485,12 +485,12 @@ static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 		r = list_entry(next, struct dlm_rsb, res_hashchain);
 		dlm_hold_rsb(r);
 		ri->rsb = r;
-		read_unlock(&ls->ls_rsbtbl[bucket].lock);
+		spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 		dlm_put_rsb(rp);
 		++*pos;
 		return ri;
 	}
-	read_unlock(&ls->ls_rsbtbl[bucket].lock);
+	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 	dlm_put_rsb(rp);
 
 	/*
@@ -509,18 +509,18 @@ static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 			return NULL;
 		}
 
-		read_lock(&ls->ls_rsbtbl[bucket].lock);
+		spin_lock(&ls->ls_rsbtbl[bucket].lock);
 		if (!list_empty(&ls->ls_rsbtbl[bucket].list)) {
 			r = list_first_entry(&ls->ls_rsbtbl[bucket].list,
 					     struct dlm_rsb, res_hashchain);
 			dlm_hold_rsb(r);
 			ri->rsb = r;
 			ri->bucket = bucket;
-			read_unlock(&ls->ls_rsbtbl[bucket].lock);
+			spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 			*pos = n;
 			return ri;
 		}
-		read_unlock(&ls->ls_rsbtbl[bucket].lock);
+		spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 	}
 }
 

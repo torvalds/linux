@@ -464,7 +464,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	for (i = 0; i < size; i++) {
 		INIT_LIST_HEAD(&ls->ls_rsbtbl[i].list);
 		INIT_LIST_HEAD(&ls->ls_rsbtbl[i].toss);
-		rwlock_init(&ls->ls_rsbtbl[i].lock);
+		spin_lock_init(&ls->ls_rsbtbl[i].lock);
 	}
 
 	size = dlm_config.ci_lkbtbl_size;
