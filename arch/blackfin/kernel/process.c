@@ -82,11 +82,14 @@ void cpu_idle(void)__attribute__((l1_text));
  */
 static void default_idle(void)
 {
-	local_irq_disable();
+#ifdef CONFIG_IPIPE
+	ipipe_suspend_domain();
+#endif
+	local_irq_disable_hw();
 	if (!need_resched())
 		idle_with_irq_disabled();
 
-	local_irq_enable();
+	local_irq_enable_hw();
 }
 
 /*

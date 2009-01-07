@@ -577,10 +577,15 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		}
 	}
 
-	info.si_signo = sig;
-	info.si_errno = 0;
-	info.si_addr = (void __user *)fp->pc;
-	force_sig_info(sig, &info, current);
+#ifdef CONFIG_IPIPE
+	if (!ipipe_trap_notify(fp->seqstat & 0x3f, fp))
+#endif
+	{
+		info.si_signo = sig;
+		info.si_errno = 0;
+		info.si_addr = (void __user *)fp->pc;
+		force_sig_info(sig, &info, current);
+	}
 
 	trace_buffer_restore(j);
 	return;

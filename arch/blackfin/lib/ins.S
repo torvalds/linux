@@ -56,7 +56,16 @@
 ENTRY(_insl)
 #ifdef CONFIG_BFIN_INS_LOWOVERHEAD
 	P0 = R0;	/* P0 = port */
+#ifdef CONFIG_IPIPE
+	[--sp] = rets
+	[--sp] = (P5:0);
+	sp += -12
+	call ___ipipe_stall_root_raw
+	sp += 12
+	(P5:0) = [sp++];
+#else
 	cli R3;
+#endif
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
 	SSYNC;
@@ -65,7 +74,14 @@ ENTRY(_insl)
 		[P1++] = R0;
 		NOP;
 .Llong_loop_e: 	NOP;
+#ifdef CONFIG_IPIPE
+	sp += -12
+	call ___ipipe_unstall_root_raw
+	sp += 12
+	rets = [sp++]
+#else
 	sti R3;
+#endif
 	RTS;
 #else
 	P0 = R0;	/* P0 = port */
@@ -74,13 +90,28 @@ ENTRY(_insl)
 	SSYNC;
 	LSETUP( .Llong_loop_s, .Llong_loop_e) LC0 = P2;
 .Llong_loop_s:
+#ifdef CONFIG_IPIPE
+	[--sp] = rets
+	[--sp] = (P5:0);
+	sp += -12
+	call ___ipipe_stall_root_raw
+	sp += 12
+	(P5:0) = [sp++];
+#else
 	CLI R3;
+#endif
 	NOP; NOP; NOP;
 	R0 = [P0];
 	[P1++] = R0;
 .Llong_loop_e:
+#ifdef CONFIG_IPIPE
+	sp += -12
+	call ___ipipe_unstall_root_raw
+	sp += 12
+	rets = [sp++]
+#else
 	STI R3;
-
+#endif
 	RTS;
 #endif
 ENDPROC(_insl)
@@ -88,7 +119,16 @@ ENDPROC(_insl)
 ENTRY(_insw)
 #ifdef CONFIG_BFIN_INS_LOWOVERHEAD
 	P0 = R0;	/* P0 = port */
+#ifdef CONFIG_IPIPE
+	[--sp] = rets
+	[--sp] = (P5:0);
+	sp += -12
+	call ___ipipe_stall_root_raw
+	sp += 12
+	(P5:0) = [sp++];
+#else
 	cli R3;
+#endif
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
 	SSYNC;
@@ -97,7 +137,14 @@ ENTRY(_insw)
 		W[P1++] = R0;
 		NOP;
 .Lword_loop_e: 	NOP;
+#ifdef CONFIG_IPIPE
+	sp += -12
+	call ___ipipe_unstall_root_raw
+	sp += 12
+	rets = [sp++]
+#else
 	sti R3;
+#endif
 	RTS;
 #else
 	P0 = R0;	/* P0 = port */
@@ -106,12 +153,28 @@ ENTRY(_insw)
 	SSYNC;
 	LSETUP( .Lword_loop_s, .Lword_loop_e) LC0 = P2;
 .Lword_loop_s:
+#ifdef CONFIG_IPIPE
+	[--sp] = rets
+	[--sp] = (P5:0);
+	sp += -12
+	call ___ipipe_stall_root_raw
+	sp += 12
+	(P5:0) = [sp++];
+#else
 	CLI R3;
+#endif
 	NOP; NOP; NOP;
 	R0 = W[P0];
 	W[P1++] = R0;
 .Lword_loop_e:
+#ifdef CONFIG_IPIPE
+	sp += -12
+	call ___ipipe_unstall_root_raw
+	sp += 12
+	rets = [sp++]
+#else
 	STI R3;
+#endif
 	RTS;
 
 #endif
@@ -120,7 +183,16 @@ ENDPROC(_insw)
 ENTRY(_insw_8)
 #ifdef CONFIG_BFIN_INS_LOWOVERHEAD
 	P0 = R0;	/* P0 = port */
+#ifdef CONFIG_IPIPE
+	[--sp] = rets
+	[--sp] = (P5:0);
+	sp += -12
+	call ___ipipe_stall_root_raw
+	sp += 12
+	(P5:0) = [sp++];
+#else
 	cli R3;
+#endif
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
 	SSYNC;
@@ -131,7 +203,14 @@ ENTRY(_insw_8)
 		B[P1++] = R0;
 		NOP;
 .Lword8_loop_e: NOP;
+#ifdef CONFIG_IPIPE
+	sp += -12
+	call ___ipipe_unstall_root_raw
+	sp += 12
+	rets = [sp++]
+#else
 	sti R3;
+#endif
 	RTS;
 #else
 	P0 = R0;	/* P0 = port */
@@ -140,7 +219,16 @@ ENTRY(_insw_8)
 	SSYNC;
 	LSETUP( .Lword8_loop_s, .Lword8_loop_e) LC0 = P2;
 .Lword8_loop_s:
+#ifdef CONFIG_IPIPE
+	[--sp] = rets
+	[--sp] = (P5:0);
+	sp += -12
+	call ___ipipe_stall_root_raw
+	sp += 12
+	(P5:0) = [sp++];
+#else
 	CLI R3;
+#endif
 	NOP; NOP; NOP;
 	R0 = W[P0];
 	B[P1++] = R0;
@@ -148,8 +236,14 @@ ENTRY(_insw_8)
 	B[P1++] = R0;
 	NOP;
 .Lword8_loop_e:
+#ifdef CONFIG_IPIPE
+	sp += -12
+	call ___ipipe_unstall_root_raw
+	sp += 12
+	rets = [sp++]
+#else
 	STI R3;
-
+#endif
 	RTS;
 #endif
 ENDPROC(_insw_8)
@@ -157,7 +251,16 @@ ENDPROC(_insw_8)
 ENTRY(_insb)
 #ifdef CONFIG_BFIN_INS_LOWOVERHEAD
 	P0 = R0;	/* P0 = port */
+#ifdef CONFIG_IPIPE
+	[--sp] = rets
+	[--sp] = (P5:0);
+	sp += -12
+	call ___ipipe_stall_root_raw
+	sp += 12
+	(P5:0) = [sp++];
+#else
 	cli R3;
+#endif
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
 	SSYNC;
@@ -166,7 +269,14 @@ ENTRY(_insb)
 		B[P1++] = R0;
 		NOP;
 .Lbyte_loop_e:  NOP;
+#ifdef CONFIG_IPIPE
+	sp += -12
+	call ___ipipe_unstall_root_raw
+	sp += 12
+	rets = [sp++]
+#else
 	sti R3;
+#endif
 	RTS;
 #else
 	P0 = R0;        /* P0 = port */
@@ -175,13 +285,28 @@ ENTRY(_insb)
 	SSYNC;
 	LSETUP( .Lbyte_loop_s, .Lbyte_loop_e) LC0 = P2;
 .Lbyte_loop_s:
+#ifdef CONFIG_IPIPE
+	[--sp] = rets
+	[--sp] = (P5:0);
+	sp += -12
+	call ___ipipe_stall_root_raw
+	sp += 12
+	(P5:0) = [sp++];
+#else
 	CLI R3;
+#endif
 	NOP; NOP; NOP;
 	R0 = B[P0];
 	B[P1++] = R0;
 .Lbyte_loop_e:
+#ifdef CONFIG_IPIPE
+	sp += -12
+	call ___ipipe_unstall_root_raw
+	sp += 12
+	rets = [sp++]
+#else
 	STI R3;
-
+#endif
 	RTS;
 #endif
 ENDPROC(_insb)
@@ -189,7 +314,16 @@ ENDPROC(_insb)
 ENTRY(_insl_16)
 #ifdef CONFIG_BFIN_INS_LOWOVERHEAD
 	P0 = R0;	/* P0 = port */
+#ifdef CONFIG_IPIPE
+	[--sp] = rets
+	[--sp] = (P5:0);
+	sp += -12
+	call ___ipipe_stall_root_raw
+	sp += 12
+	(P5:0) = [sp++];
+#else
 	cli R3;
+#endif
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
 	SSYNC;
@@ -200,7 +334,14 @@ ENTRY(_insl_16)
 		  W[P1++] = R0;
 		  NOP;
 .Llong16_loop_e:  NOP;
+#ifdef CONFIG_IPIPE
+	sp += -12
+	call ___ipipe_unstall_root_raw
+	sp += 12
+	rets = [sp++]
+#else
 	sti R3;
+#endif
 	RTS;
 #else
 	P0 = R0;	/* P0 = port */
@@ -209,14 +350,30 @@ ENTRY(_insl_16)
 	SSYNC;
 	LSETUP( .Llong16_loop_s, .Llong16_loop_e) LC0 = P2;
 .Llong16_loop_s:
+#ifdef CONFIG_IPIPE
+	[--sp] = rets
+	[--sp] = (P5:0);
+	sp += -12
+	call ___ipipe_stall_root_raw
+	sp += 12
+	(P5:0) = [sp++];
+#else
 	CLI R3;
+#endif
 	NOP; NOP; NOP;
 	R0 = [P0];
 	W[P1++] = R0;
 	R0 = R0 >> 16;
 	W[P1++] = R0;
 .Llong16_loop_e:
+#ifdef CONFIG_IPIPE
+	sp += -12
+	call ___ipipe_unstall_root_raw
+	sp += 12
+	rets = [sp++]
+#else
 	STI R3;
+#endif
 	RTS;
 #endif
 ENDPROC(_insl_16)

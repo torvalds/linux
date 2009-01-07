@@ -108,8 +108,9 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 	struct irq_desc *desc = irq_desc + irq;
+#ifndef CONFIG_IPIPE
 	unsigned short pending, other_ints;
-
+#endif
 	old_regs = set_irq_regs(regs);
 
 	/*
@@ -137,6 +138,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 #endif
 	generic_handle_irq(irq);
 
+#ifndef CONFIG_IPIPE	/* Useless and bugous over the I-pipe: IRQs are threaded. */
 	/* If we're the only interrupt running (ignoring IRQ15 which is for
 	   syscalls), lower our priority to IRQ14 so that softirqs run at
 	   that level.  If there's another, lower-level interrupt, irq_exit
@@ -146,6 +148,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	other_ints = pending & (pending - 1);
 	if (other_ints == 0)
 		lower_to_irq14();
+#endif /* !CONFIG_IPIPE */
 	irq_exit();
 
 	set_irq_regs(old_regs);

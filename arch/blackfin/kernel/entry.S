@@ -42,6 +42,10 @@
 #endif
 
 ENTRY(_ret_from_fork)
+#ifdef CONFIG_IPIPE
+	[--sp] = reti; 		/* IRQs on. */
+	SP += 4;
+#endif /* CONFIG_IPIPE */
 	SP += -12;
 	call _schedule_tail;
 	SP += 12;

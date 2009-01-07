@@ -55,14 +55,14 @@ config IRQ_UART0_RX
 config IRQ_UART0_TX
 	int "IRQ_UART0_TX"
 	default 10
-config IRQ_TMR0
-	int "IRQ_TMR0"
+config IRQ_TIMER0
+	int "IRQ_TIMER0"
+	default 8
+config IRQ_TIMER1
+	int "IRQ_TIMER1"
 	default 11
-config IRQ_TMR1
-	int "IRQ_TMR1"
-	default 11
-config IRQ_TMR2
-	int "IRQ_TMR2"
+config IRQ_TIMER2
+	int "IRQ_TIMER2"
 	default 11
 config IRQ_PORTF_INTA
 	int "IRQ_PORTF_INTA"

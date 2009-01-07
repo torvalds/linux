@@ -81,9 +81,9 @@
 #define IRQ_SPI0		BFIN_IRQ(13)	/* DMA 5 Channel (SPI0) */
 #define IRQ_UART0_RX		BFIN_IRQ(14)	/* DMA 6 Channel (UART0 RX) */
 #define IRQ_UART0_TX		BFIN_IRQ(15)	/* DMA 7 Channel (UART0 TX) */
-#define IRQ_TMR0		BFIN_IRQ(16)	/* Timer 0 */
-#define IRQ_TMR1		BFIN_IRQ(17)	/* Timer 1 */
-#define IRQ_TMR2		BFIN_IRQ(18)	/* Timer 2 */
+#define IRQ_TIMER0		BFIN_IRQ(16)	/* Timer 0 */
+#define IRQ_TIMER1		BFIN_IRQ(17)	/* Timer 1 */
+#define IRQ_TIMER2		BFIN_IRQ(18)	/* Timer 2 */
 #define IRQ_PORTF_INTA		BFIN_IRQ(19)	/* Port F Interrupt A */
 #define IRQ_PORTF_INTB		BFIN_IRQ(20)	/* Port F Interrupt B */
 #define IRQ_MEM0_DMA0		BFIN_IRQ(21)	/* MDMA0 Stream 0 */
@@ -168,9 +168,9 @@
 #define IRQ_UART0_TX_POS	28
 
 /* IAR2 BIT FIELDS */
-#define IRQ_TMR0_POS		0
-#define IRQ_TMR1_POS		4
-#define IRQ_TMR2_POS		8
+#define IRQ_TIMER0_POS		0
+#define IRQ_TIMER1_POS		4
+#define IRQ_TIMER2_POS		8
 #define IRQ_PORTF_INTA_POS	12
 #define IRQ_PORTF_INTB_POS	16
 #define IRQ_MEM0_DMA0_POS	20

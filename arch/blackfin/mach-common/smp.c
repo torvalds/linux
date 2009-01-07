@@ -348,7 +348,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 static void __cpuinit setup_secondary(unsigned int cpu)
 {
-#ifndef CONFIG_TICK_SOURCE_SYSTMR0
+#if !(defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE))
 	struct irq_desc *timer_desc;
 #endif
 	unsigned long ilat;
@@ -369,7 +369,7 @@ static void __cpuinit setup_secondary(unsigned int cpu)
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
-#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
 	/* Power down the core timer, just to play safe. */
 	bfin_write_TCNTL(0);
 

@@ -100,9 +100,9 @@ Core        Emulation               **
 #define	IRQ_SPI			20	/*DMA5 Interrupt (SPI) */
 #define	IRQ_UART0_RX		21	/*DMA6 Interrupt (UART RX) */
 #define	IRQ_UART0_TX		22	/*DMA7 Interrupt (UART TX) */
-#define	IRQ_TMR0		23	/*Timer 0 */
-#define	IRQ_TMR1		24	/*Timer 1 */
-#define	IRQ_TMR2		25	/*Timer 2 */
+#define	IRQ_TIMER0		23	/*Timer 0 */
+#define	IRQ_TIMER1		24	/*Timer 1 */
+#define	IRQ_TIMER2		25	/*Timer 2 */
 #define	IRQ_PROG_INTA		26	/*Programmable Flags A (8) */
 #define	IRQ_PROG_INTB		27	/*Programmable Flags B (8) */
 #define	IRQ_MEM_DMA0		28	/*DMA8/9 Interrupt (Memory DMA Stream 0) */

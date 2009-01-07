@@ -141,7 +141,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
 	unsigned long tmp = 0;
 	unsigned long flags = 0;
 
-	local_irq_save(flags);
+	local_irq_save_hw(flags);
 
 	switch (size) {
 	case 1:
@@ -163,7 +163,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
 			 : "=&d" (tmp) : "d" (x), "m" (*__xg(ptr)) : "memory");
 		break;
 	}
-	local_irq_restore(flags);
+	local_irq_restore_hw(flags);
 	return tmp;
 }
 

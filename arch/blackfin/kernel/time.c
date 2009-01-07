@@ -31,7 +31,7 @@ static struct irqaction bfin_timer_irq = {
 #endif
 };
 
-#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
 void __init setup_system_timer0(void)
 {
 	/* Power down the core timer, just to play safe. */
@@ -74,7 +74,7 @@ void __init setup_core_timer(void)
 static void __init
 time_sched_init(irqreturn_t(*timer_routine) (int, void *))
 {
-#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
 	setup_system_timer0();
 	bfin_timer_irq.handler = timer_routine;
 	setup_irq(IRQ_TIMER0, &bfin_timer_irq);
@@ -94,7 +94,7 @@ static unsigned long gettimeoffset(void)
 	unsigned long offset;
 	unsigned long clocks_per_jiffy;
 
-#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
 	clocks_per_jiffy = bfin_read_TIMER0_PERIOD();
 	offset = bfin_read_TIMER0_COUNTER() / \
 		(((clocks_per_jiffy + 1) * HZ) / USEC_PER_SEC);
@@ -133,7 +133,8 @@ irqreturn_t timer_interrupt(int irq, void *dummy)
 	static long last_rtc_update;
 
 	write_seqlock(&xtime_lock);
-#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+#if defined(CONFIG_TICK_SOURCE_SYSTMR0) && !defined(CONFIG_IPIPE)
+/* FIXME: Here TIMIL0 is not set when IPIPE enabled, why? */
 	if (get_gptimer_status(0) & TIMER_STATUS_TIMIL0) {
 #endif
 		do_timer(1);
@@ -155,13 +156,17 @@ irqreturn_t timer_interrupt(int irq, void *dummy)
 				/* Do it again in 60s. */
 				last_rtc_update = xtime.tv_sec - 600;
 		}
-#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+#if defined(CONFIG_TICK_SOURCE_SYSTMR0) && !defined(CONFIG_IPIPE)
 		set_gptimer_status(0, TIMER_STATUS_TIMIL0);
 	}
 #endif
 	write_sequnlock(&xtime_lock);
 
+#ifdef CONFIG_IPIPE
+	update_root_process_times(get_irq_regs());
+#else
 	update_process_times(user_mode(get_irq_regs()));
+#endif
 	profile_tick(CPU_PROFILING);
 
 	return IRQ_HANDLED;
