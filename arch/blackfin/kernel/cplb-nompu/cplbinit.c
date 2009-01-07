@@ -425,10 +425,10 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 	BUG_ON(cplb.init_d.pos < 1 + cplb_data[ZERO_P].valid + cplb_data[L1D_MEM].valid);
 
 	/* make sure we didnt overflow the table */
-	BUG_ON(cplb.init_i.size <= cplb.init_i.pos);
-	BUG_ON(cplb.init_d.size <= cplb.init_d.pos);
-	BUG_ON(cplb.switch_i.size <= cplb.switch_i.pos);
-	BUG_ON(cplb.switch_d.size <= cplb.switch_d.pos);
+	BUG_ON(cplb.init_i.size < cplb.init_i.pos);
+	BUG_ON(cplb.init_d.size < cplb.init_d.pos);
+	BUG_ON(cplb.switch_i.size < cplb.switch_i.pos);
+	BUG_ON(cplb.switch_d.size < cplb.switch_d.pos);
 
 	/* close tables */
 	close_cplbtab(&cplb.init_i);
