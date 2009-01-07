@@ -13,6 +13,7 @@
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/pfn.h>
