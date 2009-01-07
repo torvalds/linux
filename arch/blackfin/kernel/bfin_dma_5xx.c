@@ -411,15 +411,14 @@ unsigned long get_dma_curr_addr(unsigned int channel)
 EXPORT_SYMBOL(get_dma_curr_addr);
 
 #ifdef CONFIG_PM
+# ifndef MAX_DMA_SUSPEND_CHANNELS
+#  define MAX_DMA_SUSPEND_CHANNELS MAX_DMA_CHANNELS
+# endif
 int blackfin_dma_suspend(void)
 {
 	int i;
 
-#ifdef CONFIG_BF561	/* IMDMA channels doesn't have a PERIPHERAL_MAP */
-	for (i = 0; i <= CH_MEM_STREAM3_SRC; i++) {
-#else
-	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
-#endif
+	for (i = 0; i < MAX_DMA_SUSPEND_CHANNELS; ++i) {
 		if (dma_ch[i].chan_status == DMA_CHANNEL_ENABLED) {
 			printk(KERN_ERR "DMA Channel %d failed to suspend\n", i);
 			return -EBUSY;
@@ -434,12 +433,7 @@ int blackfin_dma_suspend(void)
 void blackfin_dma_resume(void)
 {
 	int i;
-
-#ifdef CONFIG_BF561	/* IMDMA channels doesn't have a PERIPHERAL_MAP */
-	for (i = 0; i <= CH_MEM_STREAM3_SRC; i++)
-#else
-	for (i = 0; i < MAX_DMA_CHANNELS; i++)
-#endif
+	for (i = 0; i < MAX_DMA_SUSPEND_CHANNELS; ++i)
 		dma_ch[i].regs->peripheral_map = dma_ch[i].saved_peripheral_map;
 }
 #endif

@@ -10,6 +10,9 @@
 
 #define MAX_DMA_CHANNELS 36
 
+/* [#4267] IMDMA channels have no PERIPHERAL_MAP MMR */
+#define MAX_DMA_SUSPEND_CHANNELS 32
+
 #define CH_PPI0			0
 #define CH_PPI			(CH_PPI0)
 #define CH_PPI1			1
