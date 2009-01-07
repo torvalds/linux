@@ -20,7 +20,6 @@ extern void __init pxa3xx_init_irq(void);
 extern void __init pxa_map_io(void);
 
 extern unsigned int get_clk_frequency_khz(int info);
-extern int pxa_last_gpio;
 
 #define SET_BANK(__nr,__start,__size) \
 	mi->bank[__nr].start = (__start), \

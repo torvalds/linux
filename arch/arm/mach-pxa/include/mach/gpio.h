@@ -100,8 +100,11 @@
 
 
 /* NOTE: some PXAs have fewer on-chip GPIOs (like PXA255, with 85).
- * Those cases currently cause holes in the GPIO number space.
+ * Those cases currently cause holes in the GPIO number space, the
+ * actual number of the last GPIO is recorded by 'pxa_last_gpio'.
  */
+extern int pxa_last_gpio;
+
 #define NR_BUILTIN_GPIO 128
 
 static inline int gpio_get_value(unsigned gpio)

@@ -20,6 +20,8 @@
 
 #include <mach/gpio.h>
 
+int pxa_last_gpio;
+
 #define GPIO0_BASE	(GPIO_REGS_VIRT + 0x0000)
 #define GPIO1_BASE	(GPIO_REGS_VIRT + 0x0004)
 #define GPIO2_BASE	(GPIO_REGS_VIRT + 0x0008)
@@ -37,8 +39,6 @@ struct pxa_gpio_chip {
 	struct gpio_chip chip;
 	void __iomem     *regbase;
 };
-
-int pxa_last_gpio;
 
 static int pxa_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
