@@ -140,7 +140,7 @@ int request_dma(unsigned int channel, const char *device_id)
 #endif
 
 	dma_ch[channel].device_id = device_id;
-	dma_ch[channel].irq_callback = NULL;
+	dma_ch[channel].irq = 0;
 
 	/* This is to be enabled by putting a restriction -
 	 * you have to request DMA, before doing any operations on
@@ -169,7 +169,6 @@ int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data)
 			       "Request irq in DMA engine failed.\n");
 			return -EPERM;
 		}
-		dma_ch[channel].irq_callback = callback;
 	}
 	return 0;
 }
@@ -185,7 +184,7 @@ void free_dma(unsigned int channel)
 	disable_dma(channel);
 	clear_dma_buffer(channel);
 
-	if (dma_ch[channel].irq_callback != NULL)
+	if (dma_ch[channel].irq)
 		free_irq(dma_ch[channel].irq, dma_ch[channel].data);
 
 	/* Clear the DMA Variable in the Channel */

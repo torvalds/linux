@@ -118,7 +118,6 @@ struct dma_channel {
 	struct dmasg *sg;		/* large mode descriptor */
 	unsigned int ctrl_num;	/* controller number */
 	unsigned int irq;
-	irq_handler_t irq_callback;
 	void *data;
 	unsigned int dma_enable_flag;
 	unsigned int loopback_flag;
