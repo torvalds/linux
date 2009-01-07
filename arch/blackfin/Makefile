@@ -107,9 +107,9 @@ else
 core-y	+= arch/$(ARCH)/kernel/cplb-nompu/
 endif
 
-libs-y   += arch/$(ARCH)/lib/
-
 drivers-$(CONFIG_OPROFILE) += arch/$(ARCH)/oprofile/
+
+libs-y   += arch/$(ARCH)/lib/
 
 machdirs	:= $(patsubst %,arch/blackfin/mach-%/, $(machine-y))
 
