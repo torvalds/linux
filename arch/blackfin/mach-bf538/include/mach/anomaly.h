@@ -7,8 +7,8 @@
  */
 
 /* This file shoule be up to date with:
- *  - Revision F, 06/18/2008; ADSP-BF538/BF538F Blackfin Processor Anomaly List
- *  - Revision K, 06/18/2008; ADSP-BF539/BF539F Blackfin Processor Anomaly List
+ *  - Revision G, 09/18/2008; ADSP-BF538/BF538F Blackfin Processor Anomaly List
+ *  - Revision L, 09/18/2008; ADSP-BF539/BF539F Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -106,6 +106,12 @@
 #define ANOMALY_05000403 (1)
 /* Speculative Fetches Can Cause Undesired External FIFO Operations */
 #define ANOMALY_05000416 (1)
+/* Multichannel SPORT Channel Misalignment Under Specific Configuration */
+#define ANOMALY_05000425 (1)
+/* Speculative Fetches of Indirect-Pointer Instructions Can Cause False Hardware Errors */
+#define ANOMALY_05000426 (1)
+/* Specific GPIO Pins May Change State when Entering Hibernate */
+#define ANOMALY_05000436 (__SILICON_REVISION__ > 3)
 /* IFLUSH Instruction at End of Hardware Loop Causes Infinite Stall */
 #define ANOMALY_05000443 (1)
 
@@ -119,6 +125,8 @@
 #define ANOMALY_05000353 (1)
 #define ANOMALY_05000363 (0)
 #define ANOMALY_05000386 (1)
+#define ANOMALY_05000412 (0)
+#define ANOMALY_05000432 (0)
 #define ANOMALY_05000435 (0)
 
 #endif
