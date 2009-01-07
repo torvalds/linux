@@ -1,8 +1,9 @@
-/*****************************************************************************
-*
-*        BF-533/2/1 Specific Declarations
-*
-****************************************************************************/
+/* mach/dma.h - arch-specific DMA defines
+ *
+ * Copyright 2004-2008 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
 
 #ifndef _MACH_DMA_H_
 #define _MACH_DMA_H_

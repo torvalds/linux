@@ -1,29 +1,8 @@
 /*
- * File:         include/asm-blackfin/simple_bf533_dma.h
- * Based on:     none - original work
- * Author:       LG Soft India
- *               Copyright (C) 2004-2005 Analog Devices Inc.
- * Created:      Tue Sep 21 2004
- * Description:  This file contains the major Data structures and constants
- * 		 used for DMA Implementation in BF533
- * Modified:
+ * dma.h - Blackfin DMA defines/structures/etc...
  *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * Copyright 2004-2008 Analog Devices Inc.
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _BLACKFIN_DMA_H_
