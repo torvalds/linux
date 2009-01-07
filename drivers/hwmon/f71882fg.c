@@ -1500,6 +1500,11 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	start_reg = f71882fg_read8(data, F71882FG_REG_START);
+	if (start_reg & 0x04) {
+		dev_warn(&pdev->dev, "Hardware monitor is powered down\n");
+		err = -ENODEV;
+		goto exit_free;
+	}
 	if (!(start_reg & 0x03)) {
 		dev_warn(&pdev->dev, "Hardware monitoring not activated\n");
 		err = -ENODEV;
