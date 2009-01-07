@@ -81,6 +81,8 @@ static struct bfin_memmap_entry new_map[BFIN_MEMMAP_MAX] __initdata;
 
 DEFINE_PER_CPU(struct blackfin_cpudata, cpu_data);
 
+static int early_init_clkin_hz(char *buf);
+
 #if defined(CONFIG_BFIN_DCACHE) || defined(CONFIG_BFIN_ICACHE)
 void __init generate_cplb_tables(void)
 {
@@ -436,6 +438,9 @@ static __init void parse_cmdline_early(char *cmdline_p)
 							reserved_mem_icache_on = 1;
 					}
 				}
+			} else if (!memcmp(to, "clkin_hz=", 9)) {
+				to += 9;
+				early_init_clkin_hz(to);
 			} else if (!memcmp(to, "earlyprintk=", 12)) {
 				to += 12;
 				setup_early_printk(to);
@@ -937,6 +942,19 @@ static int __init topology_init(void)
 
 subsys_initcall(topology_init);
 
+/* Get the input clock frequency */
+static u_long cached_clkin_hz = CONFIG_CLKIN_HZ;
+static u_long get_clkin_hz(void)
+{
+	return cached_clkin_hz;
+}
+static int __init early_init_clkin_hz(char *buf)
+{
+	cached_clkin_hz = simple_strtoul(buf, NULL, 0);
+	return 1;
+}
+early_param("clkin_hz=", early_init_clkin_hz);
+
 /* Get the voltage input multiplier */
 static u_long cached_vco_pll_ctl, cached_vco;
 static u_long get_vco(void)
@@ -953,7 +971,7 @@ static u_long get_vco(void)
 	if (0 == msel)
 		msel = 64;
 
-	cached_vco = CONFIG_CLKIN_HZ;
+	cached_vco = get_clkin_hz();
 	cached_vco >>= (1 & pll_ctl);	/* DF bit */
 	cached_vco *= msel;
 	return cached_vco;
@@ -966,7 +984,7 @@ u_long get_cclk(void)
 	u_long csel, ssel;
 
 	if (bfin_read_PLL_STAT() & 0x1)
-		return CONFIG_CLKIN_HZ;
+		return get_clkin_hz();
 
 	ssel = bfin_read_PLL_DIV();
 	if (ssel == cached_cclk_pll_div)
@@ -991,7 +1009,7 @@ u_long get_sclk(void)
 	u_long ssel;
 
 	if (bfin_read_PLL_STAT() & 0x1)
-		return CONFIG_CLKIN_HZ;
+		return get_clkin_hz();
 
 	ssel = bfin_read_PLL_DIV();
 	if (ssel == cached_sclk_pll_div)
