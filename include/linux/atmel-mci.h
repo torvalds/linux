@@ -1,5 +1,5 @@
-#ifndef __ASM_AVR32_ATMEL_MCI_H
-#define __ASM_AVR32_ATMEL_MCI_H
+#ifndef __LINUX_ATMEL_MCI_H
+#define __LINUX_ATMEL_MCI_H
 
 #define ATMEL_MCI_MAX_NR_SLOTS	2
 
@@ -36,4 +36,4 @@ struct mci_platform_data {
 	struct mci_slot_pdata	slot[ATMEL_MCI_MAX_NR_SLOTS];
 };
 
-#endif /* __ASM_AVR32_ATMEL_MCI_H */
+#endif /* __LINUX_ATMEL_MCI_H */

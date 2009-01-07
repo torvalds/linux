@@ -33,6 +33,7 @@ head-y					+= arch/avr32/kernel/head.o
 core-y					+= $(machdirs)
 core-$(CONFIG_BOARD_ATSTK1000)		+= arch/avr32/boards/atstk1000/
 core-$(CONFIG_BOARD_ATNGW100)		+= arch/avr32/boards/atngw100/
+core-$(CONFIG_BOARD_HAMMERHEAD)		+= arch/avr32/boards/hammerhead/
 core-$(CONFIG_BOARD_FAVR_32)		+= arch/avr32/boards/favr-32/
 core-$(CONFIG_BOARD_MIMC200)		+= arch/avr32/boards/mimc200/
 core-$(CONFIG_LOADER_U_BOOT)		+= arch/avr32/boot/u-boot/
