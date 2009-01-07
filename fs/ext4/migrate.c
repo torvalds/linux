@@ -59,7 +59,8 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	/*
 	 * Make sure the credit we accumalated is not really high
 	 */
-	if (needed && handle->h_buffer_credits >= EXT4_RESERVE_TRANS_BLOCKS) {
+	if (needed && ext4_handle_has_enough_credits(handle,
+						EXT4_RESERVE_TRANS_BLOCKS)) {
 		retval = ext4_journal_restart(handle, needed);
 		if (retval)
 			goto err_out;
@@ -229,7 +230,7 @@ static int extend_credit_for_blkdel(handle_t *handle, struct inode *inode)
 {
 	int retval = 0, needed;
 
-	if (handle->h_buffer_credits > EXT4_RESERVE_TRANS_BLOCKS)
+	if (ext4_handle_has_enough_credits(handle, EXT4_RESERVE_TRANS_BLOCKS+1))
 		return 0;
 	/*
 	 * We are freeing a blocks. During this we touch

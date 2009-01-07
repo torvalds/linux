@@ -253,12 +253,12 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 				spin_unlock(sb_bgl_lock(sbi, flex_group));
 			}
 		}
-		BUFFER_TRACE(bh2, "call ext4_journal_dirty_metadata");
-		err = ext4_journal_dirty_metadata(handle, bh2);
+		BUFFER_TRACE(bh2, "call ext4_handle_dirty_metadata");
+		err = ext4_handle_dirty_metadata(handle, NULL, bh2);
 		if (!fatal) fatal = err;
 	}
-	BUFFER_TRACE(bitmap_bh, "call ext4_journal_dirty_metadata");
-	err = ext4_journal_dirty_metadata(handle, bitmap_bh);
+	BUFFER_TRACE(bitmap_bh, "call ext4_handle_dirty_metadata");
+	err = ext4_handle_dirty_metadata(handle, NULL, bitmap_bh);
 	if (!fatal)
 		fatal = err;
 	sb->s_dirt = 1;
@@ -656,15 +656,16 @@ repeat_in_this_group:
 						ino, bitmap_bh->b_data)) {
 				/* we won it */
 				BUFFER_TRACE(bitmap_bh,
-					"call ext4_journal_dirty_metadata");
-				err = ext4_journal_dirty_metadata(handle,
+					"call ext4_handle_dirty_metadata");
+				err = ext4_handle_dirty_metadata(handle,
+								inode,
 								bitmap_bh);
 				if (err)
 					goto fail;
 				goto got;
 			}
 			/* we lost it */
-			jbd2_journal_release_buffer(handle, bitmap_bh);
+			ext4_handle_release_buffer(handle, bitmap_bh);
 
 			if (++ino < EXT4_INODES_PER_GROUP(sb))
 				goto repeat_in_this_group;
@@ -726,7 +727,8 @@ got:
 		/* Don't need to dirty bitmap block if we didn't change it */
 		if (free) {
 			BUFFER_TRACE(block_bh, "dirty block bitmap");
-			err = ext4_journal_dirty_metadata(handle, block_bh);
+			err = ext4_handle_dirty_metadata(handle,
+							NULL, block_bh);
 		}
 
 		brelse(block_bh);
@@ -771,8 +773,8 @@ got:
 	}
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, group, gdp);
 	spin_unlock(sb_bgl_lock(sbi, group));
-	BUFFER_TRACE(bh2, "call ext4_journal_dirty_metadata");
-	err = ext4_journal_dirty_metadata(handle, bh2);
+	BUFFER_TRACE(bh2, "call ext4_handle_dirty_metadata");
+	err = ext4_handle_dirty_metadata(handle, NULL, bh2);
 	if (err) goto fail;
 
 	percpu_counter_dec(&sbi->s_freeinodes_counter);
@@ -825,7 +827,7 @@ got:
 
 	ext4_set_inode_flags(inode);
 	if (IS_DIRSYNC(inode))
-		handle->h_sync = 1;
+		ext4_handle_sync(handle);
 	if (insert_inode_locked(inode) < 0) {
 		err = -EINVAL;
 		goto fail_drop;
@@ -1028,4 +1030,3 @@ unsigned long ext4_count_dirs(struct super_block * sb)
 	}
 	return count;
 }
-

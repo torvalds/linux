@@ -97,6 +97,8 @@ static int ext4_ext_journal_restart(handle_t *handle, int needed)
 {
 	int err;
 
+	if (!ext4_handle_valid(handle))
+		return 0;
 	if (handle->h_buffer_credits > needed)
 		return 0;
 	err = ext4_journal_extend(handle, needed);
@@ -134,7 +136,7 @@ static int ext4_ext_dirty(handle_t *handle, struct inode *inode,
 	int err;
 	if (path->p_bh) {
 		/* path points to block */
-		err = ext4_journal_dirty_metadata(handle, path->p_bh);
+		err = ext4_handle_dirty_metadata(handle, inode, path->p_bh);
 	} else {
 		/* path points to leaf/index in inode body */
 		err = ext4_mark_inode_dirty(handle, inode);
@@ -780,7 +782,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 
-	err = ext4_journal_dirty_metadata(handle, bh);
+	err = ext4_handle_dirty_metadata(handle, inode, bh);
 	if (err)
 		goto cleanup;
 	brelse(bh);
@@ -859,7 +861,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		set_buffer_uptodate(bh);
 		unlock_buffer(bh);
 
-		err = ext4_journal_dirty_metadata(handle, bh);
+		err = ext4_handle_dirty_metadata(handle, inode, bh);
 		if (err)
 			goto cleanup;
 		brelse(bh);
@@ -955,7 +957,7 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 
-	err = ext4_journal_dirty_metadata(handle, bh);
+	err = ext4_handle_dirty_metadata(handle, inode, bh);
 	if (err)
 		goto out;
 
@@ -2947,7 +2949,7 @@ void ext4_ext_truncate(struct inode *inode)
 	 * transaction synchronous.
 	 */
 	if (IS_SYNC(inode))
-		handle->h_sync = 1;
+		ext4_handle_sync(handle);
 
 out_stop:
 	up_write(&EXT4_I(inode)->i_data_sem);

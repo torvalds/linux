@@ -136,13 +136,19 @@ handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 	 * backs (eg. EIO in the commit thread), then we still need to
 	 * take the FS itself readonly cleanly. */
 	journal = EXT4_SB(sb)->s_journal;
-	if (is_journal_aborted(journal)) {
-		ext4_abort(sb, __func__,
-			   "Detected aborted journal");
-		return ERR_PTR(-EROFS);
+	if (journal) {
+		if (is_journal_aborted(journal)) {
+			ext4_abort(sb, __func__,
+				   "Detected aborted journal");
+			return ERR_PTR(-EROFS);
+		}
+		return jbd2_journal_start(journal, nblocks);
 	}
-
-	return jbd2_journal_start(journal, nblocks);
+	/*
+	 * We're not journaling, return the appropriate indication.
+	 */
+	current->journal_info = EXT4_NOJOURNAL_HANDLE;
+	return current->journal_info;
 }
 
 /*
@@ -157,6 +163,14 @@ int __ext4_journal_stop(const char *where, handle_t *handle)
 	int err;
 	int rc;
 
+	if (!ext4_handle_valid(handle)) {
+		/*
+		 * Do this here since we don't call jbd2_journal_stop() in
+		 * no-journal mode.
+		 */
+		current->journal_info = NULL;
+		return 0;
+	}
 	sb = handle->h_transaction->t_journal->j_private;
 	err = handle->h_err;
 	rc = jbd2_journal_stop(handle);
@@ -173,6 +187,8 @@ void ext4_journal_abort_handle(const char *caller, const char *err_fn,
 {
 	char nbuf[16];
 	const char *errstr = ext4_decode_error(NULL, err, nbuf);
+
+	BUG_ON(!ext4_handle_valid(handle));
 
 	if (bh)
 		BUFFER_TRACE(bh, "abort");
@@ -448,11 +464,13 @@ static void ext4_put_super(struct super_block *sb)
 	ext4_mb_release(sb);
 	ext4_ext_release(sb);
 	ext4_xattr_put_super(sb);
-	err = jbd2_journal_destroy(sbi->s_journal);
-	sbi->s_journal = NULL;
-	if (err < 0)
-		ext4_abort(sb, __func__, "Couldn't clean up the journal");
-
+	if (sbi->s_journal) {
+		err = jbd2_journal_destroy(sbi->s_journal);
+		sbi->s_journal = NULL;
+		if (err < 0)
+			ext4_abort(sb, __func__,
+				   "Couldn't clean up the journal");
+	}
 	if (!(sb->s_flags & MS_RDONLY)) {
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
@@ -522,6 +540,11 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	memset(&ei->i_cached_extent, 0, sizeof(struct ext4_ext_cache));
 	INIT_LIST_HEAD(&ei->i_prealloc_list);
 	spin_lock_init(&ei->i_prealloc_lock);
+	/*
+	 * Note:  We can be called before EXT4_SB(sb)->s_journal is set,
+	 * therefore it can be null here.  Don't check it, just initialize
+	 * jinode.
+	 */
 	jbd2_journal_init_jbd_inode(&ei->jinode, &ei->vfs_inode);
 	ei->i_reserved_data_blocks = 0;
 	ei->i_reserved_meta_blocks = 0;
@@ -588,7 +611,8 @@ static void ext4_clear_inode(struct inode *inode)
 	}
 #endif
 	ext4_discard_preallocations(inode);
-	jbd2_journal_release_jbd_inode(EXT4_SB(inode->i_sb)->s_journal,
+	if (EXT4_JOURNAL(inode))
+		jbd2_journal_release_jbd_inode(EXT4_SB(inode->i_sb)->s_journal,
 				       &EXT4_I(inode)->jinode);
 }
 
@@ -1406,20 +1430,15 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 		printk(KERN_WARNING
 		       "EXT4-fs warning: checktime reached, "
 		       "running e2fsck is recommended\n");
-#if 0
-		/* @@@ We _will_ want to clear the valid bit if we find
-		 * inconsistencies, to force a fsck at reboot.  But for
-		 * a plain journaled filesystem we can keep it set as
-		 * valid forever! :)
-		 */
-	es->s_state &= cpu_to_le16(~EXT4_VALID_FS);
-#endif
+	if (!sbi->s_journal) 
+		es->s_state &= cpu_to_le16(~EXT4_VALID_FS);
 	if (!(__s16) le16_to_cpu(es->s_max_mnt_count))
 		es->s_max_mnt_count = cpu_to_le16(EXT4_DFL_MAX_MNT_COUNT);
 	le16_add_cpu(&es->s_mnt_count, 1);
 	es->s_mtime = cpu_to_le32(get_seconds());
 	ext4_update_dynamic_rev(sb);
-	EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
+	if (sbi->s_journal)
+		EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 
 	ext4_commit_super(sb, es, 1);
 	if (test_opt(sb, DEBUG))
@@ -1431,9 +1450,13 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 			EXT4_INODES_PER_GROUP(sb),
 			sbi->s_mount_opt);
 
-	printk(KERN_INFO "EXT4 FS on %s, %s journal on %s\n",
-	       sb->s_id, EXT4_SB(sb)->s_journal->j_inode ? "internal" :
-	       "external", EXT4_SB(sb)->s_journal->j_devname);
+	if (EXT4_SB(sb)->s_journal) {
+		printk(KERN_INFO "EXT4 FS on %s, %s journal on %s\n",
+		       sb->s_id, EXT4_SB(sb)->s_journal->j_inode ? "internal" :
+		       "external", EXT4_SB(sb)->s_journal->j_devname);
+	} else {
+		printk(KERN_INFO "EXT4 FS on %s, no journal\n", sb->s_id);
+	}
 	return res;
 }
 
@@ -1867,6 +1890,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned long def_mount_opts;
 	struct inode *root;
 	char *cp;
+	const char *descr;
 	int ret = -EINVAL;
 	int blocksize;
 	int db_count;
@@ -2278,21 +2302,23 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 				EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
 				es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
 				ext4_commit_super(sb, es, 1);
-				printk(KERN_CRIT
-				       "EXT4-fs (device %s): mount failed\n",
-				      sb->s_id);
 				goto failed_mount4;
 			}
 		}
 	} else if (journal_inum) {
 		if (ext4_create_journal(sb, es, journal_inum))
 			goto failed_mount3;
+	} else if (test_opt(sb, NOLOAD) && !(sb->s_flags & MS_RDONLY) &&
+	      EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER)) {
+		printk(KERN_ERR "EXT4-fs: required journal recovery "
+		       "suppressed and not mounted read-only\n");
+		goto failed_mount4;
 	} else {
-		if (!silent)
-			printk(KERN_ERR
-			       "ext4: No journal on filesystem on %s\n",
-			       sb->s_id);
-		goto failed_mount3;
+		clear_opt(sbi->s_mount_opt, DATA_FLAGS);
+		set_opt(sbi->s_mount_opt, WRITEBACK_DATA);
+		sbi->s_journal = NULL;
+		needs_recovery = 0;
+		goto no_journal;
 	}
 
 	if (ext4_blocks_count(es) > 0xffffffffULL &&
@@ -2343,6 +2369,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	default:
 		break;
 	}
+
+no_journal:
 
 	if (test_opt(sb, NOBH)) {
 		if (!(test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)) {
@@ -2428,13 +2456,22 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	EXT4_SB(sb)->s_mount_state |= EXT4_ORPHAN_FS;
 	ext4_orphan_cleanup(sb, es);
 	EXT4_SB(sb)->s_mount_state &= ~EXT4_ORPHAN_FS;
-	if (needs_recovery)
+	if (needs_recovery) {
 		printk(KERN_INFO "EXT4-fs: recovery complete.\n");
-	ext4_mark_recovery_complete(sb, es);
-	printk(KERN_INFO "EXT4-fs: mounted filesystem with %s data mode.\n",
-	       test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ? "journal":
-	       test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_ORDERED_DATA ? "ordered":
-	       "writeback");
+		ext4_mark_recovery_complete(sb, es);
+	}
+	if (EXT4_SB(sb)->s_journal) {
+		if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA)
+			descr = " journalled data mode";
+		else if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_ORDERED_DATA)
+			descr = " ordered data mode";
+		else
+			descr = " writeback data mode";
+	} else
+		descr = "out journal";
+
+	printk(KERN_INFO "EXT4-fs: mounted filesystem %s with%s\n",
+	       sb->s_id, descr);
 
 	lock_kernel();
 	return 0;
@@ -2446,8 +2483,11 @@ cantfind_ext4:
 	goto failed_mount;
 
 failed_mount4:
-	jbd2_journal_destroy(sbi->s_journal);
-	sbi->s_journal = NULL;
+	printk(KERN_ERR "EXT4-fs (device %s): mount failed\n", sb->s_id);
+	if (sbi->s_journal) {
+		jbd2_journal_destroy(sbi->s_journal);
+		sbi->s_journal = NULL;
+	}
 failed_mount3:
 	percpu_counter_destroy(&sbi->s_freeblocks_counter);
 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
@@ -2508,6 +2548,8 @@ static journal_t *ext4_get_journal(struct super_block *sb,
 	struct inode *journal_inode;
 	journal_t *journal;
 
+	BUG_ON(!EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_HAS_JOURNAL));
+
 	/* First, test for the existence of a valid inode on disk.  Bad
 	 * things happen if we iget() an unused inode, as the subsequent
 	 * iput() will try to delete it. */
@@ -2555,6 +2597,8 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 	unsigned long offset;
 	struct ext4_super_block *es;
 	struct block_device *bdev;
+
+	BUG_ON(!EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_HAS_JOURNAL));
 
 	bdev = ext4_blkdev_get(j_dev);
 	if (bdev == NULL)
@@ -2642,6 +2686,8 @@ static int ext4_load_journal(struct super_block *sb,
 	dev_t journal_dev;
 	int err = 0;
 	int really_read_only;
+
+	BUG_ON(!EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_HAS_JOURNAL));
 
 	if (journal_devnum &&
 	    journal_devnum != le32_to_cpu(es->s_journal_dev)) {
@@ -2817,6 +2863,10 @@ static void ext4_mark_recovery_complete(struct super_block *sb,
 {
 	journal_t *journal = EXT4_SB(sb)->s_journal;
 
+	if (!EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_HAS_JOURNAL)) {
+		BUG_ON(journal != NULL);
+		return;
+	}
 	jbd2_journal_lock_updates(journal);
 	if (jbd2_journal_flush(journal) < 0)
 		goto out;
@@ -2845,6 +2895,8 @@ static void ext4_clear_journal_err(struct super_block *sb,
 	journal_t *journal;
 	int j_errno;
 	const char *errstr;
+
+	BUG_ON(!EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_HAS_JOURNAL));
 
 	journal = EXT4_SB(sb)->s_journal;
 
@@ -2878,14 +2930,17 @@ static void ext4_clear_journal_err(struct super_block *sb,
 int ext4_force_commit(struct super_block *sb)
 {
 	journal_t *journal;
-	int ret;
+	int ret = 0;
 
 	if (sb->s_flags & MS_RDONLY)
 		return 0;
 
 	journal = EXT4_SB(sb)->s_journal;
-	sb->s_dirt = 0;
-	ret = ext4_journal_force_commit(journal);
+	if (journal) {
+		sb->s_dirt = 0;
+		ret = ext4_journal_force_commit(journal);
+	}
+
 	return ret;
 }
 
@@ -2897,9 +2952,13 @@ int ext4_force_commit(struct super_block *sb)
  */
 static void ext4_write_super(struct super_block *sb)
 {
-	if (mutex_trylock(&sb->s_lock) != 0)
-		BUG();
-	sb->s_dirt = 0;
+	if (EXT4_SB(sb)->s_journal) {
+		if (mutex_trylock(&sb->s_lock) != 0)
+			BUG();
+		sb->s_dirt = 0;
+	} else {
+		ext4_commit_super(sb, EXT4_SB(sb)->s_es, 1);
+	}
 }
 
 static int ext4_sync_fs(struct super_block *sb, int wait)
@@ -2908,10 +2967,14 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 
 	trace_mark(ext4_sync_fs, "dev %s wait %d", sb->s_id, wait);
 	sb->s_dirt = 0;
-	if (wait)
-		ret = ext4_force_commit(sb);
-	else
-		jbd2_journal_start_commit(EXT4_SB(sb)->s_journal, NULL);
+	if (EXT4_SB(sb)->s_journal) {
+		if (wait)
+			ret = ext4_force_commit(sb);
+		else
+ 			jbd2_journal_start_commit(EXT4_SB(sb)->s_journal, NULL);
+	} else {
+		ext4_commit_super(sb, EXT4_SB(sb)->s_es, wait);
+	}
 	return ret;
 }
 
@@ -2926,15 +2989,17 @@ static void ext4_write_super_lockfs(struct super_block *sb)
 	if (!(sb->s_flags & MS_RDONLY)) {
 		journal_t *journal = EXT4_SB(sb)->s_journal;
 
-		/* Now we set up the journal barrier. */
-		jbd2_journal_lock_updates(journal);
+		if (journal) {
+			/* Now we set up the journal barrier. */
+			jbd2_journal_lock_updates(journal);
 
-		/*
-		 * We don't want to clear needs_recovery flag when we failed
-		 * to flush the journal.
-		 */
-		if (jbd2_journal_flush(journal) < 0)
-			return;
+			/*
+			 * We don't want to clear needs_recovery flag when we
+			 * failed to flush the journal.
+			 */
+			if (jbd2_journal_flush(journal) < 0)
+				return;
+		}
 
 		/* Journal blocked and flushed, clear needs_recovery flag. */
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
@@ -2948,7 +3013,7 @@ static void ext4_write_super_lockfs(struct super_block *sb)
  */
 static void ext4_unlockfs(struct super_block *sb)
 {
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (EXT4_SB(sb)->s_journal && !(sb->s_flags & MS_RDONLY)) {
 		lock_super(sb);
 		/* Reser the needs_recovery flag before the fs is unlocked. */
 		EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
@@ -2999,7 +3064,8 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 
 	es = sbi->s_es;
 
-	ext4_init_journal_params(sb, sbi->s_journal);
+	if (sbi->s_journal)
+		ext4_init_journal_params(sb, sbi->s_journal);
 
 	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY) ||
 		n_blocks_count > ext4_blocks_count(es)) {
@@ -3028,9 +3094,11 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 			 * We have to unlock super so that we can wait for
 			 * transactions.
 			 */
-			unlock_super(sb);
-			ext4_mark_recovery_complete(sb, es);
-			lock_super(sb);
+			if (sbi->s_journal) {
+				unlock_super(sb);
+				ext4_mark_recovery_complete(sb, es);
+				lock_super(sb);
+			}
 		} else {
 			__le32 ret;
 			if ((ret = EXT4_HAS_RO_COMPAT_FEATURE(sb,
@@ -3084,7 +3152,8 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 			 * been changed by e2fsck since we originally mounted
 			 * the partition.)
 			 */
-			ext4_clear_journal_err(sb, es);
+			if (sbi->s_journal)
+				ext4_clear_journal_err(sb, es);
 			sbi->s_mount_state = le16_to_cpu(es->s_state);
 			if ((err = ext4_group_extend(sb, es, n_blocks_count)))
 				goto restore_opts;
@@ -3092,6 +3161,9 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 				sb->s_flags &= ~MS_RDONLY;
 		}
 	}
+	if (sbi->s_journal == NULL)
+		ext4_commit_super(sb, es, 1);
+
 #ifdef CONFIG_QUOTA
 	/* Release old quota file names */
 	for (i = 0; i < MAXQUOTAS; i++)
@@ -3368,7 +3440,8 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 	 * When we journal data on quota file, we have to flush journal to see
 	 * all updates to the file when we bypass pagecache...
 	 */
-	if (ext4_should_journal_data(path.dentry->d_inode)) {
+	if (EXT4_SB(sb)->s_journal &&
+	    ext4_should_journal_data(path.dentry->d_inode)) {
 		/*
 		 * We don't need to lock updates but journal_flush() could
 		 * otherwise be livelocked...
@@ -3442,7 +3515,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 	struct buffer_head *bh;
 	handle_t *handle = journal_current_handle();
 
-	if (!handle) {
+	if (EXT4_SB(sb)->s_journal && !handle) {
 		printk(KERN_WARNING "EXT4-fs: Quota write (off=%llu, len=%llu)"
 			" cancelled because transaction is not started.\n",
 			(unsigned long long)off, (unsigned long long)len);
@@ -3467,7 +3540,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 		flush_dcache_page(bh->b_page);
 		unlock_buffer(bh);
 		if (journal_quota)
-			err = ext4_journal_dirty_metadata(handle, bh);
+			err = ext4_handle_dirty_metadata(handle, NULL, bh);
 		else {
 			/* Always do at least ordered writes for quotas */
 			err = ext4_jbd2_file_inode(handle, inode);

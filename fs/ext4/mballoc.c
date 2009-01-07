@@ -2553,7 +2553,8 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 	ext4_mb_init_per_dev_proc(sb);
 	ext4_mb_history_init(sb);
 
-	sbi->s_journal->j_commit_callback = release_blocks_on_commit;
+	if (sbi->s_journal)
+		sbi->s_journal->j_commit_callback = release_blocks_on_commit;
 
 	printk(KERN_INFO "EXT4-fs: mballoc enabled\n");
 	return 0;
@@ -2854,7 +2855,7 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 		mb_set_bits(sb_bgl_lock(sbi, ac->ac_b_ex.fe_group),
 				bitmap_bh->b_data, ac->ac_b_ex.fe_start,
 				ac->ac_b_ex.fe_len);
-		err = ext4_journal_dirty_metadata(handle, bitmap_bh);
+		err = ext4_handle_dirty_metadata(handle, NULL, bitmap_bh);
 		if (!err)
 			err = -EAGAIN;
 		goto out_err;
@@ -2901,10 +2902,10 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 		spin_unlock(sb_bgl_lock(sbi, flex_group));
 	}
 
-	err = ext4_journal_dirty_metadata(handle, bitmap_bh);
+	err = ext4_handle_dirty_metadata(handle, NULL, bitmap_bh);
 	if (err)
 		goto out_err;
-	err = ext4_journal_dirty_metadata(handle, gdp_bh);
+	err = ext4_handle_dirty_metadata(handle, NULL, gdp_bh);
 
 out_err:
 	sb->s_dirt = 1;
@@ -4414,7 +4415,7 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
 	struct rb_node **n = &db->bb_free_root.rb_node, *node;
 	struct rb_node *parent = NULL, *new_node;
 
-
+	BUG_ON(!ext4_handle_valid(handle));
 	BUG_ON(e4b->bd_bitmap_page == NULL);
 	BUG_ON(e4b->bd_buddy_page == NULL);
 
@@ -4600,7 +4601,7 @@ do_more:
 
 	/* We dirtied the bitmap block */
 	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
-	err = ext4_journal_dirty_metadata(handle, bitmap_bh);
+	err = ext4_handle_dirty_metadata(handle, NULL, bitmap_bh);
 
 	if (ac) {
 		ac->ac_b_ex.fe_group = block_group;
@@ -4609,7 +4610,7 @@ do_more:
 		ext4_mb_store_history(ac);
 	}
 
-	if (metadata) {
+	if (metadata && ext4_handle_valid(handle)) {
 		/* blocks being freed are metadata. these blocks shouldn't
 		 * be used until this transaction is committed */
 		ext4_mb_free_metadata(handle, &e4b, block_group, bit, count);
@@ -4639,7 +4640,7 @@ do_more:
 
 	/* And the group descriptor block */
 	BUFFER_TRACE(gd_bh, "dirtied group descriptor block");
-	ret = ext4_journal_dirty_metadata(handle, gd_bh);
+	ret = ext4_handle_dirty_metadata(handle, NULL, gd_bh);
 	if (!err)
 		err = ret;
 

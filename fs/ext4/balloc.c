@@ -531,11 +531,11 @@ do_more:
 
 	/* We dirtied the bitmap block */
 	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
-	err = ext4_journal_dirty_metadata(handle, bitmap_bh);
+	err = ext4_handle_dirty_metadata(handle, NULL, bitmap_bh);
 
 	/* And the group descriptor block */
 	BUFFER_TRACE(gd_bh, "dirtied group descriptor block");
-	ret = ext4_journal_dirty_metadata(handle, gd_bh);
+	ret = ext4_handle_dirty_metadata(handle, NULL, gd_bh);
 	if (!err) err = ret;
 	*pdquot_freed_blocks += group_freed;
 

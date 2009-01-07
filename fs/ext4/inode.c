@@ -72,11 +72,16 @@ static int ext4_inode_is_fast_symlink(struct inode *inode)
  * "bh" may be NULL: a metadata block may have been freed from memory
  * but there may still be a record of it in the journal, and that record
  * still needs to be revoked.
+ *
+ * If the handle isn't valid we're not journaling so there's nothing to do.
  */
 int ext4_forget(handle_t *handle, int is_metadata, struct inode *inode,
 			struct buffer_head *bh, ext4_fsblk_t blocknr)
 {
 	int err;
+
+	if (!ext4_handle_valid(handle))
+		return 0;
 
 	might_sleep();
 
@@ -170,7 +175,9 @@ static handle_t *start_transaction(struct inode *inode)
  */
 static int try_to_extend_transaction(handle_t *handle, struct inode *inode)
 {
-	if (handle->h_buffer_credits > EXT4_RESERVE_TRANS_BLOCKS)
+	if (!ext4_handle_valid(handle))
+		return 0;
+	if (ext4_handle_has_enough_credits(handle, EXT4_RESERVE_TRANS_BLOCKS+1))
 		return 0;
 	if (!ext4_journal_extend(handle, blocks_for_truncate(inode)))
 		return 0;
@@ -184,6 +191,7 @@ static int try_to_extend_transaction(handle_t *handle, struct inode *inode)
  */
 static int ext4_journal_test_restart(handle_t *handle, struct inode *inode)
 {
+	BUG_ON(EXT4_JOURNAL(inode) == NULL);
 	jbd_debug(2, "restarting handle %p\n", handle);
 	return ext4_journal_restart(handle, blocks_for_truncate(inode));
 }
@@ -216,7 +224,7 @@ void ext4_delete_inode(struct inode *inode)
 	}
 
 	if (IS_SYNC(inode))
-		handle->h_sync = 1;
+		ext4_handle_sync(handle);
 	inode->i_size = 0;
 	err = ext4_mark_inode_dirty(handle, inode);
 	if (err) {
@@ -233,7 +241,7 @@ void ext4_delete_inode(struct inode *inode)
 	 * enough credits left in the handle to remove the inode from
 	 * the orphan list and set the dtime field.
 	 */
-	if (handle->h_buffer_credits < 3) {
+	if (!ext4_handle_has_enough_credits(handle, 3)) {
 		err = ext4_journal_extend(handle, 3);
 		if (err > 0)
 			err = ext4_journal_restart(handle, 3);
@@ -717,8 +725,8 @@ static int ext4_alloc_branch(handle_t *handle, struct inode *inode,
 		set_buffer_uptodate(bh);
 		unlock_buffer(bh);
 
-		BUFFER_TRACE(bh, "call ext4_journal_dirty_metadata");
-		err = ext4_journal_dirty_metadata(handle, bh);
+		BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
+		err = ext4_handle_dirty_metadata(handle, inode, bh);
 		if (err)
 			goto failed;
 	}
@@ -800,8 +808,8 @@ static int ext4_splice_branch(handle_t *handle, struct inode *inode,
 		 * generic_commit_write->__mark_inode_dirty->ext4_dirty_inode.
 		 */
 		jbd_debug(5, "splicing indirect only\n");
-		BUFFER_TRACE(where->bh, "call ext4_journal_dirty_metadata");
-		err = ext4_journal_dirty_metadata(handle, where->bh);
+		BUFFER_TRACE(where->bh, "call ext4_handle_dirty_metadata");
+		err = ext4_handle_dirty_metadata(handle, inode, where->bh);
 		if (err)
 			goto err_out;
 	} else {
@@ -1229,8 +1237,8 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 				set_buffer_uptodate(bh);
 			}
 			unlock_buffer(bh);
-			BUFFER_TRACE(bh, "call ext4_journal_dirty_metadata");
-			err = ext4_journal_dirty_metadata(handle, bh);
+			BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
+			err = ext4_handle_dirty_metadata(handle, inode, bh);
 			if (!fatal)
 				fatal = err;
 		} else {
@@ -1395,7 +1403,7 @@ static int write_end_fn(handle_t *handle, struct buffer_head *bh)
 	if (!buffer_mapped(bh) || buffer_freed(bh))
 		return 0;
 	set_buffer_uptodate(bh);
-	return ext4_journal_dirty_metadata(handle, bh);
+	return ext4_handle_dirty_metadata(handle, NULL, bh);
 }
 
 /*
@@ -2762,7 +2770,10 @@ static sector_t ext4_bmap(struct address_space *mapping, sector_t block)
 		filemap_write_and_wait(mapping);
 	}
 
-	if (EXT4_I(inode)->i_state & EXT4_STATE_JDATA) {
+	BUG_ON(!EXT4_JOURNAL(inode) &&
+	       EXT4_I(inode)->i_state & EXT4_STATE_JDATA);
+
+	if (EXT4_JOURNAL(inode) && EXT4_I(inode)->i_state & EXT4_STATE_JDATA) {
 		/*
 		 * This is a REALLY heavyweight approach, but the use of
 		 * bmap on dirty files is expected to be extremely rare:
@@ -3033,7 +3044,10 @@ static void ext4_invalidatepage(struct page *page, unsigned long offset)
 	if (offset == 0)
 		ClearPageChecked(page);
 
-	jbd2_journal_invalidatepage(journal, page, offset);
+	if (journal)
+		jbd2_journal_invalidatepage(journal, page, offset);
+	else
+		block_invalidatepage(page, offset);
 }
 
 static int ext4_releasepage(struct page *page, gfp_t wait)
@@ -3043,7 +3057,10 @@ static int ext4_releasepage(struct page *page, gfp_t wait)
 	WARN_ON(PageChecked(page));
 	if (!page_has_buffers(page))
 		return 0;
-	return jbd2_journal_try_to_free_buffers(journal, page, wait);
+	if (journal)
+		return jbd2_journal_try_to_free_buffers(journal, page, wait);
+	else
+		return try_to_free_buffers(page);
 }
 
 /*
@@ -3315,7 +3332,7 @@ int ext4_block_truncate_page(handle_t *handle,
 
 	err = 0;
 	if (ext4_should_journal_data(inode)) {
-		err = ext4_journal_dirty_metadata(handle, bh);
+		err = ext4_handle_dirty_metadata(handle, inode, bh);
 	} else {
 		if (ext4_should_order_data(inode))
 			err = ext4_jbd2_file_inode(handle, inode);
@@ -3439,8 +3456,8 @@ static void ext4_clear_blocks(handle_t *handle, struct inode *inode,
 	__le32 *p;
 	if (try_to_extend_transaction(handle, inode)) {
 		if (bh) {
-			BUFFER_TRACE(bh, "call ext4_journal_dirty_metadata");
-			ext4_journal_dirty_metadata(handle, bh);
+			BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
+			ext4_handle_dirty_metadata(handle, inode, bh);
 		}
 		ext4_mark_inode_dirty(handle, inode);
 		ext4_journal_test_restart(handle, inode);
@@ -3540,7 +3557,7 @@ static void ext4_free_data(handle_t *handle, struct inode *inode,
 				  count, block_to_free_p, p);
 
 	if (this_bh) {
-		BUFFER_TRACE(this_bh, "call ext4_journal_dirty_metadata");
+		BUFFER_TRACE(this_bh, "call ext4_handle_dirty_metadata");
 
 		/*
 		 * The buffer head should have an attached journal head at this
@@ -3549,7 +3566,7 @@ static void ext4_free_data(handle_t *handle, struct inode *inode,
 		 * the block was cleared. Check for this instead of OOPSing.
 		 */
 		if (bh2jh(this_bh))
-			ext4_journal_dirty_metadata(handle, this_bh);
+			ext4_handle_dirty_metadata(handle, inode, this_bh);
 		else
 			ext4_error(inode->i_sb, __func__,
 				   "circular indirect block detected, "
@@ -3579,7 +3596,7 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 	ext4_fsblk_t nr;
 	__le32 *p;
 
-	if (is_handle_aborted(handle))
+	if (ext4_handle_is_aborted(handle))
 		return;
 
 	if (depth--) {
@@ -3649,7 +3666,7 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			 * will merely complain about releasing a free block,
 			 * rather than leaking blocks.
 			 */
-			if (is_handle_aborted(handle))
+			if (ext4_handle_is_aborted(handle))
 				return;
 			if (try_to_extend_transaction(handle, inode)) {
 				ext4_mark_inode_dirty(handle, inode);
@@ -3668,9 +3685,10 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 								   parent_bh)){
 					*p = 0;
 					BUFFER_TRACE(parent_bh,
-					"call ext4_journal_dirty_metadata");
-					ext4_journal_dirty_metadata(handle,
-								    parent_bh);
+					"call ext4_handle_dirty_metadata");
+					ext4_handle_dirty_metadata(handle,
+								   inode,
+								   parent_bh);
 				}
 			}
 		}
@@ -3858,7 +3876,7 @@ do_indirects:
 	 * synchronous
 	 */
 	if (IS_SYNC(inode))
-		handle->h_sync = 1;
+		ext4_handle_sync(handle);
 out_stop:
 	/*
 	 * If this was a simple ftruncate(), and the file will remain alive
@@ -4357,8 +4375,8 @@ static int ext4_do_update_inode(handle_t *handle,
 			EXT4_SET_RO_COMPAT_FEATURE(sb,
 					EXT4_FEATURE_RO_COMPAT_LARGE_FILE);
 			sb->s_dirt = 1;
-			handle->h_sync = 1;
-			err = ext4_journal_dirty_metadata(handle,
+			ext4_handle_sync(handle);
+			err = ext4_handle_dirty_metadata(handle, inode,
 					EXT4_SB(sb)->s_sbh);
 		}
 	}
@@ -4385,9 +4403,8 @@ static int ext4_do_update_inode(handle_t *handle,
 		raw_inode->i_extra_isize = cpu_to_le16(ei->i_extra_isize);
 	}
 
-
-	BUFFER_TRACE(bh, "call ext4_journal_dirty_metadata");
-	rc = ext4_journal_dirty_metadata(handle, bh);
+	BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
+	rc = ext4_handle_dirty_metadata(handle, inode, bh);
 	if (!err)
 		err = rc;
 	ei->i_state &= ~EXT4_STATE_NEW;
@@ -4448,6 +4465,25 @@ int ext4_write_inode(struct inode *inode, int wait)
 		return 0;
 
 	return ext4_force_commit(inode->i_sb);
+}
+
+int __ext4_write_dirty_metadata(struct inode *inode, struct buffer_head *bh)
+{
+	int err = 0;
+
+	mark_buffer_dirty(bh);
+	if (inode && inode_needs_sync(inode)) {
+		sync_dirty_buffer(bh);
+		if (buffer_req(bh) && !buffer_uptodate(bh)) {
+			ext4_error(inode->i_sb, __func__,
+				   "IO error syncing inode, "
+				   "inode=%lu, block=%llu",
+				   inode->i_ino,
+				   (unsigned long long)bh->b_blocknr);
+			err = -EIO;
+		}
+	}
+	return err;
 }
 
 /*
@@ -4754,16 +4790,15 @@ int
 ext4_reserve_inode_write(handle_t *handle, struct inode *inode,
 			 struct ext4_iloc *iloc)
 {
-	int err = 0;
-	if (handle) {
-		err = ext4_get_inode_loc(inode, iloc);
-		if (!err) {
-			BUFFER_TRACE(iloc->bh, "get_write_access");
-			err = ext4_journal_get_write_access(handle, iloc->bh);
-			if (err) {
-				brelse(iloc->bh);
-				iloc->bh = NULL;
-			}
+	int err;
+
+	err = ext4_get_inode_loc(inode, iloc);
+	if (!err) {
+		BUFFER_TRACE(iloc->bh, "get_write_access");
+		err = ext4_journal_get_write_access(handle, iloc->bh);
+		if (err) {
+			brelse(iloc->bh);
+			iloc->bh = NULL;
 		}
 	}
 	ext4_std_error(inode->i_sb, err);
@@ -4835,7 +4870,8 @@ int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode)
 
 	might_sleep();
 	err = ext4_reserve_inode_write(handle, inode, &iloc);
-	if (EXT4_I(inode)->i_extra_isize < sbi->s_want_extra_isize &&
+	if (ext4_handle_valid(handle) &&
+	    EXT4_I(inode)->i_extra_isize < sbi->s_want_extra_isize &&
 	    !(EXT4_I(inode)->i_state & EXT4_STATE_NO_EXPAND)) {
 		/*
 		 * We need extra buffer credits since we may write into EA block
@@ -4887,6 +4923,11 @@ void ext4_dirty_inode(struct inode *inode)
 	handle_t *current_handle = ext4_journal_current_handle();
 	handle_t *handle;
 
+	if (!ext4_handle_valid(current_handle)) {
+		ext4_mark_inode_dirty(current_handle, inode);
+		return;
+	}
+
 	handle = ext4_journal_start(inode, 2);
 	if (IS_ERR(handle))
 		goto out;
@@ -4924,8 +4965,9 @@ static int ext4_pin_inode(handle_t *handle, struct inode *inode)
 			BUFFER_TRACE(iloc.bh, "get_write_access");
 			err = jbd2_journal_get_write_access(handle, iloc.bh);
 			if (!err)
-				err = ext4_journal_dirty_metadata(handle,
-								  iloc.bh);
+				err = ext4_handle_dirty_metadata(handle,
+								 inode,
+								 iloc.bh);
 			brelse(iloc.bh);
 		}
 	}
@@ -4951,6 +4993,8 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 	 */
 
 	journal = EXT4_JOURNAL(inode);
+	if (!journal)
+		return 0;
 	if (is_journal_aborted(journal))
 		return -EROFS;
 
@@ -4980,7 +5024,7 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 		return PTR_ERR(handle);
 
 	err = ext4_mark_inode_dirty(handle, inode);
-	handle->h_sync = 1;
+	ext4_handle_sync(handle);
 	ext4_journal_stop(handle);
 	ext4_std_error(inode->i_sb, err);
 
