@@ -1007,12 +1007,6 @@ config EBIU_FCTLVAL
 	hex "Flash Memory Bank Control Register"
 	depends on BF54x
 	default 6
-
-config HARDWARE_PM
-	bool "OProfile use hardware porformance monitor"
-	depends on OPROFILE=y
-	default n
-
 endmenu
 
 #############################################################################

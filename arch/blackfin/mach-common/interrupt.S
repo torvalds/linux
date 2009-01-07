@@ -165,16 +165,6 @@ ENTRY(_evt_ivhw)
 	r0 = [p2];
 	[sp + PT_IPEND] = r0;
 
-#ifdef CONFIG_HARDWARE_PM
-	r7 = [sp + PT_SEQSTAT];
-	r7 = r7 >>> 0xe;
-	r6 = 0x1F;
-	r7 = r7 & r6;
-	r5 = 0x12;
-	cc = r7 == r5;
-	if cc jump .Lcall_do_ovf; /* deal with performance counter overflow */
-#endif
-
 	/* set the EXCAUSE to HWERR for trap_c */
 	r0 = [sp + PT_SEQSTAT];
 	R1.L = LO(VEC_HWERR);
@@ -200,18 +190,6 @@ ENTRY(_evt_ivhw)
 .Lcommon_restore_all_sys:
 	RESTORE_ALL_SYS
 	rti;
-
-#ifdef CONFIG_HARDWARE_PM
-.Lcall_do_ovf:
-
-	R0 = SP;
-	SP += -12;
-	call _pm_overflow;
-	SP += 12;
-
-	jump .Lcommon_restore_all_sys;
-#endif
-
 ENDPROC(_evt_ivhw)
 
 /* Interrupt routine for evt2 (NMI).
