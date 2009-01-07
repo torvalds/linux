@@ -68,6 +68,8 @@ SECTIONS
 		__etext = .;
 	}
 
+	NOTES
+
 	/* Just in case the first read only is a 32-bit access */
 	RO_DATA(4)
 
@@ -167,6 +169,7 @@ SECTIONS
 		. = ALIGN(4);
 		___initramfs_start = .;
 		*(.init.ramfs)
+		. = ALIGN(4);
 		___initramfs_end = .;
 	}
 
@@ -212,7 +215,7 @@ SECTIONS
 		__ebss_b_l1 = .;
 	}
 
-	__l2_lma_start = .;
+	__l2_lma_start = LOADADDR(.data_b_l1) + SIZEOF(.data_b_l1);
 
 	.text_data_l2 L2_START : AT(LOADADDR(.data_b_l1) + SIZEOF(.data_b_l1))
 	{
@@ -236,10 +239,11 @@ SECTIONS
 		. = ALIGN(4);
 		__ebss_l2 = .;
 	}
+
 	/* Force trailing alignment of our init section so that when we
 	 * free our init memory, we don't leave behind a partial page.
 	 */
-	. = LOADADDR(.data_b_l1) + SIZEOF(.data_b_l1);
+	. = LOADADDR(.text_data_l2) + SIZEOF(.text_data_l2);
 	. = ALIGN(PAGE_SIZE);
 	___init_end = .;
 
