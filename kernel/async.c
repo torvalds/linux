@@ -124,12 +124,12 @@ static void run_one_entry(void)
 	spin_unlock_irqrestore(&async_lock, flags);
 
 	/* 3) run it (and print duration)*/
-	if (initcall_debug) {
+	if (initcall_debug && system_state == SYSTEM_BOOTING) {
 		printk("calling  %lli_%pF @ %i\n", entry->cookie, entry->func, task_pid_nr(current));
 		calltime = ktime_get();
 	}
 	entry->func(entry->data, entry->cookie);
-	if (initcall_debug) {
+	if (initcall_debug && system_state == SYSTEM_BOOTING) {
 		rettime = ktime_get();
 		delta = ktime_sub(rettime, calltime);
 		printk("initcall %lli_%pF returned 0 after %lld usecs\n", entry->cookie,
@@ -220,14 +220,14 @@ void async_synchronize_cookie_special(async_cookie_t cookie, struct list_head *r
 {
 	ktime_t starttime, delta, endtime;
 
-	if (initcall_debug) {
+	if (initcall_debug && system_state == SYSTEM_BOOTING) {
 		printk("async_waiting @ %i\n", task_pid_nr(current));
 		starttime = ktime_get();
 	}
 
 	wait_event(async_done, __lowest_in_progress(running) >= cookie);
 
-	if (initcall_debug) {
+	if (initcall_debug && system_state == SYSTEM_BOOTING) {
 		endtime = ktime_get();
 		delta = ktime_sub(endtime, starttime);
 
