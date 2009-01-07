@@ -109,7 +109,7 @@ SECTIONS
 #endif
 
 		DATA_DATA
-		*(.data.*)
+		*(.data)
 		CONSTRUCTORS
 
 		/* make sure the init_task is aligned to the
@@ -161,6 +161,7 @@ SECTIONS
 		*(.con_initcall.init)
 		___con_initcall_end = .;
 	}
+	PERCPU(4)
 	SECURITY_INIT
 	.init.ramfs :
 	{
@@ -236,7 +237,6 @@ SECTIONS
 		. = ALIGN(4);
 		__ebss_l2 = .;
 	}
-
 	/* Force trailing alignment of our init section so that when we
 	 * free our init memory, we don't leave behind a partial page.
 	 */

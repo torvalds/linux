@@ -200,6 +200,32 @@ config BF561
 
 endchoice
 
+config SMP
+	depends on BF561
+	bool "Symmetric multi-processing support"
+	---help---
+	  This enables support for systems with more than one CPU,
+	  like the dual core BF561. If you have a system with only one
+	  CPU, say N. If you have a system with more than one CPU, say Y.
+
+	  If you don't know what to do here, say N.
+
+config NR_CPUS
+	int
+	depends on SMP
+	default 2 if BF561
+
+config IRQ_PER_CPU
+	bool
+	depends on SMP
+	default y
+
+config TICK_SOURCE_SYSTMR0
+	bool
+	select BFIN_GPTIMERS
+	depends on SMP
+	default y
+
 config BF_REV_MIN
 	int
 	default 0 if (BF51x || BF52x || BF54x)
@@ -502,6 +528,7 @@ source kernel/Kconfig.hz
 
 config GENERIC_TIME
 	bool "Generic time"
+	depends on !SMP
 	default y
 
 config GENERIC_CLOCKEVENTS
@@ -576,6 +603,7 @@ endmenu
 
 
 menu "Blackfin Kernel Optimizations"
+	depends on !SMP
 
 comment "Memory Optimizations"
 
@@ -738,7 +766,6 @@ config BFIN_INS_LOWOVERHEAD
 
 endmenu
 
-
 choice
 	prompt "Kernel executes from"
 	help
@@ -804,9 +831,11 @@ config BFIN_ICACHE_LOCK
 choice
 	prompt "Policy"
 	depends on BFIN_DCACHE
-	default BFIN_WB
+	default BFIN_WB if !SMP
+	default BFIN_WT if SMP
 config BFIN_WB
 	bool "Write back"
+	depends on !SMP
 	help
 	  Write Back Policy:
 	    Cached data will be written back to SDRAM only when needed.
