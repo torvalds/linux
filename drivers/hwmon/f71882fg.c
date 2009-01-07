@@ -810,12 +810,12 @@ static inline void superio_exit(int base)
 	outb(SIO_LOCK_KEY, base);
 }
 
-static inline u16 fan_from_reg(u16 reg)
+static inline int fan_from_reg(u16 reg)
 {
 	return reg ? (1500000 / reg) : 0;
 }
 
-static inline u16 fan_to_reg(u16 fan)
+static inline u16 fan_to_reg(int fan)
 {
 	return fan ? (1500000 / fan) : 0;
 }
