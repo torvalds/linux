@@ -27,11 +27,11 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define DRVNAME "f71882fg"
 
-#define SIO_F71882FG_LD_HWM	0x04	/* Hardware monitor logical device*/
+#define SIO_F71882FG_LD_HWM	0x04	/* Hardware monitor logical device */
 #define SIO_UNLOCK_KEY		0x87	/* Key to enable Super-I/O */
 #define SIO_LOCK_KEY		0xAA	/* Key to diasble Super-I/O */
 
@@ -78,7 +78,7 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-static struct platform_device *f71882fg_pdev = NULL;
+static struct platform_device *f71882fg_pdev;
 
 /* Super-I/O Function prototypes */
 static inline int superio_inb(int base, int reg);
@@ -114,7 +114,7 @@ struct f71882fg_data {
 	u8	temp_diode_open;
 };
 
-/* Sysfs in*/
+/* Sysfs in */
 static ssize_t show_in(struct device *dev, struct device_attribute *devattr,
 	char *buf);
 static ssize_t show_in_max(struct device *dev, struct device_attribute
@@ -335,7 +335,7 @@ static void f71882fg_write8(struct f71882fg_data *data, u8 reg, u8 val)
 	outb(val, data->addr + DATA_REG_OFFSET);
 }
 
-static struct f71882fg_data *f71882fg_update_device(struct device * dev)
+static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
 	int nr, reg, reg2;
