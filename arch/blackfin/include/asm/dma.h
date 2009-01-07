@@ -111,11 +111,8 @@ struct dma_channel {
 	enum dma_chan_status chan_status;
 	struct dma_register *regs;
 	struct dmasg *sg;		/* large mode descriptor */
-	unsigned int ctrl_num;	/* controller number */
 	unsigned int irq;
 	void *data;
-	unsigned int dma_enable_flag;
-	unsigned int loopback_flag;
 #ifdef CONFIG_PM
 	unsigned short saved_peripheral_map;
 #endif
