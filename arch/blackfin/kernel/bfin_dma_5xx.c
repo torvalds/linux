@@ -151,7 +151,7 @@ int request_dma(unsigned int channel, const char *device_id)
 }
 EXPORT_SYMBOL(request_dma);
 
-int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
+int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data)
 {
 	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_DMA_CHANNELS));
