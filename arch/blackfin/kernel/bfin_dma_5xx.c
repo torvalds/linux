@@ -157,18 +157,16 @@ int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data)
 	       && channel < MAX_DMA_CHANNELS));
 
 	if (callback != NULL) {
-		int ret_val;
-		dma_ch[channel].irq = channel2irq(channel);
-		dma_ch[channel].data = data;
+		int ret;
+		unsigned int irq = channel2irq(channel);
 
-		ret_val =
-		    request_irq(dma_ch[channel].irq, callback, IRQF_DISABLED,
-				dma_ch[channel].device_id, data);
-		if (ret_val) {
-			printk(KERN_NOTICE
-			       "Request irq in DMA engine failed.\n");
-			return -EPERM;
-		}
+		ret = request_irq(irq, callback, IRQF_DISABLED,
+			dma_ch[channel].device_id, data);
+		if (ret)
+			return ret;
+
+		dma_ch[channel].irq = irq;
+		dma_ch[channel].data = data;
 	}
 	return 0;
 }
