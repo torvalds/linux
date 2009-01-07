@@ -623,6 +623,14 @@ static struct bfin5xx_spi_chip lq035q1_spi_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_ENC28J60) || defined(CONFIG_ENC28J60_MODULE)
+static struct bfin5xx_spi_chip enc28j60_spi_chip_info = {
+	.enable_dma	= 1,
+	.bits_per_word	= 8,
+	.cs_gpio = GPIO_PF10,
+};
+#endif
+
 #if defined(CONFIG_MTD_DATAFLASH) \
 	|| defined(CONFIG_MTD_DATAFLASH_MODULE)
 
@@ -782,6 +790,17 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.chip_select = 2,
 		.controller_data = &lq035q1_spi_chip_info,
 		.mode = SPI_CPHA | SPI_CPOL,
+	},
+#endif
+#if defined(CONFIG_ENC28J60) || defined(CONFIG_ENC28J60_MODULE)
+	{
+		.modalias = "enc28j60",
+		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
+		.irq = IRQ_PF6,
+		.bus_num = 0,
+		.chip_select = 0,	/* GPIO controlled SSEL */
+		.controller_data = &enc28j60_spi_chip_info,
+		.mode = SPI_MODE_0,
 	},
 #endif
 };
