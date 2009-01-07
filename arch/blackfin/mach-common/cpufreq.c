@@ -112,7 +112,7 @@ static int bfin_target(struct cpufreq_policy *policy,
 		bfin_write_TSCALE(tscale);
 		cycles = get_cycles();
 		SSYNC();
-	cycles += 10; /* ~10 cycles we loose after get_cycles() */
+	cycles += 10; /* ~10 cycles we lose after get_cycles() */
 	__bfin_cycles_off += (cycles << __bfin_cycles_mod) - (cycles << index);
 	__bfin_cycles_mod = index;
 	local_irq_restore(flags);
