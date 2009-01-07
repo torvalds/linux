@@ -82,6 +82,7 @@
 #define bfin_write_MDMA_S0_Y_MODIFY     bfin_write_MDMA0_S0_Y_MODIFY
 #define bfin_write_MDMA_S0_CONFIG       bfin_write_MDMA0_S0_CONFIG
 #define bfin_write_MDMA_D0_CONFIG       bfin_write_MDMA0_D0_CONFIG
+#define bfin_read_MDMA_S0_CONFIG        bfin_read_MDMA0_S0_CONFIG
 #define bfin_read_MDMA_D0_IRQ_STATUS    bfin_read_MDMA0_D0_IRQ_STATUS
 #define bfin_write_MDMA_S0_IRQ_STATUS   bfin_write_MDMA0_S0_IRQ_STATUS
 
