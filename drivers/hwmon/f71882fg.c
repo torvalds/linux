@@ -90,12 +90,6 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-static int fan_mode[4] = { 0, 0, 0, 0 };
-module_param_array(fan_mode, int, NULL, 0644);
-MODULE_PARM_DESC(fan_mode, "List of fan control modes (f71882fg only) "
-		 "(0=don't change, 1=pwm, 2=rpm)\n"
-		 "Note: this needs a write to pwm#_enable to take effect");
-
 enum chips { f71862fg, f71882fg };
 
 static const char *f71882fg_names[] = {
@@ -846,15 +840,8 @@ static ssize_t store_fan_full_speed(struct device *dev,
 	val = fan_to_reg(val);
 
 	mutex_lock(&data->update_lock);
-	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
-	if (data->pwm_enable & (1 << (2 * nr)))
-		/* PWM mode */
-		count = -EINVAL;
-	else {
-		/* RPM mode */
-		f71882fg_write16(data, F71882FG_REG_FAN_FULL_SPEED(nr), val);
-		data->fan_full_speed[nr] = val;
-	}
+	f71882fg_write16(data, F71882FG_REG_FAN_FULL_SPEED(nr), val);
+	data->fan_full_speed[nr] = val;
 	mutex_unlock(&data->update_lock);
 
 	return count;
@@ -1251,16 +1238,6 @@ static ssize_t store_pwm_enable(struct device *dev, struct device_attribute
 	case 2:
 		data->pwm_enable &= ~(2 << (2 * nr));
 		break;		/* Temperature ctrl */
-	}
-	if (data->type == f71882fg) {
-		switch (fan_mode[nr]) {
-		case 1:
-			data->pwm_enable |= 1 << (2 * nr);
-			break;		/* Duty cycle mode */
-		case 2:
-			data->pwm_enable &= ~(1 << (2 * nr));
-			break;		/* RPM mode */
-		}
 	}
 	f71882fg_write8(data, F71882FG_REG_PWM_ENABLE, data->pwm_enable);
 	mutex_unlock(&data->update_lock);
