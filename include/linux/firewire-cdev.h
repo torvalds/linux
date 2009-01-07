@@ -138,7 +138,24 @@ struct fw_cdev_event_request {
  * This event is sent when the controller has completed an &fw_cdev_iso_packet
  * with the %FW_CDEV_ISO_INTERRUPT bit set.  In the receive case, the headers
  * stripped of all packets up until and including the interrupt packet are
- * returned in the @header field.
+ * returned in the @header field.  The amount of header data per packet is as
+ * specified at iso context creation by &fw_cdev_create_iso_context.header_size.
+ *
+ * In version 1 of this ABI, header data consisted of the 1394 isochronous
+ * packet header, followed by quadlets from the packet payload if
+ * &fw_cdev_create_iso_context.header_size > 4.
+ *
+ * In version 2 of this ABI, header data consist of the 1394 isochronous
+ * packet header, followed by a timestamp quadlet if
+ * &fw_cdev_create_iso_context.header_size > 4, followed by quadlets from the
+ * packet payload if &fw_cdev_create_iso_context.header_size > 8.
+ *
+ * Behaviour of ver. 1 of this ABI is no longer available since ABI ver. 2.
+ *
+ * Format of 1394 iso packet header: 16 bits len, 2 bits tag, 6 bits channel,
+ * 4 bits tcode, 4 bits sy, in big endian byte order.  Format of timestamp:
+ * 16 bits invalid, 3 bits cycleSeconds, 13 bits cycleCount, in big endian byte
+ * order.
  */
 struct fw_cdev_event_iso_interrupt {
 	__u64 closure;
@@ -232,11 +249,13 @@ union fw_cdev_event {
 #define FW_CDEV_IOC_GET_SPEED                    _IOR('#', 0x11, struct fw_cdev_get_speed)
 #define FW_CDEV_IOC_SEND_BROADCAST_REQUEST       _IOW('#', 0x12, struct fw_cdev_send_request)
 
-/* FW_CDEV_VERSION History
- *
- * 1	Feb 18, 2007:  Initial version.
+/*
+ * FW_CDEV_VERSION History
+ *  1  (2.6.22)  - initial version
+ *  2  (2.6.30)  - changed &fw_cdev_event_iso_interrupt.header if
+ *                 &fw_cdev_create_iso_context.header_size is 8 or more
  */
-#define FW_CDEV_VERSION		1
+#define FW_CDEV_VERSION 2
 
 /**
  * struct fw_cdev_get_info - General purpose information ioctl
@@ -417,6 +436,9 @@ struct fw_cdev_remove_descriptor {
  *
  * If a context was successfully created, the kernel writes back a handle to the
  * context, which must be passed in for subsequent operations on that context.
+ *
+ * Note that the effect of a @header_size > 4 depends on
+ * &fw_cdev_get_info.version, as documented at &fw_cdev_event_iso_interrupt.
  */
 struct fw_cdev_create_iso_context {
 	__u32 type;
@@ -520,6 +542,9 @@ struct fw_cdev_stop_iso {
  * The %FW_CDEV_IOC_GET_CYCLE_TIMER ioctl reads the isochronous cycle timer
  * and also the system clock.  This allows to express the receive time of an
  * isochronous packet as a system time with microsecond accuracy.
+ *
+ * @cycle_timer consists of 7 bits cycleSeconds, 13 bits cycleCount, and
+ * 12 bits cycleOffset, in host byte order.
  */
 struct fw_cdev_get_cycle_timer {
 	__u64 local_time;
