@@ -435,6 +435,31 @@ static int pci_legacy_resume_early(struct device *dev)
 	return error;
 }
 
+/* Auxiliary functions used by the new power management framework */
+
+static bool pci_is_bridge(struct pci_dev *pci_dev)
+{
+	return !!(pci_dev->subordinate);
+}
+
+static int pci_pm_default_resume(struct pci_dev *pci_dev)
+{
+	if (!pci_is_bridge(pci_dev))
+		pci_enable_wake(pci_dev, PCI_D0, false);
+
+	return pci_default_pm_resume_late(pci_dev);
+}
+
+static void pci_pm_default_suspend(struct pci_dev *pci_dev)
+{
+	pci_default_pm_suspend_early(pci_dev);
+
+	if (!pci_is_bridge(pci_dev))
+		pci_prepare_to_sleep(pci_dev);
+}
+
+/* New power management framework */
+
 static int pci_pm_prepare(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
@@ -470,7 +495,7 @@ static int pci_pm_suspend(struct device *dev)
 	} else if (pci_has_legacy_pm_support(pci_dev)) {
 		error = pci_legacy_suspend(dev, PMSG_SUSPEND);
 	} else {
-		pci_default_pm_suspend_early(pci_dev);
+		pci_pm_default_suspend(pci_dev);
 	}
 
 	pci_fixup_device(pci_fixup_suspend, pci_dev);
@@ -512,7 +537,7 @@ static int pci_pm_resume(struct device *dev)
 	} else if (pci_has_legacy_pm_support(pci_dev)) {
 		error = pci_legacy_resume(dev);
 	} else {
-		error = pci_default_pm_resume_late(pci_dev);
+		error = pci_pm_default_resume(pci_dev);
 	}
 
 	return error;
@@ -642,7 +667,7 @@ static int pci_pm_poweroff(struct device *dev)
 	} else if (pci_has_legacy_pm_support(pci_dev)) {
 		error = pci_legacy_suspend(dev, PMSG_HIBERNATE);
 	} else {
-		pci_default_pm_suspend_early(pci_dev);
+		pci_pm_default_suspend(pci_dev);
 	}
 
 	pci_fixup_device(pci_fixup_suspend, pci_dev);
@@ -681,7 +706,7 @@ static int pci_pm_restore(struct device *dev)
 	} else if (pci_has_legacy_pm_support(pci_dev)) {
 		error = pci_legacy_resume(dev);
 	} else {
-		error = pci_default_pm_resume_late(pci_dev);
+		error = pci_pm_default_resume(pci_dev);
 	}
 
 	return error;
