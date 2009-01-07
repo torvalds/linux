@@ -65,10 +65,9 @@ static ssize_t lm70_sense_temp(struct device *dev,
 		"spi_write_then_read failed with status %d\n", status);
 		goto out;
 	}
-	dev_dbg(dev, "rxbuf[1] : 0x%x rxbuf[0] : 0x%x\n", rxbuf[1], rxbuf[0]);
-
-	raw = (rxbuf[1] << 8) + rxbuf[0];
-	dev_dbg(dev, "raw=0x%x\n", raw);
+	raw = (rxbuf[0] << 8) + rxbuf[1];
+	dev_dbg(dev, "rxbuf[0] : 0x%02x rxbuf[1] : 0x%02x raw=0x%04x\n",
+		rxbuf[0], rxbuf[1], raw);
 
 	/*
 	 * The "raw" temperature read into rxbuf[] is a 16-bit signed 2's
@@ -108,6 +107,8 @@ static int __devinit lm70_probe(struct spi_device *spi)
 	/* signaling is SPI_MODE_0 on a 3-wire link (shared SI/SO) */
 	if ((spi->mode & (SPI_CPOL|SPI_CPHA)) || !(spi->mode & SPI_3WIRE))
 		return -EINVAL;
+
+	/* NOTE:  we assume 8-bit words, and convert to 16 bits manually */
 
 	p_lm70 = kzalloc(sizeof *p_lm70, GFP_KERNEL);
 	if (!p_lm70)
