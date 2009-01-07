@@ -4,8 +4,8 @@
 #include <linux/wireless.h>
 
 #include "bssdscpt.h"
-#include "mto.h"
 #include "wbhal_s.h"
+#include "mto.h"
 
 #define WBLINUX_PACKET_ARRAY_SIZE (ETHERNET_TX_DESCRIPTORS*4)
 

@@ -13,6 +13,8 @@
 
 #include <linux/types.h>
 
+struct wbsoft_priv;
+
 #define MTO_DEFAULT_TH_CNT              5
 #define MTO_DEFAULT_TH_SQ3              112  //OLD IS 13 reference JohnXu
 #define MTO_DEFAULT_TH_IDLE_SLOT        15
@@ -258,6 +260,13 @@ typedef struct _STATISTICS_INFO {
 	s32   TxBytes;
 	s32   Antenna;
 } STATISTICS_INFO, *PSTATISTICS_INFO;
+
+extern void MTO_Init(struct wbsoft_priv *);
+extern void MTO_PeriodicTimerExpired(struct wbsoft_priv *);
+extern void MTO_SetDTORateRange(struct wbsoft_priv *, u8 *, u8);
+extern u8 MTO_GetTxRate(MTO_FUNC_INPUT, u32 fpdu_len);
+extern u8 MTO_GetTxFallbackRate(MTO_FUNC_INPUT);
+extern void MTO_SetTxCount(MTO_FUNC_INPUT, u8 t0, u8 index);
 
 #endif //__MTO_H__
 
