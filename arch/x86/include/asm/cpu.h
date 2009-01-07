@@ -15,6 +15,8 @@ extern void prefill_possible_map(void);
 
 static inline void prefill_possible_map(void) {}
 
+#define stack_smp_processor_id()		0
+
 #endif /* CONFIG_SMP */
 
 struct x86_cpu {
