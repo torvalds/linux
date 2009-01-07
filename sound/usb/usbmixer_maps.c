@@ -285,6 +285,11 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.map = live24ext_map,
 	},
 	{
+		.id = USB_ID(0x041e, 0x3048),
+		.map = audigy2nx_map,
+		.selector_map = audigy2nx_selectors,
+	},
+	{
 		/* Hercules DJ Console (Windows Edition) */
 		.id = USB_ID(0x06f8, 0xb000),
 		.ignore_ctl_error = 1,

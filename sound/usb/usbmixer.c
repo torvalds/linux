@@ -66,6 +66,7 @@ static const struct rc_config {
 	{ USB_ID(0x041e, 0x3000), 0, 1, 2, 1,  18, 0x0013 }, /* Extigy       */
 	{ USB_ID(0x041e, 0x3020), 2, 1, 6, 6,  18, 0x0013 }, /* Audigy 2 NX  */
 	{ USB_ID(0x041e, 0x3040), 2, 2, 6, 6,  2,  0x6e91 }, /* Live! 24-bit */
+	{ USB_ID(0x041e, 0x3048), 2, 2, 6, 6,  2,  0x6e91 }, /* Toshiba SB0500 */
 };
 
 struct usb_mixer_interface {
@@ -1706,7 +1707,8 @@ static void snd_usb_mixer_memory_change(struct usb_mixer_interface *mixer,
 		break;
 	/* live24ext: 4 = line-in jack */
 	case 3:	/* hp-out jack (may actuate Mute) */
-		if (mixer->chip->usb_id == USB_ID(0x041e, 0x3040))
+		if (mixer->chip->usb_id == USB_ID(0x041e, 0x3040) ||
+		    mixer->chip->usb_id == USB_ID(0x041e, 0x3048))
 			snd_usb_mixer_notify_id(mixer, mixer->rc_cfg->mute_mixer_id);
 		break;
 	default:
@@ -1956,8 +1958,9 @@ static int snd_audigy2nx_controls_create(struct usb_mixer_interface *mixer)
 	int i, err;
 
 	for (i = 0; i < ARRAY_SIZE(snd_audigy2nx_controls); ++i) {
-		if (i > 1 &&  /* Live24ext has 2 LEDs only */
-			mixer->chip->usb_id == USB_ID(0x041e, 0x3040))
+		if (i > 1 && /* Live24ext has 2 LEDs only */
+			(mixer->chip->usb_id == USB_ID(0x041e, 0x3040) ||
+			 mixer->chip->usb_id == USB_ID(0x041e, 0x3048)))
 			break; 
 		err = snd_ctl_add(mixer->chip->card,
 				  snd_ctl_new1(&snd_audigy2nx_controls[i], mixer));
@@ -1994,7 +1997,8 @@ static void snd_audigy2nx_proc_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "%s jacks\n\n", mixer->chip->card->shortname);
 	if (mixer->chip->usb_id == USB_ID(0x041e, 0x3020))
 		jacks = jacks_audigy2nx;
-	else if (mixer->chip->usb_id == USB_ID(0x041e, 0x3040))
+	else if (mixer->chip->usb_id == USB_ID(0x041e, 0x3040) ||
+		 mixer->chip->usb_id == USB_ID(0x041e, 0x3048))
 		jacks = jacks_live24ext;
 	else
 		return;
@@ -2044,7 +2048,8 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 		goto _error;
 
 	if (mixer->chip->usb_id == USB_ID(0x041e, 0x3020) ||
-	    mixer->chip->usb_id == USB_ID(0x041e, 0x3040)) {
+	    mixer->chip->usb_id == USB_ID(0x041e, 0x3040) ||
+	    mixer->chip->usb_id == USB_ID(0x041e, 0x3048)) {
 		struct snd_info_entry *entry;
 
 		if ((err = snd_audigy2nx_controls_create(mixer)) < 0)
