@@ -178,8 +178,9 @@ static void stat_seq_stop(struct seq_file *m, void *p)
 
 static int stat_seq_show(struct seq_file *s, void *v)
 {
-	struct trace_stat_list *entry =
-		list_entry(v, struct trace_stat_list, list);
+	struct trace_stat_list *entry;
+
+	entry =	list_entry(v, struct trace_stat_list, list);
 
 	return current_tracer.stat_show(s, entry->stat);
 }
