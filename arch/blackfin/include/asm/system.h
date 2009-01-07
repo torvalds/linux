@@ -197,6 +197,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
 
 asmlinkage struct task_struct *resume(struct task_struct *prev, struct task_struct *next);
 
+#ifndef CONFIG_SMP
 #define switch_to(prev,next,last) \
 do {    \
 	memcpy (&task_thread_info(prev)->l1_task_info, L1_SCRATCH_TASK_INFO, \
@@ -205,5 +206,11 @@ do {    \
 		sizeof *L1_SCRATCH_TASK_INFO); \
 	(last) = resume (prev, next);   \
 } while (0)
+#else
+#define switch_to(prev, next, last) \
+do {    \
+	(last) = resume(prev, next);   \
+} while (0)
+#endif
 
 #endif	/* _BLACKFIN_SYSTEM_H */

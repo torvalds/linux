@@ -63,7 +63,9 @@ struct thread_info {
 	int preempt_count;	/* 0 => preemptable, <0 => BUG */
 	mm_segment_t addr_limit;	/* address limit */
 	struct restart_block restart_block;
+#ifndef CONFIG_SMP
 	struct l1_scratch_task_info l1_task_info;
+#endif
 };
 
 /*

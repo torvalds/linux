@@ -8,6 +8,7 @@
 
 #include <asm/blackfin.h>
 
+#ifndef CONFIG_SMP
 #ifndef __ASSEMBLY__
 
 /* Data that is "mapped" into the process VM at the start of the L1 scratch
@@ -27,6 +28,7 @@ struct l1_scratch_task_info
 #define L1_SCRATCH_TASK_INFO ((struct l1_scratch_task_info *)\
 						get_l1_scratch_start())
 
+#endif
 #endif
 
 #endif

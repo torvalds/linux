@@ -65,6 +65,7 @@ struct thread_struct {
  * pass the data segment into user programs if it exists,
  * it can't hurt anything as far as I can tell
  */
+#ifndef CONFIG_SMP
 #define start_thread(_regs, _pc, _usp)					\
 do {									\
 	set_fs(USER_DS);						\
@@ -78,6 +79,16 @@ do {									\
 		sizeof(*L1_SCRATCH_TASK_INFO));				\
 	wrusp(_usp);							\
 } while(0)
+#else
+#define start_thread(_regs, _pc, _usp)					\
+do {									\
+	set_fs(USER_DS);						\
+	(_regs)->pc = (_pc);						\
+	if (current->mm)						\
+		(_regs)->p5 = current->mm->start_data;			\
+	wrusp(_usp);							\
+} while (0)
+#endif
 
 /* Forward declaration, a strange C thing */
 struct task_struct;
