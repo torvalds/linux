@@ -43,6 +43,7 @@ static struct v4l2_pix_format vv6410_mode[] = {
 };
 
 static const struct ctrl vv6410_ctrl[] = {
+#define HFLIP_IDX 0
 	{
 		{
 			.id		= V4L2_CID_HFLIP,
@@ -55,7 +56,9 @@ static const struct ctrl vv6410_ctrl[] = {
 		},
 		.set = vv6410_set_hflip,
 		.get = vv6410_get_hflip
-	}, {
+	},
+#define VFLIP_IDX 1
+	{
 		{
 			.id		= V4L2_CID_VFLIP,
 			.type		= V4L2_CTRL_TYPE_BOOLEAN,
@@ -67,7 +70,9 @@ static const struct ctrl vv6410_ctrl[] = {
 		},
 		.set = vv6410_set_vflip,
 		.get = vv6410_get_vflip
-	}, {
+	},
+#define GAIN_IDX 2
+	{
 		{
 			.id		= V4L2_CID_GAIN,
 			.type		= V4L2_CTRL_TYPE_INTEGER,
@@ -85,23 +90,31 @@ static const struct ctrl vv6410_ctrl[] = {
 static int vv6410_probe(struct sd *sd)
 {
 	u16 data;
-	int err;
+	int err, i;
+	s32 *sensor_settings;
 
 	err = stv06xx_read_sensor(sd, VV6410_DEVICEH, &data);
-
 	if (err < 0)
 		return -ENODEV;
 
 	if (data == 0x19) {
 		info("vv6410 sensor detected");
 
+		sensor_settings = kmalloc(ARRAY_SIZE(vv6410_ctrl) * sizeof(s32),
+					  GFP_KERNEL);
+		if (!sensor_settings)
+			return -ENOMEM;
+
 		sd->gspca_dev.cam.cam_mode = vv6410_mode;
 		sd->gspca_dev.cam.nmodes = ARRAY_SIZE(vv6410_mode);
 		sd->desc.ctrls = vv6410_ctrl;
 		sd->desc.nctrls = ARRAY_SIZE(vv6410_ctrl);
+
+		for (i = 0; i < sd->desc.nctrls; i++)
+			sensor_settings[i] = vv6410_ctrl[i].qctrl.default_value;
+		sd->sensor_priv = sensor_settings;
 		return 0;
 	}
-
 	return -ENODEV;
 }
 
@@ -131,6 +144,12 @@ static int vv6410_init(struct sd *sd)
 					 ARRAY_SIZE(vv6410_sensor_init));
 
 	return (err < 0) ? err : 0;
+}
+
+static void vv6410_disconnect(struct sd *sd)
+{
+	sd->sensor = NULL;
+	kfree(sd->sensor_priv);
 }
 
 static int vv6410_start(struct sd *sd)
@@ -209,17 +228,13 @@ static int vv6410_dump(struct sd *sd)
 
 static int vv6410_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
-	int err;
-	u16 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 
-	err = stv06xx_read_sensor(sd, VV6410_DATAFORMAT, &i2c_data);
-
-	*val = (i2c_data & VV6410_HFLIP) ? 1 : 0;
-
+	*val = sensor_settings[HFLIP_IDX];
 	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
 
-	return (err < 0) ? err : 0;
+	return 0;
 }
 
 static int vv6410_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
@@ -227,6 +242,9 @@ static int vv6410_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 	u16 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	sensor_settings[HFLIP_IDX] = val;
 	err = stv06xx_read_sensor(sd, VV6410_DATAFORMAT, &i2c_data);
 	if (err < 0)
 		return err;
@@ -244,17 +262,13 @@ static int vv6410_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 
 static int vv6410_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
-	int err;
-	u16 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 
-	err = stv06xx_read_sensor(sd, VV6410_DATAFORMAT, &i2c_data);
-
-	*val = (i2c_data & VV6410_VFLIP) ? 1 : 0;
-
+	*val = sensor_settings[VFLIP_IDX];
 	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
 
-	return (err < 0) ? err : 0;
+	return 0;
 }
 
 static int vv6410_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
@@ -262,6 +276,9 @@ static int vv6410_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 	u16 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	sensor_settings[VFLIP_IDX] = val;
 	err = stv06xx_read_sensor(sd, VV6410_DATAFORMAT, &i2c_data);
 	if (err < 0)
 		return err;
@@ -279,24 +296,23 @@ static int vv6410_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 
 static int vv6410_get_analog_gain(struct gspca_dev *gspca_dev, __s32 *val)
 {
-	int err;
-	u16 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 
-	err = stv06xx_read_sensor(sd, VV6410_ANALOGGAIN, &i2c_data);
-
-	*val = i2c_data & 0xf;
+	*val = sensor_settings[GAIN_IDX];
 
 	PDEBUG(D_V4L2, "Read analog gain %d", *val);
 
-	return (err < 0) ? err : 0;
+	return 0;
 }
 
 static int vv6410_set_analog_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
 
+	sensor_settings[GAIN_IDX] = val;
 	PDEBUG(D_V4L2, "Set analog gain to %d", val);
 	err = stv06xx_write_sensor(sd, VV6410_ANALOGGAIN, 0xf0 | (val & 0xf));
 

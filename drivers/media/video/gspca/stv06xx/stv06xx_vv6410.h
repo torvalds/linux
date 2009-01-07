@@ -178,6 +178,7 @@ static int vv6410_start(struct sd *sd);
 static int vv6410_init(struct sd *sd);
 static int vv6410_stop(struct sd *sd);
 static int vv6410_dump(struct sd *sd);
+static void vv6410_disconnect(struct sd *sd);
 
 /* V4L2 controls supported by the driver */
 static int vv6410_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
@@ -197,6 +198,7 @@ const struct stv06xx_sensor stv06xx_sensor_vv6410 = {
 	.start = vv6410_start,
 	.stop = vv6410_stop,
 	.dump = vv6410_dump,
+	.disconnect = vv6410_disconnect,
 };
 
 /* If NULL, only single value to write, stored in len */
