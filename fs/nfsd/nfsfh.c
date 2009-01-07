@@ -484,6 +484,8 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 				goto retry;
 			break;
 		}
+	} else if (exp->ex_flags & NFSEXP_FSID) {
+		fsid_type = FSID_NUM;
 	} else if (exp->ex_uuid) {
 		if (fhp->fh_maxsize >= 64) {
 			if (root_export)
@@ -496,9 +498,7 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 			else
 				fsid_type = FSID_UUID4_INUM;
 		}
-	} else if (exp->ex_flags & NFSEXP_FSID)
-		fsid_type = FSID_NUM;
-	else if (!old_valid_dev(ex_dev))
+	} else if (!old_valid_dev(ex_dev))
 		/* for newer device numbers, we must use a newer fsid format */
 		fsid_type = FSID_ENCODE_DEV;
 	else
