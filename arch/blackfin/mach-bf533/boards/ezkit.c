@@ -368,6 +368,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&rtc_device,
 #endif
 
+#if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
+	&bfin_uart_device,
+#endif
+
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
 #ifdef CONFIG_BFIN_SIR0
 	&bfin_sir0_device,
