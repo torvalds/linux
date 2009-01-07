@@ -844,7 +844,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	}
 	if (fp) {
 		frame = fp;
-		printk(" FP: (0x%p)\n", fp);
+		printk(KERN_NOTICE " FP: (0x%p)\n", fp);
 	} else
 		frame = 0;
 
