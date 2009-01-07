@@ -548,6 +548,8 @@ struct gpio_port_s {
 
 int bfin_gpio_request(unsigned gpio, const char *label);
 void bfin_gpio_free(unsigned gpio);
+int bfin_gpio_irq_request(unsigned gpio, const char *label);
+void bfin_gpio_irq_free(unsigned gpio);
 int bfin_gpio_direction_input(unsigned gpio);
 int bfin_gpio_direction_output(unsigned gpio, int value);
 int bfin_gpio_get_value(unsigned gpio);

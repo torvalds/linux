@@ -179,6 +179,7 @@ static struct gpio_port_t *gpio_array[] = {
 
 static unsigned short reserved_gpio_map[GPIO_BANK_NUM];
 static unsigned short reserved_peri_map[gpio_bank(MAX_RESOURCES)];
+static unsigned short reserved_gpio_irq_map[GPIO_BANK_NUM];
 
 #define RESOURCE_LABEL_SIZE 	16
 
@@ -1043,7 +1044,7 @@ int bfin_gpio_request(unsigned gpio, const char *label)
 	if (unlikely(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
 		dump_stack();
 		printk(KERN_ERR "bfin-gpio: GPIO %d is already reserved by %s !\n",
-			 gpio, get_label(gpio));
+		       gpio, get_label(gpio));
 		local_irq_restore(flags);
 		return -EBUSY;
 	}
@@ -1055,13 +1056,16 @@ int bfin_gpio_request(unsigned gpio, const char *label)
 		local_irq_restore(flags);
 		return -EBUSY;
 	}
+	if (unlikely(reserved_gpio_irq_map[gpio_bank(gpio)] & gpio_bit(gpio)))
+		printk(KERN_NOTICE "bfin-gpio: GPIO %d is already reserved as gpio-irq!"
+		       " (Documentation/blackfin/bfin-gpio-notes.txt)\n", gpio);
 
 	reserved_gpio_map[gpio_bank(gpio)] |= gpio_bit(gpio);
+	set_label(gpio, label);
 
 	local_irq_restore(flags);
 
 	port_setup(gpio, GPIO_USAGE);
-	set_label(gpio, label);
 
 	return 0;
 }
@@ -1090,6 +1094,69 @@ void bfin_gpio_free(unsigned gpio)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(bfin_gpio_free);
+
+int bfin_gpio_irq_request(unsigned gpio, const char *label)
+{
+	unsigned long flags;
+
+	if (check_gpio(gpio) < 0)
+		return -EINVAL;
+
+	local_irq_save(flags);
+
+	if (unlikely(reserved_gpio_irq_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
+		dump_stack();
+		printk(KERN_ERR
+		       "bfin-gpio: GPIO %d is already reserved as gpio-irq !\n",
+		       gpio);
+		local_irq_restore(flags);
+		return -EBUSY;
+	}
+	if (unlikely(reserved_peri_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
+		dump_stack();
+		printk(KERN_ERR
+		       "bfin-gpio: GPIO %d is already reserved as Peripheral by %s !\n",
+		       gpio, get_label(gpio));
+		local_irq_restore(flags);
+		return -EBUSY;
+	}
+	if (unlikely(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)))
+		printk(KERN_NOTICE "bfin-gpio: GPIO %d is already reserved by %s! "
+		       "(Documentation/blackfin/bfin-gpio-notes.txt)\n",
+		       gpio, get_label(gpio));
+
+	reserved_gpio_irq_map[gpio_bank(gpio)] |= gpio_bit(gpio);
+	set_label(gpio, label);
+
+	local_irq_restore(flags);
+
+	port_setup(gpio, GPIO_USAGE);
+
+	return 0;
+}
+
+void bfin_gpio_irq_free(unsigned gpio)
+{
+	unsigned long flags;
+
+	if (check_gpio(gpio) < 0)
+		return;
+
+	local_irq_save(flags);
+
+	if (unlikely(!(reserved_gpio_irq_map[gpio_bank(gpio)] & gpio_bit(gpio)))) {
+		dump_stack();
+		gpio_error(gpio);
+		local_irq_restore(flags);
+		return;
+	}
+
+	reserved_gpio_irq_map[gpio_bank(gpio)] &= ~gpio_bit(gpio);
+
+	set_label(gpio, "free");
+
+	local_irq_restore(flags);
+}
 
 
 #ifdef BF548_FAMILY
@@ -1253,12 +1320,15 @@ void bfin_gpio_irq_prepare(unsigned gpio)
 static int gpio_proc_read(char *buf, char **start, off_t offset,
 			  int len, int *unused_i, void *unused_v)
 {
-	int c, outlen = 0;
+	int c, irq, gpio, outlen = 0;
 
 	for (c = 0; c < MAX_RESOURCES; c++) {
-		if (!check_gpio(c) && (reserved_gpio_map[gpio_bank(c)] & gpio_bit(c)))
-			len = sprintf(buf, "GPIO_%d: \t%s \t\tGPIO %s\n", c,
-				 get_label(c), get_gpio_dir(c) ? "OUTPUT" : "INPUT");
+		irq = reserved_gpio_irq_map[gpio_bank(c)] & gpio_bit(c);
+		gpio = reserved_gpio_map[gpio_bank(c)] & gpio_bit(c);
+		if (!check_gpio(c) && (gpio || irq))
+			len = sprintf(buf, "GPIO_%d: \t%s%s \t\tGPIO %s\n", c,
+				 get_label(c), (gpio && irq) ? " *" : "",
+				 get_gpio_dir(c) ? "OUTPUT" : "INPUT");
 		else if (reserved_peri_map[gpio_bank(c)] & gpio_bit(c))
 			len = sprintf(buf, "GPIO_%d: \t%s \t\tPeripheral\n", c, get_label(c));
 		else
