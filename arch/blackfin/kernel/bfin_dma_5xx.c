@@ -135,7 +135,7 @@ int request_dma(unsigned int channel, const char *device_id)
 	 * descriptor/channel
 	 */
 	pr_debug("request_dma() : END  \n");
-	return channel;
+	return 0;
 }
 EXPORT_SYMBOL(request_dma);
 
