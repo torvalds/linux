@@ -62,6 +62,7 @@
 #include <linux/signal.h>
 #include <linux/idr.h>
 #include <linux/ftrace.h>
+#include <linux/async.h>
 #include <trace/boot.h>
 
 #include <asm/io.h>
@@ -685,7 +686,7 @@ asmlinkage void __init start_kernel(void)
 	rest_init();
 }
 
-static int initcall_debug;
+int initcall_debug;
 core_param(initcall_debug, initcall_debug, bool, 0644);
 
 int do_one_initcall(initcall_t fn)
@@ -786,6 +787,8 @@ static void run_init_process(char *init_filename)
  */
 static noinline int init_post(void)
 {
+	/* need to finish all async __init code before freeing the memory */
+	async_synchronize_full();
 	free_initmem();
 	unlock_kernel();
 	mark_rodata_ro();
