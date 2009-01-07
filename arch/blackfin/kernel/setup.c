@@ -951,6 +951,10 @@ static u_long get_clkin_hz(void)
 static int __init early_init_clkin_hz(char *buf)
 {
 	cached_clkin_hz = simple_strtoul(buf, NULL, 0);
+#ifdef BFIN_KERNEL_CLOCK
+	if (cached_clkin_hz != CONFIG_CLKIN_HZ)
+		panic("cannot change clkin_hz when reprogramming clocks");
+#endif
 	return 1;
 }
 early_param("clkin_hz=", early_init_clkin_hz);
