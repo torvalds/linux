@@ -335,8 +335,8 @@ static struct musb_hdrc_config musb_config = {
 	.dyn_fifo	= 0,
 	.soft_con	= 1,
 	.dma		= 1,
-	.num_eps	= 7,
-	.dma_channels	= 7,
+	.num_eps	= 8,
+	.dma_channels	= 8,
 	.gpio_vrsel	= GPIO_PH6,
 };
 
