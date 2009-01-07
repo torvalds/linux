@@ -252,7 +252,8 @@ enum
 	BLOCK_SOFTIRQ,
 	TASKLET_SOFTIRQ,
 	SCHED_SOFTIRQ,
-	RCU_SOFTIRQ, 	/* Preferable RCU should always be the last softirq */
+	HRTIMER_SOFTIRQ,
+	RCU_SOFTIRQ,	/* Preferable RCU should always be the last softirq */
 
 	NR_SOFTIRQS
 };
