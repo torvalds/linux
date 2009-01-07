@@ -611,8 +611,6 @@ static int pci_pm_poweroff(struct device *dev)
 	struct device_driver *drv = dev->driver;
 	int error = 0;
 
-	pci_fixup_device(pci_fixup_suspend, pci_dev);
-
 	if (drv && drv->pm) {
 		if (drv->pm->poweroff) {
 			error = drv->pm->poweroff(dev);
@@ -621,6 +619,8 @@ static int pci_pm_poweroff(struct device *dev)
 	} else if (pci_has_legacy_pm_support(pci_dev)) {
 		error = pci_legacy_suspend(dev, PMSG_HIBERNATE);
 	}
+
+	pci_fixup_device(pci_fixup_suspend, pci_dev);
 
 	return error;
 }
@@ -648,6 +648,8 @@ static int pci_pm_restore(struct device *dev)
 	struct device_driver *drv = dev->driver;
 	int error = 0;
 
+	pci_fixup_device(pci_fixup_resume, pci_dev);
+
 	if (drv && drv->pm) {
 		if (drv->pm->restore)
 			error = drv->pm->restore(dev);
@@ -656,7 +658,6 @@ static int pci_pm_restore(struct device *dev)
 	} else {
 		error = pci_default_pm_resume_late(pci_dev);
 	}
-	pci_fixup_device(pci_fixup_resume, pci_dev);
 
 	return error;
 }
@@ -667,7 +668,7 @@ static int pci_pm_restore_noirq(struct device *dev)
 	struct device_driver *drv = dev->driver;
 	int error = 0;
 
-	pci_fixup_device(pci_fixup_resume, pci_dev);
+	pci_fixup_device(pci_fixup_resume_early, pci_dev);
 
 	if (drv && drv->pm) {
 		if (drv->pm->restore_noirq)
@@ -677,7 +678,6 @@ static int pci_pm_restore_noirq(struct device *dev)
 	} else {
 		pci_default_pm_resume_early(pci_dev);
 	}
-	pci_fixup_device(pci_fixup_resume_early, pci_dev);
 
 	return error;
 }
