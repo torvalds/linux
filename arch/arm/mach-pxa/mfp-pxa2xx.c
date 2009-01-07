@@ -24,8 +24,6 @@
 
 #include "generic.h"
 
-#define gpio_to_bank(gpio)	((gpio) >> 5)
-
 #define PGSR(x)		__REG2(0x40F00020, (x) << 2)
 #define __GAFR(u, x)	__REG2((u) ? 0x40E00058 : 0x40E00054, (x) << 3)
 #define GAFR_L(x)	__GAFR(0, x)

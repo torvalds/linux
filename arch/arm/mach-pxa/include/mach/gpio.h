@@ -128,6 +128,7 @@ static inline void gpio_set_value(unsigned gpio, int value)
 }
 
 #define gpio_cansleep		__gpio_cansleep
+#define gpio_to_bank(gpio)	((gpio) >> 5)
 #define gpio_to_irq(gpio)	IRQ_GPIO(gpio)
 #define irq_to_gpio(irq)	IRQ_TO_GPIO(irq)
 

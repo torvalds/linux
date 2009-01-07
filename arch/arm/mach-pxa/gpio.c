@@ -13,19 +13,34 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/irq.h>
-#include <linux/sysdev.h>
 #include <linux/io.h>
+#include <linux/sysdev.h>
+#include <linux/bootmem.h>
 
 #include <mach/gpio.h>
 
 int pxa_last_gpio;
 
-#define GPIO0_BASE	(GPIO_REGS_VIRT + 0x0000)
-#define GPIO1_BASE	(GPIO_REGS_VIRT + 0x0004)
-#define GPIO2_BASE	(GPIO_REGS_VIRT + 0x0008)
-#define GPIO3_BASE	(GPIO_REGS_VIRT + 0x0100)
+/*
+ * We handle the GPIOs by banks, each bank covers up to 32 GPIOs with
+ * one set of registers. The register offsets are organized below:
+ *
+ *           GPLR    GPDR    GPSR    GPCR    GRER    GFER    GEDR
+ * BANK 0 - 0x0000  0x000C  0x0018  0x0024  0x0030  0x003C  0x0048
+ * BANK 1 - 0x0004  0x0010  0x001C  0x0028  0x0034  0x0040  0x004C
+ * BANK 2 - 0x0008  0x0014  0x0020  0x002C  0x0038  0x0044  0x0050
+ *
+ * BANK 3 - 0x0100  0x010C  0x0118  0x0124  0x0130  0x013C  0x0148
+ * BANK 4 - 0x0104  0x0110  0x011C  0x0128  0x0134  0x0140  0x014C
+ * BANK 5 - 0x0108  0x0114  0x0120  0x012C  0x0138  0x0144  0x0150
+ *
+ * NOTE:
+ *   BANK 3 is only available on PXA27x and later processors.
+ *   BANK 4 and 5 are only available on PXA935
+ */
+
+#define GPIO_BANK(n)	(GPIO_REGS_VIRT + BANK_OFF(n))
 
 #define GPLR_OFFSET	0x00
 #define GPDR_OFFSET	0x0C
@@ -37,144 +52,138 @@ int pxa_last_gpio;
 
 struct pxa_gpio_chip {
 	struct gpio_chip chip;
-	void __iomem     *regbase;
+	void __iomem	*regbase;
+	char label[10];
+
+	unsigned long	irq_mask;
+	unsigned long	irq_edge_rise;
+	unsigned long	irq_edge_fall;
+
+#ifdef CONFIG_PM
+	unsigned long	saved_gplr;
+	unsigned long	saved_gpdr;
+	unsigned long	saved_grer;
+	unsigned long	saved_gfer;
+#endif
 };
+
+static DEFINE_SPINLOCK(gpio_lock);
+static struct pxa_gpio_chip *pxa_gpio_chips;
+
+#define for_each_gpio_chip(i, c)			\
+	for (i = 0, c = &pxa_gpio_chips[0]; i <= pxa_last_gpio; i += 32, c++)
+
+static inline void __iomem *gpio_chip_base(struct gpio_chip *c)
+{
+	return container_of(c, struct pxa_gpio_chip, chip)->regbase;
+}
+
+static inline struct pxa_gpio_chip *gpio_to_chip(unsigned gpio)
+{
+	return &pxa_gpio_chips[gpio_to_bank(gpio)];
+}
 
 static int pxa_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	unsigned long        flags;
-	u32                  mask = 1 << offset;
-	u32                  value;
-	struct pxa_gpio_chip *pxa;
-	void __iomem         *gpdr;
+	void __iomem *base = gpio_chip_base(chip);
+	uint32_t value, mask = 1 << offset;
+	unsigned long flags;
 
-	pxa = container_of(chip, struct pxa_gpio_chip, chip);
-	gpdr = pxa->regbase + GPDR_OFFSET;
-	local_irq_save(flags);
-	value = __raw_readl(gpdr);
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	value = __raw_readl(base + GPDR_OFFSET);
 	if (__gpio_is_inverted(chip->base + offset))
 		value |= mask;
 	else
 		value &= ~mask;
-	__raw_writel(value, gpdr);
-	local_irq_restore(flags);
+	__raw_writel(value, base + GPDR_OFFSET);
 
+	spin_unlock_irqrestore(&gpio_lock, flags);
 	return 0;
 }
 
 static int pxa_gpio_direction_output(struct gpio_chip *chip,
-					unsigned offset, int value)
+				     unsigned offset, int value)
 {
-	unsigned long        flags;
-	u32                  mask = 1 << offset;
-	u32                  tmp;
-	struct pxa_gpio_chip *pxa;
-	void __iomem         *gpdr;
+	void __iomem *base = gpio_chip_base(chip);
+	uint32_t tmp, mask = 1 << offset;
+	unsigned long flags;
 
-	pxa = container_of(chip, struct pxa_gpio_chip, chip);
-	__raw_writel(mask,
-			pxa->regbase + (value ? GPSR_OFFSET : GPCR_OFFSET));
-	gpdr = pxa->regbase + GPDR_OFFSET;
-	local_irq_save(flags);
-	tmp = __raw_readl(gpdr);
+	__raw_writel(mask, base + (value ? GPSR_OFFSET : GPCR_OFFSET));
+
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	tmp = __raw_readl(base + GPDR_OFFSET);
 	if (__gpio_is_inverted(chip->base + offset))
 		tmp &= ~mask;
 	else
 		tmp |= mask;
-	__raw_writel(tmp, gpdr);
-	local_irq_restore(flags);
+	__raw_writel(tmp, base + GPDR_OFFSET);
 
+	spin_unlock_irqrestore(&gpio_lock, flags);
 	return 0;
 }
 
-/*
- * Return GPIO level
- */
 static int pxa_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	u32                  mask = 1 << offset;
-	struct pxa_gpio_chip *pxa;
-
-	pxa = container_of(chip, struct pxa_gpio_chip, chip);
-	return __raw_readl(pxa->regbase + GPLR_OFFSET) & mask;
+	return __raw_readl(gpio_chip_base(chip) + GPLR_OFFSET) & (1 << offset);
 }
 
-/*
- * Set output GPIO level
- */
 static void pxa_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	u32                  mask = 1 << offset;
-	struct pxa_gpio_chip *pxa;
-
-	pxa = container_of(chip, struct pxa_gpio_chip, chip);
-
-	if (value)
-		__raw_writel(mask, pxa->regbase + GPSR_OFFSET);
-	else
-		__raw_writel(mask, pxa->regbase + GPCR_OFFSET);
+	__raw_writel(1 << offset, gpio_chip_base(chip) +
+				(value ? GPSR_OFFSET : GPCR_OFFSET));
 }
 
-#define GPIO_CHIP(_n)							\
-	[_n] = {							\
-		.regbase = GPIO##_n##_BASE,				\
-		.chip = {						\
-			.label		  = "gpio-" #_n,		\
-			.direction_input  = pxa_gpio_direction_input,	\
-			.direction_output = pxa_gpio_direction_output,	\
-			.get		  = pxa_gpio_get,		\
-			.set		  = pxa_gpio_set,		\
-			.base		  = (_n) * 32,			\
-			.ngpio		  = 32,				\
-		},							\
-	}
-
-static struct pxa_gpio_chip pxa_gpio_chip[] = {
-	GPIO_CHIP(0),
-	GPIO_CHIP(1),
-	GPIO_CHIP(2),
-#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
-	GPIO_CHIP(3),
-#endif
-};
-
-static void __init pxa_init_gpio_chip(int gpio_nr)
+static int __init pxa_init_gpio_chip(int gpio_end)
 {
-	int i, gpio;
+	int i, gpio, nbanks = gpio_to_bank(gpio_end) + 1;
+	struct pxa_gpio_chip *chips;
 
-	/* add a GPIO chip for each register bank.
-	 * the last PXA25x register only contains 21 GPIOs
+	/* this is early, we have to use bootmem allocator, and we really
+	 * want this to be allocated dynamically for different 'gpio_end'
 	 */
-	for (gpio = 0, i = 0; gpio < gpio_nr; gpio += 32, i++) {
-		if (gpio + 32 > gpio_nr)
-			pxa_gpio_chip[i].chip.ngpio = gpio_nr - gpio;
-		gpiochip_add(&pxa_gpio_chip[i].chip);
+	chips = alloc_bootmem_low(nbanks * sizeof(struct pxa_gpio_chip));
+	if (chips == NULL) {
+		pr_err("%s: failed to allocate GPIO chips\n", __func__);
+		return -ENOMEM;
 	}
+
+	for (i = 0, gpio = 0; i < nbanks; i++, gpio += 32) {
+		struct gpio_chip *c = &chips[i].chip;
+
+		sprintf(chips[i].label, "gpio-%d", i);
+		chips[i].regbase = (void __iomem *)GPIO_BANK(i);
+
+		c->base  = gpio;
+		c->label = chips[i].label;
+
+		c->direction_input  = pxa_gpio_direction_input;
+		c->direction_output = pxa_gpio_direction_output;
+		c->get = pxa_gpio_get;
+		c->set = pxa_gpio_set;
+
+		/* number of GPIOs on last bank may be less than 32 */
+		c->ngpio = (gpio + 31 > gpio_end) ? (gpio_end - gpio + 1) : 32;
+		gpiochip_add(c);
+	}
+	pxa_gpio_chips = chips;
+	return 0;
 }
-
-/*
- * PXA GPIO edge detection for IRQs:
- * IRQs are generated on Falling-Edge, Rising-Edge, or both.
- * Use this instead of directly setting GRER/GFER.
- */
-
-static unsigned long GPIO_IRQ_rising_edge[4];
-static unsigned long GPIO_IRQ_falling_edge[4];
-static unsigned long GPIO_IRQ_mask[4];
 
 static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 {
-	int gpio, idx;
+	struct pxa_gpio_chip *c;
+	int gpio = irq_to_gpio(irq);
+	unsigned long gpdr, mask = GPIO_bit(gpio);
 
-	gpio = IRQ_TO_GPIO(irq);
-	idx = gpio >> 5;
+	c = gpio_to_chip(gpio);
 
 	if (type == IRQ_TYPE_PROBE) {
 		/* Don't mess with enabled GPIOs using preconfigured edges or
 		 * GPIOs set to alternate function or to output during probe
 		 */
-		if ((GPIO_IRQ_rising_edge[idx] & GPIO_bit(gpio)) ||
-		    (GPIO_IRQ_falling_edge[idx] & GPIO_bit(gpio)))
+		if ((c->irq_edge_rise | c->irq_edge_fall) & GPIO_bit(gpio))
 			return 0;
 
 		if (__gpio_is_occupied(gpio))
@@ -183,23 +192,25 @@ static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
 
+	gpdr = __raw_readl(c->regbase + GPDR_OFFSET);
+
 	if (__gpio_is_inverted(gpio))
-		GPDR(gpio) |= GPIO_bit(gpio);
+		__raw_writel(gpdr | mask,  c->regbase + GPDR_OFFSET);
 	else
-		GPDR(gpio) &= ~GPIO_bit(gpio);
+		__raw_writel(gpdr & ~mask, c->regbase + GPDR_OFFSET);
 
 	if (type & IRQ_TYPE_EDGE_RISING)
-		__set_bit(gpio, GPIO_IRQ_rising_edge);
+		c->irq_edge_rise |= mask;
 	else
-		__clear_bit(gpio, GPIO_IRQ_rising_edge);
+		c->irq_edge_rise &= ~mask;
 
 	if (type & IRQ_TYPE_EDGE_FALLING)
-		__set_bit(gpio, GPIO_IRQ_falling_edge);
+		c->irq_edge_fall |= mask;
 	else
-		__clear_bit(gpio, GPIO_IRQ_falling_edge);
+		c->irq_edge_fall &= ~mask;
 
-	GRER(gpio) = GPIO_IRQ_rising_edge[idx] & GPIO_IRQ_mask[idx];
-	GFER(gpio) = GPIO_IRQ_falling_edge[idx] & GPIO_IRQ_mask[idx];
+	__raw_writel(c->irq_edge_rise & c->irq_mask, c->regbase + GRER_OFFSET);
+	__raw_writel(c->irq_edge_fall & c->irq_mask, c->regbase + GFER_OFFSET);
 
 	pr_debug("%s: IRQ%d (GPIO%d) - edge%s%s\n", __func__, irq, gpio,
 		((type & IRQ_TYPE_EDGE_RISING)  ? " rising"  : ""),
@@ -207,60 +218,62 @@ static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 	return 0;
 }
 
-/*
- * Demux handler for GPIO>=2 edge detect interrupts
- */
-
-#define GEDR_BITS	(sizeof(gedr) * BITS_PER_BYTE)
-
 static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 {
-	int loop, bit, n;
-	unsigned long gedr[4];
+	struct pxa_gpio_chip *c;
+	int loop, gpio, gpio_base, n;
+	unsigned long gedr;
 
 	do {
-		gedr[0] = GEDR0 & GPIO_IRQ_mask[0] & ~3;
-		gedr[1] = GEDR1 & GPIO_IRQ_mask[1];
-		gedr[2] = GEDR2 & GPIO_IRQ_mask[2];
-		gedr[3] = GEDR3 & GPIO_IRQ_mask[3];
-
-		GEDR0 = gedr[0]; GEDR1 = gedr[1];
-		GEDR2 = gedr[2]; GEDR3 = gedr[3];
-
 		loop = 0;
-		bit = find_first_bit(gedr, GEDR_BITS);
-		while (bit < GEDR_BITS) {
-			loop = 1;
+		for_each_gpio_chip(gpio, c) {
+			gpio_base = c->chip.base;
 
-			n = PXA_GPIO_IRQ_BASE + bit;
-			generic_handle_irq(n);
+			gedr = __raw_readl(c->regbase + GEDR_OFFSET);
+			gedr = gedr & c->irq_mask;
+			__raw_writel(gedr, c->regbase + GEDR_OFFSET);
 
-			bit = find_next_bit(gedr, GEDR_BITS, bit + 1);
+			n = find_first_bit(&gedr, BITS_PER_LONG);
+			while (n < BITS_PER_LONG) {
+				loop = 1;
+
+				generic_handle_irq(gpio_to_irq(gpio_base + n));
+				n = find_next_bit(&gedr, BITS_PER_LONG, n + 1);
+			}
 		}
 	} while (loop);
 }
 
 static void pxa_ack_muxed_gpio(unsigned int irq)
 {
-	int gpio = irq - IRQ_GPIO(2) + 2;
-	GEDR(gpio) = GPIO_bit(gpio);
+	int gpio = irq_to_gpio(irq);
+	struct pxa_gpio_chip *c = gpio_to_chip(gpio);
+
+	__raw_writel(GPIO_bit(gpio), c->regbase + GEDR_OFFSET);
 }
 
 static void pxa_mask_muxed_gpio(unsigned int irq)
 {
-	int gpio = irq - IRQ_GPIO(2) + 2;
-	__clear_bit(gpio, GPIO_IRQ_mask);
-	GRER(gpio) &= ~GPIO_bit(gpio);
-	GFER(gpio) &= ~GPIO_bit(gpio);
+	int gpio = irq_to_gpio(irq);
+	struct pxa_gpio_chip *c = gpio_to_chip(gpio);
+	uint32_t grer, gfer;
+
+	c->irq_mask &= ~GPIO_bit(gpio);
+
+	grer = __raw_readl(c->regbase + GRER_OFFSET) & ~GPIO_bit(gpio);
+	gfer = __raw_readl(c->regbase + GFER_OFFSET) & ~GPIO_bit(gpio);
+	__raw_writel(grer, c->regbase + GRER_OFFSET);
+	__raw_writel(gfer, c->regbase + GFER_OFFSET);
 }
 
 static void pxa_unmask_muxed_gpio(unsigned int irq)
 {
-	int gpio = irq - IRQ_GPIO(2) + 2;
-	int idx = gpio >> 5;
-	__set_bit(gpio, GPIO_IRQ_mask);
-	GRER(gpio) = GPIO_IRQ_rising_edge[idx] & GPIO_IRQ_mask[idx];
-	GFER(gpio) = GPIO_IRQ_falling_edge[idx] & GPIO_IRQ_mask[idx];
+	int gpio = irq_to_gpio(irq);
+	struct pxa_gpio_chip *c = gpio_to_chip(gpio);
+
+	c->irq_mask |= GPIO_bit(gpio);
+	__raw_writel(c->irq_edge_rise & c->irq_mask, c->regbase + GRER_OFFSET);
+	__raw_writel(c->irq_edge_fall & c->irq_mask, c->regbase + GFER_OFFSET);
 }
 
 static struct irq_chip pxa_muxed_gpio_chip = {
@@ -273,15 +286,19 @@ static struct irq_chip pxa_muxed_gpio_chip = {
 
 void __init pxa_init_gpio(int mux_irq, int start, int end, set_wake_t fn)
 {
-	int irq, i;
+	struct pxa_gpio_chip *c;
+	int gpio, irq;
 
 	pxa_last_gpio = end;
 
+	/* Initialize GPIO chips */
+	pxa_init_gpio_chip(end);
+
 	/* clear all GPIO edge detects */
-	for (i = start; i <= end; i += 32) {
-		GFER(i) &= ~GPIO_IRQ_mask[i];
-		GRER(i) &= ~GPIO_IRQ_mask[i];
-		GEDR(i) = GPIO_IRQ_mask[i];
+	for_each_gpio_chip(gpio, c) {
+		__raw_writel(0, c->regbase + GFER_OFFSET);
+		__raw_writel(0, c->regbase + GRER_OFFSET);
+		__raw_writel(~0,c->regbase + GEDR_OFFSET);
 	}
 
 	for (irq  = gpio_to_irq(start); irq <= gpio_to_irq(end); irq++) {
@@ -293,46 +310,39 @@ void __init pxa_init_gpio(int mux_irq, int start, int end, set_wake_t fn)
 	/* Install handler for GPIO>=2 edge detect interrupts */
 	set_irq_chained_handler(mux_irq, pxa_gpio_demux_handler);
 	pxa_muxed_gpio_chip.set_wake = fn;
-
-	/* Initialize GPIO chips */
-	pxa_init_gpio_chip(end + 1);
 }
 
 #ifdef CONFIG_PM
-
-static unsigned long saved_gplr[4];
-static unsigned long saved_gpdr[4];
-static unsigned long saved_grer[4];
-static unsigned long saved_gfer[4];
-
 static int pxa_gpio_suspend(struct sys_device *dev, pm_message_t state)
 {
-	int i, gpio;
+	struct pxa_gpio_chip *c;
+	int gpio;
 
-	for (gpio = 0, i = 0; gpio < pxa_last_gpio; gpio += 32, i++) {
-		saved_gplr[i] = GPLR(gpio);
-		saved_gpdr[i] = GPDR(gpio);
-		saved_grer[i] = GRER(gpio);
-		saved_gfer[i] = GFER(gpio);
+	for_each_gpio_chip(gpio, c) {
+		c->saved_gplr = __raw_readl(c->regbase + GPLR_OFFSET);
+		c->saved_gpdr = __raw_readl(c->regbase + GPDR_OFFSET);
+		c->saved_grer = __raw_readl(c->regbase + GRER_OFFSET);
+		c->saved_gfer = __raw_readl(c->regbase + GFER_OFFSET);
 
 		/* Clear GPIO transition detect bits */
-		GEDR(gpio) = GEDR(gpio);
+		__raw_writel(0xffffffff, c->regbase + GEDR_OFFSET);
 	}
 	return 0;
 }
 
 static int pxa_gpio_resume(struct sys_device *dev)
 {
-	int i, gpio;
+	struct pxa_gpio_chip *c;
+	int gpio;
 
-	for (gpio = 0, i = 0; gpio < pxa_last_gpio; gpio += 32, i++) {
+	for_each_gpio_chip(gpio, c) {
 		/* restore level with set/clear */
-		GPSR(gpio) = saved_gplr[i];
-		GPCR(gpio) = ~saved_gplr[i];
+		__raw_writel( c->saved_gplr, c->regbase + GPSR_OFFSET);
+		__raw_writel(~c->saved_gplr, c->regbase + GPCR_OFFSET);
 
-		GRER(gpio) = saved_grer[i];
-		GFER(gpio) = saved_gfer[i];
-		GPDR(gpio) = saved_gpdr[i];
+		__raw_writel(c->saved_grer, c->regbase + GRER_OFFSET);
+		__raw_writel(c->saved_gfer, c->regbase + GFER_OFFSET);
+		__raw_writel(c->saved_gpdr, c->regbase + GPDR_OFFSET);
 	}
 	return 0;
 }
