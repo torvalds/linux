@@ -952,6 +952,93 @@ static struct platform_device i2c_bfin_twi_device = {
 };
 #endif
 
+#if defined(CONFIG_KEYBOARD_ADP5588) || defined(CONFIG_KEYBOARD_ADP5588_MODULE)
+#include <linux/input.h>
+#include <linux/i2c/adp5588_keys.h>
+static const unsigned short adp5588_keymap[ADP5588_KEYMAPSIZE] = {
+	[0]	 = KEY_GRAVE,
+	[1]	 = KEY_1,
+	[2]	 = KEY_2,
+	[3]	 = KEY_3,
+	[4]	 = KEY_4,
+	[5]	 = KEY_5,
+	[6]	 = KEY_6,
+	[7]	 = KEY_7,
+	[8]	 = KEY_8,
+	[9]	 = KEY_9,
+	[10]	 = KEY_0,
+	[11]	 = KEY_MINUS,
+	[12]	 = KEY_EQUAL,
+	[13]	 = KEY_BACKSLASH,
+	[15]	 = KEY_KP0,
+	[16]	 = KEY_Q,
+	[17]	 = KEY_W,
+	[18]	 = KEY_E,
+	[19]	 = KEY_R,
+	[20]	 = KEY_T,
+	[21]	 = KEY_Y,
+	[22]	 = KEY_U,
+	[23]	 = KEY_I,
+	[24]	 = KEY_O,
+	[25]	 = KEY_P,
+	[26]	 = KEY_LEFTBRACE,
+	[27]	 = KEY_RIGHTBRACE,
+	[29]	 = KEY_KP1,
+	[30]	 = KEY_KP2,
+	[31]	 = KEY_KP3,
+	[32]	 = KEY_A,
+	[33]	 = KEY_S,
+	[34]	 = KEY_D,
+	[35]	 = KEY_F,
+	[36]	 = KEY_G,
+	[37]	 = KEY_H,
+	[38]	 = KEY_J,
+	[39]	 = KEY_K,
+	[40]	 = KEY_L,
+	[41]	 = KEY_SEMICOLON,
+	[42]	 = KEY_APOSTROPHE,
+	[43]	 = KEY_BACKSLASH,
+	[45]	 = KEY_KP4,
+	[46]	 = KEY_KP5,
+	[47]	 = KEY_KP6,
+	[48]	 = KEY_102ND,
+	[49]	 = KEY_Z,
+	[50]	 = KEY_X,
+	[51]	 = KEY_C,
+	[52]	 = KEY_V,
+	[53]	 = KEY_B,
+	[54]	 = KEY_N,
+	[55]	 = KEY_M,
+	[56]	 = KEY_COMMA,
+	[57]	 = KEY_DOT,
+	[58]	 = KEY_SLASH,
+	[60]	 = KEY_KPDOT,
+	[61]	 = KEY_KP7,
+	[62]	 = KEY_KP8,
+	[63]	 = KEY_KP9,
+	[64]	 = KEY_SPACE,
+	[65]	 = KEY_BACKSPACE,
+	[66]	 = KEY_TAB,
+	[67]	 = KEY_KPENTER,
+	[68]	 = KEY_ENTER,
+	[69]	 = KEY_ESC,
+	[70]	 = KEY_DELETE,
+	[74]	 = KEY_KPMINUS,
+	[76]	 = KEY_UP,
+	[77]	 = KEY_DOWN,
+	[78]	 = KEY_RIGHT,
+	[79]	 = KEY_LEFT,
+};
+
+static struct adp5588_kpad_platform_data adp5588_kpad_data = {
+	.rows		= 8,
+	.cols		= 10,
+	.keymap		= adp5588_keymap,
+	.keymapsize	= ARRAY_SIZE(adp5588_keymap),
+	.repeat		= 0,
+};
+#endif
+
 #ifdef CONFIG_I2C_BOARDINFO
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_JOYSTICK_AD7142) || defined(CONFIG_JOYSTICK_AD7142_MODULE)
@@ -976,6 +1063,13 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 		I2C_BOARD_INFO("ad7879", 0x2F),
 		.irq = IRQ_PG5,
 		.platform_data = (void *)&bfin_ad7879_ts_info,
+	},
+#endif
+#if defined(CONFIG_KEYBOARD_ADP5588) || defined(CONFIG_KEYBOARD_ADP5588_MODULE)
+	{
+		I2C_BOARD_INFO("adp5588-keys", 0x34),
+		.irq = IRQ_PG0,
+		.platform_data = (void *)&adp5588_kpad_data,
 	},
 #endif
 };
