@@ -22,7 +22,6 @@
 
 #include "op_x86_model.h"
 #include "op_counter.h"
-#include "../../../drivers/oprofile/cpu_buffer.h"
 
 #define NUM_COUNTERS 4
 #define NUM_CONTROLS 4
@@ -60,14 +59,6 @@ static unsigned long reset_value[NUM_COUNTERS];
 /*IbsOpCtl bits */
 #define IBS_OP_LOW_VALID_BIT		(1ULL<<18)	/* bit 18 */
 #define IBS_OP_LOW_ENABLE		(1ULL<<17)	/* bit 17 */
-
-/*
- * The function interface needs to be fixed, something like add
- * data. Should then be added to linux/oprofile.h.
- */
-extern
-void oprofile_add_data(struct op_entry *entry, struct pt_regs * const regs,
-		       unsigned long pc, int code, int size);
 
 #define IBS_FETCH_SIZE	6
 #define IBS_OP_SIZE	12
@@ -174,16 +165,16 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 		rdmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 		if (high & IBS_FETCH_HIGH_VALID_BIT) {
 			rdmsrl(MSR_AMD64_IBSFETCHLINAD, msr);
-			oprofile_add_data(&entry, regs, msr, IBS_FETCH_CODE,
-					  IBS_FETCH_SIZE);
-			op_cpu_buffer_add_data(&entry, (u32)msr);
-			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
-			op_cpu_buffer_add_data(&entry, low);
-			op_cpu_buffer_add_data(&entry, high);
+			oprofile_write_reserve(&entry, regs, msr,
+					       IBS_FETCH_CODE, IBS_FETCH_SIZE);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
+			oprofile_add_data(&entry, low);
+			oprofile_add_data(&entry, high);
 			rdmsrl(MSR_AMD64_IBSFETCHPHYSAD, msr);
-			op_cpu_buffer_add_data(&entry, (u32)msr);
-			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
-			op_cpu_buffer_write_commit(&entry);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
+			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
 			high &= ~IBS_FETCH_HIGH_VALID_BIT;
@@ -197,26 +188,26 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 		rdmsr(MSR_AMD64_IBSOPCTL, low, high);
 		if (low & IBS_OP_LOW_VALID_BIT) {
 			rdmsrl(MSR_AMD64_IBSOPRIP, msr);
-			oprofile_add_data(&entry, regs, msr, IBS_OP_CODE,
-					  IBS_OP_SIZE);
-			op_cpu_buffer_add_data(&entry, (u32)msr);
-			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			oprofile_write_reserve(&entry, regs, msr,
+					       IBS_OP_CODE, IBS_OP_SIZE);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
 			rdmsrl(MSR_AMD64_IBSOPDATA, msr);
-			op_cpu_buffer_add_data(&entry, (u32)msr);
-			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
 			rdmsrl(MSR_AMD64_IBSOPDATA2, msr);
-			op_cpu_buffer_add_data(&entry, (u32)msr);
-			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
 			rdmsrl(MSR_AMD64_IBSOPDATA3, msr);
-			op_cpu_buffer_add_data(&entry, (u32)msr);
-			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
 			rdmsrl(MSR_AMD64_IBSDCLINAD, msr);
-			op_cpu_buffer_add_data(&entry, (u32)msr);
-			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
 			rdmsrl(MSR_AMD64_IBSDCPHYSAD, msr);
-			op_cpu_buffer_add_data(&entry, (u32)msr);
-			op_cpu_buffer_add_data(&entry, (u32)(msr >> 32));
-			op_cpu_buffer_write_commit(&entry);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
+			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
 			high = 0;

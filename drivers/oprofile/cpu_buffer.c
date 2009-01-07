@@ -364,10 +364,11 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 /*
  * Add samples with data to the ring buffer.
  *
- * Use op_cpu_buffer_add_data(&entry, val) to add data and
- * op_cpu_buffer_write_commit(&entry) to commit the sample.
+ * Use oprofile_add_data(&entry, val) to add data and
+ * oprofile_write_commit(&entry) to commit the sample.
  */
-void oprofile_add_data(struct op_entry *entry, struct pt_regs * const regs,
+void
+oprofile_write_reserve(struct op_entry *entry, struct pt_regs * const regs,
 		       unsigned long pc, int code, int size)
 {
 	struct op_sample *sample;
@@ -393,6 +394,16 @@ void oprofile_add_data(struct op_entry *entry, struct pt_regs * const regs,
 
 fail:
 	cpu_buf->sample_lost_overflow++;
+}
+
+int oprofile_add_data(struct op_entry *entry, unsigned long val)
+{
+	return op_cpu_buffer_add_data(entry, val);
+}
+
+int oprofile_write_commit(struct op_entry *entry)
+{
+	return op_cpu_buffer_write_commit(entry);
 }
 
 void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event)

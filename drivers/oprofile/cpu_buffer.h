@@ -35,13 +35,7 @@ struct op_sample {
 	unsigned long data[0];
 };
 
-struct op_entry {
-	struct ring_buffer_event *event;
-	struct op_sample *sample;
-	unsigned long irq_flags;
-	unsigned long size;
-	unsigned long *data;
-};
+struct op_entry;
 
 struct oprofile_cpu_buffer {
 	unsigned long buffer_size;
