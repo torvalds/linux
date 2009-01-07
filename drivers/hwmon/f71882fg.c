@@ -1,6 +1,6 @@
 /***************************************************************************
  *   Copyright (C) 2006 by Hans Edgington <hans@edgington.nl>              *
- *   Copyright (C) 2007 by Hans de Goede  <j.w.r.degoede@hhs.nl>           *
+ *   Copyright (C) 2007,2008 by Hans de Goede <hdegoede@redhat.com>        *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -228,11 +228,7 @@ static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
 	char *buf);
 
 static int __devinit f71882fg_probe(struct platform_device * pdev);
-static int __devexit f71882fg_remove(struct platform_device *pdev);
-static int __init f71882fg_init(void);
-static int __init f71882fg_find(int sioaddr, unsigned short *address);
-static int __init f71882fg_device_add(unsigned short address);
-static void __exit f71882fg_exit(void);
+static int f71882fg_remove(struct platform_device *pdev);
 
 static struct platform_driver f71882fg_driver = {
 	.driver = {
@@ -243,10 +239,7 @@ static struct platform_driver f71882fg_driver = {
 	.remove		= __devexit_p(f71882fg_remove),
 };
 
-static struct device_attribute f71882fg_dev_attr[] =
-{
-	__ATTR( name, S_IRUGO, show_name, NULL ),
-};
+static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 
 static struct sensor_device_attribute_2 f71882fg_in_temp_attr[] = {
 	SENSOR_ATTR_2(in0_input, S_IRUGO, show_in, NULL, 0, 0),
@@ -1396,14 +1389,27 @@ static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
 	return sprintf(buf, DRVNAME "\n");
 }
 
+static int __devinit f71882fg_create_sysfs_files(struct platform_device *pdev,
+	struct sensor_device_attribute_2 *attr, int count)
+{
+	int err, i;
 
-static int __devinit f71882fg_probe(struct platform_device * pdev)
+	for (i = 0; i < count; i++) {
+		err = device_create_file(&pdev->dev, &attr[i].dev_attr);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static int __devinit f71882fg_probe(struct platform_device *pdev)
 {
 	struct f71882fg_data *data;
-	int err, i;
+	int err;
 	u8 start_reg;
 
-	if (!(data = kzalloc(sizeof(struct f71882fg_data), GFP_KERNEL)))
+	data = kzalloc(sizeof(struct f71882fg_data), GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
 	data->addr = platform_get_resource(pdev, IORESOURCE_IO, 0)->start;
@@ -1411,65 +1417,50 @@ static int __devinit f71882fg_probe(struct platform_device * pdev)
 	platform_set_drvdata(pdev, data);
 
 	/* Register sysfs interface files */
-	for (i = 0; i < ARRAY_SIZE(f71882fg_dev_attr); i++) {
-		err = device_create_file(&pdev->dev, &f71882fg_dev_attr[i]);
+	err = device_create_file(&pdev->dev, &dev_attr_name);
+	if (err)
+		goto exit_unregister_sysfs;
+
+	start_reg = f71882fg_read8(data, F71882FG_REG_START);
+	if (start_reg & 0x01) {
+		err = f71882fg_create_sysfs_files(pdev, f71882fg_in_temp_attr,
+					ARRAY_SIZE(f71882fg_in_temp_attr));
 		if (err)
 			goto exit_unregister_sysfs;
 	}
 
-	start_reg = f71882fg_read8(data, F71882FG_REG_START);
-	if (start_reg & 0x01) {
-		for (i = 0; i < ARRAY_SIZE(f71882fg_in_temp_attr); i++) {
-			err = device_create_file(&pdev->dev,
-					&f71882fg_in_temp_attr[i].dev_attr);
-			if (err)
-				goto exit_unregister_sysfs;
-		}
-	}
-
 	if (start_reg & 0x02) {
-		for (i = 0; i < ARRAY_SIZE(f71882fg_fan_attr); i++) {
-			err = device_create_file(&pdev->dev,
-					&f71882fg_fan_attr[i].dev_attr);
-			if (err)
-				goto exit_unregister_sysfs;
-		}
+		err = f71882fg_create_sysfs_files(pdev, f71882fg_fan_attr,
+					ARRAY_SIZE(f71882fg_fan_attr));
+		if (err)
+			goto exit_unregister_sysfs;
 	}
 
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
+		data->hwmon_dev = NULL;
 		goto exit_unregister_sysfs;
 	}
 
 	return 0;
 
 exit_unregister_sysfs:
-	for (i = 0; i < ARRAY_SIZE(f71882fg_dev_attr); i++)
-		device_remove_file(&pdev->dev, &f71882fg_dev_attr[i]);
-
-	for (i = 0; i < ARRAY_SIZE(f71882fg_in_temp_attr); i++)
-		device_remove_file(&pdev->dev,
-					&f71882fg_in_temp_attr[i].dev_attr);
-
-	for (i = 0; i < ARRAY_SIZE(f71882fg_fan_attr); i++)
-		device_remove_file(&pdev->dev, &f71882fg_fan_attr[i].dev_attr);
-
-	kfree(data);
+	f71882fg_remove(pdev); /* Will unregister the sysfs files for us */
 
 	return err;
 }
 
-static int __devexit f71882fg_remove(struct platform_device *pdev)
+static int f71882fg_remove(struct platform_device *pdev)
 {
 	int i;
 	struct f71882fg_data *data = platform_get_drvdata(pdev);
 
 	platform_set_drvdata(pdev, NULL);
-	hwmon_device_unregister(data->hwmon_dev);
+	if (data->hwmon_dev)
+		hwmon_device_unregister(data->hwmon_dev);
 
-	for (i = 0; i < ARRAY_SIZE(f71882fg_dev_attr); i++)
-		device_remove_file(&pdev->dev, &f71882fg_dev_attr[i]);
+	device_remove_file(&pdev->dev, &dev_attr_name);
 
 	for (i = 0; i < ARRAY_SIZE(f71882fg_in_temp_attr); i++)
 		device_remove_file(&pdev->dev,
@@ -1577,10 +1568,12 @@ static int __init f71882fg_init(void)
 	if (f71882fg_find(0x2e, &address) && f71882fg_find(0x4e, &address))
 		goto exit;
 
-	if ((err = platform_driver_register(&f71882fg_driver)))
+	err = platform_driver_register(&f71882fg_driver);
+	if (err)
 		goto exit;
 
-	if ((err = f71882fg_device_add(address)))
+	err = f71882fg_device_add(address);
+	if (err)
 		goto exit_driver;
 
 	return 0;
@@ -1598,7 +1591,7 @@ static void __exit f71882fg_exit(void)
 }
 
 MODULE_DESCRIPTION("F71882FG Hardware Monitoring Driver");
-MODULE_AUTHOR("Hans Edgington (hans@edgington.nl)");
+MODULE_AUTHOR("Hans Edgington, Hans de Goede (hdegoede@redhat.com)");
 MODULE_LICENSE("GPL");
 
 module_init(f71882fg_init);
