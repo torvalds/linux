@@ -433,11 +433,11 @@ static struct mtd_partition stamp_partitions[] = {
 		.offset     = 0,
 	}, {
 		.name       = "linux kernel(nor)",
-		.size       = 0xE0000,
+		.size       = 0x180000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "file system(nor)",
-		.size       = 0x400000 - 0x40000 - 0xE0000 - 0x10000,
+		.size       = 0x400000 - 0x40000 - 0x180000 - 0x10000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "MAC Address(nor)",
@@ -480,7 +480,7 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		.mask_flags = MTD_CAP_ROM
 	}, {
 		.name = "linux kernel(spi)",
-		.size = 0xe0000,
+		.size = 0x180000,
 		.offset = MTDPART_OFS_APPEND,
 	}, {
 		.name = "file system(spi)",
@@ -642,7 +642,7 @@ static struct mtd_partition bfin_spi_dataflash_partitions[] = {
 		.mask_flags = MTD_CAP_ROM
 	}, {
 		.name = "linux kernel(spi)",
-		.size = 0xe0000,
+		.size = 0x180000,
 		.offset = MTDPART_OFS_APPEND,
 	}, {
 		.name = "file system(spi)",
