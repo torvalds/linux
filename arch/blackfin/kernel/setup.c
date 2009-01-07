@@ -1033,10 +1033,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	char *cpu, *mmu, *fpu, *vendor, *cache;
 	uint32_t revid;
-
+	int cpu_num = *(unsigned int *)v;
 	u_long sclk, cclk;
 	u_int icache_size = BFIN_ICACHESIZE / 1024, dcache_size = 0, dsup_banks = 0;
-	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, *(unsigned int *)v);
+	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, cpu_num);
 
 	cpu = CPU;
 	mmu = "none";
@@ -1055,8 +1055,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		break;
 	}
 
-	seq_printf(m, "processor\t: %d\n" "vendor_id\t: %s\n",
-		*(unsigned int *)v, vendor);
+	seq_printf(m, "processor\t: %d\n" "vendor_id\t: %s\n", cpu_num, vendor);
 
 	if (CPUID == bfin_cpuid())
 		seq_printf(m, "cpu family\t: 0x%04x\n", CPUID);
@@ -1137,9 +1136,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   dsup_banks, BFIN_DSUBBANKS, BFIN_DWAYS,
 		   BFIN_DLINES);
 #ifdef __ARCH_SYNC_CORE_DCACHE
-	seq_printf(m,
-		"SMP Dcache Flushes\t: %lu\n\n",
-		per_cpu(cpu_data, *(unsigned int *)v).dcache_invld_count);
+	seq_printf(m, "SMP Dcache Flushes\t: %lu\n\n", cpudata->dcache_invld_count);
 #endif
 #ifdef CONFIG_BFIN_ICACHE_LOCK
 	switch ((cpudata->imemctl >> 3) & WAYALL_L) {
@@ -1192,12 +1189,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "No Ways are locked\n");
 	}
 #endif
-	if (*(unsigned int *)v != NR_CPUS-1)
+
+	if (cpu_num != num_possible_cpus() - 1)
 		return 0;
 
-#if L2_LENGTH
-	seq_printf(m, "L2 SRAM\t\t: %dKB\n", L2_LENGTH/0x400);
-#endif
+	if (L2_LENGTH)
+		seq_printf(m, "L2 SRAM\t\t: %dKB\n", L2_LENGTH/0x400);
 	seq_printf(m, "board name\t: %s\n", bfin_board_name);
 	seq_printf(m, "board memory\t: %ld kB (0x%p -> 0x%p)\n",
 		 physical_mem_end >> 10, (void *)0, (void *)physical_mem_end);
