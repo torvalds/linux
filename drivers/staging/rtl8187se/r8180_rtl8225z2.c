@@ -1571,7 +1571,7 @@ void rtl8225z4_rf_sleep(struct net_device *dev)
 	//
 	// Turn off RF power.
 	//
-	//printk("=========>%s()\n", __FUNCTION__);
+	//printk("=========>%s()\n", __func__);
 	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS);
 	//mdelay(2);	//FIXME
 }
@@ -1580,7 +1580,7 @@ void rtl8225z4_rf_wakeup(struct net_device *dev)
 	//
 	// Turn on RF power.
 	//
-	//printk("=========>%s()\n", __FUNCTION__);
+	//printk("=========>%s()\n", __func__);
 	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS);
 }
 #endif

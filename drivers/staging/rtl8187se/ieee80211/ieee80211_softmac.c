@@ -731,7 +731,7 @@ void ieee80211_softmac_scan_wq(struct ieee80211_device *ieee)
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
 #endif
 //	printk("ieee80211_softmac_scan_wq ENABLE_IPS\n");
-//	printk("in %s\n",__FUNCTION__);
+//	printk("in %s\n",__func__);
 	down(&ieee->scan_sem);
 
 	do{
@@ -1785,7 +1785,7 @@ void ieee80211_associate_step1(struct ieee80211_device *ieee)
 		//If call dev_kfree_skb_any,a warning will ocur....
 		//KERNEL: assertion (!atomic_read(&skb->users)) failed at net/core/dev.c (1708)
 		//So ... 1204 by lawrence.
-		//printk("\nIn %s,line %d call kfree skb.",__FUNCTION__,__LINE__);
+		//printk("\nIn %s,line %d call kfree skb.",__func__,__LINE__);
 		//dev_kfree_skb_any(skb);//edit by thomas
 	}
 }
@@ -2432,7 +2432,7 @@ inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 	}
 
 	sleep = ieee80211_sta_ps_sleep(ieee,&th, &tl);
-//	printk("===>%s,%d[2 wake, 1 sleep, 0 do nothing], ieee->sta_sleep = %d\n",__FUNCTION__, sleep,ieee->sta_sleep);
+//	printk("===>%s,%d[2 wake, 1 sleep, 0 do nothing], ieee->sta_sleep = %d\n",__func__, sleep,ieee->sta_sleep);
 	/* 2 wake, 1 sleep, 0 do nothing */
 	if(sleep == 0)
 		goto out;
@@ -2510,7 +2510,7 @@ void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 		/* Null frame with PS bit set */
 		if(success){
 
-		//	printk("==================> %s::enter sleep state\n",__FUNCTION__);
+		//	printk("==================> %s::enter sleep state\n",__func__);
 			ieee->sta_sleep = 1;
 			ieee->enter_sleep_state(ieee->dev,ieee->ps_th,ieee->ps_tl);
 		}

@@ -475,7 +475,7 @@ static irqreturn_t me8200_do_isr(int irq, void *dev_id, struct pt_regs *regs)
 	     (ME8200_DO_IRQ_STATUS_BIT_ACTIVE << instance->do_idx))) {
 		PINFO
 		    ("%ld Shared interrupt. %s(): idx=%d irq_status_reg=0x%04X\n",
-		     jiffies, __FUNCTION__, instance->do_idx, irq_status);
+		     jiffies, __func__, instance->do_idx, irq_status);
 		return IRQ_NONE;
 	}
 
