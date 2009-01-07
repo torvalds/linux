@@ -21,6 +21,8 @@
 #define MODULE_NAME "stk014"
 
 #include "gspca.h"
+#define QUANT_VAL 7		/* quantization table */
+				/* <= 4 KO - 7: good (enough!) */
 #include "jpeg.h"
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
@@ -36,9 +38,6 @@ struct sd {
 	unsigned char colors;
 	unsigned char lightfreq;
 };
-
-/* global parameters */
-static int sd_quant = 7;		/* <= 4 KO - 7: good (enough!) */
 
 /* V4L2 controls supported by the driver */
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
@@ -418,7 +417,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					ffd9, 2);
 
 		/* put the JPEG 411 header */
-		jpeg_put_header(gspca_dev, frame, sd_quant, 0x22);
+		jpeg_put_header(gspca_dev, frame, 0x22);
 
 		/* beginning of the frame */
 #define STKHDRSZ 12
@@ -575,6 +574,3 @@ static void __exit sd_mod_exit(void)
 
 module_init(sd_mod_init);
 module_exit(sd_mod_exit);
-
-module_param_named(quant, sd_quant, int, 0644);
-MODULE_PARM_DESC(quant, "Quantization index (0..8)");

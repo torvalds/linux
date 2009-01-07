@@ -23,6 +23,7 @@
 
 #include "gspca.h"
 #define CONEX_CAM 1		/* special JPEG header */
+#define QUANT_VAL 0		/* quantization table */
 #include "jpeg.h"
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
@@ -36,8 +37,6 @@ struct sd {
 	unsigned char brightness;
 	unsigned char contrast;
 	unsigned char colors;
-
-	unsigned char qindex;
 };
 
 /* V4L2 controls supported by the driver */
@@ -818,7 +817,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->cam_mode = vga_mode;
 	cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
 
-	sd->qindex = 0;			/* set the quantization */
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
@@ -882,9 +880,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					data, 0);
 
 		/* put the JPEG header in the new frame */
-		jpeg_put_header(gspca_dev, frame,
-				((struct sd *) gspca_dev)->qindex,
-				0x22);
+		jpeg_put_header(gspca_dev, frame, 0x22);
 		data += 2;
 		len -= 2;
 	}

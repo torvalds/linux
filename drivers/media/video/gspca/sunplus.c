@@ -22,6 +22,7 @@
 #define MODULE_NAME "sunplus"
 
 #include "gspca.h"
+#define QUANT_VAL 5		/* quantization table */
 #include "jpeg.h"
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
@@ -40,7 +41,6 @@ struct sd {
 	unsigned char colors;
 	unsigned char autogain;
 
-	char qindex;
 	char bridge;
 #define BRIDGE_SPCA504 0
 #define BRIDGE_SPCA504B 1
@@ -849,7 +849,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = sizeof vga_mode2 / sizeof vga_mode2[0];
 		break;
 	}
-	sd->qindex = 5;			/* set the quantization table */
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
 	sd->colors = sd_ctrls[SD_COLOR].qctrl.default_value;
@@ -1154,9 +1153,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					ffd9, 2);
 
 		/* put the JPEG header in the new frame */
-		jpeg_put_header(gspca_dev, frame,
-				((struct sd *) gspca_dev)->qindex,
-				0x22);
+		jpeg_put_header(gspca_dev, frame, 0x22);
 	}
 
 	/* add 0x00 after 0xff */

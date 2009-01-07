@@ -31,6 +31,7 @@ MODULE_LICENSE("GPL");
 
 static int force_sensor = -1;
 
+#define QUANT_VAL 1		/* quantization table */
 #include "jpeg.h"
 #include "zc3xx-reg.h"
 
@@ -45,7 +46,6 @@ struct sd {
 	__u8 lightfreq;
 	__u8 sharpness;
 
-	char qindex;
 	signed char sensor;		/* Type of image sensor chip */
 /* !! values used in different tables */
 #define SENSOR_CS2102 0
@@ -6536,7 +6536,6 @@ static void setquality(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
-	__u8 quality;
 	__u8 frxt;
 
 	switch (sd->sensor) {
@@ -6547,26 +6546,18 @@ static void setquality(struct gspca_dev *gspca_dev)
 		return;
 	}
 /*fixme: is it really 0008 0007 0018 for all other sensors? */
-	quality = sd->qindex;
-	reg_w(dev, quality, 0x0008);
+	reg_w(dev, QUANT_VAL, 0x0008);
 	frxt = 0x30;
 	reg_w(dev, frxt, 0x0007);
-	switch (quality) {
-	case 0:
-	case 1:
-	case 2:
-		frxt = 0xff;
-		break;
-	case 3:
-		frxt = 0xf0;
-		break;
-	case 4:
-		frxt = 0xe0;
-		break;
-	case 5:
-		frxt = 0x20;
-		break;
-	}
+#if QUANT_VAL == 0 || QUANT_VAL == 1 || QUANT_VAL == 2
+	frxt = 0xff;
+#elif QUANT_VAL == 3
+	frxt = 0xf0;
+#elif QUANT_VAL == 4
+	frxt = 0xe0;
+#else
+	frxt = 0x20;
+#endif
 	reg_w(dev, frxt, 0x0018);
 }
 
@@ -7156,7 +7147,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->cam_mode = sif_mode;
 		cam->nmodes = ARRAY_SIZE(sif_mode);
 	}
-	sd->qindex = 1;
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
 	sd->gamma = gamma[(int) sd->sensor];
@@ -7358,9 +7348,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
 					data, 0);
 		/* put the JPEG header in the new frame */
-		jpeg_put_header(gspca_dev, frame,
-				((struct sd *) gspca_dev)->qindex,
-				0x21);
+		jpeg_put_header(gspca_dev, frame, 0x21);
 		/* remove the webcam's header:
 		 * ff d8 ff fe 00 0e 00 00 ss ss 00 01 ww ww hh hh pp pp
 		 *	- 'ss ss' is the frame sequence number (BE)

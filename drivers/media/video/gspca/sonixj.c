@@ -22,6 +22,7 @@
 #define MODULE_NAME "sonixj"
 
 #include "gspca.h"
+#define QUANT_VAL 4		/* quantization table */
 #include "jpeg.h"
 
 #define V4L2_CID_INFRARED (V4L2_CID_PRIVATE_BASE + 0)
@@ -49,7 +50,6 @@ struct sd {
 	__s8 ag_cnt;
 #define AG_CNT_START 13
 
-	__u8 qindex;
 	__u8 bridge;
 #define BRIDGE_SN9C102P 0
 #define BRIDGE_SN9C105 1
@@ -1025,7 +1025,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->sensor = id->driver_info >> 8;
 	sd->i2c_base = id->driver_info;
 
-	sd->qindex = 4;			/* set the quantization table */
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
@@ -1549,7 +1548,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (gspca_dev->last_packet_type == LAST_PACKET) {
 
 		/* put the JPEG 422 header */
-		jpeg_put_header(gspca_dev, frame, sd->qindex, 0x21);
+		jpeg_put_header(gspca_dev, frame, 0x21);
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }

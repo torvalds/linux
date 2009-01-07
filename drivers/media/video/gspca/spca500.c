@@ -22,6 +22,7 @@
 #define MODULE_NAME "spca500"
 
 #include "gspca.h"
+#define QUANT_VAL 5		/* quantization table */
 #include "jpeg.h"
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
@@ -39,7 +40,6 @@ struct sd {
 	unsigned char contrast;
 	unsigned char colors;
 
-	char qindex;
 	char subtype;
 #define AgfaCl20 0
 #define AiptekPocketDV 1
@@ -637,7 +637,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->cam_mode = sif_mode;
 		cam->nmodes = ARRAY_SIZE(sif_mode);
 	}
-	sd->qindex = 5;
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
@@ -900,7 +899,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					ffd9, 2);
 
 		/* put the JPEG header in the new frame */
-		jpeg_put_header(gspca_dev, frame, sd->qindex, 0x22);
+		jpeg_put_header(gspca_dev, frame, 0x22);
 
 		data += SPCA500_OFFSET_DATA;
 		len -= SPCA500_OFFSET_DATA;

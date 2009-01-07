@@ -22,6 +22,7 @@
 #define MODULE_NAME "mars"
 
 #include "gspca.h"
+#define QUANT_VAL 1		/* quantization table */
 #include "jpeg.h"
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
@@ -31,8 +32,6 @@ MODULE_LICENSE("GPL");
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
-
-	char qindex;
 };
 
 /* V4L2 controls supported by the driver */
@@ -117,13 +116,11 @@ static void bulk_w(struct gspca_dev *gspca_dev,
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
-	sd->qindex = 1;			/* set the quantization table */
 	return 0;
 }
 
@@ -345,7 +342,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	int p;
 
 	if (len < 6) {
@@ -368,8 +364,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 							frame, data, 0);
 
 				/* put the JPEG header */
-				jpeg_put_header(gspca_dev, frame,
-						sd->qindex, 0x21);
+				jpeg_put_header(gspca_dev, frame, 0x21);
 				data += 16;
 				len -= 16;
 				break;
