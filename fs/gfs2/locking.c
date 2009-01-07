@@ -23,11 +23,74 @@ struct lmh_wrapper {
 	const struct lm_lockops *lw_ops;
 };
 
+struct nolock_lockspace {
+	unsigned int nl_lvb_size;
+};
+
+/**
+ * nolock_get_lock - get a lm_lock_t given a descripton of the lock
+ * @lockspace: the lockspace the lock lives in
+ * @name: the name of the lock
+ * @lockp: return the lm_lock_t here
+ *
+ * Returns: 0 on success, -EXXX on failure
+ */
+
+static int nolock_get_lock(void *lockspace, struct lm_lockname *name,
+                           void **lockp)
+{
+        *lockp = lockspace;
+        return 0;
+}
+
+/**
+ * nolock_put_lock - get rid of a lock structure
+ * @lock: the lock to throw away
+ *
+ */
+
+static void nolock_put_lock(void *lock)
+{
+}
+
+/**
+ * nolock_hold_lvb - hold on to a lock value block
+ * @lock: the lock the LVB is associated with
+ * @lvbp: return the lm_lvb_t here
+ *
+ * Returns: 0 on success, -EXXX on failure
+ */
+
+static int nolock_hold_lvb(void *lock, char **lvbp)
+{
+	struct nolock_lockspace *nl = lock;
+	int error = 0;
+
+	*lvbp = kzalloc(nl->nl_lvb_size, GFP_KERNEL);
+	if (!*lvbp)
+		error = -ENOMEM;
+
+	return error;
+}
+
+/**
+ * nolock_unhold_lvb - release a LVB
+ * @lock: the lock the LVB is associated with
+ * @lvb: the lock value block
+ *
+ */
+
+static void nolock_unhold_lvb(void *lock, char *lvb)
+{
+	kfree(lvb);
+}
+
 static int nolock_mount(char *table_name, char *host_data,
 			lm_callback_t cb, void *cb_data,
 			unsigned int min_lvb_size, int flags,
 			struct lm_lockstruct *lockstruct,
 			struct kobject *fskobj);
+static void nolock_unmount(void *lockspace);
 
 /* List of registered low-level locking protocols.  A file system selects one
    of them by name at mount time, e.g. lock_nolock, lock_dlm. */
@@ -35,6 +98,11 @@ static int nolock_mount(char *table_name, char *host_data,
 static const struct lm_lockops nolock_ops = {
 	.lm_proto_name = "lock_nolock",
 	.lm_mount = nolock_mount,
+	.lm_unmount = nolock_unmount,
+	.lm_get_lock = nolock_get_lock,
+	.lm_put_lock = nolock_put_lock,
+	.lm_hold_lvb = nolock_hold_lvb,
+	.lm_unhold_lvb = nolock_unhold_lvb,
 };
 
 static struct lmh_wrapper nolock_proto  = {
@@ -53,6 +121,7 @@ static int nolock_mount(char *table_name, char *host_data,
 {
 	char *c;
 	unsigned int jid;
+	struct nolock_lockspace *nl;
 
 	c = strstr(host_data, "jid=");
 	if (!c)
@@ -62,13 +131,26 @@ static int nolock_mount(char *table_name, char *host_data,
 		sscanf(c, "%u", &jid);
 	}
 
+	nl = kzalloc(sizeof(struct nolock_lockspace), GFP_KERNEL);
+	if (!nl)
+		return -ENOMEM;
+
+	nl->nl_lvb_size = min_lvb_size;
+
 	lockstruct->ls_jid = jid;
 	lockstruct->ls_first = 1;
 	lockstruct->ls_lvb_size = min_lvb_size;
+	lockstruct->ls_lockspace = nl;
 	lockstruct->ls_ops = &nolock_ops;
 	lockstruct->ls_flags = LM_LSFLAG_LOCAL;
 
 	return 0;
+}
+
+static void nolock_unmount(void *lockspace)
+{
+        struct nolock_lockspace *nl = lockspace;
+        kfree(nl);
 }
 
 /**
