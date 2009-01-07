@@ -22,8 +22,6 @@ extern cpumask_t cpu_callout_map;
 extern cpumask_t cpu_initialized;
 extern cpumask_t cpu_callin_map;
 
-extern void zap_low_mappings(void);
-
 extern int __cpuinit get_local_pda(int cpu);
 
 extern int smp_num_siblings;
