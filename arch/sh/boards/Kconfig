@@ -240,7 +240,7 @@ config SH_X3PROTO
 config SH_MAGIC_PANEL_R2
 	bool "Magic Panel R2"
 	depends on CPU_SUBTYPE_SH7720
-	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Select Magic Panel R2 if configuring for Magic Panel R2.
 
