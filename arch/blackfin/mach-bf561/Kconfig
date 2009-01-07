@@ -4,9 +4,9 @@ source "arch/blackfin/mach-bf561/boards/Kconfig"
 
 menu "BF561 Specific Configuration"
 
-comment "Core B Support"
+if (!SMP)
 
-menu "Core B Support"
+comment "Core B Support"
 
 config BF561_COREB
 	bool "Enable Core B support"
@@ -25,7 +25,7 @@ config BF561_COREB_RESET
 	  0 is set, and will reset PC to 0xff600000 when
 	  COREB_SRAM_INIT is cleared.
 
-endmenu
+endif
 
 comment "Interrupt Priority Assignment"
 

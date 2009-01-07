@@ -85,4 +85,124 @@
 #define L1_SCRATCH_START	COREA_L1_SCRATCH_START
 #define L1_SCRATCH_LENGTH	0x1000
 
+#ifndef __ASSEMBLY__
+
+#ifdef CONFIG_SMP
+
+#define get_l1_scratch_start_cpu(cpu)				\
+	({ unsigned long __addr;				\
+	   __addr = (cpu) ? COREB_L1_SCRATCH_START : COREA_L1_SCRATCH_START;\
+	   __addr; })
+
+#define get_l1_code_start_cpu(cpu)				\
+	({ unsigned long __addr;				\
+	   __addr = (cpu) ? COREB_L1_CODE_START : COREA_L1_CODE_START;	\
+	   __addr; })
+
+#define get_l1_data_a_start_cpu(cpu)				\
+	({ unsigned long __addr;				\
+	   __addr = (cpu) ? COREB_L1_DATA_A_START : COREA_L1_DATA_A_START;\
+	   __addr; })
+
+#define get_l1_data_b_start_cpu(cpu)				\
+	({ unsigned long __addr;				\
+	   __addr = (cpu) ? COREB_L1_DATA_B_START : COREA_L1_DATA_B_START;\
+	   __addr; })
+
+#define get_l1_scratch_start()	get_l1_scratch_start_cpu(blackfin_core_id())
+#define get_l1_code_start()	get_l1_code_start_cpu(blackfin_core_id())
+#define get_l1_data_a_start()	get_l1_data_a_start_cpu(blackfin_core_id())
+#define get_l1_data_b_start()	get_l1_data_b_start_cpu(blackfin_core_id())
+
+#else /* !CONFIG_SMP */
+#define get_l1_scratch_start_cpu(cpu)	L1_SCRATCH_START
+#define get_l1_code_start_cpu(cpu)	L1_CODE_START
+#define get_l1_data_a_start_cpu(cpu)	L1_DATA_A_START
+#define get_l1_data_b_start_cpu(cpu)	L1_DATA_B_START
+#define get_l1_scratch_start()		L1_SCRATCH_START
+#define get_l1_code_start()		L1_CODE_START
+#define get_l1_data_a_start()		L1_DATA_A_START
+#define get_l1_data_b_start()		L1_DATA_B_START
+#endif /* !CONFIG_SMP */
+
+#else /* __ASSEMBLY__ */
+
+/*
+ * The following macros both return the address of the PDA for the
+ * current core.
+ *
+ * In its first safe (and hairy) form, the macro neither clobbers any
+ * register aside of the output Preg, nor uses the stack, since it
+ * could be called with an invalid stack pointer, or the current stack
+ * space being uncovered by any CPLB (e.g. early exception handling).
+ *
+ * The constraints on the second form are a bit relaxed, and the code
+ * is allowed to use the specified Dreg for determining the PDA
+ * address to be returned into Preg.
+ */
+#ifdef CONFIG_SMP
+#define GET_PDA_SAFE(preg)		\
+	preg.l = lo(DSPID);		\
+	preg.h = hi(DSPID);		\
+	preg = [preg];			\
+	preg = preg << 2;		\
+	preg = preg << 2;		\
+	preg = preg << 2;		\
+	preg = preg << 2;		\
+	preg = preg << 2;		\
+	preg = preg << 2;		\
+	preg = preg << 2;		\
+	preg = preg << 2;		\
+	preg = preg << 2;		\
+	preg = preg << 2;		\
+	preg = preg << 2;		\
+	preg = preg << 2;		\
+	if cc jump 2f;			\
+	cc = preg == 0x0;		\
+	preg.l = _cpu_pda;		\
+	preg.h = _cpu_pda;		\
+	if !cc jump 3f;			\
+1:					\
+	/* preg = 0x0; */		\
+	cc = !cc; /* restore cc to 0 */	\
+	jump 4f;			\
+2:					\
+	cc = preg == 0x0;		\
+	preg.l = _cpu_pda;		\
+	preg.h = _cpu_pda;		\
+	if cc jump 4f;			\
+	/* preg = 0x1000000; */		\
+	cc = !cc; /* restore cc to 1 */	\
+3:					\
+	preg = [preg];			\
+4:
+
+#define GET_PDA(preg, dreg)		\
+	preg.l = lo(DSPID);		\
+	preg.h = hi(DSPID);		\
+	dreg = [preg];			\
+	preg.l = _cpu_pda;		\
+	preg.h = _cpu_pda;		\
+	cc = bittst(dreg, 0);		\
+	if !cc jump 1f;			\
+	preg = [preg];			\
+1:					\
+
+#define GET_CPUID(preg, dreg)		\
+	preg.l = lo(DSPID);		\
+	preg.h = hi(DSPID);		\
+	dreg = [preg];			\
+	dreg = ROT dreg BY -1;		\
+	dreg = CC;
+
+#else
+#define GET_PDA_SAFE(preg)		\
+	preg.l = _cpu_pda;		\
+	preg.h = _cpu_pda;
+
+#define GET_PDA(preg, dreg)	GET_PDA_SAFE(preg)
+#endif /* CONFIG_SMP */
+
+#endif /* __ASSEMBLY__ */
+
 #endif				/* _MEM_MAP_533_H_ */
