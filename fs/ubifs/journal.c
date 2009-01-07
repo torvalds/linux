@@ -191,7 +191,7 @@ again:
 	if (wbuf->lnum != -1 && avail >= len) {
 		/*
 		 * Someone else has switched the journal head and we have
-		 * enough space now. This happens when more then one process is
+		 * enough space now. This happens when more than one process is
 		 * trying to write to the same journal head at the same time.
 		 */
 		dbg_jnl("return LEB %d back, already have LEB %d:%d",

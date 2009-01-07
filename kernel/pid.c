@@ -475,7 +475,7 @@ pid_t task_session_nr_ns(struct task_struct *tsk, struct pid_namespace *ns)
 EXPORT_SYMBOL(task_session_nr_ns);
 
 /*
- * Used by proc to find the first pid that is greater then or equal to nr.
+ * Used by proc to find the first pid that is greater than or equal to nr.
  *
  * If there is a pid at nr this function is exactly the same as find_pid_ns.
  */

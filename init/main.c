@@ -599,7 +599,8 @@ asmlinkage void __init start_kernel(void)
 	sched_clock_init();
 	profile_init();
 	if (!irqs_disabled())
-		printk("start_kernel(): bug: interrupts were enabled early\n");
+		printk(KERN_CRIT "start_kernel(): bug: interrupts were "
+				 "enabled early\n");
 	early_boot_irqs_on();
 	local_irq_enable();
 

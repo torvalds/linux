@@ -1203,7 +1203,7 @@ static void e100_disable_txdma_channel(struct e100_serial *info)
 	unsigned long flags;
 
 	/* Disable output DMA channel for the serial port in question
-	 * ( set to something other then serialX)
+	 * ( set to something other than serialX)
 	 */
 	local_irq_save(flags);
 	DFLOW(DEBUG_LOG(info->line, "disable_txdma_channel %i\n", info->line));
@@ -1266,7 +1266,7 @@ static void e100_disable_rxdma_channel(struct e100_serial *info)
 	unsigned long flags;
 
 	/* Disable input DMA channel for the serial port in question
-	 * ( set to something other then serialX)
+	 * ( set to something other than serialX)
 	 */
 	local_irq_save(flags);
 	if (info->line == 0) {

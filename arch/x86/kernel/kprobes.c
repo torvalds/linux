@@ -695,7 +695,7 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 	/*
 	 * It is possible to have multiple instances associated with a given
 	 * task either because multiple functions in the call path have
-	 * return probes installed on them, and/or more then one
+	 * return probes installed on them, and/or more than one
 	 * return probe was registered for a target function.
 	 *
 	 * We can handle this because:
