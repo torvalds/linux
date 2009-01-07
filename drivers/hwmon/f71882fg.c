@@ -1507,12 +1507,31 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 	mutex_init(&data->update_lock);
 	platform_set_drvdata(pdev, data);
 
+	start_reg = f71882fg_read8(data, F71882FG_REG_START);
+	if (!(start_reg & 0x03)) {
+		dev_warn(&pdev->dev, "Hardware monitoring not activated\n");
+		err = -ENODEV;
+		goto exit_free;
+	}
+
+	/* If it is a 71862 and the fan / pwm part is enabled sanity check
+	   the pwm settings */
+	if (data->type == f71862fg && (start_reg & 0x02)) {
+		u8 reg = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
+		if ((reg & 0x15) != 0x15) {
+			dev_err(&pdev->dev,
+				"Invalid (reserved) pwm settings: 0x%02x\n",
+				(unsigned int)reg);
+			err = -ENODEV;
+			goto exit_free;
+		}
+	}
+
 	/* Register sysfs interface files */
 	err = device_create_file(&pdev->dev, &dev_attr_name);
 	if (err)
 		goto exit_unregister_sysfs;
 
-	start_reg = f71882fg_read8(data, F71882FG_REG_START);
 	if (start_reg & 0x01) {
 		err = f71882fg_create_sysfs_files(pdev, f718x2fg_in_temp_attr,
 					ARRAY_SIZE(f718x2fg_in_temp_attr));
@@ -1558,7 +1577,9 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 
 exit_unregister_sysfs:
 	f71882fg_remove(pdev); /* Will unregister the sysfs files for us */
-
+	return err; /* f71882fg_remove() also frees our data */
+exit_free:
+	kfree(data);
 	return err;
 }
 
@@ -1600,8 +1621,6 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 {
 	int err = -ENODEV;
 	u16 devid;
-	u8 reg;
-	struct f71882fg_data data;
 
 	superio_enter(sioaddr);
 
@@ -1638,25 +1657,6 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 	}
 	*address &= ~(REGION_LENGTH - 1);	/* Ignore 3 LSB */
 
-	data.addr = *address;
-	reg = f71882fg_read8(&data, F71882FG_REG_START);
-	if (!(reg & 0x03)) {
-		printk(KERN_WARNING DRVNAME
-			": Hardware monitoring not activated\n");
-		goto exit;
-	}
-
-	/* If it is a 71862 and the fan / pwm part is enabled sanity check
-	   the pwm settings */
-	if (sio_data->type == f71862fg && (reg & 0x02)) {
-		reg = f71882fg_read8(&data, F71882FG_REG_PWM_ENABLE);
-		if ((reg & 0x15) != 0x15) {
-			printk(KERN_ERR DRVNAME
-				": Invalid (reserved) pwm settings: 0x%02x\n",
-				(unsigned int)reg);
-			goto exit;
-		}
-	}
 	err = 0;
 	printk(KERN_INFO DRVNAME ": Found %s chip at %#x, revision %d\n",
 		f71882fg_names[sio_data->type],	(unsigned int)*address,
