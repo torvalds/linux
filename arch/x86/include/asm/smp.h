@@ -138,8 +138,6 @@ void play_dead_common(void);
 void native_send_call_func_ipi(const struct cpumask *mask);
 void native_send_call_func_single_ipi(int cpu);
 
-extern void prefill_possible_map(void);
-
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
 
@@ -147,10 +145,6 @@ void smp_store_cpu_info(int id);
 static inline int num_booting_cpus(void)
 {
 	return cpus_weight(cpu_callout_map);
-}
-#else
-static inline void prefill_possible_map(void)
-{
 }
 #endif /* CONFIG_SMP */
 

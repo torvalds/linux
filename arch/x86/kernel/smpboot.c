@@ -53,7 +53,6 @@
 #include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/idle.h>
-#include <asm/smp.h>
 #include <asm/trampoline.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
