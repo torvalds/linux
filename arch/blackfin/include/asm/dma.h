@@ -195,6 +195,10 @@ static inline void *get_dma_curr_desc_ptr(unsigned int channel)
 {
 	return dma_ch[channel].regs->curr_desc_ptr;
 }
+static inline unsigned short get_dma_config(unsigned int channel)
+{
+	return dma_ch[channel].regs->cfg;
+}
 static inline unsigned long get_dma_curr_addr(unsigned int channel)
 {
 	return dma_ch[channel].regs->curr_addr_ptr;
