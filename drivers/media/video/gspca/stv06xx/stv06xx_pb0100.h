@@ -114,6 +114,7 @@ static int pb0100_start(struct sd *sd);
 static int pb0100_init(struct sd *sd);
 static int pb0100_stop(struct sd *sd);
 static int pb0100_dump(struct sd *sd);
+static void pb0100_disconnect(struct sd *sd);
 
 /* V4L2 controls supported by the driver */
 static int pb0100_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
@@ -142,6 +143,7 @@ const struct stv06xx_sensor stv06xx_sensor_pb0100 = {
 	.start = pb0100_start,
 	.stop = pb0100_stop,
 	.dump = pb0100_dump,
+	.disconnect = pb0100_disconnect,
 };
 
 #endif

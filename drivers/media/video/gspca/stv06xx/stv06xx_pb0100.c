@@ -268,6 +268,12 @@ out:
 	return (err < 0) ? err : 0;
 }
 
+static void pb0100_disconnect(struct sd *sd)
+{
+	sd->sensor = NULL;
+	kfree(sd->sensor_priv);
+}
+
 /* FIXME: Sort the init commands out and put them into tables,
 	  this is only for getting the camera to work */
 /* FIXME: No error handling for now,
