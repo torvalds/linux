@@ -1711,7 +1711,7 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 {
 	struct f71882fg_data *data;
 	struct f71882fg_sio_data *sio_data = pdev->dev.platform_data;
-	int err;
+	int err, i, nr_fans = (sio_data->type == f71882fg) ? 4 : 3;
 	u8 start_reg;
 
 	data = kzalloc(sizeof(struct f71882fg_data), GFP_KERNEL);
@@ -1735,14 +1735,14 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 		goto exit_free;
 	}
 
+	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
 	/* If it is a 71862 and the fan / pwm part is enabled sanity check
 	   the pwm settings */
 	if (data->type == f71862fg && (start_reg & 0x02)) {
-		u8 reg = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
-		if ((reg & 0x15) != 0x15) {
+		if ((data->pwm_enable & 0x15) != 0x15) {
 			dev_err(&pdev->dev,
 				"Invalid (reserved) pwm settings: 0x%02x\n",
-				(unsigned int)reg);
+				(unsigned int)data->pwm_enable);
 			err = -ENODEV;
 			goto exit_free;
 		}
@@ -1802,6 +1802,11 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 		}
 		if (err)
 			goto exit_unregister_sysfs;
+
+		for (i = 0; i < nr_fans; i++)
+			dev_info(&pdev->dev, "Fan: %d is in %s mode\n", i + 1,
+				 (data->pwm_enable & (1 << 2 * i)) ?
+				 "duty-cycle" : "RPM");
 	}
 
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
