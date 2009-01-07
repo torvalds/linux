@@ -145,7 +145,7 @@
 #endif
 #ifdef CONFIG_BF532
 #define CPU "BF532"
-#define CPUID 0x275A
+#define CPUID 0x27a5
 #endif
 #ifdef CONFIG_BF531
 #define CPU "BF531"
