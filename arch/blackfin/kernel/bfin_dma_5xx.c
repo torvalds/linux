@@ -597,8 +597,8 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 	rest = size - bulk;
 	if (bulk)
 		__dma_memcpy(dest, src, bulk);
-	addr = __dma_memcpy(dest+bulk, src+bulk, rest);
-	return addr;
+	__dma_memcpy(dest+bulk, src+bulk, rest);
+	return dest;
 }
 EXPORT_SYMBOL(dma_memcpy);
 
