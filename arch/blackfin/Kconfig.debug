@@ -204,11 +204,11 @@ config DEBUG_BFIN_HWTRACE_EXPAND_LEN
 	  4 for (2^4) 16k, or 4096 entries
 
 config DEBUG_BFIN_NO_KERN_HWTRACE
-	bool "Trace user apps (turn off hwtrace in kernel)"
+	bool "Turn off hwtrace in CPLB handlers"
 	depends on DEBUG_BFIN_HWTRACE_ON
-	default n
+	default y
 	help
-	  Some pieces of the kernel contain a lot of flow changes which can
+	  The CPLB error handler contains a lot of flow changes which can
 	  quickly fill up the hardware trace buffer.  When debugging crashes,
 	  the hardware trace may indicate that the problem lies in kernel
 	  space when in reality an application is buggy.
