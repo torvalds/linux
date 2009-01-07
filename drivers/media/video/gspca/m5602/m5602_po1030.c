@@ -315,7 +315,7 @@ int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
 
-	*val= sensor_settings[VFLIP_IDX];
+	*val = sensor_settings[VFLIP_IDX];
 	PDEBUG(D_V4L2, "Read vflip %d", *val);
 
 	return 0;
