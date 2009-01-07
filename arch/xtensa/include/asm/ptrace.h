@@ -111,7 +111,7 @@ struct pt_regs {
 	unsigned long areg[16];		/* 128 (64) */
 };
 
-#include <asm/variant/core.h>
+#include <variant/core.h>
 
 # define task_pt_regs(tsk) ((struct pt_regs*) \
   (task_stack_page(tsk) + KERNEL_STACK_SIZE - (XCHAL_NUM_AREGS-16)*4) - 1)

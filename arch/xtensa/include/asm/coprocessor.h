@@ -13,11 +13,11 @@
 #define _XTENSA_COPROCESSOR_H
 
 #include <linux/stringify.h>
-#include <asm/variant/tie.h>
+#include <variant/tie.h>
 #include <asm/types.h>
 
 #ifdef __ASSEMBLY__
-# include <asm/variant/tie-asm.h>
+# include <variant/tie-asm.h>
 
 .macro	xchal_sa_start  a b
 	.set .Lxchal_pofs_, 0

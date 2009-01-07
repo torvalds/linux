@@ -11,7 +11,7 @@
 #ifndef _XTENSA_PROCESSOR_H
 #define _XTENSA_PROCESSOR_H
 
-#include <asm/variant/core.h>
+#include <variant/core.h>
 #include <asm/coprocessor.h>
 
 #include <linux/compiler.h>
