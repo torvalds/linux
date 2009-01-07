@@ -37,7 +37,7 @@ int gdb_bfin_vector = -1;
 #define IN_MEM(addr, size, l1_addr, l1_size) \
 ({ \
 	unsigned long __addr = (unsigned long)(addr); \
-	(__addr >= l1_addr && __addr + (size) <= l1_addr + l1_size); \
+	(l1_size && __addr >= l1_addr && __addr + (size) <= l1_addr + l1_size); \
 })
 #define ASYNC_BANK_SIZE \
 	(ASYNC_BANK0_SIZE + ASYNC_BANK1_SIZE + \
@@ -495,10 +495,8 @@ static int validate_memory_access_address(unsigned long addr, int size)
 #endif
 	}
 
-#if L2_LENGTH
 	if (IN_MEM(addr, size, L2_START, L2_LENGTH))
 		return 0;
-#endif
 
 	return EFAULT;
 }
@@ -714,10 +712,8 @@ int kgdb_validate_break_address(unsigned long addr)
 	else if (cpu == 1 && IN_MEM(addr, BREAK_INSTR_SIZE, COREB_L1_CODE_START, L1_CODE_LENGTH))
 		return 0;
 #endif
-#if L2_LENGTH
 	if (IN_MEM(addr, BREAK_INSTR_SIZE, L2_START, L2_LENGTH))
 		return 0;
-#endif
 
 	return EFAULT;
 }
