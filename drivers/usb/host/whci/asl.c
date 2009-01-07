@@ -170,12 +170,17 @@ void asl_stop(struct whc *whc)
 void asl_update(struct whc *whc, uint32_t wusbcmd)
 {
 	struct wusbhc *wusbhc = &whc->wusbhc;
+	long t;
 
 	mutex_lock(&wusbhc->mutex);
 	if (wusbhc->active) {
 		whc_write_wusbcmd(whc, wusbcmd, wusbcmd);
-		wait_event(whc->async_list_wq,
-			   (le_readl(whc->base + WUSBCMD) & WUSBCMD_ASYNC_UPDATED) == 0);
+		t = wait_event_timeout(
+			whc->async_list_wq,
+			(le_readl(whc->base + WUSBCMD) & WUSBCMD_ASYNC_UPDATED) == 0,
+			msecs_to_jiffies(1000));
+		if (t == 0)
+			whc_hw_error(whc, "ASL update timeout");
 	}
 	mutex_unlock(&wusbhc->mutex);
 }

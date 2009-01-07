@@ -183,12 +183,17 @@ void pzl_stop(struct whc *whc)
 void pzl_update(struct whc *whc, uint32_t wusbcmd)
 {
 	struct wusbhc *wusbhc = &whc->wusbhc;
+	long t;
 
 	mutex_lock(&wusbhc->mutex);
 	if (wusbhc->active) {
 		whc_write_wusbcmd(whc, wusbcmd, wusbcmd);
-		wait_event(whc->periodic_list_wq,
-			   (le_readl(whc->base + WUSBCMD) & WUSBCMD_PERIODIC_UPDATED) == 0);
+		t = wait_event_timeout(
+			whc->periodic_list_wq,
+			(le_readl(whc->base + WUSBCMD) & WUSBCMD_PERIODIC_UPDATED) == 0,
+			msecs_to_jiffies(1000));
+		if (t == 0)
+			whc_hw_error(whc, "PZL update timeout");
 	}
 	mutex_unlock(&wusbhc->mutex);
 }
