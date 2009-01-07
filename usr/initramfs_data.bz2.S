@@ -26,5 +26,4 @@ SECTIONS
 */
 
 .section .init.ramfs,"a"
-.incbin "usr/initramfs_data.cpio"
-
+.incbin "usr/initramfs_data.cpio.bz2"
