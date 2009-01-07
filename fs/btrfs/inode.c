@@ -1748,7 +1748,7 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	} else {
 		ret = get_state_private(io_tree, start, &private);
 	}
-	kaddr = kmap(page);
+	kaddr = kmap_atomic(page, KM_USER0);
 	if (ret)
 		goto zeroit;
 
@@ -1757,7 +1757,7 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	if (csum != private)
 		goto zeroit;
 
-	kunmap(page);
+	kunmap_atomic(kaddr, KM_USER0);
 good:
 	/* if the io failure tree for this inode is non-empty,
 	 * check to see if we've recovered from a failed IO
@@ -1772,7 +1772,7 @@ zeroit:
 	       (unsigned long long)private);
 	memset(kaddr + offset, 1, end - start + 1);
 	flush_dcache_page(page);
-	kunmap(page);
+	kunmap_atomic(kaddr, KM_USER0);
 	if (private == 0)
 		return 0;
 	return -EIO;
