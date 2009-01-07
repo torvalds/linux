@@ -1532,7 +1532,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	queue_delayed_work(dev->workqueue, &priv->work,
 			   msecs_to_jiffies(P54_TX_FRAME_LIFETIME));
 
-	return 0;
+	return NETDEV_TX_OK;
 
  err:
 	skb_pull(skb, sizeof(*hdr) + sizeof(*txhdr) + padding);
@@ -1774,7 +1774,7 @@ static int p54_set_ps(struct ieee80211_hw *dev)
 	int i;
 
 	if (dev->conf.flags & IEEE80211_CONF_PS)
-		mode = cpu_to_le16(P54_PSM | P54_PSM_DTIM | P54_PSM_MCBC);
+		mode = P54_PSM | P54_PSM_DTIM | P54_PSM_MCBC;
 	else
 		mode = P54_PSM_CAM;
 
@@ -1790,7 +1790,7 @@ static int p54_set_ps(struct ieee80211_hw *dev)
 	for (i = 0; i < ARRAY_SIZE(psm->intervals); i++) {
 		psm->intervals[i].interval =
 			cpu_to_le16(dev->conf.listen_interval);
-		psm->intervals[i].periods = 1;
+		psm->intervals[i].periods = cpu_to_le16(1);
 	}
 
 	psm->beacon_rssi_skip_max = 60;
