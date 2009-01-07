@@ -126,20 +126,12 @@ static int op_bfin_create_files(struct super_block *sb, struct dentry *root)
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 #ifdef CONFIG_HARDWARE_PM
-	unsigned int dspid;
-
 	mutex_init(&pfmon_lock);
 
-	dspid = bfin_dspid();
 
-	printk(KERN_INFO "Oprofile got the cpu id is 0x%x. \n", dspid);
-
-	switch (dspid) {
-	case BFIN_533_ID:
-		model = &op_model_bfin533;
-		model->num_counters = 2;
-		break;
-	case BFIN_537_ID:
+	switch (bfin_read_CHIPID() & CHIPID_MANUFACTURE) {
+	case 0xca:
+		printk(KERN_INFO "Oprofile: cpu vendor is Analog Devices.\n");
 		model = &op_model_bfin533;
 		model->num_counters = 2;
 		break;

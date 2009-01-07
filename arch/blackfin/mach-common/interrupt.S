@@ -152,6 +152,12 @@ ENTRY(_evt_ivhw)
 1:
 #endif
 
+	# We are going to dump something out, so make sure we print IPEND properly
+	p2.l = lo(IPEND);
+	p2.h = hi(IPEND);
+	r0 = [p2];
+	[sp + PT_IPEND] = r0;
+
 #ifdef CONFIG_HARDWARE_PM
 	r7 = [sp + PT_SEQSTAT];
 	r7 = r7 >>> 0xe;
@@ -161,11 +167,6 @@ ENTRY(_evt_ivhw)
 	cc = r7 == r5;
 	if cc jump .Lcall_do_ovf; /* deal with performance counter overflow */
 #endif
-	# We are going to dump something out, so make sure we print IPEND properly
-	p2.l = lo(IPEND);
-	p2.h = hi(IPEND);
-	r0 = [p2];
-	[sp + PT_IPEND] = r0;
 
 	/* set the EXCAUSE to HWERR for trap_c */
 	r0 = [sp + PT_SEQSTAT];
@@ -196,6 +197,7 @@ ENTRY(_evt_ivhw)
 #ifdef CONFIG_HARDWARE_PM
 .Lcall_do_ovf:
 
+	R0 = SP;
 	SP += -12;
 	call _pm_overflow;
 	SP += 12;

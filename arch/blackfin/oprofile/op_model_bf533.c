@@ -52,7 +52,7 @@ static unsigned curr_pfctl, curr_count[2];
 
 static int bfin533_reg_setup(struct op_counter_config *ctr)
 {
-	unsigned int pfctl = ctr_read();
+	unsigned int pfctl = 0;
 	unsigned int count[2];
 
 	/* set Blackfin perf monitor regs with ctr */
@@ -118,7 +118,7 @@ static int get_kernel(void)
 	return is_kernel;
 }
 
-int pm_overflow_handler(int irq, struct pt_regs *regs)
+int pm_overflow_handler(struct pt_regs *regs)
 {
 	int is_kernel;
 	int i, cpu;

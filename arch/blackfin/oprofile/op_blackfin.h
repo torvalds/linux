@@ -93,6 +93,6 @@ static inline void count_write(unsigned int *count)
 	CSYNC();
 }
 
-extern int pm_overflow_handler(int irq, struct pt_regs *regs);
+extern int pm_overflow_handler(struct pt_regs *regs);
 
 #endif

@@ -60,10 +60,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config HARDWARE_PM
-	def_bool y
-	depends on OPROFILE
-
 source "init/Kconfig"
 
 source "kernel/Kconfig.preempt"
@@ -1019,6 +1015,12 @@ config EBIU_FCTLVAL
 	hex "Flash Memory Bank Control Register"
 	depends on BF54x
 	default 6
+
+config HARDWARE_PM
+	bool "OProfile use hardware porformance monitor"
+	depends on OPROFILE
+	default n
+
 endmenu
 
 #############################################################################
