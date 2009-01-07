@@ -37,111 +37,6 @@
 #include <asm/dma.h>
 #include <asm/cacheflush.h>
 
-/*
- * handle arithmetic relocations.
- * See binutils/bfd/elf32-bfin.c for more details
- */
-#define RELOC_STACK_SIZE 100
-static uint32_t reloc_stack[RELOC_STACK_SIZE];
-static unsigned int reloc_stack_tos;
-
-#define is_reloc_stack_empty() ((reloc_stack_tos > 0)?0:1)
-
-static void reloc_stack_push(uint32_t value)
-{
-	reloc_stack[reloc_stack_tos++] = value;
-}
-
-static uint32_t reloc_stack_pop(void)
-{
-	return reloc_stack[--reloc_stack_tos];
-}
-
-static uint32_t reloc_stack_operate(unsigned int oper, struct module *mod)
-{
-	uint32_t value;
-
-	switch (oper) {
-	case R_add:
-		value = reloc_stack[reloc_stack_tos - 2] +
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_sub:
-		value = reloc_stack[reloc_stack_tos - 2] -
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_mult:
-		value = reloc_stack[reloc_stack_tos - 2] *
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_div:
-		value = reloc_stack[reloc_stack_tos - 2] /
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_mod:
-		value = reloc_stack[reloc_stack_tos - 2] %
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_lshift:
-		value = reloc_stack[reloc_stack_tos - 2] <<
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_rshift:
-		value = reloc_stack[reloc_stack_tos - 2] >>
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_and:
-		value = reloc_stack[reloc_stack_tos - 2] &
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_or:
-		value = reloc_stack[reloc_stack_tos - 2] |
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_xor:
-		value = reloc_stack[reloc_stack_tos - 2] ^
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_land:
-		value = reloc_stack[reloc_stack_tos - 2] &&
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_lor:
-		value = reloc_stack[reloc_stack_tos - 2] ||
-			reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 2;
-		break;
-	case R_neg:
-		value = -reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos--;
-		break;
-	case R_comp:
-		value = ~reloc_stack[reloc_stack_tos - 1];
-		reloc_stack_tos -= 1;
-		break;
-	default:
-		printk(KERN_WARNING "module %s: unhandled reloction\n",
-				mod->name);
-		return 0;
-	}
-
-	/* now push the new value back on stack */
-	reloc_stack_push(value);
-
-	return value;
-}
-
 void *module_alloc(unsigned long size)
 {
 	if (size == 0)
@@ -334,11 +229,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 		   undefined symbols have been resolved. */
 		sym = (Elf32_Sym *) sechdrs[symindex].sh_addr
 		    + ELF32_R_SYM(rel[i].r_info);
-		if (is_reloc_stack_empty()) {
-			value = sym->st_value;
-		} else {
-			value = reloc_stack_pop();
-		}
+		value = sym->st_value;
 		value += rel[i].r_addend;
 		pr_debug("location is %x, value is %x type is %d \n",
 			 (unsigned int) location32, value,
@@ -361,6 +252,12 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			location32 = (uint32_t *) location16;
 			value -= (uint32_t) location32;
 			value >>= 1;
+			if ((value & 0xFF000000) != 0 &&
+			    (value & 0xFF000000) != 0xFF000000) {
+				printk(KERN_ERR "module %s: relocation overflow\n",
+				       mod->name);
+				return -ENOEXEC;
+			}
 			pr_debug("value is %x, before %x-%x after %x-%x\n", value,
 			       *location16, *(location16 + 1),
 			       (*location16 & 0xff00) | (value >> 16 & 0x00ff),
@@ -404,28 +301,6 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 		case R_byte4_data:
 			pr_debug("before %x after %x\n", *location32, value);
 			*location32 = value;
-			break;
-		case R_push:
-			reloc_stack_push(value);
-			break;
-		case R_const:
-			reloc_stack_push(rel[i].r_addend);
-			break;
-		case R_add:
-		case R_sub:
-		case R_mult:
-		case R_div:
-		case R_mod:
-		case R_lshift:
-		case R_rshift:
-		case R_and:
-		case R_or:
-		case R_xor:
-		case R_land:
-		case R_lor:
-		case R_neg:
-		case R_comp:
-			reloc_stack_operate(ELF32_R_TYPE(rel[i].r_info), mod);
 			break;
 		default:
 			printk(KERN_ERR "module %s: Unknown relocation: %u\n",
