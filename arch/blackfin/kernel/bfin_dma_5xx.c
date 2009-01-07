@@ -44,7 +44,7 @@
  * Global Variables
 ***************************************************************************/
 
-static struct dma_channel dma_ch[MAX_BLACKFIN_DMA_CHANNEL];
+static struct dma_channel dma_ch[MAX_DMA_CHANNELS];
 
 /*------------------------------------------------------------------------------
  *       Set the Buffer Clear bit in the Configuration register of specific DMA
@@ -63,7 +63,7 @@ static int __init blackfin_dma_init(void)
 
 	printk(KERN_INFO "Blackfin DMA Controller\n");
 
-	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++) {
+	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
 		dma_ch[i].chan_status = DMA_CHANNEL_FREE;
 		dma_ch[i].regs = dma_io_base_addr[i];
 		mutex_init(&(dma_ch[i].dmalock));
@@ -87,7 +87,7 @@ static int proc_dma_show(struct seq_file *m, void *v)
 {
 	int i;
 
-	for (i = 0 ; i < MAX_BLACKFIN_DMA_CHANNEL; ++i)
+	for (i = 0 ; i < MAX_DMA_CHANNELS; ++i)
 		if (dma_ch[i].chan_status != DMA_CHANNEL_FREE)
 			seq_printf(m, "%2d: %s\n", i, dma_ch[i].device_id);
 
@@ -175,7 +175,7 @@ EXPORT_SYMBOL(request_dma);
 int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 {
 	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
-	       && channel < MAX_BLACKFIN_DMA_CHANNEL));
+	       && channel < MAX_DMA_CHANNELS));
 
 	if (callback != NULL) {
 		int ret_val;
@@ -200,7 +200,7 @@ void free_dma(unsigned int channel)
 {
 	pr_debug("freedma() : BEGIN \n");
 	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
-	       && channel < MAX_BLACKFIN_DMA_CHANNEL));
+	       && channel < MAX_DMA_CHANNELS));
 
 	/* Halt the DMA */
 	disable_dma(channel);
@@ -418,7 +418,7 @@ int blackfin_dma_suspend(void)
 #ifdef CONFIG_BF561	/* IMDMA channels doesn't have a PERIPHERAL_MAP */
 	for (i = 0; i <= CH_MEM_STREAM3_SRC; i++) {
 #else
-	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++) {
+	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
 #endif
 		if (dma_ch[i].chan_status == DMA_CHANNEL_ENABLED) {
 			printk(KERN_ERR "DMA Channel %d failed to suspend\n", i);
@@ -438,7 +438,7 @@ void blackfin_dma_resume(void)
 #ifdef CONFIG_BF561	/* IMDMA channels doesn't have a PERIPHERAL_MAP */
 	for (i = 0; i <= CH_MEM_STREAM3_SRC; i++)
 #else
-	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++)
+	for (i = 0; i < MAX_DMA_CHANNELS; i++)
 #endif
 		dma_ch[i].regs->peripheral_map = dma_ch[i].saved_peripheral_map;
 }

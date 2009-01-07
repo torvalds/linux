@@ -32,7 +32,7 @@
 #ifndef _MACH_DMA_H_
 #define _MACH_DMA_H_
 
-#define MAX_BLACKFIN_DMA_CHANNEL 16
+#define MAX_DMA_CHANNELS 16
 
 #define CH_PPI 			0	/* PPI receive/transmit */
 #define CH_EMAC_RX 		1	/* Ethernet MAC receive */

@@ -32,7 +32,7 @@ void init_clocks(void)
 	 * For example, any automatic DMAs left by U-Boot for splash screens.
 	 */
 	size_t i;
-	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; ++i) {
+	for (i = 0; i < MAX_DMA_CHANNELS; ++i) {
 		struct dma_register *dma = dma_io_base_addr[i];
 		dma->cfg = 0;
 	}

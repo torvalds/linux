@@ -7,7 +7,7 @@
 #ifndef _MACH_DMA_H_
 #define _MACH_DMA_H_
 
-#define MAX_BLACKFIN_DMA_CHANNEL 36
+#define MAX_DMA_CHANNELS 36
 
 #define CH_PPI0			0
 #define CH_PPI			(CH_PPI0)

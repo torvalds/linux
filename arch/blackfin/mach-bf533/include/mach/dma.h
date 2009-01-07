@@ -36,7 +36,7 @@
 #ifndef _MACH_DMA_H_
 #define _MACH_DMA_H_
 
-#define MAX_BLACKFIN_DMA_CHANNEL 12
+#define MAX_DMA_CHANNELS 12
 
 #define CH_PPI          0
 #define CH_SPORT0_RX    1

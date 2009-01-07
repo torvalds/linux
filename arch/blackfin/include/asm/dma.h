@@ -201,6 +201,6 @@ void *dma_memcpy(void *dest, const void *src, size_t count);
 void *safe_dma_memcpy(void *dest, const void *src, size_t count);
 
 extern int channel2irq(unsigned int channel);
-extern struct dma_register *dma_io_base_addr[MAX_BLACKFIN_DMA_CHANNEL];
+extern struct dma_register *dma_io_base_addr[MAX_DMA_CHANNELS];
 
 #endif
