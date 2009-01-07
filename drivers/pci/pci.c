@@ -527,7 +527,7 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
  * @dev: PCI device to handle.
  * @state: State to cache in case the device doesn't have the PM capability
  */
-static void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
+void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
 {
 	if (dev->pm_cap) {
 		u16 pmcsr;
