@@ -99,6 +99,8 @@ EXPORT_SYMBOL(__raw_bit_test_set_asm);
 EXPORT_SYMBOL(__raw_bit_test_clear_asm);
 EXPORT_SYMBOL(__raw_bit_test_toggle_asm);
 EXPORT_SYMBOL(__raw_uncached_fetch_asm);
+#ifdef __ARCH_SYNC_CORE_DCACHE
 EXPORT_SYMBOL(__raw_smp_mark_barrier_asm);
 EXPORT_SYMBOL(__raw_smp_check_barrier_asm);
+#endif
 #endif

@@ -66,10 +66,13 @@ asmlinkage unsigned long __raw_cmpxchg_4_asm(volatile void *ptr,
 # define smp_mb()	do { barrier(); smp_check_barrier(); smp_mark_barrier(); } while (0)
 # define smp_rmb()	do { barrier(); smp_check_barrier(); } while (0)
 # define smp_wmb()	do { barrier(); smp_mark_barrier(); } while (0)
+#define smp_read_barrier_depends()	do { barrier(); smp_check_barrier(); } while (0)
+
 #else
 # define smp_mb()	barrier()
 # define smp_rmb()	barrier()
 # define smp_wmb()	barrier()
+#define smp_read_barrier_depends()	barrier()
 #endif
 
 static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
@@ -119,8 +122,6 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 #define cmpxchg(ptr, o, n) \
 	((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o), \
 		(unsigned long)(n), sizeof(*(ptr))))
-
-#define smp_read_barrier_depends()	smp_check_barrier()
 
 #else /* !CONFIG_SMP */
 
@@ -192,6 +193,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
  */
 
 #include <asm/l1layout.h>
+#include <asm/mem_map.h>
 
 asmlinkage struct task_struct *resume(struct task_struct *prev, struct task_struct *next);
 

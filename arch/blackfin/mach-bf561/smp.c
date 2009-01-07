@@ -27,11 +27,6 @@
 #include <asm/smp.h>
 #include <asm/dma.h>
 
-#define COREB_SRAM_BASE  0xff600000
-#define COREB_SRAM_SIZE  0x4000
-
-extern char coreb_trampoline_start, coreb_trampoline_end;
-
 static DEFINE_SPINLOCK(boot_lock);
 
 static cpumask_t cpu_callin_map;
@@ -54,15 +49,15 @@ void __init platform_prepare_cpus(unsigned int max_cpus)
 	int len;
 
 	len = &coreb_trampoline_end - &coreb_trampoline_start + 1;
-	BUG_ON(len > COREB_SRAM_SIZE);
+	BUG_ON(len > L1_CODE_LENGTH);
 
-	dma_memcpy((void *)COREB_SRAM_BASE, &coreb_trampoline_start, len);
+	dma_memcpy((void *)COREB_L1_CODE_START, &coreb_trampoline_start, len);
 
 	/* Both cores ought to be present on a bf561! */
 	cpu_set(0, cpu_present_map); /* CoreA */
 	cpu_set(1, cpu_present_map); /* CoreB */
 
-	printk(KERN_INFO "CoreB bootstrap code to SRAM %p via DMA.\n", (void *)COREB_SRAM_BASE);
+	printk(KERN_INFO "CoreB bootstrap code to SRAM %p via DMA.\n", (void *)COREB_L1_CODE_START);
 }
 
 int __init setup_profiling_timer(unsigned int multiplier) /* not supported */

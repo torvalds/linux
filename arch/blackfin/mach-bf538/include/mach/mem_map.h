@@ -104,15 +104,6 @@
 #define L1_SCRATCH_START	0xFFB00000
 #define L1_SCRATCH_LENGTH	0x1000
 
-#define get_l1_scratch_start_cpu(cpu)		L1_SCRATCH_START
-#define get_l1_code_start_cpu(cpu)		L1_CODE_START
-#define get_l1_data_a_start_cpu(cpu)		L1_DATA_A_START
-#define get_l1_data_b_start_cpu(cpu)		L1_DATA_B_START
-#define get_l1_scratch_start()			L1_SCRATCH_START
-#define get_l1_code_start()			L1_CODE_START
-#define get_l1_data_a_start()			L1_DATA_A_START
-#define get_l1_data_b_start()			L1_DATA_B_START
-
 #define GET_PDA_SAFE(preg)		\
 	preg.l = _cpu_pda;		\
 	preg.h = _cpu_pda;

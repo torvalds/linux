@@ -32,6 +32,8 @@
 
 #define raw_smp_processor_id()  blackfin_core_id()
 
+extern char coreb_trampoline_start, coreb_trampoline_end;
+
 struct corelock_slot {
 	int lock;
 };

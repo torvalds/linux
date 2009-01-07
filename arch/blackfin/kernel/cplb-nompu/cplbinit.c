@@ -27,6 +27,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
+#include <asm/mem_map.h>
 
 u_long icplb_tables[NR_CPUS][CPLB_TBL_ENTRIES+1];
 u_long dcplb_tables[NR_CPUS][CPLB_TBL_ENTRIES+1];

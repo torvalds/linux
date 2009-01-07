@@ -85,47 +85,7 @@
 #define L1_SCRATCH_START	COREA_L1_SCRATCH_START
 #define L1_SCRATCH_LENGTH	0x1000
 
-#ifndef __ASSEMBLY__
-
-#ifdef CONFIG_SMP
-
-#define get_l1_scratch_start_cpu(cpu)				\
-	({ unsigned long __addr;				\
-	   __addr = (cpu) ? COREB_L1_SCRATCH_START : COREA_L1_SCRATCH_START;\
-	   __addr; })
-
-#define get_l1_code_start_cpu(cpu)				\
-	({ unsigned long __addr;				\
-	   __addr = (cpu) ? COREB_L1_CODE_START : COREA_L1_CODE_START;	\
-	   __addr; })
-
-#define get_l1_data_a_start_cpu(cpu)				\
-	({ unsigned long __addr;				\
-	   __addr = (cpu) ? COREB_L1_DATA_A_START : COREA_L1_DATA_A_START;\
-	   __addr; })
-
-#define get_l1_data_b_start_cpu(cpu)				\
-	({ unsigned long __addr;				\
-	   __addr = (cpu) ? COREB_L1_DATA_B_START : COREA_L1_DATA_B_START;\
-	   __addr; })
-
-#define get_l1_scratch_start()	get_l1_scratch_start_cpu(blackfin_core_id())
-#define get_l1_code_start()	get_l1_code_start_cpu(blackfin_core_id())
-#define get_l1_data_a_start()	get_l1_data_a_start_cpu(blackfin_core_id())
-#define get_l1_data_b_start()	get_l1_data_b_start_cpu(blackfin_core_id())
-
-#else /* !CONFIG_SMP */
-#define get_l1_scratch_start_cpu(cpu)	L1_SCRATCH_START
-#define get_l1_code_start_cpu(cpu)	L1_CODE_START
-#define get_l1_data_a_start_cpu(cpu)	L1_DATA_A_START
-#define get_l1_data_b_start_cpu(cpu)	L1_DATA_B_START
-#define get_l1_scratch_start()		L1_SCRATCH_START
-#define get_l1_code_start()		L1_CODE_START
-#define get_l1_data_a_start()		L1_DATA_A_START
-#define get_l1_data_b_start()		L1_DATA_B_START
-#endif /* !CONFIG_SMP */
-
-#else /* __ASSEMBLY__ */
+#ifdef __ASSEMBLY__
 
 /*
  * The following macros both return the address of the PDA for the

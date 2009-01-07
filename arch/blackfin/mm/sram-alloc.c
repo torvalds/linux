@@ -39,6 +39,7 @@
 #include <linux/spinlock.h>
 #include <linux/rtc.h>
 #include <asm/blackfin.h>
+#include <asm/mem_map.h>
 #include "blackfin_sram.h"
 
 static DEFINE_PER_CPU(spinlock_t, l1sram_lock) ____cacheline_aligned_in_smp;

@@ -25,6 +25,7 @@
 #include <asm/blackfin.h>
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
+#include <asm/mem_map.h>
 
 #if ANOMALY_05000263
 # error the MPU will not function safely while Anomaly 05000263 applies

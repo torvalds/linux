@@ -45,6 +45,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/dma.h>
 #include <asm/fixed_code.h>
+#include <asm/mem_map.h>
 
 #define TEXT_OFFSET 0
 /*
