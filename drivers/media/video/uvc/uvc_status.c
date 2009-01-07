@@ -12,7 +12,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
