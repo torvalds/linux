@@ -507,10 +507,6 @@ static inline int __deprecated __IEEE80211_CONF_SHORT_SLOT_TIME(void)
 }
 #define IEEE80211_CONF_SHORT_SLOT_TIME (__IEEE80211_CONF_SHORT_SLOT_TIME())
 
-struct ieee80211_ht_conf {
-	enum nl80211_channel_type channel_type;
-};
-
 /**
  * enum ieee80211_conf_changed - denotes which configuration changed
  *
@@ -520,9 +516,8 @@ struct ieee80211_ht_conf {
  * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
  * @IEEE80211_CONF_CHANGE_PS: the PS flag changed
  * @IEEE80211_CONF_CHANGE_POWER: the TX power changed
- * @IEEE80211_CONF_CHANGE_CHANNEL: the channel changed
+ * @IEEE80211_CONF_CHANGE_CHANNEL: the channel/channel_type changed
  * @IEEE80211_CONF_CHANGE_RETRY_LIMITS: retry limits changed
- * @IEEE80211_CONF_CHANGE_HT: HT configuration changed
  */
 enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_RADIO_ENABLED	= BIT(0),
@@ -533,7 +528,6 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_POWER		= BIT(5),
 	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
 	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(7),
-	IEEE80211_CONF_CHANGE_HT		= BIT(8),
 };
 
 /**
@@ -547,7 +541,7 @@ enum ieee80211_conf_changed {
  * @flags: configuration flags defined above
  * @power_level: requested transmit power (in dBm)
  * @channel: the channel to tune to
- * @ht: the HT configuration for the device
+ * @channel_type: the channel (HT) type
  * @long_frame_max_tx_count: Maximum number of transmissions for a "long" frame
  *    (a frame not RTS protected), called "dot11LongRetryLimit" in 802.11,
  *    but actually means the number of transmissions not the number of retries
@@ -566,7 +560,7 @@ struct ieee80211_conf {
 	u8 long_frame_max_tx_count, short_frame_max_tx_count;
 
 	struct ieee80211_channel *channel;
-	struct ieee80211_ht_conf ht;
+	enum nl80211_channel_type channel_type;
 };
 
 /**
@@ -1960,19 +1954,19 @@ void ieee80211_rate_control_unregister(struct rate_control_ops *ops);
 static inline bool
 conf_is_ht20(struct ieee80211_conf *conf)
 {
-	return conf->ht.channel_type == NL80211_CHAN_HT20;
+	return conf->channel_type == NL80211_CHAN_HT20;
 }
 
 static inline bool
 conf_is_ht40_minus(struct ieee80211_conf *conf)
 {
-	return conf->ht.channel_type == NL80211_CHAN_HT40MINUS;
+	return conf->channel_type == NL80211_CHAN_HT40MINUS;
 }
 
 static inline bool
 conf_is_ht40_plus(struct ieee80211_conf *conf)
 {
-	return conf->ht.channel_type == NL80211_CHAN_HT40PLUS;
+	return conf->channel_type == NL80211_CHAN_HT40PLUS;
 }
 
 static inline bool
@@ -1984,7 +1978,7 @@ conf_is_ht40(struct ieee80211_conf *conf)
 static inline bool
 conf_is_ht(struct ieee80211_conf *conf)
 {
-	return conf->ht.channel_type != NL80211_CHAN_NO_HT;
+	return conf->channel_type != NL80211_CHAN_NO_HT;
 }
 
 #endif /* MAC80211_H */

@@ -131,12 +131,14 @@ u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ht_changed = conf_is_ht(&local->hw.conf) != enable_ht ||
-		     channel_type != local->hw.conf.ht.channel_type;
+		     channel_type != local->hw.conf.channel_type;
 
 	local->oper_channel_type = channel_type;
 
-	if (ht_changed)
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_HT);
+	if (ht_changed) {
+                /* channel_type change automatically detected */
+		ieee80211_hw_config(local, 0);
+        }
 
 	/* disable HT */
 	if (!enable_ht)

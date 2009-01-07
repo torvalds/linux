@@ -2117,8 +2117,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ieee80211_conf *conf = &hw->conf;
 
 	mutex_lock(&sc->mutex);
-	if (changed & (IEEE80211_CONF_CHANGE_CHANNEL |
-		       IEEE80211_CONF_CHANGE_HT)) {
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		struct ieee80211_channel *curchan = hw->conf.channel;
 		int pos;
 
@@ -2144,7 +2143,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 			sc->sc_ah->ah_channels[pos].chanmode =
 				ath_get_extchanmode(sc, curchan,
-						    conf->ht.channel_type);
+						    conf->channel_type);
 		}
 
 		ath_update_chainmask(sc, conf_is_ht(conf));

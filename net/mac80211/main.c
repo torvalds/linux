@@ -208,9 +208,9 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	}
 
 	if (chan != local->hw.conf.channel ||
-	    channel_type != local->hw.conf.ht.channel_type) {
+	    channel_type != local->hw.conf.channel_type) {
 		local->hw.conf.channel = chan;
-		local->hw.conf.ht.channel_type = channel_type;
+		local->hw.conf.channel_type = channel_type;
 		changed |= IEEE80211_CONF_CHANGE_CHANNEL;
 	}
 
