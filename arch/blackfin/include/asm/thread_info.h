@@ -91,7 +91,7 @@ __attribute_const__
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
-      __asm__("%0 = sp;": "=&d"(ti):
+      __asm__("%0 = sp;" : "=da"(ti) :
 	);
 	return (struct thread_info *)((long)ti & ~((long)THREAD_SIZE-1));
 }

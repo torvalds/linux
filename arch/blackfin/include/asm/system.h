@@ -44,10 +44,10 @@
 /*
  * Force strict CPU ordering.
  */
-#define nop()  asm volatile ("nop;\n\t"::)
-#define mb()   asm volatile (""   : : :"memory")
-#define rmb()  asm volatile (""   : : :"memory")
-#define wmb()  asm volatile (""   : : :"memory")
+#define nop()  __asm__ __volatile__ ("nop;\n\t" : : )
+#define mb()   __asm__ __volatile__ (""   : : : "memory")
+#define rmb()  __asm__ __volatile__ (""   : : : "memory")
+#define wmb()  __asm__ __volatile__ (""   : : : "memory")
 #define set_mb(var, value) do { (void) xchg(&var, value); } while (0)
 #define read_barrier_depends() 		do { } while(0)
 
