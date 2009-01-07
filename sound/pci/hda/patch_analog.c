@@ -4263,13 +4263,13 @@ static int patch_ad1882(struct hda_codec *codec)
 	spec->num_adc_nids = ARRAY_SIZE(ad1882_adc_nids);
 	spec->adc_nids = ad1882_adc_nids;
 	spec->capsrc_nids = ad1882_capsrc_nids;
-	if (codec->vendor_id == 0x11d1882)
+	if (codec->vendor_id == 0x11d41882)
 		spec->input_mux = &ad1882_capture_source;
 	else
 		spec->input_mux = &ad1882a_capture_source;
 	spec->num_mixers = 2;
 	spec->mixers[0] = ad1882_base_mixers;
-	if (codec->vendor_id == 0x11d1882)
+	if (codec->vendor_id == 0x11d41882)
 		spec->mixers[1] = ad1882_loopback_mixers;
 	else
 		spec->mixers[1] = ad1882a_loopback_mixers;
