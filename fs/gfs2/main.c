@@ -23,6 +23,12 @@
 #include "sys.h"
 #include "util.h"
 #include "glock.h"
+#include "quota.h"
+
+static struct shrinker qd_shrinker = {
+	.shrink = gfs2_shrink_qd_memory,
+	.seeks = DEFAULT_SEEKS,
+};
 
 static void gfs2_init_inode_once(void *foo)
 {
@@ -100,6 +106,8 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_quotad_cachep)
 		goto fail;
 
+	register_shrinker(&qd_shrinker);
+
 	error = register_filesystem(&gfs2_fs_type);
 	if (error)
 		goto fail;
@@ -117,6 +125,7 @@ static int __init init_gfs2_fs(void)
 fail_unregister:
 	unregister_filesystem(&gfs2_fs_type);
 fail:
+	unregister_shrinker(&qd_shrinker);
 	gfs2_glock_exit();
 
 	if (gfs2_quotad_cachep)
@@ -145,6 +154,7 @@ fail:
 
 static void __exit exit_gfs2_fs(void)
 {
+	unregister_shrinker(&qd_shrinker);
 	gfs2_glock_exit();
 	gfs2_unregister_debugfs();
 	unregister_filesystem(&gfs2_fs_type);

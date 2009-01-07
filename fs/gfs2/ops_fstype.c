@@ -63,7 +63,6 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_quota_warn_period = 10;
 	gt->gt_quota_scale_num = 1;
 	gt->gt_quota_scale_den = 1;
-	gt->gt_quota_cache_secs = 300;
 	gt->gt_quota_quantum = 60;
 	gt->gt_new_files_jdata = 0;
 	gt->gt_max_readahead = 1 << 18;

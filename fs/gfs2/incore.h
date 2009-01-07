@@ -283,7 +283,9 @@ enum {
 
 struct gfs2_quota_data {
 	struct list_head qd_list;
-	unsigned int qd_count;
+	struct list_head qd_reclaim;
+
+	atomic_t qd_count;
 
 	u32 qd_id;
 	unsigned long qd_flags;		/* QDF_... */
@@ -303,7 +305,6 @@ struct gfs2_quota_data {
 
 	u64 qd_sync_gen;
 	unsigned long qd_last_warn;
-	unsigned long qd_last_touched;
 };
 
 struct gfs2_trans {
@@ -406,7 +407,6 @@ struct gfs2_tune {
 	unsigned int gt_quota_warn_period; /* Secs between quota warn msgs */
 	unsigned int gt_quota_scale_num; /* Numerator */
 	unsigned int gt_quota_scale_den; /* Denominator */
-	unsigned int gt_quota_cache_secs;
 	unsigned int gt_quota_quantum; /* Secs between syncs to quota file */
 	unsigned int gt_new_files_jdata;
 	unsigned int gt_max_readahead; /* Max bytes to read-ahead from disk */
