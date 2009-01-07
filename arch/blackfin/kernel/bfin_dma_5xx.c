@@ -1,7 +1,7 @@
 /*
  * bfin_dma_5xx.c - Blackfin DMA implementation
  *
- * Copyright 2004-2006 Analog Devices Inc.
+ * Copyright 2004-2008 Analog Devices Inc.
  * Licensed under the GPL-2 or later.
  */
 
@@ -20,22 +20,8 @@
 #include <asm/dma.h>
 #include <asm/uaccess.h>
 
-/**************************************************************************
- * Global Variables
-***************************************************************************/
-
-static struct dma_channel dma_ch[MAX_DMA_CHANNELS];
-
-/*------------------------------------------------------------------------------
- *       Set the Buffer Clear bit in the Configuration register of specific DMA
- *       channel. This will stop the descriptor based DMA operation.
- *-----------------------------------------------------------------------------*/
-static void clear_dma_buffer(unsigned int channel)
-{
-	dma_ch[channel].regs->cfg |= RESTART;
-	SSYNC();
-	dma_ch[channel].regs->cfg &= ~RESTART;
-}
+struct dma_channel dma_ch[MAX_DMA_CHANNELS];
+EXPORT_SYMBOL(dma_ch);
 
 static int __init blackfin_dma_init(void)
 {
@@ -92,9 +78,11 @@ static int __init proc_dma_init(void)
 late_initcall(proc_dma_init);
 #endif
 
-/*------------------------------------------------------------------------------
- *	Request the specific DMA channel from the system.
- *-----------------------------------------------------------------------------*/
+/**
+ *	request_dma - request a DMA channel
+ *
+ * Request the specific DMA channel from the system if it's available.
+ */
 int request_dma(unsigned int channel, const char *device_id)
 {
 	pr_debug("request_dma() : BEGIN \n");
@@ -172,6 +160,19 @@ int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data)
 }
 EXPORT_SYMBOL(set_dma_callback);
 
+/**
+ *	clear_dma_buffer - clear DMA fifos for specified channel
+ *
+ * Set the Buffer Clear bit in the Configuration register of specific DMA
+ * channel. This will stop the descriptor based DMA operation.
+ */
+static void clear_dma_buffer(unsigned int channel)
+{
+	dma_ch[channel].regs->cfg |= RESTART;
+	SSYNC();
+	dma_ch[channel].regs->cfg &= ~RESTART;
+}
+
 void free_dma(unsigned int channel)
 {
 	pr_debug("freedma() : BEGIN \n");
@@ -193,198 +194,6 @@ void free_dma(unsigned int channel)
 	pr_debug("freedma() : END \n");
 }
 EXPORT_SYMBOL(free_dma);
-
-void dma_enable_irq(unsigned int channel)
-{
-	pr_debug("dma_enable_irq() : BEGIN \n");
-	enable_irq(dma_ch[channel].irq);
-}
-EXPORT_SYMBOL(dma_enable_irq);
-
-void dma_disable_irq(unsigned int channel)
-{
-	pr_debug("dma_disable_irq() : BEGIN \n");
-	disable_irq(dma_ch[channel].irq);
-}
-EXPORT_SYMBOL(dma_disable_irq);
-
-int dma_channel_active(unsigned int channel)
-{
-	if (dma_ch[channel].chan_status == DMA_CHANNEL_FREE) {
-		return 0;
-	} else {
-		return 1;
-	}
-}
-EXPORT_SYMBOL(dma_channel_active);
-
-/*------------------------------------------------------------------------------
-*	stop the specific DMA channel.
-*-----------------------------------------------------------------------------*/
-void disable_dma(unsigned int channel)
-{
-	pr_debug("stop_dma() : BEGIN \n");
-	dma_ch[channel].regs->cfg &= ~DMAEN;	/* Clean the enable bit */
-	SSYNC();
-	dma_ch[channel].chan_status = DMA_CHANNEL_REQUESTED;
-	/* Needs to be enabled Later */
-	pr_debug("stop_dma() : END \n");
-	return;
-}
-EXPORT_SYMBOL(disable_dma);
-
-void enable_dma(unsigned int channel)
-{
-	pr_debug("enable_dma() : BEGIN \n");
-	dma_ch[channel].chan_status = DMA_CHANNEL_ENABLED;
-	dma_ch[channel].regs->curr_x_count = 0;
-	dma_ch[channel].regs->curr_y_count = 0;
-
-	dma_ch[channel].regs->cfg |= DMAEN;	/* Set the enable bit */
-	pr_debug("enable_dma() : END \n");
-	return;
-}
-EXPORT_SYMBOL(enable_dma);
-
-/*------------------------------------------------------------------------------
-*		Set the Start Address register for the specific DMA channel
-* 		This function can be used for register based DMA,
-*		to setup the start address
-*		addr:		Starting address of the DMA Data to be transferred.
-*-----------------------------------------------------------------------------*/
-void set_dma_start_addr(unsigned int channel, unsigned long addr)
-{
-	pr_debug("set_dma_start_addr() : BEGIN \n");
-	dma_ch[channel].regs->start_addr = addr;
-	pr_debug("set_dma_start_addr() : END\n");
-}
-EXPORT_SYMBOL(set_dma_start_addr);
-
-void set_dma_next_desc_addr(unsigned int channel, unsigned long addr)
-{
-	pr_debug("set_dma_next_desc_addr() : BEGIN \n");
-	dma_ch[channel].regs->next_desc_ptr = addr;
-	pr_debug("set_dma_next_desc_addr() : END\n");
-}
-EXPORT_SYMBOL(set_dma_next_desc_addr);
-
-void set_dma_curr_desc_addr(unsigned int channel, unsigned long addr)
-{
-	pr_debug("set_dma_curr_desc_addr() : BEGIN \n");
-	dma_ch[channel].regs->curr_desc_ptr = addr;
-	pr_debug("set_dma_curr_desc_addr() : END\n");
-}
-EXPORT_SYMBOL(set_dma_curr_desc_addr);
-
-void set_dma_x_count(unsigned int channel, unsigned short x_count)
-{
-	dma_ch[channel].regs->x_count = x_count;
-}
-EXPORT_SYMBOL(set_dma_x_count);
-
-void set_dma_y_count(unsigned int channel, unsigned short y_count)
-{
-	dma_ch[channel].regs->y_count = y_count;
-}
-EXPORT_SYMBOL(set_dma_y_count);
-
-void set_dma_x_modify(unsigned int channel, short x_modify)
-{
-	dma_ch[channel].regs->x_modify = x_modify;
-}
-EXPORT_SYMBOL(set_dma_x_modify);
-
-void set_dma_y_modify(unsigned int channel, short y_modify)
-{
-	dma_ch[channel].regs->y_modify = y_modify;
-}
-EXPORT_SYMBOL(set_dma_y_modify);
-
-void set_dma_config(unsigned int channel, unsigned short config)
-{
-	dma_ch[channel].regs->cfg = config;
-}
-EXPORT_SYMBOL(set_dma_config);
-
-unsigned short
-set_bfin_dma_config(char direction, char flow_mode,
-		    char intr_mode, char dma_mode, char width, char syncmode)
-{
-	unsigned short config;
-
-	config =
-	    ((direction << 1) | (width << 2) | (dma_mode << 4) |
-	     (intr_mode << 6) | (flow_mode << 12) | (syncmode << 5));
-	return config;
-}
-EXPORT_SYMBOL(set_bfin_dma_config);
-
-void set_dma_sg(unsigned int channel, struct dmasg *sg, int nr_sg)
-{
-	dma_ch[channel].regs->cfg |= ((nr_sg & 0x0F) << 8);
-	dma_ch[channel].regs->next_desc_ptr = (unsigned int)sg;
-}
-EXPORT_SYMBOL(set_dma_sg);
-
-void set_dma_curr_addr(unsigned int channel, unsigned long addr)
-{
-	dma_ch[channel].regs->curr_addr_ptr = addr;
-}
-EXPORT_SYMBOL(set_dma_curr_addr);
-
-/*------------------------------------------------------------------------------
- *	Get the DMA status of a specific DMA channel from the system.
- *-----------------------------------------------------------------------------*/
-unsigned short get_dma_curr_irqstat(unsigned int channel)
-{
-	return dma_ch[channel].regs->irq_status;
-}
-EXPORT_SYMBOL(get_dma_curr_irqstat);
-
-/*------------------------------------------------------------------------------
- *	Clear the DMA_DONE bit in DMA status. Stop the DMA completion interrupt.
- *-----------------------------------------------------------------------------*/
-void clear_dma_irqstat(unsigned int channel)
-{
-	dma_ch[channel].regs->irq_status |= 3;
-}
-EXPORT_SYMBOL(clear_dma_irqstat);
-
-/*------------------------------------------------------------------------------
- *	Get current DMA xcount of a specific DMA channel from the system.
- *-----------------------------------------------------------------------------*/
-unsigned short get_dma_curr_xcount(unsigned int channel)
-{
-	return dma_ch[channel].regs->curr_x_count;
-}
-EXPORT_SYMBOL(get_dma_curr_xcount);
-
-/*------------------------------------------------------------------------------
- *	Get current DMA ycount of a specific DMA channel from the system.
- *-----------------------------------------------------------------------------*/
-unsigned short get_dma_curr_ycount(unsigned int channel)
-{
-	return dma_ch[channel].regs->curr_y_count;
-}
-EXPORT_SYMBOL(get_dma_curr_ycount);
-
-unsigned long get_dma_next_desc_ptr(unsigned int channel)
-{
-	return dma_ch[channel].regs->next_desc_ptr;
-}
-EXPORT_SYMBOL(get_dma_next_desc_ptr);
-
-unsigned long get_dma_curr_desc_ptr(unsigned int channel)
-{
-	return dma_ch[channel].regs->curr_desc_ptr;
-}
-EXPORT_SYMBOL(get_dma_curr_desc_ptr);
-
-unsigned long get_dma_curr_addr(unsigned int channel)
-{
-	return dma_ch[channel].regs->curr_addr_ptr;
-}
-EXPORT_SYMBOL(get_dma_curr_addr);
 
 #ifdef CONFIG_PM
 # ifndef MAX_DMA_SUSPEND_CHANNELS

@@ -129,50 +129,126 @@ void blackfin_dma_resume(void);
 /*******************************************************************************
 *	DMA API's
 *******************************************************************************/
-/* functions to set register mode */
-void set_dma_start_addr(unsigned int channel, unsigned long addr);
-void set_dma_next_desc_addr(unsigned int channel, unsigned long addr);
-void set_dma_curr_desc_addr(unsigned int channel, unsigned long addr);
-void set_dma_x_count(unsigned int channel, unsigned short x_count);
-void set_dma_x_modify(unsigned int channel, short x_modify);
-void set_dma_y_count(unsigned int channel, unsigned short y_count);
-void set_dma_y_modify(unsigned int channel, short y_modify);
-void set_dma_config(unsigned int channel, unsigned short config);
-unsigned short set_bfin_dma_config(char direction, char flow_mode,
-				   char intr_mode, char dma_mode, char width,
-				   char syncmode);
-void set_dma_curr_addr(unsigned int channel, unsigned long addr);
+extern struct dma_channel dma_ch[MAX_DMA_CHANNELS];
+extern struct dma_register *dma_io_base_addr[MAX_DMA_CHANNELS];
+extern int channel2irq(unsigned int channel);
 
-/* get curr status for polling */
-unsigned short get_dma_curr_irqstat(unsigned int channel);
-unsigned short get_dma_curr_xcount(unsigned int channel);
-unsigned short get_dma_curr_ycount(unsigned int channel);
-unsigned long get_dma_next_desc_ptr(unsigned int channel);
-unsigned long get_dma_curr_desc_ptr(unsigned int channel);
-unsigned long get_dma_curr_addr(unsigned int channel);
+static inline void set_dma_start_addr(unsigned int channel, unsigned long addr)
+{
+	dma_ch[channel].regs->start_addr = addr;
+}
+static inline void set_dma_next_desc_addr(unsigned int channel, unsigned long addr)
+{
+	dma_ch[channel].regs->next_desc_ptr = addr;
+}
+static inline void set_dma_curr_desc_addr(unsigned int channel, unsigned long addr)
+{
+	dma_ch[channel].regs->curr_desc_ptr = addr;
+}
+static inline void set_dma_x_count(unsigned int channel, unsigned short x_count)
+{
+	dma_ch[channel].regs->x_count = x_count;
+}
+static inline void set_dma_y_count(unsigned int channel, unsigned short y_count)
+{
+	dma_ch[channel].regs->y_count = y_count;
+}
+static inline void set_dma_x_modify(unsigned int channel, short x_modify)
+{
+	dma_ch[channel].regs->x_modify = x_modify;
+}
+static inline void set_dma_y_modify(unsigned int channel, short y_modify)
+{
+	dma_ch[channel].regs->y_modify = y_modify;
+}
+static inline void set_dma_config(unsigned int channel, unsigned short config)
+{
+	dma_ch[channel].regs->cfg = config;
+}
+static inline void set_dma_curr_addr(unsigned int channel, unsigned long addr)
+{
+	dma_ch[channel].regs->curr_addr_ptr = addr;
+}
 
-/* set large DMA mode descriptor */
-void set_dma_sg(unsigned int channel, struct dmasg *sg, int nr_sg);
+static inline unsigned short
+set_bfin_dma_config(char direction, char flow_mode,
+		    char intr_mode, char dma_mode, char width, char syncmode)
+{
+	return (direction << 1) | (width << 2) | (dma_mode << 4) |
+		(intr_mode << 6) | (flow_mode << 12) | (syncmode << 5);
+}
 
-/* check if current channel is in use */
-int dma_channel_active(unsigned int channel);
+static inline unsigned short get_dma_curr_irqstat(unsigned int channel)
+{
+	return dma_ch[channel].regs->irq_status;
+}
+static inline unsigned short get_dma_curr_xcount(unsigned int channel)
+{
+	return dma_ch[channel].regs->curr_x_count;
+}
+static inline unsigned short get_dma_curr_ycount(unsigned int channel)
+{
+	return dma_ch[channel].regs->curr_y_count;
+}
+static inline unsigned long get_dma_next_desc_ptr(unsigned int channel)
+{
+	return dma_ch[channel].regs->next_desc_ptr;
+}
+static inline unsigned long get_dma_curr_desc_ptr(unsigned int channel)
+{
+	return dma_ch[channel].regs->curr_desc_ptr;
+}
+static inline unsigned long get_dma_curr_addr(unsigned int channel)
+{
+	return dma_ch[channel].regs->curr_addr_ptr;
+}
 
-/* common functions must be called in any mode */
+static inline void set_dma_sg(unsigned int channel, struct dmasg *sg, int ndsize)
+{
+	dma_ch[channel].regs->cfg |= ((ndsize & 0x0F) << 8);
+	dma_ch[channel].regs->next_desc_ptr = (unsigned long)sg;
+}
+
+static inline int dma_channel_active(unsigned int channel)
+{
+	if (dma_ch[channel].chan_status == DMA_CHANNEL_FREE)
+		return 0;
+	else
+		return 1;
+}
+
+static inline void disable_dma(unsigned int channel)
+{
+	dma_ch[channel].regs->cfg &= ~DMAEN;
+	SSYNC();
+	dma_ch[channel].chan_status = DMA_CHANNEL_REQUESTED;
+}
+static inline void enable_dma(unsigned int channel)
+{
+	dma_ch[channel].regs->curr_x_count = 0;
+	dma_ch[channel].regs->curr_y_count = 0;
+	dma_ch[channel].regs->cfg |= DMAEN;
+	dma_ch[channel].chan_status = DMA_CHANNEL_ENABLED;
+}
 void free_dma(unsigned int channel);
-int dma_channel_active(unsigned int channel); /* check if a channel is in use */
-void disable_dma(unsigned int channel);
-void enable_dma(unsigned int channel);
 int request_dma(unsigned int channel, const char *device_id);
-int set_dma_callback(unsigned int channel, irq_handler_t callback,
-		     void *data);
-void dma_disable_irq(unsigned int channel);
-void dma_enable_irq(unsigned int channel);
-void clear_dma_irqstat(unsigned int channel);
+int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data);
+
+static inline void dma_disable_irq(unsigned int channel)
+{
+	disable_irq(dma_ch[channel].irq);
+}
+static inline void dma_enable_irq(unsigned int channel)
+{
+	enable_irq(dma_ch[channel].irq);
+}
+static inline void clear_dma_irqstat(unsigned int channel)
+{
+	dma_ch[channel].regs->irq_status = DMA_DONE | DMA_ERR;
+}
+
 void *dma_memcpy(void *dest, const void *src, size_t count);
 void *safe_dma_memcpy(void *dest, const void *src, size_t count);
 void blackfin_dma_early_init(void);
-
-extern int channel2irq(unsigned int channel);
-extern struct dma_register *dma_io_base_addr[MAX_DMA_CHANNELS];
 
 #endif
