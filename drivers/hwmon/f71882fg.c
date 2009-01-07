@@ -1615,8 +1615,9 @@ static ssize_t show_pwm_auto_point_channel(struct device *dev,
 	int result;
 	struct f71882fg_data *data = f71882fg_update_device(dev);
 	int nr = to_sensor_dev_attr_2(devattr)->index;
+	int temp_start = (data->type == f8000) ? 0 : 1;
 
-	result = 1 << ((data->pwm_auto_point_mapping[nr] & 3) - 1);
+	result = 1 << ((data->pwm_auto_point_mapping[nr] & 3) - temp_start);
 
 	return sprintf(buf, "%d\n", result);
 }
@@ -1627,20 +1628,23 @@ static ssize_t store_pwm_auto_point_channel(struct device *dev,
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
 	int nr = to_sensor_dev_attr_2(devattr)->index;
+	int temp_start = (data->type == f8000) ? 0 : 1;
 	long val = simple_strtol(buf, NULL, 10);
+
 	switch (val) {
 	case 1:
-		val = 1;
+		val = 0;
 		break;
 	case 2:
-		val = 2;
+		val = 1;
 		break;
 	case 4:
-		val = 3;
+		val = 2;
 		break;
 	default:
 		return -EINVAL;
 	}
+	val += temp_start;
 	mutex_lock(&data->update_lock);
 	data->pwm_auto_point_mapping[nr] =
 		f71882fg_read8(data, F71882FG_REG_POINT_MAPPING(nr));
