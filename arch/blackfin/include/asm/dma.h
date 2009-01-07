@@ -52,7 +52,7 @@ enum dma_chan_status {
 #define DMA_SYNC_RESTART	1
 
 struct dmasg {
-	unsigned long next_desc_addr;
+	void *next_desc_addr;
 	unsigned long start_addr;
 	unsigned short cfg;
 	unsigned short x_count;
@@ -62,7 +62,7 @@ struct dmasg {
 } __attribute__((packed));
 
 struct dma_register {
-	unsigned long next_desc_ptr;	/* DMA Next Descriptor Pointer register */
+	void *next_desc_ptr;	/* DMA Next Descriptor Pointer register */
 	unsigned long start_addr;	/* DMA Start address  register */
 
 	unsigned short cfg;	/* DMA Configuration register */
@@ -82,7 +82,7 @@ struct dma_register {
 	short y_modify;	/* DMA y_modify register */
 	unsigned short dummy5;
 
-	unsigned long curr_desc_ptr;	/* DMA Current Descriptor Pointer
+	void *curr_desc_ptr;	/* DMA Current Descriptor Pointer
 					   register */
 	unsigned long curr_addr_ptr;	/* DMA Current Address Pointer
 						   register */
@@ -137,11 +137,11 @@ static inline void set_dma_start_addr(unsigned int channel, unsigned long addr)
 {
 	dma_ch[channel].regs->start_addr = addr;
 }
-static inline void set_dma_next_desc_addr(unsigned int channel, unsigned long addr)
+static inline void set_dma_next_desc_addr(unsigned int channel, void *addr)
 {
 	dma_ch[channel].regs->next_desc_ptr = addr;
 }
-static inline void set_dma_curr_desc_addr(unsigned int channel, unsigned long addr)
+static inline void set_dma_curr_desc_addr(unsigned int channel, void *addr)
 {
 	dma_ch[channel].regs->curr_desc_ptr = addr;
 }
@@ -190,11 +190,11 @@ static inline unsigned short get_dma_curr_ycount(unsigned int channel)
 {
 	return dma_ch[channel].regs->curr_y_count;
 }
-static inline unsigned long get_dma_next_desc_ptr(unsigned int channel)
+static inline void *get_dma_next_desc_ptr(unsigned int channel)
 {
 	return dma_ch[channel].regs->next_desc_ptr;
 }
-static inline unsigned long get_dma_curr_desc_ptr(unsigned int channel)
+static inline void *get_dma_curr_desc_ptr(unsigned int channel)
 {
 	return dma_ch[channel].regs->curr_desc_ptr;
 }
@@ -206,7 +206,7 @@ static inline unsigned long get_dma_curr_addr(unsigned int channel)
 static inline void set_dma_sg(unsigned int channel, struct dmasg *sg, int ndsize)
 {
 	dma_ch[channel].regs->cfg |= ((ndsize & 0x0F) << 8);
-	dma_ch[channel].regs->next_desc_ptr = (unsigned long)sg;
+	dma_ch[channel].regs->next_desc_ptr = sg;
 }
 
 static inline int dma_channel_active(unsigned int channel)
