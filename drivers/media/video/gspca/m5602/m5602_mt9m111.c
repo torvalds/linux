@@ -136,12 +136,16 @@ sensor_found:
 		sensor_settings[i] = mt9m111_ctrls[i].qctrl.default_value;
 	sd->sensor_priv = sensor_settings;
 
+	if (dump_sensor)
+		mt9m111_dump_registers(sd);
+
 	return 0;
 }
 
 int mt9m111_init(struct sd *sd)
 {
 	int i, err = 0;
+	s32 *sensor_settings = sd->sensor_priv;
 
 	/* Init the sensor */
 	for (i = 0; i < ARRAY_SIZE(init_mt9m111) && !err; i++) {
@@ -159,10 +163,17 @@ int mt9m111_init(struct sd *sd)
 		}
 	}
 
-	if (dump_sensor)
-		mt9m111_dump_registers(sd);
+	err = mt9m111_set_vflip(&sd->gspca_dev, sensor_settings[VFLIP_IDX]);
+	if (err < 0)
+		return err;
 
-	return (err < 0) ? err : 0;
+	err = mt9m111_set_hflip(&sd->gspca_dev, sensor_settings[HFLIP_IDX]);
+	if (err < 0)
+		return err;
+
+	err = mt9m111_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
+
+	return err;
 }
 
 void mt9m111_disconnect(struct sd *sd)
