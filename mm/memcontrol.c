@@ -1430,8 +1430,7 @@ int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
 	rcu_read_unlock();
 
 	do {
-		progress = try_to_free_mem_cgroup_pages(mem, gfp_mask, true,
-							get_swappiness(mem));
+		progress = mem_cgroup_hierarchical_reclaim(mem, gfp_mask, true);
 		progress += mem_cgroup_check_under_limit(mem);
 	} while (!progress && --retry);
 
@@ -1475,10 +1474,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 		if (!ret)
 			break;
 
-		progress = try_to_free_mem_cgroup_pages(memcg,
-							GFP_KERNEL,
-							false,
-							get_swappiness(memcg));
+		progress = mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL,
+							   false);
   		if (!progress)			retry_count--;
 	}
 
@@ -1519,8 +1516,7 @@ int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 			break;
 
 		oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
-		try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL, true,
-					     get_swappiness(memcg));
+		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true);
 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
 		if (curusage >= oldusage)
 			retry_count--;
