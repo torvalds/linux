@@ -52,11 +52,14 @@ struct w1_netlink_msg
 	__u8				data[0];
 };
 
-#define W1_CMD_READ		0x0
-#define W1_CMD_WRITE		0x1
-#define W1_CMD_SEARCH		0x2
-#define W1_CMD_ALARM_SEARCH	0x3
-#define W1_CMD_TOUCH		0x4
+enum w1_commands {
+	W1_CMD_READ = 0,
+	W1_CMD_WRITE,
+	W1_CMD_SEARCH,
+	W1_CMD_ALARM_SEARCH,
+	W1_CMD_TOUCH,
+	W1_CMD_MAX,
+};
 
 struct w1_netlink_cmd
 {
