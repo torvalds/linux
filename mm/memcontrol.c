@@ -1171,7 +1171,9 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	mz = page_cgroup_zoneinfo(pc);
 	unlock_page_cgroup(pc);
 
-	css_put(&mem->css);
+	/* at swapout, this memcg will be accessed to record to swap */
+	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
+		css_put(&mem->css);
 
 	return mem;
 
@@ -1212,6 +1214,8 @@ void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
 		swap_cgroup_record(ent, memcg);
 		mem_cgroup_get(memcg);
 	}
+	if (memcg)
+		css_put(&memcg->css);
 }
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
