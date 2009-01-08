@@ -37,7 +37,7 @@ int notifier_add_irq(struct hvc_struct *hp, int irq)
 
 void notifier_del_irq(struct hvc_struct *hp, int irq)
 {
-	if (!irq)
+	if (!hp->irq_requested)
 		return;
 	free_irq(irq, hp);
 	hp->irq_requested = 0;
