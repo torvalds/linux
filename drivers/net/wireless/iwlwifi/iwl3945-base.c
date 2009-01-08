@@ -3219,52 +3219,6 @@ static int iwl3945_rx_queue_space(const struct iwl_rx_queue *q)
 }
 
 /**
- * iwl3945_rx_queue_update_write_ptr - Update the write pointer for the RX queue
- */
-int iwl3945_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
-{
-	u32 reg = 0;
-	int rc = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&q->lock, flags);
-
-	if (q->need_update == 0)
-		goto exit_unlock;
-
-	/* If power-saving is in use, make sure device is awake */
-	if (test_bit(STATUS_POWER_PMI, &priv->status)) {
-		reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
-
-		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			iwl_set_bit(priv, CSR_GP_CNTRL,
-				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-			goto exit_unlock;
-		}
-
-		rc = iwl_grab_nic_access(priv);
-		if (rc)
-			goto exit_unlock;
-
-		/* Device expects a multiple of 8 */
-		iwl_write_direct32(priv, FH39_RSCSR_CHNL0_WPTR,
-				     q->write & ~0x7);
-		iwl_release_nic_access(priv);
-
-	/* Else device is assumed to be awake */
-	} else
-		/* Device expects a multiple of 8 */
-		iwl_write32(priv, FH39_RSCSR_CHNL0_WPTR, q->write & ~0x7);
-
-
-	q->need_update = 0;
-
- exit_unlock:
-	spin_unlock_irqrestore(&q->lock, flags);
-	return rc;
-}
-
-/**
  * iwl3945_dma_addr2rbd_ptr - convert a DMA address to a uCode read buffer ptr
  */
 static inline __le32 iwl3945_dma_addr2rbd_ptr(struct iwl_priv *priv,
@@ -3320,7 +3274,7 @@ static int iwl3945_rx_queue_restock(struct iwl_priv *priv)
 		spin_lock_irqsave(&rxq->lock, flags);
 		rxq->need_update = 1;
 		spin_unlock_irqrestore(&rxq->lock, flags);
-		rc = iwl3945_rx_queue_update_write_ptr(priv, rxq);
+		rc = iwl_rx_queue_update_write_ptr(priv, rxq);
 		if (rc)
 			return rc;
 	}
@@ -4007,7 +3961,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	/* uCode wakes up after power-down sleep */
 	if (inta & CSR_INT_BIT_WAKEUP) {
 		IWL_DEBUG_ISR("Wakeup interrupt\n");
-		iwl3945_rx_queue_update_write_ptr(priv, &priv->rxq);
+		iwl_rx_queue_update_write_ptr(priv, &priv->rxq);
 		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq[0]);
 		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq[1]);
 		iwl3945_tx_queue_update_write_ptr(priv, &priv->txq[2]);

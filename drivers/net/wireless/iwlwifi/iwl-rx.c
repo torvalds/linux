@@ -125,9 +125,10 @@ EXPORT_SYMBOL(iwl_rx_queue_space);
  */
 int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 {
-	u32 reg = 0;
-	int ret = 0;
 	unsigned long flags;
+	u32 rx_wrt_ptr_reg = priv->hw_params.rx_wrt_ptr_reg;
+	u32 reg;
+	int ret = 0;
 
 	spin_lock_irqsave(&q->lock, flags);
 
@@ -149,15 +150,14 @@ int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 			goto exit_unlock;
 
 		/* Device expects a multiple of 8 */
-		iwl_write_direct32(priv, FH_RSCSR_CHNL0_WPTR,
-				     q->write & ~0x7);
+		iwl_write_direct32(priv, rx_wrt_ptr_reg, q->write & ~0x7);
 		iwl_release_nic_access(priv);
 
 	/* Else device is assumed to be awake */
-	} else
+	} else {
 		/* Device expects a multiple of 8 */
-		iwl_write32(priv, FH_RSCSR_CHNL0_WPTR, q->write & ~0x7);
-
+		iwl_write32(priv, rx_wrt_ptr_reg, q->write & ~0x7);
+	}
 
 	q->need_update = 0;
 

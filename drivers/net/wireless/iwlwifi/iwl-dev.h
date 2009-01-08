@@ -563,6 +563,7 @@ struct iwl_sensitivity_ranges {
  * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
  * @max_rxq_log: Log-base-2 of max_rxq_size
  * @rx_buf_size: Rx buffer size
+ * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
  * @max_stations:
  * @bcast_sta_id:
  * @fat_channel: is 40MHz width possible in band 2.4
@@ -584,6 +585,7 @@ struct iwl_hw_params {
 	u16 max_rxq_size;
 	u16 max_rxq_log;
 	u32 rx_buf_size;
+	u32 rx_wrt_ptr_reg;
 	u32 max_pkt_size;
 	u8  max_stations;
 	u8  bcast_sta_id;

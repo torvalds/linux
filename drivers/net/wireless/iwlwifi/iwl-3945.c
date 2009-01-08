@@ -1218,7 +1218,7 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 
 	/* Look at using this instead:
 	rxq->need_update = 1;
-	iwl3945_rx_queue_update_write_ptr(priv, rxq);
+	iwl_rx_queue_update_write_ptr(priv, rxq);
 	*/
 
 	rc = iwl_grab_nic_access(priv);
@@ -2491,6 +2491,8 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
 	priv->hw_params.max_stations = IWL3945_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL3945_BROADCAST_ID;
+
+	priv->hw_params.rx_wrt_ptr_reg = FH39_RSCSR_CHNL0_WPTR;
 
 	return 0;
 }
