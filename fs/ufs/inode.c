@@ -658,7 +658,8 @@ static int ufs1_read_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 		       sizeof(ufs_inode->ui_u2.ui_addr));
 	} else {
 		memcpy(ufsi->i_u1.i_symlink, ufs_inode->ui_u2.ui_symlink,
-		       sizeof(ufs_inode->ui_u2.ui_symlink));
+		       sizeof(ufs_inode->ui_u2.ui_symlink) - 1);
+		ufsi->i_u1.i_symlink[sizeof(ufs_inode->ui_u2.ui_symlink) - 1] = 0;
 	}
 	return 0;
 }
@@ -706,7 +707,8 @@ static int ufs2_read_inode(struct inode *inode, struct ufs2_inode *ufs2_inode)
 		       sizeof(ufs2_inode->ui_u2.ui_addr));
 	} else {
 		memcpy(ufsi->i_u1.i_symlink, ufs2_inode->ui_u2.ui_symlink,
-		       sizeof(ufs2_inode->ui_u2.ui_symlink));
+		       sizeof(ufs2_inode->ui_u2.ui_symlink) - 1);
+		ufsi->i_u1.i_symlink[sizeof(ufs2_inode->ui_u2.ui_symlink) - 1] = 0;
 	}
 	return 0;
 }
