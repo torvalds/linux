@@ -627,34 +627,6 @@ int mem_cgroup_newpage_charge(struct page *page,
 				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
 }
 
-/*
- * same as mem_cgroup_newpage_charge(), now.
- * But what we assume is different from newpage, and this is special case.
- * treat this in special function. easy for maintenance.
- */
-
-int mem_cgroup_charge_migrate_fixup(struct page *page,
-				struct mm_struct *mm, gfp_t gfp_mask)
-{
-	if (mem_cgroup_subsys.disabled)
-		return 0;
-
-	if (PageCompound(page))
-		return 0;
-
-	if (page_mapped(page) || (page->mapping && !PageAnon(page)))
-		return 0;
-
-	if (unlikely(!mm))
-		mm = &init_mm;
-
-	return mem_cgroup_charge_common(page, mm, gfp_mask,
-				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
-}
-
-
-
-
 int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask)
 {
@@ -696,7 +668,6 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 		return mem_cgroup_charge_common(page, mm, gfp_mask,
 				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
 }
-
 
 void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
 {
@@ -782,13 +753,13 @@ void mem_cgroup_uncharge_cache_page(struct page *page)
 }
 
 /*
- * Before starting migration, account against new page.
+ * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
+ * page belongs to.
  */
-int mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
+int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
 {
 	struct page_cgroup *pc;
 	struct mem_cgroup *mem = NULL;
-	enum charge_type ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
 	int ret = 0;
 
 	if (mem_cgroup_subsys.disabled)
@@ -799,42 +770,67 @@ int mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
 	if (PageCgroupUsed(pc)) {
 		mem = pc->mem_cgroup;
 		css_get(&mem->css);
-		if (PageCgroupCache(pc)) {
-			if (page_is_file_cache(page))
-				ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
-			else
-				ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-		}
 	}
 	unlock_page_cgroup(pc);
+
 	if (mem) {
-		ret = mem_cgroup_charge_common(newpage, NULL,
-					GFP_HIGHUSER_MOVABLE,
-					ctype, mem);
+		ret = mem_cgroup_try_charge(NULL, GFP_HIGHUSER_MOVABLE, &mem);
 		css_put(&mem->css);
 	}
+	*ptr = mem;
 	return ret;
 }
 
 /* remove redundant charge if migration failed*/
-void mem_cgroup_end_migration(struct page *newpage)
+void mem_cgroup_end_migration(struct mem_cgroup *mem,
+		struct page *oldpage, struct page *newpage)
 {
+	struct page *target, *unused;
+	struct page_cgroup *pc;
+	enum charge_type ctype;
+
+	if (!mem)
+		return;
+
+	/* at migration success, oldpage->mapping is NULL. */
+	if (oldpage->mapping) {
+		target = oldpage;
+		unused = NULL;
+	} else {
+		target = newpage;
+		unused = oldpage;
+	}
+
+	if (PageAnon(target))
+		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
+	else if (page_is_file_cache(target))
+		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+	else
+		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+
+	/* unused page is not on radix-tree now. */
+	if (unused && ctype != MEM_CGROUP_CHARGE_TYPE_MAPPED)
+		__mem_cgroup_uncharge_common(unused, ctype);
+
+	pc = lookup_page_cgroup(target);
 	/*
-	 * At success, page->mapping is not NULL.
-	 * special rollback care is necessary when
-	 * 1. at migration failure. (newpage->mapping is cleared in this case)
-	 * 2. the newpage was moved but not remapped again because the task
-	 *    exits and the newpage is obsolete. In this case, the new page
-	 *    may be a swapcache. So, we just call mem_cgroup_uncharge_page()
-	 *    always for avoiding mess. The  page_cgroup will be removed if
-	 *    unnecessary. File cache pages is still on radix-tree. Don't
-	 *    care it.
+	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
+	 * So, double-counting is effectively avoided.
 	 */
-	if (!newpage->mapping)
-		__mem_cgroup_uncharge_common(newpage,
-				MEM_CGROUP_CHARGE_TYPE_FORCE);
-	else if (PageAnon(newpage))
-		mem_cgroup_uncharge_page(newpage);
+	__mem_cgroup_commit_charge(mem, pc, ctype);
+
+	/*
+	 * Both of oldpage and newpage are still under lock_page().
+	 * Then, we don't have to care about race in radix-tree.
+	 * But we have to be careful that this page is unmapped or not.
+	 *
+	 * There is a case for !page_mapped(). At the start of
+	 * migration, oldpage was mapped. But now, it's zapped.
+	 * But we know *target* page is not freed/reused under us.
+	 * mem_cgroup_uncharge_page() does all necessary checks.
+	 */
+	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
+		mem_cgroup_uncharge_page(target);
 }
 
 /*

@@ -29,8 +29,6 @@ struct mm_struct;
 
 extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask);
-extern int mem_cgroup_charge_migrate_fixup(struct page *page,
-				struct mm_struct *mm, gfp_t gfp_mask);
 /* for swap handling */
 extern int mem_cgroup_try_charge(struct mm_struct *mm,
 		gfp_t gfp_mask, struct mem_cgroup **ptr);
@@ -60,8 +58,9 @@ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
 	((cgroup) == mem_cgroup_from_task((mm)->owner))
 
 extern int
-mem_cgroup_prepare_migration(struct page *page, struct page *newpage);
-extern void mem_cgroup_end_migration(struct page *page);
+mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
+extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
+	struct page *oldpage, struct page *newpage);
 
 /*
  * For memory reclaim.
@@ -89,12 +88,6 @@ static inline int mem_cgroup_newpage_charge(struct page *page,
 }
 
 static inline int mem_cgroup_cache_charge(struct page *page,
-					struct mm_struct *mm, gfp_t gfp_mask)
-{
-	return 0;
-}
-
-static inline int mem_cgroup_charge_migrate_fixup(struct page *page,
 					struct mm_struct *mm, gfp_t gfp_mask)
 {
 	return 0;
@@ -144,12 +137,14 @@ static inline int task_in_mem_cgroup(struct task_struct *task,
 }
 
 static inline int
-mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
+mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
 {
 	return 0;
 }
 
-static inline void mem_cgroup_end_migration(struct page *page)
+static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
+					struct page *oldpage,
+					struct page *newpage)
 {
 }
 
