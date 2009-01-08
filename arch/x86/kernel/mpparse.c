@@ -569,14 +569,14 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	}
 }
 
-static struct intel_mp_floating *mpf_found;
+static struct mpf_intel *mpf_found;
 
 /*
  * Scan the memory blocks for an SMP configuration block.
  */
 static void __init __get_smp_config(unsigned int early)
 {
-	struct intel_mp_floating *mpf = mpf_found;
+	struct mpf_intel *mpf = mpf_found;
 
 	if (!mpf)
 		return;
@@ -687,14 +687,14 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 				  unsigned reserve)
 {
 	unsigned int *bp = phys_to_virt(base);
-	struct intel_mp_floating *mpf;
+	struct mpf_intel *mpf;
 
 	apic_printk(APIC_VERBOSE, "Scan SMP from %p for %ld bytes.\n",
 			bp, length);
 	BUILD_BUG_ON(sizeof(*mpf) != 16);
 
 	while (length > 0) {
-		mpf = (struct intel_mp_floating *)bp;
+		mpf = (struct mpf_intel *)bp;
 		if ((*bp == SMP_MAGIC_IDENT) &&
 		    (mpf->mpf_length == 1) &&
 		    !mpf_checksum((unsigned char *)bp, 16) &&
@@ -1000,7 +1000,7 @@ static int __init update_mp_table(void)
 {
 	char str[16];
 	char oem[10];
-	struct intel_mp_floating *mpf;
+	struct mpf_intel *mpf;
 	struct mpc_table *mpc, *mpc_new;
 
 	if (!enable_update_mptable)
@@ -1052,7 +1052,7 @@ static int __init update_mp_table(void)
 		mpc = mpc_new;
 		/* check if we can modify that */
 		if (mpc_new_phys - mpf->mpf_physptr) {
-			struct intel_mp_floating *mpf_new;
+			struct mpf_intel *mpf_new;
 			/* steal 16 bytes from [0, 1k) */
 			printk(KERN_INFO "mpf new: %x\n", 0x400 - 16);
 			mpf_new = phys_to_virt(0x400 - 16);

@@ -24,7 +24,8 @@
 # endif
 #endif
 
-struct intel_mp_floating {
+/* Intel MP Floating Pointer Structure */
+struct mpf_intel {
 	char mpf_signature[4];		/* "_MP_"			*/
 	unsigned int mpf_physptr;	/* Configuration table address	*/
 	unsigned char mpf_length;	/* Our length (paragraphs)	*/
