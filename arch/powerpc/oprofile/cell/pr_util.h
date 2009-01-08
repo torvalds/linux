@@ -89,9 +89,9 @@ void vma_map_free(struct vma_to_fileoffset_map *map);
  * Entry point for SPU profiling.
  * cycles_reset is the SPU_CYCLES count value specified by the user.
  */
-int start_spu_profiling(unsigned int cycles_reset);
+int start_spu_profiling_cycles(unsigned int cycles_reset);
 
-void stop_spu_profiling(void);
+void stop_spu_profiling_cycles(void);
 
 
 /* add the necessary profiling hooks */
