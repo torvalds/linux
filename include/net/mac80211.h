@@ -686,12 +686,16 @@ enum ieee80211_key_len {
  *	generation in software.
  * @IEEE80211_KEY_FLAG_PAIRWISE: Set by mac80211, this flag indicates
  *	that the key is pairwise rather then a shared key.
+ * @IEEE80211_KEY_FLAG_SW_MGMT: This flag should be set by the driver for a
+ *	CCMP key if it requires CCMP encryption of management frames (MFP) to
+ *	be done in software.
  */
 enum ieee80211_key_flags {
 	IEEE80211_KEY_FLAG_WMM_STA	= 1<<0,
 	IEEE80211_KEY_FLAG_GENERATE_IV	= 1<<1,
 	IEEE80211_KEY_FLAG_GENERATE_MMIC= 1<<2,
 	IEEE80211_KEY_FLAG_PAIRWISE	= 1<<3,
+	IEEE80211_KEY_FLAG_SW_MGMT	= 1<<4,
 };
 
 /**

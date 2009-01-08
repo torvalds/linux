@@ -367,9 +367,14 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	int hdrlen, len, tail;
 	u8 *pos, *pn;
 	int i;
+	bool skip_hw;
+
+	skip_hw = (tx->key->conf.flags & IEEE80211_KEY_FLAG_SW_MGMT) &&
+		ieee80211_is_mgmt(hdr->frame_control);
 
 	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
-	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
+	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) &&
+	    !skip_hw) {
 		/* hwaccel - with no need for preallocated room for CCMP
 		 * header or MIC fields */
 		info->control.hw_key = &tx->key->conf;
@@ -404,7 +409,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 
 	ccmp_pn2hdr(pos, pn, key->conf.keyidx);
 
-	if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
+	if ((key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) && !skip_hw) {
 		/* hwaccel - with preallocated room for CCMP header */
 		info->control.hw_key = &tx->key->conf;
 		return 0;
