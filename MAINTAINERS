@@ -1360,6 +1360,11 @@ P:	Maciej W. Rozycki
 M:	macro@linux-mips.org
 S:	Maintained
 
+DELL LAPTOP DRIVER
+P:	Matthew Garrett
+M:	mjg59@srcf.ucam.org
+S:	Maintained
+
 DELL LAPTOP SMM DRIVER
 P:	Massimo Dal Zotto
 M:	dz@debian.org

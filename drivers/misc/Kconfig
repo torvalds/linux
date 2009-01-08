@@ -498,6 +498,18 @@ config SGI_GRU_DEBUG
 	This option enables addition debugging code for the SGI GRU driver. If
 	you are unsure, say N.
 
+config DELL_LAPTOP
+	tristate "Dell Laptop Extras (EXPERIMENTAL)"
+	depends on X86
+	depends on DCDBAS
+	depends on EXPERIMENTAL
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on RFKILL
+	default n
+	---help---
+	This driver adds support for rfkill and backlight control to Dell
+	laptops.
+
 source "drivers/misc/c2port/Kconfig"
 
 endif # MISC_DEVICES
