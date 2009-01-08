@@ -50,6 +50,11 @@
 #define GPIO_E750_SPK_AMP_OFF     7
 #define GPIO_E750_HP_DETECT      37
 
+/* e800 audio control GPIOs */
+#define GPIO_E800_HP_DETECT      81
+#define GPIO_E800_HP_AMP_OFF     82
+#define GPIO_E800_SPK_AMP_ON     83
+
 /* ASIC related GPIOs */
 #define GPIO_ESERIES_TMIO_IRQ        5
 #define GPIO_ESERIES_TMIO_PCLR      19
