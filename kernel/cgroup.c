@@ -2007,14 +2007,16 @@ int cgroup_scan_tasks(struct cgroup_scanner *scan)
  */
 static int pid_array_load(pid_t *pidarray, int npids, struct cgroup *cgrp)
 {
-	int n = 0;
+	int n = 0, pid;
 	struct cgroup_iter it;
 	struct task_struct *tsk;
 	cgroup_iter_start(cgrp, &it);
 	while ((tsk = cgroup_iter_next(cgrp, &it))) {
 		if (unlikely(n == npids))
 			break;
-		pidarray[n++] = task_pid_vnr(tsk);
+		pid = task_pid_vnr(tsk);
+		if (pid > 0)
+			pidarray[n++] = pid;
 	}
 	cgroup_iter_end(cgrp, &it);
 	return n;
