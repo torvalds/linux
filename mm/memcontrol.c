@@ -2008,25 +2008,10 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 				struct cgroup *old_cont,
 				struct task_struct *p)
 {
-	struct mm_struct *mm;
-	struct mem_cgroup *mem, *old_mem;
-
-	mm = get_task_mm(p);
-	if (mm == NULL)
-		return;
-
-	mem = mem_cgroup_from_cont(cont);
-	old_mem = mem_cgroup_from_cont(old_cont);
-
 	/*
-	 * Only thread group leaders are allowed to migrate, the mm_struct is
-	 * in effect owned by the leader
+	 * FIXME: It's better to move charges of this process from old
+	 * memcg to new memcg. But it's just on TODO-List now.
 	 */
-	if (!thread_group_leader(p))
-		goto out;
-
-out:
-	mmput(mm);
 }
 
 struct cgroup_subsys mem_cgroup_subsys = {
