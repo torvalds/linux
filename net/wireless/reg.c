@@ -778,13 +778,22 @@ static int freq_reg_info(u32 center_freq, u32 *bandwidth,
 	return !max_bandwidth;
 }
 
-static void handle_channel(struct ieee80211_channel *chan)
+static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
+			   unsigned int chan_idx)
 {
 	int r;
-	u32 flags = chan->orig_flags;
+	u32 flags;
 	u32 max_bandwidth = 0;
 	const struct ieee80211_reg_rule *reg_rule = NULL;
 	const struct ieee80211_power_rule *power_rule = NULL;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *chan;
+
+	sband = wiphy->bands[band];
+	BUG_ON(chan_idx >= sband->n_channels);
+	chan = &sband->channels[chan_idx];
+
+	flags = chan->orig_flags;
 
 	r = freq_reg_info(MHZ_TO_KHZ(chan->center_freq),
 		&max_bandwidth, &reg_rule);
@@ -808,12 +817,16 @@ static void handle_channel(struct ieee80211_channel *chan)
 		chan->max_power = (int) MBM_TO_DBM(power_rule->max_eirp);
 }
 
-static void handle_band(struct ieee80211_supported_band *sband)
+static void handle_band(struct wiphy *wiphy, enum ieee80211_band band)
 {
-	int i;
+	unsigned int i;
+	struct ieee80211_supported_band *sband;
+
+	BUG_ON(!wiphy->bands[band]);
+	sband = wiphy->bands[band];
 
 	for (i = 0; i < sband->n_channels; i++)
-		handle_channel(&sband->channels[i]);
+		handle_channel(wiphy, band, i);
 }
 
 static bool ignore_reg_update(struct wiphy *wiphy, enum reg_set_by setby)
@@ -840,7 +853,7 @@ void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby)
 	enum ieee80211_band band;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (wiphy->bands[band])
-			handle_band(wiphy->bands[band]);
+			handle_band(wiphy, band);
 		if (wiphy->reg_notifier)
 			wiphy->reg_notifier(wiphy, setby);
 	}
