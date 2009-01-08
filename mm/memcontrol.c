@@ -1169,10 +1169,11 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
 	/*
 	 * Now swap is on-memory. This means this page may be
 	 * counted both as mem and swap....double count.
-	 * Fix it by uncharging from memsw. This SwapCache is stable
-	 * because we're still under lock_page().
+	 * Fix it by uncharging from memsw. Basically, this SwapCache is stable
+	 * under lock_page(). But in do_swap_page()::memory.c, reuse_swap_page()
+	 * may call delete_from_swap_cache() before reach here.
 	 */
-	if (do_swap_account) {
+	if (do_swap_account && PageSwapCache(page)) {
 		swp_entry_t ent = {.val = page_private(page)};
 		struct mem_cgroup *memcg;
 		memcg = swap_cgroup_record(ent, NULL);
