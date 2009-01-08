@@ -22,6 +22,8 @@
 		serial0 = &serial0;
 		serial1 = &serial1;
 		pci0 = &pci0;
+		pci1 = &pci1;
+		pci2 = &pci2;
 	};
 
 	cpus {
@@ -333,5 +335,67 @@
 		       0xe0008300 0x8>;		/* config space access registers */
 		compatible = "fsl,mpc8349-pci";
 		device_type = "pci";
+	};
+
+	pci1: pcie@e0009000 {
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		device_type = "pci";
+		compatible = "fsl,mpc8378-pcie", "fsl,mpc8314-pcie";
+		reg = <0xe0009000 0x00001000>;
+		ranges = <0x02000000 0 0xa8000000 0xa8000000 0 0x10000000
+		          0x01000000 0 0x00000000 0xb8000000 0 0x00800000>;
+		bus-range = <0 255>;
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = <0 0 0 1 &ipic 1 8
+				 0 0 0 2 &ipic 1 8
+				 0 0 0 3 &ipic 1 8
+				 0 0 0 4 &ipic 1 8>;
+		clock-frequency = <0>;
+
+		pcie@0 {
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			reg = <0 0 0 0 0>;
+			ranges = <0x02000000 0 0xa8000000
+				  0x02000000 0 0xa8000000
+				  0 0x10000000
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00800000>;
+		};
+	};
+
+	pci2: pcie@e000a000 {
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		device_type = "pci";
+		compatible = "fsl,mpc8378-pcie", "fsl,mpc8314-pcie";
+		reg = <0xe000a000 0x00001000>;
+		ranges = <0x02000000 0 0xc8000000 0xc8000000 0 0x10000000
+			  0x01000000 0 0x00000000 0xd8000000 0 0x00800000>;
+		bus-range = <0 255>;
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = <0 0 0 1 &ipic 2 8
+				 0 0 0 2 &ipic 2 8
+				 0 0 0 3 &ipic 2 8
+				 0 0 0 4 &ipic 2 8>;
+		clock-frequency = <0>;
+
+		pcie@0 {
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			reg = <0 0 0 0 0>;
+			ranges = <0x02000000 0 0xc8000000
+				  0x02000000 0 0xc8000000
+				  0 0x10000000
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00800000>;
+		};
 	};
 };
