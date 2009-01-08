@@ -97,7 +97,7 @@ STATIC int INIT gunzip(unsigned char *buf, int len,
 			strm->next_in++;
 		strm->next_in++;
 	}
-	strm->avail_in = len - 10;
+	strm->avail_in = len - (strm->next_in - zbuf);
 
 	strm->next_out = out_buf;
 	strm->avail_out = out_len;
