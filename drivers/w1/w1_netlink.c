@@ -128,6 +128,59 @@ static int w1_process_command_slave(struct w1_slave *sl, struct cn_msg *msg,
 	return err;
 }
 
+static int w1_process_command_root(struct cn_msg *msg, struct w1_netlink_msg *mcmd)
+{
+	struct w1_master *m;
+	struct cn_msg *cn;
+	struct w1_netlink_msg *w;
+	u32 *id;
+
+	if (mcmd->type != W1_LIST_MASTERS) {
+		printk(KERN_NOTICE "%s: msg: %x.%x, wrong type: %u, len: %u.\n",
+				__func__, msg->id.idx, msg->id.val, mcmd->type, mcmd->len);
+		return -EPROTO;
+	}
+
+	cn = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!cn)
+		return -ENOMEM;
+
+	cn->id.idx = CN_W1_IDX;
+	cn->id.val = CN_W1_VAL;
+
+	cn->seq = msg->seq;
+	cn->ack = 1;
+	cn->len = sizeof(struct w1_netlink_msg);
+	w = (struct w1_netlink_msg *)(cn + 1);
+
+	w->type = W1_LIST_MASTERS;
+	w->reserved = 0;
+	w->len = 0;
+	id = (u32 *)(w + 1);
+
+	mutex_lock(&w1_mlock);
+	list_for_each_entry(m, &w1_masters, w1_master_entry) {
+		if (cn->len + sizeof(*id) > PAGE_SIZE - sizeof(struct cn_msg)) {
+			cn_netlink_send(cn, 0, GFP_KERNEL);
+			cn->ack++;
+			cn->len = sizeof(struct w1_netlink_msg);
+			w->len = 0;
+			id = (u32 *)(w + 1);
+		}
+
+		*id = m->id;
+		w->len += sizeof(*id);
+		cn->len += sizeof(*id);
+		id++;
+	}
+	cn->ack = 0;
+	cn_netlink_send(cn, 0, GFP_KERNEL);
+	mutex_unlock(&w1_mlock);
+
+	kfree(cn);
+	return 0;
+}
+
 static void w1_cn_callback(void *data)
 {
 	struct cn_msg *msg = data;
@@ -164,6 +217,9 @@ static void w1_cn_callback(void *data)
 			sl = w1_search_slave(&id);
 			if (sl)
 				dev = sl->master;
+		} else {
+			err = w1_process_command_root(msg, m);
+			goto out_cont;
 		}
 
 		if (!dev) {
