@@ -399,6 +399,21 @@
  */
 #define FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
 
+#define RX_QUEUE_SIZE                         256
+#define RX_QUEUE_MASK                         255
+#define RX_QUEUE_SIZE_LOG                     8
+
+/*
+ * RX related structures and functions
+ */
+#define RX_FREE_BUFFERS 64
+#define RX_LOW_WATERMARK 8
+
+/* Size of one Rx buffer in host DRAM */
+#define IWL_RX_BUF_SIZE_3K (3 * 1000) /* 3945 only */
+#define IWL_RX_BUF_SIZE_4K (4 * 1024)
+#define IWL_RX_BUF_SIZE_8K (8 * 1024)
+
 /**
  * struct iwl_rb_status - reseve buffer status
  * 	host memory mapped FH registers

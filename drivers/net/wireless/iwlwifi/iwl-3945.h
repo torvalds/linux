@@ -96,7 +96,6 @@ enum iwl3945_antenna {
  * else RTS for data/management frames where MPDU is larger
  *   than RTS value.
  */
-#define IWL_RX_BUF_SIZE           3000U
 #define DEFAULT_RTS_THRESHOLD     2347U
 #define MIN_RTS_THRESHOLD         0U
 #define MAX_RTS_THRESHOLD         2347U

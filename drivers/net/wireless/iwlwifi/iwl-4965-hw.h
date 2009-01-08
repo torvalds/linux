@@ -110,19 +110,6 @@
 
 #define IWL_DEFAULT_TX_RETRY  15
 
-#define RX_QUEUE_SIZE                         256
-#define RX_QUEUE_MASK                         255
-#define RX_QUEUE_SIZE_LOG                     8
-
-/*
- * RX related structures and functions
- */
-#define RX_FREE_BUFFERS 64
-#define RX_LOW_WATERMARK 8
-
-/* Size of one Rx buffer in host DRAM */
-#define IWL_RX_BUF_SIZE_4K (4 * 1024)
-#define IWL_RX_BUF_SIZE_8K (8 * 1024)
 
 /* Sizes and addresses for instruction and data memory (SRAM) in
  * 4965's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
