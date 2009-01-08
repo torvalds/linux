@@ -61,8 +61,15 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
 
 extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
 
-#define mm_match_cgroup(mm, cgroup)	\
-	((cgroup) == mem_cgroup_from_task((mm)->owner))
+static inline
+int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+{
+	struct mem_cgroup *mem;
+	rcu_read_lock();
+	mem = mem_cgroup_from_task((mm)->owner);
+	rcu_read_unlock();
+	return cgroup == mem;
+}
 
 extern int
 mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
