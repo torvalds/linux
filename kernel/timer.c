@@ -1018,21 +1018,6 @@ unsigned long get_next_timer_interrupt(unsigned long now)
 }
 #endif
 
-#ifndef CONFIG_VIRT_CPU_ACCOUNTING
-void account_process_tick(struct task_struct *p, int user_tick)
-{
-	cputime_t one_jiffy = jiffies_to_cputime(1);
-
-	if (user_tick) {
-		account_user_time(p, one_jiffy);
-		account_user_time_scaled(p, cputime_to_scaled(one_jiffy));
-	} else {
-		account_system_time(p, HARDIRQ_OFFSET, one_jiffy);
-		account_system_time_scaled(p, cputime_to_scaled(one_jiffy));
-	}
-}
-#endif
-
 /*
  * Called from the timer interrupt handler to charge one tick to the current
  * process.  user_tick is 1 if the tick is user time, 0 for system.

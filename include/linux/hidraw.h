@@ -33,6 +33,8 @@ struct hidraw_devinfo {
 #define HIDIOCGRDESCSIZE	_IOR('H', 0x01, int)
 #define HIDIOCGRDESC		_IOR('H', 0x02, struct hidraw_report_descriptor)
 #define HIDIOCGRAWINFO		_IOR('H', 0x03, struct hidraw_devinfo)
+#define HIDIOCGRAWNAME(len)     _IOC(_IOC_READ, 'H', 0x04, len)
+#define HIDIOCGRAWPHYS(len)     _IOC(_IOC_READ, 'H', 0x05, len)
 
 #define HIDRAW_FIRST_MINOR 0
 #define HIDRAW_MAX_DEVICES 64

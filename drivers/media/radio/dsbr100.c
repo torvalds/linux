@@ -154,8 +154,8 @@ devices, that would be 76 and 91.  */
 static int usb_dsbr100_probe(struct usb_interface *intf,
 			     const struct usb_device_id *id);
 static void usb_dsbr100_disconnect(struct usb_interface *intf);
-static int usb_dsbr100_open(struct inode *inode, struct file *file);
-static int usb_dsbr100_close(struct inode *inode, struct file *file);
+static int usb_dsbr100_open(struct file *file);
+static int usb_dsbr100_close(struct file *file);
 static int usb_dsbr100_suspend(struct usb_interface *intf,
 						pm_message_t message);
 static int usb_dsbr100_resume(struct usb_interface *intf);
@@ -566,7 +566,7 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return 0;
 }
 
-static int usb_dsbr100_open(struct inode *inode, struct file *file)
+static int usb_dsbr100_open(struct file *file)
 {
 	struct dsbr100_device *radio = video_drvdata(file);
 	int retval;
@@ -593,7 +593,7 @@ static int usb_dsbr100_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int usb_dsbr100_close(struct inode *inode, struct file *file)
+static int usb_dsbr100_close(struct file *file)
 {
 	struct dsbr100_device *radio = video_drvdata(file);
 	int retval;
@@ -653,15 +653,11 @@ static void usb_dsbr100_video_device_release(struct video_device *videodev)
 }
 
 /* File system interface */
-static const struct file_operations usb_dsbr100_fops = {
+static const struct v4l2_file_operations usb_dsbr100_fops = {
 	.owner		= THIS_MODULE,
 	.open		= usb_dsbr100_open,
 	.release	= usb_dsbr100_close,
 	.ioctl		= video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek		= no_llseek,
 };
 
 static const struct v4l2_ioctl_ops usb_dsbr100_ioctl_ops = {

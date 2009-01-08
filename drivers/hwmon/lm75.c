@@ -190,7 +190,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	dev_info(&client->dev, "%s: sensor '%s'\n",
-		data->hwmon_dev->bus_id, client->name);
+		 dev_name(data->hwmon_dev), client->name);
 
 	return 0;
 

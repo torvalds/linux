@@ -45,7 +45,7 @@
 #define SMALL_NODE_WM  UBIFS_MAX_DENT_NODE_SZ
 
 /*
- * GC may need to move more then one LEB to make progress. The below constants
+ * GC may need to move more than one LEB to make progress. The below constants
  * define "soft" and "hard" limits on the number of LEBs the garbage collector
  * may move.
  */

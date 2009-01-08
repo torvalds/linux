@@ -65,6 +65,7 @@
 #include <linux/mm.h>
 #include <linux/rcupdate.h>
 #include <linux/kallsyms.h>
+#include <linux/stacktrace.h>
 #include <linux/resource.h>
 #include <linux/module.h>
 #include <linux/mount.h>
@@ -109,25 +110,22 @@ struct pid_entry {
 	.op   = OP,					\
 }
 
-#define DIR(NAME, MODE, OTYPE)							\
-	NOD(NAME, (S_IFDIR|(MODE)),						\
-		&proc_##OTYPE##_inode_operations, &proc_##OTYPE##_operations,	\
-		{} )
-#define LNK(NAME, OTYPE)					\
+#define DIR(NAME, MODE, iops, fops)	\
+	NOD(NAME, (S_IFDIR|(MODE)), &iops, &fops, {} )
+#define LNK(NAME, get_link)					\
 	NOD(NAME, (S_IFLNK|S_IRWXUGO),				\
 		&proc_pid_link_inode_operations, NULL,		\
-		{ .proc_get_link = &proc_##OTYPE##_link } )
-#define REG(NAME, MODE, OTYPE)				\
-	NOD(NAME, (S_IFREG|(MODE)), NULL,		\
-		&proc_##OTYPE##_operations, {})
-#define INF(NAME, MODE, OTYPE)				\
+		{ .proc_get_link = get_link } )
+#define REG(NAME, MODE, fops)				\
+	NOD(NAME, (S_IFREG|(MODE)), NULL, &fops, {})
+#define INF(NAME, MODE, read)				\
 	NOD(NAME, (S_IFREG|(MODE)), 			\
 		NULL, &proc_info_file_operations,	\
-		{ .proc_read = &proc_##OTYPE } )
-#define ONE(NAME, MODE, OTYPE)				\
+		{ .proc_read = read } )
+#define ONE(NAME, MODE, show)				\
 	NOD(NAME, (S_IFREG|(MODE)), 			\
 		NULL, &proc_single_file_operations,	\
-		{ .proc_show = &proc_##OTYPE } )
+		{ .proc_show = show } )
 
 /*
  * Count the number of hardlinks for the pid_entry table, excluding the .
@@ -308,9 +306,9 @@ static int proc_pid_auxv(struct task_struct *task, char *buffer)
 	struct mm_struct *mm = get_task_mm(task);
 	if (mm) {
 		unsigned int nwords = 0;
-		do
+		do {
 			nwords += 2;
-		while (mm->saved_auxv[nwords - 2] != 0); /* AT_NULL */
+		} while (mm->saved_auxv[nwords - 2] != 0); /* AT_NULL */
 		res = nwords * sizeof(mm->saved_auxv[0]);
 		if (res > PAGE_SIZE)
 			res = PAGE_SIZE;
@@ -339,6 +337,37 @@ static int proc_pid_wchan(struct task_struct *task, char *buffer)
 		return sprintf(buffer, "%s", symname);
 }
 #endif /* CONFIG_KALLSYMS */
+
+#ifdef CONFIG_STACKTRACE
+
+#define MAX_STACK_TRACE_DEPTH	64
+
+static int proc_pid_stack(struct seq_file *m, struct pid_namespace *ns,
+			  struct pid *pid, struct task_struct *task)
+{
+	struct stack_trace trace;
+	unsigned long *entries;
+	int i;
+
+	entries = kmalloc(MAX_STACK_TRACE_DEPTH * sizeof(*entries), GFP_KERNEL);
+	if (!entries)
+		return -ENOMEM;
+
+	trace.nr_entries	= 0;
+	trace.max_entries	= MAX_STACK_TRACE_DEPTH;
+	trace.entries		= entries;
+	trace.skip		= 0;
+	save_stack_trace_tsk(task, &trace);
+
+	for (i = 0; i < trace.nr_entries; i++) {
+		seq_printf(m, "[<%p>] %pS\n",
+			   (void *)entries[i], (void *)entries[i]);
+	}
+	kfree(entries);
+
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_SCHEDSTATS
 /*
@@ -1186,8 +1215,6 @@ static int sched_show(struct seq_file *m, void *v)
 	struct inode *inode = m->private;
 	struct task_struct *p;
 
-	WARN_ON(!inode);
-
 	p = get_proc_task(inode);
 	if (!p)
 		return -ESRCH;
@@ -1204,8 +1231,6 @@ sched_write(struct file *file, const char __user *buf,
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct task_struct *p;
-
-	WARN_ON(!inode);
 
 	p = get_proc_task(inode);
 	if (!p)
@@ -1426,8 +1451,6 @@ static struct inode *proc_pid_make_inode(struct super_block * sb, struct task_st
 	if (!ei->pid)
 		goto out_unlock;
 
-	inode->i_uid = 0;
-	inode->i_gid = 0;
 	if (task_dumpable(task)) {
 		rcu_read_lock();
 		cred = __task_cred(task);
@@ -1976,13 +1999,11 @@ static struct dentry *proc_pident_lookup(struct inode *dir,
 					 const struct pid_entry *ents,
 					 unsigned int nents)
 {
-	struct inode *inode;
 	struct dentry *error;
 	struct task_struct *task = get_proc_task(dir);
 	const struct pid_entry *p, *last;
 
 	error = ERR_PTR(-ENOENT);
-	inode = NULL;
 
 	if (!task)
 		goto out_no_task;
@@ -2138,12 +2159,12 @@ static const struct file_operations proc_pid_attr_operations = {
 };
 
 static const struct pid_entry attr_dir_stuff[] = {
-	REG("current",    S_IRUGO|S_IWUGO, pid_attr),
-	REG("prev",       S_IRUGO,	   pid_attr),
-	REG("exec",       S_IRUGO|S_IWUGO, pid_attr),
-	REG("fscreate",   S_IRUGO|S_IWUGO, pid_attr),
-	REG("keycreate",  S_IRUGO|S_IWUGO, pid_attr),
-	REG("sockcreate", S_IRUGO|S_IWUGO, pid_attr),
+	REG("current",    S_IRUGO|S_IWUGO, proc_pid_attr_operations),
+	REG("prev",       S_IRUGO,	   proc_pid_attr_operations),
+	REG("exec",       S_IRUGO|S_IWUGO, proc_pid_attr_operations),
+	REG("fscreate",   S_IRUGO|S_IWUGO, proc_pid_attr_operations),
+	REG("keycreate",  S_IRUGO|S_IWUGO, proc_pid_attr_operations),
+	REG("sockcreate", S_IRUGO|S_IWUGO, proc_pid_attr_operations),
 };
 
 static int proc_attr_dir_readdir(struct file * filp,
@@ -2349,8 +2370,6 @@ static struct dentry *proc_base_instantiate(struct inode *dir,
 	if (!ei->pid)
 		goto out_iput;
 
-	inode->i_uid = 0;
-	inode->i_gid = 0;
 	inode->i_mode = p->mode;
 	if (S_ISDIR(inode->i_mode))
 		inode->i_nlink = 2;
@@ -2465,74 +2484,77 @@ static const struct file_operations proc_task_operations;
 static const struct inode_operations proc_task_inode_operations;
 
 static const struct pid_entry tgid_base_stuff[] = {
-	DIR("task",       S_IRUGO|S_IXUGO, task),
-	DIR("fd",         S_IRUSR|S_IXUSR, fd),
-	DIR("fdinfo",     S_IRUSR|S_IXUSR, fdinfo),
+	DIR("task",       S_IRUGO|S_IXUGO, proc_task_inode_operations, proc_task_operations),
+	DIR("fd",         S_IRUSR|S_IXUSR, proc_fd_inode_operations, proc_fd_operations),
+	DIR("fdinfo",     S_IRUSR|S_IXUSR, proc_fdinfo_inode_operations, proc_fdinfo_operations),
 #ifdef CONFIG_NET
-	DIR("net",        S_IRUGO|S_IXUGO, net),
+	DIR("net",        S_IRUGO|S_IXUGO, proc_net_inode_operations, proc_net_operations),
 #endif
-	REG("environ",    S_IRUSR, environ),
-	INF("auxv",       S_IRUSR, pid_auxv),
-	ONE("status",     S_IRUGO, pid_status),
-	ONE("personality", S_IRUSR, pid_personality),
-	INF("limits",	  S_IRUSR, pid_limits),
+	REG("environ",    S_IRUSR, proc_environ_operations),
+	INF("auxv",       S_IRUSR, proc_pid_auxv),
+	ONE("status",     S_IRUGO, proc_pid_status),
+	ONE("personality", S_IRUSR, proc_pid_personality),
+	INF("limits",	  S_IRUSR, proc_pid_limits),
 #ifdef CONFIG_SCHED_DEBUG
-	REG("sched",      S_IRUGO|S_IWUSR, pid_sched),
+	REG("sched",      S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
-	INF("syscall",    S_IRUSR, pid_syscall),
+	INF("syscall",    S_IRUSR, proc_pid_syscall),
 #endif
-	INF("cmdline",    S_IRUGO, pid_cmdline),
-	ONE("stat",       S_IRUGO, tgid_stat),
-	ONE("statm",      S_IRUGO, pid_statm),
-	REG("maps",       S_IRUGO, maps),
+	INF("cmdline",    S_IRUGO, proc_pid_cmdline),
+	ONE("stat",       S_IRUGO, proc_tgid_stat),
+	ONE("statm",      S_IRUGO, proc_pid_statm),
+	REG("maps",       S_IRUGO, proc_maps_operations),
 #ifdef CONFIG_NUMA
-	REG("numa_maps",  S_IRUGO, numa_maps),
+	REG("numa_maps",  S_IRUGO, proc_numa_maps_operations),
 #endif
-	REG("mem",        S_IRUSR|S_IWUSR, mem),
-	LNK("cwd",        cwd),
-	LNK("root",       root),
-	LNK("exe",        exe),
-	REG("mounts",     S_IRUGO, mounts),
-	REG("mountinfo",  S_IRUGO, mountinfo),
-	REG("mountstats", S_IRUSR, mountstats),
+	REG("mem",        S_IRUSR|S_IWUSR, proc_mem_operations),
+	LNK("cwd",        proc_cwd_link),
+	LNK("root",       proc_root_link),
+	LNK("exe",        proc_exe_link),
+	REG("mounts",     S_IRUGO, proc_mounts_operations),
+	REG("mountinfo",  S_IRUGO, proc_mountinfo_operations),
+	REG("mountstats", S_IRUSR, proc_mountstats_operations),
 #ifdef CONFIG_PROC_PAGE_MONITOR
-	REG("clear_refs", S_IWUSR, clear_refs),
-	REG("smaps",      S_IRUGO, smaps),
-	REG("pagemap",    S_IRUSR, pagemap),
+	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
+	REG("smaps",      S_IRUGO, proc_smaps_operations),
+	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
 #endif
 #ifdef CONFIG_SECURITY
-	DIR("attr",       S_IRUGO|S_IXUGO, attr_dir),
+	DIR("attr",       S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
 #endif
 #ifdef CONFIG_KALLSYMS
-	INF("wchan",      S_IRUGO, pid_wchan),
+	INF("wchan",      S_IRUGO, proc_pid_wchan),
+#endif
+#ifdef CONFIG_STACKTRACE
+	ONE("stack",      S_IRUSR, proc_pid_stack),
 #endif
 #ifdef CONFIG_SCHEDSTATS
-	INF("schedstat",  S_IRUGO, pid_schedstat),
+	INF("schedstat",  S_IRUGO, proc_pid_schedstat),
 #endif
 #ifdef CONFIG_LATENCYTOP
-	REG("latency",  S_IRUGO, lstats),
+	REG("latency",  S_IRUGO, proc_lstats_operations),
 #endif
 #ifdef CONFIG_PROC_PID_CPUSET
-	REG("cpuset",     S_IRUGO, cpuset),
+	REG("cpuset",     S_IRUGO, proc_cpuset_operations),
 #endif
 #ifdef CONFIG_CGROUPS
-	REG("cgroup",  S_IRUGO, cgroup),
+	REG("cgroup",  S_IRUGO, proc_cgroup_operations),
 #endif
-	INF("oom_score",  S_IRUGO, oom_score),
-	REG("oom_adj",    S_IRUGO|S_IWUSR, oom_adjust),
+	INF("oom_score",  S_IRUGO, proc_oom_score),
+	REG("oom_adj",    S_IRUGO|S_IWUSR, proc_oom_adjust_operations),
 #ifdef CONFIG_AUDITSYSCALL
-	REG("loginuid",   S_IWUSR|S_IRUGO, loginuid),
-	REG("sessionid",  S_IRUGO, sessionid),
+	REG("loginuid",   S_IWUSR|S_IRUGO, proc_loginuid_operations),
+	REG("sessionid",  S_IRUGO, proc_sessionid_operations),
 #endif
 #ifdef CONFIG_FAULT_INJECTION
-	REG("make-it-fail", S_IRUGO|S_IWUSR, fault_inject),
+	REG("make-it-fail", S_IRUGO|S_IWUSR, proc_fault_inject_operations),
 #endif
 #if defined(USE_ELF_CORE_DUMP) && defined(CONFIG_ELF_CORE)
-	REG("coredump_filter", S_IRUGO|S_IWUSR, coredump_filter),
+	REG("coredump_filter", S_IRUGO|S_IWUSR, proc_coredump_filter_operations),
 #endif
 #ifdef CONFIG_TASK_IO_ACCOUNTING
-	INF("io",	S_IRUGO, tgid_io_accounting),
+	INF("io",	S_IRUGO, proc_tgid_io_accounting),
 #endif
 };
 
@@ -2805,66 +2827,69 @@ out_no_task:
  * Tasks
  */
 static const struct pid_entry tid_base_stuff[] = {
-	DIR("fd",        S_IRUSR|S_IXUSR, fd),
-	DIR("fdinfo",    S_IRUSR|S_IXUSR, fdinfo),
-	REG("environ",   S_IRUSR, environ),
-	INF("auxv",      S_IRUSR, pid_auxv),
-	ONE("status",    S_IRUGO, pid_status),
-	ONE("personality", S_IRUSR, pid_personality),
-	INF("limits",	 S_IRUSR, pid_limits),
+	DIR("fd",        S_IRUSR|S_IXUSR, proc_fd_inode_operations, proc_fd_operations),
+	DIR("fdinfo",    S_IRUSR|S_IXUSR, proc_fdinfo_inode_operations, proc_fd_operations),
+	REG("environ",   S_IRUSR, proc_environ_operations),
+	INF("auxv",      S_IRUSR, proc_pid_auxv),
+	ONE("status",    S_IRUGO, proc_pid_status),
+	ONE("personality", S_IRUSR, proc_pid_personality),
+	INF("limits",	 S_IRUSR, proc_pid_limits),
 #ifdef CONFIG_SCHED_DEBUG
-	REG("sched",     S_IRUGO|S_IWUSR, pid_sched),
+	REG("sched",     S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
-	INF("syscall",   S_IRUSR, pid_syscall),
+	INF("syscall",   S_IRUSR, proc_pid_syscall),
 #endif
-	INF("cmdline",   S_IRUGO, pid_cmdline),
-	ONE("stat",      S_IRUGO, tid_stat),
-	ONE("statm",     S_IRUGO, pid_statm),
-	REG("maps",      S_IRUGO, maps),
+	INF("cmdline",   S_IRUGO, proc_pid_cmdline),
+	ONE("stat",      S_IRUGO, proc_tid_stat),
+	ONE("statm",     S_IRUGO, proc_pid_statm),
+	REG("maps",      S_IRUGO, proc_maps_operations),
 #ifdef CONFIG_NUMA
-	REG("numa_maps", S_IRUGO, numa_maps),
+	REG("numa_maps", S_IRUGO, proc_numa_maps_operations),
 #endif
-	REG("mem",       S_IRUSR|S_IWUSR, mem),
-	LNK("cwd",       cwd),
-	LNK("root",      root),
-	LNK("exe",       exe),
-	REG("mounts",    S_IRUGO, mounts),
-	REG("mountinfo",  S_IRUGO, mountinfo),
+	REG("mem",       S_IRUSR|S_IWUSR, proc_mem_operations),
+	LNK("cwd",       proc_cwd_link),
+	LNK("root",      proc_root_link),
+	LNK("exe",       proc_exe_link),
+	REG("mounts",    S_IRUGO, proc_mounts_operations),
+	REG("mountinfo",  S_IRUGO, proc_mountinfo_operations),
 #ifdef CONFIG_PROC_PAGE_MONITOR
-	REG("clear_refs", S_IWUSR, clear_refs),
-	REG("smaps",     S_IRUGO, smaps),
-	REG("pagemap",    S_IRUSR, pagemap),
+	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
+	REG("smaps",     S_IRUGO, proc_smaps_operations),
+	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
 #endif
 #ifdef CONFIG_SECURITY
-	DIR("attr",      S_IRUGO|S_IXUGO, attr_dir),
+	DIR("attr",      S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
 #endif
 #ifdef CONFIG_KALLSYMS
-	INF("wchan",     S_IRUGO, pid_wchan),
+	INF("wchan",     S_IRUGO, proc_pid_wchan),
+#endif
+#ifdef CONFIG_STACKTRACE
+	ONE("stack",      S_IRUSR, proc_pid_stack),
 #endif
 #ifdef CONFIG_SCHEDSTATS
-	INF("schedstat", S_IRUGO, pid_schedstat),
+	INF("schedstat", S_IRUGO, proc_pid_schedstat),
 #endif
 #ifdef CONFIG_LATENCYTOP
-	REG("latency",  S_IRUGO, lstats),
+	REG("latency",  S_IRUGO, proc_lstats_operations),
 #endif
 #ifdef CONFIG_PROC_PID_CPUSET
-	REG("cpuset",    S_IRUGO, cpuset),
+	REG("cpuset",    S_IRUGO, proc_cpuset_operations),
 #endif
 #ifdef CONFIG_CGROUPS
-	REG("cgroup",  S_IRUGO, cgroup),
+	REG("cgroup",  S_IRUGO, proc_cgroup_operations),
 #endif
-	INF("oom_score", S_IRUGO, oom_score),
-	REG("oom_adj",   S_IRUGO|S_IWUSR, oom_adjust),
+	INF("oom_score", S_IRUGO, proc_oom_score),
+	REG("oom_adj",   S_IRUGO|S_IWUSR, proc_oom_adjust_operations),
 #ifdef CONFIG_AUDITSYSCALL
-	REG("loginuid",  S_IWUSR|S_IRUGO, loginuid),
-	REG("sessionid",  S_IRUSR, sessionid),
+	REG("loginuid",  S_IWUSR|S_IRUGO, proc_loginuid_operations),
+	REG("sessionid",  S_IRUSR, proc_sessionid_operations),
 #endif
 #ifdef CONFIG_FAULT_INJECTION
-	REG("make-it-fail", S_IRUGO|S_IWUSR, fault_inject),
+	REG("make-it-fail", S_IRUGO|S_IWUSR, proc_fault_inject_operations),
 #endif
 #ifdef CONFIG_TASK_IO_ACCOUNTING
-	INF("io",	S_IRUGO, tid_io_accounting),
+	INF("io",	S_IRUGO, proc_tid_io_accounting),
 #endif
 };
 

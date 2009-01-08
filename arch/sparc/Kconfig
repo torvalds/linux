@@ -4,6 +4,17 @@
 
 mainmenu "Linux/SPARC Kernel Configuration"
 
+config 64BIT
+	bool "64-bit kernel" if ARCH = "sparc"
+	default ARCH = "sparc64"
+	help
+	  SPARC is a family of RISC microprocessors designed and marketed by
+	  Sun Microsystems, incorporated.  They are very widely found in Sun
+	  workstations and clones.
+
+	  Say yes to build a 64-bit kernel - formerly known as sparc64
+	  Say no to build a 32-bit kernel - formerly known as sparc
+
 config SPARC
 	bool
 	default y
@@ -15,22 +26,11 @@ config SPARC
 	select RTC_CLASS
 	select RTC_DRV_M48T59
 
-# Identify this as a Sparc32 build
 config SPARC32
-	bool
-	default y if ARCH = "sparc"
-	help
-	  SPARC is a family of RISC microprocessors designed and marketed by
-	  Sun Microsystems, incorporated.  They are very widely found in Sun
-	  workstations and clones. This port covers the original 32-bit SPARC;
-	  it is old and stable and usually considered one of the "big three"
-	  along with the Intel and Alpha ports.  The UltraLinux project
-	  maintains both the SPARC32 and SPARC64 ports; its web page is
-	  available at <http://www.ultralinux.org/>.
+	def_bool !64BIT
 
 config SPARC64
-	bool
-	default y if ARCH = "sparc64"
+	def_bool 64BIT
 	select ARCH_SUPPORTS_MSI
 	select HAVE_FUNCTION_TRACER
 	select HAVE_KRETPROBES
@@ -52,9 +52,6 @@ config BITS
 	int
 	default 32 if SPARC32
 	default 64 if SPARC64
-
-config 64BIT
-	def_bool y if SPARC64
 
 config GENERIC_TIME
 	bool
@@ -187,14 +184,6 @@ config GENERIC_CALIBRATE_DELAY
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
-
-config ARCH_HAS_ILOG2_U32
-	bool
-	default n
-
-config ARCH_HAS_ILOG2_U64
-	bool
-	default n
 
 config EMULATED_CMPXCHG
 	bool
@@ -442,26 +431,6 @@ config SERIAL_CONSOLE
 endmenu
 
 menu "Bus options (PCI etc.)"
-config ISA
-	bool
-	help
-	  ISA is found on Espresso only and is not supported currently.
-
-config ISAPNP
-	bool
-	help
-	  ISAPNP is not supported
-
-config EISA
-	bool
-	help
-	  EISA is not supported.
-
-config MCA
-	bool
-	help
-	  MCA is not supported.
-
 config SBUS
 	bool
 	default y

@@ -26,7 +26,7 @@ mapped only for the time they are actually used and unmapped after the DMA
 transfer.
 
 The following API will work of course even on platforms where no such
-hardware exists, see e.g. include/asm-i386/pci.h for how it is implemented on
+hardware exists, see e.g. arch/x86/include/asm/pci.h for how it is implemented on
 top of the virt_to_bus interface.
 
 First of all, you should make sure

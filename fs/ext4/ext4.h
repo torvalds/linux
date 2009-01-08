@@ -1225,11 +1225,11 @@ do {								\
 } while (0)
 
 #ifdef CONFIG_SMP
-/* Each CPU can accumulate FBC_BATCH blocks in their local
+/* Each CPU can accumulate percpu_counter_batch blocks in their local
  * counters. So we need to make sure we have free blocks more
- * than FBC_BATCH  * nr_cpu_ids. Also add a window of 4 times.
+ * than percpu_counter_batch  * nr_cpu_ids. Also add a window of 4 times.
  */
-#define EXT4_FREEBLOCKS_WATERMARK (4 * (FBC_BATCH * nr_cpu_ids))
+#define EXT4_FREEBLOCKS_WATERMARK (4 * (percpu_counter_batch * nr_cpu_ids))
 #else
 #define EXT4_FREEBLOCKS_WATERMARK 0
 #endif

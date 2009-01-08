@@ -166,8 +166,6 @@ struct saved_vpd {
 };
 
 struct kvm_regs {
-	char *saved_guest;
-	char *saved_stack;
 	struct saved_vpd vpd;
 	/*Arch-regs*/
 	int mp_state;
@@ -200,6 +198,10 @@ struct kvm_regs {
 	unsigned long fp_psr;       /*used for lazy float register */
 	unsigned long saved_gp;
 	/*for phycial  emulation */
+
+	union context saved_guest;
+
+	unsigned long reserved[64];	/* for future use */
 };
 
 struct kvm_sregs {

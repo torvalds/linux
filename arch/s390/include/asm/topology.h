@@ -6,10 +6,12 @@
 #define mc_capable()	(1)
 
 cpumask_t cpu_coregroup_map(unsigned int cpu);
+const struct cpumask *cpu_coregroup_mask(unsigned int cpu);
 
 extern cpumask_t cpu_core_map[NR_CPUS];
 
 #define topology_core_siblings(cpu)	(cpu_core_map[cpu])
+#define topology_core_cpumask(cpu)	(&cpu_core_map[cpu])
 
 int topology_set_cpu_management(int fc);
 void topology_schedule_update(void);

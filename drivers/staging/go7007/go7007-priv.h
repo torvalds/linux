@@ -40,6 +40,7 @@ struct go7007;
 #define GO7007_BOARDID_LIFEVIEW_LR192	21 /* TV Walker Ultra */
 #define GO7007_BOARDID_ENDURA		22
 #define GO7007_BOARDID_ADLINK_MPG24	23
+#define GO7007_BOARDID_SENSORAY_2250	24 /* Sensoray 2250/2251 */
 
 /* Various characteristics of each board */
 #define GO7007_BOARD_HAS_AUDIO		(1<<0)
@@ -104,6 +105,7 @@ struct go7007_hpi_ops {
 	int (*stream_start)(struct go7007 *go);
 	int (*stream_stop)(struct go7007 *go);
 	int (*send_firmware)(struct go7007 *go, u8 *data, int len);
+	int (*send_command)(struct go7007 *go, unsigned int cmd, void *arg);
 };
 
 /* The video buffer size must be a multiple of PAGE_SIZE */

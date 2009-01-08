@@ -9,7 +9,7 @@
 
 /*
  * Logic: we've got two memory sums for each process, "shared", and
- * "non-shared". Shared memory may get counted more then once, for
+ * "non-shared". Shared memory may get counted more than once, for
  * each process that owns it. Non-shared memory is counted
  * accurately.
  */

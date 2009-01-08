@@ -534,12 +534,29 @@ static void __cpuinit free_cache_attributes(unsigned int cpu)
 	per_cpu(cpuid4_info, cpu) = NULL;
 }
 
+static void __cpuinit get_cpu_leaves(void *_retval)
+{
+	int j, *retval = _retval, cpu = smp_processor_id();
+
+	/* Do cpuid and store the results */
+	for (j = 0; j < num_cache_leaves; j++) {
+		struct _cpuid4_info *this_leaf;
+		this_leaf = CPUID4_INFO_IDX(cpu, j);
+		*retval = cpuid4_cache_lookup(j, this_leaf);
+		if (unlikely(*retval < 0)) {
+			int i;
+
+			for (i = 0; i < j; i++)
+				cache_remove_shared_cpu_map(cpu, i);
+			break;
+		}
+		cache_shared_cpu_map_setup(cpu, j);
+	}
+}
+
 static int __cpuinit detect_cache_attributes(unsigned int cpu)
 {
-	struct _cpuid4_info	*this_leaf;
-	unsigned long		j;
 	int			retval;
-	cpumask_t		oldmask;
 
 	if (num_cache_leaves == 0)
 		return -ENOENT;
@@ -549,27 +566,7 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 	if (per_cpu(cpuid4_info, cpu) == NULL)
 		return -ENOMEM;
 
-	oldmask = current->cpus_allowed;
-	retval = set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-	if (retval)
-		goto out;
-
-	/* Do cpuid and store the results */
-	for (j = 0; j < num_cache_leaves; j++) {
-		this_leaf = CPUID4_INFO_IDX(cpu, j);
-		retval = cpuid4_cache_lookup(j, this_leaf);
-		if (unlikely(retval < 0)) {
-			int i;
-
-			for (i = 0; i < j; i++)
-				cache_remove_shared_cpu_map(cpu, i);
-			break;
-		}
-		cache_shared_cpu_map_setup(cpu, j);
-	}
-	set_cpus_allowed_ptr(current, &oldmask);
-
-out:
+	smp_call_function_single(cpu, get_cpu_leaves, &retval, true);
 	if (retval) {
 		kfree(per_cpu(cpuid4_info, cpu));
 		per_cpu(cpuid4_info, cpu) = NULL;
@@ -626,8 +623,8 @@ static ssize_t show_shared_cpu_map_func(struct _cpuid4_info *this_leaf,
 		cpumask_t *mask = &this_leaf->shared_cpu_map;
 
 		n = type?
-			cpulist_scnprintf(buf, len-2, *mask):
-			cpumask_scnprintf(buf, len-2, *mask);
+			cpulist_scnprintf(buf, len-2, mask) :
+			cpumask_scnprintf(buf, len-2, mask);
 		buf[n++] = '\n';
 		buf[n] = '\0';
 	}

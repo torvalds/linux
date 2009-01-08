@@ -315,6 +315,11 @@ static inline int fls(int x)
 	return 32 - cnt;
 }
 
+static inline int __fls(int x)
+{
+	return fls(x) - 1;
+}
+
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/hweight.h>

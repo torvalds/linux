@@ -161,7 +161,7 @@ ep_matches (
 	/* report address */
 	desc->bEndpointAddress &= USB_DIR_IN;
 	if (isdigit (ep->name [2])) {
-		u8	num = simple_strtol (&ep->name [2], NULL, 10);
+		u8	num = simple_strtoul (&ep->name [2], NULL, 10);
 		desc->bEndpointAddress |= num;
 #ifdef	MANY_ENDPOINTS
 	} else if (desc->bEndpointAddress & USB_DIR_IN) {

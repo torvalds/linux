@@ -37,6 +37,10 @@
 #include <asm/pgalloc.h>
 #include <asm/cplbinit.h>
 
+/* Note: L1 stacks are CPU-private things, so we bluntly disable this
+   feature in SMP mode, and use the per-CPU scratch SRAM bank only to
+   store the PDA instead. */
+
 extern void *current_l1_stack_save;
 extern int nr_l1stack_tasks;
 extern void *l1_stack_base;
@@ -88,12 +92,15 @@ activate_l1stack(struct mm_struct *mm, unsigned long sp_base)
 static inline void switch_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm,
 			     struct task_struct *tsk)
 {
+#ifdef CONFIG_MPU
+	unsigned int cpu = smp_processor_id();
+#endif
 	if (prev_mm == next_mm)
 		return;
 #ifdef CONFIG_MPU
-	if (prev_mm->context.page_rwx_mask == current_rwx_mask) {
-		flush_switched_cplbs();
-		set_mask_dcplbs(next_mm->context.page_rwx_mask);
+	if (prev_mm->context.page_rwx_mask == current_rwx_mask[cpu]) {
+		flush_switched_cplbs(cpu);
+		set_mask_dcplbs(next_mm->context.page_rwx_mask, cpu);
 	}
 #endif
 
@@ -138,9 +145,10 @@ static inline void protect_page(struct mm_struct *mm, unsigned long addr,
 
 static inline void update_protections(struct mm_struct *mm)
 {
-	if (mm->context.page_rwx_mask == current_rwx_mask) {
-		flush_switched_cplbs();
-		set_mask_dcplbs(mm->context.page_rwx_mask);
+	unsigned int cpu = smp_processor_id();
+	if (mm->context.page_rwx_mask == current_rwx_mask[cpu]) {
+		flush_switched_cplbs(cpu);
+		set_mask_dcplbs(mm->context.page_rwx_mask, cpu);
 	}
 }
 #endif
@@ -165,6 +173,9 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 static inline void destroy_context(struct mm_struct *mm)
 {
 	struct sram_list_struct *tmp;
+#ifdef CONFIG_MPU
+	unsigned int cpu = smp_processor_id();
+#endif
 
 #ifdef CONFIG_APP_STACK_L1
 	if (current_l1_stack_save == mm->context.l1_stack_save)
@@ -179,8 +190,8 @@ static inline void destroy_context(struct mm_struct *mm)
 		kfree(tmp);
 	}
 #ifdef CONFIG_MPU
-	if (current_rwx_mask == mm->context.page_rwx_mask)
-		current_rwx_mask = NULL;
+	if (current_rwx_mask[cpu] == mm->context.page_rwx_mask)
+		current_rwx_mask[cpu] = NULL;
 	free_pages((unsigned long)mm->context.page_rwx_mask, page_mask_order);
 #endif
 }

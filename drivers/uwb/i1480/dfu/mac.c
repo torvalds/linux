@@ -31,9 +31,6 @@
 #include <linux/uwb.h>
 #include "i1480-dfu.h"
 
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
-
 /*
  * Descriptor for a continuous segment of MAC fw data
  */
@@ -184,10 +181,6 @@ ssize_t i1480_fw_cmp(struct i1480 *i1480, struct fw_hdr *hdr)
 		}
 		if (memcmp(i1480->cmd_buf, bin + src_itr, result)) {
 			u8 *buf = i1480->cmd_buf;
-			d_printf(2, i1480->dev,
-				 "original data @ %p + %u, %zu bytes\n",
-				 bin, src_itr, result);
-			d_dump(4, i1480->dev, bin + src_itr, result);
 			for (cnt = 0; cnt < result; cnt++)
 				if (bin[src_itr + cnt] != buf[cnt]) {
 					dev_err(i1480->dev, "byte failed at "
@@ -224,7 +217,6 @@ int mac_fw_hdrs_push(struct i1480 *i1480, struct fw_hdr *hdr,
 	struct fw_hdr *hdr_itr;
 	int verif_retry_count;
 
-	d_fnstart(3, dev, "(%p, %p)\n", i1480, hdr);
 	/* Now, header by header, push them to the hw */
 	for (hdr_itr = hdr; hdr_itr != NULL; hdr_itr = hdr_itr->next) {
 		verif_retry_count = 0;
@@ -264,7 +256,6 @@ retry:
 			break;
 		}
 	}
-	d_fnend(3, dev, "(%zd)\n", result);
 	return result;
 }
 
@@ -337,11 +328,9 @@ int __mac_fw_upload(struct i1480 *i1480, const char *fw_name,
 	const struct firmware *fw;
 	struct fw_hdr *fw_hdrs;
 
-	d_fnstart(3, i1480->dev, "(%p, %s, %s)\n", i1480, fw_name, fw_tag);
 	result = request_firmware(&fw, fw_name, i1480->dev);
 	if (result < 0)	/* Up to caller to complain on -ENOENT */
 		goto out;
-	d_printf(3, i1480->dev, "%s fw '%s': uploading\n", fw_tag, fw_name);
 	result = fw_hdrs_load(i1480, &fw_hdrs, fw->data, fw->size);
 	if (result < 0) {
 		dev_err(i1480->dev, "%s fw '%s': failed to parse firmware "
@@ -363,8 +352,6 @@ out_hdrs_release:
 out_release:
 	release_firmware(fw);
 out:
-	d_fnend(3, i1480->dev, "(%p, %s, %s) = %d\n", i1480, fw_name, fw_tag,
-		result);
 	return result;
 }
 
@@ -433,7 +420,6 @@ int i1480_fw_is_running_q(struct i1480 *i1480)
 	int result;
 	u32 *val = (u32 *) i1480->cmd_buf;
 
-	d_fnstart(3, i1480->dev, "(i1480 %p)\n", i1480);
 	for (cnt = 0; cnt < 10; cnt++) {
 		msleep(100);
 		result = i1480->read(i1480, 0x80080000, 4);
@@ -447,7 +433,6 @@ int i1480_fw_is_running_q(struct i1480 *i1480)
 	dev_err(i1480->dev, "Timed out waiting for fw to start\n");
 	result = -ETIMEDOUT;
 out:
-	d_fnend(3, i1480->dev, "(i1480 %p) = %d\n", i1480, result);
 	return result;
 
 }
@@ -467,7 +452,6 @@ int i1480_mac_fw_upload(struct i1480 *i1480)
 	int result = 0, deprecated_name = 0;
 	struct i1480_rceb *rcebe = (void *) i1480->evt_buf;
 
-	d_fnstart(3, i1480->dev, "(%p)\n", i1480);
 	result = __mac_fw_upload(i1480, i1480->mac_fw_name, "MAC");
 	if (result == -ENOENT) {
 		result = __mac_fw_upload(i1480, i1480->mac_fw_name_deprecate,
@@ -501,7 +485,6 @@ int i1480_mac_fw_upload(struct i1480 *i1480)
 		dev_err(i1480->dev, "MAC fw '%s': initialization event returns "
 			"wrong size (%zu bytes vs %zu needed)\n",
 			i1480->mac_fw_name, i1480->evt_result, sizeof(*rcebe));
-		dump_bytes(i1480->dev, rcebe, min(i1480->evt_result, (ssize_t)32));
 		goto error_size;
 	}
 	result = -EIO;
@@ -522,6 +505,5 @@ error_fw_not_running:
 error_init_timeout:
 error_size:
 error_setup:
-	d_fnend(3, i1480->dev, "(i1480 %p) = %d\n", i1480, result);
 	return result;
 }

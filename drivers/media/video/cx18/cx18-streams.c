@@ -37,13 +37,12 @@
 
 #define CX18_DSP0_INTERRUPT_MASK     	0xd0004C
 
-static struct file_operations cx18_v4l2_enc_fops = {
+static struct v4l2_file_operations cx18_v4l2_enc_fops = {
 	.owner = THIS_MODULE,
 	.read = cx18_v4l2_read,
 	.open = cx18_v4l2_open,
 	/* FIXME change to video_ioctl2 if serialization lock can be removed */
 	.ioctl = cx18_v4l2_ioctl,
-	.compat_ioctl = v4l_compat_ioctl32,
 	.release = cx18_v4l2_close,
 	.poll = cx18_v4l2_enc_poll,
 };
@@ -61,49 +60,41 @@ static struct {
 	int num_offset;
 	int dma;
 	enum v4l2_buf_type buf_type;
-	struct file_operations *fops;
 } cx18_stream_info[] = {
 	{	/* CX18_ENC_STREAM_TYPE_MPG */
 		"encoder MPEG",
 		VFL_TYPE_GRABBER, 0,
 		PCI_DMA_FROMDEVICE, V4L2_BUF_TYPE_VIDEO_CAPTURE,
-		&cx18_v4l2_enc_fops
 	},
 	{	/* CX18_ENC_STREAM_TYPE_TS */
 		"TS",
 		VFL_TYPE_GRABBER, -1,
 		PCI_DMA_FROMDEVICE, V4L2_BUF_TYPE_VIDEO_CAPTURE,
-		&cx18_v4l2_enc_fops
 	},
 	{	/* CX18_ENC_STREAM_TYPE_YUV */
 		"encoder YUV",
 		VFL_TYPE_GRABBER, CX18_V4L2_ENC_YUV_OFFSET,
 		PCI_DMA_FROMDEVICE, V4L2_BUF_TYPE_VIDEO_CAPTURE,
-		&cx18_v4l2_enc_fops
 	},
 	{	/* CX18_ENC_STREAM_TYPE_VBI */
 		"encoder VBI",
 		VFL_TYPE_VBI, 0,
 		PCI_DMA_FROMDEVICE, V4L2_BUF_TYPE_VBI_CAPTURE,
-		&cx18_v4l2_enc_fops
 	},
 	{	/* CX18_ENC_STREAM_TYPE_PCM */
 		"encoder PCM audio",
 		VFL_TYPE_GRABBER, CX18_V4L2_ENC_PCM_OFFSET,
 		PCI_DMA_FROMDEVICE, V4L2_BUF_TYPE_PRIVATE,
-		&cx18_v4l2_enc_fops
 	},
 	{	/* CX18_ENC_STREAM_TYPE_IDX */
 		"encoder IDX",
 		VFL_TYPE_GRABBER, -1,
 		PCI_DMA_FROMDEVICE, V4L2_BUF_TYPE_VIDEO_CAPTURE,
-		&cx18_v4l2_enc_fops
 	},
 	{	/* CX18_ENC_STREAM_TYPE_RAD */
 		"encoder radio",
 		VFL_TYPE_RADIO, 0,
 		PCI_DMA_NONE, V4L2_BUF_TYPE_PRIVATE,
-		&cx18_v4l2_enc_fops
 	},
 };
 
@@ -184,7 +175,7 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 
 	s->v4l2dev->num = num;
 	s->v4l2dev->parent = &cx->dev->dev;
-	s->v4l2dev->fops = cx18_stream_info[type].fops;
+	s->v4l2dev->fops = &cx18_v4l2_enc_fops;
 	s->v4l2dev->release = video_device_release;
 	s->v4l2dev->tvnorms = V4L2_STD_ALL;
 	cx18_set_funcs(s->v4l2dev);

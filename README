@@ -52,11 +52,11 @@ DOCUMENTATION:
 
  - The Documentation/DocBook/ subdirectory contains several guides for
    kernel developers and users.  These guides can be rendered in a
-   number of formats:  PostScript (.ps), PDF, and HTML, among others.
-   After installation, "make psdocs", "make pdfdocs", or "make htmldocs"
-   will render the documentation in the requested format.
+   number of formats:  PostScript (.ps), PDF, HTML, & man-pages, among others.
+   After installation, "make psdocs", "make pdfdocs", "make htmldocs",
+   or "make mandocs" will render the documentation in the requested format.
 
-INSTALLING the kernel:
+INSTALLING the kernel source:
 
  - If you install the full sources, put the kernel tarball in a
    directory where you have permissions (eg. your home directory) and
@@ -187,14 +187,9 @@ CONFIGURING the kernel:
 	"make randconfig"  Create a ./.config file by setting symbol
 			   values to random values.
 
-   The allyesconfig/allmodconfig/allnoconfig/randconfig variants can
-   also use the environment variable KCONFIG_ALLCONFIG to specify a
-   filename that contains config options that the user requires to be
-   set to a specific value.  If KCONFIG_ALLCONFIG=filename is not used,
-   "make *config" checks for a file named "all{yes/mod/no/random}.config"
-   for symbol values that are to be forced.  If this file is not found,
-   it checks for a file named "all.config" to contain forced values.
-   
+   You can find more information on using the Linux kernel config tools
+   in Documentation/kbuild/make-configs.txt.
+
 	NOTES on "make config":
 	- having unnecessary drivers will make the kernel bigger, and can
 	  under some circumstances lead to problems: probing for a
@@ -230,6 +225,19 @@ COMPILING the kernel:
 
  - If you configured any of the parts of the kernel as `modules', you
    will also have to do "make modules_install".
+
+ - Verbose kernel compile/build output:
+
+   Normally the kernel build system runs in a fairly quiet mode (but not
+   totally silent).  However, sometimes you or other kernel developers need
+   to see compile, link, or other commands exactly as they are executed.
+   For this, use "verbose" build mode.  This is done by inserting
+   "V=1" in the "make" command.  E.g.:
+
+	make V=1 all
+
+   To have the build system also tell the reason for the rebuild of each
+   target, use "V=2".  The default is "V=0".
 
  - Keep a backup kernel handy in case something goes wrong.  This is 
    especially true for the development releases, since each new release

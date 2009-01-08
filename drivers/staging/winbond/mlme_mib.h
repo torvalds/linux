@@ -22,15 +22,15 @@
 //   Set the dot11ExcludeUnencrypted value.
 //
 // Arguments:
-//   Adapter        - The pointer to the miniport adapter context.
+//   adapter        - The pointer to the miniport adapter context.
 //   ExUnencrypted  - unsigned char type. The value to be set.
 //
 // Return values:
 //   None.
 //============================================================================
-#define MLMESetExcludeUnencrypted(Adapter, ExUnencrypted)     \
+#define MLMESetExcludeUnencrypted(adapter, ExUnencrypted)     \
 {                                                              \
-    (Adapter)->sLocalPara.ExcludeUnencrypted = ExUnencrypted;             \
+    (adapter)->sLocalPara.ExcludeUnencrypted = ExUnencrypted;             \
 }
 
 //============================================================================
@@ -40,12 +40,12 @@
 //   Get the dot11ExcludeUnencrypted value.
 //
 // Arguments:
-//   Adapter        - The pointer to the miniport adapter context.
+//   adapter        - The pointer to the miniport adapter context.
 //
 // Return values:
 //   unsigned char type. The current dot11ExcludeUnencrypted value.
 //============================================================================
-#define MLMEGetExcludeUnencrypted(Adapter) ((unsigned char) (Adapter)->sLocalPara.ExcludeUnencrypted)
+#define MLMEGetExcludeUnencrypted(adapter) ((unsigned char) (adapter)->sLocalPara.ExcludeUnencrypted)
 
 //============================================================================
 // MLMESetMaxReceiveLifeTime --
@@ -54,15 +54,15 @@
 //   Set the dot11MaxReceiveLifeTime value.
 //
 // Arguments:
-//   Adapter        - The pointer to the miniport adapter context.
+//   adapter        - The pointer to the miniport adapter context.
 //   ReceiveLifeTime- u32 type. The value to be set.
 //
 // Return values:
 //   None.
 //============================================================================
-#define MLMESetMaxReceiveLifeTime(Adapter, ReceiveLifeTime)    \
+#define MLMESetMaxReceiveLifeTime(adapter, ReceiveLifeTime)    \
 {                                                               \
-    (Adapter)->Mds.MaxReceiveTime = ReceiveLifeTime;                \
+    (adapter)->Mds.MaxReceiveTime = ReceiveLifeTime;                \
 }
 
 //============================================================================
@@ -72,12 +72,12 @@
 //   Get the dot11MaxReceiveLifeTime value.
 //
 // Arguments:
-//   Adapter        - The pointer to the miniport adapter context.
+//   adapter        - The pointer to the miniport adapter context.
 //
 // Return values:
 //   u32 type. The current dot11MaxReceiveLifeTime value.
 //============================================================================
-#define MLMEGetMaxReceiveLifeTime(Adapter) ((u32) (Adapter)->Mds.MaxReceiveTime)
+#define MLMEGetMaxReceiveLifeTime(adapter) ((u32) (adapter)->Mds.MaxReceiveTime)
 
 #endif
 

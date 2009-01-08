@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/spinlock.h>
+#include <linux/async.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -179,6 +180,8 @@ int scsi_complete_async_scans(void)
 	spin_unlock(&async_scan_lock);
 
 	kfree(data);
+	/* Synchronize async operations globally */
+	async_synchronize_full();
 	return 0;
 }
 

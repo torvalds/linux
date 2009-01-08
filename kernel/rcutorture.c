@@ -136,7 +136,7 @@ static int stutter_pause_test = 0;
 #endif
 int rcutorture_runnable = RCUTORTURE_RUNNABLE_INIT;
 
-#define FULLSTOP_SIGNALED 1	/* Bail due to signal. */
+#define FULLSTOP_SHUTDOWN 1	/* Bail due to system shutdown/panic. */
 #define FULLSTOP_CLEANUP  2	/* Orderly shutdown. */
 static int fullstop;		/* stop generating callbacks at test end. */
 DEFINE_MUTEX(fullstop_mutex);	/* protect fullstop transitions and */
@@ -151,12 +151,10 @@ rcutorture_shutdown_notify(struct notifier_block *unused1,
 {
 	if (fullstop)
 		return NOTIFY_DONE;
-	if (signal_pending(current)) {
-		mutex_lock(&fullstop_mutex);
-		if (!ACCESS_ONCE(fullstop))
-			fullstop = FULLSTOP_SIGNALED;
-		mutex_unlock(&fullstop_mutex);
-	}
+	mutex_lock(&fullstop_mutex);
+	if (!fullstop)
+		fullstop = FULLSTOP_SHUTDOWN;
+	mutex_unlock(&fullstop_mutex);
 	return NOTIFY_DONE;
 }
 
@@ -624,7 +622,7 @@ rcu_torture_writer(void *arg)
 		rcu_stutter_wait();
 	} while (!kthread_should_stop() && !fullstop);
 	VERBOSE_PRINTK_STRING("rcu_torture_writer task stopping");
-	while (!kthread_should_stop() && fullstop != FULLSTOP_SIGNALED)
+	while (!kthread_should_stop() && fullstop != FULLSTOP_SHUTDOWN)
 		schedule_timeout_uninterruptible(1);
 	return 0;
 }
@@ -649,7 +647,7 @@ rcu_torture_fakewriter(void *arg)
 	} while (!kthread_should_stop() && !fullstop);
 
 	VERBOSE_PRINTK_STRING("rcu_torture_fakewriter task stopping");
-	while (!kthread_should_stop() && fullstop != FULLSTOP_SIGNALED)
+	while (!kthread_should_stop() && fullstop != FULLSTOP_SHUTDOWN)
 		schedule_timeout_uninterruptible(1);
 	return 0;
 }
@@ -759,7 +757,7 @@ rcu_torture_reader(void *arg)
 	VERBOSE_PRINTK_STRING("rcu_torture_reader task stopping");
 	if (irqreader && cur_ops->irqcapable)
 		del_timer_sync(&t);
-	while (!kthread_should_stop() && fullstop != FULLSTOP_SIGNALED)
+	while (!kthread_should_stop() && fullstop != FULLSTOP_SHUTDOWN)
 		schedule_timeout_uninterruptible(1);
 	return 0;
 }
@@ -868,49 +866,52 @@ static int rcu_idle_cpu;	/* Force all torture tasks off this CPU */
  */
 static void rcu_torture_shuffle_tasks(void)
 {
-	cpumask_t tmp_mask;
+	cpumask_var_t tmp_mask;
 	int i;
 
-	cpus_setall(tmp_mask);
+	if (!alloc_cpumask_var(&tmp_mask, GFP_KERNEL))
+		BUG();
+
+	cpumask_setall(tmp_mask);
 	get_online_cpus();
 
 	/* No point in shuffling if there is only one online CPU (ex: UP) */
-	if (num_online_cpus() == 1) {
-		put_online_cpus();
-		return;
-	}
+	if (num_online_cpus() == 1)
+		goto out;
 
 	if (rcu_idle_cpu != -1)
-		cpu_clear(rcu_idle_cpu, tmp_mask);
+		cpumask_clear_cpu(rcu_idle_cpu, tmp_mask);
 
-	set_cpus_allowed_ptr(current, &tmp_mask);
+	set_cpus_allowed_ptr(current, tmp_mask);
 
 	if (reader_tasks) {
 		for (i = 0; i < nrealreaders; i++)
 			if (reader_tasks[i])
 				set_cpus_allowed_ptr(reader_tasks[i],
-						     &tmp_mask);
+						     tmp_mask);
 	}
 
 	if (fakewriter_tasks) {
 		for (i = 0; i < nfakewriters; i++)
 			if (fakewriter_tasks[i])
 				set_cpus_allowed_ptr(fakewriter_tasks[i],
-						     &tmp_mask);
+						     tmp_mask);
 	}
 
 	if (writer_task)
-		set_cpus_allowed_ptr(writer_task, &tmp_mask);
+		set_cpus_allowed_ptr(writer_task, tmp_mask);
 
 	if (stats_task)
-		set_cpus_allowed_ptr(stats_task, &tmp_mask);
+		set_cpus_allowed_ptr(stats_task, tmp_mask);
 
 	if (rcu_idle_cpu == -1)
 		rcu_idle_cpu = num_online_cpus() - 1;
 	else
 		rcu_idle_cpu--;
 
+out:
 	put_online_cpus();
+	free_cpumask_var(tmp_mask);
 }
 
 /* Shuffle tasks across CPUs, with the intent of allowing each CPU in the

@@ -67,11 +67,11 @@ int whci_wait_for(struct device *dev, u32 __iomem *reg, u32 mask, u32 result,
 		val = le_readl(reg);
 		if ((val & mask) == result)
 			break;
-		msleep(10);
 		if (t >= max_ms) {
-			dev_err(dev, "timed out waiting for %s ", tag);
+			dev_err(dev, "%s timed out\n", tag);
 			return -ETIMEDOUT;
 		}
+		msleep(10);
 		t += 10;
 	}
 	return 0;
@@ -111,7 +111,7 @@ static int whci_add_cap(struct whci_card *card, int n)
 		+ UWBCAPDATA_TO_OFFSET(capdata);
 	umc->resource.end    = umc->resource.start
 		+ (n == 0 ? 0x20 : UWBCAPDATA_TO_SIZE(capdata)) - 1;
-	umc->resource.name   = umc->dev.bus_id;
+	umc->resource.name   = dev_name(&umc->dev);
 	umc->resource.flags  = card->pci->resource[bar].flags;
 	umc->resource.parent = &card->pci->resource[bar];
 	umc->irq             = card->pci->irq;

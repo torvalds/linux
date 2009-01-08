@@ -54,7 +54,7 @@ static u32 stb0899_calc_srate(u32 master_clk, u8 *sfr)
  * stb0899_get_srate
  * Get the current symbol rate
  */
-u32 stb0899_get_srate(struct stb0899_state *state)
+static u32 stb0899_get_srate(struct stb0899_state *state)
 {
 	struct stb0899_internal *internal = &state->internal;
 	u8 sfr[3];
@@ -763,7 +763,7 @@ static void stb0899_dvbs2_config_csm_auto(struct stb0899_state *state)
 	stb0899_write_s2reg(state, STB0899_S2DEMOD, STB0899_BASE_CSM_CNTRL1, STB0899_OFF0_CSM_CNTRL1, reg);
 }
 
-long Log2Int(int number)
+static long Log2Int(int number)
 {
 	int i;
 

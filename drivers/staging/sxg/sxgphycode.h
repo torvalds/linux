@@ -18,7 +18,7 @@
 /*
  * Download for AEL2005C PHY with SR/LR transceiver (10GBASE-SR or 10GBASE-LR)
  */
-static PHY_UCODE PhyUcode[] = {
+static struct PHY_UCODE PhyUcode[] = {
 	/*
 	 * NOTE:  An address of 0 is a special case.  When the download routine
 	 * sees an address of 0, it does not write to the PHY.  Instead, it

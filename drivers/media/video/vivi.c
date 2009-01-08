@@ -1024,9 +1024,9 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	File operations for the device
    ------------------------------------------------------------------*/
 
-static int vivi_open(struct inode *inode, struct file *file)
+static int vivi_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct vivi_dev *dev;
 	struct vivi_fh *fh = NULL;
 	int i;
@@ -1127,13 +1127,13 @@ vivi_poll(struct file *file, struct poll_table_struct *wait)
 	return videobuf_poll_stream(file, q, wait);
 }
 
-static int vivi_close(struct inode *inode, struct file *file)
+static int vivi_close(struct file *file)
 {
 	struct vivi_fh         *fh = file->private_data;
 	struct vivi_dev *dev       = fh->dev;
 	struct vivi_dmaqueue *vidq = &dev->vidq;
 
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 
 	vivi_stop_thread(vidq);
 	videobuf_stop(&fh->vb_vidq);
@@ -1195,16 +1195,14 @@ static int vivi_mmap(struct file *file, struct vm_area_struct *vma)
 	return ret;
 }
 
-static const struct file_operations vivi_fops = {
+static const struct v4l2_file_operations vivi_fops = {
 	.owner		= THIS_MODULE,
 	.open           = vivi_open,
 	.release        = vivi_close,
 	.read           = vivi_read,
 	.poll		= vivi_poll,
 	.ioctl          = video_ioctl2, /* V4L2 ioctl handler */
-	.compat_ioctl   = v4l_compat_ioctl32,
 	.mmap           = vivi_mmap,
-	.llseek         = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops vivi_ioctl_ops = {

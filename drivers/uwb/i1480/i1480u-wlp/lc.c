@@ -55,10 +55,9 @@
  *                          is being removed.
  *         i1480u_rm()
  */
-#include <linux/version.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
-#include <linux/uwb/debug.h>
+
 #include "i1480u-wlp.h"
 
 
@@ -207,7 +206,7 @@ int i1480u_add(struct i1480u *i1480u, struct usb_interface *iface)
 	wlp->fill_device_info = i1480u_fill_device_info;
 	wlp->stop_queue = i1480u_stop_queue;
 	wlp->start_queue = i1480u_start_queue;
-	result = wlp_setup(wlp, rc);
+	result = wlp_setup(wlp, rc, net_dev);
 	if (result < 0) {
 		dev_err(&iface->dev, "Cannot setup WLP\n");
 		goto error_wlp_setup;

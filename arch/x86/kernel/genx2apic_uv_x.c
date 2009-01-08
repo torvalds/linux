@@ -79,16 +79,15 @@ EXPORT_SYMBOL(sn_rtc_cycles_per_second);
 
 /* Start with all IRQs pointing to boot CPU.  IRQ balancing will shift them. */
 
-static cpumask_t uv_target_cpus(void)
+static const struct cpumask *uv_target_cpus(void)
 {
-	return cpumask_of_cpu(0);
+	return cpumask_of(0);
 }
 
-static cpumask_t uv_vector_allocation_domain(int cpu)
+static void uv_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
-	cpumask_t domain = CPU_MASK_NONE;
-	cpu_set(cpu, domain);
-	return domain;
+	cpumask_clear(retmask);
+	cpumask_set_cpu(cpu, retmask);
 }
 
 int uv_wakeup_secondary(int phys_apicid, unsigned int start_rip)
@@ -127,28 +126,37 @@ static void uv_send_IPI_one(int cpu, int vector)
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 }
 
-static void uv_send_IPI_mask(cpumask_t mask, int vector)
+static void uv_send_IPI_mask(const struct cpumask *mask, int vector)
 {
 	unsigned int cpu;
 
-	for_each_possible_cpu(cpu)
-		if (cpu_isset(cpu, mask))
+	for_each_cpu(cpu, mask)
+		uv_send_IPI_one(cpu, vector);
+}
+
+static void uv_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
+{
+	unsigned int cpu;
+	unsigned int this_cpu = smp_processor_id();
+
+	for_each_cpu(cpu, mask)
+		if (cpu != this_cpu)
 			uv_send_IPI_one(cpu, vector);
 }
 
 static void uv_send_IPI_allbutself(int vector)
 {
-	cpumask_t mask = cpu_online_map;
+	unsigned int cpu;
+	unsigned int this_cpu = smp_processor_id();
 
-	cpu_clear(smp_processor_id(), mask);
-
-	if (!cpus_empty(mask))
-		uv_send_IPI_mask(mask, vector);
+	for_each_online_cpu(cpu)
+		if (cpu != this_cpu)
+			uv_send_IPI_one(cpu, vector);
 }
 
 static void uv_send_IPI_all(int vector)
 {
-	uv_send_IPI_mask(cpu_online_map, vector);
+	uv_send_IPI_mask(cpu_online_mask, vector);
 }
 
 static int uv_apic_id_registered(void)
@@ -160,7 +168,7 @@ static void uv_init_apic_ldr(void)
 {
 }
 
-static unsigned int uv_cpu_mask_to_apicid(cpumask_t cpumask)
+static unsigned int uv_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
 	int cpu;
 
@@ -168,11 +176,28 @@ static unsigned int uv_cpu_mask_to_apicid(cpumask_t cpumask)
 	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
 	 * May as well be the first.
 	 */
-	cpu = first_cpu(cpumask);
+	cpu = cpumask_first(cpumask);
 	if ((unsigned)cpu < nr_cpu_ids)
 		return per_cpu(x86_cpu_to_apicid, cpu);
 	else
 		return BAD_APICID;
+}
+
+static unsigned int uv_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+					      const struct cpumask *andmask)
+{
+	int cpu;
+
+	/*
+	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
+	 * May as well be the first.
+	 */
+	for_each_cpu_and(cpu, cpumask, andmask)
+		if (cpumask_test_cpu(cpu, cpu_online_mask))
+			break;
+	if (cpu < nr_cpu_ids)
+		return per_cpu(x86_cpu_to_apicid, cpu);
+	return BAD_APICID;
 }
 
 static unsigned int get_apic_id(unsigned long x)
@@ -222,8 +247,10 @@ struct genapic apic_x2apic_uv_x = {
 	.send_IPI_all = uv_send_IPI_all,
 	.send_IPI_allbutself = uv_send_IPI_allbutself,
 	.send_IPI_mask = uv_send_IPI_mask,
+	.send_IPI_mask_allbutself = uv_send_IPI_mask_allbutself,
 	.send_IPI_self = uv_send_IPI_self,
 	.cpu_mask_to_apicid = uv_cpu_mask_to_apicid,
+	.cpu_mask_to_apicid_and = uv_cpu_mask_to_apicid_and,
 	.phys_pkg_id = phys_pkg_id,
 	.get_apic_id = get_apic_id,
 	.set_apic_id = set_apic_id,

@@ -399,13 +399,13 @@ MODULE_PARM_DESC(specific_debug,
  ****************************************************************************/
 
 /* Video4linux interface */
-static const struct file_operations w9968cf_fops;
-static int w9968cf_open(struct inode*, struct file*);
-static int w9968cf_release(struct inode*, struct file*);
-static int w9968cf_mmap(struct file*, struct vm_area_struct*);
-static int w9968cf_ioctl(struct inode*, struct file*, unsigned, unsigned long);
-static ssize_t w9968cf_read(struct file*, char __user *, size_t, loff_t*);
-static int w9968cf_v4l_ioctl(struct inode*, struct file*, unsigned int,
+static const struct v4l2_file_operations w9968cf_fops;
+static int w9968cf_open(struct file *);
+static int w9968cf_release(struct file *);
+static int w9968cf_mmap(struct file *, struct vm_area_struct *);
+static long w9968cf_ioctl(struct file *, unsigned, unsigned long);
+static ssize_t w9968cf_read(struct file *, char __user *, size_t, loff_t *);
+static long w9968cf_v4l_ioctl(struct file *, unsigned int,
 			     void __user *);
 
 /* USB-specific */
@@ -1553,7 +1553,6 @@ static int w9968cf_i2c_init(struct w9968cf_device* cam)
 
 	static struct i2c_adapter adap = {
 		.id =                I2C_HW_SMBUS_W9968CF,
-		.class =             I2C_CLASS_CAM_DIGITAL,
 		.owner =             THIS_MODULE,
 		.client_register =   w9968cf_i2c_attach_inform,
 		.client_unregister = w9968cf_i2c_detach_inform,
@@ -2662,7 +2661,7 @@ static void w9968cf_release_resources(struct w9968cf_device* cam)
  * Video4Linux interface                                                    *
  ****************************************************************************/
 
-static int w9968cf_open(struct inode* inode, struct file* filp)
+static int w9968cf_open(struct file *filp)
 {
 	struct w9968cf_device* cam;
 	int err;
@@ -2748,7 +2747,7 @@ deallocate_memory:
 }
 
 
-static int w9968cf_release(struct inode* inode, struct file* filp)
+static int w9968cf_release(struct file *filp)
 {
 	struct w9968cf_device* cam;
 
@@ -2885,12 +2884,12 @@ static int w9968cf_mmap(struct file* filp, struct vm_area_struct *vma)
 }
 
 
-static int
-w9968cf_ioctl(struct inode* inode, struct file* filp,
+static long
+w9968cf_ioctl(struct file *filp,
 	      unsigned int cmd, unsigned long arg)
 {
 	struct w9968cf_device* cam;
-	int err;
+	long err;
 
 	cam = (struct w9968cf_device*)video_get_drvdata(video_devdata(filp));
 
@@ -2909,15 +2908,15 @@ w9968cf_ioctl(struct inode* inode, struct file* filp,
 		return -EIO;
 	}
 
-	err = w9968cf_v4l_ioctl(inode, filp, cmd, (void __user *)arg);
+	err = w9968cf_v4l_ioctl(filp, cmd, (void __user *)arg);
 
 	mutex_unlock(&cam->fileop_mutex);
 	return err;
 }
 
 
-static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
-			     unsigned int cmd, void __user * arg)
+static long w9968cf_v4l_ioctl(struct file *filp,
+			     unsigned int cmd, void __user *arg)
 {
 	struct w9968cf_device* cam;
 	const char* v4l1_ioctls[] = {
@@ -3456,17 +3455,13 @@ ioctl_fail:
 }
 
 
-static const struct file_operations w9968cf_fops = {
+static const struct v4l2_file_operations w9968cf_fops = {
 	.owner =   THIS_MODULE,
 	.open =    w9968cf_open,
 	.release = w9968cf_release,
 	.read =    w9968cf_read,
 	.ioctl =   w9968cf_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l_compat_ioctl32,
-#endif
 	.mmap =    w9968cf_mmap,
-	.llseek =  no_llseek,
 };
 
 

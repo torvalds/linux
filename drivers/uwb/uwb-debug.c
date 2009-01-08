@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
+ * Copyright (C) 2008 Cambridge Silicon Radio Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version
@@ -33,30 +34,8 @@
 #include <linux/seq_file.h>
 
 #include <linux/uwb/debug-cmd.h>
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
 
 #include "uwb-internal.h"
-
-void dump_bytes(struct device *dev, const void *_buf, size_t rsize)
-{
-	const char *buf = _buf;
-	char line[32];
-	size_t offset = 0;
-	int cnt, cnt2;
-	for (cnt = 0; cnt < rsize; cnt += 8) {
-		size_t rtop = rsize - cnt < 8 ? rsize - cnt : 8;
-		for (offset = cnt2 = 0; cnt2 < rtop; cnt2++) {
-			offset += scnprintf(line + offset, sizeof(line) - offset,
-					    "%02x ", buf[cnt + cnt2] & 0xff);
-		}
-		if (dev)
-			dev_info(dev, "%s\n", line);
-		else
-			printk(KERN_INFO "%s\n", line);
-	}
-}
-EXPORT_SYMBOL_GPL(dump_bytes);
 
 /*
  * Debug interface
@@ -84,26 +63,23 @@ struct uwb_dbg {
 	struct dentry *reservations_f;
 	struct dentry *accept_f;
 	struct dentry *drp_avail_f;
+	spinlock_t list_lock;
 };
 
 static struct dentry *root_dir;
 
 static void uwb_dbg_rsv_cb(struct uwb_rsv *rsv)
 {
-	struct uwb_rc *rc = rsv->rc;
-	struct device *dev = &rc->uwb_dev.dev;
-	struct uwb_dev_addr devaddr;
-	char owner[UWB_ADDR_STRSIZE], target[UWB_ADDR_STRSIZE];
+	struct uwb_dbg *dbg = rsv->pal_priv;
 
-	uwb_dev_addr_print(owner, sizeof(owner), &rsv->owner->dev_addr);
-	if (rsv->target.type == UWB_RSV_TARGET_DEV)
-		devaddr = rsv->target.dev->dev_addr;
-	else
-		devaddr = rsv->target.devaddr;
-	uwb_dev_addr_print(target, sizeof(target), &devaddr);
+	uwb_rsv_dump("debug", rsv);
 
-	dev_dbg(dev, "debug: rsv %s -> %s: %s\n",
-		owner, target, uwb_rsv_state_str(rsv->state));
+	if (rsv->state == UWB_RSV_STATE_NONE) {
+		spin_lock(&dbg->list_lock);
+		list_del(&rsv->pal_node);
+		spin_unlock(&dbg->list_lock);
+		uwb_rsv_destroy(rsv);
+	}
 }
 
 static int cmd_rsv_establish(struct uwb_rc *rc,
@@ -119,26 +95,27 @@ static int cmd_rsv_establish(struct uwb_rc *rc,
 	if (target == NULL)
 		return -ENODEV;
 
-	rsv = uwb_rsv_create(rc, uwb_dbg_rsv_cb, NULL);
+	rsv = uwb_rsv_create(rc, uwb_dbg_rsv_cb, rc->dbg);
 	if (rsv == NULL) {
 		uwb_dev_put(target);
 		return -ENOMEM;
 	}
 
-	rsv->owner       = &rc->uwb_dev;
-	rsv->target.type = UWB_RSV_TARGET_DEV;
-	rsv->target.dev  = target;
-	rsv->type        = cmd->type;
-	rsv->max_mas     = cmd->max_mas;
-	rsv->min_mas     = cmd->min_mas;
-	rsv->sparsity    = cmd->sparsity;
+	rsv->target.type  = UWB_RSV_TARGET_DEV;
+	rsv->target.dev   = target;
+	rsv->type         = cmd->type;
+	rsv->max_mas      = cmd->max_mas;
+	rsv->min_mas      = cmd->min_mas;
+	rsv->max_interval = cmd->max_interval;
 
 	ret = uwb_rsv_establish(rsv);
 	if (ret)
 		uwb_rsv_destroy(rsv);
-	else
+	else {
+		spin_lock(&(rc->dbg)->list_lock);
 		list_add_tail(&rsv->pal_node, &rc->dbg->rsvs);
-
+		spin_unlock(&(rc->dbg)->list_lock);
+	}
 	return ret;
 }
 
@@ -148,19 +125,38 @@ static int cmd_rsv_terminate(struct uwb_rc *rc,
 	struct uwb_rsv *rsv, *found = NULL;
 	int i = 0;
 
+	spin_lock(&(rc->dbg)->list_lock);
+
 	list_for_each_entry(rsv, &rc->dbg->rsvs, pal_node) {
 		if (i == cmd->index) {
 			found = rsv;
+			uwb_rsv_get(found);
 			break;
 		}
+		i++;
 	}
+
+	spin_unlock(&(rc->dbg)->list_lock);
+
 	if (!found)
 		return -EINVAL;
 
-	list_del(&found->pal_node);
 	uwb_rsv_terminate(found);
+	uwb_rsv_put(found);
 
 	return 0;
+}
+
+static int cmd_ie_add(struct uwb_rc *rc, struct uwb_dbg_cmd_ie *ie_to_add)
+{
+	return uwb_rc_ie_add(rc,
+			     (const struct uwb_ie_hdr *) ie_to_add->data,
+			     ie_to_add->len);
+}
+
+static int cmd_ie_rm(struct uwb_rc *rc, struct uwb_dbg_cmd_ie *ie_to_rm)
+{
+	return uwb_rc_ie_rm(rc, ie_to_rm->data[0]);
 }
 
 static int command_open(struct inode *inode, struct file *file)
@@ -175,8 +171,8 @@ static ssize_t command_write(struct file *file, const char __user *buf,
 {
 	struct uwb_rc *rc = file->private_data;
 	struct uwb_dbg_cmd cmd;
-	int ret;
-
+	int ret = 0;
+	
 	if (len != sizeof(struct uwb_dbg_cmd))
 		return -EINVAL;
 
@@ -189,6 +185,18 @@ static ssize_t command_write(struct file *file, const char __user *buf,
 		break;
 	case UWB_DBG_CMD_RSV_TERMINATE:
 		ret = cmd_rsv_terminate(rc, &cmd.rsv_terminate);
+		break;
+	case UWB_DBG_CMD_IE_ADD:
+		ret = cmd_ie_add(rc, &cmd.ie_add);
+		break;
+	case UWB_DBG_CMD_IE_RM:
+		ret = cmd_ie_rm(rc, &cmd.ie_rm);
+		break;
+	case UWB_DBG_CMD_RADIO_START:
+		ret = uwb_radio_start(&rc->dbg->pal);
+		break;
+	case UWB_DBG_CMD_RADIO_STOP:
+		uwb_radio_stop(&rc->dbg->pal);
 		break;
 	default:
 		return -EINVAL;
@@ -283,12 +291,26 @@ static struct file_operations drp_avail_fops = {
 	.owner   = THIS_MODULE,
 };
 
-static void uwb_dbg_new_rsv(struct uwb_rsv *rsv)
+static void uwb_dbg_channel_changed(struct uwb_pal *pal, int channel)
 {
-	struct uwb_rc *rc = rsv->rc;
+	struct device *dev = &pal->rc->uwb_dev.dev;
 
-	if (rc->dbg->accept)
-		uwb_rsv_accept(rsv, uwb_dbg_rsv_cb, NULL);
+	if (channel > 0)
+		dev_info(dev, "debug: channel %d started\n", channel);
+	else
+		dev_info(dev, "debug: channel stopped\n");
+}
+
+static void uwb_dbg_new_rsv(struct uwb_pal *pal, struct uwb_rsv *rsv)
+{
+	struct uwb_dbg *dbg = container_of(pal, struct uwb_dbg, pal);
+
+	if (dbg->accept) {
+		spin_lock(&dbg->list_lock);
+		list_add_tail(&rsv->pal_node, &dbg->rsvs);
+		spin_unlock(&dbg->list_lock);
+		uwb_rsv_accept(rsv, uwb_dbg_rsv_cb, dbg);
+	}
 }
 
 /**
@@ -302,10 +324,14 @@ void uwb_dbg_add_rc(struct uwb_rc *rc)
 		return;
 
 	INIT_LIST_HEAD(&rc->dbg->rsvs);
+	spin_lock_init(&(rc->dbg)->list_lock);
 
 	uwb_pal_init(&rc->dbg->pal);
+	rc->dbg->pal.rc = rc;
+	rc->dbg->pal.channel_changed = uwb_dbg_channel_changed;
 	rc->dbg->pal.new_rsv = uwb_dbg_new_rsv;
-	uwb_pal_register(rc, &rc->dbg->pal);
+	uwb_pal_register(&rc->dbg->pal);
+
 	if (root_dir) {
 		rc->dbg->root_d = debugfs_create_dir(dev_name(&rc->uwb_dev.dev),
 						     root_dir);
@@ -325,7 +351,7 @@ void uwb_dbg_add_rc(struct uwb_rc *rc)
 }
 
 /**
- * uwb_dbg_add_rc - remove a radio controller's debug interface
+ * uwb_dbg_del_rc - remove a radio controller's debug interface
  * @rc: the radio controller
  */
 void uwb_dbg_del_rc(struct uwb_rc *rc)
@@ -336,10 +362,10 @@ void uwb_dbg_del_rc(struct uwb_rc *rc)
 		return;
 
 	list_for_each_entry_safe(rsv, t, &rc->dbg->rsvs, pal_node) {
-		uwb_rsv_destroy(rsv);
+		uwb_rsv_terminate(rsv);
 	}
 
-	uwb_pal_unregister(rc, &rc->dbg->pal);
+	uwb_pal_unregister(&rc->dbg->pal);
 
 	if (root_dir) {
 		debugfs_remove(rc->dbg->drp_avail_f);
@@ -364,4 +390,17 @@ void uwb_dbg_init(void)
 void uwb_dbg_exit(void)
 {
 	debugfs_remove(root_dir);
+}
+
+/**
+ * uwb_dbg_create_pal_dir - create a debugfs directory for a PAL
+ * @pal: The PAL.
+ */
+struct dentry *uwb_dbg_create_pal_dir(struct uwb_pal *pal)
+{
+	struct uwb_rc *rc = pal->rc;
+
+	if (root_dir && rc->dbg && rc->dbg->root_d && pal->name)
+		return debugfs_create_dir(pal->name, rc->dbg->root_d);
+	return NULL;
 }

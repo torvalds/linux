@@ -47,13 +47,7 @@ static char *policycap_names[] = {
 
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
 
-#ifdef CONFIG_SECURITY_SELINUX_ENABLE_SECMARK_DEFAULT
-#define SELINUX_COMPAT_NET_VALUE 0
-#else
-#define SELINUX_COMPAT_NET_VALUE 1
-#endif
-
-int selinux_compat_net = SELINUX_COMPAT_NET_VALUE;
+int selinux_compat_net = 0;
 
 static int __init checkreqprot_setup(char *str)
 {
@@ -494,7 +488,13 @@ static ssize_t sel_write_compat_net(struct file *file, const char __user *buf,
 	if (sscanf(page, "%d", &new_value) != 1)
 		goto out;
 
-	selinux_compat_net = new_value ? 1 : 0;
+	if (new_value) {
+		printk(KERN_NOTICE
+		       "SELinux: compat_net is deprecated, please use secmark"
+		       " instead\n");
+		selinux_compat_net = 1;
+	} else
+		selinux_compat_net = 0;
 	length = count;
 out:
 	free_page((unsigned long) page);
@@ -847,8 +847,6 @@ static struct inode *sel_make_inode(struct super_block *sb, int mode)
 
 	if (ret) {
 		ret->i_mode = mode;
-		ret->i_uid = ret->i_gid = 0;
-		ret->i_blocks = 0;
 		ret->i_atime = ret->i_mtime = ret->i_ctime = CURRENT_TIME;
 	}
 	return ret;
@@ -1211,7 +1209,7 @@ static struct avc_cache_stats *sel_avc_get_stat_idx(loff_t *idx)
 {
 	int cpu;
 
-	for (cpu = *idx; cpu < NR_CPUS; ++cpu) {
+	for (cpu = *idx; cpu < nr_cpu_ids; ++cpu) {
 		if (!cpu_possible(cpu))
 			continue;
 		*idx = cpu + 1;

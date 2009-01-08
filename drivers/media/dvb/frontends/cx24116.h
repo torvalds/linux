@@ -37,7 +37,8 @@ struct cx24116_config {
 	u8 mpg_clk_pos_pol:0x02;
 };
 
-#if defined(CONFIG_DVB_CX24116) || defined(CONFIG_DVB_CX24116_MODULE)
+#if defined(CONFIG_DVB_CX24116) || \
+	(defined(CONFIG_DVB_CX24116_MODULE) && defined(MODULE))
 extern struct dvb_frontend *cx24116_attach(
 	const struct cx24116_config *config,
 	struct i2c_adapter *i2c);

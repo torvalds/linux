@@ -134,7 +134,7 @@ static const struct stb0899_tab stb0899_dvbs2rf_tab[] = {
 };
 
 /* DVB-S2 Es/N0 quant in dB/100 vs read value * 100*/
-struct stb0899_tab stb0899_quant_tab[] = {
+static struct stb0899_tab stb0899_quant_tab[] = {
 	{    0,	    0 },
 	{    0,	  100 },
 	{  600,	  200 },
@@ -177,7 +177,7 @@ struct stb0899_tab stb0899_quant_tab[] = {
 };
 
 /* DVB-S2 Es/N0 estimate in dB/100 vs read value */
-struct stb0899_tab stb0899_est_tab[] = {
+static struct stb0899_tab stb0899_est_tab[] = {
 	{    0,	     0 },
 	{    0,	     1 },
 	{  301,	     2 },
@@ -217,7 +217,7 @@ struct stb0899_tab stb0899_est_tab[] = {
 	{ 5721,	526017 },
 };
 
-int _stb0899_read_reg(struct stb0899_state *state, unsigned int reg)
+static int _stb0899_read_reg(struct stb0899_state *state, unsigned int reg)
 {
 	int ret;
 
@@ -1618,6 +1618,7 @@ static struct dvb_frontend_ops stb0899_ops = {
 
 		.caps 			= FE_CAN_INVERSION_AUTO	|
 					  FE_CAN_FEC_AUTO	|
+					  FE_CAN_2G_MODULATION	|
 					  FE_CAN_QPSK
 	},
 

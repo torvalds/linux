@@ -99,4 +99,10 @@
 #define L1_SCRATCH_START	0xFFB00000
 #define L1_SCRATCH_LENGTH	0x1000
 
+#define GET_PDA_SAFE(preg)		\
+	preg.l = _cpu_pda;		\
+	preg.h = _cpu_pda;
+
+#define GET_PDA(preg, dreg)	GET_PDA_SAFE(preg)
+
 #endif				/* _MEM_MAP_527_H_ */

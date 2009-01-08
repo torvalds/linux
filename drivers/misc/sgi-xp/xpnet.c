@@ -138,7 +138,7 @@ struct device_driver xpnet_dbg_name = {
 };
 
 struct device xpnet_dbg_subname = {
-	.bus_id = {0},		/* set to "" */
+	.init_name = "",	/* set to "" */
 	.driver = &xpnet_dbg_name
 };
 

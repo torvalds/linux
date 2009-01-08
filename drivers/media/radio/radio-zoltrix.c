@@ -401,27 +401,23 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static struct zol_device zoltrix_unit;
 
-static int zoltrix_exclusive_open(struct inode *inode, struct file *file)
+static int zoltrix_exclusive_open(struct file *file)
 {
 	return test_and_set_bit(0, &zoltrix_unit.in_use) ? -EBUSY : 0;
 }
 
-static int zoltrix_exclusive_release(struct inode *inode, struct file *file)
+static int zoltrix_exclusive_release(struct file *file)
 {
 	clear_bit(0, &zoltrix_unit.in_use);
 	return 0;
 }
 
-static const struct file_operations zoltrix_fops =
+static const struct v4l2_file_operations zoltrix_fops =
 {
 	.owner		= THIS_MODULE,
 	.open           = zoltrix_exclusive_open,
 	.release        = zoltrix_exclusive_release,
 	.ioctl		= video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek         = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops zoltrix_ioctl_ops = {

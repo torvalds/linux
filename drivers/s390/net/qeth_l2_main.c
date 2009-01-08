@@ -20,8 +20,6 @@
 #include <linux/mii.h>
 #include <linux/ip.h>
 
-#include <asm/s390_rdev.h>
-
 #include "qeth_core.h"
 #include "qeth_core_offl.h"
 
@@ -1126,9 +1124,11 @@ static int qeth_l2_recover(void *ptr)
 		dev_info(&card->gdev->dev,
 			"Device successfully recovered!\n");
 	else {
-		rtnl_lock();
-		dev_close(card->dev);
-		rtnl_unlock();
+		if (card->dev) {
+			rtnl_lock();
+			dev_close(card->dev);
+			rtnl_unlock();
+		}
 		dev_warn(&card->gdev->dev, "The qeth device driver "
 			"failed to recover an error on the device\n");
 	}

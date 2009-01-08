@@ -674,19 +674,19 @@ static int ivtv_s_fmt_vid_out_overlay(struct file *file, void *fh, struct v4l2_f
 	return ret;
 }
 
-static int ivtv_g_chip_ident(struct file *file, void *fh, struct v4l2_chip_ident *chip)
+static int ivtv_g_chip_ident(struct file *file, void *fh, struct v4l2_dbg_chip_ident *chip)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
-	if (chip->match_type == V4L2_CHIP_MATCH_HOST) {
-		if (v4l2_chip_match_host(chip->match_type, chip->match_chip))
+	if (chip->match.type == V4L2_CHIP_MATCH_HOST) {
+		if (v4l2_chip_match_host(&chip->match))
 			chip->ident = itv->has_cx23415 ? V4L2_IDENT_CX23415 : V4L2_IDENT_CX23416;
 		return 0;
 	}
-	if (chip->match_type != V4L2_CHIP_MATCH_I2C_DRIVER &&
-	    chip->match_type != V4L2_CHIP_MATCH_I2C_ADDR)
+	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
+	    chip->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
 		return -EINVAL;
 	/* TODO: is this correct? */
 	return ivtv_call_all_err(itv, core, g_chip_ident, chip);
@@ -695,7 +695,7 @@ static int ivtv_g_chip_ident(struct file *file, void *fh, struct v4l2_chip_ident
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int ivtv_itvc(struct ivtv *itv, unsigned int cmd, void *arg)
 {
-	struct v4l2_register *regs = arg;
+	struct v4l2_dbg_register *regs = arg;
 	volatile u8 __iomem *reg_start;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -710,6 +710,7 @@ static int ivtv_itvc(struct ivtv *itv, unsigned int cmd, void *arg)
 	else
 		return -EINVAL;
 
+	regs->size = 4;
 	if (cmd == VIDIOC_DBG_G_REGISTER)
 		regs->val = readl(regs->reg + reg_start);
 	else
@@ -717,11 +718,11 @@ static int ivtv_itvc(struct ivtv *itv, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int ivtv_g_register(struct file *file, void *fh, struct v4l2_register *reg)
+static int ivtv_g_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
-	if (v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (v4l2_chip_match_host(&reg->match))
 		return ivtv_itvc(itv, VIDIOC_DBG_G_REGISTER, reg);
 	/* TODO: subdev errors should not be ignored, this should become a
 	   subdev helper function. */
@@ -729,11 +730,11 @@ static int ivtv_g_register(struct file *file, void *fh, struct v4l2_register *re
 	return 0;
 }
 
-static int ivtv_s_register(struct file *file, void *fh, struct v4l2_register *reg)
+static int ivtv_s_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
-	if (v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (v4l2_chip_match_host(&reg->match))
 		return ivtv_itvc(itv, VIDIOC_DBG_S_REGISTER, reg);
 	/* TODO: subdev errors should not be ignored, this should become a
 	   subdev helper function. */
@@ -1725,7 +1726,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int ivtv_default(struct file *file, void *fh, int cmd, void *arg)
+static long ivtv_default(struct file *file, void *fh, int cmd, void *arg)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
@@ -1827,7 +1828,7 @@ static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
 
 	if (ivtv_debug & IVTV_DBGFLG_IOCTL)
 		vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
-	ret = __video_ioctl2(filp, cmd, arg);
+	ret = video_ioctl2(filp, cmd, arg);
 	vfd->debug = 0;
 	return ret;
 }

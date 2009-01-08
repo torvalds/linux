@@ -210,7 +210,7 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 	int ret;
 	struct writeback_control wbc = {
 		.sync_mode = sync_mode,
-		.nr_to_write = mapping->nrpages * 2,
+		.nr_to_write = LONG_MAX,
 		.range_start = start,
 		.range_end = end,
 	};
@@ -741,7 +741,14 @@ repeat:
 		page = __page_cache_alloc(gfp_mask);
 		if (!page)
 			return NULL;
-		err = add_to_page_cache_lru(page, mapping, index, gfp_mask);
+		/*
+		 * We want a regular kernel memory (not highmem or DMA etc)
+		 * allocation for the radix tree nodes, but we need to honour
+		 * the context-specific requirements the caller has asked for.
+		 * GFP_RECLAIM_MASK collects those requirements.
+		 */
+		err = add_to_page_cache_lru(page, mapping, index,
+			(gfp_mask & GFP_RECLAIM_MASK));
 		if (unlikely(err)) {
 			page_cache_release(page);
 			page = NULL;
@@ -950,7 +957,7 @@ grab_cache_page_nowait(struct address_space *mapping, pgoff_t index)
 		return NULL;
 	}
 	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS);
-	if (page && add_to_page_cache_lru(page, mapping, index, GFP_KERNEL)) {
+	if (page && add_to_page_cache_lru(page, mapping, index, GFP_NOFS)) {
 		page_cache_release(page);
 		page = NULL;
 	}
@@ -1317,7 +1324,8 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 			goto out; /* skip atime */
 		size = i_size_read(inode);
 		if (pos < size) {
-			retval = filemap_write_and_wait(mapping);
+			retval = filemap_write_and_wait_range(mapping, pos,
+					pos + iov_length(iov, nr_segs) - 1);
 			if (!retval) {
 				retval = mapping->a_ops->direct_IO(READ, iocb,
 							iov, pos, nr_segs);
@@ -1530,7 +1538,6 @@ retry_find:
 	/*
 	 * Found the page and have a reference on it.
 	 */
-	mark_page_accessed(page);
 	ra->prev_pos = (loff_t)page->index << PAGE_CACHE_SHIFT;
 	vmf->page = page;
 	return ret | VM_FAULT_LOCKED;
@@ -1766,7 +1773,7 @@ int should_remove_suid(struct dentry *dentry)
 	if (unlikely((mode & S_ISGID) && (mode & S_IXGRP)))
 		kill |= ATTR_KILL_SGID;
 
-	if (unlikely(kill && !capable(CAP_FSETID)))
+	if (unlikely(kill && !capable(CAP_FSETID) && S_ISREG(mode)))
 		return kill;
 
 	return 0;
@@ -2060,18 +2067,10 @@ generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	if (count != ocount)
 		*nr_segs = iov_shorten((struct iovec *)iov, *nr_segs, count);
 
-	/*
-	 * Unmap all mmappings of the file up-front.
-	 *
-	 * This will cause any pte dirty bits to be propagated into the
-	 * pageframes for the subsequent filemap_write_and_wait().
-	 */
 	write_len = iov_length(iov, *nr_segs);
 	end = (pos + write_len - 1) >> PAGE_CACHE_SHIFT;
-	if (mapping_mapped(mapping))
-		unmap_mapping_range(mapping, pos, write_len, 0);
 
-	written = filemap_write_and_wait(mapping);
+	written = filemap_write_and_wait_range(mapping, pos, pos + write_len - 1);
 	if (written)
 		goto out;
 
@@ -2140,19 +2139,24 @@ EXPORT_SYMBOL(generic_file_direct_write);
  * Find or create a page at the given pagecache position. Return the locked
  * page. This function is specifically for buffered writes.
  */
-struct page *__grab_cache_page(struct address_space *mapping, pgoff_t index)
+struct page *grab_cache_page_write_begin(struct address_space *mapping,
+					pgoff_t index, unsigned flags)
 {
 	int status;
 	struct page *page;
+	gfp_t gfp_notmask = 0;
+	if (flags & AOP_FLAG_NOFS)
+		gfp_notmask = __GFP_FS;
 repeat:
 	page = find_lock_page(mapping, index);
 	if (likely(page))
 		return page;
 
-	page = page_cache_alloc(mapping);
+	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~gfp_notmask);
 	if (!page)
 		return NULL;
-	status = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
+	status = add_to_page_cache_lru(page, mapping, index,
+						GFP_KERNEL & ~gfp_notmask);
 	if (unlikely(status)) {
 		page_cache_release(page);
 		if (status == -EEXIST)
@@ -2161,7 +2165,7 @@ repeat:
 	}
 	return page;
 }
-EXPORT_SYMBOL(__grab_cache_page);
+EXPORT_SYMBOL(grab_cache_page_write_begin);
 
 static ssize_t generic_perform_write(struct file *file,
 				struct iov_iter *i, loff_t pos)
@@ -2286,7 +2290,8 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 	 * the file data here, to try to honour O_DIRECT expectations.
 	 */
 	if (unlikely(file->f_flags & O_DIRECT) && written)
-		status = filemap_write_and_wait(mapping);
+		status = filemap_write_and_wait_range(mapping,
+					pos, pos + written - 1);
 
 	return written ? written : status;
 }

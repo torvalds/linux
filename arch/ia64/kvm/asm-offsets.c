@@ -24,18 +24,9 @@
 
 #include <linux/autoconf.h>
 #include <linux/kvm_host.h>
+#include <linux/kbuild.h>
 
 #include "vcpu.h"
-
-#define task_struct kvm_vcpu
-
-#define DEFINE(sym, val) \
-	asm volatile("\n->" #sym " (%0) " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : :)
-
-#define OFFSET(_sym, _str, _mem) \
-    DEFINE(_sym, offsetof(_str, _mem));
 
 void foo(void)
 {

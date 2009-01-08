@@ -116,7 +116,6 @@ static int root_count;
  * be called.
  */
 static int need_forkexit_callback __read_mostly;
-static int need_mm_owner_callback __read_mostly;
 
 /* convenient tests for these bits */
 inline int cgroup_is_removed(const struct cgroup *cgrp)
@@ -573,7 +572,6 @@ static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
 		inode->i_mode = mode;
 		inode->i_uid = current_fsuid();
 		inode->i_gid = current_fsgid();
-		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_mapping->backing_dev_info = &cgroup_backing_dev_info;
 	}
@@ -2540,7 +2538,6 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	init_css_set.subsys[ss->subsys_id] = dummytop->subsys[ss->subsys_id];
 
 	need_forkexit_callback |= ss->fork || ss->exit;
-	need_mm_owner_callback |= !!ss->mm_owner_changed;
 
 	/* At system boot, before all subsystems have been
 	 * registered, no tasks have been forked, so we don't
@@ -2790,37 +2787,6 @@ void cgroup_fork_callbacks(struct task_struct *child)
 	}
 }
 
-#ifdef CONFIG_MM_OWNER
-/**
- * cgroup_mm_owner_callbacks - run callbacks when the mm->owner changes
- * @p: the new owner
- *
- * Called on every change to mm->owner. mm_init_owner() does not
- * invoke this routine, since it assigns the mm->owner the first time
- * and does not change it.
- *
- * The callbacks are invoked with mmap_sem held in read mode.
- */
-void cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
-{
-	struct cgroup *oldcgrp, *newcgrp = NULL;
-
-	if (need_mm_owner_callback) {
-		int i;
-		for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
-			struct cgroup_subsys *ss = subsys[i];
-			oldcgrp = task_cgroup(old, ss->subsys_id);
-			if (new)
-				newcgrp = task_cgroup(new, ss->subsys_id);
-			if (oldcgrp == newcgrp)
-				continue;
-			if (ss->mm_owner_changed)
-				ss->mm_owner_changed(ss, oldcgrp, newcgrp, new);
-		}
-	}
-}
-#endif /* CONFIG_MM_OWNER */
-
 /**
  * cgroup_post_fork - called on a new task after adding it to the task list
  * @child: the task in question
@@ -2945,7 +2911,11 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys,
 	parent = task_cgroup(tsk, subsys->subsys_id);
 
 	/* Pin the hierarchy */
-	atomic_inc(&parent->root->sb->s_active);
+	if (!atomic_inc_not_zero(&parent->root->sb->s_active)) {
+		/* We race with the final deactivate_super() */
+		mutex_unlock(&cgroup_mutex);
+		return 0;
+	}
 
 	/* Keep the cgroup alive */
 	get_css_set(cg);

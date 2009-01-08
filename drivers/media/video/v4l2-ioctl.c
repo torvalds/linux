@@ -266,7 +266,7 @@ static const char *v4l2_ioctls[] = {
 	[_IOC_NR(VIDIOC_DBG_S_REGISTER)]   = "VIDIOC_DBG_S_REGISTER",
 	[_IOC_NR(VIDIOC_DBG_G_REGISTER)]   = "VIDIOC_DBG_G_REGISTER",
 
-	[_IOC_NR(VIDIOC_G_CHIP_IDENT)]     = "VIDIOC_G_CHIP_IDENT",
+	[_IOC_NR(VIDIOC_DBG_G_CHIP_IDENT)] = "VIDIOC_DBG_G_CHIP_IDENT",
 	[_IOC_NR(VIDIOC_S_HW_FREQ_SEEK)]   = "VIDIOC_S_HW_FREQ_SEEK",
 #endif
 };
@@ -392,14 +392,14 @@ video_fix_command(unsigned int cmd)
 /*
  * Obsolete usercopy function - Should be removed soon
  */
-int
+long
 video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 		v4l2_kioctl func)
 {
 	char	sbuf[128];
 	void    *mbuf = NULL;
 	void	*parg = NULL;
-	int	err  = -EINVAL;
+	long	err  = -EINVAL;
 	int     is_ext_ctrl;
 	size_t  ctrls_size = 0;
 	void __user *user_ptr = NULL;
@@ -623,13 +623,13 @@ static int check_fmt(const struct v4l2_ioctl_ops *ops, enum v4l2_buf_type type)
 	return -EINVAL;
 }
 
-static int __video_do_ioctl(struct file *file,
+static long __video_do_ioctl(struct file *file,
 		unsigned int cmd, void *arg)
 {
 	struct video_device *vfd = video_devdata(file);
 	const struct v4l2_ioctl_ops *ops = vfd->ioctl_ops;
 	void *fh = file->private_data;
-	int ret = -EINVAL;
+	long ret = -EINVAL;
 
 	if ((vfd->debug & V4L2_DEBUG_IOCTL) &&
 				!(vfd->debug & V4L2_DEBUG_IOCTL_ARG)) {
@@ -1720,7 +1720,7 @@ static int __video_do_ioctl(struct file *file,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	case VIDIOC_DBG_G_REGISTER:
 	{
-		struct v4l2_register *p = arg;
+		struct v4l2_dbg_register *p = arg;
 
 		if (!capable(CAP_SYS_ADMIN))
 			ret = -EPERM;
@@ -1730,7 +1730,7 @@ static int __video_do_ioctl(struct file *file,
 	}
 	case VIDIOC_DBG_S_REGISTER:
 	{
-		struct v4l2_register *p = arg;
+		struct v4l2_dbg_register *p = arg;
 
 		if (!capable(CAP_SYS_ADMIN))
 			ret = -EPERM;
@@ -1739,9 +1739,9 @@ static int __video_do_ioctl(struct file *file,
 		break;
 	}
 #endif
-	case VIDIOC_G_CHIP_IDENT:
+	case VIDIOC_DBG_G_CHIP_IDENT:
 	{
-		struct v4l2_chip_ident *p = arg;
+		struct v4l2_dbg_chip_ident *p = arg;
 
 		if (!ops->vidioc_g_chip_ident)
 			break;
@@ -1750,6 +1750,11 @@ static int __video_do_ioctl(struct file *file,
 			dbgarg(cmd, "chip_ident=%u, revision=0x%x\n", p->ident, p->revision);
 		break;
 	}
+	case VIDIOC_G_CHIP_IDENT_OLD:
+		printk(KERN_ERR "VIDIOC_G_CHIP_IDENT has been deprecated and will disappear in 2.6.30.\n");
+		printk(KERN_ERR "It is a debugging ioctl and must not be used in applications!\n");
+		return -EINVAL;
+
 	case VIDIOC_S_HW_FREQ_SEEK:
 	{
 		struct v4l2_hw_freq_seek *p = arg;
@@ -1845,20 +1850,20 @@ static int __video_do_ioctl(struct file *file,
 	if (vfd->debug & V4L2_DEBUG_IOCTL_ARG) {
 		if (ret < 0) {
 			v4l_print_ioctl(vfd->name, cmd);
-			printk(KERN_CONT " error %d\n", ret);
+			printk(KERN_CONT " error %ld\n", ret);
 		}
 	}
 
 	return ret;
 }
 
-long __video_ioctl2(struct file *file,
+long video_ioctl2(struct file *file,
 	       unsigned int cmd, unsigned long arg)
 {
 	char	sbuf[128];
 	void    *mbuf = NULL;
 	void	*parg = NULL;
-	int	err  = -EINVAL;
+	long	err  = -EINVAL;
 	int     is_ext_ctrl;
 	size_t  ctrls_size = 0;
 	void __user *user_ptr = NULL;
@@ -1943,12 +1948,5 @@ out_ext_ctrl:
 out:
 	kfree(mbuf);
 	return err;
-}
-EXPORT_SYMBOL(__video_ioctl2);
-
-int video_ioctl2(struct inode *inode, struct file *file,
-	       unsigned int cmd, unsigned long arg)
-{
-	return __video_ioctl2(file, cmd, arg);
 }
 EXPORT_SYMBOL(video_ioctl2);

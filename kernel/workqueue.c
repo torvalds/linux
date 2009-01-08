@@ -73,7 +73,7 @@ static DEFINE_SPINLOCK(workqueue_lock);
 static LIST_HEAD(workqueues);
 
 static int singlethread_cpu __read_mostly;
-static cpumask_t cpu_singlethread_map __read_mostly;
+static const struct cpumask *cpu_singlethread_map __read_mostly;
 /*
  * _cpu_down() first removes CPU from cpu_online_map, then CPU_DEAD
  * flushes cwq->worklist. This means that flush_workqueue/wait_on_work
@@ -81,7 +81,7 @@ static cpumask_t cpu_singlethread_map __read_mostly;
  * use cpu_possible_map, the cpumask below is more a documentation
  * than optimization.
  */
-static cpumask_t cpu_populated_map __read_mostly;
+static cpumask_var_t cpu_populated_map __read_mostly;
 
 /* If it's single threaded, it isn't in the list of workqueues. */
 static inline int is_wq_single_threaded(struct workqueue_struct *wq)
@@ -89,10 +89,10 @@ static inline int is_wq_single_threaded(struct workqueue_struct *wq)
 	return wq->singlethread;
 }
 
-static const cpumask_t *wq_cpu_map(struct workqueue_struct *wq)
+static const struct cpumask *wq_cpu_map(struct workqueue_struct *wq)
 {
 	return is_wq_single_threaded(wq)
-		? &cpu_singlethread_map : &cpu_populated_map;
+		? cpu_singlethread_map : cpu_populated_map;
 }
 
 static
@@ -410,7 +410,7 @@ static int flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
  */
 void flush_workqueue(struct workqueue_struct *wq)
 {
-	const cpumask_t *cpu_map = wq_cpu_map(wq);
+	const struct cpumask *cpu_map = wq_cpu_map(wq);
 	int cpu;
 
 	might_sleep();
@@ -532,7 +532,7 @@ static void wait_on_work(struct work_struct *work)
 {
 	struct cpu_workqueue_struct *cwq;
 	struct workqueue_struct *wq;
-	const cpumask_t *cpu_map;
+	const struct cpumask *cpu_map;
 	int cpu;
 
 	might_sleep();
@@ -903,7 +903,7 @@ static void cleanup_workqueue_thread(struct cpu_workqueue_struct *cwq)
  */
 void destroy_workqueue(struct workqueue_struct *wq)
 {
-	const cpumask_t *cpu_map = wq_cpu_map(wq);
+	const struct cpumask *cpu_map = wq_cpu_map(wq);
 	int cpu;
 
 	cpu_maps_update_begin();
@@ -933,7 +933,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_UP_PREPARE:
-		cpu_set(cpu, cpu_populated_map);
+		cpumask_set_cpu(cpu, cpu_populated_map);
 	}
 undo:
 	list_for_each_entry(wq, &workqueues, list) {
@@ -964,7 +964,7 @@ undo:
 	switch (action) {
 	case CPU_UP_CANCELED:
 	case CPU_POST_DEAD:
-		cpu_clear(cpu, cpu_populated_map);
+		cpumask_clear_cpu(cpu, cpu_populated_map);
 	}
 
 	return ret;
@@ -1017,9 +1017,11 @@ EXPORT_SYMBOL_GPL(work_on_cpu);
 
 void __init init_workqueues(void)
 {
-	cpu_populated_map = cpu_online_map;
-	singlethread_cpu = first_cpu(cpu_possible_map);
-	cpu_singlethread_map = cpumask_of_cpu(singlethread_cpu);
+	alloc_cpumask_var(&cpu_populated_map, GFP_KERNEL);
+
+	cpumask_copy(cpu_populated_map, cpu_online_mask);
+	singlethread_cpu = cpumask_first(cpu_possible_mask);
+	cpu_singlethread_map = cpumask_of(singlethread_cpu);
 	hotcpu_notifier(workqueue_cpu_callback, 0);
 	keventd_wq = create_workqueue("events");
 	BUG_ON(!keventd_wq);

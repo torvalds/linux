@@ -1445,7 +1445,7 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *reg)
 
 	if ((obj_priv->gtt_offset & ~I915_FENCE_START_MASK) ||
 	    (obj_priv->gtt_offset & (obj->size - 1))) {
-		WARN(1, "%s: object not 1M or size aligned\n", __FUNCTION__);
+		WARN(1, "%s: object not 1M or size aligned\n", __func__);
 		return;
 	}
 
@@ -1478,7 +1478,7 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 
 	if ((obj_priv->gtt_offset & ~I915_FENCE_START_MASK) ||
 	    (obj_priv->gtt_offset & (obj->size - 1))) {
-		WARN(1, "%s: object not 1M or size aligned\n", __FUNCTION__);
+		WARN(1, "%s: object not 1M or size aligned\n", __func__);
 		return;
 	}
 
@@ -1623,6 +1623,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	struct drm_mm_node *free_space;
 	int page_count, ret;
 
+	if (dev_priv->mm.suspended)
+		return -EBUSY;
 	if (alignment == 0)
 		alignment = PAGE_SIZE;
 	if (alignment & (PAGE_SIZE - 1)) {
@@ -2641,7 +2643,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	if (obj_priv->gtt_space == NULL) {
 		ret = i915_gem_object_bind_to_gtt(obj, alignment);
 		if (ret != 0) {
-			if (ret != -ERESTARTSYS)
+			if (ret != -EBUSY && ret != -ERESTARTSYS)
 				DRM_ERROR("Failure to bind: %d", ret);
 			return ret;
 		}
@@ -3219,20 +3221,21 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 		dev_priv->mm.wedged = 0;
 	}
 
-	ret = i915_gem_init_ringbuffer(dev);
-	if (ret != 0)
-		return ret;
-
 	dev_priv->mm.gtt_mapping = io_mapping_create_wc(dev->agp->base,
 							dev->agp->agp_info.aper_size
 							* 1024 * 1024);
 
 	mutex_lock(&dev->struct_mutex);
+	dev_priv->mm.suspended = 0;
+
+	ret = i915_gem_init_ringbuffer(dev);
+	if (ret != 0)
+		return ret;
+
 	BUG_ON(!list_empty(&dev_priv->mm.active_list));
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
 	BUG_ON(!list_empty(&dev_priv->mm.request_list));
-	dev_priv->mm.suspended = 0;
 	mutex_unlock(&dev->struct_mutex);
 
 	drm_irq_install(dev);

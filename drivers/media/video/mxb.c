@@ -489,7 +489,7 @@ static int mxb_detach(struct saa7146_dev *dev)
 	return 0;
 }
 
-static int mxb_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
+static long mxb_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 {
 	struct saa7146_dev *dev = fh->dev;
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;

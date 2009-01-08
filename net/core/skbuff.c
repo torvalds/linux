@@ -2594,6 +2594,17 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 	if (skb_shinfo(p)->frag_list)
 		goto merge;
+	else if (!skb_headlen(p) && !skb_headlen(skb) &&
+		 skb_shinfo(p)->nr_frags + skb_shinfo(skb)->nr_frags <
+		 MAX_SKB_FRAGS) {
+		memcpy(skb_shinfo(p)->frags + skb_shinfo(p)->nr_frags,
+		       skb_shinfo(skb)->frags,
+		       skb_shinfo(skb)->nr_frags * sizeof(skb_frag_t));
+
+		skb_shinfo(p)->nr_frags += skb_shinfo(skb)->nr_frags;
+		NAPI_GRO_CB(skb)->free = 1;
+		goto done;
+	}
 
 	headroom = skb_headroom(p);
 	nskb = netdev_alloc_skb(p->dev, headroom);
@@ -2613,6 +2624,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 	*NAPI_GRO_CB(nskb) = *NAPI_GRO_CB(p);
 	skb_shinfo(nskb)->frag_list = p;
+	skb_shinfo(nskb)->gso_size = skb_shinfo(p)->gso_size;
 	skb_header_release(p);
 	nskb->prev = p;
 
@@ -2627,11 +2639,12 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	p = nskb;
 
 merge:
-	NAPI_GRO_CB(p)->count++;
 	p->prev->next = skb;
 	p->prev = skb;
 	skb_header_release(skb);
 
+done:
+	NAPI_GRO_CB(p)->count++;
 	p->data_len += skb->len;
 	p->truesize += skb->len;
 	p->len += skb->len;

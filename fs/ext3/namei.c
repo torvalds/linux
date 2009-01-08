@@ -2175,8 +2175,7 @@ retry:
 		 * We have a transaction open.  All is sweetness.  It also sets
 		 * i_size in generic_commit_write().
 		 */
-		err = __page_symlink(inode, symname, l,
-				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
+		err = __page_symlink(inode, symname, l, 1);
 		if (err) {
 			drop_nlink(inode);
 			unlock_new_inode(inode);

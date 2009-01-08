@@ -624,7 +624,7 @@ static struct clock_event_device timer0_clockevent =	 {
 	.set_mode	= timer_set_mode,
 	.set_next_event	= timer_set_next_event,
 	.rating		= 300,
-	.cpumask	= CPU_MASK_ALL,
+	.cpumask	= cpu_all_mask,
 };
 
 static void __init realview_clockevents_init(unsigned int timer_irq)
