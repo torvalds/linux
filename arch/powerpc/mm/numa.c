@@ -289,7 +289,7 @@ static int __init find_min_common_depth(void)
 	ref_points = of_get_property(rtas_root,
 			"ibm,associativity-reference-points", &len);
 
-	if ((len >= 1) && ref_points) {
+	if ((len >= 2 * sizeof(unsigned int)) && ref_points) {
 		depth = ref_points[1];
 	} else {
 		dbg("NUMA: ibm,associativity-reference-points not found.\n");
