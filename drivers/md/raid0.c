@@ -387,7 +387,7 @@ static int raid0_stop (mddev_t *mddev)
 static int raid0_make_request (struct request_queue *q, struct bio *bio)
 {
 	mddev_t *mddev = q->queuedata;
-	unsigned int sect_in_chunk, chunksect_bits, chunk_size, chunk_sects;
+	unsigned int sect_in_chunk, chunksect_bits, chunk_sects;
 	raid0_conf_t *conf = mddev_to_conf(mddev);
 	struct strip_zone *zone;
 	mdk_rdev_t *tmp_dev;
@@ -407,7 +407,6 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 		      bio_sectors(bio));
 	part_stat_unlock();
 
-	chunk_size = mddev->chunk_size >> 10;
 	chunk_sects = mddev->chunk_size >> 9;
 	chunksect_bits = ffz(~chunk_sects);
 	block = bio->bi_sector >> 1;
@@ -442,7 +441,7 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 	while (block >= (zone->zone_offset + zone->size)) 
 		zone++;
     
-	sect_in_chunk = bio->bi_sector & ((chunk_size<<1) -1);
+	sect_in_chunk = bio->bi_sector & (chunk_sects - 1);
 
 
 	{
@@ -467,7 +466,7 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 
 bad_map:
 	printk("raid0_make_request bug: can't convert block across chunks"
-		" or bigger than %dk %llu %d\n", chunk_size, 
+		" or bigger than %dk %llu %d\n", chunk_sects / 2,
 		(unsigned long long)bio->bi_sector, bio->bi_size >> 10);
 
 	bio_io_error(bio);
