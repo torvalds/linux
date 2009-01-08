@@ -6237,7 +6237,7 @@ static const struct usb_action tas5130c_vf0250_NoFlikerScale[] = {
 	{}
 };
 
-static int reg_r_i(struct gspca_dev *gspca_dev,
+static u8 reg_r_i(struct gspca_dev *gspca_dev,
 		__u16 index)
 {
 	usb_control_msg(gspca_dev->dev,
@@ -6250,10 +6250,10 @@ static int reg_r_i(struct gspca_dev *gspca_dev,
 	return gspca_dev->usb_buf[0];
 }
 
-static int reg_r(struct gspca_dev *gspca_dev,
+static u8 reg_r(struct gspca_dev *gspca_dev,
 		__u16 index)
 {
-	int ret;
+	u8 ret;
 
 	ret = reg_r_i(gspca_dev, index);
 	PDEBUG(D_USBI, "reg r [%04x] -> %02x", index, ret);
@@ -6734,26 +6734,25 @@ static int sif_probe(struct gspca_dev *gspca_dev)
 static int vga_2wr_probe(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	__u8 retbyte;
-	__u16 checkword;
+	u16 retword;
 
 	start_2wr_probe(dev, 0x00);		/* HV7131B */
 	i2c_write(gspca_dev, 0x01, 0xaa, 0x00);
-	retbyte = i2c_read(gspca_dev, 0x01);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x01);
+	if (retword != 0)
 		return 0x00;			/* HV7131B */
 
 	start_2wr_probe(dev, 0x04);		/* CS2102 */
 	i2c_write(gspca_dev, 0x01, 0xaa, 0x00);
-	retbyte = i2c_read(gspca_dev, 0x01);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x01);
+	if (retword != 0)
 		return 0x04;			/* CS2102 */
 
 	start_2wr_probe(dev, 0x06);		/* OmniVision */
 	reg_w(dev, 0x08, 0x008d);
 	i2c_write(gspca_dev, 0x11, 0xaa, 0x00);
-	retbyte = i2c_read(gspca_dev, 0x11);
-	if (retbyte != 0) {
+	retword = i2c_read(gspca_dev, 0x11);
+	if (retword != 0) {
 		/* (should have returned 0xaa) --> Omnivision? */
 		/* reg_r 0x10 -> 0x06 -->  */
 		goto ov_check;
@@ -6761,40 +6760,40 @@ static int vga_2wr_probe(struct gspca_dev *gspca_dev)
 
 	start_2wr_probe(dev, 0x08);		/* HDCS2020 */
 	i2c_write(gspca_dev, 0x15, 0xaa, 0x00);
-	retbyte = i2c_read(gspca_dev, 0x15);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x15);
+	if (retword != 0)
 		return 0x08;			/* HDCS2020 */
 
 	start_2wr_probe(dev, 0x0a);		/* PB0330 */
 	i2c_write(gspca_dev, 0x07, 0xaa, 0xaa);
-	retbyte = i2c_read(gspca_dev, 0x07);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x07);
+	if (retword != 0)
 		return 0x0a;			/* PB0330 */
-	retbyte = i2c_read(gspca_dev, 0x03);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x03);
+	if (retword != 0)
 		return 0x0a;			/* PB0330 ?? */
-	retbyte = i2c_read(gspca_dev, 0x04);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x04);
+	if (retword != 0)
 		return 0x0a;			/* PB0330 ?? */
 
 	start_2wr_probe(dev, 0x0c);		/* ICM105A */
 	i2c_write(gspca_dev, 0x01, 0x11, 0x00);
-	retbyte = i2c_read(gspca_dev, 0x01);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x01);
+	if (retword != 0)
 		return 0x0c;			/* ICM105A */
 
 	start_2wr_probe(dev, 0x0e);		/* PAS202BCB */
 	reg_w(dev, 0x08, 0x008d);
 	i2c_write(gspca_dev, 0x03, 0xaa, 0x00);
 	msleep(500);
-	retbyte = i2c_read(gspca_dev, 0x03);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x03);
+	if (retword != 0)
 		return 0x0e;			/* PAS202BCB */
 
 	start_2wr_probe(dev, 0x02);		/* ?? */
 	i2c_write(gspca_dev, 0x01, 0xaa, 0x00);
-	retbyte = i2c_read(gspca_dev, 0x01);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x01);
+	if (retword != 0)
 		return 0x02;			/* ?? */
 ov_check:
 	reg_r(gspca_dev, 0x0010);		/* ?? */
@@ -6808,12 +6807,10 @@ ov_check:
 	msleep(500);
 	reg_w(dev, 0x01, 0x0012);
 	i2c_write(gspca_dev, 0x12, 0x80, 0x00);	/* sensor reset */
-	retbyte = i2c_read(gspca_dev, 0x0a);
-	checkword = retbyte << 8;
-	retbyte = i2c_read(gspca_dev, 0x0b);
-	checkword |= retbyte;
-	PDEBUG(D_PROBE, "probe 2wr ov vga 0x%04x", checkword);
-	switch (checkword) {
+	retword = i2c_read(gspca_dev, 0x0a) << 8;
+	retword |= i2c_read(gspca_dev, 0x0b);
+	PDEBUG(D_PROBE, "probe 2wr ov vga 0x%04x", retword);
+	switch (retword) {
 	case 0x7631:				/* OV7630C */
 		reg_w(dev, 0x06, 0x0010);
 		break;
@@ -6823,7 +6820,7 @@ ov_check:
 	default:
 		return -1;			/* not OmniVision */
 	}
-	return checkword;
+	return retword;
 }
 
 struct sensor_by_chipset_revision {
@@ -6844,7 +6841,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	struct usb_device *dev = gspca_dev->dev;
 	int i;
 	__u8 retbyte;
-	__u16 checkword;
+	u16 retword;
 
 /*fixme: lack of 8b=b3 (11,12)-> 10, 8b=e0 (14,15,16)-> 12 found in gspcav1*/
 	reg_w(dev, 0x02, 0x0010);
@@ -6856,27 +6853,25 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x03, 0x0012);
 	reg_w(dev, 0x01, 0x0012);
 	reg_w(dev, 0x05, 0x0012);
-	retbyte = i2c_read(gspca_dev, 0x14);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x14);
+	if (retword != 0)
 		return 0x11;			/* HV7131R */
-	retbyte = i2c_read(gspca_dev, 0x15);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x15);
+	if (retword != 0)
 		return 0x11;			/* HV7131R */
-	retbyte = i2c_read(gspca_dev, 0x16);
-	if (retbyte != 0)
+	retword = i2c_read(gspca_dev, 0x16);
+	if (retword != 0)
 		return 0x11;			/* HV7131R */
 
 	reg_w(dev, 0x02, 0x0010);
-	retbyte = reg_r(gspca_dev, 0x000b);
-	checkword = retbyte << 8;
-	retbyte = reg_r(gspca_dev, 0x000a);
-	checkword |= retbyte;
-	PDEBUG(D_PROBE, "probe 3wr vga 1 0x%04x", checkword);
+	retword = reg_r(gspca_dev, 0x000b) << 8;
+	retword |= reg_r(gspca_dev, 0x000a);
+	PDEBUG(D_PROBE, "probe 3wr vga 1 0x%04x", retword);
 	reg_r(gspca_dev, 0x0010);
 	/* this is tested only once anyway */
 	for (i = 0; i < ARRAY_SIZE(chipset_revision_sensor); i++) {
-		if (chipset_revision_sensor[i].revision == checkword) {
-			sd->chip_revision = checkword;
+		if (chipset_revision_sensor[i].revision == retword) {
+			sd->chip_revision = retword;
 			send_unknown(dev, SENSOR_PB0330);
 			return chipset_revision_sensor[i].internal_sensor_id;
 		}
@@ -6888,8 +6883,8 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x0a, 0x0010);
 	reg_w(dev, 0x03, 0x0012);
 	reg_w(dev, 0x01, 0x0012);
-	retbyte = i2c_read(gspca_dev, 0x00);
-	if (retbyte != 0) {
+	retword = i2c_read(gspca_dev, 0x00);
+	if (retword != 0) {
 		PDEBUG(D_PROBE, "probe 3wr vga type 0a ?");
 		return 0x0a;			/* ?? */
 	}
@@ -6901,14 +6896,14 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x03, 0x0012);
 	msleep(2);
 	reg_w(dev, 0x01, 0x0012);
-	retbyte = i2c_read(gspca_dev, 0x00);
-	if (retbyte != 0) {
-		PDEBUG(D_PROBE, "probe 3wr vga type %02x", retbyte);
-		if (retbyte == 0x11)			/* VF0250 */
+	retword = i2c_read(gspca_dev, 0x00);
+	if (retword != 0) {
+		PDEBUG(D_PROBE, "probe 3wr vga type %02x", retword);
+		if (retword == 0x0011)			/* VF0250 */
 			return 0x0250;
-		if (retbyte == 0x29)			/* gc0305 */
+		if (retword == 0x0029)			/* gc0305 */
 			send_unknown(dev, SENSOR_GC0305);
-		return retbyte;
+		return retword;
 	}
 
 	reg_w(dev, 0x01, 0x0000);	/* check OmniVision */
@@ -6918,8 +6913,8 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x06, 0x0010);
 	reg_w(dev, 0x01, 0x0012);
 	reg_w(dev, 0x05, 0x0012);
-	if (i2c_read(gspca_dev, 0x1c) == 0x7f	/* OV7610 - manufacturer ID */
-	    && i2c_read(gspca_dev, 0x1d) == 0xa2) {
+	if (i2c_read(gspca_dev, 0x1c) == 0x007f	/* OV7610 - manufacturer ID */
+	    && i2c_read(gspca_dev, 0x1d) == 0x00a2) {
 		send_unknown(dev, SENSOR_OV7620);
 		return 0x06;		/* OmniVision confirm ? */
 	}
@@ -6933,16 +6928,14 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 /*	msleep(150); */
 	reg_w(dev, 0x01, 0x0012);
 	reg_w(dev, 0x05, 0x0012);
-	retbyte = i2c_read(gspca_dev, 0x0000);		/* ID 0 */
-	checkword = retbyte << 8;
-	retbyte = i2c_read(gspca_dev, 0x0001);		/* ID 1 */
-	checkword |= retbyte;
-	PDEBUG(D_PROBE, "probe 3wr vga 2 0x%04x", checkword);
-	if (checkword == 0x2030) {
+	retword = i2c_read(gspca_dev, 0x00) << 8;	/* ID 0 */
+	retword |= i2c_read(gspca_dev, 0x01);		/* ID 1 */
+	PDEBUG(D_PROBE, "probe 3wr vga 2 0x%04x", retword);
+	if (retword == 0x2030) {
 		retbyte = i2c_read(gspca_dev, 0x02);	/* revision number */
 		PDEBUG(D_PROBE, "sensor PO2030 rev 0x%02x", retbyte);
 		send_unknown(dev, SENSOR_PO2030);
-		return checkword;
+		return retword;
 	}
 
 	reg_w(dev, 0x01, 0x0000);
@@ -6953,9 +6946,9 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x01, 0x0012);
 	reg_w(dev, 0x05, 0x0001);
 	reg_w(dev, 0xd3, 0x008b);
-	retbyte = i2c_read(gspca_dev, 0x01);
-	if (retbyte != 0) {
-		PDEBUG(D_PROBE, "probe 3wr vga type 0a ?");
+	retword = i2c_read(gspca_dev, 0x01);
+	if (retword != 0) {
+		PDEBUG(D_PROBE, "probe 3wr vga type 0a ? ret: %04x", retword);
 		return 0x0a;			/* ?? */
 	}
 	return -1;
