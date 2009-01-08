@@ -563,6 +563,7 @@ static struct ieee80211_regdomain *country_ie_2_rd(
 
 	/* This time around we fill in the rd */
 	while (country_ie_len >= 3) {
+		int end_channel = 0;
 		struct ieee80211_country_ie_triplet *triplet =
 			(struct ieee80211_country_ie_triplet *) country_ie;
 		struct ieee80211_reg_rule *reg_rule = NULL;
@@ -584,6 +585,23 @@ static struct ieee80211_regdomain *country_ie_2_rd(
 
 		reg_rule->flags = flags;
 
+		/* 2 GHz */
+		if (triplet->chans.first_channel <= 14)
+			end_channel = triplet->chans.first_channel +
+				triplet->chans.num_channels;
+		else
+			/*
+			 * 5 GHz -- For example in country IEs if the first
+			 * channel given is 36 and the number of channels is 4
+			 * then the individual channel numbers defined for the
+			 * 5 GHz PHY by these parameters are: 36, 40, 44, and 48
+			 * and not 36, 37, 38, 39.
+			 *
+			 * See: http://tinyurl.com/11d-clarification
+			 */
+			end_channel =  triplet->chans.first_channel +
+				(4 * (triplet->chans.num_channels - 1));
+
 		/* The +10 is since the regulatory domain expects
 		 * the actual band edge, not the center of freq for
 		 * its start and end freqs, assuming 20 MHz bandwidth on
@@ -593,8 +611,7 @@ static struct ieee80211_regdomain *country_ie_2_rd(
 				triplet->chans.first_channel) - 10);
 		freq_range->end_freq_khz =
 			MHZ_TO_KHZ(ieee80211_channel_to_frequency(
-				triplet->chans.first_channel +
-					triplet->chans.num_channels) + 10);
+				end_channel) + 10);
 
 		/* Large arbitrary values, we intersect later */
 		/* Increment this if we ever support >= 40 MHz channels
