@@ -20,6 +20,7 @@
 #include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
+#include <asm/ppc-pci.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 #include <asm/machdep.h>
@@ -42,8 +43,6 @@ static u8* pci_to_OF_bus_map;
  * some pmacs
  */
 static int pci_assign_all_buses;
-
-LIST_HEAD(hose_list);
 
 static int pci_bus_count;
 
@@ -490,24 +489,6 @@ long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
 
 	return result;
 }
-
-unsigned long pci_address_to_pio(phys_addr_t address)
-{
-	struct pci_controller *hose, *tmp;
-
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		unsigned int size = hose->io_resource.end -
-			hose->io_resource.start + 1;
-		if (address >= hose->io_base_phys &&
-		    address < (hose->io_base_phys + size)) {
-			unsigned long base =
-				(unsigned long)hose->io_base_virt - _IO_BASE;
-			return base + (address - hose->io_base_phys);
-		}
-	}
-	return (unsigned int)-1;
-}
-EXPORT_SYMBOL(pci_address_to_pio);
 
 /*
  * Null PCI config access functions, for the case when we can't
