@@ -1082,7 +1082,7 @@ static void iso_resource_work(struct work_struct *work)
 	spin_unlock_irq(&client->lock);
 
 	if (todo == ISO_RES_ALLOC && channel >= 0)
-		r->channels = 1ULL << (63 - channel);
+		r->channels = 1ULL << channel;
 
 	if (todo == ISO_RES_REALLOC && success)
 		goto out;

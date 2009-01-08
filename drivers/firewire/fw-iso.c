@@ -204,17 +204,19 @@ static int manage_bandwidth(struct fw_card *card, int irm_id, int generation,
 }
 
 static int manage_channel(struct fw_card *card, int irm_id, int generation,
-			  __be32 channels_mask, u64 offset, bool allocate)
+			  u32 channels_mask, u64 offset, bool allocate)
 {
-	__be32 data[2], c, old = allocate ? cpu_to_be32(~0) : 0;
+	__be32 data[2], c, all, old;
 	int i, retry = 5;
 
+	old = all = allocate ? cpu_to_be32(~0) : 0;
+
 	for (i = 0; i < 32; i++) {
-		c = cpu_to_be32(1 << (31 - i));
-		if (!(channels_mask & c))
+		if (!(channels_mask & 1 << i))
 			continue;
 
-		if (allocate == !(old & c))
+		c = cpu_to_be32(1 << (31 - i));
+		if ((old & c) != (all & c))
 			continue;
 
 		data[0] = old;
@@ -233,7 +235,7 @@ static int manage_channel(struct fw_card *card, int irm_id, int generation,
 			old = data[0];
 
 			/* Is the IRM 1394a-2000 compliant? */
-			if ((data[0] & c) != (data[1] & c))
+			if ((data[0] & c) == (data[1] & c))
 				continue;
 
 			/* 1394-1995 IRM, fall through to retry. */
@@ -249,11 +251,10 @@ static int manage_channel(struct fw_card *card, int irm_id, int generation,
 static void deallocate_channel(struct fw_card *card, int irm_id,
 			       int generation, int channel)
 {
-	__be32 mask;
+	u32 mask;
 	u64 offset;
 
-	mask = channel < 32 ? cpu_to_be32(1 << (31 - channel)) :
-			      cpu_to_be32(1 << (63 - channel));
+	mask = channel < 32 ? 1 << channel : 1 << (channel - 32);
 	offset = channel < 32 ? CSR_REGISTER_BASE + CSR_CHANNELS_AVAILABLE_HI :
 				CSR_REGISTER_BASE + CSR_CHANNELS_AVAILABLE_LO;
 
@@ -266,7 +267,12 @@ static void deallocate_channel(struct fw_card *card, int irm_id,
  * In parameters: card, generation, channels_mask, bandwidth, allocate
  * Out parameters: channel, bandwidth
  * This function blocks (sleeps) during communication with the IRM.
+ *
  * Allocates or deallocates at most one channel out of channels_mask.
+ * channels_mask is a bitfield with MSB for channel 63 and LSB for channel 0.
+ * (Note, the IRM's CHANNELS_AVAILABLE is a big-endian bitfield with MSB for
+ * channel 0 and LSB for channel 63.)
+ * Allocates or deallocates as many bandwidth allocation units as specified.
  *
  * Returns channel < 0 if no channel was allocated or deallocated.
  * Returns bandwidth = 0 if no bandwidth was allocated or deallocated.
@@ -274,17 +280,17 @@ static void deallocate_channel(struct fw_card *card, int irm_id,
  * If generation is stale, deallocations succeed but allocations fail with
  * channel = -EAGAIN.
  *
- * If channel (de)allocation fails, bandwidth (de)allocation fails too.
+ * If channel allocation fails, no bandwidth will be allocated either.
  * If bandwidth allocation fails, no channel will be allocated either.
- * If bandwidth deallocation fails, channel deallocation may still have been
- * successful.
+ * But deallocations of channel and bandwidth are tried independently
+ * of each other's success.
  */
 void fw_iso_resource_manage(struct fw_card *card, int generation,
 			    u64 channels_mask, int *channel, int *bandwidth,
 			    bool allocate)
 {
-	__be32 channels_hi = cpu_to_be32(channels_mask >> 32);
-	__be32 channels_lo = cpu_to_be32(channels_mask);
+	u32 channels_hi = channels_mask;	/* channels 31...0 */
+	u32 channels_lo = channels_mask >> 32;	/* channels 63...32 */
 	int irm_id, ret, c = -EINVAL;
 
 	spin_lock_irq(&card->lock);
@@ -302,7 +308,7 @@ void fw_iso_resource_manage(struct fw_card *card, int generation,
 	}
 	*channel = c;
 
-	if (channels_mask != 0 && c < 0)
+	if (allocate && channels_mask != 0 && c < 0)
 		*bandwidth = 0;
 
 	if (*bandwidth == 0)
@@ -312,7 +318,7 @@ void fw_iso_resource_manage(struct fw_card *card, int generation,
 	if (ret < 0)
 		*bandwidth = 0;
 
-	if (ret < 0 && c >= 0 && allocate) {
+	if (allocate && ret < 0 && c >= 0) {
 		deallocate_channel(card, irm_id, generation, c);
 		*channel = ret;
 	}

@@ -174,8 +174,6 @@ struct fw_cdev_event_iso_interrupt {
  * @handle:	Reference by which an allocated resource can be deallocated
  * @channel:	Isochronous channel which was (de)allocated, if any
  * @bandwidth:	Bandwidth allocation units which were (de)allocated, if any
- * @channels_available:  Last known availability of channels
- * @bandwidth_available: Last known availability of bandwidth
  *
  * An %FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED event is sent after an isochronous
  * resource was allocated at the IRM.  The client has to check @channel and
@@ -580,7 +578,7 @@ struct fw_cdev_get_cycle_timer {
  *
  * The %FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE_ONCE ioctl works like
  * %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE_ONCE except that resources are freed
- * instead of allocated.  At most one channel may be specified in this ioctl.
+ * instead of allocated.
  * An %FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED event concludes this operation.
  *
  * To summarize, %FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE allocates iso resources
@@ -588,9 +586,9 @@ struct fw_cdev_get_cycle_timer {
  * In contrast, %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE_ONCE allocates iso resources
  * for the duration of a bus generation.
  *
- * @channels is a host-endian bitfield with the most significant bit
- * representing channel 0 and the least significant bit representing channel 63:
- * 1ULL << (63 - c)
+ * @channels is a host-endian bitfield with the least significant bit
+ * representing channel 0 and the most significant bit representing channel 63:
+ * 1ULL << c for each channel c that is a candidate for (de)allocation.
  *
  * @bandwidth is expressed in bandwidth allocation units, i.e. the time to send
  * one quadlet of data (payload or header data) at speed S1600.
