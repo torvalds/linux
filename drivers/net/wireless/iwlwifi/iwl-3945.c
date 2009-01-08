@@ -600,7 +600,7 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 	/* Set the size of the skb to the size of the frame */
 	skb_put(rxb->skb, le16_to_cpu(rx_hdr->len));
 
-	if (iwl3945_mod_params.sw_crypto)
+	if (!iwl3945_mod_params.sw_crypto)
 		iwl3945_set_decrypted_flag(priv, rxb->skb,
 				       le32_to_cpu(rx_end->status), stats);
 

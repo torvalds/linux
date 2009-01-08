@@ -92,6 +92,7 @@ MODULE_LICENSE("GPL");
  /* module parameters */
 struct iwl_mod_params iwl3945_mod_params = {
 	.num_of_queues = IWL39_MAX_NUM_QUEUES,
+	.sw_crypto = 1,
 	/* the rest are 0 by default */
 };
 
@@ -7814,9 +7815,9 @@ module_param_named(antenna, iwl3945_mod_params.antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
 module_param_named(disable, iwl3945_mod_params.disable, int, 0444);
 MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
-module_param_named(hwcrypto, iwl3945_mod_params.sw_crypto, int, 0444);
-MODULE_PARM_DESC(hwcrypto,
-		 "using hardware crypto engine (default 0 [software])\n");
+module_param_named(swcrypto, iwl3945_mod_params.sw_crypto, int, 0444);
+MODULE_PARM_DESC(swcrypto,
+		 "using software crypto (default 1 [software])\n");
 module_param_named(debug, iwl3945_mod_params.debug, uint, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
 module_param_named(disable_hw_scan, iwl3945_mod_params.disable_hw_scan, int, 0444);
