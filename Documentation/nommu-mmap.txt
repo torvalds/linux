@@ -248,3 +248,18 @@ PROVIDING SHAREABLE BLOCK DEVICE SUPPORT
 Provision of shared mappings on block device files is exactly the same as for
 character devices. If there isn't a real device underneath, then the driver
 should allocate sufficient contiguous memory to honour any supported mapping.
+
+
+=================================
+ADJUSTING PAGE TRIMMING BEHAVIOUR
+=================================
+
+NOMMU mmap automatically rounds up to the nearest power-of-2 number of pages
+when performing an allocation.  This can have adverse effects on memory
+fragmentation, and as such, is left configurable.  The default behaviour is to
+aggressively trim allocations and discard any excess pages back in to the page
+allocator.  In order to retain finer-grained control over fragmentation, this
+behaviour can either be disabled completely, or bumped up to a higher page
+watermark where trimming begins.
+
+Page trimming behaviour is configurable via the sysctl `vm.nr_trim_pages'.

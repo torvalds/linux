@@ -10,7 +10,7 @@
  *  Copyright (c) 2000-2003 David McCullough <davidm@snapgear.com>
  *  Copyright (c) 2000-2001 D Jeff Dionne <jeff@uClinux.org>
  *  Copyright (c) 2002      Greg Ungerer <gerg@snapgear.com>
- *  Copyright (c) 2007      Paul Mundt <lethal@linux-sh.org>
+ *  Copyright (c) 2007-2008 Paul Mundt <lethal@linux-sh.org>
  */
 
 #include <linux/module.h>
@@ -66,6 +66,7 @@ atomic_long_t vm_committed_space = ATOMIC_LONG_INIT(0);
 int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */
 int sysctl_overcommit_ratio = 50; /* default is 50% */
 int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
+int sysctl_nr_trim_pages = 1; /* page trimming behaviour */
 int heap_stack_gap = 0;
 
 atomic_t mmap_pages_allocated;
@@ -455,6 +456,8 @@ static noinline void validate_nommu_regions(void)
 	last = rb_entry(lastp, struct vm_region, vm_rb);
 	if (unlikely(last->vm_end <= last->vm_start))
 		BUG();
+	if (unlikely(last->vm_top < last->vm_end))
+		BUG();
 
 	while ((p = rb_next(lastp))) {
 		region = rb_entry(p, struct vm_region, vm_rb);
@@ -462,7 +465,9 @@ static noinline void validate_nommu_regions(void)
 
 		if (unlikely(region->vm_end <= region->vm_start))
 			BUG();
-		if (unlikely(region->vm_start < last->vm_end))
+		if (unlikely(region->vm_top < region->vm_end))
+			BUG();
+		if (unlikely(region->vm_start < last->vm_top))
 			BUG();
 
 		lastp = p;
@@ -536,7 +541,7 @@ static void free_page_series(unsigned long from, unsigned long to)
 /*
  * release a reference to a region
  * - the caller must hold the region semaphore, which this releases
- * - the region may not have been added to the tree yet, in which case vm_end
+ * - the region may not have been added to the tree yet, in which case vm_top
  *   will equal vm_start
  */
 static void __put_nommu_region(struct vm_region *region)
@@ -547,7 +552,7 @@ static void __put_nommu_region(struct vm_region *region)
 	BUG_ON(!nommu_region_tree.rb_node);
 
 	if (atomic_dec_and_test(&region->vm_usage)) {
-		if (region->vm_end > region->vm_start)
+		if (region->vm_top > region->vm_start)
 			delete_nommu_region(region);
 		up_write(&nommu_region_sem);
 
@@ -558,7 +563,7 @@ static void __put_nommu_region(struct vm_region *region)
 		 * from ramfs/tmpfs mustn't be released here */
 		if (region->vm_flags & VM_MAPPED_COPY) {
 			kdebug("free series");
-			free_page_series(region->vm_start, region->vm_end);
+			free_page_series(region->vm_start, region->vm_top);
 		}
 		kmem_cache_free(vm_region_jar, region);
 	} else {
@@ -999,6 +1004,10 @@ static int do_mmap_shared_file(struct vm_area_struct *vma)
 	int ret;
 
 	ret = vma->vm_file->f_op->mmap(vma->vm_file, vma);
+	if (ret == 0) {
+		vma->vm_region->vm_top = vma->vm_region->vm_end;
+		return ret;
+	}
 	if (ret != -ENOSYS)
 		return ret;
 
@@ -1027,11 +1036,14 @@ static int do_mmap_private(struct vm_area_struct *vma,
 	 */
 	if (vma->vm_file) {
 		ret = vma->vm_file->f_op->mmap(vma->vm_file, vma);
-		if (ret != -ENOSYS) {
+		if (ret == 0) {
 			/* shouldn't return success if we're not sharing */
-			BUG_ON(ret == 0 && !(vma->vm_flags & VM_MAYSHARE));
-			return ret; /* success or a real error */
+			BUG_ON(!(vma->vm_flags & VM_MAYSHARE));
+			vma->vm_region->vm_top = vma->vm_region->vm_end;
+			return ret;
 		}
+		if (ret != -ENOSYS)
+			return ret;
 
 		/* getting an ENOSYS error indicates that direct mmap isn't
 		 * possible (as opposed to tried but failed) so we'll try to
@@ -1051,23 +1063,25 @@ static int do_mmap_private(struct vm_area_struct *vma,
 	if (!pages)
 		goto enomem;
 
-	/* we allocated a power-of-2 sized page set, so we need to trim off the
-	 * excess */
 	total = 1 << order;
 	atomic_add(total, &mmap_pages_allocated);
 
 	point = rlen >> PAGE_SHIFT;
-	while (total > point) {
-		order = ilog2(total - point);
-		n = 1 << order;
-		kdebug("shave %lu/%lu @%lu", n, total - point, total);
-		atomic_sub(n, &mmap_pages_allocated);
-		total -= n;
-		set_page_refcounted(pages + total);
-		__free_pages(pages + total, order);
+
+	/* we allocated a power-of-2 sized page set, so we may want to trim off
+	 * the excess */
+	if (sysctl_nr_trim_pages && total - point >= sysctl_nr_trim_pages) {
+		while (total > point) {
+			order = ilog2(total - point);
+			n = 1 << order;
+			kdebug("shave %lu/%lu @%lu", n, total - point, total);
+			atomic_sub(n, &mmap_pages_allocated);
+			total -= n;
+			set_page_refcounted(pages + total);
+			__free_pages(pages + total, order);
+		}
 	}
 
-	total = rlen >> PAGE_SHIFT;
 	for (point = 1; point < total; point++)
 		set_page_refcounted(&pages[point]);
 
@@ -1075,6 +1089,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
 	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
 	region->vm_start = (unsigned long) base;
 	region->vm_end   = region->vm_start + rlen;
+	region->vm_top   = region->vm_start + (total << PAGE_SHIFT);
 
 	vma->vm_start = region->vm_start;
 	vma->vm_end   = region->vm_start + len;
@@ -1110,6 +1125,7 @@ error_free:
 	free_page_series(region->vm_start, region->vm_end);
 	region->vm_start = vma->vm_start = 0;
 	region->vm_end   = vma->vm_end = 0;
+	region->vm_top   = 0;
 	return ret;
 
 enomem:
@@ -1401,7 +1417,7 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	npages = (addr - vma->vm_start) >> PAGE_SHIFT;
 
 	if (new_below) {
-		region->vm_end = new->vm_end = addr;
+		region->vm_top = region->vm_end = new->vm_end = addr;
 	} else {
 		region->vm_start = new->vm_start = addr;
 		region->vm_pgoff = new->vm_pgoff += npages;
@@ -1418,6 +1434,7 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 		vma->vm_region->vm_pgoff = vma->vm_pgoff += npages;
 	} else {
 		vma->vm_region->vm_end = vma->vm_end = addr;
+		vma->vm_region->vm_top = addr;
 	}
 	add_nommu_region(vma->vm_region);
 	add_nommu_region(new->vm_region);
@@ -1454,10 +1471,12 @@ static int shrink_vma(struct mm_struct *mm,
 
 	down_write(&nommu_region_sem);
 	delete_nommu_region(region);
-	if (from > region->vm_start)
-		region->vm_end = from;
-	else
+	if (from > region->vm_start) {
+		to = region->vm_top;
+		region->vm_top = region->vm_end = from;
+	} else {
 		region->vm_start = to;
+	}
 	add_nommu_region(region);
 	up_write(&nommu_region_sem);
 
