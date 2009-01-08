@@ -765,12 +765,10 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int data,
 			return ERR_PTR(err);
 	}
 
-	hp = kmalloc(ALIGN(sizeof(*hp), sizeof(long)) + outbuf_size,
+	hp = kzalloc(ALIGN(sizeof(*hp), sizeof(long)) + outbuf_size,
 			GFP_KERNEL);
 	if (!hp)
 		return ERR_PTR(-ENOMEM);
-
-	memset(hp, 0x00, sizeof(*hp));
 
 	hp->vtermno = vtermno;
 	hp->data = data;
