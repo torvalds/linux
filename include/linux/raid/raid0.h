@@ -19,8 +19,8 @@ struct raid0_private_data
 	mdk_rdev_t **devlist; /* lists of rdevs, pointed to by strip_zone->dev */
 	int nr_strip_zones;
 
-	sector_t hash_spacing;
-	int preshift;			/* shift this before divide by hash_spacing */
+	sector_t spacing;
+	int sector_shift; /* shift this before divide by spacing */
 };
 
 typedef struct raid0_private_data raid0_conf_t;
