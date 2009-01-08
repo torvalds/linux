@@ -340,8 +340,23 @@ struct cgroup_subsys {
 #define MAX_CGROUP_TYPE_NAMELEN 32
 	const char *name;
 
-	struct cgroupfs_root *root;
+	/*
+	 * Protects sibling/children links of cgroups in this
+	 * hierarchy, plus protects which hierarchy (or none) the
+	 * subsystem is a part of (i.e. root/sibling).  To avoid
+	 * potential deadlocks, the following operations should not be
+	 * undertaken while holding any hierarchy_mutex:
+	 *
+	 * - allocating memory
+	 * - initiating hotplug events
+	 */
+	struct mutex hierarchy_mutex;
 
+	/*
+	 * Link to parent, and list entry in parent's children.
+	 * Protected by this->hierarchy_mutex and cgroup_lock()
+	 */
+	struct cgroupfs_root *root;
 	struct list_head sibling;
 };
 
