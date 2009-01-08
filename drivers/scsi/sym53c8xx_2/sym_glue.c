@@ -792,9 +792,9 @@ static int sym53c8xx_slave_configure(struct scsi_device *sdev)
 
 	/*
 	 *  Select queue depth from driver setup.
-	 *  Donnot use more than configured by user.
-	 *  Use at least 2.
-	 *  Donnot use more than our maximum.
+	 *  Do not use more than configured by user.
+	 *  Use at least 1.
+	 *  Do not use more than our maximum.
 	 */
 	reqtags = sym_driver_setup.max_tag;
 	if (reqtags > tp->usrtags)
@@ -803,7 +803,7 @@ static int sym53c8xx_slave_configure(struct scsi_device *sdev)
 		reqtags = 0;
 	if (reqtags > SYM_CONF_MAX_TAG)
 		reqtags = SYM_CONF_MAX_TAG;
-	depth_to_use = reqtags ? reqtags : 2;
+	depth_to_use = reqtags ? reqtags : 1;
 	scsi_adjust_queue_depth(sdev,
 				sdev->tagged_supported ? MSG_SIMPLE_TAG : 0,
 				depth_to_use);
