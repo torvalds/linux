@@ -331,8 +331,12 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
 		return;
 	pc = lookup_page_cgroup(page);
 	/* can happen while we handle swapcache. */
-	if (list_empty(&pc->lru))
+	if (list_empty(&pc->lru) || !pc->mem_cgroup)
 		return;
+	/*
+	 * We don't check PCG_USED bit. It's cleared when the "page" is finally
+	 * removed from global LRU.
+	 */
 	mz = page_cgroup_zoneinfo(pc);
 	mem = pc->mem_cgroup;
 	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
@@ -379,15 +383,43 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
 	list_add(&pc->lru, &mz->lists[lru]);
 }
+
 /*
- * To add swapcache into LRU. Be careful to all this function.
- * zone->lru_lock shouldn't be held and irq must not be disabled.
+ * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
+ * lru because the page may.be reused after it's fully uncharged (because of
+ * SwapCache behavior).To handle that, unlink page_cgroup from LRU when charge
+ * it again. This function is only used to charge SwapCache. It's done under
+ * lock_page and expected that zone->lru_lock is never held.
  */
-static void mem_cgroup_lru_fixup(struct page *page)
+static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
 {
-	if (!isolate_lru_page(page))
-		putback_lru_page(page);
+	unsigned long flags;
+	struct zone *zone = page_zone(page);
+	struct page_cgroup *pc = lookup_page_cgroup(page);
+
+	spin_lock_irqsave(&zone->lru_lock, flags);
+	/*
+	 * Forget old LRU when this page_cgroup is *not* used. This Used bit
+	 * is guarded by lock_page() because the page is SwapCache.
+	 */
+	if (!PageCgroupUsed(pc))
+		mem_cgroup_del_lru_list(page, page_lru(page));
+	spin_unlock_irqrestore(&zone->lru_lock, flags);
 }
+
+static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
+{
+	unsigned long flags;
+	struct zone *zone = page_zone(page);
+	struct page_cgroup *pc = lookup_page_cgroup(page);
+
+	spin_lock_irqsave(&zone->lru_lock, flags);
+	/* link when the page is linked to LRU but page_cgroup isn't */
+	if (PageLRU(page) && list_empty(&pc->lru))
+		mem_cgroup_add_lru_list(page, page_lru(page));
+	spin_unlock_irqrestore(&zone->lru_lock, flags);
+}
+
 
 void mem_cgroup_move_lists(struct page *page,
 			   enum lru_list from, enum lru_list to)
@@ -1168,8 +1200,11 @@ int mem_cgroup_cache_charge_swapin(struct page *page,
 					mem = NULL; /* charge to current */
 			}
 		}
+		/* SwapCache may be still linked to LRU now. */
+		mem_cgroup_lru_del_before_commit_swapcache(page);
 		ret = mem_cgroup_charge_common(page, mm, mask,
 				MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
+		mem_cgroup_lru_add_after_commit_swapcache(page);
 		/* drop extra refcnt from tryget */
 		if (mem)
 			css_put(&mem->css);
@@ -1185,8 +1220,6 @@ int mem_cgroup_cache_charge_swapin(struct page *page,
 	}
 	if (!locked)
 		unlock_page(page);
-	/* add this page(page_cgroup) to the LRU we want. */
-	mem_cgroup_lru_fixup(page);
 
 	return ret;
 }
@@ -1201,7 +1234,9 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
 	if (!ptr)
 		return;
 	pc = lookup_page_cgroup(page);
+	mem_cgroup_lru_del_before_commit_swapcache(page);
 	__mem_cgroup_commit_charge(ptr, pc, MEM_CGROUP_CHARGE_TYPE_MAPPED);
+	mem_cgroup_lru_add_after_commit_swapcache(page);
 	/*
 	 * Now swap is on-memory. This means this page may be
 	 * counted both as mem and swap....double count.
@@ -1220,7 +1255,7 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
 
 	}
 	/* add this page(page_cgroup) to the LRU we want. */
-	mem_cgroup_lru_fixup(page);
+
 }
 
 void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
@@ -1288,6 +1323,12 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 
 	mem_cgroup_charge_statistics(mem, pc, false);
 	ClearPageCgroupUsed(pc);
+	/*
+	 * pc->mem_cgroup is not cleared here. It will be accessed when it's
+	 * freed from LRU. This is safe because uncharged page is expected not
+	 * to be reused (freed soon). Exception is SwapCache, it's handled by
+	 * special functions.
+	 */
 
 	mz = page_cgroup_zoneinfo(pc);
 	unlock_page_cgroup(pc);
