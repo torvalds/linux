@@ -752,8 +752,8 @@ xfs_dir2_sf_getdents(
 #if XFS_BIG_INUMS
 		ino += mp->m_inoadd;
 #endif
-		if (filldir(dirent, ".", 1, dot_offset, ino, DT_DIR)) {
-			*offset = dot_offset;
+		if (filldir(dirent, ".", 1, dot_offset & 0x7fffffff, ino, DT_DIR)) {
+			*offset = dot_offset & 0x7fffffff;
 			return 0;
 		}
 	}
@@ -766,8 +766,8 @@ xfs_dir2_sf_getdents(
 #if XFS_BIG_INUMS
 		ino += mp->m_inoadd;
 #endif
-		if (filldir(dirent, "..", 2, dotdot_offset, ino, DT_DIR)) {
-			*offset = dotdot_offset;
+		if (filldir(dirent, "..", 2, dotdot_offset & 0x7fffffff, ino, DT_DIR)) {
+			*offset = dotdot_offset & 0x7fffffff;
 			return 0;
 		}
 	}
@@ -791,14 +791,15 @@ xfs_dir2_sf_getdents(
 #endif
 
 		if (filldir(dirent, sfep->name, sfep->namelen,
-					    off, ino, DT_UNKNOWN)) {
-			*offset = off;
+			    off & 0x7fffffff, ino, DT_UNKNOWN)) {
+			*offset = off & 0x7fffffff;
 			return 0;
 		}
 		sfep = xfs_dir2_sf_nextentry(sfp, sfep);
 	}
 
-	*offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0);
+	*offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0) &
+			0x7fffffff;
 	return 0;
 }
 
