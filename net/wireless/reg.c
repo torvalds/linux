@@ -947,9 +947,9 @@ void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby)
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (wiphy->bands[band])
 			handle_band(wiphy, band);
-		if (wiphy->reg_notifier)
-			wiphy->reg_notifier(wiphy, setby);
 	}
+	if (wiphy->reg_notifier)
+		wiphy->reg_notifier(wiphy, setby);
 }
 
 /* Return value which can be used by ignore_request() to indicate
