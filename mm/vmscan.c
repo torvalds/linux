@@ -512,7 +512,6 @@ redo:
 		lru = LRU_UNEVICTABLE;
 		add_page_to_unevictable_list(page);
 	}
-	mem_cgroup_move_lists(page, lru);
 
 	/*
 	 * page's status can change while we move it among lru. If an evictable
@@ -547,7 +546,6 @@ void putback_lru_page(struct page *page)
 
 	lru = !!TestClearPageActive(page) + page_is_file_cache(page);
 	lru_cache_add_lru(page, lru);
-	mem_cgroup_move_lists(page, lru);
 	put_page(page);
 }
 #endif /* CONFIG_UNEVICTABLE_LRU */
@@ -813,6 +811,7 @@ int __isolate_lru_page(struct page *page, int mode, int file)
 		return ret;
 
 	ret = -EBUSY;
+
 	if (likely(get_page_unless_zero(page))) {
 		/*
 		 * Be careful not to clear PageLRU until after we're
@@ -821,6 +820,7 @@ int __isolate_lru_page(struct page *page, int mode, int file)
 		 */
 		ClearPageLRU(page);
 		ret = 0;
+		mem_cgroup_del_lru(page);
 	}
 
 	return ret;
@@ -1134,7 +1134,6 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 			SetPageLRU(page);
 			lru = page_lru(page);
 			add_page_to_lru_list(zone, page, lru);
-			mem_cgroup_move_lists(page, lru);
 			if (PageActive(page) && scan_global_lru(sc)) {
 				int file = !!page_is_file_cache(page);
 				zone->recent_rotated[file]++;
@@ -1263,7 +1262,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		ClearPageActive(page);
 
 		list_move(&page->lru, &zone->lru[lru].list);
-		mem_cgroup_move_lists(page, lru);
+		mem_cgroup_add_lru_list(page, lru);
 		pgmoved++;
 		if (!pagevec_add(&pvec, page)) {
 			__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
@@ -2408,6 +2407,7 @@ retry:
 
 		__dec_zone_state(zone, NR_UNEVICTABLE);
 		list_move(&page->lru, &zone->lru[l].list);
+		mem_cgroup_move_lists(page, LRU_UNEVICTABLE, l);
 		__inc_zone_state(zone, NR_INACTIVE_ANON + l);
 		__count_vm_event(UNEVICTABLE_PGRESCUED);
 	} else {
@@ -2416,6 +2416,7 @@ retry:
 		 */
 		SetPageUnevictable(page);
 		list_move(&page->lru, &zone->lru[LRU_UNEVICTABLE].list);
+		mem_cgroup_rotate_lru_list(page, LRU_UNEVICTABLE);
 		if (page_evictable(page, NULL))
 			goto retry;
 	}

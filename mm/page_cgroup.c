@@ -16,6 +16,7 @@ __init_page_cgroup(struct page_cgroup *pc, unsigned long pfn)
 	pc->flags = 0;
 	pc->mem_cgroup = NULL;
 	pc->page = pfn_to_page(pfn);
+	INIT_LIST_HEAD(&pc->lru);
 }
 static unsigned long total_usage;
 

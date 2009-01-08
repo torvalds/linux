@@ -40,7 +40,12 @@ extern void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *ptr);
 
 extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 					gfp_t gfp_mask);
-extern void mem_cgroup_move_lists(struct page *page, enum lru_list lru);
+extern void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru);
+extern void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru);
+extern void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru);
+extern void mem_cgroup_del_lru(struct page *page);
+extern void mem_cgroup_move_lists(struct page *page,
+				  enum lru_list from, enum lru_list to);
 extern void mem_cgroup_uncharge_page(struct page *page);
 extern void mem_cgroup_uncharge_cache_page(struct page *page);
 extern int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask);
@@ -131,7 +136,27 @@ static inline int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
 	return 0;
 }
 
-static inline void mem_cgroup_move_lists(struct page *page, bool active)
+static inline void mem_cgroup_add_lru_list(struct page *page, int lru)
+{
+}
+
+static inline void mem_cgroup_del_lru_list(struct page *page, int lru)
+{
+	return ;
+}
+
+static inline void mem_cgroup_rotate_lru_list(struct page *page, int lru)
+{
+	return ;
+}
+
+static inline void mem_cgroup_del_lru(struct page *page)
+{
+	return ;
+}
+
+static inline void
+mem_cgroup_move_lists(struct page *page, enum lru_list from, enum lru_list to)
 {
 }
 
