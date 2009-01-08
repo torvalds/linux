@@ -131,10 +131,8 @@ static ssize_t backlight_store_brightness(struct device *dev,
 		else {
 			pr_debug("backlight: set brightness to %lu\n",
 				 brightness);
-			if (bd->props.brightness != brightness) {
-				bd->props.brightness = brightness;
-				backlight_update_status(bd);
-			}
+			bd->props.brightness = brightness;
+			backlight_update_status(bd);
 			rc = count;
 		}
 	}
