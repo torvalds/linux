@@ -478,18 +478,6 @@ struct iwl_tfd {
 	__le32 __pad;
 } __attribute__ ((packed));
 
-struct iwl3945_tfd_frame_data {
-	__le32 addr;
-	__le32 len;
-} __attribute__ ((packed));
-
-struct iwl3945_tfd_frame {
-	__le32 control_flags;
-	struct iwl3945_tfd_frame_data pa[4];
-	u8 reserved[28];
-} __attribute__ ((packed));
-
-
 /* Keep Warm Size */
 #define IWL_KW_SIZE 0x1000	/* 4k */
 
