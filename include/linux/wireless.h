@@ -615,6 +615,7 @@
 #define IW_ENCODE_ALG_TKIP	2
 #define IW_ENCODE_ALG_CCMP	3
 #define IW_ENCODE_ALG_PMK	4
+#define IW_ENCODE_ALG_AES_CMAC	5
 /* struct iw_encode_ext ->ext_flags */
 #define IW_ENCODE_EXT_TX_SEQ_VALID	0x00000001
 #define IW_ENCODE_EXT_RX_SEQ_VALID	0x00000002

@@ -37,7 +37,14 @@ static int ieee80211_set_encryption(struct ieee80211_sub_if_data *sdata, u8 *sta
 	struct ieee80211_key *key;
 	int err;
 
-	if (idx < 0 || idx >= NUM_DEFAULT_KEYS) {
+	if (alg == ALG_AES_CMAC) {
+		if (idx < NUM_DEFAULT_KEYS ||
+		    idx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS) {
+			printk(KERN_DEBUG "%s: set_encrypt - invalid idx=%d "
+			       "(BIP)\n", sdata->dev->name, idx);
+			return -EINVAL;
+		}
+	} else if (idx < 0 || idx >= NUM_DEFAULT_KEYS) {
 		printk(KERN_DEBUG "%s: set_encrypt - invalid idx=%d\n",
 		       sdata->dev->name, idx);
 		return -EINVAL;
@@ -103,6 +110,9 @@ static int ieee80211_set_encryption(struct ieee80211_sub_if_data *sdata, u8 *sta
 
 		if (set_tx_key || (!sta && !sdata->default_key && key))
 			ieee80211_set_default_key(sdata, idx);
+		if (alg == ALG_AES_CMAC &&
+		    (set_tx_key || (!sta && !sdata->default_mgmt_key && key)))
+			ieee80211_set_default_mgmt_key(sdata, idx);
 	}
 
  out_unlock:
@@ -1048,6 +1058,9 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 	case IW_ENCODE_ALG_CCMP:
 		alg = ALG_CCMP;
 		break;
+	case IW_ENCODE_ALG_AES_CMAC:
+		alg = ALG_AES_CMAC;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1056,20 +1069,41 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 		remove = 1;
 
 	idx = erq->flags & IW_ENCODE_INDEX;
-	if (idx < 1 || idx > 4) {
-		idx = -1;
-		if (!sdata->default_key)
-			idx = 0;
-		else for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-			if (sdata->default_key == sdata->keys[i]) {
-				idx = i;
-				break;
+	if (alg == ALG_AES_CMAC) {
+		if (idx < NUM_DEFAULT_KEYS + 1 ||
+		    idx > NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS) {
+			idx = -1;
+			if (!sdata->default_mgmt_key)
+				idx = 0;
+			else for (i = NUM_DEFAULT_KEYS;
+				  i < NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS;
+				  i++) {
+				if (sdata->default_mgmt_key == sdata->keys[i])
+				{
+					idx = i;
+					break;
+				}
 			}
-		}
-		if (idx < 0)
-			return -EINVAL;
-	} else
-		idx--;
+			if (idx < 0)
+				return -EINVAL;
+		} else
+			idx--;
+	} else {
+		if (idx < 1 || idx > 4) {
+			idx = -1;
+			if (!sdata->default_key)
+				idx = 0;
+			else for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
+				if (sdata->default_key == sdata->keys[i]) {
+					idx = i;
+					break;
+				}
+			}
+			if (idx < 0)
+				return -EINVAL;
+		} else
+			idx--;
+	}
 
 	return ieee80211_set_encryption(sdata, ext->addr.sa_data, idx, alg,
 					remove,
