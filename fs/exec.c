@@ -51,16 +51,12 @@
 #include <linux/audit.h>
 #include <linux/tracehook.h>
 #include <linux/kmod.h>
+#include <linux/fsnotify.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
 #include "internal.h"
-
-#ifdef __alpha__
-/* for /sbin/loader handling in search_binary_handler() */
-#include <linux/a.out.h>
-#endif
 
 int core_uses_pid;
 char core_pattern[CORENAME_MAX_SIZE] = "core";
@@ -127,7 +123,8 @@ asmlinkage long sys_uselib(const char __user * library)
 	if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
 		goto exit;
 
-	error = vfs_permission(&nd, MAY_READ | MAY_EXEC | MAY_OPEN);
+	error = inode_permission(nd.path.dentry->d_inode,
+				 MAY_READ | MAY_EXEC | MAY_OPEN);
 	if (error)
 		goto exit;
 
@@ -135,6 +132,8 @@ asmlinkage long sys_uselib(const char __user * library)
 	error = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto out;
+
+	fsnotify_open(file->f_path.dentry);
 
 	error = -ENOEXEC;
 	if(file->f_op) {
@@ -233,13 +232,13 @@ static void flush_arg_page(struct linux_binprm *bprm, unsigned long pos,
 
 static int __bprm_mm_init(struct linux_binprm *bprm)
 {
-	int err = -ENOMEM;
+	int err;
 	struct vm_area_struct *vma = NULL;
 	struct mm_struct *mm = bprm->mm;
 
 	bprm->vma = vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (!vma)
-		goto err;
+		return -ENOMEM;
 
 	down_write(&mm->mmap_sem);
 	vma->vm_mm = mm;
@@ -252,28 +251,20 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	 */
 	vma->vm_end = STACK_TOP_MAX;
 	vma->vm_start = vma->vm_end - PAGE_SIZE;
-
 	vma->vm_flags = VM_STACK_FLAGS;
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	err = insert_vm_struct(mm, vma);
-	if (err) {
-		up_write(&mm->mmap_sem);
+	if (err)
 		goto err;
-	}
 
 	mm->stack_vm = mm->total_vm = 1;
 	up_write(&mm->mmap_sem);
-
 	bprm->p = vma->vm_end - sizeof(void *);
-
 	return 0;
-
 err:
-	if (vma) {
-		bprm->vma = NULL;
-		kmem_cache_free(vm_area_cachep, vma);
-	}
-
+	up_write(&mm->mmap_sem);
+	bprm->vma = NULL;
+	kmem_cache_free(vm_area_cachep, vma);
 	return err;
 }
 
@@ -680,13 +671,15 @@ struct file *open_exec(const char *name)
 	if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
 		goto out_path_put;
 
-	err = vfs_permission(&nd, MAY_EXEC | MAY_OPEN);
+	err = inode_permission(nd.path.dentry->d_inode, MAY_EXEC | MAY_OPEN);
 	if (err)
 		goto out_path_put;
 
 	file = nameidata_to_filp(&nd, O_RDONLY|O_LARGEFILE);
 	if (IS_ERR(file))
 		return file;
+
+	fsnotify_open(file->f_path.dentry);
 
 	err = deny_write_access(file);
 	if (err) {
@@ -773,7 +766,6 @@ static int de_thread(struct task_struct *tsk)
 	struct signal_struct *sig = tsk->signal;
 	struct sighand_struct *oldsighand = tsk->sighand;
 	spinlock_t *lock = &oldsighand->siglock;
-	struct task_struct *leader = NULL;
 	int count;
 
 	if (thread_group_empty(tsk))
@@ -811,7 +803,7 @@ static int de_thread(struct task_struct *tsk)
 	 * and to assume its PID:
 	 */
 	if (!thread_group_leader(tsk)) {
-		leader = tsk->group_leader;
+		struct task_struct *leader = tsk->group_leader;
 
 		sig->notify_count = -1;	/* for exit_notify() */
 		for (;;) {
@@ -863,8 +855,9 @@ static int de_thread(struct task_struct *tsk)
 
 		BUG_ON(leader->exit_state != EXIT_ZOMBIE);
 		leader->exit_state = EXIT_DEAD;
-
 		write_unlock_irq(&tasklist_lock);
+
+		release_task(leader);
 	}
 
 	sig->group_exit_task = NULL;
@@ -873,8 +866,6 @@ static int de_thread(struct task_struct *tsk)
 no_thread_group:
 	exit_itimers(sig);
 	flush_itimer_signals();
-	if (leader)
-		release_task(leader);
 
 	if (atomic_read(&oldsighand->count) != 1) {
 		struct sighand_struct *newsighand;
@@ -1173,41 +1164,7 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 	unsigned int depth = bprm->recursion_depth;
 	int try,retval;
 	struct linux_binfmt *fmt;
-#ifdef __alpha__
-	/* handle /sbin/loader.. */
-	{
-	    struct exec * eh = (struct exec *) bprm->buf;
 
-	    if (!bprm->loader && eh->fh.f_magic == 0x183 &&
-		(eh->fh.f_flags & 0x3000) == 0x3000)
-	    {
-		struct file * file;
-		unsigned long loader;
-
-		allow_write_access(bprm->file);
-		fput(bprm->file);
-		bprm->file = NULL;
-
-		loader = bprm->vma->vm_end - sizeof(void *);
-
-		file = open_exec("/sbin/loader");
-		retval = PTR_ERR(file);
-		if (IS_ERR(file))
-			return retval;
-
-		/* Remember if the application is TASO.  */
-		bprm->taso = eh->ah.entry < 0x100000000UL;
-
-		bprm->file = file;
-		bprm->loader = loader;
-		retval = prepare_binprm(bprm);
-		if (retval<0)
-			return retval;
-		/* should call search_binary_handler recursively here,
-		   but it does not matter */
-	    }
-	}
-#endif
 	retval = security_bprm_check(bprm);
 	if (retval)
 		return retval;
@@ -1729,7 +1686,7 @@ int get_dumpable(struct mm_struct *mm)
 	return (ret >= 2) ? 2 : ret;
 }
 
-int do_coredump(long signr, int exit_code, struct pt_regs * regs)
+void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 {
 	struct core_state core_state;
 	char corename[CORENAME_MAX_SIZE + 1];
@@ -1813,6 +1770,11 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 
  	if (ispipe) {
 		helper_argv = argv_split(GFP_KERNEL, corename+1, &helper_argc);
+		if (!helper_argv) {
+			printk(KERN_WARNING "%s failed to allocate memory\n",
+			       __func__);
+			goto fail_unlock;
+		}
 		/* Terminate the string before the first option */
 		delimit = strchr(corename, ' ');
 		if (delimit)
@@ -1880,5 +1842,5 @@ fail_unlock:
 	put_cred(cred);
 	coredump_finish(mm);
 fail:
-	return retval;
+	return;
 }

@@ -8,6 +8,7 @@
 #define _LINUX_RANDOM_H
 
 #include <linux/ioctl.h>
+#include <linux/irqnr.h>
 
 /* ioctl()'s for the random number generator */
 

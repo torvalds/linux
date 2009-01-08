@@ -39,7 +39,7 @@ MODULE_LICENSE("GPL");
 static void evbug_event(struct input_handle *handle, unsigned int type, unsigned int code, int value)
 {
 	printk(KERN_DEBUG "evbug.c: Event. Dev: %s, Type: %d, Code: %d, Value: %d\n",
-		handle->dev->dev.bus_id, type, code, value);
+		dev_name(&handle->dev->dev), type, code, value);
 }
 
 static int evbug_connect(struct input_handler *handler, struct input_dev *dev,
@@ -65,7 +65,7 @@ static int evbug_connect(struct input_handler *handler, struct input_dev *dev,
 		goto err_unregister_handle;
 
 	printk(KERN_DEBUG "evbug.c: Connected device: %s (%s at %s)\n",
-		dev->dev.bus_id,
+		dev_name(&dev->dev),
 		dev->name ?: "unknown",
 		dev->phys ?: "unknown");
 
@@ -81,7 +81,7 @@ static int evbug_connect(struct input_handler *handler, struct input_dev *dev,
 static void evbug_disconnect(struct input_handle *handle)
 {
 	printk(KERN_DEBUG "evbug.c: Disconnected device: %s\n",
-		handle->dev->dev.bus_id);
+		dev_name(&handle->dev->dev));
 
 	input_close_device(handle);
 	input_unregister_handle(handle);

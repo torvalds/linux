@@ -1929,10 +1929,10 @@ lpfc_device_recov_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (vport->fc_flag & FC_RSCN_DEFERRED)
 		return ndlp->nlp_state;
 
+	lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
 	spin_unlock_irq(shost->host_lock);
-	lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	return ndlp->nlp_state;
 }
 

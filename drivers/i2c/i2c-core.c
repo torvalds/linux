@@ -459,7 +459,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		pr_debug("I2C adapter driver [%s] forgot to specify "
 			 "physical device\n", adap->name);
 	}
-	sprintf(adap->dev.bus_id, "i2c-%d", adap->nr);
+	dev_set_name(&adap->dev, "i2c-%d", adap->nr);
 	adap->dev.release = &i2c_adapter_dev_release;
 	adap->dev.class = &i2c_adapter_class;
 	res = device_register(&adap->dev);
@@ -845,8 +845,8 @@ int i2c_attach_client(struct i2c_client *client)
 	} else
 		client->dev.release = i2c_client_dev_release;
 
-	snprintf(&client->dev.bus_id[0], sizeof(client->dev.bus_id),
-		"%d-%04x", i2c_adapter_id(adapter), client->addr);
+	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adapter),
+		     client->addr);
 	res = device_register(&client->dev);
 	if (res)
 		goto out_err;
@@ -856,7 +856,7 @@ int i2c_attach_client(struct i2c_client *client)
 	mutex_unlock(&adapter->clist_lock);
 
 	dev_dbg(&adapter->dev, "client [%s] registered with bus id %s\n",
-		client->name, client->dev.bus_id);
+		client->name, dev_name(&client->dev));
 
 	if (adapter->client_register)  {
 		if (adapter->client_register(client)) {

@@ -283,9 +283,9 @@ static int kaweth_control(struct kaweth_device *kaweth,
 
 	dr->bRequestType= requesttype;
 	dr->bRequest = request;
-	dr->wValue = cpu_to_le16p(&value);
-	dr->wIndex = cpu_to_le16p(&index);
-	dr->wLength = cpu_to_le16p(&size);
+	dr->wValue = cpu_to_le16(value);
+	dr->wIndex = cpu_to_le16(index);
+	dr->wLength = cpu_to_le16(size);
 
 	return kaweth_internal_control_msg(kaweth->dev,
 					pipe,

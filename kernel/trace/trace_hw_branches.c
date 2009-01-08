@@ -46,7 +46,7 @@ static void bts_trace_start(struct trace_array *tr)
 
 	tracing_reset_online_cpus(tr);
 
-	for_each_cpu_mask(cpu, cpu_possible_map)
+	for_each_cpu(cpu, cpu_possible_mask)
 		smp_call_function_single(cpu, bts_trace_start_cpu, NULL, 1);
 }
 
@@ -62,7 +62,7 @@ static void bts_trace_stop(struct trace_array *tr)
 {
 	int cpu;
 
-	for_each_cpu_mask(cpu, cpu_possible_map)
+	for_each_cpu(cpu, cpu_possible_mask)
 		smp_call_function_single(cpu, bts_trace_stop_cpu, NULL, 1);
 }
 
@@ -172,7 +172,7 @@ static void trace_bts_prepare(struct trace_iterator *iter)
 {
 	int cpu;
 
-	for_each_cpu_mask(cpu, cpu_possible_map)
+	for_each_cpu(cpu, cpu_possible_mask)
 		smp_call_function_single(cpu, trace_bts_cpu, iter->tr, 1);
 }
 

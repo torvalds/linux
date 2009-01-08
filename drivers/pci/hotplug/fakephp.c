@@ -324,6 +324,7 @@ static int disable_slot(struct hotplug_slot *slot)
 
 		if (test_and_set_bit(0, &dslot->removed)) {
 			dbg("Slot already scheduled for removal\n");
+			pci_dev_put(dev);
 			return -ENODEV;
 		}
 

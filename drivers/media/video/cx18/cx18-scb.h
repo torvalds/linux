@@ -2,6 +2,7 @@
  *  cx18 System Control Block initialization
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -83,12 +84,6 @@
 struct cx18_mdl {
     u32 paddr;  /* Physical address of a buffer segment */
     u32 length; /* Length of the buffer segment */
-};
-
-/* This structure is used by CPU to provide completed buffers information */
-struct cx18_mdl_ack {
-    u32 id;        /* ID of a completed MDL */
-    u32 data_used; /* Total data filled in the MDL for buffer 'id' */
 };
 
 struct cx18_scb {
@@ -276,7 +271,7 @@ struct cx18_scb {
 	struct cx18_mailbox  hpu2epu_mb;
 	struct cx18_mailbox  ppu2epu_mb;
 
-	struct cx18_mdl_ack  cpu_mdl_ack[CX18_MAX_STREAMS][2];
+	struct cx18_mdl_ack  cpu_mdl_ack[CX18_MAX_STREAMS][CX18_MAX_MDL_ACKS];
 	struct cx18_mdl      cpu_mdl[1];
 };
 

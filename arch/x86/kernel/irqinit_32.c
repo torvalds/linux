@@ -68,8 +68,7 @@ void __init init_ISA_irqs (void)
 	/*
 	 * 16 old-style INTA-cycle interrupts:
 	 */
-	for (i = 0; i < 16; i++) {
-		/* first time call this irq_desc */
+	for (i = 0; i < NR_IRQS_LEGACY; i++) {
 		struct irq_desc *desc = irq_to_desc(i);
 
 		desc->status = IRQ_DISABLED;
@@ -111,6 +110,18 @@ DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
 	[IRQ15_VECTOR + 1 ... NR_VECTORS - 1] = -1
 };
 
+int vector_used_by_percpu_irq(unsigned int vector)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		if (per_cpu(vector_irq, cpu)[vector] != -1)
+			return 1;
+	}
+
+	return 0;
+}
+
 /* Overridden in paravirt.c */
 void init_IRQ(void) __attribute__((weak, alias("native_init_IRQ")));
 
@@ -147,10 +158,12 @@ void __init native_init_IRQ(void)
 	alloc_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
 
 	/* IPI for single call function */
-	set_intr_gate(CALL_FUNCTION_SINGLE_VECTOR, call_function_single_interrupt);
+	alloc_intr_gate(CALL_FUNCTION_SINGLE_VECTOR,
+				 call_function_single_interrupt);
 
 	/* Low priority IPI to cleanup after moving an irq */
 	set_intr_gate(IRQ_MOVE_CLEANUP_VECTOR, irq_move_cleanup_interrupt);
+	set_bit(IRQ_MOVE_CLEANUP_VECTOR, used_vectors);
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC

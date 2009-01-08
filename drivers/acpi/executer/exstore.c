@@ -274,7 +274,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
  *
  * PARAMETERS:  *source_desc        - Value to be stored
  *              *dest_desc          - Where to store it.  Must be an NS node
- *                                    or an union acpi_operand_object of type
+ *                                    or a union acpi_operand_object of type
  *                                    Reference;
  *              walk_state          - Current walk state
  *

@@ -300,12 +300,10 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	 * Now we know that no one else is looking at the page.
 	 */
 	get_page(newpage);	/* add cache reference */
-#ifdef CONFIG_SWAP
 	if (PageSwapCache(page)) {
 		SetPageSwapCache(newpage);
 		set_page_private(newpage, page_private(page));
 	}
-#endif
 
 	radix_tree_replace_slot(pslot, newpage);
 
@@ -373,9 +371,7 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 
 	mlock_migrate_page(newpage, page);
 
-#ifdef CONFIG_SWAP
 	ClearPageSwapCache(page);
-#endif
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
 	/* page->mapping contains a flag for PageAnon() */
@@ -848,12 +844,6 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
 		struct vm_area_struct *vma;
 		struct page *page;
 
-		/*
-		 * A valid page pointer that will not match any of the
-		 * pages that will be moved.
-		 */
-		pp->page = ZERO_PAGE(0);
-
 		err = -EFAULT;
 		vma = find_vma(mm, pp->addr);
 		if (!vma || !vma_migratable(vma))
@@ -919,41 +909,43 @@ static int do_pages_move(struct mm_struct *mm, struct task_struct *task,
 			 const int __user *nodes,
 			 int __user *status, int flags)
 {
-	struct page_to_node *pm = NULL;
+	struct page_to_node *pm;
 	nodemask_t task_nodes;
-	int err = 0;
-	int i;
+	unsigned long chunk_nr_pages;
+	unsigned long chunk_start;
+	int err;
 
 	task_nodes = cpuset_mems_allowed(task);
 
-	/* Limit nr_pages so that the multiplication may not overflow */
-	if (nr_pages >= ULONG_MAX / sizeof(struct page_to_node) - 1) {
-		err = -E2BIG;
+	err = -ENOMEM;
+	pm = (struct page_to_node *)__get_free_page(GFP_KERNEL);
+	if (!pm)
 		goto out;
-	}
-
-	pm = vmalloc((nr_pages + 1) * sizeof(struct page_to_node));
-	if (!pm) {
-		err = -ENOMEM;
-		goto out;
-	}
-
 	/*
-	 * Get parameters from user space and initialize the pm
-	 * array. Return various errors if the user did something wrong.
+	 * Store a chunk of page_to_node array in a page,
+	 * but keep the last one as a marker
 	 */
-	for (i = 0; i < nr_pages; i++) {
-		const void __user *p;
+	chunk_nr_pages = (PAGE_SIZE / sizeof(struct page_to_node)) - 1;
 
-		err = -EFAULT;
-		if (get_user(p, pages + i))
-			goto out_pm;
+	for (chunk_start = 0;
+	     chunk_start < nr_pages;
+	     chunk_start += chunk_nr_pages) {
+		int j;
 
-		pm[i].addr = (unsigned long)p;
-		if (nodes) {
+		if (chunk_start + chunk_nr_pages > nr_pages)
+			chunk_nr_pages = nr_pages - chunk_start;
+
+		/* fill the chunk pm with addrs and nodes from user-space */
+		for (j = 0; j < chunk_nr_pages; j++) {
+			const void __user *p;
 			int node;
 
-			if (get_user(node, nodes + i))
+			err = -EFAULT;
+			if (get_user(p, pages + j + chunk_start))
+				goto out_pm;
+			pm[j].addr = (unsigned long) p;
+
+			if (get_user(node, nodes + j + chunk_start))
 				goto out_pm;
 
 			err = -ENODEV;
@@ -964,22 +956,29 @@ static int do_pages_move(struct mm_struct *mm, struct task_struct *task,
 			if (!node_isset(node, task_nodes))
 				goto out_pm;
 
-			pm[i].node = node;
-		} else
-			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
-	}
-	/* End marker */
-	pm[nr_pages].node = MAX_NUMNODES;
+			pm[j].node = node;
+		}
 
-	err = do_move_page_to_node_array(mm, pm, flags & MPOL_MF_MOVE_ALL);
-	if (err >= 0)
+		/* End marker for this chunk */
+		pm[chunk_nr_pages].node = MAX_NUMNODES;
+
+		/* Migrate this chunk */
+		err = do_move_page_to_node_array(mm, pm,
+						 flags & MPOL_MF_MOVE_ALL);
+		if (err < 0)
+			goto out_pm;
+
 		/* Return status information */
-		for (i = 0; i < nr_pages; i++)
-			if (put_user(pm[i].status, status + i))
+		for (j = 0; j < chunk_nr_pages; j++)
+			if (put_user(pm[j].status, status + j + chunk_start)) {
 				err = -EFAULT;
+				goto out_pm;
+			}
+	}
+	err = 0;
 
 out_pm:
-	vfree(pm);
+	free_page((unsigned long)pm);
 out:
 	return err;
 }

@@ -102,14 +102,8 @@ EXPORT_SYMBOL(smp_num_siblings);
 /* Last level cache ID of each logical CPU */
 DEFINE_PER_CPU(u16, cpu_llc_id) = BAD_APICID;
 
-/* bitmap of online cpus */
-cpumask_t cpu_online_map __read_mostly;
-EXPORT_SYMBOL(cpu_online_map);
-
 cpumask_t cpu_callin_map;
 cpumask_t cpu_callout_map;
-cpumask_t cpu_possible_map;
-EXPORT_SYMBOL(cpu_possible_map);
 
 /* representing HT siblings of each logical CPU */
 DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
@@ -502,7 +496,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 }
 
 /* maps the cpu to the sched domain representing multi-core */
-cpumask_t cpu_coregroup_map(int cpu)
+const struct cpumask *cpu_coregroup_mask(int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	/*
@@ -510,9 +504,14 @@ cpumask_t cpu_coregroup_map(int cpu)
 	 * And for power savings, we return cpu_core_map
 	 */
 	if (sched_mc_power_savings || sched_smt_power_savings)
-		return per_cpu(cpu_core_map, cpu);
+		return &per_cpu(cpu_core_map, cpu);
 	else
-		return c->llc_shared_map;
+		return &c->llc_shared_map;
+}
+
+cpumask_t cpu_coregroup_map(int cpu)
+{
+	return *cpu_coregroup_mask(cpu);
 }
 
 static void impress_friends(void)
@@ -1155,7 +1154,7 @@ static void __init smp_cpu_index_default(void)
 	for_each_possible_cpu(i) {
 		c = &cpu_data(i);
 		/* mark all to hotplug */
-		c->cpu_index = NR_CPUS;
+		c->cpu_index = nr_cpu_ids;
 	}
 }
 
@@ -1260,6 +1259,15 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	check_nmi_watchdog();
 }
 
+static int __initdata setup_possible_cpus = -1;
+static int __init _setup_possible_cpus(char *str)
+{
+	get_option(&str, &setup_possible_cpus);
+	return 0;
+}
+early_param("possible_cpus", _setup_possible_cpus);
+
+
 /*
  * cpu_possible_map should be static, it cannot change as cpu's
  * are onlined, or offlined. The reason is per-cpu data-structures
@@ -1272,7 +1280,7 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
  *
  * Three ways to find out the number of additional hotplug CPUs:
  * - If the BIOS specified disabled CPUs in ACPI/mptables use that.
- * - The user can overwrite it with additional_cpus=NUM
+ * - The user can overwrite it with possible_cpus=NUM
  * - Otherwise don't reserve additional CPUs.
  * We do this because additional CPUs waste a lot of memory.
  * -AK
@@ -1285,9 +1293,19 @@ __init void prefill_possible_map(void)
 	if (!num_processors)
 		num_processors = 1;
 
-	possible = num_processors + disabled_cpus;
-	if (possible > NR_CPUS)
-		possible = NR_CPUS;
+	if (setup_possible_cpus == -1)
+		possible = num_processors + disabled_cpus;
+	else
+		possible = setup_possible_cpus;
+
+	total_cpus = max_t(int, possible, num_processors + disabled_cpus);
+
+	if (possible > CONFIG_NR_CPUS) {
+		printk(KERN_WARNING
+			"%d Processors exceeds NR_CPUS limit of %d\n",
+			possible, CONFIG_NR_CPUS);
+		possible = CONFIG_NR_CPUS;
+	}
 
 	printk(KERN_INFO "SMP: Allowing %d CPUs, %d hotplug CPUs\n",
 		possible, max_t(int, possible - num_processors, 0));
@@ -1352,7 +1370,7 @@ void cpu_disable_common(void)
 	lock_vector_lock();
 	remove_cpu_from_maps(cpu);
 	unlock_vector_lock();
-	fixup_irqs(cpu_online_map);
+	fixup_irqs();
 }
 
 int native_cpu_disable(void)

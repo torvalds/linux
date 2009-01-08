@@ -36,7 +36,7 @@
 #include <net/irda/irda_device.h>
 
 #include <asm/irq.h>
-#include <asm/dma.h>
+#include <mach/dma.h>
 #include <mach/hardware.h>
 #include <asm/mach/irda.h>
 

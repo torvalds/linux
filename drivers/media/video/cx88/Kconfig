@@ -69,6 +69,11 @@ config VIDEO_CX88_DVB
 	  To compile this driver as a module, choose M here: the
 	  module will be called cx88-dvb.
 
+config VIDEO_CX88_MPEG
+	tristate
+	depends on VIDEO_CX88_DVB || VIDEO_CX88_BLACKBIRD
+	default y
+
 config VIDEO_CX88_VP3054
 	tristate "VP-3054 Secondary I2C Bus Support"
 	default m

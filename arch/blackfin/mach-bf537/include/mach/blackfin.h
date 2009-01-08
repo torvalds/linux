@@ -82,7 +82,7 @@
 #define STATUS_P1	0x02
 #define STATUS_P0	0x01
 
-/* DMA Channnel */
+/* DMA Channel */
 #define bfin_read_CH_UART_RX() bfin_read_CH_UART0_RX()
 #define bfin_write_CH_UART_RX(val) bfin_write_CH_UART0_RX(val)
 #define CH_UART_RX CH_UART0_RX

@@ -1652,9 +1652,11 @@ static int ext3_add_nondir(handle_t *handle,
 	if (!err) {
 		ext3_mark_inode_dirty(handle, inode);
 		d_instantiate(dentry, inode);
+		unlock_new_inode(inode);
 		return 0;
 	}
 	drop_nlink(inode);
+	unlock_new_inode(inode);
 	iput(inode);
 	return err;
 }
@@ -1765,6 +1767,7 @@ retry:
 	dir_block = ext3_bread (handle, inode, 0, 1, &err);
 	if (!dir_block) {
 		drop_nlink(inode); /* is this nlink == 0? */
+		unlock_new_inode(inode);
 		ext3_mark_inode_dirty(handle, inode);
 		iput (inode);
 		goto out_stop;
@@ -1792,6 +1795,7 @@ retry:
 	err = ext3_add_entry (handle, dentry, inode);
 	if (err) {
 		inode->i_nlink = 0;
+		unlock_new_inode(inode);
 		ext3_mark_inode_dirty(handle, inode);
 		iput (inode);
 		goto out_stop;
@@ -1800,6 +1804,7 @@ retry:
 	ext3_update_dx_flag(dir);
 	ext3_mark_inode_dirty(handle, dir);
 	d_instantiate(dentry, inode);
+	unlock_new_inode(inode);
 out_stop:
 	ext3_journal_stop(handle);
 	if (err == -ENOSPC && ext3_should_retry_alloc(dir->i_sb, &retries))
@@ -2170,10 +2175,10 @@ retry:
 		 * We have a transaction open.  All is sweetness.  It also sets
 		 * i_size in generic_commit_write().
 		 */
-		err = __page_symlink(inode, symname, l,
-				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
+		err = __page_symlink(inode, symname, l, 1);
 		if (err) {
 			drop_nlink(inode);
+			unlock_new_inode(inode);
 			ext3_mark_inode_dirty(handle, inode);
 			iput (inode);
 			goto out_stop;
@@ -2221,7 +2226,14 @@ retry:
 	inc_nlink(inode);
 	atomic_inc(&inode->i_count);
 
-	err = ext3_add_nondir(handle, dentry, inode);
+	err = ext3_add_entry(handle, dentry, inode);
+	if (!err) {
+		ext3_mark_inode_dirty(handle, inode);
+		d_instantiate(dentry, inode);
+	} else {
+		drop_nlink(inode);
+		iput(inode);
+	}
 	ext3_journal_stop(handle);
 	if (err == -ENOSPC && ext3_should_retry_alloc(dir->i_sb, &retries))
 		goto retry;

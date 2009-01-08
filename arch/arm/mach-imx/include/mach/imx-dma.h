@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <asm/dma.h>
+#include <mach/dma.h>
 
 #ifndef __ASM_ARCH_IMX_DMA_H
 #define __ASM_ARCH_IMX_DMA_H
@@ -48,7 +48,7 @@ struct imx_dma_channel {
 	void (*irq_handler) (int, void *);
 	void (*err_handler) (int, void *, int errcode);
 	void *data;
-	dmamode_t  dma_mode;
+	unsigned int  dma_mode;
 	struct scatterlist *sg;
 	unsigned int sgbc;
 	unsigned int sgcount;
@@ -66,14 +66,18 @@ extern struct imx_dma_channel imx_dma_channels[IMX_DMA_CHANNELS];
 /* The type to distinguish channel numbers parameter from ordinal int type */
 typedef int imx_dmach_t;
 
+#define DMA_MODE_READ		0
+#define DMA_MODE_WRITE		1
+#define DMA_MODE_MASK		1
+
 int
 imx_dma_setup_single(imx_dmach_t dma_ch, dma_addr_t dma_address,
-		unsigned int dma_length, unsigned int dev_addr, dmamode_t dmamode);
+		unsigned int dma_length, unsigned int dev_addr, unsigned int dmamode);
 
 int
 imx_dma_setup_sg(imx_dmach_t dma_ch,
 		 struct scatterlist *sg, unsigned int sgcount, unsigned int dma_length,
-		 unsigned int dev_addr, dmamode_t dmamode);
+		 unsigned int dev_addr, unsigned int dmamode);
 
 int
 imx_dma_setup_handlers(imx_dmach_t dma_ch,

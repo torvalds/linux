@@ -46,10 +46,6 @@ static int proc_ide_read_imodel
 	case ide_qd65xx:	name = "qd65xx";	break;
 	case ide_umc8672:	name = "umc8672";	break;
 	case ide_ht6560b:	name = "ht6560b";	break;
-	case ide_rz1000:	name = "rz1000";	break;
-	case ide_trm290:	name = "trm290";	break;
-	case ide_cmd646:	name = "cmd646";	break;
-	case ide_cy82c693:	name = "cy82c693";	break;
 	case ide_4drives:	name = "4drives";	break;
 	case ide_pmac:		name = "mac-io";	break;
 	case ide_au1xxx:	name = "au1xxx";	break;
@@ -155,13 +151,8 @@ static int ide_read_setting(ide_drive_t *drive,
 	const struct ide_devset *ds = setting->setting;
 	int val = -EINVAL;
 
-	if (ds->get) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&ide_lock, flags);
+	if (ds->get)
 		val = ds->get(drive);
-		spin_unlock_irqrestore(&ide_lock, flags);
-	}
 
 	return val;
 }
@@ -448,13 +439,13 @@ static int proc_ide_read_dmodel
 static int proc_ide_read_driver
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
-	ide_drive_t	*drive = (ide_drive_t *) data;
-	struct device	*dev = &drive->gendev;
-	ide_driver_t	*ide_drv;
-	int		len;
+	ide_drive_t		*drive = (ide_drive_t *)data;
+	struct device		*dev = &drive->gendev;
+	struct ide_driver	*ide_drv;
+	int			len;
 
 	if (dev->driver) {
-		ide_drv = container_of(dev->driver, ide_driver_t, gen_driver);
+		ide_drv = to_ide_driver(dev->driver);
 		len = sprintf(page, "%s version %s\n",
 				dev->driver->name, ide_drv->version);
 	} else
@@ -564,7 +555,7 @@ static void ide_remove_proc_entries(struct proc_dir_entry *dir, ide_proc_entry_t
 	}
 }
 
-void ide_proc_register_driver(ide_drive_t *drive, ide_driver_t *driver)
+void ide_proc_register_driver(ide_drive_t *drive, struct ide_driver *driver)
 {
 	mutex_lock(&ide_setting_mtx);
 	drive->settings = driver->proc_devsets(drive);
@@ -583,45 +574,32 @@ EXPORT_SYMBOL(ide_proc_register_driver);
  *	Clean up the driver specific /proc files and IDE settings
  *	for a given drive.
  *
- *	Takes ide_setting_mtx and ide_lock.
- *	Caller must hold none of the locks.
+ *	Takes ide_setting_mtx.
  */
 
-void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver)
+void ide_proc_unregister_driver(ide_drive_t *drive, struct ide_driver *driver)
 {
-	unsigned long flags;
-
 	ide_remove_proc_entries(drive->proc, driver->proc_entries(drive));
 
 	mutex_lock(&ide_setting_mtx);
-	spin_lock_irqsave(&ide_lock, flags);
 	/*
-	 * ide_setting_mtx protects the settings list
-	 * ide_lock protects the use of settings
-	 *
-	 * so we need to hold both, ide_settings_sem because we want to
-	 * modify the settings list, and ide_lock because we cannot take
-	 * a setting out that is being used.
-	 *
-	 * OTOH both ide_{read,write}_setting are only ever used under
-	 * ide_setting_mtx.
+	 * ide_setting_mtx protects both the settings list and the use
+	 * of settings (we cannot take a setting out that is being used).
 	 */
 	drive->settings = NULL;
-	spin_unlock_irqrestore(&ide_lock, flags);
 	mutex_unlock(&ide_setting_mtx);
 }
 EXPORT_SYMBOL(ide_proc_unregister_driver);
 
 void ide_proc_port_register_devices(ide_hwif_t *hwif)
 {
-	int	d;
 	struct proc_dir_entry *ent;
 	struct proc_dir_entry *parent = hwif->proc;
+	ide_drive_t *drive;
 	char name[64];
+	int i;
 
-	for (d = 0; d < MAX_DRIVES; d++) {
-		ide_drive_t *drive = &hwif->drives[d];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0 || drive->proc)
 			continue;
 
@@ -674,7 +652,7 @@ void ide_proc_unregister_port(ide_hwif_t *hwif)
 
 static int proc_print_driver(struct device_driver *drv, void *data)
 {
-	ide_driver_t *ide_drv = container_of(drv, ide_driver_t, gen_driver);
+	struct ide_driver *ide_drv = to_ide_driver(drv);
 	struct seq_file *s = data;
 
 	seq_printf(s, "%s version %s\n", drv->name, ide_drv->version);

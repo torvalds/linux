@@ -1380,6 +1380,13 @@ int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
 	if (wm8350->pmic.pdev[reg])
 		return -EBUSY;
 
+	if (reg >= WM8350_DCDC_1 && reg <= WM8350_DCDC_6 &&
+	    reg > wm8350->pmic.max_dcdc)
+		return -ENODEV;
+	if (reg >= WM8350_ISINK_A && reg <= WM8350_ISINK_B &&
+	    reg > wm8350->pmic.max_isink)
+		return -ENODEV;
+
 	pdev = platform_device_alloc("wm8350-regulator", reg);
 	if (!pdev)
 		return -ENOMEM;

@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
 
 #include <asm/mach/irq.h>
 

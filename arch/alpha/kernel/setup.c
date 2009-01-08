@@ -79,6 +79,11 @@ int alpha_l3_cacheshape;
 unsigned long alpha_verbose_mcheck = CONFIG_VERBOSE_MCHECK_ON;
 #endif
 
+#ifdef CONFIG_NUMA
+struct cpumask node_to_cpumask_map[MAX_NUMNODES] __read_mostly;
+EXPORT_SYMBOL(node_to_cpumask_map);
+#endif
+
 /* Which processor we booted from.  */
 int boot_cpuid;
 

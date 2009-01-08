@@ -20,6 +20,15 @@ fw-external-y := $(subst ",,$(CONFIG_EXTRA_FIRMWARE))
 # accurate. In the latter case it doesn't matter -- it'll use $(fw-shipped-all).
 # But be aware that the config file might not be included at all.
 
+ifdef CONFIG_ACENIC_OMIT_TIGON_I
+acenic-objs := acenic/tg2.bin
+fw-shipped- += acenic/tg1.bin
+else
+acenic-objs := acenic/tg1.bin acenic/tg2.bin
+endif
+fw-shipped-$(CONFIG_ACENIC) += $(acenic-objs)
+fw-shipped-$(CONFIG_ADAPTEC_STARFIRE) += adaptec/starfire_rx.bin \
+					 adaptec/starfire_tx.bin
 fw-shipped-$(CONFIG_ATARI_DSP56K) += dsp56k/bootstrap.bin
 fw-shipped-$(CONFIG_ATM_AMBASSADOR) += atmsar11.fw
 fw-shipped-$(CONFIG_CASSINI) += sun/cassini.bin
@@ -38,6 +47,8 @@ fw-shipped-$(CONFIG_SND_SB16_CSP) += sb16/mulaw_main.csp sb16/alaw_main.csp \
 				     sb16/ima_adpcm_capture.csp
 fw-shipped-$(CONFIG_SND_YMFPCI) += yamaha/ds1_ctrl.fw yamaha/ds1_dsp.fw \
 				   yamaha/ds1e_ctrl.fw
+fw-shipped-$(CONFIG_TIGON3) += tigon/tg3.bin tigon/tg3_tso.bin \
+			       tigon/tg3_tso5.bin
 fw-shipped-$(CONFIG_USB_DABUSB) += dabusb/firmware.fw dabusb/bitstream.bin
 fw-shipped-$(CONFIG_USB_EMI26) += emi26/loader.fw emi26/firmware.fw \
 				  emi26/bitstream.fw
@@ -88,10 +99,10 @@ quiet_cmd_ihex  = IHEX    $@
       cmd_ihex  = $(OBJCOPY) -Iihex -Obinary $< $@
 
 quiet_cmd_ihex2fw  = IHEX2FW $@
-      cmd_ihex2fw  = $(objtree)/$(obj)/ihex2fw $< $@
+      cmd_ihex2fw  = $(objtree)/scripts/ihex2fw $< $@
 
 quiet_cmd_h16tofw  = H16TOFW $@
-      cmd_h16tofw  = $(objtree)/$(obj)/ihex2fw -w $< $@
+      cmd_h16tofw  = $(objtree)/scripts/ihex2fw -w $< $@
 
 quiet_cmd_fwbin = MK_FW   $@
       cmd_fwbin = FWNAME="$(patsubst firmware/%.gen.S,%,$@)";		     \
@@ -150,27 +161,15 @@ $(patsubst %,$(obj)/%.gen.o, $(fw-external-y)): $(obj)/%.gen.o: $(fwdir)/%
 $(obj)/%: $(obj)/%.ihex | $(objtree)/$(obj)/$$(dir %)
 	$(call cmd,ihex)
 
-# Don't depend on ihex2fw if we're installing and it already exists.
-# Putting it after | in the dependencies doesn't seem sufficient when
-# we're installing after a cross-compile, because ihex2fw has dependencies
-# on stuff like /usr/lib/gcc/ppc64-redhat-linux/4.3.0/include/stddef.h and 
-# thus wants to be rebuilt. Which it can't be, if the prebuilt kernel tree
-# is exported read-only for someone to run 'make install'.
-ifeq ($(INSTALL):$(wildcard $(obj)/ihex2fw),install:$(obj)/ihex2fw)
-ihex2fw_dep :=
-else
-ihex2fw_dep := $(obj)/ihex2fw
-endif
-
 # .HEX is also Intel HEX, but where the offset and length in each record
 # is actually meaningful, because the firmware has to be loaded in a certain
 # order rather than as a single binary blob. Thus, we convert them into our
 # more compact binary representation of ihex records (<linux/ihex.h>)
-$(obj)/%.fw: $(obj)/%.HEX $(ihex2fw_dep) | $(objtree)/$(obj)/$$(dir %)
+$(obj)/%.fw: $(obj)/%.HEX  | $(objtree)/$(obj)/$$(dir %)
 	$(call cmd,ihex2fw)
 
 # .H16 is our own modified form of Intel HEX, with 16-bit length for records.
-$(obj)/%.fw: $(obj)/%.H16 $(ihex2fw_dep) | $(objtree)/$(obj)/$$(dir %)
+$(obj)/%.fw: $(obj)/%.H16 | $(objtree)/$(obj)/$$(dir %)
 	$(call cmd,h16tofw)
 
 $(firmware-dirs):
@@ -187,5 +186,3 @@ targets := $(fw-shipped-) $(patsubst $(obj)/%,%, \
 # Without this, built-in.o won't be created when it's empty, and the
 # final vmlinux link will fail.
 obj-n := dummy
-
-hostprogs-y := ihex2fw

@@ -1300,7 +1300,7 @@ static int i2o_seq_show_dev_name(struct seq_file *seq, void *v)
 {
 	struct i2o_device *d = (struct i2o_device *)seq->private;
 
-	seq_printf(seq, "%s\n", d->device.bus_id);
+	seq_printf(seq, "%s\n", dev_name(&d->device));
 
 	return 0;
 }

@@ -201,7 +201,7 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 		err = -ENOMEM;
 		goto Error;
 	}
-	memzero(info, sizeof(struct ixp4xx_flash_info));
+	memset(info, 0, sizeof(struct ixp4xx_flash_info));
 
 	platform_set_drvdata(dev, info);
 
@@ -218,7 +218,7 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 	 * handle that.
 	 */
 	info->map.bankwidth = 2;
-	info->map.name = dev->dev.bus_id;
+	info->map.name = dev_name(&dev->dev);
 	info->map.read = ixp4xx_read16,
 	info->map.write = ixp4xx_probe_write16,
 	info->map.copy_from = ixp4xx_copy_from,

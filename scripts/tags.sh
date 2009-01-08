@@ -24,6 +24,11 @@ else
 	tree=${srctree}/
 fi
 
+# Detect if ALLSOURCE_ARCHS is set. If not, we assume SRCARCH
+if [ "${ALLSOURCE_ARCHS}" = "" ]; then
+	ALLSOURCE_ARCHS=${SRCARCH}
+fi
+
 # find sources in arch/$ARCH
 find_arch_sources()
 {
@@ -54,26 +59,29 @@ find_other_sources()
 find_sources()
 {
 	find_arch_sources $1 "$2"
-	find_include_sources "$2"
-	find_other_sources "$2"
 }
 
 all_sources()
 {
-	find_sources $SRCARCH '*.[chS]'
+	for arch in $ALLSOURCE_ARCHS
+	do
+		find_sources $arch '*.[chS]'
+	done
 	if [ ! -z "$archinclude" ]; then
 		find_arch_include_sources $archinclude '*.[chS]'
 	fi
+	find_include_sources '*.[chS]'
+	find_other_sources '*.[chS]'
 }
 
 all_kconfigs()
 {
-	find_sources $SRCARCH 'Kconfig*'
+	find_sources $ALLSOURCE_ARCHS 'Kconfig*'
 }
 
 all_defconfigs()
 {
-	find_sources $SRCARCH "defconfig"
+	find_sources $ALLSOURCE_ARCHS "defconfig"
 }
 
 docscope()
@@ -84,7 +92,6 @@ docscope()
 
 exuberant()
 {
-	all_sources > all
 	all_sources | xargs $1 -a                               \
 	-I __initdata,__exitdata,__acquires,__releases          \
 	-I __read_mostly,____cacheline_aligned                  \

@@ -87,10 +87,6 @@ extern int rcutorture_runnable;
 #endif /* #ifdef CONFIG_RCU_TORTURE_TEST */
 
 /* Constants used for minimum and  maximum */
-#if defined(CONFIG_HIGHMEM) || defined(CONFIG_DETECT_SOFTLOCKUP)
-static int one = 1;
-#endif
-
 #ifdef CONFIG_DETECT_SOFTLOCKUP
 static int sixty = 60;
 static int neg_one = -1;
@@ -101,6 +97,7 @@ static int two = 2;
 #endif
 
 static int zero;
+static int one = 1;
 static int one_hundred = 100;
 
 /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
@@ -119,6 +116,10 @@ extern int sg_big_buff;
 
 #ifdef CONFIG_SPARC
 #include <asm/system.h>
+#endif
+
+#ifdef CONFIG_SPARC64
+extern int sysctl_tsb_ratio;
 #endif
 
 #ifdef __hppa__
@@ -446,6 +447,16 @@ static struct ctl_table kern_table[] = {
 		.ctl_name	= KERN_SPARC_SCONS_PWROFF,
 		.procname	= "scons-poweroff",
 		.data		= &scons_pwroff,
+		.maxlen		= sizeof (int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_SPARC64
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "tsb-ratio",
+		.data		= &sysctl_tsb_ratio,
 		.maxlen		= sizeof (int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
@@ -938,10 +949,20 @@ static struct ctl_table vm_table[] = {
 		.data		= &dirty_background_ratio,
 		.maxlen		= sizeof(dirty_background_ratio),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= &dirty_background_ratio_handler,
 		.strategy	= &sysctl_intvec,
 		.extra1		= &zero,
 		.extra2		= &one_hundred,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "dirty_background_bytes",
+		.data		= &dirty_background_bytes,
+		.maxlen		= sizeof(dirty_background_bytes),
+		.mode		= 0644,
+		.proc_handler	= &dirty_background_bytes_handler,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &one,
 	},
 	{
 		.ctl_name	= VM_DIRTY_RATIO,
@@ -953,6 +974,16 @@ static struct ctl_table vm_table[] = {
 		.strategy	= &sysctl_intvec,
 		.extra1		= &zero,
 		.extra2		= &one_hundred,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "dirty_bytes",
+		.data		= &vm_dirty_bytes,
+		.maxlen		= sizeof(vm_dirty_bytes),
+		.mode		= 0644,
+		.proc_handler	= &dirty_bytes_handler,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &one,
 	},
 	{
 		.procname	= "dirty_writeback_centisecs",

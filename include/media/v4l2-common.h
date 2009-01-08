@@ -57,6 +57,29 @@
 
 /* ------------------------------------------------------------------------- */
 
+/* These printk constructs can be used with v4l2_device and v4l2_subdev */
+#define v4l2_printk(level, dev, fmt, arg...) \
+	printk(level "%s: " fmt, (dev)->name , ## arg)
+
+#define v4l2_err(dev, fmt, arg...) \
+	v4l2_printk(KERN_ERR, dev, fmt , ## arg)
+
+#define v4l2_warn(dev, fmt, arg...) \
+	v4l2_printk(KERN_WARNING, dev, fmt , ## arg)
+
+#define v4l2_info(dev, fmt, arg...) \
+	v4l2_printk(KERN_INFO, dev, fmt , ## arg)
+
+/* These three macros assume that the debug level is set with a module
+   parameter called 'debug'. */
+#define v4l2_dbg(level, debug, dev, fmt, arg...)			\
+	do { 								\
+		if (debug >= (level))					\
+			v4l2_printk(KERN_DEBUG, dev, fmt , ## arg); 	\
+	} while (0)
+
+/* ------------------------------------------------------------------------- */
+
 /* Priority helper functions */
 
 struct v4l2_prio_state {
@@ -91,10 +114,10 @@ u32 v4l2_ctrl_next(const u32 * const *ctrl_classes, u32 id);
 /* Register/chip ident helper function */
 
 struct i2c_client; /* forward reference */
-int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 id_type, u32 chip_id);
-int v4l2_chip_ident_i2c_client(struct i2c_client *c, struct v4l2_chip_ident *chip,
+int v4l2_chip_match_i2c_client(struct i2c_client *c, const struct v4l2_dbg_match *match);
+int v4l2_chip_ident_i2c_client(struct i2c_client *c, struct v4l2_dbg_chip_ident *chip,
 		u32 ident, u32 revision);
-int v4l2_chip_match_host(u32 id_type, u32 chip_id);
+int v4l2_chip_match_host(const struct v4l2_dbg_match *match);
 
 /* ------------------------------------------------------------------------- */
 
@@ -104,10 +127,28 @@ struct i2c_driver;
 struct i2c_adapter;
 struct i2c_client;
 struct i2c_device_id;
+struct v4l2_device;
+struct v4l2_subdev;
+struct v4l2_subdev_ops;
 
 int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver *driver,
 		const char *name,
 		int (*probe)(struct i2c_client *, const struct i2c_device_id *));
+
+/* Load an i2c module and return an initialized v4l2_subdev struct.
+   Only call request_module if module_name != NULL.
+   The client_type argument is the name of the chip that's on the adapter. */
+struct v4l2_subdev *v4l2_i2c_new_subdev(struct i2c_adapter *adapter,
+		const char *module_name, const char *client_type, u8 addr);
+/* Probe and load an i2c module and return an initialized v4l2_subdev struct.
+   Only call request_module if module_name != NULL.
+   The client_type argument is the name of the chip that's on the adapter. */
+struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
+		const char *module_name, const char *client_type,
+		const unsigned short *addrs);
+/* Initialize an v4l2_subdev with data from an i2c_client struct */
+void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
+		const struct v4l2_subdev_ops *ops);
 
 /* ------------------------------------------------------------------------- */
 

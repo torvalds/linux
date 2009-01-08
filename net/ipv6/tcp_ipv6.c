@@ -23,6 +23,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#include <linux/bottom_half.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -1830,7 +1831,9 @@ static int tcp_v6_init_sock(struct sock *sk)
 	sk->sk_sndbuf = sysctl_tcp_wmem[1];
 	sk->sk_rcvbuf = sysctl_tcp_rmem[1];
 
+	local_bh_disable();
 	percpu_counter_inc(&tcp_sockets_allocated);
+	local_bh_enable();
 
 	return 0;
 }

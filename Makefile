@@ -205,12 +205,13 @@ ifeq ($(ARCH),x86_64)
         SRCARCH := x86
 endif
 
-# Where to locate arch specific headers
+# Additional ARCH settings for sparc
 ifeq ($(ARCH),sparc64)
-       hdr-arch  := sparc
-else
-       hdr-arch  := $(SRCARCH)
+       SRCARCH := sparc
 endif
+
+# Where to locate arch specific headers
+hdr-arch  := $(SRCARCH)
 
 KCONFIG_CONFIG	?= .config
 
@@ -320,7 +321,8 @@ KALLSYMS	= scripts/kallsyms
 PERL		= perl
 CHECK		= sparse
 
-CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ -Wbitwise $(CF)
+CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
+		  -Wbitwise -Wno-return-void $(CF)
 MODFLAGS	= -DMODULE
 CFLAGS_MODULE   = $(MODFLAGS)
 AFLAGS_MODULE   = $(MODFLAGS)
@@ -963,6 +965,7 @@ ifneq ($(KBUILD_SRC),)
 	    mkdir -p include2;                                          \
 	    ln -fsn $(srctree)/include/asm-$(SRCARCH) include2/asm;     \
 	fi
+	ln -fsn $(srctree) source
 endif
 
 # prepare2 creates a makefile if using a separate output directory
@@ -1006,7 +1009,7 @@ define check-symlink
 endef
 
 # We create the target directory of the symlink if it does
-# not exist so the test in chack-symlink works and we have a
+# not exist so the test in check-symlink works and we have a
 # directory for generated filesas used by some architectures.
 define create-symlink
 	if [ ! -L include/asm ]; then                                      \

@@ -1,5 +1,5 @@
   0 -> Unknown EM2800 video grabber             (em2800)        [eb1a:2800]
-  1 -> Unknown EM2750/28xx video grabber        (em2820/em2840) [eb1a:2820,eb1a:2860,eb1a:2861,eb1a:2870,eb1a:2881,eb1a:2883]
+  1 -> Unknown EM2750/28xx video grabber        (em2820/em2840) [eb1a:2820,eb1a:2821,eb1a:2860,eb1a:2861,eb1a:2870,eb1a:2881,eb1a:2883]
   2 -> Terratec Cinergy 250 USB                 (em2820/em2840) [0ccd:0036]
   3 -> Pinnacle PCTV USB 2                      (em2820/em2840) [2304:0208]
   4 -> Hauppauge WinTV USB 2                    (em2820/em2840) [2040:4200,2040:4201]
@@ -12,9 +12,9 @@
  11 -> Terratec Hybrid XS                       (em2880)        [0ccd:0042]
  12 -> Kworld PVR TV 2800 RF                    (em2820/em2840)
  13 -> Terratec Prodigy XS                      (em2880)        [0ccd:0047]
- 14 -> Pixelview Prolink PlayTV USB 2.0         (em2820/em2840) [eb1a:2821]
+ 14 -> Pixelview Prolink PlayTV USB 2.0         (em2820/em2840)
  15 -> V-Gear PocketTV                          (em2800)
- 16 -> Hauppauge WinTV HVR 950                  (em2883)        [2040:6513,2040:6517,2040:651b,2040:651f]
+ 16 -> Hauppauge WinTV HVR 950                  (em2883)        [2040:6513,2040:6517,2040:651b]
  17 -> Pinnacle PCTV HD Pro Stick               (em2880)        [2304:0227]
  18 -> Hauppauge WinTV HVR 900 (R2)             (em2880)        [2040:6502]
  19 -> PointNix Intra-Oral Camera               (em2860)
@@ -27,7 +27,6 @@
  26 -> Hercules Smart TV USB 2.0                (em2820/em2840)
  27 -> Pinnacle PCTV USB 2 (Philips FM1216ME)   (em2820/em2840)
  28 -> Leadtek Winfast USB II Deluxe            (em2820/em2840)
- 29 -> Pinnacle Dazzle DVC 100                  (em2820/em2840)
  30 -> Videology 20K14XUSB USB2.0               (em2820/em2840)
  31 -> Usbgear VD204v9                          (em2821)
  32 -> Supercomp USB 2.0 TV                     (em2821)
@@ -57,3 +56,5 @@
  56 -> Pinnacle Hybrid Pro (2)                  (em2882)        [2304:0226]
  57 -> Kworld PlusTV HD Hybrid 330              (em2883)        [eb1a:a316]
  58 -> Compro VideoMate ForYou/Stereo           (em2820/em2840) [185b:2041]
+ 60 -> Hauppauge WinTV HVR 850                  (em2883)        [2040:651f]
+ 61 -> Pixelview PlayTV Box 4 USB 2.0           (em2820/em2840)

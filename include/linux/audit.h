@@ -247,6 +247,18 @@
 #define AUDIT_GREATER_THAN_OR_EQUAL	(AUDIT_GREATER_THAN|AUDIT_EQUAL)
 #define AUDIT_OPERATORS			(AUDIT_EQUAL|AUDIT_NOT_EQUAL|AUDIT_BIT_MASK)
 
+enum {
+	Audit_equal,
+	Audit_not_equal,
+	Audit_bitmask,
+	Audit_bittest,
+	Audit_lt,
+	Audit_gt,
+	Audit_le,
+	Audit_ge,
+	Audit_bad
+};
+
 /* Status symbols */
 				/* Mask values */
 #define AUDIT_STATUS_ENABLED		0x0001
@@ -373,6 +385,8 @@ struct audit_krule {
 	struct audit_watch	*watch;	/* associated watch */
 	struct audit_tree	*tree;	/* associated watched tree */
 	struct list_head	rlist;	/* entry in audit_{watch,tree}.rules list */
+	struct list_head	list;	/* for AUDIT_LIST* purposes only */
+	u64			prio;
 };
 
 struct audit_field {
@@ -443,70 +457,56 @@ extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 #define audit_get_loginuid(t) ((t)->loginuid)
 #define audit_get_sessionid(t) ((t)->sessionid)
 extern void audit_log_task_context(struct audit_buffer *ab);
-extern int __audit_ipc_obj(struct kern_ipc_perm *ipcp);
-extern int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
+extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
+extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
 extern int audit_bprm(struct linux_binprm *bprm);
-extern int audit_socketcall(int nargs, unsigned long *args);
+extern void audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
-extern int __audit_fd_pair(int fd1, int fd2);
+extern void __audit_fd_pair(int fd1, int fd2);
 extern int audit_set_macxattr(const char *name);
-extern int __audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr);
-extern int __audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec __user *u_abs_timeout);
-extern int __audit_mq_timedreceive(mqd_t mqdes, size_t msg_len, unsigned int __user *u_msg_prio, const struct timespec __user *u_abs_timeout);
-extern int __audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification);
-extern int __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat);
+extern void __audit_mq_open(int oflag, mode_t mode, struct mq_attr *attr);
+extern void __audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec *abs_timeout);
+extern void __audit_mq_notify(mqd_t mqdes, const struct sigevent *notification);
+extern void __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat);
 extern int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 				  const struct cred *new,
 				  const struct cred *old);
-extern int __audit_log_capset(pid_t pid, const struct cred *new, const struct cred *old);
+extern void __audit_log_capset(pid_t pid, const struct cred *new, const struct cred *old);
 
-static inline int audit_ipc_obj(struct kern_ipc_perm *ipcp)
+static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_ipc_obj(ipcp);
-	return 0;
+		__audit_ipc_obj(ipcp);
 }
-static inline int audit_fd_pair(int fd1, int fd2)
+static inline void audit_fd_pair(int fd1, int fd2)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_fd_pair(fd1, fd2);
-	return 0;
+		__audit_fd_pair(fd1, fd2);
 }
-static inline int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
+static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_ipc_set_perm(qbytes, uid, gid, mode);
-	return 0;
+		__audit_ipc_set_perm(qbytes, uid, gid, mode);
 }
-static inline int audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr)
+static inline void audit_mq_open(int oflag, mode_t mode, struct mq_attr *attr)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_mq_open(oflag, mode, u_attr);
-	return 0;
+		__audit_mq_open(oflag, mode, attr);
 }
-static inline int audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec __user *u_abs_timeout)
+static inline void audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec *abs_timeout)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_mq_timedsend(mqdes, msg_len, msg_prio, u_abs_timeout);
-	return 0;
+		__audit_mq_sendrecv(mqdes, msg_len, msg_prio, abs_timeout);
 }
-static inline int audit_mq_timedreceive(mqd_t mqdes, size_t msg_len, unsigned int __user *u_msg_prio, const struct timespec __user *u_abs_timeout)
+static inline void audit_mq_notify(mqd_t mqdes, const struct sigevent *notification)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_mq_timedreceive(mqdes, msg_len, u_msg_prio, u_abs_timeout);
-	return 0;
+		__audit_mq_notify(mqdes, notification);
 }
-static inline int audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification)
+static inline void audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_mq_notify(mqdes, u_notification);
-	return 0;
-}
-static inline int audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
-{
-	if (unlikely(!audit_dummy_context()))
-		return __audit_mq_getsetattr(mqdes, mqstat);
-	return 0;
+		__audit_mq_getsetattr(mqdes, mqstat);
 }
 
 static inline int audit_log_bprm_fcaps(struct linux_binprm *bprm,
@@ -518,12 +518,11 @@ static inline int audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	return 0;
 }
 
-static inline int audit_log_capset(pid_t pid, const struct cred *new,
+static inline void audit_log_capset(pid_t pid, const struct cred *new,
 				   const struct cred *old)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_log_capset(pid, new, old);
-	return 0;
+		__audit_log_capset(pid, new, old);
 }
 
 extern int audit_n_rules;
@@ -546,20 +545,19 @@ extern int audit_signals;
 #define audit_get_loginuid(t) (-1)
 #define audit_get_sessionid(t) (-1)
 #define audit_log_task_context(b) do { ; } while (0)
-#define audit_ipc_obj(i) ({ 0; })
-#define audit_ipc_set_perm(q,u,g,m) ({ 0; })
+#define audit_ipc_obj(i) ((void)0)
+#define audit_ipc_set_perm(q,u,g,m) ((void)0)
 #define audit_bprm(p) ({ 0; })
-#define audit_socketcall(n,a) ({ 0; })
-#define audit_fd_pair(n,a) ({ 0; })
+#define audit_socketcall(n,a) ((void)0)
+#define audit_fd_pair(n,a) ((void)0)
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_set_macxattr(n) do { ; } while (0)
-#define audit_mq_open(o,m,a) ({ 0; })
-#define audit_mq_timedsend(d,l,p,t) ({ 0; })
-#define audit_mq_timedreceive(d,l,p,t) ({ 0; })
-#define audit_mq_notify(d,n) ({ 0; })
-#define audit_mq_getsetattr(d,s) ({ 0; })
+#define audit_mq_open(o,m,a) ((void)0)
+#define audit_mq_sendrecv(d,l,p,t) ((void)0)
+#define audit_mq_notify(d,n) ((void)0)
+#define audit_mq_getsetattr(d,s) ((void)0)
 #define audit_log_bprm_fcaps(b, ncr, ocr) ({ 0; })
-#define audit_log_capset(pid, ncr, ocr) ({ 0; })
+#define audit_log_capset(pid, ncr, ocr) ((void)0)
 #define audit_ptrace(t) ((void)0)
 #define audit_n_rules 0
 #define audit_signals 0

@@ -741,5 +741,3 @@ u32 dccp_sample_rtt(struct sock *sk, long delta)
 
 	return delta;
 }
-
-EXPORT_SYMBOL_GPL(dccp_sample_rtt);

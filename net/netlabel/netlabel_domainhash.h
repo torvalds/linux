@@ -90,6 +90,10 @@ int netlbl_domhsh_add_default(struct netlbl_dom_map *entry,
 			      struct netlbl_audit *audit_info);
 int netlbl_domhsh_remove_entry(struct netlbl_dom_map *entry,
 			       struct netlbl_audit *audit_info);
+int netlbl_domhsh_remove_af4(const char *domain,
+			     const struct in_addr *addr,
+			     const struct in_addr *mask,
+			     struct netlbl_audit *audit_info);
 int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info);
 int netlbl_domhsh_remove_default(struct netlbl_audit *audit_info);
 struct netlbl_dom_map *netlbl_domhsh_getentry(const char *domain);

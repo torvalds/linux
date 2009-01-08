@@ -247,6 +247,28 @@ config X86_HAS_BOOT_CPU_ID
 	def_bool y
 	depends on X86_VOYAGER
 
+config SPARSE_IRQ
+	bool "Support sparse irq numbering"
+	depends on PCI_MSI || HT_IRQ
+	help
+	  This enables support for sparse irqs. This is useful for distro
+	  kernels that want to define a high CONFIG_NR_CPUS value but still
+	  want to have low kernel memory footprint on smaller machines.
+
+	  ( Sparse IRQs can also be beneficial on NUMA boxes, as they spread
+	    out the irq_desc[] array in a more NUMA-friendly way. )
+
+	  If you don't know what to do here, say N.
+
+config NUMA_MIGRATE_IRQ_DESC
+	bool "Move irq desc when changing irq smp_affinity"
+	depends on SPARSE_IRQ && NUMA
+	default n
+	help
+	  This enables moving irq_desc to cpu/node that irq will use handled.
+
+	  If you don't know what to do here, say N.
+
 config X86_FIND_SMP_CONFIG
 	def_bool y
 	depends on X86_MPPARSE || X86_VOYAGER
@@ -479,7 +501,7 @@ config HPET_TIMER
          The HPET provides a stable time base on SMP
          systems, unlike the TSC, but it is more expensive to access,
          as it is off-chip.  You can find the HPET spec at
-         <http://www.intel.com/hardwaredesign/hpetspec.htm>.
+         <http://www.intel.com/hardwaredesign/hpetspec_1.pdf>.
 
          You can safely choose Y here.  However, HPET will only be
          activated if the platform and the BIOS support this feature.
@@ -564,6 +586,16 @@ config AMD_IOMMU
 	  your BIOS for an option to enable it or if you have an IVRS ACPI
 	  table.
 
+config AMD_IOMMU_STATS
+	bool "Export AMD IOMMU statistics to debugfs"
+	depends on AMD_IOMMU
+	select DEBUG_FS
+	help
+	  This option enables code in the AMD IOMMU driver to collect various
+	  statistics about whats happening in the driver and exports that
+	  information to userspace via debugfs.
+	  If unsure, say N.
+
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
 	def_bool y if X86_64
@@ -577,21 +609,25 @@ config SWIOTLB
 config IOMMU_HELPER
 	def_bool (CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU)
 
+config IOMMU_API
+	def_bool (AMD_IOMMU || DMAR)
+
 config MAXSMP
 	bool "Configure Maximum number of SMP Processors and NUMA Nodes"
-	depends on X86_64 && SMP && BROKEN
+	depends on X86_64 && SMP && DEBUG_KERNEL && EXPERIMENTAL
+	select CPUMASK_OFFSTACK
 	default n
 	help
 	  Configure maximum number of CPUS and NUMA Nodes for this architecture.
 	  If unsure, say N.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-512)" if !MAXSMP
-	range 2 512
-	depends on SMP
+	int "Maximum number of CPUs" if SMP && !MAXSMP
+	range 2 512 if SMP && !MAXSMP
+	default "1" if !SMP
 	default "4096" if MAXSMP
-	default "32" if X86_NUMAQ || X86_SUMMIT || X86_BIGSMP || X86_ES7000
-	default "8"
+	default "32" if SMP && (X86_NUMAQ || X86_SUMMIT || X86_BIGSMP || X86_ES7000)
+	default "8" if SMP
 	help
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.  The maximum supported value is 512 and the

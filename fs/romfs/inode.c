@@ -524,7 +524,6 @@ romfs_iget(struct super_block *sb, unsigned long ino)
 	i->i_size = be32_to_cpu(ri.size);
 	i->i_mtime.tv_sec = i->i_atime.tv_sec = i->i_ctime.tv_sec = 0;
 	i->i_mtime.tv_nsec = i->i_atime.tv_nsec = i->i_ctime.tv_nsec = 0;
-	i->i_uid = i->i_gid = 0;
 
         /* Precalculate the data offset */
         ino = romfs_strnlen(i, ino+ROMFH_SIZE, ROMFS_MAXFN);

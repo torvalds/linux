@@ -435,16 +435,16 @@ static void * __init alloc_bootmem_core(struct bootmem_data *bdata,
 	unsigned long fallback = 0;
 	unsigned long min, max, start, sidx, midx, step;
 
+	bdebug("nid=%td size=%lx [%lu pages] align=%lx goal=%lx limit=%lx\n",
+		bdata - bootmem_node_data, size, PAGE_ALIGN(size) >> PAGE_SHIFT,
+		align, goal, limit);
+
 	BUG_ON(!size);
 	BUG_ON(align & (align - 1));
 	BUG_ON(limit && goal + size > limit);
 
 	if (!bdata->node_bootmem_map)
 		return NULL;
-
-	bdebug("nid=%td size=%lx [%lu pages] align=%lx goal=%lx limit=%lx\n",
-		bdata - bootmem_node_data, size, PAGE_ALIGN(size) >> PAGE_SHIFT,
-		align, goal, limit);
 
 	min = bdata->node_min_pfn;
 	max = bdata->node_low_pfn;

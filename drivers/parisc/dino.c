@@ -547,7 +547,7 @@ dino_card_fixup(struct pci_dev *dev)
 	** The additional "-1" adjusts for skewing the IRQ<->slot.
 	*/
 	dino_cfg_read(dev->bus, dev->devfn, PCI_INTERRUPT_PIN, 1, &irq_pin); 
-	dev->irq = (irq_pin + PCI_SLOT(dev->devfn) - 1) % 4 ;
+	dev->irq = pci_swizzle_interrupt_pin(dev, irq_pin) - 1;
 
 	/* Shouldn't really need to do this but it's in case someone tries
 	** to bypass PCI services and look at the card themselves.
@@ -672,7 +672,7 @@ dino_fixup_bus(struct pci_bus *bus)
 			
 			dino_cfg_read(dev->bus, dev->devfn, 
 				      PCI_INTERRUPT_PIN, 1, &irq_pin);
-			irq_pin = (irq_pin + PCI_SLOT(dev->devfn) - 1) % 4 ;
+			irq_pin = pci_swizzle_interrupt_pin(dev, irq_pin) - 1;
 			printk(KERN_WARNING "Device %s has undefined IRQ, "
 					"setting to %d\n", pci_name(dev), irq_pin);
 			dino_cfg_write(dev->bus, dev->devfn, 

@@ -8,6 +8,8 @@
 #include <linux/io.h>
 #include <linux/sysdev.h>
 
+#include <mach/hardware.h>
+
 #define SMEMC_PHYS_BASE	(0x4A000000)
 #define SMEMC_PHYS_SIZE	(0x90)
 

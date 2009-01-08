@@ -233,7 +233,7 @@ static char *effects_control[] = {
 	"Negative",
 };
 
-static struct v4l2_pix_format vga_mode_t16[] = {
+static const struct v4l2_pix_format vga_mode_t16[] = {
 	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 4 / 8 + 590,
@@ -499,7 +499,7 @@ static void om6802_sensor_init(struct gspca_dev *gspca_dev)
 	reg_w_buf(gspca_dev, sensor_reset, sizeof sensor_reset);
 	msleep(5);
 	i = 4;
-	while (--i < 0) {
+	while (--i > 0) {
 		byte = reg_r(gspca_dev, 0x0060);
 		if (!(byte & 0x01))
 			break;

@@ -208,7 +208,7 @@ struct lcd_device *lcd_device_register(const char *name, struct device *parent,
 	new_ld->dev.class = lcd_class;
 	new_ld->dev.parent = parent;
 	new_ld->dev.release = lcd_device_release;
-	strlcpy(new_ld->dev.bus_id, name, BUS_ID_SIZE);
+	dev_set_name(&new_ld->dev, name);
 	dev_set_drvdata(&new_ld->dev, devdata);
 
 	rc = device_register(&new_ld->dev);

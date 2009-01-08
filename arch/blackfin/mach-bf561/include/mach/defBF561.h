@@ -912,6 +912,9 @@
 #define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled   */
 #define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached                                 */
 
+/* SICA_SYSCR Masks */
+#define COREB_SRAM_INIT		0x0020
+
 /* SWRST Mask */
 #define SYSTEM_RESET           0x0007	/* Initiates a system software reset */
 #define DOUBLE_FAULT_A         0x0008	/* Core A Double Fault Causes Reset */

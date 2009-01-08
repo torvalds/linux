@@ -32,7 +32,7 @@ static struct file_operations mark_ops = {
 	.open = my_open,
 };
 
-static int example_init(void)
+static int __init example_init(void)
 {
 	printk(KERN_ALERT "example init\n");
 	pentry_example = proc_create("tracepoint-example", 0444, NULL,
@@ -42,7 +42,7 @@ static int example_init(void)
 	return 0;
 }
 
-static void example_exit(void)
+static void __exit example_exit(void)
 {
 	printk(KERN_ALERT "example exit\n");
 	remove_proc_entry("tracepoint-example", NULL);

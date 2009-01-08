@@ -218,7 +218,7 @@ static acpi_handle ide_acpi_hwif_get_handle(ide_hwif_t *hwif)
  */
 static acpi_handle ide_acpi_drive_get_handle(ide_drive_t *drive)
 {
-	ide_hwif_t	*hwif = HWIF(drive);
+	ide_hwif_t	*hwif = drive->hwif;
 	int		 port;
 	acpi_handle	 drive_handle;
 
@@ -263,7 +263,7 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	acpi_status			status;
 	struct acpi_buffer		output;
 	union acpi_object 		*out_obj;
-	ide_hwif_t			*hwif = HWIF(drive);
+	ide_hwif_t			*hwif = drive->hwif;
 	struct device			*dev = hwif->gendev.parent;
 	int				err = -ENODEV;
 	int				port;
@@ -615,10 +615,10 @@ void ide_acpi_push_timing(ide_hwif_t *hwif)
 	in_params[0].buffer.length = sizeof(struct GTM_buffer);
 	in_params[0].buffer.pointer = (u8 *)&hwif->acpidata->gtm;
 	in_params[1].type = ACPI_TYPE_BUFFER;
-	in_params[1].buffer.length = sizeof(ATA_ID_WORDS * 2);
+	in_params[1].buffer.length = ATA_ID_WORDS * 2;
 	in_params[1].buffer.pointer = (u8 *)&master->idbuff;
 	in_params[2].type = ACPI_TYPE_BUFFER;
-	in_params[2].buffer.length = sizeof(ATA_ID_WORDS * 2);
+	in_params[2].buffer.length = ATA_ID_WORDS * 2;
 	in_params[2].buffer.pointer = (u8 *)&slave->idbuff;
 	/* Output buffer: _STM has no output */
 
@@ -641,7 +641,8 @@ void ide_acpi_push_timing(ide_hwif_t *hwif)
  */
 void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 {
-	int unit;
+	ide_drive_t *drive;
+	int i;
 
 	if (ide_noacpi || ide_noacpi_psx)
 		return;
@@ -655,9 +656,8 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 	/* channel first and then drives for power on and verse versa for power off */
 	if (on)
 		acpi_bus_set_power(hwif->acpidata->obj_handle, ACPI_STATE_D0);
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t *drive = &hwif->drives[unit];
 
+	ide_port_for_each_dev(i, drive, hwif) {
 		if (!drive->acpidata->obj_handle)
 			drive->acpidata->obj_handle = ide_acpi_drive_get_handle(drive);
 
@@ -711,15 +711,13 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	 * for both drives, regardless whether they are connected
 	 * or not.
 	 */
-	hwif->drives[0].acpidata = &hwif->acpidata->master;
-	hwif->drives[1].acpidata = &hwif->acpidata->slave;
+	hwif->devices[0]->acpidata = &hwif->acpidata->master;
+	hwif->devices[1]->acpidata = &hwif->acpidata->slave;
 
 	/*
 	 * Send IDENTIFY for each drive
 	 */
-	for (i = 0; i < MAX_DRIVES; i++) {
-		drive = &hwif->drives[i];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		memset(drive->acpidata, 0, sizeof(*drive->acpidata));
 
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
@@ -744,9 +742,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	ide_acpi_get_timing(hwif);
 	ide_acpi_push_timing(hwif);
 
-	for (i = 0; i < MAX_DRIVES; i++) {
-		drive = &hwif->drives[i];
-
+	ide_port_for_each_dev(i, drive, hwif) {
 		if (drive->dev_flags & IDE_DFLAG_PRESENT)
 			/* Execute ACPI startup code */
 			ide_acpi_exec_tfs(drive);

@@ -128,7 +128,7 @@
 	- Integrate ql12160_set_target_parameters() with 1280 version
 	- Make qla1280_setup() non static
 	- Do not call qla1280_check_for_dead_scsi_bus() on every I/O request
-	  sent to the card - this command pauses the firmare!!!
+	  sent to the card - this command pauses the firmware!!!
     Rev  3.23.15 Beta March 19, 2002, Jes Sorensen
 	- Clean up qla1280.h - remove obsolete QL_DEBUG_LEVEL_x definitions
 	- Remove a pile of pointless and confusing (srb_t **) and
@@ -659,7 +659,7 @@ static int qla1280_read_nvram(struct scsi_qla_host *ha)
 	/* The firmware interface is, um, interesting, in that the
 	 * actual firmware image on the chip is little endian, thus,
 	 * the process of taking that image to the CPU would end up
-	 * little endian.  However, the firmare interface requires it
+	 * little endian.  However, the firmware interface requires it
 	 * to be read a word (two bytes) at a time.
 	 *
 	 * The net result of this would be that the word (and
@@ -4294,8 +4294,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	error = -ENODEV;
 
 #if MEMORY_MAPPED_IO
-	ha->mmpbase = ioremap(pci_resource_start(ha->pdev, 1),
-			      pci_resource_len(ha->pdev, 1));
+	ha->mmpbase = pci_ioremap_bar(ha->pdev, 1);
 	if (!ha->mmpbase) {
 		printk(KERN_INFO "qla1280: Unable to map I/O memory\n");
 		goto error_free_response_ring;

@@ -423,27 +423,37 @@ config SYSFS_DEPRECATED
 	bool
 
 config SYSFS_DEPRECATED_V2
-	bool "Create deprecated sysfs files"
+	bool "Create deprecated sysfs layout for older userspace tools"
 	depends on SYSFS
 	default y
 	select SYSFS_DEPRECATED
 	help
-	  This option creates deprecated symlinks such as the
-	  "device"-link, the <subsystem>:<name>-link, and the
-	  "bus"-link. It may also add deprecated key in the
-	  uevent environment.
-	  None of these features or values should be used today, as
-	  they export driver core implementation details to userspace
-	  or export properties which can't be kept stable across kernel
-	  releases.
+	  This option switches the layout of sysfs to the deprecated
+	  version.
 
-	  If enabled, this option will also move any device structures
-	  that belong to a class, back into the /sys/class hierarchy, in
-	  order to support older versions of udev and some userspace
-	  programs.
+	  The current sysfs layout features a unified device tree at
+	  /sys/devices/, which is able to express a hierarchy between
+	  class devices. If the deprecated option is set to Y, the
+	  unified device tree is split into a bus device tree at
+	  /sys/devices/ and several individual class device trees at
+	  /sys/class/. The class and bus devices will be connected by
+	  "<subsystem>:<name>" and the "device" links. The "block"
+	  class devices, will not show up in /sys/class/block/. Some
+	  subsystems will suppress the creation of some devices which
+	  depend on the unified device tree.
 
-	  If you are using a distro with the most recent userspace
-	  packages, it should be safe to say N here.
+	  This option is not a pure compatibility option that can
+	  be safely enabled on newer distributions. It will change the
+	  layout of sysfs to the non-extensible deprecated version,
+	  and disable some features, which can not be exported without
+	  confusing older userspace tools. Since 2007/2008 all major
+	  distributions do not enable this option, and ship no tools which
+	  depend on the deprecated layout or this option.
+
+	  If you are using a new kernel on an older distribution, or use
+	  older userspace tools, you might need to say Y here. Do not say Y,
+	  if the original kernel, that came with your distribution, has
+	  this option set to N.
 
 config PROC_PID_CPUSET
 	bool "Include legacy /proc/<pid>/cpuset file"
@@ -838,10 +848,6 @@ config RT_MUTEXES
 	boolean
 	select PLIST
 
-config TINY_SHMEM
-	default !SHMEM
-	bool
-
 config BASE_SMALL
 	int
 	default 0 if BASE_FULL
@@ -916,13 +922,16 @@ config MODULE_SRCVERSION_ALL
 	  the version).  With this option, such a "srcversion" field
 	  will be created for all modules.  If unsure, say N.
 
-config KMOD
-	def_bool y
-	help
-	  This is being removed soon.  These days, CONFIG_MODULES
-	  implies CONFIG_KMOD, so use that instead.
-
 endif # MODULES
+
+config INIT_ALL_POSSIBLE
+	bool
+	help
+	  Back when each arch used to define their own cpu_online_map and
+	  cpu_possible_map, some of them chose to initialize cpu_possible_map
+	  with all 1s, and others with all 0s.  When they were centralised,
+	  it was better to provide this option than to break all the archs
+	  and have several arch maintainers persuing me down dark alleys.
 
 config STOP_MACHINE
 	bool
@@ -936,10 +945,90 @@ source "block/Kconfig"
 config PREEMPT_NOTIFIERS
 	bool
 
+choice
+	prompt "RCU Implementation"
+	default CLASSIC_RCU
+
 config CLASSIC_RCU
-	def_bool !PREEMPT_RCU
+	bool "Classic RCU"
 	help
 	  This option selects the classic RCU implementation that is
 	  designed for best read-side performance on non-realtime
-	  systems.  Classic RCU is the default.  Note that the
-	  PREEMPT_RCU symbol is used to select/deselect this option.
+	  systems.
+
+	  Select this option if you are unsure.
+
+config TREE_RCU
+	bool "Tree-based hierarchical RCU"
+	help
+	  This option selects the RCU implementation that is
+	  designed for very large SMP system with hundreds or
+	  thousands of CPUs.
+
+config PREEMPT_RCU
+	bool "Preemptible RCU"
+	depends on PREEMPT
+	help
+	  This option reduces the latency of the kernel by making certain
+	  RCU sections preemptible. Normally RCU code is non-preemptible, if
+	  this option is selected then read-only RCU sections become
+	  preemptible. This helps latency, but may expose bugs due to
+	  now-naive assumptions about each RCU read-side critical section
+	  remaining on a given CPU through its execution.
+
+endchoice
+
+config RCU_TRACE
+	bool "Enable tracing for RCU"
+	depends on TREE_RCU || PREEMPT_RCU
+	help
+	  This option provides tracing in RCU which presents stats
+	  in debugfs for debugging RCU implementation.
+
+	  Say Y here if you want to enable RCU tracing
+	  Say N if you are unsure.
+
+config RCU_FANOUT
+	int "Tree-based hierarchical RCU fanout value"
+	range 2 64 if 64BIT
+	range 2 32 if !64BIT
+	depends on TREE_RCU
+	default 64 if 64BIT
+	default 32 if !64BIT
+	help
+	  This option controls the fanout of hierarchical implementations
+	  of RCU, allowing RCU to work efficiently on machines with
+	  large numbers of CPUs.  This value must be at least the cube
+	  root of NR_CPUS, which allows NR_CPUS up to 32,768 for 32-bit
+	  systems and up to 262,144 for 64-bit systems.
+
+	  Select a specific number if testing RCU itself.
+	  Take the default if unsure.
+
+config RCU_FANOUT_EXACT
+	bool "Disable tree-based hierarchical RCU auto-balancing"
+	depends on TREE_RCU
+	default n
+	help
+	  This option forces use of the exact RCU_FANOUT value specified,
+	  regardless of imbalances in the hierarchy.  This is useful for
+	  testing RCU itself, and might one day be useful on systems with
+	  strong NUMA behavior.
+
+	  Without RCU_FANOUT_EXACT, the code will balance the hierarchy.
+
+	  Say N if unsure.
+
+config TREE_RCU_TRACE
+	def_bool RCU_TRACE && TREE_RCU
+	select DEBUG_FS
+	help
+	  This option provides tracing for the TREE_RCU implementation,
+	  permitting Makefile to trivially select kernel/rcutree_trace.c.
+
+config PREEMPT_RCU_TRACE
+	def_bool RCU_TRACE && PREEMPT_RCU
+	select DEBUG_FS
+	help
+	  This option provides tracing for the PREEMPT_RCU implementation,
+	  permitting Makefile to trivially select kernel/rcupreempt_trace.c.

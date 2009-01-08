@@ -38,7 +38,9 @@
 #include <mach/common.h>
 #include <mach/gpmc.h>
 #include <mach/nand.h>
+#include <mach/mux.h>
 
+#include "mmc-twl4030.h"
 
 #define GPMC_CS0_BASE  0x60
 #define GPMC_CS_SIZE   0x30
@@ -103,6 +105,78 @@ static struct omap_uart_config omap3_beagle_uart_config __initdata = {
 	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
 };
 
+static struct twl4030_hsmmc_info mmc[] = {
+	{
+		.mmc		= 1,
+		.wires		= 8,
+		.gpio_wp	= 29,
+	},
+	{}	/* Terminator */
+};
+
+static struct gpio_led gpio_leds[];
+
+static int beagle_twl_gpio_setup(struct device *dev,
+		unsigned gpio, unsigned ngpio)
+{
+	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
+
+	/* REVISIT: need ehci-omap hooks for external VBUS
+	 * power switch and overcurrent detect
+	 */
+
+	gpio_request(gpio + 1, "EHCI_nOC");
+	gpio_direction_input(gpio + 1);
+
+	/* TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, active low) */
+	gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
+	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 1);
+
+	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
+	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
+
+	return 0;
+}
+
+static struct twl4030_gpio_platform_data beagle_gpio_data = {
+	.gpio_base	= OMAP_MAX_GPIO_LINES,
+	.irq_base	= TWL4030_GPIO_IRQ_BASE,
+	.irq_end	= TWL4030_GPIO_IRQ_END,
+	.use_leds	= true,
+	.pullups	= BIT(1),
+	.pulldowns	= BIT(2) | BIT(6) | BIT(7) | BIT(8) | BIT(13)
+				| BIT(15) | BIT(16) | BIT(17),
+	.setup		= beagle_twl_gpio_setup,
+};
+
+static struct twl4030_platform_data beagle_twldata = {
+	.irq_base	= TWL4030_IRQ_BASE,
+	.irq_end	= TWL4030_IRQ_END,
+
+	/* platform_data for children goes here */
+	.gpio		= &beagle_gpio_data,
+};
+
+static struct i2c_board_info __initdata beagle_i2c_boardinfo[] = {
+	{
+		I2C_BOARD_INFO("twl4030", 0x48),
+		.flags = I2C_CLIENT_WAKE,
+		.irq = INT_34XX_SYS_NIRQ,
+		.platform_data = &beagle_twldata,
+	},
+};
+
+static int __init omap3_beagle_i2c_init(void)
+{
+	omap_register_i2c_bus(1, 2600, beagle_i2c_boardinfo,
+			ARRAY_SIZE(beagle_i2c_boardinfo));
+#ifdef CONFIG_I2C2_OMAP_BEAGLE
+	omap_register_i2c_bus(2, 400, NULL, 0);
+#endif
+	omap_register_i2c_bus(3, 400, NULL, 0);
+	return 0;
+}
+
 static void __init omap3_beagle_init_irq(void)
 {
 	omap2_init_common_hw();
@@ -129,6 +203,11 @@ static struct gpio_led gpio_leds[] = {
 		.name			= "beagleboard::usr1",
 		.default_trigger	= "mmc0",
 		.gpio			= 149,
+	},
+	{
+		.name			= "beagleboard::pmu_stat",
+		.gpio			= -EINVAL,	/* gets replaced */
+		.active_low		= true,
 	},
 };
 
@@ -218,11 +297,22 @@ static void __init omap3beagle_flash_init(void)
 
 static void __init omap3_beagle_init(void)
 {
+	omap3_beagle_i2c_init();
 	platform_add_devices(omap3_beagle_devices,
 			ARRAY_SIZE(omap3_beagle_devices));
 	omap_board_config = omap3_beagle_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_beagle_config);
 	omap_serial_init();
+
+	omap_cfg_reg(AH8_34XX_GPIO29);
+	mmc[0].gpio_cd = gpio + 0;
+	twl4030_mmc_init(mmc);
+
+	omap_cfg_reg(J25_34XX_GPIO170);
+	gpio_request(170, "DVI_nPD");
+	/* REVISIT leave DVI powered down until it's needed ... */
+	gpio_direction_output(170, true);
+
 	omap3beagle_flash_init();
 }
 

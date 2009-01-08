@@ -184,7 +184,7 @@ static int __init imx_clockevent_init(unsigned long rate)
 	clockevent_imx.min_delta_ns =
 		clockevent_delta2ns(0xf, &clockevent_imx);
 
-	clockevent_imx.cpumask = cpumask_of_cpu(0);
+	clockevent_imx.cpumask = cpumask_of(0);
 
 	clockevents_register_device(&clockevent_imx);
 

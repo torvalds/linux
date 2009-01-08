@@ -19,8 +19,8 @@
 #include <linux/types.h>
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
+#include <linux/atmel-mci.h>
 
-#include <asm/atmel-mci.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 

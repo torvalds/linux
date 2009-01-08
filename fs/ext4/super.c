@@ -803,7 +803,9 @@ static struct dquot_operations ext4_quota_operations = {
 	.acquire_dquot	= ext4_acquire_dquot,
 	.release_dquot	= ext4_release_dquot,
 	.mark_dirty	= ext4_mark_dquot_dirty,
-	.write_info	= ext4_write_info
+	.write_info	= ext4_write_info,
+	.alloc_dquot	= dquot_alloc,
+	.destroy_dquot	= dquot_destroy,
 };
 
 static struct quotactl_ops ext4_qctl_operations = {
@@ -1142,8 +1144,7 @@ static int parse_options(char *options, struct super_block *sb,
 		case Opt_grpjquota:
 			qtype = GRPQUOTA;
 set_qf_name:
-			if ((sb_any_quota_enabled(sb) ||
-			     sb_any_quota_suspended(sb)) &&
+			if (sb_any_quota_loaded(sb) &&
 			    !sbi->s_qf_names[qtype]) {
 				printk(KERN_ERR
 				       "EXT4-fs: Cannot change journaled "
@@ -1182,8 +1183,7 @@ set_qf_name:
 		case Opt_offgrpjquota:
 			qtype = GRPQUOTA;
 clear_qf_name:
-			if ((sb_any_quota_enabled(sb) ||
-			     sb_any_quota_suspended(sb)) &&
+			if (sb_any_quota_loaded(sb) &&
 			    sbi->s_qf_names[qtype]) {
 				printk(KERN_ERR "EXT4-fs: Cannot change "
 					"journaled quota options when "
@@ -1202,8 +1202,7 @@ clear_qf_name:
 		case Opt_jqfmt_vfsv0:
 			qfmt = QFMT_VFS_V0;
 set_qf_format:
-			if ((sb_any_quota_enabled(sb) ||
-			     sb_any_quota_suspended(sb)) &&
+			if (sb_any_quota_loaded(sb) &&
 			    sbi->s_jquota_fmt != qfmt) {
 				printk(KERN_ERR "EXT4-fs: Cannot change "
 					"journaled quota options when "
@@ -1222,7 +1221,7 @@ set_qf_format:
 			set_opt(sbi->s_mount_opt, GRPQUOTA);
 			break;
 		case Opt_noquota:
-			if (sb_any_quota_enabled(sb)) {
+			if (sb_any_quota_loaded(sb)) {
 				printk(KERN_ERR "EXT4-fs: Cannot change quota "
 					"options when quota turned on.\n");
 				return 0;
@@ -1721,7 +1720,7 @@ static loff_t ext4_max_size(int blkbits, int has_huge_files)
 	/* small i_blocks in vfs inode? */
 	if (!has_huge_files || sizeof(blkcnt_t) < sizeof(u64)) {
 		/*
-		 * CONFIG_LSF is not enabled implies the inode
+		 * CONFIG_LBD is not enabled implies the inode
 		 * i_block represent total blocks in 512 bytes
 		 * 32 == size of vfs inode i_blocks * 8
 		 */
@@ -1764,7 +1763,7 @@ static loff_t ext4_max_bitmap_size(int bits, int has_huge_files)
 
 	if (!has_huge_files || sizeof(blkcnt_t) < sizeof(u64)) {
 		/*
-		 * !has_huge_files or CONFIG_LSF is not enabled
+		 * !has_huge_files or CONFIG_LBD is not enabled
 		 * implies the inode i_block represent total blocks in
 		 * 512 bytes 32 == size of vfs inode i_blocks * 8
 		 */
@@ -2021,13 +2020,13 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (has_huge_files) {
 		/*
 		 * Large file size enabled file system can only be
-		 * mount if kernel is build with CONFIG_LSF
+		 * mount if kernel is build with CONFIG_LBD
 		 */
 		if (sizeof(root->i_blocks) < sizeof(u64) &&
 				!(sb->s_flags & MS_RDONLY)) {
 			printk(KERN_ERR "EXT4-fs: %s: Filesystem with huge "
 					"files cannot be mounted read-write "
-					"without CONFIG_LSF.\n", sb->s_id);
+					"without CONFIG_LBD.\n", sb->s_id);
 			goto failed_mount;
 		}
 	}

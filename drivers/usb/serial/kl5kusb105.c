@@ -878,6 +878,7 @@ static void mct_u232_break_ctl(struct tty_struct *tty, int break_state)
 
 	dbg("%sstate=%d", __func__, break_state);
 
+	/* LOCKING */
 	if (break_state)
 		lcr |= MCT_U232_SET_BREAK;
 

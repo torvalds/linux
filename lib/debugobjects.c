@@ -45,7 +45,9 @@ static struct kmem_cache	*obj_cache;
 static int			debug_objects_maxchain __read_mostly;
 static int			debug_objects_fixups __read_mostly;
 static int			debug_objects_warnings __read_mostly;
-static int			debug_objects_enabled __read_mostly;
+static int			debug_objects_enabled __read_mostly
+				= CONFIG_DEBUG_OBJECTS_ENABLE_DEFAULT;
+
 static struct debug_obj_descr	*descr_test  __read_mostly;
 
 static int __init enable_object_debug(char *str)

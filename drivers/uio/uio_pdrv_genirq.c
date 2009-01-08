@@ -81,7 +81,8 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 		goto bad0;
 	}
 
-	if (uioinfo->handler || uioinfo->irqcontrol || uioinfo->irq_flags) {
+	if (uioinfo->handler || uioinfo->irqcontrol ||
+	    uioinfo->irq_flags & IRQF_SHARED) {
 		dev_err(&pdev->dev, "interrupt configuration error\n");
 		goto bad0;
 	}
@@ -132,7 +133,7 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	 * Interrupt sharing is not supported.
 	 */
 
-	uioinfo->irq_flags = IRQF_DISABLED;
+	uioinfo->irq_flags |= IRQF_DISABLED;
 	uioinfo->handler = uio_pdrv_genirq_handler;
 	uioinfo->irqcontrol = uio_pdrv_genirq_irqcontrol;
 	uioinfo->priv = priv;

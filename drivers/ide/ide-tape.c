@@ -166,10 +166,10 @@ struct idetape_bh {
  * to an interrupt or a timer event is stored in the struct defined below.
  */
 typedef struct ide_tape_obj {
-	ide_drive_t	*drive;
-	ide_driver_t	*driver;
-	struct gendisk	*disk;
-	struct kref	kref;
+	ide_drive_t		*drive;
+	struct ide_driver	*driver;
+	struct gendisk		*disk;
+	struct kref		kref;
 
 	/*
 	 *	failed_pc points to the last failed packet command, or contains
@@ -479,7 +479,7 @@ static void ide_tape_kfree_buffer(idetape_tape_t *tape)
 
 static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 {
-	struct request *rq = HWGROUP(drive)->rq;
+	struct request *rq = drive->hwif->rq;
 	idetape_tape_t *tape = drive->driver_data;
 	unsigned long flags;
 	int error;
@@ -531,7 +531,7 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 			printk(KERN_ERR "ide-tape: Error in REQUEST SENSE "
 					"itself - Aborting request!\n");
 	} else if (pc->c[0] == READ_6 || pc->c[0] == WRITE_6) {
-		struct request *rq = drive->hwif->hwgroup->rq;
+		struct request *rq = drive->hwif->rq;
 		int blocks = pc->xferred / tape->blk_size;
 
 		tape->avg_size += blocks * tape->blk_size;
@@ -576,7 +576,7 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 
 /*
  * Postpone the current request so that ide.c will be able to service requests
- * from another device on the same hwgroup while we are polling for DSC.
+ * from another device on the same port while we are polling for DSC.
  */
 static void idetape_postpone_request(ide_drive_t *drive)
 {
@@ -584,7 +584,8 @@ static void idetape_postpone_request(ide_drive_t *drive)
 
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
 
-	tape->postponed_rq = HWGROUP(drive)->rq;
+	tape->postponed_rq = drive->hwif->rq;
+
 	ide_stall_queue(drive, tape->dsc_poll_freq);
 }
 
@@ -694,7 +695,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 
 	pc->retries++;
 
-	return ide_issue_pc(drive, WAIT_TAPE_CMD, NULL);
+	return ide_issue_pc(drive);
 }
 
 /* A mode sense command is used to "sense" tape parameters. */
@@ -2312,7 +2313,7 @@ static const struct ide_proc_devset *ide_tape_proc_devsets(ide_drive_t *drive)
 
 static int ide_tape_probe(ide_drive_t *);
 
-static ide_driver_t idetape_driver = {
+static struct ide_driver idetape_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
 		.name		= "ide-tape",
@@ -2323,7 +2324,6 @@ static ide_driver_t idetape_driver = {
 	.version		= IDETAPE_VERSION,
 	.do_request		= idetape_do_request,
 	.end_request		= idetape_end_request,
-	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc_entries		= ide_tape_proc_entries,
 	.proc_devsets		= ide_tape_proc_devsets,

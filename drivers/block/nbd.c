@@ -722,7 +722,6 @@ static int __init nbd_init(void)
 
 	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = alloc_disk(1 << part_shift);
-		elevator_t *old_e;
 		if (!disk)
 			goto out;
 		nbd_dev[i].disk = disk;
@@ -736,11 +735,10 @@ static int __init nbd_init(void)
 			put_disk(disk);
 			goto out;
 		}
-		old_e = disk->queue->elevator;
-		if (elevator_init(disk->queue, "deadline") == 0 ||
-			elevator_init(disk->queue, "noop") == 0) {
-				elevator_exit(old_e);
-		}
+		/*
+		 * Tell the block layer that we are not a rotational device
+		 */
+		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, disk->queue);
 	}
 
 	if (register_blkdev(NBD_MAJOR, "nbd")) {

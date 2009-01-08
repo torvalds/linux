@@ -25,7 +25,7 @@
 #include <asm/uv/bios.h>
 #include <asm/uv/uv_hub.h>
 
-struct uv_systab uv_systab;
+static struct uv_systab uv_systab;
 
 s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5)
 {
