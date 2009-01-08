@@ -139,6 +139,7 @@ struct mddev_s
 	struct kobject			kobj;
 	int				hold_active;
 #define	UNTIL_IOCTL	1
+#define	UNTIL_STOP	2
 
 	/* Superblock information */
 	int				major_version,

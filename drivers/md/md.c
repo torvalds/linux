@@ -249,17 +249,51 @@ static mddev_t * mddev_find(dev_t unit)
 
  retry:
 	spin_lock(&all_mddevs_lock);
-	list_for_each_entry(mddev, &all_mddevs, all_mddevs)
-		if (mddev->unit == unit) {
-			mddev_get(mddev);
-			spin_unlock(&all_mddevs_lock);
-			kfree(new);
-			return mddev;
-		}
 
-	if (new) {
+	if (unit) {
+		list_for_each_entry(mddev, &all_mddevs, all_mddevs)
+			if (mddev->unit == unit) {
+				mddev_get(mddev);
+				spin_unlock(&all_mddevs_lock);
+				kfree(new);
+				return mddev;
+			}
+
+		if (new) {
+			list_add(&new->all_mddevs, &all_mddevs);
+			spin_unlock(&all_mddevs_lock);
+			new->hold_active = UNTIL_IOCTL;
+			return new;
+		}
+	} else if (new) {
+		/* find an unused unit number */
+		static int next_minor = 512;
+		int start = next_minor;
+		int is_free = 0;
+		int dev = 0;
+		while (!is_free) {
+			dev = MKDEV(MD_MAJOR, next_minor);
+			next_minor++;
+			if (next_minor > MINORMASK)
+				next_minor = 0;
+			if (next_minor == start) {
+				/* Oh dear, all in use. */
+				spin_unlock(&all_mddevs_lock);
+				kfree(new);
+				return NULL;
+			}
+				
+			is_free = 1;
+			list_for_each_entry(mddev, &all_mddevs, all_mddevs)
+				if (mddev->unit == dev) {
+					is_free = 0;
+					break;
+				}
+		}
+		new->unit = dev;
+		new->md_minor = MINOR(dev);
+		new->hold_active = UNTIL_STOP;
 		list_add(&new->all_mddevs, &all_mddevs);
-		mddev->hold_active = UNTIL_IOCTL;
 		spin_unlock(&all_mddevs_lock);
 		return new;
 	}
@@ -3491,18 +3525,22 @@ static struct kobj_type md_ktype = {
 
 int mdp_major = 0;
 
-static struct kobject *md_probe(dev_t dev, int *part, void *data)
+static int md_alloc(dev_t dev, char *name)
 {
 	static DEFINE_MUTEX(disks_mutex);
 	mddev_t *mddev = mddev_find(dev);
 	struct gendisk *disk;
-	int partitioned = (MAJOR(dev) != MD_MAJOR);
-	int shift = partitioned ? MdpMinorShift : 0;
-	int unit = MINOR(dev) >> shift;
+	int partitioned;
+	int shift;
+	int unit;
 	int error;
 
 	if (!mddev)
-		return NULL;
+		return -ENODEV;
+
+	partitioned = (MAJOR(mddev->unit) != MD_MAJOR);
+	shift = partitioned ? MdpMinorShift : 0;
+	unit = MINOR(mddev->unit) >> shift;
 
 	/* wait for any previous instance if this device
 	 * to be completed removed (mddev_delayed_delete).
@@ -3513,14 +3551,29 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	if (mddev->gendisk) {
 		mutex_unlock(&disks_mutex);
 		mddev_put(mddev);
-		return NULL;
+		return -EEXIST;
+	}
+
+	if (name) {
+		/* Need to ensure that 'name' is not a duplicate.
+		 */
+		mddev_t *mddev2;
+		spin_lock(&all_mddevs_lock);
+
+		list_for_each_entry(mddev2, &all_mddevs, all_mddevs)
+			if (mddev2->gendisk &&
+			    strcmp(mddev2->gendisk->disk_name, name) == 0) {
+				spin_unlock(&all_mddevs_lock);
+				return -EEXIST;
+			}
+		spin_unlock(&all_mddevs_lock);
 	}
 
 	mddev->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!mddev->queue) {
 		mutex_unlock(&disks_mutex);
 		mddev_put(mddev);
-		return NULL;
+		return -ENOMEM;
 	}
 	/* Can be unlocked because the queue is new: no concurrency */
 	queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, mddev->queue);
@@ -3533,11 +3586,13 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 		blk_cleanup_queue(mddev->queue);
 		mddev->queue = NULL;
 		mddev_put(mddev);
-		return NULL;
+		return -ENOMEM;
 	}
-	disk->major = MAJOR(dev);
+	disk->major = MAJOR(mddev->unit);
 	disk->first_minor = unit << shift;
-	if (partitioned)
+	if (name)
+		strcpy(disk->disk_name, name);
+	else if (partitioned)
 		sprintf(disk->disk_name, "md_d%d", unit);
 	else
 		sprintf(disk->disk_name, "md%d", unit);
@@ -3562,7 +3617,32 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 		mddev->sysfs_state = sysfs_get_dirent(mddev->kobj.sd, "array_state");
 	}
 	mddev_put(mddev);
+	return 0;
+}
+
+static struct kobject *md_probe(dev_t dev, int *part, void *data)
+{
+	md_alloc(dev, NULL);
 	return NULL;
+}
+
+static int add_named_array(const char *val, struct kernel_param *kp)
+{
+	/* val must be "md_*" where * is not all digits.
+	 * We allocate an array with a large free minor number, and
+	 * set the name to val.  val must not already be an active name.
+	 */
+	int len = strlen(val);
+	char buf[DISK_NAME_LEN];
+
+	while (len && val[len-1] == '\n')
+		len--;
+	if (len >= DISK_NAME_LEN)
+		return -E2BIG;
+	strlcpy(buf, val, len+1);
+	if (strncmp(buf, "md_", 3) != 0)
+		return -EINVAL;
+	return md_alloc(0, buf);
 }
 
 static void md_safemode_timeout(unsigned long data)
@@ -4025,6 +4105,8 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		mddev->barriers_work = 0;
 		mddev->safemode = 0;
 		kobject_uevent(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE);
+		if (mddev->hold_active == UNTIL_STOP)
+			mddev->hold_active = 0;
 
 	} else if (mddev->pers)
 		printk(KERN_INFO "md: %s switched to read-only mode.\n",
@@ -6502,6 +6584,7 @@ static int set_ro(const char *val, struct kernel_param *kp)
 module_param_call(start_ro, set_ro, get_ro, NULL, S_IRUSR|S_IWUSR);
 module_param(start_dirty_degraded, int, S_IRUGO|S_IWUSR);
 
+module_param_call(new_array, add_named_array, NULL, NULL, S_IWUSR);
 
 EXPORT_SYMBOL(register_md_personality);
 EXPORT_SYMBOL(unregister_md_personality);
