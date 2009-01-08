@@ -221,7 +221,9 @@ static void mddev_put(mddev_t *mddev)
 	if (!mddev->raid_disks && list_empty(&mddev->disks)) {
 		list_del(&mddev->all_mddevs);
 		spin_unlock(&all_mddevs_lock);
-		blk_cleanup_queue(mddev->queue);
+		if (mddev->queue)
+			blk_cleanup_queue(mddev->queue);
+		mddev->queue = NULL;
 		if (mddev->sysfs_state)
 			sysfs_put(mddev->sysfs_state);
 		mddev->sysfs_state = NULL;
@@ -274,16 +276,6 @@ static mddev_t * mddev_find(dev_t unit)
 	new->resync_min = 0;
 	new->resync_max = MaxSector;
 	new->level = LEVEL_NONE;
-
-	new->queue = blk_alloc_queue(GFP_KERNEL);
-	if (!new->queue) {
-		kfree(new);
-		return NULL;
-	}
-	/* Can be unlocked because the queue is new: no concurrency */
-	queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, new->queue);
-
-	blk_queue_make_request(new->queue, md_fail_request);
 
 	goto retry;
 }
@@ -3493,9 +3485,23 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 		mddev_put(mddev);
 		return NULL;
 	}
+
+	mddev->queue = blk_alloc_queue(GFP_KERNEL);
+	if (!mddev->queue) {
+		mutex_unlock(&disks_mutex);
+		mddev_put(mddev);
+		return NULL;
+	}
+	/* Can be unlocked because the queue is new: no concurrency */
+	queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, mddev->queue);
+
+	blk_queue_make_request(mddev->queue, md_fail_request);
+
 	disk = alloc_disk(1 << shift);
 	if (!disk) {
 		mutex_unlock(&disks_mutex);
+		blk_cleanup_queue(mddev->queue);
+		mddev->queue = NULL;
 		mddev_put(mddev);
 		return NULL;
 	}
