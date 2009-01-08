@@ -257,9 +257,6 @@ int po1030_init(struct sd *sd)
 
 	err = po1030_set_auto_white_balance(&sd->gspca_dev,
 				      sensor_settings[AUTO_WHITE_BALANCE_IDX]);
-	if (err < 0)
-		return err;
-
 	return err;
 }
 
