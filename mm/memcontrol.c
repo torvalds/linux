@@ -709,17 +709,17 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 		 * current usage of the cgroup before giving up
 		 *
 		 */
-		if (!do_swap_account &&
-			res_counter_check_under_limit(&mem->res))
-			continue;
-		if (do_swap_account &&
-			res_counter_check_under_limit(&mem->memsw))
-			continue;
+		if (do_swap_account) {
+			if (res_counter_check_under_limit(&mem_over_limit->res) &&
+			    res_counter_check_under_limit(&mem_over_limit->memsw))
+				continue;
+		} else if (res_counter_check_under_limit(&mem_over_limit->res))
+				continue;
 
 		if (!nr_retries--) {
 			if (oom) {
-				mem_cgroup_out_of_memory(mem, gfp_mask);
-				mem->last_oom_jiffies = jiffies;
+				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
+				mem_over_limit->last_oom_jiffies = jiffies;
 			}
 			goto nomem;
 		}
