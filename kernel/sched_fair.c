@@ -1617,8 +1617,6 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 	}
 }
 
-#define swap(a, b) do { typeof(a) tmp = (a); (a) = (b); (b) = tmp; } while (0)
-
 /*
  * Share the fairness runtime between parent and child, thus the
  * total amount of pressure for CPU stays equal - new tasks
