@@ -206,7 +206,9 @@ EXPORT_SYMBOL_GPL(async_schedule_special);
 
 void async_synchronize_full(void)
 {
-	async_synchronize_cookie(next_cookie);
+	do {
+		async_synchronize_cookie(next_cookie);
+	} while (!list_empty(&async_running) || !list_empty(&async_pending));
 }
 EXPORT_SYMBOL_GPL(async_synchronize_full);
 
