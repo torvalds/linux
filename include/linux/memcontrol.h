@@ -26,6 +26,16 @@ struct page;
 struct mm_struct;
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+/*
+ * All "charge" functions with gfp_mask should use GFP_KERNEL or
+ * (gfp_mask & GFP_RECLAIM_MASK). In current implementatin, memcg doesn't
+ * alloc memory but reclaims memory from all available zones. So, "where I want
+ * memory from" bits of gfp_mask has no meaning. So any bits of that field is
+ * available but adding a rule is better. charge functions' gfp_mask should
+ * be set to GFP_KERNEL or gfp_mask & GFP_RECLAIM_MASK for avoiding ambiguous
+ * codes.
+ * (Of course, if memcg does memory allocation in future, GFP_KERNEL is sane.)
+ */
 
 extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask);
