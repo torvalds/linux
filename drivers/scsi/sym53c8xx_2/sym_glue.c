@@ -1660,6 +1660,7 @@ static int sym_detach(struct Scsi_Host *shost, struct pci_dev *pdev)
 	OUTB(np, nc_istat, 0);
 
 	sym_free_resources(np, pdev);
+	scsi_host_put(shost);
 
 	return 1;
 }
@@ -1749,7 +1750,6 @@ static void sym2_remove(struct pci_dev *pdev)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 
 	scsi_remove_host(shost);
-	scsi_host_put(shost);
 	sym_detach(shost, pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
