@@ -809,6 +809,8 @@ struct ath_hal {
 #ifndef ATH_NF_PER_CHAN
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
 #endif
+
+	bool sw_mgmt_crypto;
 };
 
 struct chan_centers {

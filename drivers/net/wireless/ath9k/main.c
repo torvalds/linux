@@ -1557,6 +1557,9 @@ static int ath_attach(u16 devid, struct ath_softc *sc)
 		IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_AMPDU_AGGREGATION;
 
+	if (AR_SREV_9160_10_OR_LATER(sc->sc_ah))
+		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
+
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_STATION) |
@@ -2348,6 +2351,8 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 			if (key->alg == ALG_TKIP)
 				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
+			if (sc->sc_ah->sw_mgmt_crypto && key->alg == ALG_CCMP)
+				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT;
 			ret = 0;
 		}
 		break;

@@ -593,6 +593,12 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			if (test_bit(keyix, sc->sc_keymap))
 				rx_status.flag |= RX_FLAG_DECRYPTED;
 		}
+		if (ah->sw_mgmt_crypto &&
+		    (rx_status.flag & RX_FLAG_DECRYPTED) &&
+		    ieee80211_is_mgmt(hdr->frame_control)) {
+			/* Use software decrypt for management frames. */
+			rx_status.flag &= ~RX_FLAG_DECRYPTED;
+		}
 
 		/* Send the frame to mac80211 */
 		__ieee80211_rx(sc->hw, skb, &rx_status);
