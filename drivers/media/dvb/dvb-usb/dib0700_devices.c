@@ -1393,6 +1393,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_ASUS,	USB_PID_ASUS_U3000H) },
 /* 40 */{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV801E) },
 	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV801E_SE) },
+	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_T_EXPRESS) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1537,7 +1538,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			{   "DiBcom STK7700D reference design",
 				{ &dib0700_usb_id_table[14], NULL },
 				{ NULL },
-			}
+			},
+
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
@@ -1557,7 +1559,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 2,
+		.num_device_descs = 3,
 		.devices = {
 			{   "ASUS My Cinema U3000 Mini DVBT Tuner",
 				{ &dib0700_usb_id_table[23], NULL },
@@ -1565,6 +1567,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Yuan EC372S",
 				{ &dib0700_usb_id_table[31], NULL },
+				{ NULL },
+			},
+			{   "Terratec Cinergy T Express",
+				{ &dib0700_usb_id_table[42], NULL },
 				{ NULL },
 			}
 		},
