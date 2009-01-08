@@ -1486,13 +1486,13 @@ static int cpuset_write_resmask(struct cgroup *cgrp, struct cftype *cft,
 
 static int cpuset_sprintf_cpulist(char *page, struct cpuset *cs)
 {
-	cpumask_t mask;
+	int ret;
 
 	mutex_lock(&callback_mutex);
-	mask = cs->cpus_allowed;
+	ret = cpulist_scnprintf(page, PAGE_SIZE, &cs->cpus_allowed);
 	mutex_unlock(&callback_mutex);
 
-	return cpulist_scnprintf(page, PAGE_SIZE, &mask);
+	return ret;
 }
 
 static int cpuset_sprintf_memlist(char *page, struct cpuset *cs)
