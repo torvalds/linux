@@ -948,14 +948,13 @@ Uxx_ReadEthernetAddress(  phw_data_t pHwData )
 //  Return Value:
 //    None.
 //==============================================================================================================
-void CardGetMulticastBit(   u8 Address[ETH_LENGTH_OF_ADDRESS],
-						   u8 *Byte,  u8 *Value )
+void CardGetMulticastBit( u8 Address[ETH_ALEN], u8 *Byte, u8 *Value )
 {
     u32 Crc;
     u32 BitNumber;
 
     // First compute the CRC.
-    Crc = CardComputeCrc(Address, ETH_LENGTH_OF_ADDRESS);
+    Crc = CardComputeCrc(Address, ETH_ALEN);
 
 	// The computed CRC is bit0~31 from left to right
 	//At first we should do right shift 25bits, and read 7bits by using '&', 2^7=128

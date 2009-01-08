@@ -16,7 +16,6 @@
 // Common function definition
 //==================================================================================================
 #define DEBUG_ENABLED
-#define ETH_LENGTH_OF_ADDRESS	6
 #ifdef DEBUG_ENABLED
 #define WBDEBUG( _M )	printk _M
 #else

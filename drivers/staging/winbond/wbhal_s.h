@@ -2,6 +2,7 @@
 #define __WINBOND_WBHAL_S_H
 
 #include <linux/types.h>
+#include <linux/if_ether.h> /* for ETH_ALEN */
 
 #include "common.h"
 
@@ -427,7 +428,6 @@ typedef struct _TXVGA_FOR_50 {
 #include "wb35tx_s.h"
 #include "wb35rx_s.h"
 
-
 // For Hal using ==================================================================
 typedef struct _HW_DATA_T
 {
@@ -452,8 +452,8 @@ typedef struct _HW_DATA_T
 	//===============================================
 	// Definition for MAC address
 	//===============================================
-	u8		PermanentMacAddress[ETH_LENGTH_OF_ADDRESS + 2]; // The Enthernet addr that are stored in EEPROM.  + 2 to 8-byte alignment
-	u8		CurrentMacAddress[ETH_LENGTH_OF_ADDRESS + 2]; // The Enthernet addr that are in used.  + 2 to 8-byte alignment
+	u8		PermanentMacAddress[ETH_ALEN + 2]; // The Enthernet addr that are stored in EEPROM.  + 2 to 8-byte alignment
+	u8		CurrentMacAddress[ETH_ALEN + 2]; // The Enthernet addr that are in used.  + 2 to 8-byte alignment
 
 	//=====================================================================
 	// Definition for 802.11

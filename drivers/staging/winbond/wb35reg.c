@@ -599,7 +599,7 @@ unsigned char Wb35Reg_initial(phw_data_t pHwData)
 	Wb35Reg_ReadSync( pHwData, 0x03b4, &Region_ScanInterval );
 
 	// Update Ethernet address
-	memcpy( pHwData->CurrentMacAddress, pHwData->PermanentMacAddress, ETH_LENGTH_OF_ADDRESS );
+	memcpy( pHwData->CurrentMacAddress, pHwData->PermanentMacAddress, ETH_ALEN );
 
 	// Update software variable
 	pHwData->SoftwareSet = (u16)(SoftwareSet & 0xffff);

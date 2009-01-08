@@ -8,7 +8,7 @@ void hal_set_ethernet_address( phw_data_t pHwData, u8 *current_address )
 
 	if( pHwData->SurpriseRemove ) return;
 
-	memcpy( pHwData->CurrentMacAddress, current_address, ETH_LENGTH_OF_ADDRESS );
+	memcpy( pHwData->CurrentMacAddress, current_address, ETH_ALEN );
 
 	ltmp[0]= cpu_to_le32( *(u32 *)pHwData->CurrentMacAddress );
 	ltmp[1]= cpu_to_le32( *(u32 *)(pHwData->CurrentMacAddress + 4) ) & 0xffff;
