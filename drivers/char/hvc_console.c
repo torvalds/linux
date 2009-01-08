@@ -876,8 +876,11 @@ static int hvc_init(void)
 		goto stop_thread;
 	}
 
-	/* FIXME: This mb() seems completely random.  Remove it. */
-	mb();
+	/*
+	 * Make sure tty is fully registered before allowing it to be
+	 * found by hvc_console_device.
+	 */
+	smp_mb();
 	hvc_driver = drv;
 	return 0;
 
