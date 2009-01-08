@@ -893,6 +893,23 @@ nomem:
 	return -ENOMEM;
 }
 
+static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
+{
+	struct mem_cgroup *mem;
+	swp_entry_t ent;
+
+	if (!PageSwapCache(page))
+		return NULL;
+
+	ent.val = page_private(page);
+	mem = lookup_swap_cgroup(ent);
+	if (!mem)
+		return NULL;
+	if (!css_tryget(&mem->css))
+		return NULL;
+	return mem;
+}
+
 /*
  * commit a charge got by __mem_cgroup_try_charge() and makes page_cgroup to be
  * USED state. If already USED, uncharge and return.
@@ -1084,6 +1101,9 @@ int mem_cgroup_newpage_charge(struct page *page,
 int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask)
 {
+	struct mem_cgroup *mem = NULL;
+	int ret;
+
 	if (mem_cgroup_disabled())
 		return 0;
 	if (PageCompound(page))
@@ -1096,6 +1116,8 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 	 * For GFP_NOWAIT case, the page may be pre-charged before calling
 	 * add_to_page_cache(). (See shmem.c) check it here and avoid to call
 	 * charge twice. (It works but has to pay a bit larger cost.)
+	 * And when the page is SwapCache, it should take swap information
+	 * into account. This is under lock_page() now.
 	 */
 	if (!(gfp_mask & __GFP_WAIT)) {
 		struct page_cgroup *pc;
@@ -1112,15 +1134,40 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 		unlock_page_cgroup(pc);
 	}
 
-	if (unlikely(!mm))
+	if (do_swap_account && PageSwapCache(page)) {
+		mem = try_get_mem_cgroup_from_swapcache(page);
+		if (mem)
+			mm = NULL;
+		  else
+			mem = NULL;
+		/* SwapCache may be still linked to LRU now. */
+		mem_cgroup_lru_del_before_commit_swapcache(page);
+	}
+
+	if (unlikely(!mm && !mem))
 		mm = &init_mm;
 
 	if (page_is_file_cache(page))
 		return mem_cgroup_charge_common(page, mm, gfp_mask,
 				MEM_CGROUP_CHARGE_TYPE_CACHE, NULL);
-	else
-		return mem_cgroup_charge_common(page, mm, gfp_mask,
-				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
+
+	ret = mem_cgroup_charge_common(page, mm, gfp_mask,
+				MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
+	if (mem)
+		css_put(&mem->css);
+	if (PageSwapCache(page))
+		mem_cgroup_lru_add_after_commit_swapcache(page);
+
+	if (do_swap_account && !ret && PageSwapCache(page)) {
+		swp_entry_t ent = {.val = page_private(page)};
+		/* avoid double counting */
+		mem = swap_cgroup_record(ent, NULL);
+		if (mem) {
+			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+			mem_cgroup_put(mem);
+		}
+	}
+	return ret;
 }
 
 /*
@@ -1134,7 +1181,6 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
 				 gfp_t mask, struct mem_cgroup **ptr)
 {
 	struct mem_cgroup *mem;
-	swp_entry_t     ent;
 	int ret;
 
 	if (mem_cgroup_disabled())
@@ -1142,7 +1188,6 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
 
 	if (!do_swap_account)
 		goto charge_cur_mm;
-
 	/*
 	 * A racing thread's fault, or swapoff, may have already updated
 	 * the pte, and even removed page from swap cache: return success
@@ -1150,13 +1195,8 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
 	 */
 	if (!PageSwapCache(page))
 		return 0;
-
-	ent.val = page_private(page);
-
-	mem = lookup_swap_cgroup(ent);
+	mem = try_get_mem_cgroup_from_swapcache(page);
 	if (!mem)
-		goto charge_cur_mm;
-	if (!css_tryget(&mem->css))
 		goto charge_cur_mm;
 	*ptr = mem;
 	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true);
@@ -1168,62 +1208,6 @@ charge_cur_mm:
 		mm = &init_mm;
 	return __mem_cgroup_try_charge(mm, mask, ptr, true);
 }
-
-#ifdef CONFIG_SWAP
-
-int mem_cgroup_cache_charge_swapin(struct page *page,
-			struct mm_struct *mm, gfp_t mask, bool locked)
-{
-	int ret = 0;
-
-	if (mem_cgroup_disabled())
-		return 0;
-	if (unlikely(!mm))
-		mm = &init_mm;
-	if (!locked)
-		lock_page(page);
-	/*
-	 * If not locked, the page can be dropped from SwapCache until
-	 * we reach here.
-	 */
-	if (PageSwapCache(page)) {
-		struct mem_cgroup *mem = NULL;
-		swp_entry_t ent;
-
-		ent.val = page_private(page);
-		if (do_swap_account) {
-			mem = lookup_swap_cgroup(ent);
-			if (mem) {
-				if (css_tryget(&mem->css))
-					mm = NULL; /* charge to recorded */
-				else
-					mem = NULL; /* charge to current */
-			}
-		}
-		/* SwapCache may be still linked to LRU now. */
-		mem_cgroup_lru_del_before_commit_swapcache(page);
-		ret = mem_cgroup_charge_common(page, mm, mask,
-				MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
-		mem_cgroup_lru_add_after_commit_swapcache(page);
-		/* drop extra refcnt from tryget */
-		if (mem)
-			css_put(&mem->css);
-
-		if (!ret && do_swap_account) {
-			/* avoid double counting */
-			mem = swap_cgroup_record(ent, NULL);
-			if (mem) {
-				res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-				mem_cgroup_put(mem);
-			}
-		}
-	}
-	if (!locked)
-		unlock_page(page);
-
-	return ret;
-}
-#endif
 
 void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
 {
@@ -1486,18 +1470,20 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
  * This is typically used for page reclaiming for shmem for reducing side
  * effect of page allocation from shmem, which is used by some mem_cgroup.
  */
-int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
+int mem_cgroup_shrink_usage(struct page *page,
+			    struct mm_struct *mm,
+			    gfp_t gfp_mask)
 {
-	struct mem_cgroup *mem;
+	struct mem_cgroup *mem = NULL;
 	int progress = 0;
 	int retry = MEM_CGROUP_RECLAIM_RETRIES;
 
 	if (mem_cgroup_disabled())
 		return 0;
-	if (!mm)
-		return 0;
-
-	mem = try_get_mem_cgroup_from_mm(mm);
+	if (page)
+		mem = try_get_mem_cgroup_from_swapcache(page);
+	if (!mem && mm)
+		mem = try_get_mem_cgroup_from_mm(mm);
 	if (unlikely(!mem))
 		return 0;
 

@@ -335,16 +335,8 @@ static inline void disable_swap_token(void)
 }
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-extern int mem_cgroup_cache_charge_swapin(struct page *page,
-				struct mm_struct *mm, gfp_t mask, bool locked);
 extern void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent);
 #else
-static inline
-int mem_cgroup_cache_charge_swapin(struct page *page,
-				struct mm_struct *mm, gfp_t mask, bool locked)
-{
-	return 0;
-}
 static inline void
 mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
 {
