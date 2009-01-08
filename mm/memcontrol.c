@@ -153,7 +153,7 @@ struct mem_cgroup {
 	 * Should the accounting and control be hierarchical, per subtree?
 	 */
 	bool use_hierarchy;
-
+	unsigned long	last_oom_jiffies;
 	int		obsolete;
 	atomic_t	refcnt;
 	/*
@@ -615,6 +615,22 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 	return ret;
 }
 
+bool mem_cgroup_oom_called(struct task_struct *task)
+{
+	bool ret = false;
+	struct mem_cgroup *mem;
+	struct mm_struct *mm;
+
+	rcu_read_lock();
+	mm = task->mm;
+	if (!mm)
+		mm = &init_mm;
+	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
+	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
+		ret = true;
+	rcu_read_unlock();
+	return ret;
+}
 /*
  * Unlike exported interface, "oom" parameter is added. if oom==true,
  * oom-killer can be invoked.
@@ -626,6 +642,13 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 	struct mem_cgroup *mem, *mem_over_limit;
 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
 	struct res_counter *fail_res;
+
+	if (unlikely(test_thread_flag(TIF_MEMDIE))) {
+		/* Don't account this! */
+		*memcg = NULL;
+		return 0;
+	}
+
 	/*
 	 * We always charge the cgroup the mm_struct belongs to.
 	 * The mm_struct's mem_cgroup changes on task migration if the
@@ -694,8 +717,10 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 			continue;
 
 		if (!nr_retries--) {
-			if (oom)
+			if (oom) {
 				mem_cgroup_out_of_memory(mem, gfp_mask);
+				mem->last_oom_jiffies = jiffies;
+			}
 			goto nomem;
 		}
 	}
@@ -832,7 +857,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 
 
 	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false);
-	if (ret)
+	if (ret || !parent)
 		return ret;
 
 	if (!get_page_unless_zero(page))
@@ -883,7 +908,7 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 
 	mem = memcg;
 	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true);
-	if (ret)
+	if (ret || !mem)
 		return ret;
 
 	__mem_cgroup_commit_charge(mem, pc, ctype);

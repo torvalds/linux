@@ -102,6 +102,8 @@ static inline bool mem_cgroup_disabled(void)
 	return false;
 }
 
+extern bool mem_cgroup_oom_called(struct task_struct *task);
+
 #else /* CONFIG_CGROUP_MEM_RES_CTLR */
 struct mem_cgroup;
 
@@ -233,6 +235,11 @@ static inline long mem_cgroup_calc_reclaim(struct mem_cgroup *mem,
 static inline bool mem_cgroup_disabled(void)
 {
 	return true;
+}
+
+static inline bool mem_cgroup_oom_called(struct task_struct *task)
+{
+	return false;
 }
 #endif /* CONFIG_CGROUP_MEM_CONT */
 
