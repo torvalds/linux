@@ -928,8 +928,12 @@ found:
 	error = 1;
 	if (!inode)
 		goto out;
-	/* Charge page using GFP_HIGHUSER_MOVABLE while we can wait */
-	error = mem_cgroup_cache_charge(page, current->mm, GFP_HIGHUSER_MOVABLE);
+	/*
+	 * Charge page using GFP_HIGHUSER_MOVABLE while we can wait.
+	 * charged back to the user(not to caller) when swap account is used.
+	 */
+	error = mem_cgroup_cache_charge_swapin(page,
+			current->mm, GFP_HIGHUSER_MOVABLE, true);
 	if (error)
 		goto out;
 	error = radix_tree_preload(GFP_KERNEL);
@@ -1266,6 +1270,16 @@ repeat:
 				goto repeat;
 			}
 			wait_on_page_locked(swappage);
+			/*
+			 * We want to avoid charge at add_to_page_cache().
+			 * charge against this swap cache here.
+			 */
+			if (mem_cgroup_cache_charge_swapin(swappage,
+						current->mm, gfp, false)) {
+				page_cache_release(swappage);
+				error = -ENOMEM;
+				goto failed;
+			}
 			page_cache_release(swappage);
 			goto repeat;
 		}
