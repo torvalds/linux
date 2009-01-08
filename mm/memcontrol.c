@@ -606,6 +606,8 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 	ret = try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap);
 	if (mem_cgroup_check_under_limit(root_mem))
 		return 0;
+	if (!root_mem->use_hierarchy)
+		return ret;
 
 	next_mem = mem_cgroup_get_first_node(root_mem);
 
