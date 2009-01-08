@@ -167,7 +167,7 @@ static int create_strip_zones (mddev_t *mddev)
 		zone->dev = conf->strip_zone[i-1].dev + mddev->raid_disks;
 
 		printk("raid0: zone %d\n", i);
-		zone->dev_offset = current_offset;
+		zone->dev_start = current_offset * 2;
 		smallest = NULL;
 		c = 0;
 
@@ -452,8 +452,7 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 		x = sector >> chunksect_bits;
 		tmp_dev = zone->dev[sector_div(x, zone->nb_dev)];
 	}
-	rsect = (((chunk << (chunksect_bits - 1)) + zone->dev_offset)<<1)
-		+ sect_in_chunk;
+	rsect = (chunk << chunksect_bits) + zone->dev_start + sect_in_chunk;
  
 	bio->bi_bdev = tmp_dev->bdev;
 	bio->bi_sector = rsect + tmp_dev->data_offset;
@@ -490,9 +489,9 @@ static void raid0_status (struct seq_file *seq, mddev_t *mddev)
 			seq_printf(seq, "%s/", bdevname(
 				conf->strip_zone[j].dev[k]->bdev,b));
 
-		seq_printf(seq, "] zo=%d do=%d s=%d\n",
+		seq_printf(seq, "] zo=%d ds=%d s=%d\n",
 				conf->strip_zone[j].zone_offset,
-				conf->strip_zone[j].dev_offset,
+				conf->strip_zone[j].dev_start,
 				conf->strip_zone[j].size);
 	}
 #endif

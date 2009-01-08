@@ -6,7 +6,7 @@
 struct strip_zone
 {
 	sector_t zone_offset;	/* Zone offset in md_dev */
-	sector_t dev_offset;	/* Zone offset in real dev */
+	sector_t dev_start;	/* Zone offset in real dev (in sectors) */
 	sector_t size;		/* Zone size */
 	int nb_dev;		/* # of devices attached to the zone */
 	mdk_rdev_t **dev;	/* Devices attached to the zone */
