@@ -143,6 +143,13 @@ struct mem_cgroup {
 	struct mem_cgroup_lru_info info;
 
 	int	prev_priority;	/* for recording reclaim priority */
+
+	/*
+	 * While reclaiming in a hiearchy, we cache the last child we
+	 * reclaimed from. Protected by cgroup_lock()
+	 */
+	struct mem_cgroup *last_scanned_child;
+
 	int		obsolete;
 	atomic_t	refcnt;
 	/*
@@ -461,6 +468,149 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 	return nr_taken;
 }
 
+#define mem_cgroup_from_res_counter(counter, member)	\
+	container_of(counter, struct mem_cgroup, member)
+
+/*
+ * This routine finds the DFS walk successor. This routine should be
+ * called with cgroup_mutex held
+ */
+static struct mem_cgroup *
+mem_cgroup_get_next_node(struct mem_cgroup *curr, struct mem_cgroup *root_mem)
+{
+	struct cgroup *cgroup, *curr_cgroup, *root_cgroup;
+
+	curr_cgroup = curr->css.cgroup;
+	root_cgroup = root_mem->css.cgroup;
+
+	if (!list_empty(&curr_cgroup->children)) {
+		/*
+		 * Walk down to children
+		 */
+		mem_cgroup_put(curr);
+		cgroup = list_entry(curr_cgroup->children.next,
+						struct cgroup, sibling);
+		curr = mem_cgroup_from_cont(cgroup);
+		mem_cgroup_get(curr);
+		goto done;
+	}
+
+visit_parent:
+	if (curr_cgroup == root_cgroup) {
+		mem_cgroup_put(curr);
+		curr = root_mem;
+		mem_cgroup_get(curr);
+		goto done;
+	}
+
+	/*
+	 * Goto next sibling
+	 */
+	if (curr_cgroup->sibling.next != &curr_cgroup->parent->children) {
+		mem_cgroup_put(curr);
+		cgroup = list_entry(curr_cgroup->sibling.next, struct cgroup,
+						sibling);
+		curr = mem_cgroup_from_cont(cgroup);
+		mem_cgroup_get(curr);
+		goto done;
+	}
+
+	/*
+	 * Go up to next parent and next parent's sibling if need be
+	 */
+	curr_cgroup = curr_cgroup->parent;
+	goto visit_parent;
+
+done:
+	root_mem->last_scanned_child = curr;
+	return curr;
+}
+
+/*
+ * Visit the first child (need not be the first child as per the ordering
+ * of the cgroup list, since we track last_scanned_child) of @mem and use
+ * that to reclaim free pages from.
+ */
+static struct mem_cgroup *
+mem_cgroup_get_first_node(struct mem_cgroup *root_mem)
+{
+	struct cgroup *cgroup;
+	struct mem_cgroup *ret;
+	bool obsolete = (root_mem->last_scanned_child &&
+				root_mem->last_scanned_child->obsolete);
+
+	/*
+	 * Scan all children under the mem_cgroup mem
+	 */
+	cgroup_lock();
+	if (list_empty(&root_mem->css.cgroup->children)) {
+		ret = root_mem;
+		goto done;
+	}
+
+	if (!root_mem->last_scanned_child || obsolete) {
+
+		if (obsolete)
+			mem_cgroup_put(root_mem->last_scanned_child);
+
+		cgroup = list_first_entry(&root_mem->css.cgroup->children,
+				struct cgroup, sibling);
+		ret = mem_cgroup_from_cont(cgroup);
+		mem_cgroup_get(ret);
+	} else
+		ret = mem_cgroup_get_next_node(root_mem->last_scanned_child,
+						root_mem);
+
+done:
+	root_mem->last_scanned_child = ret;
+	cgroup_unlock();
+	return ret;
+}
+
+/*
+ * Dance down the hierarchy if needed to reclaim memory. We remember the
+ * last child we reclaimed from, so that we don't end up penalizing
+ * one child extensively based on its position in the children list.
+ *
+ * root_mem is the original ancestor that we've been reclaim from.
+ */
+static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+						gfp_t gfp_mask, bool noswap)
+{
+	struct mem_cgroup *next_mem;
+	int ret = 0;
+
+	/*
+	 * Reclaim unconditionally and don't check for return value.
+	 * We need to reclaim in the current group and down the tree.
+	 * One might think about checking for children before reclaiming,
+	 * but there might be left over accounting, even after children
+	 * have left.
+	 */
+	ret = try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap);
+	if (res_counter_check_under_limit(&root_mem->res))
+		return 0;
+
+	next_mem = mem_cgroup_get_first_node(root_mem);
+
+	while (next_mem != root_mem) {
+		if (next_mem->obsolete) {
+			mem_cgroup_put(next_mem);
+			cgroup_lock();
+			next_mem = mem_cgroup_get_first_node(root_mem);
+			cgroup_unlock();
+			continue;
+		}
+		ret = try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap);
+		if (res_counter_check_under_limit(&root_mem->res))
+			return 0;
+		cgroup_lock();
+		next_mem = mem_cgroup_get_next_node(next_mem, root_mem);
+		cgroup_unlock();
+	}
+	return ret;
+}
+
 /*
  * Unlike exported interface, "oom" parameter is added. if oom==true,
  * oom-killer can be invoked.
@@ -469,7 +619,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 			gfp_t gfp_mask, struct mem_cgroup **memcg,
 			bool oom)
 {
-	struct mem_cgroup *mem;
+	struct mem_cgroup *mem, *mem_over_limit;
 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
 	struct res_counter *fail_res;
 	/*
@@ -511,12 +661,18 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 			/* mem+swap counter fails */
 			res_counter_uncharge(&mem->res, PAGE_SIZE);
 			noswap = true;
-		}
+			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
+									memsw);
+		} else
+			/* mem counter fails */
+			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
+									res);
+
 		if (!(gfp_mask & __GFP_WAIT))
 			goto nomem;
 
-		if (try_to_free_mem_cgroup_pages(mem, gfp_mask, noswap))
-			continue;
+		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
+							noswap);
 
 		/*
 		 * try_to_free_mem_cgroup_pages() might not give us a full
@@ -1731,6 +1887,8 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	res_counter_init(&mem->res, parent ? &parent->res : NULL);
 	res_counter_init(&mem->memsw, parent ? &parent->memsw : NULL);
 
+
+	mem->last_scanned_child = NULL;
 
 	return &mem->css;
 free_out:
