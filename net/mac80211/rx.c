@@ -1667,6 +1667,57 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx)
 	return RX_CONTINUE;
 }
 
+void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
+				    struct ieee80211_mgmt *mgmt,
+				    size_t len)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+	struct ieee80211_mgmt *resp;
+
+	if (compare_ether_addr(mgmt->da, sdata->dev->dev_addr) != 0) {
+		/* Not to own unicast address */
+		return;
+	}
+
+	if (compare_ether_addr(mgmt->sa, sdata->u.sta.bssid) != 0 ||
+	    compare_ether_addr(mgmt->bssid, sdata->u.sta.bssid) != 0) {
+		/* Not from the current AP. */
+		return;
+	}
+
+	if (sdata->u.sta.state == IEEE80211_STA_MLME_ASSOCIATE) {
+		/* Association in progress; ignore SA Query */
+		return;
+	}
+
+	if (len < 24 + 1 + sizeof(resp->u.action.u.sa_query)) {
+		/* Too short SA Query request frame */
+		return;
+	}
+
+	skb = dev_alloc_skb(sizeof(*resp) + local->hw.extra_tx_headroom);
+	if (skb == NULL)
+		return;
+
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+	resp = (struct ieee80211_mgmt *) skb_put(skb, 24);
+	memset(resp, 0, 24);
+	memcpy(resp->da, mgmt->sa, ETH_ALEN);
+	memcpy(resp->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(resp->bssid, sdata->u.sta.bssid, ETH_ALEN);
+	resp->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
+	skb_put(skb, 1 + sizeof(resp->u.action.u.sa_query));
+	resp->u.action.category = WLAN_CATEGORY_SA_QUERY;
+	resp->u.action.u.sa_query.action = WLAN_ACTION_SA_QUERY_RESPONSE;
+	memcpy(resp->u.action.u.sa_query.trans_id,
+	       mgmt->u.action.u.sa_query.trans_id,
+	       WLAN_SA_QUERY_TR_ID_LEN);
+
+	ieee80211_tx_skb(sdata, skb, 1);
+}
+
 static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 {
@@ -1741,6 +1792,24 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 				     &mgmt->u.action.u.chan_switch.sw_elem, bss);
 			ieee80211_rx_bss_put(local, bss);
 			break;
+		}
+		break;
+	case WLAN_CATEGORY_SA_QUERY:
+		if (len < (IEEE80211_MIN_ACTION_SIZE +
+			   sizeof(mgmt->u.action.u.sa_query)))
+			return RX_DROP_MONITOR;
+		switch (mgmt->u.action.u.sa_query.action) {
+		case WLAN_ACTION_SA_QUERY_REQUEST:
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				return RX_DROP_MONITOR;
+			ieee80211_process_sa_query_req(sdata, mgmt, len);
+			break;
+		case WLAN_ACTION_SA_QUERY_RESPONSE:
+			/*
+			 * SA Query response is currently only used in AP mode
+			 * and it is processed in user space.
+			 */
+			return RX_CONTINUE;
 		}
 		break;
 	default:

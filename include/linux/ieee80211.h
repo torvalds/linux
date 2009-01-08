@@ -527,6 +527,8 @@ struct ieee80211_tim_ie {
 	u8 virtual_map[0];
 } __attribute__ ((packed));
 
+#define WLAN_SA_QUERY_TR_ID_LEN 16
+
 struct ieee80211_mgmt {
 	__le16 frame_control;
 	__le16 duration;
@@ -646,6 +648,10 @@ struct ieee80211_mgmt {
 					u8 action_code;
 					u8 variable[0];
 				} __attribute__((packed)) mesh_action;
+				struct {
+					u8 action;
+					u8 trans_id[WLAN_SA_QUERY_TR_ID_LEN];
+				} __attribute__ ((packed)) sa_query;
 			} u;
 		} __attribute__ ((packed)) action;
 	} u;
@@ -1041,6 +1047,7 @@ enum ieee80211_category {
 	WLAN_CATEGORY_DLS = 2,
 	WLAN_CATEGORY_BACK = 3,
 	WLAN_CATEGORY_PUBLIC = 4,
+	WLAN_CATEGORY_SA_QUERY = 8,
 	WLAN_CATEGORY_WMM = 17,
 };
 
@@ -1128,6 +1135,13 @@ enum ieee80211_back_parties {
 	WLAN_BACK_INITIATOR = 1,
 	WLAN_BACK_TIMER = 2,
 };
+
+/* SA Query action */
+enum ieee80211_sa_query_action {
+	WLAN_ACTION_SA_QUERY_REQUEST = 0,
+	WLAN_ACTION_SA_QUERY_RESPONSE = 1,
+};
+
 
 /* A-MSDU 802.11n */
 #define IEEE80211_QOS_CONTROL_A_MSDU_PRESENT 0x0080
