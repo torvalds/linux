@@ -375,14 +375,9 @@ void cpuset_update_task_memory_state(void)
 	struct task_struct *tsk = current;
 	struct cpuset *cs;
 
-	if (task_cs(tsk) == &top_cpuset) {
-		/* Don't need rcu for top_cpuset.  It's never freed. */
-		my_cpusets_mem_gen = top_cpuset.mems_generation;
-	} else {
-		rcu_read_lock();
-		my_cpusets_mem_gen = task_cs(tsk)->mems_generation;
-		rcu_read_unlock();
-	}
+	rcu_read_lock();
+	my_cpusets_mem_gen = task_cs(tsk)->mems_generation;
+	rcu_read_unlock();
 
 	if (my_cpusets_mem_gen != tsk->cpuset_mems_generation) {
 		mutex_lock(&callback_mutex);
