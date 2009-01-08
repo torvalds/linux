@@ -597,9 +597,9 @@ static void __init __get_smp_config(unsigned int early)
 	}
 
 	printk(KERN_INFO "Intel MultiProcessor Specification v1.%d\n",
-	       mpf->mpf_specification);
+	       mpf->specification);
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_32)
-	if (mpf->mpf_feature2 & (1 << 7)) {
+	if (mpf->feature2 & (1 << 7)) {
 		printk(KERN_INFO "    IMCR and PIC compatibility mode.\n");
 		pic_mode = 1;
 	} else {
@@ -610,7 +610,7 @@ static void __init __get_smp_config(unsigned int early)
 	/*
 	 * Now see if we need to read further.
 	 */
-	if (mpf->mpf_feature1 != 0) {
+	if (mpf->feature1 != 0) {
 		if (early) {
 			/*
 			 * local APIC has default address
@@ -620,16 +620,16 @@ static void __init __get_smp_config(unsigned int early)
 		}
 
 		printk(KERN_INFO "Default MP configuration #%d\n",
-		       mpf->mpf_feature1);
-		construct_default_ISA_mptable(mpf->mpf_feature1);
+		       mpf->feature1);
+		construct_default_ISA_mptable(mpf->feature1);
 
-	} else if (mpf->mpf_physptr) {
+	} else if (mpf->physptr) {
 
 		/*
 		 * Read the physical hardware table.  Anything here will
 		 * override the defaults.
 		 */
-		if (!smp_read_mpc(phys_to_virt(mpf->mpf_physptr), early)) {
+		if (!smp_read_mpc(phys_to_virt(mpf->physptr), early)) {
 #ifdef CONFIG_X86_LOCAL_APIC
 			smp_found_config = 0;
 #endif
@@ -696,10 +696,10 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 	while (length > 0) {
 		mpf = (struct mpf_intel *)bp;
 		if ((*bp == SMP_MAGIC_IDENT) &&
-		    (mpf->mpf_length == 1) &&
+		    (mpf->length == 1) &&
 		    !mpf_checksum((unsigned char *)bp, 16) &&
-		    ((mpf->mpf_specification == 1)
-		     || (mpf->mpf_specification == 4))) {
+		    ((mpf->specification == 1)
+		     || (mpf->specification == 4))) {
 #ifdef CONFIG_X86_LOCAL_APIC
 			smp_found_config = 1;
 #endif
@@ -712,7 +712,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 				return 1;
 			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE,
 					BOOTMEM_DEFAULT);
-			if (mpf->mpf_physptr) {
+			if (mpf->physptr) {
 				unsigned long size = PAGE_SIZE;
 #ifdef CONFIG_X86_32
 				/*
@@ -721,14 +721,14 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 				 * the bottom is mapped now.
 				 * PC-9800's MPC table places on the very last
 				 * of physical memory; so that simply reserving
-				 * PAGE_SIZE from mpg->mpf_physptr yields BUG()
+				 * PAGE_SIZE from mpf->physptr yields BUG()
 				 * in reserve_bootmem.
 				 */
 				unsigned long end = max_low_pfn * PAGE_SIZE;
-				if (mpf->mpf_physptr + size > end)
-					size = end - mpf->mpf_physptr;
+				if (mpf->physptr + size > end)
+					size = end - mpf->physptr;
 #endif
-				reserve_bootmem_generic(mpf->mpf_physptr, size,
+				reserve_bootmem_generic(mpf->physptr, size,
 						BOOTMEM_DEFAULT);
 			}
 
@@ -1013,19 +1013,19 @@ static int __init update_mp_table(void)
 	/*
 	 * Now see if we need to go further.
 	 */
-	if (mpf->mpf_feature1 != 0)
+	if (mpf->feature1 != 0)
 		return 0;
 
-	if (!mpf->mpf_physptr)
+	if (!mpf->physptr)
 		return 0;
 
-	mpc = phys_to_virt(mpf->mpf_physptr);
+	mpc = phys_to_virt(mpf->physptr);
 
 	if (!smp_check_mpc(mpc, oem, str))
 		return 0;
 
 	printk(KERN_INFO "mpf: %lx\n", virt_to_phys(mpf));
-	printk(KERN_INFO "mpf_physptr: %x\n", mpf->mpf_physptr);
+	printk(KERN_INFO "physptr: %x\n", mpf->physptr);
 
 	if (mpc_new_phys && mpc->length > mpc_new_length) {
 		mpc_new_phys = 0;
@@ -1046,23 +1046,23 @@ static int __init update_mp_table(void)
 		}
 		printk(KERN_INFO "use in-positon replacing\n");
 	} else {
-		mpf->mpf_physptr = mpc_new_phys;
+		mpf->physptr = mpc_new_phys;
 		mpc_new = phys_to_virt(mpc_new_phys);
 		memcpy(mpc_new, mpc, mpc->length);
 		mpc = mpc_new;
 		/* check if we can modify that */
-		if (mpc_new_phys - mpf->mpf_physptr) {
+		if (mpc_new_phys - mpf->physptr) {
 			struct mpf_intel *mpf_new;
 			/* steal 16 bytes from [0, 1k) */
 			printk(KERN_INFO "mpf new: %x\n", 0x400 - 16);
 			mpf_new = phys_to_virt(0x400 - 16);
 			memcpy(mpf_new, mpf, 16);
 			mpf = mpf_new;
-			mpf->mpf_physptr = mpc_new_phys;
+			mpf->physptr = mpc_new_phys;
 		}
-		mpf->mpf_checksum = 0;
-		mpf->mpf_checksum -= mpf_checksum((unsigned char *)mpf, 16);
-		printk(KERN_INFO "mpf_physptr new: %x\n", mpf->mpf_physptr);
+		mpf->checksum = 0;
+		mpf->checksum -= mpf_checksum((unsigned char *)mpf, 16);
+		printk(KERN_INFO "physptr new: %x\n", mpf->physptr);
 	}
 
 	/*
