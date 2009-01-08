@@ -2282,7 +2282,7 @@ static int pcnet32_open(struct net_device *dev)
 	if (lp->chip_version >= PCNET32_79C970A) {
 		/* Print the link status and start the watchdog */
 		pcnet32_check_media(dev, 1);
-		mod_timer(&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
+		mod_timer(&lp->watchdog_timer, PCNET32_WATCHDOG_TIMEOUT);
 	}
 
 	i = 0;
@@ -2917,7 +2917,7 @@ static void pcnet32_watchdog(struct net_device *dev)
 	pcnet32_check_media(dev, 0);
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	mod_timer(&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
+	mod_timer(&lp->watchdog_timer, round_jiffies(PCNET32_WATCHDOG_TIMEOUT));
 }
 
 static int pcnet32_pm_suspend(struct pci_dev *pdev, pm_message_t state)
