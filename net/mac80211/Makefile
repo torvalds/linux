@@ -15,6 +15,7 @@ mac80211-y := \
 	michael.o \
 	tkip.o \
 	aes_ccm.o \
+	aes_cmac.o \
 	cfg.o \
 	rx.o \
 	spectmgmt.o \

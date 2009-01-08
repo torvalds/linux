@@ -655,6 +655,15 @@ struct ieee80211_mgmt {
 #define IEEE80211_MIN_ACTION_SIZE offsetof(struct ieee80211_mgmt, u.action.u)
 
 
+/* Management MIC information element (IEEE 802.11w) */
+struct ieee80211_mmie {
+	u8 element_id;
+	u8 length;
+	__le16 key_id;
+	u8 sequence_number[6];
+	u8 mic[8];
+} __attribute__ ((packed));
+
 /* Control frames */
 struct ieee80211_rts {
 	__le16 frame_control;
@@ -1018,6 +1027,7 @@ enum ieee80211_eid {
 	WLAN_EID_HT_INFORMATION = 61,
 	/* 802.11i */
 	WLAN_EID_RSN = 48,
+	WLAN_EID_MMIE = 76 /* 802.11w */,
 	WLAN_EID_WPA = 221,
 	WLAN_EID_GENERIC = 221,
 	WLAN_EID_VENDOR_SPECIFIC = 221,

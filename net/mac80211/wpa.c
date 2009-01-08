@@ -1,5 +1,6 @@
 /*
  * Copyright 2002-2004, Instant802 Networks, Inc.
+ * Copyright 2008, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,6 +20,7 @@
 #include "michael.h"
 #include "tkip.h"
 #include "aes_ccm.h"
+#include "aes_cmac.h"
 #include "wpa.h"
 
 ieee80211_tx_result
@@ -488,6 +490,129 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	skb_trim(skb, skb->len - CCMP_MIC_LEN);
 	memmove(skb->data + CCMP_HDR_LEN, skb->data, hdrlen);
 	skb_pull(skb, CCMP_HDR_LEN);
+
+	return RX_CONTINUE;
+}
+
+
+static void bip_aad(struct sk_buff *skb, u8 *aad)
+{
+	/* BIP AAD: FC(masked) || A1 || A2 || A3 */
+
+	/* FC type/subtype */
+	aad[0] = skb->data[0];
+	/* Mask FC Retry, PwrMgt, MoreData flags to zero */
+	aad[1] = skb->data[1] & ~(BIT(4) | BIT(5) | BIT(6));
+	/* A1 || A2 || A3 */
+	memcpy(aad + 2, skb->data + 4, 3 * ETH_ALEN);
+}
+
+
+static inline void bip_ipn_swap(u8 *d, const u8 *s)
+{
+	*d++ = s[5];
+	*d++ = s[4];
+	*d++ = s[3];
+	*d++ = s[2];
+	*d++ = s[1];
+	*d = s[0];
+}
+
+
+ieee80211_tx_result
+ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx)
+{
+	struct sk_buff *skb = tx->skb;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_key *key = tx->key;
+	struct ieee80211_mmie *mmie;
+	u8 *pn, aad[20];
+	int i;
+
+	if (tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
+		/* hwaccel */
+		info->control.hw_key = &tx->key->conf;
+		return 0;
+	}
+
+	if (WARN_ON(skb_tailroom(skb) < sizeof(*mmie)))
+		return TX_DROP;
+
+	mmie = (struct ieee80211_mmie *) skb_put(skb, sizeof(*mmie));
+	mmie->element_id = WLAN_EID_MMIE;
+	mmie->length = sizeof(*mmie) - 2;
+	mmie->key_id = cpu_to_le16(key->conf.keyidx);
+
+	/* PN = PN + 1 */
+	pn = key->u.aes_cmac.tx_pn;
+
+	for (i = sizeof(key->u.aes_cmac.tx_pn) - 1; i >= 0; i--) {
+		pn[i]++;
+		if (pn[i])
+			break;
+	}
+	bip_ipn_swap(mmie->sequence_number, pn);
+
+	bip_aad(skb, aad);
+
+	/*
+	 * MIC = AES-128-CMAC(IGTK, AAD || Management Frame Body || MMIE, 64)
+	 */
+	ieee80211_aes_cmac(key->u.aes_cmac.tfm, key->u.aes_cmac.tx_crypto_buf,
+			   aad, skb->data + 24, skb->len - 24, mmie->mic);
+
+	return TX_CONTINUE;
+}
+
+
+ieee80211_rx_result
+ieee80211_crypto_aes_cmac_decrypt(struct ieee80211_rx_data *rx)
+{
+	struct sk_buff *skb = rx->skb;
+	struct ieee80211_key *key = rx->key;
+	struct ieee80211_mmie *mmie;
+	u8 aad[20], mic[8], ipn[6];
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+
+	if (!ieee80211_is_mgmt(hdr->frame_control))
+		return RX_CONTINUE;
+
+	if ((rx->status->flag & RX_FLAG_DECRYPTED) &&
+	    (rx->status->flag & RX_FLAG_IV_STRIPPED))
+		return RX_CONTINUE;
+
+	if (skb->len < 24 + sizeof(*mmie))
+		return RX_DROP_UNUSABLE;
+
+	mmie = (struct ieee80211_mmie *)
+		(skb->data + skb->len - sizeof(*mmie));
+	if (mmie->element_id != WLAN_EID_MMIE ||
+	    mmie->length != sizeof(*mmie) - 2)
+		return RX_DROP_UNUSABLE; /* Invalid MMIE */
+
+	bip_ipn_swap(ipn, mmie->sequence_number);
+
+	if (memcmp(ipn, key->u.aes_cmac.rx_pn, 6) <= 0) {
+		key->u.aes_cmac.replays++;
+		return RX_DROP_UNUSABLE;
+	}
+
+	if (!(rx->status->flag & RX_FLAG_DECRYPTED)) {
+		/* hardware didn't decrypt/verify MIC */
+		bip_aad(skb, aad);
+		ieee80211_aes_cmac(key->u.aes_cmac.tfm,
+				   key->u.aes_cmac.rx_crypto_buf, aad,
+				   skb->data + 24, skb->len - 24, mic);
+		if (memcmp(mic, mmie->mic, sizeof(mmie->mic)) != 0) {
+			key->u.aes_cmac.icverrors++;
+			return RX_DROP_UNUSABLE;
+		}
+	}
+
+	memcpy(key->u.aes_cmac.rx_pn, ipn, 6);
+
+	/* Remove MMIE */
+	skb_trim(skb, skb->len - sizeof(*mmie));
 
 	return RX_CONTINUE;
 }

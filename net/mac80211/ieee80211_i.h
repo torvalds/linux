@@ -43,7 +43,7 @@ struct ieee80211_local;
 
 /* Required encryption head and tailroom */
 #define IEEE80211_ENCRYPT_HEADROOM 8
-#define IEEE80211_ENCRYPT_TAILROOM 12
+#define IEEE80211_ENCRYPT_TAILROOM 18
 
 /* IEEE 802.11 (Ch. 9.5 Defragmentation) requires support for concurrent
  * reception of at least three fragmented frames. This limit can be increased
