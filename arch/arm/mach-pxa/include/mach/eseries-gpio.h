@@ -45,6 +45,11 @@
 /* e7xx IrDA power control */
 #define GPIO_E7XX_IR_OFF         38
 
+/* e750 audio control GPIOs */
+#define GPIO_E750_HP_AMP_OFF      4
+#define GPIO_E750_SPK_AMP_OFF     7
+#define GPIO_E750_HP_DETECT      37
+
 /* ASIC related GPIOs */
 #define GPIO_ESERIES_TMIO_IRQ        5
 #define GPIO_ESERIES_TMIO_PCLR      19
