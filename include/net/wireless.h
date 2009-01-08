@@ -187,6 +187,10 @@ struct ieee80211_supported_band {
  * 	we will disregard the first regulatory hint (when the
  * 	initiator is %REGDOM_SET_BY_CORE).
  * @reg_notifier: the driver's regulatory notification callback
+ * @regd: the driver's regulatory domain, if one was requested via
+ * 	the regulatory_hint() API. This can be used by the driver
+ *	on the reg_notifier() if it chooses to ignore future
+ *	regulatory domain changes caused by other drivers.
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -212,6 +216,8 @@ struct wiphy {
 	int (*reg_notifier)(struct wiphy *wiphy, enum reg_set_by setby);
 
 	/* fields below are read-only, assigned by cfg80211 */
+
+	const struct ieee80211_regdomain *regd;
 
 	/* the item in /sys/class/ieee80211/ points to this,
 	 * you need use set_wiphy_dev() (see below) */

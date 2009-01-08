@@ -784,6 +784,7 @@ static u32 map_regdom_flags(u32 rd_flags)
 
 /**
  * freq_reg_info - get regulatory information for the given frequency
+ * @wiphy: the wiphy for which we want to process this rule for
  * @center_freq: Frequency in KHz for which we want regulatory information for
  * @bandwidth: the bandwidth requirement you have in KHz, if you do not have one
  * 	you can set this to 0. If this frequency is allowed we then set
@@ -802,22 +803,31 @@ static u32 map_regdom_flags(u32 rd_flags)
  * freq_in_rule_band() for our current definition of a band -- this is purely
  * subjective and right now its 802.11 specific.
  */
-static int freq_reg_info(u32 center_freq, u32 *bandwidth,
+static int freq_reg_info(struct wiphy *wiphy, u32 center_freq, u32 *bandwidth,
 			 const struct ieee80211_reg_rule **reg_rule)
 {
 	int i;
 	bool band_rule_found = false;
+	const struct ieee80211_regdomain *regd;
 	u32 max_bandwidth = 0;
 
-	if (!cfg80211_regdomain)
+	regd = cfg80211_regdomain;
+
+	/* Follow the driver's regulatory domain, if present, unless a country
+	 * IE has been processed */
+	if (last_request->initiator != REGDOM_SET_BY_COUNTRY_IE &&
+	    wiphy->regd)
+		regd = wiphy->regd;
+
+	if (!regd)
 		return -EINVAL;
 
-	for (i = 0; i < cfg80211_regdomain->n_reg_rules; i++) {
+	for (i = 0; i < regd->n_reg_rules; i++) {
 		const struct ieee80211_reg_rule *rr;
 		const struct ieee80211_freq_range *fr = NULL;
 		const struct ieee80211_power_rule *pr = NULL;
 
-		rr = &cfg80211_regdomain->reg_rules[i];
+		rr = &regd->reg_rules[i];
 		fr = &rr->freq_range;
 		pr = &rr->power_rule;
 
@@ -859,7 +869,7 @@ static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
 
 	flags = chan->orig_flags;
 
-	r = freq_reg_info(MHZ_TO_KHZ(chan->center_freq),
+	r = freq_reg_info(wiphy, MHZ_TO_KHZ(chan->center_freq),
 		&max_bandwidth, &reg_rule);
 
 	if (r) {
@@ -952,6 +962,30 @@ void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby)
 		wiphy->reg_notifier(wiphy, setby);
 }
 
+static int reg_copy_regd(const struct ieee80211_regdomain **dst_regd,
+			 const struct ieee80211_regdomain *src_regd)
+{
+	struct ieee80211_regdomain *regd;
+	int size_of_regd = 0;
+	unsigned int i;
+
+	size_of_regd = sizeof(struct ieee80211_regdomain) +
+	  ((src_regd->n_reg_rules + 1) * sizeof(struct ieee80211_reg_rule));
+
+	regd = kzalloc(size_of_regd, GFP_KERNEL);
+	if (!regd)
+		return -ENOMEM;
+
+	memcpy(regd, src_regd, sizeof(struct ieee80211_regdomain));
+
+	for (i = 0; i < src_regd->n_reg_rules; i++)
+		memcpy(&regd->reg_rules[i], &src_regd->reg_rules[i],
+			sizeof(struct ieee80211_reg_rule));
+
+	*dst_regd = regd;
+	return 0;
+}
+
 /* Return value which can be used by ignore_request() to indicate
  * it has been determined we should intersect two regulatory domains */
 #define REG_INTERSECT	1
@@ -999,9 +1033,9 @@ static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
 		}
 		return REG_INTERSECT;
 	case REGDOM_SET_BY_DRIVER:
-		if (last_request->initiator == REGDOM_SET_BY_DRIVER)
-			return -EALREADY;
-		return 0;
+		if (last_request->initiator == REGDOM_SET_BY_CORE)
+			return 0;
+		return REG_INTERSECT;
 	case REGDOM_SET_BY_USER:
 		if (last_request->initiator == REGDOM_SET_BY_COUNTRY_IE)
 			return REG_INTERSECT;
@@ -1028,11 +1062,28 @@ int __regulatory_hint(struct wiphy *wiphy, enum reg_set_by set_by,
 
 	r = ignore_request(wiphy, set_by, alpha2);
 
-	if (r == REG_INTERSECT)
+	if (r == REG_INTERSECT) {
+		if (set_by == REGDOM_SET_BY_DRIVER) {
+			r = reg_copy_regd(&wiphy->regd, cfg80211_regdomain);
+			if (r)
+				return r;
+		}
 		intersect = true;
-	else if (r)
+	} else if (r) {
+		/* If the regulatory domain being requested by the
+		 * driver has already been set just copy it to the
+		 * wiphy */
+		if (r == -EALREADY && set_by == REGDOM_SET_BY_DRIVER) {
+			r = reg_copy_regd(&wiphy->regd, cfg80211_regdomain);
+			if (r)
+				return r;
+			r = -EALREADY;
+			goto new_request;
+		}
 		return r;
+	}
 
+new_request:
 	request = kzalloc(sizeof(struct regulatory_request),
 			  GFP_KERNEL);
 	if (!request)
@@ -1048,6 +1099,11 @@ int __regulatory_hint(struct wiphy *wiphy, enum reg_set_by set_by,
 
 	kfree(last_request);
 	last_request = request;
+
+	/* When r == REG_INTERSECT we do need to call CRDA */
+	if (r < 0)
+		return r;
+
 	/*
 	 * Note: When CONFIG_WIRELESS_OLD_REGULATORY is enabled
 	 * AND if CRDA is NOT present nothing will happen, if someone
@@ -1341,6 +1397,23 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	}
 
 	if (!last_request->intersect) {
+		int r;
+
+		if (last_request->initiator != REGDOM_SET_BY_DRIVER) {
+			reset_regdomains();
+			cfg80211_regdomain = rd;
+			return 0;
+		}
+
+		/* For a driver hint, lets copy the regulatory domain the
+		 * driver wanted to the wiphy to deal with conflicts */
+
+		BUG_ON(last_request->wiphy->regd);
+
+		r = reg_copy_regd(&last_request->wiphy->regd, rd);
+		if (r)
+			return r;
+
 		reset_regdomains();
 		cfg80211_regdomain = rd;
 		return 0;
@@ -1354,8 +1427,14 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		if (!intersected_rd)
 			return -EINVAL;
 
-		/* We can trash what CRDA provided now */
-		kfree(rd);
+		/* We can trash what CRDA provided now.
+		 * However if a driver requested this specific regulatory
+		 * domain we keep it for its private use */
+		if (last_request->initiator == REGDOM_SET_BY_DRIVER)
+			last_request->wiphy->regd = rd;
+		else
+			kfree(rd);
+
 		rd = NULL;
 
 		reset_regdomains();
@@ -1439,6 +1518,7 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 /* Caller must hold cfg80211_drv_mutex */
 void reg_device_remove(struct wiphy *wiphy)
 {
+	kfree(wiphy->regd);
 	if (!last_request || !last_request->wiphy)
 		return;
 	if (last_request->wiphy != wiphy)
