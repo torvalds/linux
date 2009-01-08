@@ -105,6 +105,10 @@ int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg,
 unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
 				       struct zone *zone,
 				       enum lru_list lru);
+struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+						      struct zone *zone);
+struct zone_reclaim_stat*
+mem_cgroup_get_reclaim_stat_from_page(struct page *page);
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 extern int do_swap_account;
@@ -270,6 +274,18 @@ mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg, struct zone *zone,
 	return 0;
 }
 
+
+static inline struct zone_reclaim_stat*
+mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg, struct zone *zone)
+{
+	return NULL;
+}
+
+static inline struct zone_reclaim_stat*
+mem_cgroup_get_reclaim_stat_from_page(struct page *page)
+{
+	return NULL;
+}
 
 #endif /* CONFIG_CGROUP_MEM_CONT */
 

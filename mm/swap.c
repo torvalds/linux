@@ -151,13 +151,32 @@ void  rotate_reclaimable_page(struct page *page)
 	}
 }
 
+static void update_page_reclaim_stat(struct zone *zone, struct page *page,
+				     int file, int rotated)
+{
+	struct zone_reclaim_stat *reclaim_stat = &zone->reclaim_stat;
+	struct zone_reclaim_stat *memcg_reclaim_stat;
+
+	memcg_reclaim_stat = mem_cgroup_get_reclaim_stat_from_page(page);
+
+	reclaim_stat->recent_scanned[file]++;
+	if (rotated)
+		reclaim_stat->recent_rotated[file]++;
+
+	if (!memcg_reclaim_stat)
+		return;
+
+	memcg_reclaim_stat->recent_scanned[file]++;
+	if (rotated)
+		memcg_reclaim_stat->recent_rotated[file]++;
+}
+
 /*
  * FIXME: speed this up?
  */
 void activate_page(struct page *page)
 {
 	struct zone *zone = page_zone(page);
-	struct zone_reclaim_stat *reclaim_stat = &zone->reclaim_stat;
 
 	spin_lock_irq(&zone->lru_lock);
 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
@@ -170,8 +189,7 @@ void activate_page(struct page *page)
 		add_page_to_lru_list(zone, page, lru);
 		__count_vm_event(PGACTIVATE);
 
-		reclaim_stat->recent_rotated[!!file]++;
-		reclaim_stat->recent_scanned[!!file]++;
+		update_page_reclaim_stat(zone, page, !!file, 1);
 	}
 	spin_unlock_irq(&zone->lru_lock);
 }
@@ -386,7 +404,6 @@ void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
 {
 	int i;
 	struct zone *zone = NULL;
-	struct zone_reclaim_stat *reclaim_stat = NULL;
 
 	VM_BUG_ON(is_unevictable_lru(lru));
 
@@ -394,24 +411,23 @@ void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
 		struct page *page = pvec->pages[i];
 		struct zone *pagezone = page_zone(page);
 		int file;
+		int active;
 
 		if (pagezone != zone) {
 			if (zone)
 				spin_unlock_irq(&zone->lru_lock);
 			zone = pagezone;
-			reclaim_stat = &zone->reclaim_stat;
 			spin_lock_irq(&zone->lru_lock);
 		}
 		VM_BUG_ON(PageActive(page));
 		VM_BUG_ON(PageUnevictable(page));
 		VM_BUG_ON(PageLRU(page));
 		SetPageLRU(page);
+		active = is_active_lru(lru);
 		file = is_file_lru(lru);
-		reclaim_stat->recent_scanned[file]++;
-		if (is_active_lru(lru)) {
+		if (active)
 			SetPageActive(page);
-			reclaim_stat->recent_rotated[file]++;
-		}
+		update_page_reclaim_stat(zone, page, file, active);
 		add_page_to_lru_list(zone, page, lru);
 	}
 	if (zone)

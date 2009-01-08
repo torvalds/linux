@@ -103,6 +103,8 @@ struct mem_cgroup_per_zone {
 	 */
 	struct list_head	lists[NR_LRU_LISTS];
 	unsigned long		count[NR_LRU_LISTS];
+
+	struct zone_reclaim_stat reclaim_stat;
 };
 /* Macro for accessing counter */
 #define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
@@ -456,6 +458,33 @@ unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
 	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
 
 	return MEM_CGROUP_ZSTAT(mz, lru);
+}
+
+struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+						      struct zone *zone)
+{
+	int nid = zone->zone_pgdat->node_id;
+	int zid = zone_idx(zone);
+	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
+
+	return &mz->reclaim_stat;
+}
+
+struct zone_reclaim_stat *
+mem_cgroup_get_reclaim_stat_from_page(struct page *page)
+{
+	struct page_cgroup *pc;
+	struct mem_cgroup_per_zone *mz;
+
+	if (mem_cgroup_disabled())
+		return NULL;
+
+	pc = lookup_page_cgroup(page);
+	mz = page_cgroup_zoneinfo(pc);
+	if (!mz)
+		return NULL;
+
+	return &mz->reclaim_stat;
 }
 
 unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
