@@ -1306,6 +1306,9 @@ static int fmeter_getrate(struct fmeter *fmp)
 	return val;
 }
 
+/* Protected by cgroup_lock */
+static cpumask_var_t cpus_attach;
+
 /* Called by cgroups to determine if a cpuset is usable; cgroup_mutex held */
 static int cpuset_can_attach(struct cgroup_subsys *ss,
 			     struct cgroup *cont, struct task_struct *tsk)
@@ -1330,7 +1333,6 @@ static void cpuset_attach(struct cgroup_subsys *ss,
 			  struct cgroup *cont, struct cgroup *oldcont,
 			  struct task_struct *tsk)
 {
-	cpumask_t cpus;
 	nodemask_t from, to;
 	struct mm_struct *mm;
 	struct cpuset *cs = cgroup_cs(cont);
@@ -1338,13 +1340,13 @@ static void cpuset_attach(struct cgroup_subsys *ss,
 	int err;
 
 	if (cs == &top_cpuset) {
-		cpus = cpu_possible_map;
+		cpumask_copy(cpus_attach, cpu_possible_mask);
 	} else {
 		mutex_lock(&callback_mutex);
-		guarantee_online_cpus(cs, &cpus);
+		guarantee_online_cpus(cs, cpus_attach);
 		mutex_unlock(&callback_mutex);
 	}
-	err = set_cpus_allowed_ptr(tsk, &cpus);
+	err = set_cpus_allowed_ptr(tsk, cpus_attach);
 	if (err)
 		return;
 
@@ -1357,7 +1359,6 @@ static void cpuset_attach(struct cgroup_subsys *ss,
 			cpuset_migrate_mm(mm, &from, &to);
 		mmput(mm);
 	}
-
 }
 
 /* The various types of files and directories in a cpuset file system */
@@ -1837,6 +1838,9 @@ int __init cpuset_init(void)
 	err = register_filesystem(&cpuset_fs_type);
 	if (err < 0)
 		return err;
+
+	if (!alloc_cpumask_var(&cpus_attach, GFP_KERNEL))
+		BUG();
 
 	number_of_cpusets = 1;
 	return 0;
