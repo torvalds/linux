@@ -136,6 +136,13 @@ static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
 	return &zone->reclaim_stat;
 }
 
+static unsigned long zone_nr_pages(struct zone *zone, struct scan_control *sc,
+				   enum lru_list lru)
+{
+	return zone_page_state(zone, NR_LRU_BASE + lru);
+}
+
+
 /*
  * Add a shrinker callback to be called from the vm
  */
@@ -1365,10 +1372,10 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
 		return;
 	}
 
-	anon  = zone_page_state(zone, NR_ACTIVE_ANON) +
-		zone_page_state(zone, NR_INACTIVE_ANON);
-	file  = zone_page_state(zone, NR_ACTIVE_FILE) +
-		zone_page_state(zone, NR_INACTIVE_FILE);
+	anon  = zone_nr_pages(zone, sc, LRU_ACTIVE_ANON) +
+		zone_nr_pages(zone, sc, LRU_INACTIVE_ANON);
+	file  = zone_nr_pages(zone, sc, LRU_ACTIVE_FILE) +
+		zone_nr_pages(zone, sc, LRU_INACTIVE_FILE);
 	free  = zone_page_state(zone, NR_FREE_PAGES);
 
 	/* If we have very few page cache pages, force-scan anon pages. */
