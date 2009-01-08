@@ -2536,7 +2536,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		 */
 		newdepth = ext_depth(inode);
 		/*
-		 * update the extent length after successfull insert of the
+		 * update the extent length after successful insert of the
 		 * split extent
 		 */
 		orig_ex.ee_len = cpu_to_le16(ee_len -

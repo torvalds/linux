@@ -801,7 +801,7 @@ tape_3590_done(struct tape_device *device, struct tape_request *request)
 static inline int
 tape_3590_erp_succeded(struct tape_device *device, struct tape_request *request)
 {
-	DBF_EVENT(3, "Error Recovery successfull for %s\n",
+	DBF_EVENT(3, "Error Recovery successful for %s\n",
 		  tape_op_verbose[request->op]);
 	return tape_3590_done(device, request);
 }
