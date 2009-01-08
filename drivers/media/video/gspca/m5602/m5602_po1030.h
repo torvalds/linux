@@ -148,6 +148,7 @@ extern int dump_sensor;
 
 int po1030_probe(struct sd *sd);
 int po1030_init(struct sd *sd);
+int po1030_start(struct sd *sd);
 void po1030_disconnect(struct sd *sd);
 
 int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
@@ -173,6 +174,7 @@ static const struct m5602_sensor po1030 = {
 
 	.probe = po1030_probe,
 	.init = po1030_init,
+	.start = po1030_start,
 	.disconnect = po1030_disconnect,
 };
 
@@ -237,7 +239,7 @@ static const unsigned char preinit_po1030[][3] =
 	{BRIDGE, M5602_XB_GPIO_DAT, 0x00}
 };
 
-static const unsigned char init_po1030[][4] =
+static const unsigned char init_po1030[][3] =
 {
 	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02},
 	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0},
@@ -299,11 +301,13 @@ static const unsigned char init_po1030[][4] =
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x04},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
 	/*end of sequence 2 stop */
+};
 
-/* ---------------------------------
- * end of init - begin of start
- * --------------------------------- */
-
+static const unsigned char start_po1030[][3] =
+{
+	/* ---------------------------------
+	 * end of init - begin of start
+	 * --------------------------------- */
 	/*sequence 3*/
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},

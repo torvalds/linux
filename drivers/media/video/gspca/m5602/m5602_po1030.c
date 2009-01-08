@@ -260,6 +260,23 @@ int po1030_init(struct sd *sd)
 	return err;
 }
 
+int po1030_start(struct sd *sd)
+{
+	int i, err = 0;
+	/* Synthesize the vsync/hsync setup */
+	for (i = 0; i < ARRAY_SIZE(start_po1030) && !err; i++) {
+		if (start_po1030[i][0] == BRIDGE)
+			err = m5602_write_bridge(sd, start_po1030[i][1],
+				start_po1030[i][2]);
+		else if (start_po1030[i][0] == SENSOR) {
+			u8 data = start_po1030[i][2];
+			err = m5602_write_sensor(sd,
+					start_po1030[i][1], &data, 1);
+		}
+	}
+	return err;
+}
+
 int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
