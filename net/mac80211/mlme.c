@@ -1275,6 +1275,23 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	       sdata->dev->name, reassoc ? "Rea" : "A", mgmt->sa,
 	       capab_info, status_code, (u16)(aid & ~(BIT(15) | BIT(14))));
 
+	pos = mgmt->u.assoc_resp.variable;
+	ieee802_11_parse_elems(pos, len - (pos - (u8 *) mgmt), &elems);
+
+	if (status_code == WLAN_STATUS_ASSOC_REJECTED_TEMPORARILY &&
+	    elems.assoc_comeback && elems.assoc_comeback_len == 4) {
+		u32 tu, ms;
+		tu = get_unaligned_le32(elems.assoc_comeback);
+		ms = tu * 1024 / 1000;
+		printk(KERN_DEBUG "%s: AP rejected association temporarily; "
+		       "comeback duration %u TU (%u ms)\n",
+		       sdata->dev->name, tu, ms);
+		if (ms > IEEE80211_ASSOC_TIMEOUT)
+			mod_timer(&ifsta->timer,
+				  jiffies + msecs_to_jiffies(ms));
+		return;
+	}
+
 	if (status_code != WLAN_STATUS_SUCCESS) {
 		printk(KERN_DEBUG "%s: AP denied association (code=%d)\n",
 		       sdata->dev->name, status_code);
@@ -1289,9 +1306,6 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		printk(KERN_DEBUG "%s: invalid aid value %d; bits 15:14 not "
 		       "set\n", sdata->dev->name, aid);
 	aid &= ~(BIT(15) | BIT(14));
-
-	pos = mgmt->u.assoc_resp.variable;
-	ieee802_11_parse_elems(pos, len - (pos - (u8 *) mgmt), &elems);
 
 	if (!elems.supp_rates) {
 		printk(KERN_DEBUG "%s: no SuppRates element in AssocResp\n",

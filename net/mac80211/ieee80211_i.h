@@ -820,6 +820,7 @@ struct ieee802_11_elems {
 	u8 *country_elem;
 	u8 *pwr_constr_elem;
 	u8 *quiet_elem; 	/* first quite element */
+	u8 *assoc_comeback;
 
 	/* length of them, respectively */
 	u8 ssid_len;
@@ -847,6 +848,7 @@ struct ieee802_11_elems {
 	u8 pwr_constr_elem_len;
 	u8 quiet_elem_len;
 	u8 num_of_quiet_elem;	/* can be more the one */
+	u8 assoc_comeback_len;
 };
 
 static inline struct ieee80211_local *hw_to_local(
