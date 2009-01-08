@@ -231,6 +231,9 @@ page_cgroup_zoneinfo(struct page_cgroup *pc)
 	int nid = page_cgroup_nid(pc);
 	int zid = page_cgroup_zid(pc);
 
+	if (!mem)
+		return NULL;
+
 	return mem_cgroup_zoneinfo(mem, nid, zid);
 }
 
