@@ -57,7 +57,6 @@ static int create_strip_zones (mddev_t *mddev)
 	sector_t min_spacing;
 	raid0_conf_t *conf = mddev_to_conf(mddev);
 	mdk_rdev_t *smallest, *rdev1, *rdev2, *rdev;
-	struct list_head *tmp1, *tmp2;
 	struct strip_zone *zone;
 	int cnt;
 	char b[BDEVNAME_SIZE];
@@ -67,11 +66,11 @@ static int create_strip_zones (mddev_t *mddev)
 	 */
 	conf->nr_strip_zones = 0;
  
-	rdev_for_each(rdev1, tmp1, mddev) {
+	list_for_each_entry(rdev1, &mddev->disks, same_set) {
 		printk(KERN_INFO "raid0: looking at %s\n",
 			bdevname(rdev1->bdev,b));
 		c = 0;
-		rdev_for_each(rdev2, tmp2, mddev) {
+		list_for_each_entry(rdev2, &mddev->disks, same_set) {
 			printk(KERN_INFO "raid0:   comparing %s(%llu)",
 			       bdevname(rdev1->bdev,b),
 			       (unsigned long long)rdev1->size);
@@ -120,7 +119,7 @@ static int create_strip_zones (mddev_t *mddev)
 	cnt = 0;
 	smallest = NULL;
 	zone->dev = conf->devlist;
-	rdev_for_each(rdev1, tmp1, mddev) {
+	list_for_each_entry(rdev1, &mddev->disks, same_set) {
 		int j = rdev1->raid_disk;
 
 		if (j < 0 || j >= mddev->raid_disks) {
@@ -268,7 +267,6 @@ static int raid0_run (mddev_t *mddev)
 	s64 sectors;
 	raid0_conf_t *conf;
 	mdk_rdev_t *rdev;
-	struct list_head *tmp;
 
 	if (mddev->chunk_size == 0) {
 		printk(KERN_ERR "md/raid0: non-zero chunk size required.\n");
@@ -294,7 +292,7 @@ static int raid0_run (mddev_t *mddev)
 
 	/* calculate array device size */
 	mddev->array_sectors = 0;
-	rdev_for_each(rdev, tmp, mddev)
+	list_for_each_entry(rdev, &mddev->disks, same_set)
 		mddev->array_sectors += rdev->size * 2;
 
 	printk(KERN_INFO "raid0 : md_size is %llu sectors.\n",

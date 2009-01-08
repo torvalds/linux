@@ -335,17 +335,14 @@ static inline char * mdname (mddev_t * mddev)
  * iterates through some rdev ringlist. It's safe to remove the
  * current 'rdev'. Dont touch 'tmp' though.
  */
-#define rdev_for_each_list(rdev, tmp, list)				\
-									\
-	for ((tmp) = (list).next;					\
-		(rdev) = (list_entry((tmp), mdk_rdev_t, same_set)),	\
-			(tmp) = (tmp)->next, (tmp)->prev != &(list)	\
-		; )
+#define rdev_for_each_list(rdev, tmp, head)				\
+	list_for_each_entry_safe(rdev, tmp, head, same_set)
+
 /*
  * iterates through the 'same array disks' ringlist
  */
 #define rdev_for_each(rdev, tmp, mddev)				\
-	rdev_for_each_list(rdev, tmp, (mddev)->disks)
+	list_for_each_entry_safe(rdev, tmp, &((mddev)->disks), same_set)
 
 #define rdev_for_each_rcu(rdev, mddev)				\
 	list_for_each_entry_rcu(rdev, &((mddev)->disks), same_set)

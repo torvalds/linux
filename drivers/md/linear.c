@@ -105,7 +105,6 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	int i, nb_zone, cnt;
 	sector_t min_sectors;
 	sector_t curr_sector;
-	struct list_head *tmp;
 
 	conf = kzalloc (sizeof (*conf) + raid_disks*sizeof(dev_info_t),
 			GFP_KERNEL);
@@ -115,7 +114,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	cnt = 0;
 	conf->array_sectors = 0;
 
-	rdev_for_each(rdev, tmp, mddev) {
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		int j = rdev->raid_disk;
 		dev_info_t *disk = conf->disks + j;
 
