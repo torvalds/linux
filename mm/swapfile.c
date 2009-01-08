@@ -33,6 +33,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <linux/swapops.h>
+#include <linux/page_cgroup.h>
 
 static DEFINE_SPINLOCK(swap_lock);
 static unsigned int nr_swapfiles;
@@ -1494,6 +1495,9 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	spin_unlock(&swap_lock);
 	mutex_unlock(&swapon_mutex);
 	vfree(swap_map);
+	/* Destroy swap account informatin */
+	swap_cgroup_swapoff(type);
+
 	inode = mapping->host;
 	if (S_ISBLK(inode->i_mode)) {
 		struct block_device *bdev = I_BDEV(inode);
@@ -1811,6 +1815,11 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		}
 		swap_map[page_nr] = SWAP_MAP_BAD;
 	}
+
+	error = swap_cgroup_swapon(type, maxpages);
+	if (error)
+		goto bad_swap;
+
 	nr_good_pages = swap_header->info.last_page -
 			swap_header->info.nr_badpages -
 			1 /* header page */;
@@ -1882,6 +1891,7 @@ bad_swap:
 		bd_release(bdev);
 	}
 	destroy_swap_extents(p);
+	swap_cgroup_swapoff(type);
 bad_swap_2:
 	spin_lock(&swap_lock);
 	p->swap_file = NULL;

@@ -105,4 +105,39 @@ static inline void page_cgroup_init(void)
 }
 
 #endif
+
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+#include <linux/swap.h>
+extern struct mem_cgroup *
+swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem);
+extern struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent);
+extern int swap_cgroup_swapon(int type, unsigned long max_pages);
+extern void swap_cgroup_swapoff(int type);
+#else
+#include <linux/swap.h>
+
+static inline
+struct mem_cgroup *swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem)
+{
+	return NULL;
+}
+
+static inline
+struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent)
+{
+	return NULL;
+}
+
+static inline int
+swap_cgroup_swapon(int type, unsigned long max_pages)
+{
+	return 0;
+}
+
+static inline void swap_cgroup_swapoff(int type)
+{
+	return;
+}
+
+#endif
 #endif
