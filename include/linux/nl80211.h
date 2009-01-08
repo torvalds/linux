@@ -412,12 +412,14 @@ enum nl80211_iftype {
  * @NL80211_STA_FLAG_SHORT_PREAMBLE: station is capable of receiving frames
  *	with short barker preamble
  * @NL80211_STA_FLAG_WME: station is WME/QoS capable
+ * @NL80211_STA_FLAG_MFP: station uses management frame protection
  */
 enum nl80211_sta_flags {
 	__NL80211_STA_FLAG_INVALID,
 	NL80211_STA_FLAG_AUTHORIZED,
 	NL80211_STA_FLAG_SHORT_PREAMBLE,
 	NL80211_STA_FLAG_WME,
+	NL80211_STA_FLAG_MFP,
 
 	/* keep last */
 	__NL80211_STA_FLAG_AFTER_LAST,

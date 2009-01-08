@@ -630,6 +630,10 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 		sta->flags &= ~WLAN_STA_WME;
 		if (params->station_flags & STATION_FLAG_WME)
 			sta->flags |= WLAN_STA_WME;
+
+		sta->flags &= ~WLAN_STA_MFP;
+		if (params->station_flags & STATION_FLAG_MFP)
+			sta->flags |= WLAN_STA_MFP;
 		spin_unlock_bh(&sta->lock);
 	}
 

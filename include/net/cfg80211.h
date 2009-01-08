@@ -112,12 +112,14 @@ struct beacon_parameters {
  * @STATION_FLAG_SHORT_PREAMBLE: station is capable of receiving frames
  *	with short preambles
  * @STATION_FLAG_WME: station is WME/QoS capable
+ * @STATION_FLAG_MFP: station uses management frame protection
  */
 enum station_flags {
 	STATION_FLAG_CHANGED		= 1<<0,
 	STATION_FLAG_AUTHORIZED		= 1<<NL80211_STA_FLAG_AUTHORIZED,
 	STATION_FLAG_SHORT_PREAMBLE	= 1<<NL80211_STA_FLAG_SHORT_PREAMBLE,
 	STATION_FLAG_WME		= 1<<NL80211_STA_FLAG_WME,
+	STATION_FLAG_MFP		= 1<<NL80211_STA_FLAG_MFP,
 };
 
 /**
