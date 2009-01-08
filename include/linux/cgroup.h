@@ -337,7 +337,6 @@ struct cgroup_subsys {
 #define MAX_CGROUP_TYPE_NAMELEN 32
 	const char *name;
 
-	/* Protected by RCU */
 	struct cgroupfs_root *root;
 
 	struct list_head sibling;

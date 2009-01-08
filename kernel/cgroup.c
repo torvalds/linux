@@ -713,7 +713,7 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 			cgrp->subsys[i] = dummytop->subsys[i];
 			cgrp->subsys[i]->cgroup = cgrp;
 			list_add(&ss->sibling, &root->subsys_list);
-			rcu_assign_pointer(ss->root, root);
+			ss->root = root;
 			if (ss->bind)
 				ss->bind(ss, cgrp);
 
@@ -725,7 +725,7 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 				ss->bind(ss, dummytop);
 			dummytop->subsys[i]->cgroup = dummytop;
 			cgrp->subsys[i] = NULL;
-			rcu_assign_pointer(subsys[i]->root, &rootnode);
+			subsys[i]->root = &rootnode;
 			list_del(&ss->sibling);
 		} else if (bit & final_bits) {
 			/* Subsystem state should already exist */
