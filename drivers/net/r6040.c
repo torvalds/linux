@@ -1121,6 +1121,10 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 		err = -EIO;
 		goto err_out_free_res;
 	}
+	/* If PHY status change register is still set to zero it means the
+	 * bootloader didn't initialize it */
+	if (ioread16(ioaddr + PHY_CC) == 0)
+		iowrite16(0x9f07, ioaddr + PHY_CC);
 
 	/* Init system & device */
 	lp->base = ioaddr;
