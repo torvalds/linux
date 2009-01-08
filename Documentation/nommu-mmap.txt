@@ -109,12 +109,18 @@ and it's also much more restricted in the latter case:
 FURTHER NOTES ON NO-MMU MMAP
 ============================
 
- (*) A request for a private mapping of less than a page in size may not return
-     a page-aligned buffer. This is because the kernel calls kmalloc() to
-     allocate the buffer, not get_free_page().
+ (*) A request for a private mapping of a file may return a buffer that is not
+     page-aligned.  This is because XIP may take place, and the data may not be
+     paged aligned in the backing store.
 
- (*) A list of all the mappings on the system is visible through /proc/maps in
-     no-MMU mode.
+ (*) A request for an anonymous mapping will always be page aligned.  If
+     possible the size of the request should be a power of two otherwise some
+     of the space may be wasted as the kernel must allocate a power-of-2
+     granule but will only discard the excess if appropriately configured as
+     this has an effect on fragmentation.
+
+ (*) A list of all the private copy and anonymous mappings on the system is
+     visible through /proc/maps in no-MMU mode.
 
  (*) A list of all the mappings in use by a process is visible through
      /proc/<pid>/maps in no-MMU mode.
