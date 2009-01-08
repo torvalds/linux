@@ -55,7 +55,7 @@ static int uvc_v4l2_query_menu(struct uvc_video_device *video,
 		return -EINVAL;
 
 	menu_info = &mapping->menu_info[query_menu->index];
-	strncpy(query_menu->name, menu_info->name, 32);
+	strlcpy(query_menu->name, menu_info->name, sizeof query_menu->name);
 	return 0;
 }
 
@@ -486,9 +486,9 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_capability *cap = arg;
 
 		memset(cap, 0, sizeof *cap);
-		strncpy(cap->driver, "uvcvideo", sizeof cap->driver);
-		strncpy(cap->card, vdev->name, 32);
-		strncpy(cap->bus_info, video->dev->udev->bus->bus_name,
+		strlcpy(cap->driver, "uvcvideo", sizeof cap->driver);
+		strlcpy(cap->card, vdev->name, sizeof cap->card);
+		strlcpy(cap->bus_info, video->dev->udev->bus->bus_name,
 			sizeof cap->bus_info);
 		cap->version = DRIVER_VERSION_NUMBER;
 		if (video->streaming->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -620,7 +620,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		memset(input, 0, sizeof *input);
 		input->index = index;
-		strncpy(input->name, iterm->name, sizeof input->name);
+		strlcpy(input->name, iterm->name, sizeof input->name);
 		if (UVC_ENTITY_TYPE(iterm) == ITT_CAMERA)
 			input->type = V4L2_INPUT_TYPE_CAMERA;
 		break;
@@ -682,7 +682,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		fmt->flags = 0;
 		if (format->flags & UVC_FMT_FLAG_COMPRESSED)
 			fmt->flags |= V4L2_FMT_FLAG_COMPRESSED;
-		strncpy(fmt->description, format->name,
+		strlcpy(fmt->description, format->name,
 			sizeof fmt->description);
 		fmt->description[sizeof fmt->description - 1] = 0;
 		fmt->pixelformat = format->fcc;

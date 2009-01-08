@@ -314,7 +314,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 		fmtdesc = uvc_format_by_guid(&buffer[5]);
 
 		if (fmtdesc != NULL) {
-			strncpy(format->name, fmtdesc->name,
+			strlcpy(format->name, fmtdesc->name,
 				sizeof format->name);
 			format->fcc = fmtdesc->fcc;
 		} else {
@@ -345,7 +345,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 			return -EINVAL;
 		}
 
-		strncpy(format->name, "MJPEG", sizeof format->name);
+		strlcpy(format->name, "MJPEG", sizeof format->name);
 		format->fcc = V4L2_PIX_FMT_MJPEG;
 		format->flags = UVC_FMT_FLAG_COMPRESSED;
 		format->bpp = 0;
@@ -363,13 +363,13 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 		switch (buffer[8] & 0x7f) {
 		case 0:
-			strncpy(format->name, "SD-DV", sizeof format->name);
+			strlcpy(format->name, "SD-DV", sizeof format->name);
 			break;
 		case 1:
-			strncpy(format->name, "SDL-DV", sizeof format->name);
+			strlcpy(format->name, "SDL-DV", sizeof format->name);
 			break;
 		case 2:
-			strncpy(format->name, "HD-DV", sizeof format->name);
+			strlcpy(format->name, "HD-DV", sizeof format->name);
 			break;
 		default:
 			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming"
@@ -379,7 +379,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 			return -EINVAL;
 		}
 
-		strncat(format->name, buffer[8] & (1 << 7) ? " 60Hz" : " 50Hz",
+		strlcat(format->name, buffer[8] & (1 << 7) ? " 60Hz" : " 50Hz",
 			sizeof format->name);
 
 		format->fcc = V4L2_PIX_FMT_DV;
@@ -1526,7 +1526,7 @@ static int uvc_register_video(struct uvc_device *dev)
 	vdev->minor = -1;
 	vdev->fops = &uvc_fops;
 	vdev->release = video_device_release;
-	strncpy(vdev->name, dev->name, sizeof vdev->name);
+	strlcpy(vdev->name, dev->name, sizeof vdev->name);
 
 	/* Set the driver data before calling video_register_device, otherwise
 	 * uvc_v4l2_open might race us.
@@ -1621,7 +1621,7 @@ static int uvc_probe(struct usb_interface *intf,
 	dev->quirks = id->driver_info | uvc_quirks_param;
 
 	if (udev->product != NULL)
-		strncpy(dev->name, udev->product, sizeof dev->name);
+		strlcpy(dev->name, udev->product, sizeof dev->name);
 	else
 		snprintf(dev->name, sizeof dev->name,
 			"UVC Camera (%04x:%04x)",
