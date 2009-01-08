@@ -1338,10 +1338,14 @@ static void cpuset_attach(struct cgroup_subsys *ss,
 	struct cpuset *oldcs = cgroup_cs(oldcont);
 	int err;
 
-	mutex_lock(&callback_mutex);
-	guarantee_online_cpus(cs, &cpus);
+	if (cs == &top_cpuset) {
+		cpus = cpu_possible_map;
+	} else {
+		mutex_lock(&callback_mutex);
+		guarantee_online_cpus(cs, &cpus);
+		mutex_unlock(&callback_mutex);
+	}
 	err = set_cpus_allowed_ptr(tsk, &cpus);
-	mutex_unlock(&callback_mutex);
 	if (err)
 		return;
 
