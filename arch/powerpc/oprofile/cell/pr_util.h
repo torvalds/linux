@@ -79,7 +79,7 @@ struct spu_buffer {
  * the vma-to-fileoffset map.
  */
 struct vma_to_fileoffset_map *create_vma_map(const struct spu *spu,
-					     u64 objectid);
+					     unsigned long objectid);
 unsigned int vma_map_lookup(struct vma_to_fileoffset_map *map,
 			    unsigned int vma, const struct spu *aSpu,
 			    int *grd_val);

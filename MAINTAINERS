@@ -3489,6 +3489,12 @@ L:	linuxppc-dev@ozlabs.org
 L:	cbe-oss-dev@ozlabs.org
 S:	Supported
 
+PS3VRAM DRIVER
+P:	Jim Paris
+M:	jim@jtan.com
+L:	cbe-oss-dev@ozlabs.org
+S:	Maintained
+
 PVRUSB2 VIDEO4LINUX DRIVER
 P:	Mike Isely
 M:	isely@pobox.com

@@ -189,8 +189,9 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	smp_call_function(do_flush_tlb_mm_ipi, NULL, 1);
 	_tlbil_pid(0);
 	preempt_enable();
-#endif
+#else
 	_tlbil_pid(0);
+#endif
 }
 EXPORT_SYMBOL(flush_tlb_kernel_range);
 
