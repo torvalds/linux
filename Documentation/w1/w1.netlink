@@ -112,6 +112,12 @@ cn_msg->len = sizeof(struct w1_netlink_msg) +
 	      sizeof(struct w1_netlink_cmd) +
 	      N*8;
 
+W1 reset command.
+[cn_msg]
+  [w1_netlink_msg type = W1_MASTER_CMD
+  	id is equal to the bus master id to use for searching]
+  [w1_netlink_cmd cmd = W1_CMD_RESET]
+
 Operation steps in w1 core when new command is received.
 =======================================================
 

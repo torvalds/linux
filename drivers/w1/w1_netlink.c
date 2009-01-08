@@ -197,6 +197,9 @@ static int w1_process_command_master(struct w1_master *dev, struct cn_msg *req_m
 	case W1_CMD_TOUCH:
 		err = w1_process_command_io(dev, msg, hdr, cmd);
 		break;
+	case W1_CMD_RESET:
+		err = w1_reset_bus(dev);
+		break;
 	default:
 		cmd->res = EINVAL;
 		cn_netlink_send(msg, 0, GFP_KERNEL);

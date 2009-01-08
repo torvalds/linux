@@ -58,6 +58,7 @@ enum w1_commands {
 	W1_CMD_SEARCH,
 	W1_CMD_ALARM_SEARCH,
 	W1_CMD_TOUCH,
+	W1_CMD_RESET,
 	W1_CMD_MAX,
 };
 
