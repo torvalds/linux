@@ -289,7 +289,8 @@ static struct file_system_type cpuset_fs_type = {
  * Call with callback_mutex held.
  */
 
-static void guarantee_online_cpus(const struct cpuset *cs, cpumask_t *pmask)
+static void guarantee_online_cpus(const struct cpuset *cs,
+				  struct cpumask *pmask)
 {
 	while (cs && !cpumask_intersects(cs->cpus_allowed, cpu_online_mask))
 		cs = cs->parent;
@@ -610,7 +611,8 @@ update_domain_attr_tree(struct sched_domain_attr *dattr, struct cpuset *c)
  *	element of the partition (one sched domain) to be passed to
  *	partition_sched_domains().
  */
-static int generate_sched_domains(cpumask_t **domains,
+/* FIXME: see the FIXME in partition_sched_domains() */
+static int generate_sched_domains(struct cpumask **domains,
 			struct sched_domain_attr **attributes)
 {
 	LIST_HEAD(q);		/* queue of cpusets to be scanned */
@@ -618,10 +620,10 @@ static int generate_sched_domains(cpumask_t **domains,
 	struct cpuset **csa;	/* array of all cpuset ptrs */
 	int csn;		/* how many cpuset ptrs in csa so far */
 	int i, j, k;		/* indices for partition finding loops */
-	cpumask_t *doms;	/* resulting partition; i.e. sched domains */
+	struct cpumask *doms;	/* resulting partition; i.e. sched domains */
 	struct sched_domain_attr *dattr;  /* attributes for custom domains */
 	int ndoms = 0;		/* number of sched domains in result */
-	int nslot;		/* next empty doms[] cpumask_t slot */
+	int nslot;		/* next empty doms[] struct cpumask slot */
 
 	doms = NULL;
 	dattr = NULL;
@@ -629,7 +631,7 @@ static int generate_sched_domains(cpumask_t **domains,
 
 	/* Special case for the 99% of systems with one, full, sched domain */
 	if (is_sched_load_balance(&top_cpuset)) {
-		doms = kmalloc(sizeof(cpumask_t), GFP_KERNEL);
+		doms = kmalloc(cpumask_size(), GFP_KERNEL);
 		if (!doms)
 			goto done;
 
@@ -708,7 +710,7 @@ restart:
 	 * Now we know how many domains to create.
 	 * Convert <csn, csa> to <ndoms, doms> and populate cpu masks.
 	 */
-	doms = kmalloc(ndoms * sizeof(cpumask_t), GFP_KERNEL);
+	doms = kmalloc(ndoms * cpumask_size(), GFP_KERNEL);
 	if (!doms)
 		goto done;
 
@@ -720,7 +722,7 @@ restart:
 
 	for (nslot = 0, i = 0; i < csn; i++) {
 		struct cpuset *a = csa[i];
-		cpumask_t *dp;
+		struct cpumask *dp;
 		int apn = a->pn;
 
 		if (apn < 0) {
@@ -743,7 +745,7 @@ restart:
 			continue;
 		}
 
-		cpus_clear(*dp);
+		cpumask_clear(dp);
 		if (dattr)
 			*(dattr + nslot) = SD_ATTR_INIT;
 		for (j = i; j < csn; j++) {
@@ -790,7 +792,7 @@ done:
 static void do_rebuild_sched_domains(struct work_struct *unused)
 {
 	struct sched_domain_attr *attr;
-	cpumask_t *doms;
+	struct cpumask *doms;
 	int ndoms;
 
 	get_online_cpus();
@@ -2044,7 +2046,7 @@ static int cpuset_track_online_cpus(struct notifier_block *unused_nb,
 				unsigned long phase, void *unused_cpu)
 {
 	struct sched_domain_attr *attr;
-	cpumask_t *doms;
+	struct cpumask *doms;
 	int ndoms;
 
 	switch (phase) {
@@ -2114,7 +2116,7 @@ void __init cpuset_init_smp(void)
 /**
  * cpuset_cpus_allowed - return cpus_allowed mask from a tasks cpuset.
  * @tsk: pointer to task_struct from which to obtain cpuset->cpus_allowed.
- * @pmask: pointer to cpumask_t variable to receive cpus_allowed set.
+ * @pmask: pointer to struct cpumask variable to receive cpus_allowed set.
  *
  * Description: Returns the cpumask_var_t cpus_allowed of the cpuset
  * attached to the specified @tsk.  Guaranteed to return some non-empty
@@ -2122,7 +2124,7 @@ void __init cpuset_init_smp(void)
  * tasks cpuset.
  **/
 
-void cpuset_cpus_allowed(struct task_struct *tsk, cpumask_t *pmask)
+void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
 {
 	mutex_lock(&callback_mutex);
 	cpuset_cpus_allowed_locked(tsk, pmask);
@@ -2133,7 +2135,7 @@ void cpuset_cpus_allowed(struct task_struct *tsk, cpumask_t *pmask)
  * cpuset_cpus_allowed_locked - return cpus_allowed mask from a tasks cpuset.
  * Must be called with callback_mutex held.
  **/
-void cpuset_cpus_allowed_locked(struct task_struct *tsk, cpumask_t *pmask)
+void cpuset_cpus_allowed_locked(struct task_struct *tsk, struct cpumask *pmask)
 {
 	task_lock(tsk);
 	guarantee_online_cpus(task_cs(tsk), pmask);
