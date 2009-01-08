@@ -471,6 +471,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 {
 	struct mem_cgroup *mem;
 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+	struct res_counter *fail_res;
 	/*
 	 * We always charge the cgroup the mm_struct belongs to.
 	 * The mm_struct's mem_cgroup changes on task migration if the
@@ -499,11 +500,12 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 		int ret;
 		bool noswap = false;
 
-		ret = res_counter_charge(&mem->res, PAGE_SIZE);
+		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res);
 		if (likely(!ret)) {
 			if (!do_swap_account)
 				break;
-			ret = res_counter_charge(&mem->memsw, PAGE_SIZE);
+			ret = res_counter_charge(&mem->memsw, PAGE_SIZE,
+							&fail_res);
 			if (likely(!ret))
 				break;
 			/* mem+swap counter fails */
@@ -1709,22 +1711,26 @@ static void __init enable_swap_cgroup(void)
 static struct cgroup_subsys_state *
 mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 {
-	struct mem_cgroup *mem;
+	struct mem_cgroup *mem, *parent;
 	int node;
 
 	mem = mem_cgroup_alloc();
 	if (!mem)
 		return ERR_PTR(-ENOMEM);
 
-	res_counter_init(&mem->res);
-	res_counter_init(&mem->memsw);
-
 	for_each_node_state(node, N_POSSIBLE)
 		if (alloc_mem_cgroup_per_zone_info(mem, node))
 			goto free_out;
 	/* root ? */
-	if (cont->parent == NULL)
+	if (cont->parent == NULL) {
 		enable_swap_cgroup();
+		parent = NULL;
+	} else
+		parent = mem_cgroup_from_cont(cont->parent);
+
+	res_counter_init(&mem->res, parent ? &parent->res : NULL);
+	res_counter_init(&mem->memsw, parent ? &parent->memsw : NULL);
+
 
 	return &mem->css;
 free_out:
