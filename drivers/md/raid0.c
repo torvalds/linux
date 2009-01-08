@@ -387,7 +387,7 @@ static int raid0_stop (mddev_t *mddev)
 static int raid0_make_request (struct request_queue *q, struct bio *bio)
 {
 	mddev_t *mddev = q->queuedata;
-	unsigned int sect_in_chunk, chunksize_bits,  chunk_size, chunk_sects;
+	unsigned int sect_in_chunk, chunksect_bits, chunk_size, chunk_sects;
 	raid0_conf_t *conf = mddev_to_conf(mddev);
 	struct strip_zone *zone;
 	mdk_rdev_t *tmp_dev;
@@ -409,7 +409,7 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 
 	chunk_size = mddev->chunk_size >> 10;
 	chunk_sects = mddev->chunk_size >> 9;
-	chunksize_bits = ffz(~chunk_size);
+	chunksect_bits = ffz(~chunk_sects);
 	block = bio->bi_sector >> 1;
 	
 
@@ -446,15 +446,15 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 
 
 	{
-		sector_t x =  (block - zone->zone_offset) >> chunksize_bits;
+		sector_t x =  (block - zone->zone_offset) >> (chunksect_bits - 1);
 
 		sector_div(x, zone->nb_dev);
 		chunk = x;
 
-		x = block >> chunksize_bits;
+		x = block >> (chunksect_bits - 1);
 		tmp_dev = zone->dev[sector_div(x, zone->nb_dev)];
 	}
-	rsect = (((chunk << chunksize_bits) + zone->dev_offset)<<1)
+	rsect = (((chunk << (chunksect_bits - 1)) + zone->dev_offset)<<1)
 		+ sect_in_chunk;
  
 	bio->bi_bdev = tmp_dev->bdev;
