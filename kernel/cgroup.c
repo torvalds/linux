@@ -2055,7 +2055,6 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 
 	ret = 0;
 	cgrp = dentry->d_fsdata;
-	rcu_read_lock();
 
 	cgroup_iter_start(cgrp, &it);
 	while ((tsk = cgroup_iter_next(cgrp, &it))) {
@@ -2080,7 +2079,6 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	}
 	cgroup_iter_end(cgrp, &it);
 
-	rcu_read_unlock();
 err:
 	return ret;
 }
