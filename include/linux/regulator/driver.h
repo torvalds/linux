@@ -24,7 +24,33 @@ struct regulator_init_data;
 /**
  * struct regulator_ops - regulator operations.
  *
- * This struct describes regulator operations.
+ * This struct describes regulator operations which can be implemented by
+ * regulator chip drivers.
+ *
+ * @enable: Enable the regulator.
+ * @disable: Disable the regulator.
+ * @is_enabled: Return 1 if the regulator is enabled, 0 otherwise.
+ *
+ * @set_voltage: Set the voltage for the regulator within the range specified.
+ *               The driver should select the voltage closest to min_uV.
+ * @get_voltage: Return the currently configured voltage for the regulator.
+ *
+ * @set_current_limit: Configure a limit for a current-limited regulator.
+ * @get_current_limit: Get the limit for a current-limited regulator.
+ *
+ * @set_mode: Set the operating mode for the regulator.
+ * @get_mode: Get the current operating mode for the regulator.
+ * @get_optimum_mode: Get the most efficient operating mode for the regulator
+ *                    when running with the specified parameters.
+ *
+ * @set_suspend_voltage: Set the voltage for the regulator when the system
+ *                       is suspended.
+ * @set_suspend_enable: Mark the regulator as enabled when the system is
+ *                      suspended.
+ * @set_suspend_disable: Mark the regulator as disabled when the system is
+ *                       suspended.
+ * @set_suspend_mode: Set the operating mode for the regulator when the
+ *                    system is suspended.
  */
 struct regulator_ops {
 
@@ -75,6 +101,15 @@ enum regulator_type {
 /**
  * struct regulator_desc - Regulator descriptor
  *
+ * Each regulator registered with the core is described with a structure of
+ * this type.
+ *
+ * @name: Identifying name for the regulator.
+ * @id: Numerical identifier for the regulator.
+ * @ops: Regulator operations table.
+ * @irq: Interrupt number for the regulator.
+ * @type: Indicates if the regulator is a voltage or current regulator.
+ * @owner: Module providing the regulator, used for refcounting.
  */
 struct regulator_desc {
 	const char *name;
