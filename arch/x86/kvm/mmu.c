@@ -352,7 +352,6 @@ static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc,
 
 	BUG_ON(!mc->nobjs);
 	p = mc->objects[--mc->nobjs];
-	memset(p, 0, size);
 	return p;
 }
 
