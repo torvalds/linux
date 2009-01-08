@@ -70,10 +70,10 @@
 
 /* only on e500mc/e200 */
 #define DEBUG_STACK_BASE	dbgirq_ctx
-#ifdef CONFIG_PPC_E500MC
-#define DEBUG_SPRG		SPRN_SPRG9
-#else
+#ifdef CONFIG_E200
 #define DEBUG_SPRG		SPRN_SPRG6W
+#else
+#define DEBUG_SPRG		SPRN_SPRG9
 #endif
 
 #define EXC_LVL_FRAME_OVERHEAD	(THREAD_SIZE - INT_FRAME_SIZE - EXC_LVL_SIZE)
