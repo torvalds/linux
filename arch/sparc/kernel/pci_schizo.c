@@ -794,7 +794,7 @@ static irqreturn_t schizo_safarierr_intr(int irq, void *dev_id)
 		   pbm->controller_regs + SCHIZO_SAFARI_ERRLOG);
 
 	if (!(errlog & BUS_ERROR_UNMAP)) {
-		printk("%s: Unexpected Safari/JBUS error interrupt, errlog[%016lx]\n",
+		printk("%s: Unexpected Safari/JBUS error interrupt, errlog[%016llx]\n",
 		       pbm->name, errlog);
 
 		return IRQ_HANDLED;
