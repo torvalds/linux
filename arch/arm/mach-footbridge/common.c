@@ -28,8 +28,6 @@
 
 #include "common.h"
 
-extern void __init isa_init_irq(unsigned int irq);
-
 unsigned int mem_fclk_21285 = 50000000;
 
 EXPORT_SYMBOL(mem_fclk_21285);
