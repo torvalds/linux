@@ -2039,6 +2039,29 @@ static void sym_settrans(struct sym_hcb *np, int target, u_char opts, u_char ofs
 	}
 }
 
+static void sym_announce_transfer_rate(struct sym_tcb *tp)
+{
+	struct scsi_target *starget = tp->starget;
+
+	if (tp->tprint.period != spi_period(starget) ||
+	    tp->tprint.offset != spi_offset(starget) ||
+	    tp->tprint.width != spi_width(starget) ||
+	    tp->tprint.iu != spi_iu(starget) ||
+	    tp->tprint.dt != spi_dt(starget) ||
+	    tp->tprint.qas != spi_qas(starget) ||
+	    !tp->tprint.check_nego) {
+		tp->tprint.period = spi_period(starget);
+		tp->tprint.offset = spi_offset(starget);
+		tp->tprint.width = spi_width(starget);
+		tp->tprint.iu = spi_iu(starget);
+		tp->tprint.dt = spi_dt(starget);
+		tp->tprint.qas = spi_qas(starget);
+		tp->tprint.check_nego = 1;
+
+		spi_display_xfer_agreement(starget);
+	}
+}
+
 /*
  *  We received a WDTR.
  *  Let everything be aware of the changes.
@@ -2064,7 +2087,7 @@ static void sym_setwide(struct sym_hcb *np, int target, u_char wide)
 	spi_qas(starget) = 0;
 
 	if (sym_verbose >= 3)
-		spi_display_xfer_agreement(starget);
+		sym_announce_transfer_rate(tp);
 }
 
 /*
@@ -2097,7 +2120,7 @@ sym_setsync(struct sym_hcb *np, int target,
 		tp->tgoal.check_nego = 0;
 	}
 
-	spi_display_xfer_agreement(starget);
+	sym_announce_transfer_rate(tp);
 }
 
 /*
@@ -2125,7 +2148,7 @@ sym_setpprot(struct sym_hcb *np, int target, u_char opts, u_char ofs,
 	spi_qas(starget) = tp->tgoal.qas = !!(opts & PPR_OPT_QAS);
 	tp->tgoal.check_nego = 0;
 
-	spi_display_xfer_agreement(starget);
+	sym_announce_transfer_rate(tp);
 }
 
 /*

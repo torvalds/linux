@@ -420,6 +420,9 @@ struct sym_tcb {
 	/* Transfer goal */
 	struct sym_trans tgoal;
 
+	/* Last printed transfer speed */
+	struct sym_trans tprint;
+
 	/*
 	 * Keep track of the CCB used for the negotiation in order
 	 * to ensure that only 1 negotiation is queued at a time.
