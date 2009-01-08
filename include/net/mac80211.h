@@ -651,11 +651,13 @@ struct ieee80211_if_conf {
  * @ALG_WEP: WEP40 or WEP104
  * @ALG_TKIP: TKIP
  * @ALG_CCMP: CCMP (AES)
+ * @ALG_AES_CMAC: AES-128-CMAC
  */
 enum ieee80211_key_alg {
 	ALG_WEP,
 	ALG_TKIP,
 	ALG_CCMP,
+	ALG_AES_CMAC,
 };
 
 /**

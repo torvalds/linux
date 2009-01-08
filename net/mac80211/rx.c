@@ -446,6 +446,52 @@ ieee80211_rx_h_passive_scan(struct ieee80211_rx_data *rx)
 	return RX_CONTINUE;
 }
 
+
+static int ieee80211_is_unicast_robust_mgmt_frame(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+
+	if (skb->len < 24 || is_multicast_ether_addr(hdr->addr1))
+		return 0;
+
+	return ieee80211_is_robust_mgmt_frame(hdr);
+}
+
+
+static int ieee80211_is_multicast_robust_mgmt_frame(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+
+	if (skb->len < 24 || !is_multicast_ether_addr(hdr->addr1))
+		return 0;
+
+	return ieee80211_is_robust_mgmt_frame(hdr);
+}
+
+
+/* Get the BIP key index from MMIE; return -1 if this is not a BIP frame */
+static int ieee80211_get_mmie_keyidx(struct sk_buff *skb)
+{
+	struct ieee80211_mgmt *hdr = (struct ieee80211_mgmt *) skb->data;
+	struct ieee80211_mmie *mmie;
+
+	if (skb->len < 24 + sizeof(*mmie) ||
+	    !is_multicast_ether_addr(hdr->da))
+		return -1;
+
+	if (!ieee80211_is_robust_mgmt_frame((struct ieee80211_hdr *) hdr))
+		return -1; /* not a robust management frame */
+
+	mmie = (struct ieee80211_mmie *)
+		(skb->data + skb->len - sizeof(*mmie));
+	if (mmie->element_id != WLAN_EID_MMIE ||
+	    mmie->length != sizeof(*mmie) - 2)
+		return -1;
+
+	return le16_to_cpu(mmie->key_id);
+}
+
+
 static ieee80211_rx_result
 ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 {
@@ -561,21 +607,23 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	int hdrlen;
 	ieee80211_rx_result result = RX_DROP_UNUSABLE;
 	struct ieee80211_key *stakey = NULL;
+	int mmie_keyidx = -1;
 
 	/*
 	 * Key selection 101
 	 *
-	 * There are three types of keys:
+	 * There are four types of keys:
 	 *  - GTK (group keys)
+	 *  - IGTK (group keys for management frames)
 	 *  - PTK (pairwise keys)
 	 *  - STK (station-to-station pairwise keys)
 	 *
 	 * When selecting a key, we have to distinguish between multicast
 	 * (including broadcast) and unicast frames, the latter can only
-	 * use PTKs and STKs while the former always use GTKs. Unless, of
-	 * course, actual WEP keys ("pre-RSNA") are used, then unicast
-	 * frames can also use key indizes like GTKs. Hence, if we don't
-	 * have a PTK/STK we check the key index for a WEP key.
+	 * use PTKs and STKs while the former always use GTKs and IGTKs.
+	 * Unless, of course, actual WEP keys ("pre-RSNA") are used, then
+	 * unicast frames can also use key indices like GTKs. Hence, if we
+	 * don't have a PTK/STK we check the key index for a WEP key.
 	 *
 	 * Note that in a regular BSS, multicast frames are sent by the
 	 * AP only, associated stations unicast the frame to the AP first
@@ -588,8 +636,14 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	 * possible.
 	 */
 
-	if (!ieee80211_has_protected(hdr->frame_control))
-		return RX_CONTINUE;
+	if (!ieee80211_has_protected(hdr->frame_control)) {
+		if (!ieee80211_is_mgmt(hdr->frame_control) ||
+		    rx->sta == NULL || !test_sta_flags(rx->sta, WLAN_STA_MFP))
+			return RX_CONTINUE;
+		mmie_keyidx = ieee80211_get_mmie_keyidx(rx->skb);
+		if (mmie_keyidx < 0)
+			return RX_CONTINUE;
+	}
 
 	/*
 	 * No point in finding a key and decrypting if the frame is neither
@@ -603,6 +657,16 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 
 	if (!is_multicast_ether_addr(hdr->addr1) && stakey) {
 		rx->key = stakey;
+	} else if (mmie_keyidx >= 0) {
+		/* Broadcast/multicast robust management frame / BIP */
+		if ((rx->status->flag & RX_FLAG_DECRYPTED) &&
+		    (rx->status->flag & RX_FLAG_IV_STRIPPED))
+			return RX_CONTINUE;
+
+		if (mmie_keyidx < NUM_DEFAULT_KEYS ||
+		    mmie_keyidx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS)
+			return RX_DROP_MONITOR; /* unexpected BIP keyidx */
+		rx->key = rcu_dereference(rx->sdata->keys[mmie_keyidx]);
 	} else {
 		/*
 		 * The device doesn't give us the IV so we won't be
@@ -664,6 +728,9 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		break;
 	case ALG_CCMP:
 		result = ieee80211_crypto_ccmp_decrypt(rx);
+		break;
+	case ALG_AES_CMAC:
+		result = ieee80211_crypto_aes_cmac_decrypt(rx);
 		break;
 	}
 
@@ -1112,6 +1179,15 @@ ieee80211_drop_unencrypted(struct ieee80211_rx_data *rx, __le16 fc)
 	/* Drop unencrypted frames if key is set. */
 	if (unlikely(!ieee80211_has_protected(fc) &&
 		     !ieee80211_is_nullfunc(fc) &&
+		     (!ieee80211_is_mgmt(fc) ||
+		      (ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
+		       rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP))) &&
+		     (rx->key || rx->sdata->drop_unencrypted)))
+		return -EACCES;
+	/* BIP does not use Protected field, so need to check MMIE */
+	if (unlikely(rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP) &&
+		     ieee80211_is_multicast_robust_mgmt_frame(rx->skb) &&
+		     ieee80211_get_mmie_keyidx(rx->skb) < 0 &&
 		     (rx->key || rx->sdata->drop_unencrypted)))
 		return -EACCES;
 

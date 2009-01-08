@@ -425,6 +425,9 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		tx->key = NULL;
 	else if (tx->sta && (key = rcu_dereference(tx->sta->key)))
 		tx->key = key;
+	else if (ieee80211_is_mgmt(hdr->frame_control) &&
+		 (key = rcu_dereference(tx->sdata->default_mgmt_key)))
+		tx->key = key;
 	else if ((key = rcu_dereference(tx->sdata->default_key)))
 		tx->key = key;
 	else if (tx->sdata->drop_unencrypted &&
@@ -451,6 +454,10 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 			if (!ieee80211_is_data_present(hdr->frame_control) &&
 			    !ieee80211_use_mfp(hdr->frame_control, tx->sta,
 					       tx->skb))
+				tx->key = NULL;
+			break;
+		case ALG_AES_CMAC:
+			if (!ieee80211_is_mgmt(hdr->frame_control))
 				tx->key = NULL;
 			break;
 		}
@@ -808,6 +815,8 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 		return ieee80211_crypto_tkip_encrypt(tx);
 	case ALG_CCMP:
 		return ieee80211_crypto_ccmp_encrypt(tx);
+	case ALG_AES_CMAC:
+		return ieee80211_crypto_aes_cmac_encrypt(tx);
 	}
 
 	/* not reached */

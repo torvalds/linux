@@ -409,8 +409,10 @@ struct ieee80211_sub_if_data {
 	unsigned int fragment_next;
 
 #define NUM_DEFAULT_KEYS 4
-	struct ieee80211_key *keys[NUM_DEFAULT_KEYS];
+#define NUM_DEFAULT_MGMT_KEYS 2
+	struct ieee80211_key *keys[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
 	struct ieee80211_key *default_key;
+	struct ieee80211_key *default_mgmt_key;
 
 	u16 sequence_number;
 
@@ -482,6 +484,7 @@ struct ieee80211_sub_if_data {
 	} debugfs;
 	struct {
 		struct dentry *default_key;
+		struct dentry *default_mgmt_key;
 	} common_debugfs;
 
 #ifdef CONFIG_MAC80211_MESH

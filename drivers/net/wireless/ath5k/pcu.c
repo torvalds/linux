@@ -1026,6 +1026,9 @@ int ath5k_keycache_type(const struct ieee80211_key_conf *key)
 			return AR5K_KEYTABLE_TYPE_40;
 		else if (key->keylen == LEN_WEP104)
 			return AR5K_KEYTABLE_TYPE_104;
+		return -EINVAL;
+	default:
+		return -EINVAL;
 	}
 	return -EINVAL;
 }

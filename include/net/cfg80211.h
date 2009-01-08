@@ -473,6 +473,8 @@ struct ieee80211_channel;
  *
  * @set_default_key: set the default key on an interface
  *
+ * @set_default_mgmt_key: set the default management frame key on an interface
+ *
  * @add_beacon: Add a beacon with given parameters, @head, @interval
  *	and @dtim_period will be valid, @tail is optional.
  * @set_beacon: Change the beacon parameters for an access point mode
@@ -520,6 +522,9 @@ struct cfg80211_ops {
 	int	(*set_default_key)(struct wiphy *wiphy,
 				   struct net_device *netdev,
 				   u8 key_index);
+	int	(*set_default_mgmt_key)(struct wiphy *wiphy,
+					struct net_device *netdev,
+					u8 key_index);
 
 	int	(*add_beacon)(struct wiphy *wiphy, struct net_device *dev,
 			      struct beacon_parameters *info);

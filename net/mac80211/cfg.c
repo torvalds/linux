@@ -133,6 +133,9 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	case WLAN_CIPHER_SUITE_CCMP:
 		alg = ALG_CCMP;
 		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		alg = ALG_AES_CMAC;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -275,6 +278,17 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 		else
 			params.cipher = WLAN_CIPHER_SUITE_WEP104;
 		break;
+	case ALG_AES_CMAC:
+		params.cipher = WLAN_CIPHER_SUITE_AES_CMAC;
+		seq[0] = key->u.aes_cmac.tx_pn[5];
+		seq[1] = key->u.aes_cmac.tx_pn[4];
+		seq[2] = key->u.aes_cmac.tx_pn[3];
+		seq[3] = key->u.aes_cmac.tx_pn[2];
+		seq[4] = key->u.aes_cmac.tx_pn[1];
+		seq[5] = key->u.aes_cmac.tx_pn[0];
+		params.seq = seq;
+		params.seq_len = 6;
+		break;
 	}
 
 	params.key = key->conf.key;
@@ -298,6 +312,22 @@ static int ieee80211_config_default_key(struct wiphy *wiphy,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	ieee80211_set_default_key(sdata, key_idx);
+
+	rcu_read_unlock();
+
+	return 0;
+}
+
+static int ieee80211_config_default_mgmt_key(struct wiphy *wiphy,
+					     struct net_device *dev,
+					     u8 key_idx)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	rcu_read_lock();
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	ieee80211_set_default_mgmt_key(sdata, key_idx);
 
 	rcu_read_unlock();
 
@@ -1153,6 +1183,7 @@ struct cfg80211_ops mac80211_config_ops = {
 	.del_key = ieee80211_del_key,
 	.get_key = ieee80211_get_key,
 	.set_default_key = ieee80211_config_default_key,
+	.set_default_mgmt_key = ieee80211_config_default_mgmt_key,
 	.add_beacon = ieee80211_add_beacon,
 	.set_beacon = ieee80211_set_beacon,
 	.del_beacon = ieee80211_del_beacon,

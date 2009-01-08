@@ -18,6 +18,7 @@
 #include "ieee80211_i.h"
 #include "debugfs_key.h"
 #include "aes_ccm.h"
+#include "aes_cmac.h"
 
 
 /**
@@ -215,13 +216,38 @@ void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx)
 	spin_unlock_irqrestore(&sdata->local->key_lock, flags);
 }
 
+static void
+__ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata, int idx)
+{
+	struct ieee80211_key *key = NULL;
+
+	if (idx >= NUM_DEFAULT_KEYS &&
+	    idx < NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS)
+		key = sdata->keys[idx];
+
+	rcu_assign_pointer(sdata->default_mgmt_key, key);
+
+	if (key)
+		add_todo(key, KEY_FLAG_TODO_DEFMGMTKEY);
+}
+
+void ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata,
+				    int idx)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sdata->local->key_lock, flags);
+	__ieee80211_set_default_mgmt_key(sdata, idx);
+	spin_unlock_irqrestore(&sdata->local->key_lock, flags);
+}
+
 
 static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 				    struct sta_info *sta,
 				    struct ieee80211_key *old,
 				    struct ieee80211_key *new)
 {
-	int idx, defkey;
+	int idx, defkey, defmgmtkey;
 
 	if (new)
 		list_add(&new->list, &sdata->key_list);
@@ -237,13 +263,19 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 			idx = new->conf.keyidx;
 
 		defkey = old && sdata->default_key == old;
+		defmgmtkey = old && sdata->default_mgmt_key == old;
 
 		if (defkey && !new)
 			__ieee80211_set_default_key(sdata, -1);
+		if (defmgmtkey && !new)
+			__ieee80211_set_default_mgmt_key(sdata, -1);
 
 		rcu_assign_pointer(sdata->keys[idx], new);
 		if (defkey && new)
 			__ieee80211_set_default_key(sdata, new->conf.keyidx);
+		if (defmgmtkey && new)
+			__ieee80211_set_default_mgmt_key(sdata,
+							 new->conf.keyidx);
 	}
 
 	if (old) {
@@ -262,7 +294,7 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 {
 	struct ieee80211_key *key;
 
-	BUG_ON(idx < 0 || idx >= NUM_DEFAULT_KEYS);
+	BUG_ON(idx < 0 || idx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS);
 
 	key = kzalloc(sizeof(struct ieee80211_key) + key_len, GFP_KERNEL);
 	if (!key)
@@ -291,6 +323,10 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 		key->conf.iv_len = CCMP_HDR_LEN;
 		key->conf.icv_len = CCMP_MIC_LEN;
 		break;
+	case ALG_AES_CMAC:
+		key->conf.iv_len = 0;
+		key->conf.icv_len = sizeof(struct ieee80211_mmie);
+		break;
 	}
 	memcpy(key->conf.key, key_data, key_len);
 	INIT_LIST_HEAD(&key->list);
@@ -303,6 +339,19 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 		 */
 		key->u.ccmp.tfm = ieee80211_aes_key_setup_encrypt(key_data);
 		if (!key->u.ccmp.tfm) {
+			kfree(key);
+			return NULL;
+		}
+	}
+
+	if (alg == ALG_AES_CMAC) {
+		/*
+		 * Initialize AES key state here as an optimization so that
+		 * it does not need to be initialized for every packet.
+		 */
+		key->u.aes_cmac.tfm =
+			ieee80211_aes_cmac_key_setup(key_data);
+		if (!key->u.aes_cmac.tfm) {
 			kfree(key);
 			return NULL;
 		}
@@ -461,6 +510,8 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key)
 
 	if (key->conf.alg == ALG_CCMP)
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
+	if (key->conf.alg == ALG_AES_CMAC)
+		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
 	ieee80211_debugfs_key_remove(key);
 
 	kfree(key);
@@ -483,6 +534,7 @@ static void __ieee80211_key_todo(void)
 		list_del_init(&key->todo);
 		todoflags = key->flags & (KEY_FLAG_TODO_ADD_DEBUGFS |
 					  KEY_FLAG_TODO_DEFKEY |
+					  KEY_FLAG_TODO_DEFMGMTKEY |
 					  KEY_FLAG_TODO_HWACCEL_ADD |
 					  KEY_FLAG_TODO_HWACCEL_REMOVE |
 					  KEY_FLAG_TODO_DELETE);
@@ -498,6 +550,11 @@ static void __ieee80211_key_todo(void)
 		if (todoflags & KEY_FLAG_TODO_DEFKEY) {
 			ieee80211_debugfs_key_remove_default(key->sdata);
 			ieee80211_debugfs_key_add_default(key->sdata);
+			work_done = true;
+		}
+		if (todoflags & KEY_FLAG_TODO_DEFMGMTKEY) {
+			ieee80211_debugfs_key_remove_mgmt_default(key->sdata);
+			ieee80211_debugfs_key_add_mgmt_default(key->sdata);
 			work_done = true;
 		}
 		if (todoflags & KEY_FLAG_TODO_HWACCEL_ADD) {
@@ -535,6 +592,7 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 	ieee80211_key_lock();
 
 	ieee80211_debugfs_key_remove_default(sdata);
+	ieee80211_debugfs_key_remove_mgmt_default(sdata);
 
 	spin_lock_irqsave(&sdata->local->key_lock, flags);
 	list_for_each_entry_safe(key, tmp, &sdata->key_list, list)

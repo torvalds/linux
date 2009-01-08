@@ -738,7 +738,7 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_KEY_IDX])
 		key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
 
-	if (key_idx > 3)
+	if (key_idx > 5)
 		return -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_MAC])
@@ -804,30 +804,41 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 	int err;
 	struct net_device *dev;
 	u8 key_idx;
+	int (*func)(struct wiphy *wiphy, struct net_device *netdev,
+		    u8 key_index);
 
 	if (!info->attrs[NL80211_ATTR_KEY_IDX])
 		return -EINVAL;
 
 	key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
 
-	if (key_idx > 3)
+	if (info->attrs[NL80211_ATTR_KEY_DEFAULT_MGMT]) {
+		if (key_idx < 4 || key_idx > 5)
+			return -EINVAL;
+	} else if (key_idx > 3)
 		return -EINVAL;
 
 	/* currently only support setting default key */
-	if (!info->attrs[NL80211_ATTR_KEY_DEFAULT])
+	if (!info->attrs[NL80211_ATTR_KEY_DEFAULT] &&
+	    !info->attrs[NL80211_ATTR_KEY_DEFAULT_MGMT])
 		return -EINVAL;
 
 	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
 	if (err)
 		return err;
 
-	if (!drv->ops->set_default_key) {
+	if (info->attrs[NL80211_ATTR_KEY_DEFAULT])
+		func = drv->ops->set_default_key;
+	else
+		func = drv->ops->set_default_mgmt_key;
+
+	if (!func) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
 	rtnl_lock();
-	err = drv->ops->set_default_key(&drv->wiphy, dev, key_idx);
+	err = func(&drv->wiphy, dev, key_idx);
 	rtnl_unlock();
 
  out:
@@ -863,7 +874,7 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_MAC])
 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	if (key_idx > 3)
+	if (key_idx > 5)
 		return -EINVAL;
 
 	/*
@@ -892,6 +903,10 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
 		if (params.key_len != 13)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		if (params.key_len != 16)
 			return -EINVAL;
 		break;
 	default:
@@ -928,7 +943,7 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_KEY_IDX])
 		key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
 
-	if (key_idx > 3)
+	if (key_idx > 5)
 		return -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_MAC])
