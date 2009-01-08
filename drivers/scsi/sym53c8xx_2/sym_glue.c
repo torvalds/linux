@@ -1418,7 +1418,7 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
  attach_failed:
 	if (!shost)
 		return NULL;
-	printf_info("%s: giving up ...\n", sym_name(np));
+	printf_info("sym%d: giving up ...\n", unit);
 	if (np)
 		sym_free_resources(np, pdev);
 	scsi_host_put(shost);
