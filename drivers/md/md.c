@@ -1588,7 +1588,7 @@ static void print_desc(mdp_disk_t *desc)
 		desc->major,desc->minor,desc->raid_disk,desc->state);
 }
 
-static void print_sb(mdp_super_t *sb)
+static void print_sb_90(mdp_super_t *sb)
 {
 	int i;
 
@@ -1619,10 +1619,57 @@ static void print_sb(mdp_super_t *sb)
 	}
 	printk(KERN_INFO "md:     THIS: ");
 	print_desc(&sb->this_disk);
-
 }
 
-static void print_rdev(mdk_rdev_t *rdev)
+static void print_sb_1(struct mdp_superblock_1 *sb)
+{
+	__u8 *uuid;
+
+	uuid = sb->set_uuid;
+	printk(KERN_INFO "md:  SB: (V:%u) (F:0x%08x) Array-ID:<%02x%02x%02x%02x"
+			":%02x%02x:%02x%02x:%02x%02x:%02x%02x%02x%02x%02x%02x>\n"
+	       KERN_INFO "md:    Name: \"%s\" CT:%llu\n",
+		le32_to_cpu(sb->major_version),
+		le32_to_cpu(sb->feature_map),
+		uuid[0], uuid[1], uuid[2], uuid[3],
+		uuid[4], uuid[5], uuid[6], uuid[7],
+		uuid[8], uuid[9], uuid[10], uuid[11],
+		uuid[12], uuid[13], uuid[14], uuid[15],
+		sb->set_name,
+		(unsigned long long)le64_to_cpu(sb->ctime)
+		       & MD_SUPERBLOCK_1_TIME_SEC_MASK);
+
+	uuid = sb->device_uuid;
+	printk(KERN_INFO "md:       L%u SZ%llu RD:%u LO:%u CS:%u DO:%llu DS:%llu SO:%llu"
+			" RO:%llu\n"
+	       KERN_INFO "md:     Dev:%08x UUID: %02x%02x%02x%02x:%02x%02x:%02x%02x:%02x%02x"
+			":%02x%02x%02x%02x%02x%02x\n"
+	       KERN_INFO "md:       (F:0x%08x) UT:%llu Events:%llu ResyncOffset:%llu CSUM:0x%08x\n"
+	       KERN_INFO "md:         (MaxDev:%u) \n",
+		le32_to_cpu(sb->level),
+		(unsigned long long)le64_to_cpu(sb->size),
+		le32_to_cpu(sb->raid_disks),
+		le32_to_cpu(sb->layout),
+		le32_to_cpu(sb->chunksize),
+		(unsigned long long)le64_to_cpu(sb->data_offset),
+		(unsigned long long)le64_to_cpu(sb->data_size),
+		(unsigned long long)le64_to_cpu(sb->super_offset),
+		(unsigned long long)le64_to_cpu(sb->recovery_offset),
+		le32_to_cpu(sb->dev_number),
+		uuid[0], uuid[1], uuid[2], uuid[3],
+		uuid[4], uuid[5], uuid[6], uuid[7],
+		uuid[8], uuid[9], uuid[10], uuid[11],
+		uuid[12], uuid[13], uuid[14], uuid[15],
+		sb->devflags,
+		(unsigned long long)le64_to_cpu(sb->utime) & MD_SUPERBLOCK_1_TIME_SEC_MASK,
+		(unsigned long long)le64_to_cpu(sb->events),
+		(unsigned long long)le64_to_cpu(sb->resync_offset),
+		le32_to_cpu(sb->sb_csum),
+		le32_to_cpu(sb->max_dev)
+		);
+}
+
+static void print_rdev(mdk_rdev_t *rdev, int major_version)
 {
 	char b[BDEVNAME_SIZE];
 	printk(KERN_INFO "md: rdev %s, SZ:%08llu F:%d S:%d DN:%u\n",
@@ -1630,8 +1677,15 @@ static void print_rdev(mdk_rdev_t *rdev)
 	        test_bit(Faulty, &rdev->flags), test_bit(In_sync, &rdev->flags),
 	        rdev->desc_nr);
 	if (rdev->sb_loaded) {
-		printk(KERN_INFO "md: rdev superblock:\n");
-		print_sb((mdp_super_t*)page_address(rdev->sb_page));
+		printk(KERN_INFO "md: rdev superblock (MJ:%d):\n", major_version);
+		switch (major_version) {
+		case 0:
+			print_sb_90((mdp_super_t*)page_address(rdev->sb_page));
+			break;
+		case 1:
+			print_sb_1((struct mdp_superblock_1 *)page_address(rdev->sb_page));
+			break;
+		}
 	} else
 		printk(KERN_INFO "md: no rdev superblock!\n");
 }
@@ -1658,7 +1712,7 @@ static void md_print_devices(void)
 		printk("\n");
 
 		list_for_each_entry(rdev, &mddev->disks, same_set)
-			print_rdev(rdev);
+			print_rdev(rdev, mddev->major_version);
 	}
 	printk("md:	**********************************\n");
 	printk("\n");
