@@ -830,7 +830,7 @@ config ULTRA32
 
 config BFIN_MAC
 	tristate "Blackfin on-chip MAC support"
-	depends on NET_ETHERNET && (BF526 || BF527 || BF536 || BF537)
+	depends on NET_ETHERNET && (BF516 || BF518 || BF526 || BF527 || BF536 || BF537)
 	select CRC32
 	select MII
 	select PHYLIB

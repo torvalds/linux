@@ -160,7 +160,6 @@ static inline int sirdev_schedule_mode(struct sir_dev *dev, int mode)
 
 struct sir_dev {
 	struct net_device *netdev;
-	struct net_device_stats stats;
 
 	struct irlap_cb    *irlap;
 

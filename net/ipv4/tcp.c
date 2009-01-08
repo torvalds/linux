@@ -2542,6 +2542,7 @@ out:
 
 	return pp;
 }
+EXPORT_SYMBOL(tcp_gro_receive);
 
 int tcp_gro_complete(struct sk_buff *skb)
 {
@@ -2558,6 +2559,7 @@ int tcp_gro_complete(struct sk_buff *skb)
 
 	return 0;
 }
+EXPORT_SYMBOL(tcp_gro_complete);
 
 #ifdef CONFIG_TCP_MD5SIG
 static unsigned long tcp_md5sig_users;
