@@ -484,7 +484,7 @@ void hal_stop(  phw_data_t pHwData )
 unsigned char hal_idle(phw_data_t pHwData)
 {
 	struct wb35_reg *reg = &pHwData->reg;
-	PWBUSB	pWbUsb = &pHwData->WbUsb;
+	struct wb_usb *pWbUsb = &pHwData->WbUsb;
 
 	if( !pHwData->SurpriseRemove && ( pWbUsb->DetectCount || reg->EP0vm_state!=VM_STOP ) )
 		return false;

@@ -84,7 +84,7 @@ static u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
 	struct wbsoft_priv *priv = hw->priv;
 	phw_data_t pHwData = &priv->sHwData;
 	DESCRIPTOR	RxDes;
-	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u8 *		pRxBufferAddress;
 	u16		PacketSize;
 	u16		stmp, BufferSize, stmp2 = 0;
@@ -162,7 +162,7 @@ static void Wb35Rx_Complete(struct urb *urb)
 	struct ieee80211_hw *hw = urb->context;
 	struct wbsoft_priv *priv = hw->priv;
 	phw_data_t pHwData = &priv->sHwData;
-	PWB35RX		pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u8 *		pRxBufferAddress;
 	u32		SizeCheck;
 	u16		BulkLength;
@@ -239,7 +239,7 @@ static void Wb35Rx(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
 	phw_data_t pHwData = &priv->sHwData;
-	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u8 *	pRxBufferAddress;
 	struct urb *urb = pWb35Rx->RxUrb;
 	int	retv;
@@ -302,7 +302,7 @@ void Wb35Rx_start(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
 	phw_data_t pHwData = &priv->sHwData;
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
 	// Allow only one thread to run into the Wb35Rx() function
 	if (atomic_inc_return(&pWb35Rx->RxFireCounter) == 1) {
@@ -315,7 +315,7 @@ void Wb35Rx_start(struct ieee80211_hw *hw)
 //=====================================================================================
 static void Wb35Rx_reset_descriptor(  phw_data_t pHwData )
 {
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u32	i;
 
 	pWb35Rx->ByteReceived = 0;
@@ -331,7 +331,7 @@ static void Wb35Rx_reset_descriptor(  phw_data_t pHwData )
 
 unsigned char Wb35Rx_initial(phw_data_t pHwData)
 {
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
 	// Initial the Buffer Queue
 	Wb35Rx_reset_descriptor( pHwData );
@@ -342,7 +342,7 @@ unsigned char Wb35Rx_initial(phw_data_t pHwData)
 
 void Wb35Rx_stop(phw_data_t pHwData)
 {
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
 	// Canceling the Irp if already sends it out.
 	if (pWb35Rx->EP3vm_state == VM_RUNNING) {
@@ -356,7 +356,7 @@ void Wb35Rx_stop(phw_data_t pHwData)
 // Needs process context
 void Wb35Rx_destroy(phw_data_t pHwData)
 {
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
 	do {
 		msleep(10); // Delay for waiting function enter 940623.1.a

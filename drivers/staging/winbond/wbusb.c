@@ -312,7 +312,7 @@ error:
 
 static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id_table)
 {
-	PWBUSB		pWbUsb;
+	struct wb_usb *pWbUsb;
         struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
 	u32	ltmp;

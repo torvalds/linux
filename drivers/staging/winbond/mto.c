@@ -51,12 +51,6 @@ static int retryrate_rec[MTO_MAX_DATA_RATE_LEVELS];//this record the retry rate 
 static int PeriodTotalTxPkt = 0;
 static int PeriodTotalTxPktRetry = 0;
 
-typedef struct
-{
-	s32 RSSI;
-	u8  TxRate;
-}RSSI2RATE;
-
 static u8 boSparseTxTraffic = false;
 
 void MTO_Init(MTO_FUNC_INPUT);
