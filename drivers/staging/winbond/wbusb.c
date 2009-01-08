@@ -277,7 +277,7 @@ static unsigned char wb35_hw_init(struct ieee80211_hw *hw)
 	//get current antenna
 	priv->sLocalPara.bAntennaNo = hal_get_antenna_number(pHwData);
 #ifdef _PE_STATE_DUMP_
-	WBDEBUG(("Driver init, antenna no = %d\n", psLOCAL->bAntennaNo));
+	printk("Driver init, antenna no = %d\n", psLOCAL->bAntennaNo);
 #endif
 	hal_get_hw_radio_off( pHwData );
 
@@ -404,7 +404,7 @@ static void wb35_hw_halt(struct wbsoft_priv *adapter)
 	// Turn off Rx and Tx hardware ability
 	hal_stop( &adapter->sHwData );
 #ifdef _PE_USB_INI_DUMP_
-	WBDEBUG(("[w35und] Hal_stop O.K.\n"));
+	printk("[w35und] Hal_stop O.K.\n");
 #endif
 	msleep(100);// Waiting Irp completed
 

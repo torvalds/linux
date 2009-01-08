@@ -83,7 +83,6 @@ void hal_get_dto_para(MTO_FUNC_INPUT, char *buffer);
 void MTO_Init(MTO_FUNC_INPUT)
 {
     int i;
-	//WBDEBUG(("[MTO] -> MTO_Init()\n"));
 	//[WKCHEN]pMTOcore_data = pcore_data;
 // 20040510 Turbo add for global variable
     MTO_TMR_CNT()       = 0;

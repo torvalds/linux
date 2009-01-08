@@ -118,7 +118,7 @@ static u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
 			// Basic check for Rx length. Is length valid?
 			if (PacketSize > MAX_PACKET_SIZE) {
 				#ifdef _PE_RX_DUMP_
-				WBDEBUG(("Serious ERROR : Rx data size too long, size =%d\n", PacketSize));
+				printk("Serious ERROR : Rx data size too long, size =%d\n", PacketSize);
 				#endif
 
 				pWb35Rx->EP3vm_state = VM_STOP;
@@ -194,7 +194,7 @@ static void Wb35Rx_Complete(struct urb *urb)
 	// The URB is completed, check the result
 	if (pWb35Rx->EP3VM_status != 0) {
 		#ifdef _PE_USB_STATE_DUMP_
-		WBDEBUG(("EP3 IoCompleteRoutine return error\n"));
+		printk("EP3 IoCompleteRoutine return error\n");
 		#endif
 		pWb35Rx->EP3vm_state = VM_STOP;
 		goto error;
@@ -259,7 +259,7 @@ static void Wb35Rx(struct ieee80211_hw *hw)
 	if (!pWb35Rx->RxOwner[RxBufferId]) {
 		// It's impossible to run here.
 		#ifdef _PE_RX_DUMP_
-		WBDEBUG(("Rx driver fifo unavailable\n"));
+		printk("Rx driver fifo unavailable\n");
 		#endif
 		goto error;
 	}
@@ -348,7 +348,7 @@ void Wb35Rx_stop(phw_data_t pHwData)
 	if (pWb35Rx->EP3vm_state == VM_RUNNING) {
 		usb_unlink_urb( pWb35Rx->RxUrb ); // Only use unlink, let Wb35Rx_destroy to free them
 		#ifdef _PE_RX_DUMP_
-		WBDEBUG(("EP3 Rx stop\n"));
+		printk("EP3 Rx stop\n");
 		#endif
 	}
 }
@@ -366,7 +366,7 @@ void Wb35Rx_destroy(phw_data_t pHwData)
 	if (pWb35Rx->RxUrb)
 		usb_free_urb( pWb35Rx->RxUrb );
 	#ifdef _PE_RX_DUMP_
-	WBDEBUG(("Wb35Rx_destroy OK\n"));
+	printk("Wb35Rx_destroy OK\n");
 	#endif
 }
 

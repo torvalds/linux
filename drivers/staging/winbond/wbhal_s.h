@@ -4,8 +4,6 @@
 #include <linux/types.h>
 #include <linux/if_ether.h> /* for ETH_ALEN */
 
-#include "common.h"
-
 //[20040722 WK]
 #define HAL_LED_SET_MASK		0x001c	//20060901 Extend
 #define HAL_LED_SET_SHIFT		2

@@ -1114,7 +1114,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 		//Start to fill RF parameters, PLL_ON should be pulled low.
 		Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000000 );
 #ifdef _PE_STATE_DUMP_
-		WBDEBUG(("* PLL_ON    low\n"));
+		printk("* PLL_ON    low\n");
 #endif
 
 		number = sizeof(al7230_rf_data_24)/sizeof(al7230_rf_data_24[0]);
@@ -1223,7 +1223,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//pulled high
 			Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000080 );
 			#ifdef _PE_STATE_DUMP_
-			WBDEBUG(("* PLL_ON    high\n"));
+			printk("* PLL_ON    high\n");
 			#endif
 
 			//2.4GHz
@@ -1243,7 +1243,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//5GHz
 			Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000000 );
 			#ifdef _PE_STATE_DUMP_
-			WBDEBUG(("* PLL_ON    low\n"));
+			printk("* PLL_ON    low\n");
 			#endif
 
 			number = sizeof(al7230_rf_data_50)/sizeof(al7230_rf_data_50[0]);
@@ -1255,7 +1255,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 
 			Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000080 );
 			#ifdef _PE_STATE_DUMP_
-			WBDEBUG(("* PLL_ON    high\n"));
+			printk("* PLL_ON    high\n");
 			#endif
 
 			//ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x12BACF;
@@ -1271,7 +1271,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			msleep(5);
 
 			//Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000080 );
-			//WBDEBUG(("* PLL_ON    high\n"));
+			//printk("* PLL_ON    high\n");
 			break;
 
 		case RF_WB_242:
@@ -2011,7 +2011,7 @@ RFSynthesizer_SwitchingChannel(  phw_data_t pHwData,  ChanInfo Channel )
 
 			//Start to fill RF parameters, PLL_ON should be pulled low.
 			//Wb35Reg_Write( pHwData, 0x03dc, 0x00000000 );
-			//WBDEBUG(("* PLL_ON    low\n"));
+			//printk("* PLL_ON    low\n");
 
 			//Channel independent registers
 			if( Channel.band != pHwData->band)
@@ -2036,7 +2036,7 @@ RFSynthesizer_SwitchingChannel(  phw_data_t pHwData,  ChanInfo Channel )
 				// Write to register. number must less and equal than 16
 				Wb35Reg_BurstWrite( pHwData, 0x0864, pltmp, number, NO_INCREMENT );
 				#ifdef _PE_STATE_DUMP_
-				WBDEBUG(("Band changed\n"));
+				printk("Band changed\n");
 				#endif
 			}
 
@@ -2611,9 +2611,9 @@ void EEPROMTxVgaAdjust(  phw_data_t pHwData ) // 20060619.5 Add
 	}
 
 	#ifdef _PE_STATE_DUMP_
-	WBDEBUG((" TxVgaFor24 : \n"));
+	printk(" TxVgaFor24 : \n");
 	DataDmp((u8 *)pHwData->TxVgaFor24, 14 ,0);
-	WBDEBUG((" TxVgaFor50 : \n"));
+	printk(" TxVgaFor50 : \n");
 	DataDmp((u8 *)pHwData->TxVgaFor50, 70 ,0);
 	#endif
 }

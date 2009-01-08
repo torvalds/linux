@@ -149,7 +149,7 @@ Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 
 	if (ret < 0) {
 		#ifdef _PE_REG_DUMP_
-		WBDEBUG(("EP0 Write register usb message sending error\n"));
+		printk("EP0 Write register usb message sending error\n");
 		#endif
 
 		pHwData->SurpriseRemove = 1; // 20060704.2
@@ -316,7 +316,7 @@ Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 
 	if (ret < 0) {
 		#ifdef _PE_REG_DUMP_
-		WBDEBUG(("EP0 Read register usb message sending error\n"));
+		printk("EP0 Read register usb message sending error\n");
 		#endif
 
 		pHwData->SurpriseRemove = 1; // 20060704.2
@@ -441,7 +441,7 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 
 	if (ret < 0) {
 #ifdef _PE_REG_DUMP_
-		WBDEBUG(("EP0 Irp sending error\n"));
+		printk("EP0 Irp sending error\n");
 #endif
 		goto cleanup;
 	}
@@ -480,7 +480,7 @@ Wb35Reg_EP0VM_complete(struct urb *urb)
 
 		if (reg->EP0VM_status) {
 #ifdef _PE_REG_DUMP_
-			WBDEBUG(("EP0 IoCompleteRoutine return error\n"));
+			printk("EP0 IoCompleteRoutine return error\n");
 #endif
 			reg->EP0vm_state = VM_STOP;
 			pHwData->SurpriseRemove = 1;
@@ -529,7 +529,7 @@ Wb35Reg_destroy(phw_data_t pHwData)
 			kfree(reg_queue);
 		} else {
 			#ifdef _PE_REG_DUMP_
-			WBDEBUG(("EP0 queue release error\n"));
+			printk("EP0 queue release error\n");
 			#endif
 		}
 		spin_lock_irq( &reg->EP0VM_spin_lock );

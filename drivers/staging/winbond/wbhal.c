@@ -396,7 +396,7 @@ static void hal_set_current_channel_ex(  phw_data_t pHwData,  ChanInfo channel )
 	pHwData->Channel = channel.ChanNo;
 	pHwData->band = channel.band;
 	#ifdef _PE_STATE_DUMP_
-	WBDEBUG(("Set channel is %d, band =%d\n", pHwData->Channel, pHwData->band));
+	printk("Set channel is %d, band =%d\n", pHwData->Channel, pHwData->band);
 	#endif
 	reg->M28_MacControl &= ~0xff; // Clean channel information field
 	reg->M28_MacControl |= channel.ChanNo;

@@ -153,14 +153,14 @@ void Wb35Tx_stop(phw_data_t pHwData)
 	if (pWb35Tx->EP2vm_state == VM_RUNNING)
 		usb_unlink_urb( pWb35Tx->Tx2Urb ); // Only use unlink, let Wb35Tx_destrot to free them
 	#ifdef _PE_TX_DUMP_
-	WBDEBUG(("EP2 Tx stop\n"));
+	printk("EP2 Tx stop\n");
 	#endif
 
 	// Trying to canceling the Irp of EP4
 	if (pWb35Tx->EP4vm_state == VM_RUNNING)
 		usb_unlink_urb( pWb35Tx->Tx4Urb ); // Only use unlink, let Wb35Tx_destrot to free them
 	#ifdef _PE_TX_DUMP_
-	WBDEBUG(("EP4 Tx stop\n"));
+	printk("EP4 Tx stop\n");
 	#endif
 }
 
@@ -182,7 +182,7 @@ void Wb35Tx_destroy(phw_data_t pHwData)
 		usb_free_urb( pWb35Tx->Tx2Urb );
 
 	#ifdef _PE_TX_DUMP_
-	WBDEBUG(("Wb35Tx_destroy OK\n"));
+	printk("Wb35Tx_destroy OK\n");
 	#endif
 }
 
@@ -229,7 +229,7 @@ static void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 
 	//The Urb is completed, check the result
 	if (pWb35Tx->EP2VM_status != 0) {
-		WBDEBUG(("EP2 IoCompleteRoutine return error\n"));
+		printk("EP2 IoCompleteRoutine return error\n");
 		pWb35Tx->EP2vm_state= VM_STOP;
 		goto error;
 	}
@@ -279,7 +279,7 @@ static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
 
 	if (retv < 0) {
 		#ifdef _PE_TX_DUMP_
-		WBDEBUG(("EP2 Tx Irp sending error\n"));
+		printk("EP2 Tx Irp sending error\n");
 		#endif
 		goto error;
 	}

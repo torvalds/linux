@@ -374,7 +374,7 @@ static void Mds_HeaderCopy(struct wbsoft_priv * adapter, PDESCRIPTOR pDes, u8 *T
 
 	pDes->TxRate = ctmp1;
 	#ifdef _PE_TX_DUMP_
-	WBDEBUG(("Tx rate =%x\n", ctmp1));
+	printk("Tx rate =%x\n", ctmp1);
 	#endif
 
 	pT01->T01_modulation_type = (ctmp1%3) ? 0 : 1;
@@ -442,7 +442,7 @@ Mds_Tx(struct wbsoft_priv * adapter)
 		FillIndex = pMds->TxFillIndex;
 		if (pMds->TxOwner[FillIndex]) { // Is owned by software 0:Yes 1:No
 #ifdef _PE_TX_DUMP_
-			WBDEBUG(("[Mds_Tx] Tx Owner is H/W.\n"));
+			printk("[Mds_Tx] Tx Owner is H/W.\n");
 #endif
 			break;
 		}
@@ -488,7 +488,7 @@ Mds_Tx(struct wbsoft_priv * adapter)
 			// For speed up Key setting
 			if (pTxDes->EapFix) {
 #ifdef _PE_TX_DUMP_
-				WBDEBUG(("35: EPA 4th frame detected. Size = %d\n", PacketSize));
+				printk("35: EPA 4th frame detected. Size = %d\n", PacketSize);
 #endif
 				pHwData->IsKeyPreSet = 1;
 			}
@@ -585,7 +585,7 @@ Mds_SendComplete(struct wbsoft_priv * adapter, PT02_DESCRIPTOR pT02)
 				else
 					pHwData->tx_retry_count[7] += RetryCount;
 				#ifdef _PE_STATE_DUMP_
-				WBDEBUG(("dto_tx_retry_count =%d\n", pHwData->dto_tx_retry_count));
+				printk("dto_tx_retry_count =%d\n", pHwData->dto_tx_retry_count);
 				#endif
 				MTO_SetTxCount(adapter, TxRate, RetryCount);
 			}
