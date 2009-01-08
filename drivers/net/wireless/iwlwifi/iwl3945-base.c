@@ -3204,21 +3204,6 @@ static void iwl3945_tx_cmd_complete(struct iwl_priv *priv,
  */
 
 /**
- * iwl3945_rx_queue_space - Return number of free slots available in queue.
- */
-static int iwl3945_rx_queue_space(const struct iwl_rx_queue *q)
-{
-	int s = q->read - q->write;
-	if (s <= 0)
-		s += RX_QUEUE_SIZE;
-	/* keep some buffer to not confuse full and empty queue */
-	s -= 2;
-	if (s < 0)
-		s = 0;
-	return s;
-}
-
-/**
  * iwl3945_dma_addr2rbd_ptr - convert a DMA address to a uCode read buffer ptr
  */
 static inline __le32 iwl3945_dma_addr2rbd_ptr(struct iwl_priv *priv,
@@ -3248,7 +3233,7 @@ static int iwl3945_rx_queue_restock(struct iwl_priv *priv)
 
 	spin_lock_irqsave(&rxq->lock, flags);
 	write = rxq->write & ~0x7;
-	while ((iwl3945_rx_queue_space(rxq) > 0) && (rxq->free_count)) {
+	while ((iwl_rx_queue_space(rxq) > 0) && (rxq->free_count)) {
 		/* Get next free Rx buffer, remove from free list */
 		element = rxq->rx_free.next;
 		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
@@ -3459,7 +3444,7 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 	r = le16_to_cpu(rxq->rb_stts->closed_rb_num) &  0x0FFF;
 	i = rxq->read;
 
-	if (iwl3945_rx_queue_space(rxq) > (RX_QUEUE_SIZE / 2))
+	if (iwl_rx_queue_space(rxq) > (RX_QUEUE_SIZE / 2))
 		fill_rx = 1;
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
