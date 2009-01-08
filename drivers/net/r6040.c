@@ -49,8 +49,8 @@
 #include <asm/processor.h>
 
 #define DRV_NAME	"r6040"
-#define DRV_VERSION	"0.20"
-#define DRV_RELDATE	"07Jan2009"
+#define DRV_VERSION	"0.21"
+#define DRV_RELDATE	"09Jan2009"
 
 /* PHY CHIP Address */
 #define PHY1_ADDR	1	/* For MAC1 */
