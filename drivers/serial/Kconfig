@@ -457,7 +457,7 @@ config SERIAL_SAMSUNG
 
 config SERIAL_SAMSUNG_UARTS
 	int
-	depends on SERIAL_SAMSUNG
+	depends on ARM && PLAT_S3C
 	default 2 if ARCH_S3C2400
 	default 4 if ARCH_S3C64XX || CPU_S3C2443
 	default 3
