@@ -102,7 +102,7 @@ static void hid_reset(struct work_struct *work)
 	struct usbhid_device *usbhid =
 		container_of(work, struct usbhid_device, reset_work);
 	struct hid_device *hid = usbhid->hid;
-	int rc_lock, rc = 0;
+	int rc = 0;
 
 	if (test_bit(HID_CLEAR_HALT, &usbhid->iofl)) {
 		dev_dbg(&usbhid->intf->dev, "clear halt\n");
@@ -113,11 +113,10 @@ static void hid_reset(struct work_struct *work)
 
 	else if (test_bit(HID_RESET_PENDING, &usbhid->iofl)) {
 		dev_dbg(&usbhid->intf->dev, "resetting device\n");
-		rc = rc_lock = usb_lock_device_for_reset(hid_to_usb_dev(hid), usbhid->intf);
-		if (rc_lock >= 0) {
+		rc = usb_lock_device_for_reset(hid_to_usb_dev(hid), usbhid->intf);
+		if (rc == 0) {
 			rc = usb_reset_device(hid_to_usb_dev(hid));
-			if (rc_lock)
-				usb_unlock_device(hid_to_usb_dev(hid));
+			usb_unlock_device(hid_to_usb_dev(hid));
 		}
 		clear_bit(HID_RESET_PENDING, &usbhid->iofl);
 	}

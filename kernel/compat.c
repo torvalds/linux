@@ -24,6 +24,7 @@
 #include <linux/migrate.h>
 #include <linux/posix-timers.h>
 #include <linux/times.h>
+#include <linux/ptrace.h>
 
 #include <asm/uaccess.h>
 
@@ -229,6 +230,7 @@ asmlinkage long compat_sys_times(struct compat_tms __user *tbuf)
 		if (copy_to_user(tbuf, &tmp, sizeof(tmp)))
 			return -EFAULT;
 	}
+	force_successful_syscall_return();
 	return compat_jiffies_to_clock_t(jiffies);
 }
 
@@ -894,8 +896,9 @@ asmlinkage long compat_sys_time(compat_time_t __user * tloc)
 
 	if (tloc) {
 		if (put_user(i,tloc))
-			i = -EFAULT;
+			return -EFAULT;
 	}
+	force_successful_syscall_return();
 	return i;
 }
 

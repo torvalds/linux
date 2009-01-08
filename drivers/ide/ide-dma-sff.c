@@ -50,6 +50,27 @@ int config_drive_for_dma(ide_drive_t *drive)
 	return 0;
 }
 
+u8 ide_dma_sff_read_status(ide_hwif_t *hwif)
+{
+	unsigned long addr = hwif->dma_base + ATA_DMA_STATUS;
+
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		return readb((void __iomem *)addr);
+	else
+		return inb(addr);
+}
+EXPORT_SYMBOL_GPL(ide_dma_sff_read_status);
+
+static void ide_dma_sff_write_status(ide_hwif_t *hwif, u8 val)
+{
+	unsigned long addr = hwif->dma_base + ATA_DMA_STATUS;
+
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		writeb(val, (void __iomem *)addr);
+	else
+		outb(val, addr);
+}
+
 /**
  *	ide_dma_host_set	-	Enable/disable DMA on a host
  *	@drive: drive to control
@@ -62,18 +83,14 @@ void ide_dma_host_set(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	u8 unit = drive->dn & 1;
-	u8 dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	u8 dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
 
 	if (on)
 		dma_stat |= (1 << (5 + unit));
 	else
 		dma_stat &= ~(1 << (5 + unit));
 
-	if (hwif->host_flags & IDE_HFLAG_MMIO)
-		writeb(dma_stat,
-		       (void __iomem *)(hwif->dma_base + ATA_DMA_STATUS));
-	else
-		outb(dma_stat, hwif->dma_base + ATA_DMA_STATUS);
+	ide_dma_sff_write_status(hwif, dma_stat);
 }
 EXPORT_SYMBOL_GPL(ide_dma_host_set);
 
@@ -175,7 +192,7 @@ EXPORT_SYMBOL_GPL(ide_build_dmatable);
 int ide_dma_setup(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	unsigned int reading = rq_data_dir(rq) ? 0 : ATA_DMA_WR;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 	u8 dma_stat;
@@ -187,7 +204,7 @@ int ide_dma_setup(ide_drive_t *drive)
 	}
 
 	/* PRD table */
-	if (hwif->host_flags & IDE_HFLAG_MMIO)
+	if (mmio)
 		writel(hwif->dmatable_dma,
 		       (void __iomem *)(hwif->dma_base + ATA_DMA_TABLE_OFS));
 	else
@@ -200,15 +217,10 @@ int ide_dma_setup(ide_drive_t *drive)
 		outb(reading, hwif->dma_base + ATA_DMA_CMD);
 
 	/* read DMA status for INTR & ERROR flags */
-	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
 
 	/* clear INTR & ERROR flags */
-	if (mmio)
-		writeb(dma_stat | ATA_DMA_ERR | ATA_DMA_INTR,
-		       (void __iomem *)(hwif->dma_base + ATA_DMA_STATUS));
-	else
-		outb(dma_stat | ATA_DMA_ERR | ATA_DMA_INTR,
-		     hwif->dma_base + ATA_DMA_STATUS);
+	ide_dma_sff_write_status(hwif, dma_stat | ATA_DMA_ERR | ATA_DMA_INTR);
 
 	drive->waiting_for_dma = 1;
 	return 0;
@@ -232,7 +244,7 @@ EXPORT_SYMBOL_GPL(ide_dma_setup);
 static int dma_timer_expiry(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	u8 dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
 
 	printk(KERN_WARNING "%s: %s: DMA status (0x%02x)\n",
 		drive->name, __func__, dma_stat);
@@ -240,7 +252,7 @@ static int dma_timer_expiry(ide_drive_t *drive)
 	if ((dma_stat & 0x18) == 0x18)	/* BUSY Stupid Early Timer !! */
 		return WAIT_CMD;
 
-	hwif->hwgroup->expiry = NULL;	/* one free ride for now */
+	hwif->expiry = NULL;	/* one free ride for now */
 
 	if (dma_stat & ATA_DMA_ERR)	/* ERROR */
 		return -1;
@@ -289,13 +301,12 @@ EXPORT_SYMBOL_GPL(ide_dma_start);
 int ide_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 	u8 dma_stat = 0, dma_cmd = 0, mask;
 
 	drive->waiting_for_dma = 0;
 
 	/* stop DMA */
-	if (mmio) {
+	if (hwif->host_flags & IDE_HFLAG_MMIO) {
 		dma_cmd = readb((void __iomem *)(hwif->dma_base + ATA_DMA_CMD));
 		writeb(dma_cmd & ~ATA_DMA_START,
 		       (void __iomem *)(hwif->dma_base + ATA_DMA_CMD));
@@ -305,15 +316,10 @@ int ide_dma_end(ide_drive_t *drive)
 	}
 
 	/* get DMA status */
-	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
 
-	if (mmio)
-		/* clear the INTR & ERROR bits */
-		writeb(dma_stat | ATA_DMA_ERR | ATA_DMA_INTR,
-		       (void __iomem *)(hwif->dma_base + ATA_DMA_STATUS));
-	else
-		outb(dma_stat | ATA_DMA_ERR | ATA_DMA_INTR,
-		     hwif->dma_base + ATA_DMA_STATUS);
+	/* clear INTR & ERROR bits */
+	ide_dma_sff_write_status(hwif, dma_stat | ATA_DMA_ERR | ATA_DMA_INTR);
 
 	/* purge DMA mappings */
 	ide_destroy_dmatable(drive);
@@ -331,7 +337,7 @@ EXPORT_SYMBOL_GPL(ide_dma_end);
 int ide_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	u8 dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
 
 	return (dma_stat & ATA_DMA_INTR) ? 1 : 0;
 }
@@ -346,5 +352,6 @@ const struct ide_dma_ops sff_dma_ops = {
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 EXPORT_SYMBOL_GPL(sff_dma_ops);

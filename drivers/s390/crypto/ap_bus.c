@@ -36,7 +36,6 @@
 #include <linux/notifier.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
-#include <asm/s390_rdev.h>
 #include <asm/reset.h>
 #include <asm/airq.h>
 #include <asm/atomic.h>
@@ -1522,7 +1521,7 @@ int __init ap_module_init(void)
 	}
 
 	/* Create /sys/devices/ap. */
-	ap_root_device = s390_root_dev_register("ap");
+	ap_root_device = root_device_register("ap");
 	rc = IS_ERR(ap_root_device) ? PTR_ERR(ap_root_device) : 0;
 	if (rc)
 		goto out_bus;
@@ -1565,7 +1564,7 @@ out_work:
 	hrtimer_cancel(&ap_poll_timer);
 	destroy_workqueue(ap_work_queue);
 out_root:
-	s390_root_dev_unregister(ap_root_device);
+	root_device_unregister(ap_root_device);
 out_bus:
 	while (i--)
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
@@ -1600,7 +1599,7 @@ void ap_module_exit(void)
 	hrtimer_cancel(&ap_poll_timer);
 	destroy_workqueue(ap_work_queue);
 	tasklet_kill(&ap_tasklet);
-	s390_root_dev_unregister(ap_root_device);
+	root_device_unregister(ap_root_device);
 	while ((dev = bus_find_device(&ap_bus_type, NULL, NULL,
 		    __ap_match_all)))
 	{

@@ -258,21 +258,16 @@ static inline void tsb_insert(struct tsb *ent, unsigned long tag, unsigned long 
 unsigned long _PAGE_ALL_SZ_BITS __read_mostly;
 unsigned long _PAGE_SZBITS __read_mostly;
 
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+static void flush_dcache(unsigned long pfn)
 {
-	struct mm_struct *mm;
-	struct tsb *tsb;
-	unsigned long tag, flags;
-	unsigned long tsb_index, tsb_hash_shift;
+	struct page *page;
 
-	if (tlb_type != hypervisor) {
-		unsigned long pfn = pte_pfn(pte);
+	page = pfn_to_page(pfn);
+	if (page && page_mapping(page)) {
 		unsigned long pg_flags;
-		struct page *page;
 
-		if (pfn_valid(pfn) &&
-		    (page = pfn_to_page(pfn), page_mapping(page)) &&
-		    ((pg_flags = page->flags) & (1UL << PG_dcache_dirty))) {
+		pg_flags = page->flags;
+		if (pg_flags & (1UL << PG_dcache_dirty)) {
 			int cpu = ((pg_flags >> PG_dcache_cpu_shift) &
 				   PG_dcache_cpu_mask);
 			int this_cpu = get_cpu();
@@ -289,6 +284,21 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 
 			put_cpu();
 		}
+	}
+}
+
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+{
+	struct mm_struct *mm;
+	struct tsb *tsb;
+	unsigned long tag, flags;
+	unsigned long tsb_index, tsb_hash_shift;
+
+	if (tlb_type != hypervisor) {
+		unsigned long pfn = pte_pfn(pte);
+
+		if (pfn_valid(pfn))
+			flush_dcache(pfn);
 	}
 
 	mm = vma->vm_mm;
@@ -769,8 +779,8 @@ static int find_node(unsigned long addr)
 	return -1;
 }
 
-static unsigned long nid_range(unsigned long start, unsigned long end,
-			       int *nid)
+static unsigned long long nid_range(unsigned long long start,
+				    unsigned long long end, int *nid)
 {
 	*nid = find_node(start);
 	start += PAGE_SIZE;
@@ -788,8 +798,8 @@ static unsigned long nid_range(unsigned long start, unsigned long end,
 	return start;
 }
 #else
-static unsigned long nid_range(unsigned long start, unsigned long end,
-			       int *nid)
+static unsigned long long nid_range(unsigned long long start,
+				    unsigned long long end, int *nid)
 {
 	*nid = 0;
 	return end;
@@ -1016,8 +1026,8 @@ static int __init grab_mlgroups(struct mdesc_handle *md)
 		val = mdesc_get_property(md, node, "address-mask", NULL);
 		m->mask = *val;
 
-		numadbg("MLGROUP[%d]: node[%lx] latency[%lx] "
-			"match[%lx] mask[%lx]\n",
+		numadbg("MLGROUP[%d]: node[%llx] latency[%llx] "
+			"match[%llx] mask[%llx]\n",
 			count - 1, m->node, m->latency, m->match, m->mask);
 	}
 
@@ -1056,7 +1066,7 @@ static int __init grab_mblocks(struct mdesc_handle *md)
 					 "address-congruence-offset", NULL);
 		m->offset = *val;
 
-		numadbg("MBLOCK[%d]: base[%lx] size[%lx] offset[%lx]\n",
+		numadbg("MBLOCK[%d]: base[%llx] size[%llx] offset[%llx]\n",
 			count - 1, m->base, m->size, m->offset);
 	}
 
@@ -1127,7 +1137,7 @@ static int __init numa_attach_mlgroup(struct mdesc_handle *md, u64 grp,
 	n->mask = candidate->mask;
 	n->val = candidate->match;
 
-	numadbg("NUMA NODE[%d]: mask[%lx] val[%lx] (latency[%lx])\n",
+	numadbg("NUMA NODE[%d]: mask[%lx] val[%lx] (latency[%llx])\n",
 		index, n->mask, n->val, candidate->latency);
 
 	return 0;

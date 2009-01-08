@@ -1,0 +1,22 @@
+2008 7/18
+
+The RX has can't receive OFDM packet correctly,
+Guess it need be do RX calibrate.
+
+
+before 2008 3/1
+
+1: The RX get too much "CRC failed" pakets, it make the card work very unstable,
+2: After running a while, the card will get infinity "RX Frame" and "Error"
+interrupt, not know the root reason so far, try to fix it
+3: Using two tx queue txd and txm but not only txm.
+4: Set the hdr correctly.
+5: Try to do recalibrate correvtly
+6: To support G mode in future
+7: Fix the mac address can't be readed and set correctly in BE machine.
+8: Fix include and exclude FCS in promisous mode and manage mode
+9: Using sta_notify to notice sta change
+10: Turn on frame reception at the end of start
+11: Guess the card support HW_MULTICAST_FILTER
+12: The tx process should be implment atomic?
+13: Using mac80211 function to control the TX&RX LED.

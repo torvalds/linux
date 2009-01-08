@@ -26,8 +26,6 @@
 #include <net/ip.h>
 #include <net/arp.h>
 
-#include <asm/s390_rdev.h>
-
 #include "qeth_l3.h"
 #include "qeth_core_offl.h"
 

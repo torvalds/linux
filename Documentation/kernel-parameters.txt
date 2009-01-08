@@ -91,6 +91,7 @@ parameter is applicable:
 	SUSPEND	System suspend states are enabled.
 	FTRACE	Function tracing enabled.
 	TS	Appropriate touchscreen support is enabled.
+	UMS	USB Mass Storage support is enabled.
 	USB	USB support is enabled.
 	USBHID	USB Human Interface Device support is enabled.
 	V4L	Video For Linux support is enabled.
@@ -469,8 +470,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	clearcpuid=BITNUM [X86]
 			Disable CPUID feature X for the kernel. See
-			include/asm-x86/cpufeature.h for the valid bit numbers.
-			Note the Linux specific bits are not necessarily
+			arch/x86/include/asm/cpufeature.h for the valid bit
+			numbers. Note the Linux specific bits are not necessarily
 			stable over kernel options, but the vendor specific
 			ones should be.
 			Also note that user programs calling CPUID directly
@@ -550,6 +551,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			debugging driver suspend/resume hooks).  This may
 			not work reliably with all consoles, but is known
 			to work with serial and VGA consoles.
+
+	coredump_filter=
+			[KNL] Change the default value for
+			/proc/<pid>/coredump_filter.
+			See also Documentation/filesystems/proc.txt.
 
 	cpcihp_generic=	[HW,PCI] Generic port I/O CompactPCI driver
 			Format:
@@ -913,6 +919,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	inttest=	[IA64]
 
+	iomem=		Disable strict checking of access to MMIO memory
+		strict	regions from userspace.
+		relaxed
+
 	iommu=		[x86]
 		off
 		force
@@ -1116,6 +1126,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.
+
+	lmb=debug	[KNL] Enable lmb debug messages.
 
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
 			See Documentation/blockdev/ramdisk.txt.
@@ -1569,6 +1581,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
+	ohci1394_dma=early	[HW] enable debugging via the ohci1394 driver.
+			See Documentation/debugging-via-ohci1394.txt for more
+			info.
+
 	olpc_ec_timeout= [OLPC] ms delay when issuing EC commands
 			Rather than timing out after 20 ms if an EC
 			command is not properly ACKed, override the length
@@ -1793,10 +1809,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			autoconfiguration.
 			Ranges are in pairs (memory base and size).
 
-	dynamic_printk
-			Enables pr_debug()/dev_dbg() calls if
-			CONFIG_DYNAMIC_PRINTK_DEBUG has been enabled. These can also
-			be switched on/off via <debugfs>/dynamic_printk/modules
+	dynamic_printk	Enables pr_debug()/dev_dbg() calls if
+			CONFIG_DYNAMIC_PRINTK_DEBUG has been enabled.
+			These can also be switched on/off via
+			<debugfs>/dynamic_printk/modules
 
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
@@ -1884,7 +1900,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	reboot=		[BUGS=X86-32,BUGS=ARM,BUGS=IA-64] Rebooting mode
 			Format: <reboot_mode>[,<reboot_mode2>[,...]]
-			See arch/*/kernel/reboot.c or arch/*/kernel/process.c			
+			See arch/*/kernel/reboot.c or arch/*/kernel/process.c
 
 	relax_domain_level=
 			[KNL, SMP] Set scheduler's default relax_domain_level.
@@ -2372,6 +2388,41 @@ and is between 256 and 4096 characters. It is defined in the file
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 
+	usb-storage.delay_use=
+			[UMS] The delay in seconds before a new device is
+			scanned for Logical Units (default 5).
+
+	usb-storage.quirks=
+			[UMS] A list of quirks entries to supplement or
+			override the built-in unusual_devs list.  List
+			entries are separated by commas.  Each entry has
+			the form VID:PID:Flags where VID and PID are Vendor
+			and Product ID values (4-digit hex numbers) and
+			Flags is a set of characters, each corresponding
+			to a common usb-storage quirk flag as follows:
+				a = SANE_SENSE (collect more than 18 bytes
+					of sense data);
+				c = FIX_CAPACITY (decrease the reported
+					device capacity by one sector);
+				h = CAPACITY_HEURISTICS (decrease the
+					reported device capacity by one
+					sector if the number is odd);
+				i = IGNORE_DEVICE (don't bind to this
+					device);
+				l = NOT_LOCKABLE (don't try to lock and
+					unlock ejectable media);
+				m = MAX_SECTORS_64 (don't transfer more
+					than 64 sectors = 32 KB at a time);
+				o = CAPACITY_OK (accept the capacity
+					reported by the device);
+				r = IGNORE_RESIDUE (the device reports
+					bogus residue values);
+				s = SINGLE_LUN (the device has only one
+					Logical Unit);
+				w = NO_WP_DETECT (don't test whether the
+					medium is write-protected).
+			Example: quirks=0419:aaf5:rl,0421:0433:rc
+
 	add_efi_memmap	[EFI; x86-32,X86-64] Include EFI memory map in
 			kernel's map of available physical RAM.
 
@@ -2432,8 +2483,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format:
 			<irq>,<irq_mask>,<io>,<full_duplex>,<do_sound>,<lockup_hack>[,<irq2>[,<irq3>[,<irq4>]]]
 
-	norandmaps	Don't use address space randomization
-			Equivalent to echo 0 > /proc/sys/kernel/randomize_va_space
+	norandmaps	Don't use address space randomization.  Equivalent to
+			echo 0 > /proc/sys/kernel/randomize_va_space
 
 ______________________________________________________________________
 

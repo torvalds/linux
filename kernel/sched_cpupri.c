@@ -151,7 +151,7 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
  *
  * Returns: -ENOMEM if memory fails.
  */
-int cpupri_init(struct cpupri *cp, bool bootmem)
+int __init_refok cpupri_init(struct cpupri *cp, bool bootmem)
 {
 	int i;
 

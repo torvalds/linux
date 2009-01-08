@@ -74,7 +74,7 @@ a sensor.
 Notice that some banks have both a read and a write address this is how the
 uGuru determines if a read from or a write to the bank is taking place, thus
 when reading you should always use the read address and when writing the
-write address. The write address is always one (1) more then the read address.
+write address. The write address is always one (1) more than the read address.
 
 
 uGuru ready
@@ -224,7 +224,7 @@ Bit 3: Beep if alarm							(RW)
 Bit 4: 1 if alarm cause measured temp is over the warning threshold	(R)
 Bit 5: 1 if alarm cause measured volt is over the max threshold		(R)
 Bit 6: 1 if alarm cause measured volt is under the min threshold	(R)
-Bit 7: Volt sensor: Shutdown if alarm persist for more then 4 seconds	(RW)
+Bit 7: Volt sensor: Shutdown if alarm persist for more than 4 seconds	(RW)
        Temp sensor: Shutdown if temp is over the shutdown threshold	(RW)
 
 *  This bit is only honored/used by the uGuru if a temp sensor is connected
@@ -293,7 +293,7 @@ Byte 0:
 Alarm behaviour for the selected sensor. A 1 enables the described behaviour.
 Bit 0: Give an alarm if measured rpm is under the min threshold	(RW)
 Bit 3: Beep if alarm						(RW)
-Bit 7: Shutdown if alarm persist for more then 4 seconds	(RW)
+Bit 7: Shutdown if alarm persist for more than 4 seconds	(RW)
 
 Byte 1:
 min threshold (scale as bank 0x26)

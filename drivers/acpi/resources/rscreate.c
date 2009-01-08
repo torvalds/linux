@@ -124,7 +124,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
  *
  * FUNCTION:    acpi_rs_create_pci_routing_table
  *
- * PARAMETERS:  package_object          - Pointer to an union acpi_operand_object
+ * PARAMETERS:  package_object          - Pointer to a union acpi_operand_object
  *                                        package
  *              output_buffer           - Pointer to the user's buffer
  *

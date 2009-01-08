@@ -15,8 +15,8 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
+#include <linux/atmel-mci.h>
 
-#include <asm/atmel-mci.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -421,7 +421,7 @@ static unsigned long hsb_clk_get_rate(struct clk *clk)
 	return bus_clk_get_rate(clk, shift);
 }
 
-static void pba_clk_mode(struct clk *clk, int enabled)
+void pba_clk_mode(struct clk *clk, int enabled)
 {
 	unsigned long flags;
 	u32 mask;
@@ -436,7 +436,7 @@ static void pba_clk_mode(struct clk *clk, int enabled)
 	spin_unlock_irqrestore(&pm_lock, flags);
 }
 
-static unsigned long pba_clk_get_rate(struct clk *clk)
+unsigned long pba_clk_get_rate(struct clk *clk)
 {
 	unsigned long cksel, shift = 0;
 

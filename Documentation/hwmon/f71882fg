@@ -1,0 +1,89 @@
+Kernel driver f71882fg
+======================
+
+Supported chips:
+  * Fintek F71882FG and F71883FG
+    Prefix: 'f71882fg'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Available from the Fintek website
+  * Fintek F71862FG and F71863FG
+    Prefix: 'f71862fg'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Available from the Fintek website
+  * Fintek F8000
+    Prefix: 'f8000'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Not public
+
+Author: Hans de Goede <hdegoede@redhat.com>
+
+
+Description
+-----------
+
+Fintek F718xxFG/F8000 Super I/O chips include complete hardware monitoring
+capabilities. They can monitor up to 9 voltages (3 for the F8000), 4 fans and
+3 temperature sensors.
+
+These chips also have fan controlling features, using either DC or PWM, in
+three different modes (one manual, two automatic).
+
+The driver assumes that no more than one chip is present, which seems
+reasonable.
+
+
+Monitoring
+----------
+
+The Voltage, Fan and Temperature Monitoring uses the standard sysfs
+interface as documented in sysfs-interface, without any exceptions.
+
+
+Fan Control
+-----------
+
+Both PWM (pulse-width modulation) and DC fan speed control methods are
+supported. The right one to use depends on external circuitry on the
+motherboard, so the driver assumes that the BIOS set the method
+properly.
+
+There are 2 modes to specify the speed of the fan, PWM duty cycle (or DC
+voltage) mode, where 0-100% duty cycle (0-100% of 12V) is specified. And RPM
+mode where the actual RPM of the fan (as measured) is controlled and the speed
+gets specified as 0-100% of the fan#_full_speed file.
+
+Since both modes work in a 0-100% (mapped to 0-255) scale, there isn't a
+whole lot of a difference when modifying fan control settings. The only
+important difference is that in RPM mode the 0-100% controls the fan speed
+between 0-100% of fan#_full_speed. It is assumed that if the BIOS programs
+RPM mode, it will also set fan#_full_speed properly, if it does not then
+fan control will not work properly, unless you set a sane fan#_full_speed
+value yourself.
+
+Switching between these modes requires re-initializing a whole bunch of
+registers, so the mode which the BIOS has set is kept. The mode is
+printed when loading the driver.
+
+Three different fan control modes are supported; the mode number is written
+to the pwm#_enable file. Note that not all modes are supported on all
+chips, and some modes may only be available in RPM / PWM mode on the F8000.
+Writing an unsupported mode will result in an invalid parameter error.
+
+* 1: Manual mode
+  You ask for a specific PWM duty cycle / DC voltage or a specific % of
+  fan#_full_speed by writing to the pwm# file. This mode is only
+  available on the F8000 if the fan channel is in RPM mode.
+
+* 2: Normal auto mode
+  You can define a number of temperature/fan speed trip points, which % the
+  fan should run at at this temp and which temp a fan should follow using the
+  standard sysfs interface. The number and type of trip points is chip
+  depended, see which files are available in sysfs.
+  Fan/PWM channel 3 of the F8000 is always in this mode!
+
+* 3: Thermostat mode (Only available on the F8000 when in duty cycle mode)
+  The fan speed is regulated to keep the temp the fan is mapped to between
+  temp#_auto_point2_temp and temp#_auto_point3_temp.
+
+Both of the automatic modes require that pwm1 corresponds to fan1, pwm2 to
+fan2 and pwm3 to fan3.

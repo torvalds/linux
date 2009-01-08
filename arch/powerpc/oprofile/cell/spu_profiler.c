@@ -49,7 +49,7 @@ void set_spu_profiling_frequency(unsigned int freq_khz, unsigned int cycles_rese
 	 * of precision.  This is close enough for the purpose at hand.
 	 *
 	 * The value of the timeout should be small enough that the hw
-	 * trace buffer will not get more then about 1/3 full for the
+	 * trace buffer will not get more than about 1/3 full for the
 	 * maximum user specified (the LFSR value) hw sampling frequency.
 	 * This is to ensure the trace buffer will never fill even if the
 	 * kernel thread scheduling varies under a heavy system load.

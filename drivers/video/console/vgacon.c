@@ -1332,7 +1332,7 @@ static void vgacon_save_screen(struct vc_data *c)
 		c->vc_y = screen_info.orig_y;
 	}
 
-	/* We can't copy in more then the size of the video buffer,
+	/* We can't copy in more than the size of the video buffer,
 	 * or we'll be copying in VGA BIOS */
 
 	if (!vga_is_gfx)

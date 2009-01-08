@@ -10,6 +10,10 @@ extern int pci_uevent(struct device *dev, struct kobj_uevent_env *env);
 extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_cleanup_rom(struct pci_dev *dev);
+#ifdef HAVE_PCI_MMAP
+extern int pci_mmap_fits(struct pci_dev *pdev, int resno,
+			 struct vm_area_struct *vma);
+#endif
 
 /**
  * Firmware PM callbacks
@@ -40,7 +44,11 @@ struct pci_platform_pm_ops {
 };
 
 extern int pci_set_platform_pm(struct pci_platform_pm_ops *ops);
+extern void pci_update_current_state(struct pci_dev *dev, pci_power_t state);
+extern void pci_disable_enabled_device(struct pci_dev *dev);
 extern void pci_pm_init(struct pci_dev *dev);
+extern void platform_pci_wakeup_init(struct pci_dev *dev);
+extern void pci_allocate_cap_save_buffers(struct pci_dev *dev);
 
 extern int pci_user_read_config_byte(struct pci_dev *dev, int where, u8 *val);
 extern int pci_user_read_config_word(struct pci_dev *dev, int where, u16 *val);
@@ -50,14 +58,14 @@ extern int pci_user_write_config_word(struct pci_dev *dev, int where, u16 val);
 extern int pci_user_write_config_dword(struct pci_dev *dev, int where, u32 val);
 
 struct pci_vpd_ops {
-	int (*read)(struct pci_dev *dev, int pos, int size, char *buf);
-	int (*write)(struct pci_dev *dev, int pos, int size, const char *buf);
+	ssize_t (*read)(struct pci_dev *dev, loff_t pos, size_t count, void *buf);
+	ssize_t (*write)(struct pci_dev *dev, loff_t pos, size_t count, const void *buf);
 	void (*release)(struct pci_dev *dev);
 };
 
 struct pci_vpd {
 	unsigned int len;
-	struct pci_vpd_ops *ops;
+	const struct pci_vpd_ops *ops;
 	struct bin_attribute *attr; /* descriptor for sysfs VPD entry */
 };
 
@@ -98,11 +106,9 @@ extern unsigned int pci_pm_d3_delay;
 #ifdef CONFIG_PCI_MSI
 void pci_no_msi(void);
 extern void pci_msi_init_pci_dev(struct pci_dev *dev);
-extern void __devinit msi_init(void);
 #else
 static inline void pci_no_msi(void) { }
 static inline void pci_msi_init_pci_dev(struct pci_dev *dev) { }
-static inline void msi_init(void) { }
 #endif
 
 #ifdef CONFIG_PCIEAER
@@ -159,16 +165,28 @@ struct pci_slot_attribute {
 };
 #define to_pci_slot_attr(s) container_of(s, struct pci_slot_attribute, attr)
 
+enum pci_bar_type {
+	pci_bar_unknown,	/* Standard PCI BAR probe */
+	pci_bar_io,		/* An io port BAR */
+	pci_bar_mem32,		/* A 32-bit memory BAR */
+	pci_bar_mem64,		/* A 64-bit memory BAR */
+};
+
+extern int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
+				struct resource *res, unsigned int reg);
+extern int pci_resource_bar(struct pci_dev *dev, int resno,
+			    enum pci_bar_type *type);
+extern int pci_bus_add_child(struct pci_bus *bus);
 extern void pci_enable_ari(struct pci_dev *dev);
 /**
  * pci_ari_enabled - query ARI forwarding status
- * @dev: the PCI device
+ * @bus: the PCI bus
  *
  * Returns 1 if ARI forwarding is enabled, or 0 if not enabled;
  */
-static inline int pci_ari_enabled(struct pci_dev *dev)
+static inline int pci_ari_enabled(struct pci_bus *bus)
 {
-	return dev->ari_enabled;
+	return bus->self && bus->self->ari_enabled;
 }
 
 #endif /* DRIVERS_PCI_H */

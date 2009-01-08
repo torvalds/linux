@@ -423,27 +423,37 @@ config SYSFS_DEPRECATED
 	bool
 
 config SYSFS_DEPRECATED_V2
-	bool "Create deprecated sysfs files"
+	bool "Create deprecated sysfs layout for older userspace tools"
 	depends on SYSFS
 	default y
 	select SYSFS_DEPRECATED
 	help
-	  This option creates deprecated symlinks such as the
-	  "device"-link, the <subsystem>:<name>-link, and the
-	  "bus"-link. It may also add deprecated key in the
-	  uevent environment.
-	  None of these features or values should be used today, as
-	  they export driver core implementation details to userspace
-	  or export properties which can't be kept stable across kernel
-	  releases.
+	  This option switches the layout of sysfs to the deprecated
+	  version.
 
-	  If enabled, this option will also move any device structures
-	  that belong to a class, back into the /sys/class hierarchy, in
-	  order to support older versions of udev and some userspace
-	  programs.
+	  The current sysfs layout features a unified device tree at
+	  /sys/devices/, which is able to express a hierarchy between
+	  class devices. If the deprecated option is set to Y, the
+	  unified device tree is split into a bus device tree at
+	  /sys/devices/ and several individual class device trees at
+	  /sys/class/. The class and bus devices will be connected by
+	  "<subsystem>:<name>" and the "device" links. The "block"
+	  class devices, will not show up in /sys/class/block/. Some
+	  subsystems will suppress the creation of some devices which
+	  depend on the unified device tree.
 
-	  If you are using a distro with the most recent userspace
-	  packages, it should be safe to say N here.
+	  This option is not a pure compatibility option that can
+	  be safely enabled on newer distributions. It will change the
+	  layout of sysfs to the non-extensible deprecated version,
+	  and disable some features, which can not be exported without
+	  confusing older userspace tools. Since 2007/2008 all major
+	  distributions do not enable this option, and ship no tools which
+	  depend on the deprecated layout or this option.
+
+	  If you are using a new kernel on an older distribution, or use
+	  older userspace tools, you might need to say Y here. Do not say Y,
+	  if the original kernel, that came with your distribution, has
+	  this option set to N.
 
 config PROC_PID_CPUSET
 	bool "Include legacy /proc/<pid>/cpuset file"
@@ -837,10 +847,6 @@ config SLABINFO
 config RT_MUTEXES
 	boolean
 	select PLIST
-
-config TINY_SHMEM
-	default !SHMEM
-	bool
 
 config BASE_SMALL
 	int

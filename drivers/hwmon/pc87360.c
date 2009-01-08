@@ -43,6 +43,7 @@
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 static u8 devid;
@@ -1627,6 +1628,11 @@ static int __init pc87360_device_add(unsigned short address)
 			continue;
 		res.start = extra_isa[i];
 		res.end = extra_isa[i] + PC87360_EXTENT - 1;
+
+		err = acpi_check_resource_conflict(&res);
+		if (err)
+			goto exit_device_put;
+
 		err = platform_device_add_resources(pdev, &res, 1);
 		if (err) {
 			printk(KERN_ERR "pc87360: Device resource[%d] "

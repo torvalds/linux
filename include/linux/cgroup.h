@@ -329,13 +329,7 @@ struct cgroup_subsys {
 			struct cgroup *cgrp);
 	void (*post_clone)(struct cgroup_subsys *ss, struct cgroup *cgrp);
 	void (*bind)(struct cgroup_subsys *ss, struct cgroup *root);
-	/*
-	 * This routine is called with the task_lock of mm->owner held
-	 */
-	void (*mm_owner_changed)(struct cgroup_subsys *ss,
-					struct cgroup *old,
-					struct cgroup *new,
-					struct task_struct *p);
+
 	int subsys_id;
 	int active;
 	int disabled;
@@ -400,9 +394,6 @@ void cgroup_iter_end(struct cgroup *cgrp, struct cgroup_iter *it);
 int cgroup_scan_tasks(struct cgroup_scanner *scan);
 int cgroup_attach_task(struct cgroup *, struct task_struct *);
 
-void cgroup_mm_owner_callbacks(struct task_struct *old,
-			       struct task_struct *new);
-
 #else /* !CONFIG_CGROUPS */
 
 static inline int cgroup_init_early(void) { return 0; }
@@ -419,9 +410,6 @@ static inline int cgroupstats_build(struct cgroupstats *stats,
 {
 	return -EINVAL;
 }
-
-static inline void cgroup_mm_owner_callbacks(struct task_struct *old,
-					     struct task_struct *new) {}
 
 #endif /* !CONFIG_CGROUPS */
 

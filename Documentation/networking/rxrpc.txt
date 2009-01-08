@@ -540,7 +540,7 @@ A client would issue an operation by:
      MSG_MORE should be set in msghdr::msg_flags on all but the last part of
      the request.  Multiple requests may be made simultaneously.
 
-     If a call is intended to go to a destination other then the default
+     If a call is intended to go to a destination other than the default
      specified through connect(), then msghdr::msg_name should be set on the
      first request message of that call.
 

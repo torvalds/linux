@@ -149,8 +149,8 @@ struct oslec_state {
 	int Lbgn, Lbgn_acc, Lbgn_upper, Lbgn_upper_acc;
 
 	/* foreground and background filter states */
-	fir16_state_t fir_state;
-	fir16_state_t fir_state_bg;
+	struct fir16_state_t fir_state;
+	struct fir16_state_t fir_state_bg;
 	int16_t *fir_taps16[2];
 
 	/* DC blocking filter states */

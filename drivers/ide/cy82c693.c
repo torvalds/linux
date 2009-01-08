@@ -203,7 +203,7 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 
 static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	pio_clocks_t pclk;
 	unsigned int addrCtrl;

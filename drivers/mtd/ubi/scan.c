@@ -478,7 +478,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 			return 0;
 		} else {
 			/*
-			 * This logical eraseblock is older then the one found
+			 * This logical eraseblock is older than the one found
 			 * previously.
 			 */
 			if (cmp_res & 4)

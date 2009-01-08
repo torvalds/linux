@@ -24,6 +24,14 @@ static inline void wrusp(unsigned long usp)
 	__asm__ __volatile__("usp = %0;\n\t"::"da"(usp));
 }
 
+static inline unsigned long __get_SP(void)
+{
+	unsigned long sp;
+
+	__asm__ __volatile__("%0 = sp;\n\t" : "=da"(sp));
+	return sp;
+}
+
 /*
  * User space process size: 1st byte beyond user address space.
  * Fairly meaningless on nommu.  Parts of user programs can be scattered
@@ -57,6 +65,7 @@ struct thread_struct {
  * pass the data segment into user programs if it exists,
  * it can't hurt anything as far as I can tell
  */
+#ifndef CONFIG_SMP
 #define start_thread(_regs, _pc, _usp)					\
 do {									\
 	set_fs(USER_DS);						\
@@ -70,6 +79,16 @@ do {									\
 		sizeof(*L1_SCRATCH_TASK_INFO));				\
 	wrusp(_usp);							\
 } while(0)
+#else
+#define start_thread(_regs, _pc, _usp)					\
+do {									\
+	set_fs(USER_DS);						\
+	(_regs)->pc = (_pc);						\
+	if (current->mm)						\
+		(_regs)->p5 = current->mm->start_data;			\
+	wrusp(_usp);							\
+} while (0)
+#endif
 
 /* Forward declaration, a strange C thing */
 struct task_struct;
@@ -106,7 +125,8 @@ unsigned long get_wchan(struct task_struct *p);
 	eip; })
 #define	KSTK_ESP(tsk)	((tsk) == current ? rdusp() : (tsk)->thread.usp)
 
-#define cpu_relax()    	barrier()
+#define cpu_relax()    	smp_mb()
+
 
 /* Get the Silicon Revision of the chip */
 static inline uint32_t __pure bfin_revid(void)
@@ -137,7 +157,11 @@ static inline uint32_t __pure bfin_revid(void)
 static inline uint16_t __pure bfin_cpuid(void)
 {
 	return (bfin_read_CHIPID() & CHIPID_FAMILY) >> 12;
+}
 
+static inline uint32_t __pure bfin_dspid(void)
+{
+	return bfin_read_DSPID();
 }
 
 static inline uint32_t __pure bfin_compiled_revid(void)
@@ -154,6 +178,8 @@ static inline uint32_t __pure bfin_compiled_revid(void)
 	return 4;
 #elif defined(CONFIG_BF_REV_0_5)
 	return 5;
+#elif defined(CONFIG_BF_REV_0_6)
+	return 6;
 #elif defined(CONFIG_BF_REV_ANY)
 	return 0xffff;
 #else

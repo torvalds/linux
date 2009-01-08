@@ -20,8 +20,6 @@
 #include <linux/mii.h>
 #include <linux/ip.h>
 
-#include <asm/s390_rdev.h>
-
 #include "qeth_core.h"
 #include "qeth_core_offl.h"
 

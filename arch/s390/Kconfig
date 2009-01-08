@@ -299,7 +299,7 @@ config WARN_STACK
 	  This option enables the compiler options -mwarn-framesize and
 	  -mwarn-dynamicstack. If the compiler supports these options it
 	  will generate warnings for function which either use alloca or
-	  create a stack frame bigger then CONFIG_WARN_STACK_SIZE.
+	  create a stack frame bigger than CONFIG_WARN_STACK_SIZE.
 
 	  Say N if you are unsure.
 

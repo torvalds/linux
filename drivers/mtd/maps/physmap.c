@@ -108,13 +108,13 @@ static int physmap_flash_probe(struct platform_device *dev)
 		if (!devm_request_mem_region(&dev->dev,
 			dev->resource[i].start,
 			dev->resource[i].end - dev->resource[i].start + 1,
-			dev->dev.bus_id)) {
+			dev_name(&dev->dev))) {
 			dev_err(&dev->dev, "Could not reserve memory region\n");
 			err = -ENOMEM;
 			goto err_out;
 		}
 
-		info->map[i].name = dev->dev.bus_id;
+		info->map[i].name = dev_name(&dev->dev);
 		info->map[i].phys = dev->resource[i].start;
 		info->map[i].size = dev->resource[i].end - dev->resource[i].start + 1;
 		info->map[i].bankwidth = physmap_data->width;
@@ -150,7 +150,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 		 * We detected multiple devices. Concatenate them together.
 		 */
 #ifdef CONFIG_MTD_CONCAT
-		info->cmtd = mtd_concat_create(info->mtd, devices_found, dev->dev.bus_id);
+		info->cmtd = mtd_concat_create(info->mtd, devices_found, dev_name(&dev->dev));
 		if (info->cmtd == NULL)
 			err = -ENXIO;
 #else

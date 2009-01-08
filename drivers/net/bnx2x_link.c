@@ -3359,7 +3359,7 @@ static u8 bnx2x_format_ver(u32 num, u8 *str, u16 len)
 	u8 shift = 8*4;
 	u8 digit;
 	if (len < 10) {
-		/* Need more then 10chars for this format */
+		/* Need more than 10chars for this format */
 		*str_ptr = '\0';
 		return -EINVAL;
 	}

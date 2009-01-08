@@ -440,13 +440,16 @@ void svc_reserve(struct svc_rqst *rqstp, int space)
 		svc_xprt_enqueue(xprt);
 	}
 }
-EXPORT_SYMBOL(svc_reserve);
+EXPORT_SYMBOL_GPL(svc_reserve);
 
 static void svc_xprt_release(struct svc_rqst *rqstp)
 {
 	struct svc_xprt	*xprt = rqstp->rq_xprt;
 
 	rqstp->rq_xprt->xpt_ops->xpo_release_rqst(rqstp);
+
+	kfree(rqstp->rq_deferred);
+	rqstp->rq_deferred = NULL;
 
 	svc_free_res_pages(rqstp);
 	rqstp->rq_res.page_len = 0;
@@ -498,7 +501,7 @@ void svc_wake_up(struct svc_serv *serv)
 		spin_unlock_bh(&pool->sp_lock);
 	}
 }
-EXPORT_SYMBOL(svc_wake_up);
+EXPORT_SYMBOL_GPL(svc_wake_up);
 
 int svc_port_is_privileged(struct sockaddr *sin)
 {
@@ -515,8 +518,10 @@ int svc_port_is_privileged(struct sockaddr *sin)
 }
 
 /*
- * Make sure that we don't have too many active connections.  If we
- * have, something must be dropped.
+ * Make sure that we don't have too many active connections. If we have,
+ * something must be dropped. It's not clear what will happen if we allow
+ * "too many" connections, but when dealing with network-facing software,
+ * we have to code defensively. Here we do that by imposing hard limits.
  *
  * There's no point in trying to do random drop here for DoS
  * prevention. The NFS clients does 1 reconnect in 15 seconds. An
@@ -525,19 +530,27 @@ int svc_port_is_privileged(struct sockaddr *sin)
  * The only somewhat efficient mechanism would be if drop old
  * connections from the same IP first. But right now we don't even
  * record the client IP in svc_sock.
+ *
+ * single-threaded services that expect a lot of clients will probably
+ * need to set sv_maxconn to override the default value which is based
+ * on the number of threads
  */
 static void svc_check_conn_limits(struct svc_serv *serv)
 {
-	if (serv->sv_tmpcnt > (serv->sv_nrthreads+3)*20) {
+	unsigned int limit = serv->sv_maxconn ? serv->sv_maxconn :
+				(serv->sv_nrthreads+3) * 20;
+
+	if (serv->sv_tmpcnt > limit) {
 		struct svc_xprt *xprt = NULL;
 		spin_lock_bh(&serv->sv_lock);
 		if (!list_empty(&serv->sv_tempsocks)) {
 			if (net_ratelimit()) {
 				/* Try to help the admin */
 				printk(KERN_NOTICE "%s: too many open  "
-				       "connections, consider increasing the "
-				       "number of nfsd threads\n",
-				       serv->sv_name);
+				       "connections, consider increasing %s\n",
+				       serv->sv_name, serv->sv_maxconn ?
+				       "the max number of connections." :
+				       "the number of threads.");
 			}
 			/*
 			 * Always select the oldest connection. It's not fair,
@@ -730,7 +743,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		serv->sv_stats->netcnt++;
 	return len;
 }
-EXPORT_SYMBOL(svc_recv);
+EXPORT_SYMBOL_GPL(svc_recv);
 
 /*
  * Drop request
@@ -740,7 +753,7 @@ void svc_drop(struct svc_rqst *rqstp)
 	dprintk("svc: xprt %p dropped request\n", rqstp->rq_xprt);
 	svc_xprt_release(rqstp);
 }
-EXPORT_SYMBOL(svc_drop);
+EXPORT_SYMBOL_GPL(svc_drop);
 
 /*
  * Return reply to client.
@@ -837,6 +850,11 @@ static void svc_age_temp_xprts(unsigned long closure)
 void svc_delete_xprt(struct svc_xprt *xprt)
 {
 	struct svc_serv	*serv = xprt->xpt_server;
+	struct svc_deferred_req *dr;
+
+	/* Only do this once */
+	if (test_and_set_bit(XPT_DEAD, &xprt->xpt_flags))
+		return;
 
 	dprintk("svc: svc_delete_xprt(%p)\n", xprt);
 	xprt->xpt_ops->xpo_detach(xprt);
@@ -851,12 +869,16 @@ void svc_delete_xprt(struct svc_xprt *xprt)
 	 * while still attached to a queue, the queue itself
 	 * is about to be destroyed (in svc_destroy).
 	 */
-	if (!test_and_set_bit(XPT_DEAD, &xprt->xpt_flags)) {
-		BUG_ON(atomic_read(&xprt->xpt_ref.refcount) < 2);
-		if (test_bit(XPT_TEMP, &xprt->xpt_flags))
-			serv->sv_tmpcnt--;
+	if (test_bit(XPT_TEMP, &xprt->xpt_flags))
+		serv->sv_tmpcnt--;
+
+	for (dr = svc_deferred_dequeue(xprt); dr;
+	     dr = svc_deferred_dequeue(xprt)) {
 		svc_xprt_put(xprt);
+		kfree(dr);
 	}
+
+	svc_xprt_put(xprt);
 	spin_unlock_bh(&serv->sv_lock);
 }
 
@@ -902,17 +924,19 @@ static void svc_revisit(struct cache_deferred_req *dreq, int too_many)
 		container_of(dreq, struct svc_deferred_req, handle);
 	struct svc_xprt *xprt = dr->xprt;
 
-	if (too_many) {
+	spin_lock(&xprt->xpt_lock);
+	set_bit(XPT_DEFERRED, &xprt->xpt_flags);
+	if (too_many || test_bit(XPT_DEAD, &xprt->xpt_flags)) {
+		spin_unlock(&xprt->xpt_lock);
+		dprintk("revisit canceled\n");
 		svc_xprt_put(xprt);
 		kfree(dr);
 		return;
 	}
 	dprintk("revisit queued\n");
 	dr->xprt = NULL;
-	spin_lock(&xprt->xpt_lock);
 	list_add(&dr->handle.recent, &xprt->xpt_deferred);
 	spin_unlock(&xprt->xpt_lock);
-	set_bit(XPT_DEFERRED, &xprt->xpt_flags);
 	svc_xprt_enqueue(xprt);
 	svc_xprt_put(xprt);
 }
