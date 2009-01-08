@@ -91,6 +91,26 @@ void led_classdev_resume(struct led_classdev *led_cdev)
 }
 EXPORT_SYMBOL_GPL(led_classdev_resume);
 
+static int led_suspend(struct device *dev, pm_message_t state)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+
+	if (led_cdev->flags & LED_CORE_SUSPENDRESUME)
+		led_classdev_suspend(led_cdev);
+
+	return 0;
+}
+
+static int led_resume(struct device *dev)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+
+	if (led_cdev->flags & LED_CORE_SUSPENDRESUME)
+		led_classdev_resume(led_cdev);
+
+	return 0;
+}
+
 /**
  * led_classdev_register - register a new object of led_classdev class.
  * @parent: The device to register.
@@ -174,6 +194,8 @@ static int __init leds_init(void)
 	leds_class = class_create(THIS_MODULE, "leds");
 	if (IS_ERR(leds_class))
 		return PTR_ERR(leds_class);
+	leds_class->suspend = led_suspend;
+	leds_class->resume = led_resume;
 	return 0;
 }
 

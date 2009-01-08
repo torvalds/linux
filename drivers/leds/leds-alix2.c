@@ -65,39 +65,13 @@ static struct alix_led alix_leds[] = {
 	},
 };
 
-#ifdef CONFIG_PM
-
-static int alix_led_suspend(struct platform_device *dev, pm_message_t state)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(alix_leds); i++)
-		led_classdev_suspend(&alix_leds[i].cdev);
-	return 0;
-}
-
-static int alix_led_resume(struct platform_device *dev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(alix_leds); i++)
-		led_classdev_resume(&alix_leds[i].cdev);
-	return 0;
-}
-
-#else
-
-#define alix_led_suspend NULL
-#define alix_led_resume NULL
-
-#endif
-
 static int __init alix_led_probe(struct platform_device *pdev)
 {
 	int i;
 	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(alix_leds); i++) {
+		alix_leds[i].cdev.flags |= LED_CORE_SUSPENDRESUME;
 		ret = led_classdev_register(&pdev->dev, &alix_leds[i].cdev);
 		if (ret < 0)
 			goto fail;
@@ -121,8 +95,6 @@ static int alix_led_remove(struct platform_device *pdev)
 
 static struct platform_driver alix_led_driver = {
 	.remove = alix_led_remove,
-	.suspend = alix_led_suspend,
-	.resume = alix_led_resume,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.owner = THIS_MODULE,

@@ -32,7 +32,10 @@ struct led_classdev {
 	int			 brightness;
 	int			 flags;
 
+	/* Lower 16 bits reflect status */
 #define LED_SUSPENDED		(1 << 0)
+	/* Upper 16 bits reflect control information */
+#define LED_CORE_SUSPENDRESUME	(1 << 16)
 
 	/* Set LED brightness level */
 	/* Must not sleep, use a workqueue if needed */

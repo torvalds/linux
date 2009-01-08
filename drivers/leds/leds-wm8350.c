@@ -184,27 +184,6 @@ static void wm8350_led_set(struct led_classdev *led_cdev,
 	spin_unlock_irqrestore(&led->value_lock, flags);
 }
 
-#ifdef CONFIG_PM
-static int wm8350_led_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	struct wm8350_led *led = platform_get_drvdata(pdev);
-
-	led_classdev_suspend(&led->cdev);
-	return 0;
-}
-
-static int wm8350_led_resume(struct platform_device *pdev)
-{
-	struct wm8350_led *led = platform_get_drvdata(pdev);
-
-	led_classdev_resume(&led->cdev);
-	return 0;
-}
-#else
-#define wm8350_led_suspend NULL
-#define wm8350_led_resume NULL
-#endif
-
 static void wm8350_led_shutdown(struct platform_device *pdev)
 {
 	struct wm8350_led *led = platform_get_drvdata(pdev);
@@ -255,6 +234,7 @@ static int wm8350_led_probe(struct platform_device *pdev)
 	led->cdev.brightness_set = wm8350_led_set;
 	led->cdev.default_trigger = pdata->default_trigger;
 	led->cdev.name = pdata->name;
+	led->cdev.flags |= LED_CORE_SUSPENDRESUME;
 	led->enabled = regulator_is_enabled(isink);
 	led->isink = isink;
 	led->dcdc = dcdc;
@@ -311,8 +291,6 @@ static struct platform_driver wm8350_led_driver = {
 	.probe = wm8350_led_probe,
 	.remove = wm8350_led_remove,
 	.shutdown = wm8350_led_shutdown,
-	.suspend = wm8350_led_suspend,
-	.resume = wm8350_led_resume,
 };
 
 static int __devinit wm8350_led_init(void)
