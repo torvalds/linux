@@ -109,22 +109,19 @@ static void ps3vram_notifier_reset(struct mtd_info *mtd)
 		notify[i] = 0xffffffff;
 }
 
-static int ps3vram_notifier_wait(struct mtd_info *mtd, int timeout_ms)
+static int ps3vram_notifier_wait(struct mtd_info *mtd, unsigned int timeout_ms)
 {
 	struct ps3vram_priv *priv = mtd->priv;
 	u32 *notify = ps3vram_get_notifier(priv->reports, NOTIFIER);
-
-	timeout_ms *= 1000;
+	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms);
 
 	do {
-		if (notify[3] == 0)
+		if (!notify[3])
 			return 0;
+		msleep(1);
+	} while (time_before(jiffies, timeout));
 
-		if (timeout_ms)
-			udelay(1);
-	} while (timeout_ms--);
-
-	return -1;
+	return -ETIMEDOUT;
 }
 
 static void ps3vram_init_ring(struct mtd_info *mtd)
@@ -135,25 +132,22 @@ static void ps3vram_init_ring(struct mtd_info *mtd)
 	priv->ctrl[CTRL_GET] = FIFO_BASE + FIFO_OFFSET;
 }
 
-static int ps3vram_wait_ring(struct mtd_info *mtd, int timeout)
+static int ps3vram_wait_ring(struct mtd_info *mtd, unsigned int timeout_ms)
 {
 	struct ps3vram_priv *priv = mtd->priv;
+	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms);
 
-	/* wait until setup commands are processed */
-	timeout *= 1000;
-	while (--timeout) {
+	do {
 		if (priv->ctrl[CTRL_PUT] == priv->ctrl[CTRL_GET])
-			break;
-		udelay(1);
-	}
-	if (timeout == 0) {
-		dev_dbg(priv->dev, "%s:%d: FIFO timeout (%08x/%08x/%08x)\n",
-			__func__, __LINE__, priv->ctrl[CTRL_PUT],
-			priv->ctrl[CTRL_GET], priv->ctrl[CTRL_TOP]);
-		return -ETIMEDOUT;
-	}
+			return 0;
+		msleep(1);
+	} while (time_before(jiffies, timeout));
 
-	return 0;
+	dev_dbg(priv->dev, "%s:%d: FIFO timeout (%08x/%08x/%08x)\n", __func__,
+		__LINE__, priv->ctrl[CTRL_PUT], priv->ctrl[CTRL_GET],
+		priv->ctrl[CTRL_TOP]);
+
+	return -ETIMEDOUT;
 }
 
 static void ps3vram_out_ring(struct ps3vram_priv *priv, u32 data)
