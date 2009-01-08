@@ -97,9 +97,6 @@ extern void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem,
 							int priority);
 extern void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem,
 							int priority);
-
-extern long mem_cgroup_calc_reclaim(struct mem_cgroup *mem, struct zone *zone,
-					int priority, enum lru_list lru);
 int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg,
 				    struct zone *zone);
 unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
@@ -242,13 +239,6 @@ static inline void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem,
 static inline void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem,
 						int priority)
 {
-}
-
-static inline long mem_cgroup_calc_reclaim(struct mem_cgroup *mem,
-					struct zone *zone, int priority,
-					enum lru_list lru)
-{
-	return 0;
 }
 
 static inline bool mem_cgroup_disabled(void)
