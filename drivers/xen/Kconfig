@@ -17,3 +17,27 @@ config XEN_SCRUB_PAGES
 	  is not accidentally visible to other domains.  Is it more
 	  secure, but slightly less efficient.
 	  If in doubt, say yes.
+
+config XENFS
+	tristate "Xen filesystem"
+	depends on XEN
+	default y
+	help
+	  The xen filesystem provides a way for domains to share
+	  information with each other and with the hypervisor.
+	  For example, by reading and writing the "xenbus" file, guests
+	  may pass arbitrary information to the initial domain.
+	  If in doubt, say yes.
+
+config XEN_COMPAT_XENFS
+       bool "Create compatibility mount point /proc/xen"
+       depends on XENFS
+       default y
+       help
+         The old xenstore userspace tools expect to find "xenbus"
+         under /proc/xen, but "xenbus" is now found at the root of the
+         xenfs filesystem.  Selecting this causes the kernel to create
+         the compatibilty mount point /proc/xen if it is running on
+         a xen platform.
+         If in doubt, say yes.
+
