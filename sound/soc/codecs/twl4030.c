@@ -1280,6 +1280,8 @@ static int twl4030_remove(struct platform_device *pdev)
 	struct snd_soc_codec *codec = socdev->codec;
 
 	printk(KERN_INFO "TWL4030 Audio Codec remove\n");
+	snd_soc_free_pcms(socdev);
+	snd_soc_dapm_free(socdev);
 	kfree(codec);
 
 	return 0;
