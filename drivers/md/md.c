@@ -221,12 +221,6 @@ static void mddev_put(mddev_t *mddev)
 	if (!mddev->raid_disks && list_empty(&mddev->disks)) {
 		list_del(&mddev->all_mddevs);
 		spin_unlock(&all_mddevs_lock);
-		if (mddev->queue)
-			blk_cleanup_queue(mddev->queue);
-		mddev->queue = NULL;
-		if (mddev->sysfs_state)
-			sysfs_put(mddev->sysfs_state);
-		mddev->sysfs_state = NULL;
 		kobject_put(&mddev->kobj);
 	} else
 		spin_unlock(&all_mddevs_lock);
@@ -3451,6 +3445,17 @@ md_attr_store(struct kobject *kobj, struct attribute *attr,
 static void md_free(struct kobject *ko)
 {
 	mddev_t *mddev = container_of(ko, mddev_t, kobj);
+
+	if (mddev->sysfs_state)
+		sysfs_put(mddev->sysfs_state);
+
+	if (mddev->gendisk) {
+		del_gendisk(mddev->gendisk);
+		put_disk(mddev->gendisk);
+	}
+	if (mddev->queue)
+		blk_cleanup_queue(mddev->queue);
+
 	kfree(mddev);
 }
 
@@ -6435,9 +6440,6 @@ static __exit void md_exit(void)
 		if (!disk)
 			continue;
 		export_array(mddev);
-		del_gendisk(disk);
-		put_disk(disk);
-		mddev->gendisk = NULL;
 		mddev_put(mddev);
 	}
 }
