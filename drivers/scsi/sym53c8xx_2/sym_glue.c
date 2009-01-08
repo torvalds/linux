@@ -1238,12 +1238,13 @@ static int sym53c8xx_proc_info(struct Scsi_Host *shost, char *buffer,
 /*
  *	Free controller resources.
  */
-static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev)
+static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev,
+		int do_free_irq)
 {
 	/*
 	 *  Free O/S specific resources.
 	 */
-	if (pdev->irq)
+	if (do_free_irq)
 		free_irq(pdev->irq, np->s.host);
 	if (np->s.ioaddr)
 		pci_iounmap(pdev, np->s.ioaddr);
@@ -1275,6 +1276,7 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	struct pci_dev *pdev = dev->pdev;
 	unsigned long flags;
 	struct sym_fw *fw;
+	int do_free_irq = 0;
 
 	printk(KERN_INFO "sym%d: <%s> rev 0x%x at pci %s irq %u\n",
 		unit, dev->chip.name, pdev->revision, pci_name(pdev),
@@ -1364,6 +1366,7 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 			sym_name(np), pdev->irq);
 		goto attach_failed;
 	}
+	do_free_irq = 1;
 
 	/*
 	 *  After SCSI devices have been opened, we cannot
@@ -1420,7 +1423,7 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 		return NULL;
 	printf_info("sym%d: giving up ...\n", unit);
 	if (np)
-		sym_free_resources(np, pdev);
+		sym_free_resources(np, pdev, do_free_irq);
 	scsi_host_put(shost);
 
 	return NULL;
@@ -1659,7 +1662,7 @@ static int sym_detach(struct Scsi_Host *shost, struct pci_dev *pdev)
 	udelay(10);
 	OUTB(np, nc_istat, 0);
 
-	sym_free_resources(np, pdev);
+	sym_free_resources(np, pdev, 1);
 	scsi_host_put(shost);
 
 	return 1;
