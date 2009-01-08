@@ -56,6 +56,7 @@ struct w1_netlink_msg
 #define W1_CMD_WRITE		0x1
 #define W1_CMD_SEARCH		0x2
 #define W1_CMD_ALARM_SEARCH	0x3
+#define W1_CMD_TOUCH		0x4
 
 struct w1_netlink_cmd
 {

@@ -108,6 +108,10 @@ static int w1_process_command_slave(struct w1_slave *sl, struct cn_msg *msg,
 		cmd->cmd, cmd->len);
 
 	switch (cmd->cmd) {
+		case W1_CMD_TOUCH:
+			w1_touch_block(sl->master, cmd->data, cmd->len);
+			w1_send_read_reply(sl, msg, hdr, cmd);
+			break;
 		case W1_CMD_READ:
 			w1_read_block(sl->master, cmd->data, cmd->len);
 			w1_send_read_reply(sl, msg, hdr, cmd);
@@ -208,9 +212,6 @@ static void w1_cn_callback(void *data)
 			break;
 		}
 
-		if (!mlen)
-			goto out_cont;
-
 		if (m->type == W1_MASTER_CMD) {
 			dev = w1_search_master_id(m->id.mst.id);
 		} else if (m->type == W1_SLAVE_CMD) {
@@ -226,6 +227,10 @@ static void w1_cn_callback(void *data)
 			err = -ENODEV;
 			goto out_cont;
 		}
+
+		err = 0;
+		if (!mlen)
+			goto out_cont;
 
 		mutex_lock(&dev->mutex);
 
