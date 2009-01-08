@@ -119,6 +119,20 @@ const static struct ctrl po1030_ctrls[] = {
 		},
 		.set = po1030_set_vflip,
 		.get = po1030_get_vflip
+	},
+#define AUTO_WHITE_BALANCE_IDX 6
+	{
+		{
+			.id 		= V4L2_CID_AUTO_WHITE_BALANCE,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "auto white balance",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0,
+		},
+		.set = po1030_set_auto_white_balance,
+		.get = po1030_get_auto_white_balance
 	}
 };
 
@@ -238,6 +252,14 @@ int po1030_init(struct sd *sd)
 
 	err = po1030_set_red_balance(&sd->gspca_dev,
 				      sensor_settings[BLUE_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = po1030_set_auto_white_balance(&sd->gspca_dev,
+				      sensor_settings[AUTO_WHITE_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
 	return err;
 }
 
@@ -422,6 +444,35 @@ int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, PO1030_BLUE_GAIN,
 				  &i2c_data, 1);
 
+	return err;
+}
+
+int po1030_get_auto_white_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[AUTO_WHITE_BALANCE_IDX];
+	PDEBUG(D_V4L2, "Auto white balancing is %d", *val);
+
+	return 0;
+}
+
+int po1030_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+	u8 i2c_data;
+	int err;
+
+	sensor_settings[AUTO_WHITE_BALANCE_IDX] = val;
+
+	err = m5602_read_sensor(sd, PO1030_AUTOCTRL1, &i2c_data, 1);
+	if (err < 0)
+		return err;
+
+	i2c_data = (i2c_data & 0xfe) | (val & 0x01);
+	err = m5602_write_sensor(sd, PO1030_AUTOCTRL1, &i2c_data, 1);
 	return err;
 }
 
