@@ -779,6 +779,8 @@ static int __init init_mac80211_hwsim(void)
 			BIT(NL80211_IFTYPE_MESH_POINT);
 		hw->ampdu_queues = 1;
 
+		hw->flags = IEEE80211_HW_MFP_CAPABLE;
+
 		/* ask mac80211 to reserve space for magic */
 		hw->vif_data_size = sizeof(struct hwsim_vif_priv);
 		hw->sta_data_size = sizeof(struct hwsim_sta_priv);
