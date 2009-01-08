@@ -306,19 +306,6 @@ static int annotated_branch_stat_cmp(void *p1, void *p2)
 }
 
 #ifdef CONFIG_PROFILE_ALL_BRANCHES
-enum {
-	TRACE_BRANCH_OPT_ALL = 0x1
-};
-
-static struct tracer_opt branch_opts[] = {
-	{ TRACER_OPT(stat_all_branch, TRACE_BRANCH_OPT_ALL) },
-	{ }
-};
-
-static struct tracer_flags branch_flags = {
-	.val = 0,
-	.opts = branch_opts
-};
 
 extern unsigned long __start_branch_profile[];
 extern unsigned long __stop_branch_profile[];
@@ -352,27 +339,35 @@ all_branch_stat_next(void *v, int idx)
 	return p;
 }
 
-static int branch_set_flag(u32 old_flags, u32 bit, int set)
-{
-	if (bit == TRACE_BRANCH_OPT_ALL) {
-		if (set) {
-			branch_trace.stat_headers = all_branch_stat_headers;
-			branch_trace.stat_start = all_branch_stat_start;
-			branch_trace.stat_next = all_branch_stat_next;
-			branch_trace.stat_cmp = NULL;
-		} else {
-			branch_trace.stat_headers =
-				annotated_branch_stat_headers;
-			branch_trace.stat_start = annotated_branch_stat_start;
-			branch_trace.stat_next = annotated_branch_stat_next;
-			branch_trace.stat_cmp = annotated_branch_stat_cmp;
-		}
-		init_tracer_stat(&branch_trace);
-	}
-	return 0;
-}
+static struct tracer_stat branch_stats[] = {
+	{.name = "annotated",
+	.stat_start = annotated_branch_stat_start,
+	.stat_next = annotated_branch_stat_next,
+	.stat_cmp = annotated_branch_stat_cmp,
+	.stat_headers = annotated_branch_stat_headers,
+	.stat_show = branch_stat_show},
 
+	{.name = "all",
+	.stat_start = all_branch_stat_start,
+	.stat_next = all_branch_stat_next,
+	.stat_headers = all_branch_stat_headers,
+	.stat_show = branch_stat_show},
+
+	{ }
+};
+#else
+static struct tracer_stat branch_stats[] = {
+	{.name = "annotated",
+	.stat_start = annotated_branch_stat_start,
+	.stat_next = annotated_branch_stat_next,
+	.stat_cmp = annotated_branch_stat_cmp,
+	.stat_headers = annotated_branch_stat_headers,
+	.stat_show = branch_stat_show},
+
+	{ }
+};
 #endif /* CONFIG_PROFILE_ALL_BRANCHES */
+
 
 static struct tracer branch_trace __read_mostly =
 {
@@ -383,16 +378,8 @@ static struct tracer branch_trace __read_mostly =
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest	= trace_selftest_startup_branch,
 #endif /* CONFIG_FTRACE_SELFTEST */
-#endif /* CONFIG_BRANCH_TRACER */
-	.stat_start	=	annotated_branch_stat_start,
-	.stat_next	= annotated_branch_stat_next,
-	.stat_show	= branch_stat_show,
-	.stat_headers	= annotated_branch_stat_headers,
-	.stat_cmp	= annotated_branch_stat_cmp,
-#ifdef CONFIG_PROFILE_ALL_BRANCHES
-	.flags	= &branch_flags,
-	.set_flag	= branch_set_flag,
 #endif
+	.stats		= branch_stats
 };
 
 __init static int init_branch_trace(void)

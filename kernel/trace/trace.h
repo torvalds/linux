@@ -335,6 +335,25 @@ struct tracer_flags {
 #define TRACER_OPT(s, b)	.name = #s, .bit = b
 
 /*
+ * If you want to provide a stat file (one-shot statistics), fill
+ * an iterator with stat_start/stat_next and a stat_show callbacks.
+ * The others callbacks are optional.
+ */
+struct tracer_stat {
+	/* The name of your stat file */
+	const char		*name;
+	/* Iteration over statistic entries */
+	void			*(*stat_start)(void);
+	void			*(*stat_next)(void *prev, int idx);
+	/* Compare two entries for sorting (optional) for stats */
+	int			(*stat_cmp)(void *p1, void *p2);
+	/* Print a stat entry */
+	int			(*stat_show)(struct seq_file *s, void *p);
+	/* Print the headers of your stat entries */
+	int			(*stat_headers)(struct seq_file *s);
+};
+
+/*
  * A specific tracer, represented by methods that operate on a trace array:
  */
 struct tracer {
@@ -361,21 +380,7 @@ struct tracer {
 	struct tracer		*next;
 	int			print_max;
 	struct tracer_flags 	*flags;
-
-	/*
-	 * If you change one of the following on tracing runtime, recall
-	 * init_tracer_stat()
-	 */
-
-	/* Iteration over statistic entries */
-	void			*(*stat_start)(void);
-	void			*(*stat_next)(void *prev, int idx);
-	/* Compare two entries for sorting (optional) for stats */
-	int			(*stat_cmp)(void *p1, void *p2);
-	/* Print a stat entry */
-	int			(*stat_show)(struct seq_file *s, void *p);
-	/* Print the headers of your stat entries */
-	int			(*stat_headers)(struct seq_file *s);
+	struct tracer_stat	*stats;
 };
 
 struct trace_seq {
