@@ -1311,20 +1311,19 @@ static int cpuset_can_attach(struct cgroup_subsys *ss,
 			     struct cgroup *cont, struct task_struct *tsk)
 {
 	struct cpuset *cs = cgroup_cs(cont);
+	int ret = 0;
 
 	if (cpus_empty(cs->cpus_allowed) || nodes_empty(cs->mems_allowed))
 		return -ENOSPC;
-	if (tsk->flags & PF_THREAD_BOUND) {
-		cpumask_t mask;
 
+	if (tsk->flags & PF_THREAD_BOUND) {
 		mutex_lock(&callback_mutex);
-		mask = cs->cpus_allowed;
+		if (!cpus_equal(tsk->cpus_allowed, cs->cpus_allowed))
+			ret = -EINVAL;
 		mutex_unlock(&callback_mutex);
-		if (!cpus_equal(tsk->cpus_allowed, mask))
-			return -EINVAL;
 	}
 
-	return security_task_setscheduler(tsk, 0, NULL);
+	return ret < 0 ? ret : security_task_setscheduler(tsk, 0, NULL);
 }
 
 static void cpuset_attach(struct cgroup_subsys *ss,
