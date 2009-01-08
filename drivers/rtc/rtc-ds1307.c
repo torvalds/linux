@@ -287,7 +287,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	return 0;
 }
 
-static int ds1307_read_alarm(struct device *dev, struct rtc_wkalrm *t)
+static int ds1337_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct i2c_client       *client = to_i2c_client(dev);
 	struct ds1307		*ds1307 = i2c_get_clientdata(client);
@@ -338,7 +338,7 @@ static int ds1307_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
-static int ds1307_set_alarm(struct device *dev, struct rtc_wkalrm *t)
+static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct i2c_client       *client = to_i2c_client(dev);
 	struct ds1307		*ds1307 = i2c_get_clientdata(client);
@@ -452,8 +452,8 @@ static int ds1307_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 static const struct rtc_class_ops ds13xx_rtc_ops = {
 	.read_time	= ds1307_get_time,
 	.set_time	= ds1307_set_time,
-	.read_alarm	= ds1307_read_alarm,
-	.set_alarm	= ds1307_set_alarm,
+	.read_alarm	= ds1337_read_alarm,
+	.set_alarm	= ds1337_set_alarm,
 	.ioctl		= ds1307_ioctl,
 };
 
@@ -654,22 +654,6 @@ read_rtc:
 		break;
 	}
 
-	tmp = ds1307->regs[DS1307_REG_SECS];
-	tmp = bcd2bin(tmp & 0x7f);
-	if (tmp > 60)
-		goto exit_bad;
-	tmp = bcd2bin(ds1307->regs[DS1307_REG_MIN] & 0x7f);
-	if (tmp > 60)
-		goto exit_bad;
-
-	tmp = bcd2bin(ds1307->regs[DS1307_REG_MDAY] & 0x3f);
-	if (tmp == 0 || tmp > 31)
-		goto exit_bad;
-
-	tmp = bcd2bin(ds1307->regs[DS1307_REG_MONTH] & 0x1f);
-	if (tmp == 0 || tmp > 12)
-		goto exit_bad;
-
 	tmp = ds1307->regs[DS1307_REG_HOUR];
 	switch (ds1307->type) {
 	case ds_1340:
@@ -726,13 +710,6 @@ read_rtc:
 
 	return 0;
 
-exit_bad:
-	dev_dbg(&client->dev, "%s: %02x %02x %02x %02x %02x %02x %02x\n",
-			"bogus register",
-			ds1307->regs[0], ds1307->regs[1],
-			ds1307->regs[2], ds1307->regs[3],
-			ds1307->regs[4], ds1307->regs[5],
-			ds1307->regs[6]);
 exit_irq:
 	if (ds1307->rtc)
 		rtc_device_unregister(ds1307->rtc);
