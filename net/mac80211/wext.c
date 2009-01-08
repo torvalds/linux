@@ -976,6 +976,10 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 			ret = -EOPNOTSUPP;
 		break;
 	case IW_AUTH_MFP:
+		if (!(sdata->local->hw.flags & IEEE80211_HW_MFP_CAPABLE)) {
+			ret = -EOPNOTSUPP;
+			break;
+		}
 		if (sdata->vif.type == NL80211_IFTYPE_STATION ||
 		    sdata->vif.type == NL80211_IFTYPE_ADHOC)
 			sdata->u.sta.mfp = data->value;

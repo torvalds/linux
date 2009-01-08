@@ -865,6 +865,9 @@ enum ieee80211_tkip_key_type {
  *
  * @IEEE80211_HW_SUPPORTS_DYNAMIC_PS:
  *	Hardware has support for dynamic PS.
+ *
+ * @IEEE80211_HW_MFP_CAPABLE:
+ *	Hardware supports management frame protection (MFP, IEEE 802.11w).
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
@@ -880,6 +883,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_PS			= 1<<11,
 	IEEE80211_HW_PS_NULLFUNC_STACK			= 1<<12,
 	IEEE80211_HW_SUPPORTS_DYNAMIC_PS		= 1<<13,
+	IEEE80211_HW_MFP_CAPABLE			= 1<<14,
 };
 
 /**
