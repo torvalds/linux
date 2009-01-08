@@ -7276,7 +7276,7 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->ibss_beacon = NULL;
 
 	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->power_data.lock);
+	spin_lock_init(&priv->power_data_39.lock);
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
 
@@ -7301,7 +7301,7 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 
 	priv->rates_mask = IWL_RATES_MASK;
 	/* If power management is turned on, default to AC mode */
-	priv->power_mode = IWL_POWER_AC;
+	priv->power_mode = IWL39_POWER_AC;
 	priv->user_txpower_limit = IWL_DEFAULT_TX_POWER;
 
 	ret = iwl3945_init_channel_map(priv);
