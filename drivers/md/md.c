@@ -3046,7 +3046,7 @@ action_store(mddev_t *mddev, const char *page, size_t len)
 	}
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
-	sysfs_notify(&mddev->kobj, NULL, "sync_action");
+	sysfs_notify_dirent(mddev->sysfs_action);
 	return len;
 }
 
@@ -3684,6 +3684,7 @@ static int do_md_run(mddev_t * mddev)
 			printk(KERN_WARNING
 			       "md: cannot register extra attributes for %s\n",
 			       mdname(mddev));
+		mddev->sysfs_action = sysfs_get_dirent(mddev->kobj.sd, "sync_action");
 	} else if (mddev->ro == 2) /* auto-readonly not meaningful */
 		mddev->ro = 0;
 
@@ -3754,7 +3755,8 @@ static int do_md_run(mddev_t * mddev)
 	mddev->changed = 1;
 	md_new_event(mddev);
 	sysfs_notify_dirent(mddev->sysfs_state);
-	sysfs_notify(&mddev->kobj, NULL, "sync_action");
+	if (mddev->sysfs_action)
+		sysfs_notify_dirent(mddev->sysfs_action);
 	sysfs_notify(&mddev->kobj, NULL, "degraded");
 	kobject_uevent(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE);
 	return 0;
@@ -3854,9 +3856,12 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			mddev->queue->merge_bvec_fn = NULL;
 			mddev->queue->unplug_fn = NULL;
 			mddev->queue->backing_dev_info.congested_fn = NULL;
-			if (mddev->pers->sync_request)
+			if (mddev->pers->sync_request) {
 				sysfs_remove_group(&mddev->kobj, &md_redundancy_group);
-
+				if (mddev->sysfs_action)
+					sysfs_put(mddev->sysfs_action);
+				mddev->sysfs_action = NULL;
+			}
 			module_put(mddev->pers->owner);
 			mddev->pers = NULL;
 			/* tell userspace to handle 'inactive' */
@@ -6155,7 +6160,7 @@ void md_check_recovery(mddev_t *mddev)
 			mddev->recovery = 0;
 			/* flag recovery needed just to double check */
 			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-			sysfs_notify(&mddev->kobj, NULL, "sync_action");
+			sysfs_notify_dirent(mddev->sysfs_action);
 			md_new_event(mddev);
 			goto unlock;
 		}
@@ -6216,7 +6221,7 @@ void md_check_recovery(mddev_t *mddev)
 				mddev->recovery = 0;
 			} else
 				md_wakeup_thread(mddev->sync_thread);
-			sysfs_notify(&mddev->kobj, NULL, "sync_action");
+			sysfs_notify_dirent(mddev->sysfs_action);
 			md_new_event(mddev);
 		}
 	unlock:
@@ -6224,7 +6229,8 @@ void md_check_recovery(mddev_t *mddev)
 			clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 			if (test_and_clear_bit(MD_RECOVERY_RECOVER,
 					       &mddev->recovery))
-				sysfs_notify(&mddev->kobj, NULL, "sync_action");
+				if (mddev->sysfs_action)
+					sysfs_notify_dirent(mddev->sysfs_action);
 		}
 		mddev_unlock(mddev);
 	}

@@ -244,6 +244,7 @@ struct mddev_s
 	struct sysfs_dirent		*sysfs_state;	/* handle for 'array_state'
 							 * file in sysfs.
 							 */
+	struct sysfs_dirent		*sysfs_action;  /* handle for 'sync_action' */
 
 	spinlock_t			write_lock;
 	wait_queue_head_t		sb_wait;	/* for waiting on superblock updates */
