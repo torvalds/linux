@@ -40,7 +40,7 @@ enum w1_netlink_message_types {
 struct w1_netlink_msg
 {
 	__u8				type;
-	__u8				reserved;
+	__u8				status;
 	__u16				len;
 	union {
 		__u8			id[8];

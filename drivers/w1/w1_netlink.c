@@ -152,7 +152,7 @@ static int w1_process_command_io(struct w1_master *dev, struct cn_msg *msg,
 		w1_write_block(dev, cmd->data, cmd->len);
 		break;
 	default:
-		err = -1;
+		err = -EINVAL;
 		break;
 	}
 
@@ -195,14 +195,13 @@ static int w1_process_command_master(struct w1_master *dev, struct cn_msg *req_m
 	case W1_CMD_READ:
 	case W1_CMD_WRITE:
 	case W1_CMD_TOUCH:
-		err = w1_process_command_io(dev, msg, hdr, cmd);
+		err = w1_process_command_io(dev, req_msg, req_hdr, req_cmd);
 		break;
 	case W1_CMD_RESET:
 		err = w1_reset_bus(dev);
 		break;
 	default:
-		cmd->res = EINVAL;
-		cn_netlink_send(msg, 0, GFP_KERNEL);
+		err = -EINVAL;
 		break;
 	}
 
@@ -246,7 +245,7 @@ static int w1_process_command_root(struct cn_msg *msg, struct w1_netlink_msg *mc
 	w = (struct w1_netlink_msg *)(cn + 1);
 
 	w->type = W1_LIST_MASTERS;
-	w->reserved = 0;
+	w->status = 0;
 	w->len = 0;
 	id = (u32 *)(w + 1);
 
@@ -273,6 +272,40 @@ static int w1_process_command_root(struct cn_msg *msg, struct w1_netlink_msg *mc
 	return 0;
 }
 
+static int w1_netlink_send_error(struct cn_msg *rcmsg, struct w1_netlink_msg *rmsg,
+		struct w1_netlink_cmd *rcmd, int error)
+{
+	struct cn_msg *cmsg;
+	struct w1_netlink_msg *msg;
+	struct w1_netlink_cmd *cmd;
+
+	cmsg = kzalloc(sizeof(*msg) + sizeof(*cmd) + sizeof(*cmsg), GFP_KERNEL);
+	if (!cmsg)
+		return -ENOMEM;
+
+	msg = (struct w1_netlink_msg *)(cmsg + 1);
+	cmd = (struct w1_netlink_cmd *)(msg + 1);
+
+	memcpy(cmsg, rcmsg, sizeof(*cmsg));
+	cmsg->len = sizeof(*msg);
+
+	memcpy(msg, rmsg, sizeof(*msg));
+	msg->len = 0;
+	msg->status = (short)-error;
+
+	if (rcmd) {
+		memcpy(cmd, rcmd, sizeof(*cmd));
+		cmd->len = 0;
+		msg->len += sizeof(*cmd);
+		cmsg->len += sizeof(*cmd);
+	}
+
+	error = cn_netlink_send(cmsg, 0, GFP_KERNEL);
+	kfree(cmsg);
+
+	return error;
+}
+
 static void w1_cn_callback(void *data)
 {
 	struct cn_msg *msg = data;
@@ -289,6 +322,7 @@ static void w1_cn_callback(void *data)
 
 		dev = NULL;
 		sl = NULL;
+		cmd = NULL;
 
 		memcpy(&id, m->id.id, sizeof(id));
 #if 0
@@ -336,9 +370,12 @@ static void w1_cn_callback(void *data)
 			}
 
 			if (sl)
-				w1_process_command_slave(sl, msg, m, cmd);
+				err = w1_process_command_slave(sl, msg, m, cmd);
 			else
-				w1_process_command_master(dev, msg, m, cmd);
+				err = w1_process_command_master(dev, msg, m, cmd);
+
+			w1_netlink_send_error(msg, m, cmd, err);
+			err = 0;
 
 			cmd_data += cmd->len + sizeof(struct w1_netlink_cmd);
 			mlen -= cmd->len + sizeof(struct w1_netlink_cmd);
@@ -349,6 +386,8 @@ out_up:
 			atomic_dec(&sl->refcnt);
 		mutex_unlock(&dev->mutex);
 out_cont:
+		if (!cmd || err)
+			w1_netlink_send_error(msg, m, cmd, err);
 		msg->len -= sizeof(struct w1_netlink_msg) + m->len;
 		m = (struct w1_netlink_msg *)(((u8 *)m) + sizeof(struct w1_netlink_msg) + m->len);
 

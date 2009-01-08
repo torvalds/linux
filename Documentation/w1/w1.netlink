@@ -118,6 +118,35 @@ W1 reset command.
   	id is equal to the bus master id to use for searching]
   [w1_netlink_cmd cmd = W1_CMD_RESET]
 
+
+Command status replies.
+======================
+
+Each command (either root, master or slave with or without w1_netlink_cmd
+structure) will be 'acked' by the w1 core. Format of the reply is the same
+as request message except that length parameters do not account for data
+requested by the user, i.e. read/write/touch IO requests will not contain
+data, so w1_netlink_cmd.len will be 0, w1_netlink_msg.len will be size
+of the w1_netlink_cmd structure and cn_msg.len will be equal to the sum
+of the sizeof(struct w1_netlink_msg) and sizeof(struct w1_netlink_cmd).
+If reply is generated for master or root command (which do not have
+w1_netlink_cmd attached), reply will contain only cn_msg and w1_netlink_msg
+structires.
+
+w1_netlink_msg.status field will carry positive error value
+(EINVAL for example) or zero in case of success.
+
+All other fields in every structure will mirror the same parameters in the
+request message (except lengths as described above).
+
+Status reply is generated for every w1_netlink_cmd embedded in the
+w1_netlink_msg, if there are no w1_netlink_cmd structures,
+reply will be generated for the w1_netlink_msg.
+
+All w1_netlink_cmd command structures are handled in every w1_netlink_msg,
+even if there were errors, only length mismatch interrupts message processing.
+
+
 Operation steps in w1 core when new command is received.
 =======================================================
 
