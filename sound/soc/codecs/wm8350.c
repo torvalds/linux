@@ -51,10 +51,17 @@ struct wm8350_output {
 	u16 mute;
 };
 
+struct wm8350_jack_data {
+	struct snd_soc_jack *jack;
+	int report;
+};
+
 struct wm8350_data {
 	struct snd_soc_codec codec;
 	struct wm8350_output out1;
 	struct wm8350_output out2;
+	struct wm8350_jack_data hpl;
+	struct wm8350_jack_data hpr;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(supply_names)];
 };
 
@@ -1328,6 +1335,95 @@ static int wm8350_resume(struct platform_device *pdev)
 	return 0;
 }
 
+static void wm8350_hp_jack_handler(struct wm8350 *wm8350, int irq, void *data)
+{
+	struct wm8350_data *priv = data;
+	u16 reg;
+	int report;
+	int mask;
+	struct wm8350_jack_data *jack = NULL;
+
+	switch (irq) {
+	case WM8350_IRQ_CODEC_JCK_DET_L:
+		jack = &priv->hpl;
+		mask = WM8350_JACK_L_LVL;
+		break;
+
+	case WM8350_IRQ_CODEC_JCK_DET_R:
+		jack = &priv->hpr;
+		mask = WM8350_JACK_R_LVL;
+		break;
+
+	default:
+		BUG();
+	}
+
+	if (!jack->jack) {
+		dev_warn(wm8350->dev, "Jack interrupt called with no jack\n");
+		return;
+	}
+
+	/* Debounce */
+	msleep(200);
+
+	reg = wm8350_reg_read(wm8350, WM8350_JACK_PIN_STATUS);
+	if (reg & mask)
+		report = jack->report;
+	else
+		report = 0;
+
+	snd_soc_jack_report(jack->jack, report, jack->report);
+}
+
+/**
+ * wm8350_hp_jack_detect - Enable headphone jack detection.
+ *
+ * @codec:  WM8350 codec
+ * @which:  left or right jack detect signal
+ * @jack:   jack to report detection events on
+ * @report: value to report
+ *
+ * Enables the headphone jack detection of the WM8350.
+ */
+int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
+			  struct snd_soc_jack *jack, int report)
+{
+	struct wm8350_data *priv = codec->private_data;
+	struct wm8350 *wm8350 = codec->control_data;
+	int irq;
+	int ena;
+
+	switch (which) {
+	case WM8350_JDL:
+		priv->hpl.jack = jack;
+		priv->hpl.report = report;
+		irq = WM8350_IRQ_CODEC_JCK_DET_L;
+		ena = WM8350_JDL_ENA;
+		break;
+
+	case WM8350_JDR:
+		priv->hpr.jack = jack;
+		priv->hpr.report = report;
+		irq = WM8350_IRQ_CODEC_JCK_DET_R;
+		ena = WM8350_JDR_ENA;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
+	wm8350_set_bits(wm8350, WM8350_JACK_DETECT, ena);
+
+	/* Sync status */
+	wm8350_hp_jack_handler(wm8350, irq, priv);
+
+	wm8350_unmask_irq(wm8350, irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm8350_hp_jack_detect);
+
 static struct snd_soc_codec *wm8350_codec;
 
 static int wm8350_probe(struct platform_device *pdev)
@@ -1381,6 +1477,13 @@ static int wm8350_probe(struct platform_device *pdev)
 	wm8350_set_bits(wm8350, WM8350_ROUT2_VOLUME,
 			WM8350_OUT2_VU | WM8350_OUT2R_MUTE);
 
+	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
+	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
+	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L,
+			    wm8350_hp_jack_handler, priv);
+	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R,
+			    wm8350_hp_jack_handler, priv);
+
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to create pcms\n");
@@ -1411,7 +1514,20 @@ static int wm8350_remove(struct platform_device *pdev)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->codec;
 	struct wm8350 *wm8350 = codec->control_data;
+	struct wm8350_data *priv = codec->private_data;
 	int ret;
+
+	wm8350_clear_bits(wm8350, WM8350_JACK_DETECT,
+			  WM8350_JDL_ENA | WM8350_JDR_ENA);
+	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
+
+	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
+	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
+
+	priv->hpl.jack = NULL;
+	priv->hpr.jack = NULL;
 
 	/* cancel any work waiting to be queued. */
 	ret = cancel_delayed_work(&codec->delayed_work);
