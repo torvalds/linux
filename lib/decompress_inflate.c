@@ -41,7 +41,7 @@ STATIC int INIT gunzip(unsigned char *buf, int len,
 	set_error_fn(error_fn);
 	rc = -1;
 	if (flush) {
-		out_len = 0x8100; /* 32 K */
+		out_len = 0x8000; /* 32 K */
 		out_buf = malloc(out_len);
 	} else {
 		out_len = 0x7fffffff; /* no limit */
