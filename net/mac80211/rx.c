@@ -1737,6 +1737,9 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 		return RX_DROP_MONITOR;
 
+	if (ieee80211_drop_unencrypted(rx, mgmt->frame_control))
+		return RX_DROP_MONITOR;
+
 	/* all categories we currently handle have action_code */
 	if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 		return RX_DROP_MONITOR;
@@ -1825,8 +1828,12 @@ static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
 
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
+		return RX_DROP_MONITOR;
+
+	if (ieee80211_drop_unencrypted(rx, mgmt->frame_control))
 		return RX_DROP_MONITOR;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif))
