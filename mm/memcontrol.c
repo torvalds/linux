@@ -279,7 +279,7 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
 	struct mem_cgroup *mem;
 	struct mem_cgroup_per_zone *mz;
 
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return;
 	pc = lookup_page_cgroup(page);
 	/* can happen while we handle swapcache. */
@@ -302,7 +302,7 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
 	struct mem_cgroup_per_zone *mz;
 	struct page_cgroup *pc;
 
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return;
 
 	pc = lookup_page_cgroup(page);
@@ -319,7 +319,7 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
 	struct page_cgroup *pc;
 	struct mem_cgroup_per_zone *mz;
 
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return;
 	pc = lookup_page_cgroup(page);
 	/* barrier to sync with "charge" */
@@ -344,7 +344,7 @@ static void mem_cgroup_lru_fixup(struct page *page)
 void mem_cgroup_move_lists(struct page *page,
 			   enum lru_list from, enum lru_list to)
 {
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return;
 	mem_cgroup_del_lru_list(page, from);
 	mem_cgroup_add_lru_list(page, to);
@@ -731,7 +731,7 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 int mem_cgroup_newpage_charge(struct page *page,
 			      struct mm_struct *mm, gfp_t gfp_mask)
 {
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return 0;
 	if (PageCompound(page))
 		return 0;
@@ -753,7 +753,7 @@ int mem_cgroup_newpage_charge(struct page *page,
 int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask)
 {
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return 0;
 	if (PageCompound(page))
 		return 0;
@@ -799,7 +799,7 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
 	struct mem_cgroup *mem;
 	swp_entry_t     ent;
 
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return 0;
 
 	if (!do_swap_account)
@@ -833,7 +833,7 @@ int mem_cgroup_cache_charge_swapin(struct page *page,
 {
 	int ret = 0;
 
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return 0;
 	if (unlikely(!mm))
 		mm = &init_mm;
@@ -880,7 +880,7 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
 {
 	struct page_cgroup *pc;
 
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return;
 	if (!ptr)
 		return;
@@ -909,7 +909,7 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
 
 void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
 {
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return;
 	if (!mem)
 		return;
@@ -930,7 +930,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	struct mem_cgroup *mem = NULL;
 	struct mem_cgroup_per_zone *mz;
 
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return NULL;
 
 	if (PageSwapCache(page))
@@ -1049,7 +1049,7 @@ int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
 	struct mem_cgroup *mem = NULL;
 	int ret = 0;
 
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return 0;
 
 	pc = lookup_page_cgroup(page);
@@ -1131,7 +1131,7 @@ int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
 	int progress = 0;
 	int retry = MEM_CGROUP_RECLAIM_RETRIES;
 
-	if (mem_cgroup_subsys.disabled)
+	if (mem_cgroup_disabled())
 		return 0;
 	if (!mm)
 		return 0;
@@ -1697,7 +1697,7 @@ static void mem_cgroup_put(struct mem_cgroup *mem)
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 static void __init enable_swap_cgroup(void)
 {
-	if (!mem_cgroup_subsys.disabled && really_do_swap_account)
+	if (!mem_cgroup_disabled() && really_do_swap_account)
 		do_swap_account = 1;
 }
 #else

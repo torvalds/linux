@@ -19,7 +19,7 @@
 
 #ifndef _LINUX_MEMCONTROL_H
 #define _LINUX_MEMCONTROL_H
-
+#include <linux/cgroup.h>
 struct mem_cgroup;
 struct page_cgroup;
 struct page;
@@ -87,6 +87,14 @@ extern long mem_cgroup_calc_reclaim(struct mem_cgroup *mem, struct zone *zone,
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 extern int do_swap_account;
 #endif
+
+static inline bool mem_cgroup_disabled(void)
+{
+	if (mem_cgroup_subsys.disabled)
+		return true;
+	return false;
+}
+
 #else /* CONFIG_CGROUP_MEM_RES_CTLR */
 struct mem_cgroup;
 
@@ -213,6 +221,11 @@ static inline long mem_cgroup_calc_reclaim(struct mem_cgroup *mem,
 					enum lru_list lru)
 {
 	return 0;
+}
+
+static inline bool mem_cgroup_disabled(void)
+{
+	return true;
 }
 #endif /* CONFIG_CGROUP_MEM_CONT */
 
