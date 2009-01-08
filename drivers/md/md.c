@@ -214,16 +214,33 @@ static inline mddev_t *mddev_get(mddev_t *mddev)
 	return mddev;
 }
 
+static void mddev_delayed_delete(struct work_struct *ws)
+{
+	mddev_t *mddev = container_of(ws, mddev_t, del_work);
+	kobject_del(&mddev->kobj);
+	kobject_put(&mddev->kobj);
+}
+
 static void mddev_put(mddev_t *mddev)
 {
 	if (!atomic_dec_and_lock(&mddev->active, &all_mddevs_lock))
 		return;
-	if (!mddev->raid_disks && list_empty(&mddev->disks)) {
+	if (!mddev->raid_disks && list_empty(&mddev->disks) &&
+	    !mddev->hold_active) {
 		list_del(&mddev->all_mddevs);
-		spin_unlock(&all_mddevs_lock);
-		kobject_put(&mddev->kobj);
-	} else
-		spin_unlock(&all_mddevs_lock);
+		if (mddev->gendisk) {
+			/* we did a probe so need to clean up.
+			 * Call schedule_work inside the spinlock
+			 * so that flush_scheduled_work() after
+			 * mddev_find will succeed in waiting for the
+			 * work to be done.
+			 */
+			INIT_WORK(&mddev->del_work, mddev_delayed_delete);
+			schedule_work(&mddev->del_work);
+		} else
+			kfree(mddev);
+	}
+	spin_unlock(&all_mddevs_lock);
 }
 
 static mddev_t * mddev_find(dev_t unit)
@@ -242,6 +259,7 @@ static mddev_t * mddev_find(dev_t unit)
 
 	if (new) {
 		list_add(&new->all_mddevs, &all_mddevs);
+		mddev->hold_active = UNTIL_IOCTL;
 		spin_unlock(&all_mddevs_lock);
 		return new;
 	}
@@ -3435,6 +3453,8 @@ md_attr_store(struct kobject *kobj, struct attribute *attr,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 	rv = mddev_lock(mddev);
+	if (mddev->hold_active == UNTIL_IOCTL)
+		mddev->hold_active = 0;
 	if (!rv) {
 		rv = entry->store(mddev, page, length);
 		mddev_unlock(mddev);
@@ -3484,6 +3504,11 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	if (!mddev)
 		return NULL;
 
+	/* wait for any previous instance if this device
+	 * to be completed removed (mddev_delayed_delete).
+	 */
+	flush_scheduled_work();
+
 	mutex_lock(&disks_mutex);
 	if (mddev->gendisk) {
 		mutex_unlock(&disks_mutex);
@@ -3520,7 +3545,7 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	disk->private_data = mddev;
 	disk->queue = mddev->queue;
 	/* Allow extended partitions.  This makes the
-	 * 'mdp' device redundant, but we can really
+	 * 'mdp' device redundant, but we can't really
 	 * remove it now.
 	 */
 	disk->flags |= GENHD_FL_EXT_DEVT;
@@ -3536,6 +3561,7 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 		kobject_uevent(&mddev->kobj, KOBJ_ADD);
 		mddev->sysfs_state = sysfs_get_dirent(mddev->kobj.sd, "array_state");
 	}
+	mddev_put(mddev);
 	return NULL;
 }
 
@@ -5054,6 +5080,9 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 
 done_unlock:
 abort_unlock:
+	if (mddev->hold_active == UNTIL_IOCTL &&
+	    err != -EINVAL)
+		mddev->hold_active = 0;
 	mddev_unlock(mddev);
 
 	return err;
@@ -5070,14 +5099,25 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	 * Succeed if we can lock the mddev, which confirms that
 	 * it isn't being stopped right now.
 	 */
-	mddev_t *mddev = bdev->bd_disk->private_data;
+	mddev_t *mddev = mddev_find(bdev->bd_dev);
 	int err;
+
+	if (mddev->gendisk != bdev->bd_disk) {
+		/* we are racing with mddev_put which is discarding this
+		 * bd_disk.
+		 */
+		mddev_put(mddev);
+		/* Wait until bdev->bd_disk is definitely gone */
+		flush_scheduled_work();
+		/* Then retry the open from the top */
+		return -ERESTARTSYS;
+	}
+	BUG_ON(mddev != bdev->bd_disk->private_data);
 
 	if ((err = mutex_lock_interruptible_nested(&mddev->reconfig_mutex, 1)))
 		goto out;
 
 	err = 0;
-	mddev_get(mddev);
 	atomic_inc(&mddev->openers);
 	mddev_unlock(mddev);
 
@@ -6436,11 +6476,8 @@ static __exit void md_exit(void)
 	unregister_sysctl_table(raid_table_header);
 	remove_proc_entry("mdstat", NULL);
 	for_each_mddev(mddev, tmp) {
-		struct gendisk *disk = mddev->gendisk;
-		if (!disk)
-			continue;
 		export_array(mddev);
-		mddev_put(mddev);
+		mddev->hold_active = 0;
 	}
 }
 

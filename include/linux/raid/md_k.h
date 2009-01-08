@@ -137,6 +137,8 @@ struct mddev_s
 	struct gendisk			*gendisk;
 
 	struct kobject			kobj;
+	int				hold_active;
+#define	UNTIL_IOCTL	1
 
 	/* Superblock information */
 	int				major_version,
@@ -245,6 +247,8 @@ struct mddev_s
 							 * file in sysfs.
 							 */
 	struct sysfs_dirent		*sysfs_action;  /* handle for 'sync_action' */
+
+	struct work_struct del_work;	/* used for delayed sysfs removal */
 
 	spinlock_t			write_lock;
 	wait_queue_head_t		sb_wait;	/* for waiting on superblock updates */

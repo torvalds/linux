@@ -1005,6 +1005,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	}
 
 	lock_kernel();
+ restart:
 
 	ret = -ENXIO;
 	disk = get_gendisk(bdev->bd_dev, &partno);
@@ -1025,6 +1026,19 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 
 			if (disk->fops->open) {
 				ret = disk->fops->open(bdev, mode);
+				if (ret == -ERESTARTSYS) {
+					/* Lost a race with 'disk' being
+					 * deleted, try again.
+					 * See md.c
+					 */
+					disk_put_part(bdev->bd_part);
+					bdev->bd_part = NULL;
+					module_put(disk->fops->owner);
+					put_disk(disk);
+					bdev->bd_disk = NULL;
+					mutex_unlock(&bdev->bd_mutex);
+					goto restart;
+				}
 				if (ret)
 					goto out_clear;
 			}
