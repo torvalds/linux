@@ -149,6 +149,20 @@ unsigned int kobjsize(const void *objp)
 		return ksize(objp);
 
 	/*
+	 * If it's not a compound page, see if we have a matching VMA
+	 * region. This test is intentionally done in reverse order,
+	 * so if there's no VMA, we still fall through and hand back
+	 * PAGE_SIZE for 0-order pages.
+	 */
+	if (!PageCompound(page)) {
+		struct vm_area_struct *vma;
+
+		vma = find_vma(current->mm, (unsigned long)objp);
+		if (vma)
+			return vma->vm_end - vma->vm_start;
+	}
+
+	/*
 	 * The ksize() function is only guaranteed to work for pointers
 	 * returned by kmalloc(). So handle arbitrary pointers here.
 	 */
