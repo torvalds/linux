@@ -74,10 +74,6 @@ static struct buffer_head *ext4_append(handle_t *handle,
 #define assert(test) J_ASSERT(test)
 #endif
 
-#ifndef swap
-#define swap(x, y) do { typeof(x) z = x; x = y; y = z; } while (0)
-#endif
-
 #ifdef DX_DEBUG
 #define dxtrace(command) command
 #else
