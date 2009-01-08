@@ -168,9 +168,6 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 	struct elf_fdpic_params exec_params, interp_params;
 	struct elf_phdr *phdr;
 	unsigned long stack_size, entryaddr;
-#ifndef CONFIG_MMU
-	unsigned long fullsize;
-#endif
 #ifdef ELF_FDPIC_PLAT_INIT
 	unsigned long dynaddr;
 #endif
@@ -390,11 +387,6 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 		goto error_kill;
 	}
 
-	/* expand the stack mapping to use up the entire allocation granule */
-	fullsize = kobjsize((char *) current->mm->start_brk);
-	if (!IS_ERR_VALUE(do_mremap(current->mm->start_brk, stack_size,
-				    fullsize, 0, 0)))
-		stack_size = fullsize;
 	up_write(&current->mm->mmap_sem);
 
 	current->mm->brk = current->mm->start_brk;
