@@ -355,13 +355,13 @@ static void set_pm_event(u32 ctr, int event, u32 unit_mask)
 	for (i = 0; i < NUM_DEBUG_BUS_WORDS; i++) {
 		if (bus_word & (1 << i)) {
 			pm_regs.debug_bus_control |=
-			    (bus_type << (30 - (2 * i)));
+				(bus_type << (30 - (2 * i)));
 
 			for (j = 0; j < NUM_INPUT_BUS_WORDS; j++) {
 				if (input_bus[j] == 0xff) {
 					input_bus[j] = i;
 					pm_regs.group_control |=
-					    (i << (30 - (2 * j)));
+						(i << (30 - (2 * j)));
 
 					break;
 				}
@@ -503,7 +503,7 @@ static void cell_virtual_cntr(unsigned long data)
 		cbe_disable_pm_interrupts(cpu);
 		for (i = 0; i < num_counters; i++) {
 			per_cpu(pmc_values, cpu + prev_hdw_thread)[i]
-			    = cbe_read_ctr(cpu, i);
+				= cbe_read_ctr(cpu, i);
 
 			if (per_cpu(pmc_values, cpu + next_hdw_thread)[i]
 			    == 0xFFFFFFFF)
@@ -639,7 +639,7 @@ static void spu_evnt_swap(unsigned long data)
 		cbe_disable_pm_interrupts(cpu);
 
 		spu_pm_cnt[cur_phys_spu]
-			    = cbe_read_ctr(cpu, 0);
+			= cbe_read_ctr(cpu, 0);
 
 		/* restore previous count for the next spu to sample */
 		/* NOTE, hardware issue, counter will not start if the
@@ -658,9 +658,8 @@ static void spu_evnt_swap(unsigned long data)
 		 */
 		ret = pm_rtas_activate_signals(cbe_cpu_to_node(cpu), 3);
 		if (ret)
-			printk(KERN_ERR
-		       "%s: pm_rtas_activate_signals failed, SPU event swap\n",
-		       __func__);
+			printk(KERN_ERR "%s: pm_rtas_activate_signals failed, "
+			       "SPU event swap\n", __func__);
 
 		/* clear the trace buffer, don't want to take PC for
 		 * previous SPU*/
@@ -1316,7 +1315,7 @@ static int cell_global_start_spu_cycles(struct op_counter_config *ctr)
 
 		/* start profiling */
 		ret = rtas_call(spu_rtas_token, 3, 1, NULL, subfunc,
-		  cbe_cpu_to_node(cpu), lfsr_value);
+				cbe_cpu_to_node(cpu), lfsr_value);
 
 		if (unlikely(ret != 0)) {
 			printk(KERN_ERR
@@ -1397,7 +1396,7 @@ static int cell_global_start_spu_events(struct op_counter_config *ctr)
 	 */
 	start_spu_event_swap();
 	start_spu_profiling_events();
-  	oprofile_running = 1;
+	oprofile_running = 1;
 	smp_wmb();
 
 	return rtn;
@@ -1422,8 +1421,7 @@ static int cell_global_start_ppu(struct op_counter_config *ctr)
 			if (ctr_enabled & (1 << i)) {
 				cbe_write_ctr(cpu, i, reset_value[i]);
 				enable_ctr(cpu, i, pm_regs.pm07_cntrl);
-				interrupt_mask |=
-				    CBE_PM_CTR_OVERFLOW_INTR(i);
+				interrupt_mask |= CBE_PM_CTR_OVERFLOW_INTR(i);
 			} else {
 				/* Disable counter */
 				cbe_write_pm07_control(cpu, i, 0);
@@ -1517,13 +1515,13 @@ static void cell_handle_interrupt_spu(struct pt_regs *regs,
 	trace_entry = 0xfedcba;
 	last_trace_buffer = 0xdeadbeaf;
 
-        if ((oprofile_running == 1) && (interrupt_mask != 0)) {
+	if ((oprofile_running == 1) && (interrupt_mask != 0)) {
 		/* disable writes to trace buff */
 		cbe_write_pm(cpu, pm_interval, 0);
 
 		/* only have one perf cntr being used, cntr 0 */
 		if ((interrupt_mask & CBE_PM_CTR_OVERFLOW_INTR(0))
-			    && ctr[0].enabled)
+		    && ctr[0].enabled)
 			/* The SPU PC values will be read
 			 * from the trace buffer, reset counter
 			 */
