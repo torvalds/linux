@@ -1030,6 +1030,7 @@ enum ieee80211_category {
 	WLAN_CATEGORY_QOS = 1,
 	WLAN_CATEGORY_DLS = 2,
 	WLAN_CATEGORY_BACK = 3,
+	WLAN_CATEGORY_PUBLIC = 4,
 	WLAN_CATEGORY_WMM = 17,
 };
 
@@ -1183,6 +1184,35 @@ static inline u8 *ieee80211_get_DA(struct ieee80211_hdr *hdr)
 		return hdr->addr3;
 	else
 		return hdr->addr1;
+}
+
+/**
+ * ieee80211_is_robust_mgmt_frame - check if frame is a robust management frame
+ * @hdr: the frame (buffer must include at least the first octet of payload)
+ */
+static inline bool ieee80211_is_robust_mgmt_frame(struct ieee80211_hdr *hdr)
+{
+	if (ieee80211_is_disassoc(hdr->frame_control) ||
+	    ieee80211_is_deauth(hdr->frame_control))
+		return true;
+
+	if (ieee80211_is_action(hdr->frame_control)) {
+		u8 *category;
+
+		/*
+		 * Action frames, excluding Public Action frames, are Robust
+		 * Management Frames. However, if we are looking at a Protected
+		 * frame, skip the check since the data may be encrypted and
+		 * the frame has already been found to be a Robust Management
+		 * Frame (by the other end).
+		 */
+		if (ieee80211_has_protected(hdr->frame_control))
+			return true;
+		category = ((u8 *) hdr) + 24;
+		return *category != WLAN_CATEGORY_PUBLIC;
+	}
+
+	return false;
 }
 
 /**
