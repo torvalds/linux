@@ -103,12 +103,10 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
 /* __alloc_bootmem...() is protected by !slab_available() */
 static int __init_refok init_section_page_cgroup(unsigned long pfn)
 {
-	struct mem_section *section;
+	struct mem_section *section = __pfn_to_section(pfn);
 	struct page_cgroup *base, *pc;
 	unsigned long table_size;
 	int nid, index;
-
-	section = __pfn_to_section(pfn);
 
 	if (!section->page_cgroup) {
 		nid = page_to_nid(pfn_to_page(pfn));
@@ -145,7 +143,6 @@ static int __init_refok init_section_page_cgroup(unsigned long pfn)
 		__init_page_cgroup(pc, pfn + index);
 	}
 
-	section = __pfn_to_section(pfn);
 	section->page_cgroup = base - pfn;
 	total_usage += table_size;
 	return 0;
