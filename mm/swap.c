@@ -157,6 +157,7 @@ void  rotate_reclaimable_page(struct page *page)
 void activate_page(struct page *page)
 {
 	struct zone *zone = page_zone(page);
+	struct zone_reclaim_stat *reclaim_stat = &zone->reclaim_stat;
 
 	spin_lock_irq(&zone->lru_lock);
 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
@@ -169,8 +170,8 @@ void activate_page(struct page *page)
 		add_page_to_lru_list(zone, page, lru);
 		__count_vm_event(PGACTIVATE);
 
-		zone->recent_rotated[!!file]++;
-		zone->recent_scanned[!!file]++;
+		reclaim_stat->recent_rotated[!!file]++;
+		reclaim_stat->recent_scanned[!!file]++;
 	}
 	spin_unlock_irq(&zone->lru_lock);
 }
@@ -385,6 +386,8 @@ void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
 {
 	int i;
 	struct zone *zone = NULL;
+	struct zone_reclaim_stat *reclaim_stat = NULL;
+
 	VM_BUG_ON(is_unevictable_lru(lru));
 
 	for (i = 0; i < pagevec_count(pvec); i++) {
@@ -396,6 +399,7 @@ void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
 			if (zone)
 				spin_unlock_irq(&zone->lru_lock);
 			zone = pagezone;
+			reclaim_stat = &zone->reclaim_stat;
 			spin_lock_irq(&zone->lru_lock);
 		}
 		VM_BUG_ON(PageActive(page));
@@ -403,10 +407,10 @@ void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
 		VM_BUG_ON(PageLRU(page));
 		SetPageLRU(page);
 		file = is_file_lru(lru);
-		zone->recent_scanned[file]++;
+		reclaim_stat->recent_scanned[file]++;
 		if (is_active_lru(lru)) {
 			SetPageActive(page);
-			zone->recent_rotated[file]++;
+			reclaim_stat->recent_rotated[file]++;
 		}
 		add_page_to_lru_list(zone, page, lru);
 	}

@@ -130,6 +130,12 @@ static DECLARE_RWSEM(shrinker_rwsem);
 #define scan_global_lru(sc)	(1)
 #endif
 
+static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
+						  struct scan_control *sc)
+{
+	return &zone->reclaim_stat;
+}
+
 /*
  * Add a shrinker callback to be called from the vm
  */
@@ -1029,6 +1035,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 	struct pagevec pvec;
 	unsigned long nr_scanned = 0;
 	unsigned long nr_reclaimed = 0;
+	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
 
 	pagevec_init(&pvec, 1);
 
@@ -1072,10 +1079,14 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 
 		if (scan_global_lru(sc)) {
 			zone->pages_scanned += nr_scan;
-			zone->recent_scanned[0] += count[LRU_INACTIVE_ANON];
-			zone->recent_scanned[0] += count[LRU_ACTIVE_ANON];
-			zone->recent_scanned[1] += count[LRU_INACTIVE_FILE];
-			zone->recent_scanned[1] += count[LRU_ACTIVE_FILE];
+			reclaim_stat->recent_scanned[0] +=
+						      count[LRU_INACTIVE_ANON];
+			reclaim_stat->recent_scanned[0] +=
+						      count[LRU_ACTIVE_ANON];
+			reclaim_stat->recent_scanned[1] +=
+						      count[LRU_INACTIVE_FILE];
+			reclaim_stat->recent_scanned[1] +=
+						      count[LRU_ACTIVE_FILE];
 		}
 		spin_unlock_irq(&zone->lru_lock);
 
@@ -1136,7 +1147,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 			add_page_to_lru_list(zone, page, lru);
 			if (PageActive(page) && scan_global_lru(sc)) {
 				int file = !!page_is_file_cache(page);
-				zone->recent_rotated[file]++;
+				reclaim_stat->recent_rotated[file]++;
 			}
 			if (!pagevec_add(&pvec, page)) {
 				spin_unlock_irq(&zone->lru_lock);
@@ -1196,6 +1207,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	struct page *page;
 	struct pagevec pvec;
 	enum lru_list lru;
+	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
 
 	lru_add_drain();
 	spin_lock_irq(&zone->lru_lock);
@@ -1208,7 +1220,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	 */
 	if (scan_global_lru(sc)) {
 		zone->pages_scanned += pgscanned;
-		zone->recent_scanned[!!file] += pgmoved;
+		reclaim_stat->recent_scanned[!!file] += pgmoved;
 	}
 
 	if (file)
@@ -1251,7 +1263,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	 * pages in get_scan_ratio.
 	 */
 	if (scan_global_lru(sc))
-		zone->recent_rotated[!!file] += pgmoved;
+		reclaim_stat->recent_rotated[!!file] += pgmoved;
 
 	while (!list_empty(&l_inactive)) {
 		page = lru_to_page(&l_inactive);
@@ -1344,6 +1356,7 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
 	unsigned long anon, file, free;
 	unsigned long anon_prio, file_prio;
 	unsigned long ap, fp;
+	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
 
 	/* If we have no swap space, do not bother scanning anon pages. */
 	if (nr_swap_pages <= 0) {
@@ -1376,17 +1389,17 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
 	 *
 	 * anon in [0], file in [1]
 	 */
-	if (unlikely(zone->recent_scanned[0] > anon / 4)) {
+	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
 		spin_lock_irq(&zone->lru_lock);
-		zone->recent_scanned[0] /= 2;
-		zone->recent_rotated[0] /= 2;
+		reclaim_stat->recent_scanned[0] /= 2;
+		reclaim_stat->recent_rotated[0] /= 2;
 		spin_unlock_irq(&zone->lru_lock);
 	}
 
-	if (unlikely(zone->recent_scanned[1] > file / 4)) {
+	if (unlikely(reclaim_stat->recent_scanned[1] > file / 4)) {
 		spin_lock_irq(&zone->lru_lock);
-		zone->recent_scanned[1] /= 2;
-		zone->recent_rotated[1] /= 2;
+		reclaim_stat->recent_scanned[1] /= 2;
+		reclaim_stat->recent_rotated[1] /= 2;
 		spin_unlock_irq(&zone->lru_lock);
 	}
 
@@ -1402,11 +1415,11 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
 	 * proportional to the fraction of recently scanned pages on
 	 * each list that were recently referenced and in active use.
 	 */
-	ap = (anon_prio + 1) * (zone->recent_scanned[0] + 1);
-	ap /= zone->recent_rotated[0] + 1;
+	ap = (anon_prio + 1) * (reclaim_stat->recent_scanned[0] + 1);
+	ap /= reclaim_stat->recent_rotated[0] + 1;
 
-	fp = (file_prio + 1) * (zone->recent_scanned[1] + 1);
-	fp /= zone->recent_rotated[1] + 1;
+	fp = (file_prio + 1) * (reclaim_stat->recent_scanned[1] + 1);
+	fp /= reclaim_stat->recent_rotated[1] + 1;
 
 	/* Normalize to percentages */
 	percent[0] = 100 * ap / (ap + fp + 1);
