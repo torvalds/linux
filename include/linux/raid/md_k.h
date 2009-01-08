@@ -218,6 +218,9 @@ struct mddev_s
 #define	MD_RECOVERY_FROZEN	9
 
 	unsigned long			recovery;
+	int				recovery_disabled; /* if we detect that recovery
+							    * will always fail, set this
+							    * so we don't loop trying */
 
 	int				in_sync;	/* know to not need resync */
 	struct mutex			reconfig_mutex;

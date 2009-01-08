@@ -1016,12 +1016,16 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	 * else mark the drive as failed
 	 */
 	if (test_bit(In_sync, &rdev->flags)
-	    && (conf->raid_disks - mddev->degraded) == 1)
+	    && (conf->raid_disks - mddev->degraded) == 1) {
 		/*
 		 * Don't fail the drive, act as though we were just a
-		 * normal single drive
+		 * normal single drive.
+		 * However don't try a recovery from this drive as
+		 * it is very likely to fail.
 		 */
+		mddev->recovery_disabled = 1;
 		return;
+	}
 	if (test_and_clear_bit(In_sync, &rdev->flags)) {
 		unsigned long flags;
 		spin_lock_irqsave(&conf->device_lock, flags);
