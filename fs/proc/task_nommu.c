@@ -16,24 +16,31 @@
 void task_mem(struct seq_file *m, struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
+	struct vm_region *region;
 	struct rb_node *p;
-	unsigned long bytes = 0, sbytes = 0, slack = 0;
+	unsigned long bytes = 0, sbytes = 0, slack = 0, size;
         
 	down_read(&mm->mmap_sem);
 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
 		vma = rb_entry(p, struct vm_area_struct, vm_rb);
 
 		bytes += kobjsize(vma);
-		if (atomic_read(&mm->mm_count) > 1 ||
-		    vma->vm_region ||
-		    vma->vm_flags & VM_MAYSHARE) {
-			sbytes += kobjsize((void *) vma->vm_start);
-			if (vma->vm_region)
-				sbytes += kobjsize(vma->vm_region);
+
+		region = vma->vm_region;
+		if (region) {
+			size = kobjsize(region);
+			size += region->vm_end - region->vm_start;
 		} else {
-			bytes += kobjsize((void *) vma->vm_start);
-			slack += kobjsize((void *) vma->vm_start) -
-				(vma->vm_end - vma->vm_start);
+			size = vma->vm_end - vma->vm_start;
+		}
+
+		if (atomic_read(&mm->mm_count) > 1 ||
+		    vma->vm_flags & VM_MAYSHARE) {
+			sbytes += size;
+		} else {
+			bytes += size;
+			if (region)
+				slack = region->vm_end - vma->vm_end;
 		}
 	}
 
@@ -77,7 +84,7 @@ unsigned long task_vsize(struct mm_struct *mm)
 	down_read(&mm->mmap_sem);
 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
 		vma = rb_entry(p, struct vm_area_struct, vm_rb);
-		vsize += vma->vm_region->vm_end - vma->vm_region->vm_start;
+		vsize += vma->vm_end - vma->vm_start;
 	}
 	up_read(&mm->mmap_sem);
 	return vsize;
@@ -87,6 +94,7 @@ int task_statm(struct mm_struct *mm, int *shared, int *text,
 	       int *data, int *resident)
 {
 	struct vm_area_struct *vma;
+	struct vm_region *region;
 	struct rb_node *p;
 	int size = kobjsize(mm);
 
@@ -94,7 +102,11 @@ int task_statm(struct mm_struct *mm, int *shared, int *text,
 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
 		vma = rb_entry(p, struct vm_area_struct, vm_rb);
 		size += kobjsize(vma);
-		size += kobjsize((void *) vma->vm_start);
+		region = vma->vm_region;
+		if (region) {
+			size += kobjsize(region);
+			size += region->vm_end - region->vm_start;
+		}
 	}
 
 	size += (*text = mm->end_code - mm->start_code);
