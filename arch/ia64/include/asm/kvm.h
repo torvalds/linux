@@ -166,7 +166,40 @@ struct saved_vpd {
 	unsigned long  vcpuid[5];
 	unsigned long  vpsr;
 	unsigned long  vpr;
-	unsigned long  vcr[128];
+	union {
+		unsigned long  vcr[128];
+		struct {
+			unsigned long dcr;
+			unsigned long itm;
+			unsigned long iva;
+			unsigned long rsv1[5];
+			unsigned long pta;
+			unsigned long rsv2[7];
+			unsigned long ipsr;
+			unsigned long isr;
+			unsigned long rsv3;
+			unsigned long iip;
+			unsigned long ifa;
+			unsigned long itir;
+			unsigned long iipa;
+			unsigned long ifs;
+			unsigned long iim;
+			unsigned long iha;
+			unsigned long rsv4[38];
+			unsigned long lid;
+			unsigned long ivr;
+			unsigned long tpr;
+			unsigned long eoi;
+			unsigned long irr[4];
+			unsigned long itv;
+			unsigned long pmv;
+			unsigned long cmcv;
+			unsigned long rsv5[5];
+			unsigned long lrr0;
+			unsigned long lrr1;
+			unsigned long rsv6[46];
+		};
+	};
 };
 
 struct kvm_regs {
