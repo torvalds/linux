@@ -123,15 +123,17 @@ void wimax_id_table_rm(struct wimax_dev *wimax_dev)
 /*
  * Release the gennetlink family id / mapping table
  *
- * On debug, verify that the table is empty upon removal.
+ * On debug, verify that the table is empty upon removal. We want the
+ * code always compiled, to ensure it doesn't bit rot. It will be
+ * compiled out if CONFIG_BUG is disabled.
  */
 void wimax_id_table_release(void)
 {
+	struct wimax_dev *wimax_dev;
+
 #ifndef CONFIG_BUG
 	return;
 #endif
-	struct wimax_dev *wimax_dev;
-
 	spin_lock(&wimax_id_table_lock);
 	list_for_each_entry(wimax_dev, &wimax_id_table, id_table_node) {
 		printk(KERN_ERR "BUG: %s wimax_dev %p ifindex %d not cleared\n",
