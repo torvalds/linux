@@ -47,17 +47,95 @@ void w1_netlink_send(struct w1_master *dev, struct w1_netlink_msg *msg)
 	cn_netlink_send(m, 0, GFP_KERNEL);
 }
 
-static int w1_process_command_master(struct w1_master *dev, struct cn_msg *msg,
-		struct w1_netlink_msg *hdr, struct w1_netlink_cmd *cmd)
+static void w1_send_slave(struct w1_master *dev, u64 rn)
 {
-	dev_dbg(&dev->dev, "%s: %s: cmd=%02x, len=%u.\n",
-		__func__, dev->name, cmd->cmd, cmd->len);
+	struct cn_msg *msg = dev->priv;
+	struct w1_netlink_msg *hdr = (struct w1_netlink_msg *)(msg + 1);
+	struct w1_netlink_cmd *cmd = (struct w1_netlink_cmd *)(hdr + 1);
+	int avail;
 
-	if (cmd->cmd != W1_CMD_SEARCH && cmd->cmd != W1_CMD_ALARM_SEARCH)
-		return -EINVAL;
+	avail = dev->priv_size - cmd->len;
 
-	w1_search_process(dev, (cmd->cmd == W1_CMD_ALARM_SEARCH)?W1_ALARM_SEARCH:W1_SEARCH);
+	if (avail > 8) {
+		u64 *data = (void *)(cmd + 1) + cmd->len;
+
+		*data = rn;
+		cmd->len += 8;
+		hdr->len += 8;
+		msg->len += 8;
+		return;
+	}
+
+	msg->ack++;
+	cn_netlink_send(msg, 0, GFP_KERNEL);
+
+	msg->len = sizeof(struct w1_netlink_msg) + sizeof(struct w1_netlink_cmd);
+	hdr->len = sizeof(struct w1_netlink_cmd);
+	cmd->len = 0;
+}
+
+static int w1_process_search_command(struct w1_master *dev, struct cn_msg *msg,
+		unsigned int avail)
+{
+	struct w1_netlink_msg *hdr = (struct w1_netlink_msg *)(msg + 1);
+	struct w1_netlink_cmd *cmd = (struct w1_netlink_cmd *)(hdr + 1);
+	int search_type = (cmd->cmd == W1_CMD_ALARM_SEARCH)?W1_ALARM_SEARCH:W1_SEARCH;
+
+	dev->priv = msg;
+	dev->priv_size = avail;
+
+	w1_search_devices(dev, search_type, w1_send_slave);
+
+	msg->ack = 0;
+	cn_netlink_send(msg, 0, GFP_KERNEL);
+
+	dev->priv = NULL;
+	dev->priv_size = 0;
+
 	return 0;
+}
+
+static int w1_process_command_master(struct w1_master *dev, struct cn_msg *req_msg,
+		struct w1_netlink_msg *req_hdr, struct w1_netlink_cmd *req_cmd)
+{
+	int err = -EINVAL;
+	struct cn_msg *msg;
+	struct w1_netlink_msg *hdr;
+	struct w1_netlink_cmd *cmd;
+
+	msg = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	msg->id = req_msg->id;
+	msg->seq = req_msg->seq;
+	msg->ack = 0;
+	msg->len = sizeof(struct w1_netlink_msg) + sizeof(struct w1_netlink_cmd);
+
+	hdr = (struct w1_netlink_msg *)(msg + 1);
+	cmd = (struct w1_netlink_cmd *)(hdr + 1);
+
+	hdr->type = W1_MASTER_CMD;
+	hdr->id = req_hdr->id;
+	hdr->len = sizeof(struct w1_netlink_cmd);
+
+	cmd->cmd = req_cmd->cmd;
+	cmd->len = 0;
+
+	switch (cmd->cmd) {
+		case W1_CMD_SEARCH:
+		case W1_CMD_ALARM_SEARCH:
+			err = w1_process_search_command(dev, msg,
+				PAGE_SIZE - msg->len - sizeof(struct cn_msg));
+			break;
+		default:
+			cmd->res = EINVAL;
+			cn_netlink_send(msg, 0, GFP_KERNEL);
+			break;
+	}
+
+	kfree(msg);
+	return err;
 }
 
 static int w1_send_read_reply(struct w1_slave *sl, struct cn_msg *msg,
@@ -118,11 +196,6 @@ static int w1_process_command_slave(struct w1_slave *sl, struct cn_msg *msg,
 			break;
 		case W1_CMD_WRITE:
 			w1_write_block(sl->master, cmd->data, cmd->len);
-			break;
-		case W1_CMD_SEARCH:
-		case W1_CMD_ALARM_SEARCH:
-			w1_search_process(sl->master,
-					(cmd->cmd == W1_CMD_ALARM_SEARCH)?W1_ALARM_SEARCH:W1_SEARCH);
 			break;
 		default:
 			err = -1;
@@ -270,11 +343,6 @@ out_cont:
 		if (err == -ENODEV)
 			err = 0;
 	}
-#if 0
-	if (err) {
-		printk("%s: malformed message. Dropping.\n", __func__);
-	}
-#endif
 }
 
 int w1_init_netlink(void)
