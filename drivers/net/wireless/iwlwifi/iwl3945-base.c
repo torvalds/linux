@@ -120,13 +120,6 @@ struct iwl_mod_params iwl3945_mod_params = {
  * (#0-3) for data tx via EDCA.  An additional 2 HCCA queues are unused.
  ***************************************************/
 
-int iwl3945_x2_queue_used(const struct iwl_queue *q, int i)
-{
-	return q->write_ptr > q->read_ptr ?
-		(i >= q->read_ptr && i < q->write_ptr) :
-		!(i < q->read_ptr && i >= q->write_ptr);
-}
-
 /**
  * iwl3945_queue_init - Initialize queue's high/low-water and read/write indexes
  */
@@ -3079,7 +3072,7 @@ static void iwl3945_cmd_queue_reclaim(struct iwl_priv *priv,
 	struct iwl_queue *q = &txq->q;
 	int nfreed = 0;
 
-	if ((index >= q->n_bd) || (iwl3945_x2_queue_used(q, index) == 0)) {
+	if ((index >= q->n_bd) || (iwl_queue_used(q, index) == 0)) {
 		IWL_ERR(priv, "Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  index, q->n_bd, q->write_ptr, q->read_ptr);

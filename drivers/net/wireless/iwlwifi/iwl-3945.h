@@ -106,8 +106,6 @@ enum iwl3945_antenna {
 #define	DEFAULT_SHORT_RETRY_LIMIT 7U
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
-int iwl3945_x2_queue_used(const struct iwl_queue *q, int i);
-
 #include "iwl-agn-rs.h"
 
 #define IWL_TX_FIFO_AC0	0
