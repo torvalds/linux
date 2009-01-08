@@ -137,11 +137,9 @@ EXPORT_SYMBOL_GPL(pcibios_add_pci_devices);
 struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 {
 	struct pci_controller *phb;
-	int primary;
 
 	pr_debug("PCI: Initializing new hotplug PHB %s\n", dn->full_name);
 
-	primary = list_empty(&hose_list);
 	phb = pcibios_alloc_controller(dn);
 	if (!phb)
 		return NULL;
