@@ -133,7 +133,7 @@ static void remove_migration_pte(struct vm_area_struct *vma,
 	 * be reliable, and this charge can actually fail: oh well, we don't
 	 * make the situation any worse by proceeding as if it had succeeded.
 	 */
-	mem_cgroup_charge(new, mm, GFP_ATOMIC);
+	mem_cgroup_charge_migrate_fixup(new, mm, GFP_ATOMIC);
 
 	get_page(new);
 	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));

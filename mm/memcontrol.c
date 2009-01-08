@@ -467,35 +467,31 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 	return nr_taken;
 }
 
-/*
- * Charge the memory controller for page usage.
- * Return
- * 0 if the charge was successful
- * < 0 if the cgroup is over its limit
+
+/**
+ * mem_cgroup_try_charge - get charge of PAGE_SIZE.
+ * @mm: an mm_struct which is charged against. (when *memcg is NULL)
+ * @gfp_mask: gfp_mask for reclaim.
+ * @memcg: a pointer to memory cgroup which is charged against.
+ *
+ * charge against memory cgroup pointed by *memcg. if *memcg == NULL, estimated
+ * memory cgroup from @mm is got and stored in *memcg.
+ *
+ * Returns 0 if success. -ENOMEM at failure.
  */
-static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
-				gfp_t gfp_mask, enum charge_type ctype,
-				struct mem_cgroup *memcg)
+
+int mem_cgroup_try_charge(struct mm_struct *mm,
+			gfp_t gfp_mask, struct mem_cgroup **memcg)
 {
 	struct mem_cgroup *mem;
-	struct page_cgroup *pc;
-	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-	struct mem_cgroup_per_zone *mz;
-	unsigned long flags;
-
-	pc = lookup_page_cgroup(page);
-	/* can happen at boot */
-	if (unlikely(!pc))
-		return 0;
-	prefetchw(pc);
+	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
 	/*
 	 * We always charge the cgroup the mm_struct belongs to.
 	 * The mm_struct's mem_cgroup changes on task migration if the
 	 * thread group leader migrates. It's possible that mm is not
 	 * set, if so charge the init_mm (happens for pagecache usage).
 	 */
-
-	if (likely(!memcg)) {
+	if (likely(!*memcg)) {
 		rcu_read_lock();
 		mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
 		if (unlikely(!mem)) {
@@ -506,15 +502,17 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 		 * For every charge from the cgroup, increment reference count
 		 */
 		css_get(&mem->css);
+		*memcg = mem;
 		rcu_read_unlock();
 	} else {
-		mem = memcg;
-		css_get(&memcg->css);
+		mem = *memcg;
+		css_get(&mem->css);
 	}
+
 
 	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
 		if (!(gfp_mask & __GFP_WAIT))
-			goto out;
+			goto nomem;
 
 		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
 			continue;
@@ -531,18 +529,37 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 
 		if (!nr_retries--) {
 			mem_cgroup_out_of_memory(mem, gfp_mask);
-			goto out;
+			goto nomem;
 		}
 	}
+	return 0;
+nomem:
+	css_put(&mem->css);
+	return -ENOMEM;
+}
 
+/*
+ * commit a charge got by mem_cgroup_try_charge() and makes page_cgroup to be
+ * USED state. If already USED, uncharge and return.
+ */
+
+static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+				     struct page_cgroup *pc,
+				     enum charge_type ctype)
+{
+	struct mem_cgroup_per_zone *mz;
+	unsigned long flags;
+
+	/* try_charge() can return NULL to *memcg, taking care of it. */
+	if (!mem)
+		return;
 
 	lock_page_cgroup(pc);
 	if (unlikely(PageCgroupUsed(pc))) {
 		unlock_page_cgroup(pc);
 		res_counter_uncharge(&mem->res, PAGE_SIZE);
 		css_put(&mem->css);
-
-		goto done;
+		return;
 	}
 	pc->mem_cgroup = mem;
 	/*
@@ -557,15 +574,39 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 	__mem_cgroup_add_list(mz, pc);
 	spin_unlock_irqrestore(&mz->lru_lock, flags);
 	unlock_page_cgroup(pc);
-
-done:
-	return 0;
-out:
-	css_put(&mem->css);
-	return -ENOMEM;
 }
 
-int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask)
+/*
+ * Charge the memory controller for page usage.
+ * Return
+ * 0 if the charge was successful
+ * < 0 if the cgroup is over its limit
+ */
+static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+				gfp_t gfp_mask, enum charge_type ctype,
+				struct mem_cgroup *memcg)
+{
+	struct mem_cgroup *mem;
+	struct page_cgroup *pc;
+	int ret;
+
+	pc = lookup_page_cgroup(page);
+	/* can happen at boot */
+	if (unlikely(!pc))
+		return 0;
+	prefetchw(pc);
+
+	mem = memcg;
+	ret = mem_cgroup_try_charge(mm, gfp_mask, &mem);
+	if (ret)
+		return ret;
+
+	__mem_cgroup_commit_charge(mem, pc, ctype);
+	return 0;
+}
+
+int mem_cgroup_newpage_charge(struct page *page,
+			      struct mm_struct *mm, gfp_t gfp_mask)
 {
 	if (mem_cgroup_subsys.disabled)
 		return 0;
@@ -585,6 +626,34 @@ int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask)
 	return mem_cgroup_charge_common(page, mm, gfp_mask,
 				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
 }
+
+/*
+ * same as mem_cgroup_newpage_charge(), now.
+ * But what we assume is different from newpage, and this is special case.
+ * treat this in special function. easy for maintenance.
+ */
+
+int mem_cgroup_charge_migrate_fixup(struct page *page,
+				struct mm_struct *mm, gfp_t gfp_mask)
+{
+	if (mem_cgroup_subsys.disabled)
+		return 0;
+
+	if (PageCompound(page))
+		return 0;
+
+	if (page_mapped(page) || (page->mapping && !PageAnon(page)))
+		return 0;
+
+	if (unlikely(!mm))
+		mm = &init_mm;
+
+	return mem_cgroup_charge_common(page, mm, gfp_mask,
+				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
+}
+
+
+
 
 int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask)
@@ -627,6 +696,30 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 		return mem_cgroup_charge_common(page, mm, gfp_mask,
 				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
 }
+
+
+void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
+{
+	struct page_cgroup *pc;
+
+	if (mem_cgroup_subsys.disabled)
+		return;
+	if (!ptr)
+		return;
+	pc = lookup_page_cgroup(page);
+	__mem_cgroup_commit_charge(ptr, pc, MEM_CGROUP_CHARGE_TYPE_MAPPED);
+}
+
+void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
+{
+	if (mem_cgroup_subsys.disabled)
+		return;
+	if (!mem)
+		return;
+	res_counter_uncharge(&mem->res, PAGE_SIZE);
+	css_put(&mem->css);
+}
+
 
 /*
  * uncharge if !page_mapped(page)
