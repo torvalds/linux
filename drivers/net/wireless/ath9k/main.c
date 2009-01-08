@@ -817,7 +817,7 @@ static int ath_key_config(struct ath_softc *sc,
 		hk.kv_type = ATH9K_CIPHER_AES_CCM;
 		break;
 	default:
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	hk.kv_len = key->keylen;
@@ -851,7 +851,7 @@ static int ath_key_config(struct ath_softc *sc,
 		else
 			idx = ath_reserve_key_cache_slot(sc);
 		if (idx < 0)
-			return -EIO; /* no free key cache entries */
+			return -ENOSPC; /* no free key cache entries */
 	}
 
 	if (key->alg == ALG_TKIP)
