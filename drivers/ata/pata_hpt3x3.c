@@ -96,7 +96,7 @@ static void hpt3x3_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	writing to the control register or the chip will hang
  */
 
-static int hpt3x3_freeze(struct ata_port *ap)
+static void hpt3x3_freeze(struct ata_port *ap)
 {
 	void __iomem *mmio = ap->ioaddr.bmdma_addr;
 
