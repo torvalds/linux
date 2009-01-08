@@ -52,9 +52,9 @@ struct cgroup_subsys_state {
 	 * hierarchy structure */
 	struct cgroup *cgroup;
 
-	/* State maintained by the cgroup system to allow
-	 * subsystems to be "busy". Should be accessed via css_get()
-	 * and css_put() */
+	/* State maintained by the cgroup system to allow subsystems
+	 * to be "busy". Should be accessed via css_get(),
+	 * css_tryget() and and css_put(). */
 
 	atomic_t refcnt;
 
@@ -64,11 +64,14 @@ struct cgroup_subsys_state {
 /* bits in struct cgroup_subsys_state flags field */
 enum {
 	CSS_ROOT, /* This CSS is the root of the subsystem */
+	CSS_REMOVED, /* This CSS is dead */
 };
 
 /*
- * Call css_get() to hold a reference on the cgroup;
- *
+ * Call css_get() to hold a reference on the css; it can be used
+ * for a reference obtained via:
+ * - an existing ref-counted reference to the css
+ * - task->cgroups for a locked task
  */
 
 static inline void css_get(struct cgroup_subsys_state *css)
@@ -77,9 +80,32 @@ static inline void css_get(struct cgroup_subsys_state *css)
 	if (!test_bit(CSS_ROOT, &css->flags))
 		atomic_inc(&css->refcnt);
 }
+
+static inline bool css_is_removed(struct cgroup_subsys_state *css)
+{
+	return test_bit(CSS_REMOVED, &css->flags);
+}
+
+/*
+ * Call css_tryget() to take a reference on a css if your existing
+ * (known-valid) reference isn't already ref-counted. Returns false if
+ * the css has been destroyed.
+ */
+
+static inline bool css_tryget(struct cgroup_subsys_state *css)
+{
+	if (test_bit(CSS_ROOT, &css->flags))
+		return true;
+	while (!atomic_inc_not_zero(&css->refcnt)) {
+		if (test_bit(CSS_REMOVED, &css->flags))
+			return false;
+	}
+	return true;
+}
+
 /*
  * css_put() should be called to release a reference taken by
- * css_get()
+ * css_get() or css_tryget()
  */
 
 extern void __css_put(struct cgroup_subsys_state *css);

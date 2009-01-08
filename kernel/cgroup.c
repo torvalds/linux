@@ -2333,7 +2333,7 @@ static void init_cgroup_css(struct cgroup_subsys_state *css,
 			       struct cgroup *cgrp)
 {
 	css->cgroup = cgrp;
-	atomic_set(&css->refcnt, 0);
+	atomic_set(&css->refcnt, 1);
 	css->flags = 0;
 	if (cgrp == dummytop)
 		set_bit(CSS_ROOT, &css->flags);
@@ -2465,7 +2465,7 @@ static int cgroup_has_css_refs(struct cgroup *cgrp)
 {
 	/* Check the reference count on each subsystem. Since we
 	 * already established that there are no tasks in the
-	 * cgroup, if the css refcount is also 0, then there should
+	 * cgroup, if the css refcount is also 1, then there should
 	 * be no outstanding references, so the subsystem is safe to
 	 * destroy. We scan across all subsystems rather than using
 	 * the per-hierarchy linked list of mounted subsystems since
@@ -2486,10 +2486,60 @@ static int cgroup_has_css_refs(struct cgroup *cgrp)
 		 * matter, since it can only happen if the cgroup
 		 * has been deleted and hence no longer needs the
 		 * release agent to be called anyway. */
-		if (css && atomic_read(&css->refcnt))
+		if (css && (atomic_read(&css->refcnt) > 1))
 			return 1;
 	}
 	return 0;
+}
+
+/*
+ * Atomically mark all (or else none) of the cgroup's CSS objects as
+ * CSS_REMOVED. Return true on success, or false if the cgroup has
+ * busy subsystems. Call with cgroup_mutex held
+ */
+
+static int cgroup_clear_css_refs(struct cgroup *cgrp)
+{
+	struct cgroup_subsys *ss;
+	unsigned long flags;
+	bool failed = false;
+	local_irq_save(flags);
+	for_each_subsys(cgrp->root, ss) {
+		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+		int refcnt;
+		do {
+			/* We can only remove a CSS with a refcnt==1 */
+			refcnt = atomic_read(&css->refcnt);
+			if (refcnt > 1) {
+				failed = true;
+				goto done;
+			}
+			BUG_ON(!refcnt);
+			/*
+			 * Drop the refcnt to 0 while we check other
+			 * subsystems. This will cause any racing
+			 * css_tryget() to spin until we set the
+			 * CSS_REMOVED bits or abort
+			 */
+		} while (atomic_cmpxchg(&css->refcnt, refcnt, 0) != refcnt);
+	}
+ done:
+	for_each_subsys(cgrp->root, ss) {
+		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+		if (failed) {
+			/*
+			 * Restore old refcnt if we previously managed
+			 * to clear it from 1 to 0
+			 */
+			if (!atomic_read(&css->refcnt))
+				atomic_set(&css->refcnt, 1);
+		} else {
+			/* Commit the fact that the CSS is removed */
+			set_bit(CSS_REMOVED, &css->flags);
+		}
+	}
+	local_irq_restore(flags);
+	return !failed;
 }
 
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
@@ -2522,7 +2572,7 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 
 	if (atomic_read(&cgrp->count)
 	    || !list_empty(&cgrp->children)
-	    || cgroup_has_css_refs(cgrp)) {
+	    || !cgroup_clear_css_refs(cgrp)) {
 		mutex_unlock(&cgroup_mutex);
 		return -EBUSY;
 	}
@@ -3078,7 +3128,8 @@ void __css_put(struct cgroup_subsys_state *css)
 {
 	struct cgroup *cgrp = css->cgroup;
 	rcu_read_lock();
-	if (atomic_dec_and_test(&css->refcnt) && notify_on_release(cgrp)) {
+	if ((atomic_dec_return(&css->refcnt) == 1) &&
+	    notify_on_release(cgrp)) {
 		set_bit(CGRP_RELEASABLE, &cgrp->flags);
 		check_for_release(cgrp);
 	}
