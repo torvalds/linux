@@ -271,7 +271,7 @@ static void __put_css_set(struct css_set *cg, int taskexit)
 
 	rcu_read_lock();
 	for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
-		struct cgroup *cgrp = cg->subsys[i]->cgroup;
+		struct cgroup *cgrp = rcu_dereference(cg->subsys[i]->cgroup);
 		if (atomic_dec_and_test(&cgrp->count) &&
 		    notify_on_release(cgrp)) {
 			if (taskexit)
@@ -594,6 +594,13 @@ static void cgroup_call_pre_destroy(struct cgroup *cgrp)
 	return;
 }
 
+static void free_cgroup_rcu(struct rcu_head *obj)
+{
+	struct cgroup *cgrp = container_of(obj, struct cgroup, rcu_head);
+
+	kfree(cgrp);
+}
+
 static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 {
 	/* is dentry a directory ? if so, kfree() associated cgroup */
@@ -619,11 +626,13 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 		cgrp->root->number_of_cgroups--;
 		mutex_unlock(&cgroup_mutex);
 
-		/* Drop the active superblock reference that we took when we
-		 * created the cgroup */
+		/*
+		 * Drop the active superblock reference that we took when we
+		 * created the cgroup
+		 */
 		deactivate_super(cgrp->root->sb);
 
-		kfree(cgrp);
+		call_rcu(&cgrp->rcu_head, free_cgroup_rcu);
 	}
 	iput(inode);
 }
@@ -1134,14 +1143,16 @@ static inline struct cftype *__d_cft(struct dentry *dentry)
  * @buf: the buffer to write the path into
  * @buflen: the length of the buffer
  *
- * Called with cgroup_mutex held. Writes path of cgroup into buf.
- * Returns 0 on success, -errno on error.
+ * Called with cgroup_mutex held or else with an RCU-protected cgroup
+ * reference.  Writes path of cgroup into buf.  Returns 0 on success,
+ * -errno on error.
  */
 int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
 {
 	char *start;
+	struct dentry *dentry = rcu_dereference(cgrp->dentry);
 
-	if (cgrp == dummytop) {
+	if (!dentry || cgrp == dummytop) {
 		/*
 		 * Inactive subsystems have no dentry for their root
 		 * cgroup
@@ -1154,13 +1165,14 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
 
 	*--start = '\0';
 	for (;;) {
-		int len = cgrp->dentry->d_name.len;
+		int len = dentry->d_name.len;
 		if ((start -= len) < buf)
 			return -ENAMETOOLONG;
 		memcpy(start, cgrp->dentry->d_name.name, len);
 		cgrp = cgrp->parent;
 		if (!cgrp)
 			break;
+		dentry = rcu_dereference(cgrp->dentry);
 		if (!cgrp->parent)
 			continue;
 		if (--start < buf)
@@ -1663,7 +1675,7 @@ static int cgroup_create_dir(struct cgroup *cgrp, struct dentry *dentry,
 	if (!error) {
 		dentry->d_fsdata = cgrp;
 		inc_nlink(parent->d_inode);
-		cgrp->dentry = dentry;
+		rcu_assign_pointer(cgrp->dentry, dentry);
 		dget(dentry);
 	}
 	dput(dentry);
