@@ -195,7 +195,6 @@ static void Wb35Rx_Complete(struct urb *urb)
 	if (pWb35Rx->EP3VM_status != 0) {
 		#ifdef _PE_USB_STATE_DUMP_
 		WBDEBUG(("EP3 IoCompleteRoutine return error\n"));
-		DebugUsbdStatusInformation( pWb35Rx->EP3VM_status );
 		#endif
 		pWb35Rx->EP3vm_state = VM_STOP;
 		goto error;

@@ -4,9 +4,6 @@
 // This file contains the OS dependant definition and function.
 // Every OS has this file individual.
 //
-
-#define DebugUsbdStatusInformation( _A )
-
 #ifndef COMMON_DEF
 #define COMMON_DEF
 

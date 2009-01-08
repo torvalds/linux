@@ -481,7 +481,6 @@ Wb35Reg_EP0VM_complete(struct urb *urb)
 		if (reg->EP0VM_status) {
 #ifdef _PE_REG_DUMP_
 			WBDEBUG(("EP0 IoCompleteRoutine return error\n"));
-			DebugUsbdStatusInformation( reg->EP0VM_status );
 #endif
 			reg->EP0vm_state = VM_STOP;
 			pHwData->SurpriseRemove = 1;
