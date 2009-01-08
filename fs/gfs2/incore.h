@@ -540,7 +540,6 @@ struct gfs2_sbd {
 
 	struct list_head sd_quota_list;
 	atomic_t sd_quota_count;
-	spinlock_t sd_quota_spin;
 	struct mutex sd_quota_mutex;
 	wait_queue_head_t sd_quota_wait;
 	struct list_head sd_trunc_list;
