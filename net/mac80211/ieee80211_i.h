@@ -320,6 +320,12 @@ struct ieee80211_if_sta {
 	int auth_alg; /* currently used IEEE 802.11 authentication algorithm */
 	int auth_transaction;
 
+	enum {
+		IEEE80211_MFP_DISABLED,
+		IEEE80211_MFP_OPTIONAL,
+		IEEE80211_MFP_REQUIRED
+	} mfp; /* management frame protection */
+
 	unsigned long ibss_join_req;
 	struct sk_buff *probe_resp; /* ProbeResp template for IBSS */
 	u32 supp_rates_bits[IEEE80211_NUM_BANDS];

@@ -2317,6 +2317,10 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata,
 					       selected->ssid_len);
 		ieee80211_sta_set_bssid(sdata, selected->bssid);
 		ieee80211_sta_def_wmm_params(sdata, selected);
+		if (sdata->u.sta.mfp == IEEE80211_MFP_REQUIRED)
+			sdata->u.sta.flags |= IEEE80211_STA_MFP_ENABLED;
+		else
+			sdata->u.sta.flags &= ~IEEE80211_STA_MFP_ENABLED;
 
 		/* Send out direct probe if no probe resp was received or
 		 * the one we have is outdated

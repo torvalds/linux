@@ -975,6 +975,13 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 		else
 			ret = -EOPNOTSUPP;
 		break;
+	case IW_AUTH_MFP:
+		if (sdata->vif.type == NL80211_IFTYPE_STATION ||
+		    sdata->vif.type == NL80211_IFTYPE_ADHOC)
+			sdata->u.sta.mfp = data->value;
+		else
+			ret = -EOPNOTSUPP;
+		break;
 	default:
 		ret = -EOPNOTSUPP;
 		break;
