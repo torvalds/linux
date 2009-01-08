@@ -416,13 +416,13 @@ static int __init flush_buffer(void *bufv, unsigned len)
 
 static unsigned my_inptr;   /* index of next byte to be processed in inbuf */
 
-#include <linux/decompress/bunzip2.h>
-#include <linux/decompress/unlzma.h>
-#include <linux/decompress/inflate.h>
+#include <linux/decompress/generic.h>
 
 static char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
 {
 	int written;
+	decompress_fn decompress;
+
 	dry_run = check_only;
 	header_buf = kmalloc(110, GFP_KERNEL);
 	symlink_buf = kmalloc(PATH_MAX + N_ALIGN(PATH_MAX) + 1, GFP_KERNEL);
@@ -450,35 +450,10 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
 			continue;
 		}
 		this_header = 0;
-#ifdef CONFIG_RD_GZIP
-		if (!gunzip(buf, len, NULL, flush_buffer, NULL,
-			    &my_inptr, error) &&
-		    message == NULL)
-			goto ok;
-#endif
-
-#ifdef CONFIG_RD_BZIP2
-		message = NULL; /* Zero out message, or else cpio will
-				   think an error has already occured */
-		if (!bunzip2(buf, len, NULL, flush_buffer, NULL,
-			     &my_inptr, error) &&
-		    message == NULL) {
-			goto ok;
-		}
-#endif
-
-#ifdef CONFIG_RD_LZMA
-		message = NULL; /* Zero out message, or else cpio will
-				   think an error has already occured */
-		if (!unlzma(buf, len, NULL, flush_buffer, NULL,
-			    &my_inptr, error) &&
-		    message == NULL) {
-			goto ok;
-		}
-#endif
-#if defined CONFIG_RD_GZIP || defined CONFIG_RD_BZIP2 || defined CONFIG_RD_LZMA
-ok:
-#endif
+		decompress = decompress_method(buf, len, NULL);
+		if (decompress)
+			decompress(buf, len, NULL, flush_buffer, NULL,
+				   &my_inptr, error);
 		if (state != Reset)
 			error("junk in compressed archive");
 		this_header = saved_offset + my_inptr;

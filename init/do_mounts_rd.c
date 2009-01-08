@@ -12,9 +12,6 @@
 
 #include <linux/decompress/generic.h>
 
-#include <linux/decompress/bunzip2.h>
-#include <linux/decompress/unlzma.h>
-#include <linux/decompress/inflate.h>
 
 int __initdata rd_prompt = 1;/* 1 = prompt for RAM disk, 0 = don't prompt */
 
@@ -49,24 +46,6 @@ static int __init crd_load(int in_fd, int out_fd, decompress_fn deco);
  *	cramfs
  *	gzip
  */
-static const struct compress_format {
-	unsigned char magic[2];
-	const char *name;
-	decompress_fn decompressor;
-} compressed_formats[] = {
-#ifdef CONFIG_RD_GZIP
-	{ {037, 0213}, "gzip", gunzip },
-	{ {037, 0236}, "gzip", gunzip },
-#endif
-#ifdef CONFIG_RD_BZIP2
-	{ {0x42, 0x5a}, "bzip2", bunzip2 },
-#endif
-#ifdef CONFIG_RD_LZMA
-	{ {0x5d, 0x00}, "lzma", unlzma },
-#endif
-	{ {0, 0}, NULL, NULL }
-};
-
 static int __init
 identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 {
@@ -77,7 +56,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	struct cramfs_super *cramfsb;
 	int nblocks = -1;
 	unsigned char *buf;
-	const struct compress_format *cf;
+	const char *compress_name;
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
@@ -95,15 +74,12 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	sys_lseek(fd, start_block * BLOCK_SIZE, 0);
 	sys_read(fd, buf, size);
 
-	for (cf = compressed_formats; cf->decompressor; cf++) {
-		if (buf[0] == cf->magic[0] && buf[1] == cf->magic[1]) {
-			printk(KERN_NOTICE
-			       "RAMDISK: %s image found at block %d\n",
-			       cf->name, start_block);
-			*decompressor = cf->decompressor;
-			nblocks = 0;
-			goto done;
-		}
+	*decompressor = decompress_method(buf, size, &compress_name);
+	if (*decompressor) {
+		printk(KERN_NOTICE "RAMDISK: %s image found at block %d\n",
+		       compress_name, start_block);
+		nblocks = 0;
+		goto done;
 	}
 
 	/* romfs is at block zero too */

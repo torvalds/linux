@@ -26,5 +26,8 @@ typedef int (*decompress_fn) (unsigned char *inbuf, int len,
  *fill should be called (repeatedly...) to read data, at most IOBUF_SIZE
  */
 
+/* Utility routine to detect the decompression method */
+decompress_fn decompress_method(const unsigned char *inbuf, int len,
+				const char **name);
 
 #endif
