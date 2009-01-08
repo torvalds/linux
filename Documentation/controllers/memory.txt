@@ -289,6 +289,31 @@ will be charged as a new owner of it.
   Because rmdir() moves all pages to parent, some out-of-use page caches can be
   moved to the parent. If you want to avoid that, force_empty will be useful.
 
+5.2 stat file
+  memory.stat file includes following statistics (now)
+	cache			- # of pages from page-cache and shmem.
+	rss			- # of pages from anonymous memory.
+	pgpgin			- # of event of charging
+	pgpgout			- # of event of uncharging
+	active_anon		- # of pages on active lru of anon, shmem.
+	inactive_anon 		- # of pages on active lru of anon, shmem
+	active_file		- # of pages on active lru of file-cache
+	inactive_file		- # of pages on inactive lru of file cache
+	unevictable		- # of pages cannot be reclaimed.(mlocked etc)
+
+	Below is depend on CONFIG_DEBUG_VM.
+	inactive_ratio		- VM inernal parameter. (see mm/page_alloc.c)
+	recent_rotated_anon	- VM internal parameter. (see mm/vmscan.c)
+	recent_rotated_file	- VM internal parameter. (see mm/vmscan.c)
+	recent_scanned_anon 	- VM internal parameter. (see mm/vmscan.c)
+	recent_scanned_file 	- VM internal parameter. (see mm/vmscan.c)
+
+  Memo:
+	recent_rotated means recent frequency of lru rotation.
+	recent_scanned means recent # of scans to lru.
+	showing for better debug please see the code for meanings.
+
+
 6. Hierarchy support
 
 The memory controller supports a deep hierarchy and hierarchical accounting.
