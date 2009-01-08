@@ -517,7 +517,7 @@ int devcgroup_inode_mknod(int mode, dev_t dev)
 
 	dev_cgroup = task_devcgroup(current);
 
-	list_for_each_entry(wh, &dev_cgroup->whitelist, list) {
+	list_for_each_entry_rcu(wh, &dev_cgroup->whitelist, list) {
 		if (wh->type & DEV_ALL)
 			goto acc_check;
 		if ((wh->type & DEV_BLOCK) && !S_ISBLK(mode))
