@@ -207,12 +207,6 @@ exceeded.
 The memory.stat file gives accounting information. Now, the number of
 caches, RSS and Active pages/Inactive pages are shown.
 
-The memory.force_empty gives an interface to drop *all* charges by force.
-
-# echo 1 > memory.force_empty
-
-will drop all charges in cgroup. Currently, this is maintained for test.
-
 4. Testing
 
 Balbir posted lmbench, AIM9, LTP and vmmstress results [10] and [11].
@@ -242,8 +236,10 @@ reclaimed.
 
 A cgroup can be removed by rmdir, but as discussed in sections 4.1 and 4.2, a
 cgroup might have some charge associated with it, even though all
-tasks have migrated away from it. Such charges are automatically dropped at
-rmdir() if there are no tasks.
+tasks have migrated away from it.
+Such charges are moved to its parent as much as possible and freed if parent
+is full. Both of RSS and CACHES are moved to parent.
+If both of them are busy, rmdir() returns -EBUSY.
 
 5. TODO
 
