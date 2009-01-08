@@ -1141,6 +1141,11 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	adrp[1] = ioread16(ioaddr + MID_0M);
 	adrp[2] = ioread16(ioaddr + MID_0H);
 
+	/* Some bootloader/BIOSes do not initialize
+	 * MAC address, warn about that */
+	if (!(adrp[0] || adrp[1] || adrp[2]))
+		printk(KERN_WARNING DRV_NAME ": MAC address not initialized\n");
+
 	/* Link new device into r6040_root_dev */
 	lp->pdev = pdev;
 	lp->dev = dev;
