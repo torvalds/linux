@@ -254,42 +254,6 @@ static const unsigned char init_po1030[][3] =
 	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0c},
 	/*end of sequence 1*/
 
-	/*sequence 2 (same as stop sequence)*/
-	{SENSOR, PO1030_AUTOCTRL2, 0x24},
-	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
-	{BRIDGE, M5602_XB_GPIO_DAT, 0x04},
-	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
-	{BRIDGE, M5602_XB_GPIO_DIR_H, 0x06},
-	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x02},
-
-	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x04},
-	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
-	/*end of sequence 2*/
-
-	/*sequence 5*/
-	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x06},
-	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
-	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
-	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0c},
-	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x81},
-	{BRIDGE, M5602_XB_PIX_OF_LINE_H, 0x82},
-	{BRIDGE, M5602_XB_SIG_INI, 0x01},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x02},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x01},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0xec},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_SIG_INI, 0x00},
-	{BRIDGE, M5602_XB_SIG_INI, 0x02},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x87},
-	{BRIDGE, M5602_XB_SIG_INI, 0x00},
-	/*end of sequence 5*/
 	/*sequence 2 stop */
 	{SENSOR, PO1030_AUTOCTRL2, PO1030_SENSOR_RESET | (1 << 2)},
 
@@ -305,15 +269,6 @@ static const unsigned char init_po1030[][3] =
 
 static const unsigned char start_po1030[][3] =
 {
-	/* ---------------------------------
-	 * end of init - begin of start
-	 * --------------------------------- */
-	/*sequence 3*/
-	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
-	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
-	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
-	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0c},
-	/*end of sequence 3*/
 	/*sequence 4*/
 	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
 	{BRIDGE, M5602_XB_GPIO_DAT, 0x00},
@@ -358,8 +313,6 @@ static const unsigned char start_po1030[][3] =
 	{SENSOR, PO1030_EGA, 0x80},
 	{SENSOR, 0x78, 0x14},
 	{SENSOR, 0x6f, 0x01},
-	{SENSOR, PO1030_CONTROL1, PO1030_AUTO_SUBSAMPLING |
-				  PO1030_FRAME_EQUAL},
 	{SENSOR, PO1030_GLOBALGAINMAX, 0x14},
 	{SENSOR, PO1030_Cb_U_GAIN, 0x38},
 	{SENSOR, PO1030_Cr_V_GAIN, 0x38},
@@ -408,11 +361,6 @@ static const unsigned char start_po1030[][3] =
 	 * decrease the FPS (Frame Per Second) */
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
-
-	/* Sets the width */
-	{SENSOR, PO1030_FRAMEWIDTH_H, 0x02},
-	{SENSOR, PO1030_FRAMEWIDTH_L, 0xef}
-	/*end of sequence 6*/
 };
 
 #endif
