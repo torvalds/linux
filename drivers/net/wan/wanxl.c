@@ -547,6 +547,15 @@ static void wanxl_pci_remove_one(struct pci_dev *pdev)
 
 #include "wanxlfw.inc"
 
+static const struct net_device_ops wanxl_ops = {
+	.ndo_open       = wanxl_open,
+	.ndo_stop       = wanxl_close,
+	.ndo_change_mtu = hdlc_change_mtu,
+	.ndo_start_xmit = hdlc_start_xmit,
+	.ndo_do_ioctl   = wanxl_ioctl,
+	.ndo_get_stats  = wanxl_get_stats,
+};
+
 static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 					const struct pci_device_id *ent)
 {
@@ -777,12 +786,9 @@ static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 		hdlc = dev_to_hdlc(dev);
 		spin_lock_init(&port->lock);
 		dev->tx_queue_len = 50;
-		dev->do_ioctl = wanxl_ioctl;
-		dev->open = wanxl_open;
-		dev->stop = wanxl_close;
+		dev->netdev_ops = &wanxl_ops;
 		hdlc->attach = wanxl_attach;
 		hdlc->xmit = wanxl_xmit;
-		dev->get_stats = wanxl_get_stats;
 		port->card = card;
 		port->node = i;
 		get_status(port)->clocking = CLOCK_EXT;

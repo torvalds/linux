@@ -44,7 +44,7 @@ static const char* version = "HDLC support module revision 1.22";
 
 static struct hdlc_proto *first_proto;
 
-static int hdlc_change_mtu(struct net_device *dev, int new_mtu)
+int hdlc_change_mtu(struct net_device *dev, int new_mtu)
 {
 	if ((new_mtu < 68) || (new_mtu > HDLC_MAX_MTU))
 		return -EINVAL;
@@ -66,7 +66,15 @@ static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 	return hdlc->proto->netif_rx(skb);
 }
 
+int hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	hdlc_device *hdlc = dev_to_hdlc(dev);
 
+	if (hdlc->proto->xmit)
+		return hdlc->proto->xmit(skb, dev);
+
+	return hdlc->xmit(skb, dev); /* call hardware driver directly */
+}
 
 static inline void hdlc_proto_start(struct net_device *dev)
 {
@@ -231,8 +239,6 @@ static void hdlc_setup_dev(struct net_device *dev)
 	dev->hard_header_len	 = 16;
 	dev->addr_len		 = 0;
 	dev->header_ops		 = &hdlc_null_ops;
-
-	dev->change_mtu		 = hdlc_change_mtu;
 }
 
 static void hdlc_setup(struct net_device *dev)
@@ -330,6 +336,8 @@ MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
 MODULE_DESCRIPTION("HDLC support module");
 MODULE_LICENSE("GPL v2");
 
+EXPORT_SYMBOL(hdlc_change_mtu);
+EXPORT_SYMBOL(hdlc_start_xmit);
 EXPORT_SYMBOL(hdlc_open);
 EXPORT_SYMBOL(hdlc_close);
 EXPORT_SYMBOL(hdlc_ioctl);

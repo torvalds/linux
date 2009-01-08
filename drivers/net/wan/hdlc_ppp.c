@@ -558,7 +558,6 @@ out:
 	return NET_RX_DROP;
 }
 
-
 static void ppp_timer(unsigned long arg)
 {
 	struct proto *proto = (struct proto *)arg;
@@ -679,7 +678,6 @@ static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		ppp->keepalive_interval = 10;
 		ppp->keepalive_timeout = 60;
 
-		dev->hard_start_xmit = hdlc->xmit;
 		dev->hard_header_len = sizeof(struct hdlc_header);
 		dev->header_ops = &ppp_header_ops;
 		dev->type = ARPHRD_PPP;

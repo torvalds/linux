@@ -382,7 +382,6 @@ static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 		memcpy(&state(hdlc)->settings, &new_settings, size);
 		spin_lock_init(&state(hdlc)->lock);
-		dev->hard_start_xmit = hdlc->xmit;
 		dev->header_ops = &cisco_header_ops;
 		dev->type = ARPHRD_CISCO;
 		netif_dormant_on(dev);

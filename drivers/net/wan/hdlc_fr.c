@@ -444,18 +444,6 @@ static int pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-
-
-static int pvc_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < 68) || (new_mtu > HDLC_MAX_MTU))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
-
-
 static inline void fr_log_dlci_active(pvc_device *pvc)
 {
 	printk(KERN_INFO "%s: DLCI %d [%s%s%s]%s %s\n",
@@ -1068,6 +1056,14 @@ static void pvc_setup(struct net_device *dev)
 	dev->addr_len = 2;
 }
 
+static const struct net_device_ops pvc_ops = {
+	.ndo_open       = pvc_open,
+	.ndo_stop       = pvc_close,
+	.ndo_change_mtu = hdlc_change_mtu,
+	.ndo_start_xmit = pvc_xmit,
+	.ndo_do_ioctl   = pvc_ioctl,
+};
+
 static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 {
 	hdlc_device *hdlc = dev_to_hdlc(frad);
@@ -1104,11 +1100,7 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 		*(__be16*)dev->dev_addr = htons(dlci);
 		dlci_to_q922(dev->broadcast, dlci);
 	}
-	dev->hard_start_xmit = pvc_xmit;
-	dev->open = pvc_open;
-	dev->stop = pvc_close;
-	dev->do_ioctl = pvc_ioctl;
-	dev->change_mtu = pvc_change_mtu;
+	dev->netdev_ops = &pvc_ops;
 	dev->mtu = HDLC_MAX_MTU;
 	dev->tx_queue_len = 0;
 	dev->ml_priv = pvc;
@@ -1260,8 +1252,6 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 			state(hdlc)->dce_pvc_count = 0;
 		}
 		memcpy(&state(hdlc)->settings, &new_settings, size);
-
-		dev->hard_start_xmit = hdlc->xmit;
 		dev->type = ARPHRD_FRAD;
 		return 0;
 

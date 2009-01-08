@@ -806,6 +806,16 @@ static int lmc_attach(struct net_device *dev, unsigned short encoding,
 	return -EINVAL;
 }
 
+static const struct net_device_ops lmc_ops = {
+	.ndo_open       = lmc_open,
+	.ndo_stop       = lmc_close,
+	.ndo_change_mtu = hdlc_change_mtu,
+	.ndo_start_xmit = hdlc_start_xmit,
+	.ndo_do_ioctl   = lmc_ioctl,
+	.ndo_tx_timeout = lmc_driver_timeout,
+	.ndo_get_stats  = lmc_get_stats,
+};
+
 static int __devinit lmc_init_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
@@ -849,11 +859,7 @@ static int __devinit lmc_init_one(struct pci_dev *pdev,
 	dev->type = ARPHRD_HDLC;
 	dev_to_hdlc(dev)->xmit = lmc_start_xmit;
 	dev_to_hdlc(dev)->attach = lmc_attach;
-	dev->open = lmc_open;
-	dev->stop = lmc_close;
-	dev->get_stats = lmc_get_stats;
-	dev->do_ioctl = lmc_ioctl;
-	dev->tx_timeout = lmc_driver_timeout;
+	dev->netdev_ops = &lmc_ops;
 	dev->watchdog_timeo = HZ; /* 1 second */
 	dev->tx_queue_len = 100;
 	sc->lmc_device = dev;
@@ -1058,9 +1064,6 @@ static int lmc_open(struct net_device *dev)
 
     if ((err = lmc_proto_open(sc)) != 0)
 	    return err;
-
-    dev->do_ioctl = lmc_ioctl;
-
 
     netif_start_queue(dev);
     sc->extra_stats.tx_tbusy0++;

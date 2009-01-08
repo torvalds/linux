@@ -45,6 +45,7 @@ static int eth_tx(struct sk_buff *skb, struct net_device *dev)
 
 static struct hdlc_proto proto = {
 	.type_trans	= eth_type_trans,
+	.xmit		= eth_tx,
 	.ioctl		= raw_eth_ioctl,
 	.module		= THIS_MODULE,
 };
@@ -56,9 +57,7 @@ static int raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
 	const size_t size = sizeof(raw_hdlc_proto);
 	raw_hdlc_proto new_settings;
 	hdlc_device *hdlc = dev_to_hdlc(dev);
-	int result;
-	int (*old_ch_mtu)(struct net_device *, int);
-	int old_qlen;
+	int result, old_qlen;
 
 	switch (ifr->ifr_settings.type) {
 	case IF_GET_PROTO:
@@ -99,11 +98,8 @@ static int raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (result)
 			return result;
 		memcpy(hdlc->state, &new_settings, size);
-		dev->hard_start_xmit = eth_tx;
-		old_ch_mtu = dev->change_mtu;
 		old_qlen = dev->tx_queue_len;
 		ether_setup(dev);
-		dev->change_mtu = old_ch_mtu;
 		dev->tx_queue_len = old_qlen;
 		random_ether_addr(dev->dev_addr);
 		netif_dormant_off(dev);

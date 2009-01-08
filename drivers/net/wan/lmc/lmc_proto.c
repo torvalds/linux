@@ -51,30 +51,15 @@
 void lmc_proto_attach(lmc_softc_t *sc) /*FOLD00*/
 {
     lmc_trace(sc->lmc_device, "lmc_proto_attach in");
-    switch(sc->if_type){
-    case LMC_PPP:
-        {
-            struct net_device *dev = sc->lmc_device;
-            dev->do_ioctl = lmc_ioctl;
-        }
-        break;
-    case LMC_NET:
-        {
+    if (sc->if_type == LMC_NET) {
             struct net_device *dev = sc->lmc_device;
             /*
 	     * They set a few basics because they don't use HDLC
              */
             dev->flags |= IFF_POINTOPOINT;
-
             dev->hard_header_len = 0;
             dev->addr_len = 0;
         }
-    case LMC_RAW: /* Setup the task queue, maybe we should notify someone? */
-        {
-        }
-    default:
-        break;
-    }
     lmc_trace(sc->lmc_device, "lmc_proto_attach out");
 }
 
