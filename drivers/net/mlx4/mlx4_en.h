@@ -202,6 +202,7 @@ struct mlx4_en_tx_info {
 	u32 nr_txbb;
 	u8 linear;
 	u8 data_offset;
+	u8 inl;
 };
 
 
