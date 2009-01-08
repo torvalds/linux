@@ -40,7 +40,6 @@ void *high_memory;
 struct page *mem_map;
 unsigned long max_mapnr;
 unsigned long num_physpages;
-unsigned long askedalloc, realalloc;
 atomic_long_t vm_committed_space = ATOMIC_LONG_INIT(0);
 int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */
 int sysctl_overcommit_ratio = 50; /* default is 50% */
@@ -1042,22 +1041,11 @@ unsigned long do_mmap_pgoff(struct file *file,
 	/* okay... we have a mapping; now we have to register it */
 	result = (void *) vma->vm_start;
 
-	if (vma->vm_flags & VM_MAPPED_COPY) {
-		realalloc += kobjsize(result);
-		askedalloc += len;
-	}
-
-	realalloc += kobjsize(vma);
-	askedalloc += sizeof(*vma);
-
 	current->mm->total_vm += len >> PAGE_SHIFT;
 
 	add_nommu_vma(vma);
 
  shared:
-	realalloc += kobjsize(vml);
-	askedalloc += sizeof(*vml);
-
 	add_vma_to_mm(current->mm, vml);
 
 	up_write(&nommu_vma_sem);
@@ -1124,14 +1112,8 @@ static void put_vma(struct mm_struct *mm, struct vm_area_struct *vma)
 
 			/* IO memory and memory shared directly out of the pagecache from
 			 * ramfs/tmpfs mustn't be released here */
-			if (vma->vm_flags & VM_MAPPED_COPY) {
-				realalloc -= kobjsize((void *) vma->vm_start);
-				askedalloc -= vma->vm_end - vma->vm_start;
+			if (vma->vm_flags & VM_MAPPED_COPY)
 				kfree((void *) vma->vm_start);
-			}
-
-			realalloc -= kobjsize(vma);
-			askedalloc -= sizeof(*vma);
 
 			if (vma->vm_file) {
 				fput(vma->vm_file);
@@ -1177,8 +1159,6 @@ int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
 	put_vma(mm, vml->vma);
 
 	*parent = vml->next;
-	realalloc -= kobjsize(vml);
-	askedalloc -= sizeof(*vml);
 	kfree(vml);
 
 	update_hiwater_vm(mm);
@@ -1220,9 +1200,6 @@ void exit_mmap(struct mm_struct * mm)
 		while ((tmp = mm->context.vmlist)) {
 			mm->context.vmlist = tmp->next;
 			put_vma(mm, tmp->vma);
-
-			realalloc -= kobjsize(tmp);
-			askedalloc -= sizeof(*tmp);
 			kfree(tmp);
 		}
 
@@ -1275,9 +1252,6 @@ unsigned long do_mremap(unsigned long addr,
 
 	/* all checks complete - do it */
 	vma->vm_end = vma->vm_start + new_len;
-
-	askedalloc -= old_len;
-	askedalloc += new_len;
 
 	return vma->vm_start;
 }
