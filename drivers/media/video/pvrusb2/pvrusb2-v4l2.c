@@ -1268,8 +1268,9 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		dip->minor_type = pvr2_v4l_type_video;
 		nr_ptr = video_nr;
 		if (!dip->stream) {
-			err("Failed to set up pvrusb2 v4l video dev"
-			    " due to missing stream instance");
+			pr_err(KBUILD_MODNAME
+				": Failed to set up pvrusb2 v4l video dev"
+				" due to missing stream instance\n");
 			return;
 		}
 		break;
@@ -1286,8 +1287,8 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		break;
 	default:
 		/* Bail out (this should be impossible) */
-		err("Failed to set up pvrusb2 v4l dev"
-		    " due to unrecognized config");
+		pr_err(KBUILD_MODNAME ": Failed to set up pvrusb2 v4l dev"
+		    " due to unrecognized config\n");
 		return;
 	}
 
@@ -1303,7 +1304,8 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 				   dip->v4l_type, mindevnum) < 0) &&
 	    (video_register_device(&dip->devbase,
 				   dip->v4l_type, -1) < 0)) {
-		err("Failed to register pvrusb2 v4l device");
+		pr_err(KBUILD_MODNAME
+			": Failed to register pvrusb2 v4l device\n");
 	}
 
 	printk(KERN_INFO "pvrusb2: registered device %s%u [%s]\n",

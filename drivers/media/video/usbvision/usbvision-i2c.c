@@ -119,7 +119,8 @@ static inline int usb_find_address(struct i2c_adapter *i2c_adap,
 		/* try extended address code... */
 		ret = try_write_address(i2c_adap, addr, retries);
 		if (ret != 1) {
-			err("died at extended address code, while writing");
+			dev_err(&i2c_adap->dev,
+				"died at extended address code,	while writing\n");
 			return -EREMOTEIO;
 		}
 		add[0] = addr;
@@ -128,7 +129,8 @@ static inline int usb_find_address(struct i2c_adapter *i2c_adap,
 			addr |= 0x01;
 			ret = try_read_address(i2c_adap, addr, retries);
 			if (ret != 1) {
-				err("died at extended address code, while reading");
+				dev_err(&i2c_adap->dev,
+					"died at extended address code, while reading\n");
 				return -EREMOTEIO;
 			}
 		}

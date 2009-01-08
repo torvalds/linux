@@ -329,7 +329,7 @@ static void usbvision_create_sysfs(struct video_device *vdev)
 			return;
 	} while (0);
 
-	err("%s error: %d\n", __func__, res);
+	dev_err(&vdev->dev, "%s error: %d\n", __func__, res);
 }
 
 static void usbvision_remove_sysfs(struct video_device *vdev)
@@ -487,8 +487,9 @@ static int vidioc_g_register (struct file *file, void *priv,
 	/* NT100x has a 8-bit register space */
 	errCode = usbvision_read_reg(usbvision, reg->reg&0xff);
 	if (errCode < 0) {
-		err("%s: VIDIOC_DBG_G_REGISTER failed: error %d",
-		    __func__, errCode);
+		dev_err(&usbvision->vdev->dev,
+			"%s: VIDIOC_DBG_G_REGISTER failed: error %d\n",
+				__func__, errCode);
 		return errCode;
 	}
 	reg->val = errCode;
@@ -507,8 +508,9 @@ static int vidioc_s_register (struct file *file, void *priv,
 	/* NT100x has a 8-bit register space */
 	errCode = usbvision_write_reg(usbvision, reg->reg&0xff, reg->val);
 	if (errCode < 0) {
-		err("%s: VIDIOC_DBG_S_REGISTER failed: error %d",
-		    __func__, errCode);
+		dev_err(&usbvision->vdev->dev,
+			"%s: VIDIOC_DBG_S_REGISTER failed: error %d\n",
+				__func__, errCode);
 		return errCode;
 	}
 	return 0;
@@ -1189,7 +1191,9 @@ static int usbvision_radio_open(struct file *file)
 	mutex_lock(&usbvision->lock);
 
 	if (usbvision->user) {
-		err("%s: Someone tried to open an already opened USBVision Radio!", __func__);
+		dev_err(&usbvision->rdev->dev,
+			"%s: Someone tried to open an already opened USBVision Radio!\n",
+				__func__);
 		errCode = -EBUSY;
 	}
 	else {
@@ -1413,7 +1417,8 @@ static struct video_device *usbvision_vdev_init(struct usb_usbvision *usbvision,
 	struct video_device *vdev;
 
 	if (usb_dev == NULL) {
-		err("%s: usbvision->dev is not set", __func__);
+		dev_err(&usbvision->dev->dev,
+			"%s: usbvision->dev is not set\n", __func__);
 		return NULL;
 	}
 
@@ -1524,7 +1529,9 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 	return 0;
 
  err_exit:
-	err("USBVision[%d]: video_register_device() failed", usbvision->nr);
+	dev_err(&usbvision->dev->dev,
+		"USBVision[%d]: video_register_device() failed\n",
+			usbvision->nr);
 	usbvision_unregister_video(usbvision);
 	return -1;
 }
@@ -1675,20 +1682,20 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 	}
 	endpoint = &interface->endpoint[1].desc;
 	if (!usb_endpoint_xfer_isoc(endpoint)) {
-		err("%s: interface %d. has non-ISO endpoint!",
+		dev_err(&intf->dev, "%s: interface %d. has non-ISO endpoint!\n",
 		    __func__, ifnum);
-		err("%s: Endpoint attributes %d",
+		dev_err(&intf->dev, "%s: Endpoint attributes %d",
 		    __func__, endpoint->bmAttributes);
 		return -ENODEV;
 	}
 	if (usb_endpoint_dir_out(endpoint)) {
-		err("%s: interface %d. has ISO OUT endpoint!",
+		dev_err(&intf->dev, "%s: interface %d. has ISO OUT endpoint!\n",
 		    __func__, ifnum);
 		return -ENODEV;
 	}
 
 	if ((usbvision = usbvision_alloc(dev)) == NULL) {
-		err("%s: couldn't allocate USBVision struct", __func__);
+		dev_err(&intf->dev, "%s: couldn't allocate USBVision struct\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -1711,7 +1718,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 	usbvision->alt_max_pkt_size = kmalloc(32*
 					      usbvision->num_alt,GFP_KERNEL);
 	if (usbvision->alt_max_pkt_size == NULL) {
-		err("usbvision: out of memory!\n");
+		dev_err(&intf->dev, "usbvision: out of memory!\n");
 		mutex_unlock(&usbvision->lock);
 		return -ENOMEM;
 	}
@@ -1772,7 +1779,8 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 	PDEBUG(DBG_PROBE, "");
 
 	if (usbvision == NULL) {
-		err("%s: usb_get_intfdata() failed", __func__);
+		dev_err(&usbvision->dev->dev,
+			"%s: usb_get_intfdata() failed\n", __func__);
 		return;
 	}
 	usb_set_intfdata (intf, NULL);
