@@ -27,6 +27,7 @@
 #include <linux/backing-dev.h>
 #include <linux/bit_spinlock.h>
 #include <linux/rcupdate.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/spinlock.h>
@@ -132,12 +133,18 @@ struct mem_cgroup {
 	 */
 	struct res_counter res;
 	/*
+	 * the counter to account for mem+swap usage.
+	 */
+	struct res_counter memsw;
+	/*
 	 * Per cgroup active and inactive list, similar to the
 	 * per zone LRU lists.
 	 */
 	struct mem_cgroup_lru_info info;
 
 	int	prev_priority;	/* for recording reclaim priority */
+	int		obsolete;
+	atomic_t	refcnt;
 	/*
 	 * statistics. This must be placed at the end of memcg.
 	 */
@@ -166,6 +173,17 @@ pcg_default_flags[NR_CHARGE_TYPE] = {
 	PCGF_ACTIVE | PCGF_CACHE | PCGF_USED | PCGF_LOCK, /* Shmem */
 	0, /* FORCE */
 };
+
+
+/* for encoding cft->private value on file */
+#define _MEM			(0)
+#define _MEMSWAP		(1)
+#define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
+#define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
+#define MEMFILE_ATTR(val)	((val) & 0xffff)
+
+static void mem_cgroup_get(struct mem_cgroup *mem);
+static void mem_cgroup_put(struct mem_cgroup *mem);
 
 /*
  * Always modified under lru lock. Then, not necessary to preempt_disable()
@@ -485,7 +503,8 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
  * oom-killer can be invoked.
  */
 static int __mem_cgroup_try_charge(struct mm_struct *mm,
-			gfp_t gfp_mask, struct mem_cgroup **memcg, bool oom)
+			gfp_t gfp_mask, struct mem_cgroup **memcg,
+			bool oom)
 {
 	struct mem_cgroup *mem;
 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
@@ -513,12 +532,25 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 		css_get(&mem->css);
 	}
 
+	while (1) {
+		int ret;
+		bool noswap = false;
 
-	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
+		ret = res_counter_charge(&mem->res, PAGE_SIZE);
+		if (likely(!ret)) {
+			if (!do_swap_account)
+				break;
+			ret = res_counter_charge(&mem->memsw, PAGE_SIZE);
+			if (likely(!ret))
+				break;
+			/* mem+swap counter fails */
+			res_counter_uncharge(&mem->res, PAGE_SIZE);
+			noswap = true;
+		}
 		if (!(gfp_mask & __GFP_WAIT))
 			goto nomem;
 
-		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
+		if (try_to_free_mem_cgroup_pages(mem, gfp_mask, noswap))
 			continue;
 
 		/*
@@ -527,8 +559,13 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 		 * moved to swap cache or just unmapped from the cgroup.
 		 * Check the limit again to see if the reclaim reduced the
 		 * current usage of the cgroup before giving up
+		 *
 		 */
-		if (res_counter_check_under_limit(&mem->res))
+		if (!do_swap_account &&
+			res_counter_check_under_limit(&mem->res))
+			continue;
+		if (do_swap_account &&
+			res_counter_check_under_limit(&mem->memsw))
 			continue;
 
 		if (!nr_retries--) {
@@ -582,6 +619,8 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 	if (unlikely(PageCgroupUsed(pc))) {
 		unlock_page_cgroup(pc);
 		res_counter_uncharge(&mem->res, PAGE_SIZE);
+		if (do_swap_account)
+			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
 		css_put(&mem->css);
 		return;
 	}
@@ -646,6 +685,8 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 		__mem_cgroup_remove_list(from_mz, pc);
 		css_put(&from->css);
 		res_counter_uncharge(&from->res, PAGE_SIZE);
+		if (do_swap_account)
+			res_counter_uncharge(&from->memsw, PAGE_SIZE);
 		pc->mem_cgroup = to;
 		css_get(&to->css);
 		__mem_cgroup_add_list(to_mz, pc, false);
@@ -692,8 +733,11 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 	/* drop extra refcnt */
 	css_put(&parent->css);
 	/* uncharge if move fails */
-	if (ret)
+	if (ret) {
 		res_counter_uncharge(&parent->res, PAGE_SIZE);
+		if (do_swap_account)
+			res_counter_uncharge(&parent->memsw, PAGE_SIZE);
+	}
 
 	return ret;
 }
@@ -791,7 +835,42 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
 }
 
+int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+				 struct page *page,
+				 gfp_t mask, struct mem_cgroup **ptr)
+{
+	struct mem_cgroup *mem;
+	swp_entry_t     ent;
+
+	if (mem_cgroup_subsys.disabled)
+		return 0;
+
+	if (!do_swap_account)
+		goto charge_cur_mm;
+
+	/*
+	 * A racing thread's fault, or swapoff, may have already updated
+	 * the pte, and even removed page from swap cache: return success
+	 * to go on to do_swap_page()'s pte_same() test, which should fail.
+	 */
+	if (!PageSwapCache(page))
+		return 0;
+
+	ent.val = page_private(page);
+
+	mem = lookup_swap_cgroup(ent);
+	if (!mem || mem->obsolete)
+		goto charge_cur_mm;
+	*ptr = mem;
+	return __mem_cgroup_try_charge(NULL, mask, ptr, true);
+charge_cur_mm:
+	if (unlikely(!mm))
+		mm = &init_mm;
+	return __mem_cgroup_try_charge(mm, mask, ptr, true);
+}
+
 #ifdef CONFIG_SWAP
+
 int mem_cgroup_cache_charge_swapin(struct page *page,
 			struct mm_struct *mm, gfp_t mask, bool locked)
 {
@@ -808,8 +887,28 @@ int mem_cgroup_cache_charge_swapin(struct page *page,
 	 * we reach here.
 	 */
 	if (PageSwapCache(page)) {
+		struct mem_cgroup *mem = NULL;
+		swp_entry_t ent;
+
+		ent.val = page_private(page);
+		if (do_swap_account) {
+			mem = lookup_swap_cgroup(ent);
+			if (mem && mem->obsolete)
+				mem = NULL;
+			if (mem)
+				mm = NULL;
+		}
 		ret = mem_cgroup_charge_common(page, mm, mask,
-				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
+				MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
+
+		if (!ret && do_swap_account) {
+			/* avoid double counting */
+			mem = swap_cgroup_record(ent, NULL);
+			if (mem) {
+				res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+				mem_cgroup_put(mem);
+			}
+		}
 	}
 	if (!locked)
 		unlock_page(page);
@@ -828,6 +927,23 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
 		return;
 	pc = lookup_page_cgroup(page);
 	__mem_cgroup_commit_charge(ptr, pc, MEM_CGROUP_CHARGE_TYPE_MAPPED);
+	/*
+	 * Now swap is on-memory. This means this page may be
+	 * counted both as mem and swap....double count.
+	 * Fix it by uncharging from memsw. This SwapCache is stable
+	 * because we're still under lock_page().
+	 */
+	if (do_swap_account) {
+		swp_entry_t ent = {.val = page_private(page)};
+		struct mem_cgroup *memcg;
+		memcg = swap_cgroup_record(ent, NULL);
+		if (memcg) {
+			/* If memcg is obsolete, memcg can be != ptr */
+			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+			mem_cgroup_put(memcg);
+		}
+
+	}
 }
 
 void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
@@ -837,6 +953,8 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
 	if (!mem)
 		return;
 	res_counter_uncharge(&mem->res, PAGE_SIZE);
+	if (do_swap_account)
+		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
 	css_put(&mem->css);
 }
 
@@ -844,28 +962,30 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
 /*
  * uncharge if !page_mapped(page)
  */
-static void
+static struct mem_cgroup *
 __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 {
 	struct page_cgroup *pc;
-	struct mem_cgroup *mem;
+	struct mem_cgroup *mem = NULL;
 	struct mem_cgroup_per_zone *mz;
 	unsigned long flags;
 
 	if (mem_cgroup_subsys.disabled)
-		return;
+		return NULL;
 
 	if (PageSwapCache(page))
-		return;
+		return NULL;
 
 	/*
 	 * Check if our page_cgroup is valid
 	 */
 	pc = lookup_page_cgroup(page);
 	if (unlikely(!pc || !PageCgroupUsed(pc)))
-		return;
+		return NULL;
 
 	lock_page_cgroup(pc);
+
+	mem = pc->mem_cgroup;
 
 	if (!PageCgroupUsed(pc))
 		goto unlock_out;
@@ -886,8 +1006,11 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 		break;
 	}
 
+	res_counter_uncharge(&mem->res, PAGE_SIZE);
+	if (do_swap_account && (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
+		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+
 	ClearPageCgroupUsed(pc);
-	mem = pc->mem_cgroup;
 
 	mz = page_cgroup_zoneinfo(pc);
 	spin_lock_irqsave(&mz->lru_lock, flags);
@@ -895,14 +1018,13 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	spin_unlock_irqrestore(&mz->lru_lock, flags);
 	unlock_page_cgroup(pc);
 
-	res_counter_uncharge(&mem->res, PAGE_SIZE);
 	css_put(&mem->css);
 
-	return;
+	return mem;
 
 unlock_out:
 	unlock_page_cgroup(pc);
-	return;
+	return NULL;
 }
 
 void mem_cgroup_uncharge_page(struct page *page)
@@ -922,10 +1044,42 @@ void mem_cgroup_uncharge_cache_page(struct page *page)
 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
 }
 
-void mem_cgroup_uncharge_swapcache(struct page *page)
+/*
+ * called from __delete_from_swap_cache() and drop "page" account.
+ * memcg information is recorded to swap_cgroup of "ent"
+ */
+void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
 {
-	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
+	struct mem_cgroup *memcg;
+
+	memcg = __mem_cgroup_uncharge_common(page,
+					MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
+	/* record memcg information */
+	if (do_swap_account && memcg) {
+		swap_cgroup_record(ent, memcg);
+		mem_cgroup_get(memcg);
+	}
 }
+
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+/*
+ * called from swap_entry_free(). remove record in swap_cgroup and
+ * uncharge "memsw" account.
+ */
+void mem_cgroup_uncharge_swap(swp_entry_t ent)
+{
+	struct mem_cgroup *memcg;
+
+	if (!do_swap_account)
+		return;
+
+	memcg = swap_cgroup_record(ent, NULL);
+	if (memcg) {
+		res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+		mem_cgroup_put(memcg);
+	}
+}
+#endif
 
 /*
  * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
@@ -1034,7 +1188,7 @@ int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
 	rcu_read_unlock();
 
 	do {
-		progress = try_to_free_mem_cgroup_pages(mem, gfp_mask);
+		progress = try_to_free_mem_cgroup_pages(mem, gfp_mask, true);
 		progress += res_counter_check_under_limit(&mem->res);
 	} while (!progress && --retry);
 
@@ -1044,26 +1198,84 @@ int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
 	return 0;
 }
 
+static DEFINE_MUTEX(set_limit_mutex);
+
 static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
-				   unsigned long long val)
+				unsigned long long val)
 {
 
 	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
 	int progress;
+	u64 memswlimit;
 	int ret = 0;
 
-	while (res_counter_set_limit(&memcg->res, val)) {
+	while (retry_count) {
 		if (signal_pending(current)) {
 			ret = -EINTR;
 			break;
 		}
-		if (!retry_count) {
-			ret = -EBUSY;
+		/*
+		 * Rather than hide all in some function, I do this in
+		 * open coded manner. You see what this really does.
+		 * We have to guarantee mem->res.limit < mem->memsw.limit.
+		 */
+		mutex_lock(&set_limit_mutex);
+		memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+		if (memswlimit < val) {
+			ret = -EINVAL;
+			mutex_unlock(&set_limit_mutex);
 			break;
 		}
+		ret = res_counter_set_limit(&memcg->res, val);
+		mutex_unlock(&set_limit_mutex);
+
+		if (!ret)
+			break;
+
 		progress = try_to_free_mem_cgroup_pages(memcg,
-				GFP_HIGHUSER_MOVABLE);
-		if (!progress)
+				GFP_HIGHUSER_MOVABLE, false);
+  		if (!progress)			retry_count--;
+	}
+	return ret;
+}
+
+int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+				unsigned long long val)
+{
+	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
+	u64 memlimit, oldusage, curusage;
+	int ret;
+
+	if (!do_swap_account)
+		return -EINVAL;
+
+	while (retry_count) {
+		if (signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
+		/*
+		 * Rather than hide all in some function, I do this in
+		 * open coded manner. You see what this really does.
+		 * We have to guarantee mem->res.limit < mem->memsw.limit.
+		 */
+		mutex_lock(&set_limit_mutex);
+		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+		if (memlimit > val) {
+			ret = -EINVAL;
+			mutex_unlock(&set_limit_mutex);
+			break;
+		}
+		ret = res_counter_set_limit(&memcg->memsw, val);
+		mutex_unlock(&set_limit_mutex);
+
+		if (!ret)
+			break;
+
+		oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+		try_to_free_mem_cgroup_pages(memcg, GFP_HIGHUSER_MOVABLE, true);
+		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+		if (curusage >= oldusage)
 			retry_count--;
 	}
 	return ret;
@@ -1193,7 +1405,7 @@ try_to_free:
 			goto out;
 		}
 		progress = try_to_free_mem_cgroup_pages(mem,
-						  GFP_HIGHUSER_MOVABLE);
+						  GFP_HIGHUSER_MOVABLE, false);
 		if (!progress) {
 			nr_retries--;
 			/* maybe some writeback is necessary */
@@ -1216,8 +1428,25 @@ int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
 
 static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
 {
-	return res_counter_read_u64(&mem_cgroup_from_cont(cont)->res,
-				    cft->private);
+	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+	u64 val = 0;
+	int type, name;
+
+	type = MEMFILE_TYPE(cft->private);
+	name = MEMFILE_ATTR(cft->private);
+	switch (type) {
+	case _MEM:
+		val = res_counter_read_u64(&mem->res, name);
+		break;
+	case _MEMSWAP:
+		if (do_swap_account)
+			val = res_counter_read_u64(&mem->memsw, name);
+		break;
+	default:
+		BUG();
+		break;
+	}
+	return val;
 }
 /*
  * The user of this function is...
@@ -1227,15 +1456,22 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
 			    const char *buffer)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	int type, name;
 	unsigned long long val;
 	int ret;
 
-	switch (cft->private) {
+	type = MEMFILE_TYPE(cft->private);
+	name = MEMFILE_ATTR(cft->private);
+	switch (name) {
 	case RES_LIMIT:
 		/* This function does all necessary parse...reuse it */
 		ret = res_counter_memparse_write_strategy(buffer, &val);
-		if (!ret)
+		if (ret)
+			break;
+		if (type == _MEM)
 			ret = mem_cgroup_resize_limit(memcg, val);
+		else
+			ret = mem_cgroup_resize_memsw_limit(memcg, val);
 		break;
 	default:
 		ret = -EINVAL; /* should be BUG() ? */
@@ -1247,14 +1483,23 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
 static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
 {
 	struct mem_cgroup *mem;
+	int type, name;
 
 	mem = mem_cgroup_from_cont(cont);
-	switch (event) {
+	type = MEMFILE_TYPE(event);
+	name = MEMFILE_ATTR(event);
+	switch (name) {
 	case RES_MAX_USAGE:
-		res_counter_reset_max(&mem->res);
+		if (type == _MEM)
+			res_counter_reset_max(&mem->res);
+		else
+			res_counter_reset_max(&mem->memsw);
 		break;
 	case RES_FAILCNT:
-		res_counter_reset_failcnt(&mem->res);
+		if (type == _MEM)
+			res_counter_reset_failcnt(&mem->res);
+		else
+			res_counter_reset_failcnt(&mem->memsw);
 		break;
 	}
 	return 0;
@@ -1315,24 +1560,24 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
 static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "usage_in_bytes",
-		.private = RES_USAGE,
+		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
 		.read_u64 = mem_cgroup_read,
 	},
 	{
 		.name = "max_usage_in_bytes",
-		.private = RES_MAX_USAGE,
+		.private = MEMFILE_PRIVATE(_MEM, RES_MAX_USAGE),
 		.trigger = mem_cgroup_reset,
 		.read_u64 = mem_cgroup_read,
 	},
 	{
 		.name = "limit_in_bytes",
-		.private = RES_LIMIT,
+		.private = MEMFILE_PRIVATE(_MEM, RES_LIMIT),
 		.write_string = mem_cgroup_write,
 		.read_u64 = mem_cgroup_read,
 	},
 	{
 		.name = "failcnt",
-		.private = RES_FAILCNT,
+		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
 		.trigger = mem_cgroup_reset,
 		.read_u64 = mem_cgroup_read,
 	},
@@ -1345,6 +1590,47 @@ static struct cftype mem_cgroup_files[] = {
 		.trigger = mem_cgroup_force_empty_write,
 	},
 };
+
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+static struct cftype memsw_cgroup_files[] = {
+	{
+		.name = "memsw.usage_in_bytes",
+		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
+		.read_u64 = mem_cgroup_read,
+	},
+	{
+		.name = "memsw.max_usage_in_bytes",
+		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_MAX_USAGE),
+		.trigger = mem_cgroup_reset,
+		.read_u64 = mem_cgroup_read,
+	},
+	{
+		.name = "memsw.limit_in_bytes",
+		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_LIMIT),
+		.write_string = mem_cgroup_write,
+		.read_u64 = mem_cgroup_read,
+	},
+	{
+		.name = "memsw.failcnt",
+		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_FAILCNT),
+		.trigger = mem_cgroup_reset,
+		.read_u64 = mem_cgroup_read,
+	},
+};
+
+static int register_memsw_files(struct cgroup *cont, struct cgroup_subsys *ss)
+{
+	if (!do_swap_account)
+		return 0;
+	return cgroup_add_files(cont, ss, memsw_cgroup_files,
+				ARRAY_SIZE(memsw_cgroup_files));
+};
+#else
+static int register_memsw_files(struct cgroup *cont, struct cgroup_subsys *ss)
+{
+	return 0;
+}
+#endif
 
 static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
 {
@@ -1404,12 +1690,42 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
 	return mem;
 }
 
+/*
+ * At destroying mem_cgroup, references from swap_cgroup can remain.
+ * (scanning all at force_empty is too costly...)
+ *
+ * Instead of clearing all references at force_empty, we remember
+ * the number of reference from swap_cgroup and free mem_cgroup when
+ * it goes down to 0.
+ *
+ * When mem_cgroup is destroyed, mem->obsolete will be set to 0 and
+ * entry which points to this memcg will be ignore at swapin.
+ *
+ * Removal of cgroup itself succeeds regardless of refs from swap.
+ */
+
 static void mem_cgroup_free(struct mem_cgroup *mem)
 {
+	if (atomic_read(&mem->refcnt) > 0)
+		return;
 	if (mem_cgroup_size() < PAGE_SIZE)
 		kfree(mem);
 	else
 		vfree(mem);
+}
+
+static void mem_cgroup_get(struct mem_cgroup *mem)
+{
+	atomic_inc(&mem->refcnt);
+}
+
+static void mem_cgroup_put(struct mem_cgroup *mem)
+{
+	if (atomic_dec_and_test(&mem->refcnt)) {
+		if (!mem->obsolete)
+			return;
+		mem_cgroup_free(mem);
+	}
 }
 
 
@@ -1436,6 +1752,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 		return ERR_PTR(-ENOMEM);
 
 	res_counter_init(&mem->res);
+	res_counter_init(&mem->memsw);
 
 	for_each_node_state(node, N_POSSIBLE)
 		if (alloc_mem_cgroup_per_zone_info(mem, node))
@@ -1456,6 +1773,7 @@ static void mem_cgroup_pre_destroy(struct cgroup_subsys *ss,
 					struct cgroup *cont)
 {
 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+	mem->obsolete = 1;
 	mem_cgroup_force_empty(mem, false);
 }
 
@@ -1474,8 +1792,14 @@ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
 static int mem_cgroup_populate(struct cgroup_subsys *ss,
 				struct cgroup *cont)
 {
-	return cgroup_add_files(cont, ss, mem_cgroup_files,
-					ARRAY_SIZE(mem_cgroup_files));
+	int ret;
+
+	ret = cgroup_add_files(cont, ss, mem_cgroup_files,
+				ARRAY_SIZE(mem_cgroup_files));
+
+	if (!ret)
+		ret = register_memsw_files(cont, ss);
+	return ret;
 }
 
 static void mem_cgroup_move_task(struct cgroup_subsys *ss,

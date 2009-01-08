@@ -32,6 +32,8 @@ extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
 /* for swap handling */
 extern int mem_cgroup_try_charge(struct mm_struct *mm,
 		gfp_t gfp_mask, struct mem_cgroup **ptr);
+extern int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+		struct page *page, gfp_t mask, struct mem_cgroup **ptr);
 extern void mem_cgroup_commit_charge_swapin(struct page *page,
 					struct mem_cgroup *ptr);
 extern void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *ptr);
@@ -80,7 +82,6 @@ extern long mem_cgroup_calc_reclaim(struct mem_cgroup *mem, struct zone *zone,
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 extern int do_swap_account;
 #endif
-
 #else /* CONFIG_CGROUP_MEM_RES_CTLR */
 struct mem_cgroup;
 
@@ -97,7 +98,13 @@ static inline int mem_cgroup_cache_charge(struct page *page,
 }
 
 static inline int mem_cgroup_try_charge(struct mm_struct *mm,
-				gfp_t gfp_mask, struct mem_cgroup **ptr)
+			gfp_t gfp_mask, struct mem_cgroup **ptr)
+{
+	return 0;
+}
+
+static inline int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+		struct page *page, gfp_t gfp_mask, struct mem_cgroup **ptr)
 {
 	return 0;
 }

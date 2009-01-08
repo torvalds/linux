@@ -137,12 +137,32 @@ behind this approach is that a cgroup that aggressively uses a shared
 page will eventually get charged for it (once it is uncharged from
 the cgroup that brought it in -- this will happen on memory pressure).
 
-Exception: When you do swapoff and make swapped-out pages of shmem(tmpfs) to
+Exception: If CONFIG_CGROUP_CGROUP_MEM_RES_CTLR_SWAP is not used..
+When you do swapoff and make swapped-out pages of shmem(tmpfs) to
 be backed into memory in force, charges for pages are accounted against the
 caller of swapoff rather than the users of shmem.
 
 
-2.4 Reclaim
+2.4 Swap Extension (CONFIG_CGROUP_MEM_RES_CTLR_SWAP)
+Swap Extension allows you to record charge for swap. A swapped-in page is
+charged back to original page allocator if possible.
+
+When swap is accounted, following files are added.
+ - memory.memsw.usage_in_bytes.
+ - memory.memsw.limit_in_bytes.
+
+usage of mem+swap is limited by memsw.limit_in_bytes.
+
+Note: why 'mem+swap' rather than swap.
+The global LRU(kswapd) can swap out arbitrary pages. Swap-out means
+to move account from memory to swap...there is no change in usage of
+mem+swap.
+
+In other words, when we want to limit the usage of swap without affecting
+global LRU, mem+swap limit is better than just limiting swap from OS point
+of view.
+
+2.5 Reclaim
 
 Each cgroup maintains a per cgroup LRU that consists of an active
 and inactive list. When a cgroup goes over its limit, we first try
@@ -245,6 +265,11 @@ tasks have migrated away from it.
 Such charges are freed(at default) or moved to its parent. When moved,
 both of RSS and CACHES are moved to parent.
 If both of them are busy, rmdir() returns -EBUSY. See 5.1 Also.
+
+Charges recorded in swap information is not updated at removal of cgroup.
+Recorded information is discarded and a cgroup which uses swap (swapcache)
+will be charged as a new owner of it.
+
 
 5. Misc. interfaces.
 
