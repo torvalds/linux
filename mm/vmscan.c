@@ -1340,7 +1340,7 @@ static int inactive_anon_is_low(struct zone *zone, struct scan_control *sc)
 	if (scanning_global_lru(sc))
 		low = inactive_anon_is_low_global(zone);
 	else
-		low = mem_cgroup_inactive_anon_is_low(sc->mem_cgroup, zone);
+		low = mem_cgroup_inactive_anon_is_low(sc->mem_cgroup);
 	return low;
 }
 

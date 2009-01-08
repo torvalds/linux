@@ -166,9 +166,6 @@ struct mem_cgroup {
 
 	unsigned int	swappiness;
 
-
-	unsigned int inactive_ratio;
-
 	/*
 	 * statistics. This must be placed at the end of memcg.
 	 */
@@ -432,15 +429,43 @@ void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem, int priority)
 	spin_unlock(&mem->reclaim_param_lock);
 }
 
-int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *zone)
+static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_pages)
 {
 	unsigned long active;
 	unsigned long inactive;
+	unsigned long gb;
+	unsigned long inactive_ratio;
 
 	inactive = mem_cgroup_get_all_zonestat(memcg, LRU_INACTIVE_ANON);
 	active = mem_cgroup_get_all_zonestat(memcg, LRU_ACTIVE_ANON);
 
-	if (inactive * memcg->inactive_ratio < active)
+	gb = (inactive + active) >> (30 - PAGE_SHIFT);
+	if (gb)
+		inactive_ratio = int_sqrt(10 * gb);
+	else
+		inactive_ratio = 1;
+
+	if (present_pages) {
+		present_pages[0] = inactive;
+		present_pages[1] = active;
+	}
+
+	return inactive_ratio;
+}
+
+int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
+{
+	unsigned long active;
+	unsigned long inactive;
+	unsigned long present_pages[2];
+	unsigned long inactive_ratio;
+
+	inactive_ratio = calc_inactive_ratio(memcg, present_pages);
+
+	inactive = present_pages[0];
+	active = present_pages[1];
+
+	if (inactive * inactive_ratio < active)
 		return 1;
 
 	return 0;
@@ -1432,29 +1457,6 @@ int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
 	return 0;
 }
 
-/*
- * The inactive anon list should be small enough that the VM never has to
- * do too much work, but large enough that each inactive page has a chance
- * to be referenced again before it is swapped out.
- *
- * this calculation is straightforward porting from
- * page_alloc.c::setup_per_zone_inactive_ratio().
- * it describe more detail.
- */
-static void mem_cgroup_set_inactive_ratio(struct mem_cgroup *memcg)
-{
-	unsigned int gb, ratio;
-
-	gb = res_counter_read_u64(&memcg->res, RES_LIMIT) >> 30;
-	if (gb)
-		ratio = int_sqrt(10 * gb);
-	else
-		ratio = 1;
-
-	memcg->inactive_ratio = ratio;
-
-}
-
 static DEFINE_MUTEX(set_limit_mutex);
 
 static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
@@ -1495,9 +1497,6 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 							get_swappiness(memcg));
   		if (!progress)			retry_count--;
 	}
-
-	if (!ret)
-		mem_cgroup_set_inactive_ratio(memcg);
 
 	return ret;
 }
@@ -1858,7 +1857,7 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
 	}
 
 #ifdef CONFIG_DEBUG_VM
-	cb->fill(cb, "inactive_ratio", mem_cont->inactive_ratio);
+	cb->fill(cb, "inactive_ratio", calc_inactive_ratio(mem_cont, NULL));
 
 	{
 		int nid, zid;
@@ -2150,7 +2149,6 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 		res_counter_init(&mem->res, NULL);
 		res_counter_init(&mem->memsw, NULL);
 	}
-	mem_cgroup_set_inactive_ratio(mem);
 	mem->last_scanned_child = NULL;
 	spin_lock_init(&mem->reclaim_param_lock);
 
