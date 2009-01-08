@@ -808,8 +808,9 @@ int mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
 	}
 	unlock_page_cgroup(pc);
 	if (mem) {
-		ret = mem_cgroup_charge_common(newpage, NULL, GFP_KERNEL,
-			ctype, mem);
+		ret = mem_cgroup_charge_common(newpage, NULL,
+					GFP_HIGHUSER_MOVABLE,
+					ctype, mem);
 		css_put(&mem->css);
 	}
 	return ret;
@@ -889,7 +890,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 			ret = -EBUSY;
 			break;
 		}
-		progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL);
+		progress = try_to_free_mem_cgroup_pages(memcg,
+				GFP_HIGHUSER_MOVABLE);
 		if (!progress)
 			retry_count--;
 	}
