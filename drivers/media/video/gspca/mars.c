@@ -325,12 +325,12 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				PDEBUG(D_PACK, "sof offset: %d len: %d",
 					p, len);
 				frame = gspca_frame_add(gspca_dev, LAST_PACKET,
-							frame, data, 0);
+							frame, data, p);
 
 				/* put the JPEG header */
 				jpeg_put_header(gspca_dev, frame, 0x21);
-				data += 16;
-				len -= 16;
+				data += p + 16;
+				len -= p + 16;
 				break;
 			}
 		}
