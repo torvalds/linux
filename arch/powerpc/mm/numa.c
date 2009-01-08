@@ -157,35 +157,6 @@ static void unmap_cpu_from_node(unsigned long cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static struct device_node * __cpuinit find_cpu_node(unsigned int cpu)
-{
-	unsigned int hw_cpuid = get_hard_smp_processor_id(cpu);
-	struct device_node *cpu_node = NULL;
-	const unsigned int *interrupt_server, *reg;
-	int len;
-
-	while ((cpu_node = of_find_node_by_type(cpu_node, "cpu")) != NULL) {
-		/* Try interrupt server first */
-		interrupt_server = of_get_property(cpu_node,
-					"ibm,ppc-interrupt-server#s", &len);
-
-		len = len / sizeof(u32);
-
-		if (interrupt_server && (len > 0)) {
-			while (len--) {
-				if (interrupt_server[len] == hw_cpuid)
-					return cpu_node;
-			}
-		} else {
-			reg = of_get_property(cpu_node, "reg", &len);
-			if (reg && (len > 0) && (reg[0] == hw_cpuid))
-				return cpu_node;
-		}
-	}
-
-	return NULL;
-}
-
 /* must hold reference to node during call */
 static const int *of_get_associativity(struct device_node *dev)
 {
@@ -469,7 +440,7 @@ static int of_drconf_to_nid_single(struct of_drconf_cell *drmem,
 static int __cpuinit numa_setup_cpu(unsigned long lcpu)
 {
 	int nid = 0;
-	struct device_node *cpu = find_cpu_node(lcpu);
+	struct device_node *cpu = of_get_cpu_node(lcpu, NULL);
 
 	if (!cpu) {
 		WARN_ON(1);
@@ -651,7 +622,7 @@ static int __init parse_numa_properties(void)
 	for_each_present_cpu(i) {
 		int nid;
 
-		cpu = find_cpu_node(i);
+		cpu = of_get_cpu_node(i, NULL);
 		BUG_ON(!cpu);
 		nid = of_node_to_nid_single(cpu);
 		of_node_put(cpu);
