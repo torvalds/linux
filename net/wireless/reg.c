@@ -1295,7 +1295,7 @@ static void print_regdomain(const struct ieee80211_regdomain *rd)
 					"domain intersected: \n");
 		} else
 				printk(KERN_INFO "cfg80211: Current regulatory "
-					"intersected: \n");
+					"domain intersected: \n");
 	} else if (is_world_regdom(rd->alpha2))
 		printk(KERN_INFO "cfg80211: World regulatory "
 			"domain updated:\n");
