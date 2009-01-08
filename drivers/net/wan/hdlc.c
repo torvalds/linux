@@ -52,15 +52,6 @@ static int hdlc_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-
-
-static struct net_device_stats *hdlc_get_stats(struct net_device *dev)
-{
-	return &dev->stats;
-}
-
-
-
 static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 		    struct packet_type *p, struct net_device *orig_dev)
 {
@@ -102,7 +93,7 @@ static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 	hdlc_device *hdlc;
 	unsigned long flags;
 	int on;
- 
+
 	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
@@ -233,7 +224,6 @@ static void hdlc_setup_dev(struct net_device *dev)
 	/* Re-init all variables changed by HDLC protocol drivers,
 	 * including ether_setup() called from hdlc_raw_eth.c.
 	 */
-	dev->get_stats		 = hdlc_get_stats;
 	dev->flags		 = IFF_POINTOPOINT | IFF_NOARP;
 	dev->priv_flags		 = IFF_WAN_HDLC;
 	dev->mtu		 = HDLC_MAX_MTU;
