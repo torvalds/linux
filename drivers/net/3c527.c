@@ -288,6 +288,18 @@ struct net_device *__init mc32_probe(int unit)
 	return ERR_PTR(-ENODEV);
 }
 
+static const struct net_device_ops netdev_ops = {
+	.ndo_open		= mc32_open,
+	.ndo_stop		= mc32_close,
+	.ndo_start_xmit		= mc32_send_packet,
+	.ndo_get_stats		= mc32_get_stats,
+	.ndo_set_multicast_list = mc32_set_multicast_list,
+	.ndo_tx_timeout		= mc32_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /**
  * mc32_probe1	-	Check a given slot for a board and test the card
  * @dev:  Device structure to fill in
@@ -518,12 +530,7 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 	printk("%s: Firmware Rev %d. %d RX buffers, %d TX buffers. Base of 0x%08X.\n",
 		dev->name, lp->exec_box->data[12], lp->rx_len, lp->tx_len, lp->base);
 
-	dev->open		= mc32_open;
-	dev->stop		= mc32_close;
-	dev->hard_start_xmit	= mc32_send_packet;
-	dev->get_stats		= mc32_get_stats;
-	dev->set_multicast_list = mc32_set_multicast_list;
-	dev->tx_timeout		= mc32_timeout;
+	dev->netdev_ops		= &netdev_ops;
 	dev->watchdog_timeo	= HZ*5;	/* Board does all the work */
 	dev->ethtool_ops	= &netdev_ethtool_ops;
 
