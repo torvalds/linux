@@ -110,7 +110,7 @@ int mISDN_dsp_element_register(struct mISDN_dsp_element *elem)
 	}
 	list_add_tail(&entry->list, &dsp_elements);
 
-	for (i = 0; i < ARRAY_SIZE(element_attributes); ++i)
+	for (i = 0; i < ARRAY_SIZE(element_attributes); ++i) {
 		ret = device_create_file(&entry->dev,
 				&element_attributes[i]);
 		if (ret) {
@@ -118,6 +118,7 @@ int mISDN_dsp_element_register(struct mISDN_dsp_element *elem)
 				__func__);
 			goto err2;
 		}
+	}
 
 #ifdef PIPELINE_DEBUG
 	printk(KERN_DEBUG "%s: %s registered\n", __func__, elem->name);
