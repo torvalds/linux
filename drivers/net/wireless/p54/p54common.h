@@ -247,12 +247,6 @@ struct pda_country {
 #define PDR_COUNTRY_CERT_IODOOR_OUTDOOR	0x30
 #define PDR_COUNTRY_CERT_INDEX		0x0F
 
-/* stored in skb->cb */
-struct memrecord {
-	u32 start_addr;
-	u32 end_addr;
-};
-
 struct p54_eeprom_lm86 {
 	union {
 		struct {

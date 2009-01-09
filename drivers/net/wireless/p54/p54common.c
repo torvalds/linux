@@ -700,7 +700,7 @@ void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct p54_common *priv = dev->priv;
 	struct ieee80211_tx_info *info;
-	struct memrecord *range;
+	struct p54_tx_info *range;
 	unsigned long flags;
 	u32 freed = 0, last_addr = priv->rx_start;
 
@@ -718,18 +718,18 @@ void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb)
 	range = (void *)info->rate_driver_data;
 	if (skb->prev != (struct sk_buff *)&priv->tx_queue) {
 		struct ieee80211_tx_info *ni;
-		struct memrecord *mr;
+		struct p54_tx_info *mr;
 
 		ni = IEEE80211_SKB_CB(skb->prev);
-		mr = (struct memrecord *)ni->rate_driver_data;
+		mr = (struct p54_tx_info *)ni->rate_driver_data;
 		last_addr = mr->end_addr;
 	}
 	if (skb->next != (struct sk_buff *)&priv->tx_queue) {
 		struct ieee80211_tx_info *ni;
-		struct memrecord *mr;
+		struct p54_tx_info *mr;
 
 		ni = IEEE80211_SKB_CB(skb->next);
-		mr = (struct memrecord *)ni->rate_driver_data;
+		mr = (struct p54_tx_info *)ni->rate_driver_data;
 		freed = mr->start_addr - last_addr;
 	} else
 		freed = priv->rx_end - last_addr;
@@ -771,7 +771,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct p54_frame_sent *payload = (struct p54_frame_sent *) hdr->data;
 	struct sk_buff *entry = (struct sk_buff *) priv->tx_queue.next;
 	u32 addr = le32_to_cpu(hdr->req_id) - priv->headroom;
-	struct memrecord *range = NULL;
+	struct p54_tx_info *range = NULL;
 	u32 freed = 0;
 	u32 last_addr = priv->rx_start;
 	unsigned long flags;
@@ -793,10 +793,10 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 		if (entry->next != (struct sk_buff *)&priv->tx_queue) {
 			struct ieee80211_tx_info *ni;
-			struct memrecord *mr;
+			struct p54_tx_info *mr;
 
 			ni = IEEE80211_SKB_CB(entry->next);
-			mr = (struct memrecord *)ni->rate_driver_data;
+			mr = (struct p54_tx_info *)ni->rate_driver_data;
 			freed = mr->start_addr - last_addr;
 		} else
 			freed = priv->rx_end - last_addr;
@@ -1013,8 +1013,8 @@ EXPORT_SYMBOL_GPL(p54_rx);
  * can find some unused memory to upload our packets to. However, data that we
  * want the card to TX needs to stay intact until the card has told us that
  * it is done with it. This function finds empty places we can upload to and
- * marks allocated areas as reserved if necessary. p54_rx_frame_sent frees
- * allocated areas.
+ * marks allocated areas as reserved if necessary. p54_rx_frame_sent or
+ * p54_free_skb frees allocated areas.
  */
 static int p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 			       struct p54_hdr *data, u32 len)
@@ -1023,7 +1023,7 @@ static int p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 	struct sk_buff *entry = priv->tx_queue.next;
 	struct sk_buff *target_skb = NULL;
 	struct ieee80211_tx_info *info;
-	struct memrecord *range;
+	struct p54_tx_info *range;
 	u32 last_addr = priv->rx_start;
 	u32 largest_hole = 0;
 	u32 target_addr = priv->rx_start;

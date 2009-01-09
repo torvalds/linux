@@ -44,6 +44,16 @@ enum p54_control_frame_types {
 	P54_CONTROL_TYPE_BT_OPTIONS = 35
 };
 
+/* provide 16 bytes for the transport back-end */
+#define P54_TX_INFO_DATA_SIZE		16
+
+/* stored in ieee80211_tx_info's rate_driver_data */
+struct p54_tx_info {
+	u32 start_addr;
+	u32 end_addr;
+	void *data[P54_TX_INFO_DATA_SIZE / sizeof(void *)];
+};
+
 #define P54_MAX_CTRL_FRAME_LEN		0x1000
 
 #define P54_HDR_FLAG_CONTROL		BIT(15)
