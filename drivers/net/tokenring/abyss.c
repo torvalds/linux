@@ -92,6 +92,8 @@ static void abyss_sifwritew(struct net_device *dev, unsigned short val, unsigned
 	outw(val, dev->base_addr + reg);
 }
 
+static struct net_device_ops abyss_netdev_ops;
+
 static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_id *ent)
 {	
 	static int versionprinted;
@@ -157,8 +159,7 @@ static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_
 
 	memcpy(tp->ProductID, "Madge PCI 16/4 Mk2", PROD_ID_SIZE + 1);
 		
-	dev->open = abyss_open;
-	dev->stop = abyss_close;
+	dev->netdev_ops = &abyss_netdev_ops;
 
 	pci_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -450,6 +451,11 @@ static struct pci_driver abyss_driver = {
 
 static int __init abyss_init (void)
 {
+	abyss_netdev_ops = tms380tr_netdev_ops;
+
+	abyss_netdev_ops.ndo_open = abyss_open;
+	abyss_netdev_ops.ndo_stop = abyss_close;
+
 	return pci_register_driver(&abyss_driver);
 }
 

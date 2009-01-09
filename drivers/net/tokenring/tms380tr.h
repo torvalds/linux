@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 
 /* module prototypes */
+extern const struct net_device_ops tms380tr_netdev_ops;
 int tms380tr_open(struct net_device *dev);
 int tms380tr_close(struct net_device *dev);
 irqreturn_t tms380tr_interrupt(int irq, void *dev_id);
