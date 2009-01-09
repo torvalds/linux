@@ -84,9 +84,9 @@ acpi_system_write_sleep(struct file *file,
 #define	HAVE_ACPI_LEGACY_ALARM
 #endif
 
-static u32 cmos_bcd_read(int offset, int rtc_control);
-
 #ifdef	HAVE_ACPI_LEGACY_ALARM
+
+static u32 cmos_bcd_read(int offset, int rtc_control);
 
 static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 {
