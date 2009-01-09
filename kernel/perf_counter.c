@@ -41,7 +41,7 @@ static DEFINE_MUTEX(perf_resource_mutex);
 extern __weak const struct hw_perf_counter_ops *
 hw_perf_counter_init(struct perf_counter *counter)
 {
-	return ERR_PTR(-EINVAL);
+	return NULL;
 }
 
 u64 __weak hw_perf_save_disable(void)		{ return 0; }
