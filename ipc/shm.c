@@ -990,6 +990,7 @@ asmlinkage long sys_shmdt(char __user *shmaddr)
 	 */
 	vma = find_vma(mm, addr);
 
+#ifdef CONFIG_MMU
 	while (vma) {
 		next = vma->vm_next;
 
@@ -1033,6 +1034,17 @@ asmlinkage long sys_shmdt(char __user *shmaddr)
 			do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
 		vma = next;
 	}
+
+#else /* CONFIG_MMU */
+	/* under NOMMU conditions, the exact address to be destroyed must be
+	 * given */
+	retval = -EINVAL;
+	if (vma->vm_start == addr && vma->vm_ops == &shm_vm_ops) {
+		do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
+		retval = 0;
+	}
+
+#endif
 
 	up_write(&mm->mmap_sem);
 	return retval;
