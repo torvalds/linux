@@ -94,7 +94,7 @@ obj-$(CONFIG_AUDIT)		+= audit.o
 obj64-$(CONFIG_AUDIT)		+= compat_audit.o
 
 obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
-obj-$(CONFIG_PERF_COUNTERS)	+= perf_counter.o ppc970-pmu.o
+obj-$(CONFIG_PERF_COUNTERS)	+= perf_counter.o ppc970-pmu.o power6-pmu.o
 
 obj-$(CONFIG_8XX_MINIMAL_FPEMU) += softemu8xx.o
 

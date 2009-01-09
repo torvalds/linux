@@ -742,6 +742,7 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 }
 
 extern struct power_pmu ppc970_pmu;
+extern struct power_pmu power6_pmu;
 
 static int init_perf_counters(void)
 {
@@ -759,6 +760,9 @@ static int init_perf_counters(void)
 	case PV_970FX:
 	case PV_970MP:
 		ppmu = &ppc970_pmu;
+		break;
+	case 0x3e:
+		ppmu = &power6_pmu;
 		break;
 	}
 	return 0;
