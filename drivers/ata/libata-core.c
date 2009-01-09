@@ -5920,6 +5920,15 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 {
 	int rc;
 	struct ata_port *ap = data;
+
+	/*
+	 * If we're not allowed to scan this host in parallel,
+	 * we need to wait until all previous scans have completed
+	 * before going further.
+	 */
+	if (!(ap->host->flags & ATA_HOST_PARALLEL_SCAN))
+		async_synchronize_cookie(cookie);
+
 	/* probe */
 	if (ap->ops->error_handler) {
 		struct ata_eh_info *ehi = &ap->link.eh_info;
