@@ -4467,6 +4467,12 @@ static int patch_stac9200(struct hda_codec *codec)
 		return err;
 	}
 
+	/* CF-74 has no headphone detection, and the driver should *NOT*
+	 * do detection and HP/speaker toggle because the hardware does it.
+	 */
+	if (spec->board_config == STAC_9200_PANASONIC)
+		spec->hp_detect = 0;
+
 	codec->patch_ops = stac92xx_patch_ops;
 
 	return 0;
