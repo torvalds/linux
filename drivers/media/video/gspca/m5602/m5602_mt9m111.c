@@ -84,7 +84,6 @@ const static struct ctrl mt9m111_ctrls[] = {
 	}
 };
 
-
 static void mt9m111_dump_registers(struct sd *sd);
 
 int mt9m111_probe(struct sd *sd)
