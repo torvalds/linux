@@ -214,9 +214,6 @@ sensor_found:
 		sensor_settings[i] = s5k4aa_ctrls[i].qctrl.default_value;
 	sd->sensor_priv = sensor_settings;
 
-	if (dump_sensor)
-		s5k4aa_dump_registers(sd);
-
 	return 0;
 }
 
@@ -294,6 +291,9 @@ int s5k4aa_init(struct sd *sd)
 			return -EINVAL;
 		}
 	}
+
+	if (dump_sensor)
+		s5k4aa_dump_registers(sd);
 
 	err = s5k4aa_set_exposure(&sd->gspca_dev,
 				   sensor_settings[EXPOSURE_IDX]);

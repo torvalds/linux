@@ -209,9 +209,6 @@ sensor_found:
 		sensor_settings[i] = po1030_ctrls[i].qctrl.default_value;
 	sd->sensor_priv = sensor_settings;
 
-	if (dump_sensor)
-		po1030_dump_registers(sd);
-
 	return 0;
 }
 
@@ -244,6 +241,9 @@ int po1030_init(struct sd *sd)
 	}
 	if (err < 0)
 		return err;
+
+	if (dump_sensor)
+		po1030_dump_registers(sd);
 
 	err = po1030_set_exposure(&sd->gspca_dev,
 				   sensor_settings[EXPOSURE_IDX]);

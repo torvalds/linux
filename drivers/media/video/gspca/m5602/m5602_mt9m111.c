@@ -144,9 +144,6 @@ sensor_found:
 		sensor_settings[i] = mt9m111_ctrls[i].qctrl.default_value;
 	sd->sensor_priv = sensor_settings;
 
-	if (dump_sensor)
-		mt9m111_dump_registers(sd);
-
 	return 0;
 }
 
@@ -170,6 +167,9 @@ int mt9m111_init(struct sd *sd)
 				init_mt9m111[i][1], data, 2);
 		}
 	}
+
+	if (dump_sensor)
+		mt9m111_dump_registers(sd);
 
 	err = mt9m111_set_vflip(&sd->gspca_dev, sensor_settings[VFLIP_IDX]);
 	if (err < 0)
