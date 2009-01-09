@@ -692,3 +692,48 @@ void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 }
 EXPORT_SYMBOL(debug_dma_unmap_sg);
 
+void debug_dma_alloc_coherent(struct device *dev, size_t size,
+			      dma_addr_t dma_addr, void *virt)
+{
+	struct dma_debug_entry *entry;
+
+	if (unlikely(global_disable))
+		return;
+
+	if (unlikely(virt == NULL))
+		return;
+
+	entry = dma_entry_alloc();
+	if (!entry)
+		return;
+
+	entry->type      = dma_debug_coherent;
+	entry->dev       = dev;
+	entry->paddr     = virt_to_phys(virt);
+	entry->size      = size;
+	entry->dev_addr  = dma_addr;
+	entry->direction = DMA_BIDIRECTIONAL;
+
+	add_dma_entry(entry);
+}
+EXPORT_SYMBOL(debug_dma_alloc_coherent);
+
+void debug_dma_free_coherent(struct device *dev, size_t size,
+			 void *virt, dma_addr_t addr)
+{
+	struct dma_debug_entry ref = {
+		.type           = dma_debug_coherent,
+		.dev            = dev,
+		.paddr          = virt_to_phys(virt),
+		.dev_addr       = addr,
+		.size           = size,
+		.direction      = DMA_BIDIRECTIONAL,
+	};
+
+	if (unlikely(global_disable))
+		return;
+
+	check_unmap(&ref);
+}
+EXPORT_SYMBOL(debug_dma_free_coherent);
+

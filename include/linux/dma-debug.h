@@ -43,6 +43,12 @@ extern void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 extern void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			       int nelems, int dir);
 
+extern void debug_dma_alloc_coherent(struct device *dev, size_t size,
+				     dma_addr_t dma_addr, void *virt);
+
+extern void debug_dma_free_coherent(struct device *dev, size_t size,
+				    void *virt, dma_addr_t addr);
+
 #else /* CONFIG_DMA_API_DEBUG */
 
 static inline void dma_debug_init(u32 num_entries)
@@ -70,6 +76,16 @@ static inline void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 static inline void debug_dma_unmap_sg(struct device *dev,
 				      struct scatterlist *sglist,
 				      int nelems, int dir)
+{
+}
+
+static inline void debug_dma_alloc_coherent(struct device *dev, size_t size,
+					    dma_addr_t dma_addr, void *virt)
+{
+}
+
+static inline void debug_dma_free_coherent(struct device *dev, size_t size,
+					   void *virt, dma_addr_t addr)
 {
 }
 
