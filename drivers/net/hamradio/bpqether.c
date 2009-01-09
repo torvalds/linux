@@ -110,7 +110,6 @@ struct bpqdev {
 	struct list_head bpq_list;	/* list of bpq devices chain */
 	struct net_device *ethdev;	/* link to ethernet device */
 	struct net_device *axdev;	/* bpq device (bpq#) */
-	struct net_device_stats stats;	/* some statistics */
 	char   dest_addr[6];		/* ether destination address */
 	char   acpt_addr[6];		/* accept ether frames from this address only */
 };
@@ -222,8 +221,8 @@ static int bpq_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 	skb_pull(skb, 2);	/* Remove the length bytes */
 	skb_trim(skb, len);	/* Set the length of the data */
 
-	bpq->stats.rx_packets++;
-	bpq->stats.rx_bytes += len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += len;
 
 	ptr = skb_push(skb, 1);
 	*ptr = 0;
@@ -292,7 +291,7 @@ static int bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 	bpq = netdev_priv(dev);
 
 	if ((dev = bpq_get_ether_dev(dev)) == NULL) {
-		bpq->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		kfree_skb(skb);
 		return -ENODEV;
 	}
@@ -300,22 +299,12 @@ static int bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->protocol = ax25_type_trans(skb, dev);
 	skb_reset_network_header(skb);
 	dev_hard_header(skb, dev, ETH_P_BPQ, bpq->dest_addr, NULL, 0);
-	bpq->stats.tx_packets++;
-	bpq->stats.tx_bytes+=skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes+=skb->len;
   
 	dev_queue_xmit(skb);
 	netif_wake_queue(dev);
 	return 0;
-}
-
-/*
- *	Statistics
- */
-static struct net_device_stats *bpq_get_stats(struct net_device *dev)
-{
-	struct bpqdev *bpq = netdev_priv(dev);
-
-	return &bpq->stats;
 }
 
 /*
