@@ -42,7 +42,7 @@
 
 int nr_rx_ip(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_device_stats *stats = netdev_priv(dev);
+	struct net_device_stats *stats = &dev->stats;
 
 	if (!netif_running(dev)) {
 		stats->rx_dropped++;
@@ -171,8 +171,7 @@ static int nr_close(struct net_device *dev)
 
 static int nr_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct nr_private *nr = netdev_priv(dev);
-	struct net_device_stats *stats = &nr->stats;
+	struct net_device_stats *stats = &dev->stats;
 	unsigned int len = skb->len;
 
 	if (!nr_route_frame(skb, NULL)) {
@@ -185,13 +184,6 @@ static int nr_xmit(struct sk_buff *skb, struct net_device *dev)
 	stats->tx_bytes += len;
 
 	return 0;
-}
-
-static struct net_device_stats *nr_get_stats(struct net_device *dev)
-{
-	struct nr_private *nr = netdev_priv(dev);
-
-	return &nr->stats;
 }
 
 static const struct header_ops nr_header_ops = {
@@ -215,6 +207,4 @@ void nr_setup(struct net_device *dev)
 
 	/* New-style flags. */
 	dev->flags		= IFF_NOARP;
-
-	dev->get_stats 		= nr_get_stats;
 }
