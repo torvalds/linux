@@ -34,7 +34,6 @@ int __prom_getchild(int node)
 
 	return cnode;
 }
-EXPORT_SYMBOL(__prom_getchild);
 
 /* Return the child of node 'node' or zero if no this node has no
  * direct descendent.
@@ -67,7 +66,6 @@ int __prom_getsibling(int node)
 
 	return cnode;
 }
-EXPORT_SYMBOL(__prom_getsibling);
 
 /* Return the next sibling of node 'node' or zero if no more siblings
  * at this level of depth in the tree.

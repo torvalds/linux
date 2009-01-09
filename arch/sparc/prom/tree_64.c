@@ -23,7 +23,6 @@ inline int __prom_getchild(int node)
 {
 	return p1275_cmd ("child", P1275_INOUT(1, 1), node);
 }
-EXPORT_SYMBOL(__prom_getchild);
 
 inline int prom_getchild(int node)
 {
@@ -53,7 +52,6 @@ inline int __prom_getsibling(int node)
 {
 	return p1275_cmd(prom_peer_name, P1275_INOUT(1, 1), node);
 }
-EXPORT_SYMBOL(__prom_getsibling);
 
 inline int prom_getsibling(int node)
 {
