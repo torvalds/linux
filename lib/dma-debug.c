@@ -64,6 +64,9 @@ static bool global_disable __read_mostly;
 static u32 num_free_entries;
 static u32 min_free_entries;
 
+/* number of preallocated entries requested by kernel cmdline */
+static u32 req_entries;
+
 /*
  * Hash related functions
  *
@@ -253,6 +256,9 @@ void dma_debug_init(u32 num_entries)
 		dma_entry_hash[i].lock = SPIN_LOCK_UNLOCKED;
 	}
 
+	if (req_entries)
+		num_entries = req_entries;
+
 	if (prealloc_memory(num_entries) != 0) {
 		printk(KERN_ERR "DMA-API: debugging out of memory error "
 				"- disabled\n");
@@ -263,4 +269,36 @@ void dma_debug_init(u32 num_entries)
 
 	printk(KERN_INFO "DMA-API: debugging enabled by kernel config\n");
 }
+
+static __init int dma_debug_cmdline(char *str)
+{
+	if (!str)
+		return -EINVAL;
+
+	if (strncmp(str, "off", 3) == 0) {
+		printk(KERN_INFO "DMA-API: debugging disabled on kernel "
+				 "command line\n");
+		global_disable = true;
+	}
+
+	return 0;
+}
+
+static __init int dma_debug_entries_cmdline(char *str)
+{
+	int res;
+
+	if (!str)
+		return -EINVAL;
+
+	res = get_option(&str, &req_entries);
+
+	if (!res)
+		req_entries = 0;
+
+	return 0;
+}
+
+__setup("dma_debug=", dma_debug_cmdline);
+__setup("dma_debug_entries=", dma_debug_entries_cmdline);
 
