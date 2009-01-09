@@ -758,3 +758,27 @@ void debug_dma_sync_single_for_device(struct device *dev,
 }
 EXPORT_SYMBOL(debug_dma_sync_single_for_device);
 
+void debug_dma_sync_single_range_for_cpu(struct device *dev,
+					 dma_addr_t dma_handle,
+					 unsigned long offset, size_t size,
+					 int direction)
+{
+	if (unlikely(global_disable))
+		return;
+
+	check_sync(dev, dma_handle, size, offset, direction, true);
+}
+EXPORT_SYMBOL(debug_dma_sync_single_range_for_cpu);
+
+void debug_dma_sync_single_range_for_device(struct device *dev,
+					    dma_addr_t dma_handle,
+					    unsigned long offset,
+					    size_t size, int direction)
+{
+	if (unlikely(global_disable))
+		return;
+
+	check_sync(dev, dma_handle, size, offset, direction, false);
+}
+EXPORT_SYMBOL(debug_dma_sync_single_range_for_device);
+

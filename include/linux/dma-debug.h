@@ -57,6 +57,17 @@ extern void debug_dma_sync_single_for_device(struct device *dev,
 					     dma_addr_t dma_handle,
 					     size_t size, int direction);
 
+extern void debug_dma_sync_single_range_for_cpu(struct device *dev,
+						dma_addr_t dma_handle,
+						unsigned long offset,
+						size_t size,
+						int direction);
+
+extern void debug_dma_sync_single_range_for_device(struct device *dev,
+						   dma_addr_t dma_handle,
+						   unsigned long offset,
+						   size_t size, int direction);
+
 #else /* CONFIG_DMA_API_DEBUG */
 
 static inline void dma_debug_init(u32 num_entries)
@@ -106,6 +117,22 @@ static inline void debug_dma_sync_single_for_cpu(struct device *dev,
 static inline void debug_dma_sync_single_for_device(struct device *dev,
 						    dma_addr_t dma_handle,
 						    size_t size, int direction)
+{
+}
+
+static inline void debug_dma_sync_single_range_for_cpu(struct device *dev,
+						       dma_addr_t dma_handle,
+						       unsigned long offset,
+						       size_t size,
+						       int direction)
+{
+}
+
+static inline void debug_dma_sync_single_range_for_device(struct device *dev,
+							  dma_addr_t dma_handle,
+							  unsigned long offset,
+							  size_t size,
+							  int direction)
 {
 }
 
