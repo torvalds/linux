@@ -617,6 +617,14 @@ static int hdlcdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 /* --------------------------------------------------------------------- */
 
+static const struct net_device_ops hdlcdrv_netdev = {
+	.ndo_open	= hdlcdrv_open,
+	.ndo_stop	= hdlcdrv_close,
+	.ndo_start_xmit = hdlcdrv_send_packet,
+	.ndo_do_ioctl	= hdlcdrv_ioctl,
+	.ndo_set_mac_address = hdlcdrv_set_mac_address,
+};
+
 /*
  * Initialize fields in hdlcdrv
  */
@@ -656,21 +664,13 @@ static void hdlcdrv_setup(struct net_device *dev)
 	s->bitbuf_hdlc.shreg = 0x80;
 #endif /* HDLCDRV_DEBUG */
 
-	/*
-	 * initialize the device struct
-	 */
-	dev->open = hdlcdrv_open;
-	dev->stop = hdlcdrv_close;
-	dev->do_ioctl = hdlcdrv_ioctl;
-	dev->hard_start_xmit = hdlcdrv_send_packet;
-	dev->get_stats = hdlcdrv_get_stats;
 
 	/* Fill in the fields of the device structure */
 
 	s->skb = NULL;
 	
+	dev->netdev_ops = &hdlcdrv_netdev;
 	dev->header_ops = &ax25_header_ops;
-	dev->set_mac_address = hdlcdrv_set_mac_address;
 	
 	dev->type = ARPHRD_AX25;           /* AF_AX25 device */
 	dev->hard_header_len = AX25_MAX_HEADER_LEN + AX25_BPQ_HEADER_LEN;
