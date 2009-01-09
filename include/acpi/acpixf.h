@@ -70,6 +70,7 @@ extern u32 acpi_gbl_trace_flags;
 extern u32 acpi_current_gpe_count;
 extern struct acpi_table_fadt acpi_gbl_FADT;
 
+extern u32 acpi_rsdt_forced;
 /*
  * Global interfaces
  */

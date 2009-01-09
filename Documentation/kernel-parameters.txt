@@ -139,6 +139,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			ht -- run only enough ACPI to enable Hyper Threading
 			strict -- Be less tolerant of platforms that are not
 				strictly ACPI specification compliant.
+			rsdt -- prefer RSDT over (default) XSDT
 
 			See also Documentation/power/pm.txt, pci=noacpi
 
