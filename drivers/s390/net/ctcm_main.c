@@ -1099,12 +1099,24 @@ static void ctcm_free_netdevice(struct net_device *dev)
 
 struct mpc_group *ctcmpc_init_mpc_group(struct ctcm_priv *priv);
 
+static const struct net_device_ops ctcm_netdev_ops = {
+	.ndo_open		= ctcm_open,
+	.ndo_stop		= ctcm_close,
+	.ndo_get_stats		= ctcm_stats,
+	.ndo_change_mtu	   	= ctcm_change_mtu,
+	.ndo_start_xmit		= ctcm_tx,
+};
+
+static const struct net_device_ops ctcm_mpc_netdev_ops = {
+	.ndo_open		= ctcm_open,
+	.ndo_stop		= ctcm_close,
+	.ndo_get_stats		= ctcm_stats,
+	.ndo_change_mtu	   	= ctcm_change_mtu,
+	.ndo_start_xmit		= ctcmpc_tx,
+};
+
 void static ctcm_dev_setup(struct net_device *dev)
 {
-	dev->open = ctcm_open;
-	dev->stop = ctcm_close;
-	dev->get_stats = ctcm_stats;
-	dev->change_mtu = ctcm_change_mtu;
 	dev->type = ARPHRD_SLIP;
 	dev->tx_queue_len = 100;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
@@ -1157,12 +1169,12 @@ static struct net_device *ctcm_init_netdevice(struct ctcm_priv *priv)
 		dev->mtu = MPC_BUFSIZE_DEFAULT -
 				TH_HEADER_LENGTH - PDU_HEADER_LENGTH;
 
-		dev->hard_start_xmit = ctcmpc_tx;
+		dev->netdev_ops = &ctcm_mpc_netdev_ops;
 		dev->hard_header_len = TH_HEADER_LENGTH + PDU_HEADER_LENGTH;
 		priv->buffer_size = MPC_BUFSIZE_DEFAULT;
 	} else {
 		dev->mtu = CTCM_BUFSIZE_DEFAULT - LL_HEADER_LENGTH - 2;
-		dev->hard_start_xmit = ctcm_tx;
+		dev->netdev_ops = &ctcm_netdev_ops;
 		dev->hard_header_len = LL_HEADER_LENGTH + 2;
 	}
 
