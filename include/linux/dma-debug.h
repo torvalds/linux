@@ -20,6 +20,20 @@
 #ifndef __DMA_DEBUG_H
 #define __DMA_DEBUG_H
 
+#include <linux/types.h>
+
 struct device;
+
+#ifdef CONFIG_DMA_API_DEBUG
+
+extern void dma_debug_init(u32 num_entries);
+
+#else /* CONFIG_DMA_API_DEBUG */
+
+static inline void dma_debug_init(u32 num_entries)
+{
+}
+
+#endif /* CONFIG_DMA_API_DEBUG */
 
 #endif /* __DMA_DEBUG_H */

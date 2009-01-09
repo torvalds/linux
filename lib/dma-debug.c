@@ -21,6 +21,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #define HASH_SIZE       1024ULL
 #define HASH_FN_SHIFT   13
@@ -196,5 +197,70 @@ static void dma_entry_free(struct dma_debug_entry *entry)
 	list_add(&entry->list, &free_entries);
 	num_free_entries += 1;
 	spin_unlock_irqrestore(&free_entries_lock, flags);
+}
+
+/*
+ * DMA-API debugging init code
+ *
+ * The init code does two things:
+ *   1. Initialize core data structures
+ *   2. Preallocate a given number of dma_debug_entry structs
+ */
+
+static int prealloc_memory(u32 num_entries)
+{
+	struct dma_debug_entry *entry, *next_entry;
+	int i;
+
+	for (i = 0; i < num_entries; ++i) {
+		entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+		if (!entry)
+			goto out_err;
+
+		list_add_tail(&entry->list, &free_entries);
+	}
+
+	num_free_entries = num_entries;
+	min_free_entries = num_entries;
+
+	printk(KERN_INFO "DMA-API: preallocated %d debug entries\n",
+			num_entries);
+
+	return 0;
+
+out_err:
+
+	list_for_each_entry_safe(entry, next_entry, &free_entries, list) {
+		list_del(&entry->list);
+		kfree(entry);
+	}
+
+	return -ENOMEM;
+}
+
+/*
+ * Let the architectures decide how many entries should be preallocated.
+ */
+void dma_debug_init(u32 num_entries)
+{
+	int i;
+
+	if (global_disable)
+		return;
+
+	for (i = 0; i < HASH_SIZE; ++i) {
+		INIT_LIST_HEAD(&dma_entry_hash[i].list);
+		dma_entry_hash[i].lock = SPIN_LOCK_UNLOCKED;
+	}
+
+	if (prealloc_memory(num_entries) != 0) {
+		printk(KERN_ERR "DMA-API: debugging out of memory error "
+				"- disabled\n");
+		global_disable = true;
+
+		return;
+	}
+
+	printk(KERN_INFO "DMA-API: debugging enabled by kernel config\n");
 }
 
