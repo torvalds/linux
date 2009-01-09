@@ -13,10 +13,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 
-#include <asm/vdso.h>
-#include <asm/asm-offsets.h>
-#include <asm/unistd.h>
-
 	.text
 	.align 4
 	.globl __kernel_gettimeofday
