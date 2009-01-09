@@ -204,6 +204,10 @@ sensor_found:
 	for (i = 0; i < ARRAY_SIZE(s5k4aa_ctrls); i++)
 		sensor_settings[i] = s5k4aa_ctrls[i].qctrl.default_value;
 	sd->sensor_priv = sensor_settings;
+
+	if (dump_sensor)
+		s5k4aa_dump_registers(sd);
+
 	return 0;
 }
 
@@ -213,8 +217,7 @@ int s5k4aa_start(struct sd *sd)
 	u8 data[2];
 	struct cam *cam = &sd->gspca_dev.cam;
 
-	switch (cam->cam_mode[sd->gspca_dev.curr_mode].width)
-	{
+	switch (cam->cam_mode[sd->gspca_dev.curr_mode].width) {
 	case 640:
 		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
 
@@ -253,6 +256,7 @@ int s5k4aa_start(struct sd *sd)
 int s5k4aa_init(struct sd *sd)
 {
 	int i, err = 0;
+	s32 *sensor_settings = sd->sensor_priv;
 
 	for (i = 0; i < ARRAY_SIZE(init_s5k4aa) && !err; i++) {
 		u8 data[2] = {0x00, 0x00};
@@ -282,30 +286,22 @@ int s5k4aa_init(struct sd *sd)
 		}
 	}
 
-	if (dump_sensor)
-		s5k4aa_dump_registers(sd);
+	err = s5k4aa_set_exposure(&sd->gspca_dev,
+				   sensor_settings[EXPOSURE_IDX]);
+	if (err < 0)
+		return err;
 
-	if (!err && dmi_check_system(s5k4aa_vflip_dmi_table)) {
-		u8 data = 0x02;
-		info("vertical flip quirk active");
-		m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
-		m5602_read_sensor(sd, S5K4AA_READ_MODE, &data, 1);
-		data |= S5K4AA_RM_V_FLIP;
-		data &= ~S5K4AA_RM_H_FLIP;
-		m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
+	err = s5k4aa_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
+	if (err < 0)
+		return err;
 
-		/* Decrement COLSTART to preserve color order (BGGR) */
-		m5602_read_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
-		data--;
-		m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
+	err = s5k4aa_set_vflip(&sd->gspca_dev, sensor_settings[VFLIP_IDX]);
+	if (err < 0)
+		return err;
 
-		/* Increment ROWSTART to preserve color order (BGGR) */
-		m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
-		data++;
-		m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
-	}
+	err = s5k4aa_set_hflip(&sd->gspca_dev, sensor_settings[HFLIP_IDX]);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
@@ -377,6 +373,9 @@ int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
 		return err;
+
+	if (dmi_check_system(s5k4aa_vflip_dmi_table))
+		val = !val;
 
 	if (val) {
 		err = m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
