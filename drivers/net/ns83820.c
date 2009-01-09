@@ -1956,6 +1956,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_change_mtu		= ns83820_change_mtu,
 	.ndo_set_multicast_list = ns83820_set_multicast,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_tx_timeout		= ns83820_tx_timeout,
 #ifdef NS83820_VLAN_ACCEL_SUPPORT
 	.ndo_vlan_rx_register	= ns83820_vlan_rx_register,
