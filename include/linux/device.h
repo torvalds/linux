@@ -366,6 +366,7 @@ struct device_dma_parameters {
 };
 
 struct device {
+	struct klist_node	knode_bus;
 	struct device		*parent;
 
 	struct device_private	*p;
