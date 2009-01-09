@@ -71,9 +71,6 @@
 #define ACPI_EXPORT_SYMBOL(symbol)  EXPORT_SYMBOL(symbol);
 #define strtoul                     simple_strtoul
 
-/* Full namespace pathname length limit - arbitrary */
-#define ACPI_PATHNAME_MAX              256
-
 #else				/* !__KERNEL__ */
 
 #include <stdarg.h>
