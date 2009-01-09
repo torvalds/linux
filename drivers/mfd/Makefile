@@ -37,3 +37,5 @@ endif
 obj-$(CONFIG_UCB1400_CORE)	+= ucb1400_core.o
 
 obj-$(CONFIG_PMIC_DA903X)	+= da903x.o
+
+obj-$(CONFIG_MFD_PCF50633)	+= pcf50633-core.o
