@@ -65,6 +65,8 @@ static LIST_HEAD(async_pending);
 static LIST_HEAD(async_running);
 static DEFINE_SPINLOCK(async_lock);
 
+static int async_enabled = 0;
+
 struct async_entry {
 	struct list_head list;
 	async_cookie_t   cookie;
@@ -169,7 +171,7 @@ static async_cookie_t __async_schedule(async_func_ptr *ptr, void *data, struct l
 	 * If we're out of memory or if there's too much work
 	 * pending already, we execute synchronously.
 	 */
-	if (!entry || atomic_read(&entry_count) > MAX_WORK) {
+	if (!async_enabled || !entry || atomic_read(&entry_count) > MAX_WORK) {
 		kfree(entry);
 		spin_lock_irqsave(&async_lock, flags);
 		newcookie = next_cookie++;
@@ -316,8 +318,18 @@ static int async_manager_thread(void *unused)
 
 static int __init async_init(void)
 {
-	kthread_run(async_manager_thread, NULL, "async/mgr");
+	if (async_enabled)
+		kthread_run(async_manager_thread, NULL, "async/mgr");
 	return 0;
 }
+
+static int __init setup_async(char *str)
+{
+	async_enabled = 1;
+	return 1;
+}
+
+__setup("fastboot", setup_async);
+
 
 core_initcall(async_init);

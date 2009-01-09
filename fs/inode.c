@@ -1139,10 +1139,15 @@ EXPORT_SYMBOL(remove_inode_hash);
  * I_FREEING is set so that no-one will take a new reference to the inode while
  * it is being deleted.
  */
-static void generic_delete_inode_async(void *data, async_cookie_t cookie)
+void generic_delete_inode(struct inode *inode)
 {
-	struct inode *inode = data;
 	const struct super_operations *op = inode->i_sb->s_op;
+
+	list_del_init(&inode->i_list);
+	list_del_init(&inode->i_sb_list);
+	inode->i_state |= I_FREEING;
+	inodes_stat.nr_inodes--;
+	spin_unlock(&inode_lock);
 
 	security_inode_delete(inode);
 
@@ -1165,16 +1170,6 @@ static void generic_delete_inode_async(void *data, async_cookie_t cookie)
 	wake_up_inode(inode);
 	BUG_ON(inode->i_state != I_CLEAR);
 	destroy_inode(inode);
-}
-
-void generic_delete_inode(struct inode *inode)
-{
-	list_del_init(&inode->i_list);
-	list_del_init(&inode->i_sb_list);
-	inode->i_state |= I_FREEING;
-	inodes_stat.nr_inodes--;
-	spin_unlock(&inode_lock);
-	async_schedule_special(generic_delete_inode_async, inode, &inode->i_sb->s_async_list);
 }
 
 EXPORT_SYMBOL(generic_delete_inode);
