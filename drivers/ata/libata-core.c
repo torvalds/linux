@@ -4556,7 +4556,7 @@ void ata_sg_clean(struct ata_queued_cmd *qc)
 	struct scatterlist *sg = qc->sg;
 	int dir = qc->dma_dir;
 
-	WARN_ON(sg == NULL);
+	WARN_ON_ONCE(sg == NULL);
 
 	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
 
@@ -4776,7 +4776,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	unsigned int tag;
 
-	WARN_ON(qc == NULL);	/* ata_qc_from_tag _might_ return NULL */
+	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
 
 	qc->flags = 0;
 	tag = qc->tag;
@@ -4791,8 +4791,8 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct ata_link *link = qc->dev->link;
 
-	WARN_ON(qc == NULL);	/* ata_qc_from_tag _might_ return NULL */
-	WARN_ON(!(qc->flags & ATA_QCFLAG_ACTIVE));
+	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
+	WARN_ON_ONCE(!(qc->flags & ATA_QCFLAG_ACTIVE));
 
 	if (likely(qc->flags & ATA_QCFLAG_DMAMAP))
 		ata_sg_clean(qc);
@@ -4878,7 +4878,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		struct ata_device *dev = qc->dev;
 		struct ata_eh_info *ehi = &dev->link->eh_info;
 
-		WARN_ON(ap->pflags & ATA_PFLAG_FROZEN);
+		WARN_ON_ONCE(ap->pflags & ATA_PFLAG_FROZEN);
 
 		if (unlikely(qc->err_mask))
 			qc->flags |= ATA_QCFLAG_FAILED;
@@ -5000,16 +5000,16 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 * check is skipped for old EH because it reuses active qc to
 	 * request ATAPI sense.
 	 */
-	WARN_ON(ap->ops->error_handler && ata_tag_valid(link->active_tag));
+	WARN_ON_ONCE(ap->ops->error_handler && ata_tag_valid(link->active_tag));
 
 	if (ata_is_ncq(prot)) {
-		WARN_ON(link->sactive & (1 << qc->tag));
+		WARN_ON_ONCE(link->sactive & (1 << qc->tag));
 
 		if (!link->sactive)
 			ap->nr_active_links++;
 		link->sactive |= 1 << qc->tag;
 	} else {
-		WARN_ON(link->sactive);
+		WARN_ON_ONCE(link->sactive);
 
 		ap->nr_active_links++;
 		link->active_tag = qc->tag;
