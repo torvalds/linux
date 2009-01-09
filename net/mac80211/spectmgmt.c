@@ -161,3 +161,24 @@ void ieee80211_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 			  jiffies + msecs_to_jiffies(sw_elem->count * bss->beacon_int));
 	}
 }
+
+void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
+				 u16 capab_info, u8 *pwr_constr_elem,
+				 u8 pwr_constr_elem_len)
+{
+	struct ieee80211_conf *conf = &sdata->local->hw.conf;
+
+	if (!(capab_info & WLAN_CAPABILITY_SPECTRUM_MGMT))
+		return;
+
+	/* Power constraint IE length should be 1 octet */
+	if (pwr_constr_elem_len != 1)
+		return;
+
+	if ((*pwr_constr_elem <= conf->channel->max_power) &&
+	    (*pwr_constr_elem != sdata->local->power_constr_level)) {
+		sdata->local->power_constr_level = *pwr_constr_elem;
+		ieee80211_hw_config(sdata->local, 0);
+	}
+}
+

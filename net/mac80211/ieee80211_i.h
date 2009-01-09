@@ -715,6 +715,7 @@ struct ieee80211_local {
 	struct timer_list dynamic_ps_timer;
 
 	int user_power_level; /* in dBm */
+	int power_constr_level; /* in dBm */
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct local_debugfsdentries {
@@ -985,6 +986,9 @@ void ieee80211_chswitch_work(struct work_struct *work);
 void ieee80211_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_channel_sw_ie *sw_elem,
 				  struct ieee80211_bss *bss);
+void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
+				 u16 capab_info, u8 *pwr_constr_elem,
+				 u8 pwr_constr_elem_len);
 
 /* utility functions/constants */
 extern void *mac80211_wiphy_privid; /* for wiphy privid */

@@ -905,6 +905,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	/* channel(_type) changes are handled by ieee80211_hw_config */
 	local->oper_channel_type = NL80211_CHAN_NO_HT;
 
+	local->power_constr_level = 0;
+
 	del_timer_sync(&local->dynamic_ps_timer);
 	cancel_work_sync(&local->dynamic_ps_enable_work);
 
@@ -1849,6 +1851,13 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		 * for the BSSID we are associated to */
 		regulatory_hint_11d(local->hw.wiphy,
 			elems.country_elem, elems.country_elem_len);
+
+		/* TODO: IBSS also needs this */
+		if (elems.pwr_constr_elem)
+			ieee80211_handle_pwr_constr(sdata,
+				le16_to_cpu(mgmt->u.probe_resp.capab_info),
+				elems.pwr_constr_elem,
+				elems.pwr_constr_elem_len);
 	}
 
 	ieee80211_bss_info_change_notify(sdata, changed);
