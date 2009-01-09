@@ -372,7 +372,8 @@ int commit_creds(struct cred *new)
 	    old->fsuid != new->fsuid ||
 	    old->fsgid != new->fsgid ||
 	    !cap_issubset(new->cap_permitted, old->cap_permitted)) {
-		set_dumpable(task->mm, suid_dumpable);
+		if (task->mm)
+			set_dumpable(task->mm, suid_dumpable);
 		task->pdeath_signal = 0;
 		smp_wmb();
 	}
