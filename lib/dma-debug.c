@@ -737,3 +737,24 @@ void debug_dma_free_coherent(struct device *dev, size_t size,
 }
 EXPORT_SYMBOL(debug_dma_free_coherent);
 
+void debug_dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,
+				   size_t size, int direction)
+{
+	if (unlikely(global_disable))
+		return;
+
+	check_sync(dev, dma_handle, size, 0, direction, true);
+}
+EXPORT_SYMBOL(debug_dma_sync_single_for_cpu);
+
+void debug_dma_sync_single_for_device(struct device *dev,
+				      dma_addr_t dma_handle, size_t size,
+				      int direction)
+{
+	if (unlikely(global_disable))
+		return;
+
+	check_sync(dev, dma_handle, size, 0, direction, false);
+}
+EXPORT_SYMBOL(debug_dma_sync_single_for_device);
+
