@@ -1610,7 +1610,7 @@ static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell)
 
  err:
 	printk(KERN_ERR "%s: frequency change failed\n", wiphy_name(dev->wiphy));
-	kfree_skb(skb);
+	p54_free_skb(dev, skb);
 	return -EINVAL;
 }
 
