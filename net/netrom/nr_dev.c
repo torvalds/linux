@@ -191,19 +191,21 @@ static const struct header_ops nr_header_ops = {
 	.rebuild= nr_rebuild_header,
 };
 
+static const struct net_device_ops nr_netdev_ops = {
+	.ndo_open		= nr_open,
+	.ndo_stop		= nr_close,
+	.ndo_start_xmit		= nr_xmit,
+	.ndo_set_mac_address    = nr_set_mac_address,
+};
 
 void nr_setup(struct net_device *dev)
 {
 	dev->mtu		= NR_MAX_PACKET_SIZE;
-	dev->hard_start_xmit	= nr_xmit;
-	dev->open		= nr_open;
-	dev->stop		= nr_close;
-
+	dev->netdev_ops		= &nr_netdev_ops;
 	dev->header_ops		= &nr_header_ops;
 	dev->hard_header_len	= NR_NETWORK_LEN + NR_TRANSPORT_LEN;
 	dev->addr_len		= AX25_ADDR_LEN;
 	dev->type		= ARPHRD_NETROM;
-	dev->set_mac_address    = nr_set_mac_address;
 
 	/* New-style flags. */
 	dev->flags		= IFF_NOARP;
