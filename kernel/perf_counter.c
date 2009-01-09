@@ -928,18 +928,32 @@ static const struct file_operations perf_fops = {
 
 static int cpu_clock_perf_counter_enable(struct perf_counter *counter)
 {
+	int cpu = raw_smp_processor_id();
+
+	atomic64_set(&counter->hw.prev_count, cpu_clock(cpu));
 	return 0;
+}
+
+static void cpu_clock_perf_counter_update(struct perf_counter *counter)
+{
+	int cpu = raw_smp_processor_id();
+	s64 prev;
+	u64 now;
+
+	now = cpu_clock(cpu);
+	prev = atomic64_read(&counter->hw.prev_count);
+	atomic64_set(&counter->hw.prev_count, now);
+	atomic64_add(now - prev, &counter->count);
 }
 
 static void cpu_clock_perf_counter_disable(struct perf_counter *counter)
 {
+	cpu_clock_perf_counter_update(counter);
 }
 
 static void cpu_clock_perf_counter_read(struct perf_counter *counter)
 {
-	int cpu = raw_smp_processor_id();
-
-	atomic64_set(&counter->count, cpu_clock(cpu));
+	cpu_clock_perf_counter_update(counter);
 }
 
 static const struct hw_perf_counter_ops perf_ops_cpu_clock = {
