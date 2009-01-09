@@ -17,6 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-debug.h>
 #include <linux/spinlock.h>
@@ -618,4 +619,76 @@ void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
 	check_unmap(&ref);
 }
 EXPORT_SYMBOL(debug_dma_unmap_page);
+
+void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
+		      int nents, int mapped_ents, int direction)
+{
+	struct dma_debug_entry *entry;
+	struct scatterlist *s;
+	int i;
+
+	if (unlikely(global_disable))
+		return;
+
+	for_each_sg(sg, s, mapped_ents, i) {
+		entry = dma_entry_alloc();
+		if (!entry)
+			return;
+
+		entry->type           = dma_debug_sg;
+		entry->dev            = dev;
+		entry->paddr          = sg_phys(s);
+		entry->size           = s->length;
+		entry->dev_addr       = s->dma_address;
+		entry->direction      = direction;
+		entry->sg_call_ents   = nents;
+		entry->sg_mapped_ents = mapped_ents;
+
+		check_for_stack(dev, sg_virt(s));
+
+		add_dma_entry(entry);
+	}
+}
+EXPORT_SYMBOL(debug_dma_map_sg);
+
+void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
+			int nelems, int dir)
+{
+	struct dma_debug_entry *entry;
+	struct scatterlist *s;
+	int mapped_ents = 0, i;
+	unsigned long flags;
+
+	if (unlikely(global_disable))
+		return;
+
+	for_each_sg(sglist, s, nelems, i) {
+
+		struct dma_debug_entry ref = {
+			.type           = dma_debug_sg,
+			.dev            = dev,
+			.paddr          = sg_phys(s),
+			.dev_addr       = s->dma_address,
+			.size           = s->length,
+			.direction      = dir,
+			.sg_call_ents   = 0,
+		};
+
+		if (mapped_ents && i >= mapped_ents)
+			break;
+
+		if (mapped_ents == 0) {
+			struct hash_bucket *bucket;
+			ref.sg_call_ents = nelems;
+			bucket = get_hash_bucket(&ref, &flags);
+			entry = hash_bucket_find(bucket, &ref);
+			if (entry)
+				mapped_ents = entry->sg_mapped_ents;
+			put_hash_bucket(bucket, &flags);
+		}
+
+		check_unmap(&ref);
+	}
+}
+EXPORT_SYMBOL(debug_dma_unmap_sg);
 

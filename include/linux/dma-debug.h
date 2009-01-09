@@ -23,6 +23,7 @@
 #include <linux/types.h>
 
 struct device;
+struct scatterlist;
 
 #ifdef CONFIG_DMA_API_DEBUG
 
@@ -36,6 +37,11 @@ extern void debug_dma_map_page(struct device *dev, struct page *page,
 extern void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
 				 size_t size, int direction, bool map_single);
 
+extern void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
+			     int nents, int mapped_ents, int direction);
+
+extern void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
+			       int nelems, int dir);
 
 #else /* CONFIG_DMA_API_DEBUG */
 
@@ -56,6 +62,16 @@ static inline void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
 {
 }
 
+static inline void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
+				    int nents, int mapped_ents, int direction)
+{
+}
+
+static inline void debug_dma_unmap_sg(struct device *dev,
+				      struct scatterlist *sglist,
+				      int nelems, int dir)
+{
+}
 
 #endif /* CONFIG_DMA_API_DEBUG */
 
