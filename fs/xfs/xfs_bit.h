@@ -23,24 +23,16 @@
  */
 
 /*
- * masks with n high/low bits set, 32-bit values & 64-bit values
+ * masks with n high/low bits set, 64-bit values
  */
-#define	XFS_MASK32HI(n)		xfs_mask32hi(n)
-static inline __uint32_t xfs_mask32hi(int n)
-{
-	return (__uint32_t)-1 << (32 - (n));
-}
-#define	XFS_MASK64HI(n)		xfs_mask64hi(n)
 static inline __uint64_t xfs_mask64hi(int n)
 {
 	return (__uint64_t)-1 << (64 - (n));
 }
-#define	XFS_MASK32LO(n)		xfs_mask32lo(n)
 static inline __uint32_t xfs_mask32lo(int n)
 {
 	return ((__uint32_t)1 << (n)) - 1;
 }
-#define	XFS_MASK64LO(n)		xfs_mask64lo(n)
 static inline __uint64_t xfs_mask64lo(int n)
 {
 	return ((__uint64_t)1 << (n)) - 1;

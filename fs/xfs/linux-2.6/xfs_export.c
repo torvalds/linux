@@ -126,11 +126,26 @@ xfs_nfs_get_inode(
 	if (ino == 0)
 		return ERR_PTR(-ESTALE);
 
-	error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_SHARED, &ip, 0);
-	if (error)
+	/*
+	 * The XFS_IGET_BULKSTAT means that an invalid inode number is just
+	 * fine and not an indication of a corrupted filesystem.  Because
+	 * clients can send any kind of invalid file handle, e.g. after
+	 * a restore on the server we have to deal with this case gracefully.
+	 */
+	error = xfs_iget(mp, NULL, ino, XFS_IGET_BULKSTAT,
+			 XFS_ILOCK_SHARED, &ip, 0);
+	if (error) {
+		/*
+		 * EINVAL means the inode cluster doesn't exist anymore.
+		 * This implies the filehandle is stale, so we should
+		 * translate it here.
+		 * We don't use ESTALE directly down the chain to not
+		 * confuse applications using bulkstat that expect EINVAL.
+		 */
+		if (error == EINVAL)
+			error = ESTALE;
 		return ERR_PTR(-error);
-	if (!ip)
-		return ERR_PTR(-EIO);
+	}
 
 	if (ip->i_d.di_gen != generation) {
 		xfs_iput_new(ip, XFS_ILOCK_SHARED);
