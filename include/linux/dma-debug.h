@@ -68,6 +68,14 @@ extern void debug_dma_sync_single_range_for_device(struct device *dev,
 						   unsigned long offset,
 						   size_t size, int direction);
 
+extern void debug_dma_sync_sg_for_cpu(struct device *dev,
+				      struct scatterlist *sg,
+				      int nelems, int direction);
+
+extern void debug_dma_sync_sg_for_device(struct device *dev,
+					 struct scatterlist *sg,
+					 int nelems, int direction);
+
 #else /* CONFIG_DMA_API_DEBUG */
 
 static inline void dma_debug_init(u32 num_entries)
@@ -133,6 +141,18 @@ static inline void debug_dma_sync_single_range_for_device(struct device *dev,
 							  unsigned long offset,
 							  size_t size,
 							  int direction)
+{
+}
+
+static inline void debug_dma_sync_sg_for_cpu(struct device *dev,
+					     struct scatterlist *sg,
+					     int nelems, int direction)
+{
+}
+
+static inline void debug_dma_sync_sg_for_device(struct device *dev,
+						struct scatterlist *sg,
+						int nelems, int direction)
 {
 }
 

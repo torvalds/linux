@@ -782,3 +782,35 @@ void debug_dma_sync_single_range_for_device(struct device *dev,
 }
 EXPORT_SYMBOL(debug_dma_sync_single_range_for_device);
 
+void debug_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
+			       int nelems, int direction)
+{
+	struct scatterlist *s;
+	int i;
+
+	if (unlikely(global_disable))
+		return;
+
+	for_each_sg(sg, s, nelems, i) {
+		check_sync(dev, s->dma_address, s->dma_length, 0,
+				direction, true);
+	}
+}
+EXPORT_SYMBOL(debug_dma_sync_sg_for_cpu);
+
+void debug_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
+				  int nelems, int direction)
+{
+	struct scatterlist *s;
+	int i;
+
+	if (unlikely(global_disable))
+		return;
+
+	for_each_sg(sg, s, nelems, i) {
+		check_sync(dev, s->dma_address, s->dma_length, 0,
+				direction, false);
+	}
+}
+EXPORT_SYMBOL(debug_dma_sync_sg_for_device);
+
