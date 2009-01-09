@@ -78,8 +78,8 @@ static void hvc_iucv_msg_pending(struct iucv_path *, struct iucv_message *);
 static void hvc_iucv_msg_complete(struct iucv_path *, struct iucv_message *);
 
 
-/* Kernel module parameters */
-static unsigned long hvc_iucv_devices;
+/* Kernel module parameter: use one terminal device as default */
+static unsigned long hvc_iucv_devices = 1;
 
 /* Array of allocated hvc iucv tty lines... */
 static struct hvc_iucv_private *hvc_iucv_table[MAX_HVC_IUCV_LINES];
@@ -743,7 +743,7 @@ static int __init hvc_iucv_alloc(int id)
 	}
 
 	/* setup iucv related information */
-	snprintf(name, 9, "ihvc%-4d", id);
+	snprintf(name, 9, "lnxhvc%-2d", id);
 	memcpy(priv->srv_name, name, 8);
 	ASCEBC(priv->srv_name, 8);
 
