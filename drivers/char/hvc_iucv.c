@@ -60,6 +60,7 @@ enum tty_state_t {
 struct hvc_iucv_private {
 	struct hvc_struct	*hvc;		/* HVC struct reference */
 	u8			srv_name[8];	/* IUCV service name (ebcdic) */
+	unsigned char		is_console;	/* Linux console usage flag */
 	enum iucv_state_t	iucv_state;	/* IUCV connection status */
 	enum tty_state_t	tty_state;	/* TTY status */
 	struct iucv_path	*path;		/* IUCV path pointer */
@@ -93,6 +94,7 @@ static unsigned long hvc_iucv_devices = 1;
 
 /* Array of allocated hvc iucv tty lines... */
 static struct hvc_iucv_private *hvc_iucv_table[MAX_HVC_IUCV_LINES];
+#define IUCV_HVC_CON_IDX	(0)
 
 /* Kmem cache and mempool for iucv_tty_buffer elements */
 static struct kmem_cache *hvc_iucv_buffer_cache;
@@ -139,7 +141,7 @@ static struct iucv_tty_buffer *alloc_tty_buffer(size_t size, gfp_t flags)
 	bufp = mempool_alloc(hvc_iucv_mempool, flags);
 	if (!bufp)
 		return NULL;
-	memset(bufp, 0, sizeof(struct iucv_tty_buffer));
+	memset(bufp, 0, sizeof(*bufp));
 
 	if (size > 0) {
 		bufp->msg.length = MSG_SIZE(size);
@@ -463,7 +465,7 @@ static int hvc_iucv_put_chars(uint32_t vtermno, const char *buf, int count)
  * @id:	Additional data (originally passed to hvc_alloc): the index of an struct
  *	hvc_iucv_private instance.
  *
- * The function sets the tty state to TTY_OPEN for the struct hvc_iucv_private
+ * The function sets the tty state to TTY_OPENED for the struct hvc_iucv_private
  * instance that is derived from @id. Always returns 0.
  *
  * Locking:	struct hvc_iucv_private->lock, spin_lock_bh
@@ -707,6 +709,9 @@ static void hvc_iucv_path_severed(struct iucv_path *path, u8 ipuser[16])
 
 	/* If the tty has not yet been opened, clean up the hvc_iucv_private
 	 * structure to allow re-connects.
+	 * This is also done for our console device because console hangups
+	 * are handled specially and no notifier is called by HVC.
+	 * The tty session is active (TTY_OPEN) and ready for re-connects...
 	 *
 	 * If it has been opened, let get_chars() return -EPIPE to signal the
 	 * HVC layer to hang up the tty.
@@ -716,7 +721,11 @@ static void hvc_iucv_path_severed(struct iucv_path *path, u8 ipuser[16])
 	if (priv->tty_state == TTY_CLOSED)
 		hvc_iucv_cleanup(priv);
 	else
-		hvc_kick();
+		if (priv->is_console) {
+			hvc_iucv_cleanup(priv);
+			priv->tty_state = TTY_OPENED;
+		} else
+			hvc_kick();
 	spin_unlock(&priv->lock);
 
 	/* finally sever path (outside of priv->lock due to lock ordering) */
@@ -746,7 +755,6 @@ static void hvc_iucv_msg_pending(struct iucv_path *path,
 		iucv_message_reject(path, msg);
 		return;
 	}
-
 
 	spin_lock(&priv->lock);
 
@@ -814,13 +822,14 @@ static struct hv_ops hvc_iucv_ops = {
 
 /**
  * hvc_iucv_alloc() - Allocates a new struct hvc_iucv_private instance
- * @id:	hvc_iucv_table index
+ * @id:			hvc_iucv_table index
+ * @is_console:		Flag if the instance is used as Linux console
  *
  * This function allocates a new hvc_iucv_private structure and stores
  * the instance in hvc_iucv_table at index @id.
  * Returns 0 on success; otherwise non-zero.
  */
-static int __init hvc_iucv_alloc(int id)
+static int __init hvc_iucv_alloc(int id, unsigned int is_console)
 {
 	struct hvc_iucv_private *priv;
 	char name[9];
@@ -841,6 +850,9 @@ static int __init hvc_iucv_alloc(int id)
 		kfree(priv);
 		return -ENOMEM;
 	}
+
+	/* set console flag */
+	priv->is_console = is_console;
 
 	/* finally allocate hvc */
 	priv->hvc = hvc_alloc(HVC_IUCV_MAGIC + id, /*		  PAGE_SIZE */
@@ -869,7 +881,8 @@ static int __init hvc_iucv_alloc(int id)
  */
 static int __init hvc_iucv_init(void)
 {
-	int rc, i;
+	int rc;
+	unsigned int i;
 
 	if (!MACHINE_IS_VM) {
 		pr_info("The z/VM IUCV HVC device driver cannot "
@@ -901,14 +914,16 @@ static int __init hvc_iucv_init(void)
 
 	/* register the first terminal device as console
 	 * (must be done before allocating hvc terminal devices) */
-	rc = hvc_instantiate(HVC_IUCV_MAGIC, 0, &hvc_iucv_ops);
-	if (rc)
-		pr_warning("Registering HVC terminal device as "
-			   "Linux console failed\n");
+	rc = hvc_instantiate(HVC_IUCV_MAGIC, IUCV_HVC_CON_IDX, &hvc_iucv_ops);
+	if (rc) {
+		pr_err("Registering HVC terminal device as "
+		       "Linux console failed\n");
+		goto out_error_memory;
+	}
 
 	/* allocate hvc_iucv_private structs */
 	for (i = 0; i < hvc_iucv_devices; i++) {
-		rc = hvc_iucv_alloc(i);
+		rc = hvc_iucv_alloc(i, (i == IUCV_HVC_CON_IDX) ? 1 : 0);
 		if (rc) {
 			pr_err("Creating a new HVC terminal device "
 				"failed with error code=%d\n", rc);
@@ -935,6 +950,7 @@ out_error_hvc:
 				hvc_remove(hvc_iucv_table[i]->hvc);
 			kfree(hvc_iucv_table[i]);
 		}
+out_error_memory:
 	mempool_destroy(hvc_iucv_mempool);
 	kmem_cache_destroy(hvc_iucv_buffer_cache);
 	return rc;
