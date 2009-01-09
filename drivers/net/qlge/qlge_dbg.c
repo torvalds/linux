@@ -455,10 +455,11 @@ void ql_dump_tx_ring(struct tx_ring *tx_ring)
 	printk(KERN_ERR PFX "tx_ring->base = %p.\n", tx_ring->wq_base);
 	printk(KERN_ERR PFX "tx_ring->base_dma = 0x%llx.\n",
 	       (unsigned long long) tx_ring->wq_base_dma);
-	printk(KERN_ERR PFX "tx_ring->cnsmr_idx_sh_reg = %p.\n",
-	       tx_ring->cnsmr_idx_sh_reg);
-	printk(KERN_ERR PFX "tx_ring->cnsmr_idx_sh_reg_dma = 0x%llx.\n",
-	       (unsigned long long) tx_ring->cnsmr_idx_sh_reg_dma);
+	printk(KERN_ERR PFX
+	       "tx_ring->cnsmr_idx_sh_reg, addr = 0x%p, value = %d.\n",
+	       tx_ring->cnsmr_idx_sh_reg,
+	       tx_ring->cnsmr_idx_sh_reg
+			? ql_read_sh_reg(tx_ring->cnsmr_idx_sh_reg) : 0);
 	printk(KERN_ERR PFX "tx_ring->size = %d.\n", tx_ring->wq_size);
 	printk(KERN_ERR PFX "tx_ring->len = %d.\n", tx_ring->wq_len);
 	printk(KERN_ERR PFX "tx_ring->prod_idx_db_reg = %p.\n",
@@ -558,9 +559,10 @@ void ql_dump_rx_ring(struct rx_ring *rx_ring)
 	printk(KERN_ERR PFX "rx_ring->cq_size = %d.\n", rx_ring->cq_size);
 	printk(KERN_ERR PFX "rx_ring->cq_len = %d.\n", rx_ring->cq_len);
 	printk(KERN_ERR PFX
-	       "rx_ring->prod_idx_sh_reg, addr = %p, value = %d.\n",
+	       "rx_ring->prod_idx_sh_reg, addr = 0x%p, value = %d.\n",
 	       rx_ring->prod_idx_sh_reg,
-	       rx_ring->prod_idx_sh_reg ? *(rx_ring->prod_idx_sh_reg) : 0);
+	       rx_ring->prod_idx_sh_reg
+			? ql_read_sh_reg(rx_ring->prod_idx_sh_reg) : 0);
 	printk(KERN_ERR PFX "rx_ring->prod_idx_sh_reg_dma = %llx.\n",
 	       (unsigned long long) rx_ring->prod_idx_sh_reg_dma);
 	printk(KERN_ERR PFX "rx_ring->cnsmr_idx_db_reg = %p.\n",

@@ -1145,7 +1145,7 @@ struct tx_ring {
 	struct wqicb wqicb;	/* structure used to inform chip of new queue */
 	void *wq_base;		/* pci_alloc:virtual addr for tx */
 	dma_addr_t wq_base_dma;	/* pci_alloc:dma addr for tx */
-	u32 *cnsmr_idx_sh_reg;	/* shadow copy of consumer idx */
+	__le32 *cnsmr_idx_sh_reg;	/* shadow copy of consumer idx */
 	dma_addr_t cnsmr_idx_sh_reg_dma;	/* dma-shadow copy of consumer */
 	u32 wq_size;		/* size in bytes of queue area */
 	u32 wq_len;		/* number of entries in queue */
@@ -1181,7 +1181,7 @@ struct rx_ring {
 	u32 cq_size;
 	u32 cq_len;
 	u16 cq_id;
-	volatile __le32 *prod_idx_sh_reg;	/* Shadowed producer register. */
+	__le32 *prod_idx_sh_reg;	/* Shadowed producer register. */
 	dma_addr_t prod_idx_sh_reg_dma;
 	void __iomem *cnsmr_idx_db_reg;	/* PCI doorbell mem area + 0 */
 	u32 cnsmr_idx;		/* current sw idx */
@@ -1457,6 +1457,24 @@ static inline void ql_write_db_reg(u32 val, void __iomem *addr)
 {
 	writel(val, addr);
 	mmiowb();
+}
+
+/*
+ * Shadow Registers:
+ * Outbound queues have a consumer index that is maintained by the chip.
+ * Inbound queues have a producer index that is maintained by the chip.
+ * For lower overhead, these registers are "shadowed" to host memory
+ * which allows the device driver to track the queue progress without
+ * PCI reads. When an entry is placed on an inbound queue, the chip will
+ * update the relevant index register and then copy the value to the
+ * shadow register in host memory.
+ */
+static inline u32 ql_read_sh_reg(__le32  *addr)
+{
+	u32 reg;
+	reg =  le32_to_cpu(*addr);
+	rmb();
+	return reg;
 }
 
 extern char qlge_driver_name[];

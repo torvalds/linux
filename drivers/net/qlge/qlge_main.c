@@ -1545,7 +1545,7 @@ static void ql_process_chip_ae_intr(struct ql_adapter *qdev,
 static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 {
 	struct ql_adapter *qdev = rx_ring->qdev;
-	u32 prod = le32_to_cpu(*rx_ring->prod_idx_sh_reg);
+	u32 prod = ql_read_sh_reg(rx_ring->prod_idx_sh_reg);
 	struct ob_mac_iocb_rsp *net_rsp = NULL;
 	int count = 0;
 
@@ -1571,7 +1571,7 @@ static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 		}
 		count++;
 		ql_update_cq(rx_ring);
-		prod = le32_to_cpu(*rx_ring->prod_idx_sh_reg);
+		prod = ql_read_sh_reg(rx_ring->prod_idx_sh_reg);
 	}
 	ql_write_cq_idx(rx_ring);
 	if (netif_queue_stopped(qdev->ndev) && net_rsp != NULL) {
@@ -1591,7 +1591,7 @@ static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 static int ql_clean_inbound_rx_ring(struct rx_ring *rx_ring, int budget)
 {
 	struct ql_adapter *qdev = rx_ring->qdev;
-	u32 prod = le32_to_cpu(*rx_ring->prod_idx_sh_reg);
+	u32 prod = ql_read_sh_reg(rx_ring->prod_idx_sh_reg);
 	struct ql_net_rsp_iocb *net_rsp;
 	int count = 0;
 
@@ -1624,7 +1624,7 @@ static int ql_clean_inbound_rx_ring(struct rx_ring *rx_ring, int budget)
 		}
 		count++;
 		ql_update_cq(rx_ring);
-		prod = le32_to_cpu(*rx_ring->prod_idx_sh_reg);
+		prod = ql_read_sh_reg(rx_ring->prod_idx_sh_reg);
 		if (count == budget)
 			break;
 	}
@@ -1787,7 +1787,7 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 	 * Check the default queue and wake handler if active.
 	 */
 	rx_ring = &qdev->rx_ring[0];
-	if (le32_to_cpu(*rx_ring->prod_idx_sh_reg) != rx_ring->cnsmr_idx) {
+	if (ql_read_sh_reg(rx_ring->prod_idx_sh_reg) != rx_ring->cnsmr_idx) {
 		QPRINTK(qdev, INTR, INFO, "Waking handler for rx_ring[0].\n");
 		ql_disable_completion_interrupt(qdev, intr_context->intr);
 		queue_delayed_work_on(smp_processor_id(), qdev->q_workqueue,
@@ -1801,7 +1801,7 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 		 */
 		for (i = 1; i < qdev->rx_ring_count; i++) {
 			rx_ring = &qdev->rx_ring[i];
-			if (le32_to_cpu(*rx_ring->prod_idx_sh_reg) !=
+			if (ql_read_sh_reg(rx_ring->prod_idx_sh_reg) !=
 			    rx_ring->cnsmr_idx) {
 				QPRINTK(qdev, INTR, INFO,
 					"Waking handler for rx_ring[%d].\n", i);
