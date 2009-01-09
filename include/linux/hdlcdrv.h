@@ -241,7 +241,6 @@ struct hdlcdrv_state {
 	struct hdlcdrv_bitbuffer bitbuf_hdlc;
 #endif /* HDLCDRV_DEBUG */
 
-	struct net_device_stats stats;
 	int ptt_keyed;
 
 	/* queued skb for transmission */
