@@ -126,12 +126,12 @@ static int ql_sem_trylock(struct ql_adapter *qdev, u32 sem_mask)
 
 int ql_sem_spinlock(struct ql_adapter *qdev, u32 sem_mask)
 {
-	unsigned int seconds = 3;
+	unsigned int wait_count = 30;
 	do {
 		if (!ql_sem_trylock(qdev, sem_mask))
 			return 0;
-		ssleep(1);
-	} while (--seconds);
+		udelay(100);
+	} while (--wait_count);
 	return -ETIMEDOUT;
 }
 
