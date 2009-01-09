@@ -107,6 +107,9 @@ static const u8 msp_gpios[] = {
 	MSP_GPIO(0, SWITCH1), MSP_GPIO(1, SWITCH1),
 	MSP_GPIO(2, SWITCH1), MSP_GPIO(3, SWITCH1),
 	MSP_GPIO(4, SWITCH1),
+	/* switches on MMC/SD sockets */
+	MSP_GPIO(1, SDMMC), MSP_GPIO(2, SDMMC),	/* mmc0 WP, nCD */
+	MSP_GPIO(3, SDMMC), MSP_GPIO(4, SDMMC),	/* mmc1 WP, nCD */
 };
 
 #define MSP_GPIO_REG(offset)	(msp_gpios[(offset)] >> 3)
@@ -302,6 +305,13 @@ static int add_children(struct i2c_client *client)
 
 		/* make it easy for userspace to see these */
 		gpio_export(gpio, false);
+	}
+
+	/* MMC/SD inputs -- right after the last config input */
+	if (client->dev.platform_data) {
+		void (*mmcsd_setup)(unsigned) = client->dev.platform_data;
+
+		mmcsd_setup(dm355evm_msp_gpio.base + 8 + 5);
 	}
 
 	/* RTC is a 32 bit counter, no alarm */
