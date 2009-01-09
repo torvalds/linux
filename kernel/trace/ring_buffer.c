@@ -123,8 +123,7 @@ void ring_buffer_normalize_time_stamp(int cpu, u64 *ts)
 EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
 
 #define RB_EVNT_HDR_SIZE (sizeof(struct ring_buffer_event))
-#define RB_ALIGNMENT_SHIFT	2
-#define RB_ALIGNMENT		(1 << RB_ALIGNMENT_SHIFT)
+#define RB_ALIGNMENT		4U
 #define RB_MAX_SMALL_DATA	28
 
 enum {
@@ -151,7 +150,7 @@ rb_event_length(struct ring_buffer_event *event)
 
 	case RINGBUF_TYPE_DATA:
 		if (event->len)
-			length = event->len << RB_ALIGNMENT_SHIFT;
+			length = event->len * RB_ALIGNMENT;
 		else
 			length = event->array[0];
 		return length + RB_EVNT_HDR_SIZE;
@@ -937,15 +936,11 @@ rb_update_event(struct ring_buffer_event *event,
 		break;
 
 	case RINGBUF_TYPE_TIME_EXTEND:
-		event->len =
-			(RB_LEN_TIME_EXTEND + (RB_ALIGNMENT-1))
-			>> RB_ALIGNMENT_SHIFT;
+		event->len = DIV_ROUND_UP(RB_LEN_TIME_EXTEND, RB_ALIGNMENT);
 		break;
 
 	case RINGBUF_TYPE_TIME_STAMP:
-		event->len =
-			(RB_LEN_TIME_STAMP + (RB_ALIGNMENT-1))
-			>> RB_ALIGNMENT_SHIFT;
+		event->len = DIV_ROUND_UP(RB_LEN_TIME_STAMP, RB_ALIGNMENT);
 		break;
 
 	case RINGBUF_TYPE_DATA:
@@ -954,9 +949,7 @@ rb_update_event(struct ring_buffer_event *event,
 			event->len = 0;
 			event->array[0] = length;
 		} else
-			event->len =
-				(length + (RB_ALIGNMENT-1))
-				>> RB_ALIGNMENT_SHIFT;
+			event->len = DIV_ROUND_UP(length, RB_ALIGNMENT);
 		break;
 	default:
 		BUG();
