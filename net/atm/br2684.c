@@ -259,10 +259,9 @@ static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * We remember when the MAC gets set, so we don't override it later with
  * the ESI of the ATM card of the first VC
  */
-static int (*my_eth_mac_addr) (struct net_device *, void *);
 static int br2684_mac_addr(struct net_device *dev, void *p)
 {
-	int err = my_eth_mac_addr(dev, p);
+	int err = eth_mac_addr(dev, p);
 	if (!err)
 		BRPRIV(dev)->mac_was_set = 1;
 	return err;
@@ -538,16 +537,20 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	return err;
 }
 
+static const struct net_device_ops br2684_netdev_ops = {
+	.ndo_start_xmit 	= br2684_start_xmit,
+	.ndo_set_mac_address	= br2684_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static void br2684_setup(struct net_device *netdev)
 {
 	struct br2684_dev *brdev = BRPRIV(netdev);
 
 	ether_setup(netdev);
-	brdev->net_dev = netdev;
 
-	my_eth_mac_addr = netdev->set_mac_address;
-	netdev->set_mac_address = br2684_mac_addr;
-	netdev->hard_start_xmit = br2684_start_xmit;
+	netdev->netdev_ops = &br2684_netdev_ops;
 
 	INIT_LIST_HEAD(&brdev->brvccs);
 }
@@ -558,9 +561,8 @@ static void br2684_setup_routed(struct net_device *netdev)
 	brdev->net_dev = netdev;
 
 	netdev->hard_header_len = 0;
-	my_eth_mac_addr = netdev->set_mac_address;
-	netdev->set_mac_address = br2684_mac_addr;
-	netdev->hard_start_xmit = br2684_start_xmit;
+
+	netdev->netdev_ops = &br2684_netdev_ops;
 	netdev->addr_len = 0;
 	netdev->mtu = 1500;
 	netdev->type = ARPHRD_PPP;
