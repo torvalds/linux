@@ -341,10 +341,11 @@
 #define __NR_dup3		316
 #define __NR_pipe2		317
 #define __NR_inotify_init1	318
+#define __NR_perf_counter_open	319
 
 #ifdef __KERNEL__
 
-#define __NR_syscalls		319
+#define __NR_syscalls		320
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls
