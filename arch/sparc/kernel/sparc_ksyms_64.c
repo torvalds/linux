@@ -29,7 +29,6 @@
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/idprom.h>
 #include <asm/elf.h>
 #include <asm/head.h>
 #include <asm/smp.h>
@@ -66,9 +65,6 @@ extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 extern int __ashrdi3(int, int);
 
 extern int dump_fpu (struct pt_regs * regs, elf_fpregset_t * fpregs);
-
-/* Per-CPU information table */
-EXPORT_PER_CPU_SYMBOL(__cpu_data);
 
 /* used by various drivers */
 #ifdef CONFIG_SMP
@@ -134,7 +130,6 @@ EXPORT_SYMBOL(die_if_kernel);
 EXPORT_SYMBOL(kernel_thread);
 
 /* prom symbols */
-EXPORT_SYMBOL(idprom);
 EXPORT_SYMBOL(prom_root_node);
 EXPORT_SYMBOL(prom_getchild);
 EXPORT_SYMBOL(prom_getsibling);

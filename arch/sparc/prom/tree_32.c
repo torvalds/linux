@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/ctype.h>
+#include <linux/module.h>
 
 #include <asm/openprom.h>
 #include <asm/oplib.h>
@@ -33,6 +34,7 @@ int __prom_getchild(int node)
 
 	return cnode;
 }
+EXPORT_SYMBOL(__prom_getchild);
 
 /* Return the child of node 'node' or zero if no this node has no
  * direct descendent.
@@ -50,6 +52,7 @@ int prom_getchild(int node)
 
 	return cnode;
 }
+EXPORT_SYMBOL(prom_getchild);
 
 /* Internal version of prom_getsibling that does not alter return values. */
 int __prom_getsibling(int node)
@@ -64,6 +67,7 @@ int __prom_getsibling(int node)
 
 	return cnode;
 }
+EXPORT_SYMBOL(__prom_getsibling);
 
 /* Return the next sibling of node 'node' or zero if no more siblings
  * at this level of depth in the tree.
@@ -81,6 +85,7 @@ int prom_getsibling(int node)
 
 	return sibnode;
 }
+EXPORT_SYMBOL(prom_getsibling);
 
 /* Return the length in bytes of property 'prop' at node 'node'.
  * Return -1 on error.
@@ -99,6 +104,7 @@ int prom_getproplen(int node, const char *prop)
 	spin_unlock_irqrestore(&prom_lock, flags);
 	return ret;
 }
+EXPORT_SYMBOL(prom_getproplen);
 
 /* Acquire a property 'prop' at node 'node' and place it in
  * 'buffer' which has a size of 'bufsize'.  If the acquisition
@@ -119,6 +125,7 @@ int prom_getproperty(int node, const char *prop, char *buffer, int bufsize)
 	spin_unlock_irqrestore(&prom_lock, flags);
 	return ret;
 }
+EXPORT_SYMBOL(prom_getproperty);
 
 /* Acquire an integer property and return its value.  Returns -1
  * on failure.
@@ -132,6 +139,7 @@ int prom_getint(int node, char *prop)
 
 	return -1;
 }
+EXPORT_SYMBOL(prom_getint);
 
 /* Acquire an integer property, upon error return the passed default
  * integer.
@@ -145,6 +153,7 @@ int prom_getintdefault(int node, char *property, int deflt)
 
 	return retval;
 }
+EXPORT_SYMBOL(prom_getintdefault);
 
 /* Acquire a boolean property, 1=TRUE 0=FALSE. */
 int prom_getbool(int node, char *prop)
@@ -155,6 +164,7 @@ int prom_getbool(int node, char *prop)
 	if(retval == -1) return 0;
 	return 1;
 }
+EXPORT_SYMBOL(prom_getbool);
 
 /* Acquire a property whose value is a string, returns a null
  * string on error.  The char pointer is the user supplied string
@@ -169,6 +179,7 @@ void prom_getstring(int node, char *prop, char *user_buf, int ubuf_size)
 	user_buf[0] = 0;
 	return;
 }
+EXPORT_SYMBOL(prom_getstring);
 
 
 /* Does the device at node 'node' have name 'name'?
@@ -204,6 +215,7 @@ int prom_searchsiblings(int node_start, char *nodename)
 
 	return 0;
 }
+EXPORT_SYMBOL(prom_searchsiblings);
 
 /* Interal version of nextprop that does not alter return values. */
 char * __prom_nextprop(int node, char * oprop)
@@ -228,6 +240,7 @@ char * prom_firstprop(int node, char *bufer)
 
 	return __prom_nextprop(node, "");
 }
+EXPORT_SYMBOL(prom_firstprop);
 
 /* Return the property type string after property type 'oprop'
  * at node 'node' .  Returns empty string if no more
@@ -240,6 +253,7 @@ char * prom_nextprop(int node, char *oprop, char *buffer)
 
 	return __prom_nextprop(node, oprop);
 }
+EXPORT_SYMBOL(prom_nextprop);
 
 int prom_finddevice(char *name)
 {
@@ -287,6 +301,7 @@ int prom_finddevice(char *name)
 	}
 	return node;
 }
+EXPORT_SYMBOL(prom_finddevice);
 
 int prom_node_has_property(int node, char *prop)
 {
@@ -299,6 +314,7 @@ int prom_node_has_property(int node, char *prop)
 	} while (*current_property);
 	return 0;
 }
+EXPORT_SYMBOL(prom_node_has_property);
 
 /* Set property 'pname' at node 'node' to value 'value' which has a length
  * of 'size' bytes.  Return the number of bytes the prom accepted.
@@ -316,6 +332,7 @@ int prom_setprop(int node, const char *pname, char *value, int size)
 	spin_unlock_irqrestore(&prom_lock, flags);
 	return ret;
 }
+EXPORT_SYMBOL(prom_setprop);
 
 int prom_inst2pkg(int inst)
 {

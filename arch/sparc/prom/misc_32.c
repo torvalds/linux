@@ -8,6 +8,8 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/module.h>
+
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 #include <asm/auxio.h>
@@ -44,6 +46,7 @@ prom_feval(char *fstring)
 	restore_current();
 	spin_unlock_irqrestore(&prom_lock, flags);
 }
+EXPORT_SYMBOL(prom_feval);
 
 /* Drop into the prom, with the chance to continue with the 'go'
  * prom command.
