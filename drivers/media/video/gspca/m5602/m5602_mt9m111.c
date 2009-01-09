@@ -24,6 +24,11 @@ static int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 static int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
 static int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int mt9m111_set_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 val);
+static int mt9m111_get_auto_white_balance(struct gspca_dev *gspca_dev,
+					  __s32 *val);
+
 
 static struct v4l2_pix_format mt9m111_modes[] = {
 	{
@@ -81,6 +86,20 @@ const static struct ctrl mt9m111_ctrls[] = {
 		},
 		.set = mt9m111_set_gain,
 		.get = mt9m111_get_gain
+	},
+#define AUTO_WHITE_BALANCE_IDX 3
+	{
+		{
+			.id             = V4L2_CID_AUTO_WHITE_BALANCE,
+			.type           = V4L2_CTRL_TYPE_BOOLEAN,
+			.name           = "auto white balance",
+			.minimum        = 0,
+			.maximum        = 1,
+			.step           = 1,
+			.default_value  = 0,
+		},
+		.set = mt9m111_set_auto_white_balance,
+		.get = mt9m111_get_auto_white_balance
 	}
 };
 
@@ -270,6 +289,37 @@ static int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	*val = sensor_settings[GAIN_IDX];
 	PDEBUG(D_V4L2, "Read gain %d", *val);
 
+	return 0;
+}
+
+static int mt9m111_set_auto_white_balance(struct gspca_dev *gspca_dev,
+					  __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+	int err;
+	u8 data[2];
+
+	err = m5602_read_sensor(sd, MT9M111_CP_OPERATING_MODE_CTL, data, 2);
+	if (err < 0)
+		return err;
+
+	sensor_settings[AUTO_WHITE_BALANCE_IDX] = val & 0x01;
+	data[0] = ((data[0] & 0xfd) | ((val & 0x01) << 1));
+
+	err = m5602_write_sensor(sd, MT9M111_CP_OPERATING_MODE_CTL, data, 2);
+
+	PDEBUG(D_V4L2, "Set auto white balance %d", val);
+	return err;
+}
+
+static int mt9m111_get_auto_white_balance(struct gspca_dev *gspca_dev,
+					  __s32 *val) {
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[AUTO_WHITE_BALANCE_IDX];
+	PDEBUG(D_V4L2, "Read auto white balance %d", *val);
 	return 0;
 }
 
