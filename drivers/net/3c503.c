@@ -168,6 +168,21 @@ out:
 }
 #endif
 
+static const struct net_device_ops el2_netdev_ops = {
+	.ndo_open		= el2_open,
+	.ndo_stop		= el2_close,
+
+	.ndo_start_xmit		= eip_start_xmit,
+	.ndo_tx_timeout		= eip_tx_timeout,
+	.ndo_get_stats		= eip_get_stats,
+	.ndo_set_multicast_list = eip_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller 	= eip_poll,
+#endif
+};
+
 /* Probe for the Etherlink II card at I/O port base IOADDR,
    returning non-zero on success.  If found, set the station
    address and memory parameters in DEVICE. */
@@ -177,7 +192,6 @@ el2_probe1(struct net_device *dev, int ioaddr)
     int i, iobase_reg, membase_reg, saved_406, wordlength, retval;
     static unsigned version_printed;
     unsigned long vendor_id;
-    DECLARE_MAC_BUF(mac);
 
     if (!request_region(ioaddr, EL2_IO_EXTENT, DRV_NAME))
 	return -EBUSY;
@@ -228,7 +242,7 @@ el2_probe1(struct net_device *dev, int ioaddr)
     /* Retrieve and print the ethernet address. */
     for (i = 0; i < 6; i++)
 	dev->dev_addr[i] = inb(ioaddr + i);
-    printk("%s", print_mac(mac, dev->dev_addr));
+    printk("%pM", dev->dev_addr);
 
     /* Map the 8390 back into the window. */
     outb(ECNTRL_THIN, ioaddr + 0x406);
@@ -336,8 +350,7 @@ el2_probe1(struct net_device *dev, int ioaddr)
 
     ei_status.saved_irq = dev->irq;
 
-    dev->open = &el2_open;
-    dev->stop = &el2_close;
+    dev->netdev_ops = &el2_netdev_ops;
     dev->ethtool_ops = &netdev_ethtool_ops;
 #ifdef CONFIG_NET_POLL_CONTROLLER
     dev->poll_controller = eip_poll;

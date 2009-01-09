@@ -234,6 +234,7 @@
 #define AR5K_TXNOFRM		0x004c
 #define	AR5K_TXNOFRM_M		0x000003ff
 #define	AR5K_TXNOFRM_QCU	0x000ffc00
+#define	AR5K_TXNOFRM_QCU_S	10
 
 /*
  * Receive frame gap timeout register
@@ -350,7 +351,7 @@
 
 #define AR5K_SISR3		0x0090			/* Register Address [5211+] */
 #define AR5K_SISR3_QCBRORN	0x000003ff	/* Mask for QCBRORN */
-#define AR5K_SISR3_QCBORN_S	0
+#define AR5K_SISR3_QCBRORN_S	0
 #define AR5K_SISR3_QCBRURN	0x03ff0000	/* Mask for QCBRURN */
 #define AR5K_SISR3_QCBRURN_S	16
 
@@ -1113,14 +1114,16 @@
 #define AR5K_PCU_MAX	0x8fff
 
 /*
- * First station id register (MAC address in lower 32 bits)
+ * First station id register (Lower 32 bits of MAC address)
  */
-#define AR5K_STA_ID0	0x8000
+#define AR5K_STA_ID0		0x8000
+#define	AR5K_STA_ID0_ARRD_L32	0xffffffff
 
 /*
- * Second station id register (MAC address in upper 16 bits)
+ * Second station id register (Upper 16 bits of MAC address + PCU settings)
  */
 #define AR5K_STA_ID1			0x8004			/* Register Address */
+#define	AR5K_STA_ID1_ADDR_U16		0x0000ffff	/* Upper 16 bits of MAC addres */
 #define AR5K_STA_ID1_AP			0x00010000	/* Set AP mode */
 #define AR5K_STA_ID1_ADHOC		0x00020000	/* Set Ad-Hoc mode */
 #define AR5K_STA_ID1_PWR_SV		0x00040000	/* Power save reporting */
@@ -1726,6 +1729,7 @@
 #define	AR5K_MISC_MODE			0x8120			/* Register Address */
 #define	AR5K_MISC_MODE_FBSSID_MATCH	0x00000001	/* Force BSSID match */
 #define	AR5K_MISC_MODE_ACKSIFS_MEM	0x00000002	/* ACK SIFS memory (?) */
+#define	AR5K_MISC_MODE_COMBINED_MIC	0x00000004	/* use rx/tx MIC key */
 /* more bits */
 
 /*
@@ -1809,6 +1813,10 @@
 #define AR5K_KEYTABLE_MAC0(_n)		AR5K_KEYTABLE_OFF(_n, 6)
 #define AR5K_KEYTABLE_MAC1(_n)		AR5K_KEYTABLE_OFF(_n, 7)
 #define AR5K_KEYTABLE_VALID		0x00008000
+
+/* If key type is TKIP and MIC is enabled
+ * MIC key goes in offset entry + 64 */
+#define	AR5K_KEYTABLE_MIC_OFFSET	64
 
 /* WEP 40-bit	= 40-bit  entered key + 24 bit IV = 64-bit
  * WEP 104-bit	= 104-bit entered key + 24-bit IV = 128-bit

@@ -36,36 +36,6 @@ mmu_hash_lock:
 #endif /* CONFIG_SMP */
 
 /*
- * Sync CPUs with hash_page taking & releasing the hash
- * table lock
- */
-#ifdef CONFIG_SMP
-	.text
-_GLOBAL(hash_page_sync)
-	mfmsr   r10
-	rlwinm  r0,r10,0,17,15          /* clear bit 16 (MSR_EE) */
-	mtmsr   r0
-	lis	r8,mmu_hash_lock@h
-	ori	r8,r8,mmu_hash_lock@l
-	lis	r0,0x0fff
-	b	10f
-11:	lwz	r6,0(r8)
-	cmpwi	0,r6,0
-	bne	11b
-10:	lwarx	r6,0,r8
-	cmpwi	0,r6,0
-	bne-	11b
-	stwcx.	r0,0,r8
-	bne-	10b
-	isync
-	eieio
-	li	r0,0
-	stw	r0,0(r8)
-	mtmsr	r10
-	blr
-#endif /* CONFIG_SMP */
-
-/*
  * Load a PTE into the hash table, if possible.
  * The address is in r4, and r3 contains an access flag:
  * _PAGE_RW (0x400) if a write.
@@ -353,8 +323,8 @@ _GLOBAL(create_hpte)
 	ori	r8,r8,0xe14		/* clear out reserved bits and M */
 	andc	r8,r5,r8		/* PP = user? (rw&dirty? 2: 3): 0 */
 BEGIN_FTR_SECTION
-	ori	r8,r8,_PAGE_COHERENT	/* set M (coherence required) */
-END_FTR_SECTION_IFSET(CPU_FTR_NEED_COHERENT)
+	rlwinm	r8,r8,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 #ifdef CONFIG_PTE_64BIT
 	/* Put the XPN bits into the PTE */
 	rlwimi	r8,r10,8,20,22
@@ -662,4 +632,81 @@ _GLOBAL(flush_hash_patch_B)
 19:	mtmsr	r10
 	SYNC_601
 	isync
+	blr
+
+/*
+ * Flush an entry from the TLB
+ */
+_GLOBAL(_tlbie)
+#ifdef CONFIG_SMP
+	rlwinm	r8,r1,0,0,(31-THREAD_SHIFT)
+	lwz	r8,TI_CPU(r8)
+	oris	r8,r8,11
+	mfmsr	r10
+	SYNC
+	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
+	rlwinm	r0,r0,0,28,26		/* clear DR */
+	mtmsr	r0
+	SYNC_601
+	isync
+	lis	r9,mmu_hash_lock@h
+	ori	r9,r9,mmu_hash_lock@l
+	tophys(r9,r9)
+10:	lwarx	r7,0,r9
+	cmpwi	0,r7,0
+	bne-	10b
+	stwcx.	r8,0,r9
+	bne-	10b
+	eieio
+	tlbie	r3
+	sync
+	TLBSYNC
+	li	r0,0
+	stw	r0,0(r9)		/* clear mmu_hash_lock */
+	mtmsr	r10
+	SYNC_601
+	isync
+#else /* CONFIG_SMP */
+	tlbie	r3
+	sync
+#endif /* CONFIG_SMP */
+	blr
+
+/*
+ * Flush the entire TLB. 603/603e only
+ */
+_GLOBAL(_tlbia)
+#if defined(CONFIG_SMP)
+	rlwinm	r8,r1,0,0,(31-THREAD_SHIFT)
+	lwz	r8,TI_CPU(r8)
+	oris	r8,r8,10
+	mfmsr	r10
+	SYNC
+	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
+	rlwinm	r0,r0,0,28,26		/* clear DR */
+	mtmsr	r0
+	SYNC_601
+	isync
+	lis	r9,mmu_hash_lock@h
+	ori	r9,r9,mmu_hash_lock@l
+	tophys(r9,r9)
+10:	lwarx	r7,0,r9
+	cmpwi	0,r7,0
+	bne-	10b
+	stwcx.	r8,0,r9
+	bne-	10b
+	sync
+	tlbia
+	sync
+	TLBSYNC
+	li	r0,0
+	stw	r0,0(r9)		/* clear mmu_hash_lock */
+	mtmsr	r10
+	SYNC_601
+	isync
+#else /* CONFIG_SMP */
+	sync
+	tlbia
+	sync
+#endif /* CONFIG_SMP */
 	blr

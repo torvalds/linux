@@ -16,6 +16,7 @@
 #include <asm/mach-default/mach_apic.h>
 #include <asm/mach-default/mach_ipi.h>
 #include <asm/mach-default/mach_mpparse.h>
+#include <asm/mach-default/mach_wakecpu.h>
 
 /* should be called last. */
 static int probe_default(void)

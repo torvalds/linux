@@ -162,10 +162,7 @@ void __init config_mac(void)
 	mach_init_IRQ = mac_init_IRQ;
 	mach_get_model = mac_get_model;
 	mach_gettimeoffset = mac_gettimeoffset;
-#warning move to adb/via init
-#if 0
 	mach_hwclk = mac_hwclk;
-#endif
 	mach_set_clock_mmss = mac_set_clock_mmss;
 	mach_reset = mac_reset;
 	mach_halt = mac_poweroff;

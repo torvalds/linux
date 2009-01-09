@@ -198,8 +198,8 @@ struct bcom_task_header {
 #define BCOM_IPR_SCTMR_1	2
 #define BCOM_IPR_FEC_RX		6
 #define BCOM_IPR_FEC_TX		5
-#define BCOM_IPR_ATA_RX		4
-#define BCOM_IPR_ATA_TX		3
+#define BCOM_IPR_ATA_RX		7
+#define BCOM_IPR_ATA_TX		7
 #define BCOM_IPR_SCPCI_RX	2
 #define BCOM_IPR_SCPCI_TX	2
 #define BCOM_IPR_PSC3_RX	2
@@ -240,6 +240,22 @@ extern void bcom_set_initiator(int task, int initiator);
 
 
 #define TASK_ENABLE             0x8000
+
+/**
+ * bcom_disable_prefetch - Hook to disable bus prefetching
+ *
+ * ATA DMA and the original MPC5200 need this due to silicon bugs.  At the
+ * moment disabling prefetch is a one-way street.  There is no mechanism
+ * in place to turn prefetch back on after it has been disabled.  There is
+ * no reason it couldn't be done, it would just be more complex to implement.
+ */
+static inline void bcom_disable_prefetch(void)
+{
+	u16 regval;
+
+	regval = in_be16(&bcom_eng->regs->PtdCntrl);
+	out_be16(&bcom_eng->regs->PtdCntrl, regval | 1);
+};
 
 static inline void
 bcom_enable_task(int task)

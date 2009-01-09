@@ -28,20 +28,20 @@
 
 static void driver_bound(struct device *dev)
 {
-	if (klist_node_attached(&dev->knode_driver)) {
+	if (klist_node_attached(&dev->p->knode_driver)) {
 		printk(KERN_WARNING "%s: device %s already bound\n",
 			__func__, kobject_name(&dev->kobj));
 		return;
 	}
 
-	pr_debug("driver: '%s': %s: bound to device '%s'\n", dev->bus_id,
+	pr_debug("driver: '%s': %s: bound to device '%s'\n", dev_name(dev),
 		 __func__, dev->driver->name);
 
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_BOUND_DRIVER, dev);
 
-	klist_add_tail(&dev->knode_driver, &dev->driver->p->klist_devices);
+	klist_add_tail(&dev->p->knode_driver, &dev->driver->p->klist_devices);
 }
 
 static int driver_sysfs_add(struct device *dev)
@@ -104,13 +104,13 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 
 	atomic_inc(&probe_count);
 	pr_debug("bus: '%s': %s: probing driver %s with device %s\n",
-		 drv->bus->name, __func__, drv->name, dev->bus_id);
+		 drv->bus->name, __func__, drv->name, dev_name(dev));
 	WARN_ON(!list_empty(&dev->devres_head));
 
 	dev->driver = drv;
 	if (driver_sysfs_add(dev)) {
 		printk(KERN_ERR "%s: driver_sysfs_add(%s) failed\n",
-			__func__, dev->bus_id);
+			__func__, dev_name(dev));
 		goto probe_failed;
 	}
 
@@ -127,7 +127,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 	driver_bound(dev);
 	ret = 1;
 	pr_debug("bus: '%s': %s: bound device %s to driver %s\n",
-		 drv->bus->name, __func__, dev->bus_id, drv->name);
+		 drv->bus->name, __func__, dev_name(dev), drv->name);
 	goto done;
 
 probe_failed:
@@ -139,7 +139,7 @@ probe_failed:
 		/* driver matched but the probe failed */
 		printk(KERN_WARNING
 		       "%s: probe of %s failed with error %d\n",
-		       drv->name, dev->bus_id, ret);
+		       drv->name, dev_name(dev), ret);
 	}
 	/*
 	 * Ignore errors returned by ->probe so that the next driver can try
@@ -194,7 +194,7 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 		goto done;
 
 	pr_debug("bus: '%s': %s: matched device %s with driver %s\n",
-		 drv->bus->name, __func__, dev->bus_id, drv->name);
+		 drv->bus->name, __func__, dev_name(dev), drv->name);
 
 	ret = really_probe(dev, drv);
 
@@ -298,7 +298,6 @@ static void __device_release_driver(struct device *dev)
 	drv = dev->driver;
 	if (drv) {
 		driver_sysfs_remove(dev);
-		sysfs_remove_link(&dev->kobj, "driver");
 
 		if (dev->bus)
 			blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
@@ -311,7 +310,7 @@ static void __device_release_driver(struct device *dev)
 			drv->remove(dev);
 		devres_release_all(dev);
 		dev->driver = NULL;
-		klist_remove(&dev->knode_driver);
+		klist_remove(&dev->p->knode_driver);
 	}
 }
 
@@ -341,6 +340,7 @@ EXPORT_SYMBOL_GPL(device_release_driver);
  */
 void driver_detach(struct device_driver *drv)
 {
+	struct device_private *dev_prv;
 	struct device *dev;
 
 	for (;;) {
@@ -349,8 +349,10 @@ void driver_detach(struct device_driver *drv)
 			spin_unlock(&drv->p->klist_devices.k_lock);
 			break;
 		}
-		dev = list_entry(drv->p->klist_devices.k_list.prev,
-				struct device, knode_driver.n_node);
+		dev_prv = list_entry(drv->p->klist_devices.k_list.prev,
+				     struct device_private,
+				     knode_driver.n_node);
+		dev = dev_prv->device;
 		get_device(dev);
 		spin_unlock(&drv->p->klist_devices.k_lock);
 

@@ -5,11 +5,6 @@
 #include <cpu/irq.h>
 #include "pci-sh5.h"
 
-static inline u8 bridge_swizzle(u8 pin, u8 slot)
-{
-	return (((pin - 1) + slot) % 4) + 1;
-}
-
 int __init pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int result = -1;
@@ -42,7 +37,7 @@ int __init pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	while (dev->bus->number > 0) {
 
 		slot = path[i].slot = PCI_SLOT(dev->devfn);
-		pin = path[i].pin = bridge_swizzle(pin, slot);
+		pin = path[i].pin = pci_swizzle_interrupt_pin(dev, pin);
 		dev = dev->bus->self;
 		i++;
 		if (i > 3) panic("PCI path to root bus too long!\n");
@@ -56,7 +51,7 @@ int __init pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	if ((slot < 3) || (i == 0)) {
 		/* Bus 0 (incl. PCI-PCI bridge itself) : perform the final
 		   swizzle now. */
-		result = IRQ_INTA + bridge_swizzle(pin, slot) - 1;
+		result = IRQ_INTA + pci_swizzle_interrupt_pin(dev, pin) - 1;
 	} else {
 		i--;
 		slot = path[i].slot;

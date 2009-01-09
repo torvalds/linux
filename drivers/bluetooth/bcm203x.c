@@ -37,11 +37,6 @@
 
 #include <net/bluetooth/bluetooth.h>
 
-#ifndef CONFIG_BT_HCIBCM203X_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 #define VERSION "1.2"
 
 static struct usb_device_id bcm203x_table[] = {
@@ -199,7 +194,7 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 		return -EIO;
 	}
 
-	BT_DBG("minidrv data %p size %d", firmware->data, firmware->size);
+	BT_DBG("minidrv data %p size %zu", firmware->data, firmware->size);
 
 	size = max_t(uint, firmware->size, 4096);
 
@@ -227,7 +222,7 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 		return -EIO;
 	}
 
-	BT_DBG("firmware data %p size %d", firmware->data, firmware->size);
+	BT_DBG("firmware data %p size %zu", firmware->data, firmware->size);
 
 	data->fw_data = kmalloc(firmware->size, GFP_KERNEL);
 	if (!data->fw_data) {

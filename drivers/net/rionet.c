@@ -94,7 +94,7 @@ static int rionet_rx_clean(struct net_device *ndev)
 {
 	int i;
 	int error = 0;
-	struct rionet_private *rnet = ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 	void *data;
 
 	i = rnet->rx_slot;
@@ -132,7 +132,7 @@ static int rionet_rx_clean(struct net_device *ndev)
 static void rionet_rx_fill(struct net_device *ndev, int end)
 {
 	int i;
-	struct rionet_private *rnet = ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 
 	i = rnet->rx_slot;
 	do {
@@ -151,7 +151,7 @@ static void rionet_rx_fill(struct net_device *ndev, int end)
 static int rionet_queue_tx_msg(struct sk_buff *skb, struct net_device *ndev,
 			       struct rio_dev *rdev)
 {
-	struct rionet_private *rnet = ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 
 	rio_add_outb_message(rnet->mport, rdev, 0, skb->data, skb->len);
 	rnet->tx_skb[rnet->tx_slot] = skb;
@@ -175,7 +175,7 @@ static int rionet_queue_tx_msg(struct sk_buff *skb, struct net_device *ndev,
 static int rionet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	int i;
-	struct rionet_private *rnet = ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 	struct ethhdr *eth = (struct ethhdr *)skb->data;
 	u16 destid;
 	unsigned long flags;
@@ -215,7 +215,7 @@ static void rionet_dbell_event(struct rio_mport *mport, void *dev_id, u16 sid, u
 			       u16 info)
 {
 	struct net_device *ndev = dev_id;
-	struct rionet_private *rnet = ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 	struct rionet_peer *peer;
 
 	if (netif_msg_intr(rnet))
@@ -243,7 +243,7 @@ static void rionet_inb_msg_event(struct rio_mport *mport, void *dev_id, int mbox
 {
 	int n;
 	struct net_device *ndev = dev_id;
-	struct rionet_private *rnet = (struct rionet_private *)ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 
 	if (netif_msg_intr(rnet))
 		printk(KERN_INFO "%s: inbound message event, mbox %d slot %d\n",
@@ -258,7 +258,7 @@ static void rionet_inb_msg_event(struct rio_mport *mport, void *dev_id, int mbox
 static void rionet_outb_msg_event(struct rio_mport *mport, void *dev_id, int mbox, int slot)
 {
 	struct net_device *ndev = dev_id;
-	struct rionet_private *rnet = ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 
 	spin_lock(&rnet->lock);
 
@@ -287,7 +287,7 @@ static int rionet_open(struct net_device *ndev)
 	int i, rc = 0;
 	struct rionet_peer *peer, *tmp;
 	u32 pwdcsr;
-	struct rionet_private *rnet = ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 
 	if (netif_msg_ifup(rnet))
 		printk(KERN_INFO "%s: open\n", DRV_NAME);
@@ -351,7 +351,7 @@ static int rionet_open(struct net_device *ndev)
 
 static int rionet_close(struct net_device *ndev)
 {
-	struct rionet_private *rnet = (struct rionet_private *)ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 	struct rionet_peer *peer, *tmp;
 	int i;
 
@@ -400,7 +400,7 @@ static void rionet_remove(struct rio_dev *rdev)
 static void rionet_get_drvinfo(struct net_device *ndev,
 			       struct ethtool_drvinfo *info)
 {
-	struct rionet_private *rnet = ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 
 	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, DRV_VERSION);
@@ -410,14 +410,14 @@ static void rionet_get_drvinfo(struct net_device *ndev,
 
 static u32 rionet_get_msglevel(struct net_device *ndev)
 {
-	struct rionet_private *rnet = ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 
 	return rnet->msg_enable;
 }
 
 static void rionet_set_msglevel(struct net_device *ndev, u32 value)
 {
-	struct rionet_private *rnet = ndev->priv;
+	struct rionet_private *rnet = netdev_priv(ndev);
 
 	rnet->msg_enable = value;
 }
@@ -435,7 +435,6 @@ static int rionet_setup_netdev(struct rio_mport *mport)
 	struct net_device *ndev = NULL;
 	struct rionet_private *rnet;
 	u16 device_id;
-	DECLARE_MAC_BUF(mac);
 
 	/* Allocate our net_device structure */
 	ndev = alloc_etherdev(sizeof(struct rionet_private));
@@ -456,7 +455,7 @@ static int rionet_setup_netdev(struct rio_mport *mport)
 				RIO_MAX_ROUTE_ENTRIES(mport->sys_size));
 
 	/* Set up private area */
-	rnet = (struct rionet_private *)ndev->priv;
+	rnet = netdev_priv(ndev);
 	rnet->mport = mport;
 
 	/* Set the default MAC address */
@@ -485,12 +484,12 @@ static int rionet_setup_netdev(struct rio_mport *mport)
 	if (rc != 0)
 		goto out;
 
-	printk("%s: %s %s Version %s, MAC %s\n",
+	printk("%s: %s %s Version %s, MAC %pM\n",
 	       ndev->name,
 	       DRV_NAME,
 	       DRV_DESC,
 	       DRV_VERSION,
-	       print_mac(mac, ndev->dev_addr));
+	       ndev->dev_addr);
 
       out:
 	return rc;

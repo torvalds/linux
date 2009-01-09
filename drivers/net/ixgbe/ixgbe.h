@@ -32,10 +32,11 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/inet_lro.h>
+#include <linux/aer.h>
 
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
-
+#include "ixgbe_dcb.h"
 #ifdef CONFIG_IXGBE_DCA
 #include <linux/dca.h>
 #endif
@@ -84,6 +85,7 @@
 #define IXGBE_TX_FLAGS_TSO		(u32)(1 << 2)
 #define IXGBE_TX_FLAGS_IPV4		(u32)(1 << 3)
 #define IXGBE_TX_FLAGS_VLAN_MASK	0xffff0000
+#define IXGBE_TX_FLAGS_VLAN_PRIO_MASK   0x0000e000
 #define IXGBE_TX_FLAGS_VLAN_SHIFT	16
 
 #define IXGBE_MAX_LRO_DESCRIPTORS       8
@@ -134,7 +136,7 @@ struct ixgbe_ring {
 
 	u16 reg_idx; /* holds the special value that gets the hardware register
 		      * offset associated with this ring, which is different
-		      * for DCE and RSS modes */
+		      * for DCB and RSS modes */
 
 #ifdef CONFIG_IXGBE_DCA
 	/* cpu for tx queue */
@@ -152,8 +154,10 @@ struct ixgbe_ring {
 	u16 rx_buf_len;
 };
 
+#define RING_F_DCB  0
 #define RING_F_VMDQ 1
 #define RING_F_RSS  2
+#define IXGBE_MAX_DCB_INDICES   8
 #define IXGBE_MAX_RSS_INDICES  16
 #define IXGBE_MAX_VMDQ_INDICES 16
 struct ixgbe_ring_feature {
@@ -163,6 +167,10 @@ struct ixgbe_ring_feature {
 
 #define MAX_RX_QUEUES 64
 #define MAX_TX_QUEUES 32
+
+#define MAX_RX_PACKET_BUFFERS ((adapter->flags & IXGBE_FLAG_DCB_ENABLED) \
+                              ? 8 : 1)
+#define MAX_TX_PACKET_BUFFERS MAX_RX_PACKET_BUFFERS
 
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
@@ -215,6 +223,9 @@ struct ixgbe_adapter {
 	struct work_struct reset_task;
 	struct ixgbe_q_vector q_vector[MAX_MSIX_Q_VECTORS];
 	char name[MAX_MSIX_COUNT][IFNAMSIZ + 5];
+	struct ixgbe_dcb_config dcb_cfg;
+	struct ixgbe_dcb_config temp_dcb_cfg;
+	u8 dcb_set_bitmap;
 
 	/* Interrupt Throttle Rate */
 	u32 itr_setting;
@@ -267,8 +278,10 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_RSS_CAPABLE                  (u32)(1 << 17)
 #define IXGBE_FLAG_VMDQ_CAPABLE                 (u32)(1 << 18)
 #define IXGBE_FLAG_VMDQ_ENABLED                 (u32)(1 << 19)
+#define IXGBE_FLAG_FAN_FAIL_CAPABLE             (u32)(1 << 20)
 #define IXGBE_FLAG_NEED_LINK_UPDATE             (u32)(1 << 22)
 #define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1 << 23)
+#define IXGBE_FLAG_DCB_ENABLED                  (u32)(1 << 24)
 
 /* default to trying for four seconds */
 #define IXGBE_TRY_LINK_TIMEOUT (4 * HZ)
@@ -299,12 +312,15 @@ struct ixgbe_adapter {
 	unsigned long link_check_timeout;
 
 	struct work_struct watchdog_task;
+	struct work_struct sfp_task;
+	struct timer_list sfp_timer;
 };
 
 enum ixbge_state_t {
 	__IXGBE_TESTING,
 	__IXGBE_RESETTING,
-	__IXGBE_DOWN
+	__IXGBE_DOWN,
+	__IXGBE_SFP_MODULE_NOT_FOUND
 };
 
 enum ixgbe_boards {
@@ -312,6 +328,12 @@ enum ixgbe_boards {
 };
 
 extern struct ixgbe_info ixgbe_82598_info;
+#ifdef CONFIG_IXGBE_DCB
+extern struct dcbnl_rtnl_ops dcbnl_ops;
+extern int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *src_dcb_cfg,
+                              struct ixgbe_dcb_config *dst_dcb_cfg,
+                              int tc_max);
+#endif
 
 extern char ixgbe_driver_name[];
 extern const char ixgbe_driver_version[];
@@ -326,5 +348,9 @@ extern int ixgbe_setup_tx_resources(struct ixgbe_adapter *, struct ixgbe_ring *)
 extern void ixgbe_free_rx_resources(struct ixgbe_adapter *, struct ixgbe_ring *);
 extern void ixgbe_free_tx_resources(struct ixgbe_adapter *, struct ixgbe_ring *);
 extern void ixgbe_update_stats(struct ixgbe_adapter *adapter);
+extern void ixgbe_reset_interrupt_capability(struct ixgbe_adapter *adapter);
+extern int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter);
+void ixgbe_napi_add_all(struct ixgbe_adapter *adapter);
+void ixgbe_napi_del_all(struct ixgbe_adapter *adapter);
 
 #endif /* _IXGBE_H_ */

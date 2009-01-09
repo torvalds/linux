@@ -105,8 +105,8 @@ static int tcf_mirred_init(struct nlattr *nla, struct nlattr *est,
 			return -EINVAL;
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*m), bind,
 				     &mirred_idx_gen, &mirred_hash_info);
-		if (unlikely(!pc))
-			return -ENOMEM;
+		if (IS_ERR(pc))
+		    return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
 	} else {
 		if (!ovr) {

@@ -35,6 +35,11 @@
 
 #include "budget.h"
 #include "stv0299.h"
+#include "stb0899_drv.h"
+#include "stb0899_reg.h"
+#include "stb0899_cfg.h"
+#include "tda8261.h"
+#include "tda8261_cfg.h"
 #include "tda1002x.h"
 #include "tda1004x.h"
 #include "tua6100.h"
@@ -882,6 +887,281 @@ static struct stv0299_config philips_sd1878_config = {
 	.set_symbol_rate = philips_sd1878_ci_set_symbol_rate,
 };
 
+/* KNC1 DVB-S (STB0899) Inittab	*/
+static const struct stb0899_s1_reg knc1_stb0899_s1_init_1[] = {
+
+	{ STB0899_DEV_ID		, 0x81 },
+	{ STB0899_DISCNTRL1		, 0x32 },
+	{ STB0899_DISCNTRL2		, 0x80 },
+	{ STB0899_DISRX_ST0		, 0x04 },
+	{ STB0899_DISRX_ST1		, 0x00 },
+	{ STB0899_DISPARITY		, 0x00 },
+	{ STB0899_DISFIFO		, 0x00 },
+	{ STB0899_DISSTATUS		, 0x20 },
+	{ STB0899_DISF22		, 0x8c },
+	{ STB0899_DISF22RX		, 0x9a },
+	{ STB0899_SYSREG		, 0x0b },
+	{ STB0899_ACRPRESC		, 0x11 },
+	{ STB0899_ACRDIV1		, 0x0a },
+	{ STB0899_ACRDIV2		, 0x05 },
+	{ STB0899_DACR1			, 0x00 },
+	{ STB0899_DACR2			, 0x00 },
+	{ STB0899_OUTCFG		, 0x00 },
+	{ STB0899_MODECFG		, 0x00 },
+	{ STB0899_IRQSTATUS_3		, 0x30 },
+	{ STB0899_IRQSTATUS_2		, 0x00 },
+	{ STB0899_IRQSTATUS_1		, 0x00 },
+	{ STB0899_IRQSTATUS_0		, 0x00 },
+	{ STB0899_IRQMSK_3		, 0xf3 },
+	{ STB0899_IRQMSK_2		, 0xfc },
+	{ STB0899_IRQMSK_1		, 0xff },
+	{ STB0899_IRQMSK_0		, 0xff },
+	{ STB0899_IRQCFG		, 0x00 },
+	{ STB0899_I2CCFG		, 0x88 },
+	{ STB0899_I2CRPT		, 0x58 }, /* Repeater=8, Stop=disabled */
+	{ STB0899_IOPVALUE5		, 0x00 },
+	{ STB0899_IOPVALUE4		, 0x20 },
+	{ STB0899_IOPVALUE3		, 0xc9 },
+	{ STB0899_IOPVALUE2		, 0x90 },
+	{ STB0899_IOPVALUE1		, 0x40 },
+	{ STB0899_IOPVALUE0		, 0x00 },
+	{ STB0899_GPIO00CFG		, 0x82 },
+	{ STB0899_GPIO01CFG		, 0x82 },
+	{ STB0899_GPIO02CFG		, 0x82 },
+	{ STB0899_GPIO03CFG		, 0x82 },
+	{ STB0899_GPIO04CFG		, 0x82 },
+	{ STB0899_GPIO05CFG		, 0x82 },
+	{ STB0899_GPIO06CFG		, 0x82 },
+	{ STB0899_GPIO07CFG		, 0x82 },
+	{ STB0899_GPIO08CFG		, 0x82 },
+	{ STB0899_GPIO09CFG		, 0x82 },
+	{ STB0899_GPIO10CFG		, 0x82 },
+	{ STB0899_GPIO11CFG		, 0x82 },
+	{ STB0899_GPIO12CFG		, 0x82 },
+	{ STB0899_GPIO13CFG		, 0x82 },
+	{ STB0899_GPIO14CFG		, 0x82 },
+	{ STB0899_GPIO15CFG		, 0x82 },
+	{ STB0899_GPIO16CFG		, 0x82 },
+	{ STB0899_GPIO17CFG		, 0x82 },
+	{ STB0899_GPIO18CFG		, 0x82 },
+	{ STB0899_GPIO19CFG		, 0x82 },
+	{ STB0899_GPIO20CFG		, 0x82 },
+	{ STB0899_SDATCFG		, 0xb8 },
+	{ STB0899_SCLTCFG		, 0xba },
+	{ STB0899_AGCRFCFG		, 0x08 }, /* 0x1c */
+	{ STB0899_GPIO22		, 0x82 }, /* AGCBB2CFG */
+	{ STB0899_GPIO21		, 0x91 }, /* AGCBB1CFG */
+	{ STB0899_DIRCLKCFG		, 0x82 },
+	{ STB0899_CLKOUT27CFG		, 0x7e },
+	{ STB0899_STDBYCFG		, 0x82 },
+	{ STB0899_CS0CFG		, 0x82 },
+	{ STB0899_CS1CFG		, 0x82 },
+	{ STB0899_DISEQCOCFG		, 0x20 },
+	{ STB0899_GPIO32CFG		, 0x82 },
+	{ STB0899_GPIO33CFG		, 0x82 },
+	{ STB0899_GPIO34CFG		, 0x82 },
+	{ STB0899_GPIO35CFG		, 0x82 },
+	{ STB0899_GPIO36CFG		, 0x82 },
+	{ STB0899_GPIO37CFG		, 0x82 },
+	{ STB0899_GPIO38CFG		, 0x82 },
+	{ STB0899_GPIO39CFG		, 0x82 },
+	{ STB0899_NCOARSE		, 0x15 }, /* 0x15 = 27 Mhz Clock, F/3 = 198MHz, F/6 = 99MHz */
+	{ STB0899_SYNTCTRL		, 0x02 }, /* 0x00 = CLK from CLKI, 0x02 = CLK from XTALI */
+	{ STB0899_FILTCTRL		, 0x00 },
+	{ STB0899_SYSCTRL		, 0x00 },
+	{ STB0899_STOPCLK1		, 0x20 },
+	{ STB0899_STOPCLK2		, 0x00 },
+	{ STB0899_INTBUFSTATUS		, 0x00 },
+	{ STB0899_INTBUFCTRL		, 0x0a },
+	{ 0xffff			, 0xff },
+};
+
+static const struct stb0899_s1_reg knc1_stb0899_s1_init_3[] = {
+	{ STB0899_DEMOD			, 0x00 },
+	{ STB0899_RCOMPC		, 0xc9 },
+	{ STB0899_AGC1CN		, 0x41 },
+	{ STB0899_AGC1REF		, 0x08 },
+	{ STB0899_RTC			, 0x7a },
+	{ STB0899_TMGCFG		, 0x4e },
+	{ STB0899_AGC2REF		, 0x33 },
+	{ STB0899_TLSR			, 0x84 },
+	{ STB0899_CFD			, 0xee },
+	{ STB0899_ACLC			, 0x87 },
+	{ STB0899_BCLC			, 0x94 },
+	{ STB0899_EQON			, 0x41 },
+	{ STB0899_LDT			, 0xdd },
+	{ STB0899_LDT2			, 0xc9 },
+	{ STB0899_EQUALREF		, 0xb4 },
+	{ STB0899_TMGRAMP		, 0x10 },
+	{ STB0899_TMGTHD		, 0x30 },
+	{ STB0899_IDCCOMP		, 0xfb },
+	{ STB0899_QDCCOMP		, 0x03 },
+	{ STB0899_POWERI		, 0x3b },
+	{ STB0899_POWERQ		, 0x3d },
+	{ STB0899_RCOMP			, 0x81 },
+	{ STB0899_AGCIQIN		, 0x80 },
+	{ STB0899_AGC2I1		, 0x04 },
+	{ STB0899_AGC2I2		, 0xf5 },
+	{ STB0899_TLIR			, 0x25 },
+	{ STB0899_RTF			, 0x80 },
+	{ STB0899_DSTATUS		, 0x00 },
+	{ STB0899_LDI			, 0xca },
+	{ STB0899_CFRM			, 0xf1 },
+	{ STB0899_CFRL			, 0xf3 },
+	{ STB0899_NIRM			, 0x2a },
+	{ STB0899_NIRL			, 0x05 },
+	{ STB0899_ISYMB			, 0x17 },
+	{ STB0899_QSYMB			, 0xfa },
+	{ STB0899_SFRH			, 0x2f },
+	{ STB0899_SFRM			, 0x68 },
+	{ STB0899_SFRL			, 0x40 },
+	{ STB0899_SFRUPH		, 0x2f },
+	{ STB0899_SFRUPM		, 0x68 },
+	{ STB0899_SFRUPL		, 0x40 },
+	{ STB0899_EQUAI1		, 0xfd },
+	{ STB0899_EQUAQ1		, 0x04 },
+	{ STB0899_EQUAI2		, 0x0f },
+	{ STB0899_EQUAQ2		, 0xff },
+	{ STB0899_EQUAI3		, 0xdf },
+	{ STB0899_EQUAQ3		, 0xfa },
+	{ STB0899_EQUAI4		, 0x37 },
+	{ STB0899_EQUAQ4		, 0x0d },
+	{ STB0899_EQUAI5		, 0xbd },
+	{ STB0899_EQUAQ5		, 0xf7 },
+	{ STB0899_DSTATUS2		, 0x00 },
+	{ STB0899_VSTATUS		, 0x00 },
+	{ STB0899_VERROR		, 0xff },
+	{ STB0899_IQSWAP		, 0x2a },
+	{ STB0899_ECNT1M		, 0x00 },
+	{ STB0899_ECNT1L		, 0x00 },
+	{ STB0899_ECNT2M		, 0x00 },
+	{ STB0899_ECNT2L		, 0x00 },
+	{ STB0899_ECNT3M		, 0x00 },
+	{ STB0899_ECNT3L		, 0x00 },
+	{ STB0899_FECAUTO1		, 0x06 },
+	{ STB0899_FECM			, 0x01 },
+	{ STB0899_VTH12			, 0xf0 },
+	{ STB0899_VTH23			, 0xa0 },
+	{ STB0899_VTH34			, 0x78 },
+	{ STB0899_VTH56			, 0x4e },
+	{ STB0899_VTH67			, 0x48 },
+	{ STB0899_VTH78			, 0x38 },
+	{ STB0899_PRVIT			, 0xff },
+	{ STB0899_VITSYNC		, 0x19 },
+	{ STB0899_RSULC			, 0xb1 }, /* DVB = 0xb1, DSS = 0xa1 */
+	{ STB0899_TSULC			, 0x42 },
+	{ STB0899_RSLLC			, 0x40 },
+	{ STB0899_TSLPL			, 0x12 },
+	{ STB0899_TSCFGH		, 0x0c },
+	{ STB0899_TSCFGM		, 0x00 },
+	{ STB0899_TSCFGL		, 0x0c },
+	{ STB0899_TSOUT			, 0x0d }, /* 0x0d for CAM */
+	{ STB0899_RSSYNCDEL		, 0x00 },
+	{ STB0899_TSINHDELH		, 0x02 },
+	{ STB0899_TSINHDELM		, 0x00 },
+	{ STB0899_TSINHDELL		, 0x00 },
+	{ STB0899_TSLLSTKM		, 0x00 },
+	{ STB0899_TSLLSTKL		, 0x00 },
+	{ STB0899_TSULSTKM		, 0x00 },
+	{ STB0899_TSULSTKL		, 0xab },
+	{ STB0899_PCKLENUL		, 0x00 },
+	{ STB0899_PCKLENLL		, 0xcc },
+	{ STB0899_RSPCKLEN		, 0xcc },
+	{ STB0899_TSSTATUS		, 0x80 },
+	{ STB0899_ERRCTRL1		, 0xb6 },
+	{ STB0899_ERRCTRL2		, 0x96 },
+	{ STB0899_ERRCTRL3		, 0x89 },
+	{ STB0899_DMONMSK1		, 0x27 },
+	{ STB0899_DMONMSK0		, 0x03 },
+	{ STB0899_DEMAPVIT		, 0x5c },
+	{ STB0899_PLPARM		, 0x1f },
+	{ STB0899_PDELCTRL		, 0x48 },
+	{ STB0899_PDELCTRL2		, 0x00 },
+	{ STB0899_BBHCTRL1		, 0x00 },
+	{ STB0899_BBHCTRL2		, 0x00 },
+	{ STB0899_HYSTTHRESH		, 0x77 },
+	{ STB0899_MATCSTM		, 0x00 },
+	{ STB0899_MATCSTL		, 0x00 },
+	{ STB0899_UPLCSTM		, 0x00 },
+	{ STB0899_UPLCSTL		, 0x00 },
+	{ STB0899_DFLCSTM		, 0x00 },
+	{ STB0899_DFLCSTL		, 0x00 },
+	{ STB0899_SYNCCST		, 0x00 },
+	{ STB0899_SYNCDCSTM		, 0x00 },
+	{ STB0899_SYNCDCSTL		, 0x00 },
+	{ STB0899_ISI_ENTRY		, 0x00 },
+	{ STB0899_ISI_BIT_EN		, 0x00 },
+	{ STB0899_MATSTRM		, 0x00 },
+	{ STB0899_MATSTRL		, 0x00 },
+	{ STB0899_UPLSTRM		, 0x00 },
+	{ STB0899_UPLSTRL		, 0x00 },
+	{ STB0899_DFLSTRM		, 0x00 },
+	{ STB0899_DFLSTRL		, 0x00 },
+	{ STB0899_SYNCSTR		, 0x00 },
+	{ STB0899_SYNCDSTRM		, 0x00 },
+	{ STB0899_SYNCDSTRL		, 0x00 },
+	{ STB0899_CFGPDELSTATUS1	, 0x10 },
+	{ STB0899_CFGPDELSTATUS2	, 0x00 },
+	{ STB0899_BBFERRORM		, 0x00 },
+	{ STB0899_BBFERRORL		, 0x00 },
+	{ STB0899_UPKTERRORM		, 0x00 },
+	{ STB0899_UPKTERRORL		, 0x00 },
+	{ 0xffff			, 0xff },
+};
+
+/* STB0899 demodulator config for the KNC1 and clones */
+static struct stb0899_config knc1_dvbs2_config = {
+	.init_dev		= knc1_stb0899_s1_init_1,
+	.init_s2_demod		= stb0899_s2_init_2,
+	.init_s1_demod		= knc1_stb0899_s1_init_3,
+	.init_s2_fec		= stb0899_s2_init_4,
+	.init_tst		= stb0899_s1_init_5,
+
+	.postproc		= NULL,
+
+	.demod_address		= 0x68,
+//	.ts_output_mode		= STB0899_OUT_PARALLEL,	/* types = SERIAL/PARALLEL	*/
+	.block_sync_mode	= STB0899_SYNC_FORCED,	/* DSS, SYNC_FORCED/UNSYNCED	*/
+//	.ts_pfbit_toggle	= STB0899_MPEG_NORMAL,	/* DirecTV, MPEG toggling seq	*/
+
+	.xtal_freq		= 27000000,
+	.inversion		= IQ_SWAP_OFF, /* 1 */
+
+	.lo_clk			= 76500000,
+	.hi_clk			= 90000000,
+
+	.esno_ave		= STB0899_DVBS2_ESNO_AVE,
+	.esno_quant		= STB0899_DVBS2_ESNO_QUANT,
+	.avframes_coarse	= STB0899_DVBS2_AVFRAMES_COARSE,
+	.avframes_fine		= STB0899_DVBS2_AVFRAMES_FINE,
+	.miss_threshold		= STB0899_DVBS2_MISS_THRESHOLD,
+	.uwp_threshold_acq	= STB0899_DVBS2_UWP_THRESHOLD_ACQ,
+	.uwp_threshold_track	= STB0899_DVBS2_UWP_THRESHOLD_TRACK,
+	.uwp_threshold_sof	= STB0899_DVBS2_UWP_THRESHOLD_SOF,
+	.sof_search_timeout	= STB0899_DVBS2_SOF_SEARCH_TIMEOUT,
+
+	.btr_nco_bits		= STB0899_DVBS2_BTR_NCO_BITS,
+	.btr_gain_shift_offset	= STB0899_DVBS2_BTR_GAIN_SHIFT_OFFSET,
+	.crl_nco_bits		= STB0899_DVBS2_CRL_NCO_BITS,
+	.ldpc_max_iter		= STB0899_DVBS2_LDPC_MAX_ITER,
+
+	.tuner_get_frequency	= tda8261_get_frequency,
+	.tuner_set_frequency	= tda8261_set_frequency,
+	.tuner_set_bandwidth	= NULL,
+	.tuner_get_bandwidth	= tda8261_get_bandwidth,
+	.tuner_set_rfsiggain	= NULL
+};
+
+/*
+ * SD1878/SHA tuner config
+ * 1F, Single I/P, Horizontal mount, High Sensitivity
+ */
+static const struct tda8261_config sd1878c_config = {
+//	.name		= "SD1878/SHA",
+	.addr		= 0x60,
+	.step_size	= TDA8261_STEP_1000 /* kHz */
+};
+
 static u8 read_pwm(struct budget_av *budget_av)
 {
 	u8 b = 0xff;
@@ -905,8 +1185,11 @@ static u8 read_pwm(struct budget_av *budget_av)
 #define SUBID_DVBS_TV_STAR		0x0014
 #define SUBID_DVBS_TV_STAR_PLUS_X4	0x0015
 #define SUBID_DVBS_TV_STAR_CI		0x0016
+#define SUBID_DVBS2_KNC1		0x0018
+#define SUBID_DVBS2_KNC1_OEM		0x0019
 #define SUBID_DVBS_EASYWATCH_1  	0x001a
 #define SUBID_DVBS_EASYWATCH_2  	0x001b
+#define SUBID_DVBS2_EASYWATCH		0x001d
 #define SUBID_DVBS_EASYWATCH		0x001e
 
 #define SUBID_DVBC_EASYWATCH		0x002a
@@ -941,6 +1224,9 @@ static void frontend_init(struct budget_av *budget_av)
 		case SUBID_DVBT_KNC1_PLUS:
 		case SUBID_DVBC_EASYWATCH:
 		case SUBID_DVBC_KNC1_PLUS_MK3:
+		case SUBID_DVBS2_KNC1:
+		case SUBID_DVBS2_KNC1_OEM:
+		case SUBID_DVBS2_EASYWATCH:
 			saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTHI);
 			break;
 	}
@@ -993,7 +1279,14 @@ static void frontend_init(struct budget_av *budget_av)
 			fe->ops.tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
 		}
 		break;
+	case SUBID_DVBS2_KNC1:
+	case SUBID_DVBS2_KNC1_OEM:
+	case SUBID_DVBS2_EASYWATCH:
+		budget_av->reinitialise_demod = 1;
+		if ((fe = dvb_attach(stb0899_attach, &knc1_dvbs2_config, &budget_av->budget.i2c_adap)))
+			dvb_attach(tda8261_attach, fe, &sd1878c_config, &budget_av->budget.i2c_adap);
 
+		break;
 	case SUBID_DVBS_CINERGY1200:
 		fe = dvb_attach(stv0299_attach, &cinergy_1200s_config,
 				    &budget_av->budget.i2c_adap);
@@ -1200,7 +1493,7 @@ static struct saa7146_extension_ioctls ioctls[] = {
 	{0, 0}
 };
 
-static int av_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
+static long av_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 {
 	struct saa7146_dev *dev = fh->dev;
 	struct budget_av *budget_av = (struct budget_av *) dev->ext_priv;
@@ -1260,6 +1553,8 @@ static struct saa7146_ext_vv vv_data = {
 static struct saa7146_extension budget_extension;
 
 MAKE_BUDGET_INFO(knc1s, "KNC1 DVB-S", BUDGET_KNC1S);
+MAKE_BUDGET_INFO(knc1s2,"KNC1 DVB-S2", BUDGET_KNC1S2);
+MAKE_BUDGET_INFO(sates2,"Satelco EasyWatch DVB-S2", BUDGET_KNC1S2);
 MAKE_BUDGET_INFO(knc1c, "KNC1 DVB-C", BUDGET_KNC1C);
 MAKE_BUDGET_INFO(knc1t, "KNC1 DVB-T", BUDGET_KNC1T);
 MAKE_BUDGET_INFO(kncxs, "KNC TV STAR DVB-S", BUDGET_TVSTAR);
@@ -1290,6 +1585,9 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(kncxs, 0x1894, 0x0014),
 	MAKE_EXTENSION_PCI(knc1spx4, 0x1894, 0x0015),
 	MAKE_EXTENSION_PCI(kncxs, 0x1894, 0x0016),
+	MAKE_EXTENSION_PCI(knc1s2, 0x1894, 0x0018),
+	MAKE_EXTENSION_PCI(knc1s2, 0x1894, 0x0019),
+	MAKE_EXTENSION_PCI(sates2, 0x1894, 0x001d),
 	MAKE_EXTENSION_PCI(satewpls, 0x1894, 0x001e),
 	MAKE_EXTENSION_PCI(satewpls1, 0x1894, 0x001a),
 	MAKE_EXTENSION_PCI(satewps, 0x1894, 0x001b),

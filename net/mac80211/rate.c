@@ -199,48 +199,44 @@ static void rate_control_release(struct kref *kref)
 }
 
 void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
-			   struct ieee80211_supported_band *sband,
-			   struct sta_info *sta, struct sk_buff *skb,
-			   struct rate_selection *sel)
+			   struct sta_info *sta,
+			   struct ieee80211_tx_rate_control *txrc)
 {
 	struct rate_control_ref *ref = sdata->local->rate_ctrl;
 	void *priv_sta = NULL;
 	struct ieee80211_sta *ista = NULL;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(txrc->skb);
 	int i;
-
-	sel->rate_idx = -1;
-	sel->nonerp_idx = -1;
-	sel->probe_idx = -1;
-	sel->max_rate_idx = sdata->max_ratectrl_rateidx;
 
 	if (sta) {
 		ista = &sta->sta;
 		priv_sta = sta->rate_ctrl_priv;
 	}
 
-	if (sta && sdata->force_unicast_rateidx > -1)
-		sel->rate_idx = sdata->force_unicast_rateidx;
-	else
-		ref->ops->get_rate(ref->priv, sband, ista, priv_sta, skb, sel);
-
-	if (sdata->max_ratectrl_rateidx > -1 &&
-	    sel->rate_idx > sdata->max_ratectrl_rateidx)
-		sel->rate_idx = sdata->max_ratectrl_rateidx;
-
-	BUG_ON(sel->rate_idx < 0);
-
-	/* Select a non-ERP backup rate. */
-	if (sel->nonerp_idx < 0) {
-		for (i = 0; i < sband->n_bitrates; i++) {
-			struct ieee80211_rate *rate = &sband->bitrates[i];
-			if (sband->bitrates[sel->rate_idx].bitrate < rate->bitrate)
-				break;
-
-			if (rate_supported(ista, sband->band, i) &&
-			    !(rate->flags & IEEE80211_RATE_ERP_G))
-				sel->nonerp_idx = i;
-		}
+	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+		info->control.rates[i].idx = -1;
+		info->control.rates[i].flags = 0;
+		info->control.rates[i].count = 1;
 	}
+
+	if (sta && sdata->force_unicast_rateidx > -1)
+		info->control.rates[0].idx = sdata->force_unicast_rateidx;
+	else
+		ref->ops->get_rate(ref->priv, ista, priv_sta, txrc);
+
+	/*
+	 * try to enforce the maximum rate the user wanted
+	 */
+	if (sdata->max_ratectrl_rateidx > -1)
+		for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+			if (info->control.rates[i].flags & IEEE80211_TX_RC_MCS)
+				continue;
+			info->control.rates[i].idx =
+				min_t(s8, info->control.rates[i].idx,
+				      sdata->max_ratectrl_rateidx);
+	}
+
+	BUG_ON(info->control.rates[0].idx < 0);
 }
 
 struct rate_control_ref *rate_control_get(struct rate_control_ref *ref)

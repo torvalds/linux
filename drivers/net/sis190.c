@@ -627,7 +627,6 @@ static int sis190_rx_interrupt(struct net_device *dev,
 
 			sis190_rx_skb(skb);
 
-			dev->last_rx = jiffies;
 			stats->rx_packets++;
 			stats->rx_bytes += pkt_size;
 			if ((status & BCAST) == MCAST)
@@ -1783,6 +1782,21 @@ static int sis190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		generic_mii_ioctl(&tp->mii_if, if_mii(ifr), cmd, NULL);
 }
 
+static const struct net_device_ops sis190_netdev_ops = {
+	.ndo_open		= sis190_open,
+	.ndo_stop		= sis190_close,
+	.ndo_do_ioctl		= sis190_ioctl,
+	.ndo_start_xmit		= sis190_start_xmit,
+	.ndo_tx_timeout		= sis190_tx_timeout,
+	.ndo_set_multicast_list = sis190_set_rx_mode,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	 = sis190_netpoll,
+#endif
+};
+
 static int __devinit sis190_init_one(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
@@ -1791,7 +1805,6 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	void __iomem *ioaddr;
 	int rc;
-	DECLARE_MAC_BUF(mac);
 
 	if (!printed_version) {
 		net_drv(&debug, KERN_INFO SIS190_DRIVER_NAME " loaded.\n");
@@ -1817,19 +1830,12 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 
 	INIT_WORK(&tp->phy_task, sis190_phy_task);
 
-	dev->open = sis190_open;
-	dev->stop = sis190_close;
-	dev->do_ioctl = sis190_ioctl;
-	dev->tx_timeout = sis190_tx_timeout;
-	dev->watchdog_timeo = SIS190_TX_TIMEOUT;
-	dev->hard_start_xmit = sis190_start_xmit;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = sis190_netpoll;
-#endif
-	dev->set_multicast_list = sis190_set_rx_mode;
+	dev->netdev_ops = &sis190_netdev_ops;
+
 	SET_ETHTOOL_OPS(dev, &sis190_ethtool_ops);
 	dev->irq = pdev->irq;
 	dev->base_addr = (unsigned long) 0xdead;
+	dev->watchdog_timeo = SIS190_TX_TIMEOUT;
 
 	spin_lock_init(&tp->lock);
 
@@ -1841,10 +1847,9 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	if (rc < 0)
 		goto err_remove_mii;
 
-	net_probe(tp, KERN_INFO "%s: %s at %p (IRQ: %d), "
-		  "%s\n",
+	net_probe(tp, KERN_INFO "%s: %s at %p (IRQ: %d), %pM\n",
 		  pci_name(pdev), sis_chip_info[ent->driver_data].name,
-		  ioaddr, dev->irq, print_mac(mac, dev->dev_addr));
+		  ioaddr, dev->irq, dev->dev_addr);
 
 	net_probe(tp, KERN_INFO "%s: %s mode.\n", dev->name,
 		  (tp->features & F_HAS_RGMII) ? "RGMII" : "GMII");

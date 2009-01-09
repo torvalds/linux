@@ -33,6 +33,7 @@
 #include <linux/cpufreq.h>
 #include <linux/compiler.h>
 #include <linux/dmi.h>
+#include <linux/ftrace.h>
 
 #include <linux/acpi.h>
 #include <acpi/processor.h>
@@ -391,6 +392,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	unsigned int next_perf_state = 0; /* Index into perf table */
 	unsigned int i;
 	int result = 0;
+	struct power_trace it;
 
 	dprintk("acpi_cpufreq_target %d (%d)\n", target_freq, policy->cpu);
 
@@ -426,6 +428,8 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 			return 0;
 		}
 	}
+
+	trace_power_mark(&it, POWER_PSTATE, next_perf_state);
 
 	switch (data->cpu_feature) {
 	case SYSTEM_INTEL_MSR_CAPABLE:
@@ -513,6 +517,17 @@ acpi_cpufreq_guess_freq(struct acpi_cpufreq_data *data, unsigned int cpu)
 	}
 }
 
+static void free_acpi_perf_data(void)
+{
+	unsigned int i;
+
+	/* Freeing a NULL pointer is OK, and alloc_percpu zeroes. */
+	for_each_possible_cpu(i)
+		free_cpumask_var(per_cpu_ptr(acpi_perf_data, i)
+				 ->shared_cpu_map);
+	free_percpu(acpi_perf_data);
+}
+
 /*
  * acpi_cpufreq_early_init - initialize ACPI P-States library
  *
@@ -523,12 +538,23 @@ acpi_cpufreq_guess_freq(struct acpi_cpufreq_data *data, unsigned int cpu)
  */
 static int __init acpi_cpufreq_early_init(void)
 {
+	unsigned int i;
 	dprintk("acpi_cpufreq_early_init\n");
 
 	acpi_perf_data = alloc_percpu(struct acpi_processor_performance);
 	if (!acpi_perf_data) {
 		dprintk("Memory allocation error for acpi_perf_data.\n");
 		return -ENOMEM;
+	}
+	for_each_possible_cpu(i) {
+		if (!alloc_cpumask_var_node(
+			&per_cpu_ptr(acpi_perf_data, i)->shared_cpu_map,
+			GFP_KERNEL, cpu_to_node(i))) {
+
+			/* Freeing a NULL pointer is OK: alloc_percpu zeroes. */
+			free_acpi_perf_data();
+			return -ENOMEM;
+		}
 	}
 
 	/* Do initialization in ACPI core */
@@ -600,9 +626,9 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	 */
 	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL ||
 	    policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
-		policy->cpus = perf->shared_cpu_map;
+		cpumask_copy(&policy->cpus, perf->shared_cpu_map);
 	}
-	policy->related_cpus = perf->shared_cpu_map;
+	cpumask_copy(&policy->related_cpus, perf->shared_cpu_map);
 
 #ifdef CONFIG_SMP
 	dmi_check_system(sw_any_bug_dmi_table);
@@ -791,7 +817,7 @@ static int __init acpi_cpufreq_init(void)
 
 	ret = cpufreq_register_driver(&acpi_cpufreq_driver);
 	if (ret)
-		free_percpu(acpi_perf_data);
+		free_acpi_perf_data();
 
 	return ret;
 }

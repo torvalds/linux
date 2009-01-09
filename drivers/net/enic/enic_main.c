@@ -273,6 +273,8 @@ static struct ethtool_ops enic_ethtool_ops = {
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = enic_set_tso,
+	.get_flags = ethtool_op_get_flags,
+	.set_flags = ethtool_op_set_flags,
 };
 
 static void enic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf)
@@ -409,8 +411,8 @@ static irqreturn_t enic_isr_legacy(int irq, void *data)
 	}
 
 	if (ENIC_TEST_INTR(pba, ENIC_INTX_WQ_RQ)) {
-		if (netif_rx_schedule_prep(netdev, &enic->napi))
-			__netif_rx_schedule(netdev, &enic->napi);
+		if (netif_rx_schedule_prep(&enic->napi))
+			__netif_rx_schedule(&enic->napi);
 	} else {
 		vnic_intr_unmask(&enic->intr[ENIC_INTX_WQ_RQ]);
 	}
@@ -438,7 +440,7 @@ static irqreturn_t enic_isr_msi(int irq, void *data)
 	 * writes).
 	 */
 
-	netif_rx_schedule(enic->netdev, &enic->napi);
+	netif_rx_schedule(&enic->napi);
 
 	return IRQ_HANDLED;
 }
@@ -448,7 +450,7 @@ static irqreturn_t enic_isr_msix_rq(int irq, void *data)
 	struct enic *enic = data;
 
 	/* schedule NAPI polling for RQ cleanup */
-	netif_rx_schedule(enic->netdev, &enic->napi);
+	netif_rx_schedule(&enic->napi);
 
 	return IRQ_HANDLED;
 }
@@ -895,6 +897,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 	int skipped, void *opaque)
 {
 	struct enic *enic = vnic_dev_priv(rq->vdev);
+	struct net_device *netdev = enic->netdev;
 	struct sk_buff *skb;
 
 	u8 type, color, eop, sop, ingress_port, vlan_stripped;
@@ -929,7 +932,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 			if (net_ratelimit())
 				printk(KERN_ERR PFX
 					"%s: packet error: bad FCS\n",
-					enic->netdev->name);
+					netdev->name);
 		}
 
 		dev_kfree_skb_any(skb);
@@ -943,19 +946,18 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 		 */
 
 		skb_put(skb, bytes_written);
-		skb->protocol = eth_type_trans(skb, enic->netdev);
+		skb->protocol = eth_type_trans(skb, netdev);
 
 		if (enic->csum_rx_enabled && !csum_not_calc) {
 			skb->csum = htons(checksum);
 			skb->ip_summed = CHECKSUM_COMPLETE;
 		}
 
-		skb->dev = enic->netdev;
-		enic->netdev->last_rx = jiffies;
+		skb->dev = netdev;
 
 		if (enic->vlan_group && vlan_stripped) {
 
-			if (ENIC_SETTING(enic, LRO) && ipv4)
+			if ((netdev->features & NETIF_F_LRO) && ipv4)
 				lro_vlan_hwaccel_receive_skb(&enic->lro_mgr,
 					skb, enic->vlan_group,
 					vlan, cq_desc);
@@ -965,7 +967,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 
 		} else {
 
-			if (ENIC_SETTING(enic, LRO) && ipv4)
+			if ((netdev->features & NETIF_F_LRO) && ipv4)
 				lro_receive_skb(&enic->lro_mgr, skb, cq_desc);
 			else
 				netif_receive_skb(skb);
@@ -1063,10 +1065,10 @@ static int enic_poll(struct napi_struct *napi, int budget)
 		/* If no work done, flush all LROs and exit polling
 		 */
 
-		if (ENIC_SETTING(enic, LRO))
+		if (netdev->features & NETIF_F_LRO)
 			lro_flush_all(&enic->lro_mgr);
 
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		vnic_intr_unmask(&enic->intr[ENIC_MSIX_RQ]);
 	}
 
@@ -1107,10 +1109,10 @@ static int enic_poll_msix(struct napi_struct *napi, int budget)
 		/* If no work done, flush all LROs and exit polling
 		 */
 
-		if (ENIC_SETTING(enic, LRO))
+		if (netdev->features & NETIF_F_LRO)
 			lro_flush_all(&enic->lro_mgr);
 
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		vnic_intr_unmask(&enic->intr[ENIC_MSIX_RQ]);
 	}
 
@@ -1591,6 +1593,23 @@ static void enic_iounmap(struct enic *enic)
 		iounmap(enic->bar0.vaddr);
 }
 
+static const struct net_device_ops enic_netdev_ops = {
+	.ndo_open		= enic_open,
+	.ndo_stop		= enic_stop,
+	.ndo_start_xmit		= enic_hard_start_xmit,
+	.ndo_get_stats		= enic_get_stats,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list	= enic_set_multicast_list,
+	.ndo_change_mtu		= enic_change_mtu,
+	.ndo_vlan_rx_register	= enic_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= enic_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= enic_vlan_rx_kill_vid,
+	.ndo_tx_timeout		= enic_tx_timeout,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= enic_poll_controller,
+#endif
+};
+
 static int __devinit enic_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
@@ -1746,13 +1765,13 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	}
 
 	/* Get available resource counts
-	*/
+	 */
 
 	enic_get_res_counts(enic);
 
 	/* Set interrupt mode based on resource counts and system
 	 * capabilities
-	*/
+	 */
 
 	err = enic_set_intr_mode(enic);
 	if (err) {
@@ -1814,21 +1833,9 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		goto err_out_free_vnic_resources;
 	}
 
-	netdev->open = enic_open;
-	netdev->stop = enic_stop;
-	netdev->hard_start_xmit = enic_hard_start_xmit;
-	netdev->get_stats = enic_get_stats;
-	netdev->set_multicast_list = enic_set_multicast_list;
-	netdev->change_mtu = enic_change_mtu;
-	netdev->vlan_rx_register = enic_vlan_rx_register;
-	netdev->vlan_rx_add_vid = enic_vlan_rx_add_vid;
-	netdev->vlan_rx_kill_vid = enic_vlan_rx_kill_vid;
-	netdev->tx_timeout = enic_tx_timeout;
+	netdev->netdev_ops = &enic_netdev_ops;
 	netdev->watchdog_timeo = 2 * HZ;
 	netdev->ethtool_ops = &enic_ethtool_ops;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = enic_poll_controller;
-#endif
 
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	default:
@@ -1845,22 +1852,23 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	if (ENIC_SETTING(enic, TSO))
 		netdev->features |= NETIF_F_TSO |
 			NETIF_F_TSO6 | NETIF_F_TSO_ECN;
+	if (ENIC_SETTING(enic, LRO))
+		netdev->features |= NETIF_F_LRO;
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
 
 	enic->csum_rx_enabled = ENIC_SETTING(enic, RXCSUM);
 
-	if (ENIC_SETTING(enic, LRO)) {
-		enic->lro_mgr.max_aggr = ENIC_LRO_MAX_AGGR;
-		enic->lro_mgr.max_desc = ENIC_LRO_MAX_DESC;
-		enic->lro_mgr.lro_arr = enic->lro_desc;
-		enic->lro_mgr.get_skb_header = enic_get_skb_header;
-		enic->lro_mgr.features	= LRO_F_NAPI | LRO_F_EXTRACT_VLAN_ID;
-		enic->lro_mgr.dev = netdev;
-		enic->lro_mgr.ip_summed = CHECKSUM_COMPLETE;
-		enic->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
-	}
+	enic->lro_mgr.max_aggr = ENIC_LRO_MAX_AGGR;
+	enic->lro_mgr.max_desc = ENIC_LRO_MAX_DESC;
+	enic->lro_mgr.lro_arr = enic->lro_desc;
+	enic->lro_mgr.get_skb_header = enic_get_skb_header;
+	enic->lro_mgr.features	= LRO_F_NAPI | LRO_F_EXTRACT_VLAN_ID;
+	enic->lro_mgr.dev = netdev;
+	enic->lro_mgr.ip_summed = CHECKSUM_COMPLETE;
+	enic->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
+
 
 	err = register_netdev(netdev);
 	if (err) {

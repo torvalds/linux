@@ -78,15 +78,17 @@ while (<>) {
 }
 
 if ($count == 0) {
-	print "No data found in the dmesg. Make sure that 'printk.time=1' and\n";
-	print "'initcall_debug' are passed on the kernel command line.\n\n";
-	print "Usage: \n";
-	print "      dmesg | perl scripts/bootgraph.pl > output.svg\n\n";
-	exit;
+    print STDERR <<END;
+No data found in the dmesg. Make sure that 'printk.time=1' and
+'initcall_debug' are passed on the kernel command line.
+Usage:
+      dmesg | perl scripts/bootgraph.pl > output.svg
+END
+    exit 1;
 }
 
 print "<?xml version=\"1.0\" standalone=\"no\"?> \n";
-print "<svg width=\"1000\" height=\"100%\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n";
+print "<svg width=\"2000\" height=\"100%\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n";
 
 my @styles;
 
@@ -103,18 +105,19 @@ $styles[9] = "fill:rgb(255,255,128);fill-opacity:0.5;stroke-width:1;stroke:rgb(0
 $styles[10] = "fill:rgb(255,128,255);fill-opacity:0.5;stroke-width:1;stroke:rgb(0,0,0)";
 $styles[11] = "fill:rgb(128,255,255);fill-opacity:0.5;stroke-width:1;stroke:rgb(0,0,0)";
 
-my $mult = 950.0 / ($maxtime - $firsttime);
-my $threshold = ($maxtime - $firsttime) / 60.0;
+my $mult = 1950.0 / ($maxtime - $firsttime);
+my $threshold2 = ($maxtime - $firsttime) / 120.0;
+my $threshold = $threshold2/10;
 my $stylecounter = 0;
 my %rows;
 my $rowscount = 1;
 my @initcalls = sort { $start{$a} <=> $start{$b} } keys(%start);
-my $key;
-foreach $key (@initcalls) {
+
+foreach my $key (@initcalls) {
 	my $duration = $end{$key} - $start{$key};
 
 	if ($duration >= $threshold) {
-		my ($s, $s2, $e, $w, $y, $y2, $style);
+		my ($s, $s2, $s3, $e, $w, $y, $y2, $style);
 		my $pid = $pids{$key};
 
 		if (!defined($rows{$pid})) {
@@ -123,6 +126,7 @@ foreach $key (@initcalls) {
 		}
 		$s = ($start{$key} - $firsttime) * $mult;
 		$s2 = $s + 6;
+		$s3 = $s + 1;
 		$e = ($end{$key} - $firsttime) * $mult;
 		$w = $e - $s;
 
@@ -136,7 +140,11 @@ foreach $key (@initcalls) {
 		};
 
 		print "<rect x=\"$s\" width=\"$w\" y=\"$y\" height=\"145\" style=\"$style\"/>\n";
-		print "<text transform=\"translate($s2,$y2) rotate(90)\">$key</text>\n";
+		if ($duration >= $threshold2) {
+			print "<text transform=\"translate($s2,$y2) rotate(90)\">$key</text>\n";
+		} else {
+			print "<text transform=\"translate($s3,$y2) rotate(90)\" font-size=\"3pt\">$key</text>\n";
+		}
 	}
 }
 

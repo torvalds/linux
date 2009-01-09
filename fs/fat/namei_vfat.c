@@ -78,7 +78,7 @@ static int vfat_revalidate_ci(struct dentry *dentry, struct nameidata *nd)
 	 * for creation.
 	 */
 	if (!(nd->flags & (LOOKUP_CONTINUE | LOOKUP_PARENT))) {
-		if (nd->flags & LOOKUP_CREATE)
+		if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
 			return 0;
 	}
 

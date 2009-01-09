@@ -38,7 +38,7 @@
 #include <mach/regs-gpio.h>
 #include <mach/leds-gpio.h>
 
-#include <asm/plat-s3c/nand.h>
+#include <plat/nand.h>
 
 #include <plat/common-smdk.h>
 #include <plat/devs.h>

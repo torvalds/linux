@@ -294,6 +294,38 @@ struct dentry *debugfs_create_x32(const char *name, mode_t mode,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_x32);
 
+
+static int debugfs_size_t_set(void *data, u64 val)
+{
+	*(size_t *)data = val;
+	return 0;
+}
+static int debugfs_size_t_get(void *data, u64 *val)
+{
+	*val = *(size_t *)data;
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(fops_size_t, debugfs_size_t_get, debugfs_size_t_set,
+			"%llu\n");	/* %llu and %zu are more or less the same */
+
+/**
+ * debugfs_create_size_t - create a debugfs file that is used to read and write an size_t value
+ * @name: a pointer to a string containing the name of the file to create.
+ * @mode: the permission that the file should have
+ * @parent: a pointer to the parent dentry for this file.  This should be a
+ *          directory dentry if set.  If this parameter is %NULL, then the
+ *          file will be created in the root of the debugfs filesystem.
+ * @value: a pointer to the variable that the file should read to and write
+ *         from.
+ */
+struct dentry *debugfs_create_size_t(const char *name, mode_t mode,
+				     struct dentry *parent, size_t *value)
+{
+	return debugfs_create_file(name, mode, parent, value, &fops_size_t);
+}
+EXPORT_SYMBOL_GPL(debugfs_create_size_t);
+
+
 static ssize_t read_file_bool(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {

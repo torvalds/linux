@@ -550,7 +550,7 @@ irqreturn_t snd_mixart_interrupt(int irq, void *dev_id)
 				mgr->msg_fifo[mgr->msg_fifo_writeptr] = msg;
 				mgr->msg_fifo_writeptr++;
 				mgr->msg_fifo_writeptr %= MSG_FIFO_SIZE;
-				tasklet_hi_schedule(&mgr->msg_taskq);
+				tasklet_schedule(&mgr->msg_taskq);
 			}
 			spin_unlock(&mgr->msg_lock);
 			break;

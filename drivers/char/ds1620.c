@@ -43,52 +43,51 @@ static const char *fan_state[] = { "off", "on", "on (hardwired)" };
  *  chance that the WaveArtist driver could touch these bits to
  *  enable or disable the speaker.
  */
-extern spinlock_t gpio_lock;
 extern unsigned int system_rev;
 
 static inline void netwinder_ds1620_set_clk(int clk)
 {
-	gpio_modify_op(GPIO_DSCLK, clk ? GPIO_DSCLK : 0);
+	nw_gpio_modify_op(GPIO_DSCLK, clk ? GPIO_DSCLK : 0);
 }
 
 static inline void netwinder_ds1620_set_data(int dat)
 {
-	gpio_modify_op(GPIO_DATA, dat ? GPIO_DATA : 0);
+	nw_gpio_modify_op(GPIO_DATA, dat ? GPIO_DATA : 0);
 }
 
 static inline int netwinder_ds1620_get_data(void)
 {
-	return gpio_read() & GPIO_DATA;
+	return nw_gpio_read() & GPIO_DATA;
 }
 
 static inline void netwinder_ds1620_set_data_dir(int dir)
 {
-	gpio_modify_io(GPIO_DATA, dir ? GPIO_DATA : 0);
+	nw_gpio_modify_io(GPIO_DATA, dir ? GPIO_DATA : 0);
 }
 
 static inline void netwinder_ds1620_reset(void)
 {
-	cpld_modify(CPLD_DS_ENABLE, 0);
-	cpld_modify(CPLD_DS_ENABLE, CPLD_DS_ENABLE);
+	nw_cpld_modify(CPLD_DS_ENABLE, 0);
+	nw_cpld_modify(CPLD_DS_ENABLE, CPLD_DS_ENABLE);
 }
 
 static inline void netwinder_lock(unsigned long *flags)
 {
-	spin_lock_irqsave(&gpio_lock, *flags);
+	spin_lock_irqsave(&nw_gpio_lock, *flags);
 }
 
 static inline void netwinder_unlock(unsigned long *flags)
 {
-	spin_unlock_irqrestore(&gpio_lock, *flags);
+	spin_unlock_irqrestore(&nw_gpio_lock, *flags);
 }
 
 static inline void netwinder_set_fan(int i)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&gpio_lock, flags);
-	gpio_modify_op(GPIO_FAN, i ? GPIO_FAN : 0);
-	spin_unlock_irqrestore(&gpio_lock, flags);
+	spin_lock_irqsave(&nw_gpio_lock, flags);
+	nw_gpio_modify_op(GPIO_FAN, i ? GPIO_FAN : 0);
+	spin_unlock_irqrestore(&nw_gpio_lock, flags);
 }
 
 static inline int netwinder_get_fan(void)
@@ -96,7 +95,7 @@ static inline int netwinder_get_fan(void)
 	if ((system_rev & 0xf000) == 0x4000)
 		return FAN_ALWAYS_ON;
 
-	return (gpio_read() & GPIO_FAN) ? FAN_ON : FAN_OFF;
+	return (nw_gpio_read() & GPIO_FAN) ? FAN_ON : FAN_OFF;
 }
 
 /*

@@ -369,10 +369,10 @@ P: 1024/8462A731 4C 55 86 34 44 59 A7 99  2B 97 88 4A 88 9A 0D 97
 D: sun4 port, Sparc hacker
 
 N: Hugh Blemings
-E: hugh@misc.nu
-W: http://misc.nu/hugh/
-D: Author and maintainer of the Keyspan USB to Serial drivers
-S: Po Box 234
+E: hugh@blemings.org
+W: http://blemings.org/hugh
+D: Original author of the Keyspan USB to serial drivers, random PowerPC hacker
+S: PO Box 234
 S: Belconnen ACT 2616
 S: Australia
 
@@ -463,6 +463,11 @@ D: Linux/PA-RISC hacker
 S: 1200 Goldenrod Dr.
 S: Nampa, Idaho 83686
 S: USA
+
+N: Dirk J. Brandewie
+E: dirk.j.brandewie@intel.com
+E: linux-wimax@intel.com
+D: Intel Wireless WiMAX Connection 2400 SDIO driver
 
 N: Derrick J. Brashear
 E: shadow@dementia.org
@@ -1681,7 +1686,7 @@ E: ajoshi@shell.unixbox.com
 D: fbdev hacking
 
 N: Jesper Juhl
-E: jesper.juhl@gmail.com
+E: jj@chaosbits.net
 D: Various fixes, cleanups and minor features all over the tree.
 D: Wrote initial version of the hdaps driver (since passed on to others).
 S: Lemnosvej 1, 3.tv
@@ -2118,6 +2123,11 @@ D: NTFS driver
 N: H.J. Lu
 E: hjl@gnu.ai.mit.edu
 D: GCC + libraries hacker
+
+N: Yanir Lubetkin
+E: yanirx.lubatkin@intel.com
+E: linux-wimax@intel.com
+D: Intel Wireless WiMAX Connection 2400 driver
 
 N: Michal Ludvig
 E: michal@logix.cz
@@ -2692,6 +2702,13 @@ D: Various minor hacking
 S: RR #5, 497 Pole Line Road
 S: Thunder Bay, Ontario
 S: CANADA P7C 5M9
+
+N: Inaky Perez-Gonzalez
+E: inaky.perez-gonzalez@intel.com
+E: linux-wimax@intel.com
+E: inakypg@yahoo.com
+D: WiMAX stack
+D: Intel Wireless WiMAX Connection 2400 driver
 
 N: Yuri Per
 E: yuri@pts.mipt.ru

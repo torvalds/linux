@@ -56,17 +56,6 @@ xfs_stats_clear_proc_handler(
 
 static ctl_table xfs_table[] = {
 	{
-		.ctl_name	= XFS_RESTRICT_CHOWN,
-		.procname	= "restrict_chown",
-		.data		= &xfs_params.restrict_chown.val,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
-		.extra1		= &xfs_params.restrict_chown.min,
-		.extra2		= &xfs_params.restrict_chown.max
-	},
-	{
 		.ctl_name	= XFS_SGID_INHERIT,
 		.procname	= "irix_sgid_inherit",
 		.data		= &xfs_params.sgid_inherit.val,

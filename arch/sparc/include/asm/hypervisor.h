@@ -2713,6 +2713,30 @@ extern unsigned long sun4v_ldc_revoke(unsigned long channel,
  */
 #define HV_FAST_SET_PERFREG		0x101
 
+#define HV_N2_PERF_SPARC_CTL		0x0
+#define HV_N2_PERF_DRAM_CTL0		0x1
+#define HV_N2_PERF_DRAM_CNT0		0x2
+#define HV_N2_PERF_DRAM_CTL1		0x3
+#define HV_N2_PERF_DRAM_CNT1		0x4
+#define HV_N2_PERF_DRAM_CTL2		0x5
+#define HV_N2_PERF_DRAM_CNT2		0x6
+#define HV_N2_PERF_DRAM_CTL3		0x7
+#define HV_N2_PERF_DRAM_CNT3		0x8
+
+#define HV_FAST_N2_GET_PERFREG		0x104
+#define HV_FAST_N2_SET_PERFREG		0x105
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_niagara_getperf(unsigned long reg,
+					   unsigned long *val);
+extern unsigned long sun4v_niagara_setperf(unsigned long reg,
+					   unsigned long val);
+extern unsigned long sun4v_niagara2_getperf(unsigned long reg,
+					    unsigned long *val);
+extern unsigned long sun4v_niagara2_setperf(unsigned long reg,
+					    unsigned long val);
+#endif
+
 /* MMU statistics services.
  *
  * The hypervisor maintains MMU statistics and privileged code provides

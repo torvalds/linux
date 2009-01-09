@@ -15,46 +15,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/uwb/umc.h>
-#define D_LOCAL 1
-#include <linux/uwb/debug.h>
 
 #include "../../wusbcore/wusbhc.h"
 
 #include "whcd.h"
 
-#if D_LOCAL >= 1
-static void dump_di(struct whc *whc, int idx)
-{
-	struct di_buf_entry *di = &whc->di_buf[idx];
-	struct device *dev = &whc->umc->dev;
-	char buf[128];
-
-	bitmap_scnprintf(buf, sizeof(buf), (unsigned long *)di->availability_info, UWB_NUM_MAS);
-
-	d_printf(1, dev, "DI[%d]\n", idx);
-	d_printf(1, dev, "  availability: %s\n", buf);
-	d_printf(1, dev, "  %c%c key idx: %d dev addr: %d\n",
-		 (di->addr_sec_info & WHC_DI_SECURE) ? 'S' : ' ',
-		 (di->addr_sec_info & WHC_DI_DISABLE) ? 'D' : ' ',
-		 (di->addr_sec_info & WHC_DI_KEY_IDX_MASK) >> 8,
-		 (di->addr_sec_info & WHC_DI_DEV_ADDR_MASK));
-}
-#else
-static inline void dump_di(struct whc *whc, int idx)
-{
-}
-#endif
-
 static int whc_update_di(struct whc *whc, int idx)
 {
 	int offset = idx / 32;
 	u32 bit = 1 << (idx % 32);
-
-	dump_di(whc, idx);
 
 	le_writel(bit, whc->base + WUSBDIBUPDATED + offset);
 
@@ -64,8 +36,9 @@ static int whc_update_di(struct whc *whc, int idx)
 }
 
 /*
- * WHCI starts and stops MMCs based on there being a valid GTK so
- * these need only start/stop the asynchronous and periodic schedules.
+ * WHCI starts MMCs based on there being a valid GTK so these need
+ * only start/stop the asynchronous and periodic schedules and send a
+ * channel stop command.
  */
 
 int whc_wusbhc_start(struct wusbhc *wusbhc)
@@ -78,12 +51,20 @@ int whc_wusbhc_start(struct wusbhc *wusbhc)
 	return 0;
 }
 
-void whc_wusbhc_stop(struct wusbhc *wusbhc)
+void whc_wusbhc_stop(struct wusbhc *wusbhc, int delay)
 {
 	struct whc *whc = wusbhc_to_whc(wusbhc);
+	u32 stop_time, now_time;
+	int ret;
 
 	pzl_stop(whc);
 	asl_stop(whc);
+
+	now_time = le_readl(whc->base + WUSBTIME) & WUSBTIME_CHANNEL_TIME_MASK;
+	stop_time = (now_time + ((delay * 8) << 7)) & 0x00ffffff;
+	ret = whc_do_gencmd(whc, WUSBGENCMDSTS_CHAN_STOP, stop_time, NULL, 0);
+	if (ret == 0)
+		msleep(delay);
 }
 
 int whc_mmcie_add(struct wusbhc *wusbhc, u8 interval, u8 repeat_cnt,

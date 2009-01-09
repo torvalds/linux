@@ -20,50 +20,138 @@
 #include "sta_info.h"
 #include "wme.h"
 
-int ieee80211_ht_cap_ie_to_ht_info(struct ieee80211_ht_cap *ht_cap_ie,
-				   struct ieee80211_ht_info *ht_info)
+void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
+				       struct ieee80211_ht_cap *ht_cap_ie,
+				       struct ieee80211_sta_ht_cap *ht_cap)
 {
+	u8 ampdu_info, tx_mcs_set_cap;
+	int i, max_tx_streams;
 
-	if (ht_info == NULL)
-		return -EINVAL;
+	BUG_ON(!ht_cap);
 
-	memset(ht_info, 0, sizeof(*ht_info));
+	memset(ht_cap, 0, sizeof(*ht_cap));
 
-	if (ht_cap_ie) {
-		u8 ampdu_info = ht_cap_ie->ampdu_params_info;
+	if (!ht_cap_ie)
+		return;
 
-		ht_info->ht_supported = 1;
-		ht_info->cap = le16_to_cpu(ht_cap_ie->cap_info);
-		ht_info->ampdu_factor =
-			ampdu_info & IEEE80211_HT_CAP_AMPDU_FACTOR;
-		ht_info->ampdu_density =
-			(ampdu_info & IEEE80211_HT_CAP_AMPDU_DENSITY) >> 2;
-		memcpy(ht_info->supp_mcs_set, ht_cap_ie->supp_mcs_set, 16);
-	} else
-		ht_info->ht_supported = 0;
+	ht_cap->ht_supported = true;
 
-	return 0;
+	ht_cap->cap = le16_to_cpu(ht_cap_ie->cap_info) & sband->ht_cap.cap;
+	ht_cap->cap &= ~IEEE80211_HT_CAP_SM_PS;
+	ht_cap->cap |= sband->ht_cap.cap & IEEE80211_HT_CAP_SM_PS;
+
+	ampdu_info = ht_cap_ie->ampdu_params_info;
+	ht_cap->ampdu_factor =
+		ampdu_info & IEEE80211_HT_AMPDU_PARM_FACTOR;
+	ht_cap->ampdu_density =
+		(ampdu_info & IEEE80211_HT_AMPDU_PARM_DENSITY) >> 2;
+
+	/* own MCS TX capabilities */
+	tx_mcs_set_cap = sband->ht_cap.mcs.tx_params;
+
+	/* can we TX with MCS rates? */
+	if (!(tx_mcs_set_cap & IEEE80211_HT_MCS_TX_DEFINED))
+		return;
+
+	/* Counting from 0, therefore +1 */
+	if (tx_mcs_set_cap & IEEE80211_HT_MCS_TX_RX_DIFF)
+		max_tx_streams =
+			((tx_mcs_set_cap & IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK)
+				>> IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT) + 1;
+	else
+		max_tx_streams = IEEE80211_HT_MCS_TX_MAX_STREAMS;
+
+	/*
+	 * 802.11n D5.0 20.3.5 / 20.6 says:
+	 * - indices 0 to 7 and 32 are single spatial stream
+	 * - 8 to 31 are multiple spatial streams using equal modulation
+	 *   [8..15 for two streams, 16..23 for three and 24..31 for four]
+	 * - remainder are multiple spatial streams using unequal modulation
+	 */
+	for (i = 0; i < max_tx_streams; i++)
+		ht_cap->mcs.rx_mask[i] =
+			sband->ht_cap.mcs.rx_mask[i] & ht_cap_ie->mcs.rx_mask[i];
+
+	if (tx_mcs_set_cap & IEEE80211_HT_MCS_TX_UNEQUAL_MODULATION)
+		for (i = IEEE80211_HT_MCS_UNEQUAL_MODULATION_START_BYTE;
+		     i < IEEE80211_HT_MCS_MASK_LEN; i++)
+			ht_cap->mcs.rx_mask[i] =
+				sband->ht_cap.mcs.rx_mask[i] &
+					ht_cap_ie->mcs.rx_mask[i];
+
+	/* handle MCS rate 32 too */
+	if (sband->ht_cap.mcs.rx_mask[32/8] & ht_cap_ie->mcs.rx_mask[32/8] & 1)
+		ht_cap->mcs.rx_mask[32/8] |= 1;
 }
 
-int ieee80211_ht_addt_info_ie_to_ht_bss_info(
-			struct ieee80211_ht_addt_info *ht_add_info_ie,
-			struct ieee80211_ht_bss_info *bss_info)
+/*
+ * ieee80211_enable_ht should be called only after the operating band
+ * has been determined as ht configuration depends on the hw's
+ * HT abilities for a specific band.
+ */
+u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
+			struct ieee80211_ht_info *hti,
+			u16 ap_ht_cap_flags)
 {
-	if (bss_info == NULL)
-		return -EINVAL;
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_bss_ht_conf ht;
+	u32 changed = 0;
+	bool enable_ht = true, ht_changed;
+	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 
-	memset(bss_info, 0, sizeof(*bss_info));
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
-	if (ht_add_info_ie) {
-		u16 op_mode;
-		op_mode = le16_to_cpu(ht_add_info_ie->operation_mode);
+	memset(&ht, 0, sizeof(ht));
 
-		bss_info->primary_channel = ht_add_info_ie->control_chan;
-		bss_info->bss_cap = ht_add_info_ie->ht_param;
-		bss_info->bss_op_mode = (u8)(op_mode & 0xff);
+	/* HT is not supported */
+	if (!sband->ht_cap.ht_supported)
+		enable_ht = false;
+
+	/* check that channel matches the right operating channel */
+	if (local->hw.conf.channel->center_freq !=
+	    ieee80211_channel_to_frequency(hti->control_chan))
+		enable_ht = false;
+
+	if (enable_ht) {
+		channel_type = NL80211_CHAN_HT20;
+
+		if (!(ap_ht_cap_flags & IEEE80211_HT_CAP_40MHZ_INTOLERANT) &&
+		    (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) &&
+		    (hti->ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)) {
+			switch(hti->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
+			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+				channel_type = NL80211_CHAN_HT40PLUS;
+				break;
+			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+				channel_type = NL80211_CHAN_HT40MINUS;
+				break;
+			}
+		}
 	}
 
-	return 0;
+	ht_changed = local->hw.conf.ht.enabled != enable_ht ||
+		     channel_type != local->hw.conf.ht.channel_type;
+
+	local->oper_channel_type = channel_type;
+	local->hw.conf.ht.enabled = enable_ht;
+
+	if (ht_changed)
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_HT);
+
+	/* disable HT */
+	if (!enable_ht)
+		return 0;
+
+	ht.operation_mode = le16_to_cpu(hti->operation_mode);
+
+	/* if bss configuration changed store the new one */
+	if (memcmp(&sdata->vif.bss_conf.ht, &ht, sizeof(ht))) {
+		changed |= BSS_CHANGED_HT;
+		sdata->vif.bss_conf.ht = ht;
+	}
+
+	return changed;
 }
 
 static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
@@ -241,7 +329,6 @@ void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *r
 	struct ieee80211_hw *hw = &local->hw;
 	struct sta_info *sta;
 	int ret, i;
-	DECLARE_MAC_BUF(mac);
 
 	rcu_read_lock();
 
@@ -269,8 +356,8 @@ void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *r
 	BUG_ON(!local->ops->ampdu_action);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Rx BA session stop requested for %s tid %u\n",
-				print_mac(mac, ra), tid);
+	printk(KERN_DEBUG "Rx BA session stop requested for %pM tid %u\n",
+	       ra, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_RX_STOP,
@@ -383,14 +470,13 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	u16 start_seq_num;
 	u8 *state;
 	int ret;
-	DECLARE_MAC_BUF(mac);
 
-	if (tid >= STA_TID_NUM)
+	if ((tid >= STA_TID_NUM) || !(hw->flags & IEEE80211_HW_AMPDU_AGGREGATION))
 		return -EINVAL;
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Open BA session requested for %s tid %u\n",
-				print_mac(mac, ra), tid);
+	printk(KERN_DEBUG "Open BA session requested for %pM tid %u\n",
+	       ra, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	rcu_read_lock();
@@ -442,17 +528,19 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 			(unsigned long)&sta->timer_to_tid[tid];
 	init_timer(&sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer);
 
-	/* create a new queue for this aggregation */
-	ret = ieee80211_ht_agg_queue_add(local, sta, tid);
+	if (hw->ampdu_queues) {
+		/* create a new queue for this aggregation */
+		ret = ieee80211_ht_agg_queue_add(local, sta, tid);
 
-	/* case no queue is available to aggregation
-	 * don't switch to aggregation */
-	if (ret) {
+		/* case no queue is available to aggregation
+		 * don't switch to aggregation */
+		if (ret) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "BA request denied - queue unavailable for"
-					" tid %d\n", tid);
+			printk(KERN_DEBUG "BA request denied - "
+			       "queue unavailable for tid %d\n", tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
-		goto err_unlock_queue;
+			goto err_unlock_queue;
+		}
 	}
 	sdata = sta->sdata;
 
@@ -471,7 +559,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		/* No need to requeue the packets in the agg queue, since we
 		 * held the tx lock: no packet could be enqueued to the newly
 		 * allocated queue */
-		ieee80211_ht_agg_queue_remove(local, sta, tid, 0);
+		if (hw->ampdu_queues)
+			ieee80211_ht_agg_queue_remove(local, sta, tid, 0);
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "BA request denied - HW unavailable for"
 					" tid %d\n", tid);
@@ -481,7 +570,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	}
 
 	/* Will put all the packets in the new SW queue */
-	ieee80211_requeue(local, ieee802_1d_to_ac[tid]);
+	if (hw->ampdu_queues)
+		ieee80211_requeue(local, ieee802_1d_to_ac[tid]);
 	spin_unlock_bh(&sta->lock);
 
 	/* send an addBA request */
@@ -524,7 +614,6 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 	struct sta_info *sta;
 	u8 *state;
 	int ret = 0;
-	DECLARE_MAC_BUF(mac);
 
 	if (tid >= STA_TID_NUM)
 		return -EINVAL;
@@ -546,11 +635,12 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 	}
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Tx BA session stop requested for %s tid %u\n",
-				print_mac(mac, ra), tid);
+	printk(KERN_DEBUG "Tx BA session stop requested for %pM tid %u\n",
+	       ra, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
-	ieee80211_stop_queue(hw, sta->tid_to_tx_q[tid]);
+	if (hw->ampdu_queues)
+		ieee80211_stop_queue(hw, sta->tid_to_tx_q[tid]);
 
 	*state = HT_AGG_STATE_REQ_STOP_BA_MSK |
 		(initiator << HT_AGG_STATE_INITIATOR_SHIFT);
@@ -563,7 +653,8 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 	if (ret) {
 		WARN_ON(ret != -EBUSY);
 		*state = HT_AGG_STATE_OPERATIONAL;
-		ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
+		if (hw->ampdu_queues)
+			ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
 		goto stop_BA_exit;
 	}
 
@@ -579,7 +670,6 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct sta_info *sta;
 	u8 *state;
-	DECLARE_MAC_BUF(mac);
 
 	if (tid >= STA_TID_NUM) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -594,8 +684,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	if (!sta) {
 		rcu_read_unlock();
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Could not find station: %s\n",
-				print_mac(mac, ra));
+		printk(KERN_DEBUG "Could not find station: %pM\n", ra);
 #endif
 		return;
 	}
@@ -621,7 +710,8 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Aggregation is on for tid %d \n", tid);
 #endif
-		ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
+		if (hw->ampdu_queues)
+			ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
 	}
 	spin_unlock_bh(&sta->lock);
 	rcu_read_unlock();
@@ -634,7 +724,6 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	struct sta_info *sta;
 	u8 *state;
 	int agg_queue;
-	DECLARE_MAC_BUF(mac);
 
 	if (tid >= STA_TID_NUM) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -645,16 +734,15 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	}
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Stopping Tx BA session for %s tid %d\n",
-				print_mac(mac, ra), tid);
+	printk(KERN_DEBUG "Stopping Tx BA session for %pM tid %d\n",
+	       ra, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	rcu_read_lock();
 	sta = sta_info_get(local, ra);
 	if (!sta) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Could not find station: %s\n",
-				print_mac(mac, ra));
+		printk(KERN_DEBUG "Could not find station: %pM\n", ra);
 #endif
 		rcu_read_unlock();
 		return;
@@ -677,16 +765,18 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 		ieee80211_send_delba(sta->sdata, ra, tid,
 			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
 
-	agg_queue = sta->tid_to_tx_q[tid];
+	if (hw->ampdu_queues) {
+		agg_queue = sta->tid_to_tx_q[tid];
+		ieee80211_ht_agg_queue_remove(local, sta, tid, 1);
 
-	ieee80211_ht_agg_queue_remove(local, sta, tid, 1);
-
-	/* We just requeued the all the frames that were in the
-	 * removed queue, and since we might miss a softirq we do
-	 * netif_schedule_queue.  ieee80211_wake_queue is not used
-	 * here as this queue is not necessarily stopped
-	 */
-	netif_schedule_queue(netdev_get_tx_queue(local->mdev, agg_queue));
+		/* We just requeued the all the frames that were in the
+		 * removed queue, and since we might miss a softirq we do
+		 * netif_schedule_queue.  ieee80211_wake_queue is not used
+		 * here as this queue is not necessarily stopped
+		 */
+		netif_schedule_queue(netdev_get_tx_queue(local->mdev,
+							 agg_queue));
+	}
 	spin_lock_bh(&sta->lock);
 	*state = HT_AGG_STATE_IDLE;
 	sta->ampdu_mlme.addba_req_num[tid] = 0;
@@ -783,7 +873,6 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	u16 capab, tid, timeout, ba_policy, buf_size, start_seq_num, status;
 	u8 dialog_token;
 	int ret = -EOPNOTSUPP;
-	DECLARE_MAC_BUF(mac);
 
 	/* extract session parameters from addba request frame */
 	dialog_token = mgmt->u.action.u.addba_req.dialog_token;
@@ -801,15 +890,16 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	/* sanity check for incoming parameters:
 	 * check if configuration can support the BA policy
 	 * and if buffer size does not exceeds max value */
+	/* XXX: check own ht delayed BA capability?? */
 	if (((ba_policy != 1)
-		&& (!(conf->ht_conf.cap & IEEE80211_HT_CAP_DELAY_BA)))
+		&& (!(sta->sta.ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA)))
 		|| (buf_size > IEEE80211_MAX_AMPDU_BUF)) {
 		status = WLAN_STATUS_INVALID_QOS_PARAM;
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "AddBA Req with bad params from "
-				"%s on tid %u. policy %d, buffer size %d\n",
-				print_mac(mac, mgmt->sa), tid, ba_policy,
+				"%pM on tid %u. policy %d, buffer size %d\n",
+				mgmt->sa, tid, ba_policy,
 				buf_size);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 		goto end_no_lock;
@@ -820,7 +910,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 		sband = local->hw.wiphy->bands[conf->channel->band];
 		buf_size = IEEE80211_MIN_AMPDU_BUF;
-		buf_size = buf_size << sband->ht_info.ampdu_factor;
+		buf_size = buf_size << sband->ht_cap.ampdu_factor;
 	}
 
 
@@ -831,8 +921,8 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "unexpected AddBA Req from "
-				"%s on tid %u\n",
-				print_mac(mac, mgmt->sa), tid);
+				"%pM on tid %u\n",
+				mgmt->sa, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 		goto end;
 	}
@@ -910,7 +1000,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 {
 	struct ieee80211_hw *hw = &local->hw;
 	u16 capab;
-	u16 tid;
+	u16 tid, start_seq_num;
 	u8 *state;
 
 	capab = le16_to_cpu(mgmt->u.action.u.addba_resp.capab);
@@ -943,9 +1033,18 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 		*state |= HT_ADDBA_RECEIVED_MSK;
 		sta->ampdu_mlme.addba_req_num[tid] = 0;
 
-		if (*state == HT_AGG_STATE_OPERATIONAL)
+		if (*state == HT_AGG_STATE_OPERATIONAL &&
+		    local->hw.ampdu_queues)
 			ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
 
+		if (local->ops->ampdu_action) {
+			(void)local->ops->ampdu_action(hw,
+					       IEEE80211_AMPDU_TX_RESUME,
+					       &sta->sta, tid, &start_seq_num);
+		}
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "Resuming TX aggregation for tid %d\n", tid);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
 		spin_unlock_bh(&sta->lock);
 	} else {
 		sta->ampdu_mlme.addba_req_num[tid]++;
@@ -964,7 +1063,6 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	u16 tid, params;
 	u16 initiator;
-	DECLARE_MAC_BUF(mac);
 
 	params = le16_to_cpu(mgmt->u.action.u.delba.params);
 	tid = (params & IEEE80211_DELBA_PARAM_TID_MASK) >> 12;
@@ -972,9 +1070,8 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	if (net_ratelimit())
-		printk(KERN_DEBUG "delba from %s (%s) tid %d reason code %d\n",
-			print_mac(mac, mgmt->sa),
-			initiator ? "initiator" : "recipient", tid,
+		printk(KERN_DEBUG "delba from %pM (%s) tid %d reason code %d\n",
+			mgmt->sa, initiator ? "initiator" : "recipient", tid,
 			mgmt->u.action.u.delba.reason_code);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 

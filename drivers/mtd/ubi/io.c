@@ -465,7 +465,7 @@ out:
  * This function synchronously erases physical eraseblock @pnum. If @torture
  * flag is not zero, the physical eraseblock is checked by means of writing
  * different patterns to it and reading them back. If the torturing is enabled,
- * the physical eraseblock is erased more then once.
+ * the physical eraseblock is erased more than once.
  *
  * This function returns the number of erasures made in case of success, %-EIO
  * if the erasure failed or the torturing test failed, and other negative error
@@ -637,8 +637,6 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 
 	dbg_io("read EC header from PEB %d", pnum);
 	ubi_assert(pnum >= 0 && pnum < ubi->peb_count);
-	if (UBI_IO_DEBUG)
-		verbose = 1;
 
 	err = ubi_io_read(ubi, ec_hdr, pnum, 0, UBI_EC_HDR_SIZE);
 	if (err) {
@@ -685,6 +683,9 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 			if (verbose)
 				ubi_warn("no EC header found at PEB %d, "
 					 "only 0xFF bytes", pnum);
+			else if (UBI_IO_DEBUG)
+				dbg_msg("no EC header found at PEB %d, "
+					"only 0xFF bytes", pnum);
 			return UBI_IO_PEB_EMPTY;
 		}
 
@@ -696,7 +697,9 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 			ubi_warn("bad magic number at PEB %d: %08x instead of "
 				 "%08x", pnum, magic, UBI_EC_HDR_MAGIC);
 			ubi_dbg_dump_ec_hdr(ec_hdr);
-		}
+		} else if (UBI_IO_DEBUG)
+			dbg_msg("bad magic number at PEB %d: %08x instead of "
+				"%08x", pnum, magic, UBI_EC_HDR_MAGIC);
 		return UBI_IO_BAD_EC_HDR;
 	}
 
@@ -708,7 +711,9 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 			ubi_warn("bad EC header CRC at PEB %d, calculated "
 				 "%#08x, read %#08x", pnum, crc, hdr_crc);
 			ubi_dbg_dump_ec_hdr(ec_hdr);
-		}
+		} else if (UBI_IO_DEBUG)
+			dbg_msg("bad EC header CRC at PEB %d, calculated "
+				"%#08x, read %#08x", pnum, crc, hdr_crc);
 		return UBI_IO_BAD_EC_HDR;
 	}
 
@@ -912,8 +917,6 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 
 	dbg_io("read VID header from PEB %d", pnum);
 	ubi_assert(pnum >= 0 &&  pnum < ubi->peb_count);
-	if (UBI_IO_DEBUG)
-		verbose = 1;
 
 	p = (char *)vid_hdr - ubi->vid_hdr_shift;
 	err = ubi_io_read(ubi, p, pnum, ubi->vid_hdr_aloffset,
@@ -960,6 +963,9 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			if (verbose)
 				ubi_warn("no VID header found at PEB %d, "
 					 "only 0xFF bytes", pnum);
+			else if (UBI_IO_DEBUG)
+				dbg_msg("no VID header found at PEB %d, "
+					"only 0xFF bytes", pnum);
 			return UBI_IO_PEB_FREE;
 		}
 
@@ -971,7 +977,9 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			ubi_warn("bad magic number at PEB %d: %08x instead of "
 				 "%08x", pnum, magic, UBI_VID_HDR_MAGIC);
 			ubi_dbg_dump_vid_hdr(vid_hdr);
-		}
+		} else if (UBI_IO_DEBUG)
+			dbg_msg("bad magic number at PEB %d: %08x instead of "
+				"%08x", pnum, magic, UBI_VID_HDR_MAGIC);
 		return UBI_IO_BAD_VID_HDR;
 	}
 
@@ -983,7 +991,9 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			ubi_warn("bad CRC at PEB %d, calculated %#08x, "
 				 "read %#08x", pnum, crc, hdr_crc);
 			ubi_dbg_dump_vid_hdr(vid_hdr);
-		}
+		} else if (UBI_IO_DEBUG)
+			dbg_msg("bad CRC at PEB %d, calculated %#08x, "
+				"read %#08x", pnum, crc, hdr_crc);
 		return UBI_IO_BAD_VID_HDR;
 	}
 
@@ -1024,7 +1034,7 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 
 	err = paranoid_check_peb_ec_hdr(ubi, pnum);
 	if (err)
-		return err > 0 ? -EINVAL: err;
+		return err > 0 ? -EINVAL : err;
 
 	vid_hdr->magic = cpu_to_be32(UBI_VID_HDR_MAGIC);
 	vid_hdr->version = UBI_VERSION;

@@ -218,7 +218,7 @@ serial_exists:
  *   instantiate the key or discard it before returning
  */
 struct key *key_alloc(struct key_type *type, const char *desc,
-		      uid_t uid, gid_t gid, struct task_struct *ctx,
+		      uid_t uid, gid_t gid, const struct cred *cred,
 		      key_perm_t perm, unsigned long flags)
 {
 	struct key_user *user = NULL;
@@ -294,7 +294,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 #endif
 
 	/* let the security module know about the key */
-	ret = security_key_alloc(key, ctx, flags);
+	ret = security_key_alloc(key, cred, flags);
 	if (ret < 0)
 		goto security_error;
 
@@ -391,7 +391,7 @@ static int __key_instantiate_and_link(struct key *key,
 				      const void *data,
 				      size_t datalen,
 				      struct key *keyring,
-				      struct key *instkey)
+				      struct key *authkey)
 {
 	int ret, awaken;
 
@@ -421,8 +421,8 @@ static int __key_instantiate_and_link(struct key *key,
 				ret = __key_link(keyring, key);
 
 			/* disable the authorisation key */
-			if (instkey)
-				key_revoke(instkey);
+			if (authkey)
+				key_revoke(authkey);
 		}
 	}
 
@@ -444,14 +444,14 @@ int key_instantiate_and_link(struct key *key,
 			     const void *data,
 			     size_t datalen,
 			     struct key *keyring,
-			     struct key *instkey)
+			     struct key *authkey)
 {
 	int ret;
 
 	if (keyring)
 		down_write(&keyring->sem);
 
-	ret = __key_instantiate_and_link(key, data, datalen, keyring, instkey);
+	ret = __key_instantiate_and_link(key, data, datalen, keyring, authkey);
 
 	if (keyring)
 		up_write(&keyring->sem);
@@ -469,7 +469,7 @@ EXPORT_SYMBOL(key_instantiate_and_link);
 int key_negate_and_link(struct key *key,
 			unsigned timeout,
 			struct key *keyring,
-			struct key *instkey)
+			struct key *authkey)
 {
 	struct timespec now;
 	int ret, awaken;
@@ -504,8 +504,8 @@ int key_negate_and_link(struct key *key,
 			ret = __key_link(keyring, key);
 
 		/* disable the authorisation key */
-		if (instkey)
-			key_revoke(instkey);
+		if (authkey)
+			key_revoke(authkey);
 	}
 
 	mutex_unlock(&key_construction_mutex);
@@ -743,6 +743,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 			       key_perm_t perm,
 			       unsigned long flags)
 {
+	const struct cred *cred = current_cred();
 	struct key_type *ktype;
 	struct key *keyring, *key = NULL;
 	key_ref_t key_ref;
@@ -802,8 +803,8 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	}
 
 	/* allocate a new key */
-	key = key_alloc(ktype, description, current->fsuid, current->fsgid,
-			current, perm, flags);
+	key = key_alloc(ktype, description, cred->fsuid, cred->fsgid, cred,
+			perm, flags);
 	if (IS_ERR(key)) {
 		key_ref = ERR_CAST(key);
 		goto error_3;

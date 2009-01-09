@@ -227,7 +227,7 @@ void sctp_tsnmap_skip(struct sctp_tsnmap *map, __u32 tsn)
 		 */
 		bitmap_zero(map->tsn_map, map->len);
 	} else {
-		/* If the gap is smaller then the map size,
+		/* If the gap is smaller than the map size,
 		 * shift the map by 'gap' bits and update further.
 		 */
 		bitmap_shift_right(map->tsn_map, map->tsn_map, gap, map->len);

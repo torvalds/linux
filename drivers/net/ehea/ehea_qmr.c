@@ -182,7 +182,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 				goto out_kill_hwq;
 			}
 		} else {
-			if ((hret != H_PAGE_REGISTERED) || (!vpage)) {
+			if (hret != H_PAGE_REGISTERED) {
 				ehea_error("CQ: registration of page failed "
 					   "hret=%lx\n", hret);
 				goto out_kill_hwq;
@@ -303,7 +303,7 @@ struct ehea_eq *ehea_create_eq(struct ehea_adapter *adapter,
 				goto out_kill_hwq;
 
 		} else {
-			if ((hret != H_PAGE_REGISTERED) || (!vpage))
+			if (hret != H_PAGE_REGISTERED)
 				goto out_kill_hwq;
 
 		}
@@ -653,7 +653,7 @@ static int ehea_update_busmap(unsigned long pfn, unsigned long nr_pages, int add
 		int top = ehea_calc_index(i, EHEA_TOP_INDEX_SHIFT);
 		int dir = ehea_calc_index(i, EHEA_DIR_INDEX_SHIFT);
 		int idx = i & EHEA_INDEX_MASK;
-		
+
 		if (add) {
 			int ret = ehea_init_bmap(ehea_bmap, top, dir);
 			if (ret)
@@ -780,7 +780,7 @@ void ehea_destroy_busmap(void)
 
 	kfree(ehea_bmap);
 	ehea_bmap = NULL;
-out_destroy:	
+out_destroy:
 	mutex_unlock(&ehea_busmap_mutex);
 }
 
@@ -858,10 +858,10 @@ static u64 ehea_reg_mr_sections(int top, int dir, u64 *pt,
 	for (idx = 0; idx < EHEA_MAP_ENTRIES; idx++) {
 		if (!ehea_bmap->top[top]->dir[dir]->ent[idx])
 			continue;
-		
+
 		hret = ehea_reg_mr_section(top, dir, idx, pt, adapter, mr);
 		if ((hret != H_SUCCESS) && (hret != H_PAGE_REGISTERED))
-			    	return hret;
+			return hret;
 	}
 	return hret;
 }
@@ -879,7 +879,7 @@ static u64 ehea_reg_mr_dir_sections(int top, u64 *pt,
 
 		hret = ehea_reg_mr_sections(top, dir, pt, adapter, mr);
 		if ((hret != H_SUCCESS) && (hret != H_PAGE_REGISTERED))
-			    	return hret;
+			return hret;
 	}
 	return hret;
 }
@@ -893,7 +893,7 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 
 	unsigned long top;
 
-	pt = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	pt = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!pt) {
 		ehea_error("no mem");
 		ret = -ENOMEM;
@@ -937,7 +937,7 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 	mr->adapter = adapter;
 	ret = 0;
 out:
-	kfree(pt);
+	free_page((unsigned long)pt);
 	return ret;
 }
 

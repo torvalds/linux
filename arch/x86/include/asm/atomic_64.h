@@ -1,24 +1,14 @@
 #ifndef _ASM_X86_ATOMIC_64_H
 #define _ASM_X86_ATOMIC_64_H
 
+#include <linux/types.h>
 #include <asm/alternative.h>
 #include <asm/cmpxchg.h>
-
-/* atomic_t should be 32 bit signed type */
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for
  * resource counting etc..
  */
-
-/*
- * Make sure gcc doesn't try to be clever and move things around
- * on us. We need to use _exactly_ the address the user gave us,
- * not some alias that contains the same information.
- */
-typedef struct {
-	int counter;
-} atomic_t;
 
 #define ATOMIC_INIT(i)	{ (i) }
 
@@ -191,11 +181,7 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 #define atomic_inc_return(v)  (atomic_add_return(1, v))
 #define atomic_dec_return(v)  (atomic_sub_return(1, v))
 
-/* An 64bit atomic type */
-
-typedef struct {
-	long counter;
-} atomic64_t;
+/* The 64-bit atomic type */
 
 #define ATOMIC64_INIT(i)	{ (i) }
 

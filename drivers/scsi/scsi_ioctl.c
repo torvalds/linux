@@ -94,7 +94,7 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 	SCSI_LOG_IOCTL(1, printk("Trying ioctl with scsi command %d\n", *cmd));
 
 	result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0,
-				  &sshdr, timeout, retries);
+				  &sshdr, timeout, retries, NULL);
 
 	SCSI_LOG_IOCTL(2, printk("Ioctl returned  0x%x\n", result));
 
@@ -167,10 +167,17 @@ EXPORT_SYMBOL(scsi_set_medium_removal);
 static int scsi_ioctl_get_pci(struct scsi_device *sdev, void __user *arg)
 {
 	struct device *dev = scsi_get_device(sdev->host);
+	const char *name;
 
         if (!dev)
 		return -ENXIO;
-        return copy_to_user(arg, dev->bus_id, sizeof(dev->bus_id))? -EFAULT: 0;
+
+	name = dev_name(dev);
+
+	/* compatibility with old ioctl which only returned
+	 * 20 characters */
+        return copy_to_user(arg, name, min(strlen(name), (size_t)20))
+		? -EFAULT: 0;
 }
 
 
@@ -270,11 +277,11 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 EXPORT_SYMBOL(scsi_ioctl);
 
 /**
- * scsi_nonblock_ioctl() - Handle SG_SCSI_RESET
+ * scsi_nonblockable_ioctl() - Handle SG_SCSI_RESET
  * @sdev: scsi device receiving ioctl
  * @cmd: Must be SC_SCSI_RESET
  * @arg: pointer to int containing SG_SCSI_RESET_{DEVICE,BUS,HOST}
- * @filp: either NULL or a &struct file which must have the O_NONBLOCK flag.
+ * @ndelay: file mode O_NDELAY flag
  */
 int scsi_nonblockable_ioctl(struct scsi_device *sdev, int cmd,
 			    void __user *arg, int ndelay)

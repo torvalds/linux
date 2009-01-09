@@ -376,9 +376,10 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
-	mutex_lock(&kprobe_mutex);
-	free_insn_slot(p->ainsn.insn, (p->ainsn.boostable == 1));
-	mutex_unlock(&kprobe_mutex);
+	if (p->ainsn.insn) {
+		free_insn_slot(p->ainsn.insn, (p->ainsn.boostable == 1));
+		p->ainsn.insn = NULL;
+	}
 }
 
 static void __kprobes save_previous_kprobe(struct kprobe_ctlblk *kcb)
@@ -694,7 +695,7 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 	/*
 	 * It is possible to have multiple instances associated with a given
 	 * task either because multiple functions in the call path have
-	 * return probes installed on them, and/or more then one
+	 * return probes installed on them, and/or more than one
 	 * return probe was registered for a target function.
 	 *
 	 * We can handle this because:

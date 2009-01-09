@@ -1326,9 +1326,9 @@ static int saa7134_resource(struct saa7134_fh *fh)
 	return 0;
 }
 
-static int video_open(struct inode *inode, struct file *file)
+static int video_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct saa7134_dev *dev;
 	struct saa7134_fh *fh;
 	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1462,7 +1462,7 @@ err:
 	return POLLERR;
 }
 
-static int video_release(struct inode *inode, struct file *file)
+static int video_release(struct file *file)
 {
 	struct saa7134_fh  *fh  = file->private_data;
 	struct saa7134_dev *dev = fh->dev;
@@ -2247,24 +2247,25 @@ static int saa7134_g_parm(struct file *file, void *fh,
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register (struct file *file, void *priv,
-			      struct v4l2_register *reg)
+			      struct v4l2_dbg_register *reg)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 	reg->val = saa_readb(reg->reg);
+	reg->size = 1;
 	return 0;
 }
 
 static int vidioc_s_register (struct file *file, void *priv,
-				struct v4l2_register *reg)
+				struct v4l2_dbg_register *reg)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 	saa_writeb(reg->reg&0xffffff, reg->val);
 	return 0;
@@ -2377,7 +2378,7 @@ static int radio_queryctrl(struct file *file, void *priv,
 	return 0;
 }
 
-static const struct file_operations video_fops =
+static const struct v4l2_file_operations video_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = video_open,
@@ -2386,8 +2387,6 @@ static const struct file_operations video_fops =
 	.poll     = video_poll,
 	.mmap	  = video_mmap,
 	.ioctl	  = video_ioctl2,
-	.compat_ioctl	= v4l_compat_ioctl32,
-	.llseek   = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
@@ -2441,13 +2440,11 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 #endif
 };
 
-static const struct file_operations radio_fops = {
+static const struct v4l2_file_operations radio_fops = {
 	.owner	  = THIS_MODULE,
 	.open	  = video_open,
 	.release  = video_release,
 	.ioctl	  = video_ioctl2,
-	.compat_ioctl	= v4l_compat_ioctl32,
-	.llseek   = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {

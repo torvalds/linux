@@ -358,7 +358,7 @@ void mv88e6xxx_poll_link(struct dsa_switch *ds)
 
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
 		struct net_device *dev;
-		int port_status;
+		int uninitialized_var(port_status);
 		int link;
 		int speed;
 		int duplex;

@@ -12,6 +12,8 @@
 #include <asm/proto.h>
 #include <asm/reboot_fixups.h>
 #include <asm/reboot.h>
+#include <asm/pci_x86.h>
+#include <asm/virtext.h>
 
 #ifdef CONFIG_X86_32
 # include <linux/dmi.h>
@@ -20,6 +22,8 @@
 #else
 # include <asm/iommu.h>
 #endif
+
+#include <mach_ipi.h>
 
 /*
  * Power off function, if any
@@ -36,7 +40,16 @@ int reboot_force;
 static int reboot_cpu = -1;
 #endif
 
-/* reboot=b[ios] | s[mp] | t[riple] | k[bd] | e[fi] [, [w]arm | [c]old]
+/* This is set if we need to go through the 'emergency' path.
+ * When machine_emergency_restart() is called, we may be on
+ * an inconsistent state and won't be able to do a clean cleanup
+ */
+static int reboot_emergency;
+
+/* This is set by the PCI code if either type 1 or type 2 PCI is detected */
+bool port_cf9_safe = false;
+
+/* reboot=b[ios] | s[mp] | t[riple] | k[bd] | e[fi] [, [w]arm | [c]old] | p[ci]
    warm   Don't set the cold reboot flag
    cold   Set the cold reboot flag
    bios   Reboot by jumping through the BIOS (only for X86_32)
@@ -45,6 +58,7 @@ static int reboot_cpu = -1;
    kbd    Use the keyboard controller. cold reset (default)
    acpi   Use the RESET_REG in the FADT
    efi    Use efi reset_system runtime service
+   pci    Use the so-called "PCI reset register", CF9
    force  Avoid anything that could hang.
  */
 static int __init reboot_setup(char *str)
@@ -79,6 +93,7 @@ static int __init reboot_setup(char *str)
 		case 'k':
 		case 't':
 		case 'e':
+		case 'p':
 			reboot_type = *str;
 			break;
 
@@ -360,6 +375,48 @@ static inline void kb_wait(void)
 	}
 }
 
+static void vmxoff_nmi(int cpu, struct die_args *args)
+{
+	cpu_emergency_vmxoff();
+}
+
+/* Use NMIs as IPIs to tell all CPUs to disable virtualization
+ */
+static void emergency_vmx_disable_all(void)
+{
+	/* Just make sure we won't change CPUs while doing this */
+	local_irq_disable();
+
+	/* We need to disable VMX on all CPUs before rebooting, otherwise
+	 * we risk hanging up the machine, because the CPU ignore INIT
+	 * signals when VMX is enabled.
+	 *
+	 * We can't take any locks and we may be on an inconsistent
+	 * state, so we use NMIs as IPIs to tell the other CPUs to disable
+	 * VMX and halt.
+	 *
+	 * For safety, we will avoid running the nmi_shootdown_cpus()
+	 * stuff unnecessarily, but we don't have a way to check
+	 * if other CPUs have VMX enabled. So we will call it only if the
+	 * CPU we are running on has VMX enabled.
+	 *
+	 * We will miss cases where VMX is not enabled on all CPUs. This
+	 * shouldn't do much harm because KVM always enable VMX on all
+	 * CPUs anyway. But we can miss it on the small window where KVM
+	 * is still enabling VMX.
+	 */
+	if (cpu_has_vmx() && cpu_vmx_enabled()) {
+		/* Disable VMX on this CPU.
+		 */
+		cpu_vmxoff();
+
+		/* Halt and disable VMX on the other CPUs */
+		nmi_shootdown_cpus(vmxoff_nmi);
+
+	}
+}
+
+
 void __attribute__((weak)) mach_reboot_fixups(void)
 {
 }
@@ -367,6 +424,9 @@ void __attribute__((weak)) mach_reboot_fixups(void)
 static void native_machine_emergency_restart(void)
 {
 	int i;
+
+	if (reboot_emergency)
+		emergency_vmx_disable_all();
 
 	/* Tell the BIOS if we want cold or warm reboot */
 	*((unsigned short *)__va(0x472)) = reboot_mode;
@@ -404,12 +464,27 @@ static void native_machine_emergency_restart(void)
 			reboot_type = BOOT_KBD;
 			break;
 
-
 		case BOOT_EFI:
 			if (efi_enabled)
-				efi.reset_system(reboot_mode ? EFI_RESET_WARM : EFI_RESET_COLD,
+				efi.reset_system(reboot_mode ?
+						 EFI_RESET_WARM :
+						 EFI_RESET_COLD,
 						 EFI_SUCCESS, 0, NULL);
+			reboot_type = BOOT_KBD;
+			break;
 
+		case BOOT_CF9:
+			port_cf9_safe = true;
+			/* fall through */
+
+		case BOOT_CF9_COND:
+			if (port_cf9_safe) {
+				u8 cf9 = inb(0xcf9) & ~6;
+				outb(cf9|2, 0xcf9); /* Request hard reset */
+				udelay(50);
+				outb(cf9|6, 0xcf9); /* Actually do the reset */
+				udelay(50);
+			}
 			reboot_type = BOOT_KBD;
 			break;
 		}
@@ -426,7 +501,7 @@ void native_machine_shutdown(void)
 
 #ifdef CONFIG_X86_32
 	/* See if there has been given a command line override */
-	if ((reboot_cpu != -1) && (reboot_cpu < NR_CPUS) &&
+	if ((reboot_cpu != -1) && (reboot_cpu < nr_cpu_ids) &&
 		cpu_online(reboot_cpu))
 		reboot_cpu_id = reboot_cpu;
 #endif
@@ -436,7 +511,7 @@ void native_machine_shutdown(void)
 		reboot_cpu_id = smp_processor_id();
 
 	/* Make certain I only run on the appropriate processor */
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(reboot_cpu_id));
+	set_cpus_allowed_ptr(current, cpumask_of(reboot_cpu_id));
 
 	/* O.K Now that I'm on the appropriate processor,
 	 * stop all of the others.
@@ -459,17 +534,28 @@ void native_machine_shutdown(void)
 #endif
 }
 
+static void __machine_emergency_restart(int emergency)
+{
+	reboot_emergency = emergency;
+	machine_ops.emergency_restart();
+}
+
 static void native_machine_restart(char *__unused)
 {
 	printk("machine restart\n");
 
 	if (!reboot_force)
 		machine_shutdown();
-	machine_emergency_restart();
+	__machine_emergency_restart(0);
 }
 
 static void native_machine_halt(void)
 {
+	/* stop other cpus and apics */
+	machine_shutdown();
+
+	/* stop this cpu */
+	stop_this_cpu(NULL);
 }
 
 static void native_machine_power_off(void)
@@ -504,7 +590,7 @@ void machine_shutdown(void)
 
 void machine_emergency_restart(void)
 {
-	machine_ops.emergency_restart();
+	__machine_emergency_restart(1);
 }
 
 void machine_restart(char *cmd)
@@ -521,5 +607,94 @@ void machine_halt(void)
 void machine_crash_shutdown(struct pt_regs *regs)
 {
 	machine_ops.crash_shutdown(regs);
+}
+#endif
+
+
+#if defined(CONFIG_SMP)
+
+/* This keeps a track of which one is crashing cpu. */
+static int crashing_cpu;
+static nmi_shootdown_cb shootdown_callback;
+
+static atomic_t waiting_for_crash_ipi;
+
+static int crash_nmi_callback(struct notifier_block *self,
+			unsigned long val, void *data)
+{
+	int cpu;
+
+	if (val != DIE_NMI_IPI)
+		return NOTIFY_OK;
+
+	cpu = raw_smp_processor_id();
+
+	/* Don't do anything if this handler is invoked on crashing cpu.
+	 * Otherwise, system will completely hang. Crashing cpu can get
+	 * an NMI if system was initially booted with nmi_watchdog parameter.
+	 */
+	if (cpu == crashing_cpu)
+		return NOTIFY_STOP;
+	local_irq_disable();
+
+	shootdown_callback(cpu, (struct die_args *)data);
+
+	atomic_dec(&waiting_for_crash_ipi);
+	/* Assume hlt works */
+	halt();
+	for (;;)
+		cpu_relax();
+
+	return 1;
+}
+
+static void smp_send_nmi_allbutself(void)
+{
+	send_IPI_allbutself(NMI_VECTOR);
+}
+
+static struct notifier_block crash_nmi_nb = {
+	.notifier_call = crash_nmi_callback,
+};
+
+/* Halt all other CPUs, calling the specified function on each of them
+ *
+ * This function can be used to halt all other CPUs on crash
+ * or emergency reboot time. The function passed as parameter
+ * will be called inside a NMI handler on all CPUs.
+ */
+void nmi_shootdown_cpus(nmi_shootdown_cb callback)
+{
+	unsigned long msecs;
+	local_irq_disable();
+
+	/* Make a note of crashing cpu. Will be used in NMI callback.*/
+	crashing_cpu = safe_smp_processor_id();
+
+	shootdown_callback = callback;
+
+	atomic_set(&waiting_for_crash_ipi, num_online_cpus() - 1);
+	/* Would it be better to replace the trap vector here? */
+	if (register_die_notifier(&crash_nmi_nb))
+		return;		/* return what? */
+	/* Ensure the new callback function is set before sending
+	 * out the NMI
+	 */
+	wmb();
+
+	smp_send_nmi_allbutself();
+
+	msecs = 1000; /* Wait at most a second for the other cpus to stop */
+	while ((atomic_read(&waiting_for_crash_ipi) > 0) && msecs) {
+		mdelay(1);
+		msecs--;
+	}
+
+	/* Leave the nmi callback set */
+}
+#else /* !CONFIG_SMP */
+void nmi_shootdown_cpus(nmi_shootdown_cb callback)
+{
+	/* No other CPUs to shoot down */
 }
 #endif

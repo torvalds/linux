@@ -41,7 +41,7 @@
 static int dvb_usb_anysee_debug;
 module_param_named(debug, dvb_usb_anysee_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level" DVB_USB_DEBUG_STATUS);
-int dvb_usb_anysee_delsys;
+static int dvb_usb_anysee_delsys;
 module_param_named(delsys, dvb_usb_anysee_delsys, int, 0644);
 MODULE_PARM_DESC(delsys, "select delivery mode (0=DVB-C, 1=DVB-T)");
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
@@ -153,7 +153,7 @@ static int anysee_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 	int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
-	int ret, inc, i = 0;
+	int ret = 0, inc, i = 0;
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;

@@ -36,7 +36,7 @@ _queue_message(struct mISDNstack *st, struct sk_buff *skb)
 	}
 }
 
-int
+static int
 mISDN_queue_message(struct mISDNchannel *ch, struct sk_buff *skb)
 {
 	_queue_message(ch->st, skb);

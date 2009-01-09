@@ -101,8 +101,8 @@ static const struct igb_stats igb_gstrings_stats[] = {
 };
 
 #define IGB_QUEUE_STATS_LEN \
-	((((struct igb_adapter *)netdev->priv)->num_rx_queues + \
-	 ((struct igb_adapter *)netdev->priv)->num_tx_queues) * \
+	((((struct igb_adapter *)netdev_priv(netdev))->num_rx_queues + \
+	 ((struct igb_adapter *)netdev_priv(netdev))->num_tx_queues) * \
 	(sizeof(struct igb_queue_stats) / sizeof(u64)))
 #define IGB_GLOBAL_STATS_LEN	\
 	sizeof(igb_gstrings_stats) / sizeof(struct igb_stats)
@@ -494,8 +494,6 @@ static void igb_get_regs(struct net_device *netdev,
 
 	/* These should probably be added to e1000_regs.h instead */
 	#define E1000_PSRTYPE_REG(_i) (0x05480 + ((_i) * 4))
-	#define E1000_RAL(_i)         (0x05400 + ((_i) * 8))
-	#define E1000_RAH(_i)         (0x05404 + ((_i) * 8))
 	#define E1000_IP4AT_REG(_i)   (0x05840 + ((_i) * 8))
 	#define E1000_IP6AT_REG(_i)   (0x05880 + ((_i) * 4))
 	#define E1000_WUPM_REG(_i)    (0x05A00 + ((_i) * 4))
@@ -714,15 +712,13 @@ static void igb_get_ringparam(struct net_device *netdev,
 			      struct ethtool_ringparam *ring)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct igb_ring *tx_ring = adapter->tx_ring;
-	struct igb_ring *rx_ring = adapter->rx_ring;
 
 	ring->rx_max_pending = IGB_MAX_RXD;
 	ring->tx_max_pending = IGB_MAX_TXD;
 	ring->rx_mini_max_pending = 0;
 	ring->rx_jumbo_max_pending = 0;
-	ring->rx_pending = rx_ring->count;
-	ring->tx_pending = tx_ring->count;
+	ring->rx_pending = adapter->rx_ring_count;
+	ring->tx_pending = adapter->tx_ring_count;
 	ring->rx_mini_pending = 0;
 	ring->rx_jumbo_pending = 0;
 }
@@ -731,12 +727,9 @@ static int igb_set_ringparam(struct net_device *netdev,
 			     struct ethtool_ringparam *ring)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct igb_buffer *old_buf;
-	struct igb_buffer *old_rx_buf;
-	void *old_desc;
+	struct igb_ring *temp_ring;
 	int i, err;
-	u32 new_rx_count, new_tx_count, old_size;
-	dma_addr_t old_dma;
+	u32 new_rx_count, new_tx_count;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
@@ -749,11 +742,18 @@ static int igb_set_ringparam(struct net_device *netdev,
 	new_tx_count = min(new_tx_count, (u32)IGB_MAX_TXD);
 	new_tx_count = ALIGN(new_tx_count, REQ_TX_DESCRIPTOR_MULTIPLE);
 
-	if ((new_tx_count == adapter->tx_ring->count) &&
-	    (new_rx_count == adapter->rx_ring->count)) {
+	if ((new_tx_count == adapter->tx_ring_count) &&
+	    (new_rx_count == adapter->rx_ring_count)) {
 		/* nothing to do */
 		return 0;
 	}
+
+	if (adapter->num_tx_queues > adapter->num_rx_queues)
+		temp_ring = vmalloc(adapter->num_tx_queues * sizeof(struct igb_ring));
+	else
+		temp_ring = vmalloc(adapter->num_rx_queues * sizeof(struct igb_ring));
+	if (!temp_ring)
+		return -ENOMEM;
 
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
 		msleep(1);
@@ -766,62 +766,55 @@ static int igb_set_ringparam(struct net_device *netdev,
 	 * because the ISRs in MSI-X mode get passed pointers
 	 * to the tx and rx ring structs.
 	 */
-	if (new_tx_count != adapter->tx_ring->count) {
+	if (new_tx_count != adapter->tx_ring_count) {
+		memcpy(temp_ring, adapter->tx_ring,
+		       adapter->num_tx_queues * sizeof(struct igb_ring));
+
 		for (i = 0; i < adapter->num_tx_queues; i++) {
-			/* Save existing descriptor ring */
-			old_buf = adapter->tx_ring[i].buffer_info;
-			old_desc = adapter->tx_ring[i].desc;
-			old_size = adapter->tx_ring[i].size;
-			old_dma = adapter->tx_ring[i].dma;
-			/* Try to allocate a new one */
-			adapter->tx_ring[i].buffer_info = NULL;
-			adapter->tx_ring[i].desc = NULL;
-			adapter->tx_ring[i].count = new_tx_count;
-			err = igb_setup_tx_resources(adapter,
-						&adapter->tx_ring[i]);
+			temp_ring[i].count = new_tx_count;
+			err = igb_setup_tx_resources(adapter, &temp_ring[i]);
 			if (err) {
-				/* Restore the old one so at least
-				   the adapter still works, even if
-				   we failed the request */
-				adapter->tx_ring[i].buffer_info = old_buf;
-				adapter->tx_ring[i].desc = old_desc;
-				adapter->tx_ring[i].size = old_size;
-				adapter->tx_ring[i].dma = old_dma;
+				while (i) {
+					i--;
+					igb_free_tx_resources(&temp_ring[i]);
+				}
 				goto err_setup;
 			}
-			/* Free the old buffer manually */
-			vfree(old_buf);
-			pci_free_consistent(adapter->pdev, old_size,
-					    old_desc, old_dma);
 		}
+
+		for (i = 0; i < adapter->num_tx_queues; i++)
+			igb_free_tx_resources(&adapter->tx_ring[i]);
+
+		memcpy(adapter->tx_ring, temp_ring,
+		       adapter->num_tx_queues * sizeof(struct igb_ring));
+
+		adapter->tx_ring_count = new_tx_count;
 	}
 
 	if (new_rx_count != adapter->rx_ring->count) {
+		memcpy(temp_ring, adapter->rx_ring,
+		       adapter->num_rx_queues * sizeof(struct igb_ring));
+
 		for (i = 0; i < adapter->num_rx_queues; i++) {
-
-			old_rx_buf = adapter->rx_ring[i].buffer_info;
-			old_desc = adapter->rx_ring[i].desc;
-			old_size = adapter->rx_ring[i].size;
-			old_dma = adapter->rx_ring[i].dma;
-
-			adapter->rx_ring[i].buffer_info = NULL;
-			adapter->rx_ring[i].desc = NULL;
-			adapter->rx_ring[i].dma = 0;
-			adapter->rx_ring[i].count = new_rx_count;
-			err = igb_setup_rx_resources(adapter,
-						     &adapter->rx_ring[i]);
+			temp_ring[i].count = new_rx_count;
+			err = igb_setup_rx_resources(adapter, &temp_ring[i]);
 			if (err) {
-				adapter->rx_ring[i].buffer_info = old_rx_buf;
-				adapter->rx_ring[i].desc = old_desc;
-				adapter->rx_ring[i].size = old_size;
-				adapter->rx_ring[i].dma = old_dma;
+				while (i) {
+					i--;
+					igb_free_rx_resources(&temp_ring[i]);
+				}
 				goto err_setup;
 			}
 
-			vfree(old_rx_buf);
-			pci_free_consistent(adapter->pdev, old_size, old_desc,
-					    old_dma);
 		}
+
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			igb_free_rx_resources(&adapter->rx_ring[i]);
+
+		memcpy(adapter->rx_ring, temp_ring,
+		       adapter->num_rx_queues * sizeof(struct igb_ring));
+
+		adapter->rx_ring_count = new_rx_count;
 	}
 
 	err = 0;
@@ -830,6 +823,7 @@ err_setup:
 		igb_up(adapter);
 
 	clear_bit(__IGB_RESETTING, &adapter->state);
+	vfree(temp_ring);
 	return err;
 }
 
@@ -1343,8 +1337,9 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	wr32(E1000_RDLEN(0), rx_ring->size);
 	wr32(E1000_RDH(0), 0);
 	wr32(E1000_RDT(0), 0);
+	rctl &= ~(E1000_RCTL_LBM_TCVR | E1000_RCTL_LBM_MAC);
 	rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_SZ_2048 |
-		E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
+		E1000_RCTL_RDMTS_HALF |
 		(adapter->hw.mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
 	wr32(E1000_RCTL, rctl);
 	wr32(E1000_SRRCTL(0), 0);
@@ -1380,10 +1375,10 @@ static void igb_phy_disable_receiver(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	/* Write out to PHY registers 29 and 30 to disable the Receiver. */
-	hw->phy.ops.write_phy_reg(hw, 29, 0x001F);
-	hw->phy.ops.write_phy_reg(hw, 30, 0x8FFC);
-	hw->phy.ops.write_phy_reg(hw, 29, 0x001A);
-	hw->phy.ops.write_phy_reg(hw, 30, 0x8FF0);
+	igb_write_phy_reg(hw, 29, 0x001F);
+	igb_write_phy_reg(hw, 30, 0x8FFC);
+	igb_write_phy_reg(hw, 29, 0x001A);
+	igb_write_phy_reg(hw, 30, 0x8FF0);
 }
 
 static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
@@ -1396,17 +1391,17 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 
 	if (hw->phy.type == e1000_phy_m88) {
 		/* Auto-MDI/MDIX Off */
-		hw->phy.ops.write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
+		igb_write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
 		/* reset to update Auto-MDI/MDIX */
-		hw->phy.ops.write_phy_reg(hw, PHY_CONTROL, 0x9140);
+		igb_write_phy_reg(hw, PHY_CONTROL, 0x9140);
 		/* autoneg off */
-		hw->phy.ops.write_phy_reg(hw, PHY_CONTROL, 0x8140);
+		igb_write_phy_reg(hw, PHY_CONTROL, 0x8140);
 	}
 
 	ctrl_reg = rd32(E1000_CTRL);
 
 	/* force 1000, set loopback */
-	hw->phy.ops.write_phy_reg(hw, PHY_CONTROL, 0x4140);
+	igb_write_phy_reg(hw, PHY_CONTROL, 0x4140);
 
 	/* Now set up the MAC to the same speed/duplex as the PHY. */
 	ctrl_reg = rd32(E1000_CTRL);
@@ -1500,10 +1495,10 @@ static void igb_loopback_cleanup(struct igb_adapter *adapter)
 	wr32(E1000_RCTL, rctl);
 
 	hw->mac.autoneg = true;
-	hw->phy.ops.read_phy_reg(hw, PHY_CONTROL, &phy_reg);
+	igb_read_phy_reg(hw, PHY_CONTROL, &phy_reg);
 	if (phy_reg & MII_CR_LOOPBACK) {
 		phy_reg &= ~MII_CR_LOOPBACK;
-		hw->phy.ops.write_phy_reg(hw, PHY_CONTROL, phy_reg);
+		igb_write_phy_reg(hw, PHY_CONTROL, phy_reg);
 		igb_phy_sw_reset(hw);
 	}
 }

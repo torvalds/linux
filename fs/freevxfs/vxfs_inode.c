@@ -325,8 +325,10 @@ vxfs_iget(struct super_block *sbp, ino_t ino)
 		if (!VXFS_ISIMMED(vip)) {
 			ip->i_op = &page_symlink_inode_operations;
 			ip->i_mapping->a_ops = &vxfs_aops;
-		} else
+		} else {
 			ip->i_op = &vxfs_immed_symlink_iops;
+			vip->vii_immed.vi_immed[ip->i_size] = '\0';
+		}
 	} else
 		init_special_inode(ip, ip->i_mode, old_decode_dev(vip->vii_rdev));
 

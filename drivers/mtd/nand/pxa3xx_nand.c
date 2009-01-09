@@ -20,8 +20,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <asm/dma.h>
 
+#include <mach/dma.h>
 #include <mach/pxa-regs.h>
 #include <mach/pxa3xx_nand.h>
 
@@ -1080,7 +1080,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	this = &info->nand_chip;
 	mtd->priv = info;
 
-	info->clk = clk_get(&pdev->dev, "NANDCLK");
+	info->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(info->clk)) {
 		dev_err(&pdev->dev, "failed to get nand clock\n");
 		ret = PTR_ERR(info->clk);

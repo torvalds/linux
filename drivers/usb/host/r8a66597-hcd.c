@@ -114,6 +114,9 @@ static int r8a66597_clock_enable(struct r8a66597 *r8a66597)
 	int i = 0;
 
 #if defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
+#if defined(CONFIG_HAVE_CLK)
+	clk_enable(r8a66597->clk);
+#endif
 	do {
 		r8a66597_write(r8a66597, SCKE, SYSCFG0);
 		tmp = r8a66597_read(r8a66597, SYSCFG0);
@@ -154,7 +157,11 @@ static void r8a66597_clock_disable(struct r8a66597 *r8a66597)
 {
 	r8a66597_bclr(r8a66597, SCKE, SYSCFG0);
 	udelay(1);
-#if !defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
+#if defined(CONFIG_HAVE_CLK)
+	clk_disable(r8a66597->clk);
+#endif
+#else
 	r8a66597_bclr(r8a66597, PLLC, SYSCFG0);
 	r8a66597_bclr(r8a66597, XCKE, SYSCFG0);
 	r8a66597_bclr(r8a66597, USBE, SYSCFG0);
@@ -2261,13 +2268,18 @@ static int __init_or_module r8a66597_remove(struct platform_device *pdev)
 	del_timer_sync(&r8a66597->rh_timer);
 	usb_remove_hcd(hcd);
 	iounmap((void *)r8a66597->reg);
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) && defined(CONFIG_HAVE_CLK)
+	clk_put(r8a66597->clk);
+#endif
 	usb_put_hcd(hcd);
 	return 0;
 }
 
-#define resource_len(r) (((r)->end - (r)->start) + 1)
 static int __init r8a66597_probe(struct platform_device *pdev)
 {
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) && defined(CONFIG_HAVE_CLK)
+	char clk_name[8];
+#endif
 	struct resource *res = NULL, *ires;
 	int irq = -1;
 	void __iomem *reg = NULL;
@@ -2283,11 +2295,10 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 		goto clean_up;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   (char *)hcd_name);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		ret = -ENODEV;
-		dev_err(&pdev->dev, "platform_get_resource_byname error.\n");
+		dev_err(&pdev->dev, "platform_get_resource error.\n");
 		goto clean_up;
 	}
 
@@ -2302,7 +2313,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	irq = ires->start;
 	irq_trigger = ires->flags & IRQF_TRIGGER_MASK;
 
-	reg = ioremap(res->start, resource_len(res));
+	reg = ioremap(res->start, resource_size(res));
 	if (reg == NULL) {
 		ret = -ENOMEM;
 		dev_err(&pdev->dev, "ioremap error.\n");
@@ -2319,6 +2330,16 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597 = hcd_to_r8a66597(hcd);
 	memset(r8a66597, 0, sizeof(struct r8a66597));
 	dev_set_drvdata(&pdev->dev, r8a66597);
+
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) && defined(CONFIG_HAVE_CLK)
+	snprintf(clk_name, sizeof(clk_name), "usb%d", pdev->id);
+	r8a66597->clk = clk_get(&pdev->dev, clk_name);
+	if (IS_ERR(r8a66597->clk)) {
+		dev_err(&pdev->dev, "cannot get clock \"%s\"\n", clk_name);
+		ret = PTR_ERR(r8a66597->clk);
+		goto clean_up2;
+	}
+#endif
 
 	spin_lock_init(&r8a66597->lock);
 	init_timer(&r8a66597->rh_timer);
@@ -2365,10 +2386,17 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | irq_trigger);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to add hcd\n");
-		goto clean_up;
+		goto clean_up3;
 	}
 
 	return 0;
+
+clean_up3:
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) && defined(CONFIG_HAVE_CLK)
+	clk_put(r8a66597->clk);
+clean_up2:
+#endif
+	usb_put_hcd(hcd);
 
 clean_up:
 	if (reg)

@@ -16,14 +16,14 @@
 #include <linux/bitops.h>
 #include <linux/acpi.h>
 #include <linux/module.h>
+#include <linux/smp.h>
+#include <linux/acpi.h>
 
-#include <asm/smp.h>
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
 #include <asm/pgalloc.h>
 #include <asm/io_apic.h>
 #include <asm/proto.h>
-#include <asm/acpi.h>
 #include <asm/bios_ebda.h>
 #include <asm/e820.h>
 #include <asm/trampoline.h>
@@ -95,8 +95,8 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 #endif
 
 	if (strncmp(str, BUSTYPE_ISA, sizeof(BUSTYPE_ISA) - 1) == 0) {
-		 set_bit(m->mpc_busid, mp_bus_not_pci);
-#if defined(CONFIG_EISA) || defined (CONFIG_MCA)
+		set_bit(m->mpc_busid, mp_bus_not_pci);
+#if defined(CONFIG_EISA) || defined(CONFIG_MCA)
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
 #endif
 	} else if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI) - 1) == 0) {
@@ -104,7 +104,7 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 			x86_quirks->mpc_oem_pci_bus(m);
 
 		clear_bit(m->mpc_busid, mp_bus_not_pci);
-#if defined(CONFIG_EISA) || defined (CONFIG_MCA)
+#if defined(CONFIG_EISA) || defined(CONFIG_MCA)
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_PCI;
 	} else if (strncmp(str, BUSTYPE_EISA, sizeof(BUSTYPE_EISA) - 1) == 0) {
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_EISA;
@@ -586,26 +586,23 @@ static void __init __get_smp_config(unsigned int early)
 {
 	struct intel_mp_floating *mpf = mpf_found;
 
+	if (!mpf)
+		return;
+
+	if (acpi_lapic && early)
+		return;
+
+	/*
+	 * MPS doesn't support hyperthreading, aka only have
+	 * thread 0 apic id in MPS table
+	 */
+	if (acpi_lapic && acpi_ioapic)
+		return;
+
 	if (x86_quirks->mach_get_smp_config) {
 		if (x86_quirks->mach_get_smp_config(early))
 			return;
 	}
-	if (acpi_lapic && early)
-		return;
-	/*
-	 * ACPI supports both logical (e.g. Hyper-Threading) and physical
-	 * processors, where MPS only supports physical.
-	 */
-	if (acpi_lapic && acpi_ioapic) {
-		printk(KERN_INFO "Using ACPI (MADT) for SMP configuration "
-		       "information\n");
-		return;
-	} else if (acpi_lapic)
-		printk(KERN_INFO "Using ACPI for processor (LAPIC) "
-		       "configuration information\n");
-
-	if (!mpf)
-		return;
 
 	printk(KERN_INFO "Intel MultiProcessor Specification v1.%d\n",
 	       mpf->mpf_specification);

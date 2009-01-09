@@ -136,7 +136,7 @@ extern char prom_getchar(void);
 extern void prom_putchar(char character);
 
 /* Prom's internal routines, don't use in kernel/boot code. */
-extern void prom_printf(char *fmt, ...);
+extern void prom_printf(const char *fmt, ...);
 extern void prom_write(const char *buf, unsigned int len);
 
 /* Multiprocessor operations... */
@@ -199,12 +199,12 @@ extern int prom_getsibling(int node);
 /* Get the length, at the passed node, of the given property type.
  * Returns -1 on error (ie. no such property at this node).
  */
-extern int prom_getproplen(int thisnode, char *property);
+extern int prom_getproplen(int thisnode, const char *property);
 
 /* Fetch the requested property using the given buffer.  Returns
  * the number of bytes the prom put into your buffer or -1 on error.
  */
-extern int __must_check prom_getproperty(int thisnode, char *property,
+extern int __must_check prom_getproperty(int thisnode, const char *property,
 					 char *prop_buffer, int propbuf_size);
 
 /* Acquire an integer property. */
@@ -246,7 +246,7 @@ extern int prom_node_has_property(int node, char *property);
 /* Set the indicated property at the given node with the passed value.
  * Returns the number of bytes of your value that the prom took.
  */
-extern int prom_setprop(int node, char *prop_name, char *prop_value,
+extern int prom_setprop(int node, const char *prop_name, char *prop_value,
 			int value_size);
 
 extern int prom_pathtoinode(char *path);

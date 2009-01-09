@@ -46,34 +46,45 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 {
 	u32 pcu_reg, beacon_reg, low_id, high_id;
 
-	pcu_reg = 0;
+
+	/* Preserve rest settings */
+	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;
+	pcu_reg &= ~(AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_AP
+			| AR5K_STA_ID1_KEYSRCH_MODE
+			| (ah->ah_version == AR5K_AR5210 ?
+			(AR5K_STA_ID1_PWR_SV | AR5K_STA_ID1_NO_PSPOLL) : 0));
+
 	beacon_reg = 0;
 
 	ATH5K_TRACE(ah->ah_sc);
 
 	switch (ah->ah_op_mode) {
 	case NL80211_IFTYPE_ADHOC:
-		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_DESC_ANTENNA |
-			(ah->ah_version == AR5K_AR5210 ?
-				AR5K_STA_ID1_NO_PSPOLL : 0);
+		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_KEYSRCH_MODE;
 		beacon_reg |= AR5K_BCR_ADHOC;
+		if (ah->ah_version == AR5K_AR5210)
+			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
+		else
+			AR5K_REG_DISABLE_BITS(ah, AR5K_CFG, AR5K_CFG_ADHOC);
 		break;
 
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
-		pcu_reg |= AR5K_STA_ID1_AP | AR5K_STA_ID1_RTS_DEF_ANTENNA |
-			(ah->ah_version == AR5K_AR5210 ?
-				AR5K_STA_ID1_NO_PSPOLL : 0);
+		pcu_reg |= AR5K_STA_ID1_AP | AR5K_STA_ID1_KEYSRCH_MODE;
 		beacon_reg |= AR5K_BCR_AP;
+		if (ah->ah_version == AR5K_AR5210)
+			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
+		else
+			AR5K_REG_ENABLE_BITS(ah, AR5K_CFG, AR5K_CFG_ADHOC);
 		break;
 
 	case NL80211_IFTYPE_STATION:
-		pcu_reg |= AR5K_STA_ID1_DEFAULT_ANTENNA |
-			(ah->ah_version == AR5K_AR5210 ?
+		pcu_reg |= AR5K_STA_ID1_KEYSRCH_MODE
+			| (ah->ah_version == AR5K_AR5210 ?
 				AR5K_STA_ID1_PWR_SV : 0);
 	case NL80211_IFTYPE_MONITOR:
-		pcu_reg |= AR5K_STA_ID1_DEFAULT_ANTENNA |
-			(ah->ah_version == AR5K_AR5210 ?
+		pcu_reg |= AR5K_STA_ID1_KEYSRCH_MODE
+			| (ah->ah_version == AR5K_AR5210 ?
 				AR5K_STA_ID1_NO_PSPOLL : 0);
 		break;
 
@@ -130,6 +141,8 @@ void ath5k_hw_update_mib_counters(struct ath5k_hw *ah,
 		ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_RXCLR);
 		ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_CYCLE);
 	}
+
+	/* TODO: Handle ANI stats */
 }
 
 /**
@@ -258,16 +271,19 @@ void ath5k_hw_get_lladdr(struct ath5k_hw *ah, u8 *mac)
 int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
 {
 	u32 low_id, high_id;
+	u32 pcu_reg;
 
 	ATH5K_TRACE(ah->ah_sc);
 	/* Set new station ID */
 	memcpy(ah->ah_sta_id, mac, ETH_ALEN);
 
+	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;
+
 	low_id = AR5K_LOW_ID(mac);
 	high_id = AR5K_HIGH_ID(mac);
 
 	ath5k_hw_reg_write(ah, low_id, AR5K_STA_ID0);
-	ath5k_hw_reg_write(ah, high_id, AR5K_STA_ID1);
+	ath5k_hw_reg_write(ah, pcu_reg | high_id, AR5K_STA_ID1);
 
 	return 0;
 }
@@ -290,8 +306,10 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
 	 * Set simple BSSID mask on 5212
 	 */
 	if (ah->ah_version == AR5K_AR5212) {
-		ath5k_hw_reg_write(ah, 0xffffffff, AR5K_BSS_IDM0);
-		ath5k_hw_reg_write(ah, 0xffffffff, AR5K_BSS_IDM1);
+		ath5k_hw_reg_write(ah, AR5K_LOW_ID(ah->ah_bssid_mask),
+							AR5K_BSS_IDM0);
+		ath5k_hw_reg_write(ah, AR5K_HIGH_ID(ah->ah_bssid_mask),
+							AR5K_BSS_IDM1);
 	}
 
 	/*
@@ -415,6 +433,9 @@ int ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask)
 	u32 low_id, high_id;
 	ATH5K_TRACE(ah->ah_sc);
 
+	/* Cache bssid mask so that we can restore it
+	 * on reset */
+	memcpy(ah->ah_bssid_mask, mask, ETH_ALEN);
 	if (ah->ah_version == AR5K_AR5212) {
 		low_id = AR5K_LOW_ID(mask);
 		high_id = AR5K_HIGH_ID(mask);
@@ -576,7 +597,7 @@ void ath5k_hw_set_rx_filter(struct ath5k_hw *ah, u32 filter)
 		filter |= AR5K_RX_FILTER_PROM;
 	}
 
-	/*Zero length DMA*/
+	/*Zero length DMA (phy error reporting) */
 	if (data)
 		AR5K_REG_ENABLE_BITS(ah, AR5K_RXCFG, AR5K_RXCFG_ZLFDMA);
 	else
@@ -661,7 +682,12 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 	 * Set the additional timers by mode
 	 */
 	switch (ah->ah_op_mode) {
+	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_STATION:
+		/* In STA mode timer1 is used as next wakeup
+		 * timer and timer2 as next CFP duration start
+		 * timer. Both in 1/8TUs. */
+		/* TODO: PCF handling */
 		if (ah->ah_version == AR5K_AR5210) {
 			timer1 = 0xffffffff;
 			timer2 = 0xffffffff;
@@ -669,27 +695,60 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 			timer1 = 0x0000ffff;
 			timer2 = 0x0007ffff;
 		}
+		/* Mark associated AP as PCF incapable for now */
+		AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1, AR5K_STA_ID1_PCF);
 		break;
-
+	case NL80211_IFTYPE_ADHOC:
+		AR5K_REG_ENABLE_BITS(ah, AR5K_TXCFG, AR5K_TXCFG_ADHOC_BCN_ATIM);
 	default:
+		/* On non-STA modes timer1 is used as next DMA
+		 * beacon alert (DBA) timer and timer2 as next
+		 * software beacon alert. Both in 1/8TUs. */
 		timer1 = (next_beacon - AR5K_TUNE_DMA_BEACON_RESP) << 3;
 		timer2 = (next_beacon - AR5K_TUNE_SW_BEACON_RESP) << 3;
+		break;
 	}
 
+	/* Timer3 marks the end of our ATIM window
+	 * a zero length window is not allowed because
+	 * we 'll get no beacons */
 	timer3 = next_beacon + (ah->ah_atim_window ? ah->ah_atim_window : 1);
 
 	/*
 	 * Set the beacon register and enable all timers.
-	 * (next beacon, DMA beacon, software beacon, ATIM window time)
 	 */
-	ath5k_hw_reg_write(ah, next_beacon, AR5K_TIMER0);
+	/* When in AP mode zero timer0 to start TSF */
+	if (ah->ah_op_mode == NL80211_IFTYPE_AP)
+		ath5k_hw_reg_write(ah, 0, AR5K_TIMER0);
+	else
+		ath5k_hw_reg_write(ah, next_beacon, AR5K_TIMER0);
 	ath5k_hw_reg_write(ah, timer1, AR5K_TIMER1);
 	ath5k_hw_reg_write(ah, timer2, AR5K_TIMER2);
 	ath5k_hw_reg_write(ah, timer3, AR5K_TIMER3);
 
+	/* Force a TSF reset if requested and enable beacons */
+	if (interval & AR5K_BEACON_RESET_TSF)
+		ath5k_hw_reset_tsf(ah);
+
 	ath5k_hw_reg_write(ah, interval & (AR5K_BEACON_PERIOD |
-			AR5K_BEACON_RESET_TSF | AR5K_BEACON_ENABLE),
-		AR5K_BEACON);
+					AR5K_BEACON_ENABLE),
+						AR5K_BEACON);
+
+	/* Flush any pending BMISS interrupts on ISR by
+	 * performing a clear-on-write operation on PISR
+	 * register for the BMISS bit (writing a bit on
+	 * ISR togles a reset for that bit and leaves
+	 * the rest bits intact) */
+	if (ah->ah_version == AR5K_AR5210)
+		ath5k_hw_reg_write(ah, AR5K_ISR_BMISS, AR5K_ISR);
+	else
+		ath5k_hw_reg_write(ah, AR5K_ISR_BMISS, AR5K_PISR);
+
+	/* TODO: Set enchanced sleep registers on AR5212
+	 * based on vif->bss_conf params, until then
+	 * disable power save reporting.*/
+	AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1, AR5K_STA_ID1_PWR_SV);
+
 }
 
 #if 0
@@ -899,13 +958,25 @@ int ath5k_hw_beaconq_finish(struct ath5k_hw *ah, unsigned long phys_addr)
  */
 int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 {
-	unsigned int i;
+	unsigned int i, type;
+	u16 micentry = entry + AR5K_KEYTABLE_MIC_OFFSET;
 
 	ATH5K_TRACE(ah->ah_sc);
 	AR5K_ASSERT_ENTRY(entry, AR5K_KEYTABLE_SIZE);
 
+	type = ath5k_hw_reg_read(ah, AR5K_KEYTABLE_TYPE(entry));
+
 	for (i = 0; i < AR5K_KEYCACHE_SIZE; i++)
 		ath5k_hw_reg_write(ah, 0, AR5K_KEYTABLE_OFF(entry, i));
+
+	/* Reset associated MIC entry if TKIP
+	 * is enabled located at offset (entry + 64) */
+	if (type == AR5K_KEYTABLE_TYPE_TKIP) {
+		AR5K_ASSERT_ENTRY(micentry, AR5K_KEYTABLE_SIZE);
+		for (i = 0; i < AR5K_KEYCACHE_SIZE / 2 ; i++)
+			ath5k_hw_reg_write(ah, 0,
+				AR5K_KEYTABLE_OFF(micentry, i));
+	}
 
 	/*
 	 * Set NULL encryption on AR5212+
@@ -916,9 +987,15 @@ int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 	 * Note2: Windows driver (ndiswrapper) sets this to
 	 *        0x00000714 instead of 0x00000007
 	 */
-	if (ah->ah_version > AR5K_AR5211)
+	if (ah->ah_version > AR5K_AR5211) {
 		ath5k_hw_reg_write(ah, AR5K_KEYTABLE_TYPE_NULL,
 				AR5K_KEYTABLE_TYPE(entry));
+
+		if (type == AR5K_KEYTABLE_TYPE_TKIP) {
+			ath5k_hw_reg_write(ah, AR5K_KEYTABLE_TYPE_NULL,
+				AR5K_KEYTABLE_TYPE(micentry));
+		}
+	}
 
 	return 0;
 }
@@ -936,6 +1013,23 @@ int ath5k_hw_is_key_valid(struct ath5k_hw *ah, u16 entry)
 		AR5K_KEYTABLE_VALID;
 }
 
+static
+int ath5k_keycache_type(const struct ieee80211_key_conf *key)
+{
+	switch (key->alg) {
+	case ALG_TKIP:
+		return AR5K_KEYTABLE_TYPE_TKIP;
+	case ALG_CCMP:
+		return AR5K_KEYTABLE_TYPE_CCM;
+	case ALG_WEP:
+		if (key->keylen == LEN_WEP40)
+			return AR5K_KEYTABLE_TYPE_40;
+		else if (key->keylen == LEN_WEP104)
+			return AR5K_KEYTABLE_TYPE_104;
+	}
+	return -EINVAL;
+}
+
 /*
  * Set a key entry on the table
  */
@@ -943,40 +1037,53 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 		const struct ieee80211_key_conf *key, const u8 *mac)
 {
 	unsigned int i;
+	int keylen;
 	__le32 key_v[5] = {};
+	__le32 key0 = 0, key1 = 0;
+	__le32 *rxmic, *txmic;
 	u32 keytype;
+	u16 micentry = entry + AR5K_KEYTABLE_MIC_OFFSET;
+	bool is_tkip;
+	const u8 *key_ptr;
 
 	ATH5K_TRACE(ah->ah_sc);
 
-	/* key->keylen comes in from mac80211 in bytes */
+	is_tkip = (key->alg == ALG_TKIP);
 
-	if (key->keylen > AR5K_KEYTABLE_SIZE / 8)
+	/*
+	 * key->keylen comes in from mac80211 in bytes.
+	 * TKIP is 128 bit + 128 bit mic
+	 */
+	keylen = (is_tkip) ? (128 / 8) : key->keylen;
+
+	if (entry > AR5K_KEYTABLE_SIZE ||
+		(is_tkip && micentry > AR5K_KEYTABLE_SIZE))
 		return -EOPNOTSUPP;
 
-	switch (key->keylen) {
-	/* WEP 40-bit   = 40-bit  entered key + 24 bit IV = 64-bit */
-	case 40 / 8:
-		memcpy(&key_v[0], key->key, 5);
-		keytype = AR5K_KEYTABLE_TYPE_40;
-		break;
+	if (unlikely(keylen > 16))
+		return -EOPNOTSUPP;
 
-	/* WEP 104-bit  = 104-bit entered key + 24-bit IV = 128-bit */
-	case 104 / 8:
-		memcpy(&key_v[0], &key->key[0], 6);
-		memcpy(&key_v[2], &key->key[6], 6);
-		memcpy(&key_v[4], &key->key[12], 1);
-		keytype = AR5K_KEYTABLE_TYPE_104;
-		break;
-	/* WEP 128-bit  = 128-bit entered key + 24 bit IV = 152-bit */
-	case 128 / 8:
-		memcpy(&key_v[0], &key->key[0], 6);
-		memcpy(&key_v[2], &key->key[6], 6);
-		memcpy(&key_v[4], &key->key[12], 4);
-		keytype = AR5K_KEYTABLE_TYPE_128;
-		break;
+	keytype = ath5k_keycache_type(key);
+	if (keytype < 0)
+		return keytype;
 
-	default:
-		return -EINVAL; /* shouldn't happen */
+	/*
+	 * each key block is 6 bytes wide, written as pairs of
+	 * alternating 32 and 16 bit le values.
+	 */
+	key_ptr = key->key;
+	for (i = 0; keylen >= 6; keylen -= 6) {
+		memcpy(&key_v[i], key_ptr, 6);
+		i += 2;
+		key_ptr += 6;
+	}
+	if (keylen)
+		memcpy(&key_v[i], key_ptr, keylen);
+
+	/* intentionally corrupt key until mic is installed */
+	if (is_tkip) {
+		key0 = key_v[0] = ~key_v[0];
+		key1 = key_v[1] = ~key_v[1];
 	}
 
 	for (i = 0; i < ARRAY_SIZE(key_v); i++)
@@ -984,6 +1091,40 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 				AR5K_KEYTABLE_OFF(entry, i));
 
 	ath5k_hw_reg_write(ah, keytype, AR5K_KEYTABLE_TYPE(entry));
+
+	if (is_tkip) {
+		/* Install rx/tx MIC */
+		rxmic = (__le32 *) &key->key[16];
+		txmic = (__le32 *) &key->key[24];
+
+		if (ah->ah_combined_mic) {
+			key_v[0] = rxmic[0];
+			key_v[1] = cpu_to_le32(le32_to_cpu(txmic[0]) >> 16);
+			key_v[2] = rxmic[1];
+			key_v[3] = cpu_to_le32(le32_to_cpu(txmic[0]) & 0xffff);
+			key_v[4] = txmic[1];
+		} else {
+			key_v[0] = rxmic[0];
+			key_v[1] = 0;
+			key_v[2] = rxmic[1];
+			key_v[3] = 0;
+			key_v[4] = 0;
+		}
+		for (i = 0; i < ARRAY_SIZE(key_v); i++)
+			ath5k_hw_reg_write(ah, le32_to_cpu(key_v[i]),
+				AR5K_KEYTABLE_OFF(micentry, i));
+
+		ath5k_hw_reg_write(ah, AR5K_KEYTABLE_TYPE_NULL,
+			AR5K_KEYTABLE_TYPE(micentry));
+		ath5k_hw_reg_write(ah, 0, AR5K_KEYTABLE_MAC0(micentry));
+		ath5k_hw_reg_write(ah, 0, AR5K_KEYTABLE_MAC1(micentry));
+
+		/* restore first 2 words of key */
+		ath5k_hw_reg_write(ah, le32_to_cpu(~key0),
+			AR5K_KEYTABLE_OFF(entry, 0));
+		ath5k_hw_reg_write(ah, le32_to_cpu(~key1),
+			AR5K_KEYTABLE_OFF(entry, 1));
+	}
 
 	return ath5k_hw_set_key_lladdr(ah, entry, mac);
 }

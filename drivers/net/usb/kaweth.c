@@ -251,7 +251,6 @@ struct kaweth_device
 	struct net_device_stats stats;
 };
 
-
 /****************************************************************
  *     kaweth_control
  ****************************************************************/
@@ -283,9 +282,9 @@ static int kaweth_control(struct kaweth_device *kaweth,
 
 	dr->bRequestType= requesttype;
 	dr->bRequest = request;
-	dr->wValue = cpu_to_le16p(&value);
-	dr->wIndex = cpu_to_le16p(&index);
-	dr->wLength = cpu_to_le16p(&size);
+	dr->wValue = cpu_to_le16(value);
+	dr->wIndex = cpu_to_le16(index);
+	dr->wLength = cpu_to_le16(size);
 
 	return kaweth_internal_control_msg(kaweth->dev,
 					pipe,
@@ -516,8 +515,9 @@ static void int_callback(struct urb *u)
 {
 	struct kaweth_device *kaweth = u->context;
 	int act_state;
+	int status = u->status;
 
-	switch (u->status) {
+	switch (status) {
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
@@ -598,6 +598,7 @@ static void kaweth_usb_receive(struct urb *urb)
 {
 	struct kaweth_device *kaweth = urb->context;
 	struct net_device *net = kaweth->net;
+	int status = urb->status;
 
 	int count = urb->actual_length;
 	int count2 = urb->transfer_buffer_length;
@@ -606,7 +607,7 @@ static void kaweth_usb_receive(struct urb *urb)
 
 	struct sk_buff *skb;
 
-	if(unlikely(urb->status == -ECONNRESET || urb->status == -ESHUTDOWN))
+	if(unlikely(status == -ECONNRESET || status == -ESHUTDOWN))
 	/* we are killed - set a flag and wake the disconnect handler */
 	{
 		kaweth->end = 1;
@@ -621,10 +622,10 @@ static void kaweth_usb_receive(struct urb *urb)
 	}
 	spin_unlock(&kaweth->device_lock);
 
-	if(urb->status && urb->status != -EREMOTEIO && count != 1) {
+	if(status && status != -EREMOTEIO && count != 1) {
 		err("%s RX status: %d count: %d packet_len: %d",
                            net->name,
-			   urb->status,
+			   status,
 			   count,
 			   (int)pkt_len);
 		kaweth_resubmit_rx_urb(kaweth, GFP_ATOMIC);
@@ -775,10 +776,11 @@ static void kaweth_usb_transmit_complete(struct urb *urb)
 {
 	struct kaweth_device *kaweth = urb->context;
 	struct sk_buff *skb = kaweth->tx_skb;
+	int status = urb->status;
 
-	if (unlikely(urb->status != 0))
-		if (urb->status != -ENOENT)
-			dbg("%s: TX status %d.", kaweth->net->name, urb->status);
+	if (unlikely(status != 0))
+		if (status != -ENOENT)
+			dbg("%s: TX status %d.", kaweth->net->name, status);
 
 	netif_wake_queue(kaweth->net);
 	dev_kfree_skb_irq(skb);
@@ -972,6 +974,17 @@ static int kaweth_resume(struct usb_interface *intf)
 /****************************************************************
  *     kaweth_probe
  ****************************************************************/
+
+
+static const struct net_device_ops kaweth_netdev_ops = {
+	.ndo_open =			kaweth_open,
+	.ndo_stop =			kaweth_close,
+	.ndo_start_xmit =		kaweth_start_xmit,
+	.ndo_tx_timeout =		kaweth_tx_timeout,
+	.ndo_set_multicast_list =	kaweth_set_rx_mode,
+	.ndo_get_stats =		kaweth_netdev_stats,
+};
+
 static int kaweth_probe(
 		struct usb_interface *intf,
 		const struct usb_device_id *id      /* from id_table */
@@ -1144,22 +1157,13 @@ err_fw:
 	memcpy(netdev->dev_addr, &kaweth->configuration.hw_addr,
                sizeof(kaweth->configuration.hw_addr));
 
-	netdev->open = kaweth_open;
-	netdev->stop = kaweth_close;
-
+	netdev->netdev_ops = &kaweth_netdev_ops;
 	netdev->watchdog_timeo = KAWETH_TX_TIMEOUT;
-	netdev->tx_timeout = kaweth_tx_timeout;
-
-	netdev->hard_start_xmit = kaweth_start_xmit;
-	netdev->set_multicast_list = kaweth_set_rx_mode;
-	netdev->get_stats = kaweth_netdev_stats;
 	netdev->mtu = le16_to_cpu(kaweth->configuration.segment_size);
 	SET_ETHTOOL_OPS(netdev, &ops);
 
 	/* kaweth is zeroed as part of alloc_netdev */
-
 	INIT_DELAYED_WORK(&kaweth->lowmem_work, kaweth_resubmit_tl);
-
 	usb_set_intfdata(intf, kaweth);
 
 #if 0

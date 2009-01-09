@@ -327,7 +327,7 @@ static irqreturn_t korina_rx_dma_interrupt(int irq, void *dev_id)
 
 	dmas = readl(&lp->rx_dma_regs->dmas);
 	if (dmas & (DMA_STAT_DONE | DMA_STAT_HALT | DMA_STAT_ERR)) {
-		netif_rx_schedule_prep(dev, &lp->napi);
+		netif_rx_schedule_prep(&lp->napi);
 
 		dmasm = readl(&lp->rx_dma_regs->dmasm);
 		writel(dmasm | (DMA_STAT_DONE |
@@ -409,7 +409,6 @@ static int korina_rx(struct net_device *dev, int limit)
 
 				/* Pass the packet to upper layers */
 				netif_receive_skb(skb);
-				dev->last_rx = jiffies;
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += pkt_len;
 
@@ -467,7 +466,7 @@ static int korina_poll(struct napi_struct *napi, int budget)
 
 	work_done = korina_rx(dev, budget);
 	if (work_done < budget) {
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 
 		writel(readl(&lp->rx_dma_regs->dmasm) &
 			~(DMA_STAT_DONE | DMA_STAT_HALT | DMA_STAT_ERR),

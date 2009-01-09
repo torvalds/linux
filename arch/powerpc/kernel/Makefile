@@ -17,6 +17,7 @@ ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_cputable.o = -pg -mno-sched-epilog
 CFLAGS_REMOVE_prom_init.o = -pg -mno-sched-epilog
 CFLAGS_REMOVE_btext.o = -pg -mno-sched-epilog
+CFLAGS_REMOVE_prom.o = -pg -mno-sched-epilog
 
 ifdef CONFIG_DYNAMIC_FTRACE
 # dynamic ftrace setup.
@@ -28,7 +29,7 @@ endif
 obj-y				:= cputable.o ptrace.o syscalls.o \
 				   irq.o align.o signal_32.o pmc.o vdso.o \
 				   init_task.o process.o systbl.o idle.o \
-				   signal.o sysfs.o
+				   signal.o sysfs.o cacheinfo.o
 obj-y				+= vdso32/
 obj-$(CONFIG_PPC64)		+= setup_64.o sys_ppc32.o \
 				   signal_64.o ptrace32.o \
@@ -101,6 +102,10 @@ obj-y				+= iomap.o
 endif
 
 obj-$(CONFIG_PPC64)		+= $(obj64-y)
+
+ifneq ($(CONFIG_XMON)$(CONFIG_KEXEC),)
+obj-y				+= ppc_save_regs.o
+endif
 
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-$(CONFIG_PPC64)		+= entry_64.o

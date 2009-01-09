@@ -25,8 +25,8 @@
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/uwb/debug.h>
 #include <linux/device.h>
+
 #include "i1480u-wlp.h"
 
 
@@ -226,7 +226,6 @@ ssize_t wlp_tx_inflight_store(struct i1480u_tx_inflight *inflight,
  * (CLASS_DEVICE_ATTR or DEVICE_ATTR) and i1480u_ATTR_NAME produces a
  * class_device_attr_NAME or device_attr_NAME (for group registration).
  */
-#include <linux/version.h>
 
 #define i1480u_SHOW(name, fn, param)				\
 static ssize_t i1480u_show_##name(struct device *dev,		\

@@ -1246,7 +1246,6 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	dev->stats.rx_bytes += skb->len;
 	skb->protocol = eth_type_trans(skb, dev);
 	netif_receive_skb(skb);
-	dev->last_rx = jiffies;
 	dev->stats.rx_packets++;
 	return;
 }
@@ -1398,7 +1397,7 @@ static int pcnet32_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		spin_lock_irqsave(&lp->lock, flags);
 
-		__netif_rx_complete(dev, napi);
+		__netif_rx_complete(napi);
 
 		/* clear interrupt masks */
 		val = lp->a.read_csr(ioaddr, CSR3);
@@ -1568,6 +1567,22 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	return err;
 }
+
+static const struct net_device_ops pcnet32_netdev_ops = {
+	.ndo_open		= pcnet32_open,
+	.ndo_stop 		= pcnet32_close,
+	.ndo_start_xmit		= pcnet32_start_xmit,
+	.ndo_tx_timeout		= pcnet32_tx_timeout,
+	.ndo_get_stats		= pcnet32_get_stats,
+	.ndo_set_multicast_list = pcnet32_set_multicast_list,
+	.ndo_do_ioctl		= pcnet32_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= pcnet32_poll_controller,
+#endif
+};
 
 /* pcnet32_probe1
  *  Called from both pcnet32_probe_vlbus and pcnet_probe_pci.
@@ -1747,8 +1762,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		memset(dev->dev_addr, 0, sizeof(dev->dev_addr));
 
 	if (pcnet32_debug & NETIF_MSG_PROBE) {
-		DECLARE_MAC_BUF(mac);
-		printk(" %s", print_mac(mac, dev->dev_addr));
+		printk(" %pM", dev->dev_addr);
 
 		/* Version 0x2623 and 0x2624 */
 		if (((chip_version + 1) & 0xfffe) == 0x2624) {
@@ -1936,19 +1950,9 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	lp->watchdog_timer.function = (void *)&pcnet32_watchdog;
 
 	/* The PCNET32-specific entries in the device structure. */
-	dev->open = &pcnet32_open;
-	dev->hard_start_xmit = &pcnet32_start_xmit;
-	dev->stop = &pcnet32_close;
-	dev->get_stats = &pcnet32_get_stats;
-	dev->set_multicast_list = &pcnet32_set_multicast_list;
-	dev->do_ioctl = &pcnet32_ioctl;
+	dev->netdev_ops = &pcnet32_netdev_ops;
 	dev->ethtool_ops = &pcnet32_ethtool_ops;
-	dev->tx_timeout = pcnet32_tx_timeout;
 	dev->watchdog_timeo = (5 * HZ);
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = pcnet32_poll_controller;
-#endif
 
 	/* Fill in the generic fields of the device structure. */
 	if (register_netdev(dev))
@@ -2278,7 +2282,7 @@ static int pcnet32_open(struct net_device *dev)
 	if (lp->chip_version >= PCNET32_79C970A) {
 		/* Print the link status and start the watchdog */
 		pcnet32_check_media(dev, 1);
-		mod_timer(&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
+		mod_timer(&lp->watchdog_timer, PCNET32_WATCHDOG_TIMEOUT);
 	}
 
 	i = 0;
@@ -2588,14 +2592,14 @@ pcnet32_interrupt(int irq, void *dev_id)
 				       dev->name, csr0);
 			/* unlike for the lance, there is no restart needed */
 		}
-		if (netif_rx_schedule_prep(dev, &lp->napi)) {
+		if (netif_rx_schedule_prep(&lp->napi)) {
 			u16 val;
 			/* set interrupt masks */
 			val = lp->a.read_csr(ioaddr, CSR3);
 			val |= 0x5f00;
 			lp->a.write_csr(ioaddr, CSR3, val);
 			mmiowb();
-			__netif_rx_schedule(dev, &lp->napi);
+			__netif_rx_schedule(&lp->napi);
 			break;
 		}
 		csr0 = lp->a.read_csr(ioaddr, CSR0);
@@ -2913,7 +2917,7 @@ static void pcnet32_watchdog(struct net_device *dev)
 	pcnet32_check_media(dev, 0);
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	mod_timer(&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
+	mod_timer(&lp->watchdog_timer, round_jiffies(PCNET32_WATCHDOG_TIMEOUT));
 }
 
 static int pcnet32_pm_suspend(struct pci_dev *pdev, pm_message_t state)

@@ -15,27 +15,33 @@ menuconfig VIRTUALIZATION
 if VIRTUALIZATION
 
 config KVM
-	bool "Kernel-based Virtual Machine (KVM) support"
-	depends on 44x && EXPERIMENTAL
+	bool
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
-	# We can only run on Book E hosts so far
-	select KVM_BOOKE_HOST
+
+config KVM_440
+	bool "KVM support for PowerPC 440 processors"
+	depends on EXPERIMENTAL && 44x
+	select KVM
 	---help---
-	  Support hosting virtualized guest machines. You will also
-	  need to select one or more of the processor modules below.
+	  Support running unmodified 440 guest kernels in virtual machines on
+	  440 host processors.
 
 	  This module provides access to the hardware capabilities through
 	  a character device node named /dev/kvm.
 
 	  If unsure, say N.
 
-config KVM_BOOKE_HOST
-	bool "KVM host support for Book E PowerPC processors"
-	depends on KVM && 44x
+config KVM_EXIT_TIMING
+	bool "Detailed exit timing"
+	depends on KVM
 	---help---
-	  Provides host support for KVM on Book E PowerPC processors. Currently
-	  this works on 440 processors only.
+	  Calculate elapsed time for every exit/enter cycle. A per-vcpu
+	  report is available in debugfs kvm/vm#_vcpu#_timing.
+	  The overhead is relatively small, however it is not recommended for
+	  production environments.
+
+	  If unsure, say N.
 
 config KVM_TRACE
 	bool "KVM trace support"

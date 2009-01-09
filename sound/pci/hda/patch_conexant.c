@@ -25,9 +25,10 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <sound/core.h>
+#include <sound/jack.h>
+
 #include "hda_codec.h"
 #include "hda_local.h"
-#include "hda_patch.h"
 
 #define CXT_PIN_DIR_IN              0x00
 #define CXT_PIN_DIR_OUT             0x01
@@ -38,7 +39,20 @@
 #define CONEXANT_HP_EVENT	0x37
 #define CONEXANT_MIC_EVENT	0x38
 
+/* Conexant 5051 specific */
 
+#define CXT5051_SPDIF_OUT	0x1C
+#define CXT5051_PORTB_EVENT	0x38
+#define CXT5051_PORTC_EVENT	0x39
+
+
+struct conexant_jack {
+
+	hda_nid_t nid;
+	int type;
+	struct snd_jack *jack;
+
+};
 
 struct conexant_spec {
 
@@ -84,10 +98,11 @@ struct conexant_spec {
 
 	unsigned int spdif_route;
 
+	/* jack detection */
+	struct snd_array jacks;
+
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;
-	unsigned int num_kctl_alloc, num_kctl_used;
-	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_imux;
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
@@ -332,6 +347,86 @@ static int conexant_mux_enum_put(struct snd_kcontrol *kcontrol,
 				     &spec->cur_mux[adc_idx]);
 }
 
+static int conexant_add_jack(struct hda_codec *codec,
+		hda_nid_t nid, int type)
+{
+	struct conexant_spec *spec;
+	struct conexant_jack *jack;
+	const char *name;
+
+	spec = codec->spec;
+	snd_array_init(&spec->jacks, sizeof(*jack), 32);
+	jack = snd_array_new(&spec->jacks);
+	name = (type == SND_JACK_HEADPHONE) ? "Headphone" : "Mic" ;
+
+	if (!jack)
+		return -ENOMEM;
+
+	jack->nid = nid;
+	jack->type = type;
+
+	return snd_jack_new(codec->bus->card, name, type, &jack->jack);
+}
+
+static void conexant_report_jack(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct conexant_spec *spec = codec->spec;
+	struct conexant_jack *jacks = spec->jacks.list;
+
+	if (jacks) {
+		int i;
+		for (i = 0; i < spec->jacks.used; i++) {
+			if (jacks->nid == nid) {
+				unsigned int present;
+				present = snd_hda_codec_read(codec, nid, 0,
+						AC_VERB_GET_PIN_SENSE, 0) &
+					AC_PINSENSE_PRESENCE;
+
+				present = (present) ? jacks->type : 0 ;
+
+				snd_jack_report(jacks->jack,
+						present);
+			}
+			jacks++;
+		}
+	}
+}
+
+static int conexant_init_jacks(struct hda_codec *codec)
+{
+#ifdef CONFIG_SND_JACK
+	struct conexant_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i < spec->num_init_verbs; i++) {
+		const struct hda_verb *hv;
+
+		hv = spec->init_verbs[i];
+		while (hv->nid) {
+			int err = 0;
+			switch (hv->param ^ AC_USRSP_EN) {
+			case CONEXANT_HP_EVENT:
+				err = conexant_add_jack(codec, hv->nid,
+						SND_JACK_HEADPHONE);
+				conexant_report_jack(codec, hv->nid);
+				break;
+			case CXT5051_PORTC_EVENT:
+			case CONEXANT_MIC_EVENT:
+				err = conexant_add_jack(codec, hv->nid,
+						SND_JACK_MICROPHONE);
+				conexant_report_jack(codec, hv->nid);
+				break;
+			}
+			if (err < 0)
+				return err;
+			++hv;
+		}
+	}
+#endif
+	return 0;
+
+}
+
 static int conexant_init(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -344,15 +439,16 @@ static int conexant_init(struct hda_codec *codec)
 
 static void conexant_free(struct hda_codec *codec)
 {
-        struct conexant_spec *spec = codec->spec;
-        unsigned int i;
-
-        if (spec->kctl_alloc) {
-                for (i = 0; i < spec->num_kctl_used; i++)
-                        kfree(spec->kctl_alloc[i].name);
-                kfree(spec->kctl_alloc);
-        }
-
+#ifdef CONFIG_SND_JACK
+	struct conexant_spec *spec = codec->spec;
+	if (spec->jacks.list) {
+		struct conexant_jack *jacks = spec->jacks.list;
+		int i;
+		for (i = 0; i < spec->jacks.used; i++)
+			snd_device_free(codec->bus->card, &jacks[i].jack);
+		snd_array_free(&spec->jacks);
+	}
+#endif
 	kfree(codec->spec);
 }
 
@@ -1538,9 +1634,6 @@ static int patch_cxt5047(struct hda_codec *codec)
 /* Conexant 5051 specific */
 static hda_nid_t cxt5051_dac_nids[1] = { 0x10 };
 static hda_nid_t cxt5051_adc_nids[2] = { 0x14, 0x15 };
-#define CXT5051_SPDIF_OUT	0x1C
-#define CXT5051_PORTB_EVENT	0x38
-#define CXT5051_PORTC_EVENT	0x39
 
 static struct hda_channel_mode cxt5051_modes[1] = {
 	{ 2, NULL },
@@ -1620,6 +1713,7 @@ static void cxt5051_hp_automute(struct hda_codec *codec)
 static void cxt5051_hp_unsol_event(struct hda_codec *codec,
 				   unsigned int res)
 {
+	int nid = (res & AC_UNSOL_RES_SUBTAG) >> 20;
 	switch (res >> 26) {
 	case CONEXANT_HP_EVENT:
 		cxt5051_hp_automute(codec);
@@ -1631,6 +1725,7 @@ static void cxt5051_hp_unsol_event(struct hda_codec *codec,
 		cxt5051_portc_automic(codec);
 		break;
 	}
+	conexant_report_jack(codec, nid);
 }
 
 static struct snd_kcontrol_new cxt5051_mixers[] = {
@@ -1705,6 +1800,7 @@ static struct hda_verb cxt5051_init_verbs[] = {
 static int cxt5051_init(struct hda_codec *codec)
 {
 	conexant_init(codec);
+	conexant_init_jacks(codec);
 	if (codec->patch_ops.unsol_event) {
 		cxt5051_hp_automute(codec);
 		cxt5051_portb_automic(codec);
@@ -1782,7 +1878,7 @@ static int patch_cxt5051(struct hda_codec *codec)
 /*
  */
 
-struct hda_codec_preset snd_hda_preset_conexant[] = {
+static struct hda_codec_preset snd_hda_preset_conexant[] = {
 	{ .id = 0x14f15045, .name = "CX20549 (Venice)",
 	  .patch = patch_cxt5045 },
 	{ .id = 0x14f15047, .name = "CX20551 (Waikiki)",
@@ -1791,3 +1887,28 @@ struct hda_codec_preset snd_hda_preset_conexant[] = {
 	  .patch = patch_cxt5051 },
 	{} /* terminator */
 };
+
+MODULE_ALIAS("snd-hda-codec-id:14f15045");
+MODULE_ALIAS("snd-hda-codec-id:14f15047");
+MODULE_ALIAS("snd-hda-codec-id:14f15051");
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Conexant HD-audio codec");
+
+static struct hda_codec_preset_list conexant_list = {
+	.preset = snd_hda_preset_conexant,
+	.owner = THIS_MODULE,
+};
+
+static int __init patch_conexant_init(void)
+{
+	return snd_hda_add_codec_preset(&conexant_list);
+}
+
+static void __exit patch_conexant_exit(void)
+{
+	snd_hda_delete_codec_preset(&conexant_list);
+}
+
+module_init(patch_conexant_init)
+module_exit(patch_conexant_exit)

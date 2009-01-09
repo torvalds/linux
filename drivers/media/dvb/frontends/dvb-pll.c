@@ -311,7 +311,7 @@ static struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261 = {
 	.count = 4,
 	.entries = {
 		{ 1250000, 500, 0xc4, 0x00},
-		{ 1550000, 500, 0xc4, 0x40},
+		{ 1450000, 500, 0xc4, 0x40},
 		{ 2050000, 500, 0xc4, 0x80},
 		{ 2150000, 500, 0xc4, 0xc0},
 	},

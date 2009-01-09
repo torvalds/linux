@@ -226,7 +226,7 @@ static unsigned int mode_menu(void)
 
 #ifdef CONFIG_VIDEO_RETAIN
 /* Save screen content to the heap */
-struct saved_screen {
+static struct saved_screen {
 	int x, y;
 	int curx, cury;
 	u16 *data;

@@ -212,8 +212,8 @@ static void auide_set_dma_mode(ide_drive_t *drive, const u8 speed)
 static int auide_build_dmatable(ide_drive_t *drive)
 {
 	int i, iswrite, count = 0;
-	ide_hwif_t *hwif = HWIF(drive);
-	struct request *rq = HWGROUP(drive)->rq;
+	ide_hwif_t *hwif = drive->hwif;
+	struct request *rq = hwif->rq;
 	_auide_hwif *ahwif = &auide_hwif;
 	struct scatterlist *sg;
 
@@ -286,7 +286,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 
 static int auide_dma_end(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 
 	if (hwif->sg_nents) {
 		ide_destroy_dmatable(drive);
@@ -309,8 +309,8 @@ static void auide_dma_exec_cmd(ide_drive_t *drive, u8 command)
 }
 
 static int auide_dma_setup(ide_drive_t *drive)
-{       	
-	struct request *rq = HWGROUP(drive)->rq;
+{
+	struct request *rq = drive->hwif->rq;
 
 	if (!auide_build_dmatable(drive)) {
 		ide_map_sg(drive, rq);
@@ -502,7 +502,6 @@ static const struct ide_tp_ops au1xxx_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
-	.read_sff_dma_status	= ide_read_sff_dma_status,
 
 	.set_irq		= ide_set_irq,
 

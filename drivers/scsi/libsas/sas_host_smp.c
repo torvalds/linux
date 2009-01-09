@@ -199,8 +199,8 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 		break;
 
 	case SMP_DISCOVER:
-		req->data_len =- 16;
-		if (req->data_len < 0) {
+		req->data_len -= 16;
+		if ((int)req->data_len < 0) {
 			req->data_len = 0;
 			error = -EINVAL;
 			goto out;
@@ -215,8 +215,8 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 		break;
 
 	case SMP_REPORT_PHY_SATA:
-		req->data_len =- 16;
-		if (req->data_len < 0) {
+		req->data_len -= 16;
+		if ((int)req->data_len < 0) {
 			req->data_len = 0;
 			error = -EINVAL;
 			goto out;
@@ -238,8 +238,8 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 		break;
 
 	case SMP_PHY_CONTROL:
-		req->data_len =- 44;
-		if (req->data_len < 0) {
+		req->data_len -= 44;
+		if ((int)req->data_len < 0) {
 			req->data_len = 0;
 			error = -EINVAL;
 			goto out;

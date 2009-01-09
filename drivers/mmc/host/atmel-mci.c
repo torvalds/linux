@@ -25,8 +25,8 @@
 #include <linux/stat.h>
 
 #include <linux/mmc/host.h>
+#include <linux/atmel-mci.h>
 
-#include <asm/atmel-mci.h>
 #include <asm/io.h>
 #include <asm/unaligned.h>
 

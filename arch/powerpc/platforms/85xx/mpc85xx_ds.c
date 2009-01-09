@@ -63,6 +63,7 @@ void __init mpc85xx_ds_pic_init(void)
 	struct device_node *cascade_node = NULL;
 	int cascade_irq;
 #endif
+	unsigned long root = of_get_flat_dt_root();
 
 	np = of_find_node_by_type(NULL, "open-pic");
 	if (np == NULL) {
@@ -76,11 +77,19 @@ void __init mpc85xx_ds_pic_init(void)
 		return;
 	}
 
-	mpic = mpic_alloc(np, r.start,
+	if (of_flat_dt_is_compatible(root, "fsl,MPC8572DS-CAMP")) {
+		mpic = mpic_alloc(np, r.start,
+			MPIC_PRIMARY |
+			MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS,
+			0, 256, " OpenPIC  ");
+	} else {
+		mpic = mpic_alloc(np, r.start,
 			  MPIC_PRIMARY | MPIC_WANTS_RESET |
 			  MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS |
 			  MPIC_SINGLE_DEST_CPU,
 			0, 256, " OpenPIC  ");
+	}
+
 	BUG_ON(mpic == NULL);
 	of_node_put(np);
 
@@ -139,6 +148,9 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 /*
  * Setup the architecture
  */
+#ifdef CONFIG_SMP
+extern void __init mpc85xx_smp_init(void);
+#endif
 static void __init mpc85xx_ds_setup_arch(void)
 {
 #ifdef CONFIG_PCI
@@ -162,6 +174,10 @@ static void __init mpc85xx_ds_setup_arch(void)
 	}
 
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
+#endif
+
+#ifdef CONFIG_SMP
+	mpc85xx_smp_init();
 #endif
 
 	printk("MPC85xx DS board from Freescale Semiconductor\n");

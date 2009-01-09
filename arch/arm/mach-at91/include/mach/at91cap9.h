@@ -101,7 +101,9 @@
 #define AT91_RTT	(0xfffffd20 - AT91_BASE_SYS)
 #define AT91_PIT	(0xfffffd30 - AT91_BASE_SYS)
 #define AT91_WDT	(0xfffffd40 - AT91_BASE_SYS)
-#define AT91_GPBR	(0xfffffd50 - AT91_BASE_SYS)
+#define AT91_GPBR	(cpu_is_at91cap9_revB() ?	\
+			(0xfffffd50 - AT91_BASE_SYS) :	\
+			(0xfffffd60 - AT91_BASE_SYS))
 
 #define AT91_USART0	AT91CAP9_BASE_US0
 #define AT91_USART1	AT91CAP9_BASE_US1

@@ -265,7 +265,7 @@ static struct hpsb_highlevel sbp2_highlevel = {
 	.host_reset	= sbp2_host_reset,
 };
 
-static struct hpsb_address_ops sbp2_ops = {
+const static struct hpsb_address_ops sbp2_ops = {
 	.write		= sbp2_handle_status_write
 };
 
@@ -275,7 +275,7 @@ static int sbp2_handle_physdma_write(struct hpsb_host *, int, int, quadlet_t *,
 static int sbp2_handle_physdma_read(struct hpsb_host *, int, quadlet_t *, u64,
 				    size_t, u16);
 
-static struct hpsb_address_ops sbp2_physdma_ops = {
+const static struct hpsb_address_ops sbp2_physdma_ops = {
 	.read		= sbp2_handle_physdma_read,
 	.write		= sbp2_handle_physdma_write,
 };

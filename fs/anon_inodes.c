@@ -79,9 +79,12 @@ int anon_inode_getfd(const char *name, const struct file_operations *fops,
 	if (IS_ERR(anon_inode_inode))
 		return -ENODEV;
 
+	if (fops->owner && !try_module_get(fops->owner))
+		return -ENOENT;
+
 	error = get_unused_fd_flags(flags);
 	if (error < 0)
-		return error;
+		goto err_module;
 	fd = error;
 
 	/*
@@ -128,6 +131,8 @@ err_dput:
 	dput(dentry);
 err_put_unused_fd:
 	put_unused_fd(fd);
+err_module:
+	module_put(fops->owner);
 	return error;
 }
 EXPORT_SYMBOL_GPL(anon_inode_getfd);
@@ -154,8 +159,8 @@ static struct inode *anon_inode_mkinode(void)
 	 */
 	inode->i_state = I_DIRTY;
 	inode->i_mode = S_IRUSR | S_IWUSR;
-	inode->i_uid = current->fsuid;
-	inode->i_gid = current->fsgid;
+	inode->i_uid = current_fsuid();
+	inode->i_gid = current_fsgid();
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	return inode;
 }

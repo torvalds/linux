@@ -74,10 +74,6 @@ static struct buffer_head *ext3_append(handle_t *handle,
 #define assert(test) J_ASSERT(test)
 #endif
 
-#ifndef swap
-#define swap(x, y) do { typeof(x) z = x; x = y; y = z; } while (0)
-#endif
-
 #ifdef DX_DEBUG
 #define dxtrace(command) command
 #else
@@ -368,6 +364,8 @@ dx_probe(struct qstr *entry, struct inode *dir,
 		goto fail;
 	}
 	hinfo->hash_version = root->info.hash_version;
+	if (hinfo->hash_version <= DX_HASH_TEA)
+		hinfo->hash_version += EXT3_SB(dir->i_sb)->s_hash_unsigned;
 	hinfo->seed = EXT3_SB(dir->i_sb)->s_hash_seed;
 	if (entry)
 		ext3fs_dirhash(entry->name, entry->len, hinfo);
@@ -636,6 +634,9 @@ int ext3_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	dir = dir_file->f_path.dentry->d_inode;
 	if (!(EXT3_I(dir)->i_flags & EXT3_INDEX_FL)) {
 		hinfo.hash_version = EXT3_SB(dir->i_sb)->s_def_hash_version;
+		if (hinfo.hash_version <= DX_HASH_TEA)
+			hinfo.hash_version +=
+				EXT3_SB(dir->i_sb)->s_hash_unsigned;
 		hinfo.seed = EXT3_SB(dir->i_sb)->s_hash_seed;
 		count = htree_dirblock_to_tree(dir_file, dir, 0, &hinfo,
 					       start_hash, start_minor_hash);
@@ -1156,9 +1157,9 @@ static struct ext3_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 	u32 hash2;
 	struct dx_map_entry *map;
 	char *data1 = (*bh)->b_data, *data2;
-	unsigned split, move, size, i;
+	unsigned split, move, size;
 	struct ext3_dir_entry_2 *de = NULL, *de2;
-	int	err = 0;
+	int	err = 0, i;
 
 	bh2 = ext3_append (handle, dir, &newblock, &err);
 	if (!(bh2)) {
@@ -1398,6 +1399,8 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 
 	/* Initialize as for dx_probe */
 	hinfo.hash_version = root->info.hash_version;
+	if (hinfo.hash_version <= DX_HASH_TEA)
+		hinfo.hash_version += EXT3_SB(dir->i_sb)->s_hash_unsigned;
 	hinfo.seed = EXT3_SB(dir->i_sb)->s_hash_seed;
 	ext3fs_dirhash(name, namelen, &hinfo);
 	frame = frames;
@@ -1652,9 +1655,11 @@ static int ext3_add_nondir(handle_t *handle,
 	if (!err) {
 		ext3_mark_inode_dirty(handle, inode);
 		d_instantiate(dentry, inode);
+		unlock_new_inode(inode);
 		return 0;
 	}
 	drop_nlink(inode);
+	unlock_new_inode(inode);
 	iput(inode);
 	return err;
 }
@@ -1765,6 +1770,7 @@ retry:
 	dir_block = ext3_bread (handle, inode, 0, 1, &err);
 	if (!dir_block) {
 		drop_nlink(inode); /* is this nlink == 0? */
+		unlock_new_inode(inode);
 		ext3_mark_inode_dirty(handle, inode);
 		iput (inode);
 		goto out_stop;
@@ -1792,6 +1798,7 @@ retry:
 	err = ext3_add_entry (handle, dentry, inode);
 	if (err) {
 		inode->i_nlink = 0;
+		unlock_new_inode(inode);
 		ext3_mark_inode_dirty(handle, inode);
 		iput (inode);
 		goto out_stop;
@@ -1800,6 +1807,7 @@ retry:
 	ext3_update_dx_flag(dir);
 	ext3_mark_inode_dirty(handle, dir);
 	d_instantiate(dentry, inode);
+	unlock_new_inode(inode);
 out_stop:
 	ext3_journal_stop(handle);
 	if (err == -ENOSPC && ext3_should_retry_alloc(dir->i_sb, &retries))
@@ -2170,10 +2178,10 @@ retry:
 		 * We have a transaction open.  All is sweetness.  It also sets
 		 * i_size in generic_commit_write().
 		 */
-		err = __page_symlink(inode, symname, l,
-				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
+		err = __page_symlink(inode, symname, l, 1);
 		if (err) {
 			drop_nlink(inode);
+			unlock_new_inode(inode);
 			ext3_mark_inode_dirty(handle, inode);
 			iput (inode);
 			goto out_stop;
@@ -2221,7 +2229,14 @@ retry:
 	inc_nlink(inode);
 	atomic_inc(&inode->i_count);
 
-	err = ext3_add_nondir(handle, dentry, inode);
+	err = ext3_add_entry(handle, dentry, inode);
+	if (!err) {
+		ext3_mark_inode_dirty(handle, inode);
+		d_instantiate(dentry, inode);
+	} else {
+		drop_nlink(inode);
+		iput(inode);
+	}
 	ext3_journal_stop(handle);
 	if (err == -ENOSPC && ext3_should_retry_alloc(dir->i_sb, &retries))
 		goto retry;

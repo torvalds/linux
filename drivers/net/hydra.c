@@ -94,6 +94,21 @@ static int __devinit hydra_init_one(struct zorro_dev *z,
     return 0;
 }
 
+static const struct net_device_ops hydra_netdev_ops = {
+	.ndo_open		= hydra_open,
+	.ndo_stop		= hydra_close,
+
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ei_poll,
+#endif
+};
+
 static int __devinit hydra_init(struct zorro_dev *z)
 {
     struct net_device *dev;
@@ -103,14 +118,13 @@ static int __devinit hydra_init(struct zorro_dev *z)
     int start_page, stop_page;
     int j;
     int err;
-    DECLARE_MAC_BUF(mac);
 
     static u32 hydra_offsets[16] = {
 	0x00, 0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e,
 	0x10, 0x12, 0x14, 0x16, 0x18, 0x1a, 0x1c, 0x1e,
     };
 
-    dev = ____alloc_ei_netdev(0);
+    dev = alloc_ei_netdev();
     if (!dev)
 	return -ENOMEM;
 
@@ -145,12 +159,8 @@ static int __devinit hydra_init(struct zorro_dev *z)
     ei_status.block_output = &hydra_block_output;
     ei_status.get_8390_hdr = &hydra_get_8390_hdr;
     ei_status.reg_offset = hydra_offsets;
-    dev->open = &hydra_open;
-    dev->stop = &hydra_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-    dev->poll_controller = __ei_poll;
-#endif
 
+    dev->netdev_ops = &hydra_netdev_ops;
     __NS8390_init(dev, 0);
 
     err = register_netdev(dev);
@@ -163,8 +173,8 @@ static int __devinit hydra_init(struct zorro_dev *z)
     zorro_set_drvdata(z, dev);
 
     printk(KERN_INFO "%s: Hydra at 0x%08lx, address "
-	   "%s (hydra.c " HYDRA_VERSION ")\n",
-	   dev->name, z->resource.start, print_mac(mac, dev->dev_addr));
+	   "%pM (hydra.c " HYDRA_VERSION ")\n",
+	   dev->name, z->resource.start, dev->dev_addr);
 
     return 0;
 }

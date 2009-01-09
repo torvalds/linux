@@ -19,6 +19,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -28,8 +29,8 @@ static struct physmap_flash_data adssphere_flash_data = {
 };
 
 static struct resource adssphere_flash_resource = {
-	.start		= 0x60000000,
-	.end		= 0x61ffffff,
+	.start		= EP93XX_CS6_PHYS_BASE,
+	.end		= EP93XX_CS6_PHYS_BASE + SZ_32M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -59,7 +60,7 @@ MACHINE_START(ADSSPHERE, "ADS Sphere board")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
 	.phys_io	= EP93XX_APB_PHYS_BASE,
 	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
-	.boot_params	= 0x00000100,
+	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
 	.timer		= &ep93xx_timer,

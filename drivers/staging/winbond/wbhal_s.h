@@ -1,3 +1,10 @@
+#ifndef __WINBOND_WBHAL_S_H
+#define __WINBOND_WBHAL_S_H
+
+#include <linux/types.h>
+
+#include "common.h"
+
 //[20040722 WK]
 #define HAL_LED_SET_MASK		0x001c	//20060901 Extend
 #define HAL_LED_SET_SHIFT		2
@@ -415,10 +422,10 @@ typedef struct _TXVGA_FOR_50 {
 // Device related include
 //=====================================================================
 
-#include "linux/wbusb_s.h"
-#include "linux/wb35reg_s.h"
-#include "linux/wb35tx_s.h"
-#include "linux/wb35rx_s.h"
+#include "wbusb_s.h"
+#include "wb35reg_s.h"
+#include "wb35tx_s.h"
+#include "wb35rx_s.h"
 
 
 // For Hal using ==================================================================
@@ -441,16 +448,6 @@ typedef struct _HW_DATA_T
 	// For Fix 1'st DMA bug
 	u32	FragCount;
 	u32	DMAFix; //V1_DMA_FIX The variable can be removed if driver want to save mem space for V2.
-
-	//=======================================================================================
-	// For USB driver, hal need more variables. Due to
-	//	1. NDIS-WDM operation
-	//	2. The SME, MLME and OLD MDS need Adapter structure, but the driver under HAL doesn't
-	//		have that parameter when receiving and indicating packet.
-	//		The MDS must input the Adapter pointer as the second parameter of hal_init_hardware.
-	//		The function usage is different than PCI driver.
-	//=======================================================================================
-	void* Adapter;
 
 	//===============================================
 	// Definition for MAC address
@@ -506,11 +503,11 @@ typedef struct _HW_DATA_T
 	// Variable for each module
 	//========================================================================
 	WBUSB		WbUsb; // Need WbUsb.h
-	WB35REG		Wb35Reg; // Need Wb35Reg.h
+	struct wb35_reg	reg; // Need Wb35Reg.h
 	WB35TX		Wb35Tx; // Need Wb35Tx.h
 	WB35RX		Wb35Rx; // Need Wb35Rx.h
 
-	OS_TIMER	LEDTimer;// For LED
+	struct timer_list	LEDTimer;// For LED
 
 	u32		LEDpoint;// For LED
 
@@ -570,7 +567,7 @@ typedef struct _HW_DATA_T
 	u32		RxByteCountLast;
 	u32		TxByteCountLast;
 
-	s32		SurpriseRemoveCount;
+	atomic_t	SurpriseRemoveCount;
 
 	// For global timer
 	u32		time_count;//TICK_TIME_100ms 1 = 100ms
@@ -612,4 +609,4 @@ typedef struct _HAL_RATE
 	u32   NumRate54M;
 } HAL_RATE, *PHAL_RATE;
 
-
+#endif

@@ -743,7 +743,7 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 	spin_unlock_irqrestore(&timer->lock, flags);
 
 	if (use_tasklet)
-		tasklet_hi_schedule(&timer->task_queue);
+		tasklet_schedule(&timer->task_queue);
 }
 
 /*

@@ -1222,7 +1222,6 @@ static void ipg_nic_rx_with_start_and_end(struct net_device *dev,
 	skb->protocol = eth_type_trans(skb, dev);
 	skb->ip_summed = CHECKSUM_NONE;
 	netif_rx(skb);
-	dev->last_rx = jiffies;
 	sp->rx_buff[entry] = NULL;
 }
 
@@ -1256,7 +1255,6 @@ static void ipg_nic_rx_with_start(struct net_device *dev,
 	jumbo->skb = skb;
 
 	sp->rx_buff[entry] = NULL;
-	dev->last_rx = jiffies;
 }
 
 static void ipg_nic_rx_with_end(struct net_device *dev,
@@ -1292,7 +1290,6 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 			}
 		}
 
-		dev->last_rx = jiffies;
 		jumbo->found_start = 0;
 		jumbo->current_size = 0;
 		jumbo->skb = NULL;
@@ -1325,7 +1322,6 @@ static void ipg_nic_rx_no_start_no_end(struct net_device *dev,
 					       skb->data, sp->rxfrag_size);
 				}
 			}
-			dev->last_rx = jiffies;
 			ipg_nic_rx_free_skb(dev);
 		}
 	} else {
@@ -1494,11 +1490,6 @@ static int ipg_nic_rx(struct net_device *dev)
 			 * when processing completes.
 			 */
 			netif_rx(skb);
-
-			/* Record frame receive time (jiffies = Linux
-			 * kernel current time stamp).
-			 */
-			dev->last_rx = jiffies;
 		}
 
 		/* Assure RX buffer is not reused by IPG. */
@@ -2219,6 +2210,19 @@ static void __devexit ipg_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
+static const struct net_device_ops ipg_netdev_ops = {
+	.ndo_open		= ipg_nic_open,
+	.ndo_stop		= ipg_nic_stop,
+	.ndo_start_xmit		= ipg_nic_hard_start_xmit,
+	.ndo_get_stats		= ipg_nic_get_stats,
+	.ndo_set_multicast_list = ipg_nic_set_multicast_list,
+	.ndo_do_ioctl		= ipg_ioctl,
+	.ndo_tx_timeout 	= ipg_tx_timeout,
+	.ndo_change_mtu 	= ipg_nic_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __devinit ipg_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *id)
 {
@@ -2267,15 +2271,7 @@ static int __devinit ipg_probe(struct pci_dev *pdev,
 
 	/* Declare IPG NIC functions for Ethernet device methods.
 	 */
-	dev->open = &ipg_nic_open;
-	dev->stop = &ipg_nic_stop;
-	dev->hard_start_xmit = &ipg_nic_hard_start_xmit;
-	dev->get_stats = &ipg_nic_get_stats;
-	dev->set_multicast_list = &ipg_nic_set_multicast_list;
-	dev->do_ioctl = ipg_ioctl;
-	dev->tx_timeout = ipg_tx_timeout;
-	dev->change_mtu = &ipg_nic_change_mtu;
-
+	dev->netdev_ops = &ipg_netdev_ops;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	SET_ETHTOOL_OPS(dev, &ipg_ethtool_ops);
 

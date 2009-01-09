@@ -41,6 +41,7 @@ chips are known to work:
 - 10c4:818a: Silicon Labs USB FM Radio Reference Design
 - 06e1:a155: ADS/Tech FM Radio Receiver (formerly Instant FM Music) (RDX-155-EF)
 - 1b80:d700: KWorld USB FM Radio SnapMusic Mobile 700 (FM700)
+- 10c5:819a: DealExtreme USB Radio
 
 
 Software

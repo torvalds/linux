@@ -93,7 +93,7 @@ static void cuda_write_pram(int offset, __u8 data)
 #define cuda_write_pram NULL
 #endif
 
-#ifdef CONFIG_ADB_PMU68K
+#if 0 /* def CONFIG_ADB_PMU68K */
 static long pmu_read_time(void)
 {
 	struct adb_request req;
@@ -148,7 +148,7 @@ static void pmu_write_pram(int offset, __u8 data)
 #define pmu_write_pram NULL
 #endif
 
-#ifdef CONFIG_ADB_MACIISI
+#if 0 /* def CONFIG_ADB_MACIISI */
 extern int maciisi_request(struct adb_request *req,
 			void (*done)(struct adb_request *), int nbytes, ...);
 
@@ -717,13 +717,18 @@ int mac_hwclk(int op, struct rtc_time *t)
 		unmktime(now, 0,
 			 &t->tm_year, &t->tm_mon, &t->tm_mday,
 			 &t->tm_hour, &t->tm_min, &t->tm_sec);
+#if 0
 		printk("mac_hwclk: read %04d-%02d-%-2d %02d:%02d:%02d\n",
-			t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+			t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+			t->tm_hour, t->tm_min, t->tm_sec);
+#endif
 	} else { /* write */
+#if 0
 		printk("mac_hwclk: tried to write %04d-%02d-%-2d %02d:%02d:%02d\n",
-			t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+			t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+			t->tm_hour, t->tm_min, t->tm_sec);
+#endif
 
-#if 0	/* it trashes my rtc */
 		now = mktime(t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
 			     t->tm_hour, t->tm_min, t->tm_sec);
 
@@ -742,7 +747,6 @@ int mac_hwclk(int op, struct rtc_time *t)
 		case MAC_ADB_IISI:
 			maciisi_write_time(now);
 		}
-#endif
 	}
 	return 0;
 }

@@ -141,8 +141,9 @@ static void init_evtchn_cpu_bindings(void)
 	int i;
 
 	/* By default all event channels notify CPU#0. */
-	for_each_irq_desc(i, desc)
+	for_each_irq_desc(i, desc) {
 		desc->affinity = cpumask_of_cpu(0);
+	}
 #endif
 
 	memset(cpu_evtchn, 0, sizeof(cpu_evtchn));
@@ -229,14 +230,19 @@ static void unmask_evtchn(int port)
 static int find_unbound_irq(void)
 {
 	int irq;
+	struct irq_desc *desc;
 
 	/* Only allocate from dynirq range */
-	for_each_irq_nr(irq)
+	for (irq = 0; irq < nr_irqs; irq++)
 		if (irq_bindcount[irq] == 0)
 			break;
 
 	if (irq == nr_irqs)
 		panic("No available IRQ to bind to: increase nr_irqs!\n");
+
+	desc = irq_to_desc_alloc_cpu(irq, 0);
+	if (WARN_ON(desc == NULL))
+		return -1;
 
 	return irq;
 }
@@ -579,7 +585,7 @@ void rebind_evtchn_irq(int evtchn, int irq)
 	spin_unlock(&irq_mapping_update_lock);
 
 	/* new event channels are always bound to cpu 0 */
-	irq_set_affinity(irq, cpumask_of_cpu(0));
+	irq_set_affinity(irq, cpumask_of(0));
 
 	/* Unmask the event channel. */
 	enable_irq(irq);
@@ -608,9 +614,9 @@ static void rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 }
 
 
-static void set_affinity_irq(unsigned irq, cpumask_t dest)
+static void set_affinity_irq(unsigned irq, const struct cpumask *dest)
 {
-	unsigned tcpu = first_cpu(dest);
+	unsigned tcpu = cpumask_first(dest);
 	rebind_irq_to_cpu(irq, tcpu);
 }
 
@@ -792,7 +798,7 @@ void xen_irq_resume(void)
 		mask_evtchn(evtchn);
 
 	/* No IRQ <-> event-channel mappings. */
-	for_each_irq_nr(irq)
+	for (irq = 0; irq < nr_irqs; irq++)
 		irq_info[irq].evtchn = 0; /* zap event-channel binding */
 
 	for (evtchn = 0; evtchn < NR_EVENT_CHANNELS; evtchn++)
@@ -824,7 +830,7 @@ void __init xen_init_IRQ(void)
 		mask_evtchn(i);
 
 	/* Dynamic IRQ space is currently unbound. Zero the refcnts. */
-	for_each_irq_nr(i)
+	for (i = 0; i < nr_irqs; i++)
 		irq_bindcount[i] = 0;
 
 	irq_ctx_init(smp_processor_id());

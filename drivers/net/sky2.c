@@ -3979,7 +3979,7 @@ static int sky2_device_event(struct notifier_block *unused,
 	struct net_device *dev = ptr;
 	struct sky2_port *sky2 = netdev_priv(dev);
 
-	if (dev->open != sky2_up || !sky2_debug)
+	if (dev->netdev_ops->ndo_open != sky2_up || !sky2_debug)
 		return NOTIFY_DONE;
 
 	switch(event) {
@@ -4041,6 +4041,41 @@ static __exit void sky2_debug_cleanup(void)
 #define sky2_debug_cleanup()
 #endif
 
+/* Two copies of network device operations to handle special case of
+   not allowing netpoll on second port */
+static const struct net_device_ops sky2_netdev_ops[2] = {
+  {
+	.ndo_open		= sky2_up,
+	.ndo_stop		= sky2_down,
+	.ndo_start_xmit		= sky2_xmit_frame,
+	.ndo_do_ioctl		= sky2_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= sky2_set_mac_address,
+	.ndo_set_multicast_list	= sky2_set_multicast,
+	.ndo_change_mtu		= sky2_change_mtu,
+	.ndo_tx_timeout		= sky2_tx_timeout,
+#ifdef SKY2_VLAN_TAG_USED
+	.ndo_vlan_rx_register	= sky2_vlan_rx_register,
+#endif
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= sky2_netpoll,
+#endif
+  },
+  {
+	.ndo_open		= sky2_up,
+	.ndo_stop		= sky2_down,
+	.ndo_start_xmit		= sky2_xmit_frame,
+	.ndo_do_ioctl		= sky2_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= sky2_set_mac_address,
+	.ndo_set_multicast_list	= sky2_set_multicast,
+	.ndo_change_mtu		= sky2_change_mtu,
+	.ndo_tx_timeout		= sky2_tx_timeout,
+#ifdef SKY2_VLAN_TAG_USED
+	.ndo_vlan_rx_register	= sky2_vlan_rx_register,
+#endif
+  },
+};
 
 /* Initialize network device */
 static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
@@ -4057,20 +4092,9 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 
 	SET_NETDEV_DEV(dev, &hw->pdev->dev);
 	dev->irq = hw->pdev->irq;
-	dev->open = sky2_up;
-	dev->stop = sky2_down;
-	dev->do_ioctl = sky2_ioctl;
-	dev->hard_start_xmit = sky2_xmit_frame;
-	dev->set_multicast_list = sky2_set_multicast;
-	dev->set_mac_address = sky2_set_mac_address;
-	dev->change_mtu = sky2_change_mtu;
 	SET_ETHTOOL_OPS(dev, &sky2_ethtool_ops);
-	dev->tx_timeout = sky2_tx_timeout;
 	dev->watchdog_timeo = TX_WATCHDOG;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	if (port == 0)
-		dev->poll_controller = sky2_netpoll;
-#endif
+	dev->netdev_ops = &sky2_netdev_ops[port];
 
 	sky2 = netdev_priv(dev);
 	sky2->netdev = dev;
@@ -4104,7 +4128,6 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	if (!(sky2->hw->chip_id == CHIP_ID_YUKON_FE_P &&
 	      sky2->hw->chip_rev == CHIP_REV_YU_FE2_A0)) {
 		dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-		dev->vlan_rx_register = sky2_vlan_rx_register;
 	}
 #endif
 
@@ -4118,11 +4141,10 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 static void __devinit sky2_show_addr(struct net_device *dev)
 {
 	const struct sky2_port *sky2 = netdev_priv(dev);
-	DECLARE_MAC_BUF(mac);
 
 	if (netif_msg_probe(sky2))
-		printk(KERN_INFO PFX "%s: addr %s\n",
-		       dev->name, print_mac(mac, dev->dev_addr));
+		printk(KERN_INFO PFX "%s: addr %pM\n",
+		       dev->name, dev->dev_addr);
 }
 
 /* Handle software interrupt used during MSI test */
