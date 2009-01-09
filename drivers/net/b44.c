@@ -73,8 +73,8 @@
 	  (BP)->tx_cons - (BP)->tx_prod - TX_RING_GAP(BP))
 #define NEXT_TX(N)		(((N) + 1) & (B44_TX_RING_SIZE - 1))
 
-#define RX_PKT_OFFSET		30
-#define RX_PKT_BUF_SZ		(1536 + RX_PKT_OFFSET + 64)
+#define RX_PKT_OFFSET		(RX_HEADER_LEN + 2)
+#define RX_PKT_BUF_SZ		(1536 + RX_PKT_OFFSET)
 
 /* minimum number of free TX descriptors required to wake up TX process */
 #define B44_TX_WAKEUP_THRESH		(B44_TX_RING_SIZE / 4)
@@ -682,7 +682,6 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 	}
 
 	rh = (struct rx_header *) skb->data;
-	skb_reserve(skb, RX_PKT_OFFSET);
 
 	rh->len = 0;
 	rh->flags = 0;
@@ -693,13 +692,13 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 	if (src_map != NULL)
 		src_map->skb = NULL;
 
-	ctrl  = (DESC_CTRL_LEN & (RX_PKT_BUF_SZ - RX_PKT_OFFSET));
+	ctrl = (DESC_CTRL_LEN & RX_PKT_BUF_SZ);
 	if (dest_idx == (B44_RX_RING_SIZE - 1))
 		ctrl |= DESC_CTRL_EOT;
 
 	dp = &bp->rx_ring[dest_idx];
 	dp->ctrl = cpu_to_le32(ctrl);
-	dp->addr = cpu_to_le32((u32) mapping + RX_PKT_OFFSET + bp->dma_offset);
+	dp->addr = cpu_to_le32((u32) mapping + bp->dma_offset);
 
 	if (bp->flags & B44_FLAG_RX_RING_HACK)
 		b44_sync_dma_desc_for_device(bp->sdev, bp->rx_ring_dma,
@@ -809,8 +808,8 @@ static int b44_rx(struct b44 *bp, int budget)
 			ssb_dma_unmap_single(bp->sdev, map,
 					     skb_size, DMA_FROM_DEVICE);
 			/* Leave out rx_header */
-                	skb_put(skb, len + RX_PKT_OFFSET);
-            	        skb_pull(skb, RX_PKT_OFFSET);
+			skb_put(skb, len + RX_PKT_OFFSET);
+			skb_pull(skb, RX_PKT_OFFSET);
 		} else {
 			struct sk_buff *copy_skb;
 
