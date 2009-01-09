@@ -331,7 +331,7 @@ static int destroy_compound_page(struct page *page, unsigned long order)
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = page + i;
 
-		if (unlikely(!PageTail(p) | (p->first_page != page))) {
+		if (unlikely(!PageTail(p) || (p->first_page != page))) {
 			bad_page(page);
 			bad++;
 		}
