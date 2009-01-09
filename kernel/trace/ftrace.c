@@ -455,7 +455,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 	unsigned long ip, fl;
 	unsigned long ftrace_addr;
 
-	ftrace_addr = (unsigned long)ftrace_caller;
+	ftrace_addr = (unsigned long)FTRACE_ADDR;
 
 	ip = rec->ip;
 
