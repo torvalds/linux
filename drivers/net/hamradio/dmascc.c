@@ -440,6 +440,13 @@ static void __init dev_setup(struct net_device *dev)
 	memcpy(dev->dev_addr, &ax25_defaddr, AX25_ADDR_LEN);
 }
 
+static const struct net_device_ops scc_netdev_ops = {
+	.ndo_open = scc_open,
+	.ndo_stop = scc_close,
+	.ndo_start_xmit = scc_send_packet,
+	.ndo_do_ioctl = scc_ioctl,
+};
+
 static int __init setup_adapter(int card_base, int type, int n)
 {
 	int i, irq, chip;
@@ -575,11 +582,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 		sprintf(dev->name, "dmascc%i", 2 * n + i);
 		dev->base_addr = card_base;
 		dev->irq = irq;
-		dev->open = scc_open;
-		dev->stop = scc_close;
-		dev->do_ioctl = scc_ioctl;
-		dev->hard_start_xmit = scc_send_packet;
-		dev->get_stats = scc_get_stats;
+		dev->netdev_ops = &scc_netdev_ops;
 		dev->header_ops = &ax25_header_ops;
 		dev->set_mac_address = scc_set_mac_address;
 	}
