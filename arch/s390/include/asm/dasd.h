@@ -14,6 +14,7 @@
 
 #ifndef DASD_H
 #define DASD_H
+#include <linux/types.h>
 #include <linux/ioctl.h>
 
 #define DASD_IOCTL_LETTER 'D'
