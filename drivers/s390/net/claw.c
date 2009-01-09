@@ -2816,22 +2816,26 @@ claw_free_netdevice(struct net_device * dev, int free_dev)
  * Initialize everything of the net device except the name and the
  * channel structs.
  */
+static const struct net_device_ops claw_netdev_ops = {
+	.ndo_open		= claw_open,
+	.ndo_stop		= claw_release,
+	.ndo_get_stats		= claw_stats,
+	.ndo_start_xmit		= claw_tx,
+	.ndo_change_mtu		= claw_change_mtu,
+};
+
 static void
 claw_init_netdevice(struct net_device * dev)
 {
 	CLAW_DBF_TEXT(2, setup, "init_dev");
 	CLAW_DBF_TEXT_(2, setup, "%s", dev->name);
 	dev->mtu = CLAW_DEFAULT_MTU_SIZE;
-	dev->hard_start_xmit = claw_tx;
-	dev->open = claw_open;
-	dev->stop = claw_release;
-	dev->get_stats = claw_stats;
-	dev->change_mtu = claw_change_mtu;
 	dev->hard_header_len = 0;
 	dev->addr_len = 0;
 	dev->type = ARPHRD_SLIP;
 	dev->tx_queue_len = 1300;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	dev->netdev_ops = &claw_netdev_ops;
 	CLAW_DBF_TEXT(2, setup, "initok");
 	return;
 }
