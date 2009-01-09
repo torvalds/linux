@@ -221,6 +221,18 @@ struct streamer_private *dev_streamer=NULL;
 #endif
 #endif
 
+static const struct net_device_ops streamer_netdev_ops = {
+	.ndo_open		= streamer_open,
+	.ndo_stop		= streamer_close,
+	.ndo_start_xmit		= streamer_xmit,
+	.ndo_change_mtu		= streamer_change_mtu,
+#if STREAMER_IOCTL
+	.ndo_do_ioctl		= streamer_ioctl,
+#endif
+	.ndo_set_multicast_list = streamer_set_rx_mode,
+	.ndo_set_mac_address	= streamer_set_mac_address,
+};
+
 static int __devinit streamer_init_one(struct pci_dev *pdev,
 				       const struct pci_device_id *ent)
 {
@@ -320,17 +332,7 @@ static int __devinit streamer_init_one(struct pci_dev *pdev,
 	init_waitqueue_head(&streamer_priv->srb_wait);
 	init_waitqueue_head(&streamer_priv->trb_wait);
 
-	dev->open = &streamer_open;
-	dev->hard_start_xmit = &streamer_xmit;
-	dev->change_mtu = &streamer_change_mtu;
-	dev->stop = &streamer_close;
-#if STREAMER_IOCTL
-	dev->do_ioctl = &streamer_ioctl;
-#else
-	dev->do_ioctl = NULL;
-#endif
-	dev->set_multicast_list = &streamer_set_rx_mode;
-	dev->set_mac_address = &streamer_set_mac_address;
+	dev->netdev_ops = &streamer_netdev_ops;
 	dev->irq = pdev->irq;
 	dev->base_addr=pio_start;
 	SET_NETDEV_DEV(dev, &pdev->dev);
