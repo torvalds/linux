@@ -109,6 +109,11 @@ if ($#ARGV < 7) {
 my ($arch, $bits, $objdump, $objcopy, $cc,
     $ld, $nm, $rm, $mv, $is_module, $inputfile) = @ARGV;
 
+# This file refers to mcount and shouldn't be ftraced, so lets' ignore it
+if ($inputfile eq "kernel/trace/ftrace.o") {
+    exit(0);
+}
+
 # Acceptable sections to record.
 my %text_sections = (
      ".text" => 1,

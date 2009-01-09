@@ -263,14 +263,6 @@ static void ftrace_update_pid_func(void)
 # error Dynamic ftrace depends on MCOUNT_RECORD
 #endif
 
-/*
- * Since MCOUNT_ADDR may point to mcount itself, we do not want
- * to get it confused by reading a reference in the code as we
- * are parsing on objcopy output of text. Use a variable for
- * it instead.
- */
-static unsigned long mcount_addr = MCOUNT_ADDR;
-
 enum {
 	FTRACE_ENABLE_CALLS		= (1 << 0),
 	FTRACE_DISABLE_CALLS		= (1 << 1),
@@ -575,7 +567,7 @@ ftrace_code_disable(struct module *mod, struct dyn_ftrace *rec)
 
 	ip = rec->ip;
 
-	ret = ftrace_make_nop(mod, rec, mcount_addr);
+	ret = ftrace_make_nop(mod, rec, MCOUNT_ADDR);
 	if (ret) {
 		ftrace_bug(ret, ip);
 		rec->flags |= FTRACE_FL_FAILED;
