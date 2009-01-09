@@ -32,25 +32,25 @@
 #define _LINUX_FTL_H
 
 typedef struct erase_unit_header_t {
-    u_int8_t	LinkTargetTuple[5];
-    u_int8_t	DataOrgTuple[10];
-    u_int8_t	NumTransferUnits;
-    u_int32_t	EraseCount;
-    u_int16_t	LogicalEUN;
-    u_int8_t	BlockSize;
-    u_int8_t	EraseUnitSize;
-    u_int16_t	FirstPhysicalEUN;
-    u_int16_t	NumEraseUnits;
-    u_int32_t	FormattedSize;
-    u_int32_t	FirstVMAddress;
-    u_int16_t	NumVMPages;
-    u_int8_t	Flags;
-    u_int8_t	Code;
-    u_int32_t	SerialNumber;
-    u_int32_t	AltEUHOffset;
-    u_int32_t	BAMOffset;
-    u_int8_t	Reserved[12];
-    u_int8_t	EndTuple[2];
+    uint8_t	LinkTargetTuple[5];
+    uint8_t	DataOrgTuple[10];
+    uint8_t	NumTransferUnits;
+    uint32_t	EraseCount;
+    uint16_t	LogicalEUN;
+    uint8_t	BlockSize;
+    uint8_t	EraseUnitSize;
+    uint16_t	FirstPhysicalEUN;
+    uint16_t	NumEraseUnits;
+    uint32_t	FormattedSize;
+    uint32_t	FirstVMAddress;
+    uint16_t	NumVMPages;
+    uint8_t	Flags;
+    uint8_t	Code;
+    uint32_t	SerialNumber;
+    uint32_t	AltEUHOffset;
+    uint32_t	BAMOffset;
+    uint8_t	Reserved[12];
+    uint8_t	EndTuple[2];
 } erase_unit_header_t;
 
 /* Flags in erase_unit_header_t */

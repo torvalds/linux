@@ -294,7 +294,8 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	int cis_sector;
 
 	/* Check for small page NAND flash */
-	if (mtd->type != MTD_NANDFLASH || mtd->oobsize != OOB_SIZE)
+	if (mtd->type != MTD_NANDFLASH || mtd->oobsize != OOB_SIZE ||
+	    mtd->size > UINT_MAX)
 		return;
 
 	/* Check for SSDFC format by reading CIS/IDI sector */
@@ -316,7 +317,7 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	ssfdc->cis_block = cis_sector / (mtd->erasesize >> SECTOR_SHIFT);
 	ssfdc->erase_size = mtd->erasesize;
-	ssfdc->map_len = mtd->size / mtd->erasesize;
+	ssfdc->map_len = (u32)mtd->size / mtd->erasesize;
 
 	DEBUG(MTD_DEBUG_LEVEL1,
 		"SSFDC_RO: cis_block=%d,erase_size=%d,map_len=%d,n_zones=%d\n",
@@ -327,7 +328,7 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	ssfdc->heads = 16;
 	ssfdc->sectors = 32;
 	get_chs(mtd->size, NULL, &ssfdc->heads, &ssfdc->sectors);
-	ssfdc->cylinders = (unsigned short)((mtd->size >> SECTOR_SHIFT) /
+	ssfdc->cylinders = (unsigned short)(((u32)mtd->size >> SECTOR_SHIFT) /
 			((long)ssfdc->sectors * (long)ssfdc->heads));
 
 	DEBUG(MTD_DEBUG_LEVEL1, "SSFDC_RO: using C:%d H:%d S:%d == %ld sects\n",

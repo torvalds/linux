@@ -10,8 +10,8 @@ config MTD_COMPLEX_MAPPINGS
 	  paged mappings of flash chips.
 
 config MTD_PHYSMAP
-	tristate "CFI Flash device in physical memory map"
-	depends on MTD_CFI || MTD_JEDECPROBE || MTD_ROM
+	tristate "Flash device in physical memory map"
+	depends on MTD_CFI || MTD_JEDECPROBE || MTD_ROM || MTD_LPDDR
 	help
 	  This provides a 'mapping' driver which allows the NOR Flash and
 	  ROM driver code to communicate with chips which are mapped
@@ -23,9 +23,20 @@ config MTD_PHYSMAP
 	  To compile this driver as a module, choose M here: the
 	  module will be called physmap.
 
+config MTD_PHYSMAP_COMPAT
+	bool "Physmap compat support"
+	depends on MTD_PHYSMAP
+	default n
+	help
+	  Setup a simple mapping via the Kconfig options.  Normally the
+	  physmap configuration options are done via your board's
+	  resource file.
+
+	  If unsure, say N here.
+
 config MTD_PHYSMAP_START
 	hex "Physical start address of flash mapping"
-	depends on MTD_PHYSMAP
+	depends on MTD_PHYSMAP_COMPAT
 	default "0x8000000"
 	help
 	  This is the physical memory location at which the flash chips
@@ -37,7 +48,7 @@ config MTD_PHYSMAP_START
 
 config MTD_PHYSMAP_LEN
 	hex "Physical length of flash mapping"
-	depends on MTD_PHYSMAP
+	depends on MTD_PHYSMAP_COMPAT
 	default "0"
 	help
 	  This is the total length of the mapping of the flash chips on
@@ -51,7 +62,7 @@ config MTD_PHYSMAP_LEN
 
 config MTD_PHYSMAP_BANKWIDTH
 	int "Bank width in octets"
-	depends on MTD_PHYSMAP
+	depends on MTD_PHYSMAP_COMPAT
 	default "2"
 	help
 	  This is the total width of the data bus of the flash devices
