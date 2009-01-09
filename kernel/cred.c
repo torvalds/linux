@@ -506,6 +506,7 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 	else
 		old = get_cred(&init_cred);
 
+	*new = *old;
 	get_uid(new->user);
 	get_group_info(new->group_info);
 
