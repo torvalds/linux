@@ -151,19 +151,15 @@ static int __init hp680bl_init(void)
 	int ret;
 
 	ret = platform_driver_register(&hp680bl_driver);
-	if (!ret) {
-		hp680bl_device = platform_device_alloc("hp680-bl", -1);
-		if (!hp680bl_device)
-			return -ENOMEM;
-
-		ret = platform_device_add(hp680bl_device);
-
-		if (ret) {
-			platform_device_put(hp680bl_device);
-			platform_driver_unregister(&hp680bl_driver);
-		}
+	if (ret)
+		return ret;
+	hp680bl_device = platform_device_register_simple("hp680-bl", -1,
+							NULL, 0);
+	if (IS_ERR(hp680bl_device)) {
+		platform_driver_unregister(&hp680bl_driver);
+		return PTR_ERR(hp680bl_device);
 	}
-	return ret;
+	return 0;
 }
 
 static void __exit hp680bl_exit(void)
