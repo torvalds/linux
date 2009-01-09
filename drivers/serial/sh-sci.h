@@ -32,7 +32,9 @@
 #elif defined(CONFIG_CPU_SUBTYPE_SH7720) || \
       defined(CONFIG_CPU_SUBTYPE_SH7721)
 # define SCSCR_INIT(port)  0x0030 /* TIE=0,RIE=0,TE=1,RE=1 */
-#define SCIF_ORER    0x0200   /* overrun error bit */
+# define PORT_PTCR	   0xA405011EUL
+# define PORT_PVCR	   0xA4050122UL
+# define SCIF_ORER	   0x0200   /* overrun error bit */
 #elif defined(CONFIG_SH_RTS7751R2D)
 # define SCSPTR1 0xFFE0001C /* 8 bit SCIF */
 # define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
