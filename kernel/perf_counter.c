@@ -47,6 +47,12 @@ hw_perf_counter_init(struct perf_counter *counter)
 u64 __weak hw_perf_save_disable(void)		{ return 0; }
 void __weak hw_perf_restore(u64 ctrl)		{ barrier(); }
 void __weak hw_perf_counter_setup(void)		{ barrier(); }
+int __weak hw_perf_group_sched_in(struct perf_counter *group_leader,
+	       struct perf_cpu_context *cpuctx,
+	       struct perf_counter_context *ctx, int cpu)
+{
+	return 0;
+}
 
 static void
 list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
@@ -341,6 +347,9 @@ group_sched_out(struct perf_counter *group_counter,
 {
 	struct perf_counter *counter;
 
+	if (group_counter->state != PERF_COUNTER_STATE_ACTIVE)
+		return;
+
 	counter_sched_out(group_counter, cpuctx, ctx);
 
 	/*
@@ -354,15 +363,18 @@ void __perf_counter_sched_out(struct perf_counter_context *ctx,
 			      struct perf_cpu_context *cpuctx)
 {
 	struct perf_counter *counter;
+	u64 flags;
 
 	if (likely(!ctx->nr_counters))
 		return;
 
 	spin_lock(&ctx->lock);
+	flags = hw_perf_save_disable();
 	if (ctx->nr_active) {
 		list_for_each_entry(counter, &ctx->counter_list, list_entry)
 			group_sched_out(counter, cpuctx, ctx);
 	}
+	hw_perf_restore(flags);
 	spin_unlock(&ctx->lock);
 }
 
@@ -402,7 +414,14 @@ group_sched_in(struct perf_counter *group_counter,
 	       int cpu)
 {
 	struct perf_counter *counter, *partial_group;
-	int ret = 0;
+	int ret;
+
+	if (group_counter->state == PERF_COUNTER_STATE_OFF)
+		return 0;
+
+	ret = hw_perf_group_sched_in(group_counter, cpuctx, ctx, cpu);
+	if (ret)
+		return ret < 0 ? ret : 0;
 
 	if (counter_sched_in(group_counter, cpuctx, ctx, cpu))
 		return -EAGAIN;
@@ -415,10 +434,9 @@ group_sched_in(struct perf_counter *group_counter,
 			partial_group = counter;
 			goto group_error;
 		}
-		ret = -EAGAIN;
 	}
 
-	return ret;
+	return 0;
 
 group_error:
 	/*
@@ -440,11 +458,13 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 			struct perf_cpu_context *cpuctx, int cpu)
 {
 	struct perf_counter *counter;
+	u64 flags;
 
 	if (likely(!ctx->nr_counters))
 		return;
 
 	spin_lock(&ctx->lock);
+	flags = hw_perf_save_disable();
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
 		/*
 		 * Listen to the 'cpu' scheduling filter constraint
@@ -454,12 +474,13 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 			continue;
 
 		/*
-		 * If we scheduled in a group atomically and
-		 * exclusively, break out:
+		 * If we scheduled in a group atomically and exclusively,
+		 * or if this group can't go on, break out:
 		 */
 		if (group_sched_in(counter, cpuctx, ctx, cpu))
 			break;
 	}
+	hw_perf_restore(flags);
 	spin_unlock(&ctx->lock);
 }
 
