@@ -235,8 +235,6 @@ struct Outgoing {
 
 
 struct arcnet_local {
-	struct net_device_stats stats;
-
 	uint8_t config,		/* current value of CONFIG register */
 		timeout,	/* Extended timeout for COM20020 */
 		backplane,	/* Backplane flag for COM20020 */

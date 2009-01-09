@@ -119,7 +119,7 @@ static void rx(struct net_device *dev, int bufnum,
 	skb = alloc_skb(length + ARC_HDR_SIZE + sizeof(int), GFP_ATOMIC);
 	if (skb == NULL) {
 		BUGMSG(D_NORMAL, "Memory squeeze, dropping packet.\n");
-		lp->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 	skb_put(skb, length + ARC_HDR_SIZE + sizeof(int));
