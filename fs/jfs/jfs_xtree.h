@@ -110,8 +110,6 @@ typedef union {
  */
 extern int xtLookup(struct inode *ip, s64 lstart, s64 llen,
 		    int *pflag, s64 * paddr, int *plen, int flag);
-extern int xtLookupList(struct inode *ip, struct lxdlist * lxdlist,
-			struct xadlist * xadlist, int flag);
 extern void xtInitRoot(tid_t tid, struct inode *ip);
 extern int xtInsert(tid_t tid, struct inode *ip,
 		    int xflag, s64 xoff, int xlen, s64 * xaddrp, int flag);
