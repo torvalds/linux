@@ -30,8 +30,9 @@
 #define QLGE_VENDOR_ID    0x1077
 #define QLGE_DEVICE_ID    0x8012
 
-#define MAX_RX_RINGS 128
-#define MAX_TX_RINGS 128
+#define MAX_CPUS 8
+#define MAX_TX_RINGS MAX_CPUS
+#define MAX_RX_RINGS ((MAX_CPUS * 2) + 1)
 
 #define NUM_TX_RING_ENTRIES	256
 #define NUM_RX_RING_ENTRIES	256
@@ -44,6 +45,7 @@
 #define MAX_SPLIT_SIZE 1023
 #define QLGE_SB_PAD 32
 
+#define MAX_CQ 128
 #define DFLT_COALESCE_WAIT 100	/* 100 usec wait for coalescing */
 #define MAX_INTER_FRAME_WAIT 10	/* 10 usec max interframe-wait for coalescing */
 #define DFLT_INTER_FRAME_WAIT (MAX_INTER_FRAME_WAIT/2)
@@ -1393,9 +1395,11 @@ struct ql_adapter {
 	int rx_ring_count;
 	int ring_mem_size;
 	void *ring_mem;
-	struct rx_ring *rx_ring;
+
+	struct rx_ring rx_ring[MAX_RX_RINGS];
+	struct tx_ring tx_ring[MAX_TX_RINGS];
+
 	int rx_csum;
-	struct tx_ring *tx_ring;
 	u32 default_rx_queue;
 
 	u16 rx_coalesce_usecs;	/* cqicb->int_delay */
