@@ -42,7 +42,7 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
+#include "accommon.h"
 
 /* TBD: This entire module is apparently obsolete and should be removed */
 
@@ -50,7 +50,7 @@
 ACPI_MODULE_NAME("nsdumpdv")
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
-#include <acpi/acnamesp.h>
+#include "acnamesp.h"
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_dump_one_device

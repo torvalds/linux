@@ -42,9 +42,9 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acresrc.h>
-#include <acpi/acnamesp.h>
+#include "accommon.h"
+#include "acresrc.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_RESOURCES
 ACPI_MODULE_NAME("rsxface")

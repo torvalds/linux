@@ -42,10 +42,10 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acinterp.h>
-#include <acpi/acnamesp.h>
-#include <acpi/acevents.h>
+#include "accommon.h"
+#include "acinterp.h"
+#include "acnamesp.h"
+#include "acevents.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utdelete")

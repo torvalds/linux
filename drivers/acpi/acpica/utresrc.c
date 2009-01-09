@@ -42,8 +42,8 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/amlresrc.h>
+#include "accommon.h"
+#include "amlresrc.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utresrc")

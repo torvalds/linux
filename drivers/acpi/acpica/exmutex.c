@@ -43,9 +43,9 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acinterp.h>
-#include <acpi/acevents.h>
+#include "accommon.h"
+#include "acinterp.h"
+#include "acevents.h"
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exmutex")

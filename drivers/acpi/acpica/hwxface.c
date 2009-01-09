@@ -43,8 +43,8 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acnamesp.h>
+#include "accommon.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_HARDWARE
 ACPI_MODULE_NAME("hwxface")

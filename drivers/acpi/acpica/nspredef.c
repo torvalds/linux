@@ -43,9 +43,9 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acnamesp.h>
-#include <acpi/acpredef.h>
+#include "accommon.h"
+#include "acnamesp.h"
+#include "acpredef.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nspredef")

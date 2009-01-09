@@ -42,11 +42,11 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acevents.h>
-#include <acpi/acnamesp.h>
-#include <acpi/acdebug.h>
-#include <acpi/actables.h>
+#include "accommon.h"
+#include "acevents.h"
+#include "acnamesp.h"
+#include "acdebug.h"
+#include "actables.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utxface")

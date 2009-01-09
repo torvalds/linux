@@ -42,9 +42,9 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acdispat.h>
-#include <acpi/acinterp.h>
+#include "accommon.h"
+#include "acdispat.h"
+#include "acinterp.h"
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exfield")

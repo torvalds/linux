@@ -43,9 +43,9 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acnamesp.h>
-#include <acpi/acinterp.h>
+#include "accommon.h"
+#include "acnamesp.h"
+#include "acinterp.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsxfeval")

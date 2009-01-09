@@ -42,8 +42,8 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acresrc.h>
+#include "accommon.h"
+#include "acresrc.h"
 
 #define _COMPONENT          ACPI_RESOURCES
 ACPI_MODULE_NAME("rslist")

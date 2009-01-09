@@ -42,7 +42,7 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
+#include "accommon.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utmutex")

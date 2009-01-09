@@ -42,8 +42,8 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acdispat.h>
+#include "accommon.h"
+#include "acdispat.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dswscope")

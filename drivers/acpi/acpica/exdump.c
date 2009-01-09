@@ -42,10 +42,10 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acinterp.h>
-#include <acpi/amlcode.h>
-#include <acpi/acnamesp.h>
+#include "accommon.h"
+#include "acinterp.h"
+#include "amlcode.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exdump")

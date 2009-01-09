@@ -42,10 +42,10 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acnamesp.h>
-#include <acpi/acevents.h>
-#include <acpi/actables.h>
+#include "accommon.h"
+#include "acnamesp.h"
+#include "acevents.h"
+#include "actables.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utinit")

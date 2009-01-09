@@ -42,10 +42,10 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acparser.h>
-#include <acpi/acopcode.h>
-#include <acpi/amlcode.h>
+#include "accommon.h"
+#include "acparser.h"
+#include "acopcode.h"
+#include "amlcode.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psopcode")

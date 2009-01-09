@@ -42,11 +42,11 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acparser.h>
-#include <acpi/amlcode.h>
-#include <acpi/acnamesp.h>
-#include <acpi/acdispat.h>
+#include "accommon.h"
+#include "acparser.h"
+#include "amlcode.h"
+#include "acnamesp.h"
+#include "acdispat.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psargs")

@@ -42,13 +42,13 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acparser.h>
-#include <acpi/amlcode.h>
-#include <acpi/acdispat.h>
-#include <acpi/acinterp.h>
-#include <acpi/acnamesp.h>
-#include <acpi/acevents.h>
+#include "accommon.h"
+#include "acparser.h"
+#include "amlcode.h"
+#include "acdispat.h"
+#include "acinterp.h"
+#include "acnamesp.h"
+#include "acevents.h"
 
 #ifdef ACPI_ASL_COMPILER
 #include <acpi/acdisasm.h>

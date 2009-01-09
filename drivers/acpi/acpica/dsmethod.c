@@ -42,11 +42,11 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/amlcode.h>
-#include <acpi/acdispat.h>
-#include <acpi/acinterp.h>
-#include <acpi/acnamesp.h>
+#include "accommon.h"
+#include "amlcode.h"
+#include "acdispat.h"
+#include "acinterp.h"
+#include "acnamesp.h"
 #ifdef	ACPI_DISASSEMBLER
 #include <acpi/acdisasm.h>
 #endif

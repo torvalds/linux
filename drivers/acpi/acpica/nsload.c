@@ -42,10 +42,10 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acnamesp.h>
-#include <acpi/acdispat.h>
-#include <acpi/actables.h>
+#include "accommon.h"
+#include "acnamesp.h"
+#include "acdispat.h"
+#include "actables.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsload")

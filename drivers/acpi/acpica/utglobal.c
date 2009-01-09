@@ -44,8 +44,8 @@
 #define DEFINE_ACPI_GLOBALS
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acnamesp.h>
+#include "accommon.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utglobal")

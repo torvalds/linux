@@ -42,11 +42,11 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acparser.h>
-#include <acpi/acinterp.h>
-#include <acpi/acevents.h>
-#include <acpi/amlcode.h>
+#include "accommon.h"
+#include "acparser.h"
+#include "acinterp.h"
+#include "acevents.h"
+#include "amlcode.h"
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exoparg2")

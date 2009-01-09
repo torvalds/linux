@@ -43,10 +43,10 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acnamesp.h>
-#include <acpi/amlcode.h>
-#include <acpi/actables.h>
+#include "accommon.h"
+#include "acnamesp.h"
+#include "amlcode.h"
+#include "actables.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsutils")

@@ -42,8 +42,8 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acparser.h>
+#include "accommon.h"
+#include "acparser.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psscope")

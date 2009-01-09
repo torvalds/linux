@@ -42,9 +42,9 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acevents.h>
-#include <acpi/acnamesp.h>
+#include "accommon.h"
+#include "acevents.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evgpeblk")

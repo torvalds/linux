@@ -42,10 +42,10 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/accommon.h>
-#include <acpi/acparser.h>
-#include <acpi/acinterp.h>
-#include <acpi/acnamesp.h>
+#include "accommon.h"
+#include "acparser.h"
+#include "acinterp.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nseval")
