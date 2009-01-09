@@ -217,7 +217,6 @@ struct hpc_ops {
 #ifdef CONFIG_ACPI
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
-#include <acpi/actypes.h>
 #include <linux/pci-acpi.h>
 
 extern void __init pciehp_acpi_slot_detection_init(void);
