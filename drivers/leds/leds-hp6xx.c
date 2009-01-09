@@ -45,29 +45,15 @@ static struct led_classdev hp6xx_red_led = {
 	.name			= "hp6xx:red",
 	.default_trigger	= "hp6xx-charge",
 	.brightness_set		= hp6xxled_red_set,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
 
 static struct led_classdev hp6xx_green_led = {
 	.name			= "hp6xx:green",
 	.default_trigger	= "ide-disk",
 	.brightness_set		= hp6xxled_green_set,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
-
-#ifdef CONFIG_PM
-static int hp6xxled_suspend(struct platform_device *dev, pm_message_t state)
-{
-	led_classdev_suspend(&hp6xx_red_led);
-	led_classdev_suspend(&hp6xx_green_led);
-	return 0;
-}
-
-static int hp6xxled_resume(struct platform_device *dev)
-{
-	led_classdev_resume(&hp6xx_red_led);
-	led_classdev_resume(&hp6xx_green_led);
-	return 0;
-}
-#endif
 
 static int hp6xxled_probe(struct platform_device *pdev)
 {
@@ -98,10 +84,6 @@ MODULE_ALIAS("platform:hp6xx-led");
 static struct platform_driver hp6xxled_driver = {
 	.probe		= hp6xxled_probe,
 	.remove		= hp6xxled_remove,
-#ifdef CONFIG_PM
-	.suspend	= hp6xxled_suspend,
-	.resume		= hp6xxled_resume,
-#endif
 	.driver		= {
 		.name		= "hp6xx-led",
 		.owner		= THIS_MODULE,
