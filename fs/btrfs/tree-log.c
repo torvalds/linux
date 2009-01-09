@@ -158,6 +158,19 @@ static int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 	 */
 	new_root->ref_cows = 0;
 	new_root->last_trans = trans->transid;
+
+	/*
+	 * we need to make sure the root block for this new tree
+	 * is marked as dirty in the dirty_log_pages tree.  This
+	 * is how it gets flushed down to disk at tree log commit time.
+	 *
+	 * the tree logging mutex keeps others from coming in and changing
+	 * the new_root->node, so we can safely access it here
+	 */
+	set_extent_dirty(&new_root->dirty_log_pages, new_root->node->start,
+			 new_root->node->start + new_root->node->len - 1,
+			 GFP_NOFS);
+
 fail:
 	return ret;
 }
