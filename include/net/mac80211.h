@@ -1217,6 +1217,8 @@ enum ieee80211_ampdu_mlme_action {
  *	configuration in the TX control data. This handler should,
  *	preferably, never fail and stop queues appropriately, more
  *	importantly, however, it must never fail for A-MPDU-queues.
+ *	This function should return NETDEV_TX_OK except in very
+ *	limited cases.
  *	Must be implemented and atomic.
  *
  * @start: Called before the first netdevice attached to the hardware
@@ -1257,9 +1259,12 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @config: Handler for configuration requests. IEEE 802.11 code calls this
  *	function to change hardware configuration, e.g., channel.
+ *	This function should never fail but returns a negative error code
+ *	if it does.
  *
  * @config_interface: Handler for configuration requests related to interfaces
  *	(e.g. BSSID changes.)
+ *	Returns a negative error code which will be seen in userspace.
  *
  * @bss_info_changed: Handler for configuration requests related to BSS
  *	parameters that may vary during BSS's lifespan, and may affect low
@@ -1279,6 +1284,7 @@ enum ieee80211_ampdu_mlme_action {
  *	This callback can sleep, and is only called between add_interface
  *	and remove_interface calls, i.e. while the given virtual interface
  *	is enabled.
+ *	Returns a negative error code if the key can't be added.
  *
  * @update_tkip_key: See the section "Hardware crypto acceleration"
  * 	This callback will be called in the context of Rx. Called for drivers
@@ -1290,8 +1296,10 @@ enum ieee80211_ampdu_mlme_action {
  *	bands. When the scan finishes, ieee80211_scan_completed() must be
  *	called; note that it also must be called when the scan cannot finish
  *	because the hardware is turned off! Anything else is a bug!
+ *	Returns a negative error code which will be seen in userspace.
  *
- * @get_stats: return low-level statistics
+ * @get_stats: Return low-level statistics.
+ * 	Returns zero if statistics are available.
  *
  * @get_tkip_seq: If your device implements TKIP encryption in hardware this
  *	callback should be provided to read the TKIP transmit IVs (both IV32
@@ -1305,6 +1313,7 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
+ *	Returns a negative error code on failure.
  *
  * @get_tx_stats: Get statistics of the current TX queue status. This is used
  *	to get number of currently queued packets (queue length), maximum queue
@@ -1324,13 +1333,15 @@ enum ieee80211_ampdu_mlme_action {
  * @tx_last_beacon: Determine whether the last IBSS beacon was sent by us.
  *	This is needed only for IBSS mode and the result of this function is
  *	used to determine whether to reply to Probe Requests.
+ *	Returns non-zero if this device sent the last beacon.
  *
  * @ampdu_action: Perform a certain A-MPDU action
  * 	The RA/TID combination determines the destination and TID we want
  * 	the ampdu action to be performed for. The action is defined through
  * 	ieee80211_ampdu_mlme_action. Starting sequence number (@ssn)
- * 	is the first frame we expect to perform the action on. notice
+ * 	is the first frame we expect to perform the action on. Notice
  * 	that TX/RX_STOP can pass NULL for this parameter.
+ *	Returns a negative error code on failure.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
