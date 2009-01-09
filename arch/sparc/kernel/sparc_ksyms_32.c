@@ -5,15 +5,12 @@
  * Copyright (C) 1996 Eddie C. Dost (ecd@skynet.be)
  */
 
-/* Tell string.h we don't want memcpy etc. as cpp defines */
-#define EXPORT_SYMTAB_STROPS
 #define PROMLIB_INTERNAL
 
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/types.h>
-#include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/in6.h>
@@ -55,56 +52,13 @@ struct poll {
 	short revents;
 };
 
-extern void (*__copy_1page)(void *, const void *);
-extern void __memmove(void *, const void *, __kernel_size_t);
-extern void (*bzero_1page)(void *);
-extern void *__bzero(void *, size_t);
-extern void *__memscan_zero(void *, size_t);
-extern void *__memscan_generic(void *, int, size_t);
-extern int __strncmp(const char *, const char *, __kernel_size_t);
-
-extern int __ashrdi3(int, int);
-extern int __ashldi3(int, int);
-extern int __lshrdi3(int, int);
-extern int __muldi3(int, int);
-extern int __divdi3(int, int);
-
-/* Private functions with odd calling conventions. */
-extern void ___atomic24_add(void);
-extern void ___atomic24_sub(void);
-extern void ___rw_read_enter(void);
-extern void ___rw_read_try(void);
-extern void ___rw_read_exit(void);
-extern void ___rw_write_enter(void);
-
-/* Alias functions whose names begin with "." and export the aliases.
- * The module references will be fixed up by module_frob_arch_sections.
- */
-extern int _Div(int, int);
-extern int _Mul(int, int);
-extern int _Rem(int, int);
-extern unsigned _Udiv(unsigned, unsigned);
-extern unsigned _Umul(unsigned, unsigned);
-extern unsigned _Urem(unsigned, unsigned);
-
 /* used by various drivers */
 EXPORT_SYMBOL(sparc_cpu_model);
 EXPORT_SYMBOL(kernel_thread);
-#ifdef CONFIG_SMP
-// XXX find what uses (or used) these.   AV: see asm/spinlock.h
-EXPORT_SYMBOL(___rw_read_enter);
-EXPORT_SYMBOL(___rw_read_try);
-EXPORT_SYMBOL(___rw_read_exit);
-EXPORT_SYMBOL(___rw_write_enter);
-#endif
 
 EXPORT_SYMBOL(sparc_valid_addr_bitmap);
 EXPORT_SYMBOL(phys_base);
 EXPORT_SYMBOL(pfn_base);
-
-/* Atomic operations. */
-EXPORT_SYMBOL(___atomic24_add);
-EXPORT_SYMBOL(___atomic24_sub);
 
 /* Per-CPU information table */
 EXPORT_PER_CPU_SYMBOL(__cpu_data);
@@ -193,30 +147,7 @@ EXPORT_SYMBOL(__prom_getchild);
 EXPORT_SYMBOL(__prom_getsibling);
 
 /* sparc library symbols */
-EXPORT_SYMBOL(memscan);
-EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(page_kernel);
-
-/* Special internal versions of library functions. */
-EXPORT_SYMBOL(__copy_1page);
-EXPORT_SYMBOL(__memcpy);
-EXPORT_SYMBOL(__memset);
-EXPORT_SYMBOL(bzero_1page);
-EXPORT_SYMBOL(__bzero);
-EXPORT_SYMBOL(__memscan_zero);
-EXPORT_SYMBOL(__memscan_generic);
-EXPORT_SYMBOL(__strncmp);
-EXPORT_SYMBOL(__memmove);
-
-/* Moving data to/from userspace. */
-EXPORT_SYMBOL(__copy_user);
-EXPORT_SYMBOL(__strncpy_from_user);
-EXPORT_SYMBOL(__strnlen_user);
-
-/* Networking helper routines. */
-EXPORT_SYMBOL(__csum_partial_copy_sparc_generic);
-EXPORT_SYMBOL(csum_partial);
 
 /* Cache flushing.  */
 EXPORT_SYMBOL(sparc_flush_page_to_ram);
@@ -225,23 +156,6 @@ EXPORT_SYMBOL(sparc_flush_page_to_ram);
 EXPORT_SYMBOL(sun_do_break);
 
 EXPORT_SYMBOL(__ret_efault);
-
-EXPORT_SYMBOL(memcmp);
-EXPORT_SYMBOL(memcpy);
-EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(__ashrdi3);
-EXPORT_SYMBOL(__ashldi3);
-EXPORT_SYMBOL(__lshrdi3);
-EXPORT_SYMBOL(__muldi3);
-EXPORT_SYMBOL(__divdi3);
-
-EXPORT_SYMBOL(_Rem);
-EXPORT_SYMBOL(_Urem);
-EXPORT_SYMBOL(_Mul);
-EXPORT_SYMBOL(_Umul);
-EXPORT_SYMBOL(_Div);
-EXPORT_SYMBOL(_Udiv);
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 EXPORT_SYMBOL(do_BUG);

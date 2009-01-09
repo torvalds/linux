@@ -5,13 +5,10 @@
  * Copyright (C) 1999 Jakub Jelinek (jj@ultra.linux.cz)
  */
 
-/* Tell string.h we don't want memcpy etc. as cpp defines */
-#define EXPORT_SYMTAB_STROPS
 #define PROMLIB_INTERNAL
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/in6.h>
 #include <linux/pci.h>
@@ -59,10 +56,6 @@ struct poll {
 
 extern void die_if_kernel(char *str, struct pt_regs *regs);
 extern pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
-extern void *__bzero(void *, size_t);
-extern void *__memscan_zero(void *, size_t);
-extern void *__memscan_generic(void *, int, size_t);
-extern __kernel_size_t strlen(const char *);
 extern void sys_sigsuspend(void);
 extern int compat_sys_ioctl(unsigned int fd, unsigned int cmd, u32 arg);
 extern int (*handle_mathemu)(struct pt_regs *, struct fpustate *);
@@ -73,22 +66,6 @@ extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 extern int __ashrdi3(int, int);
 
 extern int dump_fpu (struct pt_regs * regs, elf_fpregset_t * fpregs);
-
-extern void xor_vis_2(unsigned long, unsigned long *, unsigned long *);
-extern void xor_vis_3(unsigned long, unsigned long *, unsigned long *,
-		      unsigned long *);
-extern void xor_vis_4(unsigned long, unsigned long *, unsigned long *,
-		      unsigned long *, unsigned long *);
-extern void xor_vis_5(unsigned long, unsigned long *, unsigned long *,
-		      unsigned long *, unsigned long *, unsigned long *);
-
-extern void xor_niagara_2(unsigned long, unsigned long *, unsigned long *);
-extern void xor_niagara_3(unsigned long, unsigned long *, unsigned long *,
-			  unsigned long *);
-extern void xor_niagara_4(unsigned long, unsigned long *, unsigned long *,
-			  unsigned long *, unsigned long *);
-extern void xor_niagara_5(unsigned long, unsigned long *, unsigned long *,
-			  unsigned long *, unsigned long *, unsigned long *);
 
 /* Per-CPU information table */
 EXPORT_PER_CPU_SYMBOL(__cpu_data);
@@ -103,38 +80,7 @@ EXPORT_SYMBOL(__write_unlock);
 EXPORT_SYMBOL(__write_trylock);
 #endif /* CONFIG_SMP */
 
-#ifdef CONFIG_MCOUNT
-EXPORT_SYMBOL(_mcount);
-#endif
-
 EXPORT_SYMBOL(sparc64_get_clock_tick);
-
-/* RW semaphores */
-EXPORT_SYMBOL(__down_read);
-EXPORT_SYMBOL(__down_read_trylock);
-EXPORT_SYMBOL(__down_write);
-EXPORT_SYMBOL(__down_write_trylock);
-EXPORT_SYMBOL(__up_read);
-EXPORT_SYMBOL(__up_write);
-EXPORT_SYMBOL(__downgrade_write);
-
-/* Atomic counter implementation. */
-EXPORT_SYMBOL(atomic_add);
-EXPORT_SYMBOL(atomic_add_ret);
-EXPORT_SYMBOL(atomic_sub);
-EXPORT_SYMBOL(atomic_sub_ret);
-EXPORT_SYMBOL(atomic64_add);
-EXPORT_SYMBOL(atomic64_add_ret);
-EXPORT_SYMBOL(atomic64_sub);
-EXPORT_SYMBOL(atomic64_sub_ret);
-
-/* Atomic bit operations. */
-EXPORT_SYMBOL(test_and_set_bit);
-EXPORT_SYMBOL(test_and_clear_bit);
-EXPORT_SYMBOL(test_and_change_bit);
-EXPORT_SYMBOL(set_bit);
-EXPORT_SYMBOL(clear_bit);
-EXPORT_SYMBOL(change_bit);
 
 EXPORT_SYMBOL(__flushw_user);
 
@@ -209,35 +155,10 @@ EXPORT_SYMBOL(prom_getintdefault);
 EXPORT_SYMBOL(__prom_getchild);
 EXPORT_SYMBOL(__prom_getsibling);
 
-/* sparc library symbols */
-EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(__strlen_user);
-EXPORT_SYMBOL(__strnlen_user);
-
-/* Special internal versions of library functions. */
-EXPORT_SYMBOL(_clear_page);
-EXPORT_SYMBOL(clear_user_page);
-EXPORT_SYMBOL(copy_user_page);
-EXPORT_SYMBOL(__bzero);
-EXPORT_SYMBOL(__memscan_zero);
-EXPORT_SYMBOL(__memscan_generic);
-EXPORT_SYMBOL(__memset);
-
-EXPORT_SYMBOL(csum_partial);
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
-EXPORT_SYMBOL(__csum_partial_copy_from_user);
-EXPORT_SYMBOL(__csum_partial_copy_to_user);
-EXPORT_SYMBOL(ip_fast_csum);
-
 /* Moving data to/from/in userspace. */
-EXPORT_SYMBOL(___copy_to_user);
-EXPORT_SYMBOL(___copy_from_user);
-EXPORT_SYMBOL(___copy_in_user);
 EXPORT_SYMBOL(copy_to_user_fixup);
 EXPORT_SYMBOL(copy_from_user_fixup);
 EXPORT_SYMBOL(copy_in_user_fixup);
-EXPORT_SYMBOL(__strncpy_from_user);
-EXPORT_SYMBOL(__clear_user);
 
 /* Various address conversion macros use this. */
 EXPORT_SYMBOL(sparc64_valid_addr_bitmap);
@@ -246,17 +167,6 @@ EXPORT_SYMBOL(sparc64_valid_addr_bitmap);
  * and will always be 'void __ret_efault(void)'.
  */
 EXPORT_SYMBOL(__ret_efault);
-
-/* No version information on these, as gcc produces such symbols. */
-EXPORT_SYMBOL(memcmp);
-EXPORT_SYMBOL(memcpy);
-EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(strncmp);
-
-void VISenter(void);
-/* RAID code needs this */
-EXPORT_SYMBOL(VISenter);
 
 /* for input/keybdev */
 EXPORT_SYMBOL(sun_do_break);
@@ -270,15 +180,5 @@ EXPORT_SYMBOL(do_BUG);
 EXPORT_SYMBOL(ns87303_lock);
 
 EXPORT_SYMBOL(tick_ops);
-
-EXPORT_SYMBOL(xor_vis_2);
-EXPORT_SYMBOL(xor_vis_3);
-EXPORT_SYMBOL(xor_vis_4);
-EXPORT_SYMBOL(xor_vis_5);
-
-EXPORT_SYMBOL(xor_niagara_2);
-EXPORT_SYMBOL(xor_niagara_3);
-EXPORT_SYMBOL(xor_niagara_4);
-EXPORT_SYMBOL(xor_niagara_5);
 
 EXPORT_SYMBOL_GPL(real_hard_smp_processor_id);
