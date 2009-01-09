@@ -885,6 +885,11 @@
 #define RATOC_PRODUCT_ID_USB60F	0xb020
 
 /*
+ * DIEBOLD BCS SE923
+ */
+#define DIEBOLD_BCS_SE923_PID	0xfb99
+
+/*
  *   BmRequestType:  1100 0000b
  *   bRequest:       FTDI_E2_READ
  *   wValue:         0
