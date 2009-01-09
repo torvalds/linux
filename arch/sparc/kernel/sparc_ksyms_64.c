@@ -5,8 +5,6 @@
  * Copyright (C) 1999 Jakub Jelinek (jj@ultra.linux.cz)
  */
 
-#define PROMLIB_INTERNAL
-
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/init.h>

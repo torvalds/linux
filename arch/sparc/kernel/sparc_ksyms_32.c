@@ -5,8 +5,6 @@
  * Copyright (C) 1996 Eddie C. Dost (ecd@skynet.be)
  */
 
-#define PROMLIB_INTERNAL
-
 #include <linux/module.h>
 #include <linux/init.h>
 

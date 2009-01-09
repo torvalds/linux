@@ -5,8 +5,6 @@
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  */
 
-#define PROMLIB_INTERNAL
-
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
