@@ -1502,11 +1502,11 @@ static int alc_cap_vol_info(struct snd_kcontrol *kcontrol,
 	struct alc_spec *spec = codec->spec;
 	int err;
 
-	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_lock(&codec->control_mutex);
 	kcontrol->private_value = HDA_COMPOSE_AMP_VAL(spec->adc_nids[0], 3, 0,
 						      HDA_INPUT);
 	err = snd_hda_mixer_amp_volume_info(kcontrol, uinfo);
-	mutex_unlock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_unlock(&codec->control_mutex);
 	return err;
 }
 
@@ -1517,11 +1517,11 @@ static int alc_cap_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	struct alc_spec *spec = codec->spec;
 	int err;
 
-	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_lock(&codec->control_mutex);
 	kcontrol->private_value = HDA_COMPOSE_AMP_VAL(spec->adc_nids[0], 3, 0,
 						      HDA_INPUT);
 	err = snd_hda_mixer_amp_tlv(kcontrol, op_flag, size, tlv);
-	mutex_unlock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_unlock(&codec->control_mutex);
 	return err;
 }
 
@@ -1537,11 +1537,11 @@ static int alc_cap_getput_caller(struct snd_kcontrol *kcontrol,
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	int err;
 
-	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_lock(&codec->control_mutex);
 	kcontrol->private_value = HDA_COMPOSE_AMP_VAL(spec->adc_nids[adc_idx],
 						      3, 0, HDA_INPUT);
 	err = func(kcontrol, ucontrol);
-	mutex_unlock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_unlock(&codec->control_mutex);
 	return err;
 }
 
