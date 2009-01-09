@@ -2746,14 +2746,14 @@ static void ql_resolve_queues_to_irqs(struct ql_adapter *qdev)
 				 * Outbound queue is for outbound completions only.
 				 */
 				intr_context->handler = qlge_msix_tx_isr;
-				sprintf(intr_context->name, "%s-txq-%d",
+				sprintf(intr_context->name, "%s-tx-%d",
 					qdev->ndev->name, i);
 			} else {
 				/*
 				 * Inbound queues handle unicast frames only.
 				 */
 				intr_context->handler = qlge_msix_rx_isr;
-				sprintf(intr_context->name, "%s-rxq-%d",
+				sprintf(intr_context->name, "%s-rx-%d",
 					qdev->ndev->name, i);
 			}
 		}
