@@ -28,8 +28,7 @@
        } while (0)
 
 #define QLGE_VENDOR_ID    0x1077
-#define QLGE_DEVICE_ID1    0x8012
-#define QLGE_DEVICE_ID   0x8000
+#define QLGE_DEVICE_ID    0x8012
 
 #define MAX_RX_RINGS 128
 #define MAX_TX_RINGS 128
