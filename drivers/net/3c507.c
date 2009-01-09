@@ -352,6 +352,16 @@ out:
 	return ERR_PTR(err);
 }
 
+static const struct net_device_ops netdev_ops = {
+	.ndo_open		= el16_open,
+	.ndo_stop		= el16_close,
+	.ndo_start_xmit 	= el16_send_packet,
+	.ndo_tx_timeout 	= el16_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __init el16_probe1(struct net_device *dev, int ioaddr)
 {
 	static unsigned char init_ID_done, version_printed;
@@ -449,10 +459,7 @@ static int __init el16_probe1(struct net_device *dev, int ioaddr)
 		goto out1;
 	}
 
- 	dev->open = el16_open;
- 	dev->stop = el16_close;
-	dev->hard_start_xmit = el16_send_packet;
-	dev->tx_timeout = el16_tx_timeout;
+	dev->netdev_ops = &netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	dev->ethtool_ops = &netdev_ethtool_ops;
  	dev->flags &= ~IFF_MULTICAST;	/* Multicast doesn't work */
