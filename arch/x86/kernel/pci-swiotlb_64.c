@@ -33,7 +33,7 @@ phys_addr_t swiotlb_bus_to_phys(dma_addr_t baddr)
 	return baddr;
 }
 
-int __weak swiotlb_arch_range_needs_mapping(void *ptr, size_t size)
+int __weak swiotlb_arch_range_needs_mapping(phys_addr_t paddr, size_t size)
 {
 	return 0;
 }

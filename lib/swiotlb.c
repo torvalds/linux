@@ -145,7 +145,7 @@ static void *swiotlb_bus_to_virt(dma_addr_t address)
 	return phys_to_virt(swiotlb_bus_to_phys(address));
 }
 
-int __weak swiotlb_arch_range_needs_mapping(void *ptr, size_t size)
+int __weak swiotlb_arch_range_needs_mapping(phys_addr_t paddr, size_t size)
 {
 	return 0;
 }
@@ -315,9 +315,9 @@ address_needs_mapping(struct device *hwdev, dma_addr_t addr, size_t size)
 	return !is_buffer_dma_capable(dma_get_mask(hwdev), addr, size);
 }
 
-static inline int range_needs_mapping(void *ptr, size_t size)
+static inline int range_needs_mapping(phys_addr_t paddr, size_t size)
 {
-	return swiotlb_force || swiotlb_arch_range_needs_mapping(ptr, size);
+	return swiotlb_force || swiotlb_arch_range_needs_mapping(paddr, size);
 }
 
 static int is_swiotlb_buffer(char *addr)
@@ -653,7 +653,7 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 	 * buffering it.
 	 */
 	if (!address_needs_mapping(dev, dev_addr, size) &&
-	    !range_needs_mapping(ptr, size))
+	    !range_needs_mapping(virt_to_phys(ptr), size))
 		return dev_addr;
 
 	/*
@@ -804,7 +804,7 @@ swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl, int nelems,
 		void *addr = sg_virt(sg);
 		dma_addr_t dev_addr = swiotlb_virt_to_bus(hwdev, addr);
 
-		if (range_needs_mapping(addr, sg->length) ||
+		if (range_needs_mapping(sg_phys(sg), sg->length) ||
 		    address_needs_mapping(hwdev, dev_addr, sg->length)) {
 			void *map = map_single(hwdev, sg_phys(sg),
 					       sg->length, dir);
