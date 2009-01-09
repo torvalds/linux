@@ -155,21 +155,6 @@ static const struct snd_kcontrol_new ak4535_snd_controls[] = {
 	SOC_SINGLE("Mic Sidetone Volume", AK4535_VOL, 4, 7, 0),
 };
 
-/* add non dapm controls */
-static int ak4535_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(ak4535_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-			snd_soc_cnew(&ak4535_snd_controls[i], codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 /* Mono 1 Mixer */
 static const struct snd_kcontrol_new ak4535_mono1_mixer_controls[] = {
 	SOC_DAPM_SINGLE("Mic Sidetone Switch", AK4535_SIG1, 4, 1, 0),
@@ -510,7 +495,8 @@ static int ak4535_init(struct snd_soc_device *socdev)
 	/* power on device */
 	ak4535_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	ak4535_add_controls(codec);
+	snd_soc_add_controls(codec, ak4535_snd_controls,
+				ARRAY_SIZE(ak4535_snd_controls));
 	ak4535_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {

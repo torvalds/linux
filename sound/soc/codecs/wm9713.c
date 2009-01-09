@@ -190,21 +190,6 @@ SOC_SINGLE("3D Lower Cut-off Switch", AC97_REC_GAIN_MIC, 4, 1, 0),
 SOC_SINGLE("3D Depth", AC97_REC_GAIN_MIC, 0, 15, 1),
 };
 
-/* add non dapm controls */
-static int wm9713_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm9713_snd_ac97_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				snd_soc_cnew(&wm9713_snd_ac97_controls[i],
-					codec, NULL));
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-
 /* We have to create a fake left and right HP mixers because
  * the codec only has a single control that is shared by both channels.
  * This makes it impossible to determine the audio path using the current
@@ -1245,7 +1230,8 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 	reg = ac97_read(codec, AC97_CD) & 0x7fff;
 	ac97_write(codec, AC97_CD, reg);
 
-	wm9713_add_controls(codec);
+	snd_soc_add_controls(codec, wm9713_snd_ac97_controls,
+				ARRAY_SIZE(wm9713_snd_ac97_controls));
 	wm9713_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0)

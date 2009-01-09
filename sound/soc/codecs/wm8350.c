@@ -782,21 +782,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Beep", NULL, "IN3R PGA"},
 };
 
-static int wm8350_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8350_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&wm8350_snd_controls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 static int wm8350_add_widgets(struct snd_soc_codec *codec)
 {
 	int ret;
@@ -1490,7 +1475,8 @@ static int wm8350_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	wm8350_add_controls(codec);
+	snd_soc_add_controls(codec, wm8350_snd_controls,
+				ARRAY_SIZE(wm8350_snd_controls));
 	wm8350_add_widgets(codec);
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);

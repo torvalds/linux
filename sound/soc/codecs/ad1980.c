@@ -93,20 +93,6 @@ SOC_ENUM("Capture Source", ad1980_cap_src),
 SOC_SINGLE("Mic Boost Switch", AC97_MIC, 6, 1, 0),
 };
 
-/* add non dapm controls */
-static int ad1980_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(ad1980_snd_ac97_controls); i++) {
-		err = snd_ctl_add(codec->card, snd_soc_cnew(
-				&ad1980_snd_ac97_controls[i], codec, NULL));
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-
 static unsigned int ac97_read(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
@@ -269,7 +255,8 @@ static int ad1980_soc_probe(struct platform_device *pdev)
 	ext_status = ac97_read(codec, AC97_EXTENDED_STATUS);
 	ac97_write(codec, AC97_EXTENDED_STATUS, ext_status&~0x3800);
 
-	ad1980_add_controls(codec);
+	snd_soc_add_controls(codec, ad1980_snd_ac97_controls,
+				ARRAY_SIZE(ad1980_snd_ac97_controls));
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "ad1980: failed to register card\n");

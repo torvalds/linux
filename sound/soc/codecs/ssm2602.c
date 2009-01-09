@@ -151,21 +151,6 @@ SOC_ENUM("Capture Source", ssm2602_enum[0]),
 SOC_ENUM("Playback De-emphasis", ssm2602_enum[1]),
 };
 
-/* add non dapm controls */
-static int ssm2602_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(ssm2602_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-			snd_soc_cnew(&ssm2602_snd_controls[i], codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 /* Output Mixer */
 static const struct snd_kcontrol_new ssm2602_output_mixer_controls[] = {
 SOC_DAPM_SINGLE("Line Bypass Switch", SSM2602_APANA, 3, 1, 0),
@@ -622,7 +607,8 @@ static int ssm2602_init(struct snd_soc_device *socdev)
 			APANA_ENABLE_MIC_BOOST);
 	ssm2602_write(codec, SSM2602_PWR, 0);
 
-	ssm2602_add_controls(codec);
+	snd_soc_add_controls(codec, ssm2602_snd_controls,
+				ARRAY_SIZE(ssm2602_snd_controls));
 	ssm2602_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {

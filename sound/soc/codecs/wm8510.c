@@ -171,22 +171,6 @@ SOC_SINGLE("Capture Boost(+20dB)", WM8510_ADCBOOST,  8, 1, 0),
 SOC_SINGLE("Mono Playback Switch", WM8510_MONOMIX, 6, 1, 1),
 };
 
-/* add non dapm controls */
-static int wm8510_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8510_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				snd_soc_cnew(&wm8510_snd_controls[i], codec,
-					NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 /* Speaker Output Mixer */
 static const struct snd_kcontrol_new wm8510_speaker_mixer_controls[] = {
 SOC_DAPM_SINGLE("Line Bypass Switch", WM8510_SPKMIX, 1, 1, 0),
@@ -656,7 +640,8 @@ static int wm8510_init(struct snd_soc_device *socdev)
 	/* power on device */
 	codec->bias_level = SND_SOC_BIAS_OFF;
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	wm8510_add_controls(codec);
+	snd_soc_add_controls(codec, wm8510_snd_controls,
+				ARRAY_SIZE(wm8510_snd_controls));
 	wm8510_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {

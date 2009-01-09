@@ -670,22 +670,6 @@ static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 		0, 3, 5, 0, input_gain_tlv),
 };
 
-/* add non dapm controls */
-static int twl4030_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(twl4030_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&twl4030_snd_controls[i],
-						codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	/* Left channel inputs */
 	SND_SOC_DAPM_INPUT("MAINMIC"),
@@ -1233,7 +1217,8 @@ static int twl4030_init(struct snd_soc_device *socdev)
 	/* power on device */
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	twl4030_add_controls(codec);
+	snd_soc_add_controls(codec, twl4030_snd_controls,
+				ARRAY_SIZE(twl4030_snd_controls));
 	twl4030_add_widgets(codec);
 
 	ret = snd_soc_init_card(socdev);

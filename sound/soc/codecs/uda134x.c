@@ -431,39 +431,6 @@ SOC_ENUM("PCM Playback De-emphasis", uda134x_mixer_enum[1]),
 SOC_SINGLE("DC Filter Enable Switch", UDA134X_STATUS0, 0, 1, 0),
 };
 
-static int uda134x_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i, n;
-	const struct snd_kcontrol_new *ctrls;
-	struct uda134x_platform_data *pd = codec->control_data;
-
-	switch (pd->model) {
-	case UDA134X_UDA1340:
-	case UDA134X_UDA1344:
-		n = ARRAY_SIZE(uda1340_snd_controls);
-		ctrls = uda1340_snd_controls;
-		break;
-	case UDA134X_UDA1341:
-		n = ARRAY_SIZE(uda1341_snd_controls);
-		ctrls = uda1341_snd_controls;
-		break;
-	default:
-		printk(KERN_ERR "%s unkown codec type: %d",
-		       __func__, pd->model);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < n; i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&ctrls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 struct snd_soc_dai uda134x_dai = {
 	.name = "UDA134X",
 	/* playback capabilities */
@@ -572,7 +539,22 @@ static int uda134x_soc_probe(struct platform_device *pdev)
 		goto pcm_err;
 	}
 
-	ret = uda134x_add_controls(codec);
+	switch (pd->model) {
+	case UDA134X_UDA1340:
+	case UDA134X_UDA1344:
+		ret = snd_soc_add_controls(codec, uda1340_snd_controls,
+					ARRAY_SIZE(uda1340_snd_controls));
+	break;
+	case UDA134X_UDA1341:
+		ret = snd_soc_add_controls(codec, uda1341_snd_controls,
+					ARRAY_SIZE(uda1341_snd_controls));
+	break;
+	default:
+		printk(KERN_ERR "%s unkown codec type: %d",
+			__func__, pd->model);
+	return -EINVAL;
+	}
+
 	if (ret < 0) {
 		printk(KERN_ERR "UDA134X: failed to register controls\n");
 		goto pcm_err;

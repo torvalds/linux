@@ -311,22 +311,6 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	SOC_ENUM("ADC HPF Cut-off", aic3x_enum[ADC_HPF_ENUM]),
 };
 
-/* add non dapm controls */
-static int aic3x_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(aic3x_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&aic3x_snd_controls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 /* Left DAC Mux */
 static const struct snd_kcontrol_new aic3x_left_dac_mux_controls =
 SOC_DAPM_ENUM("Route", aic3x_enum[LDAC_ENUM]);
@@ -1224,7 +1208,8 @@ static int aic3x_init(struct snd_soc_device *socdev)
 	aic3x_write(codec, AIC3X_GPIO1_REG, (setup->gpio_func[0] & 0xf) << 4);
 	aic3x_write(codec, AIC3X_GPIO2_REG, (setup->gpio_func[1] & 0xf) << 4);
 
-	aic3x_add_controls(codec);
+	snd_soc_add_controls(codec, aic3x_snd_controls,
+				ARRAY_SIZE(aic3x_snd_controls));
 	aic3x_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {

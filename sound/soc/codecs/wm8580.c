@@ -330,20 +330,6 @@ SOC_DOUBLE("ADC Mute Switch", WM8580_ADC_CONTROL1, 0, 1, 1, 0),
 SOC_SINGLE("ADC High-Pass Filter Switch", WM8580_ADC_CONTROL1, 4, 1, 0),
 };
 
-/* Add non-DAPM controls */
-static int wm8580_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8580_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&wm8580_snd_controls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
 static const struct snd_soc_dapm_widget wm8580_dapm_widgets[] = {
 SND_SOC_DAPM_DAC("DAC1", "Playback", WM8580_PWRDN1, 2, 1),
 SND_SOC_DAPM_DAC("DAC2", "Playback", WM8580_PWRDN1, 3, 1),
@@ -866,7 +852,8 @@ static int wm8580_init(struct snd_soc_device *socdev)
 		goto pcm_err;
 	}
 
-	wm8580_add_controls(codec);
+	snd_soc_add_controls(codec, wm8580_snd_controls,
+				ARRAY_SIZE(wm8580_snd_controls));
 	wm8580_add_widgets(codec);
 
 	ret = snd_soc_init_card(socdev);

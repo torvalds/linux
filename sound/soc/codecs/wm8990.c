@@ -417,21 +417,6 @@ SOC_SINGLE("RIN34 Mute Switch", WM8990_RIGHT_LINE_INPUT_3_4_VOLUME,
 
 };
 
-/* add non dapm controls */
-static int wm8990_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8990_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				snd_soc_cnew(&wm8990_snd_controls[i], codec,
-					NULL));
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-
 /*
  * _DAPM_ Controls
  */
@@ -1460,7 +1445,8 @@ static int wm8990_init(struct snd_soc_device *socdev)
 	wm8990_write(codec, WM8990_LEFT_OUTPUT_VOLUME, 0x50 | (1<<8));
 	wm8990_write(codec, WM8990_RIGHT_OUTPUT_VOLUME, 0x50 | (1<<8));
 
-	wm8990_add_controls(codec);
+	snd_soc_add_controls(codec, wm8990_snd_controls,
+				ARRAY_SIZE(wm8990_snd_controls));
 	wm8990_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {

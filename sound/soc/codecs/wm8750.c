@@ -231,21 +231,6 @@ SOC_SINGLE("Mono Playback Volume", WM8750_MOUTV, 0, 127, 0),
 
 };
 
-/* add non dapm controls */
-static int wm8750_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8750_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				snd_soc_cnew(&wm8750_snd_controls[i],
-						codec, NULL));
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-
 /*
  * DAPM Controls
  */
@@ -816,7 +801,8 @@ static int wm8750_init(struct snd_soc_device *socdev)
 	reg = wm8750_read_reg_cache(codec, WM8750_RINVOL);
 	wm8750_write(codec, WM8750_RINVOL, reg | 0x0100);
 
-	wm8750_add_controls(codec);
+	snd_soc_add_controls(codec, wm8750_snd_controls,
+				ARRAY_SIZE(wm8750_snd_controls));
 	wm8750_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {

@@ -183,24 +183,6 @@ static const struct snd_kcontrol_new tlv320aic23_snd_controls[] = {
 	SOC_ENUM("Playback De-emphasis", tlv320aic23_deemph),
 };
 
-/* add non dapm controls */
-static int tlv320aic23_add_controls(struct snd_soc_codec *codec)
-{
-
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(tlv320aic23_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&tlv320aic23_snd_controls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-
-}
-
 /* PGA Mixer controls for Line and Mic switch */
 static const struct snd_kcontrol_new tlv320aic23_output_mixer_controls[] = {
 	SOC_DAPM_SINGLE("Line Bypass Switch", TLV320AIC23_ANLG, 3, 1, 0),
@@ -718,7 +700,8 @@ static int tlv320aic23_init(struct snd_soc_device *socdev)
 
 	tlv320aic23_write(codec, TLV320AIC23_ACTIVE, 0x1);
 
-	tlv320aic23_add_controls(codec);
+	snd_soc_add_controls(codec, tlv320aic23_snd_controls,
+				ARRAY_SIZE(tlv320aic23_snd_controls));
 	tlv320aic23_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {

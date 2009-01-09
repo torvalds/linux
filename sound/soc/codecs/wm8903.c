@@ -744,21 +744,6 @@ SOC_DOUBLE_R_TLV("Speaker Volume",
 		 0, 63, 0, out_tlv),
 };
 
-static int wm8903_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8903_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&wm8903_snd_controls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 static const struct snd_kcontrol_new linput_mode_mux =
 	SOC_DAPM_ENUM("Left Input Mode Mux", linput_mode_enum);
 
@@ -1737,7 +1722,8 @@ static int wm8903_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	wm8903_add_controls(socdev->codec);
+	snd_soc_add_controls(socdev->codec, wm8903_snd_controls,
+				ARRAY_SIZE(wm8903_snd_controls));
 	wm8903_add_widgets(socdev->codec);
 
 	ret = snd_soc_init_card(socdev);

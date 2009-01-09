@@ -517,22 +517,6 @@ SOC_SINGLE("LINEOUT2 LP -12dB", WM8900_REG_LOUTMIXCTL1,
 
 };
 
-/* add non dapm controls */
-static int wm8900_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8900_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&wm8900_snd_controls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 static const struct snd_kcontrol_new wm8900_dapm_loutput2_control =
 SOC_DAPM_SINGLE("LINEOUT2L Switch", WM8900_REG_POWER3, 6, 1, 0);
 
@@ -1439,7 +1423,8 @@ static int wm8900_probe(struct platform_device *pdev)
 		goto pcm_err;
 	}
 
-	wm8900_add_controls(codec);
+	snd_soc_add_controls(codec, wm8900_snd_controls,
+				ARRAY_SIZE(wm8900_snd_controls));
 	wm8900_add_widgets(codec);
 
 	ret = snd_soc_init_card(socdev);

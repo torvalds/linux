@@ -271,21 +271,6 @@ static const struct snd_kcontrol_new uda1380_snd_controls[] = {
 	SOC_SINGLE("AGC Switch", UDA1380_AGC, 0, 1, 0),
 };
 
-/* add non dapm controls */
-static int uda1380_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(uda1380_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-			snd_soc_cnew(&uda1380_snd_controls[i], codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 /* Input mux */
 static const struct snd_kcontrol_new uda1380_input_mux_control =
 	SOC_DAPM_ENUM("Route", uda1380_input_sel_enum);
@@ -675,7 +660,8 @@ static int uda1380_init(struct snd_soc_device *socdev, int dac_clk)
 	}
 
 	/* uda1380 init */
-	uda1380_add_controls(codec);
+	snd_soc_add_controls(codec, uda1380_snd_controls,
+				ARRAY_SIZE(uda1380_snd_controls));
 	uda1380_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {

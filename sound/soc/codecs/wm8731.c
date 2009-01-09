@@ -129,22 +129,6 @@ SOC_SINGLE("Store DC Offset Switch", WM8731_APDIGI, 4, 1, 0),
 SOC_ENUM("Playback De-emphasis", wm8731_enum[1]),
 };
 
-/* add non dapm controls */
-static int wm8731_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8731_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&wm8731_snd_controls[i],
-						codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 /* Output Mixer */
 static const struct snd_kcontrol_new wm8731_output_mixer_controls[] = {
 SOC_DAPM_SINGLE("Line Bypass Switch", WM8731_APANA, 3, 1, 0),
@@ -543,7 +527,8 @@ static int wm8731_init(struct snd_soc_device *socdev)
 	reg = wm8731_read_reg_cache(codec, WM8731_RINVOL);
 	wm8731_write(codec, WM8731_RINVOL, reg & ~0x0100);
 
-	wm8731_add_controls(codec);
+	snd_soc_add_controls(codec, wm8731_snd_controls,
+				ARRAY_SIZE(wm8731_snd_controls));
 	wm8731_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {

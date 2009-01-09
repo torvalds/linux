@@ -339,21 +339,6 @@ SOC_ENUM("ADC Data Select", wm8753_enum[27]),
 SOC_ENUM("ROUT2 Phase", wm8753_enum[28]),
 };
 
-/* add non dapm controls */
-static int wm8753_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8753_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				snd_soc_cnew(&wm8753_snd_controls[i],
-						codec, NULL));
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-
 /*
  * _DAPM_ Controls
  */
@@ -1603,7 +1588,8 @@ static int wm8753_init(struct snd_soc_device *socdev)
 	reg = wm8753_read_reg_cache(codec, WM8753_RINVOL);
 	wm8753_write(codec, WM8753_RINVOL, reg | 0x0100);
 
-	wm8753_add_controls(codec);
+	snd_soc_add_controls(codec, wm8753_snd_controls,
+				ARRAY_SIZE(wm8753_snd_controls));
 	wm8753_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
