@@ -109,7 +109,6 @@ static struct sysfs_ops dev_sysfs_ops = {
 static void device_release(struct kobject *kobj)
 {
 	struct device *dev = to_dev(kobj);
-	struct device_private *p = dev->p;
 
 	if (dev->release)
 		dev->release(dev);
@@ -121,7 +120,6 @@ static void device_release(struct kobject *kobj)
 		WARN(1, KERN_ERR "Device '%s' does not have a release() "
 			"function, it is broken and must be fixed.\n",
 			dev_name(dev));
-	kfree(p);
 }
 
 static struct kobj_type device_ktype = {
@@ -538,12 +536,6 @@ static void klist_children_put(struct klist_node *n)
  */
 void device_initialize(struct device *dev)
 {
-	dev->p = kzalloc(sizeof(*dev->p), GFP_KERNEL);
-	if (!dev->p) {
-		WARN_ON(1);
-		return;
-	}
-	dev->p->device = dev;
 	dev->kobj.kset = devices_kset;
 	kobject_init(&dev->kobj, &device_ktype);
 	klist_init(&dev->klist_children, klist_children_get,
