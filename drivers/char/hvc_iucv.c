@@ -12,9 +12,11 @@
 
 #include <linux/types.h>
 #include <asm/ebcdic.h>
+#include <linux/delay.h>
 #include <linux/mempool.h>
 #include <linux/module.h>
 #include <linux/tty.h>
+#include <linux/wait.h>
 #include <net/iucv/iucv.h>
 
 #include "hvc_console.h"
@@ -37,7 +39,7 @@
 struct iucv_tty_msg {
 	u8	version;		/* Message version */
 	u8	type;			/* Message type */
-#define MSG_MAX_DATALEN		(~(u16)0)
+#define MSG_MAX_DATALEN		((u16)(~0))
 	u16	datalen;		/* Payload length */
 	u8	data[];			/* Payload buffer */
 } __attribute__((packed));
@@ -60,6 +62,12 @@ struct hvc_iucv_private {
 	enum tty_state_t	tty_state;	/* TTY status */
 	struct iucv_path	*path;		/* IUCV path pointer */
 	spinlock_t		lock;		/* hvc_iucv_private lock */
+#define SNDBUF_SIZE		(PAGE_SIZE)	/* must be < MSG_MAX_DATALEN */
+	void			*sndbuf;	/* send buffer		  */
+	size_t			sndbuf_len;	/* length of send buffer  */
+#define QUEUE_SNDBUF_DELAY	(HZ / 25)
+	struct delayed_work	sndbuf_work;	/* work: send iucv msg(s) */
+	wait_queue_head_t	sndbuf_waitq;	/* wait for send completion */
 	struct list_head	tty_outqueue;	/* outgoing IUCV messages */
 	struct list_head	tty_inqueue;	/* incoming IUCV messages */
 };
@@ -318,54 +326,115 @@ static int hvc_iucv_get_chars(uint32_t vtermno, char *buf, int count)
 }
 
 /**
- * hvc_iucv_send() - Send an IUCV message containing terminal data.
+ * hvc_iucv_queue() - Buffer terminal data for sending.
  * @priv:	Pointer to struct hvc_iucv_private instance.
  * @buf:	Buffer containing data to send.
- * @size:	Size of buffer and amount of data to send.
+ * @count:	Size of buffer and amount of data to send.
  *
- * If an IUCV communication path is established, the function copies the buffer
- * data to a newly allocated struct iucv_tty_buffer element, sends the data and
- * puts the element to the outqueue.
+ * The function queues data for sending. To actually send the buffered data,
+ * a work queue function is * scheduled (with QUEUE_SNDBUF_DELAY).
+ * The function returns the number of data bytes that has been buffered.
  *
- * If there is no IUCV communication path established, the function returns 0.
+ * If the device is not connected, data is ignored and the function returns
+ * @count.
+ * If the buffer is full, the function returns 0.
  * If an existing IUCV communicaton path has been severed, the function returns
  * -EPIPE (can be passed to HVC layer to cause a tty hangup).
  */
-static int hvc_iucv_send(struct hvc_iucv_private *priv, const char *buf,
+static int hvc_iucv_queue(struct hvc_iucv_private *priv, const char *buf,
 			 int count)
 {
+	size_t len;
+
+	if (priv->iucv_state == IUCV_DISCONN)
+		return count;			/* ignore data */
+
+	if (priv->iucv_state == IUCV_SEVERED)
+		return -EPIPE;
+
+	len = min_t(size_t, count, SNDBUF_SIZE - priv->sndbuf_len);
+	if (!len)
+		return 0;
+
+	memcpy(priv->sndbuf + priv->sndbuf_len, buf, len);
+	priv->sndbuf_len += len;
+
+	if (priv->iucv_state == IUCV_CONNECTED)
+		schedule_delayed_work(&priv->sndbuf_work, QUEUE_SNDBUF_DELAY);
+
+	return len;
+}
+
+/**
+ * hvc_iucv_send() - Send an IUCV message containing terminal data.
+ * @priv:	Pointer to struct hvc_iucv_private instance.
+ *
+ * If an IUCV communication path has been established, the queued data
+ * for output are sent via an IUCV message.
+ *
+ * If there is no IUCV communication path established, the function returns 0.
+ * If an existing IUCV communicaton path has been severed, the function returns
+ * -EPIPE.
+ */
+static int hvc_iucv_send(struct hvc_iucv_private *priv)
+{
 	struct iucv_tty_buffer *sb;
-	int rc;
-	u16 len;
+	int rc, len;
 
 	if (priv->iucv_state == IUCV_SEVERED)
 		return -EPIPE;
 
 	if (priv->iucv_state == IUCV_DISCONN)
-		return 0;
+		return -EIO;
 
-	len = min_t(u16, MSG_MAX_DATALEN, count);
+	if (!priv->sndbuf_len)
+		return 0;
 
 	/* allocate internal buffer to store msg data and also compute total
 	 * message length */
-	sb = alloc_tty_buffer(len, GFP_ATOMIC);
+	sb = alloc_tty_buffer(priv->sndbuf_len, GFP_ATOMIC);
 	if (!sb)
 		return -ENOMEM;
 
-	sb->mbuf->datalen = len;
-	memcpy(sb->mbuf->data, buf, len);
+	memcpy(sb->mbuf->data, priv->sndbuf, priv->sndbuf_len);
+	sb->mbuf->datalen = (u16) priv->sndbuf_len;
+	sb->msg.length = MSG_SIZE(sb->mbuf->datalen);
 
 	list_add_tail(&sb->list, &priv->tty_outqueue);
 
 	rc = __iucv_message_send(priv->path, &sb->msg, 0, 0,
 				 (void *) sb->mbuf, sb->msg.length);
 	if (rc) {
+		/* drop the message here; however we might want to handle
+		 * 0x03 (msg limit reached) by trying again... */
 		list_del(&sb->list);
 		destroy_tty_buffer(sb);
-		len = 0;
 	}
+	len = priv->sndbuf_len;
+	priv->sndbuf_len = 0;
 
 	return len;
+}
+
+/**
+ * hvc_iucv_sndbuf_work() - Send buffered data over IUCV
+ * @work:	Work structure.
+ *
+ * The function sends buffered output data over IUCV and, if necessary,
+ * reschedules itself if not all buffered data could be sent.
+ */
+static void hvc_iucv_sndbuf_work(struct work_struct *work)
+{
+	struct hvc_iucv_private *priv;
+
+	priv = container_of(work, struct hvc_iucv_private, sndbuf_work.work);
+
+	if (!priv)
+		return;
+
+	spin_lock_bh(&priv->lock);
+	hvc_iucv_send(priv);
+	spin_unlock_bh(&priv->lock);
 }
 
 /**
@@ -385,7 +454,7 @@ static int hvc_iucv_send(struct hvc_iucv_private *priv, const char *buf,
 static int hvc_iucv_put_chars(uint32_t vtermno, const char *buf, int count)
 {
 	struct hvc_iucv_private *priv = hvc_iucv_get_private(vtermno);
-	int sent;
+	int queued;
 
 	if (count <= 0)
 		return 0;
@@ -394,10 +463,10 @@ static int hvc_iucv_put_chars(uint32_t vtermno, const char *buf, int count)
 		return -ENODEV;
 
 	spin_lock(&priv->lock);
-	sent = hvc_iucv_send(priv, buf, count);
+	queued = hvc_iucv_queue(priv, buf, count);
 	spin_unlock(&priv->lock);
 
-	return sent;
+	return queued;
 }
 
 /**
@@ -441,6 +510,46 @@ static void hvc_iucv_cleanup(struct hvc_iucv_private *priv)
 
 	priv->tty_state = TTY_CLOSED;
 	priv->iucv_state = IUCV_DISCONN;
+
+	priv->sndbuf_len = 0;
+}
+
+/**
+ * tty_outqueue_empty() - Test if the tty outq is empty
+ * @priv:	Pointer to struct hvc_iucv_private instance.
+ */
+static inline int tty_outqueue_empty(struct hvc_iucv_private *priv)
+{
+	int rc;
+
+	spin_lock_bh(&priv->lock);
+	rc = list_empty(&priv->tty_outqueue);
+	spin_unlock_bh(&priv->lock);
+
+	return rc;
+}
+
+/**
+ * flush_sndbuf_sync() - Flush send buffer and wait for completion
+ * @priv:	Pointer to struct hvc_iucv_private instance.
+ *
+ * The routine cancels a pending sndbuf work, calls hvc_iucv_send()
+ * to flush any buffered terminal output data and waits for completion.
+ */
+static void flush_sndbuf_sync(struct hvc_iucv_private *priv)
+{
+	int sync_wait;
+
+	cancel_delayed_work_sync(&priv->sndbuf_work);
+
+	spin_lock_bh(&priv->lock);
+	hvc_iucv_send(priv);		/* force sending buffered data */
+	sync_wait = !list_empty(&priv->tty_outqueue); /* anything queued ? */
+	spin_unlock_bh(&priv->lock);
+
+	if (sync_wait)
+		wait_event_timeout(priv->sndbuf_waitq,
+				   tty_outqueue_empty(priv), HZ);
 }
 
 /**
@@ -470,6 +579,8 @@ static void hvc_iucv_notifier_hangup(struct hvc_struct *hp, int id)
 	priv = hvc_iucv_get_private(id);
 	if (!priv)
 		return;
+
+	flush_sndbuf_sync(priv);
 
 	spin_lock_bh(&priv->lock);
 	/* NOTE: If the hangup was scheduled by ourself (from the iucv
@@ -509,6 +620,8 @@ static void hvc_iucv_notifier_del(struct hvc_struct *hp, int id)
 	priv = hvc_iucv_get_private(id);
 	if (!priv)
 		return;
+
+	flush_sndbuf_sync(priv);
 
 	spin_lock_bh(&priv->lock);
 	path = priv->path;		/* save reference to IUCV path */
@@ -588,6 +701,9 @@ static	int hvc_iucv_path_pending(struct iucv_path *path,
 	priv->path = path;
 	priv->iucv_state = IUCV_CONNECTED;
 
+	/* flush buffered output data... */
+	schedule_delayed_work(&priv->sndbuf_work, 5);
+
 out_path_handled:
 	spin_unlock(&priv->lock);
 	return 0;
@@ -615,15 +731,18 @@ static void hvc_iucv_path_severed(struct iucv_path *path, u8 ipuser[16])
 	spin_lock(&priv->lock);
 	priv->iucv_state = IUCV_SEVERED;
 
-	/* NOTE: If the tty has not yet been opened by a getty program
-	 *	 (e.g. to see console messages), then cleanup the
-	 *	 hvc_iucv_private structure to allow re-connects.
+	/* If the tty has not yet been opened, clean up the hvc_iucv_private
+	 * structure to allow re-connects.
 	 *
-	 *	 If the tty has been opened, the get_chars() callback returns
-	 *	 -EPIPE to signal the hvc console layer to hang up the tty. */
+	 * If it has been opened, let get_chars() return -EPIPE to signal the
+	 * HVC layer to hang up the tty.
+	 * If so, we need to wake up the HVC thread to call get_chars()...
+	 */
 	priv->path = NULL;
 	if (priv->tty_state == TTY_CLOSED)
 		hvc_iucv_cleanup(priv);
+	else
+		hvc_kick();
 	spin_unlock(&priv->lock);
 
 	/* finally sever path (outside of priv->lock due to lock ordering) */
@@ -648,6 +767,12 @@ static void hvc_iucv_msg_pending(struct iucv_path *path,
 	struct hvc_iucv_private *priv = path->private;
 	struct iucv_tty_buffer *rb;
 
+	/* reject messages that exceed max size of iucv_tty_msg->datalen */
+	if (msg->length > MSG_SIZE(MSG_MAX_DATALEN)) {
+		iucv_message_reject(path, msg);
+		return;
+	}
+
 	spin_lock(&priv->lock);
 
 	/* reject messages if tty has not yet been opened */
@@ -656,7 +781,7 @@ static void hvc_iucv_msg_pending(struct iucv_path *path,
 		goto unlock_return;
 	}
 
-	/* allocate buffer an empty buffer element */
+	/* allocate tty buffer to save iucv msg only */
 	rb = alloc_tty_buffer(0, GFP_ATOMIC);
 	if (!rb) {
 		iucv_message_reject(path, msg);
@@ -666,7 +791,7 @@ static void hvc_iucv_msg_pending(struct iucv_path *path,
 
 	list_add_tail(&rb->list, &priv->tty_inqueue);
 
-	hvc_kick();	/* wakup hvc console thread */
+	hvc_kick();	/* wake up hvc console thread */
 
 unlock_return:
 	spin_unlock(&priv->lock);
@@ -697,6 +822,7 @@ static void hvc_iucv_msg_complete(struct iucv_path *path,
 			list_move(&ent->list, &list_remove);
 			break;
 		}
+	wake_up(&priv->sndbuf_waitq);
 	spin_unlock(&priv->lock);
 	destroy_tty_buffer_list(&list_remove);
 }
@@ -732,15 +858,27 @@ static int __init hvc_iucv_alloc(int id)
 	spin_lock_init(&priv->lock);
 	INIT_LIST_HEAD(&priv->tty_outqueue);
 	INIT_LIST_HEAD(&priv->tty_inqueue);
+	INIT_DELAYED_WORK(&priv->sndbuf_work, hvc_iucv_sndbuf_work);
+	init_waitqueue_head(&priv->sndbuf_waitq);
+
+	priv->sndbuf = (void *) get_zeroed_page(GFP_KERNEL);
+	if (!priv->sndbuf) {
+		kfree(priv);
+		return -ENOMEM;
+	}
 
 	/* Finally allocate hvc */
-	priv->hvc = hvc_alloc(HVC_IUCV_MAGIC + id,
-			      HVC_IUCV_MAGIC + id, &hvc_iucv_ops, PAGE_SIZE);
+	priv->hvc = hvc_alloc(HVC_IUCV_MAGIC + id, /*		  PAGE_SIZE */
+			      HVC_IUCV_MAGIC + id, &hvc_iucv_ops, 256);
 	if (IS_ERR(priv->hvc)) {
 		rc = PTR_ERR(priv->hvc);
+		free_page((unsigned long) priv->sndbuf);
 		kfree(priv);
 		return rc;
 	}
+
+	/* kick khvcd thread; instead of using polling */
+	priv->hvc->irq_requested = 1;
 
 	/* setup iucv related information */
 	snprintf(name, 9, "lnxhvc%-2d", id);
@@ -759,8 +897,8 @@ static int __init hvc_iucv_init(void)
 	int rc, i;
 
 	if (!MACHINE_IS_VM) {
-		pr_warning("The z/VM IUCV Hypervisor console cannot be "
-			   "used without z/VM.\n");
+		pr_info("The z/VM IUCV HVC device driver cannot "
+			   "be used without z/VM\n");
 		return -ENODEV;
 	}
 
@@ -774,16 +912,14 @@ static int __init hvc_iucv_init(void)
 					   sizeof(struct iucv_tty_buffer),
 					   0, 0, NULL);
 	if (!hvc_iucv_buffer_cache) {
-		pr_err("Not enough memory for driver initialization "
-			"(rs=%d).\n", 1);
+		pr_err("Allocating memory failed with reason code=%d\n", 1);
 		return -ENOMEM;
 	}
 
 	hvc_iucv_mempool = mempool_create_slab_pool(MEMPOOL_MIN_NR,
 						    hvc_iucv_buffer_cache);
 	if (!hvc_iucv_mempool) {
-		pr_err("Not enough memory for driver initialization "
-			"(rs=%d).\n", 2);
+		pr_err("Allocating memory failed with reason code=%d\n", 2);
 		kmem_cache_destroy(hvc_iucv_buffer_cache);
 		return -ENOMEM;
 	}
@@ -792,8 +928,8 @@ static int __init hvc_iucv_init(void)
 	for (i = 0; i < hvc_iucv_devices; i++) {
 		rc = hvc_iucv_alloc(i);
 		if (rc) {
-			pr_err("Could not create new z/VM IUCV HVC backend "
-				"rc=%d.\n", rc);
+			pr_err("Creating a new HVC terminal device "
+				"failed	with error code=%d\n", rc);
 			goto out_error_hvc;
 		}
 	}
@@ -801,7 +937,8 @@ static int __init hvc_iucv_init(void)
 	/* register IUCV callback handler */
 	rc = iucv_register(&hvc_iucv_handler, 0);
 	if (rc) {
-		pr_err("Could not register iucv handler (rc=%d).\n", rc);
+		pr_err("Registering IUCV handlers failed with error code=%d\n",
+			rc);
 		goto out_error_iucv;
 	}
 
