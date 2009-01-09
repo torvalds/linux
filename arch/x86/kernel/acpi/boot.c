@@ -1359,6 +1359,17 @@ static void __init acpi_process_madt(void)
 			       "Invalid BIOS MADT, disabling ACPI\n");
 			disable_acpi();
 		}
+	} else {
+		/*
+ 		 * ACPI found no MADT, and so ACPI wants UP PIC mode.
+ 		 * In the event an MPS table was found, forget it.
+ 		 * Boot with "acpi=off" to use MPS on such a system.
+ 		 */
+		if (smp_found_config) {
+			printk(KERN_WARNING PREFIX
+				"No APIC-table, disabling MPS\n");
+			smp_found_config = 0;
+		}
 	}
 #endif
 	return;
