@@ -194,6 +194,15 @@ static void olympic_srb_bh(struct net_device *dev) ;
 static void olympic_asb_bh(struct net_device *dev) ; 
 static int olympic_proc_info(char *buffer, char **start, off_t offset, int length, int *eof, void *data) ; 
 
+static const struct net_device_ops olympic_netdev_ops = {
+	.ndo_open		= olympic_open,
+	.ndo_stop		= olympic_close,
+	.ndo_start_xmit		= olympic_xmit,
+	.ndo_change_mtu		= olympic_change_mtu,
+	.ndo_set_multicast_list	= olympic_set_rx_mode,
+	.ndo_set_mac_address	= olympic_set_mac_address,
+};
+
 static int __devinit olympic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev ; 
@@ -252,13 +261,7 @@ static int __devinit olympic_probe(struct pci_dev *pdev, const struct pci_device
 		goto op_free_iomap;
 	}				
 
-	dev->open=&olympic_open;
-	dev->hard_start_xmit=&olympic_xmit;
-	dev->change_mtu=&olympic_change_mtu;
-	dev->stop=&olympic_close;
-	dev->do_ioctl=NULL;
-	dev->set_multicast_list=&olympic_set_rx_mode;
-	dev->set_mac_address=&olympic_set_mac_address ;  
+	dev->netdev_ops = &olympic_netdev_ops;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	pci_set_drvdata(pdev,dev) ; 
