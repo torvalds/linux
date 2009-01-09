@@ -19,6 +19,7 @@
 
 #include <linux/dma-debug.h>
 #include <linux/spinlock.h>
+#include <linux/debugfs.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -61,11 +62,28 @@ static DEFINE_SPINLOCK(free_entries_lock);
 /* Global disable flag - will be set in case of an error */
 static bool global_disable __read_mostly;
 
+/* Global error count */
+static u32 error_count;
+
+/* Global error show enable*/
+static u32 show_all_errors __read_mostly;
+/* Number of errors to show */
+static u32 show_num_errors = 1;
+
 static u32 num_free_entries;
 static u32 min_free_entries;
 
 /* number of preallocated entries requested by kernel cmdline */
 static u32 req_entries;
+
+/* debugfs dentry's for the stuff above */
+static struct dentry *dma_debug_dent        __read_mostly;
+static struct dentry *global_disable_dent   __read_mostly;
+static struct dentry *error_count_dent      __read_mostly;
+static struct dentry *show_all_errors_dent  __read_mostly;
+static struct dentry *show_num_errors_dent  __read_mostly;
+static struct dentry *num_free_entries_dent __read_mostly;
+static struct dentry *min_free_entries_dent __read_mostly;
 
 /*
  * Hash related functions
@@ -241,6 +259,58 @@ out_err:
 	return -ENOMEM;
 }
 
+static int dma_debug_fs_init(void)
+{
+	dma_debug_dent = debugfs_create_dir("dma-api", NULL);
+	if (!dma_debug_dent) {
+		printk(KERN_ERR "DMA-API: can not create debugfs directory\n");
+		return -ENOMEM;
+	}
+
+	global_disable_dent = debugfs_create_bool("disabled", 0444,
+			dma_debug_dent,
+			(u32 *)&global_disable);
+	if (!global_disable_dent)
+		goto out_err;
+
+	error_count_dent = debugfs_create_u32("error_count", 0444,
+			dma_debug_dent, &error_count);
+	if (!error_count_dent)
+		goto out_err;
+
+	show_all_errors_dent = debugfs_create_u32("all_errors", 0644,
+			dma_debug_dent,
+			&show_all_errors);
+	if (!show_all_errors_dent)
+		goto out_err;
+
+	show_num_errors_dent = debugfs_create_u32("num_errors", 0644,
+			dma_debug_dent,
+			&show_num_errors);
+	if (!show_num_errors_dent)
+		goto out_err;
+
+	num_free_entries_dent = debugfs_create_u32("num_free_entries", 0444,
+			dma_debug_dent,
+			&num_free_entries);
+	if (!num_free_entries_dent)
+		goto out_err;
+
+	min_free_entries_dent = debugfs_create_u32("min_free_entries", 0444,
+			dma_debug_dent,
+			&min_free_entries);
+	if (!min_free_entries_dent)
+		goto out_err;
+
+	return 0;
+
+out_err:
+	debugfs_remove_recursive(dma_debug_dent);
+
+	return -ENOMEM;
+}
+
+
 /*
  * Let the architectures decide how many entries should be preallocated.
  */
@@ -254,6 +324,14 @@ void dma_debug_init(u32 num_entries)
 	for (i = 0; i < HASH_SIZE; ++i) {
 		INIT_LIST_HEAD(&dma_entry_hash[i].list);
 		dma_entry_hash[i].lock = SPIN_LOCK_UNLOCKED;
+	}
+
+	if (dma_debug_fs_init() != 0) {
+		printk(KERN_ERR "DMA-API: error creating debugfs entries "
+				"- disabling\n");
+		global_disable = true;
+
+		return;
 	}
 
 	if (req_entries)
