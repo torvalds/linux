@@ -1104,25 +1104,29 @@ static int p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 	return 0;
 }
 
-static struct sk_buff *p54_alloc_skb(struct ieee80211_hw *dev,
-		u16 hdr_flags, u16 len, u16 type, gfp_t memflags)
+static struct sk_buff *p54_alloc_skb(struct ieee80211_hw *dev, u16 hdr_flags,
+				     u16 payload_len, u16 type, gfp_t memflags)
 {
 	struct p54_common *priv = dev->priv;
 	struct p54_hdr *hdr;
 	struct sk_buff *skb;
+	size_t frame_len = sizeof(*hdr) + payload_len;
 
-	skb = __dev_alloc_skb(len + priv->tx_hdr_len, memflags);
+	if (frame_len > P54_MAX_CTRL_FRAME_LEN)
+		return NULL;
+
+	skb = __dev_alloc_skb(priv->tx_hdr_len + frame_len, memflags);
 	if (!skb)
 		return NULL;
 	skb_reserve(skb, priv->tx_hdr_len);
 
 	hdr = (struct p54_hdr *) skb_put(skb, sizeof(*hdr));
 	hdr->flags = cpu_to_le16(hdr_flags);
-	hdr->len = cpu_to_le16(len - sizeof(*hdr));
+	hdr->len = cpu_to_le16(payload_len);
 	hdr->type = cpu_to_le16(type);
 	hdr->tries = hdr->rts_tries = 0;
 
-	if (unlikely(p54_assign_address(dev, skb, hdr, len))) {
+	if (p54_assign_address(dev, skb, hdr, frame_len)) {
 		kfree_skb(skb);
 		return NULL;
 	}
@@ -1132,7 +1136,6 @@ static struct sk_buff *p54_alloc_skb(struct ieee80211_hw *dev,
 int p54_read_eeprom(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
-	struct p54_hdr *hdr = NULL;
 	struct p54_eeprom_lm86 *eeprom_hdr;
 	struct sk_buff *skb;
 	size_t eeprom_size = 0x2020, offset = 0, blocksize, maxblocksize;
@@ -1145,9 +1148,9 @@ int p54_read_eeprom(struct ieee80211_hw *dev)
 	else
 		maxblocksize -= 0x4;
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL, sizeof(*hdr) +
-			    sizeof(*eeprom_hdr) + maxblocksize,
-			    P54_CONTROL_TYPE_EEPROM_READBACK, GFP_KERNEL);
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL, sizeof(*eeprom_hdr) +
+			    maxblocksize, P54_CONTROL_TYPE_EEPROM_READBACK,
+			    GFP_KERNEL);
 	if (!skb)
 		goto free;
 	priv->eeprom = kzalloc(EEPROM_READBACK_LEN, GFP_KERNEL);
@@ -1203,9 +1206,8 @@ static int p54_set_tim(struct ieee80211_hw *dev, struct ieee80211_sta *sta,
 	struct sk_buff *skb;
 	struct p54_tim *tim;
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET,
-		      sizeof(struct p54_hdr) + sizeof(*tim),
-		      P54_CONTROL_TYPE_TIM, GFP_ATOMIC);
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*tim),
+			    P54_CONTROL_TYPE_TIM, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1222,9 +1224,8 @@ static int p54_sta_unlock(struct ieee80211_hw *dev, u8 *addr)
 	struct sk_buff *skb;
 	struct p54_sta_unlock *sta;
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET,
-		sizeof(struct p54_hdr) + sizeof(*sta),
-		P54_CONTROL_TYPE_PSM_STA_UNLOCK, GFP_ATOMIC);
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*sta),
+			    P54_CONTROL_TYPE_PSM_STA_UNLOCK, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1264,9 +1265,8 @@ static int p54_tx_cancel(struct ieee80211_hw *dev, struct sk_buff *entry)
 	struct p54_hdr *hdr;
 	struct p54_txcancel *cancel;
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET,
-		sizeof(struct p54_hdr) + sizeof(*cancel),
-		P54_CONTROL_TYPE_TXCANCEL, GFP_ATOMIC);
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*cancel),
+			    P54_CONTROL_TYPE_TXCANCEL, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1548,9 +1548,8 @@ static int p54_setup_mac(struct ieee80211_hw *dev)
 	struct p54_setup_mac *setup;
 	u16 mode;
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*setup) +
-			    sizeof(struct p54_hdr), P54_CONTROL_TYPE_SETUP,
-			    GFP_ATOMIC);
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*setup),
+			    P54_CONTROL_TYPE_SETUP, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1628,9 +1627,8 @@ static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell)
 	__le16 freq = cpu_to_le16(dev->conf.channel->center_freq);
 	int band = dev->conf.channel->band;
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*chan) +
-			    sizeof(struct p54_hdr), P54_CONTROL_TYPE_SCAN,
-			    GFP_ATOMIC);
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*chan),
+			    P54_CONTROL_TYPE_SCAN, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1710,9 +1708,8 @@ static int p54_set_leds(struct ieee80211_hw *dev, int mode, int link, int act)
 	struct sk_buff *skb;
 	struct p54_led *led;
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*led) +
-			sizeof(struct p54_hdr),	P54_CONTROL_TYPE_LED,
-			GFP_ATOMIC);
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*led),
+			    P54_CONTROL_TYPE_LED, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1739,9 +1736,8 @@ static int p54_set_edcf(struct ieee80211_hw *dev)
 	struct sk_buff *skb;
 	struct p54_edcf *edcf;
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*edcf) +
-			sizeof(struct p54_hdr), P54_CONTROL_TYPE_DCFINIT,
-			GFP_ATOMIC);
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*edcf),
+			    P54_CONTROL_TYPE_DCFINIT, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1778,9 +1774,8 @@ static int p54_set_ps(struct ieee80211_hw *dev)
 	else
 		mode = P54_PSM_CAM;
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*psm) +
-			sizeof(struct p54_hdr), P54_CONTROL_TYPE_PSM,
-			GFP_ATOMIC);
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*psm),
+			    P54_CONTROL_TYPE_PSM, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -2083,10 +2078,8 @@ static int p54_init_xbow_synth(struct ieee80211_hw *dev)
 	struct sk_buff *skb;
 	struct p54_xbow_synth *xbow;
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*xbow) +
-			    sizeof(struct p54_hdr),
-			    P54_CONTROL_TYPE_XBOW_SYNTH_CFG,
-			    GFP_KERNEL);
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*xbow),
+			    P54_CONTROL_TYPE_XBOW_SYNTH_CFG, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
@@ -2115,7 +2108,7 @@ static void p54_work(struct work_struct *work)
 	 *      2. cancel stuck frames / reset the device if necessary.
 	 */
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL, sizeof(struct p54_hdr) +
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL,
 			    sizeof(struct p54_statistics),
 			    P54_CONTROL_TYPE_STAT_READBACK, GFP_KERNEL);
 	if (!skb)
@@ -2226,9 +2219,8 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 	}
 
 	mutex_lock(&priv->conf_mutex);
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*rxkey) +
-			sizeof(struct p54_hdr),	P54_CONTROL_TYPE_RX_KEYCACHE,
-			GFP_ATOMIC);
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*rxkey),
+			    P54_CONTROL_TYPE_RX_KEYCACHE, GFP_ATOMIC);
 	if (!skb) {
 		mutex_unlock(&priv->conf_mutex);
 		return -ENOMEM;

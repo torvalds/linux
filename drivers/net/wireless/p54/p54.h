@@ -44,6 +44,8 @@ enum p54_control_frame_types {
 	P54_CONTROL_TYPE_BT_OPTIONS = 35
 };
 
+#define P54_MAX_CTRL_FRAME_LEN		0x1000
+
 #define P54_HDR_FLAG_CONTROL		BIT(15)
 #define P54_HDR_FLAG_CONTROL_OPSET	(BIT(15) + BIT(0))
 
