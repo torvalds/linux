@@ -54,6 +54,8 @@ int __weak hw_perf_group_sched_in(struct perf_counter *group_leader,
 	return 0;
 }
 
+void __weak perf_counter_print_debug(void)	{ }
+
 static void
 list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 {
