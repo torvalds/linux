@@ -139,7 +139,7 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	}
 	break;
 	case snd_soc_dapm_value_mux: {
-		struct soc_value_enum *e = (struct soc_value_enum *)
+		struct soc_enum *e = (struct soc_enum *)
 			w->kcontrols[i].private_value;
 		int val, item;
 
@@ -194,30 +194,6 @@ static int dapm_connect_mux(struct snd_soc_codec *codec,
 			list_add(&path->list_sink, &dest->sources);
 			list_add(&path->list_source, &src->sinks);
 			path->name = (char*)e->texts[i];
-			dapm_set_path_status(dest, path, 0);
-			return 0;
-		}
-	}
-
-	return -ENODEV;
-}
-
-/* connect value_mux widget to it's interconnecting audio paths */
-static int dapm_connect_value_mux(struct snd_soc_codec *codec,
-	struct snd_soc_dapm_widget *src, struct snd_soc_dapm_widget *dest,
-	struct snd_soc_dapm_path *path, const char *control_name,
-	const struct snd_kcontrol_new *kcontrol)
-{
-	struct soc_value_enum *e = (struct soc_value_enum *)
-			kcontrol->private_value;
-	int i;
-
-	for (i = 0; i < e->max; i++) {
-		if (!(strcmp(control_name, e->texts[i]))) {
-			list_add(&path->list, &codec->dapm_paths);
-			list_add(&path->list_sink, &dest->sources);
-			list_add(&path->list_source, &src->sinks);
-			path->name = (char *)e->texts[i];
 			dapm_set_path_status(dest, path, 0);
 			return 0;
 		}
@@ -795,45 +771,6 @@ static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 	return 0;
 }
 
-/* test and update the power status of a value_mux widget */
-static int dapm_value_mux_update_power(struct snd_soc_dapm_widget *widget,
-				 struct snd_kcontrol *kcontrol, int mask,
-				 int mux, int val, struct soc_value_enum *e)
-{
-	struct snd_soc_dapm_path *path;
-	int found = 0;
-
-	if (widget->id != snd_soc_dapm_value_mux)
-		return -ENODEV;
-
-	if (!snd_soc_test_bits(widget->codec, e->reg, mask, val))
-		return 0;
-
-	/* find dapm widget path assoc with kcontrol */
-	list_for_each_entry(path, &widget->codec->dapm_paths, list) {
-		if (path->kcontrol != kcontrol)
-			continue;
-
-		if (!path->name || !e->texts[mux])
-			continue;
-
-		found = 1;
-		/* we now need to match the string in the enum to the path */
-		if (!(strcmp(path->name, e->texts[mux])))
-			path->connect = 1; /* new connection */
-		else
-			path->connect = 0; /* old connection must be
-					      powered down */
-	}
-
-	if (found) {
-		dapm_power_widgets(widget->codec, SND_SOC_DAPM_STREAM_NOP);
-		dump_dapm(widget->codec, "mux power update");
-	}
-
-	return 0;
-}
-
 /* test and update the power status of a mixer or switch widget */
 static int dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
 				   struct snd_kcontrol *kcontrol, int reg,
@@ -1068,14 +1005,9 @@ static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
 		path->connect = 1;
 		return 0;
 	case snd_soc_dapm_mux:
+	case snd_soc_dapm_value_mux:
 		ret = dapm_connect_mux(codec, wsource, wsink, path, control,
 			&wsink->kcontrols[0]);
-		if (ret != 0)
-			goto err;
-		break;
-	case snd_soc_dapm_value_mux:
-		ret = dapm_connect_value_mux(codec, wsource, wsink, path,
-			control, &wsink->kcontrols[0]);
 		if (ret != 0)
 			goto err;
 		break;
@@ -1407,8 +1339,7 @@ int snd_soc_dapm_get_value_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
-	struct soc_value_enum *e = (struct soc_value_enum *)
-			kcontrol->private_value;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned short reg_val, val, mux;
 
 	reg_val = snd_soc_read(widget->codec, e->reg);
@@ -1448,8 +1379,7 @@ int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
-	struct soc_value_enum *e = (struct soc_value_enum *)
-			kcontrol->private_value;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned short val, mux;
 	unsigned short mask;
 	int ret = 0;
@@ -1468,7 +1398,7 @@ int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
-	dapm_value_mux_update_power(widget, kcontrol, mask, mux, val, e);
+	dapm_mux_update_power(widget, kcontrol, mask, mux, val, e);
 	if (widget->event) {
 		if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
 			ret = widget->event(widget,
