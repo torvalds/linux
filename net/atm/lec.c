@@ -667,17 +667,19 @@ static void lec_set_multicast_list(struct net_device *dev)
 	return;
 }
 
+static const struct net_device_ops lec_netdev_ops = {
+	.ndo_open		= lec_open,
+	.ndo_stop		= lec_close,
+	.ndo_start_xmit		= lec_start_xmit,
+	.ndo_change_mtu		= lec_change_mtu,
+	.ndo_tx_timeout		= lec_tx_timeout,
+	.ndo_set_multicast_list	= lec_set_multicast_list,
+};
+
+
 static void lec_init(struct net_device *dev)
 {
-	dev->change_mtu = lec_change_mtu;
-	dev->open = lec_open;
-	dev->stop = lec_close;
-	dev->hard_start_xmit = lec_start_xmit;
-	dev->tx_timeout = lec_tx_timeout;
-
-	dev->get_stats = lec_get_stats;
-	dev->set_multicast_list = lec_set_multicast_list;
-	dev->do_ioctl = NULL;
+	dev->netdev_ops = &lec_netdev_ops;
 	printk("%s: Initialized!\n", dev->name);
 }
 
