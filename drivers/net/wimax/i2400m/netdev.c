@@ -493,6 +493,14 @@ error_skb_realloc:
 		i2400m, buf, buf_len);
 }
 
+static const struct net_device_ops i2400m_netdev_ops = {
+	.ndo_open = i2400m_open,
+	.ndo_stop = i2400m_stop,
+	.ndo_start_xmit = i2400m_hard_start_xmit,
+	.ndo_tx_timeout = i2400m_tx_timeout,
+	.ndo_change_mtu = i2400m_change_mtu,
+};
+
 
 /**
  * i2400m_netdev_setup - Setup setup @net_dev's i2400m private data
@@ -513,11 +521,7 @@ void i2400m_netdev_setup(struct net_device *net_dev)
 		& (~IFF_BROADCAST	/* i2400m is P2P */
 		   & ~IFF_MULTICAST);
 	net_dev->watchdog_timeo = I2400M_TX_TIMEOUT;
-	net_dev->open = i2400m_open;
-	net_dev->stop = i2400m_stop;
-	net_dev->hard_start_xmit = i2400m_hard_start_xmit;
-	net_dev->change_mtu = i2400m_change_mtu;
-	net_dev->tx_timeout = i2400m_tx_timeout;
+	net_dev->netdev_ops = &i2400m_netdev_ops;
 	d_fnend(3, NULL, "(net_dev %p) = void\n", net_dev);
 }
 EXPORT_SYMBOL_GPL(i2400m_netdev_setup);
