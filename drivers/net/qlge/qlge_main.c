@@ -2467,12 +2467,9 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	bq_len = (rx_ring->cq_len == 65536) ? 0 : (u16) rx_ring->cq_len;
 	cqicb->len = cpu_to_le16(bq_len | LEN_V | LEN_CPP_CONT);
 
-	cqicb->addr_lo = cpu_to_le32(rx_ring->cq_base_dma);
-	cqicb->addr_hi = cpu_to_le32((u64) rx_ring->cq_base_dma >> 32);
+	cqicb->addr = cpu_to_le64(rx_ring->cq_base_dma);
 
-	cqicb->prod_idx_addr_lo = cpu_to_le32(rx_ring->prod_idx_sh_reg_dma);
-	cqicb->prod_idx_addr_hi =
-	    cpu_to_le32((u64) rx_ring->prod_idx_sh_reg_dma >> 32);
+	cqicb->prod_idx_addr = cpu_to_le64(rx_ring->prod_idx_sh_reg_dma);
 
 	/*
 	 * Set up the control block load flags.
@@ -2483,10 +2480,8 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	if (rx_ring->lbq_len) {
 		cqicb->flags |= FLAGS_LL;	/* Load lbq values */
 		*((u64 *) rx_ring->lbq_base_indirect) = rx_ring->lbq_base_dma;
-		cqicb->lbq_addr_lo =
-		    cpu_to_le32(rx_ring->lbq_base_indirect_dma);
-		cqicb->lbq_addr_hi =
-		    cpu_to_le32((u64) rx_ring->lbq_base_indirect_dma >> 32);
+		cqicb->lbq_addr =
+		    cpu_to_le64(rx_ring->lbq_base_indirect_dma);
 		bq_len = (rx_ring->lbq_buf_size == 65536) ? 0 :
 			(u16) rx_ring->lbq_buf_size;
 		cqicb->lbq_buf_size = cpu_to_le16(bq_len);
@@ -2501,10 +2496,8 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	if (rx_ring->sbq_len) {
 		cqicb->flags |= FLAGS_LS;	/* Load sbq values */
 		*((u64 *) rx_ring->sbq_base_indirect) = rx_ring->sbq_base_dma;
-		cqicb->sbq_addr_lo =
-		    cpu_to_le32(rx_ring->sbq_base_indirect_dma);
-		cqicb->sbq_addr_hi =
-		    cpu_to_le32((u64) rx_ring->sbq_base_indirect_dma >> 32);
+		cqicb->sbq_addr =
+		    cpu_to_le64(rx_ring->sbq_base_indirect_dma);
 		cqicb->sbq_buf_size =
 		    cpu_to_le16(((rx_ring->sbq_buf_size / 2) + 8) & 0xfffffff8);
 		bq_len = (rx_ring->sbq_len == 65536) ? 0 :
@@ -2611,12 +2604,9 @@ static int ql_start_tx_ring(struct ql_adapter *qdev, struct tx_ring *tx_ring)
 				   Q_FLAGS_LB | Q_FLAGS_LI | Q_FLAGS_LO);
 	wqicb->cq_id_rss = cpu_to_le16(tx_ring->cq_id);
 	wqicb->rid = 0;
-	wqicb->addr_lo = cpu_to_le32(tx_ring->wq_base_dma);
-	wqicb->addr_hi = cpu_to_le32((u64) tx_ring->wq_base_dma >> 32);
+	wqicb->addr = cpu_to_le64(tx_ring->wq_base_dma);
 
-	wqicb->cnsmr_idx_addr_lo = cpu_to_le32(tx_ring->cnsmr_idx_sh_reg_dma);
-	wqicb->cnsmr_idx_addr_hi =
-	    cpu_to_le32((u64) tx_ring->cnsmr_idx_sh_reg_dma >> 32);
+	wqicb->cnsmr_idx_addr = cpu_to_le64(tx_ring->cnsmr_idx_sh_reg_dma);
 
 	ql_init_tx_ring(qdev, tx_ring);
 

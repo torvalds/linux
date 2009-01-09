@@ -961,8 +961,7 @@ struct ib_mac_iocb_rsp {
 #define IB_MAC_IOCB_RSP_DS	0x40	/* data is in small buffer */
 #define IB_MAC_IOCB_RSP_DL	0x80	/* data is in large buffer */
 	__le32 data_len;	/* */
-	__le32 data_addr_lo;	/* */
-	__le32 data_addr_hi;	/* */
+	__le64 data_addr;	/* */
 	__le32 rss;		/* */
 	__le16 vlan_id;		/* 12 bits */
 #define IB_MAC_IOCB_RSP_C	0x1000	/* VLAN CFI bit */
@@ -976,8 +975,7 @@ struct ib_mac_iocb_rsp {
 #define IB_MAC_IOCB_RSP_HS	0x40
 #define IB_MAC_IOCB_RSP_HL	0x80
 	__le32 hdr_len;		/* */
-	__le32 hdr_addr_lo;	/* */
-	__le32 hdr_addr_hi;	/* */
+	__le64 hdr_addr;	/* */
 } __attribute((packed));
 
 struct ib_ae_iocb_rsp {
@@ -1042,10 +1040,8 @@ struct wqicb {
 	__le16 cq_id_rss;
 #define Q_CQ_ID_RSS_RV 0x8000
 	__le16 rid;
-	__le32 addr_lo;
-	__le32 addr_hi;
-	__le32 cnsmr_idx_addr_lo;
-	__le32 cnsmr_idx_addr_hi;
+	__le64 addr;
+	__le64 cnsmr_idx_addr;
 } __attribute((packed));
 
 /*
@@ -1070,18 +1066,14 @@ struct cqicb {
 #define LEN_CPP_64	0x0002
 #define LEN_CPP_128	0x0003
 	__le16 rid;
-	__le32 addr_lo;
-	__le32 addr_hi;
-	__le32 prod_idx_addr_lo;
-	__le32 prod_idx_addr_hi;
+	__le64 addr;
+	__le64 prod_idx_addr;
 	__le16 pkt_delay;
 	__le16 irq_delay;
-	__le32 lbq_addr_lo;
-	__le32 lbq_addr_hi;
+	__le64 lbq_addr;
 	__le16 lbq_buf_size;
 	__le16 lbq_len;		/* entry count */
-	__le32 sbq_addr_lo;
-	__le32 sbq_addr_hi;
+	__le64 sbq_addr;
 	__le16 sbq_buf_size;
 	__le16 sbq_len;		/* entry count */
 } __attribute((packed));
