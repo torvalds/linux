@@ -1102,6 +1102,14 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 /* --------------------------------------------------------------------- */
 
+static const struct net_device_ops baycom_netdev_ops = {
+	.ndo_open	     = epp_open,
+	.ndo_stop	     = epp_close,
+	.ndo_do_ioctl	     = baycom_ioctl,
+	.ndo_start_xmit      = baycom_send_packet,
+	.ndo_set_mac_address = baycom_set_mac_address,
+};
+
 /*
  * Check for a network adaptor of this type, and return '0' if one exists.
  * If dev->base_addr == 0, probe all likely locations.
@@ -1129,16 +1137,12 @@ static void baycom_probe(struct net_device *dev)
 	/*
 	 * initialize the device struct
 	 */
-	dev->open = epp_open;
-	dev->stop = epp_close;
-	dev->do_ioctl = baycom_ioctl;
-	dev->hard_start_xmit = baycom_send_packet;
 
 	/* Fill in the fields of the device structure */
 	bc->skb = NULL;
 	
+	dev->netdev_ops = &baycom_netdev_ops;
 	dev->header_ops = &ax25_header_ops;
-	dev->set_mac_address = baycom_set_mac_address;
 	
 	dev->type = ARPHRD_AX25;           /* AF_AX25 device */
 	dev->hard_header_len = AX25_MAX_HEADER_LEN + AX25_BPQ_HEADER_LEN;
