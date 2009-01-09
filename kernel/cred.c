@@ -529,6 +529,7 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 
 error:
 	put_cred(new);
+	put_cred(old);
 	return NULL;
 }
 EXPORT_SYMBOL(prepare_kernel_cred);
