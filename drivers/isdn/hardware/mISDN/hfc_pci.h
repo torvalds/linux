@@ -26,7 +26,7 @@
  * change mask and threshold simultaneously
  */
 #define HFCPCI_BTRANS_THRESHOLD 128
-#define HFCPCI_BTRANS_MAX	256
+#define HFCPCI_FILLEMPTY	64
 #define HFCPCI_BTRANS_THRESMASK 0x00
 
 /* defines for PCI config */
