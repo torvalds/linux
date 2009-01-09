@@ -133,7 +133,7 @@ enum {
 };
 
 /* inline for ring buffer fast paths */
-static inline unsigned
+static unsigned
 rb_event_length(struct ring_buffer_event *event)
 {
 	unsigned length;
@@ -179,7 +179,7 @@ unsigned ring_buffer_event_length(struct ring_buffer_event *event)
 EXPORT_SYMBOL_GPL(ring_buffer_event_length);
 
 /* inline for ring buffer fast paths */
-static inline void *
+static void *
 rb_event_data(struct ring_buffer_event *event)
 {
 	BUG_ON(event->type != RINGBUF_TYPE_DATA);
@@ -229,10 +229,9 @@ static void rb_init_page(struct buffer_data_page *bpage)
  * Also stolen from mm/slob.c. Thanks to Mathieu Desnoyers for pointing
  * this issue out.
  */
-static inline void free_buffer_page(struct buffer_page *bpage)
+static void free_buffer_page(struct buffer_page *bpage)
 {
-	if (bpage->page)
-		free_page((unsigned long)bpage->page);
+	free_page((unsigned long)bpage->page);
 	kfree(bpage);
 }
 
@@ -811,7 +810,7 @@ rb_event_index(struct ring_buffer_event *event)
 	return (addr & ~PAGE_MASK) - (PAGE_SIZE - BUF_PAGE_SIZE);
 }
 
-static inline int
+static int
 rb_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
 	     struct ring_buffer_event *event)
 {
@@ -825,7 +824,7 @@ rb_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
 		rb_commit_index(cpu_buffer) == index;
 }
 
-static inline void
+static void
 rb_set_commit_event(struct ring_buffer_per_cpu *cpu_buffer,
 		    struct ring_buffer_event *event)
 {
@@ -850,7 +849,7 @@ rb_set_commit_event(struct ring_buffer_per_cpu *cpu_buffer,
 	local_set(&cpu_buffer->commit_page->page->commit, index);
 }
 
-static inline void
+static void
 rb_set_commit_to_write(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	/*
@@ -896,7 +895,7 @@ static void rb_reset_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	cpu_buffer->reader_page->read = 0;
 }
 
-static inline void rb_inc_iter(struct ring_buffer_iter *iter)
+static void rb_inc_iter(struct ring_buffer_iter *iter)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
 
@@ -926,7 +925,7 @@ static inline void rb_inc_iter(struct ring_buffer_iter *iter)
  * and with this, we can determine what to place into the
  * data field.
  */
-static inline void
+static void
 rb_update_event(struct ring_buffer_event *event,
 			 unsigned type, unsigned length)
 {
@@ -964,7 +963,7 @@ rb_update_event(struct ring_buffer_event *event,
 	}
 }
 
-static inline unsigned rb_calculate_event_length(unsigned length)
+static unsigned rb_calculate_event_length(unsigned length)
 {
 	struct ring_buffer_event event; /* Used only for sizeof array */
 
@@ -1438,7 +1437,7 @@ int ring_buffer_write(struct ring_buffer *buffer,
 }
 EXPORT_SYMBOL_GPL(ring_buffer_write);
 
-static inline int rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
+static int rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	struct buffer_page *reader = cpu_buffer->reader_page;
 	struct buffer_page *head = cpu_buffer->head_page;
