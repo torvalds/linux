@@ -1,14 +1,15 @@
 /*
- * hvc_iucv.c - z/VM IUCV back-end for the Hypervisor Console (HVC)
+ * hvc_iucv.c - z/VM IUCV hypervisor console (HVC) device driver
  *
- * This back-end for HVC provides terminal access via
+ * This HVC device driver provides terminal access using
  * z/VM IUCV communication paths.
  *
- * Copyright IBM Corp. 2008.
+ * Copyright IBM Corp. 2008
  *
  * Author(s):	Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
 #define KMSG_COMPONENT		"hvc_iucv"
+#define pr_fmt(fmt)		KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
 #include <asm/ebcdic.h>
@@ -22,7 +23,7 @@
 #include "hvc_console.h"
 
 
-/* HVC backend for z/VM IUCV */
+/* General device driver settings */
 #define HVC_IUCV_MAGIC		0xc9e4c3e5
 #define MAX_HVC_IUCV_LINES	HVC_ALLOC_TTY_ADAPTERS
 #define MEMPOOL_MIN_NR		(PAGE_SIZE / sizeof(struct iucv_tty_buffer)/4)
@@ -35,7 +36,6 @@
 #define MSG_TYPE_WINSIZE	0x08	/* Terminal window size update */
 #define MSG_TYPE_DATA		0x10	/* Terminal data */
 
-#define MSG_SIZE(s)		((s) + offsetof(struct iucv_tty_msg, data))
 struct iucv_tty_msg {
 	u8	version;		/* Message version */
 	u8	type;			/* Message type */
@@ -43,6 +43,7 @@ struct iucv_tty_msg {
 	u16	datalen;		/* Payload length */
 	u8	data[];			/* Payload buffer */
 } __attribute__((packed));
+#define MSG_SIZE(s)		((s) + offsetof(struct iucv_tty_msg, data))
 
 enum iucv_state_t {
 	IUCV_DISCONN	= 0,
@@ -56,7 +57,7 @@ enum tty_state_t {
 };
 
 struct hvc_iucv_private {
-	struct hvc_struct	*hvc; /* HVC console struct reference */
+	struct hvc_struct	*hvc;		/* HVC struct reference */
 	u8			srv_name[8];	/* IUCV service name (ebcdic) */
 	enum iucv_state_t	iucv_state;	/* IUCV connection status */
 	enum tty_state_t	tty_state;	/* TTY status */
@@ -74,7 +75,7 @@ struct hvc_iucv_private {
 
 struct iucv_tty_buffer {
 	struct list_head	list;	/* list pointer */
-	struct iucv_message	msg;	/* store an incoming IUCV message */
+	struct iucv_message	msg;	/* store an IUCV message */
 	size_t			offset;	/* data buffer offset */
 	struct iucv_tty_msg	*mbuf;	/* buffer to store input/output data */
 };
@@ -120,7 +121,7 @@ struct hvc_iucv_private *hvc_iucv_get_private(uint32_t num)
 }
 
 /**
- * alloc_tty_buffer() - Returns a new struct iucv_tty_buffer element.
+ * alloc_tty_buffer() - Return a new struct iucv_tty_buffer element.
  * @size:	Size of the internal buffer used to store data.
  * @flags:	Memory allocation flags passed to mempool.
  *
@@ -128,7 +129,6 @@ struct hvc_iucv_private *hvc_iucv_get_private(uint32_t num)
  * allocates an internal data buffer with the specified size @size.
  * Note: The total message size arises from the internal buffer size and the
  *	 members of the iucv_tty_msg structure.
- *
  * The function returns NULL if memory allocation has failed.
  */
 static struct iucv_tty_buffer *alloc_tty_buffer(size_t size, gfp_t flags)
@@ -157,9 +157,6 @@ static struct iucv_tty_buffer *alloc_tty_buffer(size_t size, gfp_t flags)
 /**
  * destroy_tty_buffer() - destroy struct iucv_tty_buffer element.
  * @bufp:	Pointer to a struct iucv_tty_buffer element, SHALL NOT be NULL.
- *
- * The destroy_tty_buffer() function frees the internal data buffer and returns
- * the struct iucv_tty_buffer element back to the mempool for freeing.
  */
 static void destroy_tty_buffer(struct iucv_tty_buffer *bufp)
 {
@@ -169,11 +166,7 @@ static void destroy_tty_buffer(struct iucv_tty_buffer *bufp)
 
 /**
  * destroy_tty_buffer_list() - call destroy_tty_buffer() for each list element.
- * @list:	List head pointer to a list containing struct iucv_tty_buffer
- *		elements.
- *
- * Calls destroy_tty_buffer() for each struct iucv_tty_buffer element in the
- * list @list.
+ * @list:	List containing struct iucv_tty_buffer elements.
  */
 static void destroy_tty_buffer_list(struct list_head *list)
 {
@@ -186,24 +179,24 @@ static void destroy_tty_buffer_list(struct list_head *list)
 }
 
 /**
- * hvc_iucv_write() - Receive IUCV message write data to HVC console buffer.
- * @priv:		Pointer to hvc_iucv_private structure.
- * @buf:		HVC console buffer for writing received terminal data.
- * @count:		HVC console buffer size.
+ * hvc_iucv_write() - Receive IUCV message & write data to HVC buffer.
+ * @priv:		Pointer to struct hvc_iucv_private
+ * @buf:		HVC buffer for writing received terminal data.
+ * @count:		HVC buffer size.
  * @has_more_data:	Pointer to an int variable.
  *
  * The function picks up pending messages from the input queue and receives
  * the message data that is then written to the specified buffer @buf.
- * If the buffer size @count is less than the data message size, then the
+ * If the buffer size @count is less than the data message size, the
  * message is kept on the input queue and @has_more_data is set to 1.
- * If the message data has been entirely written, the message is removed from
+ * If all message data has been written, the message is removed from
  * the input queue.
  *
  * The function returns the number of bytes written to the terminal, zero if
  * there are no pending data messages available or if there is no established
  * IUCV path.
  * If the IUCV path has been severed, then -EPIPE is returned to cause a
- * hang up (that is issued by the HVC console layer).
+ * hang up (that is issued by the HVC layer).
  */
 static int hvc_iucv_write(struct hvc_iucv_private *priv,
 			  char *buf, int count, int *has_more_data)
@@ -212,12 +205,12 @@ static int hvc_iucv_write(struct hvc_iucv_private *priv,
 	int written;
 	int rc;
 
-	/* Immediately return if there is no IUCV connection */
+	/* immediately return if there is no IUCV connection */
 	if (priv->iucv_state == IUCV_DISCONN)
 		return 0;
 
-	/* If the IUCV path has been severed, return -EPIPE to inform the
-	 * hvc console layer to hang up the tty device. */
+	/* if the IUCV path has been severed, return -EPIPE to inform the
+	 * HVC layer to hang up the tty device. */
 	if (priv->iucv_state == IUCV_SEVERED)
 		return -EPIPE;
 
@@ -225,7 +218,7 @@ static int hvc_iucv_write(struct hvc_iucv_private *priv,
 	if (list_empty(&priv->tty_inqueue))
 		return 0;
 
-	/* receive a iucv message and flip data to the tty (ldisc) */
+	/* receive an iucv message and flip data to the tty (ldisc) */
 	rb = list_first_entry(&priv->tty_inqueue, struct iucv_tty_buffer, list);
 
 	written = 0;
@@ -268,7 +261,7 @@ static int hvc_iucv_write(struct hvc_iucv_private *priv,
 	case MSG_TYPE_WINSIZE:
 		if (rb->mbuf->datalen != sizeof(struct winsize))
 			break;
-		hvc_resize(priv->hvc, *((struct winsize *)rb->mbuf->data));
+		hvc_resize(priv->hvc, *((struct winsize *) rb->mbuf->data));
 		break;
 
 	case MSG_TYPE_ERROR:	/* ignored ... */
@@ -292,10 +285,9 @@ out_written:
  * @buf:	Pointer to a buffer to store data
  * @count:	Size of buffer available for writing
  *
- * The hvc_console thread calls this method to read characters from
- * the terminal backend. If an IUCV communication path has been established,
- * pending IUCV messages are received and data is copied into buffer @buf
- * up to @count bytes.
+ * The HVC thread calls this method to read characters from the back-end.
+ * If an IUCV communication path has been established, pending IUCV messages
+ * are received and data is copied into buffer @buf up to @count bytes.
  *
  * Locking:	The routine gets called under an irqsave() spinlock; and
  *		the routine locks the struct hvc_iucv_private->lock to call
@@ -332,17 +324,17 @@ static int hvc_iucv_get_chars(uint32_t vtermno, char *buf, int count)
  * @count:	Size of buffer and amount of data to send.
  *
  * The function queues data for sending. To actually send the buffered data,
- * a work queue function is * scheduled (with QUEUE_SNDBUF_DELAY).
+ * a work queue function is scheduled (with QUEUE_SNDBUF_DELAY).
  * The function returns the number of data bytes that has been buffered.
  *
  * If the device is not connected, data is ignored and the function returns
  * @count.
  * If the buffer is full, the function returns 0.
- * If an existing IUCV communicaton path has been severed, the function returns
- * -EPIPE (can be passed to HVC layer to cause a tty hangup).
+ * If an existing IUCV communicaton path has been severed, -EPIPE is returned
+ * (that can be passed to HVC layer to cause a tty hangup).
  */
 static int hvc_iucv_queue(struct hvc_iucv_private *priv, const char *buf,
-			 int count)
+			  int count)
 {
 	size_t len;
 
@@ -369,12 +361,10 @@ static int hvc_iucv_queue(struct hvc_iucv_private *priv, const char *buf,
  * hvc_iucv_send() - Send an IUCV message containing terminal data.
  * @priv:	Pointer to struct hvc_iucv_private instance.
  *
- * If an IUCV communication path has been established, the queued data
- * for output are sent via an IUCV message.
- *
- * If there is no IUCV communication path established, the function returns 0.
- * If an existing IUCV communicaton path has been severed, the function returns
- * -EPIPE.
+ * If an IUCV communication path has been established, the buffered output data
+ * is sent via an IUCV message and the number of bytes sent is returned.
+ * Returns 0 if there is no established IUCV communication path or
+ * -EPIPE if an existing IUCV communicaton path has been severed.
  */
 static int hvc_iucv_send(struct hvc_iucv_private *priv)
 {
@@ -420,15 +410,14 @@ static int hvc_iucv_send(struct hvc_iucv_private *priv)
  * hvc_iucv_sndbuf_work() - Send buffered data over IUCV
  * @work:	Work structure.
  *
- * The function sends buffered output data over IUCV and, if necessary,
- * reschedules itself if not all buffered data could be sent.
+ * This work queue function sends buffered output data over IUCV and,
+ * if not all buffered data could be sent, reschedules itself.
  */
 static void hvc_iucv_sndbuf_work(struct work_struct *work)
 {
 	struct hvc_iucv_private *priv;
 
 	priv = container_of(work, struct hvc_iucv_private, sndbuf_work.work);
-
 	if (!priv)
 		return;
 
@@ -443,10 +432,8 @@ static void hvc_iucv_sndbuf_work(struct work_struct *work)
  * @buf:	Pointer to an buffer to read data from
  * @count:	Size of buffer available for reading
  *
- * The hvc_console thread calls this method to write characters from
- * to the terminal backend.
- * The function calls hvc_iucv_send() under the lock of the
- * struct hvc_iucv_private instance that corresponds to the tty @vtermno.
+ * The HVC thread calls this method to write characters to the back-end.
+ * The function calls hvc_iucv_queue() to queue terminal data for sending.
  *
  * Locking:	The method gets called under an irqsave() spinlock; and
  *		locks struct hvc_iucv_private->lock.
@@ -496,12 +483,8 @@ static int hvc_iucv_notifier_add(struct hvc_struct *hp, int id)
 }
 
 /**
- * hvc_iucv_cleanup() - Clean up function if the tty portion is finally closed.
+ * hvc_iucv_cleanup() - Clean up and reset a z/VM IUCV HVC instance.
  * @priv:	Pointer to the struct hvc_iucv_private instance.
- *
- * The functions severs the established IUCV communication path (if any), and
- * destroy struct iucv_tty_buffer elements from the in- and outqueue. Finally,
- * the functions resets the states to TTY_CLOSED and IUCV_DISCONN.
  */
 static void hvc_iucv_cleanup(struct hvc_iucv_private *priv)
 {
@@ -553,22 +536,19 @@ static void flush_sndbuf_sync(struct hvc_iucv_private *priv)
 }
 
 /**
- * hvc_iucv_notifier_hangup() - HVC notifier for tty hangups.
- * @hp: Pointer to the HVC device (struct hvc_struct)
- * @id: Additional data (originally passed to hvc_alloc): the index of an struct
- *	hvc_iucv_private instance.
+ * hvc_iucv_notifier_hangup() - HVC notifier for TTY hangups.
+ * @hp:		Pointer to the HVC device (struct hvc_struct)
+ * @id:		Additional data (originally passed to hvc_alloc):
+ *		the index of an struct hvc_iucv_private instance.
  *
- * This routine notifies the HVC backend that a tty hangup (carrier loss,
+ * This routine notifies the HVC back-end that a tty hangup (carrier loss,
  * virtual or otherwise) has occured.
- *
- * The HVC backend for z/VM IUCV ignores virtual hangups (vhangup()), to keep
- * an existing IUCV communication path established.
+ * The z/VM IUCV HVC device driver ignores virtual hangups (vhangup())
+ * to keep an existing IUCV communication path established.
  * (Background: vhangup() is called from user space (by getty or login) to
  *		disable writing to the tty by other applications).
- *
- * If the tty has been opened (e.g. getty) and an established IUCV path has been
- * severed (we caused the tty hangup in that case), then the functions invokes
- * hvc_iucv_cleanup() to clean up.
+ * If the tty has been opened and an established IUCV path has been severed
+ * (we caused the tty hangup), the function calls hvc_iucv_cleanup().
  *
  * Locking:	struct hvc_iucv_private->lock
  */
@@ -584,10 +564,8 @@ static void hvc_iucv_notifier_hangup(struct hvc_struct *hp, int id)
 
 	spin_lock_bh(&priv->lock);
 	/* NOTE: If the hangup was scheduled by ourself (from the iucv
-	 *	 path_servered callback [IUCV_SEVERED]), then we have to
-	 *	 finally clean up the tty backend structure and set state to
-	 *	 TTY_CLOSED.
-	 *
+	 *	 path_servered callback [IUCV_SEVERED]), we have to clean up
+	 *	 our structure and to set state to TTY_CLOSED.
 	 *	 If the tty was hung up otherwise (e.g. vhangup()), then we
 	 *	 ignore this hangup and keep an established IUCV path open...
 	 *	 (...the reason is that we are not able to connect back to the
@@ -605,10 +583,9 @@ static void hvc_iucv_notifier_hangup(struct hvc_struct *hp, int id)
  * @id:		Additional data (originally passed to hvc_alloc):
  *		the index of an struct hvc_iucv_private instance.
  *
- * This routine notifies the HVC backend that the last tty device file
- * descriptor has been closed.
- * The function calls hvc_iucv_cleanup() to clean up the struct hvc_iucv_private
- * instance.
+ * This routine notifies the HVC back-end that the last tty device fd has been
+ * closed.  The function calls hvc_iucv_cleanup() to clean up the struct
+ * hvc_iucv_private instance.
  *
  * Locking:	struct hvc_iucv_private->lock
  */
@@ -640,20 +617,18 @@ static void hvc_iucv_notifier_del(struct hvc_struct *hp, int id)
 /**
  * hvc_iucv_path_pending() - IUCV handler to process a connection request.
  * @path:	Pending path (struct iucv_path)
- * @ipvmid:	Originator z/VM system identifier
+ * @ipvmid:	z/VM system identifier of originator
  * @ipuser:	User specified data for this path
  *		(AF_IUCV: port/service name and originator port)
  *
- * The function uses the @ipuser data to check to determine if the pending
- * path belongs to a terminal managed by this HVC backend.
- * If the check is successful, then an additional check is done to ensure
- * that a terminal cannot be accessed multiple times (only one connection
- * to a terminal is allowed). In that particular case, the pending path is
- * severed. If it is the first connection, the pending path is accepted and
- * associated to the struct hvc_iucv_private. The iucv state is updated to
- * reflect that a communication path has been established.
+ * The function uses the @ipuser data to determine if the pending path belongs
+ * to a terminal managed by this device driver.
+ * If the path belongs to this driver, ensure that the terminal is not accessed
+ * multiple times (only one connection to a terminal is allowed).
+ * If the terminal is not yet connected, the pending path is accepted and is
+ * associated to the appropriate struct hvc_iucv_private instance.
  *
- * Returns 0 if the path belongs to a terminal managed by the this HVC backend;
+ * Returns 0 if @path belongs to a terminal managed by the this device driver;
  * otherwise returns -ENODEV in order to dispatch this path to other handlers.
  *
  * Locking:	struct hvc_iucv_private->lock
@@ -672,7 +647,6 @@ static	int hvc_iucv_path_pending(struct iucv_path *path,
 			priv = hvc_iucv_table[i];
 			break;
 		}
-
 	if (!priv)
 		return -ENODEV;
 
@@ -719,8 +693,7 @@ out_path_handled:
  * sets the iucv state to IUCV_SEVERED for the associated struct
  * hvc_iucv_private instance. Later, the IUCV_SEVERED state triggers a tty
  * hangup (hvc_iucv_get_chars() / hvc_iucv_write()).
- *
- * If tty portion of the HVC is closed then clean up the outqueue in addition.
+ * If tty portion of the HVC is closed, clean up the outqueue.
  *
  * Locking:	struct hvc_iucv_private->lock
  */
@@ -755,9 +728,9 @@ static void hvc_iucv_path_severed(struct iucv_path *path, u8 ipuser[16])
  * @path:	Pending path (struct iucv_path)
  * @msg:	Pointer to the IUCV message
  *
- * The function stores an incoming message on the input queue for later
+ * The function puts an incoming message on the input queue for later
  * processing (by hvc_iucv_get_chars() / hvc_iucv_write()).
- * However, if the tty has not yet been opened, the message is rejected.
+ * If the tty has not yet been opened, the message is rejected.
  *
  * Locking:	struct hvc_iucv_private->lock
  */
@@ -772,6 +745,7 @@ static void hvc_iucv_msg_pending(struct iucv_path *path,
 		iucv_message_reject(path, msg);
 		return;
 	}
+
 
 	spin_lock(&priv->lock);
 
@@ -791,7 +765,7 @@ static void hvc_iucv_msg_pending(struct iucv_path *path,
 
 	list_add_tail(&rb->list, &priv->tty_inqueue);
 
-	hvc_kick();	/* wake up hvc console thread */
+	hvc_kick();	/* wake up hvc thread */
 
 unlock_return:
 	spin_unlock(&priv->lock);
@@ -802,10 +776,10 @@ unlock_return:
  * @path:	Pending path (struct iucv_path)
  * @msg:	Pointer to the IUCV message
  *
- * The function is called upon completion of message delivery and the
- * message is removed from the outqueue. Additional delivery information
- * can be found in msg->audit: rejected messages (0x040000 (IPADRJCT)) and
- * purged messages (0x010000 (IPADPGNR)).
+ * The function is called upon completion of message delivery to remove the
+ * message from the outqueue. Additional delivery information can be found
+ * msg->audit: rejected messages (0x040000 (IPADRJCT)), and
+ *	       purged messages	 (0x010000 (IPADPGNR)).
  *
  * Locking:	struct hvc_iucv_private->lock
  */
@@ -841,8 +815,8 @@ static struct hv_ops hvc_iucv_ops = {
  * hvc_iucv_alloc() - Allocates a new struct hvc_iucv_private instance
  * @id:	hvc_iucv_table index
  *
- * This function allocates a new hvc_iucv_private struct and put the
- * instance into hvc_iucv_table at index @id.
+ * This function allocates a new hvc_iucv_private structure and stores
+ * the instance in hvc_iucv_table at index @id.
  * Returns 0 on success; otherwise non-zero.
  */
 static int __init hvc_iucv_alloc(int id)
@@ -867,7 +841,7 @@ static int __init hvc_iucv_alloc(int id)
 		return -ENOMEM;
 	}
 
-	/* Finally allocate hvc */
+	/* finally allocate hvc */
 	priv->hvc = hvc_alloc(HVC_IUCV_MAGIC + id, /*		  PAGE_SIZE */
 			      HVC_IUCV_MAGIC + id, &hvc_iucv_ops, 256);
 	if (IS_ERR(priv->hvc)) {
@@ -877,7 +851,7 @@ static int __init hvc_iucv_alloc(int id)
 		return rc;
 	}
 
-	/* kick khvcd thread; instead of using polling */
+	/* notify HVC thread instead of using polling */
 	priv->hvc->irq_requested = 1;
 
 	/* setup iucv related information */
@@ -890,7 +864,7 @@ static int __init hvc_iucv_alloc(int id)
 }
 
 /**
- * hvc_iucv_init() - Initialization of HVC backend for z/VM IUCV
+ * hvc_iucv_init() - z/VM IUCV HVC device driver initialization
  */
 static int __init hvc_iucv_init(void)
 {
@@ -929,7 +903,7 @@ static int __init hvc_iucv_init(void)
 		rc = hvc_iucv_alloc(i);
 		if (rc) {
 			pr_err("Creating a new HVC terminal device "
-				"failed	with error code=%d\n", rc);
+				"failed with error code=%d\n", rc);
 			goto out_error_hvc;
 		}
 	}
