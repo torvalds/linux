@@ -646,6 +646,24 @@ static void snd_wss_playback_format(struct snd_wss *chip,
 			full_calib = 0;
 		}
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
+	} else if (chip->hardware == WSS_HW_AD1845) {
+		unsigned rate = params_rate(params);
+
+		/*
+		 * Program the AD1845 correctly for the playback stream.
+		 * Note that we do NOT need to toggle the MCE bit because
+		 * the PLAYBACK_ENABLE bit of the Interface Configuration
+		 * register is set.
+		 *
+		 * NOTE: We seem to need to write to the MSB before the LSB
+		 *       to get the correct sample frequency.
+		 */
+		spin_lock_irqsave(&chip->reg_lock, flags);
+		snd_wss_out(chip, CS4231_PLAYBK_FORMAT, (pdfr & 0xf0));
+		snd_wss_out(chip, AD1845_UPR_FREQ_SEL, (rate >> 8) & 0xff);
+		snd_wss_out(chip, AD1845_LWR_FREQ_SEL, rate & 0xff);
+		full_calib = 0;
+		spin_unlock_irqrestore(&chip->reg_lock, flags);
 	}
 	if (full_calib) {
 		snd_wss_mce_up(chip);
@@ -689,6 +707,24 @@ static void snd_wss_capture_format(struct snd_wss *chip,
 				chip->image[CS4231_ALT_FEATURE_1] &= ~0x20);
 			full_calib = 0;
 		}
+		spin_unlock_irqrestore(&chip->reg_lock, flags);
+	} else if (chip->hardware == WSS_HW_AD1845) {
+		unsigned rate = params_rate(params);
+
+		/*
+		 * Program the AD1845 correctly for the capture stream.
+		 * Note that we do NOT need to toggle the MCE bit because
+		 * the PLAYBACK_ENABLE bit of the Interface Configuration
+		 * register is set.
+		 *
+		 * NOTE: We seem to need to write to the MSB before the LSB
+		 *       to get the correct sample frequency.
+		 */
+		spin_lock_irqsave(&chip->reg_lock, flags);
+		snd_wss_out(chip, CS4231_REC_FORMAT, (cdfr & 0xf0));
+		snd_wss_out(chip, AD1845_UPR_FREQ_SEL, (rate >> 8) & 0xff);
+		snd_wss_out(chip, AD1845_LWR_FREQ_SEL, rate & 0xff);
+		full_calib = 0;
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
 	}
 	if (full_calib) {
@@ -1314,6 +1350,10 @@ static int snd_wss_probe(struct snd_wss *chip)
 		chip->image[CS4231_ALT_FEATURE_2] =
 			chip->hardware == WSS_HW_INTERWAVE ? 0xc2 : 0x01;
 	}
+	/* enable fine grained frequency selection */
+	if (chip->hardware == WSS_HW_AD1845)
+		chip->image[AD1845_PWR_DOWN] = 8;
+
 	ptr = (unsigned char *) &chip->image;
 	regnum = (chip->hardware & WSS_HW_AD1848_MASK) ? 16 : 32;
 	snd_wss_mce_down(chip);
