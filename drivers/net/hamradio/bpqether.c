@@ -466,16 +466,17 @@ static const struct file_operations bpq_info_fops = {
 
 /* ------------------------------------------------------------------------ */
 
+static const struct net_device_ops bpq_netdev_ops = {
+	.ndo_open	     = bpq_open,
+	.ndo_stop	     = bpq_close,
+	.ndo_start_xmit	     = bpq_xmit,
+	.ndo_set_mac_address = bpq_set_mac_address,
+	.ndo_do_ioctl	     = bpq_ioctl,
+};
 
 static void bpq_setup(struct net_device *dev)
 {
-
-	dev->hard_start_xmit = bpq_xmit;
-	dev->open	     = bpq_open;
-	dev->stop	     = bpq_close;
-	dev->set_mac_address = bpq_set_mac_address;
-	dev->get_stats	     = bpq_get_stats;
-	dev->do_ioctl	     = bpq_ioctl;
+	dev->netdev_ops	     = &bpq_netdev_ops;
 	dev->destructor	     = free_netdev;
 
 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
