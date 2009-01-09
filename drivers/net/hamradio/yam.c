@@ -1044,6 +1044,14 @@ static int yam_set_mac_address(struct net_device *dev, void *addr)
 
 /* --------------------------------------------------------------------- */
 
+static const struct net_device_ops yam_netdev_ops = {
+	.ndo_open	     = yam_open,
+	.ndo_stop	     = yam_close,
+	.ndo_start_xmit      = yam_send_packet,
+	.ndo_do_ioctl 	     = yam_ioctl,
+	.ndo_set_mac_address = yam_set_mac_address,
+};
+
 static void yam_setup(struct net_device *dev)
 {
 	struct yam_port *yp = netdev_priv(dev);
@@ -1064,17 +1072,10 @@ static void yam_setup(struct net_device *dev)
 	dev->base_addr = yp->iobase;
 	dev->irq = yp->irq;
 
-	dev->open = yam_open;
-	dev->stop = yam_close;
-	dev->do_ioctl = yam_ioctl;
-	dev->hard_start_xmit = yam_send_packet;
-	dev->get_stats = yam_get_stats;
-
 	skb_queue_head_init(&yp->send_queue);
 
+	dev->netdev_ops = &yam_netdev_ops;
 	dev->header_ops = &ax25_header_ops;
-
-	dev->set_mac_address = yam_set_mac_address;
 
 	dev->type = ARPHRD_AX25;
 	dev->hard_header_len = AX25_MAX_HEADER_LEN;
