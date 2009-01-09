@@ -207,7 +207,7 @@ struct tok_info {
 	unsigned short exsap_station_id;
 	unsigned short global_int_enable;
 	struct sk_buff *current_skb;
-	struct net_device_stats tr_stats;
+
 	unsigned char auto_speedsave;
 	open_state			open_status, sap_status;
 	enum {MANUAL, AUTOMATIC}	open_mode;
