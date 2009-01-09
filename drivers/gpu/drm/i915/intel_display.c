@@ -401,6 +401,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	I915_WRITE(dspstride, crtc->fb->pitch);
 
 	dspcntr = I915_READ(dspcntr_reg);
+	/* Mask out pixel format bits in case we change it */
+	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
 	switch (crtc->fb->bits_per_pixel) {
 	case 8:
 		dspcntr |= DISPPLANE_8BPP;

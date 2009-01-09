@@ -480,6 +480,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	int saved_x, saved_y;
 	struct drm_encoder *encoder;
 	bool ret = true;
+	bool depth_changed, bpp_changed;
 
 	adjusted_mode = drm_mode_duplicate(dev, mode);
 
@@ -487,6 +488,15 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 
 	if (!crtc->enabled)
 		return true;
+
+	if (old_fb && crtc->fb) {
+		depth_changed = (old_fb->depth != crtc->fb->depth);
+		bpp_changed = (old_fb->bits_per_pixel !=
+			       crtc->fb->bits_per_pixel);
+	} else {
+		depth_changed = true;
+		bpp_changed = true;
+	}
 
 	saved_mode = crtc->mode;
 	saved_x = crtc->x;
@@ -500,7 +510,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	crtc->y = y;
 
 	if (drm_mode_equal(&saved_mode, &crtc->mode)) {
-		if (saved_x != crtc->x || saved_y != crtc->y) {
+		if (saved_x != crtc->x || saved_y != crtc->y ||
+		    depth_changed || bpp_changed) {
 			crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y,
 						  old_fb);
 			goto done;
@@ -606,8 +617,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	struct drm_encoder **save_encoders, *new_encoder;
 	struct drm_framebuffer *old_fb;
 	bool save_enabled;
-	bool changed = false;
-	bool flip_or_move = false;
+	bool mode_changed = false;
+	bool fb_changed = false;
 	struct drm_connector *connector;
 	int count = 0, ro, fail = 0;
 	struct drm_crtc_helper_funcs *crtc_funcs;
@@ -635,7 +646,10 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	/* save previous config */
 	save_enabled = set->crtc->enabled;
 
-	/* this is meant to be num_connector not num_crtc */
+	/*
+	 * We do mode_config.num_connectors here since we'll look at the
+	 * CRTC and encoder associated with each connector later.
+	 */
 	save_crtcs = kzalloc(dev->mode_config.num_connector *
 			     sizeof(struct drm_crtc *), GFP_KERNEL);
 	if (!save_crtcs)
@@ -651,21 +665,25 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
 	if (set->crtc->fb != set->fb) {
-		/* if we have no fb then its a change not a flip */
+		/* If we have no fb then treat it as a full mode set */
 		if (set->crtc->fb == NULL)
-			changed = true;
+			mode_changed = true;
+		else if ((set->fb->bits_per_pixel !=
+			 set->crtc->fb->bits_per_pixel) ||
+			 set->fb->depth != set->crtc->fb->depth)
+			fb_changed = true;
 		else
-			flip_or_move = true;
+			fb_changed = true;
 	}
 
 	if (set->x != set->crtc->x || set->y != set->crtc->y)
-		flip_or_move = true;
+		fb_changed = true;
 
 	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->mode)) {
 		DRM_DEBUG("modes are different\n");
 		drm_mode_debug_printmodeline(&set->crtc->mode);
 		drm_mode_debug_printmodeline(set->mode);
-		changed = true;
+		mode_changed = true;
 	}
 
 	/* a) traverse passed in connector list and get encoders for them */
@@ -688,7 +706,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		}
 
 		if (new_encoder != connector->encoder) {
-			changed = true;
+			mode_changed = true;
 			connector->encoder = new_encoder;
 		}
 	}
@@ -715,16 +733,16 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 				new_crtc = set->crtc;
 		}
 		if (new_crtc != connector->encoder->crtc) {
-			changed = true;
+			mode_changed = true;
 			connector->encoder->crtc = new_crtc;
 		}
 	}
 
 	/* mode_set_base is not a required function */
-	if (flip_or_move && !crtc_funcs->mode_set_base)
-		changed = true;
+	if (fb_changed && !crtc_funcs->mode_set_base)
+		mode_changed = true;
 
-	if (changed) {
+	if (mode_changed) {
 		old_fb = set->crtc->fb;
 		set->crtc->fb = set->fb;
 		set->crtc->enabled = (set->mode != NULL);
@@ -743,7 +761,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			set->crtc->desired_mode = set->mode;
 		}
 		drm_helper_disable_unused_functions(dev);
-	} else if (flip_or_move) {
+	} else if (fb_changed) {
 		old_fb = set->crtc->fb;
 		if (set->crtc->fb != set->fb)
 			set->crtc->fb = set->fb;
