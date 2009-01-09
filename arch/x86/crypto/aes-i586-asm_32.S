@@ -46,9 +46,9 @@
 #define in_blk 16
 
 /* offsets in crypto_tfm structure */
-#define klen (crypto_tfm_ctx_offset + 0)
-#define ekey (crypto_tfm_ctx_offset + 4)
-#define dkey (crypto_tfm_ctx_offset + 244)
+#define klen (crypto_tfm_ctx_offset + 480)
+#define ekey (crypto_tfm_ctx_offset + 0)
+#define dkey (crypto_tfm_ctx_offset + 240)
 
 // register mapping for encrypt and decrypt subroutines
 
