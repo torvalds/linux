@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <asm/ebcdic.h>
 #include <linux/delay.h>
+#include <linux/init.h>
 #include <linux/mempool.h>
 #include <linux/module.h>
 #include <linux/tty.h>
@@ -898,6 +899,13 @@ static int __init hvc_iucv_init(void)
 		return -ENOMEM;
 	}
 
+	/* register the first terminal device as console
+	 * (must be done before allocating hvc terminal devices) */
+	rc = hvc_instantiate(HVC_IUCV_MAGIC, 0, &hvc_iucv_ops);
+	if (rc)
+		pr_warning("Registering HVC terminal device as "
+			   "Linux console failed\n");
+
 	/* allocate hvc_iucv_private structs */
 	for (i = 0; i < hvc_iucv_devices; i++) {
 		rc = hvc_iucv_alloc(i);
@@ -933,16 +941,6 @@ out_error_hvc:
 }
 
 /**
- * hvc_iucv_console_init() - Early console initialization
- */
-static	int __init hvc_iucv_console_init(void)
-{
-	if (!MACHINE_IS_VM || !hvc_iucv_devices)
-		return -ENODEV;
-	return hvc_instantiate(HVC_IUCV_MAGIC, 0, &hvc_iucv_ops);
-}
-
-/**
  * hvc_iucv_config() - Parsing of hvc_iucv=  kernel command line parameter
  * @val:	Parameter value (numeric)
  */
@@ -952,10 +950,5 @@ static	int __init hvc_iucv_config(char *val)
 }
 
 
-module_init(hvc_iucv_init);
-console_initcall(hvc_iucv_console_init);
+device_initcall(hvc_iucv_init);
 __setup("hvc_iucv=", hvc_iucv_config);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("HVC back-end for z/VM IUCV.");
-MODULE_AUTHOR("Hendrik Brueckner <brueckner@linux.vnet.ibm.com>");
