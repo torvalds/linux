@@ -28,11 +28,34 @@ struct device;
 
 extern void dma_debug_init(u32 num_entries);
 
+extern void debug_dma_map_page(struct device *dev, struct page *page,
+			       size_t offset, size_t size,
+			       int direction, dma_addr_t dma_addr,
+			       bool map_single);
+
+extern void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
+				 size_t size, int direction, bool map_single);
+
+
 #else /* CONFIG_DMA_API_DEBUG */
 
 static inline void dma_debug_init(u32 num_entries)
 {
 }
+
+static inline void debug_dma_map_page(struct device *dev, struct page *page,
+				      size_t offset, size_t size,
+				      int direction, dma_addr_t dma_addr,
+				      bool map_single)
+{
+}
+
+static inline void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
+					size_t size, int direction,
+					bool map_single)
+{
+}
+
 
 #endif /* CONFIG_DMA_API_DEBUG */
 

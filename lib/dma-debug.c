@@ -566,3 +566,56 @@ out:
 
 }
 
+void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
+			size_t size, int direction, dma_addr_t dma_addr,
+			bool map_single)
+{
+	struct dma_debug_entry *entry;
+
+	if (unlikely(global_disable))
+		return;
+
+	if (unlikely(dma_mapping_error(dev, dma_addr)))
+		return;
+
+	entry = dma_entry_alloc();
+	if (!entry)
+		return;
+
+	entry->dev       = dev;
+	entry->type      = dma_debug_page;
+	entry->paddr     = page_to_phys(page) + offset;
+	entry->dev_addr  = dma_addr;
+	entry->size      = size;
+	entry->direction = direction;
+
+	if (map_single) {
+		entry->type = dma_debug_single;
+		check_for_stack(dev, page_address(page) + offset);
+	}
+
+	add_dma_entry(entry);
+}
+EXPORT_SYMBOL(debug_dma_map_page);
+
+void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
+			  size_t size, int direction, bool map_single)
+{
+	struct dma_debug_entry ref = {
+		.type           = dma_debug_page,
+		.dev            = dev,
+		.dev_addr       = addr,
+		.size           = size,
+		.direction      = direction,
+	};
+
+	if (unlikely(global_disable))
+		return;
+
+	if (map_single)
+		ref.type = dma_debug_single;
+
+	check_unmap(&ref);
+}
+EXPORT_SYMBOL(debug_dma_unmap_page);
+
