@@ -4,7 +4,6 @@
 #if !defined(CONFIG_MMU)
 
 typedef struct {
-	struct vm_list_struct	*vmlist;
 	unsigned long		end_brk;
 } mm_context_t;
 

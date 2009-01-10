@@ -49,8 +49,6 @@
 #define DBG(fmt...)
 #endif
 
-static u8 *bcsr_regs = NULL;
-
 /* ************************************************************************
  *
  * Setup the architecture
@@ -59,13 +57,14 @@ static u8 *bcsr_regs = NULL;
 static void __init mpc832x_sys_setup_arch(void)
 {
 	struct device_node *np;
+	u8 __iomem *bcsr_regs = NULL;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc832x_sys_setup_arch()", 0);
 
 	/* Map BCSR area */
 	np = of_find_node_by_name(NULL, "bcsr");
-	if (np != 0) {
+	if (np) {
 		struct resource res;
 
 		of_address_to_resource(np, 0, &res);
@@ -93,9 +92,9 @@ static void __init mpc832x_sys_setup_arch(void)
 			!= NULL){
 		/* Reset the Ethernet PHYs */
 #define BCSR8_FETH_RST 0x50
-		bcsr_regs[8] &= ~BCSR8_FETH_RST;
+		clrbits8(&bcsr_regs[8], BCSR8_FETH_RST);
 		udelay(1000);
-		bcsr_regs[8] |= BCSR8_FETH_RST;
+		setbits8(&bcsr_regs[8], BCSR8_FETH_RST);
 		iounmap(bcsr_regs);
 		of_node_put(np);
 	}

@@ -1277,6 +1277,7 @@ static int smack_sk_alloc_security(struct sock *sk, int family, gfp_t gfp_flags)
 
 	ssp->smk_in = csp;
 	ssp->smk_out = csp;
+	ssp->smk_labeled = SMACK_CIPSO_SOCKET;
 	ssp->smk_packet[0] = '\0';
 
 	sk->sk_security = ssp;
@@ -1341,45 +1342,69 @@ static void smack_to_secattr(char *smack, struct netlbl_lsm_secattr *nlsp)
 	struct smack_cipso cipso;
 	int rc;
 
-	switch (smack_net_nltype) {
-	case NETLBL_NLTYPE_CIPSOV4:
-		nlsp->domain = smack;
-		nlsp->flags = NETLBL_SECATTR_DOMAIN | NETLBL_SECATTR_MLS_LVL;
+	nlsp->domain = smack;
+	nlsp->flags = NETLBL_SECATTR_DOMAIN | NETLBL_SECATTR_MLS_LVL;
 
-		rc = smack_to_cipso(smack, &cipso);
-		if (rc == 0) {
-			nlsp->attr.mls.lvl = cipso.smk_level;
-			smack_set_catset(cipso.smk_catset, nlsp);
-		} else {
-			nlsp->attr.mls.lvl = smack_cipso_direct;
-			smack_set_catset(smack, nlsp);
-		}
-		break;
-	default:
-		break;
+	rc = smack_to_cipso(smack, &cipso);
+	if (rc == 0) {
+		nlsp->attr.mls.lvl = cipso.smk_level;
+		smack_set_catset(cipso.smk_catset, nlsp);
+	} else {
+		nlsp->attr.mls.lvl = smack_cipso_direct;
+		smack_set_catset(smack, nlsp);
 	}
 }
 
 /**
  * smack_netlabel - Set the secattr on a socket
  * @sk: the socket
+ * @labeled: socket label scheme
  *
  * Convert the outbound smack value (smk_out) to a
  * secattr and attach it to the socket.
  *
  * Returns 0 on success or an error code
  */
-static int smack_netlabel(struct sock *sk)
+static int smack_netlabel(struct sock *sk, int labeled)
 {
 	struct socket_smack *ssp;
 	struct netlbl_lsm_secattr secattr;
-	int rc;
+	int rc = 0;
 
 	ssp = sk->sk_security;
-	netlbl_secattr_init(&secattr);
-	smack_to_secattr(ssp->smk_out, &secattr);
-	rc = netlbl_sock_setattr(sk, &secattr);
-	netlbl_secattr_destroy(&secattr);
+	/*
+	 * Usually the netlabel code will handle changing the
+	 * packet labeling based on the label.
+	 * The case of a single label host is different, because
+	 * a single label host should never get a labeled packet
+	 * even though the label is usually associated with a packet
+	 * label.
+	 */
+	local_bh_disable();
+	bh_lock_sock_nested(sk);
+
+	if (ssp->smk_out == smack_net_ambient ||
+	    labeled == SMACK_UNLABELED_SOCKET)
+		netlbl_sock_delattr(sk);
+	else {
+		netlbl_secattr_init(&secattr);
+		smack_to_secattr(ssp->smk_out, &secattr);
+		rc = netlbl_sock_setattr(sk, &secattr);
+		netlbl_secattr_destroy(&secattr);
+	}
+
+	bh_unlock_sock(sk);
+	local_bh_enable();
+	/*
+	 * Remember the label scheme used so that it is not
+	 * necessary to do the netlabel setting if it has not
+	 * changed the next time through.
+	 *
+	 * The -EDESTADDRREQ case is an indication that there's
+	 * a single level host involved.
+	 */
+	if (rc == 0)
+		ssp->smk_labeled = labeled;
 
 	return rc;
 }
@@ -1432,7 +1457,7 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 		ssp->smk_in = sp;
 	else if (strcmp(name, XATTR_SMACK_IPOUT) == 0) {
 		ssp->smk_out = sp;
-		rc = smack_netlabel(sock->sk);
+		rc = smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
 		if (rc != 0)
 			printk(KERN_WARNING "Smack: \"%s\" netlbl error %d.\n",
 			       __func__, -rc);
@@ -1462,7 +1487,108 @@ static int smack_socket_post_create(struct socket *sock, int family,
 	/*
 	 * Set the outbound netlbl.
 	 */
-	return smack_netlabel(sock->sk);
+	return smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
+}
+
+
+/**
+ * smack_host_label - check host based restrictions
+ * @sip: the object end
+ *
+ * looks for host based access restrictions
+ *
+ * This version will only be appropriate for really small
+ * sets of single label hosts. Because of the masking
+ * it cannot shortcut out on the first match. There are
+ * numerious ways to address the problem, but none of them
+ * have been applied here.
+ *
+ * Returns the label of the far end or NULL if it's not special.
+ */
+static char *smack_host_label(struct sockaddr_in *sip)
+{
+	struct smk_netlbladdr *snp;
+	char *bestlabel = NULL;
+	struct in_addr *siap = &sip->sin_addr;
+	struct in_addr *liap;
+	struct in_addr *miap;
+	struct in_addr bestmask;
+
+	if (siap->s_addr == 0)
+		return NULL;
+
+	bestmask.s_addr = 0;
+
+	for (snp = smack_netlbladdrs; snp != NULL; snp = snp->smk_next) {
+		liap = &snp->smk_host.sin_addr;
+		miap = &snp->smk_mask;
+		/*
+		 * If the addresses match after applying the list entry mask
+		 * the entry matches the address. If it doesn't move along to
+		 * the next entry.
+		 */
+		if ((liap->s_addr & miap->s_addr) !=
+		    (siap->s_addr & miap->s_addr))
+			continue;
+		/*
+		 * If the list entry mask identifies a single address
+		 * it can't get any more specific.
+		 */
+		if (miap->s_addr == 0xffffffff)
+			return snp->smk_label;
+		/*
+		 * If the list entry mask is less specific than the best
+		 * already found this entry is uninteresting.
+		 */
+		if ((miap->s_addr | bestmask.s_addr) == bestmask.s_addr)
+			continue;
+		/*
+		 * This is better than any entry found so far.
+		 */
+		bestmask.s_addr = miap->s_addr;
+		bestlabel = snp->smk_label;
+	}
+
+	return bestlabel;
+}
+
+/**
+ * smack_socket_connect - connect access check
+ * @sock: the socket
+ * @sap: the other end
+ * @addrlen: size of sap
+ *
+ * Verifies that a connection may be possible
+ *
+ * Returns 0 on success, and error code otherwise
+ */
+static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
+				int addrlen)
+{
+	struct socket_smack *ssp = sock->sk->sk_security;
+	char *hostsp;
+	int rc;
+
+	if (sock->sk == NULL || sock->sk->sk_family != PF_INET)
+		return 0;
+
+	if (addrlen < sizeof(struct sockaddr_in))
+		return -EINVAL;
+
+	hostsp = smack_host_label((struct sockaddr_in *)sap);
+	if (hostsp == NULL) {
+		if (ssp->smk_labeled != SMACK_CIPSO_SOCKET)
+			return smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
+		return 0;
+	}
+
+	rc = smk_access(ssp->smk_out, hostsp, MAY_WRITE);
+	if (rc != 0)
+		return rc;
+
+	if (ssp->smk_labeled != SMACK_UNLABELED_SOCKET)
+		return smack_netlabel(sock->sk, SMACK_UNLABELED_SOCKET);
+	return 0;
 }
 
 /**
@@ -2101,8 +2227,14 @@ static int smack_setprocattr(struct task_struct *p, char *name,
 	if (newsmack == NULL)
 		return -EINVAL;
 
+	/*
+	 * No process is ever allowed the web ("@") label.
+	 */
+	if (newsmack == smack_known_web.smk_known)
+		return -EPERM;
+
 	new = prepare_creds();
-	if (!new)
+	if (new == NULL)
 		return -ENOMEM;
 	new->security = newsmack;
 	commit_creds(new);
@@ -2144,6 +2276,49 @@ static int smack_unix_may_send(struct socket *sock, struct socket *other)
 }
 
 /**
+ * smack_socket_sendmsg - Smack check based on destination host
+ * @sock: the socket
+ * @msghdr: the message
+ * @size: the size of the message
+ *
+ * Return 0 if the current subject can write to the destination
+ * host. This is only a question if the destination is a single
+ * label host.
+ */
+static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
+				int size)
+{
+	struct sockaddr_in *sip = (struct sockaddr_in *) msg->msg_name;
+	struct socket_smack *ssp = sock->sk->sk_security;
+	char *hostsp;
+	int rc;
+
+	/*
+	 * Perfectly reasonable for this to be NULL
+	 */
+	if (sip == NULL || sip->sin_family != PF_INET)
+		return 0;
+
+	hostsp = smack_host_label(sip);
+	if (hostsp == NULL) {
+		if (ssp->smk_labeled != SMACK_CIPSO_SOCKET)
+			return smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
+		return 0;
+	}
+
+	rc = smk_access(ssp->smk_out, hostsp, MAY_WRITE);
+	if (rc != 0)
+		return rc;
+
+	if (ssp->smk_labeled != SMACK_UNLABELED_SOCKET)
+		return smack_netlabel(sock->sk, SMACK_UNLABELED_SOCKET);
+
+	return 0;
+
+}
+
+
+/**
  * smack_from_secattr - Convert a netlabel attr.mls.lvl/attr.mls.cat
  * 	pair to smack
  * @sap: netlabel secattr
@@ -2154,44 +2329,66 @@ static int smack_unix_may_send(struct socket *sock, struct socket *other)
 static void smack_from_secattr(struct netlbl_lsm_secattr *sap, char *sip)
 {
 	char smack[SMK_LABELLEN];
+	char *sp;
 	int pcat;
 
-	if ((sap->flags & NETLBL_SECATTR_MLS_LVL) == 0) {
+	if ((sap->flags & NETLBL_SECATTR_MLS_LVL) != 0) {
 		/*
+		 * Looks like a CIPSO packet.
 		 * If there are flags but no level netlabel isn't
 		 * behaving the way we expect it to.
 		 *
+		 * Get the categories, if any
 		 * Without guidance regarding the smack value
 		 * for the packet fall back on the network
 		 * ambient value.
 		 */
-		strncpy(sip, smack_net_ambient, SMK_MAXLEN);
-		return;
-	}
-	/*
-	 * Get the categories, if any
-	 */
-	memset(smack, '\0', SMK_LABELLEN);
-	if ((sap->flags & NETLBL_SECATTR_MLS_CAT) != 0)
-		for (pcat = -1;;) {
-			pcat = netlbl_secattr_catmap_walk(sap->attr.mls.cat,
-							  pcat + 1);
-			if (pcat < 0)
-				break;
-			smack_catset_bit(pcat, smack);
+		memset(smack, '\0', SMK_LABELLEN);
+		if ((sap->flags & NETLBL_SECATTR_MLS_CAT) != 0)
+			for (pcat = -1;;) {
+				pcat = netlbl_secattr_catmap_walk(
+					sap->attr.mls.cat, pcat + 1);
+				if (pcat < 0)
+					break;
+				smack_catset_bit(pcat, smack);
+			}
+		/*
+		 * If it is CIPSO using smack direct mapping
+		 * we are already done. WeeHee.
+		 */
+		if (sap->attr.mls.lvl == smack_cipso_direct) {
+			memcpy(sip, smack, SMK_MAXLEN);
+			return;
 		}
-	/*
-	 * If it is CIPSO using smack direct mapping
-	 * we are already done. WeeHee.
-	 */
-	if (sap->attr.mls.lvl == smack_cipso_direct) {
-		memcpy(sip, smack, SMK_MAXLEN);
+		/*
+		 * Look it up in the supplied table if it is not
+		 * a direct mapping.
+		 */
+		smack_from_cipso(sap->attr.mls.lvl, smack, sip);
+		return;
+	}
+	if ((sap->flags & NETLBL_SECATTR_SECID) != 0) {
+		/*
+		 * Looks like a fallback, which gives us a secid.
+		 */
+		sp = smack_from_secid(sap->attr.secid);
+		/*
+		 * This has got to be a bug because it is
+		 * impossible to specify a fallback without
+		 * specifying the label, which will ensure
+		 * it has a secid, and the only way to get a
+		 * secid is from a fallback.
+		 */
+		BUG_ON(sp == NULL);
+		strncpy(sip, sp, SMK_MAXLEN);
 		return;
 	}
 	/*
-	 * Look it up in the supplied table if it is not a direct mapping.
+	 * Without guidance regarding the smack value
+	 * for the packet fall back on the network
+	 * ambient value.
 	 */
-	smack_from_cipso(sap->attr.mls.lvl, smack, sip);
+	strncpy(sip, smack_net_ambient, SMK_MAXLEN);
 	return;
 }
 
@@ -2207,6 +2404,7 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	struct netlbl_lsm_secattr secattr;
 	struct socket_smack *ssp = sk->sk_security;
 	char smack[SMK_LABELLEN];
+	char *csp;
 	int rc;
 
 	if (sk->sk_family != PF_INET && sk->sk_family != PF_INET6)
@@ -2215,21 +2413,24 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	/*
 	 * Translate what netlabel gave us.
 	 */
-	memset(smack, '\0', SMK_LABELLEN);
 	netlbl_secattr_init(&secattr);
+
 	rc = netlbl_skbuff_getattr(skb, sk->sk_family, &secattr);
-	if (rc == 0)
+	if (rc == 0) {
 		smack_from_secattr(&secattr, smack);
-	else
-		strncpy(smack, smack_net_ambient, SMK_MAXLEN);
+		csp = smack;
+	} else
+		csp = smack_net_ambient;
+
 	netlbl_secattr_destroy(&secattr);
+
 	/*
 	 * Receiving a packet requires that the other end
 	 * be able to write here. Read access is not required.
 	 * This is the simplist possible security model
 	 * for networking.
 	 */
-	rc = smk_access(smack, ssp->smk_in, MAY_WRITE);
+	rc = smk_access(csp, ssp->smk_in, MAY_WRITE);
 	if (rc != 0)
 		netlbl_skbuff_err(skb, rc, 0);
 	return rc;
@@ -2298,7 +2499,6 @@ static int smack_socket_getpeersec_dgram(struct socket *sock,
 	/*
 	 * Translate what netlabel gave us.
 	 */
-	memset(smack, '\0', SMK_LABELLEN);
 	netlbl_secattr_init(&secattr);
 	rc = netlbl_skbuff_getattr(skb, family, &secattr);
 	if (rc == 0)
@@ -2341,7 +2541,7 @@ static void smack_sock_graft(struct sock *sk, struct socket *parent)
 	ssp->smk_in = ssp->smk_out = current_security();
 	ssp->smk_packet[0] = '\0';
 
-	rc = smack_netlabel(sk);
+	rc = smack_netlabel(sk, SMACK_CIPSO_SOCKET);
 	if (rc != 0)
 		printk(KERN_WARNING "Smack: \"%s\" netlbl error %d.\n",
 		       __func__, -rc);
@@ -2367,7 +2567,6 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	if (skb == NULL)
 		return -EACCES;
 
-	memset(smack, '\0', SMK_LABELLEN);
 	netlbl_secattr_init(&skb_secattr);
 	rc = netlbl_skbuff_getattr(skb, sk->sk_family, &skb_secattr);
 	if (rc == 0)
@@ -2492,7 +2691,7 @@ static int smack_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	if (field != AUDIT_SUBJ_USER && field != AUDIT_OBJ_USER)
 		return -EINVAL;
 
-	if (op != AUDIT_EQUAL && op != AUDIT_NOT_EQUAL)
+	if (op != Audit_equal && op != Audit_not_equal)
 		return -EINVAL;
 
 	*rule = smk_import(rulestr, 0);
@@ -2556,9 +2755,9 @@ static int smack_audit_rule_match(u32 secid, u32 field, u32 op, void *vrule,
 	 * both pointers will point to the same smack_known
 	 * label.
 	 */
-	if (op == AUDIT_EQUAL)
+	if (op == Audit_equal)
 		return (rule == smack);
-	if (op == AUDIT_NOT_EQUAL)
+	if (op == Audit_not_equal)
 		return (rule != smack);
 
 	return 0;
@@ -2732,6 +2931,8 @@ struct security_operations smack_ops = {
 	.unix_may_send = 		smack_unix_may_send,
 
 	.socket_post_create = 		smack_socket_post_create,
+	.socket_connect =		smack_socket_connect,
+	.socket_sendmsg =		smack_socket_sendmsg,
 	.socket_sock_rcv_skb = 		smack_socket_sock_rcv_skb,
 	.socket_getpeersec_stream =	smack_socket_getpeersec_stream,
 	.socket_getpeersec_dgram =	smack_socket_getpeersec_dgram,
@@ -2783,7 +2984,6 @@ static __init int smack_init(void)
 	/*
 	 * Initialize locks
 	 */
-	spin_lock_init(&smack_known_unset.smk_cipsolock);
 	spin_lock_init(&smack_known_huh.smk_cipsolock);
 	spin_lock_init(&smack_known_hat.smk_cipsolock);
 	spin_lock_init(&smack_known_star.smk_cipsolock);

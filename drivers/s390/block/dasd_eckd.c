@@ -1700,7 +1700,8 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 			recid++;
 		}
 	}
-	if (blk_noretry_request(req))
+	if (blk_noretry_request(req) ||
+	    block->base->features & DASD_FEATURE_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->startdev = startdev;
 	cqr->memdev = startdev;

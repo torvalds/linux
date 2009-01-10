@@ -24,6 +24,8 @@
 #include <linux/amba/clcd.h>
 #include <linux/err.h>
 
+#include <asm/irq.h>
+
 #include <mach/netx-regs.h>
 #include <mach/hardware.h>
 
@@ -91,7 +93,7 @@ void clk_put(struct clk *clk)
 
 static struct amba_device fb_device = {
 	.dev		= {
-		.bus_id	= "fb",
+		.init_name = "fb",
 		.coherent_dma_mask = ~0,
 	},
 	.res		= {

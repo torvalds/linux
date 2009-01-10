@@ -4,12 +4,6 @@
 #include <linux/types.h>
 #include <asm/pgtable.h>
 
-extern unsigned long parisc_vmerge_boundary;
-extern unsigned long parisc_vmerge_max_size;
-
-#define BIO_VMERGE_BOUNDARY	parisc_vmerge_boundary
-#define BIO_VMERGE_MAX_SIZE	parisc_vmerge_max_size
-
 #define virt_to_phys(a) ((unsigned long)__pa(a))
 #define phys_to_virt(a) __va(a)
 #define virt_to_bus virt_to_phys
@@ -182,9 +176,9 @@ static inline void __raw_writeq(unsigned long long b, volatile void __iomem *add
 
 /* readb can never be const, so use __fswab instead of le*_to_cpu */
 #define readb(addr) __raw_readb(addr)
-#define readw(addr) __fswab16(__raw_readw(addr))
-#define readl(addr) __fswab32(__raw_readl(addr))
-#define readq(addr) __fswab64(__raw_readq(addr))
+#define readw(addr) le16_to_cpu(__raw_readw(addr))
+#define readl(addr) le32_to_cpu(__raw_readl(addr))
+#define readq(addr) le64_to_cpu(__raw_readq(addr))
 #define writeb(b, addr) __raw_writeb(b, addr)
 #define writew(b, addr) __raw_writew(cpu_to_le16(b), addr)
 #define writel(b, addr) __raw_writel(cpu_to_le32(b), addr)

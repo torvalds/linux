@@ -24,7 +24,6 @@ typedef struct {
  *  modified for 2.6 by Hyok S. Choi <hyok.choi@samsung.com>
  */
 typedef struct {
-	struct vm_list_struct	*vmlist;
 	unsigned long		end_brk;
 } mm_context_t;
 

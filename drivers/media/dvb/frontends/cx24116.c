@@ -369,7 +369,7 @@ static int cx24116_set_inversion(struct cx24116_state *state,
  * Not all S2 mmodulation schemes are support and not all rates with
  * a scheme are support. Especially, no auto detect when in S2 mode.
  */
-struct cx24116_modfec {
+static struct cx24116_modfec {
 	fe_delivery_system_t delivery_system;
 	fe_modulation_t modulation;
 	fe_code_rate_t fec;

@@ -5,7 +5,7 @@
  * PowerPC atomic operations
  */
 
-typedef struct { int counter; } atomic_t;
+#include <linux/types.h>
 
 #ifdef __KERNEL__
 #include <linux/compiler.h>
@@ -250,8 +250,6 @@ static __inline__ int atomic_dec_if_positive(atomic_t *v)
 #define smp_mb__after_atomic_inc()      smp_mb()
 
 #ifdef __powerpc64__
-
-typedef struct { long counter; } atomic64_t;
 
 #define ATOMIC64_INIT(i)	{ (i) }
 

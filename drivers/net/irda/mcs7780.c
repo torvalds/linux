@@ -403,8 +403,8 @@ static void mcs_unwrap_mir(struct mcs_cb *mcs, __u8 *buf, int len)
 	if(unlikely(new_len <= 0)) {
 		IRDA_ERROR("%s short frame length %d\n",
 			     mcs->netdev->name, new_len);
-		++mcs->stats.rx_errors;
-		++mcs->stats.rx_length_errors;
+		++mcs->netdev->stats.rx_errors;
+		++mcs->netdev->stats.rx_length_errors;
 		return;
 	}
 	fcs = 0;
@@ -413,14 +413,14 @@ static void mcs_unwrap_mir(struct mcs_cb *mcs, __u8 *buf, int len)
 	if(fcs != GOOD_FCS) {
 		IRDA_ERROR("crc error calc 0x%x len %d\n",
 			   fcs, new_len);
-		mcs->stats.rx_errors++;
-		mcs->stats.rx_crc_errors++;
+		mcs->netdev->stats.rx_errors++;
+		mcs->netdev->stats.rx_crc_errors++;
 		return;
 	}
 
 	skb = dev_alloc_skb(new_len + 1);
 	if(unlikely(!skb)) {
-		++mcs->stats.rx_dropped;
+		++mcs->netdev->stats.rx_dropped;
 		return;
 	}
 
@@ -433,8 +433,8 @@ static void mcs_unwrap_mir(struct mcs_cb *mcs, __u8 *buf, int len)
 
 	netif_rx(skb);
 
-	mcs->stats.rx_packets++;
-	mcs->stats.rx_bytes += new_len;
+	mcs->netdev->stats.rx_packets++;
+	mcs->netdev->stats.rx_bytes += new_len;
 
 	return;
 }
@@ -458,22 +458,22 @@ static void mcs_unwrap_fir(struct mcs_cb *mcs, __u8 *buf, int len)
 	if(unlikely(new_len <= 0)) {
 		IRDA_ERROR("%s short frame length %d\n",
 			   mcs->netdev->name, new_len);
-		++mcs->stats.rx_errors;
-		++mcs->stats.rx_length_errors;
+		++mcs->netdev->stats.rx_errors;
+		++mcs->netdev->stats.rx_length_errors;
 		return;
 	}
 
 	fcs = ~(crc32_le(~0, buf, new_len));
 	if(fcs != get_unaligned_le32(buf + new_len)) {
 		IRDA_ERROR("crc error calc 0x%x len %d\n", fcs, new_len);
-		mcs->stats.rx_errors++;
-		mcs->stats.rx_crc_errors++;
+		mcs->netdev->stats.rx_errors++;
+		mcs->netdev->stats.rx_crc_errors++;
 		return;
 	}
 
 	skb = dev_alloc_skb(new_len + 1);
 	if(unlikely(!skb)) {
-		++mcs->stats.rx_dropped;
+		++mcs->netdev->stats.rx_dropped;
 		return;
 	}
 
@@ -486,8 +486,8 @@ static void mcs_unwrap_fir(struct mcs_cb *mcs, __u8 *buf, int len)
 
 	netif_rx(skb);
 
-	mcs->stats.rx_packets++;
-	mcs->stats.rx_bytes += new_len;
+	mcs->netdev->stats.rx_packets++;
+	mcs->netdev->stats.rx_bytes += new_len;
 
 	return;
 }
@@ -756,14 +756,6 @@ static int mcs_net_open(struct net_device *netdev)
 		return ret;
 }
 
-
-/* Get device stats for /proc/net/dev and ifconfig */
-static struct net_device_stats *mcs_net_get_stats(struct net_device *netdev)
-{
-	struct mcs_cb *mcs = netdev_priv(netdev);
-	return &mcs->stats;
-}
-
 /* Receive callback function.  */
 static void mcs_receive_irq(struct urb *urb)
 {
@@ -786,14 +778,14 @@ static void mcs_receive_irq(struct urb *urb)
 		 */
 		/* SIR speed */
 		if(mcs->speed < 576000) {
-			async_unwrap_char(mcs->netdev, &mcs->stats,
+			async_unwrap_char(mcs->netdev, &mcs->netdev->stats,
 				  &mcs->rx_buff, 0xc0);
 
 			for (i = 0; i < urb->actual_length; i++)
-				async_unwrap_char(mcs->netdev, &mcs->stats,
+				async_unwrap_char(mcs->netdev, &mcs->netdev->stats,
 					  &mcs->rx_buff, bytes[i]);
 
-			async_unwrap_char(mcs->netdev, &mcs->stats,
+			async_unwrap_char(mcs->netdev, &mcs->netdev->stats,
 				  &mcs->rx_buff, 0xc1);
 		}
 		/* MIR speed */
@@ -868,12 +860,12 @@ static int mcs_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 		case -EPIPE:
 			break;
 		default:
-			mcs->stats.tx_errors++;
+			mcs->netdev->stats.tx_errors++;
 			netif_start_queue(ndev);
 		}
 	} else {
-		mcs->stats.tx_packets++;
-		mcs->stats.tx_bytes += skb->len;
+		mcs->netdev->stats.tx_packets++;
+		mcs->netdev->stats.tx_bytes += skb->len;
 	}
 
 	dev_kfree_skb(skb);
@@ -931,7 +923,6 @@ static int mcs_probe(struct usb_interface *intf,
 	ndev->hard_start_xmit = mcs_hard_xmit;
 	ndev->open = mcs_net_open;
 	ndev->stop = mcs_net_close;
-	ndev->get_stats = mcs_net_get_stats;
 	ndev->do_ioctl = mcs_net_ioctl;
 
 	if (!intf->cur_altsetting)

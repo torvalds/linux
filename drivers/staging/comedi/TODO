@@ -1,0 +1,14 @@
+TODO:
+	- checkpatch.pl cleanups
+	- Lindent
+	- remove all wrappers
+	- remove typedefs
+	- audit userspace interface
+	- reserve major number
+	- cleanup the individual comedi drivers as well
+
+Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
+copy:
+	Ian Abbott <abbotti@mev.co.uk>
+	Frank Mori Hess <fmhess@users.sourceforge.net>
+	David Schleef <ds@schleef.org>

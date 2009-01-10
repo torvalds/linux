@@ -33,7 +33,6 @@ config INTEL_IOATDMA
 config INTEL_IOP_ADMA
 	tristate "Intel IOP ADMA support"
 	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX
-	select ASYNC_CORE
 	select DMA_ENGINE
 	help
 	  Enable support for the Intel(R) IOP Series RAID engines.
@@ -59,7 +58,6 @@ config FSL_DMA
 config MV_XOR
 	bool "Marvell XOR engine support"
 	depends on PLAT_ORION
-	select ASYNC_CORE
 	select DMA_ENGINE
 	---help---
 	  Enable support for the Marvell XOR engine.

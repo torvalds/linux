@@ -1996,7 +1996,7 @@ int block_write_begin(struct file *file, struct address_space *mapping,
 	page = *pagep;
 	if (page == NULL) {
 		ownpage = 1;
-		page = __grab_cache_page(mapping, index);
+		page = grab_cache_page_write_begin(mapping, index, flags);
 		if (!page) {
 			status = -ENOMEM;
 			goto out;
@@ -2022,7 +2022,6 @@ int block_write_begin(struct file *file, struct address_space *mapping,
 			if (pos + len > inode->i_size)
 				vmtruncate(inode, inode->i_size);
 		}
-		goto out;
 	}
 
 out:
@@ -2502,7 +2501,7 @@ int nobh_write_begin(struct file *file, struct address_space *mapping,
 	from = pos & (PAGE_CACHE_SIZE - 1);
 	to = from + len;
 
-	page = __grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;

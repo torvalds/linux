@@ -726,7 +726,7 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 
 	dpc = kmalloc(sizeof(struct acpi_os_dpc), GFP_ATOMIC);
 	if (!dpc)
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return AE_NO_MEMORY;
 
 	dpc->function = function;
 	dpc->context = context;
@@ -747,7 +747,7 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 		status = AE_ERROR;
 		kfree(dpc);
 	}
-	return_ACPI_STATUS(status);
+	return status;
 }
 
 acpi_status acpi_os_execute(acpi_execute_type type,

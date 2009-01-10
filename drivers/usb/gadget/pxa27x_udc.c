@@ -430,7 +430,6 @@ static void pio_irq_enable(struct pxa_ep *ep)
 /**
  * pio_irq_disable - Disables irq generation for one endpoint
  * @ep: udc endpoint
- * @index: endpoint number
  */
 static void pio_irq_disable(struct pxa_ep *ep)
 {
@@ -586,7 +585,6 @@ static void inc_ep_stats_reqs(struct pxa_ep *ep, int is_in)
  * inc_ep_stats_bytes - Update ep stats counts
  * @ep: physical endpoint
  * @count: bytes transfered on endpoint
- * @req: usb request
  * @is_in: ep direction (USB_DIR_IN or 0)
  */
 static void inc_ep_stats_bytes(struct pxa_ep *ep, int count, int is_in)
@@ -2162,7 +2160,7 @@ static struct pxa_udc memory = {
 		.ep0		= &memory.udc_usb_ep[0].usb_ep,
 		.name		= driver_name,
 		.dev = {
-			.bus_id		= "gadget",
+			.init_name	= "gadget",
 		},
 	},
 

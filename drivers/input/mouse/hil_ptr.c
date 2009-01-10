@@ -46,7 +46,7 @@
 MODULE_AUTHOR("Brian S. Julin <bri@calyx.com>");
 MODULE_DESCRIPTION(HIL_GENERIC_NAME " driver");
 MODULE_LICENSE("Dual BSD/GPL");
-
+MODULE_ALIAS("serio:ty03pr25id0Fex*");
 
 #define TABLET_SIMULATES_MOUSE	/* allow tablet to be used as mouse */
 #undef  TABLET_AUTOADJUST	/* auto-adjust valid tablet ranges */

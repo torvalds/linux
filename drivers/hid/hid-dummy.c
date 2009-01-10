@@ -43,6 +43,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_HID_MONTEREY_MODULE
 	HID_COMPAT_CALL_DRIVER(monterey);
 #endif
+#ifdef CONFIG_HID_NTRIG_MODULE
+	HID_COMPAT_CALL_DRIVER(ntrig);
+#endif
 #ifdef CONFIG_HID_PANTHERLORD_MODULE
 	HID_COMPAT_CALL_DRIVER(pantherlord);
 #endif
@@ -57,6 +60,9 @@ static int __init hid_dummy_init(void)
 #endif
 #ifdef CONFIG_HID_SUNPLUS_MODULE
 	HID_COMPAT_CALL_DRIVER(sunplus);
+#endif
+#ifdef CONFIG_GREENASIA_FF_MODULE
+	HID_COMPAT_CALL_DRIVER(greenasia);
 #endif
 #ifdef CONFIG_THRUSTMASTER_FF_MODULE
 	HID_COMPAT_CALL_DRIVER(thrustmaster);

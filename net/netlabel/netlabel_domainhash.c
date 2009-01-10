@@ -483,6 +483,73 @@ int netlbl_domhsh_remove_entry(struct netlbl_dom_map *entry,
 }
 
 /**
+ * netlbl_domhsh_remove_af4 - Removes an address selector entry
+ * @domain: the domain
+ * @addr: IPv4 address
+ * @mask: IPv4 address mask
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Removes an individual address selector from a domain mapping and potentially
+ * the entire mapping if it is empty.  Returns zero on success, negative values
+ * on failure.
+ *
+ */
+int netlbl_domhsh_remove_af4(const char *domain,
+			     const struct in_addr *addr,
+			     const struct in_addr *mask,
+			     struct netlbl_audit *audit_info)
+{
+	struct netlbl_dom_map *entry_map;
+	struct netlbl_af4list *entry_addr;
+	struct netlbl_af4list *iter4;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct netlbl_af6list *iter6;
+#endif /* IPv6 */
+	struct netlbl_domaddr4_map *entry;
+
+	rcu_read_lock();
+
+	if (domain)
+		entry_map = netlbl_domhsh_search(domain);
+	else
+		entry_map = netlbl_domhsh_search_def(domain);
+	if (entry_map == NULL || entry_map->type != NETLBL_NLTYPE_ADDRSELECT)
+		goto remove_af4_failure;
+
+	spin_lock(&netlbl_domhsh_lock);
+	entry_addr = netlbl_af4list_remove(addr->s_addr, mask->s_addr,
+					   &entry_map->type_def.addrsel->list4);
+	spin_unlock(&netlbl_domhsh_lock);
+
+	if (entry_addr == NULL)
+		goto remove_af4_failure;
+	netlbl_af4list_foreach_rcu(iter4, &entry_map->type_def.addrsel->list4)
+		goto remove_af4_single_addr;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	netlbl_af6list_foreach_rcu(iter6, &entry_map->type_def.addrsel->list6)
+		goto remove_af4_single_addr;
+#endif /* IPv6 */
+	/* the domain mapping is empty so remove it from the mapping table */
+	netlbl_domhsh_remove_entry(entry_map, audit_info);
+
+remove_af4_single_addr:
+	rcu_read_unlock();
+	/* yick, we can't use call_rcu here because we don't have a rcu head
+	 * pointer but hopefully this should be a rare case so the pause
+	 * shouldn't be a problem */
+	synchronize_rcu();
+	entry = netlbl_domhsh_addr4_entry(entry_addr);
+	cipso_v4_doi_putdef(entry->type_def.cipsov4);
+	kfree(entry);
+	return 0;
+
+remove_af4_failure:
+	rcu_read_unlock();
+	return -ENOENT;
+}
+
+/**
  * netlbl_domhsh_remove - Removes an entry from the domain hash table
  * @domain: the domain to remove
  * @audit_info: NetLabel audit information

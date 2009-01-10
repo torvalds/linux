@@ -38,7 +38,7 @@ EXPORT_SYMBOL(bad_dma_address);
    be probably a smaller DMA mask, but this is bug-to-bug compatible
    to older i386. */
 struct device x86_dma_fallback_dev = {
-	.bus_id = "fallback device",
+	.init_name = "fallback device",
 	.coherent_dma_mask = DMA_32BIT_MASK,
 	.dma_mask = &x86_dma_fallback_dev.coherent_dma_mask,
 };

@@ -664,6 +664,7 @@ extern void intel_modeset_cleanup(struct drm_device *dev);
 				 writel(upper_32_bits(val), dev_priv->regs + \
 					(reg) + 4))
 #endif
+#define POSTING_READ(reg)	(void)I915_READ(reg)
 
 #define I915_VERBOSE 0
 
@@ -760,6 +761,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev))
 
 #define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev))
+#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

@@ -24,6 +24,7 @@
 #include <sound/soc-dapm.h>
 
 #include <asm/dma.h>
+#include <asm/mach-types.h>
 #include <asm/plat-sffsdr/sffsdr-fpga.h>
 
 #include <mach/mcbsp.h>
@@ -114,6 +115,9 @@ static struct platform_device *sffsdr_snd_device;
 static int __init sffsdr_init(void)
 {
 	int ret;
+
+	if (!machine_is_sffsdr())
+		return -EINVAL;
 
 	sffsdr_snd_device = platform_device_alloc("soc-audio", 0);
 	if (!sffsdr_snd_device) {

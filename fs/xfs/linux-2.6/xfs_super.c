@@ -1348,7 +1348,7 @@ xfs_finish_flags(
 {
 	int			ronly = (mp->m_flags & XFS_MOUNT_RDONLY);
 
-	/* Fail a mount where the logbuf is smaller then the log stripe */
+	/* Fail a mount where the logbuf is smaller than the log stripe */
 	if (xfs_sb_version_haslogv2(&mp->m_sb)) {
 		if (mp->m_logbsize <= 0 &&
 		    mp->m_sb.sb_logsunit > XLOG_BIG_RECORD_BSIZE) {

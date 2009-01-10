@@ -2210,6 +2210,19 @@ static void __devexit ipg_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
+static const struct net_device_ops ipg_netdev_ops = {
+	.ndo_open		= ipg_nic_open,
+	.ndo_stop		= ipg_nic_stop,
+	.ndo_start_xmit		= ipg_nic_hard_start_xmit,
+	.ndo_get_stats		= ipg_nic_get_stats,
+	.ndo_set_multicast_list = ipg_nic_set_multicast_list,
+	.ndo_do_ioctl		= ipg_ioctl,
+	.ndo_tx_timeout 	= ipg_tx_timeout,
+	.ndo_change_mtu 	= ipg_nic_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __devinit ipg_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *id)
 {
@@ -2258,15 +2271,7 @@ static int __devinit ipg_probe(struct pci_dev *pdev,
 
 	/* Declare IPG NIC functions for Ethernet device methods.
 	 */
-	dev->open = &ipg_nic_open;
-	dev->stop = &ipg_nic_stop;
-	dev->hard_start_xmit = &ipg_nic_hard_start_xmit;
-	dev->get_stats = &ipg_nic_get_stats;
-	dev->set_multicast_list = &ipg_nic_set_multicast_list;
-	dev->do_ioctl = ipg_ioctl;
-	dev->tx_timeout = ipg_tx_timeout;
-	dev->change_mtu = &ipg_nic_change_mtu;
-
+	dev->netdev_ops = &ipg_netdev_ops;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	SET_ETHTOOL_OPS(dev, &ipg_ethtool_ops);
 

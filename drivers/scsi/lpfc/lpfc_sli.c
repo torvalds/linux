@@ -420,7 +420,7 @@ lpfc_sli_next_iocb_slot (struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 		if (unlikely(pring->local_getidx >= max_cmd_idx)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"0315 Ring %d issue: portCmdGet %d "
-					"is bigger then cmd ring %d\n",
+					"is bigger than cmd ring %d\n",
 					pring->ringno,
 					pring->local_getidx, max_cmd_idx);
 
@@ -1628,12 +1628,12 @@ lpfc_sli_rsp_pointers_error(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
 	struct lpfc_pgp *pgp = &phba->port_gp[pring->ringno];
 	/*
-	 * Ring <ringno> handler: portRspPut <portRspPut> is bigger then
+	 * Ring <ringno> handler: portRspPut <portRspPut> is bigger than
 	 * rsp ring <portRspMax>
 	 */
 	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 			"0312 Ring %d handler: portRspPut %d "
-			"is bigger then rsp ring %d\n",
+			"is bigger than rsp ring %d\n",
 			pring->ringno, le32_to_cpu(pgp->rspPutInx),
 			pring->numRiocb);
 
@@ -2083,12 +2083,12 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 	portRspPut = le32_to_cpu(pgp->rspPutInx);
 	if (portRspPut >= portRspMax) {
 		/*
-		 * Ring <ringno> handler: portRspPut <portRspPut> is bigger then
+		 * Ring <ringno> handler: portRspPut <portRspPut> is bigger than
 		 * rsp ring <portRspMax>
 		 */
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0303 Ring %d handler: portRspPut %d "
-				"is bigger then rsp ring %d\n",
+				"is bigger than rsp ring %d\n",
 				pring->ringno, portRspPut, portRspMax);
 
 		phba->link_state = LPFC_HBA_ERROR;

@@ -2705,7 +2705,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			sizeof(struct ietf_mpa_frame));
 
 
-	/* notify OF layer that accept event was successfull */
+	/* notify OF layer that accept event was successful */
 	cm_id->add_ref(cm_id);
 
 	cm_event.event = IW_CM_EVENT_ESTABLISHED;

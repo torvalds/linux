@@ -23,7 +23,6 @@
 #include <linux/pnp.h>
 #include <linux/mod_devicetable.h>
 #include <acpi/acpi_bus.h>
-#include <acpi/actypes.h>
 
 #include "../base.h"
 #include "pnpacpi.h"

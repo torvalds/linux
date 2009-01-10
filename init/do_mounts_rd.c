@@ -9,6 +9,7 @@
 #include <linux/string.h>
 
 #include "do_mounts.h"
+#include "../fs/squashfs/squashfs_fs.h"
 
 #include <linux/decompress/generic.h>
 
@@ -44,6 +45,7 @@ static int __init crd_load(int in_fd, int out_fd, decompress_fn deco);
  *	ext2
  *	romfs
  *	cramfs
+ *	squashfs
  *	gzip
  */
 static int __init
@@ -54,6 +56,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	struct ext2_super_block *ext2sb;
 	struct romfs_super_block *romfsb;
 	struct cramfs_super *cramfsb;
+	struct squashfs_super_block *squashfsb;
 	int nblocks = -1;
 	unsigned char *buf;
 	const char *compress_name;
@@ -66,6 +69,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	ext2sb = (struct ext2_super_block *) buf;
 	romfsb = (struct romfs_super_block *) buf;
 	cramfsb = (struct cramfs_super *) buf;
+	squashfsb = (struct squashfs_super_block *) buf;
 	memset(buf, 0xe5, size);
 
 	/*
@@ -97,6 +101,16 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 		       "RAMDISK: cramfs filesystem found at block %d\n",
 		       start_block);
 		nblocks = (cramfsb->size + BLOCK_SIZE - 1) >> BLOCK_SIZE_BITS;
+		goto done;
+	}
+
+	/* squashfs is at block zero too */
+	if (le32_to_cpu(squashfsb->s_magic) == SQUASHFS_MAGIC) {
+		printk(KERN_NOTICE
+		       "RAMDISK: squashfs filesystem found at block %d\n",
+		       start_block);
+		nblocks = (le64_to_cpu(squashfsb->bytes_used) + BLOCK_SIZE - 1)
+			 >> BLOCK_SIZE_BITS;
 		goto done;
 	}
 

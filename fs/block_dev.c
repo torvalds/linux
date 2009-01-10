@@ -1005,6 +1005,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	}
 
 	lock_kernel();
+ restart:
 
 	ret = -ENXIO;
 	disk = get_gendisk(bdev->bd_dev, &partno);
@@ -1025,6 +1026,19 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 
 			if (disk->fops->open) {
 				ret = disk->fops->open(bdev, mode);
+				if (ret == -ERESTARTSYS) {
+					/* Lost a race with 'disk' being
+					 * deleted, try again.
+					 * See md.c
+					 */
+					disk_put_part(bdev->bd_part);
+					bdev->bd_part = NULL;
+					module_put(disk->fops->owner);
+					put_disk(disk);
+					bdev->bd_disk = NULL;
+					mutex_unlock(&bdev->bd_mutex);
+					goto restart;
+				}
 				if (ret)
 					goto out_clear;
 			}
@@ -1220,6 +1234,20 @@ static long block_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	return blkdev_ioctl(bdev, mode, cmd, arg);
 }
 
+/*
+ * Try to release a page associated with block device when the system
+ * is under memory pressure.
+ */
+static int blkdev_releasepage(struct page *page, gfp_t wait)
+{
+	struct super_block *super = BDEV_I(page->mapping->host)->bdev.bd_super;
+
+	if (super && super->s_op->bdev_try_to_free_page)
+		return super->s_op->bdev_try_to_free_page(super, page, wait);
+
+	return try_to_free_buffers(page);
+}
+
 static const struct address_space_operations def_blk_aops = {
 	.readpage	= blkdev_readpage,
 	.writepage	= blkdev_writepage,
@@ -1227,6 +1255,7 @@ static const struct address_space_operations def_blk_aops = {
 	.write_begin	= blkdev_write_begin,
 	.write_end	= blkdev_write_end,
 	.writepages	= generic_writepages,
+	.releasepage	= blkdev_releasepage,
 	.direct_IO	= blkdev_direct_IO,
 };
 
@@ -1262,7 +1291,7 @@ EXPORT_SYMBOL(ioctl_by_bdev);
 
 /**
  * lookup_bdev  - lookup a struct block_device by name
- * @path:	special file representing the block device
+ * @pathname:	special file representing the block device
  *
  * Get a reference to the blockdevice at @pathname in the current
  * namespace if possible and return it.  Return ERR_PTR(error)

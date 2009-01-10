@@ -79,6 +79,10 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 		file->private_data = dvbdev;
 		old_fops = file->f_op;
 		file->f_op = fops_get(dvbdev->fops);
+		if (file->f_op == NULL) {
+			file->f_op = old_fops;
+			goto fail;
+		}
 		if(file->f_op->open)
 			err = file->f_op->open(inode,file);
 		if (err) {
@@ -90,6 +94,7 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 		unlock_kernel();
 		return err;
 	}
+fail:
 	up_read(&minor_rwsem);
 	unlock_kernel();
 	return -ENODEV;

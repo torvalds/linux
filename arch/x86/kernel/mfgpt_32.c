@@ -252,7 +252,7 @@ EXPORT_SYMBOL_GPL(geode_mfgpt_alloc_timer);
 /*
  * The MFPGT timers on the CS5536 provide us with suitable timers to use
  * as clock event sources - not as good as a HPET or APIC, but certainly
- * better then the PIT.  This isn't a general purpose MFGPT driver, but
+ * better than the PIT.  This isn't a general purpose MFGPT driver, but
  * a simplified one designed specifically to act as a clock event source.
  * For full details about the MFGPT, please consult the CS5536 data sheet.
  */

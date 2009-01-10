@@ -322,7 +322,8 @@ static int __init vdso_init(void)
 	vdso64_pagelist[vdso64_pages - 1] = virt_to_page(vdso_data);
 	vdso64_pagelist[vdso64_pages] = NULL;
 #ifndef CONFIG_SMP
-	BUG_ON(vdso_alloc_per_cpu(0, S390_lowcore));
+	if (vdso_alloc_per_cpu(0, &S390_lowcore))
+		BUG();
 #endif
 	vdso_init_cr5();
 #endif /* CONFIG_64BIT */

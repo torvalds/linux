@@ -3,45 +3,34 @@
 #include <linux/if_vlan.h>
 #include "vlan.h"
 
-struct vlan_hwaccel_cb {
-	struct net_device	*dev;
-};
-
-static inline struct vlan_hwaccel_cb *vlan_hwaccel_cb(struct sk_buff *skb)
-{
-	return (struct vlan_hwaccel_cb *)skb->cb;
-}
-
 /* VLAN rx hw acceleration helper.  This acts like netif_{rx,receive_skb}(). */
 int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 		      u16 vlan_tci, int polling)
 {
-	struct vlan_hwaccel_cb *cb = vlan_hwaccel_cb(skb);
-
-	if (skb_bond_should_drop(skb)) {
-		dev_kfree_skb_any(skb);
-		return NET_RX_DROP;
-	}
+	if (skb_bond_should_drop(skb))
+		goto drop;
 
 	skb->vlan_tci = vlan_tci;
-	cb->dev = vlan_group_get_device(grp, vlan_tci & VLAN_VID_MASK);
+	skb->dev = vlan_group_get_device(grp, vlan_tci & VLAN_VID_MASK);
+
+	if (!skb->dev)
+		goto drop;
 
 	return (polling ? netif_receive_skb(skb) : netif_rx(skb));
+
+drop:
+	dev_kfree_skb_any(skb);
+	return NET_RX_DROP;
 }
 EXPORT_SYMBOL(__vlan_hwaccel_rx);
 
 int vlan_hwaccel_do_receive(struct sk_buff *skb)
 {
-	struct vlan_hwaccel_cb *cb = vlan_hwaccel_cb(skb);
-	struct net_device *dev = cb->dev;
+	struct net_device *dev = skb->dev;
 	struct net_device_stats *stats;
 
+	skb->dev = vlan_dev_info(dev)->real_dev;
 	netif_nit_deliver(skb);
-
-	if (dev == NULL) {
-		kfree_skb(skb);
-		return -1;
-	}
 
 	skb->dev = dev;
 	skb->priority = vlan_get_ingress_priority(dev, skb->vlan_tci);
@@ -80,3 +69,79 @@ u16 vlan_dev_vlan_id(const struct net_device *dev)
 	return vlan_dev_info(dev)->vlan_id;
 }
 EXPORT_SYMBOL_GPL(vlan_dev_vlan_id);
+
+static int vlan_gro_common(struct napi_struct *napi, struct vlan_group *grp,
+			   unsigned int vlan_tci, struct sk_buff *skb)
+{
+	struct sk_buff *p;
+
+	if (skb_bond_should_drop(skb))
+		goto drop;
+
+	skb->vlan_tci = vlan_tci;
+	skb->dev = vlan_group_get_device(grp, vlan_tci & VLAN_VID_MASK);
+
+	if (!skb->dev)
+		goto drop;
+
+	for (p = napi->gro_list; p; p = p->next) {
+		NAPI_GRO_CB(p)->same_flow = p->dev == skb->dev;
+		NAPI_GRO_CB(p)->flush = 0;
+	}
+
+	return dev_gro_receive(napi, skb);
+
+drop:
+	return 2;
+}
+
+int vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
+		     unsigned int vlan_tci, struct sk_buff *skb)
+{
+	int err = NET_RX_SUCCESS;
+
+	switch (vlan_gro_common(napi, grp, vlan_tci, skb)) {
+	case -1:
+		return netif_receive_skb(skb);
+
+	case 2:
+		err = NET_RX_DROP;
+		/* fall through */
+
+	case 1:
+		kfree_skb(skb);
+		break;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(vlan_gro_receive);
+
+int vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
+		   unsigned int vlan_tci, struct napi_gro_fraginfo *info)
+{
+	struct sk_buff *skb = napi_fraginfo_skb(napi, info);
+	int err = NET_RX_DROP;
+
+	if (!skb)
+		goto out;
+
+	err = NET_RX_SUCCESS;
+
+	switch (vlan_gro_common(napi, grp, vlan_tci, skb)) {
+	case -1:
+		return netif_receive_skb(skb);
+
+	case 2:
+		err = NET_RX_DROP;
+		/* fall through */
+
+	case 1:
+		napi_reuse_skb(napi, skb);
+		break;
+	}
+
+out:
+	return err;
+}
+EXPORT_SYMBOL(vlan_gro_frags);

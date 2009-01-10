@@ -4,7 +4,7 @@
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
- *  Copyright (c) 2006-2007 Jiri Kosina
+ *  Copyright (c) 2006-2008 Jiri Kosina
  */
 
 /*
@@ -102,7 +102,7 @@ static void hid_reset(struct work_struct *work)
 	struct usbhid_device *usbhid =
 		container_of(work, struct usbhid_device, reset_work);
 	struct hid_device *hid = usbhid->hid;
-	int rc_lock, rc = 0;
+	int rc = 0;
 
 	if (test_bit(HID_CLEAR_HALT, &usbhid->iofl)) {
 		dev_dbg(&usbhid->intf->dev, "clear halt\n");
@@ -113,11 +113,10 @@ static void hid_reset(struct work_struct *work)
 
 	else if (test_bit(HID_RESET_PENDING, &usbhid->iofl)) {
 		dev_dbg(&usbhid->intf->dev, "resetting device\n");
-		rc = rc_lock = usb_lock_device_for_reset(hid_to_usb_dev(hid), usbhid->intf);
-		if (rc_lock >= 0) {
+		rc = usb_lock_device_for_reset(hid_to_usb_dev(hid), usbhid->intf);
+		if (rc == 0) {
 			rc = usb_reset_device(hid_to_usb_dev(hid));
-			if (rc_lock)
-				usb_unlock_device(hid_to_usb_dev(hid));
+			usb_unlock_device(hid_to_usb_dev(hid));
 		}
 		clear_bit(HID_RESET_PENDING, &usbhid->iofl);
 	}
@@ -641,9 +640,7 @@ static void hid_find_max_report(struct hid_device *hid, unsigned int type,
 	unsigned int size;
 
 	list_for_each_entry(report, &hid->report_enum[type].report_list, list) {
-		size = ((report->size - 1) >> 3) + 1;
-		if (type == HID_INPUT_REPORT && hid->report_enum[type].numbered)
-			size++;
+		size = ((report->size - 1) >> 3) + 1 + hid->report_enum[type].numbered;
 		if (*max < size)
 			*max = size;
 	}
@@ -653,13 +650,16 @@ static int hid_alloc_buffers(struct usb_device *dev, struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
 
-	if (!(usbhid->inbuf = usb_buffer_alloc(dev, usbhid->bufsize, GFP_ATOMIC, &usbhid->inbuf_dma)))
-		return -1;
-	if (!(usbhid->outbuf = usb_buffer_alloc(dev, usbhid->bufsize, GFP_ATOMIC, &usbhid->outbuf_dma)))
-		return -1;
-	if (!(usbhid->cr = usb_buffer_alloc(dev, sizeof(*(usbhid->cr)), GFP_ATOMIC, &usbhid->cr_dma)))
-		return -1;
-	if (!(usbhid->ctrlbuf = usb_buffer_alloc(dev, usbhid->bufsize, GFP_ATOMIC, &usbhid->ctrlbuf_dma)))
+	usbhid->inbuf = usb_buffer_alloc(dev, usbhid->bufsize, GFP_KERNEL,
+			&usbhid->inbuf_dma);
+	usbhid->outbuf = usb_buffer_alloc(dev, usbhid->bufsize, GFP_KERNEL,
+			&usbhid->outbuf_dma);
+	usbhid->cr = usb_buffer_alloc(dev, sizeof(*usbhid->cr), GFP_KERNEL,
+			&usbhid->cr_dma);
+	usbhid->ctrlbuf = usb_buffer_alloc(dev, usbhid->bufsize, GFP_KERNEL,
+			&usbhid->ctrlbuf_dma);
+	if (!usbhid->inbuf || !usbhid->outbuf || !usbhid->cr ||
+			!usbhid->ctrlbuf)
 		return -1;
 
 	return 0;
@@ -807,7 +807,7 @@ static int usbhid_start(struct hid_device *hid)
 		int interval;
 
 		endpoint = &interface->endpoint[n].desc;
-		if ((endpoint->bmAttributes & 3) != 3)		/* Not an interrupt endpoint */
+		if (!usb_endpoint_xfer_int(endpoint))
 			continue;
 
 		interval = endpoint->bInterval;
@@ -875,6 +875,15 @@ static int usbhid_start(struct hid_device *hid)
 	hid_dump_device(hid);
 
 	set_bit(HID_STARTED, &usbhid->iofl);
+
+	/* Some keyboards don't work until their LEDs have been set.
+	 * Since BIOSes do set the LEDs, it must be safe for any device
+	 * that supports the keyboard boot protocol.
+	 */
+	if (interface->desc.bInterfaceSubClass == USB_INTERFACE_SUBCLASS_BOOT &&
+			interface->desc.bInterfaceProtocol ==
+				USB_INTERFACE_PROTOCOL_KEYBOARD)
+		usbhid_set_leds(hid);
 
 	return 0;
 

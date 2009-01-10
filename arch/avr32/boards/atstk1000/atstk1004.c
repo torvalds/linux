@@ -17,11 +17,11 @@
 
 #include <linux/spi/at73c213.h>
 #include <linux/spi/spi.h>
+#include <linux/atmel-mci.h>
 
 #include <video/atmel_lcdc.h>
 
 #include <asm/setup.h>
-#include <asm/atmel-mci.h>
 
 #include <mach/at32ap700x.h>
 #include <mach/board.h>

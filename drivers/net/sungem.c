@@ -2989,6 +2989,19 @@ static void gem_remove_one(struct pci_dev *pdev)
 	}
 }
 
+static const struct net_device_ops gem_netdev_ops = {
+	.ndo_open		= gem_open,
+	.ndo_stop		= gem_close,
+	.ndo_start_xmit		= gem_start_xmit,
+	.ndo_get_stats		= gem_get_stats,
+	.ndo_set_multicast_list = gem_set_multicast,
+	.ndo_do_ioctl		= gem_ioctl,
+	.ndo_tx_timeout		= gem_tx_timeout,
+	.ndo_change_mtu		= gem_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __devinit gem_init_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
@@ -3142,17 +3155,10 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	if (gem_get_device_address(gp))
 		goto err_out_free_consistent;
 
-	dev->open = gem_open;
-	dev->stop = gem_close;
-	dev->hard_start_xmit = gem_start_xmit;
-	dev->get_stats = gem_get_stats;
-	dev->set_multicast_list = gem_set_multicast;
-	dev->do_ioctl = gem_ioctl;
+	dev->netdev_ops = &gem_netdev_ops;
 	netif_napi_add(dev, &gp->napi, gem_poll, 64);
 	dev->ethtool_ops = &gem_ethtool_ops;
-	dev->tx_timeout = gem_tx_timeout;
 	dev->watchdog_timeo = 5 * HZ;
-	dev->change_mtu = gem_change_mtu;
 	dev->irq = pdev->irq;
 	dev->dma = 0;
 	dev->set_mac_address = gem_set_mac_address;

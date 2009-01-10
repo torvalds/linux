@@ -286,4 +286,10 @@ config MOUSE_GPIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio_mouse.
 
+config MOUSE_PXA930_TRKBALL
+	tristate "PXA930 Trackball mouse"
+	depends on CPU_PXA930 || CPU_PXA935
+	help
+	  Say Y here to support PXA930 Trackball mouse.
+
 endif

@@ -455,8 +455,8 @@ void sirdev_write_complete(struct sir_dev *dev)
 			if ((skb=dev->tx_skb) != NULL) {
 				dev->tx_skb = NULL;
 				dev_kfree_skb_any(skb);
-				dev->stats.tx_errors++;		      
-				dev->stats.tx_dropped++;		      
+				dev->netdev->stats.tx_errors++;
+				dev->netdev->stats.tx_dropped++;
 			}
 			dev->tx_buff.len = 0;
 		}
@@ -493,8 +493,8 @@ void sirdev_write_complete(struct sir_dev *dev)
 		
 	if ((skb=dev->tx_skb) != NULL) {
 		dev->tx_skb = NULL;
-		dev->stats.tx_packets++;		      
-		dev->stats.tx_bytes += skb->len;
+		dev->netdev->stats.tx_packets++;
+		dev->netdev->stats.tx_bytes += skb->len;
 		dev_kfree_skb_any(skb);
 	}
 
@@ -548,7 +548,7 @@ int sirdev_receive(struct sir_dev *dev, const unsigned char *cp, size_t count)
 		 * just update stats and set media busy
 		 */
 		irda_device_set_media_busy(dev->netdev, TRUE);
-		dev->stats.rx_dropped++;
+		dev->netdev->stats.rx_dropped++;
 		IRDA_DEBUG(0, "%s; rx-drop: %zd\n", __func__, count);
 		return 0;
 	}
@@ -557,7 +557,7 @@ int sirdev_receive(struct sir_dev *dev, const unsigned char *cp, size_t count)
 	if (likely(atomic_read(&dev->enable_rx))) {
 		while (count--)
 			/* Unwrap and destuff one byte */
-			async_unwrap_char(dev->netdev, &dev->stats, 
+			async_unwrap_char(dev->netdev, &dev->netdev->stats,
 					  &dev->rx_buff, *cp++);
 	} else {
 		while (count--) {
@@ -581,13 +581,6 @@ EXPORT_SYMBOL(sirdev_receive);
 /**********************************************************************/
 
 /* callbacks from network layer */
-
-static struct net_device_stats *sirdev_get_stats(struct net_device *ndev)
-{
-	struct sir_dev *dev = netdev_priv(ndev);
-
-	return (dev) ? &dev->stats : NULL;
-}
 
 static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
@@ -654,7 +647,7 @@ static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 	 */
 	atomic_set(&dev->enable_rx, 0);
 	if (unlikely(sirdev_is_receiving(dev)))
-		dev->stats.collisions++;
+		dev->netdev->stats.collisions++;
 
 	actual = dev->drv->do_write(dev, dev->tx_buff.data, dev->tx_buff.len);
 
@@ -669,8 +662,8 @@ static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 		IRDA_ERROR("%s: drv->do_write failed (%d)\n",
 			   __func__, actual);
 		dev_kfree_skb_any(skb);
-		dev->stats.tx_errors++;		      
-		dev->stats.tx_dropped++;		      
+		dev->netdev->stats.tx_errors++;
+		dev->netdev->stats.tx_dropped++;
 		netif_wake_queue(ndev);
 	}
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
@@ -918,7 +911,6 @@ struct sir_dev * sirdev_get_instance(const struct sir_driver *drv, const char *n
 	ndev->hard_start_xmit = sirdev_hard_xmit;
 	ndev->open = sirdev_open;
 	ndev->stop = sirdev_close;
-	ndev->get_stats = sirdev_get_stats;
 	ndev->do_ioctl = sirdev_ioctl;
 
 	if (register_netdev(ndev)) {

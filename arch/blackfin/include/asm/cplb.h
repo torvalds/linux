@@ -30,7 +30,6 @@
 #ifndef _CPLB_H
 #define _CPLB_H
 
-#include <asm/blackfin.h>
 #include <mach/anomaly.h>
 
 #define SDRAM_IGENERIC    (CPLB_L1_CHBL | CPLB_USER_RD | CPLB_VALID | CPLB_PORTPRIO)
@@ -55,13 +54,24 @@
 #endif
 
 #define L1_DMEMORY       (CPLB_LOCK | CPLB_COMMON)
+
+#ifdef CONFIG_SMP
+#define L2_ATTR           (INITIAL_T | I_CPLB | D_CPLB)
+#define L2_IMEMORY         (CPLB_COMMON | CPLB_LOCK)
+#define L2_DMEMORY         (CPLB_COMMON | CPLB_LOCK)
+
+#else
 #ifdef CONFIG_BFIN_L2_CACHEABLE
 #define L2_IMEMORY        (SDRAM_IGENERIC)
 #define L2_DMEMORY        (SDRAM_DGENERIC)
 #else
 #define L2_IMEMORY        (CPLB_COMMON)
 #define L2_DMEMORY        (CPLB_COMMON)
-#endif
+#endif /* CONFIG_BFIN_L2_CACHEABLE */
+
+#define L2_ATTR           (INITIAL_T | SWITCH_T | I_CPLB | D_CPLB)
+#endif /* CONFIG_SMP */
+
 #define SDRAM_DNON_CHBL  (CPLB_COMMON)
 #define SDRAM_EBIU       (CPLB_COMMON)
 #define SDRAM_OOPS       (CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_LOCK | CPLB_DIRTY)
@@ -71,14 +81,7 @@
 #define SIZE_1M 0x00100000      /* 1M */
 #define SIZE_4M 0x00400000      /* 4M */
 
-#ifdef CONFIG_MPU
 #define MAX_CPLBS 16
-#else
-#define MAX_CPLBS (16 * 2)
-#endif
-
-#define ASYNC_MEMORY_CPLB_COVERAGE	((ASYNC_BANK0_SIZE + ASYNC_BANK1_SIZE + \
-				 ASYNC_BANK2_SIZE + ASYNC_BANK3_SIZE) / SIZE_4M)
 
 #define CPLB_ENABLE_ICACHE_P	0
 #define CPLB_ENABLE_DCACHE_P	1
@@ -112,5 +115,9 @@
 #define CPLB_DDOCACHE		CPLB_DNOCACHE | CPLB_DEF_CACHE
 #define CPLB_INOCACHE   	CPLB_USER_RD | CPLB_VALID
 #define CPLB_IDOCACHE   	CPLB_INOCACHE | CPLB_L1_CHBL
+
+#define FAULT_RW        (1 << 16)
+#define FAULT_USERSUPV  (1 << 17)
+#define FAULT_CPLBBITS  0x0000ffff
 
 #endif				/* _CPLB_H */

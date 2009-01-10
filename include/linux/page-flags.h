@@ -228,6 +228,7 @@ PAGEFLAG_FALSE(HighMem)
 PAGEFLAG(SwapCache, swapcache)
 #else
 PAGEFLAG_FALSE(SwapCache)
+	SETPAGEFLAG_NOOP(SwapCache) CLEARPAGEFLAG_NOOP(SwapCache)
 #endif
 
 #ifdef CONFIG_UNEVICTABLE_LRU
@@ -372,31 +373,22 @@ static inline void __ClearPageTail(struct page *page)
 #define __PG_MLOCKED		0
 #endif
 
-#define PAGE_FLAGS	(1 << PG_lru   | 1 << PG_private   | 1 << PG_locked | \
-			 1 << PG_buddy | 1 << PG_writeback | \
-			 1 << PG_slab  | 1 << PG_swapcache | 1 << PG_active | \
-			 __PG_UNEVICTABLE | __PG_MLOCKED)
-
-/*
- * Flags checked in bad_page().  Pages on the free list should not have
- * these flags set.  It they are, there is a problem.
- */
-#define PAGE_FLAGS_CLEAR_WHEN_BAD (PAGE_FLAGS | \
-		1 << PG_reclaim | 1 << PG_dirty | 1 << PG_swapbacked)
-
 /*
  * Flags checked when a page is freed.  Pages being freed should not have
  * these flags set.  It they are, there is a problem.
  */
-#define PAGE_FLAGS_CHECK_AT_FREE (PAGE_FLAGS | 1 << PG_reserved)
+#define PAGE_FLAGS_CHECK_AT_FREE \
+	(1 << PG_lru   | 1 << PG_private   | 1 << PG_locked | \
+	 1 << PG_buddy | 1 << PG_writeback | 1 << PG_reserved | \
+	 1 << PG_slab  | 1 << PG_swapcache | 1 << PG_active | \
+	 __PG_UNEVICTABLE | __PG_MLOCKED)
 
 /*
  * Flags checked when a page is prepped for return by the page allocator.
- * Pages being prepped should not have these flags set.  It they are, there
- * is a problem.
+ * Pages being prepped should not have any flags set.  It they are set,
+ * there has been a kernel bug or struct page corruption.
  */
-#define PAGE_FLAGS_CHECK_AT_PREP (PAGE_FLAGS | \
-		1 << PG_reserved | 1 << PG_dirty | 1 << PG_swapbacked)
+#define PAGE_FLAGS_CHECK_AT_PREP	((1 << NR_PAGEFLAGS) - 1)
 
 #endif /* !__GENERATING_BOUNDS_H */
 #endif	/* PAGE_FLAGS_H */
