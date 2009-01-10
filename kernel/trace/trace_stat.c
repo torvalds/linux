@@ -10,28 +10,32 @@
 
 
 #include <linux/list.h>
-#include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include "trace_stat.h"
 #include "trace.h"
 
 
 /* List of stat entries from a tracer */
 struct trace_stat_list {
-	struct list_head list;
-	void *stat;
+	struct list_head 	list;
+	void 			*stat;
 };
 
 /* A stat session is the stats output in one file */
 struct tracer_stat_session {
-	struct tracer_stat *ts;
-	struct list_head stat_list;
-	struct mutex stat_mutex;
+	struct list_head	session_list;
+	struct tracer_stat 	*ts;
+	struct list_head 	stat_list;
+	struct mutex 		stat_mutex;
+	struct dentry		*file;
 };
 
 /* All of the sessions currently in use. Each stat file embeed one session */
-static struct tracer_stat_session **all_stat_sessions;
-static int nb_sessions;
-static struct dentry *stat_dir, **stat_files;
+static LIST_HEAD(all_stat_sessions);
+static DEFINE_MUTEX(all_stat_sessions_mutex);
+
+/* The root directory for all stat files */
+static struct dentry *stat_dir;
 
 
 static void reset_stat_session(struct tracer_stat_session *session)
@@ -44,65 +48,76 @@ static void reset_stat_session(struct tracer_stat_session *session)
 	INIT_LIST_HEAD(&session->stat_list);
 }
 
-/* Called when a tracer is initialized */
-static int init_all_sessions(int nb, struct tracer_stat *ts)
+static void destroy_session(struct tracer_stat_session *session)
 {
-	int i, j;
-	struct tracer_stat_session *session;
+	debugfs_remove(session->file);
+	reset_stat_session(session);
+	mutex_destroy(&session->stat_mutex);
+	kfree(session);
+}
 
-	nb_sessions = 0;
 
-	if (all_stat_sessions) {
-		for (i = 0; i < nb_sessions; i++) {
-			session = all_stat_sessions[i];
-			reset_stat_session(session);
-			mutex_destroy(&session->stat_mutex);
-			kfree(session);
-		}
+static int init_stat_file(struct tracer_stat_session *session);
+
+int register_stat_tracer(struct tracer_stat *trace)
+{
+	struct tracer_stat_session *session, *node, *tmp;
+	int ret;
+
+	if (!trace)
+		return -EINVAL;
+
+	if (!trace->stat_start || !trace->stat_next || !trace->stat_show)
+		return -EINVAL;
+
+	/* Already registered? */
+	mutex_lock(&all_stat_sessions_mutex);
+	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
+		if (node->ts == trace)
+			return -EINVAL;
 	}
-	all_stat_sessions = kmalloc(sizeof(struct tracer_stat_session *) * nb,
-				    GFP_KERNEL);
-	if (!all_stat_sessions)
+	mutex_unlock(&all_stat_sessions_mutex);
+
+	/* Init the session */
+	session = kmalloc(sizeof(struct tracer_stat_session), GFP_KERNEL);
+	if (!session)
 		return -ENOMEM;
 
-	for (i = 0; i < nb; i++) {
-		session = kmalloc(sizeof(struct tracer_stat_session) * nb,
-				  GFP_KERNEL);
-		if (!session)
-			goto free_sessions;
+	session->ts = trace;
+	INIT_LIST_HEAD(&session->session_list);
+	INIT_LIST_HEAD(&session->stat_list);
+	mutex_init(&session->stat_mutex);
+	session->file = NULL;
 
-		INIT_LIST_HEAD(&session->stat_list);
-		mutex_init(&session->stat_mutex);
-		session->ts = &ts[i];
-		all_stat_sessions[i] = session;
+	ret = init_stat_file(session);
+	if (ret) {
+		destroy_session(session);
+		return ret;
 	}
-	nb_sessions = nb;
+
+	/* Register */
+	mutex_lock(&all_stat_sessions_mutex);
+	list_add_tail(&session->session_list, &all_stat_sessions);
+	mutex_unlock(&all_stat_sessions_mutex);
+
 	return 0;
-
-free_sessions:
-
-	for (j = 0; j < i; j++)
-		kfree(all_stat_sessions[i]);
-
-	kfree(all_stat_sessions);
-	all_stat_sessions = NULL;
-
-	return -ENOMEM;
 }
 
-static int basic_tracer_stat_checks(struct tracer_stat *ts)
+void unregister_stat_tracer(struct tracer_stat *trace)
 {
-	int i;
+	struct tracer_stat_session *node, *tmp;
 
-	if (!ts)
-		return 0;
-
-	for (i = 0; ts[i].name; i++) {
-		if (!ts[i].stat_start || !ts[i].stat_next || !ts[i].stat_show)
-			return -EBUSY;
+	mutex_lock(&all_stat_sessions_mutex);
+	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
+		if (node->ts == trace) {
+			list_del(&node->session_list);
+			destroy_session(node);
+			break;
+		}
 	}
-	return i;
+	mutex_unlock(&all_stat_sessions_mutex);
 }
+
 
 /*
  * For tracers that don't provide a stat_cmp callback.
@@ -280,63 +295,7 @@ static const struct file_operations tracing_stat_fops = {
 	.release	= tracing_stat_release
 };
 
-
-static void destroy_trace_stat_files(void)
-{
-	int i;
-
-	if (stat_files) {
-		for (i = 0; i < nb_sessions; i++)
-			debugfs_remove(stat_files[i]);
-		kfree(stat_files);
-		stat_files = NULL;
-	}
-}
-
-static void init_trace_stat_files(void)
-{
-	int i;
-
-	if (!stat_dir || !nb_sessions)
-		return;
-
-	stat_files = kmalloc(sizeof(struct dentry *) * nb_sessions, GFP_KERNEL);
-
-	if (!stat_files) {
-		pr_warning("trace stat: not enough memory\n");
-		return;
-	}
-
-	for (i = 0; i < nb_sessions; i++) {
-		struct tracer_stat_session *session = all_stat_sessions[i];
-		stat_files[i] = debugfs_create_file(session->ts->name, 0644,
-						stat_dir,
-						session, &tracing_stat_fops);
-		if (!stat_files[i])
-			pr_warning("cannot create %s entry\n",
-				   session->ts->name);
-	}
-}
-
-void init_tracer_stat(struct tracer *trace)
-{
-	int nb = basic_tracer_stat_checks(trace->stats);
-
-	destroy_trace_stat_files();
-
-	if (nb < 0) {
-		pr_warning("stat tracing: missing stat callback on %s\n",
-			   trace->name);
-		return;
-	}
-	if (!nb)
-		return;
-
-	init_all_sessions(nb, trace->stats);
-	init_trace_stat_files();
-}
-
-static int __init tracing_stat_init(void)
+static int tracing_stat_init(void)
 {
 	struct dentry *d_tracing;
 
@@ -348,4 +307,16 @@ static int __init tracing_stat_init(void)
 			   "'trace_stat' entry\n");
 	return 0;
 }
-fs_initcall(tracing_stat_init);
+
+static int init_stat_file(struct tracer_stat_session *session)
+{
+	if (!stat_dir && tracing_stat_init())
+		return -ENODEV;
+
+	session->file = debugfs_create_file(session->ts->name, 0644,
+					    stat_dir,
+					    session, &tracing_stat_fops);
+	if (!session->file)
+		return -ENOMEM;
+	return 0;
+}

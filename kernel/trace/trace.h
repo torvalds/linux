@@ -334,24 +334,6 @@ struct tracer_flags {
 /* Makes more easy to define a tracer opt */
 #define TRACER_OPT(s, b)	.name = #s, .bit = b
 
-/*
- * If you want to provide a stat file (one-shot statistics), fill
- * an iterator with stat_start/stat_next and a stat_show callbacks.
- * The others callbacks are optional.
- */
-struct tracer_stat {
-	/* The name of your stat file */
-	const char		*name;
-	/* Iteration over statistic entries */
-	void			*(*stat_start)(void);
-	void			*(*stat_next)(void *prev, int idx);
-	/* Compare two entries for sorting (optional) for stats */
-	int			(*stat_cmp)(void *p1, void *p2);
-	/* Print a stat entry */
-	int			(*stat_show)(struct seq_file *s, void *p);
-	/* Print the headers of your stat entries */
-	int			(*stat_headers)(struct seq_file *s);
-};
 
 /*
  * A specific tracer, represented by methods that operate on a trace array:
@@ -465,8 +447,6 @@ void tracing_stop_sched_switch_record(void);
 void tracing_start_sched_switch_record(void);
 int register_tracer(struct tracer *type);
 void unregister_tracer(struct tracer *type);
-
-void init_tracer_stat(struct tracer *trace);
 
 extern unsigned long nsecs_to_usecs(unsigned long nsecs);
 

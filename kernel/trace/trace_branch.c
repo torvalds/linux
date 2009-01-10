@@ -16,12 +16,12 @@
 #include <asm/local.h>
 
 #include "trace.h"
+#include "trace_stat.h"
 #include "trace_output.h"
-
-static struct tracer branch_trace;
 
 #ifdef CONFIG_BRANCH_TRACER
 
+static struct tracer branch_trace;
 static int branch_tracing_enabled __read_mostly;
 static DEFINE_MUTEX(branch_tracing_mutex);
 
@@ -191,6 +191,30 @@ static struct trace_event trace_branch_event = {
 	.binary		= trace_nop_print,
 };
 
+static struct tracer branch_trace __read_mostly =
+{
+	.name		= "branch",
+	.init		= branch_trace_init,
+	.reset		= branch_trace_reset,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest	= trace_selftest_startup_branch,
+#endif /* CONFIG_FTRACE_SELFTEST */
+};
+
+__init static int init_branch_tracer(void)
+{
+	int ret;
+
+	ret = register_ftrace_event(&trace_branch_event);
+	if (!ret) {
+		printk(KERN_WARNING "Warning: could not register "
+				    "branch events\n");
+		return 1;
+	}
+	return register_tracer(&branch_trace);
+}
+device_initcall(init_branch_tracer);
+
 #else
 static inline
 void trace_likely_condition(struct ftrace_branch_data *f, int val, int expect)
@@ -305,6 +329,29 @@ static int annotated_branch_stat_cmp(void *p1, void *p2)
 		return 0;
 }
 
+static struct tracer_stat annotated_branch_stats = {
+	.name = "branch_annotated",
+	.stat_start = annotated_branch_stat_start,
+	.stat_next = annotated_branch_stat_next,
+	.stat_cmp = annotated_branch_stat_cmp,
+	.stat_headers = annotated_branch_stat_headers,
+	.stat_show = branch_stat_show
+};
+
+__init static int init_annotated_branch_stats(void)
+{
+	int ret;
+
+	ret = register_stat_tracer(&annotated_branch_stats);
+	if (!ret) {
+		printk(KERN_WARNING "Warning: could not register "
+				    "annotated branches stats\n");
+		return 1;
+	}
+	return 0;
+}
+fs_initcall(init_annotated_branch_stats);
+
 #ifdef CONFIG_PROFILE_ALL_BRANCHES
 
 extern unsigned long __start_branch_profile[];
@@ -339,60 +386,25 @@ all_branch_stat_next(void *v, int idx)
 	return p;
 }
 
-static struct tracer_stat branch_stats[] = {
-	{.name = "annotated",
-	.stat_start = annotated_branch_stat_start,
-	.stat_next = annotated_branch_stat_next,
-	.stat_cmp = annotated_branch_stat_cmp,
-	.stat_headers = annotated_branch_stat_headers,
-	.stat_show = branch_stat_show},
-
-	{.name = "all",
+static struct tracer_stat all_branch_stats = {
+	.name = "branch_all",
 	.stat_start = all_branch_stat_start,
 	.stat_next = all_branch_stat_next,
 	.stat_headers = all_branch_stat_headers,
-	.stat_show = branch_stat_show},
-
-	{ }
+	.stat_show = branch_stat_show
 };
-#else
-static struct tracer_stat branch_stats[] = {
-	{.name = "annotated",
-	.stat_start = annotated_branch_stat_start,
-	.stat_next = annotated_branch_stat_next,
-	.stat_cmp = annotated_branch_stat_cmp,
-	.stat_headers = annotated_branch_stat_headers,
-	.stat_show = branch_stat_show},
 
-	{ }
-};
-#endif /* CONFIG_PROFILE_ALL_BRANCHES */
-
-
-static struct tracer branch_trace __read_mostly =
+__init static int all_annotated_branch_stats(void)
 {
-	.name		= "branch",
-#ifdef CONFIG_BRANCH_TRACER
-	.init		= branch_trace_init,
-	.reset		= branch_trace_reset,
-#ifdef CONFIG_FTRACE_SELFTEST
-	.selftest	= trace_selftest_startup_branch,
-#endif /* CONFIG_FTRACE_SELFTEST */
-#endif
-	.stats		= branch_stats
-};
-
-__init static int init_branch_trace(void)
-{
-#ifdef CONFIG_BRANCH_TRACER
 	int ret;
-	ret = register_ftrace_event(&trace_branch_event);
+
+	ret = register_stat_tracer(&all_branch_stats);
 	if (!ret) {
-		printk(KERN_WARNING "Warning: could not register branch events\n");
+		printk(KERN_WARNING "Warning: could not register "
+				    "all branches stats\n");
 		return 1;
 	}
-#endif
-
-	return register_tracer(&branch_trace);
+	return 0;
 }
-device_initcall(init_branch_trace);
+fs_initcall(all_annotated_branch_stats);
+#endif /* CONFIG_PROFILE_ALL_BRANCHES */
