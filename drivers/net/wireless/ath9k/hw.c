@@ -23,6 +23,10 @@
 #include "phy.h"
 #include "initvals.h"
 
+static int btcoex_enable;
+module_param(btcoex_enable, bool, 0);
+MODULE_PARM_DESC(btcoex_enable, "Enable Bluetooth coexistence support");
+
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
 #define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
@@ -3358,7 +3362,7 @@ bool ath9k_hw_fill_cap_info(struct ath_hal *ah)
 	pCap->num_antcfg_2ghz =
 		ath9k_hw_get_num_ant_config(ah, ATH9K_HAL_FREQ_BAND_2GHZ);
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_10_OR_LATER(ah) && btcoex_enable) {
 		pCap->hw_caps |= ATH9K_HW_CAP_BT_COEX;
 		ah->ah_btactive_gpio = 6;
 		ah->ah_wlanactive_gpio = 5;
