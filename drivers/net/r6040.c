@@ -457,22 +457,12 @@ static void r6040_down(struct net_device *dev)
 	iowrite16(adrp[0], ioaddr + MID_0L);
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
-	free_irq(dev->irq, dev);
-
-	/* Free RX buffer */
-	r6040_free_rxbufs(dev);
-
-	/* Free TX buffer */
-	r6040_free_txbufs(dev);
-
-	/* Free Descriptor memory */
-	pci_free_consistent(pdev, RX_DESC_SIZE, lp->rx_ring, lp->rx_ring_dma);
-	pci_free_consistent(pdev, TX_DESC_SIZE, lp->tx_ring, lp->tx_ring_dma);
 }
 
 static int r6040_close(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
+	struct pci_dev *pdev = lp->pdev;
 
 	/* deleted timer */
 	del_timer_sync(&lp->timer);
@@ -481,7 +471,27 @@ static int r6040_close(struct net_device *dev)
 	napi_disable(&lp->napi);
 	netif_stop_queue(dev);
 	r6040_down(dev);
+
+	free_irq(dev->irq, dev);
+
+	/* Free RX buffer */
+	r6040_free_rxbufs(dev);
+
+	/* Free TX buffer */
+	r6040_free_txbufs(dev);
+
 	spin_unlock_irq(&lp->lock);
+
+	/* Free Descriptor memory */
+	if (lp->rx_ring) {
+		pci_free_consistent(pdev, RX_DESC_SIZE, lp->rx_ring, lp->rx_ring_dma);
+		lp->rx_ring = 0;
+	}
+
+	if (lp->tx_ring) {
+		pci_free_consistent(pdev, TX_DESC_SIZE, lp->tx_ring, lp->tx_ring_dma);
+		lp->tx_ring = 0;
+	}
 
 	return 0;
 }
