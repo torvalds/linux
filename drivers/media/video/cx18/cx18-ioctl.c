@@ -708,7 +708,9 @@ static int cx18_log_status(struct file *file, void *fh)
 	struct v4l2_audio audin;
 	int i;
 
-	CX18_INFO("=================  START STATUS CARD #%d  =================\n", cx->num);
+	CX18_INFO("=================  START STATUS CARD #%d  "
+		  "=================\n", cx->num);
+	CX18_INFO("Version: %s  Card: %s\n", CX18_VERSION, cx->card_name);
 	if (cx->hw_flags & CX18_HW_TVEEPROM) {
 		struct tveeprom tv;
 
