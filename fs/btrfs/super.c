@@ -605,18 +605,20 @@ out:
 	return ret;
 }
 
-static void btrfs_write_super_lockfs(struct super_block *sb)
+static int btrfs_freeze(struct super_block *sb)
 {
 	struct btrfs_root *root = btrfs_sb(sb);
 	mutex_lock(&root->fs_info->transaction_kthread_mutex);
 	mutex_lock(&root->fs_info->cleaner_mutex);
+	return 0;
 }
 
-static void btrfs_unlockfs(struct super_block *sb)
+static int btrfs_unfreeze(struct super_block *sb)
 {
 	struct btrfs_root *root = btrfs_sb(sb);
 	mutex_unlock(&root->fs_info->cleaner_mutex);
 	mutex_unlock(&root->fs_info->transaction_kthread_mutex);
+	return 0;
 }
 
 static struct super_operations btrfs_super_ops = {
@@ -631,8 +633,8 @@ static struct super_operations btrfs_super_ops = {
 	.destroy_inode	= btrfs_destroy_inode,
 	.statfs		= btrfs_statfs,
 	.remount_fs	= btrfs_remount,
-	.write_super_lockfs = btrfs_write_super_lockfs,
-	.unlockfs	= btrfs_unlockfs,
+	.freeze_fs	= btrfs_freeze,
+	.unfreeze_fs	= btrfs_unfreeze,
 };
 
 static const struct file_operations btrfs_ctl_fops = {
