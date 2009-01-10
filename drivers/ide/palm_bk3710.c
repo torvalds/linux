@@ -324,8 +324,6 @@ static int __devinit palm_bk3710_init_dma(ide_hwif_t *hwif,
 
 	hwif->dma_base = hwif->io_ports.data_addr - IDE_PALM_ATA_PRI_REG_OFFSET;
 
-	hwif->dma_ops = &sff_dma_ops;
-
 	return 0;
 }
 
@@ -338,6 +336,7 @@ static const struct ide_port_ops palm_bk3710_ports_ops = {
 static struct ide_port_info __devinitdata palm_bk3710_port_info = {
 	.init_dma		= palm_bk3710_init_dma,
 	.port_ops		= &palm_bk3710_ports_ops,
+	.dma_ops		= &sff_dma_ops,
 	.host_flags		= IDE_HFLAG_MMIO,
 	.pio_mask		= ATA_PIO4,
 	.mwdma_mask		= ATA_MWDMA2,

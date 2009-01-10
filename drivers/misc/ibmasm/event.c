@@ -50,7 +50,7 @@ static void wake_up_event_readers(struct service_processor *sp)
  * Store the event in the circular event buffer, wake up any sleeping
  * event readers.
  * There is no reader marker in the buffer, therefore readers are
- * responsible for keeping up with the writer, or they will loose events.
+ * responsible for keeping up with the writer, or they will lose events.
  */
 void ibmasm_receive_event(struct service_processor *sp, void *data, unsigned int data_size)
 {

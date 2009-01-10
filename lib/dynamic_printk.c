@@ -277,40 +277,34 @@ static ssize_t pr_debug_write(struct file *file, const char __user *buf,
 				dynamic_enabled = DYNAMIC_ENABLED_NONE;
 			}
 			err = 0;
-		} else {
-			if (elem) {
-				if (value && (elem->enable == 0)) {
-					dynamic_printk_enabled |=
-							(1LL << elem->hash1);
-					dynamic_printk_enabled2 |=
-							(1LL << elem->hash2);
-					elem->enable = 1;
-					num_enabled++;
-					dynamic_enabled = DYNAMIC_ENABLED_SOME;
-					err = 0;
-					printk(KERN_DEBUG
-					       "debugging enabled for module %s\n",
-					       elem->name);
-				} else if (!value && (elem->enable == 1)) {
-					elem->enable = 0;
-					num_enabled--;
-					if (disabled_hash(elem->hash1, true))
-						dynamic_printk_enabled &=
+		} else if (elem) {
+			if (value && (elem->enable == 0)) {
+				dynamic_printk_enabled |= (1LL << elem->hash1);
+				dynamic_printk_enabled2 |= (1LL << elem->hash2);
+				elem->enable = 1;
+				num_enabled++;
+				dynamic_enabled = DYNAMIC_ENABLED_SOME;
+				err = 0;
+				printk(KERN_DEBUG
+					"debugging enabled for module %s\n",
+					elem->name);
+			} else if (!value && (elem->enable == 1)) {
+				elem->enable = 0;
+				num_enabled--;
+				if (disabled_hash(elem->hash1, true))
+					dynamic_printk_enabled &=
 							~(1LL << elem->hash1);
-					if (disabled_hash(elem->hash2, false))
-						dynamic_printk_enabled2 &=
+				if (disabled_hash(elem->hash2, false))
+					dynamic_printk_enabled2 &=
 							~(1LL << elem->hash2);
-					if (num_enabled)
-						dynamic_enabled =
-							DYNAMIC_ENABLED_SOME;
-					else
-						dynamic_enabled =
-							DYNAMIC_ENABLED_NONE;
-					err = 0;
-					printk(KERN_DEBUG
-					       "debugging disabled for module "
-					       "%s\n", elem->name);
-				}
+				if (num_enabled)
+					dynamic_enabled = DYNAMIC_ENABLED_SOME;
+				else
+					dynamic_enabled = DYNAMIC_ENABLED_NONE;
+				err = 0;
+				printk(KERN_DEBUG
+					"debugging disabled for module %s\n",
+					elem->name);
 			}
 		}
 	}

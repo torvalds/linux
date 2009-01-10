@@ -44,6 +44,13 @@
 
 #define BFIN_UART_NR_PORTS      1
 
+#define CH_UART_RX CH_UART0_RX
+#define CH_UART_TX CH_UART0_TX
+
+#define IRQ_UART_ERROR IRQ_UART0_ERROR
+#define IRQ_UART_RX    IRQ_UART0_RX
+#define IRQ_UART_TX    IRQ_UART0_TX
+
 #define OFFSET_THR              0x00	/* Transmit Holding register            */
 #define OFFSET_RBR              0x00	/* Receive Buffer register              */
 #define OFFSET_DLL              0x00	/* Divisor Latch (Low-Byte)             */

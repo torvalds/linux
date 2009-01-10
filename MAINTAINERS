@@ -616,7 +616,7 @@ M:	mkpetch@internode.on.net
 S:	Maintained
 
 ARM/TOSA MACHINE SUPPORT
-P:	Dmitry Baryshkov
+P:	Dmitry Eremin-Solenikov
 M:	dbaryshkov@gmail.com
 P:	Dirk Opfer
 M:	dirk@opfer-online.de
@@ -1024,16 +1024,17 @@ S:	Maintained
 BTTV VIDEO4LINUX DRIVER
 P:	Mauro Carvalho Chehab
 M:	mchehab@infradead.org
-M:	v4l-dvb-maintainer@linuxtv.org
+L:	linux-media@vger.kernel.org
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 CAFE CMOS INTEGRATED CAMERA CONTROLLER DRIVER
 P:	Jonathan Corbet
 M:	corbet@lwn.net
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 CALGARY x86-64 IOMMU
@@ -1092,11 +1093,8 @@ S:	Maintained
 
 CHECKPATCH
 P:	Andy Whitcroft
-M:	apw@shadowen.org
-P:	Randy Dunlap
-M:	rdunlap@xenotime.net
-P:	Joel Schopp
-M:	jschopp@austin.ibm.com
+M:	apw@canonical.com
+L:	linux-kernel@vger.kernel.org
 S:	Supported
 
 CISCO 10G ETHERNET DRIVER
@@ -1264,7 +1262,8 @@ P:	Hans Verkuil, Andy Walls
 M:	hverkuil@xs4all.nl, awalls@radix.net
 L:	ivtv-devel@ivtvdriver.org
 L:	ivtv-users@ivtvdriver.org
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://linuxtv.org
 S:	Maintained
 
@@ -1359,6 +1358,11 @@ S:	Maintained
 DEFXX FDDI NETWORK DRIVER
 P:	Maciej W. Rozycki
 M:	macro@linux-mips.org
+S:	Maintained
+
+DELL LAPTOP DRIVER
+P:	Matthew Garrett
+M:	mjg59@srcf.ucam.org
 S:	Maintained
 
 DELL LAPTOP SMM DRIVER
@@ -1490,10 +1494,10 @@ S:	Maintained
 
 DVB SUBSYSTEM AND DRIVERS
 P:	LinuxTV.org Project
-M:	v4l-dvb-maintainer@linuxtv.org
+M:	linux-media@vger.kernel.org
 L:	linux-dvb@linuxtv.org (subscription required)
 W:	http://linuxtv.org/
-T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 DZ DECSTATION DZ11 SERIAL DRIVER
@@ -1885,32 +1889,37 @@ S:	Maintained
 GSPCA FINEPIX SUBDRIVER
 P:	Frank Zago
 M:	frank@zago.net
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 GSPCA M5602 SUBDRIVER
 P:	Erik Andren
 M:	erik.andren@gmail.com
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 GSPCA PAC207 SONIXB SUBDRIVER
 P:	Hans de Goede
 M:	hdegoede@redhat.com
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 GSPCA T613 SUBDRIVER
 P:	Leandro Costantino
 M:	lcostantino@gmail.com
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 GSPCA USB WEBCAM DRIVER
 P:	Jean-Francois Moine
 M:	moinejf@free.fr
 W:	http://moinejf.free.fr
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 HARDWARE MONITORING
@@ -2308,6 +2317,14 @@ W:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
 W:	http://ipw2200.sourceforge.net
 S:	Supported
 
+INTEL WIRELESS WIMAX CONNECTION 2400
+P:	Inaky Perez-Gonzalez
+M:	inaky.perez-gonzalez@intel.com
+M:	linux-wimax@intel.com
+L:	wimax@linuxwimax.org
+S:	Supported
+W:	http://linuxwimax.org
+
 INTEL WIRELESS WIFI LINK (iwlwifi)
 P:	Zhu Yi
 M:	yi.zhu@intel.com
@@ -2432,7 +2449,8 @@ P:	Hans Verkuil
 M:	hverkuil@xs4all.nl
 L:	ivtv-devel@ivtvdriver.org
 L:	ivtv-users@ivtvdriver.org
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://www.ivtvdriver.org
 S:	Maintained
 
@@ -2985,6 +3003,7 @@ MUSB MULTIPOINT HIGH SPEED DUAL-ROLE CONTROLLER
 P:	Felipe Balbi
 M:	felipe.balbi@nokia.com
 L:	linux-usb@vger.kernel.org
+T:	git gitorious.org:/musb/mainline.git
 S:	Maintained
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
@@ -3191,7 +3210,8 @@ S:	Maintained
 OMNIVISION OV7670 SENSOR DRIVER
 P:	Jonathan Corbet
 M:	corbet@lwn.net
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 ONENAND FLASH DRIVER
@@ -3469,12 +3489,19 @@ L:	linuxppc-dev@ozlabs.org
 L:	cbe-oss-dev@ozlabs.org
 S:	Supported
 
+PS3VRAM DRIVER
+P:	Jim Paris
+M:	jim@jtan.com
+L:	cbe-oss-dev@ozlabs.org
+S:	Maintained
+
 PVRUSB2 VIDEO4LINUX DRIVER
 P:	Mike Isely
 M:	isely@pobox.com
 L:	pvrusb2@isely.net	(subscribers-only)
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
 W:	http://www.isely.net/pvrusb2/
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 PXA2xx/PXA3xx SUPPORT
@@ -3694,6 +3721,8 @@ S:	Supported
 SAA7146 VIDEO4LINUX-2 DRIVER
 P:	Michael Hunold
 M:	michael@mihu.de
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://www.mihu.de/linux/saa7146
 S:	Maintained
 
@@ -3957,7 +3986,8 @@ S:	Maintained
 SOC-CAMERA V4L2 SUBSYSTEM
 P:	Guennadi Liakhovetski
 M:	g.liakhovetski@gmx.de
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 SOEKRIS NET48XX LED SUPPORT
@@ -4050,6 +4080,13 @@ L:	linuxppc-dev@ozlabs.org
 L:	cbe-oss-dev@ozlabs.org
 W:	http://www.ibm.com/developerworks/power/cell/
 S:	Supported
+
+SQUASHFS FILE SYSTEM
+P:	Phillip Lougher
+M:	phillip@lougher.demon.co.uk
+L:	squashfs-devel@lists.sourceforge.net (subscribers-only)
+W:	http://squashfs.org.uk
+S:	Maintained
 
 SRM (Alpha) environment access
 P:	Jan-Benedict Glaw
@@ -4232,9 +4269,10 @@ L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
 
 TRIVIAL PATCHES
-P:	Jesper Juhl
+P:	Jiri Kosina
 M:	trivial@kernel.org
 L:	linux-kernel@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/jikos/trivial.git
 S:	Maintained
 
 TTY LAYER
@@ -4375,7 +4413,8 @@ USB ET61X[12]51 DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
 L:	linux-usb@vger.kernel.org
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://www.linux-projects.org
 S:	Maintained
 
@@ -4524,7 +4563,8 @@ USB SN9C1xx DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
 L:	linux-usb@vger.kernel.org
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://www.linux-projects.org
 S:	Maintained
 
@@ -4553,7 +4593,8 @@ USB VIDEO CLASS
 P:	Laurent Pinchart
 M:	laurent.pinchart@skynet.be
 L:	linux-uvc-devel@lists.berlios.de (subscribers-only)
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://linux-uvc.berlios.de
 S:	Maintained
 
@@ -4561,7 +4602,8 @@ USB W996[87]CF DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
 L:	linux-usb@vger.kernel.org
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://www.linux-projects.org
 S:	Maintained
 
@@ -4575,7 +4617,8 @@ USB ZC0301 DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
 L:	linux-usb@vger.kernel.org
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://www.linux-projects.org
 S:	Maintained
 
@@ -4590,7 +4633,8 @@ USB ZR364XX DRIVER
 P:	Antoine Jacquet
 M:	royale@zerezo.com
 L:	linux-usb@vger.kernel.org
-L:	video4linux-list@redhat.com
+L:	linux-media@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://royale.zerezo.com/zr364xx/
 S:	Maintained
 
@@ -4659,10 +4703,10 @@ S:	Maintained
 VIDEO FOR LINUX (V4L)
 P:	Mauro Carvalho Chehab
 M:	mchehab@infradead.org
-M:	v4l-dvb-maintainer@linuxtv.org
+L:	linux-media@vger.kernel.org
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 
 VLAN (802.1Q)
@@ -4734,6 +4778,14 @@ P:	Miroslav Zagorac
 M:	zaga@fly.cc.fer.hr
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
+
+WIMAX STACK
+P:	Inaky Perez-Gonzalez
+M:	inaky.perez-gonzalez@intel.com
+M:	linux-wimax@intel.com
+L:	wimax@linuxwimax.org
+S:	Supported
+W:	http://linuxwimax.org
 
 WIMEDIA LLC PROTOCOL (WLP) SUBSYSTEM
 P:	David Vrabel

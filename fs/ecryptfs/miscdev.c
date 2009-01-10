@@ -199,7 +199,7 @@ int ecryptfs_send_miscdev(char *data, size_t data_size,
 		if (!msg_ctx->msg) {
 			rc = -ENOMEM;
 			printk(KERN_ERR "%s: Out of memory whilst attempting "
-			       "to kmalloc(%Zd, GFP_KERNEL)\n", __func__,
+			       "to kmalloc(%zd, GFP_KERNEL)\n", __func__,
 			       (sizeof(*msg_ctx->msg) + data_size));
 			goto out_unlock;
 		}
@@ -322,7 +322,7 @@ check_list:
 	if (count < total_length) {
 		rc = 0;
 		printk(KERN_WARNING "%s: Only given user buffer of "
-		       "size [%Zd], but we need [%Zd] to read the "
+		       "size [%zd], but we need [%zd] to read the "
 		       "pending message\n", __func__, count, total_length);
 		goto out_unlock_msg_ctx;
 	}
@@ -376,7 +376,7 @@ static int ecryptfs_miscdev_response(char *data, size_t data_size,
 
 	if ((sizeof(*msg) + msg->data_len) != data_size) {
 		printk(KERN_WARNING "%s: (sizeof(*msg) + msg->data_len) = "
-		       "[%Zd]; data_size = [%Zd]. Invalid packet.\n", __func__,
+		       "[%zd]; data_size = [%zd]. Invalid packet.\n", __func__,
 		       (sizeof(*msg) + msg->data_len), data_size);
 		rc = -EINVAL;
 		goto out;
@@ -421,7 +421,7 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 	data = kmalloc(count, GFP_KERNEL);
 	if (!data) {
 		printk(KERN_ERR "%s: Out of memory whilst attempting to "
-		       "kmalloc([%Zd], GFP_KERNEL)\n", __func__, count);
+		       "kmalloc([%zd], GFP_KERNEL)\n", __func__, count);
 		goto out;
 	}
 	rc = copy_from_user(data, buf, count);
@@ -436,8 +436,8 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 	case ECRYPTFS_MSG_RESPONSE:
 		if (count < (1 + 4 + 1 + sizeof(struct ecryptfs_message))) {
 			printk(KERN_WARNING "%s: Minimum acceptable packet "
-			       "size is [%Zd], but amount of data written is "
-			       "only [%Zd]. Discarding response packet.\n",
+			       "size is [%zd], but amount of data written is "
+			       "only [%zd]. Discarding response packet.\n",
 			       __func__,
 			       (1 + 4 + 1 + sizeof(struct ecryptfs_message)),
 			       count);
@@ -455,9 +455,9 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 		}
 		i += packet_size_length;
 		if ((1 + 4 + packet_size_length + packet_size) != count) {
-			printk(KERN_WARNING "%s: (1 + packet_size_length([%Zd])"
-			       " + packet_size([%Zd]))([%Zd]) != "
-			       "count([%Zd]). Invalid packet format.\n",
+			printk(KERN_WARNING "%s: (1 + packet_size_length([%zd])"
+			       " + packet_size([%zd]))([%zd]) != "
+			       "count([%zd]). Invalid packet format.\n",
 			       __func__, packet_size_length, packet_size,
 			       (1 + packet_size_length + packet_size), count);
 			goto out_free;

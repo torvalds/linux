@@ -42,7 +42,7 @@ void acpi_reboot(void)
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 		printk(KERN_DEBUG "ACPI MEMORY or I/O RESET_REG.\n");
-		acpi_hw_low_level_write(8, reset_value, rr);
+		acpi_reset();
 		break;
 	}
 	/* Wait ten seconds */

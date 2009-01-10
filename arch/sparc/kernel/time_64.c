@@ -106,7 +106,7 @@ static void tick_init_tick(void)
 	tick_disable_irq();
 }
 
-static unsigned long tick_get_tick(void)
+static unsigned long long tick_get_tick(void)
 {
 	unsigned long ret;
 
@@ -208,7 +208,7 @@ static void stick_init_tick(void)
 	stick_disable_irq();
 }
 
-static unsigned long stick_get_tick(void)
+static unsigned long long stick_get_tick(void)
 {
 	unsigned long ret;
 
@@ -352,7 +352,7 @@ static void hbtick_init_tick(void)
 	hbtick_disable_irq();
 }
 
-static unsigned long hbtick_get_tick(void)
+static unsigned long long hbtick_get_tick(void)
 {
 	return __hbird_read_stick() & ~TICK_PRIV_BIT;
 }
@@ -422,7 +422,7 @@ static int __devinit rtc_probe(struct of_device *op, const struct of_device_id *
 {
 	struct resource *r;
 
-	printk(KERN_INFO "%s: RTC regs at 0x%lx\n",
+	printk(KERN_INFO "%s: RTC regs at 0x%llx\n",
 	       op->node->full_name, op->resource[0].start);
 
 	/* The CMOS RTC driver only accepts IORESOURCE_IO, so cons
@@ -478,7 +478,7 @@ static struct platform_device rtc_bq4802_device = {
 static int __devinit bq4802_probe(struct of_device *op, const struct of_device_id *match)
 {
 
-	printk(KERN_INFO "%s: BQ4802 regs at 0x%lx\n",
+	printk(KERN_INFO "%s: BQ4802 regs at 0x%llx\n",
 	       op->node->full_name, op->resource[0].start);
 
 	rtc_bq4802_device.resource = &op->resource[0];
@@ -542,7 +542,7 @@ static int __devinit mostek_probe(struct of_device *op, const struct of_device_i
 	    strcmp(dp->parent->parent->name, "central") != 0)
 		return -ENODEV;
 
-	printk(KERN_INFO "%s: Mostek regs at 0x%lx\n",
+	printk(KERN_INFO "%s: Mostek regs at 0x%llx\n",
 	       dp->full_name, op->resource[0].start);
 
 	m48t59_rtc.resource = &op->resource[0];

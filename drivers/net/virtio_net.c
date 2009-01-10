@@ -624,6 +624,18 @@ static int virtnet_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static const struct net_device_ops virtnet_netdev = {
+	.ndo_open            = virtnet_open,
+	.ndo_stop   	     = virtnet_close,
+	.ndo_start_xmit      = start_xmit,
+	.ndo_validate_addr   = eth_validate_addr,
+	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_change_mtu	     = virtnet_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller = virtnet_netpoll,
+#endif
+};
+
 static int virtnet_probe(struct virtio_device *vdev)
 {
 	int err;
@@ -636,14 +648,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 		return -ENOMEM;
 
 	/* Set up network device as normal. */
-	dev->open = virtnet_open;
-	dev->stop = virtnet_close;
-	dev->hard_start_xmit = start_xmit;
-	dev->change_mtu = virtnet_change_mtu;
+	dev->netdev_ops = &virtnet_netdev;
 	dev->features = NETIF_F_HIGHDMA;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = virtnet_netpoll;
-#endif
 	SET_ETHTOOL_OPS(dev, &virtnet_ethtool_ops);
 	SET_NETDEV_DEV(dev, &vdev->dev);
 

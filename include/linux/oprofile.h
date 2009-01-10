@@ -164,4 +164,22 @@ void oprofile_put_buff(unsigned long *buf, unsigned int start,
 unsigned long oprofile_get_cpu_buffer_size(void);
 void oprofile_cpu_buffer_inc_smpl_lost(void);
  
+/* cpu buffer functions */
+
+struct op_sample;
+
+struct op_entry {
+	struct ring_buffer_event *event;
+	struct op_sample *sample;
+	unsigned long irq_flags;
+	unsigned long size;
+	unsigned long *data;
+};
+
+void oprofile_write_reserve(struct op_entry *entry,
+			    struct pt_regs * const regs,
+			    unsigned long pc, int code, int size);
+int oprofile_add_data(struct op_entry *entry, unsigned long val);
+int oprofile_write_commit(struct op_entry *entry);
+
 #endif /* OPROFILE_H */

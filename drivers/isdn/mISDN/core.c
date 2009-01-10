@@ -25,39 +25,183 @@ MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL");
 module_param(debug, uint, S_IRUGO | S_IWUSR);
 
-static LIST_HEAD(devices);
-static DEFINE_RWLOCK(device_lock);
 static u64		device_ids;
 #define MAX_DEVICE_ID	63
 
 static LIST_HEAD(Bprotocols);
 static DEFINE_RWLOCK(bp_lock);
 
+static void mISDN_dev_release(struct device *dev)
+{
+	/* nothing to do: the device is part of its parent's data structure */
+}
+
+static ssize_t _show_id(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct mISDNdevice *mdev = dev_to_mISDN(dev);
+
+	if (!mdev)
+		return -ENODEV;
+	return sprintf(buf, "%d\n", mdev->id);
+}
+
+static ssize_t _show_nrbchan(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct mISDNdevice *mdev = dev_to_mISDN(dev);
+
+	if (!mdev)
+		return -ENODEV;
+	return sprintf(buf, "%d\n", mdev->nrbchan);
+}
+
+static ssize_t _show_d_protocols(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct mISDNdevice *mdev = dev_to_mISDN(dev);
+
+	if (!mdev)
+		return -ENODEV;
+	return sprintf(buf, "%d\n", mdev->Dprotocols);
+}
+
+static ssize_t _show_b_protocols(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct mISDNdevice *mdev = dev_to_mISDN(dev);
+
+	if (!mdev)
+		return -ENODEV;
+	return sprintf(buf, "%d\n", mdev->Bprotocols | get_all_Bprotocols());
+}
+
+static ssize_t _show_protocol(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct mISDNdevice *mdev = dev_to_mISDN(dev);
+
+	if (!mdev)
+		return -ENODEV;
+	return sprintf(buf, "%d\n", mdev->D.protocol);
+}
+
+static ssize_t _show_name(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	strcpy(buf, dev_name(dev));
+	return strlen(buf);
+}
+
+#if 0 /* hangs */
+static ssize_t _set_name(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int err = 0;
+	char *out = kmalloc(count + 1, GFP_KERNEL);
+
+	if (!out)
+		return -ENOMEM;
+
+	memcpy(out, buf, count);
+	if (count && out[count - 1] == '\n')
+		out[--count] = 0;
+	if (count)
+		err = device_rename(dev, out);
+	kfree(out);
+
+	return (err < 0) ? err : count;
+}
+#endif
+
+static ssize_t _show_channelmap(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct mISDNdevice *mdev = dev_to_mISDN(dev);
+	char *bp = buf;
+	int i;
+
+	for (i = 0; i <= mdev->nrbchan; i++)
+		*bp++ = test_channelmap(i, mdev->channelmap) ? '1' : '0';
+
+	return bp - buf;
+}
+
+static struct device_attribute mISDN_dev_attrs[] = {
+	__ATTR(id,          S_IRUGO,         _show_id,          NULL),
+	__ATTR(d_protocols, S_IRUGO,         _show_d_protocols, NULL),
+	__ATTR(b_protocols, S_IRUGO,         _show_b_protocols, NULL),
+	__ATTR(protocol,    S_IRUGO,         _show_protocol,    NULL),
+	__ATTR(channelmap,  S_IRUGO,         _show_channelmap,  NULL),
+	__ATTR(nrbchan,     S_IRUGO,         _show_nrbchan,     NULL),
+	__ATTR(name,        S_IRUGO,         _show_name,        NULL),
+/*	__ATTR(name,        S_IRUGO|S_IWUSR, _show_name,       _set_name), */
+	{}
+};
+
+#ifdef CONFIG_HOTPLUG
+static int mISDN_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct mISDNdevice *mdev = dev_to_mISDN(dev);
+
+	if (!mdev)
+		return 0;
+
+	if (add_uevent_var(env, "nchans=%d", mdev->nrbchan))
+		return -ENOMEM;
+
+	return 0;
+}
+#endif
+
+static void mISDN_class_release(struct class *cls)
+{
+	/* do nothing, it's static */
+}
+
+static struct class mISDN_class = {
+	.name = "mISDN",
+	.owner = THIS_MODULE,
+#ifdef CONFIG_HOTPLUG
+	.dev_uevent = mISDN_uevent,
+#endif
+	.dev_attrs = mISDN_dev_attrs,
+	.dev_release = mISDN_dev_release,
+	.class_release = mISDN_class_release,
+};
+
+static int
+_get_mdevice(struct device *dev, void *id)
+{
+	struct mISDNdevice *mdev = dev_to_mISDN(dev);
+
+	if (!mdev)
+		return 0;
+	if (mdev->id != *(u_int *)id)
+		return 0;
+	return 1;
+}
+
 struct mISDNdevice
 *get_mdevice(u_int id)
 {
-	struct mISDNdevice	*dev;
+	return dev_to_mISDN(class_find_device(&mISDN_class, NULL, &id,
+		_get_mdevice));
+}
 
-	read_lock(&device_lock);
-	list_for_each_entry(dev, &devices, D.list)
-		if (dev->id == id) {
-			read_unlock(&device_lock);
-			return dev;
-		}
-	read_unlock(&device_lock);
-	return NULL;
+static int
+_get_mdevice_count(struct device *dev, void *cnt)
+{
+	*(int *)cnt += 1;
+	return 0;
 }
 
 int
 get_mdevice_count(void)
 {
-	struct mISDNdevice	*dev;
-	int			cnt = 0;
+	int cnt = 0;
 
-	read_lock(&device_lock);
-	list_for_each_entry(dev, &devices, D.list)
-		cnt++;
-	read_unlock(&device_lock);
+	class_for_each_device(&mISDN_class, NULL, &cnt, _get_mdevice_count);
 	return cnt;
 }
 
@@ -68,48 +212,66 @@ get_free_devid(void)
 
 	for (i = 0; i <= MAX_DEVICE_ID; i++)
 		if (!test_and_set_bit(i, (u_long *)&device_ids))
-			return i;
-	return -1;
+			break;
+	if (i > MAX_DEVICE_ID)
+		return -1;
+	return i;
 }
 
 int
-mISDN_register_device(struct mISDNdevice *dev, char *name)
+mISDN_register_device(struct mISDNdevice *dev,
+			struct device *parent, char *name)
 {
-	u_long	flags;
 	int	err;
 
 	dev->id = get_free_devid();
+	err = -EBUSY;
 	if (dev->id < 0)
-		return -EBUSY;
+		goto error1;
+
+	device_initialize(&dev->dev);
 	if (name && name[0])
-		strcpy(dev->name, name);
+		dev_set_name(&dev->dev, "%s", name);
 	else
-		sprintf(dev->name, "mISDN%d", dev->id);
+		dev_set_name(&dev->dev, "mISDN%d", dev->id);
 	if (debug & DEBUG_CORE)
 		printk(KERN_DEBUG "mISDN_register %s %d\n",
-			dev->name, dev->id);
+			dev_name(&dev->dev), dev->id);
 	err = create_stack(dev);
 	if (err)
-		return err;
-	write_lock_irqsave(&device_lock, flags);
-	list_add_tail(&dev->D.list, &devices);
-	write_unlock_irqrestore(&device_lock, flags);
+		goto error1;
+
+	dev->dev.class = &mISDN_class;
+	dev->dev.platform_data = dev;
+	dev->dev.parent = parent;
+	dev_set_drvdata(&dev->dev, dev);
+
+	err = device_add(&dev->dev);
+	if (err)
+		goto error3;
 	return 0;
+
+error3:
+	delete_stack(dev);
+	return err;
+error1:
+	return err;
+
 }
 EXPORT_SYMBOL(mISDN_register_device);
 
 void
 mISDN_unregister_device(struct mISDNdevice *dev) {
-	u_long	flags;
-
 	if (debug & DEBUG_CORE)
 		printk(KERN_DEBUG "mISDN_unregister %s %d\n",
-			dev->name, dev->id);
-	write_lock_irqsave(&device_lock, flags);
-	list_del(&dev->D.list);
-	write_unlock_irqrestore(&device_lock, flags);
+			dev_name(&dev->dev), dev->id);
+	/* sysfs_remove_link(&dev->dev.kobj, "device"); */
+	device_del(&dev->dev);
+	dev_set_drvdata(&dev->dev, NULL);
+
 	test_and_clear_bit(dev->id, (u_long *)&device_ids);
 	delete_stack(dev);
+	put_device(&dev->dev);
 }
 EXPORT_SYMBOL(mISDN_unregister_device);
 
@@ -199,43 +361,45 @@ mISDNInit(void)
 
 	printk(KERN_INFO "Modular ISDN core version %d.%d.%d\n",
 		MISDN_MAJOR_VERSION, MISDN_MINOR_VERSION, MISDN_RELEASE);
+	mISDN_init_clock(&debug);
 	mISDN_initstack(&debug);
+	err = class_register(&mISDN_class);
+	if (err)
+		goto error1;
 	err = mISDN_inittimer(&debug);
 	if (err)
-		goto error;
+		goto error2;
 	err = l1_init(&debug);
-	if (err) {
-		mISDN_timer_cleanup();
-		goto error;
-	}
+	if (err)
+		goto error3;
 	err = Isdnl2_Init(&debug);
-	if (err) {
-		mISDN_timer_cleanup();
-		l1_cleanup();
-		goto error;
-	}
+	if (err)
+		goto error4;
 	err = misdn_sock_init(&debug);
-	if (err) {
-		mISDN_timer_cleanup();
-		l1_cleanup();
-		Isdnl2_cleanup();
-	}
-error:
+	if (err)
+		goto error5;
+	return 0;
+
+error5:
+	Isdnl2_cleanup();
+error4:
+	l1_cleanup();
+error3:
+	mISDN_timer_cleanup();
+error2:
+	class_unregister(&mISDN_class);
+error1:
 	return err;
 }
 
 static void mISDN_cleanup(void)
 {
 	misdn_sock_cleanup();
-	mISDN_timer_cleanup();
-	l1_cleanup();
 	Isdnl2_cleanup();
+	l1_cleanup();
+	mISDN_timer_cleanup();
+	class_unregister(&mISDN_class);
 
-	if (!list_empty(&devices))
-		printk(KERN_ERR "%s devices still registered\n", __func__);
-
-	if (!list_empty(&Bprotocols))
-		printk(KERN_ERR "%s Bprotocols still registered\n", __func__);
 	printk(KERN_DEBUG "mISDNcore unloaded\n");
 }
 

@@ -22,9 +22,7 @@
 
 
 #define BIT_DIVIDER_MIPS 1043
-static int bits_mips[8] = { 277,249,290,267,229,341,212,241}; /* mips32 */
-
-#include <linux/errno.h>
+static int bits_mips[8] = { 277, 249, 290, 267, 229, 341, 212, 241};
 
 struct pushpull {
 	unsigned char *buf;
@@ -43,7 +41,9 @@ struct rubin_state {
 	int bits[8];
 };
 
-static inline void init_pushpull(struct pushpull *pp, char *buf, unsigned buflen, unsigned ofs, unsigned reserve)
+static inline void init_pushpull(struct pushpull *pp, char *buf,
+				 unsigned buflen, unsigned ofs,
+				 unsigned reserve)
 {
 	pp->buf = buf;
 	pp->buflen = buflen;
@@ -53,16 +53,14 @@ static inline void init_pushpull(struct pushpull *pp, char *buf, unsigned buflen
 
 static inline int pushbit(struct pushpull *pp, int bit, int use_reserved)
 {
-	if (pp->ofs >= pp->buflen - (use_reserved?0:pp->reserve)) {
+	if (pp->ofs >= pp->buflen - (use_reserved?0:pp->reserve))
 		return -ENOSPC;
-	}
 
-	if (bit) {
-		pp->buf[pp->ofs >> 3] |= (1<<(7-(pp->ofs &7)));
-	}
-	else {
-		pp->buf[pp->ofs >> 3] &= ~(1<<(7-(pp->ofs &7)));
-	}
+	if (bit)
+		pp->buf[pp->ofs >> 3] |= (1<<(7-(pp->ofs & 7)));
+	else
+		pp->buf[pp->ofs >> 3] &= ~(1<<(7-(pp->ofs & 7)));
+
 	pp->ofs++;
 
 	return 0;
@@ -97,6 +95,7 @@ static void init_rubin(struct rubin_state *rs, int div, int *bits)
 	rs->p = (long) (2 * UPPER_BIT_RUBIN);
 	rs->bit_number = (long) 0;
 	rs->bit_divider = div;
+
 	for (c=0; c<8; c++)
 		rs->bits[c] = bits[c];
 }
@@ -108,7 +107,8 @@ static int encode(struct rubin_state *rs, long A, long B, int symbol)
 	long i0, i1;
 	int ret;
 
-	while ((rs->q >= UPPER_BIT_RUBIN) || ((rs->p + rs->q) <= UPPER_BIT_RUBIN)) {
+	while ((rs->q >= UPPER_BIT_RUBIN) ||
+	       ((rs->p + rs->q) <= UPPER_BIT_RUBIN)) {
 		rs->bit_number++;
 
 		ret = pushbit(&rs->pp, (rs->q & UPPER_BIT_RUBIN) ? 1 : 0, 0);
@@ -119,12 +119,12 @@ static int encode(struct rubin_state *rs, long A, long B, int symbol)
 		rs->p <<= 1;
 	}
 	i0 = A * rs->p / (A + B);
-	if (i0 <= 0) {
+	if (i0 <= 0)
 		i0 = 1;
-	}
-	if (i0 >= rs->p) {
+
+	if (i0 >= rs->p)
 		i0 = rs->p - 1;
-	}
+
 	i1 = rs->p - i0;
 
 	if (symbol == 0)
@@ -157,11 +157,13 @@ static void init_decode(struct rubin_state *rs, int div, int *bits)
 	/* behalve lower */
 	rs->rec_q = 0;
 
-	for (rs->bit_number = 0; rs->bit_number++ < RUBIN_REG_SIZE; rs->rec_q = rs->rec_q * 2 + (long) (pullbit(&rs->pp)))
+	for (rs->bit_number = 0; rs->bit_number++ < RUBIN_REG_SIZE;
+	     rs->rec_q = rs->rec_q * 2 + (long) (pullbit(&rs->pp)))
 		;
 }
 
-static void __do_decode(struct rubin_state *rs, unsigned long p, unsigned long q)
+static void __do_decode(struct rubin_state *rs, unsigned long p,
+			unsigned long q)
 {
 	register unsigned long lower_bits_rubin = LOWER_BITS_RUBIN;
 	unsigned long rec_q;
@@ -207,12 +209,11 @@ static int decode(struct rubin_state *rs, long A, long B)
 		__do_decode(rs, p, q);
 
 	i0 = A * rs->p / (A + B);
-	if (i0 <= 0) {
+	if (i0 <= 0)
 		i0 = 1;
-	}
-	if (i0 >= rs->p) {
+
+	if (i0 >= rs->p)
 		i0 = rs->p - 1;
-	}
 
 	threshold = rs->q + i0;
 	symbol = rs->rec_q >= threshold;
@@ -234,14 +235,15 @@ static int out_byte(struct rubin_state *rs, unsigned char byte)
 	struct rubin_state rs_copy;
 	rs_copy = *rs;
 
-	for (i=0;i<8;i++) {
-		ret = encode(rs, rs->bit_divider-rs->bits[i],rs->bits[i],byte&1);
+	for (i=0; i<8; i++) {
+		ret = encode(rs, rs->bit_divider-rs->bits[i],
+			     rs->bits[i], byte & 1);
 		if (ret) {
 			/* Failed. Restore old state */
 			*rs = rs_copy;
 			return ret;
 		}
-		byte=byte>>1;
+		byte >>= 1 ;
 	}
 	return 0;
 }
@@ -251,7 +253,8 @@ static int in_byte(struct rubin_state *rs)
 	int i, result = 0, bit_divider = rs->bit_divider;
 
 	for (i = 0; i < 8; i++)
-		result |= decode(rs, bit_divider - rs->bits[i], rs->bits[i]) << i;
+		result |= decode(rs, bit_divider - rs->bits[i],
+				 rs->bits[i]) << i;
 
 	return result;
 }
@@ -259,7 +262,8 @@ static int in_byte(struct rubin_state *rs)
 
 
 static int rubin_do_compress(int bit_divider, int *bits, unsigned char *data_in,
-		      unsigned char *cpage_out, uint32_t *sourcelen, uint32_t *dstlen)
+			     unsigned char *cpage_out, uint32_t *sourcelen,
+			     uint32_t *dstlen)
 	{
 	int outpos = 0;
 	int pos=0;
@@ -295,7 +299,8 @@ static int rubin_do_compress(int bit_divider, int *bits, unsigned char *data_in,
 int jffs2_rubinmips_compress(unsigned char *data_in, unsigned char *cpage_out,
 		   uint32_t *sourcelen, uint32_t *dstlen, void *model)
 {
-	return rubin_do_compress(BIT_DIVIDER_MIPS, bits_mips, data_in, cpage_out, sourcelen, dstlen);
+	return rubin_do_compress(BIT_DIVIDER_MIPS, bits_mips, data_in,
+				 cpage_out, sourcelen, dstlen);
 }
 #endif
 static int jffs2_dynrubin_compress(unsigned char *data_in,
@@ -316,9 +321,8 @@ static int jffs2_dynrubin_compress(unsigned char *data_in,
 		return -1;
 
 	memset(histo, 0, 256);
-	for (i=0; i<mysrclen; i++) {
+	for (i=0; i<mysrclen; i++)
 		histo[data_in[i]]++;
-	}
 	memset(bits, 0, sizeof(int)*8);
 	for (i=0; i<256; i++) {
 		if (i&128)
@@ -346,7 +350,8 @@ static int jffs2_dynrubin_compress(unsigned char *data_in,
 		cpage_out[i] = bits[i];
 	}
 
-	ret = rubin_do_compress(256, bits, data_in, cpage_out+8, &mysrclen, &mydstlen);
+	ret = rubin_do_compress(256, bits, data_in, cpage_out+8, &mysrclen,
+				&mydstlen);
 	if (ret)
 		return ret;
 
@@ -363,8 +368,10 @@ static int jffs2_dynrubin_compress(unsigned char *data_in,
 	return 0;
 }
 
-static void rubin_do_decompress(int bit_divider, int *bits, unsigned char *cdata_in,
-			 unsigned char *page_out, uint32_t srclen, uint32_t destlen)
+static void rubin_do_decompress(int bit_divider, int *bits,
+				unsigned char *cdata_in, 
+				unsigned char *page_out, uint32_t srclen,
+				uint32_t destlen)
 {
 	int outpos = 0;
 	struct rubin_state rs;
@@ -372,9 +379,8 @@ static void rubin_do_decompress(int bit_divider, int *bits, unsigned char *cdata
 	init_pushpull(&rs.pp, cdata_in, srclen, 0, 0);
 	init_decode(&rs, bit_divider, bits);
 
-	while (outpos < destlen) {
+	while (outpos < destlen)
 		page_out[outpos++] = in_byte(&rs);
-	}
 }
 
 
@@ -383,7 +389,8 @@ static int jffs2_rubinmips_decompress(unsigned char *data_in,
 				      uint32_t sourcelen, uint32_t dstlen,
 				      void *model)
 {
-	rubin_do_decompress(BIT_DIVIDER_MIPS, bits_mips, data_in, cpage_out, sourcelen, dstlen);
+	rubin_do_decompress(BIT_DIVIDER_MIPS, bits_mips, data_in,
+			    cpage_out, sourcelen, dstlen);
 	return 0;
 }
 
@@ -398,52 +405,53 @@ static int jffs2_dynrubin_decompress(unsigned char *data_in,
 	for (c=0; c<8; c++)
 		bits[c] = data_in[c];
 
-	rubin_do_decompress(256, bits, data_in+8, cpage_out, sourcelen-8, dstlen);
+	rubin_do_decompress(256, bits, data_in+8, cpage_out, sourcelen-8,
+			    dstlen);
 	return 0;
 }
 
 static struct jffs2_compressor jffs2_rubinmips_comp = {
-    .priority = JFFS2_RUBINMIPS_PRIORITY,
-    .name = "rubinmips",
-    .compr = JFFS2_COMPR_DYNRUBIN,
-    .compress = NULL, /*&jffs2_rubinmips_compress,*/
-    .decompress = &jffs2_rubinmips_decompress,
+	.priority = JFFS2_RUBINMIPS_PRIORITY,
+	.name = "rubinmips",
+	.compr = JFFS2_COMPR_DYNRUBIN,
+	.compress = NULL, /*&jffs2_rubinmips_compress,*/
+	.decompress = &jffs2_rubinmips_decompress,
 #ifdef JFFS2_RUBINMIPS_DISABLED
-    .disabled = 1,
+	.disabled = 1,
 #else
-    .disabled = 0,
+	.disabled = 0,
 #endif
 };
 
 int jffs2_rubinmips_init(void)
 {
-    return jffs2_register_compressor(&jffs2_rubinmips_comp);
+	return jffs2_register_compressor(&jffs2_rubinmips_comp);
 }
 
 void jffs2_rubinmips_exit(void)
 {
-    jffs2_unregister_compressor(&jffs2_rubinmips_comp);
+	jffs2_unregister_compressor(&jffs2_rubinmips_comp);
 }
 
 static struct jffs2_compressor jffs2_dynrubin_comp = {
-    .priority = JFFS2_DYNRUBIN_PRIORITY,
-    .name = "dynrubin",
-    .compr = JFFS2_COMPR_RUBINMIPS,
-    .compress = jffs2_dynrubin_compress,
-    .decompress = &jffs2_dynrubin_decompress,
+	.priority = JFFS2_DYNRUBIN_PRIORITY,
+	.name = "dynrubin",
+	.compr = JFFS2_COMPR_RUBINMIPS,
+	.compress = jffs2_dynrubin_compress,
+	.decompress = &jffs2_dynrubin_decompress,
 #ifdef JFFS2_DYNRUBIN_DISABLED
-    .disabled = 1,
+	.disabled = 1,
 #else
-    .disabled = 0,
+	.disabled = 0,
 #endif
 };
 
 int jffs2_dynrubin_init(void)
 {
-    return jffs2_register_compressor(&jffs2_dynrubin_comp);
+	return jffs2_register_compressor(&jffs2_dynrubin_comp);
 }
 
 void jffs2_dynrubin_exit(void)
 {
-    jffs2_unregister_compressor(&jffs2_dynrubin_comp);
+	jffs2_unregister_compressor(&jffs2_dynrubin_comp);
 }

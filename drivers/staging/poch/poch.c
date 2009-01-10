@@ -126,9 +126,11 @@
 #define FPGA_INT_TX_ACQ_DONE		(0x1 << 1)
 #define FPGA_INT_RX_ACQ_DONE		(0x1)
 
-#define FPGA_RX_ADC_CTL_REG		0x214
-#define FPGA_RX_ADC_CTL_CONT_CAP	(0x0)
-#define FPGA_RX_ADC_CTL_SNAP_CAP	(0x1)
+#define FPGA_RX_CTL_REG			0x214
+#define FPGA_RX_CTL_FIFO_FLUSH      	(0x1 << 9)
+#define FPGA_RX_CTL_SYNTH_DATA		(0x1 << 8)
+#define FPGA_RX_CTL_CONT_CAP		(0x0 << 1)
+#define FPGA_RX_CTL_SNAP_CAP		(0x1 << 1)
 
 #define FPGA_RX_ARM_REG			0x21C
 
@@ -299,6 +301,14 @@ static ssize_t show_direction(struct device *dev,
 }
 static DEVICE_ATTR(dir, S_IRUSR|S_IRGRP, show_direction, NULL);
 
+static unsigned long npages(unsigned long bytes)
+{
+	if (bytes % PAGE_SIZE == 0)
+		return bytes / PAGE_SIZE;
+	else
+		return (bytes / PAGE_SIZE) + 1;
+}
+
 static ssize_t show_mmap_size(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -309,10 +319,8 @@ static ssize_t show_mmap_size(struct device *dev,
 	unsigned long header_pages;
 	unsigned long total_group_pages;
 
-	/* FIXME: We do not have to add 1, if group_size a multiple of
-	   PAGE_SIZE. */
-	group_pages = (channel->group_size / PAGE_SIZE) + 1;
-	header_pages = (channel->header_size / PAGE_SIZE) + 1;
+	group_pages = npages(channel->group_size);
+	header_pages = npages(channel->header_size);
 	total_group_pages = group_pages * channel->group_count;
 
 	mmap_size = (header_pages + total_group_pages) * PAGE_SIZE;
@@ -350,8 +358,8 @@ static int poch_channel_alloc_groups(struct channel_info *channel)
 	unsigned long group_pages;
 	unsigned long header_pages;
 
-	group_pages = (channel->group_size / PAGE_SIZE) + 1;
-	header_pages = (channel->header_size / PAGE_SIZE) + 1;
+	group_pages = npages(channel->group_size);
+	header_pages = npages(channel->header_size);
 
 	for (i = 0; i < channel->group_count; i++) {
 		struct poch_group_info *group;
@@ -384,18 +392,45 @@ static int poch_channel_alloc_groups(struct channel_info *channel)
 		group->user_offset =
 			(header_pages + (i * group_pages)) * PAGE_SIZE;
 
-		printk(KERN_INFO PFX "%ld: user_offset: 0x%lx dma: 0x%x\n", i,
-		       group->user_offset, group->dma_addr);
+		printk(KERN_INFO PFX "%ld: user_offset: 0x%lx\n", i,
+		       group->user_offset);
 	}
 
 	return 0;
 }
 
-static void channel_latch_attr(struct channel_info *channel)
+static int channel_latch_attr(struct channel_info *channel)
 {
 	channel->group_count = atomic_read(&channel->sys_group_count);
 	channel->group_size = atomic_read(&channel->sys_group_size);
 	channel->block_size = atomic_read(&channel->sys_block_size);
+
+	if (channel->group_count == 0) {
+		printk(KERN_ERR PFX "invalid group count %lu",
+		       channel->group_count);
+		return -EINVAL;
+	}
+
+	if (channel->group_size == 0 ||
+	    channel->group_size < channel->block_size) {
+		printk(KERN_ERR PFX "invalid group size %lu",
+		       channel->group_size);
+		return -EINVAL;
+	}
+
+	if (channel->block_size == 0 || (channel->block_size % 8) != 0) {
+		printk(KERN_ERR PFX "invalid block size %lu",
+		       channel->block_size);
+		return -EINVAL;
+	}
+
+	if (channel->group_size % channel->block_size != 0) {
+		printk(KERN_ERR PFX
+		       "group size should be multiple of block size");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /*
@@ -432,7 +467,10 @@ static void channel_dma_init(struct channel_info *channel)
 	}
 
 	printk(KERN_WARNING "block_size, group_size, group_count\n");
-	iowrite32(channel->block_size, fpga + block_size_reg);
+	/*
+	 * Block size is represented in no. of 64 bit transfers.
+	 */
+	iowrite32(channel->block_size / 8, fpga + block_size_reg);
 	iowrite32(channel->group_size / channel->block_size,
 		  fpga + block_count_reg);
 	iowrite32(channel->group_count, fpga + group_count_reg);
@@ -447,27 +485,30 @@ static void channel_dma_init(struct channel_info *channel)
 	/* The DMA address page register is shared between the RX and
 	 * TX channels, so acquire lock.
 	 */
-	spin_lock(channel->iomem_lock);
 	for (i = 0; i < channel->group_count; i++) {
 		page = i / 32;
 		group_in_page = i % 32;
 
 		group_reg = group_regs_base + (group_in_page * 4);
 
+		spin_lock(channel->iomem_lock);
 		iowrite32(page, fpga + FPGA_DMA_ADR_PAGE_REG);
 		iowrite32(channel->groups[i].dma_addr, fpga + group_reg);
+		spin_unlock(channel->iomem_lock);
 	}
+
 	for (i = 0; i < channel->group_count; i++) {
 		page = i / 32;
 		group_in_page = i % 32;
 
 		group_reg = group_regs_base + (group_in_page * 4);
 
+		spin_lock(channel->iomem_lock);
 		iowrite32(page, fpga + FPGA_DMA_ADR_PAGE_REG);
 		printk(KERN_INFO PFX "%ld: read dma_addr: 0x%x\n", i,
 		       ioread32(fpga + group_reg));
+		spin_unlock(channel->iomem_lock);
 	}
-	spin_unlock(channel->iomem_lock);
 
 }
 
@@ -538,7 +579,9 @@ static int poch_channel_init(struct channel_info *channel,
 
 	printk(KERN_WARNING "channel_latch_attr\n");
 
-	channel_latch_attr(channel);
+	ret = channel_latch_attr(channel);
+	if (ret != 0)
+		goto out;
 
 	channel->transfer = 0;
 
@@ -781,6 +824,11 @@ static int poch_open(struct inode *inode, struct file *filp)
 		iowrite32(FPGA_TX_CTL_FIFO_FLUSH
 			  | FPGA_TX_CTL_OUTPUT_CARDBUS,
 			  fpga + FPGA_TX_CTL_REG);
+	} else {
+		/* Flush RX FIFO and output data to cardbus. */
+		iowrite32(FPGA_RX_CTL_CONT_CAP
+			  | FPGA_RX_CTL_FIFO_FLUSH,
+			  fpga + FPGA_RX_CTL_REG);
 	}
 
 	atomic_inc(&channel->inited);
@@ -847,8 +895,8 @@ static int poch_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	group_pages = (channel->group_size / PAGE_SIZE) + 1;
-	header_pages = (channel->header_size / PAGE_SIZE) + 1;
+	group_pages = npages(channel->group_size);
+	header_pages = npages(channel->header_size);
 	total_group_pages = group_pages * channel->group_count;
 
 	size = vma->vm_end - vma->vm_start;
@@ -903,14 +951,7 @@ static int poch_channel_available(struct channel_info *channel)
 	spin_lock_irq(&channel->group_offsets_lock);
 
 	for (i = 0; i < channel->group_count; i++) {
-		if (channel->dir == CHANNEL_DIR_RX
-		    && channel->header->group_offsets[i] == -1) {
-			spin_unlock_irq(&channel->group_offsets_lock);
-			return 1;
-		}
-
-		if (channel->dir == CHANNEL_DIR_TX
-		    && channel->header->group_offsets[i] != -1) {
+		if (channel->header->group_offsets[i] != -1) {
 			spin_unlock_irq(&channel->group_offsets_lock);
 			return 1;
 		}
@@ -1058,10 +1099,7 @@ static void poch_irq_dma(struct channel_info *channel)
 
 	for (i = 0; i < groups_done; i++) {
 		j = (prev_transfer + i) % channel->group_count;
-		if (channel->dir == CHANNEL_DIR_RX)
-			group_offsets[j] = -1;
-		else
-			group_offsets[j] = groups[j].user_offset;
+		group_offsets[j] = groups[j].user_offset;
 	}
 
 	spin_unlock(&channel->group_offsets_lock);
@@ -1283,7 +1321,7 @@ static int __devinit poch_pci_probe(struct pci_dev *pdev,
 	}
 
 	ret = request_irq(pdev->irq, poch_irq_handler, IRQF_SHARED,
-			  dev->bus_id, poch_dev);
+			  dev_name(dev), poch_dev);
 	if (ret) {
 		dev_err(dev, "error requesting IRQ %u\n", pdev->irq);
 		ret = -ENOMEM;
@@ -1350,12 +1388,12 @@ static void poch_pci_remove(struct pci_dev *pdev)
 	unsigned int minor = MINOR(poch_dev->cdev.dev);
 	unsigned int id = minor / poch_dev->nchannels;
 
-	/* FIXME: unmap fpga_iomem and bridge_iomem */
-
 	poch_class_dev_unregister(poch_dev, id);
 	cdev_del(&poch_dev->cdev);
 	idr_remove(&poch_ids, id);
 	free_irq(pdev->irq, poch_dev);
+	iounmap(poch_dev->fpga_iomem);
+	iounmap(poch_dev->bridge_iomem);
 	uio_unregister_device(uio);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

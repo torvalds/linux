@@ -31,7 +31,7 @@ void *heap_insert(struct ptr_heap *heap, void *p)
 
 	if (heap->size < heap->max) {
 		/* Heap insertion */
-		int pos = heap->size++;
+		pos = heap->size++;
 		while (pos > 0 && heap->gt(p, ptrs[(pos-1)/2])) {
 			ptrs[pos] = ptrs[(pos-1)/2];
 			pos = (pos-1)/2;

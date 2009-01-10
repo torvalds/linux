@@ -381,7 +381,7 @@ data_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			memcpy(di.channelmap, dev->channelmap,
 				sizeof(di.channelmap));
 			di.nrbchan = dev->nrbchan;
-			strcpy(di.name, dev->name);
+			strcpy(di.name, dev_name(&dev->dev));
 			if (copy_to_user((void __user *)arg, &di, sizeof(di)))
 				err = -EFAULT;
 		} else
@@ -460,6 +460,8 @@ data_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 {
 	struct sockaddr_mISDN *maddr = (struct sockaddr_mISDN *) addr;
 	struct sock *sk = sock->sk;
+	struct hlist_node *node;
+	struct sock *csk;
 	int err = 0;
 
 	if (*debug & DEBUG_SOCKET)
@@ -480,6 +482,26 @@ data_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		err = -ENODEV;
 		goto done;
 	}
+
+	if (sk->sk_protocol < ISDN_P_B_START) {
+		read_lock_bh(&data_sockets.lock);
+		sk_for_each(csk, node, &data_sockets.head) {
+			if (sk == csk)
+				continue;
+			if (_pms(csk)->dev != _pms(sk)->dev)
+				continue;
+			if (csk->sk_protocol >= ISDN_P_B_START)
+				continue;
+			if (IS_ISDN_P_TE(csk->sk_protocol)
+					== IS_ISDN_P_TE(sk->sk_protocol))
+				continue;
+			read_unlock_bh(&data_sockets.lock);
+			err = -EBUSY;
+			goto done;
+		}
+		read_unlock_bh(&data_sockets.lock);
+	}
+
 	_pms(sk)->ch.send = mISDN_send;
 	_pms(sk)->ch.ctrl = mISDN_ctrl;
 
@@ -639,11 +661,26 @@ base_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			memcpy(di.channelmap, dev->channelmap,
 				sizeof(di.channelmap));
 			di.nrbchan = dev->nrbchan;
-			strcpy(di.name, dev->name);
+			strcpy(di.name, dev_name(&dev->dev));
 			if (copy_to_user((void __user *)arg, &di, sizeof(di)))
 				err = -EFAULT;
 		} else
 			err = -ENODEV;
+		break;
+	case IMSETDEVNAME:
+		{
+			struct mISDN_devrename dn;
+			if (copy_from_user(&dn, (void __user *)arg,
+			    sizeof(dn))) {
+				err = -EFAULT;
+				break;
+			}
+			dev = get_mdevice(dn.id);
+			if (dev)
+				err = device_rename(&dev->dev, dn.name);
+			else
+				err = -ENODEV;
+		}
 		break;
 	default:
 		err = -EINVAL;
