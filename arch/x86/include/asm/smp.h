@@ -17,20 +17,18 @@
 #endif
 #include <asm/pda.h>
 #include <asm/thread_info.h>
+#include <asm/cpumask.h>
 
 #ifdef CONFIG_X86_64
 
-extern cpumask_var_t cpu_callout_mask;
 extern cpumask_var_t cpu_initialized_mask;
 extern cpumask_var_t cpu_sibling_setup_mask;
 
 #else /* CONFIG_X86_32 */
 
-extern cpumask_t cpu_callout_map;
 extern cpumask_t cpu_initialized;
 extern cpumask_t cpu_sibling_setup_map;
 
-#define cpu_callout_mask	((struct cpumask *)&cpu_callout_map)
 #define cpu_initialized_mask	((struct cpumask *)&cpu_initialized)
 #define cpu_sibling_setup_mask	((struct cpumask *)&cpu_sibling_setup_map)
 
