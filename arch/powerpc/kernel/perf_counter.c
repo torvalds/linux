@@ -741,13 +741,26 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 	}
 }
 
+extern struct power_pmu ppc970_pmu;
+
 static int init_perf_counters(void)
 {
+	unsigned long pvr;
+
 	if (reserve_pmc_hardware(perf_counter_interrupt)) {
 		printk(KERN_ERR "Couldn't init performance monitor subsystem\n");
 		return -EBUSY;
 	}
 
+	/* XXX should get this from cputable */
+	pvr = mfspr(SPRN_PVR);
+	switch (PVR_VER(pvr)) {
+	case PV_970:
+	case PV_970FX:
+	case PV_970MP:
+		ppmu = &ppc970_pmu;
+		break;
+	}
 	return 0;
 }
 
