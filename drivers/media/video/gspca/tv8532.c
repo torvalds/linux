@@ -46,9 +46,9 @@ static struct ctrl sd_ctrls[] = {
 	  .type = V4L2_CTRL_TYPE_INTEGER,
 	  .name = "Brightness",
 	  .minimum = 1,
-	  .maximum = 0x2ff,
+	  .maximum = 0x15f,	/* = 352 - 1 */
 	  .step = 1,
-#define BRIGHTNESS_DEF 0x18f
+#define BRIGHTNESS_DEF 0x14c
 	  .default_value = BRIGHTNESS_DEF,
 	  },
 	 .set = sd_setbrightness,
