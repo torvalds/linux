@@ -1667,9 +1667,9 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx)
 	return RX_CONTINUE;
 }
 
-void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
-				    struct ieee80211_mgmt *mgmt,
-				    size_t len)
+static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
+					   struct ieee80211_mgmt *mgmt,
+					   size_t len)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
