@@ -19,18 +19,6 @@
 #include <asm/thread_info.h>
 #include <asm/cpumask.h>
 
-#ifdef CONFIG_X86_64
-
-extern cpumask_var_t cpu_sibling_setup_mask;
-
-#else /* CONFIG_X86_32 */
-
-extern cpumask_t cpu_sibling_setup_map;
-
-#define cpu_sibling_setup_mask	((struct cpumask *)&cpu_sibling_setup_map)
-
-#endif /* CONFIG_X86_32 */
-
 extern int __cpuinit get_local_pda(int cpu);
 
 extern int smp_num_siblings;
