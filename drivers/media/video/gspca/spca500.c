@@ -935,16 +935,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 			(__u8) (sd->brightness - 128));
 }
 
-static void getbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int ret;
-
-	ret = reg_r_12(gspca_dev, 0x00, 0x8167, 1);
-	if (ret >= 0)
-		sd->brightness = ret + 128;
-}
-
 static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -952,31 +942,11 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x00, 0x8168, sd->contrast);
 }
 
-static void getcontrast(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int ret;
-
-	ret = reg_r_12(gspca_dev, 0x0, 0x8168, 1);
-	if (ret >= 0)
-		sd->contrast = ret;
-}
-
 static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	reg_w(gspca_dev, 0x00, 0x8169, sd->colors);
-}
-
-static void getcolors(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int ret;
-
-	ret = reg_r_12(gspca_dev, 0x0, 0x8169, 1);
-	if (ret >= 0)
-		sd->colors = ret;
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
@@ -993,7 +963,6 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getbrightness(gspca_dev);
 	*val = sd->brightness;
 	return 0;
 }
@@ -1012,7 +981,6 @@ static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getcontrast(gspca_dev);
 	*val = sd->contrast;
 	return 0;
 }
@@ -1031,7 +999,6 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getcolors(gspca_dev);
 	*val = sd->colors;
 	return 0;
 }

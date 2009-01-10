@@ -790,14 +790,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	reg_write(gspca_dev->dev, 5, 0x01, (255 - brightness) << 2);
 
 }
-static void getbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->brightness = 255
-		- ((reg_read(gspca_dev, 5, 0x01, 1) >> 2)
-			+ (reg_read(gspca_dev, 5, 0x0, 1) << 6));
-}
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 {
@@ -813,7 +805,6 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getbrightness(gspca_dev);
 	*val = sd->brightness;
 	return 0;
 }
