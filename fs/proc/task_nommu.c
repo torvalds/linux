@@ -9,31 +9,38 @@
 
 /*
  * Logic: we've got two memory sums for each process, "shared", and
- * "non-shared". Shared memory may get counted more then once, for
+ * "non-shared". Shared memory may get counted more than once, for
  * each process that owns it. Non-shared memory is counted
  * accurately.
  */
 void task_mem(struct seq_file *m, struct mm_struct *mm)
 {
-	struct vm_list_struct *vml;
-	unsigned long bytes = 0, sbytes = 0, slack = 0;
+	struct vm_area_struct *vma;
+	struct vm_region *region;
+	struct rb_node *p;
+	unsigned long bytes = 0, sbytes = 0, slack = 0, size;
         
 	down_read(&mm->mmap_sem);
-	for (vml = mm->context.vmlist; vml; vml = vml->next) {
-		if (!vml->vma)
-			continue;
+	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
+		vma = rb_entry(p, struct vm_area_struct, vm_rb);
 
-		bytes += kobjsize(vml);
-		if (atomic_read(&mm->mm_count) > 1 ||
-		    atomic_read(&vml->vma->vm_usage) > 1
-		    ) {
-			sbytes += kobjsize((void *) vml->vma->vm_start);
-			sbytes += kobjsize(vml->vma);
+		bytes += kobjsize(vma);
+
+		region = vma->vm_region;
+		if (region) {
+			size = kobjsize(region);
+			size += region->vm_end - region->vm_start;
 		} else {
-			bytes += kobjsize((void *) vml->vma->vm_start);
-			bytes += kobjsize(vml->vma);
-			slack += kobjsize((void *) vml->vma->vm_start) -
-				(vml->vma->vm_end - vml->vma->vm_start);
+			size = vma->vm_end - vma->vm_start;
+		}
+
+		if (atomic_read(&mm->mm_count) > 1 ||
+		    vma->vm_flags & VM_MAYSHARE) {
+			sbytes += size;
+		} else {
+			bytes += size;
+			if (region)
+				slack = region->vm_end - vma->vm_end;
 		}
 	}
 
@@ -70,13 +77,14 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 
 unsigned long task_vsize(struct mm_struct *mm)
 {
-	struct vm_list_struct *tbp;
+	struct vm_area_struct *vma;
+	struct rb_node *p;
 	unsigned long vsize = 0;
 
 	down_read(&mm->mmap_sem);
-	for (tbp = mm->context.vmlist; tbp; tbp = tbp->next) {
-		if (tbp->vma)
-			vsize += kobjsize((void *) tbp->vma->vm_start);
+	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
+		vma = rb_entry(p, struct vm_area_struct, vm_rb);
+		vsize += vma->vm_end - vma->vm_start;
 	}
 	up_read(&mm->mmap_sem);
 	return vsize;
@@ -85,15 +93,19 @@ unsigned long task_vsize(struct mm_struct *mm)
 int task_statm(struct mm_struct *mm, int *shared, int *text,
 	       int *data, int *resident)
 {
-	struct vm_list_struct *tbp;
+	struct vm_area_struct *vma;
+	struct vm_region *region;
+	struct rb_node *p;
 	int size = kobjsize(mm);
 
 	down_read(&mm->mmap_sem);
-	for (tbp = mm->context.vmlist; tbp; tbp = tbp->next) {
-		size += kobjsize(tbp);
-		if (tbp->vma) {
-			size += kobjsize(tbp->vma);
-			size += kobjsize((void *) tbp->vma->vm_start);
+	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
+		vma = rb_entry(p, struct vm_area_struct, vm_rb);
+		size += kobjsize(vma);
+		region = vma->vm_region;
+		if (region) {
+			size += kobjsize(region);
+			size += region->vm_end - region->vm_start;
 		}
 	}
 
@@ -105,20 +117,62 @@ int task_statm(struct mm_struct *mm, int *shared, int *text,
 }
 
 /*
+ * display a single VMA to a sequenced file
+ */
+static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
+{
+	unsigned long ino = 0;
+	struct file *file;
+	dev_t dev = 0;
+	int flags, len;
+
+	flags = vma->vm_flags;
+	file = vma->vm_file;
+
+	if (file) {
+		struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+		dev = inode->i_sb->s_dev;
+		ino = inode->i_ino;
+	}
+
+	seq_printf(m,
+		   "%08lx-%08lx %c%c%c%c %08lx %02x:%02x %lu %n",
+		   vma->vm_start,
+		   vma->vm_end,
+		   flags & VM_READ ? 'r' : '-',
+		   flags & VM_WRITE ? 'w' : '-',
+		   flags & VM_EXEC ? 'x' : '-',
+		   flags & VM_MAYSHARE ? flags & VM_SHARED ? 'S' : 's' : 'p',
+		   vma->vm_pgoff << PAGE_SHIFT,
+		   MAJOR(dev), MINOR(dev), ino, &len);
+
+	if (file) {
+		len = 25 + sizeof(void *) * 6 - len;
+		if (len < 1)
+			len = 1;
+		seq_printf(m, "%*c", len, ' ');
+		seq_path(m, &file->f_path, "");
+	}
+
+	seq_putc(m, '\n');
+	return 0;
+}
+
+/*
  * display mapping lines for a particular process's /proc/pid/maps
  */
-static int show_map(struct seq_file *m, void *_vml)
+static int show_map(struct seq_file *m, void *_p)
 {
-	struct vm_list_struct *vml = _vml;
+	struct rb_node *p = _p;
 
-	return nommu_vma_show(m, vml->vma);
+	return nommu_vma_show(m, rb_entry(p, struct vm_area_struct, vm_rb));
 }
 
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
 	struct proc_maps_private *priv = m->private;
-	struct vm_list_struct *vml;
 	struct mm_struct *mm;
+	struct rb_node *p;
 	loff_t n = *pos;
 
 	/* pin the task and mm whilst we play with them */
@@ -134,9 +188,9 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 	}
 
 	/* start from the Nth VMA */
-	for (vml = mm->context.vmlist; vml; vml = vml->next)
+	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p))
 		if (n-- == 0)
-			return vml;
+			return p;
 	return NULL;
 }
 
@@ -152,12 +206,12 @@ static void m_stop(struct seq_file *m, void *_vml)
 	}
 }
 
-static void *m_next(struct seq_file *m, void *_vml, loff_t *pos)
+static void *m_next(struct seq_file *m, void *_p, loff_t *pos)
 {
-	struct vm_list_struct *vml = _vml;
+	struct rb_node *p = _p;
 
 	(*pos)++;
-	return vml ? vml->next : NULL;
+	return p ? rb_next(p) : NULL;
 }
 
 static const struct seq_operations proc_pid_maps_ops = {

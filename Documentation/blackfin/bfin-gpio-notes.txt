@@ -1,0 +1,71 @@
+/*
+ * File:         Documentation/blackfin/bfin-gpio-note.txt
+ * Based on:
+ * Author:
+ *
+ * Created:      $Id: bfin-gpio-note.txt 2008-11-24 16:42 grafyang $
+ * Description:  This file contains the notes in developing/using bfin-gpio.
+ *
+ *
+ * Rev:
+ *
+ * Modified:
+ *               Copyright 2004-2008 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ */
+
+
+1. Blackfin GPIO introduction
+
+    There are many GPIO pins on Blackfin. Most of these pins are muxed to
+    multi-functions. They can be configured as peripheral, or just as GPIO,
+    configured to input with interrupt enabled, or output.
+
+    For detailed information, please see "arch/blackfin/kernel/bfin_gpio.c",
+    or the relevant HRM.
+
+
+2. Avoiding resource conflict
+
+    Followed function groups are used to avoiding resource conflict,
+    - Use the pin as peripheral,
+	int peripheral_request(unsigned short per, const char *label);
+	int peripheral_request_list(const unsigned short per[], const char *label);
+	void peripheral_free(unsigned short per);
+	void peripheral_free_list(const unsigned short per[]);
+    - Use the pin as GPIO,
+	int bfin_gpio_request(unsigned gpio, const char *label);
+	void bfin_gpio_free(unsigned gpio);
+    - Use the pin as GPIO interrupt,
+	int bfin_gpio_irq_request(unsigned gpio, const char *label);
+	void bfin_gpio_irq_free(unsigned gpio);
+
+    The request functions will record the function state for a certain pin,
+    the free functions will clear it's function state.
+    Once a pin is requested, it can't be requested again before it is freed by
+    previous caller, otherwise kernel will dump stacks, and the request
+    function fail.
+    These functions are wrapped by other functions, most of the users need not
+    care.
+
+
+3. But there are some exceptions
+    - Kernel permit the identical GPIO be requested both as GPIO and GPIO
+    interrut.
+    Some drivers, like gpio-keys, need this behavior. Kernel only print out
+    warning messages like,
+	bfin-gpio: GPIO 24 is already reserved by gpio-keys: BTN0, and you are
+configuring it as IRQ!
+
+        Note: Consider the case that, if there are two drivers need the
+	identical GPIO, one of them use it as GPIO, the other use it as
+	GPIO interrupt. This will really cause resource conflict. So if
+	there is any abnormal driver behavior, please check the bfin-gpio
+	warning messages.
+
+    - Kernel permit the identical GPIO be requested from the same driver twice.
+
+
+

@@ -142,7 +142,7 @@ static long long get_liability(struct ubifs_info *c)
  *
  * This function is called when an operation cannot be budgeted because there
  * is supposedly no free space. But in most cases there is some free space:
- *   o budgeting is pessimistic, so it always budgets more then it is actually
+ *   o budgeting is pessimistic, so it always budgets more than it is actually
  *     needed, so shrinking the liability is one way to make free space - the
  *     cached data will take less space then it was budgeted for;
  *   o GC may turn some dark space into free space (budgeting treats dark space
@@ -606,7 +606,7 @@ void ubifs_release_budget(struct ubifs_info *c, struct ubifs_budget_req *req)
  * @c: UBIFS file-system description object
  *
  * This function converts budget which was allocated for a new page of data to
- * the budget of changing an existing page of data. The latter is smaller then
+ * the budget of changing an existing page of data. The latter is smaller than
  * the former, so this function only does simple re-calculation and does not
  * involve any write-back.
  */

@@ -1,0 +1,39 @@
+AMCC NDFC (NanD Flash Controller)
+
+Required properties:
+- compatible : "ibm,ndfc".
+- reg : should specify chip select and size used for the chip (0x2000).
+
+Optional properties:
+- ccr : NDFC config and control register value (default 0).
+- bank-settings : NDFC bank configuration register value (default 0).
+
+Notes:
+- partition(s) - follows the OF MTD standard for partitions
+
+Example:
+
+ndfc@1,0 {
+	compatible = "ibm,ndfc";
+	reg = <0x00000001 0x00000000 0x00002000>;
+	ccr = <0x00001000>;
+	bank-settings = <0x80002222>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	nand {
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "kernel";
+			reg = <0x00000000 0x00200000>;
+		};
+		partition@200000 {
+			label = "root";
+			reg = <0x00200000 0x03E00000>;
+		};
+	};
+};
+
+

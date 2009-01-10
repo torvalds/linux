@@ -81,8 +81,8 @@ Until this step is completed the driver cannot be unloaded.
 Also echoing either mono ,packet or init in to image_type will free up the
 memory allocated by the driver.
 
-If an user by accident executes steps 1 and 3 above without executing step 2;
-it will make the /sys/class/firmware/dell_rbu/ entries to disappear.
+If a user by accident executes steps 1 and 3 above without executing step 2;
+it will make the /sys/class/firmware/dell_rbu/ entries disappear.
 The entries can be recreated by doing the following
 echo init > /sys/devices/platform/dell_rbu/image_type
 NOTE: echoing init in image_type does not change it original value.

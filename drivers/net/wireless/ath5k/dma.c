@@ -594,7 +594,7 @@ int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		 * XXX: BMISS interrupts may occur after association.
 		 * I found this on 5210 code but it needs testing. If this is
 		 * true we should disable them before assoc and re-enable them
-		 * after a successfull assoc + some jiffies.
+		 * after a successful assoc + some jiffies.
 			interrupt_mask &= ~AR5K_INT_BMISS;
 		 */
 	}

@@ -104,7 +104,7 @@ static int bfin_target(struct cpufreq_policy *policy,
 		 cclk_hz, target_freq, freqs.old);
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	local_irq_save(flags);
+	local_irq_save_hw(flags);
 		plldiv = (bfin_read_PLL_DIV() & SSEL) | dpm_state_table[index].csel;
 		tscale = dpm_state_table[index].tscale;
 		bfin_write_PLL_DIV(plldiv);
@@ -112,10 +112,10 @@ static int bfin_target(struct cpufreq_policy *policy,
 		bfin_write_TSCALE(tscale);
 		cycles = get_cycles();
 		SSYNC();
-	cycles += 10; /* ~10 cycles we loose after get_cycles() */
+	cycles += 10; /* ~10 cycles we lose after get_cycles() */
 	__bfin_cycles_off += (cycles << __bfin_cycles_mod) - (cycles << index);
 	__bfin_cycles_mod = index;
-	local_irq_restore(flags);
+	local_irq_restore_hw(flags);
 	/* TODO: just test case for cycles clock source, remove later */
 	pr_debug("cpufreq: done\n");
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);

@@ -2,14 +2,12 @@
  *  Name                         : qnx4_fs.h
  *  Author                       : Richard Frowijn
  *  Function                     : qnx4 global filesystem definitions
- *  Version                      : 1.0.2
- *  Last modified                : 2000-01-31
- *
  *  History                      : 23-03-1998 created
  */
 #ifndef _LINUX_QNX4_FS_H
 #define _LINUX_QNX4_FS_H
 
+#include <linux/types.h>
 #include <linux/qnxtypes.h>
 #include <linux/magic.h>
 

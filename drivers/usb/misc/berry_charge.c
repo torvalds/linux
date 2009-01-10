@@ -123,6 +123,11 @@ static int berry_probe(struct usb_interface *intf,
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 
+	if (udev->bus_mA < 500) {
+		dbg(&udev->dev, "Not enough power to charge available\n");
+		return -ENODEV;
+	}
+
 	dbg(&udev->dev, "Power is set to %dmA\n",
 	    udev->actconfig->desc.bMaxPower * 2);
 

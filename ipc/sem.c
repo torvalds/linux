@@ -1216,7 +1216,6 @@ asmlinkage long sys_semtimedop(int semid, struct sembuf __user *tsops,
 	if (timeout && jiffies_left == 0)
 		error = -EAGAIN;
 	list_del(&queue.list);
-	goto out_unlock_free;
 
 out_unlock_free:
 	sem_unlock(sma);

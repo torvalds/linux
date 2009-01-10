@@ -58,6 +58,14 @@ config TOUCHSCREEN_CORGI
 	  NOTE: this driver is deprecated, try enable SPI and generic
 	  ADS7846-based touchscreen driver.
 
+config TOUCHSCREEN_DA9034
+	tristate "Touchscreen support for Dialog Semiconductor DA9034"
+	depends on PMIC_DA903X
+	default y
+	help
+	  Say Y here to enable the support for the touchscreen found
+	  on Dialog Semiconductor DA9034 PMIC.
+
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
 	select SERIO
@@ -94,6 +102,19 @@ config TOUCHSCREEN_ELO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called elo.
+
+config TOUCHSCREEN_WACOM_W8001
+	tristate "Wacom W8001 penabled serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have an Wacom W8001 penabled serial touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wacom_w8001.
+
 
 config TOUCHSCREEN_MTOUCH
 	tristate "MicroTouch serial touchscreens"
@@ -375,5 +396,16 @@ config TOUCHSCREEN_TOUCHIT213
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called touchit213.
+
+config TOUCHSCREEN_TSC2007
+	tristate "TSC2007 based touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a TSC2007 based touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tsc2007.
 
 endif

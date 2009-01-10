@@ -26,8 +26,6 @@
 #include <net/ip.h>
 #include <net/arp.h>
 
-#include <asm/s390_rdev.h>
-
 #include "qeth_l3.h"
 #include "qeth_core_offl.h"
 
@@ -1831,28 +1829,6 @@ static void qeth_l3_vlan_rx_register(struct net_device *dev,
 
 static void qeth_l3_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
-	struct net_device *vlandev;
-	struct qeth_card *card = dev->ml_priv;
-	struct in_device *in_dev;
-
-	if (card->info.type == QETH_CARD_TYPE_IQD)
-		return;
-
-	vlandev = vlan_group_get_device(card->vlangrp, vid);
-	vlandev->neigh_setup = qeth_l3_neigh_setup;
-
-	in_dev = in_dev_get(vlandev);
-#ifdef CONFIG_SYSCTL
-	neigh_sysctl_unregister(in_dev->arp_parms);
-#endif
-	neigh_parms_release(&arp_tbl, in_dev->arp_parms);
-
-	in_dev->arp_parms = neigh_parms_alloc(vlandev, &arp_tbl);
-#ifdef CONFIG_SYSCTL
-	neigh_sysctl_register(vlandev, in_dev->arp_parms, NET_IPV4,
-			      NET_IPV4_NEIGH, "ipv4", NULL, NULL);
-#endif
-	in_dev_put(in_dev);
 	return;
 }
 
@@ -2918,6 +2894,21 @@ qeth_l3_neigh_setup(struct net_device *dev, struct neigh_parms *np)
 	return 0;
 }
 
+static struct net_device_ops qeth_l3_netdev_ops = {
+	.ndo_open		= qeth_l3_open,
+	.ndo_stop		= qeth_l3_stop,
+	.ndo_get_stats		= qeth_get_stats,
+	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list = qeth_l3_set_multicast_list,
+	.ndo_do_ioctl	   	= qeth_l3_do_ioctl,
+	.ndo_change_mtu	   	= qeth_change_mtu,
+	.ndo_vlan_rx_register	= qeth_l3_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= qeth_l3_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid   = qeth_l3_vlan_rx_kill_vid,
+	.ndo_tx_timeout	   	= qeth_tx_timeout,
+};
+
 static int qeth_l3_setup_netdev(struct qeth_card *card)
 {
 	if (card->info.type == QETH_CARD_TYPE_OSAE) {
@@ -2932,7 +2923,8 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 			card->dev = alloc_etherdev(0);
 			if (!card->dev)
 				return -ENODEV;
-			card->dev->neigh_setup = qeth_l3_neigh_setup;
+			qeth_l3_netdev_ops.ndo_neigh_setup =
+				qeth_l3_neigh_setup;
 
 			/*IPv6 address autoconfiguration stuff*/
 			qeth_l3_get_unique_id(card);
@@ -2949,21 +2941,10 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	} else
 		return -ENODEV;
 
-	card->dev->hard_start_xmit = qeth_l3_hard_start_xmit;
 	card->dev->ml_priv = card;
-	card->dev->tx_timeout = &qeth_tx_timeout;
 	card->dev->watchdog_timeo = QETH_TX_TIMEOUT;
-	card->dev->open = qeth_l3_open;
-	card->dev->stop = qeth_l3_stop;
-	card->dev->do_ioctl = qeth_l3_do_ioctl;
-	card->dev->get_stats = qeth_get_stats;
-	card->dev->change_mtu = qeth_change_mtu;
-	card->dev->set_multicast_list = qeth_l3_set_multicast_list;
-	card->dev->vlan_rx_register = qeth_l3_vlan_rx_register;
-	card->dev->vlan_rx_add_vid = qeth_l3_vlan_rx_add_vid;
-	card->dev->vlan_rx_kill_vid = qeth_l3_vlan_rx_kill_vid;
 	card->dev->mtu = card->info.initial_mtu;
-	card->dev->set_mac_address = NULL;
+	card->dev->netdev_ops = &qeth_l3_netdev_ops;
 	SET_ETHTOOL_OPS(card->dev, &qeth_l3_ethtool_ops);
 	card->dev->features |=	NETIF_F_HW_VLAN_TX |
 				NETIF_F_HW_VLAN_RX |

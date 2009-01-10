@@ -2014,13 +2014,14 @@ static int nand_erase(struct mtd_info *mtd, struct erase_info *instr)
 int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		    int allowbbt)
 {
-	int page, len, status, pages_per_block, ret, chipnr;
+	int page, status, pages_per_block, ret, chipnr;
 	struct nand_chip *chip = mtd->priv;
-	int rewrite_bbt[NAND_MAX_CHIPS]={0};
+	loff_t rewrite_bbt[NAND_MAX_CHIPS]={0};
 	unsigned int bbt_masked_page = 0xffffffff;
+	loff_t len;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "nand_erase: start = 0x%08x, len = %i\n",
-	      (unsigned int)instr->addr, (unsigned int)instr->len);
+	DEBUG(MTD_DEBUG_LEVEL3, "nand_erase: start = 0x%012llx, len = %llu\n",
+	      (unsigned long long)instr->addr, (unsigned long long)instr->len);
 
 	/* Start address must align on block boundary */
 	if (instr->addr & ((1 << chip->phys_erase_shift) - 1)) {
@@ -2116,7 +2117,8 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 			DEBUG(MTD_DEBUG_LEVEL0, "nand_erase: "
 			      "Failed erase, page 0x%08x\n", page);
 			instr->state = MTD_ERASE_FAILED;
-			instr->fail_addr = (page << chip->page_shift);
+			instr->fail_addr =
+				((loff_t)page << chip->page_shift);
 			goto erase_exit;
 		}
 
@@ -2126,7 +2128,8 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		 */
 		if (bbt_masked_page != 0xffffffff &&
 		    (page & BBT_PAGE_MASK) == bbt_masked_page)
-			    rewrite_bbt[chipnr] = (page << chip->page_shift);
+			    rewrite_bbt[chipnr] =
+					((loff_t)page << chip->page_shift);
 
 		/* Increment page address and decrement length */
 		len -= (1 << chip->phys_erase_shift);
@@ -2173,7 +2176,7 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 			continue;
 		/* update the BBT for chip */
 		DEBUG(MTD_DEBUG_LEVEL0, "nand_erase_nand: nand_update_bbt "
-		      "(%d:0x%0x 0x%0x)\n", chipnr, rewrite_bbt[chipnr],
+		      "(%d:0x%0llx 0x%0x)\n", chipnr, rewrite_bbt[chipnr],
 		      chip->bbt_td->pages[chipnr]);
 		nand_update_bbt(mtd, rewrite_bbt[chipnr]);
 	}
@@ -2365,7 +2368,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	if (!mtd->name)
 		mtd->name = type->name;
 
-	chip->chipsize = type->chipsize << 20;
+	chip->chipsize = (uint64_t)type->chipsize << 20;
 
 	/* Newer devices have all the information in additional id bytes */
 	if (!type->pagesize) {
@@ -2423,7 +2426,10 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 
 	chip->bbt_erase_shift = chip->phys_erase_shift =
 		ffs(mtd->erasesize) - 1;
-	chip->chip_shift = ffs(chip->chipsize) - 1;
+	if (chip->chipsize & 0xffffffff)
+		chip->chip_shift = ffs((unsigned)chip->chipsize) - 1;
+	else
+		chip->chip_shift = ffs((unsigned)(chip->chipsize >> 32)) + 32 - 1;
 
 	/* Set the bad block position */
 	chip->badblockpos = mtd->writesize > 512 ?
@@ -2517,7 +2523,6 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips)
 /**
  * nand_scan_tail - [NAND Interface] Scan for the NAND device
  * @mtd:	    MTD device structure
- * @maxchips:	    Number of chips to scan for
  *
  * This is the second phase of the normal nand_scan() function. It
  * fills out all the uninitialized function pointers with the defaults

@@ -19,12 +19,6 @@
 #include "libata.h"
 
 #include <acpi/acpi_bus.h>
-#include <acpi/acnames.h>
-#include <acpi/acnamesp.h>
-#include <acpi/acparser.h>
-#include <acpi/acexcep.h>
-#include <acpi/acmacros.h>
-#include <acpi/actypes.h>
 
 enum {
 	ATA_ACPI_FILTER_SETXFER	= 1 << 0,

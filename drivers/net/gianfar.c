@@ -238,8 +238,8 @@ static int gfar_of_init(struct net_device *dev)
 			goto err_out;
 		}
 
-		snprintf(priv->phy_bus_id, BUS_ID_SIZE, PHY_ID_FMT, "0",
-				fixed_link[0]);
+		snprintf(priv->phy_bus_id, sizeof(priv->phy_bus_id),
+				PHY_ID_FMT, "0", fixed_link[0]);
 	} else {
 		phy = of_find_node_by_phandle(*ph);
 
@@ -256,7 +256,7 @@ static int gfar_of_init(struct net_device *dev)
 		of_node_put(mdio);
 
 		gfar_mdio_bus_name(bus_name, mdio);
-		snprintf(priv->phy_bus_id, BUS_ID_SIZE, "%s:%02x",
+		snprintf(priv->phy_bus_id, sizeof(priv->phy_bus_id), "%s:%02x",
 				bus_name, *id);
 	}
 
@@ -1973,6 +1973,8 @@ static void adjust_link(struct net_device *dev)
 			case 1000:
 				tempval =
 				    ((tempval & ~(MACCFG2_IF)) | MACCFG2_GMII);
+
+				ecntrl &= ~(ECNTRL_R100);
 				break;
 			case 100:
 			case 10:

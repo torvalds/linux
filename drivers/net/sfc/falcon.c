@@ -1403,9 +1403,9 @@ static irqreturn_t falcon_fatal_interrupt(struct efx_nic *efx)
 	}
 
 	/* Disable both devices */
-	pci_disable_device(efx->pci_dev);
+	pci_clear_master(efx->pci_dev);
 	if (FALCON_IS_DUAL_FUNC(efx))
-		pci_disable_device(nic_data->pci_dev2);
+		pci_clear_master(nic_data->pci_dev2);
 	falcon_disable_interrupts(efx);
 
 	if (++n_int_errors < FALCON_MAX_INT_ERRORS) {

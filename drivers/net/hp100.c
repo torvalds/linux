@@ -425,6 +425,28 @@ struct net_device * __init hp100_probe(int unit)
 }
 #endif /* !MODULE && CONFIG_ISA */
 
+static const struct net_device_ops hp100_bm_netdev_ops = {
+	.ndo_open		= hp100_open,
+	.ndo_stop		= hp100_close,
+	.ndo_start_xmit		= hp100_start_xmit_bm,
+	.ndo_get_stats 		= hp100_get_stats,
+	.ndo_set_multicast_list = hp100_set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
+static const struct net_device_ops hp100_netdev_ops = {
+	.ndo_open		= hp100_open,
+	.ndo_stop		= hp100_close,
+	.ndo_start_xmit		= hp100_start_xmit,
+	.ndo_get_stats 		= hp100_get_stats,
+	.ndo_set_multicast_list = hp100_set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __devinit hp100_probe1(struct net_device *dev, int ioaddr,
 				  u_char bus, struct pci_dev *pci_dev)
 {
@@ -657,16 +679,10 @@ static int __devinit hp100_probe1(struct net_device *dev, int ioaddr,
 	lp->virt_memory_size = virt_memory_size;
 	lp->rx_ratio = hp100_rx_ratio;	/* can be conf'd with insmod */
 
-	dev->open = hp100_open;
-	dev->stop = hp100_close;
-
 	if (lp->mode == 1)	/* busmaster */
-		dev->hard_start_xmit = hp100_start_xmit_bm;
+		dev->netdev_ops = &hp100_bm_netdev_ops;
 	else
-		dev->hard_start_xmit = hp100_start_xmit;
-
-	dev->get_stats = hp100_get_stats;
-	dev->set_multicast_list = &hp100_set_multicast_list;
+		dev->netdev_ops = &hp100_netdev_ops;
 
 	/* Ask the card for which IRQ line it is configured */
 	if (bus == HP100_BUS_PCI) {

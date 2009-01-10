@@ -229,7 +229,7 @@ static void destroy_foo_obj(struct foo_obj *foo)
 	kobject_put(&foo->kobj);
 }
 
-static int example_init(void)
+static int __init example_init(void)
 {
 	/*
 	 * Create a kset with the name of "kset_example",
@@ -264,7 +264,7 @@ foo_error:
 	return -EINVAL;
 }
 
-static void example_exit(void)
+static void __exit example_exit(void)
 {
 	destroy_foo_obj(baz_obj);
 	destroy_foo_obj(bar_obj);

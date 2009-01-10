@@ -619,7 +619,7 @@ swiotlb_full(struct device *dev, size_t size, int dir, int do_panic)
 	 * the damage, or panic when the transfer is too big.
 	 */
 	printk(KERN_ERR "DMA: Out of SW-IOMMU space for %zu bytes at "
-	       "device %s\n", size, dev ? dev->bus_id : "?");
+	       "device %s\n", size, dev ? dev_name(dev) : "?");
 
 	if (size > io_tlb_overflow && do_panic) {
 		if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL)

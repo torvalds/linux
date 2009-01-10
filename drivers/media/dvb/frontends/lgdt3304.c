@@ -42,7 +42,7 @@ static int i2c_write_demod_bytes (struct dvb_frontend *fe, __u8 *buf, int len)
 
 	for (i=0; i<len-1; i+=3){
 		if((err = i2c_transfer(state->i2c, &i2cmsgs, 1))<0) {
-			printk("%s i2c_transfer error %d\n", __FUNCTION__, err);
+			printk("%s i2c_transfer error %d\n", __func__, err);
 			if (err < 0)
 				return err;
 			else
@@ -73,7 +73,7 @@ static int lgdt3304_i2c_read_reg(struct dvb_frontend *fe, unsigned int reg)
 	i2cmsgs[1].buf = &buf;
 
 	if((ret = i2c_transfer(state->i2c, i2cmsgs, 2))<0) {
-		printk("%s i2c_transfer error %d\n", __FUNCTION__, ret);
+		printk("%s i2c_transfer error %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -94,7 +94,7 @@ static int lgdt3304_i2c_write_reg(struct dvb_frontend *fe, int reg, int val)
 	};
 	ret = i2c_transfer(state->i2c, &i2cmsgs, 1);
 	if (ret != 1) {
-		printk("%s i2c_transfer error %d\n", __FUNCTION__, ret);
+		printk("%s i2c_transfer error %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -238,7 +238,7 @@ static int lgdt3304_set_parameters(struct dvb_frontend *fe, struct dvb_frontend_
 		}
 
 		if (err) {
-			printk("%s error setting modulation\n", __FUNCTION__);
+			printk("%s error setting modulation\n", __func__);
 		} else {
 			state->current_modulation = param->u.vsb.modulation;
 		}
@@ -305,7 +305,7 @@ static int lgdt3304_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		}
 		break;
 	default:
-		printk("%s unhandled modulation\n", __FUNCTION__);
+		printk("%s unhandled modulation\n", __func__);
 	}
 
 

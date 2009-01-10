@@ -326,7 +326,7 @@ static int wusbhc_rh_clear_port_feat(struct wusbhc *wusbhc, u16 feature,
 static int wusbhc_rh_get_port_status(struct wusbhc *wusbhc, u16 port_idx,
 				     u32 *_buf, u16 wLength)
 {
-	u16 *buf = (u16 *) _buf;
+	__le16 *buf = (__le16 *)_buf;
 
 	if (port_idx > wusbhc->ports_max)
 		return -EINVAL;

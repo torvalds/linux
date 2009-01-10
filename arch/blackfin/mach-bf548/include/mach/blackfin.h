@@ -111,7 +111,7 @@
 
 /* UART 0*/
 
-/* DMA Channnel */
+/* DMA Channel */
 #define bfin_read_CH_UART_RX()		bfin_read_CH_UART1_RX()
 #define bfin_write_CH_UART_RX(val)	bfin_write_CH_UART1_RX(val)
 #define bfin_read_CH_UART_TX()		bfin_read_CH_UART1_TX()

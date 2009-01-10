@@ -824,7 +824,7 @@ static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
 	return 0;
 }
 
-struct dtv_cmds_h dtv_cmds[] = {
+static struct dtv_cmds_h dtv_cmds[] = {
 	[DTV_TUNE] = {
 		.name	= "DTV_TUNE",
 		.cmd	= DTV_TUNE,
@@ -962,7 +962,7 @@ struct dtv_cmds_h dtv_cmds[] = {
 	},
 };
 
-void dtv_property_dump(struct dtv_property *tvp)
+static void dtv_property_dump(struct dtv_property *tvp)
 {
 	int i;
 
@@ -993,7 +993,7 @@ void dtv_property_dump(struct dtv_property *tvp)
 		dprintk("%s() tvp.u.data = 0x%08x\n", __func__, tvp->u.data);
 }
 
-int is_legacy_delivery_system(fe_delivery_system_t s)
+static int is_legacy_delivery_system(fe_delivery_system_t s)
 {
 	if((s == SYS_UNDEFINED) || (s == SYS_DVBC_ANNEX_AC) ||
 	   (s == SYS_DVBC_ANNEX_B) || (s == SYS_DVBT) || (s == SYS_DVBS) ||
@@ -1007,7 +1007,8 @@ int is_legacy_delivery_system(fe_delivery_system_t s)
  * drivers can use a single set_frontend tuning function, regardless of whether
  * it's being used for the legacy or new API, reducing code and complexity.
  */
-void dtv_property_cache_sync(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
+static void dtv_property_cache_sync(struct dvb_frontend *fe,
+				    struct dvb_frontend_parameters *p)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
@@ -1059,7 +1060,7 @@ void dtv_property_cache_sync(struct dvb_frontend *fe, struct dvb_frontend_parame
 /* Ensure the cached values are set correctly in the frontend
  * legacy tuning structures, for the advanced tuning API.
  */
-void dtv_property_legacy_params_sync(struct dvb_frontend *fe)
+static void dtv_property_legacy_params_sync(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
@@ -1114,7 +1115,7 @@ void dtv_property_legacy_params_sync(struct dvb_frontend *fe)
 /* Ensure the cached values are set correctly in the frontend
  * legacy tuning structures, for the legacy tuning API.
  */
-void dtv_property_adv_params_sync(struct dvb_frontend *fe)
+static void dtv_property_adv_params_sync(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
@@ -1149,7 +1150,7 @@ void dtv_property_adv_params_sync(struct dvb_frontend *fe)
 	}
 }
 
-void dtv_property_cache_submit(struct dvb_frontend *fe)
+static void dtv_property_cache_submit(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
@@ -1180,8 +1181,9 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 			unsigned int cmd, void *parg);
 
-int dtv_property_process_get(struct dvb_frontend *fe, struct dtv_property *tvp,
-	struct inode *inode, struct file *file)
+static int dtv_property_process_get(struct dvb_frontend *fe,
+				    struct dtv_property *tvp,
+				    struct inode *inode, struct file *file)
 {
 	int r = 0;
 
@@ -1253,8 +1255,10 @@ int dtv_property_process_get(struct dvb_frontend *fe, struct dtv_property *tvp,
 	return r;
 }
 
-int dtv_property_process_set(struct dvb_frontend *fe, struct dtv_property *tvp,
-	struct inode *inode, struct file *file)
+static int dtv_property_process_set(struct dvb_frontend *fe,
+				    struct dtv_property *tvp,
+				    struct inode *inode,
+				    struct file *file)
 {
 	int r = 0;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;

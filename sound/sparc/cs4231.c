@@ -2057,7 +2057,7 @@ static int __devinit cs4231_ebus_probe(struct of_device *op, const struct of_dev
 	if (err)
 		return err;
 
-	sprintf(card->longname, "%s at 0x%lx, irq %d",
+	sprintf(card->longname, "%s at 0x%llx, irq %d",
 		card->shortname,
 		op->resource[0].start,
 		op->irqs[0]);

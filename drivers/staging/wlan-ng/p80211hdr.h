@@ -166,29 +166,29 @@
 /*                        SET_FC_FSTYPE(WLAN_FSTYPE_RTS) );   */
 /*------------------------------------------------------------*/
 
-#define WLAN_GET_FC_PVER(n)	 (((UINT16)(n)) & (BIT0 | BIT1))
-#define WLAN_GET_FC_FTYPE(n)	((((UINT16)(n)) & (BIT2 | BIT3)) >> 2)
-#define WLAN_GET_FC_FSTYPE(n)	((((UINT16)(n)) & (BIT4|BIT5|BIT6|BIT7)) >> 4)
-#define WLAN_GET_FC_TODS(n) 	((((UINT16)(n)) & (BIT8)) >> 8)
-#define WLAN_GET_FC_FROMDS(n)	((((UINT16)(n)) & (BIT9)) >> 9)
-#define WLAN_GET_FC_MOREFRAG(n) ((((UINT16)(n)) & (BIT10)) >> 10)
-#define WLAN_GET_FC_RETRY(n)	((((UINT16)(n)) & (BIT11)) >> 11)
-#define WLAN_GET_FC_PWRMGT(n)	((((UINT16)(n)) & (BIT12)) >> 12)
-#define WLAN_GET_FC_MOREDATA(n) ((((UINT16)(n)) & (BIT13)) >> 13)
-#define WLAN_GET_FC_ISWEP(n)	((((UINT16)(n)) & (BIT14)) >> 14)
-#define WLAN_GET_FC_ORDER(n)	((((UINT16)(n)) & (BIT15)) >> 15)
+#define WLAN_GET_FC_PVER(n)	 (((u16)(n)) & (BIT0 | BIT1))
+#define WLAN_GET_FC_FTYPE(n)	((((u16)(n)) & (BIT2 | BIT3)) >> 2)
+#define WLAN_GET_FC_FSTYPE(n)	((((u16)(n)) & (BIT4|BIT5|BIT6|BIT7)) >> 4)
+#define WLAN_GET_FC_TODS(n) 	((((u16)(n)) & (BIT8)) >> 8)
+#define WLAN_GET_FC_FROMDS(n)	((((u16)(n)) & (BIT9)) >> 9)
+#define WLAN_GET_FC_MOREFRAG(n) ((((u16)(n)) & (BIT10)) >> 10)
+#define WLAN_GET_FC_RETRY(n)	((((u16)(n)) & (BIT11)) >> 11)
+#define WLAN_GET_FC_PWRMGT(n)	((((u16)(n)) & (BIT12)) >> 12)
+#define WLAN_GET_FC_MOREDATA(n) ((((u16)(n)) & (BIT13)) >> 13)
+#define WLAN_GET_FC_ISWEP(n)	((((u16)(n)) & (BIT14)) >> 14)
+#define WLAN_GET_FC_ORDER(n)	((((u16)(n)) & (BIT15)) >> 15)
 
-#define WLAN_SET_FC_PVER(n)	((UINT16)(n))
-#define WLAN_SET_FC_FTYPE(n)	(((UINT16)(n)) << 2)
-#define WLAN_SET_FC_FSTYPE(n)	(((UINT16)(n)) << 4)
-#define WLAN_SET_FC_TODS(n) 	(((UINT16)(n)) << 8)
-#define WLAN_SET_FC_FROMDS(n)	(((UINT16)(n)) << 9)
-#define WLAN_SET_FC_MOREFRAG(n) (((UINT16)(n)) << 10)
-#define WLAN_SET_FC_RETRY(n)	(((UINT16)(n)) << 11)
-#define WLAN_SET_FC_PWRMGT(n)	(((UINT16)(n)) << 12)
-#define WLAN_SET_FC_MOREDATA(n) (((UINT16)(n)) << 13)
-#define WLAN_SET_FC_ISWEP(n)	(((UINT16)(n)) << 14)
-#define WLAN_SET_FC_ORDER(n)	(((UINT16)(n)) << 15)
+#define WLAN_SET_FC_PVER(n)	((u16)(n))
+#define WLAN_SET_FC_FTYPE(n)	(((u16)(n)) << 2)
+#define WLAN_SET_FC_FSTYPE(n)	(((u16)(n)) << 4)
+#define WLAN_SET_FC_TODS(n) 	(((u16)(n)) << 8)
+#define WLAN_SET_FC_FROMDS(n)	(((u16)(n)) << 9)
+#define WLAN_SET_FC_MOREFRAG(n) (((u16)(n)) << 10)
+#define WLAN_SET_FC_RETRY(n)	(((u16)(n)) << 11)
+#define WLAN_SET_FC_PWRMGT(n)	(((u16)(n)) << 12)
+#define WLAN_SET_FC_MOREDATA(n) (((u16)(n)) << 13)
+#define WLAN_SET_FC_ISWEP(n)	(((u16)(n)) << 14)
+#define WLAN_SET_FC_ORDER(n)	(((u16)(n)) << 15)
 
 /*--- Duration Macros ----------------------------------------*/
 /* Macros to get/set the bitfields of the Duration Field      */
@@ -201,45 +201,45 @@
 /* Macros to get/set the bitfields of the Sequence Control    */
 /* Field.                                                     */
 /*------------------------------------------------------------*/
-#define WLAN_GET_SEQ_FRGNUM(n) (((UINT16)(n)) & (BIT0|BIT1|BIT2|BIT3))
-#define WLAN_GET_SEQ_SEQNUM(n) ((((UINT16)(n)) & (~(BIT0|BIT1|BIT2|BIT3))) >> 4)
+#define WLAN_GET_SEQ_FRGNUM(n) (((u16)(n)) & (BIT0|BIT1|BIT2|BIT3))
+#define WLAN_GET_SEQ_SEQNUM(n) ((((u16)(n)) & (~(BIT0|BIT1|BIT2|BIT3))) >> 4)
 
 /*--- Data ptr macro -----------------------------------------*/
-/* Creates a UINT8* to the data portion of a frame            */
+/* Creates a u8* to the data portion of a frame            */
 /* Assumes you're passing in a ptr to the beginning of the hdr*/
 /*------------------------------------------------------------*/
-#define WLAN_HDR_A3_DATAP(p) (((UINT8*)(p)) + WLAN_HDR_A3_LEN)
-#define WLAN_HDR_A4_DATAP(p) (((UINT8*)(p)) + WLAN_HDR_A4_LEN)
+#define WLAN_HDR_A3_DATAP(p) (((u8*)(p)) + WLAN_HDR_A3_LEN)
+#define WLAN_HDR_A4_DATAP(p) (((u8*)(p)) + WLAN_HDR_A4_LEN)
 
-#define DOT11_RATE5_ISBASIC_GET(r)     (((UINT8)(r)) & BIT7)
+#define DOT11_RATE5_ISBASIC_GET(r)     (((u8)(r)) & BIT7)
 
 /*================================================================*/
 /* Types */
 
 /* BSS Timestamp */
-typedef UINT8 wlan_bss_ts_t[WLAN_BSS_TS_LEN];
+typedef u8 wlan_bss_ts_t[WLAN_BSS_TS_LEN];
 
 /* Generic 802.11 Header types */
 
 typedef struct p80211_hdr_a3
 {
-	UINT16	fc;
-	UINT16	dur;
-	UINT8	a1[WLAN_ADDR_LEN];
-	UINT8	a2[WLAN_ADDR_LEN];
-	UINT8	a3[WLAN_ADDR_LEN];
-	UINT16	seq;
+	u16	fc;
+	u16	dur;
+	u8	a1[WLAN_ADDR_LEN];
+	u8	a2[WLAN_ADDR_LEN];
+	u8	a3[WLAN_ADDR_LEN];
+	u16	seq;
 } __WLAN_ATTRIB_PACK__ p80211_hdr_a3_t;
 
 typedef struct p80211_hdr_a4
 {
-	UINT16	fc;
-	UINT16	dur;
-	UINT8	a1[WLAN_ADDR_LEN];
-	UINT8	a2[WLAN_ADDR_LEN];
-	UINT8	a3[WLAN_ADDR_LEN];
-	UINT16	seq;
-	UINT8	a4[WLAN_ADDR_LEN];
+	u16	fc;
+	u16	dur;
+	u8	a1[WLAN_ADDR_LEN];
+	u8	a2[WLAN_ADDR_LEN];
+	u8	a3[WLAN_ADDR_LEN];
+	u16	seq;
+	u8	a4[WLAN_ADDR_LEN];
 } __WLAN_ATTRIB_PACK__ p80211_hdr_a4_t;
 
 typedef union p80211_hdr
@@ -271,9 +271,9 @@ typedef union p80211_hdr
 #define WLAN_FCS_LEN			4
 
 /* ftcl in HOST order */
-inline static UINT16 p80211_headerlen(UINT16 fctl)
+inline static u16 p80211_headerlen(u16 fctl)
 {
-	UINT16 hdrlen = 0;
+	u16 hdrlen = 0;
 
 	switch ( WLAN_GET_FC_FTYPE(fctl) ) {
 	case WLAN_FTYPE_MGMT:

@@ -47,7 +47,7 @@ static struct mtd_partition sharpsl_partitions[1] = {
 	}
 };
 
-int __init init_sharpsl(void)
+static int __init init_sharpsl(void)
 {
 	struct mtd_partition *parts;
 	int nb_parts = 0;

@@ -668,7 +668,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 		 c->onenand.base);
 
 	c->pdev = pdev;
-	c->mtd.name = pdev->dev.bus_id;
+	c->mtd.name = dev_name(&pdev->dev);
 	c->mtd.priv = &c->onenand;
 	c->mtd.owner = THIS_MODULE;
 

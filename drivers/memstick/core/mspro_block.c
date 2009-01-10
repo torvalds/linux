@@ -52,14 +52,14 @@ struct mspro_sys_attr {
 };
 
 struct mspro_attr_entry {
-	unsigned int  address;
-	unsigned int  size;
+	__be32 address;
+	__be32 size;
 	unsigned char id;
 	unsigned char reserved[3];
 } __attribute__((packed));
 
 struct mspro_attribute {
-	unsigned short          signature;
+	__be16 signature;
 	unsigned short          version;
 	unsigned char           count;
 	unsigned char           reserved[11];
@@ -69,28 +69,28 @@ struct mspro_attribute {
 struct mspro_sys_info {
 	unsigned char  class;
 	unsigned char  reserved0;
-	unsigned short block_size;
-	unsigned short block_count;
-	unsigned short user_block_count;
-	unsigned short page_size;
+	__be16 block_size;
+	__be16 block_count;
+	__be16 user_block_count;
+	__be16 page_size;
 	unsigned char  reserved1[2];
 	unsigned char  assembly_date[8];
-	unsigned int   serial_number;
+	__be32 serial_number;
 	unsigned char  assembly_maker_code;
 	unsigned char  assembly_model_code[3];
-	unsigned short memory_maker_code;
-	unsigned short memory_model_code;
+	__be16 memory_maker_code;
+	__be16 memory_model_code;
 	unsigned char  reserved2[4];
 	unsigned char  vcc;
 	unsigned char  vpp;
-	unsigned short controller_number;
-	unsigned short controller_function;
-	unsigned short start_sector;
-	unsigned short unit_size;
+	__be16 controller_number;
+	__be16 controller_function;
+	__be16 start_sector;
+	__be16 unit_size;
 	unsigned char  ms_sub_class;
 	unsigned char  reserved3[4];
 	unsigned char  interface_type;
-	unsigned short controller_code;
+	__be16 controller_code;
 	unsigned char  format_type;
 	unsigned char  reserved4;
 	unsigned char  device_type;
@@ -124,11 +124,11 @@ struct mspro_specfile {
 } __attribute__((packed));
 
 struct mspro_devinfo {
-	unsigned short cylinders;
-	unsigned short heads;
-	unsigned short bytes_per_track;
-	unsigned short bytes_per_sector;
-	unsigned short sectors_per_track;
+	__be16 cylinders;
+	__be16 heads;
+	__be16 bytes_per_track;
+	__be16 bytes_per_sector;
+	__be16 sectors_per_track;
 	unsigned char  reserved[6];
 } __attribute__((packed));
 
@@ -338,8 +338,7 @@ static ssize_t mspro_block_attr_show_sysinfo(struct device *dev,
 	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "assembly date: "
 			"GMT%+d:%d %04u-%02u-%02u %02u:%02u:%02u\n",
 			date_tz, date_tz_f,
-			be16_to_cpu(*(unsigned short *)
-				    &x_sys->assembly_date[1]),
+			be16_to_cpup((__be16 *)&x_sys->assembly_date[1]),
 			x_sys->assembly_date[3], x_sys->assembly_date[4],
 			x_sys->assembly_date[5], x_sys->assembly_date[6],
 			x_sys->assembly_date[7]);
@@ -887,14 +886,14 @@ try_again:
 	if (rc) {
 		printk(KERN_WARNING
 		       "%s: could not switch to 4-bit mode, error %d\n",
-		       card->dev.bus_id, rc);
+		       dev_name(&card->dev), rc);
 		return 0;
 	}
 
 	msb->system = MEMSTICK_SYS_PAR4;
 	host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_PAR4);
 	printk(KERN_INFO "%s: switching to 4-bit parallel mode\n",
-	       card->dev.bus_id);
+	       dev_name(&card->dev));
 
 	if (msb->caps & MEMSTICK_CAP_PAR8) {
 		rc = mspro_block_set_interface(card, MEMSTICK_SYS_PAR8);
@@ -905,11 +904,11 @@ try_again:
 					MEMSTICK_PAR8);
 			printk(KERN_INFO
 			       "%s: switching to 8-bit parallel mode\n",
-			       card->dev.bus_id);
+			       dev_name(&card->dev));
 		} else
 			printk(KERN_WARNING
 			       "%s: could not switch to 8-bit mode, error %d\n",
-			       card->dev.bus_id, rc);
+			       dev_name(&card->dev), rc);
 	}
 
 	card->next_request = h_mspro_block_req_init;
@@ -922,7 +921,7 @@ try_again:
 	if (rc) {
 		printk(KERN_WARNING
 		       "%s: interface error, trying to fall back to serial\n",
-		       card->dev.bus_id);
+		       dev_name(&card->dev));
 		msb->system = MEMSTICK_SYS_SERIAL;
 		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
 		msleep(10);
@@ -992,14 +991,14 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 
 	if (be16_to_cpu(attr->signature) != MSPRO_BLOCK_SIGNATURE) {
 		printk(KERN_ERR "%s: unrecognized device signature %x\n",
-		       card->dev.bus_id, be16_to_cpu(attr->signature));
+		       dev_name(&card->dev), be16_to_cpu(attr->signature));
 		rc = -ENODEV;
 		goto out_free_attr;
 	}
 
 	if (attr->count > MSPRO_BLOCK_MAX_ATTRIBUTES) {
 		printk(KERN_WARNING "%s: way too many attribute entries\n",
-		       card->dev.bus_id);
+		       dev_name(&card->dev));
 		attr_count = MSPRO_BLOCK_MAX_ATTRIBUTES;
 	} else
 		attr_count = attr->count;
