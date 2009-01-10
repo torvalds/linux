@@ -390,7 +390,6 @@ static int __init write_buffer(char *buf, unsigned len)
 	return len - count;
 }
 
-#if defined CONFIG_RD_GZIP || defined CONFIG_RD_BZIP2 || defined CONFIG_RD_LZMA
 static int __init flush_buffer(void *bufv, unsigned len)
 {
 	char *buf = (char *) bufv;
@@ -413,7 +412,6 @@ static int __init flush_buffer(void *bufv, unsigned len)
 	}
 	return origLen;
 }
-#endif
 
 static unsigned my_inptr;   /* index of next byte to be processed in inbuf */
 
