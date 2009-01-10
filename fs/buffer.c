@@ -221,8 +221,8 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 
 		sync_blockdev(sb->s_bdev);
 
-		if (sb->s_op->write_super_lockfs)
-			sb->s_op->write_super_lockfs(sb);
+		if (sb->s_op->freeze_fs)
+			sb->s_op->freeze_fs(sb);
 	}
 
 	sync_blockdev(bdev);
@@ -242,8 +242,8 @@ void thaw_bdev(struct block_device *bdev, struct super_block *sb)
 	if (sb) {
 		BUG_ON(sb->s_bdev != bdev);
 
-		if (sb->s_op->unlockfs)
-			sb->s_op->unlockfs(sb);
+		if (sb->s_op->unfreeze_fs)
+			sb->s_op->unfreeze_fs(sb);
 		sb->s_frozen = SB_UNFROZEN;
 		smp_wmb();
 		wake_up(&sb->s_wait_unfrozen);
