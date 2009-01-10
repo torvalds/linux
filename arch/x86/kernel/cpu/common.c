@@ -22,6 +22,7 @@
 #include <asm/numa.h>
 #include <asm/smp.h>
 #include <asm/cpu.h>
+#include <asm/cpumask.h>
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>

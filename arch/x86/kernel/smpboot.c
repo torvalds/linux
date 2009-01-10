@@ -55,6 +55,7 @@
 #include <asm/idle.h>
 #include <asm/trampoline.h>
 #include <asm/cpu.h>
+#include <asm/cpumask.h>
 #include <asm/numa.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
