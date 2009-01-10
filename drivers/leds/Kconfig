@@ -190,6 +190,13 @@ config LEDS_DA903X
 	  This option enables support for on-chip LED drivers found
 	  on Dialog Semiconductor DA9030/DA9034 PMICs.
 
+config LEDS_DAC124S085
+	tristate "LED Support for DAC124S085 SPI DAC"
+	depends on LEDS_CLASS && SPI
+	help
+	  This option enables support for DAC124S085 SPI DAC from NatSemi,
+	  which can be used to control up to four LEDs.
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS
