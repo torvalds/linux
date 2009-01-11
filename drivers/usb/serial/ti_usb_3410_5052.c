@@ -282,6 +282,9 @@ MODULE_LICENSE("GPL");
 
 MODULE_FIRMWARE("ti_3410.fw");
 MODULE_FIRMWARE("ti_5052.fw");
+MODULE_FIRMWARE("mts_cdma.fw");
+MODULE_FIRMWARE("mts_gsm.fw");
+MODULE_FIRMWARE("mts_edge.fw");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Enable debugging, 0=no, 1=yes");
