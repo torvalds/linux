@@ -2702,6 +2702,12 @@ static bool hotkey_notify_thermal(const u32 hkey,
 			"a sensor reports something is extremely hot!\n");
 		/* recommended action: immediate sleep/hibernate */
 		return true;
+	case 0x6030:
+		printk(TPACPI_INFO
+			"EC reports that Thermal Table has changed\n");
+		/* recommended action: do nothing, we don't have
+		 * Lenovo ATM information */
+		return true;
 	default:
 		printk(TPACPI_ALERT
 			 "THERMAL ALERT: unknown thermal alarm received\n");
