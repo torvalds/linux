@@ -129,7 +129,7 @@ struct iso_resource {
 	struct iso_resource_event *e_alloc, *e_dealloc;
 };
 
-static int schedule_iso_resource(struct iso_resource *);
+static void schedule_iso_resource(struct iso_resource *);
 static void release_iso_resource(struct client *, struct client_resource *);
 
 /*
@@ -1111,17 +1111,11 @@ static void iso_resource_work(struct work_struct *work)
 	client_put(client);
 }
 
-static int schedule_iso_resource(struct iso_resource *r)
+static void schedule_iso_resource(struct iso_resource *r)
 {
-	int scheduled;
-
 	client_get(r->client);
-
-	scheduled = schedule_delayed_work(&r->work, 0);
-	if (!scheduled)
+	if (!schedule_delayed_work(&r->work, 0))
 		client_put(r->client);
-
-	return scheduled;
 }
 
 static void release_iso_resource(struct client *client,
@@ -1173,13 +1167,13 @@ static int init_iso_resource(struct client *client,
 	if (todo == ISO_RES_ALLOC) {
 		r->resource.release = release_iso_resource;
 		ret = add_client_resource(client, &r->resource, GFP_KERNEL);
+		if (ret < 0)
+			goto fail;
 	} else {
 		r->resource.release = NULL;
 		r->resource.handle = -1;
-		ret = schedule_iso_resource(r) ? 0 : -ENOMEM;
+		schedule_iso_resource(r);
 	}
-	if (ret < 0)
-		goto fail;
 	request->handle = r->resource.handle;
 
 	return 0;
