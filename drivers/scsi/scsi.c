@@ -651,10 +651,6 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	unsigned long timeout;
 	int rtn = 0;
 
-	/*
-	 * We will use a queued command if possible, otherwise we will
-	 * emulate the queuing and calling of completion function ourselves.
-	 */
 	atomic_inc(&cmd->device->iorequest_cnt);
 
 	/* check if the device is still usable */

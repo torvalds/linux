@@ -13,9 +13,9 @@
 3.6 Constraints
 3.7 Example
 
-4 DRIVER DEVELOPER NOTES
+4 DMAENGINE DRIVER DEVELOPER NOTES
 4.1 Conformance points
-4.2 "My application needs finer control of hardware channels"
+4.2 "My application needs exclusive control of hardware channels"
 
 5 SOURCE
 
@@ -150,6 +150,7 @@ ops_run_* and ops_complete_* routines in drivers/md/raid5.c for more
 implementation examples.
 
 4 DRIVER DEVELOPMENT NOTES
+
 4.1 Conformance points:
 There are a few conformance points required in dmaengine drivers to
 accommodate assumptions made by applications using the async_tx API:
@@ -158,58 +159,49 @@ accommodate assumptions made by applications using the async_tx API:
 3/ Use async_tx_run_dependencies() in the descriptor clean up path to
    handle submission of dependent operations
 
-4.2 "My application needs finer control of hardware channels"
-This requirement seems to arise from cases where a DMA engine driver is
-trying to support device-to-memory DMA.  The dmaengine and async_tx
-implementations were designed for offloading memory-to-memory
-operations; however, there are some capabilities of the dmaengine layer
-that can be used for platform-specific channel management.
-Platform-specific constraints can be handled by registering the
-application as a 'dma_client' and implementing a 'dma_event_callback' to
-apply a filter to the available channels in the system.  Before showing
-how to implement a custom dma_event callback some background of
-dmaengine's client support is required.
+4.2 "My application needs exclusive control of hardware channels"
+Primarily this requirement arises from cases where a DMA engine driver
+is being used to support device-to-memory operations.  A channel that is
+performing these operations cannot, for many platform specific reasons,
+be shared.  For these cases the dma_request_channel() interface is
+provided.
 
-The following routines in dmaengine support multiple clients requesting
-use of a channel:
-- dma_async_client_register(struct dma_client *client)
-- dma_async_client_chan_request(struct dma_client *client)
+The interface is:
+struct dma_chan *dma_request_channel(dma_cap_mask_t mask,
+				     dma_filter_fn filter_fn,
+				     void *filter_param);
 
-dma_async_client_register takes a pointer to an initialized dma_client
-structure.  It expects that the 'event_callback' and 'cap_mask' fields
-are already initialized.
+Where dma_filter_fn is defined as:
+typedef bool (*dma_filter_fn)(struct dma_chan *chan, void *filter_param);
 
-dma_async_client_chan_request triggers dmaengine to notify the client of
-all channels that satisfy the capability mask.  It is up to the client's
-event_callback routine to track how many channels the client needs and
-how many it is currently using.  The dma_event_callback routine returns a
-dma_state_client code to let dmaengine know the status of the
-allocation.
+When the optional 'filter_fn' parameter is set to NULL
+dma_request_channel simply returns the first channel that satisfies the
+capability mask.  Otherwise, when the mask parameter is insufficient for
+specifying the necessary channel, the filter_fn routine can be used to
+disposition the available channels in the system. The filter_fn routine
+is called once for each free channel in the system.  Upon seeing a
+suitable channel filter_fn returns DMA_ACK which flags that channel to
+be the return value from dma_request_channel.  A channel allocated via
+this interface is exclusive to the caller, until dma_release_channel()
+is called.
 
-Below is the example of how to extend this functionality for
-platform-specific filtering of the available channels beyond the
-standard capability mask:
+The DMA_PRIVATE capability flag is used to tag dma devices that should
+not be used by the general-purpose allocator.  It can be set at
+initialization time if it is known that a channel will always be
+private.  Alternatively, it is set when dma_request_channel() finds an
+unused "public" channel.
 
-static enum dma_state_client
-my_dma_client_callback(struct dma_client *client,
-			struct dma_chan *chan, enum dma_state state)
-{
-	struct dma_device *dma_dev;
-	struct my_platform_specific_dma *plat_dma_dev;
-	
-	dma_dev = chan->device;
-	plat_dma_dev = container_of(dma_dev,
-				    struct my_platform_specific_dma,
-				    dma_dev);
-
-	if (!plat_dma_dev->platform_specific_capability)
-		return DMA_DUP;
-
-	. . .
-}
+A couple caveats to note when implementing a driver and consumer:
+1/ Once a channel has been privately allocated it will no longer be
+   considered by the general-purpose allocator even after a call to
+   dma_release_channel().
+2/ Since capabilities are specified at the device level a dma_device
+   with multiple channels will either have all channels public, or all
+   channels private.
 
 5 SOURCE
-include/linux/dmaengine.h: core header file for DMA drivers and clients
+
+include/linux/dmaengine.h: core header file for DMA drivers and api users
 drivers/dma/dmaengine.c: offload engine channel management routines
 drivers/dma/: location for offload engine drivers
 include/linux/async_tx.h: core header file for the async_tx api

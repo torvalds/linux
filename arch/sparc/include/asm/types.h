@@ -11,7 +11,7 @@
 #if defined(__sparc__) && defined(__arch64__)
 
 /*** SPARC 64 bit ***/
-#include <asm-generic/int-l64.h>
+#include <asm-generic/int-ll64.h>
 
 #ifndef __ASSEMBLY__
 

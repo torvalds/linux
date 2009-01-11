@@ -11,6 +11,7 @@
  */
 
 #include <linux/skbuff.h>
+#include <linux/scatterlist.h>
 
 /* from cxgb3 LLD */
 #include "common.h"

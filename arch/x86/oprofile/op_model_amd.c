@@ -2,7 +2,7 @@
  * @file op_model_amd.c
  * athlon / K7 / K8 / Family 10h model-specific MSR operations
  *
- * @remark Copyright 2002-2008 OProfile authors
+ * @remark Copyright 2002-2009 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon
@@ -10,7 +10,7 @@
  * @author Graydon Hoare
  * @author Robert Richter <robert.richter@amd.com>
  * @author Barry Kasindorf
-*/
+ */
 
 #include <linux/oprofile.h>
 #include <linux/device.h>
@@ -60,53 +60,10 @@ static unsigned long reset_value[NUM_COUNTERS];
 #define IBS_OP_LOW_VALID_BIT		(1ULL<<18)	/* bit 18 */
 #define IBS_OP_LOW_ENABLE		(1ULL<<17)	/* bit 17 */
 
-/* Codes used in cpu_buffer.c */
-/* This produces duplicate code, need to be fixed */
-#define IBS_FETCH_BEGIN 3
-#define IBS_OP_BEGIN    4
+#define IBS_FETCH_SIZE	6
+#define IBS_OP_SIZE	12
 
-/*
- * The function interface needs to be fixed, something like add
- * data. Should then be added to linux/oprofile.h.
- */
-extern void
-oprofile_add_ibs_sample(struct pt_regs * const regs,
-			unsigned int * const ibs_sample, int ibs_code);
-
-struct ibs_fetch_sample {
-	/* MSRC001_1031 IBS Fetch Linear Address Register */
-	unsigned int ibs_fetch_lin_addr_low;
-	unsigned int ibs_fetch_lin_addr_high;
-	/* MSRC001_1030 IBS Fetch Control Register */
-	unsigned int ibs_fetch_ctl_low;
-	unsigned int ibs_fetch_ctl_high;
-	/* MSRC001_1032 IBS Fetch Physical Address Register */
-	unsigned int ibs_fetch_phys_addr_low;
-	unsigned int ibs_fetch_phys_addr_high;
-};
-
-struct ibs_op_sample {
-	/* MSRC001_1034 IBS Op Logical Address Register (IbsRIP) */
-	unsigned int ibs_op_rip_low;
-	unsigned int ibs_op_rip_high;
-	/* MSRC001_1035 IBS Op Data Register */
-	unsigned int ibs_op_data1_low;
-	unsigned int ibs_op_data1_high;
-	/* MSRC001_1036 IBS Op Data 2 Register */
-	unsigned int ibs_op_data2_low;
-	unsigned int ibs_op_data2_high;
-	/* MSRC001_1037 IBS Op Data 3 Register */
-	unsigned int ibs_op_data3_low;
-	unsigned int ibs_op_data3_high;
-	/* MSRC001_1038 IBS DC Linear Address Register (IbsDcLinAd) */
-	unsigned int ibs_dc_linear_low;
-	unsigned int ibs_dc_linear_high;
-	/* MSRC001_1039 IBS DC Physical Address Register (IbsDcPhysAd) */
-	unsigned int ibs_dc_phys_low;
-	unsigned int ibs_dc_phys_high;
-};
-
-static int ibs_allowed;	/* AMD Family10h and later */
+static int has_ibs;	/* AMD Family10h and later */
 
 struct op_ibs_config {
 	unsigned long op_enabled;
@@ -197,31 +154,29 @@ static inline int
 op_amd_handle_ibs(struct pt_regs * const regs,
 		  struct op_msrs const * const msrs)
 {
-	unsigned int low, high;
-	struct ibs_fetch_sample ibs_fetch;
-	struct ibs_op_sample ibs_op;
+	u32 low, high;
+	u64 msr;
+	struct op_entry entry;
 
-	if (!ibs_allowed)
+	if (!has_ibs)
 		return 1;
 
 	if (ibs_config.fetch_enabled) {
 		rdmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 		if (high & IBS_FETCH_HIGH_VALID_BIT) {
-			ibs_fetch.ibs_fetch_ctl_high = high;
-			ibs_fetch.ibs_fetch_ctl_low = low;
-			rdmsr(MSR_AMD64_IBSFETCHLINAD, low, high);
-			ibs_fetch.ibs_fetch_lin_addr_high = high;
-			ibs_fetch.ibs_fetch_lin_addr_low = low;
-			rdmsr(MSR_AMD64_IBSFETCHPHYSAD, low, high);
-			ibs_fetch.ibs_fetch_phys_addr_high = high;
-			ibs_fetch.ibs_fetch_phys_addr_low = low;
-
-			oprofile_add_ibs_sample(regs,
-						(unsigned int *)&ibs_fetch,
-						IBS_FETCH_BEGIN);
+			rdmsrl(MSR_AMD64_IBSFETCHLINAD, msr);
+			oprofile_write_reserve(&entry, regs, msr,
+					       IBS_FETCH_CODE, IBS_FETCH_SIZE);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
+			oprofile_add_data(&entry, low);
+			oprofile_add_data(&entry, high);
+			rdmsrl(MSR_AMD64_IBSFETCHPHYSAD, msr);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
+			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
-			rdmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 			high &= ~IBS_FETCH_HIGH_VALID_BIT;
 			high |= IBS_FETCH_HIGH_ENABLE;
 			low &= IBS_FETCH_LOW_MAX_CNT_MASK;
@@ -232,30 +187,29 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 	if (ibs_config.op_enabled) {
 		rdmsr(MSR_AMD64_IBSOPCTL, low, high);
 		if (low & IBS_OP_LOW_VALID_BIT) {
-			rdmsr(MSR_AMD64_IBSOPRIP, low, high);
-			ibs_op.ibs_op_rip_low = low;
-			ibs_op.ibs_op_rip_high = high;
-			rdmsr(MSR_AMD64_IBSOPDATA, low, high);
-			ibs_op.ibs_op_data1_low = low;
-			ibs_op.ibs_op_data1_high = high;
-			rdmsr(MSR_AMD64_IBSOPDATA2, low, high);
-			ibs_op.ibs_op_data2_low = low;
-			ibs_op.ibs_op_data2_high = high;
-			rdmsr(MSR_AMD64_IBSOPDATA3, low, high);
-			ibs_op.ibs_op_data3_low = low;
-			ibs_op.ibs_op_data3_high = high;
-			rdmsr(MSR_AMD64_IBSDCLINAD, low, high);
-			ibs_op.ibs_dc_linear_low = low;
-			ibs_op.ibs_dc_linear_high = high;
-			rdmsr(MSR_AMD64_IBSDCPHYSAD, low, high);
-			ibs_op.ibs_dc_phys_low = low;
-			ibs_op.ibs_dc_phys_high = high;
+			rdmsrl(MSR_AMD64_IBSOPRIP, msr);
+			oprofile_write_reserve(&entry, regs, msr,
+					       IBS_OP_CODE, IBS_OP_SIZE);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
+			rdmsrl(MSR_AMD64_IBSOPDATA, msr);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
+			rdmsrl(MSR_AMD64_IBSOPDATA2, msr);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
+			rdmsrl(MSR_AMD64_IBSOPDATA3, msr);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
+			rdmsrl(MSR_AMD64_IBSDCLINAD, msr);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
+			rdmsrl(MSR_AMD64_IBSDCPHYSAD, msr);
+			oprofile_add_data(&entry, (u32)msr);
+			oprofile_add_data(&entry, (u32)(msr >> 32));
+			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
-			oprofile_add_ibs_sample(regs,
-						(unsigned int *)&ibs_op,
-						IBS_OP_BEGIN);
-			rdmsr(MSR_AMD64_IBSOPCTL, low, high);
 			high = 0;
 			low &= ~IBS_OP_LOW_VALID_BIT;
 			low |= IBS_OP_LOW_ENABLE;
@@ -305,14 +259,14 @@ static void op_amd_start(struct op_msrs const * const msrs)
 	}
 
 #ifdef CONFIG_OPROFILE_IBS
-	if (ibs_allowed && ibs_config.fetch_enabled) {
+	if (has_ibs && ibs_config.fetch_enabled) {
 		low = (ibs_config.max_cnt_fetch >> 4) & 0xFFFF;
 		high = ((ibs_config.rand_en & 0x1) << 25) /* bit 57 */
 			+ IBS_FETCH_HIGH_ENABLE;
 		wrmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 	}
 
-	if (ibs_allowed && ibs_config.op_enabled) {
+	if (has_ibs && ibs_config.op_enabled) {
 		low = ((ibs_config.max_cnt_op >> 4) & 0xFFFF)
 			+ ((ibs_config.dispatched_ops & 0x1) << 19) /* bit 19 */
 			+ IBS_OP_LOW_ENABLE;
@@ -341,14 +295,14 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 	}
 
 #ifdef CONFIG_OPROFILE_IBS
-	if (ibs_allowed && ibs_config.fetch_enabled) {
+	if (has_ibs && ibs_config.fetch_enabled) {
 		/* clear max count and enable */
 		low = 0;
 		high = 0;
 		wrmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 	}
 
-	if (ibs_allowed && ibs_config.op_enabled) {
+	if (has_ibs && ibs_config.op_enabled) {
 		/* clear max count and enable */
 		low = 0;
 		high = 0;
@@ -409,6 +363,7 @@ static int init_ibs_nmi(void)
 				       | IBSCTL_LVTOFFSETVAL);
 		pci_read_config_dword(cpu_cfg, IBSCTL, &value);
 		if (value != (ibs_eilvt_off | IBSCTL_LVTOFFSETVAL)) {
+			pci_dev_put(cpu_cfg);
 			printk(KERN_DEBUG "Failed to setup IBS LVT offset, "
 				"IBSCTL = 0x%08x", value);
 			return 1;
@@ -436,20 +391,20 @@ static int init_ibs_nmi(void)
 /* uninitialize the APIC for the IBS interrupts if needed */
 static void clear_ibs_nmi(void)
 {
-	if (ibs_allowed)
+	if (has_ibs)
 		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
 }
 
 /* initialize the APIC for the IBS interrupts if available */
 static void ibs_init(void)
 {
-	ibs_allowed = boot_cpu_has(X86_FEATURE_IBS);
+	has_ibs = boot_cpu_has(X86_FEATURE_IBS);
 
-	if (!ibs_allowed)
+	if (!has_ibs)
 		return;
 
 	if (init_ibs_nmi()) {
-		ibs_allowed = 0;
+		has_ibs = 0;
 		return;
 	}
 
@@ -458,7 +413,7 @@ static void ibs_init(void)
 
 static void ibs_exit(void)
 {
-	if (!ibs_allowed)
+	if (!has_ibs)
 		return;
 
 	clear_ibs_nmi();
@@ -478,7 +433,7 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 	if (ret)
 		return ret;
 
-	if (!ibs_allowed)
+	if (!has_ibs)
 		return ret;
 
 	/* model specific files */

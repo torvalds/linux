@@ -366,8 +366,7 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(
  *
  * Return - The number of descriptors allocated.
  */
-static int fsl_dma_alloc_chan_resources(struct dma_chan *chan,
-					struct dma_client *client)
+static int fsl_dma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct fsl_dma_chan *fsl_chan = to_fsl_chan(chan);
 
@@ -823,7 +822,7 @@ static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
 	 */
 	WARN_ON(fdev->feature != new_fsl_chan->feature);
 
-	new_fsl_chan->dev = &new_fsl_chan->common.dev;
+	new_fsl_chan->dev = &new_fsl_chan->common.dev->device;
 	new_fsl_chan->reg_base = ioremap(new_fsl_chan->reg.start,
 			new_fsl_chan->reg.end - new_fsl_chan->reg.start + 1);
 

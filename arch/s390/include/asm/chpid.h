@@ -9,7 +9,7 @@
 #define _ASM_S390_CHPID_H _ASM_S390_CHPID_H
 
 #include <linux/string.h>
-#include <asm/types.h>
+#include <linux/types.h>
 
 #define __MAX_CHPID 255
 

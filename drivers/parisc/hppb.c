@@ -29,7 +29,7 @@ struct hppb_card {
 	struct hppb_card *next;
 };
 
-struct hppb_card hppb_card_head = {
+static struct hppb_card hppb_card_head = {
 	.hpa = 0,
 	.next = NULL,
 };

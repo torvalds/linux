@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 
+#include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/at91sam9261.h>

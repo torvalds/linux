@@ -399,8 +399,8 @@ static int __devinit ali1563_probe(struct pci_dev * dev,
 	if ((error = ali1563_setup(dev)))
 		goto exit;
 	ali1563_adapter.dev.parent = &dev->dev;
-	sprintf(ali1563_adapter.name,"SMBus ALi 1563 Adapter @ %04x",
-		ali1563_smba);
+	snprintf(ali1563_adapter.name, sizeof(ali1563_adapter.name),
+		 "SMBus ALi 1563 Adapter @ %04x", ali1563_smba);
 	if ((error = i2c_add_adapter(&ali1563_adapter)))
 		goto exit_shutdown;
 	return 0;

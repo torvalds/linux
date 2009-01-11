@@ -457,7 +457,7 @@ void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 		prom_halt();
 	}
 
-	printk("%s: PCI IO[%lx] MEM[%lx]\n",
+	printk("%s: PCI IO[%llx] MEM[%llx]\n",
 	       pbm->name,
 	       pbm->io_space.start,
 	       pbm->mem_space.start);

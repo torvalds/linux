@@ -132,6 +132,28 @@ static int op_powerpc_create_files(struct super_block *sb, struct dentry *root)
 	oprofilefs_create_ulong(sb, root, "mmcr0", &sys.mmcr0);
 	oprofilefs_create_ulong(sb, root, "mmcr1", &sys.mmcr1);
 	oprofilefs_create_ulong(sb, root, "mmcra", &sys.mmcra);
+#ifdef CONFIG_OPROFILE_CELL
+	/* create a file the user tool can check to see what level of profiling
+	 * support exits with this kernel. Initialize bit mask to indicate
+	 * what support the kernel has:
+	 * bit 0      -  Supports SPU event profiling in addition to PPU
+	 *               event and cycles; and SPU cycle profiling
+	 * bits 1-31  -  Currently unused.
+	 *
+	 * If the file does not exist, then the kernel only supports SPU
+	 * cycle profiling, PPU event and cycle profiling.
+	 */
+	oprofilefs_create_ulong(sb, root, "cell_support", &sys.cell_support);
+	sys.cell_support = 0x1; /* Note, the user OProfile tool must check
+				 * that this bit is set before attempting to
+				 * user SPU event profiling.  Older kernels
+				 * will not have this file, hence the user
+				 * tool is not allowed to do SPU event
+				 * profiling on older kernels.  Older kernels
+				 * will accept SPU events but collected data
+				 * is garbage.
+				 */
+#endif
 #endif
 
 	for (i = 0; i < model->num_counters; ++i) {

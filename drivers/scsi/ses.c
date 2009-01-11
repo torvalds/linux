@@ -526,7 +526,7 @@ static int ses_intf_add(struct device *cdev,
 	if (!scomp)
 		goto err_free;
 
-	edev = enclosure_register(cdev->parent, sdev->sdev_gendev.bus_id,
+	edev = enclosure_register(cdev->parent, dev_name(&sdev->sdev_gendev),
 				  components, &ses_enclosure_callbacks);
 	if (IS_ERR(edev)) {
 		err = PTR_ERR(edev);

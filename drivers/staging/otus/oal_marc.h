@@ -106,14 +106,14 @@
 
 /***** Debug message *****/
 #if 0
-#define zm_debug_msg0(msg) printk("%s:%s\n", __FUNCTION__, msg);
-#define zm_debug_msg1(msg, val) printk("%s:%s%ld\n", __FUNCTION__, \
+#define zm_debug_msg0(msg) printk("%s:%s\n", __func__, msg);
+#define zm_debug_msg1(msg, val) printk("%s:%s%ld\n", __func__, \
         msg, (u32_t)val);
-#define zm_debug_msg2(msg, val) printk("%s:%s%lxh\n", __FUNCTION__, \
+#define zm_debug_msg2(msg, val) printk("%s:%s%lxh\n", __func__, \
         msg, (u32_t)val);
-#define zm_debug_msg_s(msg, val) printk("%s:%s%s\n", __FUNCTION__, \
+#define zm_debug_msg_s(msg, val) printk("%s:%s%s\n", __func__, \
         msg, val);
-#define zm_debug_msg_p(msg, val1, val2) printk("%s:%s%01ld.%02ld\n", __FUNCTION__, \
+#define zm_debug_msg_p(msg, val1, val2) printk("%s:%s%01ld.%02ld\n", __func__, \
         msg, (val1/val2), (((val1*100)/val2)%100));
 #define zm_dbg(S) printk S
 #else
@@ -127,7 +127,7 @@
 
 #define zm_assert(expr) if(!(expr)) {                           \
         printk( "Atheors Assertion failed! %s,%s,%s,line=%d\n",   \
-        #expr,__FILE__,__FUNCTION__,__LINE__);                  \
+        #expr,__FILE__,__func__,__LINE__);                  \
         }
 
 #define DbgPrint printk

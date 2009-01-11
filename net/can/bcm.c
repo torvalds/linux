@@ -633,7 +633,7 @@ static void bcm_rx_handler(struct sk_buff *skb, void *data)
 	hrtimer_cancel(&op->timer);
 
 	if (op->can_id != rxframe->can_id)
-		goto rx_freeskb;
+		return;
 
 	/* save rx timestamp */
 	op->rx_stamp = skb->tstamp;
@@ -645,19 +645,19 @@ static void bcm_rx_handler(struct sk_buff *skb, void *data)
 	if (op->flags & RX_RTR_FRAME) {
 		/* send reply for RTR-request (placed in op->frames[0]) */
 		bcm_can_tx(op);
-		goto rx_freeskb;
+		return;
 	}
 
 	if (op->flags & RX_FILTER_ID) {
 		/* the easiest case */
 		bcm_rx_update_and_send(op, &op->last_frames[0], rxframe);
-		goto rx_freeskb_starttimer;
+		goto rx_starttimer;
 	}
 
 	if (op->nframes == 1) {
 		/* simple compare with index 0 */
 		bcm_rx_cmp_to_index(op, 0, rxframe);
-		goto rx_freeskb_starttimer;
+		goto rx_starttimer;
 	}
 
 	if (op->nframes > 1) {
@@ -678,10 +678,8 @@ static void bcm_rx_handler(struct sk_buff *skb, void *data)
 		}
 	}
 
-rx_freeskb_starttimer:
+rx_starttimer:
 	bcm_rx_starttimer(op);
-rx_freeskb:
-	kfree_skb(skb);
 }
 
 /*

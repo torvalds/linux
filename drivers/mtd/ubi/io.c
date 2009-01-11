@@ -465,7 +465,7 @@ out:
  * This function synchronously erases physical eraseblock @pnum. If @torture
  * flag is not zero, the physical eraseblock is checked by means of writing
  * different patterns to it and reading them back. If the torturing is enabled,
- * the physical eraseblock is erased more then once.
+ * the physical eraseblock is erased more than once.
  *
  * This function returns the number of erasures made in case of success, %-EIO
  * if the erasure failed or the torturing test failed, and other negative error

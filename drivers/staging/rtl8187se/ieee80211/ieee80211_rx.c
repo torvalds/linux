@@ -1635,7 +1635,7 @@ inline void update_network(struct ieee80211_network *dst,
 	memcpy(dst->rates_ex, src->rates_ex, src->rates_ex_len);
 	dst->rates_ex_len = src->rates_ex_len;
 	dst->HighestOperaRate= src->HighestOperaRate;
-	//printk("==========>in %s: src->ssid is %s,chan is %d\n",__FUNCTION__,src->ssid,src->channel);
+	//printk("==========>in %s: src->ssid is %s,chan is %d\n",__func__,src->ssid,src->channel);
 
 	//YJ,add,080819,for hidden ap
 	if(src->ssid_len > 0)

@@ -253,14 +253,7 @@ static ssize_t store_drivers_probe(struct bus_type *bus,
 static struct device *next_device(struct klist_iter *i)
 {
 	struct klist_node *n = klist_next(i);
-	struct device *dev = NULL;
-	struct device_private *dev_prv;
-
-	if (n) {
-		dev_prv = to_device_private_bus(n);
-		dev = dev_prv->device;
-	}
-	return dev;
+	return n ? container_of(n, struct device, knode_bus) : NULL;
 }
 
 /**
@@ -293,7 +286,7 @@ int bus_for_each_dev(struct bus_type *bus, struct device *start,
 		return -EINVAL;
 
 	klist_iter_init_node(&bus->p->klist_devices, &i,
-			     (start ? &start->p->knode_bus : NULL));
+			     (start ? &start->knode_bus : NULL));
 	while ((dev = next_device(&i)) && !error)
 		error = fn(dev, data);
 	klist_iter_exit(&i);
@@ -327,7 +320,7 @@ struct device *bus_find_device(struct bus_type *bus,
 		return NULL;
 
 	klist_iter_init_node(&bus->p->klist_devices, &i,
-			     (start ? &start->p->knode_bus : NULL));
+			     (start ? &start->knode_bus : NULL));
 	while ((dev = next_device(&i)))
 		if (match(dev, data) && get_device(dev))
 			break;
@@ -514,8 +507,7 @@ void bus_attach_device(struct device *dev)
 			ret = device_attach(dev);
 		WARN_ON(ret < 0);
 		if (ret >= 0)
-			klist_add_tail(&dev->p->knode_bus,
-				       &bus->p->klist_devices);
+			klist_add_tail(&dev->knode_bus, &bus->p->klist_devices);
 	}
 }
 
@@ -536,8 +528,8 @@ void bus_remove_device(struct device *dev)
 		sysfs_remove_link(&dev->bus->p->devices_kset->kobj,
 				  dev_name(dev));
 		device_remove_attrs(dev->bus, dev);
-		if (klist_node_attached(&dev->p->knode_bus))
-			klist_del(&dev->p->knode_bus);
+		if (klist_node_attached(&dev->knode_bus))
+			klist_del(&dev->knode_bus);
 
 		pr_debug("bus: '%s': remove device %s\n",
 			 dev->bus->name, dev_name(dev));
@@ -839,16 +831,14 @@ static void bus_remove_attrs(struct bus_type *bus)
 
 static void klist_devices_get(struct klist_node *n)
 {
-	struct device_private *dev_prv = to_device_private_bus(n);
-	struct device *dev = dev_prv->device;
+	struct device *dev = container_of(n, struct device, knode_bus);
 
 	get_device(dev);
 }
 
 static void klist_devices_put(struct klist_node *n)
 {
-	struct device_private *dev_prv = to_device_private_bus(n);
-	struct device *dev = dev_prv->device;
+	struct device *dev = container_of(n, struct device, knode_bus);
 
 	put_device(dev);
 }
@@ -1003,20 +993,18 @@ static void device_insertion_sort_klist(struct device *a, struct list_head *list
 {
 	struct list_head *pos;
 	struct klist_node *n;
-	struct device_private *dev_prv;
 	struct device *b;
 
 	list_for_each(pos, list) {
 		n = container_of(pos, struct klist_node, n_node);
-		dev_prv = to_device_private_bus(n);
-		b = dev_prv->device;
+		b = container_of(n, struct device, knode_bus);
 		if (compare(a, b) <= 0) {
-			list_move_tail(&a->p->knode_bus.n_node,
-				       &b->p->knode_bus.n_node);
+			list_move_tail(&a->knode_bus.n_node,
+				       &b->knode_bus.n_node);
 			return;
 		}
 	}
-	list_move_tail(&a->p->knode_bus.n_node, list);
+	list_move_tail(&a->knode_bus.n_node, list);
 }
 
 void bus_sort_breadthfirst(struct bus_type *bus,
@@ -1026,7 +1014,6 @@ void bus_sort_breadthfirst(struct bus_type *bus,
 	LIST_HEAD(sorted_devices);
 	struct list_head *pos, *tmp;
 	struct klist_node *n;
-	struct device_private *dev_prv;
 	struct device *dev;
 	struct klist *device_klist;
 
@@ -1035,8 +1022,7 @@ void bus_sort_breadthfirst(struct bus_type *bus,
 	spin_lock(&device_klist->k_lock);
 	list_for_each_safe(pos, tmp, &device_klist->k_list) {
 		n = container_of(pos, struct klist_node, n_node);
-		dev_prv = to_device_private_bus(n);
-		dev = dev_prv->device;
+		dev = container_of(n, struct device, knode_bus);
 		device_insertion_sort_klist(dev, &sorted_devices, compare);
 	}
 	list_splice(&sorted_devices, &device_klist->k_list);

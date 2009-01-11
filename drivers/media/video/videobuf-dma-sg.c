@@ -388,8 +388,7 @@ videobuf_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	page = alloc_page(GFP_USER | __GFP_DMA32);
 	if (!page)
 		return VM_FAULT_OOM;
-	clear_user_page(page_address(page), (unsigned long)vmf->virtual_address,
-			page);
+	clear_user_highpage(page, (unsigned long)vmf->virtual_address);
 	vmf->page = page;
 	return 0;
 }

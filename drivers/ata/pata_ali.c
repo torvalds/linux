@@ -19,7 +19,9 @@
  *
  *  TODO/CHECK
  *	Cannot have ATAPI on both master & slave for rev < c2 (???) but
- *	otherwise should do atapi DMA.
+ *	otherwise should do atapi DMA (For now for old we do PIO only for
+ *	ATAPI)
+ *	Review Sunblade workaround.
  */
 
 #include <linux/kernel.h>
@@ -33,11 +35,13 @@
 #include <linux/dmi.h>
 
 #define DRV_NAME "pata_ali"
-#define DRV_VERSION "0.7.5"
+#define DRV_VERSION "0.7.8"
 
 static int ali_atapi_dma = 0;
 module_param_named(atapi_dma, ali_atapi_dma, int, 0644);
 MODULE_PARM_DESC(atapi_dma, "Enable ATAPI DMA (0=disable, 1=enable)");
+
+static struct pci_dev *isa_bridge;
 
 /*
  *	Cable special cases
@@ -147,8 +151,7 @@ static void ali_fifo_control(struct ata_port *ap, struct ata_device *adev, int o
 
 	pci_read_config_byte(pdev, pio_fifo, &fifo);
 	fifo &= ~(0x0F << shift);
-	if (on)
-		fifo |= (on << shift);
+	fifo |= (on << shift);
 	pci_write_config_byte(pdev, pio_fifo, fifo);
 }
 
@@ -337,6 +340,23 @@ static int ali_check_atapi_dma(struct ata_queued_cmd *qc)
 	return 0;
 }
 
+static void ali_c2_c3_postreset(struct ata_link *link, unsigned int *classes)
+{
+	u8 r;
+	int port_bit = 4 << link->ap->port_no;
+
+	/* If our bridge is an ALI 1533 then do the extra work */
+	if (isa_bridge) {
+		/* Tristate and re-enable the bus signals */
+		pci_read_config_byte(isa_bridge, 0x58, &r);
+		r &= ~port_bit;
+		pci_write_config_byte(isa_bridge, 0x58, r);
+		r |= port_bit;
+		pci_write_config_byte(isa_bridge, 0x58, r);
+	}
+	ata_sff_postreset(link, classes);
+}
+
 static struct scsi_host_template ali_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
@@ -349,10 +369,11 @@ static struct ata_port_operations ali_early_port_ops = {
 	.inherits	= &ata_sff_port_ops,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= ali_set_piomode,
+	.sff_data_xfer  = ata_sff_data_xfer32,
 };
 
 static const struct ata_port_operations ali_dma_base_ops = {
-	.inherits	= &ata_bmdma_port_ops,
+	.inherits	= &ata_bmdma32_port_ops,
 	.set_piomode	= ali_set_piomode,
 	.set_dmamode	= ali_set_dmamode,
 };
@@ -373,6 +394,17 @@ static struct ata_port_operations ali_20_port_ops = {
  *	Port operations for DMA capable ALi with cable detect
  */
 static struct ata_port_operations ali_c2_port_ops = {
+	.inherits	= &ali_dma_base_ops,
+	.check_atapi_dma = ali_check_atapi_dma,
+	.cable_detect	= ali_c2_cable_detect,
+	.dev_config	= ali_lock_sectors,
+	.postreset	= ali_c2_c3_postreset,
+};
+
+/*
+ *	Port operations for DMA capable ALi with cable detect
+ */
+static struct ata_port_operations ali_c4_port_ops = {
 	.inherits	= &ali_dma_base_ops,
 	.check_atapi_dma = ali_check_atapi_dma,
 	.cable_detect	= ali_c2_cable_detect,
@@ -401,27 +433,40 @@ static struct ata_port_operations ali_c5_port_ops = {
 static void ali_init_chipset(struct pci_dev *pdev)
 {
 	u8 tmp;
-	struct pci_dev *north, *isa_bridge;
+	struct pci_dev *north;
 
 	/*
 	 * The chipset revision selects the driver operations and
 	 * mode data.
 	 */
 
-	if (pdev->revision >= 0x20 && pdev->revision < 0xC2) {
-		/* 1543-E/F, 1543C-C, 1543C-D, 1543C-E */
+	if (pdev->revision <= 0x20) {
+		pci_read_config_byte(pdev, 0x53, &tmp);
+		tmp |= 0x03;
+		pci_write_config_byte(pdev, 0x53, tmp);
+	} else {
+		pci_read_config_byte(pdev, 0x4a, &tmp);
+		pci_write_config_byte(pdev, 0x4a, tmp | 0x20);
 		pci_read_config_byte(pdev, 0x4B, &tmp);
-		/* Clear CD-ROM DMA write bit */
-		tmp &= 0x7F;
-		pci_write_config_byte(pdev, 0x4B, tmp);
-	} else if (pdev->revision >= 0xC2) {
-		/* Enable cable detection logic */
-		pci_read_config_byte(pdev, 0x4B, &tmp);
-		pci_write_config_byte(pdev, 0x4B, tmp | 0x08);
+		if (pdev->revision < 0xC2)
+			/* 1543-E/F, 1543C-C, 1543C-D, 1543C-E */
+			/* Clear CD-ROM DMA write bit */
+			tmp &= 0x7F;
+		/* Cable and UDMA */
+		pci_write_config_byte(pdev, 0x4B, tmp | 0x09);
+		/*
+		 * CD_ROM DMA on (0x53 bit 0). Enable this even if we want
+		 * to use PIO. 0x53 bit 1 (rev 20 only) - enable FIFO control
+		 * via 0x54/55.
+		 */
+		pci_read_config_byte(pdev, 0x53, &tmp);
+		if (pdev->revision >= 0xc7)
+			tmp |= 0x03;
+		else
+			tmp |= 0x01;	/* CD_ROM enable for DMA */
+		pci_write_config_byte(pdev, 0x53, tmp);
 	}
 	north = pci_get_bus_and_slot(0, PCI_DEVFN(0,0));
-	isa_bridge = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
-
 	if (north && north->vendor == PCI_VENDOR_ID_AL && isa_bridge) {
 		/* Configure the ALi bridge logic. For non ALi rely on BIOS.
 		   Set the south bridge enable bit */
@@ -431,22 +476,6 @@ static void ali_init_chipset(struct pci_dev *pdev)
 		else if (pdev->revision > 0xC2 && pdev->revision < 0xC5)
 			pci_write_config_byte(isa_bridge, 0x79, tmp | 0x02);
 	}
-	if (pdev->revision >= 0x20) {
-		/*
-		 * CD_ROM DMA on (0x53 bit 0). Enable this even if we want
-		 * to use PIO. 0x53 bit 1 (rev 20 only) - enable FIFO control
-		 * via 0x54/55.
-		 */
-		pci_read_config_byte(pdev, 0x53, &tmp);
-		if (pdev->revision <= 0x20)
-			tmp &= ~0x02;
-		if (pdev->revision >= 0xc7)
-			tmp |= 0x03;
-		else
-			tmp |= 0x01;	/* CD_ROM enable for DMA */
-		pci_write_config_byte(pdev, 0x53, tmp);
-	}
-	pci_dev_put(isa_bridge);
 	pci_dev_put(north);
 	ata_pci_bmdma_clear_simplex(pdev);
 }
@@ -503,7 +532,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.udma_mask = ATA_UDMA5,
-		.port_ops = &ali_c2_port_ops
+		.port_ops = &ali_c4_port_ops
 	};
 	/* Revision 0xC5 is UDMA133 with LBA48 DMA */
 	static const struct ata_port_info info_c5 = {
@@ -516,7 +545,6 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	const struct ata_port_info *ppi[] = { NULL, NULL };
 	u8 tmp;
-	struct pci_dev *isa_bridge;
 	int rc;
 
 	rc = pcim_enable_device(pdev);
@@ -543,14 +571,12 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ali_init_chipset(pdev);
 
-	isa_bridge = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
 	if (isa_bridge && pdev->revision >= 0x20 && pdev->revision < 0xC2) {
 		/* Are we paired with a UDMA capable chip */
 		pci_read_config_byte(isa_bridge, 0x5E, &tmp);
 		if ((tmp & 0x1E) == 0x12)
 	        	ppi[0] = &info_20_udma;
 	}
-	pci_dev_put(isa_bridge);
 
 	return ata_pci_sff_init_one(pdev, ppi, &ali_sht, NULL);
 }
@@ -590,13 +616,20 @@ static struct pci_driver ali_pci_driver = {
 
 static int __init ali_init(void)
 {
-	return pci_register_driver(&ali_pci_driver);
+	int ret;
+	isa_bridge = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
+
+	ret = pci_register_driver(&ali_pci_driver);
+	if (ret < 0)
+		pci_dev_put(isa_bridge);
+	return ret;
 }
 
 
 static void __exit ali_exit(void)
 {
 	pci_unregister_driver(&ali_pci_driver);
+	pci_dev_put(isa_bridge);
 }
 
 
