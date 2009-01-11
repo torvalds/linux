@@ -132,6 +132,8 @@ int __init early_irq_init(void)
 	int legacy_count;
 	int i;
 
+	printk(KERN_INFO "NR_IRQS:%d nr_irqs:%d\n", NR_IRQS, nr_irqs);
+
 	desc = irq_desc_legacy;
 	legacy_count = ARRAY_SIZE(irq_desc_legacy);
 
@@ -143,7 +145,7 @@ int __init early_irq_init(void)
 		irq_desc_ptrs[i] = desc + i;
 	}
 
-	for (i = legacy_count; i < NR_IRQS; i++)
+	for (i = legacy_count; i < nr_irqs; i++)
 		irq_desc_ptrs[i] = NULL;
 
 	return arch_early_irq_init();
@@ -151,7 +153,7 @@ int __init early_irq_init(void)
 
 struct irq_desc *irq_to_desc(unsigned int irq)
 {
-	return (irq < NR_IRQS) ? irq_desc_ptrs[irq] : NULL;
+	return (irq < nr_irqs) ? irq_desc_ptrs[irq] : NULL;
 }
 
 struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
@@ -160,9 +162,9 @@ struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
 	unsigned long flags;
 	int node;
 
-	if (irq >= NR_IRQS) {
-		printk(KERN_WARNING "irq >= NR_IRQS in irq_to_desc_alloc: %d %d\n",
-				irq, NR_IRQS);
+	if (irq >= nr_irqs) {
+		printk(KERN_WARNING "irq >= nr_irqs in irq_to_desc_alloc: %d %d\n",
+				irq, nr_irqs);
 		WARN_ON(1);
 		return NULL;
 	}
@@ -213,6 +215,8 @@ int __init early_irq_init(void)
 	struct irq_desc *desc;
 	int count;
 	int i;
+
+	printk(KERN_INFO "NR_IRQS:%d\n", NR_IRQS);
 
 	desc = irq_desc;
 	count = ARRAY_SIZE(irq_desc);

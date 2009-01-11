@@ -3183,7 +3183,7 @@ unsigned int create_irq_nr(unsigned int irq_want)
 
 	irq = 0;
 	spin_lock_irqsave(&vector_lock, flags);
-	for (new = irq_want; new < NR_IRQS; new++) {
+	for (new = irq_want; new < nr_irqs; new++) {
 		if (platform_legacy_irq(new))
 			continue;
 
