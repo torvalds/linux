@@ -17,6 +17,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/rculist.h>
 #include <linux/hash.h>
+#include <linux/bootmem.h>
 
 #include "internals.h"
 
@@ -110,7 +111,7 @@ static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
  */
 DEFINE_SPINLOCK(sparse_irq_lock);
 
-struct irq_desc *irq_desc_ptrs[NR_IRQS] __read_mostly;
+struct irq_desc **irq_desc_ptrs __read_mostly;
 
 static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS_LEGACY-1] = {
@@ -137,6 +138,9 @@ int __init early_irq_init(void)
 	desc = irq_desc_legacy;
 	legacy_count = ARRAY_SIZE(irq_desc_legacy);
 
+	/* allocate irq_desc_ptrs array based on nr_irqs */
+	irq_desc_ptrs = alloc_bootmem(nr_irqs * sizeof(void *));
+
 	for (i = 0; i < legacy_count; i++) {
 		desc[i].irq = i;
 		desc[i].kstat_irqs = kstat_irqs_legacy[i];
@@ -153,7 +157,10 @@ int __init early_irq_init(void)
 
 struct irq_desc *irq_to_desc(unsigned int irq)
 {
-	return (irq < nr_irqs) ? irq_desc_ptrs[irq] : NULL;
+	if (irq_desc_ptrs && irq < nr_irqs)
+		return irq_desc_ptrs[irq];
+
+	return NULL;
 }
 
 struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
