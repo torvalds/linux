@@ -1206,7 +1206,7 @@ zoran_open(struct file  *file)
 
 	lock_kernel();
 	/* find the device */
-	for (i = 0; i < zoran_num; i++) {
+	for (i = 0; i < atomic_read(&zoran_num); i++) {
 		if (zoran[i]->video_dev->minor == minor) {
 			zr = zoran[i];
 			break;
