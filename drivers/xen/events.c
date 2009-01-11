@@ -26,6 +26,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/bootmem.h>
 
 #include <asm/ptrace.h>
 #include <asm/irq.h>
@@ -831,8 +832,8 @@ void __init xen_init_IRQ(void)
 	int i;
 	size_t size = nr_cpu_ids * sizeof(struct cpu_evtchn_s);
 
-	cpu_evtchn_mask_p = kmalloc(size, GFP_KERNEL);
-	BUG_ON(cpu_evtchn_mask == NULL);
+	cpu_evtchn_mask_p = alloc_bootmem(size);
+	BUG_ON(cpu_evtchn_mask_p == NULL);
 
 	init_evtchn_cpu_bindings();
 
