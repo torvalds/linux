@@ -48,6 +48,7 @@
 #include <linux/dvb/audio.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-device.h>
 #include <media/tuner.h>
 #include "cx18-mailbox.h"
 #include "cx18-av-core.h"
@@ -386,6 +387,8 @@ struct cx18 {
 	int num;		/* board number, -1 during init! */
 	char name[8];		/* board name for printk and interrupts (e.g. 'cx180') */
 	struct pci_dev *pci_dev;
+	struct v4l2_device v4l2_dev;
+
 	const struct cx18_card *card;	/* card information */
 	const char *card_name;  /* full name of the card */
 	const struct cx18_card_tuner_i2c *card_i2c; /* i2c addresses to probe for tuner */

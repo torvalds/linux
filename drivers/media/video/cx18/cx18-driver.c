@@ -797,21 +797,28 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		return -ENOMEM;
 	}
 	cx18_cards[cx18_cards_active] = cx;
-	cx->pci_dev = pci_dev;
 	cx->num = cx18_cards_active++;
 	snprintf(cx->name, sizeof(cx->name), "cx18-%d", cx->num);
 	CX18_INFO("Initializing card #%d\n", cx->num);
 
 	spin_unlock(&cx18_cards_lock);
 
+	cx->pci_dev = pci_dev;
+	retval = v4l2_device_register(&pci_dev->dev, &cx->v4l2_dev);
+	if (retval) {
+		CX18_ERR("Call to v4l2_device_register() failed\n");
+		goto err;
+	}
+	CX18_DEBUG_INFO("registered v4l2_device name: %s\n", cx->v4l2_dev.name);
+
 	cx18_process_options(cx);
 	if (cx->options.cardtype == -1) {
 		retval = -ENODEV;
-		goto err;
+		goto unregister_v4l2;
 	}
 	if (cx18_init_struct1(cx)) {
 		retval = -ENOMEM;
-		goto err;
+		goto unregister_v4l2;
 	}
 
 	CX18_DEBUG_INFO("base addr: 0x%08x\n", cx->base_addr);
@@ -820,9 +827,6 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	retval = cx18_setup_pci(cx, pci_dev, pci_id);
 	if (retval != 0)
 		goto free_workqueue;
-
-	/* save cx in the pci struct for later use */
-	pci_set_drvdata(pci_dev, cx);
 
 	/* map io memory */
 	CX18_DEBUG_INFO("attempting ioremap at 0x%08x len 0x%08x\n",
@@ -1002,6 +1006,8 @@ free_mem:
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 free_workqueue:
 	destroy_workqueue(cx->work_queue);
+unregister_v4l2:
+	v4l2_device_unregister(&cx->v4l2_dev);
 err:
 	if (retval == 0)
 		retval = -ENODEV;
@@ -1106,7 +1112,8 @@ static void cx18_cancel_epu_work_orders(struct cx18 *cx)
 
 static void cx18_remove(struct pci_dev *pci_dev)
 {
-	struct cx18 *cx = pci_get_drvdata(pci_dev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
+	struct cx18 *cx = container_of(v4l2_dev, struct cx18, v4l2_dev);
 
 	CX18_DEBUG_INFO("Removing Card #%d\n", cx->num);
 
@@ -1136,6 +1143,8 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 
 	pci_disable_device(cx->pci_dev);
+
+	v4l2_device_unregister(v4l2_dev);
 
 	CX18_INFO("Removed %s, card #%d\n", cx->card_name, cx->num);
 }
