@@ -107,7 +107,7 @@ static int load_cpu_fw_direct(const char *fn, u8 __iomem *mem, struct cx18 *cx)
 	u32 __iomem *dst = (u32 __iomem *)mem;
 	const u32 *src;
 
-	if (request_firmware(&fw, fn, &cx->dev->dev)) {
+	if (request_firmware(&fw, fn, &cx->pci_dev->dev)) {
 		CX18_ERR("Unable to open firmware %s\n", fn);
 		CX18_ERR("Did you put the firmware in the hotplug firmware directory?\n");
 		return -ENOMEM;
@@ -151,7 +151,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 	u32 apu_version = 0;
 	int sz;
 
-	if (request_firmware(&fw, fn, &cx->dev->dev)) {
+	if (request_firmware(&fw, fn, &cx->pci_dev->dev)) {
 		CX18_ERR("unable to open firmware %s\n", fn);
 		CX18_ERR("did you put the firmware in the hotplug firmware directory?\n");
 		cx18_setup_page(cx, 0);

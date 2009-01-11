@@ -36,7 +36,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 	int i;
 	int retries1 = 0;
 
-	if (request_firmware(&fw, FWFILE, &cx->dev->dev) != 0) {
+	if (request_firmware(&fw, FWFILE, &cx->pci_dev->dev) != 0) {
 		CX18_ERR("unable to open firmware %s\n", FWFILE);
 		return -EINVAL;
 	}

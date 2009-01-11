@@ -502,7 +502,7 @@ static void cx18_process_options(struct cx18 *cx)
 	else if (cx->options.cardtype != 0)
 		CX18_ERR("Unknown user specified type, trying to autodetect card\n");
 	if (cx->card == NULL) {
-		if (cx->dev->subsystem_vendor == CX18_PCI_ID_HAUPPAUGE) {
+		if (cx->pci_dev->subsystem_vendor == CX18_PCI_ID_HAUPPAUGE) {
 			cx->card = cx18_get_card(CX18_CARD_HVR_1600_ESMT);
 			CX18_INFO("Autodetected Hauppauge card\n");
 		}
@@ -512,13 +512,13 @@ static void cx18_process_options(struct cx18 *cx)
 			if (cx->card->pci_list == NULL)
 				continue;
 			for (j = 0; cx->card->pci_list[j].device; j++) {
-				if (cx->dev->device !=
+				if (cx->pci_dev->device !=
 				    cx->card->pci_list[j].device)
 					continue;
-				if (cx->dev->subsystem_vendor !=
+				if (cx->pci_dev->subsystem_vendor !=
 				    cx->card->pci_list[j].subsystem_vendor)
 					continue;
-				if (cx->dev->subsystem_device !=
+				if (cx->pci_dev->subsystem_device !=
 				    cx->card->pci_list[j].subsystem_device)
 					continue;
 				CX18_INFO("Autodetected %s card\n", cx->card->name);
@@ -531,9 +531,10 @@ done:
 	if (cx->card == NULL) {
 		cx->card = cx18_get_card(CX18_CARD_HVR_1600_ESMT);
 		CX18_ERR("Unknown card: vendor/device: [%04x:%04x]\n",
-		     cx->dev->vendor, cx->dev->device);
+			 cx->pci_dev->vendor, cx->pci_dev->device);
 		CX18_ERR("              subsystem vendor/device: [%04x:%04x]\n",
-		     cx->dev->subsystem_vendor, cx->dev->subsystem_device);
+			 cx->pci_dev->subsystem_vendor,
+			 cx->pci_dev->subsystem_device);
 		CX18_ERR("Defaulting to %s card\n", cx->card->name);
 		CX18_ERR("Please mail the vendor/device and subsystem vendor/device IDs and what kind of\n");
 		CX18_ERR("card you have to the ivtv-devel mailinglist (www.ivtvdriver.org)\n");
@@ -553,7 +554,7 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 {
 	int i;
 
-	cx->base_addr = pci_resource_start(cx->dev, 0);
+	cx->base_addr = pci_resource_start(cx->pci_dev, 0);
 
 	mutex_init(&cx->serialize_lock);
 	mutex_init(&cx->i2c_bus_lock[0]);
@@ -676,7 +677,7 @@ static void __devinit cx18_init_struct2(struct cx18 *cx)
 	cx->av_state.vbi_line_offset = 8;
 }
 
-static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *dev,
+static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,
 			  const struct pci_device_id *pci_id)
 {
 	u16 cmd;
@@ -684,11 +685,11 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *dev,
 
 	CX18_DEBUG_INFO("Enabling pci device\n");
 
-	if (pci_enable_device(dev)) {
+	if (pci_enable_device(pci_dev)) {
 		CX18_ERR("Can't enable device %d!\n", cx->num);
 		return -EIO;
 	}
-	if (pci_set_dma_mask(dev, 0xffffffff)) {
+	if (pci_set_dma_mask(pci_dev, 0xffffffff)) {
 		CX18_ERR("No suitable DMA available on card %d.\n", cx->num);
 		return -EIO;
 	}
@@ -698,25 +699,25 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *dev,
 	}
 
 	/* Enable bus mastering and memory mapped IO for the CX23418 */
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	pci_read_config_word(pci_dev, PCI_COMMAND, &cmd);
 	cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
-	pci_write_config_word(dev, PCI_COMMAND, cmd);
+	pci_write_config_word(pci_dev, PCI_COMMAND, cmd);
 
-	pci_read_config_byte(dev, PCI_CLASS_REVISION, &cx->card_rev);
-	pci_read_config_byte(dev, PCI_LATENCY_TIMER, &pci_latency);
+	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &cx->card_rev);
+	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER, &pci_latency);
 
 	if (pci_latency < 64 && cx18_pci_latency) {
 		CX18_INFO("Unreasonably low latency timer, "
 			       "setting to 64 (was %d)\n", pci_latency);
-		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 64);
-		pci_read_config_byte(dev, PCI_LATENCY_TIMER, &pci_latency);
+		pci_write_config_byte(pci_dev, PCI_LATENCY_TIMER, 64);
+		pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER, &pci_latency);
 	}
 
 	CX18_DEBUG_INFO("cx%d (rev %d) at %02x:%02x.%x, "
 		   "irq: %d, latency: %d, memory: 0x%lx\n",
-		   cx->dev->device, cx->card_rev, dev->bus->number,
-		   PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn),
-		   cx->dev->irq, pci_latency, (unsigned long)cx->base_addr);
+		   cx->pci_dev->device, cx->card_rev, pci_dev->bus->number,
+		   PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn),
+		   cx->pci_dev->irq, pci_latency, (unsigned long)cx->base_addr);
 
 	return 0;
 }
@@ -771,7 +772,7 @@ static void cx18_load_and_init_modules(struct cx18 *cx)
 	hw = cx->hw_flags;
 }
 
-static int __devinit cx18_probe(struct pci_dev *dev,
+static int __devinit cx18_probe(struct pci_dev *pci_dev,
 				const struct pci_device_id *pci_id)
 {
 	int retval = 0;
@@ -796,7 +797,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 		return -ENOMEM;
 	}
 	cx18_cards[cx18_cards_active] = cx;
-	cx->dev = dev;
+	cx->pci_dev = pci_dev;
 	cx->num = cx18_cards_active++;
 	snprintf(cx->name, sizeof(cx->name), "cx18-%d", cx->num);
 	CX18_INFO("Initializing card #%d\n", cx->num);
@@ -816,12 +817,12 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	CX18_DEBUG_INFO("base addr: 0x%08x\n", cx->base_addr);
 
 	/* PCI Device Setup */
-	retval = cx18_setup_pci(cx, dev, pci_id);
+	retval = cx18_setup_pci(cx, pci_dev, pci_id);
 	if (retval != 0)
 		goto free_workqueue;
 
 	/* save cx in the pci struct for later use */
-	pci_set_drvdata(dev, cx);
+	pci_set_drvdata(pci_dev, cx);
 
 	/* map io memory */
 	CX18_DEBUG_INFO("attempting ioremap at 0x%08x len 0x%08x\n",
@@ -881,7 +882,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	cx18_init_scb(cx);
 
 	/* Register IRQ */
-	retval = request_irq(cx->dev->irq, cx18_irq_handler,
+	retval = request_irq(cx->pci_dev->irq, cx18_irq_handler,
 			     IRQF_SHARED | IRQF_DISABLED, cx->name, (void *)cx);
 	if (retval) {
 		CX18_ERR("Failed to register irq %d\n", retval);
@@ -992,7 +993,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 free_streams:
 	cx18_streams_cleanup(cx, 1);
 free_irq:
-	free_irq(cx->dev->irq, (void *)cx);
+	free_irq(cx->pci_dev->irq, (void *)cx);
 free_i2c:
 	exit_cx18_i2c(cx);
 free_map:
@@ -1128,13 +1129,13 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	exit_cx18_i2c(cx);
 
-	free_irq(cx->dev->irq, (void *)cx);
+	free_irq(cx->pci_dev->irq, (void *)cx);
 
 	cx18_iounmap(cx);
 
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 
-	pci_disable_device(cx->dev);
+	pci_disable_device(cx->pci_dev);
 
 	CX18_INFO("Removed %s, card #%d\n", cx->card_name, cx->num);
 }

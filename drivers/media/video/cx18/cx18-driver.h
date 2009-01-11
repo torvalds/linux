@@ -279,7 +279,7 @@ struct cx18_epu_work_order {
 struct cx18_stream {
 	/* These first four fields are always set, even if the stream
 	   is not actually created. */
-	struct video_device *v4l2dev;	/* NULL when stream not created */
+	struct video_device *video_dev;	/* NULL when stream not created */
 	struct cx18 *cx; 		/* for ease of use */
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
@@ -385,7 +385,7 @@ struct cx18_i2c_algo_callback_data {
 struct cx18 {
 	int num;		/* board number, -1 during init! */
 	char name[8];		/* board name for printk and interrupts (e.g. 'cx180') */
-	struct pci_dev *dev;	/* PCI device */
+	struct pci_dev *pci_dev;
 	const struct cx18_card *card;	/* card information */
 	const char *card_name;  /* full name of the card */
 	const struct cx18_card_tuner_i2c *card_i2c; /* i2c addresses to probe for tuner */

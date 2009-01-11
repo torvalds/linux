@@ -335,7 +335,8 @@ static int cx18_querycap(struct file *file, void *fh,
 
 	strlcpy(vcap->driver, CX18_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, cx->card_name, sizeof(vcap->card));
-	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(cx->dev));
+	snprintf(vcap->bus_info, sizeof(vcap->bus_info),
+		 "PCI:%s", pci_name(cx->pci_dev));
 	vcap->version = CX18_DRIVER_VERSION; 	    /* version */
 	vcap->capabilities = cx->v4l2_cap; 	    /* capabilities */
 	return 0;
@@ -732,7 +733,7 @@ static int cx18_log_status(struct file *file, void *fh)
 	for (i = 0; i < CX18_MAX_STREAMS; i++) {
 		struct cx18_stream *s = &cx->streams[i];
 
-		if (s->v4l2dev == NULL || s->buffers == 0)
+		if (s->video_dev == NULL || s->buffers == 0)
 			continue;
 		CX18_INFO("Stream %s: status 0x%04lx, %d%% of %d KiB (%d buffers) in use\n",
 			  s->name, s->s_flags,

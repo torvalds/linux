@@ -366,7 +366,7 @@ int init_cx18_i2c(struct cx18 *cx)
 		sprintf(cx->i2c_client[i].name +
 				strlen(cx->i2c_client[i].name), "%d", i);
 		cx->i2c_client[i].adapter = &cx->i2c_adap[i];
-		cx->i2c_adap[i].dev.parent = &cx->dev->dev;
+		cx->i2c_adap[i].dev.parent = &cx->pci_dev->dev;
 	}
 
 	if (cx18_read_reg(cx, CX18_REG_I2C_2_WR) != 0x0003c02f) {

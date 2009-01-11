@@ -665,7 +665,7 @@ int cx18_v4l2_open(struct file *filp)
 			if (cx18_cards[x] == NULL)
 				continue;
 			s = &cx18_cards[x]->streams[y];
-			if (s->v4l2dev && s->v4l2dev->minor == minor) {
+			if (s->video_dev && s->video_dev->minor == minor) {
 				cx = cx18_cards[x];
 				break;
 			}

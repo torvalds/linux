@@ -101,11 +101,11 @@ static struct {
 static void cx18_stream_init(struct cx18 *cx, int type)
 {
 	struct cx18_stream *s = &cx->streams[type];
-	struct video_device *dev = s->v4l2dev;
+	struct video_device *video_dev = s->video_dev;
 
-	/* we need to keep v4l2dev, so restore it afterwards */
+	/* we need to keep video_dev, so restore it afterwards */
 	memset(s, 0, sizeof(*s));
-	s->v4l2dev = dev;
+	s->video_dev = video_dev;
 
 	/* initialize cx18_stream fields */
 	s->cx = cx;
@@ -132,10 +132,10 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	int num_offset = cx18_stream_info[type].num_offset;
 	int num = cx->num + cx18_first_minor + num_offset;
 
-	/* These four fields are always initialized. If v4l2dev == NULL, then
+	/* These four fields are always initialized. If video_dev == NULL, then
 	   this stream is not in use. In that case no other fields but these
 	   four can be used. */
-	s->v4l2dev = NULL;
+	s->video_dev = NULL;
 	s->cx = cx;
 	s->type = type;
 	s->name = cx18_stream_info[type].name;
@@ -163,22 +163,22 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 		return 0;
 
 	/* allocate and initialize the v4l2 video device structure */
-	s->v4l2dev = video_device_alloc();
-	if (s->v4l2dev == NULL) {
+	s->video_dev = video_device_alloc();
+	if (s->video_dev == NULL) {
 		CX18_ERR("Couldn't allocate v4l2 video_device for %s\n",
 				s->name);
 		return -ENOMEM;
 	}
 
-	snprintf(s->v4l2dev->name, sizeof(s->v4l2dev->name), "cx18-%d",
+	snprintf(s->video_dev->name, sizeof(s->video_dev->name), "cx18-%d",
 			cx->num);
 
-	s->v4l2dev->num = num;
-	s->v4l2dev->parent = &cx->dev->dev;
-	s->v4l2dev->fops = &cx18_v4l2_enc_fops;
-	s->v4l2dev->release = video_device_release;
-	s->v4l2dev->tvnorms = V4L2_STD_ALL;
-	cx18_set_funcs(s->v4l2dev);
+	s->video_dev->num = num;
+	s->video_dev->parent = &cx->pci_dev->dev;
+	s->video_dev->fops = &cx18_v4l2_enc_fops;
+	s->video_dev->release = video_device_release;
+	s->video_dev->tvnorms = V4L2_STD_ALL;
+	cx18_set_funcs(s->video_dev);
 	return 0;
 }
 
@@ -227,28 +227,29 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 		}
 	}
 
-	if (s->v4l2dev == NULL)
+	if (s->video_dev == NULL)
 		return 0;
 
-	num = s->v4l2dev->num;
+	num = s->video_dev->num;
 	/* card number + user defined offset + device offset */
 	if (type != CX18_ENC_STREAM_TYPE_MPG) {
 		struct cx18_stream *s_mpg = &cx->streams[CX18_ENC_STREAM_TYPE_MPG];
 
-		if (s_mpg->v4l2dev)
-			num = s_mpg->v4l2dev->num + cx18_stream_info[type].num_offset;
+		if (s_mpg->video_dev)
+			num = s_mpg->video_dev->num
+			    + cx18_stream_info[type].num_offset;
 	}
 
 	/* Register device. First try the desired minor, then any free one. */
-	ret = video_register_device(s->v4l2dev, vfl_type, num);
+	ret = video_register_device(s->video_dev, vfl_type, num);
 	if (ret < 0) {
 		CX18_ERR("Couldn't register v4l2 device for %s kernel number %d\n",
 			s->name, num);
-		video_device_release(s->v4l2dev);
-		s->v4l2dev = NULL;
+		video_device_release(s->video_dev);
+		s->video_dev = NULL;
 		return ret;
 	}
-	num = s->v4l2dev->num;
+	num = s->video_dev->num;
 
 	switch (vfl_type) {
 	case VFL_TYPE_GRABBER:
@@ -312,9 +313,9 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 			cx->streams[type].dvb.enabled = false;
 		}
 
-		vdev = cx->streams[type].v4l2dev;
+		vdev = cx->streams[type].video_dev;
 
-		cx->streams[type].v4l2dev = NULL;
+		cx->streams[type].video_dev = NULL;
 		if (vdev == NULL)
 			continue;
 
@@ -437,7 +438,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	int ts = 0;
 	int captype = 0;
 
-	if (s->v4l2dev == NULL && s->dvb.enabled == 0)
+	if (s->video_dev == NULL && s->dvb.enabled == 0)
 		return -EINVAL;
 
 	CX18_DEBUG_INFO("Start encoder stream %s\n", s->name);
@@ -565,7 +566,7 @@ void cx18_stop_all_captures(struct cx18 *cx)
 	for (i = CX18_MAX_STREAMS - 1; i >= 0; i--) {
 		struct cx18_stream *s = &cx->streams[i];
 
-		if (s->v4l2dev == NULL && s->dvb.enabled == 0)
+		if (s->video_dev == NULL && s->dvb.enabled == 0)
 			continue;
 		if (test_bit(CX18_F_S_STREAMING, &s->s_flags))
 			cx18_stop_v4l2_encode_stream(s, 0);
@@ -577,7 +578,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 	struct cx18 *cx = s->cx;
 	unsigned long then;
 
-	if (s->v4l2dev == NULL && s->dvb.enabled == 0)
+	if (s->video_dev == NULL && s->dvb.enabled == 0)
 		return -EINVAL;
 
 	/* This function assumes that you are allowed to stop the capture
@@ -629,7 +630,7 @@ u32 cx18_find_handle(struct cx18 *cx)
 	for (i = 0; i < CX18_MAX_STREAMS; i++) {
 		struct cx18_stream *s = &cx->streams[i];
 
-		if (s->v4l2dev && (s->handle != CX18_INVALID_TASK_HANDLE))
+		if (s->video_dev && (s->handle != CX18_INVALID_TASK_HANDLE))
 			return s->handle;
 	}
 	return CX18_INVALID_TASK_HANDLE;
@@ -647,7 +648,7 @@ struct cx18_stream *cx18_handle_to_stream(struct cx18 *cx, u32 handle)
 		s = &cx->streams[i];
 		if (s->handle != handle)
 			continue;
-		if (s->v4l2dev || s->dvb.enabled)
+		if (s->video_dev || s->dvb.enabled)
 			return s;
 	}
 	return NULL;
