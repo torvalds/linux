@@ -81,7 +81,7 @@ Sun Sep 24 21:30 2000 Gerard Roudier (groudier@club-internet.fr)
 
 Wed Jul 26 23:30 2000 Gerard Roudier (groudier@club-internet.fr)
 	* version sym53c8xx-1.7.1
-	- Provide OpenFirmare path through the proc FS on PPC.
+	- Provide OpenFirmware path through the proc FS on PPC.
 	- Download of on-chip SRAM using memcpy_toio() doesn't work 
 	  on PPC. Restore previous method (MEMORY MOVE from SCRIPTS).
 	- Remove trailing argument #2 from a couple of #undefs.

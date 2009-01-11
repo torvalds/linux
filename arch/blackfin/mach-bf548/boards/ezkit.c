@@ -45,6 +45,7 @@
 #include <asm/nand.h>
 #include <asm/dpmc.h>
 #include <asm/portmux.h>
+#include <asm/bfin_sdh.h>
 #include <mach/bf54x_keys.h>
 #include <linux/input.h>
 #include <linux/spi/ad7877.h>
@@ -52,16 +53,16 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "ADSP-BF548-EZKIT";
+const char bfin_board_name[] = "ADI BF548-EZKIT";
 
 /*
  *  Driver needs to know address, irq and flag pin.
  */
 
 #if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
-static struct resource bfin_isp1761_resources[] = {
+#include <linux/usb/isp1760.h>
+static struct resource bfin_isp1760_resources[] = {
 	[0] = {
-		.name	= "isp1761-regs",
 		.start  = 0x2C0C0000,
 		.end    = 0x2C0C0000 + 0xfffff,
 		.flags  = IORESOURCE_MEM,
@@ -73,32 +74,25 @@ static struct resource bfin_isp1761_resources[] = {
 	},
 };
 
-static struct platform_device bfin_isp1761_device = {
-	.name           = "isp1761",
+static struct isp1760_platform_data isp1760_priv = {
+	.is_isp1761 = 0,
+	.port1_disable = 0,
+	.bus_width_16 = 1,
+	.port1_otg = 0,
+	.analog_oc = 0,
+	.dack_polarity_high = 0,
+	.dreq_polarity_high = 0,
+};
+
+static struct platform_device bfin_isp1760_device = {
+	.name           = "isp1760-hcd",
 	.id             = 0,
-	.num_resources  = ARRAY_SIZE(bfin_isp1761_resources),
-	.resource       = bfin_isp1761_resources,
+	.dev = {
+		.platform_data = &isp1760_priv,
+	},
+	.num_resources  = ARRAY_SIZE(bfin_isp1760_resources),
+	.resource       = bfin_isp1760_resources,
 };
-
-static struct platform_device *bfin_isp1761_devices[] = {
-	&bfin_isp1761_device,
-};
-
-int __init bfin_isp1761_init(void)
-{
-	unsigned int num_devices = ARRAY_SIZE(bfin_isp1761_devices);
-
-	printk(KERN_INFO "%s(): registering device resources\n", __func__);
-	set_irq_type(bfin_isp1761_resources[1].start, IRQF_TRIGGER_FALLING);
-
-	return platform_add_devices(bfin_isp1761_devices, num_devices);
-}
-
-void __exit bfin_isp1761_exit(void)
-{
-	platform_device_unregister(&bfin_isp1761_device);
-}
-arch_initcall(bfin_isp1761_init);
 #endif
 
 #if defined(CONFIG_FB_BF54X_LQ043) || defined(CONFIG_FB_BF54X_LQ043_MODULE)
@@ -262,43 +256,106 @@ static struct platform_device bfin_uart_device = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-static struct resource bfin_sir_resources[] = {
 #ifdef CONFIG_BFIN_SIR0
+static struct resource bfin_sir0_resources[] = {
 	{
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART0_RX,
+		.end = IRQ_UART0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART0_RX,
+		.end = CH_UART0_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+static struct platform_device bfin_sir0_device = {
+	.name = "bfin_sir",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sir0_resources),
+	.resource = bfin_sir0_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR1
+static struct resource bfin_sir1_resources[] = {
 	{
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART1_RX,
+		.end = IRQ_UART1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART1_RX,
+		.end = CH_UART1_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+static struct platform_device bfin_sir1_device = {
+	.name = "bfin_sir",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_sir1_resources),
+	.resource = bfin_sir1_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR2
+static struct resource bfin_sir2_resources[] = {
 	{
 		.start = 0xFFC02100,
 		.end = 0xFFC021FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART2_RX,
+		.end = IRQ_UART2_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART2_RX,
+		.end = CH_UART2_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+static struct platform_device bfin_sir2_device = {
+	.name = "bfin_sir",
+	.id = 2,
+	.num_resources = ARRAY_SIZE(bfin_sir2_resources),
+	.resource = bfin_sir2_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR3
+static struct resource bfin_sir3_resources[] = {
 	{
 		.start = 0xFFC03100,
 		.end = 0xFFC031FF,
 		.flags = IORESOURCE_MEM,
 	},
-#endif
+	{
+		.start = IRQ_UART3_RX,
+		.end = IRQ_UART3_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART3_RX,
+		.end = CH_UART3_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
 };
-
-static struct platform_device bfin_sir_device = {
+static struct platform_device bfin_sir3_device = {
 	.name = "bfin_sir",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(bfin_sir_resources),
-	.resource = bfin_sir_resources,
+	.id = 3,
+	.num_resources = ARRAY_SIZE(bfin_sir3_resources),
+	.resource = bfin_sir3_resources,
 };
+#endif
 #endif
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
@@ -347,8 +404,8 @@ static struct musb_hdrc_config musb_config = {
 	.dyn_fifo	= 0,
 	.soft_con	= 1,
 	.dma		= 1,
-	.num_eps	= 7,
-	.dma_channels	= 7,
+	.num_eps	= 8,
+	.dma_channels	= 8,
 	.gpio_vrsel	= GPIO_PE7,
 };
 
@@ -448,9 +505,19 @@ static struct platform_device bf5xx_nand_device = {
 #endif
 
 #if defined(CONFIG_SDH_BFIN) || defined(CONFIG_SDH_BFIN_MODULE)
+
+static struct bfin_sd_host bfin_sdh_data = {
+	.dma_chan = CH_SDH,
+	.irq_int0 = IRQ_SDH_MASK0,
+	.pin_req = {P_SD_D0, P_SD_D1, P_SD_D2, P_SD_D3, P_SD_CLK, P_SD_CMD, 0},
+};
+
 static struct platform_device bf54x_sdh_device = {
 	.name = "bfin-sdh",
 	.id = 0,
+	.dev = {
+		.platform_data = &bfin_sdh_data,
+	},
 };
 #endif
 
@@ -589,7 +656,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 {
 	.modalias		= "ad7877",
 	.platform_data		= &bfin_ad7877_ts_info,
-	.irq			= IRQ_PJ11,	/* newer boards (Rev 1.4+) use IRQ_PB4 */
+	.irq			= IRQ_PB4,	/* old boards (<=Rev 1.3) use IRQ_PJ11 */
 	.max_speed_hz		= 12500000,     /* max spi clock (SCK) speed in HZ */
 	.bus_num		= 0,
 	.chip_select  		= 2,
@@ -812,7 +879,18 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-	&bfin_sir_device,
+#ifdef CONFIG_BFIN_SIR0
+	&bfin_sir0_device,
+#endif
+#ifdef CONFIG_BFIN_SIR1
+	&bfin_sir1_device,
+#endif
+#ifdef CONFIG_BFIN_SIR2
+	&bfin_sir2_device,
+#endif
+#ifdef CONFIG_BFIN_SIR3
+	&bfin_sir3_device,
+#endif
 #endif
 
 #if defined(CONFIG_FB_BF54X_LQ043) || defined(CONFIG_FB_BF54X_LQ043_MODULE)
@@ -825,6 +903,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 	&musb_device,
+#endif
+
+#if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
+	&bfin_isp1760_device,
 #endif
 
 #if defined(CONFIG_PATA_BF54X) || defined(CONFIG_PATA_BF54X_MODULE)

@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/string.h>
-#include <linux/unwind.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/kexec.h>
@@ -51,7 +50,6 @@
 #include <asm/debugreg.h>
 #include <asm/atomic.h>
 #include <asm/system.h>
-#include <asm/unwind.h>
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
@@ -65,9 +63,6 @@
 #else
 #include <asm/processor-flags.h>
 #include <asm/arch_hooks.h>
-#include <asm/nmi.h>
-#include <asm/smp.h>
-#include <asm/io.h>
 #include <asm/traps.h>
 
 #include "cpu/mcheck/mce.h"

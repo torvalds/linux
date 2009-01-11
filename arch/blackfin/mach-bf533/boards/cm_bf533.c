@@ -219,6 +219,19 @@ static struct platform_device smc91x_device = {
 };
 #endif
 
+static struct resource bfin_gpios_resources = {
+	.start = 0,
+	.end   = MAX_BLACKFIN_GPIOS - 1,
+	.flags = IORESOURCE_IRQ,
+};
+
+static struct platform_device bfin_gpios_device = {
+	.name = "simple-gpio",
+	.id = -1,
+	.num_resources = 1,
+	.resource = &bfin_gpios_resources,
+};
+
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 static struct resource bfin_uart_resources[] = {
 	{
@@ -237,22 +250,32 @@ static struct platform_device bfin_uart_device = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-static struct resource bfin_sir_resources[] = {
 #ifdef CONFIG_BFIN_SIR0
+static struct resource bfin_sir0_resources[] = {
 	{
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
 	},
-#endif
+	{
+		.start = IRQ_UART0_RX,
+		.end = IRQ_UART0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART0_RX,
+		.end = CH_UART0_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
 };
 
-static struct platform_device bfin_sir_device = {
+static struct platform_device bfin_sir0_device = {
 	.name = "bfin_sir",
 	.id = 0,
-	.num_resources = ARRAY_SIZE(bfin_sir_resources),
-	.resource = bfin_sir_resources,
+	.num_resources = ARRAY_SIZE(bfin_sir0_resources),
+	.resource = bfin_sir0_resources,
 };
+#endif
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
@@ -342,7 +365,9 @@ static struct platform_device *cm_bf533_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-	&bfin_sir_device,
+#ifdef CONFIG_BFIN_SIR0
+	&bfin_sir0_device,
+#endif
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
@@ -365,6 +390,8 @@ static struct platform_device *cm_bf533_devices[] __initdata = {
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	&bfin_spi0_device,
 #endif
+
+	&bfin_gpios_device,
 };
 
 static int __init cm_bf533_init(void)

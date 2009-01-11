@@ -24,7 +24,7 @@ extern struct atmel_lcdfb_info mimc200_lcdc_data;
 #include <video/atmel_lcdc.h>
 #include <linux/fb.h>
 
-#include <asm/atmel-mci.h>
+#include <linux/atmel-mci.h>
 #include <linux/io.h>
 #include <asm/setup.h>
 
@@ -206,8 +206,6 @@ static int __init mimc200_init(void)
 	 * MIMC200 uses 16-bit SDRAM interface, so we don't need to
 	 * reserve any pins for it.
 	 */
-
-	at32_add_system_devices();
 
 	at32_add_device_usart(0);
 	at32_add_device_usart(1);

@@ -482,7 +482,7 @@ static void n2rng_dump_test_buffer(struct n2rng *np)
 	int i;
 
 	for (i = 0; i < SELFTEST_BUFFER_WORDS; i++)
-		dev_err(&np->op->dev, "Test buffer slot %d [0x%016lx]\n",
+		dev_err(&np->op->dev, "Test buffer slot %d [0x%016llx]\n",
 			i, np->test_buffer[i]);
 }
 

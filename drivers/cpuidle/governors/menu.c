@@ -15,12 +15,14 @@
 #include <linux/tick.h>
 
 #define BREAK_FUZZ	4	/* 4 us */
+#define PRED_HISTORY_PCT	50
 
 struct menu_device {
 	int		last_state_idx;
 
 	unsigned int	expected_us;
 	unsigned int	predicted_us;
+	unsigned int    current_predicted_us;
 	unsigned int	last_measured_us;
 	unsigned int	elapsed_us;
 };
@@ -46,6 +48,12 @@ static int menu_select(struct cpuidle_device *dev)
 	/* determine the expected residency time */
 	data->expected_us =
 		(u32) ktime_to_ns(tick_nohz_get_sleep_length()) / 1000;
+
+	/* Recalculate predicted_us based on prediction_history_pct */
+	data->predicted_us *= PRED_HISTORY_PCT;
+	data->predicted_us += (100 - PRED_HISTORY_PCT) *
+				data->current_predicted_us;
+	data->predicted_us /= 100;
 
 	/* find the deepest idle state that satisfies our constraints */
 	for (i = CPUIDLE_DRIVER_STATE_START + 1; i < dev->state_count; i++) {
@@ -97,7 +105,7 @@ static void menu_reflect(struct cpuidle_device *dev)
 		measured_us = -1;
 
 	/* Predict time until next break event */
-	data->predicted_us = max(measured_us, data->last_measured_us);
+	data->current_predicted_us = max(measured_us, data->last_measured_us);
 
 	if (last_idle_us + BREAK_FUZZ <
 	    data->expected_us - target->exit_latency) {

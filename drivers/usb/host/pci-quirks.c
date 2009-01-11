@@ -172,9 +172,9 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	if (!mmio_resource_enabled(pdev, 0))
 		return;
 
-	base = ioremap_nocache(pci_resource_start(pdev, 0),
-				     pci_resource_len(pdev, 0));
-	if (base == NULL) return;
+	base = pci_ioremap_bar(pdev, 0);
+	if (base == NULL)
+		return;
 
 /* On PA-RISC, PDC can leave IR set incorrectly; ignore it there. */
 #ifndef __hppa__
@@ -221,9 +221,9 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 	if (!mmio_resource_enabled(pdev, 0))
 		return;
 
-	base = ioremap_nocache(pci_resource_start(pdev, 0),
-				pci_resource_len(pdev, 0));
-	if (base == NULL) return;
+	base = pci_ioremap_bar(pdev, 0);
+	if (base == NULL)
+		return;
 
 	cap_length = readb(base);
 	op_reg_base = base + cap_length;
@@ -271,7 +271,7 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 			/* if boot firmware now owns EHCI, spin till
 			 * it hands it over.
 			 */
-			msec = 5000;
+			msec = 1000;
 			while ((cap & EHCI_USBLEGSUP_BIOS) && (msec > 0)) {
 				tried_handoff = 1;
 				msleep(10);

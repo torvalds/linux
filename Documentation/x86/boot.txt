@@ -44,7 +44,7 @@ Protocol 2.07:	(Kernel 2.6.24) Added paravirtualised boot protocol.
 		and KEEP_SEGMENTS flag in load_flags.
 
 Protocol 2.08:	(Kernel 2.6.26) Added crc32 checksum and ELF format
-		payload. Introduced payload_offset and payload length
+		payload. Introduced payload_offset and payload_length
 		fields to aid in locating the payload.
 
 Protocol 2.09:	(Kernel 2.6.26) Added a field of 64-bit physical

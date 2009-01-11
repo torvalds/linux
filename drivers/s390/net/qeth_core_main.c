@@ -24,7 +24,6 @@
 
 #include <asm/ebcdic.h>
 #include <asm/io.h>
-#include <asm/s390_rdev.h>
 
 #include "qeth_core.h"
 #include "qeth_core_offl.h"
@@ -4525,7 +4524,7 @@ static int __init qeth_core_init(void)
 				&driver_attr_group);
 	if (rc)
 		goto driver_err;
-	qeth_core_root_dev = s390_root_dev_register("qeth");
+	qeth_core_root_dev = root_device_register("qeth");
 	rc = IS_ERR(qeth_core_root_dev) ? PTR_ERR(qeth_core_root_dev) : 0;
 	if (rc)
 		goto register_err;
@@ -4539,7 +4538,7 @@ static int __init qeth_core_init(void)
 
 	return 0;
 slab_err:
-	s390_root_dev_unregister(qeth_core_root_dev);
+	root_device_unregister(qeth_core_root_dev);
 register_err:
 	driver_remove_file(&qeth_core_ccwgroup_driver.driver,
 			   &driver_attr_group);
@@ -4557,7 +4556,7 @@ out_err:
 
 static void __exit qeth_core_exit(void)
 {
-	s390_root_dev_unregister(qeth_core_root_dev);
+	root_device_unregister(qeth_core_root_dev);
 	driver_remove_file(&qeth_core_ccwgroup_driver.driver,
 			   &driver_attr_group);
 	ccwgroup_driver_unregister(&qeth_core_ccwgroup_driver);

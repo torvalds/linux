@@ -280,7 +280,7 @@ static int ubi_sysfs_init(struct ubi_device *ubi)
 	ubi->dev.release = dev_release;
 	ubi->dev.devt = ubi->cdev.dev;
 	ubi->dev.class = ubi_class;
-	sprintf(&ubi->dev.bus_id[0], UBI_NAME_STR"%d", ubi->ubi_num);
+	dev_set_name(&ubi->dev, UBI_NAME_STR"%d", ubi->ubi_num);
 	err = device_register(&ubi->dev);
 	if (err)
 		return err;
@@ -561,7 +561,7 @@ static int io_init(struct ubi_device *ubi)
 	 */
 
 	ubi->peb_size   = ubi->mtd->erasesize;
-	ubi->peb_count  = ubi->mtd->size / ubi->mtd->erasesize;
+	ubi->peb_count  = mtd_div_by_eb(ubi->mtd->size, ubi->mtd);
 	ubi->flash_size = ubi->mtd->size;
 
 	if (ubi->mtd->block_isbad && ubi->mtd->block_markbad)

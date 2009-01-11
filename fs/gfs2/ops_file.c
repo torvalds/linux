@@ -342,7 +342,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	unsigned long last_index;
-	u64 pos = page->index << (PAGE_CACHE_SIZE - inode->i_blkbits);
+	u64 pos = page->index << PAGE_CACHE_SHIFT;
 	unsigned int data_blocks, ind_blocks, rblocks;
 	int alloc_required = 0;
 	struct gfs2_holder gh;

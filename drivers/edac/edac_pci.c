@@ -150,7 +150,7 @@ static int add_edac_pci_to_global_list(struct edac_pci_ctl_info *pci)
 fail0:
 	edac_printk(KERN_WARNING, EDAC_PCI,
 		"%s (%s) %s %s already assigned %d\n",
-		rover->dev->bus_id, edac_dev_name(rover),
+		dev_name(rover->dev), edac_dev_name(rover),
 		rover->mod_name, rover->ctl_name, rover->pci_idx);
 	return 1;
 

@@ -1,3 +1,9 @@
+#ifndef __WINBOND_SCAN_S_H
+#define __WINBOND_SCAN_S_H
+
+#include <linux/types.h>
+#include "localpara.h"
+
 //
 // SCAN task global CONSTANTS, STRUCTURES, variables
 //
@@ -62,8 +68,7 @@ typedef struct _SCAN_PARAMETERS
 	u8				boCCAbusy;					// Wb: HWMAC CCA busy status
 	u8				reserved_2;
 
-	//NDIS_MINIPORT_TIMER	nTimer;
-	OS_TIMER			nTimer;
+	struct timer_list timer;
 
 	u32				ScanTimeStamp;			//Increase 1 per background scan(1 minute)
 	u32				BssTimeStamp;			//Increase 1 per connect status check
@@ -78,9 +83,9 @@ typedef struct _SCAN_PARAMETERS
 
 } SCAN_PARAMETERS, *psSCAN_PARAMETERS;
 
-// Encapsulate 'Adapter' data structure
-#define psSCAN			(&(Adapter->sScanPara))
-#define psSCANREQ			(&(Adapter->sScanPara.sScanReq))
+// Encapsulate 'adapter' data structure
+#define psSCAN			(&(adapter->sScanPara))
+#define psSCANREQ			(&(adapter->sScanPara.sScanReq))
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //	scan.h
@@ -109,7 +114,8 @@ typedef struct _SCAN_PARAMETERS
 
 // static functions
 
-//static void ScanTimerHandler(PWB32_ADAPTER Adapter);
-//static void vScanTimerStart(PWB32_ADAPTER	Adapter, int timeout_value);
-//static void vScanTimerStop(PWB32_ADAPTER Adapter);
+//static void ScanTimerHandler(struct wbsoft_priv * adapter);
+//static void vScanTimerStart(struct wbsoft_priv *	adapter, int timeout_value);
+//static void vScanTimerStop(struct wbsoft_priv * adapter);
 
+#endif

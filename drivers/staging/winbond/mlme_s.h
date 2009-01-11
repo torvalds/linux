@@ -1,3 +1,12 @@
+#ifndef __WINBOND_MLME_H
+#define __WINBOND_MLME_H
+
+#include <linux/types.h>
+#include <linux/spinlock.h>
+
+#include "mac_structures.h"
+#include "mds_s.h"
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //	Mlme.h
 //		Define the related definitions of MLME module
@@ -192,4 +201,4 @@ typedef struct _RXDATA
 
 }__attribute__ ((packed)) RXDATA, *psRXDATA;
 
-
+#endif
