@@ -217,19 +217,25 @@ static const struct file_operations acpi_video_bus_POST_info_fops = {
 };
 
 static int acpi_video_bus_POST_open_fs(struct inode *inode, struct file *file);
-static struct file_operations acpi_video_bus_POST_fops = {
+static int acpi_video_bus_write_POST(struct file *file,
+	const char __user *buffer, size_t count, loff_t *data);
+static const struct file_operations acpi_video_bus_POST_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_bus_POST_open_fs,
 	.read = seq_read,
+	.write = acpi_video_bus_write_POST,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
 static int acpi_video_bus_DOS_open_fs(struct inode *inode, struct file *file);
-static struct file_operations acpi_video_bus_DOS_fops = {
+static int acpi_video_bus_write_DOS(struct file *file,
+	const char __user *buffer, size_t count, loff_t *data);
+static const struct file_operations acpi_video_bus_DOS_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_bus_DOS_open_fs,
 	.read = seq_read,
+	.write = acpi_video_bus_write_DOS,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
@@ -247,20 +253,26 @@ static const struct file_operations acpi_video_device_info_fops = {
 
 static int acpi_video_device_state_open_fs(struct inode *inode,
 					   struct file *file);
-static struct file_operations acpi_video_device_state_fops = {
+static int acpi_video_device_write_state(struct file *file,
+	const char __user *buffer, size_t count, loff_t *data);
+static const struct file_operations acpi_video_device_state_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_device_state_open_fs,
 	.read = seq_read,
+	.write = acpi_video_device_write_state,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
 static int acpi_video_device_brightness_open_fs(struct inode *inode,
 						struct file *file);
+static int acpi_video_device_write_brightness(struct file *file,
+	const char __user *buffer, size_t count, loff_t *data);
 static struct file_operations acpi_video_device_brightness_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_device_brightness_open_fs,
 	.read = seq_read,
+	.write = acpi_video_device_write_brightness,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
@@ -275,7 +287,7 @@ static const struct file_operations acpi_video_device_EDID_fops = {
 	.release = single_release,
 };
 
-static char device_decode[][30] = {
+static const char device_decode[][30] = {
 	"motherboard VGA device",
 	"PCI VGA device",
 	"AGP VGA device",
@@ -1134,7 +1146,6 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 		goto err_remove_dir;
 
 	/* 'state' [R/W] */
-	acpi_video_device_state_fops.write = acpi_video_device_write_state;
 	entry = proc_create_data("state", S_IFREG | S_IRUGO | S_IWUSR,
 				 device_dir,
 				 &acpi_video_device_state_fops,
@@ -1143,8 +1154,6 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 		goto err_remove_info;
 
 	/* 'brightness' [R/W] */
-	acpi_video_device_brightness_fops.write =
-		acpi_video_device_write_brightness;
 	entry = proc_create_data("brightness", S_IFREG | S_IRUGO | S_IWUSR,
 				 device_dir,
 				 &acpi_video_device_brightness_fops,
@@ -1427,7 +1436,6 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 		goto err_remove_rom;
 
 	/* 'POST' [R/W] */
-	acpi_video_bus_POST_fops.write = acpi_video_bus_write_POST;
 	entry = proc_create_data("POST", S_IFREG | S_IRUGO | S_IWUSR,
 				 device_dir,
 				 &acpi_video_bus_POST_fops,
@@ -1436,7 +1444,6 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 		goto err_remove_post_info;
 
 	/* 'DOS' [R/W] */
-	acpi_video_bus_DOS_fops.write = acpi_video_bus_write_DOS;
 	entry = proc_create_data("DOS", S_IFREG | S_IRUGO | S_IWUSR,
 				 device_dir,
 				 &acpi_video_bus_DOS_fops,
