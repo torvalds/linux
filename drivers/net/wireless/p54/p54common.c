@@ -483,7 +483,7 @@ static struct p54_cal_database *p54_convert_db(struct pda_custom_wrapper *src,
 	return dst;
 }
 
-static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
+int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 {
 	struct p54_common *priv = dev->priv;
 	struct eeprom_pda_wrap *wrap = NULL;
@@ -698,6 +698,7 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		wiphy_name(dev->wiphy));
 	return err;
 }
+EXPORT_SYMBOL_GPL(p54_parse_eeprom);
 
 static int p54_rssi_to_dbm(struct ieee80211_hw *dev, int rssi)
 {

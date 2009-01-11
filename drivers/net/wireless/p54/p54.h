@@ -104,6 +104,14 @@ struct p54_cal_database {
 #define FW_LM87 0x4c4d3837
 #define FW_LM20 0x4c4d3230
 
+enum fw_state {
+	FW_STATE_OFF,
+	FW_STATE_BOOTING,
+	FW_STATE_READY,
+	FW_STATE_RESET,
+	FW_STATE_RESETTING,
+};
+
 struct p54_common {
 	struct ieee80211_hw *hw;
 	u32 rx_start;
@@ -154,6 +162,7 @@ struct p54_common {
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb);
 void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb);
 int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw);
+int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len);
 int p54_read_eeprom(struct ieee80211_hw *dev);
 struct ieee80211_hw *p54_init_common(size_t priv_data_len);
 void p54_free_common(struct ieee80211_hw *dev);
