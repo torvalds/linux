@@ -817,7 +817,6 @@ static void posix_cpu_timers_init_group(struct signal_struct *sig)
 static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 {
 	struct signal_struct *sig;
-	int ret;
 
 	if (clone_flags & CLONE_THREAD) {
 		atomic_inc(&current->signal->count);
