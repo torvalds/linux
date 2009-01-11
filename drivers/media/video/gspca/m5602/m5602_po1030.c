@@ -157,7 +157,7 @@ static void po1030_dump_registers(struct sd *sd);
 
 int po1030_probe(struct sd *sd)
 {
-	u8 dev_id_h = 0, dev_id_l = 0, i;
+	u8 dev_id_h = 0, i;
 	s32 *sensor_settings;
 
 	if (force_sensor) {
@@ -185,10 +185,7 @@ int po1030_probe(struct sd *sd)
 	if (m5602_read_sensor(sd, PO1030_DEVID_H, &dev_id_h, 1))
 		return -ENODEV;
 
-	if (m5602_read_sensor(sd, PO1030_DEVID_L, &dev_id_l, 1))
-		return -ENODEV;
-
-	if ((dev_id_h == 0x10) && (dev_id_l == 0x30)) {
+	if (dev_id_h == 0x30) {
 		info("Detected a po1030 sensor");
 		goto sensor_found;
 	}
