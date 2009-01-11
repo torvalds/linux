@@ -58,6 +58,11 @@ int nr_irqs = NR_IRQS;
 EXPORT_SYMBOL_GPL(nr_irqs);
 
 #ifdef CONFIG_SPARSE_IRQ
+
+#ifndef max_nr_irqs
+#define max_nr_irqs(nr_cpus)	NR_IRQS
+#endif
+
 static struct irq_desc irq_desc_init = {
 	.irq	    = -1,
 	.status	    = IRQ_DISABLED,

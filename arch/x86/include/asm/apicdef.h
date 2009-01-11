@@ -132,8 +132,12 @@
 #define APIC_BASE_MSR	0x800
 #define X2APIC_ENABLE	(1UL << 10)
 
-/* get MAX_IO_APICS */
-#include <asm/apicnum.h>
+#ifdef CONFIG_X86_32
+# define MAX_IO_APICS 64
+#else
+# define MAX_IO_APICS 128
+# define MAX_LOCAL_APIC 32768
+#endif
 
 /*
  * All x86-64 systems are xAPIC compatible.
