@@ -223,6 +223,9 @@ struct vivi_dev {
 	char                       timestr[13];
 
 	int			   mv_count;	/* Controls bars movement */
+
+	/* Input Number */
+	int			   input;
 };
 
 struct vivi_fh {
@@ -235,6 +238,7 @@ struct vivi_fh {
 
 	enum v4l2_buf_type         type;
 	unsigned char              bars[8][3];
+	int			   input; 	/* Input Number on bars */
 };
 
 /* ------------------------------------------------------------------
@@ -254,17 +258,71 @@ enum colors {
 	BLACK,
 };
 
-static u8 bars[8][3] = {
 	/* R   G   B */
-	{204, 204, 204},  /* white */
-	{208, 208,   0},  /* ambar */
-	{  0, 206, 206},  /* cyan */
-	{  0, 239,   0},  /* green */
-	{239,   0, 239},  /* magenta */
-	{205,   0,   0},  /* red */
-	{  0,   0, 255},  /* blue */
-	{  0,   0,   0},  /* black */
+#define COLOR_WHITE	{204, 204, 204}
+#define COLOR_AMBAR	{208, 208,   0}
+#define COLOR_CIAN	{  0, 206, 206}
+#define	COLOR_GREEN	{  0, 239,   0}
+#define COLOR_MAGENTA	{239,   0, 239}
+#define COLOR_RED	{205,   0,   0}
+#define COLOR_BLUE	{  0,   0, 255}
+#define COLOR_BLACK	{  0,   0,   0}
+
+struct bar_std {
+	u8 bar[8][3];
 };
+
+/* Maximum number of bars are 10 - otherwise, the input print code
+   should be modified */
+static struct bar_std bars[] = {
+	{	/* Standard ITU-R color bar sequence */
+		{
+			COLOR_WHITE,
+			COLOR_AMBAR,
+			COLOR_CIAN,
+			COLOR_GREEN,
+			COLOR_MAGENTA,
+			COLOR_RED,
+			COLOR_BLUE,
+			COLOR_BLACK,
+		}
+	}, {
+		{
+			COLOR_WHITE,
+			COLOR_AMBAR,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_AMBAR,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_AMBAR,
+		}
+	}, {
+		{
+			COLOR_WHITE,
+			COLOR_CIAN,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_CIAN,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_CIAN,
+		}
+	}, {
+		{
+			COLOR_WHITE,
+			COLOR_GREEN,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_GREEN,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_GREEN,
+		}
+	},
+};
+
+#define NUM_INPUTS ARRAY_SIZE(bars)
 
 #define TO_Y(r, g, b) \
 	(((16829 * r + 33039 * g + 6416 * b  + 32768) >> 16) + 16)
@@ -275,9 +333,10 @@ static u8 bars[8][3] = {
 #define TO_U(r, g, b) \
 	(((-9714 * r - 19070 * g + 28784 * b + 32768) >> 16) + 128)
 
-#define TSTAMP_MIN_Y 24
-#define TSTAMP_MAX_Y TSTAMP_MIN_Y+15
-#define TSTAMP_MIN_X 64
+#define TSTAMP_MIN_Y	24
+#define TSTAMP_MAX_Y	(TSTAMP_MIN_Y + 15)
+#define TSTAMP_INPUT_X	10
+#define TSTAMP_MIN_X	(54 + TSTAMP_INPUT_X)
 
 static void gen_twopix(struct vivi_fh *fh, unsigned char *buf, int colorpos)
 {
@@ -392,9 +451,29 @@ static void gen_line(struct vivi_fh *fh, char *basep, int inipos, int wmax,
 		pos += 4; /* only 16 bpp supported for now */
 	}
 
-	/* Checks if it is possible to show timestamp */
+	/* Prints input entry number */
+
+	/* Checks if it is possible to input number */
 	if (TSTAMP_MAX_Y >= hmax)
 		goto end;
+
+	if (TSTAMP_INPUT_X + strlen(timestr) >= wmax)
+		goto end;
+
+	if (line >= TSTAMP_MIN_Y && line <= TSTAMP_MAX_Y) {
+		chr = rom8x16_bits[fh->input * 16 + line - TSTAMP_MIN_Y];
+		pos = TSTAMP_INPUT_X;
+		for (i = 0; i < 7; i++) {
+			/* Draw white font on black background */
+			if (chr & 1 << (7 - i))
+				gen_twopix(fh, basep + pos, WHITE);
+			else
+				gen_twopix(fh, basep + pos, BLACK);
+			pos += 2;
+		}
+	}
+
+	/* Checks if it is possible to show timestamp */
 	if (TSTAMP_MIN_X + strlen(timestr) >= wmax)
 		goto end;
 
@@ -807,38 +886,19 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-/*FIXME: This seems to be generic enough to be at videodev2 */
-static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
-					struct v4l2_format *f)
+/* precalculate color bar values to speed up rendering */
+static void precalculate_bars(struct vivi_fh *fh)
 {
-	struct vivi_fh  *fh = priv;
-	struct videobuf_queue *q = &fh->vb_vidq;
+	struct vivi_dev *dev = fh->dev;
 	unsigned char r, g, b;
 	int k, is_yuv;
 
-	int ret = vidioc_try_fmt_vid_cap(file, fh, f);
-	if (ret < 0)
-		return (ret);
+	fh->input = dev->input;
 
-	mutex_lock(&q->vb_lock);
-
-	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
-		dprintk(fh->dev, 1, "%s queue busy\n", __func__);
-		ret = -EBUSY;
-		goto out;
-	}
-
-	fh->fmt           = get_format(f);
-	fh->width         = f->fmt.pix.width;
-	fh->height        = f->fmt.pix.height;
-	fh->vb_vidq.field = f->fmt.pix.field;
-	fh->type          = f->type;
-
-	/* precalculate color bar values to speed up rendering */
 	for (k = 0; k < 8; k++) {
-		r = bars[k][0];
-		g = bars[k][1];
-		b = bars[k][2];
+		r = bars[fh->input].bar[k][0];
+		g = bars[fh->input].bar[k][1];
+		b = bars[fh->input].bar[k][2];
 		is_yuv = 0;
 
 		switch (fh->fmt->fourcc) {
@@ -871,11 +931,40 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		}
 	}
 
+}
+
+/*FIXME: This seems to be generic enough to be at videodev2 */
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
+					struct v4l2_format *f)
+{
+	struct vivi_fh *fh = priv;
+	struct videobuf_queue *q = &fh->vb_vidq;
+
+	int ret = vidioc_try_fmt_vid_cap(file, fh, f);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&q->vb_lock);
+
+	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
+		dprintk(fh->dev, 1, "%s queue busy\n", __func__);
+		ret = -EBUSY;
+		goto out;
+	}
+
+	fh->fmt           = get_format(f);
+	fh->width         = f->fmt.pix.width;
+	fh->height        = f->fmt.pix.height;
+	fh->vb_vidq.field = f->fmt.pix.field;
+	fh->type          = f->type;
+
+	precalculate_bars(fh);
+
 	ret = 0;
 out:
 	mutex_unlock(&q->vb_lock);
 
-	return (ret);
+	return ret;
 }
 
 static int vidioc_reqbufs(struct file *file, void *priv,
@@ -950,26 +1039,35 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *i)
 static int vidioc_enum_input(struct file *file, void *priv,
 				struct v4l2_input *inp)
 {
-	if (inp->index != 0)
+	if (inp->index >= NUM_INPUTS)
 		return -EINVAL;
 
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = V4L2_STD_525_60;
-	strcpy(inp->name, "Camera");
+	sprintf(inp->name, "Camera %u", inp->index);
 
 	return (0);
 }
 
 static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	*i = 0;
+	struct vivi_fh *fh = priv;
+	struct vivi_dev *dev = fh->dev;
+
+	*i = dev->input;
 
 	return (0);
 }
 static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
-	if (i > 0)
+	struct vivi_fh *fh = priv;
+	struct vivi_dev *dev = fh->dev;
+
+	if (i >= NUM_INPUTS)
 		return -EINVAL;
+
+	dev->input = i;
+	precalculate_bars(fh);
 
 	return (0);
 }
