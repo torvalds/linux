@@ -26,6 +26,11 @@ struct bootrec {
 } __attribute__((packed));
 
 #define PDR_SYNTH_FRONTEND_MASK		0x0007
+#define PDR_SYNTH_FRONTEND_DUETTE3	0x0001
+#define PDR_SYNTH_FRONTEND_DUETTE2	0x0002
+#define PDR_SYNTH_FRONTEND_FRISBEE	0x0003
+#define PDR_SYNTH_FRONTEND_XBOW		0x0004
+#define PDR_SYNTH_FRONTEND_LONGBOW	0x0005
 #define PDR_SYNTH_IQ_CAL_MASK		0x0018
 #define PDR_SYNTH_IQ_CAL_PA_DETECTOR	0x0000
 #define PDR_SYNTH_IQ_CAL_DISABLED	0x0008
@@ -125,9 +130,13 @@ struct eeprom_pda_wrap {
 	u8 data[0];
 } __attribute__ ((packed));
 
+struct p54_iq_autocal_entry {
+	__le16 iq_param[4];
+} __attribute__ ((packed));
+
 struct pda_iq_autocal_entry {
         __le16 freq;
-        __le16 iq_param[4];
+	struct p54_iq_autocal_entry params;
 } __attribute__ ((packed));
 
 struct pda_channel_output_limit {
@@ -184,6 +193,21 @@ struct pda_country {
 	u8 regdomain;
 	u8 alpha2[2];
 	u8 flags;
+} __attribute__ ((packed));
+
+/*
+ * Warning: Longbow's structures are bogus.
+ */
+struct p54_channel_output_limit_longbow {
+	__le16 rf_power_points[12];
+} __attribute__ ((packed));
+
+struct p54_pa_curve_data_sample_longbow {
+	__le16 rf_power;
+	__le16 pa_detector;
+	struct {
+		__le16 data[4];
+	} points[3] __attribute__ ((packed));
 } __attribute__ ((packed));
 
 struct pda_custom_wrapper {
@@ -381,9 +405,18 @@ struct p54_tx_data {
 	u8 backlog;
 	__le16 durations[4];
 	u8 tx_antenna;
-	u8 output_power;
-	u8 cts_rate;
-	u8 unalloc2[3];
+	union {
+		struct {
+			u8 cts_rate;
+			__le16 output_power;
+		} __attribute__((packed)) longbow;
+		struct {
+			u8 output_power;
+			u8 cts_rate;
+			u8 unalloc;
+		} __attribute__ ((packed)) normal;
+	} __attribute__ ((packed));
+	u8 unalloc2[2];
 	u8 align[0];
 } __attribute__ ((packed));
 
@@ -444,11 +477,14 @@ struct p54_setup_mac {
 #define P54_SCAN_ACTIVE BIT(2)
 #define P54_SCAN_FILTER BIT(3)
 
-struct p54_scan {
+struct p54_scan_head {
 	__le16 mode;
 	__le16 dwell;
 	u8 scan_params[20];
-	struct pda_iq_autocal_entry iq_autocal;
+	__le16 freq;
+} __attribute__ ((packed));
+
+struct p54_scan_body {
 	u8 pa_points_per_curve;
 	u8 val_barker;
 	u8 val_bpsk;
@@ -460,19 +496,23 @@ struct p54_scan {
 	u8 dup_qpsk;
 	u8 dup_16qam;
 	u8 dup_64qam;
-	union {
-		struct pda_rssi_cal_entry v1_rssi;
-
-		struct {
-			__le32 basic_rate_mask;
-			u8 rts_rates[8];
-			struct pda_rssi_cal_entry rssi;
-		} v2 __attribute__ ((packed));
-	} __attribute__ ((packed));
 } __attribute__ ((packed));
 
-#define P54_SCAN_V1_LEN 0x70
-#define P54_SCAN_V2_LEN 0x7c
+struct p54_scan_body_longbow {
+	struct p54_channel_output_limit_longbow power_limits;
+	struct p54_pa_curve_data_sample_longbow curve_data[8];
+	__le16 unkn[6];		/* maybe more power_limits or rate_mask */
+} __attribute__ ((packed));
+
+union p54_scan_body_union {
+	struct p54_scan_body normal;
+	struct p54_scan_body_longbow longbow;
+} __attribute__ ((packed));
+
+struct p54_scan_tail_rate {
+	__le32 basic_rate_mask;
+	u8 rts_rates[8];
+} __attribute__ ((packed));
 
 struct p54_led {
 	__le16 mode;

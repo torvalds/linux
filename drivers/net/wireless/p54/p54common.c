@@ -651,7 +651,7 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	}
 
 	priv->rxhw = synth & PDR_SYNTH_FRONTEND_MASK;
-	if (priv->rxhw == 4)
+	if (priv->rxhw == PDR_SYNTH_FRONTEND_XBOW)
 		p54_init_xbow_synth(dev);
 	if (!(synth & PDR_SYNTH_24_GHZ_DISABLED))
 		dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
@@ -704,7 +704,14 @@ static int p54_rssi_to_dbm(struct ieee80211_hw *dev, int rssi)
 	struct p54_common *priv = dev->priv;
 	int band = dev->conf.channel->band;
 
-	return ((rssi * priv->rssical_db[band].mul) / 64 +
+	if (priv->rxhw != PDR_SYNTH_FRONTEND_LONGBOW)
+		return ((rssi * priv->rssical_db[band].mul) / 64 +
+			 priv->rssical_db[band].add) / 4;
+	else
+		/*
+		 * TODO: find the correct formula
+		 */
+		return ((rssi * priv->rssical_db[band].mul) / 64 +
 			 priv->rssical_db[band].add) / 4;
 }
 
@@ -1612,8 +1619,13 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	memset(txhdr->durations, 0, sizeof(txhdr->durations));
 	txhdr->tx_antenna = ((info->antenna_sel_tx == 0) ?
 		2 : info->antenna_sel_tx - 1) & priv->tx_diversity_mask;
-	txhdr->output_power = priv->output_power;
-	txhdr->cts_rate = cts_rate;
+	if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW) {
+		txhdr->longbow.cts_rate = cts_rate;
+		txhdr->longbow.output_power = cpu_to_le16(priv->output_power);
+	} else {
+		txhdr->normal.output_power = priv->output_power;
+		txhdr->normal.cts_rate = cts_rate;
+	}
 	if (padding)
 		txhdr->align[0] = padding;
 
@@ -1715,47 +1727,77 @@ static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell)
 {
 	struct p54_common *priv = dev->priv;
 	struct sk_buff *skb;
-	struct p54_scan *chan;
+	struct p54_hdr *hdr;
+	struct p54_scan_head *head;
+	struct p54_iq_autocal_entry *iq_autocal;
+	union p54_scan_body_union *body;
+	struct p54_scan_tail_rate *rate;
+	struct pda_rssi_cal_entry *rssi;
 	unsigned int i;
 	void *entry;
 	int band = dev->conf.channel->band;
 	__le16 freq = cpu_to_le16(dev->conf.channel->center_freq);
 
-	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*chan),
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*head) +
+			    2 + sizeof(*iq_autocal) + sizeof(*body) +
+			    sizeof(*rate) + 2 * sizeof(*rssi),
 			    P54_CONTROL_TYPE_SCAN, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
-	chan = (struct p54_scan *) skb_put(skb, sizeof(*chan));
-	memset(chan->scan_params, 0, sizeof(chan->scan_params));
-	chan->mode = cpu_to_le16(mode);
-	chan->dwell = cpu_to_le16(dwell);
+	head = (struct p54_scan_head *) skb_put(skb, sizeof(*head));
+	memset(head->scan_params, 0, sizeof(head->scan_params));
+	head->mode = cpu_to_le16(mode);
+	head->dwell = cpu_to_le16(dwell);
+	head->freq = freq;
 
+	if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW) {
+		__le16 *pa_power_points = (__le16 *) skb_put(skb, 2);
+		*pa_power_points = cpu_to_le16(0x0c);
+	}
+
+	iq_autocal = (void *) skb_put(skb, sizeof(*iq_autocal));
 	for (i = 0; i < priv->iq_autocal_len; i++) {
 		if (priv->iq_autocal[i].freq != freq)
 			continue;
 
-		memcpy(&chan->iq_autocal, &priv->iq_autocal[i],
-		       sizeof(*priv->iq_autocal));
+		memcpy(iq_autocal, &priv->iq_autocal[i].params,
+		       sizeof(struct p54_iq_autocal_entry));
 		break;
 	}
 	if (i == priv->iq_autocal_len)
 		goto err;
 
+	if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW)
+		body = (void *) skb_put(skb, sizeof(body->longbow));
+	else
+		body = (void *) skb_put(skb, sizeof(body->normal));
+
 	for (i = 0; i < priv->output_limit->entries; i++) {
-		struct pda_channel_output_limit *limits;
 		__le16 *entry_freq = (void *) (priv->output_limit->data +
-			priv->output_limit->entry_size * i);
+				     priv->output_limit->entry_size * i);
 
 		if (*entry_freq != freq)
 			continue;
 
-		limits = (void *) entry_freq;
-		chan->val_barker = 0x38;
-		chan->val_bpsk = chan->dup_bpsk = limits->val_bpsk;
-		chan->val_qpsk = chan->dup_qpsk = limits->val_qpsk;
-		chan->val_16qam = chan->dup_16qam = limits->val_16qam;
-		chan->val_64qam = chan->dup_64qam = limits->val_64qam;
+		if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW) {
+			memcpy(&body->longbow.power_limits,
+			       (void *) entry_freq + sizeof(__le16),
+			       priv->output_limit->entry_size);
+		} else {
+			struct pda_channel_output_limit *limits =
+			       (void *) entry_freq;
+
+			body->normal.val_barker = 0x38;
+			body->normal.val_bpsk = body->normal.dup_bpsk =
+				limits->val_bpsk;
+			body->normal.val_qpsk = body->normal.dup_qpsk =
+				limits->val_qpsk;
+			body->normal.val_16qam = body->normal.dup_16qam =
+				limits->val_16qam;
+			body->normal.val_64qam = body->normal.dup_64qam =
+				limits->val_64qam;
+		}
 		break;
 	}
 	if (i == priv->output_limit->entries)
@@ -1763,34 +1805,59 @@ static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell)
 
 	entry = (void *)(priv->curve_data->data + priv->curve_data->offset);
 	for (i = 0; i < priv->curve_data->entries; i++) {
-		struct pda_pa_curve_data *curve_data;
 		if (*((__le16 *)entry) != freq) {
 			entry += priv->curve_data->entry_size;
 			continue;
 		}
 
-		entry += sizeof(__le16);
-		chan->pa_points_per_curve = 8;
-		memset(chan->curve_data, 0, sizeof(*chan->curve_data));
-		curve_data = (void *) priv->curve_data->data;
+		if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW) {
+			memcpy(&body->longbow.curve_data,
+				(void *) entry + sizeof(__le16),
+				priv->curve_data->entry_size);
+		} else {
+			struct p54_scan_body *chan = &body->normal;
+			struct pda_pa_curve_data *curve_data =
+				(void *) priv->curve_data->data;
 
-		memcpy(chan->curve_data, entry,
-		       sizeof(struct p54_pa_curve_data_sample) *
-		       min_t(u8, 8, curve_data->points_per_channel));
+			entry += sizeof(__le16);
+			chan->pa_points_per_curve = 8;
+			memset(chan->curve_data, 0, sizeof(*chan->curve_data));
+			memcpy(chan->curve_data, entry,
+			       sizeof(struct p54_pa_curve_data_sample) *
+			       min((u8)8, curve_data->points_per_channel));
+		}
 		break;
 	}
 	if (i == priv->curve_data->entries)
 		goto err;
 
-	if (priv->fw_var < 0x500) {
-		chan->v1_rssi.mul = cpu_to_le16(priv->rssical_db[band].mul);
-		chan->v1_rssi.add = cpu_to_le16(priv->rssical_db[band].add);
-	} else {
-		chan->v2.rssi.mul = cpu_to_le16(priv->rssical_db[band].mul);
-		chan->v2.rssi.add = cpu_to_le16(priv->rssical_db[band].add);
-		chan->v2.basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
-		memset(chan->v2.rts_rates, 0, 8);
+	if ((priv->fw_var >= 0x500) && (priv->fw_var < 0x509)) {
+		rate = (void *) skb_put(skb, sizeof(*rate));
+		rate->basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
+		for (i = 0; i < sizeof(rate->rts_rates); i++)
+			rate->rts_rates[i] = i;
 	}
+
+	rssi = (struct pda_rssi_cal_entry *) skb_put(skb, sizeof(*rssi));
+	rssi->mul = cpu_to_le16(priv->rssical_db[band].mul);
+	rssi->add = cpu_to_le16(priv->rssical_db[band].add);
+	if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW) {
+		/* Longbow frontend needs ever more */
+		rssi = (void *) skb_put(skb, sizeof(*rssi));
+		rssi->mul = cpu_to_le16(priv->rssical_db[band].longbow_unkn);
+		rssi->add = cpu_to_le16(priv->rssical_db[band].longbow_unk2);
+	}
+
+	if (priv->fw_var >= 0x509) {
+		rate = (void *) skb_put(skb, sizeof(*rate));
+		rate->basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
+		for (i = 0; i < sizeof(rate->rts_rates); i++)
+			rate->rts_rates[i] = i;
+	}
+
+	hdr = (struct p54_hdr *) skb->data;
+	hdr->len = cpu_to_le16(skb->len - sizeof(*hdr));
+
 	priv->tx(dev, skb);
 	return 0;
 
