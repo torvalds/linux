@@ -236,6 +236,9 @@ extern u64 hw_perf_save_disable(void);
 extern void hw_perf_restore(u64 ctrl);
 extern int perf_counter_task_disable(void);
 extern int perf_counter_task_enable(void);
+extern int hw_perf_group_sched_in(struct perf_counter *group_leader,
+	       struct perf_cpu_context *cpuctx,
+	       struct perf_counter_context *ctx, int cpu);
 
 #else
 static inline void

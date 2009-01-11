@@ -131,5 +131,36 @@ static inline int irqs_disabled_flags(unsigned long flags)
  */
 struct hw_interrupt_type;
 
+#ifdef CONFIG_PERF_COUNTERS
+static inline unsigned long get_perf_counter_pending(void)
+{
+	unsigned long x;
+
+	asm volatile("lbz %0,%1(13)"
+		: "=r" (x)
+		: "i" (offsetof(struct paca_struct, perf_counter_pending)));
+	return x;
+}
+
+static inline void set_perf_counter_pending(int x)
+{
+	asm volatile("stb %0,%1(13)" : :
+		"r" (x),
+		"i" (offsetof(struct paca_struct, perf_counter_pending)));
+}
+
+extern void perf_counter_do_pending(void);
+
+#else
+
+static inline unsigned long get_perf_counter_pending(void)
+{
+	return 0;
+}
+
+static inline void set_perf_counter_pending(int x) {}
+static inline void perf_counter_do_pending(void) {}
+#endif /* CONFIG_PERF_COUNTERS */
+
 #endif	/* __KERNEL__ */
 #endif	/* _ASM_POWERPC_HW_IRQ_H */

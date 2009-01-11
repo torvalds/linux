@@ -104,6 +104,13 @@ static inline notrace void set_soft_enabled(unsigned long enable)
 	: : "r" (enable), "i" (offsetof(struct paca_struct, soft_enabled)));
 }
 
+#ifdef CONFIG_PERF_COUNTERS
+notrace void __weak perf_counter_do_pending(void)
+{
+	set_perf_counter_pending(0);
+}
+#endif
+
 notrace void raw_local_irq_restore(unsigned long en)
 {
 	/*
@@ -134,6 +141,9 @@ notrace void raw_local_irq_restore(unsigned long en)
 		if (local_paca->lppaca_ptr->int_dword.any_int)
 			iseries_handle_interrupts();
 	}
+
+	if (get_perf_counter_pending())
+		perf_counter_do_pending();
 
 	/*
 	 * if (get_paca()->hard_enabled) return;
