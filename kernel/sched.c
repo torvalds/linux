@@ -125,6 +125,9 @@ DEFINE_TRACE(sched_switch);
 DEFINE_TRACE(sched_migrate_task);
 
 #ifdef CONFIG_SMP
+
+static void double_rq_lock(struct rq *rq1, struct rq *rq2);
+
 /*
  * Divide a load by a sched group cpu_power : (load / sg->__cpu_power)
  * Since cpu_power is a 'constant', we can use a reciprocal divide.
