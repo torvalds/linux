@@ -432,11 +432,18 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 	int i, err;
 	struct ubifs_info *c = sb->s_fs_info;
 	struct writeback_control wbc = {
-		.sync_mode   = wait ? WB_SYNC_ALL : WB_SYNC_HOLD,
+		.sync_mode   = wait ? WB_SYNC_ALL : WB_SYNC_NONE,
 		.range_start = 0,
 		.range_end   = LLONG_MAX,
 		.nr_to_write = LONG_MAX,
 	};
+
+	/*
+	 * Note by akpm about WB_SYNC_NONE used above: zero @wait is just an
+	 * advisory thing to help the file system shove lots of data into the
+	 * queues. If some gets missed then it'll be picked up on the second
+	 * '->sync_fs()' call, with non-zero @wait.
+	 */
 
 	if (sb->s_flags & MS_RDONLY)
 		return 0;

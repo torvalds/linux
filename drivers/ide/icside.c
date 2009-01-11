@@ -166,7 +166,7 @@ static const expansioncard_ops_t icside_ops_arcin_v6 = {
  */
 static void icside_maskproc(ide_drive_t *drive, int mask)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 	struct icside_state *state = ecard_get_drvdata(ec);
 	unsigned long flags;
@@ -284,7 +284,7 @@ static void icside_dma_host_set(ide_drive_t *drive, int on)
 
 static int icside_dma_end(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 
 	drive->waiting_for_dma = 0;
@@ -299,7 +299,7 @@ static int icside_dma_end(ide_drive_t *drive)
 
 static void icside_dma_start(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 
 	/* We can not enable DMA on both channels simultaneously. */
@@ -309,10 +309,10 @@ static void icside_dma_start(ide_drive_t *drive)
 
 static int icside_dma_setup(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 	struct icside_state *state = ecard_get_drvdata(ec);
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	unsigned int dma_mode;
 
 	if (rq_data_dir(rq))
@@ -362,7 +362,7 @@ static void icside_dma_exec_cmd(ide_drive_t *drive, u8 cmd)
 
 static int icside_dma_test_irq(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 	struct icside_state *state = ecard_get_drvdata(ec);
 

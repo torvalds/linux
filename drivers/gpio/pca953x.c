@@ -33,7 +33,12 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "pca9554", 8, },
 	{ "pca9555", 16, },
 	{ "pca9557", 8, },
+
 	{ "max7310", 8, },
+	{ "pca6107", 8, },
+	{ "tca6408", 8, },
+	{ "tca6416", 16, },
+	/* NYET:  { "tca6424", 24, }, */
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pca953x_id);
@@ -47,9 +52,6 @@ struct pca953x_chip {
 	struct gpio_chip gpio_chip;
 };
 
-/* NOTE:  we can't currently rely on fault codes to come from SMBus
- * calls, so we map all errors to EIO here and return zero otherwise.
- */
 static int pca953x_write_reg(struct pca953x_chip *chip, int reg, uint16_t val)
 {
 	int ret;
@@ -61,7 +63,7 @@ static int pca953x_write_reg(struct pca953x_chip *chip, int reg, uint16_t val)
 
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "failed writing register\n");
-		return -EIO;
+		return ret;
 	}
 
 	return 0;
@@ -78,7 +80,7 @@ static int pca953x_read_reg(struct pca953x_chip *chip, int reg, uint16_t *val)
 
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "failed reading register\n");
-		return -EIO;
+		return ret;
 	}
 
 	*val = (uint16_t)ret;

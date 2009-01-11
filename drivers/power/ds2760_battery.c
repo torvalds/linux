@@ -354,7 +354,7 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	di->dev		= &pdev->dev;
 	di->w1_dev	     = pdev->dev.parent;
-	di->bat.name	   = pdev->dev.bus_id;
+	di->bat.name	   = dev_name(&pdev->dev);
 	di->bat.type	   = POWER_SUPPLY_TYPE_BATTERY;
 	di->bat.properties     = ds2760_battery_props;
 	di->bat.num_properties = ARRAY_SIZE(ds2760_battery_props);
@@ -371,7 +371,7 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 	}
 
 	INIT_DELAYED_WORK(&di->monitor_work, ds2760_battery_work);
-	di->monitor_wqueue = create_singlethread_workqueue(pdev->dev.bus_id);
+	di->monitor_wqueue = create_singlethread_workqueue(dev_name(&pdev->dev));
 	if (!di->monitor_wqueue) {
 		retval = -ESRCH;
 		goto workqueue_failed;

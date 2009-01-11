@@ -50,10 +50,15 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 
 	if (!rtc->ops)
 		err = -ENODEV;
-	else if (!rtc->ops->set_time)
-		err = -EINVAL;
-	else
+	else if (rtc->ops->set_time)
 		err = rtc->ops->set_time(rtc->dev.parent, tm);
+	else if (rtc->ops->set_mmss) {
+		unsigned long secs;
+		err = rtc_tm_to_time(tm, &secs);
+		if (err == 0)
+			err = rtc->ops->set_mmss(rtc->dev.parent, secs);
+	} else
+		err = -EINVAL;
 
 	mutex_unlock(&rtc->ops_lock);
 	return err;
@@ -389,7 +394,7 @@ static int __rtc_match(struct device *dev, void *data)
 {
 	char *name = (char *)data;
 
-	if (strncmp(dev->bus_id, name, BUS_ID_SIZE) == 0)
+	if (strcmp(dev_name(dev), name) == 0)
 		return 1;
 	return 0;
 }
@@ -503,9 +508,6 @@ int rtc_irq_set_freq(struct rtc_device *rtc, struct rtc_task *task, int freq)
 
 	if (rtc->ops->irq_set_freq == NULL)
 		return -ENXIO;
-
-	if (!is_power_of_2(freq))
-		return -EINVAL;
 
 	spin_lock_irqsave(&rtc->irq_task_lock, flags);
 	if (rtc->irq_task != NULL && task == NULL)

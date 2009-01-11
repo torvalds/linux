@@ -160,7 +160,7 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		break;
 
 	case KVM_S390_INT_VIRTIO:
-		VCPU_EVENT(vcpu, 4, "interrupt: virtio parm:%x,parm64:%lx",
+		VCPU_EVENT(vcpu, 4, "interrupt: virtio parm:%x,parm64:%llx",
 			   inti->ext.ext_params, inti->ext.ext_params2);
 		vcpu->stat.deliver_virtio_interrupt++;
 		rc = put_guest_u16(vcpu, __LC_EXT_INT_CODE, 0x2603);
@@ -360,7 +360,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 	vcpu->arch.ckc_timer.expires = jiffies + sltime;
 
 	add_timer(&vcpu->arch.ckc_timer);
-	VCPU_EVENT(vcpu, 5, "enabled wait timer:%lx jiffies", sltime);
+	VCPU_EVENT(vcpu, 5, "enabled wait timer:%llx jiffies", sltime);
 no_timer:
 	spin_lock_bh(&vcpu->arch.local_int.float_int->lock);
 	spin_lock_bh(&vcpu->arch.local_int.lock);
@@ -491,7 +491,7 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 
 	switch (s390int->type) {
 	case KVM_S390_INT_VIRTIO:
-		VM_EVENT(kvm, 5, "inject: virtio parm:%x,parm64:%lx",
+		VM_EVENT(kvm, 5, "inject: virtio parm:%x,parm64:%llx",
 			 s390int->parm, s390int->parm64);
 		inti->type = s390int->type;
 		inti->ext.ext_params = s390int->parm;

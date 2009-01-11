@@ -1,6 +1,6 @@
 /*
   FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -48,11 +48,13 @@ static ssize_t fuse_conn_waiting_read(struct file *file, char __user *buf,
 	size_t size;
 
 	if (!*ppos) {
+		long value;
 		struct fuse_conn *fc = fuse_ctl_file_conn_get(file);
 		if (!fc)
 			return 0;
 
-		file->private_data=(void *)(long)atomic_read(&fc->num_waiting);
+		value = atomic_read(&fc->num_waiting);
+		file->private_data = (void *)value;
 		fuse_conn_put(fc);
 	}
 	size = sprintf(tmp, "%ld\n", (long)file->private_data);

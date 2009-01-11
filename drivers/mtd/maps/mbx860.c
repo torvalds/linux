@@ -55,7 +55,7 @@ struct map_info mbx_map = {
 	.bankwidth = 4,
 };
 
-int __init init_mbx(void)
+static int __init init_mbx(void)
 {
 	printk(KERN_NOTICE "Motorola MBX flash device: 0x%x at 0x%x\n", WINDOW_SIZE*4, WINDOW_ADDR);
 	mbx_map.virt = ioremap(WINDOW_ADDR, WINDOW_SIZE * 4);

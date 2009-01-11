@@ -778,7 +778,7 @@ int ib_device_register_sysfs(struct ib_device *device)
 	class_dev->class      = &ib_class;
 	class_dev->driver_data = device;
 	class_dev->parent     = device->dma_device;
-	strlcpy(class_dev->bus_id, device->name, BUS_ID_SIZE);
+	dev_set_name(class_dev, device->name);
 
 	INIT_LIST_HEAD(&device->port_list);
 

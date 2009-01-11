@@ -73,7 +73,7 @@ static long iommu_batch_flush(struct iommu_batch *p)
 		if (unlikely(num < 0)) {
 			if (printk_ratelimit())
 				printk("iommu_batch_flush: IOMMU map of "
-				       "[%08lx:%08lx:%lx:%lx:%lx] failed with "
+				       "[%08lx:%08llx:%lx:%lx:%lx] failed with "
 				       "status %ld\n",
 				       devhandle, HV_PCI_TSBID(0, entry),
 				       npages, prot, __pa(pglist), num);

@@ -1,5 +1,8 @@
 #ifndef S390_CMB_H
 #define S390_CMB_H
+
+#include <linux/types.h>
+
 /**
  * struct cmbdata - channel measurement block data for user space
  * @size: size of the stored data

@@ -555,7 +555,7 @@ static u32 hint_lookup[] = {
  * (Load Coherence Index) instruction.  The 8 bits used for the virtual
  * index are bits 12:19 of the value returned by LCI.
  */ 
-void CCIO_INLINE
+static void CCIO_INLINE
 ccio_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 		   unsigned long hints)
 {
@@ -1578,8 +1578,6 @@ static int __init ccio_probe(struct parisc_device *dev)
 
 	ioc_count++;
 
-	parisc_vmerge_boundary = IOVP_SIZE;
-	parisc_vmerge_max_size = BITS_PER_LONG * IOVP_SIZE;
 	parisc_has_iommu();
 	return 0;
 }

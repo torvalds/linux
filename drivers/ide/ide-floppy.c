@@ -71,7 +71,7 @@
 static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
-	struct request *rq = HWGROUP(drive)->rq;
+	struct request *rq = drive->hwif->rq;
 	int error;
 
 	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);

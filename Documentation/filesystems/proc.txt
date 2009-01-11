@@ -140,6 +140,7 @@ Table 1-1: Process specific entries in /proc
  statm		Process memory status information
  status		Process status in human readable form
  wchan		If CONFIG_KALLSYMS is set, a pre-decoded wchan
+ stack		Report full stack trace, enable via CONFIG_STACKTRACE
  smaps		Extension based on maps, the rss size for each mapped file
 ..............................................................................
 
@@ -1385,6 +1386,15 @@ swapcache reclaim.  Decreasing vfs_cache_pressure causes the kernel to prefer
 to retain dentry and inode caches.  Increasing vfs_cache_pressure beyond 100
 causes the kernel to prefer to reclaim dentries and inodes.
 
+dirty_background_bytes
+----------------------
+
+Contains the amount of dirty memory at which the pdflush background writeback
+daemon will start writeback.
+
+If dirty_background_bytes is written, dirty_background_ratio becomes a function
+of its value (dirty_background_bytes / the amount of dirtyable system memory).
+
 dirty_background_ratio
 ----------------------
 
@@ -1393,13 +1403,28 @@ pages + file cache, not including locked pages and HugePages), the number of
 pages at which the pdflush background writeback daemon will start writing out
 dirty data.
 
+If dirty_background_ratio is written, dirty_background_bytes becomes a function
+of its value (dirty_background_ratio * the amount of dirtyable system memory).
+
+dirty_bytes
+-----------
+
+Contains the amount of dirty memory at which a process generating disk writes
+will itself start writeback.
+
+If dirty_bytes is written, dirty_ratio becomes a function of its value
+(dirty_bytes / the amount of dirtyable system memory).
+
 dirty_ratio
------------------
+-----------
 
 Contains, as a percentage of the dirtyable system memory (free pages + mapped
 pages + file cache, not including locked pages and HugePages), the number of
 pages at which a process which is generating disk writes will itself start
 writing out dirty data.
+
+If dirty_ratio is written, dirty_bytes becomes a function of its value
+(dirty_ratio * the amount of dirtyable system memory).
 
 dirty_writeback_centisecs
 -------------------------

@@ -23,7 +23,7 @@
 #include <linux/usb/usbnet.h>
 
 /* datasheet:
- http://www.davicom.com.tw/big5/download/Data%20Sheet/DM9601-DS-P01-930914.pdf
+ http://ptm2.cc.utu.fi/ftp/network/cards/DM9601/From_NET/DM9601-DS-P01-930914.pdf
 */
 
 /* control requests */
@@ -397,16 +397,24 @@ static void dm9601_set_multicast(struct net_device *net)
 	dm_write_reg_async(dev, DM_RX_CTRL, rx_ctl);
 }
 
+static void __dm9601_set_mac_address(struct usbnet *dev)
+{
+	dm_write_async(dev, DM_PHY_ADDR, ETH_ALEN, dev->net->dev_addr);
+}
+
 static int dm9601_set_mac_address(struct net_device *net, void *p)
 {
 	struct sockaddr *addr = p;
 	struct usbnet *dev = netdev_priv(net);
 
-	if (!is_valid_ether_addr(addr->sa_data))
+	if (!is_valid_ether_addr(addr->sa_data)) {
+		dev_err(&net->dev, "not setting invalid mac address %pM\n",
+								addr->sa_data);
 		return -EINVAL;
+	}
 
 	memcpy(net->dev_addr, addr->sa_data, net->addr_len);
-	dm_write_async(dev, DM_PHY_ADDR, net->addr_len, net->dev_addr);
+	__dm9601_set_mac_address(dev);
 
 	return 0;
 }
@@ -414,6 +422,7 @@ static int dm9601_set_mac_address(struct net_device *net, void *p)
 static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret;
+	u8 mac[ETH_ALEN];
 
 	ret = usbnet_get_endpoints(dev, intf);
 	if (ret)
@@ -438,10 +447,22 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 	udelay(20);
 
 	/* read MAC */
-	if (dm_read(dev, DM_PHY_ADDR, ETH_ALEN, dev->net->dev_addr) < 0) {
+	if (dm_read(dev, DM_PHY_ADDR, ETH_ALEN, mac) < 0) {
 		printk(KERN_ERR "Error reading MAC address\n");
 		ret = -ENODEV;
 		goto out;
+	}
+
+	/*
+	 * Overwrite the auto-generated address only with good ones.
+	 */
+	if (is_valid_ether_addr(mac))
+		memcpy(dev->net->dev_addr, mac, ETH_ALEN);
+	else {
+		printk(KERN_WARNING
+			"dm9601: No valid MAC address in EEPROM, using %pM\n",
+			dev->net->dev_addr);
+		__dm9601_set_mac_address(dev);
 	}
 
 	/* power up phy */

@@ -4148,7 +4148,7 @@ static int bond_change_mtu(struct net_device *bond_dev, int new_mtu)
 
 	bond_for_each_slave(bond, slave, i) {
 		pr_debug("s %p s->p %p c_m %p\n", slave,
-			slave->prev, slave->dev->change_mtu);
+			slave->prev, slave->dev->netdev_ops->ndo_change_mtu);
 
 		res = dev_set_mtu(slave->dev, new_mtu);
 

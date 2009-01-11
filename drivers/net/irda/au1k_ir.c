@@ -53,7 +53,6 @@ static int au1k_irda_hard_xmit(struct sk_buff *, struct net_device *);
 static int au1k_irda_rx(struct net_device *);
 static void au1k_irda_interrupt(int, void *);
 static void au1k_tx_timeout(struct net_device *);
-static struct net_device_stats *au1k_irda_stats(struct net_device *);
 static int au1k_irda_ioctl(struct net_device *, struct ifreq *, int);
 static int au1k_irda_set_speed(struct net_device *dev, int speed);
 
@@ -213,7 +212,6 @@ static int au1k_irda_net_init(struct net_device *dev)
 	dev->open = au1k_irda_start;
 	dev->hard_start_xmit = au1k_irda_hard_xmit;
 	dev->stop = au1k_irda_stop;
-	dev->get_stats = au1k_irda_stats;
 	dev->do_ioctl = au1k_irda_ioctl;
 	dev->tx_timeout = au1k_tx_timeout;
 
@@ -830,13 +828,6 @@ au1k_irda_ioctl(struct net_device *dev, struct ifreq *ifreq, int cmd)
 		break;
 	}
 	return ret;
-}
-
-
-static struct net_device_stats *au1k_irda_stats(struct net_device *dev)
-{
-	struct au1k_private *aup = netdev_priv(dev);
-	return &aup->stats;
 }
 
 MODULE_AUTHOR("Pete Popov <ppopov@mvista.com>");

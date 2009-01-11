@@ -40,8 +40,8 @@ static void udbg_putc_beat(char c)
 }
 
 /* Buffered chars getc */
-static long inbuflen;
-static long inbuf[2];	/* must be 2 longs */
+static u64 inbuflen;
+static u64 inbuf[2];	/* must be 2 u64s */
 
 static int udbg_getc_poll_beat(void)
 {

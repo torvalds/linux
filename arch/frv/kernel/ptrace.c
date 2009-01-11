@@ -69,7 +69,8 @@ static inline int put_reg(struct task_struct *task, int regno,
 }
 
 /*
- * check that an address falls within the bounds of the target process's memory mappings
+ * check that an address falls within the bounds of the target process's memory
+ * mappings
  */
 static inline int is_user_addr_valid(struct task_struct *child,
 				     unsigned long start, unsigned long len)
@@ -79,11 +80,11 @@ static inline int is_user_addr_valid(struct task_struct *child,
 		return -EIO;
 	return 0;
 #else
-	struct vm_list_struct *vml;
+	struct vm_area_struct *vma;
 
-	for (vml = child->mm->context.vmlist; vml; vml = vml->next)
-		if (start >= vml->vma->vm_start && start + len <= vml->vma->vm_end)
-			return 0;
+	vma = find_vma(child->mm, start);
+	if (vma && start >= vma->vm_start && start + len <= vma->vm_end)
+		return 0;
 
 	return -EIO;
 #endif

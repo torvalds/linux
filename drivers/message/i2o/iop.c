@@ -1072,7 +1072,7 @@ struct i2o_controller *i2o_iop_alloc(void)
 
 	c->device.release = &i2o_iop_release;
 
-	snprintf(c->device.bus_id, BUS_ID_SIZE, "iop%d", c->unit);
+	dev_set_name(&c->device, "iop%d", c->unit);
 
 #if BITS_PER_LONG == 64
 	spin_lock_init(&c->context_list_lock);

@@ -130,7 +130,27 @@ static void __init setup_cpu_pda_map(void)
 	/* point to new pointer table */
 	_cpu_pda = new_cpu_pda;
 }
-#endif
+
+#endif /* CONFIG_SMP && CONFIG_X86_64 */
+
+#ifdef CONFIG_X86_64
+
+/* correctly size the local cpu masks */
+static void setup_cpu_local_masks(void)
+{
+	alloc_bootmem_cpumask_var(&cpu_initialized_mask);
+	alloc_bootmem_cpumask_var(&cpu_callin_mask);
+	alloc_bootmem_cpumask_var(&cpu_callout_mask);
+	alloc_bootmem_cpumask_var(&cpu_sibling_setup_mask);
+}
+
+#else /* CONFIG_X86_32 */
+
+static inline void setup_cpu_local_masks(void)
+{
+}
+
+#endif /* CONFIG_X86_32 */
 
 /*
  * Great future plan:
@@ -186,6 +206,9 @@ void __init setup_per_cpu_areas(void)
 
 	/* Setup node to cpumask map */
 	setup_node_to_cpumask_map();
+
+	/* Setup cpu initialized, callin, callout masks */
+	setup_cpu_local_masks();
 }
 
 #endif
