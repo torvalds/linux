@@ -64,9 +64,6 @@ static struct irq_desc irq_desc_init = {
 	.handle_irq = handle_bad_irq,
 	.depth      = 1,
 	.lock       = __SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
-#ifdef CONFIG_SMP
-	.affinity   = CPU_MASK_ALL
-#endif
 };
 
 void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr)
@@ -88,6 +85,8 @@ void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr)
 
 static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
 {
+	int node = cpu_to_node(cpu);
+
 	memcpy(desc, &irq_desc_init, sizeof(struct irq_desc));
 
 	spin_lock_init(&desc->lock);
@@ -99,6 +98,10 @@ static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
 	init_kstat_irqs(desc, cpu, nr_cpu_ids);
 	if (!desc->kstat_irqs) {
 		printk(KERN_ERR "can not alloc kstat_irqs\n");
+		BUG_ON(1);
+	}
+	if (!init_alloc_desc_masks(desc, node, false)) {
+		printk(KERN_ERR "can not alloc irq_desc cpumasks\n");
 		BUG_ON(1);
 	}
 	arch_init_chip_data(desc, cpu);
@@ -119,9 +122,6 @@ static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_sm
 		.handle_irq = handle_bad_irq,
 		.depth	    = 1,
 		.lock	    = __SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
-#ifdef CONFIG_SMP
-		.affinity   = CPU_MASK_ALL
-#endif
 	}
 };
 
@@ -141,7 +141,7 @@ int __init early_irq_init(void)
 		desc[i].irq = i;
 		desc[i].kstat_irqs = kstat_irqs_legacy[i];
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
-
+		init_alloc_desc_masks(&desc[i], 0, true);
 		irq_desc_ptrs[i] = desc + i;
 	}
 
@@ -188,6 +188,10 @@ struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
 		printk(KERN_ERR "can not alloc irq_desc\n");
 		BUG_ON(1);
 	}
+	if (!init_alloc_desc_masks(desc, node, false)) {
+		printk(KERN_ERR "can not alloc irq_desc cpumasks\n");
+		BUG_ON(1);
+	}
 	init_one_irq_desc(irq, desc, cpu);
 
 	irq_desc_ptrs[irq] = desc;
@@ -207,9 +211,6 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 		.handle_irq = handle_bad_irq,
 		.depth = 1,
 		.lock = __SPIN_LOCK_UNLOCKED(irq_desc->lock),
-#ifdef CONFIG_SMP
-		.affinity = CPU_MASK_ALL
-#endif
 	}
 };
 
@@ -222,9 +223,10 @@ int __init early_irq_init(void)
 	desc = irq_desc;
 	count = ARRAY_SIZE(irq_desc);
 
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++) {
 		desc[i].irq = i;
-
+		init_alloc_desc_masks(&desc[i], 0, true);
+	}
 	return arch_early_irq_init();
 }
 

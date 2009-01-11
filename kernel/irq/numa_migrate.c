@@ -46,6 +46,7 @@ static void init_copy_one_irq_desc(int irq, struct irq_desc *old_desc,
 	desc->cpu = cpu;
 	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
 	init_copy_kstat_irqs(old_desc, desc, cpu, nr_cpu_ids);
+	init_copy_desc_masks(old_desc, desc);
 	arch_init_copy_chip_data(old_desc, desc, cpu);
 }
 
@@ -76,8 +77,17 @@ static struct irq_desc *__real_move_irq_desc(struct irq_desc *old_desc,
 	node = cpu_to_node(cpu);
 	desc = kzalloc_node(sizeof(*desc), GFP_ATOMIC, node);
 	if (!desc) {
-		printk(KERN_ERR "irq %d: can not get new irq_desc for migration.\n", irq);
+		printk(KERN_ERR "irq %d: can not get new irq_desc "
+				"for migration.\n", irq);
 		/* still use old one */
+		desc = old_desc;
+		goto out_unlock;
+	}
+	if (!init_alloc_desc_masks(desc, node, false)) {
+		printk(KERN_ERR "irq %d: can not get new irq_desc cpumask "
+				"for migration.\n", irq);
+		/* still use old one */
+		kfree(desc);
 		desc = old_desc;
 		goto out_unlock;
 	}

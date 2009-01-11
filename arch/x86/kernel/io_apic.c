@@ -356,7 +356,7 @@ set_extra_move_desc(struct irq_desc *desc, const struct cpumask *mask)
 
 	if (!cfg->move_in_progress) {
 		/* it means that domain is not changed */
-		if (!cpumask_intersects(&desc->affinity, mask))
+		if (!cpumask_intersects(desc->affinity, mask))
 			cfg->move_desc_pending = 1;
 	}
 }
@@ -579,9 +579,9 @@ set_desc_affinity(struct irq_desc *desc, const struct cpumask *mask)
 	if (assign_irq_vector(irq, cfg, mask))
 		return BAD_APICID;
 
-	cpumask_and(&desc->affinity, cfg->domain, mask);
+	cpumask_and(desc->affinity, cfg->domain, mask);
 	set_extra_move_desc(desc, mask);
-	return cpu_mask_to_apicid_and(&desc->affinity, cpu_online_mask);
+	return cpu_mask_to_apicid_and(desc->affinity, cpu_online_mask);
 }
 
 static void
@@ -2383,7 +2383,7 @@ migrate_ioapic_irq_desc(struct irq_desc *desc, const struct cpumask *mask)
 	if (cfg->move_in_progress)
 		send_cleanup_vector(cfg);
 
-	cpumask_copy(&desc->affinity, mask);
+	cpumask_copy(desc->affinity, mask);
 }
 
 static int migrate_irq_remapped_level_desc(struct irq_desc *desc)
@@ -2405,11 +2405,11 @@ static int migrate_irq_remapped_level_desc(struct irq_desc *desc)
 	}
 
 	/* everthing is clear. we have right of way */
-	migrate_ioapic_irq_desc(desc, &desc->pending_mask);
+	migrate_ioapic_irq_desc(desc, desc->pending_mask);
 
 	ret = 0;
 	desc->status &= ~IRQ_MOVE_PENDING;
-	cpumask_clear(&desc->pending_mask);
+	cpumask_clear(desc->pending_mask);
 
 unmask:
 	unmask_IO_APIC_irq_desc(desc);
@@ -2434,7 +2434,7 @@ static void ir_irq_migration(struct work_struct *work)
 				continue;
 			}
 
-			desc->chip->set_affinity(irq, &desc->pending_mask);
+			desc->chip->set_affinity(irq, desc->pending_mask);
 			spin_unlock_irqrestore(&desc->lock, flags);
 		}
 	}
@@ -2448,7 +2448,7 @@ static void set_ir_ioapic_affinity_irq_desc(struct irq_desc *desc,
 {
 	if (desc->status & IRQ_LEVEL) {
 		desc->status |= IRQ_MOVE_PENDING;
-		cpumask_copy(&desc->pending_mask, mask);
+		cpumask_copy(desc->pending_mask, mask);
 		migrate_irq_remapped_level_desc(desc);
 		return;
 	}
@@ -2516,7 +2516,7 @@ static void irq_complete_move(struct irq_desc **descp)
 
 		/* domain has not changed, but affinity did */
 		me = smp_processor_id();
-		if (cpu_isset(me, desc->affinity)) {
+		if (cpumask_test_cpu(me, desc->affinity)) {
 			*descp = desc = move_irq_desc(desc, me);
 			/* get the new one */
 			cfg = desc->chip_data;
@@ -4039,7 +4039,7 @@ void __init setup_ioapic_dest(void)
 			 */
 			if (desc->status &
 			    (IRQ_NO_BALANCING | IRQ_AFFINITY_SET))
-				mask = &desc->affinity;
+				mask = desc->affinity;
 			else
 				mask = TARGET_CPUS;
 

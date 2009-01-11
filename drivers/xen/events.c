@@ -125,7 +125,7 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 
 	BUG_ON(irq == -1);
 #ifdef CONFIG_SMP
-	irq_to_desc(irq)->affinity = cpumask_of_cpu(cpu);
+	cpumask_copy(irq_to_desc(irq)->affinity, cpumask_of(cpu));
 #endif
 
 	__clear_bit(chn, cpu_evtchn_mask[cpu_evtchn[chn]]);
@@ -142,7 +142,7 @@ static void init_evtchn_cpu_bindings(void)
 
 	/* By default all event channels notify CPU#0. */
 	for_each_irq_desc(i, desc) {
-		desc->affinity = cpumask_of_cpu(0);
+		cpumask_copy(desc->affinity, cpumask_of(0));
 	}
 #endif
 
