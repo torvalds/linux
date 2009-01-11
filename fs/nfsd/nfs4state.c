@@ -116,9 +116,6 @@ opaque_hashval(const void *ptr, int nbytes)
 	return x;
 }
 
-/* forward declarations */
-static void release_stateowner(struct nfs4_stateowner *sop);
-
 /*
  * Delegation state
  */
@@ -329,6 +326,26 @@ static void release_lock_stateid(struct nfs4_stateid *stp)
 	free_generic_stateid(stp);
 }
 
+static void unhash_lockowner(struct nfs4_stateowner *sop)
+{
+	struct nfs4_stateid *stp;
+
+	list_del(&sop->so_idhash);
+	list_del(&sop->so_strhash);
+	list_del(&sop->so_perstateid);
+	while (!list_empty(&sop->so_stateids)) {
+		stp = list_first_entry(&sop->so_stateids,
+				struct nfs4_stateid, st_perstateowner);
+		release_lock_stateid(stp);
+	}
+}
+
+static void release_lockowner(struct nfs4_stateowner *sop)
+{
+	unhash_lockowner(sop);
+	nfs4_put_stateowner(sop);
+}
+
 static void
 release_stateid_lockowners(struct nfs4_stateid *open_stp)
 {
@@ -339,7 +356,7 @@ release_stateid_lockowners(struct nfs4_stateid *open_stp)
 				struct nfs4_stateowner, so_perstateid);
 		/* list_del(&open_stp->st_lockowners);  */
 		BUG_ON(lock_sop->so_is_open_owner);
-		release_stateowner(lock_sop);
+		release_lockowner(lock_sop);
 	}
 }
 
@@ -351,30 +368,24 @@ static void release_open_stateid(struct nfs4_stateid *stp)
 	free_generic_stateid(stp);
 }
 
-static void
-unhash_stateowner(struct nfs4_stateowner *sop)
+static void unhash_openowner(struct nfs4_stateowner *sop)
 {
 	struct nfs4_stateid *stp;
 
 	list_del(&sop->so_idhash);
 	list_del(&sop->so_strhash);
-	if (sop->so_is_open_owner)
-		list_del(&sop->so_perclient);
-	list_del(&sop->so_perstateid);
+	list_del(&sop->so_perclient);
+	list_del(&sop->so_perstateid); /* XXX: necessary? */
 	while (!list_empty(&sop->so_stateids)) {
-		stp = list_entry(sop->so_stateids.next,
-			struct nfs4_stateid, st_perstateowner);
-		if (sop->so_is_open_owner)
-			release_open_stateid(stp);
-		else
-			release_lock_stateid(stp);
+		stp = list_first_entry(&sop->so_stateids,
+				struct nfs4_stateid, st_perstateowner);
+		release_open_stateid(stp);
 	}
 }
 
-static void
-release_stateowner(struct nfs4_stateowner *sop)
+static void release_openowner(struct nfs4_stateowner *sop)
 {
-	unhash_stateowner(sop);
+	unhash_openowner(sop);
 	list_del(&sop->so_close_lru);
 	nfs4_put_stateowner(sop);
 }
@@ -488,7 +499,7 @@ expire_client(struct nfs4_client *clp)
 	list_del(&clp->cl_lru);
 	while (!list_empty(&clp->cl_openowners)) {
 		sop = list_entry(clp->cl_openowners.next, struct nfs4_stateowner, so_perclient);
-		release_stateowner(sop);
+		release_openowner(sop);
 	}
 	put_nfs4_client(clp);
 }
@@ -1443,7 +1454,7 @@ nfsd4_process_open1(struct nfsd4_open *open)
 	if (!sop->so_confirmed) {
 		/* Replace unconfirmed owners without checking for replay. */
 		clp = sop->so_client;
-		release_stateowner(sop);
+		release_openowner(sop);
 		open->op_stateowner = NULL;
 		goto renew;
 	}
@@ -1906,7 +1917,7 @@ nfs4_laundromat(void)
 		}
 		dprintk("NFSD: purging unused open stateowner (so_id %d)\n",
 			sop->so_id);
-		release_stateowner(sop);
+		release_openowner(sop);
 	}
 	if (clientid_val < NFSD_LAUNDROMAT_MINTIMEOUT)
 		clientid_val = NFSD_LAUNDROMAT_MINTIMEOUT;
@@ -2796,7 +2807,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 out:
 	if (status && lock->lk_is_new && lock_sop)
-		release_stateowner(lock_sop);
+		release_lockowner(lock_sop);
 	if (lock->lk_replay_owner) {
 		nfs4_get_stateowner(lock->lk_replay_owner);
 		cstate->replay_owner = lock->lk_replay_owner;
@@ -3045,7 +3056,7 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 		/* unhash_stateowner deletes so_perclient only
 		 * for openowners. */
 		list_del(&sop->so_perclient);
-		release_stateowner(sop);
+		release_lockowner(sop);
 	}
 out:
 	nfs4_unlock_state();
