@@ -87,6 +87,14 @@ struct p54_rssi_linear_approximation {
 	s16 longbow_unk2;
 };
 
+struct p54_cal_database {
+	size_t entries;
+	size_t entry_size;
+	size_t offset;
+	size_t len;
+	u8 data[0];
+};
+
 #define EEPROM_READBACK_LEN 0x3fc
 
 #define ISL38XX_DEV_FIRMWARE_ADDR 0x20000
@@ -115,9 +123,8 @@ struct p54_common {
 	u8 tx_diversity_mask;
 	struct pda_iq_autocal_entry *iq_autocal;
 	unsigned int iq_autocal_len;
-	struct pda_channel_output_limit *output_limit;
-	unsigned int output_limit_len;
-	struct pda_pa_curve_data *curve_data;
+	struct p54_cal_database *output_limit;
+	struct p54_cal_database *curve_data;
 	struct p54_rssi_linear_approximation rssical_db[IEEE80211_NUM_BANDS];
 	unsigned int filter_flags;
 	bool use_short_slot;

@@ -186,6 +186,14 @@ struct pda_country {
 	u8 flags;
 } __attribute__ ((packed));
 
+struct pda_custom_wrapper {
+	__le16 entries;
+	__le16 entry_size;
+	__le16 offset;
+	__le16 len;
+	u8 data[0];
+} __attribute__ ((packed));
+
 /*
  * this defines the PDR codes used to build PDAs as defined in document
  * number 553155. The current implementation mirrors version 1.1 of the
@@ -231,8 +239,13 @@ struct pda_country {
 /* reserved range (0x2000 - 0x7fff) */
 
 /* customer range (0x8000 - 0xffff) */
-#define PDR_BASEBAND_REGISTERS			0x8000
-#define PDR_PER_CHANNEL_BASEBAND_REGISTERS	0x8001
+#define PDR_BASEBAND_REGISTERS				0x8000
+#define PDR_PER_CHANNEL_BASEBAND_REGISTERS		0x8001
+
+/* used by our modificated eeprom image */
+#define PDR_RSSI_LINEAR_APPROXIMATION_CUSTOM		0xDEAD
+#define PDR_PRISM_PA_CAL_OUTPUT_POWER_LIMITS_CUSTOM	0xBEEF
+#define PDR_PRISM_PA_CAL_CURVE_DATA_CUSTOM		0xB05D
 
 /* PDR definitions for default country & country list */
 #define PDR_COUNTRY_CERT_CODE		0x80
@@ -434,7 +447,7 @@ struct p54_setup_mac {
 struct p54_scan {
 	__le16 mode;
 	__le16 dwell;
-	u8 padding1[20];
+	u8 scan_params[20];
 	struct pda_iq_autocal_entry iq_autocal;
 	u8 pa_points_per_curve;
 	u8 val_barker;
