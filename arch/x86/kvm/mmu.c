@@ -1066,7 +1066,7 @@ static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm *kvm, gfn_t gfn)
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry(sp, node, bucket, hash_link)
-		if (sp->gfn == gfn && !sp->role.metaphysical
+		if (sp->gfn == gfn && !sp->role.direct
 		    && !sp->role.invalid) {
 			pgprintk("%s: found role %x\n",
 				 __func__, sp->role.word);
@@ -1200,7 +1200,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 					     gfn_t gfn,
 					     gva_t gaddr,
 					     unsigned level,
-					     int metaphysical,
+					     int direct,
 					     unsigned access,
 					     u64 *parent_pte)
 {
@@ -1213,7 +1213,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 
 	role = vcpu->arch.mmu.base_role;
 	role.level = level;
-	role.metaphysical = metaphysical;
+	role.direct = direct;
 	role.access = access;
 	if (vcpu->arch.mmu.root_level <= PT32_ROOT_LEVEL) {
 		quadrant = gaddr >> (PAGE_SHIFT + (PT64_PT_BITS * level));
@@ -1250,7 +1250,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	sp->role = role;
 	sp->global = role.cr4_pge;
 	hlist_add_head(&sp->hash_link, bucket);
-	if (!metaphysical) {
+	if (!direct) {
 		if (rmap_write_protect(vcpu->kvm, gfn))
 			kvm_flush_remote_tlbs(vcpu->kvm);
 		account_shadowed(vcpu->kvm, gfn);
@@ -1395,7 +1395,7 @@ static int kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	kvm_mmu_page_unlink_children(kvm, sp);
 	kvm_mmu_unlink_parents(kvm, sp);
 	kvm_flush_remote_tlbs(kvm);
-	if (!sp->role.invalid && !sp->role.metaphysical)
+	if (!sp->role.invalid && !sp->role.direct)
 		unaccount_shadowed(kvm, sp->gfn);
 	if (sp->unsync)
 		kvm_unlink_unsync_page(kvm, sp);
@@ -1458,7 +1458,7 @@ static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link)
-		if (sp->gfn == gfn && !sp->role.metaphysical) {
+		if (sp->gfn == gfn && !sp->role.direct) {
 			pgprintk("%s: gfn %lx role %x\n", __func__, gfn,
 				 sp->role.word);
 			r = 1;
@@ -1478,7 +1478,7 @@ static void mmu_unshadow(struct kvm *kvm, gfn_t gfn)
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry_safe(sp, node, nn, bucket, hash_link) {
-		if (sp->gfn == gfn && !sp->role.metaphysical
+		if (sp->gfn == gfn && !sp->role.direct
 		    && !sp->role.invalid) {
 			pgprintk("%s: zap %lx %x\n",
 				 __func__, gfn, sp->role.word);
@@ -1638,7 +1638,7 @@ static int kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
 	/* don't unsync if pagetable is shadowed with multiple roles */
 	hlist_for_each_entry_safe(s, node, n, bucket, hash_link) {
-		if (s->gfn != sp->gfn || s->role.metaphysical)
+		if (s->gfn != sp->gfn || s->role.direct)
 			continue;
 		if (s->role.word != sp->role.word)
 			return 1;
@@ -1951,7 +1951,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 	int i;
 	gfn_t root_gfn;
 	struct kvm_mmu_page *sp;
-	int metaphysical = 0;
+	int direct = 0;
 
 	root_gfn = vcpu->arch.cr3 >> PAGE_SHIFT;
 
@@ -1960,18 +1960,18 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 
 		ASSERT(!VALID_PAGE(root));
 		if (tdp_enabled)
-			metaphysical = 1;
+			direct = 1;
 		sp = kvm_mmu_get_page(vcpu, root_gfn, 0,
-				      PT64_ROOT_LEVEL, metaphysical,
+				      PT64_ROOT_LEVEL, direct,
 				      ACC_ALL, NULL);
 		root = __pa(sp->spt);
 		++sp->root_count;
 		vcpu->arch.mmu.root_hpa = root;
 		return;
 	}
-	metaphysical = !is_paging(vcpu);
+	direct = !is_paging(vcpu);
 	if (tdp_enabled)
-		metaphysical = 1;
+		direct = 1;
 	for (i = 0; i < 4; ++i) {
 		hpa_t root = vcpu->arch.mmu.pae_root[i];
 
@@ -1985,7 +1985,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		} else if (vcpu->arch.mmu.root_level == 0)
 			root_gfn = 0;
 		sp = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
-				      PT32_ROOT_LEVEL, metaphysical,
+				      PT32_ROOT_LEVEL, direct,
 				      ACC_ALL, NULL);
 		root = __pa(sp->spt);
 		++sp->root_count;
@@ -2487,7 +2487,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link) {
-		if (sp->gfn != gfn || sp->role.metaphysical || sp->role.invalid)
+		if (sp->gfn != gfn || sp->role.direct || sp->role.invalid)
 			continue;
 		pte_size = sp->role.glevels == PT32_ROOT_LEVEL ? 4 : 8;
 		misaligned = (offset ^ (offset + bytes - 1)) & ~(pte_size - 1);
@@ -3125,7 +3125,7 @@ static void audit_write_protection(struct kvm_vcpu *vcpu)
 	gfn_t gfn;
 
 	list_for_each_entry(sp, &vcpu->kvm->arch.active_mmu_pages, link) {
-		if (sp->role.metaphysical)
+		if (sp->role.direct)
 			continue;
 
 		gfn = unalias_gfn(vcpu->kvm, sp->gfn);

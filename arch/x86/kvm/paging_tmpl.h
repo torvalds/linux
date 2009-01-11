@@ -277,7 +277,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	unsigned access = gw->pt_access;
 	struct kvm_mmu_page *shadow_page;
 	u64 spte, *sptep;
-	int metaphysical;
+	int direct;
 	gfn_t table_gfn;
 	int r;
 	int level;
@@ -313,17 +313,17 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 
 		if (level == PT_DIRECTORY_LEVEL
 		    && gw->level == PT_DIRECTORY_LEVEL) {
-			metaphysical = 1;
+			direct = 1;
 			if (!is_dirty_pte(gw->ptes[level - 1]))
 				access &= ~ACC_WRITE_MASK;
 			table_gfn = gpte_to_gfn(gw->ptes[level - 1]);
 		} else {
-			metaphysical = 0;
+			direct = 0;
 			table_gfn = gw->table_gfn[level - 2];
 		}
 		shadow_page = kvm_mmu_get_page(vcpu, table_gfn, addr, level-1,
-					       metaphysical, access, sptep);
-		if (!metaphysical) {
+					       direct, access, sptep);
+		if (!direct) {
 			r = kvm_read_guest_atomic(vcpu->kvm,
 						  gw->pte_gpa[level - 2],
 						  &curr_pte, sizeof(curr_pte));
@@ -512,7 +512,7 @@ static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
 	pt_element_t pt[256 / sizeof(pt_element_t)];
 	gpa_t pte_gpa;
 
-	if (sp->role.metaphysical
+	if (sp->role.direct
 	    || (PTTYPE == 32 && sp->role.level > PT_PAGE_TABLE_LEVEL)) {
 		nonpaging_prefetch_page(vcpu, sp);
 		return;

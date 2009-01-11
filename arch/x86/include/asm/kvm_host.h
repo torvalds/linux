@@ -170,7 +170,8 @@ struct kvm_pte_chain {
  *   bits 0:3 - total guest paging levels (2-4, or zero for real mode)
  *   bits 4:7 - page table level for this shadow (1-4)
  *   bits 8:9 - page table quadrant for 2-level guests
- *   bit   16 - "metaphysical" - gfn is not a real page (huge page/real mode)
+ *   bit   16 - direct mapping of virtual to physical mapping at gfn
+ *              used for real mode and two-dimensional paging
  *   bits 17:19 - common access permissions for all ptes in this shadow page
  */
 union kvm_mmu_page_role {
@@ -180,7 +181,7 @@ union kvm_mmu_page_role {
 		unsigned level:4;
 		unsigned quadrant:2;
 		unsigned pad_for_nice_hex_output:6;
-		unsigned metaphysical:1;
+		unsigned direct:1;
 		unsigned access:3;
 		unsigned invalid:1;
 		unsigned cr4_pge:1;
