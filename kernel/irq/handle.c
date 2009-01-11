@@ -124,8 +124,7 @@ static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_sm
 	}
 };
 
-/* FIXME: use bootmem alloc ...*/
-static unsigned int kstat_irqs_legacy[NR_IRQS_LEGACY][NR_CPUS];
+static unsigned int *kstat_irqs_legacy;
 
 int __init early_irq_init(void)
 {
@@ -144,9 +143,14 @@ int __init early_irq_init(void)
 	/* allocate irq_desc_ptrs array based on nr_irqs */
 	irq_desc_ptrs = alloc_bootmem(nr_irqs * sizeof(void *));
 
+	/* allocate based on nr_cpu_ids */
+	/* FIXME: invert kstat_irgs, and it'd be a per_cpu_alloc'd thing */
+	kstat_irqs_legacy = alloc_bootmem(NR_IRQS_LEGACY * nr_cpu_ids *
+					  sizeof(int));
+
 	for (i = 0; i < legacy_count; i++) {
 		desc[i].irq = i;
-		desc[i].kstat_irqs = kstat_irqs_legacy[i];
+		desc[i].kstat_irqs = kstat_irqs_legacy + i * nr_cpu_ids;
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
 		init_alloc_desc_masks(&desc[i], 0, true);
 		irq_desc_ptrs[i] = desc + i;
