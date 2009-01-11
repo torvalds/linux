@@ -408,6 +408,8 @@ END(save_paranoid)
 ENTRY(ret_from_fork)
 	DEFAULT_FRAME
 
+	LOCK ; btr $TIF_FORK,TI_flags(%r8)
+
 	push kernel_eflags(%rip)
 	CFI_ADJUST_CFA_OFFSET 8
 	popf					# reset kernel eflags
