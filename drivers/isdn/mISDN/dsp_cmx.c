@@ -1579,7 +1579,7 @@ send_packet:
 	schedule_work(&dsp->workq);
 }
 
-static u32	jittercount; /* counter for jitter check */;
+static u32	jittercount; /* counter for jitter check */
 struct timer_list dsp_spl_tl;
 u32	dsp_spl_jiffies; /* calculate the next time to fire */
 static u16	dsp_count; /* last sample count */
