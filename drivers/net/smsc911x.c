@@ -144,6 +144,7 @@ static inline u32 smsc911x_reg_read(struct smsc911x_data *pdata, u32 reg)
 	}
 
 	BUG();
+	return 0;
 }
 
 static inline void smsc911x_reg_write(struct smsc911x_data *pdata, u32 reg,
