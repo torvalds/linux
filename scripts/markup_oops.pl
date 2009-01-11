@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
 
+use File::Basename;
+
 # Copyright 2008, Intel Corporation
 #
 # This file is part of the Linux kernel
@@ -13,28 +15,69 @@
 
 
 my $vmlinux_name = $ARGV[0];
-
+if (!defined($vmlinux_name)) {
+	my $kerver = `uname -r`;
+	chomp($kerver);
+	$vmlinux_name = "/lib/modules/$kerver/build/vmlinux";
+	print "No vmlinux specified, assuming $vmlinux_name\n";
+}
+my $filename = $vmlinux_name;
 #
 # Step 1: Parse the oops to find the EIP value
 #
 
 my $target = "0";
+my $function;
+my $module = "";
+my $func_offset;
+my $vmaoffset = 0;
+
 while (<STDIN>) {
-	if ($_ =~ /EIP: 0060:\[\<([a-z0-9]+)\>\]/) {
+	my $line = $_;
+	if ($line =~ /EIP: 0060:\[\<([a-z0-9]+)\>\]/) {
 		$target = $1;
+	}
+	if ($line =~ /EIP is at ([a-zA-Z0-9\_]+)\+(0x[0-9a-f]+)\/0x[a-f0-9]/) {
+		$function = $1;
+		$func_offset = $2;
+	}
+
+	# check if it's a module
+	if ($line =~ /EIP is at ([a-zA-Z0-9\_]+)\+(0x[0-9a-f]+)\/0x[a-f0-9]+\W\[([a-zA-Z0-9\_\-]+)\]/) {
+		$module = $3;
 	}
 }
 
-if ($target =~ /^f8/) {
-	print "This script does not work on modules ... \n";
-	exit;
-}
-
+my $decodestart = hex($target) - hex($func_offset);
+my $decodestop = $decodestart + 8192;
 if ($target eq "0") {
 	print "No oops found!\n";
 	print "Usage: \n";
 	print "    dmesg | perl scripts/markup_oops.pl vmlinux\n";
 	exit;
+}
+
+# if it's a module, we need to find the .ko file and calculate a load offset
+if ($module ne "") {
+	my $dir = dirname($filename);
+	$dir = $dir . "/";
+	my $mod = $module . ".ko";
+	my $modulefile = `find $dir -name $mod | head -1`;
+	chomp($modulefile);
+	$filename = $modulefile;
+	if ($filename eq "") {
+		print "Module .ko file for $module not found. Aborting\n";
+		exit;
+	}
+	# ok so we found the module, now we need to calculate the vma offset
+	open(FILE, "objdump -dS $filename |") || die "Cannot start objdump";
+	while (<FILE>) {
+		if ($_ =~ /^([0-9a-f]+) \<$function\>\:/) {
+			my $fu = $1;
+			$vmaoffset = hex($target) - hex($fu) - hex($func_offset);
+		}
+	}
+	close(FILE);
 }
 
 my $counter = 0;
@@ -59,9 +102,7 @@ sub InRange {
 # first, parse the input into the lines array, but to keep size down,
 # we only do this for 4Kb around the sweet spot
 
-my $filename;
-
-open(FILE, "objdump -dS $vmlinux_name |") || die "Cannot start objdump";
+open(FILE, "objdump -dS --adjust-vma=$vmaoffset --start-address=$decodestart --stop-address=$decodestop $filename |") || die "Cannot start objdump";
 
 while (<FILE>) {
 	my $line = $_;
