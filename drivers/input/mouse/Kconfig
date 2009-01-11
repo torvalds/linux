@@ -70,7 +70,7 @@ config MOUSE_PS2_SYNAPTICS
 config MOUSE_PS2_LIFEBOOK
 	bool "Fujitsu Lifebook PS/2 mouse protocol extension" if EMBEDDED
 	default y
-	depends on MOUSE_PS2
+	depends on MOUSE_PS2 && X86
 	help
 	  Say Y here if you have a Fujitsu B-series Lifebook PS/2
 	  TouchScreen connected to your system.
