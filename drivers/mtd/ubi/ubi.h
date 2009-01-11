@@ -449,9 +449,9 @@ struct ubi_device {
 };
 
 extern struct kmem_cache *ubi_wl_entry_slab;
-extern struct file_operations ubi_ctrl_cdev_operations;
-extern struct file_operations ubi_cdev_operations;
-extern struct file_operations ubi_vol_cdev_operations;
+extern const struct file_operations ubi_ctrl_cdev_operations;
+extern const struct file_operations ubi_cdev_operations;
+extern const struct file_operations ubi_vol_cdev_operations;
 extern struct class *ubi_class;
 extern struct mutex ubi_devices_mutex;
 
