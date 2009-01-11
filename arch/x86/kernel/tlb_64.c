@@ -202,16 +202,17 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 			     struct mm_struct *mm, unsigned long va)
 {
 	if (is_uv_system()) {
-		cpumask_var_t after_uv_flush;
+		/* FIXME: could be an percpu_alloc'd thing */
+		static DEFINE_PER_CPU(cpumask_t, flush_tlb_mask);
+		struct cpumask *after_uv_flush = &get_cpu_var(flush_tlb_mask);
 
-		if (alloc_cpumask_var(&after_uv_flush, GFP_ATOMIC)) {
-			cpumask_andnot(after_uv_flush,
-				       cpumask, cpumask_of(smp_processor_id()));
-			if (!uv_flush_tlb_others(after_uv_flush, mm, va))
-				flush_tlb_others_ipi(after_uv_flush, mm, va);
-			free_cpumask_var(after_uv_flush);
-			return;
-		}
+		cpumask_andnot(after_uv_flush, cpumask,
+			       cpumask_of(smp_processor_id()));
+		if (!uv_flush_tlb_others(after_uv_flush, mm, va))
+			flush_tlb_others_ipi(after_uv_flush, mm, va);
+
+		put_cpu_var(flush_tlb_uv_cpumask);
+		return;
 	}
 	flush_tlb_others_ipi(cpumask, mm, va);
 }
