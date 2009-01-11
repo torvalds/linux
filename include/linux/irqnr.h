@@ -20,10 +20,17 @@
 
 # define for_each_irq_desc_reverse(irq, desc)                          \
 	for (irq = nr_irqs - 1; irq >= 0; irq--)
+
 #else /* CONFIG_GENERIC_HARDIRQS */
+
+#include <asm/irq_vectors.h>	/* need possible max_nr_irqs() */
 
 extern int nr_irqs;
 extern struct irq_desc *irq_to_desc(unsigned int irq);
+
+# ifndef max_nr_irqs
+#  define max_nr_irqs(nr_cpus)	NR_IRQS
+# endif
 
 # define for_each_irq_desc(irq, desc)					\
 	for (irq = 0, desc = irq_to_desc(irq); irq < nr_irqs;		\

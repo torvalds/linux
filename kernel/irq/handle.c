@@ -133,6 +133,9 @@ int __init early_irq_init(void)
 	int legacy_count;
 	int i;
 
+	/* initialize nr_irqs based on nr_cpu_ids */
+	nr_irqs = max_nr_irqs(nr_cpu_ids);
+
 	printk(KERN_INFO "NR_IRQS:%d nr_irqs:%d\n", NR_IRQS, nr_irqs);
 
 	desc = irq_desc_legacy;
