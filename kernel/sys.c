@@ -34,6 +34,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/seccomp.h>
 #include <linux/cpu.h>
+#include <linux/ptrace.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -908,8 +909,8 @@ void do_sys_times(struct tms *tms)
 	struct task_cputime cputime;
 	cputime_t cutime, cstime;
 
-	spin_lock_irq(&current->sighand->siglock);
 	thread_group_cputime(current, &cputime);
+	spin_lock_irq(&current->sighand->siglock);
 	cutime = current->signal->cutime;
 	cstime = current->signal->cstime;
 	spin_unlock_irq(&current->sighand->siglock);
@@ -928,6 +929,7 @@ asmlinkage long sys_times(struct tms __user * tbuf)
 		if (copy_to_user(tbuf, &tmp, sizeof(struct tms)))
 			return -EFAULT;
 	}
+	force_successful_syscall_return();
 	return (long) jiffies_64_to_clock_t(get_jiffies_64());
 }
 
@@ -1628,6 +1630,8 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 	utime = stime = cputime_zero;
 
 	if (who == RUSAGE_THREAD) {
+		utime = task_utime(current);
+		stime = task_stime(current);
 		accumulate_thread_rusage(p, r);
 		goto out;
 	}

@@ -81,14 +81,14 @@ static struct sdram_params sdram_tbl[] __initdata = {
 		.twr		= 9,
 		.refresh	= 64000,
 		.cas_latency	= 3,
-	}, {    /* Samsung K4S281632B-1H */
-	        .name           = "K4S281632B-1H",
-		.rows           = 12,
-		.tck            = 10,
-		.trp            = 20,
-		.twr            = 10,
-		.refresh        = 64000,
-		.cas_latency    = 3,
+	}, {	/* Samsung K4S281632B-1H */
+		.name           = "K4S281632B-1H",
+		.rows		= 12,
+		.tck		= 10,
+		.trp		= 20,
+		.twr		= 10,
+		.refresh	= 64000,
+		.cas_latency	= 3,
 	}, {	/* Samsung KM416S4030CT */
 		.name		= "KM416S4030CT",
 		.rows		= 13,
@@ -220,7 +220,7 @@ sdram_update_refresh(u_int cpu_khz, struct sdram_params *sdram)
 }
 
 /*
- * Ok, set the CPU frequency.  
+ * Ok, set the CPU frequency.
  */
 static int sa1110_target(struct cpufreq_policy *policy,
 			 unsigned int target_freq,

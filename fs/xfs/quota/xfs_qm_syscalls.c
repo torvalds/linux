@@ -127,7 +127,7 @@ xfs_qm_quotactl(
 		break;
 
 	case Q_XQUOTASYNC:
-		return (xfs_sync_inodes(mp, SYNC_DELWRI, NULL));
+		return xfs_sync_inodes(mp, SYNC_DELWRI);
 
 	default:
 		break;
@@ -1022,6 +1022,86 @@ xfs_qm_export_flags(
 
 
 /*
+ * Release all the dquots on the inodes in an AG.
+ */
+STATIC void
+xfs_qm_dqrele_inodes_ag(
+	xfs_mount_t	*mp,
+	int		ag,
+	uint		flags)
+{
+	xfs_inode_t	*ip = NULL;
+	xfs_perag_t	*pag = &mp->m_perag[ag];
+	int		first_index = 0;
+	int		nr_found;
+
+	do {
+		/*
+		 * use a gang lookup to find the next inode in the tree
+		 * as the tree is sparse and a gang lookup walks to find
+		 * the number of objects requested.
+		 */
+		read_lock(&pag->pag_ici_lock);
+		nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
+				(void**)&ip, first_index, 1);
+
+		if (!nr_found) {
+			read_unlock(&pag->pag_ici_lock);
+			break;
+		}
+
+		/*
+		 * Update the index for the next lookup. Catch overflows
+		 * into the next AG range which can occur if we have inodes
+		 * in the last block of the AG and we are currently
+		 * pointing to the last inode.
+		 */
+		first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
+		if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino)) {
+			read_unlock(&pag->pag_ici_lock);
+			break;
+		}
+
+		/* skip quota inodes */
+		if (ip == XFS_QI_UQIP(mp) || ip == XFS_QI_GQIP(mp)) {
+			ASSERT(ip->i_udquot == NULL);
+			ASSERT(ip->i_gdquot == NULL);
+			read_unlock(&pag->pag_ici_lock);
+			continue;
+		}
+
+		/*
+		 * If we can't get a reference on the inode, it must be
+		 * in reclaim. Leave it for the reclaim code to flush.
+		 */
+		if (!igrab(VFS_I(ip))) {
+			read_unlock(&pag->pag_ici_lock);
+			continue;
+		}
+		read_unlock(&pag->pag_ici_lock);
+
+		/* avoid new inodes though we shouldn't find any here */
+		if (xfs_iflags_test(ip, XFS_INEW)) {
+			IRELE(ip);
+			continue;
+		}
+
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		if ((flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
+			xfs_qm_dqrele(ip->i_udquot);
+			ip->i_udquot = NULL;
+		}
+		if (flags & (XFS_PQUOTA_ACCT|XFS_GQUOTA_ACCT) &&
+		    ip->i_gdquot) {
+			xfs_qm_dqrele(ip->i_gdquot);
+			ip->i_gdquot = NULL;
+		}
+		xfs_iput(ip, XFS_ILOCK_EXCL);
+
+	} while (nr_found);
+}
+
+/*
  * Go thru all the inodes in the file system, releasing their dquots.
  * Note that the mount structure gets modified to indicate that quotas are off
  * AFTER this, in the case of quotaoff. This also gets called from
@@ -1032,91 +1112,14 @@ xfs_qm_dqrele_all_inodes(
 	struct xfs_mount *mp,
 	uint		 flags)
 {
-	xfs_inode_t	*ip, *topino;
-	uint		ireclaims;
-	struct inode	*vp;
-	boolean_t	vnode_refd;
+	int		i;
 
 	ASSERT(mp->m_quotainfo);
-
-	XFS_MOUNT_ILOCK(mp);
-again:
-	ip = mp->m_inodes;
-	if (ip == NULL) {
-		XFS_MOUNT_IUNLOCK(mp);
-		return;
+	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
+		if (!mp->m_perag[i].pag_ici_init)
+			continue;
+		xfs_qm_dqrele_inodes_ag(mp, i, flags);
 	}
-	do {
-		/* Skip markers inserted by xfs_sync */
-		if (ip->i_mount == NULL) {
-			ip = ip->i_mnext;
-			continue;
-		}
-		/* Root inode, rbmip and rsumip have associated blocks */
-		if (ip == XFS_QI_UQIP(mp) || ip == XFS_QI_GQIP(mp)) {
-			ASSERT(ip->i_udquot == NULL);
-			ASSERT(ip->i_gdquot == NULL);
-			ip = ip->i_mnext;
-			continue;
-		}
-		vp = VFS_I(ip);
-		if (!vp) {
-			ASSERT(ip->i_udquot == NULL);
-			ASSERT(ip->i_gdquot == NULL);
-			ip = ip->i_mnext;
-			continue;
-		}
-		vnode_refd = B_FALSE;
-		if (xfs_ilock_nowait(ip, XFS_ILOCK_EXCL) == 0) {
-			ireclaims = mp->m_ireclaims;
-			topino = mp->m_inodes;
-			vp = vn_grab(vp);
-			if (!vp)
-				goto again;
-
-			XFS_MOUNT_IUNLOCK(mp);
-			/* XXX restart limit ? */
-			xfs_ilock(ip, XFS_ILOCK_EXCL);
-			vnode_refd = B_TRUE;
-		} else {
-			ireclaims = mp->m_ireclaims;
-			topino = mp->m_inodes;
-			XFS_MOUNT_IUNLOCK(mp);
-		}
-
-		/*
-		 * We don't keep the mountlock across the dqrele() call,
-		 * since it can take a while..
-		 */
-		if ((flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
-			xfs_qm_dqrele(ip->i_udquot);
-			ip->i_udquot = NULL;
-		}
-		if (flags & (XFS_PQUOTA_ACCT|XFS_GQUOTA_ACCT) && ip->i_gdquot) {
-			xfs_qm_dqrele(ip->i_gdquot);
-			ip->i_gdquot = NULL;
-		}
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		/*
-		 * Wait until we've dropped the ilock and mountlock to
-		 * do the vn_rele. Or be condemned to an eternity in the
-		 * inactive code in hell.
-		 */
-		if (vnode_refd)
-			IRELE(ip);
-		XFS_MOUNT_ILOCK(mp);
-		/*
-		 * If an inode was inserted or removed, we gotta
-		 * start over again.
-		 */
-		if (topino != mp->m_inodes || mp->m_ireclaims != ireclaims) {
-			/* XXX use a sentinel */
-			goto again;
-		}
-		ip = ip->i_mnext;
-	} while (ip != mp->m_inodes);
-
-	XFS_MOUNT_IUNLOCK(mp);
 }
 
 /*------------------------------------------------------------------------*/

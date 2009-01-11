@@ -44,25 +44,93 @@ xfs_log_busy_slot_t		*xfs_trans_add_busy(xfs_trans_t *tp,
 						    xfs_extlen_t idx);
 
 /*
- * From xfs_trans_ail.c
+ * AIL traversal cursor.
+ *
+ * Rather than using a generation number for detecting changes in the ail, use
+ * a cursor that is protected by the ail lock. The aild cursor exists in the
+ * struct xfs_ail, but other traversals can declare it on the stack and link it
+ * to the ail list.
+ *
+ * When an object is deleted from or moved int the AIL, the cursor list is
+ * searched to see if the object is a designated cursor item. If it is, it is
+ * deleted from the cursor so that the next time the cursor is used traversal
+ * will return to the start.
+ *
+ * This means a traversal colliding with a removal will cause a restart of the
+ * list scan, rather than any insertion or deletion anywhere in the list. The
+ * low bit of the item pointer is set if the cursor has been invalidated so
+ * that we can tell the difference between invalidation and reaching the end
+ * of the list to trigger traversal restarts.
  */
-void			xfs_trans_update_ail(struct xfs_mount *mp,
-				     struct xfs_log_item *lip, xfs_lsn_t lsn)
-				     __releases(mp->m_ail_lock);
-void			xfs_trans_delete_ail(struct xfs_mount *mp,
-				     struct xfs_log_item *lip)
-				     __releases(mp->m_ail_lock);
-struct xfs_log_item	*xfs_trans_first_ail(struct xfs_mount *, int *);
-struct xfs_log_item	*xfs_trans_next_ail(struct xfs_mount *,
-				     struct xfs_log_item *, int *, int *);
-
+struct xfs_ail_cursor {
+	struct xfs_ail_cursor	*next;
+	struct xfs_log_item	*item;
+};
 
 /*
- * AIL push thread support
+ * Private AIL structures.
+ *
+ * Eventually we need to drive the locking in here as well.
  */
-long	xfsaild_push(struct xfs_mount *, xfs_lsn_t *);
-void	xfsaild_wakeup(struct xfs_mount *, xfs_lsn_t);
-int	xfsaild_start(struct xfs_mount *);
-void	xfsaild_stop(struct xfs_mount *);
+struct xfs_ail {
+	struct xfs_mount	*xa_mount;
+	struct list_head	xa_ail;
+	uint			xa_gen;
+	struct task_struct	*xa_task;
+	xfs_lsn_t		xa_target;
+	struct xfs_ail_cursor	xa_cursors;
+	spinlock_t		xa_lock;
+};
 
+/*
+ * From xfs_trans_ail.c
+ */
+void			xfs_trans_ail_update(struct xfs_ail *ailp,
+					struct xfs_log_item *lip, xfs_lsn_t lsn)
+					__releases(ailp->xa_lock);
+void			xfs_trans_ail_delete(struct xfs_ail *ailp,
+					struct xfs_log_item *lip)
+					__releases(ailp->xa_lock);
+void			xfs_trans_ail_push(struct xfs_ail *, xfs_lsn_t);
+void			xfs_trans_unlocked_item(struct xfs_ail *,
+					xfs_log_item_t *);
+
+xfs_lsn_t		xfs_trans_ail_tail(struct xfs_ail *ailp);
+
+struct xfs_log_item	*xfs_trans_ail_cursor_first(struct xfs_ail *ailp,
+					struct xfs_ail_cursor *cur,
+					xfs_lsn_t lsn);
+struct xfs_log_item	*xfs_trans_ail_cursor_next(struct xfs_ail *ailp,
+					struct xfs_ail_cursor *cur);
+void			xfs_trans_ail_cursor_done(struct xfs_ail *ailp,
+					struct xfs_ail_cursor *cur);
+
+long	xfsaild_push(struct xfs_ail *, xfs_lsn_t *);
+void	xfsaild_wakeup(struct xfs_ail *, xfs_lsn_t);
+int	xfsaild_start(struct xfs_ail *);
+void	xfsaild_stop(struct xfs_ail *);
+
+#if BITS_PER_LONG != 64
+static inline void
+xfs_trans_ail_copy_lsn(
+	struct xfs_ail	*ailp,
+	xfs_lsn_t	*dst,
+	xfs_lsn_t	*src)
+{
+	ASSERT(sizeof(xfs_lsn_t) == 8);	/* don't lock if it shrinks */
+	spin_lock(&ailp->xa_lock);
+	*dst = *src;
+	spin_unlock(&ailp->xa_lock);
+}
+#else
+static inline void
+xfs_trans_ail_copy_lsn(
+	struct xfs_ail	*ailp,
+	xfs_lsn_t	*dst,
+	xfs_lsn_t	*src)
+{
+	ASSERT(sizeof(xfs_lsn_t) == 8);
+	*dst = *src;
+}
+#endif
 #endif	/* __XFS_TRANS_PRIV_H__ */

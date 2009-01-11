@@ -214,6 +214,7 @@ struct moschip_port {
 	spinlock_t pool_lock;
 	struct urb *write_urb_pool[NUM_URBS];
 	char busy[NUM_URBS];
+	bool read_urb_busy;
 };
 
 
@@ -679,26 +680,30 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	struct tty_struct *tty;
 	int status = urb->status;
 
-	if (status) {
-		dbg("nonzero read bulk status received: %d", status);
-		return;
-	}
-
 	mos7840_port = urb->context;
 	if (!mos7840_port) {
 		dbg("%s", "NULL mos7840_port pointer \n");
+		mos7840_port->read_urb_busy = false;
+		return;
+	}
+
+	if (status) {
+		dbg("nonzero read bulk status received: %d", status);
+		mos7840_port->read_urb_busy = false;
 		return;
 	}
 
 	port = (struct usb_serial_port *)mos7840_port->port;
 	if (mos7840_port_paranoia_check(port, __func__)) {
 		dbg("%s", "Port Paranoia failed \n");
+		mos7840_port->read_urb_busy = false;
 		return;
 	}
 
 	serial = mos7840_get_usb_serial(port, __func__);
 	if (!serial) {
 		dbg("%s\n", "Bad serial pointer ");
+		mos7840_port->read_urb_busy = false;
 		return;
 	}
 
@@ -725,17 +730,19 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 
 	if (!mos7840_port->read_urb) {
 		dbg("%s", "URB KILLED !!!\n");
+		mos7840_port->read_urb_busy = false;
 		return;
 	}
 
 
 	mos7840_port->read_urb->dev = serial->dev;
 
+	mos7840_port->read_urb_busy = true;
 	retval = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
 
 	if (retval) {
-		dbg(" usb_submit_urb(read bulk) failed, retval = %d",
-		 retval);
+		dbg("usb_submit_urb(read bulk) failed, retval = %d", retval);
+		mos7840_port->read_urb_busy = false;
 	}
 }
 
@@ -1055,10 +1062,12 @@ static int mos7840_open(struct tty_struct *tty,
 
 	dbg("mos7840_open: bulkin endpoint is %d\n",
 	    port->bulk_in_endpointAddress);
+	mos7840_port->read_urb_busy = true;
 	response = usb_submit_urb(mos7840_port->read_urb, GFP_KERNEL);
 	if (response) {
 		dev_err(&port->dev, "%s - Error %d submitting control urb\n",
 			__func__, response);
+		mos7840_port->read_urb_busy = false;
 	}
 
 	/* initialize our wait queues */
@@ -1227,6 +1236,7 @@ static void mos7840_close(struct tty_struct *tty,
 		if (mos7840_port->read_urb) {
 			dbg("%s", "Shutdown bulk read\n");
 			usb_kill_urb(mos7840_port->read_urb);
+			mos7840_port->read_urb_busy = false;
 		}
 		if ((&mos7840_port->control_urb)) {
 			dbg("%s", "Shutdown control read\n");
@@ -1343,6 +1353,7 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 	else
 		data = mos7840_port->shadowLCR & ~LCR_SET_BREAK;
 
+	/* FIXME: no locking on shadowLCR anywhere in driver */
 	mos7840_port->shadowLCR = data;
 	dbg("mcs7840_break mos7840_port->shadowLCR is %x\n",
 	    mos7840_port->shadowLCR);
@@ -2042,14 +2053,14 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	Data = 0x0c;
 	mos7840_set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
 
-	if (mos7840_port->read_urb->status != -EINPROGRESS) {
+	if (mos7840_port->read_urb_busy == false) {
 		mos7840_port->read_urb->dev = serial->dev;
-
+		mos7840_port->read_urb_busy = true;
 		status = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
-
 		if (status) {
-			dbg(" usb_submit_urb(read bulk) failed, status = %d",
+			dbg("usb_submit_urb(read bulk) failed, status = %d",
 			    status);
+			mos7840_port->read_urb_busy = false;
 		}
 	}
 	wake_up(&mos7840_port->delta_msr_wait);
@@ -2116,12 +2127,14 @@ static void mos7840_set_termios(struct tty_struct *tty,
 		return;
 	}
 
-	if (mos7840_port->read_urb->status != -EINPROGRESS) {
+	if (mos7840_port->read_urb_busy == false) {
 		mos7840_port->read_urb->dev = serial->dev;
+		mos7840_port->read_urb_busy = true;
 		status = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
 		if (status) {
-			dbg(" usb_submit_urb(read bulk) failed, status = %d",
+			dbg("usb_submit_urb(read bulk) failed, status = %d",
 			    status);
+			mos7840_port->read_urb_busy = false;
 		}
 	}
 	return;
@@ -2214,10 +2227,12 @@ static int mos7840_set_modem_info(struct moschip_port *mos7840_port,
 		break;
 	}
 
+	lock_kernel();
 	mos7840_port->shadowMCR = mcr;
 
 	Data = mos7840_port->shadowMCR;
 	status = mos7840_set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
+	unlock_kernel();
 	if (status < 0) {
 		dbg("setting MODEM_CONTROL_REGISTER Failed\n");
 		return -1;

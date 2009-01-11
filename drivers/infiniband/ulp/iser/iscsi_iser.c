@@ -119,6 +119,14 @@ error:
 	iscsi_conn_failure(conn, rc);
 }
 
+static int iscsi_iser_pdu_alloc(struct iscsi_task *task, uint8_t opcode)
+{
+	struct iscsi_iser_task *iser_task = task->dd_data;
+
+	task->hdr = (struct iscsi_hdr *)&iser_task->desc.iscsi_header;
+	task->hdr_max = sizeof(iser_task->desc.iscsi_header);
+	return 0;
+}
 
 /**
  * iscsi_iser_task_init - Initialize task
@@ -180,25 +188,26 @@ static int
 iscsi_iser_task_xmit_unsol_data(struct iscsi_conn *conn,
 				 struct iscsi_task *task)
 {
-	struct iscsi_data  hdr;
+	struct iscsi_r2t_info *r2t = &task->unsol_r2t;
+	struct iscsi_data hdr;
 	int error = 0;
 
 	/* Send data-out PDUs while there's still unsolicited data to send */
-	while (task->unsol_count > 0) {
-		iscsi_prep_unsolicit_data_pdu(task, &hdr);
+	while (iscsi_task_has_unsol_data(task)) {
+		iscsi_prep_data_out_pdu(task, r2t, &hdr);
 		debug_scsi("Sending data-out: itt 0x%x, data count %d\n",
-			   hdr.itt, task->data_count);
+			   hdr.itt, r2t->data_count);
 
 		/* the buffer description has been passed with the command */
 		/* Send the command */
 		error = iser_send_data_out(conn, task, &hdr);
 		if (error) {
-			task->unsol_datasn--;
+			r2t->datasn--;
 			goto iscsi_iser_task_xmit_unsol_data_exit;
 		}
-		task->unsol_count -= task->data_count;
+		r2t->sent += r2t->data_count;
 		debug_scsi("Need to send %d more as data-out PDUs\n",
-			   task->unsol_count);
+			   r2t->data_length - r2t->sent);
 	}
 
 iscsi_iser_task_xmit_unsol_data_exit:
@@ -220,7 +229,7 @@ iscsi_iser_task_xmit(struct iscsi_task *task)
 
 		debug_scsi("cmd [itt %x total %d imm %d unsol_data %d\n",
 			   task->itt, scsi_bufflen(task->sc),
-			   task->imm_count, task->unsol_count);
+			   task->imm_count, task->unsol_r2t.data_length);
 	}
 
 	debug_scsi("task deq [cid %d itt 0x%x]\n",
@@ -235,7 +244,7 @@ iscsi_iser_task_xmit(struct iscsi_task *task)
 	}
 
 	/* Send unsolicited data-out PDU(s) if necessary */
-	if (task->unsol_count)
+	if (iscsi_task_has_unsol_data(task))
 		error = iscsi_iser_task_xmit_unsol_data(conn, task);
 
  iscsi_iser_task_xmit_exit:
@@ -244,13 +253,15 @@ iscsi_iser_task_xmit(struct iscsi_task *task)
 	return error;
 }
 
-static void
-iscsi_iser_cleanup_task(struct iscsi_conn *conn, struct iscsi_task *task)
+static void iscsi_iser_cleanup_task(struct iscsi_task *task)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
 
-	/* mgmt tasks do not need special cleanup */
-	if (!task->sc)
+	/*
+	 * mgmt tasks do not need special cleanup and we do not
+	 * allocate anything in the init task callout
+	 */
+	if (!task->sc || task->state == ISCSI_TASK_PENDING)
 		return;
 
 	if (iser_task->status == ISER_TASK_STATUS_STARTED) {
@@ -391,9 +402,6 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
 	struct Scsi_Host *shost;
-	int i;
-	struct iscsi_task *task;
-	struct iscsi_iser_task *iser_task;
 	struct iser_conn *ib_conn;
 
 	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, ISCSI_MAX_CMD_PER_LUN);
@@ -430,13 +438,6 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	session = cls_session->dd_data;
 
 	shost->can_queue = session->scsi_cmds_max;
-	/* libiscsi setup itts, data and pool so just set desc fields */
-	for (i = 0; i < session->cmds_max; i++) {
-		task = session->cmds[i];
-		iser_task = task->dd_data;
-		task->hdr = (struct iscsi_cmd *)&iser_task->desc.iscsi_header;
-		task->hdr_max = sizeof(iser_task->desc.iscsi_header);
-	}
 	return cls_session;
 
 remove_host:
@@ -652,6 +653,7 @@ static struct iscsi_transport iscsi_iser_transport = {
 	.init_task		= iscsi_iser_task_init,
 	.xmit_task		= iscsi_iser_task_xmit,
 	.cleanup_task		= iscsi_iser_cleanup_task,
+	.alloc_pdu		= iscsi_iser_pdu_alloc,
 	/* recovery */
 	.session_recovery_timedout = iscsi_session_recovery_timedout,
 

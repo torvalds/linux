@@ -55,12 +55,6 @@ static int bnep_net_close(struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats *bnep_net_get_stats(struct net_device *dev)
-{
-	struct bnep_session *s = netdev_priv(dev);
-	return &s->stats;
-}
-
 static void bnep_net_set_mc_list(struct net_device *dev)
 {
 #ifdef CONFIG_BT_BNEP_MC_FILTER
@@ -126,11 +120,6 @@ static void bnep_net_timeout(struct net_device *dev)
 {
 	BT_DBG("net_timeout");
 	netif_wake_queue(dev);
-}
-
-static int bnep_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	return -EINVAL;
 }
 
 #ifdef CONFIG_BT_BNEP_MC_FILTER
@@ -217,6 +206,18 @@ static int bnep_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops bnep_netdev_ops = {
+	.ndo_open            = bnep_net_open,
+	.ndo_stop            = bnep_net_close,
+	.ndo_start_xmit	     = bnep_net_xmit,
+	.ndo_validate_addr   = eth_validate_addr,
+	.ndo_set_multicast_list = bnep_net_set_mc_list,
+	.ndo_set_mac_address = bnep_net_set_mac_addr,
+	.ndo_tx_timeout      = bnep_net_timeout,
+	.ndo_change_mtu	     = eth_change_mtu,
+
+};
+
 void bnep_net_setup(struct net_device *dev)
 {
 
@@ -224,15 +225,7 @@ void bnep_net_setup(struct net_device *dev)
 	dev->addr_len = ETH_ALEN;
 
 	ether_setup(dev);
-
-	dev->open            = bnep_net_open;
-	dev->stop            = bnep_net_close;
-	dev->hard_start_xmit = bnep_net_xmit;
-	dev->get_stats       = bnep_net_get_stats;
-	dev->do_ioctl        = bnep_net_ioctl;
-	dev->set_mac_address = bnep_net_set_mac_addr;
-	dev->set_multicast_list = bnep_net_set_mc_list;
+	dev->netdev_ops = &bnep_netdev_ops;
 
 	dev->watchdog_timeo  = HZ * 2;
-	dev->tx_timeout      = bnep_net_timeout;
 }

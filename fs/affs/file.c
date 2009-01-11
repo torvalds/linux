@@ -628,7 +628,7 @@ static int affs_write_begin_ofs(struct file *file, struct address_space *mapping
 	}
 
 	index = pos >> PAGE_CACHE_SHIFT;
-	page = __grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;

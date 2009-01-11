@@ -156,7 +156,6 @@ config ARCH_MTD_XIP
 	bool
 
 config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
 	def_bool y
 
 if OPROFILE
@@ -201,6 +200,7 @@ choice
 
 config ARCH_AAEC2000
 	bool "Agilent AAEC-2000 based"
+	select CPU_ARM920T
 	select ARM_AMBA
 	select HAVE_CLK
 	help
@@ -210,6 +210,7 @@ config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ICST525
 	help
 	  Support for ARM's Integrator platform.
@@ -218,6 +219,7 @@ config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ICST307
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -229,6 +231,7 @@ config ARCH_VERSATILE
 	select ARM_AMBA
 	select ARM_VIC
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ICST307
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -243,22 +246,15 @@ config ARCH_AT91
 	  This enables support for systems based on the Atmel AT91RM9200,
 	  AT91SAM9 and AT91CAP9 processors.
 
-config ARCH_CLPS7500
-	bool "Cirrus CL-PS7500FE"
-	select TIMER_ACORN
-	select ISA
-	select NO_IOPORT
-	select ARCH_SPARSEMEM_ENABLE
-	help
-	  Support for the Cirrus Logic PS7500FE system-on-a-chip.
-
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x-based"
+	select CPU_ARM720T
 	help
 	  Support for Cirrus Logic 711x/721x based boards.
 
 config ARCH_EBSA110
 	bool "EBSA-110"
+	select CPU_SA110
 	select ISA
 	select NO_IOPORT
 	help
@@ -269,16 +265,19 @@ config ARCH_EBSA110
 
 config ARCH_EP93XX
 	bool "EP93xx-based"
+	select CPU_ARM920T
 	select ARM_AMBA
 	select ARM_VIC
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
+	select CPU_SA110
 	select FOOTBRIDGE
 	help
 	  Support for systems based on the DC21285 companion chip
@@ -286,18 +285,23 @@ config ARCH_FOOTBRIDGE
 
 config ARCH_NETX
 	bool "Hilscher NetX based"
+	select CPU_ARM926T
 	select ARM_VIC
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_TIME
 	help
 	  This enables support for systems based on the Hilscher NetX Soc
 
 config ARCH_H720X
 	bool "Hynix HMS720x-based"
+	select CPU_ARM720T
 	select ISA_DMA_API
 	help
 	  This enables support for systems based on the Hynix HMS720x
 
 config ARCH_IMX
 	bool "IMX"
+	select CPU_ARM920T
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -307,6 +311,7 @@ config ARCH_IMX
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
 	depends on MMU
+	select CPU_XSC3
 	select PLAT_IOP
 	select PCI
 	select ARCH_SUPPORTS_MSI
@@ -317,6 +322,7 @@ config ARCH_IOP13XX
 config ARCH_IOP32X
 	bool "IOP32x-based"
 	depends on MMU
+	select CPU_XSCALE
 	select PLAT_IOP
 	select PCI
 	select GENERIC_GPIO
@@ -328,6 +334,7 @@ config ARCH_IOP32X
 config ARCH_IOP33X
 	bool "IOP33x-based"
 	depends on MMU
+	select CPU_XSCALE
 	select PLAT_IOP
 	select PCI
 	select GENERIC_GPIO
@@ -338,6 +345,7 @@ config ARCH_IOP33X
 config ARCH_IXP23XX
  	bool "IXP23XX-based"
 	depends on MMU
+	select CPU_XSC3
  	select PCI
 	help
 	  Support for Intel's IXP23xx (XScale) family of processors.
@@ -345,6 +353,7 @@ config ARCH_IXP23XX
 config ARCH_IXP2000
 	bool "IXP2400/2800-based"
 	depends on MMU
+	select CPU_XSCALE
 	select PCI
 	help
 	  Support for Intel's IXP2400/2800 (XScale) family of processors.
@@ -352,6 +361,7 @@ config ARCH_IXP2000
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
+	select CPU_XSCALE
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -361,6 +371,7 @@ config ARCH_IXP4XX
 
 config ARCH_L7200
 	bool "LinkUp-L7200"
+	select CPU_ARM720T
 	select FIQ
 	help
 	  Say Y here if you intend to run this kernel on a LinkUp Systems
@@ -374,7 +385,9 @@ config ARCH_L7200
 
 config ARCH_KIRKWOOD
 	bool "Marvell Kirkwood"
+	select CPU_FEROCEON
 	select PCI
+	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
@@ -384,13 +397,16 @@ config ARCH_KIRKWOOD
 
 config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
+	select CPU_ARM922T
 	select GENERIC_GPIO
+        select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
 	  System-on-Chip devices.
 
 config ARCH_NS9XXX
 	bool "NetSilicon NS9xxx"
+	select CPU_ARM926T
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -403,6 +419,7 @@ config ARCH_NS9XXX
 
 config ARCH_LOKI
 	bool "Marvell Loki (88RC8480)"
+	select CPU_FEROCEON
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
@@ -411,7 +428,9 @@ config ARCH_LOKI
 
 config ARCH_MV78XX0
 	bool "Marvell MV78xx0"
+	select CPU_FEROCEON
 	select PCI
+	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
@@ -432,6 +451,7 @@ config ARCH_MXC
 config ARCH_ORION5X
 	bool "Marvell Orion"
 	depends on MMU
+	select CPU_FEROCEON
 	select PCI
 	select GENERIC_GPIO
 	select GENERIC_TIME
@@ -444,6 +464,7 @@ config ARCH_ORION5X
 
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
+	select CPU_ARM926T
 	select HAVE_CLK
 	help
 	  This enables support for Philips PNX4008 mobile platform.
@@ -454,6 +475,7 @@ config ARCH_PXA
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -477,6 +499,7 @@ config ARCH_RPC
 
 config ARCH_SA1100
 	bool "SA1100-based"
+	select CPU_SA1100
 	select ISA
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_MTD_XIP
@@ -498,8 +521,16 @@ config ARCH_S3C2410
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
 	  the Samsung SMDK2410 development board (and derivatives).
 
+config ARCH_S3C64XX
+	bool "Samsung S3C64XX"
+	select GENERIC_GPIO
+	select HAVE_CLK
+	help
+	  Samsung S3C64XX series based systems
+
 config ARCH_SHARK
 	bool "Shark"
+	select CPU_SA110
 	select ISA
 	select ISA_DMA
 	select ZONE_DMA
@@ -510,6 +541,7 @@ config ARCH_SHARK
 
 config ARCH_LH7A40X
 	bool "Sharp LH7A40X"
+	select CPU_ARM922T
 	select ARCH_DISCONTIGMEM_ENABLE if !LH7A40X_CONTIGMEM
 	select ARCH_SPARSEMEM_ENABLE if !LH7A40X_CONTIGMEM
 	help
@@ -520,6 +552,7 @@ config ARCH_LH7A40X
 
 config ARCH_DAVINCI
 	bool "TI DaVinci"
+	select CPU_ARM926T
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
@@ -541,6 +574,7 @@ config ARCH_OMAP
 
 config ARCH_MSM
 	bool "Qualcomm MSM"
+	select CPU_V6
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
@@ -548,6 +582,13 @@ config ARCH_MSM
 	  apps processor of the MSM7K and depends on a shared memory
 	  interface to the ARM9 modem processor which runs the baseband stack
 	  and controls some vital subsystems (clock and power control, etc).
+
+config ARCH_W90X900
+	bool "Nuvoton W90X900 CPU"
+	select CPU_ARM926T
+	help
+		Support for Nuvoton (Winbond logic dept.) ARM9 processor,You
+		can login www.mcuos.com or www.nuvoton.com to know more.
 
 endchoice
 
@@ -590,6 +631,7 @@ source "arch/arm/mach-orion5x/Kconfig"
 source "arch/arm/mach-kirkwood/Kconfig"
 
 source "arch/arm/plat-s3c24xx/Kconfig"
+source "arch/arm/plat-s3c64xx/Kconfig"
 source "arch/arm/plat-s3c/Kconfig"
 
 if ARCH_S3C2410
@@ -599,6 +641,11 @@ source "arch/arm/mach-s3c2412/Kconfig"
 source "arch/arm/mach-s3c2440/Kconfig"
 source "arch/arm/mach-s3c2442/Kconfig"
 source "arch/arm/mach-s3c2443/Kconfig"
+endif
+
+if ARCH_S3C64XX
+source "arch/arm/mach-s3c6400/Kconfig"
+source "arch/arm/mach-s3c6410/Kconfig"
 endif
 
 source "arch/arm/mach-lh7a40x/Kconfig"
@@ -626,6 +673,8 @@ source "arch/arm/mach-davinci/Kconfig"
 source "arch/arm/mach-ks8695/Kconfig"
 
 source "arch/arm/mach-msm/Kconfig"
+
+source "arch/arm/mach-w90x900/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -781,7 +830,7 @@ config HOTPLUG_CPU
 
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
-	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP)
+	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || REALVIEW_EB_A9MP)
 	default y
 	help
 	  Enable support for local timers on SMP platforms, rather then the
@@ -1275,6 +1324,8 @@ source "drivers/auxdisplay/Kconfig"
 source "drivers/regulator/Kconfig"
 
 source "drivers/uio/Kconfig"
+
+source "drivers/staging/Kconfig"
 
 endmenu
 

@@ -113,53 +113,47 @@
 /* Received frame statistics */
 typedef struct p80211_frmrx_t
 {
-	UINT32	mgmt;
-	UINT32	assocreq;
-	UINT32	assocresp;
-	UINT32	reassocreq;
-	UINT32	reassocresp;
-	UINT32	probereq;
-	UINT32	proberesp;
-	UINT32	beacon;
-	UINT32	atim;
-	UINT32	disassoc;
-	UINT32	authen;
-	UINT32	deauthen;
-	UINT32	mgmt_unknown;
-	UINT32	ctl;
-	UINT32	pspoll;
-	UINT32	rts;
-	UINT32	cts;
-	UINT32	ack;
-	UINT32	cfend;
-	UINT32	cfendcfack;
-	UINT32	ctl_unknown;
-	UINT32	data;
-	UINT32	dataonly;
-	UINT32	data_cfack;
-	UINT32	data_cfpoll;
-	UINT32	data__cfack_cfpoll;
-	UINT32	null;
-	UINT32	cfack;
-	UINT32	cfpoll;
-	UINT32	cfack_cfpoll;
-	UINT32	data_unknown;
-	UINT32  decrypt;
-	UINT32  decrypt_err;
+	u32	mgmt;
+	u32	assocreq;
+	u32	assocresp;
+	u32	reassocreq;
+	u32	reassocresp;
+	u32	probereq;
+	u32	proberesp;
+	u32	beacon;
+	u32	atim;
+	u32	disassoc;
+	u32	authen;
+	u32	deauthen;
+	u32	mgmt_unknown;
+	u32	ctl;
+	u32	pspoll;
+	u32	rts;
+	u32	cts;
+	u32	ack;
+	u32	cfend;
+	u32	cfendcfack;
+	u32	ctl_unknown;
+	u32	data;
+	u32	dataonly;
+	u32	data_cfack;
+	u32	data_cfpoll;
+	u32	data__cfack_cfpoll;
+	u32	null;
+	u32	cfack;
+	u32	cfpoll;
+	u32	cfack_cfpoll;
+	u32	data_unknown;
+	u32  decrypt;
+	u32  decrypt_err;
 } p80211_frmrx_t;
 
-#ifdef WIRELESS_EXT
 /* called by /proc/net/wireless */
 struct iw_statistics* p80211wext_get_wireless_stats(netdevice_t *dev);
 /* wireless extensions' ioctls */
 int p80211wext_support_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd);
-#if WIRELESS_EXT > 12
 extern struct iw_handler_def p80211wext_handler_def;
-#endif
-
 int p80211wext_event_associated(struct wlandevice *wlandev, int assoc);
-
-#endif /* wireless extensions */
 
 /* WEP stuff */
 #define NUM_WEPKEYS 4
@@ -184,18 +178,18 @@ typedef struct wlandevice
 	char		name[WLAN_DEVNAMELEN_MAX]; /* Dev name, from register_wlandev()*/
 	char		*nsdname;
 
-	UINT32          state;          /* Device I/F state (open/closed) */
-	UINT32		msdstate;	/* state of underlying driver */
-	UINT32		hwremoved;	/* Has the hw been yanked out? */
+	u32          state;          /* Device I/F state (open/closed) */
+	u32		msdstate;	/* state of underlying driver */
+	u32		hwremoved;	/* Has the hw been yanked out? */
 
 	/* Hardware config */
-	UINT		irq;
-	UINT		iobase;
-	UINT		membase;
-	UINT32          nsdcaps;  /* NSD Capabilities flags */
+	unsigned int		irq;
+	unsigned int		iobase;
+	unsigned int		membase;
+	u32          nsdcaps;  /* NSD Capabilities flags */
 
 	/* Config vars */
-	UINT		ethconv;
+	unsigned int		ethconv;
 
 	/* device methods (init by MSD, used by p80211 */
 	int		(*open)(struct wlandevice *wlandev);
@@ -207,20 +201,15 @@ typedef struct wlandevice
 					      netdevice_t *dev);
 	void		(*tx_timeout)(struct wlandevice *wlandev);
 
-#ifdef CONFIG_PROC_FS
-	int             (*nsd_proc_read)(char *page, char **start, off_t offset, int count, int	*eof, void *data);
-#endif
-
 	/* 802.11 State */
-	UINT8		bssid[WLAN_BSSID_LEN];
+	u8		bssid[WLAN_BSSID_LEN];
 	p80211pstr32_t	ssid;
-	UINT32		macmode;
+	u32		macmode;
 	int             linkstatus;
-	int             shortpreamble;  /* C bool */
 
 	/* WEP State */
-	UINT8 wep_keys[NUM_WEPKEYS][MAX_KEYLEN];
-	UINT8 wep_keylens[NUM_WEPKEYS];
+	u8 wep_keys[NUM_WEPKEYS][MAX_KEYLEN];
+	u8 wep_keylens[NUM_WEPKEYS];
 	int   hostwep;
 
 	/* Request/Confirm i/f state (used by p80211) */
@@ -232,12 +221,6 @@ typedef struct wlandevice
 	netdevice_t		*netdev;	/* ptr to linux netdevice */
 	struct net_device_stats linux_stats;
 
-#ifdef CONFIG_PROC_FS
-	/* Procfs support */
-	struct proc_dir_entry	*procdir;
-	struct proc_dir_entry	*procwlandev;
-#endif
-
 	/* Rx bottom half */
 	struct tasklet_struct	rx_bh;
 
@@ -246,29 +229,18 @@ typedef struct wlandevice
 	/* 802.11 device statistics */
 	struct p80211_frmrx_t	rx;
 
-/* compatibility to wireless extensions */
-#ifdef WIRELESS_EXT
 	struct iw_statistics	wstats;
 
 	/* jkriegl: iwspy fields */
-        UINT8			spy_number;
+        u8			spy_number;
         char			spy_address[IW_MAX_SPY][ETH_ALEN];
         struct iw_quality       spy_stat[IW_MAX_SPY];
-
-#endif
-
 } wlandevice_t;
 
 /* WEP stuff */
-int wep_change_key(wlandevice_t *wlandev, int keynum, UINT8* key, int keylen);
-int wep_decrypt(wlandevice_t *wlandev, UINT8 *buf, UINT32 len, int key_override, UINT8 *iv, UINT8 *icv);
-int wep_encrypt(wlandevice_t *wlandev, UINT8 *buf, UINT8 *dst, UINT32 len, int keynum, UINT8 *iv, UINT8 *icv);
-
-/*================================================================*/
-/* Externs */
-
-/*================================================================*/
-/* Function Declarations */
+int wep_change_key(wlandevice_t *wlandev, int keynum, u8* key, int keylen);
+int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override, u8 *iv, u8 *icv);
+int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum, u8 *iv, u8 *icv);
 
 void	p80211netdev_startup(void);
 void	p80211netdev_shutdown(void);
@@ -278,59 +250,5 @@ int	register_wlandev(wlandevice_t *wlandev);
 int	unregister_wlandev(wlandevice_t *wlandev);
 void	p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb);
 void	p80211netdev_hwremoved(wlandevice_t *wlandev);
-void    p80211_suspend(wlandevice_t *wlandev);
-void    p80211_resume(wlandevice_t *wlandev);
-
-/*================================================================*/
-/* Function Definitions */
-
-static inline void
-p80211netdev_stop_queue(wlandevice_t *wlandev)
-{
-	if ( !wlandev ) return;
-	if ( !wlandev->netdev ) return;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-	wlandev->netdev->tbusy = 1;
-	wlandev->netdev->start = 0;
-#else
-	netif_stop_queue(wlandev->netdev);
-#endif
-}
-
-static inline void
-p80211netdev_start_queue(wlandevice_t *wlandev)
-{
-	if ( !wlandev ) return;
-	if ( !wlandev->netdev ) return;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-	wlandev->netdev->tbusy = 0;
-	wlandev->netdev->start = 1;
-#else
-	netif_start_queue(wlandev->netdev);
-#endif
-}
-
-static inline void
-p80211netdev_wake_queue(wlandevice_t *wlandev)
-{
-	if ( !wlandev ) return;
-	if ( !wlandev->netdev ) return;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-	wlandev->netdev->tbusy = 0;
-	mark_bh(NET_BH);
-#else
-	netif_wake_queue(wlandev->netdev);
-#endif
-}
-
-#ifdef CONFIG_HOTPLUG
-#define WLAN_HOTPLUG_REGISTER "register"
-#define WLAN_HOTPLUG_REMOVE   "remove"
-#define WLAN_HOTPLUG_STARTUP  "startup"
-#define WLAN_HOTPLUG_SHUTDOWN "shutdown"
-#define WLAN_HOTPLUG_SUSPEND "suspend"
-#define WLAN_HOTPLUG_RESUME "resume"
-int p80211_run_sbin_hotplug(wlandevice_t *wlandev, char *action);
-#endif
 
 #endif

@@ -58,22 +58,23 @@ static ssize_t broken_parity_status_store(struct device *dev,
 					  const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	ssize_t consumed = -EINVAL;
+	unsigned long val;
 
-	if ((count > 0) && (*buf == '0' || *buf == '1')) {
-		pdev->broken_parity_status = *buf == '1' ? 1 : 0;
-		consumed = count;
-	}
-	return consumed;
+	if (strict_strtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	pdev->broken_parity_status = !!val;
+
+	return count;
 }
 
 static ssize_t local_cpus_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {		
-	cpumask_t mask;
+	const struct cpumask *mask;
 	int len;
 
-	mask = pcibus_to_cpumask(to_pci_dev(dev)->bus);
+	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
 	len = cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
 	buf[len++] = '\n';
 	buf[len] = '\0';
@@ -84,10 +85,10 @@ static ssize_t local_cpus_show(struct device *dev,
 static ssize_t local_cpulist_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	cpumask_t mask;
+	const struct cpumask *mask;
 	int len;
 
-	mask = pcibus_to_cpumask(to_pci_dev(dev)->bus);
+	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
 	len = cpulist_scnprintf(buf, PAGE_SIZE-2, mask);
 	buf[len++] = '\n';
 	buf[len] = '\0';
@@ -101,11 +102,13 @@ resource_show(struct device * dev, struct device_attribute *attr, char * buf)
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	char * str = buf;
 	int i;
-	int max = 7;
+	int max;
 	resource_size_t start, end;
 
 	if (pci_dev->subordinate)
 		max = DEVICE_COUNT_RESOURCE;
+	else
+		max = PCI_BRIDGE_RESOURCES;
 
 	for (i = 0; i < max; i++) {
 		struct resource *res =  &pci_dev->resource[i];
@@ -133,19 +136,23 @@ static ssize_t is_enabled_store(struct device *dev,
 				struct device_attribute *attr, const char *buf,
 				size_t count)
 {
-	ssize_t result = -EINVAL;
 	struct pci_dev *pdev = to_pci_dev(dev);
+	unsigned long val;
+	ssize_t result = strict_strtoul(buf, 0, &val);
+
+	if (result < 0)
+		return result;
 
 	/* this can crash the machine when done on the "wrong" device */
 	if (!capable(CAP_SYS_ADMIN))
-		return count;
+		return -EPERM;
 
-	if (*buf == '0') {
+	if (!val) {
 		if (atomic_read(&pdev->enable_cnt) != 0)
 			pci_disable_device(pdev);
 		else
 			result = -EIO;
-	} else if (*buf == '1')
+	} else
 		result = pci_enable_device(pdev);
 
 	return result < 0 ? result : count;
@@ -185,25 +192,28 @@ msi_bus_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	unsigned long val;
+
+	if (strict_strtoul(buf, 0, &val) < 0)
+		return -EINVAL;
 
 	/* bad things may happen if the no_msi flag is changed
 	 * while some drivers are loaded */
 	if (!capable(CAP_SYS_ADMIN))
-		return count;
+		return -EPERM;
 
+	/* Maybe pci devices without subordinate busses shouldn't even have this
+	 * attribute in the first place?  */
 	if (!pdev->subordinate)
 		return count;
 
-	if (*buf == '0') {
-		pdev->subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
-		dev_warn(&pdev->dev, "forced subordinate bus to not support MSI,"
-			 " bad things could happen.\n");
-	}
+	/* Is the flag going to change, or keep the value it already had? */
+	if (!(pdev->subordinate->bus_flags & PCI_BUS_FLAGS_NO_MSI) ^
+	    !!val) {
+		pdev->subordinate->bus_flags ^= PCI_BUS_FLAGS_NO_MSI;
 
-	if (*buf == '1') {
-		pdev->subordinate->bus_flags &= ~PCI_BUS_FLAGS_NO_MSI;
-		dev_warn(&pdev->dev, "forced subordinate bus to support MSI,"
-			 " bad things could happen.\n");
+		dev_warn(&pdev->dev, "forced subordinate bus to%s support MSI,"
+			 " bad things could happen\n", val ? "" : " not");
 	}
 
 	return count;
@@ -361,55 +371,33 @@ pci_write_config(struct kobject *kobj, struct bin_attribute *bin_attr,
 }
 
 static ssize_t
-pci_read_vpd(struct kobject *kobj, struct bin_attribute *bin_attr,
-	     char *buf, loff_t off, size_t count)
-{
-	struct pci_dev *dev =
-		to_pci_dev(container_of(kobj, struct device, kobj));
-	int end;
-	int ret;
-
-	if (off > bin_attr->size)
-		count = 0;
-	else if (count > bin_attr->size - off)
-		count = bin_attr->size - off;
-	end = off + count;
-
-	while (off < end) {
-		ret = dev->vpd->ops->read(dev, off, end - off, buf);
-		if (ret < 0)
-			return ret;
-		buf += ret;
-		off += ret;
-	}
-
-	return count;
-}
-
-static ssize_t
-pci_write_vpd(struct kobject *kobj, struct bin_attribute *bin_attr,
+read_vpd_attr(struct kobject *kobj, struct bin_attribute *bin_attr,
 	      char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *dev =
 		to_pci_dev(container_of(kobj, struct device, kobj));
-	int end;
-	int ret;
 
 	if (off > bin_attr->size)
 		count = 0;
 	else if (count > bin_attr->size - off)
 		count = bin_attr->size - off;
-	end = off + count;
 
-	while (off < end) {
-		ret = dev->vpd->ops->write(dev, off, end - off, buf);
-		if (ret < 0)
-			return ret;
-		buf += ret;
-		off += ret;
-	}
+	return pci_read_vpd(dev, off, count, buf);
+}
 
-	return count;
+static ssize_t
+write_vpd_attr(struct kobject *kobj, struct bin_attribute *bin_attr,
+	       char *buf, loff_t off, size_t count)
+{
+	struct pci_dev *dev =
+		to_pci_dev(container_of(kobj, struct device, kobj));
+
+	if (off > bin_attr->size)
+		count = 0;
+	else if (count > bin_attr->size - off)
+		count = bin_attr->size - off;
+
+	return pci_write_vpd(dev, off, count, buf);
 }
 
 #ifdef HAVE_PCI_LEGACY
@@ -569,7 +557,7 @@ void pci_remove_legacy_files(struct pci_bus *b)
 
 #ifdef HAVE_PCI_MMAP
 
-static int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma)
+int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma)
 {
 	unsigned long nr, start, size;
 
@@ -619,6 +607,9 @@ pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 	pci_resource_to_user(pdev, i, res, &start, &end);
 	vma->vm_pgoff += start >> PAGE_SHIFT;
 	mmap_type = res->flags & IORESOURCE_MEM ? pci_mmap_mem : pci_mmap_io;
+
+	if (res->flags & IORESOURCE_MEM && iomem_is_exclusive(start))
+		return -EINVAL;
 
 	return pci_mmap_page_range(pdev, vma, mmap_type, write_combine);
 }
@@ -832,8 +823,8 @@ static int pci_create_capabilities_sysfs(struct pci_dev *dev)
 		attr->size = dev->vpd->len;
 		attr->attr.name = "vpd";
 		attr->attr.mode = S_IRUSR | S_IWUSR;
-		attr->read = pci_read_vpd;
-		attr->write = pci_write_vpd;
+		attr->read = read_vpd_attr;
+		attr->write = write_vpd_attr;
 		retval = sysfs_create_bin_file(&dev->dev.kobj, attr);
 		if (retval) {
 			kfree(dev->vpd->attr);

@@ -66,6 +66,9 @@ extern void virt_irq_free(unsigned int virt_irq);
 extern void __init init_IRQ(void);
 extern void fixup_irqs(void);
 
+extern int register_perfctr_intr(void (*handler)(struct pt_regs *));
+extern void release_perfctr_intr(void (*handler)(struct pt_regs *));
+
 static inline void set_softint(unsigned long bits)
 {
 	__asm__ __volatile__("wr	%0, 0x0, %%set_softint"

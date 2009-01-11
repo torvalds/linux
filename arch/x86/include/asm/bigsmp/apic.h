@@ -9,12 +9,12 @@ static inline int apic_id_registered(void)
 	return (1);
 }
 
-static inline cpumask_t target_cpus(void)
+static inline const cpumask_t *target_cpus(void)
 {
 #ifdef CONFIG_SMP
-        return cpu_online_map;
+	return &cpu_online_map;
 #else
-        return cpumask_of_cpu(0);
+	return &cpumask_of_cpu(0);
 #endif
 }
 
@@ -79,7 +79,7 @@ static inline int apicid_to_node(int logical_apicid)
 
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
-	if (mps_cpu < NR_CPUS)
+	if (mps_cpu < nr_cpu_ids)
 		return (int) per_cpu(x86_bios_cpu_apicid, mps_cpu);
 
 	return BAD_APICID;
@@ -94,7 +94,7 @@ extern u8 cpu_2_logical_apicid[];
 /* Mapping from cpu number to logical apicid */
 static inline int cpu_to_logical_apicid(int cpu)
 {
-	if (cpu >= NR_CPUS)
+	if (cpu >= nr_cpu_ids)
 		return BAD_APICID;
 	return cpu_physical_id(cpu);
 }
@@ -119,14 +119,32 @@ static inline int check_phys_apicid_present(int boot_cpu_physical_apicid)
 }
 
 /* As we are using single CPU as destination, pick only one CPU here */
-static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
+static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 {
 	int cpu;
 	int apicid;	
 
-	cpu = first_cpu(cpumask);
+	cpu = first_cpu(*cpumask);
 	apicid = cpu_to_logical_apicid(cpu);
 	return apicid;
+}
+
+static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+						  const struct cpumask *andmask)
+{
+	int cpu;
+
+	/*
+	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
+	 * May as well be the first.
+	 */
+	for_each_cpu_and(cpu, cpumask, andmask)
+		if (cpumask_test_cpu(cpu, cpu_online_mask))
+			break;
+	if (cpu < nr_cpu_ids)
+		return cpu_to_logical_apicid(cpu);
+
+	return BAD_APICID;
 }
 
 static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)

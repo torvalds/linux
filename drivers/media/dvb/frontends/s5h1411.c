@@ -874,6 +874,9 @@ struct dvb_frontend *s5h1411_attach(const struct s5h1411_config *config,
 	/* Note: Leaving the I2C gate open here. */
 	s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0xf5, 1);
 
+	/* Put the device into low-power mode until first use */
+	s5h1411_set_powerstate(&state->frontend, 1);
+
 	return &state->frontend;
 
 error:

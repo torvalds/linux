@@ -44,7 +44,7 @@
 	do {							\
 		if (acpiphp_debug)				\
 			printk(KERN_DEBUG "%s: " format,	\
-				MY_NAME , ## arg); 		\
+				MY_NAME , ## arg);		\
 	} while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME , ## arg)
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)

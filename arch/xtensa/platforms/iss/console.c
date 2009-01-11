@@ -1,5 +1,5 @@
 /*
- * arch/xtensa/platform-iss/console.c
+ * arch/xtensa/platforms/iss/console.c
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -24,7 +24,7 @@
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 
-#include <asm/platform/simcall.h>
+#include <platform/simcall.h>
 
 #include <linux/tty.h>
 #include <linux/tty_flip.h>

@@ -263,6 +263,53 @@ static void cap_inode_getsecid(const struct inode *inode, u32 *secid)
 	*secid = 0;
 }
 
+#ifdef CONFIG_SECURITY_PATH
+static int cap_path_mknod(struct path *dir, struct dentry *dentry, int mode,
+			  unsigned int dev)
+{
+	return 0;
+}
+
+static int cap_path_mkdir(struct path *dir, struct dentry *dentry, int mode)
+{
+	return 0;
+}
+
+static int cap_path_rmdir(struct path *dir, struct dentry *dentry)
+{
+	return 0;
+}
+
+static int cap_path_unlink(struct path *dir, struct dentry *dentry)
+{
+	return 0;
+}
+
+static int cap_path_symlink(struct path *dir, struct dentry *dentry,
+			    const char *old_name)
+{
+	return 0;
+}
+
+static int cap_path_link(struct dentry *old_dentry, struct path *new_dir,
+			 struct dentry *new_dentry)
+{
+	return 0;
+}
+
+static int cap_path_rename(struct path *old_path, struct dentry *old_dentry,
+			   struct path *new_path, struct dentry *new_dentry)
+{
+	return 0;
+}
+
+static int cap_path_truncate(struct path *path, loff_t length,
+			     unsigned int time_attrs)
+{
+	return 0;
+}
+#endif
+
 static int cap_file_permission(struct file *file, int mask)
 {
 	return 0;
@@ -883,6 +930,16 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, inode_setsecurity);
 	set_to_cap_if_null(ops, inode_listsecurity);
 	set_to_cap_if_null(ops, inode_getsecid);
+#ifdef CONFIG_SECURITY_PATH
+	set_to_cap_if_null(ops, path_mknod);
+	set_to_cap_if_null(ops, path_mkdir);
+	set_to_cap_if_null(ops, path_rmdir);
+	set_to_cap_if_null(ops, path_unlink);
+	set_to_cap_if_null(ops, path_symlink);
+	set_to_cap_if_null(ops, path_link);
+	set_to_cap_if_null(ops, path_rename);
+	set_to_cap_if_null(ops, path_truncate);
+#endif
 	set_to_cap_if_null(ops, file_permission);
 	set_to_cap_if_null(ops, file_alloc_security);
 	set_to_cap_if_null(ops, file_free_security);

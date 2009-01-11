@@ -109,7 +109,7 @@ static SYSDEV_ATTR(crash_notes, 0400, show_crash_notes, NULL);
  */
 static ssize_t print_cpus_map(char *buf, cpumask_t *map)
 {
-	int n = cpulist_scnprintf(buf, PAGE_SIZE-2, *map);
+	int n = cpulist_scnprintf(buf, PAGE_SIZE-2, map);
 
 	buf[n++] = '\n';
 	buf[n] = '\0';
@@ -128,10 +128,54 @@ print_cpus_func(online);
 print_cpus_func(possible);
 print_cpus_func(present);
 
+/*
+ * Print values for NR_CPUS and offlined cpus
+ */
+static ssize_t print_cpus_kernel_max(struct sysdev_class *class, char *buf)
+{
+	int n = snprintf(buf, PAGE_SIZE-2, "%d\n", NR_CPUS - 1);
+	return n;
+}
+static SYSDEV_CLASS_ATTR(kernel_max, 0444, print_cpus_kernel_max, NULL);
+
+/* arch-optional setting to enable display of offline cpus >= nr_cpu_ids */
+unsigned int total_cpus;
+
+static ssize_t print_cpus_offline(struct sysdev_class *class, char *buf)
+{
+	int n = 0, len = PAGE_SIZE-2;
+	cpumask_var_t offline;
+
+	/* display offline cpus < nr_cpu_ids */
+	if (!alloc_cpumask_var(&offline, GFP_KERNEL))
+		return -ENOMEM;
+	cpumask_complement(offline, cpu_online_mask);
+	n = cpulist_scnprintf(buf, len, offline);
+	free_cpumask_var(offline);
+
+	/* display offline cpus >= nr_cpu_ids */
+	if (total_cpus && nr_cpu_ids < total_cpus) {
+		if (n && n < len)
+			buf[n++] = ',';
+
+		if (nr_cpu_ids == total_cpus-1)
+			n += snprintf(&buf[n], len - n, "%d", nr_cpu_ids);
+		else
+			n += snprintf(&buf[n], len - n, "%d-%d",
+						      nr_cpu_ids, total_cpus-1);
+	}
+
+	n += snprintf(&buf[n], len - n, "\n");
+	return n;
+}
+static SYSDEV_CLASS_ATTR(offline, 0444, print_cpus_offline, NULL);
+
 static struct sysdev_class_attribute *cpu_state_attr[] = {
 	&attr_online_map,
 	&attr_possible_map,
 	&attr_present_map,
+	&attr_kernel_max,
+	&attr_offline,
 };
 
 static int cpu_states_init(void)

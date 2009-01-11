@@ -131,7 +131,7 @@ static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
 {
 	enum hrtimer_restart res = HRTIMER_NORESTART;
 
-	write_seqlock_irq(&xtime_lock);
+	write_seqlock(&xtime_lock);
 
 	switch (time_state) {
 	case TIME_OK:
@@ -164,7 +164,7 @@ static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
 	}
 	update_vsyscall(&xtime, clock);
 
-	write_sequnlock_irq(&xtime_lock);
+	write_sequnlock(&xtime_lock);
 
 	return res;
 }

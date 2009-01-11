@@ -142,7 +142,7 @@ static int sd_dif_type1_verify_ip(struct blk_integrity_exchg *bix)
 static void sd_dif_type1_set_tag(void *prot, void *tag_buf, unsigned int sectors)
 {
 	struct sd_dif_tuple *sdt = prot;
-	char *tag = tag_buf;
+	u8 *tag = tag_buf;
 	unsigned int i, j;
 
 	for (i = 0, j = 0 ; i < sectors ; i++, j += 2, sdt++) {
@@ -154,7 +154,7 @@ static void sd_dif_type1_set_tag(void *prot, void *tag_buf, unsigned int sectors
 static void sd_dif_type1_get_tag(void *prot, void *tag_buf, unsigned int sectors)
 {
 	struct sd_dif_tuple *sdt = prot;
-	char *tag = tag_buf;
+	u8 *tag = tag_buf;
 	unsigned int i, j;
 
 	for (i = 0, j = 0 ; i < sectors ; i++, j += 2, sdt++) {
@@ -256,7 +256,7 @@ static int sd_dif_type3_verify_ip(struct blk_integrity_exchg *bix)
 static void sd_dif_type3_set_tag(void *prot, void *tag_buf, unsigned int sectors)
 {
 	struct sd_dif_tuple *sdt = prot;
-	char *tag = tag_buf;
+	u8 *tag = tag_buf;
 	unsigned int i, j;
 
 	for (i = 0, j = 0 ; i < sectors ; i++, j += 6, sdt++) {
@@ -269,7 +269,7 @@ static void sd_dif_type3_set_tag(void *prot, void *tag_buf, unsigned int sectors
 static void sd_dif_type3_get_tag(void *prot, void *tag_buf, unsigned int sectors)
 {
 	struct sd_dif_tuple *sdt = prot;
-	char *tag = tag_buf;
+	u8 *tag = tag_buf;
 	unsigned int i, j;
 
 	for (i = 0, j = 0 ; i < sectors ; i++, j += 2, sdt++) {
@@ -374,7 +374,10 @@ void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix, unsig
 	else
 		csum_convert = 0;
 
+	BUG_ON(dif && (scmd->cmnd[0] == READ_6 || scmd->cmnd[0] == WRITE_6));
+
 	switch (scmd->cmnd[0]) {
+	case READ_6:
 	case READ_10:
 	case READ_12:
 	case READ_16:
@@ -390,6 +393,7 @@ void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix, unsig
 
 		break;
 
+	case WRITE_6:
 	case WRITE_10:
 	case WRITE_12:
 	case WRITE_16:
@@ -475,8 +479,9 @@ int sd_dif_prepare(struct request *rq, sector_t hw_sector, unsigned int sector_s
 
 error:
 	kunmap_atomic(sdt, KM_USER0);
-	sd_printk(KERN_ERR, sdkp, "%s: virt %u, phys %u, ref %u\n",
-		  __func__, virt, phys, be32_to_cpu(sdt->ref_tag));
+	sd_printk(KERN_ERR, sdkp, "%s: virt %u, phys %u, ref %u, app %4x\n",
+		  __func__, virt, phys, be32_to_cpu(sdt->ref_tag),
+		  be16_to_cpu(sdt->app_tag));
 
 	return -EIO;
 }

@@ -235,7 +235,7 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 		uint32_t intmask_org;
 		int i, j;
 
-		acb->pmuA = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
+		acb->pmuA = pci_ioremap_bar(pdev, 0);
 		if (!acb->pmuA) {
 			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n",
 							acb->host->host_no);
@@ -329,13 +329,11 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 		reg = (struct MessageUnit_B *)(dma_coherent +
 		ARCMSR_MAX_FREECCB_NUM * sizeof(struct CommandControlBlock));
 		acb->pmuB = reg;
-		mem_base0 = ioremap(pci_resource_start(pdev, 0),
-					pci_resource_len(pdev, 0));
+		mem_base0 = pci_ioremap_bar(pdev, 0);
 		if (!mem_base0)
 			goto out;
 
-		mem_base1 = ioremap(pci_resource_start(pdev, 2),
-					pci_resource_len(pdev, 2));
+		mem_base1 = pci_ioremap_bar(pdev, 2);
 		if (!mem_base1) {
 			iounmap(mem_base0);
 			goto out;

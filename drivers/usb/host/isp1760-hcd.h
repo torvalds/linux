@@ -135,7 +135,6 @@ typedef void (packet_enqueue)(struct usb_hcd *hcd, struct isp1760_qh *qh,
  * indicate the most "atypical" case, so that a devflags of 0 is
  * a sane default configuration.
  */
-#define ISP1760_FLAG_PORT1_DIS		0x00000001 /* Port 1 disabled */
 #define ISP1760_FLAG_BUS_WIDTH_16	0x00000002 /* 16-bit data bus width */
 #define ISP1760_FLAG_OTG_EN		0x00000004 /* Port 1 supports OTG */
 #define ISP1760_FLAG_ANALOG_OC		0x00000008 /* Analog overcurrent */

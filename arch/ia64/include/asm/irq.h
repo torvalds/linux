@@ -27,7 +27,7 @@ irq_canonicalize (int irq)
 }
 
 extern void set_irq_affinity_info (unsigned int irq, int dest, int redir);
-bool is_affinity_mask_valid(cpumask_t cpumask);
+bool is_affinity_mask_valid(const struct cpumask *cpumask);
 
 #define is_affinity_mask_valid is_affinity_mask_valid
 

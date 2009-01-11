@@ -54,6 +54,7 @@
 #include <linux/mutex.h>
 #include <linux/lockd/bind.h>
 #include <linux/module.h>
+#include <linux/sunrpc/svcauth_gss.h>
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -377,6 +378,7 @@ free_client(struct nfs4_client *clp)
 	shutdown_callback_client(clp);
 	if (clp->cl_cred.cr_group_info)
 		put_group_info(clp->cl_cred.cr_group_info);
+	kfree(clp->cl_principal);
 	kfree(clp->cl_name.data);
 	kfree(clp);
 }
@@ -696,6 +698,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	unsigned int 		strhashval;
 	struct nfs4_client	*conf, *unconf, *new;
 	__be32 			status;
+	char			*princ;
 	char                    dname[HEXDIR_LEN];
 	
 	if (!check_name(clname))
@@ -783,6 +786,15 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 	copy_verf(new, &clverifier);
 	new->cl_addr = sin->sin_addr.s_addr;
+	new->cl_flavor = rqstp->rq_flavor;
+	princ = svc_gss_principal(rqstp);
+	if (princ) {
+		new->cl_principal = kstrdup(princ, GFP_KERNEL);
+		if (new->cl_principal == NULL) {
+			free_client(new);
+			goto out;
+		}
+	}
 	copy_cred(&new->cl_cred, &rqstp->rq_cred);
 	gen_confirm(new);
 	gen_callback(new, setclid);
@@ -2404,6 +2416,26 @@ out:
 #define LOCK_HASH_SIZE             (1 << LOCK_HASH_BITS)
 #define LOCK_HASH_MASK             (LOCK_HASH_SIZE - 1)
 
+static inline u64
+end_offset(u64 start, u64 len)
+{
+	u64 end;
+
+	end = start + len;
+	return end >= start ? end: NFS4_MAX_UINT64;
+}
+
+/* last octet in a range */
+static inline u64
+last_byte_offset(u64 start, u64 len)
+{
+	u64 end;
+
+	BUG_ON(!len);
+	end = start + len;
+	return end > start ? end - 1: NFS4_MAX_UINT64;
+}
+
 #define lockownerid_hashval(id) \
         ((id) & LOCK_HASH_MASK)
 
@@ -2423,13 +2455,13 @@ static struct list_head lockstateid_hashtbl[STATEID_HASH_SIZE];
 static struct nfs4_stateid *
 find_stateid(stateid_t *stid, int flags)
 {
-	struct nfs4_stateid *local = NULL;
+	struct nfs4_stateid *local;
 	u32 st_id = stid->si_stateownerid;
 	u32 f_id = stid->si_fileid;
 	unsigned int hashval;
 
 	dprintk("NFSD: find_stateid flags 0x%x\n",flags);
-	if ((flags & LOCK_STATE) || (flags & RD_STATE) || (flags & WR_STATE)) {
+	if (flags & (LOCK_STATE | RD_STATE | WR_STATE)) {
 		hashval = stateid_hashval(st_id, f_id);
 		list_for_each_entry(local, &lockstateid_hashtbl[hashval], st_hash) {
 			if ((local->st_stateid.si_stateownerid == st_id) &&
@@ -2437,7 +2469,8 @@ find_stateid(stateid_t *stid, int flags)
 				return local;
 		}
 	} 
-	if ((flags & OPEN_STATE) || (flags & RD_STATE) || (flags & WR_STATE)) {
+
+	if (flags & (OPEN_STATE | RD_STATE | WR_STATE)) {
 		hashval = stateid_hashval(st_id, f_id);
 		list_for_each_entry(local, &stateid_hashtbl[hashval], st_hash) {
 			if ((local->st_stateid.si_stateownerid == st_id) &&
@@ -2506,8 +2539,8 @@ nfs4_set_lock_denied(struct file_lock *fl, struct nfsd4_lock_denied *deny)
 		deny->ld_clientid.cl_id = 0;
 	}
 	deny->ld_start = fl->fl_start;
-	deny->ld_length = ~(u64)0;
-	if (fl->fl_end != ~(u64)0)
+	deny->ld_length = NFS4_MAX_UINT64;
+	if (fl->fl_end != NFS4_MAX_UINT64)
 		deny->ld_length = fl->fl_end - fl->fl_start + 1;        
 	deny->ld_type = NFS4_READ_LT;
 	if (fl->fl_type != F_RDLCK)
@@ -2604,7 +2637,7 @@ out:
 static int
 check_lock_length(u64 offset, u64 length)
 {
-	return ((length == 0)  || ((length != ~(u64)0) &&
+	return ((length == 0)  || ((length != NFS4_MAX_UINT64) &&
 	     LOFF_OVERFLOW(offset, length)));
 }
 
@@ -2724,11 +2757,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	file_lock.fl_lmops = &nfsd_posix_mng_ops;
 
 	file_lock.fl_start = lock->lk_offset;
-	if ((lock->lk_length == ~(u64)0) || 
-			LOFF_OVERFLOW(lock->lk_offset, lock->lk_length))
-		file_lock.fl_end = ~(u64)0;
-	else
-		file_lock.fl_end = lock->lk_offset + lock->lk_length - 1;
+	file_lock.fl_end = last_byte_offset(lock->lk_offset, lock->lk_length);
 	nfs4_transform_lock_offset(&file_lock);
 
 	/*
@@ -2769,6 +2798,25 @@ out:
 }
 
 /*
+ * The NFSv4 spec allows a client to do a LOCKT without holding an OPEN,
+ * so we do a temporary open here just to get an open file to pass to
+ * vfs_test_lock.  (Arguably perhaps test_lock should be done with an
+ * inode operation.)
+ */
+static int nfsd_test_lock(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file_lock *lock)
+{
+	struct file *file;
+	int err;
+
+	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_READ, &file);
+	if (err)
+		return err;
+	err = vfs_test_lock(file, lock);
+	nfsd_close(file);
+	return err;
+}
+
+/*
  * LOCKT operation
  */
 __be32
@@ -2776,7 +2824,6 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	    struct nfsd4_lockt *lockt)
 {
 	struct inode *inode;
-	struct file file;
 	struct file_lock file_lock;
 	int error;
 	__be32 status;
@@ -2827,23 +2874,12 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	file_lock.fl_lmops = &nfsd_posix_mng_ops;
 
 	file_lock.fl_start = lockt->lt_offset;
-	if ((lockt->lt_length == ~(u64)0) || LOFF_OVERFLOW(lockt->lt_offset, lockt->lt_length))
-		file_lock.fl_end = ~(u64)0;
-	else
-		file_lock.fl_end = lockt->lt_offset + lockt->lt_length - 1;
+	file_lock.fl_end = last_byte_offset(lockt->lt_offset, lockt->lt_length);
 
 	nfs4_transform_lock_offset(&file_lock);
 
-	/* vfs_test_lock uses the struct file _only_ to resolve the inode.
-	 * since LOCKT doesn't require an OPEN, and therefore a struct
-	 * file may not exist, pass vfs_test_lock a struct file with
-	 * only the dentry:inode set.
-	 */
-	memset(&file, 0, sizeof (struct file));
-	file.f_path.dentry = cstate->current_fh.fh_dentry;
-
 	status = nfs_ok;
-	error = vfs_test_lock(&file, &file_lock);
+	error = nfsd_test_lock(rqstp, &cstate->current_fh, &file_lock);
 	if (error) {
 		status = nfserrno(error);
 		goto out;
@@ -2894,10 +2930,7 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	file_lock.fl_lmops = &nfsd_posix_mng_ops;
 	file_lock.fl_start = locku->lu_offset;
 
-	if ((locku->lu_length == ~(u64)0) || LOFF_OVERFLOW(locku->lu_offset, locku->lu_length))
-		file_lock.fl_end = ~(u64)0;
-	else
-		file_lock.fl_end = locku->lu_offset + locku->lu_length - 1;
+	file_lock.fl_end = last_byte_offset(locku->lu_offset, locku->lu_length);
 	nfs4_transform_lock_offset(&file_lock);
 
 	/*

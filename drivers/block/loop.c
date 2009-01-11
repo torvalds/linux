@@ -624,20 +624,38 @@ static int loop_switch(struct loop_device *lo, struct file *file)
 }
 
 /*
+ * Helper to flush the IOs in loop, but keeping loop thread running
+ */
+static int loop_flush(struct loop_device *lo)
+{
+	/* loop not yet configured, no running thread, nothing to flush */
+	if (!lo->lo_thread)
+		return 0;
+
+	return loop_switch(lo, NULL);
+}
+
+/*
  * Do the actual switch; called from the BIO completion routine
  */
 static void do_loop_switch(struct loop_device *lo, struct switch_request *p)
 {
 	struct file *file = p->file;
 	struct file *old_file = lo->lo_backing_file;
-	struct address_space *mapping = file->f_mapping;
+	struct address_space *mapping;
 
+	/* if no new file, only flush of queued bios requested */
+	if (!file)
+		goto out;
+
+	mapping = file->f_mapping;
 	mapping_set_gfp_mask(old_file->f_mapping, lo->old_gfp_mask);
 	lo->lo_backing_file = file;
 	lo->lo_blocksize = S_ISBLK(mapping->host->i_mode) ?
 		mapping->host->i_bdev->bd_block_size : PAGE_SIZE;
 	lo->old_gfp_mask = mapping_gfp_mask(mapping);
 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
+out:
 	complete(&p->wait);
 }
 
@@ -901,6 +919,7 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 
 	kthread_stop(lo->lo_thread);
 
+	lo->lo_queue->unplug_fn = NULL;
 	lo->lo_backing_file = NULL;
 
 	loop_release_xfer(lo);
@@ -1345,11 +1364,25 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 	struct loop_device *lo = disk->private_data;
 
 	mutex_lock(&lo->lo_ctl_mutex);
-	--lo->lo_refcnt;
 
-	if ((lo->lo_flags & LO_FLAGS_AUTOCLEAR) && !lo->lo_refcnt)
+	if (--lo->lo_refcnt)
+		goto out;
+
+	if (lo->lo_flags & LO_FLAGS_AUTOCLEAR) {
+		/*
+		 * In autoclear mode, stop the loop thread
+		 * and remove configuration after last close.
+		 */
 		loop_clr_fd(lo, NULL);
+	} else {
+		/*
+		 * Otherwise keep thread (if running) and config,
+		 * but flush possible ongoing bios in thread.
+		 */
+		loop_flush(lo);
+	}
 
+out:
 	mutex_unlock(&lo->lo_ctl_mutex);
 
 	return 0;

@@ -62,6 +62,9 @@ config IDE_TIMINGS
 config IDE_ATAPI
 	bool
 
+config IDE_LEGACY
+	bool
+
 config BLK_DEV_IDE_SATA
 	bool "Support for SATA (deprecated; conflicts with libata SATA driver)"
 	default n
@@ -134,6 +137,7 @@ config BLK_DEV_DELKIN
 
 config BLK_DEV_IDECD
 	tristate "Include IDE/ATAPI CDROM support"
+	select IDE_ATAPI
 	---help---
 	  If you have a CD-ROM drive using the ATAPI protocol, say Y. ATAPI is
 	  a newer protocol used by IDE CD-ROM and TAPE drives, similar to the
@@ -181,23 +185,6 @@ config BLK_DEV_IDETAPE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ide-tape.
-
-config BLK_DEV_IDESCSI
-	tristate "SCSI emulation support (DEPRECATED)"
-	depends on SCSI
-	select IDE_ATAPI
-	---help---
-	  WARNING: ide-scsi is no longer needed for cd writing applications!
-	  The 2.6 kernel supports direct writing to ide-cd, which eliminates
-	  the need for ide-scsi + the entire scsi stack just for writing a
-	  cd. The new method is more efficient in every way.
-
-	  This will provide SCSI host adapter emulation for IDE ATAPI devices,
-	  and will allow you to use a SCSI device driver instead of a native
-	  ATAPI driver.
-
-	  If both this SCSI emulation and native ATAPI support are compiled
-	  into the kernel, the native support will be used.
 
 config BLK_DEV_IDEACPI
 	bool "IDE ACPI support"
@@ -524,6 +511,13 @@ config BLK_DEV_PIIX
 	  This allows the kernel to change PIO, DMA and UDMA speeds and to
 	  configure the chip to optimum performance.
 
+config BLK_DEV_IT8172
+	tristate "IT8172 IDE support"
+	select BLK_DEV_IDEDMA_PCI
+	help
+	  This driver adds support for the IDE controller on the
+	  IT8172 System Controller.
+
 config BLK_DEV_IT8213
 	tristate "IT8213 IDE support"
 	select BLK_DEV_IDEDMA_PCI
@@ -724,7 +718,7 @@ config BLK_DEV_IDE_TX4939
 
 config IDE_ARM
 	tristate "ARM IDE support"
-	depends on ARM && (ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
+	depends on ARM && (ARCH_RPC || ARCH_SHARK)
 	default y
 
 config BLK_DEV_IDE_ICSIDE
@@ -856,6 +850,7 @@ config BLK_DEV_4DRIVES
 config BLK_DEV_ALI14XX
 	tristate "ALI M14xx support"
 	select IDE_TIMINGS
+	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "ali14xx.probe" kernel
 	  boot parameter.  It enables support for the secondary IDE interface
@@ -866,6 +861,7 @@ config BLK_DEV_ALI14XX
 
 config BLK_DEV_DTC2278
 	tristate "DTC-2278 support"
+	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "dtc2278.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface
@@ -876,6 +872,7 @@ config BLK_DEV_DTC2278
 config BLK_DEV_HT6560B
 	tristate "Holtek HT6560B support"
 	select IDE_TIMINGS
+	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "ht6560b.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface
@@ -886,6 +883,7 @@ config BLK_DEV_HT6560B
 config BLK_DEV_QD65XX
 	tristate "QDI QD65xx support"
 	select IDE_TIMINGS
+	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "qd65xx.probe" kernel
 	  boot parameter.  It permits faster I/O speeds to be set.  See the
@@ -894,6 +892,7 @@ config BLK_DEV_QD65XX
 
 config BLK_DEV_UMC8672
 	tristate "UMC-8672 support"
+	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "umc8672.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface

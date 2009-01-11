@@ -490,7 +490,7 @@ static mode_t romfs_modemap[] =
 static struct inode *
 romfs_iget(struct super_block *sb, unsigned long ino)
 {
-	int nextfh;
+	int nextfh, ret;
 	struct romfs_inode ri;
 	struct inode *i;
 
@@ -524,14 +524,13 @@ romfs_iget(struct super_block *sb, unsigned long ino)
 	i->i_size = be32_to_cpu(ri.size);
 	i->i_mtime.tv_sec = i->i_atime.tv_sec = i->i_ctime.tv_sec = 0;
 	i->i_mtime.tv_nsec = i->i_atime.tv_nsec = i->i_ctime.tv_nsec = 0;
-	i->i_uid = i->i_gid = 0;
 
         /* Precalculate the data offset */
-        ino = romfs_strnlen(i, ino+ROMFH_SIZE, ROMFS_MAXFN);
-        if (ino >= 0)
-                ino = ((ROMFH_SIZE+ino+1+ROMFH_PAD)&ROMFH_MASK);
-        else
-                ino = 0;
+	ret = romfs_strnlen(i, ino + ROMFH_SIZE, ROMFS_MAXFN);
+	if (ret >= 0)
+		ino = (ROMFH_SIZE + ret + 1 + ROMFH_PAD) & ROMFH_MASK;
+	else
+		ino = 0;
 
         ROMFS_I(i)->i_metasize = ino;
         ROMFS_I(i)->i_dataoffset = ino+(i->i_ino&ROMFH_MASK);

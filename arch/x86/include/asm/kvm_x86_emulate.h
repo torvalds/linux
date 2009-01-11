@@ -123,6 +123,7 @@ struct decode_cache {
 	u8 ad_bytes;
 	u8 rex_prefix;
 	struct operand src;
+	struct operand src2;
 	struct operand dst;
 	bool has_seg_override;
 	u8 seg_override;
@@ -146,22 +147,18 @@ struct x86_emulate_ctxt {
 	/* Register state before/after emulation. */
 	struct kvm_vcpu *vcpu;
 
-	/* Linear faulting address (if emulating a page-faulting instruction) */
 	unsigned long eflags;
-
 	/* Emulated execution mode, represented by an X86EMUL_MODE value. */
 	int mode;
-
 	u32 cs_base;
 
 	/* decode cache */
-
 	struct decode_cache decode;
 };
 
 /* Repeat String Operation Prefix */
-#define REPE_PREFIX  1
-#define REPNE_PREFIX    2
+#define REPE_PREFIX	1
+#define REPNE_PREFIX	2
 
 /* Execution mode, passed to the emulator. */
 #define X86EMUL_MODE_REAL     0	/* Real mode.             */
@@ -170,7 +167,7 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_PROT64   8	/* 64-bit (long) mode.    */
 
 /* Host execution mode. */
-#if defined(__i386__)
+#if defined(CONFIG_X86_32)
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT32
 #elif defined(CONFIG_X86_64)
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT64

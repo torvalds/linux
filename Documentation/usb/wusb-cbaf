@@ -80,12 +80,6 @@ case $1 in
     start)
         for dev in ${2:-$hdevs}
           do
-          uwb_rc=$(readlink -f $dev/uwb_rc)
-          if cat $uwb_rc/beacon | grep -q -- "-1"
-              then
-              echo 13 0 > $uwb_rc/beacon
-              echo I: started beaconing on ch 13 on $(basename $uwb_rc) >&2
-          fi
           echo $host_CHID > $dev/wusb_chid
           echo I: started host $(basename $dev) >&2
         done
@@ -95,9 +89,6 @@ case $1 in
           do
           echo 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 > $dev/wusb_chid
           echo I: stopped host $(basename $dev) >&2
-          uwb_rc=$(readlink -f $dev/uwb_rc)
-          echo -1 | cat > $uwb_rc/beacon
-          echo I: stopped beaconing on $(basename $uwb_rc) >&2
         done
         ;;
     set-chid)

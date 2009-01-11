@@ -34,76 +34,6 @@
 #include "util.h"
 
 /**
- * gfs2_jindex_hold - Grab a lock on the jindex
- * @sdp: The GFS2 superblock
- * @ji_gh: the holder for the jindex glock
- *
- * This is very similar to the gfs2_rindex_hold() function, except that
- * in general we hold the jindex lock for longer periods of time and
- * we grab it far less frequently (in general) then the rgrp lock.
- *
- * Returns: errno
- */
-
-int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
-{
-	struct gfs2_inode *dip = GFS2_I(sdp->sd_jindex);
-	struct qstr name;
-	char buf[20];
-	struct gfs2_jdesc *jd;
-	int error;
-
-	name.name = buf;
-
-	mutex_lock(&sdp->sd_jindex_mutex);
-
-	for (;;) {
-		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, ji_gh);
-		if (error)
-			break;
-
-		name.len = sprintf(buf, "journal%u", sdp->sd_journals);
-		name.hash = gfs2_disk_hash(name.name, name.len);
-
-		error = gfs2_dir_check(sdp->sd_jindex, &name, NULL);
-		if (error == -ENOENT) {
-			error = 0;
-			break;
-		}
-
-		gfs2_glock_dq_uninit(ji_gh);
-
-		if (error)
-			break;
-
-		error = -ENOMEM;
-		jd = kzalloc(sizeof(struct gfs2_jdesc), GFP_KERNEL);
-		if (!jd)
-			break;
-
-		INIT_LIST_HEAD(&jd->extent_list);
-		jd->jd_inode = gfs2_lookupi(sdp->sd_jindex, &name, 1);
-		if (!jd->jd_inode || IS_ERR(jd->jd_inode)) {
-			if (!jd->jd_inode)
-				error = -ENOENT;
-			else
-				error = PTR_ERR(jd->jd_inode);
-			kfree(jd);
-			break;
-		}
-
-		spin_lock(&sdp->sd_jindex_spin);
-		jd->jd_jid = sdp->sd_journals++;
-		list_add_tail(&jd->jd_list, &sdp->sd_jindex_list);
-		spin_unlock(&sdp->sd_jindex_spin);
-	}
-
-	mutex_unlock(&sdp->sd_jindex_mutex);
-
-	return error;
-}
-
-/**
  * gfs2_jindex_free - Clear all the journal index information
  * @sdp: The GFS2 superblock
  *
@@ -166,39 +96,6 @@ struct gfs2_jdesc *gfs2_jdesc_find(struct gfs2_sbd *sdp, unsigned int jid)
 	return jd;
 }
 
-void gfs2_jdesc_make_dirty(struct gfs2_sbd *sdp, unsigned int jid)
-{
-	struct gfs2_jdesc *jd;
-
-	spin_lock(&sdp->sd_jindex_spin);
-	jd = jdesc_find_i(&sdp->sd_jindex_list, jid);
-	if (jd)
-		jd->jd_dirty = 1;
-	spin_unlock(&sdp->sd_jindex_spin);
-}
-
-struct gfs2_jdesc *gfs2_jdesc_find_dirty(struct gfs2_sbd *sdp)
-{
-	struct gfs2_jdesc *jd;
-	int found = 0;
-
-	spin_lock(&sdp->sd_jindex_spin);
-
-	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
-		if (jd->jd_dirty) {
-			jd->jd_dirty = 0;
-			found = 1;
-			break;
-		}
-	}
-	spin_unlock(&sdp->sd_jindex_spin);
-
-	if (!found)
-		jd = NULL;
-
-	return jd;
-}
-
 int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
@@ -206,14 +103,14 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 	int ar;
 	int error;
 
-	if (ip->i_di.di_size < (8 << 20) || ip->i_di.di_size > (1 << 30) ||
-	    (ip->i_di.di_size & (sdp->sd_sb.sb_bsize - 1))) {
+	if (ip->i_disksize < (8 << 20) || ip->i_disksize > (1 << 30) ||
+	    (ip->i_disksize & (sdp->sd_sb.sb_bsize - 1))) {
 		gfs2_consist_inode(ip);
 		return -EIO;
 	}
-	jd->jd_blocks = ip->i_di.di_size >> sdp->sd_sb.sb_bsize_shift;
+	jd->jd_blocks = ip->i_disksize >> sdp->sd_sb.sb_bsize_shift;
 
-	error = gfs2_write_alloc_required(ip, 0, ip->i_di.di_size, &ar);
+	error = gfs2_write_alloc_required(ip, 0, ip->i_disksize, &ar);
 	if (!error && ar) {
 		gfs2_consist_inode(ip);
 		error = -EIO;
@@ -423,137 +320,6 @@ out:
 	return error;
 }
 
-/**
- * gfs2_statfs_i - Do a statfs
- * @sdp: the filesystem
- * @sg: the sg structure
- *
- * Returns: errno
- */
-
-int gfs2_statfs_i(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *sc)
-{
-	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
-	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
-
-	spin_lock(&sdp->sd_statfs_spin);
-
-	*sc = *m_sc;
-	sc->sc_total += l_sc->sc_total;
-	sc->sc_free += l_sc->sc_free;
-	sc->sc_dinodes += l_sc->sc_dinodes;
-
-	spin_unlock(&sdp->sd_statfs_spin);
-
-	if (sc->sc_free < 0)
-		sc->sc_free = 0;
-	if (sc->sc_free > sc->sc_total)
-		sc->sc_free = sc->sc_total;
-	if (sc->sc_dinodes < 0)
-		sc->sc_dinodes = 0;
-
-	return 0;
-}
-
-/**
- * statfs_fill - fill in the sg for a given RG
- * @rgd: the RG
- * @sc: the sc structure
- *
- * Returns: 0 on success, -ESTALE if the LVB is invalid
- */
-
-static int statfs_slow_fill(struct gfs2_rgrpd *rgd,
-			    struct gfs2_statfs_change_host *sc)
-{
-	gfs2_rgrp_verify(rgd);
-	sc->sc_total += rgd->rd_data;
-	sc->sc_free += rgd->rd_rg.rg_free;
-	sc->sc_dinodes += rgd->rd_rg.rg_dinodes;
-	return 0;
-}
-
-/**
- * gfs2_statfs_slow - Stat a filesystem using asynchronous locking
- * @sdp: the filesystem
- * @sc: the sc info that will be returned
- *
- * Any error (other than a signal) will cause this routine to fall back
- * to the synchronous version.
- *
- * FIXME: This really shouldn't busy wait like this.
- *
- * Returns: errno
- */
-
-int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *sc)
-{
-	struct gfs2_holder ri_gh;
-	struct gfs2_rgrpd *rgd_next;
-	struct gfs2_holder *gha, *gh;
-	unsigned int slots = 64;
-	unsigned int x;
-	int done;
-	int error = 0, err;
-
-	memset(sc, 0, sizeof(struct gfs2_statfs_change_host));
-	gha = kcalloc(slots, sizeof(struct gfs2_holder), GFP_KERNEL);
-	if (!gha)
-		return -ENOMEM;
-
-	error = gfs2_rindex_hold(sdp, &ri_gh);
-	if (error)
-		goto out;
-
-	rgd_next = gfs2_rgrpd_get_first(sdp);
-
-	for (;;) {
-		done = 1;
-
-		for (x = 0; x < slots; x++) {
-			gh = gha + x;
-
-			if (gh->gh_gl && gfs2_glock_poll(gh)) {
-				err = gfs2_glock_wait(gh);
-				if (err) {
-					gfs2_holder_uninit(gh);
-					error = err;
-				} else {
-					if (!error)
-						error = statfs_slow_fill(
-							gh->gh_gl->gl_object, sc);
-					gfs2_glock_dq_uninit(gh);
-				}
-			}
-
-			if (gh->gh_gl)
-				done = 0;
-			else if (rgd_next && !error) {
-				error = gfs2_glock_nq_init(rgd_next->rd_gl,
-							   LM_ST_SHARED,
-							   GL_ASYNC,
-							   gh);
-				rgd_next = gfs2_rgrpd_get_next(rgd_next);
-				done = 0;
-			}
-
-			if (signal_pending(current))
-				error = -ERESTARTSYS;
-		}
-
-		if (done)
-			break;
-
-		yield();
-	}
-
-	gfs2_glock_dq_uninit(&ri_gh);
-
-out:
-	kfree(gha);
-	return error;
-}
-
 struct lfcc {
 	struct list_head list;
 	struct gfs2_holder gh;
@@ -579,10 +345,6 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 	LIST_HEAD(list);
 	struct gfs2_log_header_host lh;
 	int error;
-
-	error = gfs2_jindex_hold(sdp, &ji_gh);
-	if (error)
-		return error;
 
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		lfcc = kmalloc(sizeof(struct lfcc), GFP_KERNEL);

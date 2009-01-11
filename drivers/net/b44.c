@@ -2108,6 +2108,22 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 	return err;
 }
 
+static const struct net_device_ops b44_netdev_ops = {
+	.ndo_open		= b44_open,
+	.ndo_stop		= b44_close,
+	.ndo_start_xmit		= b44_start_xmit,
+	.ndo_get_stats		= b44_get_stats,
+	.ndo_set_multicast_list = b44_set_rx_mode,
+	.ndo_set_mac_address	= b44_set_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl		= b44_ioctl,
+	.ndo_tx_timeout		= b44_tx_timeout,
+	.ndo_change_mtu		= b44_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= b44_poll_controller,
+#endif
+};
+
 static int __devinit b44_init_one(struct ssb_device *sdev,
 				  const struct ssb_device_id *ent)
 {
@@ -2145,20 +2161,9 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	bp->rx_pending = B44_DEF_RX_RING_PENDING;
 	bp->tx_pending = B44_DEF_TX_RING_PENDING;
 
-	dev->open = b44_open;
-	dev->stop = b44_close;
-	dev->hard_start_xmit = b44_start_xmit;
-	dev->get_stats = b44_get_stats;
-	dev->set_multicast_list = b44_set_rx_mode;
-	dev->set_mac_address = b44_set_mac_addr;
-	dev->do_ioctl = b44_ioctl;
-	dev->tx_timeout = b44_tx_timeout;
+	dev->netdev_ops = &b44_netdev_ops;
 	netif_napi_add(dev, &bp->napi, b44_poll, 64);
 	dev->watchdog_timeo = B44_TX_TIMEOUT;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = b44_poll_controller;
-#endif
-	dev->change_mtu = b44_change_mtu;
 	dev->irq = sdev->irq;
 	SET_ETHTOOL_OPS(dev, &b44_ethtool_ops);
 

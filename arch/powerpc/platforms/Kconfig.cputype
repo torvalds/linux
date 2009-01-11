@@ -231,7 +231,7 @@ config VIRT_CPU_ACCOUNTING
 	  If in doubt, say Y here.
 
 config SMP
-	depends on PPC_STD_MMU
+	depends on PPC_STD_MMU || FSL_BOOKE
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU. If you have

@@ -964,7 +964,6 @@ adjudge_to_death:
 	state = sk->sk_state;
 	sock_hold(sk);
 	sock_orphan(sk);
-	percpu_counter_inc(sk->sk_prot->orphan_count);
 
 	/*
 	 * It is the last release_sock in its life. It will remove backlog.
@@ -977,6 +976,8 @@ adjudge_to_death:
 	local_bh_disable();
 	bh_lock_sock(sk);
 	WARN_ON(sock_owned_by_user(sk));
+
+	percpu_counter_inc(sk->sk_prot->orphan_count);
 
 	/* Have we already been destroyed by a softirq or backlog? */
 	if (state != DCCP_CLOSED && sk->sk_state == DCCP_CLOSED)
@@ -1117,9 +1118,15 @@ static int __init dccp_init(void)
 	if (rc)
 		goto out_ackvec_exit;
 
+	rc = ccid_initialize_builtins();
+	if (rc)
+		goto out_sysctl_exit;
+
 	dccp_timestamping_init();
 out:
 	return rc;
+out_sysctl_exit:
+	dccp_sysctl_exit();
 out_ackvec_exit:
 	dccp_ackvec_exit();
 out_free_dccp_mib:
@@ -1142,6 +1149,7 @@ out_free_percpu:
 
 static void __exit dccp_fini(void)
 {
+	ccid_cleanup_builtins();
 	dccp_mib_exit();
 	free_pages((unsigned long)dccp_hashinfo.bhash,
 		   get_order(dccp_hashinfo.bhash_size *

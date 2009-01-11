@@ -40,7 +40,7 @@ config UBIFS_FS_ZLIB
 	depends on UBIFS_FS
 	default y
 	help
-	  Zlib copresses better then LZO but it is slower. Say 'Y' if unsure.
+	  Zlib compresses better than LZO but it is slower. Say 'Y' if unsure.
 
 # Debugging-related stuff
 config UBIFS_FS_DEBUG

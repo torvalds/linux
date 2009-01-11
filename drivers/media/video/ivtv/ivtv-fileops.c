@@ -155,7 +155,7 @@ static void ivtv_dualwatch(struct ivtv *itv)
 
 	new_stereo_mode = itv->params.audio_properties & stereo_mask;
 	memset(&vt, 0, sizeof(vt));
-	ivtv_call_i2c_clients(itv, VIDIOC_G_TUNER, &vt);
+	ivtv_call_all(itv, tuner, g_tuner, &vt);
 	if (vt.audmode == V4L2_TUNER_MODE_LANG1_LANG2 && (vt.rxsubchans & V4L2_TUNER_SUB_LANG2))
 		new_stereo_mode = dual;
 
@@ -831,7 +831,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 	ivtv_release_stream(s);
 }
 
-int ivtv_v4l2_close(struct inode *inode, struct file *filp)
+int ivtv_v4l2_close(struct file *filp)
 {
 	struct ivtv_open_id *id = filp->private_data;
 	struct ivtv *itv = id->itv;
@@ -857,7 +857,7 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 		/* Mark that the radio is no longer in use */
 		clear_bit(IVTV_F_I_RADIO_USER, &itv->i_flags);
 		/* Switch tuner to TV */
-		ivtv_call_i2c_clients(itv, VIDIOC_S_STD, &itv->std);
+		ivtv_call_all(itv, tuner, s_std, itv->std);
 		/* Select correct audio input (i.e. TV tuner or Line in) */
 		ivtv_audio_set_io(itv);
 		if (itv->hw_flags & IVTV_HW_SAA711X)
@@ -865,7 +865,7 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 			struct v4l2_crystal_freq crystal_freq;
 			crystal_freq.freq = SAA7115_FREQ_32_11_MHZ;
 			crystal_freq.flags = 0;
-			ivtv_saa7115(itv, VIDIOC_INT_S_CRYSTAL_FREQ, &crystal_freq);
+			ivtv_call_hw(itv, IVTV_HW_SAA711X, video, s_crystal_freq, &crystal_freq);
 		}
 		if (atomic_read(&itv->capturing) > 0) {
 			/* Undo video mute */
@@ -952,15 +952,14 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 		/* We have the radio */
 		ivtv_mute(itv);
 		/* Switch tuner to radio */
-		ivtv_call_i2c_clients(itv, AUDC_SET_RADIO, NULL);
+		ivtv_call_all(itv, tuner, s_radio);
 		/* Select the correct audio input (i.e. radio tuner) */
 		ivtv_audio_set_io(itv);
-		if (itv->hw_flags & IVTV_HW_SAA711X)
-		{
+		if (itv->hw_flags & IVTV_HW_SAA711X) {
 			struct v4l2_crystal_freq crystal_freq;
 			crystal_freq.freq = SAA7115_FREQ_32_11_MHZ;
 			crystal_freq.flags = SAA7115_FREQ_FL_APLL;
-			ivtv_saa7115(itv, VIDIOC_INT_S_CRYSTAL_FREQ, &crystal_freq);
+			ivtv_call_hw(itv, IVTV_HW_SAA711X, video, s_crystal_freq, &crystal_freq);
 		}
 		/* Done! Unmute and continue. */
 		ivtv_unmute(itv);
@@ -979,39 +978,20 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 	return 0;
 }
 
-int ivtv_v4l2_open(struct inode *inode, struct file *filp)
+int ivtv_v4l2_open(struct file *filp)
 {
-	int res, x, y = 0;
+	int res;
 	struct ivtv *itv = NULL;
 	struct ivtv_stream *s = NULL;
-	int minor = iminor(inode);
+	struct video_device *vdev = video_devdata(filp);
 
-	/* Find which card this open was on */
-	spin_lock(&ivtv_cards_lock);
-	for (x = 0; itv == NULL && x < ivtv_cards_active; x++) {
-		if (ivtv_cards[x] == NULL)
-			continue;
-		/* find out which stream this open was on */
-		for (y = 0; y < IVTV_MAX_STREAMS; y++) {
-			s = &ivtv_cards[x]->streams[y];
-			if (s->v4l2dev && s->v4l2dev->minor == minor) {
-				itv = ivtv_cards[x];
-				break;
-			}
-		}
-	}
-	spin_unlock(&ivtv_cards_lock);
-
-	if (itv == NULL) {
-		/* Couldn't find a device registered
-		   on that minor, shouldn't happen! */
-		printk(KERN_WARNING "No ivtv device found on minor %d\n", minor);
-		return -ENXIO;
-	}
+	s = video_get_drvdata(vdev);
+	itv = s->itv;
 
 	mutex_lock(&itv->serialize_lock);
 	if (ivtv_init_on_first_open(itv)) {
-		IVTV_ERR("Failed to initialize on minor %d\n", minor);
+		IVTV_ERR("Failed to initialize on minor %d\n",
+				s->v4l2dev->minor);
 		mutex_unlock(&itv->serialize_lock);
 		return -ENXIO;
 	}

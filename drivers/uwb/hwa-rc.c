@@ -51,16 +51,14 @@
  *
  *
  */
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/usb/wusb.h>
 #include <linux/usb/wusb-wa.h>
 #include <linux/uwb.h>
+
 #include "uwb-internal.h"
-#define D_LOCAL 1
-#include <linux/uwb/debug.h>
 
 /* The device uses commands and events from the WHCI specification, although
  * reporting itself as WUSB compliant. */
@@ -631,17 +629,13 @@ void hwarc_neep_cb(struct urb *urb)
 
 	switch (result = urb->status) {
 	case 0:
-		d_printf(3, dev, "NEEP: receive stat %d, %zu bytes\n",
-			 urb->status, (size_t)urb->actual_length);
 		uwb_rc_neh_grok(hwarc->uwb_rc, urb->transfer_buffer,
 				urb->actual_length);
 		break;
 	case -ECONNRESET:	/* Not an error, but a controlled situation; */
 	case -ENOENT:		/* (we killed the URB)...so, no broadcast */
-		d_printf(2, dev, "NEEP: URB reset/noent %d\n", urb->status);
 		goto out;
 	case -ESHUTDOWN:	/* going away! */
-		d_printf(2, dev, "NEEP: URB down %d\n", urb->status);
 		goto out;
 	default:		/* On general errors, retry unless it gets ugly */
 		if (edc_inc(&hwarc->neep_edc, EDC_MAX_ERRORS,
@@ -650,7 +644,6 @@ void hwarc_neep_cb(struct urb *urb)
 		dev_err(dev, "NEEP: URB error %d\n", urb->status);
 	}
 	result = usb_submit_urb(urb, GFP_ATOMIC);
-	d_printf(3, dev, "NEEP: submit %d\n", result);
 	if (result < 0) {
 		dev_err(dev, "NEEP: Can't resubmit URB (%d) resetting device\n",
 			result);
@@ -759,11 +752,11 @@ static int hwarc_get_version(struct uwb_rc *rc)
 	itr_size = le16_to_cpu(usb_dev->actconfig->desc.wTotalLength);
 	while (itr_size >= sizeof(*hdr)) {
 		hdr = (struct usb_descriptor_header *) itr;
-		d_printf(3, dev, "Extra device descriptor: "
-			 "type %02x/%u bytes @ %zu (%zu left)\n",
-			 hdr->bDescriptorType, hdr->bLength,
-			 (itr - usb_dev->rawdescriptors[actconfig_idx]),
-			 itr_size);
+		dev_dbg(dev, "Extra device descriptor: "
+			"type %02x/%u bytes @ %zu (%zu left)\n",
+			hdr->bDescriptorType, hdr->bLength,
+			(itr - usb_dev->rawdescriptors[actconfig_idx]),
+			itr_size);
 		if (hdr->bDescriptorType == USB_DT_CS_RADIO_CONTROL)
 			goto found;
 		itr += hdr->bLength;
@@ -795,8 +788,7 @@ found:
 		goto error;
 	}
 	rc->version = version;
-	d_printf(3, dev, "Device supports WUSB protocol version 0x%04x \n",
-		 rc->version);
+	dev_dbg(dev, "Device supports WUSB protocol version 0x%04x \n",	rc->version);
 	result = 0;
 error:
 	return result;
@@ -877,9 +869,26 @@ static void hwarc_disconnect(struct usb_interface *iface)
 	uwb_rc_rm(uwb_rc);
 	usb_put_intf(hwarc->usb_iface);
 	usb_put_dev(hwarc->usb_dev);
-	d_printf(1, &hwarc->usb_iface->dev, "freed hwarc %p\n", hwarc);
 	kfree(hwarc);
 	uwb_rc_put(uwb_rc);	/* when creating the device, refcount = 1 */
+}
+
+static int hwarc_pre_reset(struct usb_interface *iface)
+{
+	struct hwarc *hwarc = usb_get_intfdata(iface);
+	struct uwb_rc *uwb_rc = hwarc->uwb_rc;
+
+	uwb_rc_pre_reset(uwb_rc);
+	return 0;
+}
+
+static int hwarc_post_reset(struct usb_interface *iface)
+{
+	struct hwarc *hwarc = usb_get_intfdata(iface);
+	struct uwb_rc *uwb_rc = hwarc->uwb_rc;
+
+	uwb_rc_post_reset(uwb_rc);
+	return 0;
 }
 
 /** USB device ID's that we handle */
@@ -898,20 +907,16 @@ MODULE_DEVICE_TABLE(usb, hwarc_id_table);
 
 static struct usb_driver hwarc_driver = {
 	.name =		"hwa-rc",
+	.id_table =	hwarc_id_table,
 	.probe =	hwarc_probe,
 	.disconnect =	hwarc_disconnect,
-	.id_table =	hwarc_id_table,
+	.pre_reset =    hwarc_pre_reset,
+	.post_reset =   hwarc_post_reset,
 };
 
 static int __init hwarc_driver_init(void)
 {
-	int result;
-	result = usb_register(&hwarc_driver);
-	if (result < 0)
-		printk(KERN_ERR "HWA-RC: Cannot register USB driver: %d\n",
-		       result);
-	return result;
-
+	return usb_register(&hwarc_driver);
 }
 module_init(hwarc_driver_init);
 

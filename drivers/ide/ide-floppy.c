@@ -71,7 +71,7 @@
 static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
-	struct request *rq = HWGROUP(drive)->rq;
+	struct request *rq = drive->hwif->rq;
 	int error;
 
 	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
@@ -197,7 +197,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 
 	pc->retries++;
 
-	return ide_issue_pc(drive, WAIT_FLOPPY_CMD, NULL);
+	return ide_issue_pc(drive);
 }
 
 void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *pc)
@@ -342,38 +342,38 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
  * Look at the flexible disk page parameters. We ignore the CHS capacity
  * parameters and use the LBA parameters instead.
  */
-static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
+static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive,
+					     struct ide_atapi_pc *pc)
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
 	struct gendisk *disk = floppy->disk;
-	struct ide_atapi_pc pc;
 	u8 *page;
 	int capacity, lba_capacity;
 	u16 transfer_rate, sector_size, cyls, rpm;
 	u8 heads, sectors;
 
-	ide_floppy_create_mode_sense_cmd(&pc, IDEFLOPPY_FLEXIBLE_DISK_PAGE);
+	ide_floppy_create_mode_sense_cmd(pc, IDEFLOPPY_FLEXIBLE_DISK_PAGE);
 
-	if (ide_queue_pc_tail(drive, disk, &pc)) {
+	if (ide_queue_pc_tail(drive, disk, pc)) {
 		printk(KERN_ERR PFX "Can't get flexible disk page params\n");
 		return 1;
 	}
 
-	if (pc.buf[3] & 0x80)
+	if (pc->buf[3] & 0x80)
 		drive->dev_flags |= IDE_DFLAG_WP;
 	else
 		drive->dev_flags &= ~IDE_DFLAG_WP;
 
 	set_disk_ro(disk, !!(drive->dev_flags & IDE_DFLAG_WP));
 
-	page = &pc.buf[8];
+	page = &pc->buf[8];
 
-	transfer_rate = be16_to_cpup((__be16 *)&pc.buf[8 + 2]);
-	sector_size   = be16_to_cpup((__be16 *)&pc.buf[8 + 6]);
-	cyls          = be16_to_cpup((__be16 *)&pc.buf[8 + 8]);
-	rpm           = be16_to_cpup((__be16 *)&pc.buf[8 + 28]);
-	heads         = pc.buf[8 + 4];
-	sectors       = pc.buf[8 + 5];
+	transfer_rate = be16_to_cpup((__be16 *)&pc->buf[8 + 2]);
+	sector_size   = be16_to_cpup((__be16 *)&pc->buf[8 + 6]);
+	cyls          = be16_to_cpup((__be16 *)&pc->buf[8 + 8]);
+	rpm           = be16_to_cpup((__be16 *)&pc->buf[8 + 28]);
+	heads         = pc->buf[8 + 4];
+	sectors       = pc->buf[8 + 5];
 
 	capacity = cyls * heads * sectors * sector_size;
 
@@ -499,7 +499,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 
 	/* Clik! disk does not support get_flexible_disk_page */
 	if (!(drive->atapi_flags & IDE_AFLAG_CLIK_DRIVE))
-		(void) ide_floppy_get_flexible_disk_page(drive);
+		(void) ide_floppy_get_flexible_disk_page(drive, &pc);
 
 	return rc;
 }

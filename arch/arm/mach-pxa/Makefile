@@ -27,7 +27,7 @@ obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
 
 # Specific board support
 obj-$(CONFIG_ARCH_GUMSTIX)	+= gumstix.o
-obj-$(CONFIG_MACH_AM200EPD)	+= am200epd.o
+obj-$(CONFIG_GUMSTIX_AM200EPD)	+= am200epd.o
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o
 obj-$(CONFIG_MACH_LOGICPD_PXA270) += lpd270.o
 obj-$(CONFIG_MACH_MAINSTONE)	+= mainstone.o
@@ -35,6 +35,7 @@ obj-$(CONFIG_MACH_MP900C)	+= mp900.o
 obj-$(CONFIG_ARCH_PXA_IDP)	+= idp.o
 obj-$(CONFIG_MACH_TRIZEPS4)	+= trizeps4.o
 obj-$(CONFIG_MACH_COLIBRI)	+= colibri.o
+obj-$(CONFIG_MACH_H5000)	+= h5000.o
 obj-$(CONFIG_PXA_SHARP_C7xx)	+= corgi.o sharpsl_pm.o corgi_pm.o
 obj-$(CONFIG_PXA_SHARP_Cxx00)	+= spitz.o sharpsl_pm.o spitz_pm.o
 obj-$(CONFIG_CORGI_SSP_DEPRECATED)	+= corgi_ssp.o corgi_lcd.o
@@ -68,6 +69,8 @@ obj-$(CONFIG_MACH_SAAR)		+= saar.o
 obj-$(CONFIG_MACH_ARMCORE)      += cm-x2xx.o cm-x255.o cm-x270.o
 obj-$(CONFIG_MACH_CM_X300)      += cm-x300.o
 obj-$(CONFIG_PXA_EZX)           += ezx.o
+
+obj-$(CONFIG_MACH_INTELMOTE2)   += imote2.o
 
 # Support for blinky lights
 led-y := leds.o

@@ -7,9 +7,17 @@ config MACH_REALVIEW_EB
 	help
 	  Include support for the ARM(R) RealView Emulation Baseboard platform.
 
+config REALVIEW_EB_A9MP
+	bool "Support Multicore Cortex-A9"
+	depends on MACH_REALVIEW_EB
+	select CPU_V7
+	help
+	  Enable support for the Cortex-A9MPCore tile on the Realview platform.
+
 config REALVIEW_EB_ARM11MP
 	bool "Support ARM11MPCore tile"
 	depends on MACH_REALVIEW_EB
+	select CPU_V6
 	help
 	  Enable support for the ARM11MPCore tile on the Realview platform.
 
@@ -25,6 +33,7 @@ config REALVIEW_EB_ARM11MP_REVB
 
 config MACH_REALVIEW_PB11MP
 	bool "Support RealView/PB11MPCore platform"
+	select CPU_V6
 	select ARM_GIC
 	help
 	  Include support for the ARM(R) RealView MPCore Platform Baseboard.
@@ -33,8 +42,29 @@ config MACH_REALVIEW_PB11MP
 
 config MACH_REALVIEW_PB1176
 	bool "Support RealView/PB1176 platform"
+	select CPU_V6
 	select ARM_GIC
 	help
 	  Include support for the ARM(R) RealView ARM1176 Platform Baseboard.
+
+config MACH_REALVIEW_PBA8
+	bool "Support RealView/PB-A8 platform"
+	select CPU_V7
+	select ARM_GIC
+	help
+	  Include support for the ARM(R) RealView Cortex-A8 Platform Baseboard.
+	  PB-A8 is a platform with an on-board Cortex-A8 and has support for
+	  PCI-E and Compact Flash.
+
+config REALVIEW_HIGH_PHYS_OFFSET
+	bool "High physical base address for the RealView platform"
+	depends on !MACH_REALVIEW_PB1176
+	default y
+	help
+	  RealView boards other than PB1176 have the RAM available at
+	  0x70000000, 256MB of which being mirrored at 0x00000000. If
+	  the board supports 512MB of RAM, this option allows the
+	  memory to be accessed contiguously at the high physical
+	  offset.
 
 endmenu

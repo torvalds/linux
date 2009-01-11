@@ -32,7 +32,5 @@ struct meminfo;
 struct pglist_data;
 
 void __init create_mapping(struct map_desc *md);
-void __init bootmem_init(struct meminfo *mi);
+void __init bootmem_init(void);
 void reserve_node_zero(struct pglist_data *pgdat);
-
-extern void _text, _stext, _etext, __data_start, _end, __init_begin, __init_end;

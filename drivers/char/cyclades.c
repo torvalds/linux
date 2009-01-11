@@ -5010,7 +5010,7 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 		if (nchan == 0) {
 			dev_err(&pdev->dev, "Cyclom-Y PCI host card with no "
 					"Serial-Modules\n");
-			return -EIO;
+			goto err_unmap;
 		}
 	} else if (device_id == PCI_DEVICE_ID_CYCLOM_Z_Hi) {
 		struct RUNTIME_9060 __iomem *ctl_addr;

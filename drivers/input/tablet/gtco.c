@@ -877,7 +877,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	dbg("num endpoints:     %d", usbinterface->cur_altsetting->desc.bNumEndpoints);
 	dbg("interface class:   %d", usbinterface->cur_altsetting->desc.bInterfaceClass);
 	dbg("endpoint: attribute:0x%x type:0x%x", endpoint->bmAttributes, endpoint->bDescriptorType);
-	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)
+	if (usb_endpoint_xfer_int(endpoint))
 		dbg("endpoint: we have interrupt endpoint\n");
 
 	dbg("endpoint extra len:%d ", usbinterface->altsetting[0].extralen);

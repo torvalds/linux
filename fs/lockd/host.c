@@ -15,7 +15,6 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/lockd.h>
-#include <linux/lockd/sm_inter.h>
 #include <linux/mutex.h>
 
 #include <net/ipv6.h>
@@ -32,11 +31,6 @@ static int			nrhosts;
 static DEFINE_MUTEX(nlm_host_mutex);
 
 static void			nlm_gc_hosts(void);
-static struct nsm_handle	*nsm_find(const struct sockaddr *sap,
-						const size_t salen,
-						const char *hostname,
-						const size_t hostname_len,
-						const int create);
 
 struct nlm_lookup_host_info {
 	const int		server;		/* search for server|client */
@@ -48,6 +42,7 @@ struct nlm_lookup_host_info {
 	const size_t		hostname_len;	/* it's length */
 	const struct sockaddr	*src_sap;	/* our address (optional) */
 	const size_t		src_len;	/* it's length */
+	const int		noresvport;	/* use non-priv port */
 };
 
 /*
@@ -100,32 +95,6 @@ static void nlm_clear_port(struct sockaddr *sap)
 		break;
 	case AF_INET6:
 		((struct sockaddr_in6 *)sap)->sin6_port = 0;
-		break;
-	}
-}
-
-static void nlm_display_address(const struct sockaddr *sap,
-				char *buf, const size_t len)
-{
-	const struct sockaddr_in *sin = (struct sockaddr_in *)sap;
-	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
-
-	switch (sap->sa_family) {
-	case AF_UNSPEC:
-		snprintf(buf, len, "unspecified");
-		break;
-	case AF_INET:
-		snprintf(buf, len, "%pI4", &sin->sin_addr.s_addr);
-		break;
-	case AF_INET6:
-		if (ipv6_addr_v4mapped(&sin6->sin6_addr))
-			snprintf(buf, len, "%pI4",
-				 &sin6->sin6_addr.s6_addr32[3]);
-		else
-			snprintf(buf, len, "%pI6", &sin6->sin6_addr);
-		break;
-	default:
-		snprintf(buf, len, "unsupported address family");
 		break;
 	}
 }
@@ -189,8 +158,8 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 		atomic_inc(&nsm->sm_count);
 	else {
 		host = NULL;
-		nsm = nsm_find(ni->sap, ni->salen,
-				ni->hostname, ni->hostname_len, 1);
+		nsm = nsm_get_handle(ni->sap, ni->salen,
+					ni->hostname, ni->hostname_len);
 		if (!nsm) {
 			dprintk("lockd: nlm_lookup_host failed; "
 				"no nsm handle\n");
@@ -205,6 +174,7 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 		goto out;
 	}
 	host->h_name	   = nsm->sm_name;
+	host->h_addrbuf    = nsm->sm_addrbuf;
 	memcpy(nlm_addr(host), ni->sap, ni->salen);
 	host->h_addrlen = ni->salen;
 	nlm_clear_port(nlm_addr(host));
@@ -222,6 +192,7 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 	host->h_nsmstate   = 0;			/* real NSM state */
 	host->h_nsmhandle  = nsm;
 	host->h_server	   = ni->server;
+	host->h_noresvport = ni->noresvport;
 	hlist_add_head(&host->h_hash, chain);
 	INIT_LIST_HEAD(&host->h_lockowners);
 	spin_lock_init(&host->h_lock);
@@ -229,11 +200,6 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 	INIT_LIST_HEAD(&host->h_reclaim);
 
 	nrhosts++;
-
-	nlm_display_address((struct sockaddr *)&host->h_addr,
-				host->h_addrbuf, sizeof(host->h_addrbuf));
-	nlm_display_address((struct sockaddr *)&host->h_srcaddr,
-				host->h_srcaddrbuf, sizeof(host->h_srcaddrbuf));
 
 	dprintk("lockd: nlm_lookup_host created host %s\n",
 			host->h_name);
@@ -254,10 +220,8 @@ nlm_destroy_host(struct nlm_host *host)
 	BUG_ON(!list_empty(&host->h_lockowners));
 	BUG_ON(atomic_read(&host->h_count));
 
-	/*
-	 * Release NSM handle and unmonitor host.
-	 */
 	nsm_unmonitor(host);
+	nsm_release(host->h_nsmhandle);
 
 	clnt = host->h_rpcclnt;
 	if (clnt != NULL)
@@ -272,6 +236,7 @@ nlm_destroy_host(struct nlm_host *host)
  * @protocol: transport protocol to use
  * @version: NLM protocol version
  * @hostname: '\0'-terminated hostname of server
+ * @noresvport: 1 if non-privileged port should be used
  *
  * Returns an nlm_host structure that matches the passed-in
  * [server address, transport protocol, NLM version, server hostname].
@@ -281,7 +246,9 @@ nlm_destroy_host(struct nlm_host *host)
 struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 				     const size_t salen,
 				     const unsigned short protocol,
-				     const u32 version, const char *hostname)
+				     const u32 version,
+				     const char *hostname,
+				     int noresvport)
 {
 	const struct sockaddr source = {
 		.sa_family	= AF_UNSPEC,
@@ -296,6 +263,7 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 		.hostname_len	= strlen(hostname),
 		.src_sap	= &source,
 		.src_len	= sizeof(source),
+		.noresvport	= noresvport,
 	};
 
 	dprintk("lockd: %s(host='%s', vers=%u, proto=%s)\n", __func__,
@@ -372,8 +340,8 @@ nlm_bind_host(struct nlm_host *host)
 {
 	struct rpc_clnt	*clnt;
 
-	dprintk("lockd: nlm_bind_host %s (%s), my addr=%s\n",
-			host->h_name, host->h_addrbuf, host->h_srcaddrbuf);
+	dprintk("lockd: nlm_bind_host %s (%s)\n",
+			host->h_name, host->h_addrbuf);
 
 	/* Lock host handle */
 	mutex_lock(&host->h_mutex);
@@ -417,6 +385,8 @@ nlm_bind_host(struct nlm_host *host)
 		 */
 		if (!host->h_server)
 			args.flags |= RPC_CLNT_CREATE_HARDRTRY;
+		if (host->h_noresvport)
+			args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
 		clnt = rpc_create(&args);
 		if (!IS_ERR(clnt))
@@ -473,35 +443,23 @@ void nlm_release_host(struct nlm_host *host)
 	}
 }
 
-/*
- * We were notified that the host indicated by address &sin
- * has rebooted.
- * Release all resources held by that peer.
+/**
+ * nlm_host_rebooted - Release all resources held by rebooted host
+ * @info: pointer to decoded results of NLM_SM_NOTIFY call
+ *
+ * We were notified that the specified host has rebooted.  Release
+ * all resources held by that peer.
  */
-void nlm_host_rebooted(const struct sockaddr_in *sin,
-				const char *hostname,
-				unsigned int hostname_len,
-				u32 new_state)
+void nlm_host_rebooted(const struct nlm_reboot *info)
 {
 	struct hlist_head *chain;
 	struct hlist_node *pos;
 	struct nsm_handle *nsm;
 	struct nlm_host	*host;
 
-	nsm = nsm_find((struct sockaddr *)sin, sizeof(*sin),
-			hostname, hostname_len, 0);
-	if (nsm == NULL) {
-		dprintk("lockd: never saw rebooted peer '%.*s' before\n",
-				hostname_len, hostname);
+	nsm = nsm_reboot_lookup(info);
+	if (unlikely(nsm == NULL))
 		return;
-	}
-
-	dprintk("lockd: nlm_host_rebooted(%.*s, %s)\n",
-			hostname_len, hostname, nsm->sm_addrbuf);
-
-	/* When reclaiming locks on this peer, make sure that
-	 * we set up a new notification */
-	nsm->sm_monitored = 0;
 
 	/* Mark all hosts tied to this NSM state as having rebooted.
 	 * We run the loop repeatedly, because we drop the host table
@@ -512,8 +470,8 @@ again:	mutex_lock(&nlm_host_mutex);
 	for (chain = nlm_hosts; chain < nlm_hosts + NLM_HOST_NRHASH; ++chain) {
 		hlist_for_each_entry(host, pos, chain, h_hash) {
 			if (host->h_nsmhandle == nsm
-			 && host->h_nsmstate != new_state) {
-				host->h_nsmstate = new_state;
+			 && host->h_nsmstate != info->state) {
+				host->h_nsmstate = info->state;
 				host->h_state++;
 
 				nlm_get_host(host);
@@ -620,90 +578,4 @@ nlm_gc_hosts(void)
 	}
 
 	next_gc = jiffies + NLM_HOST_COLLECT;
-}
-
-
-/*
- * Manage NSM handles
- */
-static LIST_HEAD(nsm_handles);
-static DEFINE_SPINLOCK(nsm_lock);
-
-static struct nsm_handle *nsm_find(const struct sockaddr *sap,
-				   const size_t salen,
-				   const char *hostname,
-				   const size_t hostname_len,
-				   const int create)
-{
-	struct nsm_handle *nsm = NULL;
-	struct nsm_handle *pos;
-
-	if (!sap)
-		return NULL;
-
-	if (hostname && memchr(hostname, '/', hostname_len) != NULL) {
-		if (printk_ratelimit()) {
-			printk(KERN_WARNING "Invalid hostname \"%.*s\" "
-					    "in NFS lock request\n",
-				(int)hostname_len, hostname);
-		}
-		return NULL;
-	}
-
-retry:
-	spin_lock(&nsm_lock);
-	list_for_each_entry(pos, &nsm_handles, sm_link) {
-
-		if (hostname && nsm_use_hostnames) {
-			if (strlen(pos->sm_name) != hostname_len
-			 || memcmp(pos->sm_name, hostname, hostname_len))
-				continue;
-		} else if (!nlm_cmp_addr(nsm_addr(pos), sap))
-			continue;
-		atomic_inc(&pos->sm_count);
-		kfree(nsm);
-		nsm = pos;
-		goto found;
-	}
-	if (nsm) {
-		list_add(&nsm->sm_link, &nsm_handles);
-		goto found;
-	}
-	spin_unlock(&nsm_lock);
-
-	if (!create)
-		return NULL;
-
-	nsm = kzalloc(sizeof(*nsm) + hostname_len + 1, GFP_KERNEL);
-	if (nsm == NULL)
-		return NULL;
-
-	memcpy(nsm_addr(nsm), sap, salen);
-	nsm->sm_addrlen = salen;
-	nsm->sm_name = (char *) (nsm + 1);
-	memcpy(nsm->sm_name, hostname, hostname_len);
-	nsm->sm_name[hostname_len] = '\0';
-	nlm_display_address((struct sockaddr *)&nsm->sm_addr,
-				nsm->sm_addrbuf, sizeof(nsm->sm_addrbuf));
-	atomic_set(&nsm->sm_count, 1);
-	goto retry;
-
-found:
-	spin_unlock(&nsm_lock);
-	return nsm;
-}
-
-/*
- * Release an NSM handle
- */
-void
-nsm_release(struct nsm_handle *nsm)
-{
-	if (!nsm)
-		return;
-	if (atomic_dec_and_lock(&nsm->sm_count, &nsm_lock)) {
-		list_del(&nsm->sm_link);
-		spin_unlock(&nsm_lock);
-		kfree(nsm);
-	}
 }

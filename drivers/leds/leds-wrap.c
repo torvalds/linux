@@ -56,39 +56,20 @@ static struct led_classdev wrap_power_led = {
 	.name			= "wrap::power",
 	.brightness_set		= wrap_power_led_set,
 	.default_trigger	= "default-on",
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
 
 static struct led_classdev wrap_error_led = {
 	.name		= "wrap::error",
 	.brightness_set	= wrap_error_led_set,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
 
 static struct led_classdev wrap_extra_led = {
 	.name           = "wrap::extra",
 	.brightness_set = wrap_extra_led_set,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
-
-#ifdef CONFIG_PM
-static int wrap_led_suspend(struct platform_device *dev,
-		pm_message_t state)
-{
-	led_classdev_suspend(&wrap_power_led);
-	led_classdev_suspend(&wrap_error_led);
-	led_classdev_suspend(&wrap_extra_led);
-	return 0;
-}
-
-static int wrap_led_resume(struct platform_device *dev)
-{
-	led_classdev_resume(&wrap_power_led);
-	led_classdev_resume(&wrap_error_led);
-	led_classdev_resume(&wrap_extra_led);
-	return 0;
-}
-#else
-#define wrap_led_suspend NULL
-#define wrap_led_resume NULL
-#endif
 
 static int wrap_led_probe(struct platform_device *pdev)
 {
@@ -127,8 +108,6 @@ static int wrap_led_remove(struct platform_device *pdev)
 static struct platform_driver wrap_led_driver = {
 	.probe		= wrap_led_probe,
 	.remove		= wrap_led_remove,
-	.suspend	= wrap_led_suspend,
-	.resume		= wrap_led_resume,
 	.driver		= {
 		.name		= DRVNAME,
 		.owner		= THIS_MODULE,

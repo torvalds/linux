@@ -12,6 +12,7 @@
 #include <net/net_namespace.h>
 
 extern struct files_struct init_files;
+extern struct fs_struct init_fs;
 
 #define INIT_KIOCTX(name, which_mm) \
 {							\

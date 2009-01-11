@@ -69,6 +69,7 @@ ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		q = q->next;
 	} while (q != p);
 	write_unlock(&svc->sched_lock);
+	IP_VS_ERR_RL("RR: no destination available\n");
 	return NULL;
 
   out:

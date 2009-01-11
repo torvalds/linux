@@ -80,8 +80,8 @@ struct cpufreq_real_policy {
 };
 
 struct cpufreq_policy {
-	cpumask_t		cpus;	/* CPUs requiring sw coordination */
-	cpumask_t		related_cpus; /* CPUs with any coordination */
+	cpumask_var_t		cpus;	/* CPUs requiring sw coordination */
+	cpumask_var_t		related_cpus; /* CPUs with any coordination */
 	unsigned int		shared_type; /* ANY or ALL affected CPUs
 						should set cpufreq */
 	unsigned int		cpu;    /* cpu nr of registered CPU */
@@ -234,6 +234,7 @@ struct cpufreq_driver {
 	int	(*suspend)	(struct cpufreq_policy *policy, pm_message_t pmsg);
 	int	(*resume)	(struct cpufreq_policy *policy);
 	struct freq_attr	**attr;
+	bool			hide_interface;
 };
 
 /* flags */

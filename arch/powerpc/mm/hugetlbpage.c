@@ -512,6 +512,13 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	return slice_get_unmapped_area(addr, len, flags, mmu_psize, 1, 0);
 }
 
+unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
+{
+	unsigned int psize = get_slice_psize(vma->vm_mm, vma->vm_start);
+
+	return 1UL << mmu_psize_to_shift(psize);
+}
+
 /*
  * Called by asm hashtable.S for doing lazy icache flush
  */

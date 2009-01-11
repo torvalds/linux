@@ -57,7 +57,6 @@ static int snd_hrtimer_open(struct snd_timer *t)
 		return -ENOMEM;
 	hrtimer_init(&stime->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	stime->timer = t;
-	stime->hrt.cb_mode = HRTIMER_CB_IRQSAFE_UNLOCKED;
 	stime->hrt.function = snd_hrtimer_callback;
 	t->private_data = stime;
 	return 0;

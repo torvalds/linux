@@ -2527,7 +2527,7 @@ static void asc_prt_scsi_host(struct Scsi_Host *s)
 {
 	struct asc_board *boardp = shost_priv(s);
 
-	printk("Scsi_Host at addr 0x%p, device %s\n", s, boardp->dev->bus_id);
+	printk("Scsi_Host at addr 0x%p, device %s\n", s, dev_name(boardp->dev));
 	printk(" host_busy %u, host_no %d, last_reset %d,\n",
 	       s->host_busy, s->host_no, (unsigned)s->last_reset);
 
@@ -13425,8 +13425,7 @@ static int __devinit advansys_board_found(struct Scsi_Host *shost,
 		}
 
 		boardp->asc_n_io_port = pci_resource_len(pdev, 1);
-		boardp->ioremap_addr = ioremap(pci_resource_start(pdev, 1),
-					       boardp->asc_n_io_port);
+		boardp->ioremap_addr = pci_ioremap_bar(pdev, 1);
 		if (!boardp->ioremap_addr) {
 			shost_printk(KERN_ERR, shost, "ioremap(%lx, %d) "
 					"returned NULL\n",
