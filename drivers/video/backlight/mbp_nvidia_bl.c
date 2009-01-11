@@ -36,12 +36,21 @@ struct dmi_match_data {
 	struct backlight_ops backlight_ops;
 };
 
+/* Module parameters. */
+static int debug;
+module_param_named(debug, debug, int, 0644);
+MODULE_PARM_DESC(debug, "Set to one to enable debugging messages.");
+
 /*
  * Implementation for MacBooks with Intel chipset.
  */
 static int intel_chipset_send_intensity(struct backlight_device *bd)
 {
 	int intensity = bd->props.brightness;
+
+	if (debug)
+		printk(KERN_DEBUG "mbp_nvidia_bl: setting brightness to %d\n",
+		       intensity);
 
 	outb(0x04 | (intensity << 4), 0xb3);
 	outb(0xbf, 0xb2);
@@ -50,9 +59,17 @@ static int intel_chipset_send_intensity(struct backlight_device *bd)
 
 static int intel_chipset_get_intensity(struct backlight_device *bd)
 {
+	int intensity;
+
 	outb(0x03, 0xb3);
 	outb(0xbf, 0xb2);
-	return inb(0xb3) >> 4;
+	intensity = inb(0xb3) >> 4;
+
+	if (debug)
+		printk(KERN_DEBUG "mbp_nvidia_bl: read brightness of %d\n",
+		       intensity);
+
+	return intensity;
 }
 
 static const struct dmi_match_data intel_chipset_data = {
@@ -72,6 +89,10 @@ static int nvidia_chipset_send_intensity(struct backlight_device *bd)
 {
 	int intensity = bd->props.brightness;
 
+	if (debug)
+		printk(KERN_DEBUG "mbp_nvidia_bl: setting brightness to %d\n",
+		       intensity);
+
 	outb(0x04 | (intensity << 4), 0x52f);
 	outb(0xbf, 0x52e);
 	return 0;
@@ -79,9 +100,17 @@ static int nvidia_chipset_send_intensity(struct backlight_device *bd)
 
 static int nvidia_chipset_get_intensity(struct backlight_device *bd)
 {
+	int intensity;
+
 	outb(0x03, 0x52f);
 	outb(0xbf, 0x52e);
-	return inb(0x52f) >> 4;
+	intensity = inb(0x52f) >> 4;
+
+	if (debug)
+		printk(KERN_DEBUG "mbp_nvidia_bl: read brightness of %d\n",
+		       intensity);
+
+	return intensity;
 }
 
 static const struct dmi_match_data nvidia_chipset_data = {
