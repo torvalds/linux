@@ -250,6 +250,14 @@ static const unsigned char init_po1030[][3] =
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x04},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
 	/*end of sequence 2 stop */
+
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_EN_L, 0x00},
+
+	{SENSOR, PO1030_AUTOCTRL2, 0x04},
+
 };
 
 static const unsigned char start_po1030[][3] =
