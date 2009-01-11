@@ -682,7 +682,7 @@ static ssize_t dst_ca_write(struct file *file, const char __user *buffer, size_t
 	return 0;
 }
 
-static struct file_operations dst_ca_fops = {
+static const struct file_operations dst_ca_fops = {
 	.owner = THIS_MODULE,
 	.ioctl = dst_ca_ioctl,
 	.open = dst_ca_open,

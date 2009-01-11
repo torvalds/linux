@@ -1607,7 +1607,7 @@ static unsigned int dvb_ca_en50221_io_poll(struct file *file, poll_table * wait)
 EXPORT_SYMBOL(dvb_ca_en50221_init);
 
 
-static struct file_operations dvb_ca_fops = {
+static const struct file_operations dvb_ca_fops = {
 	.owner = THIS_MODULE,
 	.read = dvb_ca_en50221_io_read,
 	.write = dvb_ca_en50221_io_write,
