@@ -426,15 +426,18 @@ extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
 /**
  * init_alloc_desc_masks - allocate cpumasks for irq_desc
  * @desc:	pointer to irq_desc struct
+ * @cpu:	cpu which will be handling the cpumasks
  * @boot:	true if need bootmem
  *
  * Allocates affinity and pending_mask cpumask if required.
  * Returns true if successful (or not required).
  * Side effect: affinity has all bits set, pending_mask has all bits clear.
  */
-static inline bool init_alloc_desc_masks(struct irq_desc *desc, int node,
+static inline bool init_alloc_desc_masks(struct irq_desc *desc, int cpu,
 								bool boot)
 {
+	int node;
+
 	if (boot) {
 		alloc_bootmem_cpumask_var(&desc->affinity);
 		cpumask_setall(desc->affinity);
@@ -445,6 +448,8 @@ static inline bool init_alloc_desc_masks(struct irq_desc *desc, int node,
 #endif
 		return true;
 	}
+
+	node = cpu_to_node(cpu);
 
 	if (!alloc_cpumask_var_node(&desc->affinity, GFP_ATOMIC, node))
 		return false;
@@ -484,7 +489,7 @@ static inline void init_copy_desc_masks(struct irq_desc *old_desc,
 
 #else /* !CONFIG_SMP */
 
-static inline bool init_alloc_desc_masks(struct irq_desc *desc, int node,
+static inline bool init_alloc_desc_masks(struct irq_desc *desc, int cpu,
 								bool boot)
 {
 	return true;

@@ -85,8 +85,6 @@ void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr)
 
 static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
 {
-	int node = cpu_to_node(cpu);
-
 	memcpy(desc, &irq_desc_init, sizeof(struct irq_desc));
 
 	spin_lock_init(&desc->lock);
@@ -100,7 +98,7 @@ static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
 		printk(KERN_ERR "can not alloc kstat_irqs\n");
 		BUG_ON(1);
 	}
-	if (!init_alloc_desc_masks(desc, node, false)) {
+	if (!init_alloc_desc_masks(desc, cpu, false)) {
 		printk(KERN_ERR "can not alloc irq_desc cpumasks\n");
 		BUG_ON(1);
 	}
@@ -186,10 +184,6 @@ struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
 		 irq, cpu, node);
 	if (!desc) {
 		printk(KERN_ERR "can not alloc irq_desc\n");
-		BUG_ON(1);
-	}
-	if (!init_alloc_desc_masks(desc, node, false)) {
-		printk(KERN_ERR "can not alloc irq_desc cpumasks\n");
 		BUG_ON(1);
 	}
 	init_one_irq_desc(irq, desc, cpu);
