@@ -672,7 +672,7 @@ static int acpi_ec_info_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_ec_read_info, PDE(inode)->data);
 }
 
-static struct file_operations acpi_ec_info_ops = {
+static const struct file_operations acpi_ec_info_ops = {
 	.open = acpi_ec_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,

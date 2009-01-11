@@ -189,7 +189,7 @@ struct acpi_video_device {
 
 /* bus */
 static int acpi_video_bus_info_open_fs(struct inode *inode, struct file *file);
-static struct file_operations acpi_video_bus_info_fops = {
+static const struct file_operations acpi_video_bus_info_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_bus_info_open_fs,
 	.read = seq_read,
@@ -198,7 +198,7 @@ static struct file_operations acpi_video_bus_info_fops = {
 };
 
 static int acpi_video_bus_ROM_open_fs(struct inode *inode, struct file *file);
-static struct file_operations acpi_video_bus_ROM_fops = {
+static const struct file_operations acpi_video_bus_ROM_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_bus_ROM_open_fs,
 	.read = seq_read,
@@ -208,7 +208,7 @@ static struct file_operations acpi_video_bus_ROM_fops = {
 
 static int acpi_video_bus_POST_info_open_fs(struct inode *inode,
 					    struct file *file);
-static struct file_operations acpi_video_bus_POST_info_fops = {
+static const struct file_operations acpi_video_bus_POST_info_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_bus_POST_info_open_fs,
 	.read = seq_read,
@@ -237,7 +237,7 @@ static struct file_operations acpi_video_bus_DOS_fops = {
 /* device */
 static int acpi_video_device_info_open_fs(struct inode *inode,
 					  struct file *file);
-static struct file_operations acpi_video_device_info_fops = {
+static const struct file_operations acpi_video_device_info_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_device_info_open_fs,
 	.read = seq_read,
@@ -267,7 +267,7 @@ static struct file_operations acpi_video_device_brightness_fops = {
 
 static int acpi_video_device_EDID_open_fs(struct inode *inode,
 					  struct file *file);
-static struct file_operations acpi_video_device_EDID_fops = {
+static const struct file_operations acpi_video_device_EDID_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_device_EDID_open_fs,
 	.read = seq_read,
