@@ -264,7 +264,7 @@ int po1030_init(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	err = po1030_set_red_balance(&sd->gspca_dev,
+	err = po1030_set_blue_balance(&sd->gspca_dev,
 				      sensor_settings[BLUE_BALANCE_IDX]);
 	if (err < 0)
 		return err;
