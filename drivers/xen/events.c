@@ -75,7 +75,14 @@ enum {
 static int evtchn_to_irq[NR_EVENT_CHANNELS] = {
 	[0 ... NR_EVENT_CHANNELS-1] = -1
 };
-static unsigned long cpu_evtchn_mask[NR_CPUS][NR_EVENT_CHANNELS/BITS_PER_LONG];
+struct cpu_evtchn_s {
+	unsigned long bits[NR_EVENT_CHANNELS/BITS_PER_LONG];
+};
+static struct cpu_evtchn_s *cpu_evtchn_mask_p;
+static inline unsigned long *cpu_evtchn_mask(int cpu)
+{
+	return cpu_evtchn_mask_p[cpu].bits;
+}
 static u8 cpu_evtchn[NR_EVENT_CHANNELS];
 
 /* Reference counts for bindings to IRQs. */
@@ -115,7 +122,7 @@ static inline unsigned long active_evtchns(unsigned int cpu,
 					   unsigned int idx)
 {
 	return (sh->evtchn_pending[idx] &
-		cpu_evtchn_mask[cpu][idx] &
+		cpu_evtchn_mask(cpu)[idx] &
 		~sh->evtchn_mask[idx]);
 }
 
@@ -128,8 +135,8 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	cpumask_copy(irq_to_desc(irq)->affinity, cpumask_of(cpu));
 #endif
 
-	__clear_bit(chn, cpu_evtchn_mask[cpu_evtchn[chn]]);
-	__set_bit(chn, cpu_evtchn_mask[cpu]);
+	__clear_bit(chn, cpu_evtchn_mask(cpu_evtchn[chn]));
+	__set_bit(chn, cpu_evtchn_mask(cpu));
 
 	cpu_evtchn[chn] = cpu;
 }
@@ -147,7 +154,7 @@ static void init_evtchn_cpu_bindings(void)
 #endif
 
 	memset(cpu_evtchn, 0, sizeof(cpu_evtchn));
-	memset(cpu_evtchn_mask[0], ~0, sizeof(cpu_evtchn_mask[0]));
+	memset(cpu_evtchn_mask(0), ~0, sizeof(cpu_evtchn_mask(0)));
 }
 
 static inline unsigned int cpu_from_evtchn(unsigned int evtchn)
@@ -822,6 +829,10 @@ static struct irq_chip xen_dynamic_chip __read_mostly = {
 void __init xen_init_IRQ(void)
 {
 	int i;
+	size_t size = nr_cpu_ids * sizeof(struct cpu_evtchn_s);
+
+	cpu_evtchn_mask_p = kmalloc(size, GFP_KERNEL);
+	BUG_ON(cpu_evtchn_mask == NULL);
 
 	init_evtchn_cpu_bindings();
 
