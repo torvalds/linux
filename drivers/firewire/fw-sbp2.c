@@ -670,17 +670,6 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 			&d, sizeof(d), complete_agent_reset_write_no_wait, t);
 }
 
-static void sbp2_set_generation(struct sbp2_logical_unit *lu, int generation)
-{
-	struct fw_card *card = fw_device(lu->tgt->unit->device.parent)->card;
-	unsigned long flags;
-
-	/* serialize with comparisons of lu->generation and card->generation */
-	spin_lock_irqsave(&card->lock, flags);
-	lu->generation = generation;
-	spin_unlock_irqrestore(&card->lock, flags);
-}
-
 static inline void sbp2_allow_block(struct sbp2_logical_unit *lu)
 {
 	/*
@@ -884,7 +873,7 @@ static void sbp2_login(struct work_struct *work)
 		goto out;
 
 	generation    = device->generation;
-	smp_rmb();    /* node_id must not be older than generation */
+	smp_rmb();    /* node IDs must not be older than generation */
 	node_id       = device->node_id;
 	local_node_id = device->card->node_id;
 
@@ -908,7 +897,8 @@ static void sbp2_login(struct work_struct *work)
 
 	tgt->node_id	  = node_id;
 	tgt->address_high = local_node_id << 16;
-	sbp2_set_generation(lu, generation);
+	smp_wmb();	  /* node IDs must not be older than generation */
+	lu->generation	  = generation;
 
 	lu->command_block_agent_address =
 		((u64)(be32_to_cpu(response.command_block_agent.high) & 0xffff)
@@ -1201,7 +1191,7 @@ static void sbp2_reconnect(struct work_struct *work)
 		goto out;
 
 	generation    = device->generation;
-	smp_rmb();    /* node_id must not be older than generation */
+	smp_rmb();    /* node IDs must not be older than generation */
 	node_id       = device->node_id;
 	local_node_id = device->card->node_id;
 
@@ -1228,7 +1218,8 @@ static void sbp2_reconnect(struct work_struct *work)
 
 	tgt->node_id      = node_id;
 	tgt->address_high = local_node_id << 16;
-	sbp2_set_generation(lu, generation);
+	smp_wmb();	  /* node IDs must not be older than generation */
+	lu->generation	  = generation;
 
 	fw_notify("%s: reconnected to LUN %04x (%d retries)\n",
 		  tgt->bus_id, lu->lun, lu->retries);

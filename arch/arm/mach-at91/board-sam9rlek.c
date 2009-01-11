@@ -29,6 +29,7 @@
 #include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
+#include <mach/at91sam9_smc.h>
 #include <mach/at91_shdwc.h>
 
 #include "sam9_smc.h"

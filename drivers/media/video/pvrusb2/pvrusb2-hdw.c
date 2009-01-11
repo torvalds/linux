@@ -3655,7 +3655,7 @@ void pvr2_hdw_device_reset(struct pvr2_hdw *hdw)
 	int ret;
 	pvr2_trace(PVR2_TRACE_INIT,"Performing a device reset...");
 	ret = usb_lock_device_for_reset(hdw->usb_dev,NULL);
-	if (ret == 1) {
+	if (ret == 0) {
 		ret = usb_reset_device(hdw->usb_dev);
 		usb_unlock_device(hdw->usb_dev);
 	} else {

@@ -237,8 +237,7 @@ int raid_component_add(struct raid_template *r,struct device *raid_dev,
 	rc->dev.parent = get_device(component_dev);
 	rc->num = rd->component_count++;
 
-	snprintf(rc->dev.bus_id, sizeof(rc->dev.bus_id),
-		 "component-%d", rc->num);
+	dev_set_name(&rc->dev, "component-%d", rc->num);
 	list_add_tail(&rc->node, &rd->component_list);
 	rc->dev.class = &raid_class.class;
 	err = device_add(&rc->dev);

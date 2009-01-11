@@ -39,6 +39,7 @@
 
 #include <asm/blackfin.h>
 #include <asm/fixed_code.h>
+#include <asm/mem_map.h>
 
 asmlinkage void ret_from_fork(void);
 
@@ -81,11 +82,14 @@ void cpu_idle(void)__attribute__((l1_text));
  */
 static void default_idle(void)
 {
-	local_irq_disable();
+#ifdef CONFIG_IPIPE
+	ipipe_suspend_domain();
+#endif
+	local_irq_disable_hw();
 	if (!need_resched())
 		idle_with_irq_disabled();
 
-	local_irq_enable();
+	local_irq_enable_hw();
 }
 
 /*
@@ -154,6 +158,7 @@ pid_t kernel_thread(int (*fn) (void *), void *arg, unsigned long flags)
 	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL,
 		       NULL);
 }
+EXPORT_SYMBOL(kernel_thread);
 
 void flush_thread(void)
 {
@@ -169,6 +174,13 @@ asmlinkage int bfin_clone(struct pt_regs *regs)
 {
 	unsigned long clone_flags;
 	unsigned long newsp;
+
+#ifdef __ARCH_SYNC_CORE_DCACHE
+	if (current->rt.nr_cpus_allowed == num_possible_cpus()) {
+		current->cpus_allowed = cpumask_of_cpu(smp_processor_id());
+		current->rt.nr_cpus_allowed = 1;
+	}
+#endif
 
 	/* syscall2 puts clone_flags in r0 and usp in r1 */
 	clone_flags = regs->r0;
@@ -337,22 +349,22 @@ int _access_ok(unsigned long addr, unsigned long size)
 	if (addr >= (unsigned long)__init_begin &&
 	    addr + size <= (unsigned long)__init_end)
 		return 1;
-	if (addr >= L1_SCRATCH_START
-	    && addr + size <= L1_SCRATCH_START + L1_SCRATCH_LENGTH)
+	if (addr >= get_l1_scratch_start()
+	    && addr + size <= get_l1_scratch_start() + L1_SCRATCH_LENGTH)
 		return 1;
 #if L1_CODE_LENGTH != 0
-	if (addr >= L1_CODE_START + (_etext_l1 - _stext_l1)
-	    && addr + size <= L1_CODE_START + L1_CODE_LENGTH)
+	if (addr >= get_l1_code_start() + (_etext_l1 - _stext_l1)
+	    && addr + size <= get_l1_code_start() + L1_CODE_LENGTH)
 		return 1;
 #endif
 #if L1_DATA_A_LENGTH != 0
-	if (addr >= L1_DATA_A_START + (_ebss_l1 - _sdata_l1)
-	    && addr + size <= L1_DATA_A_START + L1_DATA_A_LENGTH)
+	if (addr >= get_l1_data_a_start() + (_ebss_l1 - _sdata_l1)
+	    && addr + size <= get_l1_data_a_start() + L1_DATA_A_LENGTH)
 		return 1;
 #endif
 #if L1_DATA_B_LENGTH != 0
-	if (addr >= L1_DATA_B_START + (_ebss_b_l1 - _sdata_b_l1)
-	    && addr + size <= L1_DATA_B_START + L1_DATA_B_LENGTH)
+	if (addr >= get_l1_data_b_start() + (_ebss_b_l1 - _sdata_b_l1)
+	    && addr + size <= get_l1_data_b_start() + L1_DATA_B_LENGTH)
 		return 1;
 #endif
 #if L2_LENGTH != 0

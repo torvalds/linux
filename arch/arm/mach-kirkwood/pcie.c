@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/mbus.h>
+#include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
 #include "common.h"

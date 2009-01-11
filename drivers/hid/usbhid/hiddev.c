@@ -874,12 +874,14 @@ int hiddev_connect(struct hid_device *hid, unsigned int force)
 	INIT_LIST_HEAD(&hiddev->list);
 	spin_lock_init(&hiddev->list_lock);
 	mutex_init(&hiddev->existancelock);
+	hid->hiddev = hiddev;
 	hiddev->hid = hid;
 	hiddev->exist = 1;
 
 	retval = usb_register_dev(usbhid->intf, &hiddev_class);
 	if (retval) {
 		err_hid("Not able to get a minor for this device.");
+		hid->hiddev = NULL;
 		kfree(hiddev);
 		return -1;
 	} else {

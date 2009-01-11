@@ -7,7 +7,7 @@
  */
 
 /* This file shoule be up to date with:
- *  - Revision P, 02/08/2008; ADSP-BF561 Blackfin Processor Anomaly List
+ *  - Revision Q, 11/07/2008; ADSP-BF561 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -264,6 +264,18 @@
 #define ANOMALY_05000371 (1)
 /* Level-Sensitive External GPIO Wakeups May Cause Indefinite Stall */
 #define ANOMALY_05000403 (1)
+/* TESTSET Instruction Causes Data Corruption with Writeback Data Cache Enabled */
+#define ANOMALY_05000412 (1)
+/* Speculative Fetches Can Cause Undesired External FIFO Operations */
+#define ANOMALY_05000416 (1)
+/* Multichannel SPORT Channel Misalignment Under Specific Configuration */
+#define ANOMALY_05000425 (1)
+/* Speculative Fetches of Indirect-Pointer Instructions Can Cause False Hardware Errors */
+#define ANOMALY_05000426 (1)
+/* Lost/Corrupted L2/L3 Memory Write after Speculative L2 Memory Read by Core B */
+#define ANOMALY_05000428 (__SILICON_REVISION__ > 3)
+/* IFLUSH Instruction at End of Hardware Loop Causes Infinite Stall */
+#define ANOMALY_05000443 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000158 (0)
@@ -272,5 +284,7 @@
 #define ANOMALY_05000311 (0)
 #define ANOMALY_05000353 (1)
 #define ANOMALY_05000386 (1)
+#define ANOMALY_05000432 (0)
+#define ANOMALY_05000435 (0)
 
 #endif

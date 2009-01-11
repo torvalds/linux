@@ -356,7 +356,7 @@ static irqreturn_t me4600_ext_irq_isr(int irq, void *dev_id,
 	irq_status = inl(instance->irq_status_reg);
 	if (!(irq_status & ME4600_IRQ_STATUS_BIT_EX)) {
 		PINFO("%ld Shared interrupt. %s(): irq_status_reg=0x%04X\n",
-		      jiffies, __FUNCTION__, irq_status);
+		      jiffies, __func__, irq_status);
 		return IRQ_NONE;
 	}
 

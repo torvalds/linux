@@ -44,6 +44,7 @@
  */
 #define THREAD_SIZE_ORDER	1
 #define THREAD_SIZE		8192	/* 2 pages */
+#define STACK_WARN		(THREAD_SIZE/8)
 
 #ifndef __ASSEMBLY__
 
@@ -62,7 +63,9 @@ struct thread_info {
 	int preempt_count;	/* 0 => preemptable, <0 => BUG */
 	mm_segment_t addr_limit;	/* address limit */
 	struct restart_block restart_block;
+#ifndef CONFIG_SMP
 	struct l1_scratch_task_info l1_task_info;
+#endif
 };
 
 /*
@@ -90,7 +93,7 @@ __attribute_const__
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
-      __asm__("%0 = sp;": "=&d"(ti):
+      __asm__("%0 = sp;" : "=da"(ti) :
 	);
 	return (struct thread_info *)((long)ti & ~((long)THREAD_SIZE-1));
 }

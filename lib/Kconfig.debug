@@ -512,6 +512,13 @@ config DEBUG_VIRTUAL
 
 	  If unsure, say N.
 
+config DEBUG_NOMMU_REGIONS
+	bool "Debug the global anon/private NOMMU mapping region tree"
+	depends on DEBUG_KERNEL && !MMU
+	help
+	  This option causes the global tree of anonymous and private mapping
+	  regions to be regularly checked for invalid topology.
+
 config DEBUG_WRITECOUNT
 	bool "Debug filesystem writers count"
 	depends on DEBUG_KERNEL
@@ -566,14 +573,14 @@ config DEBUG_NOTIFIERS
 config FRAME_POINTER
 	bool "Compile the kernel with frame pointers"
 	depends on DEBUG_KERNEL && \
-		(X86 || CRIS || M68K || M68KNOMMU || FRV || UML || S390 || \
-		 AVR32 || SUPERH || BLACKFIN || MN10300)
-	default y if DEBUG_INFO && UML
+		(CRIS || M68K || M68KNOMMU || FRV || UML || S390 || \
+		 AVR32 || SUPERH || BLACKFIN || MN10300) || \
+		ARCH_WANT_FRAME_POINTERS
+	default y if (DEBUG_INFO && UML) || ARCH_WANT_FRAME_POINTERS
 	help
-	  If you say Y here the resulting kernel image will be slightly larger
-	  and slower, but it might give very useful debugging information on
-	  some architectures or if you use external debuggers.
-	  If you don't debug the kernel, you can say N.
+	  If you say Y here the resulting kernel image will be slightly
+	  larger and slower, but it gives very useful debugging information
+	  in case of kernel bugs. (precise oopses/stacktraces/warnings)
 
 config BOOT_PRINTK_DELAY
 	bool "Delay each boot printk message by N milliseconds"

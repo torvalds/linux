@@ -8,6 +8,7 @@
 #ifndef _ASM_CHSC_H
 #define _ASM_CHSC_H
 
+#include <linux/types.h>
 #include <asm/chpid.h>
 #include <asm/schid.h>
 

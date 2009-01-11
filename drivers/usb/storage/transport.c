@@ -57,6 +57,9 @@
 #include "scsiglue.h"
 #include "debug.h"
 
+#include <linux/blkdev.h>
+#include "../../scsi/sd.h"
+
 
 /***********************************************************************
  * Data transfer routines
@@ -511,6 +514,110 @@ int usb_stor_bulk_transfer_sg(struct us_data* us, unsigned int pipe,
  * Transport routines
  ***********************************************************************/
 
+/* There are so many devices that report the capacity incorrectly,
+ * this routine was written to counteract some of the resulting
+ * problems.
+ */
+static void last_sector_hacks(struct us_data *us, struct scsi_cmnd *srb)
+{
+	struct gendisk *disk;
+	struct scsi_disk *sdkp;
+	u32 sector;
+
+	/* To Report "Medium Error: Record Not Found */
+	static unsigned char record_not_found[18] = {
+		[0]	= 0x70,			/* current error */
+		[2]	= MEDIUM_ERROR,		/* = 0x03 */
+		[7]	= 0x0a,			/* additional length */
+		[12]	= 0x14			/* Record Not Found */
+	};
+
+	/* If last-sector problems can't occur, whether because the
+	 * capacity was already decremented or because the device is
+	 * known to report the correct capacity, then we don't need
+	 * to do anything.
+	 */
+	if (!us->use_last_sector_hacks)
+		return;
+
+	/* Was this command a READ(10) or a WRITE(10)? */
+	if (srb->cmnd[0] != READ_10 && srb->cmnd[0] != WRITE_10)
+		goto done;
+
+	/* Did this command access the last sector? */
+	sector = (srb->cmnd[2] << 24) | (srb->cmnd[3] << 16) |
+			(srb->cmnd[4] << 8) | (srb->cmnd[5]);
+	disk = srb->request->rq_disk;
+	if (!disk)
+		goto done;
+	sdkp = scsi_disk(disk);
+	if (!sdkp)
+		goto done;
+	if (sector + 1 != sdkp->capacity)
+		goto done;
+
+	if (srb->result == SAM_STAT_GOOD && scsi_get_resid(srb) == 0) {
+
+		/* The command succeeded.  If the capacity is odd
+		 * (i.e., if the sector number is even) then the
+		 * "always-even" heuristic would be wrong for this
+		 * device.  Issue a WARN() so that the kerneloops.org
+		 * project will be notified and we will then know to
+		 * mark the device with a CAPACITY_OK flag.  Hopefully
+		 * this will occur for only a few devices.
+		 *
+		 * Use the sign of us->last_sector_hacks to tell whether
+		 * the warning has already been issued; we don't need
+		 * more than one warning per device.
+		 */
+		if (!(sector & 1) && us->use_last_sector_hacks > 0) {
+			unsigned vid = le16_to_cpu(
+					us->pusb_dev->descriptor.idVendor);
+			unsigned pid = le16_to_cpu(
+					us->pusb_dev->descriptor.idProduct);
+			unsigned rev = le16_to_cpu(
+					us->pusb_dev->descriptor.bcdDevice);
+
+			WARN(1, "%s: Successful last sector success at %u, "
+					"device %04x:%04x:%04x\n",
+					sdkp->disk->disk_name, sector,
+					vid, pid, rev);
+			us->use_last_sector_hacks = -1;
+		}
+
+	} else {
+		/* The command failed.  Allow up to 3 retries in case this
+		 * is some normal sort of failure.  After that, assume the
+		 * capacity is wrong and we're trying to access the sector
+		 * beyond the end.  Replace the result code and sense data
+		 * with values that will cause the SCSI core to fail the
+		 * command immediately, instead of going into an infinite
+		 * (or even just a very long) retry loop.
+		 */
+		if (++us->last_sector_retries < 3)
+			return;
+		srb->result = SAM_STAT_CHECK_CONDITION;
+		memcpy(srb->sense_buffer, record_not_found,
+				sizeof(record_not_found));
+
+		/* In theory we might want to issue a WARN() here if the
+		 * capacity is even, since it could indicate the device
+		 * has the READ CAPACITY bug _and_ the real capacity is
+		 * odd.  But it could also indicate that the device
+		 * simply can't access its last sector, a failure mode
+		 * which is surprisingly common.  So no warning.
+		 */
+	}
+
+ done:
+	/* Don't reset the retry counter for TEST UNIT READY commands,
+	 * because they get issued after device resets which might be
+	 * caused by a failed last-sector access.
+	 */
+	if (srb->cmnd[0] != TEST_UNIT_READY)
+		us->last_sector_retries = 0;
+}
+
 /* Invoke the transport and basic error-handling/recovery methods
  *
  * This is used by the protocol layers to actually send the message to
@@ -544,6 +651,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* if the transport provided its own sense data, don't auto-sense */
 	if (result == USB_STOR_TRANSPORT_NO_SENSE) {
 		srb->result = SAM_STAT_CHECK_CONDITION;
+		last_sector_hacks(us, srb);
 		return;
 	}
 
@@ -579,6 +687,20 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	/*
+	 * Determine if this device is SAT by seeing if the
+	 * command executed successfully.  Otherwise we'll have
+	 * to wait for at least one CHECK_CONDITION to determine
+	 * SANE_SENSE support
+	 */
+	if ((srb->cmnd[0] == ATA_16 || srb->cmnd[0] == ATA_12) &&
+	    result == USB_STOR_TRANSPORT_GOOD &&
+	    !(us->fflags & US_FL_SANE_SENSE) &&
+	    !(srb->cmnd[2] & 0x20)) {
+		US_DEBUGP("-- SAT supported, increasing auto-sense\n");
+		us->fflags |= US_FL_SANE_SENSE;
+	}
+
+	/*
 	 * A short transfer on a command where we don't expect it
 	 * is unusual, but it doesn't mean we need to auto-sense.
 	 */
@@ -595,10 +717,15 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (need_auto_sense) {
 		int temp_result;
 		struct scsi_eh_save ses;
+		int sense_size = US_SENSE_SIZE;
+
+		/* device supports and needs bigger sense buffer */
+		if (us->fflags & US_FL_SANE_SENSE)
+			sense_size = ~0;
 
 		US_DEBUGP("Issuing auto-REQUEST_SENSE\n");
 
-		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, US_SENSE_SIZE);
+		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, sense_size);
 
 		/* FIXME: we must do the protocol translation here */
 		if (us->subclass == US_SC_RBC || us->subclass == US_SC_SCSI ||
@@ -630,6 +757,25 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 			if (!(us->fflags & US_FL_SCM_MULT_TARG))
 				goto Handle_Errors;
 			return;
+		}
+
+		/* If the sense data returned is larger than 18-bytes then we
+		 * assume this device supports requesting more in the future.
+		 * The response code must be 70h through 73h inclusive.
+		 */
+		if (srb->sense_buffer[7] > (US_SENSE_SIZE - 8) &&
+		    !(us->fflags & US_FL_SANE_SENSE) &&
+		    (srb->sense_buffer[0] & 0x7C) == 0x70) {
+			US_DEBUGP("-- SANE_SENSE support enabled\n");
+			us->fflags |= US_FL_SANE_SENSE;
+
+			/* Indicate to the user that we truncated their sense
+			 * because we didn't know it supported larger sense.
+			 */
+			US_DEBUGP("-- Sense data truncated to %i from %i\n",
+			          US_SENSE_SIZE,
+			          srb->sense_buffer[7] + 8);
+			srb->sense_buffer[7] = (US_SENSE_SIZE - 8);
 		}
 
 		US_DEBUGP("-- Result from auto-sense is %d\n", temp_result);
@@ -667,6 +813,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 			scsi_bufflen(srb) - scsi_get_resid(srb) < srb->underflow)
 		srb->result = (DID_ERROR << 16) | (SUGGEST_RETRY << 24);
 
+	last_sector_hacks(us, srb);
 	return;
 
 	/* Error and abort processing: try to resynchronize with the device
@@ -694,6 +841,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 		us->transport_reset(us);
 	}
 	clear_bit(US_FLIDX_RESETTING, &us->dflags);
+	last_sector_hacks(us, srb);
 }
 
 /* Stop the current URB transfer */
@@ -718,10 +866,10 @@ void usb_stor_stop_transport(struct us_data *us)
 }
 
 /*
- * Control/Bulk/Interrupt transport
+ * Control/Bulk and Control/Bulk/Interrupt transport
  */
 
-int usb_stor_CBI_transport(struct scsi_cmnd *srb, struct us_data *us)
+int usb_stor_CB_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	unsigned int transfer_length = scsi_bufflen(srb);
 	unsigned int pipe = 0;
@@ -763,6 +911,13 @@ int usb_stor_CBI_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	/* STATUS STAGE */
+
+	/* NOTE: CB does not have a status stage.  Silly, I know.  So
+	 * we have to catch this at a higher level.
+	 */
+	if (us->protocol != US_PR_CBI)
+		return USB_STOR_TRANSPORT_GOOD;
+
 	result = usb_stor_intr_transfer(us, us->iobuf, 2);
 	US_DEBUGP("Got interrupt data (0x%x, 0x%x)\n", 
 			us->iobuf[0], us->iobuf[1]);
@@ -814,56 +969,6 @@ int usb_stor_CBI_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (pipe)
 		usb_stor_clear_halt(us, pipe);
 	return USB_STOR_TRANSPORT_FAILED;
-}
-
-/*
- * Control/Bulk transport
- */
-int usb_stor_CB_transport(struct scsi_cmnd *srb, struct us_data *us)
-{
-	unsigned int transfer_length = scsi_bufflen(srb);
-	int result;
-
-	/* COMMAND STAGE */
-	/* let's send the command via the control pipe */
-	result = usb_stor_ctrl_transfer(us, us->send_ctrl_pipe,
-				      US_CBI_ADSC, 
-				      USB_TYPE_CLASS | USB_RECIP_INTERFACE, 0, 
-				      us->ifnum, srb->cmnd, srb->cmd_len);
-
-	/* check the return code for the command */
-	US_DEBUGP("Call to usb_stor_ctrl_transfer() returned %d\n", result);
-
-	/* if we stalled the command, it means command failed */
-	if (result == USB_STOR_XFER_STALLED) {
-		return USB_STOR_TRANSPORT_FAILED;
-	}
-
-	/* Uh oh... serious problem here */
-	if (result != USB_STOR_XFER_GOOD) {
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	/* DATA STAGE */
-	/* transfer the data payload for this command, if one exists*/
-	if (transfer_length) {
-		unsigned int pipe = srb->sc_data_direction == DMA_FROM_DEVICE ? 
-				us->recv_bulk_pipe : us->send_bulk_pipe;
-		result = usb_stor_bulk_srb(us, pipe, srb);
-		US_DEBUGP("CB data stage result is 0x%x\n", result);
-
-		/* if we stalled the data transfer it means command failed */
-		if (result == USB_STOR_XFER_STALLED)
-			return USB_STOR_TRANSPORT_FAILED;
-		if (result > USB_STOR_XFER_STALLED)
-			return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	/* STATUS STAGE */
-	/* NOTE: CB does not have a status stage.  Silly, I know.  So
-	 * we have to catch this at a higher level.
-	 */
-	return USB_STOR_TRANSPORT_GOOD;
 }
 
 /*
@@ -1173,10 +1278,9 @@ int usb_stor_Bulk_reset(struct us_data *us)
  */
 int usb_stor_port_reset(struct us_data *us)
 {
-	int result, rc_lock;
+	int result;
 
-	result = rc_lock =
-		usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
+	result = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
 	if (result < 0)
 		US_DEBUGP("unable to lock device for reset: %d\n", result);
 	else {
@@ -1189,8 +1293,7 @@ int usb_stor_port_reset(struct us_data *us)
 			US_DEBUGP("usb_reset_device returns %d\n",
 					result);
 		}
-		if (rc_lock)
-			usb_unlock_device(us->pusb_dev);
+		usb_unlock_device(us->pusb_dev);
 	}
 	return result;
 }

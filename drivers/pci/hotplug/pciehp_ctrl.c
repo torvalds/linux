@@ -178,14 +178,13 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 				 "Issue of Slot Power Off command failed\n");
 			return;
 		}
+		/*
+		 * After turning power off, we must wait for at least 1 second
+		 * before taking any action that relies on power having been
+		 * removed from the slot/adapter.
+		 */
+		msleep(1000);
 	}
-
-	/*
-	 * After turning power off, we must wait for at least 1 second
-	 * before taking any action that relies on power having been
-	 * removed from the slot/adapter.
-	 */
-	msleep(1000);
 
 	if (PWR_LED(ctrl))
 		pslot->hpc_ops->green_led_off(pslot);
@@ -286,14 +285,13 @@ static int remove_board(struct slot *p_slot)
 				 "Issue of Slot Disable command failed\n");
 			return retval;
 		}
+		/*
+		 * After turning power off, we must wait for at least 1 second
+		 * before taking any action that relies on power having been
+		 * removed from the slot/adapter.
+		 */
+		msleep(1000);
 	}
-
-	/*
-	 * After turning power off, we must wait for at least 1 second
-	 * before taking any action that relies on power having been
-	 * removed from the slot/adapter.
-	 */
-	msleep(1000);
 
 	if (PWR_LED(ctrl))
 		/* turn off Green LED */

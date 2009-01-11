@@ -287,6 +287,9 @@ struct pci_bus * __init dc21285_scan_bus(int nr, struct pci_sys_data *sys)
 	return pci_scan_bus(0, &dc21285_ops, sys);
 }
 
+#define dc21285_request_irq(_a, _b, _c, _d, _e) \
+	WARN_ON(request_irq(_a, _b, _c, _d, _e) < 0)
+
 void __init dc21285_preinit(void)
 {
 	unsigned int mem_size, mem_mask;
@@ -335,16 +338,16 @@ void __init dc21285_preinit(void)
 	/*
 	 * We don't care if these fail.
 	 */
-	request_irq(IRQ_PCI_SERR, dc21285_serr_irq, IRQF_DISABLED,
-		    "PCI system error", &serr_timer);
-	request_irq(IRQ_PCI_PERR, dc21285_parity_irq, IRQF_DISABLED,
-		    "PCI parity error", &perr_timer);
-	request_irq(IRQ_PCI_ABORT, dc21285_abort_irq, IRQF_DISABLED,
-		    "PCI abort", NULL);
-	request_irq(IRQ_DISCARD_TIMER, dc21285_discard_irq, IRQF_DISABLED,
-		    "Discard timer", NULL);
-	request_irq(IRQ_PCI_DPERR, dc21285_dparity_irq, IRQF_DISABLED,
-		    "PCI data parity", NULL);
+	dc21285_request_irq(IRQ_PCI_SERR, dc21285_serr_irq, IRQF_DISABLED,
+			    "PCI system error", &serr_timer);
+	dc21285_request_irq(IRQ_PCI_PERR, dc21285_parity_irq, IRQF_DISABLED,
+			    "PCI parity error", &perr_timer);
+	dc21285_request_irq(IRQ_PCI_ABORT, dc21285_abort_irq, IRQF_DISABLED,
+			    "PCI abort", NULL);
+	dc21285_request_irq(IRQ_DISCARD_TIMER, dc21285_discard_irq, IRQF_DISABLED,
+			    "Discard timer", NULL);
+	dc21285_request_irq(IRQ_PCI_DPERR, dc21285_dparity_irq, IRQF_DISABLED,
+			    "PCI data parity", NULL);
 
 	if (cfn_mode) {
 		static struct resource csrio;

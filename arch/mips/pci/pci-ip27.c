@@ -146,12 +146,6 @@ int __devinit pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return 0;
 }
 
-/* Most MIPS systems have straight-forward swizzling needs.  */
-static inline u8 bridge_swizzle(u8 pin, u8 slot)
-{
-	return (((pin - 1) + slot) % 4) + 1;
-}
-
 static inline struct pci_dev *bridge_root_dev(struct pci_dev *dev)
 {
 	while (dev->bus->parent) {

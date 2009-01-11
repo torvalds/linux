@@ -3728,8 +3728,13 @@ redo:
 		}
 
 		double_unlock_balance(this_rq, busiest);
+		/*
+		 * Should not call ttwu while holding a rq->lock
+		 */
+		spin_unlock(&this_rq->lock);
 		if (active_balance)
 			wake_up_process(busiest->migration_thread);
+		spin_lock(&this_rq->lock);
 
 	} else
 		sd->nr_balance_failed = 0;

@@ -9,7 +9,7 @@
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
-#include <asm/types.h>
+#include <linux/types.h>
 
 #ifndef __s390x__
 # define __SWAB_64_THRU_32__

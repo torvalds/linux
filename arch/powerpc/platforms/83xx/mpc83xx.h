@@ -61,6 +61,7 @@
 
 extern void mpc83xx_restart(char *cmd);
 extern long mpc83xx_time_init(void);
+extern int mpc837x_usb_cfg(void);
 extern int mpc834x_usb_cfg(void);
 extern int mpc831x_usb_cfg(void);
 
