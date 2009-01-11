@@ -163,9 +163,8 @@ struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
 	int node;
 
 	if (irq >= nr_irqs) {
-		printk(KERN_WARNING "irq >= nr_irqs in irq_to_desc_alloc: %d %d\n",
-				irq, nr_irqs);
-		WARN_ON(1);
+		WARN(1, "irq (%d) >= nr_irqs (%d) in irq_to_desc_alloc\n",
+			irq, nr_irqs);
 		return NULL;
 	}
 
