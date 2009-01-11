@@ -1413,6 +1413,24 @@ Sysfs notes:
 	rfkill controller switch "tpacpi_wwan_sw": refer to
 	Documentation/rfkill.txt for details.
 
+EXPERIMENTAL: UWB
+-----------------
+
+This feature is marked EXPERIMENTAL because it has not been extensively
+tested and validated in various ThinkPad models yet.  The feature may not
+work as expected. USE WITH CAUTION! To use this feature, you need to supply
+the experimental=1 parameter when loading the module.
+
+sysfs rfkill class: switch "tpacpi_uwb_sw"
+
+This feature exports an rfkill controller for the UWB device, if one is
+present and enabled in the BIOS.
+
+Sysfs notes:
+
+	rfkill controller switch "tpacpi_uwb_sw": refer to
+	Documentation/rfkill.txt for details.
+
 Multiple Commands, Module Parameters
 ------------------------------------
 
