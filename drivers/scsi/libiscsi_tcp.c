@@ -177,7 +177,6 @@ int iscsi_tcp_segment_done(struct iscsi_tcp_conn *tcp_conn,
 			   struct iscsi_segment *segment, int recv,
 			   unsigned copied)
 {
-	static unsigned char padbuf[ISCSI_PAD_LEN];
 	struct scatterlist sg;
 	unsigned int pad;
 
@@ -233,7 +232,7 @@ int iscsi_tcp_segment_done(struct iscsi_tcp_conn *tcp_conn,
 			debug_tcp("consume %d pad bytes\n", pad);
 			segment->total_size += pad;
 			segment->size = pad;
-			segment->data = padbuf;
+			segment->data = segment->padbuf;
 			return 0;
 		}
 	}
