@@ -863,8 +863,8 @@ static int efx_wanted_rx_queues(void)
 	for_each_online_cpu(cpu) {
 		if (!cpu_isset(cpu, core_mask)) {
 			++count;
-			cpus_or(core_mask, core_mask,
-				topology_core_siblings(cpu));
+			cpumask_or(&core_mask, &core_mask,
+				   topology_core_cpumask(cpu));
 		}
 	}
 
