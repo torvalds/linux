@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.21
-                           May 29th, 2008
+                            Version 0.22
+                        November 23rd,  2008
 
                Borislav Deianov <borislav@users.sf.net>
              Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -17,7 +17,7 @@ This driver used to be named ibm-acpi until kernel 2.6.21 and release
 0.13-20070314.  It used to be in the drivers/acpi tree, but it was
 moved to the drivers/misc tree and renamed to thinkpad-acpi for kernel
 2.6.22, and release 0.14.  It was moved to drivers/platform/x86 for
-kernel 2.6.29.
+kernel 2.6.29 and release 0.22.
 
 The driver is named "thinkpad-acpi".  In some places, like module
 names, "thinkpad_acpi" is used because of userspace issues.
