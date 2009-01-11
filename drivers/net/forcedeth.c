@@ -3405,10 +3405,10 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 
 #ifdef CONFIG_FORCEDETH_NAPI
 		if (events & NVREG_IRQ_RX_ALL) {
+			spin_lock(&np->lock);
 			netif_rx_schedule(&np->napi);
 
 			/* Disable furthur receive irq's */
-			spin_lock(&np->lock);
 			np->irqmask &= ~NVREG_IRQ_RX_ALL;
 
 			if (np->msi_flags & NV_MSI_X_ENABLED)
@@ -3522,10 +3522,10 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 
 #ifdef CONFIG_FORCEDETH_NAPI
 		if (events & NVREG_IRQ_RX_ALL) {
+			spin_lock(&np->lock);
 			netif_rx_schedule(&np->napi);
 
 			/* Disable furthur receive irq's */
-			spin_lock(&np->lock);
 			np->irqmask &= ~NVREG_IRQ_RX_ALL;
 
 			if (np->msi_flags & NV_MSI_X_ENABLED)
