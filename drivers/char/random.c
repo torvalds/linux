@@ -241,6 +241,10 @@
 #include <linux/percpu.h>
 #include <linux/cryptohash.h>
 
+#ifdef CONFIG_GENERIC_HARDIRQS
+# include <linux/irq.h>
+#endif
+
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
