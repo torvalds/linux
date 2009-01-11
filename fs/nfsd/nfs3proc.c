@@ -18,6 +18,7 @@
 #include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/major.h>
+#include <linux/magic.h>
 
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
@@ -569,7 +570,7 @@ nfsd3_proc_fsinfo(struct svc_rqst * rqstp, struct nfsd_fhandle    *argp,
 		struct super_block *sb = argp->fh.fh_dentry->d_inode->i_sb;
 
 		/* Note that we don't care for remote fs's here */
-		if (sb->s_magic == 0x4d44 /* MSDOS_SUPER_MAGIC */) {
+		if (sb->s_magic == MSDOS_SUPER_MAGIC) {
 			resp->f_properties = NFS3_FSF_BILLYBOY;
 		}
 		resp->f_maxfilesize = sb->s_maxbytes;
@@ -610,7 +611,7 @@ nfsd3_proc_pathconf(struct svc_rqst * rqstp, struct nfsd_fhandle      *argp,
 			resp->p_link_max = EXT2_LINK_MAX;
 			resp->p_name_max = EXT2_NAME_LEN;
 			break;
-		case 0x4d44:	/* MSDOS_SUPER_MAGIC */
+		case MSDOS_SUPER_MAGIC:
 			resp->p_case_insensitive = 1;
 			resp->p_case_preserving  = 0;
 			break;
