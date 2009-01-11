@@ -174,10 +174,12 @@ enum {
 
 /* Debugging */
 #define TPACPI_LOG TPACPI_FILE ": "
-#define TPACPI_ERR	   KERN_ERR    TPACPI_LOG
-#define TPACPI_NOTICE KERN_NOTICE TPACPI_LOG
-#define TPACPI_INFO   KERN_INFO   TPACPI_LOG
-#define TPACPI_DEBUG  KERN_DEBUG  TPACPI_LOG
+#define TPACPI_ALERT	KERN_ALERT  TPACPI_LOG
+#define TPACPI_CRIT	KERN_CRIT   TPACPI_LOG
+#define TPACPI_ERR	KERN_ERR    TPACPI_LOG
+#define TPACPI_NOTICE	KERN_NOTICE TPACPI_LOG
+#define TPACPI_INFO	KERN_INFO   TPACPI_LOG
+#define TPACPI_DEBUG	KERN_DEBUG  TPACPI_LOG
 
 #define TPACPI_DBG_ALL		0xffff
 #define TPACPI_DBG_INIT		0x0001
@@ -2614,6 +2616,15 @@ static bool hotkey_notify_wakeup(const u32 hkey,
 		*ignore_acpi_ev = true;
 		break;
 
+	case 0x2313: /* Battery on critical low level (S3) */
+	case 0x2413: /* Battery on critical low level (S4) */
+		printk(TPACPI_ALERT
+			"EMERGENCY WAKEUP: battery almost empty\n");
+		/* how to auto-heal: */
+		/* 2313: woke up from S3, go to S4/S5 */
+		/* 2413: woke up from S4, go to S5 */
+		break;
+
 	default:
 		return false;
 	}
@@ -2655,6 +2666,45 @@ static bool hotkey_notify_usrevent(const u32 hkey,
 		return true;
 
 	default:
+		return false;
+	}
+}
+
+static bool hotkey_notify_thermal(const u32 hkey,
+				 bool *send_acpi_ev,
+				 bool *ignore_acpi_ev)
+{
+	/* 0x6000-0x6FFF: thermal alarms */
+	*send_acpi_ev = true;
+	*ignore_acpi_ev = false;
+
+	switch (hkey) {
+	case 0x6011:
+		printk(TPACPI_CRIT
+			"THERMAL ALARM: battery is too hot!\n");
+		/* recommended action: warn user through gui */
+		return true;
+	case 0x6012:
+		printk(TPACPI_ALERT
+			"THERMAL EMERGENCY: battery is extremely hot!\n");
+		/* recommended action: immediate sleep/hibernate */
+		return true;
+	case 0x6021:
+		printk(TPACPI_CRIT
+			"THERMAL ALARM: "
+			"a sensor reports something is too hot!\n");
+		/* recommended action: warn user through gui, that */
+		/* some internal component is too hot */
+		return true;
+	case 0x6022:
+		printk(TPACPI_ALERT
+			"THERMAL EMERGENCY: "
+			"a sensor reports something is extremely hot!\n");
+		/* recommended action: immediate sleep/hibernate */
+		return true;
+	default:
+		printk(TPACPI_ALERT
+			 "THERMAL ALERT: unknown thermal alarm received\n");
 		return false;
 	}
 }
@@ -2729,6 +2779,11 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		case 5:
 			/* 0x5000-0x5FFF: human interface helpers */
 			known_ev = hotkey_notify_usrevent(hkey, &send_acpi_ev,
+						 &ignore_acpi_ev);
+			break;
+		case 6:
+			/* 0x6000-0x6FFF: thermal alarms */
+			known_ev = hotkey_notify_thermal(hkey, &send_acpi_ev,
 						 &ignore_acpi_ev);
 			break;
 		case 7:
