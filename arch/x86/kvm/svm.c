@@ -796,20 +796,37 @@ static void svm_get_segment(struct kvm_vcpu *vcpu,
 	var->db = (s->attrib >> SVM_SELECTOR_DB_SHIFT) & 1;
 	var->g = (s->attrib >> SVM_SELECTOR_G_SHIFT) & 1;
 
-	/*
-	 * SVM always stores 0 for the 'G' bit in the CS selector in
-	 * the VMCB on a VMEXIT. This hurts cross-vendor migration:
-	 * Intel's VMENTRY has a check on the 'G' bit.
-	 */
-	if (seg == VCPU_SREG_CS)
+	switch (seg) {
+	case VCPU_SREG_CS:
+		/*
+		 * SVM always stores 0 for the 'G' bit in the CS selector in
+		 * the VMCB on a VMEXIT. This hurts cross-vendor migration:
+		 * Intel's VMENTRY has a check on the 'G' bit.
+		 */
 		var->g = s->limit > 0xfffff;
-
-	/*
-	 * Work around a bug where the busy flag in the tr selector
-	 * isn't exposed
-	 */
-	if (seg == VCPU_SREG_TR)
+		break;
+	case VCPU_SREG_TR:
+		/*
+		 * Work around a bug where the busy flag in the tr selector
+		 * isn't exposed
+		 */
 		var->type |= 0x2;
+		break;
+	case VCPU_SREG_DS:
+	case VCPU_SREG_ES:
+	case VCPU_SREG_FS:
+	case VCPU_SREG_GS:
+		/*
+		 * The accessed bit must always be set in the segment
+		 * descriptor cache, although it can be cleared in the
+		 * descriptor, the cached bit always remains at 1. Since
+		 * Intel has a check on this, set it here to support
+		 * cross-vendor migration.
+		 */
+		if (!var->unusable)
+			var->type |= 0x1;
+		break;
+	}
 
 	var->unusable = !var->present;
 }
