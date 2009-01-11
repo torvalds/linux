@@ -698,6 +698,7 @@ void __init kirkwood_init(void)
 	printk(KERN_INFO "Kirkwood: %s, TCLK=%d.\n",
 		kirkwood_id(), kirkwood_tclk);
 	kirkwood_ge00_shared_data.t_clk = kirkwood_tclk;
+	kirkwood_ge01_shared_data.t_clk = kirkwood_tclk;
 	kirkwood_spi_plat_data.tclk = kirkwood_tclk;
 	kirkwood_uart0_data[0].uartclk = kirkwood_tclk;
 	kirkwood_uart1_data[0].uartclk = kirkwood_tclk;

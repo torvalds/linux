@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
+#include <linux/math64.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
@@ -152,15 +153,20 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 	struct spi_message	msg;
 	unsigned		blocksize = priv->page_size << 3;
 	uint8_t			*command;
+	uint32_t		rem;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "%s: erase addr=0x%x len 0x%x\n",
-			dev_name(&spi->dev),
-			instr->addr, instr->len);
+	DEBUG(MTD_DEBUG_LEVEL2, "%s: erase addr=0x%llx len 0x%llx\n",
+	      dev_name(&spi->dev), (long long)instr->addr,
+	      (long long)instr->len);
 
 	/* Sanity checks */
-	if ((instr->addr + instr->len) > mtd->size
-			|| (instr->len % priv->page_size) != 0
-			|| (instr->addr % priv->page_size) != 0)
+	if (instr->addr + instr->len > mtd->size)
+		return -EINVAL;
+	div_u64_rem(instr->len, priv->page_size, &rem);
+	if (rem)
+		return -EINVAL;
+	div_u64_rem(instr->addr, priv->page_size, &rem);
+	if (rem)
 		return -EINVAL;
 
 	spi_message_init(&msg);
@@ -178,7 +184,7 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 		/* Calculate flash page address; use block erase (for speed) if
 		 * we're at a block boundary and need to erase the whole block.
 		 */
-		pageaddr = instr->addr / priv->page_size;
+		pageaddr = div_u64(instr->len, priv->page_size);
 		do_block = (pageaddr & 0x7) == 0 && instr->len >= blocksize;
 		pageaddr = pageaddr << priv->page_offset;
 
@@ -667,8 +673,8 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 	if (revision >= 'c')
 		otp_tag = otp_setup(device, revision);
 
-	dev_info(&spi->dev, "%s (%d KBytes) pagesize %d bytes%s\n",
-			name, DIV_ROUND_UP(device->size, 1024),
+	dev_info(&spi->dev, "%s (%lld KBytes) pagesize %d bytes%s\n",
+			name, (long long)((device->size + 1023) >> 10),
 			pagesize, otp_tag);
 	dev_set_drvdata(&spi->dev, priv);
 

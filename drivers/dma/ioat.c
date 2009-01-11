@@ -75,60 +75,10 @@ static int ioat_dca_enabled = 1;
 module_param(ioat_dca_enabled, int, 0644);
 MODULE_PARM_DESC(ioat_dca_enabled, "control support of dca service (default: 1)");
 
-static int ioat_setup_functionality(struct pci_dev *pdev, void __iomem *iobase)
-{
-	struct ioat_device *device = pci_get_drvdata(pdev);
-	u8 version;
-	int err = 0;
-
-	version = readb(iobase + IOAT_VER_OFFSET);
-	switch (version) {
-	case IOAT_VER_1_2:
-		device->dma = ioat_dma_probe(pdev, iobase);
-		if (device->dma && ioat_dca_enabled)
-			device->dca = ioat_dca_init(pdev, iobase);
-		break;
-	case IOAT_VER_2_0:
-		device->dma = ioat_dma_probe(pdev, iobase);
-		if (device->dma && ioat_dca_enabled)
-			device->dca = ioat2_dca_init(pdev, iobase);
-		break;
-	case IOAT_VER_3_0:
-		device->dma = ioat_dma_probe(pdev, iobase);
-		if (device->dma && ioat_dca_enabled)
-			device->dca = ioat3_dca_init(pdev, iobase);
-		break;
-	default:
-		err = -ENODEV;
-		break;
-	}
-	if (!device->dma)
-		err = -ENODEV;
-	return err;
-}
-
-static void ioat_shutdown_functionality(struct pci_dev *pdev)
-{
-	struct ioat_device *device = pci_get_drvdata(pdev);
-
-	dev_err(&pdev->dev, "Removing dma and dca services\n");
-	if (device->dca) {
-		unregister_dca_provider(device->dca);
-		free_dca_provider(device->dca);
-		device->dca = NULL;
-	}
-
-	if (device->dma) {
-		ioat_dma_remove(device->dma);
-		device->dma = NULL;
-	}
-}
-
 static struct pci_driver ioat_pci_driver = {
 	.name		= "ioatdma",
 	.id_table	= ioat_pci_tbl,
 	.probe		= ioat_probe,
-	.shutdown	= ioat_shutdown_functionality,
 	.remove		= __devexit_p(ioat_remove),
 };
 
@@ -179,7 +129,29 @@ static int __devinit ioat_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	err = ioat_setup_functionality(pdev, iobase);
+	switch (readb(iobase + IOAT_VER_OFFSET)) {
+	case IOAT_VER_1_2:
+		device->dma = ioat_dma_probe(pdev, iobase);
+		if (device->dma && ioat_dca_enabled)
+			device->dca = ioat_dca_init(pdev, iobase);
+		break;
+	case IOAT_VER_2_0:
+		device->dma = ioat_dma_probe(pdev, iobase);
+		if (device->dma && ioat_dca_enabled)
+			device->dca = ioat2_dca_init(pdev, iobase);
+		break;
+	case IOAT_VER_3_0:
+		device->dma = ioat_dma_probe(pdev, iobase);
+		if (device->dma && ioat_dca_enabled)
+			device->dca = ioat3_dca_init(pdev, iobase);
+		break;
+	default:
+		err = -ENODEV;
+		break;
+	}
+	if (!device->dma)
+		err = -ENODEV;
+
 	if (err)
 		goto err_version;
 
@@ -198,17 +170,21 @@ err_enable_device:
 	return err;
 }
 
-/*
- * It is unsafe to remove this module: if removed while a requested
- * dma is outstanding, esp. from tcp, it is possible to hang while
- * waiting for something that will never finish.  However, if you're
- * feeling lucky, this usually works just fine.
- */
 static void __devexit ioat_remove(struct pci_dev *pdev)
 {
 	struct ioat_device *device = pci_get_drvdata(pdev);
 
-	ioat_shutdown_functionality(pdev);
+	dev_err(&pdev->dev, "Removing dma and dca services\n");
+	if (device->dca) {
+		unregister_dca_provider(device->dca);
+		free_dca_provider(device->dca);
+		device->dca = NULL;
+	}
+
+	if (device->dma) {
+		ioat_dma_remove(device->dma);
+		device->dma = NULL;
+	}
 
 	kfree(device);
 }

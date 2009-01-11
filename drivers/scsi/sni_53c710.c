@@ -78,8 +78,7 @@ static int __init snirm710_probe(struct platform_device *dev)
 	base = res->start;
 	hostdata = kzalloc(sizeof(*hostdata), GFP_KERNEL);
 	if (!hostdata) {
-		printk(KERN_ERR "%s: Failed to allocate host data\n",
-		       dev->dev.bus_id);
+		dev_printk(KERN_ERR, dev, "Failed to allocate host data\n");
 		return -ENOMEM;
 	}
 

@@ -28,6 +28,8 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
+#include "common.h"
+
 static void isa_mask_pic_lo_irq(unsigned int irq)
 {
 	unsigned int mask = 1 << (irq & 7);

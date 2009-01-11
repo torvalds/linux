@@ -434,7 +434,7 @@ static void strbuf_flush(struct strbuf *strbuf, struct iommu *iommu,
 		val = iommu_read(matchreg);
 		if (unlikely(val)) {
 			printk(KERN_WARNING "strbuf_flush: ctx flush "
-			       "timeout matchreg[%lx] ctx[%lx]\n",
+			       "timeout matchreg[%llx] ctx[%lx]\n",
 			       val, ctx);
 			goto do_page_flush;
 		}

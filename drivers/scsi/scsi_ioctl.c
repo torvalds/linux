@@ -167,10 +167,17 @@ EXPORT_SYMBOL(scsi_set_medium_removal);
 static int scsi_ioctl_get_pci(struct scsi_device *sdev, void __user *arg)
 {
 	struct device *dev = scsi_get_device(sdev->host);
+	const char *name;
 
         if (!dev)
 		return -ENXIO;
-        return copy_to_user(arg, dev->bus_id, sizeof(dev->bus_id))? -EFAULT: 0;
+
+	name = dev_name(dev);
+
+	/* compatibility with old ioctl which only returned
+	 * 20 characters */
+        return copy_to_user(arg, name, min(strlen(name), (size_t)20))
+		? -EFAULT: 0;
 }
 
 

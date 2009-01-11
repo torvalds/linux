@@ -34,14 +34,19 @@ destroy_context(struct mm_struct *mm)
 	mm->context = 0;
 }
 
+static inline unsigned long __space_to_prot(mm_context_t context)
+{
+#if SPACEID_SHIFT == 0
+	return context << 1;
+#else
+	return context >> (SPACEID_SHIFT - 1);
+#endif
+}
+
 static inline void load_context(mm_context_t context)
 {
 	mtsp(context, 3);
-#if SPACEID_SHIFT == 0
-	mtctl(context << 1,8);
-#else
-	mtctl(context >> (SPACEID_SHIFT - 1),8);
-#endif
+	mtctl(__space_to_prot(context), 8);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, struct task_struct *tsk)

@@ -245,12 +245,6 @@ static int ether1394_stop(struct net_device *dev)
 	return 0;
 }
 
-/* Return statistics to the caller */
-static struct net_device_stats *ether1394_stats(struct net_device *dev)
-{
-	return &(((struct eth1394_priv *)netdev_priv(dev))->stats);
-}
-
 /* FIXME: What to do if we timeout? I think a host reset is probably in order,
  * so that's what we do. Should we increment the stat counters too?  */
 static void ether1394_tx_timeout(struct net_device *dev)
@@ -516,16 +510,19 @@ static const struct header_ops ether1394_header_ops = {
 	.parse		= ether1394_header_parse,
 };
 
+static const struct net_device_ops ether1394_netdev_ops = {
+	.ndo_open	= ether1394_open,
+	.ndo_stop	= ether1394_stop,
+	.ndo_start_xmit	= ether1394_tx,
+	.ndo_tx_timeout	= ether1394_tx_timeout,
+	.ndo_change_mtu	= ether1394_change_mtu,
+};
+
 static void ether1394_init_dev(struct net_device *dev)
 {
-	dev->open		= ether1394_open;
-	dev->stop		= ether1394_stop;
-	dev->hard_start_xmit	= ether1394_tx;
-	dev->get_stats		= ether1394_stats;
-	dev->tx_timeout		= ether1394_tx_timeout;
-	dev->change_mtu		= ether1394_change_mtu;
 
 	dev->header_ops		= &ether1394_header_ops;
+	dev->netdev_ops		= &ether1394_netdev_ops;
 
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
 
@@ -1075,7 +1072,7 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 			HPSB_PRINT(KERN_ERR, "ether1394 rx: sender nodeid "
 				   "lookup failure: " NODE_BUS_FMT,
 				   NODE_BUS_ARGS(priv->host, srcid));
-			priv->stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 			return -1;
 		}
 		ud = node->ud;
@@ -1098,7 +1095,7 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 		skb = dev_alloc_skb(len + dev->hard_header_len + 15);
 		if (unlikely(!skb)) {
 			ETH1394_PRINT_G(KERN_ERR, "Out of memory\n");
-			priv->stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 			return -1;
 		}
 		skb_reserve(skb, (dev->hard_header_len + 15) & ~15);
@@ -1217,15 +1214,15 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if (!skb->protocol) {
-		priv->stats.rx_errors++;
-		priv->stats.rx_dropped++;
+		dev->stats.rx_errors++;
+		dev->stats.rx_dropped++;
 		dev_kfree_skb_any(skb);
 	} else if (netif_rx(skb) == NET_RX_DROP) {
-		priv->stats.rx_errors++;
-		priv->stats.rx_dropped++;
+		dev->stats.rx_errors++;
+		dev->stats.rx_dropped++;
 	} else {
-		priv->stats.rx_packets++;
-		priv->stats.rx_bytes += skb->len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += skb->len;
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -1233,8 +1230,6 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 bad_proto:
 	if (netif_queue_stopped(dev))
 		netif_wake_queue(dev);
-
-	dev->last_rx = jiffies;
 
 	return 0;
 }
@@ -1509,17 +1504,18 @@ static int ether1394_send_packet(struct packet_task *ptask, unsigned int tx_len)
 static void ether1394_dg_complete(struct packet_task *ptask, int fail)
 {
 	struct sk_buff *skb = ptask->skb;
-	struct eth1394_priv *priv = netdev_priv(skb->dev);
+	struct net_device *dev = skb->dev;
+	struct eth1394_priv *priv = netdev_priv(dev);
 	unsigned long flags;
 
 	/* Statistics */
 	spin_lock_irqsave(&priv->lock, flags);
 	if (fail) {
-		priv->stats.tx_dropped++;
-		priv->stats.tx_errors++;
+		dev->stats.tx_dropped++;
+		dev->stats.tx_errors++;
 	} else {
-		priv->stats.tx_bytes += skb->len;
-		priv->stats.tx_packets++;
+		dev->stats.tx_bytes += skb->len;
+		dev->stats.tx_packets++;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -1696,8 +1692,8 @@ fail:
 		dev_kfree_skb(skb);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->stats.tx_dropped++;
-	priv->stats.tx_errors++;
+	dev->stats.tx_dropped++;
+	dev->stats.tx_errors++;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/*

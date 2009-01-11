@@ -129,7 +129,6 @@ static struct irq_pin_list *get_one_free_irq_2_pin(int cpu)
 	node = cpu_to_node(cpu);
 
 	pin = kzalloc_node(sizeof(*pin), GFP_ATOMIC, node);
-	printk(KERN_DEBUG "  alloc irq_2_pin on cpu %d node %d\n", cpu, node);
 
 	return pin;
 }
@@ -227,7 +226,6 @@ static struct irq_cfg *get_one_free_irq_cfg(int cpu)
 			cpumask_clear(cfg->old_domain);
 		}
 	}
-	printk(KERN_DEBUG "  alloc irq_cfg on cpu %d node %d\n", cpu, node);
 
 	return cfg;
 }

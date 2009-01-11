@@ -51,8 +51,9 @@ static void __init mpc836x_rdk_setup_arch(void)
 	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
 		mpc83xx_add_bridge(np);
 #endif
-
+#ifdef CONFIG_QUICC_ENGINE
 	qe_reset();
+#endif
 }
 
 static void __init mpc836x_rdk_init_IRQ(void)
@@ -71,13 +72,14 @@ static void __init mpc836x_rdk_init_IRQ(void)
 	 */
 	ipic_set_default_priority();
 	of_node_put(np);
-
+#ifdef CONFIG_QUICC_ENGINE
 	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
 	if (!np)
 		return;
 
 	qe_ic_init(np, 0, qe_ic_cascade_low_ipic, qe_ic_cascade_high_ipic);
 	of_node_put(np);
+#endif
 }
 
 /*

@@ -74,4 +74,6 @@ extern void	l1_cleanup(void);
 extern int 	Isdnl2_Init(u_int *);
 extern void	Isdnl2_cleanup(void);
 
+extern void	mISDN_init_clock(u_int *);
+
 #endif

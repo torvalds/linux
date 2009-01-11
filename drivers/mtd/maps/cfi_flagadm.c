@@ -88,7 +88,7 @@ struct mtd_partition flagadm_parts[] = {
 
 static struct mtd_info *mymtd;
 
-int __init init_flagadm(void)
+static int __init init_flagadm(void)
 {
 	printk(KERN_NOTICE "FlagaDM flash device: %x at %x\n",
 			FLASH_SIZE, FLASH_PHYS_ADDR);

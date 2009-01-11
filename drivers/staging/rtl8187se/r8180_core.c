@@ -1407,12 +1407,12 @@ void rtl8180_set_chan(struct net_device *dev,short ch)
 
 	if((ch > 14) || (ch < 1))
 	{
-		printk("In %s: Invalid chnanel %d\n", __FUNCTION__, ch);
+		printk("In %s: Invalid chnanel %d\n", __func__, ch);
 		return;
 	}
 
 	priv->chan=ch;
-	//printk("in %s:channel is %d\n",__FUNCTION__,ch);
+	//printk("in %s:channel is %d\n",__func__,ch);
 	priv->rf_set_chan(dev,priv->chan);
 
 }
@@ -3656,7 +3656,7 @@ void rtl8180_link_change(struct net_device *dev)
 void rtl8180_rq_tx_ack(struct net_device *dev){
 
 	struct r8180_priv *priv = ieee80211_priv(dev);
-//	printk("====================>%s\n",__FUNCTION__);
+//	printk("====================>%s\n",__func__);
 	write_nic_byte(dev,CONFIG4,read_nic_byte(dev,CONFIG4)|CONFIG4_PWRMGT);
 	priv->ack_tx_to_ieee = 1;
 }
@@ -5448,7 +5448,7 @@ void rtl8180_hw_wakeup_wq(struct net_device *dev)
 #endif
 
 //	printk("dev is %d\n",dev);
-//	printk("&*&(^*(&(&=========>%s()\n", __FUNCTION__);
+//	printk("&*&(^*(&(&=========>%s()\n", __func__);
 	rtl8180_hw_wakeup(dev);
 
 }
@@ -6318,12 +6318,12 @@ priv->txnpring)/8);
 //				printk("NumTxOkTotal is %d\n",priv->NumTxOkTotal++);
 			}
 #endif
-			//	printk("in function %s:curr_retry_count is %d\n",__FUNCTION__,((*head) & (0x000000ff)));
+			//	printk("in function %s:curr_retry_count is %d\n",__func__,((*head) & (0x000000ff)));
 		}
 		if(!error){
 			priv->NumTxOkBytesTotal += (*(head+3)) & (0x00000fff);
 		}
-//		printk("in function %s:curr_txokbyte_count is %d\n",__FUNCTION__,(*(head+3)) & (0x00000fff));
+//		printk("in function %s:curr_txokbyte_count is %d\n",__func__,(*(head+3)) & (0x00000fff));
 		*head = *head &~ (1<<31);
 
 		if((head - begin)/8 == priv->txringcount-1)

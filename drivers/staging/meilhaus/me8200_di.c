@@ -570,7 +570,7 @@ static irqreturn_t me8200_isr(int irq, void *dev_id, struct pt_regs *regs)
 	if (!irq_status) {
 		PINFO
 		    ("%ld Shared interrupt. %s(): idx=%d irq_status_reg=0x%04X\n",
-		     jiffies, __FUNCTION__, instance->di_idx, irq_status);
+		     jiffies, __func__, instance->di_idx, irq_status);
 		return IRQ_NONE;
 	}
 
@@ -658,7 +658,7 @@ static irqreturn_t me8200_isr_EX(int irq, void *dev_id, struct pt_regs *regs)
 	if (!irq_status) {
 		PINFO
 		    ("%ld Shared interrupt. %s(): idx=%d irq_status_reg=0x%04X\n",
-		     jiffies, __FUNCTION__, instance->di_idx, irq_status);
+		     jiffies, __func__, instance->di_idx, irq_status);
 		return IRQ_NONE;
 	}
 
