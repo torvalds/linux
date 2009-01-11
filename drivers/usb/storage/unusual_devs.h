@@ -2041,16 +2041,6 @@ UNUSUAL_DEV(  0x1652, 0x6600, 0x0201, 0x0201,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
-/* Reported by Mauro Andreolini <andreoli@weblab.ing.unimo.it>
- * This entry is needed to bypass the ZeroCD mechanism
- * and to properly load as a modem device.
- */
-UNUSUAL_DEV(  0x19d2, 0x2000, 0x0000, 0x0000,
-		"Onda ET502HS",
-		"USB MMC Storage",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_IGNORE_DEVICE),
-
 UNUSUAL_DEV( 0x2116, 0x0320, 0x0001, 0x0001,
 		"ST",
 		"2A",
