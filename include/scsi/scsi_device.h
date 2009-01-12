@@ -401,7 +401,8 @@ static inline unsigned int sdev_id(struct scsi_device *sdev)
  */
 static inline int scsi_device_online(struct scsi_device *sdev)
 {
-	return sdev->sdev_state != SDEV_OFFLINE;
+	return (sdev->sdev_state != SDEV_OFFLINE &&
+		sdev->sdev_state != SDEV_DEL);
 }
 static inline int scsi_device_blocked(struct scsi_device *sdev)
 {
