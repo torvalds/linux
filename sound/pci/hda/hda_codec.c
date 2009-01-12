@@ -373,7 +373,7 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 	unsol->queue[wp] = res;
 	unsol->queue[wp + 1] = res_ex;
 
-	schedule_work(&unsol->work);
+	queue_work(bus->workq, &unsol->work);
 
 	return 0;
 }
@@ -437,15 +437,17 @@ static int snd_hda_bus_free(struct hda_bus *bus)
 
 	if (!bus)
 		return 0;
-	if (bus->unsol) {
-		flush_scheduled_work();
+	if (bus->workq)
+		flush_workqueue(bus->workq);
+	if (bus->unsol)
 		kfree(bus->unsol);
-	}
 	list_for_each_entry_safe(codec, n, &bus->codec_list, list) {
 		snd_hda_codec_free(codec);
 	}
 	if (bus->ops.private_free)
 		bus->ops.private_free(bus);
+	if (bus->workq)
+		destroy_workqueue(bus->workq);
 	kfree(bus);
 	return 0;
 }
@@ -485,6 +487,7 @@ int /*__devinit*/ snd_hda_bus_new(struct snd_card *card,
 {
 	struct hda_bus *bus;
 	int err;
+	char qname[8];
 	static struct snd_device_ops dev_ops = {
 		.dev_register = snd_hda_bus_dev_register,
 		.dev_free = snd_hda_bus_dev_free,
@@ -513,6 +516,14 @@ int /*__devinit*/ snd_hda_bus_new(struct snd_card *card,
 
 	mutex_init(&bus->cmd_mutex);
 	INIT_LIST_HEAD(&bus->codec_list);
+
+	snprintf(qname, sizeof(qname), "hda%d", card->number);
+	bus->workq = create_workqueue(qname);
+	if (!bus->workq) {
+		snd_printk(KERN_ERR "cannot create workqueue %s\n", qname);
+		kfree(bus);
+		return -ENOMEM;
+	}
 
 	err = snd_device_new(card, SNDRV_DEV_BUS, bus, &dev_ops);
 	if (err < 0) {
@@ -684,7 +695,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 		return;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	cancel_delayed_work(&codec->power_work);
-	flush_scheduled_work();
+	flush_workqueue(codec->bus->workq);
 #endif
 	list_del(&codec->list);
 	snd_array_free(&codec->mixers);
@@ -1273,7 +1284,7 @@ void snd_hda_codec_reset(struct hda_codec *codec)
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	cancel_delayed_work(&codec->power_work);
-	flush_scheduled_work();
+	flush_workqueue(codec->bus->workq);
 #endif
 	snd_hda_ctls_clear(codec);
 	/* relase PCMs */
