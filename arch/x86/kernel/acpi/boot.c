@@ -912,8 +912,8 @@ static u8 __init uniq_ioapic_id(u8 id)
 	DECLARE_BITMAP(used, 256);
 	bitmap_zero(used, 256);
 	for (i = 0; i < nr_ioapics; i++) {
-		struct mp_config_ioapic *ia = &mp_ioapics[i];
-		__set_bit(ia->mp_apicid, used);
+		struct mpc_ioapic *ia = &mp_ioapics[i];
+		__set_bit(ia->apicid, used);
 	}
 	if (!test_bit(id, used))
 		return id;
@@ -945,29 +945,29 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 
 	idx = nr_ioapics;
 
-	mp_ioapics[idx].mp_type = MP_IOAPIC;
-	mp_ioapics[idx].mp_flags = MPC_APIC_USABLE;
-	mp_ioapics[idx].mp_apicaddr = address;
+	mp_ioapics[idx].type = MP_IOAPIC;
+	mp_ioapics[idx].flags = MPC_APIC_USABLE;
+	mp_ioapics[idx].apicaddr = address;
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
-	mp_ioapics[idx].mp_apicid = uniq_ioapic_id(id);
+	mp_ioapics[idx].apicid = uniq_ioapic_id(id);
 #ifdef CONFIG_X86_32
-	mp_ioapics[idx].mp_apicver = io_apic_get_version(idx);
+	mp_ioapics[idx].apicver = io_apic_get_version(idx);
 #else
-	mp_ioapics[idx].mp_apicver = 0;
+	mp_ioapics[idx].apicver = 0;
 #endif
 	/*
 	 * Build basic GSI lookup table to facilitate gsi->io_apic lookups
 	 * and to prevent reprogramming of IOAPIC pins (PCI GSIs).
 	 */
-	mp_ioapic_routing[idx].apic_id = mp_ioapics[idx].mp_apicid;
+	mp_ioapic_routing[idx].apic_id = mp_ioapics[idx].apicid;
 	mp_ioapic_routing[idx].gsi_base = gsi_base;
 	mp_ioapic_routing[idx].gsi_end = gsi_base +
 	    io_apic_get_redir_entries(idx);
 
-	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, version %d, address 0x%lx, "
-	       "GSI %d-%d\n", idx, mp_ioapics[idx].mp_apicid,
-	       mp_ioapics[idx].mp_apicver, mp_ioapics[idx].mp_apicaddr,
+	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, version %d, address 0x%x, "
+	       "GSI %d-%d\n", idx, mp_ioapics[idx].apicid,
+	       mp_ioapics[idx].apicver, mp_ioapics[idx].apicaddr,
 	       mp_ioapic_routing[idx].gsi_base, mp_ioapic_routing[idx].gsi_end);
 
 	nr_ioapics++;
@@ -1026,7 +1026,7 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	mp_irq.mp_irqflag = (trigger << 2) | polarity;
 	mp_irq.mp_srcbus = MP_ISA_BUS;
 	mp_irq.mp_srcbusirq = bus_irq;	/* IRQ */
-	mp_irq.mp_dstapic = mp_ioapics[ioapic].mp_apicid; /* APIC ID */
+	mp_irq.mp_dstapic = mp_ioapics[ioapic].apicid; /* APIC ID */
 	mp_irq.mp_dstirq = pin;	/* INTIN# */
 
 	save_mp_irq(&mp_irq);
@@ -1062,7 +1062,7 @@ void __init mp_config_acpi_legacy_irqs(void)
 	ioapic = mp_find_ioapic(0);
 	if (ioapic < 0)
 		return;
-	dstapic = mp_ioapics[ioapic].mp_apicid;
+	dstapic = mp_ioapics[ioapic].apicid;
 
 	/*
 	 * Use the default configuration for the IRQs 0-15.  Unless
