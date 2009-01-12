@@ -455,12 +455,37 @@ group_error:
 	return -EAGAIN;
 }
 
+/*
+ * Return 1 for a software counter, 0 for a hardware counter
+ */
+static inline int is_software_counter(struct perf_counter *counter)
+{
+	return !counter->hw_event.raw && counter->hw_event.type < 0;
+}
+
+/*
+ * Return 1 for a group consisting entirely of software counters,
+ * 0 if the group contains any hardware counters.
+ */
+static int is_software_only_group(struct perf_counter *leader)
+{
+	struct perf_counter *counter;
+
+	if (!is_software_counter(leader))
+		return 0;
+	list_for_each_entry(counter, &leader->sibling_list, list_entry)
+		if (!is_software_counter(counter))
+			return 0;
+	return 1;
+}
+
 static void
 __perf_counter_sched_in(struct perf_counter_context *ctx,
 			struct perf_cpu_context *cpuctx, int cpu)
 {
 	struct perf_counter *counter;
 	u64 flags;
+	int can_add_hw = 1;
 
 	if (likely(!ctx->nr_counters))
 		return;
@@ -477,10 +502,12 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 
 		/*
 		 * If we scheduled in a group atomically and exclusively,
-		 * or if this group can't go on, break out:
+		 * or if this group can't go on, don't add any more
+		 * hardware counters.
 		 */
-		if (group_sched_in(counter, cpuctx, ctx, cpu))
-			break;
+		if (can_add_hw || is_software_only_group(counter))
+			if (group_sched_in(counter, cpuctx, ctx, cpu))
+				can_add_hw = 0;
 	}
 	hw_perf_restore(flags);
 	spin_unlock(&ctx->lock);
