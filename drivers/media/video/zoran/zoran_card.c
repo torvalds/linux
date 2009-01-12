@@ -61,17 +61,17 @@
 
 extern const struct zoran_format zoran_formats[];
 
-static int card[BUZ_MAX] = { -1, -1, -1, -1 };
+static int card[BUZ_MAX] = { [0 ... (BUZ_MAX-1)] = -1 };
 module_param_array(card, int, NULL, 0444);
-MODULE_PARM_DESC(card, "The type of card");
+MODULE_PARM_DESC(card, "Card type");
 
-static int encoder[BUZ_MAX] = { -1, -1, -1, -1 };
+static int encoder[BUZ_MAX] = { [0 ... (BUZ_MAX-1)] = -1 };
 module_param_array(encoder, int, NULL, 0444);
-MODULE_PARM_DESC(encoder, "i2c TV encoder");
+MODULE_PARM_DESC(encoder, "Video encoder chip");
 
-static int decoder[BUZ_MAX] = { -1, -1, -1, -1 };
+static int decoder[BUZ_MAX] = { [0 ... (BUZ_MAX-1)] = -1 };
 module_param_array(decoder, int, NULL, 0444);
-MODULE_PARM_DESC(decoder, "i2c TV decoder");
+MODULE_PARM_DESC(decoder, "Video decoder chip");
 
 /*
    The video mem address of the video card.
@@ -104,9 +104,9 @@ module_param(default_norm, int, 0444);
 MODULE_PARM_DESC(default_norm, "Default norm (0=PAL, 1=NTSC, 2=SECAM)");
 
 /* /dev/videoN, -1 for autodetect */
-static int video_nr[BUZ_MAX] = {-1, -1, -1, -1};
+static int video_nr[BUZ_MAX] = { [0 ... (BUZ_MAX-1)] = -1 };
 module_param_array(video_nr, int, NULL, 0444);
-MODULE_PARM_DESC(video_nr, "video device number (-1=Auto)");
+MODULE_PARM_DESC(video_nr, "Video device number (-1=Auto)");
 
 /*
    Number and size of grab buffers for Video 4 Linux
