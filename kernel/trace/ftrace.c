@@ -1894,7 +1894,7 @@ int register_ftrace_function(struct ftrace_ops *ops)
 }
 
 /**
- * unregister_ftrace_function - unresgister a function for profiling.
+ * unregister_ftrace_function - unregister a function for profiling.
  * @ops - ops structure that holds the function to unregister
  *
  * Unregister a function that was added to be called by ftrace profiling.
