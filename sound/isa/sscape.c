@@ -393,11 +393,11 @@ static int sscape_wait_dma_unsafe(unsigned io_base, enum GA_REG reg, unsigned ti
  */
 static int obp_startup_ack(struct soundscape *s, unsigned timeout)
 {
-	while (timeout != 0) {
+	unsigned long end_time = jiffies + msecs_to_jiffies(timeout);
+
+	do {
 		unsigned long flags;
 		unsigned char x;
-
-		schedule_timeout_uninterruptible(1);
 
 		spin_lock_irqsave(&s->lock, flags);
 		x = inb(HOST_DATA_IO(s->io_base));
@@ -405,8 +405,8 @@ static int obp_startup_ack(struct soundscape *s, unsigned timeout)
 		if ((x & 0xfe) == 0xfe)
 			return 1;
 
-		--timeout;
-	} /* while */
+		msleep(10);
+	} while (time_before(jiffies, end_time));
 
 	return 0;
 }
@@ -420,11 +420,11 @@ static int obp_startup_ack(struct soundscape *s, unsigned timeout)
  */
 static int host_startup_ack(struct soundscape *s, unsigned timeout)
 {
-	while (timeout != 0) {
+	unsigned long end_time = jiffies + msecs_to_jiffies(timeout);
+
+	do {
 		unsigned long flags;
 		unsigned char x;
-
-		schedule_timeout_uninterruptible(1);
 
 		spin_lock_irqsave(&s->lock, flags);
 		x = inb(HOST_DATA_IO(s->io_base));
@@ -432,8 +432,8 @@ static int host_startup_ack(struct soundscape *s, unsigned timeout)
 		if (x == 0xfe)
 			return 1;
 
-		--timeout;
-	} /* while */
+		msleep(10);
+	} while (time_before(jiffies, end_time));
 
 	return 0;
 }
@@ -529,10 +529,10 @@ static int upload_dma_data(struct soundscape *s,
 	 * give it 5 seconds (max) ...
 	 */
 	ret = 0;
-	if (!obp_startup_ack(s, 5)) {
+	if (!obp_startup_ack(s, 5000)) {
 		snd_printk(KERN_ERR "sscape: No response from on-board processor after upload\n");
 		ret = -EAGAIN;
-	} else if (!host_startup_ack(s, 5)) {
+	} else if (!host_startup_ack(s, 5000)) {
 		snd_printk(KERN_ERR "sscape: SoundScape failed to initialise\n");
 		ret = -EAGAIN;
 	}
