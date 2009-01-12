@@ -660,6 +660,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(PAPOUCH_VID, PAPOUCH_QUIDO4x4_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_DOMINTELL_DGQG_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_DOMINTELL_DUSB_PID) },
+	{ USB_DEVICE(ALTI2_VID, ALTI2_N3_PID) },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };

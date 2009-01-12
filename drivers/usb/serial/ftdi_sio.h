@@ -854,6 +854,10 @@
 #define FTDI_DOMINTELL_DGQG_PID	0xEF50	/* Master */
 #define FTDI_DOMINTELL_DUSB_PID	0xEF51	/* DUSB01 module */
 
+/* Alti-2 products  http://www.alti-2.com */
+#define ALTI2_VID	0x1BC9
+#define ALTI2_N3_PID	0x6001	/* Neptune 3 */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
