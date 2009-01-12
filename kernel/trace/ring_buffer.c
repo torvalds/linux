@@ -1025,12 +1025,8 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		}
 
 		if (next_page == head_page) {
-			if (!(buffer->flags & RB_FL_OVERWRITE)) {
-				/* reset write */
-				if (tail <= BUF_PAGE_SIZE)
-					local_set(&tail_page->write, tail);
+			if (!(buffer->flags & RB_FL_OVERWRITE))
 				goto out_unlock;
-			}
 
 			/* tail_page has not moved yet? */
 			if (tail_page == cpu_buffer->tail_page) {
@@ -1105,6 +1101,10 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	return event;
 
  out_unlock:
+	/* reset write */
+	if (tail <= BUF_PAGE_SIZE)
+		local_set(&tail_page->write, tail);
+
 	__raw_spin_unlock(&cpu_buffer->lock);
 	local_irq_restore(flags);
 	return NULL;
