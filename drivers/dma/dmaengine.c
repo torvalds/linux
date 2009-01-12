@@ -961,6 +961,8 @@ void dma_run_dependencies(struct dma_async_tx_descriptor *tx)
 	if (!dep)
 		return;
 
+	/* we'll submit tx->next now, so clear the link */
+	tx->next = NULL;
 	chan = dep->chan;
 
 	/* keep submitting up until a channel switch is detected
