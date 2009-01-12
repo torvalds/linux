@@ -159,55 +159,55 @@ static void print_MP_intsrc_info(struct mpc_intsrc *m)
 		m->srcbusirq, m->dstapic, m->dstirq);
 }
 
-static void __init print_mp_irq_info(struct mp_config_intsrc *mp_irq)
+static void __init print_mp_irq_info(struct mpc_intsrc *mp_irq)
 {
 	apic_printk(APIC_VERBOSE, "Int: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC INT %02x\n",
-		mp_irq->mp_irqtype, mp_irq->mp_irqflag & 3,
-		(mp_irq->mp_irqflag >> 2) & 3, mp_irq->mp_srcbus,
-		mp_irq->mp_srcbusirq, mp_irq->mp_dstapic, mp_irq->mp_dstirq);
+		mp_irq->irqtype, mp_irq->irqflag & 3,
+		(mp_irq->irqflag >> 2) & 3, mp_irq->srcbus,
+		mp_irq->srcbusirq, mp_irq->dstapic, mp_irq->dstirq);
 }
 
 static void __init assign_to_mp_irq(struct mpc_intsrc *m,
-				    struct mp_config_intsrc *mp_irq)
+				    struct mpc_intsrc *mp_irq)
 {
-	mp_irq->mp_dstapic = m->dstapic;
-	mp_irq->mp_type = m->type;
-	mp_irq->mp_irqtype = m->irqtype;
-	mp_irq->mp_irqflag = m->irqflag;
-	mp_irq->mp_srcbus = m->srcbus;
-	mp_irq->mp_srcbusirq = m->srcbusirq;
-	mp_irq->mp_dstirq = m->dstirq;
+	mp_irq->dstapic = m->dstapic;
+	mp_irq->type = m->type;
+	mp_irq->irqtype = m->irqtype;
+	mp_irq->irqflag = m->irqflag;
+	mp_irq->srcbus = m->srcbus;
+	mp_irq->srcbusirq = m->srcbusirq;
+	mp_irq->dstirq = m->dstirq;
 }
 
-static void __init assign_to_mpc_intsrc(struct mp_config_intsrc *mp_irq,
+static void __init assign_to_mpc_intsrc(struct mpc_intsrc *mp_irq,
 					struct mpc_intsrc *m)
 {
-	m->dstapic = mp_irq->mp_dstapic;
-	m->type = mp_irq->mp_type;
-	m->irqtype = mp_irq->mp_irqtype;
-	m->irqflag = mp_irq->mp_irqflag;
-	m->srcbus = mp_irq->mp_srcbus;
-	m->srcbusirq = mp_irq->mp_srcbusirq;
-	m->dstirq = mp_irq->mp_dstirq;
+	m->dstapic = mp_irq->dstapic;
+	m->type = mp_irq->type;
+	m->irqtype = mp_irq->irqtype;
+	m->irqflag = mp_irq->irqflag;
+	m->srcbus = mp_irq->srcbus;
+	m->srcbusirq = mp_irq->srcbusirq;
+	m->dstirq = mp_irq->dstirq;
 }
 
-static int __init mp_irq_mpc_intsrc_cmp(struct mp_config_intsrc *mp_irq,
+static int __init mp_irq_mpc_intsrc_cmp(struct mpc_intsrc *mp_irq,
 					struct mpc_intsrc *m)
 {
-	if (mp_irq->mp_dstapic != m->dstapic)
+	if (mp_irq->dstapic != m->dstapic)
 		return 1;
-	if (mp_irq->mp_type != m->type)
+	if (mp_irq->type != m->type)
 		return 2;
-	if (mp_irq->mp_irqtype != m->irqtype)
+	if (mp_irq->irqtype != m->irqtype)
 		return 3;
-	if (mp_irq->mp_irqflag != m->irqflag)
+	if (mp_irq->irqflag != m->irqflag)
 		return 4;
-	if (mp_irq->mp_srcbus != m->srcbus)
+	if (mp_irq->srcbus != m->srcbus)
 		return 5;
-	if (mp_irq->mp_srcbusirq != m->srcbusirq)
+	if (mp_irq->srcbusirq != m->srcbusirq)
 		return 6;
-	if (mp_irq->mp_dstirq != m->dstirq)
+	if (mp_irq->dstirq != m->dstirq)
 		return 7;
 
 	return 0;
@@ -808,15 +808,15 @@ static int  __init get_MP_intsrc_index(struct mpc_intsrc *m)
 	/* not legacy */
 
 	for (i = 0; i < mp_irq_entries; i++) {
-		if (mp_irqs[i].mp_irqtype != mp_INT)
+		if (mp_irqs[i].irqtype != mp_INT)
 			continue;
 
-		if (mp_irqs[i].mp_irqflag != 0x0f)
+		if (mp_irqs[i].irqflag != 0x0f)
 			continue;
 
-		if (mp_irqs[i].mp_srcbus != m->srcbus)
+		if (mp_irqs[i].srcbus != m->srcbus)
 			continue;
-		if (mp_irqs[i].mp_srcbusirq != m->srcbusirq)
+		if (mp_irqs[i].srcbusirq != m->srcbusirq)
 			continue;
 		if (irq_used[i]) {
 			/* already claimed */
@@ -921,10 +921,10 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 		if (irq_used[i])
 			continue;
 
-		if (mp_irqs[i].mp_irqtype != mp_INT)
+		if (mp_irqs[i].irqtype != mp_INT)
 			continue;
 
-		if (mp_irqs[i].mp_irqflag != 0x0f)
+		if (mp_irqs[i].irqflag != 0x0f)
 			continue;
 
 		if (nr_m_spare > 0) {
