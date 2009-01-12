@@ -418,7 +418,7 @@ static void Mds_HeaderCopy(struct wbsoft_priv * adapter, PDESCRIPTOR pDes, u8 *T
 void
 Mds_Tx(struct wbsoft_priv * adapter)
 {
-	phw_data_t	pHwData = &adapter->sHwData;
+	struct hw_data *	pHwData = &adapter->sHwData;
 	PMDS		pMds = &adapter->Mds;
 	DESCRIPTOR	TxDes;
 	PDESCRIPTOR	pTxDes = &TxDes;
@@ -561,7 +561,7 @@ void
 Mds_SendComplete(struct wbsoft_priv * adapter, PT02_DESCRIPTOR pT02)
 {
 	PMDS	pMds = &adapter->Mds;
-	phw_data_t	pHwData = &adapter->sHwData;
+	struct hw_data *	pHwData = &adapter->sHwData;
 	u8	PacketId = (u8)pT02->T02_Tx_PktID;
 	unsigned char	SendOK = true;
 	u8	RetryCount, TxRate;

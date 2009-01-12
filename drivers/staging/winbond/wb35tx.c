@@ -15,7 +15,7 @@
 #include "sysdef.h"
 
 unsigned char
-Wb35Tx_get_tx_buffer(phw_data_t pHwData, u8 **pBuffer)
+Wb35Tx_get_tx_buffer(struct hw_data * pHwData, u8 **pBuffer)
 {
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
@@ -28,7 +28,7 @@ static void Wb35Tx(struct wbsoft_priv *adapter);
 static void Wb35Tx_complete(struct urb * pUrb)
 {
 	struct wbsoft_priv *adapter = pUrb->context;
-	phw_data_t	pHwData = &adapter->sHwData;
+	struct hw_data *	pHwData = &adapter->sHwData;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	PMDS		pMds = &adapter->Mds;
 
@@ -64,7 +64,7 @@ error:
 
 static void Wb35Tx(struct wbsoft_priv *adapter)
 {
-	phw_data_t	pHwData = &adapter->sHwData;
+	struct hw_data *	pHwData = &adapter->sHwData;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	u8		*pTxBufferAddress;
 	PMDS		pMds = &adapter->Mds;
@@ -115,7 +115,7 @@ static void Wb35Tx(struct wbsoft_priv *adapter)
 
 void Wb35Tx_start(struct wbsoft_priv *adapter)
 {
-	phw_data_t pHwData = &adapter->sHwData;
+	struct hw_data * pHwData = &adapter->sHwData;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
 	// Allow only one thread to run into function
@@ -126,7 +126,7 @@ void Wb35Tx_start(struct wbsoft_priv *adapter)
 		atomic_dec(&pWb35Tx->TxFireCounter);
 }
 
-unsigned char Wb35Tx_initial(phw_data_t pHwData)
+unsigned char Wb35Tx_initial(struct hw_data * pHwData)
 {
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
@@ -145,7 +145,7 @@ unsigned char Wb35Tx_initial(phw_data_t pHwData)
 }
 
 //======================================================
-void Wb35Tx_stop(phw_data_t pHwData)
+void Wb35Tx_stop(struct hw_data * pHwData)
 {
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
@@ -165,7 +165,7 @@ void Wb35Tx_stop(phw_data_t pHwData)
 }
 
 //======================================================
-void Wb35Tx_destroy(phw_data_t pHwData)
+void Wb35Tx_destroy(struct hw_data * pHwData)
 {
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
@@ -188,7 +188,7 @@ void Wb35Tx_destroy(phw_data_t pHwData)
 
 void Wb35Tx_CurrentTime(struct wbsoft_priv *adapter, u32 TimeCount)
 {
-	phw_data_t pHwData = &adapter->sHwData;
+	struct hw_data * pHwData = &adapter->sHwData;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	unsigned char Trigger = false;
 
@@ -208,7 +208,7 @@ static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter);
 static void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 {
 	struct wbsoft_priv *adapter = pUrb->context;
-	phw_data_t	pHwData = &adapter->sHwData;
+	struct hw_data *	pHwData = &adapter->sHwData;
 	T02_DESCRIPTOR	T02, TSTATUS;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	u32 *		pltmp = (u32 *)pWb35Tx->EP2_buf;
@@ -256,7 +256,7 @@ error:
 
 static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
 {
-	phw_data_t	pHwData = &adapter->sHwData;
+	struct hw_data *	pHwData = &adapter->sHwData;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx2Urb;
 	u32 *	pltmp = (u32 *)pWb35Tx->EP2_buf;
@@ -292,7 +292,7 @@ error:
 
 void Wb35Tx_EP2VM_start(struct wbsoft_priv *adapter)
 {
-	phw_data_t pHwData = &adapter->sHwData;
+	struct hw_data * pHwData = &adapter->sHwData;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
 	// Allow only one thread to run into function

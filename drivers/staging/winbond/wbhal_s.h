@@ -392,8 +392,7 @@ typedef struct _TXVGA_FOR_50 {
 #include "wb35rx_s.h"
 
 // For Hal using ==================================================================
-typedef struct _HW_DATA_T
-{
+struct hw_data {
 	// For compatible with 33
 	u32	revision;
 	u32	BB3c_cal; // The value for Tx calibration comes from EEPROM
@@ -541,6 +540,6 @@ typedef struct _HW_DATA_T
 	// 20060828.1 for avoid AP disconnect
 	u32		NullPacketCount;
 
-} hw_data_t, *phw_data_t;
+};
 
 #endif

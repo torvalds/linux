@@ -20,7 +20,7 @@ struct wbsoft_priv {
 	MLME_FRAME sMlmeFrame;	// connect to peerSTA parameters
 
 	MTO_PARAMETERS sMtoPara;	// MTO_struct ...
-	hw_data_t sHwData;	//For HAL
+	struct hw_data sHwData;	//For HAL
 	MDS Mds;
 
 	spinlock_t SpinLock;

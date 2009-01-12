@@ -82,7 +82,7 @@ static void Wb35Rx_adjust(PDESCRIPTOR pRxDes)
 static u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t pHwData = &priv->sHwData;
+	struct hw_data * pHwData = &priv->sHwData;
 	DESCRIPTOR	RxDes;
 	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u8 *		pRxBufferAddress;
@@ -161,7 +161,7 @@ static void Wb35Rx_Complete(struct urb *urb)
 {
 	struct ieee80211_hw *hw = urb->context;
 	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t pHwData = &priv->sHwData;
+	struct hw_data * pHwData = &priv->sHwData;
 	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u8 *		pRxBufferAddress;
 	u32		SizeCheck;
@@ -238,7 +238,7 @@ error:
 static void Wb35Rx(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t pHwData = &priv->sHwData;
+	struct hw_data * pHwData = &priv->sHwData;
 	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u8 *	pRxBufferAddress;
 	struct urb *urb = pWb35Rx->RxUrb;
@@ -301,7 +301,7 @@ error:
 void Wb35Rx_start(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t pHwData = &priv->sHwData;
+	struct hw_data * pHwData = &priv->sHwData;
 	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
 	// Allow only one thread to run into the Wb35Rx() function
@@ -313,7 +313,7 @@ void Wb35Rx_start(struct ieee80211_hw *hw)
 }
 
 //=====================================================================================
-static void Wb35Rx_reset_descriptor(  phw_data_t pHwData )
+static void Wb35Rx_reset_descriptor(  struct hw_data * pHwData )
 {
 	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u32	i;
@@ -329,7 +329,7 @@ static void Wb35Rx_reset_descriptor(  phw_data_t pHwData )
 		pWb35Rx->RxOwner[i] = 1;
 }
 
-unsigned char Wb35Rx_initial(phw_data_t pHwData)
+unsigned char Wb35Rx_initial(struct hw_data * pHwData)
 {
 	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
@@ -340,7 +340,7 @@ unsigned char Wb35Rx_initial(phw_data_t pHwData)
 	return (!!pWb35Rx->RxUrb);
 }
 
-void Wb35Rx_stop(phw_data_t pHwData)
+void Wb35Rx_stop(struct hw_data * pHwData)
 {
 	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
@@ -354,7 +354,7 @@ void Wb35Rx_stop(phw_data_t pHwData)
 }
 
 // Needs process context
-void Wb35Rx_destroy(phw_data_t pHwData)
+void Wb35Rx_destroy(struct hw_data * pHwData)
 {
 	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
