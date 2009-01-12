@@ -1579,7 +1579,7 @@ send_packet:
 	schedule_work(&dsp->workq);
 }
 
-static u32	jittercount; /* counter for jitter check */;
+static u32	jittercount; /* counter for jitter check */
 struct timer_list dsp_spl_tl;
 u32	dsp_spl_jiffies; /* calculate the next time to fire */
 static u16	dsp_count; /* last sample count */
@@ -1893,7 +1893,7 @@ dsp_cmx_hdlc(struct dsp *dsp, struct sk_buff *skb)
 		/* in case of hardware (echo) */
 		if (dsp->pcm_slot_tx >= 0)
 			return;
-		if (dsp->echo)
+		if (dsp->echo) {
 			nskb = skb_clone(skb, GFP_ATOMIC);
 			if (nskb) {
 				hh = mISDN_HEAD_P(nskb);
@@ -1902,6 +1902,7 @@ dsp_cmx_hdlc(struct dsp *dsp, struct sk_buff *skb)
 				skb_queue_tail(&dsp->sendq, nskb);
 				schedule_work(&dsp->workq);
 			}
+		}
 		return;
 	}
 	/* in case of hardware conference */
