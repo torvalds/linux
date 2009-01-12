@@ -133,8 +133,6 @@ typedef struct _MTO_PARAMETERS
 } MTO_PARAMETERS, *PMTO_PARAMETERS;
 
 
-#define MTO_FUNC_INPUT              struct wbsoft_priv *	adapter
-#define MTO_FUNC_INPUT_DATA         adapter
 #define MTO_DATA()                  (adapter->sMtoPara)
 #define MTO_HAL()                   (&adapter->sHwData)
 #define MTO_SET_PREAMBLE_TYPE(x)    // 20040511 Turbo mark LM_PREAMBLE_TYPE(&pcore_data->lm_data) = (x)
@@ -264,9 +262,9 @@ typedef struct _STATISTICS_INFO {
 extern void MTO_Init(struct wbsoft_priv *);
 extern void MTO_PeriodicTimerExpired(struct wbsoft_priv *);
 extern void MTO_SetDTORateRange(struct wbsoft_priv *, u8 *, u8);
-extern u8 MTO_GetTxRate(MTO_FUNC_INPUT, u32 fpdu_len);
-extern u8 MTO_GetTxFallbackRate(MTO_FUNC_INPUT);
-extern void MTO_SetTxCount(MTO_FUNC_INPUT, u8 t0, u8 index);
+extern u8 MTO_GetTxRate(struct wbsoft_priv *adapter, u32 fpdu_len);
+extern u8 MTO_GetTxFallbackRate(struct wbsoft_priv *adapter);
+extern void MTO_SetTxCount(struct wbsoft_priv *adapter, u8 t0, u8 index);
 
 #endif //__MTO_H__
 
