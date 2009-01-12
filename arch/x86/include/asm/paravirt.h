@@ -1389,8 +1389,6 @@ static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
 void _paravirt_nop(void);
 #define paravirt_nop	((void *)_paravirt_nop)
 
-void paravirt_use_bytelocks(void);
-
 #ifdef CONFIG_SMP
 
 static inline int __raw_spin_is_locked(struct raw_spinlock *lock)
