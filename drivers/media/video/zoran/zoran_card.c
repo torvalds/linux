@@ -1297,14 +1297,13 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 	mutex_init(&zr->resource_lock);
 	if (pci_enable_device(pdev))
 		goto zr_free_mem;
-	zr->zr36057_adr = pci_resource_start(zr->pci_dev, 0);
 	pci_read_config_byte(zr->pci_dev, PCI_CLASS_REVISION, &zr->revision);
 
 	dprintk(1,
 		KERN_INFO
-		"%s: Zoran ZR360%c7 (rev %d), irq: %d, memory: 0x%08x\n",
+		"%s: Zoran ZR360%c7 (rev %d), irq: %d, memory: 0x%08llx\n",
 		ZR_DEVNAME(zr), zr->revision < 2 ? '5' : '6', zr->revision,
-		zr->pci_dev->irq, zr->zr36057_adr);
+		zr->pci_dev->irq, (uint64_t)pci_resource_start(zr->pci_dev, 0));
 	if (zr->revision >= 2) {
 		dprintk(1,
 			KERN_INFO
@@ -1359,12 +1358,12 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 	snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)),
 		 "%s[%u]", zr->card.name, zr->id);
 
-	zr->zr36057_mem = ioremap_nocache(zr->zr36057_adr, 0x1000);
+	zr->zr36057_mem = pci_ioremap_bar(zr->pci_dev, 0);
 	if (!zr->zr36057_mem) {
 		dprintk(1,
 			KERN_ERR
-			"%s: find_zr36057() - ioremap failed\n",
-			ZR_DEVNAME(zr));
+			"%s: %s() - ioremap failed\n",
+			ZR_DEVNAME(zr), __func__);
 		goto zr_free_mem;
 	}
 
