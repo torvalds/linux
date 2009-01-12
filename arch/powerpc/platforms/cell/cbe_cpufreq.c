@@ -118,7 +118,7 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->cur = cbe_freqs[cur_pmode].frequency;
 
 #ifdef CONFIG_SMP
-	policy->cpus = per_cpu(cpu_sibling_map, policy->cpu);
+	cpumask_copy(policy->cpus, &per_cpu(cpu_sibling_map, policy->cpu));
 #endif
 
 	cpufreq_frequency_table_get_attr(cbe_freqs, policy->cpu);
