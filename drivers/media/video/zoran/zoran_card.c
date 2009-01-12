@@ -159,8 +159,7 @@ static struct pci_device_id zr36067_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, zr36067_pci_tbl);
 
-atomic_t zoran_num = ATOMIC_INIT(0);		/* number of Buzs in use */
-struct zoran *zoran[BUZ_MAX];
+static unsigned int zoran_num;		/* number of cards found */
 
 /* videocodec bus functions ZR36060 */
 static u32
@@ -1144,6 +1143,7 @@ zr36057_init (struct zoran *zr)
 	err = video_register_device(zr->video_dev, VFL_TYPE_GRABBER, video_nr[zr->id]);
 	if (err < 0)
 		goto exit_free;
+	video_set_drvdata(zr->video_dev, zr);
 
 	zoran_init_hardware(zr);
 	if (zr36067_debug > 2)
@@ -1275,7 +1275,7 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 	unsigned int nr;
 
 
-	nr = atomic_inc_return(&zoran_num) - 1;
+	nr = zoran_num++;
 	if (nr >= BUZ_MAX) {
 		dprintk(1,
 			KERN_ERR
@@ -1291,7 +1291,6 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 			KERN_ERR
 			"%s: find_zr36057() - kzalloc failed\n",
 			ZORAN_NAME);
-		/* The entry in zoran[] gets leaked */
 		return -ENOMEM;
 	}
 	zr->pci_dev = pdev;
@@ -1547,7 +1546,6 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 			goto zr_detach_vfe;
 		}
 	}
-	zoran[nr] = zr;
 
 	/* take care of Natoma chipset and a revision 1 zr36057 */
 	if ((pci_pci_problems & PCIPCI_NATOMA) && zr->revision <= 1) {
@@ -1599,7 +1597,6 @@ static int __init zoran_init(void)
 {
 	int res;
 
-	memset(zoran, 0, sizeof(zoran));
 	printk(KERN_INFO "Zoran MJPEG board driver version %d.%d.%d\n",
 	       MAJOR_VERSION, MINOR_VERSION, RELEASE_VERSION);
 

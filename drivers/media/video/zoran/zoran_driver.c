@@ -1196,28 +1196,13 @@ zoran_close_end_session (struct file *file)
  *   Open a zoran card. Right now the flags stuff is just playing
  */
 
-static int
-zoran_open(struct file  *file)
+static int zoran_open(struct file *file)
 {
-	unsigned int minor = video_devdata(file)->minor;
-	struct zoran *zr = NULL;
+	struct zoran *zr = video_drvdata(file);
 	struct zoran_fh *fh;
-	int i, res, first_open = 0, have_module_locks = 0;
+	int res, first_open = 0, have_module_locks = 0;
 
 	lock_kernel();
-	/* find the device */
-	for (i = 0; i < atomic_read(&zoran_num); i++) {
-		if (zoran[i]->video_dev->minor == minor) {
-			zr = zoran[i];
-			break;
-		}
-	}
-
-	if (!zr) {
-		dprintk(1, KERN_ERR "%s: device not found!\n", ZORAN_NAME);
-		res = -ENODEV;
-		goto open_unlock_and_return;
-	}
 
 	/* see fs/device.c - the kernel already locks during open(),
 	 * so locking ourselves only causes deadlocks */
@@ -1329,10 +1314,6 @@ open_unlock_and_return:
 		module_put(THIS_MODULE);
 	}
 
-	/* if there's no device found, we didn't obtain the lock either */
-	if (zr) {
-		/*mutex_unlock(&zr->resource_lock);*/
-	}
 	unlock_kernel();
 
 	return res;
