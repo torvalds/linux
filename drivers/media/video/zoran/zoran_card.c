@@ -153,8 +153,16 @@ MODULE_DESCRIPTION("Zoran-36057/36067 JPEG codec driver");
 MODULE_AUTHOR("Serguei Miridonov");
 MODULE_LICENSE("GPL");
 
+#define ZR_DEVICE(subven, subdev, data)	{ \
+	.vendor = PCI_VENDOR_ID_ZORAN, .device = PCI_DEVICE_ID_ZORAN_36057, \
+	.subvendor = (subven), .subdevice = (subdev), .driver_data = (data) }
+
 static struct pci_device_id zr36067_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36057), },
+	ZR_DEVICE(PCI_VENDOR_ID_MIRO, PCI_DEVICE_ID_MIRO_DC10PLUS, DC10plus),
+	ZR_DEVICE(PCI_VENDOR_ID_MIRO, PCI_DEVICE_ID_MIRO_DC30PLUS, DC30plus),
+	ZR_DEVICE(PCI_VENDOR_ID_ELECTRONICDESIGNGMBH, PCI_DEVICE_ID_LML_33R10, LML33R10),
+	ZR_DEVICE(PCI_VENDOR_ID_IOMEGA, PCI_DEVICE_ID_IOMEGA_BUZ, BUZ),
+	ZR_DEVICE(PCI_ANY_ID, PCI_ANY_ID, NUM_CARDS),
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, zr36067_pci_tbl);
@@ -476,8 +484,6 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = DC10plus,
 		.name = "DC10plus",
-		.vendor_id = PCI_VENDOR_ID_MIRO,
-		.device_id = PCI_DEVICE_ID_MIRO_DC10PLUS,
 		.i2c_decoder = I2C_DRIVERID_SAA7110,
 		.i2c_encoder = I2C_DRIVERID_ADV7175,
 		.video_codec = CODEC_TYPE_ZR36060,
@@ -535,8 +541,6 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = DC30plus,
 		.name = "DC30plus",
-		.vendor_id = PCI_VENDOR_ID_MIRO,
-		.device_id = PCI_DEVICE_ID_MIRO_DC30PLUS,
 		.i2c_decoder = I2C_DRIVERID_VPX3220,
 		.i2c_encoder = I2C_DRIVERID_ADV7175,
 		.video_codec = CODEC_TYPE_ZR36050,
@@ -593,8 +597,6 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = LML33R10,
 		.name = "LML33R10",
-		.vendor_id = PCI_VENDOR_ID_ELECTRONICDESIGNGMBH,
-		.device_id = PCI_DEVICE_ID_LML_33R10,
 		.i2c_decoder = I2C_DRIVERID_SAA7114,
 		.i2c_encoder = I2C_DRIVERID_ADV7170,
 		.video_codec = CODEC_TYPE_ZR36060,
@@ -622,8 +624,6 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = BUZ,
 		.name = "Buz",
-		.vendor_id = PCI_VENDOR_ID_IOMEGA,
-		.device_id = PCI_DEVICE_ID_IOMEGA_BUZ,
 		.i2c_decoder = I2C_DRIVERID_SAA7111A,
 		.i2c_encoder = I2C_DRIVERID_SAA7185B,
 		.video_codec = CODEC_TYPE_ZR36060,
@@ -653,8 +653,6 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.name = "6-Eyes",
 		/* AverMedia chose not to brand the 6-Eyes. Thus it
 		   can't be autodetected, and requires card=x. */
-		.vendor_id = -1,
-		.device_id = -1,
 		.i2c_decoder = I2C_DRIVERID_KS0127,
 		.i2c_encoder = I2C_DRIVERID_BT866,
 		.video_codec = CODEC_TYPE_ZR36060,
@@ -1284,7 +1282,6 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 		return -ENOENT;
 	}
 
-	card_num = card[nr];
 	zr = kzalloc(sizeof(struct zoran), GFP_KERNEL);
 	if (!zr) {
 		dprintk(1,
@@ -1302,68 +1299,55 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 		goto zr_free_mem;
 	zr->zr36057_adr = pci_resource_start(zr->pci_dev, 0);
 	pci_read_config_byte(zr->pci_dev, PCI_CLASS_REVISION, &zr->revision);
-	if (zr->revision < 2) {
+
+	dprintk(1,
+		KERN_INFO
+		"%s: Zoran ZR360%c7 (rev %d), irq: %d, memory: 0x%08x\n",
+		ZR_DEVNAME(zr), zr->revision < 2 ? '5' : '6', zr->revision,
+		zr->pci_dev->irq, zr->zr36057_adr);
+	if (zr->revision >= 2) {
 		dprintk(1,
 			KERN_INFO
-			"%s: Zoran ZR36057 (rev %d) irq: %d, memory: 0x%08x.\n",
-			ZR_DEVNAME(zr), zr->revision, zr->pci_dev->irq,
-			zr->zr36057_adr);
+			"%s: Subsystem vendor=0x%04x id=0x%04x\n",
+			ZR_DEVNAME(zr), zr->pci_dev->subsystem_vendor,
+			zr->pci_dev->subsystem_device);
+	}
 
-		if (card_num == -1) {
+	/* Use auto-detected card type? */
+	if (card[nr] == -1) {
+		if (zr->revision < 2) {
 			dprintk(1,
 				KERN_ERR
-				"%s: find_zr36057() - no card specified, please use the card=X insmod option\n",
+				"%s: No card type specified, please use the card=X module parameter\n",
+				ZR_DEVNAME(zr));
+			dprintk(1,
+				KERN_ERR
+				"%s: It is not possible to auto-detect ZR36057 based cards\n",
 				ZR_DEVNAME(zr));
 			goto zr_free_mem;
 		}
-	} else {
-		int i;
-		unsigned short ss_vendor, ss_device;
 
-		ss_vendor = zr->pci_dev->subsystem_vendor;
-		ss_device = zr->pci_dev->subsystem_device;
-		dprintk(1,
-			KERN_INFO
-			"%s: Zoran ZR36067 (rev %d) irq: %d, memory: 0x%08x\n",
-			ZR_DEVNAME(zr), zr->revision, zr->pci_dev->irq,
-			zr->zr36057_adr);
-		dprintk(1,
-			KERN_INFO
-			"%s: subsystem vendor=0x%04x id=0x%04x\n",
-			ZR_DEVNAME(zr), ss_vendor, ss_device);
-		if (card_num == -1) {
-			dprintk(3,
-				KERN_DEBUG
-				"%s: find_zr36057() - trying to autodetect card type\n",
+		card_num = ent->driver_data;
+		if (card_num >= NUM_CARDS) {
+			dprintk(1,
+				KERN_ERR
+				"%s: Unknown card, try specifying card=X module parameter\n",
 				ZR_DEVNAME(zr));
-			for (i = 0; i < NUM_CARDS; i++) {
-				if (ss_vendor == zoran_cards[i].vendor_id &&
-				    ss_device == zoran_cards[i].device_id) {
-					dprintk(3,
-						KERN_DEBUG
-						"%s: find_zr36057() - card %s detected\n",
-						ZR_DEVNAME(zr),
-						zoran_cards[i].name);
-					card_num = i;
-					break;
-				}
-			}
-			if (i == NUM_CARDS) {
-				dprintk(1,
-					KERN_ERR
-					"%s: find_zr36057() - unknown card\n",
-					ZR_DEVNAME(zr));
-				goto zr_free_mem;
-			}
+			goto zr_free_mem;
 		}
-	}
-
-	if (card_num < 0 || card_num >= NUM_CARDS) {
-		dprintk(2,
-			KERN_ERR
-			"%s: find_zr36057() - invalid cardnum %d\n",
-			ZR_DEVNAME(zr), card_num);
-		goto zr_free_mem;
+		dprintk(3,
+			KERN_DEBUG
+			"%s: %s() - card %s detected\n",
+			ZR_DEVNAME(zr), __func__, zoran_cards[card_num].name);
+	} else {
+		card_num = card[nr];
+		if (card_num >= NUM_CARDS || card_num < 0) {
+			dprintk(1,
+				KERN_ERR
+				"%s: User specified card type %d out of range (0 .. %d)\n",
+				ZR_DEVNAME(zr), card_num, NUM_CARDS - 1);
+			goto zr_free_mem;
+		}
 	}
 
 	/* even though we make this a non pointer and thus

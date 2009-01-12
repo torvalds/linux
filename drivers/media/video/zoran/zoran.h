@@ -349,7 +349,6 @@ struct card_info {
 	u16 i2c_decoder, i2c_encoder;			/* I2C types */
 	u16 video_vfe, video_codec;			/* videocodec types */
 	u16 audio_chip;					/* audio type */
-	u16 vendor_id, device_id;	/* subsystem vendor/device ID */
 
 	int inputs;		/* number of video inputs */
 	struct input {
