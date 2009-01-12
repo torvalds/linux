@@ -1850,7 +1850,7 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 
 static int p54_config(struct ieee80211_hw *dev, u32 changed)
 {
-	int ret;
+	int ret = 0;
 	struct p54_common *priv = dev->priv;
 	struct ieee80211_conf *conf = &dev->conf;
 
