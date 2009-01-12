@@ -629,8 +629,6 @@ static const struct super_operations reiserfs_sops = {
 #ifdef CONFIG_QUOTA
 #define QTYPE2NAME(t) ((t)==USRQUOTA?"user":"group")
 
-static int reiserfs_dquot_initialize(struct inode *, int);
-static int reiserfs_dquot_drop(struct inode *);
 static int reiserfs_write_dquot(struct dquot *);
 static int reiserfs_acquire_dquot(struct dquot *);
 static int reiserfs_release_dquot(struct dquot *);
@@ -639,8 +637,8 @@ static int reiserfs_write_info(struct super_block *, int);
 static int reiserfs_quota_on(struct super_block *, int, int, char *, int);
 
 static struct dquot_operations reiserfs_quota_operations = {
-	.initialize = reiserfs_dquot_initialize,
-	.drop = reiserfs_dquot_drop,
+	.initialize = dquot_initialize,
+	.drop = dquot_drop,
 	.alloc_space = dquot_alloc_space,
 	.alloc_inode = dquot_alloc_inode,
 	.free_space = dquot_free_space,
@@ -1896,58 +1894,6 @@ static int reiserfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 
 #ifdef CONFIG_QUOTA
-static int reiserfs_dquot_initialize(struct inode *inode, int type)
-{
-	struct reiserfs_transaction_handle th;
-	int ret, err;
-
-	/* We may create quota structure so we need to reserve enough blocks */
-	reiserfs_write_lock(inode->i_sb);
-	ret =
-	    journal_begin(&th, inode->i_sb,
-			  2 * REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb));
-	if (ret)
-		goto out;
-	ret = dquot_initialize(inode, type);
-	err =
-	    journal_end(&th, inode->i_sb,
-			2 * REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb));
-	if (!ret && err)
-		ret = err;
-      out:
-	reiserfs_write_unlock(inode->i_sb);
-	return ret;
-}
-
-static int reiserfs_dquot_drop(struct inode *inode)
-{
-	struct reiserfs_transaction_handle th;
-	int ret, err;
-
-	/* We may delete quota structure so we need to reserve enough blocks */
-	reiserfs_write_lock(inode->i_sb);
-	ret =
-	    journal_begin(&th, inode->i_sb,
-			  2 * REISERFS_QUOTA_DEL_BLOCKS(inode->i_sb));
-	if (ret) {
-		/*
-		 * We call dquot_drop() anyway to at least release references
-		 * to quota structures so that umount does not hang.
-		 */
-		dquot_drop(inode);
-		goto out;
-	}
-	ret = dquot_drop(inode);
-	err =
-	    journal_end(&th, inode->i_sb,
-			2 * REISERFS_QUOTA_DEL_BLOCKS(inode->i_sb));
-	if (!ret && err)
-		ret = err;
-      out:
-	reiserfs_write_unlock(inode->i_sb);
-	return ret;
-}
-
 static int reiserfs_write_dquot(struct dquot *dquot)
 {
 	struct reiserfs_transaction_handle th;
