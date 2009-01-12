@@ -19,7 +19,6 @@
 #include <linux/writeback.h>
 #include <linux/swap.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 #include <linux/backing-dev.h>
 
 #include "gfs2.h"

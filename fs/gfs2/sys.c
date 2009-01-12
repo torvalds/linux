@@ -14,9 +14,8 @@
 #include <linux/buffer_head.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
-#include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 #include <asm/uaccess.h>
+#include <linux/gfs2_ondisk.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -224,14 +223,145 @@ static struct lockstruct_attr lockstruct_attr_##name = __ATTR_RO(name)
 
 LOCKSTRUCT_ATTR(jid,      "%u\n");
 LOCKSTRUCT_ATTR(first,    "%u\n");
-LOCKSTRUCT_ATTR(lvb_size, "%u\n");
-LOCKSTRUCT_ATTR(flags,    "%d\n");
 
 static struct attribute *lockstruct_attrs[] = {
 	&lockstruct_attr_jid.attr,
 	&lockstruct_attr_first.attr,
-	&lockstruct_attr_lvb_size.attr,
-	&lockstruct_attr_flags.attr,
+	NULL,
+};
+
+/*
+ * lock_module. Originally from lock_dlm
+ */
+
+static ssize_t proto_name_show(struct gfs2_sbd *sdp, char *buf)
+{
+	const struct lm_lockops *ops = sdp->sd_lockstruct.ls_ops;
+	return sprintf(buf, "%s\n", ops->lm_proto_name);
+}
+
+static ssize_t block_show(struct gfs2_sbd *sdp, char *buf)
+{
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	ssize_t ret;
+	int val = 0;
+
+	if (test_bit(DFL_BLOCK_LOCKS, &ls->ls_flags))
+		val = 1;
+	ret = sprintf(buf, "%d\n", val);
+	return ret;
+}
+
+static ssize_t block_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
+{
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	ssize_t ret = len;
+	int val;
+
+	val = simple_strtol(buf, NULL, 0);
+
+	if (val == 1)
+		set_bit(DFL_BLOCK_LOCKS, &ls->ls_flags);
+	else if (val == 0) {
+		clear_bit(DFL_BLOCK_LOCKS, &ls->ls_flags);
+		smp_mb__after_clear_bit();
+		gfs2_glock_thaw(sdp);
+	} else {
+		ret = -EINVAL;
+	}
+	return ret;
+}
+
+static ssize_t lkid_show(struct gfs2_sbd *sdp, char *buf)
+{
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	return sprintf(buf, "%u\n", ls->ls_id);
+}
+
+static ssize_t lkfirst_show(struct gfs2_sbd *sdp, char *buf)
+{
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	return sprintf(buf, "%d\n", ls->ls_first);
+}
+
+static ssize_t first_done_show(struct gfs2_sbd *sdp, char *buf)
+{
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	return sprintf(buf, "%d\n", ls->ls_first_done);
+}
+
+static ssize_t recover_show(struct gfs2_sbd *sdp, char *buf)
+{
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	return sprintf(buf, "%d\n", ls->ls_recover_jid);
+}
+
+static void gfs2_jdesc_make_dirty(struct gfs2_sbd *sdp, unsigned int jid)
+{
+	struct gfs2_jdesc *jd;
+
+	spin_lock(&sdp->sd_jindex_spin);
+	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
+		if (jd->jd_jid != jid)
+			continue;
+		jd->jd_dirty = 1;
+		break;
+	}
+	spin_unlock(&sdp->sd_jindex_spin);
+}
+
+static ssize_t recover_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
+{
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	ls->ls_recover_jid = simple_strtol(buf, NULL, 0);
+	gfs2_jdesc_make_dirty(sdp, ls->ls_recover_jid);
+	if (sdp->sd_recoverd_process)
+		wake_up_process(sdp->sd_recoverd_process);
+	return len;
+}
+
+static ssize_t recover_done_show(struct gfs2_sbd *sdp, char *buf)
+{
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	return sprintf(buf, "%d\n", ls->ls_recover_jid_done);
+}
+
+static ssize_t recover_status_show(struct gfs2_sbd *sdp, char *buf)
+{
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	return sprintf(buf, "%d\n", ls->ls_recover_jid_status);
+}
+
+struct gdlm_attr {
+	struct attribute attr;
+	ssize_t (*show)(struct gfs2_sbd *sdp, char *);
+	ssize_t (*store)(struct gfs2_sbd *sdp, const char *, size_t);
+};
+
+#define GDLM_ATTR(_name,_mode,_show,_store) \
+static struct gdlm_attr gdlm_attr_##_name = __ATTR(_name,_mode,_show,_store)
+
+GDLM_ATTR(proto_name,     0444, proto_name_show,     NULL);
+GDLM_ATTR(block,          0644, block_show,          block_store);
+GDLM_ATTR(withdraw,       0644, withdraw_show,       withdraw_store);
+GDLM_ATTR(id,             0444, lkid_show,           NULL);
+GDLM_ATTR(first,          0444, lkfirst_show,        NULL);
+GDLM_ATTR(first_done,     0444, first_done_show,     NULL);
+GDLM_ATTR(recover,        0644, recover_show,        recover_store);
+GDLM_ATTR(recover_done,   0444, recover_done_show,   NULL);
+GDLM_ATTR(recover_status, 0444, recover_status_show, NULL);
+
+static struct attribute *lock_module_attrs[] = {
+	&gdlm_attr_proto_name.attr,
+	&gdlm_attr_block.attr,
+	&gdlm_attr_withdraw.attr,
+	&gdlm_attr_id.attr,
+	&lockstruct_attr_jid.attr,
+	&gdlm_attr_first.attr,
+	&gdlm_attr_first_done.attr,
+	&gdlm_attr_recover.attr,
+	&gdlm_attr_recover_done.attr,
+	&gdlm_attr_recover_status.attr,
 	NULL,
 };
 
@@ -412,6 +542,11 @@ static struct attribute_group tune_group = {
 	.attrs = tune_attrs,
 };
 
+static struct attribute_group lock_module_group = {
+	.name = "lock_module",
+	.attrs = lock_module_attrs,
+};
+
 int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 {
 	int error;
@@ -434,9 +569,15 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 	if (error)
 		goto fail_args;
 
+	error = sysfs_create_group(&sdp->sd_kobj, &lock_module_group);
+	if (error)
+		goto fail_tune;
+
 	kobject_uevent(&sdp->sd_kobj, KOBJ_ADD);
 	return 0;
 
+fail_tune:
+	sysfs_remove_group(&sdp->sd_kobj, &tune_group);
 fail_args:
 	sysfs_remove_group(&sdp->sd_kobj, &args_group);
 fail_lockstruct:
@@ -453,6 +594,7 @@ void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 	sysfs_remove_group(&sdp->sd_kobj, &tune_group);
 	sysfs_remove_group(&sdp->sd_kobj, &args_group);
 	sysfs_remove_group(&sdp->sd_kobj, &lockstruct_group);
+	sysfs_remove_group(&sdp->sd_kobj, &lock_module_group);
 	kobject_put(&sdp->sd_kobj);
 }
 

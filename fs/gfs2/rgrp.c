@@ -13,7 +13,6 @@
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 #include <linux/prefetch.h>
 
 #include "gfs2.h"

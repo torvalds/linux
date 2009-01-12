@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 #include <asm/atomic.h>
 
 #include "gfs2.h"
@@ -47,8 +46,6 @@ static void gfs2_init_glock_once(void *foo)
 	INIT_HLIST_NODE(&gl->gl_list);
 	spin_lock_init(&gl->gl_spin);
 	INIT_LIST_HEAD(&gl->gl_holders);
-	gl->gl_lvb = NULL;
-	atomic_set(&gl->gl_lvb_count, 0);
 	INIT_LIST_HEAD(&gl->gl_lru);
 	INIT_LIST_HEAD(&gl->gl_ail_list);
 	atomic_set(&gl->gl_ail_count, 0);

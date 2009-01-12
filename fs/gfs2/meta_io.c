@@ -19,7 +19,6 @@
 #include <linux/delay.h>
 #include <linux/bio.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 
 #include "gfs2.h"
 #include "incore.h"

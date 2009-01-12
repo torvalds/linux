@@ -12,7 +12,6 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 #include <linux/bio.h>
 
 #include "gfs2.h"
@@ -390,18 +389,6 @@ static int trans_go_demote_ok(const struct gfs2_glock *gl)
 	return 0;
 }
 
-/**
- * quota_go_demote_ok - Check to see if it's ok to unlock a quota glock
- * @gl: the glock
- *
- * Returns: 1 if it's ok
- */
-
-static int quota_go_demote_ok(const struct gfs2_glock *gl)
-{
-	return !atomic_read(&gl->gl_lvb_count);
-}
-
 const struct gfs2_glock_operations gfs2_meta_glops = {
 	.go_xmote_th = meta_go_sync,
 	.go_type = LM_TYPE_META,
@@ -448,7 +435,6 @@ const struct gfs2_glock_operations gfs2_nondisk_glops = {
 };
 
 const struct gfs2_glock_operations gfs2_quota_glops = {
-	.go_demote_ok = quota_go_demote_ok,
 	.go_type = LM_TYPE_QUOTA,
 };
 

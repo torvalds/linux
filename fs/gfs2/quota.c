@@ -45,7 +45,6 @@
 #include <linux/fs.h>
 #include <linux/bio.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
@@ -108,7 +107,7 @@ int gfs2_shrink_qd_memory(int nr, gfp_t gfp_mask)
 		gfs2_assert_warn(sdp, !qd->qd_slot_count);
 		gfs2_assert_warn(sdp, !qd->qd_bh_count);
 
-		gfs2_lvb_unhold(qd->qd_gl);
+		gfs2_glock_put(qd->qd_gl);
 		atomic_dec(&sdp->sd_quota_count);
 
 		/* Delete it from the common reclaim list */
@@ -154,11 +153,6 @@ static int qd_alloc(struct gfs2_sbd *sdp, int user, u32 id,
 
 	error = gfs2_glock_get(sdp, 2 * (u64)id + !user,
 			      &gfs2_quota_glops, CREATE, &qd->qd_gl);
-	if (error)
-		goto fail;
-
-	error = gfs2_lvb_hold(qd->qd_gl);
-	gfs2_glock_put(qd->qd_gl);
 	if (error)
 		goto fail;
 
@@ -211,7 +205,7 @@ static int qd_get(struct gfs2_sbd *sdp, int user, u32 id, int create,
 
 		if (qd || !create) {
 			if (new_qd) {
-				gfs2_lvb_unhold(new_qd->qd_gl);
+				gfs2_glock_put(new_qd->qd_gl);
 				kmem_cache_free(gfs2_quotad_cachep, new_qd);
 			}
 			*qdp = qd;
@@ -1280,7 +1274,7 @@ void gfs2_quota_cleanup(struct gfs2_sbd *sdp)
 			gfs2_assert_warn(sdp, qd->qd_slot_count == 1);
 		gfs2_assert_warn(sdp, !qd->qd_bh_count);
 
-		gfs2_lvb_unhold(qd->qd_gl);
+		gfs2_glock_put(qd->qd_gl);
 		kmem_cache_free(gfs2_quotad_cachep, qd);
 
 		spin_lock(&qd_lru_lock);
