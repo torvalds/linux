@@ -373,7 +373,7 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 	unsol->queue[wp] = res;
 	unsol->queue[wp + 1] = res_ex;
 
-	schedule_work(&unsol->work);
+	queue_work(bus->workq, &unsol->work);
 
 	return 0;
 }
@@ -437,15 +437,17 @@ static int snd_hda_bus_free(struct hda_bus *bus)
 
 	if (!bus)
 		return 0;
-	if (bus->unsol) {
-		flush_scheduled_work();
+	if (bus->workq)
+		flush_workqueue(bus->workq);
+	if (bus->unsol)
 		kfree(bus->unsol);
-	}
 	list_for_each_entry_safe(codec, n, &bus->codec_list, list) {
 		snd_hda_codec_free(codec);
 	}
 	if (bus->ops.private_free)
 		bus->ops.private_free(bus);
+	if (bus->workq)
+		destroy_workqueue(bus->workq);
 	kfree(bus);
 	return 0;
 }
@@ -485,6 +487,7 @@ int /*__devinit*/ snd_hda_bus_new(struct snd_card *card,
 {
 	struct hda_bus *bus;
 	int err;
+	char qname[8];
 	static struct snd_device_ops dev_ops = {
 		.dev_register = snd_hda_bus_dev_register,
 		.dev_free = snd_hda_bus_dev_free,
@@ -513,6 +516,14 @@ int /*__devinit*/ snd_hda_bus_new(struct snd_card *card,
 
 	mutex_init(&bus->cmd_mutex);
 	INIT_LIST_HEAD(&bus->codec_list);
+
+	snprintf(qname, sizeof(qname), "hda%d", card->number);
+	bus->workq = create_workqueue(qname);
+	if (!bus->workq) {
+		snd_printk(KERN_ERR "cannot create workqueue %s\n", qname);
+		kfree(bus);
+		return -ENOMEM;
+	}
 
 	err = snd_device_new(card, SNDRV_DEV_BUS, bus, &dev_ops);
 	if (err < 0) {
@@ -684,7 +695,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 		return;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	cancel_delayed_work(&codec->power_work);
-	flush_scheduled_work();
+	flush_workqueue(codec->bus->workq);
 #endif
 	list_del(&codec->list);
 	snd_array_free(&codec->mixers);
@@ -735,6 +746,7 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 	codec->bus = bus;
 	codec->addr = codec_addr;
 	mutex_init(&codec->spdif_mutex);
+	mutex_init(&codec->control_mutex);
 	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
 	snd_array_init(&codec->mixers, sizeof(struct snd_kcontrol *), 32);
@@ -1272,7 +1284,7 @@ void snd_hda_codec_reset(struct hda_codec *codec)
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	cancel_delayed_work(&codec->power_work);
-	flush_scheduled_work();
+	flush_workqueue(codec->bus->workq);
 #endif
 	snd_hda_ctls_clear(codec);
 	/* relase PCMs */
@@ -1418,12 +1430,12 @@ int snd_hda_mixer_bind_switch_get(struct snd_kcontrol *kcontrol,
 	unsigned long pval;
 	int err;
 
-	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_lock(&codec->control_mutex);
 	pval = kcontrol->private_value;
 	kcontrol->private_value = pval & ~AMP_VAL_IDX_MASK; /* index 0 */
 	err = snd_hda_mixer_amp_switch_get(kcontrol, ucontrol);
 	kcontrol->private_value = pval;
-	mutex_unlock(&codec->spdif_mutex);
+	mutex_unlock(&codec->control_mutex);
 	return err;
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_bind_switch_get);
@@ -1435,7 +1447,7 @@ int snd_hda_mixer_bind_switch_put(struct snd_kcontrol *kcontrol,
 	unsigned long pval;
 	int i, indices, err = 0, change = 0;
 
-	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_lock(&codec->control_mutex);
 	pval = kcontrol->private_value;
 	indices = (pval & AMP_VAL_IDX_MASK) >> AMP_VAL_IDX_SHIFT;
 	for (i = 0; i < indices; i++) {
@@ -1447,7 +1459,7 @@ int snd_hda_mixer_bind_switch_put(struct snd_kcontrol *kcontrol,
 		change |= err;
 	}
 	kcontrol->private_value = pval;
-	mutex_unlock(&codec->spdif_mutex);
+	mutex_unlock(&codec->control_mutex);
 	return err < 0 ? err : change;
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_bind_switch_put);
@@ -1462,12 +1474,12 @@ int snd_hda_mixer_bind_ctls_info(struct snd_kcontrol *kcontrol,
 	struct hda_bind_ctls *c;
 	int err;
 
-	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_lock(&codec->control_mutex);
 	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	kcontrol->private_value = *c->values;
 	err = c->ops->info(kcontrol, uinfo);
 	kcontrol->private_value = (long)c;
-	mutex_unlock(&codec->spdif_mutex);
+	mutex_unlock(&codec->control_mutex);
 	return err;
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_bind_ctls_info);
@@ -1479,12 +1491,12 @@ int snd_hda_mixer_bind_ctls_get(struct snd_kcontrol *kcontrol,
 	struct hda_bind_ctls *c;
 	int err;
 
-	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_lock(&codec->control_mutex);
 	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	kcontrol->private_value = *c->values;
 	err = c->ops->get(kcontrol, ucontrol);
 	kcontrol->private_value = (long)c;
-	mutex_unlock(&codec->spdif_mutex);
+	mutex_unlock(&codec->control_mutex);
 	return err;
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_bind_ctls_get);
@@ -1497,7 +1509,7 @@ int snd_hda_mixer_bind_ctls_put(struct snd_kcontrol *kcontrol,
 	unsigned long *vals;
 	int err = 0, change = 0;
 
-	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_lock(&codec->control_mutex);
 	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	for (vals = c->values; *vals; vals++) {
 		kcontrol->private_value = *vals;
@@ -1507,7 +1519,7 @@ int snd_hda_mixer_bind_ctls_put(struct snd_kcontrol *kcontrol,
 		change |= err;
 	}
 	kcontrol->private_value = (long)c;
-	mutex_unlock(&codec->spdif_mutex);
+	mutex_unlock(&codec->control_mutex);
 	return err < 0 ? err : change;
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_bind_ctls_put);
@@ -1519,12 +1531,12 @@ int snd_hda_mixer_bind_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	struct hda_bind_ctls *c;
 	int err;
 
-	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	mutex_lock(&codec->control_mutex);
 	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	kcontrol->private_value = *c->values;
 	err = c->ops->tlv(kcontrol, op_flag, size, tlv);
 	kcontrol->private_value = (long)c;
-	mutex_unlock(&codec->spdif_mutex);
+	mutex_unlock(&codec->control_mutex);
 	return err;
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_bind_tlv);
