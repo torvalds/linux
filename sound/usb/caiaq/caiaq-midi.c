@@ -59,6 +59,11 @@ static int snd_usb_caiaq_midi_output_open(struct snd_rawmidi_substream *substrea
 
 static int snd_usb_caiaq_midi_output_close(struct snd_rawmidi_substream *substream)
 {
+	struct snd_usb_caiaqdev *dev = substream->rmidi->private_data;
+	if (dev->midi_out_active) {
+		usb_kill_urb(&dev->midi_out_urb);
+		dev->midi_out_active = 0;
+	}
 	return 0;
 }
 
@@ -69,7 +74,8 @@ static void snd_usb_caiaq_midi_send(struct snd_usb_caiaqdev *dev,
 	
 	dev->midi_out_buf[0] = EP1_CMD_MIDI_WRITE;
 	dev->midi_out_buf[1] = 0; /* port */
-	len = snd_rawmidi_transmit_peek(substream, dev->midi_out_buf+3, EP1_BUFSIZE-3);
+	len = snd_rawmidi_transmit(substream, dev->midi_out_buf + 3,
+				   EP1_BUFSIZE - 3);
 	
 	if (len <= 0)
 		return;
@@ -79,24 +85,24 @@ static void snd_usb_caiaq_midi_send(struct snd_usb_caiaqdev *dev,
 	
 	ret = usb_submit_urb(&dev->midi_out_urb, GFP_ATOMIC);
 	if (ret < 0)
-		log("snd_usb_caiaq_midi_send(%p): usb_submit_urb() failed, %d\n",
-				substream, ret);
+		log("snd_usb_caiaq_midi_send(%p): usb_submit_urb() failed,"
+		    "ret=%d, len=%d\n",
+		    substream, ret, len);
+	else
+		dev->midi_out_active = 1;
 }
 
 static void snd_usb_caiaq_midi_output_trigger(struct snd_rawmidi_substream *substream, int up)
 {
 	struct snd_usb_caiaqdev *dev = substream->rmidi->private_data;
 	
-	if (dev->midi_out_substream != NULL)
-		return;
-	
-	if (!up) {
+	if (up) {
+		dev->midi_out_substream = substream;
+		if (!dev->midi_out_active)
+			snd_usb_caiaq_midi_send(dev, substream);
+	} else {
 		dev->midi_out_substream = NULL;
-		return;
 	}
-	
-	dev->midi_out_substream = substream;
-	snd_usb_caiaq_midi_send(dev, substream);
 }
 
 
@@ -161,16 +167,14 @@ int snd_usb_caiaq_midi_init(struct snd_usb_caiaqdev *device)
 void snd_usb_caiaq_midi_output_done(struct urb* urb)
 {
 	struct snd_usb_caiaqdev *dev = urb->context;
-      	char *buf = urb->transfer_buffer;
 	
+	dev->midi_out_active = 0;
 	if (urb->status != 0)
 		return;
 
 	if (!dev->midi_out_substream)
 		return;
 
-	snd_rawmidi_transmit_ack(dev->midi_out_substream, buf[2]);
-	dev->midi_out_substream = NULL;
 	snd_usb_caiaq_midi_send(dev, dev->midi_out_substream);
 }
 
