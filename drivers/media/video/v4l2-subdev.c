@@ -33,6 +33,12 @@ int v4l2_subdev_command(struct v4l2_subdev *sd, unsigned cmd, void *arg)
 		return v4l2_subdev_call(sd, core, g_ctrl, arg);
 	case VIDIOC_S_CTRL:
 		return v4l2_subdev_call(sd, core, s_ctrl, arg);
+	case VIDIOC_G_EXT_CTRLS:
+		return v4l2_subdev_call(sd, core, g_ext_ctrls, arg);
+	case VIDIOC_S_EXT_CTRLS:
+		return v4l2_subdev_call(sd, core, s_ext_ctrls, arg);
+	case VIDIOC_TRY_EXT_CTRLS:
+		return v4l2_subdev_call(sd, core, try_ext_ctrls, arg);
 	case VIDIOC_QUERYMENU:
 		return v4l2_subdev_call(sd, core, querymenu, arg);
 	case VIDIOC_LOG_STATUS:
