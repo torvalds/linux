@@ -12,10 +12,6 @@
 #ifndef __ASM_ARCH_IRQS_H
 #define __ASM_ARCH_IRQS_H __FILE__
 
-#ifndef __ASM_ARM_IRQ_H
-#error "Do not include this directly, instead #include <asm/irq.h>"
-#endif
-
 /* we keep the first set of CPU IRQs out of the range of
  * the ISA space, so that the PC104 has them to itself
  * and we don't end up having to do horrible things to the
@@ -134,6 +130,8 @@
 #define IRQ_S3C2443_HSMMC	S3C2410_IRQ(20)		/* IRQ_SDI */
 #define IRQ_S3C2443_NAND	S3C2410_IRQ(24)		/* reserved */
 
+#define IRQ_HSMMC0		IRQ_S3C2443_HSMMC
+
 #define IRQ_S3C2443_LCD1	S3C2410_IRQSUB(14)
 #define IRQ_S3C2443_LCD2	S3C2410_IRQSUB(15)
 #define IRQ_S3C2443_LCD3	S3C2410_IRQSUB(16)
@@ -159,6 +157,12 @@
 #else
 #define NR_IRQS (IRQ_S3C2440_AC97+1)
 #endif
+
+/* compatibility define. */
+#define IRQ_UART3		IRQ_S3C2443_UART3
+#define IRQ_S3CUART_RX3		IRQ_S3C2443_RX3
+#define IRQ_S3CUART_TX3		IRQ_S3C2443_TX3
+#define IRQ_S3CUART_ERR3	IRQ_S3C2443_ERR3
 
 /* Our FIQs are routable from IRQ_EINT0 to IRQ_ADCPARENT */
 #define FIQ_START		IRQ_EINT0

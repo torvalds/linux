@@ -213,7 +213,7 @@ static int check_filter(struct tap_filter *filter, const struct sk_buff *skb)
 
 /* Network device part of the driver */
 
-static unsigned int tun_net_id;
+static int tun_net_id;
 struct tun_net {
 	struct list_head dev_list;
 };
@@ -343,7 +343,7 @@ static void tun_net_init(struct net_device *dev)
 		break;
 
 	case TUN_TAP_DEV:
-		dev->netdev_ops = &tun_netdev_ops;
+		dev->netdev_ops = &tap_netdev_ops;
 		/* Ethernet TAP Device */
 		ether_setup(dev);
 

@@ -51,6 +51,7 @@
  */
 
 
+#include <linux/bottom_half.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/module.h>
@@ -1593,7 +1594,7 @@ process:
 #ifdef CONFIG_NET_DMA
 		struct tcp_sock *tp = tcp_sk(sk);
 		if (!tp->ucopy.dma_chan && tp->ucopy.pinned_list)
-			tp->ucopy.dma_chan = get_softnet_dma();
+			tp->ucopy.dma_chan = dma_find_channel(DMA_MEMCPY);
 		if (tp->ucopy.dma_chan)
 			ret = tcp_v4_do_rcv(sk, skb);
 		else
@@ -1797,7 +1798,9 @@ static int tcp_v4_init_sock(struct sock *sk)
 	sk->sk_sndbuf = sysctl_tcp_wmem[1];
 	sk->sk_rcvbuf = sysctl_tcp_rmem[1];
 
+	local_bh_disable();
 	percpu_counter_inc(&tcp_sockets_allocated);
+	local_bh_enable();
 
 	return 0;
 }

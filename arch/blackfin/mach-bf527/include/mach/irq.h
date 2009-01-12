@@ -96,14 +96,14 @@
 #define IRQ_MAC_TX		BFIN_IRQ(30)	/* DMA2 Channel (MAC TX/NAND) */
 #define IRQ_NFC			BFIN_IRQ(30)	/* DMA2 Channel (MAC TX/NAND) */
 #define IRQ_PORTH_INTB		BFIN_IRQ(31)	/* Port H Interrupt B */
-#define IRQ_TMR0		BFIN_IRQ(32)	/* Timer 0 */
-#define IRQ_TMR1		BFIN_IRQ(33)	/* Timer 1 */
-#define IRQ_TMR2		BFIN_IRQ(34)	/* Timer 2 */
-#define IRQ_TMR3		BFIN_IRQ(35)	/* Timer 3 */
-#define IRQ_TMR4		BFIN_IRQ(36)	/* Timer 4 */
-#define IRQ_TMR5		BFIN_IRQ(37)	/* Timer 5 */
-#define IRQ_TMR6		BFIN_IRQ(38)	/* Timer 6 */
-#define IRQ_TMR7		BFIN_IRQ(39)	/* Timer 7 */
+#define IRQ_TIMER0		BFIN_IRQ(32)	/* Timer 0 */
+#define IRQ_TIMER1		BFIN_IRQ(33)	/* Timer 1 */
+#define IRQ_TIMER2		BFIN_IRQ(34)	/* Timer 2 */
+#define IRQ_TIMER3		BFIN_IRQ(35)	/* Timer 3 */
+#define IRQ_TIMER4		BFIN_IRQ(36)	/* Timer 4 */
+#define IRQ_TIMER5		BFIN_IRQ(37)	/* Timer 5 */
+#define IRQ_TIMER6		BFIN_IRQ(38)	/* Timer 6 */
+#define IRQ_TIMER7		BFIN_IRQ(39)	/* Timer 7 */
 #define IRQ_PORTG_INTA		BFIN_IRQ(40)	/* Port G Interrupt A */
 #define IRQ_PORTG_INTB		BFIN_IRQ(41)	/* Port G Interrupt B */
 #define IRQ_MEM_DMA0		BFIN_IRQ(42)	/* MDMA Stream 0 */
@@ -227,14 +227,14 @@
 #define IRQ_PORTH_INTB_POS	28
 
 /* IAR4 BIT FIELDS */
-#define IRQ_TMR0_POS		0
-#define IRQ_TMR1_POS		4
-#define IRQ_TMR2_POS		8
-#define IRQ_TMR3_POS		12
-#define IRQ_TMR4_POS		16
-#define IRQ_TMR5_POS		20
-#define IRQ_TMR6_POS		24
-#define IRQ_TMR7_POS		28
+#define IRQ_TIMER0_POS		0
+#define IRQ_TIMER1_POS		4
+#define IRQ_TIMER2_POS		8
+#define IRQ_TIMER3_POS		12
+#define IRQ_TIMER4_POS		16
+#define IRQ_TIMER5_POS		20
+#define IRQ_TIMER6_POS		24
+#define IRQ_TIMER7_POS		28
 
 /* IAR5 BIT FIELDS */
 #define IRQ_PORTG_INTA_POS	0

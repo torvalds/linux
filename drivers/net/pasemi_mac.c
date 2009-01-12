@@ -954,7 +954,6 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 {
 	const struct pasemi_mac_rxring *rxring = data;
 	struct pasemi_mac *mac = rxring->mac;
-	struct net_device *dev = mac->netdev;
 	const struct pasemi_dmachan *chan = &rxring->chan;
 	unsigned int reg;
 
@@ -1634,7 +1633,6 @@ static void pasemi_mac_set_rx_mode(struct net_device *dev)
 static int pasemi_mac_poll(struct napi_struct *napi, int budget)
 {
 	struct pasemi_mac *mac = container_of(napi, struct pasemi_mac, napi);
-	struct net_device *dev = mac->netdev;
 	int pkts;
 
 	pasemi_mac_clean_tx(tx_ring(mac));

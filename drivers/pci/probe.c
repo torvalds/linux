@@ -51,11 +51,11 @@ static ssize_t pci_bus_show_cpuaffinity(struct device *dev,
 					char *buf)
 {
 	int ret;
-	cpumask_t cpumask;
+	const struct cpumask *cpumask;
 
-	cpumask = pcibus_to_cpumask(to_pci_bus(dev));
+	cpumask = cpumask_of_pcibus(to_pci_bus(dev));
 	ret = type?
-		cpulist_scnprintf(buf, PAGE_SIZE-2, cpumask):
+		cpulist_scnprintf(buf, PAGE_SIZE-2, cpumask) :
 		cpumask_scnprintf(buf, PAGE_SIZE-2, cpumask);
 	buf[ret++] = '\n';
 	buf[ret] = '\0';
@@ -135,13 +135,6 @@ static u64 pci_size(u64 base, u64 maxbase, u64 mask)
 	return size;
 }
 
-enum pci_bar_type {
-	pci_bar_unknown,	/* Standard PCI BAR probe */
-	pci_bar_io,		/* An io port BAR */
-	pci_bar_mem32,		/* A 32-bit memory BAR */
-	pci_bar_mem64,		/* A 64-bit memory BAR */
-};
-
 static inline enum pci_bar_type decode_bar(struct resource *res, u32 bar)
 {
 	if ((bar & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
@@ -156,11 +149,16 @@ static inline enum pci_bar_type decode_bar(struct resource *res, u32 bar)
 	return pci_bar_mem32;
 }
 
-/*
- * If the type is not unknown, we assume that the lowest bit is 'enable'.
- * Returns 1 if the BAR was 64-bit and 0 if it was 32-bit.
+/**
+ * pci_read_base - read a PCI BAR
+ * @dev: the PCI device
+ * @type: type of the BAR
+ * @res: resource buffer to be filled in
+ * @pos: BAR position in the config space
+ *
+ * Returns 1 if the BAR is 64-bit, or 0 if 32-bit.
  */
-static int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
+int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			struct resource *res, unsigned int pos)
 {
 	u32 l, sz, mask;
@@ -400,19 +398,17 @@ static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 	if (!child)
 		return NULL;
 
-	child->self = bridge;
 	child->parent = parent;
 	child->ops = parent->ops;
 	child->sysdata = parent->sysdata;
 	child->bus_flags = parent->bus_flags;
-	child->bridge = get_device(&bridge->dev);
 
 	/* initialize some portions of the bus device, but don't register it
 	 * now as the parent is not properly set up yet.  This device will get
 	 * registered later in pci_bus_add_devices()
 	 */
 	child->dev.class = &pcibus_class;
-	sprintf(child->dev.bus_id, "%04x:%02x", pci_domain_nr(child), busnr);
+	dev_set_name(&child->dev, "%04x:%02x", pci_domain_nr(child), busnr);
 
 	/*
 	 * Set up the primary, secondary and subordinate
@@ -422,8 +418,14 @@ static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 	child->primary = parent->secondary;
 	child->subordinate = 0xff;
 
+	if (!bridge)
+		return child;
+
+	child->self = bridge;
+	child->bridge = get_device(&bridge->dev);
+
 	/* Set up default resource pointers and names.. */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++) {
 		child->resource[i] = &bridge->resource[PCI_BRIDGE_RESOURCES+i];
 		child->resource[i]->name = child->name;
 	}
@@ -958,8 +960,12 @@ static void pci_init_capabilities(struct pci_dev *dev)
 	/* MSI/MSI-X list */
 	pci_msi_init_pci_dev(dev);
 
+	/* Buffers for saving PCIe and PCI-X capabilities */
+	pci_allocate_cap_save_buffers(dev);
+
 	/* Power Management */
 	pci_pm_init(dev);
+	platform_pci_wakeup_init(dev);
 
 	/* Vital Product Data */
 	pci_vpd_pci22_init(dev);
@@ -1130,7 +1136,7 @@ struct pci_bus * pci_create_bus(struct device *parent,
 	memset(dev, 0, sizeof(*dev));
 	dev->parent = parent;
 	dev->release = pci_release_bus_bridge_dev;
-	sprintf(dev->bus_id, "pci%04x:%02x", pci_domain_nr(b), bus);
+	dev_set_name(dev, "pci%04x:%02x", pci_domain_nr(b), bus);
 	error = device_register(dev);
 	if (error)
 		goto dev_reg_err;
@@ -1141,7 +1147,7 @@ struct pci_bus * pci_create_bus(struct device *parent,
 
 	b->dev.class = &pcibus_class;
 	b->dev.parent = b->bridge;
-	sprintf(b->dev.bus_id, "%04x:%02x", pci_domain_nr(b), bus);
+	dev_set_name(&b->dev, "%04x:%02x", pci_domain_nr(b), bus);
 	error = device_register(&b->dev);
 	if (error)
 		goto class_dev_reg_err;

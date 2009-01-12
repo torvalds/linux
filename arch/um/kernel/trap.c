@@ -64,11 +64,10 @@ good_area:
 
 	do {
 		int fault;
-survive:
+
 		fault = handle_mm_fault(mm, vma, address, is_write);
 		if (unlikely(fault & VM_FAULT_ERROR)) {
 			if (fault & VM_FAULT_OOM) {
-				err = -ENOMEM;
 				goto out_of_memory;
 			} else if (fault & VM_FAULT_SIGBUS) {
 				err = -EACCES;
@@ -104,18 +103,14 @@ out:
 out_nosemaphore:
 	return err;
 
-/*
- * We ran out of memory, or some other thing happened to us that made
- * us unable to handle the page fault gracefully.
- */
 out_of_memory:
-	if (is_global_init(current)) {
-		up_read(&mm->mmap_sem);
-		yield();
-		down_read(&mm->mmap_sem);
-		goto survive;
-	}
-	goto out;
+	/*
+	 * We ran out of memory, call the OOM killer, and return the userspace
+	 * (which will retry the fault, or kill us if we got oom-killed).
+	 */
+	up_read(&mm->mmap_sem);
+	pagefault_out_of_memory();
+	return 0;
 }
 
 static void bad_segv(struct faultinfo fi, unsigned long ip)
@@ -214,9 +209,6 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		si.si_addr = (void __user *)address;
 		current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGBUS, &si, current);
-	} else if (err == -ENOMEM) {
-		printk(KERN_INFO "VM: killing process %s\n", current->comm);
-		do_exit(SIGKILL);
 	} else {
 		BUG_ON(err != -EFAULT);
 		si.si_signo = SIGSEGV;

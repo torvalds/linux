@@ -31,15 +31,11 @@ Each of the measured inputs (temperature, fan speed) has corresponding high/low
 limit values. The ADT7470 will signal an ALARM if any measured value exceeds
 either limit.
 
-The ADT7470 DOES NOT sample all inputs continuously.  A single pin on the
-ADT7470 is connected to a multitude of thermal diodes, but the chip must be
-instructed explicitly to read the multitude of diodes.  If you want to use
-automatic fan control mode, you must manually read any of the temperature
-sensors or the fan control algorithm will not run.  The chip WILL NOT DO THIS
-AUTOMATICALLY; this must be done from userspace.  This may be a bug in the chip
-design, given that many other AD chips take care of this.  The driver will not
-read the registers more often than once every 5 seconds.  Further,
-configuration data is only read once per minute.
+The ADT7470 samples all inputs continuously.  A kernel thread is started up for
+the purpose of periodically querying the temperature sensors, thus allowing the
+automatic fan pwm control to set the fan speed.  The driver will not read the
+registers more often than once every 5 seconds.  Further, configuration data is
+only read once per minute.
 
 Special Features
 ----------------
@@ -72,5 +68,6 @@ pwm#_auto_point2_temp.
 Notes
 -----
 
-As stated above, the temperature inputs must be read periodically from
-userspace in order for the automatic pwm algorithm to run.
+The temperature inputs no longer need to be read periodically from userspace in
+order for the automatic pwm algorithm to run.  This was the case for earlier
+versions of the driver.

@@ -85,7 +85,6 @@ xfs_trans_iget(
 {
 	int			error;
 	xfs_inode_t		*ip;
-	xfs_inode_log_item_t	*iip;
 
 	/*
 	 * If the transaction pointer is NULL, just call the normal
@@ -138,34 +137,7 @@ xfs_trans_iget(
 	}
 	ASSERT(ip != NULL);
 
-	/*
-	 * Get a log_item_desc to point at the new item.
-	 */
-	if (ip->i_itemp == NULL)
-		xfs_inode_item_init(ip, mp);
-	iip = ip->i_itemp;
-	(void) xfs_trans_add_item(tp, (xfs_log_item_t *)(iip));
-
-	xfs_trans_inode_broot_debug(ip);
-
-	/*
-	 * If the IO lock has been acquired, mark that in
-	 * the inode log item so we'll know to unlock it
-	 * when the transaction commits.
-	 */
-	ASSERT(iip->ili_flags == 0);
-	if (lock_flags & XFS_IOLOCK_EXCL) {
-		iip->ili_flags |= XFS_ILI_IOLOCKED_EXCL;
-	} else if (lock_flags & XFS_IOLOCK_SHARED) {
-		iip->ili_flags |= XFS_ILI_IOLOCKED_SHARED;
-	}
-
-	/*
-	 * Initialize i_transp so we can find it with xfs_inode_incore()
-	 * above.
-	 */
-	ip->i_transp = tp;
-
+	xfs_trans_ijoin(tp, ip, lock_flags);
 	*ipp = ip;
 	return 0;
 }

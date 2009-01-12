@@ -14,13 +14,18 @@
 #include "oprofile_stats.h"
 #include "oprof.h"
 
-unsigned long fs_buffer_size = 131072;
-unsigned long fs_cpu_buffer_size = 8192;
-unsigned long fs_buffer_watershed = 32768; /* FIXME: tune */
+#define BUFFER_SIZE_DEFAULT		131072
+#define CPU_BUFFER_SIZE_DEFAULT		8192
+#define BUFFER_WATERSHED_DEFAULT	32768	/* FIXME: tune */
+
+unsigned long oprofile_buffer_size;
+unsigned long oprofile_cpu_buffer_size;
+unsigned long oprofile_buffer_watershed;
 
 static ssize_t depth_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
-	return oprofilefs_ulong_to_user(backtrace_depth, buf, count, offset);
+	return oprofilefs_ulong_to_user(oprofile_backtrace_depth, buf, count,
+					offset);
 }
 
 
@@ -120,12 +125,17 @@ static const struct file_operations dump_fops = {
 
 void oprofile_create_files(struct super_block *sb, struct dentry *root)
 {
+	/* reinitialize default values */
+	oprofile_buffer_size =		BUFFER_SIZE_DEFAULT;
+	oprofile_cpu_buffer_size =	CPU_BUFFER_SIZE_DEFAULT;
+	oprofile_buffer_watershed =	BUFFER_WATERSHED_DEFAULT;
+
 	oprofilefs_create_file(sb, root, "enable", &enable_fops);
 	oprofilefs_create_file_perm(sb, root, "dump", &dump_fops, 0666);
 	oprofilefs_create_file(sb, root, "buffer", &event_buffer_fops);
-	oprofilefs_create_ulong(sb, root, "buffer_size", &fs_buffer_size);
-	oprofilefs_create_ulong(sb, root, "buffer_watershed", &fs_buffer_watershed);
-	oprofilefs_create_ulong(sb, root, "cpu_buffer_size", &fs_cpu_buffer_size);
+	oprofilefs_create_ulong(sb, root, "buffer_size", &oprofile_buffer_size);
+	oprofilefs_create_ulong(sb, root, "buffer_watershed", &oprofile_buffer_watershed);
+	oprofilefs_create_ulong(sb, root, "cpu_buffer_size", &oprofile_cpu_buffer_size);
 	oprofilefs_create_file(sb, root, "cpu_type", &cpu_type_fops);
 	oprofilefs_create_file(sb, root, "backtrace_depth", &depth_fops);
 	oprofilefs_create_file(sb, root, "pointer_size", &pointer_size_fops);

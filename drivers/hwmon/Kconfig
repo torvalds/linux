@@ -284,11 +284,12 @@ config SENSORS_F71805F
 	  will be called f71805f.
 
 config SENSORS_F71882FG
-	tristate "Fintek F71882FG and F71883FG"
+	tristate "Fintek F71862FG, F71882FG and F8000"
 	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for hardware monitoring
-	  features of the Fintek F71882FG and F71883FG Super-I/O chips.
+	  features of the Fintek F71882FG/F71883FG, F71862FG/71863FG
+	  and F8000 Super-I/O chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called f71882fg.
@@ -304,9 +305,13 @@ config SENSORS_F75375S
 	  will be called f75375s.
 
 config SENSORS_FSCHER
-	tristate "FSC Hermes"
+	tristate "FSC Hermes (DEPRECATED)"
 	depends on X86 && I2C
 	help
+	  This driver is DEPRECATED please use the new merged fschmd
+	  ("FSC Poseidon, Scylla, Hermes, Heimdall and Heracles") driver
+	  instead.
+
 	  If you say yes here you get support for Fujitsu Siemens
 	  Computers Hermes sensor chips.
 
@@ -314,9 +319,13 @@ config SENSORS_FSCHER
 	  will be called fscher.
 
 config SENSORS_FSCPOS
-	tristate "FSC Poseidon"
+	tristate "FSC Poseidon (DEPRECATED)"
 	depends on X86 && I2C
 	help
+	  This driver is DEPRECATED please use the new merged fschmd
+	  ("FSC Poseidon, Scylla, Hermes, Heimdall and Heracles") driver
+	  instead.
+
 	  If you say yes here you get support for Fujitsu Siemens
 	  Computers Poseidon sensor chips.
 
@@ -325,14 +334,15 @@ config SENSORS_FSCPOS
 
 config SENSORS_FSCHMD
 	tristate "FSC Poseidon, Scylla, Hermes, Heimdall and Heracles"
-	depends on X86 && I2C && EXPERIMENTAL
+	depends on X86 && I2C
 	help
 	  If you say yes here you get support for various Fujitsu Siemens
-	  Computers sensor chips.
+	  Computers sensor chips, including support for the integrated
+	  watchdog.
 
-	  This is a new merged driver for FSC sensor chips which is intended
-	  as a replacment for the fscpos, fscscy and fscher drivers and adds
-	  support for several other FCS sensor chips.
+	  This is a merged driver for FSC sensor chips replacing the fscpos,
+	  fscscy and fscher drivers and adding support for several other FSC
+	  sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called fschmd.
@@ -399,7 +409,8 @@ config SENSORS_IT87
 	select HWMON_VID
 	help
 	  If you say yes here you get support for ITE IT8705F, IT8712F,
-	  IT8716F, IT8718F and IT8726F sensor chips, and the SiS960 clone.
+	  IT8716F, IT8718F, IT8720F and IT8726F sensor chips, and the
+	  SiS960 clone.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called it87.
@@ -417,11 +428,12 @@ config SENSORS_LM63
 	  will be called lm63.
 
 config SENSORS_LM70
-	tristate "National Semiconductor LM70"
+	tristate "National Semiconductor LM70 / Texas Instruments TMP121"
 	depends on SPI_MASTER && EXPERIMENTAL
 	help
 	  If you say yes here you get support for the National Semiconductor
-	  LM70 digital temperature sensor chip.
+	  LM70 and Texas Instruments TMP121/TMP123 digital temperature
+	  sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm70.
@@ -547,6 +559,17 @@ config SENSORS_LM93
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm93.
+
+config SENSORS_LTC4245
+	tristate "Linear Technology LTC4245"
+	depends on I2C && EXPERIMENTAL
+	default n
+	help
+	  If you say yes here you get support for Linear Technology LTC4245
+	  Multiple Supply Hot Swap Controller I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc4245.
 
 config SENSORS_MAX1111
 	tristate "Maxim MAX1111 Multichannel, Serial 8-bit ADC chip"

@@ -13,6 +13,10 @@ config GENERIC_FIND_FIRST_BIT
 config GENERIC_FIND_NEXT_BIT
 	bool
 
+config GENERIC_FIND_LAST_BIT
+	bool
+	default y
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -158,5 +162,16 @@ config CHECK_SIGNATURE
 
 config HAVE_LMB
 	boolean
+
+config CPUMASK_OFFSTACK
+	bool "Force CPU masks off stack" if DEBUG_PER_CPU_MAPS
+	help
+	  Use dynamic allocation for cpumask_var_t, instead of putting
+	  them on the stack.  This is a bit more expensive, but avoids
+	  stack overflow.
+
+config DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
+       bool "Disable obsolete cpumask functions" if DEBUG_PER_CPU_MAPS
+       depends on EXPERIMENTAL && BROKEN
 
 endmenu

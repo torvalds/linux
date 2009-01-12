@@ -1,0 +1,81 @@
+Kernel driver ltc4245
+=====================
+
+Supported chips:
+  * Linear Technology LTC4245
+    Prefix: 'ltc4245'
+    Addresses scanned: 0x20-0x3f
+    Datasheet:
+        http://www.linear.com/pc/downloadDocument.do?navId=H0,C1,C1003,C1006,C1140,P19392,D13517
+
+Author: Ira W. Snyder <iws@ovro.caltech.edu>
+
+
+Description
+-----------
+
+The LTC4245 controller allows a board to be safely inserted and removed
+from a live backplane in multiple supply systems such as CompactPCI and
+PCI Express.
+
+
+Usage Notes
+-----------
+
+This driver does not probe for LTC4245 devices, due to the fact that some
+of the possible addresses are unfriendly to probing. You will need to use
+the "force" parameter to tell the driver where to find the device.
+
+Example: the following will load the driver for an LTC4245 at address 0x23
+on I2C bus #1:
+$ modprobe ltc4245 force=1,0x23
+
+
+Sysfs entries
+-------------
+
+The LTC4245 has built-in limits for over and under current warnings. This
+makes it very likely that the reference circuit will be used.
+
+This driver uses the values in the datasheet to change the register values
+into the values specified in the sysfs-interface document. The current readings
+rely on the sense resistors listed in Table 2: "Sense Resistor Values".
+
+in1_input		12v input voltage (mV)
+in2_input		5v  input voltage (mV)
+in3_input		3v  input voltage (mV)
+in4_input		Vee (-12v) input voltage (mV)
+
+in1_min_alarm		12v input undervoltage alarm
+in2_min_alarm		5v  input undervoltage alarm
+in3_min_alarm		3v  input undervoltage alarm
+in4_min_alarm		Vee (-12v) input undervoltage alarm
+
+curr1_input		12v current (mA)
+curr2_input		5v  current (mA)
+curr3_input		3v  current (mA)
+curr4_input		Vee (-12v) current (mA)
+
+curr1_max_alarm		12v overcurrent alarm
+curr2_max_alarm		5v  overcurrent alarm
+curr3_max_alarm		3v  overcurrent alarm
+curr4_max_alarm		Vee (-12v) overcurrent alarm
+
+in5_input		12v output voltage (mV)
+in6_input		5v  output voltage (mV)
+in7_input		3v  output voltage (mV)
+in8_input		Vee (-12v) output voltage (mV)
+
+in5_min_alarm		12v output undervoltage alarm
+in6_min_alarm		5v  output undervoltage alarm
+in7_min_alarm		3v  output undervoltage alarm
+in8_min_alarm		Vee (-12v) output undervoltage alarm
+
+in9_input		GPIO #1 voltage data
+in10_input		GPIO #2 voltage data
+in11_input		GPIO #3 voltage data
+
+power1_input		12v power usage (mW)
+power2_input		5v  power usage (mW)
+power3_input		3v  power usage (mW)
+power4_input		Vee (-12v) power usage (mW)

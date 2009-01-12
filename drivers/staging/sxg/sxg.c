@@ -80,13 +80,13 @@
 #include "sxgphycode.h"
 #include "saharadbgdownload.h"
 
-static int sxg_allocate_buffer_memory(p_adapter_t adapter, u32 Size,
-				      SXG_BUFFER_TYPE BufferType);
-static void sxg_allocate_rcvblock_complete(p_adapter_t adapter, void *RcvBlock,
+static int sxg_allocate_buffer_memory(struct adapter_t *adapter, u32 Size,
+				      enum SXG_BUFFER_TYPE BufferType);
+static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter, void *RcvBlock,
 					   dma_addr_t PhysicalAddress,
 					   u32 Length);
-static void sxg_allocate_sgl_buffer_complete(p_adapter_t adapter,
-					     PSXG_SCATTER_GATHER SxgSgl,
+static void sxg_allocate_sgl_buffer_complete(struct adapter_t *adapter,
+					     struct SXG_SCATTER_GATHER *SxgSgl,
 					     dma_addr_t PhysicalAddress,
 					     u32 Length);
 
@@ -96,17 +96,17 @@ static int sxg_entry_open(p_net_device dev);
 static int sxg_entry_halt(p_net_device dev);
 static int sxg_ioctl(p_net_device dev, struct ifreq *rq, int cmd);
 static int sxg_send_packets(struct sk_buff *skb, p_net_device dev);
-static int sxg_transmit_packet(p_adapter_t adapter, struct sk_buff *skb);
-static void sxg_dumb_sgl(PSCATTER_GATHER_LIST pSgl, PSXG_SCATTER_GATHER SxgSgl);
+static int sxg_transmit_packet(struct adapter_t *adapter, struct sk_buff *skb);
+static void sxg_dumb_sgl(struct SCATTER_GATHER_LIST *pSgl, struct SXG_SCATTER_GATHER *SxgSgl);
 
-static void sxg_handle_interrupt(p_adapter_t adapter);
-static int sxg_process_isr(p_adapter_t adapter, u32 MessageId);
-static u32 sxg_process_event_queue(p_adapter_t adapter, u32 RssId);
-static void sxg_complete_slow_send(p_adapter_t adapter);
-static struct sk_buff *sxg_slow_receive(p_adapter_t adapter, PSXG_EVENT Event);
-static void sxg_process_rcv_error(p_adapter_t adapter, u32 ErrorStatus);
-static bool sxg_mac_filter(p_adapter_t adapter,
-			   p_ether_header EtherHdr, ushort length);
+static void sxg_handle_interrupt(struct adapter_t *adapter);
+static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId);
+static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId);
+static void sxg_complete_slow_send(struct adapter_t *adapter);
+static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter, struct SXG_EVENT *Event);
+static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus);
+static bool sxg_mac_filter(struct adapter_t *adapter,
+			   struct ether_header *EtherHdr, ushort length);
 
 #if SLIC_GET_STATS_ENABLED
 static struct net_device_stats *sxg_get_stats(p_net_device dev);
@@ -119,22 +119,22 @@ static int sxg_mac_set_address(p_net_device dev, void *ptr);
 static void sxg_mcast_set_list(p_net_device dev);
 #endif
 
-static void sxg_adapter_set_hwaddr(p_adapter_t adapter);
+static void sxg_adapter_set_hwaddr(struct adapter_t *adapter);
 
-static void sxg_unmap_mmio_space(p_adapter_t adapter);
+static void sxg_unmap_mmio_space(struct adapter_t *adapter);
 
-static int sxg_initialize_adapter(p_adapter_t adapter);
-static void sxg_stock_rcv_buffers(p_adapter_t adapter);
-static void sxg_complete_descriptor_blocks(p_adapter_t adapter,
+static int sxg_initialize_adapter(struct adapter_t *adapter);
+static void sxg_stock_rcv_buffers(struct adapter_t *adapter);
+static void sxg_complete_descriptor_blocks(struct adapter_t *adapter,
 					   unsigned char Index);
-static int sxg_initialize_link(p_adapter_t adapter);
-static int sxg_phy_init(p_adapter_t adapter);
-static void sxg_link_event(p_adapter_t adapter);
-static SXG_LINK_STATE sxg_get_link_state(p_adapter_t adapter);
-static void sxg_link_state(p_adapter_t adapter, SXG_LINK_STATE LinkState);
-static int sxg_write_mdio_reg(p_adapter_t adapter,
+static int sxg_initialize_link(struct adapter_t *adapter);
+static int sxg_phy_init(struct adapter_t *adapter);
+static void sxg_link_event(struct adapter_t *adapter);
+static enum SXG_LINK_STATE sxg_get_link_state(struct adapter_t *adapter);
+static void sxg_link_state(struct adapter_t *adapter, enum SXG_LINK_STATE LinkState);
+static int sxg_write_mdio_reg(struct adapter_t *adapter,
 			      u32 DevAddr, u32 RegAddr, u32 Value);
-static int sxg_read_mdio_reg(p_adapter_t adapter,
+static int sxg_read_mdio_reg(struct adapter_t *adapter,
 			     u32 DevAddr, u32 RegAddr, u32 *pValue);
 
 static unsigned int sxg_first_init = 1;
@@ -145,7 +145,7 @@ static int sxg_debug = 1;
 static int debug = -1;
 static p_net_device head_netdevice = NULL;
 
-static sxgbase_driver_t sxg_global = {
+static struct sxgbase_driver_t sxg_global = {
 	.dynamic_intagg = 1,
 };
 static int intagg_delay = 100;
@@ -186,7 +186,7 @@ static inline void sxg_reg32_write(void __iomem *reg, u32 value, bool flush)
 		mb();
 }
 
-static inline void sxg_reg64_write(p_adapter_t adapter, void __iomem *reg,
+static inline void sxg_reg64_write(struct adapter_t *adapter, void __iomem *reg,
 				   u64 value, u32 cpu)
 {
 	u32 value_high = (u32) (value >> 32);
@@ -209,7 +209,7 @@ static void sxg_init_driver(void)
 	}
 }
 
-static void sxg_dbg_macaddrs(p_adapter_t adapter)
+static void sxg_dbg_macaddrs(struct adapter_t *adapter)
 {
 	DBG_ERROR("  (%s) curr %2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",
 		  adapter->netdev->name, adapter->currmacaddr[0],
@@ -225,12 +225,12 @@ static void sxg_dbg_macaddrs(p_adapter_t adapter)
 }
 
 /* SXG Globals */
-static SXG_DRIVER SxgDriver;
+static struct SXG_DRIVER SxgDriver;
 
 #ifdef  ATKDBG
-static sxg_trace_buffer_t LSxgTraceBuffer;
+static struct sxg_trace_buffer_t LSxgTraceBuffer;
 #endif /* ATKDBG */
-static sxg_trace_buffer_t *SxgTraceBuffer = NULL;
+static struct sxg_trace_buffer_t *SxgTraceBuffer = NULL;
 
 /*
  * sxg_download_microcode
@@ -244,9 +244,9 @@ static sxg_trace_buffer_t *SxgTraceBuffer = NULL;
  * Return
  *	int
  */
-static bool sxg_download_microcode(p_adapter_t adapter, SXG_UCODE_SEL UcodeSel)
+static bool sxg_download_microcode(struct adapter_t *adapter, enum SXG_UCODE_SEL UcodeSel)
 {
-	PSXG_HW_REGS HwRegs = adapter->HwRegs;
+	struct SXG_HW_REGS *HwRegs = adapter->HwRegs;
 	u32 Section;
 	u32 ThisSectionSize;
 	u32 *Instruction = NULL;
@@ -416,13 +416,13 @@ static bool sxg_download_microcode(p_adapter_t adapter, SXG_UCODE_SEL UcodeSel)
  * Return
  *	int
  */
-static int sxg_allocate_resources(p_adapter_t adapter)
+static int sxg_allocate_resources(struct adapter_t *adapter)
 {
 	int status;
 	u32 i;
 	u32 RssIds, IsrCount;
-/*      PSXG_XMT_RING                                   XmtRing; */
-/*      PSXG_RCV_RING                                   RcvRing; */
+/*      struct SXG_XMT_RING                                   *XmtRing; */
+/*      struct SXG_RCV_RING                                   *RcvRing; */
 
 	DBG_ERROR("%s ENTER\n", __func__);
 
@@ -461,13 +461,13 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 
 	for (;;) {
 		DBG_ERROR("%s Allocate XmtRings size[%x]\n", __func__,
-			  (unsigned int)(sizeof(SXG_XMT_RING) * 1));
+			  (unsigned int)(sizeof(struct SXG_XMT_RING) * 1));
 
 		/* Start with big items first - receive and transmit rings.  At the moment */
 		/* I'm going to keep the ring size fixed and adjust the number of */
 		/* TCBs if we fail.  Later we might consider reducing the ring size as well.. */
 		adapter->XmtRings = pci_alloc_consistent(adapter->pcidev,
-							 sizeof(SXG_XMT_RING) *
+							 sizeof(struct SXG_XMT_RING) *
 							 1,
 							 &adapter->PXmtRings);
 		DBG_ERROR("%s XmtRings[%p]\n", __func__, adapter->XmtRings);
@@ -475,33 +475,33 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 		if (!adapter->XmtRings) {
 			goto per_tcb_allocation_failed;
 		}
-		memset(adapter->XmtRings, 0, sizeof(SXG_XMT_RING) * 1);
+		memset(adapter->XmtRings, 0, sizeof(struct SXG_XMT_RING) * 1);
 
 		DBG_ERROR("%s Allocate RcvRings size[%x]\n", __func__,
-			  (unsigned int)(sizeof(SXG_RCV_RING) * 1));
+			  (unsigned int)(sizeof(struct SXG_RCV_RING) * 1));
 		adapter->RcvRings =
 		    pci_alloc_consistent(adapter->pcidev,
-					 sizeof(SXG_RCV_RING) * 1,
+					 sizeof(struct SXG_RCV_RING) * 1,
 					 &adapter->PRcvRings);
 		DBG_ERROR("%s RcvRings[%p]\n", __func__, adapter->RcvRings);
 		if (!adapter->RcvRings) {
 			goto per_tcb_allocation_failed;
 		}
-		memset(adapter->RcvRings, 0, sizeof(SXG_RCV_RING) * 1);
+		memset(adapter->RcvRings, 0, sizeof(struct SXG_RCV_RING) * 1);
 		break;
 
 	      per_tcb_allocation_failed:
 		/* an allocation failed.  Free any successful allocations. */
 		if (adapter->XmtRings) {
 			pci_free_consistent(adapter->pcidev,
-					    sizeof(SXG_XMT_RING) * 4096,
+					    sizeof(struct SXG_XMT_RING) * 4096,
 					    adapter->XmtRings,
 					    adapter->PXmtRings);
 			adapter->XmtRings = NULL;
 		}
 		if (adapter->RcvRings) {
 			pci_free_consistent(adapter->pcidev,
-					    sizeof(SXG_RCV_RING) * 4096,
+					    sizeof(struct SXG_RCV_RING) * 4096,
 					    adapter->RcvRings,
 					    adapter->PRcvRings);
 			adapter->RcvRings = NULL;
@@ -517,7 +517,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 	/* Sanity check receive data structure format */
 	ASSERT((adapter->ReceiveBufferSize == SXG_RCV_DATA_BUFFER_SIZE) ||
 	       (adapter->ReceiveBufferSize == SXG_RCV_JUMBO_BUFFER_SIZE));
-	ASSERT(sizeof(SXG_RCV_DESCRIPTOR_BLOCK) ==
+	ASSERT(sizeof(struct SXG_RCV_DESCRIPTOR_BLOCK) ==
 	       SXG_RCV_DESCRIPTOR_BLOCK_SIZE);
 
 	/* Allocate receive data buffers.  We allocate a block of buffers and */
@@ -539,11 +539,11 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 	}
 
 	DBG_ERROR("%s Allocate EventRings size[%x]\n", __func__,
-		  (unsigned int)(sizeof(SXG_EVENT_RING) * RssIds));
+		  (unsigned int)(sizeof(struct SXG_EVENT_RING) * RssIds));
 
 	/* Allocate event queues. */
 	adapter->EventRings = pci_alloc_consistent(adapter->pcidev,
-						   sizeof(SXG_EVENT_RING) *
+						   sizeof(struct SXG_EVENT_RING) *
 						   RssIds,
 						   &adapter->PEventRings);
 
@@ -554,7 +554,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 		status = STATUS_RESOURCES;
 		goto per_tcb_allocation_failed;
 	}
-	memset(adapter->EventRings, 0, sizeof(SXG_EVENT_RING) * RssIds);
+	memset(adapter->EventRings, 0, sizeof(struct SXG_EVENT_RING) * RssIds);
 
 	DBG_ERROR("%s Allocate ISR size[%x]\n", __func__, IsrCount);
 	/* Allocate ISR */
@@ -628,7 +628,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	static int did_version = 0;
 	int err;
 	struct net_device *netdev;
-	p_adapter_t adapter;
+	struct adapter_t *adapter;
 	void __iomem *memmapped_ioaddr;
 	u32 status = 0;
 	ulong mmio_start = 0;
@@ -681,7 +681,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	pci_set_master(pcidev);
 
 	DBG_ERROR("call alloc_etherdev\n");
-	netdev = alloc_etherdev(sizeof(adapter_t));
+	netdev = alloc_etherdev(sizeof(struct adapter_t));
 	if (!netdev) {
 		err = -ENOMEM;
 		goto err_out_exit_sxg_probe;
@@ -871,7 +871,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
  * Return Value:
  * 	None.
  */
-static void sxg_disable_interrupt(p_adapter_t adapter)
+static void sxg_disable_interrupt(struct adapter_t *adapter)
 {
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DisIntr",
 		  adapter, adapter->InterruptsEnabled, 0, 0);
@@ -902,7 +902,7 @@ static void sxg_disable_interrupt(p_adapter_t adapter)
  * Return Value:
  * 	None.
  */
-static void sxg_enable_interrupt(p_adapter_t adapter)
+static void sxg_enable_interrupt(struct adapter_t *adapter)
 {
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "EnIntr",
 		  adapter, adapter->InterruptsEnabled, 0, 0);
@@ -935,7 +935,7 @@ static void sxg_enable_interrupt(p_adapter_t adapter)
 static irqreturn_t sxg_isr(int irq, void *dev_id)
 {
 	p_net_device dev = (p_net_device) dev_id;
-	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
+	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 /*      u32                 CpuMask = 0, i; */
 
 	adapter->Stats.NumInts++;
@@ -963,8 +963,8 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 		for (i = 0;
 		     i < adapter->RssSystemInfo->ProcessorInfo.RssCpuCount;
 		     i++) {
-			PSXG_EVENT_RING EventRing = &adapter->EventRings[i];
-			PSXG_EVENT Event =
+			struct XG_EVENT_RING *EventRing = &adapter->EventRings[i];
+			struct SXG_EVENT *Event =
 			    &EventRing->Ring[adapter->NextEvent[i]];
 			unsigned char Cpu =
 			    adapter->RssSystemInfo->RssIdToCpu[i];
@@ -992,7 +992,7 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void sxg_handle_interrupt(p_adapter_t adapter)
+static void sxg_handle_interrupt(struct adapter_t *adapter)
 {
 /*    unsigned char           RssId   = 0; */
 	u32 NewIsr;
@@ -1056,7 +1056,7 @@ static void sxg_handle_interrupt(p_adapter_t adapter)
  * Return Value:
  * 	None
  */
-static int sxg_process_isr(p_adapter_t adapter, u32 MessageId)
+static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 {
 	u32 Isr = adapter->IsrCopy[MessageId];
 	u32 NewIsr = 0;
@@ -1153,10 +1153,10 @@ static int sxg_process_isr(p_adapter_t adapter, u32 MessageId)
  * Return Value:
  * 	None.
  */
-static u32 sxg_process_event_queue(p_adapter_t adapter, u32 RssId)
+static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 {
-	PSXG_EVENT_RING EventRing = &adapter->EventRings[RssId];
-	PSXG_EVENT Event = &EventRing->Ring[adapter->NextEvent[RssId]];
+	struct SXG_EVENT_RING *EventRing = &adapter->EventRings[RssId];
+	struct SXG_EVENT *Event = &EventRing->Ring[adapter->NextEvent[RssId]];
 	u32 EventsProcessed = 0, Batches = 0;
 	u32 num_skbs = 0;
 	struct sk_buff *skb;
@@ -1164,7 +1164,7 @@ static u32 sxg_process_event_queue(p_adapter_t adapter, u32 RssId)
 	struct sk_buff *prev_skb = NULL;
 	struct sk_buff *IndicationList[SXG_RCV_ARRAYSIZE];
 	u32 Index;
-	PSXG_RCV_DATA_BUFFER_HDR RcvDataBufferHdr;
+	struct SXG_RCV_DATA_BUFFER_HDR *RcvDataBufferHdr;
 #endif
 	u32 ReturnStatus = 0;
 
@@ -1293,12 +1293,12 @@ static u32 sxg_process_event_queue(p_adapter_t adapter, u32 RssId)
  * Return
  *	None
  */
-static void sxg_complete_slow_send(p_adapter_t adapter)
+static void sxg_complete_slow_send(struct adapter_t *adapter)
 {
-	PSXG_XMT_RING XmtRing = &adapter->XmtRings[0];
-	PSXG_RING_INFO XmtRingInfo = &adapter->XmtRingZeroInfo;
+	struct SXG_XMT_RING *XmtRing = &adapter->XmtRings[0];
+	struct SXG_RING_INFO *XmtRingInfo = &adapter->XmtRingZeroInfo;
 	u32 *ContextType;
-	PSXG_CMD XmtCmd;
+	struct SXG_CMD *XmtCmd;
 
 	/* NOTE - This lock is dropped and regrabbed in this loop. */
 	/* This means two different processors can both be running */
@@ -1359,12 +1359,12 @@ static void sxg_complete_slow_send(p_adapter_t adapter)
  * Return
  *	 skb
  */
-static struct sk_buff *sxg_slow_receive(p_adapter_t adapter, PSXG_EVENT Event)
+static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter, struct SXG_EVENT *Event)
 {
-	PSXG_RCV_DATA_BUFFER_HDR RcvDataBufferHdr;
+	struct SXG_RCV_DATA_BUFFER_HDR *RcvDataBufferHdr;
 	struct sk_buff *Packet;
 
-	RcvDataBufferHdr = (PSXG_RCV_DATA_BUFFER_HDR) Event->HostHandle;
+	RcvDataBufferHdr = (struct SXG_RCV_DATA_BUFFER_HDR*) Event->HostHandle;
 	ASSERT(RcvDataBufferHdr);
 	ASSERT(RcvDataBufferHdr->State == SXG_BUFFER_ONCARD);
 	ASSERT(SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr) ==
@@ -1400,7 +1400,7 @@ static struct sk_buff *sxg_slow_receive(p_adapter_t adapter, PSXG_EVENT Event)
 	}
 #if XXXTODO			/* VLAN stuff */
 	/* If there's a VLAN tag, extract it and validate it */
-	if (((p_ether_header) (SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr)))->
+	if (((struct ether_header*) (SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr)))->
 	    EtherType == ETHERTYPE_VLAN) {
 		if (SxgExtractVlanHeader(adapter, RcvDataBufferHdr, Event) !=
 		    STATUS_SUCCESS) {
@@ -1415,7 +1415,7 @@ static struct sk_buff *sxg_slow_receive(p_adapter_t adapter, PSXG_EVENT Event)
 	/* */
 	/* Dumb-nic frame.  See if it passes our mac filter and update stats */
 	/* */
-	if (!sxg_mac_filter(adapter, (p_ether_header)
+	if (!sxg_mac_filter(adapter, (struct ether_header*)
 			    SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr),
 			    Event->Length)) {
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "RcvFiltr",
@@ -1456,7 +1456,7 @@ static struct sk_buff *sxg_slow_receive(p_adapter_t adapter, PSXG_EVENT Event)
  * Return Value:
  * 	None
  */
-static void sxg_process_rcv_error(p_adapter_t adapter, u32 ErrorStatus)
+static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus)
 {
 	u32 Error;
 
@@ -1535,7 +1535,7 @@ static void sxg_process_rcv_error(p_adapter_t adapter, u32 ErrorStatus)
  * Return Value:
  * 	TRUE if the frame is to be allowed
  */
-static bool sxg_mac_filter(p_adapter_t adapter, p_ether_header EtherHdr,
+static bool sxg_mac_filter(struct adapter_t *adapter, struct ether_header *EtherHdr,
 			   ushort length)
 {
 	bool EqualAddr;
@@ -1560,7 +1560,7 @@ static bool sxg_mac_filter(p_adapter_t adapter, p_ether_header EtherHdr,
 				return (TRUE);
 			}
 			if (adapter->MacFilter & MAC_MCAST) {
-				PSXG_MULTICAST_ADDRESS MulticastAddrs =
+				struct SXG_MULTICAST_ADDRESS *MulticastAddrs =
 				    adapter->MulticastAddrs;
 				while (MulticastAddrs) {
 					ETHER_EQ_ADDR(MulticastAddrs->Address,
@@ -1600,7 +1600,7 @@ static bool sxg_mac_filter(p_adapter_t adapter, p_ether_header EtherHdr,
 	return (FALSE);
 }
 
-static int sxg_register_interrupt(p_adapter_t adapter)
+static int sxg_register_interrupt(struct adapter_t *adapter)
 {
 	if (!adapter->intrregistered) {
 		int retval;
@@ -1635,7 +1635,7 @@ static int sxg_register_interrupt(p_adapter_t adapter)
 	return (STATUS_SUCCESS);
 }
 
-static void sxg_deregister_interrupt(p_adapter_t adapter)
+static void sxg_deregister_interrupt(struct adapter_t *adapter)
 {
 	DBG_ERROR("sxg: %s ENTER adapter[%p]\n", __func__, adapter);
 #if XXXTODO
@@ -1661,7 +1661,7 @@ static void sxg_deregister_interrupt(p_adapter_t adapter)
  *  Perform initialization of our slic interface.
  *
  */
-static int sxg_if_init(p_adapter_t adapter)
+static int sxg_if_init(struct adapter_t *adapter)
 {
 	p_net_device dev = adapter->netdev;
 	int status = 0;
@@ -1721,7 +1721,7 @@ static int sxg_if_init(p_adapter_t adapter)
 
 static int sxg_entry_open(p_net_device dev)
 {
-	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
+	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 	int status;
 
 	ASSERT(adapter);
@@ -1777,7 +1777,7 @@ static void __devexit sxg_entry_remove(struct pci_dev *pcidev)
 	p_net_device dev = pci_get_drvdata(pcidev);
 	u32 mmio_start = 0;
 	unsigned int mmio_len = 0;
-	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
+	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 
 	ASSERT(adapter);
 	DBG_ERROR("sxg: %s ENTER dev[%p] adapter[%p]\n", __func__, dev,
@@ -1805,7 +1805,7 @@ static void __devexit sxg_entry_remove(struct pci_dev *pcidev)
 
 static int sxg_entry_halt(p_net_device dev)
 {
-	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
+	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 
 	spin_lock_irqsave(&sxg_global.driver_lock, sxg_global.flags);
 	DBG_ERROR("sxg: %s (%s) ENTER\n", __func__, dev->name);
@@ -1830,7 +1830,7 @@ static int sxg_ioctl(p_net_device dev, struct ifreq *rq, int cmd)
 	switch (cmd) {
 	case SIOCSLICSETINTAGG:
 		{
-/*                      p_adapter_t adapter = (p_adapter_t) netdev_priv(dev); */
+/*                      struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev); */
 			u32 data[7];
 			u32 intagg;
 
@@ -1868,7 +1868,7 @@ static int sxg_ioctl(p_net_device dev, struct ifreq *rq, int cmd)
  */
 static int sxg_send_packets(struct sk_buff *skb, p_net_device dev)
 {
-	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
+	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 	u32 status = STATUS_SUCCESS;
 
 	DBG_ERROR("sxg: %s ENTER sxg_send_packets skb[%p]\n", __func__,
@@ -1934,10 +1934,10 @@ static int sxg_send_packets(struct sk_buff *skb, p_net_device dev)
  * Return -
  * 		STATUS of send
  */
-static int sxg_transmit_packet(p_adapter_t adapter, struct sk_buff *skb)
+static int sxg_transmit_packet(struct adapter_t *adapter, struct sk_buff *skb)
 {
-	PSCATTER_GATHER_LIST pSgl;
-	PSXG_SCATTER_GATHER SxgSgl;
+	struct SCATTER_GATHER_LIST *pSgl;
+	struct SXG_SCATTER_GATHER *SxgSgl;
 	void *SglBuffer;
 	u32 SglBufferLength;
 
@@ -1980,14 +1980,14 @@ static int sxg_transmit_packet(p_adapter_t adapter, struct sk_buff *skb)
  * Return Value:
  * 	None.
  */
-static void sxg_dumb_sgl(PSCATTER_GATHER_LIST pSgl, PSXG_SCATTER_GATHER SxgSgl)
+static void sxg_dumb_sgl(struct SCATTER_GATHER_LIST *pSgl, struct SXG_SCATTER_GATHER *SxgSgl)
 {
-	p_adapter_t adapter = SxgSgl->adapter;
+	struct adapter_t *adapter = SxgSgl->adapter;
 	struct sk_buff *skb = SxgSgl->DumbPacket;
 	/* For now, all dumb-nic sends go on RSS queue zero */
-	PSXG_XMT_RING XmtRing = &adapter->XmtRings[0];
-	PSXG_RING_INFO XmtRingInfo = &adapter->XmtRingZeroInfo;
-	PSXG_CMD XmtCmd = NULL;
+	struct SXG_XMT_RING *XmtRing = &adapter->XmtRings[0];
+	struct SXG_RING_INFO *XmtRingInfo = &adapter->XmtRingZeroInfo;
+	struct SXG_CMD *XmtCmd = NULL;
 /*      u32                         Index = 0; */
 	u32 DataLength = skb->len;
 /*  unsigned int                                BufLen; */
@@ -2117,9 +2117,9 @@ static void sxg_dumb_sgl(PSCATTER_GATHER_LIST pSgl, PSXG_SCATTER_GATHER SxgSgl)
  * Return
  *	status
  */
-static int sxg_initialize_link(p_adapter_t adapter)
+static int sxg_initialize_link(struct adapter_t *adapter)
 {
-	PSXG_HW_REGS HwRegs = adapter->HwRegs;
+	struct SXG_HW_REGS *HwRegs = adapter->HwRegs;
 	u32 Value;
 	u32 ConfigData;
 	u32 MaxFrame;
@@ -2274,10 +2274,10 @@ static int sxg_initialize_link(p_adapter_t adapter)
  * Return
  *	status
  */
-static int sxg_phy_init(p_adapter_t adapter)
+static int sxg_phy_init(struct adapter_t *adapter)
 {
 	u32 Value;
-	PPHY_UCODE p;
+	struct PHY_UCODE *p;
 	int status;
 
 	DBG_ERROR("ENTER %s\n", __func__);
@@ -2322,10 +2322,10 @@ static int sxg_phy_init(p_adapter_t adapter)
  * Return
  *	None
  */
-static void sxg_link_event(p_adapter_t adapter)
+static void sxg_link_event(struct adapter_t *adapter)
 {
-	PSXG_HW_REGS HwRegs = adapter->HwRegs;
-	SXG_LINK_STATE LinkState;
+	struct SXG_HW_REGS *HwRegs = adapter->HwRegs;
+	enum SXG_LINK_STATE LinkState;
 	int status;
 	u32 Value;
 
@@ -2379,7 +2379,7 @@ static void sxg_link_event(p_adapter_t adapter)
  * Return
  *	Link State
  */
-static SXG_LINK_STATE sxg_get_link_state(p_adapter_t adapter)
+static enum SXG_LINK_STATE sxg_get_link_state(struct adapter_t *adapter)
 {
 	int status;
 	u32 Value;
@@ -2433,8 +2433,8 @@ static SXG_LINK_STATE sxg_get_link_state(p_adapter_t adapter)
 	return (SXG_LINK_DOWN);
 }
 
-static void sxg_indicate_link_state(p_adapter_t adapter,
-				    SXG_LINK_STATE LinkState)
+static void sxg_indicate_link_state(struct adapter_t *adapter,
+				    enum SXG_LINK_STATE LinkState)
 {
 	if (adapter->LinkState == SXG_LINK_UP) {
 		DBG_ERROR("%s: LINK now UP, call netif_start_queue\n",
@@ -2460,7 +2460,7 @@ static void sxg_indicate_link_state(p_adapter_t adapter,
  * Return
  *	None
  */
-static void sxg_link_state(p_adapter_t adapter, SXG_LINK_STATE LinkState)
+static void sxg_link_state(struct adapter_t *adapter, enum SXG_LINK_STATE LinkState)
 {
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_IMPORTANT, "LnkINDCT",
 		  adapter, LinkState, adapter->LinkState, adapter->State);
@@ -2498,10 +2498,10 @@ static void sxg_link_state(p_adapter_t adapter, SXG_LINK_STATE LinkState)
  * Return
  *	status
  */
-static int sxg_write_mdio_reg(p_adapter_t adapter,
+static int sxg_write_mdio_reg(struct adapter_t *adapter,
 			      u32 DevAddr, u32 RegAddr, u32 Value)
 {
-	PSXG_HW_REGS HwRegs = adapter->HwRegs;
+	struct SXG_HW_REGS *HwRegs = adapter->HwRegs;
 	u32 AddrOp;		/* Address operation (written to MIIM field reg) */
 	u32 WriteOp;		/* Write operation (written to MIIM field reg) */
 	u32 Cmd;		/* Command (written to MIIM command reg) */
@@ -2588,10 +2588,10 @@ static int sxg_write_mdio_reg(p_adapter_t adapter,
  * Return
  *	status
  */
-static int sxg_read_mdio_reg(p_adapter_t adapter,
+static int sxg_read_mdio_reg(struct adapter_t *adapter,
 			     u32 DevAddr, u32 RegAddr, u32 *pValue)
 {
-	PSXG_HW_REGS HwRegs = adapter->HwRegs;
+	struct SXG_HW_REGS *HwRegs = adapter->HwRegs;
 	u32 AddrOp;		/* Address operation (written to MIIM field reg) */
 	u32 ReadOp;		/* Read operation (written to MIIM field reg) */
 	u32 Cmd;		/* Command (written to MIIM command reg) */
@@ -2735,9 +2735,9 @@ static unsigned char sxg_mcast_get_mac_hash(char *macaddr)
 	return (machash);
 }
 
-static void sxg_mcast_set_mask(p_adapter_t adapter)
+static void sxg_mcast_set_mask(struct adapter_t *adapter)
 {
-	PSXG_UCODE_REGS sxg_regs = adapter->UcodeRegs;
+	struct SXG_UCODE_REGS *sxg_regs = adapter->UcodeRegs;
 
 	DBG_ERROR("%s ENTER (%s) macopts[%x] mask[%llx]\n", __func__,
 		  adapter->netdev->name, (unsigned int)adapter->MacFilter,
@@ -2775,7 +2775,7 @@ static void sxg_mcast_set_mask(p_adapter_t adapter)
  *  Allocate a mcast_address structure to hold the multicast address.
  *  Link it in.
  */
-static int sxg_mcast_add_list(p_adapter_t adapter, char *address)
+static int sxg_mcast_add_list(struct adapter_t *adapter, char *address)
 {
 	p_mcast_address_t mcaddr, mlist;
 	bool equaladdr;
@@ -2803,7 +2803,7 @@ static int sxg_mcast_add_list(p_adapter_t adapter, char *address)
 	return (STATUS_SUCCESS);
 }
 
-static void sxg_mcast_set_bit(p_adapter_t adapter, char *address)
+static void sxg_mcast_set_bit(struct adapter_t *adapter, char *address)
 {
 	unsigned char crcpoly;
 
@@ -2821,7 +2821,7 @@ static void sxg_mcast_set_bit(p_adapter_t adapter, char *address)
 
 static void sxg_mcast_set_list(p_net_device dev)
 {
-	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
+	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 	int status = STATUS_SUCCESS;
 	int i;
 	char *addresses;
@@ -2876,7 +2876,7 @@ static void sxg_mcast_set_list(p_net_device dev)
 }
 #endif
 
-static void sxg_unmap_mmio_space(p_adapter_t adapter)
+static void sxg_unmap_mmio_space(struct adapter_t *adapter)
 {
 #if LINUX_FREES_ADAPTER_RESOURCES
 /*      if (adapter->Regs) { */
@@ -2896,7 +2896,7 @@ static void sxg_unmap_mmio_space(p_adapter_t adapter)
  * Return
  *	none
  */
-void SxgFreeResources(p_adapter_t adapter)
+void SxgFreeResources(struct adapter_t *adapter)
 {
 	u32 RssIds, IsrCount;
 	PTCP_OBJECT TcpObject;
@@ -2924,7 +2924,7 @@ void SxgFreeResources(p_adapter_t adapter)
 	/* Free event queues. */
 	if (adapter->EventRings) {
 		pci_free_consistent(adapter->pcidev,
-				    sizeof(SXG_EVENT_RING) * RssIds,
+				    sizeof(struct SXG_EVENT_RING) * RssIds,
 				    adapter->EventRings, adapter->PEventRings);
 	}
 	if (adapter->Isr) {
@@ -2991,7 +2991,7 @@ void SxgFreeResources(p_adapter_t adapter)
  * This routine is called when a memory allocation has completed.
  *
  * Arguments -
- *	p_adapter_t    	- Our adapter structure
+ *	struct adapter_t *   	- Our adapter structure
  *	VirtualAddress	- Memory virtual address
  *	PhysicalAddress	- Memory physical address
  *	Length		- Length of memory allocated (or 0)
@@ -3000,10 +3000,10 @@ void SxgFreeResources(p_adapter_t adapter)
  * Return
  *	None.
  */
-static void sxg_allocate_complete(p_adapter_t adapter,
+static void sxg_allocate_complete(struct adapter_t *adapter,
 				  void *VirtualAddress,
 				  dma_addr_t PhysicalAddress,
-				  u32 Length, SXG_BUFFER_TYPE Context)
+				  u32 Length, enum SXG_BUFFER_TYPE Context)
 {
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "AllocCmp",
 		  adapter, VirtualAddress, Length, Context);
@@ -3018,7 +3018,7 @@ static void sxg_allocate_complete(p_adapter_t adapter,
 					       PhysicalAddress, Length);
 		break;
 	case SXG_BUFFER_TYPE_SGL:
-		sxg_allocate_sgl_buffer_complete(adapter, (PSXG_SCATTER_GATHER)
+		sxg_allocate_sgl_buffer_complete(adapter, (struct SXG_SCATTER_GATHER*)
 						 VirtualAddress,
 						 PhysicalAddress, Length);
 		break;
@@ -3039,8 +3039,8 @@ static void sxg_allocate_complete(p_adapter_t adapter,
  * Return
  *	int
  */
-static int sxg_allocate_buffer_memory(p_adapter_t adapter,
-				      u32 Size, SXG_BUFFER_TYPE BufferType)
+static int sxg_allocate_buffer_memory(struct adapter_t *adapter,
+				      u32 Size, enum SXG_BUFFER_TYPE BufferType)
 {
 	int status;
 	void *Buffer;
@@ -3091,7 +3091,7 @@ static int sxg_allocate_buffer_memory(p_adapter_t adapter,
  * Return
  *
  */
-static void sxg_allocate_rcvblock_complete(p_adapter_t adapter,
+static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 					   void *RcvBlock,
 					   dma_addr_t PhysicalAddress,
 					   u32 Length)
@@ -3099,11 +3099,11 @@ static void sxg_allocate_rcvblock_complete(p_adapter_t adapter,
 	u32 i;
 	u32 BufferSize = adapter->ReceiveBufferSize;
 	u64 Paddr;
-	PSXG_RCV_BLOCK_HDR RcvBlockHdr;
+	struct SXG_RCV_BLOCK_HDR *RcvBlockHdr;
 	unsigned char *RcvDataBuffer;
-	PSXG_RCV_DATA_BUFFER_HDR RcvDataBufferHdr;
-	PSXG_RCV_DESCRIPTOR_BLOCK RcvDescriptorBlock;
-	PSXG_RCV_DESCRIPTOR_BLOCK_HDR RcvDescriptorBlockHdr;
+	struct SXG_RCV_DATA_BUFFER_HDR *RcvDataBufferHdr;
+	struct SXG_RCV_DESCRIPTOR_BLOCK *RcvDescriptorBlock;
+	struct SXG_RCV_DESCRIPTOR_BLOCK_HDR *RcvDescriptorBlockHdr;
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "AlRcvBlk",
 		  adapter, RcvBlock, Length, 0);
@@ -3129,7 +3129,7 @@ static void sxg_allocate_rcvblock_complete(p_adapter_t adapter,
 		     i++, Paddr += BufferSize, RcvDataBuffer += BufferSize) {
 			/* */
 			RcvDataBufferHdr =
-			    (PSXG_RCV_DATA_BUFFER_HDR) (RcvDataBuffer +
+			    (struct SXG_RCV_DATA_BUFFER_HDR*) (RcvDataBuffer +
 							SXG_RCV_DATA_BUFFER_HDR_OFFSET
 							(BufferSize));
 			RcvDataBufferHdr->VirtualAddress = RcvDataBuffer;
@@ -3147,7 +3147,7 @@ static void sxg_allocate_rcvblock_complete(p_adapter_t adapter,
 	/* Place this entire block of memory on the AllRcvBlocks queue so it can be */
 	/* free later */
 	RcvBlockHdr =
-	    (PSXG_RCV_BLOCK_HDR) ((unsigned char *)RcvBlock +
+	    (struct SXG_RCV_BLOCK_HDR*) ((unsigned char *)RcvBlock +
 				  SXG_RCV_BLOCK_HDR_OFFSET(BufferSize));
 	RcvBlockHdr->VirtualAddress = RcvBlock;
 	RcvBlockHdr->PhysicalAddress = PhysicalAddress;
@@ -3161,7 +3161,7 @@ static void sxg_allocate_rcvblock_complete(p_adapter_t adapter,
 	for (i = 0, Paddr = PhysicalAddress;
 	     i < SXG_RCV_DESCRIPTORS_PER_BLOCK;
 	     i++, Paddr += BufferSize, RcvDataBuffer += BufferSize) {
-		RcvDataBufferHdr = (PSXG_RCV_DATA_BUFFER_HDR) (RcvDataBuffer +
+		RcvDataBufferHdr = (struct SXG_RCV_DATA_BUFFER_HDR*) (RcvDataBuffer +
 							       SXG_RCV_DATA_BUFFER_HDR_OFFSET
 							       (BufferSize));
 		spin_lock(&adapter->RcvQLock);
@@ -3171,11 +3171,11 @@ static void sxg_allocate_rcvblock_complete(p_adapter_t adapter,
 
 	/* Locate the descriptor block and put it on a separate free queue */
 	RcvDescriptorBlock =
-	    (PSXG_RCV_DESCRIPTOR_BLOCK) ((unsigned char *)RcvBlock +
+	    (struct SXG_RCV_DESCRIPTOR_BLOCK*) ((unsigned char *)RcvBlock +
 					 SXG_RCV_DESCRIPTOR_BLOCK_OFFSET
 					 (BufferSize));
 	RcvDescriptorBlockHdr =
-	    (PSXG_RCV_DESCRIPTOR_BLOCK_HDR) ((unsigned char *)RcvBlock +
+	    (struct SXG_RCV_DESCRIPTOR_BLOCK_HDR*) ((unsigned char *)RcvBlock +
 					     SXG_RCV_DESCRIPTOR_BLOCK_HDR_OFFSET
 					     (BufferSize));
 	RcvDescriptorBlockHdr->VirtualAddress = RcvDescriptorBlock;
@@ -3193,7 +3193,7 @@ static void sxg_allocate_rcvblock_complete(p_adapter_t adapter,
 		for (i = 0; i < SXG_RCV_DESCRIPTORS_PER_BLOCK;
 		     i++, RcvDataBuffer += BufferSize) {
 			RcvDataBufferHdr =
-			    (PSXG_RCV_DATA_BUFFER_HDR) (RcvDataBuffer +
+			    (struct SXG_RCV_DATA_BUFFER_HDR*) (RcvDataBuffer +
 							SXG_RCV_DATA_BUFFER_HDR_OFFSET
 							(BufferSize));
 			SXG_FREE_RCV_PACKET(RcvDataBufferHdr);
@@ -3220,8 +3220,8 @@ static void sxg_allocate_rcvblock_complete(p_adapter_t adapter,
  * Return
  *
  */
-static void sxg_allocate_sgl_buffer_complete(p_adapter_t adapter,
-					     PSXG_SCATTER_GATHER SxgSgl,
+static void sxg_allocate_sgl_buffer_complete(struct adapter_t *adapter,
+					     struct SXG_SCATTER_GATHER *SxgSgl,
 					     dma_addr_t PhysicalAddress,
 					     u32 Length)
 {
@@ -3229,7 +3229,7 @@ static void sxg_allocate_sgl_buffer_complete(p_adapter_t adapter,
 		  adapter, SxgSgl, Length, 0);
 	spin_lock(&adapter->SglQLock);
 	adapter->AllSglBufferCount++;
-	memset(SxgSgl, 0, sizeof(SXG_SCATTER_GATHER));
+	memset(SxgSgl, 0, sizeof(struct SXG_SCATTER_GATHER*));
 	SxgSgl->PhysicalAddress = PhysicalAddress;	/* *PhysicalAddress; */
 	SxgSgl->adapter = adapter;	/* Initialize backpointer once */
 	InsertTailList(&adapter->AllSglBuffers, &SxgSgl->AllList);
@@ -3243,14 +3243,14 @@ static void sxg_allocate_sgl_buffer_complete(p_adapter_t adapter,
 static unsigned char temp_mac_address[6] =
     { 0x00, 0xab, 0xcd, 0xef, 0x12, 0x69 };
 
-static void sxg_adapter_set_hwaddr(p_adapter_t adapter)
+static void sxg_adapter_set_hwaddr(struct adapter_t *adapter)
 {
 /*  DBG_ERROR ("%s ENTER card->config_set[%x] port[%d] physport[%d] funct#[%d]\n", __func__, */
 /*             card->config_set, adapter->port, adapter->physport, adapter->functionnumber); */
 /* */
 /*  sxg_dbg_macaddrs(adapter); */
 
-	memcpy(adapter->macaddr, temp_mac_address, sizeof(SXG_CONFIG_MAC));
+	memcpy(adapter->macaddr, temp_mac_address, sizeof(struct SXG_CONFIG_MAC));
 /*      DBG_ERROR ("%s AFTER copying from config.macinfo into currmacaddr\n", __func__); */
 /*      sxg_dbg_macaddrs(adapter); */
 	if (!(adapter->currmacaddr[0] ||
@@ -3271,7 +3271,7 @@ static void sxg_adapter_set_hwaddr(p_adapter_t adapter)
 #if XXXTODO
 static int sxg_mac_set_address(p_net_device dev, void *ptr)
 {
-	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
+	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 	struct sockaddr *addr = ptr;
 
 	DBG_ERROR("%s ENTER (%s)\n", __func__, adapter->netdev->name);
@@ -3313,7 +3313,7 @@ static int sxg_mac_set_address(p_net_device dev, void *ptr)
  * Return
  *	int
  */
-static int sxg_initialize_adapter(p_adapter_t adapter)
+static int sxg_initialize_adapter(struct adapter_t *adapter)
 {
 	u32 RssIds, IsrCount;
 	u32 i;
@@ -3327,7 +3327,7 @@ static int sxg_initialize_adapter(p_adapter_t adapter)
 
 	/* Sanity check SXG_UCODE_REGS structure definition to */
 	/* make sure the length is correct */
-	ASSERT(sizeof(SXG_UCODE_REGS) == SXG_REGISTER_SIZE_PER_CPU);
+	ASSERT(sizeof(struct SXG_UCODE_REGS) == SXG_REGISTER_SIZE_PER_CPU);
 
 	/* Disable interrupts */
 	SXG_DISABLE_ALL_INTERRUPTS(adapter);
@@ -3412,16 +3412,16 @@ static int sxg_initialize_adapter(p_adapter_t adapter)
  * Return
  *	status
  */
-static int sxg_fill_descriptor_block(p_adapter_t adapter,
-				     PSXG_RCV_DESCRIPTOR_BLOCK_HDR
-				     RcvDescriptorBlockHdr)
+static int sxg_fill_descriptor_block(struct adapter_t *adapter,
+				     struct SXG_RCV_DESCRIPTOR_BLOCK_HDR
+				     *RcvDescriptorBlockHdr)
 {
 	u32 i;
-	PSXG_RING_INFO RcvRingInfo = &adapter->RcvRingZeroInfo;
-	PSXG_RCV_DATA_BUFFER_HDR RcvDataBufferHdr;
-	PSXG_RCV_DESCRIPTOR_BLOCK RcvDescriptorBlock;
-	PSXG_CMD RingDescriptorCmd;
-	PSXG_RCV_RING RingZero = &adapter->RcvRings[0];
+	struct SXG_RING_INFO *RcvRingInfo = &adapter->RcvRingZeroInfo;
+	struct SXG_RCV_DATA_BUFFER_HDR *RcvDataBufferHdr;
+	struct SXG_RCV_DESCRIPTOR_BLOCK *RcvDescriptorBlock;
+	struct SXG_CMD *RingDescriptorCmd;
+	struct SXG_RCV_RING *RingZero = &adapter->RcvRings[0];
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "FilBlk",
 		  adapter, adapter->RcvBuffersOnCard,
@@ -3442,7 +3442,7 @@ static int sxg_fill_descriptor_block(p_adapter_t adapter,
 	ASSERT(RingDescriptorCmd);
 	RcvDescriptorBlockHdr->State = SXG_BUFFER_ONCARD;
 	RcvDescriptorBlock =
-	    (PSXG_RCV_DESCRIPTOR_BLOCK) RcvDescriptorBlockHdr->VirtualAddress;
+	    (struct SXG_RCV_DESCRIPTOR_BLOCK*) RcvDescriptorBlockHdr->VirtualAddress;
 
 	/* Fill in the descriptor block */
 	for (i = 0; i < SXG_RCV_DESCRIPTORS_PER_BLOCK; i++) {
@@ -3484,9 +3484,9 @@ static int sxg_fill_descriptor_block(p_adapter_t adapter,
  * Return
  *	None
  */
-static void sxg_stock_rcv_buffers(p_adapter_t adapter)
+static void sxg_stock_rcv_buffers(struct adapter_t *adapter)
 {
-	PSXG_RCV_DESCRIPTOR_BLOCK_HDR RcvDescriptorBlockHdr;
+	struct SXG_RCV_DESCRIPTOR_BLOCK_HDR *RcvDescriptorBlockHdr;
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "StockBuf",
 		  adapter, adapter->RcvBuffersOnCard,
@@ -3506,14 +3506,14 @@ static void sxg_stock_rcv_buffers(p_adapter_t adapter)
 	/* Now grab the RcvQLock lock and proceed */
 	spin_lock(&adapter->RcvQLock);
 	while (adapter->RcvBuffersOnCard < SXG_RCV_DATA_BUFFERS) {
-		PLIST_ENTRY _ple;
+		struct LIST_ENTRY *_ple;
 
 		/* Get a descriptor block */
 		RcvDescriptorBlockHdr = NULL;
 		if (adapter->FreeRcvBlockCount) {
 			_ple = RemoveHeadList(&adapter->FreeRcvBlocks);
 			RcvDescriptorBlockHdr =
-			    container_of(_ple, SXG_RCV_DESCRIPTOR_BLOCK_HDR,
+			    container_of(_ple, struct SXG_RCV_DESCRIPTOR_BLOCK_HDR,
 					 FreeList);
 			adapter->FreeRcvBlockCount--;
 			RcvDescriptorBlockHdr->State = SXG_BUFFER_BUSY;
@@ -3550,13 +3550,13 @@ static void sxg_stock_rcv_buffers(p_adapter_t adapter)
  * Return
  *	None
  */
-static void sxg_complete_descriptor_blocks(p_adapter_t adapter,
+static void sxg_complete_descriptor_blocks(struct adapter_t *adapter,
 					   unsigned char Index)
 {
-	PSXG_RCV_RING RingZero = &adapter->RcvRings[0];
-	PSXG_RING_INFO RcvRingInfo = &adapter->RcvRingZeroInfo;
-	PSXG_RCV_DESCRIPTOR_BLOCK_HDR RcvDescriptorBlockHdr;
-	PSXG_CMD RingDescriptorCmd;
+	struct SXG_RCV_RING *RingZero = &adapter->RcvRings[0];
+	struct SXG_RING_INFO *RcvRingInfo = &adapter->RcvRingZeroInfo;
+	struct SXG_RCV_DESCRIPTOR_BLOCK_HDR *RcvDescriptorBlockHdr;
+	struct SXG_CMD *RingDescriptorCmd;
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "CmpRBlks",
 		  adapter, Index, RcvRingInfo->Head, RcvRingInfo->Tail);

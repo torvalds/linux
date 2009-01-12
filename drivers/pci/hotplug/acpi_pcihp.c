@@ -33,7 +33,6 @@
 #include <linux/pci-acpi.h>
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
-#include <acpi/actypes.h>
 
 #define MY_NAME	"acpi_pcihp"
 
@@ -500,6 +499,75 @@ int acpi_root_bridge(acpi_handle handle)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_root_bridge);
+
+
+static int is_ejectable(acpi_handle handle)
+{
+	acpi_status status;
+	acpi_handle tmp;
+	unsigned long long removable;
+	status = acpi_get_handle(handle, "_ADR", &tmp);
+	if (ACPI_FAILURE(status))
+		return 0;
+	status = acpi_get_handle(handle, "_EJ0", &tmp);
+	if (ACPI_SUCCESS(status))
+		return 1;
+	status = acpi_evaluate_integer(handle, "_RMV", NULL, &removable);
+	if (ACPI_SUCCESS(status) && removable)
+		return 1;
+	return 0;
+}
+
+/**
+ * acpi_pcihp_check_ejectable - check if handle is ejectable ACPI PCI slot
+ * @pbus: the PCI bus of the PCI slot corresponding to 'handle'
+ * @handle: ACPI handle to check
+ *
+ * Return 1 if handle is ejectable PCI slot, 0 otherwise.
+ */
+int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle)
+{
+	acpi_handle bridge_handle, parent_handle;
+
+	if (!(bridge_handle = acpi_pci_get_bridge_handle(pbus)))
+		return 0;
+	if ((ACPI_FAILURE(acpi_get_parent(handle, &parent_handle))))
+		return 0;
+	if (bridge_handle != parent_handle)
+		return 0;
+	return is_ejectable(handle);
+}
+EXPORT_SYMBOL_GPL(acpi_pci_check_ejectable);
+
+static acpi_status
+check_hotplug(acpi_handle handle, u32 lvl, void *context, void **rv)
+{
+	int *found = (int *)context;
+	if (is_ejectable(handle)) {
+		*found = 1;
+		return AE_CTRL_TERMINATE;
+	}
+	return AE_OK;
+}
+
+/**
+ * acpi_pci_detect_ejectable - check if the PCI bus has ejectable slots
+ * @pbus - PCI bus to scan
+ *
+ * Returns 1 if the PCI bus has ACPI based ejectable slots, 0 otherwise.
+ */
+int acpi_pci_detect_ejectable(struct pci_bus *pbus)
+{
+	acpi_handle handle;
+	int found = 0;
+
+	if (!(handle = acpi_pci_get_bridge_handle(pbus)))
+		return 0;
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
+			    check_hotplug, (void *)&found, NULL);
+	return found;
+}
+EXPORT_SYMBOL_GPL(acpi_pci_detect_ejectable);
 
 module_param(debug_acpi, bool, 0644);
 MODULE_PARM_DESC(debug_acpi, "Debugging mode for ACPI enabled or not");

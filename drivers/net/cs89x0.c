@@ -170,11 +170,7 @@ static char version[] __initdata =
 /* The cs8900 has 4 IRQ pins, software selectable. cs8900_irq_map maps
    them to system IRQ numbers. This mapping is card specific and is set to
    the configuration of the Cirrus Eval board for this chip. */
-#ifdef CONFIG_ARCH_CLPS7500
-static unsigned int netcard_portlist[] __used __initdata =
-   { 0x80090303, 0x300, 0x320, 0x340, 0x360, 0x200, 0x220, 0x240, 0x260, 0x280, 0x2a0, 0x2c0, 0x2e0, 0};
-static unsigned int cs8900_irq_map[] = {12,0,0,0};
-#elif defined(CONFIG_SH_HICOSH4)
+#if defined(CONFIG_SH_HICOSH4)
 static unsigned int netcard_portlist[] __used __initdata =
    { 0x0300, 0};
 static unsigned int cs8900_irq_map[] = {1,0,0,0};

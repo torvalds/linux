@@ -164,7 +164,7 @@ configured individually according to the following options.
                       temperature. (PWM value from 0 to 255)
 
 * pwm#_auto_pwm_minctl - this flags selects for temp#_auto_temp_off temperature
-                         the bahaviour of fans. Write 1 to let fans spinning at
+                         the behaviour of fans. Write 1 to let fans spinning at
 			 pwm#_auto_pwm_min or write 0 to let them off.
 
 NOTE: It has been reported that there is a bug in the LM85 that causes the flag

@@ -28,6 +28,12 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
+static int no_poweroff;
+module_param(no_poweroff, int, 0644);
+MODULE_PARM_DESC(debug, "0 (default) powers device off when not used.\n"
+	"1 keep device energized and with tuner ready all the times.\n"
+	"  Faster, but consumes more power and keeps the device hotter\n");
+
 static char audio_std[8];
 module_param_string(audio_std, audio_std, sizeof(audio_std), 0);
 MODULE_PARM_DESC(audio_std,
@@ -1091,6 +1097,34 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 				T_DIGITAL_TV, type, 0, demod);
 }
 
+static int xc2028_sleep(struct dvb_frontend *fe)
+{
+	struct xc2028_data *priv = fe->tuner_priv;
+	int rc = 0;
+
+	/* Avoid firmware reload on slow devices */
+	if (no_poweroff)
+		return 0;
+
+	tuner_dbg("Putting xc2028/3028 into poweroff mode.\n");
+	if (debug > 1) {
+		tuner_dbg("Printing sleep stack trace:\n");
+		dump_stack();
+	}
+
+	mutex_lock(&priv->lock);
+
+	if (priv->firm_version < 0x0202)
+		rc = send_seq(priv, {0x00, 0x08, 0x00, 0x00});
+	else
+		rc = send_seq(priv, {0x80, 0x08, 0x00, 0x00});
+
+	priv->cur_fw.type = 0;	/* need firmware reload */
+
+	mutex_unlock(&priv->lock);
+
+	return rc;
+}
 
 static int xc2028_dvb_release(struct dvb_frontend *fe)
 {
@@ -1171,6 +1205,7 @@ static const struct dvb_tuner_ops xc2028_dvb_tuner_ops = {
 	.get_frequency     = xc2028_get_frequency,
 	.get_rf_strength   = xc2028_signal,
 	.set_params        = xc2028_set_params,
+	.sleep             = xc2028_sleep,
 };
 
 struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,

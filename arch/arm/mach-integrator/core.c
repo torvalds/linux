@@ -21,6 +21,8 @@
 #include <linux/amba/serial.h>
 #include <linux/io.h>
 
+#include <asm/clkdev.h>
+#include <mach/clkdev.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/hardware/arm_timer.h>
@@ -35,7 +37,7 @@ static struct amba_pl010_data integrator_uart_data;
 
 static struct amba_device rtc_device = {
 	.dev		= {
-		.bus_id	= "mb:15",
+		.init_name = "mb:15",
 	},
 	.res		= {
 		.start	= INTEGRATOR_RTC_BASE,
@@ -48,7 +50,7 @@ static struct amba_device rtc_device = {
 
 static struct amba_device uart0_device = {
 	.dev		= {
-		.bus_id	= "mb:16",
+		.init_name = "mb:16",
 		.platform_data = &integrator_uart_data,
 	},
 	.res		= {
@@ -62,7 +64,7 @@ static struct amba_device uart0_device = {
 
 static struct amba_device uart1_device = {
 	.dev		= {
-		.bus_id	= "mb:17",
+		.init_name = "mb:17",
 		.platform_data = &integrator_uart_data,
 	},
 	.res		= {
@@ -76,7 +78,7 @@ static struct amba_device uart1_device = {
 
 static struct amba_device kmi0_device = {
 	.dev		= {
-		.bus_id	= "mb:18",
+		.init_name = "mb:18",
 	},
 	.res		= {
 		.start	= KMI0_BASE,
@@ -89,7 +91,7 @@ static struct amba_device kmi0_device = {
 
 static struct amba_device kmi1_device = {
 	.dev		= {
-		.bus_id	= "mb:19",
+		.init_name = "mb:19",
 	},
 	.res		= {
 		.start	= KMI1_BASE,
@@ -108,9 +110,42 @@ static struct amba_device *amba_devs[] __initdata = {
 	&kmi1_device,
 };
 
+/*
+ * These are fixed clocks.
+ */
+static struct clk clk24mhz = {
+	.rate	= 24000000,
+};
+
+static struct clk uartclk = {
+	.rate	= 14745600,
+};
+
+static struct clk_lookup lookups[] __initdata = {
+	{	/* UART0 */
+		.dev_id		= "mb:16",
+		.clk		= &uartclk,
+	}, {	/* UART1 */
+		.dev_id		= "mb:17",
+		.clk		= &uartclk,
+	}, {	/* KMI0 */
+		.dev_id		= "mb:18",
+		.clk		= &clk24mhz,
+	}, {	/* KMI1 */
+		.dev_id		= "mb:19",
+		.clk		= &clk24mhz,
+	}, {	/* MMCI - IntegratorCP */
+		.dev_id		= "mb:1c",
+		.clk		= &uartclk,
+	}
+};
+
 static int __init integrator_init(void)
 {
 	int i;
+
+	for (i = 0; i < ARRAY_SIZE(lookups); i++)
+		clkdev_add(&lookups[i]);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

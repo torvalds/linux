@@ -9,7 +9,6 @@ typedef struct {
 	mm_context_id_t		id;
 	void			*vdso;
 #else
-	struct vm_list_struct	*vmlist;
 	unsigned long		end_brk;
 #endif
 #ifdef CONFIG_BINFMT_ELF_FDPIC

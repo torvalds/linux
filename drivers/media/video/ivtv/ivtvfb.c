@@ -48,6 +48,7 @@
 #endif
 
 #include "ivtv-driver.h"
+#include "ivtv-cards.h"
 #include "ivtv-i2c.h"
 #include "ivtv-udma.h"
 #include "ivtv-mailbox.h"
@@ -121,15 +122,15 @@ MODULE_LICENSE("GPL");
 #define IVTVFB_DEBUG(x, type, fmt, args...) \
 	do { \
 		if ((x) & ivtvfb_debug) \
-			printk(KERN_INFO "ivtvfb%d " type ": " fmt, itv->num , ## args); \
+			printk(KERN_INFO "ivtvfb%d " type ": " fmt, itv->instance , ## args); \
 	} while (0)
 #define IVTVFB_DEBUG_WARN(fmt, args...)  IVTVFB_DEBUG(IVTVFB_DBGFLG_WARN, "warning", fmt , ## args)
 #define IVTVFB_DEBUG_INFO(fmt, args...)  IVTVFB_DEBUG(IVTVFB_DBGFLG_INFO, "info", fmt , ## args)
 
 /* Standard kernel messages */
-#define IVTVFB_ERR(fmt, args...)   printk(KERN_ERR  "ivtvfb%d: " fmt, itv->num , ## args)
-#define IVTVFB_WARN(fmt, args...)  printk(KERN_WARNING  "ivtvfb%d: " fmt, itv->num , ## args)
-#define IVTVFB_INFO(fmt, args...)  printk(KERN_INFO "ivtvfb%d: " fmt, itv->num , ## args)
+#define IVTVFB_ERR(fmt, args...)   printk(KERN_ERR  "ivtvfb%d: " fmt, itv->instance , ## args)
+#define IVTVFB_WARN(fmt, args...)  printk(KERN_WARNING  "ivtvfb%d: " fmt, itv->instance , ## args)
+#define IVTVFB_INFO(fmt, args...)  printk(KERN_INFO "ivtvfb%d: " fmt, itv->instance , ## args)
 
 /* --------------------------------------------------------------------- */
 
@@ -895,16 +896,16 @@ static int ivtvfb_blank(int blank_mode, struct fb_info *info)
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 1);
-		ivtv_saa7127(itv, VIDIOC_STREAMON, NULL);
+		ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_stream, 1);
 		break;
 	case FB_BLANK_NORMAL:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_VSYNC_SUSPEND:
 		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 0);
-		ivtv_saa7127(itv, VIDIOC_STREAMON, NULL);
+		ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_stream, 1);
 		break;
 	case FB_BLANK_POWERDOWN:
-		ivtv_saa7127(itv, VIDIOC_STREAMOFF, NULL);
+		ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_stream, 0);
 		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 0);
 		break;
 	}
@@ -1188,10 +1189,45 @@ static int ivtvfb_init_card(struct ivtv *itv)
 
 }
 
+static int __init ivtvfb_callback_init(struct device *dev, void *p)
+{
+	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
+	struct ivtv *itv = container_of(v4l2_dev, struct ivtv, device);
+
+	if (itv && (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)) {
+		if (ivtvfb_init_card(itv) == 0) {
+			IVTVFB_INFO("Framebuffer registered on %s\n",
+					itv->device.name);
+			(*(int *)p)++;
+		}
+	}
+	return 0;
+}
+
+static int ivtvfb_callback_cleanup(struct device *dev, void *p)
+{
+	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
+	struct ivtv *itv = container_of(v4l2_dev, struct ivtv, device);
+
+	if (itv && (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)) {
+		if (unregister_framebuffer(&itv->osd_info->ivtvfb_info)) {
+			IVTVFB_WARN("Framebuffer %d is in use, cannot unload\n",
+				       itv->instance);
+			return 0;
+		}
+		IVTVFB_INFO("Unregister framebuffer %d\n", itv->instance);
+		ivtvfb_blank(FB_BLANK_POWERDOWN, &itv->osd_info->ivtvfb_info);
+		ivtvfb_release_buffers(itv);
+		itv->osd_video_pbase = 0;
+	}
+	return 0;
+}
+
 static int __init ivtvfb_init(void)
 {
-	struct ivtv *itv;
-	int i, registered = 0;
+	struct device_driver *drv;
+	int registered = 0;
+	int err;
 
 	if (ivtvfb_card_id < -1 || ivtvfb_card_id >= IVTV_MAX_CARDS) {
 		printk(KERN_ERR "ivtvfb:  ivtvfb_card_id parameter is out of range (valid range: -1 - %d)\n",
@@ -1199,20 +1235,11 @@ static int __init ivtvfb_init(void)
 		return -EINVAL;
 	}
 
-	/* Locate & initialise all cards supporting an OSD. */
-	for (i = 0; i < ivtv_cards_active; i++) {
-		if (ivtvfb_card_id != -1 && i != ivtvfb_card_id)
-			continue;
-		itv = ivtv_cards[i];
-		if (itv && (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)) {
-			if (ivtvfb_init_card(itv) == 0) {
-				IVTVFB_INFO("Framebuffer registered on ivtv card id %d\n", i);
-				registered++;
-			}
-		}
-	}
+	drv = driver_find("ivtv", &pci_bus_type);
+	err = driver_for_each_device(drv, NULL, &registered, ivtvfb_callback_init);
+	put_driver(drv);
 	if (!registered) {
-		printk(KERN_ERR "ivtvfb:  no cards found");
+		printk(KERN_ERR "ivtvfb:  no cards found\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -1220,24 +1247,14 @@ static int __init ivtvfb_init(void)
 
 static void ivtvfb_cleanup(void)
 {
-	struct ivtv *itv;
-	int i;
+	struct device_driver *drv;
+	int err;
 
 	printk(KERN_INFO "ivtvfb:  Unloading framebuffer module\n");
 
-	for (i = 0; i < ivtv_cards_active; i++) {
-		itv = ivtv_cards[i];
-		if (itv && (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) && itv->osd_info) {
-			if (unregister_framebuffer(&itv->osd_info->ivtvfb_info)) {
-				IVTVFB_WARN("Framebuffer %d is in use, cannot unload\n", i);
-				return;
-			}
-			IVTVFB_DEBUG_INFO("Unregister framebuffer %d\n", i);
-			ivtvfb_blank(FB_BLANK_POWERDOWN, &itv->osd_info->ivtvfb_info);
-			ivtvfb_release_buffers(itv);
-			itv->osd_video_pbase = 0;
-		}
-	}
+	drv = driver_find("ivtv", &pci_bus_type);
+	err = driver_for_each_device(drv, NULL, NULL, ivtvfb_callback_cleanup);
+	put_driver(drv);
 }
 
 module_init(ivtvfb_init);

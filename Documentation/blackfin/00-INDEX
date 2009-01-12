@@ -9,3 +9,6 @@ cachefeatures.txt
 
 Filesystems
 	- Requirements for mounting the root file system.
+
+bfin-gpio-note.txt
+	- Notes in developing/using bfin-gpio driver.

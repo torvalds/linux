@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/notifier.h>
@@ -140,21 +141,12 @@ static struct omap_usb_config voiceblue_usb_config __initdata = {
 	.pins[2]	= 6,
 };
 
-static struct omap_mmc_config voiceblue_mmc_config __initdata = {
-	.mmc[0] = {
-		.enabled	= 1,
-		.power_pin	= 2,
-		.switch_pin	= -1,
-	},
-};
-
 static struct omap_uart_config voiceblue_uart_config __initdata = {
 	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
 };
 
 static struct omap_board_config_kernel voiceblue_config[] = {
 	{ OMAP_TAG_USB,  &voiceblue_usb_config },
-	{ OMAP_TAG_MMC,  &voiceblue_mmc_config },
 	{ OMAP_TAG_UART, &voiceblue_uart_config },
 };
 
@@ -168,29 +160,27 @@ static void __init voiceblue_init_irq(void)
 static void __init voiceblue_init(void)
 {
 	/* Watchdog */
-	omap_request_gpio(0);
+	gpio_request(0, "Watchdog");
 	/* smc91x reset */
-	omap_request_gpio(7);
-	omap_set_gpio_direction(7, 0);
-	omap_set_gpio_dataout(7, 1);
+	gpio_request(7, "SMC91x reset");
+	gpio_direction_output(7, 1);
 	udelay(2);	/* wait at least 100ns */
-	omap_set_gpio_dataout(7, 0);
+	gpio_set_value(7, 0);
 	mdelay(50);	/* 50ms until PHY ready */
 	/* smc91x interrupt pin */
-	omap_request_gpio(8);
+	gpio_request(8, "SMC91x irq");
 	/* 16C554 reset*/
-	omap_request_gpio(6);
-	omap_set_gpio_direction(6, 0);
-	omap_set_gpio_dataout(6, 0);
+	gpio_request(6, "16C554 reset");
+	gpio_direction_output(6, 0);
 	/* 16C554 interrupt pins */
-	omap_request_gpio(12);
-	omap_request_gpio(13);
-	omap_request_gpio(14);
-	omap_request_gpio(15);
-	set_irq_type(OMAP_GPIO_IRQ(12), IRQ_TYPE_EDGE_RISING);
-	set_irq_type(OMAP_GPIO_IRQ(13), IRQ_TYPE_EDGE_RISING);
-	set_irq_type(OMAP_GPIO_IRQ(14), IRQ_TYPE_EDGE_RISING);
-	set_irq_type(OMAP_GPIO_IRQ(15), IRQ_TYPE_EDGE_RISING);
+	gpio_request(12, "16C554 irq");
+	gpio_request(13, "16C554 irq");
+	gpio_request(14, "16C554 irq");
+	gpio_request(15, "16C554 irq");
+	set_irq_type(gpio_to_irq(12), IRQ_TYPE_EDGE_RISING);
+	set_irq_type(gpio_to_irq(13), IRQ_TYPE_EDGE_RISING);
+	set_irq_type(gpio_to_irq(14), IRQ_TYPE_EDGE_RISING);
+	set_irq_type(gpio_to_irq(15), IRQ_TYPE_EDGE_RISING);
 
 	platform_add_devices(voiceblue_devices, ARRAY_SIZE(voiceblue_devices));
 	omap_board_config = voiceblue_config;
@@ -244,19 +234,18 @@ static int wdt_gpio_state;
 
 void voiceblue_wdt_enable(void)
 {
-	omap_set_gpio_direction(0, 0);
-	omap_set_gpio_dataout(0, 0);
-	omap_set_gpio_dataout(0, 1);
-	omap_set_gpio_dataout(0, 0);
+	gpio_direction_output(0, 0);
+	gpio_set_value(0, 1);
+	gpio_set_value(0, 0);
 	wdt_gpio_state = 0;
 }
 
 void voiceblue_wdt_disable(void)
 {
-	omap_set_gpio_dataout(0, 0);
-	omap_set_gpio_dataout(0, 1);
-	omap_set_gpio_dataout(0, 0);
-	omap_set_gpio_direction(0, 1);
+	gpio_set_value(0, 0);
+	gpio_set_value(0, 1);
+	gpio_set_value(0, 0);
+	gpio_direction_input(0);
 }
 
 void voiceblue_wdt_ping(void)
@@ -265,7 +254,7 @@ void voiceblue_wdt_ping(void)
 		return;
 
 	wdt_gpio_state = !wdt_gpio_state;
-	omap_set_gpio_dataout(0, wdt_gpio_state);
+	gpio_set_value(0, wdt_gpio_state);
 }
 
 void voiceblue_reset(void)

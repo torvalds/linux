@@ -14,6 +14,7 @@
 
 #ifndef DASD_H
 #define DASD_H
+#include <linux/types.h>
 #include <linux/ioctl.h>
 
 #define DASD_IOCTL_LETTER 'D'
@@ -78,6 +79,7 @@ typedef struct dasd_information2_t {
 #define DASD_FEATURE_USEDIAG	     0x02
 #define DASD_FEATURE_INITIAL_ONLINE  0x04
 #define DASD_FEATURE_ERPLOG	     0x08
+#define DASD_FEATURE_FAILFAST	     0x10
 
 #define DASD_PARTN_BITS 2
 

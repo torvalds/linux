@@ -46,6 +46,12 @@ static int usu_probe_thread(void *arg);
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin,bcdDeviceMax), \
   .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
 
+#define COMPLIANT_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
+		    vendorName, productName, useProtocol, useTransport, \
+		    initFunction, flags) \
+{ USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
+  .driver_info = (flags) }
+
 #define USUAL_DEV(useProto, useTrans, useType) \
 { USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, useProto, useTrans), \
   .driver_info = ((useType)<<24) }
@@ -57,6 +63,7 @@ struct usb_device_id storage_usb_ids [] = {
 
 #undef USUAL_DEV
 #undef UNUSUAL_DEV
+#undef COMPLIANT_DEV
 
 MODULE_DEVICE_TABLE(usb, storage_usb_ids);
 EXPORT_SYMBOL_GPL(storage_usb_ids);

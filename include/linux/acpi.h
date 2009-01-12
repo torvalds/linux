@@ -131,22 +131,6 @@ extern int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity);
  */
 void acpi_unregister_gsi (u32 gsi);
 
-struct acpi_prt_entry {
-	struct list_head	node;
-	struct acpi_pci_id	id;
-	u8			pin;
-	struct {
-		acpi_handle		handle;
-		u32			index;
-	}			link;
-	u32			irq;
-};
-
-struct acpi_prt_list {
-	int			count;
-	struct list_head	entries;
-};
-
 struct pci_dev;
 
 int acpi_pci_irq_enable (struct pci_dev *dev);
@@ -270,6 +254,7 @@ int acpi_check_mem_region(resource_size_t start, resource_size_t n,
 #ifdef CONFIG_PM_SLEEP
 void __init acpi_no_s4_hw_signature(void);
 void __init acpi_old_suspend_ordering(void);
+void __init acpi_s4_no_nvs(void);
 #endif /* CONFIG_PM_SLEEP */
 #else	/* CONFIG_ACPI */
 

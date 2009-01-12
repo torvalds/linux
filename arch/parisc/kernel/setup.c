@@ -58,11 +58,6 @@ int parisc_bus_is_phys __read_mostly = 1;	/* Assume no IOMMU is present */
 EXPORT_SYMBOL(parisc_bus_is_phys);
 #endif
 
-/* This sets the vmerge boundary and size, it's here because it has to
- * be available on all platforms (zero means no-virtual merging) */
-unsigned long parisc_vmerge_boundary = 0;
-unsigned long parisc_vmerge_max_size = 0;
-
 void __init setup_cmdline(char **cmdline_p)
 {
 	extern unsigned int boot_args[];
@@ -321,7 +316,7 @@ static int __init parisc_init(void)
 	
 	processor_init();
 	printk(KERN_INFO "CPU(s): %d x %s at %d.%06d MHz\n",
-			boot_cpu_data.cpu_count,
+			num_present_cpus(),
 			boot_cpu_data.cpu_name,
 			boot_cpu_data.cpu_hz / 1000000,
 			boot_cpu_data.cpu_hz % 1000000	);
@@ -387,8 +382,8 @@ void start_parisc(void)
 	if (ret >= 0 && coproc_cfg.ccr_functional) {
 		mtctl(coproc_cfg.ccr_functional, 10);
 
-		cpu_data[cpunum].fp_rev = coproc_cfg.revision;
-		cpu_data[cpunum].fp_model = coproc_cfg.model;
+		per_cpu(cpu_data, cpunum).fp_rev = coproc_cfg.revision;
+		per_cpu(cpu_data, cpunum).fp_model = coproc_cfg.model;
 
 		asm volatile ("fstd	%fr0,8(%sp)");
 	} else {

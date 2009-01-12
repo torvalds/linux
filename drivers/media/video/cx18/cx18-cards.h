@@ -4,6 +4,7 @@
  *  Derived from ivtv-cards.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,8 +48,9 @@
 
 /* V4L2 capability aliases */
 #define CX18_CAP_ENCODER (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER | \
-			  V4L2_CAP_AUDIO | V4L2_CAP_READWRITE)
-/* | V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_CAPTURE) not yet */
+			  V4L2_CAP_AUDIO | V4L2_CAP_READWRITE | \
+			  V4L2_CAP_VBI_CAPTURE)
+/* | V4L2_CAP_SLICED_VBI_CAPTURE) not yet */
 
 struct cx18_card_video_input {
 	u8  video_type; 	/* video input type */

@@ -44,3 +44,4 @@
 
 #define IRQ_TIMER		IRQ_TIMER0
 
+#define NR_IRQS			128

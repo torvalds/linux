@@ -774,9 +774,7 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		bdi = blk_get_backing_dev_info(bdev);
 		if (bdi == NULL)
 			return -ENOTTY;
-		lock_kernel();
 		bdi->ra_pages = (arg * 512) / PAGE_CACHE_SIZE;
-		unlock_kernel();
 		return 0;
 	case BLKGETSIZE:
 		size = bdev->bd_inode->i_size;

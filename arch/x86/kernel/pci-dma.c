@@ -38,7 +38,7 @@ EXPORT_SYMBOL(bad_dma_address);
    be probably a smaller DMA mask, but this is bug-to-bug compatible
    to older i386. */
 struct device x86_dma_fallback_dev = {
-	.bus_id = "fallback device",
+	.init_name = "fallback device",
 	.coherent_dma_mask = DMA_32BIT_MASK,
 	.dma_mask = &x86_dma_fallback_dev.coherent_dma_mask,
 };
@@ -101,11 +101,15 @@ static void __init dma32_free_bootmem(void)
 	dma32_bootmem_ptr = NULL;
 	dma32_bootmem_size = 0;
 }
+#endif
 
 void __init pci_iommu_alloc(void)
 {
+#ifdef CONFIG_X86_64
 	/* free the range so iommu could get some range less than 4G */
 	dma32_free_bootmem();
+#endif
+
 	/*
 	 * The order of these functions is important for
 	 * fall-back/fail-over reasons
@@ -120,15 +124,6 @@ void __init pci_iommu_alloc(void)
 
 	pci_swiotlb_init();
 }
-
-unsigned long iommu_nr_pages(unsigned long addr, unsigned long len)
-{
-	unsigned long size = roundup((addr & ~PAGE_MASK) + len, PAGE_SIZE);
-
-	return size >> PAGE_SHIFT;
-}
-EXPORT_SYMBOL(iommu_nr_pages);
-#endif
 
 void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 				 dma_addr_t *dma_addr, gfp_t flag)

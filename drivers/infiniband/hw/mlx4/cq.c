@@ -367,7 +367,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		if (err)
 			goto out;
 	} else {
-		/* Can't be smaller then the number of outstanding CQEs */
+		/* Can't be smaller than the number of outstanding CQEs */
 		outst_cqe = mlx4_ib_get_outstanding_cqes(cq);
 		if (entries < outst_cqe + 1) {
 			err = 0;
@@ -699,7 +699,7 @@ repoll:
 		}
 
 		wc->slid	   = be16_to_cpu(cqe->rlid);
-		wc->sl		   = be16_to_cpu(cqe->sl_vid >> 12);
+		wc->sl		   = be16_to_cpu(cqe->sl_vid) >> 12;
 		g_mlpath_rqpn	   = be32_to_cpu(cqe->g_mlpath_rqpn);
 		wc->src_qp	   = g_mlpath_rqpn & 0xffffff;
 		wc->dlid_path_bits = (g_mlpath_rqpn >> 24) & 0x7f;

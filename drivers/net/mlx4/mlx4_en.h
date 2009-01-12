@@ -115,6 +115,10 @@ enum {
 };
 #define MLX4_EN_MAX_RX_FRAGS	4
 
+/* Maximum ring sizes */
+#define MLX4_EN_MAX_TX_SIZE	8192
+#define MLX4_EN_MAX_RX_SIZE	8192
+
 /* Minimum ring size for our page-allocation sceme to work */
 #define MLX4_EN_MIN_RX_SIZE	(MLX4_EN_ALLOC_SIZE / SMP_CACHE_BYTES)
 #define MLX4_EN_MIN_TX_SIZE	(4096 / TXBB_SIZE)
@@ -202,6 +206,7 @@ struct mlx4_en_tx_info {
 	u32 nr_txbb;
 	u8 linear;
 	u8 data_offset;
+	u8 inl;
 };
 
 
@@ -488,6 +493,12 @@ struct mlx4_en_priv {
 void mlx4_en_destroy_netdev(struct net_device *dev);
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			struct mlx4_en_port_profile *prof);
+
+int mlx4_en_start_port(struct net_device *dev);
+void mlx4_en_stop_port(struct net_device *dev);
+
+void mlx4_en_free_resources(struct mlx4_en_priv *priv);
+int mlx4_en_alloc_resources(struct mlx4_en_priv *priv);
 
 int mlx4_en_get_profile(struct mlx4_en_dev *mdev);
 

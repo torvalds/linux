@@ -1,7 +1,7 @@
 /* RadioTrack II driver for Linux radio support (C) 1998 Ben Pfaff
  *
  * Based on RadioTrack I/RadioReveal (C) 1997 M. Kirkwood
- * Converted to new API by Alan Cox <Alan.Cox@linux.org>
+ * Converted to new API by Alan Cox <alan@lxorguk.ukuu.org.uk>
  * Various bugfixes and enhancements by Russell Kroll <rkroll@exploits.org>
  *
  * TODO: Allow for more than one of these foolish entities :-)
@@ -280,26 +280,22 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static struct rt_device rtrack2_unit;
 
-static int rtrack2_exclusive_open(struct inode *inode, struct file *file)
+static int rtrack2_exclusive_open(struct file *file)
 {
 	return test_and_set_bit(0, &rtrack2_unit.in_use) ? -EBUSY : 0;
 }
 
-static int rtrack2_exclusive_release(struct inode *inode, struct file *file)
+static int rtrack2_exclusive_release(struct file *file)
 {
 	clear_bit(0, &rtrack2_unit.in_use);
 	return 0;
 }
 
-static const struct file_operations rtrack2_fops = {
+static const struct v4l2_file_operations rtrack2_fops = {
 	.owner		= THIS_MODULE,
 	.open           = rtrack2_exclusive_open,
 	.release        = rtrack2_exclusive_release,
 	.ioctl		= video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek         = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops rtrack2_ioctl_ops = {

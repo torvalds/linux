@@ -195,9 +195,23 @@ void gdlm_kobject_release(struct gdlm_ls *ls)
 	kobject_put(&ls->kobj);
 }
 
+static int gdlm_uevent(struct kset *kset, struct kobject *kobj,
+		       struct kobj_uevent_env *env)
+{
+        struct gdlm_ls *ls = container_of(kobj, struct gdlm_ls, kobj);
+        add_uevent_var(env, "LOCKTABLE=%s:%s", ls->clustername, ls->fsname);
+        add_uevent_var(env, "LOCKPROTO=lock_dlm");
+        return 0;
+}
+
+static struct kset_uevent_ops gdlm_uevent_ops = {
+	.uevent = gdlm_uevent,
+};
+
+
 int gdlm_sysfs_init(void)
 {
-	gdlm_kset = kset_create_and_add("lock_dlm", NULL, kernel_kobj);
+	gdlm_kset = kset_create_and_add("lock_dlm", &gdlm_uevent_ops, kernel_kobj);
 	if (!gdlm_kset) {
 		printk(KERN_WARNING "%s: can not create kset\n", __func__);
 		return -ENOMEM;

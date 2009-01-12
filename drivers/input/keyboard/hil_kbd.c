@@ -47,6 +47,7 @@
 MODULE_AUTHOR("Brian S. Julin <bri@calyx.com>");
 MODULE_DESCRIPTION(HIL_GENERIC_NAME " driver");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_ALIAS("serio:ty03pr25id00ex*");
 
 #define HIL_KBD_MAX_LENGTH 16
 

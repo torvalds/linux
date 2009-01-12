@@ -52,11 +52,15 @@ struct rcu_head {
 	void (*func)(struct rcu_head *head);
 };
 
-#ifdef CONFIG_CLASSIC_RCU
+#if defined(CONFIG_CLASSIC_RCU)
 #include <linux/rcuclassic.h>
-#else /* #ifdef CONFIG_CLASSIC_RCU */
+#elif defined(CONFIG_TREE_RCU)
+#include <linux/rcutree.h>
+#elif defined(CONFIG_PREEMPT_RCU)
 #include <linux/rcupreempt.h>
-#endif /* #else #ifdef CONFIG_CLASSIC_RCU */
+#else
+#error "Unknown RCU implementation specified to kernel configuration"
+#endif /* #else #if defined(CONFIG_CLASSIC_RCU) */
 
 #define RCU_HEAD_INIT 	{ .next = NULL, .func = NULL }
 #define RCU_HEAD(head) struct rcu_head head = RCU_HEAD_INIT
@@ -199,18 +203,6 @@ struct rcu_synchronize {
 };
 
 extern void wakeme_after_rcu(struct rcu_head  *head);
-
-#define synchronize_rcu_xxx(name, func) \
-void name(void) \
-{ \
-	struct rcu_synchronize rcu; \
-	\
-	init_completion(&rcu.completion); \
-	/* Will wake me after RCU finished. */ \
-	func(&rcu.head, wakeme_after_rcu); \
-	/* Wait for it. */ \
-	wait_for_completion(&rcu.completion); \
-}
 
 /**
  * synchronize_sched - block until all CPUs have exited any non-preemptive

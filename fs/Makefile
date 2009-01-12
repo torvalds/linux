@@ -20,8 +20,7 @@ obj-y +=	no-block.o
 endif
 
 obj-$(CONFIG_BLK_DEV_INTEGRITY) += bio-integrity.o
-obj-$(CONFIG_INOTIFY)		+= inotify.o
-obj-$(CONFIG_INOTIFY_USER)	+= inotify_user.o
+obj-y				+= notify/
 obj-$(CONFIG_EPOLL)		+= eventpoll.o
 obj-$(CONFIG_ANON_INODES)	+= anon_inodes.o
 obj-$(CONFIG_SIGNALFD)		+= signalfd.o
@@ -55,9 +54,8 @@ obj-$(CONFIG_GENERIC_ACL)	+= generic_acl.o
 obj-$(CONFIG_QUOTA)		+= dquot.o
 obj-$(CONFIG_QFMT_V1)		+= quota_v1.o
 obj-$(CONFIG_QFMT_V2)		+= quota_v2.o
+obj-$(CONFIG_QUOTA_TREE)	+= quota_tree.o
 obj-$(CONFIG_QUOTACTL)		+= quota.o
-
-obj-$(CONFIG_DNOTIFY)		+= dnotify.o
 
 obj-$(CONFIG_PROC_FS)		+= proc/
 obj-y				+= partitions/
@@ -76,6 +74,7 @@ obj-$(CONFIG_JBD)		+= jbd/
 obj-$(CONFIG_JBD2)		+= jbd2/
 obj-$(CONFIG_EXT2_FS)		+= ext2/
 obj-$(CONFIG_CRAMFS)		+= cramfs/
+obj-$(CONFIG_SQUASHFS)		+= squashfs/
 obj-y				+= ramfs/
 obj-$(CONFIG_HUGETLBFS)		+= hugetlbfs/
 obj-$(CONFIG_CODA_FS)		+= coda/
@@ -121,4 +120,5 @@ obj-$(CONFIG_HOSTFS)		+= hostfs/
 obj-$(CONFIG_HPPFS)		+= hppfs/
 obj-$(CONFIG_DEBUG_FS)		+= debugfs/
 obj-$(CONFIG_OCFS2_FS)		+= ocfs2/
+obj-$(CONFIG_BTRFS_FS)		+= btrfs/
 obj-$(CONFIG_GFS2_FS)           += gfs2/

@@ -287,7 +287,7 @@ static void butterfly_attach(struct parport *p)
 	pp->dataflash = spi_new_device(pp->bitbang.master, &pp->info[0]);
 	if (pp->dataflash)
 		pr_debug("%s: dataflash at %s\n", p->name,
-				pp->dataflash->dev.bus_id);
+				dev_name(&pp->dataflash->dev));
 
 	// dev_info(_what?_, ...)
 	pr_info("%s: AVR Butterfly\n", p->name);

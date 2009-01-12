@@ -212,7 +212,7 @@ struct srp_rport *srp_rport_add(struct Scsi_Host *shost,
 	rport->roles = ids->roles;
 
 	id = atomic_inc_return(&to_srp_host_attrs(shost)->next_port_id);
-	sprintf(rport->dev.bus_id, "port-%d:%d", shost->host_no, id);
+	dev_set_name(&rport->dev, "port-%d:%d", shost->host_no, id);
 
 	transport_setup_device(&rport->dev);
 

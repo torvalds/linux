@@ -15,7 +15,7 @@
  * <richard.guenther@student.uni-tuebingen.de>
  *
  * with changes by
- * Alan Cox <Alan.Cox@linux.org>
+ * Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * and
  *
@@ -804,8 +804,7 @@ static inline int saa5246a_stop_dau(struct saa5246a_device *t,
  *
  *  Returns 0 if successful
  */
-static int do_saa5246a_ioctl(struct inode *inode, struct file *file,
-			    unsigned int cmd, void *arg)
+static long do_saa5246a_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct saa5246a_device *t = video_drvdata(file);
 
@@ -945,20 +944,20 @@ static inline unsigned int vtx_fix_command(unsigned int cmd)
 /*
  *	Handle the locking
  */
-static int saa5246a_ioctl(struct inode *inode, struct file *file,
+static long saa5246a_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct saa5246a_device *t = video_drvdata(file);
-	int err;
+	long err;
 
 	cmd = vtx_fix_command(cmd);
 	mutex_lock(&t->lock);
-	err = video_usercopy(inode, file, cmd, arg, do_saa5246a_ioctl);
+	err = video_usercopy(file, cmd, arg, do_saa5246a_ioctl);
 	mutex_unlock(&t->lock);
 	return err;
 }
 
-static int saa5246a_open(struct inode *inode, struct file *file)
+static int saa5246a_open(struct file *file)
 {
 	struct saa5246a_device *t = video_drvdata(file);
 
@@ -1000,7 +999,7 @@ static int saa5246a_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int saa5246a_release(struct inode *inode, struct file *file)
+static int saa5246a_release(struct file *file)
 {
 	struct saa5246a_device *t = video_drvdata(file);
 
@@ -1019,12 +1018,11 @@ static int saa5246a_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations saa_fops = {
+static const struct v4l2_file_operations saa_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = saa5246a_open,
 	.release = saa5246a_release,
 	.ioctl	 = saa5246a_ioctl,
-	.llseek	 = no_llseek,
 };
 
 static struct video_device saa_template =

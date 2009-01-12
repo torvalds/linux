@@ -48,6 +48,7 @@
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 #include "lm75.h"
 
@@ -502,7 +503,7 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 		}
 
 		for (i = 0; i < 4; i++) {
-			/* pwmcfg, tolarance mapped for i=0, i=1 to same reg */
+			/* pwmcfg, tolerance mapped for i=0, i=1 to same reg */
 			if (i != 1) {
 				pwmcfg = w83627ehf_read_value(data,
 						W83627EHF_REG_PWM_ENABLE[i]);
@@ -1544,6 +1545,11 @@ static int __init sensors_w83627ehf_init(void)
 	res.start = address + IOREGION_OFFSET;
 	res.end = address + IOREGION_OFFSET + IOREGION_LENGTH - 1;
 	res.flags = IORESOURCE_IO;
+
+	err = acpi_check_resource_conflict(&res);
+	if (err)
+		goto exit;
+
 	err = platform_device_add_resources(pdev, &res, 1);
 	if (err) {
 		printk(KERN_ERR DRVNAME ": Device resource addition failed "

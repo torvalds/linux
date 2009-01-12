@@ -52,7 +52,7 @@
 #include <linux/tty.h>
 #include <asm/pdc.h>		/* for iodc_call() proto and friends */
 
-static spinlock_t pdc_console_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(pdc_console_lock);
 
 static void pdc_console_write(struct console *co, const char *s, unsigned count)
 {

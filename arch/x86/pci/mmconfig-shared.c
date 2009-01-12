@@ -15,8 +15,7 @@
 #include <linux/acpi.h>
 #include <linux/bitmap.h>
 #include <asm/e820.h>
-
-#include "pci.h"
+#include <asm/pci_x86.h>
 
 /* aperture is up to 256MB but BIOS may reserve less */
 #define MMCONFIG_APER_MIN	(2 * 1024*1024)

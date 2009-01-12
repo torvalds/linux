@@ -84,7 +84,7 @@ Code	Seq#	Include File		Comments
 'B'	C0-FF				advanced bbus
 					<mailto:maassen@uni-freiburg.de>
 'C'	all	linux/soundcard.h
-'D'	all	asm-s390/dasd.h
+'D'	all	arch/s390/include/asm/dasd.h
 'E'	all	linux/input.h
 'F'	all	linux/fb.h
 'H'	all	linux/hiddev.h
@@ -97,6 +97,7 @@ Code	Seq#	Include File		Comments
 					<http://linux01.gwdg.de/~alatham/ppdd.html>
 'M'	all	linux/soundcard.h
 'N'	00-1F	drivers/usb/scanner.h
+'O'     00-02   include/mtd/ubi-user.h UBI
 'P'	all	linux/soundcard.h
 'Q'	all	linux/soundcard.h
 'R'	00-1F	linux/random.h
@@ -104,7 +105,7 @@ Code	Seq#	Include File		Comments
 'S'	80-81	scsi/scsi_ioctl.h	conflict!
 'S'	82-FF	scsi/scsi.h		conflict!
 'T'	all	linux/soundcard.h	conflict!
-'T'	all	asm-i386/ioctls.h	conflict!
+'T'	all	arch/x86/include/asm/ioctls.h	conflict!
 'U'	00-EF	linux/drivers/usb/usb.h
 'V'	all	linux/vt.h
 'W'	00-1F	linux/watchdog.h	conflict!
@@ -119,7 +120,7 @@ Code	Seq#	Include File		Comments
 					<mailto:natalia@nikhefk.nikhef.nl>
 'c'	00-7F	linux/comstats.h	conflict!
 'c'	00-7F	linux/coda.h		conflict!
-'c'	80-9F	asm-s390/chsc.h
+'c'	80-9F	arch/s390/include/asm/chsc.h
 'd'	00-FF	linux/char/drm/drm/h	conflict!
 'd'	00-DF	linux/video_decoder.h	conflict!
 'd'	F0-FF	linux/digi1.h
@@ -142,6 +143,9 @@ Code	Seq#	Include File		Comments
 'n'	00-7F	linux/ncp_fs.h
 'n'	E0-FF	video/matrox.h          matroxfb
 'o'	00-1F	fs/ocfs2/ocfs2_fs.h	OCFS2
+'o'     00-03   include/mtd/ubi-user.h  conflict! (OCFS2 and UBI overlaps)
+'o'     40-41   include/mtd/ubi-user.h  UBI
+'o'     01-A1   include/linux/dvb/*.h DVB
 'p'	00-0F	linux/phantom.h		conflict! (OpenHaptics needs this)
 'p'	00-3F	linux/mc146818rtc.h	conflict!
 'p'	40-7F	linux/nvram.h
@@ -166,7 +170,7 @@ Code	Seq#	Include File		Comments
 					<mailto:oe@port.de>
 0x80	00-1F	linux/fb.h
 0x81	00-1F	linux/videotext.h
-0x89	00-06	asm-i386/sockios.h
+0x89	00-06	arch/x86/include/asm/sockios.h
 0x89	0B-DF	linux/sockios.h
 0x89	E0-EF	linux/sockios.h		SIOCPROTOPRIVATE range
 0x89	F0-FF	linux/sockios.h		SIOCDEVPRIVATE range

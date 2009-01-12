@@ -1836,7 +1836,6 @@ static void mv_unexpected_intr(struct ata_port *ap, int edma_was_enabled)
 /**
  *      mv_err_intr - Handle error interrupts on the port
  *      @ap: ATA channel to manipulate
- *      @qc: affected command (non-NCQ), or NULL
  *
  *      Most cases require a full reset of the chip's state machine,
  *      which also performs a COMRESET.

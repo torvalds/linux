@@ -6,7 +6,6 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/unwind.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
 #include <linux/fault-inject.h>

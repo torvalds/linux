@@ -330,25 +330,25 @@ unmask_irq (unsigned int irq)
 
 
 static void
-iosapic_set_affinity (unsigned int irq, cpumask_t mask)
+iosapic_set_affinity(unsigned int irq, const struct cpumask *mask)
 {
 #ifdef CONFIG_SMP
 	u32 high32, low32;
-	int dest, rte_index;
+	int cpu, dest, rte_index;
 	int redir = (irq & IA64_IRQ_REDIRECTED) ? 1 : 0;
 	struct iosapic_rte_info *rte;
 	struct iosapic *iosapic;
 
 	irq &= (~IA64_IRQ_REDIRECTED);
 
-	cpus_and(mask, mask, cpu_online_map);
-	if (cpus_empty(mask))
+	cpu = cpumask_first_and(cpu_online_mask, mask);
+	if (cpu >= nr_cpu_ids)
 		return;
 
-	if (irq_prepare_move(irq, first_cpu(mask)))
+	if (irq_prepare_move(irq, cpu))
 		return;
 
-	dest = cpu_physical_id(first_cpu(mask));
+	dest = cpu_physical_id(cpu);
 
 	if (!iosapic_intr_info[irq].count)
 		return;			/* not an IOSAPIC interrupt */
@@ -695,21 +695,19 @@ get_target_cpu (unsigned int gsi, int irq)
 #ifdef CONFIG_NUMA
 	{
 		int num_cpus, cpu_index, iosapic_index, numa_cpu, i = 0;
-		cpumask_t cpu_mask;
+		const struct cpumask *cpu_mask;
 
 		iosapic_index = find_iosapic(gsi);
 		if (iosapic_index < 0 ||
 		    iosapic_lists[iosapic_index].node == MAX_NUMNODES)
 			goto skip_numa_setup;
 
-		cpu_mask = node_to_cpumask(iosapic_lists[iosapic_index].node);
-		cpus_and(cpu_mask, cpu_mask, domain);
-		for_each_cpu_mask(numa_cpu, cpu_mask) {
-			if (!cpu_online(numa_cpu))
-				cpu_clear(numa_cpu, cpu_mask);
+		cpu_mask = cpumask_of_node(iosapic_lists[iosapic_index].node);
+		num_cpus = 0;
+		for_each_cpu_and(numa_cpu, cpu_mask, &domain) {
+			if (cpu_online(numa_cpu))
+				num_cpus++;
 		}
-
-		num_cpus = cpus_weight(cpu_mask);
 
 		if (!num_cpus)
 			goto skip_numa_setup;
@@ -717,10 +715,11 @@ get_target_cpu (unsigned int gsi, int irq)
 		/* Use irq assignment to distribute across cpus in node */
 		cpu_index = irq % num_cpus;
 
-		for (numa_cpu = first_cpu(cpu_mask) ; i < cpu_index ; i++)
-			numa_cpu = next_cpu(numa_cpu, cpu_mask);
+		for_each_cpu_and(numa_cpu, cpu_mask, &domain)
+			if (cpu_online(numa_cpu) && i++ >= cpu_index)
+				break;
 
-		if (numa_cpu != NR_CPUS)
+		if (numa_cpu < nr_cpu_ids)
 			return cpu_physical_id(numa_cpu);
 	}
 skip_numa_setup:
@@ -731,7 +730,7 @@ skip_numa_setup:
 	 * case of NUMA.)
 	 */
 	do {
-		if (++cpu >= NR_CPUS)
+		if (++cpu >= nr_cpu_ids)
 			cpu = 0;
 	} while (!cpu_online(cpu) || !cpu_isset(cpu, domain));
 

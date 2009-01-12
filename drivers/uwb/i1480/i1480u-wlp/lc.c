@@ -55,10 +55,9 @@
  *                          is being removed.
  *         i1480u_rm()
  */
-#include <linux/version.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
-#include <linux/uwb/debug.h>
+
 #include "i1480u-wlp.h"
 
 
@@ -182,6 +181,15 @@ error:
 }
 #endif
 
+static const struct net_device_ops i1480u_netdev_ops = {
+	.ndo_open	= i1480u_open,
+	.ndo_stop 	= i1480u_stop,
+	.ndo_start_xmit = i1480u_hard_start_xmit,
+	.ndo_tx_timeout = i1480u_tx_timeout,
+	.ndo_set_config = i1480u_set_config,
+	.ndo_change_mtu = i1480u_change_mtu,
+};
+
 static
 int i1480u_add(struct i1480u *i1480u, struct usb_interface *iface)
 {
@@ -207,7 +215,7 @@ int i1480u_add(struct i1480u *i1480u, struct usb_interface *iface)
 	wlp->fill_device_info = i1480u_fill_device_info;
 	wlp->stop_queue = i1480u_stop_queue;
 	wlp->start_queue = i1480u_start_queue;
-	result = wlp_setup(wlp, rc);
+	result = wlp_setup(wlp, rc, net_dev);
 	if (result < 0) {
 		dev_err(&iface->dev, "Cannot setup WLP\n");
 		goto error_wlp_setup;
@@ -236,13 +244,7 @@ int i1480u_add(struct i1480u *i1480u, struct usb_interface *iface)
 	net_dev->features |= NETIF_F_HIGHDMA;
 	net_dev->watchdog_timeo = 5*HZ;		/* FIXME: a better default? */
 
-	net_dev->open = i1480u_open;
-	net_dev->stop = i1480u_stop;
-	net_dev->hard_start_xmit = i1480u_hard_start_xmit;
-	net_dev->tx_timeout = i1480u_tx_timeout;
-	net_dev->get_stats = i1480u_get_stats;
-	net_dev->set_config = i1480u_set_config;
-	net_dev->change_mtu = i1480u_change_mtu;
+	net_dev->netdev_ops = &i1480u_netdev_ops;
 
 #ifdef i1480u_FLOW_CONTROL
 	/* Notification endpoint setup (submitted when we open the device) */

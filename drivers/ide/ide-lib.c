@@ -43,7 +43,6 @@ const char *ide_xfer_verbose(u8 mode)
 
 	return s;
 }
-
 EXPORT_SYMBOL(ide_xfer_verbose);
 
 /**
@@ -87,7 +86,7 @@ static u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
  *	This is used by most chipset support modules when "auto-tuning".
  */
 
-u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
+u8 ide_get_best_pio_mode(ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 {
 	u16 *id = drive->id;
 	int pio_mode = -1, overridden = 0;
@@ -131,7 +130,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 
 	return pio_mode;
 }
-
 EXPORT_SYMBOL_GPL(ide_get_best_pio_mode);
 
 /* req_pio == "255" for auto-tune */
@@ -162,7 +160,6 @@ void ide_set_pio(ide_drive_t *drive, u8 req_pio)
 
 	(void)ide_set_pio_mode(drive, XFER_PIO_0 + pio);
 }
-
 EXPORT_SYMBOL_GPL(ide_set_pio);
 
 /**
@@ -173,7 +170,7 @@ EXPORT_SYMBOL_GPL(ide_set_pio);
  *	Enable or disable bounce buffering for the device. Drives move
  *	between PIO and DMA and that changes the rules we need.
  */
- 
+
 void ide_toggle_bounce(ide_drive_t *drive, int on)
 {
 	u64 addr = BLK_BOUNCE_HIGH;	/* dma64_addr_t */
@@ -243,14 +240,13 @@ int ide_set_dma_mode(ide_drive_t *drive, const u8 mode)
 		return ide_config_drive_speed(drive, mode);
 	}
 }
-
 EXPORT_SYMBOL_GPL(ide_set_dma_mode);
 
 /**
  *	ide_set_xfer_rate	-	set transfer rate
  *	@drive: drive to set
  *	@rate: speed to attempt to set
- *	
+ *
  *	General helper for setting the speed of an IDE device. This
  *	function knows about user enforced limits from the configuration
  *	which ->set_pio_mode/->set_dma_mode does not.
@@ -277,21 +273,16 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 
 static void ide_dump_opcode(ide_drive_t *drive)
 {
-	struct request *rq;
+	struct request *rq = drive->hwif->rq;
 	ide_task_t *task = NULL;
 
-	spin_lock(&ide_lock);
-	rq = NULL;
-	if (HWGROUP(drive))
-		rq = HWGROUP(drive)->rq;
-	spin_unlock(&ide_lock);
 	if (!rq)
 		return;
 
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
 		task = rq->special;
 
-	printk("ide: failed opcode was: ");
+	printk(KERN_ERR "ide: failed opcode was: ");
 	if (task == NULL)
 		printk(KERN_CONT "unknown\n");
 	else
@@ -329,44 +320,58 @@ static void ide_dump_sector(ide_drive_t *drive)
 	drive->hwif->tp_ops->tf_read(drive, &task);
 
 	if (lba48 || (tf->device & ATA_LBA))
-		printk(", LBAsect=%llu",
+		printk(KERN_CONT ", LBAsect=%llu",
 			(unsigned long long)ide_get_lba_addr(tf, lba48));
 	else
-		printk(", CHS=%d/%d/%d", (tf->lbah << 8) + tf->lbam,
-					 tf->device & 0xf, tf->lbal);
+		printk(KERN_CONT ", CHS=%d/%d/%d", (tf->lbah << 8) + tf->lbam,
+			tf->device & 0xf, tf->lbal);
 }
 
 static void ide_dump_ata_error(ide_drive_t *drive, u8 err)
 {
-	printk("{ ");
-	if (err & ATA_ABORTED)	printk("DriveStatusError ");
+	printk(KERN_ERR "{ ");
+	if (err & ATA_ABORTED)
+		printk(KERN_CONT "DriveStatusError ");
 	if (err & ATA_ICRC)
-		printk((err & ATA_ABORTED) ? "BadCRC " : "BadSector ");
-	if (err & ATA_UNC)	printk("UncorrectableError ");
-	if (err & ATA_IDNF)	printk("SectorIdNotFound ");
-	if (err & ATA_TRK0NF)	printk("TrackZeroNotFound ");
-	if (err & ATA_AMNF)	printk("AddrMarkNotFound ");
-	printk("}");
+		printk(KERN_CONT "%s",
+			(err & ATA_ABORTED) ? "BadCRC " : "BadSector ");
+	if (err & ATA_UNC)
+		printk(KERN_CONT "UncorrectableError ");
+	if (err & ATA_IDNF)
+		printk(KERN_CONT "SectorIdNotFound ");
+	if (err & ATA_TRK0NF)
+		printk(KERN_CONT "TrackZeroNotFound ");
+	if (err & ATA_AMNF)
+		printk(KERN_CONT "AddrMarkNotFound ");
+	printk(KERN_CONT "}");
 	if ((err & (ATA_BBK | ATA_ABORTED)) == ATA_BBK ||
 	    (err & (ATA_UNC | ATA_IDNF | ATA_AMNF))) {
+		struct request *rq = drive->hwif->rq;
+
 		ide_dump_sector(drive);
-		if (HWGROUP(drive) && HWGROUP(drive)->rq)
-			printk(", sector=%llu",
-			       (unsigned long long)HWGROUP(drive)->rq->sector);
+
+		if (rq)
+			printk(KERN_CONT ", sector=%llu",
+			       (unsigned long long)rq->sector);
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
 static void ide_dump_atapi_error(ide_drive_t *drive, u8 err)
 {
-	printk("{ ");
-	if (err & ATAPI_ILI)	printk("IllegalLengthIndication ");
-	if (err & ATAPI_EOM)	printk("EndOfMedia ");
-	if (err & ATA_ABORTED)	printk("AbortedCommand ");
-	if (err & ATA_MCR)	printk("MediaChangeRequested ");
-	if (err & ATAPI_LFS)	printk("LastFailedSense=0x%02x ",
-				       (err & ATAPI_LFS) >> 4);
-	printk("}\n");
+	printk(KERN_ERR "{ ");
+	if (err & ATAPI_ILI)
+		printk(KERN_CONT "IllegalLengthIndication ");
+	if (err & ATAPI_EOM)
+		printk(KERN_CONT "EndOfMedia ");
+	if (err & ATA_ABORTED)
+		printk(KERN_CONT "AbortedCommand ");
+	if (err & ATA_MCR)
+		printk(KERN_CONT "MediaChangeRequested ");
+	if (err & ATAPI_LFS)
+		printk(KERN_CONT "LastFailedSense=0x%02x ",
+			(err & ATAPI_LFS) >> 4);
+	printk(KERN_CONT "}\n");
 }
 
 /**
@@ -382,34 +387,37 @@ static void ide_dump_atapi_error(ide_drive_t *drive, u8 err)
 
 u8 ide_dump_status(ide_drive_t *drive, const char *msg, u8 stat)
 {
-	unsigned long flags;
 	u8 err = 0;
 
-	local_irq_save(flags);
-	printk("%s: %s: status=0x%02x { ", drive->name, msg, stat);
+	printk(KERN_ERR "%s: %s: status=0x%02x { ", drive->name, msg, stat);
 	if (stat & ATA_BUSY)
-		printk("Busy ");
+		printk(KERN_CONT "Busy ");
 	else {
-		if (stat & ATA_DRDY)	printk("DriveReady ");
-		if (stat & ATA_DF)	printk("DeviceFault ");
-		if (stat & ATA_DSC)	printk("SeekComplete ");
-		if (stat & ATA_DRQ)	printk("DataRequest ");
-		if (stat & ATA_CORR)	printk("CorrectedError ");
-		if (stat & ATA_IDX)	printk("Index ");
-		if (stat & ATA_ERR)	printk("Error ");
+		if (stat & ATA_DRDY)
+			printk(KERN_CONT "DriveReady ");
+		if (stat & ATA_DF)
+			printk(KERN_CONT "DeviceFault ");
+		if (stat & ATA_DSC)
+			printk(KERN_CONT "SeekComplete ");
+		if (stat & ATA_DRQ)
+			printk(KERN_CONT "DataRequest ");
+		if (stat & ATA_CORR)
+			printk(KERN_CONT "CorrectedError ");
+		if (stat & ATA_IDX)
+			printk(KERN_CONT "Index ");
+		if (stat & ATA_ERR)
+			printk(KERN_CONT "Error ");
 	}
-	printk("}\n");
+	printk(KERN_CONT "}\n");
 	if ((stat & (ATA_BUSY | ATA_ERR)) == ATA_ERR) {
 		err = ide_read_error(drive);
-		printk("%s: %s: error=0x%02x ", drive->name, msg, err);
+		printk(KERN_ERR "%s: %s: error=0x%02x ", drive->name, msg, err);
 		if (drive->media == ide_disk)
 			ide_dump_ata_error(drive, err);
 		else
 			ide_dump_atapi_error(drive, err);
 	}
 	ide_dump_opcode(drive);
-	local_irq_restore(flags);
 	return err;
 }
-
 EXPORT_SYMBOL(ide_dump_status);

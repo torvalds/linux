@@ -21,7 +21,6 @@ extern void * memmove(void *, const void *, __kernel_size_t);
 #define __HAVE_ARCH_MEMCHR
 extern void * memchr(const void *, int, __kernel_size_t);
 
-#define __HAVE_ARCH_MEMZERO
 #define __HAVE_ARCH_MEMSET
 extern void * memset(void *, int, __kernel_size_t);
 
@@ -38,13 +37,5 @@ extern void __memzero(void *ptr, __kernel_size_t n);
 		}							\
 		(__p);							\
 	})
-
-#define memzero(p,n) 							\
-	({ 								\
-	 	void *__p = (p); size_t __n = n;			\
-	 	if ((__n) != 0) 					\
-	 		__memzero((__p),(__n)); 			\
-	 	(__p); 							\
-	 })
 
 #endif

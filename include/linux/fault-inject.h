@@ -81,4 +81,13 @@ static inline void cleanup_fault_attr_dentries(struct fault_attr *attr)
 
 #endif /* CONFIG_FAULT_INJECTION */
 
+#ifdef CONFIG_FAILSLAB
+extern bool should_failslab(size_t size, gfp_t gfpflags);
+#else
+static inline bool should_failslab(size_t size, gfp_t gfpflags)
+{
+	return false;
+}
+#endif /* CONFIG_FAILSLAB */
+
 #endif /* _LINUX_FAULT_INJECT_H */

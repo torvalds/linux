@@ -65,6 +65,7 @@ EXPORT_SYMBOL(pm_idle);
 void (*pm_power_off) (void);
 EXPORT_SYMBOL(pm_power_off);
 
+u32 acpi_rsdt_forced;
 unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
@@ -202,7 +203,6 @@ char *__init __acpi_map_table(unsigned long phys_addr, unsigned long size)
                             Boot-time Table Parsing
    -------------------------------------------------------------------------- */
 
-static int total_cpus __initdata;
 static int available_cpus __initdata;
 struct acpi_table_madt *acpi_madt __initdata;
 static u8 has_8259;
@@ -1001,7 +1001,7 @@ acpi_map_iosapic(acpi_handle handle, u32 depth, void *context, void **ret)
 	node = pxm_to_node(pxm);
 
 	if (node >= MAX_NUMNODES || !node_online(node) ||
-	    cpus_empty(node_to_cpumask(node)))
+	    cpumask_empty(cpumask_of_node(node)))
 		return AE_OK;
 
 	/* We know a gsi to node mapping! */

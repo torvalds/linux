@@ -250,7 +250,7 @@ config IRQ_OTPSEC
 	default 11
 config IRQ_TIMER0
 	int "IRQ_TIMER0"
-	default 11
+	default 8
 config IRQ_TIMER1
 	int "IRQ_TIMER1"
 	default 11

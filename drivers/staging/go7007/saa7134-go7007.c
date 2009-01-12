@@ -27,7 +27,7 @@
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <asm/byteorder.h>
-#include <media/audiochip.h>
+#include <media/v4l2-common.h>
 
 #include "saa7134-reg.h"
 #include "saa7134.h"
@@ -314,7 +314,13 @@ static int saa7134_go7007_stream_start(struct go7007 *go)
 static int saa7134_go7007_stream_stop(struct go7007 *go)
 {
 	struct saa7134_go7007 *saa = go->hpi_context;
-	struct saa7134_dev *dev = saa->dev;
+	struct saa7134_dev *dev;
+
+	if (!saa)
+		return -EINVAL;
+	dev = saa->dev;
+	if (!dev)
+		return -EINVAL;
 
 	/* Shut down TS FIFO */
 	saa_clearl(SAA7134_MAIN_CTRL, SAA7134_MAIN_CTRL_TE5);
@@ -373,6 +379,47 @@ static int saa7134_go7007_send_firmware(struct go7007 *go, u8 *data, int len)
 	return 0;
 }
 
+static int saa7134_go7007_send_command(struct go7007 *go, unsigned int cmd,
+					void *arg)
+{
+	struct saa7134_go7007 *saa = go->hpi_context;
+	struct saa7134_dev *dev = saa->dev;
+
+	switch (cmd) {
+	case VIDIOC_S_STD:
+	{
+		v4l2_std_id *std = arg;
+		return saa7134_s_std_internal(dev, NULL, std);
+	}
+	case VIDIOC_G_STD:
+	{
+		v4l2_std_id *std = arg;
+		*std = dev->tvnorm->id;
+		return 0;
+	}
+	case VIDIOC_QUERYCTRL:
+	{
+		struct v4l2_queryctrl *ctrl = arg;
+		if (V4L2_CTRL_ID2CLASS(ctrl->id) == V4L2_CTRL_CLASS_USER)
+			return saa7134_queryctrl(NULL, NULL, ctrl);
+	}
+	case VIDIOC_G_CTRL:
+	{
+		struct v4l2_control *ctrl = arg;
+		if (V4L2_CTRL_ID2CLASS(ctrl->id) == V4L2_CTRL_CLASS_USER)
+			return saa7134_g_ctrl_internal(dev, NULL, ctrl);
+	}
+	case VIDIOC_S_CTRL:
+	{
+		struct v4l2_control *ctrl = arg;
+		if (V4L2_CTRL_ID2CLASS(ctrl->id) == V4L2_CTRL_CLASS_USER)
+			return saa7134_s_ctrl_internal(dev, NULL, ctrl);
+	}
+	}
+	return -EINVAL;
+
+}
+
 static struct go7007_hpi_ops saa7134_go7007_hpi_ops = {
 	.interface_reset	= saa7134_go7007_interface_reset,
 	.write_interrupt	= saa7134_go7007_write_interrupt,
@@ -380,6 +427,7 @@ static struct go7007_hpi_ops saa7134_go7007_hpi_ops = {
 	.stream_start		= saa7134_go7007_stream_start,
 	.stream_stop		= saa7134_go7007_stream_stop,
 	.send_firmware		= saa7134_go7007_send_firmware,
+	.send_command		= saa7134_go7007_send_command,
 };
 
 /********************* Add/remove functions *********************/

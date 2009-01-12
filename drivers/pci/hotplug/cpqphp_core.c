@@ -45,7 +45,7 @@
 
 #include "cpqphp.h"
 #include "cpqphp_nvram.h"
-#include "../../../arch/x86/pci/pci.h"	/* horrible hack showing how processor dependent we are... */
+#include <asm/pci_x86.h>
 
 
 /* Global variables */

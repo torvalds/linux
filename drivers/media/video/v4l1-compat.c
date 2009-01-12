@@ -203,7 +203,6 @@ static int poll_one(struct file *file, struct poll_wqueues *pwq)
 	table = &pwq->pt;
 	for (;;) {
 		int mask;
-		set_current_state(TASK_INTERRUPTIBLE);
 		mask = file->f_op->poll(file, table);
 		if (mask & POLLIN)
 			break;
@@ -212,9 +211,8 @@ static int poll_one(struct file *file, struct poll_wqueues *pwq)
 			retval = -ERESTARTSYS;
 			break;
 		}
-		schedule();
+		poll_schedule(pwq, TASK_INTERRUPTIBLE);
 	}
-	set_current_state(TASK_RUNNING);
 	poll_freewait(pwq);
 	return retval;
 }
@@ -267,12 +265,12 @@ done:
 
 /* ----------------------------------------------------------------- */
 
-static noinline int v4l1_compat_get_capabilities(
+static noinline long v4l1_compat_get_capabilities(
 					struct video_capability *cap,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_framebuffer fbuf;
 	struct v4l2_capability *cap2;
 
@@ -286,13 +284,13 @@ static noinline int v4l1_compat_get_capabilities(
 
 	err = drv(file, VIDIOC_QUERYCAP, cap2);
 	if (err < 0) {
-		dprintk("VIDIOCGCAP / VIDIOC_QUERYCAP: %d\n", err);
+		dprintk("VIDIOCGCAP / VIDIOC_QUERYCAP: %ld\n", err);
 		goto done;
 	}
 	if (cap2->capabilities & V4L2_CAP_VIDEO_OVERLAY) {
 		err = drv(file, VIDIOC_G_FBUF, &fbuf);
 		if (err < 0) {
-			dprintk("VIDIOCGCAP / VIDIOC_G_FBUF: %d\n", err);
+			dprintk("VIDIOCGCAP / VIDIOC_G_FBUF: %ld\n", err);
 			memset(&fbuf, 0, sizeof(fbuf));
 		}
 		err = 0;
@@ -324,12 +322,12 @@ done:
 	return err;
 }
 
-static noinline int v4l1_compat_get_frame_buffer(
+static noinline long v4l1_compat_get_frame_buffer(
 					struct video_buffer *buffer,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_framebuffer fbuf;
 
 	memset(buffer, 0, sizeof(*buffer));
@@ -337,7 +335,7 @@ static noinline int v4l1_compat_get_frame_buffer(
 
 	err = drv(file, VIDIOC_G_FBUF, &fbuf);
 	if (err < 0) {
-		dprintk("VIDIOCGFBUF / VIDIOC_G_FBUF: %d\n", err);
+		dprintk("VIDIOCGFBUF / VIDIOC_G_FBUF: %ld\n", err);
 		goto done;
 	}
 	buffer->base   = fbuf.base;
@@ -378,12 +376,12 @@ done:
 	return err;
 }
 
-static noinline int v4l1_compat_set_frame_buffer(
+static noinline long v4l1_compat_set_frame_buffer(
 					struct video_buffer *buffer,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_framebuffer fbuf;
 
 	memset(&fbuf, 0, sizeof(fbuf));
@@ -410,16 +408,16 @@ static noinline int v4l1_compat_set_frame_buffer(
 	fbuf.fmt.bytesperline = buffer->bytesperline;
 	err = drv(file, VIDIOC_S_FBUF, &fbuf);
 	if (err < 0)
-		dprintk("VIDIOCSFBUF / VIDIOC_S_FBUF: %d\n", err);
+		dprintk("VIDIOCSFBUF / VIDIOC_S_FBUF: %ld\n", err);
 	return err;
 }
 
-static noinline int v4l1_compat_get_win_cap_dimensions(
+static noinline long v4l1_compat_get_win_cap_dimensions(
 					struct video_window *win,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_format *fmt;
 
 	fmt = kzalloc(sizeof(*fmt), GFP_KERNEL);
@@ -432,7 +430,7 @@ static noinline int v4l1_compat_get_win_cap_dimensions(
 	fmt->type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
 	err = drv(file, VIDIOC_G_FMT, fmt);
 	if (err < 0)
-		dprintk("VIDIOCGWIN / VIDIOC_G_WIN: %d\n", err);
+		dprintk("VIDIOCGWIN / VIDIOC_G_WIN: %ld\n", err);
 	if (err == 0) {
 		win->x         = fmt->fmt.win.w.left;
 		win->y         = fmt->fmt.win.w.top;
@@ -447,7 +445,7 @@ static noinline int v4l1_compat_get_win_cap_dimensions(
 	fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	err = drv(file, VIDIOC_G_FMT, fmt);
 	if (err < 0) {
-		dprintk("VIDIOCGWIN / VIDIOC_G_FMT: %d\n", err);
+		dprintk("VIDIOCGWIN / VIDIOC_G_FMT: %ld\n", err);
 		goto done;
 	}
 	win->x         = 0;
@@ -462,12 +460,12 @@ done:
 	return err;
 }
 
-static noinline int v4l1_compat_set_win_cap_dimensions(
+static noinline long v4l1_compat_set_win_cap_dimensions(
 					struct video_window *win,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err, err1, err2;
+	long err, err1, err2;
 	struct v4l2_format *fmt;
 
 	fmt = kzalloc(sizeof(*fmt), GFP_KERNEL);
@@ -479,7 +477,7 @@ static noinline int v4l1_compat_set_win_cap_dimensions(
 	drv(file, VIDIOC_STREAMOFF, &fmt->type);
 	err1 = drv(file, VIDIOC_G_FMT, fmt);
 	if (err1 < 0)
-		dprintk("VIDIOCSWIN / VIDIOC_G_FMT: %d\n", err1);
+		dprintk("VIDIOCSWIN / VIDIOC_G_FMT: %ld\n", err1);
 	if (err1 == 0) {
 		fmt->fmt.pix.width  = win->width;
 		fmt->fmt.pix.height = win->height;
@@ -487,7 +485,7 @@ static noinline int v4l1_compat_set_win_cap_dimensions(
 		fmt->fmt.pix.bytesperline = 0;
 		err = drv(file, VIDIOC_S_FMT, fmt);
 		if (err < 0)
-			dprintk("VIDIOCSWIN / VIDIOC_S_FMT #1: %d\n",
+			dprintk("VIDIOCSWIN / VIDIOC_S_FMT #1: %ld\n",
 				err);
 		win->width  = fmt->fmt.pix.width;
 		win->height = fmt->fmt.pix.height;
@@ -504,7 +502,7 @@ static noinline int v4l1_compat_set_win_cap_dimensions(
 	fmt->fmt.win.clipcount = win->clipcount;
 	err2 = drv(file, VIDIOC_S_FMT, fmt);
 	if (err2 < 0)
-		dprintk("VIDIOCSWIN / VIDIOC_S_FMT #2: %d\n", err2);
+		dprintk("VIDIOCSWIN / VIDIOC_S_FMT #2: %ld\n", err2);
 
 	if (err1 != 0 && err2 != 0)
 		err = err1;
@@ -514,12 +512,12 @@ static noinline int v4l1_compat_set_win_cap_dimensions(
 	return err;
 }
 
-static noinline int v4l1_compat_turn_preview_on_off(
+static noinline long v4l1_compat_turn_preview_on_off(
 					int *on,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	enum v4l2_buf_type captype = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
 	if (0 == *on) {
@@ -530,16 +528,16 @@ static noinline int v4l1_compat_turn_preview_on_off(
 	}
 	err = drv(file, VIDIOC_OVERLAY, on);
 	if (err < 0)
-		dprintk("VIDIOCCAPTURE / VIDIOC_PREVIEW: %d\n", err);
+		dprintk("VIDIOCCAPTURE / VIDIOC_PREVIEW: %ld\n", err);
 	return err;
 }
 
-static noinline int v4l1_compat_get_input_info(
+static noinline long v4l1_compat_get_input_info(
 					struct video_channel *chan,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_input	input2;
 	v4l2_std_id    		sid;
 
@@ -548,7 +546,7 @@ static noinline int v4l1_compat_get_input_info(
 	err = drv(file, VIDIOC_ENUMINPUT, &input2);
 	if (err < 0) {
 		dprintk("VIDIOCGCHAN / VIDIOC_ENUMINPUT: "
-			"channel=%d err=%d\n", chan->channel, err);
+			"channel=%d err=%ld\n", chan->channel, err);
 		goto done;
 	}
 	chan->channel = input2.index;
@@ -569,7 +567,7 @@ static noinline int v4l1_compat_get_input_info(
 	chan->norm = 0;
 	err = drv(file, VIDIOC_G_STD, &sid);
 	if (err < 0)
-		dprintk("VIDIOCGCHAN / VIDIOC_G_STD: %d\n", err);
+		dprintk("VIDIOCGCHAN / VIDIOC_G_STD: %ld\n", err);
 	if (err == 0) {
 		if (sid & V4L2_STD_PAL)
 			chan->norm = VIDEO_MODE_PAL;
@@ -582,17 +580,17 @@ done:
 	return err;
 }
 
-static noinline int v4l1_compat_set_input(
+static noinline long v4l1_compat_set_input(
 					struct video_channel *chan,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	v4l2_std_id sid = 0;
 
 	err = drv(file, VIDIOC_S_INPUT, &chan->channel);
 	if (err < 0)
-		dprintk("VIDIOCSCHAN / VIDIOC_S_INPUT: %d\n", err);
+		dprintk("VIDIOCSCHAN / VIDIOC_S_INPUT: %ld\n", err);
 	switch (chan->norm) {
 	case VIDEO_MODE_PAL:
 		sid = V4L2_STD_PAL;
@@ -607,17 +605,17 @@ static noinline int v4l1_compat_set_input(
 	if (0 != sid) {
 		err = drv(file, VIDIOC_S_STD, &sid);
 		if (err < 0)
-			dprintk("VIDIOCSCHAN / VIDIOC_S_STD: %d\n", err);
+			dprintk("VIDIOCSCHAN / VIDIOC_S_STD: %ld\n", err);
 	}
 	return err;
 }
 
-static noinline int v4l1_compat_get_picture(
+static noinline long v4l1_compat_get_picture(
 					struct video_picture *pict,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_format *fmt;
 
 	fmt = kzalloc(sizeof(*fmt), GFP_KERNEL);
@@ -640,7 +638,7 @@ static noinline int v4l1_compat_get_picture(
 	fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	err = drv(file, VIDIOC_G_FMT, fmt);
 	if (err < 0) {
-		dprintk("VIDIOCGPICT / VIDIOC_G_FMT: %d\n", err);
+		dprintk("VIDIOCGPICT / VIDIOC_G_FMT: %ld\n", err);
 		goto done;
 	}
 
@@ -654,12 +652,12 @@ done:
 	return err;
 }
 
-static noinline int v4l1_compat_set_picture(
+static noinline long v4l1_compat_set_picture(
 					struct video_picture *pict,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_framebuffer fbuf;
 	int mem_err = 0, ovl_err = 0;
 	struct v4l2_format *fmt;
@@ -694,7 +692,7 @@ static noinline int v4l1_compat_set_picture(
 	   support memory capture.  Trying to set the memory capture
 	   parameters would be pointless.  */
 	if (err < 0) {
-		dprintk("VIDIOCSPICT / VIDIOC_G_FMT: %d\n", err);
+		dprintk("VIDIOCSPICT / VIDIOC_G_FMT: %ld\n", err);
 		mem_err = -1000;  /* didn't even try */
 	} else if (fmt->fmt.pix.pixelformat !=
 		 palette_to_pixelformat(pict->palette)) {
@@ -711,7 +709,7 @@ static noinline int v4l1_compat_set_picture(
 	   support overlay.  Trying to set the overlay parameters
 	   would be quite pointless.  */
 	if (err < 0) {
-		dprintk("VIDIOCSPICT / VIDIOC_G_FBUF: %d\n", err);
+		dprintk("VIDIOCSPICT / VIDIOC_G_FBUF: %ld\n", err);
 		ovl_err = -1000;  /* didn't even try */
 	} else if (fbuf.fmt.pixelformat !=
 		 palette_to_pixelformat(pict->palette)) {
@@ -736,12 +734,13 @@ static noinline int v4l1_compat_set_picture(
 	return err;
 }
 
-static noinline int v4l1_compat_get_tuner(
+static noinline long v4l1_compat_get_tuner(
 					struct video_tuner *tun,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err, i;
+	long err;
+	int i;
 	struct v4l2_tuner	tun2;
 	struct v4l2_standard	std2;
 	v4l2_std_id    		sid;
@@ -749,7 +748,7 @@ static noinline int v4l1_compat_get_tuner(
 	memset(&tun2, 0, sizeof(tun2));
 	err = drv(file, VIDIOC_G_TUNER, &tun2);
 	if (err < 0) {
-		dprintk("VIDIOCGTUNER / VIDIOC_G_TUNER: %d\n", err);
+		dprintk("VIDIOCGTUNER / VIDIOC_G_TUNER: %ld\n", err);
 		goto done;
 	}
 	memcpy(tun->name, tun2.name,
@@ -775,7 +774,7 @@ static noinline int v4l1_compat_get_tuner(
 
 	err = drv(file, VIDIOC_G_STD, &sid);
 	if (err < 0)
-		dprintk("VIDIOCGTUNER / VIDIOC_G_STD: %d\n", err);
+		dprintk("VIDIOCGTUNER / VIDIOC_G_STD: %ld\n", err);
 	if (err == 0) {
 		if (sid & V4L2_STD_PAL)
 			tun->mode = VIDEO_MODE_PAL;
@@ -794,12 +793,12 @@ done:
 	return err;
 }
 
-static noinline int v4l1_compat_select_tuner(
+static noinline long v4l1_compat_select_tuner(
 					struct video_tuner *tun,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_tuner	t;/*84 bytes on x86_64*/
 	memset(&t, 0, sizeof(t));
 
@@ -807,34 +806,34 @@ static noinline int v4l1_compat_select_tuner(
 
 	err = drv(file, VIDIOC_S_INPUT, &t);
 	if (err < 0)
-		dprintk("VIDIOCSTUNER / VIDIOC_S_INPUT: %d\n", err);
+		dprintk("VIDIOCSTUNER / VIDIOC_S_INPUT: %ld\n", err);
 	return err;
 }
 
-static noinline int v4l1_compat_get_frequency(
+static noinline long v4l1_compat_get_frequency(
 					unsigned long *freq,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_frequency   freq2;
 	memset(&freq2, 0, sizeof(freq2));
 
 	freq2.tuner = 0;
 	err = drv(file, VIDIOC_G_FREQUENCY, &freq2);
 	if (err < 0)
-		dprintk("VIDIOCGFREQ / VIDIOC_G_FREQUENCY: %d\n", err);
+		dprintk("VIDIOCGFREQ / VIDIOC_G_FREQUENCY: %ld\n", err);
 	if (0 == err)
 		*freq = freq2.frequency;
 	return err;
 }
 
-static noinline int v4l1_compat_set_frequency(
+static noinline long v4l1_compat_set_frequency(
 					unsigned long *freq,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_frequency   freq2;
 	memset(&freq2, 0, sizeof(freq2));
 
@@ -842,16 +841,17 @@ static noinline int v4l1_compat_set_frequency(
 	freq2.frequency = *freq;
 	err = drv(file, VIDIOC_S_FREQUENCY, &freq2);
 	if (err < 0)
-		dprintk("VIDIOCSFREQ / VIDIOC_S_FREQUENCY: %d\n", err);
+		dprintk("VIDIOCSFREQ / VIDIOC_S_FREQUENCY: %ld\n", err);
 	return err;
 }
 
-static noinline int v4l1_compat_get_audio(
+static noinline long v4l1_compat_get_audio(
 					struct video_audio *aud,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err, i;
+	long err;
+	int i;
 	struct v4l2_queryctrl	qctrl2;
 	struct v4l2_audio	aud2;
 	struct v4l2_tuner	tun2;
@@ -859,7 +859,7 @@ static noinline int v4l1_compat_get_audio(
 
 	err = drv(file, VIDIOC_G_AUDIO, &aud2);
 	if (err < 0) {
-		dprintk("VIDIOCGAUDIO / VIDIOC_G_AUDIO: %d\n", err);
+		dprintk("VIDIOCGAUDIO / VIDIOC_G_AUDIO: %ld\n", err);
 		goto done;
 	}
 	memcpy(aud->name, aud2.name,
@@ -903,7 +903,7 @@ static noinline int v4l1_compat_get_audio(
 	memset(&tun2, 0, sizeof(tun2));
 	err = drv(file, VIDIOC_G_TUNER, &tun2);
 	if (err < 0) {
-		dprintk("VIDIOCGAUDIO / VIDIOC_G_TUNER: %d\n", err);
+		dprintk("VIDIOCGAUDIO / VIDIOC_G_TUNER: %ld\n", err);
 		err = 0;
 		goto done;
 	}
@@ -918,12 +918,12 @@ done:
 	return err;
 }
 
-static noinline int v4l1_compat_set_audio(
+static noinline long v4l1_compat_set_audio(
 					struct video_audio *aud,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_audio	aud2;
 	struct v4l2_tuner	tun2;
 
@@ -933,7 +933,7 @@ static noinline int v4l1_compat_set_audio(
 	aud2.index = aud->audio;
 	err = drv(file, VIDIOC_S_AUDIO, &aud2);
 	if (err < 0) {
-		dprintk("VIDIOCSAUDIO / VIDIOC_S_AUDIO: %d\n", err);
+		dprintk("VIDIOCSAUDIO / VIDIOC_S_AUDIO: %ld\n", err);
 		goto done;
 	}
 
@@ -950,7 +950,7 @@ static noinline int v4l1_compat_set_audio(
 
 	err = drv(file, VIDIOC_G_TUNER, &tun2);
 	if (err < 0)
-		dprintk("VIDIOCSAUDIO / VIDIOC_G_TUNER: %d\n", err);
+		dprintk("VIDIOCSAUDIO / VIDIOC_G_TUNER: %ld\n", err);
 	if (err == 0) {
 		switch (aud->mode) {
 		default:
@@ -967,19 +967,19 @@ static noinline int v4l1_compat_set_audio(
 		}
 		err = drv(file, VIDIOC_S_TUNER, &tun2);
 		if (err < 0)
-			dprintk("VIDIOCSAUDIO / VIDIOC_S_TUNER: %d\n", err);
+			dprintk("VIDIOCSAUDIO / VIDIOC_S_TUNER: %ld\n", err);
 	}
 	err = 0;
 done:
 	return err;
 }
 
-static noinline int v4l1_compat_capture_frame(
+static noinline long v4l1_compat_capture_frame(
 					struct video_mmap *mm,
 					struct file *file,
 					v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	enum v4l2_buf_type      captype = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	struct v4l2_buffer	buf;
 	struct v4l2_format	*fmt;
@@ -994,7 +994,7 @@ static noinline int v4l1_compat_capture_frame(
 	fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	err = drv(file, VIDIOC_G_FMT, fmt);
 	if (err < 0) {
-		dprintk("VIDIOCMCAPTURE / VIDIOC_G_FMT: %d\n", err);
+		dprintk("VIDIOCMCAPTURE / VIDIOC_G_FMT: %ld\n", err);
 		goto done;
 	}
 	if (mm->width   != fmt->fmt.pix.width  ||
@@ -1010,7 +1010,7 @@ static noinline int v4l1_compat_capture_frame(
 		fmt->fmt.pix.bytesperline = 0;
 		err = drv(file, VIDIOC_S_FMT, fmt);
 		if (err < 0) {
-			dprintk("VIDIOCMCAPTURE / VIDIOC_S_FMT: %d\n", err);
+			dprintk("VIDIOCMCAPTURE / VIDIOC_S_FMT: %ld\n", err);
 			goto done;
 		}
 	}
@@ -1018,28 +1018,28 @@ static noinline int v4l1_compat_capture_frame(
 	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	err = drv(file, VIDIOC_QUERYBUF, &buf);
 	if (err < 0) {
-		dprintk("VIDIOCMCAPTURE / VIDIOC_QUERYBUF: %d\n", err);
+		dprintk("VIDIOCMCAPTURE / VIDIOC_QUERYBUF: %ld\n", err);
 		goto done;
 	}
 	err = drv(file, VIDIOC_QBUF, &buf);
 	if (err < 0) {
-		dprintk("VIDIOCMCAPTURE / VIDIOC_QBUF: %d\n", err);
+		dprintk("VIDIOCMCAPTURE / VIDIOC_QBUF: %ld\n", err);
 		goto done;
 	}
 	err = drv(file, VIDIOC_STREAMON, &captype);
 	if (err < 0)
-		dprintk("VIDIOCMCAPTURE / VIDIOC_STREAMON: %d\n", err);
+		dprintk("VIDIOCMCAPTURE / VIDIOC_STREAMON: %ld\n", err);
 done:
 	kfree(fmt);
 	return err;
 }
 
-static noinline int v4l1_compat_sync(
+static noinline long v4l1_compat_sync(
 				int *i,
 				struct file *file,
 				v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	enum v4l2_buf_type captype = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	struct v4l2_buffer buf;
 	struct poll_wqueues *pwq;
@@ -1050,7 +1050,7 @@ static noinline int v4l1_compat_sync(
 	err = drv(file, VIDIOC_QUERYBUF, &buf);
 	if (err < 0) {
 		/*  No such buffer */
-		dprintk("VIDIOCSYNC / VIDIOC_QUERYBUF: %d\n", err);
+		dprintk("VIDIOCSYNC / VIDIOC_QUERYBUF: %ld\n", err);
 		goto done;
 	}
 	if (!(buf.flags & V4L2_BUF_FLAG_MAPPED)) {
@@ -1062,7 +1062,7 @@ static noinline int v4l1_compat_sync(
 	/* make sure capture actually runs so we don't block forever */
 	err = drv(file, VIDIOC_STREAMON, &captype);
 	if (err < 0) {
-		dprintk("VIDIOCSYNC / VIDIOC_STREAMON: %d\n", err);
+		dprintk("VIDIOCSYNC / VIDIOC_STREAMON: %ld\n", err);
 		goto done;
 	}
 
@@ -1076,7 +1076,7 @@ static noinline int v4l1_compat_sync(
 			break;
 		err = drv(file, VIDIOC_QUERYBUF, &buf);
 		if (err < 0)
-			dprintk("VIDIOCSYNC / VIDIOC_QUERYBUF: %d\n", err);
+			dprintk("VIDIOCSYNC / VIDIOC_QUERYBUF: %ld\n", err);
 	}
 	kfree(pwq);
 	if (!(buf.flags & V4L2_BUF_FLAG_DONE)) /* not done */
@@ -1084,18 +1084,18 @@ static noinline int v4l1_compat_sync(
 	do {
 		err = drv(file, VIDIOC_DQBUF, &buf);
 		if (err < 0)
-			dprintk("VIDIOCSYNC / VIDIOC_DQBUF: %d\n", err);
+			dprintk("VIDIOCSYNC / VIDIOC_DQBUF: %ld\n", err);
 	} while (err == 0 && buf.index != *i);
 done:
 	return err;
 }
 
-static noinline int v4l1_compat_get_vbi_format(
+static noinline long v4l1_compat_get_vbi_format(
 				struct vbi_format *fmt,
 				struct file *file,
 				v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_format *fmt2;
 
 	fmt2 = kzalloc(sizeof(*fmt2), GFP_KERNEL);
@@ -1107,7 +1107,7 @@ static noinline int v4l1_compat_get_vbi_format(
 
 	err = drv(file, VIDIOC_G_FMT, fmt2);
 	if (err < 0) {
-		dprintk("VIDIOCGVBIFMT / VIDIOC_G_FMT: %d\n", err);
+		dprintk("VIDIOCGVBIFMT / VIDIOC_G_FMT: %ld\n", err);
 		goto done;
 	}
 	if (fmt2->fmt.vbi.sample_format != V4L2_PIX_FMT_GREY) {
@@ -1128,12 +1128,12 @@ done:
 	return err;
 }
 
-static noinline int v4l1_compat_set_vbi_format(
+static noinline long v4l1_compat_set_vbi_format(
 				struct vbi_format *fmt,
 				struct file *file,
 				v4l2_kioctl drv)
 {
-	int err;
+	long err;
 	struct v4l2_format	*fmt2 = NULL;
 
 	if (VIDEO_PALETTE_RAW != fmt->sample_format) {
@@ -1157,7 +1157,7 @@ static noinline int v4l1_compat_set_vbi_format(
 	fmt2->fmt.vbi.flags            = fmt->flags;
 	err = drv(file, VIDIOC_TRY_FMT, fmt2);
 	if (err < 0) {
-		dprintk("VIDIOCSVBIFMT / VIDIOC_TRY_FMT: %d\n", err);
+		dprintk("VIDIOCSVBIFMT / VIDIOC_TRY_FMT: %ld\n", err);
 		goto done;
 	}
 
@@ -1174,7 +1174,7 @@ static noinline int v4l1_compat_set_vbi_format(
 	}
 	err = drv(file, VIDIOC_S_FMT, fmt2);
 	if (err < 0)
-		dprintk("VIDIOCSVBIFMT / VIDIOC_S_FMT: %d\n", err);
+		dprintk("VIDIOCSVBIFMT / VIDIOC_S_FMT: %ld\n", err);
 done:
 	kfree(fmt2);
 	return err;
@@ -1183,13 +1183,13 @@ done:
 /*
  *	This function is exported.
  */
-int
+long
 v4l_compat_translate_ioctl(struct file		*file,
 			   int			cmd,
 			   void			*arg,
 			   v4l2_kioctl          drv)
 {
-	int err;
+	long err;
 
 	switch (cmd) {
 	case VIDIOCGCAP:	/* capability */

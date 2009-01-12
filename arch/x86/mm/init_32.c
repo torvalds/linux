@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
+#include <linux/pci.h>
 #include <linux/pfn.h>
 #include <linux/poison.h>
 #include <linux/bootmem.h>
@@ -327,6 +328,8 @@ int devmem_is_allowed(unsigned long pagenr)
 {
 	if (pagenr <= 256)
 		return 1;
+	if (iomem_is_exclusive(pagenr << PAGE_SHIFT))
+		return 0;
 	if (!page_is_ram(pagenr))
 		return 1;
 	return 0;
@@ -434,8 +437,12 @@ static void __init set_highmem_pages_init(void)
 #endif /* !CONFIG_NUMA */
 
 #else
-# define permanent_kmaps_init(pgd_base)		do { } while (0)
-# define set_highmem_pages_init()	do { } while (0)
+static inline void permanent_kmaps_init(pgd_t *pgd_base)
+{
+}
+static inline void set_highmem_pages_init(void)
+{
+}
 #endif /* CONFIG_HIGHMEM */
 
 void __init native_pagetable_setup_start(pgd_t *base)
@@ -967,6 +974,8 @@ void __init mem_init(void)
 	int codesize, reservedpages, datasize, initsize;
 	int tmp;
 
+	pci_iommu_alloc();
+
 #ifdef CONFIG_FLATMEM
 	BUG_ON(!mem_map);
 #endif
@@ -1072,7 +1081,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 
-	return __add_pages(zone, start_pfn, nr_pages);
+	return __add_pages(nid, zone, start_pfn, nr_pages);
 }
 #endif
 

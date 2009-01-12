@@ -35,16 +35,13 @@ struct proc_dir_entry *de_get(struct proc_dir_entry *de)
  */
 void de_put(struct proc_dir_entry *de)
 {
-	lock_kernel();
 	if (!atomic_read(&de->count)) {
 		printk("de_put: entry %s already free!\n", de->name);
-		unlock_kernel();
 		return;
 	}
 
 	if (atomic_dec_and_test(&de->count))
 		free_proc_entry(de);
-	unlock_kernel();
 }
 
 /*

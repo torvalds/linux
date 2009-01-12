@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
-#include <asm/dma.h>
+#include <mach/dma.h>
 #include <asm/system.h>
 
 #include "mcp.h"

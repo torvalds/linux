@@ -431,7 +431,7 @@ svc_create(struct svc_program *prog, unsigned int bufsize,
 {
 	return __svc_create(prog, bufsize, /*npools*/1, family, shutdown);
 }
-EXPORT_SYMBOL(svc_create);
+EXPORT_SYMBOL_GPL(svc_create);
 
 struct svc_serv *
 svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
@@ -450,7 +450,7 @@ svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 
 	return serv;
 }
-EXPORT_SYMBOL(svc_create_pooled);
+EXPORT_SYMBOL_GPL(svc_create_pooled);
 
 /*
  * Destroy an RPC service. Should be called with appropriate locking to
@@ -492,7 +492,7 @@ svc_destroy(struct svc_serv *serv)
 	kfree(serv->sv_pools);
 	kfree(serv);
 }
-EXPORT_SYMBOL(svc_destroy);
+EXPORT_SYMBOL_GPL(svc_destroy);
 
 /*
  * Allocate an RPC server's buffer space.
@@ -567,7 +567,7 @@ out_thread:
 out_enomem:
 	return ERR_PTR(-ENOMEM);
 }
-EXPORT_SYMBOL(svc_prepare_thread);
+EXPORT_SYMBOL_GPL(svc_prepare_thread);
 
 /*
  * Choose a pool in which to create a new thread, for svc_set_num_threads
@@ -689,7 +689,7 @@ svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 
 	return error;
 }
-EXPORT_SYMBOL(svc_set_num_threads);
+EXPORT_SYMBOL_GPL(svc_set_num_threads);
 
 /*
  * Called from a server thread as it's exiting. Caller must hold the BKL or
@@ -717,7 +717,7 @@ svc_exit_thread(struct svc_rqst *rqstp)
 	if (serv)
 		svc_destroy(serv);
 }
-EXPORT_SYMBOL(svc_exit_thread);
+EXPORT_SYMBOL_GPL(svc_exit_thread);
 
 #ifdef CONFIG_SUNRPC_REGISTER_V4
 
@@ -1231,7 +1231,7 @@ err_bad:
 	svc_putnl(resv, ntohl(rpc_stat));
 	goto sendit;
 }
-EXPORT_SYMBOL(svc_process);
+EXPORT_SYMBOL_GPL(svc_process);
 
 /*
  * Return (transport-specific) limit on the rpc payload.

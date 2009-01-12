@@ -6,7 +6,6 @@ Description:
 		internal state of the kernel memory blocks. Files could be
 		added or removed dynamically to represent hot-add/remove
 		operations.
-
 Users:		hotplug memory add/remove tools
 		https://w3.opensource.ibm.com/projects/powerpc-utils/
 
@@ -19,6 +18,56 @@ Description:
 		This is useful for a user-level agent to determine
 		identify removable sections of the memory before attempting
 		potentially expensive hot-remove memory operation
-
 Users:		hotplug memory remove tools
 		https://w3.opensource.ibm.com/projects/powerpc-utils/
+
+What:		/sys/devices/system/memory/memoryX/phys_device
+Date:		September 2008
+Contact:	Badari Pulavarty <pbadari@us.ibm.com>
+Description:
+		The file /sys/devices/system/memory/memoryX/phys_device
+		is read-only and is designed to show the name of physical
+		memory device.  Implementation is currently incomplete.
+
+What:		/sys/devices/system/memory/memoryX/phys_index
+Date:		September 2008
+Contact:	Badari Pulavarty <pbadari@us.ibm.com>
+Description:
+		The file /sys/devices/system/memory/memoryX/phys_index
+		is read-only and contains the section ID in hexadecimal
+		which is equivalent to decimal X contained in the
+		memory section directory name.
+
+What:		/sys/devices/system/memory/memoryX/state
+Date:		September 2008
+Contact:	Badari Pulavarty <pbadari@us.ibm.com>
+Description:
+		The file /sys/devices/system/memory/memoryX/state
+		is read-write.  When read, it's contents show the
+		online/offline state of the memory section.  When written,
+		root can toggle the the online/offline state of a removable
+		memory section (see removable file description above)
+		using the following commands.
+		# echo online > /sys/devices/system/memory/memoryX/state
+		# echo offline > /sys/devices/system/memory/memoryX/state
+
+		For example, if /sys/devices/system/memory/memory22/removable
+		contains a value of 1 and
+		/sys/devices/system/memory/memory22/state contains the
+		string "online" the following command can be executed by
+		by root to offline that section.
+		# echo offline > /sys/devices/system/memory/memory22/state
+Users:		hotplug memory remove tools
+		https://w3.opensource.ibm.com/projects/powerpc-utils/
+
+What:		/sys/devices/system/node/nodeX/memoryY
+Date:		September 2008
+Contact:	Gary Hade <garyhade@us.ibm.com>
+Description:
+		When CONFIG_NUMA is enabled
+		/sys/devices/system/node/nodeX/memoryY is a symbolic link that
+		points to the corresponding /sys/devices/system/memory/memoryY
+		memory section directory.  For example, the following symbolic
+		link is created for memory section 9 on node0.
+		/sys/devices/system/node/node0/memory9 -> ../../memory/memory9
+

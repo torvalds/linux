@@ -29,47 +29,43 @@ struct mnt_fhstatus {
 
 /**
  * nfs_mount - Obtain an NFS file handle for the given host and path
- * @addr: pointer to server's address
- * @len: size of server's address
- * @hostname: name of server host, or NULL
- * @path: pointer to string containing export path to mount
- * @version: mount version to use for this request
- * @protocol: transport protocol to use for thie request
- * @fh: pointer to location to place returned file handle
+ * @info: pointer to mount request arguments
  *
  * Uses default timeout parameters specified by underlying transport.
  */
-int nfs_mount(struct sockaddr *addr, size_t len, char *hostname, char *path,
-	      int version, int protocol, struct nfs_fh *fh)
+int nfs_mount(struct nfs_mount_request *info)
 {
 	struct mnt_fhstatus	result = {
-		.fh		= fh
+		.fh		= info->fh
 	};
 	struct rpc_message msg	= {
-		.rpc_argp	= path,
+		.rpc_argp	= info->dirpath,
 		.rpc_resp	= &result,
 	};
 	struct rpc_create_args args = {
-		.protocol	= protocol,
-		.address	= addr,
-		.addrsize	= len,
-		.servername	= hostname,
+		.protocol	= info->protocol,
+		.address	= info->sap,
+		.addrsize	= info->salen,
+		.servername	= info->hostname,
 		.program	= &mnt_program,
-		.version	= version,
+		.version	= info->version,
 		.authflavor	= RPC_AUTH_UNIX,
-		.flags		= 0,
 	};
 	struct rpc_clnt		*mnt_clnt;
 	int			status;
 
 	dprintk("NFS: sending MNT request for %s:%s\n",
-		(hostname ? hostname : "server"), path);
+		(info->hostname ? info->hostname : "server"),
+			info->dirpath);
+
+	if (info->noresvport)
+		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
 	mnt_clnt = rpc_create(&args);
 	if (IS_ERR(mnt_clnt))
 		goto out_clnt_err;
 
-	if (version == NFS_MNT3_VERSION)
+	if (info->version == NFS_MNT3_VERSION)
 		msg.rpc_proc = &mnt_clnt->cl_procinfo[MOUNTPROC3_MNT];
 	else
 		msg.rpc_proc = &mnt_clnt->cl_procinfo[MNTPROC_MNT];

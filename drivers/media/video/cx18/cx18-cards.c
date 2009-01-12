@@ -4,6 +4,7 @@
  *  Derived from ivtv-cards.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -50,7 +51,7 @@ static struct cx18_card_tuner_i2c cx18_i2c_std = {
 static const struct cx18_card cx18_card_hvr1600_esmt = {
 	.type = CX18_CARD_HVR_1600_ESMT,
 	.name = "Hauppauge HVR-1600",
-	.comment = "VBI is not yet supported\n",
+	.comment = "Raw VBI supported; Sliced VBI is not yet supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_muxer = CX18_HW_CS5345,
@@ -96,7 +97,7 @@ static const struct cx18_card cx18_card_hvr1600_esmt = {
 static const struct cx18_card cx18_card_hvr1600_samsung = {
 	.type = CX18_CARD_HVR_1600_SAMSUNG,
 	.name = "Hauppauge HVR-1600 (Preproduction)",
-	.comment = "VBI is not yet supported\n",
+	.comment = "Raw VBI supported; Sliced VBI is not yet supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_muxer = CX18_HW_CS5345,
@@ -151,7 +152,7 @@ static const struct cx18_card_pci_info cx18_pci_h900[] = {
 static const struct cx18_card cx18_card_h900 = {
 	.type = CX18_CARD_COMPRO_H900,
 	.name = "Compro VideoMate H900",
-	.comment = "VBI is not yet supported\n",
+	.comment = "Raw VBI supported; Sliced VBI is not yet supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_all = CX18_HW_TUNER,
@@ -248,7 +249,7 @@ static const struct cx18_card_pci_info cx18_pci_cnxt_raptor_pal[] = {
 static const struct cx18_card cx18_card_cnxt_raptor_pal = {
 	.type = CX18_CARD_CNXT_RAPTOR_PAL,
 	.name = "Conexant Raptor PAL/SECAM",
-	.comment = "VBI is not yet supported\n",
+	.comment = "Raw VBI supported; Sliced VBI is not yet supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_muxer = CX18_HW_GPIO,
