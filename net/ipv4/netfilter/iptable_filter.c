@@ -93,13 +93,8 @@ ipt_local_out_hook(unsigned int hook,
 {
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct iphdr) ||
-	    ip_hdrlen(skb) < sizeof(struct iphdr)) {
-		if (net_ratelimit())
-			printk("iptable_filter: ignoring short SOCK_RAW "
-			       "packet.\n");
+	    ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
-	}
-
 	return ipt_do_table(skb, hook, in, out,
 			    dev_net(out)->ipv4.iptable_filter);
 }
