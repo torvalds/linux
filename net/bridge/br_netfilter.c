@@ -686,8 +686,11 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb) ||
 	    IS_PPPOE_IP(skb))
 		pf = PF_INET;
-	else
+	else if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
+		 IS_PPPOE_IPV6(skb))
 		pf = PF_INET6;
+	else
+		return NF_ACCEPT;
 
 	nf_bridge_pull_encap_header(skb);
 
@@ -828,8 +831,11 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb) ||
 	    IS_PPPOE_IP(skb))
 		pf = PF_INET;
-	else
+	else if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
+		 IS_PPPOE_IPV6(skb))
 		pf = PF_INET6;
+	else
+		return NF_ACCEPT;
 
 #ifdef CONFIG_NETFILTER_DEBUG
 	if (skb->dst == NULL) {
