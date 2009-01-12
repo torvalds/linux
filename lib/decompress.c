@@ -13,21 +13,25 @@
 #include <linux/types.h>
 #include <linux/string.h>
 
+#ifndef CONFIG_DECOMPRESS_GZIP
+# define gunzip NULL
+#endif
+#ifndef CONFIG_DECOMPRESS_BZIP2
+# define bunzip2 NULL
+#endif
+#ifndef CONFIG_DECOMPRESS_LZMA
+# define unlzma NULL
+#endif
+
 static const struct compress_format {
 	unsigned char magic[2];
 	const char *name;
 	decompress_fn decompressor;
 } compressed_formats[] = {
-#ifdef CONFIG_DECOMPRESS_GZIP
 	{ {037, 0213}, "gzip", gunzip },
 	{ {037, 0236}, "gzip", gunzip },
-#endif
-#ifdef CONFIG_DECOMPRESS_BZIP2
 	{ {0x42, 0x5a}, "bzip2", bunzip2 },
-#endif
-#ifdef CONFIG_DECOMPRESS_LZMA
 	{ {0x5d, 0x00}, "lzma", unlzma },
-#endif
 	{ {0, 0}, NULL, NULL }
 };
 
