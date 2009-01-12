@@ -3165,6 +3165,15 @@ void print_vma_addr(char *prefix, unsigned long ip)
 #ifdef CONFIG_PROVE_LOCKING
 void might_fault(void)
 {
+	/*
+	 * Some code (nfs/sunrpc) uses socket ops on kernel memory while
+	 * holding the mmap_sem, this is safe because kernel memory doesn't
+	 * get paged out, therefore we'll never actually fault, and the
+	 * below annotations will generate false positives.
+	 */
+	if (segment_eq(get_fs(), KERNEL_DS))
+		return;
+
 	might_sleep();
 	/*
 	 * it would be nicer only to annotate paths which are not under
