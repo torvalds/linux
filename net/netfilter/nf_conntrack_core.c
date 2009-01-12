@@ -469,7 +469,7 @@ struct nf_conn *nf_conntrack_alloc(struct net *net,
 				   const struct nf_conntrack_tuple *repl,
 				   gfp_t gfp)
 {
-	struct nf_conn *ct = NULL;
+	struct nf_conn *ct;
 
 	if (unlikely(!nf_conntrack_hash_rnd_initted)) {
 		get_random_bytes(&nf_conntrack_hash_rnd, 4);
@@ -551,7 +551,7 @@ init_conntrack(struct net *net,
 	}
 
 	ct = nf_conntrack_alloc(net, tuple, &repl_tuple, GFP_ATOMIC);
-	if (ct == NULL || IS_ERR(ct)) {
+	if (IS_ERR(ct)) {
 		pr_debug("Can't allocate conntrack.\n");
 		return (struct nf_conntrack_tuple_hash *)ct;
 	}
