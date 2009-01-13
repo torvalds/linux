@@ -632,6 +632,13 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 		kfree(sdata->u.sta.assocreq_ies);
 		kfree(sdata->u.sta.assocresp_ies);
 		kfree_skb(sdata->u.sta.probe_resp);
+		kfree(sdata->u.sta.ie_probereq);
+		kfree(sdata->u.sta.ie_proberesp);
+		kfree(sdata->u.sta.ie_auth);
+		kfree(sdata->u.sta.ie_assocreq);
+		kfree(sdata->u.sta.ie_reassocreq);
+		kfree(sdata->u.sta.ie_deauth);
+		kfree(sdata->u.sta.ie_disassoc);
 		break;
 	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_AP_VLAN:

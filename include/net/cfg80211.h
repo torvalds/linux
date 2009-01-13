@@ -433,6 +433,26 @@ struct ieee80211_txq_params {
 	u8 aifs;
 };
 
+/**
+ * struct mgmt_extra_ie_params - Extra management frame IE parameters
+ *
+ * Used to add extra IE(s) into management frames. If the driver cannot add the
+ * requested data into all management frames of the specified subtype that are
+ * generated in kernel or firmware/hardware, it must reject the configuration
+ * call. The IE data buffer is added to the end of the specified management
+ * frame body after all other IEs. This addition is not applied to frames that
+ * are injected through a monitor interface.
+ *
+ * @subtype: Management frame subtype
+ * @ies: IE data buffer or %NULL to remove previous data
+ * @ies_len: Length of @ies in octets
+ */
+struct mgmt_extra_ie_params {
+	u8 subtype;
+	u8 *ies;
+	int ies_len;
+};
+
 /* from net/wireless.h */
 struct wiphy;
 
@@ -501,6 +521,8 @@ struct ieee80211_channel;
  * @set_txq_params: Set TX queue parameters
  *
  * @set_channel: Set channel
+ *
+ * @set_mgmt_extra_ie: Set extra IE data for management frames
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
@@ -571,6 +593,10 @@ struct cfg80211_ops {
 	int	(*set_channel)(struct wiphy *wiphy,
 			       struct ieee80211_channel *chan,
 			       enum nl80211_channel_type channel_type);
+
+	int	(*set_mgmt_extra_ie)(struct wiphy *wiphy,
+				     struct net_device *dev,
+				     struct mgmt_extra_ie_params *params);
 };
 
 /* temporary wext handlers */

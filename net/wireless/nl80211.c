@@ -105,6 +105,10 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 
 	[NL80211_ATTR_HT_CAPABILITY] = { .type = NLA_BINARY,
 					 .len = NL80211_HT_CAPABILITY_LEN },
+
+	[NL80211_ATTR_MGMT_SUBTYPE] = { .type = NLA_U8 },
+	[NL80211_ATTR_IE] = { .type = NLA_BINARY,
+			      .len = IEEE80211_MAX_DATA_LEN },
 };
 
 /* message building helper */
@@ -2149,6 +2153,43 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 	return -EINVAL;
 }
 
+static int nl80211_set_mgmt_extra_ie(struct sk_buff *skb,
+				     struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+	struct mgmt_extra_ie_params params;
+
+	memset(&params, 0, sizeof(params));
+
+	if (!info->attrs[NL80211_ATTR_MGMT_SUBTYPE])
+		return -EINVAL;
+	params.subtype = nla_get_u8(info->attrs[NL80211_ATTR_MGMT_SUBTYPE]);
+	if (params.subtype > 15)
+		return -EINVAL; /* FC Subtype field is 4 bits (0..15) */
+
+	if (info->attrs[NL80211_ATTR_IE]) {
+		params.ies = nla_data(info->attrs[NL80211_ATTR_IE]);
+		params.ies_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+	}
+
+	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	if (err)
+		return err;
+
+	if (drv->ops->set_mgmt_extra_ie) {
+		rtnl_lock();
+		err = drv->ops->set_mgmt_extra_ie(&drv->wiphy, dev, &params);
+		rtnl_unlock();
+	} else
+		err = -EOPNOTSUPP;
+
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
 static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -2307,6 +2348,12 @@ static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_SET_MESH_PARAMS,
 		.doit = nl80211_set_mesh_params,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_SET_MGMT_EXTRA_IE,
+		.doit = nl80211_set_mgmt_extra_ie,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
