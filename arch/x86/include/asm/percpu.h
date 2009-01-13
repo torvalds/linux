@@ -1,62 +1,13 @@
 #ifndef _ASM_X86_PERCPU_H
 #define _ASM_X86_PERCPU_H
 
-#ifndef __ASSEMBLY__
 #ifdef CONFIG_X86_64
-extern void load_pda_offset(int cpu);
+#define __percpu_seg		gs
+#define __percpu_mov_op		movq
 #else
-static inline void load_pda_offset(int cpu) { }
+#define __percpu_seg		fs
+#define __percpu_mov_op		movl
 #endif
-#endif
-
-#ifdef CONFIG_X86_64
-#include <linux/compiler.h>
-
-/* Same as asm-generic/percpu.h, except that we store the per cpu offset
-   in the PDA. Longer term the PDA and every per cpu variable
-   should be just put into a single section and referenced directly
-   from %gs */
-
-#ifdef CONFIG_SMP
-#include <asm/pda.h>
-
-#define __per_cpu_offset(cpu) (cpu_pda(cpu)->data_offset)
-#define __my_cpu_offset read_pda(data_offset)
-
-#define per_cpu_offset(x) (__per_cpu_offset(x))
-
-#endif
-#include <asm-generic/percpu.h>
-
-DECLARE_PER_CPU(struct x8664_pda, pda);
-
-/*
- * These are supposed to be implemented as a single instruction which
- * operates on the per-cpu data base segment.  x86-64 doesn't have
- * that yet, so this is a fairly inefficient workaround for the
- * meantime.  The single instruction is atomic with respect to
- * preemption and interrupts, so we need to explicitly disable
- * interrupts here to achieve the same effect.  However, because it
- * can be used from within interrupt-disable/enable, we can't actually
- * disable interrupts; disabling preemption is enough.
- */
-#define x86_read_percpu(var)						\
-	({								\
-		typeof(per_cpu_var(var)) __tmp;				\
-		preempt_disable();					\
-		__tmp = __get_cpu_var(var);				\
-		preempt_enable();					\
-		__tmp;							\
-	})
-
-#define x86_write_percpu(var, val)					\
-	do {								\
-		preempt_disable();					\
-		__get_cpu_var(var) = (val);				\
-		preempt_enable();					\
-	} while(0)
-
-#else /* CONFIG_X86_64 */
 
 #ifdef __ASSEMBLY__
 
@@ -73,42 +24,26 @@ DECLARE_PER_CPU(struct x8664_pda, pda);
  *    PER_CPU(cpu_gdt_descr, %ebx)
  */
 #ifdef CONFIG_SMP
-#define PER_CPU(var, reg)				\
-	movl %fs:per_cpu__##this_cpu_off, reg;		\
+#define PER_CPU(var, reg)						\
+	__percpu_mov_op %__percpu_seg:per_cpu__this_cpu_off, reg;	\
 	lea per_cpu__##var(reg), reg
-#define PER_CPU_VAR(var)	%fs:per_cpu__##var
+#define PER_CPU_VAR(var)	%__percpu_seg:per_cpu__##var
 #else /* ! SMP */
-#define PER_CPU(var, reg)			\
-	movl $per_cpu__##var, reg
+#define PER_CPU(var, reg)						\
+	__percpu_mov_op $per_cpu__##var, reg
 #define PER_CPU_VAR(var)	per_cpu__##var
 #endif	/* SMP */
 
 #else /* ...!ASSEMBLY */
 
-/*
- * PER_CPU finds an address of a per-cpu variable.
- *
- * Args:
- *    var - variable name
- *    cpu - 32bit register containing the current CPU number
- *
- * The resulting address is stored in the "cpu" argument.
- *
- * Example:
- *    PER_CPU(cpu_gdt_descr, %ebx)
- */
+#include <linux/stringify.h>
+
 #ifdef CONFIG_SMP
-
-#define __my_cpu_offset x86_read_percpu(this_cpu_off)
-
-/* fs segment starts at (positive) offset == __per_cpu_offset[cpu] */
-#define __percpu_seg "%%fs:"
-
-#else  /* !SMP */
-
-#define __percpu_seg ""
-
-#endif	/* SMP */
+#define __percpu_seg_str	"%%"__stringify(__percpu_seg)":"
+#define __my_cpu_offset		x86_read_percpu(this_cpu_off)
+#else
+#define __percpu_seg_str
+#endif
 
 #include <asm-generic/percpu.h>
 
@@ -128,19 +63,24 @@ do {							\
 	}						\
 	switch (sizeof(var)) {				\
 	case 1:						\
-		asm(op "b %1,"__percpu_seg"%0"		\
+		asm(op "b %1,"__percpu_seg_str"%0"	\
 		    : "+m" (var)			\
 		    : "ri" ((T__)val));			\
 		break;					\
 	case 2:						\
-		asm(op "w %1,"__percpu_seg"%0"		\
+		asm(op "w %1,"__percpu_seg_str"%0"	\
 		    : "+m" (var)			\
 		    : "ri" ((T__)val));			\
 		break;					\
 	case 4:						\
-		asm(op "l %1,"__percpu_seg"%0"		\
+		asm(op "l %1,"__percpu_seg_str"%0"	\
 		    : "+m" (var)			\
 		    : "ri" ((T__)val));			\
+		break;					\
+	case 8:						\
+		asm(op "q %1,"__percpu_seg_str"%0"	\
+		    : "+m" (var)			\
+		    : "r" ((T__)val));			\
 		break;					\
 	default: __bad_percpu_size();			\
 	}						\
@@ -151,17 +91,22 @@ do {							\
 	typeof(var) ret__;				\
 	switch (sizeof(var)) {				\
 	case 1:						\
-		asm(op "b "__percpu_seg"%1,%0"		\
+		asm(op "b "__percpu_seg_str"%1,%0"	\
 		    : "=r" (ret__)			\
 		    : "m" (var));			\
 		break;					\
 	case 2:						\
-		asm(op "w "__percpu_seg"%1,%0"		\
+		asm(op "w "__percpu_seg_str"%1,%0"	\
 		    : "=r" (ret__)			\
 		    : "m" (var));			\
 		break;					\
 	case 4:						\
-		asm(op "l "__percpu_seg"%1,%0"		\
+		asm(op "l "__percpu_seg_str"%1,%0"	\
+		    : "=r" (ret__)			\
+		    : "m" (var));			\
+		break;					\
+	case 8:						\
+		asm(op "q "__percpu_seg_str"%1,%0"	\
 		    : "=r" (ret__)			\
 		    : "m" (var));			\
 		break;					\
@@ -175,8 +120,14 @@ do {							\
 #define x86_add_percpu(var, val) percpu_to_op("add", per_cpu__##var, val)
 #define x86_sub_percpu(var, val) percpu_to_op("sub", per_cpu__##var, val)
 #define x86_or_percpu(var, val) percpu_to_op("or", per_cpu__##var, val)
+
+#ifdef CONFIG_X86_64
+extern void load_pda_offset(int cpu);
+#else
+static inline void load_pda_offset(int cpu) { }
+#endif
+
 #endif /* !__ASSEMBLY__ */
-#endif /* !CONFIG_X86_64 */
 
 #ifdef CONFIG_SMP
 

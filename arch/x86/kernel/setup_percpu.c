@@ -125,14 +125,14 @@ static void __init setup_per_cpu_maps(void)
 #endif
 }
 
-#ifdef CONFIG_X86_32
-/*
- * Great future not-so-futuristic plan: make i386 and x86_64 do it
- * the same way
- */
+#ifdef CONFIG_X86_64
+unsigned long __per_cpu_offset[NR_CPUS] __read_mostly = {
+	[0] = (unsigned long)__per_cpu_load,
+};
+#else
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
-EXPORT_SYMBOL(__per_cpu_offset);
 #endif
+EXPORT_SYMBOL(__per_cpu_offset);
 
 /*
  * Great future plan:
@@ -178,6 +178,7 @@ void __init setup_per_cpu_areas(void)
 #endif
 
 		memcpy(ptr, __per_cpu_load, __per_cpu_end - __per_cpu_start);
+		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 #ifdef CONFIG_X86_64
 		cpu_pda(cpu) = (void *)ptr;
 
@@ -190,7 +191,7 @@ void __init setup_per_cpu_areas(void)
 		else
 			memset(cpu_pda(cpu), 0, sizeof(*cpu_pda(cpu)));
 #endif
-		per_cpu_offset(cpu) = ptr - __per_cpu_start;
+		per_cpu(this_cpu_off, cpu) = per_cpu_offset(cpu);
 
 		DBG("PERCPU: cpu %4d %p\n", cpu, ptr);
 	}

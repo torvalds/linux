@@ -38,8 +38,6 @@ void __init x86_64_init_pda(void)
 #else
 	cpu_pda(0) = &_boot_cpu_pda;
 #endif
-	cpu_pda(0)->data_offset =
-		(unsigned long)(__per_cpu_load - __per_cpu_start);
 	pda_init(0);
 }
 
