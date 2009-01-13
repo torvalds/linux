@@ -93,6 +93,7 @@
 
 #define INITIAL_MAX_GAIN			64
 #define DEFAULT_GAIN 				283
+#define MT9M111_GREEN_GAIN_DEFAULT		0x20
 
 /*****************************************************************************/
 

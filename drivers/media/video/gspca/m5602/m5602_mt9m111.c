@@ -28,7 +28,8 @@ static int mt9m111_set_auto_white_balance(struct gspca_dev *gspca_dev,
 					 __s32 val);
 static int mt9m111_get_auto_white_balance(struct gspca_dev *gspca_dev,
 					  __s32 *val);
-
+static int mt9m111_get_green_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int mt9m111_set_green_balance(struct gspca_dev *gspca_dev, __s32 val);
 
 static struct v4l2_pix_format mt9m111_modes[] = {
 	{
@@ -100,7 +101,23 @@ const static struct ctrl mt9m111_ctrls[] = {
 		},
 		.set = mt9m111_set_auto_white_balance,
 		.get = mt9m111_get_auto_white_balance
-	}
+	},
+#define GREEN_BALANCE_IDX 4
+	{
+		{
+			.id 		= M5602_V4L2_CID_GREEN_BALANCE,
+			.type 		= V4L2_CTRL_TYPE_INTEGER,
+			.name 		= "green balance",
+			.minimum 	= 0x00,
+			.maximum 	= 0x7ff,
+			.step 		= 0x1,
+			.default_value 	= MT9M111_GREEN_GAIN_DEFAULT,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = mt9m111_set_green_balance,
+		.get = mt9m111_get_green_balance
+	},
+
 };
 
 static void mt9m111_dump_registers(struct sd *sd);
@@ -197,9 +214,12 @@ int mt9m111_init(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	err = mt9m111_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
+	err = mt9m111_set_green_balance(&sd->gspca_dev,
+					 sensor_settings[GREEN_BALANCE_IDX]);
+	if (err < 0)
+		return err;
 
-	return err;
+	return mt9m111_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
 }
 
 void mt9m111_disconnect(struct sd *sd)
@@ -363,6 +383,38 @@ static int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 
 	return err;
 }
+
+static int mt9m111_set_green_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	int err;
+	u8 data[2];
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	sensor_settings[GREEN_BALANCE_IDX] = val;
+	data[0] = (val & 0xff);
+	data[1] = (val & 0xff00) >> 8;
+
+	PDEBUG(D_V4L2, "Set green balance %d", val);
+	err = m5602_write_sensor(sd, MT9M111_SC_GREEN_1_GAIN,
+				 data, 2);
+	if (err < 0)
+		return err;
+
+	return m5602_write_sensor(sd, MT9M111_SC_GREEN_2_GAIN,
+				  data, 2);
+}
+
+static int mt9m111_get_green_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[GREEN_BALANCE_IDX];
+	PDEBUG(D_V4L2, "Read green balance %d", *val);
+	return 0;
+}
+
 
 static void mt9m111_dump_registers(struct sd *sd)
 {
