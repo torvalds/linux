@@ -333,6 +333,9 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 					      req_type & _PAGE_CACHE_MASK);
 	}
 
+	if (new_type)
+		*new_type = actual_type;
+
 	/*
 	 * For legacy reasons, some parts of the physical address range in the
 	 * legacy 1MB region is treated as non-RAM (even when listed as RAM in
@@ -355,9 +358,6 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	new->start	= start;
 	new->end	= end;
 	new->type	= actual_type;
-
-	if (new_type)
-		*new_type = actual_type;
 
 	spin_lock(&memtype_lock);
 
