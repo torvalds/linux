@@ -14,6 +14,8 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
+#define SVC_MAX_WAKING 5
+
 static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt);
 static int svc_deferred_recv(struct svc_rqst *rqstp);
 static struct cache_deferred_req *svc_defer(struct cache_req *req);
@@ -298,6 +300,7 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	struct svc_pool *pool;
 	struct svc_rqst	*rqstp;
 	int cpu;
+	int thread_avail;
 
 	if (!(xprt->xpt_flags &
 	      ((1<<XPT_CONN)|(1<<XPT_DATA)|(1<<XPT_CLOSE)|(1<<XPT_DEFERRED))))
@@ -308,12 +311,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	put_cpu();
 
 	spin_lock_bh(&pool->sp_lock);
-
-	if (!list_empty(&pool->sp_threads) &&
-	    !list_empty(&pool->sp_sockets))
-		printk(KERN_ERR
-		       "svc_xprt_enqueue: "
-		       "threads and transports both waiting??\n");
 
 	if (test_bit(XPT_DEAD, &xprt->xpt_flags)) {
 		/* Don't enqueue dead transports */
@@ -353,7 +350,14 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	}
 
  process:
-	if (!list_empty(&pool->sp_threads)) {
+	/* Work out whether threads are available */
+	thread_avail = !list_empty(&pool->sp_threads);	/* threads are asleep */
+	if (pool->sp_nwaking >= SVC_MAX_WAKING) {
+		/* too many threads are runnable and trying to wake up */
+		thread_avail = 0;
+	}
+
+	if (thread_avail) {
 		rqstp = list_entry(pool->sp_threads.next,
 				   struct svc_rqst,
 				   rq_list);
@@ -368,6 +372,8 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 		svc_xprt_get(xprt);
 		rqstp->rq_reserved = serv->sv_max_mesg;
 		atomic_add(rqstp->rq_reserved, &xprt->xpt_reserved);
+		rqstp->rq_waking = 1;
+		pool->sp_nwaking++;
 		BUG_ON(xprt->xpt_pool != pool);
 		wake_up(&rqstp->rq_wait);
 	} else {
@@ -633,6 +639,11 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		return -EINTR;
 
 	spin_lock_bh(&pool->sp_lock);
+	if (rqstp->rq_waking) {
+		rqstp->rq_waking = 0;
+		pool->sp_nwaking--;
+		BUG_ON(pool->sp_nwaking < 0);
+	}
 	xprt = svc_xprt_dequeue(pool);
 	if (xprt) {
 		rqstp->rq_xprt = xprt;

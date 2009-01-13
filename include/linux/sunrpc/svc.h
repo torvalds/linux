@@ -41,6 +41,7 @@ struct svc_pool {
 	struct list_head	sp_sockets;	/* pending sockets */
 	unsigned int		sp_nrthreads;	/* # of threads in pool */
 	struct list_head	sp_all_threads;	/* all server threads */
+	int			sp_nwaking;	/* number of threads woken but not yet active */
 } ____cacheline_aligned_in_smp;
 
 /*
@@ -264,6 +265,7 @@ struct svc_rqst {
 						 * cache pages */
 	wait_queue_head_t	rq_wait;	/* synchronization */
 	struct task_struct	*rq_task;	/* service thread */
+	int			rq_waking;	/* 1 if thread is being woken */
 };
 
 /*
