@@ -3850,6 +3850,22 @@ void __init probe_nr_irqs_gsi(void)
 		nr_irqs_gsi = nr;
 }
 
+#ifdef CONFIG_SPARSE_IRQ
+int __init arch_probe_nr_irqs(void)
+{
+	int nr;
+
+	nr = ((8 * nr_cpu_ids) > (32 * nr_ioapics) ?
+		(NR_VECTORS + (8 * nr_cpu_ids)) :
+		(NR_VECTORS + (32 * nr_ioapics)));
+
+	if (nr < nr_irqs && nr > nr_irqs_gsi)
+		nr_irqs = nr;
+
+	return 0;
+}
+#endif
+
 /* --------------------------------------------------------------------------
                           ACPI-based IOAPIC Configuration
    -------------------------------------------------------------------------- */

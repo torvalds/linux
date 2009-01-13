@@ -115,13 +115,10 @@
 # endif
 #else
 
-/* defined as a macro so nr_irqs = max_nr_irqs(nr_cpu_ids) can be used */
-# define max_nr_irqs(nr_cpus)				\
-	((8 * nr_cpus) > (32 * MAX_IO_APICS) ?		\
+# define NR_IRQS					\
+	((8 * NR_CPUS) > (32 * MAX_IO_APICS) ?		\
 		(NR_VECTORS + (8 * NR_CPUS)) :		\
 		(NR_VECTORS + (32 * MAX_IO_APICS)))	\
-
-# define NR_IRQS max_nr_irqs(NR_CPUS)
 
 #endif
 
