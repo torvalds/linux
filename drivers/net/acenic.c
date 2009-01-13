@@ -460,6 +460,7 @@ static const struct net_device_ops ace_netdev_ops = {
 	.ndo_get_stats		= ace_get_stats,
 	.ndo_start_xmit		= ace_start_xmit,
 	.ndo_set_multicast_list	= ace_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= ace_set_mac_addr,
 	.ndo_change_mtu		= ace_change_mtu,
 #if ACENIC_DO_VLAN
