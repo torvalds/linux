@@ -250,6 +250,7 @@ static int ppp_connect_channel(struct channel *pch, int unit);
 static int ppp_disconnect_channel(struct channel *pch);
 static void ppp_destroy_channel(struct channel *pch);
 static int unit_get(struct idr *p, void *ptr);
+static int unit_set(struct idr *p, void *ptr, int n);
 static void unit_put(struct idr *p, int n);
 static void *unit_find(struct idr *p, int n);
 
@@ -2432,11 +2433,18 @@ ppp_create_interface(int unit, int *retp)
 	} else {
 		if (unit_find(&ppp_units_idr, unit))
 			goto out2; /* unit already exists */
-		else {
-			/* darn, someone is cheating us? */
-			*retp = -EINVAL;
+		/*
+		 * if caller need a specified unit number
+		 * lets try to satisfy him, otherwise --
+		 * he should better ask us for new unit number
+		 *
+		 * NOTE: yes I know that returning EEXIST it's not
+		 * fair but at least pppd will ask us to allocate
+		 * new unit in this case so user is happy :)
+		 */
+		unit = unit_set(&ppp_units_idr, ppp, unit);
+		if (unit < 0)
 			goto out2;
-		}
 	}
 
 	/* Initialize the new ppp unit */
@@ -2677,14 +2685,37 @@ static void __exit ppp_cleanup(void)
  * by holding all_ppp_mutex
  */
 
+/* associate pointer with specified number */
+static int unit_set(struct idr *p, void *ptr, int n)
+{
+	int unit, err;
+
+again:
+	if (!idr_pre_get(p, GFP_KERNEL)) {
+		printk(KERN_ERR "PPP: No free memory for idr\n");
+		return -ENOMEM;
+	}
+
+	err = idr_get_new_above(p, ptr, n, &unit);
+	if (err == -EAGAIN)
+		goto again;
+
+	if (unit != n) {
+		idr_remove(p, unit);
+		return -EINVAL;
+	}
+
+	return unit;
+}
+
 /* get new free unit number and associate pointer with it */
 static int unit_get(struct idr *p, void *ptr)
 {
 	int unit, err;
 
 again:
-	if (idr_pre_get(p, GFP_KERNEL) == 0) {
-		printk(KERN_ERR "Out of memory expanding drawable idr\n");
+	if (!idr_pre_get(p, GFP_KERNEL)) {
+		printk(KERN_ERR "PPP: No free memory for idr\n");
 		return -ENOMEM;
 	}
 
