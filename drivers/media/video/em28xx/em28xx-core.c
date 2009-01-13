@@ -454,6 +454,15 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 				em28xx_warn("couldn't setup AC97 register %d\n",
 				     outputs[i].reg);
 		}
+
+		if (dev->ctl_aoutput & EM28XX_AOUT_PCM_IN) {
+			int sel = ac97_return_record_select(dev->ctl_aoutput);
+
+			/* Use the same input for both left and right channels */
+			sel |= (sel << 8);
+
+			em28xx_write_ac97(dev, AC97_RECORD_SELECT, sel);
+		}
 	}
 
 	return ret;
