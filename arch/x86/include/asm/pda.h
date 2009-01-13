@@ -5,6 +5,7 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/cache.h>
+#include <linux/threads.h>
 #include <asm/page.h>
 
 /* Per processor datastructure. %gs points to it while the kernel runs */
@@ -39,7 +40,7 @@ struct x8664_pda {
 	unsigned irq_spurious_count;
 } ____cacheline_aligned_in_smp;
 
-extern struct x8664_pda **_cpu_pda;
+extern struct x8664_pda *_cpu_pda[NR_CPUS];
 extern void pda_init(int);
 
 #define cpu_pda(i) (_cpu_pda[i])

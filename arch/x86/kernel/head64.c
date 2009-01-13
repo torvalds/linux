@@ -29,20 +29,8 @@
 /* boot cpu pda, referenced by head_64.S to initialize %gs for boot CPU */
 struct x8664_pda _boot_cpu_pda;
 
-#ifdef CONFIG_SMP
-/*
- * We install an empty cpu_pda pointer table to indicate to early users
- * (numa_set_node) that the cpu_pda pointer table for cpus other than
- * the boot cpu is not yet setup.
- */
-static struct x8664_pda *__cpu_pda[NR_CPUS] __initdata;
-#else
-static struct x8664_pda *__cpu_pda[NR_CPUS] __read_mostly;
-#endif
-
 void __init x86_64_init_pda(void)
 {
-	_cpu_pda = __cpu_pda;
 	cpu_pda(0) = &_boot_cpu_pda;
 	cpu_pda(0)->data_offset =
 		(unsigned long)(__per_cpu_load - __per_cpu_start);

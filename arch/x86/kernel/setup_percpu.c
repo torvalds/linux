@@ -114,7 +114,6 @@ static inline void setup_cpu_pda_map(void) { }
 static void __init setup_cpu_pda_map(void)
 {
 	char *pda;
-	struct x8664_pda **new_cpu_pda;
 	unsigned long size;
 	int cpu;
 
@@ -122,28 +121,21 @@ static void __init setup_cpu_pda_map(void)
 
 	/* allocate cpu_pda array and pointer table */
 	{
-		unsigned long tsize = nr_cpu_ids * sizeof(void *);
 		unsigned long asize = size * (nr_cpu_ids - 1);
 
-		tsize = roundup(tsize, cache_line_size());
-		new_cpu_pda = alloc_bootmem(tsize + asize);
-		pda = (char *)new_cpu_pda + tsize;
+		pda = alloc_bootmem(asize);
 	}
 
 	/* initialize pointer table to static pda's */
 	for_each_possible_cpu(cpu) {
 		if (cpu == 0) {
 			/* leave boot cpu pda in place */
-			new_cpu_pda[0] = cpu_pda(0);
 			continue;
 		}
-		new_cpu_pda[cpu] = (struct x8664_pda *)pda;
-		new_cpu_pda[cpu]->in_bootmem = 1;
+		cpu_pda(cpu) = (struct x8664_pda *)pda;
+		cpu_pda(cpu)->in_bootmem = 1;
 		pda += size;
 	}
-
-	/* point to new pointer table */
-	_cpu_pda = new_cpu_pda;
 }
 
 #endif /* CONFIG_SMP && CONFIG_X86_64 */
