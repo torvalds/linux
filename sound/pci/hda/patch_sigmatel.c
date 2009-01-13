@@ -1682,7 +1682,7 @@ static const char *stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 static struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
-		      "DFI LanParty", STAC_92HD71BXX_REF),
+		      "DFI LanParty", STAC_92HD83XXX_REF),
 	{} /* terminator */
 };
 
