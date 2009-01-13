@@ -38,6 +38,9 @@
 #include <linux/i2c.h>
 #include <linux/i2c/twl4030.h>
 
+#ifdef CONFIG_ARM
+#include <mach/cpu.h>
+#endif
 
 /*
  * The TWL4030 "Triton 2" is one of a family of a multi-function "Power

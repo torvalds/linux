@@ -502,6 +502,13 @@ config RTC_DRV_WM8350
 	  This driver can also be built as a module. If so, the module
 	  will be called "rtc-wm8350".
 
+config RTC_DRV_PCF50633
+	depends on MFD_PCF50633
+	tristate "NXP PCF50633 RTC"
+	help
+	  If you say yes here you get support for the RTC subsystem of the
+	  NXP PCF50633 used in embedded systems.
+
 comment "on-CPU RTC drivers"
 
 config RTC_DRV_OMAP
