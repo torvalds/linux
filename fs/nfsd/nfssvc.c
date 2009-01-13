@@ -40,9 +40,6 @@
 extern struct svc_program	nfsd_program;
 static int			nfsd(void *vrqstp);
 struct timeval			nfssvc_boot;
-static atomic_t			nfsd_busy;
-static unsigned long		nfsd_last_call;
-static DEFINE_SPINLOCK(nfsd_call_lock);
 
 /*
  * nfsd_mutex protects nfsd_serv -- both the pointer itself and the members
@@ -227,7 +224,6 @@ int nfsd_create_serv(void)
 			nfsd_max_blksize /= 2;
 	}
 
-	atomic_set(&nfsd_busy, 0);
 	nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
 				      AF_INET,
 				      nfsd_last_thread, nfsd, THIS_MODULE);
@@ -376,26 +372,6 @@ nfsd_svc(unsigned short port, int nrservs)
 	return error;
 }
 
-static inline void
-update_thread_usage(int busy_threads)
-{
-	unsigned long prev_call;
-	unsigned long diff;
-	int decile;
-
-	spin_lock(&nfsd_call_lock);
-	prev_call = nfsd_last_call;
-	nfsd_last_call = jiffies;
-	decile = busy_threads*10/nfsdstats.th_cnt;
-	if (decile>0 && decile <= 10) {
-		diff = nfsd_last_call - prev_call;
-		if ( (nfsdstats.th_usage[decile-1] += diff) >= NFSD_USAGE_WRAP)
-			nfsdstats.th_usage[decile-1] -= NFSD_USAGE_WRAP;
-		if (decile == 10)
-			nfsdstats.th_fullcnt++;
-	}
-	spin_unlock(&nfsd_call_lock);
-}
 
 /*
  * This is the NFS server kernel thread
@@ -464,8 +440,6 @@ nfsd(void *vrqstp)
 			continue;
 		}
 
-		update_thread_usage(atomic_read(&nfsd_busy));
-		atomic_inc(&nfsd_busy);
 
 		/* Lock the export hash tables for reading. */
 		exp_readlock();
@@ -474,8 +448,6 @@ nfsd(void *vrqstp)
 
 		/* Unlock export hash tables */
 		exp_readunlock();
-		update_thread_usage(atomic_read(&nfsd_busy));
-		atomic_dec(&nfsd_busy);
 	}
 
 	/* Clear signals before calling svc_exit_thread() */
