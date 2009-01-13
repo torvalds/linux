@@ -363,11 +363,8 @@ static int mpc52xx_gpt_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct mpc52xx_gpt __iomem *regs = mm_gc->regs;
-	unsigned int ret;
 
 	return (in_be32(&regs->status) & (1 << (31 - 23))) ? 1 : 0;
-
-	return ret;
 }
 
 static void
