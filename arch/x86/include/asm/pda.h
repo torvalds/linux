@@ -78,7 +78,7 @@ do {									\
 	case 8:								\
 		asm(op "q %1,%%gs:%c2":					\
 		    "+m" (_proxy_pda.field) :				\
-		    "ri" ((T__)val),					\
+		    "r" ((T__)val),					\
 		    "i"(pda_offset(field)));				\
 		break;							\
 	default:							\
