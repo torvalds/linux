@@ -230,7 +230,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		pci_read_config_word(pdev, 0x62, &port_wake);
 		if (port_wake & 0x0001) {
 			dev_warn(&pdev->dev, "Enabling legacy PCI PM\n");
-			device_init_wakeup(&pdev->dev, 1);
+			device_set_wakeup_capable(&pdev->dev, 1);
 		}
 	}
 
