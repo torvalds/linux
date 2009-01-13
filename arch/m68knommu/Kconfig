@@ -402,12 +402,6 @@ config M5307C3
 	help
 	  Support for the Motorola M5307C3 board.
 
-config eLIA
-	bool "Moreton Bay eLIA board support"
-	depends on M5307
-	help
-	  Support for the Moreton Bay eLIA board.
-
 config SECUREEDGEMP3
 	bool "SnapGear SecureEdge/MP3 platform support"
 	depends on M5307
