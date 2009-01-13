@@ -685,8 +685,8 @@ static psched_time_t htb_do_events(struct htb_sched *q, int level)
 		if (cl->cmode != HTB_CAN_SEND)
 			htb_add_to_wait_tree(q, cl, diff);
 	}
-	/* too much load - let's continue on next jiffie */
-	return q->now + PSCHED_TICKS_PER_SEC / HZ;
+	/* too much load - let's continue on next jiffie (including above) */
+	return q->now + 2 * PSCHED_TICKS_PER_SEC / HZ;
 }
 
 /* Returns class->node+prio from id-tree where classe's id is >= id. NULL
@@ -873,7 +873,7 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 		} else
 			event = q->near_ev_cache[level];
 
-		if (event && next_event > event)
+		if (next_event > event)
 			next_event = event;
 
 		m = ~q->row_mask[level];
