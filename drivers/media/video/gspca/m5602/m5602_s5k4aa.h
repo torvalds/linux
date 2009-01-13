@@ -49,6 +49,7 @@
 #define S5K4AA_EXPOSURE_LO		0x18
 #define S5K4AA_GAIN_1			0x1f /* (digital?) gain : 5 bits */
 #define S5K4AA_GAIN_2			0x20 /* (analogue?) gain : 7 bits */
+#define S5K4AA_NOISE_SUPP		0x37
 
 #define S5K4AA_RM_ROW_SKIP_4X		0x08
 #define S5K4AA_RM_ROW_SKIP_2X		0x04

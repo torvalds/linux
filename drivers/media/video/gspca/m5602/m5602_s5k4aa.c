@@ -26,6 +26,8 @@ static int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 static int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
 static int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int s5k4aa_get_noise(struct gspca_dev *gspca_dev, __s32 *val);
+static int s5k4aa_set_noise(struct gspca_dev *gspca_dev, __s32 val);
 
 static
     const
@@ -131,7 +133,21 @@ const static struct ctrl s5k4aa_ctrls[] = {
 		},
 		.set = s5k4aa_set_exposure,
 		.get = s5k4aa_get_exposure
-	}
+	},
+#define NOISE_SUPP_IDX 4
+	{
+		{
+			.id		= V4L2_CID_PRIVATE_BASE,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "Noise suppression (smoothing)",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 1,
+		},
+			.set = s5k4aa_set_noise,
+			.get = s5k4aa_get_noise
+	},
 };
 
 static void s5k4aa_dump_registers(struct sd *sd);
@@ -304,13 +320,15 @@ int s5k4aa_init(struct sd *sd)
 	if (err < 0)
 		return err;
 
+	err = s5k4aa_set_noise(&sd->gspca_dev, sensor_settings[NOISE_SUPP_IDX]);
+	if (err < 0)
+		return err;
+
 	err = s5k4aa_set_vflip(&sd->gspca_dev, sensor_settings[VFLIP_IDX]);
 	if (err < 0)
 		return err;
 
-	err = s5k4aa_set_hflip(&sd->gspca_dev, sensor_settings[HFLIP_IDX]);
-
-	return err;
+	return s5k4aa_set_hflip(&sd->gspca_dev, sensor_settings[HFLIP_IDX]);
 }
 
 static int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
@@ -493,6 +511,34 @@ static int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, S5K4AA_GAIN_2, &data, 1);
 
 	return err;
+}
+
+static int s5k4aa_get_noise(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[NOISE_SUPP_IDX];
+	PDEBUG(D_V4L2, "Read noise %d", *val);
+	return 0;
+}
+
+static int s5k4aa_set_noise(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+	u8 data = S5K4AA_PAGE_MAP_2;
+	int err;
+
+	sensor_settings[NOISE_SUPP_IDX] = val;
+
+	PDEBUG(D_V4L2, "Set noise to %d", val);
+	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
+	if (err < 0)
+		return err;
+
+	data = val & 0x01;
+	return m5602_write_sensor(sd, S5K4AA_NOISE_SUPP, &data, 1);
 }
 
 void s5k4aa_disconnect(struct sd *sd)
