@@ -15,6 +15,12 @@
 #include <asm/highmem.h>
 #include <asm/cpumask.h>
 
+#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+# define DBG(x...) printk(KERN_DEBUG x)
+#else
+# define DBG(x...)
+#endif
+
 #ifdef CONFIG_X86_LOCAL_APIC
 unsigned int num_processors;
 unsigned disabled_cpus __cpuinitdata;
@@ -27,31 +33,39 @@ unsigned int max_physical_apicid;
 physid_mask_t phys_cpu_present_map;
 #endif
 
-/* map cpu index to physical APIC ID */
+/*
+ * Map cpu index to physical APIC ID
+ */
 DEFINE_EARLY_PER_CPU(u16, x86_cpu_to_apicid, BAD_APICID);
 DEFINE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid, BAD_APICID);
 EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 EXPORT_EARLY_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_64)
-#define	X86_64_NUMA	1
+#define	X86_64_NUMA	1	/* (used later) */
 
-/* map cpu index to node index */
+/*
+ * Map cpu index to node index
+ */
 DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, NUMA_NO_NODE);
 EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_node_map);
 
-/* which logical CPUs are on which nodes */
+/*
+ * Which logical CPUs are on which nodes
+ */
 cpumask_t *node_to_cpumask_map;
 EXPORT_SYMBOL(node_to_cpumask_map);
 
-/* setup node_to_cpumask_map */
+/*
+ * Setup node_to_cpumask_map
+ */
 static void __init setup_node_to_cpumask_map(void);
 
 #else
 static inline void setup_node_to_cpumask_map(void) { }
 #endif
 
-#if defined(CONFIG_HAVE_SETUP_PER_CPU_AREA) && defined(CONFIG_X86_SMP)
+#ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
 /*
  * Copy data used in early init routines from the initial arrays to the
  * per cpu data areas.  These arrays then become expendable and the
@@ -200,6 +214,8 @@ void __init setup_per_cpu_areas(void)
 #endif
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+
+		DBG("PERCPU: cpu %4d %p\n", cpu, ptr);
 	}
 
 	/* Setup percpu data maps */
@@ -221,6 +237,7 @@ void __init setup_per_cpu_areas(void)
  * Requires node_possible_map to be valid.
  *
  * Note: node_to_cpumask() is not valid until after this is done.
+ * (Use CONFIG_DEBUG_PER_CPU_MAPS to check this.)
  */
 static void __init setup_node_to_cpumask_map(void)
 {
@@ -236,6 +253,7 @@ static void __init setup_node_to_cpumask_map(void)
 
 	/* allocate the map */
 	map = alloc_bootmem_low(nr_node_ids * sizeof(cpumask_t));
+	DBG("node_to_cpumask_map at %p for %d nodes\n", map, nr_node_ids);
 
 	pr_debug("Node to cpumask map at %p for %d nodes\n",
 		 map, nr_node_ids);
@@ -248,17 +266,23 @@ void __cpuinit numa_set_node(int cpu, int node)
 {
 	int *cpu_to_node_map = early_per_cpu_ptr(x86_cpu_to_node_map);
 
-	if (cpu_pda(cpu) && node != NUMA_NO_NODE)
-		cpu_pda(cpu)->nodenumber = node;
-
-	if (cpu_to_node_map)
+	/* early setting, no percpu area yet */
+	if (cpu_to_node_map) {
 		cpu_to_node_map[cpu] = node;
+		return;
+	}
 
-	else if (per_cpu_offset(cpu))
-		per_cpu(x86_cpu_to_node_map, cpu) = node;
+#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+	if (cpu >= nr_cpu_ids || !per_cpu_offset(cpu)) {
+		printk(KERN_ERR "numa_set_node: invalid cpu# (%d)\n", cpu);
+		dump_stack();
+		return;
+	}
+#endif
+	per_cpu(x86_cpu_to_node_map, cpu) = node;
 
-	else
-		pr_debug("Setting node for non-present cpu %d\n", cpu);
+	if (node != NUMA_NO_NODE)
+		cpu_pda(cpu)->nodenumber = node;
 }
 
 void __cpuinit numa_clear_node(int cpu)
@@ -275,7 +299,7 @@ void __cpuinit numa_add_cpu(int cpu)
 
 void __cpuinit numa_remove_cpu(int cpu)
 {
-	cpu_clear(cpu, node_to_cpumask_map[cpu_to_node(cpu)]);
+	cpu_clear(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
 }
 
 #else /* CONFIG_DEBUG_PER_CPU_MAPS */
@@ -285,7 +309,7 @@ void __cpuinit numa_remove_cpu(int cpu)
  */
 static void __cpuinit numa_set_cpumask(int cpu, int enable)
 {
-	int node = cpu_to_node(cpu);
+	int node = early_cpu_to_node(cpu);
 	cpumask_t *mask;
 	char buf[64];
 
