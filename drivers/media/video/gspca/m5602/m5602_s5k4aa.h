@@ -57,6 +57,8 @@
 #define S5K4AA_RM_H_FLIP		0x40
 #define S5K4AA_RM_V_FLIP		0x80
 
+#define DEFAULT_GAIN_2			0x5f
+
 /*****************************************************************************/
 
 /* Kernel module parameters */
@@ -171,9 +173,6 @@ static const unsigned char init_s5k4aa[][4] =
 	{SENSOR, S5K4AA_PAGE_MAP, 0x02, 0x00},
 	{SENSOR, 0x0c, 0x05, 0x00},
 	{SENSOR, 0x02, 0x0e, 0x00},
-	{SENSOR, S5K4AA_GAIN_1, 0x0f, 0x00},
-	{SENSOR, S5K4AA_GAIN_2, 0x00, 0x00},
-	{SENSOR, S5K4AA_GLOBAL_GAIN__, 0x01, 0x00},
 	{SENSOR, 0x11, 0x00, 0x00},
 	{SENSOR, 0x12, 0x00, 0x00},
 	{SENSOR, S5K4AA_PAGE_MAP, 0x02, 0x00},
@@ -247,9 +246,6 @@ static const unsigned char init_s5k4aa[][4] =
 	{SENSOR, 0x12, 0xc3, 0x00},
 	{SENSOR, S5K4AA_PAGE_MAP, 0x02, 0x00},
 	{SENSOR, 0x02, 0x0e, 0x00},
-	{SENSOR_LONG, S5K4AA_GLOBAL_GAIN__, 0x0f, 0x00},
-	{SENSOR, S5K4AA_GAIN_1, 0x0b, 0x00},
-	{SENSOR, S5K4AA_GAIN_2, 0xa0, 0x00}
 };
 
 static const unsigned char VGA_s5k4aa[][4] =
@@ -289,7 +285,7 @@ static const unsigned char VGA_s5k4aa[][4] =
 	{SENSOR, 0x37, 0x01, 0x00},
 	/* ROWSTART_HI, ROWSTART_LO : 10 + (1024-960)/2 = 42 = 0x002a */
 	{SENSOR, S5K4AA_ROWSTART_HI, 0x00, 0x00},
-	{SENSOR, S5K4AA_ROWSTART_LO, 0x2a, 0x00},
+	{SENSOR, S5K4AA_ROWSTART_LO, 0x29, 0x00},
 	{SENSOR, S5K4AA_COLSTART_HI, 0x00, 0x00},
 	{SENSOR, S5K4AA_COLSTART_LO, 0x0c, 0x00},
 	/* window_height_hi, window_height_lo : 960 = 0x03c0 */
@@ -306,9 +302,7 @@ static const unsigned char VGA_s5k4aa[][4] =
 	{SENSOR, 0x12, 0xc3, 0x00},
 	{SENSOR, S5K4AA_PAGE_MAP, 0x02, 0x00},
 	{SENSOR, 0x02, 0x0e, 0x00},
-	{SENSOR_LONG, S5K4AA_GLOBAL_GAIN__, 0x0f, 0x00},
-	{SENSOR, S5K4AA_GAIN_1, 0x0b, 0x00},
-	{SENSOR, S5K4AA_GAIN_2, 0xa0, 0x00}
+	{SENSOR, S5K4AA_GAIN_1, 0x10, 0x00},
 };
 
 #endif

@@ -111,7 +111,7 @@ const static struct ctrl s5k4aa_ctrls[] = {
 			.minimum	= 0,
 			.maximum	= 127,
 			.step		= 1,
-			.default_value	= 0xa0,
+			.default_value	= DEFAULT_GAIN_2,
 			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = s5k4aa_set_gain,
