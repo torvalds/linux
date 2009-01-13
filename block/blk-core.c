@@ -1451,6 +1451,11 @@ static inline void __generic_make_request(struct bio *bio)
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}
+		if (bio_barrier(bio) && bio_has_data(bio) &&
+		    (q->next_ordered == QUEUE_ORDERED_NONE)) {
+			err = -EOPNOTSUPP;
+			goto end_io;
+		}
 
 		ret = q->make_request_fn(q, bio);
 	} while (ret);
