@@ -32,6 +32,8 @@ static int mt9m111_get_green_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int mt9m111_set_green_balance(struct gspca_dev *gspca_dev, __s32 val);
 static int mt9m111_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int mt9m111_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int mt9m111_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int mt9m111_set_red_balance(struct gspca_dev *gspca_dev, __s32 val);
 
 static struct v4l2_pix_format mt9m111_modes[] = {
 	{
@@ -133,6 +135,21 @@ const static struct ctrl mt9m111_ctrls[] = {
 		},
 		.set = mt9m111_set_blue_balance,
 		.get = mt9m111_get_blue_balance
+	},
+#define RED_BALANCE_IDX 5
+	{
+		{
+			.id 		= V4L2_CID_RED_BALANCE,
+			.type 		= V4L2_CTRL_TYPE_INTEGER,
+			.name 		= "red balance",
+			.minimum 	= 0x00,
+			.maximum 	= 0x7ff,
+			.step 		= 0x1,
+			.default_value 	= MT9M111_RED_GAIN_DEFAULT,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = mt9m111_set_red_balance,
+		.get = mt9m111_get_red_balance
 	},
 };
 
@@ -237,6 +254,11 @@ int mt9m111_init(struct sd *sd)
 
 	err = mt9m111_set_blue_balance(&sd->gspca_dev,
 					 sensor_settings[BLUE_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = mt9m111_set_red_balance(&sd->gspca_dev,
+					sensor_settings[RED_BALANCE_IDX]);
 	if (err < 0)
 		return err;
 
@@ -459,6 +481,32 @@ static int mt9m111_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
 
 	*val = sensor_settings[BLUE_BALANCE_IDX];
 	PDEBUG(D_V4L2, "Read blue balance %d", *val);
+	return 0;
+}
+
+static int mt9m111_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	u8 data[2];
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	sensor_settings[RED_BALANCE_IDX] = val;
+	data[0] = (val & 0xff);
+	data[1] = (val & 0xff00) >> 8;
+
+	PDEBUG(D_V4L2, "Set red balance %d", val);
+
+	return m5602_write_sensor(sd, MT9M111_SC_RED_GAIN,
+				  data, 2);
+}
+
+static int mt9m111_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[RED_BALANCE_IDX];
+	PDEBUG(D_V4L2, "Read red balance %d", *val);
 	return 0;
 }
 

@@ -95,6 +95,7 @@
 #define DEFAULT_GAIN 				283
 #define MT9M111_GREEN_GAIN_DEFAULT		0x20
 #define MT9M111_BLUE_GAIN_DEFAULT		0x20
+#define MT9M111_RED_GAIN_DEFAULT		0x20
 
 /*****************************************************************************/
 
