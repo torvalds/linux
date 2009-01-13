@@ -374,6 +374,10 @@ static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		return err;
 
+	err = m5602_read_sensor(sd, S5K4AA_READ_MODE, &data, 1);
+	if (err < 0)
+		return err;
+
 	if (dmi_check_system(s5k4aa_vflip_dmi_table))
 		val = !val;
 
@@ -430,6 +434,10 @@ static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		return err;
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
+	if (err < 0)
+		return err;
+
+	err = m5602_read_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
 		return err;
 
