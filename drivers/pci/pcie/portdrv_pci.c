@@ -32,11 +32,6 @@ MODULE_LICENSE("GPL");
 /* global data */
 static const char device_name[] = "pcieport-driver";
 
-static int pcie_portdrv_save_config(struct pci_dev *dev)
-{
-	return pci_save_state(dev);
-}
-
 static int pcie_portdrv_restore_config(struct pci_dev *dev)
 {
 	int retval;
@@ -90,7 +85,7 @@ static int __devinit pcie_portdrv_probe (struct pci_dev *dev,
 	if (status)
 		return status;
 
-	pcie_portdrv_save_config(dev);
+	pci_save_state(dev);
 
 	return 0;
 }
