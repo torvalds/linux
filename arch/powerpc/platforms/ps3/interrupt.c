@@ -60,6 +60,8 @@
  * gives a usable range of plug values of  {NUM_ISA_INTERRUPTS..63}.  Note
  * that there is no constraint on how many in this set an individual thread
  * can acquire.
+ *
+ * The mask is declared as unsigned long so we can use set/clear_bit on it.
  */
 
 #define PS3_BMP_MINALIGN 64
@@ -68,7 +70,7 @@ struct ps3_bmp {
 	struct {
 		u64 status;
 		u64 unused_1[3];
-		u64 mask;
+		unsigned long mask;
 		u64 unused_2[3];
 	};
 	u64 ipi_debug_brk_mask;
