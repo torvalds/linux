@@ -655,6 +655,7 @@ int nes_arp_table(struct nes_device *nesdev, u32 ip_addr, u8 *mac_addr, u32 acti
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	int arp_index;
 	int err = 0;
+	__be32 tmp_addr;
 
 	for (arp_index = 0; (u32) arp_index < nesadapter->arp_table_size; arp_index++) {
 		if (nesadapter->arp_table[arp_index].ip_addr == ip_addr)
@@ -682,8 +683,9 @@ int nes_arp_table(struct nes_device *nesdev, u32 ip_addr, u8 *mac_addr, u32 acti
 
 	/* DELETE or RESOLVE */
 	if (arp_index == nesadapter->arp_table_size) {
+		tmp_addr = cpu_to_be32(ip_addr);
 		nes_debug(NES_DBG_NETDEV, "MAC for %pI4 not in ARP table - cannot %s\n",
-			  &ip_addr, action == NES_ARP_RESOLVE ? "resolve" : "delete");
+			  &tmp_addr, action == NES_ARP_RESOLVE ? "resolve" : "delete");
 		return -1;
 	}
 

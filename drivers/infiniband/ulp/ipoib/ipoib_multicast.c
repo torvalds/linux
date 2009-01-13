@@ -529,6 +529,9 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	if (!priv->broadcast) {
 		struct ipoib_mcast *broadcast;
 
+		if (!test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
+			return;
+
 		broadcast = ipoib_mcast_alloc(dev, 1);
 		if (!broadcast) {
 			ipoib_warn(priv, "failed to allocate broadcast group\n");
