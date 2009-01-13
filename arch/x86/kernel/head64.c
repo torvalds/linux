@@ -26,11 +26,6 @@
 #include <asm/bios_ebda.h>
 #include <asm/trampoline.h>
 
-void __init x86_64_init_pda(void)
-{
-	pda_init(0);
-}
-
 static void __init zap_identity_mappings(void)
 {
 	pgd_t *pgd = pgd_offset_k(0UL);
@@ -96,7 +91,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	if (console_loglevel == 10)
 		early_printk("Kernel alive\n");
 
-	x86_64_init_pda();
+	pda_init(0);
 
 	x86_64_start_reservations(real_mode_data);
 }
