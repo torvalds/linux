@@ -1013,9 +1013,12 @@ next_sg:
 		qc->cursg_ofs = 0;
 	}
 
-	/* consumed can be larger than count only for the last transfer */
-	WARN_ON_ONCE(qc->cursg && count != consumed);
-
+	/*
+	 * There used to be a  WARN_ON_ONCE(qc->cursg && count != consumed);
+	 * Unfortunately __atapi_pio_bytes doesn't know enough to do the WARN
+	 * check correctly as it doesn't know if it is the last request being
+	 * made. Somebody should implement a proper sanity check.
+	 */
 	if (bytes)
 		goto next_sg;
 	return 0;
