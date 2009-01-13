@@ -700,7 +700,6 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	snprintf(gl->gl_strname, GDLM_STRNAME_BYTES, "%8x%16llx", name.ln_type, (unsigned long long)number);
 	memset(&gl->gl_lksb, 0, sizeof(struct dlm_lksb));
 	gl->gl_lksb.sb_lvbptr = gl->gl_lvb;
-	gl->gl_stamp = jiffies;
 	gl->gl_tchange = jiffies;
 	gl->gl_object = NULL;
 	gl->gl_sbd = sdp;
@@ -1008,7 +1007,6 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 			spin_lock(&gl->gl_spin);
 			clear_bit(GLF_LOCK, &gl->gl_flags);
 		}
-		gl->gl_stamp = jiffies;
 		if (list_empty(&gl->gl_holders) &&
 		    !test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
 		    !test_bit(GLF_DEMOTE, &gl->gl_flags))

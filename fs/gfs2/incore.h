@@ -211,7 +211,6 @@ struct gfs2_glock {
 	char gl_strname[GDLM_STRNAME_BYTES];
 	struct dlm_lksb gl_lksb;
 	char gl_lvb[32];
-	unsigned long gl_stamp;
 	unsigned long gl_tchange;
 	void *gl_object;
 
