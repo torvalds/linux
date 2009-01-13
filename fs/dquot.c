@@ -904,6 +904,23 @@ static inline void dquot_resv_space(struct dquot *dquot, qsize_t number)
 	dquot->dq_dqb.dqb_rsvspace += number;
 }
 
+/*
+ * Claim reserved quota space
+ */
+static void dquot_claim_reserved_space(struct dquot *dquot,
+						qsize_t number)
+{
+	WARN_ON(dquot->dq_dqb.dqb_rsvspace < number);
+	dquot->dq_dqb.dqb_curspace += number;
+	dquot->dq_dqb.dqb_rsvspace -= number;
+}
+
+static inline
+void dquot_free_reserved_space(struct dquot *dquot, qsize_t number)
+{
+	dquot->dq_dqb.dqb_rsvspace -= number;
+}
+
 static inline void dquot_decr_inodes(struct dquot *dquot, qsize_t number)
 {
 	if (sb_dqopt(dquot->dq_sb)->flags & DQUOT_NEGATIVE_USAGE ||
@@ -1452,6 +1469,72 @@ warn_put_all:
 	return ret;
 }
 
+int dquot_claim_space(struct inode *inode, qsize_t number)
+{
+	int cnt;
+	int ret = QUOTA_OK;
+
+	if (IS_NOQUOTA(inode)) {
+		inode_add_bytes(inode, number);
+		goto out;
+	}
+
+	down_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
+	if (IS_NOQUOTA(inode))	{
+		up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
+		inode_add_bytes(inode, number);
+		goto out;
+	}
+
+	spin_lock(&dq_data_lock);
+	/* Claim reserved quotas to allocated quotas */
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		if (inode->i_dquot[cnt] != NODQUOT)
+			dquot_claim_reserved_space(inode->i_dquot[cnt],
+							number);
+	}
+	/* Update inode bytes */
+	inode_add_bytes(inode, number);
+	spin_unlock(&dq_data_lock);
+	/* Dirtify all the dquots - this can block when journalling */
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
+		if (inode->i_dquot[cnt])
+			mark_dquot_dirty(inode->i_dquot[cnt]);
+	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
+out:
+	return ret;
+}
+EXPORT_SYMBOL(dquot_claim_space);
+
+/*
+ * Release reserved quota space
+ */
+void dquot_release_reserved_space(struct inode *inode, qsize_t number)
+{
+	int cnt;
+
+	if (IS_NOQUOTA(inode))
+		goto out;
+
+	down_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
+	if (IS_NOQUOTA(inode))
+		goto out_unlock;
+
+	spin_lock(&dq_data_lock);
+	/* Release reserved dquots */
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		if (inode->i_dquot[cnt] != NODQUOT)
+			dquot_free_reserved_space(inode->i_dquot[cnt], number);
+	}
+	spin_unlock(&dq_data_lock);
+
+out_unlock:
+	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
+out:
+	return;
+}
+EXPORT_SYMBOL(dquot_release_reserved_space);
+
 /*
  * This operation can block, but only after everything is updated
  */
@@ -1529,6 +1612,19 @@ int dquot_free_inode(const struct inode *inode, qsize_t number)
 }
 
 /*
+ * call back function, get reserved quota space from underlying fs
+ */
+qsize_t dquot_get_reserved_space(struct inode *inode)
+{
+	qsize_t reserved_space = 0;
+
+	if (sb_any_quota_active(inode->i_sb) &&
+	    inode->i_sb->dq_op->get_reserved_space)
+		reserved_space = inode->i_sb->dq_op->get_reserved_space(inode);
+	return reserved_space;
+}
+
+/*
  * Transfer the number of inode and blocks from one diskquota to an other.
  *
  * This operation can block, but only after everything is updated
@@ -1536,7 +1632,8 @@ int dquot_free_inode(const struct inode *inode, qsize_t number)
  */
 int dquot_transfer(struct inode *inode, struct iattr *iattr)
 {
-	qsize_t space;
+	qsize_t space, cur_space;
+	qsize_t rsv_space = 0;
 	struct dquot *transfer_from[MAXQUOTAS];
 	struct dquot *transfer_to[MAXQUOTAS];
 	int cnt, ret = QUOTA_OK;
@@ -1575,7 +1672,9 @@ int dquot_transfer(struct inode *inode, struct iattr *iattr)
 		goto put_all;
 	}
 	spin_lock(&dq_data_lock);
-	space = inode_get_bytes(inode);
+	cur_space = inode_get_bytes(inode);
+	rsv_space = dquot_get_reserved_space(inode);
+	space = cur_space + rsv_space;
 	/* Build the transfer_from list and check the limits */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (transfer_to[cnt] == NODQUOT)
@@ -1604,11 +1703,14 @@ int dquot_transfer(struct inode *inode, struct iattr *iattr)
 			warntype_from_space[cnt] =
 				info_bdq_free(transfer_from[cnt], space);
 			dquot_decr_inodes(transfer_from[cnt], 1);
-			dquot_decr_space(transfer_from[cnt], space);
+			dquot_decr_space(transfer_from[cnt], cur_space);
+			dquot_free_reserved_space(transfer_from[cnt],
+						  rsv_space);
 		}
 
 		dquot_incr_inodes(transfer_to[cnt], 1);
-		dquot_incr_space(transfer_to[cnt], space);
+		dquot_incr_space(transfer_to[cnt], cur_space);
+		dquot_resv_space(transfer_to[cnt], rsv_space);
 
 		inode->i_dquot[cnt] = transfer_to[cnt];
 	}

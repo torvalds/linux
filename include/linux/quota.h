@@ -311,6 +311,12 @@ struct dquot_operations {
 	int (*write_info) (struct super_block *, int);	/* Write of quota "superblock" */
 	/* reserve quota for delayed block allocation */
 	int (*reserve_space) (struct inode *, qsize_t, int);
+	/* claim reserved quota for delayed alloc */
+	int (*claim_space) (struct inode *, qsize_t);
+	/* release rsved quota for delayed alloc */
+	void (*release_rsv) (struct inode *, qsize_t);
+	/* get reserved quota for delayed alloc */
+	qsize_t (*get_reserved_space) (struct inode *);
 };
 
 /* Operations handling requests from userspace */
