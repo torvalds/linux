@@ -128,6 +128,7 @@ void do_BUG(const char *file, int line)
 	bust_spinlocks(1);
 	printk("kernel BUG at %s:%d!\n", file, line);
 }
+EXPORT_SYMBOL(do_BUG);
 #endif
 
 static DEFINE_SPINLOCK(dimm_handler_lock);
@@ -2261,6 +2262,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 		do_exit(SIGKILL);
 	do_exit(SIGSEGV);
 }
+EXPORT_SYMBOL(die_if_kernel);
 
 #define VIS_OPCODE_MASK	((0x3 << 30) | (0x3f << 19))
 #define VIS_OPCODE_VAL	((0x2 << 30) | (0x36 << 19))
