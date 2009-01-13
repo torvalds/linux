@@ -73,7 +73,7 @@
 #define	AR5K_CFG_SWRD		0x00000004	/* Byte-swap RX descriptor */
 #define	AR5K_CFG_SWRB		0x00000008	/* Byte-swap RX buffer */
 #define	AR5K_CFG_SWRG		0x00000010	/* Byte-swap Register access */
-#define AR5K_CFG_ADHOC		0x00000020 	/* AP/Adhoc indication [5211+] */
+#define AR5K_CFG_IBSS		0x00000020 	/* 0-BSS, 1-IBSS [5211+] */
 #define AR5K_CFG_PHY_OK		0x00000100	/* [5211+] */
 #define AR5K_CFG_EEBS		0x00000200	/* EEPROM is busy */
 #define	AR5K_CFG_CLKGD		0x00000400	/* Clock gated (Disable dynamic clock) */
