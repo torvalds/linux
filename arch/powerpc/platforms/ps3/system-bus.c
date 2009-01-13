@@ -182,7 +182,7 @@ int ps3_open_hv_device(struct ps3_system_bus_device *dev)
 	case PS3_MATCH_ID_SYSTEM_MANAGER:
 		pr_debug("%s:%d: unsupported match_id: %u\n", __func__,
 			__LINE__, dev->match_id);
-		pr_debug("%s:%d: bus_id: %lu\n", __func__, __LINE__,
+		pr_debug("%s:%d: bus_id: %llu\n", __func__, __LINE__,
 			dev->bus_id);
 		BUG();
 		return -EINVAL;
@@ -220,7 +220,7 @@ int ps3_close_hv_device(struct ps3_system_bus_device *dev)
 	case PS3_MATCH_ID_SYSTEM_MANAGER:
 		pr_debug("%s:%d: unsupported match_id: %u\n", __func__,
 			__LINE__, dev->match_id);
-		pr_debug("%s:%d: bus_id: %lu\n", __func__, __LINE__,
+		pr_debug("%s:%d: bus_id: %llu\n", __func__, __LINE__,
 			dev->bus_id);
 		BUG();
 		return -EINVAL;
@@ -240,7 +240,7 @@ EXPORT_SYMBOL_GPL(ps3_close_hv_device);
 static void _dump_mmio_region(const struct ps3_mmio_region* r,
 	const char* func, int line)
 {
-	pr_debug("%s:%d: dev       %lu:%lu\n", func, line, r->dev->bus_id,
+	pr_debug("%s:%d: dev       %llu:%llu\n", func, line, r->dev->bus_id,
 		r->dev->dev_id);
 	pr_debug("%s:%d: bus_addr  %lxh\n", func, line, r->bus_addr);
 	pr_debug("%s:%d: len       %lxh\n", func, line, r->len);
