@@ -322,7 +322,7 @@ EXPORT_SYMBOL_GPL(ps3_irq_plug_destroy);
 int ps3_event_receive_port_setup(enum ps3_cpu_binding cpu, unsigned int *virq)
 {
 	int result;
-	unsigned long outlet;
+	u64 outlet;
 
 	result = lv1_construct_event_receive_port(&outlet);
 
@@ -468,7 +468,7 @@ int ps3_io_irq_setup(enum ps3_cpu_binding cpu, unsigned int interrupt_id,
 	unsigned int *virq)
 {
 	int result;
-	unsigned long outlet;
+	u64 outlet;
 
 	result = lv1_construct_io_irq_outlet(interrupt_id, &outlet);
 
@@ -525,7 +525,7 @@ int ps3_vuart_irq_setup(enum ps3_cpu_binding cpu, void* virt_addr_bmp,
 	unsigned int *virq)
 {
 	int result;
-	unsigned long outlet;
+	u64 outlet;
 	u64 lpar_addr;
 
 	BUG_ON(!is_kernel_addr((u64)virt_addr_bmp));
@@ -581,7 +581,7 @@ int ps3_spe_irq_setup(enum ps3_cpu_binding cpu, unsigned long spe_id,
 	unsigned int class, unsigned int *virq)
 {
 	int result;
-	unsigned long outlet;
+	u64 outlet;
 
 	BUG_ON(class > 2);
 

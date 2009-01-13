@@ -250,9 +250,11 @@ static void _dump_mmio_region(const struct ps3_mmio_region* r,
 static int ps3_sb_mmio_region_create(struct ps3_mmio_region *r)
 {
 	int result;
+	u64 lpar_addr;
 
 	result = lv1_map_device_mmio_region(r->dev->bus_id, r->dev->dev_id,
-		r->bus_addr, r->len, r->page_size, &r->lpar_addr);
+		r->bus_addr, r->len, r->page_size, &lpar_addr);
+	r->lpar_addr = lpar_addr;
 
 	if (result) {
 		pr_debug("%s:%d: lv1_map_device_mmio_region failed: %s\n",

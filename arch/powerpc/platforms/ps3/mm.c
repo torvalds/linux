@@ -79,7 +79,7 @@ enum {
  */
 
 struct mem_region {
-	unsigned long base;
+	u64 base;
 	unsigned long size;
 	unsigned long offset;
 };
@@ -104,8 +104,8 @@ struct mem_region {
 
 struct map {
 	unsigned long total;
-	unsigned long vas_id;
-	unsigned long htab_size;
+	u64 vas_id;
+	u64 htab_size;
 	struct mem_region rm;
 	struct mem_region r1;
 };
@@ -116,9 +116,9 @@ static void __maybe_unused _debug_dump_map(const struct map *m,
 {
 	DBG("%s:%d: map.total     = %lxh\n", func, line, m->total);
 	DBG("%s:%d: map.rm.size   = %lxh\n", func, line, m->rm.size);
-	DBG("%s:%d: map.vas_id    = %lu\n", func, line, m->vas_id);
-	DBG("%s:%d: map.htab_size = %lxh\n", func, line, m->htab_size);
-	DBG("%s:%d: map.r1.base   = %lxh\n", func, line, m->r1.base);
+	DBG("%s:%d: map.vas_id    = %llu\n", func, line, m->vas_id);
+	DBG("%s:%d: map.htab_size = %llxh\n", func, line, m->htab_size);
+	DBG("%s:%d: map.r1.base   = %llxh\n", func, line, m->r1.base);
 	DBG("%s:%d: map.r1.offset = %lxh\n", func, line, m->r1.offset);
 	DBG("%s:%d: map.r1.size   = %lxh\n", func, line, m->r1.size);
 }
@@ -146,11 +146,11 @@ EXPORT_SYMBOL(ps3_mm_phys_to_lpar);
 void __init ps3_mm_vas_create(unsigned long* htab_size)
 {
 	int result;
-	unsigned long start_address;
-	unsigned long size;
-	unsigned long access_right;
-	unsigned long max_page_size;
-	unsigned long flags;
+	u64 start_address;
+	u64 size;
+	u64 access_right;
+	u64 max_page_size;
+	u64 flags;
 
 	result = lv1_query_logical_partition_address_region_info(0,
 		&start_address, &size, &access_right, &max_page_size,
@@ -164,7 +164,7 @@ void __init ps3_mm_vas_create(unsigned long* htab_size)
 	}
 
 	if (max_page_size < PAGE_SHIFT_16M) {
-		DBG("%s:%d: bad max_page_size %lxh\n", __func__, __LINE__,
+		DBG("%s:%d: bad max_page_size %llxh\n", __func__, __LINE__,
 			max_page_size);
 		goto fail;
 	}
@@ -208,7 +208,7 @@ void ps3_mm_vas_destroy(void)
 {
 	int result;
 
-	DBG("%s:%d: map.vas_id    = %lu\n", __func__, __LINE__, map.vas_id);
+	DBG("%s:%d: map.vas_id    = %llu\n", __func__, __LINE__, map.vas_id);
 
 	if (map.vas_id) {
 		result = lv1_select_virtual_address_space(0);
@@ -235,7 +235,7 @@ void ps3_mm_vas_destroy(void)
 static int ps3_mm_region_create(struct mem_region *r, unsigned long size)
 {
 	int result;
-	unsigned long muid;
+	u64 muid;
 
 	r->size = _ALIGN_DOWN(size, 1 << PAGE_SHIFT_16M);
 
@@ -277,7 +277,7 @@ static void ps3_mm_region_destroy(struct mem_region *r)
 {
 	int result;
 
-	DBG("%s:%d: r->base = %lxh\n", __func__, __LINE__, r->base);
+	DBG("%s:%d: r->base = %llxh\n", __func__, __LINE__, r->base);
 	if (r->base) {
 		result = lv1_release_memory(r->base);
 		BUG_ON(result);
@@ -648,6 +648,7 @@ fail_alloc:
 static int dma_sb_region_create(struct ps3_dma_region *r)
 {
 	int result;
+	u64 bus_addr;
 
 	DBG(" -> %s:%d:\n", __func__, __LINE__);
 
@@ -671,7 +672,8 @@ static int dma_sb_region_create(struct ps3_dma_region *r)
 
 	result = lv1_allocate_device_dma_region(r->dev->bus_id, r->dev->dev_id,
 		roundup_pow_of_two(r->len), r->page_size, r->region_type,
-		&r->bus_addr);
+		&bus_addr);
+	r->bus_addr = bus_addr;
 
 	if (result) {
 		DBG("%s:%d: lv1_allocate_device_dma_region failed: %s\n",
@@ -685,6 +687,7 @@ static int dma_sb_region_create(struct ps3_dma_region *r)
 static int dma_ioc0_region_create(struct ps3_dma_region *r)
 {
 	int result;
+	u64 bus_addr;
 
 	INIT_LIST_HEAD(&r->chunk_list.head);
 	spin_lock_init(&r->chunk_list.lock);
@@ -692,7 +695,8 @@ static int dma_ioc0_region_create(struct ps3_dma_region *r)
 	result = lv1_allocate_io_segment(0,
 					 r->len,
 					 r->page_size,
-					 &r->bus_addr);
+					 &bus_addr);
+	r->bus_addr = bus_addr;
 	if (result) {
 		DBG("%s:%d: lv1_allocate_io_segment failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
