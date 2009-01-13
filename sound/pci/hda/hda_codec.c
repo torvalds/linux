@@ -2815,7 +2815,7 @@ void snd_hda_power_down(struct hda_codec *codec)
 		return;
 	if (power_save(codec)) {
 		codec->power_transition = 1; /* avoid reentrance */
-		schedule_delayed_work(&codec->power_work,
+		queue_delayed_work(codec->bus->workq, &codec->power_work,
 				msecs_to_jiffies(power_save(codec) * 1000));
 	}
 }
