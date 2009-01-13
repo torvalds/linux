@@ -24,6 +24,15 @@
  */
 typedef int		(*svc_thread_fn)(void *);
 
+/* statistics for svc_pool structures */
+struct svc_pool_stats {
+	unsigned long	packets;
+	unsigned long	sockets_queued;
+	unsigned long	threads_woken;
+	unsigned long	overloads_avoided;
+	unsigned long	threads_timedout;
+};
+
 /*
  *
  * RPC service thread pool.
@@ -42,6 +51,7 @@ struct svc_pool {
 	unsigned int		sp_nrthreads;	/* # of threads in pool */
 	struct list_head	sp_all_threads;	/* all server threads */
 	int			sp_nwaking;	/* number of threads woken but not yet active */
+	struct svc_pool_stats	sp_stats;	/* statistics on pool operation */
 } ____cacheline_aligned_in_smp;
 
 /*
@@ -396,6 +406,7 @@ struct svc_serv *  svc_create_pooled(struct svc_program *, unsigned int,
 			sa_family_t, void (*shutdown)(struct svc_serv *),
 			svc_thread_fn, struct module *);
 int		   svc_set_num_threads(struct svc_serv *, struct svc_pool *, int);
+int		   svc_pool_stats_open(struct svc_serv *serv, struct file *file);
 void		   svc_destroy(struct svc_serv *);
 int		   svc_process(struct svc_rqst *);
 int		   svc_register(const struct svc_serv *, const unsigned short,

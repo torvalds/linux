@@ -546,3 +546,10 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	nfsd_cache_update(rqstp, proc->pc_cachetype, statp + 1);
 	return 1;
 }
+
+int nfsd_pool_stats_open(struct inode *inode, struct file *file)
+{
+	if (nfsd_serv == NULL)
+		return -ENODEV;
+	return svc_pool_stats_open(nfsd_serv, file);
+}
