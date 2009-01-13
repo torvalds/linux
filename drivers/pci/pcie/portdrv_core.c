@@ -43,7 +43,7 @@ static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 {
 	struct pcie_port_data *port_data = pci_get_drvdata(dev);
 	int i, pos, nvec, status = -EINVAL;
-	int interrupt_mode = PCIE_PORT_INTx_MODE;
+	int interrupt_mode = PCIE_PORT_NO_IRQ;
 
 	/* Set INTx as default */
 	for (i = 0, nvec = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
@@ -51,7 +51,9 @@ static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 			nvec++;
 		vectors[i] = dev->irq;
 	}
-	
+	if (dev->pin)
+		interrupt_mode = PCIE_PORT_INTx_MODE;
+
 	/* Check MSI quirk */
 	if (port_data->port_type == PCIE_RC_PORT && pcie_mch_quirk)
 		return interrupt_mode;
@@ -141,7 +143,7 @@ static void pcie_device_init(struct pci_dev *parent, struct pcie_device *dev,
 	dev->id.vendor = parent->vendor;
 	dev->id.device = parent->device;
 	dev->id.port_type = port_type;
-	dev->id.service_type = (1 << service_type);
+	dev->id.service_type = service_type;
 
 	/* Initialize generic device interface */
 	device = &dev->device;
@@ -232,19 +234,32 @@ int pcie_port_device_register(struct pci_dev *dev)
 	/* Allocate child services if any */
 	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
 		struct pcie_device *child;
+		int service = 1 << i;
 
-		if (capabilities & (1 << i)) {
-			child = alloc_pcie_device(dev, i, vectors[i]);
-			if (child) {
-				status = device_register(&child->device);
-				if (status) {
-					kfree(child);
-					continue;
-				}
-				get_device(&child->device);
-			}
+		if (!(capabilities & service))
+			continue;
+
+		/*
+		 * Don't use service devices that require interrupts if there is
+		 * no way to generate them.
+		 */
+		if (irq_mode == PCIE_PORT_NO_IRQ
+		    && service != PCIE_PORT_SERVICE_VC)
+			continue;
+
+		child = alloc_pcie_device(dev, service, vectors[i]);
+		if (!child)
+			continue;
+
+		status = device_register(&child->device);
+		if (status) {
+			kfree(child);
+			continue;
 		}
+
+		get_device(&child->device);
 	}
+
 	return 0;
 }
 

@@ -22,6 +22,7 @@
 #define PCIE_PORT_SERVICE_VC		8	/* Virtual Channel */
 
 /* Root/Upstream/Downstream Port's Interrupt Mode */
+#define PCIE_PORT_NO_IRQ		(-1)
 #define PCIE_PORT_INTx_MODE		0
 #define PCIE_PORT_MSI_MODE		1
 #define PCIE_PORT_MSIX_MODE		2
