@@ -402,7 +402,7 @@ static int pcie_port_probe_service(struct device *dev)
 		return -ENODEV;
 
 	pciedev = to_pcie_device(dev);
-	status = driver->probe(pciedev, driver->id_table);
+	status = driver->probe(pciedev);
 	if (!status) {
 		dev_printk(KERN_DEBUG, dev, "service driver %s loaded\n",
 			driver->name);

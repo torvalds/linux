@@ -82,8 +82,7 @@ static int __initdata acpi_slot_detected;
 static struct list_head __initdata dummy_slots = LIST_HEAD_INIT(dummy_slots);
 
 /* Dummy driver for dumplicate name detection */
-static int __init dummy_probe(struct pcie_device *dev,
-			      const struct pcie_port_service_id *id)
+static int __init dummy_probe(struct pcie_device *dev)
 {
 	int pos;
 	u32 slot_cap;
