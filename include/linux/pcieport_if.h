@@ -36,7 +36,6 @@ struct pcie_port_service_id {
 
 struct pcie_device {
 	int 		irq;	    /* Service IRQ/MSI/MSI-X Vector */
-	int 		interrupt_mode;	/* [0:INTx | 1:MSI | 2:MSI-X] */	
 	struct pcie_port_service_id id;	/* Service ID */
 	struct pci_dev	*port;	    /* Root/Upstream/Downstream Port */
 	void		*priv_data; /* Service Private Data */
