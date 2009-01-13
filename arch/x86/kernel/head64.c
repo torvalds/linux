@@ -26,18 +26,8 @@
 #include <asm/bios_ebda.h>
 #include <asm/trampoline.h>
 
-#ifndef CONFIG_SMP
-/* boot cpu pda, referenced by head_64.S to initialize %gs on UP */
-struct x8664_pda _boot_cpu_pda;
-#endif
-
 void __init x86_64_init_pda(void)
 {
-#ifdef CONFIG_SMP
-	cpu_pda(0) = (void *)__per_cpu_load;
-#else
-	cpu_pda(0) = &_boot_cpu_pda;
-#endif
 	pda_init(0);
 }
 

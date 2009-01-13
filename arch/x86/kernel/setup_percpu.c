@@ -66,6 +66,16 @@ static void __init setup_node_to_cpumask_map(void);
 static inline void setup_node_to_cpumask_map(void) { }
 #endif
 
+/*
+ * Define load_pda_offset() and per-cpu __pda for x86_64.
+ * load_pda_offset() is responsible for loading the offset of pda into
+ * %gs.
+ *
+ * On SMP, pda offset also duals as percpu base address and thus it
+ * should be at the start of per-cpu area.  To achieve this, it's
+ * preallocated in vmlinux_64.lds.S directly instead of using
+ * DEFINE_PER_CPU().
+ */
 #ifdef CONFIG_X86_64
 void __cpuinit load_pda_offset(int cpu)
 {
@@ -74,6 +84,10 @@ void __cpuinit load_pda_offset(int cpu)
 	wrmsrl(MSR_GS_BASE, cpu_pda(cpu));
 	mb();
 }
+#ifndef CONFIG_SMP
+DEFINE_PER_CPU(struct x8664_pda, __pda);
+EXPORT_PER_CPU_SYMBOL(__pda);
+#endif
 
 #endif /* CONFIG_SMP && CONFIG_X86_64 */
 
@@ -180,8 +194,6 @@ void __init setup_per_cpu_areas(void)
 		memcpy(ptr, __per_cpu_load, __per_cpu_end - __per_cpu_start);
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 #ifdef CONFIG_X86_64
-		cpu_pda(cpu) = (void *)ptr;
-
 		/*
 		 * CPU0 modified pda in the init data area, reload pda
 		 * offset for CPU0 and clear the area for others.

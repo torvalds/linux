@@ -7,6 +7,7 @@
 #include <linux/cache.h>
 #include <linux/threads.h>
 #include <asm/page.h>
+#include <asm/percpu.h>
 
 /* Per processor datastructure. %gs points to it while the kernel runs */
 struct x8664_pda {
@@ -39,10 +40,10 @@ struct x8664_pda {
 	unsigned irq_spurious_count;
 } ____cacheline_aligned_in_smp;
 
-extern struct x8664_pda *_cpu_pda[NR_CPUS];
+DECLARE_PER_CPU(struct x8664_pda, __pda);
 extern void pda_init(int);
 
-#define cpu_pda(i) (_cpu_pda[i])
+#define cpu_pda(cpu)		(&per_cpu(__pda, cpu))
 
 /*
  * There is no fast way to get the base address of the PDA, all the accesses

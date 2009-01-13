@@ -19,6 +19,7 @@
 #include <asm/msr.h>
 #include <asm/cache.h>
 #include <asm/processor-flags.h>
+#include <asm/percpu.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/asm-offsets.h>
@@ -250,7 +251,7 @@ ENTRY(secondary_startup_64)
 	 * secondary CPU,initial_gs should be set to its pda address
 	 * before the CPU runs this code.
 	 *
-	 * On UP, initial_gs points to _boot_cpu_pda and doesn't
+	 * On UP, initial_gs points to PER_CPU_VAR(__pda) and doesn't
 	 * change.
 	 */
 	movl	$MSR_GS_BASE,%ecx
@@ -284,7 +285,7 @@ ENTRY(secondary_startup_64)
 #ifdef CONFIG_SMP
 	.quad	__per_cpu_load
 #else
-	.quad	_boot_cpu_pda
+	.quad	PER_CPU_VAR(__pda)
 #endif
 	__FINITDATA
 

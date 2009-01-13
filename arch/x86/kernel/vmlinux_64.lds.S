@@ -217,10 +217,12 @@ SECTIONS
    * percpu offsets are zero-based on SMP.  PERCPU_VADDR() changes the
    * output PHDR, so the next output section - __data_nosave - should
    * switch it back to data.init.  Also, pda should be at the head of
-   * percpu area.  Preallocate it.
+   * percpu area.  Preallocate it and define the percpu offset symbol
+   * so that it can be accessed as a percpu variable.
    */
   . = ALIGN(PAGE_SIZE);
   PERCPU_VADDR_PREALLOC(0, :percpu, pda_size)
+  per_cpu____pda = __per_cpu_start;
 #else
   PERCPU(PAGE_SIZE)
 #endif
