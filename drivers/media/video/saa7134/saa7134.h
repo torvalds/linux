@@ -312,6 +312,11 @@ enum saa7134_mpeg_type {
 	SAA7134_MPEG_DVB,
 };
 
+enum saa7134_mpeg_ts_type {
+	SAA7134_MPEG_TS_PARALLEL = 0,
+	SAA7134_MPEG_TS_SERIAL,
+};
+
 struct saa7134_board {
 	char                    *name;
 	unsigned int            audio_clock;
@@ -334,6 +339,7 @@ struct saa7134_board {
 	/* peripheral I/O */
 	enum saa7134_video_out  video_out;
 	enum saa7134_mpeg_type  mpeg;
+	enum saa7134_mpeg_ts_type ts_type;
 	unsigned int            vid_port_opts;
 };
 
