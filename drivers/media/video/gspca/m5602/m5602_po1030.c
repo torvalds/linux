@@ -26,6 +26,8 @@ static int po1030_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int po1030_set_red_balance(struct gspca_dev *gspca_dev, __s32 val);
 static int po1030_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int po1030_get_green_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int po1030_set_green_balance(struct gspca_dev *gspca_dev, __s32 val);
 static int po1030_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 static int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
@@ -169,7 +171,21 @@ const static struct ctrl po1030_ctrls[] = {
 		.set = po1030_set_auto_exposure,
 		.get = po1030_get_auto_exposure
 	},
-
+#define GREEN_BALANCE_IDX 8
+	{
+		{
+			.id 		= M5602_V4L2_CID_GREEN_BALANCE,
+			.type 		= V4L2_CTRL_TYPE_INTEGER,
+			.name 		= "green balance",
+			.minimum 	= 0x00,
+			.maximum 	= 0xff,
+			.step 		= 0x1,
+			.default_value 	= PO1030_GREEN_GAIN_DEFAULT,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = po1030_set_green_balance,
+		.get = po1030_get_green_balance
+	},
 };
 
 static void po1030_dump_registers(struct sd *sd);
@@ -285,6 +301,11 @@ int po1030_init(struct sd *sd)
 
 	err = po1030_set_blue_balance(&sd->gspca_dev,
 				      sensor_settings[BLUE_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = po1030_set_green_balance(&sd->gspca_dev,
+				       sensor_settings[GREEN_BALANCE_IDX]);
 	if (err < 0)
 		return err;
 
@@ -497,6 +518,37 @@ static int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 				  &i2c_data, 1);
 
 	return err;
+}
+
+static int po1030_get_green_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[GREEN_BALANCE_IDX];
+	PDEBUG(D_V4L2, "Read green gain %d", *val);
+
+	return 0;
+}
+
+static int po1030_set_green_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+	u8 i2c_data;
+	int err;
+
+	sensor_settings[GREEN_BALANCE_IDX] = val;
+	i2c_data = val & 0xff;
+	PDEBUG(D_V4L2, "Set green gain to %d", i2c_data);
+
+	err = m5602_write_sensor(sd, PO1030_GREEN_1_GAIN,
+			   &i2c_data, 1);
+	if (err < 0)
+		return err;
+
+	return m5602_write_sensor(sd, PO1030_GREEN_2_GAIN,
+				 &i2c_data, 1);
 }
 
 static int po1030_get_auto_white_balance(struct gspca_dev *gspca_dev,

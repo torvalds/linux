@@ -139,6 +139,7 @@
 #define PO1030_EXPOSURE_DEFAULT		0x0085
 #define PO1030_BLUE_GAIN_DEFAULT 	0x36
 #define PO1030_RED_GAIN_DEFAULT 	0x36
+#define PO1030_GREEN_GAIN_DEFAULT 	0x40
 
 /*****************************************************************************/
 
