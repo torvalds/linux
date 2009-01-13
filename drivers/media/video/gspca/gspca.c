@@ -46,8 +46,6 @@ MODULE_LICENSE("GPL");
 
 #define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 5, 0)
 
-static int video_nr = -1;
-
 #ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
 EXPORT_SYMBOL(gspca_debug);
@@ -126,7 +124,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 			struct urb *urb)
 {
 	struct gspca_frame *frame;
-	__u8 *data;		/* address of data in the iso message */
+	u8 *data;		/* address of data in the iso message */
 	int i, len, st;
 	cam_pkt_op pkt_scan;
 
@@ -166,7 +164,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 		/* let the packet be analyzed by the subdriver */
 		PDEBUG(D_PACK, "packet [%d] o:%d l:%d",
 			i, urb->iso_frame_desc[i].offset, len);
-		data = (__u8 *) urb->transfer_buffer
+		data = (u8 *) urb->transfer_buffer
 					+ urb->iso_frame_desc[i].offset;
 		pkt_scan(gspca_dev, frame, data, len);
 	}
@@ -182,8 +180,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
  *
  * Analyse each packet and call the subdriver for copy to the frame buffer.
  */
-static void isoc_irq(struct urb *urb
-)
+static void isoc_irq(struct urb *urb)
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
 
@@ -196,8 +193,7 @@ static void isoc_irq(struct urb *urb
 /*
  * bulk message interrupt from the USB device
  */
-static void bulk_irq(struct urb *urb
-)
+static void bulk_irq(struct urb *urb)
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
 	struct gspca_frame *frame;
@@ -1916,7 +1912,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 	gspca_dev->present = 1;
 	ret = video_register_device(&gspca_dev->vdev,
 				  VFL_TYPE_GRABBER,
-				  video_nr);
+				  -1);
 	if (ret < 0) {
 		err("video_register_device err %d", ret);
 		goto out;
