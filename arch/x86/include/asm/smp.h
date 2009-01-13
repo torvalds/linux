@@ -19,8 +19,6 @@
 #include <asm/thread_info.h>
 #include <asm/cpumask.h>
 
-extern int __cpuinit get_local_pda(int cpu);
-
 extern int smp_num_siblings;
 extern unsigned int num_processors;
 

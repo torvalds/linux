@@ -283,16 +283,6 @@ static int __cpuinit xen_cpu_up(unsigned int cpu)
 	struct task_struct *idle = idle_task(cpu);
 	int rc;
 
-#ifdef CONFIG_X86_64
-	/* Allocate node local memory for AP pdas */
-	WARN_ON(cpu == 0);
-	if (cpu > 0) {
-		rc = get_local_pda(cpu);
-		if (rc)
-			return rc;
-	}
-#endif
-
 #ifdef CONFIG_X86_32
 	init_gdt(cpu);
 	per_cpu(current_task, cpu) = idle;

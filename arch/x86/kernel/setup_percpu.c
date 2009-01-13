@@ -13,6 +13,7 @@
 #include <asm/mpspec.h>
 #include <asm/apicdef.h>
 #include <asm/highmem.h>
+#include <asm/proto.h>
 #include <asm/cpumask.h>
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
@@ -65,6 +66,36 @@ static void __init setup_node_to_cpumask_map(void);
 static inline void setup_node_to_cpumask_map(void) { }
 #endif
 
+#ifdef CONFIG_X86_64
+void __cpuinit load_pda_offset(int cpu)
+{
+	/* Memory clobbers used to order pda/percpu accesses */
+	mb();
+	wrmsrl(MSR_GS_BASE, cpu_pda(cpu));
+	mb();
+}
+
+#endif /* CONFIG_SMP && CONFIG_X86_64 */
+
+#ifdef CONFIG_X86_64
+
+/* correctly size the local cpu masks */
+static void setup_cpu_local_masks(void)
+{
+	alloc_bootmem_cpumask_var(&cpu_initialized_mask);
+	alloc_bootmem_cpumask_var(&cpu_callin_mask);
+	alloc_bootmem_cpumask_var(&cpu_callout_mask);
+	alloc_bootmem_cpumask_var(&cpu_sibling_setup_mask);
+}
+
+#else /* CONFIG_X86_32 */
+
+static inline void setup_cpu_local_masks(void)
+{
+}
+
+#endif /* CONFIG_X86_32 */
+
 #ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
 /*
  * Copy data used in early init routines from the initial arrays to the
@@ -101,63 +132,7 @@ static void __init setup_per_cpu_maps(void)
  */
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(__per_cpu_offset);
-static inline void setup_cpu_pda_map(void) { }
-
-#elif !defined(CONFIG_SMP)
-static inline void setup_cpu_pda_map(void) { }
-
-#else /* CONFIG_SMP && CONFIG_X86_64 */
-
-/*
- * Allocate cpu_pda pointer table and array via alloc_bootmem.
- */
-static void __init setup_cpu_pda_map(void)
-{
-	char *pda;
-	unsigned long size;
-	int cpu;
-
-	size = roundup(sizeof(struct x8664_pda), cache_line_size());
-
-	/* allocate cpu_pda array and pointer table */
-	{
-		unsigned long asize = size * (nr_cpu_ids - 1);
-
-		pda = alloc_bootmem(asize);
-	}
-
-	/* initialize pointer table to static pda's */
-	for_each_possible_cpu(cpu) {
-		if (cpu == 0) {
-			/* leave boot cpu pda in place */
-			continue;
-		}
-		cpu_pda(cpu) = (struct x8664_pda *)pda;
-		cpu_pda(cpu)->in_bootmem = 1;
-		pda += size;
-	}
-}
-
-#endif /* CONFIG_SMP && CONFIG_X86_64 */
-
-#ifdef CONFIG_X86_64
-
-/* correctly size the local cpu masks */
-static void setup_cpu_local_masks(void)
-{
-	alloc_bootmem_cpumask_var(&cpu_initialized_mask);
-	alloc_bootmem_cpumask_var(&cpu_callin_mask);
-	alloc_bootmem_cpumask_var(&cpu_callout_mask);
-	alloc_bootmem_cpumask_var(&cpu_sibling_setup_mask);
-}
-
-#else /* CONFIG_X86_32 */
-
-static inline void setup_cpu_local_masks(void)
-{
-}
-
-#endif /* CONFIG_X86_32 */
+#endif
 
 /*
  * Great future plan:
@@ -170,9 +145,6 @@ void __init setup_per_cpu_areas(void)
 	char *ptr;
 	int cpu;
 	unsigned long align = 1;
-
-	/* Setup cpu_pda map */
-	setup_cpu_pda_map();
 
 	/* Copy section for each CPU (we discard the original) */
 	old_size = PERCPU_ENOUGH_ROOM;
@@ -204,8 +176,21 @@ void __init setup_per_cpu_areas(void)
 				cpu, node, __pa(ptr));
 		}
 #endif
-		per_cpu_offset(cpu) = ptr - __per_cpu_start;
+
 		memcpy(ptr, __per_cpu_load, __per_cpu_end - __per_cpu_start);
+#ifdef CONFIG_X86_64
+		cpu_pda(cpu) = (void *)ptr;
+
+		/*
+		 * CPU0 modified pda in the init data area, reload pda
+		 * offset for CPU0 and clear the area for others.
+		 */
+		if (cpu == 0)
+			load_pda_offset(0);
+		else
+			memset(cpu_pda(cpu), 0, sizeof(*cpu_pda(cpu)));
+#endif
+		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 
 		DBG("PERCPU: cpu %4d %p\n", cpu, ptr);
 	}

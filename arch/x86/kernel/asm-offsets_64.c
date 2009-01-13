@@ -56,6 +56,7 @@ int main(void)
 	ENTRY(cpunumber);
 	ENTRY(irqstackptr);
 	ENTRY(data_offset);
+	DEFINE(pda_size, sizeof(struct x8664_pda));
 	BLANK();
 #undef ENTRY
 #ifdef CONFIG_PARAVIRT

@@ -5,6 +5,7 @@
 #define LOAD_OFFSET __START_KERNEL_map
 
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/asm-offsets.h>
 #include <asm/page.h>
 
 #undef i386	/* in case the preprocessor is a 32bit one */
@@ -215,10 +216,11 @@ SECTIONS
   /*
    * percpu offsets are zero-based on SMP.  PERCPU_VADDR() changes the
    * output PHDR, so the next output section - __data_nosave - should
-   * switch it back to data.init.
+   * switch it back to data.init.  Also, pda should be at the head of
+   * percpu area.  Preallocate it.
    */
   . = ALIGN(PAGE_SIZE);
-  PERCPU_VADDR(0, :percpu)
+  PERCPU_VADDR_PREALLOC(0, :percpu, pda_size)
 #else
   PERCPU(PAGE_SIZE)
 #endif

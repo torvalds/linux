@@ -1,6 +1,14 @@
 #ifndef _ASM_X86_PERCPU_H
 #define _ASM_X86_PERCPU_H
 
+#ifndef __ASSEMBLY__
+#ifdef CONFIG_X86_64
+extern void load_pda_offset(int cpu);
+#else
+static inline void load_pda_offset(int cpu) { }
+#endif
+#endif
+
 #ifdef CONFIG_X86_64
 #include <linux/compiler.h>
 

@@ -245,10 +245,13 @@ ENTRY(secondary_startup_64)
 
 	/* Set up %gs.
 	 *
-	 * %gs should point to the pda.  For initial boot, make %gs point
-	 * to the _boot_cpu_pda in data section.  For a secondary CPU,
-	 * initial_gs should be set to its pda address before the CPU runs
-	 * this code.
+	 * On SMP, %gs should point to the per-cpu area.  For initial
+	 * boot, make %gs point to the init data section.  For a
+	 * secondary CPU,initial_gs should be set to its pda address
+	 * before the CPU runs this code.
+	 *
+	 * On UP, initial_gs points to _boot_cpu_pda and doesn't
+	 * change.
 	 */
 	movl	$MSR_GS_BASE,%ecx
 	movq	initial_gs(%rip),%rax
@@ -278,7 +281,11 @@ ENTRY(secondary_startup_64)
 	ENTRY(initial_code)
 	.quad	x86_64_start_kernel
 	ENTRY(initial_gs)
+#ifdef CONFIG_SMP
+	.quad	__per_cpu_load
+#else
 	.quad	_boot_cpu_pda
+#endif
 	__FINITDATA
 
 	ENTRY(stack_start)

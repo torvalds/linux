@@ -893,10 +893,8 @@ void __cpuinit pda_init(int cpu)
 	/* Setup up data that may be needed in __get_free_pages early */
 	loadsegment(fs, 0);
 	loadsegment(gs, 0);
-	/* Memory clobbers used to order PDA accessed */
-	mb();
-	wrmsrl(MSR_GS_BASE, pda);
-	mb();
+
+	load_pda_offset(cpu);
 
 	pda->cpunumber = cpu;
 	pda->irqcount = -1;
