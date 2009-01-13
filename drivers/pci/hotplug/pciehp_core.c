@@ -505,18 +505,10 @@ static int pciehp_resume (struct pcie_device *dev)
 }
 #endif
 
-static struct pcie_port_service_id port_pci_ids[] = { {
-	.vendor = PCI_ANY_ID,
-	.device = PCI_ANY_ID,
-	.port_type = PCIE_ANY_PORT,
-	.service_type = PCIE_PORT_SERVICE_HP,
-	.driver_data =	0,
-	}, { /* end: all zeroes */ }
-};
-
 static struct pcie_port_service_driver hpdriver_portdrv = {
 	.name		= PCIE_MODULE_NAME,
-	.id_table	= &port_pci_ids[0],
+	.port_type	= PCIE_ANY_PORT,
+	.service	= PCIE_PORT_SERVICE_HP,
 
 	.probe		= pciehp_probe,
 	.remove		= pciehp_remove,

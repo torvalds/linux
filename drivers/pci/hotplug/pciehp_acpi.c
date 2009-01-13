@@ -67,16 +67,6 @@ static int __init parse_detect_mode(void)
 	return PCIEHP_DETECT_DEFAULT;
 }
 
-static struct pcie_port_service_id __initdata port_pci_ids[] = {
-	{
-		.vendor = PCI_ANY_ID,
-		.device = PCI_ANY_ID,
-		.port_type = PCIE_ANY_PORT,
-		.service_type = PCIE_PORT_SERVICE_HP,
-		.driver_data =  0,
-        }, { /* end: all zeroes */ }
-};
-
 static int __initdata dup_slot_id;
 static int __initdata acpi_slot_detected;
 static struct list_head __initdata dummy_slots = LIST_HEAD_INIT(dummy_slots);
@@ -110,7 +100,8 @@ static int __init dummy_probe(struct pcie_device *dev)
 
 static struct pcie_port_service_driver __initdata dummy_driver = {
         .name           = "pciehp_dummy",
-        .id_table       = port_pci_ids,
+	.port_type	= PCIE_ANY_PORT,
+	.service	= PCIE_PORT_SERVICE_HP,
         .probe          = dummy_probe,
 };
 

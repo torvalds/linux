@@ -48,19 +48,6 @@ static pci_ers_result_t aer_error_detected(struct pci_dev *dev,
 static void aer_error_resume(struct pci_dev *dev);
 static pci_ers_result_t aer_root_reset(struct pci_dev *dev);
 
-/*
- * PCI Express bus's AER Root service driver data structure
- */
-static struct pcie_port_service_id aer_id[] = {
-	{
-	.vendor 	= PCI_ANY_ID,
-	.device 	= PCI_ANY_ID,
-	.port_type 	= PCIE_RC_PORT,
-	.service_type 	= PCIE_PORT_SERVICE_AER,
-	},
-	{ /* end: all zeroes */ }
-};
-
 static struct pci_error_handlers aer_error_handlers = {
 	.error_detected = aer_error_detected,
 	.resume = aer_error_resume,
@@ -68,7 +55,8 @@ static struct pci_error_handlers aer_error_handlers = {
 
 static struct pcie_port_service_driver aerdriver = {
 	.name		= "aer",
-	.id_table	= &aer_id[0],
+	.port_type	= PCIE_ANY_PORT,
+	.service	= PCIE_PORT_SERVICE_AER,
 
 	.probe		= aer_probe,
 	.remove		= aer_remove,

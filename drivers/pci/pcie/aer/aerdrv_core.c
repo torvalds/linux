@@ -351,21 +351,21 @@ static int find_aer_service_iter(struct device *device, void *data)
 {
 	struct device_driver *driver;
 	struct pcie_port_service_driver *service_driver;
-	struct pcie_device *pcie_dev;
 	struct find_aer_service_data *result;
 
 	result = (struct find_aer_service_data *) data;
 
 	if (device->bus == &pcie_port_bus_type) {
-		pcie_dev = to_pcie_device(device);
-		if (pcie_dev->id.port_type == PCIE_SW_DOWNSTREAM_PORT)
+		struct pcie_port_data *port_data;
+
+		port_data = pci_get_drvdata(to_pcie_device(device)->port);
+		if (port_data->port_type == PCIE_SW_DOWNSTREAM_PORT)
 			result->is_downstream = 1;
 
 		driver = device->driver;
 		if (driver) {
 			service_driver = to_service_driver(driver);
-			if (service_driver->id_table->service_type ==
-					PCIE_PORT_SERVICE_AER) {
+			if (service_driver->service == PCIE_PORT_SERVICE_AER) {
 				result->aer_driver = service_driver;
 				return 1;
 			}

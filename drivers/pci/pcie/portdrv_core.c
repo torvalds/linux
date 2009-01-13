@@ -140,10 +140,7 @@ static void pcie_device_init(struct pci_dev *parent, struct pcie_device *dev,
 
 	dev->port = parent;
 	dev->irq = irq;
-	dev->id.vendor = parent->vendor;
-	dev->id.device = parent->device;
-	dev->id.port_type = port_type;
-	dev->id.service_type = service_type;
+	dev->service = service_type;
 
 	/* Initialize generic device interface */
 	device = &dev->device;

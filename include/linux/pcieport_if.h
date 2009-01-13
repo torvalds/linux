@@ -27,18 +27,15 @@
 #define PCIE_PORT_MSI_MODE		1
 #define PCIE_PORT_MSIX_MODE		2
 
-struct pcie_port_service_id {
-	__u32 vendor, device;		/* Vendor and device ID or PCI_ANY_ID*/
-	__u32 subvendor, subdevice;	/* Subsystem ID's or PCI_ANY_ID */
-	__u32 class, class_mask;	/* (class,subclass,prog-if) triplet */
-	__u32 port_type, service_type;	/* Port Entity */
-	kernel_ulong_t driver_data;
+struct pcie_port_data {
+	int port_type;		/* Type of the port */
+	int port_irq_mode;	/* [0:INTx | 1:MSI | 2:MSI-X] */
 };
 
 struct pcie_device {
 	int 		irq;	    /* Service IRQ/MSI/MSI-X Vector */
-	struct pcie_port_service_id id;	/* Service ID */
-	struct pci_dev	*port;	    /* Root/Upstream/Downstream Port */
+	struct pci_dev *port;	    /* Root/Upstream/Downstream Port */
+	u32		service;    /* Port service this device represents */
 	void		*priv_data; /* Service Private Data */
 	struct device	device;     /* Generic Device Interface */
 };
@@ -67,7 +64,9 @@ struct pcie_port_service_driver {
 	/* Link Reset Capability - AER service driver specific */
 	pci_ers_result_t (*reset_link) (struct pci_dev *dev);
 
-	const struct pcie_port_service_id *id_table;
+	int port_type;  /* Type of the port this driver can handle */
+	u32 service;    /* Port service this device represents */
+
 	struct device_driver driver;
 };
 #define to_service_driver(d) \

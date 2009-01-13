@@ -28,11 +28,6 @@
 
 #define get_descriptor_id(type, service) (((type - 4) << 4) | service)
 
-struct pcie_port_data {
-	int port_type;		/* Type of the port */
-	int port_irq_mode;	/* [0:INTx | 1:MSI | 2:MSI-X] */
-};
-
 extern struct bus_type pcie_port_bus_type;
 extern int pcie_port_device_probe(struct pci_dev *dev);
 extern int pcie_port_device_register(struct pci_dev *dev);
