@@ -2,11 +2,7 @@ config DST
 	tristate "Distributed storage"
 	depends on NET && CRYPTO && SYSFS
 	select CONNECTOR
-	select LIBCRC32C
 	---help---
-	DST is a network block device storage, which can be used to organize
-	exported storages on the remote nodes into the local block device.
-
 	DST is a network block device storage, which can be used to organize
 	exported storages on the remote nodes into the local block device.
 
