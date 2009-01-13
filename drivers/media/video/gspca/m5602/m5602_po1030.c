@@ -34,6 +34,10 @@ static int po1030_set_auto_white_balance(struct gspca_dev *gspca_dev,
 					 __s32 val);
 static int po1030_get_auto_white_balance(struct gspca_dev *gspca_dev,
 					 __s32 *val);
+static int po1030_set_auto_exposure(struct gspca_dev *gspca_dev,
+					 __s32 val);
+static int po1030_get_auto_exposure(struct gspca_dev *gspca_dev,
+					 __s32 *val);
 
 static struct v4l2_pix_format po1030_modes[] = {
 	{
@@ -150,7 +154,22 @@ const static struct ctrl po1030_ctrls[] = {
 		},
 		.set = po1030_set_auto_white_balance,
 		.get = po1030_get_auto_white_balance
-	}
+	},
+#define AUTO_EXPOSURE_IDX 7
+	{
+		{
+			.id 		= V4L2_CID_EXPOSURE_AUTO,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "auto exposure",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0,
+		},
+		.set = po1030_set_auto_exposure,
+		.get = po1030_get_auto_exposure
+	},
+
 };
 
 static void po1030_dump_registers(struct sd *sd);
@@ -270,7 +289,12 @@ int po1030_init(struct sd *sd)
 		return err;
 
 	err = po1030_set_auto_white_balance(&sd->gspca_dev,
-				      sensor_settings[AUTO_WHITE_BALANCE_IDX]);
+				sensor_settings[AUTO_WHITE_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = po1030_set_auto_exposure(&sd->gspca_dev,
+				sensor_settings[AUTO_EXPOSURE_IDX]);
 	return err;
 }
 
@@ -501,9 +525,39 @@ static int po1030_set_auto_white_balance(struct gspca_dev *gspca_dev,
 	if (err < 0)
 		return err;
 
+	PDEBUG(D_V4L2, "Set auto white balance to %d", val);
 	i2c_data = (i2c_data & 0xfe) | (val & 0x01);
 	err = m5602_write_sensor(sd, PO1030_AUTOCTRL1, &i2c_data, 1);
 	return err;
+}
+
+static int po1030_get_auto_exposure(struct gspca_dev *gspca_dev,
+				    __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[AUTO_EXPOSURE_IDX];
+	PDEBUG(D_V4L2, "Auto exposure is %d", *val);
+	return 0;
+}
+
+static int po1030_set_auto_exposure(struct gspca_dev *gspca_dev,
+				    __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+	u8 i2c_data;
+	int err;
+
+	sensor_settings[AUTO_EXPOSURE_IDX] = val;
+	err = m5602_read_sensor(sd, PO1030_AUTOCTRL1, &i2c_data, 1);
+	if (err < 0)
+		return err;
+
+	PDEBUG(D_V4L2, "Set auto exposure to %d", val);
+	i2c_data = (i2c_data & 0xfd) | ((val & 0x01) << 1);
+	return m5602_write_sensor(sd, PO1030_AUTOCTRL1, &i2c_data, 1);
 }
 
 void po1030_disconnect(struct sd *sd)
