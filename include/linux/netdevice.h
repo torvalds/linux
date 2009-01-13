@@ -467,7 +467,7 @@ struct netdev_queue {
  *     This function is called when network device transistions to the down
  *     state.
  *
- * int (*ndo_hard_start_xmit)(struct sk_buff *skb, struct net_device *dev);
+ * int (*ndo_start_xmit)(struct sk_buff *skb, struct net_device *dev);
  *	Called when a packet needs to be transmitted.
  *	Must return NETDEV_TX_OK , NETDEV_TX_BUSY, or NETDEV_TX_LOCKED,
  *	Required can not be NULL.
