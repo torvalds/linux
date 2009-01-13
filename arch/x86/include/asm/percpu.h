@@ -121,6 +121,16 @@ do {							\
 #define x86_sub_percpu(var, val) percpu_to_op("sub", per_cpu__##var, val)
 #define x86_or_percpu(var, val) percpu_to_op("or", per_cpu__##var, val)
 
+/* This is not atomic against other CPUs -- CPU preemption needs to be off */
+#define x86_test_and_clear_bit_percpu(bit, var)				\
+({									\
+	int old__;							\
+	asm volatile("btr %1,"__percpu_seg_str"%c2\n\tsbbl %0,%0"	\
+		     : "=r" (old__)					\
+		     : "dIr" (bit), "i" (&per_cpu__##var) : "memory");	\
+	old__;								\
+})
+
 #ifdef CONFIG_X86_64
 extern void load_pda_offset(int cpu);
 #else
