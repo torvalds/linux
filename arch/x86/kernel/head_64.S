@@ -243,12 +243,15 @@ ENTRY(secondary_startup_64)
 	movl %eax,%fs
 	movl %eax,%gs
 
-	/* 
-	 * Setup up a dummy PDA. this is just for some early bootup code
-	 * that does in_interrupt() 
-	 */ 
+	/* Set up %gs.
+	 *
+	 * %gs should point to the pda.  For initial boot, make %gs point
+	 * to the _boot_cpu_pda in data section.  For a secondary CPU,
+	 * initial_gs should be set to its pda address before the CPU runs
+	 * this code.
+	 */
 	movl	$MSR_GS_BASE,%ecx
-	movq	$empty_zero_page,%rax
+	movq	initial_gs(%rip),%rax
 	movq    %rax,%rdx
 	shrq	$32,%rdx
 	wrmsr	
@@ -274,6 +277,8 @@ ENTRY(secondary_startup_64)
 	.align	8
 	ENTRY(initial_code)
 	.quad	x86_64_start_kernel
+	ENTRY(initial_gs)
+	.quad	_boot_cpu_pda
 	__FINITDATA
 
 	ENTRY(stack_start)

@@ -26,8 +26,8 @@
 #include <asm/bios_ebda.h>
 #include <asm/trampoline.h>
 
-/* boot cpu pda */
-static struct x8664_pda _boot_cpu_pda;
+/* boot cpu pda, referenced by head_64.S to initialize %gs for boot CPU */
+struct x8664_pda _boot_cpu_pda;
 
 #ifdef CONFIG_SMP
 /*
