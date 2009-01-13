@@ -1877,17 +1877,8 @@ void __cpuinit generic_processor_info(int apicid, int version)
 #endif
 
 #if defined(CONFIG_X86_SMP) || defined(CONFIG_X86_64)
-	/* are we being called early in kernel startup? */
-	if (early_per_cpu_ptr(x86_cpu_to_apicid)) {
-		u16 *cpu_to_apicid = early_per_cpu_ptr(x86_cpu_to_apicid);
-		u16 *bios_cpu_apicid = early_per_cpu_ptr(x86_bios_cpu_apicid);
-
-		cpu_to_apicid[cpu] = apicid;
-		bios_cpu_apicid[cpu] = apicid;
-	} else {
-		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
-		per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
-	}
+	early_per_cpu(x86_cpu_to_apicid, cpu) = apicid;
+	early_per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
 #endif
 
 	set_cpu_possible(cpu, true);

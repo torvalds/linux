@@ -102,10 +102,7 @@ static inline int cpu_to_node(int cpu)
 /* Same function but used if called before per_cpu areas are setup */
 static inline int early_cpu_to_node(int cpu)
 {
-	if (early_per_cpu_ptr(x86_cpu_to_node_map))
-		return early_per_cpu_ptr(x86_cpu_to_node_map)[cpu];
-
-	return per_cpu(x86_cpu_to_node_map, cpu);
+	return early_per_cpu(x86_cpu_to_node_map, cpu);
 }
 
 /* Returns a pointer to the cpumask of CPUs on Node 'node'. */

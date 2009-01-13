@@ -195,9 +195,9 @@ do {							\
 #define	early_per_cpu_ptr(_name) (_name##_early_ptr)
 #define	early_per_cpu_map(_name, _idx) (_name##_early_map[_idx])
 #define	early_per_cpu(_name, _cpu) 				\
-	(early_per_cpu_ptr(_name) ?				\
-		early_per_cpu_ptr(_name)[_cpu] :		\
-		per_cpu(_name, _cpu))
+	*(early_per_cpu_ptr(_name) ?				\
+		&early_per_cpu_ptr(_name)[_cpu] :		\
+		&per_cpu(_name, _cpu))
 
 #else	/* !CONFIG_SMP */
 #define	DEFINE_EARLY_PER_CPU(_type, _name, _initvalue)		\
