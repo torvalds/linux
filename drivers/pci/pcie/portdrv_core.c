@@ -208,7 +208,7 @@ int pcie_port_device_probe(struct pci_dev *dev)
 int pcie_port_device_register(struct pci_dev *dev)
 {
 	struct pcie_port_data *port_data;
-	int status, capabilities, irq_mode, i;
+	int status, capabilities, irq_mode, i, nr_serv;
 	int vectors[PCIE_PORT_DEVICE_MAXSERVICES];
 	u16 reg16;
 
@@ -229,22 +229,30 @@ int pcie_port_device_register(struct pci_dev *dev)
 		capabilities |= PCIE_PORT_SERVICE_PME;
 
 	irq_mode = assign_interrupt_mode(dev, vectors, capabilities);
-	port_data->port_irq_mode = irq_mode;
-
-	/* Allocate child services if any */
-	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
-		struct pcie_device *child;
-		int service = 1 << i;
-
-		if (!(capabilities & service))
-			continue;
-
+	if (irq_mode == PCIE_PORT_NO_IRQ) {
 		/*
 		 * Don't use service devices that require interrupts if there is
 		 * no way to generate them.
 		 */
-		if (irq_mode == PCIE_PORT_NO_IRQ
-		    && service != PCIE_PORT_SERVICE_VC)
+		if (!(capabilities & PCIE_PORT_SERVICE_VC)) {
+			status = -ENODEV;
+			goto Error;
+		}
+		capabilities = PCIE_PORT_SERVICE_VC;
+	}
+	port_data->port_irq_mode = irq_mode;
+
+	status = pci_enable_device(dev);
+	if (status)
+		goto Error;
+	pci_set_master(dev);
+
+	/* Allocate child services if any */
+	for (i = 0, nr_serv = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
+		struct pcie_device *child;
+		int service = 1 << i;
+
+		if (!(capabilities & service))
 			continue;
 
 		child = alloc_pcie_device(dev, service, vectors[i]);
@@ -258,9 +266,19 @@ int pcie_port_device_register(struct pci_dev *dev)
 		}
 
 		get_device(&child->device);
+		nr_serv++;
+	}
+	if (!nr_serv) {
+		pci_disable_device(dev);
+		status = -ENODEV;
+		goto Error;
 	}
 
 	return 0;
+
+ Error:
+	kfree(port_data);
+	return status;
 }
 
 #ifdef CONFIG_PM

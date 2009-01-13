@@ -82,18 +82,13 @@ static int __devinit pcie_portdrv_probe (struct pci_dev *dev,
 	if (status)
 		return status;
 
-	if (pci_enable_device(dev) < 0) 
-		return -ENODEV;
-	
-	pci_set_master(dev);
         if (!dev->irq && dev->pin) {
 		dev_warn(&dev->dev, "device [%04x:%04x] has invalid IRQ; "
 			 "check vendor BIOS\n", dev->vendor, dev->device);
 	}
-	if (pcie_port_device_register(dev)) {
-		pci_disable_device(dev);
-		return -ENOMEM;
-	}
+	status = pcie_port_device_register(dev);
+	if (status)
+		return status;
 
 	pcie_portdrv_save_config(dev);
 
