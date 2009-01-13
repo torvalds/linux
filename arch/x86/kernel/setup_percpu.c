@@ -213,7 +213,7 @@ void __init setup_per_cpu_areas(void)
 		}
 #endif
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
-		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+		memcpy(ptr, __per_cpu_load, __per_cpu_end - __per_cpu_start);
 
 		DBG("PERCPU: cpu %4d %p\n", cpu, ptr);
 	}

@@ -19,6 +19,9 @@ PHDRS {
 	data PT_LOAD FLAGS(7);	/* RWE */
 	user PT_LOAD FLAGS(7);	/* RWE */
 	data.init PT_LOAD FLAGS(7);	/* RWE */
+#ifdef CONFIG_SMP
+	percpu PT_LOAD FLAGS(7);	/* RWE */
+#endif
 	note PT_NOTE FLAGS(0);	/* ___ */
 }
 SECTIONS
@@ -208,14 +211,26 @@ SECTIONS
   __initramfs_end = .;
 #endif
 
+#ifdef CONFIG_SMP
+  /*
+   * percpu offsets are zero-based on SMP.  PERCPU_VADDR() changes the
+   * output PHDR, so the next output section - __data_nosave - should
+   * switch it back to data.init.
+   */
+  . = ALIGN(PAGE_SIZE);
+  PERCPU_VADDR(0, :percpu)
+#else
   PERCPU(PAGE_SIZE)
+#endif
 
   . = ALIGN(PAGE_SIZE);
   __init_end = .;
 
   . = ALIGN(PAGE_SIZE);
   __nosave_begin = .;
-  .data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) { *(.data.nosave) }
+  .data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
+      *(.data.nosave)
+  } :data.init	/* switch back to data.init, see PERCPU_VADDR() above */
   . = ALIGN(PAGE_SIZE);
   __nosave_end = .;
 

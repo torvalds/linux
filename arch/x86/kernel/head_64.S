@@ -204,6 +204,23 @@ ENTRY(secondary_startup_64)
 	pushq $0
 	popfq
 
+#ifdef CONFIG_SMP
+	/*
+	 * early_gdt_base should point to the gdt_page in static percpu init
+	 * data area.  Computing this requires two symbols - __per_cpu_load
+	 * and per_cpu__gdt_page.  As linker can't do no such relocation, do
+	 * it by hand.  As early_gdt_descr is manipulated by C code for
+	 * secondary CPUs, this should be done only once for the boot CPU
+	 * when early_gdt_descr_base contains zero.
+	 */
+	movq	early_gdt_descr_base(%rip), %rax
+	testq	%rax, %rax
+	jnz	1f
+	movq	$__per_cpu_load, %rax
+	addq	$per_cpu__gdt_page, %rax
+	movq	%rax, early_gdt_descr_base(%rip)
+1:
+#endif
 	/*
 	 * We must switch to a new descriptor in kernel space for the GDT
 	 * because soon the kernel won't have access anymore to the userspace
@@ -401,7 +418,12 @@ NEXT_PAGE(level2_spare_pgt)
 	.globl early_gdt_descr
 early_gdt_descr:
 	.word	GDT_ENTRIES*8-1
-	.quad   per_cpu__gdt_page
+#ifdef CONFIG_SMP
+early_gdt_descr_base:
+	.quad   0x0000000000000000
+#else
+	.quad	per_cpu__gdt_page
+#endif
 
 ENTRY(phys_base)
 	/* This must match the first entry in level2_kernel_pgt */
