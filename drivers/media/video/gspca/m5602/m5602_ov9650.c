@@ -36,6 +36,8 @@ static int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev,
 					 __s32 val);
 static int ov9650_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val);
 static int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int ov9650_get_auto_exposure(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov9650_set_auto_exposure(struct gspca_dev *gspca_dev, __s32 val);
 
 /* Vertically and horizontally flips the image if matched, needed for machines
    where the sensor is mounted upside down */
@@ -201,7 +203,22 @@ const static struct ctrl ov9650_ctrls[] = {
 		},
 		.set = ov9650_set_auto_gain,
 		.get = ov9650_get_auto_gain
+	},
+#define AUTO_EXPOSURE_IDX 8
+	{
+		{
+			.id 		= V4L2_CID_EXPOSURE_AUTO,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "auto exposure",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 1
+		},
+		.set = ov9650_set_auto_exposure,
+		.get = ov9650_get_auto_exposure
 	}
+
 };
 
 static struct v4l2_pix_format ov9650_modes[] = {
@@ -356,13 +373,18 @@ int ov9650_init(struct sd *sd)
 	if (err < 0)
 		return err;
 
+	err = ov9650_set_auto_exposure(&sd->gspca_dev,
+				sensor_settings[AUTO_EXPOSURE_IDX]);
+	if (err < 0)
+		return err;
+
 	err = ov9650_set_auto_white_balance(&sd->gspca_dev,
 				sensor_settings[AUTO_WHITE_BALANCE_IDX]);
 	if (err < 0)
 		return err;
 
 	err = ov9650_set_auto_gain(&sd->gspca_dev,
-				    sensor_settings[AUTO_GAIN_CTRL_IDX]);
+				sensor_settings[AUTO_GAIN_CTRL_IDX]);
 	return err;
 }
 
@@ -699,6 +721,36 @@ static int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
+static int ov9650_get_auto_exposure(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[AUTO_EXPOSURE_IDX];
+	PDEBUG(D_V4L2, "Read auto exposure control %d", *val);
+	return 0;
+}
+
+static int ov9650_set_auto_exposure(struct gspca_dev *gspca_dev,
+				    __s32 val)
+{
+	int err;
+	u8 i2c_data;
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	PDEBUG(D_V4L2, "Set auto exposure control to %d", val);
+
+	sensor_settings[AUTO_EXPOSURE_IDX] = val;
+	err = m5602_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
+	if (err < 0)
+		return err;
+
+	i2c_data = ((i2c_data & 0xfe) | ((val & 0x01) << 0));
+
+	return m5602_write_sensor(sd, OV9650_COM8, &i2c_data, 1);
+}
+
 static int ov9650_get_auto_white_balance(struct gspca_dev *gspca_dev,
 					 __s32 *val)
 {
@@ -755,9 +807,8 @@ static int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val)
 		return err;
 
 	i2c_data = ((i2c_data & 0xfb) | ((val & 0x01) << 2));
-	err = m5602_write_sensor(sd, OV9650_COM8, &i2c_data, 1);
 
-	return err;
+	return m5602_write_sensor(sd, OV9650_COM8, &i2c_data, 1);
 }
 
 static void ov9650_dump_registers(struct sd *sd)
