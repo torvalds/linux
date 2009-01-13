@@ -568,7 +568,7 @@ static dma_addr_t ps3_sb_map_page(struct device *_dev, struct page *page,
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 	int result;
-	unsigned long bus_addr;
+	dma_addr_t bus_addr;
 	void *ptr = page_address(page) + offset;
 
 	result = ps3_dma_map(dev->d_region, (unsigned long)ptr, size,
@@ -590,7 +590,7 @@ static dma_addr_t ps3_ioc0_map_page(struct device *_dev, struct page *page,
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 	int result;
-	unsigned long bus_addr;
+	dma_addr_t bus_addr;
 	u64 iopte_flag;
 	void *ptr = page_address(page) + offset;
 

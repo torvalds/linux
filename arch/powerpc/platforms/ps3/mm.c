@@ -777,7 +777,7 @@ static int dma_ioc0_region_free(struct ps3_dma_region *r)
  */
 
 static int dma_sb_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
-	   unsigned long len, unsigned long *bus_addr,
+	   unsigned long len, dma_addr_t *bus_addr,
 	   u64 iopte_flag)
 {
 	int result;
@@ -800,7 +800,7 @@ static int dma_sb_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
 		DBG("%s:%d lpar_addr %lxh\n", __func__, __LINE__,
 			lpar_addr);
 		DBG("%s:%d len       %lxh\n", __func__, __LINE__, len);
-		DBG("%s:%d bus_addr  %lxh (%lxh)\n", __func__, __LINE__,
+		DBG("%s:%d bus_addr  %llxh (%lxh)\n", __func__, __LINE__,
 		*bus_addr, len);
 	}
 
@@ -832,7 +832,7 @@ static int dma_sb_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
 }
 
 static int dma_ioc0_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
-	     unsigned long len, unsigned long *bus_addr,
+	     unsigned long len, dma_addr_t *bus_addr,
 	     u64 iopte_flag)
 {
 	int result;
@@ -872,7 +872,7 @@ static int dma_ioc0_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
 		return result;
 	}
 	*bus_addr = c->bus_addr + phys_addr - aligned_phys;
-	DBG("%s: va=%#lx pa=%#lx a_pa=%#lx bus=%#lx\n", __func__,
+	DBG("%s: va=%#lx pa=%#lx a_pa=%#lx bus=%#llx\n", __func__,
 	    virt_addr, phys_addr, aligned_phys, *bus_addr);
 	c->usage_count = 1;
 
@@ -889,7 +889,7 @@ static int dma_ioc0_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
  * This is the common dma unmap routine.
  */
 
-static int dma_sb_unmap_area(struct ps3_dma_region *r, unsigned long bus_addr,
+static int dma_sb_unmap_area(struct ps3_dma_region *r, dma_addr_t bus_addr,
 	unsigned long len)
 {
 	unsigned long flags;
@@ -903,7 +903,7 @@ static int dma_sb_unmap_area(struct ps3_dma_region *r, unsigned long bus_addr,
 			1 << r->page_size);
 		unsigned long aligned_len = _ALIGN_UP(len + bus_addr
 			- aligned_bus, 1 << r->page_size);
-		DBG("%s:%d: not found: bus_addr %lxh\n",
+		DBG("%s:%d: not found: bus_addr %llxh\n",
 			__func__, __LINE__, bus_addr);
 		DBG("%s:%d: not found: len %lxh\n",
 			__func__, __LINE__, len);
@@ -926,12 +926,12 @@ static int dma_sb_unmap_area(struct ps3_dma_region *r, unsigned long bus_addr,
 }
 
 static int dma_ioc0_unmap_area(struct ps3_dma_region *r,
-			unsigned long bus_addr, unsigned long len)
+			dma_addr_t bus_addr, unsigned long len)
 {
 	unsigned long flags;
 	struct dma_chunk *c;
 
-	DBG("%s: start a=%#lx l=%#lx\n", __func__, bus_addr, len);
+	DBG("%s: start a=%#llx l=%#lx\n", __func__, bus_addr, len);
 	spin_lock_irqsave(&r->chunk_list.lock, flags);
 	c = dma_find_chunk(r, bus_addr, len);
 
@@ -941,7 +941,7 @@ static int dma_ioc0_unmap_area(struct ps3_dma_region *r,
 		unsigned long aligned_len = _ALIGN_UP(len + bus_addr
 						      - aligned_bus,
 						      1 << r->page_size);
-		DBG("%s:%d: not found: bus_addr %lxh\n",
+		DBG("%s:%d: not found: bus_addr %llxh\n",
 		    __func__, __LINE__, bus_addr);
 		DBG("%s:%d: not found: len %lxh\n",
 		    __func__, __LINE__, len);
@@ -975,7 +975,8 @@ static int dma_ioc0_unmap_area(struct ps3_dma_region *r,
 static int dma_sb_region_create_linear(struct ps3_dma_region *r)
 {
 	int result;
-	unsigned long virt_addr, len, tmp;
+	unsigned long virt_addr, len;
+	dma_addr_t tmp;
 
 	if (r->len > 16*1024*1024) {	/* FIXME: need proper fix */
 		/* force 16M dma pages for linear mapping */
@@ -1027,7 +1028,8 @@ static int dma_sb_region_create_linear(struct ps3_dma_region *r)
 static int dma_sb_region_free_linear(struct ps3_dma_region *r)
 {
 	int result;
-	unsigned long bus_addr, len, lpar_addr;
+	dma_addr_t bus_addr;
+	unsigned long len, lpar_addr;
 
 	if (r->offset < map.rm.size) {
 		/* Unmap (part of) 1st RAM chunk */
@@ -1072,7 +1074,7 @@ static int dma_sb_region_free_linear(struct ps3_dma_region *r)
  */
 
 static int dma_sb_map_area_linear(struct ps3_dma_region *r,
-	unsigned long virt_addr, unsigned long len, unsigned long *bus_addr,
+	unsigned long virt_addr, unsigned long len, dma_addr_t *bus_addr,
 	u64 iopte_flag)
 {
 	unsigned long phys_addr = is_kernel_addr(virt_addr) ? __pa(virt_addr)
@@ -1091,7 +1093,7 @@ static int dma_sb_map_area_linear(struct ps3_dma_region *r,
  */
 
 static int dma_sb_unmap_area_linear(struct ps3_dma_region *r,
-	unsigned long bus_addr, unsigned long len)
+	dma_addr_t bus_addr, unsigned long len)
 {
 	return 0;
 };
@@ -1169,13 +1171,13 @@ int ps3_dma_region_free(struct ps3_dma_region *r)
 EXPORT_SYMBOL(ps3_dma_region_free);
 
 int ps3_dma_map(struct ps3_dma_region *r, unsigned long virt_addr,
-	unsigned long len, unsigned long *bus_addr,
+	unsigned long len, dma_addr_t *bus_addr,
 	u64 iopte_flag)
 {
 	return r->region_ops->map(r, virt_addr, len, bus_addr, iopte_flag);
 }
 
-int ps3_dma_unmap(struct ps3_dma_region *r, unsigned long bus_addr,
+int ps3_dma_unmap(struct ps3_dma_region *r, dma_addr_t bus_addr,
 	unsigned long len)
 {
 	return r->region_ops->unmap(r, bus_addr, len);
