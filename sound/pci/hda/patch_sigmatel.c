@@ -336,6 +336,10 @@ static unsigned int stac92hd83xxx_pwr_mapping[4] = {
 	0x03, 0x0c, 0x10, 0x40,
 };
 
+static unsigned int stac92hd83xxx_amp_nids[1] = {
+	0xc,
+};
+
 static hda_nid_t stac92hd71bxx_pwr_nids[3] = {
 	0x0a, 0x0d, 0x0f
 };
@@ -4747,6 +4751,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->dmux_nids = stac92hd83xxx_dmux_nids;
 	spec->adc_nids = stac92hd83xxx_adc_nids;
 	spec->pwr_nids = stac92hd83xxx_pwr_nids;
+	spec->amp_nids = stac92hd83xxx_amp_nids;
 	spec->pwr_mapping = stac92hd83xxx_pwr_mapping;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd83xxx_pwr_nids);
 	spec->multiout.dac_nids = spec->dac_nids;
@@ -4764,6 +4769,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->num_pins = ARRAY_SIZE(stac92hd83xxx_pin_nids);
 	spec->num_dmuxes = ARRAY_SIZE(stac92hd83xxx_dmux_nids);
 	spec->num_adcs = ARRAY_SIZE(stac92hd83xxx_adc_nids);
+	spec->num_amps = ARRAY_SIZE(stac92hd83xxx_amp_nids);
 	spec->num_dmics = STAC92HD83XXX_NUM_DMICS;
 	spec->dinput_mux = &stac92hd83xxx_dmux;
 	spec->pin_nids = stac92hd83xxx_pin_nids;
