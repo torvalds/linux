@@ -313,7 +313,7 @@
 			  0x1000000 0x0 0x0 0xe1010000 0x0 0x10000>;
 		clock-frequency = <33333333>;
 		interrupt-parent = <&mpic>;
-		interrupts = <26 2>;
+		interrupts = <25 2>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 			/* IDSEL 0x0 */
@@ -350,7 +350,7 @@
 			  0x1000000 0x0 0x0 0xe1020000 0x0 0x10000>;
 		clock-frequency = <33333333>;
 		interrupt-parent = <&mpic>;
-		interrupts = <25 2>;
+		interrupts = <26 2>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 			/* IDSEL 0x0 */

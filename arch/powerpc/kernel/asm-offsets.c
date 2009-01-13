@@ -56,6 +56,10 @@
 #include "head_booke.h"
 #endif
 
+#if defined(CONFIG_FSL_BOOKE)
+#include "../mm/mmu_decl.h"
+#endif
+
 int main(void)
 {
 	DEFINE(THREAD, offsetof(struct task_struct, thread));
@@ -381,6 +385,9 @@ int main(void)
 #ifdef CONFIG_44x
 	DEFINE(PGD_T_LOG2, PGD_T_LOG2);
 	DEFINE(PTE_T_LOG2, PTE_T_LOG2);
+#endif
+#ifdef CONFIG_FSL_BOOKE
+	DEFINE(TLBCAM_SIZE, sizeof(struct tlbcam));
 #endif
 
 #ifdef CONFIG_KVM_EXIT_TIMING

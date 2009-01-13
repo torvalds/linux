@@ -624,7 +624,7 @@ struct ucc_slow_pram {
 #define UCC_GETH_UCCE_RXF1      0x00000002
 #define UCC_GETH_UCCE_RXF0      0x00000001
 
-/* UPSMR, when used as a UART */
+/* UCC Protocol Specific Mode Register (UPSMR), when used for UART */
 #define UCC_UART_UPSMR_FLC		0x8000
 #define UCC_UART_UPSMR_SL		0x4000
 #define UCC_UART_UPSMR_CL_MASK		0x3000
@@ -651,6 +651,23 @@ struct ucc_slow_pram {
 #define UCC_UART_UPSMR_TPM_LOW		0x0001
 #define UCC_UART_UPSMR_TPM_EVEN		0x0002
 #define UCC_UART_UPSMR_TPM_HIGH		0x0003
+
+/* UCC Protocol Specific Mode Register (UPSMR), when used for Ethernet */
+#define UCC_GETH_UPSMR_FTFE     0x80000000
+#define UCC_GETH_UPSMR_PTPE     0x40000000
+#define UCC_GETH_UPSMR_ECM      0x04000000
+#define UCC_GETH_UPSMR_HSE      0x02000000
+#define UCC_GETH_UPSMR_PRO      0x00400000
+#define UCC_GETH_UPSMR_CAP      0x00200000
+#define UCC_GETH_UPSMR_RSH      0x00100000
+#define UCC_GETH_UPSMR_RPM      0x00080000
+#define UCC_GETH_UPSMR_R10M     0x00040000
+#define UCC_GETH_UPSMR_RLPB     0x00020000
+#define UCC_GETH_UPSMR_TBIM     0x00010000
+#define UCC_GETH_UPSMR_RES1     0x00002000
+#define UCC_GETH_UPSMR_RMM      0x00001000
+#define UCC_GETH_UPSMR_CAM      0x00000400
+#define UCC_GETH_UPSMR_BRO      0x00000200
 
 /* UCC Transmit On Demand Register (UTODR) */
 #define UCC_SLOW_TOD	0x8000

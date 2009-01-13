@@ -389,10 +389,6 @@ skpinv:	addi	r6,r6,1				/* Increment */
 #endif
 #endif
 
-	mfspr	r3,SPRN_TLB1CFG
-	andi.	r3,r3,0xfff
-	lis	r4,num_tlbcam_entries@ha
-	stw	r3,num_tlbcam_entries@l(r4)
 /*
  * Decide what sort of machine this is and initialize the MMU.
  */
@@ -909,7 +905,7 @@ KernelSPE:
 _GLOBAL(loadcam_entry)
 	lis	r4,TLBCAM@ha
 	addi	r4,r4,TLBCAM@l
-	mulli	r5,r3,20
+	mulli	r5,r3,TLBCAM_SIZE
 	add	r3,r5,r4
 	lwz	r4,0(r3)
 	mtspr	SPRN_MAS0,r4
