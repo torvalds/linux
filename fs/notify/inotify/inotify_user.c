@@ -576,7 +576,7 @@ static const struct inotify_operations inotify_user_ops = {
 	.destroy_watch	= free_inotify_user_watch,
 };
 
-asmlinkage long sys_inotify_init1(int flags)
+SYSCALL_DEFINE1(inotify_init1, int, flags)
 {
 	struct inotify_device *dev;
 	struct inotify_handle *ih;
@@ -655,7 +655,7 @@ out_put_fd:
 	return ret;
 }
 
-asmlinkage long sys_inotify_init(void)
+SYSCALL_DEFINE0(inotify_init)
 {
 	return sys_inotify_init1(0);
 }

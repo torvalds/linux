@@ -1216,8 +1216,8 @@ long keyctl_get_security(key_serial_t keyid,
 /*
  * the key control system call
  */
-asmlinkage long sys_keyctl(int option, unsigned long arg2, unsigned long arg3,
-			   unsigned long arg4, unsigned long arg5)
+SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
+		unsigned long, arg4, unsigned long, arg5)
 {
 	switch (option) {
 	case KEYCTL_GET_KEYRING_ID:
