@@ -98,7 +98,7 @@
 		CALL(sys_uselib)
 		CALL(sys_swapon)
 		CALL(sys_reboot)
-		CALL(OBSOLETE(old_readdir))	/* used by libc4 */
+		CALL(OBSOLETE(sys_old_readdir))	/* used by libc4 */
 /* 90 */	CALL(OBSOLETE(old_mmap))	/* used by libc4 */
 		CALL(sys_munmap)
 		CALL(sys_truncate)
