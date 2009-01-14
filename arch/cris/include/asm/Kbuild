@@ -9,4 +9,3 @@ header-y += sync_serial.h
 
 unifdef-y += etraxgpio.h
 unifdef-y += rs485.h
-unifdef-y += swab.h
