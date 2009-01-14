@@ -403,8 +403,8 @@ asmlinkage long sys_write(unsigned int fd, const char __user * buf, size_t count
 	return ret;
 }
 
-asmlinkage long sys_pread64(unsigned int fd, char __user *buf,
-			     size_t count, loff_t pos)
+SYSCALL_DEFINE(pread64)(unsigned int fd, char __user *buf,
+			size_t count, loff_t pos)
 {
 	struct file *file;
 	ssize_t ret = -EBADF;
@@ -423,9 +423,17 @@ asmlinkage long sys_pread64(unsigned int fd, char __user *buf,
 
 	return ret;
 }
+#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
+asmlinkage long SyS_pread64(long fd, long buf, long count, loff_t pos)
+{
+	return SYSC_pread64((unsigned int) fd, (char __user *) buf,
+			    (size_t) count, pos);
+}
+SYSCALL_ALIAS(sys_pread64, SyS_pread64);
+#endif
 
-asmlinkage long sys_pwrite64(unsigned int fd, const char __user *buf,
-			      size_t count, loff_t pos)
+SYSCALL_DEFINE(pwrite64)(unsigned int fd, const char __user *buf,
+			 size_t count, loff_t pos)
 {
 	struct file *file;
 	ssize_t ret = -EBADF;
@@ -444,6 +452,14 @@ asmlinkage long sys_pwrite64(unsigned int fd, const char __user *buf,
 
 	return ret;
 }
+#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
+asmlinkage long SyS_pwrite64(long fd, long buf, long count, loff_t pos)
+{
+	return SYSC_pwrite64((unsigned int) fd, (const char __user *) buf,
+			     (size_t) count, pos);
+}
+SYSCALL_ALIAS(sys_pwrite64, SyS_pwrite64);
+#endif
 
 /*
  * Reduce an iovec's length in-place.  Return the resulting number of segments
