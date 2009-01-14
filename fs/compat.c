@@ -1709,7 +1709,7 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 }
 
 #ifdef HAVE_SET_RESTORE_SIGMASK
-asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
+static long do_compat_pselect(int n, compat_ulong_t __user *inp,
 	compat_ulong_t __user *outp, compat_ulong_t __user *exp,
 	struct compat_timespec __user *tsp, compat_sigset_t __user *sigmask,
 	compat_size_t sigsetsize)
@@ -1775,8 +1775,8 @@ asmlinkage long compat_sys_pselect6(int n, compat_ulong_t __user *inp,
 				(compat_size_t __user *)(sig+sizeof(up))))
 			return -EFAULT;
 	}
-	return compat_sys_pselect7(n, inp, outp, exp, tsp, compat_ptr(up),
-					sigsetsize);
+	return do_compat_pselect(n, inp, outp, exp, tsp, compat_ptr(up),
+				 sigsetsize);
 }
 
 asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
