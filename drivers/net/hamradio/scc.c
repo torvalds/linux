@@ -2074,7 +2074,7 @@ static int scc_net_seq_show(struct seq_file *seq, void *v)
         return 0;
 }
 
-static struct seq_operations scc_net_seq_ops = {
+static const struct seq_operations scc_net_seq_ops = {
 	.start  = scc_net_seq_start,
 	.next   = scc_net_seq_next,
 	.stop   = scc_net_seq_stop,

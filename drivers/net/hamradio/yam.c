@@ -783,7 +783,7 @@ static int yam_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations yam_seqops = {
+static const struct seq_operations yam_seqops = {
 	.start = yam_seq_start,
 	.next = yam_seq_next,
 	.stop = yam_seq_stop,

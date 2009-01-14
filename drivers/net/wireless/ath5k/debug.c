@@ -165,7 +165,7 @@ static int reg_show(struct seq_file *seq, void *p)
 	return 0;
 }
 
-static struct seq_operations register_seq_ops = {
+static const struct seq_operations register_seq_ops = {
 	.start = reg_start,
 	.next  = reg_next,
 	.stop  = reg_stop,

@@ -443,7 +443,7 @@ static int bpq_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations bpq_seqops = {
+static const struct seq_operations bpq_seqops = {
 	.start = bpq_seq_start,
 	.next = bpq_seq_next,
 	.stop = bpq_seq_stop,

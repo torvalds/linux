@@ -3369,7 +3369,7 @@ static int bond_info_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations bond_info_seq_ops = {
+static const struct seq_operations bond_info_seq_ops = {
 	.start = bond_info_seq_start,
 	.next  = bond_info_seq_next,
 	.stop  = bond_info_seq_stop,

@@ -2517,7 +2517,7 @@ out:
 	return 0;
 }
 
-static struct seq_operations pppol2tp_seq_ops = {
+static const struct seq_operations pppol2tp_seq_ops = {
 	.start		= pppol2tp_seq_start,
 	.next		= pppol2tp_seq_next,
 	.stop		= pppol2tp_seq_stop,
@@ -2565,7 +2565,7 @@ static int pppol2tp_proc_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
-static struct file_operations pppol2tp_proc_fops = {
+static const struct file_operations pppol2tp_proc_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pppol2tp_proc_open,
 	.read		= seq_read,

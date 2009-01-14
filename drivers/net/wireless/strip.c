@@ -1125,7 +1125,7 @@ static int strip_seq_show(struct seq_file *seq, void *v)
 }
 
 
-static struct seq_operations strip_seq_ops = {
+static const struct seq_operations strip_seq_ops = {
 	.start = strip_seq_start,
 	.next  = strip_seq_next,
 	.stop  = strip_seq_stop,
