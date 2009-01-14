@@ -36,14 +36,6 @@ void perf_counter_print_debug(void)
 }
 
 /*
- * Return 1 for a software counter, 0 for a hardware counter
- */
-static inline int is_software_counter(struct perf_counter *counter)
-{
-	return !counter->hw_event.raw && counter->hw_event.type < 0;
-}
-
-/*
  * Read one performance monitor counter (PMC).
  */
 static unsigned long read_pmc(int idx)
@@ -443,6 +435,7 @@ int hw_perf_group_sched_in(struct perf_counter *group_leader,
 	 */
 	for (i = n0; i < n0 + n; ++i)
 		cpuhw->counter[i]->hw.config = cpuhw->events[i];
+	cpuctx->active_oncpu += n;
 	n = 1;
 	counter_sched_in(group_leader, cpu);
 	list_for_each_entry(sub, &group_leader->sibling_list, list_entry) {
@@ -451,7 +444,6 @@ int hw_perf_group_sched_in(struct perf_counter *group_leader,
 			++n;
 		}
 	}
-	cpuctx->active_oncpu += n;
 	ctx->nr_active += n;
 
 	return 1;

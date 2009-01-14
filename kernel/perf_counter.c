@@ -93,6 +93,25 @@ list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 	}
 }
 
+static void
+counter_sched_out(struct perf_counter *counter,
+		  struct perf_cpu_context *cpuctx,
+		  struct perf_counter_context *ctx)
+{
+	if (counter->state != PERF_COUNTER_STATE_ACTIVE)
+		return;
+
+	counter->state = PERF_COUNTER_STATE_INACTIVE;
+	counter->hw_ops->disable(counter);
+	counter->oncpu = -1;
+
+	if (!is_software_counter(counter))
+		cpuctx->active_oncpu--;
+	ctx->nr_active--;
+	if (counter->hw_event.exclusive || !cpuctx->active_oncpu)
+		cpuctx->exclusive = 0;
+}
+
 /*
  * Cross CPU call to remove a performance counter
  *
@@ -118,14 +137,9 @@ static void __perf_counter_remove_from_context(void *info)
 	curr_rq_lock_irq_save(&flags);
 	spin_lock(&ctx->lock);
 
-	if (counter->state == PERF_COUNTER_STATE_ACTIVE) {
-		counter->state = PERF_COUNTER_STATE_INACTIVE;
-		counter->hw_ops->disable(counter);
-		ctx->nr_active--;
-		cpuctx->active_oncpu--;
-		counter->task = NULL;
-		counter->oncpu = -1;
-	}
+	counter_sched_out(counter, cpuctx, ctx);
+
+	counter->task = NULL;
 	ctx->nr_counters--;
 
 	/*
@@ -207,7 +221,7 @@ counter_sched_in(struct perf_counter *counter,
 		 struct perf_counter_context *ctx,
 		 int cpu)
 {
-	if (counter->state == PERF_COUNTER_STATE_OFF)
+	if (counter->state <= PERF_COUNTER_STATE_OFF)
 		return 0;
 
 	counter->state = PERF_COUNTER_STATE_ACTIVE;
@@ -223,10 +237,61 @@ counter_sched_in(struct perf_counter *counter,
 		return -EAGAIN;
 	}
 
-	cpuctx->active_oncpu++;
+	if (!is_software_counter(counter))
+		cpuctx->active_oncpu++;
 	ctx->nr_active++;
 
+	if (counter->hw_event.exclusive)
+		cpuctx->exclusive = 1;
+
 	return 0;
+}
+
+/*
+ * Return 1 for a group consisting entirely of software counters,
+ * 0 if the group contains any hardware counters.
+ */
+static int is_software_only_group(struct perf_counter *leader)
+{
+	struct perf_counter *counter;
+
+	if (!is_software_counter(leader))
+		return 0;
+	list_for_each_entry(counter, &leader->sibling_list, list_entry)
+		if (!is_software_counter(counter))
+			return 0;
+	return 1;
+}
+
+/*
+ * Work out whether we can put this counter group on the CPU now.
+ */
+static int group_can_go_on(struct perf_counter *counter,
+			   struct perf_cpu_context *cpuctx,
+			   int can_add_hw)
+{
+	/*
+	 * Groups consisting entirely of software counters can always go on.
+	 */
+	if (is_software_only_group(counter))
+		return 1;
+	/*
+	 * If an exclusive group is already on, no other hardware
+	 * counters can go on.
+	 */
+	if (cpuctx->exclusive)
+		return 0;
+	/*
+	 * If this group is exclusive and there are already
+	 * counters on the CPU, it can't go on.
+	 */
+	if (counter->hw_event.exclusive && cpuctx->active_oncpu)
+		return 0;
+	/*
+	 * Otherwise, try to add it if all previous groups were able
+	 * to go on.
+	 */
+	return can_add_hw;
 }
 
 /*
@@ -240,6 +305,7 @@ static void __perf_install_in_context(void *info)
 	int cpu = smp_processor_id();
 	unsigned long flags;
 	u64 perf_flags;
+	int err;
 
 	/*
 	 * If this is a task context, we need to check whether it is
@@ -261,9 +327,21 @@ static void __perf_install_in_context(void *info)
 	list_add_counter(counter, ctx);
 	ctx->nr_counters++;
 
-	counter_sched_in(counter, cpuctx, ctx, cpu);
+	/*
+	 * An exclusive counter can't go on if there are already active
+	 * hardware counters, and no hardware counter can go on if there
+	 * is already an exclusive counter on.
+	 */
+	if (counter->state == PERF_COUNTER_STATE_INACTIVE &&
+	    !group_can_go_on(counter, cpuctx, 1))
+		err = -EEXIST;
+	else
+		err = counter_sched_in(counter, cpuctx, ctx, cpu);
 
-	if (!ctx->task && cpuctx->max_pertask)
+	if (err && counter->hw_event.pinned)
+		counter->state = PERF_COUNTER_STATE_ERROR;
+
+	if (!err && !ctx->task && cpuctx->max_pertask)
 		cpuctx->max_pertask--;
 
 	hw_perf_restore(perf_flags);
@@ -327,22 +405,6 @@ retry:
 }
 
 static void
-counter_sched_out(struct perf_counter *counter,
-		  struct perf_cpu_context *cpuctx,
-		  struct perf_counter_context *ctx)
-{
-	if (counter->state != PERF_COUNTER_STATE_ACTIVE)
-		return;
-
-	counter->state = PERF_COUNTER_STATE_INACTIVE;
-	counter->hw_ops->disable(counter);
-	counter->oncpu = -1;
-
-	cpuctx->active_oncpu--;
-	ctx->nr_active--;
-}
-
-static void
 group_sched_out(struct perf_counter *group_counter,
 		struct perf_cpu_context *cpuctx,
 		struct perf_counter_context *ctx)
@@ -359,6 +421,9 @@ group_sched_out(struct perf_counter *group_counter,
 	 */
 	list_for_each_entry(counter, &group_counter->sibling_list, list_entry)
 		counter_sched_out(counter, cpuctx, ctx);
+
+	if (group_counter->hw_event.exclusive)
+		cpuctx->exclusive = 0;
 }
 
 void __perf_counter_sched_out(struct perf_counter_context *ctx,
@@ -455,30 +520,6 @@ group_error:
 	return -EAGAIN;
 }
 
-/*
- * Return 1 for a software counter, 0 for a hardware counter
- */
-static inline int is_software_counter(struct perf_counter *counter)
-{
-	return !counter->hw_event.raw && counter->hw_event.type < 0;
-}
-
-/*
- * Return 1 for a group consisting entirely of software counters,
- * 0 if the group contains any hardware counters.
- */
-static int is_software_only_group(struct perf_counter *leader)
-{
-	struct perf_counter *counter;
-
-	if (!is_software_counter(leader))
-		return 0;
-	list_for_each_entry(counter, &leader->sibling_list, list_entry)
-		if (!is_software_counter(counter))
-			return 0;
-	return 1;
-}
-
 static void
 __perf_counter_sched_in(struct perf_counter_context *ctx,
 			struct perf_cpu_context *cpuctx, int cpu)
@@ -492,7 +533,38 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 
 	spin_lock(&ctx->lock);
 	flags = hw_perf_save_disable();
+
+	/*
+	 * First go through the list and put on any pinned groups
+	 * in order to give them the best chance of going on.
+	 */
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
+		if (counter->state <= PERF_COUNTER_STATE_OFF ||
+		    !counter->hw_event.pinned)
+			continue;
+		if (counter->cpu != -1 && counter->cpu != cpu)
+			continue;
+
+		if (group_can_go_on(counter, cpuctx, 1))
+			group_sched_in(counter, cpuctx, ctx, cpu);
+
+		/*
+		 * If this pinned group hasn't been scheduled,
+		 * put it in error state.
+		 */
+		if (counter->state == PERF_COUNTER_STATE_INACTIVE)
+			counter->state = PERF_COUNTER_STATE_ERROR;
+	}
+
+	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
+		/*
+		 * Ignore counters in OFF or ERROR state, and
+		 * ignore pinned counters since we did them already.
+		 */
+		if (counter->state <= PERF_COUNTER_STATE_OFF ||
+		    counter->hw_event.pinned)
+			continue;
+
 		/*
 		 * Listen to the 'cpu' scheduling filter constraint
 		 * of counters:
@@ -500,14 +572,10 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 		if (counter->cpu != -1 && counter->cpu != cpu)
 			continue;
 
-		/*
-		 * If we scheduled in a group atomically and exclusively,
-		 * or if this group can't go on, don't add any more
-		 * hardware counters.
-		 */
-		if (can_add_hw || is_software_only_group(counter))
+		if (group_can_go_on(counter, cpuctx, can_add_hw)) {
 			if (group_sched_in(counter, cpuctx, ctx, cpu))
 				can_add_hw = 0;
+		}
 	}
 	hw_perf_restore(flags);
 	spin_unlock(&ctx->lock);
@@ -567,8 +635,10 @@ int perf_counter_task_disable(void)
 	 */
 	perf_flags = hw_perf_save_disable();
 
-	list_for_each_entry(counter, &ctx->counter_list, list_entry)
-		counter->state = PERF_COUNTER_STATE_OFF;
+	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
+		if (counter->state != PERF_COUNTER_STATE_ERROR)
+			counter->state = PERF_COUNTER_STATE_OFF;
+	}
 
 	hw_perf_restore(perf_flags);
 
@@ -607,7 +677,7 @@ int perf_counter_task_enable(void)
 	perf_flags = hw_perf_save_disable();
 
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
-		if (counter->state != PERF_COUNTER_STATE_OFF)
+		if (counter->state > PERF_COUNTER_STATE_OFF)
 			continue;
 		counter->state = PERF_COUNTER_STATE_INACTIVE;
 		counter->hw_event.disabled = 0;
@@ -849,6 +919,14 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 	if (count != sizeof(cntval))
 		return -EINVAL;
 
+	/*
+	 * Return end-of-file for a read on a counter that is in
+	 * error state (i.e. because it was pinned but it couldn't be
+	 * scheduled on to the CPU at some point).
+	 */
+	if (counter->state == PERF_COUNTER_STATE_ERROR)
+		return 0;
+
 	mutex_lock(&counter->mutex);
 	cntval = perf_counter_read(counter);
 	mutex_unlock(&counter->mutex);
@@ -884,7 +962,7 @@ perf_read_irq_data(struct perf_counter	*counter,
 {
 	struct perf_data *irqdata, *usrdata;
 	DECLARE_WAITQUEUE(wait, current);
-	ssize_t res;
+	ssize_t res, res2;
 
 	irqdata = counter->irqdata;
 	usrdata = counter->usrdata;
@@ -905,6 +983,9 @@ perf_read_irq_data(struct perf_counter	*counter,
 		if (signal_pending(current))
 			break;
 
+		if (counter->state == PERF_COUNTER_STATE_ERROR)
+			break;
+
 		spin_unlock_irq(&counter->waitq.lock);
 		schedule();
 		spin_lock_irq(&counter->waitq.lock);
@@ -913,7 +994,8 @@ perf_read_irq_data(struct perf_counter	*counter,
 	__set_current_state(TASK_RUNNING);
 	spin_unlock_irq(&counter->waitq.lock);
 
-	if (usrdata->len + irqdata->len < count)
+	if (usrdata->len + irqdata->len < count &&
+	    counter->state != PERF_COUNTER_STATE_ERROR)
 		return -ERESTARTSYS;
 read_pending:
 	mutex_lock(&counter->mutex);
@@ -925,11 +1007,12 @@ read_pending:
 
 	/* Switch irq buffer: */
 	usrdata = perf_switch_irq_data(counter);
-	if (perf_copy_usrdata(usrdata, buf + res, count - res) < 0) {
+	res2 = perf_copy_usrdata(usrdata, buf + res, count - res);
+	if (res2 < 0) {
 		if (!res)
 			res = -EFAULT;
 	} else {
-		res = count;
+		res += res2;
 	}
 out:
 	mutex_unlock(&counter->mutex);
@@ -1348,6 +1431,11 @@ sys_perf_counter_open(struct perf_counter_hw_event *hw_event_uptr __user,
 		 */
 		if (group_leader->ctx != ctx)
 			goto err_put_context;
+		/*
+		 * Only a group leader can be exclusive or pinned
+		 */
+		if (hw_event.exclusive || hw_event.pinned)
+			goto err_put_context;
 	}
 
 	ret = -EINVAL;
@@ -1473,13 +1561,7 @@ __perf_counter_exit_task(struct task_struct *child,
 
 		cpuctx = &__get_cpu_var(perf_cpu_context);
 
-		if (child_counter->state == PERF_COUNTER_STATE_ACTIVE) {
-			child_counter->state = PERF_COUNTER_STATE_INACTIVE;
-			child_counter->hw_ops->disable(child_counter);
-			cpuctx->active_oncpu--;
-			child_ctx->nr_active--;
-			child_counter->oncpu = -1;
-		}
+		counter_sched_out(child_counter, cpuctx, child_ctx);
 
 		list_del_init(&child_counter->list_entry);
 

@@ -86,7 +86,10 @@ struct perf_counter_hw_event {
 				nmi	     :  1, /* NMI sampling        */
 				raw	     :  1, /* raw event type      */
 				inherit	     :  1, /* children inherit it */
-				__reserved_1 : 28;
+				pinned	     :  1, /* must always be on PMU */
+				exclusive    :  1, /* only counter on PMU */
+
+				__reserved_1 : 26;
 
 	u64			__reserved_2;
 };
@@ -141,6 +144,7 @@ struct hw_perf_counter_ops {
  * enum perf_counter_active_state - the states of a counter
  */
 enum perf_counter_active_state {
+	PERF_COUNTER_STATE_ERROR	= -2,
 	PERF_COUNTER_STATE_OFF		= -1,
 	PERF_COUNTER_STATE_INACTIVE	=  0,
 	PERF_COUNTER_STATE_ACTIVE	=  1,
@@ -214,6 +218,7 @@ struct perf_cpu_context {
 	struct perf_counter_context	*task_ctx;
 	int				active_oncpu;
 	int				max_pertask;
+	int				exclusive;
 };
 
 /*
@@ -239,6 +244,14 @@ extern int perf_counter_task_enable(void);
 extern int hw_perf_group_sched_in(struct perf_counter *group_leader,
 	       struct perf_cpu_context *cpuctx,
 	       struct perf_counter_context *ctx, int cpu);
+
+/*
+ * Return 1 for a software counter, 0 for a hardware counter
+ */
+static inline int is_software_counter(struct perf_counter *counter)
+{
+	return !counter->hw_event.raw && counter->hw_event.type < 0;
+}
 
 #else
 static inline void
