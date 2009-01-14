@@ -3770,6 +3770,7 @@ void ftrace_dump(void)
 	dump_ran = 1;
 
 	/* No turning back! */
+	tracing_off();
 	ftrace_kill();
 
 	for_each_tracing_cpu(cpu) {
