@@ -47,8 +47,8 @@
 #define S5K4AA_H_BLANK_LO__		0x1e
 #define S5K4AA_EXPOSURE_HI		0x17
 #define S5K4AA_EXPOSURE_LO		0x18
-#define S5K4AA_GAIN_1			0x1f /* (digital?) gain : 5 bits */
-#define S5K4AA_GAIN_2			0x20 /* (analogue?) gain : 7 bits */
+#define S5K4AA_BRIGHTNESS		0x1f /* (digital?) gain : 5 bits */
+#define S5K4AA_GAIN			0x20 /* (analogue?) gain : 7 bits */
 #define S5K4AA_NOISE_SUPP		0x37
 
 #define S5K4AA_RM_ROW_SKIP_4X		0x08
@@ -58,7 +58,8 @@
 #define S5K4AA_RM_H_FLIP		0x40
 #define S5K4AA_RM_V_FLIP		0x80
 
-#define DEFAULT_GAIN_2			0x5f
+#define S5K4AA_DEFAULT_GAIN		0x5f
+#define S5K4AA_DEFAULT_BRIGHTNESS	0x10
 
 /*****************************************************************************/
 
@@ -303,7 +304,6 @@ static const unsigned char VGA_s5k4aa[][4] =
 	{SENSOR, 0x12, 0xc3, 0x00},
 	{SENSOR, S5K4AA_PAGE_MAP, 0x02, 0x00},
 	{SENSOR, 0x02, 0x0e, 0x00},
-	{SENSOR, S5K4AA_GAIN_1, 0x10, 0x00},
 };
 
 #endif
