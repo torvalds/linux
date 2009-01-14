@@ -919,7 +919,7 @@ void do_sys_times(struct tms *tms)
 	tms->tms_cstime = cputime_to_clock_t(cstime);
 }
 
-asmlinkage long sys_times(struct tms __user * tbuf)
+SYSCALL_DEFINE1(times, struct tms __user *, tbuf)
 {
 	if (tbuf) {
 		struct tms tmp;

@@ -1129,7 +1129,7 @@ void do_timer(unsigned long ticks)
  * For backwards compatibility?  This can be done in libc so Alpha
  * and all newer ports shouldn't need it.
  */
-asmlinkage long sys_alarm(unsigned int seconds)
+SYSCALL_DEFINE1(alarm, unsigned int, seconds)
 {
 	return alarm_setitimer(seconds);
 }
@@ -1152,7 +1152,7 @@ asmlinkage long sys_alarm(unsigned int seconds)
  *
  * This is SMP safe as current->tgid does not change.
  */
-asmlinkage long sys_getpid(void)
+SYSCALL_DEFINE0(getpid)
 {
 	return task_tgid_vnr(current);
 }
@@ -1308,7 +1308,7 @@ signed long __sched schedule_timeout_uninterruptible(signed long timeout)
 EXPORT_SYMBOL(schedule_timeout_uninterruptible);
 
 /* Thread ID - the internal kernel "pid" */
-asmlinkage long sys_gettid(void)
+SYSCALL_DEFINE0(gettid)
 {
 	return task_pid_vnr(current);
 }
