@@ -30,7 +30,6 @@ struct fadvise64_64_args;
 struct old_sigaction;
 struct sel_arg_struct;
 
-long sys_pipe(unsigned long __user *fildes);
 long sys_mmap2(struct mmap_arg_struct __user  *arg);
 long old_mmap(struct mmap_arg_struct __user *arg);
 long sys_ipc(uint call, int first, unsigned long second,

@@ -58,7 +58,7 @@ ENTRY(sys_call_table)
 	.long sys_mkdir
 	.long sys_rmdir		/* 40 */
 	.long sys_dup
-	.long sys_pipe
+	.long sys_sh_pipe
 	.long sys_times
 	.long sys_ni_syscall	/* old prof syscall holder */
 	.long sys_brk		/* 45 */

@@ -24,7 +24,7 @@ sys_call_table:
 /*25*/	.long sys_vmsplice, sys_ptrace, sys_alarm, sys_sigaltstack, sys_pause
 /*30*/	.long sys_utime, sys_lchown, sys_fchown, sys_access, sys_nice
 /*35*/	.long sys_chown, sys_sync, sys_kill, sys_newstat, sys_sendfile
-/*40*/	.long sys_newlstat, sys_dup, sys_pipe, sys_times, sys_getuid
+/*40*/	.long sys_newlstat, sys_dup, sys_sparc_pipe, sys_times, sys_getuid
 /*45*/	.long sys_umount, sys_setgid16, sys_getgid16, sys_signal, sys_geteuid16
 /*50*/	.long sys_getegid16, sys_acct, sys_nis_syscall, sys_getgid, sys_ioctl
 /*55*/	.long sys_reboot, sys_mmap2, sys_symlink, sys_readlink, sys_execve
