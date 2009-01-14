@@ -1659,6 +1659,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			See also Documentation/blockdev/paride.txt.
 
 	pci=option[,option...]	[PCI] various PCI subsystem options:
+		earlydump	[X86] dump PCI config space before the kernel
+			        changes anything
 		off		[X86] don't probe for the PCI bus
 		bios		[X86-32] force use of PCI BIOS, don't access
 				the hardware directly. Use this if your machine
