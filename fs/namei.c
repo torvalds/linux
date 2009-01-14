@@ -2081,7 +2081,7 @@ out_err:
 	return error;
 }
 
-asmlinkage long sys_mkdir(const char __user *pathname, int mode)
+SYSCALL_DEFINE2(mkdir, const char __user *, pathname, int, mode)
 {
 	return sys_mkdirat(AT_FDCWD, pathname, mode);
 }
@@ -2195,7 +2195,7 @@ exit1:
 	return error;
 }
 
-asmlinkage long sys_rmdir(const char __user *pathname)
+SYSCALL_DEFINE1(rmdir, const char __user *, pathname)
 {
 	return do_rmdir(AT_FDCWD, pathname);
 }

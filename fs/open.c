@@ -522,7 +522,7 @@ SYSCALL_DEFINE2(access, const char __user *, filename, int, mode)
 	return sys_faccessat(AT_FDCWD, filename, mode);
 }
 
-asmlinkage long sys_chdir(const char __user * filename)
+SYSCALL_DEFINE1(chdir, const char __user *, filename)
 {
 	struct path path;
 	int error;
@@ -543,7 +543,7 @@ out:
 	return error;
 }
 
-asmlinkage long sys_fchdir(unsigned int fd)
+SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 {
 	struct file *file;
 	struct inode *inode;

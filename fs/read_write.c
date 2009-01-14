@@ -369,7 +369,7 @@ static inline void file_pos_write(struct file *file, loff_t pos)
 	file->f_pos = pos;
 }
 
-asmlinkage long sys_read(unsigned int fd, char __user * buf, size_t count)
+SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 {
 	struct file *file;
 	ssize_t ret = -EBADF;
@@ -386,7 +386,8 @@ asmlinkage long sys_read(unsigned int fd, char __user * buf, size_t count)
 	return ret;
 }
 
-asmlinkage long sys_write(unsigned int fd, const char __user * buf, size_t count)
+SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
+		size_t, count)
 {
 	struct file *file;
 	ssize_t ret = -EBADF;
@@ -688,8 +689,8 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
 
 EXPORT_SYMBOL(vfs_writev);
 
-asmlinkage long
-sys_readv(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
+SYSCALL_DEFINE3(readv, unsigned long, fd, const struct iovec __user *, vec,
+		unsigned long, vlen)
 {
 	struct file *file;
 	ssize_t ret = -EBADF;
@@ -709,8 +710,8 @@ sys_readv(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
 	return ret;
 }
 
-asmlinkage long
-sys_writev(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
+SYSCALL_DEFINE3(writev, unsigned long, fd, const struct iovec __user *, vec,
+		unsigned long, vlen)
 {
 	struct file *file;
 	ssize_t ret = -EBADF;
