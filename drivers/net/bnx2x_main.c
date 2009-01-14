@@ -9427,6 +9427,7 @@ static inline u32 bnx2x_xmit_type(struct bnx2x *bp, struct sk_buff *skb)
 	return rc;
 }
 
+#if (MAX_SKB_FRAGS >= MAX_FETCH_BD - 3)
 /* check if packet requires linearization (packet is too fragmented) */
 static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 			     u32 xmit_type)
@@ -9504,6 +9505,7 @@ exit_lbl:
 
 	return to_copy;
 }
+#endif
 
 /* called with netif_tx_lock
  * bnx2x_tx_int() runs without netif_tx_lock unless it needs to call
@@ -9544,6 +9546,7 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   skb->ip_summed, skb->protocol, ipv6_hdr(skb)->nexthdr,
 	   ip_hdr(skb)->protocol, skb_shinfo(skb)->gso_type, xmit_type);
 
+#if (MAX_SKB_FRAGS >= MAX_FETCH_BD - 3)
 	/* First, check if we need to linearize the skb
 	   (due to FW restrictions) */
 	if (bnx2x_pkt_req_lin(bp, skb, xmit_type)) {
@@ -9556,6 +9559,7 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_OK;
 		}
 	}
+#endif
 
 	/*
 	Please read carefully. First we use one BD which we mark as start,
