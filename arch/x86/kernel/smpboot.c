@@ -1125,6 +1125,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 		printk(KERN_ERR "... forcing use of dummy APIC emulation."
 				"(tell your hw vendor)\n");
 		smpboot_clear_io_apic();
+		disable_ioapic_setup();
 		return -1;
 	}
 

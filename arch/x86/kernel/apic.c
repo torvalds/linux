@@ -1126,6 +1126,11 @@ void __cpuinit setup_local_APIC(void)
 	unsigned int value;
 	int i, j;
 
+	if (disable_apic) {
+		disable_ioapic_setup();
+		return;
+	}
+
 #ifdef CONFIG_X86_32
 	/* Pound the ESR really hard over the head with a big hammer - mbligh */
 	if (lapic_is_integrated() && esr_disable) {
@@ -1566,11 +1571,11 @@ int apic_version[MAX_APICS];
 
 int __init APIC_init_uniprocessor(void)
 {
-#ifdef CONFIG_X86_64
 	if (disable_apic) {
 		pr_info("Apic disabled\n");
 		return -1;
 	}
+#ifdef CONFIG_X86_64
 	if (!cpu_has_apic) {
 		disable_apic = 1;
 		pr_info("Apic disabled by BIOS\n");

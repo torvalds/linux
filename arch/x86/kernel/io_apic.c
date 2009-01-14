@@ -3258,6 +3258,9 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 	int err;
 	unsigned dest;
 
+	if (disable_apic)
+		return -ENXIO;
+
 	cfg = irq_cfg(irq);
 	err = assign_irq_vector(irq, cfg, TARGET_CPUS);
 	if (err)
@@ -3725,6 +3728,9 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 {
 	struct irq_cfg *cfg;
 	int err;
+
+	if (disable_apic)
+		return -ENXIO;
 
 	cfg = irq_cfg(irq);
 	err = assign_irq_vector(irq, cfg, TARGET_CPUS);
