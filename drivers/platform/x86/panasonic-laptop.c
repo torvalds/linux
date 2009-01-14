@@ -184,6 +184,7 @@ static const struct acpi_device_id pcc_device_ids[] = {
 	{ "MAT0019", 0},
 	{ "", 0},
 };
+MODULE_DEVICE_TABLE(acpi, pcc_device_ids);
 
 static struct acpi_driver acpi_pcc_driver = {
 	.name =		ACPI_PCC_DRIVER_NAME,
