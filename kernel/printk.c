@@ -742,11 +742,6 @@ EXPORT_SYMBOL(vprintk);
 
 #else
 
-asmlinkage long sys_syslog(int type, char __user *buf, int len)
-{
-	return -ENOSYS;
-}
-
 static void call_console_drivers(unsigned start, unsigned end)
 {
 }
