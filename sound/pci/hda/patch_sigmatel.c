@@ -884,6 +884,8 @@ static struct hda_verb stac92hd71bxx_analog_core_init[] = {
 static struct hda_verb stac925x_core_init[] = {
 	/* set dac0mux for dac converter */
 	{ 0x06, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* unmute and set max the selector */
+	{ 0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb07f },
 	{}
 };
 
