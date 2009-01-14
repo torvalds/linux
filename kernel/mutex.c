@@ -129,7 +129,6 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 {
 	struct task_struct *task = current;
 	struct mutex_waiter waiter;
-	unsigned int old_val;
 	unsigned long flags;
 
 	spin_lock_mutex(&lock->wait_lock, flags);
@@ -142,8 +141,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	list_add_tail(&waiter.list, &lock->wait_list);
 	waiter.task = task;
 
-	old_val = atomic_xchg(&lock->count, -1);
-	if (old_val == 1)
+	if (atomic_xchg(&lock->count, -1) == 1)
 		goto done;
 
 	lock_contended(&lock->dep_map, ip);
@@ -158,8 +156,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		 * that when we release the lock, we properly wake up the
 		 * other waiters:
 		 */
-		old_val = atomic_xchg(&lock->count, -1);
-		if (old_val == 1)
+		if (atomic_xchg(&lock->count, -1) == 1)
 			break;
 
 		/*
