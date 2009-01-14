@@ -1406,7 +1406,7 @@ asmlinkage long sys_newuname(struct new_utsname __user * name)
 	return errno;
 }
 
-asmlinkage long sys_sethostname(char __user *name, int len)
+SYSCALL_DEFINE2(sethostname, char __user *, name, int, len)
 {
 	int errno;
 	char tmp[__NEW_UTS_LEN];
@@ -1430,7 +1430,7 @@ asmlinkage long sys_sethostname(char __user *name, int len)
 
 #ifdef __ARCH_WANT_SYS_GETHOSTNAME
 
-asmlinkage long sys_gethostname(char __user *name, int len)
+SYSCALL_DEFINE2(gethostname, char __user *, name, int, len)
 {
 	int i, errno;
 	struct new_utsname *u;
@@ -1455,7 +1455,7 @@ asmlinkage long sys_gethostname(char __user *name, int len)
  * Only setdomainname; getdomainname can be implemented by calling
  * uname()
  */
-asmlinkage long sys_setdomainname(char __user *name, int len)
+SYSCALL_DEFINE2(setdomainname, char __user *, name, int, len)
 {
 	int errno;
 	char tmp[__NEW_UTS_LEN];
