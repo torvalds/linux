@@ -1046,6 +1046,9 @@ struct sched_entity {
 	u64			exec_max;
 	u64			slice_max;
 
+	u64			start_runtime;
+	u64			avg_wakeup;
+
 	u64			nr_migrations;
 	u64			nr_migrations_cold;
 	u64			nr_failed_migrations_affine;
