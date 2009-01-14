@@ -6975,7 +6975,7 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	id |= ((val & 0xf) << 12);
 	val = REG_RD(bp, MISC_REG_CHIP_METAL);
 	id |= ((val & 0xff) << 4);
-	REG_RD(bp, MISC_REG_BOND_ID);
+	val = REG_RD(bp, MISC_REG_BOND_ID);
 	id |= (val & 0xf);
 	bp->common.chip_id = id;
 	bp->link_params.chip_id = bp->common.chip_id;
