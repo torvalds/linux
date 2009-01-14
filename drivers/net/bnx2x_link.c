@@ -3583,7 +3583,7 @@ static void bnx2x_set_xgxs_loopback(struct link_params *params,
 			       (MDIO_REG_BANK_CL73_IEEEB0 +
 				(MDIO_CL73_IEEEB0_CL73_AN_CONTROL & 0xf)),
 			       0x6041);
-
+		msleep(200);
 		/* set aer mmd back */
 		bnx2x_set_aer_mmd(params, vars);
 
