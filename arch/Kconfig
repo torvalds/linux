@@ -62,6 +62,9 @@ config HAVE_EFFICIENT_UNALIGNED_ACCESS
 	  See Documentation/unaligned-memory-access.txt for more
 	  information on the topic of unaligned memory accesses.
 
+config HAVE_SYSCALL_WRAPPERS
+	bool
+
 config KRETPROBES
 	def_bool y
 	depends on KPROBES && HAVE_KRETPROBES
