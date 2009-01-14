@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_SETUP_H
 #define _ASM_X86_SETUP_H
 
+#ifdef __KERNEL__
+
 #define COMMAND_LINE_SIZE 2048
 
 #ifndef __ASSEMBLY__
@@ -32,8 +34,6 @@ struct x86_quirks {
 };
 
 #endif /* __ASSEMBLY__ */
-
-#ifdef __KERNEL__
 
 #ifdef __i386__
 
