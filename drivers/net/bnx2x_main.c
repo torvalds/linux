@@ -6684,6 +6684,9 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 		 (DRV_PULSE_ALWAYS_ALIVE | bp->fw_drv_pulse_wr_seq));
 	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
+	/* Release IRQs */
+	bnx2x_free_irq(bp);
+
 	/* Wait until tx fast path tasks complete */
 	for_each_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
@@ -6710,9 +6713,6 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	}
 	/* Give HW time to discard old tx messages */
 	msleep(1);
-
-	/* Release IRQs */
-	bnx2x_free_irq(bp);
 
 	if (CHIP_IS_E1(bp)) {
 		struct mac_configuration_cmd *config =
