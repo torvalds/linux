@@ -944,7 +944,7 @@ SYSCALL_DEFINE1(times, struct tms __user *, tbuf)
  * Auch. Had to add the 'did_exec' flag to conform completely to POSIX.
  * LBT 04.03.94
  */
-asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
+SYSCALL_DEFINE2(setpgid, pid_t, pid, pid_t, pgid)
 {
 	struct task_struct *p;
 	struct task_struct *group_leader = current->group_leader;
@@ -1080,7 +1080,7 @@ out:
 	return retval;
 }
 
-asmlinkage long sys_setsid(void)
+SYSCALL_DEFINE0(setsid)
 {
 	struct task_struct *group_leader = current->group_leader;
 	struct pid *sid = task_pid(group_leader);
@@ -1340,7 +1340,7 @@ out:
  *	without another task interfering.
  */
  
-asmlinkage long sys_setgroups(int gidsetsize, gid_t __user *grouplist)
+SYSCALL_DEFINE2(setgroups, int, gidsetsize, gid_t __user *, grouplist)
 {
 	struct group_info *group_info;
 	int retval;

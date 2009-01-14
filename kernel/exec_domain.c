@@ -209,8 +209,7 @@ static int __init proc_execdomains_init(void)
 module_init(proc_execdomains_init);
 #endif
 
-asmlinkage long
-sys_personality(u_long personality)
+SYSCALL_DEFINE1(personality, u_long, personality)
 {
 	u_long old = current->personality;
 

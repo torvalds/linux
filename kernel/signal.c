@@ -2434,8 +2434,7 @@ out:
 
 #ifdef __ARCH_WANT_SYS_SIGPENDING
 
-asmlinkage long
-sys_sigpending(old_sigset_t __user *set)
+SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
 {
 	return do_sigpending(set, sizeof(*set));
 }
@@ -2446,8 +2445,8 @@ sys_sigpending(old_sigset_t __user *set)
 /* Some platforms have their own version with special arguments others
    support only sys_rt_sigprocmask.  */
 
-asmlinkage long
-sys_sigprocmask(int how, old_sigset_t __user *set, old_sigset_t __user *oset)
+SYSCALL_DEFINE3(sigprocmask, int, how, old_sigset_t __user *, set,
+		old_sigset_t __user *, oset)
 {
 	int error;
 	old_sigset_t old_set, new_set;

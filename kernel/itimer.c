@@ -100,7 +100,7 @@ int do_getitimer(int which, struct itimerval *value)
 	return 0;
 }
 
-asmlinkage long sys_getitimer(int which, struct itimerval __user *value)
+SYSCALL_DEFINE2(getitimer, int, which, struct itimerval __user *, value)
 {
 	int error = -EFAULT;
 	struct itimerval get_buffer;
