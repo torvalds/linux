@@ -650,8 +650,8 @@ static struct file *do_open(struct dentry *dentry, int oflag)
 	return dentry_open(dentry, mqueue_mnt, oflag, cred);
 }
 
-asmlinkage long sys_mq_open(const char __user *u_name, int oflag, mode_t mode,
-				struct mq_attr __user *u_attr)
+SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
+		struct mq_attr __user *, u_attr)
 {
 	struct dentry *dentry;
 	struct file *filp;
@@ -721,7 +721,7 @@ out_putname:
 	return fd;
 }
 
-asmlinkage long sys_mq_unlink(const char __user *u_name)
+SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 {
 	int err;
 	char *name;
