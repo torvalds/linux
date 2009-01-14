@@ -693,6 +693,10 @@ enum PROT_MODE {
 #define SC_OP_RFKILL_SW_BLOCKED	BIT(12)
 #define SC_OP_RFKILL_HW_BLOCKED	BIT(13)
 
+struct ath_bus_ops {
+	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
+};
+
 struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -743,11 +747,17 @@ struct ath_softc {
 #ifdef CONFIG_ATH9K_DEBUG
 	struct ath9k_debug sc_debug;
 #endif
+	struct ath_bus_ops *bus_ops;
 };
 
 int ath_reset(struct ath_softc *sc, bool retry_tx);
 int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
 int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
 int ath_cabq_update(struct ath_softc *);
+
+static inline void ath_read_cachesize(struct ath_softc *sc, int *csz)
+{
+	sc->bus_ops->read_cachesize(sc, csz);
+}
 
 #endif /* CORE_H */

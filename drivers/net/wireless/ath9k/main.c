@@ -42,7 +42,7 @@ static void ath_detach(struct ath_softc *sc);
 
 /* return bus cachesize in 4B word units */
 
-static void bus_read_cachesize(struct ath_softc *sc, int *csz)
+static void ath_pci_read_cachesize(struct ath_softc *sc, int *csz)
 {
 	u8 u8tmp;
 
@@ -1338,7 +1338,7 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	 * Cache line size is used to size and align various
 	 * structures used to communicate with the hardware.
 	 */
-	bus_read_cachesize(sc, &csz);
+	ath_read_cachesize(sc, &csz);
 	/* XXX assert csz is non-zero */
 	sc->sc_cachelsz = csz << 2;	/* convert to bytes */
 
@@ -2534,6 +2534,10 @@ ath_rf_name(u16 rf_version)
 	return "????";
 }
 
+static struct ath_bus_ops ath_pci_bus_ops = {
+	.read_cachesize = ath_pci_read_cachesize,
+};
+
 static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	void __iomem *mem;
@@ -2622,6 +2626,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc->hw = hw;
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
+	sc->bus_ops = &ath_pci_bus_ops;
 
 	if (ath_attach(id->device, sc) != 0) {
 		ret = -ENODEV;
