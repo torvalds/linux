@@ -132,6 +132,9 @@ unsigned long pvr2_hdw_get_sn(struct pvr2_hdw *);
 /* Retrieve bus location info of device */
 const char *pvr2_hdw_get_bus_info(struct pvr2_hdw *);
 
+/* Retrieve per-instance string identifier for this specific device */
+const char *pvr2_hdw_get_device_identifier(struct pvr2_hdw *);
+
 /* Called when hardware has been unplugged */
 void pvr2_hdw_disconnect(struct pvr2_hdw *);
 

@@ -195,7 +195,19 @@ struct pvr2_hdw {
 	struct mutex big_lock_mutex;
 	int big_lock_held;  /* For debugging */
 
+	/* This is a simple string which identifies the instance of this
+	   driver.  It is unique within the set of existing devices, but
+	   there is no attempt to keep the name consistent with the same
+	   physical device each time. */
 	char name[32];
+
+	/* This is a simple string which identifies the physical device
+	   instance itself - if possible.  (If not possible, then it is
+	   based on the specific driver instance, similar to name above.)
+	   The idea here is that userspace might hopefully be able to use
+	   this recognize specific tuners.  It will encode a serial number,
+	   if available. */
+	char identifier[32];
 
 	/* I2C stuff */
 	struct i2c_adapter i2c_adap;
