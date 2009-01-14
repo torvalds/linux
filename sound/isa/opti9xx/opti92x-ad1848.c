@@ -833,6 +833,7 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 static int snd_opti9xx_card_new(struct snd_card **cardp)
 {
 	struct snd_card *card;
+	int err;
 
 	err = snd_card_create(index, id, THIS_MODULE,
 			      sizeof(struct snd_opti9xx), &card);
