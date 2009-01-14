@@ -2559,7 +2559,7 @@ sys_ssetmask(int newmask)
 /*
  * For backwards compatibility.  Functionality superseded by sigaction.
  */
-asmlinkage unsigned long
+asmlinkage long
 sys_signal(int sig, __sighandler_t handler)
 {
 	struct k_sigaction new_sa, old_sa;

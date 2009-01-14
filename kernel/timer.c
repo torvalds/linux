@@ -1129,7 +1129,7 @@ void do_timer(unsigned long ticks)
  * For backwards compatibility?  This can be done in libc so Alpha
  * and all newer ports shouldn't need it.
  */
-asmlinkage unsigned long sys_alarm(unsigned int seconds)
+asmlinkage long sys_alarm(unsigned int seconds)
 {
 	return alarm_setitimer(seconds);
 }

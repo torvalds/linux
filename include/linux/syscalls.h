@@ -77,7 +77,7 @@ asmlinkage long sys_times(struct tms __user *tbuf);
 
 asmlinkage long sys_gettid(void);
 asmlinkage long sys_nanosleep(struct timespec __user *rqtp, struct timespec __user *rmtp);
-asmlinkage unsigned long sys_alarm(unsigned int seconds);
+asmlinkage long sys_alarm(unsigned int seconds);
 asmlinkage long sys_getpid(void);
 asmlinkage long sys_getppid(void);
 asmlinkage long sys_getuid(void);
@@ -166,7 +166,7 @@ asmlinkage long sys_kexec_load(unsigned long entry, unsigned long nr_segments,
 				unsigned long flags);
 
 asmlinkage long sys_exit(int error_code);
-asmlinkage void sys_exit_group(int error_code);
+asmlinkage long sys_exit_group(int error_code);
 asmlinkage long sys_wait4(pid_t pid, int __user *stat_addr,
 				int options, struct rusage __user *ru);
 asmlinkage long sys_waitid(int which, pid_t pid,
@@ -196,7 +196,7 @@ asmlinkage long sys_tkill(int pid, int sig);
 asmlinkage long sys_rt_sigqueueinfo(int pid, int sig, siginfo_t __user *uinfo);
 asmlinkage long sys_sgetmask(void);
 asmlinkage long sys_ssetmask(int newmask);
-asmlinkage unsigned long sys_signal(int sig, __sighandler_t handler);
+asmlinkage long sys_signal(int sig, __sighandler_t handler);
 asmlinkage long sys_pause(void);
 
 asmlinkage long sys_sync(void);
@@ -246,29 +246,29 @@ asmlinkage long sys_lsetxattr(const char __user *path, const char __user *name,
 			      const void __user *value, size_t size, int flags);
 asmlinkage long sys_fsetxattr(int fd, const char __user *name,
 			      const void __user *value, size_t size, int flags);
-asmlinkage ssize_t sys_getxattr(const char __user *path, const char __user *name,
-				void __user *value, size_t size);
-asmlinkage ssize_t sys_lgetxattr(const char __user *path, const char __user *name,
-				void __user *value, size_t size);
-asmlinkage ssize_t sys_fgetxattr(int fd, const char __user *name,
-				void __user *value, size_t size);
-asmlinkage ssize_t sys_listxattr(const char __user *path, char __user *list,
-				size_t size);
-asmlinkage ssize_t sys_llistxattr(const char __user *path, char __user *list,
-				size_t size);
-asmlinkage ssize_t sys_flistxattr(int fd, char __user *list, size_t size);
+asmlinkage long sys_getxattr(const char __user *path, const char __user *name,
+			     void __user *value, size_t size);
+asmlinkage long sys_lgetxattr(const char __user *path, const char __user *name,
+			      void __user *value, size_t size);
+asmlinkage long sys_fgetxattr(int fd, const char __user *name,
+			      void __user *value, size_t size);
+asmlinkage long sys_listxattr(const char __user *path, char __user *list,
+			      size_t size);
+asmlinkage long sys_llistxattr(const char __user *path, char __user *list,
+			       size_t size);
+asmlinkage long sys_flistxattr(int fd, char __user *list, size_t size);
 asmlinkage long sys_removexattr(const char __user *path,
 				const char __user *name);
 asmlinkage long sys_lremovexattr(const char __user *path,
 				 const char __user *name);
 asmlinkage long sys_fremovexattr(int fd, const char __user *name);
 
-asmlinkage unsigned long sys_brk(unsigned long brk);
+asmlinkage long sys_brk(unsigned long brk);
 asmlinkage long sys_mprotect(unsigned long start, size_t len,
 				unsigned long prot);
-asmlinkage unsigned long sys_mremap(unsigned long addr,
-				unsigned long old_len, unsigned long new_len,
-				unsigned long flags, unsigned long new_addr);
+asmlinkage long sys_mremap(unsigned long addr,
+			   unsigned long old_len, unsigned long new_len,
+			   unsigned long flags, unsigned long new_addr);
 asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 			unsigned long prot, unsigned long pgoff,
 			unsigned long flags);
@@ -321,10 +321,10 @@ asmlinkage long sys_io_submit(aio_context_t, long,
 				struct iocb __user * __user *);
 asmlinkage long sys_io_cancel(aio_context_t ctx_id, struct iocb __user *iocb,
 			      struct io_event __user *result);
-asmlinkage ssize_t sys_sendfile(int out_fd, int in_fd,
-				off_t __user *offset, size_t count);
-asmlinkage ssize_t sys_sendfile64(int out_fd, int in_fd,
-				loff_t __user *offset, size_t count);
+asmlinkage long sys_sendfile(int out_fd, int in_fd,
+			     off_t __user *offset, size_t count);
+asmlinkage long sys_sendfile64(int out_fd, int in_fd,
+			       loff_t __user *offset, size_t count);
 asmlinkage long sys_readlink(const char __user *path,
 				char __user *buf, int bufsiz);
 asmlinkage long sys_creat(const char __user *pathname, int mode);
@@ -368,26 +368,25 @@ asmlinkage long sys_utime(char __user *filename,
 				struct utimbuf __user *times);
 asmlinkage long sys_utimes(char __user *filename,
 				struct timeval __user *utimes);
-asmlinkage off_t sys_lseek(unsigned int fd, off_t offset,
-				unsigned int origin);
+asmlinkage long sys_lseek(unsigned int fd, off_t offset,
+			  unsigned int origin);
 asmlinkage long sys_llseek(unsigned int fd, unsigned long offset_high,
 			unsigned long offset_low, loff_t __user *result,
 			unsigned int origin);
-asmlinkage ssize_t sys_read(unsigned int fd, char __user *buf,
-				size_t count);
-asmlinkage ssize_t sys_readahead(int fd, loff_t offset, size_t count);
-asmlinkage ssize_t sys_readv(unsigned long fd,
-				const struct iovec __user *vec,
-				unsigned long vlen);
-asmlinkage ssize_t sys_write(unsigned int fd, const char __user *buf,
-				size_t count);
-asmlinkage ssize_t sys_writev(unsigned long fd,
-				const struct iovec __user *vec,
-				unsigned long vlen);
-asmlinkage ssize_t sys_pread64(unsigned int fd, char __user *buf,
-				size_t count, loff_t pos);
-asmlinkage ssize_t sys_pwrite64(unsigned int fd, const char __user *buf,
-				size_t count, loff_t pos);
+asmlinkage long sys_read(unsigned int fd, char __user *buf, size_t count);
+asmlinkage long sys_readahead(int fd, loff_t offset, size_t count);
+asmlinkage long sys_readv(unsigned long fd,
+			  const struct iovec __user *vec,
+			  unsigned long vlen);
+asmlinkage long sys_write(unsigned int fd, const char __user *buf,
+			  size_t count);
+asmlinkage long sys_writev(unsigned long fd,
+			   const struct iovec __user *vec,
+			   unsigned long vlen);
+asmlinkage long sys_pread64(unsigned int fd, char __user *buf,
+			    size_t count, loff_t pos);
+asmlinkage long sys_pwrite64(unsigned int fd, const char __user *buf,
+			     size_t count, loff_t pos);
 asmlinkage long sys_getcwd(char __user *buf, unsigned long size);
 asmlinkage long sys_mkdir(const char __user *pathname, int mode);
 asmlinkage long sys_chdir(const char __user *filename);
@@ -476,7 +475,7 @@ asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf);
 asmlinkage long sys_mq_open(const char __user *name, int oflag, mode_t mode, struct mq_attr __user *attr);
 asmlinkage long sys_mq_unlink(const char __user *name);
 asmlinkage long sys_mq_timedsend(mqd_t mqdes, const char __user *msg_ptr, size_t msg_len, unsigned int msg_prio, const struct timespec __user *abs_timeout);
-asmlinkage ssize_t sys_mq_timedreceive(mqd_t mqdes, char __user *msg_ptr, size_t msg_len, unsigned int __user *msg_prio, const struct timespec __user *abs_timeout);
+asmlinkage long sys_mq_timedreceive(mqd_t mqdes, char __user *msg_ptr, size_t msg_len, unsigned int __user *msg_prio, const struct timespec __user *abs_timeout);
 asmlinkage long sys_mq_notify(mqd_t mqdes, const struct sigevent __user *notification);
 asmlinkage long sys_mq_getsetattr(mqd_t mqdes, const struct mq_attr __user *mqstat, struct mq_attr __user *omqstat);
 

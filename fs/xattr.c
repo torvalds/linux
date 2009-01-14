@@ -349,7 +349,7 @@ getxattr(struct dentry *d, const char __user *name, void __user *value,
 	return error;
 }
 
-asmlinkage ssize_t
+asmlinkage long
 sys_getxattr(const char __user *pathname, const char __user *name,
 	     void __user *value, size_t size)
 {
@@ -364,7 +364,7 @@ sys_getxattr(const char __user *pathname, const char __user *name,
 	return error;
 }
 
-asmlinkage ssize_t
+asmlinkage long
 sys_lgetxattr(const char __user *pathname, const char __user *name, void __user *value,
 	      size_t size)
 {
@@ -379,7 +379,7 @@ sys_lgetxattr(const char __user *pathname, const char __user *name, void __user 
 	return error;
 }
 
-asmlinkage ssize_t
+asmlinkage long
 sys_fgetxattr(int fd, const char __user *name, void __user *value, size_t size)
 {
 	struct file *f;
@@ -424,7 +424,7 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 	return error;
 }
 
-asmlinkage ssize_t
+asmlinkage long
 sys_listxattr(const char __user *pathname, char __user *list, size_t size)
 {
 	struct path path;
@@ -438,7 +438,7 @@ sys_listxattr(const char __user *pathname, char __user *list, size_t size)
 	return error;
 }
 
-asmlinkage ssize_t
+asmlinkage long
 sys_llistxattr(const char __user *pathname, char __user *list, size_t size)
 {
 	struct path path;
@@ -452,7 +452,7 @@ sys_llistxattr(const char __user *pathname, char __user *list, size_t size)
 	return error;
 }
 
-asmlinkage ssize_t
+asmlinkage long
 sys_flistxattr(int fd, char __user *list, size_t size)
 {
 	struct file *f;

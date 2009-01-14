@@ -1182,9 +1182,11 @@ do_group_exit(int exit_code)
  * wait4()-ing process will get the correct exit code - even if this
  * thread is not the thread group leader.
  */
-asmlinkage void sys_exit_group(int error_code)
+asmlinkage long sys_exit_group(int error_code)
 {
 	do_group_exit((error_code & 0xff) << 8);
+	/* NOTREACHED */
+	return 0;
 }
 
 static struct pid *task_pid_type(struct task_struct *task, enum pid_type type)

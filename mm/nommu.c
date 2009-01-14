@@ -416,7 +416,7 @@ EXPORT_SYMBOL(vm_insert_page);
  *  to a regular file.  in this case, the unmapping will need
  *  to invoke file system routines that need the global lock.
  */
-asmlinkage unsigned long sys_brk(unsigned long brk)
+asmlinkage long sys_brk(unsigned long brk)
 {
 	struct mm_struct *mm = current->mm;
 

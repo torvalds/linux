@@ -245,7 +245,7 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
 	return next;
 }
 
-asmlinkage unsigned long sys_brk(unsigned long brk)
+asmlinkage long sys_brk(unsigned long brk)
 {
 	unsigned long rlim, retval;
 	unsigned long newbrk, oldbrk;

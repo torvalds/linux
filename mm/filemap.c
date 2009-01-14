@@ -1374,7 +1374,7 @@ do_readahead(struct address_space *mapping, struct file *filp,
 	return 0;
 }
 
-asmlinkage ssize_t sys_readahead(int fd, loff_t offset, size_t count)
+asmlinkage long sys_readahead(int fd, loff_t offset, size_t count)
 {
 	ssize_t ret;
 	struct file *file;

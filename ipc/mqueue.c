@@ -907,7 +907,7 @@ out:
 	return ret;
 }
 
-asmlinkage ssize_t sys_mq_timedreceive(mqd_t mqdes, char __user *u_msg_ptr,
+asmlinkage long sys_mq_timedreceive(mqd_t mqdes, char __user *u_msg_ptr,
 	size_t msg_len, unsigned int __user *u_msg_prio,
 	const struct timespec __user *u_abs_timeout)
 {

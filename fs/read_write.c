@@ -147,7 +147,7 @@ loff_t vfs_llseek(struct file *file, loff_t offset, int origin)
 }
 EXPORT_SYMBOL(vfs_llseek);
 
-asmlinkage off_t sys_lseek(unsigned int fd, off_t offset, unsigned int origin)
+asmlinkage long sys_lseek(unsigned int fd, off_t offset, unsigned int origin)
 {
 	off_t retval;
 	struct file * file;
@@ -369,7 +369,7 @@ static inline void file_pos_write(struct file *file, loff_t pos)
 	file->f_pos = pos;
 }
 
-asmlinkage ssize_t sys_read(unsigned int fd, char __user * buf, size_t count)
+asmlinkage long sys_read(unsigned int fd, char __user * buf, size_t count)
 {
 	struct file *file;
 	ssize_t ret = -EBADF;
@@ -386,7 +386,7 @@ asmlinkage ssize_t sys_read(unsigned int fd, char __user * buf, size_t count)
 	return ret;
 }
 
-asmlinkage ssize_t sys_write(unsigned int fd, const char __user * buf, size_t count)
+asmlinkage long sys_write(unsigned int fd, const char __user * buf, size_t count)
 {
 	struct file *file;
 	ssize_t ret = -EBADF;
@@ -403,7 +403,7 @@ asmlinkage ssize_t sys_write(unsigned int fd, const char __user * buf, size_t co
 	return ret;
 }
 
-asmlinkage ssize_t sys_pread64(unsigned int fd, char __user *buf,
+asmlinkage long sys_pread64(unsigned int fd, char __user *buf,
 			     size_t count, loff_t pos)
 {
 	struct file *file;
@@ -424,7 +424,7 @@ asmlinkage ssize_t sys_pread64(unsigned int fd, char __user *buf,
 	return ret;
 }
 
-asmlinkage ssize_t sys_pwrite64(unsigned int fd, const char __user *buf,
+asmlinkage long sys_pwrite64(unsigned int fd, const char __user *buf,
 			      size_t count, loff_t pos)
 {
 	struct file *file;
@@ -672,7 +672,7 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
 
 EXPORT_SYMBOL(vfs_writev);
 
-asmlinkage ssize_t
+asmlinkage long
 sys_readv(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
 {
 	struct file *file;
@@ -693,7 +693,7 @@ sys_readv(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
 	return ret;
 }
 
-asmlinkage ssize_t
+asmlinkage long
 sys_writev(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
 {
 	struct file *file;
@@ -812,7 +812,7 @@ out:
 	return retval;
 }
 
-asmlinkage ssize_t sys_sendfile(int out_fd, int in_fd, off_t __user *offset, size_t count)
+asmlinkage long sys_sendfile(int out_fd, int in_fd, off_t __user *offset, size_t count)
 {
 	loff_t pos;
 	off_t off;
@@ -831,7 +831,7 @@ asmlinkage ssize_t sys_sendfile(int out_fd, int in_fd, off_t __user *offset, siz
 	return do_sendfile(out_fd, in_fd, NULL, count, 0);
 }
 
-asmlinkage ssize_t sys_sendfile64(int out_fd, int in_fd, loff_t __user *offset, size_t count)
+asmlinkage long sys_sendfile64(int out_fd, int in_fd, loff_t __user *offset, size_t count)
 {
 	loff_t pos;
 	ssize_t ret;
