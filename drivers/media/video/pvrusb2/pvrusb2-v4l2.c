@@ -91,7 +91,7 @@ static struct v4l2_capability pvr_capability ={
 	.card           = "Hauppauge WinTV pvr-usb2",
 	.bus_info       = "usb",
 	.version        = KERNEL_VERSION(0,8,0),
-	.capabilities   = (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VBI_CAPTURE |
+	.capabilities   = (V4L2_CAP_VIDEO_CAPTURE |
 			   V4L2_CAP_TUNER | V4L2_CAP_AUDIO | V4L2_CAP_RADIO |
 			   V4L2_CAP_READWRITE),
 	.reserved       = {0,0,0,0}
