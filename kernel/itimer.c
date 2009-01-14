@@ -260,9 +260,8 @@ unsigned int alarm_setitimer(unsigned int seconds)
 	return it_old.it_value.tv_sec;
 }
 
-asmlinkage long sys_setitimer(int which,
-			      struct itimerval __user *value,
-			      struct itimerval __user *ovalue)
+SYSCALL_DEFINE3(setitimer, int, which, struct itimerval __user *, value,
+		struct itimerval __user *, ovalue)
 {
 	struct itimerval set_buffer, get_buffer;
 	int error;
