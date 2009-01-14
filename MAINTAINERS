@@ -1360,6 +1360,11 @@ P:	Maciej W. Rozycki
 M:	macro@linux-mips.org
 S:	Maintained
 
+DELL LAPTOP DRIVER
+P:	Matthew Garrett
+M:	mjg59@srcf.ucam.org
+S:	Maintained
+
 DELL LAPTOP SMM DRIVER
 P:	Massimo Dal Zotto
 M:	dz@debian.org
@@ -3484,6 +3489,12 @@ L:	linuxppc-dev@ozlabs.org
 L:	cbe-oss-dev@ozlabs.org
 S:	Supported
 
+PS3VRAM DRIVER
+P:	Jim Paris
+M:	jim@jtan.com
+L:	cbe-oss-dev@ozlabs.org
+S:	Maintained
+
 PVRUSB2 VIDEO4LINUX DRIVER
 P:	Mike Isely
 M:	isely@pobox.com
@@ -4069,6 +4080,13 @@ L:	linuxppc-dev@ozlabs.org
 L:	cbe-oss-dev@ozlabs.org
 W:	http://www.ibm.com/developerworks/power/cell/
 S:	Supported
+
+SQUASHFS FILE SYSTEM
+P:	Phillip Lougher
+M:	phillip@lougher.demon.co.uk
+L:	squashfs-devel@lists.sourceforge.net (subscribers-only)
+W:	http://squashfs.org.uk
+S:	Maintained
 
 SRM (Alpha) environment access
 P:	Jan-Benedict Glaw

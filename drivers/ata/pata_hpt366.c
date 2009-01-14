@@ -30,7 +30,7 @@
 #define DRV_VERSION	"0.6.2"
 
 struct hpt_clock {
-	u8	xfer_speed;
+	u8	xfer_mode;
 	u32	timing;
 };
 
@@ -189,28 +189,6 @@ static unsigned long hpt366_filter(struct ata_device *adev, unsigned long mask)
 	return ata_bmdma_mode_filter(adev, mask);
 }
 
-/**
- *	hpt36x_find_mode	-	reset the hpt36x bus
- *	@ap: ATA port
- *	@speed: transfer mode
- *
- *	Return the 32bit register programming information for this channel
- *	that matches the speed provided.
- */
-
-static u32 hpt36x_find_mode(struct ata_port *ap, int speed)
-{
-	struct hpt_clock *clocks = ap->host->private_data;
-
-	while(clocks->xfer_speed) {
-		if (clocks->xfer_speed == speed)
-			return clocks->timing;
-		clocks++;
-	}
-	BUG();
-	return 0xffffffffU;	/* silence compiler warning */
-}
-
 static int hpt36x_cable_detect(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -226,6 +204,49 @@ static int hpt36x_cable_detect(struct ata_port *ap)
 	return ATA_CBL_PATA80;
 }
 
+static void hpt366_set_mode(struct ata_port *ap, struct ata_device *adev,
+			    u8 mode)
+{
+	struct hpt_clock *clocks = ap->host->private_data;
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	u32 addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
+	u32 addr2 = 0x51 + 4 * ap->port_no;
+	u32 mask, reg;
+	u8 fast;
+
+	/* Fast interrupt prediction disable, hold off interrupt disable */
+	pci_read_config_byte(pdev, addr2, &fast);
+	if (fast & 0x80) {
+		fast &= ~0x80;
+		pci_write_config_byte(pdev, addr2, fast);
+	}
+
+	/* determine timing mask and find matching clock entry */
+	if (mode < XFER_MW_DMA_0)
+		mask = 0xc1f8ffff;
+	else if (mode < XFER_UDMA_0)
+		mask = 0x303800ff;
+	else
+		mask = 0x30070000;
+
+	while (clocks->xfer_mode) {
+		if (clocks->xfer_mode == mode)
+			break;
+		clocks++;
+	}
+	if (!clocks->xfer_mode)
+		BUG();
+
+	/*
+	 * Combine new mode bits with old config bits and disable
+	 * on-chip PIO FIFO/buffer (and PIO MST mode as well) to avoid
+	 * problems handling I/O errors later.
+	 */
+	pci_read_config_dword(pdev, addr1, &reg);
+	reg = ((reg & ~mask) | (clocks->timing & mask)) & ~0xc0000000;
+	pci_write_config_dword(pdev, addr1, reg);
+}
+
 /**
  *	hpt366_set_piomode		-	PIO setup
  *	@ap: ATA interface
@@ -236,28 +257,7 @@ static int hpt36x_cable_detect(struct ata_port *ap)
 
 static void hpt366_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u32 addr1, addr2;
-	u32 reg;
-	u32 mode;
-	u8 fast;
-
-	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
-	addr2 = 0x51 + 4 * ap->port_no;
-
-	/* Fast interrupt prediction disable, hold off interrupt disable */
-	pci_read_config_byte(pdev, addr2, &fast);
-	if (fast & 0x80) {
-		fast &= ~0x80;
-		pci_write_config_byte(pdev, addr2, fast);
-	}
-
-	pci_read_config_dword(pdev, addr1, &reg);
-	mode = hpt36x_find_mode(ap, adev->pio_mode);
-	mode &= ~0x8000000;	/* No FIFO in PIO */
-	mode &= ~0x30070000;	/* Leave config bits alone */
-	reg &= 0x30070000;	/* Strip timing bits */
-	pci_write_config_dword(pdev, addr1, reg | mode);
+	hpt366_set_mode(ap, adev, adev->pio_mode);
 }
 
 /**
@@ -271,28 +271,7 @@ static void hpt366_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 static void hpt366_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u32 addr1, addr2;
-	u32 reg;
-	u32 mode;
-	u8 fast;
-
-	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
-	addr2 = 0x51 + 4 * ap->port_no;
-
-	/* Fast interrupt prediction disable, hold off interrupt disable */
-	pci_read_config_byte(pdev, addr2, &fast);
-	if (fast & 0x80) {
-		fast &= ~0x80;
-		pci_write_config_byte(pdev, addr2, fast);
-	}
-
-	pci_read_config_dword(pdev, addr1, &reg);
-	mode = hpt36x_find_mode(ap, adev->dma_mode);
-	mode |= 0x8000000;	/* FIFO in MWDMA or UDMA */
-	mode &= ~0xC0000000;	/* Leave config bits alone */
-	reg &= 0xC0000000;	/* Strip timing bits */
-	pci_write_config_dword(pdev, addr1, reg | mode);
+	hpt366_set_mode(ap, adev, adev->dma_mode);
 }
 
 static struct scsi_host_template hpt36x_sht = {

@@ -92,7 +92,8 @@ static irqreturn_t baboon_irq(int irq, void *dev_id)
 void __init baboon_register_interrupts(void)
 {
 	baboon_disabled = 0;
-	request_irq(IRQ_NUBUS_C, baboon_irq, 0, "baboon", (void *)baboon);
+	if (request_irq(IRQ_NUBUS_C, baboon_irq, 0, "baboon", (void *)baboon))
+		pr_err("Couldn't register baboon interrupt\n");
 }
 
 /*

@@ -2621,7 +2621,7 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 		}
 	}
 
-	/* double-check if current erp/cqr was successfull */
+	/* double-check if current erp/cqr was successful */
 	if ((cqr->irb.scsw.cmd.cstat == 0x00) &&
 	    (cqr->irb.scsw.cmd.dstat ==
 	     (DEV_STAT_CHN_END | DEV_STAT_DEV_END))) {

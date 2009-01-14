@@ -36,6 +36,12 @@ config LBD
 	  This option also enables support for single files larger than
 	  2TB.
 
+	  The ext4 filesystem requires that this feature be enabled in
+	  order to support filesystems that have the huge_file feature
+	  enabled.    Otherwise, it will refuse to mount any filesystems
+	  that use the huge_file feature, which is enabled by default
+	  by mke2fs.ext4.   The GFS2 filesystem also requires this feature.
+
 	  If unsure, say N.
 
 config BLK_DEV_IO_TRACE

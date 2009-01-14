@@ -209,6 +209,8 @@ fw_card_bm_work(struct work_struct *work)
 	unsigned long flags;
 	int root_id, new_root_id, irm_id, gap_count, generation, grace, rcode;
 	bool do_reset = false;
+	bool root_device_is_running;
+	bool root_device_is_cmc;
 	__be32 lock_data[2];
 
 	spin_lock_irqsave(&card->lock, flags);
@@ -224,8 +226,9 @@ fw_card_bm_work(struct work_struct *work)
 
 	generation = card->generation;
 	root_device = root_node->data;
-	if (root_device)
-		fw_device_get(root_device);
+	root_device_is_running = root_device &&
+			atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
+	root_device_is_cmc = root_device && root_device->cmc;
 	root_id = root_node->node_id;
 	grace = time_after(jiffies, card->reset_jiffies + DIV_ROUND_UP(HZ, 10));
 
@@ -308,14 +311,14 @@ fw_card_bm_work(struct work_struct *work)
 		 * config rom.  In either case, pick another root.
 		 */
 		new_root_id = local_node->node_id;
-	} else if (atomic_read(&root_device->state) != FW_DEVICE_RUNNING) {
+	} else if (!root_device_is_running) {
 		/*
 		 * If we haven't probed this device yet, bail out now
 		 * and let's try again once that's done.
 		 */
 		spin_unlock_irqrestore(&card->lock, flags);
 		goto out;
-	} else if (root_device->cmc) {
+	} else if (root_device_is_cmc) {
 		/*
 		 * FIXME: I suppose we should set the cmstr bit in the
 		 * STATE_CLEAR register of this node, as described in
@@ -362,8 +365,6 @@ fw_card_bm_work(struct work_struct *work)
 		fw_core_initiate_bus_reset(card, 1);
 	}
  out:
-	if (root_device)
-		fw_device_put(root_device);
 	fw_node_put(root_node);
 	fw_node_put(local_node);
  out_put_card:

@@ -58,6 +58,7 @@ smp_85xx_kick_cpu(int nr)
 
 	if (cpu_rel_addr == NULL) {
 		printk(KERN_ERR "No cpu-release-addr for cpu %d\n", nr);
+		local_irq_restore(flags);
 		return;
 	}
 

@@ -11,6 +11,8 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/module.h>
+
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 #include <asm/system.h>
@@ -54,6 +56,7 @@ void prom_feval(const char *fstring)
 	p1275_cmd("interpret", P1275_ARG(0, P1275_ARG_IN_STRING) |
 		  P1275_INOUT(1, 1), fstring);
 }
+EXPORT_SYMBOL(prom_feval);
 
 #ifdef CONFIG_SMP
 extern void smp_capture(void);

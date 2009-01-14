@@ -357,6 +357,11 @@ u32 au1xxx_dbdma_put_dscr(u32 chanid, au1x_ddma_desc_t *dscr);
 u32 au1xxx_ddma_add_device(dbdev_tab_t *dev);
 extern void au1xxx_ddma_del_device(u32 devid);
 void *au1xxx_ddma_get_nextptr_virt(au1x_ddma_desc_t *dp);
+#ifdef CONFIG_PM
+void au1xxx_dbdma_suspend(void);
+void au1xxx_dbdma_resume(void);
+#endif
+
 
 /*
  * Some compatibilty macros -- needed to make changes to API

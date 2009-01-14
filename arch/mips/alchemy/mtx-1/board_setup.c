@@ -32,6 +32,8 @@
 
 #include <asm/mach-au1x00/au1000.h>
 
+#include <prom.h>
+
 extern int (*board_pci_idsel)(unsigned int devsel, int assert);
 int mtx1_pci_idsel(unsigned int devsel, int assert);
 
@@ -43,6 +45,16 @@ void board_reset(void)
 
 void __init board_setup(void)
 {
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+	char *argptr;
+	argptr = prom_getcmdline();
+	argptr = strstr(argptr, "console=");
+	if (argptr == NULL) {
+		argptr = prom_getcmdline();
+		strcat(argptr, " console=ttyS0,115200");
+	}
+#endif
+
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 	/* Enable USB power switch */
 	au_writel(au_readl(GPIO2_DIR) | 0x10, GPIO2_DIR);

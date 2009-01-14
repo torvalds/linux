@@ -160,15 +160,15 @@ put_reg(struct task_struct *task, int regno, unsigned long data)
 static inline int is_user_addr_valid(struct task_struct *child,
 				     unsigned long start, unsigned long len)
 {
-	struct vm_list_struct *vml;
+	struct vm_area_struct *vma;
 	struct sram_list_struct *sraml;
 
 	/* overflow */
 	if (start + len < start)
 		return -EIO;
 
-	for (vml = child->mm->context.vmlist; vml; vml = vml->next)
-		if (start >= vml->vma->vm_start && start + len < vml->vma->vm_end)
+	vma = find_vma(child->mm, start);
+	if (vma && start >= vma->vm_start && start + len <= vma->vm_end)
 			return 0;
 
 	for (sraml = child->mm->context.sram_list; sraml; sraml = sraml->next)

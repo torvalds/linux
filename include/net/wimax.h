@@ -323,6 +323,9 @@ struct input_dev;
  *
  * @rf_hw: [private] State of the hardware radio switch (OFF/ON)
  *
+ * @debugfs_dentry: [private] Used to hook up a debugfs entry. This
+ *     shows up in the debugfs root as wimax\:DEVICENAME.
+ *
  * Description:
  * This structure defines a common interface to access all WiMAX
  * devices from different vendors and provides a common API as well as

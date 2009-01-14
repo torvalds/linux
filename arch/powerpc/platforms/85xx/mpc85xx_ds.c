@@ -148,6 +148,9 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 /*
  * Setup the architecture
  */
+#ifdef CONFIG_SMP
+extern void __init mpc85xx_smp_init(void);
+#endif
 static void __init mpc85xx_ds_setup_arch(void)
 {
 #ifdef CONFIG_PCI
@@ -171,6 +174,10 @@ static void __init mpc85xx_ds_setup_arch(void)
 	}
 
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
+#endif
+
+#ifdef CONFIG_SMP
+	mpc85xx_smp_init();
 #endif
 
 	printk("MPC85xx DS board from Freescale Semiconductor\n");

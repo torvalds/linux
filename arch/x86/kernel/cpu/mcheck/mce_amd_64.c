@@ -462,7 +462,7 @@ out_free:
 	return err;
 }
 
-static long local_allocate_threshold_blocks(void *_bank)
+static __cpuinit long local_allocate_threshold_blocks(void *_bank)
 {
 	unsigned int *bank = _bank;
 

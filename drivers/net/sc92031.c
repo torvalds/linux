@@ -1408,6 +1408,7 @@ static const struct net_device_ops sc92031_netdev_ops = {
 	.ndo_set_multicast_list	= sc92031_set_multicast_list,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_tx_timeout		= sc92031_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= sc92031_poll_controller,

@@ -91,14 +91,57 @@ static inline u32 au_readl(unsigned long reg)
 	return *(volatile u32 *)reg;
 }
 
+/* Early Au1000 have a write-only SYS_CPUPLL register. */
+static inline int au1xxx_cpu_has_pll_wo(void)
+{
+	switch (read_c0_prid()) {
+	case 0x00030100:	/* Au1000 DA */
+	case 0x00030201:	/* Au1000 HA */
+	case 0x00030202:	/* Au1000 HB */
+		return 1;
+	}
+	return 0;
+}
+
+/* does CPU need CONFIG[OD] set to fix tons of errata? */
+static inline int au1xxx_cpu_needs_config_od(void)
+{
+	/*
+	 * c0_config.od (bit 19) was write only (and read as 0) on the
+	 * early revisions of Alchemy SOCs.  It disables the bus trans-
+	 * action overlapping and needs to be set to fix various errata.
+	 */
+	switch (read_c0_prid()) {
+	case 0x00030100: /* Au1000 DA */
+	case 0x00030201: /* Au1000 HA */
+	case 0x00030202: /* Au1000 HB */
+	case 0x01030200: /* Au1500 AB */
+	/*
+	 * Au1100/Au1200 errata actually keep silence about this bit,
+	 * so we set it just in case for those revisions that require
+	 * it to be set according to the (now gone) cpu_table.
+	 */
+	case 0x02030200: /* Au1100 AB */
+	case 0x02030201: /* Au1100 BA */
+	case 0x02030202: /* Au1100 BC */
+	case 0x04030201: /* Au1200 AC */
+		return 1;
+	}
+	return 0;
+}
 
 /* arch/mips/au1000/common/clocks.c */
 extern void set_au1x00_speed(unsigned int new_freq);
 extern unsigned int get_au1x00_speed(void);
 extern void set_au1x00_uart_baud_base(unsigned long new_baud_base);
 extern unsigned long get_au1x00_uart_baud_base(void);
-extern void set_au1x00_lcd_clock(void);
-extern unsigned int get_au1x00_lcd_clock(void);
+extern unsigned long au1xxx_calc_clock(void);
+
+/* PM: arch/mips/alchemy/common/sleeper.S, power.c, irq.c */
+void au1xxx_save_and_sleep(void);
+void au_sleep(void);
+void save_au1xxx_intctl(void);
+void restore_au1xxx_intctl(void);
 
 /*
  * Every board describes its IRQ mapping with this table.
@@ -109,10 +152,11 @@ struct au1xxx_irqmap {
 	int	im_request;
 };
 
-/*
- * init_IRQ looks for a table with this name.
- */
-extern struct au1xxx_irqmap au1xxx_irq_map[];
+/* core calls this function to let boards initialize other IRQ sources */
+void board_init_irq(void);
+
+/* boards call this to register additional (GPIO) interrupts */
+void au1xxx_setup_irqmap(struct au1xxx_irqmap *map, int count);
 
 #endif /* !defined (_LANGUAGE_ASSEMBLY) */
 
@@ -504,15 +548,6 @@ extern struct au1xxx_irqmap au1xxx_irq_map[];
 #define IC1_FALLINGCLR		0xB180007C
 
 #define IC1_TESTBIT		0xB1800080
-
-/* Interrupt Configuration Modes */
-#define INTC_INT_DISABLED		0x0
-#define INTC_INT_RISE_EDGE		0x1
-#define INTC_INT_FALL_EDGE		0x2
-#define INTC_INT_RISE_AND_FALL_EDGE	0x3
-#define INTC_INT_HIGH_LEVEL		0x5
-#define INTC_INT_LOW_LEVEL		0x6
-#define INTC_INT_HIGH_AND_LOW_LEVEL	0x7
 
 /* Interrupt Numbers */
 /* Au1000 */
@@ -1525,6 +1560,10 @@ enum soc_au1200_ints {
 #define SYS_SLPPWR		0xB1900078
 #define SYS_SLEEP		0xB190007C
 
+#define SYS_WAKEMSK_D2		(1 << 9)
+#define SYS_WAKEMSK_M2		(1 << 8)
+#define SYS_WAKEMSK_GPIO(x)	(1 << (x))
+
 /* Clock Controller */
 #define SYS_FREQCTRL0		0xB1900020
 #  define SYS_FC_FRDIV2_BIT	22
@@ -1747,26 +1786,6 @@ typedef volatile struct {
 
 static AU1X00_SYS * const sys = (AU1X00_SYS *)SYS_BASE;
 
-#endif
-
-/*
- * Processor information based on PRID.
- * Copied from PowerPC.
- */
-#ifndef _LANGUAGE_ASSEMBLY
-struct cpu_spec {
-	/* CPU is matched via (PRID & prid_mask) == prid_value */
-	unsigned int	prid_mask;
-	unsigned int	prid_value;
-
-	char		*cpu_name;
-	unsigned char	cpu_od;		/* Set Config[OD] */
-	unsigned char	cpu_bclk;	/* Enable BCLK switching */
-	unsigned char	cpu_pll_wo;	/* sys_cpupll reg. write-only */
-};
-
-extern struct cpu_spec	cpu_specs[];
-extern struct cpu_spec	*cur_cpu_spec[];
 #endif
 
 #endif

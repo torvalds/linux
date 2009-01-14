@@ -77,7 +77,7 @@ static int fwh_xxlock_oneblock(struct map_info *map, struct flchip *chip,
 }
 
 
-static int fwh_lock_varsize(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int fwh_lock_varsize(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	int ret;
 
@@ -88,7 +88,7 @@ static int fwh_lock_varsize(struct mtd_info *mtd, loff_t ofs, size_t len)
 }
 
 
-static int fwh_unlock_varsize(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int fwh_unlock_varsize(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	int ret;
 

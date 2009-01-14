@@ -199,7 +199,7 @@ struct dasd_ccw_req {
 #define DASD_CQR_ERROR		0x82	/* request is completed with error */
 #define DASD_CQR_CLEAR_PENDING	0x83	/* request is clear pending */
 #define DASD_CQR_CLEARED	0x84	/* request was cleared */
-#define DASD_CQR_SUCCESS	0x85	/* request was successfull */
+#define DASD_CQR_SUCCESS	0x85	/* request was successful */
 
 
 /* per dasd_ccw_req flags */

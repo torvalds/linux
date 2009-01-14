@@ -1164,6 +1164,7 @@ CONFIG_WATCHDOG=y
 # CONFIG_SOFT_WATCHDOG is not set
 # CONFIG_ALIM7101_WDT is not set
 # CONFIG_8xxx_WDT is not set
+CONFIG_GEF_WDT=y
 
 #
 # PCI-based Watchdog Cards

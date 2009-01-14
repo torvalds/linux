@@ -141,6 +141,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			ht -- run only enough ACPI to enable Hyper Threading
 			strict -- Be less tolerant of platforms that are not
 				strictly ACPI specification compliant.
+			rsdt -- prefer RSDT over (default) XSDT
 
 			See also Documentation/power/pm.txt, pci=noacpi
 
@@ -151,16 +152,20 @@ and is between 256 and 4096 characters. It is defined in the file
 			default: 0
 
 	acpi_sleep=	[HW,ACPI] Sleep options
-			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig, old_ordering }
-			See Documentation/power/video.txt for s3_bios and s3_mode.
+			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig,
+				  old_ordering, s4_nonvs }
+			See Documentation/power/video.txt for information on
+			s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
 			as soon as the kernel's real-mode entry point is called.
 			s4_nohwsig prevents ACPI hardware signature from being
 			used during resume from hibernation.
 			old_ordering causes the ACPI 1.0 ordering of the _PTS
-			control method, wrt putting devices into low power
-			states, to be enforced (the ACPI 2.0 ordering of _PTS is
-			used by default).
+			control method, with respect to putting devices into
+			low power states, to be enforced (the ACPI 2.0 ordering
+			of _PTS is used by default).
+			s4_nonvs prevents the kernel from saving/restoring the
+			ACPI NVS memory during hibernation.
 
 	acpi_sci=	[HW,ACPI] ACPI System Control Interrupt trigger mode
 			Format: { level | edge | high | low }
@@ -195,7 +200,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	acpi_skip_timer_override [HW,ACPI]
 			Recognize and ignore IRQ0/pin2 Interrupt Override.
 			For broken nForce2 BIOS resulting in XT-PIC timer.
-	acpi_use_timer_override [HW,ACPI}
+	acpi_use_timer_override [HW,ACPI]
 			Use timer override. For some broken Nvidia NF5 boards
 			that require a timer override, but don't have
 			HPET
@@ -829,8 +834,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	hlt		[BUGS=ARM,SH]
 
-	hvc_iucv=	[S390] Number of z/VM IUCV Hypervisor console (HVC)
-			       back-ends. Valid parameters: 0..8
+	hvc_iucv=	[S390] Number of z/VM IUCV hypervisor console (HVC)
+			       terminal devices. Valid values: 0..8
 
 	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.direct	[HW] Put keyboard port into non-translated mode
@@ -878,17 +883,19 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/ide/ide.txt.
 
 	idle=		[X86]
-			Format: idle=poll or idle=mwait, idle=halt, idle=nomwait
-			Poll forces a polling idle loop that can slightly improves the performance
-			of waking up a idle CPU, but will use a lot of power and make the system
-			run hot. Not recommended.
-			idle=mwait. On systems which support MONITOR/MWAIT but the kernel chose
-			to not use it because it doesn't save as much power as a normal idle
-			loop use the MONITOR/MWAIT idle loop anyways. Performance should be the same
-			as idle=poll.
-			idle=halt. Halt is forced to be used for CPU idle.
+			Format: idle=poll, idle=mwait, idle=halt, idle=nomwait
+			Poll forces a polling idle loop that can slightly
+			improve the performance of waking up a idle CPU, but
+			will use a lot of power and make the system run hot.
+			Not recommended.
+			idle=mwait: On systems which support MONITOR/MWAIT but
+			the kernel chose to not use it because it doesn't save
+			as much power as a normal idle loop, use the
+			MONITOR/MWAIT idle loop anyways. Performance should be
+			the same as idle=poll.
+			idle=halt: Halt is forced to be used for CPU idle.
 			In such case C2/C3 won't be used again.
-			idle=nomwait. Disable mwait for CPU C-states
+			idle=nomwait: Disable mwait for CPU C-states
 
 	ide-pci-generic.all-generic-ide [HW] (E)IDE subsystem
 			Claim all unknown PCI IDE storage controllers.
@@ -1074,8 +1081,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	lapic		[X86-32,APIC] Enable the local APIC even if BIOS
 			disabled it.
 
-	lapic_timer_c2_ok	[X86-32,x86-64,APIC] trust the local apic timer in
-			C2 power state.
+	lapic_timer_c2_ok	[X86-32,x86-64,APIC] trust the local apic timer
+			in C2 power state.
 
 	libata.dma=	[LIBATA] DMA control
 			libata.dma=0	  Disable all PATA and SATA DMA
@@ -1561,6 +1568,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			and disable the IO APIC.  legacy for "maxcpus=0".
 
 	nosoftlockup	[KNL] Disable the soft-lockup detector.
+
+	noswapaccount	[KNL] Disable accounting of swap in memory resource
+			controller. (See Documentation/controllers/memory.txt)
 
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
@@ -2300,7 +2310,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	thermal.psv=	[HW,ACPI]
 			-1: disable all passive trip points
-			<degrees C>: override all passive trip points to this value
+			<degrees C>: override all passive trip points to this
+			value
 
 	thermal.tzp=	[HW,ACPI]
 			Specify global default ACPI thermal zone polling rate
