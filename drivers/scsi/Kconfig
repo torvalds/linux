@@ -224,14 +224,15 @@ config SCSI_LOGGING
 	  can enable logging by saying Y to "/proc file system support" and
 	  "Sysctl support" below and executing the command
 
-	  echo "scsi log token [level]" > /proc/scsi/scsi
+	  echo <bitmask> > /proc/sys/dev/scsi/logging_level
 
-	  at boot time after the /proc file system has been mounted.
+	  where <bitmask> is a four byte value representing the logging type
+	  and logging level for each type of logging selected.
 
-	  There are a number of things that can be used for 'token' (you can
-	  find them in the source: <file:drivers/scsi/scsi.c>), and this
-	  allows you to select the types of information you want, and the
-	  level allows you to select the level of verbosity.
+	  There are a number of logging types and you can find them in the
+	  source at <file:drivers/scsi/scsi_logging.h>. The logging levels
+	  are also described in that file and they determine the verbosity of
+	  the logging for each logging type.
 
 	  If you say N here, it may be harder to track down some types of SCSI
 	  problems. If you say Y here your kernel will be somewhat larger, but
