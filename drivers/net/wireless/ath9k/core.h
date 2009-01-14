@@ -695,6 +695,7 @@ enum PROT_MODE {
 
 struct ath_bus_ops {
 	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
+	void		(*cleanup)(struct ath_softc *sc);
 };
 
 struct ath_softc {
@@ -704,6 +705,7 @@ struct ath_softc {
 	struct tasklet_struct bcon_tasklet;
 	struct ath_hal *sc_ah;
 	void __iomem *mem;
+	int irq;
 	spinlock_t sc_resetlock;
 	struct mutex mutex;
 
@@ -758,6 +760,11 @@ int ath_cabq_update(struct ath_softc *);
 static inline void ath_read_cachesize(struct ath_softc *sc, int *csz)
 {
 	sc->bus_ops->read_cachesize(sc, csz);
+}
+
+static inline void ath_bus_cleanup(struct ath_softc *sc)
+{
+	sc->bus_ops->cleanup(sc);
 }
 
 #endif /* CORE_H */
