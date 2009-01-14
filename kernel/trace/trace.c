@@ -3736,7 +3736,7 @@ static struct notifier_block trace_die_notifier = {
  * it if we decide to change what log level the ftrace dump
  * should be at.
  */
-#define KERN_TRACE		KERN_INFO
+#define KERN_TRACE		KERN_EMERG
 
 static void
 trace_printk_seq(struct trace_seq *s)
