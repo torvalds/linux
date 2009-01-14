@@ -528,7 +528,7 @@ static int __init populate_rootfs(void)
 	char *err = unpack_to_rootfs(__initramfs_start,
 			 __initramfs_end - __initramfs_start, 0);
 	if (err)
-		panic(err);
+		panic(err);	/* Failed to decompress INTERNAL initramfs */
 	if (initrd_start) {
 #ifdef CONFIG_BLK_DEV_RAM
 		int fd;
@@ -554,9 +554,12 @@ static int __init populate_rootfs(void)
 		printk(KERN_INFO "Unpacking initramfs...");
 		err = unpack_to_rootfs((char *)initrd_start,
 			initrd_end - initrd_start, 0);
-		if (err)
-			panic(err);
-		printk(" done\n");
+		if (err) {
+			printk(" failed!\n");
+			printk(KERN_EMERG "%s\n", err);
+		} else {
+			printk(" done\n");
+		}
 		free_initrd();
 #endif
 	}

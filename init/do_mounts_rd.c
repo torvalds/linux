@@ -83,7 +83,8 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 		printk(KERN_NOTICE "RAMDISK: %s image found at block %d\n",
 		       compress_name, start_block);
 		if (!*decompressor)
-			printk(KERN_CRIT "RAMDISK: %s decompressor not configured!\n",
+			printk(KERN_EMERG
+			       "RAMDISK: %s decompressor not configured!\n",
 			       compress_name);
 		nblocks = 0;
 		goto done;
