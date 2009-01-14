@@ -260,7 +260,7 @@ static inline void kvmppc_e500_deliver_tlb_miss(struct kvm_vcpu *vcpu,
 	unsigned int victim, pidsel, tsized;
 	int tlbsel;
 
-	/* since we only have tow TLBs, only lower bit is used. */
+	/* since we only have two TLBs, only lower bit is used. */
 	tlbsel = (vcpu_e500->mas4 >> 28) & 0x1;
 	victim = (tlbsel == 0) ? tlb0_get_next_victim(vcpu_e500) : 0;
 	pidsel = (vcpu_e500->mas4 >> 16) & 0xf;
@@ -402,7 +402,7 @@ int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, int ra, int rb)
 
 	ia = (ea >> 2) & 0x1;
 
-	/* since we only have tow TLBs, only lower bit is used. */
+	/* since we only have two TLBs, only lower bit is used. */
 	tlbsel = (ea >> 3) & 0x1;
 
 	if (ia) {
@@ -471,7 +471,7 @@ int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb)
 	} else {
 		int victim;
 
-		/* since we only have tow TLBs, only lower bit is used. */
+		/* since we only have two TLBs, only lower bit is used. */
 		tlbsel = vcpu_e500->mas4 >> 28 & 0x1;
 		victim = (tlbsel == 0) ? tlb0_get_next_victim(vcpu_e500) : 0;
 

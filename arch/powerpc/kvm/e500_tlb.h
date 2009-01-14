@@ -126,7 +126,7 @@ static inline unsigned int get_tlb_tlbsel(
 {
 	/*
 	 * Manual says that tlbsel has 2 bits wide.
-	 * Since we only have tow TLBs, only lower bit is used.
+	 * Since we only have two TLBs, only lower bit is used.
 	 */
 	return (vcpu_e500->mas0 >> 28) & 0x1;
 }
