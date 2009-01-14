@@ -6874,16 +6874,15 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 		 */
 		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 		val = REG_RD(bp, DORQ_REG_NORM_CID_OFST);
-		if (val == 0x7)
-			REG_WR(bp, DORQ_REG_NORM_CID_OFST, 0);
-		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
-
 		if (val == 0x7) {
 			u32 reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS;
 			/* save our func */
 			int func = BP_FUNC(bp);
 			u32 swap_en;
 			u32 swap_val;
+
+			/* clear the UNDI indication */
+			REG_WR(bp, DORQ_REG_NORM_CID_OFST, 0);
 
 			BNX2X_DEV_INFO("UNDI is active! reset device\n");
 
@@ -6909,6 +6908,9 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 
 				bnx2x_fw_command(bp, reset_code);
 			}
+
+			/* now it's safe to release the lock */
+			bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 
 			REG_WR(bp, (BP_PORT(bp) ? HC_REG_CONFIG_1 :
 				    HC_REG_CONFIG_0), 0x1000);
@@ -6954,7 +6956,9 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 			bp->fw_seq =
 			       (SHMEM_RD(bp, func_mb[bp->func].drv_mb_header) &
 				DRV_MSG_SEQ_NUMBER_MASK);
-		}
+
+		} else
+			bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 	}
 }
 
