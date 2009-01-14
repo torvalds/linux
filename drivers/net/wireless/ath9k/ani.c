@@ -551,6 +551,9 @@ void ath9k_hw_ani_monitor(struct ath_hal *ah,
 	struct ar5416AniState *aniState;
 	int32_t listenTime;
 
+	if (!DO_ANI(ah))
+		return;
+
 	aniState = ahp->ah_curani;
 	ahp->ah_stats.ast_nodestats = *stats;
 
@@ -609,9 +612,6 @@ void ath9k_hw_ani_monitor(struct ath_hal *ah,
 			cckPhyErrCnt - aniState->cckPhyErrCount;
 		aniState->cckPhyErrCount = cckPhyErrCnt;
 	}
-
-	if (!DO_ANI(ah))
-		return;
 
 	if (aniState->listenTime > 5 * ahp->ah_aniPeriod) {
 		if (aniState->ofdmPhyErrCount <= aniState->listenTime *
