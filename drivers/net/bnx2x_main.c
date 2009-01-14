@@ -10269,17 +10269,15 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 		return rc;
 	}
 
-	rc = register_netdev(dev);
-	if (rc) {
-		dev_err(&pdev->dev, "Cannot register net device\n");
-		goto init_one_exit;
-	}
-
 	pci_set_drvdata(pdev, dev);
 
 	rc = bnx2x_init_bp(bp);
+	if (rc)
+		goto init_one_exit;
+
+	rc = register_netdev(dev);
 	if (rc) {
-		unregister_netdev(dev);
+		dev_err(&pdev->dev, "Cannot register net device\n");
 		goto init_one_exit;
 	}
 
