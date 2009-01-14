@@ -636,8 +636,9 @@ static long do_pselect(int n, fd_set __user *inp, fd_set __user *outp,
  * which has a pointer to the sigset_t itself followed by a size_t containing
  * the sigset size.
  */
-asmlinkage long sys_pselect6(int n, fd_set __user *inp, fd_set __user *outp,
-	fd_set __user *exp, struct timespec __user *tsp, void __user *sig)
+SYSCALL_DEFINE6(pselect6, int, n, fd_set __user *, inp, fd_set __user *, outp,
+		fd_set __user *, exp, struct timespec __user *, tsp,
+		void __user *, sig)
 {
 	size_t sigsetsize = 0;
 	sigset_t __user *up = NULL;
@@ -889,9 +890,9 @@ SYSCALL_DEFINE3(poll, struct pollfd __user *, ufds, unsigned int, nfds,
 }
 
 #ifdef HAVE_SET_RESTORE_SIGMASK
-asmlinkage long sys_ppoll(struct pollfd __user *ufds, unsigned int nfds,
-	struct timespec __user *tsp, const sigset_t __user *sigmask,
-	size_t sigsetsize)
+SYSCALL_DEFINE5(ppoll, struct pollfd __user *, ufds, unsigned int, nfds,
+		struct timespec __user *, tsp, const sigset_t __user *, sigmask,
+		size_t, sigsetsize)
 {
 	sigset_t ksigmask, sigsaved;
 	struct timespec ts, end_time, *to = NULL;

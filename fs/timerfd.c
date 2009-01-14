@@ -265,7 +265,7 @@ SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
 	return 0;
 }
 
-asmlinkage long sys_timerfd_gettime(int ufd, struct itimerspec __user *otmr)
+SYSCALL_DEFINE2(timerfd_gettime, int, ufd, struct itimerspec __user *, otmr)
 {
 	struct file *file;
 	struct timerfd_ctx *ctx;

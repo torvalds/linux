@@ -1043,7 +1043,7 @@ int do_pipe(int *fd)
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way Unix traditionally does this, though.
  */
-asmlinkage long sys_pipe2(int __user *fildes, int flags)
+SYSCALL_DEFINE2(pipe2, int __user *, fildes, int, flags)
 {
 	int fd[2];
 	int error;

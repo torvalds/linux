@@ -678,6 +678,13 @@ asmlinkage long sys_eventfd(unsigned int count);
 asmlinkage long sys_eventfd2(unsigned int count, int flags);
 asmlinkage long sys_fallocate(int fd, int mode, loff_t offset, loff_t len);
 asmlinkage long sys_old_readdir(unsigned int, struct old_linux_dirent __user *, unsigned int);
+asmlinkage long sys_pselect6(int, fd_set __user *, fd_set __user *,
+			     fd_set __user *, struct timespec __user *,
+			     void __user *);
+asmlinkage long sys_ppoll(struct pollfd __user *, unsigned int,
+			  struct timespec __user *, const sigset_t __user *,
+			  size_t);
+asmlinkage long sys_pipe2(int __user *, int);
 
 int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
 

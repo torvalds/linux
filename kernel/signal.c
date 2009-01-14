@@ -2491,11 +2491,10 @@ out:
 #endif /* __ARCH_WANT_SYS_SIGPROCMASK */
 
 #ifdef __ARCH_WANT_SYS_RT_SIGACTION
-asmlinkage long
-sys_rt_sigaction(int sig,
-		 const struct sigaction __user *act,
-		 struct sigaction __user *oact,
-		 size_t sigsetsize)
+SYSCALL_DEFINE4(rt_sigaction, int, sig,
+		const struct sigaction __user *, act,
+		struct sigaction __user *, oact,
+		size_t, sigsetsize)
 {
 	struct k_sigaction new_sa, old_sa;
 	int ret = -EINVAL;
@@ -2578,7 +2577,7 @@ SYSCALL_DEFINE0(pause)
 #endif
 
 #ifdef __ARCH_WANT_SYS_RT_SIGSUSPEND
-asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize)
+SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *, unewset, size_t, sigsetsize)
 {
 	sigset_t newset;
 
