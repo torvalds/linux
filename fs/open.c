@@ -122,7 +122,7 @@ static int vfs_statfs64(struct dentry *dentry, struct statfs64 *buf)
 	return 0;
 }
 
-asmlinkage long sys_statfs(const char __user *pathname, struct statfs __user * buf)
+SYSCALL_DEFINE2(statfs, const char __user *, pathname, struct statfs __user *, buf)
 {
 	struct path path;
 	int error;
@@ -138,8 +138,7 @@ asmlinkage long sys_statfs(const char __user *pathname, struct statfs __user * b
 	return error;
 }
 
-
-asmlinkage long sys_statfs64(const char __user *pathname, size_t sz, struct statfs64 __user *buf)
+SYSCALL_DEFINE3(statfs64, const char __user *, pathname, size_t, sz, struct statfs64 __user *, buf)
 {
 	struct path path;
 	long error;
@@ -157,8 +156,7 @@ asmlinkage long sys_statfs64(const char __user *pathname, size_t sz, struct stat
 	return error;
 }
 
-
-asmlinkage long sys_fstatfs(unsigned int fd, struct statfs __user * buf)
+SYSCALL_DEFINE2(fstatfs, unsigned int, fd, struct statfs __user *, buf)
 {
 	struct file * file;
 	struct statfs tmp;
@@ -289,7 +287,7 @@ out:
 	return error;
 }
 
-asmlinkage long sys_truncate(const char __user * path, unsigned long length)
+SYSCALL_DEFINE2(truncate, const char __user *, path, unsigned long, length)
 {
 	/* on 32-bit boxen it will cut the range 2^31--2^32-1 off */
 	return do_sys_truncate(path, (long)length);
@@ -341,7 +339,7 @@ out:
 	return error;
 }
 
-asmlinkage long sys_ftruncate(unsigned int fd, unsigned long length)
+SYSCALL_DEFINE2(ftruncate, unsigned int, fd, unsigned long, length)
 {
 	long ret = do_sys_ftruncate(fd, length, 1);
 	/* avoid REGPARM breakage on x86: */

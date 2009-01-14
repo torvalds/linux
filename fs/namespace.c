@@ -1128,7 +1128,7 @@ static int do_umount(struct vfsmount *mnt, int flags)
  * unixes. Our API is identical to OSF/1 to avoid making a mess of AMD
  */
 
-asmlinkage long sys_umount(char __user * name, int flags)
+SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 {
 	struct path path;
 	int retval;
@@ -1160,7 +1160,7 @@ out:
 /*
  *	The 2.0 compatible umount. No flags.
  */
-asmlinkage long sys_oldumount(char __user * name)
+SYSCALL_DEFINE1(oldumount, char __user *, name)
 {
 	return sys_umount(name, 0);
 }
@@ -2045,9 +2045,8 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 	return new_ns;
 }
 
-asmlinkage long sys_mount(char __user * dev_name, char __user * dir_name,
-			  char __user * type, unsigned long flags,
-			  void __user * data)
+SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
+		char __user *, type, unsigned long, flags, void __user *, data)
 {
 	int retval;
 	unsigned long data_page;
