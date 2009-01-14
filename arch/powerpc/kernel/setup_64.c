@@ -578,13 +578,6 @@ void ppc64_boot_msg(unsigned int src, const char *msg)
 	printk("[boot]%04x %s\n", src, msg);
 }
 
-/* Print a termination message (print only -- does not stop the kernel) */
-void ppc64_terminate_msg(unsigned int src, const char *msg)
-{
-	ppc64_do_msg(PPC64_LINUX_FUNCTION|PPC64_TERM_MESSAGE|src, msg);
-	printk("[terminate]%04x %s\n", src, msg);
-}
-
 void cpu_die(void)
 {
 	if (ppc_md.cpu_die)

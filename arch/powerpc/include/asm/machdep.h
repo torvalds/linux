@@ -327,8 +327,6 @@ extern void __devinit smp_generic_take_timebase(void);
  */
 /* Print a boot progress message. */
 void ppc64_boot_msg(unsigned int src, const char *msg);
-/* Print a termination message (print only -- does not stop the kernel) */
-void ppc64_terminate_msg(unsigned int src, const char *msg);
 
 static inline void log_error(char *buf, unsigned int err_type, int fatal)
 {
