@@ -3882,9 +3882,15 @@ static u8 bnx2x_link_initialize(struct link_params *params,
 	}
 
 	if (vars->phy_flags & PHY_XGXS_FLAG) {
-		if (params->req_line_speed &&
+		if ((params->req_line_speed &&
 		    ((params->req_line_speed == SPEED_100) ||
-		     (params->req_line_speed == SPEED_10))) {
+		     (params->req_line_speed == SPEED_10))) ||
+		    (!params->req_line_speed &&
+		     (params->speed_cap_mask >=
+		       PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL) &&
+		     (params->speed_cap_mask <
+		       PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)
+		     ))  {
 			vars->phy_flags |= PHY_SGMII_FLAG;
 		} else {
 			vars->phy_flags &= ~PHY_SGMII_FLAG;
