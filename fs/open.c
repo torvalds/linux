@@ -517,7 +517,7 @@ out:
 	return res;
 }
 
-asmlinkage long sys_access(const char __user *filename, int mode)
+SYSCALL_DEFINE2(access, const char __user *, filename, int, mode)
 {
 	return sys_faccessat(AT_FDCWD, filename, mode);
 }
@@ -688,7 +688,7 @@ static int chown_common(struct dentry * dentry, uid_t user, gid_t group)
 	return error;
 }
 
-asmlinkage long sys_chown(const char __user * filename, uid_t user, gid_t group)
+SYSCALL_DEFINE3(chown, const char __user *, filename, uid_t, user, gid_t, group)
 {
 	struct path path;
 	int error;
@@ -732,7 +732,7 @@ out:
 	return error;
 }
 
-asmlinkage long sys_lchown(const char __user * filename, uid_t user, gid_t group)
+SYSCALL_DEFINE3(lchown, const char __user *, filename, uid_t, user, gid_t, group)
 {
 	struct path path;
 	int error;
@@ -751,8 +751,7 @@ out:
 	return error;
 }
 
-
-asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group)
+SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
 {
 	struct file * file;
 	int error = -EBADF;
@@ -1048,7 +1047,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 	return fd;
 }
 
-asmlinkage long sys_open(const char __user *filename, int flags, int mode)
+SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, int, mode)
 {
 	long ret;
 
@@ -1117,7 +1116,7 @@ EXPORT_SYMBOL(filp_close);
  * releasing the fd. This ensures that one clone task can't release
  * an fd while another clone is opening it.
  */
-asmlinkage long sys_close(unsigned int fd)
+SYSCALL_DEFINE1(close, unsigned int, fd)
 {
 	struct file * filp;
 	struct files_struct *files = current->files;
@@ -1150,14 +1149,13 @@ out_unlock:
 	spin_unlock(&files->file_lock);
 	return -EBADF;
 }
-
 EXPORT_SYMBOL(sys_close);
 
 /*
  * This routine simulates a hangup on the tty, to arrange that users
  * are given clean terminals at login time.
  */
-asmlinkage long sys_vhangup(void)
+SYSCALL_DEFINE0(vhangup)
 {
 	if (capable(CAP_SYS_TTY_CONFIG)) {
 		tty_vhangup_self();

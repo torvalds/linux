@@ -17,7 +17,7 @@
 
 #include <asm/uaccess.h>
 
-asmlinkage long sys_chown16(const char __user * filename, old_uid_t user, old_gid_t group)
+SYSCALL_DEFINE3(chown16, const char __user *, filename, old_uid_t, user, old_gid_t, group)
 {
 	long ret = sys_chown(filename, low2highuid(user), low2highgid(group));
 	/* avoid REGPARM breakage on x86: */
@@ -25,7 +25,7 @@ asmlinkage long sys_chown16(const char __user * filename, old_uid_t user, old_gi
 	return ret;
 }
 
-asmlinkage long sys_lchown16(const char __user * filename, old_uid_t user, old_gid_t group)
+SYSCALL_DEFINE3(lchown16, const char __user *, filename, old_uid_t, user, old_gid_t, group)
 {
 	long ret = sys_lchown(filename, low2highuid(user), low2highgid(group));
 	/* avoid REGPARM breakage on x86: */
@@ -33,7 +33,7 @@ asmlinkage long sys_lchown16(const char __user * filename, old_uid_t user, old_g
 	return ret;
 }
 
-asmlinkage long sys_fchown16(unsigned int fd, old_uid_t user, old_gid_t group)
+SYSCALL_DEFINE3(fchown16, unsigned int, fd, old_uid_t, user, old_gid_t, group)
 {
 	long ret = sys_fchown(fd, low2highuid(user), low2highgid(group));
 	/* avoid REGPARM breakage on x86: */
