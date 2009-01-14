@@ -239,8 +239,7 @@ void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *,
 				     enum pvr2_v4l_type index,int);
 
 /* Direct read/write access to chip's registers:
-   match_type - how to interpret match_chip (e.g. driver ID, i2c address)
-   match_chip - chip match value (e.g. I2C_DRIVERD_xxxx)
+   match - specify criteria to identify target chip (this is a v4l dbg struct)
    reg_id  - register number to access
    setFl   - true to set the register, false to read it
    val_ptr - storage location for source / result. */
