@@ -280,5 +280,18 @@ asmlinkage long compat_sys_timerfd_settime(int ufd, int flags,
 asmlinkage long compat_sys_timerfd_gettime(int ufd,
 				   struct compat_itimerspec __user *otmr);
 
+asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_page,
+				      __u32 __user *pages,
+				      const int __user *nodes,
+				      int __user *status,
+				      int flags);
+asmlinkage long compat_sys_futimesat(unsigned int dfd, char __user *filename,
+				     struct compat_timeval __user *t);
+asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user * filename,
+				      struct compat_stat __user *statbuf,
+				      int flag);
+asmlinkage long compat_sys_openat(unsigned int dfd, const char __user *filename,
+				  int flags, int mode);
+
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */

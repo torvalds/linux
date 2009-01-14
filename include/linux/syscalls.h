@@ -530,11 +530,6 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
 				const int __user *nodes,
 				int __user *status,
 				int flags);
-asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_page,
-				__u32 __user *pages,
-				const int __user *nodes,
-				int __user *status,
-				int flags);
 asmlinkage long sys_mbind(unsigned long start, unsigned long len,
 				unsigned long mode,
 				unsigned long __user *nmask,
@@ -583,13 +578,6 @@ asmlinkage long sys_readlinkat(int dfd, const char __user *path, char __user *bu
 			       int bufsiz);
 asmlinkage long sys_utimensat(int dfd, char __user *filename,
 				struct timespec __user *utimes, int flags);
-asmlinkage long compat_sys_futimesat(unsigned int dfd, char __user *filename,
-				     struct compat_timeval __user *t);
-asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user * filename,
-				      struct compat_stat __user *statbuf,
-				      int flag);
-asmlinkage long compat_sys_openat(unsigned int dfd, const char __user *filename,
-				   int flags, int mode);
 asmlinkage long sys_unshare(unsigned long unshare_flags);
 
 asmlinkage long sys_splice(int fd_in, loff_t __user *off_in,
