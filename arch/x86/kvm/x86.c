@@ -1067,7 +1067,7 @@ long kvm_arch_dev_ioctl(struct file *filp,
 		if (copy_from_user(&cpuid, cpuid_arg, sizeof cpuid))
 			goto out;
 		r = kvm_dev_ioctl_get_supported_cpuid(&cpuid,
-			cpuid_arg->entries);
+						      cpuid_arg->entries);
 		if (r)
 			goto out;
 
@@ -1165,8 +1165,8 @@ out:
 }
 
 static int kvm_vcpu_ioctl_set_cpuid2(struct kvm_vcpu *vcpu,
-				    struct kvm_cpuid2 *cpuid,
-				    struct kvm_cpuid_entry2 __user *entries)
+				     struct kvm_cpuid2 *cpuid,
+				     struct kvm_cpuid_entry2 __user *entries)
 {
 	int r;
 
@@ -1185,8 +1185,8 @@ out:
 }
 
 static int kvm_vcpu_ioctl_get_cpuid2(struct kvm_vcpu *vcpu,
-				    struct kvm_cpuid2 *cpuid,
-				    struct kvm_cpuid_entry2 __user *entries)
+				     struct kvm_cpuid2 *cpuid,
+				     struct kvm_cpuid_entry2 __user *entries)
 {
 	int r;
 
@@ -1195,7 +1195,7 @@ static int kvm_vcpu_ioctl_get_cpuid2(struct kvm_vcpu *vcpu,
 		goto out;
 	r = -EFAULT;
 	if (copy_to_user(entries, &vcpu->arch.cpuid_entries,
-			   vcpu->arch.cpuid_nent * sizeof(struct kvm_cpuid_entry2)))
+			 vcpu->arch.cpuid_nent * sizeof(struct kvm_cpuid_entry2)))
 		goto out;
 	return 0;
 
@@ -1205,12 +1205,12 @@ out:
 }
 
 static void do_cpuid_1_ent(struct kvm_cpuid_entry2 *entry, u32 function,
-			  u32 index)
+			   u32 index)
 {
 	entry->function = function;
 	entry->index = index;
 	cpuid_count(entry->function, entry->index,
-		&entry->eax, &entry->ebx, &entry->ecx, &entry->edx);
+		    &entry->eax, &entry->ebx, &entry->ecx, &entry->edx);
 	entry->flags = 0;
 }
 
@@ -1249,7 +1249,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		bit(X86_FEATURE_LAHF_LM) | bit(X86_FEATURE_CMP_LEGACY) |
 		bit(X86_FEATURE_SVM);
 
-	/* all func 2 cpuid_count() should be called on the same cpu */
+	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
 	do_cpuid_1_ent(entry, function, index);
 	++*nent;
@@ -1323,7 +1323,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 }
 
 static int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
-				    struct kvm_cpuid_entry2 __user *entries)
+				     struct kvm_cpuid_entry2 __user *entries)
 {
 	struct kvm_cpuid_entry2 *cpuid_entries;
 	int limit, nent = 0, r = -E2BIG;
@@ -1340,7 +1340,7 @@ static int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 	limit = cpuid_entries[0].eax;
 	for (func = 1; func <= limit && nent < cpuid->nent; ++func)
 		do_cpuid_ent(&cpuid_entries[nent], func, 0,
-				&nent, cpuid->nent);
+			     &nent, cpuid->nent);
 	r = -E2BIG;
 	if (nent >= cpuid->nent)
 		goto out_free;
@@ -1349,10 +1349,10 @@ static int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 	limit = cpuid_entries[nent - 1].eax;
 	for (func = 0x80000001; func <= limit && nent < cpuid->nent; ++func)
 		do_cpuid_ent(&cpuid_entries[nent], func, 0,
-			       &nent, cpuid->nent);
+			     &nent, cpuid->nent);
 	r = -EFAULT;
 	if (copy_to_user(entries, cpuid_entries,
-			nent * sizeof(struct kvm_cpuid_entry2)))
+			 nent * sizeof(struct kvm_cpuid_entry2)))
 		goto out_free;
 	cpuid->nent = nent;
 	r = 0;
@@ -1496,7 +1496,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&cpuid, cpuid_arg, sizeof cpuid))
 			goto out;
 		r = kvm_vcpu_ioctl_set_cpuid2(vcpu, &cpuid,
-				cpuid_arg->entries);
+					      cpuid_arg->entries);
 		if (r)
 			goto out;
 		break;
@@ -1509,7 +1509,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&cpuid, cpuid_arg, sizeof cpuid))
 			goto out;
 		r = kvm_vcpu_ioctl_get_cpuid2(vcpu, &cpuid,
-				cpuid_arg->entries);
+					      cpuid_arg->entries);
 		if (r)
 			goto out;
 		r = -EFAULT;
@@ -2864,7 +2864,7 @@ static int is_matching_cpuid_entry(struct kvm_cpuid_entry2 *e,
 	if ((e->flags & KVM_CPUID_FLAG_SIGNIFCANT_INDEX) && e->index != index)
 		return 0;
 	if ((e->flags & KVM_CPUID_FLAG_STATEFUL_FUNC) &&
-		!(e->flags & KVM_CPUID_FLAG_STATE_READ_NEXT))
+	    !(e->flags & KVM_CPUID_FLAG_STATE_READ_NEXT))
 		return 0;
 	return 1;
 }
@@ -2892,7 +2892,6 @@ struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 			if (!best || e->function > best->function)
 				best = e;
 	}
-
 	return best;
 }
 
