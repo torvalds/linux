@@ -784,4 +784,12 @@ static inline int ath_pci_init(void) { return 0; };
 static inline void ath_pci_exit(void) {};
 #endif
 
+#ifdef CONFIG_ATHEROS_AR71XX
+int ath_ahb_init(void);
+void ath_ahb_exit(void);
+#else
+static inline int ath_ahb_init(void) { return 0; };
+static inline void ath_ahb_exit(void) {};
+#endif
+
 #endif /* CORE_H */
