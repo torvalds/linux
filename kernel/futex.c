@@ -1733,9 +1733,8 @@ pi_faulted:
  * @head: pointer to the list-head
  * @len: length of the list-head, as userspace expects
  */
-asmlinkage long
-sys_set_robust_list(struct robust_list_head __user *head,
-		    size_t len)
+SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
+		size_t, len)
 {
 	if (!futex_cmpxchg_enabled)
 		return -ENOSYS;
@@ -1756,9 +1755,9 @@ sys_set_robust_list(struct robust_list_head __user *head,
  * @head_ptr: pointer to a list-head pointer, the kernel fills it in
  * @len_ptr: pointer to a length field, the kernel fills in the header size
  */
-asmlinkage long
-sys_get_robust_list(int pid, struct robust_list_head __user * __user *head_ptr,
-		    size_t __user *len_ptr)
+SYSCALL_DEFINE3(get_robust_list, int, pid,
+		struct robust_list_head __user * __user *, head_ptr,
+		size_t __user *, len_ptr)
 {
 	struct robust_list_head __user *head;
 	unsigned long ret;

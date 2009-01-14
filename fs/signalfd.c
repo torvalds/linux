@@ -205,8 +205,8 @@ static const struct file_operations signalfd_fops = {
 	.read		= signalfd_read,
 };
 
-asmlinkage long sys_signalfd4(int ufd, sigset_t __user *user_mask,
-			      size_t sizemask, int flags)
+SYSCALL_DEFINE4(signalfd4, int, ufd, sigset_t __user *, user_mask,
+		size_t, sizemask, int, flags)
 {
 	sigset_t sigmask;
 	struct signalfd_ctx *ctx;
@@ -259,8 +259,8 @@ asmlinkage long sys_signalfd4(int ufd, sigset_t __user *user_mask,
 	return ufd;
 }
 
-asmlinkage long sys_signalfd(int ufd, sigset_t __user *user_mask,
-			     size_t sizemask)
+SYSCALL_DEFINE3(signalfd, int, ufd, sigset_t __user *, user_mask,
+		size_t, sizemask)
 {
 	return sys_signalfd4(ufd, user_mask, sizemask, 0);
 }

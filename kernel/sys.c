@@ -1817,8 +1817,8 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 	return error;
 }
 
-asmlinkage long sys_getcpu(unsigned __user *cpup, unsigned __user *nodep,
-			   struct getcpu_cache __user *unused)
+SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
+		struct getcpu_cache __user *, unused)
 {
 	int err = 0;
 	int cpu = raw_smp_processor_id();
