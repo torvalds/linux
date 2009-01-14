@@ -170,7 +170,8 @@ out:
 	return error;
 }
 
-asmlinkage long sys_utimensat(int dfd, char __user *filename, struct timespec __user *utimes, int flags)
+SYSCALL_DEFINE4(utimensat, int, dfd, char __user *, filename,
+		struct timespec __user *, utimes, int, flags)
 {
 	struct timespec tstimes[2];
 
@@ -187,7 +188,8 @@ asmlinkage long sys_utimensat(int dfd, char __user *filename, struct timespec __
 	return do_utimes(dfd, filename, utimes ? tstimes : NULL, flags);
 }
 
-asmlinkage long sys_futimesat(int dfd, char __user *filename, struct timeval __user *utimes)
+SYSCALL_DEFINE3(futimesat, int, dfd, char __user *, filename,
+		struct timeval __user *, utimes)
 {
 	struct timeval times[2];
 	struct timespec tstimes[2];

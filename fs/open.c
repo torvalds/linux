@@ -447,7 +447,7 @@ SYSCALL_ALIAS(sys_fallocate, SyS_fallocate);
  * We do this by temporarily clearing all FS-related capabilities and
  * switching the fsuid/fsgid around to the real ones.
  */
-asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
+SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
 {
 	const struct cred *old_cred;
 	struct cred *override_cred;
@@ -628,8 +628,7 @@ out:
 	return err;
 }
 
-asmlinkage long sys_fchmodat(int dfd, const char __user *filename,
-			     mode_t mode)
+SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename, mode_t, mode)
 {
 	struct path path;
 	struct inode *inode;
@@ -707,8 +706,8 @@ out:
 	return error;
 }
 
-asmlinkage long sys_fchownat(int dfd, const char __user *filename, uid_t user,
-			     gid_t group, int flag)
+SYSCALL_DEFINE5(fchownat, int, dfd, const char __user *, filename, uid_t, user,
+		gid_t, group, int, flag)
 {
 	struct path path;
 	int error = -EINVAL;
@@ -1060,8 +1059,8 @@ SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, int, mode)
 	return ret;
 }
 
-asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
-			   int mode)
+SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, flags,
+		int, mode)
 {
 	long ret;
 

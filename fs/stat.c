@@ -260,8 +260,8 @@ SYSCALL_DEFINE2(newlstat, char __user *, filename, struct stat __user *, statbuf
 }
 
 #if !defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_SYS_NEWFSTATAT)
-asmlinkage long sys_newfstatat(int dfd, char __user *filename,
-				struct stat __user *statbuf, int flag)
+SYSCALL_DEFINE4(newfstatat, int, dfd, char __user *, filename,
+		struct stat __user *, statbuf, int, flag)
 {
 	struct kstat stat;
 	int error = -EINVAL;
@@ -293,8 +293,8 @@ SYSCALL_DEFINE2(newfstat, unsigned int, fd, struct stat __user *, statbuf)
 	return error;
 }
 
-asmlinkage long sys_readlinkat(int dfd, const char __user *pathname,
-				char __user *buf, int bufsiz)
+SYSCALL_DEFINE4(readlinkat, int, dfd, const char __user *, pathname,
+		char __user *, buf, int, bufsiz)
 {
 	struct path path;
 	int error;
@@ -400,8 +400,8 @@ SYSCALL_DEFINE2(fstat64, unsigned long, fd, struct stat64 __user *, statbuf)
 	return error;
 }
 
-asmlinkage long sys_fstatat64(int dfd, char __user *filename,
-			       struct stat64 __user *statbuf, int flag)
+SYSCALL_DEFINE4(fstatat64, int, dfd, char __user *, filename,
+		struct stat64 __user *, statbuf, int, flag)
 {
 	struct kstat stat;
 	int error = -EINVAL;
