@@ -814,9 +814,9 @@ static inline void pipelined_receive(struct mqueue_inode_info *info)
 	sender->state = STATE_READY;
 }
 
-asmlinkage long sys_mq_timedsend(mqd_t mqdes, const char __user *u_msg_ptr,
-	size_t msg_len, unsigned int msg_prio,
-	const struct timespec __user *u_abs_timeout)
+SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
+		size_t, msg_len, unsigned int, msg_prio,
+		const struct timespec __user *, u_abs_timeout)
 {
 	struct file *filp;
 	struct inode *inode;
@@ -907,9 +907,9 @@ out:
 	return ret;
 }
 
-asmlinkage long sys_mq_timedreceive(mqd_t mqdes, char __user *u_msg_ptr,
-	size_t msg_len, unsigned int __user *u_msg_prio,
-	const struct timespec __user *u_abs_timeout)
+SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes, char __user *, u_msg_ptr,
+		size_t, msg_len, unsigned int __user *, u_msg_prio,
+		const struct timespec __user *, u_abs_timeout)
 {
 	long timeout;
 	ssize_t ret;
@@ -997,8 +997,8 @@ out:
  * and he isn't currently owner of notification, will be silently discarded.
  * It isn't explicitly defined in the POSIX.
  */
-asmlinkage long sys_mq_notify(mqd_t mqdes,
-				const struct sigevent __user *u_notification)
+SYSCALL_DEFINE2(mq_notify, mqd_t, mqdes,
+		const struct sigevent __user *, u_notification)
 {
 	int ret;
 	struct file *filp;
@@ -1123,9 +1123,9 @@ out:
 	return ret;
 }
 
-asmlinkage long sys_mq_getsetattr(mqd_t mqdes,
-			const struct mq_attr __user *u_mqstat,
-			struct mq_attr __user *u_omqstat)
+SYSCALL_DEFINE3(mq_getsetattr, mqd_t, mqdes,
+		const struct mq_attr __user *, u_mqstat,
+		struct mq_attr __user *, u_omqstat)
 {
 	int ret;
 	struct mq_attr mqstat, omqstat;

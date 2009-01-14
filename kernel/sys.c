@@ -1703,8 +1703,8 @@ SYSCALL_DEFINE1(umask, int, mask)
 	return mask;
 }
 
-asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
-			  unsigned long arg4, unsigned long arg5)
+SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+		unsigned long, arg4, unsigned long, arg5)
 {
 	struct task_struct *me = current;
 	unsigned char comm[sizeof(me->comm)];
