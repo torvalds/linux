@@ -6144,7 +6144,7 @@ static void bnx2x_set_mac_addr_e1(struct bnx2x *bp, int set)
 	 * multicast 64-127:port0 128-191:port1
 	 */
 	config->hdr.length_6b = 2;
-	config->hdr.offset = port ? 31 : 0;
+	config->hdr.offset = port ? 32 : 0;
 	config->hdr.client_id = BP_CL_ID(bp);
 	config->hdr.reserved1 = 0;
 
@@ -8910,7 +8910,10 @@ static int bnx2x_test_intr(struct bnx2x *bp)
 		return -ENODEV;
 
 	config->hdr.length_6b = 0;
-	config->hdr.offset = 0;
+	if (CHIP_IS_E1(bp))
+		config->hdr.offset = (BP_PORT(bp) ? 32 : 0);
+	else
+		config->hdr.offset = BP_FUNC(bp);
 	config->hdr.client_id = BP_CL_ID(bp);
 	config->hdr.reserved1 = 0;
 
@@ -9863,7 +9866,7 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 				for (; i < old; i++) {
 					if (CAM_IS_INVALID(config->
 							   config_table[i])) {
-						i--; /* already invalidated */
+						/* already invalidated */
 						break;
 					}
 					/* invalidate */
