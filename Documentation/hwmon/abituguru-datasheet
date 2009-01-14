@@ -121,7 +121,7 @@ Once all bytes have been read data will hold 0x09, but there is no reason to
 test for this. Notice that the number of bytes is bank address dependent see
 above and below.
 
-After completing a successfull read it is advised to put the uGuru back in
+After completing a successful read it is advised to put the uGuru back in
 ready mode, so that it is ready for the next read / write cycle. This way
 if your program / driver is unloaded and later loaded again the detection
 algorithm described above will still work.
@@ -141,7 +141,7 @@ don't ask why this is the way it is.
 
 Once DATA holds 0x01 read CMD it should hold 0xAC now.
 
-After completing a successfull write it is advised to put the uGuru back in
+After completing a successful write it is advised to put the uGuru back in
 ready mode, so that it is ready for the next read / write cycle. This way
 if your program / driver is unloaded and later loaded again the detection
 algorithm described above will still work.

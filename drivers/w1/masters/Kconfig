@@ -34,6 +34,12 @@ config W1_MASTER_DS2482
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds2482.
 
+config W1_MASTER_MXC
+	tristate "Freescale MXC 1-wire busmaster"
+	depends on W1 && ARCH_MXC
+	help
+	  Say Y here to enable MXC 1-wire host
+
 config W1_MASTER_DS1WM
 	tristate "Maxim DS1WM 1-wire busmaster"
 	depends on W1 && ARM && HAVE_CLK

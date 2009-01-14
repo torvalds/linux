@@ -1313,7 +1313,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		if ((available < target) &&
 		    (len > sysctl_tcp_dma_copybreak) && !(flags & MSG_PEEK) &&
 		    !sysctl_tcp_low_latency &&
-		    __get_cpu_var(softnet_data).net_dma) {
+		    dma_find_channel(DMA_MEMCPY)) {
 			preempt_enable_no_resched();
 			tp->ucopy.pinned_list =
 					dma_pin_iovec_pages(msg->msg_iov, len);
@@ -1523,7 +1523,7 @@ do_prequeue:
 		if (!(flags & MSG_TRUNC)) {
 #ifdef CONFIG_NET_DMA
 			if (!tp->ucopy.dma_chan && tp->ucopy.pinned_list)
-				tp->ucopy.dma_chan = get_softnet_dma();
+				tp->ucopy.dma_chan = dma_find_channel(DMA_MEMCPY);
 
 			if (tp->ucopy.dma_chan) {
 				tp->ucopy.dma_cookie = dma_skb_copy_datagram_iovec(
@@ -1628,7 +1628,6 @@ skip_copy:
 
 		/* Safe to free early-copied skbs now */
 		__skb_queue_purge(&sk->sk_async_wait_queue);
-		dma_chan_put(tp->ucopy.dma_chan);
 		tp->ucopy.dma_chan = NULL;
 	}
 	if (tp->ucopy.pinned_list) {
@@ -2542,6 +2541,7 @@ out:
 
 	return pp;
 }
+EXPORT_SYMBOL(tcp_gro_receive);
 
 int tcp_gro_complete(struct sk_buff *skb)
 {
@@ -2558,6 +2558,7 @@ int tcp_gro_complete(struct sk_buff *skb)
 
 	return 0;
 }
+EXPORT_SYMBOL(tcp_gro_complete);
 
 #ifdef CONFIG_TCP_MD5SIG
 static unsigned long tcp_md5sig_users;

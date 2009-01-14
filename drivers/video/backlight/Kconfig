@@ -52,11 +52,11 @@ config LCD_ILI9320
 	  then say y to include a power driver for it.
 
 config LCD_TDO24M
-	tristate "Toppoly TDO24M LCD Panels support"
+	tristate "Toppoly TDO24M  and TDO35S LCD Panels support"
 	depends on LCD_CLASS_DEVICE && SPI_MASTER
 	default n
 	help
-	  If you have a Toppoly TDO24M series LCD panel, say y here to
+	  If you have a Toppoly TDO24M/TDO35S series LCD panel, say y here to
 	  include the support for it.
 
 config LCD_VGG2432A4
@@ -123,17 +123,14 @@ config BACKLIGHT_ATMEL_PWM
 	  To compile this driver as a module, choose M here: the module will be
 	  called atmel-pwm-bl.
 
-config BACKLIGHT_CORGI
-	tristate "Generic (aka Sharp Corgi) Backlight Driver (DEPRECATED)"
+config BACKLIGHT_GENERIC
+	tristate "Generic (aka Sharp Corgi) Backlight Driver"
 	depends on BACKLIGHT_CLASS_DEVICE
-	default n
+	default y
 	help
 	  Say y to enable the generic platform backlight driver previously
 	  known as the Corgi backlight driver. If you have a Sharp Zaurus
-	  SL-C7xx, SL-Cxx00 or SL-6000x say y. Most users can say n.
-
-	  Note: this driver is marked as deprecated, try enable SPI and
-	  use the new corgi_lcd driver with integrated backlight control
+	  SL-C7xx, SL-Cxx00 or SL-6000x say y.
 
 config BACKLIGHT_LOCOMO
 	tristate "Sharp LOCOMO LCD/Backlight Driver"

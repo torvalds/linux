@@ -289,9 +289,9 @@ restart:
 
 	do {
 		struct net_device *slave = qdisc_dev(q);
-		struct netdev_queue *slave_txq;
+		struct netdev_queue *slave_txq = netdev_get_tx_queue(slave, 0);
+		const struct net_device_ops *slave_ops = slave->netdev_ops;
 
-		slave_txq = netdev_get_tx_queue(slave, 0);
 		if (slave_txq->qdisc_sleeping != q)
 			continue;
 		if (__netif_subqueue_stopped(slave, subq) ||
@@ -305,7 +305,7 @@ restart:
 			if (__netif_tx_trylock(slave_txq)) {
 				if (!netif_tx_queue_stopped(slave_txq) &&
 				    !netif_tx_queue_frozen(slave_txq) &&
-				    slave->hard_start_xmit(skb, slave) == 0) {
+				    slave_ops->ndo_start_xmit(skb, slave) == 0) {
 					__netif_tx_unlock(slave_txq);
 					master->slaves = NEXT_SLAVE(q);
 					netif_wake_queue(dev);
@@ -420,6 +420,14 @@ static int teql_master_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static const struct net_device_ops teql_netdev_ops = {
+	.ndo_open	= teql_master_open,
+	.ndo_stop	= teql_master_close,
+	.ndo_start_xmit	= teql_master_xmit,
+	.ndo_get_stats	= teql_master_stats,
+	.ndo_change_mtu	= teql_master_mtu,
+};
+
 static __init void teql_master_setup(struct net_device *dev)
 {
 	struct teql_master *master = netdev_priv(dev);
@@ -436,11 +444,7 @@ static __init void teql_master_setup(struct net_device *dev)
 	ops->destroy	=	teql_destroy;
 	ops->owner	=	THIS_MODULE;
 
-	dev->open		= teql_master_open;
-	dev->hard_start_xmit	= teql_master_xmit;
-	dev->stop		= teql_master_close;
-	dev->get_stats		= teql_master_stats;
-	dev->change_mtu		= teql_master_mtu;
+	dev->netdev_ops =       &teql_netdev_ops;
 	dev->type		= ARPHRD_VOID;
 	dev->mtu		= 1500;
 	dev->tx_queue_len	= 100;

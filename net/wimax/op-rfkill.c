@@ -71,7 +71,7 @@
 #define D_SUBMODULE op_rfkill
 #include "debug-levels.h"
 
-#ifdef CONFIG_RFKILL
+#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 
 
 /**

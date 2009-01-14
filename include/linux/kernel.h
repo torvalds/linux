@@ -476,6 +476,12 @@ static inline char *pack_hex_byte(char *buf, u8 byte)
 	__val = __val < __min ? __min: __val;	\
 	__val > __max ? __max: __val; })
 
+
+/*
+ * swap - swap value of @a and @b
+ */
+#define swap(a, b) ({ typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; })
+
 /**
  * container_of - cast a member of a structure out to the containing structure
  * @ptr:	the pointer to the member.

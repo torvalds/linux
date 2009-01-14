@@ -60,7 +60,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	unsigned long cycles_elapsed, ticks_elapsed;
 	unsigned long cycles_remainder;
 	unsigned int cpu = smp_processor_id();
-	struct cpuinfo_parisc *cpuinfo = &cpu_data[cpu];
+	struct cpuinfo_parisc *cpuinfo = &per_cpu(cpu_data, cpu);
 
 	/* gcc can optimize for "read-only" case with a local clocktick */
 	unsigned long cpt = clocktick;
@@ -213,7 +213,7 @@ void __init start_cpu_itimer(void)
 
 	mtctl(next_tick, 16);		/* kick off Interval Timer (CR16) */
 
-	cpu_data[cpu].it_value = next_tick;
+	per_cpu(cpu_data, cpu).it_value = next_tick;
 }
 
 struct platform_device rtc_parisc_dev = {

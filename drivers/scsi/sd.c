@@ -1830,7 +1830,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 	device_initialize(&sdkp->dev);
 	sdkp->dev.parent = &sdp->sdev_gendev;
 	sdkp->dev.class = &sd_disk_class;
-	strncpy(sdkp->dev.bus_id, sdp->sdev_gendev.bus_id, BUS_ID_SIZE);
+	dev_set_name(&sdkp->dev, dev_name(&sdp->sdev_gendev));
 
 	if (device_add(&sdkp->dev))
 		goto out_free_index;

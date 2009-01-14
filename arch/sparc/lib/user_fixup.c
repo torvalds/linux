@@ -7,6 +7,8 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/module.h>
+
 #include <asm/uaccess.h>
 
 /* Calculating the exact fault address when using
@@ -40,6 +42,7 @@ unsigned long copy_from_user_fixup(void *to, const void __user *from, unsigned l
 
 	return size;
 }
+EXPORT_SYMBOL(copy_from_user_fixup);
 
 unsigned long copy_to_user_fixup(void __user *to, const void *from, unsigned long size)
 {
@@ -47,6 +50,7 @@ unsigned long copy_to_user_fixup(void __user *to, const void *from, unsigned lon
 
 	return compute_size((unsigned long) to, size, &offset);
 }
+EXPORT_SYMBOL(copy_to_user_fixup);
 
 unsigned long copy_in_user_fixup(void __user *to, void __user *from, unsigned long size)
 {
@@ -64,3 +68,4 @@ unsigned long copy_in_user_fixup(void __user *to, void __user *from, unsigned lo
 
 	return size;
 }
+EXPORT_SYMBOL(copy_in_user_fixup);

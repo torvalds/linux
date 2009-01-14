@@ -11,15 +11,15 @@
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
 #include <linux/bitops.h>
+#include <linux/acpi.h>
+#include <linux/io.h>
+#include <linux/delay.h>
 
-#include <asm/acpi.h>
 #include <asm/atomic.h>
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/timer.h>
 #include <asm/hw_irq.h>
 #include <asm/pgtable.h>
-#include <asm/delay.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
 #include <asm/arch_hooks.h>
@@ -323,7 +323,7 @@ void init_8259A(int auto_eoi)
 	outb_pic(0x11, PIC_MASTER_CMD);	/* ICW1: select 8259A-1 init */
 
 	/* ICW2: 8259A-1 IR0-7 mapped to 0x30-0x37 on x86-64,
-	                       to 0x20-0x27 on i386 */
+	   to 0x20-0x27 on i386 */
 	outb_pic(IRQ0_VECTOR, PIC_MASTER_IMR);
 
 	/* 8259A-1 (the master) has a slave on IR2 */

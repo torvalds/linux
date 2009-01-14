@@ -121,20 +121,6 @@ static void remove_migration_pte(struct vm_area_struct *vma,
 	if (!is_migration_entry(entry) || migration_entry_to_page(entry) != old)
 		goto out;
 
-	/*
-	 * Yes, ignore the return value from a GFP_ATOMIC mem_cgroup_charge.
-	 * Failure is not an option here: we're now expected to remove every
-	 * migration pte, and will cause crashes otherwise.  Normally this
-	 * is not an issue: mem_cgroup_prepare_migration bumped up the old
-	 * page_cgroup count for safety, that's now attached to the new page,
-	 * so this charge should just be another incrementation of the count,
-	 * to keep in balance with rmap.c's mem_cgroup_uncharging.  But if
-	 * there's been a force_empty, those reference counts may no longer
-	 * be reliable, and this charge can actually fail: oh well, we don't
-	 * make the situation any worse by proceeding as if it had succeeded.
-	 */
-	mem_cgroup_charge(new, mm, GFP_ATOMIC);
-
 	get_page(new);
 	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
 	if (is_write_migration_entry(entry))
@@ -378,9 +364,6 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 	anon = PageAnon(page);
 	page->mapping = NULL;
 
-	if (!anon) /* This page was removed from radix-tree. */
-		mem_cgroup_uncharge_cache_page(page);
-
 	/*
 	 * If any waiters have accumulated on the new page then
 	 * wake them up.
@@ -614,6 +597,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 	struct page *newpage = get_new_page(page, private, &result);
 	int rcu_locked = 0;
 	int charge = 0;
+	struct mem_cgroup *mem;
 
 	if (!newpage)
 		return -ENOMEM;
@@ -623,24 +607,26 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 		goto move_newpage;
 	}
 
-	charge = mem_cgroup_prepare_migration(page, newpage);
-	if (charge == -ENOMEM) {
-		rc = -ENOMEM;
-		goto move_newpage;
-	}
 	/* prepare cgroup just returns 0 or -ENOMEM */
-	BUG_ON(charge);
-
 	rc = -EAGAIN;
+
 	if (!trylock_page(page)) {
 		if (!force)
 			goto move_newpage;
 		lock_page(page);
 	}
 
+	/* charge against new page */
+	charge = mem_cgroup_prepare_migration(page, &mem);
+	if (charge == -ENOMEM) {
+		rc = -ENOMEM;
+		goto unlock;
+	}
+	BUG_ON(charge);
+
 	if (PageWriteback(page)) {
 		if (!force)
-			goto unlock;
+			goto uncharge;
 		wait_on_page_writeback(page);
 	}
 	/*
@@ -693,7 +679,9 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 rcu_unlock:
 	if (rcu_locked)
 		rcu_read_unlock();
-
+uncharge:
+	if (!charge)
+		mem_cgroup_end_migration(mem, page, newpage);
 unlock:
 	unlock_page(page);
 
@@ -709,8 +697,6 @@ unlock:
 	}
 
 move_newpage:
-	if (!charge)
-		mem_cgroup_end_migration(newpage);
 
 	/*
 	 * Move the new page to the LRU. If migration was not successful

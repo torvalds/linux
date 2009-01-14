@@ -47,7 +47,7 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <asm/plat-s3c24xx/mci.h>
+#include <plat/mci.h>
 
 static struct map_desc at2440evb_iodesc[] __initdata = {
 	/* Nothing here */

@@ -28,6 +28,7 @@ add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l)
 {
 	list_add(&page->lru, &zone->lru[l].list);
 	__inc_zone_state(zone, NR_LRU_BASE + l);
+	mem_cgroup_add_lru_list(page, l);
 }
 
 static inline void
@@ -35,6 +36,7 @@ del_page_from_lru_list(struct zone *zone, struct page *page, enum lru_list l)
 {
 	list_del(&page->lru);
 	__dec_zone_state(zone, NR_LRU_BASE + l);
+	mem_cgroup_del_lru_list(page, l);
 }
 
 static inline void
@@ -54,6 +56,7 @@ del_page_from_lru(struct zone *zone, struct page *page)
 		l += page_is_file_cache(page);
 	}
 	__dec_zone_state(zone, NR_LRU_BASE + l);
+	mem_cgroup_del_lru_list(page, l);
 }
 
 /**
@@ -78,23 +81,4 @@ static inline enum lru_list page_lru(struct page *page)
 	return lru;
 }
 
-/**
- * inactive_anon_is_low - check if anonymous pages need to be deactivated
- * @zone: zone to check
- *
- * Returns true if the zone does not have enough inactive anon pages,
- * meaning some active anon pages need to be deactivated.
- */
-static inline int inactive_anon_is_low(struct zone *zone)
-{
-	unsigned long active, inactive;
-
-	active = zone_page_state(zone, NR_ACTIVE_ANON);
-	inactive = zone_page_state(zone, NR_INACTIVE_ANON);
-
-	if (inactive * zone->inactive_ratio < active)
-		return 1;
-
-	return 0;
-}
 #endif

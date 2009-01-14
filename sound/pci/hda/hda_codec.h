@@ -614,6 +614,7 @@ struct hda_bus {
 
 	/* unsolicited event queue */
 	struct hda_bus_unsolicited *unsol;
+	struct workqueue_struct *workq;	/* common workqueue for codecs */
 
 	/* assigned PCMs */
 	DECLARE_BITMAP(pcm_dev_bits, SNDRV_PCM_DEVICES);
@@ -771,6 +772,7 @@ struct hda_codec {
 	struct hda_cache_rec cmd_cache;	/* cache for other commands */
 
 	struct mutex spdif_mutex;
+	struct mutex control_mutex;
 	unsigned int spdif_status;	/* IEC958 status bits */
 	unsigned short spdif_ctls;	/* SPDIF control bits */
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */

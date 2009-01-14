@@ -458,7 +458,6 @@ void sync_filesystems(int wait)
 		if (sb->s_flags & MS_RDONLY)
 			continue;
 		sb->s_need_sync_fs = 1;
-		async_synchronize_full_special(&sb->s_async_list);
 	}
 
 restart:
@@ -471,6 +470,7 @@ restart:
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 		down_read(&sb->s_umount);
+		async_synchronize_full_special(&sb->s_async_list);
 		if (sb->s_root && (wait || sb->s_dirt))
 			sb->s_op->sync_fs(sb, wait);
 		up_read(&sb->s_umount);
@@ -810,6 +810,7 @@ int get_sb_bdev(struct file_system_type *fs_type,
 		}
 
 		s->s_flags |= MS_ACTIVE;
+		bdev->bd_super = s;
 	}
 
 	return simple_set_mnt(mnt, s);
@@ -829,6 +830,7 @@ void kill_block_super(struct super_block *sb)
 	struct block_device *bdev = sb->s_bdev;
 	fmode_t mode = sb->s_mode;
 
+	bdev->bd_super = 0;
 	generic_shutdown_super(sb);
 	sync_blockdev(bdev);
 	close_bdev_exclusive(bdev, mode);

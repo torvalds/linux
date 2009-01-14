@@ -37,6 +37,8 @@ fw-shipped-$(CONFIG_CHELSIO_T3) += cxgb3/t3b_psram-1.1.0.bin \
 				   cxgb3/t3c_psram-1.1.0.bin \
 				   cxgb3/t3fw-7.0.0.bin
 fw-shipped-$(CONFIG_DVB_TTUSB_BUDGET) += ttusb-budget/dspbootcode.bin
+fw-shipped-$(CONFIG_E100) += e100/d101m_ucode.bin e100/d101s_ucode.bin \
+			     e100/d102e_ucode.bin
 fw-shipped-$(CONFIG_SMCTR) += tr_smctr.bin
 fw-shipped-$(CONFIG_SND_KORG1212) += korg/k1212.dsp
 fw-shipped-$(CONFIG_SND_MAESTRO3) += ess/maestro3_assp_kernel.fw \
@@ -76,7 +78,8 @@ fw-shipped- += keyspan/mpr.fw keyspan/usa18x.fw keyspan/usa19.fw	\
 	keyspan/usa28.fw keyspan/usa28xa.fw keyspan/usa28xb.fw		\
 	keyspan/usa28x.fw keyspan/usa49w.fw keyspan/usa49wlc.fw
 endif
-fw-shipped-$(CONFIG_USB_SERIAL_TI) += ti_3410.fw ti_5052.fw
+fw-shipped-$(CONFIG_USB_SERIAL_TI) += ti_3410.fw ti_5052.fw \
+				      mts_cdma.fw mts_gsm.fw mts_edge.fw
 fw-shipped-$(CONFIG_USB_SERIAL_EDGEPORT) += edgeport/boot.fw edgeport/boot2.fw \
 					    edgeport/down.fw edgeport/down2.fw
 fw-shipped-$(CONFIG_USB_SERIAL_EDGEPORT_TI) += edgeport/down3.bin

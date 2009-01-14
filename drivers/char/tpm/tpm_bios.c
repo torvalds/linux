@@ -23,8 +23,6 @@
 #include <linux/security.h>
 #include <linux/module.h>
 #include <acpi/acpi.h>
-#include <acpi/actypes.h>
-#include <acpi/actbl.h>
 #include "tpm.h"
 
 #define TCG_EVENT_NAME_LEN_MAX	255

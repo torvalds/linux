@@ -31,8 +31,6 @@
 
 #include <asm/mach-au1x00/au1000.h>
 
-extern int au_sleep(void);
-
 void au1000_restart(char *command)
 {
 	/* Set all integrated peripherals to disabled states */

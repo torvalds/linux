@@ -291,14 +291,14 @@ static void vlsi_proc_ndev(struct seq_file *seq, struct net_device *ndev)
 		now.tv_sec - idev->last_rx.tv_sec - delta1, delta2);	
 
 	seq_printf(seq, "RX: packets=%lu / bytes=%lu / errors=%lu / dropped=%lu",
-		idev->stats.rx_packets, idev->stats.rx_bytes, idev->stats.rx_errors,
-		idev->stats.rx_dropped);
+		ndev->stats.rx_packets, ndev->stats.rx_bytes, ndev->stats.rx_errors,
+		ndev->stats.rx_dropped);
 	seq_printf(seq, " / overrun=%lu / length=%lu / frame=%lu / crc=%lu\n",
-		idev->stats.rx_over_errors, idev->stats.rx_length_errors,
-		idev->stats.rx_frame_errors, idev->stats.rx_crc_errors);
+		ndev->stats.rx_over_errors, ndev->stats.rx_length_errors,
+		ndev->stats.rx_frame_errors, ndev->stats.rx_crc_errors);
 	seq_printf(seq, "TX: packets=%lu / bytes=%lu / errors=%lu / dropped=%lu / fifo=%lu\n",
-		idev->stats.tx_packets, idev->stats.tx_bytes, idev->stats.tx_errors,
-		idev->stats.tx_dropped, idev->stats.tx_fifo_errors);
+		ndev->stats.tx_packets, ndev->stats.tx_bytes, ndev->stats.tx_errors,
+		ndev->stats.tx_dropped, ndev->stats.tx_fifo_errors);
 
 }
 		
@@ -651,21 +651,21 @@ static void vlsi_rx_interrupt(struct net_device *ndev)
 
 		if (ret < 0) {
 			ret = -ret;
-			idev->stats.rx_errors++;
+			ndev->stats.rx_errors++;
 			if (ret & VLSI_RX_DROP)  
-				idev->stats.rx_dropped++;
+				ndev->stats.rx_dropped++;
 			if (ret & VLSI_RX_OVER)  
-				idev->stats.rx_over_errors++;
+				ndev->stats.rx_over_errors++;
 			if (ret & VLSI_RX_LENGTH)  
-				idev->stats.rx_length_errors++;
+				ndev->stats.rx_length_errors++;
 			if (ret & VLSI_RX_FRAME)  
-				idev->stats.rx_frame_errors++;
+				ndev->stats.rx_frame_errors++;
 			if (ret & VLSI_RX_CRC)  
-				idev->stats.rx_crc_errors++;
+				ndev->stats.rx_crc_errors++;
 		}
 		else if (ret > 0) {
-			idev->stats.rx_packets++;
-			idev->stats.rx_bytes += ret;
+			ndev->stats.rx_packets++;
+			ndev->stats.rx_bytes += ret;
 		}
 	}
 
@@ -686,6 +686,7 @@ static void vlsi_rx_interrupt(struct net_device *ndev)
 
 static void vlsi_unarm_rx(vlsi_irda_dev_t *idev)
 {
+	struct net_device *ndev = pci_get_drvdata(idev->pdev);
 	struct vlsi_ring *r = idev->rx_ring;
 	struct ring_descr *rd;
 	int ret;
@@ -711,21 +712,21 @@ static void vlsi_unarm_rx(vlsi_irda_dev_t *idev)
 
 		if (ret < 0) {
 			ret = -ret;
-			idev->stats.rx_errors++;
+			ndev->stats.rx_errors++;
 			if (ret & VLSI_RX_DROP)  
-				idev->stats.rx_dropped++;
+				ndev->stats.rx_dropped++;
 			if (ret & VLSI_RX_OVER)  
-				idev->stats.rx_over_errors++;
+				ndev->stats.rx_over_errors++;
 			if (ret & VLSI_RX_LENGTH)  
-				idev->stats.rx_length_errors++;
+				ndev->stats.rx_length_errors++;
 			if (ret & VLSI_RX_FRAME)  
-				idev->stats.rx_frame_errors++;
+				ndev->stats.rx_frame_errors++;
 			if (ret & VLSI_RX_CRC)  
-				idev->stats.rx_crc_errors++;
+				ndev->stats.rx_crc_errors++;
 		}
 		else if (ret > 0) {
-			idev->stats.rx_packets++;
-			idev->stats.rx_bytes += ret;
+			ndev->stats.rx_packets++;
+			ndev->stats.rx_bytes += ret;
 		}
 	}
 }
@@ -1050,8 +1051,8 @@ drop_unlock:
 drop:
 	IRDA_WARNING("%s: dropping packet - %s\n", __func__, msg);
 	dev_kfree_skb_any(skb);
-	idev->stats.tx_errors++;
-	idev->stats.tx_dropped++;
+	ndev->stats.tx_errors++;
+	ndev->stats.tx_dropped++;
 	/* Don't even think about returning NET_XMIT_DROP (=1) here!
 	 * In fact any retval!=0 causes the packet scheduler to requeue the
 	 * packet for later retry of transmission - which isn't exactly
@@ -1078,15 +1079,15 @@ static void vlsi_tx_interrupt(struct net_device *ndev)
 
 		if (ret < 0) {
 			ret = -ret;
-			idev->stats.tx_errors++;
+			ndev->stats.tx_errors++;
 			if (ret & VLSI_TX_DROP)
-				idev->stats.tx_dropped++;
+				ndev->stats.tx_dropped++;
 			if (ret & VLSI_TX_FIFO)
-				idev->stats.tx_fifo_errors++;
+				ndev->stats.tx_fifo_errors++;
 		}
 		else if (ret > 0){
-			idev->stats.tx_packets++;
-			idev->stats.tx_bytes += ret;
+			ndev->stats.tx_packets++;
+			ndev->stats.tx_bytes += ret;
 		}
 	}
 
@@ -1122,6 +1123,7 @@ static void vlsi_tx_interrupt(struct net_device *ndev)
 
 static void vlsi_unarm_tx(vlsi_irda_dev_t *idev)
 {
+	struct net_device *ndev = pci_get_drvdata(idev->pdev);
 	struct vlsi_ring *r = idev->tx_ring;
 	struct ring_descr *rd;
 	int ret;
@@ -1145,15 +1147,15 @@ static void vlsi_unarm_tx(vlsi_irda_dev_t *idev)
 
 		if (ret < 0) {
 			ret = -ret;
-			idev->stats.tx_errors++;
+			ndev->stats.tx_errors++;
 			if (ret & VLSI_TX_DROP)
-				idev->stats.tx_dropped++;
+				ndev->stats.tx_dropped++;
 			if (ret & VLSI_TX_FIFO)
-				idev->stats.tx_fifo_errors++;
+				ndev->stats.tx_fifo_errors++;
 		}
 		else if (ret > 0){
-			idev->stats.tx_packets++;
-			idev->stats.tx_bytes += ret;
+			ndev->stats.tx_packets++;
+			ndev->stats.tx_bytes += ret;
 		}
 	}
 
@@ -1372,13 +1374,6 @@ static int vlsi_stop_hw(vlsi_irda_dev_t *idev)
 }
 
 /**************************************************************/
-
-static struct net_device_stats * vlsi_get_stats(struct net_device *ndev)
-{
-	vlsi_irda_dev_t *idev = netdev_priv(ndev);
-
-	return &idev->stats;
-}
 
 static void vlsi_tx_timeout(struct net_device *ndev)
 {
@@ -1615,7 +1610,6 @@ static int vlsi_irda_init(struct net_device *ndev)
  
 	ndev->open	      = vlsi_open;
 	ndev->stop	      = vlsi_close;
-	ndev->get_stats	      = vlsi_get_stats;
 	ndev->hard_start_xmit = vlsi_hard_start_xmit;
 	ndev->do_ioctl	      = vlsi_ioctl;
 	ndev->tx_timeout      = vlsi_tx_timeout;

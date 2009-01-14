@@ -43,7 +43,6 @@ extern unsigned long bvme6000_gettimeoffset (void);
 extern int bvme6000_hwclk (int, struct rtc_time *);
 extern int bvme6000_set_clock_mmss (unsigned long);
 extern void bvme6000_reset (void);
-extern void bvme6000_waitbut(void);
 void bvme6000_set_vectors (void);
 
 /* Save tick handler routine pointer, will point to do_timer() in

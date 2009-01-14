@@ -122,7 +122,7 @@ struct map_info redwood_flash_map = {
 
 static struct mtd_info *redwood_mtd;
 
-int __init init_redwood_flash(void)
+static int __init init_redwood_flash(void)
 {
 	int err;
 

@@ -31,7 +31,7 @@ typedef unsigned long long ext4_fsblk_t;
 typedef __u32 ext4_lblk_t;
 
 /* data type for block group number */
-typedef unsigned long ext4_group_t;
+typedef unsigned int ext4_group_t;
 
 #define rsv_start rsv_window._rsv_start
 #define rsv_end rsv_window._rsv_end
@@ -100,9 +100,6 @@ struct ext4_inode_info {
 	 */
 	loff_t	i_disksize;
 
-	/* on-disk additional length */
-	__u16 i_extra_isize;
-
 	/*
 	 * i_data_sem is for serialising ext4_truncate() against
 	 * ext4_getblock().  In the 2.4 ext2 design, great chunks of inode's
@@ -117,7 +114,6 @@ struct ext4_inode_info {
 	struct inode vfs_inode;
 	struct jbd2_inode jinode;
 
-	unsigned long i_ext_generation;
 	struct ext4_ext_cache i_cached_extent;
 	/*
 	 * File creation time. Its function is same as that of
@@ -130,10 +126,14 @@ struct ext4_inode_info {
 	spinlock_t i_prealloc_lock;
 
 	/* allocation reservation info for delalloc */
-	unsigned long i_reserved_data_blocks;
-	unsigned long i_reserved_meta_blocks;
-	unsigned long i_allocated_meta_blocks;
+	unsigned int i_reserved_data_blocks;
+	unsigned int i_reserved_meta_blocks;
+	unsigned int i_allocated_meta_blocks;
 	unsigned short i_delalloc_reserved_flag;
+
+	/* on-disk additional length */
+	__u16 i_extra_isize;
+
 	spinlock_t i_block_reservation_lock;
 };
 

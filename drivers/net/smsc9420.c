@@ -1551,6 +1551,7 @@ static const struct net_device_ops smsc9420_netdev_ops = {
 	.ndo_set_multicast_list	= smsc9420_set_multicast_list,
 	.ndo_do_ioctl		= smsc9420_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= smsc9420_poll_controller,
 #endif /* CONFIG_NET_POLL_CONTROLLER */

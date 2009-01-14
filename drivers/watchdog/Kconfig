@@ -770,6 +770,12 @@ config TXX9_WDT
 
 # POWERPC Architecture
 
+config GEF_WDT
+	tristate "GE Fanuc Watchdog Timer"
+	depends on GEF_SBC610
+	---help---
+	  Watchdog timer found in a number of GE Fanuc single board computers.
+
 config MPC5200_WDT
 	tristate "MPC5200 Watchdog Timer"
 	depends on PPC_MPC52xx
@@ -789,6 +795,14 @@ config 8xxx_WDT
 config MV64X60_WDT
 	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"
 	depends on MV64X60
+
+config PIKA_WDT
+	tristate "PIKA FPGA Watchdog"
+	depends on WARP
+	default y
+	help
+	  This enables the watchdog in the PIKA FPGA. Currently used on
+	  the Warp platform.
 
 config BOOKE_WDT
 	bool "PowerPC Book-E Watchdog Timer"
