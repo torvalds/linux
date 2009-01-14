@@ -2014,8 +2014,8 @@ int sigprocmask(int how, sigset_t *set, sigset_t *oldset)
 	return error;
 }
 
-asmlinkage long
-sys_rt_sigprocmask(int how, sigset_t __user *set, sigset_t __user *oset, size_t sigsetsize)
+SYSCALL_DEFINE4(rt_sigprocmask, int, how, sigset_t __user *, set,
+		sigset_t __user *, oset, size_t, sigsetsize)
 {
 	int error = -EINVAL;
 	sigset_t old_set, new_set;
@@ -2074,8 +2074,7 @@ out:
 	return error;
 }	
 
-asmlinkage long
-sys_rt_sigpending(sigset_t __user *set, size_t sigsetsize)
+SYSCALL_DEFINE2(rt_sigpending, sigset_t __user *, set, size_t, sigsetsize)
 {
 	return do_sigpending(set, sigsetsize);
 }
@@ -2146,11 +2145,9 @@ int copy_siginfo_to_user(siginfo_t __user *to, siginfo_t *from)
 
 #endif
 
-asmlinkage long
-sys_rt_sigtimedwait(const sigset_t __user *uthese,
-		    siginfo_t __user *uinfo,
-		    const struct timespec __user *uts,
-		    size_t sigsetsize)
+SYSCALL_DEFINE4(rt_sigtimedwait, const sigset_t __user *, uthese,
+		siginfo_t __user *, uinfo, const struct timespec __user *, uts,
+		size_t, sigsetsize)
 {
 	int ret, sig;
 	sigset_t these;
@@ -2223,8 +2220,7 @@ sys_rt_sigtimedwait(const sigset_t __user *uthese,
 	return ret;
 }
 
-asmlinkage long
-sys_kill(pid_t pid, int sig)
+SYSCALL_DEFINE2(kill, pid_t, pid, int, sig)
 {
 	struct siginfo info;
 

@@ -1754,9 +1754,8 @@ end:
 	return retval;
 }
 
-asmlinkage long sys_waitid(int which, pid_t upid,
-			   struct siginfo __user *infop, int options,
-			   struct rusage __user *ru)
+SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
+		infop, int, options, struct rusage __user *, ru)
 {
 	struct pid *pid = NULL;
 	enum pid_type type;
@@ -1833,7 +1832,7 @@ SYSCALL_DEFINE4(wait4, pid_t, upid, int __user *, stat_addr,
  * sys_waitpid() remains for compatibility. waitpid() should be
  * implemented by calling sys_wait4() from libc.a.
  */
-asmlinkage long sys_waitpid(pid_t pid, int __user *stat_addr, int options)
+SYSCALL_DEFINE3(waitpid, pid_t, pid, int __user *, stat_addr, int, options)
 {
 	return sys_wait4(pid, stat_addr, options, NULL);
 }

@@ -1978,9 +1978,9 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 }
 
 
-asmlinkage long sys_futex(u32 __user *uaddr, int op, u32 val,
-			  struct timespec __user *utime, u32 __user *uaddr2,
-			  u32 val3)
+SYSCALL_DEFINE6(futex, u32 __user *, uaddr, int, op, u32, val,
+		struct timespec __user *, utime, u32 __user *, uaddr2,
+		u32, val3)
 {
 	struct timespec ts;
 	ktime_t t, *tp = NULL;

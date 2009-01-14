@@ -5869,7 +5869,7 @@ SYSCALL_DEFINE1(sched_get_priority_min, int, policy)
  * this syscall writes the default timeslice value of a given process
  * into the user-space timespec buffer. A value of '0' means infinity.
  */
-SYSCALL_DEFINE4(sched_rr_get_interval, pid_t, pid,
+SYSCALL_DEFINE2(sched_rr_get_interval, pid_t, pid,
 		struct timespec __user *, interval)
 {
 	struct task_struct *p;

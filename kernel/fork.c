@@ -901,7 +901,7 @@ static void copy_flags(unsigned long clone_flags, struct task_struct *p)
 	clear_freeze_flag(p);
 }
 
-asmlinkage long sys_set_tid_address(int __user *tidptr)
+SYSCALL_DEFINE1(set_tid_address, int __user *, tidptr)
 {
 	current->clear_child_tid = tidptr;
 
