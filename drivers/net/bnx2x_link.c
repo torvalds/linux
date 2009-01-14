@@ -4404,10 +4404,11 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 			      ext_phy_addr[port],
 			      MDIO_PMA_DEVAD,
 			      MDIO_PMA_REG_ROM_VER1, &fw_ver1);
-		if (fw_ver1 == 0) {
+		if (fw_ver1 == 0 || fw_ver1 == 0x4321) {
 			DP(NETIF_MSG_LINK,
-				 "bnx2x_8073_common_init_phy port %x "
-				 "fw Download failed\n", port);
+				 "bnx2x_8073_common_init_phy port %x:"
+				 "Download failed. fw version = 0x%x\n",
+				 port, fw_ver1);
 			return -EINVAL;
 		}
 
