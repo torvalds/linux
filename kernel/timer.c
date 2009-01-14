@@ -1400,7 +1400,7 @@ out:
 	return 0;
 }
 
-asmlinkage long sys_sysinfo(struct sysinfo __user *info)
+SYSCALL_DEFINE1(sysinfo, struct sysinfo __user *, info)
 {
 	struct sysinfo val;
 

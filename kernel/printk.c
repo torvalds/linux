@@ -382,7 +382,7 @@ out:
 	return error;
 }
 
-asmlinkage long sys_syslog(int type, char __user *buf, int len)
+SYSCALL_DEFINE3(syslog, int, type, char __user *, buf, int, len)
 {
 	return do_syslog(type, buf, len);
 }
