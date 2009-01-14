@@ -1961,7 +1961,7 @@ EXPORT_SYMBOL(unblock_all_signals);
  * System call entry points.
  */
 
-asmlinkage long sys_restart_syscall(void)
+SYSCALL_DEFINE0(restart_syscall)
 {
 	struct restart_block *restart = &current_thread_info()->restart_block;
 	return restart->fn(restart);

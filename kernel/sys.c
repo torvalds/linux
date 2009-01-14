@@ -143,7 +143,7 @@ out:
 	return error;
 }
 
-asmlinkage long sys_setpriority(int which, int who, int niceval)
+SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
 {
 	struct task_struct *g, *p;
 	struct user_struct *user;
@@ -208,7 +208,7 @@ out:
  * has been offset by 20 (ie it returns 40..1 instead of -20..19)
  * to stay compatible.
  */
-asmlinkage long sys_getpriority(int which, int who)
+SYSCALL_DEFINE2(getpriority, int, which, int, who)
 {
 	struct task_struct *g, *p;
 	struct user_struct *user;
@@ -355,7 +355,8 @@ EXPORT_SYMBOL_GPL(kernel_power_off);
  *
  * reboot doesn't sync: do that yourself before calling this.
  */
-asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user * arg)
+SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
+		void __user *, arg)
 {
 	char buffer[256];
 

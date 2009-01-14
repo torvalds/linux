@@ -1141,7 +1141,7 @@ NORET_TYPE void complete_and_exit(struct completion *comp, long code)
 
 EXPORT_SYMBOL(complete_and_exit);
 
-asmlinkage long sys_exit(int error_code)
+SYSCALL_DEFINE1(exit, int, error_code)
 {
 	do_exit((error_code&0xff)<<8);
 }
@@ -1182,7 +1182,7 @@ do_group_exit(int exit_code)
  * wait4()-ing process will get the correct exit code - even if this
  * thread is not the thread group leader.
  */
-asmlinkage long sys_exit_group(int error_code)
+SYSCALL_DEFINE1(exit_group, int, error_code)
 {
 	do_group_exit((error_code & 0xff) << 8);
 	/* NOTREACHED */
@@ -1795,8 +1795,8 @@ asmlinkage long sys_waitid(int which, pid_t upid,
 	return ret;
 }
 
-asmlinkage long sys_wait4(pid_t upid, int __user *stat_addr,
-			  int options, struct rusage __user *ru)
+SYSCALL_DEFINE4(wait4, pid_t, upid, int __user *, stat_addr,
+		int, options, struct rusage __user *, ru)
 {
 	struct pid *pid = NULL;
 	enum pid_type type;
