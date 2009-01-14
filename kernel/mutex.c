@@ -131,6 +131,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	struct mutex_waiter waiter;
 	unsigned long flags;
 
+	preempt_disable();
 	spin_lock_mutex(&lock->wait_lock, flags);
 
 	debug_mutex_lock_common(lock, &waiter);
@@ -170,13 +171,14 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 			spin_unlock_mutex(&lock->wait_lock, flags);
 
 			debug_mutex_free_waiter(&waiter);
+			preempt_enable();
 			return -EINTR;
 		}
 		__set_task_state(task, state);
 
 		/* didnt get the lock, go to sleep: */
 		spin_unlock_mutex(&lock->wait_lock, flags);
-		schedule();
+		__schedule();
 		spin_lock_mutex(&lock->wait_lock, flags);
 	}
 
@@ -193,6 +195,7 @@ done:
 	spin_unlock_mutex(&lock->wait_lock, flags);
 
 	debug_mutex_free_waiter(&waiter);
+	preempt_enable();
 
 	return 0;
 }
