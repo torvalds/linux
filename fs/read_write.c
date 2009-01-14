@@ -828,7 +828,7 @@ out:
 	return retval;
 }
 
-asmlinkage long sys_sendfile(int out_fd, int in_fd, off_t __user *offset, size_t count)
+SYSCALL_DEFINE4(sendfile, int, out_fd, int, in_fd, off_t __user *, offset, size_t, count)
 {
 	loff_t pos;
 	off_t off;
@@ -847,7 +847,7 @@ asmlinkage long sys_sendfile(int out_fd, int in_fd, off_t __user *offset, size_t
 	return do_sendfile(out_fd, in_fd, NULL, count, 0);
 }
 
-asmlinkage long sys_sendfile64(int out_fd, int in_fd, loff_t __user *offset, size_t count)
+SYSCALL_DEFINE4(sendfile64, int, out_fd, int, in_fd, loff_t __user *, offset, size_t, count)
 {
 	loff_t pos;
 	ssize_t ret;

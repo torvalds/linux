@@ -1081,7 +1081,7 @@ asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
  * For backward compatibility?  Maybe this should be moved
  * into arch/i386 instead?
  */
-asmlinkage long sys_creat(const char __user * pathname, int mode)
+SYSCALL_DEFINE2(creat, const char __user *, pathname, int, mode)
 {
 	return sys_open(pathname, O_CREAT | O_WRONLY | O_TRUNC, mode);
 }

@@ -1270,7 +1270,7 @@ static void io_destroy(struct kioctx *ioctx)
  *	pointer is passed for ctxp.  Will fail with -ENOSYS if not
  *	implemented.
  */
-asmlinkage long sys_io_setup(unsigned nr_events, aio_context_t __user *ctxp)
+SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
 {
 	struct kioctx *ioctx = NULL;
 	unsigned long ctx;
@@ -1308,7 +1308,7 @@ out:
  *	implemented.  May fail with -EFAULT if the context pointed to
  *	is invalid.
  */
-asmlinkage long sys_io_destroy(aio_context_t ctx)
+SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 {
 	struct kioctx *ioctx = lookup_ioctx(ctx);
 	if (likely(NULL != ioctx)) {
@@ -1662,8 +1662,8 @@ out_put_req:
  *	are available to queue any iocbs.  Will return 0 if nr is 0.  Will
  *	fail with -ENOSYS if not implemented.
  */
-asmlinkage long sys_io_submit(aio_context_t ctx_id, long nr,
-			      struct iocb __user * __user *iocbpp)
+SYSCALL_DEFINE3(io_submit, aio_context_t, ctx_id, long, nr,
+		struct iocb __user * __user *, iocbpp)
 {
 	struct kioctx *ctx;
 	long ret = 0;
@@ -1737,8 +1737,8 @@ static struct kiocb *lookup_kiocb(struct kioctx *ctx, struct iocb __user *iocb,
  *	invalid.  May fail with -EAGAIN if the iocb specified was not
  *	cancelled.  Will fail with -ENOSYS if not implemented.
  */
-asmlinkage long sys_io_cancel(aio_context_t ctx_id, struct iocb __user *iocb,
-			      struct io_event __user *result)
+SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
+		struct io_event __user *, result)
 {
 	int (*cancel)(struct kiocb *iocb, struct io_event *res);
 	struct kioctx *ctx;
@@ -1799,11 +1799,11 @@ asmlinkage long sys_io_cancel(aio_context_t ctx_id, struct iocb __user *iocb,
  *	will be updated if not NULL and the operation blocks.  Will fail
  *	with -ENOSYS if not implemented.
  */
-asmlinkage long sys_io_getevents(aio_context_t ctx_id,
-				 long min_nr,
-				 long nr,
-				 struct io_event __user *events,
-				 struct timespec __user *timeout)
+SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
+		long, min_nr,
+		long, nr,
+		struct io_event __user *, events,
+		struct timespec __user *, timeout)
 {
 	struct kioctx *ioctx = lookup_ioctx(ctx_id);
 	long ret = -EINVAL;
