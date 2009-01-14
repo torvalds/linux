@@ -103,8 +103,14 @@ struct old_linux_dirent;
 #define SYSCALL_DEFINE5(...)    SYSCALL_DEFINEx(5, __VA_ARGS__)
 #define SYSCALL_DEFINE6(...)    SYSCALL_DEFINEx(6, __VA_ARGS__)
 
+#ifdef CONFIG_PPC64
+#define SYSCALL_ALIAS(alias, name)					\
+	asm ("\t.globl " #alias "\n\t.set " #alias ", " #name "\n"	\
+	     "\t.globl ." #alias "\n\t.set ." #alias ", ." #name)
+#else
 #define SYSCALL_ALIAS(alias, name)					\
 	asm ("\t.globl " #alias "\n\t.set " #alias ", " #name)
+#endif
 
 #ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
 
