@@ -466,7 +466,9 @@ struct rt_rq {
 #if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
 	struct {
 		int curr; /* highest queued rt task prio */
+#ifdef CONFIG_SMP
 		int next; /* next highest */
+#endif
 	} highest_prio;
 #endif
 #ifdef CONFIG_SMP
@@ -8267,7 +8269,9 @@ static void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)
 
 #if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
 	rt_rq->highest_prio.curr = MAX_RT_PRIO;
+#ifdef CONFIG_SMP
 	rt_rq->highest_prio.next = MAX_RT_PRIO;
+#endif
 #endif
 #ifdef CONFIG_SMP
 	rt_rq->rt_nr_migratory = 0;
