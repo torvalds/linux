@@ -64,8 +64,10 @@ static void dequeue_pushable_task(struct rq *rq, struct task_struct *p)
 
 #else
 
-#define enqueue_pushable_task(rq, p) do { } while (0)
-#define dequeue_pushable_task(rq, p) do { } while (0)
+static inline
+void enqueue_pushable_task(struct rq *rq, struct task_struct *p) {}
+static inline
+void dequeue_pushable_task(struct rq *rq, struct task_struct *p) {}
 
 #endif /* CONFIG_SMP */
 
