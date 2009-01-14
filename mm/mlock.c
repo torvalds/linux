@@ -595,7 +595,7 @@ out:
 	return 0;
 }
 
-asmlinkage long sys_mlockall(int flags)
+SYSCALL_DEFINE1(mlockall, int, flags)
 {
 	unsigned long lock_limit;
 	int ret = -EINVAL;
@@ -623,7 +623,7 @@ out:
 	return ret;
 }
 
-asmlinkage long sys_munlockall(void)
+SYSCALL_DEFINE0(munlockall)
 {
 	int ret;
 

@@ -2171,8 +2171,8 @@ static void chroot_fs_refs(struct path *old_root, struct path *new_root)
  *    though, so you may need to say mount --bind /nfs/my_root /nfs/my_root
  *    first.
  */
-asmlinkage long sys_pivot_root(const char __user * new_root,
-			       const char __user * put_old)
+SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
+		const char __user *, put_old)
 {
 	struct vfsmount *tmp;
 	struct path new, old, parent_path, root_parent, root;
