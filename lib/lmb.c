@@ -29,33 +29,33 @@ static int __init early_lmb(char *p)
 }
 early_param("lmb", early_lmb);
 
+static void lmb_dump(struct lmb_region *region, char *name)
+{
+	unsigned long long base, size;
+	int i;
+
+	pr_info(" %s.cnt  = 0x%lx\n", name, region->cnt);
+
+	for (i = 0; i < region->cnt; i++) {
+		base = region->region[i].base;
+		size = region->region[i].size;
+
+		pr_info(" %s[0x%x]\t0x%016llx - 0x%016llx, 0x%llx bytes\n",
+		    name, i, base, base + size - 1, size);
+	}
+}
+
 void lmb_dump_all(void)
 {
-	unsigned long i;
-
 	if (!lmb_debug)
 		return;
 
-	pr_info("lmb_dump_all:\n");
-	pr_info("    memory.cnt		  = 0x%lx\n", lmb.memory.cnt);
-	pr_info("    memory.size		  = 0x%llx\n",
-	    (unsigned long long)lmb.memory.size);
-	for (i=0; i < lmb.memory.cnt ;i++) {
-		pr_info("    memory.region[0x%lx].base       = 0x%llx\n",
-		    i, (unsigned long long)lmb.memory.region[i].base);
-		pr_info("		      .size     = 0x%llx\n",
-		    (unsigned long long)lmb.memory.region[i].size);
-	}
+	pr_info("LMB configuration:\n");
+	pr_info(" rmo_size    = 0x%llx\n", (unsigned long long)lmb.rmo_size);
+	pr_info(" memory.size = 0x%llx\n", (unsigned long long)lmb.memory.size);
 
-	pr_info("    reserved.cnt	  = 0x%lx\n", lmb.reserved.cnt);
-	pr_info("    reserved.size	  = 0x%llx\n",
-	    (unsigned long long)lmb.memory.size);
-	for (i=0; i < lmb.reserved.cnt ;i++) {
-		pr_info("    reserved.region[0x%lx].base       = 0x%llx\n",
-		    i, (unsigned long long)lmb.reserved.region[i].base);
-		pr_info("		      .size     = 0x%llx\n",
-		    (unsigned long long)lmb.reserved.region[i].size);
-	}
+	lmb_dump(&lmb.memory, "memory");
+	lmb_dump(&lmb.reserved, "reserved");
 }
 
 static unsigned long lmb_addrs_overlap(u64 base1, u64 size1, u64 base2,
