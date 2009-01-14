@@ -1059,7 +1059,7 @@ SYSCALL_DEFINE2(pipe2, int __user *, fildes, int, flags)
 	return error;
 }
 
-asmlinkage long sys_pipe(int __user *fildes)
+SYSCALL_DEFINE1(pipe, int __user *, fildes)
 {
 	return sys_pipe2(fildes, 0);
 }
