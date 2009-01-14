@@ -46,7 +46,7 @@ hw_perf_counter_init(struct perf_counter *counter)
 
 u64 __weak hw_perf_save_disable(void)		{ return 0; }
 void __weak hw_perf_restore(u64 ctrl)		{ barrier(); }
-void __weak hw_perf_counter_setup(void)		{ barrier(); }
+void __weak hw_perf_counter_setup(int cpu)	{ barrier(); }
 int __weak hw_perf_group_sched_in(struct perf_counter *group_leader,
 	       struct perf_cpu_context *cpuctx,
 	       struct perf_counter_context *ctx, int cpu)
@@ -1598,7 +1598,7 @@ static void __cpuinit perf_counter_init_cpu(int cpu)
 	cpuctx->max_pertask = perf_max_counters - perf_reserved_percpu;
 	mutex_unlock(&perf_resource_mutex);
 
-	hw_perf_counter_setup();
+	hw_perf_counter_setup(cpu);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

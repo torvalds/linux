@@ -15,6 +15,7 @@
 #include <linux/hardirq.h>
 #include <asm/reg.h>
 #include <asm/pmc.h>
+#include <asm/machdep.h>
 
 struct cpu_hw_counters {
 	int n_counters;
@@ -24,6 +25,7 @@ struct cpu_hw_counters {
 	struct perf_counter *counter[MAX_HWCOUNTERS];
 	unsigned int events[MAX_HWCOUNTERS];
 	u64 mmcr[3];
+	u8 pmcs_enabled;
 };
 DEFINE_PER_CPU(struct cpu_hw_counters, cpu_hw_counters);
 
@@ -262,6 +264,15 @@ u64 hw_perf_save_disable(void)
 		cpuhw->n_added = 0;
 
 		/*
+		 * Check if we ever enabled the PMU on this cpu.
+		 */
+		if (!cpuhw->pmcs_enabled) {
+			if (ppc_md.enable_pmcs)
+				ppc_md.enable_pmcs();
+			cpuhw->pmcs_enabled = 1;
+		}
+
+		/*
 		 * Set the 'freeze counters' bit.
 		 * The barrier is to make sure the mtspr has been
 		 * executed and the PMU has frozen the counters
@@ -305,6 +316,8 @@ void hw_perf_restore(u64 disable)
 		mtspr(SPRN_MMCRA, cpuhw->mmcr[2]);
 		mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
 		mtspr(SPRN_MMCR0, cpuhw->mmcr[0]);
+		if (cpuhw->n_counters == 0)
+			get_lppaca()->pmcregs_in_use = 0;
 		goto out;
 	}
 
@@ -323,6 +336,7 @@ void hw_perf_restore(u64 disable)
 	 * bit set and set the hardware counters to their initial values.
 	 * Then unfreeze the counters.
 	 */
+	get_lppaca()->pmcregs_in_use = 1;
 	mtspr(SPRN_MMCRA, cpuhw->mmcr[2]);
 	mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
 	mtspr(SPRN_MMCR0, (cpuhw->mmcr[0] & ~(MMCR0_PMC1CE | MMCR0_PMCjCE))
@@ -739,6 +753,14 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 			set_perf_counter_pending(1);
 		}
 	}
+}
+
+void hw_perf_counter_setup(int cpu)
+{
+	struct cpu_hw_counters *cpuhw = &per_cpu(cpu_hw_counters, cpu);
+
+	memset(cpuhw, 0, sizeof(*cpuhw));
+	cpuhw->mmcr[0] = MMCR0_FC;
 }
 
 extern struct power_pmu ppc970_pmu;
