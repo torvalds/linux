@@ -343,7 +343,7 @@ static int spitzkbd_resume(struct platform_device *dev)
 #define spitzkbd_resume		NULL
 #endif
 
-static int __init spitzkbd_probe(struct platform_device *dev)
+static int __devinit spitzkbd_probe(struct platform_device *dev)
 {
 	struct spitzkbd *spitzkbd;
 	struct input_dev *input_dev;
@@ -444,7 +444,7 @@ static int __init spitzkbd_probe(struct platform_device *dev)
 	return err;
 }
 
-static int spitzkbd_remove(struct platform_device *dev)
+static int __devexit spitzkbd_remove(struct platform_device *dev)
 {
 	int i;
 	struct spitzkbd *spitzkbd = platform_get_drvdata(dev);
@@ -470,7 +470,7 @@ static int spitzkbd_remove(struct platform_device *dev)
 
 static struct platform_driver spitzkbd_driver = {
 	.probe		= spitzkbd_probe,
-	.remove		= spitzkbd_remove,
+	.remove		= __devexit_p(spitzkbd_remove),
 	.suspend	= spitzkbd_suspend,
 	.resume		= spitzkbd_resume,
 	.driver		= {
@@ -479,7 +479,7 @@ static struct platform_driver spitzkbd_driver = {
 	},
 };
 
-static int __devinit spitzkbd_init(void)
+static int __init spitzkbd_init(void)
 {
 	return platform_driver_register(&spitzkbd_driver);
 }
