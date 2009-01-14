@@ -18,6 +18,7 @@
 
 #include <linux/nl80211.h>
 #include <linux/platform_device.h>
+#include <linux/ath9k_platform.h>
 #include "core.h"
 #include "reg.h"
 #include "hw.h"
@@ -33,9 +34,29 @@ static void ath_ahb_cleanup(struct ath_softc *sc)
 	iounmap(sc->mem);
 }
 
+static bool ath_ahb_eeprom_read(struct ath_hal *ah, u32 off, u16 *data)
+{
+	struct ath_softc *sc = ah->ah_sc;
+	struct platform_device *pdev = to_platform_device(sc->dev);
+	struct ath9k_platform_data *pdata;
+
+	pdata = (struct ath9k_platform_data *) pdev->dev.platform_data;
+	if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
+		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
+			"%s: flash read failed, offset %08x is out of range\n",
+				__func__, off);
+		return false;
+	}
+
+	*data = pdata->eeprom_data[off];
+	return true;
+}
+
 static struct ath_bus_ops ath_ahb_bus_ops  = {
 	.read_cachesize = ath_ahb_read_cachesize,
 	.cleanup = ath_ahb_cleanup,
+
+	.eeprom_read = ath_ahb_eeprom_read,
 };
 
 static int ath_ahb_probe(struct platform_device *pdev)
@@ -47,6 +68,12 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	int irq;
 	int ret = 0;
 	struct ath_hal *ah;
+
+	if (!pdev->dev.platform_data) {
+		dev_err(&pdev->dev, "no platform data specified\n");
+		ret = -EINVAL;
+		goto err_out;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {

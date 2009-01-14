@@ -58,9 +58,27 @@ static void ath_pci_cleanup(struct ath_softc *sc)
 	pci_disable_device(pdev);
 }
 
+static bool ath_pci_eeprom_read(struct ath_hal *ah, u32 off, u16 *data)
+{
+	(void)REG_READ(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
+
+	if (!ath9k_hw_wait(ah,
+			   AR_EEPROM_STATUS_DATA,
+			   AR_EEPROM_STATUS_DATA_BUSY |
+			   AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0)) {
+		return false;
+	}
+
+	*data = MS(REG_READ(ah, AR_EEPROM_STATUS_DATA),
+		   AR_EEPROM_STATUS_DATA_VAL);
+
+	return true;
+}
+
 static struct ath_bus_ops ath_pci_bus_ops = {
 	.read_cachesize = ath_pci_read_cachesize,
 	.cleanup = ath_pci_cleanup,
+	.eeprom_read = ath_pci_eeprom_read,
 };
 
 static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)

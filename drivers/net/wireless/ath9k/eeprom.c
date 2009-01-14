@@ -91,53 +91,11 @@ static inline bool ath9k_hw_get_lower_upper_index(u8 target, u8 *pList,
 	return false;
 }
 
-static bool ath9k_hw_eeprom_read(struct ath_hal *ah, u32 off, u16 *data)
-{
-	(void)REG_READ(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
-
-	if (!ath9k_hw_wait(ah,
-			   AR_EEPROM_STATUS_DATA,
-			   AR_EEPROM_STATUS_DATA_BUSY |
-			   AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0)) {
-		return false;
-	}
-
-	*data = MS(REG_READ(ah, AR_EEPROM_STATUS_DATA),
-		   AR_EEPROM_STATUS_DATA_VAL);
-
-	return true;
-}
-
-static int ath9k_hw_flash_map(struct ath_hal *ah)
-{
-	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	ahp->ah_cal_mem = ioremap(AR5416_EEPROM_START_ADDR, AR5416_EEPROM_MAX);
-
-	if (!ahp->ah_cal_mem) {
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"cannot remap eeprom region \n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static bool ath9k_hw_flash_read(struct ath_hal *ah, u32 off, u16 *data)
-{
-	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	*data = ioread16(ahp->ah_cal_mem + off);
-
-	return true;
-}
-
 static inline bool ath9k_hw_nvram_read(struct ath_hal *ah, u32 off, u16 *data)
 {
-	if (ath9k_hw_use_flash(ah))
-		return ath9k_hw_flash_read(ah, off, data);
-	else
-		return ath9k_hw_eeprom_read(ah, off, data);
+	struct ath_softc *sc = ah->ah_sc;
+
+	return sc->bus_ops->eeprom_read(ah, off, data);
 }
 
 static bool ath9k_hw_fill_4k_eeprom(struct ath_hal *ah)
@@ -2824,9 +2782,6 @@ int ath9k_hw_eeprom_attach(struct ath_hal *ah)
 {
 	int status;
 	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	if (ath9k_hw_use_flash(ah))
-		ath9k_hw_flash_map(ah);
 
 	if (AR_SREV_9285(ah))
 		ahp->ah_eep_map = EEP_MAP_4KBITS;

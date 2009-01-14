@@ -696,6 +696,7 @@ enum PROT_MODE {
 struct ath_bus_ops {
 	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
 	void		(*cleanup)(struct ath_softc *sc);
+	bool		(*eeprom_read)(struct ath_hal *ah, u32 off, u16 *data);
 };
 
 struct ath_softc {
