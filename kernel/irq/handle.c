@@ -59,10 +59,6 @@ EXPORT_SYMBOL_GPL(nr_irqs);
 
 #ifdef CONFIG_SPARSE_IRQ
 
-#ifndef max_nr_irqs
-#define max_nr_irqs(nr_cpus)	NR_IRQS
-#endif
-
 static struct irq_desc irq_desc_init = {
 	.irq	    = -1,
 	.status	    = IRQ_DISABLED,
@@ -137,9 +133,8 @@ int __init early_irq_init(void)
 	int legacy_count;
 	int i;
 
-	/* initialize nr_irqs based on nr_cpu_ids */
-	nr_irqs = max_nr_irqs(nr_cpu_ids);
-
+	 /* initialize nr_irqs based on nr_cpu_ids */
+	arch_probe_nr_irqs();
 	printk(KERN_INFO "NR_IRQS:%d nr_irqs:%d\n", NR_IRQS, nr_irqs);
 
 	desc = irq_desc_legacy;
