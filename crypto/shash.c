@@ -442,8 +442,6 @@ static unsigned int crypto_shash_ctxsize(struct crypto_alg *alg, u32 type,
 static int crypto_shash_init_tfm(struct crypto_tfm *tfm,
 				 const struct crypto_type *frontend)
 {
-	if (frontend->type != CRYPTO_ALG_TYPE_SHASH)
-		return -EINVAL;
 	return 0;
 }
 
