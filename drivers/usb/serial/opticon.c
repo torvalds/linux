@@ -306,11 +306,37 @@ static void opticon_shutdown(struct usb_serial *serial)
 	usb_set_serial_data(serial, NULL);
 }
 
+static int opticon_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct usb_serial *serial = usb_get_intfdata(intf);
+	struct opticon_private *priv = usb_get_serial_data(serial);
+
+	usb_kill_urb(priv->bulk_read_urb);
+	return 0;
+}
+
+static int opticon_resume(struct usb_interface *intf)
+{
+	struct usb_serial *serial = usb_get_intfdata(intf);
+	struct opticon_private *priv = usb_get_serial_data(serial);
+	struct usb_serial_port *port = serial->port[0];
+	int result;
+
+	mutex_lock(&port->mutex);
+	if (port->port.count)
+		result = usb_submit_urb(priv->bulk_read_urb, GFP_NOIO);
+	else
+		result = 0;
+	mutex_unlock(&port->mutex);
+	return result;
+}
 
 static struct usb_driver opticon_driver = {
 	.name =		"opticon",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
+	.suspend =	opticon_suspend,
+	.resume =	opticon_resume,
 	.id_table =	id_table,
 	.no_dynamic_id = 	1,
 };
