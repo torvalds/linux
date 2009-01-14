@@ -20,6 +20,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_e500.h>
 
+#include "../mm/mmu_decl.h"
 #include "e500_tlb.h"
 
 #define to_htlb1_esel(esel) (tlb1_entry_num - (esel) - 1)
@@ -158,7 +159,7 @@ void kvmppc_e500_tlb_load(struct kvm_vcpu *vcpu, int cpu)
 
 void kvmppc_e500_tlb_put(struct kvm_vcpu *vcpu)
 {
-	_tlbia();
+	_tlbil_all();
 }
 
 /* Search the guest TLB for a matching entry. */
@@ -362,11 +363,10 @@ void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode)
 		int i;
 
 		/* XXX Replace loop with fancy data structures. */
-		/* needn't set modified since tlbia will make TLB1 coherent */
 		for (i = 0; i < tlb1_max_shadow_size(); i++)
 			kvmppc_e500_stlbe_invalidate(vcpu_e500, 1, i);
 
-		_tlbia();
+		_tlbil_all();
 	}
 }
 
@@ -417,7 +417,7 @@ int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, int ra, int rb)
 			kvmppc_e500_gtlbe_invalidate(vcpu_e500, tlbsel, esel);
 	}
 
-	_tlbia();
+	_tlbil_all();
 
 	return EMULATE_DONE;
 }
@@ -604,7 +604,7 @@ void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
 			kvmppc_e500_shadow_release(vcpu_e500, tlbsel, i);
 
 	/* discard all guest mapping */
-	_tlbia();
+	_tlbil_all();
 }
 
 void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
