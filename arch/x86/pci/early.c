@@ -96,18 +96,21 @@ void early_dump_pci_devices(void)
 			for (func = 0; func < 8; func++) {
 				u32 class;
 				u8 type;
+
 				class = read_pci_config(bus, slot, func,
 							PCI_CLASS_REVISION);
 				if (class == 0xffffffff)
-					break;
+					continue;
 
 				early_dump_pci_device(bus, slot, func);
 
-				/* No multi-function device? */
-				type = read_pci_config_byte(bus, slot, func,
+				if (func == 0) {
+					type = read_pci_config_byte(bus, slot,
+								    func,
 							       PCI_HEADER_TYPE);
-				if (!(type & 0x80))
-					break;
+					if (!(type & 0x80))
+						break;
+				}
 			}
 		}
 	}
