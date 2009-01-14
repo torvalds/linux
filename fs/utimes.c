@@ -24,7 +24,7 @@
  * must be owner or have write permission.
  * Else, update from *times, must be owner or super user.
  */
-asmlinkage long sys_utime(char __user *filename, struct utimbuf __user *times)
+SYSCALL_DEFINE2(utime, char __user *, filename, struct utimbuf __user *, times)
 {
 	struct timespec tv[2];
 
@@ -214,7 +214,8 @@ asmlinkage long sys_futimesat(int dfd, char __user *filename, struct timeval __u
 	return do_utimes(dfd, filename, utimes ? tstimes : NULL, 0);
 }
 
-asmlinkage long sys_utimes(char __user *filename, struct timeval __user *utimes)
+SYSCALL_DEFINE2(utimes, char __user *, filename,
+		struct timeval __user *, utimes)
 {
 	return sys_futimesat(AT_FDCWD, filename, utimes);
 }

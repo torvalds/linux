@@ -147,7 +147,7 @@ loff_t vfs_llseek(struct file *file, loff_t offset, int origin)
 }
 EXPORT_SYMBOL(vfs_llseek);
 
-asmlinkage long sys_lseek(unsigned int fd, off_t offset, unsigned int origin)
+SYSCALL_DEFINE3(lseek, unsigned int, fd, off_t, offset, unsigned int, origin)
 {
 	off_t retval;
 	struct file * file;
@@ -171,9 +171,9 @@ bad:
 }
 
 #ifdef __ARCH_WANT_SYS_LLSEEK
-asmlinkage long sys_llseek(unsigned int fd, unsigned long offset_high,
-			   unsigned long offset_low, loff_t __user * result,
-			   unsigned int origin)
+SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
+		unsigned long, offset_low, loff_t __user *, result,
+		unsigned int, origin)
 {
 	int retval;
 	struct file * file;
