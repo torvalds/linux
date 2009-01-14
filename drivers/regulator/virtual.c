@@ -226,13 +226,13 @@ static ssize_t set_mode(struct device *dev, struct device_attribute *attr,
 	unsigned int mode;
 	int ret;
 
-	if (strncmp(buf, "fast", strlen("fast")) == 0)
+	if (sysfs_streq(buf, "fast\n") == 0)
 		mode = REGULATOR_MODE_FAST;
-	else if (strncmp(buf, "normal", strlen("normal")) == 0)
+	else if (sysfs_streq(buf, "normal\n") == 0)
 		mode = REGULATOR_MODE_NORMAL;
-	else if (strncmp(buf, "idle", strlen("idle")) == 0)
+	else if (sysfs_streq(buf, "idle\n") == 0)
 		mode = REGULATOR_MODE_IDLE;
-	else if (strncmp(buf, "standby", strlen("standby")) == 0)
+	else if (sysfs_streq(buf, "standby\n") == 0)
 		mode = REGULATOR_MODE_STANDBY;
 	else {
 		dev_err(dev, "Configuring invalid mode\n");
