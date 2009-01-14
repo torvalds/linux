@@ -336,7 +336,7 @@ static unsigned int stac92hd83xxx_pwr_mapping[4] = {
 	0x03, 0x0c, 0x10, 0x40,
 };
 
-static unsigned int stac92hd83xxx_amp_nids[1] = {
+static hda_nid_t stac92hd83xxx_amp_nids[1] = {
 	0xc,
 };
 
