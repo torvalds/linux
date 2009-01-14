@@ -953,7 +953,7 @@ enum {
 
 #define AR_RTC_BASE             0x00020000
 #define AR_RTC_RC \
-	(AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0000) : 0x7000
+	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0000) : 0x7000)
 #define AR_RTC_RC_M		0x00000003
 #define AR_RTC_RC_MAC_WARM      0x00000001
 #define AR_RTC_RC_MAC_COLD      0x00000002
@@ -961,7 +961,7 @@ enum {
 #define AR_RTC_RC_WARM_RESET    0x00000008
 
 #define AR_RTC_PLL_CONTROL \
-	(AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0014) : 0x7014
+	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0014) : 0x7014)
 
 #define AR_RTC_PLL_DIV          0x0000001f
 #define AR_RTC_PLL_DIV_S        0
