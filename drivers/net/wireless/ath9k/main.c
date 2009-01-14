@@ -46,7 +46,8 @@ static void bus_read_cachesize(struct ath_softc *sc, int *csz)
 {
 	u8 u8tmp;
 
-	pci_read_config_byte(sc->pdev, PCI_CACHE_LINE_SIZE, (u8 *)&u8tmp);
+	pci_read_config_byte(to_pci_dev(sc->dev), PCI_CACHE_LINE_SIZE,
+			     (u8 *)&u8tmp);
 	*csz = (int)u8tmp;
 
 	/*
@@ -1267,11 +1268,11 @@ static int ath_start_rfkill_poll(struct ath_softc *sc)
 
 			/* Deinitialize the device */
 			ath_detach(sc);
-			if (sc->pdev->irq)
-				free_irq(sc->pdev->irq, sc);
-			pci_iounmap(sc->pdev, sc->mem);
-			pci_release_region(sc->pdev, 0);
-			pci_disable_device(sc->pdev);
+			if (to_pci_dev(sc->dev)->irq)
+				free_irq(to_pci_dev(sc->dev)->irq, sc);
+			pci_iounmap(to_pci_dev(sc->dev), sc->mem);
+			pci_release_region(to_pci_dev(sc->dev), 0);
+			pci_disable_device(to_pci_dev(sc->dev));
 			ieee80211_free_hw(sc->hw);
 			return -EIO;
 		} else {
@@ -1714,7 +1715,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	}
 
 	/* allocate descriptors */
-	dd->dd_desc = pci_alloc_consistent(sc->pdev,
+	dd->dd_desc = pci_alloc_consistent(to_pci_dev(sc->dev),
 			      dd->dd_desc_len,
 			      &dd->dd_desc_paddr);
 	if (dd->dd_desc == NULL) {
@@ -1762,7 +1763,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	}
 	return 0;
 fail2:
-	pci_free_consistent(sc->pdev,
+	pci_free_consistent(to_pci_dev(sc->dev),
 		dd->dd_desc_len, dd->dd_desc, dd->dd_desc_paddr);
 fail:
 	memset(dd, 0, sizeof(*dd));
@@ -1776,7 +1777,7 @@ void ath_descdma_cleanup(struct ath_softc *sc,
 			 struct ath_descdma *dd,
 			 struct list_head *head)
 {
-	pci_free_consistent(sc->pdev,
+	pci_free_consistent(to_pci_dev(sc->dev),
 		dd->dd_desc_len, dd->dd_desc, dd->dd_desc_paddr);
 
 	INIT_LIST_HEAD(head);
@@ -2620,7 +2621,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	sc = hw->priv;
 	sc->hw = hw;
-	sc->pdev = pdev;
+	sc->dev = &pdev->dev;
 	sc->mem = mem;
 
 	if (ath_attach(id->device, sc) != 0) {

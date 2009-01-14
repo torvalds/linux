@@ -291,10 +291,11 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 			}
 
 			bf->bf_mpdu = skb;
-			bf->bf_buf_addr = pci_map_single(sc->pdev, skb->data,
+			bf->bf_buf_addr = pci_map_single(to_pci_dev(sc->dev),
+							 skb->data,
 							 sc->rx.bufsize,
 							 PCI_DMA_FROMDEVICE);
-			if (unlikely(pci_dma_mapping_error(sc->pdev,
+			if (unlikely(pci_dma_mapping_error(to_pci_dev(sc->dev),
 				  bf->bf_buf_addr))) {
 				dev_kfree_skb_any(skb);
 				bf->bf_mpdu = NULL;
@@ -524,7 +525,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 * 1. accessing the frame
 		 * 2. requeueing the same buffer to h/w
 		 */
-		pci_dma_sync_single_for_cpu(sc->pdev, bf->bf_buf_addr,
+		pci_dma_sync_single_for_cpu(to_pci_dev(sc->dev),
+				bf->bf_buf_addr,
 				sc->rx.bufsize,
 				PCI_DMA_FROMDEVICE);
 
@@ -557,7 +559,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			goto requeue;
 
 		/* Unmap the frame */
-		pci_unmap_single(sc->pdev, bf->bf_buf_addr,
+		pci_unmap_single(to_pci_dev(sc->dev), bf->bf_buf_addr,
 				 sc->rx.bufsize,
 				 PCI_DMA_FROMDEVICE);
 
@@ -605,10 +607,11 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		/* We will now give hardware our shiny new allocated skb */
 		bf->bf_mpdu = requeue_skb;
-		bf->bf_buf_addr = pci_map_single(sc->pdev, requeue_skb->data,
+		bf->bf_buf_addr = pci_map_single(to_pci_dev(sc->dev),
+					 requeue_skb->data,
 					 sc->rx.bufsize,
 					 PCI_DMA_FROMDEVICE);
-		if (unlikely(pci_dma_mapping_error(sc->pdev,
+		if (unlikely(pci_dma_mapping_error(to_pci_dev(sc->dev),
 			  bf->bf_buf_addr))) {
 			dev_kfree_skb_any(requeue_skb);
 			bf->bf_mpdu = NULL;

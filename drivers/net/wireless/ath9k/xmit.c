@@ -340,7 +340,7 @@ static void ath_tx_complete_buf(struct ath_softc *sc,
 	}
 
 	/* Unmap this frame */
-	pci_unmap_single(sc->pdev,
+	pci_unmap_single(to_pci_dev(sc->dev),
 			 bf->bf_dmacontext,
 			 skb->len,
 			 PCI_DMA_TODEVICE);
@@ -1716,9 +1716,10 @@ static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 	/* DMA setup */
 	bf->bf_mpdu = skb;
 
-	bf->bf_dmacontext = pci_map_single(sc->pdev, skb->data,
+	bf->bf_dmacontext = pci_map_single(to_pci_dev(sc->dev), skb->data,
 					   skb->len, PCI_DMA_TODEVICE);
-	if (unlikely(pci_dma_mapping_error(sc->pdev, bf->bf_dmacontext))) {
+	if (unlikely(pci_dma_mapping_error(to_pci_dev(sc->dev),
+					   bf->bf_dmacontext))) {
 		bf->bf_mpdu = NULL;
 		DPRINTF(sc, ATH_DBG_CONFIG,
 			"pci_dma_mapping_error() on TX\n");
