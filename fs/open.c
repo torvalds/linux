@@ -174,7 +174,7 @@ out:
 	return error;
 }
 
-asmlinkage long sys_fstatfs64(unsigned int fd, size_t sz, struct statfs64 __user *buf)
+SYSCALL_DEFINE3(fstatfs64, unsigned int, fd, size_t, sz, struct statfs64 __user *, buf)
 {
 	struct file * file;
 	struct statfs64 tmp;

@@ -162,7 +162,8 @@ SYSCALL_DEFINE2(stat, char __user *, filename, struct __old_kernel_stat __user *
 
 	return error;
 }
-asmlinkage long sys_lstat(char __user * filename, struct __old_kernel_stat __user * statbuf)
+
+SYSCALL_DEFINE2(lstat, char __user *, filename, struct __old_kernel_stat __user *, statbuf)
 {
 	struct kstat stat;
 	int error = vfs_lstat_fd(AT_FDCWD, filename, &stat);
@@ -172,7 +173,8 @@ asmlinkage long sys_lstat(char __user * filename, struct __old_kernel_stat __use
 
 	return error;
 }
-asmlinkage long sys_fstat(unsigned int fd, struct __old_kernel_stat __user * statbuf)
+
+SYSCALL_DEFINE2(fstat, unsigned int, fd, struct __old_kernel_stat __user *, statbuf)
 {
 	struct kstat stat;
 	int error = vfs_fstat(fd, &stat);
@@ -235,7 +237,7 @@ static int cp_new_stat(struct kstat *stat, struct stat __user *statbuf)
 	return copy_to_user(statbuf,&tmp,sizeof(tmp)) ? -EFAULT : 0;
 }
 
-asmlinkage long sys_newstat(char __user *filename, struct stat __user *statbuf)
+SYSCALL_DEFINE2(newstat, char __user *, filename, struct stat __user *, statbuf)
 {
 	struct kstat stat;
 	int error = vfs_stat_fd(AT_FDCWD, filename, &stat);
@@ -246,7 +248,7 @@ asmlinkage long sys_newstat(char __user *filename, struct stat __user *statbuf)
 	return error;
 }
 
-asmlinkage long sys_newlstat(char __user *filename, struct stat __user *statbuf)
+SYSCALL_DEFINE2(newlstat, char __user *, filename, struct stat __user *, statbuf)
 {
 	struct kstat stat;
 	int error = vfs_lstat_fd(AT_FDCWD, filename, &stat);
@@ -280,7 +282,7 @@ out:
 }
 #endif
 
-asmlinkage long sys_newfstat(unsigned int fd, struct stat __user *statbuf)
+SYSCALL_DEFINE2(newfstat, unsigned int, fd, struct stat __user *, statbuf)
 {
 	struct kstat stat;
 	int error = vfs_fstat(fd, &stat);
@@ -365,7 +367,7 @@ static long cp_new_stat64(struct kstat *stat, struct stat64 __user *statbuf)
 	return copy_to_user(statbuf,&tmp,sizeof(tmp)) ? -EFAULT : 0;
 }
 
-asmlinkage long sys_stat64(char __user * filename, struct stat64 __user * statbuf)
+SYSCALL_DEFINE2(stat64, char __user *, filename, struct stat64 __user *, statbuf)
 {
 	struct kstat stat;
 	int error = vfs_stat(filename, &stat);
@@ -375,7 +377,8 @@ asmlinkage long sys_stat64(char __user * filename, struct stat64 __user * statbu
 
 	return error;
 }
-asmlinkage long sys_lstat64(char __user * filename, struct stat64 __user * statbuf)
+
+SYSCALL_DEFINE2(lstat64, char __user *, filename, struct stat64 __user *, statbuf)
 {
 	struct kstat stat;
 	int error = vfs_lstat(filename, &stat);
@@ -385,7 +388,8 @@ asmlinkage long sys_lstat64(char __user * filename, struct stat64 __user * statb
 
 	return error;
 }
-asmlinkage long sys_fstat64(unsigned long fd, struct stat64 __user * statbuf)
+
+SYSCALL_DEFINE2(fstat64, unsigned long, fd, struct stat64 __user *, statbuf)
 {
 	struct kstat stat;
 	int error = vfs_fstat(fd, &stat);
