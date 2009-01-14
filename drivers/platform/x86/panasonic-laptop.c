@@ -367,7 +367,7 @@ static ssize_t show_numbatt(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_NUM_BATTERIES]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_NUM_BATTERIES]);
 }
 
 static ssize_t show_lcdtype(struct device *dev, struct device_attribute *attr,
@@ -379,7 +379,7 @@ static ssize_t show_lcdtype(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_LCD_TYPE]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_LCD_TYPE]);
 }
 
 static ssize_t show_mute(struct device *dev, struct device_attribute *attr,
@@ -391,7 +391,7 @@ static ssize_t show_mute(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_MUTE]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_MUTE]);
 }
 
 static ssize_t show_sticky(struct device *dev, struct device_attribute *attr,
@@ -403,7 +403,7 @@ static ssize_t show_sticky(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_STICKY_KEY]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_STICKY_KEY]);
 }
 
 static ssize_t set_sticky(struct device *dev, struct device_attribute *attr,
