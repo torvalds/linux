@@ -312,6 +312,47 @@ static ssize_t regulator_state_show(struct device *dev,
 }
 static DEVICE_ATTR(state, 0444, regulator_state_show, NULL);
 
+static ssize_t regulator_status_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct regulator_dev *rdev = dev_get_drvdata(dev);
+	int status;
+	char *label;
+
+	status = rdev->desc->ops->get_status(rdev);
+	if (status < 0)
+		return status;
+
+	switch (status) {
+	case REGULATOR_STATUS_OFF:
+		label = "off";
+		break;
+	case REGULATOR_STATUS_ON:
+		label = "on";
+		break;
+	case REGULATOR_STATUS_ERROR:
+		label = "error";
+		break;
+	case REGULATOR_STATUS_FAST:
+		label = "fast";
+		break;
+	case REGULATOR_STATUS_NORMAL:
+		label = "normal";
+		break;
+	case REGULATOR_STATUS_IDLE:
+		label = "idle";
+		break;
+	case REGULATOR_STATUS_STANDBY:
+		label = "standby";
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	return sprintf(buf, "%s\n", label);
+}
+static DEVICE_ATTR(status, 0444, regulator_status_show, NULL);
+
 static ssize_t regulator_min_uA_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -1741,6 +1782,11 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 	}
 	if (ops->is_enabled) {
 		status = device_create_file(dev, &dev_attr_state);
+		if (status < 0)
+			return status;
+	}
+	if (ops->get_status) {
+		status = device_create_file(dev, &dev_attr_status);
 		if (status < 0)
 			return status;
 	}

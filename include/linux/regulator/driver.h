@@ -21,6 +21,17 @@
 struct regulator_dev;
 struct regulator_init_data;
 
+enum regulator_status {
+	REGULATOR_STATUS_OFF,
+	REGULATOR_STATUS_ON,
+	REGULATOR_STATUS_ERROR,
+	/* fast/normal/idle/standby are flavors of "on" */
+	REGULATOR_STATUS_FAST,
+	REGULATOR_STATUS_NORMAL,
+	REGULATOR_STATUS_IDLE,
+	REGULATOR_STATUS_STANDBY,
+};
+
 /**
  * struct regulator_ops - regulator operations.
  *
@@ -71,6 +82,12 @@ struct regulator_ops {
 	/* get/set regulator operating mode (defined in regulator.h) */
 	int (*set_mode) (struct regulator_dev *, unsigned int mode);
 	unsigned int (*get_mode) (struct regulator_dev *);
+
+	/* report regulator status ... most other accessors report
+	 * control inputs, this reports results of combining inputs
+	 * from Linux (and other sources) with the actual load.
+	 */
+	int (*get_status)(struct regulator_dev *);
 
 	/* get most efficient regulator operating mode for load */
 	unsigned int (*get_optimum_mode) (struct regulator_dev *, int input_uV,
