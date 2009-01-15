@@ -372,9 +372,17 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 			rsp.dcid = cpu_to_le16(l2cap_pi(sk)->scid);
 
 			if (l2cap_check_link_mode(sk)) {
-				sk->sk_state = BT_CONFIG;
-				rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
-				rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
+				if (bt_sk(sk)->defer_setup) {
+					struct sock *parent = bt_sk(sk)->parent;
+					rsp.result = cpu_to_le16(L2CAP_CR_PEND);
+					rsp.status = cpu_to_le16(L2CAP_CS_AUTHOR_PEND);
+					parent->sk_data_ready(parent, 0);
+
+				} else {
+					sk->sk_state = BT_CONFIG;
+					rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
+					rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
+				}
 			} else {
 				rsp.result = cpu_to_le16(L2CAP_CR_PEND);
 				rsp.status = cpu_to_le16(L2CAP_CS_AUTHEN_PEND);
@@ -608,7 +616,6 @@ static void __l2cap_sock_close(struct sock *sk, int reason)
 
 	case BT_CONNECTED:
 	case BT_CONFIG:
-	case BT_CONNECT2:
 		if (sk->sk_type == SOCK_SEQPACKET) {
 			struct l2cap_conn *conn = l2cap_pi(sk)->conn;
 			struct l2cap_disconn_req req;
@@ -620,6 +627,27 @@ static void __l2cap_sock_close(struct sock *sk, int reason)
 			req.scid = cpu_to_le16(l2cap_pi(sk)->scid);
 			l2cap_send_cmd(conn, l2cap_get_ident(conn),
 					L2CAP_DISCONN_REQ, sizeof(req), &req);
+		} else
+			l2cap_chan_del(sk, reason);
+		break;
+
+	case BT_CONNECT2:
+		if (sk->sk_type == SOCK_SEQPACKET) {
+			struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+			struct l2cap_conn_rsp rsp;
+			__u16 result;
+
+			if (bt_sk(sk)->defer_setup)
+				result = L2CAP_CR_SEC_BLOCK;
+			else
+				result = L2CAP_CR_BAD_PSM;
+
+			rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
+			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
+			rsp.result = cpu_to_le16(result);
+			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
+			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
+					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 		} else
 			l2cap_chan_del(sk, reason);
 		break;
@@ -653,6 +681,8 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 
 	if (parent) {
 		sk->sk_type = parent->sk_type;
+		bt_sk(sk)->defer_setup = bt_sk(parent)->defer_setup;
+
 		pi->imtu = l2cap_pi(parent)->imtu;
 		pi->omtu = l2cap_pi(parent)->omtu;
 		pi->link_mode = l2cap_pi(parent)->link_mode;
@@ -1106,6 +1136,33 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	return err;
 }
 
+static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags)
+{
+	struct sock *sk = sock->sk;
+
+	lock_sock(sk);
+
+	if (sk->sk_state == BT_CONNECT2 && bt_sk(sk)->defer_setup) {
+		struct l2cap_conn_rsp rsp;
+
+		sk->sk_state = BT_CONFIG;
+
+		rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
+		rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
+		rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
+		rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
+		l2cap_send_cmd(l2cap_pi(sk)->conn, l2cap_pi(sk)->ident,
+					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
+
+		release_sock(sk);
+		return 0;
+	}
+
+	release_sock(sk);
+
+	return bt_sock_recvmsg(iocb, sock, msg, len, flags);
+}
+
 static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __user *optval, int optlen)
 {
 	struct sock *sk = sock->sk;
@@ -1156,6 +1213,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 {
 	struct sock *sk = sock->sk;
 	int err = 0;
+	u32 opt;
 
 	BT_DBG("sk %p", sk);
 
@@ -1165,6 +1223,20 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 	lock_sock(sk);
 
 	switch (optname) {
+	case BT_DEFER_SETUP:
+		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		bt_sk(sk)->defer_setup = opt;
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -1207,7 +1279,9 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname, char __us
 		break;
 
 	case L2CAP_CONNINFO:
-		if (sk->sk_state != BT_CONNECTED) {
+		if (sk->sk_state != BT_CONNECTED &&
+					!(sk->sk_state == BT_CONNECT2 &&
+						bt_sk(sk)->defer_setup)) {
 			err = -ENOTCONN;
 			break;
 		}
@@ -1246,6 +1320,17 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 	lock_sock(sk);
 
 	switch (optname) {
+	case BT_DEFER_SETUP:
+		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (put_user(bt_sk(sk)->defer_setup, (u32 __user *) optval))
+			err = -EFAULT;
+
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -1670,9 +1755,16 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT) {
 		if (l2cap_check_link_mode(sk)) {
-			sk->sk_state = BT_CONFIG;
-			result = L2CAP_CR_SUCCESS;
-			status = L2CAP_CS_NO_INFO;
+			if (bt_sk(sk)->defer_setup) {
+				sk->sk_state = BT_CONNECT2;
+				result = L2CAP_CR_PEND;
+				status = L2CAP_CS_AUTHOR_PEND;
+				parent->sk_data_ready(parent, 0);
+			} else {
+				sk->sk_state = BT_CONFIG;
+				result = L2CAP_CR_SUCCESS;
+				status = L2CAP_CS_NO_INFO;
+			}
 		} else {
 			sk->sk_state = BT_CONNECT2;
 			result = L2CAP_CR_PEND;
@@ -2494,7 +2586,7 @@ static const struct proto_ops l2cap_sock_ops = {
 	.accept		= l2cap_sock_accept,
 	.getname	= l2cap_sock_getname,
 	.sendmsg	= l2cap_sock_sendmsg,
-	.recvmsg	= bt_sock_recvmsg,
+	.recvmsg	= l2cap_sock_recvmsg,
 	.poll		= bt_sock_poll,
 	.ioctl		= bt_sock_ioctl,
 	.mmap		= sock_no_mmap,
