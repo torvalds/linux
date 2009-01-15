@@ -1581,6 +1581,13 @@ L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 
+EDAC-I5400
+P:	Mauro Carvalho Chehab
+M:	mchehab@redhat.com
+L:	bluesmoke-devel@lists.sourceforge.net
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+
 EDAC-I82975X
 P:	Ranganathan Desikan
 P:	Arvind R.
