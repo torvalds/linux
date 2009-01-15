@@ -939,7 +939,7 @@ int netxen_load_firmware(struct netxen_adapter *adapter)
 {
 	int i;
 	u32 data, size = 0;
-	u32 flashaddr = NETXEN_BOOTLD_START, memaddr = NETXEN_BOOTLD_START;
+	u32 flashaddr = NETXEN_BOOTLD_START;
 
 	size = (NETXEN_IMAGE_START - NETXEN_BOOTLD_START)/4;
 
@@ -951,10 +951,8 @@ int netxen_load_firmware(struct netxen_adapter *adapter)
 		if (netxen_rom_fast_read(adapter, flashaddr, (int *)&data) != 0)
 			return -EIO;
 
-		adapter->pci_mem_write(adapter, memaddr, &data, 4);
+		adapter->pci_mem_write(adapter, flashaddr, &data, 4);
 		flashaddr += 4;
-		memaddr += 4;
-		cond_resched();
 	}
 	msleep(1);
 

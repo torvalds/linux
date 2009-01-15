@@ -280,10 +280,15 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 static int
 netxen_check_hw_init(struct netxen_adapter *adapter, int first_boot)
 {
-	int ret = 0;
+	u32 val, timeout;
 
 	if (first_boot == 0x55555555) {
 		/* This is the first boot after power up */
+		adapter->pci_write_normalize(adapter,
+			NETXEN_CAM_RAM(0x1fc), NETXEN_BDINFO_MAGIC);
+
+		if (!NX_IS_REVISION_P2(adapter->ahw.revision_id))
+			return 0;
 
 		/* PCI bus master workaround */
 		adapter->hw_read_wx(adapter,
@@ -303,18 +308,26 @@ netxen_check_hw_init(struct netxen_adapter *adapter, int first_boot)
 			/* clear the register for future unloads/loads */
 			adapter->pci_write_normalize(adapter,
 					NETXEN_CAM_RAM(0x1fc), 0);
-			ret = -1;
+			return -EIO;
 		}
 
-		if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
-			/* Start P2 boot loader */
-			adapter->pci_write_normalize(adapter,
-				NETXEN_CAM_RAM(0x1fc), NETXEN_BDINFO_MAGIC);
-			adapter->pci_write_normalize(adapter,
-					NETXEN_ROMUSB_GLB_PEGTUNE_DONE, 1);
-		}
+		/* Start P2 boot loader */
+		val = adapter->pci_read_normalize(adapter,
+				NETXEN_ROMUSB_GLB_PEGTUNE_DONE);
+		adapter->pci_write_normalize(adapter,
+				NETXEN_ROMUSB_GLB_PEGTUNE_DONE, val | 0x1);
+		timeout = 0;
+		do {
+			msleep(1);
+			val = adapter->pci_read_normalize(adapter,
+					NETXEN_CAM_RAM(0x1fc));
+
+			if (++timeout > 5000)
+				return -EIO;
+
+		} while (val == NETXEN_BDINFO_MAGIC);
 	}
-	return ret;
+	return 0;
 }
 
 static void netxen_set_port_mode(struct netxen_adapter *adapter)
@@ -793,8 +806,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 						CRB_CMDPEG_STATE, 0);
 			netxen_pinit_from_rom(adapter, 0);
 			msleep(1);
-			netxen_load_firmware(adapter);
 		}
+		netxen_load_firmware(adapter);
 
 		if (NX_IS_REVISION_P3(revision_id))
 			netxen_pcie_strap_init(adapter);
@@ -810,13 +823,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		}
 
-		if ((first_boot == 0x55555555) &&
-			(NX_IS_REVISION_P2(revision_id))) {
-			/* Unlock the HW, prompting the boot sequence */
-			adapter->pci_write_normalize(adapter,
-					NETXEN_ROMUSB_GLB_PEGTUNE_DONE, 1);
-		}
-
 		err = netxen_initialize_adapter_offload(adapter);
 		if (err)
 			goto err_out_iounmap;
@@ -830,7 +836,9 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->pci_write_normalize(adapter, CRB_DRIVER_VERSION, i);
 
 		/* Handshake with the card before we register the devices. */
-		netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
+		err = netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
+		if (err)
+			goto err_out_free_offload;
 
 	}	/* first_driver */
 
@@ -934,6 +942,7 @@ err_out_disable_msi:
 	if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
 		pci_disable_msi(pdev);
 
+err_out_free_offload:
 	if (first_driver)
 		netxen_free_adapter_offload(adapter);
 

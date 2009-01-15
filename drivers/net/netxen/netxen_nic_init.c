@@ -439,6 +439,8 @@ static int netxen_wait_rom_done(struct netxen_adapter *adapter)
 	long timeout = 0;
 	long done = 0;
 
+	cond_resched();
+
 	while (done == 0) {
 		done = netxen_nic_reg_read(adapter, NETXEN_ROMUSB_GLB_STATUS);
 		done &= 2;
@@ -533,12 +535,9 @@ static int do_rom_fast_write(struct netxen_adapter *adapter, int addr,
 static int do_rom_fast_read(struct netxen_adapter *adapter,
 			    int addr, int *valp)
 {
-	cond_resched();
-
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ADDRESS, addr);
-	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 3);
-	udelay(100);		/* prevent bursting on CRB */
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
+	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 3);
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_INSTR_OPCODE, 0xb);
 	if (netxen_wait_rom_done(adapter)) {
 		printk("Error waiting for rom done\n");
@@ -546,7 +545,7 @@ static int do_rom_fast_read(struct netxen_adapter *adapter,
 	}
 	/* reset abyte_cnt and dummy_byte_cnt */
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 0);
-	udelay(100);		/* prevent bursting on CRB */
+	udelay(10);
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
 
 	*valp = netxen_nic_reg_read(adapter, NETXEN_ROMUSB_ROM_RDATA);
@@ -884,14 +883,16 @@ int netxen_flash_unlock(struct netxen_adapter *adapter)
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 {
 	int addr, val;
-	int i, init_delay = 0;
+	int i, n, init_delay = 0;
 	struct crb_addr_pair *buf;
-	unsigned offset, n;
+	unsigned offset;
 	u32 off;
 
 	/* resetall */
+	rom_lock(adapter);
 	netxen_crb_writelit_adapter(adapter, NETXEN_ROMUSB_GLB_SW_RESET,
 				    0xffffffff);
+	netxen_rom_unlock(adapter);
 
 	if (verbose) {
 		if (netxen_rom_fast_read(adapter, NETXEN_BOARDTYPE, &val) == 0)
@@ -910,7 +911,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		if (netxen_rom_fast_read(adapter, 0, &n) != 0 ||
-			(n != 0xcafecafeUL) ||
+			(n != 0xcafecafe) ||
 			netxen_rom_fast_read(adapter, 4, &n) != 0) {
 			printk(KERN_ERR "%s: ERROR Reading crb_init area: "
 					"n: %08x\n", netxen_nic_driver_name, n);
@@ -975,6 +976,14 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 			/* do not reset PCI */
 			if (off == (ROMUSB_GLB + 0xbc))
 				continue;
+			if (off == (ROMUSB_GLB + 0xa8))
+				continue;
+			if (off == (ROMUSB_GLB + 0xc8)) /* core clock */
+				continue;
+			if (off == (ROMUSB_GLB + 0x24)) /* MN clock */
+				continue;
+			if (off == (ROMUSB_GLB + 0x1c)) /* MS clock */
+				continue;
 			if (off == (NETXEN_CRB_PEG_NET_1 + 0x18))
 				buf[i].data = 0x1020;
 			/* skip the function enable register */
@@ -992,23 +1001,21 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 			continue;
 		}
 
+		init_delay = 1;
 		/* After writing this register, HW needs time for CRB */
 		/* to quiet down (else crb_window returns 0xffffffff) */
 		if (off == NETXEN_ROMUSB_GLB_SW_RESET) {
-			init_delay = 1;
+			init_delay = 1000;
 			if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 				/* hold xdma in reset also */
 				buf[i].data = NETXEN_NIC_XDMA_RESET;
+				buf[i].data = 0x8000ff;
 			}
 		}
 
 		adapter->hw_write_wx(adapter, off, &buf[i].data, 4);
 
-		if (init_delay == 1) {
-			msleep(1000);
-			init_delay = 0;
-		}
-		msleep(1);
+		msleep(init_delay);
 	}
 	kfree(buf);
 
