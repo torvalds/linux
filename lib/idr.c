@@ -292,7 +292,7 @@ static int idr_get_new_above_int(struct idr *idp, void *ptr, int starting_id)
  * and go back to the idr_pre_get() call.  If the idr is full, it will
  * return -ENOSPC.
  *
- * @id returns a value in the range 0 ... 0x7fffffff
+ * @id returns a value in the range @starting_id ... 0x7fffffff
  */
 int idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id)
 {
@@ -723,7 +723,7 @@ EXPORT_SYMBOL(ida_pre_get);
  * and go back to the ida_pre_get() call.  If the ida is full, it will
  * return -ENOSPC.
  *
- * @p_id returns a value in the range 0 ... 0x7fffffff.
+ * @p_id returns a value in the range @starting_id ... 0x7fffffff.
  */
 int ida_get_new_above(struct ida *ida, int starting_id, int *p_id)
 {
