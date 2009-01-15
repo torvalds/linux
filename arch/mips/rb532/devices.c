@@ -24,6 +24,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/serial_8250.h>
 
 #include <asm/bootinfo.h>
 
@@ -38,6 +39,8 @@
 
 #define ETH0_RX_DMA_ADDR  (DMA0_BASE_ADDR + 0 * DMA_CHAN_OFFSET)
 #define ETH0_TX_DMA_ADDR  (DMA0_BASE_ADDR + 1 * DMA_CHAN_OFFSET)
+
+extern unsigned int idt_cpu_freq;
 
 static struct resource korina_dev0_res[] = {
 	{
@@ -214,12 +217,32 @@ static struct platform_device rb532_wdt = {
 	.num_resources	= ARRAY_SIZE(rb532_wdt_res),
 };
 
+static struct plat_serial8250_port rb532_uart_res[] = {
+	{
+		.membase	= (char *)KSEG1ADDR(REGBASE + UART0BASE),
+		.irq		= UART0_IRQ,
+		.regshift	= 2,
+		.iotype		= UPIO_MEM,
+		.flags		= UPF_BOOT_AUTOCONF,
+	},
+	{
+		.flags		= 0,
+	}
+};
+
+static struct platform_device rb532_uart = {
+	.name              = "serial8250",
+	.id                = PLAT8250_DEV_PLATFORM,
+	.dev.platform_data = &rb532_uart_res,
+};
+
 static struct platform_device *rb532_devs[] = {
 	&korina_dev0,
 	&nand_slot0,
 	&cf_slot0,
 	&rb532_led,
 	&rb532_button,
+	&rb532_uart,
 	&rb532_wdt
 };
 
@@ -293,6 +316,9 @@ static int __init plat_setup_devices(void)
 
 	/* Initialise the NAND device */
 	rb532_nand_setup();
+
+	/* set the uart clock to the current cpu frequency */
+	rb532_uart_res[0].uartclk = idt_cpu_freq;
 
 	return platform_add_devices(rb532_devs, ARRAY_SIZE(rb532_devs));
 }
