@@ -215,40 +215,6 @@ static const unsigned char init_po1030[][3] =
 	{BRIDGE, M5602_XB_GPIO_DAT, 0x00},
 
 	{SENSOR, PO1030_AUTOCTRL2, 0x04},
-};
-
-static const unsigned char start_po1030[][3] =
-{
-	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
-	{BRIDGE, M5602_XB_GPIO_DAT, 0x00},
-	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
-	{BRIDGE, M5602_XB_GPIO_EN_L, 0x00},
-
-	{SENSOR, PO1030_AUTOCTRL2, 0x04},
-
-	/* Set the width to 751 */
-	{SENSOR, PO1030_FRAMEWIDTH_H, 0x02},
-	{SENSOR, PO1030_FRAMEWIDTH_L, 0xef},
-
-	/* Set the height to 540 */
-	{SENSOR, PO1030_FRAMEHEIGHT_H, 0x02},
-	{SENSOR, PO1030_FRAMEHEIGHT_L, 0x1c},
-
-	/* Set the x window to 1 */
-	{SENSOR, PO1030_WINDOWX_H, 0x00},
-	{SENSOR, PO1030_WINDOWX_L, 0x01},
-
-	/* Set the y window to 1 */
-	{SENSOR, PO1030_WINDOWY_H, 0x00},
-	{SENSOR, PO1030_WINDOWY_L, 0x01},
-
-	/* Set the window width to 647 */
-	{SENSOR, PO1030_WINDOWWIDTH_H, 0x02},
-	{SENSOR, PO1030_WINDOWWIDTH_L, 0x87},
-
-	/* Set the window height to 483 */
-	{SENSOR, PO1030_WINDOWHEIGHT_H, 0x01},
-	{SENSOR, PO1030_WINDOWHEIGHT_L, 0xe3},
 
 	{SENSOR, PO1030_OUTFORMCTRL2, PO1030_RAW_RGB_BAYER},
 	{SENSOR, PO1030_AUTOCTRL1, PO1030_WEIGHT_WIN_2X},
@@ -277,6 +243,43 @@ static const unsigned char start_po1030[][3] =
 	{SENSOR, PO1030_GC6, 0xc0},
 	{SENSOR, PO1030_GC7, 0xff},
 
+	/* Set the width to 751 */
+	{SENSOR, PO1030_FRAMEWIDTH_H, 0x02},
+	{SENSOR, PO1030_FRAMEWIDTH_L, 0xef},
+
+	/* Set the height to 540 */
+	{SENSOR, PO1030_FRAMEHEIGHT_H, 0x02},
+	{SENSOR, PO1030_FRAMEHEIGHT_L, 0x1c},
+
+	/* Set the x window to 1 */
+	{SENSOR, PO1030_WINDOWX_H, 0x00},
+	{SENSOR, PO1030_WINDOWX_L, 0x01},
+
+	/* Set the y window to 1 */
+	{SENSOR, PO1030_WINDOWY_H, 0x00},
+	{SENSOR, PO1030_WINDOWY_L, 0x01},
+
+	/* with a very low lighted environment increase the exposure but
+	 * decrease the FPS (Frame Per Second) */
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_EN_L, 0x00},
+};
+
+static const unsigned char start_po1030[][3] =
+{
+	/* Set the window width to 647 */
+	{SENSOR, PO1030_WINDOWWIDTH_H, 0x02},
+	{SENSOR, PO1030_WINDOWWIDTH_L, 0x87},
+
+	/* Set the window height to 483 */
+	{SENSOR, PO1030_WINDOWHEIGHT_H, 0x01},
+	{SENSOR, PO1030_WINDOWHEIGHT_L, 0xe3},
+
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x06},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
 	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
@@ -299,11 +302,6 @@ static const unsigned char start_po1030[][3] =
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02},
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x7e},
 	{BRIDGE, M5602_XB_SIG_INI, 0x00},
-
-	/* with a very low lighted environment increase the exposure but
-	 * decrease the FPS (Frame Per Second) */
-	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
-	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
 };
 
 #endif
