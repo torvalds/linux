@@ -340,6 +340,12 @@ Make sure to call v4l2_device_unregister_subdev(sd) when the remove() callback
 is called. This will unregister the sub-device from the bridge driver. It is
 safe to call this even if the sub-device was never registered.
 
+You need to do this because when the bridge driver destroys the i2c adapter
+the remove() callbacks are called of the i2c devices on that adapter.
+After that the corresponding v4l2_subdev structures are invalid, so they
+have to be unregistered first. Calling v4l2_device_unregister_subdev(sd)
+from the remove() callback ensures that this is always done correctly.
+
 
 The bridge driver also has some helper functions it can use:
 
