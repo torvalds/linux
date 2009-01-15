@@ -272,17 +272,6 @@ static const unsigned char init_po1030[][3] =
 
 static const unsigned char start_po1030[][3] =
 {
-	/* Set the window width to 647 */
-	{SENSOR, PO1030_WINDOWWIDTH_H, 0x02},
-	{SENSOR, PO1030_WINDOWWIDTH_L, 0x87},
-
-	/* Set the window height to 483 */
-	{SENSOR, PO1030_WINDOWHEIGHT_H, 0x01},
-	{SENSOR, PO1030_WINDOWHEIGHT_L, 0xe3},
-
-	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x06},
-	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
-	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
 	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0c},
 	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x81},
 	{BRIDGE, M5602_XB_PIX_OF_LINE_H, 0x82},

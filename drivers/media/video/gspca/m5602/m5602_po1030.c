@@ -321,7 +321,34 @@ int po1030_init(struct sd *sd)
 
 int po1030_start(struct sd *sd)
 {
+	struct cam *cam = &sd->gspca_dev.cam;
 	int i, err = 0;
+	int width = cam->cam_mode[sd->gspca_dev.curr_mode].width;
+	int height = cam->cam_mode[sd->gspca_dev.curr_mode].height;
+	u8 data;
+
+	switch (width) {
+	case 640:
+		data = ((width + 7) >> 8) & 0xff;
+		err = m5602_write_sensor(sd, PO1030_WINDOWWIDTH_H, &data, 1);
+		if (err < 0)
+			return err;
+
+		data = (width + 7) & 0xff;
+		err = m5602_write_sensor(sd, PO1030_WINDOWWIDTH_L, &data, 1);
+		if (err < 0)
+			return err;
+
+		data = ((height + 3) >> 8) & 0xff;
+		err = m5602_write_sensor(sd, PO1030_WINDOWHEIGHT_H, &data, 1);
+		if (err < 0)
+			return err;
+
+		data = (height + 3) & 0xff;
+		err = m5602_write_sensor(sd, PO1030_WINDOWHEIGHT_L, &data, 1);
+		break;
+	}
+
 	/* Synthesize the vsync/hsync setup */
 	for (i = 0; i < ARRAY_SIZE(start_po1030) && !err; i++) {
 		if (start_po1030[i][0] == BRIDGE)
@@ -330,7 +357,7 @@ int po1030_start(struct sd *sd)
 		else if (start_po1030[i][0] == SENSOR) {
 			u8 data = start_po1030[i][2];
 			err = m5602_write_sensor(sd,
-					start_po1030[i][1], &data, 1);
+				start_po1030[i][1], &data, 1);
 		}
 	}
 	return err;
