@@ -4543,7 +4543,7 @@ static void bnx2x_set_client_config(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 	int i;
 
-	tstorm_client.mtu = bp->dev->mtu + ETH_OVREHEAD;
+	tstorm_client.mtu = bp->dev->mtu;
 	tstorm_client.statistics_counter_id = BP_CL_ID(bp);
 	tstorm_client.config_flags =
 				TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE;
