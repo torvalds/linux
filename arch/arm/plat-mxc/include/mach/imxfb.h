@@ -76,6 +76,9 @@ struct imx_fb_platform_data {
 	u_char * fixed_screen_cpu;
 	dma_addr_t fixed_screen_dma;
 
+	int (*init)(struct platform_device*);
+	int (*exit)(struct platform_device*);
+
 	void (*lcd_power)(int);
 	void (*backlight_power)(int);
 };

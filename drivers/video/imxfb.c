@@ -650,6 +650,12 @@ static int __init imxfb_probe(struct platform_device *pdev)
 		info->fix.smem_start = fbi->screen_dma;
 	}
 
+	if (pdata->init) {
+		ret = pdata->init(fbi->pdev);
+		if (ret)
+			goto failed_platform_init;
+	}
+
 	/*
 	 * This makes sure that our colour bitfield
 	 * descriptors are correctly initialised.
@@ -674,6 +680,9 @@ static int __init imxfb_probe(struct platform_device *pdev)
 failed_register:
 	fb_dealloc_cmap(&info->cmap);
 failed_cmap:
+	if (pdata->exit)
+		pdata->exit(fbi->pdev);
+failed_platform_init:
 	if (!pdata->fixed_screen_cpu)
 		dma_free_writecombine(&pdev->dev,fbi->map_size,fbi->map_cpu,
 			fbi->map_dma);
@@ -691,6 +700,7 @@ failed_init:
 
 static int __devexit imxfb_remove(struct platform_device *pdev)
 {
+	struct imx_fb_platform_data *pdata;
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct imxfb_info *fbi = info->par;
 	struct resource *res;
@@ -700,6 +710,10 @@ static int __devexit imxfb_remove(struct platform_device *pdev)
 	imxfb_disable_controller(fbi);
 
 	unregister_framebuffer(info);
+
+	pdata = pdev->dev.platform_data;
+	if (pdata->exit)
+		pdata->exit(fbi->pdev);
 
 	fb_dealloc_cmap(&info->cmap);
 	kfree(info->pseudo_palette);
