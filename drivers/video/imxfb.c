@@ -26,9 +26,11 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/cpufreq.h>
+#include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/math64.h>
 
 #include <mach/imxfb.h>
 
@@ -141,6 +143,7 @@ struct imxfb_rgb {
 struct imxfb_info {
 	struct platform_device  *pdev;
 	void __iomem		*regs;
+	struct clk		*clk;
 
 	u_int			max_bpp;
 	u_int			max_xres;
@@ -403,6 +406,8 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 
 	writel(RMCR_LCDC_EN, fbi->regs + LCDC_RMCR);
 
+	clk_enable(fbi->clk);
+
 	if (fbi->backlight_power)
 		fbi->backlight_power(1);
 	if (fbi->lcd_power)
@@ -417,6 +422,8 @@ static void imxfb_disable_controller(struct imxfb_info *fbi)
 		fbi->backlight_power(0);
 	if (fbi->lcd_power)
 		fbi->lcd_power(0);
+
+	clk_disable(fbi->clk);
 
 	writel(0, fbi->regs + LCDC_RMCR);
 }
@@ -461,6 +468,9 @@ static struct fb_ops imxfb_ops = {
 static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct imxfb_info *fbi = info->par;
+	unsigned int pcr, lcd_clk;
+	unsigned long long tmp;
+
 	pr_debug("var: xres=%d hslen=%d lm=%d rm=%d\n",
 		var->xres, var->hsync_len,
 		var->left_margin, var->right_margin);
@@ -507,7 +517,23 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 
 	writel(SIZE_XMAX(var->xres) | SIZE_YMAX(var->yres),
 			fbi->regs + LCDC_SIZE);
-	writel(fbi->pcr, fbi->regs + LCDC_PCR);
+
+	lcd_clk = clk_get_rate(fbi->clk);
+	tmp = var->pixclock * (unsigned long long)lcd_clk;
+	do_div(tmp, 1000000);
+	if (do_div(tmp, 1000000) > 500000)
+		tmp++;
+	pcr = (unsigned int)tmp;
+	if (--pcr > 0x3F) {
+		pcr = 0x3F;
+		printk(KERN_WARNING "Must limit pixel clock to %uHz\n",
+				lcd_clk / pcr);
+	}
+
+	/* add sync polarities */
+	pcr |= fbi->pcr & ~0x3F;
+
+	writel(pcr, fbi->regs + LCDC_PCR);
 	writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
 	writel(fbi->lscr1, fbi->regs + LCDC_LSCR1);
 	writel(fbi->dmacr, fbi->regs + LCDC_DMACR);
@@ -649,6 +675,13 @@ static int __init imxfb_probe(struct platform_device *pdev)
 		goto failed_req;
 	}
 
+	fbi->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(fbi->clk)) {
+		ret = PTR_ERR(fbi->clk);;
+		dev_err(&pdev->dev, "unable to get clock: %d\n", ret);
+		goto failed_getclock;
+	}
+
 	fbi->regs = ioremap(res->start, resource_size(res));
 	if (fbi->regs == NULL) {
 		printk(KERN_ERR"Cannot map frame buffer registers\n");
@@ -717,6 +750,8 @@ failed_platform_init:
 		dma_free_writecombine(&pdev->dev,fbi->map_size,fbi->map_cpu,
 			fbi->map_dma);
 failed_map:
+	clk_put(fbi->clk);
+failed_getclock:
 	iounmap(fbi->regs);
 failed_ioremap:
 	release_mem_region(res->start, res->end - res->start);
@@ -751,6 +786,9 @@ static int __devexit imxfb_remove(struct platform_device *pdev)
 
 	iounmap(fbi->regs);
 	release_mem_region(res->start, res->end - res->start + 1);
+	clk_disable(fbi->clk);
+	clk_put(fbi->clk);
+
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
