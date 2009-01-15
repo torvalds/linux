@@ -44,6 +44,7 @@ struct sd {
 	__u8 autogain;
 	__u8 blue;
 	__u8 red;
+	u8 gamma;
 	__u8 vflip;			/* ov7630 only */
 	__u8 infrared;			/* mi0360 only */
 
@@ -78,6 +79,8 @@ static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setgamma(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getgamma(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
@@ -157,6 +160,20 @@ static struct ctrl sd_ctrls[] = {
 	    },
 	    .set = sd_setred_balance,
 	    .get = sd_getred_balance,
+	},
+	{
+	    {
+		.id      = V4L2_CID_GAMMA,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Gamma",
+		.minimum = 0,
+		.maximum = 40,
+		.step    = 1,
+#define GAMMA_DEF 20
+		.default_value = GAMMA_DEF,
+	    },
+	    .set = sd_setgamma,
+	    .get = sd_getgamma,
 	},
 #define AUTOGAIN_IDX 5
 	{
@@ -332,10 +349,11 @@ static const u8 *sn_tb[] = {
 	sn_ov7660
 };
 
-static const __u8 gamma_def[] = {
+static const __u8 gamma_def[17] = {
 	0x00, 0x2d, 0x46, 0x5a, 0x6c, 0x7c, 0x8b, 0x99,
 	0xa6, 0xb2, 0xbf, 0xca, 0xd5, 0xe0, 0xeb, 0xf5, 0xff
 };
+
 
 /* color matrix and offsets */
 static const __u8 reg84[] = {
@@ -1027,6 +1045,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->colors = COLOR_DEF;
 	sd->blue = BLUE_BALANCE_DEF;
 	sd->red = RED_BALANCE_DEF;
+	sd->gamma = GAMMA_DEF;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->ag_cnt = -1;
 	sd->vflip = VFLIP_DEF;
@@ -1231,6 +1250,22 @@ static void setredblue(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x06, sd->blue);
 }
 
+static void setgamma(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int i;
+	u8 gamma[17];
+	static const u8 delta[17] = {
+		0x00, 0x14, 0x1c, 0x1c, 0x1c, 0x1c, 0x1b, 0x1a,
+		0x18, 0x13, 0x10, 0x0e, 0x08, 0x07, 0x04, 0x02, 0x00
+	};
+
+	for (i = 0; i < sizeof gamma; i++)
+		gamma[i] = gamma_def[i]
+			+ delta[i] * (sd->gamma - GAMMA_DEF) / 32;
+	reg_w(gspca_dev, 0x20, gamma, sizeof gamma);
+}
+
 static void setautogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1310,7 +1345,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x07, sn9c1xx[7]);	/* green */
 	reg_w1(gspca_dev, 0x06, sn9c1xx[6]);	/* blue */
 	reg_w1(gspca_dev, 0x14, sn9c1xx[0x14]);
-	reg_w(gspca_dev, 0x20, gamma_def, sizeof gamma_def);
+		setgamma(gspca_dev);
 	for (i = 0; i < 8; i++)
 		reg_w(gspca_dev, 0x84, reg84, sizeof reg84);
 	switch (sd->sensor) {
@@ -1637,6 +1672,24 @@ static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->red;
+	return 0;
+}
+
+static int sd_setgamma(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->gamma = val;
+	if (gspca_dev->streaming)
+		setgamma(gspca_dev);
+	return 0;
+}
+
+static int sd_getgamma(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->gamma;
 	return 0;
 }
 
