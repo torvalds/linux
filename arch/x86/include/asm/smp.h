@@ -17,30 +17,7 @@
 #endif
 #include <asm/pda.h>
 #include <asm/thread_info.h>
-
-#ifdef CONFIG_X86_64
-
-extern cpumask_var_t cpu_callin_mask;
-extern cpumask_var_t cpu_callout_mask;
-extern cpumask_var_t cpu_initialized_mask;
-extern cpumask_var_t cpu_sibling_setup_mask;
-
-#else /* CONFIG_X86_32 */
-
-extern cpumask_t cpu_callin_map;
-extern cpumask_t cpu_callout_map;
-extern cpumask_t cpu_initialized;
-extern cpumask_t cpu_sibling_setup_map;
-
-#define cpu_callin_mask		((struct cpumask *)&cpu_callin_map)
-#define cpu_callout_mask	((struct cpumask *)&cpu_callout_map)
-#define cpu_initialized_mask	((struct cpumask *)&cpu_initialized)
-#define cpu_sibling_setup_mask	((struct cpumask *)&cpu_sibling_setup_map)
-
-#endif /* CONFIG_X86_32 */
-
-extern void (*mtrr_hook)(void);
-extern void zap_low_mappings(void);
+#include <asm/cpumask.h>
 
 extern int __cpuinit get_local_pda(int cpu);
 
@@ -167,8 +144,6 @@ void play_dead_common(void);
 void native_send_call_func_ipi(const struct cpumask *mask);
 void native_send_call_func_single_ipi(int cpu);
 
-extern void prefill_possible_map(void);
-
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
 
@@ -176,10 +151,6 @@ void smp_store_cpu_info(int id);
 static inline int num_booting_cpus(void)
 {
 	return cpumask_weight(cpu_callout_mask);
-}
-#else
-static inline void prefill_possible_map(void)
-{
 }
 #endif /* CONFIG_SMP */
 
@@ -205,10 +176,6 @@ extern int safe_smp_processor_id(void);
 })
 #define safe_smp_processor_id()		smp_processor_id()
 
-#else /* !CONFIG_X86_32_SMP && !CONFIG_X86_64_SMP */
-#define cpu_physical_id(cpu)		boot_cpu_physical_apicid
-#define safe_smp_processor_id()		0
-#define stack_smp_processor_id() 	0
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -250,12 +217,6 @@ static inline int hard_smp_processor_id(void)
 # endif
 
 #endif /* CONFIG_X86_LOCAL_APIC */
-
-#ifdef CONFIG_X86_HAS_BOOT_CPU_ID
-extern unsigned char boot_cpu_id;
-#else
-#define boot_cpu_id	0
-#endif
 
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_X86_SMP_H */

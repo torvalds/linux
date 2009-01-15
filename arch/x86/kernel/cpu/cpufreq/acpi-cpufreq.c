@@ -235,8 +235,6 @@ static u32 get_cur_val(const struct cpumask *mask)
 		return 0;
 	}
 
-	cpumask_copy(cmd.mask, mask);
-
 	drv_read(&cmd);
 
 	dprintk("get_cur_val = %u\n", cmd.val);

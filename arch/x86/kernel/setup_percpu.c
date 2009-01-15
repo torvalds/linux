@@ -13,6 +13,7 @@
 #include <asm/mpspec.h>
 #include <asm/apicdef.h>
 #include <asm/highmem.h>
+#include <asm/cpumask.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 unsigned int num_processors;

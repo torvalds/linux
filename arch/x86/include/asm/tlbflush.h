@@ -113,7 +113,7 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 		__flush_tlb();
 }
 
-static inline void native_flush_tlb_others(const cpumask_t *cpumask,
+static inline void native_flush_tlb_others(const struct cpumask *cpumask,
 					   struct mm_struct *mm,
 					   unsigned long va)
 {
@@ -142,8 +142,8 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 	flush_tlb_mm(vma->vm_mm);
 }
 
-void native_flush_tlb_others(const cpumask_t *cpumask, struct mm_struct *mm,
-			     unsigned long va);
+void native_flush_tlb_others(const struct cpumask *cpumask,
+			     struct mm_struct *mm, unsigned long va);
 
 #define TLBSTATE_OK	1
 #define TLBSTATE_LAZY	2
@@ -166,7 +166,7 @@ static inline void reset_lazy_tlbstate(void)
 #endif	/* SMP */
 
 #ifndef CONFIG_PARAVIRT
-#define flush_tlb_others(mask, mm, va)	native_flush_tlb_others(&mask, mm, va)
+#define flush_tlb_others(mask, mm, va)	native_flush_tlb_others(mask, mm, va)
 #endif
 
 static inline void flush_tlb_kernel_range(unsigned long start,
@@ -174,5 +174,7 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 {
 	flush_tlb_all();
 }
+
+extern void zap_low_mappings(void);
 
 #endif /* _ASM_X86_TLBFLUSH_H */

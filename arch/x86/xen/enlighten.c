@@ -634,35 +634,27 @@ static void xen_flush_tlb_single(unsigned long addr)
 	preempt_enable();
 }
 
-static void xen_flush_tlb_others(const cpumask_t *cpus, struct mm_struct *mm,
-				 unsigned long va)
+static void xen_flush_tlb_others(const struct cpumask *cpus,
+				 struct mm_struct *mm, unsigned long va)
 {
 	struct {
 		struct mmuext_op op;
-		cpumask_t mask;
+		DECLARE_BITMAP(mask, NR_CPUS);
 	} *args;
-	cpumask_t cpumask = *cpus;
 	struct multicall_space mcs;
 
-	/*
-	 * A couple of (to be removed) sanity checks:
-	 *
-	 * - current CPU must not be in mask
-	 * - mask must exist :)
-	 */
-	BUG_ON(cpus_empty(cpumask));
-	BUG_ON(cpu_isset(smp_processor_id(), cpumask));
+	BUG_ON(cpumask_empty(cpus));
 	BUG_ON(!mm);
-
-	/* If a CPU which we ran on has gone down, OK. */
-	cpus_and(cpumask, cpumask, cpu_online_map);
-	if (cpus_empty(cpumask))
-		return;
 
 	mcs = xen_mc_entry(sizeof(*args));
 	args = mcs.args;
-	args->mask = cpumask;
-	args->op.arg2.vcpumask = &args->mask;
+	args->op.arg2.vcpumask = to_cpumask(args->mask);
+
+	/* Remove us, and any offline CPUS. */
+	cpumask_and(to_cpumask(args->mask), cpus, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), to_cpumask(args->mask));
+	if (unlikely(cpumask_empty(to_cpumask(args->mask))))
+		goto issue;
 
 	if (va == TLB_FLUSH_ALL) {
 		args->op.cmd = MMUEXT_TLB_FLUSH_MULTI;
@@ -673,6 +665,7 @@ static void xen_flush_tlb_others(const cpumask_t *cpus, struct mm_struct *mm,
 
 	MULTI_mmuext_op(mcs.mc, &args->op, 1, NULL, DOMID_SELF);
 
+issue:
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
 

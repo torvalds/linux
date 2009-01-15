@@ -14,6 +14,7 @@
 #include <asm/reboot.h>
 #include <asm/pci_x86.h>
 #include <asm/virtext.h>
+#include <asm/cpu.h>
 
 #ifdef CONFIG_X86_32
 # include <linux/dmi.h>

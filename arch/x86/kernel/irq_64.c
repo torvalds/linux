@@ -100,7 +100,7 @@ void fixup_irqs(void)
 		/* interrupt's are disabled at this point */
 		spin_lock(&desc->lock);
 
-		affinity = &desc->affinity;
+		affinity = desc->affinity;
 		if (!irq_has_action(irq) ||
 		    cpumask_equal(affinity, cpu_online_mask)) {
 			spin_unlock(&desc->lock);
