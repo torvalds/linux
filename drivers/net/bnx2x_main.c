@@ -1970,10 +1970,11 @@ static u8 bnx2x_initial_phy_init(struct bnx2x *bp)
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);
 		bnx2x_release_phy_lock(bp);
 
+		bnx2x_calc_fc_adv(bp);
+
 		if (bp->link_vars.link_up)
 			bnx2x_link_report(bp);
 
-		bnx2x_calc_fc_adv(bp);
 
 		return rc;
 	}
