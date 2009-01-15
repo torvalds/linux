@@ -180,3 +180,63 @@ struct platform_device mxc_nand_device = {
 	.num_resources = ARRAY_SIZE(mxc_nand_resources),
 	.resource = mxc_nand_resources,
 };
+
+static struct resource mxc_i2c0_resources[] = {
+	{
+		.start = I2C_BASE_ADDR,
+		.end = I2C_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MXC_INT_I2C,
+		.end = MXC_INT_I2C,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_i2c_device0 = {
+	.name = "imx-i2c",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_i2c0_resources),
+	.resource = mxc_i2c0_resources,
+};
+
+static struct resource mxc_i2c1_resources[] = {
+	{
+		.start = I2C2_BASE_ADDR,
+		.end = I2C2_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MXC_INT_I2C2,
+		.end = MXC_INT_I2C2,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_i2c_device1 = {
+	.name = "imx-i2c",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(mxc_i2c1_resources),
+	.resource = mxc_i2c1_resources,
+};
+
+static struct resource mxc_i2c2_resources[] = {
+	{
+		.start = I2C3_BASE_ADDR,
+		.end = I2C3_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MXC_INT_I2C3,
+		.end = MXC_INT_I2C3,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_i2c_device2 = {
+	.name = "imx-i2c",
+	.id = 2,
+	.num_resources = ARRAY_SIZE(mxc_i2c2_resources),
+	.resource = mxc_i2c2_resources,
+};
