@@ -570,8 +570,11 @@ static int rfcomm_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		skb = sock_alloc_send_skb(sk, size + RFCOMM_SKB_RESERVE,
 				msg->msg_flags & MSG_DONTWAIT, &err);
-		if (!skb)
+		if (!skb) {
+			if (sent == 0)
+				sent = err;
 			break;
+		}
 		skb_reserve(skb, RFCOMM_SKB_HEAD_RESERVE);
 
 		err = memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size);
