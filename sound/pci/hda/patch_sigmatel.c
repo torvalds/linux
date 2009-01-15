@@ -885,8 +885,8 @@ static struct hda_verb stac92hd71bxx_analog_core_init[] = {
 static struct hda_verb stac925x_core_init[] = {
 	/* set dac0mux for dac converter */
 	{ 0x06, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* unmute and set max the selector */
-	{ 0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb01f },
+	/* mute the master volume */
+	{ 0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
 	{}
 };
 
@@ -1138,6 +1138,8 @@ static struct snd_kcontrol_new stac92hd71bxx_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac925x_mixer[] = {
+	HDA_CODEC_VOLUME("Master Playback Volume", 0x0e, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Master Playback Switch", 0x0e, 0, HDA_OUTPUT),
 	STAC_INPUT_SOURCE(1),
 	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x14, 0, HDA_OUTPUT),
@@ -3573,12 +3575,11 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		err = stac92xx_auto_fill_dac_nids(codec);
 		if (err < 0)
 			return err;
+		err = stac92xx_auto_create_multi_out_ctls(codec,
+							  &spec->autocfg);
+		if (err < 0)
+			return err;
 	}
-
-	err = stac92xx_auto_create_multi_out_ctls(codec, &spec->autocfg);
-
-	if (err < 0)
-		return err;
 
 	/* setup analog beep controls */
 	if (spec->anabeep_nid > 0) {
