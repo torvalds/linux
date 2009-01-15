@@ -1089,7 +1089,6 @@ static int korina_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
-	platform_set_drvdata(pdev, dev);
 	lp = netdev_priv(dev);
 
 	bif->dev = dev;
