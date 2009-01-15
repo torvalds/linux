@@ -8,6 +8,15 @@ config MACH_MX31ADS
 	  Include support for MX31ADS platform. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_MX31ADS_WM1133_EV1
+	bool "Support Wolfson Microelectronics 1133-EV1 module"
+	depends on MACH_MX31ADS
+	select MFD_WM8350_CONFIG_MODE_0
+	select MFD_WM8352_CONFIG_MODE_0
+	help
+	  Include support for the Wolfson Microelectronics 1133-EV1 PMU
+	  and audio module for the MX31ADS platform.
+
 config MACH_PCM037
 	bool "Support Phytec pcm037 platforms"
 	help
