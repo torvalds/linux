@@ -1665,7 +1665,7 @@ sub process {
 			# Should not end with a space.
 			$to =~ s/\s+$//;
 			# '*'s should not have spaces between.
-			while ($to =~ s/(.)\s\*/$1\*/) {
+			while ($to =~ s/\*\s+\*/\*\*/) {
 			}
 
 			#print "from<$from> to<$to>\n";
@@ -1680,7 +1680,7 @@ sub process {
 			# Should not end with a space.
 			$to =~ s/\s+$//;
 			# '*'s should not have spaces between.
-			while ($to =~ s/(.)\s\*/$1\*/) {
+			while ($to =~ s/\*\s+\*/\*\*/) {
 			}
 			# Modifiers should have spaces.
 			$to =~ s/(\b$Modifier$)/$1 /;
