@@ -84,7 +84,10 @@
 #define KORINA_NUM_RDS	64  /* number of receive descriptors */
 #define KORINA_NUM_TDS	64  /* number of transmit descriptors */
 
-#define KORINA_RBSIZE	536 /* size of one resource buffer = Ether MTU */
+/* KORINA_RBSIZE is the hardware's default maximum receive
+ * frame size in bytes. Having this hardcoded means that there
+ * is no support for MTU sizes greater than 1500. */
+#define KORINA_RBSIZE	1536 /* size of one resource buffer = Ether MTU */
 #define KORINA_RDS_MASK	(KORINA_NUM_RDS - 1)
 #define KORINA_TDS_MASK	(KORINA_NUM_TDS - 1)
 #define RD_RING_SIZE 	(KORINA_NUM_RDS * sizeof(struct dma_desc))
