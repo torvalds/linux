@@ -133,6 +133,8 @@
 
 #define PO1030_SENSOR_RESET	(1 << 5)
 
+#define PO1030_SUBSAMPLING	(1 << 6)
+
 /*****************************************************************************/
 
 #define PO1030_GLOBAL_GAIN_DEFAULT	0x12

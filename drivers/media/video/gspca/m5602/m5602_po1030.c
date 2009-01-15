@@ -43,6 +43,15 @@ static int po1030_get_auto_exposure(struct gspca_dev *gspca_dev,
 
 static struct v4l2_pix_format po1030_modes[] = {
 	{
+		320,
+		240,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage = 320 * 240,
+		.bytesperline = 320,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 2
+	}, {
 		640,
 		480,
 		V4L2_PIX_FMT_SBGGR8,
@@ -329,7 +338,40 @@ int po1030_start(struct sd *sd)
 	u8 data;
 
 	switch (width) {
+	case 320:
+		data = PO1030_SUBSAMPLING;
+		err = m5602_write_sensor(sd, PO1030_CONTROL3, &data, 1);
+		if (err < 0)
+			return err;
+
+		data = ((width + 3) >> 8) & 0xff;
+		err = m5602_write_sensor(sd, PO1030_WINDOWWIDTH_H, &data, 1);
+		if (err < 0)
+			return err;
+
+		data = (width + 3) & 0xff;
+		err = m5602_write_sensor(sd, PO1030_WINDOWWIDTH_L, &data, 1);
+		if (err < 0)
+			return err;
+
+		data = ((height + 1) >> 8) & 0xff;
+		err = m5602_write_sensor(sd, PO1030_WINDOWHEIGHT_H, &data, 1);
+		if (err < 0)
+			return err;
+
+		data = (height + 1) & 0xff;
+		err = m5602_write_sensor(sd, PO1030_WINDOWHEIGHT_L, &data, 1);
+
+		height += 6;
+		width -= 1;
+		break;
+
 	case 640:
+		data = 0;
+		err = m5602_write_sensor(sd, PO1030_CONTROL3, &data, 1);
+		if (err < 0)
+			return err;
+
 		data = ((width + 7) >> 8) & 0xff;
 		err = m5602_write_sensor(sd, PO1030_WINDOWWIDTH_H, &data, 1);
 		if (err < 0)
