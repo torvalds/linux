@@ -769,11 +769,12 @@ static void korina_alloc_ring(struct net_device *dev)
 		lp->rd_ring[i].link = CPHYSADDR(&lp->rd_ring[i+1]);
 	}
 
-	/* loop back */
-	lp->rd_ring[i].link = CPHYSADDR(&lp->rd_ring[0]);
-	lp->rx_next_done  = 0;
+	/* loop back receive descriptors, so the last
+	 * descriptor points to the first one */
+	lp->rd_ring[i - 1].link = CPHYSADDR(&lp->rd_ring[0]);
+	lp->rd_ring[i - 1].control |= DMA_DESC_COD;
 
-	lp->rd_ring[i].control |= DMA_DESC_COD;
+	lp->rx_next_done  = 0;
 	lp->rx_chain_head = 0;
 	lp->rx_chain_tail = 0;
 	lp->rx_chain_status = desc_empty;
