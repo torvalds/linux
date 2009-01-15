@@ -1199,7 +1199,7 @@ int ubifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	return 0;
 }
 
-struct inode_operations ubifs_dir_inode_operations = {
+const struct inode_operations ubifs_dir_inode_operations = {
 	.lookup      = ubifs_lookup,
 	.create      = ubifs_create,
 	.link        = ubifs_link,
@@ -1219,7 +1219,7 @@ struct inode_operations ubifs_dir_inode_operations = {
 #endif
 };
 
-struct file_operations ubifs_dir_operations = {
+const struct file_operations ubifs_dir_operations = {
 	.llseek         = ubifs_dir_llseek,
 	.release        = ubifs_dir_release,
 	.read           = generic_read_dir,

@@ -1778,7 +1778,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-struct super_operations ubifs_super_operations = {
+const struct super_operations ubifs_super_operations = {
 	.alloc_inode   = ubifs_alloc_inode,
 	.destroy_inode = ubifs_destroy_inode,
 	.put_super     = ubifs_put_super,
