@@ -31,10 +31,6 @@
 
 #include <asm/irq.h>
 
-#define PCI_VENDOR_ID_SILAN		0x1904
-#define PCI_DEVICE_ID_SILAN_SC92031	0x2031
-#define PCI_DEVICE_ID_SILAN_8139D	0x8139
-
 #define SC92031_NAME "sc92031"
 
 /* BAR 0 is MMIO, BAR 1 is PIO */
@@ -1592,8 +1588,8 @@ out:
 }
 
 static struct pci_device_id sc92031_pci_device_id_table[] __devinitdata = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, PCI_DEVICE_ID_SILAN_SC92031) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, PCI_DEVICE_ID_SILAN_8139D) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x2031) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x8139) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sc92031_pci_device_id_table);

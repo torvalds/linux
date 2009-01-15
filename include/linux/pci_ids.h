@@ -2209,6 +2209,8 @@
 
 #define PCI_VENDOR_ID_TOPSPIN		0x1867
 
+#define PCI_VENDOR_ID_SILAN		0x1904
+
 #define PCI_VENDOR_ID_TDI               0x192E
 #define PCI_DEVICE_ID_TDI_EHCI          0x0101
 
