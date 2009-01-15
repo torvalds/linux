@@ -176,7 +176,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->colors = COLOR_DEF;
 	sd->gamma = GAMMA_DEF;
 	sd->sharpness = SHARPNESS_DEF;
-	gspca_dev->iface = 9;		/* use the altsetting 08 */
+	gspca_dev->nbalt = 9;		/* use the altsetting 08 */
 	return 0;
 }
 
