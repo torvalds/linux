@@ -2,7 +2,7 @@
 #define __LINUX_MATROXFB_H__
 
 #include <asm/ioctl.h>
-#include <asm/types.h>
+#include <linux/types.h>
 #include <linux/videodev2.h>
 
 struct matroxioc_output_mode {
