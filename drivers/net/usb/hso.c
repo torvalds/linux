@@ -1297,6 +1297,7 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 	/* setup */
 	spin_lock_irq(&serial->serial_lock);
 	tty->driver_data = serial;
+	tty_kref_put(serial->tty);
 	serial->tty = tty_kref_get(tty);
 	spin_unlock_irq(&serial->serial_lock);
 
