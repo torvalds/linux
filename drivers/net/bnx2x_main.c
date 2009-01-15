@@ -1899,7 +1899,8 @@ static int bnx2x_set_spio(struct bnx2x *bp, int spio_num, u32 mode)
 
 static void bnx2x_calc_fc_adv(struct bnx2x *bp)
 {
-	switch (bp->link_vars.ieee_fc) {
+	switch (bp->link_vars.ieee_fc &
+		MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK) {
 	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_NONE:
 		bp->port.advertising &= ~(ADVERTISED_Asym_Pause |
 					  ADVERTISED_Pause);
