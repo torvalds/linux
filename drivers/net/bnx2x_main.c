@@ -4812,6 +4812,15 @@ static void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 	bnx2x_init_context(bp);
 	bnx2x_init_internal(bp, load_code);
 	bnx2x_init_ind_table(bp);
+	bnx2x_stats_init(bp);
+
+	/* At this point, we are ready for interrupts */
+	atomic_set(&bp->intr_sem, 0);
+
+	/* flush all before enabling interrupts */
+	mb();
+	mmiowb();
+
 	bnx2x_int_enable(bp);
 }
 
@@ -6420,16 +6429,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		}
 	}
 
-	bnx2x_stats_init(bp);
-
 	bp->state = BNX2X_STATE_OPENING_WAIT4_PORT;
-
-	/* Enable Rx interrupt handling before sending the ramrod
-	   as it's completed on Rx FP queue */
-	bnx2x_napi_enable(bp);
-
-	/* Enable interrupt handling */
-	atomic_set(&bp->intr_sem, 0);
 
 	rc = bnx2x_setup_leading(bp);
 	if (rc) {
