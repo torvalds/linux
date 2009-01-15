@@ -508,12 +508,8 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 		cmd_desc = &cmd_desc_arr[i];
 
 		pbuf = &adapter->cmd_buf_arr[producer];
-		pbuf->mss = 0;
-		pbuf->total_length = 0;
 		pbuf->skb = NULL;
-		pbuf->cmd = 0;
 		pbuf->frag_count = 0;
-		pbuf->port = 0;
 
 		/* adapter->ahw.cmd_desc_head[producer] = *cmd_desc; */
 		memcpy(&adapter->ahw.cmd_desc_head[producer],

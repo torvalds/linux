@@ -308,27 +308,16 @@ struct netxen_ring_ctx {
 #define netxen_set_cmd_desc_ctxid(cmd_desc, var)	\
 	((cmd_desc)->port_ctxid |= ((var) << 4 & 0xF0))
 
-#define netxen_set_cmd_desc_flags(cmd_desc, val)	\
-	(cmd_desc)->flags_opcode = ((cmd_desc)->flags_opcode & \
-		~cpu_to_le16(0x7f)) | cpu_to_le16((val) & 0x7f)
-#define netxen_set_cmd_desc_opcode(cmd_desc, val)	\
-	(cmd_desc)->flags_opcode = ((cmd_desc)->flags_opcode & \
-		~cpu_to_le16((u16)0x3f << 7)) | cpu_to_le16(((val) & 0x3f) << 7)
+#define netxen_set_tx_port(_desc, _port) \
+	(_desc)->port_ctxid = ((_port) & 0xf) | (((_port) << 4) & 0xf0)
 
-#define netxen_set_cmd_desc_num_of_buff(cmd_desc, val)	\
-	(cmd_desc)->num_of_buffers_total_length = \
-		((cmd_desc)->num_of_buffers_total_length & \
-		~cpu_to_le32(0xff)) | cpu_to_le32((val) & 0xff)
-#define netxen_set_cmd_desc_totallength(cmd_desc, val)	\
-	(cmd_desc)->num_of_buffers_total_length = \
-		((cmd_desc)->num_of_buffers_total_length & \
-		~cpu_to_le32((u32)0xffffff << 8)) | \
-		cpu_to_le32(((val) & 0xffffff) << 8)
+#define netxen_set_tx_flags_opcode(_desc, _flags, _opcode) \
+	(_desc)->flags_opcode = \
+	cpu_to_le16(((_flags) & 0x7f) | (((_opcode) & 0x3f) << 7))
 
-#define netxen_get_cmd_desc_opcode(cmd_desc)	\
-	((le16_to_cpu((cmd_desc)->flags_opcode) >> 7) & 0x003f)
-#define netxen_get_cmd_desc_totallength(cmd_desc)	\
-	((le32_to_cpu((cmd_desc)->num_of_buffers_total_length) >> 8) & 0xffffff)
+#define netxen_set_tx_frags_len(_desc, _frags, _len) \
+	(_desc)->num_of_buffers_total_length = \
+	cpu_to_le32(((_frags) & 0xff) | (((_len) & 0xffffff) << 8))
 
 struct cmd_desc_type0 {
 	u8 tcp_hdr_offset;	/* For LSO only */
@@ -757,7 +746,7 @@ extern char netxen_nic_driver_name[];
  */
 struct netxen_skb_frag {
 	u64 dma;
-	u32 length;
+	ulong length;
 };
 
 #define _netxen_set_bits(config_word, start, bits, val)	{\
@@ -783,13 +772,7 @@ struct netxen_skb_frag {
 struct netxen_cmd_buffer {
 	struct sk_buff *skb;
 	struct netxen_skb_frag frag_array[MAX_BUFFERS_PER_CMD + 1];
-	u32 total_length;
-	u32 mss;
-	u16 port;
-	u8 cmd;
-	u8 frag_count;
-	unsigned long time_stamp;
-	u32 state;
+	u32 frag_count;
 };
 
 /* In rx_buffer, we do not need multiple fragments as is a single buffer */
@@ -1486,8 +1469,6 @@ void netxen_release_tx_buffers(struct netxen_adapter *adapter);
 
 void netxen_initialize_adapter_ops(struct netxen_adapter *adapter);
 int netxen_init_firmware(struct netxen_adapter *adapter);
-void netxen_tso_check(struct netxen_adapter *adapter,
-		      struct cmd_desc_type0 *desc, struct sk_buff *skb);
 void netxen_nic_clear_stats(struct netxen_adapter *adapter);
 void netxen_watchdog_task(struct work_struct *work);
 void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx,

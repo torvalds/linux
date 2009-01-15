@@ -39,6 +39,7 @@
 #include "netxen_nic_phan_reg.h"
 
 #include <linux/dma-mapping.h>
+#include <linux/if_vlan.h>
 #include <net/ip.h>
 
 MODULE_DESCRIPTION("NetXen Multi port (1/10) Gigabit Network Driver");
@@ -1137,29 +1138,46 @@ static int netxen_nic_close(struct net_device *netdev)
 	return 0;
 }
 
-void netxen_tso_check(struct netxen_adapter *adapter,
+static bool netxen_tso_check(struct net_device *netdev,
 		      struct cmd_desc_type0 *desc, struct sk_buff *skb)
 {
-	if (desc->mss) {
-		desc->total_hdr_length = (sizeof(struct ethhdr) +
-					  ip_hdrlen(skb) + tcp_hdrlen(skb));
+	bool tso = false;
+	u8 opcode = TX_ETHER_PKT;
 
-		if ((NX_IS_REVISION_P3(adapter->ahw.revision_id)) &&
-				(skb->protocol == htons(ETH_P_IPV6)))
-			netxen_set_cmd_desc_opcode(desc, TX_TCP_LSO6);
-		else
-			netxen_set_cmd_desc_opcode(desc, TX_TCP_LSO);
+	if ((netdev->features & (NETIF_F_TSO | NETIF_F_TSO6)) &&
+			skb_shinfo(skb)->gso_size > 0) {
+
+		desc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
+		desc->total_hdr_length =
+			skb_transport_offset(skb) + tcp_hdrlen(skb);
+
+		opcode = (skb->protocol == htons(ETH_P_IPV6)) ?
+				TX_TCP_LSO6 : TX_TCP_LSO;
+		tso = true;
 
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		if (ip_hdr(skb)->protocol == IPPROTO_TCP)
-			netxen_set_cmd_desc_opcode(desc, TX_TCP_PKT);
-		else if (ip_hdr(skb)->protocol == IPPROTO_UDP)
-			netxen_set_cmd_desc_opcode(desc, TX_UDP_PKT);
-		else
-			return;
+		u8 l4proto;
+
+		if (skb->protocol == htons(ETH_P_IP)) {
+			l4proto = ip_hdr(skb)->protocol;
+
+			if (l4proto == IPPROTO_TCP)
+				opcode = TX_TCP_PKT;
+			else if(l4proto == IPPROTO_UDP)
+				opcode = TX_UDP_PKT;
+		} else if (skb->protocol == htons(ETH_P_IPV6)) {
+			l4proto = ipv6_hdr(skb)->nexthdr;
+
+			if (l4proto == IPPROTO_TCP)
+				opcode = TX_TCPV6_PKT;
+			else if(l4proto == IPPROTO_UDP)
+				opcode = TX_UDPV6_PKT;
+		}
 	}
 	desc->tcp_hdr_offset = skb_transport_offset(skb);
 	desc->ip_hdr_offset = skb_network_offset(skb);
+	netxen_set_tx_flags_opcode(desc, 0, opcode);
+	return tso;
 }
 
 static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
@@ -1167,33 +1185,20 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct netxen_hardware_context *hw = &adapter->ahw;
 	unsigned int first_seg_len = skb->len - skb->data_len;
+	struct netxen_cmd_buffer *pbuf;
 	struct netxen_skb_frag *buffrag;
-	unsigned int i;
+	struct cmd_desc_type0 *hwdesc;
+	int i, k;
 
 	u32 producer, consumer;
-	u32 saved_producer = 0;
-	struct cmd_desc_type0 *hwdesc;
-	int k;
-	struct netxen_cmd_buffer *pbuf = NULL;
-	int frag_count;
-	int no_of_desc;
+	int frag_count, no_of_desc;
 	u32 num_txd = adapter->max_tx_desc_count;
+	bool is_tso = false;
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
 
 	/* There 4 fragments per descriptor */
 	no_of_desc = (frag_count + 3) >> 2;
-	if (netdev->features & (NETIF_F_TSO | NETIF_F_TSO6)) {
-		if (skb_shinfo(skb)->gso_size > 0) {
-
-			no_of_desc++;
-			if ((ip_hdrlen(skb) + tcp_hdrlen(skb) +
-			     sizeof(struct ethhdr)) >
-			    (sizeof(struct cmd_desc_type0) - 2)) {
-				no_of_desc++;
-			}
-		}
-	}
 
 	producer = adapter->cmd_producer;
 	smp_mb();
@@ -1205,34 +1210,22 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	/* Copy the descriptors into the hardware    */
-	saved_producer = producer;
 	hwdesc = &hw->cmd_desc_head[producer];
 	memset(hwdesc, 0, sizeof(struct cmd_desc_type0));
 	/* Take skb->data itself */
 	pbuf = &adapter->cmd_buf_arr[producer];
-	if ((netdev->features & (NETIF_F_TSO | NETIF_F_TSO6)) &&
-			skb_shinfo(skb)->gso_size > 0) {
-		pbuf->mss = skb_shinfo(skb)->gso_size;
-		hwdesc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
-	} else {
-		pbuf->mss = 0;
-		hwdesc->mss = 0;
-	}
-	pbuf->total_length = skb->len;
+
+	is_tso = netxen_tso_check(netdev, hwdesc, skb);
+
 	pbuf->skb = skb;
-	pbuf->cmd = TX_ETHER_PKT;
 	pbuf->frag_count = frag_count;
-	pbuf->port = adapter->portnum;
 	buffrag = &pbuf->frag_array[0];
 	buffrag->dma = pci_map_single(adapter->pdev, skb->data, first_seg_len,
 				      PCI_DMA_TODEVICE);
 	buffrag->length = first_seg_len;
-	netxen_set_cmd_desc_totallength(hwdesc, skb->len);
-	netxen_set_cmd_desc_num_of_buff(hwdesc, frag_count);
-	netxen_set_cmd_desc_opcode(hwdesc, TX_ETHER_PKT);
+	netxen_set_tx_frags_len(hwdesc, frag_count, skb->len);
+	netxen_set_tx_port(hwdesc, adapter->portnum);
 
-	netxen_set_cmd_desc_port(hwdesc, adapter->portnum);
-	netxen_set_cmd_desc_ctxid(hwdesc, adapter->portnum);
 	hwdesc->buffer1_length = cpu_to_le16(first_seg_len);
 	hwdesc->addr_buffer1 = cpu_to_le64(buffrag->dma);
 
@@ -1285,16 +1278,12 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 	producer = get_next_index(producer, num_txd);
 
-	/* might change opcode to TX_TCP_LSO */
-	netxen_tso_check(adapter, &hw->cmd_desc_head[saved_producer], skb);
-
 	/* For LSO, we need to copy the MAC/IP/TCP headers into
 	 * the descriptor ring
 	 */
-	if (netxen_get_cmd_desc_opcode(&hw->cmd_desc_head[saved_producer])
-	    == TX_TCP_LSO) {
+	if (is_tso) {
 		int hdr_len, first_hdr_len, more_hdr;
-		hdr_len = hw->cmd_desc_head[saved_producer].total_hdr_length;
+		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		if (hdr_len > (sizeof(struct cmd_desc_type0) - 2)) {
 			first_hdr_len = sizeof(struct cmd_desc_type0) - 2;
 			more_hdr = 1;
