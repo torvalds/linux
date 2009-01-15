@@ -89,7 +89,7 @@ static struct korina_device korina_dev0_data = {
 static struct platform_device korina_dev0 = {
 	.id = -1,
 	.name = "korina",
-	.dev.platform_data = &korina_dev0_data,
+	.dev.driver_data = &korina_dev0_data,
 	.resource = korina_dev0_res,
 	.num_resources = ARRAY_SIZE(korina_dev0_res),
 };
