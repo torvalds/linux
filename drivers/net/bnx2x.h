@@ -739,7 +739,7 @@ struct bnx2x {
 	struct bnx2x_fastpath	fp[MAX_CONTEXT];
 	void __iomem		*regview;
 	void __iomem		*doorbells;
-#define BNX2X_DB_SIZE		(16*2048)
+#define BNX2X_DB_SIZE		(16*BCM_PAGE_SIZE)
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
