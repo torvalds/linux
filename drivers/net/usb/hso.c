@@ -2053,8 +2053,10 @@ static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial)
 			serial->curr_rx_urb_offset;
 		D1("data to push to tty");
 		while (write_length_remaining) {
-			if (test_bit(TTY_THROTTLED, &tty->flags))
+			if (test_bit(TTY_THROTTLED, &tty->flags)) {
+				tty_kref_put(tty);
 				return -1;
+			}
 			curr_write_len =  tty_insert_flip_string
 				(tty, urb->transfer_buffer +
 				 serial->curr_rx_urb_offset,
