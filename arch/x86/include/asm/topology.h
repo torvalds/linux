@@ -192,9 +192,20 @@ extern int __node_distance(int, int);
 
 #else /* !CONFIG_NUMA */
 
-#define numa_node_id()		0
-#define	cpu_to_node(cpu)	0
-#define	early_cpu_to_node(cpu)	0
+static inline int numa_node_id(void)
+{
+	return 0;
+}
+
+static inline int cpu_to_node(int cpu)
+{
+	return 0;
+}
+
+static inline int early_cpu_to_node(int cpu)
+{
+	return 0;
+}
 
 static inline const cpumask_t *cpumask_of_node(int node)
 {
