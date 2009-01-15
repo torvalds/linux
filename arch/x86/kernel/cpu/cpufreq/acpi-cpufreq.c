@@ -145,7 +145,7 @@ typedef union {
 
 struct drv_cmd {
 	unsigned int type;
-	cpumask_var_t mask;
+	const struct cpumask *mask;
 	drv_addr_union addr;
 	u32 val;
 };
@@ -235,8 +235,7 @@ static u32 get_cur_val(const struct cpumask *mask)
 		return 0;
 	}
 
-	cpumask_copy(cmd.mask, mask);
-
+	cmd.mask = mask;
 	drv_read(&cmd);
 
 	dprintk("get_cur_val = %u\n", cmd.val);
@@ -403,9 +402,6 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 		return -ENODEV;
 	}
 
-	if (unlikely(!alloc_cpumask_var(&cmd.mask, GFP_KERNEL)))
-		return -ENOMEM;
-
 	perf = data->acpi_data;
 	result = cpufreq_frequency_table_target(policy,
 						data->freq_table,
@@ -450,9 +446,9 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 
 	/* cpufreq holds the hotplug lock, so we are safe from here on */
 	if (policy->shared_type != CPUFREQ_SHARED_TYPE_ANY)
-		cpumask_and(cmd.mask, cpu_online_mask, policy->cpus);
+		cmd.mask = policy->cpus;
 	else
-		cpumask_copy(cmd.mask, cpumask_of(policy->cpu));
+		cmd.mask = cpumask_of(policy->cpu);
 
 	freqs.old = perf->states[perf->state].core_frequency * 1000;
 	freqs.new = data->freq_table[next_state].frequency;
@@ -479,7 +475,6 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	perf->state = next_perf_state;
 
 out:
-	free_cpumask_var(cmd.mask);
 	return result;
 }
 
