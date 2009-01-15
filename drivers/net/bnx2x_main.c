@@ -2920,7 +2920,7 @@ static irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 #define ADD_64(s_hi, a_hi, s_lo, a_lo) \
 	do { \
 		s_lo += a_lo; \
-		s_hi += a_hi + (s_lo < a_lo) ? 1 : 0; \
+		s_hi += a_hi + ((s_lo < a_lo) ? 1 : 0); \
 	} while (0)
 
 /* difference = minuend - subtrahend */
