@@ -15,7 +15,6 @@
 #ifndef __ASM_ARCH_MFP_PXA320_H
 #define __ASM_ARCH_MFP_PXA320_H
 
-#include <mach/mfp.h>
 #include <mach/mfp-pxa3xx.h>
 
 /* GPIO */
