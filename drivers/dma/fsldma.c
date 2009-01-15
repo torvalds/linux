@@ -875,7 +875,8 @@ static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
 	}
 
 	dev_info(fdev->dev, "#%d (%s), irq %d\n", new_fsl_chan->id,
-				compatible, new_fsl_chan->irq);
+		 compatible,
+		 new_fsl_chan->irq != NO_IRQ ? new_fsl_chan->irq : fdev->irq);
 
 	return 0;
 
