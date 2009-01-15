@@ -36,7 +36,6 @@
 #define PCI_DEVICE_ID_SILAN_8139D	0x8139
 
 #define SC92031_NAME "sc92031"
-#define SC92031_DESCRIPTION "Silan SC92031 PCI Fast Ethernet Adapter driver"
 
 /* BAR 0 is MMIO, BAR 1 is PIO */
 #ifndef SC92031_USE_BAR
@@ -1623,4 +1622,4 @@ module_exit(sc92031_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Cesar Eduardo Barros <cesarb@cesarb.net>");
-MODULE_DESCRIPTION(SC92031_DESCRIPTION);
+MODULE_DESCRIPTION("Silan SC92031 PCI Fast Ethernet Adapter driver");
