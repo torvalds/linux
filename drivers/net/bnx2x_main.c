@@ -1438,7 +1438,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		DP(NETIF_MSG_RX_STATUS, "CQE type %x  err %x  status %x"
 		   "  queue %x  vlan %x  len %u\n", CQE_TYPE(cqe_fp_flags),
 		   cqe_fp_flags, cqe->fast_path_cqe.status_flags,
-		   cqe->fast_path_cqe.rss_hash_result,
+		   le32_to_cpu(cqe->fast_path_cqe.rss_hash_result),
 		   le16_to_cpu(cqe->fast_path_cqe.vlan_tag),
 		   le16_to_cpu(cqe->fast_path_cqe.pkt_len));
 
@@ -2821,8 +2821,10 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 static void bnx2x_attn_int(struct bnx2x *bp)
 {
 	/* read local copy of bits */
-	u32 attn_bits = bp->def_status_blk->atten_status_block.attn_bits;
-	u32 attn_ack = bp->def_status_blk->atten_status_block.attn_bits_ack;
+	u32 attn_bits = le32_to_cpu(bp->def_status_blk->atten_status_block.
+								attn_bits);
+	u32 attn_ack = le32_to_cpu(bp->def_status_blk->atten_status_block.
+								attn_bits_ack);
 	u32 attn_state = bp->attn_state;
 
 	/* look for changed bits */
@@ -2870,7 +2872,7 @@ static void bnx2x_sp_task(struct work_struct *work)
 	if (status & 0x2)
 		bp->stats_pending = 0;
 
-	bnx2x_ack_sb(bp, DEF_SB_ID, ATTENTION_ID, bp->def_att_idx,
+	bnx2x_ack_sb(bp, DEF_SB_ID, ATTENTION_ID, le16_to_cpu(bp->def_att_idx),
 		     IGU_INT_NOP, 1);
 	bnx2x_ack_sb(bp, DEF_SB_ID, USTORM_ID, le16_to_cpu(bp->def_u_idx),
 		     IGU_INT_NOP, 1);
@@ -5161,7 +5163,6 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	REG_WR(bp, PXP2_REG_RQ_SRC_ENDIAN_M, 1);
 	REG_WR(bp, PXP2_REG_RQ_CDU_ENDIAN_M, 1);
 	REG_WR(bp, PXP2_REG_RQ_DBG_ENDIAN_M, 1);
-	REG_WR(bp, PXP2_REG_RQ_HC_ENDIAN_M, 1);
 
 /*	REG_WR(bp, PXP2_REG_RD_PBF_SWAP_MODE, 1); */
 	REG_WR(bp, PXP2_REG_RD_QM_SWAP_MODE, 1);
