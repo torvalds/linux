@@ -73,8 +73,10 @@ int register_stat_tracer(struct tracer_stat *trace)
 	/* Already registered? */
 	mutex_lock(&all_stat_sessions_mutex);
 	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
-		if (node->ts == trace)
+		if (node->ts == trace) {
+			mutex_unlock(&all_stat_sessions_mutex);
 			return -EINVAL;
+		}
 	}
 	mutex_unlock(&all_stat_sessions_mutex);
 
