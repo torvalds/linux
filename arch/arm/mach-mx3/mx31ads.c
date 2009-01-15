@@ -221,13 +221,13 @@ static struct map_desc mx31ads_io_desc[] __initdata = {
 /*!
  * Set up static virtual mappings.
  */
-void __init mx31ads_map_io(void)
+static void __init mx31ads_map_io(void)
 {
 	mxc_map_io();
 	iotable_init(mx31ads_io_desc, ARRAY_SIZE(mx31ads_io_desc));
 }
 
-void __init mx31ads_init_irq(void)
+static void __init mx31ads_init_irq(void)
 {
 	mxc_init_irq();
 	mx31ads_init_expio();
@@ -247,7 +247,7 @@ static void __init mx31ads_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-struct sys_timer mx31ads_timer = {
+static struct sys_timer mx31ads_timer = {
 	.init	= mx31ads_timer_init,
 };
 
