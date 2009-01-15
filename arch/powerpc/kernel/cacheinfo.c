@@ -113,7 +113,7 @@ struct cache {
 	struct cache *next_local;      /* next cache of >= level */
 };
 
-static DEFINE_PER_CPU(struct cache_dir *, cache_dir);
+static DEFINE_PER_CPU(struct cache_dir *, cache_dir_pcpu);
 
 /* traversal/modification of this list occurs only at cpu hotplug time;
  * access is serialized by cpu hotplug locking
@@ -468,9 +468,9 @@ static struct cache_dir *__cpuinit cacheinfo_create_cache_dir(unsigned int cpu_i
 
 	cache_dir->kobj = kobj;
 
-	WARN_ON_ONCE(per_cpu(cache_dir, cpu_id) != NULL);
+	WARN_ON_ONCE(per_cpu(cache_dir_pcpu, cpu_id) != NULL);
 
-	per_cpu(cache_dir, cpu_id) = cache_dir;
+	per_cpu(cache_dir_pcpu, cpu_id) = cache_dir;
 
 	return cache_dir;
 err:
@@ -820,13 +820,13 @@ void cacheinfo_cpu_offline(unsigned int cpu_id)
 
 	/* Prevent userspace from seeing inconsistent state - remove
 	 * the sysfs hierarchy first */
-	cache_dir = per_cpu(cache_dir, cpu_id);
+	cache_dir = per_cpu(cache_dir_pcpu, cpu_id);
 
 	/* careful, sysfs population may have failed */
 	if (cache_dir)
 		remove_cache_dir(cache_dir);
 
-	per_cpu(cache_dir, cpu_id) = NULL;
+	per_cpu(cache_dir_pcpu, cpu_id) = NULL;
 
 	/* clear the CPU's bit in its cache chain, possibly freeing
 	 * cache objects */
