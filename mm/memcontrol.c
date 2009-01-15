@@ -2202,7 +2202,7 @@ static void __init enable_swap_cgroup(void)
 }
 #endif
 
-static struct cgroup_subsys_state *
+static struct cgroup_subsys_state * __ref
 mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 {
 	struct mem_cgroup *mem, *parent;
