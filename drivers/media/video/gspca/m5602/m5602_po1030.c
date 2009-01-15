@@ -50,7 +50,7 @@ static struct v4l2_pix_format po1030_modes[] = {
 		.sizeimage = 640 * 480,
 		.bytesperline = 640,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0
+		.priv = 2
 	}
 };
 
@@ -325,6 +325,7 @@ int po1030_start(struct sd *sd)
 	int i, err = 0;
 	int width = cam->cam_mode[sd->gspca_dev.curr_mode].width;
 	int height = cam->cam_mode[sd->gspca_dev.curr_mode].height;
+	int ver_offs = cam->cam_mode[sd->gspca_dev.curr_mode].priv;
 	u8 data;
 
 	switch (width) {
@@ -346,20 +347,54 @@ int po1030_start(struct sd *sd)
 
 		data = (height + 3) & 0xff;
 		err = m5602_write_sensor(sd, PO1030_WINDOWHEIGHT_L, &data, 1);
+
+		height += 12;
+		width -= 2;
 		break;
 	}
 
-	/* Synthesize the vsync/hsync setup */
-	for (i = 0; i < ARRAY_SIZE(start_po1030) && !err; i++) {
-		if (start_po1030[i][0] == BRIDGE)
-			err = m5602_write_bridge(sd, start_po1030[i][1],
-				start_po1030[i][2]);
-		else if (start_po1030[i][0] == SENSOR) {
-			u8 data = start_po1030[i][2];
-			err = m5602_write_sensor(sd,
-				start_po1030[i][1], &data, 1);
-		}
-	}
+	err = m5602_write_bridge(sd, M5602_XB_LINE_OF_FRAME_H, 0x81);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_PIX_OF_LINE_H, 0x82);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA,
+				 ((ver_offs >> 8) & 0xff));
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, (ver_offs & 0xff));
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, 0);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, (height >> 8) & 0xff);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, (height & 0xff));
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < 2 && !err; i++)
+		err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, 0);
+
+	for (i = 0; i < 2 && !err; i++)
+		err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA, 0);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA, (width >> 8) & 0xff);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA, (width & 0xff));
 	return err;
 }
 
