@@ -353,14 +353,19 @@ static int korina_rx(struct net_device *dev, int limit)
 	struct dma_desc *rd = &lp->rd_ring[lp->rx_next_done];
 	struct sk_buff *skb, *skb_new;
 	u8 *pkt_buf;
-	u32 devcs, pkt_len, dmas, rx_free_desc;
+	u32 devcs, pkt_len, dmas;
 	int count;
 
 	dma_cache_inv((u32)rd, sizeof(*rd));
 
 	for (count = 0; count < limit; count++) {
+		skb = lp->rx_skb[lp->rx_next_done];
+		skb_new = NULL;
 
 		devcs = rd->devcs;
+
+		if ((KORINA_RBSIZE - (u32)DMA_COUNT(rd->control)) == 0)
+			break;
 
 		/* Update statistics counters */
 		if (devcs & ETH_RX_CRC)
@@ -384,63 +389,55 @@ static int korina_rx(struct net_device *dev, int limit)
 			 * in Rc32434 (errata ref #077) */
 			dev->stats.rx_errors++;
 			dev->stats.rx_dropped++;
-		}
-
-		while ((rx_free_desc = KORINA_RBSIZE - (u32)DMA_COUNT(rd->control)) != 0) {
-			/* init the var. used for the later
-			 * operations within the while loop */
-			skb_new = NULL;
+		} else if ((devcs & ETH_RX_ROK)) {
 			pkt_len = RCVPKT_LENGTH(devcs);
-			skb = lp->rx_skb[lp->rx_next_done];
 
-			if ((devcs & ETH_RX_ROK)) {
-				/* must be the (first and) last
-				 * descriptor then */
-				pkt_buf = (u8 *)lp->rx_skb[lp->rx_next_done]->data;
+			/* must be the (first and) last
+			 * descriptor then */
+			pkt_buf = (u8 *)lp->rx_skb[lp->rx_next_done]->data;
 
-				/* invalidate the cache */
-				dma_cache_inv((unsigned long)pkt_buf, pkt_len - 4);
+			/* invalidate the cache */
+			dma_cache_inv((unsigned long)pkt_buf, pkt_len - 4);
 
-				/* Malloc up new buffer. */
-				skb_new = netdev_alloc_skb(dev, KORINA_RBSIZE + 2);
+			/* Malloc up new buffer. */
+			skb_new = netdev_alloc_skb(dev, KORINA_RBSIZE + 2);
 
-				if (!skb_new)
-					break;
-				/* Do not count the CRC */
-				skb_put(skb, pkt_len - 4);
-				skb->protocol = eth_type_trans(skb, dev);
+			if (!skb_new)
+				break;
+			/* Do not count the CRC */
+			skb_put(skb, pkt_len - 4);
+			skb->protocol = eth_type_trans(skb, dev);
 
-				/* Pass the packet to upper layers */
-				netif_receive_skb(skb);
-				dev->stats.rx_packets++;
-				dev->stats.rx_bytes += pkt_len;
+			/* Pass the packet to upper layers */
+			netif_receive_skb(skb);
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += pkt_len;
 
-				/* Update the mcast stats */
-				if (devcs & ETH_RX_MP)
-					dev->stats.multicast++;
+			/* Update the mcast stats */
+			if (devcs & ETH_RX_MP)
+				dev->stats.multicast++;
 
-				lp->rx_skb[lp->rx_next_done] = skb_new;
-			}
-
-			rd->devcs = 0;
-
-			/* Restore descriptor's curr_addr */
-			if (skb_new)
-				rd->ca = CPHYSADDR(skb_new->data);
-			else
-				rd->ca = CPHYSADDR(skb->data);
-
-			rd->control = DMA_COUNT(KORINA_RBSIZE) |
-				DMA_DESC_COD | DMA_DESC_IOD;
-			lp->rd_ring[(lp->rx_next_done - 1) &
-				KORINA_RDS_MASK].control &=
-				~DMA_DESC_COD;
-
-			lp->rx_next_done = (lp->rx_next_done + 1) & KORINA_RDS_MASK;
-			dma_cache_wback((u32)rd, sizeof(*rd));
-			rd = &lp->rd_ring[lp->rx_next_done];
-			writel(~DMA_STAT_DONE, &lp->rx_dma_regs->dmas);
+			lp->rx_skb[lp->rx_next_done] = skb_new;
 		}
+
+		rd->devcs = 0;
+
+		/* Restore descriptor's curr_addr */
+		if (skb_new)
+			rd->ca = CPHYSADDR(skb_new->data);
+		else
+			rd->ca = CPHYSADDR(skb->data);
+
+		rd->control = DMA_COUNT(KORINA_RBSIZE) |
+			DMA_DESC_COD | DMA_DESC_IOD;
+		lp->rd_ring[(lp->rx_next_done - 1) &
+			KORINA_RDS_MASK].control &=
+			~DMA_DESC_COD;
+
+		lp->rx_next_done = (lp->rx_next_done + 1) & KORINA_RDS_MASK;
+		dma_cache_wback((u32)rd, sizeof(*rd));
+		rd = &lp->rd_ring[lp->rx_next_done];
+		writel(~DMA_STAT_DONE, &lp->rx_dma_regs->dmas);
 	}
 
 	dmas = readl(&lp->rx_dma_regs->dmas);
