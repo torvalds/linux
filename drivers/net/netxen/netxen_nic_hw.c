@@ -2036,7 +2036,13 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 		rv = -1;
 	}
 
-	DPRINTK(INFO, "Discovered board type:0x%x  ", boardinfo->board_type);
+	if (boardinfo->board_type == NETXEN_BRDTYPE_P3_4_GB_MM) {
+		u32 gpio = netxen_nic_reg_read(adapter,
+				NETXEN_ROMUSB_GLB_PAD_GPIO_I);
+		if ((gpio & 0x8000) == 0)
+			boardinfo->board_type = NETXEN_BRDTYPE_P3_10G_TP;
+	}
+
 	switch ((netxen_brdtype_t) boardinfo->board_type) {
 	case NETXEN_BRDTYPE_P2_SB35_4G:
 		adapter->ahw.board_type = NETXEN_NIC_GBE;
@@ -2055,7 +2061,6 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_10G_SFP_QT:
 	case NETXEN_BRDTYPE_P3_10G_XFP:
 	case NETXEN_BRDTYPE_P3_10000_BASE_T:
-
 		adapter->ahw.board_type = NETXEN_NIC_XGBE;
 		break;
 	case NETXEN_BRDTYPE_P1_BD:
@@ -2065,8 +2070,11 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_REF_QG:
 	case NETXEN_BRDTYPE_P3_4_GB:
 	case NETXEN_BRDTYPE_P3_4_GB_MM:
-
 		adapter->ahw.board_type = NETXEN_NIC_GBE;
+		break;
+	case NETXEN_BRDTYPE_P3_10G_TP:
+		adapter->ahw.board_type = (adapter->portnum < 2) ?
+			NETXEN_NIC_XGBE : NETXEN_NIC_GBE;
 		break;
 	default:
 		printk("%s: Unknown(%x)\n", netxen_nic_driver_name,
@@ -2112,12 +2120,16 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 {
 	__u32 status;
 	__u32 autoneg;
-	__u32 mode;
 	__u32 port_mode;
 
-	netxen_nic_read_w0(adapter, NETXEN_NIU_MODE, &mode);
-	if (netxen_get_niu_enable_ge(mode)) {	/* Gb 10/100/1000 Mbps mode */
+	if (!netif_carrier_ok(adapter->netdev)) {
+		adapter->link_speed   = 0;
+		adapter->link_duplex  = -1;
+		adapter->link_autoneg = AUTONEG_ENABLE;
+		return;
+	}
 
+	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
 		adapter->hw_read_wx(adapter,
 				NETXEN_PORT_MODE_ADDR, &port_mode, 4);
 		if (port_mode == NETXEN_PORT_MODE_802_3_AP) {
@@ -2143,7 +2155,7 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 					adapter->link_speed = SPEED_1000;
 					break;
 				default:
-					adapter->link_speed = -1;
+					adapter->link_speed = 0;
 					break;
 				}
 				switch (netxen_get_phy_duplex(status)) {
@@ -2166,7 +2178,7 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 				goto link_down;
 		} else {
 		      link_down:
-			adapter->link_speed = -1;
+			adapter->link_speed = 0;
 			adapter->link_duplex = -1;
 		}
 	}

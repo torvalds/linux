@@ -243,13 +243,21 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_4_GB:
 	case NETXEN_BRDTYPE_P3_4_GB_MM:
 		adapter->msix_supported = !!use_msi_x;
-		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_10G;
+		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_1G;
 		break;
 
 	case NETXEN_BRDTYPE_P2_SB35_4G:
 	case NETXEN_BRDTYPE_P2_SB31_2G:
 		adapter->msix_supported = 0;
 		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_1G;
+		break;
+
+	case NETXEN_BRDTYPE_P3_10G_TP:
+		adapter->msix_supported = !!use_msi_x;
+		if (adapter->ahw.board_type == NETXEN_NIC_XGBE)
+			adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_10G;
+		else
+			adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_1G;
 		break;
 
 	default:
@@ -1396,6 +1404,8 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
 		}
+
+		netxen_nic_set_link_parameters(adapter);
 	} else if (!adapter->ahw.linkup && linkup) {
 		printk(KERN_INFO "%s: %s NIC Link is up\n",
 		       netxen_nic_driver_name, netdev->name);
@@ -1404,6 +1414,8 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 			netif_carrier_on(netdev);
 			netif_wake_queue(netdev);
 		}
+
+		netxen_nic_set_link_parameters(adapter);
 	}
 }
 
