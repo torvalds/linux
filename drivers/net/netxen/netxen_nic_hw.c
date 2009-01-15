@@ -503,6 +503,8 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 
 	i = 0;
 
+	netif_tx_lock_bh(adapter->netdev);
+
 	producer = adapter->cmd_producer;
 	do {
 		cmd_desc = &cmd_desc_arr[i];
@@ -526,6 +528,8 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 	/* write producer index to start the xmit */
 
 	netxen_nic_update_cmd_producer(adapter, adapter->cmd_producer);
+
+	netif_tx_unlock_bh(adapter->netdev);
 
 	return 0;
 }
