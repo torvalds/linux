@@ -1106,7 +1106,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	return err;
 }
 
-static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
+static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __user *optval, int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct l2cap_options opts;
@@ -1152,7 +1152,29 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 	return err;
 }
 
-static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
+static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
+{
+	struct sock *sk = sock->sk;
+	int err = 0;
+
+	BT_DBG("sk %p", sk);
+
+	if (level == SOL_L2CAP)
+		return l2cap_sock_setsockopt_old(sock, optname, optval, optlen);
+
+	lock_sock(sk);
+
+	switch (optname) {
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+
+	release_sock(sk);
+	return err;
+}
+
+static int l2cap_sock_getsockopt_old(struct socket *sock, int optname, char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
 	struct l2cap_options opts;
@@ -1199,6 +1221,31 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 
 		break;
 
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+
+	release_sock(sk);
+	return err;
+}
+
+static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
+{
+	struct sock *sk = sock->sk;
+	int len, err = 0;
+
+	BT_DBG("sk %p", sk);
+
+	if (level == SOL_L2CAP)
+		return l2cap_sock_getsockopt_old(sock, optname, optval, optlen);
+
+	if (get_user(len, optlen))
+		return -EFAULT;
+
+	lock_sock(sk);
+
+	switch (optname) {
 	default:
 		err = -ENOPROTOOPT;
 		break;
