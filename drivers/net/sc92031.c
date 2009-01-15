@@ -1423,6 +1423,7 @@ static int __devinit sc92031_probe(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct sc92031_priv *priv;
 	u32 mac0, mac1;
+	unsigned long base_addr;
 
 	err = pci_enable_device(pdev);
 	if (unlikely(err < 0))
@@ -1496,6 +1497,14 @@ static int __devinit sc92031_probe(struct pci_dev *pdev,
 	err = register_netdev(dev);
 	if (err < 0)
 		goto out_register_netdev;
+
+#if SC92031_USE_BAR == 0
+	base_addr = dev->mem_start;
+#elif SC92031_USE_BAR == 1
+	base_addr = dev->base_addr;
+#endif
+	printk(KERN_INFO "%s: SC92031 at 0x%lx, %pM, IRQ %d\n", dev->name,
+			base_addr, dev->dev_addr, dev->irq);
 
 	return 0;
 
@@ -1603,7 +1612,6 @@ static struct pci_driver sc92031_pci_driver = {
 
 static int __init sc92031_init(void)
 {
-	printk(KERN_INFO SC92031_DESCRIPTION " " SC92031_VERSION "\n");
 	return pci_register_driver(&sc92031_pci_driver);
 }
 
