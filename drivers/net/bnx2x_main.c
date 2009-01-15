@@ -38,9 +38,7 @@
 #include <linux/time.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
-#ifdef NETIF_F_HW_VLAN_TX
-	#include <linux/if_vlan.h>
-#endif
+#include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/checksum.h>
@@ -1283,6 +1281,13 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	if (likely(new_skb)) {
 		/* fix ip xsum and give it to the stack */
 		/* (no need to map the new skb) */
+#ifdef BCM_VLAN
+		int is_vlan_cqe =
+			(le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
+			 PARSING_FLAGS_VLAN);
+		int is_not_hwaccel_vlan_cqe =
+			(is_vlan_cqe && (!(bp->flags & HW_VLAN_RX_FLAG)));
+#endif
 
 		prefetch(skb);
 		prefetch(((char *)(skb)) + 128);
@@ -1307,6 +1312,12 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			struct iphdr *iph;
 
 			iph = (struct iphdr *)skb->data;
+#ifdef BCM_VLAN
+			/* If there is no Rx VLAN offloading -
+			   take VLAN tag into an account */
+			if (unlikely(is_not_hwaccel_vlan_cqe))
+				iph = (struct iphdr *)((u8 *)iph + VLAN_HLEN);
+#endif
 			iph->check = 0;
 			iph->check = ip_fast_csum((u8 *)iph, iph->ihl);
 		}
@@ -1314,9 +1325,8 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		if (!bnx2x_fill_frag_skb(bp, fp, skb,
 					 &cqe->fast_path_cqe, cqe_idx)) {
 #ifdef BCM_VLAN
-			if ((bp->vlgrp != NULL) &&
-			    (le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
-			     PARSING_FLAGS_VLAN))
+			if ((bp->vlgrp != NULL) && is_vlan_cqe &&
+			    (!is_not_hwaccel_vlan_cqe))
 				vlan_hwaccel_receive_skb(skb, bp->vlgrp,
 						le16_to_cpu(cqe->fast_path_cqe.
 							    vlan_tag));
@@ -1560,7 +1570,7 @@ reuse_rx:
 		}
 
 #ifdef BCM_VLAN
-		if ((bp->vlgrp != NULL) &&
+		if ((bp->vlgrp != NULL) && (bp->flags & HW_VLAN_RX_FLAG) &&
 		    (le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
 		     PARSING_FLAGS_VLAN))
 			vlan_hwaccel_receive_skb(skb, bp->vlgrp,
@@ -4538,7 +4548,7 @@ static void bnx2x_set_client_config(struct bnx2x *bp)
 	tstorm_client.config_flags =
 				TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE;
 #ifdef BCM_VLAN
-	if (bp->rx_mode && bp->vlgrp) {
+	if (bp->rx_mode && bp->vlgrp && (bp->flags & HW_VLAN_RX_FLAG)) {
 		tstorm_client.config_flags |=
 				TSTORM_ETH_CLIENT_CONFIG_VLAN_REMOVAL_ENABLE;
 		DP(NETIF_MSG_IFUP, "vlan removal enabled\n");
@@ -9567,11 +9577,14 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   "sending pkt %u @%p  next_idx %u  bd %u @%p\n",
 	   pkt_prod, tx_buf, fp->tx_pkt_prod, bd_prod, tx_bd);
 
-	if ((bp->vlgrp != NULL) && vlan_tx_tag_present(skb)) {
+#ifdef BCM_VLAN
+	if ((bp->vlgrp != NULL) && vlan_tx_tag_present(skb) &&
+	    (bp->flags & HW_VLAN_TX_FLAG)) {
 		tx_bd->vlan = cpu_to_le16(vlan_tx_tag_get(skb));
 		tx_bd->bd_flags.as_bitfield |= ETH_TX_BD_FLAGS_VLAN_TAG;
 		vlan_off += 4;
 	} else
+#endif
 		tx_bd->vlan = cpu_to_le16(pkt_prod);
 
 	if (xmit_type) {
@@ -10017,6 +10030,16 @@ static void bnx2x_vlan_rx_register(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 
 	bp->vlgrp = vlgrp;
+
+	/* Set flags according to the required capabilities */
+	bp->flags &= ~(HW_VLAN_RX_FLAG | HW_VLAN_TX_FLAG);
+
+	if (dev->features & NETIF_F_HW_VLAN_TX)
+		bp->flags |= HW_VLAN_TX_FLAG;
+
+	if (dev->features & NETIF_F_HW_VLAN_RX)
+		bp->flags |= HW_VLAN_RX_FLAG;
+
 	if (netif_running(dev))
 		bnx2x_set_client_config(bp);
 }
@@ -10173,6 +10196,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		dev->features |= NETIF_F_HIGHDMA;
 #ifdef BCM_VLAN
 	dev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
+	bp->flags |= (HW_VLAN_RX_FLAG | HW_VLAN_TX_FLAG);
 #endif
 	dev->features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
 	dev->features |= NETIF_F_TSO6;

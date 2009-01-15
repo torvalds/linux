@@ -20,6 +20,11 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#define BCM_VLAN			1
+#endif
+
+
 /* error/debug prints */
 
 #define DRV_MODULE_NAME		"bnx2x"
@@ -75,11 +80,6 @@
 		BNX2X_ERR("driver assert\n"); \
 		bnx2x_panic_dump(bp); \
 	} while (0)
-#endif
-
-
-#ifdef NETIF_F_HW_VLAN_TX
-#define BCM_VLAN			1
 #endif
 
 
@@ -804,6 +804,8 @@ struct bnx2x {
 #define TPA_ENABLE_FLAG			0x80
 #define NO_MCP_FLAG			0x100
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
+#define HW_VLAN_TX_FLAG			0x400
+#define HW_VLAN_RX_FLAG			0x800
 
 	int			func;
 #define BP_PORT(bp)			(bp->func % PORT_MAX)
