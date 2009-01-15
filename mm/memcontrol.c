@@ -358,6 +358,10 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
 		return;
 
 	pc = lookup_page_cgroup(page);
+	/*
+	 * Used bit is set without atomic ops but after smp_wmb().
+	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
+	 */
 	smp_rmb();
 	/* unused page is not rotated. */
 	if (!PageCgroupUsed(pc))
@@ -374,7 +378,10 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
 	if (mem_cgroup_disabled())
 		return;
 	pc = lookup_page_cgroup(page);
-	/* barrier to sync with "charge" */
+	/*
+	 * Used bit is set without atomic ops but after smp_wmb().
+	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
+	 */
 	smp_rmb();
 	if (!PageCgroupUsed(pc))
 		return;
@@ -559,6 +566,14 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
 		return NULL;
 
 	pc = lookup_page_cgroup(page);
+	/*
+	 * Used bit is set without atomic ops but after smp_wmb().
+	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
+	 */
+	smp_rmb();
+	if (!PageCgroupUsed(pc))
+		return NULL;
+
 	mz = page_cgroup_zoneinfo(pc);
 	if (!mz)
 		return NULL;
