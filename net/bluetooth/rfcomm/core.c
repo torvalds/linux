@@ -223,21 +223,11 @@ static int rfcomm_l2sock_create(struct socket **sock)
 	return err;
 }
 
-static inline int rfcomm_check_link_mode(struct rfcomm_dlc *d)
+static inline int rfcomm_check_security(struct rfcomm_dlc *d)
 {
 	struct sock *sk = d->session->sock->sk;
-	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
 
-	if (d->link_mode & RFCOMM_LM_SECURE)
-		return hci_conn_security(conn->hcon, BT_SECURITY_HIGH);
-
-	if (d->link_mode & RFCOMM_LM_ENCRYPT)
-		return hci_conn_security(conn->hcon, BT_SECURITY_MEDIUM);
-
-	if (d->link_mode & RFCOMM_LM_AUTH)
-		return hci_conn_security(conn->hcon, BT_SECURITY_LOW);
-
-	return 1;
+	return hci_conn_security(l2cap_pi(sk)->conn->hcon, d->sec_level);
 }
 
 /* ---- RFCOMM DLCs ---- */
@@ -390,7 +380,7 @@ static int __rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 	d->cfc = (s->cfc == RFCOMM_CFC_UNKNOWN) ? 0 : s->cfc;
 
 	if (s->state == BT_CONNECTED) {
-		if (rfcomm_check_link_mode(d))
+		if (rfcomm_check_security(d))
 			rfcomm_send_pn(s, 1, d);
 		else
 			set_bit(RFCOMM_AUTH_PENDING, &d->flags);
@@ -1192,7 +1182,7 @@ void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 	d->state_change(d, 0);
 	rfcomm_dlc_unlock(d);
 
-	if (d->link_mode & RFCOMM_LM_MASTER)
+	if (d->role_switch)
 		hci_conn_switch_role(l2cap_pi(sk)->conn->hcon, 0x00);
 
 	rfcomm_send_msc(d->session, 1, d->dlci, d->v24_sig);
@@ -1200,7 +1190,7 @@ void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 
 static void rfcomm_check_accept(struct rfcomm_dlc *d)
 {
-	if (rfcomm_check_link_mode(d)) {
+	if (rfcomm_check_security(d)) {
 		if (d->defer_setup) {
 			set_bit(RFCOMM_DEFER_SETUP, &d->flags);
 			rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
@@ -1660,7 +1650,7 @@ static void rfcomm_process_connect(struct rfcomm_session *s)
 		d = list_entry(p, struct rfcomm_dlc, list);
 		if (d->state == BT_CONFIG) {
 			d->mtu = s->mtu;
-			if (rfcomm_check_link_mode(d)) {
+			if (rfcomm_check_security(d)) {
 				rfcomm_send_pn(s, 1, d);
 			} else {
 				set_bit(RFCOMM_AUTH_PENDING, &d->flags);
@@ -1747,10 +1737,6 @@ static inline void rfcomm_process_dlcs(struct rfcomm_session *s)
 					rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
 				} else
 					rfcomm_dlc_accept(d);
-			}
-			if (d->link_mode & RFCOMM_LM_SECURE) {
-				struct sock *sk = s->sock->sk;
-				hci_conn_change_link_key(l2cap_pi(sk)->conn->hcon);
 			}
 			continue;
 		} else if (test_and_clear_bit(RFCOMM_AUTH_REJECT, &d->flags)) {
@@ -1994,7 +1980,7 @@ static void rfcomm_security_cfm(struct hci_conn *conn, u8 status, u8 encrypt)
 		d = list_entry(p, struct rfcomm_dlc, list);
 
 		if (!status && encrypt == 0x00 &&
-				(d->link_mode & RFCOMM_LM_ENCRYPT) &&
+				d->sec_level == BT_SECURITY_HIGH &&
 					(d->state == BT_CONNECTED ||
 						d->state == BT_CONFIG)) {
 			__rfcomm_dlc_close(d, ECONNREFUSED);

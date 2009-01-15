@@ -183,8 +183,8 @@ struct rfcomm_dlc {
 	u8            remote_v24_sig;
 	u8            mscex;
 	u8            out;
-
-	u32           link_mode;
+	u8            sec_level;
+	u8            role_switch;
 	u32           defer_setup;
 
 	uint          mtu;
@@ -307,7 +307,8 @@ struct rfcomm_pinfo {
 	struct bt_sock bt;
 	struct rfcomm_dlc   *dlc;
 	u8     channel;
-	u32    link_mode;
+	u8     sec_level;
+	u8     role_switch;
 };
 
 int  rfcomm_init_sockets(void);

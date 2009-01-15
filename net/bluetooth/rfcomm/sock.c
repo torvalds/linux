@@ -261,14 +261,19 @@ static void rfcomm_sock_init(struct sock *sk, struct sock *parent)
 
 	if (parent) {
 		sk->sk_type = parent->sk_type;
-		pi->link_mode = rfcomm_pi(parent)->link_mode;
 		pi->dlc->defer_setup = bt_sk(parent)->defer_setup;
+
+		pi->sec_level = rfcomm_pi(parent)->sec_level;
+		pi->role_switch = rfcomm_pi(parent)->role_switch;
 	} else {
-		pi->link_mode = 0;
 		pi->dlc->defer_setup = 0;
+
+		pi->sec_level = BT_SECURITY_LOW;
+		pi->role_switch = 0;
 	}
 
-	pi->dlc->link_mode = pi->link_mode;
+	pi->dlc->sec_level = pi->sec_level;
+	pi->dlc->role_switch = pi->role_switch;
 }
 
 static struct proto rfcomm_proto = {
@@ -408,7 +413,8 @@ static int rfcomm_sock_connect(struct socket *sock, struct sockaddr *addr, int a
 	bacpy(&bt_sk(sk)->dst, &sa->rc_bdaddr);
 	rfcomm_pi(sk)->channel = sa->rc_channel;
 
-	d->link_mode = rfcomm_pi(sk)->link_mode;
+	d->sec_level = rfcomm_pi(sk)->sec_level;
+	d->role_switch = rfcomm_pi(sk)->role_switch;
 
 	err = rfcomm_dlc_open(d, &bt_sk(sk)->src, &sa->rc_bdaddr, sa->rc_channel);
 	if (!err)
@@ -741,7 +747,14 @@ static int rfcomm_sock_setsockopt_old(struct socket *sock, int optname, char __u
 			break;
 		}
 
-		rfcomm_pi(sk)->link_mode = opt;
+		if (opt & RFCOMM_LM_AUTH)
+			rfcomm_pi(sk)->sec_level = BT_SECURITY_LOW;
+		if (opt & RFCOMM_LM_ENCRYPT)
+			rfcomm_pi(sk)->sec_level = BT_SECURITY_MEDIUM;
+		if (opt & RFCOMM_LM_SECURE)
+			rfcomm_pi(sk)->sec_level = BT_SECURITY_HIGH;
+
+		rfcomm_pi(sk)->role_switch = (opt & RFCOMM_LM_MASTER);
 		break;
 
 	default:
@@ -756,7 +769,8 @@ static int rfcomm_sock_setsockopt_old(struct socket *sock, int optname, char __u
 static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
 {
 	struct sock *sk = sock->sk;
-	int err = 0;
+	struct bt_security sec;
+	int len, err = 0;
 	u32 opt;
 
 	BT_DBG("sk %p", sk);
@@ -767,6 +781,23 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, c
 	lock_sock(sk);
 
 	switch (optname) {
+	case BT_SECURITY:
+		sec.level = BT_SECURITY_LOW;
+
+		len = min_t(unsigned int, sizeof(sec), optlen);
+		if (copy_from_user((char *) &sec, optval, len)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (sec.level > BT_SECURITY_HIGH) {
+			err = -EINVAL;
+			break;
+		}
+
+		rfcomm_pi(sk)->sec_level = sec.level;
+		break;
+
 	case BT_DEFER_SETUP:
 		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
 			err = -EINVAL;
@@ -796,6 +827,7 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 	struct sock *l2cap_sk;
 	struct rfcomm_conninfo cinfo;
 	int len, err = 0;
+	u32 opt;
 
 	BT_DBG("sk %p", sk);
 
@@ -806,7 +838,26 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 
 	switch (optname) {
 	case RFCOMM_LM:
-		if (put_user(rfcomm_pi(sk)->link_mode, (u32 __user *) optval))
+		switch (rfcomm_pi(sk)->sec_level) {
+		case BT_SECURITY_LOW:
+			opt = RFCOMM_LM_AUTH;
+			break;
+		case BT_SECURITY_MEDIUM:
+			opt = RFCOMM_LM_AUTH | RFCOMM_LM_ENCRYPT;
+			break;
+		case BT_SECURITY_HIGH:
+			opt = RFCOMM_LM_AUTH | RFCOMM_LM_ENCRYPT |
+							RFCOMM_LM_SECURE;
+			break;
+		default:
+			opt = 0;
+			break;
+		}
+
+		if (rfcomm_pi(sk)->role_switch)
+			opt |= RFCOMM_LM_MASTER;
+
+		if (put_user(opt, (u32 __user *) optval))
 			err = -EFAULT;
 		break;
 
@@ -840,6 +891,7 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
+	struct bt_security sec;
 	int len, err = 0;
 
 	BT_DBG("sk %p", sk);
@@ -853,6 +905,15 @@ static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, c
 	lock_sock(sk);
 
 	switch (optname) {
+	case BT_SECURITY:
+		sec.level = rfcomm_pi(sk)->sec_level;
+
+		len = min_t(unsigned int, len, sizeof(sec));
+		if (copy_to_user(optval, (char *) &sec, len))
+			err = -EFAULT;
+
+		break;
+
 	case BT_DEFER_SETUP:
 		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
 			err = -EINVAL;
