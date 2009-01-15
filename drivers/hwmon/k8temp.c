@@ -31,6 +31,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <asm/processor.h>
 
 #define TEMP_FROM_REG(val)	(((((val) >> 16) & 0xff) - 49) * 1000)
 #define REG_TEMP	0xe4
@@ -141,18 +142,32 @@ static int __devinit k8temp_probe(struct pci_dev *pdev,
 	int err;
 	u8 scfg;
 	u32 temp;
+	u8 model, stepping;
 	struct k8temp_data *data;
-	u32 cpuid = cpuid_eax(1);
-
-	/* this feature should be available since SH-C0 core */
-	if ((cpuid == 0xf40) || (cpuid == 0xf50) || (cpuid == 0xf51)) {
-		err = -ENODEV;
-		goto exit;
-	}
 
 	if (!(data = kzalloc(sizeof(struct k8temp_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
+	}
+
+	model = boot_cpu_data.x86_model;
+	stepping = boot_cpu_data.x86_mask;
+
+	switch (boot_cpu_data.x86) {
+	case 0xf:
+		/* feature available since SH-C0, exclude older revisions */
+		if (((model == 4) && (stepping == 0)) ||
+		    ((model == 5) && (stepping <= 1))) {
+			err = -ENODEV;
+			goto exit_free;
+		}
+
+		if (model >= 0x40) {
+			dev_warn(&pdev->dev, "Temperature readouts might be "
+				 "wrong - check erratum #141\n");
+		}
+
+		break;
 	}
 
 	pci_read_config_byte(pdev, REG_TEMP, &scfg);
