@@ -995,31 +995,31 @@ struct netxen_recv_context {
  */
 
 typedef struct {
-	u64 host_phys_addr;	/* Ring base addr */
-	u32 ring_size;		/* Ring entries */
-	u16 msi_index;
-	u16 rsvd;		/* Padding */
+	__le64 host_phys_addr;	/* Ring base addr */
+	__le32 ring_size;		/* Ring entries */
+	__le16 msi_index;
+	__le16 rsvd;		/* Padding */
 } nx_hostrq_sds_ring_t;
 
 typedef struct {
-	u64 host_phys_addr;	/* Ring base addr */
-	u64 buff_size;		/* Packet buffer size */
-	u32 ring_size;		/* Ring entries */
-	u32 ring_kind;		/* Class of ring */
+	__le64 host_phys_addr;	/* Ring base addr */
+	__le64 buff_size;		/* Packet buffer size */
+	__le32 ring_size;		/* Ring entries */
+	__le32 ring_kind;		/* Class of ring */
 } nx_hostrq_rds_ring_t;
 
 typedef struct {
-	u64 host_rsp_dma_addr;	/* Response dma'd here */
-	u32 capabilities[4];	/* Flag bit vector */
-	u32 host_int_crb_mode;	/* Interrupt crb usage */
-	u32 host_rds_crb_mode;	/* RDS crb usage */
+	__le64 host_rsp_dma_addr;	/* Response dma'd here */
+	__le32 capabilities[4];	/* Flag bit vector */
+	__le32 host_int_crb_mode;	/* Interrupt crb usage */
+	__le32 host_rds_crb_mode;	/* RDS crb usage */
 	/* These ring offsets are relative to data[0] below */
-	u32 rds_ring_offset;	/* Offset to RDS config */
-	u32 sds_ring_offset;	/* Offset to SDS config */
-	u16 num_rds_rings;	/* Count of RDS rings */
-	u16 num_sds_rings;	/* Count of SDS rings */
-	u16 rsvd1;		/* Padding */
-	u16 rsvd2;		/* Padding */
+	__le32 rds_ring_offset;	/* Offset to RDS config */
+	__le32 sds_ring_offset;	/* Offset to SDS config */
+	__le16 num_rds_rings;	/* Count of RDS rings */
+	__le16 num_sds_rings;	/* Count of SDS rings */
+	__le16 rsvd1;		/* Padding */
+	__le16 rsvd2;		/* Padding */
 	u8  reserved[128]; 	/* reserve space for future expansion*/
 	/* MUST BE 64-bit aligned.
 	   The following is packed:
@@ -1029,24 +1029,24 @@ typedef struct {
 } nx_hostrq_rx_ctx_t;
 
 typedef struct {
-	u32 host_producer_crb;	/* Crb to use */
-	u32 rsvd1;		/* Padding */
+	__le32 host_producer_crb;	/* Crb to use */
+	__le32 rsvd1;		/* Padding */
 } nx_cardrsp_rds_ring_t;
 
 typedef struct {
-	u32 host_consumer_crb;	/* Crb to use */
-	u32 interrupt_crb;	/* Crb to use */
+	__le32 host_consumer_crb;	/* Crb to use */
+	__le32 interrupt_crb;	/* Crb to use */
 } nx_cardrsp_sds_ring_t;
 
 typedef struct {
 	/* These ring offsets are relative to data[0] below */
-	u32 rds_ring_offset;	/* Offset to RDS config */
-	u32 sds_ring_offset;	/* Offset to SDS config */
-	u32 host_ctx_state;	/* Starting State */
-	u32 num_fn_per_port;	/* How many PCI fn share the port */
-	u16 num_rds_rings;	/* Count of RDS rings */
-	u16 num_sds_rings;	/* Count of SDS rings */
-	u16 context_id;		/* Handle for context */
+	__le32 rds_ring_offset;	/* Offset to RDS config */
+	__le32 sds_ring_offset;	/* Offset to SDS config */
+	__le32 host_ctx_state;	/* Starting State */
+	__le32 num_fn_per_port;	/* How many PCI fn share the port */
+	__le16 num_rds_rings;	/* Count of RDS rings */
+	__le16 num_sds_rings;	/* Count of SDS rings */
+	__le16 context_id;		/* Handle for context */
 	u8  phys_port;		/* Physical id of port */
 	u8  virt_port;		/* Virtual/Logical id of port */
 	u8  reserved[128];	/* save space for future expansion */
@@ -1072,34 +1072,34 @@ typedef struct {
  */
 
 typedef struct {
-	u64 host_phys_addr;	/* Ring base addr */
-	u32 ring_size;		/* Ring entries */
-	u32 rsvd;		/* Padding */
+	__le64 host_phys_addr;	/* Ring base addr */
+	__le32 ring_size;		/* Ring entries */
+	__le32 rsvd;		/* Padding */
 } nx_hostrq_cds_ring_t;
 
 typedef struct {
-	u64 host_rsp_dma_addr;	/* Response dma'd here */
-	u64 cmd_cons_dma_addr;	/*  */
-	u64 dummy_dma_addr;	/*  */
-	u32 capabilities[4];	/* Flag bit vector */
-	u32 host_int_crb_mode;	/* Interrupt crb usage */
-	u32 rsvd1;		/* Padding */
-	u16 rsvd2;		/* Padding */
-	u16 interrupt_ctl;
-	u16 msi_index;
-	u16 rsvd3;		/* Padding */
+	__le64 host_rsp_dma_addr;	/* Response dma'd here */
+	__le64 cmd_cons_dma_addr;	/*  */
+	__le64 dummy_dma_addr;	/*  */
+	__le32 capabilities[4];	/* Flag bit vector */
+	__le32 host_int_crb_mode;	/* Interrupt crb usage */
+	__le32 rsvd1;		/* Padding */
+	__le16 rsvd2;		/* Padding */
+	__le16 interrupt_ctl;
+	__le16 msi_index;
+	__le16 rsvd3;		/* Padding */
 	nx_hostrq_cds_ring_t cds_ring;	/* Desc of cds ring */
 	u8  reserved[128];	/* future expansion */
 } nx_hostrq_tx_ctx_t;
 
 typedef struct {
-	u32 host_producer_crb;	/* Crb to use */
-	u32 interrupt_crb;	/* Crb to use */
+	__le32 host_producer_crb;	/* Crb to use */
+	__le32 interrupt_crb;	/* Crb to use */
 } nx_cardrsp_cds_ring_t;
 
 typedef struct {
-	u32 host_ctx_state;	/* Starting state */
-	u16 context_id;		/* Handle for context */
+	__le32 host_ctx_state;	/* Starting state */
+	__le16 context_id;		/* Handle for context */
 	u8  phys_port;		/* Physical id of port */
 	u8  virt_port;		/* Virtual/Logical id of port */
 	nx_cardrsp_cds_ring_t cds_ring;	/* Card cds settings */
@@ -1202,9 +1202,9 @@ enum {
 #define VPORT_MISS_MODE_ACCEPT_MULTI	2 /* accept unmatched multicast */
 
 typedef struct {
-	u64 qhdr;
-	u64 req_hdr;
-	u64 words[6];
+	__le64 qhdr;
+	__le64 req_hdr;
+	__le64 words[6];
 } nx_nic_req_t;
 
 typedef struct {

@@ -1277,7 +1277,7 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 
 		dev_kfree_skb_any(skb);
 		for (i = 0; i < nr_frags; i++) {
-			index = frag_desc->frag_handles[i];
+			index = le16_to_cpu(frag_desc->frag_handles[i]);
 			skb = netxen_process_rxbuf(adapter,
 					rds_ring, index, cksum);
 			if (skb)

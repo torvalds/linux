@@ -539,16 +539,19 @@ static int nx_p3_sre_macaddr_change(struct net_device *dev,
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	nx_nic_req_t req;
-	nx_mac_req_t mac_req;
+	nx_mac_req_t *mac_req;
+	u64 word;
 	int rv;
 
 	memset(&req, 0, sizeof(nx_nic_req_t));
-	req.qhdr |= (NX_NIC_REQUEST << 23);
-	req.req_hdr |= NX_MAC_EVENT;
-	req.req_hdr |= ((u64)adapter->portnum << 16);
-	mac_req.op = op;
-	memcpy(&mac_req.mac_addr, addr, 6);
-	req.words[0] = cpu_to_le64(*(u64 *)&mac_req);
+	req.qhdr = cpu_to_le64(NX_NIC_REQUEST << 23);
+
+	word = NX_MAC_EVENT | ((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
+
+	mac_req = (nx_mac_req_t *)&req.words[0];
+	mac_req->op = op;
+	memcpy(mac_req->mac_addr, addr, 6);
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
@@ -612,12 +615,16 @@ send_fw_cmd:
 int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 {
 	nx_nic_req_t req;
+	u64 word;
 
 	memset(&req, 0, sizeof(nx_nic_req_t));
 
-	req.qhdr |= (NX_HOST_REQUEST << 23);
-	req.req_hdr |= NX_NIC_H2C_OPCODE_PROXY_SET_VPORT_MISS_MODE;
-	req.req_hdr |= ((u64)adapter->portnum << 16);
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
+
+	word = NX_NIC_H2C_OPCODE_PROXY_SET_VPORT_MISS_MODE |
+			((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
+
 	req.words[0] = cpu_to_le64(mode);
 
 	return netxen_send_cmd_descs(adapter,
@@ -632,13 +639,15 @@ int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter)
 {
 	nx_nic_req_t req;
+	u64 word;
 	int rv;
 
 	memset(&req, 0, sizeof(nx_nic_req_t));
 
-	req.qhdr |= (NX_NIC_REQUEST << 23);
-	req.req_hdr |= NETXEN_CONFIG_INTR_COALESCE;
-	req.req_hdr |= ((u64)adapter->portnum << 16);
+	req.qhdr = cpu_to_le64(NX_NIC_REQUEST << 23);
+
+	word = NETXEN_CONFIG_INTR_COALESCE | ((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
 
 	memcpy(&req.words[0], &adapter->coal, sizeof(adapter->coal));
 
@@ -772,13 +781,10 @@ int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
 	adapter->hw_read_wx(adapter, crbaddr, &mac_lo, 4);
 	adapter->hw_read_wx(adapter, crbaddr+4, &mac_hi, 4);
 
-	mac_hi = cpu_to_le32(mac_hi);
-	mac_lo = cpu_to_le32(mac_lo);
-
 	if (pci_func & 1)
-		*mac = ((mac_lo >> 16) | ((u64)mac_hi << 16));
+		*mac = le64_to_cpu((mac_lo >> 16) | ((u64)mac_hi << 16));
 	else
-		*mac = ((mac_lo) | ((u64)mac_hi << 32));
+		*mac = le64_to_cpu((u64)mac_lo | ((u64)mac_hi << 32));
 
 	return 0;
 }
