@@ -2234,9 +2234,7 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 	/* Make sure that we are synced with the current statistics */
 	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
-	bnx2x_acquire_phy_lock(bp);
 	bnx2x_link_update(&bp->link_params, &bp->link_vars);
-	bnx2x_release_phy_lock(bp);
 
 	if (bp->link_vars.link_up) {
 
@@ -2485,6 +2483,8 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 	if (asserted & ATTN_HARD_WIRED_MASK) {
 		if (asserted & ATTN_NIG_FOR_FUNC) {
 
+			bnx2x_acquire_phy_lock(bp);
+
 			/* save nig interrupt mask */
 			bp->nig_mask = REG_RD(bp, nig_int_mask_addr);
 			REG_WR(bp, nig_int_mask_addr, 0);
@@ -2540,8 +2540,10 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 	REG_WR(bp, hc_addr, asserted);
 
 	/* now set back the mask */
-	if (asserted & ATTN_NIG_FOR_FUNC)
+	if (asserted & ATTN_NIG_FOR_FUNC) {
 		REG_WR(bp, nig_int_mask_addr, bp->nig_mask);
+		bnx2x_release_phy_lock(bp);
+	}
 }
 
 static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
