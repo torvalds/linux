@@ -416,6 +416,9 @@ static int korina_rx(struct net_device *dev, int limit)
 			if (devcs & ETH_RX_MP)
 				dev->stats.multicast++;
 
+			/* 16 bit align */
+			skb_reserve(skb_new, 2);
+
 			lp->rx_skb[lp->rx_next_done] = skb_new;
 		}
 
