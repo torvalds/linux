@@ -37,7 +37,6 @@
 
 #define SC92031_NAME "sc92031"
 #define SC92031_DESCRIPTION "Silan SC92031 PCI Fast Ethernet Adapter driver"
-#define SC92031_VERSION "2.0c"
 
 /* BAR 0 is MMIO, BAR 1 is PIO */
 #ifndef SC92031_USE_BAR
@@ -1264,7 +1263,6 @@ static void sc92031_ethtool_get_drvinfo(struct net_device *dev,
 	struct pci_dev *pdev = priv->pdev;
 
 	strcpy(drvinfo->driver, SC92031_NAME);
-	strcpy(drvinfo->version, SC92031_VERSION);
 	strcpy(drvinfo->bus_info, pci_name(pdev));
 }
 
@@ -1626,4 +1624,3 @@ module_exit(sc92031_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Cesar Eduardo Barros <cesarb@cesarb.net>");
 MODULE_DESCRIPTION(SC92031_DESCRIPTION);
-MODULE_VERSION(SC92031_VERSION);
