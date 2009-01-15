@@ -77,7 +77,9 @@ static void l2cap_sock_timeout(unsigned long arg)
 
 	bh_lock_sock(sk);
 
-	if (sk->sk_state == BT_CONNECT &&
+	if (sk->sk_state == BT_CONNECTED || sk->sk_state == BT_CONFIG)
+		reason = ECONNREFUSED;
+	else if (sk->sk_state == BT_CONNECT &&
 				l2cap_pi(sk)->sec_level != BT_SECURITY_SDP)
 		reason = ECONNREFUSED;
 	else
@@ -2400,6 +2402,20 @@ static int l2cap_disconn_ind(struct hci_conn *hcon, u8 reason)
 	return 0;
 }
 
+static inline void l2cap_check_encryption(struct sock *sk, u8 encrypt)
+{
+	if (encrypt == 0x00) {
+		if (l2cap_pi(sk)->sec_level == BT_SECURITY_MEDIUM) {
+			l2cap_sock_clear_timer(sk);
+			l2cap_sock_set_timer(sk, HZ * 5);
+		} else if (l2cap_pi(sk)->sec_level == BT_SECURITY_HIGH)
+			__l2cap_sock_close(sk, ECONNREFUSED);
+	} else {
+		if (l2cap_pi(sk)->sec_level == BT_SECURITY_MEDIUM)
+			l2cap_sock_clear_timer(sk);
+	}
+}
+
 static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 {
 	struct l2cap_chan_list *l;
@@ -2416,15 +2432,11 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 	read_lock(&l->lock);
 
 	for (sk = l->head; sk; sk = l2cap_pi(sk)->next_c) {
-		struct l2cap_pinfo *pi = l2cap_pi(sk);
-
 		bh_lock_sock(sk);
 
-		if (!status && encrypt == 0x00 &&
-				pi->sec_level == BT_SECURITY_HIGH &&
-					(sk->sk_state == BT_CONNECTED ||
+		if (!status && (sk->sk_state == BT_CONNECTED ||
 						sk->sk_state == BT_CONFIG)) {
-			__l2cap_sock_close(sk, ECONNREFUSED);
+			l2cap_check_encryption(sk, encrypt);
 			bh_unlock_sock(sk);
 			continue;
 		}
