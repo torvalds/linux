@@ -743,6 +743,7 @@ static struct ethtool_ops netdev_ethtool_ops = {
 static void korina_alloc_ring(struct net_device *dev)
 {
 	struct korina_private *lp = netdev_priv(dev);
+	struct sk_buff *skb;
 	int i;
 
 	/* Initialize the transmit descriptors */
@@ -758,8 +759,6 @@ static void korina_alloc_ring(struct net_device *dev)
 
 	/* Initialize the receive descriptors */
 	for (i = 0; i < KORINA_NUM_RDS; i++) {
-		struct sk_buff *skb = lp->rx_skb[i];
-
 		skb = dev_alloc_skb(KORINA_RBSIZE + 2);
 		if (!skb)
 			break;
