@@ -1073,7 +1073,7 @@ static int stir421x_patch_device(struct irda_usb_cb *self)
 {
 	unsigned int i;
 	int ret;
-	char stir421x_fw_name[11];
+	char stir421x_fw_name[12];
 	const struct firmware *fw;
 	const unsigned char *fw_version_ptr; /* pointer to version string */
 	unsigned long fw_version = 0;
