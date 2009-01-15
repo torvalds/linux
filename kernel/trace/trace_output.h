@@ -45,14 +45,14 @@ trace_nop_print(struct trace_seq *s, struct trace_entry *entry, int flags);
 #define SEQ_PUT_FIELD_RET(s, x)				\
 do {							\
 	if (!trace_seq_putmem(s, &(x), sizeof(x)))	\
-		return 0;				\
+		return TRACE_TYPE_PARTIAL_LINE;		\
 } while (0)
 
 #define SEQ_PUT_HEX_FIELD_RET(s, x)			\
 do {							\
 	BUILD_BUG_ON(sizeof(x) > MAX_MEMHEX_BYTES);	\
 	if (!trace_seq_putmem_hex(s, &(x), sizeof(x)))	\
-		return 0;				\
+		return TRACE_TYPE_PARTIAL_LINE;		\
 } while (0)
 
 #endif

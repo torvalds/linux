@@ -440,9 +440,9 @@ trace_fn_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
 
 	trace_assign_type(field, entry);
 
-	if (trace_seq_printf(s, "%x %x\n",
-			     field->ip,
-			     field->parent_ip))
+	if (!trace_seq_printf(s, "%x %x\n",
+			      field->ip,
+			      field->parent_ip))
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	return 0;
@@ -497,14 +497,14 @@ trace_ctxwake_print(struct trace_seq *s, struct trace_entry *entry, int flags,
 	T = task_state_char(field->next_state);
 	S = task_state_char(field->prev_state);
 	comm = trace_find_cmdline(field->next_pid);
-	if (trace_seq_printf(s, " %5d:%3d:%c %s [%03d] %5d:%3d:%c %s\n",
-			     field->prev_pid,
-			     field->prev_prio,
-			     S, delim,
-			     field->next_cpu,
-			     field->next_pid,
-			     field->next_prio,
-			     T, comm))
+	if (!trace_seq_printf(s, " %5d:%3d:%c %s [%03d] %5d:%3d:%c %s\n",
+			      field->prev_pid,
+			      field->prev_prio,
+			      S, delim,
+			      field->next_cpu,
+			      field->next_pid,
+			      field->next_prio,
+			      T, comm))
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	return 0;
@@ -534,14 +534,14 @@ trace_ctxwake_raw(struct trace_seq *s, struct trace_entry *entry, int flags,
 	if (!S)
 		task_state_char(field->prev_state);
 	T = task_state_char(field->next_state);
-	if (trace_seq_printf(s, "%d %d %c %d %d %d %c\n",
-			     field->prev_pid,
-			     field->prev_prio,
-			     S,
-			     field->next_cpu,
-			     field->next_pid,
-			     field->next_prio,
-			     T))
+	if (!trace_seq_printf(s, "%d %d %c %d %d %d %c\n",
+			      field->prev_pid,
+			      field->prev_prio,
+			      S,
+			      field->next_cpu,
+			      field->next_pid,
+			      field->next_prio,
+			      T))
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	return 0;
@@ -639,10 +639,10 @@ trace_special_print(struct trace_seq *s, struct trace_entry *entry, int flags)
 
 	trace_assign_type(field, entry);
 
-	if (trace_seq_printf(s, "# %ld %ld %ld\n",
-			     field->arg1,
-			     field->arg2,
-			     field->arg3))
+	if (!trace_seq_printf(s, "# %ld %ld %ld\n",
+			      field->arg1,
+			      field->arg2,
+			      field->arg3))
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	return 0;
@@ -697,13 +697,13 @@ trace_stack_print(struct trace_seq *s, struct trace_entry *entry, int flags)
 
 	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
 		if (i) {
-			if (trace_seq_puts(s, " <= "))
+			if (!trace_seq_puts(s, " <= "))
 				goto partial;
 
-			if (seq_print_ip_sym(s, field->caller[i], flags))
+			if (!seq_print_ip_sym(s, field->caller[i], flags))
 				goto partial;
 		}
-		if (trace_seq_puts(s, "\n"))
+		if (!trace_seq_puts(s, "\n"))
 			goto partial;
 	}
 
@@ -731,10 +731,10 @@ trace_user_stack_print(struct trace_seq *s, struct trace_entry *entry,
 
 	trace_assign_type(field, entry);
 
-	if (seq_print_userip_objs(field, s, flags))
+	if (!seq_print_userip_objs(field, s, flags))
 		goto partial;
 
-	if (trace_seq_putc(s, '\n'))
+	if (!trace_seq_putc(s, '\n'))
 		goto partial;
 
 	return 0;
@@ -760,10 +760,10 @@ trace_print_print(struct trace_seq *s, struct trace_entry *entry, int flags)
 
 	trace_assign_type(field, entry);
 
-	if (seq_print_ip_sym(s, field->ip, flags))
+	if (!seq_print_ip_sym(s, field->ip, flags))
 		goto partial;
 
-	if (trace_seq_printf(s, ": %s", field->buf))
+	if (!trace_seq_printf(s, ": %s", field->buf))
 		goto partial;
 
 	return 0;
@@ -779,10 +779,7 @@ trace_print_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
 
 	trace_assign_type(field, entry);
 
-	if (seq_print_ip_sym(s, field->ip, flags))
-		goto partial;
-
-	if (trace_seq_printf(s, "# %lx %s", field->ip, field->buf))
+	if (!trace_seq_printf(s, "# %lx %s", field->ip, field->buf))
 		goto partial;
 
 	return 0;
