@@ -9,7 +9,7 @@
  *
  * Author: Pavel Emelianov <xemul@openvz.org>
  *
- * See Documentation/controllers/resource_counter.txt for more
+ * See Documentation/cgroups/resource_counter.txt for more
  * info about what this counter is.
  */
 

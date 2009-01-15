@@ -6,7 +6,7 @@ Because VM is getting complex (one of reasons is memcg...), memcg's behavior
 is complex. This is a document for memcg's internal behavior.
 Please note that implementation details can be changed.
 
-(*) Topics on API should be in Documentation/controllers/memory.txt)
+(*) Topics on API should be in Documentation/cgroups/memory.txt)
 
 0. How to record usage ?
    2 objects are used.

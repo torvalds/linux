@@ -323,8 +323,8 @@ config CGROUP_SCHED
 	  This option allows you to create arbitrary task groups
 	  using the "cgroup" pseudo filesystem and control
 	  the cpu bandwidth allocated to each such task group.
-	  Refer to Documentation/cgroups.txt for more information
-	  on "cgroup" pseudo filesystem.
+	  Refer to Documentation/cgroups/cgroups.txt for more
+	  information on "cgroup" pseudo filesystem.
 
 endchoice
 
@@ -335,10 +335,9 @@ menuconfig CGROUPS
 	  use with process control subsystems such as Cpusets, CFS, memory
 	  controls or device isolation.
 	  See
-		- Documentation/cpusets.txt	(Cpusets)
 		- Documentation/scheduler/sched-design-CFS.txt	(CFS)
-		- Documentation/cgroups/ (features for grouping, isolation)
-		- Documentation/controllers/ (features for resource control)
+		- Documentation/cgroups/ (features for grouping, isolation
+					  and resource control)
 
 	  Say N if unsure.
 
