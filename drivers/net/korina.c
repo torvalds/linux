@@ -904,6 +904,8 @@ static int korina_restart(struct net_device *dev)
 
 	korina_free_ring(dev);
 
+	napi_disable(&lp->napi);
+
 	ret = korina_init(dev);
 	if (ret < 0) {
 		printk(KERN_ERR DRV_NAME "%s: cannot restart device\n",
@@ -1069,6 +1071,8 @@ static int korina_close(struct net_device *dev)
 	writel(tmp, &lp->rx_dma_regs->dmasm);
 
 	korina_free_ring(dev);
+
+	napi_disable(&lp->napi);
 
 	free_irq(lp->rx_irq, dev);
 	free_irq(lp->tx_irq, dev);
