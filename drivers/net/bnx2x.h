@@ -150,6 +150,9 @@ struct sw_rx_page {
 
 #define PAGES_PER_SGE_SHIFT		0
 #define PAGES_PER_SGE			(1 << PAGES_PER_SGE_SHIFT)
+#define SGE_PAGE_SIZE			PAGE_SIZE
+#define SGE_PAGE_SHIFT			PAGE_SHIFT
+#define SGE_PAGE_ALIGN(addr)		PAGE_ALIGN(addr)
 
 #define BCM_RX_ETH_PAYLOAD_ALIGN	64
 
