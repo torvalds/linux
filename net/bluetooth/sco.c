@@ -857,10 +857,30 @@ done:
 /* ----- SCO interface with lower layer (HCI) ----- */
 static int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 type)
 {
+	register struct sock *sk;
+	struct hlist_node *node;
+	int lm = 0;
+
+	if (type != SCO_LINK && type != ESCO_LINK)
+		return 0;
+
 	BT_DBG("hdev %s, bdaddr %s", hdev->name, batostr(bdaddr));
 
-	/* Always accept connection */
-	return HCI_LM_ACCEPT;
+	/* Find listening sockets */
+	read_lock(&sco_sk_list.lock);
+	sk_for_each(sk, node, &sco_sk_list.head) {
+		if (sk->sk_state != BT_LISTEN)
+			continue;
+
+		if (!bacmp(&bt_sk(sk)->src, &hdev->bdaddr) ||
+				!bacmp(&bt_sk(sk)->src, BDADDR_ANY)) {
+			lm |= HCI_LM_ACCEPT;
+			break;
+		}
+	}
+	read_unlock(&sco_sk_list.lock);
+
+	return lm;
 }
 
 static int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
