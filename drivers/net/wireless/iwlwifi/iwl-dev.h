@@ -1041,6 +1041,7 @@ struct iwl_priv {
 
 	/*For 3945 only*/
 	struct delayed_work thermal_periodic;
+	struct delayed_work rfkill_poll;
 
 	/* TX Power */
 	s8 tx_power_user_lmt;
