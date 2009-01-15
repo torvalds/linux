@@ -1601,10 +1601,10 @@ xfs_itruncate_finish(
 		 * in this file with garbage in them once recovery
 		 * runs.
 		 */
-		XFS_BMAP_INIT(&free_list, &first_block);
+		xfs_bmap_init(&free_list, &first_block);
 		error = xfs_bunmapi(ntp, ip,
 				    first_unmap_block, unmap_len,
-				    XFS_BMAPI_AFLAG(fork) |
+				    xfs_bmapi_aflag(fork) |
 				      (sync ? 0 : XFS_BMAPI_ASYNC),
 				    XFS_ITRUNC_MAX_EXTENTS,
 				    &first_block, &free_list,
@@ -2557,7 +2557,7 @@ xfs_iextents_copy(
 	for (i = 0; i < nrecs; i++) {
 		xfs_bmbt_rec_host_t *ep = xfs_iext_get_ext(ifp, i);
 		start_block = xfs_bmbt_get_startblock(ep);
-		if (ISNULLSTARTBLOCK(start_block)) {
+		if (isnullstartblock(start_block)) {
 			/*
 			 * It's a delayed allocation extent, so skip it.
 			 */
