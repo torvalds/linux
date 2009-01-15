@@ -166,97 +166,11 @@ void softlockup_tick(void)
 }
 
 /*
- * Have a reasonable limit on the number of tasks checked:
- */
-unsigned long __read_mostly sysctl_hung_task_check_count = 1024;
-
-/*
- * Zero means infinite timeout - no checking done:
- */
-unsigned long __read_mostly sysctl_hung_task_timeout_secs = 480;
-
-unsigned long __read_mostly sysctl_hung_task_warnings = 10;
-
-/*
- * Only do the hung-tasks check on one CPU:
- */
-static int check_cpu __read_mostly = -1;
-
-static void check_hung_task(struct task_struct *t, unsigned long now)
-{
-	unsigned long switch_count = t->nvcsw + t->nivcsw;
-
-	if (t->flags & PF_FROZEN)
-		return;
-
-	if (switch_count != t->last_switch_count || !t->last_switch_timestamp) {
-		t->last_switch_count = switch_count;
-		t->last_switch_timestamp = now;
-		return;
-	}
-	if ((long)(now - t->last_switch_timestamp) <
-					sysctl_hung_task_timeout_secs)
-		return;
-	if (!sysctl_hung_task_warnings)
-		return;
-	sysctl_hung_task_warnings--;
-
-	/*
-	 * Ok, the task did not get scheduled for more than 2 minutes,
-	 * complain:
-	 */
-	printk(KERN_ERR "INFO: task %s:%d blocked for more than "
-			"%ld seconds.\n", t->comm, t->pid,
-			sysctl_hung_task_timeout_secs);
-	printk(KERN_ERR "\"echo 0 > /proc/sys/kernel/hung_task_timeout_secs\""
-			" disables this message.\n");
-	sched_show_task(t);
-	__debug_show_held_locks(t);
-
-	t->last_switch_timestamp = now;
-	touch_nmi_watchdog();
-
-	if (softlockup_panic)
-		panic("softlockup: blocked tasks");
-}
-
-/*
- * Check whether a TASK_UNINTERRUPTIBLE does not get woken up for
- * a really long time (120 seconds). If that happens, print out
- * a warning.
- */
-static void check_hung_uninterruptible_tasks(int this_cpu)
-{
-	int max_count = sysctl_hung_task_check_count;
-	unsigned long now = get_timestamp(this_cpu);
-	struct task_struct *g, *t;
-
-	/*
-	 * If the system crashed already then all bets are off,
-	 * do not report extra hung tasks:
-	 */
-	if (test_taint(TAINT_DIE) || did_panic)
-		return;
-
-	read_lock(&tasklist_lock);
-	do_each_thread(g, t) {
-		if (!--max_count)
-			goto unlock;
-		/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */
-		if (t->state == TASK_UNINTERRUPTIBLE)
-			check_hung_task(t, now);
-	} while_each_thread(g, t);
- unlock:
-	read_unlock(&tasklist_lock);
-}
-
-/*
  * The watchdog thread - runs every second and touches the timestamp.
  */
 static int watchdog(void *__bind_cpu)
 {
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
-	int this_cpu = (long)__bind_cpu;
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 
@@ -275,11 +189,6 @@ static int watchdog(void *__bind_cpu)
 
 		if (kthread_should_stop())
 			break;
-
-		if (this_cpu == check_cpu) {
-			if (sysctl_hung_task_timeout_secs)
-				check_hung_uninterruptible_tasks(this_cpu);
-		}
 
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
@@ -312,18 +221,9 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		break;
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
-		check_cpu = cpumask_any(cpu_online_mask);
 		wake_up_process(per_cpu(watchdog_task, hotcpu));
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
-	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
-		if (hotcpu == check_cpu) {
-			/* Pick any other online cpu. */
-			check_cpu = cpumask_any_but(cpu_online_mask, hotcpu);
-		}
-		break;
-
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
 		if (!per_cpu(watchdog_task, hotcpu))
