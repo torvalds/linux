@@ -411,13 +411,15 @@ sub ctx_statement_block {
 
 	my $type = '';
 	my $level = 0;
-	my @stack = ([$type, $level]);
+	my @stack = ();
 	my $p;
 	my $c;
 	my $len = 0;
 
 	my $remainder;
 	while (1) {
+		@stack = (['', 0]) if ($#stack == -1);
+
 		#warn "CSB: blk<$blk> remain<$remain>\n";
 		# If we are about to drop off the end, pull in more
 		# context.
