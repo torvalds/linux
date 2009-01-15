@@ -4,8 +4,8 @@
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 #ifdef CONFIG_SMP
-	if (x86_read_percpu(cpu_tlbstate.state) == TLBSTATE_OK)
-		x86_write_percpu(cpu_tlbstate.state, TLBSTATE_LAZY);
+	if (percpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
+		percpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
 #endif
 }
 
@@ -19,8 +19,8 @@ static inline void switch_mm(struct mm_struct *prev,
 		/* stop flush ipis for the previous mm */
 		cpu_clear(cpu, prev->cpu_vm_mask);
 #ifdef CONFIG_SMP
-		x86_write_percpu(cpu_tlbstate.state, TLBSTATE_OK);
-		x86_write_percpu(cpu_tlbstate.active_mm, next);
+		percpu_write(cpu_tlbstate.state, TLBSTATE_OK);
+		percpu_write(cpu_tlbstate.active_mm, next);
 #endif
 		cpu_set(cpu, next->cpu_vm_mask);
 
@@ -35,8 +35,8 @@ static inline void switch_mm(struct mm_struct *prev,
 	}
 #ifdef CONFIG_SMP
 	else {
-		x86_write_percpu(cpu_tlbstate.state, TLBSTATE_OK);
-		BUG_ON(x86_read_percpu(cpu_tlbstate.active_mm) != next);
+		percpu_write(cpu_tlbstate.state, TLBSTATE_OK);
+		BUG_ON(percpu_read(cpu_tlbstate.active_mm) != next);
 
 		if (!cpu_test_and_set(cpu, next->cpu_vm_mask)) {
 			/* We were in lazy tlb mode and leave_mm disabled

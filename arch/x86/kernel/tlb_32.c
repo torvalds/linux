@@ -34,8 +34,8 @@ static DEFINE_SPINLOCK(tlbstate_lock);
  */
 void leave_mm(int cpu)
 {
-	BUG_ON(x86_read_percpu(cpu_tlbstate.state) == TLBSTATE_OK);
-	cpu_clear(cpu, x86_read_percpu(cpu_tlbstate.active_mm)->cpu_vm_mask);
+	BUG_ON(percpu_read(cpu_tlbstate.state) == TLBSTATE_OK);
+	cpu_clear(cpu, percpu_read(cpu_tlbstate.active_mm)->cpu_vm_mask);
 	load_cr3(swapper_pg_dir);
 }
 EXPORT_SYMBOL_GPL(leave_mm);
@@ -103,8 +103,8 @@ void smp_invalidate_interrupt(struct pt_regs *regs)
 		 * BUG();
 		 */
 
-	if (flush_mm == x86_read_percpu(cpu_tlbstate.active_mm)) {
-		if (x86_read_percpu(cpu_tlbstate.state) == TLBSTATE_OK) {
+	if (flush_mm == percpu_read(cpu_tlbstate.active_mm)) {
+		if (percpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
 			if (flush_va == TLB_FLUSH_ALL)
 				local_flush_tlb();
 			else
@@ -222,7 +222,7 @@ static void do_flush_tlb_all(void *info)
 	unsigned long cpu = smp_processor_id();
 
 	__flush_tlb_all();
-	if (x86_read_percpu(cpu_tlbstate.state) == TLBSTATE_LAZY)
+	if (percpu_read(cpu_tlbstate.state) == TLBSTATE_LAZY)
 		leave_mm(cpu);
 }
 

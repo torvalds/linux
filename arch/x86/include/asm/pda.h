@@ -45,11 +45,11 @@ extern void pda_init(int);
 
 #define cpu_pda(cpu)		(&per_cpu(__pda, cpu))
 
-#define read_pda(field)		x86_read_percpu(__pda.field)
-#define write_pda(field, val)	x86_write_percpu(__pda.field, val)
-#define add_pda(field, val)	x86_add_percpu(__pda.field, val)
-#define sub_pda(field, val)	x86_sub_percpu(__pda.field, val)
-#define or_pda(field, val)	x86_or_percpu(__pda.field, val)
+#define read_pda(field)		percpu_read(__pda.field)
+#define write_pda(field, val)	percpu_write(__pda.field, val)
+#define add_pda(field, val)	percpu_add(__pda.field, val)
+#define sub_pda(field, val)	percpu_sub(__pda.field, val)
+#define or_pda(field, val)	percpu_or(__pda.field, val)
 
 /* This is not atomic against other CPUs -- CPU preemption needs to be off */
 #define test_and_clear_bit_pda(bit, field)				\

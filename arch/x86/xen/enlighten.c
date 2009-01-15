@@ -695,17 +695,17 @@ static void xen_write_cr0(unsigned long cr0)
 
 static void xen_write_cr2(unsigned long cr2)
 {
-	x86_read_percpu(xen_vcpu)->arch.cr2 = cr2;
+	percpu_read(xen_vcpu)->arch.cr2 = cr2;
 }
 
 static unsigned long xen_read_cr2(void)
 {
-	return x86_read_percpu(xen_vcpu)->arch.cr2;
+	return percpu_read(xen_vcpu)->arch.cr2;
 }
 
 static unsigned long xen_read_cr2_direct(void)
 {
-	return x86_read_percpu(xen_vcpu_info.arch.cr2);
+	return percpu_read(xen_vcpu_info.arch.cr2);
 }
 
 static void xen_write_cr4(unsigned long cr4)
@@ -718,12 +718,12 @@ static void xen_write_cr4(unsigned long cr4)
 
 static unsigned long xen_read_cr3(void)
 {
-	return x86_read_percpu(xen_cr3);
+	return percpu_read(xen_cr3);
 }
 
 static void set_current_cr3(void *v)
 {
-	x86_write_percpu(xen_current_cr3, (unsigned long)v);
+	percpu_write(xen_current_cr3, (unsigned long)v);
 }
 
 static void __xen_write_cr3(bool kernel, unsigned long cr3)
@@ -748,7 +748,7 @@ static void __xen_write_cr3(bool kernel, unsigned long cr3)
 	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
 
 	if (kernel) {
-		x86_write_percpu(xen_cr3, cr3);
+		percpu_write(xen_cr3, cr3);
 
 		/* Update xen_current_cr3 once the batch has actually
 		   been submitted. */
@@ -764,7 +764,7 @@ static void xen_write_cr3(unsigned long cr3)
 
 	/* Update while interrupts are disabled, so its atomic with
 	   respect to ipis */
-	x86_write_percpu(xen_cr3, cr3);
+	percpu_write(xen_cr3, cr3);
 
 	__xen_write_cr3(true, cr3);
 

@@ -402,7 +402,7 @@ void __init find_smp_config(void)
 	     VOYAGER_SUS_IN_CONTROL_PORT);
 
 	current_thread_info()->cpu = boot_cpu_id;
-	x86_write_percpu(cpu_number, boot_cpu_id);
+	percpu_write(cpu_number, boot_cpu_id);
 }
 
 /*
@@ -1782,7 +1782,7 @@ static void __init voyager_smp_cpus_done(unsigned int max_cpus)
 void __init smp_setup_processor_id(void)
 {
 	current_thread_info()->cpu = hard_smp_processor_id();
-	x86_write_percpu(cpu_number, hard_smp_processor_id());
+	percpu_write(cpu_number, hard_smp_processor_id());
 }
 
 static void voyager_send_call_func(cpumask_t callmask)

@@ -40,15 +40,10 @@
 
 #ifdef CONFIG_SMP
 #define __percpu_seg_str	"%%"__stringify(__percpu_seg)":"
-#define __my_cpu_offset		x86_read_percpu(this_cpu_off)
+#define __my_cpu_offset		percpu_read(this_cpu_off)
 #else
 #define __percpu_seg_str
 #endif
-
-#include <asm-generic/percpu.h>
-
-/* We can use this directly for local CPU (faster). */
-DECLARE_PER_CPU(unsigned long, this_cpu_off);
 
 /* For arch-specific code, we can use direct single-insn ops (they
  * don't give an lvalue though). */
@@ -115,11 +110,13 @@ do {							\
 	ret__;						\
 })
 
-#define x86_read_percpu(var) percpu_from_op("mov", per_cpu__##var)
-#define x86_write_percpu(var, val) percpu_to_op("mov", per_cpu__##var, val)
-#define x86_add_percpu(var, val) percpu_to_op("add", per_cpu__##var, val)
-#define x86_sub_percpu(var, val) percpu_to_op("sub", per_cpu__##var, val)
-#define x86_or_percpu(var, val) percpu_to_op("or", per_cpu__##var, val)
+#define percpu_read(var)	percpu_from_op("mov", per_cpu__##var)
+#define percpu_write(var, val)	percpu_to_op("mov", per_cpu__##var, val)
+#define percpu_add(var, val)	percpu_to_op("add", per_cpu__##var, val)
+#define percpu_sub(var, val)	percpu_to_op("sub", per_cpu__##var, val)
+#define percpu_and(var, val)	percpu_to_op("and", per_cpu__##var, val)
+#define percpu_or(var, val)	percpu_to_op("or", per_cpu__##var, val)
+#define percpu_xor(var, val)	percpu_to_op("xor", per_cpu__##var, val)
 
 /* This is not atomic against other CPUs -- CPU preemption needs to be off */
 #define x86_test_and_clear_bit_percpu(bit, var)				\
@@ -130,6 +127,11 @@ do {							\
 		     : "dIr" (bit), "i" (&per_cpu__##var) : "memory");	\
 	old__;								\
 })
+
+#include <asm-generic/percpu.h>
+
+/* We can use this directly for local CPU (faster). */
+DECLARE_PER_CPU(unsigned long, this_cpu_off);
 
 #ifdef CONFIG_X86_64
 extern void load_pda_offset(int cpu);

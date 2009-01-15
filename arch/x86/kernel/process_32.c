@@ -591,7 +591,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	if (prev->gs | next->gs)
 		loadsegment(gs, next->gs);
 
-	x86_write_percpu(current_task, next_p);
+	percpu_write(current_task, next_p);
 
 	return prev_p;
 }

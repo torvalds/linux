@@ -78,7 +78,7 @@ static __cpuinit void cpu_bringup(void)
 	xen_setup_cpu_clockevents();
 
 	cpu_set(cpu, cpu_online_map);
-	x86_write_percpu(cpu_state, CPU_ONLINE);
+	percpu_write(cpu_state, CPU_ONLINE);
 	wmb();
 
 	/* We can take interrupts now: we're officially "up". */
