@@ -144,6 +144,7 @@ extern int acct_parm[];
 
 #ifdef CONFIG_IA64
 extern int no_unaligned_warning;
+extern int unaligned_dump_stack;
 #endif
 
 #ifdef CONFIG_RT_MUTEXES
@@ -779,6 +780,14 @@ static struct ctl_table kern_table[] = {
 		.data		= &no_unaligned_warning,
 		.maxlen		= sizeof (int),
 	 	.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "unaligned-dump-stack",
+		.data		= &unaligned_dump_stack,
+		.maxlen		= sizeof (int),
+		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
