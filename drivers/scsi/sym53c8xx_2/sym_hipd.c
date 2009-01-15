@@ -1433,13 +1433,12 @@ static int sym_prepare_nego(struct sym_hcb *np, struct sym_ccb *cp, u_char *msgp
 	 * Many devices implement PPR in a buggy way, so only use it if we
 	 * really want to.
 	 */
-	if (goal->offset &&
-	    (goal->iu || goal->dt || goal->qas || (goal->period < 0xa))) {
+	if (goal->renego == NS_PPR || (goal->offset &&
+	    (goal->iu || goal->dt || goal->qas || (goal->period < 0xa)))) {
 		nego = NS_PPR;
-	} else if (spi_width(starget) != goal->width) {
+	} else if (goal->renego == NS_WIDE || goal->width) {
 		nego = NS_WIDE;
-	} else if (spi_period(starget) != goal->period ||
-		   spi_offset(starget) != goal->offset) {
+	} else if (goal->renego == NS_SYNC || goal->offset) {
 		nego = NS_SYNC;
 	} else {
 		goal->check_nego = 0;
@@ -2049,11 +2048,13 @@ static void sym_setwide(struct sym_hcb *np, int target, u_char wide)
 	struct sym_tcb *tp = &np->target[target];
 	struct scsi_target *starget = tp->starget;
 
-	if (spi_width(starget) == wide)
-		return;
-
 	sym_settrans(np, target, 0, 0, 0, wide, 0, 0);
 
+	if (wide)
+		tp->tgoal.renego = NS_WIDE;
+	else
+		tp->tgoal.renego = 0;
+	tp->tgoal.check_nego = 0;
 	tp->tgoal.width = wide;
 	spi_offset(starget) = 0;
 	spi_period(starget) = 0;
@@ -2080,6 +2081,12 @@ sym_setsync(struct sym_hcb *np, int target,
 
 	sym_settrans(np, target, 0, ofs, per, wide, div, fak);
 
+	if (wide)
+		tp->tgoal.renego = NS_WIDE;
+	else if (ofs)
+		tp->tgoal.renego = NS_SYNC;
+	else
+		tp->tgoal.renego = 0;
 	spi_period(starget) = per;
 	spi_offset(starget) = ofs;
 	spi_iu(starget) = spi_dt(starget) = spi_qas(starget) = 0;
@@ -2106,6 +2113,10 @@ sym_setpprot(struct sym_hcb *np, int target, u_char opts, u_char ofs,
 
 	sym_settrans(np, target, opts, ofs, per, wide, div, fak);
 
+	if (wide || ofs)
+		tp->tgoal.renego = NS_PPR;
+	else
+		tp->tgoal.renego = 0;
 	spi_width(starget) = tp->tgoal.width = wide;
 	spi_period(starget) = tp->tgoal.period = per;
 	spi_offset(starget) = tp->tgoal.offset = ofs;
@@ -3516,6 +3527,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 			spi_dt(starget) = 0;
 			spi_qas(starget) = 0;
 			tp->tgoal.check_nego = 1;
+			tp->tgoal.renego = 0;
 		}
 
 		/*
@@ -5135,9 +5147,14 @@ int sym_queue_scsiio(struct sym_hcb *np, struct scsi_cmnd *cmd, struct sym_ccb *
 	/*
 	 *  Build a negotiation message if needed.
 	 *  (nego_status is filled by sym_prepare_nego())
+	 *
+	 *  Always negotiate on INQUIRY and REQUEST SENSE.
+	 *
 	 */
 	cp->nego_status = 0;
-	if (tp->tgoal.check_nego && !tp->nego_cp && lp) {
+	if ((tp->tgoal.check_nego ||
+	     cmd->cmnd[0] == INQUIRY || cmd->cmnd[0] == REQUEST_SENSE) &&
+	    !tp->nego_cp && lp) {
 		msglen += sym_prepare_nego(np, cp, msgptr + msglen);
 	}
 

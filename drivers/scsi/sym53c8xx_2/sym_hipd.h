@@ -354,6 +354,7 @@ struct sym_trans {
 	unsigned int dt:1;
 	unsigned int qas:1;
 	unsigned int check_nego:1;
+	unsigned int renego:2;
 };
 
 /*
