@@ -28,7 +28,7 @@
  * So by _not_ starting I/O in MS_ASYNC we provide complete flexibility to
  * applications.
  */
-asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
+SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
 {
 	unsigned long end;
 	struct mm_struct *mm = current->mm;

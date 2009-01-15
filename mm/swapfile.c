@@ -1377,7 +1377,7 @@ out:
 	return ret;
 }
 
-asmlinkage long sys_swapoff(const char __user * specialfile)
+SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 {
 	struct swap_info_struct * p = NULL;
 	unsigned short *swap_map;
@@ -1633,7 +1633,7 @@ late_initcall(max_swapfiles_check);
  *
  * The swapon system call
  */
-asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
+SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 {
 	struct swap_info_struct * p;
 	char *name = NULL;
