@@ -3900,6 +3900,7 @@ static const char *ad1884a_models[AD1884A_MODELS] = {
 
 static struct snd_pci_quirk ad1884a_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x3030, "HP", AD1884A_MOBILE),
+	SND_PCI_QUIRK(0x103c, 0x3037, "HP 2230s", AD1884A_LAPTOP),
 	SND_PCI_QUIRK(0x103c, 0x3056, "HP", AD1884A_MOBILE),
 	SND_PCI_QUIRK(0x103c, 0x30e6, "HP 6730b", AD1884A_LAPTOP),
 	SND_PCI_QUIRK(0x103c, 0x30e7, "HP EliteBook 8530p", AD1884A_LAPTOP),
@@ -4262,13 +4263,13 @@ static int patch_ad1882(struct hda_codec *codec)
 	spec->num_adc_nids = ARRAY_SIZE(ad1882_adc_nids);
 	spec->adc_nids = ad1882_adc_nids;
 	spec->capsrc_nids = ad1882_capsrc_nids;
-	if (codec->vendor_id == 0x11d1882)
+	if (codec->vendor_id == 0x11d41882)
 		spec->input_mux = &ad1882_capture_source;
 	else
 		spec->input_mux = &ad1882a_capture_source;
 	spec->num_mixers = 2;
 	spec->mixers[0] = ad1882_base_mixers;
-	if (codec->vendor_id == 0x11d1882)
+	if (codec->vendor_id == 0x11d41882)
 		spec->mixers[1] = ad1882_loopback_mixers;
 	else
 		spec->mixers[1] = ad1882a_loopback_mixers;
