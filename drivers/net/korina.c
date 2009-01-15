@@ -330,12 +330,12 @@ static irqreturn_t korina_rx_dma_interrupt(int irq, void *dev_id)
 
 	dmas = readl(&lp->rx_dma_regs->dmas);
 	if (dmas & (DMA_STAT_DONE | DMA_STAT_HALT | DMA_STAT_ERR)) {
-		netif_rx_schedule(&lp->napi);
-
 		dmasm = readl(&lp->rx_dma_regs->dmasm);
 		writel(dmasm | (DMA_STAT_DONE |
 				DMA_STAT_HALT | DMA_STAT_ERR),
 				&lp->rx_dma_regs->dmasm);
+
+		netif_rx_schedule(&lp->napi);
 
 		if (dmas & DMA_STAT_ERR)
 			printk(KERN_ERR DRV_NAME "%s: DMA error\n", dev->name);
@@ -623,11 +623,11 @@ korina_tx_dma_interrupt(int irq, void *dev_id)
 	dmas = readl(&lp->tx_dma_regs->dmas);
 
 	if (dmas & (DMA_STAT_FINI | DMA_STAT_ERR)) {
-		korina_tx(dev);
-
 		dmasm = readl(&lp->tx_dma_regs->dmasm);
 		writel(dmasm | (DMA_STAT_FINI | DMA_STAT_ERR),
 				&lp->tx_dma_regs->dmasm);
+
+		korina_tx(dev);
 
 		if (lp->tx_chain_status == desc_filled &&
 			(readl(&(lp->tx_dma_regs->dmandptr)) == 0)) {
