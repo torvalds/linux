@@ -199,7 +199,7 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 	struct korina_private *lp = netdev_priv(dev);
 	unsigned long flags;
 	u32 length;
-	u32 chain_index;
+	u32 chain_prev, chain_next;
 	struct dma_desc *td;
 
 	spin_lock_irqsave(&lp->lock, flags);
@@ -231,8 +231,8 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 	/* Setup the transmit descriptor. */
 	dma_cache_inv((u32) td, sizeof(*td));
 	td->ca = CPHYSADDR(skb->data);
-	chain_index = (lp->tx_chain_tail - 1) &
-			KORINA_TDS_MASK;
+	chain_prev = (lp->tx_chain_tail - 1) & KORINA_TDS_MASK;
+	chain_next = (lp->tx_chain_tail + 1) & KORINA_TDS_MASK;
 
 	if (readl(&(lp->tx_dma_regs->dmandptr)) == 0) {
 		if (lp->tx_chain_status == desc_empty) {
@@ -240,7 +240,7 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 			td->control = DMA_COUNT(length) |
 					DMA_DESC_COF | DMA_DESC_IOF;
 			/* Move tail */
-			lp->tx_chain_tail = chain_index;
+			lp->tx_chain_tail = chain_next;
 			/* Write to NDPTR */
 			writel(CPHYSADDR(&lp->td_ring[lp->tx_chain_head]),
 					&lp->tx_dma_regs->dmandptr);
@@ -251,12 +251,12 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 			td->control = DMA_COUNT(length) |
 					DMA_DESC_COF | DMA_DESC_IOF;
 			/* Link to prev */
-			lp->td_ring[chain_index].control &=
+			lp->td_ring[chain_prev].control &=
 					~DMA_DESC_COF;
 			/* Link to prev */
-			lp->td_ring[chain_index].link =  CPHYSADDR(td);
+			lp->td_ring[chain_prev].link =  CPHYSADDR(td);
 			/* Move tail */
-			lp->tx_chain_tail = chain_index;
+			lp->tx_chain_tail = chain_next;
 			/* Write to NDPTR */
 			writel(CPHYSADDR(&lp->td_ring[lp->tx_chain_head]),
 					&(lp->tx_dma_regs->dmandptr));
@@ -270,17 +270,17 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 			td->control = DMA_COUNT(length) |
 					DMA_DESC_COF | DMA_DESC_IOF;
 			/* Move tail */
-			lp->tx_chain_tail = chain_index;
+			lp->tx_chain_tail = chain_next;
 			lp->tx_chain_status = desc_filled;
 			netif_stop_queue(dev);
 		} else {
 			/* Update tail */
 			td->control = DMA_COUNT(length) |
 					DMA_DESC_COF | DMA_DESC_IOF;
-			lp->td_ring[chain_index].control &=
+			lp->td_ring[chain_prev].control &=
 					~DMA_DESC_COF;
-			lp->td_ring[chain_index].link =  CPHYSADDR(td);
-			lp->tx_chain_tail = chain_index;
+			lp->td_ring[chain_prev].link =  CPHYSADDR(td);
+			lp->tx_chain_tail = chain_next;
 		}
 	}
 	dma_cache_wback((u32) td, sizeof(*td));
