@@ -219,7 +219,6 @@ static const unsigned char init_po1030[][3] =
 
 static const unsigned char start_po1030[][3] =
 {
-	/*sequence 4*/
 	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
 	{BRIDGE, M5602_XB_GPIO_DAT, 0x00},
 	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
@@ -253,7 +252,7 @@ static const unsigned char start_po1030[][3] =
 
 	{SENSOR, PO1030_OUTFORMCTRL2, PO1030_RAW_RGB_BAYER},
 	{SENSOR, PO1030_AUTOCTRL1, PO1030_WEIGHT_WIN_2X},
-	/* This makes no sense, hflip and vflp is located at bit 7, 6 */
+
 	{SENSOR, PO1030_CONTROL2, 0x03},
 	{SENSOR, 0x21, 0x90},
 	{SENSOR, PO1030_YTARGET, 0x60},
@@ -269,8 +268,6 @@ static const unsigned char start_po1030[][3] =
 	{SENSOR, PO1030_CONTROL1, PO1030_SHUTTER_MODE |
 				  PO1030_AUTO_SUBSAMPLING |
 				  PO1030_FRAME_EQUAL},
-	{SENSOR, PO1030_GREEN_1_GAIN, 0x30},
-	{SENSOR, PO1030_GREEN_2_GAIN, 0x30},
 	{SENSOR, PO1030_GC0, 0x10},
 	{SENSOR, PO1030_GC1, 0x20},
 	{SENSOR, PO1030_GC2, 0x40},
@@ -279,9 +276,7 @@ static const unsigned char start_po1030[][3] =
 	{SENSOR, PO1030_GC5, 0xa0},
 	{SENSOR, PO1030_GC6, 0xc0},
 	{SENSOR, PO1030_GC7, 0xff},
-	/*end of sequence 4*/
 
-	/*sequence 5*/
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x06},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
 	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
@@ -304,8 +299,6 @@ static const unsigned char start_po1030[][3] =
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02},
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x7e},
 	{BRIDGE, M5602_XB_SIG_INI, 0x00},
-	/*end of sequence 5*/
-	/*sequence 6*/
 
 	/* with a very low lighted environment increase the exposure but
 	 * decrease the FPS (Frame Per Second) */
