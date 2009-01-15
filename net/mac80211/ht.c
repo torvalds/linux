@@ -950,7 +950,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
-		kmalloc(buf_size * sizeof(struct sk_buff *), GFP_ATOMIC);
+		kcalloc(buf_size, sizeof(struct sk_buff *), GFP_ATOMIC);
 	if (!tid_agg_rx->reorder_buf) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
@@ -960,8 +960,6 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 		kfree(sta->ampdu_mlme.tid_rx[tid]);
 		goto end;
 	}
-	memset(tid_agg_rx->reorder_buf, 0,
-		buf_size * sizeof(struct sk_buff *));
 
 	if (local->ops->ampdu_action)
 		ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_RX_START,
