@@ -17,16 +17,16 @@
 
 /* List of stat entries from a tracer */
 struct trace_stat_list {
-	struct list_head 	list;
-	void 			*stat;
+	struct list_head	list;
+	void			*stat;
 };
 
 /* A stat session is the stats output in one file */
 struct tracer_stat_session {
 	struct list_head	session_list;
-	struct tracer_stat 	*ts;
-	struct list_head 	stat_list;
-	struct mutex 		stat_mutex;
+	struct tracer_stat	*ts;
+	struct list_head	stat_list;
+	struct mutex		stat_mutex;
 	struct dentry		*file;
 };
 
@@ -35,7 +35,7 @@ static LIST_HEAD(all_stat_sessions);
 static DEFINE_MUTEX(all_stat_sessions_mutex);
 
 /* The root directory for all stat files */
-static struct dentry *stat_dir;
+static struct dentry		*stat_dir;
 
 
 static void reset_stat_session(struct tracer_stat_session *session)
@@ -55,71 +55,6 @@ static void destroy_session(struct tracer_stat_session *session)
 	mutex_destroy(&session->stat_mutex);
 	kfree(session);
 }
-
-
-static int init_stat_file(struct tracer_stat_session *session);
-
-int register_stat_tracer(struct tracer_stat *trace)
-{
-	struct tracer_stat_session *session, *node, *tmp;
-	int ret;
-
-	if (!trace)
-		return -EINVAL;
-
-	if (!trace->stat_start || !trace->stat_next || !trace->stat_show)
-		return -EINVAL;
-
-	/* Already registered? */
-	mutex_lock(&all_stat_sessions_mutex);
-	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
-		if (node->ts == trace) {
-			mutex_unlock(&all_stat_sessions_mutex);
-			return -EINVAL;
-		}
-	}
-	mutex_unlock(&all_stat_sessions_mutex);
-
-	/* Init the session */
-	session = kmalloc(sizeof(struct tracer_stat_session), GFP_KERNEL);
-	if (!session)
-		return -ENOMEM;
-
-	session->ts = trace;
-	INIT_LIST_HEAD(&session->session_list);
-	INIT_LIST_HEAD(&session->stat_list);
-	mutex_init(&session->stat_mutex);
-	session->file = NULL;
-
-	ret = init_stat_file(session);
-	if (ret) {
-		destroy_session(session);
-		return ret;
-	}
-
-	/* Register */
-	mutex_lock(&all_stat_sessions_mutex);
-	list_add_tail(&session->session_list, &all_stat_sessions);
-	mutex_unlock(&all_stat_sessions_mutex);
-
-	return 0;
-}
-
-void unregister_stat_tracer(struct tracer_stat *trace)
-{
-	struct tracer_stat_session *node, *tmp;
-
-	mutex_lock(&all_stat_sessions_mutex);
-	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
-		if (node->ts == trace) {
-			list_del(&node->session_list);
-			destroy_session(node);
-			break;
-		}
-	}
-	mutex_unlock(&all_stat_sessions_mutex);
-}
-
 
 /*
  * For tracers that don't provide a stat_cmp callback.
@@ -252,10 +187,10 @@ static int stat_seq_show(struct seq_file *s, void *v)
 }
 
 static const struct seq_operations trace_stat_seq_ops = {
-	.start = stat_seq_start,
-	.next = stat_seq_next,
-	.stop = stat_seq_stop,
-	.show = stat_seq_show
+	.start		= stat_seq_start,
+	.next		= stat_seq_next,
+	.stop		= stat_seq_stop,
+	.show		= stat_seq_show
 };
 
 /* The session stat is refilled and resorted at each stat file opening */
@@ -274,7 +209,6 @@ static int tracing_stat_open(struct inode *inode, struct file *file)
 
 	return ret;
 }
-
 
 /*
  * Avoid consuming memory with our now useless list.
@@ -321,4 +255,65 @@ static int init_stat_file(struct tracer_stat_session *session)
 	if (!session->file)
 		return -ENOMEM;
 	return 0;
+}
+
+int register_stat_tracer(struct tracer_stat *trace)
+{
+	struct tracer_stat_session *session, *node, *tmp;
+	int ret;
+
+	if (!trace)
+		return -EINVAL;
+
+	if (!trace->stat_start || !trace->stat_next || !trace->stat_show)
+		return -EINVAL;
+
+	/* Already registered? */
+	mutex_lock(&all_stat_sessions_mutex);
+	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
+		if (node->ts == trace) {
+			mutex_unlock(&all_stat_sessions_mutex);
+			return -EINVAL;
+		}
+	}
+	mutex_unlock(&all_stat_sessions_mutex);
+
+	/* Init the session */
+	session = kmalloc(sizeof(struct tracer_stat_session), GFP_KERNEL);
+	if (!session)
+		return -ENOMEM;
+
+	session->ts = trace;
+	INIT_LIST_HEAD(&session->session_list);
+	INIT_LIST_HEAD(&session->stat_list);
+	mutex_init(&session->stat_mutex);
+	session->file = NULL;
+
+	ret = init_stat_file(session);
+	if (ret) {
+		destroy_session(session);
+		return ret;
+	}
+
+	/* Register */
+	mutex_lock(&all_stat_sessions_mutex);
+	list_add_tail(&session->session_list, &all_stat_sessions);
+	mutex_unlock(&all_stat_sessions_mutex);
+
+	return 0;
+}
+
+void unregister_stat_tracer(struct tracer_stat *trace)
+{
+	struct tracer_stat_session *node, *tmp;
+
+	mutex_lock(&all_stat_sessions_mutex);
+	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
+		if (node->ts == trace) {
+			list_del(&node->session_list);
+			destroy_session(node);
+			break;
+		}
+	}
+	mutex_unlock(&all_stat_sessions_mutex);
 }
