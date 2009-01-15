@@ -1406,9 +1406,6 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 		ni->allocated_size = sle64_to_cpu(
 				a->data.non_resident.allocated_size);
 	}
-	/* Setup the operations for this attribute inode. */
-	vi->i_op = NULL;
-	vi->i_fop = NULL;
 	if (NInoMstProtected(ni))
 		vi->i_mapping->a_ops = &ntfs_mst_aops;
 	else

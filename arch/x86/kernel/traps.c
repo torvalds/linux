@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/string.h>
-#include <linux/unwind.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/kexec.h>
@@ -51,7 +50,6 @@
 #include <asm/debugreg.h>
 #include <asm/atomic.h>
 #include <asm/system.h>
-#include <asm/unwind.h>
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
@@ -65,15 +63,9 @@
 #else
 #include <asm/processor-flags.h>
 #include <asm/arch_hooks.h>
-#include <asm/nmi.h>
-#include <asm/smp.h>
-#include <asm/io.h>
 #include <asm/traps.h>
 
 #include "cpu/mcheck/mce.h"
-
-DECLARE_BITMAP(used_vectors, NR_VECTORS);
-EXPORT_SYMBOL_GPL(used_vectors);
 
 asmlinkage int system_call(void);
 
@@ -88,6 +80,9 @@ char ignore_fpu_irq;
 gate_desc idt_table[256]
 	__attribute__((__section__(".data.idt"))) = { { { { 0, 0 } } }, };
 #endif
+
+DECLARE_BITMAP(used_vectors, NR_VECTORS);
+EXPORT_SYMBOL_GPL(used_vectors);
 
 static int ignore_nmis;
 
@@ -292,8 +287,10 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = 8;
 
-	/* This is always a kernel trap and never fixable (and thus must
-	   never return). */
+	/*
+	 * This is always a kernel trap and never fixable (and thus must
+	 * never return).
+	 */
 	for (;;)
 		die(str, regs, error_code);
 }
@@ -520,9 +517,11 @@ dotraplinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
 }
 
 #ifdef CONFIG_X86_64
-/* Help handler running on IST stack to switch back to user stack
-   for scheduling or signal handling. The actual stack switch is done in
-   entry.S */
+/*
+ * Help handler running on IST stack to switch back to user stack
+ * for scheduling or signal handling. The actual stack switch is done in
+ * entry.S
+ */
 asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
 	struct pt_regs *regs = eregs;
@@ -532,8 +531,10 @@ asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
 	/* Exception from user space */
 	else if (user_mode(eregs))
 		regs = task_pt_regs(current);
-	/* Exception from kernel and interrupts are enabled. Move to
-	   kernel process stack. */
+	/*
+	 * Exception from kernel and interrupts are enabled. Move to
+	 * kernel process stack.
+	 */
 	else if (eregs->flags & X86_EFLAGS_IF)
 		regs = (struct pt_regs *)(eregs->sp -= sizeof(struct pt_regs));
 	if (eregs != regs)
@@ -685,12 +686,7 @@ void math_error(void __user *ip)
 	cwd = get_fpu_cwd(task);
 	swd = get_fpu_swd(task);
 
-	err = swd & ~cwd & 0x3f;
-
-#ifdef CONFIG_X86_32
-	if (!err)
-		return;
-#endif
+	err = swd & ~cwd;
 
 	if (err & 0x001) {	/* Invalid op */
 		/*
@@ -708,7 +704,11 @@ void math_error(void __user *ip)
 	} else if (err & 0x020) { /* Precision */
 		info.si_code = FPE_FLTRES;
 	} else {
-		info.si_code = __SI_FAULT|SI_KERNEL; /* WTF? */
+		/*
+		 * If we're using IRQ 13, or supposedly even some trap 16
+		 * implementations, it's possible we get a spurious trap...
+		 */
+		return;		/* Spurious trap, no error */
 	}
 	force_sig_info(SIGFPE, &info, task);
 }
@@ -941,9 +941,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 
 void __init trap_init(void)
 {
-#ifdef CONFIG_X86_32
 	int i;
-#endif
 
 #ifdef CONFIG_EISA
 	void __iomem *p = early_ioremap(0x0FFFD9, 4);
@@ -1000,11 +998,15 @@ void __init trap_init(void)
 	}
 
 	set_system_trap_gate(SYSCALL_VECTOR, &system_call);
+#endif
 
 	/* Reserve all the builtin and the syscall vector: */
 	for (i = 0; i < FIRST_EXTERNAL_VECTOR; i++)
 		set_bit(i, used_vectors);
 
+#ifdef CONFIG_X86_64
+	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
+#else
 	set_bit(SYSCALL_VECTOR, used_vectors);
 #endif
 	/*

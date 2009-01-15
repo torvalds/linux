@@ -286,9 +286,9 @@ static int bringup_one_msi_queue(struct pci_pbm_info *pbm,
 
 	nid = pbm->numa_node;
 	if (nid != -1) {
-		cpumask_t numa_mask = node_to_cpumask(nid);
+		cpumask_t numa_mask = *cpumask_of_node(nid);
 
-		irq_set_affinity(irq, numa_mask);
+		irq_set_affinity(irq, &numa_mask);
 	}
 	err = request_irq(irq, sparc64_msiq_interrupt, 0,
 			  "MSIQ",
@@ -426,8 +426,8 @@ void sparc64_pbm_msi_init(struct pci_pbm_info *pbm,
 		       pbm->name,
 		       pbm->msi_first, pbm->msi_num, pbm->msi_data_mask,
 		       pbm->msix_data_width);
-		printk(KERN_INFO "%s: MSI addr32[0x%lx:0x%x] "
-		       "addr64[0x%lx:0x%x]\n",
+		printk(KERN_INFO "%s: MSI addr32[0x%llx:0x%x] "
+		       "addr64[0x%llx:0x%x]\n",
 		       pbm->name,
 		       pbm->msi32_start, pbm->msi32_len,
 		       pbm->msi64_start, pbm->msi64_len);

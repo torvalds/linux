@@ -1,6 +1,6 @@
 /*
   FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -19,6 +19,8 @@
 #include <linux/backing-dev.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
+#include <linux/rbtree.h>
+#include <linux/poll.h>
 
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
@@ -100,6 +102,9 @@ struct fuse_file {
 	/** Request reserved for flush and release */
 	struct fuse_req *reserved_req;
 
+	/** Kernel file handle guaranteed to be unique */
+	u64 kh;
+
 	/** File handle used by userspace */
 	u64 fh;
 
@@ -108,6 +113,12 @@ struct fuse_file {
 
 	/** Entry on inode's write_files list */
 	struct list_head write_entry;
+
+	/** RB node to be linked on fuse_conn->polled_files */
+	struct rb_node polled_node;
+
+	/** Wait queue head for poll */
+	wait_queue_head_t poll_wait;
 };
 
 /** One input argument of a request */
@@ -322,6 +333,12 @@ struct fuse_conn {
 	/** The list of requests under I/O */
 	struct list_head io;
 
+	/** The next unique kernel file handle */
+	u64 khctr;
+
+	/** rbtree of fuse_files waiting for poll events indexed by ph */
+	struct rb_root polled_files;
+
 	/** Number of requests currently in the background */
 	unsigned num_background;
 
@@ -355,19 +372,19 @@ struct fuse_conn {
 	/** Connection failed (version mismatch).  Cannot race with
 	    setting other bitfields since it is only set once in INIT
 	    reply, before any other request, and never cleared */
-	unsigned conn_error : 1;
+	unsigned conn_error:1;
 
 	/** Connection successful.  Only set in INIT */
-	unsigned conn_init : 1;
+	unsigned conn_init:1;
 
 	/** Do readpages asynchronously?  Only set in INIT */
-	unsigned async_read : 1;
+	unsigned async_read:1;
 
 	/** Do not send separate SETATTR request before open(O_TRUNC)  */
-	unsigned atomic_o_trunc : 1;
+	unsigned atomic_o_trunc:1;
 
 	/** Filesystem supports NFS exporting.  Only set in INIT */
-	unsigned export_support : 1;
+	unsigned export_support:1;
 
 	/*
 	 * The following bitfields are only for optimization purposes
@@ -375,43 +392,46 @@ struct fuse_conn {
 	 */
 
 	/** Is fsync not implemented by fs? */
-	unsigned no_fsync : 1;
+	unsigned no_fsync:1;
 
 	/** Is fsyncdir not implemented by fs? */
-	unsigned no_fsyncdir : 1;
+	unsigned no_fsyncdir:1;
 
 	/** Is flush not implemented by fs? */
-	unsigned no_flush : 1;
+	unsigned no_flush:1;
 
 	/** Is setxattr not implemented by fs? */
-	unsigned no_setxattr : 1;
+	unsigned no_setxattr:1;
 
 	/** Is getxattr not implemented by fs? */
-	unsigned no_getxattr : 1;
+	unsigned no_getxattr:1;
 
 	/** Is listxattr not implemented by fs? */
-	unsigned no_listxattr : 1;
+	unsigned no_listxattr:1;
 
 	/** Is removexattr not implemented by fs? */
-	unsigned no_removexattr : 1;
+	unsigned no_removexattr:1;
 
 	/** Are file locking primitives not implemented by fs? */
-	unsigned no_lock : 1;
+	unsigned no_lock:1;
 
 	/** Is access not implemented by fs? */
-	unsigned no_access : 1;
+	unsigned no_access:1;
 
 	/** Is create not implemented by fs? */
-	unsigned no_create : 1;
+	unsigned no_create:1;
 
 	/** Is interrupt not implemented by fs? */
-	unsigned no_interrupt : 1;
+	unsigned no_interrupt:1;
 
 	/** Is bmap not implemented by fs? */
-	unsigned no_bmap : 1;
+	unsigned no_bmap:1;
+
+	/** Is poll not implemented by fs? */
+	unsigned no_poll:1;
 
 	/** Do multi-page cached writes */
-	unsigned big_writes : 1;
+	unsigned big_writes:1;
 
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
@@ -445,6 +465,9 @@ struct fuse_conn {
 
 	/** Version counter for attribute changes */
 	u64 attr_version;
+
+	/** Called on final put */
+	void (*release)(struct fuse_conn *);
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
@@ -499,7 +522,7 @@ void fuse_read_fill(struct fuse_req *req, struct file *file,
  */
 int fuse_open_common(struct inode *inode, struct file *file, int isdir);
 
-struct fuse_file *fuse_file_alloc(void);
+struct fuse_file *fuse_file_alloc(struct fuse_conn *fc);
 void fuse_file_free(struct fuse_file *ff);
 void fuse_finish_open(struct inode *inode, struct file *file,
 		      struct fuse_file *ff, struct fuse_open_out *outarg);
@@ -517,6 +540,12 @@ int fuse_release_common(struct inode *inode, struct file *file, int isdir);
  */
 int fuse_fsync_common(struct file *file, struct dentry *de, int datasync,
 		      int isdir);
+
+/**
+ * Notify poll wakeup
+ */
+int fuse_notify_poll_wakeup(struct fuse_conn *fc,
+			    struct fuse_notify_poll_wakeup_out *outarg);
 
 /**
  * Initialize file operations on a regular file
@@ -593,19 +622,20 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
 /**
  * Send a request (synchronous)
  */
-void request_send(struct fuse_conn *fc, struct fuse_req *req);
+void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req);
 
 /**
  * Send a request with no reply
  */
-void request_send_noreply(struct fuse_conn *fc, struct fuse_req *req);
+void fuse_request_send_noreply(struct fuse_conn *fc, struct fuse_req *req);
 
 /**
  * Send a request in the background
  */
-void request_send_background(struct fuse_conn *fc, struct fuse_req *req);
+void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req);
 
-void request_send_background_locked(struct fuse_conn *fc, struct fuse_req *req);
+void fuse_request_send_background_locked(struct fuse_conn *fc,
+					 struct fuse_req *req);
 
 /* Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc);
@@ -621,6 +651,11 @@ void fuse_invalidate_entry_cache(struct dentry *entry);
  * Acquire reference to fuse_conn
  */
 struct fuse_conn *fuse_conn_get(struct fuse_conn *fc);
+
+/**
+ * Initialize fuse_conn
+ */
+int fuse_conn_init(struct fuse_conn *fc, struct super_block *sb);
 
 /**
  * Release reference to fuse_conn

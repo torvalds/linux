@@ -97,7 +97,6 @@ void __init paging_init(void)
 
 	mem_map = NODE_DATA(0)->node_mem_map;
 
-	memset(zero_page, 0, PAGE_SIZE);
 	empty_zero_page = virt_to_page(zero_page);
 	flush_dcache_page(empty_zero_page);
 }

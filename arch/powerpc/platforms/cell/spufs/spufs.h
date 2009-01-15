@@ -314,7 +314,7 @@ extern char *isolated_loader;
  *	we need to call spu_release(ctx) before sleeping, and
  *	then spu_acquire(ctx) when awoken.
  *
- * 	Returns with state_mutex re-acquired when successfull or
+ * 	Returns with state_mutex re-acquired when successful or
  * 	with -ERESTARTSYS and the state_mutex dropped when interrupted.
  */
 

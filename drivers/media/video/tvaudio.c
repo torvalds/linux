@@ -1762,7 +1762,7 @@ static int tvaudio_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *fr
 	return 0;
 }
 
-static int tvaudio_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip)
+static int tvaudio_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

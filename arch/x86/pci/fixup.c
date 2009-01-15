@@ -6,8 +6,7 @@
 #include <linux/dmi.h>
 #include <linux/pci.h>
 #include <linux/init.h>
-#include "pci.h"
-
+#include <asm/pci_x86.h>
 
 static void __devinit pci_fixup_i450nx(struct pci_dev *d)
 {

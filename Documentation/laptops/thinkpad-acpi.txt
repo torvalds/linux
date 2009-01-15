@@ -1475,7 +1475,7 @@ Sysfs interface changelog:
 
 0x020100:	Marker for thinkpad-acpi with hot key NVRAM polling
 		support.  If you must, use it to know you should not
-		start an userspace NVRAM poller (allows to detect when
+		start a userspace NVRAM poller (allows to detect when
 		NVRAM is compiled out by the user because it is
 		unneeded/undesired in the first place).
 0x020101:	Marker for thinkpad-acpi with hot key NVRAM polling

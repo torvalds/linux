@@ -10,6 +10,7 @@ config M32R
 	default y
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select INIT_ALL_POSSIBLE
 
 config SBUS
 	bool

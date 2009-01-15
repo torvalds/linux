@@ -57,8 +57,7 @@ static int __devinit hilscher_pci_probe(struct pci_dev *dev,
 	info->mem[0].addr = pci_resource_start(dev, 0);
 	if (!info->mem[0].addr)
 		goto out_release;
-	info->mem[0].internal_addr = ioremap(pci_resource_start(dev, 0),
-					     pci_resource_len(dev, 0));
+	info->mem[0].internal_addr = pci_ioremap_bar(dev, 0);
 	if (!info->mem[0].internal_addr)
 		goto out_release;
 

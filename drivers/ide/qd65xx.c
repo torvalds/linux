@@ -202,7 +202,8 @@ static void qd6500_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		recovery_time = drive->id[ATA_ID_EIDE_PIO] - 120;
 	}
 
-	qd_set_timing(drive, qd6500_compute_timing(HWIF(drive), active_time, recovery_time));
+	qd_set_timing(drive, qd6500_compute_timing(drive->hwif,
+				active_time, recovery_time));
 }
 
 static void qd6580_set_pio_mode(ide_drive_t *drive, const u8 pio)
@@ -245,11 +246,11 @@ static void qd6580_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		printk(KERN_INFO "%s: PIO mode%d\n", drive->name,pio);
 	}
 
-	if (!HWIF(drive)->channel && drive->media != ide_disk) {
+	if (!hwif->channel && drive->media != ide_disk) {
 		outb(0x5f, QD_CONTROL_PORT);
 		printk(KERN_WARNING "%s: ATAPI: disabled read-ahead FIFO "
 			"and post-write buffer on %s.\n",
-			drive->name, HWIF(drive)->name);
+			drive->name, hwif->name);
 	}
 
 	qd_set_timing(drive, qd6580_compute_timing(active_time, recovery_time));

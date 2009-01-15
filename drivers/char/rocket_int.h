@@ -1162,11 +1162,6 @@ struct r_port {
 /* number of characters left in xmit buffer before we ask for more */
 #define WAKEUP_CHARS 256
 
-/* Internal flags used only by the rocketport driver */
-#define ROCKET_INITIALIZED	0x80000000	/* Port is active */
-#define ROCKET_CLOSING		0x40000000	/* Serial port is closing */
-#define ROCKET_NORMAL_ACTIVE	0x20000000	/* Normal port is active */
-
 /*
  * Assigned major numbers for the Comtrol Rocketport
  */

@@ -269,15 +269,19 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 		return;
 	}
 
-	--port->port.count;
-	if (port->port.count == 0)
+	if (port->port.count == 1)
 		/* only call the device specific close if this
-		 * port is being closed by the last owner */
+		 * port is being closed by the last owner. Ensure we do
+		 * this before we drop the port count. The call is protected
+		 * by the port mutex
+		 */
 		port->serial->type->close(tty, port, filp);
 
-	if (port->port.count == (port->console? 1 : 0)) {
+	if (port->port.count == (port->console ? 2 : 1)) {
 		struct tty_struct *tty = tty_port_tty_get(&port->port);
 		if (tty) {
+			/* We must do this before we drop the port count to
+			   zero. */
 			if (tty->driver_data)
 				tty->driver_data = NULL;
 			tty_port_tty_set(&port->port, NULL);
@@ -285,13 +289,14 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 		}
 	}
 
-	if (port->port.count == 0) {
+	if (port->port.count == 1) {
 		mutex_lock(&port->serial->disc_mutex);
 		if (!port->serial->disconnected)
 			usb_autopm_put_interface(port->serial->interface);
 		mutex_unlock(&port->serial->disc_mutex);
 		module_put(port->serial->type->driver.owner);
 	}
+	--port->port.count;
 
 	mutex_unlock(&port->mutex);
 	usb_serial_put(port->serial);
@@ -334,6 +339,10 @@ static int serial_chars_in_buffer(struct tty_struct *tty)
 	dbg("%s = port %d", __func__, port->number);
 
 	WARN_ON(!port->port.count);
+	/* if the device was unplugged then any remaining characters
+	   fell out of the connector ;) */
+	if (port->serial->disconnected)
+		return 0;
 	/* pass on to the driver specific version of this function */
 	return port->serial->type->chars_in_buffer(tty);
 }
@@ -373,9 +382,7 @@ static int serial_ioctl(struct tty_struct *tty, struct file *file,
 	/* pass on to the driver specific version of this function
 	   if it is available */
 	if (port->serial->type->ioctl) {
-		lock_kernel();
 		retval = port->serial->type->ioctl(tty, file, cmd, arg);
-		unlock_kernel();
 	} else
 		retval = -ENOIOCTLCMD;
 	return retval;
@@ -404,11 +411,8 @@ static int serial_break(struct tty_struct *tty, int break_state)
 	WARN_ON(!port->port.count);
 	/* pass on to the driver specific version of this function
 	   if it is available */
-	if (port->serial->type->break_ctl) {
-		lock_kernel();
+	if (port->serial->type->break_ctl)
 		port->serial->type->break_ctl(tty, break_state);
-		unlock_kernel();
-	}
 	return 0;
 }
 
@@ -506,9 +510,6 @@ static void usb_serial_port_work(struct work_struct *work)
 	struct tty_struct *tty;
 
 	dbg("%s - port %d", __func__, port->number);
-
-	if (!port)
-		return;
 
 	tty = tty_port_tty_get(&port->port);
 	if (!tty)

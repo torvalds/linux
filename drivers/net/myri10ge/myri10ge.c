@@ -75,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.4.4-1.395"
+#define MYRI10GE_VERSION_STR "1.4.4-1.398"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -3929,6 +3929,10 @@ abort_with_firmware:
 	myri10ge_dummy_rdma(mgp, 0);
 
 abort_with_ioremap:
+	if (mgp->mac_addr_string != NULL)
+		dev_err(&pdev->dev,
+			"myri10ge_probe() failed: MAC=%s, SN=%ld\n",
+			mgp->mac_addr_string, mgp->serial_number);
 	iounmap(mgp->sram);
 
 abort_with_mtrr:

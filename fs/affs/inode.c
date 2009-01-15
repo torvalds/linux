@@ -119,8 +119,7 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 		goto bad_inode;
 #else
 		inode->i_mode |= S_IFDIR;
-		inode->i_op = NULL;
-		inode->i_fop = NULL;
+		/* ... and leave ->i_op and ->i_fop pointing to empty */
 		break;
 #endif
 	case ST_LINKFILE:

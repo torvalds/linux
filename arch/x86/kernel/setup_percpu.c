@@ -5,12 +5,11 @@
 #include <linux/percpu.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
-#include <asm/smp.h>
-#include <asm/percpu.h>
+#include <linux/smp.h>
+#include <linux/topology.h>
 #include <asm/sections.h>
 #include <asm/processor.h>
 #include <asm/setup.h>
-#include <asm/topology.h>
 #include <asm/mpspec.h>
 #include <asm/apicdef.h>
 #include <asm/highmem.h>
@@ -20,8 +19,8 @@ unsigned int num_processors;
 unsigned disabled_cpus __cpuinitdata;
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
-unsigned int max_physical_apicid;
 EXPORT_SYMBOL(boot_cpu_physical_apicid);
+unsigned int max_physical_apicid;
 
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map;
@@ -131,7 +130,27 @@ static void __init setup_cpu_pda_map(void)
 	/* point to new pointer table */
 	_cpu_pda = new_cpu_pda;
 }
-#endif
+
+#endif /* CONFIG_SMP && CONFIG_X86_64 */
+
+#ifdef CONFIG_X86_64
+
+/* correctly size the local cpu masks */
+static void setup_cpu_local_masks(void)
+{
+	alloc_bootmem_cpumask_var(&cpu_initialized_mask);
+	alloc_bootmem_cpumask_var(&cpu_callin_mask);
+	alloc_bootmem_cpumask_var(&cpu_callout_mask);
+	alloc_bootmem_cpumask_var(&cpu_sibling_setup_mask);
+}
+
+#else /* CONFIG_X86_32 */
+
+static inline void setup_cpu_local_masks(void)
+{
+}
+
+#endif /* CONFIG_X86_32 */
 
 /*
  * Great future plan:
@@ -152,8 +171,11 @@ void __init setup_per_cpu_areas(void)
 	old_size = PERCPU_ENOUGH_ROOM;
 	align = max_t(unsigned long, PAGE_SIZE, align);
 	size = roundup(old_size, align);
-	printk(KERN_INFO "PERCPU: Allocating %zd bytes of per cpu data\n",
-			  size);
+
+	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%d nr_node_ids:%d\n",
+		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_node_ids);
+
+	pr_info("PERCPU: Allocating %zd bytes of per cpu data\n", size);
 
 	for_each_possible_cpu(cpu) {
 #ifndef CONFIG_NEED_MULTIPLE_NODES
@@ -164,33 +186,29 @@ void __init setup_per_cpu_areas(void)
 		if (!node_online(node) || !NODE_DATA(node)) {
 			ptr = __alloc_bootmem(size, align,
 					 __pa(MAX_DMA_ADDRESS));
-			printk(KERN_INFO
-			       "cpu %d has no node %d or node-local memory\n",
+			pr_info("cpu %d has no node %d or node-local memory\n",
 				cpu, node);
-			if (ptr)
-				printk(KERN_DEBUG "per cpu data for cpu%d at %016lx\n",
-					 cpu, __pa(ptr));
-		}
-		else {
+			pr_debug("per cpu data for cpu%d at %016lx\n",
+				 cpu, __pa(ptr));
+		} else {
 			ptr = __alloc_bootmem_node(NODE_DATA(node), size, align,
 							__pa(MAX_DMA_ADDRESS));
-			if (ptr)
-				printk(KERN_DEBUG "per cpu data for cpu%d on node%d at %016lx\n",
-					 cpu, node, __pa(ptr));
+			pr_debug("per cpu data for cpu%d on node%d at %016lx\n",
+				cpu, node, __pa(ptr));
 		}
 #endif
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
 	}
 
-	printk(KERN_DEBUG "NR_CPUS: %d, nr_cpu_ids: %d, nr_node_ids %d\n",
-		NR_CPUS, nr_cpu_ids, nr_node_ids);
-
 	/* Setup percpu data maps */
 	setup_per_cpu_maps();
 
 	/* Setup node to cpumask map */
 	setup_node_to_cpumask_map();
+
+	/* Setup cpu initialized, callin, callout masks */
+	setup_cpu_local_masks();
 }
 
 #endif
@@ -282,10 +300,10 @@ static void __cpuinit numa_set_cpumask(int cpu, int enable)
 	else
 		cpu_clear(cpu, *mask);
 
-	cpulist_scnprintf(buf, sizeof(buf), *mask);
+	cpulist_scnprintf(buf, sizeof(buf), mask);
 	printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",
-		enable? "numa_add_cpu":"numa_remove_cpu", cpu, node, buf);
- }
+		enable ? "numa_add_cpu" : "numa_remove_cpu", cpu, node, buf);
+}
 
 void __cpuinit numa_add_cpu(int cpu)
 {
@@ -334,25 +352,25 @@ static const cpumask_t cpu_mask_none;
 /*
  * Returns a pointer to the bitmask of CPUs on Node 'node'.
  */
-const cpumask_t *_node_to_cpumask_ptr(int node)
+const cpumask_t *cpumask_of_node(int node)
 {
 	if (node_to_cpumask_map == NULL) {
 		printk(KERN_WARNING
-			"_node_to_cpumask_ptr(%d): no node_to_cpumask_map!\n",
+			"cpumask_of_node(%d): no node_to_cpumask_map!\n",
 			node);
 		dump_stack();
 		return (const cpumask_t *)&cpu_online_map;
 	}
 	if (node >= nr_node_ids) {
 		printk(KERN_WARNING
-			"_node_to_cpumask_ptr(%d): node > nr_node_ids(%d)\n",
+			"cpumask_of_node(%d): node > nr_node_ids(%d)\n",
 			node, nr_node_ids);
 		dump_stack();
 		return &cpu_mask_none;
 	}
 	return &node_to_cpumask_map[node];
 }
-EXPORT_SYMBOL(_node_to_cpumask_ptr);
+EXPORT_SYMBOL(cpumask_of_node);
 
 /*
  * Returns a bitmask of CPUs on Node 'node'.

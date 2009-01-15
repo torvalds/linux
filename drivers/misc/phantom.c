@@ -6,7 +6,7 @@
  *  the Free Software Foundation; either version 2 of the License, or
  *  (at your option) any later version.
  *
- *  You need an userspace library to cooperate with this driver. It (and other
+ *  You need a userspace library to cooperate with this driver. It (and other
  *  info) may be obtained here:
  *  http://www.fi.muni.cz/~xslaby/phantom.html
  *  or alternatively, you might use OpenHaptics provided by Sensable.

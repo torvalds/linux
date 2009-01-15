@@ -43,7 +43,7 @@ config BINFMT_ELF_FDPIC
 config CORE_DUMP_DEFAULT_ELF_HEADERS
 	bool "Write ELF core dumps with partial segments"
 	default n
-	depends on BINFMT_ELF
+	depends on BINFMT_ELF && ELF_CORE
 	help
 	  ELF core dump files describe each memory mapping of the crashed
 	  process, and can contain or omit the memory contents of each one.

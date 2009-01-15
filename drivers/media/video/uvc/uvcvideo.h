@@ -753,7 +753,7 @@ static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 }
 
 /* V4L2 interface */
-extern struct file_operations uvc_fops;
+extern const struct v4l2_file_operations uvc_fops;
 
 /* Video */
 extern int uvc_video_init(struct uvc_video_device *video);

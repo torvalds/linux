@@ -450,6 +450,7 @@ static void kill_rules(struct audit_tree *tree)
 			audit_log_end(ab);
 			rule->tree = NULL;
 			list_del_rcu(&entry->list);
+			list_del(&entry->rule.list);
 			call_rcu(&entry->rcu, audit_free_rule_rcu);
 		}
 	}
@@ -617,7 +618,7 @@ int audit_make_tree(struct audit_krule *rule, char *pathname, u32 op)
 
 	if (pathname[0] != '/' ||
 	    rule->listnr != AUDIT_FILTER_EXIT ||
-	    op & ~AUDIT_EQUAL ||
+	    op != Audit_equal ||
 	    rule->inode_f || rule->watch || rule->tree)
 		return -EINVAL;
 	rule->tree = alloc_tree(pathname);

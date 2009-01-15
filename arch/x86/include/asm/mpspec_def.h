@@ -39,17 +39,17 @@ struct intel_mp_floating {
 
 #define MPC_SIGNATURE "PCMP"
 
-struct mp_config_table {
-	char mpc_signature[4];
-	unsigned short mpc_length;	/* Size of table */
-	char mpc_spec;			/* 0x01 */
-	char mpc_checksum;
-	char mpc_oem[8];
-	char mpc_productid[12];
-	unsigned int mpc_oemptr;	/* 0 if not present */
-	unsigned short mpc_oemsize;	/* 0 if not present */
-	unsigned short mpc_oemcount;
-	unsigned int mpc_lapic;	/* APIC address */
+struct mpc_table {
+	char signature[4];
+	unsigned short length;		/* Size of table */
+	char spec;			/* 0x01 */
+	char checksum;
+	char oem[8];
+	char productid[12];
+	unsigned int oemptr;		/* 0 if not present */
+	unsigned short oemsize;		/* 0 if not present */
+	unsigned short oemcount;
+	unsigned int lapic;		/* APIC address */
 	unsigned int reserved;
 };
 
@@ -70,20 +70,20 @@ struct mp_config_table {
 #define CPU_MODEL_MASK		0x00F0
 #define CPU_FAMILY_MASK		0x0F00
 
-struct mpc_config_processor {
-	unsigned char mpc_type;
-	unsigned char mpc_apicid;	/* Local APIC number */
-	unsigned char mpc_apicver;	/* Its versions */
-	unsigned char mpc_cpuflag;
-	unsigned int mpc_cpufeature;
-	unsigned int mpc_featureflag;	/* CPUID feature value */
-	unsigned int mpc_reserved[2];
+struct mpc_cpu {
+	unsigned char type;
+	unsigned char apicid;		/* Local APIC number */
+	unsigned char apicver;		/* Its versions */
+	unsigned char cpuflag;
+	unsigned int cpufeature;
+	unsigned int featureflag;	/* CPUID feature value */
+	unsigned int reserved[2];
 };
 
-struct mpc_config_bus {
-	unsigned char mpc_type;
-	unsigned char mpc_busid;
-	unsigned char mpc_bustype[6];
+struct mpc_bus {
+	unsigned char type;
+	unsigned char busid;
+	unsigned char bustype[6];
 };
 
 /* List of Bus Type string values, Intel MP Spec. */
@@ -108,22 +108,22 @@ struct mpc_config_bus {
 
 #define MPC_APIC_USABLE		0x01
 
-struct mpc_config_ioapic {
-	unsigned char mpc_type;
-	unsigned char mpc_apicid;
-	unsigned char mpc_apicver;
-	unsigned char mpc_flags;
-	unsigned int mpc_apicaddr;
+struct mpc_ioapic {
+	unsigned char type;
+	unsigned char apicid;
+	unsigned char apicver;
+	unsigned char flags;
+	unsigned int apicaddr;
 };
 
-struct mpc_config_intsrc {
-	unsigned char mpc_type;
-	unsigned char mpc_irqtype;
-	unsigned short mpc_irqflag;
-	unsigned char mpc_srcbus;
-	unsigned char mpc_srcbusirq;
-	unsigned char mpc_dstapic;
-	unsigned char mpc_dstirq;
+struct mpc_intsrc {
+	unsigned char type;
+	unsigned char irqtype;
+	unsigned short irqflag;
+	unsigned char srcbus;
+	unsigned char srcbusirq;
+	unsigned char dstapic;
+	unsigned char dstirq;
 };
 
 enum mp_irq_source_types {
@@ -139,24 +139,24 @@ enum mp_irq_source_types {
 
 #define MP_APIC_ALL	0xFF
 
-struct mpc_config_lintsrc {
-	unsigned char mpc_type;
-	unsigned char mpc_irqtype;
-	unsigned short mpc_irqflag;
-	unsigned char mpc_srcbusid;
-	unsigned char mpc_srcbusirq;
-	unsigned char mpc_destapic;
-	unsigned char mpc_destapiclint;
+struct mpc_lintsrc {
+	unsigned char type;
+	unsigned char irqtype;
+	unsigned short irqflag;
+	unsigned char srcbusid;
+	unsigned char srcbusirq;
+	unsigned char destapic;
+	unsigned char destapiclint;
 };
 
 #define MPC_OEM_SIGNATURE "_OEM"
 
-struct mp_config_oemtable {
-	char oem_signature[4];
-	unsigned short oem_length;	/* Size of table */
-	char  oem_rev;			/* 0x01 */
-	char  oem_checksum;
-	char  mpc_oem[8];
+struct mpc_oemtable {
+	char signature[4];
+	unsigned short length;		/* Size of table */
+	char  rev;			/* 0x01 */
+	char  checksum;
+	char  mpc[8];
 };
 
 /*

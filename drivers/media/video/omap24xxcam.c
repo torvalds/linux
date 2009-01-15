@@ -1454,9 +1454,9 @@ static int omap24xxcam_mmap(struct file *file, struct vm_area_struct *vma)
 	return rval;
 }
 
-static int omap24xxcam_open(struct inode *inode, struct file *file)
+static int omap24xxcam_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct omap24xxcam_device *cam = omap24xxcam.priv;
 	struct omap24xxcam_fh *fh;
 	struct v4l2_format format;
@@ -1511,7 +1511,7 @@ out_try_module_get:
 	return -ENODEV;
 }
 
-static int omap24xxcam_release(struct inode *inode, struct file *file)
+static int omap24xxcam_release(struct file *file)
 {
 	struct omap24xxcam_fh *fh = file->private_data;
 	struct omap24xxcam_device *cam = fh->cam;
@@ -1559,8 +1559,7 @@ static int omap24xxcam_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations omap24xxcam_fops = {
-	.llseek	 = no_llseek,
+static struct v4l2_file_operations omap24xxcam_fops = {
 	.ioctl	 = video_ioctl2,
 	.poll	 = omap24xxcam_poll,
 	.mmap	 = omap24xxcam_mmap,

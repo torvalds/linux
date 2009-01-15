@@ -27,12 +27,7 @@
 #define OCFS2_JOURNAL_H
 
 #include <linux/fs.h>
-#ifndef CONFIG_OCFS2_COMPAT_JBD
-# include <linux/jbd2.h>
-#else
-# include <linux/jbd.h>
-# include "ocfs2_jbd_compat.h"
-#endif
+#include <linux/jbd2.h>
 
 enum ocfs2_journal_state {
 	OCFS2_JOURNAL_FREE = 0,
@@ -173,6 +168,7 @@ void   ocfs2_recovery_thread(struct ocfs2_super *osb,
 			     int node_num);
 int    ocfs2_mark_dead_nodes(struct ocfs2_super *osb);
 void   ocfs2_complete_mount_recovery(struct ocfs2_super *osb);
+void ocfs2_complete_quota_recovery(struct ocfs2_super *osb);
 
 static inline void ocfs2_start_checkpoint(struct ocfs2_super *osb)
 {
@@ -216,9 +212,12 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  *  ocfs2_extend_trans     - Extend a handle by nblocks credits. This may
  *                          commit the handle to disk in the process, but will
  *                          not release any locks taken during the transaction.
- *  ocfs2_journal_access   - Notify the handle that we want to journal this
+ *  ocfs2_journal_access* - Notify the handle that we want to journal this
  *                          buffer. Will have to call ocfs2_journal_dirty once
  *                          we've actually dirtied it. Type is one of . or .
+ *                          Always call the specific flavor of
+ *                          ocfs2_journal_access_*() unless you intend to
+ *                          manage the checksum by hand.
  *  ocfs2_journal_dirty    - Mark a journalled buffer as having dirty data.
  *  ocfs2_jbd2_file_inode  - Mark an inode so that its data goes out before
  *                           the current handle commits.
@@ -248,10 +247,29 @@ int			     ocfs2_extend_trans(handle_t *handle, int nblocks);
 #define OCFS2_JOURNAL_ACCESS_WRITE  1
 #define OCFS2_JOURNAL_ACCESS_UNDO   2
 
-int                  ocfs2_journal_access(handle_t *handle,
-					  struct inode *inode,
-					  struct buffer_head *bh,
-					  int type);
+
+/* ocfs2_inode */
+int ocfs2_journal_access_di(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* ocfs2_extent_block */
+int ocfs2_journal_access_eb(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* ocfs2_group_desc */
+int ocfs2_journal_access_gd(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* ocfs2_xattr_block */
+int ocfs2_journal_access_xb(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* quota blocks */
+int ocfs2_journal_access_dq(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* dirblock */
+int ocfs2_journal_access_db(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* Anything that has no ecc */
+int ocfs2_journal_access(handle_t *handle, struct inode *inode,
+			 struct buffer_head *bh, int type);
+
 /*
  * A word about the journal_access/journal_dirty "dance". It is
  * entirely legal to journal_access a buffer more than once (as long
@@ -273,10 +291,6 @@ int                  ocfs2_journal_access(handle_t *handle,
  */
 int                  ocfs2_journal_dirty(handle_t *handle,
 					 struct buffer_head *bh);
-#ifdef CONFIG_OCFS2_COMPAT_JBD
-int                  ocfs2_journal_dirty_data(handle_t *handle,
-					      struct buffer_head *bh);
-#endif
 
 /*
  *  Credit Macros:
@@ -293,6 +307,37 @@ int                  ocfs2_journal_dirty_data(handle_t *handle,
 /* extended attribute block update */
 #define OCFS2_XATTR_BLOCK_UPDATE_CREDITS 1
 
+/* global quotafile inode update, data block */
+#define OCFS2_QINFO_WRITE_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 1)
+
+/*
+ * The two writes below can accidentally see global info dirty due
+ * to set_info() quotactl so make them prepared for the writes.
+ */
+/* quota data block, global info */
+/* Write to local quota file */
+#define OCFS2_QWRITE_CREDITS (OCFS2_QINFO_WRITE_CREDITS + 1)
+
+/* global quota data block, local quota data block, global quota inode,
+ * global quota info */
+#define OCFS2_QSYNC_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 3)
+
+static inline int ocfs2_quota_trans_credits(struct super_block *sb)
+{
+	int credits = 0;
+
+	if (OCFS2_HAS_RO_COMPAT_FEATURE(sb, OCFS2_FEATURE_RO_COMPAT_USRQUOTA))
+		credits += OCFS2_QWRITE_CREDITS;
+	if (OCFS2_HAS_RO_COMPAT_FEATURE(sb, OCFS2_FEATURE_RO_COMPAT_GRPQUOTA))
+		credits += OCFS2_QWRITE_CREDITS;
+	return credits;
+}
+
+/* Number of credits needed for removing quota structure from file */
+int ocfs2_calc_qdel_credits(struct super_block *sb, int type);
+/* Number of credits needed for initialization of new quota structure */
+int ocfs2_calc_qinit_credits(struct super_block *sb, int type);
+
 /* group extend. inode update and last group update. */
 #define OCFS2_GROUP_EXTEND_CREDITS	(OCFS2_INODE_UPDATE_CREDITS + 1)
 
@@ -303,8 +348,11 @@ int                  ocfs2_journal_dirty_data(handle_t *handle,
  * prev. group desc. if we relink. */
 #define OCFS2_SUBALLOC_ALLOC (3)
 
-#define OCFS2_INLINE_TO_EXTENTS_CREDITS (OCFS2_SUBALLOC_ALLOC		\
-					 + OCFS2_INODE_UPDATE_CREDITS)
+static inline int ocfs2_inline_to_extents_credits(struct super_block *sb)
+{
+	return OCFS2_SUBALLOC_ALLOC + OCFS2_INODE_UPDATE_CREDITS +
+	       ocfs2_quota_trans_credits(sb);
+}
 
 /* dinode + group descriptor update. We don't relink on free yet. */
 #define OCFS2_SUBALLOC_FREE  (2)
@@ -313,16 +361,23 @@ int                  ocfs2_journal_dirty_data(handle_t *handle,
 #define OCFS2_TRUNCATE_LOG_FLUSH_ONE_REC (OCFS2_SUBALLOC_FREE 		      \
 					 + OCFS2_TRUNCATE_LOG_UPDATE)
 
-#define OCFS2_REMOVE_EXTENT_CREDITS (OCFS2_TRUNCATE_LOG_UPDATE + OCFS2_INODE_UPDATE_CREDITS)
+static inline int ocfs2_remove_extent_credits(struct super_block *sb)
+{
+	return OCFS2_TRUNCATE_LOG_UPDATE + OCFS2_INODE_UPDATE_CREDITS +
+	       ocfs2_quota_trans_credits(sb);
+}
 
 /* data block for new dir/symlink, 2 for bitmap updates (bitmap fe +
  * bitmap block for the new bit) */
 #define OCFS2_DIR_LINK_ADDITIONAL_CREDITS (1 + 2)
 
 /* parent fe, parent block, new file entry, inode alloc fe, inode alloc
- * group descriptor + mkdir/symlink blocks */
-#define OCFS2_MKNOD_CREDITS (3 + OCFS2_SUBALLOC_ALLOC                         \
-			    + OCFS2_DIR_LINK_ADDITIONAL_CREDITS)
+ * group descriptor + mkdir/symlink blocks + quota update */
+static inline int ocfs2_mknod_credits(struct super_block *sb)
+{
+	return 3 + OCFS2_SUBALLOC_ALLOC + OCFS2_DIR_LINK_ADDITIONAL_CREDITS +
+	       ocfs2_quota_trans_credits(sb);
+}
 
 /* local alloc metadata change + main bitmap updates */
 #define OCFS2_WINDOW_MOVE_CREDITS (OCFS2_INODE_UPDATE_CREDITS                 \
@@ -332,13 +387,21 @@ int                  ocfs2_journal_dirty_data(handle_t *handle,
  * for the dinode, one for the new block. */
 #define OCFS2_SIMPLE_DIR_EXTEND_CREDITS (2)
 
-/* file update (nlink, etc) + directory mtime/ctime + dir entry block */
-#define OCFS2_LINK_CREDITS  (2*OCFS2_INODE_UPDATE_CREDITS + 1)
+/* file update (nlink, etc) + directory mtime/ctime + dir entry block + quota
+ * update on dir */
+static inline int ocfs2_link_credits(struct super_block *sb)
+{
+	return 2*OCFS2_INODE_UPDATE_CREDITS + 1 +
+	       ocfs2_quota_trans_credits(sb);
+}
 
 /* inode + dir inode (if we unlink a dir), + dir entry block + orphan
  * dir inode link */
-#define OCFS2_UNLINK_CREDITS  (2 * OCFS2_INODE_UPDATE_CREDITS + 1             \
-			      + OCFS2_LINK_CREDITS)
+static inline int ocfs2_unlink_credits(struct super_block *sb)
+{
+	/* The quota update from ocfs2_link_credits is unused here... */
+	return 2 * OCFS2_INODE_UPDATE_CREDITS + 1 + ocfs2_link_credits(sb);
+}
 
 /* dinode + orphan dir dinode + inode alloc dinode + orphan dir entry +
  * inode alloc group descriptor */
@@ -347,8 +410,10 @@ int                  ocfs2_journal_dirty_data(handle_t *handle,
 /* dinode update, old dir dinode update, new dir dinode update, old
  * dir dir entry, new dir dir entry, dir entry update for renaming
  * directory + target unlink */
-#define OCFS2_RENAME_CREDITS (3 * OCFS2_INODE_UPDATE_CREDITS + 3              \
-			     + OCFS2_UNLINK_CREDITS)
+static inline int ocfs2_rename_credits(struct super_block *sb)
+{
+	return 3 * OCFS2_INODE_UPDATE_CREDITS + 3 + ocfs2_unlink_credits(sb);
+}
 
 /* global bitmap dinode, group desc., relinked group,
  * suballocator dinode, group desc., relinked group,
@@ -386,18 +451,19 @@ static inline int ocfs2_calc_extend_credits(struct super_block *sb,
 	 * credit for the dinode there. */
 	extent_blocks = 1 + 1 + le16_to_cpu(root_el->l_tree_depth);
 
-	return bitmap_blocks + sysfile_bitmap_blocks + extent_blocks;
+	return bitmap_blocks + sysfile_bitmap_blocks + extent_blocks +
+	       ocfs2_quota_trans_credits(sb);
 }
 
 static inline int ocfs2_calc_symlink_credits(struct super_block *sb)
 {
-	int blocks = OCFS2_MKNOD_CREDITS;
+	int blocks = ocfs2_mknod_credits(sb);
 
 	/* links can be longer than one block so we may update many
 	 * within our single allocated extent. */
 	blocks += ocfs2_clusters_to_blocks(sb, 1);
 
-	return blocks;
+	return blocks + ocfs2_quota_trans_credits(sb);
 }
 
 static inline int ocfs2_calc_group_alloc_credits(struct super_block *sb,
@@ -433,6 +499,8 @@ static inline int ocfs2_calc_tree_trunc_credits(struct super_block *sb,
 
 	/* update to the truncate log. */
 	credits += OCFS2_TRUNCATE_LOG_UPDATE;
+
+	credits += ocfs2_quota_trans_credits(sb);
 
 	return credits;
 }

@@ -97,6 +97,11 @@ cpumask_t cpu_coregroup_map(unsigned int cpu)
 	return mask;
 }
 
+const struct cpumask *cpu_coregroup_mask(unsigned int cpu)
+{
+	return &cpu_core_map[cpu];
+}
+
 static void add_cpus_to_core(struct tl_cpu *tl_cpu, struct core_info *core)
 {
 	unsigned int cpu;

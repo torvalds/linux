@@ -27,6 +27,7 @@
 #include <linux/swap.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/mpage.h>
+#include <linux/quotaops.h>
 
 #define MLOG_MASK_PREFIX ML_FILE_IO
 #include <cluster/masklog.h>
@@ -68,19 +69,12 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
-	status = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, &bh);
+	status = ocfs2_read_inode_block(inode, &bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
 	}
 	fe = (struct ocfs2_dinode *) bh->b_data;
-
-	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		mlog(ML_ERROR, "Invalid dinode #%llu: signature = %.*s\n",
-		     (unsigned long long)le64_to_cpu(fe->i_blkno), 7,
-		     fe->i_signature);
-		goto bail;
-	}
 
 	if ((u64)iblock >= ocfs2_clusters_to_blocks(inode->i_sb,
 						    le32_to_cpu(fe->i_clusters))) {
@@ -262,7 +256,7 @@ static int ocfs2_readpage_inline(struct inode *inode, struct page *page)
 	BUG_ON(!PageLocked(page));
 	BUG_ON(!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL));
 
-	ret = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, &di_bh);
+	ret = ocfs2_read_inode_block(inode, &di_bh);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -481,12 +475,6 @@ handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
 
 	if (ocfs2_should_order_data(inode)) {
 		ret = ocfs2_jbd2_file_inode(handle, inode);
-#ifdef CONFIG_OCFS2_COMPAT_JBD
-		ret = walk_page_buffers(handle,
-					page_buffers(page),
-					from, to, NULL,
-					ocfs2_journal_dirty_data);
-#endif
 		if (ret < 0)
 			mlog_errno(ret);
 	}
@@ -1072,15 +1060,8 @@ static void ocfs2_write_failure(struct inode *inode,
 		tmppage = wc->w_pages[i];
 
 		if (page_has_buffers(tmppage)) {
-			if (ocfs2_should_order_data(inode)) {
+			if (ocfs2_should_order_data(inode))
 				ocfs2_jbd2_file_inode(wc->w_handle, inode);
-#ifdef CONFIG_OCFS2_COMPAT_JBD
-				walk_page_buffers(wc->w_handle,
-						  page_buffers(tmppage),
-						  from, to, NULL,
-						  ocfs2_journal_dirty_data);
-#endif
-			}
 
 			block_commit_write(tmppage, from, to);
 		}
@@ -1531,8 +1512,8 @@ static int ocfs2_write_begin_inline(struct address_space *mapping,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access(handle, inode, wc->w_di_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_di(handle, inode, wc->w_di_bh,
+				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		ocfs2_commit_trans(osb, handle);
 
@@ -1750,15 +1731,20 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 
 	wc->w_handle = handle;
 
+	if (clusters_to_alloc && vfs_dq_alloc_space_nodirty(inode,
+			ocfs2_clusters_to_bytes(osb->sb, clusters_to_alloc))) {
+		ret = -EDQUOT;
+		goto out_commit;
+	}
 	/*
 	 * We don't want this to fail in ocfs2_write_end(), so do it
 	 * here.
 	 */
-	ret = ocfs2_journal_access(handle, inode, wc->w_di_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_di(handle, inode, wc->w_di_bh,
+				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
-		goto out_commit;
+		goto out_quota;
 	}
 
 	/*
@@ -1771,14 +1757,14 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 					 mmap_page);
 	if (ret) {
 		mlog_errno(ret);
-		goto out_commit;
+		goto out_quota;
 	}
 
 	ret = ocfs2_write_cluster_by_desc(mapping, data_ac, meta_ac, wc, pos,
 					  len);
 	if (ret) {
 		mlog_errno(ret);
-		goto out_commit;
+		goto out_quota;
 	}
 
 	if (data_ac)
@@ -1790,6 +1776,10 @@ success:
 	*pagep = wc->w_target_page;
 	*fsdata = wc;
 	return 0;
+out_quota:
+	if (clusters_to_alloc)
+		vfs_dq_free_space(inode,
+			  ocfs2_clusters_to_bytes(osb->sb, clusters_to_alloc));
 out_commit:
 	ocfs2_commit_trans(osb, handle);
 
@@ -1919,15 +1909,8 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 		}
 
 		if (page_has_buffers(tmppage)) {
-			if (ocfs2_should_order_data(inode)) {
+			if (ocfs2_should_order_data(inode))
 				ocfs2_jbd2_file_inode(wc->w_handle, inode);
-#ifdef CONFIG_OCFS2_COMPAT_JBD
-				walk_page_buffers(wc->w_handle,
-						  page_buffers(tmppage),
-						  from, to, NULL,
-						  ocfs2_journal_dirty_data);
-#endif
-			}
 			block_commit_write(tmppage, from, to);
 		}
 	}

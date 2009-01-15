@@ -71,6 +71,11 @@ The @argument descriptions must begin on the very next line following
 this opening short function description line, with no intervening
 empty comment lines.
 
+If a function parameter is "..." (varargs), it should be listed in
+kernel-doc notation as:
+ * @...: description
+
+
 Example kernel-doc data structure comment.
 
 /**
@@ -282,6 +287,32 @@ struct my_struct {
 };
 
 
+Including documentation blocks in source files
+----------------------------------------------
+
+To facilitate having source code and comments close together, you can
+include kernel-doc documentation blocks that are free-form comments
+instead of being kernel-doc for functions, structures, unions,
+enums, or typedefs.  This could be used for something like a
+theory of operation for a driver or library code, for example.
+
+This is done by using a DOC: section keyword with a section title.  E.g.:
+
+/**
+ * DOC: Theory of Operation
+ *
+ * The whizbang foobar is a dilly of a gizmo.  It can do whatever you
+ * want it to do, at any time.  It reads your mind.  Here's how it works.
+ *
+ * foo bar splat
+ *
+ * The only drawback to this gizmo is that is can sometimes damage
+ * hardware, software, or its subject(s).
+ */
+
+DOC: sections are used in SGML templates files as indicated below.
+
+
 How to make new SGML template files
 -----------------------------------
 
@@ -302,6 +333,9 @@ exported using EXPORT_SYMBOL.
 !F<filename> <function [functions...]> is replaced by the
 documentation, in <filename>, for the functions listed.
 
+!P<filename> <section title> is replaced by the contents of the DOC:
+section titled <section title> from <filename>.
+Spaces are allowed in <section title>; do not quote the <section title>.
 
 Tim.
 */ <twaugh@redhat.com>

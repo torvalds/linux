@@ -797,11 +797,11 @@ u32 v4l2_ctrl_next(const u32 * const * ctrl_classes, u32 id)
 }
 EXPORT_SYMBOL(v4l2_ctrl_next);
 
-int v4l2_chip_match_host(u32 match_type, u32 match_chip)
+int v4l2_chip_match_host(const struct v4l2_dbg_match *match)
 {
-	switch (match_type) {
+	switch (match->type) {
 	case V4L2_CHIP_MATCH_HOST:
-		return match_chip == 0;
+		return match->addr == 0;
 	default:
 		return 0;
 	}
@@ -809,23 +809,34 @@ int v4l2_chip_match_host(u32 match_type, u32 match_chip)
 EXPORT_SYMBOL(v4l2_chip_match_host);
 
 #if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
-int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 match_type, u32 match_chip)
+int v4l2_chip_match_i2c_client(struct i2c_client *c, const struct v4l2_dbg_match *match)
 {
-	switch (match_type) {
+	int len;
+
+	if (c == NULL || match == NULL)
+		return 0;
+
+	switch (match->type) {
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		return (c != NULL && c->driver != NULL && c->driver->id == match_chip);
+		if (c->driver == NULL || c->driver->driver.name == NULL)
+			return 0;
+		len = strlen(c->driver->driver.name);
+		/* legacy drivers have a ' suffix, don't try to match that */
+		if (len && c->driver->driver.name[len - 1] == '\'')
+			len--;
+		return len && !strncmp(c->driver->driver.name, match->name, len);
 	case V4L2_CHIP_MATCH_I2C_ADDR:
-		return (c != NULL && c->addr == match_chip);
+		return c->addr == match->addr;
 	default:
 		return 0;
 	}
 }
 EXPORT_SYMBOL(v4l2_chip_match_i2c_client);
 
-int v4l2_chip_ident_i2c_client(struct i2c_client *c, struct v4l2_chip_ident *chip,
+int v4l2_chip_ident_i2c_client(struct i2c_client *c, struct v4l2_dbg_chip_ident *chip,
 		u32 ident, u32 revision)
 {
-	if (!v4l2_chip_match_i2c_client(c, chip->match_type, chip->match_chip))
+	if (!v4l2_chip_match_i2c_client(c, &chip->match))
 		return 0;
 	if (chip->ident == V4L2_IDENT_NONE) {
 		chip->ident = ident;

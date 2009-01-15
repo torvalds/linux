@@ -45,7 +45,7 @@ static unsigned long prof_len, prof_shift;
 int prof_on __read_mostly;
 EXPORT_SYMBOL_GPL(prof_on);
 
-static cpumask_t prof_cpu_mask = CPU_MASK_ALL;
+static cpumask_var_t prof_cpu_mask;
 #ifdef CONFIG_SMP
 static DEFINE_PER_CPU(struct profile_hit *[2], cpu_profile_hits);
 static DEFINE_PER_CPU(int, cpu_profile_flip);
@@ -113,8 +113,12 @@ int __ref profile_init(void)
 	buffer_bytes = prof_len*sizeof(atomic_t);
 	if (!slab_is_available()) {
 		prof_buffer = alloc_bootmem(buffer_bytes);
+		alloc_bootmem_cpumask_var(&prof_cpu_mask);
 		return 0;
 	}
+
+	if (!alloc_cpumask_var(&prof_cpu_mask, GFP_KERNEL))
+		return -ENOMEM;
 
 	prof_buffer = kzalloc(buffer_bytes, GFP_KERNEL);
 	if (prof_buffer)
@@ -128,6 +132,7 @@ int __ref profile_init(void)
 	if (prof_buffer)
 		return 0;
 
+	free_cpumask_var(prof_cpu_mask);
 	return -ENOMEM;
 }
 
@@ -386,13 +391,15 @@ out_free:
 		return NOTIFY_BAD;
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
-		cpu_set(cpu, prof_cpu_mask);
+		if (prof_cpu_mask != NULL)
+			cpumask_set_cpu(cpu, prof_cpu_mask);
 		break;
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		cpu_clear(cpu, prof_cpu_mask);
+		if (prof_cpu_mask != NULL)
+			cpumask_clear_cpu(cpu, prof_cpu_mask);
 		if (per_cpu(cpu_profile_hits, cpu)[0]) {
 			page = virt_to_page(per_cpu(cpu_profile_hits, cpu)[0]);
 			per_cpu(cpu_profile_hits, cpu)[0] = NULL;
@@ -430,19 +437,19 @@ void profile_tick(int type)
 
 	if (type == CPU_PROFILING && timer_hook)
 		timer_hook(regs);
-	if (!user_mode(regs) && cpu_isset(smp_processor_id(), prof_cpu_mask))
+	if (!user_mode(regs) && prof_cpu_mask != NULL &&
+	    cpumask_test_cpu(smp_processor_id(), prof_cpu_mask))
 		profile_hit(type, (void *)profile_pc(regs));
 }
 
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
-#include <asm/ptrace.h>
 
 static int prof_cpu_mask_read_proc(char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
-	int len = cpumask_scnprintf(page, count, *(cpumask_t *)data);
+	int len = cpumask_scnprintf(page, count, data);
 	if (count - len < 2)
 		return -EINVAL;
 	len += sprintf(page + len, "\n");
@@ -452,16 +459,20 @@ static int prof_cpu_mask_read_proc(char *page, char **start, off_t off,
 static int prof_cpu_mask_write_proc(struct file *file,
 	const char __user *buffer,  unsigned long count, void *data)
 {
-	cpumask_t *mask = (cpumask_t *)data;
+	struct cpumask *mask = data;
 	unsigned long full_count = count, err;
-	cpumask_t new_value;
+	cpumask_var_t new_value;
+
+	if (!alloc_cpumask_var(&new_value, GFP_KERNEL))
+		return -ENOMEM;
 
 	err = cpumask_parse_user(buffer, count, new_value);
-	if (err)
-		return err;
-
-	*mask = new_value;
-	return full_count;
+	if (!err) {
+		cpumask_copy(mask, new_value);
+		err = full_count;
+	}
+	free_cpumask_var(new_value);
+	return err;
 }
 
 void create_prof_cpu_mask(struct proc_dir_entry *root_irq_dir)
@@ -472,7 +483,7 @@ void create_prof_cpu_mask(struct proc_dir_entry *root_irq_dir)
 	entry = create_proc_entry("prof_cpu_mask", 0600, root_irq_dir);
 	if (!entry)
 		return;
-	entry->data = (void *)&prof_cpu_mask;
+	entry->data = prof_cpu_mask;
 	entry->read_proc = prof_cpu_mask_read_proc;
 	entry->write_proc = prof_cpu_mask_write_proc;
 }

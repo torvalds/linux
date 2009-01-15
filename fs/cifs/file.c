@@ -2074,7 +2074,7 @@ static int cifs_write_begin(struct file *file, struct address_space *mapping,
 
 	cFYI(1, ("write_begin from %lld len %d", (long long)pos, len));
 
-	page = __grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page) {
 		rc = -ENOMEM;
 		goto out;

@@ -15,7 +15,7 @@
 #define SHARED_SWITCHER_PAGES \
 	DIV_ROUND_UP(end_switcher_text - start_switcher_text, PAGE_SIZE)
 /* Pages for switcher itself, then two pages per cpu */
-#define TOTAL_SWITCHER_PAGES (SHARED_SWITCHER_PAGES + 2 * NR_CPUS)
+#define TOTAL_SWITCHER_PAGES (SHARED_SWITCHER_PAGES + 2 * nr_cpu_ids)
 
 /* We map at -4M for ease of mapping into the guest (one PTE page). */
 #define SWITCHER_ADDR 0xFFC00000

@@ -84,6 +84,7 @@ extern int otg_set_transceiver(struct otg_transceiver *);
 
 /* for usb host and peripheral controller drivers */
 extern struct otg_transceiver *otg_get_transceiver(void);
+extern void otg_put_transceiver(struct otg_transceiver *);
 
 static inline int
 otg_start_hnp(struct otg_transceiver *otg)

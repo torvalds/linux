@@ -450,13 +450,13 @@ add_iface_failure:
  * success, negative values on failure.
  *
  */
-static int netlbl_unlhsh_add(struct net *net,
-			     const char *dev_name,
-			     const void *addr,
-			     const void *mask,
-			     u32 addr_len,
-			     u32 secid,
-			     struct netlbl_audit *audit_info)
+int netlbl_unlhsh_add(struct net *net,
+		      const char *dev_name,
+		      const void *addr,
+		      const void *mask,
+		      u32 addr_len,
+		      u32 secid,
+		      struct netlbl_audit *audit_info)
 {
 	int ret_val;
 	int ifindex;
@@ -720,12 +720,12 @@ unlhsh_condremove_failure:
  * Returns zero on success, negative values on failure.
  *
  */
-static int netlbl_unlhsh_remove(struct net *net,
-				const char *dev_name,
-				const void *addr,
-				const void *mask,
-				u32 addr_len,
-				struct netlbl_audit *audit_info)
+int netlbl_unlhsh_remove(struct net *net,
+			 const char *dev_name,
+			 const void *addr,
+			 const void *mask,
+			 u32 addr_len,
+			 struct netlbl_audit *audit_info)
 {
 	int ret_val;
 	struct net_device *dev;

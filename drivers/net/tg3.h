@@ -2762,6 +2762,10 @@ struct tg3 {
 #define SST_25VF0X0_PAGE_SIZE		4098
 
 	struct ethtool_coalesce		coal;
+
+	/* firmware info */
+	const struct firmware		*fw;
+	u32				fw_len; /* includes BSS */
 };
 
 #endif /* !(_T3_H) */

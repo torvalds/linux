@@ -627,7 +627,7 @@ struct acpi_hest_aer_common {
 	u32 uncorrectable_error_mask;
 	u32 uncorrectable_error_severity;
 	u32 correctable_error_mask;
-	u32 advanced_error_cababilities;
+	u32 advanced_error_capabilities;
 };
 
 /* Hardware Error Notification */

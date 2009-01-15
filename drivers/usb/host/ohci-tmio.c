@@ -201,7 +201,7 @@ static int __devinit ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 	if (!cell)
 		return -EINVAL;
 
-	hcd = usb_create_hcd(&ohci_tmio_hc_driver, &dev->dev, dev->dev.bus_id);
+	hcd = usb_create_hcd(&ohci_tmio_hc_driver, &dev->dev, dev_name(&dev->dev));
 	if (!hcd) {
 		ret = -ENOMEM;
 		goto err_usb_create_hcd;

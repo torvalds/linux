@@ -623,7 +623,7 @@ resource_size_t resource_alignment(struct resource *res)
  */
 struct resource * __request_region(struct resource *parent,
 				   resource_size_t start, resource_size_t n,
-				   const char *name)
+				   const char *name, int flags)
 {
 	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
@@ -634,6 +634,7 @@ struct resource * __request_region(struct resource *parent,
 	res->start = start;
 	res->end = start + n - 1;
 	res->flags = IORESOURCE_BUSY;
+	res->flags |= flags;
 
 	write_lock(&resource_lock);
 
@@ -679,7 +680,7 @@ int __check_region(struct resource *parent, resource_size_t start,
 {
 	struct resource * res;
 
-	res = __request_region(parent, start, n, "check-region");
+	res = __request_region(parent, start, n, "check-region", 0);
 	if (!res)
 		return -EBUSY;
 
@@ -776,7 +777,7 @@ struct resource * __devm_request_region(struct device *dev,
 	dr->start = start;
 	dr->n = n;
 
-	res = __request_region(parent, start, n, name);
+	res = __request_region(parent, start, n, name, 0);
 	if (res)
 		devres_add(dev, dr);
 	else
@@ -876,3 +877,57 @@ int iomem_map_sanity_check(resource_size_t addr, unsigned long size)
 
 	return err;
 }
+
+#ifdef CONFIG_STRICT_DEVMEM
+static int strict_iomem_checks = 1;
+#else
+static int strict_iomem_checks;
+#endif
+
+/*
+ * check if an address is reserved in the iomem resource tree
+ * returns 1 if reserved, 0 if not reserved.
+ */
+int iomem_is_exclusive(u64 addr)
+{
+	struct resource *p = &iomem_resource;
+	int err = 0;
+	loff_t l;
+	int size = PAGE_SIZE;
+
+	if (!strict_iomem_checks)
+		return 0;
+
+	addr = addr & PAGE_MASK;
+
+	read_lock(&resource_lock);
+	for (p = p->child; p ; p = r_next(NULL, p, &l)) {
+		/*
+		 * We can probably skip the resources without
+		 * IORESOURCE_IO attribute?
+		 */
+		if (p->start >= addr + size)
+			break;
+		if (p->end < addr)
+			continue;
+		if (p->flags & IORESOURCE_BUSY &&
+		     p->flags & IORESOURCE_EXCLUSIVE) {
+			err = 1;
+			break;
+		}
+	}
+	read_unlock(&resource_lock);
+
+	return err;
+}
+
+static int __init strict_iomem(char *str)
+{
+	if (strstr(str, "relaxed"))
+		strict_iomem_checks = 0;
+	if (strstr(str, "strict"))
+		strict_iomem_checks = 1;
+	return 1;
+}
+
+__setup("iomem=", strict_iomem);

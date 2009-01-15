@@ -48,7 +48,8 @@ struct audit_krule;
  * These functions are in security/capability.c and are used
  * as the default capabilities functions
  */
-extern int cap_capable(struct task_struct *tsk, int cap, int audit);
+extern int cap_capable(struct task_struct *tsk, const struct cred *cred,
+		       int cap, int audit);
 extern int cap_settime(struct timespec *ts, struct timezone *tz);
 extern int cap_ptrace_may_access(struct task_struct *child, unsigned int mode);
 extern int cap_ptrace_traceme(struct task_struct *parent);
@@ -335,14 +336,34 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@dir contains the inode structure of the parent directory of the new link.
  *	@new_dentry contains the dentry structure for the new link.
  *	Return 0 if permission is granted.
+ * @path_link:
+ *	Check permission before creating a new hard link to a file.
+ *	@old_dentry contains the dentry structure for an existing link
+ *	to the file.
+ *	@new_dir contains the path structure of the parent directory of
+ *	the new link.
+ *	@new_dentry contains the dentry structure for the new link.
+ *	Return 0 if permission is granted.
  * @inode_unlink:
  *	Check the permission to remove a hard link to a file.
  *	@dir contains the inode structure of parent directory of the file.
  *	@dentry contains the dentry structure for file to be unlinked.
  *	Return 0 if permission is granted.
+ * @path_unlink:
+ *	Check the permission to remove a hard link to a file.
+ *	@dir contains the path structure of parent directory of the file.
+ *	@dentry contains the dentry structure for file to be unlinked.
+ *	Return 0 if permission is granted.
  * @inode_symlink:
  *	Check the permission to create a symbolic link to a file.
  *	@dir contains the inode structure of parent directory of the symbolic link.
+ *	@dentry contains the dentry structure of the symbolic link.
+ *	@old_name contains the pathname of file.
+ *	Return 0 if permission is granted.
+ * @path_symlink:
+ *	Check the permission to create a symbolic link to a file.
+ *	@dir contains the path structure of parent directory of
+ *	the symbolic link.
  *	@dentry contains the dentry structure of the symbolic link.
  *	@old_name contains the pathname of file.
  *	Return 0 if permission is granted.
@@ -353,9 +374,23 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@dentry contains the dentry structure of new directory.
  *	@mode contains the mode of new directory.
  *	Return 0 if permission is granted.
+ * @path_mkdir:
+ *	Check permissions to create a new directory in the existing directory
+ *	associated with path strcture @path.
+ *	@dir containst the path structure of parent of the directory
+ *	to be created.
+ *	@dentry contains the dentry structure of new directory.
+ *	@mode contains the mode of new directory.
+ *	Return 0 if permission is granted.
  * @inode_rmdir:
  *	Check the permission to remove a directory.
  *	@dir contains the inode structure of parent of the directory to be removed.
+ *	@dentry contains the dentry structure of directory to be removed.
+ *	Return 0 if permission is granted.
+ * @path_rmdir:
+ *	Check the permission to remove a directory.
+ *	@dir contains the path structure of parent of the directory to be
+ *	removed.
  *	@dentry contains the dentry structure of directory to be removed.
  *	Return 0 if permission is granted.
  * @inode_mknod:
@@ -368,11 +403,27 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@mode contains the mode of the new file.
  *	@dev contains the device number.
  *	Return 0 if permission is granted.
+ * @path_mknod:
+ *	Check permissions when creating a file. Note that this hook is called
+ *	even if mknod operation is being done for a regular file.
+ *	@dir contains the path structure of parent of the new file.
+ *	@dentry contains the dentry structure of the new file.
+ *	@mode contains the mode of the new file.
+ *	@dev contains the undecoded device number. Use new_decode_dev() to get
+ *	the decoded device number.
+ *	Return 0 if permission is granted.
  * @inode_rename:
  *	Check for permission to rename a file or directory.
  *	@old_dir contains the inode structure for parent of the old link.
  *	@old_dentry contains the dentry structure of the old link.
  *	@new_dir contains the inode structure for parent of the new link.
+ *	@new_dentry contains the dentry structure of the new link.
+ *	Return 0 if permission is granted.
+ * @path_rename:
+ *	Check for permission to rename a file or directory.
+ *	@old_dir contains the path structure for parent of the old link.
+ *	@old_dentry contains the dentry structure of the old link.
+ *	@new_dir contains the path structure for parent of the new link.
  *	@new_dentry contains the dentry structure of the new link.
  *	Return 0 if permission is granted.
  * @inode_readlink:
@@ -402,6 +453,12 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	operations, transferring disk quotas, etc).
  *	@dentry contains the dentry structure for the file.
  *	@attr is the iattr structure containing the new file attributes.
+ *	Return 0 if permission is granted.
+ * @path_truncate:
+ *	Check permission before truncating a file.
+ *	@path contains the path structure for the file.
+ *	@length is the new length of the file.
+ *	@time_attrs is the flags passed to do_truncate().
  *	Return 0 if permission is granted.
  * @inode_getattr:
  *	Check permission before obtaining file attributes.
@@ -1195,9 +1252,12 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@permitted contains the permitted capability set.
  *	Return 0 and update @new if permission is granted.
  * @capable:
- *	Check whether the @tsk process has the @cap capability.
+ *	Check whether the @tsk process has the @cap capability in the indicated
+ *	credentials.
  *	@tsk contains the task_struct for the process.
+ *	@cred contains the credentials to use.
  *	@cap contains the capability <include/linux/capability.h>.
+ *	@audit: Whether to write an audit message or not
  *	Return 0 if the capability is granted for @tsk.
  * @acct:
  *	Check permission before enabling or disabling process accounting.  If
@@ -1290,7 +1350,8 @@ struct security_operations {
 		       const kernel_cap_t *effective,
 		       const kernel_cap_t *inheritable,
 		       const kernel_cap_t *permitted);
-	int (*capable) (struct task_struct *tsk, int cap, int audit);
+	int (*capable) (struct task_struct *tsk, const struct cred *cred,
+			int cap, int audit);
 	int (*acct) (struct file *file);
 	int (*sysctl) (struct ctl_table *table, int op);
 	int (*quotactl) (int cmds, int type, int id, struct super_block *sb);
@@ -1330,6 +1391,22 @@ struct security_operations {
 	void (*sb_clone_mnt_opts) (const struct super_block *oldsb,
 				   struct super_block *newsb);
 	int (*sb_parse_opts_str) (char *options, struct security_mnt_opts *opts);
+
+#ifdef CONFIG_SECURITY_PATH
+	int (*path_unlink) (struct path *dir, struct dentry *dentry);
+	int (*path_mkdir) (struct path *dir, struct dentry *dentry, int mode);
+	int (*path_rmdir) (struct path *dir, struct dentry *dentry);
+	int (*path_mknod) (struct path *dir, struct dentry *dentry, int mode,
+			   unsigned int dev);
+	int (*path_truncate) (struct path *path, loff_t length,
+			      unsigned int time_attrs);
+	int (*path_symlink) (struct path *dir, struct dentry *dentry,
+			     const char *old_name);
+	int (*path_link) (struct dentry *old_dentry, struct path *new_dir,
+			  struct dentry *new_dentry);
+	int (*path_rename) (struct path *old_dir, struct dentry *old_dentry,
+			    struct path *new_dir, struct dentry *new_dentry);
+#endif
 
 	int (*inode_alloc_security) (struct inode *inode);
 	void (*inode_free_security) (struct inode *inode);
@@ -1556,8 +1633,9 @@ int security_capset(struct cred *new, const struct cred *old,
 		    const kernel_cap_t *effective,
 		    const kernel_cap_t *inheritable,
 		    const kernel_cap_t *permitted);
-int security_capable(struct task_struct *tsk, int cap);
-int security_capable_noaudit(struct task_struct *tsk, int cap);
+int security_capable(int cap);
+int security_real_capable(struct task_struct *tsk, int cap);
+int security_real_capable_noaudit(struct task_struct *tsk, int cap);
 int security_acct(struct file *file);
 int security_sysctl(struct ctl_table *table, int op);
 int security_quotactl(int cmds, int type, int id, struct super_block *sb);
@@ -1754,14 +1832,31 @@ static inline int security_capset(struct cred *new,
 	return cap_capset(new, old, effective, inheritable, permitted);
 }
 
-static inline int security_capable(struct task_struct *tsk, int cap)
+static inline int security_capable(int cap)
 {
-	return cap_capable(tsk, cap, SECURITY_CAP_AUDIT);
+	return cap_capable(current, current_cred(), cap, SECURITY_CAP_AUDIT);
 }
 
-static inline int security_capable_noaudit(struct task_struct *tsk, int cap)
+static inline int security_real_capable(struct task_struct *tsk, int cap)
 {
-	return cap_capable(tsk, cap, SECURITY_CAP_NOAUDIT);
+	int ret;
+
+	rcu_read_lock();
+	ret = cap_capable(tsk, __task_cred(tsk), cap, SECURITY_CAP_AUDIT);
+	rcu_read_unlock();
+	return ret;
+}
+
+static inline
+int security_real_capable_noaudit(struct task_struct *tsk, int cap)
+{
+	int ret;
+
+	rcu_read_lock();
+	ret = cap_capable(tsk, __task_cred(tsk), cap,
+			       SECURITY_CAP_NOAUDIT);
+	rcu_read_unlock();
+	return ret;
 }
 
 static inline int security_acct(struct file *file)
@@ -2704,6 +2799,71 @@ static inline void security_skb_classify_flow(struct sk_buff *skb, struct flowi 
 }
 
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
+
+#ifdef CONFIG_SECURITY_PATH
+int security_path_unlink(struct path *dir, struct dentry *dentry);
+int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode);
+int security_path_rmdir(struct path *dir, struct dentry *dentry);
+int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
+			unsigned int dev);
+int security_path_truncate(struct path *path, loff_t length,
+			   unsigned int time_attrs);
+int security_path_symlink(struct path *dir, struct dentry *dentry,
+			  const char *old_name);
+int security_path_link(struct dentry *old_dentry, struct path *new_dir,
+		       struct dentry *new_dentry);
+int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
+			 struct path *new_dir, struct dentry *new_dentry);
+#else	/* CONFIG_SECURITY_PATH */
+static inline int security_path_unlink(struct path *dir, struct dentry *dentry)
+{
+	return 0;
+}
+
+static inline int security_path_mkdir(struct path *dir, struct dentry *dentry,
+				      int mode)
+{
+	return 0;
+}
+
+static inline int security_path_rmdir(struct path *dir, struct dentry *dentry)
+{
+	return 0;
+}
+
+static inline int security_path_mknod(struct path *dir, struct dentry *dentry,
+				      int mode, unsigned int dev)
+{
+	return 0;
+}
+
+static inline int security_path_truncate(struct path *path, loff_t length,
+					 unsigned int time_attrs)
+{
+	return 0;
+}
+
+static inline int security_path_symlink(struct path *dir, struct dentry *dentry,
+					const char *old_name)
+{
+	return 0;
+}
+
+static inline int security_path_link(struct dentry *old_dentry,
+				     struct path *new_dir,
+				     struct dentry *new_dentry)
+{
+	return 0;
+}
+
+static inline int security_path_rename(struct path *old_dir,
+				       struct dentry *old_dentry,
+				       struct path *new_dir,
+				       struct dentry *new_dentry)
+{
+	return 0;
+}
+#endif	/* CONFIG_SECURITY_PATH */
 
 #ifdef CONFIG_KEYS
 #ifdef CONFIG_SECURITY

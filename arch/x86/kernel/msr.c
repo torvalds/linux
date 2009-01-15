@@ -136,7 +136,7 @@ static int msr_open(struct inode *inode, struct file *file)
 	lock_kernel();
 	cpu = iminor(file->f_path.dentry->d_inode);
 
-	if (cpu >= NR_CPUS || !cpu_online(cpu)) {
+	if (cpu >= nr_cpu_ids || !cpu_online(cpu)) {
 		ret = -ENXIO;	/* No such CPU */
 		goto out;
 	}

@@ -82,6 +82,7 @@ struct shadow_walker {
 	int *ptwrite;
 	pfn_t pfn;
 	u64 *sptep;
+	gpa_t pte_gpa;
 };
 
 static gfn_t gpte_to_gfn(pt_element_t gpte)
@@ -222,7 +223,7 @@ walk:
 		if (ret)
 			goto walk;
 		pte |= PT_DIRTY_MASK;
-		kvm_mmu_pte_write(vcpu, pte_gpa, (u8 *)&pte, sizeof(pte));
+		kvm_mmu_pte_write(vcpu, pte_gpa, (u8 *)&pte, sizeof(pte), 0);
 		walker->ptes[walker->level - 1] = pte;
 	}
 
@@ -274,7 +275,8 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 		return;
 	kvm_get_pfn(pfn);
 	mmu_set_spte(vcpu, spte, page->role.access, pte_access, 0, 0,
-		     gpte & PT_DIRTY_MASK, NULL, largepage, gpte_to_gfn(gpte),
+		     gpte & PT_DIRTY_MASK, NULL, largepage,
+		     gpte & PT_GLOBAL_MASK, gpte_to_gfn(gpte),
 		     pfn, true);
 }
 
@@ -301,8 +303,9 @@ static int FNAME(shadow_walk_entry)(struct kvm_shadow_walk *_sw,
 		mmu_set_spte(vcpu, sptep, access, gw->pte_access & access,
 			     sw->user_fault, sw->write_fault,
 			     gw->ptes[gw->level-1] & PT_DIRTY_MASK,
-			     sw->ptwrite, sw->largepage, gw->gfn, sw->pfn,
-			     false);
+			     sw->ptwrite, sw->largepage,
+			     gw->ptes[gw->level-1] & PT_GLOBAL_MASK,
+			     gw->gfn, sw->pfn, false);
 		sw->sptep = sptep;
 		return 1;
 	}
@@ -466,10 +469,22 @@ static int FNAME(shadow_invlpg_entry)(struct kvm_shadow_walk *_sw,
 				      struct kvm_vcpu *vcpu, u64 addr,
 				      u64 *sptep, int level)
 {
+	struct shadow_walker *sw =
+		container_of(_sw, struct shadow_walker, walker);
 
-	if (level == PT_PAGE_TABLE_LEVEL) {
-		if (is_shadow_present_pte(*sptep))
+	/* FIXME: properly handle invlpg on large guest pages */
+	if (level == PT_PAGE_TABLE_LEVEL ||
+	    ((level == PT_DIRECTORY_LEVEL) && is_large_pte(*sptep))) {
+		struct kvm_mmu_page *sp = page_header(__pa(sptep));
+
+		sw->pte_gpa = (sp->gfn << PAGE_SHIFT);
+		sw->pte_gpa += (sptep - sp->spt) * sizeof(pt_element_t);
+
+		if (is_shadow_present_pte(*sptep)) {
 			rmap_remove(vcpu->kvm, sptep);
+			if (is_large_pte(*sptep))
+				--vcpu->kvm->stat.lpages;
+		}
 		set_shadow_pte(sptep, shadow_trap_nonpresent_pte);
 		return 1;
 	}
@@ -480,11 +495,26 @@ static int FNAME(shadow_invlpg_entry)(struct kvm_shadow_walk *_sw,
 
 static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 {
+	pt_element_t gpte;
 	struct shadow_walker walker = {
 		.walker = { .entry = FNAME(shadow_invlpg_entry), },
+		.pte_gpa = -1,
 	};
 
+	spin_lock(&vcpu->kvm->mmu_lock);
 	walk_shadow(&walker.walker, vcpu, gva);
+	spin_unlock(&vcpu->kvm->mmu_lock);
+	if (walker.pte_gpa == -1)
+		return;
+	if (kvm_read_guest_atomic(vcpu->kvm, walker.pte_gpa, &gpte,
+				  sizeof(pt_element_t)))
+		return;
+	if (is_present_pte(gpte) && (gpte & PT_ACCESSED_MASK)) {
+		if (mmu_topup_memory_caches(vcpu))
+			return;
+		kvm_mmu_pte_write(vcpu, walker.pte_gpa, (const u8 *)&gpte,
+				  sizeof(pt_element_t), 0);
+	}
 }
 
 static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
@@ -580,7 +610,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		nr_present++;
 		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
 		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
-			 is_dirty_pte(gpte), 0, gfn,
+			 is_dirty_pte(gpte), 0, gpte & PT_GLOBAL_MASK, gfn,
 			 spte_to_pfn(sp->spt[i]), true, false);
 	}
 

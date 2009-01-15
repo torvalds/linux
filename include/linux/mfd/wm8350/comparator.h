@@ -164,4 +164,12 @@
 #define WM8350_AUXADC_BATT			6
 #define WM8350_AUXADC_TEMP			7
 
+struct wm8350;
+
+/*
+ * AUX ADC Readback
+ */
+int wm8350_read_auxadc(struct wm8350 *wm8350, int channel, int scale,
+		       int vref);
+
 #endif

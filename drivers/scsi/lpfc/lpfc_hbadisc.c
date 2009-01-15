@@ -1964,10 +1964,10 @@ lpfc_set_disctmo(struct lpfc_vport *vport)
 	uint32_t tmo;
 
 	if (vport->port_state == LPFC_LOCAL_CFG_LINK) {
-		/* For FAN, timeout should be greater then edtov */
+		/* For FAN, timeout should be greater than edtov */
 		tmo = (((phba->fc_edtov + 999) / 1000) + 1);
 	} else {
-		/* Normal discovery timeout should be > then ELS/CT timeout
+		/* Normal discovery timeout should be > than ELS/CT timeout
 		 * FC spec states we need 3 * ratov for CT requests
 		 */
 		tmo = ((phba->fc_ratov * 3) + 3);

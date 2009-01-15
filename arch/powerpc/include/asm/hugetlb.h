@@ -18,6 +18,12 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep);
 
 /*
+ * The version of vma_mmu_pagesize() in arch/powerpc/mm/hugetlbpage.c needs
+ * to override the version in mm/hugetlb.c
+ */
+#define vma_mmu_pagesize vma_mmu_pagesize
+
+/*
  * If the arch doesn't supply something else, assume that hugepage
  * size aligned regions are ok without further preparation.
  */

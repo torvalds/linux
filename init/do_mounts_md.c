@@ -271,7 +271,7 @@ static int __init raid_setup(char *str)
 __setup("raid=", raid_setup);
 __setup("md=", md_setup);
 
-static void autodetect_raid(void)
+static void __init autodetect_raid(void)
 {
 	int fd;
 

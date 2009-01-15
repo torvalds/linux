@@ -49,6 +49,8 @@ source "drivers/staging/sxg/Kconfig"
 
 source "drivers/staging/me4000/Kconfig"
 
+source "drivers/staging/meilhaus/Kconfig"
+
 source "drivers/staging/go7007/Kconfig"
 
 source "drivers/staging/usbip/Kconfig"
@@ -62,6 +64,36 @@ source "drivers/staging/echo/Kconfig"
 source "drivers/staging/at76_usb/Kconfig"
 
 source "drivers/staging/poch/Kconfig"
+
+source "drivers/staging/agnx/Kconfig"
+
+source "drivers/staging/otus/Kconfig"
+
+source "drivers/staging/rt2860/Kconfig"
+
+source "drivers/staging/rt2870/Kconfig"
+
+source "drivers/staging/benet/Kconfig"
+
+source "drivers/staging/comedi/Kconfig"
+
+source "drivers/staging/asus_oled/Kconfig"
+
+source "drivers/staging/panel/Kconfig"
+
+source "drivers/staging/altpciechdma/Kconfig"
+
+source "drivers/staging/rtl8187se/Kconfig"
+
+source "drivers/staging/rspiusb/Kconfig"
+
+source "drivers/staging/mimio/Kconfig"
+
+source "drivers/staging/frontier/Kconfig"
+
+source "drivers/staging/epl/Kconfig"
+
+source "drivers/staging/android/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

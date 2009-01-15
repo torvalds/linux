@@ -26,7 +26,6 @@
 #define BCSR12_USB_SER_MASK	0x8a
 #define BCSR12_USB_SER_PIN	0x80
 #define BCSR12_USB_SER_DEVICE	0x02
-extern int mpc837x_usb_cfg(void);
 
 static int mpc837xmds_usb_cfg(void)
 {

@@ -135,7 +135,7 @@ enum {
  * The erase counter header takes 64 bytes and has a plenty of unused space for
  * future usage. The unused fields are zeroed. The @version field is used to
  * indicate the version of UBI implementation which is supposed to be able to
- * work with this UBI image. If @version is greater then the current UBI
+ * work with this UBI image. If @version is greater than the current UBI
  * version, the image is rejected. This may be useful in future if something
  * is changed radically. This field is duplicated in the volume identifier
  * header.
@@ -187,7 +187,7 @@ struct ubi_ec_hdr {
  * (sequence number) is used to distinguish between older and newer versions of
  * logical eraseblocks.
  *
- * There are 2 situations when there may be more then one physical eraseblock
+ * There are 2 situations when there may be more than one physical eraseblock
  * corresponding to the same logical eraseblock, i.e., having the same @vol_id
  * and @lnum values in the volume identifier header. Suppose we have a logical
  * eraseblock L and it is mapped to the physical eraseblock P.

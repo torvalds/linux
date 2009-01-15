@@ -256,7 +256,7 @@ static void soc_camera_free_user_formats(struct soc_camera_device *icd)
 	vfree(icd->user_formats);
 }
 
-static int soc_camera_open(struct inode *inode, struct file *file)
+static int soc_camera_open(struct file *file)
 {
 	struct video_device *vdev;
 	struct soc_camera_device *icd;
@@ -330,7 +330,7 @@ emgd:
 	return ret;
 }
 
-static int soc_camera_close(struct inode *inode, struct file *file)
+static int soc_camera_close(struct file *file)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
@@ -400,7 +400,7 @@ static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
 	return ici->ops->poll(file, pt);
 }
 
-static struct file_operations soc_camera_fops = {
+static struct v4l2_file_operations soc_camera_fops = {
 	.owner		= THIS_MODULE,
 	.open		= soc_camera_open,
 	.release	= soc_camera_close,
@@ -408,7 +408,6 @@ static struct file_operations soc_camera_fops = {
 	.read		= soc_camera_read,
 	.mmap		= soc_camera_mmap,
 	.poll		= soc_camera_poll,
-	.llseek		= no_llseek,
 };
 
 static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
@@ -700,7 +699,7 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 }
 
 static int soc_camera_g_chip_ident(struct file *file, void *fh,
-				   struct v4l2_chip_ident *id)
+				   struct v4l2_dbg_chip_ident *id)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
@@ -713,7 +712,7 @@ static int soc_camera_g_chip_ident(struct file *file, void *fh,
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int soc_camera_g_register(struct file *file, void *fh,
-				 struct v4l2_register *reg)
+				 struct v4l2_dbg_register *reg)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
@@ -725,7 +724,7 @@ static int soc_camera_g_register(struct file *file, void *fh,
 }
 
 static int soc_camera_s_register(struct file *file, void *fh,
-				 struct v4l2_register *reg)
+				 struct v4l2_dbg_register *reg)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;

@@ -31,7 +31,7 @@
 int sysctl_panic_on_oom;
 int sysctl_oom_kill_allocating_task;
 int sysctl_oom_dump_tasks;
-static DEFINE_SPINLOCK(zone_scan_mutex);
+static DEFINE_SPINLOCK(zone_scan_lock);
 /* #define DEBUG */
 
 /**
@@ -392,6 +392,9 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 		printk(KERN_WARNING "%s invoked oom-killer: "
 			"gfp_mask=0x%x, order=%d, oomkilladj=%d\n",
 			current->comm, gfp_mask, order, current->oomkilladj);
+		task_lock(current);
+		cpuset_print_task_mems_allowed(current);
+		task_unlock(current);
 		dump_stack();
 		show_mem();
 		if (sysctl_oom_dump_tasks)
@@ -426,7 +429,6 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
 	unsigned long points = 0;
 	struct task_struct *p;
 
-	cgroup_lock();
 	read_lock(&tasklist_lock);
 retry:
 	p = select_bad_process(&points, mem);
@@ -441,7 +443,6 @@ retry:
 		goto retry;
 out:
 	read_unlock(&tasklist_lock);
-	cgroup_unlock();
 }
 #endif
 
@@ -470,7 +471,7 @@ int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_mask)
 	struct zone *zone;
 	int ret = 1;
 
-	spin_lock(&zone_scan_mutex);
+	spin_lock(&zone_scan_lock);
 	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask)) {
 		if (zone_is_oom_locked(zone)) {
 			ret = 0;
@@ -480,7 +481,7 @@ int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_mask)
 
 	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask)) {
 		/*
-		 * Lock each zone in the zonelist under zone_scan_mutex so a
+		 * Lock each zone in the zonelist under zone_scan_lock so a
 		 * parallel invocation of try_set_zone_oom() doesn't succeed
 		 * when it shouldn't.
 		 */
@@ -488,7 +489,7 @@ int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_mask)
 	}
 
 out:
-	spin_unlock(&zone_scan_mutex);
+	spin_unlock(&zone_scan_lock);
 	return ret;
 }
 
@@ -502,11 +503,82 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
 	struct zoneref *z;
 	struct zone *zone;
 
-	spin_lock(&zone_scan_mutex);
+	spin_lock(&zone_scan_lock);
 	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask)) {
 		zone_clear_flag(zone, ZONE_OOM_LOCKED);
 	}
-	spin_unlock(&zone_scan_mutex);
+	spin_unlock(&zone_scan_lock);
+}
+
+/*
+ * Must be called with tasklist_lock held for read.
+ */
+static void __out_of_memory(gfp_t gfp_mask, int order)
+{
+	if (sysctl_oom_kill_allocating_task) {
+		oom_kill_process(current, gfp_mask, order, 0, NULL,
+				"Out of memory (oom_kill_allocating_task)");
+
+	} else {
+		unsigned long points;
+		struct task_struct *p;
+
+retry:
+		/*
+		 * Rambo mode: Shoot down a process and hope it solves whatever
+		 * issues we may have.
+		 */
+		p = select_bad_process(&points, NULL);
+
+		if (PTR_ERR(p) == -1UL)
+			return;
+
+		/* Found nothing?!?! Either we hang forever, or we panic. */
+		if (!p) {
+			read_unlock(&tasklist_lock);
+			panic("Out of memory and no killable processes...\n");
+		}
+
+		if (oom_kill_process(p, gfp_mask, order, points, NULL,
+				     "Out of memory"))
+			goto retry;
+	}
+}
+
+/*
+ * pagefault handler calls into here because it is out of memory but
+ * doesn't know exactly how or why.
+ */
+void pagefault_out_of_memory(void)
+{
+	unsigned long freed = 0;
+
+	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+	if (freed > 0)
+		/* Got some memory back in the last second. */
+		return;
+
+	/*
+	 * If this is from memcg, oom-killer is already invoked.
+	 * and not worth to go system-wide-oom.
+	 */
+	if (mem_cgroup_oom_called(current))
+		goto rest_and_return;
+
+	if (sysctl_panic_on_oom)
+		panic("out of memory from page fault. panic_on_oom is selected.\n");
+
+	read_lock(&tasklist_lock);
+	__out_of_memory(0, 0); /* unknown gfp_mask and order */
+	read_unlock(&tasklist_lock);
+
+	/*
+	 * Give "p" a good chance of killing itself before we
+	 * retry to allocate memory.
+	 */
+rest_and_return:
+	if (!test_thread_flag(TIF_MEMDIE))
+		schedule_timeout_uninterruptible(1);
 }
 
 /**
@@ -522,8 +594,6 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
  */
 void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 {
-	struct task_struct *p;
-	unsigned long points = 0;
 	unsigned long freed = 0;
 	enum oom_constraint constraint;
 
@@ -544,7 +614,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 
 	switch (constraint) {
 	case CONSTRAINT_MEMORY_POLICY:
-		oom_kill_process(current, gfp_mask, order, points, NULL,
+		oom_kill_process(current, gfp_mask, order, 0, NULL,
 				"No available memory (MPOL_BIND)");
 		break;
 
@@ -553,35 +623,10 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 			panic("out of memory. panic_on_oom is selected\n");
 		/* Fall-through */
 	case CONSTRAINT_CPUSET:
-		if (sysctl_oom_kill_allocating_task) {
-			oom_kill_process(current, gfp_mask, order, points, NULL,
-					"Out of memory (oom_kill_allocating_task)");
-			break;
-		}
-retry:
-		/*
-		 * Rambo mode: Shoot down a process and hope it solves whatever
-		 * issues we may have.
-		 */
-		p = select_bad_process(&points, NULL);
-
-		if (PTR_ERR(p) == -1UL)
-			goto out;
-
-		/* Found nothing?!?! Either we hang forever, or we panic. */
-		if (!p) {
-			read_unlock(&tasklist_lock);
-			panic("Out of memory and no killable processes...\n");
-		}
-
-		if (oom_kill_process(p, gfp_mask, order, points, NULL,
-				     "Out of memory"))
-			goto retry;
-
+		__out_of_memory(gfp_mask, order);
 		break;
 	}
 
-out:
 	read_unlock(&tasklist_lock);
 
 	/*

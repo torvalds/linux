@@ -208,7 +208,7 @@ image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
 #
 # Theses are default targets to build images which embed device tree blobs.
 # They are only required on boards which do not have FDT support in firmware.
-# Boards with newish u-boot firmare can use the uImage target above
+# Boards with newish u-boot firmware can use the uImage target above
 #
 
 # Board ports in arch/powerpc/platform/40x/Kconfig
@@ -356,7 +356,7 @@ $(obj)/zImage.initrd:	$(addprefix $(obj)/, $(initrd-y))
 	@rm -f $@; ln $< $@
 
 install: $(CONFIGURE) $(addprefix $(obj)/, $(image-y))
-	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" $<
+	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" $^
 
 # anything not in $(targets)
 clean-files += $(image-) $(initrd-) cuImage.* dtbImage.* treeImage.* \

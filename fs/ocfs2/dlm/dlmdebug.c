@@ -630,43 +630,38 @@ static void *lockres_seq_start(struct seq_file *m, loff_t *pos)
 {
 	struct debug_lockres *dl = m->private;
 	struct dlm_ctxt *dlm = dl->dl_ctxt;
+	struct dlm_lock_resource *oldres = dl->dl_res;
 	struct dlm_lock_resource *res = NULL;
+	struct list_head *track_list;
 
-	spin_lock(&dlm->spinlock);
+	spin_lock(&dlm->track_lock);
+	if (oldres)
+		track_list = &oldres->tracking;
+	else
+		track_list = &dlm->tracking_list;
 
-	if (dl->dl_res) {
-		list_for_each_entry(res, &dl->dl_res->tracking, tracking) {
-			if (dl->dl_res) {
-				dlm_lockres_put(dl->dl_res);
-				dl->dl_res = NULL;
-			}
-			if (&res->tracking == &dlm->tracking_list) {
-				mlog(0, "End of list found, %p\n", res);
-				dl = NULL;
-				break;
-			}
+	list_for_each_entry(res, track_list, tracking) {
+		if (&res->tracking == &dlm->tracking_list)
+			res = NULL;
+		else
 			dlm_lockres_get(res);
-			dl->dl_res = res;
-			break;
-		}
-	} else {
-		if (!list_empty(&dlm->tracking_list)) {
-			list_for_each_entry(res, &dlm->tracking_list, tracking)
-				break;
-			dlm_lockres_get(res);
-			dl->dl_res = res;
-		} else
-			dl = NULL;
+		break;
 	}
+	spin_unlock(&dlm->track_lock);
 
-	if (dl) {
-		spin_lock(&dl->dl_res->spinlock);
-		dump_lockres(dl->dl_res, dl->dl_buf, dl->dl_len - 1);
-		spin_unlock(&dl->dl_res->spinlock);
-	}
+	if (oldres)
+		dlm_lockres_put(oldres);
 
-	spin_unlock(&dlm->spinlock);
+	dl->dl_res = res;
 
+	if (res) {
+		spin_lock(&res->spinlock);
+		dump_lockres(res, dl->dl_buf, dl->dl_len - 1);
+		spin_unlock(&res->spinlock);
+	} else
+		dl = NULL;
+
+	/* passed to seq_show */
 	return dl;
 }
 

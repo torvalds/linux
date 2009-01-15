@@ -154,7 +154,6 @@ static struct tc_clkevt_device clkevt = {
 		.shift		= 32,
 		/* Should be lower than at91rm9200's system timer */
 		.rating		= 125,
-		.cpumask	= CPU_MASK_CPU0,
 		.set_next_event	= tc_next_event,
 		.set_mode	= tc_mode,
 	},
@@ -195,6 +194,7 @@ static void __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 	clkevt.clkevt.max_delta_ns
 		= clockevent_delta2ns(0xffff, &clkevt.clkevt);
 	clkevt.clkevt.min_delta_ns = clockevent_delta2ns(1, &clkevt.clkevt) + 1;
+	clkevt.clkevt.cpumask = cpumask_of(0);
 
 	setup_irq(irq, &tc_irqaction);
 

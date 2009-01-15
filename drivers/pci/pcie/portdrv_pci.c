@@ -41,7 +41,6 @@ static int pcie_portdrv_restore_config(struct pci_dev *dev)
 {
 	int retval;
 
-	pci_restore_state(dev);
 	retval = pci_enable_device(dev);
 	if (retval)
 		return retval;
@@ -52,11 +51,18 @@ static int pcie_portdrv_restore_config(struct pci_dev *dev)
 #ifdef CONFIG_PM
 static int pcie_portdrv_suspend(struct pci_dev *dev, pm_message_t state)
 {
-	int ret = pcie_port_device_suspend(dev, state);
+	return pcie_port_device_suspend(dev, state);
 
-	if (!ret)
-		ret = pcie_portdrv_save_config(dev);
-	return ret;
+}
+
+static int pcie_portdrv_suspend_late(struct pci_dev *dev, pm_message_t state)
+{
+	return pci_save_state(dev);
+}
+
+static int pcie_portdrv_resume_early(struct pci_dev *dev)
+{
+	return pci_restore_state(dev);
 }
 
 static int pcie_portdrv_resume(struct pci_dev *dev)
@@ -66,6 +72,8 @@ static int pcie_portdrv_resume(struct pci_dev *dev)
 }
 #else
 #define pcie_portdrv_suspend NULL
+#define pcie_portdrv_suspend_late NULL
+#define pcie_portdrv_resume_early NULL
 #define pcie_portdrv_resume NULL
 #endif
 
@@ -221,6 +229,7 @@ static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 
 	/* If fatal, restore cfg space for possible link reset at upstream */
 	if (dev->error_state == pci_channel_io_frozen) {
+		pci_restore_state(dev);
 		pcie_portdrv_restore_config(dev);
 		pci_enable_pcie_error_reporting(dev);
 	}
@@ -283,6 +292,8 @@ static struct pci_driver pcie_portdriver = {
 	.remove		= pcie_portdrv_remove,
 
 	.suspend	= pcie_portdrv_suspend,
+	.suspend_late	= pcie_portdrv_suspend_late,
+	.resume_early	= pcie_portdrv_resume_early,
 	.resume		= pcie_portdrv_resume,
 
 	.err_handler 	= &pcie_portdrv_err_handler,

@@ -73,8 +73,8 @@ int alloc_event_buffer(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&oprofilefs_lock, flags);
-	buffer_size = fs_buffer_size;
-	buffer_watershed = fs_buffer_watershed;
+	buffer_size = oprofile_buffer_size;
+	buffer_watershed = oprofile_buffer_watershed;
 	spin_unlock_irqrestore(&oprofilefs_lock, flags);
 
 	if (buffer_watershed >= buffer_size)

@@ -1080,7 +1080,7 @@ static int stv680_newframe (struct usb_stv *stv680, int framenr)
  * Video4Linux
  *********************************************************************/
 
-static int stv_open (struct inode *inode, struct file *file)
+static int stv_open(struct file *file)
 {
 	struct video_device *dev = video_devdata(file);
 	struct usb_stv *stv680 = video_get_drvdata(dev);
@@ -1106,7 +1106,7 @@ static int stv_open (struct inode *inode, struct file *file)
 	return err;
 }
 
-static int stv_close (struct inode *inode, struct file *file)
+static int stv_close(struct file *file)
 {
 	struct video_device *dev = file->private_data;
 	struct usb_stv *stv680 = video_get_drvdata(dev);
@@ -1132,7 +1132,7 @@ static int stv_close (struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int stv680_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long stv680_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = file->private_data;
 	struct usb_stv *stv680 = video_get_drvdata(vdev);
@@ -1299,7 +1299,7 @@ static int stv680_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int stv680_ioctl(struct inode *inode, struct file *file,
+static long stv680_ioctl(struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, stv680_do_ioctl);
@@ -1391,17 +1391,13 @@ static ssize_t stv680_read (struct file *file, char __user *buf,
 	return realcount;
 }				/* stv680_read */
 
-static const struct file_operations stv680_fops = {
+static const struct v4l2_file_operations stv680_fops = {
 	.owner =	THIS_MODULE,
 	.open =		stv_open,
 	.release =     	stv_close,
 	.read =		stv680_read,
 	.mmap =		stv680_mmap,
 	.ioctl =        stv680_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l_compat_ioctl32,
-#endif
-	.llseek =       no_llseek,
 };
 static struct video_device stv680_template = {
 	.name =		"STV0680 USB camera",

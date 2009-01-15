@@ -132,11 +132,6 @@ static int bad_file_check_flags(int flags)
 	return -EIO;
 }
 
-static int bad_file_dir_notify(struct file *file, unsigned long arg)
-{
-	return -EIO;
-}
-
 static int bad_file_flock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	return -EIO;
@@ -179,7 +174,6 @@ static const struct file_operations bad_file_ops =
 	.sendpage	= bad_file_sendpage,
 	.get_unmapped_area = bad_file_get_unmapped_area,
 	.check_flags	= bad_file_check_flags,
-	.dir_notify	= bad_file_dir_notify,
 	.flock		= bad_file_flock,
 	.splice_write	= bad_file_splice_write,
 	.splice_read	= bad_file_splice_read,

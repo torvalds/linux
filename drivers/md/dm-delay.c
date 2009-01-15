@@ -364,11 +364,7 @@ bad_queue:
 
 static void __exit dm_delay_exit(void)
 {
-	int r = dm_unregister_target(&delay_target);
-
-	if (r < 0)
-		DMERR("unregister failed %d", r);
-
+	dm_unregister_target(&delay_target);
 	kmem_cache_destroy(delayed_cache);
 	destroy_workqueue(kdelayd_wq);
 }

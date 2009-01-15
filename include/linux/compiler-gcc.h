@@ -11,9 +11,19 @@
 /* The "volatile" is due to gcc bugs */
 #define barrier() __asm__ __volatile__("": : :"memory")
 
-/* This macro obfuscates arithmetic on a variable address so that gcc
-   shouldn't recognize the original var, and make assumptions about it */
 /*
+ * This macro obfuscates arithmetic on a variable address so that gcc
+ * shouldn't recognize the original var, and make assumptions about it.
+ *
+ * This is needed because the C standard makes it undefined to do
+ * pointer arithmetic on "objects" outside their boundaries and the
+ * gcc optimizers assume this is the case. In particular they
+ * assume such arithmetic does not wrap.
+ *
+ * A miscompilation has been observed because of this on PPC.
+ * To work around it we hide the relationship of the pointer and the object
+ * using this macro.
+ *
  * Versions of the ppc64 compiler before 4.1 had a bug where use of
  * RELOC_HIDE could trash r30. The bug can be worked around by changing
  * the inline assembly constraint from =g to =r, in this particular
@@ -61,3 +71,8 @@
 #define  noinline			__attribute__((noinline))
 #define __attribute_const__		__attribute__((__const__))
 #define __maybe_unused			__attribute__((unused))
+
+#define __gcc_header(x) #x
+#define _gcc_header(x) __gcc_header(linux/compiler-gcc##x.h)
+#define gcc_header(x) _gcc_header(x)
+#include gcc_header(__GNUC__)

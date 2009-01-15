@@ -21,7 +21,6 @@ struct pagevec {
 };
 
 void __pagevec_release(struct pagevec *pvec);
-void __pagevec_release_nonlru(struct pagevec *pvec);
 void __pagevec_free(struct pagevec *pvec);
 void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru);
 void pagevec_strip(struct pagevec *pvec);
@@ -67,12 +66,6 @@ static inline void pagevec_release(struct pagevec *pvec)
 {
 	if (pagevec_count(pvec))
 		__pagevec_release(pvec);
-}
-
-static inline void pagevec_release_nonlru(struct pagevec *pvec)
-{
-	if (pagevec_count(pvec))
-		__pagevec_release_nonlru(pvec);
 }
 
 static inline void pagevec_free(struct pagevec *pvec)

@@ -22,6 +22,7 @@
 #include <linux/bootmem.h>
 #include <linux/inotify.h>
 #include <linux/mount.h>
+#include <linux/async.h>
 
 /*
  * This is needed for the following functions:
@@ -110,8 +111,8 @@ static void wake_up_inode(struct inode *inode)
 
 /**
  * inode_init_always - perform inode structure intialisation
- * @sb		- superblock inode belongs to.
- * @inode	- inode to initialise
+ * @sb: superblock inode belongs to
+ * @inode: inode to initialise
  *
  * These are initializations that need to be done on every inode
  * allocation as the fields are not initialised by slab allocation.
@@ -131,6 +132,8 @@ struct inode *inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->i_op = &empty_iops;
 	inode->i_fop = &empty_fops;
 	inode->i_nlink = 1;
+	inode->i_uid = 0;
+	inode->i_gid = 0;
 	atomic_set(&inode->i_writecount, 0);
 	inode->i_size = 0;
 	inode->i_blocks = 0;
@@ -164,7 +167,7 @@ struct inode *inode_init_always(struct super_block *sb, struct inode *inode)
 	mapping->a_ops = &empty_aops;
 	mapping->host = inode;
 	mapping->flags = 0;
-	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_PAGECACHE);
+	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
 	mapping->assoc_mapping = NULL;
 	mapping->backing_dev_info = &default_backing_dev_info;
 	mapping->writeback_index = 0;
@@ -574,8 +577,8 @@ __inode_add_to_lists(struct super_block *sb, struct hlist_head *head,
 
 /**
  * inode_add_to_lists - add a new inode to relevant lists
- * @sb		- superblock inode belongs to.
- * @inode	- inode to mark in use
+ * @sb: superblock inode belongs to
+ * @inode: inode to mark in use
  *
  * When an inode is allocated it needs to be accounted for, added to the in use
  * list, the owning superblock and the inode hash. This needs to be done under
@@ -599,7 +602,7 @@ EXPORT_SYMBOL_GPL(inode_add_to_lists);
  *	@sb: superblock
  *
  *	Allocates a new inode for given superblock. The default gfp_mask
- *	for allocations related to inode->i_mapping is GFP_HIGHUSER_PAGECACHE.
+ *	for allocations related to inode->i_mapping is GFP_HIGHUSER_MOVABLE.
  *	If HIGHMEM pages are unsuitable or it is known that pages allocated
  *	for the page cache are not reclaimable or migratable,
  *	mapping_set_gfp_mask() must be called with suitable flags on the
@@ -1031,6 +1034,65 @@ struct inode *iget_locked(struct super_block *sb, unsigned long ino)
 }
 
 EXPORT_SYMBOL(iget_locked);
+
+int insert_inode_locked(struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+	ino_t ino = inode->i_ino;
+	struct hlist_head *head = inode_hashtable + hash(sb, ino);
+	struct inode *old;
+
+	inode->i_state |= I_LOCK|I_NEW;
+	while (1) {
+		spin_lock(&inode_lock);
+		old = find_inode_fast(sb, head, ino);
+		if (likely(!old)) {
+			hlist_add_head(&inode->i_hash, head);
+			spin_unlock(&inode_lock);
+			return 0;
+		}
+		__iget(old);
+		spin_unlock(&inode_lock);
+		wait_on_inode(old);
+		if (unlikely(!hlist_unhashed(&old->i_hash))) {
+			iput(old);
+			return -EBUSY;
+		}
+		iput(old);
+	}
+}
+
+EXPORT_SYMBOL(insert_inode_locked);
+
+int insert_inode_locked4(struct inode *inode, unsigned long hashval,
+		int (*test)(struct inode *, void *), void *data)
+{
+	struct super_block *sb = inode->i_sb;
+	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
+	struct inode *old;
+
+	inode->i_state |= I_LOCK|I_NEW;
+
+	while (1) {
+		spin_lock(&inode_lock);
+		old = find_inode(sb, head, test, data);
+		if (likely(!old)) {
+			hlist_add_head(&inode->i_hash, head);
+			spin_unlock(&inode_lock);
+			return 0;
+		}
+		__iget(old);
+		spin_unlock(&inode_lock);
+		wait_on_inode(old);
+		if (unlikely(!hlist_unhashed(&old->i_hash))) {
+			iput(old);
+			return -EBUSY;
+		}
+		iput(old);
+	}
+}
+
+EXPORT_SYMBOL(insert_inode_locked4);
 
 /**
  *	__insert_inode_hash - hash an inode

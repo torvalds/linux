@@ -99,7 +99,7 @@ static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 			     "st\t%%g0, [%0 + %3 + 0x3c]"
 			     : /* no outputs */
 			     : "r" (regs),
-			       "r" (sp - sizeof(struct reg_window)),
+			       "r" (sp - sizeof(struct reg_window32)),
 			       "r" (zero),
 			       "i" ((const unsigned long)(&((struct pt_regs *)0)->u_regs[0]))
 			     : "memory");

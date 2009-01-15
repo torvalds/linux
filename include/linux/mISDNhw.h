@@ -57,20 +57,21 @@
 #define FLG_L2DATA		14	/* channel use L2 DATA primitivs */
 #define FLG_ORIGIN		15	/* channel is on origin site */
 /* channel specific stuff */
+#define FLG_FILLEMPTY		16	/* fill fifo on first frame (empty) */
 /* arcofi specific */
-#define FLG_ARCOFI_TIMER	16
-#define FLG_ARCOFI_ERROR	17
+#define FLG_ARCOFI_TIMER	17
+#define FLG_ARCOFI_ERROR	18
 /* isar specific */
-#define FLG_INITIALIZED		16
-#define FLG_DLEETX		17
-#define FLG_LASTDLE		18
-#define FLG_FIRST		19
-#define FLG_LASTDATA		20
-#define FLG_NMD_DATA		21
-#define FLG_FTI_RUN		22
-#define FLG_LL_OK		23
-#define FLG_LL_CONN		24
-#define FLG_DTMFSEND		25
+#define FLG_INITIALIZED		17
+#define FLG_DLEETX		18
+#define FLG_LASTDLE		19
+#define FLG_FIRST		20
+#define FLG_LASTDATA		21
+#define FLG_NMD_DATA		22
+#define FLG_FTI_RUN		23
+#define FLG_LL_OK		24
+#define FLG_LL_CONN		25
+#define FLG_DTMFSEND		26
 
 /* workq events */
 #define FLG_RECVQUEUE		30
@@ -183,6 +184,7 @@ extern void	queue_ch_frame(struct mISDNchannel *, u_int,
 extern int	dchannel_senddata(struct dchannel *, struct sk_buff *);
 extern int	bchannel_senddata(struct bchannel *, struct sk_buff *);
 extern void	recv_Dchannel(struct dchannel *);
+extern void	recv_Echannel(struct dchannel *, struct dchannel *);
 extern void	recv_Bchannel(struct bchannel *);
 extern void	recv_Dchannel_skb(struct dchannel *, struct sk_buff *);
 extern void	recv_Bchannel_skb(struct bchannel *, struct sk_buff *);

@@ -9,8 +9,7 @@
 #endif
 
 #include <linux/types.h>
-#include <linux/byteorder/swab.h>
-#include <linux/byteorder/swabb.h>
+#include <linux/swab.h>
 
 #define __constant_htonl(x) ((__force __be32)___constant_swab32((x)))
 #define __constant_ntohl(x) ___constant_swab32((__force __be32)(x))

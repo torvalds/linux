@@ -143,6 +143,14 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "M606"),
 		},
 	},
+	{
+		.ident = "Gigabyte M912",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "M912"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "01"),
+		},
+	},
 	{ }
 };
 
@@ -349,6 +357,13 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "COMPAL"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "HEL80I"),
+		},
+	},
+	{
+		.ident = "Dell Vostro 1510",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro1510"),
 		},
 	},
 	{ }

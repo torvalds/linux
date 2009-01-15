@@ -3836,7 +3836,7 @@ static int reset_atmel_card(struct net_device *dev)
 	   This routine is also responsible for initialising some
 	   hardware-specific fields in the atmel_private structure,
 	   including a copy of the firmware's hostinfo stucture
-	   which is the route into the rest of the firmare datastructures. */
+	   which is the route into the rest of the firmware datastructures. */
 
 	struct atmel_private *priv = netdev_priv(dev);
 	u8 configuration;

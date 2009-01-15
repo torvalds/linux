@@ -855,10 +855,6 @@ root_found:
 	}
 	sbi->s_joliet_level = joliet_level;
 
-	/* check the root inode */
-	if (!inode->i_op)
-		goto out_bad_root;
-
 	/* Make sure the root inode is a directory */
 	if (!S_ISDIR(inode->i_mode)) {
 		printk(KERN_WARNING
@@ -886,8 +882,6 @@ root_found:
 	/*
 	 * Display error messages and free resources.
 	 */
-out_bad_root:
-	printk(KERN_WARNING "%s: root inode not initialized\n", __func__);
 out_iput:
 	iput(inode);
 	goto out_no_inode;

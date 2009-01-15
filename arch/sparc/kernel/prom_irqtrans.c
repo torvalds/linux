@@ -346,7 +346,7 @@ static void tomatillo_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
 			break;
 	}
 	if (limit <= 0) {
-		printk("tomatillo_wsync_handler: DMA won't sync [%lx:%lx]\n",
+		printk("tomatillo_wsync_handler: DMA won't sync [%llx:%llx]\n",
 		       val, mask);
 	}
 

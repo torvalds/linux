@@ -160,9 +160,9 @@
  *         Work around byte swap bug in one of the Vaio's BIOS's
  *         (Marc Boucher <marc@mbsi.ca>).
  *         Exposed the disable flag to dmi so that we can handle known
- *         broken APM (Alan Cox <alan@redhat.com>).
+ *         broken APM (Alan Cox <alan@lxorguk.ukuu.org.uk>).
  *   1.14ac: If the BIOS says "I slowed the CPU down" then don't spin
- *         calling it - instead idle. (Alan Cox <alan@redhat.com>)
+ *         calling it - instead idle. (Alan Cox <alan@lxorguk.ukuu.org.uk>)
  *         If an APM idle fails log it and idle sensibly
  *   1.15: Don't queue events to clients who open the device O_WRONLY.
  *         Don't expect replies from clients who open the device O_RDONLY.

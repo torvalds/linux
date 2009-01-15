@@ -294,7 +294,8 @@ NOTE: pci_enable_device() can fail! Check the return value.
 
 pci_set_master() will enable DMA by setting the bus master bit
 in the PCI_COMMAND register. It also fixes the latency timer value if
-it's set to something bogus by the BIOS.
+it's set to something bogus by the BIOS.  pci_clear_master() will
+disable DMA by clearing the bus master bit.
 
 If the PCI device can use the PCI Memory-Write-Invalidate transaction,
 call pci_set_mwi().  This enables the PCI_COMMAND bit for Mem-Wr-Inval

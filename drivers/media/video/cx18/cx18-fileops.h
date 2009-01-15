@@ -22,12 +22,12 @@
  */
 
 /* Testing/Debugging */
-int cx18_v4l2_open(struct inode *inode, struct file *filp);
+int cx18_v4l2_open(struct file *filp);
 ssize_t cx18_v4l2_read(struct file *filp, char __user *buf, size_t count,
 		      loff_t *pos);
 ssize_t cx18_v4l2_write(struct file *filp, const char __user *buf, size_t count,
 		       loff_t *pos);
-int cx18_v4l2_close(struct inode *inode, struct file *filp);
+int cx18_v4l2_close(struct file *filp);
 unsigned int cx18_v4l2_enc_poll(struct file *filp, poll_table *wait);
 int cx18_start_capture(struct cx18_open_id *id);
 void cx18_stop_capture(struct cx18_open_id *id, int gop_end);

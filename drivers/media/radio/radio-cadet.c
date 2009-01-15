@@ -529,7 +529,7 @@ static int vidioc_s_audio(struct file *file, void *priv,
 }
 
 static int
-cadet_open(struct inode *inode, struct file *file)
+cadet_open(struct file *file)
 {
 	users++;
 	if (1 == users) init_waitqueue_head(&read_queue);
@@ -537,7 +537,7 @@ cadet_open(struct inode *inode, struct file *file)
 }
 
 static int
-cadet_release(struct inode *inode, struct file *file)
+cadet_release(struct file *file)
 {
 	users--;
 	if (0 == users){
@@ -557,17 +557,13 @@ cadet_poll(struct file *file, struct poll_table_struct *wait)
 }
 
 
-static const struct file_operations cadet_fops = {
+static const struct v4l2_file_operations cadet_fops = {
 	.owner		= THIS_MODULE,
 	.open		= cadet_open,
 	.release       	= cadet_release,
 	.read		= cadet_read,
 	.ioctl		= video_ioctl2,
 	.poll		= cadet_poll,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek         = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops cadet_ioctl_ops = {

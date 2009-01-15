@@ -214,7 +214,7 @@ static int __devinit d7s_probe(struct of_device *op,
 
 	writeb(regs,  p->regs);
 
-	printk(KERN_INFO PFX "7-Segment Display%s at [%s:0x%lx] %s\n", 
+	printk(KERN_INFO PFX "7-Segment Display%s at [%s:0x%llx] %s\n",
 	       op->node->full_name,
 	       (regs & D7S_FLIP) ? " (FLIPPED)" : "",
 	       op->resource[0].start,

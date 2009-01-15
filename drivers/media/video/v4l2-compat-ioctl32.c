@@ -222,9 +222,9 @@ static int get_microcode32(struct video_code *kp, struct video_code32 __user *up
 
 #endif
 
-static int native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	int ret = -ENOIOCTLCMD;
+	long ret = -ENOIOCTLCMD;
 
 	if (file->f_op->unlocked_ioctl)
 		ret = file->f_op->unlocked_ioctl(file, cmd, arg);
@@ -705,7 +705,7 @@ static int put_v4l2_ext_controls32(struct v4l2_ext_controls *kp, struct v4l2_ext
 #define VIDIOC_G_OUTPUT32	_IOR ('V', 46, s32)
 #define VIDIOC_S_OUTPUT32	_IOWR('V', 47, s32)
 
-static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	union {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
@@ -726,7 +726,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	} karg;
 	void __user *up = compat_ptr(arg);
 	int compatible_arg = 1;
-	int err = 0;
+	long err = 0;
 
 	/* First, convert the command. */
 	switch (cmd) {
@@ -937,9 +937,9 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	return err;
 }
 
-long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
+long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	int ret = -ENOIOCTLCMD;
+	long ret = -ENOIOCTLCMD;
 
 	if (!file->f_op->ioctl && !file->f_op->unlocked_ioctl)
 		return ret;
@@ -1046,7 +1046,8 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOC_TRY_ENCODER_CMD:
 	case VIDIOC_DBG_S_REGISTER:
 	case VIDIOC_DBG_G_REGISTER:
-	case VIDIOC_G_CHIP_IDENT:
+	case VIDIOC_DBG_G_CHIP_IDENT:
+	case VIDIOC_G_CHIP_IDENT_OLD:
 	case VIDIOC_S_HW_FREQ_SEEK:
 		ret = do_video_ioctl(file, cmd, arg);
 		break;
@@ -1065,18 +1066,14 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 #endif
 	default:
-		v4l_print_ioctl("compat_ioctl32", cmd);
-		printk(KERN_CONT "\n");
+		printk(KERN_WARNING "compat_ioctl32: "
+			"unknown ioctl '%c', dir=%d, #%d (0x%08x)\n",
+			_IOC_TYPE(cmd), _IOC_DIR(cmd), _IOC_NR(cmd), cmd);
 		break;
 	}
 	return ret;
 }
-#else
-long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
-}
+EXPORT_SYMBOL_GPL(v4l2_compat_ioctl32);
 #endif
-EXPORT_SYMBOL_GPL(v4l_compat_ioctl32);
 
 MODULE_LICENSE("GPL");

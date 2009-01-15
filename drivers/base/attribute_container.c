@@ -167,7 +167,7 @@ attribute_container_add_device(struct device *dev,
 		ic->classdev.parent = get_device(dev);
 		ic->classdev.class = cont->class;
 		cont->class->dev_release = attribute_container_release;
-		strcpy(ic->classdev.bus_id, dev->bus_id);
+		dev_set_name(&ic->classdev, dev_name(dev));
 		if (fn)
 			fn(cont, dev, &ic->classdev);
 		else

@@ -3,9 +3,10 @@
 #
 
 dm-mod-objs	:= dm.o dm-table.o dm-target.o dm-linear.o dm-stripe.o \
-		   dm-ioctl.o dm-io.o dm-kcopyd.o
+		   dm-ioctl.o dm-io.o dm-kcopyd.o dm-sysfs.o
 dm-multipath-objs := dm-path-selector.o dm-mpath.o
-dm-snapshot-objs := dm-snap.o dm-exception-store.o
+dm-snapshot-objs := dm-snap.o dm-exception-store.o dm-snap-transient.o \
+		    dm-snap-persistent.o
 dm-mirror-objs	:= dm-raid1.o
 md-mod-objs     := md.o bitmap.o
 raid456-objs	:= raid5.o raid6algos.o raid6recov.o raid6tables.o \

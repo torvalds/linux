@@ -95,7 +95,7 @@ config GPIO_MAX732X
 	  number for these GPIOs.
 
 config GPIO_PCA953X
-	tristate "PCA953x, PCA955x, and MAX7310 I/O ports"
+	tristate "PCA953x, PCA955x, TCA64xx, and MAX7310 I/O ports"
 	depends on I2C
 	help
 	  Say yes here to provide access to several register-oriented
@@ -104,9 +104,10 @@ config GPIO_PCA953X
 
 	  4 bits:	pca9536, pca9537
 
-	  8 bits:	max7310, pca9534, pca9538, pca9554, pca9557
+	  8 bits:	max7310, pca9534, pca9538, pca9554, pca9557,
+	  		tca6408
 
-	  16 bits:	pca9535, pca9539, pca9555
+	  16 bits:	pca9535, pca9539, pca9555, tca6416
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called pca953x.

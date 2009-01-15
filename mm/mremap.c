@@ -3,7 +3,7 @@
  *
  *	(C) Copyright 1996 Linus Torvalds
  *
- *	Address space accounting code	<alan@redhat.com>
+ *	Address space accounting code	<alan@lxorguk.ukuu.org.uk>
  *	(C) Copyright 2002 Red Hat Inc, All Rights Reserved
  */
 

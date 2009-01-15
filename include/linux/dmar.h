@@ -144,7 +144,6 @@ struct dmar_rmrr_unit {
 	list_for_each_entry(rmrr, &dmar_rmrr_units, list)
 /* Intel DMAR  initialization functions */
 extern int intel_iommu_init(void);
-extern int dmar_disabled;
 #else
 static inline int intel_iommu_init(void)
 {

@@ -124,7 +124,7 @@ config options.
     This option can be kernel module too.
 
 --------------------------------
-3 sysfs files for memory hotplug
+4 sysfs files for memory hotplug
 --------------------------------
 All sections have their device information under /sys/devices/system/memory as
 
@@ -138,11 +138,12 @@ For example, assume 1GiB section size. A device for a memory starting at
 (0x100000000 / 1Gib = 4)
 This device covers address range [0x100000000 ... 0x140000000)
 
-Under each section, you can see 3 files.
+Under each section, you can see 4 files.
 
 /sys/devices/system/memory/memoryXXX/phys_index
 /sys/devices/system/memory/memoryXXX/phys_device
 /sys/devices/system/memory/memoryXXX/state
+/sys/devices/system/memory/memoryXXX/removable
 
 'phys_index' : read-only and contains section id, same as XXX.
 'state'      : read-write
@@ -150,10 +151,20 @@ Under each section, you can see 3 files.
                at write: user can specify "online", "offline" command
 'phys_device': read-only: designed to show the name of physical memory device.
                This is not well implemented now.
+'removable'  : read-only: contains an integer value indicating
+               whether the memory section is removable or not
+               removable.  A value of 1 indicates that the memory
+               section is removable and a value of 0 indicates that
+               it is not removable.
 
 NOTE:
   These directories/files appear after physical memory hotplug phase.
 
+If CONFIG_NUMA is enabled the
+/sys/devices/system/memory/memoryXXX memory section
+directories can also be accessed via symbolic links located in
+the /sys/devices/system/node/node* directories.  For example:
+/sys/devices/system/node/node0/memory9 -> ../../memory/memory9
 
 --------------------------------
 4. Physical memory hot-add phase
@@ -365,7 +376,6 @@ node if necessary.
   - allowing memory hot-add to ZONE_MOVABLE. maybe we need some switch like
     sysctl or new control file.
   - showing memory section and physical device relationship.
-  - showing memory section and node relationship (maybe good for NUMA)
   - showing memory section is under ZONE_MOVABLE or not
   - test and make it better memory offlining.
   - support HugeTLB page migration and offlining.

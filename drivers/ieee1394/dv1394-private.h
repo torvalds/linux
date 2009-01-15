@@ -77,11 +77,11 @@ static inline void fill_cip_header(struct CIP_header *cip,
    See the Texas Instruments OHCI 1394 chipset documentation.
 */
 
-struct output_more_immediate { u32 q[8]; };
-struct output_more { u32 q[4]; };
-struct output_last { u32 q[4]; };
-struct input_more { u32 q[4]; };
-struct input_last { u32 q[4]; };
+struct output_more_immediate { __le32 q[8]; };
+struct output_more { __le32 q[4]; };
+struct output_last { __le32 q[4]; };
+struct input_more { __le32 q[4]; };
+struct input_last { __le32 q[4]; };
 
 /* outputs */
 
@@ -92,9 +92,9 @@ static inline void fill_output_more_immediate(struct output_more_immediate *omi,
 					      unsigned int  payload_size)
 {
 	omi->q[0] = cpu_to_le32(0x02000000 | 8); /* OUTPUT_MORE_IMMEDIATE; 8 is the size of the IT header */
-	omi->q[1] = 0;
-	omi->q[2] = 0;
-	omi->q[3] = 0;
+	omi->q[1] = cpu_to_le32(0);
+	omi->q[2] = cpu_to_le32(0);
+	omi->q[3] = cpu_to_le32(0);
 
 	/* IT packet header */
 	omi->q[4] = cpu_to_le32(  (0x0 << 16)  /* IEEE1394_SPEED_100 */
@@ -106,8 +106,8 @@ static inline void fill_output_more_immediate(struct output_more_immediate *omi,
 	/* reserved field; mimic behavior of my Sony DSR-40 */
 	omi->q[5] = cpu_to_le32((payload_size << 16) | (0x7F << 8) | 0xA0);
 
-	omi->q[6] = 0;
-	omi->q[7] = 0;
+	omi->q[6] = cpu_to_le32(0);
+	omi->q[7] = cpu_to_le32(0);
 }
 
 static inline void fill_output_more(struct output_more *om,
@@ -116,8 +116,8 @@ static inline void fill_output_more(struct output_more *om,
 {
 	om->q[0] = cpu_to_le32(data_size);
 	om->q[1] = cpu_to_le32(data_phys_addr);
-	om->q[2] = 0;
-	om->q[3] = 0;
+	om->q[2] = cpu_to_le32(0);
+	om->q[3] = cpu_to_le32(0);
 }
 
 static inline void fill_output_last(struct output_last *ol,
@@ -140,8 +140,8 @@ static inline void fill_output_last(struct output_last *ol,
 
 	ol->q[0] = cpu_to_le32(temp);
 	ol->q[1] = cpu_to_le32(data_phys_addr);
-	ol->q[2] = 0;
-	ol->q[3] = 0;
+	ol->q[2] = cpu_to_le32(0);
+	ol->q[3] = cpu_to_le32(0);
 }
 
 /* inputs */
@@ -161,8 +161,8 @@ static inline void fill_input_more(struct input_more *im,
 
 	im->q[0] = cpu_to_le32(temp);
 	im->q[1] = cpu_to_le32(data_phys_addr);
-	im->q[2] = 0; /* branchAddress and Z not use in packet-per-buffer mode */
-	im->q[3] = 0; /* xferStatus & resCount, resCount must be initialize to data_size */
+	im->q[2] = cpu_to_le32(0); /* branchAddress and Z not use in packet-per-buffer mode */
+	im->q[3] = cpu_to_le32(0); /* xferStatus & resCount, resCount must be initialize to data_size */
 }
  
 static inline void fill_input_last(struct input_last *il,
@@ -331,7 +331,7 @@ struct frame {
 
 	/* points to status/timestamp field of first DMA packet */
 	/* (we'll check it later to monitor timestamp accuracy) */
-	u32 *frame_begin_timestamp;
+	__le32 *frame_begin_timestamp;
 
 	/* the timestamp we assigned to the first packet in the frame */
 	u32 assigned_timestamp;
@@ -348,15 +348,15 @@ struct frame {
 	   that can cause interrupts. We'll check these from the
 	   interrupt handler.
 	*/
-	u32 *mid_frame_timestamp;
-	u32 *frame_end_timestamp;
+	__le32 *mid_frame_timestamp;
+	__le32 *frame_end_timestamp;
 
 	/* branch address field of final packet. This is effectively
 	   the "tail" in the chain of DMA descriptor blocks.
 	   We will fill it with the address of the first DMA descriptor
 	   block in the subsequent frame, once it is ready.
 	*/
-	u32 *frame_end_branch;
+	__le32 *frame_end_branch;
 
 	/* the number of descriptors in the first descriptor block
 	   of the frame. Needed to start DMA */
@@ -365,10 +365,10 @@ struct frame {
 
 
 struct packet {
-	u16	timestamp;
+	__le16	timestamp;
 	u16	invalid;
 	u16	iso_header;
-	u16	data_length;
+	__le16	data_length;
 	u32	cip_h1;
 	u32	cip_h2;
 	unsigned char data[480];

@@ -3,7 +3,7 @@ protocol of kernel. These should be filled by bootloader or 16-bit
 real-mode setup code of the kernel. References/settings to it mainly
 are in:
 
-  include/asm-x86/bootparam.h
+  arch/x86/include/asm/bootparam.h
 
 
 Offset	Proto	Name		Meaning

@@ -21,7 +21,7 @@
  * the core reset.
  */
 __attribute__((l1_text))
-static void bfin_reset(void)
+static void _bfin_reset(void)
 {
 	/* Wait for completion of "system" events such as cache line
 	 * line fills so that we avoid infinite stalls later on as
@@ -66,6 +66,18 @@ static void bfin_reset(void)
 	}
 }
 
+static void bfin_reset(void)
+{
+	if (ANOMALY_05000353 || ANOMALY_05000386)
+		_bfin_reset();
+	else
+		/* the bootrom checks to see how it was reset and will
+		 * automatically perform a software reset for us when
+		 * it starts executing boot
+		 */
+		asm("raise 1;");
+}
+
 __attribute__((weak))
 void native_machine_restart(char *cmd)
 {
@@ -75,14 +87,10 @@ void machine_restart(char *cmd)
 {
 	native_machine_restart(cmd);
 	local_irq_disable();
-	if (ANOMALY_05000353 || ANOMALY_05000386)
-		bfin_reset();
+	if (smp_processor_id())
+		smp_call_function((void *)bfin_reset, 0, 1);
 	else
-		/* the bootrom checks to see how it was reset and will
-		 * automatically perform a software reset for us when
-		 * it starts executing boot
-		 */
-		asm("raise 1;");
+		bfin_reset();
 }
 
 __attribute__((weak))

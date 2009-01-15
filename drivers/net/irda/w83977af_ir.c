@@ -102,7 +102,6 @@ static int  w83977af_is_receiving(struct w83977af_ir *self);
 static int  w83977af_net_open(struct net_device *dev);
 static int  w83977af_net_close(struct net_device *dev);
 static int  w83977af_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static struct net_device_stats *w83977af_net_get_stats(struct net_device *dev);
 
 /*
  * Function w83977af_init ()
@@ -237,7 +236,6 @@ static int w83977af_open(int i, unsigned int iobase, unsigned int irq,
 	dev->open            = w83977af_net_open;
 	dev->stop            = w83977af_net_close;
 	dev->do_ioctl        = w83977af_net_ioctl;
-	dev->get_stats	     = w83977af_net_get_stats;
 
 	err = register_netdev(dev);
 	if (err) {
@@ -702,13 +700,13 @@ static void w83977af_dma_xmit_complete(struct w83977af_ir *self)
 	if (inb(iobase+AUDR) & AUDR_UNDR) {
 		IRDA_DEBUG(0, "%s(), Transmit underrun!\n", __func__ );
 		
-		self->stats.tx_errors++;
-		self->stats.tx_fifo_errors++;
+		self->netdev->stats.tx_errors++;
+		self->netdev->stats.tx_fifo_errors++;
 
 		/* Clear bit, by writing 1 to it */
 		outb(AUDR_UNDR, iobase+AUDR);
 	} else
-		self->stats.tx_packets++;
+		self->netdev->stats.tx_packets++;
 
 	
 	if (self->new_speed) {
@@ -846,28 +844,28 @@ static int w83977af_dma_receive_complete(struct w83977af_ir *self)
 		if (status & FS_FO_ERR_MSK) {
 			if (status & FS_FO_LST_FR) {
 				/* Add number of lost frames to stats */
-				self->stats.rx_errors += len;	
+				self->netdev->stats.rx_errors += len;
 			} else {
 				/* Skip frame */
-				self->stats.rx_errors++;
+				self->netdev->stats.rx_errors++;
 				
 				self->rx_buff.data += len;
 				
 				if (status & FS_FO_MX_LEX)
-					self->stats.rx_length_errors++;
+					self->netdev->stats.rx_length_errors++;
 				
 				if (status & FS_FO_PHY_ERR) 
-					self->stats.rx_frame_errors++;
+					self->netdev->stats.rx_frame_errors++;
 				
 				if (status & FS_FO_CRC_ERR) 
-					self->stats.rx_crc_errors++;
+					self->netdev->stats.rx_crc_errors++;
 			}
 			/* The errors below can be reported in both cases */
 			if (status & FS_FO_RX_OV)
-				self->stats.rx_fifo_errors++;
+				self->netdev->stats.rx_fifo_errors++;
 			
 			if (status & FS_FO_FSF_OV)
-				self->stats.rx_fifo_errors++;
+				self->netdev->stats.rx_fifo_errors++;
 			
 		} else {
 			/* Check if we have transferred all data to memory */
@@ -917,7 +915,7 @@ static int w83977af_dma_receive_complete(struct w83977af_ir *self)
 
 			/* Move to next frame */
 			self->rx_buff.data += len;
-			self->stats.rx_packets++;
+			self->netdev->stats.rx_packets++;
 			
 			skb->dev = self->netdev;
 			skb_reset_mac_header(skb);
@@ -951,7 +949,7 @@ static void w83977af_pio_receive(struct w83977af_ir *self)
 	/*  Receive all characters in Rx FIFO */
 	do {
 		byte = inb(iobase+RBR);
-		async_unwrap_char(self->netdev, &self->stats, &self->rx_buff, 
+		async_unwrap_char(self->netdev, &self->netdev->stats, &self->rx_buff,
 				  byte);
 	} while (inb(iobase+USR) & USR_RDR); /* Data available */	
 }
@@ -994,7 +992,7 @@ static __u8 w83977af_sir_interrupt(struct w83977af_ir *self, int isr)
 			outb(AUDR_SFEND, iobase+AUDR);
 			outb(set, iobase+SSR); 
 
-			self->stats.tx_packets++;
+			self->netdev->stats.tx_packets++;
 
 			/* Feed me more packets */
 			netif_wake_queue(self->netdev);
@@ -1334,13 +1332,6 @@ static int w83977af_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 out:
 	spin_unlock_irqrestore(&self->lock, flags);
 	return ret;
-}
-
-static struct net_device_stats *w83977af_net_get_stats(struct net_device *dev)
-{
-	struct w83977af_ir *self = netdev_priv(dev);
-	
-	return &self->stats;
 }
 
 MODULE_AUTHOR("Dag Brattli <dagb@cs.uit.no>");

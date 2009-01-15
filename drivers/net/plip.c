@@ -265,6 +265,13 @@ static const struct header_ops plip_header_ops = {
 	.cache  = plip_hard_header_cache,
 };
 
+static const struct net_device_ops plip_netdev_ops = {
+	.ndo_open		 = plip_open,
+	.ndo_stop		 = plip_close,
+	.ndo_start_xmit		 = plip_tx_packet,
+	.ndo_do_ioctl		 = plip_ioctl,
+};
+
 /* Entry point of PLIP driver.
    Probe the hardware, and register/initialize the driver.
 
@@ -280,15 +287,11 @@ plip_init_netdev(struct net_device *dev)
 	struct net_local *nl = netdev_priv(dev);
 
 	/* Then, override parts of it */
-	dev->hard_start_xmit	 = plip_tx_packet;
-	dev->open		 = plip_open;
-	dev->stop		 = plip_close;
-	dev->do_ioctl		 = plip_ioctl;
-
 	dev->tx_queue_len 	 = 10;
 	dev->flags	         = IFF_POINTOPOINT|IFF_NOARP;
 	memset(dev->dev_addr, 0xfc, ETH_ALEN);
 
+	dev->netdev_ops		 = &plip_netdev_ops;
 	dev->header_ops          = &plip_header_ops;
 
 

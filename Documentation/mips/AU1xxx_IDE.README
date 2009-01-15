@@ -44,7 +44,7 @@ FILES, CONFIGS AND COMPATABILITY
 
 Two files are introduced:
 
-  a) 'include/asm-mips/mach-au1x00/au1xxx_ide.h'
+  a) 'arch/mips/include/asm/mach-au1x00/au1xxx_ide.h'
      containes : struct _auide_hwif
                  timing parameters for PIO mode 0/1/2/3/4
                  timing parameters for MWDMA 0/1/2

@@ -1,0 +1,2 @@
+source "fs/notify/dnotify/Kconfig"
+source "fs/notify/inotify/Kconfig"

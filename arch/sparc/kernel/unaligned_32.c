@@ -97,26 +97,26 @@ static inline int sign_extend_imm13(int imm)
 
 static inline unsigned long fetch_reg(unsigned int reg, struct pt_regs *regs)
 {
-	struct reg_window *win;
+	struct reg_window32 *win;
 
 	if(reg < 16)
 		return (!reg ? 0 : regs->u_regs[reg]);
 
 	/* Ho hum, the slightly complicated case. */
-	win = (struct reg_window *) regs->u_regs[UREG_FP];
+	win = (struct reg_window32 *) regs->u_regs[UREG_FP];
 	return win->locals[reg - 16]; /* yes, I know what this does... */
 }
 
 static inline unsigned long safe_fetch_reg(unsigned int reg, struct pt_regs *regs)
 {
-	struct reg_window __user *win;
+	struct reg_window32 __user *win;
 	unsigned long ret;
 
 	if (reg < 16)
 		return (!reg ? 0 : regs->u_regs[reg]);
 
 	/* Ho hum, the slightly complicated case. */
-	win = (struct reg_window __user *) regs->u_regs[UREG_FP];
+	win = (struct reg_window32 __user *) regs->u_regs[UREG_FP];
 
 	if ((unsigned long)win & 3)
 		return -1;
@@ -129,11 +129,11 @@ static inline unsigned long safe_fetch_reg(unsigned int reg, struct pt_regs *reg
 
 static inline unsigned long *fetch_reg_addr(unsigned int reg, struct pt_regs *regs)
 {
-	struct reg_window *win;
+	struct reg_window32 *win;
 
 	if(reg < 16)
 		return &regs->u_regs[reg];
-	win = (struct reg_window *) regs->u_regs[UREG_FP];
+	win = (struct reg_window32 *) regs->u_regs[UREG_FP];
 	return &win->locals[reg - 16];
 }
 

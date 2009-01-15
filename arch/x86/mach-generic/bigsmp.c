@@ -42,9 +42,10 @@ static const struct dmi_system_id bigsmp_dmi_table[] = {
 	 { }
 };
 
-static cpumask_t vector_allocation_domain(int cpu)
+static void vector_allocation_domain(int cpu, cpumask_t *retmask)
 {
-        return cpumask_of_cpu(cpu);
+	cpus_clear(*retmask);
+	cpu_set(cpu, *retmask);
 }
 
 static int probe_bigsmp(void)

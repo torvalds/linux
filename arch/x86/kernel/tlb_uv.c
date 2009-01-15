@@ -582,7 +582,6 @@ static int __init uv_ptc_init(void)
 static struct bau_control * __init uv_table_bases_init(int blade, int node)
 {
 	int i;
-	int *ip;
 	struct bau_msg_status *msp;
 	struct bau_control *bau_tabp;
 
@@ -598,13 +597,6 @@ static struct bau_control * __init uv_table_bases_init(int blade, int node)
 	for (i = 0, msp = bau_tabp->msg_statuses; i < DEST_Q_SIZE; i++, msp++)
 		bau_cpubits_clear(&msp->seen_by, (int)
 				  uv_blade_nr_possible_cpus(blade));
-
-	bau_tabp->watching =
-	    kmalloc_node(sizeof(int) * DEST_NUM_RESOURCES, GFP_KERNEL, node);
-	BUG_ON(!bau_tabp->watching);
-
-	for (i = 0, ip = bau_tabp->watching; i < DEST_Q_SIZE; i++, ip++)
-		*ip = 0;
 
 	uv_bau_table_bases[blade] = bau_tabp;
 
@@ -628,7 +620,6 @@ uv_table_bases_finish(int blade, int node, int cur_cpu,
 		bcp->bau_msg_head	= bau_tablesp->va_queue_first;
 		bcp->va_queue_first	= bau_tablesp->va_queue_first;
 		bcp->va_queue_last	= bau_tablesp->va_queue_last;
-		bcp->watching		= bau_tablesp->watching;
 		bcp->msg_statuses	= bau_tablesp->msg_statuses;
 		bcp->descriptor_base	= adp;
 	}

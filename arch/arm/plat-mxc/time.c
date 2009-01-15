@@ -190,7 +190,7 @@ static int __init mxc_clockevent_init(void)
 	clockevent_mxc.min_delta_ns =
 			clockevent_delta2ns(0xff, &clockevent_mxc);
 
-	clockevent_mxc.cpumask = cpumask_of_cpu(0);
+	clockevent_mxc.cpumask = cpumask_of(0);
 
 	clockevents_register_device(&clockevent_mxc);
 

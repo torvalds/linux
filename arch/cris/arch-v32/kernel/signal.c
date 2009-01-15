@@ -456,7 +456,7 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-/* Invoke a singal handler to, well, handle the signal. */
+/* Invoke a signal handler to, well, handle the signal. */
 static inline int
 handle_signal(int canrestart, unsigned long sig,
 	      siginfo_t *info, struct k_sigaction *ka,

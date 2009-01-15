@@ -1016,10 +1016,7 @@ int do_pipe_flags(int *fd, int flags)
 		goto err_fdr;
 	fdw = error;
 
-	error = audit_fd_pair(fdr, fdw);
-	if (error < 0)
-		goto err_fdw;
-
+	audit_fd_pair(fdr, fdw);
 	fd_install(fdr, fr);
 	fd_install(fdw, fw);
 	fd[0] = fdr;
@@ -1027,8 +1024,6 @@ int do_pipe_flags(int *fd, int flags)
 
 	return 0;
 
- err_fdw:
-	put_unused_fd(fdw);
  err_fdr:
 	put_unused_fd(fdr);
  err_read_pipe:

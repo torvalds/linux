@@ -133,61 +133,61 @@ struct bau_msg_payload {
  * see table 4.2.3.0.1 in broacast_assist spec.
  */
 struct bau_msg_header {
-	int dest_subnodeid:6;	/* must be zero */
+	unsigned int dest_subnodeid:6;	/* must be zero */
 	/* bits 5:0 */
-	int base_dest_nodeid:15; /* nasid>>1 (pnode) of first bit in node_map */
-	/* bits 20:6 */
-	int command:8;		/* message type */
+	unsigned int base_dest_nodeid:15; /* nasid>>1 (pnode) of */
+	/* bits 20:6 */			  /* first bit in node_map */
+	unsigned int command:8;	/* message type */
 	/* bits 28:21 */
 				/* 0x38: SN3net EndPoint Message */
-	int rsvd_1:3;		/* must be zero */
+	unsigned int rsvd_1:3;	/* must be zero */
 	/* bits 31:29 */
 				/* int will align on 32 bits */
-	int rsvd_2:9;		/* must be zero */
+	unsigned int rsvd_2:9;	/* must be zero */
 	/* bits 40:32 */
 				/* Suppl_A is 56-41 */
-	int payload_2a:8;	/* becomes byte 16 of msg */
+	unsigned int payload_2a:8;/* becomes byte 16 of msg */
 	/* bits 48:41 */	/* not currently using */
-	int payload_2b:8;	/* becomes byte 17 of msg */
+	unsigned int payload_2b:8;/* becomes byte 17 of msg */
 	/* bits 56:49 */	/* not currently using */
 				/* Address field (96:57) is never used as an
 				   address (these are address bits 42:3) */
-	int rsvd_3:1;		/* must be zero */
+	unsigned int rsvd_3:1;	/* must be zero */
 	/* bit 57 */
 				/* address bits 27:4 are payload */
 				/* these 24 bits become bytes 12-14 of msg */
-	int replied_to:1;	/* sent as 0 by the source to byte 12 */
+	unsigned int replied_to:1;/* sent as 0 by the source to byte 12 */
 	/* bit 58 */
 
-	int payload_1a:5;	/* not currently used */
+	unsigned int payload_1a:5;/* not currently used */
 	/* bits 63:59 */
-	int payload_1b:8;	/* not currently used */
+	unsigned int payload_1b:8;/* not currently used */
 	/* bits 71:64 */
-	int payload_1c:8;	/* not currently used */
+	unsigned int payload_1c:8;/* not currently used */
 	/* bits 79:72 */
-	int payload_1d:2;	/* not currently used */
+	unsigned int payload_1d:2;/* not currently used */
 	/* bits 81:80 */
 
-	int rsvd_4:7;		/* must be zero */
+	unsigned int rsvd_4:7;	/* must be zero */
 	/* bits 88:82 */
-	int sw_ack_flag:1;	/* software acknowledge flag */
+	unsigned int sw_ack_flag:1;/* software acknowledge flag */
 	/* bit 89 */
 				/* INTD trasactions at destination are to
 				   wait for software acknowledge */
-	int rsvd_5:6;		/* must be zero */
+	unsigned int rsvd_5:6;	/* must be zero */
 	/* bits 95:90 */
-	int rsvd_6:5;		/* must be zero */
+	unsigned int rsvd_6:5;	/* must be zero */
 	/* bits 100:96 */
-	int int_both:1;		/* if 1, interrupt both sockets on the blade */
+	unsigned int int_both:1;/* if 1, interrupt both sockets on the blade */
 	/* bit 101*/
-	int fairness:3;		/* usually zero */
+	unsigned int fairness:3;/* usually zero */
 	/* bits 104:102 */
-	int multilevel:1;	/* multi-level multicast format */
+	unsigned int multilevel:1;	/* multi-level multicast format */
 	/* bit 105 */
 				/* 0 for TLB: endpoint multi-unicast messages */
-	int chaining:1;		/* next descriptor is part of this activation*/
+	unsigned int chaining:1;/* next descriptor is part of this activation*/
 	/* bit 106 */
-	int rsvd_7:21;		/* must be zero */
+	unsigned int rsvd_7:21;	/* must be zero */
 	/* bits 127:107 */
 };
 

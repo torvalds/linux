@@ -155,20 +155,12 @@ static struct property * __init build_one_prop(phandle node, char *prev,
 		p->value = prom_early_alloc(special_len);
 		memcpy(p->value, special_val, special_len);
 	} else {
-#ifdef CONFIG_SPARC32
 		if (prev == NULL) {
-			name = prom_firstprop(node, NULL);
+			name = prom_firstprop(node, p->name);
 		} else {
-			name = prom_nextprop(node, prev, NULL);
+			name = prom_nextprop(node, prev, p->name);
 		}
-#else
-		if (prev == NULL) {
-			prom_firstprop(node, p->name);
-		} else {
-			prom_nextprop(node, prev, p->name);
-		}
-		name = p->name;
-#endif
+
 		if (strlen(name) == 0) {
 			tmp = p;
 			return NULL;

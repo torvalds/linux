@@ -41,9 +41,11 @@ static inline int ext2_add_nondir(struct dentry *dentry, struct inode *inode)
 	int err = ext2_add_link(dentry, inode);
 	if (!err) {
 		d_instantiate(dentry, inode);
+		unlock_new_inode(inode);
 		return 0;
 	}
 	inode_dec_link_count(inode);
+	unlock_new_inode(inode);
 	iput(inode);
 	return err;
 }
@@ -170,6 +172,7 @@ out:
 
 out_fail:
 	inode_dec_link_count(inode);
+	unlock_new_inode(inode);
 	iput (inode);
 	goto out;
 }
@@ -178,6 +181,7 @@ static int ext2_link (struct dentry * old_dentry, struct inode * dir,
 	struct dentry *dentry)
 {
 	struct inode *inode = old_dentry->d_inode;
+	int err;
 
 	if (inode->i_nlink >= EXT2_LINK_MAX)
 		return -EMLINK;
@@ -186,7 +190,14 @@ static int ext2_link (struct dentry * old_dentry, struct inode * dir,
 	inode_inc_link_count(inode);
 	atomic_inc(&inode->i_count);
 
-	return ext2_add_nondir(dentry, inode);
+	err = ext2_add_link(dentry, inode);
+	if (!err) {
+		d_instantiate(dentry, inode);
+		return 0;
+	}
+	inode_dec_link_count(inode);
+	iput(inode);
+	return err;
 }
 
 static int ext2_mkdir(struct inode * dir, struct dentry * dentry, int mode)
@@ -222,12 +233,14 @@ static int ext2_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 		goto out_fail;
 
 	d_instantiate(dentry, inode);
+	unlock_new_inode(inode);
 out:
 	return err;
 
 out_fail:
 	inode_dec_link_count(inode);
 	inode_dec_link_count(inode);
+	unlock_new_inode(inode);
 	iput(inode);
 out_dir:
 	inode_dec_link_count(dir);

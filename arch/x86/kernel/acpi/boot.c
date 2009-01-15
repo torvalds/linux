@@ -47,7 +47,7 @@
 #endif
 
 static int __initdata acpi_force = 0;
-
+u32 acpi_rsdt_forced;
 #ifdef	CONFIG_ACPI
 int acpi_disabled = 0;
 #else
@@ -538,9 +538,10 @@ static int __cpuinit _acpi_map_lsapic(acpi_handle handle, int *pcpu)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
 	struct acpi_madt_local_apic *lapic;
-	cpumask_t tmp_map, new_map;
+	cpumask_var_t tmp_map, new_map;
 	u8 physid;
 	int cpu;
+	int retval = -ENOMEM;
 
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_MAT", NULL, &buffer)))
 		return -EINVAL;
@@ -569,23 +570,37 @@ static int __cpuinit _acpi_map_lsapic(acpi_handle handle, int *pcpu)
 	buffer.length = ACPI_ALLOCATE_BUFFER;
 	buffer.pointer = NULL;
 
-	tmp_map = cpu_present_map;
+	if (!alloc_cpumask_var(&tmp_map, GFP_KERNEL))
+		goto out;
+
+	if (!alloc_cpumask_var(&new_map, GFP_KERNEL))
+		goto free_tmp_map;
+
+	cpumask_copy(tmp_map, cpu_present_mask);
 	acpi_register_lapic(physid, lapic->lapic_flags & ACPI_MADT_ENABLED);
 
 	/*
 	 * If mp_register_lapic successfully generates a new logical cpu
 	 * number, then the following will get us exactly what was mapped
 	 */
-	cpus_andnot(new_map, cpu_present_map, tmp_map);
-	if (cpus_empty(new_map)) {
+	cpumask_andnot(new_map, cpu_present_mask, tmp_map);
+	if (cpumask_empty(new_map)) {
 		printk ("Unable to map lapic to logical cpu number\n");
-		return -EINVAL;
+		retval = -EINVAL;
+		goto free_new_map;
 	}
 
-	cpu = first_cpu(new_map);
+	cpu = cpumask_first(new_map);
 
 	*pcpu = cpu;
-	return 0;
+	retval = 0;
+
+free_new_map:
+	free_cpumask_var(new_map);
+free_tmp_map:
+	free_cpumask_var(tmp_map);
+out:
+	return retval;
 }
 
 /* wrapper to silence section mismatch warning */
@@ -598,7 +613,7 @@ EXPORT_SYMBOL(acpi_map_lsapic);
 int acpi_unmap_lsapic(int cpu)
 {
 	per_cpu(x86_cpu_to_apicid, cpu) = -1;
-	cpu_clear(cpu, cpu_present_map);
+	set_cpu_present(cpu, false);
 	num_processors--;
 
 	return (0);
@@ -1359,6 +1374,17 @@ static void __init acpi_process_madt(void)
 			       "Invalid BIOS MADT, disabling ACPI\n");
 			disable_acpi();
 		}
+	} else {
+		/*
+ 		 * ACPI found no MADT, and so ACPI wants UP PIC mode.
+ 		 * In the event an MPS table was found, forget it.
+ 		 * Boot with "acpi=off" to use MPS on such a system.
+ 		 */
+		if (smp_found_config) {
+			printk(KERN_WARNING PREFIX
+				"No APIC-table, disabling MPS\n");
+			smp_found_config = 0;
+		}
 	}
 
 	/*
@@ -1793,6 +1819,10 @@ static int __init parse_acpi(char *arg)
 		if (!acpi_force)
 			disable_acpi();
 		acpi_ht = 1;
+	}
+	/* acpi=rsdt use RSDT instead of XSDT */
+	else if (strcmp(arg, "rsdt") == 0) {
+		acpi_rsdt_forced = 1;
 	}
 	/* "acpi=noirq" disables ACPI interrupt routing */
 	else if (strcmp(arg, "noirq") == 0) {

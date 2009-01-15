@@ -9,18 +9,18 @@
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
 #include <linux/bitops.h>
+#include <linux/io.h>
+#include <linux/delay.h>
 
 #include <asm/atomic.h>
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/timer.h>
 #include <asm/pgtable.h>
-#include <asm/delay.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
 #include <asm/arch_hooks.h>
 #include <asm/i8259.h>
-
+#include <asm/traps.h>
 
 
 /*
@@ -34,12 +34,10 @@
  * leads to races. IBM designers who came up with it should
  * be shot.
  */
- 
 
 static irqreturn_t math_error_irq(int cpl, void *dev_id)
 {
-	extern void math_error(void __user *);
-	outb(0,0xF0);
+	outb(0, 0xF0);
 	if (ignore_fpu_irq || !boot_cpu_data.hard_math)
 		return IRQ_NONE;
 	math_error((void __user *)get_irq_regs()->ip);
@@ -56,7 +54,7 @@ static struct irqaction fpu_irq = {
 	.name = "fpu",
 };
 
-void __init init_ISA_irqs (void)
+void __init init_ISA_irqs(void)
 {
 	int i;
 
@@ -110,6 +108,18 @@ DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
 	[IRQ15_VECTOR + 1 ... NR_VECTORS - 1] = -1
 };
 
+int vector_used_by_percpu_irq(unsigned int vector)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		if (per_cpu(vector_irq, cpu)[vector] != -1)
+			return 1;
+	}
+
+	return 0;
+}
+
 /* Overridden in paravirt.c */
 void init_IRQ(void) __attribute__((weak, alias("native_init_IRQ")));
 
@@ -146,10 +156,12 @@ void __init native_init_IRQ(void)
 	alloc_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
 
 	/* IPI for single call function */
-	set_intr_gate(CALL_FUNCTION_SINGLE_VECTOR, call_function_single_interrupt);
+	alloc_intr_gate(CALL_FUNCTION_SINGLE_VECTOR,
+				 call_function_single_interrupt);
 
 	/* Low priority IPI to cleanup after moving an irq */
 	set_intr_gate(IRQ_MOVE_CLEANUP_VECTOR, irq_move_cleanup_interrupt);
+	set_bit(IRQ_MOVE_CLEANUP_VECTOR, used_vectors);
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC

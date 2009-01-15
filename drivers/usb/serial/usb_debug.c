@@ -31,7 +31,7 @@ static struct usb_driver debug_driver = {
 	.no_dynamic_id = 	1,
 };
 
-int usb_debug_open(struct tty_struct *tty, struct usb_serial_port *port,
+static int usb_debug_open(struct tty_struct *tty, struct usb_serial_port *port,
 							struct file *filp)
 {
 	port->bulk_out_size = USB_DEBUG_MAX_PACKET_SIZE;

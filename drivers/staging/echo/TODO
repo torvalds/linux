@@ -1,7 +1,5 @@
 TODO:
 	- checkpatch.pl cleanups
-	- Lindent
-	- typedef removals
 	- handle bit_operations.h (merge in or make part of common code?)
 	- remove proc interface, only use echo.h interface (proc interface is
 	  racy and not correct.)

@@ -1118,9 +1118,15 @@ static int __init dccp_init(void)
 	if (rc)
 		goto out_ackvec_exit;
 
+	rc = ccid_initialize_builtins();
+	if (rc)
+		goto out_sysctl_exit;
+
 	dccp_timestamping_init();
 out:
 	return rc;
+out_sysctl_exit:
+	dccp_sysctl_exit();
 out_ackvec_exit:
 	dccp_ackvec_exit();
 out_free_dccp_mib:
@@ -1143,6 +1149,7 @@ out_free_percpu:
 
 static void __exit dccp_fini(void)
 {
+	ccid_cleanup_builtins();
 	dccp_mib_exit();
 	free_pages((unsigned long)dccp_hashinfo.bhash,
 		   get_order(dccp_hashinfo.bhash_size *

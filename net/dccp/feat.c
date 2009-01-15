@@ -34,7 +34,7 @@
 static int dccp_hdlr_ccid(struct sock *sk, u64 ccid, bool rx)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid *new_ccid = ccid_new(ccid, sk, rx, gfp_any());
+	struct ccid *new_ccid = ccid_new(ccid, sk, rx);
 
 	if (new_ccid == NULL)
 		return -ENOMEM;
@@ -1214,8 +1214,6 @@ const char *dccp_feat_typename(const u8 type)
 	return NULL;
 }
 
-EXPORT_SYMBOL_GPL(dccp_feat_typename);
-
 const char *dccp_feat_name(const u8 feat)
 {
 	static const char *feature_names[] = {
@@ -1240,6 +1238,4 @@ const char *dccp_feat_name(const u8 feat)
 
 	return feature_names[feat];
 }
-
-EXPORT_SYMBOL_GPL(dccp_feat_name);
 #endif /* CONFIG_IP_DCCP_DEBUG */

@@ -12,10 +12,6 @@
 #ifndef __ASM_ARCH_IRQS_H
 #define __ASM_ARCH_IRQS_H __FILE__
 
-#ifndef __ASM_ARM_IRQ_H
-#error "Do not include this directly, instead #include <asm/irq.h>"
-#endif
-
 /* we keep the first set of CPU IRQs out of the range of
  * the ISA space, so that the PC104 has them to itself
  * and we don't end up having to do horrible things to the

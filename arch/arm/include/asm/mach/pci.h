@@ -42,7 +42,7 @@ struct pci_sys_data {
 /*
  * This is the standard PCI-PCI bridge swizzling algorithm.
  */
-u8 pci_std_swizzle(struct pci_dev *dev, u8 *pinp);
+#define pci_std_swizzle pci_common_swizzle
 
 /*
  * Call this with your hw_pci struct to initialise the PCI system.

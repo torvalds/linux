@@ -229,12 +229,12 @@ set_camera_power(struct vicam_camera *cam, int state)
 	return 0;
 }
 
-static int
-vicam_ioctl(struct inode *inode, struct file *file, unsigned int ioctlnr, unsigned long arg)
+static long
+vicam_ioctl(struct file *file, unsigned int ioctlnr, unsigned long arg)
 {
 	void __user *user_arg = (void __user *)arg;
 	struct vicam_camera *cam = file->private_data;
-	int retval = 0;
+	long retval = 0;
 
 	if (!cam)
 		return -ENODEV;
@@ -470,7 +470,7 @@ vicam_ioctl(struct inode *inode, struct file *file, unsigned int ioctlnr, unsign
 }
 
 static int
-vicam_open(struct inode *inode, struct file *file)
+vicam_open(struct file *file)
 {
 	struct vicam_camera *cam = video_drvdata(file);
 
@@ -536,7 +536,7 @@ vicam_open(struct inode *inode, struct file *file)
 }
 
 static int
-vicam_close(struct inode *inode, struct file *file)
+vicam_close(struct file *file)
 {
 	struct vicam_camera *cam = file->private_data;
 	int open_count;
@@ -783,17 +783,13 @@ vicam_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static const struct file_operations vicam_fops = {
+static const struct v4l2_file_operations vicam_fops = {
 	.owner		= THIS_MODULE,
 	.open		= vicam_open,
 	.release	= vicam_close,
 	.read		= vicam_read,
 	.mmap		= vicam_mmap,
 	.ioctl		= vicam_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek		= no_llseek,
 };
 
 static struct video_device vicam_template = {

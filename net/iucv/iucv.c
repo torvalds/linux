@@ -50,7 +50,6 @@
 #include <asm/ebcdic.h>
 #include <asm/io.h>
 #include <asm/s390_ext.h>
-#include <asm/s390_rdev.h>
 #include <asm/smp.h>
 
 /*
@@ -517,6 +516,7 @@ static int iucv_enable(void)
 	size_t alloc_size;
 	int cpu, rc;
 
+	get_online_cpus();
 	rc = -ENOMEM;
 	alloc_size = iucv_max_pathid * sizeof(struct iucv_path);
 	iucv_path_table = kzalloc(alloc_size, GFP_KERNEL);
@@ -524,19 +524,17 @@ static int iucv_enable(void)
 		goto out;
 	/* Declare per cpu buffers. */
 	rc = -EIO;
-	get_online_cpus();
 	for_each_online_cpu(cpu)
 		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 1);
 	if (cpus_empty(iucv_buffer_cpumask))
 		/* No cpu could declare an iucv buffer. */
-		goto out_path;
+		goto out;
 	put_online_cpus();
 	return 0;
-
-out_path:
-	put_online_cpus();
-	kfree(iucv_path_table);
 out:
+	kfree(iucv_path_table);
+	iucv_path_table = NULL;
+	put_online_cpus();
 	return rc;
 }
 
@@ -551,8 +549,9 @@ static void iucv_disable(void)
 {
 	get_online_cpus();
 	on_each_cpu(iucv_retrieve_cpu, NULL, 1);
-	put_online_cpus();
 	kfree(iucv_path_table);
+	iucv_path_table = NULL;
+	put_online_cpus();
 }
 
 static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
@@ -589,10 +588,14 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 	case CPU_ONLINE_FROZEN:
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
+		if (!iucv_path_table)
+			break;
 		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 1);
 		break;
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
+		if (!iucv_path_table)
+			break;
 		cpumask = iucv_buffer_cpumask;
 		cpu_clear(cpu, cpumask);
 		if (cpus_empty(cpumask))
@@ -1692,7 +1695,7 @@ static int __init iucv_init(void)
 	rc = register_external_interrupt(0x4000, iucv_external_interrupt);
 	if (rc)
 		goto out;
-	iucv_root = s390_root_dev_register("iucv");
+	iucv_root = root_device_register("iucv");
 	if (IS_ERR(iucv_root)) {
 		rc = PTR_ERR(iucv_root);
 		goto out_int;
@@ -1736,7 +1739,7 @@ out_free:
 		kfree(iucv_irq_data[cpu]);
 		iucv_irq_data[cpu] = NULL;
 	}
-	s390_root_dev_unregister(iucv_root);
+	root_device_unregister(iucv_root);
 out_int:
 	unregister_external_interrupt(0x4000, iucv_external_interrupt);
 out:
@@ -1766,7 +1769,7 @@ static void __exit iucv_exit(void)
 		kfree(iucv_irq_data[cpu]);
 		iucv_irq_data[cpu] = NULL;
 	}
-	s390_root_dev_unregister(iucv_root);
+	root_device_unregister(iucv_root);
 	bus_unregister(&iucv_bus);
 	unregister_external_interrupt(0x4000, iucv_external_interrupt);
 }

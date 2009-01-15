@@ -204,18 +204,6 @@ struct rcu_synchronize {
 
 extern void wakeme_after_rcu(struct rcu_head  *head);
 
-#define synchronize_rcu_xxx(name, func) \
-void name(void) \
-{ \
-	struct rcu_synchronize rcu; \
-	\
-	init_completion(&rcu.completion); \
-	/* Will wake me after RCU finished. */ \
-	func(&rcu.head, wakeme_after_rcu); \
-	/* Wait for it. */ \
-	wait_for_completion(&rcu.completion); \
-}
-
 /**
  * synchronize_sched - block until all CPUs have exited any non-preemptive
  * kernel code sequences.

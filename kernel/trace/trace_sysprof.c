@@ -196,9 +196,9 @@ static enum hrtimer_restart stack_trace_timer_fn(struct hrtimer *hrtimer)
 	return HRTIMER_RESTART;
 }
 
-static void start_stack_timer(int cpu)
+static void start_stack_timer(void *unused)
 {
-	struct hrtimer *hrtimer = &per_cpu(stack_trace_hrtimer, cpu);
+	struct hrtimer *hrtimer = &__get_cpu_var(stack_trace_hrtimer);
 
 	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hrtimer->function = stack_trace_timer_fn;
@@ -208,14 +208,7 @@ static void start_stack_timer(int cpu)
 
 static void start_stack_timers(void)
 {
-	cpumask_t saved_mask = current->cpus_allowed;
-	int cpu;
-
-	for_each_online_cpu(cpu) {
-		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-		start_stack_timer(cpu);
-	}
-	set_cpus_allowed_ptr(current, &saved_mask);
+	on_each_cpu(start_stack_timer, NULL, 1);
 }
 
 static void stop_stack_timer(int cpu)

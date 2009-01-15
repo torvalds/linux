@@ -1027,12 +1027,13 @@ static int cx23885_initialize_codec(struct cx23885_dev *dev)
 			printk(KERN_ERR "%s() f/w load failed\n", __func__);
 			return retval;
 		}
-		dev->cx23417_mailbox = cx23885_find_mailbox(dev);
-		if (dev->cx23417_mailbox < 0) {
+		retval = cx23885_find_mailbox(dev);
+		if (retval < 0) {
 			printk(KERN_ERR "%s() mailbox < 0, error\n",
 				__func__);
 			return -1;
 		}
+		dev->cx23417_mailbox = retval;
 		retval = cx23885_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0);
 		if (retval < 0) {
 			printk(KERN_ERR
@@ -1573,9 +1574,9 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	return cx23885_queryctrl(dev, c);
 }
 
-static int mpeg_open(struct inode *inode, struct file *file)
+static int mpeg_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct cx23885_dev *h, *dev = NULL;
 	struct list_head *list;
 	struct cx23885_fh *fh;
@@ -1617,7 +1618,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int mpeg_release(struct inode *inode, struct file *file)
+static int mpeg_release(struct file *file)
 {
 	struct cx23885_fh  *fh  = file->private_data;
 	struct cx23885_dev *dev = fh->dev;
@@ -1694,15 +1695,13 @@ static int mpeg_mmap(struct file *file, struct vm_area_struct *vma)
 	return videobuf_mmap_mapper(&fh->mpegq, vma);
 }
 
-static struct file_operations mpeg_fops = {
+static struct v4l2_file_operations mpeg_fops = {
 	.owner	       = THIS_MODULE,
 	.open	       = mpeg_open,
 	.release       = mpeg_release,
 	.read	       = mpeg_read,
 	.poll          = mpeg_poll,
 	.mmap	       = mpeg_mmap,
-	.ioctl	       = video_ioctl2,
-	.llseek        = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {

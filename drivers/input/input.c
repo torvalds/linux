@@ -1389,8 +1389,8 @@ int input_register_device(struct input_dev *dev)
 	if (!dev->setkeycode)
 		dev->setkeycode = input_default_setkeycode;
 
-	snprintf(dev->dev.bus_id, sizeof(dev->dev.bus_id),
-		 "input%ld", (unsigned long) atomic_inc_return(&input_no) - 1);
+	dev_set_name(&dev->dev, "input%ld",
+		     (unsigned long) atomic_inc_return(&input_no) - 1);
 
 	error = device_add(&dev->dev);
 	if (error)

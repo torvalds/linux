@@ -982,7 +982,7 @@ static int __init longhaul_init(void)
 	case 10:
 		printk(KERN_ERR PFX "Use acpi-cpufreq driver for VIA C7\n");
 	default:
-		;;
+		;
 	}
 
 	return -ENODEV;

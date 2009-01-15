@@ -220,4 +220,11 @@ config HP_SDC_RTC
 	  Say Y here if you want to support the built-in real time clock
 	  of the HP SDC controller.
 
+config INPUT_PCF50633_PMU
+	tristate "PCF50633 PMU events"
+	depends on MFD_PCF50633
+	help
+	 Say Y to include support for delivering  PMU events via  input
+	 layer on NXP PCF50633.
+
 endif

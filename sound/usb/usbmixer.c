@@ -1755,11 +1755,10 @@ static int snd_usb_mixer_status_create(struct usb_mixer_interface *mixer)
 	if (get_iface_desc(hostif)->bNumEndpoints < 1)
 		return 0;
 	ep = get_endpoint(hostif, 0);
-	if ((ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK) != USB_DIR_IN ||
-	    (ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_INT)
+	if (!usb_endpoint_dir_in(ep) || !usb_endpoint_xfer_int(ep))
 		return 0;
 
-	epnum = ep->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
+	epnum = usb_endpoint_num(ep);
 	buffer_length = le16_to_cpu(ep->wMaxPacketSize);
 	transfer_buffer = kmalloc(buffer_length, GFP_KERNEL);
 	if (!transfer_buffer)

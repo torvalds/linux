@@ -79,7 +79,7 @@ print_graph_cpu(struct trace_seq *s, int cpu)
 	int i;
 	int ret;
 	int log10_this = log10_cpu(cpu);
-	int log10_all = log10_cpu(cpus_weight_nr(cpu_online_map));
+	int log10_all = log10_cpu(cpumask_weight(cpu_online_mask));
 
 
 	/*

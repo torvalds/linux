@@ -18,11 +18,13 @@
 #define PS2_RET_ID		0x00
 #define PS2_RET_ACK		0xfa
 #define PS2_RET_NAK		0xfe
+#define PS2_RET_ERR		0xfc
 
 #define PS2_FLAG_ACK		1	/* Waiting for ACK/NAK */
 #define PS2_FLAG_CMD		2	/* Waiting for command to finish */
 #define PS2_FLAG_CMD1		4	/* Waiting for the first byte of command response */
 #define PS2_FLAG_WAITID		8	/* Command execiting is GET ID */
+#define PS2_FLAG_NAK		16	/* Last transmission was NAKed */
 
 struct ps2dev {
 	struct serio *serio;

@@ -87,7 +87,7 @@ struct ncp_objectname_ioctl
 #define NCP_AUTH_NDS	0x32
 	int		auth_type;
 	size_t		object_name_len;
-	void __user *	object_name;	/* an userspace data, in most cases user name */
+	void __user *	object_name;	/* a userspace data, in most cases user name */
 };
 
 struct ncp_privatedata_ioctl

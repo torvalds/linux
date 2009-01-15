@@ -36,6 +36,7 @@
 #include "ocfs2.h"
 
 #include "alloc.h"
+#include "blockcheck.h"
 #include "dlmglue.h"
 #include "inode.h"
 #include "journal.h"
@@ -248,8 +249,8 @@ int ocfs2_load_local_alloc(struct ocfs2_super *osb)
 		goto bail;
 	}
 
-	status = ocfs2_read_blocks(inode, OCFS2_I(inode)->ip_blkno, 1,
-				   &alloc_bh, OCFS2_BH_IGNORE_CACHE);
+	status = ocfs2_read_inode_block_full(inode, &alloc_bh,
+					     OCFS2_BH_IGNORE_CACHE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -382,8 +383,8 @@ void ocfs2_shutdown_local_alloc(struct ocfs2_super *osb)
 	}
 	memcpy(alloc_copy, alloc, bh->b_size);
 
-	status = ocfs2_journal_access(handle, local_alloc_inode, bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_di(handle, local_alloc_inode, bh,
+					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_commit;
@@ -459,8 +460,8 @@ int ocfs2_begin_local_alloc_recovery(struct ocfs2_super *osb,
 
 	mutex_lock(&inode->i_mutex);
 
-	status = ocfs2_read_blocks(inode, OCFS2_I(inode)->ip_blkno, 1,
-				   &alloc_bh, OCFS2_BH_IGNORE_CACHE);
+	status = ocfs2_read_inode_block_full(inode, &alloc_bh,
+					     OCFS2_BH_IGNORE_CACHE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -476,6 +477,7 @@ int ocfs2_begin_local_alloc_recovery(struct ocfs2_super *osb,
 	alloc = (struct ocfs2_dinode *) alloc_bh->b_data;
 	ocfs2_clear_local_alloc(alloc);
 
+	ocfs2_compute_meta_ecc(osb->sb, alloc_bh->b_data, &alloc->i_check);
 	status = ocfs2_write_block(osb, alloc_bh, inode);
 	if (status < 0)
 		mlog_errno(status);
@@ -762,9 +764,9 @@ int ocfs2_claim_local_alloc_bits(struct ocfs2_super *osb,
 	 * delete bits from it! */
 	*num_bits = bits_wanted;
 
-	status = ocfs2_journal_access(handle, local_alloc_inode,
-				      osb->local_alloc_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_di(handle, local_alloc_inode,
+					 osb->local_alloc_bh,
+					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -1240,9 +1242,9 @@ static int ocfs2_local_alloc_slide_window(struct ocfs2_super *osb,
 	}
 	memcpy(alloc_copy, alloc, osb->local_alloc_bh->b_size);
 
-	status = ocfs2_journal_access(handle, local_alloc_inode,
-				      osb->local_alloc_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_di(handle, local_alloc_inode,
+					 osb->local_alloc_bh,
+					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;

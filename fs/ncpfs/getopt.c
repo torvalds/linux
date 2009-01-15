@@ -16,7 +16,6 @@
  *	@opts: an array of &struct option entries controlling parser operations
  *	@optopt: output; will contain the current option
  *	@optarg: output; will contain the value (if one exists)
- *	@flag: output; may be NULL; should point to a long for or'ing flags
  *	@value: output; may be NULL; will be overwritten with the integer value
  *		of the current argument.
  *

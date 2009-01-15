@@ -1,0 +1,150 @@
+#!/bin/bash
+# Manipulate options in a .config file from the command line
+
+usage() {
+	cat >&2 <<EOL
+Manipulate options in a .config file from the command line.
+Usage:
+config options command ...
+commands:
+	--enable|-e option   Enable option
+	--disable|-d option  Disable option
+	--module|-m option      Turn option into a module
+	--state|-s option       Print state of option (n,y,m,undef)
+
+	--enable-after|-E beforeopt option
+                             Enable option directly after other option
+	--disable-after|-D beforeopt option
+                             Disable option directly after other option
+	--module-after|-M beforeopt option
+                             Turn option into module directly after other option
+
+	commands can be repeated multiple times
+
+options:
+	--file .config file to change (default .config)
+
+config doesn't check the validity of the .config file. This is done at next
+ make time.
+The options need to be already in the file before they can be changed,
+but sometimes you can cheat with the --*-after options.
+EOL
+	exit 1
+}
+
+checkarg() {
+	ARG="$1"
+	if [ "$ARG" = "" ] ; then
+		usage
+	fi
+	case "$ARG" in
+	CONFIG_*)
+		ARG="${ARG/CONFIG_/}"
+		;;
+	esac
+	ARG="`echo $ARG | tr a-z A-Z`"
+}
+
+replace() {
+	sed -i -e "$@" $FN
+}
+
+if [ "$1" = "--file" ]; then
+	FN="$2"
+	if [ "$FN" = "" ] ; then
+		usage
+	fi
+	shift
+	shift
+else
+	FN=.config
+fi
+
+while [ "$1" != "" ] ; do
+	CMD="$1"
+	shift
+	case "$CMD" in
+	--enable|-e)
+		checkarg "$1"
+		replace "s/# CONFIG_$ARG is not set/CONFIG_$ARG=y/"
+		shift
+		;;
+
+	--disable|-d)
+		checkarg "$1"
+		replace "s/CONFIG_$ARG=[my]/# CONFIG_$ARG is not set/"
+		shift
+		;;
+
+	--module|-m)
+		checkarg "$1"
+		replace "s/CONFIG_$ARG=y/CONFIG_$ARG=m/" \
+			-e "s/# CONFIG_$ARG is not set/CONFIG_$ARG=m/"
+		shift
+		;;
+
+	--state|-s)
+		checkarg "$1"
+		if grep -q "# CONFIG_$ARG is not set" $FN ; then
+			echo n
+		else
+			V="$(grep "^CONFIG_$ARG=" $FN)"
+			if [ $? != 0 ] ; then
+				echo undef
+			else
+				V="${V/CONFIG_$ARG=/}"
+				V="${V/\"/}"
+				echo "$V"
+			fi
+		fi
+		shift
+		;;
+
+	--enable-after|-E)
+		checkarg "$1"
+		A=$ARG
+		checkarg "$2"
+		B=$ARG
+		replace "/CONFIG_$A=[my]/aCONFIG_$B=y" \
+			-e "/# CONFIG_$ARG is not set/a/CONFIG_$ARG=y" \
+			-e "s/# CONFIG_$ARG is not set/CONFIG_$ARG=y/"
+		shift
+		shift
+		;;
+
+	--disable-after|-D)
+		checkarg "$1"
+		A=$ARG
+		checkarg "$2"
+		B=$ARG
+		replace "/CONFIG_$A=[my]/a# CONFIG_$B is not set" \
+		-e "/# CONFIG_$ARG is not set/a/# CONFIG_$ARG is not set" \
+		-e "s/CONFIG_$ARG=[my]/# CONFIG_$ARG is not set/"
+		shift
+		shift
+		;;
+
+	--module-after|-M)
+		checkarg "$1"
+		A=$ARG
+		checkarg "$2"
+		B=$ARG
+		replace "/CONFIG_$A=[my]/aCONFIG_$B=m" \
+			-e "/# CONFIG_$ARG is not set/a/CONFIG_$ARG=m" \
+			-e "s/CONFIG_$ARG=y/CONFIG_$ARG=m/" \
+			-e "s/# CONFIG_$ARG is not set/CONFIG_$ARG=m/"
+		shift
+		shift
+		;;
+
+	# undocumented because it ignores --file (fixme)
+	--refresh)
+		yes "" | make oldconfig
+		;;
+
+	*)
+		usage
+		;;
+	esac
+done
+

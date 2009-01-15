@@ -164,12 +164,12 @@ struct soc_camera_ops {
 	unsigned long (*query_bus_param)(struct soc_camera_device *);
 	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
 	int (*get_chip_id)(struct soc_camera_device *,
-			   struct v4l2_chip_ident *);
+			   struct v4l2_dbg_chip_ident *);
 	int (*set_std)(struct soc_camera_device *, v4l2_std_id *);
 	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	int (*get_register)(struct soc_camera_device *, struct v4l2_register *);
-	int (*set_register)(struct soc_camera_device *, struct v4l2_register *);
+	int (*get_register)(struct soc_camera_device *, struct v4l2_dbg_register *);
+	int (*set_register)(struct soc_camera_device *, struct v4l2_dbg_register *);
 #endif
 	int (*get_control)(struct soc_camera_device *, struct v4l2_control *);
 	int (*set_control)(struct soc_camera_device *, struct v4l2_control *);

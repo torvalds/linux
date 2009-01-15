@@ -313,11 +313,13 @@ three of the methods listed above.  In addition, a driver indicates
 that it supports autosuspend by setting the .supports_autosuspend flag
 in its usb_driver structure.  It is then responsible for informing the
 USB core whenever one of its interfaces becomes busy or idle.  The
-driver does so by calling these three functions:
+driver does so by calling these five functions:
 
 	int  usb_autopm_get_interface(struct usb_interface *intf);
 	void usb_autopm_put_interface(struct usb_interface *intf);
 	int  usb_autopm_set_interface(struct usb_interface *intf);
+	int  usb_autopm_get_interface_async(struct usb_interface *intf);
+	void usb_autopm_put_interface_async(struct usb_interface *intf);
 
 The functions work by maintaining a counter in the usb_interface
 structure.  When intf->pm_usage_count is > 0 then the interface is
@@ -330,10 +332,12 @@ associated with the device itself rather than any of its interfaces.
 This field is used only by the USB core.)
 
 The driver owns intf->pm_usage_count; it can modify the value however
-and whenever it likes.  A nice aspect of the usb_autopm_* routines is
-that the changes they make are protected by the usb_device structure's
-PM mutex (udev->pm_mutex); however drivers may change pm_usage_count
-without holding the mutex.
+and whenever it likes.  A nice aspect of the non-async usb_autopm_*
+routines is that the changes they make are protected by the usb_device
+structure's PM mutex (udev->pm_mutex); however drivers may change
+pm_usage_count without holding the mutex.  Drivers using the async
+routines are responsible for their own synchronization and mutual
+exclusion.
 
 	usb_autopm_get_interface() increments pm_usage_count and
 	attempts an autoresume if the new value is > 0 and the
@@ -347,6 +351,14 @@ without holding the mutex.
 	It attempts an autoresume if the value is > 0 and the device
 	is suspended, and it attempts an autosuspend if the value is
 	<= 0 and the device isn't suspended.
+
+	usb_autopm_get_interface_async() and
+	usb_autopm_put_interface_async() do almost the same things as
+	their non-async counterparts.  The differences are: they do
+	not acquire the PM mutex, and they use a workqueue to do their
+	jobs.  As a result they can be called in an atomic context,
+	such as an URB's completion handler, but when they return the
+	device will not generally not yet be in the desired state.
 
 There also are a couple of utility routines drivers can use:
 

@@ -122,7 +122,7 @@ static void a2232_disable_tx_interrupts(void *ptr);
 static void a2232_enable_tx_interrupts(void *ptr);
 static void a2232_disable_rx_interrupts(void *ptr);
 static void a2232_enable_rx_interrupts(void *ptr);
-static int  a2232_get_CD(void *ptr);
+static int  a2232_carrier_raised(struct tty_port *port);
 static void a2232_shutdown_port(void *ptr);
 static int  a2232_set_real_termios(void *ptr);
 static int  a2232_chars_in_buffer(void *ptr);
@@ -148,7 +148,6 @@ static struct real_driver a2232_real_driver = {
         a2232_enable_tx_interrupts,
         a2232_disable_rx_interrupts,
         a2232_enable_rx_interrupts,
-        a2232_get_CD,
         a2232_shutdown_port,
         a2232_set_real_termios,
         a2232_chars_in_buffer,
@@ -260,9 +259,10 @@ static void a2232_enable_rx_interrupts(void *ptr)
 	port->disable_rx = 0;
 }
 
-static int  a2232_get_CD(void *ptr)
+static int  a2232_carrier_raised(struct tty_port *port)
 {
-	return ((struct a2232_port *) ptr)->cd_status;
+	struct a2232_port *ap = container_of(port, struct a2232_port, gs.port);
+	return ap->cd_status;
 }
 
 static void a2232_shutdown_port(void *ptr)
@@ -460,14 +460,14 @@ static void a2232_throttle(struct tty_struct *tty)
    if switched on. So the only thing we can do at this
    layer here is not taking any characters out of the
    A2232 buffer any more. */
-	struct a2232_port *port = (struct a2232_port *) tty->driver_data;
+	struct a2232_port *port = tty->driver_data;
 	port->throttle_input = -1;
 }
 
 static void a2232_unthrottle(struct tty_struct *tty)
 {
 /* Unthrottle: dual to "throttle()" above. */
-	struct a2232_port *port = (struct a2232_port *) tty->driver_data;
+	struct a2232_port *port = tty->driver_data;
 	port->throttle_input = 0;
 }
 
@@ -638,6 +638,10 @@ int ch, err, n, p;
 	return IRQ_HANDLED;
 }
 
+static const struct tty_port_operations a2232_port_ops = {
+	.carrier_raised = a2232_carrier_raised,
+};
+
 static void a2232_init_portstructs(void)
 {
 	struct a2232_port *port;
@@ -645,6 +649,8 @@ static void a2232_init_portstructs(void)
 
 	for (i = 0; i < MAX_A2232_BOARDS*NUMLINES; i++) {
 		port = a2232_ports + i;
+		tty_port_init(&port->gs.port);
+		port->gs.port.ops = &a2232_port_ops;
 		port->which_a2232 = i/NUMLINES;
 		port->which_port_on_a2232 = i%NUMLINES;
 		port->disable_rx = port->throttle_input = port->cd_status = 0;
@@ -652,11 +658,6 @@ static void a2232_init_portstructs(void)
 		port->gs.close_delay = HZ/2;
 		port->gs.closing_wait = 30 * HZ;
 		port->gs.rd = &a2232_real_driver;
-#ifdef NEW_WRITE_LOCKING
-		mutex_init(&(port->gs.port_write_mutex));
-#endif
-		init_waitqueue_head(&port->gs.port.open_wait);
-		init_waitqueue_head(&port->gs.port.close_wait);
 	}
 }
 
@@ -717,6 +718,7 @@ static int __init a2232board_init(void)
 	u_char *from;
 	volatile u_char *to;
 	volatile struct a2232memory *mem;
+	int error, i;
 
 #ifdef CONFIG_SMP
 	return -ENODEV;	/* This driver is not SMP aware. Is there an SMP ZorroII-bus-machine? */
@@ -796,8 +798,15 @@ static int __init a2232board_init(void)
 	*/
 	if (a2232_init_drivers()) return -ENODEV; // maybe we should use a different -Exxx?
 
-	request_irq(IRQ_AMIGA_VERTB, a2232_vbl_inter, 0, "A2232 serial VBL", a2232_driver_ID);
-	return 0;
+	error = request_irq(IRQ_AMIGA_VERTB, a2232_vbl_inter, 0,
+			    "A2232 serial VBL", a2232_driver_ID);
+	if (error) {
+		for (i = 0; i < nr_a2232; i++)
+			zorro_release_device(zd_a2232[i]);
+		tty_unregister_driver(a2232_driver);
+		put_tty_driver(a2232_driver);
+	}
+	return error;
 }
 
 static void __exit a2232board_exit(void)

@@ -25,7 +25,7 @@
 #include <asm/page.h>
 #include <asm/signal.h>
 #include <asm/tlbflush.h>
-#include <asm/variant/tie-asm.h>
+#include <variant/tie-asm.h>
 
 /* Unimplemented features. */
 

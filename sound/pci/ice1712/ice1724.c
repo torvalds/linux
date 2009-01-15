@@ -1239,7 +1239,7 @@ static int __devinit snd_vt1724_pcm_spdif(struct snd_ice1712 *ice, int device)
 	if (ice->force_pdma4 || ice->force_rdma1)
 		name = "ICE1724 Secondary";
 	else
-		name = "IEC1724 IEC958";
+		name = "ICE1724 IEC958";
 	err = snd_pcm_new(ice->card, name, device, play, capt, &pcm);
 	if (err < 0)
 		return err;

@@ -483,7 +483,7 @@ static int msp_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 }
 
 #ifdef CONFIG_VIDEO_ALLOW_V4L1
-static int msp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+static long msp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct msp_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -733,7 +733,7 @@ static int msp_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	return 0;
 }
 
-static int msp_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip)
+static int msp_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
 {
 	struct msp_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);

@@ -138,7 +138,7 @@ config PMAC_BACKLIGHT
 	  Say Y here to enable Macintosh specific extensions of the generic
 	  backlight code. With this enabled, the brightness keys on older
 	  PowerBooks will be enabled so you can change the screen brightness.
-	  Newer models should use an userspace daemon like pbbuttonsd.
+	  Newer models should use a userspace daemon like pbbuttonsd.
 
 config PMAC_BACKLIGHT_LEGACY
 	bool "Provide legacy ioctl's on /dev/pmu for the backlight"

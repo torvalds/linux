@@ -734,8 +734,7 @@ static void ioat2_dma_massage_chan_desc(struct ioat_dma_chan *ioat_chan)
  * ioat_dma_alloc_chan_resources - returns the number of allocated descriptors
  * @chan: the channel to be filled out
  */
-static int ioat_dma_alloc_chan_resources(struct dma_chan *chan,
-					 struct dma_client *client)
+static int ioat_dma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct ioat_dma_chan *ioat_chan = to_ioat_chan(chan);
 	struct ioat_desc_sw *desc;
@@ -1341,12 +1340,11 @@ static void ioat_dma_start_null_desc(struct ioat_dma_chan *ioat_chan)
  */
 #define IOAT_TEST_SIZE 2000
 
-DECLARE_COMPLETION(test_completion);
 static void ioat_dma_test_callback(void *dma_async_param)
 {
-	printk(KERN_ERR "ioatdma: ioat_dma_test_callback(%p)\n",
-		dma_async_param);
-	complete(&test_completion);
+	struct completion *cmp = dma_async_param;
+
+	complete(cmp);
 }
 
 /**
@@ -1363,6 +1361,7 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	dma_addr_t dma_dest, dma_src;
 	dma_cookie_t cookie;
 	int err = 0;
+	struct completion cmp;
 
 	src = kzalloc(sizeof(u8) * IOAT_TEST_SIZE, GFP_KERNEL);
 	if (!src)
@@ -1381,7 +1380,7 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	dma_chan = container_of(device->common.channels.next,
 				struct dma_chan,
 				device_node);
-	if (device->common.device_alloc_chan_resources(dma_chan, NULL) < 1) {
+	if (device->common.device_alloc_chan_resources(dma_chan) < 1) {
 		dev_err(&device->pdev->dev,
 			"selftest cannot allocate chan resource\n");
 		err = -ENODEV;
@@ -1402,8 +1401,9 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	}
 
 	async_tx_ack(tx);
+	init_completion(&cmp);
 	tx->callback = ioat_dma_test_callback;
-	tx->callback_param = (void *)0x8086;
+	tx->callback_param = &cmp;
 	cookie = tx->tx_submit(tx);
 	if (cookie < 0) {
 		dev_err(&device->pdev->dev,
@@ -1413,7 +1413,7 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	}
 	device->common.device_issue_pending(dma_chan);
 
-	wait_for_completion_timeout(&test_completion, msecs_to_jiffies(3000));
+	wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
 	if (device->common.device_is_tx_complete(dma_chan, cookie, NULL, NULL)
 					!= DMA_SUCCESS) {

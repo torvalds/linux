@@ -478,7 +478,7 @@ struct ehea_port {
 	int num_add_tx_qps;
 	int num_mcs;
 	int resets;
-	u64 flags;
+	unsigned long flags;
 	u64 mac_addr;
 	u32 logical_port_id;
 	u32 port_speed;
@@ -510,7 +510,6 @@ void ehea_set_ethtool_ops(struct net_device *netdev);
 int ehea_sense_port_attr(struct ehea_port *port);
 int ehea_set_portspeed(struct ehea_port *port, u32 port_speed);
 
-extern u64 ehea_driver_flags;
 extern struct work_struct ehea_rereg_mr_task;
 
 #endif	/* __EHEA_H__ */

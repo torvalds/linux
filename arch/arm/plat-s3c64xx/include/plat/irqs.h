@@ -191,7 +191,7 @@
 #define IRQ_EINT_GROUP8_BASE	(IRQ_EINT_GROUP7_BASE + IRQ_EINT_GROUP7_NR)
 #define IRQ_EINT_GROUP9_BASE	(IRQ_EINT_GROUP8_BASE + IRQ_EINT_GROUP8_NR)
 
-#define IRQ_EINT_GROUP(group, no)	(IRQ_EINT_GROUP##group##__BASE + (x))
+#define IRQ_EINT_GROUP(group, no)	(IRQ_EINT_GROUP##group##_BASE + (no))
 
 /* Set the default NR_IRQS */
 

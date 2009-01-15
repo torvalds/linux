@@ -934,6 +934,7 @@ int hil_mlc_register(hil_mlc *mlc)
 		snprintf(mlc_serio->name, sizeof(mlc_serio->name)-1, "HIL_SERIO%d", i);
 		snprintf(mlc_serio->phys, sizeof(mlc_serio->phys)-1, "HIL%d", i);
 		mlc_serio->id			= hil_mlc_serio_id;
+		mlc_serio->id.id		= i; /* HIL port no. */
 		mlc_serio->write		= hil_mlc_serio_write;
 		mlc_serio->open			= hil_mlc_serio_open;
 		mlc_serio->close		= hil_mlc_serio_close;

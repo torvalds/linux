@@ -578,9 +578,8 @@ static int cx8802_resume_common(struct pci_dev *pci_dev)
 
 #if defined(CONFIG_VIDEO_CX88_BLACKBIRD) || \
     defined(CONFIG_VIDEO_CX88_BLACKBIRD_MODULE)
-struct cx8802_dev * cx8802_get_device(struct inode *inode)
+struct cx8802_dev *cx8802_get_device(int minor)
 {
-	int minor = iminor(inode);
 	struct cx8802_dev *dev;
 
 	list_for_each_entry(dev, &cx8802_devlist, devlist)
@@ -788,38 +787,15 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	dev->pci = pci_dev;
 	dev->core = core;
 
+	/* Maintain a reference so cx88-video can query the 8802 device. */
+	core->dvbdev = dev;
+
 	err = cx8802_init_common(dev);
 	if (err != 0)
 		goto fail_free;
 
 	INIT_LIST_HEAD(&dev->drvlist);
 	list_add_tail(&dev->devlist,&cx8802_devlist);
-
-#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
-	mutex_init(&dev->frontends.lock);
-	INIT_LIST_HEAD(&dev->frontends.felist);
-
-	if (core->board.num_frontends) {
-		struct videobuf_dvb_frontend *fe;
-		int i;
-
-		printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__,
-			core->board.num_frontends);
-		for (i = 1; i <= core->board.num_frontends; i++) {
-			fe = videobuf_dvb_alloc_frontend(&dev->frontends, i);
-			if(fe == NULL) {
-				printk(KERN_ERR "%s() failed to alloc\n",
-					__func__);
-				videobuf_dvb_dealloc_frontends(&dev->frontends);
-				err = -ENOMEM;
-				goto fail_free;
-			}
-		}
-	}
-#endif
-
-	/* Maintain a reference so cx88-video can query the 8802 device. */
-	core->dvbdev = dev;
 
 	/* now autoload cx88-dvb or cx88-blackbird */
 	request_modules(dev);
@@ -828,6 +804,7 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
  fail_free:
 	kfree(dev);
  fail_core:
+	core->dvbdev = NULL;
 	cx88_core_put(core,pci_dev);
 	return err;
 }

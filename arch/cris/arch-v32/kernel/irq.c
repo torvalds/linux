@@ -325,11 +325,11 @@ static void end_crisv32_irq(unsigned int irq)
 {
 }
 
-void set_affinity_crisv32_irq(unsigned int irq, cpumask_t dest)
+void set_affinity_crisv32_irq(unsigned int irq, const struct cpumask *dest)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&irq_lock, flags);
-	irq_allocations[irq - FIRST_IRQ].mask = dest;
+	irq_allocations[irq - FIRST_IRQ].mask = *dest;
 	spin_unlock_irqrestore(&irq_lock, flags);
 }
 

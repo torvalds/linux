@@ -1546,8 +1546,6 @@ static void nop_completion(struct usb_ep *ep, struct usb_request *r)
 {
 }
 
-#define resource_len(r) (((r)->end - (r)->start) + 1)
-
 static int __init m66592_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -1560,11 +1558,10 @@ static int __init m66592_probe(struct platform_device *pdev)
 	int ret = 0;
 	int i;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-			(char *)udc_name);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		ret = -ENODEV;
-		pr_err("platform_get_resource_byname error.\n");
+		pr_err("platform_get_resource error.\n");
 		goto clean_up;
 	}
 
@@ -1575,7 +1572,7 @@ static int __init m66592_probe(struct platform_device *pdev)
 		goto clean_up;
 	}
 
-	reg = ioremap(res->start, resource_len(res));
+	reg = ioremap(res->start, resource_size(res));
 	if (reg == NULL) {
 		ret = -ENOMEM;
 		pr_err("ioremap error.\n");

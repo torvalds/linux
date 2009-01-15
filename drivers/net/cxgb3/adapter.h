@@ -50,12 +50,17 @@ struct vlan_group;
 struct adapter;
 struct sge_qset;
 
+enum {			/* rx_offload flags */
+	T3_RX_CSUM	= 1 << 0,
+	T3_LRO		= 1 << 1,
+};
+
 struct port_info {
 	struct adapter *adapter;
 	struct vlan_group *vlan_grp;
 	struct sge_qset *qs;
 	u8 port_id;
-	u8 rx_csum_offload;
+	u8 rx_offload;
 	u8 nqsets;
 	u8 first_qset;
 	struct cphy phy;

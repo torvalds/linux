@@ -227,7 +227,6 @@ Each cgroup is represented by a directory in the cgroup file system
 containing the following files describing that cgroup:
 
  - tasks: list of tasks (by pid) attached to that cgroup
- - releasable flag: cgroup currently removeable?
  - notify_on_release flag: run the release agent on exit?
  - release_agent: the path to use for release notifications (this file
    exists in the top cgroup only)
@@ -360,7 +359,7 @@ Now you want to do something with this cgroup.
 
 In this directory you can find several files:
 # ls
-notify_on_release releasable tasks
+notify_on_release tasks
 (plus whatever files added by the attached subsystems)
 
 Now attach your shell to this cgroup:
@@ -479,7 +478,6 @@ newly-created cgroup if an error occurs after this subsystem's
 create() method has been called for the new cgroup).
 
 void pre_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp);
-(cgroup_mutex held by caller)
 
 Called before checking the reference count on each subsystem. This may
 be useful for subsystems which have some extra references even if
@@ -498,6 +496,7 @@ remain valid while the caller holds cgroup_mutex.
 
 void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 	    struct cgroup *old_cgrp, struct task_struct *task)
+(cgroup_mutex held by caller)
 
 Called after the task has been attached to the cgroup, to allow any
 post-attachment activity that requires memory allocations or blocking.
@@ -511,6 +510,7 @@ void exit(struct cgroup_subsys *ss, struct task_struct *task)
 Called during task exit.
 
 int populate(struct cgroup_subsys *ss, struct cgroup *cgrp)
+(cgroup_mutex held by caller)
 
 Called after creation of a cgroup to allow a subsystem to populate
 the cgroup directory with file entries.  The subsystem should make
@@ -520,6 +520,7 @@ method can return an error code, the error code is currently not
 always handled well.
 
 void post_clone(struct cgroup_subsys *ss, struct cgroup *cgrp)
+(cgroup_mutex held by caller)
 
 Called at the end of cgroup_clone() to do any paramater
 initialization which might be required before a task could attach.  For
@@ -527,7 +528,7 @@ example in cpusets, no task may attach before 'cpus' and 'mems' are set
 up.
 
 void bind(struct cgroup_subsys *ss, struct cgroup *root)
-(cgroup_mutex held by caller)
+(cgroup_mutex and ss->hierarchy_mutex held by caller)
 
 Called when a cgroup subsystem is rebound to a different hierarchy
 and root cgroup. Currently this will only involve movement between

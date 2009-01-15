@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/fb.h>
 
+#include <mach/irqs.h>
 #include <mach/map.h>
 #include <mach/regs-fb.h>
 

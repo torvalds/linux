@@ -172,14 +172,14 @@
 /* Note: These offsets are from the start of the frame data       */
 
 #define WLAN_BEACON_OFF_TS			0
-#define WLAN_BEACON_OFF_BCN_INT			8
+#define WLAN_BEACON_OFF_BCN_int			8
 #define WLAN_BEACON_OFF_CAPINFO			10
 #define WLAN_BEACON_OFF_SSID			12
 
 #define WLAN_DISASSOC_OFF_REASON		0
 
 #define WLAN_ASSOCREQ_OFF_CAP_INFO		0
-#define WLAN_ASSOCREQ_OFF_LISTEN_INT		2
+#define WLAN_ASSOCREQ_OFF_LISTEN_int		2
 #define WLAN_ASSOCREQ_OFF_SSID			4
 
 #define WLAN_ASSOCRESP_OFF_CAP_INFO		0
@@ -188,7 +188,7 @@
 #define WLAN_ASSOCRESP_OFF_SUPP_RATES		6
 
 #define WLAN_REASSOCREQ_OFF_CAP_INFO		0
-#define WLAN_REASSOCREQ_OFF_LISTEN_INT		2
+#define WLAN_REASSOCREQ_OFF_LISTEN_int		2
 #define WLAN_REASSOCREQ_OFF_CURR_AP		4
 #define WLAN_REASSOCREQ_OFF_SSID		10
 
@@ -200,7 +200,7 @@
 #define WLAN_PROBEREQ_OFF_SSID			0
 
 #define WLAN_PROBERESP_OFF_TS			0
-#define WLAN_PROBERESP_OFF_BCN_INT		8
+#define WLAN_PROBERESP_OFF_BCN_int		8
 #define WLAN_PROBERESP_OFF_CAP_INFO		10
 #define WLAN_PROBERESP_OFF_SSID			12
 
@@ -245,82 +245,82 @@
 
 typedef struct wlan_ie
 {
-	UINT8	eid;
-	UINT8	len;
+	u8	eid;
+	u8	len;
 } __WLAN_ATTRIB_PACK__ wlan_ie_t;
 
 /*-- Service Set Identity (SSID)  -----------------*/
 typedef struct wlan_ie_ssid
 {
-	UINT8	eid;
-	UINT8	len;
-	UINT8	ssid[1];  /* may be zero, ptrs may overlap */
+	u8	eid;
+	u8	len;
+	u8	ssid[1];  /* may be zero, ptrs may overlap */
 } __WLAN_ATTRIB_PACK__ wlan_ie_ssid_t;
 
 /*-- Supported Rates  -----------------------------*/
 typedef struct wlan_ie_supp_rates
 {
-	UINT8	eid;
-	UINT8	len;
-	UINT8	rates[1];  /* had better be at LEAST one! */
+	u8	eid;
+	u8	len;
+	u8	rates[1];  /* had better be at LEAST one! */
 } __WLAN_ATTRIB_PACK__ wlan_ie_supp_rates_t;
 
 /*-- FH Parameter Set  ----------------------------*/
 typedef struct wlan_ie_fh_parms
 {
-	UINT8	eid;
-	UINT8	len;
-	UINT16	dwell;
-	UINT8	hopset;
-	UINT8	hoppattern;
-	UINT8	hopindex;
+	u8	eid;
+	u8	len;
+	u16	dwell;
+	u8	hopset;
+	u8	hoppattern;
+	u8	hopindex;
 } __WLAN_ATTRIB_PACK__ wlan_ie_fh_parms_t;
 
 /*-- DS Parameter Set  ----------------------------*/
 typedef struct wlan_ie_ds_parms
 {
-	UINT8	eid;
-	UINT8	len;
-	UINT8	curr_ch;
+	u8	eid;
+	u8	len;
+	u8	curr_ch;
 } __WLAN_ATTRIB_PACK__ wlan_ie_ds_parms_t;
 
 /*-- CF Parameter Set  ----------------------------*/
 
 typedef struct wlan_ie_cf_parms
 {
-	UINT8	eid;
-	UINT8	len;
-	UINT8	cfp_cnt;
-	UINT8	cfp_period;
-	UINT16	cfp_maxdur;
-	UINT16	cfp_durremaining;
+	u8	eid;
+	u8	len;
+	u8	cfp_cnt;
+	u8	cfp_period;
+	u16	cfp_maxdur;
+	u16	cfp_durremaining;
 } __WLAN_ATTRIB_PACK__ wlan_ie_cf_parms_t;
 
 /*-- TIM ------------------------------------------*/
 typedef struct wlan_ie_tim
 {
-	UINT8	eid;
-	UINT8	len;
-	UINT8	dtim_cnt;
-	UINT8	dtim_period;
-	UINT8	bitmap_ctl;
-	UINT8	virt_bm[1];
+	u8	eid;
+	u8	len;
+	u8	dtim_cnt;
+	u8	dtim_period;
+	u8	bitmap_ctl;
+	u8	virt_bm[1];
 } __WLAN_ATTRIB_PACK__ wlan_ie_tim_t;
 
 /*-- IBSS Parameter Set ---------------------------*/
 typedef struct wlan_ie_ibss_parms
 {
-	UINT8	eid;
-	UINT8	len;
-	UINT16	atim_win;
+	u8	eid;
+	u8	len;
+	u16	atim_win;
 } __WLAN_ATTRIB_PACK__ wlan_ie_ibss_parms_t;
 
 /*-- Challenge Text  ------------------------------*/
 typedef struct wlan_ie_challenge
 {
-	UINT8	eid;
-	UINT8	len;
-	UINT8	challenge[1];
+	u8	eid;
+	u8	len;
+	u8	challenge[1];
 } __WLAN_ATTRIB_PACK__ wlan_ie_challenge_t;
 
 /*-------------------------------------------------*/
@@ -329,9 +329,9 @@ typedef struct wlan_ie_challenge
 /* prototype structure, all mgmt frame types will start with these members */
 typedef struct wlan_fr_mgmt
 {
-	UINT16			type;
-	UINT16			len;	/* DOES NOT include CRC !!!!*/
-	UINT8			*buf;
+	u16			type;
+	u16			len;	/* DOES NOT include CRC !!!!*/
+	u8			*buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
@@ -342,16 +342,16 @@ typedef struct wlan_fr_mgmt
 /*-- Beacon ---------------------------------------*/
 typedef struct wlan_fr_beacon
 {
-	UINT16			type;
-	UINT16			len;
-	UINT8			*buf;
+	u16			type;
+	u16			len;
+	u8			*buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
 	/*-- fixed fields -----------*/
-	UINT64			*ts;
-	UINT16			*bcn_int;
-	UINT16			*cap_info;
+	u64			*ts;
+	u16			*bcn_int;
+	u16			*cap_info;
 	/*-- info elements ----------*/
 	wlan_ie_ssid_t		*ssid;
 	wlan_ie_supp_rates_t	*supp_rates;
@@ -367,9 +367,9 @@ typedef struct wlan_fr_beacon
 /*-- IBSS ATIM ------------------------------------*/
 typedef struct wlan_fr_ibssatim
 {
-	UINT16			type;
-	UINT16			len;
-	UINT8*			buf;
+	u16			type;
+	u16			len;
+	u8*			buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
@@ -384,14 +384,14 @@ typedef struct wlan_fr_ibssatim
 /*-- Disassociation -------------------------------*/
 typedef struct wlan_fr_disassoc
 {
-	UINT16			type;
-	UINT16			len;
-	UINT8			*buf;
+	u16			type;
+	u16			len;
+	u8			*buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
 	/*-- fixed fields -----------*/
-	UINT16			*reason;
+	u16			*reason;
 
 	/*-- info elements ----------*/
 
@@ -400,15 +400,15 @@ typedef struct wlan_fr_disassoc
 /*-- Association Request --------------------------*/
 typedef struct wlan_fr_assocreq
 {
-	UINT16			type;
-	UINT16			len;
-	UINT8*			buf;
+	u16			type;
+	u16			len;
+	u8*			buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
 	/*-- fixed fields -----------*/
-	UINT16			*cap_info;
-	UINT16			*listen_int;
+	u16			*cap_info;
+	u16			*listen_int;
 	/*-- info elements ----------*/
 	wlan_ie_ssid_t		*ssid;
 	wlan_ie_supp_rates_t	*supp_rates;
@@ -418,16 +418,16 @@ typedef struct wlan_fr_assocreq
 /*-- Association Response -------------------------*/
 typedef struct wlan_fr_assocresp
 {
-	UINT16			type;
-	UINT16			len;
-	UINT8			*buf;
+	u16			type;
+	u16			len;
+	u8			*buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
 	/*-- fixed fields -----------*/
-	UINT16			*cap_info;
-	UINT16			*status;
-	UINT16			*aid;
+	u16			*cap_info;
+	u16			*status;
+	u16			*aid;
 	/*-- info elements ----------*/
 	wlan_ie_supp_rates_t	*supp_rates;
 
@@ -436,16 +436,16 @@ typedef struct wlan_fr_assocresp
 /*-- Reassociation Request ------------------------*/
 typedef struct wlan_fr_reassocreq
 {
-	UINT16			type;
-	UINT16			len;
-	UINT8			*buf;
+	u16			type;
+	u16			len;
+	u8			*buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
 	/*-- fixed fields -----------*/
-	UINT16			*cap_info;
-	UINT16			*listen_int;
-	UINT8			*curr_ap;
+	u16			*cap_info;
+	u16			*listen_int;
+	u8			*curr_ap;
 	/*-- info elements ----------*/
 	wlan_ie_ssid_t		*ssid;
 	wlan_ie_supp_rates_t	*supp_rates;
@@ -455,16 +455,16 @@ typedef struct wlan_fr_reassocreq
 /*-- Reassociation Response -----------------------*/
 typedef struct wlan_fr_reassocresp
 {
-	UINT16			type;
-	UINT16			len;
-	UINT8			*buf;
+	u16			type;
+	u16			len;
+	u8			*buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
 	/*-- fixed fields -----------*/
-	UINT16			*cap_info;
-	UINT16			*status;
-	UINT16			*aid;
+	u16			*cap_info;
+	u16			*status;
+	u16			*aid;
 	/*-- info elements ----------*/
 	wlan_ie_supp_rates_t	*supp_rates;
 
@@ -473,9 +473,9 @@ typedef struct wlan_fr_reassocresp
 /*-- Probe Request --------------------------------*/
 typedef struct wlan_fr_probereq
 {
-	UINT16			type;
-	UINT16			len;
-	UINT8			*buf;
+	u16			type;
+	u16			len;
+	u8			*buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
@@ -489,16 +489,16 @@ typedef struct wlan_fr_probereq
 /*-- Probe Response -------------------------------*/
 typedef struct wlan_fr_proberesp
 {
-	UINT16			type;
-	UINT16			len;
-	UINT8			*buf;
+	u16			type;
+	u16			len;
+	u8			*buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
 	/*-- fixed fields -----------*/
-	UINT64			*ts;
-	UINT16			*bcn_int;
-	UINT16			*cap_info;
+	u64			*ts;
+	u16			*bcn_int;
+	u16			*cap_info;
 	/*-- info elements ----------*/
 	wlan_ie_ssid_t		*ssid;
 	wlan_ie_supp_rates_t	*supp_rates;
@@ -511,16 +511,16 @@ typedef struct wlan_fr_proberesp
 /*-- Authentication -------------------------------*/
 typedef struct wlan_fr_authen
 {
-	UINT16			type;
-	UINT16			len;
-	UINT8			*buf;
+	u16			type;
+	u16			len;
+	u8			*buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
 	/*-- fixed fields -----------*/
-	UINT16			*auth_alg;
-	UINT16			*auth_seq;
-	UINT16			*status;
+	u16			*auth_alg;
+	u16			*auth_seq;
+	u16			*status;
 	/*-- info elements ----------*/
 	wlan_ie_challenge_t	*challenge;
 
@@ -529,14 +529,14 @@ typedef struct wlan_fr_authen
 /*-- Deauthenication -----------------------------*/
 typedef struct wlan_fr_deauthen
 {
-	UINT16			type;
-	UINT16			len;
-	UINT8			*buf;
+	u16			type;
+	u16			len;
+	u8			*buf;
 	p80211_hdr_t		*hdr;
 	/* used for target specific data, skb in Linux */
 	void			*priv;
 	/*-- fixed fields -----------*/
-	UINT16			*reason;
+	u16			*reason;
 
 	/*-- info elements ----------*/
 

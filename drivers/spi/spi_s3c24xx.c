@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -27,7 +28,6 @@
 #include <asm/dma.h>
 #include <mach/hardware.h>
 
-#include <mach/regs-gpio.h>
 #include <plat/regs-spi.h>
 #include <mach/spi.h>
 
@@ -66,7 +66,7 @@ static inline struct s3c24xx_spi *to_hw(struct spi_device *sdev)
 
 static void s3c24xx_spi_gpiocs(struct s3c2410_spi_info *spi, int cs, int pol)
 {
-	s3c2410_gpio_setpin(spi->pin_cs, pol);
+	gpio_set_value(spi->pin_cs, pol);
 }
 
 static void s3c24xx_spi_chipsel(struct spi_device *spi, int value)
@@ -248,8 +248,13 @@ static void s3c24xx_spi_initialsetup(struct s3c24xx_spi *hw)
 	writeb(SPPIN_DEFAULT, hw->regs + S3C2410_SPPIN);
 	writeb(SPCON_DEFAULT, hw->regs + S3C2410_SPCON);
 
-	if (hw->pdata && hw->pdata->gpio_setup)
-		hw->pdata->gpio_setup(hw->pdata, 1);
+	if (hw->pdata) {
+		if (hw->set_cs == s3c24xx_spi_gpiocs)
+			gpio_direction_output(hw->pdata->pin_cs, 1);
+
+		if (hw->pdata->gpio_setup)
+			hw->pdata->gpio_setup(hw->pdata, 1);
+	}
 }
 
 static int __init s3c24xx_spi_probe(struct platform_device *pdev)
@@ -343,17 +348,26 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 		goto err_no_clk;
 	}
 
-	s3c24xx_spi_initialsetup(hw);
-
 	/* setup any gpio we can */
 
 	if (!pdata->set_cs) {
-		hw->set_cs = s3c24xx_spi_gpiocs;
+		if (pdata->pin_cs < 0) {
+			dev_err(&pdev->dev, "No chipselect pin\n");
+			goto err_register;
+		}
 
-		s3c2410_gpio_setpin(pdata->pin_cs, 1);
-		s3c2410_gpio_cfgpin(pdata->pin_cs, S3C2410_GPIO_OUTPUT);
+		err = gpio_request(pdata->pin_cs, dev_name(&pdev->dev));
+		if (err) {
+			dev_err(&pdev->dev, "Failed to get gpio for cs\n");
+			goto err_register;
+		}
+
+		hw->set_cs = s3c24xx_spi_gpiocs;
+		gpio_direction_output(pdata->pin_cs, 1);
 	} else
 		hw->set_cs = pdata->set_cs;
+
+	s3c24xx_spi_initialsetup(hw);
 
 	/* register our spi controller */
 
@@ -366,6 +380,9 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 	return 0;
 
  err_register:
+	if (hw->set_cs == s3c24xx_spi_gpiocs)
+		gpio_free(pdata->pin_cs);
+
 	clk_disable(hw->clk);
 	clk_put(hw->clk);
 
@@ -400,6 +417,9 @@ static int __exit s3c24xx_spi_remove(struct platform_device *dev)
 
 	free_irq(hw->irq, hw);
 	iounmap(hw->regs);
+
+	if (hw->set_cs == s3c24xx_spi_gpiocs)
+		gpio_free(hw->pdata->pin_cs);
 
 	release_resource(hw->ioarea);
 	kfree(hw->ioarea);

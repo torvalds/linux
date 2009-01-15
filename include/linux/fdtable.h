@@ -57,8 +57,6 @@ struct files_struct {
 
 #define files_fdtable(files) (rcu_dereference((files)->fdt))
 
-extern struct kmem_cache *filp_cachep;
-
 struct file_operations;
 struct vfsmount;
 struct dentry;

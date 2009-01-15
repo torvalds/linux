@@ -263,10 +263,10 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 		dev_set_name(&vdev->dev, "%s", bus_id_name);
 		vdev->dev_no = ~(u64)0;
 	} else if (!cfg_handle) {
-		dev_set_name(&vdev->dev, "%s-%lu", bus_id_name, *id);
+		dev_set_name(&vdev->dev, "%s-%llu", bus_id_name, *id);
 		vdev->dev_no = *id;
 	} else {
-		dev_set_name(&vdev->dev, "%s-%lu-%lu", bus_id_name,
+		dev_set_name(&vdev->dev, "%s-%llu-%llu", bus_id_name,
 			     *cfg_handle, *id);
 		vdev->dev_no = *cfg_handle;
 	}

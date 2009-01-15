@@ -1,0 +1,17 @@
+I'm hesitant to add a TODO file here, as the wireless developers would
+really have people help them out on the "clean" rt2860 driver that can
+be found at the rt2860.sf.net site.
+
+But, if you wish to clean up this driver instead, here's a short list of
+things that need to be done to get it into a more mergable shape:
+
+TODO:
+	- checkpatch.pl clean
+	- sparse clean
+	- port to in-kernel 80211 stack
+	- remove reading from /etc/ config files
+	- review by the wireless developer community
+
+Please send any patches or complaints about this driver to Greg
+Kroah-Hartman <greg@kroah.com> and don't bother the upstream wireless
+kernel developers about it, they want nothing to do with it.

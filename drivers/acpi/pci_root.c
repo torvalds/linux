@@ -31,6 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/pm.h>
 #include <linux/pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
@@ -193,6 +194,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	unsigned long long value = 0;
 	acpi_handle handle = NULL;
 	struct acpi_device *child;
+	u32 flags, base_flags;
 
 
 	if (!device)
@@ -209,6 +211,13 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	device->driver_data = root;
 
 	device->ops.bind = acpi_pci_bind;
+
+	/*
+	 * All supported architectures that use ACPI have support for
+	 * PCI domains, so we indicate this in _OSC support capabilities.
+	 */
+	flags = base_flags = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
+	pci_acpi_osc_support(device->handle, flags);
 
 	/* 
 	 * Segment
@@ -334,6 +343,17 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	 */
 	list_for_each_entry(child, &device->children, node)
 		acpi_pci_bridge_scan(child);
+
+	/* Indicate support for various _OSC capabilities. */
+	if (pci_ext_cfg_avail(root->bus->self))
+		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
+	if (pcie_aspm_enabled())
+		flags |= OSC_ACTIVE_STATE_PWR_SUPPORT |
+			OSC_CLOCK_PWR_CAPABILITY_SUPPORT;
+	if (pci_msi_enabled())
+		flags |= OSC_MSI_SUPPORT;
+	if (flags != base_flags)
+		pci_acpi_osc_support(device->handle, flags);
 
       end:
 	if (result) {

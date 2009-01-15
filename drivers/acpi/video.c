@@ -36,6 +36,7 @@
 #include <linux/backlight.h>
 #include <linux/thermal.h>
 #include <linux/video_output.h>
+#include <linux/sort.h>
 #include <asm/uaccess.h>
 
 #include <acpi/acpi_bus.h>
@@ -481,6 +482,7 @@ acpi_video_device_lcd_set_level(struct acpi_video_device *device, int level)
 	int status = AE_OK;
 	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
 	struct acpi_object_list args = { 1, &arg0 };
+	int state;
 
 
 	arg0.integer.value = level;
@@ -489,6 +491,10 @@ acpi_video_device_lcd_set_level(struct acpi_video_device *device, int level)
 		status = acpi_evaluate_object(device->dev->handle, "_BCM",
 					      &args, NULL);
 	device->brightness->curr = level;
+	for (state = 2; state < device->brightness->count; state++)
+		if (level == device->brightness->levels[state])
+			device->backlight->props.brightness = state - 2;
+
 	return status;
 }
 
@@ -626,6 +632,16 @@ acpi_video_bus_DOS(struct acpi_video_bus *video, int bios_flag, int lcd_flag)
 }
 
 /*
+ * Simple comparison function used to sort backlight levels.
+ */
+
+static int
+acpi_video_cmp_level(const void *a, const void *b)
+{
+	return *(int *)a - *(int *)b;
+}
+
+/*
  *  Arg:	
  *  	device	: video output device (LCD, CRT, ..)
  *
@@ -675,6 +691,10 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 			max_level = br->levels[count];
 		count++;
 	}
+
+	/* don't sort the first two brightness levels */
+	sort(&br->levels[2], count - 2, sizeof(br->levels[2]),
+		acpi_video_cmp_level, NULL);
 
 	if (count < 2)
 		goto out_free_levels;

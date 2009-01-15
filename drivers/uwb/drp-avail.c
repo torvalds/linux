@@ -58,7 +58,7 @@ void uwb_drp_avail_init(struct uwb_rc *rc)
  *
  * avail = global & local & pending
  */
-static void uwb_drp_available(struct uwb_rc *rc, struct uwb_mas_bm *avail)
+void uwb_drp_available(struct uwb_rc *rc, struct uwb_mas_bm *avail)
 {
 	bitmap_and(avail->bm, rc->drp_avail.global, rc->drp_avail.local, UWB_NUM_MAS);
 	bitmap_and(avail->bm, avail->bm, rc->drp_avail.pending, UWB_NUM_MAS);
@@ -105,6 +105,7 @@ void uwb_drp_avail_release(struct uwb_rc *rc, struct uwb_mas_bm *mas)
 	bitmap_or(rc->drp_avail.local, rc->drp_avail.local, mas->bm, UWB_NUM_MAS);
 	bitmap_or(rc->drp_avail.pending, rc->drp_avail.pending, mas->bm, UWB_NUM_MAS);
 	rc->drp_avail.ie_valid = false;
+	uwb_rsv_handle_drp_avail_change(rc);
 }
 
 /**
@@ -280,6 +281,7 @@ int uwbd_evt_handle_rc_drp_avail(struct uwb_event *evt)
 	mutex_lock(&rc->rsvs_mutex);
 	bitmap_copy(rc->drp_avail.global, bmp, UWB_NUM_MAS);
 	rc->drp_avail.ie_valid = false;
+	uwb_rsv_handle_drp_avail_change(rc);
 	mutex_unlock(&rc->rsvs_mutex);
 
 	uwb_rsv_sched_update(rc);

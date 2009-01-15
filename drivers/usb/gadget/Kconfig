@@ -297,13 +297,34 @@ config USB_S3C2410_DEBUG
 
 # musb builds in ../musb along with host support
 config USB_GADGET_MUSB_HDRC
-	boolean "Inventra HDRC USB Peripheral (TI, ...)"
+	boolean "Inventra HDRC USB Peripheral (TI, ADI, ...)"
 	depends on USB_MUSB_HDRC && (USB_MUSB_PERIPHERAL || USB_MUSB_OTG)
 	select USB_GADGET_DUALSPEED
 	select USB_GADGET_SELECTED
 	help
 	  This OTG-capable silicon IP is used in dual designs including
-	  the TI DaVinci, OMAP 243x, OMAP 343x, and TUSB 6010.
+	  the TI DaVinci, OMAP 243x, OMAP 343x, TUSB 6010, and ADI Blackfin
+
+config USB_GADGET_IMX
+	boolean "Freescale IMX USB Peripheral Controller"
+	depends on ARCH_MX1
+	help
+	   Freescale's IMX series include an integrated full speed
+	   USB 1.1 device controller.  The controller in the IMX series
+	   is register-compatible.
+
+	   It has Six fixed-function endpoints, as well as endpoint
+	   zero (for control transfers).
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "imx_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_IMX
+	tristate
+	depends on USB_GADGET_IMX
+	default USB_GADGET
+	select USB_GADGET_SELECTED
 
 config USB_GADGET_M66592
 	boolean "Renesas M66592 USB Peripheral Controller"
@@ -374,6 +395,24 @@ config USB_GADGET_FSL_QE
 config USB_FSL_QE
 	tristate
 	depends on USB_GADGET_FSL_QE
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
+config USB_GADGET_CI13XXX
+	boolean "MIPS USB CI13xxx"
+	depends on PCI
+	select USB_GADGET_DUALSPEED
+	help
+	  MIPS USB IP core family device controller
+	  Currently it only supports IP part number CI13412
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "ci13xxx_udc" and force all
+	  gadget drivers to also be dynamically linked.
+
+config USB_CI13XXX
+	tristate
+	depends on USB_GADGET_CI13XXX
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 

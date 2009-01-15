@@ -899,7 +899,7 @@ static int dbg_scan_orphans(struct ubifs_info *c, struct check_info *ci)
 	for (lnum = c->orph_first; lnum <= c->orph_last; lnum++) {
 		struct ubifs_scan_leb *sleb;
 
-		sleb = ubifs_scan(c, lnum, 0, c->dbg_buf);
+		sleb = ubifs_scan(c, lnum, 0, c->dbg->buf);
 		if (IS_ERR(sleb)) {
 			err = PTR_ERR(sleb);
 			break;

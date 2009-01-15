@@ -24,7 +24,6 @@
 #include <asm/kvm_virtio.h>
 #include <asm/setup.h>
 #include <asm/s390_ext.h>
-#include <asm/s390_rdev.h>
 
 #define VIRTIO_SUBCODE_64 0x0D00
 
@@ -335,7 +334,7 @@ static int __init kvm_devices_init(void)
 	if (!MACHINE_IS_KVM)
 		return -ENODEV;
 
-	kvm_root = s390_root_dev_register("kvm_s390");
+	kvm_root = root_device_register("kvm_s390");
 	if (IS_ERR(kvm_root)) {
 		rc = PTR_ERR(kvm_root);
 		printk(KERN_ERR "Could not register kvm_s390 root device");
@@ -344,7 +343,7 @@ static int __init kvm_devices_init(void)
 
 	rc = vmem_add_mapping(real_memory_size, PAGE_SIZE);
 	if (rc) {
-		s390_root_dev_unregister(kvm_root);
+		root_device_unregister(kvm_root);
 		return rc;
 	}
 

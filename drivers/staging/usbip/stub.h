@@ -91,5 +91,5 @@ void stub_rx_loop(struct usbip_task *);
 void stub_enqueue_ret_unlink(struct stub_device *, __u32, __u32);
 
 /* stub_main.c */
-int match_busid(char *busid);
+int match_busid(const char *busid);
 void stub_device_cleanup_urbs(struct stub_device *sdev);

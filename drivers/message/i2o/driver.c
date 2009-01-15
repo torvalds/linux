@@ -173,7 +173,6 @@ void i2o_driver_unregister(struct i2o_driver *drv)
  *	i2o_driver_dispatch - dispatch an I2O reply message
  *	@c: I2O controller of the message
  *	@m: I2O message number
- *	@msg: I2O message to be delivered
  *
  *	The reply is delivered to the driver from which the original message
  *	was. This function is only called from interrupt context.

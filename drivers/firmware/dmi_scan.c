@@ -468,8 +468,8 @@ const char *dmi_get_system_info(int field)
 EXPORT_SYMBOL(dmi_get_system_info);
 
 /**
- *	dmi_name_in_serial - 	Check if string is in the DMI product serial
- *				information.
+ * dmi_name_in_serial - Check if string is in the DMI product serial information
+ * @str: string to check for
  */
 int dmi_name_in_serial(const char *str)
 {
@@ -585,6 +585,8 @@ EXPORT_SYMBOL_GPL(dmi_walk);
 
 /**
  * dmi_match - compare a string to the dmi field (if exists)
+ * @f: DMI field identifier
+ * @str: string to compare the DMI field to
  *
  * Returns true if the requested field equals to the str (including NULL).
  */

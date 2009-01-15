@@ -28,7 +28,7 @@ static void probe_subsys_eventb(void)
 	printk(KERN_INFO "Event B is encountered\n");
 }
 
-int __init tp_sample_trace_init(void)
+static int __init tp_sample_trace_init(void)
 {
 	int ret;
 
@@ -42,7 +42,7 @@ int __init tp_sample_trace_init(void)
 
 module_init(tp_sample_trace_init);
 
-void __exit tp_sample_trace_exit(void)
+static void __exit tp_sample_trace_exit(void)
 {
 	unregister_trace_subsys_eventb(probe_subsys_eventb);
 	unregister_trace_subsys_event(probe_subsys_event);

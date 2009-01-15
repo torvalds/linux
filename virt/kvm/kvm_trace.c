@@ -252,6 +252,7 @@ void kvm_trace_cleanup(void)
 			struct kvm_trace_probe *p = &kvm_trace_probes[i];
 			marker_probe_unregister(p->name, p->probe_func, p);
 		}
+		marker_synchronize_unregister();
 
 		relay_close(kt->rchan);
 		debugfs_remove(kt->lost_file);

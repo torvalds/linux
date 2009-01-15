@@ -800,7 +800,7 @@ static int tuner_s_standby(struct v4l2_subdev *sd, u32 standby)
 }
 
 #ifdef CONFIG_VIDEO_ALLOW_V4L1
-static int tuner_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+static long tuner_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct tuner *t = to_tuner(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);

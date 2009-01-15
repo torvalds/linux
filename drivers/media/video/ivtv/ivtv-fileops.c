@@ -831,7 +831,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 	ivtv_release_stream(s);
 }
 
-int ivtv_v4l2_close(struct inode *inode, struct file *filp)
+int ivtv_v4l2_close(struct file *filp)
 {
 	struct ivtv_open_id *id = filp->private_data;
 	struct ivtv *itv = id->itv;
@@ -978,7 +978,7 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 	return 0;
 }
 
-int ivtv_v4l2_open(struct inode *inode, struct file *filp)
+int ivtv_v4l2_open(struct file *filp)
 {
 	int res;
 	struct ivtv *itv = NULL;

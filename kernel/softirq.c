@@ -733,7 +733,7 @@ static int __cpuinit cpu_callback(struct notifier_block *nfb,
 			break;
 		/* Unbind so it can run.  Fall thru. */
 		kthread_bind(per_cpu(ksoftirqd, hotcpu),
-			     any_online_cpu(cpu_online_map));
+			     cpumask_any(cpu_online_mask));
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN: {
 		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
@@ -784,3 +784,23 @@ int on_each_cpu(void (*func) (void *info), void *info, int wait)
 }
 EXPORT_SYMBOL(on_each_cpu);
 #endif
+
+/*
+ * [ These __weak aliases are kept in a separate compilation unit, so that
+ *   GCC does not inline them incorrectly. ]
+ */
+
+int __init __weak early_irq_init(void)
+{
+	return 0;
+}
+
+int __init __weak arch_early_irq_init(void)
+{
+	return 0;
+}
+
+int __weak arch_init_chip_data(struct irq_desc *desc, int cpu)
+{
+	return 0;
+}

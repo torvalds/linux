@@ -78,13 +78,6 @@
 #include <asm/fb.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#ifdef CONFIG_ATARI
-#include <asm/atariints.h>
-#endif
-#if defined(__mc68000__)
-#include <asm/machdep.h>
-#include <asm/setup.h>
-#endif
 
 #include "fbcon.h"
 
@@ -154,9 +147,6 @@ static const struct consw fb_con;
 static int fbcon_set_origin(struct vc_data *);
 
 #define CURSOR_DRAW_DELAY		(1)
-
-/* # VBL ints between cursor state changes */
-#define ATARI_CURSOR_BLINK_RATE		(42)
 
 static int vbl_cursor_cnt;
 static int fbcon_cursor_noblink;
@@ -403,20 +393,6 @@ static void fb_flashcursor(struct work_struct *work)
 	release_console_sem();
 }
 
-#ifdef CONFIG_ATARI
-static int cursor_blink_rate;
-static irqreturn_t fb_vbl_handler(int irq, void *dev_id)
-{
-	struct fb_info *info = dev_id;
-
-	if (vbl_cursor_cnt && --vbl_cursor_cnt == 0) {
-		schedule_work(&info->queue);	
-		vbl_cursor_cnt = cursor_blink_rate; 
-	}
-	return IRQ_HANDLED;
-}
-#endif
-	
 static void cursor_timer_handler(unsigned long dev_addr)
 {
 	struct fb_info *info = (struct fb_info *) dev_addr;
@@ -1016,15 +992,6 @@ static const char *fbcon_startup(void)
 	DPRINTK("res:    %dx%d-%d\n", info->var.xres,
 		info->var.yres,
 		info->var.bits_per_pixel);
-
-#ifdef CONFIG_ATARI
-	if (MACH_IS_ATARI) {
-		cursor_blink_rate = ATARI_CURSOR_BLINK_RATE;
-		(void)request_irq(IRQ_AUTO_4, fb_vbl_handler,
-				IRQ_TYPE_PRIO, "framebuffer vbl",
-				info);
-	}
-#endif /* CONFIG_ATARI */
 
 	fbcon_add_cursor_timer(info);
 	fbcon_has_exited = 0;
@@ -3453,11 +3420,6 @@ static void fbcon_exit(void)
 
 	if (fbcon_has_exited)
 		return;
-
-#ifdef CONFIG_ATARI
-	if (MACH_IS_ATARI)
-		free_irq(IRQ_AUTO_4, fb_vbl_handler);
-#endif
 
 	kfree((void *)softback_buf);
 	softback_buf = 0UL;

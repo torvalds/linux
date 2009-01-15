@@ -122,7 +122,7 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy,
 		return 0;
 
 	/* notifiers */
-	for_each_cpu_mask_nr(i, policy->cpus) {
+	for_each_cpu(i, policy->cpus) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	}
@@ -130,11 +130,11 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy,
 	/* run on each logical CPU, see section 13.15.3 of IA32 Intel Architecture Software
 	 * Developer's Manual, Volume 3
 	 */
-	for_each_cpu_mask_nr(i, policy->cpus)
+	for_each_cpu(i, policy->cpus)
 		cpufreq_p4_setdc(i, p4clockmod_table[newstate].index);
 
 	/* notifiers */
-	for_each_cpu_mask_nr(i, policy->cpus) {
+	for_each_cpu(i, policy->cpus) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	}
@@ -160,6 +160,7 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 		switch (c->x86_model) {
 		case 0x0E: /* Core */
 		case 0x0F: /* Core Duo */
+		case 0x16: /* Celeron Core */
 			p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
 			return speedstep_get_processor_frequency(SPEEDSTEP_PROCESSOR_PCORE);
 		case 0x0D: /* Pentium M (Dothan) */
@@ -171,7 +172,9 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 	}
 
 	if (c->x86 != 0xF) {
-		printk(KERN_WARNING PFX "Unknown p4-clockmod-capable CPU. Please send an e-mail to <cpufreq@vger.kernel.org>\n");
+		if (!cpu_has(c, X86_FEATURE_EST))
+			printk(KERN_WARNING PFX "Unknown p4-clockmod-capable CPU. "
+				"Please send an e-mail to <cpufreq@vger.kernel.org>\n");
 		return 0;
 	}
 
@@ -200,7 +203,7 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	unsigned int i;
 
 #ifdef CONFIG_SMP
-	policy->cpus = per_cpu(cpu_sibling_map, policy->cpu);
+	cpumask_copy(policy->cpus, &per_cpu(cpu_sibling_map, policy->cpu));
 #endif
 
 	/* Errata workaround */
@@ -274,6 +277,7 @@ static struct cpufreq_driver p4clockmod_driver = {
 	.name		= "p4-clockmod",
 	.owner		= THIS_MODULE,
 	.attr		= p4clockmod_attr,
+	.hide_interface	= 1,
 };
 
 

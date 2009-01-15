@@ -1502,9 +1502,9 @@ static int vidioc_s_jpegcomp(struct file *file, void *priv,
 	dprintk(2, "setting jpeg quality %d\n", jc->quality);
 	return 0;
 }
-static int s2255_open(struct inode *inode, struct file *file)
+static int s2255_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct s2255_dev *h, *dev = NULL;
 	struct s2255_fh *fh;
 	struct list_head *list;
@@ -1711,11 +1711,11 @@ static void s2255_destroy(struct kref *kref)
 	mutex_unlock(&dev->open_lock);
 }
 
-static int s2255_close(struct inode *inode, struct file *file)
+static int s2255_close(struct file *file)
 {
 	struct s2255_fh *fh = file->private_data;
 	struct s2255_dev *dev = fh->dev;
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	if (!dev)
 		return -ENODEV;
 
@@ -1759,15 +1759,13 @@ static int s2255_mmap_v4l(struct file *file, struct vm_area_struct *vma)
 	return ret;
 }
 
-static const struct file_operations s2255_fops_v4l = {
+static const struct v4l2_file_operations s2255_fops_v4l = {
 	.owner = THIS_MODULE,
 	.open = s2255_open,
 	.release = s2255_close,
 	.poll = s2255_poll,
 	.ioctl = video_ioctl2,	/* V4L2 ioctl handler */
-	.compat_ioctl = v4l_compat_ioctl32,
 	.mmap = s2255_mmap_v4l,
-	.llseek = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops s2255_ioctl_ops = {

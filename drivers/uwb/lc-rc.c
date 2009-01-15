@@ -36,8 +36,6 @@
 #include <linux/etherdevice.h>
 #include <linux/usb.h>
 
-#define D_LOCAL 1
-#include <linux/uwb/debug.h>
 #include "uwb-internal.h"
 
 static int uwb_rc_index_match(struct device *dev, void *data)
@@ -81,9 +79,7 @@ static void uwb_rc_sys_release(struct device *dev)
 	struct uwb_dev *uwb_dev = container_of(dev, struct uwb_dev, dev);
 	struct uwb_rc *rc = container_of(uwb_dev, struct uwb_rc, uwb_dev);
 
-	uwb_rc_neh_destroy(rc);
 	uwb_rc_ie_release(rc);
-	d_printf(1, dev, "freed uwb_rc %p\n", rc);
 	kfree(rc);
 }
 
@@ -100,6 +96,8 @@ void uwb_rc_init(struct uwb_rc *rc)
 	rc->scan_type = UWB_SCAN_DISABLED;
 	INIT_LIST_HEAD(&rc->notifs_chain.list);
 	mutex_init(&rc->notifs_chain.mutex);
+	INIT_LIST_HEAD(&rc->uwb_beca.list);
+	mutex_init(&rc->uwb_beca.mutex);
 	uwb_drp_avail_init(rc);
 	uwb_rc_ie_init(rc);
 	uwb_rsv_init(rc);
@@ -191,9 +189,9 @@ static int uwb_rc_setup(struct uwb_rc *rc)
 	int result;
 	struct device *dev = &rc->uwb_dev.dev;
 
-	result = uwb_rc_reset(rc);
+	result = uwb_radio_setup(rc);
 	if (result < 0) {
-		dev_err(dev, "cannot reset UWB radio: %d\n", result);
+		dev_err(dev, "cannot setup UWB radio: %d\n", result);
 		goto error;
 	}
 	result = uwb_rc_mac_addr_setup(rc);
@@ -250,6 +248,12 @@ int uwb_rc_add(struct uwb_rc *rc, struct device *parent_dev, void *priv)
 
 	rc->priv = priv;
 
+	init_waitqueue_head(&rc->uwbd.wq);
+	INIT_LIST_HEAD(&rc->uwbd.event_list);
+	spin_lock_init(&rc->uwbd.event_list_lock);
+
+	uwbd_start(rc);
+
 	result = rc->start(rc);
 	if (result < 0)
 		goto error_rc_start;
@@ -284,7 +288,7 @@ error_sys_add:
 error_dev_add:
 error_rc_setup:
 	rc->stop(rc);
-	uwbd_flush(rc);
+	uwbd_stop(rc);
 error_rc_start:
 	return result;
 }
@@ -306,25 +310,24 @@ void uwb_rc_rm(struct uwb_rc *rc)
 	rc->ready = 0;
 
 	uwb_dbg_del_rc(rc);
-	uwb_rsv_cleanup(rc);
-	uwb_rc_ie_rm(rc, UWB_IDENTIFICATION_IE);
-	if (rc->beaconing >= 0)
-		uwb_rc_beacon(rc, -1, 0);
-	if (rc->scan_type != UWB_SCAN_DISABLED)
-		uwb_rc_scan(rc, rc->scanning, UWB_SCAN_DISABLED, 0);
-	uwb_rc_reset(rc);
+	uwb_rsv_remove_all(rc);
+	uwb_radio_shutdown(rc);
 
 	rc->stop(rc);
-	uwbd_flush(rc);
+
+	uwbd_stop(rc);
+	uwb_rc_neh_destroy(rc);
 
 	uwb_dev_lock(&rc->uwb_dev);
 	rc->priv = NULL;
 	rc->cmd = NULL;
 	uwb_dev_unlock(&rc->uwb_dev);
-	mutex_lock(&uwb_beca.mutex);
+	mutex_lock(&rc->uwb_beca.mutex);
 	uwb_dev_for_each(rc, uwb_dev_offair_helper, NULL);
 	__uwb_rc_sys_rm(rc);
-	mutex_unlock(&uwb_beca.mutex);
+	mutex_unlock(&rc->uwb_beca.mutex);
+	uwb_rsv_cleanup(rc);
+ 	uwb_beca_release(rc);
 	uwb_dev_rm(&rc->uwb_dev);
 }
 EXPORT_SYMBOL_GPL(uwb_rc_rm);
@@ -468,28 +471,3 @@ void uwb_rc_put(struct uwb_rc *rc)
 	__uwb_rc_put(rc);
 }
 EXPORT_SYMBOL_GPL(uwb_rc_put);
-
-/*
- *
- *
- */
-ssize_t uwb_rc_print_IEs(struct uwb_rc *uwb_rc, char *buf, size_t size)
-{
-	ssize_t result;
-	struct uwb_rc_evt_get_ie *ie_info;
-	struct uwb_buf_ctx ctx;
-
-	result = uwb_rc_get_ie(uwb_rc, &ie_info);
-	if (result < 0)
-		goto error_get_ie;
-	ctx.buf = buf;
-	ctx.size = size;
-	ctx.bytes = 0;
-	uwb_ie_for_each(&uwb_rc->uwb_dev, uwb_ie_dump_hex, &ctx,
-			ie_info->IEData, result - sizeof(*ie_info));
-	result = ctx.bytes;
-	kfree(ie_info);
-error_get_ie:
-	return result;
-}
-

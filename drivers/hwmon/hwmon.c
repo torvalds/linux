@@ -76,7 +76,7 @@ void hwmon_device_unregister(struct device *dev)
 {
 	int id;
 
-	if (likely(sscanf(dev->bus_id, HWMON_ID_FORMAT, &id) == 1)) {
+	if (likely(sscanf(dev_name(dev), HWMON_ID_FORMAT, &id) == 1)) {
 		device_unregister(dev);
 		spin_lock(&idr_lock);
 		idr_remove(&hwmon_idr, id);

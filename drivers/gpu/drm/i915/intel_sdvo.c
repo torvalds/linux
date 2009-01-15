@@ -978,7 +978,7 @@ static const struct drm_encoder_funcs intel_sdvo_enc_funcs = {
 };
 
 
-void intel_sdvo_init(struct drm_device *dev, int output_device)
+bool intel_sdvo_init(struct drm_device *dev, int output_device)
 {
 	struct drm_connector *connector;
 	struct intel_output *intel_output;
@@ -991,7 +991,7 @@ void intel_sdvo_init(struct drm_device *dev, int output_device)
 
 	intel_output = kcalloc(sizeof(struct intel_output)+sizeof(struct intel_sdvo_priv), 1, GFP_KERNEL);
 	if (!intel_output) {
-		return;
+		return false;
 	}
 
 	connector = &intel_output->base;
@@ -1116,7 +1116,7 @@ void intel_sdvo_init(struct drm_device *dev, int output_device)
 
 	intel_output->ddc_bus = i2cbus;
 
-	return;
+	return true;
 
 err_i2c:
 	intel_i2c_destroy(intel_output->i2c_bus);
@@ -1124,5 +1124,5 @@ err_connector:
 	drm_connector_cleanup(connector);
 	kfree(intel_output);
 
-	return;
+	return false;
 }

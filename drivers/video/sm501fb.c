@@ -159,6 +159,9 @@ static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
 		break;
 
 	case SM501_MEMF_PANEL:
+		if (size > inf->fbmem_len)
+			return -ENOMEM;
+
 		ptr = inf->fbmem_len - size;
 		fbi = inf->fb[HEAD_CRT];
 
@@ -170,9 +173,6 @@ static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
 			ptr &= ~(PAGE_SIZE - 1);
 
 		if (fbi && ptr < fbi->fix.smem_len)
-			return -ENOMEM;
-
-		if (ptr < 0)
 			return -ENOMEM;
 
 		break;

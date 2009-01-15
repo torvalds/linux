@@ -400,6 +400,18 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(mmlist_lock);
 #define allocate_mm()	(kmem_cache_alloc(mm_cachep, GFP_KERNEL))
 #define free_mm(mm)	(kmem_cache_free(mm_cachep, (mm)))
 
+static unsigned long default_dump_filter = MMF_DUMP_FILTER_DEFAULT;
+
+static int __init coredump_filter_setup(char *s)
+{
+	default_dump_filter =
+		(simple_strtoul(s, NULL, 0) << MMF_DUMP_FILTER_SHIFT) &
+		MMF_DUMP_FILTER_MASK;
+	return 1;
+}
+
+__setup("coredump_filter=", coredump_filter_setup);
+
 #include <linux/init_task.h>
 
 static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
@@ -408,8 +420,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
 	atomic_set(&mm->mm_count, 1);
 	init_rwsem(&mm->mmap_sem);
 	INIT_LIST_HEAD(&mm->mmlist);
-	mm->flags = (current->mm) ? current->mm->flags
-				  : MMF_DUMP_FILTER_DEFAULT;
+	mm->flags = (current->mm) ? current->mm->flags : default_dump_filter;
 	mm->core_state = NULL;
 	mm->nr_ptes = 0;
 	set_mm_counter(mm, file_rss, 0);
@@ -758,7 +769,7 @@ static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
 {
 	struct sighand_struct *sig;
 
-	if (clone_flags & (CLONE_SIGHAND | CLONE_THREAD)) {
+	if (clone_flags & CLONE_SIGHAND) {
 		atomic_inc(&current->sighand->count);
 		return 0;
 	}
@@ -1115,12 +1126,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	if (pid != &init_struct_pid) {
 		retval = -ENOMEM;
-		pid = alloc_pid(task_active_pid_ns(p));
+		pid = alloc_pid(p->nsproxy->pid_ns);
 		if (!pid)
 			goto bad_fork_cleanup_io;
 
 		if (clone_flags & CLONE_NEWPID) {
-			retval = pid_ns_prepare_proc(task_active_pid_ns(p));
+			retval = pid_ns_prepare_proc(p->nsproxy->pid_ns);
 			if (retval < 0)
 				goto bad_fork_free_pid;
 		}
@@ -1470,12 +1481,10 @@ void __init proc_caches_init(void)
 	fs_cachep = kmem_cache_create("fs_cache",
 			sizeof(struct fs_struct), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
-	vm_area_cachep = kmem_cache_create("vm_area_struct",
-			sizeof(struct vm_area_struct), 0,
-			SLAB_PANIC, NULL);
 	mm_cachep = kmem_cache_create("mm_struct",
 			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+	mmap_init();
 }
 
 /*

@@ -513,7 +513,7 @@ diva_pri_start_adapter(PISDN_ADAPTER IoAdapter,
 
 	diva_xdi_display_adapter_features(IoAdapter->ANum);
 
-	DBG_LOG(("A(%d) PRI adapter successfull started", IoAdapter->ANum))
+	DBG_LOG(("A(%d) PRI adapter successfully started", IoAdapter->ANum))
 	/*
 	   Register with DIDD
 	 */

@@ -248,7 +248,7 @@ static void hpet_legacy_clockevent_register(void)
 	 * Start hpet with the boot cpu mask and make it
 	 * global after the IO_APIC has been initialized.
 	 */
-	hpet_clockevent.cpumask = cpumask_of_cpu(smp_processor_id());
+	hpet_clockevent.cpumask = cpumask_of(smp_processor_id());
 	clockevents_register_device(&hpet_clockevent);
 	global_clock_event = &hpet_clockevent;
 	printk(KERN_DEBUG "hpet clockevent registered\n");
@@ -303,7 +303,7 @@ static void hpet_set_mode(enum clock_event_mode mode,
 			struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
 			hpet_setup_msi_irq(hdev->irq);
 			disable_irq(hdev->irq);
-			irq_set_affinity(hdev->irq, cpumask_of_cpu(hdev->cpu));
+			irq_set_affinity(hdev->irq, cpumask_of(hdev->cpu));
 			enable_irq(hdev->irq);
 		}
 		break;
@@ -451,7 +451,7 @@ static int hpet_setup_irq(struct hpet_dev *dev)
 		return -1;
 
 	disable_irq(dev->irq);
-	irq_set_affinity(dev->irq, cpumask_of_cpu(dev->cpu));
+	irq_set_affinity(dev->irq, cpumask_of(dev->cpu));
 	enable_irq(dev->irq);
 
 	printk(KERN_DEBUG "hpet: %s irq %d for MSI\n",
@@ -502,7 +502,7 @@ static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 	/* 5 usec minimum reprogramming delta. */
 	evt->min_delta_ns = 5000;
 
-	evt->cpumask = cpumask_of_cpu(hdev->cpu);
+	evt->cpumask = cpumask_of(hdev->cpu);
 	clockevents_register_device(evt);
 }
 

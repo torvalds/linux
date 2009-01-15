@@ -1,0 +1,9 @@
+TODO:
+	- checkpatch.pl cleanups
+	- sparse cleanups
+	- port to in-kernel 80211 stack
+	- proper network developer maintainer
+
+Please send any patches to Greg Kroah-Hartman <greg@kroah.com> and
+Luis Rodriguez <Luis.Rodriguez@Atheros.com> and the
+otus-devel@lists.madwifi-project.org mailing list.

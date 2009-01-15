@@ -367,7 +367,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		if (err)
 			goto out;
 	} else {
-		/* Can't be smaller then the number of outstanding CQEs */
+		/* Can't be smaller than the number of outstanding CQEs */
 		outst_cqe = mlx4_ib_get_outstanding_cqes(cq);
 		if (entries < outst_cqe + 1) {
 			err = 0;

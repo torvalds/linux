@@ -38,6 +38,7 @@
 #include <linux/utsname.h>
 #include <linux/tick.h>
 #include <linux/elfcore.h>
+#include <linux/kernel_stat.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -45,7 +46,6 @@
 #include <asm/processor.h>
 #include <asm/irq.h>
 #include <asm/timer.h>
-#include <asm/cpu.h>
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
@@ -75,36 +75,6 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return sf->gprs[8];
 }
 
-DEFINE_PER_CPU(struct s390_idle_data, s390_idle) = {
-	.lock = __SPIN_LOCK_UNLOCKED(s390_idle.lock)
-};
-
-static int s390_idle_enter(void)
-{
-	struct s390_idle_data *idle;
-
-	idle = &__get_cpu_var(s390_idle);
-	spin_lock(&idle->lock);
-	idle->idle_count++;
-	idle->in_idle = 1;
-	idle->idle_enter = get_clock();
-	spin_unlock(&idle->lock);
-	vtime_stop_cpu_timer();
-	return NOTIFY_OK;
-}
-
-void s390_idle_leave(void)
-{
-	struct s390_idle_data *idle;
-
-	vtime_start_cpu_timer();
-	idle = &__get_cpu_var(s390_idle);
-	spin_lock(&idle->lock);
-	idle->idle_time += get_clock() - idle->idle_enter;
-	idle->in_idle = 0;
-	spin_unlock(&idle->lock);
-}
-
 extern void s390_handle_mcck(void);
 /*
  * The idle loop on a S390...
@@ -117,10 +87,6 @@ static void default_idle(void)
 		local_irq_enable();
 		return;
 	}
-	if (s390_idle_enter() == NOTIFY_BAD) {
-		local_irq_enable();
-		return;
-	}
 #ifdef CONFIG_HOTPLUG_CPU
 	if (cpu_is_offline(smp_processor_id())) {
 		preempt_enable_no_resched();
@@ -130,7 +96,6 @@ static void default_idle(void)
 	local_mcck_disable();
 	if (test_thread_flag(TIF_MCCK_PENDING)) {
 		local_mcck_enable();
-		s390_idle_leave();
 		local_irq_enable();
 		s390_handle_mcck();
 		return;
@@ -138,9 +103,9 @@ static void default_idle(void)
 	trace_hardirqs_on();
 	/* Don't trace preempt off for idle. */
 	stop_critical_timings();
-	/* Wait for external, I/O or machine check interrupt. */
-	__load_psw_mask(psw_kernel_bits | PSW_MASK_WAIT |
-			PSW_MASK_IO | PSW_MASK_EXT);
+	/* Stop virtual timer and halt the cpu. */
+	vtime_stop_cpu();
+	/* Reenable preemption tracer. */
 	start_critical_timings();
 }
 

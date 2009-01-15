@@ -25,7 +25,56 @@
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
-#define UBIFS_DBG(op) op
+/**
+ * ubifs_debug_info - per-FS debugging information.
+ * @buf: a buffer of LEB size, used for various purposes
+ * @old_zroot: old index root - used by 'dbg_check_old_index()'
+ * @old_zroot_level: old index root level - used by 'dbg_check_old_index()'
+ * @old_zroot_sqnum: old index root sqnum - used by 'dbg_check_old_index()'
+ * @failure_mode: failure mode for recovery testing
+ * @fail_delay: 0=>don't delay, 1=>delay a time, 2=>delay a number of calls
+ * @fail_timeout: time in jiffies when delay of failure mode expires
+ * @fail_cnt: current number of calls to failure mode I/O functions
+ * @fail_cnt_max: number of calls by which to delay failure mode
+ * @chk_lpt_sz: used by LPT tree size checker
+ * @chk_lpt_sz2: used by LPT tree size checker
+ * @chk_lpt_wastage: used by LPT tree size checker
+ * @chk_lpt_lebs: used by LPT tree size checker
+ * @new_nhead_offs: used by LPT tree size checker
+ * @new_ihead_lnum: used by debugging to check ihead_lnum
+ * @new_ihead_offs: used by debugging to check ihead_offs
+ *
+ * debugfs_dir_name: name of debugfs directory containing this file-system's
+ *                   files
+ * debugfs_dir: direntry object of the file-system debugfs directory
+ * dump_lprops: "dump lprops" debugfs knob
+ * dump_budg: "dump budgeting information" debugfs knob
+ * dump_tnc: "dump TNC" debugfs knob
+ */
+struct ubifs_debug_info {
+	void *buf;
+	struct ubifs_zbranch old_zroot;
+	int old_zroot_level;
+	unsigned long long old_zroot_sqnum;
+	int failure_mode;
+	int fail_delay;
+	unsigned long fail_timeout;
+	unsigned int fail_cnt;
+	unsigned int fail_cnt_max;
+	long long chk_lpt_sz;
+	long long chk_lpt_sz2;
+	long long chk_lpt_wastage;
+	int chk_lpt_lebs;
+	int new_nhead_offs;
+	int new_ihead_lnum;
+	int new_ihead_offs;
+
+	char debugfs_dir_name[100];
+	struct dentry *debugfs_dir;
+	struct dentry *dump_lprops;
+	struct dentry *dump_budg;
+	struct dentry *dump_tnc;
+};
 
 #define ubifs_assert(expr) do {                                                \
 	if (unlikely(!(expr))) {                                               \
@@ -211,14 +260,18 @@ extern unsigned int ubifs_msg_flags;
 extern unsigned int ubifs_chk_flags;
 extern unsigned int ubifs_tst_flags;
 
-/* Dump functions */
+int ubifs_debugging_init(struct ubifs_info *c);
+void ubifs_debugging_exit(struct ubifs_info *c);
 
+/* Dump functions */
 const char *dbg_ntype(int type);
 const char *dbg_cstate(int cmt_state);
 const char *dbg_get_key_dump(const struct ubifs_info *c,
 			     const union ubifs_key *key);
 void dbg_dump_inode(const struct ubifs_info *c, const struct inode *inode);
 void dbg_dump_node(const struct ubifs_info *c, const void *node);
+void dbg_dump_lpt_node(const struct ubifs_info *c, void *node, int lnum,
+		       int offs);
 void dbg_dump_budget_req(const struct ubifs_budget_req *req);
 void dbg_dump_lstats(const struct ubifs_lp_stats *lst);
 void dbg_dump_budg(struct ubifs_info *c);
@@ -233,9 +286,9 @@ void dbg_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 		    struct ubifs_nnode *parent, int iip);
 void dbg_dump_tnc(struct ubifs_info *c);
 void dbg_dump_index(struct ubifs_info *c);
+void dbg_dump_lpt_lebs(const struct ubifs_info *c);
 
 /* Checking helper functions */
-
 typedef int (*dbg_leaf_callback)(struct ubifs_info *c,
 				 struct ubifs_zbranch *zbr, void *priv);
 typedef int (*dbg_znode_callback)(struct ubifs_info *c,
@@ -273,9 +326,6 @@ int dbg_force_in_the_gaps(void);
 /* Failure mode for recovery testing */
 
 #define dbg_failure_mode (ubifs_tst_flags & UBIFS_TST_RCVRY)
-
-void dbg_failure_mode_registration(struct ubifs_info *c);
-void dbg_failure_mode_deregistration(struct ubifs_info *c);
 
 #ifndef UBIFS_DBG_PRESERVE_UBI
 
@@ -318,9 +368,13 @@ static inline int dbg_change(struct ubi_volume_desc *desc, int lnum,
 	return dbg_leb_change(desc, lnum, buf, len, UBI_UNKNOWN);
 }
 
-#else /* !CONFIG_UBIFS_FS_DEBUG */
+/* Debugfs-related stuff */
+int dbg_debugfs_init(void);
+void dbg_debugfs_exit(void);
+int dbg_debugfs_init_fs(struct ubifs_info *c);
+void dbg_debugfs_exit_fs(struct ubifs_info *c);
 
-#define UBIFS_DBG(op)
+#else /* !CONFIG_UBIFS_FS_DEBUG */
 
 /* Use "if (0)" to make compiler check arguments even if debugging is off */
 #define ubifs_assert(expr)  do {                                               \
@@ -360,23 +414,28 @@ static inline int dbg_change(struct ubi_volume_desc *desc, int lnum,
 #define DBGKEY(key)  ((char *)(key))
 #define DBGKEY1(key) ((char *)(key))
 
-#define dbg_ntype(type)                       ""
-#define dbg_cstate(cmt_state)                 ""
-#define dbg_get_key_dump(c, key)              ({})
-#define dbg_dump_inode(c, inode)              ({})
-#define dbg_dump_node(c, node)                ({})
-#define dbg_dump_budget_req(req)              ({})
-#define dbg_dump_lstats(lst)                  ({})
-#define dbg_dump_budg(c)                      ({})
-#define dbg_dump_lprop(c, lp)                 ({})
-#define dbg_dump_lprops(c)                    ({})
-#define dbg_dump_lpt_info(c)                  ({})
-#define dbg_dump_leb(c, lnum)                 ({})
-#define dbg_dump_znode(c, znode)              ({})
-#define dbg_dump_heap(c, heap, cat)           ({})
-#define dbg_dump_pnode(c, pnode, parent, iip) ({})
-#define dbg_dump_tnc(c)                       ({})
-#define dbg_dump_index(c)                     ({})
+#define ubifs_debugging_init(c)                0
+#define ubifs_debugging_exit(c)                ({})
+
+#define dbg_ntype(type)                        ""
+#define dbg_cstate(cmt_state)                  ""
+#define dbg_get_key_dump(c, key)               ({})
+#define dbg_dump_inode(c, inode)               ({})
+#define dbg_dump_node(c, node)                 ({})
+#define dbg_dump_lpt_node(c, node, lnum, offs) ({})
+#define dbg_dump_budget_req(req)               ({})
+#define dbg_dump_lstats(lst)                   ({})
+#define dbg_dump_budg(c)                       ({})
+#define dbg_dump_lprop(c, lp)                  ({})
+#define dbg_dump_lprops(c)                     ({})
+#define dbg_dump_lpt_info(c)                   ({})
+#define dbg_dump_leb(c, lnum)                  ({})
+#define dbg_dump_znode(c, znode)               ({})
+#define dbg_dump_heap(c, heap, cat)            ({})
+#define dbg_dump_pnode(c, pnode, parent, iip)  ({})
+#define dbg_dump_tnc(c)                        ({})
+#define dbg_dump_index(c)                      ({})
+#define dbg_dump_lpt_lebs(c)                   ({})
 
 #define dbg_walk_index(c, leaf_cb, znode_cb, priv) 0
 #define dbg_old_index_check_init(c, zroot)         0
@@ -396,9 +455,11 @@ static inline int dbg_change(struct ubi_volume_desc *desc, int lnum,
 #define dbg_force_in_the_gaps_enabled              0
 #define dbg_force_in_the_gaps()                    0
 #define dbg_failure_mode                           0
-#define dbg_failure_mode_registration(c)           ({})
-#define dbg_failure_mode_deregistration(c)         ({})
+
+#define dbg_debugfs_init()                         0
+#define dbg_debugfs_exit()
+#define dbg_debugfs_init_fs(c)                     0
+#define dbg_debugfs_exit_fs(c)                     0
 
 #endif /* !CONFIG_UBIFS_FS_DEBUG */
-
 #endif /* !__UBIFS_DEBUG_H__ */

@@ -95,92 +95,55 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file, u
 	int has_dumped = 0;
 	unsigned long dump_start, dump_size;
 	struct user dump;
-#if defined(__alpha__)
+#ifdef __alpha__
 #       define START_DATA(u)	(u.start_data)
-#elif defined(__arm__)
-#	define START_DATA(u)	((u.u_tsize << PAGE_SHIFT) + u.start_code)
-#elif defined(__sparc__)
-#       define START_DATA(u)    (u.u_tsize)
-#elif defined(__i386__) || defined(__mc68000__) || defined(__arch_um__)
-#       define START_DATA(u)	(u.u_tsize << PAGE_SHIFT)
-#endif
-#ifdef __sparc__
-#       define START_STACK(u)   ((regs->u_regs[UREG_FP]) & ~(PAGE_SIZE - 1))
 #else
-#       define START_STACK(u)   (u.start_stack)
+#	define START_DATA(u)	((u.u_tsize << PAGE_SHIFT) + u.start_code)
 #endif
+#       define START_STACK(u)   (u.start_stack)
 
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 	has_dumped = 1;
 	current->flags |= PF_DUMPCORE;
        	strncpy(dump.u_comm, current->comm, sizeof(dump.u_comm));
-#ifndef __sparc__
 	dump.u_ar0 = offsetof(struct user, regs);
-#endif
 	dump.signal = signr;
 	aout_dump_thread(regs, &dump);
 
 /* If the size of the dump file exceeds the rlimit, then see what would happen
    if we wrote the stack, but not the data area.  */
-#ifdef __sparc__
-	if ((dump.u_dsize + dump.u_ssize) > limit)
-		dump.u_dsize = 0;
-#else
 	if ((dump.u_dsize + dump.u_ssize+1) * PAGE_SIZE > limit)
 		dump.u_dsize = 0;
-#endif
 
 /* Make sure we have enough room to write the stack and data areas. */
-#ifdef __sparc__
-	if (dump.u_ssize > limit)
-		dump.u_ssize = 0;
-#else
 	if ((dump.u_ssize + 1) * PAGE_SIZE > limit)
 		dump.u_ssize = 0;
-#endif
 
 /* make sure we actually have a data and stack area to dump */
 	set_fs(USER_DS);
-#ifdef __sparc__
-	if (!access_ok(VERIFY_READ, (void __user *)START_DATA(dump), dump.u_dsize))
-		dump.u_dsize = 0;
-	if (!access_ok(VERIFY_READ, (void __user *)START_STACK(dump), dump.u_ssize))
-		dump.u_ssize = 0;
-#else
 	if (!access_ok(VERIFY_READ, (void __user *)START_DATA(dump), dump.u_dsize << PAGE_SHIFT))
 		dump.u_dsize = 0;
 	if (!access_ok(VERIFY_READ, (void __user *)START_STACK(dump), dump.u_ssize << PAGE_SHIFT))
 		dump.u_ssize = 0;
-#endif
 
 	set_fs(KERNEL_DS);
 /* struct user */
 	DUMP_WRITE(&dump,sizeof(dump));
 /* Now dump all of the user data.  Include malloced stuff as well */
-#ifndef __sparc__
 	DUMP_SEEK(PAGE_SIZE);
-#endif
 /* now we start writing out the user space info */
 	set_fs(USER_DS);
 /* Dump the data area */
 	if (dump.u_dsize != 0) {
 		dump_start = START_DATA(dump);
-#ifdef __sparc__
-		dump_size = dump.u_dsize;
-#else
 		dump_size = dump.u_dsize << PAGE_SHIFT;
-#endif
 		DUMP_WRITE(dump_start,dump_size);
 	}
 /* Now prepare to dump the stack area */
 	if (dump.u_ssize != 0) {
 		dump_start = START_STACK(dump);
-#ifdef __sparc__
-		dump_size = dump.u_ssize;
-#else
 		dump_size = dump.u_ssize << PAGE_SHIFT;
-#endif
 		DUMP_WRITE(dump_start,dump_size);
 	}
 /* Finally dump the task struct.  Not be used by gdb, but could be useful */
@@ -205,29 +168,24 @@ static unsigned long __user *create_aout_tables(char __user *p, struct linux_bin
 	int envc = bprm->envc;
 
 	sp = (void __user *)((-(unsigned long)sizeof(char *)) & (unsigned long) p);
-#ifdef __sparc__
-	/* This imposes the proper stack alignment for a new process. */
-	sp = (void __user *) (((unsigned long) sp) & ~7);
-	if ((envc+argc+3)&1) --sp;
-#endif
 #ifdef __alpha__
 /* whee.. test-programs are so much fun. */
 	put_user(0, --sp);
 	put_user(0, --sp);
 	if (bprm->loader) {
 		put_user(0, --sp);
-		put_user(0x3eb, --sp);
+		put_user(1003, --sp);
 		put_user(bprm->loader, --sp);
-		put_user(0x3ea, --sp);
+		put_user(1002, --sp);
 	}
 	put_user(bprm->exec, --sp);
-	put_user(0x3e9, --sp);
+	put_user(1001, --sp);
 #endif
 	sp -= envc+1;
 	envp = (char __user * __user *) sp;
 	sp -= argc+1;
 	argv = (char __user * __user *) sp;
-#if defined(__i386__) || defined(__mc68000__) || defined(__arm__) || defined(__arch_um__)
+#ifndef __alpha__
 	put_user((unsigned long) envp,--sp);
 	put_user((unsigned long) argv,--sp);
 #endif
@@ -300,13 +258,8 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		return retval;
 
 	/* OK, This is the point of no return */
-#if defined(__alpha__)
+#ifdef __alpha__
 	SET_AOUT_PERSONALITY(bprm, ex);
-#elif defined(__sparc__)
-	set_personality(PER_SUNOS);
-#if !defined(__sparc_v9__)
-	memcpy(&current->thread.core_exec, &ex, sizeof(struct exec));
-#endif
 #else
 	set_personality(PER_LINUX);
 #endif
@@ -322,24 +275,6 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 
 	install_exec_creds(bprm);
  	current->flags &= ~PF_FORKNOEXEC;
-#ifdef __sparc__
-	if (N_MAGIC(ex) == NMAGIC) {
-		loff_t pos = fd_offset;
-		/* Fuck me plenty... */
-		/* <AOL></AOL> */
-		down_write(&current->mm->mmap_sem);	
-		error = do_brk(N_TXTADDR(ex), ex.a_text);
-		up_write(&current->mm->mmap_sem);
-		bprm->file->f_op->read(bprm->file, (char *) N_TXTADDR(ex),
-			  ex.a_text, &pos);
-		down_write(&current->mm->mmap_sem);
-		error = do_brk(N_DATADDR(ex), ex.a_data);
-		up_write(&current->mm->mmap_sem);
-		bprm->file->f_op->read(bprm->file, (char *) N_DATADDR(ex),
-			  ex.a_data, &pos);
-		goto beyond_if;
-	}
-#endif
 
 	if (N_MAGIC(ex) == OMAGIC) {
 		unsigned long text_addr, map_size;
@@ -347,7 +282,7 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 
 		text_addr = N_TXTADDR(ex);
 
-#if defined(__alpha__) || defined(__sparc__)
+#ifdef __alpha__
 		pos = fd_offset;
 		map_size = ex.a_text+ex.a_data + PAGE_SIZE - 1;
 #else

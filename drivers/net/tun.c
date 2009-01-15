@@ -213,7 +213,7 @@ static int check_filter(struct tap_filter *filter, const struct sk_buff *skb)
 
 /* Network device part of the driver */
 
-static unsigned int tun_net_id;
+static int tun_net_id;
 struct tun_net {
 	struct list_head dev_list;
 };

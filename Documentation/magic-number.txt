@@ -125,14 +125,14 @@ TRIDENT_CARD_MAGIC    0x5072696E  trident_card      sound/oss/trident.c
 ROUTER_MAGIC          0x524d4157  wan_device        include/linux/wanrouter.h
 SCC_MAGIC             0x52696368  gs_port           drivers/char/scc.h
 SAVEKMSG_MAGIC1       0x53415645  savekmsg          arch/*/amiga/config.c
-GDA_MAGIC             0x58464552  gda               include/asm-mips64/sn/gda.h
+GDA_MAGIC             0x58464552  gda               arch/mips/include/asm/sn/gda.h
 RED_MAGIC1            0x5a2cf071  (any)             mm/slab.c
 STL_PORTMAGIC         0x5a7182c9  stlport           include/linux/stallion.h
 EEPROM_MAGIC_VALUE    0x5ab478d2  lanai_dev         drivers/atm/lanai.c
 HDLCDRV_MAGIC         0x5ac6e778  hdlcdrv_state     include/linux/hdlcdrv.h
 EPCA_MAGIC            0x5c6df104  channel           include/linux/epca.h
 PCXX_MAGIC            0x5c6df104  channel           drivers/char/pcxx.h
-KV_MAGIC              0x5f4b565f  kernel_vars_s     include/asm-mips64/sn/klkernvars.h
+KV_MAGIC              0x5f4b565f  kernel_vars_s     arch/mips/include/asm/sn/klkernvars.h
 I810_STATE_MAGIC      0x63657373  i810_state        sound/oss/i810_audio.c
 TRIDENT_STATE_MAGIC   0x63657373  trient_state      sound/oss/trident.c
 M3_CARD_MAGIC         0x646e6f50  m3_card           sound/oss/maestro3.c
@@ -158,7 +158,7 @@ CCB_MAGIC             0xf2691ad2  ccb               drivers/scsi/ncr53c8xx.c
 QUEUE_MAGIC_FREE      0xf7e1c9a3  queue_entry       drivers/scsi/arm/queue.c
 QUEUE_MAGIC_USED      0xf7e1cc33  queue_entry       drivers/scsi/arm/queue.c
 HTB_CMAGIC            0xFEFAFEF1  htb_class         net/sched/sch_htb.c
-NMI_MAGIC             0x48414d4d455201 nmi_s        include/asm-mips64/sn/nmi.h
+NMI_MAGIC             0x48414d4d455201 nmi_s        arch/mips/include/asm/sn/nmi.h
 
 Note that there are also defined special per-driver magic numbers in sound
 memory management. See include/sound/sndmagic.h for complete list of them. Many

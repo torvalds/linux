@@ -552,7 +552,7 @@ void cx18_stop_capture(struct cx18_open_id *id, int gop_end)
 	}
 }
 
-int cx18_v4l2_close(struct inode *inode, struct file *filp)
+int cx18_v4l2_close(struct file *filp)
 {
 	struct cx18_open_id *id = filp->private_data;
 	struct cx18 *cx = id->cx;
@@ -650,12 +650,12 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 	return 0;
 }
 
-int cx18_v4l2_open(struct inode *inode, struct file *filp)
+int cx18_v4l2_open(struct file *filp)
 {
 	int res, x, y = 0;
 	struct cx18 *cx = NULL;
 	struct cx18_stream *s = NULL;
-	int minor = iminor(inode);
+	int minor = video_devdata(filp)->minor;
 
 	/* Find which card this open was on */
 	spin_lock(&cx18_cards_lock);

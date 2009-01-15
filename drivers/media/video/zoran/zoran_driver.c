@@ -1197,10 +1197,9 @@ zoran_close_end_session (struct file *file)
  */
 
 static int
-zoran_open (struct inode *inode,
-	    struct file  *file)
+zoran_open(struct file  *file)
 {
-	unsigned int minor = iminor(inode);
+	unsigned int minor = video_devdata(file)->minor;
 	struct zoran *zr = NULL;
 	struct zoran_fh *fh;
 	int i, res, first_open = 0, have_module_locks = 0;
@@ -1340,8 +1339,7 @@ open_unlock_and_return:
 }
 
 static int
-zoran_close (struct inode *inode,
-	     struct file  *file)
+zoran_close(struct file  *file)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
@@ -1940,7 +1938,7 @@ zoran_set_input (struct zoran *zr,
  *   ioctl routine
  */
 
-static int zoran_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long zoran_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
@@ -4191,11 +4189,10 @@ static int zoran_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 }
 
 
-static int
-zoran_ioctl (struct inode *inode,
-	     struct file  *file,
-	     unsigned int  cmd,
-	     unsigned long arg)
+static long
+zoran_ioctl(struct file  *file,
+	    unsigned int  cmd,
+	    unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, zoran_do_ioctl);
 }
@@ -4620,15 +4617,11 @@ zoran_mmap (struct file           *file,
 	return 0;
 }
 
-static const struct file_operations zoran_fops = {
+static const struct v4l2_file_operations zoran_fops = {
 	.owner = THIS_MODULE,
 	.open = zoran_open,
 	.release = zoran_close,
 	.ioctl = zoran_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek = no_llseek,
 	.read = zoran_read,
 	.write = zoran_write,
 	.mmap = zoran_mmap,

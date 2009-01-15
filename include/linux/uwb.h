@@ -30,6 +30,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/timer.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/uwb/spec.h>
 
@@ -66,6 +67,7 @@ struct uwb_dev {
 	struct uwb_dev_addr dev_addr;
 	int beacon_slot;
 	DECLARE_BITMAP(streams, UWB_NUM_STREAMS);
+	DECLARE_BITMAP(last_availability_bm, UWB_NUM_MAS);
 };
 #define to_uwb_dev(d) container_of(d, struct uwb_dev, dev)
 
@@ -86,12 +88,31 @@ struct uwb_notifs_chain {
 	struct mutex mutex;
 };
 
+/* Beacon cache list */
+struct uwb_beca {
+	struct list_head list;
+	size_t entries;
+	struct mutex mutex;
+};
+
+/* Event handling thread. */
+struct uwbd {
+	int pid;
+	struct task_struct *task;
+	wait_queue_head_t wq;
+	struct list_head event_list;
+	spinlock_t event_list_lock;
+};
+
 /**
  * struct uwb_mas_bm - a bitmap of all MAS in a superframe
  * @bm: a bitmap of length #UWB_NUM_MAS
  */
 struct uwb_mas_bm {
 	DECLARE_BITMAP(bm, UWB_NUM_MAS);
+	DECLARE_BITMAP(unsafe_bm, UWB_NUM_MAS);
+	int safe;
+	int unsafe;
 };
 
 /**
@@ -117,14 +138,24 @@ struct uwb_mas_bm {
  * FIXME: further target states TBD.
  */
 enum uwb_rsv_state {
-	UWB_RSV_STATE_NONE,
+	UWB_RSV_STATE_NONE = 0,
 	UWB_RSV_STATE_O_INITIATED,
 	UWB_RSV_STATE_O_PENDING,
 	UWB_RSV_STATE_O_MODIFIED,
 	UWB_RSV_STATE_O_ESTABLISHED,
+	UWB_RSV_STATE_O_TO_BE_MOVED,
+	UWB_RSV_STATE_O_MOVE_EXPANDING,
+	UWB_RSV_STATE_O_MOVE_COMBINING,
+	UWB_RSV_STATE_O_MOVE_REDUCING,
 	UWB_RSV_STATE_T_ACCEPTED,
 	UWB_RSV_STATE_T_DENIED,
+	UWB_RSV_STATE_T_CONFLICT,
 	UWB_RSV_STATE_T_PENDING,
+	UWB_RSV_STATE_T_EXPANDING_ACCEPTED,
+	UWB_RSV_STATE_T_EXPANDING_CONFLICT,
+	UWB_RSV_STATE_T_EXPANDING_PENDING,
+	UWB_RSV_STATE_T_EXPANDING_DENIED,
+	UWB_RSV_STATE_T_RESIZED,
 
 	UWB_RSV_STATE_LAST,
 };
@@ -147,6 +178,12 @@ struct uwb_rsv_target {
 		struct uwb_dev *dev;
 		struct uwb_dev_addr devaddr;
 	};
+};
+
+struct uwb_rsv_move {
+	struct uwb_mas_bm final_mas;
+	struct uwb_ie_drp *companion_drp_ie;
+	struct uwb_mas_bm companion_mas;
 };
 
 /*
@@ -186,6 +223,7 @@ typedef void (*uwb_rsv_cb_f)(struct uwb_rsv *rsv);
  *
  * @status:         negotiation status
  * @stream:         stream index allocated for this reservation
+ * @tiebreaker:     conflict tiebreaker for this reservation
  * @mas:            reserved MAS
  * @drp_ie:         the DRP IE
  * @ie_valid:       true iff the DRP IE matches the reservation parameters
@@ -201,25 +239,29 @@ struct uwb_rsv {
 	struct uwb_rc *rc;
 	struct list_head rc_node;
 	struct list_head pal_node;
+	struct kref kref;
 
 	struct uwb_dev *owner;
 	struct uwb_rsv_target target;
 	enum uwb_drp_type type;
 	int max_mas;
 	int min_mas;
-	int sparsity;
+	int max_interval;
 	bool is_multicast;
 
 	uwb_rsv_cb_f callback;
 	void *pal_priv;
 
 	enum uwb_rsv_state state;
+	bool needs_release_companion_mas;
 	u8 stream;
+	u8 tiebreaker;
 	struct uwb_mas_bm mas;
 	struct uwb_ie_drp *drp_ie;
+	struct uwb_rsv_move mv;
 	bool ie_valid;
 	struct timer_list timer;
-	bool expired;
+	struct work_struct handle_timeout_work;
 };
 
 static const
@@ -261,6 +303,13 @@ struct uwb_drp_avail {
 	bool ie_valid;
 };
 
+struct uwb_drp_backoff_win {
+	u8 window;
+	u8 n;
+	int total_expired;
+	struct timer_list timer;
+	bool can_reserve_extra_mases;
+};
 
 const char *uwb_rsv_state_str(enum uwb_rsv_state state);
 const char *uwb_rsv_type_str(enum uwb_drp_type type);
@@ -275,6 +324,8 @@ int uwb_rsv_modify(struct uwb_rsv *rsv,
 void uwb_rsv_terminate(struct uwb_rsv *rsv);
 
 void uwb_rsv_accept(struct uwb_rsv *rsv, uwb_rsv_cb_f cb, void *pal_priv);
+
+void uwb_rsv_get_usable_mas(struct uwb_rsv *orig_rsv, struct uwb_mas_bm *mas);
 
 /**
  * Radio Control Interface instance
@@ -337,23 +388,33 @@ struct uwb_rc {
 	u8 ctx_roll;
 
 	int beaconing;			/* Beaconing state [channel number] */
+	int beaconing_forced;
 	int scanning;
 	enum uwb_scan_type scan_type:3;
 	unsigned ready:1;
 	struct uwb_notifs_chain notifs_chain;
+	struct uwb_beca uwb_beca;
 
+	struct uwbd uwbd;
+
+	struct uwb_drp_backoff_win bow;
 	struct uwb_drp_avail drp_avail;
 	struct list_head reservations;
+	struct list_head cnflt_alien_list;
+	struct uwb_mas_bm cnflt_alien_bitmap;
 	struct mutex rsvs_mutex;
+	spinlock_t rsvs_lock;
 	struct workqueue_struct *rsv_workq;
-	struct work_struct rsv_update_work;
 
+	struct delayed_work rsv_update_work;
+	struct delayed_work rsv_alien_bp_work;
+	int set_drp_ie_pending;
 	struct mutex ies_mutex;
 	struct uwb_rc_cmd_set_ie *ies;
 	size_t ies_capacity;
 
-	spinlock_t pal_lock;
 	struct list_head pals;
+	int active_pals;
 
 	struct uwb_dbg *dbg;
 };
@@ -361,11 +422,19 @@ struct uwb_rc {
 
 /**
  * struct uwb_pal - a UWB PAL
- * @name:    descriptive name for this PAL (wushc, wlp, etc.).
+ * @name:    descriptive name for this PAL (wusbhc, wlp, etc.).
  * @device:  a device for the PAL.  Used to link the PAL and the radio
  *           controller in sysfs.
+ * @rc:      the radio controller the PAL uses.
+ * @channel_changed: called when the channel used by the radio changes.
+ *           A channel of -1 means the channel has been stopped.
  * @new_rsv: called when a peer requests a reservation (may be NULL if
  *           the PAL cannot accept reservation requests).
+ * @channel: channel being used by the PAL; 0 if the PAL isn't using
+ *           the radio; -1 if the PAL wishes to use the radio but
+ *           cannot.
+ * @debugfs_dir: a debugfs directory which the PAL can use for its own
+ *           debugfs files.
  *
  * A Protocol Adaptation Layer (PAL) is a user of the WiMedia UWB
  * radio platform (e.g., WUSB, WLP or Bluetooth UWB AMP).
@@ -384,12 +453,21 @@ struct uwb_pal {
 	struct list_head node;
 	const char *name;
 	struct device *device;
-	void (*new_rsv)(struct uwb_rsv *rsv);
+	struct uwb_rc *rc;
+
+	void (*channel_changed)(struct uwb_pal *pal, int channel);
+	void (*new_rsv)(struct uwb_pal *pal, struct uwb_rsv *rsv);
+
+	int channel;
+	struct dentry *debugfs_dir;
 };
 
 void uwb_pal_init(struct uwb_pal *pal);
-int uwb_pal_register(struct uwb_rc *rc, struct uwb_pal *pal);
-void uwb_pal_unregister(struct uwb_rc *rc, struct uwb_pal *pal);
+int uwb_pal_register(struct uwb_pal *pal);
+void uwb_pal_unregister(struct uwb_pal *pal);
+
+int uwb_radio_start(struct uwb_pal *pal);
+void uwb_radio_stop(struct uwb_pal *pal);
 
 /*
  * General public API
@@ -443,8 +521,6 @@ ssize_t uwb_rc_vcmd(struct uwb_rc *rc, const char *cmd_name,
 		    struct uwb_rccb *cmd, size_t cmd_size,
 		    u8 expected_type, u16 expected_event,
 		    struct uwb_rceb **preply);
-ssize_t uwb_rc_get_ie(struct uwb_rc *, struct uwb_rc_evt_get_ie **);
-int uwb_bg_joined(struct uwb_rc *rc);
 
 size_t __uwb_addr_print(char *, size_t, const unsigned char *, int);
 
@@ -520,6 +596,8 @@ void uwb_rc_rm(struct uwb_rc *);
 void uwb_rc_neh_grok(struct uwb_rc *, void *, size_t);
 void uwb_rc_neh_error(struct uwb_rc *, int);
 void uwb_rc_reset_all(struct uwb_rc *rc);
+void uwb_rc_pre_reset(struct uwb_rc *rc);
+void uwb_rc_post_reset(struct uwb_rc *rc);
 
 /**
  * uwb_rsv_is_owner - is the owner of this reservation the RC?
@@ -531,7 +609,9 @@ static inline bool uwb_rsv_is_owner(struct uwb_rsv *rsv)
 }
 
 /**
- * Events generated by UWB that can be passed to any listeners
+ * enum uwb_notifs - UWB events that can be passed to any listeners
+ * @UWB_NOTIF_ONAIR: a new neighbour has joined the beacon group.
+ * @UWB_NOTIF_OFFAIR: a neighbour has left the beacon group.
  *
  * Higher layers can register callback functions with the radio
  * controller using uwb_notifs_register(). The radio controller
@@ -539,8 +619,6 @@ static inline bool uwb_rsv_is_owner(struct uwb_rsv *rsv)
  * nodes when an event occurs.
  */
 enum uwb_notifs {
-	UWB_NOTIF_BG_JOIN = 0,	/* radio controller joined a beacon group */
-	UWB_NOTIF_BG_LEAVE = 1,	/* radio controller left a beacon group */
 	UWB_NOTIF_ONAIR,
 	UWB_NOTIF_OFFAIR,
 };
@@ -652,22 +730,9 @@ static inline int edc_inc(struct edc *err_hist, u16 max_err, u16 timeframe)
 
 /* Information Element handling */
 
-/* For representing the state of writing to a buffer when iterating */
-struct uwb_buf_ctx {
-	char *buf;
-	size_t bytes, size;
-};
-
-typedef int (*uwb_ie_f)(struct uwb_dev *, const struct uwb_ie_hdr *,
-			size_t, void *);
 struct uwb_ie_hdr *uwb_ie_next(void **ptr, size_t *len);
-ssize_t uwb_ie_for_each(struct uwb_dev *uwb_dev, uwb_ie_f fn, void *data,
-			const void *buf, size_t size);
-int uwb_ie_dump_hex(struct uwb_dev *, const struct uwb_ie_hdr *,
-		    size_t, void *);
-int uwb_rc_set_ie(struct uwb_rc *, struct uwb_rc_cmd_set_ie *);
-struct uwb_ie_hdr *uwb_ie_next(void **ptr, size_t *len);
-
+int uwb_rc_ie_add(struct uwb_rc *uwb_rc, const struct uwb_ie_hdr *ies, size_t size);
+int uwb_rc_ie_rm(struct uwb_rc *uwb_rc, enum uwb_ie element_id);
 
 /*
  * Transmission statistics

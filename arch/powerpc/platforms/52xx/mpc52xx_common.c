@@ -42,7 +42,7 @@ static struct of_device_id mpc52xx_bus_ids[] __initdata = {
  * from interrupt context while node mapping (which calls ioremap())
  * cannot be used at such point.
  */
-static spinlock_t mpc52xx_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(mpc52xx_lock);
 static struct mpc52xx_gpt __iomem *mpc52xx_wdt;
 static struct mpc52xx_cdm __iomem *mpc52xx_cdm;
 

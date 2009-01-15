@@ -389,8 +389,8 @@ static int __devinit sis5595_probe(struct pci_dev *dev, const struct pci_device_
 	/* set up the sysfs linkage to our parent device */
 	sis5595_adapter.dev.parent = &dev->dev;
 
-	sprintf(sis5595_adapter.name, "SMBus SIS5595 adapter at %04x",
-		sis5595_base + SMB_INDEX);
+	snprintf(sis5595_adapter.name, sizeof(sis5595_adapter.name),
+		 "SMBus SIS5595 adapter at %04x", sis5595_base + SMB_INDEX);
 	err = i2c_add_adapter(&sis5595_adapter);
 	if (err) {
 		release_region(sis5595_base + SMB_INDEX, 2);

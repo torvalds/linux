@@ -27,11 +27,11 @@
 #define dbg_err(fmt, ...) ubi_err(fmt, ##__VA_ARGS__)
 
 #define ubi_assert(expr)  do {                                               \
-        if (unlikely(!(expr))) {                                             \
-                printk(KERN_CRIT "UBI assert failed in %s at %u (pid %d)\n", \
-                       __func__, __LINE__, current->pid);                    \
-                ubi_dbg_dump_stack();                                        \
-        }                                                                    \
+	if (unlikely(!(expr))) {                                             \
+		printk(KERN_CRIT "UBI assert failed in %s at %u (pid %d)\n", \
+		       __func__, __LINE__, current->pid);                    \
+		ubi_dbg_dump_stack();                                        \
+	}                                                                    \
 } while (0)
 
 #define dbg_msg(fmt, ...)                                    \

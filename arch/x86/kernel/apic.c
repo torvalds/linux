@@ -31,9 +31,11 @@
 #include <linux/dmi.h>
 #include <linux/dmar.h>
 #include <linux/ftrace.h>
+#include <linux/smp.h>
+#include <linux/nmi.h>
+#include <linux/timex.h>
 
 #include <asm/atomic.h>
-#include <asm/smp.h>
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
 #include <asm/desc.h>
@@ -41,12 +43,11 @@
 #include <asm/hpet.h>
 #include <asm/pgalloc.h>
 #include <asm/i8253.h>
-#include <asm/nmi.h>
 #include <asm/idle.h>
 #include <asm/proto.h>
-#include <asm/timex.h>
 #include <asm/apic.h>
 #include <asm/i8259.h>
+#include <asm/smp.h>
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>
@@ -98,8 +99,8 @@ __setup("apicpmtimer", setup_apicpmtimer);
 #ifdef HAVE_X2APIC
 int x2apic;
 /* x2apic enabled before OS handover */
-int x2apic_preenabled;
-int disable_x2apic;
+static int x2apic_preenabled;
+static int disable_x2apic;
 static __init int setup_nox2apic(char *str)
 {
 	disable_x2apic = 1;
@@ -118,8 +119,6 @@ int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
 
 int first_system_vector = 0xfe;
-
-char system_vectors[NR_VECTORS] = { [0 ... NR_VECTORS-1] = SYS_VECTOR_FREE};
 
 /*
  * Debug level, exported for io_apic.c
@@ -142,7 +141,7 @@ static int lapic_next_event(unsigned long delta,
 			    struct clock_event_device *evt);
 static void lapic_timer_setup(enum clock_event_mode mode,
 			      struct clock_event_device *evt);
-static void lapic_timer_broadcast(cpumask_t mask);
+static void lapic_timer_broadcast(const struct cpumask *mask);
 static void apic_pm_activate(void);
 
 /*
@@ -228,7 +227,7 @@ void xapic_icr_write(u32 low, u32 id)
 	apic_write(APIC_ICR, low);
 }
 
-u64 xapic_icr_read(void)
+static u64 xapic_icr_read(void)
 {
 	u32 icr1, icr2;
 
@@ -268,7 +267,7 @@ void x2apic_icr_write(u32 low, u32 id)
 	wrmsrl(APIC_BASE_MSR + (APIC_ICR >> 4), ((__u64) id) << 32 | low);
 }
 
-u64 x2apic_icr_read(void)
+static u64 x2apic_icr_read(void)
 {
 	unsigned long val;
 
@@ -455,7 +454,7 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 /*
  * Local APIC timer broadcast function
  */
-static void lapic_timer_broadcast(cpumask_t mask)
+static void lapic_timer_broadcast(const struct cpumask *mask)
 {
 #ifdef CONFIG_SMP
 	send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
@@ -471,7 +470,7 @@ static void __cpuinit setup_APIC_timer(void)
 	struct clock_event_device *levt = &__get_cpu_var(lapic_events);
 
 	memcpy(levt, &lapic_clockevent, sizeof(*levt));
-	levt->cpumask = cpumask_of_cpu(smp_processor_id());
+	levt->cpumask = cpumask_of(smp_processor_id());
 
 	clockevents_register_device(levt);
 }
@@ -689,7 +688,7 @@ static int __init calibrate_APIC_clock(void)
 		local_irq_enable();
 
 	if (levt->features & CLOCK_EVT_FEAT_DUMMY) {
-		pr_warning("APIC timer disabled due to verification failure.\n");
+		pr_warning("APIC timer disabled due to verification failure\n");
 			return -1;
 	}
 
@@ -1807,28 +1806,32 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 void __cpuinit generic_processor_info(int apicid, int version)
 {
 	int cpu;
-	cpumask_t tmp_map;
 
 	/*
 	 * Validate version
 	 */
 	if (version == 0x0) {
 		pr_warning("BIOS bug, APIC version is 0 for CPU#%d! "
-			"fixing up to 0x10. (tell your hw vendor)\n",
-			version);
+			   "fixing up to 0x10. (tell your hw vendor)\n",
+				version);
 		version = 0x10;
 	}
 	apic_version[apicid] = version;
 
-	if (num_processors >= NR_CPUS) {
-		pr_warning("WARNING: NR_CPUS limit of %i reached."
-			"  Processor ignored.\n", NR_CPUS);
+	if (num_processors >= nr_cpu_ids) {
+		int max = nr_cpu_ids;
+		int thiscpu = max + disabled_cpus;
+
+		pr_warning(
+			"ACPI: NR_CPUS/possible_cpus limit of %i reached."
+			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
+
+		disabled_cpus++;
 		return;
 	}
 
 	num_processors++;
-	cpus_complement(tmp_map, cpu_present_map);
-	cpu = first_cpu(tmp_map);
+	cpu = cpumask_next_zero(-1, cpu_present_mask);
 
 	physid_set(apicid, phys_cpu_present_map);
 	if (apicid == boot_cpu_physical_apicid) {
@@ -1878,8 +1881,8 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	}
 #endif
 
-	cpu_set(cpu, cpu_possible_map);
-	cpu_set(cpu, cpu_present_map);
+	set_cpu_possible(cpu, true);
+	set_cpu_present(cpu, true);
 }
 
 #ifdef CONFIG_X86_64
@@ -2081,18 +2084,16 @@ __cpuinit int apic_is_clustered_box(void)
 	bios_cpu_apicid = early_per_cpu_ptr(x86_bios_cpu_apicid);
 	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for (i = 0; i < nr_cpu_ids; i++) {
 		/* are we being called early in kernel startup? */
 		if (bios_cpu_apicid) {
 			id = bios_cpu_apicid[i];
-		}
-		else if (i < nr_cpu_ids) {
+		} else if (i < nr_cpu_ids) {
 			if (cpu_present(i))
 				id = per_cpu(x86_bios_cpu_apicid, i);
 			else
 				continue;
-		}
-		else
+		} else
 			break;
 
 		if (id != BAD_APICID)

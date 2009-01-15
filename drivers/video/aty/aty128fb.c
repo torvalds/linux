@@ -2051,7 +2051,7 @@ static int __devinit aty128_probe(struct pci_dev *pdev, const struct pci_device_
 
 	/* Virtualize mmio region */
 	info->fix.mmio_start = reg_addr;
-	par->regbase = ioremap(reg_addr, pci_resource_len(pdev, 2));
+	par->regbase = pci_ioremap_bar(pdev, 2);
 	if (!par->regbase)
 		goto err_free_info;
 

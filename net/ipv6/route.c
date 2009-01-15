@@ -627,6 +627,9 @@ static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort, struct in6_addr *dad
 	rt = ip6_rt_copy(ort);
 
 	if (rt) {
+		struct neighbour *neigh;
+		int attempts = !in_softirq();
+
 		if (!(rt->rt6i_flags&RTF_GATEWAY)) {
 			if (rt->rt6i_dst.plen != 128 &&
 			    ipv6_addr_equal(&rt->rt6i_dst.addr, daddr))
@@ -646,7 +649,35 @@ static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort, struct in6_addr *dad
 		}
 #endif
 
-		rt->rt6i_nexthop = ndisc_get_neigh(rt->rt6i_dev, &rt->rt6i_gateway);
+	retry:
+		neigh = ndisc_get_neigh(rt->rt6i_dev, &rt->rt6i_gateway);
+		if (IS_ERR(neigh)) {
+			struct net *net = dev_net(rt->rt6i_dev);
+			int saved_rt_min_interval =
+				net->ipv6.sysctl.ip6_rt_gc_min_interval;
+			int saved_rt_elasticity =
+				net->ipv6.sysctl.ip6_rt_gc_elasticity;
+
+			if (attempts-- > 0) {
+				net->ipv6.sysctl.ip6_rt_gc_elasticity = 1;
+				net->ipv6.sysctl.ip6_rt_gc_min_interval = 0;
+
+				ip6_dst_gc(net->ipv6.ip6_dst_ops);
+
+				net->ipv6.sysctl.ip6_rt_gc_elasticity =
+					saved_rt_elasticity;
+				net->ipv6.sysctl.ip6_rt_gc_min_interval =
+					saved_rt_min_interval;
+				goto retry;
+			}
+
+			if (net_ratelimit())
+				printk(KERN_WARNING
+				       "Neighbour table overflow.\n");
+			dst_free(&rt->u.dst);
+			return NULL;
+		}
+		rt->rt6i_nexthop = neigh;
 
 	}
 
@@ -945,8 +976,11 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	dev_hold(dev);
 	if (neigh)
 		neigh_hold(neigh);
-	else
+	else {
 		neigh = ndisc_get_neigh(dev, addr);
+		if (IS_ERR(neigh))
+			neigh = NULL;
+	}
 
 	rt->rt6i_dev	  = dev;
 	rt->rt6i_idev     = idev;
@@ -1887,6 +1921,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 {
 	struct net *net = dev_net(idev->dev);
 	struct rt6_info *rt = ip6_dst_alloc(net->ipv6.ip6_dst_ops);
+	struct neighbour *neigh;
 
 	if (rt == NULL)
 		return ERR_PTR(-ENOMEM);
@@ -1909,11 +1944,18 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 		rt->rt6i_flags |= RTF_ANYCAST;
 	else
 		rt->rt6i_flags |= RTF_LOCAL;
-	rt->rt6i_nexthop = ndisc_get_neigh(rt->rt6i_dev, &rt->rt6i_gateway);
-	if (rt->rt6i_nexthop == NULL) {
+	neigh = ndisc_get_neigh(rt->rt6i_dev, &rt->rt6i_gateway);
+	if (IS_ERR(neigh)) {
 		dst_free(&rt->u.dst);
-		return ERR_PTR(-ENOMEM);
+
+		/* We are casting this because that is the return
+		 * value type.  But an errno encoded pointer is the
+		 * same regardless of the underlying pointer type,
+		 * and that's what we are returning.  So this is OK.
+		 */
+		return (struct rt6_info *) neigh;
 	}
+	rt->rt6i_nexthop = neigh;
 
 	ipv6_addr_copy(&rt->rt6i_dst.addr, addr);
 	rt->rt6i_dst.plen = 128;
@@ -2710,7 +2752,7 @@ int __init ip6_route_init(void)
 		kmem_cache_create("ip6_dst_cache", sizeof(struct rt6_info), 0,
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!ip6_dst_ops_template.kmem_cachep)
-		goto out;;
+		goto out;
 
 	ret = register_pernet_subsys(&ip6_route_net_ops);
 	if (ret)

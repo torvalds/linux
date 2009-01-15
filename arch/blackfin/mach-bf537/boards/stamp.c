@@ -46,6 +46,7 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/usb/sl811.h>
+#include <linux/spi/mmc_spi.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
@@ -55,57 +56,46 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "ADDS-BF537-STAMP";
+const char bfin_board_name[] = "ADI BF537-STAMP";
 
 /*
  *  Driver needs to know address, irq and flag pin.
  */
 
-#define ISP1761_BASE       0x203C0000
-#define ISP1761_IRQ        IRQ_PF7
-
 #if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
-static struct resource bfin_isp1761_resources[] = {
+#include <linux/usb/isp1760.h>
+static struct resource bfin_isp1760_resources[] = {
 	[0] = {
-		.name	= "isp1761-regs",
-		.start  = ISP1761_BASE + 0x00000000,
-		.end    = ISP1761_BASE + 0x000fffff,
+		.start  = 0x203C0000,
+		.end    = 0x203C0000 + 0x000fffff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = ISP1761_IRQ,
-		.end    = ISP1761_IRQ,
-		.flags  = IORESOURCE_IRQ,
+		.start  = IRQ_PF7,
+		.end    = IRQ_PF7,
+		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
 
-static struct platform_device bfin_isp1761_device = {
-	.name           = "isp1761",
+static struct isp1760_platform_data isp1760_priv = {
+	.is_isp1761 = 0,
+	.port1_disable = 0,
+	.bus_width_16 = 1,
+	.port1_otg = 0,
+	.analog_oc = 0,
+	.dack_polarity_high = 0,
+	.dreq_polarity_high = 0,
+};
+
+static struct platform_device bfin_isp1760_device = {
+	.name           = "isp1760-hcd",
 	.id             = 0,
-	.num_resources  = ARRAY_SIZE(bfin_isp1761_resources),
-	.resource       = bfin_isp1761_resources,
+	.dev = {
+		.platform_data = &isp1760_priv,
+	},
+	.num_resources  = ARRAY_SIZE(bfin_isp1760_resources),
+	.resource       = bfin_isp1760_resources,
 };
-
-static struct platform_device *bfin_isp1761_devices[] = {
-	&bfin_isp1761_device,
-};
-
-int __init bfin_isp1761_init(void)
-{
-	unsigned int num_devices = ARRAY_SIZE(bfin_isp1761_devices);
-
-	printk(KERN_INFO "%s(): registering device resources\n", __func__);
-	set_irq_type(ISP1761_IRQ, IRQF_TRIGGER_FALLING);
-
-	return platform_add_devices(bfin_isp1761_devices, num_devices);
-}
-
-void __exit bfin_isp1761_exit(void)
-{
-	platform_device_unregister(&bfin_isp1761_device);
-}
-
-arch_initcall(bfin_isp1761_init);
 #endif
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
@@ -443,11 +433,11 @@ static struct mtd_partition stamp_partitions[] = {
 		.offset     = 0,
 	}, {
 		.name       = "linux kernel(nor)",
-		.size       = 0xE0000,
+		.size       = 0x180000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "file system(nor)",
-		.size       = 0x400000 - 0x40000 - 0xE0000 - 0x10000,
+		.size       = 0x400000 - 0x40000 - 0x180000 - 0x10000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "MAC Address(nor)",
@@ -490,7 +480,7 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		.mask_flags = MTD_CAP_ROM
 	}, {
 		.name = "linux kernel(spi)",
-		.size = 0xe0000,
+		.size = 0x180000,
 		.offset = MTDPART_OFS_APPEND,
 	}, {
 		.name = "file system(spi)",
@@ -503,7 +493,7 @@ static struct flash_platform_data bfin_spi_flash_data = {
 	.name = "m25p80",
 	.parts = bfin_spi_flash_partitions,
 	.nr_parts = ARRAY_SIZE(bfin_spi_flash_partitions),
-	.type = "m25p64",
+	/* .type = "m25p64", */
 };
 
 /* SPI flash chip (m25p64) */
@@ -537,9 +527,29 @@ static struct bfin5xx_spi_chip ad9960_spi_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
-static struct bfin5xx_spi_chip spi_mmc_chip_info = {
-	.enable_dma = 1,
+#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
+#define MMC_SPI_CARD_DETECT_INT IRQ_PF5
+
+static int bfin_mmc_spi_init(struct device *dev,
+	irqreturn_t (*detect_int)(int, void *), void *data)
+{
+	return request_irq(MMC_SPI_CARD_DETECT_INT, detect_int,
+		IRQF_TRIGGER_FALLING, "mmc-spi-detect", data);
+}
+
+static void bfin_mmc_spi_exit(struct device *dev, void *data)
+{
+	free_irq(MMC_SPI_CARD_DETECT_INT, data);
+}
+
+static struct mmc_spi_platform_data bfin_mmc_spi_pdata = {
+	.init = bfin_mmc_spi_init,
+	.exit = bfin_mmc_spi_exit,
+	.detect_delay = 100, /* msecs */
+};
+
+static struct bfin5xx_spi_chip  mmc_spi_chip_info = {
+	.enable_dma = 0,
 	.bits_per_word = 8,
 };
 #endif
@@ -613,6 +623,14 @@ static struct bfin5xx_spi_chip lq035q1_spi_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_ENC28J60) || defined(CONFIG_ENC28J60_MODULE)
+static struct bfin5xx_spi_chip enc28j60_spi_chip_info = {
+	.enable_dma	= 1,
+	.bits_per_word	= 8,
+	.cs_gpio = GPIO_PF10,
+};
+#endif
+
 #if defined(CONFIG_MTD_DATAFLASH) \
 	|| defined(CONFIG_MTD_DATAFLASH_MODULE)
 
@@ -624,7 +642,7 @@ static struct mtd_partition bfin_spi_dataflash_partitions[] = {
 		.mask_flags = MTD_CAP_ROM
 	}, {
 		.name = "linux kernel(spi)",
-		.size = 0xe0000,
+		.size = 0x180000,
 		.offset = MTDPART_OFS_APPEND,
 	}, {
 		.name = "file system(spi)",
@@ -703,23 +721,14 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.controller_data = &ad9960_spi_chip_info,
 	},
 #endif
-#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
+#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 	{
-		.modalias = "spi_mmc_dummy",
+		.modalias = "mmc_spi",
 		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
-		.chip_select = 0,
-		.platform_data = NULL,
-		.controller_data = &spi_mmc_chip_info,
-		.mode = SPI_MODE_3,
-	},
-	{
-		.modalias = "spi_mmc",
-		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = CONFIG_SPI_MMC_CS_CHAN,
-		.platform_data = NULL,
-		.controller_data = &spi_mmc_chip_info,
+		.chip_select = 4,
+		.platform_data = &bfin_mmc_spi_pdata,
+		.controller_data = &mmc_spi_chip_info,
 		.mode = SPI_MODE_3,
 	},
 #endif
@@ -781,6 +790,17 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.chip_select = 2,
 		.controller_data = &lq035q1_spi_chip_info,
 		.mode = SPI_CPHA | SPI_CPOL,
+	},
+#endif
+#if defined(CONFIG_ENC28J60) || defined(CONFIG_ENC28J60_MODULE)
+	{
+		.modalias = "enc28j60",
+		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
+		.irq = IRQ_PF6,
+		.bus_num = 0,
+		.chip_select = 0,	/* GPIO controlled SSEL */
+		.controller_data = &enc28j60_spi_chip_info,
+		.mode = SPI_MODE_0,
 	},
 #endif
 };
@@ -885,29 +905,58 @@ static struct platform_device bfin_uart_device = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-static struct resource bfin_sir_resources[] = {
 #ifdef CONFIG_BFIN_SIR0
+static struct resource bfin_sir0_resources[] = {
 	{
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART0_RX,
+		.end = IRQ_UART0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART0_RX,
+		.end = CH_UART0_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device bfin_sir0_device = {
+	.name = "bfin_sir",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sir0_resources),
+	.resource = bfin_sir0_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR1
+static struct resource bfin_sir1_resources[] = {
 	{
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,
 	},
-#endif
+	{
+		.start = IRQ_UART1_RX,
+		.end = IRQ_UART1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART1_RX,
+		.end = CH_UART1_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
 };
 
-static struct platform_device bfin_sir_device = {
+static struct platform_device bfin_sir1_device = {
 	.name = "bfin_sir",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(bfin_sir_resources),
-	.resource = bfin_sir_resources,
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_sir1_resources),
+	.resource = bfin_sir1_resources,
 };
+#endif
 #endif
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
@@ -929,6 +978,93 @@ static struct platform_device i2c_bfin_twi_device = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(bfin_twi0_resource),
 	.resource = bfin_twi0_resource,
+};
+#endif
+
+#if defined(CONFIG_KEYBOARD_ADP5588) || defined(CONFIG_KEYBOARD_ADP5588_MODULE)
+#include <linux/input.h>
+#include <linux/i2c/adp5588_keys.h>
+static const unsigned short adp5588_keymap[ADP5588_KEYMAPSIZE] = {
+	[0]	 = KEY_GRAVE,
+	[1]	 = KEY_1,
+	[2]	 = KEY_2,
+	[3]	 = KEY_3,
+	[4]	 = KEY_4,
+	[5]	 = KEY_5,
+	[6]	 = KEY_6,
+	[7]	 = KEY_7,
+	[8]	 = KEY_8,
+	[9]	 = KEY_9,
+	[10]	 = KEY_0,
+	[11]	 = KEY_MINUS,
+	[12]	 = KEY_EQUAL,
+	[13]	 = KEY_BACKSLASH,
+	[15]	 = KEY_KP0,
+	[16]	 = KEY_Q,
+	[17]	 = KEY_W,
+	[18]	 = KEY_E,
+	[19]	 = KEY_R,
+	[20]	 = KEY_T,
+	[21]	 = KEY_Y,
+	[22]	 = KEY_U,
+	[23]	 = KEY_I,
+	[24]	 = KEY_O,
+	[25]	 = KEY_P,
+	[26]	 = KEY_LEFTBRACE,
+	[27]	 = KEY_RIGHTBRACE,
+	[29]	 = KEY_KP1,
+	[30]	 = KEY_KP2,
+	[31]	 = KEY_KP3,
+	[32]	 = KEY_A,
+	[33]	 = KEY_S,
+	[34]	 = KEY_D,
+	[35]	 = KEY_F,
+	[36]	 = KEY_G,
+	[37]	 = KEY_H,
+	[38]	 = KEY_J,
+	[39]	 = KEY_K,
+	[40]	 = KEY_L,
+	[41]	 = KEY_SEMICOLON,
+	[42]	 = KEY_APOSTROPHE,
+	[43]	 = KEY_BACKSLASH,
+	[45]	 = KEY_KP4,
+	[46]	 = KEY_KP5,
+	[47]	 = KEY_KP6,
+	[48]	 = KEY_102ND,
+	[49]	 = KEY_Z,
+	[50]	 = KEY_X,
+	[51]	 = KEY_C,
+	[52]	 = KEY_V,
+	[53]	 = KEY_B,
+	[54]	 = KEY_N,
+	[55]	 = KEY_M,
+	[56]	 = KEY_COMMA,
+	[57]	 = KEY_DOT,
+	[58]	 = KEY_SLASH,
+	[60]	 = KEY_KPDOT,
+	[61]	 = KEY_KP7,
+	[62]	 = KEY_KP8,
+	[63]	 = KEY_KP9,
+	[64]	 = KEY_SPACE,
+	[65]	 = KEY_BACKSPACE,
+	[66]	 = KEY_TAB,
+	[67]	 = KEY_KPENTER,
+	[68]	 = KEY_ENTER,
+	[69]	 = KEY_ESC,
+	[70]	 = KEY_DELETE,
+	[74]	 = KEY_KPMINUS,
+	[76]	 = KEY_UP,
+	[77]	 = KEY_DOWN,
+	[78]	 = KEY_RIGHT,
+	[79]	 = KEY_LEFT,
+};
+
+static struct adp5588_kpad_platform_data adp5588_kpad_data = {
+	.rows		= 8,
+	.cols		= 10,
+	.keymap		= adp5588_keymap,
+	.keymapsize	= ARRAY_SIZE(adp5588_keymap),
+	.repeat		= 0,
 };
 #endif
 
@@ -956,6 +1092,13 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 		I2C_BOARD_INFO("ad7879", 0x2F),
 		.irq = IRQ_PG5,
 		.platform_data = (void *)&bfin_ad7879_ts_info,
+	},
+#endif
+#if defined(CONFIG_KEYBOARD_ADP5588) || defined(CONFIG_KEYBOARD_ADP5588_MODULE)
+	{
+		I2C_BOARD_INFO("adp5588-keys", 0x34),
+		.irq = IRQ_PG0,
+		.platform_data = (void *)&adp5588_kpad_data,
 	},
 #endif
 };
@@ -1057,6 +1200,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&isp1362_hcd_device,
 #endif
 
+#if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
+	&bfin_isp1760_device,
+#endif
+
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
 #endif
@@ -1098,7 +1245,12 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-	&bfin_sir_device,
+#ifdef CONFIG_BFIN_SIR0
+	&bfin_sir0_device,
+#endif
+#ifdef CONFIG_BFIN_SIR1
+	&bfin_sir1_device,
+#endif
 #endif
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)

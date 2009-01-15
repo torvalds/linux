@@ -63,7 +63,6 @@
  */
 static DEFINE_MUTEX(io_mutex);
 static DEFINE_MUTEX(reg_lock_mutex);
-static DEFINE_MUTEX(auxadc_mutex);
 
 /* Perform a physical read from the device.
  */
@@ -299,6 +298,13 @@ int wm8350_block_write(struct wm8350 *wm8350, int start_reg, int regs,
 }
 EXPORT_SYMBOL_GPL(wm8350_block_write);
 
+/**
+ * wm8350_reg_lock()
+ *
+ * The WM8350 has a hardware lock which can be used to prevent writes to
+ * some registers (generally those which can cause particularly serious
+ * problems if misused).  This function enables that lock.
+ */
 int wm8350_reg_lock(struct wm8350 *wm8350)
 {
 	u16 key = WM8350_LOCK_KEY;
@@ -314,6 +320,15 @@ int wm8350_reg_lock(struct wm8350 *wm8350)
 }
 EXPORT_SYMBOL_GPL(wm8350_reg_lock);
 
+/**
+ * wm8350_reg_unlock()
+ *
+ * The WM8350 has a hardware lock which can be used to prevent writes to
+ * some registers (generally those which can cause particularly serious
+ * problems if misused).  This function disables that lock so updates
+ * can be performed.  For maximum safety this should be done only when
+ * required.
+ */
 int wm8350_reg_unlock(struct wm8350 *wm8350)
 {
 	u16 key = WM8350_UNLOCK_KEY;
@@ -1066,38 +1081,158 @@ int wm8350_unmask_irq(struct wm8350 *wm8350, int irq)
 }
 EXPORT_SYMBOL_GPL(wm8350_unmask_irq);
 
+int wm8350_read_auxadc(struct wm8350 *wm8350, int channel, int scale, int vref)
+{
+	u16 reg, result = 0;
+	int tries = 5;
+
+	if (channel < WM8350_AUXADC_AUX1 || channel > WM8350_AUXADC_TEMP)
+		return -EINVAL;
+	if (channel >= WM8350_AUXADC_USB && channel <= WM8350_AUXADC_TEMP
+	    && (scale != 0 || vref != 0))
+		return -EINVAL;
+
+	mutex_lock(&wm8350->auxadc_mutex);
+
+	/* Turn on the ADC */
+	reg = wm8350_reg_read(wm8350, WM8350_POWER_MGMT_5);
+	wm8350_reg_write(wm8350, WM8350_POWER_MGMT_5, reg | WM8350_AUXADC_ENA);
+
+	if (scale || vref) {
+		reg = scale << 13;
+		reg |= vref << 12;
+		wm8350_reg_write(wm8350, WM8350_AUX1_READBACK + channel, reg);
+	}
+
+	reg = wm8350_reg_read(wm8350, WM8350_DIGITISER_CONTROL_1);
+	reg |= 1 << channel | WM8350_AUXADC_POLL;
+	wm8350_reg_write(wm8350, WM8350_DIGITISER_CONTROL_1, reg);
+
+	do {
+		schedule_timeout_interruptible(1);
+		reg = wm8350_reg_read(wm8350, WM8350_DIGITISER_CONTROL_1);
+	} while (tries-- && (reg & WM8350_AUXADC_POLL));
+
+	if (!tries)
+		dev_err(wm8350->dev, "adc chn %d read timeout\n", channel);
+	else
+		result = wm8350_reg_read(wm8350,
+					 WM8350_AUX1_READBACK + channel);
+
+	/* Turn off the ADC */
+	reg = wm8350_reg_read(wm8350, WM8350_POWER_MGMT_5);
+	wm8350_reg_write(wm8350, WM8350_POWER_MGMT_5,
+			 reg & ~WM8350_AUXADC_ENA);
+
+	mutex_unlock(&wm8350->auxadc_mutex);
+
+	return result & WM8350_AUXADC_DATA1_MASK;
+}
+EXPORT_SYMBOL_GPL(wm8350_read_auxadc);
+
 /*
  * Cache is always host endian.
  */
-static int wm8350_create_cache(struct wm8350 *wm8350, int mode)
+static int wm8350_create_cache(struct wm8350 *wm8350, int type, int mode)
 {
 	int i, ret = 0;
 	u16 value;
 	const u16 *reg_map;
 
-	switch (mode) {
-#ifdef CONFIG_MFD_WM8350_CONFIG_MODE_0
+	switch (type) {
 	case 0:
-		reg_map = wm8350_mode0_defaults;
-		break;
+		switch (mode) {
+#ifdef CONFIG_MFD_WM8350_CONFIG_MODE_0
+		case 0:
+			reg_map = wm8350_mode0_defaults;
+			break;
 #endif
 #ifdef CONFIG_MFD_WM8350_CONFIG_MODE_1
-	case 1:
-		reg_map = wm8350_mode1_defaults;
-		break;
+		case 1:
+			reg_map = wm8350_mode1_defaults;
+			break;
 #endif
 #ifdef CONFIG_MFD_WM8350_CONFIG_MODE_2
-	case 2:
-		reg_map = wm8350_mode2_defaults;
-		break;
+		case 2:
+			reg_map = wm8350_mode2_defaults;
+			break;
 #endif
 #ifdef CONFIG_MFD_WM8350_CONFIG_MODE_3
-	case 3:
-		reg_map = wm8350_mode3_defaults;
-		break;
+		case 3:
+			reg_map = wm8350_mode3_defaults;
+			break;
 #endif
+		default:
+			dev_err(wm8350->dev,
+				"WM8350 configuration mode %d not supported\n",
+				mode);
+			return -EINVAL;
+		}
+		break;
+
+	case 1:
+		switch (mode) {
+#ifdef CONFIG_MFD_WM8351_CONFIG_MODE_0
+		case 0:
+			reg_map = wm8351_mode0_defaults;
+			break;
+#endif
+#ifdef CONFIG_MFD_WM8351_CONFIG_MODE_1
+		case 1:
+			reg_map = wm8351_mode1_defaults;
+			break;
+#endif
+#ifdef CONFIG_MFD_WM8351_CONFIG_MODE_2
+		case 2:
+			reg_map = wm8351_mode2_defaults;
+			break;
+#endif
+#ifdef CONFIG_MFD_WM8351_CONFIG_MODE_3
+		case 3:
+			reg_map = wm8351_mode3_defaults;
+			break;
+#endif
+		default:
+			dev_err(wm8350->dev,
+				"WM8351 configuration mode %d not supported\n",
+				mode);
+			return -EINVAL;
+		}
+		break;
+
+	case 2:
+		switch (mode) {
+#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_0
+		case 0:
+			reg_map = wm8352_mode0_defaults;
+			break;
+#endif
+#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_1
+		case 1:
+			reg_map = wm8352_mode1_defaults;
+			break;
+#endif
+#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_2
+		case 2:
+			reg_map = wm8352_mode2_defaults;
+			break;
+#endif
+#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_3
+		case 3:
+			reg_map = wm8352_mode3_defaults;
+			break;
+#endif
+		default:
+			dev_err(wm8350->dev,
+				"WM8352 configuration mode %d not supported\n",
+				mode);
+			return -EINVAL;
+		}
+		break;
+
 	default:
-		dev_err(wm8350->dev, "Configuration mode %d not supported\n",
+		dev_err(wm8350->dev,
+			"WM835x configuration mode %d not supported\n",
 			mode);
 		return -EINVAL;
 	}
@@ -1163,53 +1298,113 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		       struct wm8350_platform_data *pdata)
 {
 	int ret = -EINVAL;
-	u16 id1, id2, mask, mode;
+	u16 id1, id2, mask_rev;
+	u16 cust_id, mode, chip_rev;
 
 	/* get WM8350 revision and config mode */
 	wm8350->read_dev(wm8350, WM8350_RESET_ID, sizeof(id1), &id1);
 	wm8350->read_dev(wm8350, WM8350_ID, sizeof(id2), &id2);
+	wm8350->read_dev(wm8350, WM8350_REVISION, sizeof(mask_rev), &mask_rev);
 
 	id1 = be16_to_cpu(id1);
 	id2 = be16_to_cpu(id2);
+	mask_rev = be16_to_cpu(mask_rev);
 
-	if (id1 == 0x6143) {
-		switch ((id2 & WM8350_CHIP_REV_MASK) >> 12) {
-		case WM8350_REV_E:
-			dev_info(wm8350->dev, "Found Rev E device\n");
-			wm8350->rev = WM8350_REV_E;
-			break;
-		case WM8350_REV_F:
-			dev_info(wm8350->dev, "Found Rev F device\n");
-			wm8350->rev = WM8350_REV_F;
-			break;
-		case WM8350_REV_G:
-			dev_info(wm8350->dev, "Found Rev G device\n");
-			wm8350->rev = WM8350_REV_G;
-			break;
-		default:
-			/* For safety we refuse to run on unknown hardware */
-			dev_info(wm8350->dev, "Found unknown rev\n");
-			ret = -ENODEV;
-			goto err;
-		}
-	} else {
-		dev_info(wm8350->dev, "Device with ID %x is not a WM8350\n",
-			 id1);
+	if (id1 != 0x6143) {
+		dev_err(wm8350->dev,
+			"Device with ID %x is not a WM8350\n", id1);
 		ret = -ENODEV;
 		goto err;
 	}
 
 	mode = id2 & WM8350_CONF_STS_MASK >> 10;
-	mask = id2 & WM8350_CUST_ID_MASK;
-	dev_info(wm8350->dev, "Config mode %d, ROM mask %d\n", mode, mask);
+	cust_id = id2 & WM8350_CUST_ID_MASK;
+	chip_rev = (id2 & WM8350_CHIP_REV_MASK) >> 12;
+	dev_info(wm8350->dev,
+		 "CONF_STS %d, CUST_ID %d, MASK_REV %d, CHIP_REV %d\n",
+		 mode, cust_id, mask_rev, chip_rev);
 
-	ret = wm8350_create_cache(wm8350, mode);
+	if (cust_id != 0) {
+		dev_err(wm8350->dev, "Unsupported CUST_ID\n");
+		ret = -ENODEV;
+		goto err;
+	}
+
+	switch (mask_rev) {
+	case 0:
+		wm8350->pmic.max_dcdc = WM8350_DCDC_6;
+		wm8350->pmic.max_isink = WM8350_ISINK_B;
+
+		switch (chip_rev) {
+		case WM8350_REV_E:
+			dev_info(wm8350->dev, "WM8350 Rev E\n");
+			break;
+		case WM8350_REV_F:
+			dev_info(wm8350->dev, "WM8350 Rev F\n");
+			break;
+		case WM8350_REV_G:
+			dev_info(wm8350->dev, "WM8350 Rev G\n");
+			wm8350->power.rev_g_coeff = 1;
+			break;
+		case WM8350_REV_H:
+			dev_info(wm8350->dev, "WM8350 Rev H\n");
+			wm8350->power.rev_g_coeff = 1;
+			break;
+		default:
+			/* For safety we refuse to run on unknown hardware */
+			dev_err(wm8350->dev, "Unknown WM8350 CHIP_REV\n");
+			ret = -ENODEV;
+			goto err;
+		}
+		break;
+
+	case 1:
+		wm8350->pmic.max_dcdc = WM8350_DCDC_4;
+		wm8350->pmic.max_isink = WM8350_ISINK_A;
+
+		switch (chip_rev) {
+		case 0:
+			dev_info(wm8350->dev, "WM8351 Rev A\n");
+			wm8350->power.rev_g_coeff = 1;
+			break;
+
+		default:
+			dev_err(wm8350->dev, "Unknown WM8351 CHIP_REV\n");
+			ret = -ENODEV;
+			goto err;
+		}
+		break;
+
+	case 2:
+		wm8350->pmic.max_dcdc = WM8350_DCDC_6;
+		wm8350->pmic.max_isink = WM8350_ISINK_B;
+
+		switch (chip_rev) {
+		case 0:
+			dev_info(wm8350->dev, "WM8352 Rev A\n");
+			wm8350->power.rev_g_coeff = 1;
+			break;
+
+		default:
+			dev_err(wm8350->dev, "Unknown WM8352 CHIP_REV\n");
+			ret = -ENODEV;
+			goto err;
+		}
+		break;
+
+	default:
+		dev_err(wm8350->dev, "Unknown MASK_REV\n");
+		ret = -ENODEV;
+		goto err;
+	}
+
+	ret = wm8350_create_cache(wm8350, mask_rev, mode);
 	if (ret < 0) {
-		printk(KERN_ERR "wm8350: failed to create register cache\n");
+		dev_err(wm8350->dev, "Failed to create register cache\n");
 		return ret;
 	}
 
-	if (pdata->init) {
+	if (pdata && pdata->init) {
 		ret = pdata->init(wm8350);
 		if (ret != 0) {
 			dev_err(wm8350->dev, "Platform init() failed: %d\n",
@@ -1218,6 +1413,7 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		}
 	}
 
+	mutex_init(&wm8350->auxadc_mutex);
 	mutex_init(&wm8350->irq_mutex);
 	INIT_WORK(&wm8350->irq_work, wm8350_irq_worker);
 	if (irq) {
@@ -1256,6 +1452,9 @@ EXPORT_SYMBOL_GPL(wm8350_device_init);
 void wm8350_device_exit(struct wm8350 *wm8350)
 {
 	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wm8350->pmic.led); i++)
+		platform_device_unregister(wm8350->pmic.led[i].pdev);
 
 	for (i = 0; i < ARRAY_SIZE(wm8350->pmic.pdev); i++)
 		platform_device_unregister(wm8350->pmic.pdev[i]);

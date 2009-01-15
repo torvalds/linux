@@ -45,7 +45,7 @@
 #define p_net_device struct net_device *
 // SXG_STATS - Probably move these to someplace where
 // the slicstat (sxgstat?) program can get them.
-typedef struct _SXG_STATS {
+struct SXG_STATS {
 	// Xmt
 	u32				XmtNBL;				// Offload send NBL count
 	u64				DumbXmtBytes;		// Dumbnic send bytes
@@ -109,7 +109,7 @@ typedef struct _SXG_STATS {
 	u64				LinkCrc;			// SXG_RCV_STATUS_LINK_CRC:
 	u64				LinkOflow;			// SXG_RCV_STATUS_LINK_OFLOW:
 	u64				LinkUflow;			// SXG_RCV_STATUS_LINK_UFLOW:
-} SXG_STATS, *PSXG_STATS;
+};
 
 
 /****************************************************************************
@@ -215,12 +215,12 @@ typedef struct _SXG_STATS {
 ///////////////////////////////////////////////////////////////////////////////
 // NOTE - Lock must be held with RCV macros
 #define SXG_GET_RCV_DATA_BUFFER(_pAdapt, _Hdr) {								\
-	PLIST_ENTRY     				_ple;										\
+	struct LIST_ENTRY     				*_ple;										\
 	_Hdr = NULL;																\
 	if((_pAdapt)->FreeRcvBufferCount) {											\
 		ASSERT(!(IsListEmpty(&(_pAdapt)->FreeRcvBuffers)));						\
 		_ple = RemoveHeadList(&(_pAdapt)->FreeRcvBuffers);	    				\
-		(_Hdr) = container_of(_ple, SXG_RCV_DATA_BUFFER_HDR, FreeList);	        \
+		(_Hdr) = container_of(_ple, struct SXG_RCV_DATA_BUFFER_HDR, FreeList);	        \
 		(_pAdapt)->FreeRcvBufferCount--;										\
 		ASSERT((_Hdr)->State == SXG_BUFFER_FREE);								\
 	}																			\
@@ -263,12 +263,12 @@ typedef struct _SXG_STATS {
 // until after that.  We're dealing with round numbers here, so we don't need to,
 // and not grabbing it avoids a possible double-trip.
 #define SXG_GET_SGL_BUFFER(_pAdapt, _Sgl) {				\
-	PLIST_ENTRY _ple;						\
+	struct LIST_ENTRY *_ple;						\
 	if ((_pAdapt->FreeSglBufferCount < SXG_MIN_SGL_BUFFERS) &&	\
 	   (_pAdapt->AllSglBufferCount < SXG_MAX_SGL_BUFFERS) &&	\
 	   (_pAdapt->AllocationsPending == 0)) {			\
 		sxg_allocate_buffer_memory(_pAdapt,			\
-			(sizeof(SXG_SCATTER_GATHER) + SXG_SGL_BUF_SIZE),\
+			(sizeof(struct SXG_SCATTER_GATHER) + SXG_SGL_BUF_SIZE),\
 			SXG_BUFFER_TYPE_SGL);				\
 	}								\
 	_Sgl = NULL;							\
@@ -276,7 +276,7 @@ typedef struct _SXG_STATS {
 	if((_pAdapt)->FreeSglBufferCount) {				\
 		ASSERT(!(IsListEmpty(&(_pAdapt)->FreeSglBuffers)));	\
 		_ple = RemoveHeadList(&(_pAdapt)->FreeSglBuffers);	\
-		(_Sgl) = container_of(_ple, SXG_SCATTER_GATHER, FreeList); \
+		(_Sgl) = container_of(_ple, struct SXG_SCATTER_GATHER, FreeList); \
             (_pAdapt)->FreeSglBufferCount--;				\
 		ASSERT((_Sgl)->State == SXG_BUFFER_FREE);		\
 		(_Sgl)->State = SXG_BUFFER_BUSY;			\
@@ -289,17 +289,17 @@ typedef struct _SXG_STATS {
 // SXG_MULTICAST_ADDRESS
 //
 // Linked list of multicast addresses.
-typedef struct _SXG_MULTICAST_ADDRESS {
+struct SXG_MULTICAST_ADDRESS {
 	unsigned char							Address[6];
-	struct _SXG_MULTICAST_ADDRESS	*Next;
-} SXG_MULTICAST_ADDRESS, *PSXG_MULTICAST_ADDRESS;
+	struct SXG_MULTICAST_ADDRESS	*Next;
+};
 
 // Structure to maintain chimney send and receive buffer queues.
 // This structure maintains NET_BUFFER_LIST queues that are
 // given to us via the Chimney MiniportTcpOffloadSend and
 // MiniportTcpOffloadReceive routines.  This structure DOES NOT
 // manage our data buffer queue
-typedef struct _SXG_BUFFER_QUEUE {
+struct SXG_BUFFER_QUEUE {
 	u32						Type;			// Slow or fast - See below
 	u32						Direction;		// Xmt or Rcv
 	u32						Bytes;			// Byte count
@@ -307,7 +307,7 @@ typedef struct _SXG_BUFFER_QUEUE {
 	u32 *        			Tail;			// Send queue tail
 //	PNET_BUFFER_LIST			NextNBL;		// Short cut - next NBL
 //	PNET_BUFFER					NextNB;			// Short cut - next NB
-} SXG_BUFFER_QUEUE, *PSXG_BUFFER_QUEUE;
+};
 
 #define		SXG_SLOW_SEND_BUFFER	0
 #define		SXG_FAST_SEND_BUFFER	1
@@ -335,7 +335,7 @@ typedef struct _SXG_BUFFER_QUEUE {
 
 // Adapter states - These states closely match the adapter states
 // documented in the DDK (with a few exceptions).
-typedef enum _SXG_STATE {
+enum SXG_STATE {
 	SXG_STATE_INITIALIZING,			// Initializing
 	SXG_STATE_BOOTDIAG,				// Boot-Diagnostic mode
 	SXG_STATE_PAUSING,				// Pausing
@@ -347,24 +347,24 @@ typedef enum _SXG_STATE {
 	SXG_STATE_HALTING,				// Halting
 	SXG_STATE_HALTED,				// Down or not-initialized
 	SXG_STATE_SHUTDOWN				// shutdown
-} SXG_STATE, *PSXG_STATE;
+};
 
 // Link state
-typedef enum _SXG_LINK_STATE {
+enum SXG_LINK_STATE {
 	SXG_LINK_DOWN,
 	SXG_LINK_UP
-} SXG_LINK_STATE, *PSXG_LINK_STATE;
+};
 
 // Link initialization timeout in 100us units
 #define SXG_LINK_TIMEOUT	100000		// 10 Seconds - REDUCE!
 
 
 // Microcode file selection codes
-typedef enum _SXG_UCODE_SEL {
+enum SXG_UCODE_SEL {
 	SXG_UCODE_SAHARA,				// Sahara ucode
 	SXG_UCODE_SDIAGCPU,				// Sahara CPU diagnostic ucode
 	SXG_UCODE_SDIAGSYS				// Sahara system diagnostic ucode
-} SXG_UCODE_SEL;
+};
 
 
 #define SXG_DISABLE_ALL_INTERRUPTS(_padapt) sxg_disable_interrupt(_padapt)
@@ -384,10 +384,10 @@ typedef enum _SXG_UCODE_SEL {
 //
 // contains information about the sxg driver.  There is only
 // one of these, and it is defined as a global.
-typedef struct _SXG_DRIVER {
-	struct _adapter_t	*Adapters;		// Linked list of adapters
+struct SXG_DRIVER {
+	struct adapter_t	*Adapters;		// Linked list of adapters
 	ushort				AdapterID;		// Maintain unique adapter ID
-} SXG_DRIVER, *PSXG_DRIVER;
+};
 
 #ifdef STATUS_SUCCESS
 #undef STATUS_SUCCESS
@@ -416,11 +416,10 @@ typedef struct _SXG_DRIVER {
 #define MIN(a, b) ((u32)(a) < (u32)(b) ? (a) : (b))
 #define MAX(a, b) ((u32)(a) > (u32)(b) ? (a) : (b))
 
-typedef struct _mcast_address_t
-{
+struct mcast_address_t {
     unsigned char                     address[6];
-    struct _mcast_address_t   *next;
-}  mcast_address_t, *p_mcast_address_t;
+    struct mcast_address_t   *next;
+};
 
 #define CARD_DOWN        0x00000000
 #define CARD_UP          0x00000001
@@ -472,41 +471,37 @@ typedef struct _mcast_address_t
 #define SLIC_CARD_STATE(x)    ((x==CARD_UP) ? "UP" : "Down")
 
 
-typedef struct _ether_header
-{
+struct ether_header {
     unsigned char    ether_dhost[6];
     unsigned char    ether_shost[6];
     ushort   ether_type;
-} ether_header, *p_ether_header;
+};
 
 
 #define NUM_CFG_SPACES      2
 #define NUM_CFG_REGS        64
 
-typedef struct _physcard_t
-{
-    struct _adapter_t  *adapter[SLIC_MAX_PORTS];
-    struct _physcard_t *next;
+struct physcard_t {
+    struct adapter_t  *adapter[SLIC_MAX_PORTS];
+    struct physcard_t *next;
     unsigned int                adapters_allocd;
-} physcard_t, *p_physcard_t;
+};
 
-typedef struct _sxgbase_driver
-{
+struct sxgbase_driver_t {
 	spinlock_t	driver_lock;
 	unsigned long	flags;	/* irqsave for spinlock */
 	u32		num_sxg_cards;
 	u32		num_sxg_ports;
 	u32		num_sxg_ports_active;
 	u32		dynamic_intagg;
-	p_physcard_t	phys_card;
-} sxgbase_driver_t;
+	struct physcard_t	*phys_card;
+};
 
 
-typedef struct _adapter_t
-{
+struct adapter_t {
 	void *               ifp;
 	unsigned int                port;
-	p_physcard_t        physcard;
+	struct physcard_t        *physcard;
 	unsigned int                physport;
 	unsigned int                cardindex;
 	unsigned int                card_size;
@@ -544,7 +539,7 @@ typedef struct _adapter_t
 	u32             macopts;
 	ushort              devflags_prev;
 	u64             mcastmask;
-	p_mcast_address_t   mcastaddrs;
+	struct mcast_address_t   *mcastaddrs;
 	struct timer_list   pingtimer;
 	u32             pingtimerset;
 	struct timer_list   statstimer;
@@ -580,11 +575,11 @@ typedef struct _adapter_t
 	u32             intagg_period;
 	struct net_device_stats stats;
 	u32 *					MiniportHandle;		// Our miniport handle
-	SXG_STATE					State;				// Adapter state
-	SXG_LINK_STATE				LinkState;			// Link state
+	enum SXG_STATE					State;				// Adapter state
+	enum SXG_LINK_STATE				LinkState;			// Link state
 	u64						LinkSpeed;			// Link Speed
 	u32						PowerState;			// NDIS power state
-	struct _adapter_t   		*Next;				// Linked list
+	struct adapter_t   		*Next;				// Linked list
 	ushort						AdapterID;			// 1..n
 	unsigned char						MacAddr[6];			// Our permanent HW mac address
 	unsigned char						CurrMacAddr[6];		// Our Current mac address
@@ -592,16 +587,16 @@ typedef struct _adapter_t
 	p_net_device                next_netdevice;
 	struct pci_dev            * pcidev;
 
-	PSXG_MULTICAST_ADDRESS		MulticastAddrs;		// Multicast list
+	struct SXG_MULTICAST_ADDRESS		*MulticastAddrs;		// Multicast list
 	u64     				MulticastMask;		// Multicast mask
 	u32 *					InterruptHandle;	// Register Interrupt handle
 	u32						InterruptLevel;		// From Resource list
 	u32						InterruptVector;	// From Resource list
 	spinlock_t	AdapterLock;	/* Serialize access adapter routines */
 	spinlock_t	Bit64RegLock;	/* For writing 64-bit addresses */
-	PSXG_HW_REGS				HwRegs;				// Sahara HW Register Memory (BAR0/1)
-	PSXG_UCODE_REGS				UcodeRegs;			// Microcode Register Memory (BAR2/3)
-	PSXG_TCB_REGS				TcbRegs;			// Same as Ucode regs - See sxghw.h
+	struct SXG_HW_REGS			*HwRegs;				// Sahara HW Register Memory (BAR0/1)
+	struct SXG_UCODE_REGS			*UcodeRegs;			// Microcode Register Memory (BAR2/3)
+	struct SXG_TCB_REGS			*TcbRegs;			// Same as Ucode regs - See sxghw.h
 	ushort						ResetDpcCount;		// For timeout
 	ushort						RssDpcCount;		// For timeout
 	ushort						VendorID;			// Vendor ID
@@ -613,25 +608,25 @@ typedef struct _adapter_t
 	u32 *					BufferPoolHandle;	// Used with NDIS 5.2 only.  Don't ifdef out
 	u32						MacFilter;			// NDIS MAC Filter
 	ushort						IpId;				// For slowpath
-	PSXG_EVENT_RING				EventRings;			// Host event rings.  1/CPU to 16 max
+	struct SXG_EVENT_RING			*EventRings;			// Host event rings.  1/CPU to 16 max
 	dma_addr_t              	PEventRings;		// Physical address
 	u32						NextEvent[SXG_MAX_RSS];	// Current location in ring
 	dma_addr_t          		PTcbBuffers;		// TCB Buffers - physical address
 	dma_addr_t	            	PTcbCompBuffers;	// TCB Composite Buffers - phys addr
-	PSXG_XMT_RING				XmtRings;			// Transmit rings
+	struct SXG_XMT_RING				*XmtRings;			// Transmit rings
 	dma_addr_t		            PXmtRings;			// Transmit rings - physical address
-	SXG_RING_INFO				XmtRingZeroInfo;	// Transmit ring 0 info
+	struct SXG_RING_INFO				XmtRingZeroInfo;	// Transmit ring 0 info
 	spinlock_t	XmtZeroLock;	/* Transmit ring 0 lock */
 	u32 *					XmtRingZeroIndex;	// Shared XMT ring 0 index
 	dma_addr_t          		PXmtRingZeroIndex;	// Shared XMT ring 0 index - physical
-	LIST_ENTRY					FreeProtocolHeaders;// Free protocol headers
+	struct LIST_ENTRY					FreeProtocolHeaders;// Free protocol headers
 	u32						FreeProtoHdrCount;	// Count
 	void *						ProtocolHeaders;	// Block of protocol header
 	dma_addr_t	            	PProtocolHeaders;	// Block of protocol headers - phys
 
-	PSXG_RCV_RING				RcvRings;			// Receive rings
+	struct SXG_RCV_RING		*RcvRings;			// Receive rings
 	dma_addr_t	            	PRcvRings;			// Receive rings - physical address
-	SXG_RING_INFO				RcvRingZeroInfo;	// Receive ring 0 info
+	struct SXG_RING_INFO				RcvRingZeroInfo;	// Receive ring 0 info
 
 	u32 *					Isr;				// Interrupt status register
 	dma_addr_t	            	PIsr;				// ISR - physical address
@@ -645,9 +640,9 @@ typedef struct _adapter_t
 	u32						HashInformation;
 	// Receive buffer queues
 	spinlock_t	RcvQLock;	/* Receive Queue Lock */
-	LIST_ENTRY					FreeRcvBuffers;		// Free SXG_DATA_BUFFER queue
-	LIST_ENTRY					FreeRcvBlocks;		// Free SXG_RCV_DESCRIPTOR_BLOCK Q
-	LIST_ENTRY					AllRcvBlocks;		// All SXG_RCV_BLOCKs
+	struct LIST_ENTRY					FreeRcvBuffers;		// Free SXG_DATA_BUFFER queue
+	struct LIST_ENTRY					FreeRcvBlocks;		// Free SXG_RCV_DESCRIPTOR_BLOCK Q
+	struct LIST_ENTRY					AllRcvBlocks;		// All SXG_RCV_BLOCKs
 	ushort						FreeRcvBufferCount;	// Number of free rcv data buffers
 	ushort						FreeRcvBlockCount;	// # of free rcv descriptor blocks
 	ushort						AllRcvBlockCount;	// Number of total receive blocks
@@ -656,8 +651,8 @@ typedef struct _adapter_t
 	u32						RcvBuffersOnCard;	// SXG_DATA_BUFFERS owned by card
 	// SGL buffers
 	spinlock_t	SglQLock;	/* SGL Queue Lock */
-	LIST_ENTRY					FreeSglBuffers;		// Free SXG_SCATTER_GATHER
-	LIST_ENTRY					AllSglBuffers;		// All SXG_SCATTER_GATHER
+	struct LIST_ENTRY					FreeSglBuffers;		// Free SXG_SCATTER_GATHER
+	struct LIST_ENTRY					AllSglBuffers;		// All SXG_SCATTER_GATHER
 	ushort						FreeSglBufferCount;	// Number of free SGL buffers
 	ushort						AllSglBufferCount;	// Number of total SGL buffers
 	u32						CurrentTime;		// Tick count
@@ -679,7 +674,7 @@ typedef struct _adapter_t
 	// Stats
 	u32						PendingRcvCount;	// Outstanding rcv indications
 	u32						PendingXmtCount;	// Outstanding send requests
-	SXG_STATS					Stats;				// Statistics
+	struct SXG_STATS				Stats;				// Statistics
 	u32						ReassBufs;			// Number of reassembly buffers
 	// Card Crash Info
 	ushort						CrashLocation;		// Microcode crash location
@@ -708,7 +703,7 @@ typedef struct _adapter_t
 	//	dma_addr_t		PDumpBuffer;		// Physical address
 	//#endif // SXG_FAILURE_DUMP
 
-} adapter_t, *p_adapter_t;
+};
 
 #if SLIC_DUMP_ENABLED
 #define SLIC_DUMP_REQUESTED      1
@@ -721,10 +716,10 @@ typedef struct _adapter_t
  * structure is written out to the card's SRAM when the microcode panic's.
  *
  ****************************************************************************/
-typedef struct _slic_crash_info {
+struct slic_crash_info {
     ushort  cpu_id;
     ushort  crash_pc;
-} slic_crash_info, *p_slic_crash_info;
+};
 
 #define CRASH_INFO_OFFSET   0x155C
 

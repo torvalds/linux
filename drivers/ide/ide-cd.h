@@ -8,10 +8,14 @@
 #include <linux/cdrom.h>
 #include <asm/byteorder.h>
 
-/*
- * typical timeout for packet command
- */
-#define ATAPI_WAIT_PC		(60 * HZ)
+#define IDECD_DEBUG_LOG		0
+
+#if IDECD_DEBUG_LOG
+#define ide_debug_log(lvl, fmt, args...) __ide_debug_log(lvl, fmt, args)
+#else
+#define ide_debug_log(lvl, fmt, args...) do {} while (0)
+#endif
+
 #define ATAPI_WAIT_WRITE_BUSY	(10 * HZ)
 
 /************************************************************************/
@@ -29,33 +33,33 @@
 
 /* Structure of a MSF cdrom address. */
 struct atapi_msf {
-	byte reserved;
-	byte minute;
-	byte second;
-	byte frame;
+	u8 reserved;
+	u8 minute;
+	u8 second;
+	u8 frame;
 };
 
 /* Space to hold the disk TOC. */
 #define MAX_TRACKS 99
 struct atapi_toc_header {
 	unsigned short toc_length;
-	byte first_track;
-	byte last_track;
+	u8 first_track;
+	u8 last_track;
 };
 
 struct atapi_toc_entry {
-	byte reserved1;
+	u8 reserved1;
 #if defined(__BIG_ENDIAN_BITFIELD)
-	__u8 adr     : 4;
-	__u8 control : 4;
+	u8 adr     : 4;
+	u8 control : 4;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 control : 4;
-	__u8 adr     : 4;
+	u8 control : 4;
+	u8 adr     : 4;
 #else
 #error "Please fix <asm/byteorder.h>"
 #endif
-	byte track;
-	byte reserved2;
+	u8 track;
+	u8 reserved2;
 	union {
 		unsigned lba;
 		struct atapi_msf msf;
@@ -73,10 +77,10 @@ struct atapi_toc {
 
 /* Extra per-device info for cdrom drives. */
 struct cdrom_info {
-	ide_drive_t	*drive;
-	ide_driver_t	*driver;
-	struct gendisk	*disk;
-	struct kref	kref;
+	ide_drive_t		*drive;
+	struct ide_driver	*driver;
+	struct gendisk		*disk;
+	struct kref		kref;
 
 	/* Buffer for table of contents.  NULL if we haven't allocated
 	   a TOC buffer for this device yet. */

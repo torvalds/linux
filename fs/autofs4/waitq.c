@@ -337,7 +337,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		 * is very similar for indirect mounts except only dentrys
 		 * in the root of the autofs file system may be negative.
 		 */
-		if (sbi->type & AUTOFS_TYPE_TRIGGER)
+		if (autofs_type_trigger(sbi->type))
 			return -ENOENT;
 		else if (!IS_ROOT(dentry->d_parent))
 			return -ENOENT;
@@ -348,7 +348,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		return -ENOMEM;
 
 	/* If this is a direct mount request create a dummy name */
-	if (IS_ROOT(dentry) && sbi->type & AUTOFS_TYPE_TRIGGER)
+	if (IS_ROOT(dentry) && autofs_type_trigger(sbi->type))
 		qstr.len = sprintf(name, "%p", dentry);
 	else {
 		qstr.len = autofs4_getpath(sbi, dentry, &name);
@@ -406,11 +406,11 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 				type = autofs_ptype_expire_multi;
 		} else {
 			if (notify == NFY_MOUNT)
-				type = (sbi->type & AUTOFS_TYPE_TRIGGER) ?
+				type = autofs_type_trigger(sbi->type) ?
 					autofs_ptype_missing_direct :
 					 autofs_ptype_missing_indirect;
 			else
-				type = (sbi->type & AUTOFS_TYPE_TRIGGER) ?
+				type = autofs_type_trigger(sbi->type) ?
 					autofs_ptype_expire_direct :
 					autofs_ptype_expire_indirect;
 		}

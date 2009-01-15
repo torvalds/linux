@@ -68,24 +68,8 @@ static struct led_classdev hpled_led = {
 	.name			= "hp:red:hddprotection",
 	.default_trigger	= "heartbeat",
 	.brightness_set		= hpled_set,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
-
-#ifdef CONFIG_PM
-static int hpled_suspend(struct acpi_device *dev, pm_message_t state)
-{
-	led_classdev_suspend(&hpled_led);
-	return 0;
-}
-
-static int hpled_resume(struct acpi_device *dev)
-{
-	led_classdev_resume(&hpled_led);
-	return 0;
-}
-#else
-#define hpled_suspend NULL
-#define hpled_resume NULL
-#endif
 
 static int hpled_add(struct acpi_device *device)
 {
@@ -121,8 +105,6 @@ static struct acpi_driver leds_hp_driver = {
 	.ops = {
 		.add     = hpled_add,
 		.remove  = hpled_remove,
-		.suspend = hpled_suspend,
-		.resume  = hpled_resume,
 	}
 };
 

@@ -997,14 +997,14 @@ out:
 
 static int hvsi_write_room(struct tty_struct *tty)
 {
-	struct hvsi_struct *hp = (struct hvsi_struct *)tty->driver_data;
+	struct hvsi_struct *hp = tty->driver_data;
 
 	return N_OUTBUF - hp->n_outbuf;
 }
 
 static int hvsi_chars_in_buffer(struct tty_struct *tty)
 {
-	struct hvsi_struct *hp = (struct hvsi_struct *)tty->driver_data;
+	struct hvsi_struct *hp = tty->driver_data;
 
 	return hp->n_outbuf;
 }
@@ -1070,7 +1070,7 @@ out:
  */
 static void hvsi_throttle(struct tty_struct *tty)
 {
-	struct hvsi_struct *hp = (struct hvsi_struct *)tty->driver_data;
+	struct hvsi_struct *hp = tty->driver_data;
 
 	pr_debug("%s\n", __func__);
 
@@ -1079,7 +1079,7 @@ static void hvsi_throttle(struct tty_struct *tty)
 
 static void hvsi_unthrottle(struct tty_struct *tty)
 {
-	struct hvsi_struct *hp = (struct hvsi_struct *)tty->driver_data;
+	struct hvsi_struct *hp = tty->driver_data;
 	unsigned long flags;
 	int shouldflip = 0;
 
@@ -1100,7 +1100,7 @@ static void hvsi_unthrottle(struct tty_struct *tty)
 
 static int hvsi_tiocmget(struct tty_struct *tty, struct file *file)
 {
-	struct hvsi_struct *hp = (struct hvsi_struct *)tty->driver_data;
+	struct hvsi_struct *hp = tty->driver_data;
 
 	hvsi_get_mctrl(hp);
 	return hp->mctrl;
@@ -1109,7 +1109,7 @@ static int hvsi_tiocmget(struct tty_struct *tty, struct file *file)
 static int hvsi_tiocmset(struct tty_struct *tty, struct file *file,
 		unsigned int set, unsigned int clear)
 {
-	struct hvsi_struct *hp = (struct hvsi_struct *)tty->driver_data;
+	struct hvsi_struct *hp = tty->driver_data;
 	unsigned long flags;
 	uint16_t new_mctrl;
 

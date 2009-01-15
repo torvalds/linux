@@ -1077,6 +1077,18 @@ static int (*dc_infoblock[])(struct net_device *dev, u_char, u_char *) = {
     mdelay(2);                           /* Wait for 2ms */\
 }
 
+static const struct net_device_ops de4x5_netdev_ops = {
+    .ndo_open		= de4x5_open,
+    .ndo_stop		= de4x5_close,
+    .ndo_start_xmit	= de4x5_queue_pkt,
+    .ndo_get_stats	= de4x5_get_stats,
+    .ndo_set_multicast_list = set_multicast_list,
+    .ndo_do_ioctl	= de4x5_ioctl,
+    .ndo_change_mtu	= eth_change_mtu,
+    .ndo_set_mac_address= eth_mac_addr,
+    .ndo_validate_addr	= eth_validate_addr,
+};
+
 
 static int __devinit
 de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
@@ -1258,13 +1270,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
 
     /* The DE4X5-specific entries in the device structure. */
     SET_NETDEV_DEV(dev, gendev);
-    dev->open = &de4x5_open;
-    dev->hard_start_xmit = &de4x5_queue_pkt;
-    dev->stop = &de4x5_close;
-    dev->get_stats = &de4x5_get_stats;
-    dev->set_multicast_list = &set_multicast_list;
-    dev->do_ioctl = &de4x5_ioctl;
-
+    dev->netdev_ops = &de4x5_netdev_ops;
     dev->mem_start = 0;
 
     /* Fill in the generic fields of the device structure. */

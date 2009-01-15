@@ -82,6 +82,8 @@ static struct pcmcia_device_id pcmcia_ids[] = {
 	/* vendor and device strings followed by their crc32 hashes */
 	PCMCIA_DEVICE_PROD_ID12("RICOH", "Bay1Controller", 0xd9f522ed,
 				0xc3901202),
+	PCMCIA_DEVICE_PROD_ID12("RICOH", "Bay Controller", 0xd9f522ed,
+				0xace80909),
 	PCMCIA_DEVICE_NULL,
 };
 
@@ -463,7 +465,7 @@ static int sdricoh_init_mmc(struct pci_dev *pci_dev,
 
 err:
 	if (iobase)
-		iounmap(iobase);
+		pci_iounmap(pci_dev, iobase);
 	if (mmc)
 		mmc_free_host(mmc);
 

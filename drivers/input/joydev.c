@@ -800,7 +800,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 		}
 	}
 
-	strlcpy(joydev->dev.bus_id, joydev->name, sizeof(joydev->dev.bus_id));
+	dev_set_name(&joydev->dev, joydev->name);
 	joydev->dev.devt = MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor);
 	joydev->dev.class = &input_class;
 	joydev->dev.parent = &dev->dev;

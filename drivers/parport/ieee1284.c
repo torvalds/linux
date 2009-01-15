@@ -84,7 +84,7 @@ int parport_wait_event (struct parport *port, signed long timeout)
 
 	add_timer (&timer);
 	ret = down_interruptible (&port->physport->ieee1284.irq);
-	if (!del_timer (&timer) && !ret)
+	if (!del_timer_sync(&timer) && !ret)
 		/* Timed out. */
 		ret = 1;
 

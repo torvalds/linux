@@ -197,8 +197,8 @@ static int __init amd756_s4882_init(void)
 	for (i = 1; i < 5; i++) {
 		s4882_algo[i] = *(amd756_smbus.algo);
 		s4882_adapter[i] = amd756_smbus;
-		sprintf(s4882_adapter[i].name,
-			"SMBus 8111 adapter (CPU%d)", i-1);
+		snprintf(s4882_adapter[i].name, sizeof(s4882_adapter[i].name),
+			 "SMBus 8111 adapter (CPU%d)", i-1);
 		s4882_adapter[i].algo = s4882_algo+i;
 		s4882_adapter[i].dev.parent = amd756_smbus.dev.parent;
 	}

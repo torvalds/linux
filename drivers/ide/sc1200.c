@@ -125,7 +125,7 @@ out:
 
 static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 {
-	ide_hwif_t		*hwif = HWIF(drive);
+	ide_hwif_t		*hwif = drive->hwif;
 	struct pci_dev		*dev = to_pci_dev(hwif->dev);
 	unsigned int		reg, timings;
 	unsigned short		pci_clock;
@@ -170,9 +170,9 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
  */
 static int sc1200_dma_end(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned long dma_base = hwif->dma_base;
-	byte dma_stat;
+	u8 dma_stat;
 
 	dma_stat = inb(dma_base+2);		/* get DMA status */
 
@@ -199,7 +199,7 @@ static int sc1200_dma_end(ide_drive_t *drive)
 
 static void sc1200_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	ide_hwif_t	*hwif = HWIF(drive);
+	ide_hwif_t	*hwif = drive->hwif;
 	int		mode = -1;
 
 	/*
@@ -292,6 +292,7 @@ static const struct ide_dma_ops sc1200_dma_ops = {
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timeout		= ide_dma_timeout,
+	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 static const struct ide_port_info sc1200_chipset __devinitdata = {

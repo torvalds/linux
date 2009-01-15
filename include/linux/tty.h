@@ -180,8 +180,17 @@ struct signal_struct;
  * until a hangup so don't use the wrong path.
  */
 
+struct tty_port;
+
+struct tty_port_operations {
+	/* Return 1 if the carrier is raised */
+	int (*carrier_raised)(struct tty_port *port);
+	void (*raise_dtr_rts)(struct tty_port *port);
+};
+	
 struct tty_port {
 	struct tty_struct	*tty;		/* Back pointer */
+	const struct tty_port_operations *ops;	/* Port operations */
 	spinlock_t		lock;		/* Lock protecting tty field */
 	int			blocked_open;	/* Waiting to open */
 	int			count;		/* Usage count */
@@ -253,6 +262,7 @@ struct tty_struct {
 	unsigned int column;
 	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
 	unsigned char closing:1;
+	unsigned char echo_overrun:1;
 	unsigned short minimum_to_wake;
 	unsigned long overrun_time;
 	int num_overrun;
@@ -262,11 +272,16 @@ struct tty_struct {
 	int read_tail;
 	int read_cnt;
 	unsigned long read_flags[N_TTY_BUF_SIZE/(8*sizeof(unsigned long))];
+	unsigned char *echo_buf;
+	unsigned int echo_pos;
+	unsigned int echo_cnt;
 	int canon_data;
 	unsigned long canon_head;
 	unsigned int canon_column;
 	struct mutex atomic_read_lock;
 	struct mutex atomic_write_lock;
+	struct mutex output_lock;
+	struct mutex echo_lock;
 	unsigned char *write_buf;
 	int write_cnt;
 	spinlock_t read_lock;
@@ -295,6 +310,7 @@ struct tty_struct {
 #define TTY_PUSH 		6	/* n_tty private */
 #define TTY_CLOSING 		7	/* ->close() in progress */
 #define TTY_LDISC 		9	/* Line discipline attached */
+#define TTY_LDISC_CHANGING 	10	/* Line discipline changing */
 #define TTY_HW_COOK_OUT 	14	/* Hardware can do output cooking */
 #define TTY_HW_COOK_IN 		15	/* Hardware can do input cooking */
 #define TTY_PTY_LOCK 		16	/* pty private */
@@ -354,8 +370,7 @@ extern int tty_write_room(struct tty_struct *tty);
 extern void tty_driver_flush_buffer(struct tty_struct *tty);
 extern void tty_throttle(struct tty_struct *tty);
 extern void tty_unthrottle(struct tty_struct *tty);
-extern int tty_do_resize(struct tty_struct *tty, struct tty_struct *real_tty,
-						struct winsize *ws);
+extern int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
 extern void tty_shutdown(struct tty_struct *tty);
 extern void tty_free_termios(struct tty_struct *tty);
 extern int is_current_pgrp_orphaned(void);
@@ -421,6 +436,14 @@ extern int tty_port_alloc_xmit_buf(struct tty_port *port);
 extern void tty_port_free_xmit_buf(struct tty_port *port);
 extern struct tty_struct *tty_port_tty_get(struct tty_port *port);
 extern void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty);
+extern int tty_port_carrier_raised(struct tty_port *port);
+extern void tty_port_raise_dtr_rts(struct tty_port *port);
+extern void tty_port_hangup(struct tty_port *port);
+extern int tty_port_block_til_ready(struct tty_port *port,
+				struct tty_struct *tty, struct file *filp);
+extern int tty_port_close_start(struct tty_port *port,
+				struct tty_struct *tty, struct file *filp);
+extern void tty_port_close_end(struct tty_port *port, struct tty_struct *tty);
 
 extern int tty_register_ldisc(int disc, struct tty_ldisc_ops *new_ldisc);
 extern int tty_unregister_ldisc(int disc);

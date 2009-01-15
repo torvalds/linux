@@ -680,7 +680,7 @@ static int pms_capture(struct pms_device *dev, char __user *buf, int rgb555, int
  *	Video4linux interfacing
  */
 
-static int pms_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long pms_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
 	struct pms_device *pd=(struct pms_device *)dev;
@@ -862,7 +862,7 @@ static int pms_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int pms_ioctl(struct inode *inode, struct file *file,
+static long pms_ioctl(struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, pms_do_ioctl);
@@ -881,7 +881,7 @@ static ssize_t pms_read(struct file *file, char __user *buf,
 	return len;
 }
 
-static int pms_exclusive_open(struct inode *inode, struct file *file)
+static int pms_exclusive_open(struct file *file)
 {
 	struct video_device *v = video_devdata(file);
 	struct pms_device *pd = (struct pms_device *)v;
@@ -889,7 +889,7 @@ static int pms_exclusive_open(struct inode *inode, struct file *file)
 	return test_and_set_bit(0, &pd->in_use) ? -EBUSY : 0;
 }
 
-static int pms_exclusive_release(struct inode *inode, struct file *file)
+static int pms_exclusive_release(struct file *file)
 {
 	struct video_device *v = video_devdata(file);
 	struct pms_device *pd = (struct pms_device *)v;
@@ -898,16 +898,12 @@ static int pms_exclusive_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations pms_fops = {
+static const struct v4l2_file_operations pms_fops = {
 	.owner		= THIS_MODULE,
 	.open           = pms_exclusive_open,
 	.release        = pms_exclusive_release,
 	.ioctl          = pms_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
 	.read           = pms_read,
-	.llseek         = no_llseek,
 };
 
 static struct video_device pms_template=

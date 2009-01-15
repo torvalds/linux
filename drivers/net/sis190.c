@@ -1782,6 +1782,21 @@ static int sis190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		generic_mii_ioctl(&tp->mii_if, if_mii(ifr), cmd, NULL);
 }
 
+static const struct net_device_ops sis190_netdev_ops = {
+	.ndo_open		= sis190_open,
+	.ndo_stop		= sis190_close,
+	.ndo_do_ioctl		= sis190_ioctl,
+	.ndo_start_xmit		= sis190_start_xmit,
+	.ndo_tx_timeout		= sis190_tx_timeout,
+	.ndo_set_multicast_list = sis190_set_rx_mode,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	 = sis190_netpoll,
+#endif
+};
+
 static int __devinit sis190_init_one(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
@@ -1815,19 +1830,12 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 
 	INIT_WORK(&tp->phy_task, sis190_phy_task);
 
-	dev->open = sis190_open;
-	dev->stop = sis190_close;
-	dev->do_ioctl = sis190_ioctl;
-	dev->tx_timeout = sis190_tx_timeout;
-	dev->watchdog_timeo = SIS190_TX_TIMEOUT;
-	dev->hard_start_xmit = sis190_start_xmit;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = sis190_netpoll;
-#endif
-	dev->set_multicast_list = sis190_set_rx_mode;
+	dev->netdev_ops = &sis190_netdev_ops;
+
 	SET_ETHTOOL_OPS(dev, &sis190_ethtool_ops);
 	dev->irq = pdev->irq;
 	dev->base_addr = (unsigned long) 0xdead;
+	dev->watchdog_timeo = SIS190_TX_TIMEOUT;
 
 	spin_lock_init(&tp->lock);
 

@@ -256,9 +256,6 @@ found:
 		break;
 	}
 
-	inode->i_gid = 0;
-	inode->i_uid = 0;
-
 	d_add(dentry, inode);
 	return NULL;
 }

@@ -191,26 +191,17 @@ dmar_parse_one_drhd(struct acpi_dmar_header *header)
 static int __init dmar_parse_dev(struct dmar_drhd_unit *dmaru)
 {
 	struct acpi_dmar_hardware_unit *drhd;
-	static int include_all;
 	int ret = 0;
 
 	drhd = (struct acpi_dmar_hardware_unit *) dmaru->hdr;
 
-	if (!dmaru->include_all)
-		ret = dmar_parse_dev_scope((void *)(drhd + 1),
+	if (dmaru->include_all)
+		return 0;
+
+	ret = dmar_parse_dev_scope((void *)(drhd + 1),
 				((void *)drhd) + drhd->header.length,
 				&dmaru->devices_cnt, &dmaru->devices,
 				drhd->segment);
-	else {
-		/* Only allow one INCLUDE_ALL */
-		if (include_all) {
-			printk(KERN_WARNING PREFIX "Only one INCLUDE_ALL "
-				"device scope is allowed\n");
-			ret = -EINVAL;
-		}
-		include_all = 1;
-	}
-
 	if (ret) {
 		list_del(&dmaru->list);
 		kfree(dmaru);
@@ -384,12 +375,21 @@ int dmar_pci_device_match(struct pci_dev *devices[], int cnt,
 struct dmar_drhd_unit *
 dmar_find_matched_drhd_unit(struct pci_dev *dev)
 {
-	struct dmar_drhd_unit *drhd = NULL;
+	struct dmar_drhd_unit *dmaru = NULL;
+	struct acpi_dmar_hardware_unit *drhd;
 
-	list_for_each_entry(drhd, &dmar_drhd_units, list) {
-		if (drhd->include_all || dmar_pci_device_match(drhd->devices,
-						drhd->devices_cnt, dev))
-			return drhd;
+	list_for_each_entry(dmaru, &dmar_drhd_units, list) {
+		drhd = container_of(dmaru->hdr,
+				    struct acpi_dmar_hardware_unit,
+				    header);
+
+		if (dmaru->include_all &&
+		    drhd->segment == pci_domain_nr(dev->bus))
+			return dmaru;
+
+		if (dmar_pci_device_match(dmaru->devices,
+					  dmaru->devices_cnt, dev))
+			return dmaru;
 	}
 
 	return NULL;
@@ -491,6 +491,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	int map_size;
 	u32 ver;
 	static int iommu_allocated = 0;
+	int agaw;
 
 	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
@@ -505,6 +506,15 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	}
 	iommu->cap = dmar_readq(iommu->reg + DMAR_CAP_REG);
 	iommu->ecap = dmar_readq(iommu->reg + DMAR_ECAP_REG);
+
+	agaw = iommu_calculate_agaw(iommu);
+	if (agaw < 0) {
+		printk(KERN_ERR
+			"Cannot get a valid agaw for iommu (seq_id = %d)\n",
+			iommu->seq_id);
+		goto error;
+	}
+	iommu->agaw = agaw;
 
 	/* the registers might be more than one page */
 	map_size = max_t(int, ecap_max_iotlb_offset(iommu->ecap),

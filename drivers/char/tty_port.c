@@ -7,6 +7,7 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
+#include <linux/serial.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -94,3 +95,227 @@ void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 EXPORT_SYMBOL(tty_port_tty_set);
+
+/**
+ *	tty_port_hangup		-	hangup helper
+ *	@port: tty port
+ *
+ *	Perform port level tty hangup flag and count changes. Drop the tty
+ *	reference.
+ */
+
+void tty_port_hangup(struct tty_port *port)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	port->count = 0;
+	port->flags &= ~ASYNC_NORMAL_ACTIVE;
+	if (port->tty)
+		tty_kref_put(port->tty);
+	port->tty = NULL;
+	spin_unlock_irqrestore(&port->lock, flags);
+	wake_up_interruptible(&port->open_wait);
+}
+EXPORT_SYMBOL(tty_port_hangup);
+
+/**
+ *	tty_port_carrier_raised	-	carrier raised check
+ *	@port: tty port
+ *
+ *	Wrapper for the carrier detect logic. For the moment this is used
+ *	to hide some internal details. This will eventually become entirely
+ *	internal to the tty port.
+ */
+
+int tty_port_carrier_raised(struct tty_port *port)
+{
+	if (port->ops->carrier_raised == NULL)
+		return 1;
+	return port->ops->carrier_raised(port);
+}
+EXPORT_SYMBOL(tty_port_carrier_raised);
+
+/**
+ *	tty_port_raise_dtr_rts	-	Riase DTR/RTS
+ *	@port: tty port
+ *
+ *	Wrapper for the DTR/RTS raise logic. For the moment this is used
+ *	to hide some internal details. This will eventually become entirely
+ *	internal to the tty port.
+ */
+
+void tty_port_raise_dtr_rts(struct tty_port *port)
+{
+	if (port->ops->raise_dtr_rts)
+		port->ops->raise_dtr_rts(port);
+}
+EXPORT_SYMBOL(tty_port_raise_dtr_rts);
+
+/**
+ *	tty_port_block_til_ready	-	Waiting logic for tty open
+ *	@port: the tty port being opened
+ *	@tty: the tty device being bound
+ *	@filp: the file pointer of the opener
+ *
+ *	Implement the core POSIX/SuS tty behaviour when opening a tty device.
+ *	Handles:
+ *		- hangup (both before and during)
+ *		- non blocking open
+ *		- rts/dtr/dcd
+ *		- signals
+ *		- port flags and counts
+ *
+ *	The passed tty_port must implement the carrier_raised method if it can
+ *	do carrier detect and the raise_dtr_rts method if it supports software
+ *	management of these lines. Note that the dtr/rts raise is done each
+ *	iteration as a hangup may have previously dropped them while we wait.
+ */
+ 
+int tty_port_block_til_ready(struct tty_port *port,
+				struct tty_struct *tty, struct file *filp)
+{
+	int do_clocal = 0, retval;
+	unsigned long flags;
+	DECLARE_WAITQUEUE(wait, current);
+	int cd;
+
+	/* block if port is in the process of being closed */
+	if (tty_hung_up_p(filp) || port->flags & ASYNC_CLOSING) {
+		interruptible_sleep_on(&port->close_wait);
+		if (port->flags & ASYNC_HUP_NOTIFY)
+			return -EAGAIN;
+		else
+			return -ERESTARTSYS;
+	}
+
+	/* if non-blocking mode is set we can pass directly to open unless
+	   the port has just hung up or is in another error state */
+	if ((filp->f_flags & O_NONBLOCK) ||
+			(tty->flags & (1 << TTY_IO_ERROR))) {
+		port->flags |= ASYNC_NORMAL_ACTIVE;
+		return 0;
+	}
+
+	if (C_CLOCAL(tty))
+		do_clocal = 1;
+
+	/* Block waiting until we can proceed. We may need to wait for the
+	   carrier, but we must also wait for any close that is in progress
+	   before the next open may complete */
+
+	retval = 0;
+	add_wait_queue(&port->open_wait, &wait);
+
+	/* The port lock protects the port counts */
+	spin_lock_irqsave(&port->lock, flags);
+	if (!tty_hung_up_p(filp))
+		port->count--;
+	port->blocked_open++;
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	while (1) {
+		/* Indicate we are open */
+		if (tty->termios->c_cflag & CBAUD)
+			tty_port_raise_dtr_rts(port);
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		/* Check for a hangup or uninitialised port. Return accordingly */
+		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)) {
+			if (port->flags & ASYNC_HUP_NOTIFY)
+				retval = -EAGAIN;
+			else
+				retval = -ERESTARTSYS;
+			break;
+		}
+		/* Probe the carrier. For devices with no carrier detect this
+		   will always return true */
+		cd = tty_port_carrier_raised(port);
+		if (!(port->flags & ASYNC_CLOSING) &&
+				(do_clocal || cd))
+			break;
+		if (signal_pending(current)) {
+			retval = -ERESTARTSYS;
+			break;
+		}
+		schedule();
+	}
+	set_current_state(TASK_RUNNING);
+	remove_wait_queue(&port->open_wait, &wait);
+
+	/* Update counts. A parallel hangup will have set count to zero and
+	   we must not mess that up further */
+	spin_lock_irqsave(&port->lock, flags);
+	if (!tty_hung_up_p(filp))
+		port->count++;
+	port->blocked_open--;
+	if (retval == 0)
+		port->flags |= ASYNC_NORMAL_ACTIVE;
+	spin_unlock_irqrestore(&port->lock, flags);
+	return 0;
+	
+}
+EXPORT_SYMBOL(tty_port_block_til_ready);
+
+int tty_port_close_start(struct tty_port *port, struct tty_struct *tty, struct file *filp)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	if (tty_hung_up_p(filp)) {
+		spin_unlock_irqrestore(&port->lock, flags);
+		return 0;
+	}
+
+	if( tty->count == 1 && port->count != 1) {
+		printk(KERN_WARNING
+		    "tty_port_close_start: tty->count = 1 port count = %d.\n",
+								port->count);
+		port->count = 1;
+	}
+	if (--port->count < 0) {
+		printk(KERN_WARNING "tty_port_close_start: count = %d\n",
+								port->count);
+		port->count = 0;
+	}
+
+	if (port->count) {
+		spin_unlock_irqrestore(&port->lock, flags);
+		return 0;
+	}
+	port->flags |= ASYNC_CLOSING;
+	tty->closing = 1;
+	spin_unlock_irqrestore(&port->lock, flags);
+	/* Don't block on a stalled port, just pull the chain */
+	if (tty->flow_stopped)
+		tty_driver_flush_buffer(tty);
+	if (port->flags & ASYNC_INITIALIZED &&
+			port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, port->closing_wait);
+	return 1;
+}
+EXPORT_SYMBOL(tty_port_close_start);
+
+void tty_port_close_end(struct tty_port *port, struct tty_struct *tty)
+{
+	unsigned long flags;
+
+	tty_ldisc_flush(tty);
+
+	spin_lock_irqsave(&port->lock, flags);
+	tty->closing = 0;
+
+	if (port->blocked_open) {
+		spin_unlock_irqrestore(&port->lock, flags);
+		if (port->close_delay) {
+			msleep_interruptible(
+				jiffies_to_msecs(port->close_delay));
+		}
+		spin_lock_irqsave(&port->lock, flags);
+		wake_up_interruptible(&port->open_wait);
+	}
+	port->flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
+	wake_up_interruptible(&port->close_wait);
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+EXPORT_SYMBOL(tty_port_close_end);

@@ -32,6 +32,8 @@
 #include "ubifs.h"
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/debugfs.h>
+#include <linux/math64.h>
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
@@ -596,7 +598,9 @@ void dbg_dump_budg(struct ubifs_info *c)
 	struct rb_node *rb;
 	struct ubifs_bud *bud;
 	struct ubifs_gced_idx_leb *idx_gc;
+	long long available, outstanding, free;
 
+	ubifs_assert(spin_is_locked(&c->space_lock));
 	spin_lock(&dbg_lock);
 	printk(KERN_DEBUG "(pid %d) Budgeting info: budg_data_growth %lld, "
 	       "budg_dd_growth %lld, budg_idx_growth %lld\n", current->pid,
@@ -629,6 +633,17 @@ void dbg_dump_budg(struct ubifs_info *c)
 		printk(KERN_DEBUG "\tGC'ed idx LEB %d unmap %d\n",
 		       idx_gc->lnum, idx_gc->unmap);
 	printk(KERN_DEBUG "\tcommit state %d\n", c->cmt_state);
+
+	/* Print budgeting predictions */
+	available = ubifs_calc_available(c, c->min_idx_lebs);
+	outstanding = c->budg_data_growth + c->budg_dd_growth;
+	if (available > outstanding)
+		free = ubifs_reported_space(c, available - outstanding);
+	else
+		free = 0;
+	printk(KERN_DEBUG "Budgeting predictions:\n");
+	printk(KERN_DEBUG "\tavailable: %lld, outstanding %lld, free %lld\n",
+	       available, outstanding, free);
 	spin_unlock(&dbg_lock);
 }
 
@@ -645,7 +660,8 @@ void dbg_dump_lprops(struct ubifs_info *c)
 	struct ubifs_lprops lp;
 	struct ubifs_lp_stats lst;
 
-	printk(KERN_DEBUG "(pid %d) Dumping LEB properties\n", current->pid);
+	printk(KERN_DEBUG "(pid %d) start dumping LEB properties\n",
+	       current->pid);
 	ubifs_get_lp_stats(c, &lst);
 	dbg_dump_lstats(&lst);
 
@@ -656,6 +672,8 @@ void dbg_dump_lprops(struct ubifs_info *c)
 
 		dbg_dump_lprop(c, &lp);
 	}
+	printk(KERN_DEBUG "(pid %d) finish dumping LEB properties\n",
+	       current->pid);
 }
 
 void dbg_dump_lpt_info(struct ubifs_info *c)
@@ -663,6 +681,7 @@ void dbg_dump_lpt_info(struct ubifs_info *c)
 	int i;
 
 	spin_lock(&dbg_lock);
+	printk(KERN_DEBUG "(pid %d) dumping LPT information\n", current->pid);
 	printk(KERN_DEBUG "\tlpt_sz:        %lld\n", c->lpt_sz);
 	printk(KERN_DEBUG "\tpnode_sz:      %d\n", c->pnode_sz);
 	printk(KERN_DEBUG "\tnnode_sz:      %d\n", c->nnode_sz);
@@ -684,7 +703,8 @@ void dbg_dump_lpt_info(struct ubifs_info *c)
 	printk(KERN_DEBUG "\tLPT root is at %d:%d\n", c->lpt_lnum, c->lpt_offs);
 	printk(KERN_DEBUG "\tLPT head is at %d:%d\n",
 	       c->nhead_lnum, c->nhead_offs);
-	printk(KERN_DEBUG "\tLPT ltab is at %d:%d\n", c->ltab_lnum, c->ltab_offs);
+	printk(KERN_DEBUG "\tLPT ltab is at %d:%d\n",
+	       c->ltab_lnum, c->ltab_offs);
 	if (c->big_lpt)
 		printk(KERN_DEBUG "\tLPT lsave is at %d:%d\n",
 		       c->lsave_lnum, c->lsave_offs);
@@ -703,9 +723,9 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 	if (dbg_failure_mode)
 		return;
 
-	printk(KERN_DEBUG "(pid %d) Dumping LEB %d\n", current->pid, lnum);
-
-	sleb = ubifs_scan(c, lnum, 0, c->dbg_buf);
+	printk(KERN_DEBUG "(pid %d) start dumping LEB %d\n",
+	       current->pid, lnum);
+	sleb = ubifs_scan(c, lnum, 0, c->dbg->buf);
 	if (IS_ERR(sleb)) {
 		ubifs_err("scan error %d", (int)PTR_ERR(sleb));
 		return;
@@ -721,6 +741,8 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 		dbg_dump_node(c, snod->node);
 	}
 
+	printk(KERN_DEBUG "(pid %d) finish dumping LEB %d\n",
+	       current->pid, lnum);
 	ubifs_scan_destroy(sleb);
 	return;
 }
@@ -768,7 +790,7 @@ void dbg_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat)
 {
 	int i;
 
-	printk(KERN_DEBUG "(pid %d) Dumping heap cat %d (%d elements)\n",
+	printk(KERN_DEBUG "(pid %d) start dumping heap cat %d (%d elements)\n",
 	       current->pid, cat, heap->cnt);
 	for (i = 0; i < heap->cnt; i++) {
 		struct ubifs_lprops *lprops = heap->arr[i];
@@ -777,6 +799,7 @@ void dbg_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat)
 		       "flags %d\n", i, lprops->lnum, lprops->hpos,
 		       lprops->free, lprops->dirty, lprops->flags);
 	}
+	printk(KERN_DEBUG "(pid %d) finish dumping heap\n", current->pid);
 }
 
 void dbg_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
@@ -784,7 +807,7 @@ void dbg_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 {
 	int i;
 
-	printk(KERN_DEBUG "(pid %d) Dumping pnode:\n", current->pid);
+	printk(KERN_DEBUG "(pid %d) dumping pnode:\n", current->pid);
 	printk(KERN_DEBUG "\taddress %zx parent %zx cnext %zx\n",
 	       (size_t)pnode, (size_t)parent, (size_t)pnode->cnext);
 	printk(KERN_DEBUG "\tflags %lu iip %d level %d num %d\n",
@@ -803,7 +826,7 @@ void dbg_dump_tnc(struct ubifs_info *c)
 	int level;
 
 	printk(KERN_DEBUG "\n");
-	printk(KERN_DEBUG "(pid %d) Dumping the TNC tree\n", current->pid);
+	printk(KERN_DEBUG "(pid %d) start dumping TNC tree\n", current->pid);
 	znode = ubifs_tnc_levelorder_next(c->zroot.znode, NULL);
 	level = znode->level;
 	printk(KERN_DEBUG "== Level %d ==\n", level);
@@ -815,8 +838,7 @@ void dbg_dump_tnc(struct ubifs_info *c)
 		dbg_dump_znode(c, znode);
 		znode = ubifs_tnc_levelorder_next(c->zroot.znode, znode);
 	}
-
-	printk(KERN_DEBUG "\n");
+	printk(KERN_DEBUG "(pid %d) finish dumping TNC tree\n", current->pid);
 }
 
 static int dump_znode(struct ubifs_info *c, struct ubifs_znode *znode,
@@ -992,8 +1014,8 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 			zbr1->offs, DBGKEY(&key));
 		dbg_err("but it should have key %s according to tnc",
 			DBGKEY(&zbr1->key));
-			dbg_dump_node(c, dent1);
-			goto out_free;
+		dbg_dump_node(c, dent1);
+		goto out_free;
 	}
 
 	key_read(c, &dent2->key, &key);
@@ -1002,8 +1024,8 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 			zbr1->offs, DBGKEY(&key));
 		dbg_err("but it should have key %s according to tnc",
 			DBGKEY(&zbr2->key));
-			dbg_dump_node(c, dent2);
-			goto out_free;
+		dbg_dump_node(c, dent2);
+		goto out_free;
 	}
 
 	nlen1 = le16_to_cpu(dent1->nlen);
@@ -1020,9 +1042,9 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		dbg_err("bad order of colliding key %s",
 			DBGKEY(&key));
 
-	dbg_msg("first node at %d:%d\n", zbr1->lnum, zbr1->offs);
+	ubifs_msg("first node at %d:%d\n", zbr1->lnum, zbr1->offs);
 	dbg_dump_node(c, dent1);
-	dbg_msg("second node at %d:%d\n", zbr2->lnum, zbr2->offs);
+	ubifs_msg("second node at %d:%d\n", zbr2->lnum, zbr2->offs);
 	dbg_dump_node(c, dent2);
 
 out_free:
@@ -2097,13 +2119,13 @@ static int simple_rand(void)
 	return (next >> 16) & 32767;
 }
 
-void dbg_failure_mode_registration(struct ubifs_info *c)
+static void failure_mode_init(struct ubifs_info *c)
 {
 	struct failure_mode_info *fmi;
 
 	fmi = kmalloc(sizeof(struct failure_mode_info), GFP_NOFS);
 	if (!fmi) {
-		dbg_err("Failed to register failure mode - no memory");
+		ubifs_err("Failed to register failure mode - no memory");
 		return;
 	}
 	fmi->c = c;
@@ -2112,7 +2134,7 @@ void dbg_failure_mode_registration(struct ubifs_info *c)
 	spin_unlock(&fmi_lock);
 }
 
-void dbg_failure_mode_deregistration(struct ubifs_info *c)
+static void failure_mode_exit(struct ubifs_info *c)
 {
 	struct failure_mode_info *fmi, *tmp;
 
@@ -2146,42 +2168,44 @@ static int in_failure_mode(struct ubi_volume_desc *desc)
 	struct ubifs_info *c = dbg_find_info(desc);
 
 	if (c && dbg_failure_mode)
-		return c->failure_mode;
+		return c->dbg->failure_mode;
 	return 0;
 }
 
 static int do_fail(struct ubi_volume_desc *desc, int lnum, int write)
 {
 	struct ubifs_info *c = dbg_find_info(desc);
+	struct ubifs_debug_info *d;
 
 	if (!c || !dbg_failure_mode)
 		return 0;
-	if (c->failure_mode)
+	d = c->dbg;
+	if (d->failure_mode)
 		return 1;
-	if (!c->fail_cnt) {
+	if (!d->fail_cnt) {
 		/* First call - decide delay to failure */
 		if (chance(1, 2)) {
 			unsigned int delay = 1 << (simple_rand() >> 11);
 
 			if (chance(1, 2)) {
-				c->fail_delay = 1;
-				c->fail_timeout = jiffies +
+				d->fail_delay = 1;
+				d->fail_timeout = jiffies +
 						  msecs_to_jiffies(delay);
 				dbg_rcvry("failing after %ums", delay);
 			} else {
-				c->fail_delay = 2;
-				c->fail_cnt_max = delay;
+				d->fail_delay = 2;
+				d->fail_cnt_max = delay;
 				dbg_rcvry("failing after %u calls", delay);
 			}
 		}
-		c->fail_cnt += 1;
+		d->fail_cnt += 1;
 	}
 	/* Determine if failure delay has expired */
-	if (c->fail_delay == 1) {
-		if (time_before(jiffies, c->fail_timeout))
+	if (d->fail_delay == 1) {
+		if (time_before(jiffies, d->fail_timeout))
 			return 0;
-	} else if (c->fail_delay == 2)
-		if (c->fail_cnt++ < c->fail_cnt_max)
+	} else if (d->fail_delay == 2)
+		if (d->fail_cnt++ < d->fail_cnt_max)
 			return 0;
 	if (lnum == UBIFS_SB_LNUM) {
 		if (write) {
@@ -2239,7 +2263,7 @@ static int do_fail(struct ubi_volume_desc *desc, int lnum, int write)
 		dbg_rcvry("failing in bud LEB %d commit not running", lnum);
 	}
 	ubifs_err("*** SETTING FAILURE MODE ON (LEB %d) ***", lnum);
-	c->failure_mode = 1;
+	d->failure_mode = 1;
 	dump_stack();
 	return 1;
 }
@@ -2342,6 +2366,183 @@ int dbg_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype)
 	if (do_fail(desc, lnum, 0))
 		return -EIO;
 	return 0;
+}
+
+/**
+ * ubifs_debugging_init - initialize UBIFS debugging.
+ * @c: UBIFS file-system description object
+ *
+ * This function initializes debugging-related data for the file system.
+ * Returns zero in case of success and a negative error code in case of
+ * failure.
+ */
+int ubifs_debugging_init(struct ubifs_info *c)
+{
+	c->dbg = kzalloc(sizeof(struct ubifs_debug_info), GFP_KERNEL);
+	if (!c->dbg)
+		return -ENOMEM;
+
+	c->dbg->buf = vmalloc(c->leb_size);
+	if (!c->dbg->buf)
+		goto out;
+
+	failure_mode_init(c);
+	return 0;
+
+out:
+	kfree(c->dbg);
+	return -ENOMEM;
+}
+
+/**
+ * ubifs_debugging_exit - free debugging data.
+ * @c: UBIFS file-system description object
+ */
+void ubifs_debugging_exit(struct ubifs_info *c)
+{
+	failure_mode_exit(c);
+	vfree(c->dbg->buf);
+	kfree(c->dbg);
+}
+
+/*
+ * Root directory for UBIFS stuff in debugfs. Contains sub-directories which
+ * contain the stuff specific to particular file-system mounts.
+ */
+static struct dentry *debugfs_rootdir;
+
+/**
+ * dbg_debugfs_init - initialize debugfs file-system.
+ *
+ * UBIFS uses debugfs file-system to expose various debugging knobs to
+ * user-space. This function creates "ubifs" directory in the debugfs
+ * file-system. Returns zero in case of success and a negative error code in
+ * case of failure.
+ */
+int dbg_debugfs_init(void)
+{
+	debugfs_rootdir = debugfs_create_dir("ubifs", NULL);
+	if (IS_ERR(debugfs_rootdir)) {
+		int err = PTR_ERR(debugfs_rootdir);
+		ubifs_err("cannot create \"ubifs\" debugfs directory, "
+			  "error %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+/**
+ * dbg_debugfs_exit - remove the "ubifs" directory from debugfs file-system.
+ */
+void dbg_debugfs_exit(void)
+{
+	debugfs_remove(debugfs_rootdir);
+}
+
+static int open_debugfs_file(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t write_debugfs_file(struct file *file, const char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct ubifs_info *c = file->private_data;
+	struct ubifs_debug_info *d = c->dbg;
+
+	if (file->f_path.dentry == d->dump_lprops)
+		dbg_dump_lprops(c);
+	else if (file->f_path.dentry == d->dump_budg) {
+		spin_lock(&c->space_lock);
+		dbg_dump_budg(c);
+		spin_unlock(&c->space_lock);
+	} else if (file->f_path.dentry == d->dump_tnc) {
+		mutex_lock(&c->tnc_mutex);
+		dbg_dump_tnc(c);
+		mutex_unlock(&c->tnc_mutex);
+	} else
+		return -EINVAL;
+
+	*ppos += count;
+	return count;
+}
+
+static const struct file_operations debugfs_fops = {
+	.open = open_debugfs_file,
+	.write = write_debugfs_file,
+	.owner = THIS_MODULE,
+};
+
+/**
+ * dbg_debugfs_init_fs - initialize debugfs for UBIFS instance.
+ * @c: UBIFS file-system description object
+ *
+ * This function creates all debugfs files for this instance of UBIFS. Returns
+ * zero in case of success and a negative error code in case of failure.
+ *
+ * Note, the only reason we have not merged this function with the
+ * 'ubifs_debugging_init()' function is because it is better to initialize
+ * debugfs interfaces at the very end of the mount process, and remove them at
+ * the very beginning of the mount process.
+ */
+int dbg_debugfs_init_fs(struct ubifs_info *c)
+{
+	int err;
+	const char *fname;
+	struct dentry *dent;
+	struct ubifs_debug_info *d = c->dbg;
+
+	sprintf(d->debugfs_dir_name, "ubi%d_%d", c->vi.ubi_num, c->vi.vol_id);
+	d->debugfs_dir = debugfs_create_dir(d->debugfs_dir_name,
+					      debugfs_rootdir);
+	if (IS_ERR(d->debugfs_dir)) {
+		err = PTR_ERR(d->debugfs_dir);
+		ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
+			  d->debugfs_dir_name, err);
+		goto out;
+	}
+
+	fname = "dump_lprops";
+	dent = debugfs_create_file(fname, S_IWUGO, d->debugfs_dir, c,
+				   &debugfs_fops);
+	if (IS_ERR(dent))
+		goto out_remove;
+	d->dump_lprops = dent;
+
+	fname = "dump_budg";
+	dent = debugfs_create_file(fname, S_IWUGO, d->debugfs_dir, c,
+				   &debugfs_fops);
+	if (IS_ERR(dent))
+		goto out_remove;
+	d->dump_budg = dent;
+
+	fname = "dump_tnc";
+	dent = debugfs_create_file(fname, S_IWUGO, d->debugfs_dir, c,
+				   &debugfs_fops);
+	if (IS_ERR(dent))
+		goto out_remove;
+	d->dump_tnc = dent;
+
+	return 0;
+
+out_remove:
+	err = PTR_ERR(dent);
+	ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
+		  fname, err);
+	debugfs_remove_recursive(d->debugfs_dir);
+out:
+	return err;
+}
+
+/**
+ * dbg_debugfs_exit_fs - remove all debugfs files.
+ * @c: UBIFS file-system description object
+ */
+void dbg_debugfs_exit_fs(struct ubifs_info *c)
+{
+	debugfs_remove_recursive(c->dbg->debugfs_dir);
 }
 
 #endif /* CONFIG_UBIFS_FS_DEBUG */

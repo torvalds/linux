@@ -186,7 +186,7 @@ EXPORT_SYMBOL_GPL(__pata_platform_probe);
  *	A platform bus ATA device has been unplugged. Perform the needed
  *	cleanup. Also called on module unload for any active devices.
  */
-int __devexit __pata_platform_remove(struct device *dev)
+int __pata_platform_remove(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
 

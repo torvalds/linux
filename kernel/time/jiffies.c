@@ -45,7 +45,7 @@
  *
  * The value 8 is somewhat carefully chosen, as anything
  * larger can result in overflows. NSEC_PER_JIFFY grows as
- * HZ shrinks, so values greater then 8 overflow 32bits when
+ * HZ shrinks, so values greater than 8 overflow 32bits when
  * HZ=100.
  */
 #define JIFFIES_SHIFT	8

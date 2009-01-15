@@ -1,6 +1,6 @@
 /*
  * mce.c - x86 Machine Check Exception Reporting
- * (c) 2002 Alan Cox <alan@redhat.com>, Dave Jones <davej@redhat.com>
+ * (c) 2002 Alan Cox <alan@lxorguk.ukuu.org.uk>, Dave Jones <davej@redhat.com>
  */
 
 #include <linux/init.h>
