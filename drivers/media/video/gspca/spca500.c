@@ -711,7 +711,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		write_vector(gspca_dev, spca500_visual_defaults);
 		spca500_setmode(gspca_dev, xmult, ymult);
 		/* enable drop packet */
-		reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
+		err = reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
+		if (err < 0)
 			PDEBUG(D_ERR, "failed to enable drop packet");
 		reg_w(gspca_dev, 0x00, 0x8880, 3);
 		err = spca50x_setup_qtable(gspca_dev,
