@@ -860,7 +860,6 @@ struct nx_host_rds_ring {
 	u32 skb_size;
 	struct netxen_rx_buffer *rx_buf_arr;	/* rx buffers for receive   */
 	struct list_head free_list;
-	int begin_alloc;
 };
 
 /*

@@ -308,7 +308,6 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 			}
 			memset(rds_ring->rx_buf_arr, 0, RCV_BUFFSIZE);
 			INIT_LIST_HEAD(&rds_ring->free_list);
-			rds_ring->begin_alloc = 0;
 			/*
 			 * Now go through all of them, set reference handles
 			 * and put them in the queues.
@@ -1435,7 +1434,6 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 	struct rcv_desc *pdesc;
 	struct netxen_rx_buffer *buffer;
 	int count = 0;
-	int index = 0;
 	netxen_ctx_msg msg = 0;
 	dma_addr_t dma;
 	struct list_head *head;
@@ -1443,7 +1441,6 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 	rds_ring = &recv_ctx->rds_rings[ringid];
 
 	producer = rds_ring->producer;
-	index = rds_ring->begin_alloc;
 	head = &rds_ring->free_list;
 
 	/* We can start writing rx descriptors into the phantom memory. */
@@ -1451,39 +1448,37 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 
 		skb = dev_alloc_skb(rds_ring->skb_size);
 		if (unlikely(!skb)) {
-			rds_ring->begin_alloc = index;
 			break;
 		}
 
+		if (!adapter->ahw.cut_through)
+			skb_reserve(skb, 2);
+
+		dma = pci_map_single(pdev, skb->data,
+				rds_ring->dma_size, PCI_DMA_FROMDEVICE);
+		if (pci_dma_mapping_error(pdev, dma)) {
+			dev_kfree_skb_any(skb);
+			break;
+		}
+
+		count++;
 		buffer = list_entry(head->next, struct netxen_rx_buffer, list);
 		list_del(&buffer->list);
 
-		count++;	/* now there should be no failure */
-		pdesc = &rds_ring->desc_head[producer];
-
-		if (!adapter->ahw.cut_through)
-			skb_reserve(skb, 2);
-		/* This will be setup when we receive the
-		 * buffer after it has been filled  FSL  TBD TBD
-		 * skb->dev = netdev;
-		 */
-		dma = pci_map_single(pdev, skb->data, rds_ring->dma_size,
-				     PCI_DMA_FROMDEVICE);
-		pdesc->addr_buffer = cpu_to_le64(dma);
 		buffer->skb = skb;
 		buffer->state = NETXEN_BUFFER_BUSY;
 		buffer->dma = dma;
+
 		/* make a rcv descriptor  */
+		pdesc = &rds_ring->desc_head[producer];
+		pdesc->addr_buffer = cpu_to_le64(dma);
 		pdesc->reference_handle = cpu_to_le16(buffer->ref_handle);
 		pdesc->buffer_length = cpu_to_le32(rds_ring->dma_size);
-		DPRINTK(INFO, "done writing descripter\n");
-		producer =
-		    get_next_index(producer, rds_ring->max_rx_desc_count);
-		index = get_next_index(index, rds_ring->max_rx_desc_count);
+
+		producer = get_next_index(producer, rds_ring->max_rx_desc_count);
 	}
 	/* if we did allocate buffers, then write the count to Phantom */
 	if (count) {
-		rds_ring->begin_alloc = index;
 		rds_ring->producer = producer;
 			/* Window = 1 */
 		adapter->pci_write_normalize(adapter,
@@ -1522,49 +1517,50 @@ static void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 	struct rcv_desc *pdesc;
 	struct netxen_rx_buffer *buffer;
 	int count = 0;
-	int index = 0;
 	struct list_head *head;
+	dma_addr_t dma;
 
 	rds_ring = &recv_ctx->rds_rings[ringid];
 
 	producer = rds_ring->producer;
-	index = rds_ring->begin_alloc;
 	head = &rds_ring->free_list;
 	/* We can start writing rx descriptors into the phantom memory. */
 	while (!list_empty(head)) {
 
 		skb = dev_alloc_skb(rds_ring->skb_size);
 		if (unlikely(!skb)) {
-			rds_ring->begin_alloc = index;
 			break;
 		}
 
+		if (!adapter->ahw.cut_through)
+			skb_reserve(skb, 2);
+
+		dma = pci_map_single(pdev, skb->data,
+				rds_ring->dma_size, PCI_DMA_FROMDEVICE);
+		if (pci_dma_mapping_error(pdev, dma)) {
+			dev_kfree_skb_any(skb);
+			break;
+		}
+
+		count++;
 		buffer = list_entry(head->next, struct netxen_rx_buffer, list);
 		list_del(&buffer->list);
 
-		count++;	/* now there should be no failure */
-		pdesc = &rds_ring->desc_head[producer];
-		if (!adapter->ahw.cut_through)
-			skb_reserve(skb, 2);
 		buffer->skb = skb;
 		buffer->state = NETXEN_BUFFER_BUSY;
-		buffer->dma = pci_map_single(pdev, skb->data,
-					     rds_ring->dma_size,
-					     PCI_DMA_FROMDEVICE);
+		buffer->dma = dma;
 
 		/* make a rcv descriptor  */
+		pdesc = &rds_ring->desc_head[producer];
 		pdesc->reference_handle = cpu_to_le16(buffer->ref_handle);
 		pdesc->buffer_length = cpu_to_le32(rds_ring->dma_size);
 		pdesc->addr_buffer = cpu_to_le64(buffer->dma);
-		producer =
-		    get_next_index(producer, rds_ring->max_rx_desc_count);
-		index = get_next_index(index, rds_ring->max_rx_desc_count);
-		buffer = &rds_ring->rx_buf_arr[index];
+
+		producer = get_next_index(producer, rds_ring->max_rx_desc_count);
 	}
 
 	/* if we did allocate buffers, then write the count to Phantom */
 	if (count) {
-		rds_ring->begin_alloc = index;
 		rds_ring->producer = producer;
 			/* Window = 1 */
 		adapter->pci_write_normalize(adapter,

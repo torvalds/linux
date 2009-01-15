@@ -1200,6 +1200,24 @@ static bool netxen_tso_check(struct net_device *netdev,
 	return tso;
 }
 
+static void
+netxen_clean_tx_dma_mapping(struct pci_dev *pdev,
+		struct netxen_cmd_buffer *pbuf, int last)
+{
+	int k;
+	struct netxen_skb_frag *buffrag;
+
+	buffrag = &pbuf->frag_array[0];
+	pci_unmap_single(pdev, buffrag->dma,
+			buffrag->length, PCI_DMA_TODEVICE);
+
+	for (k = 1; k < last; k++) {
+		buffrag = &pbuf->frag_array[k];
+		pci_unmap_page(pdev, buffrag->dma,
+			buffrag->length, PCI_DMA_TODEVICE);
+	}
+}
+
 static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
@@ -1208,6 +1226,8 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct netxen_cmd_buffer *pbuf;
 	struct netxen_skb_frag *buffrag;
 	struct cmd_desc_type0 *hwdesc;
+	struct pci_dev *pdev = adapter->pdev;
+	dma_addr_t temp_dma;
 	int i, k;
 
 	u32 producer, consumer;
@@ -1240,8 +1260,12 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	pbuf->skb = skb;
 	pbuf->frag_count = frag_count;
 	buffrag = &pbuf->frag_array[0];
-	buffrag->dma = pci_map_single(adapter->pdev, skb->data, first_seg_len,
+	temp_dma = pci_map_single(pdev, skb->data, first_seg_len,
 				      PCI_DMA_TODEVICE);
+	if (pci_dma_mapping_error(pdev, temp_dma))
+		goto drop_packet;
+
+	buffrag->dma = temp_dma;
 	buffrag->length = first_seg_len;
 	netxen_set_tx_frags_len(hwdesc, frag_count, skb->len);
 	netxen_set_tx_port(hwdesc, adapter->portnum);
@@ -1253,7 +1277,6 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		struct skb_frag_struct *frag;
 		int len, temp_len;
 		unsigned long offset;
-		dma_addr_t temp_dma;
 
 		/* move to next desc. if there is a need */
 		if ((i & 0x3) == 0) {
@@ -1269,8 +1292,12 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		offset = frag->page_offset;
 
 		temp_len = len;
-		temp_dma = pci_map_page(adapter->pdev, frag->page, offset,
+		temp_dma = pci_map_page(pdev, frag->page, offset,
 					len, PCI_DMA_TODEVICE);
+		if (pci_dma_mapping_error(pdev, temp_dma)) {
+			netxen_clean_tx_dma_mapping(pdev, pbuf, i);
+			goto drop_packet;
+		}
 
 		buffrag++;
 		buffrag->dma = temp_dma;
@@ -1344,6 +1371,11 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	adapter->stats.xmitcalled++;
 	netdev->trans_start = jiffies;
 
+	return NETDEV_TX_OK;
+
+drop_packet:
+	adapter->stats.txdropped++;
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
