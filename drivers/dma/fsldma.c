@@ -890,7 +890,8 @@ err_no_reg:
 
 static void fsl_dma_chan_remove(struct fsl_dma_chan *fchan)
 {
-	free_irq(fchan->irq, fchan);
+	if (fchan->irq != NO_IRQ)
+		free_irq(fchan->irq, fchan);
 	list_del(&fchan->common.device_node);
 	iounmap(fchan->reg_base);
 	kfree(fchan);
