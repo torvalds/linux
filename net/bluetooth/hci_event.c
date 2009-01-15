@@ -1601,7 +1601,8 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 
 		if (conn->state == BT_CONFIG) {
 			if (!ev->status && hdev->ssp_mode > 0 &&
-					conn->ssp_mode > 0 && conn->out) {
+					conn->ssp_mode > 0 && conn->out &&
+					conn->sec_level != BT_SECURITY_SDP) {
 				struct hci_cp_auth_requested cp;
 				cp.handle = ev->handle;
 				hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED,

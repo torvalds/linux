@@ -53,6 +53,15 @@
 #define SOL_SCO		17
 #define SOL_RFCOMM	18
 
+#define BT_SECURITY	4
+struct bt_security {
+	__u8 level;
+};
+#define BT_SECURITY_SDP		0
+#define BT_SECURITY_LOW		1
+#define BT_SECURITY_MEDIUM	2
+#define BT_SECURITY_HIGH	3
+
 #define BT_DEFER_SETUP	7
 
 #define BT_INFO(fmt, arg...) printk(KERN_INFO "Bluetooth: " fmt "\n" , ## arg)

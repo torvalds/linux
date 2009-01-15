@@ -325,7 +325,7 @@ EXPORT_SYMBOL(hci_get_route);
 
 /* Create SCO or ACL connection.
  * Device _must_ be locked */
-struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8 auth_type)
+struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8 sec_level, __u8 auth_type)
 {
 	struct hci_conn *acl;
 	struct hci_conn *sco;
@@ -340,6 +340,7 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8
 	hci_conn_hold(acl);
 
 	if (acl->state == BT_OPEN || acl->state == BT_CLOSED) {
+		acl->sec_level = sec_level;
 		acl->auth_type = auth_type;
 		hci_acl_connect(acl);
 	}
@@ -385,16 +386,17 @@ int hci_conn_check_link_mode(struct hci_conn *conn)
 EXPORT_SYMBOL(hci_conn_check_link_mode);
 
 /* Authenticate remote device */
-int hci_conn_auth(struct hci_conn *conn)
+static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level)
 {
 	BT_DBG("conn %p", conn);
 
-	if (conn->ssp_mode > 0 && conn->hdev->ssp_mode > 0) {
-		if (!(conn->auth_type & 0x01)) {
-			conn->auth_type |= 0x01;
-			conn->link_mode &= ~HCI_LM_AUTH;
-		}
-	}
+	if (sec_level > conn->sec_level)
+		conn->link_mode &= ~HCI_LM_AUTH;
+
+	conn->sec_level = sec_level;
+
+	if (sec_level == BT_SECURITY_HIGH)
+		conn->auth_type |= 0x01;
 
 	if (conn->link_mode & HCI_LM_AUTH)
 		return 1;
@@ -405,31 +407,42 @@ int hci_conn_auth(struct hci_conn *conn)
 		hci_send_cmd(conn->hdev, HCI_OP_AUTH_REQUESTED,
 							sizeof(cp), &cp);
 	}
+
 	return 0;
 }
-EXPORT_SYMBOL(hci_conn_auth);
 
-/* Enable encryption */
-int hci_conn_encrypt(struct hci_conn *conn)
+/* Enable security */
+int hci_conn_security(struct hci_conn *conn, __u8 sec_level)
 {
 	BT_DBG("conn %p", conn);
 
+	if (sec_level == BT_SECURITY_SDP)
+		return 1;
+
+	if (sec_level == BT_SECURITY_LOW) {
+		if (conn->ssp_mode > 0 && conn->hdev->ssp_mode > 0)
+			return hci_conn_auth(conn, sec_level);
+		else
+			return 1;
+	}
+
 	if (conn->link_mode & HCI_LM_ENCRYPT)
-		return hci_conn_auth(conn);
+		return hci_conn_auth(conn, sec_level);
 
 	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend))
 		return 0;
 
-	if (hci_conn_auth(conn)) {
+	if (hci_conn_auth(conn, sec_level)) {
 		struct hci_cp_set_conn_encrypt cp;
 		cp.handle  = cpu_to_le16(conn->handle);
 		cp.encrypt = 1;
 		hci_send_cmd(conn->hdev, HCI_OP_SET_CONN_ENCRYPT,
 							sizeof(cp), &cp);
 	}
+
 	return 0;
 }
-EXPORT_SYMBOL(hci_conn_encrypt);
+EXPORT_SYMBOL(hci_conn_security);
 
 /* Change link key */
 int hci_conn_change_link_key(struct hci_conn *conn)
@@ -442,12 +455,13 @@ int hci_conn_change_link_key(struct hci_conn *conn)
 		hci_send_cmd(conn->hdev, HCI_OP_CHANGE_CONN_LINK_KEY,
 							sizeof(cp), &cp);
 	}
+
 	return 0;
 }
 EXPORT_SYMBOL(hci_conn_change_link_key);
 
 /* Switch role */
-int hci_conn_switch_role(struct hci_conn *conn, uint8_t role)
+int hci_conn_switch_role(struct hci_conn *conn, __u8 role)
 {
 	BT_DBG("conn %p", conn);
 
@@ -460,6 +474,7 @@ int hci_conn_switch_role(struct hci_conn *conn, uint8_t role)
 		cp.role = role;
 		hci_send_cmd(conn->hdev, HCI_OP_SWITCH_ROLE, sizeof(cp), &cp);
 	}
+
 	return 0;
 }
 EXPORT_SYMBOL(hci_conn_switch_role);

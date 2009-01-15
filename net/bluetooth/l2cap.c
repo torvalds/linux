@@ -263,12 +263,17 @@ static inline int l2cap_check_link_mode(struct sock *sk)
 {
 	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
 
-	if ((l2cap_pi(sk)->link_mode & L2CAP_LM_ENCRYPT) ||
-				(l2cap_pi(sk)->link_mode & L2CAP_LM_SECURE))
-		return hci_conn_encrypt(conn->hcon);
+	if (l2cap_pi(sk)->link_mode & L2CAP_LM_SECURE)
+		return hci_conn_security(conn->hcon, BT_SECURITY_HIGH);
+
+	if (l2cap_pi(sk)->link_mode & L2CAP_LM_ENCRYPT)
+		return hci_conn_security(conn->hcon, BT_SECURITY_MEDIUM);
 
 	if (l2cap_pi(sk)->link_mode & L2CAP_LM_AUTH)
-		return hci_conn_auth(conn->hcon);
+		return hci_conn_security(conn->hcon, BT_SECURITY_LOW);
+
+	if (l2cap_pi(sk)->psm == cpu_to_le16(0x0001))
+		return hci_conn_security(conn->hcon, BT_SECURITY_SDP);
 
 	return 1;
 }
@@ -803,6 +808,7 @@ static int l2cap_do_connect(struct sock *sk)
 	struct l2cap_conn *conn;
 	struct hci_conn *hcon;
 	struct hci_dev *hdev;
+	__u8 sec_level;
 	__u8 auth_type;
 	int err = 0;
 
@@ -815,21 +821,37 @@ static int l2cap_do_connect(struct sock *sk)
 
 	err = -ENOMEM;
 
-	if (l2cap_pi(sk)->link_mode & L2CAP_LM_AUTH ||
-			l2cap_pi(sk)->link_mode & L2CAP_LM_ENCRYPT ||
-				l2cap_pi(sk)->link_mode & L2CAP_LM_SECURE) {
-		if (l2cap_pi(sk)->psm == cpu_to_le16(0x0001))
+	if (l2cap_pi(sk)->link_mode & L2CAP_LM_SECURE)
+		sec_level = BT_SECURITY_HIGH;
+	else if (l2cap_pi(sk)->psm == cpu_to_le16(0x0001))
+		sec_level = BT_SECURITY_SDP;
+	else if (l2cap_pi(sk)->link_mode & L2CAP_LM_ENCRYPT)
+		sec_level = BT_SECURITY_MEDIUM;
+	else
+		sec_level = BT_SECURITY_LOW;
+
+	if (sk->sk_type == SOCK_RAW) {
+		if (l2cap_pi(sk)->link_mode & L2CAP_LM_SECURE)
+			auth_type = HCI_AT_DEDICATED_BONDING_MITM;
+		else if (l2cap_pi(sk)->link_mode & L2CAP_LM_ENCRYPT)
+			auth_type = HCI_AT_DEDICATED_BONDING;
+		else
+			auth_type = HCI_AT_NO_BONDING;
+	} else if (l2cap_pi(sk)->psm == cpu_to_le16(0x0001)) {
+		if (l2cap_pi(sk)->link_mode & L2CAP_LM_SECURE)
 			auth_type = HCI_AT_NO_BONDING_MITM;
 		else
-			auth_type = HCI_AT_GENERAL_BONDING_MITM;
-	} else {
-		if (l2cap_pi(sk)->psm == cpu_to_le16(0x0001))
 			auth_type = HCI_AT_NO_BONDING;
-		else
+	} else {
+		if (l2cap_pi(sk)->link_mode & L2CAP_LM_SECURE)
+			auth_type = HCI_AT_GENERAL_BONDING_MITM;
+		else if (l2cap_pi(sk)->link_mode & L2CAP_LM_ENCRYPT)
 			auth_type = HCI_AT_GENERAL_BONDING;
+		else
+			auth_type = HCI_AT_NO_BONDING;
 	}
 
-	hcon = hci_connect(hdev, ACL_LINK, dst, auth_type);
+	hcon = hci_connect(hdev, ACL_LINK, dst, sec_level, auth_type);
 	if (!hcon)
 		goto done;
 
@@ -1401,11 +1423,6 @@ static void l2cap_chan_ready(struct sock *sk)
 		 * Wake up socket sleeping on accept.
 		 */
 		parent->sk_data_ready(parent, 0);
-	}
-
-	if (l2cap_pi(sk)->link_mode & L2CAP_LM_SECURE) {
-		struct l2cap_conn *conn = l2cap_pi(sk)->conn;
-		hci_conn_change_link_key(conn->hcon);
 	}
 }
 
@@ -2323,7 +2340,7 @@ static int l2cap_disconn_ind(struct hci_conn *hcon, u8 reason)
 	return 0;
 }
 
-static int l2cap_auth_cfm(struct hci_conn *hcon, u8 status)
+static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 {
 	struct l2cap_chan_list *l;
 	struct l2cap_conn *conn = hcon->l2cap_data;
@@ -2343,80 +2360,10 @@ static int l2cap_auth_cfm(struct hci_conn *hcon, u8 status)
 
 		bh_lock_sock(sk);
 
-		if ((pi->link_mode & (L2CAP_LM_ENCRYPT | L2CAP_LM_SECURE)) &&
-					!(hcon->link_mode & HCI_LM_ENCRYPT) &&
-								!status) {
-			bh_unlock_sock(sk);
-			continue;
-		}
-
-		if (sk->sk_state == BT_CONNECT) {
-			if (!status) {
-				struct l2cap_conn_req req;
-				req.scid = cpu_to_le16(l2cap_pi(sk)->scid);
-				req.psm  = l2cap_pi(sk)->psm;
-
-				l2cap_pi(sk)->ident = l2cap_get_ident(conn);
-
-				l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
-					L2CAP_CONN_REQ, sizeof(req), &req);
-			} else {
-				l2cap_sock_clear_timer(sk);
-				l2cap_sock_set_timer(sk, HZ / 10);
-			}
-		} else if (sk->sk_state == BT_CONNECT2) {
-			struct l2cap_conn_rsp rsp;
-			__u16 result;
-
-			if (!status) {
-				sk->sk_state = BT_CONFIG;
-				result = L2CAP_CR_SUCCESS;
-			} else {
-				sk->sk_state = BT_DISCONN;
-				l2cap_sock_set_timer(sk, HZ / 10);
-				result = L2CAP_CR_SEC_BLOCK;
-			}
-
-			rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
-			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
-			rsp.result = cpu_to_le16(result);
-			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
-			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
-					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
-		}
-
-		bh_unlock_sock(sk);
-	}
-
-	read_unlock(&l->lock);
-
-	return 0;
-}
-
-static int l2cap_encrypt_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
-{
-	struct l2cap_chan_list *l;
-	struct l2cap_conn *conn = hcon->l2cap_data;
-	struct sock *sk;
-
-	if (!conn)
-		return 0;
-
-	l = &conn->chan_list;
-
-	BT_DBG("conn %p", conn);
-
-	read_lock(&l->lock);
-
-	for (sk = l->head; sk; sk = l2cap_pi(sk)->next_c) {
-		struct l2cap_pinfo *pi = l2cap_pi(sk);
-
-		bh_lock_sock(sk);
-
-		if ((pi->link_mode & (L2CAP_LM_ENCRYPT | L2CAP_LM_SECURE)) &&
+		if (!status && encrypt == 0x00 &&
+				(pi->link_mode & L2CAP_LM_SECURE) &&
 					(sk->sk_state == BT_CONNECTED ||
-						sk->sk_state == BT_CONFIG) &&
-						!status && encrypt == 0x00) {
+						sk->sk_state == BT_CONFIG)) {
 			__l2cap_sock_close(sk, ECONNREFUSED);
 			bh_unlock_sock(sk);
 			continue;
@@ -2608,8 +2555,7 @@ static struct hci_proto l2cap_hci_proto = {
 	.connect_ind	= l2cap_connect_ind,
 	.connect_cfm	= l2cap_connect_cfm,
 	.disconn_ind	= l2cap_disconn_ind,
-	.auth_cfm	= l2cap_auth_cfm,
-	.encrypt_cfm	= l2cap_encrypt_cfm,
+	.security_cfm	= l2cap_security_cfm,
 	.recv_acldata	= l2cap_recv_acldata
 };
 
