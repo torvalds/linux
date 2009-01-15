@@ -2491,12 +2491,6 @@ EXPORT_SYMBOL(napi_gro_receive);
 
 void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 {
-	skb_shinfo(skb)->nr_frags = 0;
-
-	skb->len -= skb->data_len;
-	skb->truesize -= skb->data_len;
-	skb->data_len = 0;
-
 	__skb_pull(skb, skb_headlen(skb));
 	skb_reserve(skb, NET_IP_ALIGN - skb_headroom(skb));
 
