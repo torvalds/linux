@@ -217,7 +217,8 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 			continue;
 		}
 
-		if (sk->sk_state == BT_CONNECTED || !newsock) {
+		if (sk->sk_state == BT_CONNECTED || !newsock ||
+						bt_sk(parent)->defer_setup) {
 			bt_accept_unlink(sk);
 			if (newsock)
 				sock_graft(sk, newsock);
@@ -232,7 +233,7 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 EXPORT_SYMBOL(bt_accept_dequeue);
 
 int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-	struct msghdr *msg, size_t len, int flags)
+				struct msghdr *msg, size_t len, int flags)
 {
 	int noblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
@@ -274,6 +275,9 @@ static inline unsigned int bt_accept_poll(struct sock *parent)
 {
 	struct list_head *p, *n;
 	struct sock *sk;
+
+	if (bt_sk(parent)->defer_setup)
+		return POLLIN | POLLRDNORM;
 
 	list_for_each_safe(p, n, &bt_sk(parent)->accept_q) {
 		sk = (struct sock *) list_entry(p, struct bt_sock, accept_q);

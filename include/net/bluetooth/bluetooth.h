@@ -53,6 +53,8 @@
 #define SOL_SCO		17
 #define SOL_RFCOMM	18
 
+#define BT_DEFER_SETUP	7
+
 #define BT_INFO(fmt, arg...) printk(KERN_INFO "Bluetooth: " fmt "\n" , ## arg)
 #define BT_ERR(fmt, arg...)  printk(KERN_ERR "%s: " fmt "\n" , __func__ , ## arg)
 #define BT_DBG(fmt, arg...)  pr_debug("%s: " fmt "\n" , __func__ , ## arg)
@@ -108,6 +110,7 @@ struct bt_sock {
 	bdaddr_t    dst;
 	struct list_head accept_q;
 	struct sock *parent;
+	u32 defer_setup;
 };
 
 struct bt_sock_list {
