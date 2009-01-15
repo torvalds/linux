@@ -550,18 +550,60 @@ void reflect_interruption(u64 ifa, u64 isr, u64 iim,
 	inject_guest_interruption(vcpu, vector);
 }
 
+static unsigned long kvm_trans_pal_call_args(struct kvm_vcpu *vcpu,
+						unsigned long arg)
+{
+	struct thash_data *data;
+	unsigned long gpa, poff;
+
+	if (!is_physical_mode(vcpu)) {
+		/* Depends on caller to provide the DTR or DTC mapping.*/
+		data = vtlb_lookup(vcpu, arg, D_TLB);
+		if (data)
+			gpa = data->page_flags & _PAGE_PPN_MASK;
+		else {
+			data = vhpt_lookup(arg);
+			if (!data)
+				return 0;
+			gpa = data->gpaddr & _PAGE_PPN_MASK;
+		}
+
+		poff = arg & (PSIZE(data->ps) - 1);
+		arg = PAGEALIGN(gpa, data->ps) | poff;
+	}
+	arg = kvm_gpa_to_mpa(arg << 1 >> 1);
+
+	return (unsigned long)__va(arg);
+}
+
 static void set_pal_call_data(struct kvm_vcpu *vcpu)
 {
 	struct exit_ctl_data *p = &vcpu->arch.exit_data;
+	unsigned long gr28 = vcpu_get_gr(vcpu, 28);
+	unsigned long gr29 = vcpu_get_gr(vcpu, 29);
+	unsigned long gr30 = vcpu_get_gr(vcpu, 30);
 
 	/*FIXME:For static and stacked convention, firmware
 	 * has put the parameters in gr28-gr31 before
 	 * break to vmm  !!*/
 
-	p->u.pal_data.gr28 = vcpu_get_gr(vcpu, 28);
-	p->u.pal_data.gr29 = vcpu_get_gr(vcpu, 29);
-	p->u.pal_data.gr30 = vcpu_get_gr(vcpu, 30);
+	switch (gr28) {
+	case PAL_PERF_MON_INFO:
+	case PAL_HALT_INFO:
+		p->u.pal_data.gr29 =  kvm_trans_pal_call_args(vcpu, gr29);
+		p->u.pal_data.gr30 = vcpu_get_gr(vcpu, 30);
+		break;
+	case PAL_BRAND_INFO:
+		p->u.pal_data.gr29 = gr29;;
+		p->u.pal_data.gr30 = kvm_trans_pal_call_args(vcpu, gr30);
+		break;
+	default:
+		p->u.pal_data.gr29 = gr29;;
+		p->u.pal_data.gr30 = vcpu_get_gr(vcpu, 30);
+	}
+	p->u.pal_data.gr28 = gr28;
 	p->u.pal_data.gr31 = vcpu_get_gr(vcpu, 31);
+
 	p->exit_reason = EXIT_REASON_PAL_CALL;
 }
 
