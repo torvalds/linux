@@ -195,15 +195,6 @@ static struct omap_usb_config palmte_usb_config __initdata = {
 	.pins[0]	= 2,
 };
 
-static struct omap_mmc_config palmte_mmc_config __initdata = {
-	.mmc[0]		= {
-		.enabled 	= 1,
-		.wp_pin		= PALMTE_MMC_WP_GPIO,
-		.power_pin	= PALMTE_MMC_POWER_GPIO,
-		.switch_pin	= PALMTE_MMC_SWITCH_GPIO,
-	},
-};
-
 static struct omap_lcd_config palmte_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
