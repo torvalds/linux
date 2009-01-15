@@ -421,9 +421,16 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 			d, d->state, d->dlci, err, s);
 
 	switch (d->state) {
-	case BT_CONNECTED:
-	case BT_CONFIG:
 	case BT_CONNECT:
+	case BT_CONFIG:
+		if (test_and_clear_bit(RFCOMM_DEFER_SETUP, &d->flags)) {
+			set_bit(RFCOMM_AUTH_REJECT, &d->flags);
+			rfcomm_schedule(RFCOMM_SCHED_AUTH);
+			break;
+		}
+		/* Fall through */
+
+	case BT_CONNECTED:
 		d->state = BT_DISCONN;
 		if (skb_queue_empty(&d->tx_queue)) {
 			rfcomm_send_disc(s, d->dlci);
@@ -433,6 +440,14 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 			rfcomm_dlc_set_timer(d, RFCOMM_DISC_TIMEOUT * 2);
 		}
 		break;
+
+	case BT_OPEN:
+		if (test_and_clear_bit(RFCOMM_DEFER_SETUP, &d->flags)) {
+			set_bit(RFCOMM_AUTH_REJECT, &d->flags);
+			rfcomm_schedule(RFCOMM_SCHED_AUTH);
+			break;
+		}
+		/* Fall through */
 
 	default:
 		rfcomm_dlc_clear_timer(d);
@@ -1162,7 +1177,7 @@ static int rfcomm_recv_disc(struct rfcomm_session *s, u8 dlci)
 	return 0;
 }
 
-static void rfcomm_dlc_accept(struct rfcomm_dlc *d)
+void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 {
 	struct sock *sk = d->session->sock->sk;
 
@@ -1179,6 +1194,20 @@ static void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 		hci_conn_switch_role(l2cap_pi(sk)->conn->hcon, 0x00);
 
 	rfcomm_send_msc(d->session, 1, d->dlci, d->v24_sig);
+}
+
+static void rfcomm_check_accept(struct rfcomm_dlc *d)
+{
+	if (rfcomm_check_link_mode(d)) {
+		set_bit(RFCOMM_AUTH_PENDING, &d->flags);
+		rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
+	} else {
+		if (d->defer_setup) {
+			set_bit(RFCOMM_DEFER_SETUP, &d->flags);
+			rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
+		} else
+			rfcomm_dlc_accept(d);
+	}
 }
 
 static int rfcomm_recv_sabm(struct rfcomm_session *s, u8 dlci)
@@ -1203,11 +1232,7 @@ static int rfcomm_recv_sabm(struct rfcomm_session *s, u8 dlci)
 	if (d) {
 		if (d->state == BT_OPEN) {
 			/* DLC was previously opened by PN request */
-			if (rfcomm_check_link_mode(d)) {
-				set_bit(RFCOMM_AUTH_PENDING, &d->flags);
-				rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
-			} else
-				rfcomm_dlc_accept(d);
+			rfcomm_check_accept(d);
 		}
 		return 0;
 	}
@@ -1219,11 +1244,7 @@ static int rfcomm_recv_sabm(struct rfcomm_session *s, u8 dlci)
 		d->addr = __addr(s->initiator, dlci);
 		rfcomm_dlc_link(s, d);
 
-		if (rfcomm_check_link_mode(d)) {
-			set_bit(RFCOMM_AUTH_PENDING, &d->flags);
-			rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
-		} else
-			rfcomm_dlc_accept(d);
+		rfcomm_check_accept(d);
 	} else {
 		rfcomm_send_dm(s, dlci);
 	}
@@ -1717,8 +1738,13 @@ static inline void rfcomm_process_dlcs(struct rfcomm_session *s)
 			if (d->out) {
 				rfcomm_send_pn(s, 1, d);
 				rfcomm_dlc_set_timer(d, RFCOMM_CONN_TIMEOUT);
-			} else
-				rfcomm_dlc_accept(d);
+			} else {
+				if (d->defer_setup) {
+					set_bit(RFCOMM_DEFER_SETUP, &d->flags);
+					rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
+				} else
+					rfcomm_dlc_accept(d);
+			}
 			if (d->link_mode & RFCOMM_LM_SECURE) {
 				struct sock *sk = s->sock->sk;
 				hci_conn_change_link_key(l2cap_pi(sk)->conn->hcon);

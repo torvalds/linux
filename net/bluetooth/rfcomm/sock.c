@@ -262,8 +262,10 @@ static void rfcomm_sock_init(struct sock *sk, struct sock *parent)
 	if (parent) {
 		sk->sk_type = parent->sk_type;
 		pi->link_mode = rfcomm_pi(parent)->link_mode;
+		pi->dlc->defer_setup = bt_sk(parent)->defer_setup;
 	} else {
 		pi->link_mode = 0;
+		pi->dlc->defer_setup = 0;
 	}
 
 	pi->dlc->link_mode = pi->link_mode;
@@ -554,6 +556,9 @@ static int rfcomm_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct sk_buff *skb;
 	int sent = 0;
 
+	if (test_bit(RFCOMM_DEFER_SETUP, &d->flags))
+		return -ENOTCONN;
+
 	if (msg->msg_flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
@@ -633,9 +638,15 @@ static int rfcomm_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 			       struct msghdr *msg, size_t size, int flags)
 {
 	struct sock *sk = sock->sk;
+	struct rfcomm_dlc *d = rfcomm_pi(sk)->dlc;
 	int err = 0;
 	size_t target, copied = 0;
 	long timeo;
+
+	if (test_and_clear_bit(RFCOMM_DEFER_SETUP, &d->flags)) {
+		rfcomm_dlc_accept(d);
+		return 0;
+	}
 
 	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
@@ -746,6 +757,7 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, c
 {
 	struct sock *sk = sock->sk;
 	int err = 0;
+	u32 opt;
 
 	BT_DBG("sk %p", sk);
 
@@ -755,6 +767,20 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, c
 	lock_sock(sk);
 
 	switch (optname) {
+	case BT_DEFER_SETUP:
+		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		bt_sk(sk)->defer_setup = opt;
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -785,7 +811,8 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 		break;
 
 	case RFCOMM_CONNINFO:
-		if (sk->sk_state != BT_CONNECTED) {
+		if (sk->sk_state != BT_CONNECTED &&
+					!rfcomm_pi(sk)->dlc->defer_setup) {
 			err = -ENOTCONN;
 			break;
 		}
@@ -826,6 +853,17 @@ static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, c
 	lock_sock(sk);
 
 	switch (optname) {
+	case BT_DEFER_SETUP:
+		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (put_user(bt_sk(sk)->defer_setup, (u32 __user *) optval))
+			err = -EFAULT;
+
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -938,6 +976,10 @@ int rfcomm_connect_ind(struct rfcomm_session *s, u8 channel, struct rfcomm_dlc *
 
 done:
 	bh_unlock_sock(parent);
+
+	if (bt_sk(parent)->defer_setup)
+		parent->sk_state_change(parent);
+
 	return result;
 }
 
