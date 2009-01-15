@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include "../aoa.h"
 
-/* TODO: these are 20 global variables
+/* TODO: these are lots of global variables
  * that aren't used on most machines...
  * Move them into a dynamically allocated
  * structure and use that.
@@ -23,6 +23,7 @@
 /* these are the GPIO numbers (register addresses as offsets into
  * the GPIO space) */
 static int headphone_mute_gpio;
+static int master_mute_gpio;
 static int amp_mute_gpio;
 static int lineout_mute_gpio;
 static int hw_reset_gpio;
@@ -32,6 +33,7 @@ static int linein_detect_gpio;
 
 /* see the SWITCH_GPIO macro */
 static int headphone_mute_gpio_activestate;
+static int master_mute_gpio_activestate;
 static int amp_mute_gpio_activestate;
 static int lineout_mute_gpio_activestate;
 static int hw_reset_gpio_activestate;
@@ -156,6 +158,7 @@ static int ftr_gpio_get_##name(struct gpio_runtime *rt)		\
 FTR_GPIO(headphone, 0);
 FTR_GPIO(amp, 1);
 FTR_GPIO(lineout, 2);
+FTR_GPIO(master, 3);
 
 static void ftr_gpio_set_hw_reset(struct gpio_runtime *rt, int on)
 {
@@ -172,6 +175,8 @@ static void ftr_gpio_set_hw_reset(struct gpio_runtime *rt, int on)
 			  hw_reset_gpio, v);
 }
 
+static struct gpio_methods methods;
+
 static void ftr_gpio_all_amps_off(struct gpio_runtime *rt)
 {
 	int saved;
@@ -181,6 +186,8 @@ static void ftr_gpio_all_amps_off(struct gpio_runtime *rt)
 	ftr_gpio_set_headphone(rt, 0);
 	ftr_gpio_set_amp(rt, 0);
 	ftr_gpio_set_lineout(rt, 0);
+	if (methods.set_master)
+		ftr_gpio_set_master(rt, 0);
 	rt->implementation_private = saved;
 }
 
@@ -193,6 +200,8 @@ static void ftr_gpio_all_amps_restore(struct gpio_runtime *rt)
 	ftr_gpio_set_headphone(rt, (s>>0)&1);
 	ftr_gpio_set_amp(rt, (s>>1)&1);
 	ftr_gpio_set_lineout(rt, (s>>2)&1);
+	if (methods.set_master)
+		ftr_gpio_set_master(rt, (s>>3)&1);
 }
 
 static void ftr_handle_notify(struct work_struct *work)
@@ -231,6 +240,12 @@ static void ftr_gpio_init(struct gpio_runtime *rt)
 	get_gpio("hw-reset", "audio-hw-reset",
 		 &hw_reset_gpio,
 		 &hw_reset_gpio_activestate);
+	if (get_gpio("master-mute", NULL,
+		     &master_mute_gpio,
+		     &master_mute_gpio_activestate)) {
+		methods.set_master = ftr_gpio_set_master;
+		methods.get_master = ftr_gpio_get_master;
+	}
 
 	headphone_detect_node = get_gpio("headphone-detect", NULL,
 					 &headphone_detect_gpio,

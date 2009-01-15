@@ -600,6 +600,7 @@ struct layout_dev {
 	struct snd_kcontrol *headphone_ctrl;
 	struct snd_kcontrol *lineout_ctrl;
 	struct snd_kcontrol *speaker_ctrl;
+	struct snd_kcontrol *master_ctrl;
 	struct snd_kcontrol *headphone_detected_ctrl;
 	struct snd_kcontrol *lineout_detected_ctrl;
 
@@ -651,6 +652,7 @@ static struct snd_kcontrol_new n##_ctl = {				\
 AMP_CONTROL(headphone, "Headphone Switch");
 AMP_CONTROL(speakers, "Speakers Switch");
 AMP_CONTROL(lineout, "Line-Out Switch");
+AMP_CONTROL(master, "Master Switch");
 
 static int detect_choice_get(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
@@ -891,6 +893,11 @@ static void layout_attached_codec(struct aoa_codec *codec)
  	lineout = codec->gpio->methods->get_detect(codec->gpio,
 						   AOA_NOTIFY_LINE_OUT);
 
+	if (codec->gpio->methods->set_master) {
+		ctl = snd_ctl_new1(&master_ctl, codec->gpio);
+		ldev->master_ctrl = ctl;
+		aoa_snd_ctl_add(ctl);
+	}
 	while (cc->connected) {
 		if (cc->connected & CC_SPEAKERS) {
 			if (headphones <= 0 && lineout <= 0)
