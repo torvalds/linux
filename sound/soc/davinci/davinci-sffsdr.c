@@ -25,7 +25,9 @@
 
 #include <asm/dma.h>
 #include <asm/mach-types.h>
+#ifdef CONFIG_SFFSDR_FPGA
 #include <asm/plat-sffsdr/sffsdr-fpga.h>
+#endif
 
 #include <mach/mcbsp.h>
 #include <mach/edma.h>
@@ -43,6 +45,17 @@ static int sffsdr_hw_params(struct snd_pcm_substream *substream,
 	int fs;
 	int ret = 0;
 
+	/* Fsref can be 32000, 44100 or 48000. */
+	fs = params_rate(params);
+
+#ifndef CONFIG_SFFSDR_FPGA
+	/* Without the FPGA module, the Fs is fixed at 44100 Hz */
+	if (fs != 44100) {
+		pr_debug("warning: only 44.1 kHz is supported without SFFSDR FPGA module\n");
+		return -EINVAL;
+	}
+#endif
+
 	/* Set cpu DAI configuration:
 	 * CLKX and CLKR are the inputs for the Sample Rate Generator.
 	 * FSX and FSR are outputs, driven by the sample Rate Generator. */
@@ -53,12 +66,13 @@ static int sffsdr_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	/* Fsref can be 32000, 44100 or 48000. */
-	fs = params_rate(params);
-
 	pr_debug("sffsdr_hw_params: rate = %d Hz\n", fs);
 
+#ifndef CONFIG_SFFSDR_FPGA
+	return 0;
+#else
 	return sffsdr_fpga_set_codec_fs(fs);
+#endif
 }
 
 static struct snd_soc_ops sffsdr_ops = {
