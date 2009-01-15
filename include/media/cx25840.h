@@ -21,6 +21,18 @@
 #ifndef _CX25840_H_
 #define _CX25840_H_
 
+/* Note that the cx25840 driver requires that the bridge driver calls the
+   v4l2_subdev's init operation in order to load the driver's firmware.
+   Without this the audio standard detection will fail and you will
+   only get mono.
+
+   Since loading the firmware is often problematic when the driver is
+   compiled into the kernel I recommend postponing calling this function
+   until the first open of the video device. Another reason for
+   postponing it is that loading this firmware takes a long time (seconds)
+   due to the slow i2c bus speed. So it will speed up the boot process if
+   you can avoid loading the fw as long as the video device isn't used. */
+
 enum cx25840_video_input {
 	/* Composite video inputs In1-In8 */
 	CX25840_COMPOSITE1 = 1,

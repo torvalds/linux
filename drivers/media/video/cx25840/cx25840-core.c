@@ -1101,6 +1101,16 @@ static void log_audio_status(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
+/* This init operation must be called to load the driver's firmware.
+   Without this the audio standard detection will fail and you will
+   only get mono.
+
+   Since loading the firmware is often problematic when the driver is
+   compiled into the kernel I recommend postponing calling this function
+   until the first open of the video device. Another reason for
+   postponing it is that loading this firmware takes a long time (seconds)
+   due to the slow i2c bus speed. So it will speed up the boot process if
+   you can avoid loading the fw as long as the video device isn't used.  */
 static int cx25840_init(struct v4l2_subdev *sd, u32 val)
 {
 	struct cx25840_state *state = to_state(sd);
