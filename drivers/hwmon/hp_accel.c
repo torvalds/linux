@@ -36,6 +36,7 @@
 #include <linux/freezer.h>
 #include <linux/version.h>
 #include <linux/uaccess.h>
+#include <linux/leds.h>
 #include <acpi/acpi_drivers.h>
 #include <asm/atomic.h>
 #include "lis3lv02d.h"
@@ -154,10 +155,34 @@ static struct dmi_system_id lis3lv02d_dmi_ids[] = {
  */
 };
 
+static acpi_status hpled_acpi_write(acpi_handle handle, int reg)
+{
+	unsigned long long ret; /* Not used when writing */
+	union acpi_object in_obj[1];
+	struct acpi_object_list args = { 1, in_obj };
+
+	in_obj[0].type          = ACPI_TYPE_INTEGER;
+	in_obj[0].integer.value = reg;
+
+	return acpi_evaluate_integer(handle, "ALED", &args, &ret);
+}
+
+static void hpled_set(struct led_classdev *led_cdev,
+			       enum led_brightness value)
+{
+	hpled_acpi_write(adev.device->handle, !!value);
+}
+
+static struct led_classdev hpled_led = {
+	.name			= "hp:red:hddprotection",
+	.default_trigger	= "none",
+	.brightness_set		= hpled_set,
+};
 
 static int lis3lv02d_add(struct acpi_device *device)
 {
 	u8 val;
+	int ret;
 
 	if (!device)
 		return -EINVAL;
@@ -183,7 +208,17 @@ static int lis3lv02d_add(struct acpi_device *device)
 		adev.ac = lis3lv02d_axis_normal;
 	}
 
-	return lis3lv02d_init_device(&adev);
+	ret = led_classdev_register(NULL, &hpled_led);
+	if (ret)
+		return ret;
+
+	ret = lis3lv02d_init_device(&adev);
+	if (ret) {
+		led_classdev_unregister(&hpled_led);
+		return ret;
+	}
+
+	return ret;
 }
 
 static int lis3lv02d_remove(struct acpi_device *device, int type)
@@ -194,6 +229,8 @@ static int lis3lv02d_remove(struct acpi_device *device, int type)
 	lis3lv02d_joystick_disable();
 	lis3lv02d_poweroff(device->handle);
 
+	led_classdev_unregister(&hpled_led);
+
 	return lis3lv02d_remove_fs();
 }
 
@@ -203,6 +240,7 @@ static int lis3lv02d_suspend(struct acpi_device *device, pm_message_t state)
 {
 	/* make sure the device is off when we suspend */
 	lis3lv02d_poweroff(device->handle);
+	led_classdev_suspend(&hpled_led);
 	return 0;
 }
 
@@ -215,6 +253,7 @@ static int lis3lv02d_resume(struct acpi_device *device)
 	else
 		lis3lv02d_poweroff(device->handle);
 	mutex_unlock(&adev.lock);
+	led_classdev_resume(&hpled_led);
 	return 0;
 }
 #else
@@ -256,7 +295,7 @@ static void __exit lis3lv02d_exit_module(void)
 	acpi_bus_unregister_driver(&lis3lv02d_driver);
 }
 
-MODULE_DESCRIPTION("Glue between LIS3LV02Dx and HP ACPI BIOS");
+MODULE_DESCRIPTION("Glue between LIS3LV02Dx and HP ACPI BIOS and support for disk protection LED.");
 MODULE_AUTHOR("Yan Burman, Eric Piel, Pavel Machek");
 MODULE_LICENSE("GPL");
 
