@@ -272,7 +272,6 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 			/* Move tail */
 			lp->tx_chain_tail = chain_next;
 			lp->tx_chain_status = desc_filled;
-			netif_stop_queue(dev);
 		} else {
 			/* Update tail */
 			td->control = DMA_COUNT(length) |
