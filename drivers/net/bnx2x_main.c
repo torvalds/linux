@@ -4524,7 +4524,7 @@ static void bnx2x_init_context(struct bnx2x *bp)
 
 static void bnx2x_init_ind_table(struct bnx2x *bp)
 {
-	int port = BP_PORT(bp);
+	int func = BP_FUNC(bp);
 	int i;
 
 	if (!is_multi(bp))
@@ -4533,10 +4533,8 @@ static void bnx2x_init_ind_table(struct bnx2x *bp)
 	DP(NETIF_MSG_IFUP, "Initializing indirection table\n");
 	for (i = 0; i < TSTORM_INDIRECTION_TABLE_SIZE; i++)
 		REG_WR8(bp, BAR_TSTRORM_INTMEM +
-			TSTORM_INDIRECTION_TABLE_OFFSET(port) + i,
-			i % bp->num_queues);
-
-	REG_WR(bp, PRS_REG_A_PRSU_20, 0xf);
+			TSTORM_INDIRECTION_TABLE_OFFSET(func) + i,
+			BP_CL_ID(bp) + (i % bp->num_queues));
 }
 
 static void bnx2x_set_client_config(struct bnx2x *bp)
@@ -5240,6 +5238,7 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	}
 
 	bnx2x_init_block(bp, PRS_COMMON_START, PRS_COMMON_END);
+	REG_WR(bp, PRS_REG_A_PRSU_20, 0xf);
 	/* set NIC mode */
 	REG_WR(bp, PRS_REG_NIC_MODE, 1);
 	if (CHIP_IS_E1H(bp))
