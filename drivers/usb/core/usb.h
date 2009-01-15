@@ -15,9 +15,10 @@ extern void usb_enable_endpoint(struct usb_device *dev,
 		struct usb_host_endpoint *ep, bool reset_toggle);
 extern void usb_enable_interface(struct usb_device *dev,
 		struct usb_interface *intf, bool reset_toggles);
-extern void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr);
+extern void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr,
+		bool reset_hardware);
 extern void usb_disable_interface(struct usb_device *dev,
-		struct usb_interface *intf);
+		struct usb_interface *intf, bool reset_hardware);
 extern void usb_release_interface_cache(struct kref *ref);
 extern void usb_disable_device(struct usb_device *dev, int skip_ep0);
 extern int usb_deauthorize_device(struct usb_device *);
