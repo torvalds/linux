@@ -2527,9 +2527,10 @@ sub process {
 			WARN("please use device_initcall() instead of __initcall()\n" . $herecurr);
 		}
 # check for struct file_operations, ensure they are const.
-		if ($line =~ /\bstruct\s+file_operations\b/ &&
-		    $line !~ /\bconst\b/) {
-			WARN("struct file_operations should normally be const\n" . $herecurr);
+		if ($line !~ /\bconst\b/ &&
+		    $line =~ /\bstruct\s+(file_operations|seq_operations)\b/) {
+			WARN("struct $1 should normally be const\n" .
+				$herecurr);
 		}
 
 # use of NR_CPUS is usually wrong
