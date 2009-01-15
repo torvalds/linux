@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2007, OpenWrt.org, Florian Fainelli <florian@openwrt.org>
+ *  Copyright (C) 2007-2009, OpenWrt.org, Florian Fainelli <florian@openwrt.org>
  *  	Architecture specific GPIO support
  *
  *  This program is free software; you can redistribute	 it and/or modify it
@@ -27,122 +27,175 @@
  * 	others have a second one : GPIO2
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/types.h>
+#include <linux/platform_device.h>
+#include <linux/gpio.h>
 
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/gpio.h>
 
-#define gpio1 sys
+struct au1000_gpio_chip {
+	struct gpio_chip	chip;
+	void __iomem		*regbase;
+};
+
 #if !defined(CONFIG_SOC_AU1000)
-
-static struct au1x00_gpio2 *const gpio2 = (struct au1x00_gpio2 *) GPIO2_BASE;
-#define GPIO2_OUTPUT_ENABLE_MASK 	0x00010000
-
-static int au1xxx_gpio2_read(unsigned gpio)
+static int au1000_gpio2_get(struct gpio_chip *chip, unsigned offset)
 {
-	gpio -= AU1XXX_GPIO_BASE;
-	return ((gpio2->pinstate >> gpio) & 0x01);
+	u32 mask = 1 << offset;
+	struct au1000_gpio_chip *gpch;
+
+	gpch = container_of(chip, struct au1000_gpio_chip, chip);
+	return readl(gpch->regbase + AU1000_GPIO2_ST) & mask;
 }
 
-static void au1xxx_gpio2_write(unsigned gpio, int value)
+static void au1000_gpio2_set(struct gpio_chip *chip,
+				unsigned offset, int value)
 {
-	gpio -= AU1XXX_GPIO_BASE;
+	u32 mask = ((GPIO2_OUT_EN_MASK << offset) | (!!value << offset));
+	struct au1000_gpio_chip *gpch;
+	unsigned long flags;
 
-	gpio2->output = (GPIO2_OUTPUT_ENABLE_MASK << gpio) | ((!!value) << gpio);
+	gpch = container_of(chip, struct au1000_gpio_chip, chip);
+
+	local_irq_save(flags);
+	writel(mask, gpch->regbase + AU1000_GPIO2_OUT);
+	local_irq_restore(flags);
 }
 
-static int au1xxx_gpio2_direction_input(unsigned gpio)
+static int au1000_gpio2_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	gpio -= AU1XXX_GPIO_BASE;
-	gpio2->dir &= ~(0x01 << gpio);
+	u32 mask = 1 << offset;
+	u32 tmp;
+	struct au1000_gpio_chip *gpch;
+	unsigned long flags;
+
+	gpch = container_of(chip, struct au1000_gpio_chip, chip);
+
+	local_irq_save(flags);
+	tmp = readl(gpch->regbase + AU1000_GPIO2_DIR);
+	tmp &= ~mask;
+	writel(tmp, gpch->regbase + AU1000_GPIO2_DIR);
+	local_irq_restore(flags);
+
 	return 0;
 }
 
-static int au1xxx_gpio2_direction_output(unsigned gpio, int value)
+static int au1000_gpio2_direction_output(struct gpio_chip *chip,
+					unsigned offset, int value)
 {
-	gpio -= AU1XXX_GPIO_BASE;
-	gpio2->dir |= 0x01 << gpio;
-	gpio2->output = (GPIO2_OUTPUT_ENABLE_MASK << gpio) | ((!!value) << gpio);
+	u32 mask = 1 << offset;
+	u32 out_mask = ((GPIO2_OUT_EN_MASK << offset) | (!!value << offset));
+	u32 tmp;
+	struct au1000_gpio_chip *gpch;
+	unsigned long flags;
+
+	gpch = container_of(chip, struct au1000_gpio_chip, chip);
+
+	local_irq_save(flags);
+	tmp = readl(gpch->regbase + AU1000_GPIO2_DIR);
+	tmp |= mask;
+	writel(tmp, gpch->regbase + AU1000_GPIO2_DIR);
+	writel(out_mask, gpch->regbase + AU1000_GPIO2_OUT);
+	local_irq_restore(flags);
+
 	return 0;
 }
-
 #endif /* !defined(CONFIG_SOC_AU1000) */
 
-static int au1xxx_gpio1_read(unsigned gpio)
+static int au1000_gpio1_get(struct gpio_chip *chip, unsigned offset)
 {
-	return (gpio1->pinstaterd >> gpio) & 0x01;
+	u32 mask = 1 << offset;
+	struct au1000_gpio_chip *gpch;
+
+	gpch = container_of(chip, struct au1000_gpio_chip, chip);
+	return readl(gpch->regbase + AU1000_GPIO1_ST) & mask;
 }
 
-static void au1xxx_gpio1_write(unsigned gpio, int value)
+static void au1000_gpio1_set(struct gpio_chip *chip,
+				unsigned offset, int value)
 {
+	u32 mask = 1 << offset;
+	u32 reg_offset;
+	struct au1000_gpio_chip *gpch;
+	unsigned long flags;
+
+	gpch = container_of(chip, struct au1000_gpio_chip, chip);
+
 	if (value)
-		gpio1->outputset = (0x01 << gpio);
+		reg_offset = AU1000_GPIO1_OUT;
 	else
-		/* Output a zero */
-		gpio1->outputclr = (0x01 << gpio);
+		reg_offset = AU1000_GPIO1_CLR;
+
+	local_irq_save(flags);
+	writel(mask, gpch->regbase + reg_offset);
+	local_irq_restore(flags);
 }
 
-static int au1xxx_gpio1_direction_input(unsigned gpio)
+static int au1000_gpio1_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	gpio1->pininputen = (0x01 << gpio);
+	u32 mask = 1 << offset;
+	struct au1000_gpio_chip *gpch;
+
+	gpch = container_of(chip, struct au1000_gpio_chip, chip);
+	writel(mask, gpch->regbase + AU1000_GPIO1_ST);
+
 	return 0;
 }
 
-static int au1xxx_gpio1_direction_output(unsigned gpio, int value)
+static int au1000_gpio1_direction_output(struct gpio_chip *chip,
+					unsigned offset, int value)
 {
-	gpio1->trioutclr = (0x01 & gpio);
-	au1xxx_gpio1_write(gpio, value);
+	u32 mask = 1 << offset;
+	struct au1000_gpio_chip *gpch;
+
+	gpch = container_of(chip, struct au1000_gpio_chip, chip);
+
+	writel(mask, gpch->regbase + AU1000_GPIO1_TRI_OUT);
+	au1000_gpio1_set(chip, offset, value);
+
 	return 0;
 }
 
-int au1xxx_gpio_get_value(unsigned gpio)
-{
-	if (gpio >= AU1XXX_GPIO_BASE)
-#if defined(CONFIG_SOC_AU1000)
-		return 0;
-#else
-		return au1xxx_gpio2_read(gpio);
+struct au1000_gpio_chip au1000_gpio_chip[] = {
+	[0] = {
+		.regbase			= (void __iomem *)SYS_BASE,
+		.chip = {
+			.label			= "au1000-gpio1",
+			.direction_input	= au1000_gpio1_direction_input,
+			.direction_output	= au1000_gpio1_direction_output,
+			.get			= au1000_gpio1_get,
+			.set			= au1000_gpio1_set,
+			.base			= 0,
+			.ngpio			= 32,
+		},
+	},
+#if !defined(CONFIG_SOC_AU1000)
+	[1] = {
+		.regbase                        = (void __iomem *)GPIO2_BASE,
+		.chip = {
+			.label                  = "au1000-gpio2",
+			.direction_input        = au1000_gpio2_direction_input,
+			.direction_output       = au1000_gpio2_direction_output,
+			.get                    = au1000_gpio2_get,
+			.set                    = au1000_gpio2_set,
+			.base                   = AU1XXX_GPIO_BASE,
+			.ngpio                  = 32,
+		},
+	},
 #endif
-	else
-		return au1xxx_gpio1_read(gpio);
-}
-EXPORT_SYMBOL(au1xxx_gpio_get_value);
+};
 
-void au1xxx_gpio_set_value(unsigned gpio, int value)
+static int __init au1000_gpio_init(void)
 {
-	if (gpio >= AU1XXX_GPIO_BASE)
-#if defined(CONFIG_SOC_AU1000)
-		;
-#else
-		au1xxx_gpio2_write(gpio, value);
-#endif
-	else
-		au1xxx_gpio1_write(gpio, value);
-}
-EXPORT_SYMBOL(au1xxx_gpio_set_value);
-
-int au1xxx_gpio_direction_input(unsigned gpio)
-{
-	if (gpio >= AU1XXX_GPIO_BASE)
-#if defined(CONFIG_SOC_AU1000)
-		return -ENODEV;
-#else
-		return au1xxx_gpio2_direction_input(gpio);
-#endif
-
-	return au1xxx_gpio1_direction_input(gpio);
-}
-EXPORT_SYMBOL(au1xxx_gpio_direction_input);
-
-int au1xxx_gpio_direction_output(unsigned gpio, int value)
-{
-	if (gpio >= AU1XXX_GPIO_BASE)
-#if defined(CONFIG_SOC_AU1000)
-		return -ENODEV;
-#else
-		return au1xxx_gpio2_direction_output(gpio, value);
+	gpiochip_add(&au1000_gpio_chip[0].chip);
+#if !defined(CONFIG_SOC_AU1000)
+	gpiochip_add(&au1000_gpio_chip[1].chip);
 #endif
 
-	return au1xxx_gpio1_direction_output(gpio, value);
+	return 0;
 }
-EXPORT_SYMBOL(au1xxx_gpio_direction_output);
+arch_initcall(au1000_gpio_init);
+
