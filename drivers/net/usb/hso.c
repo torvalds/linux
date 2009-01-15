@@ -2044,9 +2044,8 @@ static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial)
 		return -2;
 	}
 
-	spin_lock(&serial->serial_lock);
+	/* All callers to put_rxbuf_data hold serial_lock */
 	tty = tty_kref_get(serial->tty);
-	spin_unlock(&serial->serial_lock);
 
 	/* Push data to tty */
 	if (tty) {
