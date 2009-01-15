@@ -1,7 +1,7 @@
 /*
  * i2sbus driver
  *
- * Copyright 2006 Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2008 Johannes Berg <johannes@sipsolutions.net>
  *
  * GPL v2, can be found in COPYING.
  */
@@ -186,13 +186,25 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		}
 	}
 	if (i == 1) {
-		const u32 *layout_id =
-			of_get_property(sound, "layout-id", NULL);
-		if (layout_id) {
-			layout = *layout_id;
+		const u32 *id = of_get_property(sound, "layout-id", NULL);
+
+		if (id) {
+			layout = *id;
 			snprintf(dev->sound.modalias, 32,
 				 "sound-layout-%d", layout);
 			ok = 1;
+		} else {
+			id = of_get_property(sound, "device-id", NULL);
+			/*
+			 * We probably cannot handle all device-id machines,
+			 * so restrict to those we do handle for now.
+			 */
+			if (id && (*id == 22 || *id == 14 || *id == 35)) {
+				snprintf(dev->sound.modalias, 32,
+					 "aoa-device-id-%d", *id);
+				ok = 1;
+				layout = -1;
+			}
 		}
 	}
 	/* for the time being, until we can handle non-layout-id
