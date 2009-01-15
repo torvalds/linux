@@ -48,6 +48,7 @@ struct k8temp_data {
 	/* registers values */
 	u8 sensorsp;		/* sensor presence bits - SEL_CORE & SEL_PLACE */
 	u32 temp[2][2];		/* core, place */
+	u8 swap_core_select;    /* meaning of SEL_CORE is inverted */
 };
 
 static struct k8temp_data *k8temp_update_device(struct device *dev)
@@ -117,6 +118,9 @@ static ssize_t show_temp(struct device *dev,
 	int place = attr->index;
 	struct k8temp_data *data = k8temp_update_device(dev);
 
+	if (data->swap_core_select)
+		core = core ? 0 : 1;
+
 	return sprintf(buf, "%d\n",
 		       TEMP_FROM_REG(data->temp[core][place]));
 }
@@ -162,7 +166,12 @@ static int __devinit k8temp_probe(struct pci_dev *pdev,
 			goto exit_free;
 		}
 
+		/*
+		 * AMD NPT family 0fh, i.e. RevF and RevG:
+		 * meaning of SEL_CORE bit is inverted
+		 */
 		if (model >= 0x40) {
+			data->swap_core_select = 1;
 			dev_warn(&pdev->dev, "Temperature readouts might be "
 				 "wrong - check erratum #141\n");
 		}
