@@ -259,8 +259,10 @@ static struct i2c_board_info __initdata osk_i2c_board_info[] = {
 		.platform_data	= &tps_board,
 
 	},
+	{
+		I2C_BOARD_INFO("tlv320aic23", 0x1B),
+	},
 	/* TODO when driver support is ready:
-	 *  - aic23 audio chip at 0x1a
 	 *  - optionally on Mistral, ov9640 camera sensor at 0x30
 	 */
 };
