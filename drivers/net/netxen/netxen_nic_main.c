@@ -986,6 +986,9 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		netxen_free_hw_resources(adapter);
 		netxen_release_rx_buffers(adapter);
 		netxen_free_sw_resources(adapter);
+
+		if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+			netxen_p3_free_mac_list(adapter);
 	}
 
 	if (adapter->portnum == 0)

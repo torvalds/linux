@@ -627,6 +627,19 @@ int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 				(struct cmd_desc_type0 *)&req, 1);
 }
 
+void netxen_p3_free_mac_list(struct netxen_adapter *adapter)
+{
+	nx_mac_list_t *cur, *next;
+
+	cur = adapter->mac_list;
+
+	while (cur) {
+		next = cur->next;
+		kfree(cur);
+		cur = next;
+	}
+}
+
 #define	NETXEN_CONFIG_INTR_COALESCE	3
 
 /*
