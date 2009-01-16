@@ -44,4 +44,10 @@ config MXC_IRQ_PRIOR
 	  requirements for timing.
 	  Say N here, unless you have a specialized requirement.
 
+config MXC_PWM
+	tristate "Enable PWM driver"
+	depends on ARCH_MXC
+	help
+	  Enable support for the i.MX PWM controller(s).
+
 endif
