@@ -226,7 +226,7 @@ u64 hipz_h_alloc_resource_eq(const struct ipz_adapter_handle adapter_handle,
 			     u32 *eq_ist)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 	u64 allocate_controls;
 
 	/* resource type */
@@ -270,7 +270,7 @@ u64 hipz_h_alloc_resource_cq(const struct ipz_adapter_handle adapter_handle,
 			     struct ehca_alloc_cq_parms *param)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
 	ret = ehca_plpar_hcall9(H_ALLOC_RESOURCE, outs,
 				adapter_handle.handle,   /* r4  */
@@ -297,7 +297,7 @@ u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
 {
 	u64 ret;
 	u64 allocate_controls, max_r10_reg, r11, r12;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
 	allocate_controls =
 		EHCA_BMASK_SET(H_ALL_RES_QP_ENHANCED_OPS, parms->ext_type)
@@ -525,7 +525,7 @@ u64 hipz_h_disable_and_get_wqe(const struct ipz_adapter_handle adapter_handle,
 			       int dis_and_get_function_code)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
 	ret = ehca_plpar_hcall9(H_DISABLE_AND_GETC, outs,
 				adapter_handle.handle,     /* r4 */
@@ -548,7 +548,7 @@ u64 hipz_h_modify_qp(const struct ipz_adapter_handle adapter_handle,
 		     struct h_galpa gal)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 	ret = ehca_plpar_hcall9(H_MODIFY_QP, outs,
 				adapter_handle.handle, /* r4 */
 				qp_handle.handle,      /* r5 */
@@ -579,7 +579,7 @@ u64 hipz_h_destroy_qp(const struct ipz_adapter_handle adapter_handle,
 		      struct ehca_qp *qp)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
 	ret = hcp_galpas_dtor(&qp->galpas);
 	if (ret) {
@@ -625,7 +625,7 @@ u64 hipz_h_define_aqp1(const struct ipz_adapter_handle adapter_handle,
 		       u32 * bma_qp_nr)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
 	ret = ehca_plpar_hcall9(H_DEFINE_AQP1, outs,
 				adapter_handle.handle, /* r4 */
@@ -733,7 +733,7 @@ u64 hipz_h_alloc_resource_mr(const struct ipz_adapter_handle adapter_handle,
 			     struct ehca_mr_hipzout_parms *outparms)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
 	ret = ehca_plpar_hcall9(H_ALLOC_RESOURCE, outs,
 				adapter_handle.handle,            /* r4 */
@@ -794,7 +794,7 @@ u64 hipz_h_query_mr(const struct ipz_adapter_handle adapter_handle,
 		    struct ehca_mr_hipzout_parms *outparms)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
 	ret = ehca_plpar_hcall9(H_QUERY_MR, outs,
 				adapter_handle.handle,     /* r4 */
@@ -828,7 +828,7 @@ u64 hipz_h_reregister_pmr(const struct ipz_adapter_handle adapter_handle,
 			  struct ehca_mr_hipzout_parms *outparms)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
 	ret = ehca_plpar_hcall9(H_REREGISTER_PMR, outs,
 				adapter_handle.handle,    /* r4 */
@@ -855,7 +855,7 @@ u64 hipz_h_register_smr(const struct ipz_adapter_handle adapter_handle,
 			struct ehca_mr_hipzout_parms *outparms)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
 	ret = ehca_plpar_hcall9(H_REGISTER_SMR, outs,
 				adapter_handle.handle,            /* r4 */
@@ -877,7 +877,7 @@ u64 hipz_h_alloc_resource_mw(const struct ipz_adapter_handle adapter_handle,
 			     struct ehca_mw_hipzout_parms *outparms)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
 	ret = ehca_plpar_hcall9(H_ALLOC_RESOURCE, outs,
 				adapter_handle.handle,      /* r4 */
@@ -895,7 +895,7 @@ u64 hipz_h_query_mw(const struct ipz_adapter_handle adapter_handle,
 		    struct ehca_mw_hipzout_parms *outparms)
 {
 	u64 ret;
-	u64 outs[PLPAR_HCALL9_BUFSIZE];
+	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
 	ret = ehca_plpar_hcall9(H_QUERY_MW, outs,
 				adapter_handle.handle,    /* r4 */
