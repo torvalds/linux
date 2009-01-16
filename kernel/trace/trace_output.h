@@ -16,7 +16,8 @@ struct trace_event {
 	trace_print_func	binary;
 };
 
-extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...);
+extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
 extern int
 seq_print_ip_sym(struct trace_seq *s, unsigned long ip,
 		unsigned long sym_flags);
