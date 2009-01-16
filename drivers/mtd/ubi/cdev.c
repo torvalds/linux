@@ -40,6 +40,7 @@
 #include <linux/ioctl.h>
 #include <linux/capability.h>
 #include <linux/uaccess.h>
+#include <linux/compat.h>
 #include <mtd/ubi-user.h>
 #include <asm/div64.h>
 #include "ubi.h"
@@ -401,8 +402,8 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static int vol_cdev_ioctl(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg)
+static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
+			   unsigned long arg)
 {
 	int err = 0;
 	struct ubi_volume_desc *desc = file->private_data;
@@ -800,8 +801,8 @@ out_free:
 	return err;
 }
 
-static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg)
+static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
+			   unsigned long arg)
 {
 	int err = 0;
 	struct ubi_device *ubi;
@@ -811,7 +812,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 	if (!capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 
-	ubi = ubi_get_by_major(imajor(inode));
+	ubi = ubi_get_by_major(imajor(file->f_mapping->host));
 	if (!ubi)
 		return -ENODEV;
 
@@ -947,8 +948,8 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 	return err;
 }
 
-static int ctrl_cdev_ioctl(struct inode *inode, struct file *file,
-			   unsigned int cmd, unsigned long arg)
+static long ctrl_cdev_ioctl(struct file *file, unsigned int cmd,
+			    unsigned long arg)
 {
 	int err = 0;
 	void __user *argp = (void __user *)arg;
@@ -1024,26 +1025,59 @@ static int ctrl_cdev_ioctl(struct inode *inode, struct file *file,
 	return err;
 }
 
-/* UBI control character device operations */
-const struct file_operations ubi_ctrl_cdev_operations = {
-	.ioctl = ctrl_cdev_ioctl,
-	.owner = THIS_MODULE,
+#ifdef CONFIG_COMPAT
+static long vol_cdev_compat_ioctl(struct file *file, unsigned int cmd,
+				  unsigned long arg)
+{
+	unsigned long translated_arg = (unsigned long)compat_ptr(arg);
+
+	return vol_cdev_ioctl(file, cmd, translated_arg);
+}
+
+static long ubi_cdev_compat_ioctl(struct file *file, unsigned int cmd,
+				  unsigned long arg)
+{
+	unsigned long translated_arg = (unsigned long)compat_ptr(arg);
+
+	return ubi_cdev_ioctl(file, cmd, translated_arg);
+}
+
+static long ctrl_cdev_compat_ioctl(struct file *file, unsigned int cmd,
+				   unsigned long arg)
+{
+	unsigned long translated_arg = (unsigned long)compat_ptr(arg);
+
+	return ctrl_cdev_ioctl(file, cmd, translated_arg);
+}
+#else
+#define vol_cdev_compat_ioctl  NULL
+#define ubi_cdev_compat_ioctl  NULL
+#define ctrl_cdev_compat_ioctl NULL
+#endif
+
+/* UBI volume character device operations */
+const struct file_operations ubi_vol_cdev_operations = {
+	.owner          = THIS_MODULE,
+	.open           = vol_cdev_open,
+	.release        = vol_cdev_release,
+	.llseek         = vol_cdev_llseek,
+	.read           = vol_cdev_read,
+	.write          = vol_cdev_write,
+	.unlocked_ioctl = vol_cdev_ioctl,
+	.compat_ioctl   = vol_cdev_compat_ioctl,
 };
 
 /* UBI character device operations */
 const struct file_operations ubi_cdev_operations = {
-	.owner = THIS_MODULE,
-	.ioctl = ubi_cdev_ioctl,
-	.llseek = no_llseek,
+	.owner          = THIS_MODULE,
+	.llseek         = no_llseek,
+	.unlocked_ioctl = ubi_cdev_ioctl,
+	.compat_ioctl   = ubi_cdev_compat_ioctl,
 };
 
-/* UBI volume character device operations */
-const struct file_operations ubi_vol_cdev_operations = {
-	.owner   = THIS_MODULE,
-	.open    = vol_cdev_open,
-	.release = vol_cdev_release,
-	.llseek  = vol_cdev_llseek,
-	.read    = vol_cdev_read,
-	.write   = vol_cdev_write,
-	.ioctl   = vol_cdev_ioctl,
+/* UBI control character device operations */
+const struct file_operations ubi_ctrl_cdev_operations = {
+	.owner          = THIS_MODULE,
+	.unlocked_ioctl = ctrl_cdev_ioctl,
+	.compat_ioctl   = ctrl_cdev_compat_ioctl,
 };
