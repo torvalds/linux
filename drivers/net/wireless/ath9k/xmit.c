@@ -2082,16 +2082,23 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		if (bf->bf_status & ATH_BUFSTATUS_STALE) {
 			bf_held = bf;
 			if (list_is_last(&bf_held->list, &txq->axq_q)) {
-				/* FIXME:
+				txq->axq_link = NULL;
+				txq->axq_linkbuf = NULL;
+				spin_unlock_bh(&txq->axq_lock);
+
+				/*
 				 * The holding descriptor is the last
 				 * descriptor in queue. It's safe to remove
 				 * the last holding descriptor in BH context.
 				 */
-				spin_unlock_bh(&txq->axq_lock);
+				spin_lock_bh(&sc->tx.txbuflock);
+				list_move_tail(&bf_held->list, &sc->tx.txbuf);
+				spin_unlock_bh(&sc->tx.txbuflock);
+
 				break;
 			} else {
 				bf = list_entry(bf_held->list.next,
-					struct ath_buf, list);
+						struct ath_buf, list);
 			}
 		}
 
@@ -2115,24 +2122,20 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		 */
 		lastbf->bf_status |= ATH_BUFSTATUS_STALE;
 		INIT_LIST_HEAD(&bf_head);
-
 		if (!list_is_singular(&lastbf->list))
 			list_cut_position(&bf_head,
 				&txq->axq_q, lastbf->list.prev);
 
 		txq->axq_depth--;
-
 		if (bf_isaggr(bf))
 			txq->axq_aggr_depth--;
 
 		txok = (ds->ds_txstat.ts_status == 0);
-
 		spin_unlock_bh(&txq->axq_lock);
 
 		if (bf_held) {
-			list_del(&bf_held->list);
 			spin_lock_bh(&sc->tx.txbuflock);
-			list_add_tail(&bf_held->list, &sc->tx.txbuf);
+			list_move_tail(&bf_held->list, &sc->tx.txbuf);
 			spin_unlock_bh(&sc->tx.txbuflock);
 		}
 
