@@ -204,10 +204,11 @@ struct rfcomm_dlc {
 #define RFCOMM_TX_THROTTLED 1
 #define RFCOMM_TIMED_OUT    2
 #define RFCOMM_MSC_PENDING  3
-#define RFCOMM_AUTH_PENDING 4
-#define RFCOMM_AUTH_ACCEPT  5
-#define RFCOMM_AUTH_REJECT  6
-#define RFCOMM_DEFER_SETUP  7
+#define RFCOMM_SEC_PENDING  4
+#define RFCOMM_AUTH_PENDING 5
+#define RFCOMM_AUTH_ACCEPT  6
+#define RFCOMM_AUTH_REJECT  7
+#define RFCOMM_DEFER_SETUP  8
 
 /* Scheduling flags and events */
 #define RFCOMM_SCHED_STATE  0

@@ -1979,12 +1979,23 @@ static void rfcomm_security_cfm(struct hci_conn *conn, u8 status, u8 encrypt)
 	list_for_each_safe(p, n, &s->dlcs) {
 		d = list_entry(p, struct rfcomm_dlc, list);
 
-		if (!status && encrypt == 0x00 &&
-				d->sec_level == BT_SECURITY_HIGH &&
-					(d->state == BT_CONNECTED ||
-						d->state == BT_CONFIG)) {
-			__rfcomm_dlc_close(d, ECONNREFUSED);
-			continue;
+		if (test_and_clear_bit(RFCOMM_SEC_PENDING, &d->flags)) {
+			rfcomm_dlc_clear_timer(d);
+			if (status || encrypt == 0x00) {
+				__rfcomm_dlc_close(d, ECONNREFUSED);
+				continue;
+			}
+		}
+
+		if (d->state == BT_CONNECTED && !status && encrypt == 0x00) {
+			if (d->sec_level == BT_SECURITY_MEDIUM) {
+				set_bit(RFCOMM_SEC_PENDING, &d->flags);
+				rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
+				continue;
+			} else if (d->sec_level == BT_SECURITY_HIGH) {
+				__rfcomm_dlc_close(d, ECONNREFUSED);
+				continue;
+			}
 		}
 
 		if (!test_and_clear_bit(RFCOMM_AUTH_PENDING, &d->flags))
