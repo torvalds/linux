@@ -177,6 +177,14 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 
+	master_priv->sarea = drm_getsarea(dev);
+	if (master_priv->sarea) {
+		master_priv->sarea_priv = (drm_i915_sarea_t *)
+			((u8 *)master_priv->sarea->handle + init->sarea_priv_offset);
+	} else {
+		DRM_DEBUG("sarea not found assuming DRI2 userspace\n");
+	}
+
 	if (init->ring_size != 0) {
 		if (dev_priv->ring.ring_obj != NULL) {
 			i915_dma_cleanup(dev);
@@ -1151,6 +1159,8 @@ int i915_driver_unload(struct drm_device *dev)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_modeset_cleanup(dev);
+
+		i915_gem_free_all_phys_object(dev);
 
 		mutex_lock(&dev->struct_mutex);
 		i915_gem_cleanup_ringbuffer(dev);
