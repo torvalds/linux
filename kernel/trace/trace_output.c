@@ -440,7 +440,7 @@ trace_fn_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
 
 	trace_assign_type(field, entry);
 
-	if (!trace_seq_printf(s, "%x %x\n",
+	if (!trace_seq_printf(s, "%lx %lx\n",
 			      field->ip,
 			      field->parent_ip))
 		return TRACE_TYPE_PARTIAL_LINE;

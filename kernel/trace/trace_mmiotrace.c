@@ -184,21 +184,22 @@ static enum print_line_t mmio_print_rw(struct trace_iterator *iter)
 	switch (rw->opcode) {
 	case MMIO_READ:
 		ret = trace_seq_printf(s,
-			"R %d %lu.%06lu %d 0x%llx 0x%lx 0x%lx %d\n",
+			"R %d %u.%06lu %d 0x%llx 0x%lx 0x%lx %d\n",
 			rw->width, secs, usec_rem, rw->map_id,
 			(unsigned long long)rw->phys,
 			rw->value, rw->pc, 0);
 		break;
 	case MMIO_WRITE:
 		ret = trace_seq_printf(s,
-			"W %d %lu.%06lu %d 0x%llx 0x%lx 0x%lx %d\n",
+			"W %d %u.%06lu %d 0x%llx 0x%lx 0x%lx %d\n",
 			rw->width, secs, usec_rem, rw->map_id,
 			(unsigned long long)rw->phys,
 			rw->value, rw->pc, 0);
 		break;
 	case MMIO_UNKNOWN_OP:
 		ret = trace_seq_printf(s,
-			"UNKNOWN %lu.%06lu %d 0x%llx %02x,%02x,%02x 0x%lx %d\n",
+			"UNKNOWN %u.%06lu %d 0x%llx %02lx,%02lx,"
+			"%02lx 0x%lx %d\n",
 			secs, usec_rem, rw->map_id,
 			(unsigned long long)rw->phys,
 			(rw->value >> 16) & 0xff, (rw->value >> 8) & 0xff,
@@ -230,14 +231,14 @@ static enum print_line_t mmio_print_map(struct trace_iterator *iter)
 	switch (m->opcode) {
 	case MMIO_PROBE:
 		ret = trace_seq_printf(s,
-			"MAP %lu.%06lu %d 0x%llx 0x%lx 0x%lx 0x%lx %d\n",
+			"MAP %u.%06lu %d 0x%llx 0x%lx 0x%lx 0x%lx %d\n",
 			secs, usec_rem, m->map_id,
 			(unsigned long long)m->phys, m->virt, m->len,
 			0UL, 0);
 		break;
 	case MMIO_UNPROBE:
 		ret = trace_seq_printf(s,
-			"UNMAP %lu.%06lu %d 0x%lx %d\n",
+			"UNMAP %u.%06lu %d 0x%lx %d\n",
 			secs, usec_rem, m->map_id, 0UL, 0);
 		break;
 	default:
@@ -261,7 +262,7 @@ static enum print_line_t mmio_print_mark(struct trace_iterator *iter)
 	int ret;
 
 	/* The trailing newline must be in the message. */
-	ret = trace_seq_printf(s, "MARK %lu.%06lu %s", secs, usec_rem, msg);
+	ret = trace_seq_printf(s, "MARK %u.%06lu %s", secs, usec_rem, msg);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
