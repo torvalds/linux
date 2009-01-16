@@ -226,6 +226,10 @@ static ssize_t set_mode(struct device *dev, struct device_attribute *attr,
 	unsigned int mode;
 	int ret;
 
+	/*
+	 * sysfs_streq() doesn't need the \n's, but we add them so the strings
+	 * will be shared with show_mode(), above.
+	 */
 	if (sysfs_streq(buf, "fast\n") == 0)
 		mode = REGULATOR_MODE_FAST;
 	else if (sysfs_streq(buf, "normal\n") == 0)
