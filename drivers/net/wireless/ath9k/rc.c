@@ -23,7 +23,7 @@ static struct ath_rate_table ar5416_11na_ratetable = {
 		{ VALID, VALID, WLAN_RC_PHY_OFDM, 6000, /* 6 Mb */
 			5400, 0x0b, 0x00, 12,
 			0, 2, 1, 0, 0, 0, 0, 0 },
-		{ VALID,	VALID, WLAN_RC_PHY_OFDM, 9000, /* 9 Mb */
+		{ VALID, VALID, WLAN_RC_PHY_OFDM, 9000, /* 9 Mb */
 			7800,  0x0f, 0x00, 18,
 			0, 3, 1, 1, 1, 1, 1, 0 },
 		{ VALID, VALID, WLAN_RC_PHY_OFDM, 12000, /* 12 Mb */
