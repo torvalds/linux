@@ -247,7 +247,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 	 * the relevant bits of the h/w.
 	 */
 	ath9k_hw_set_interrupts(ah, 0);
-	ath_draintxq(sc, false);
+	ath_drain_all_txq(sc, false);
 	stopped = ath_stoprecv(sc);
 
 	/* XXX: do not flush receive queue here. We don't want
@@ -1092,7 +1092,7 @@ static void ath_radio_disable(struct ath_softc *sc)
 	/* Disable interrupts */
 	ath9k_hw_set_interrupts(ah, 0);
 
-	ath_draintxq(sc, false);	/* clear pending tx frames */
+	ath_drain_all_txq(sc, false);	/* clear pending tx frames */
 	ath_stoprecv(sc);		/* turn off frame recv */
 	ath_flushrecv(sc);		/* flush recv queue */
 
@@ -1592,7 +1592,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	int r;
 
 	ath9k_hw_set_interrupts(ah, 0);
-	ath_draintxq(sc, retry_tx);
+	ath_drain_all_txq(sc, retry_tx);
 	ath_stoprecv(sc);
 	ath_flushrecv(sc);
 
@@ -1988,7 +1988,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	ath9k_hw_set_interrupts(sc->sc_ah, 0);
 
 	if (!(sc->sc_flags & SC_OP_INVALID)) {
-		ath_draintxq(sc, false);
+		ath_drain_all_txq(sc, false);
 		ath_stoprecv(sc);
 		ath9k_hw_phy_disable(sc->sc_ah);
 	} else

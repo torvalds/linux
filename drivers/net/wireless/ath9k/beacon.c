@@ -220,7 +220,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 		 * acquires txq lock inside.
 		 */
 		if (sc->sc_nvaps > 1) {
-			ath_tx_draintxq(sc, cabq, false);
+			ath_draintxq(sc, cabq, false);
 			DPRINTF(sc, ATH_DBG_BEACON,
 				"flush previous cabq traffic\n");
 		}

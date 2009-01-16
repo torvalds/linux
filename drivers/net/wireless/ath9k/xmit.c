@@ -890,43 +890,6 @@ static void ath_get_beaconconfig(struct ath_softc *sc, int if_id,
 	conf->bmiss_timeout = ATH_DEFAULT_BMISS_LIMIT * conf->listen_interval;
 }
 
-static void ath_drain_txdataq(struct ath_softc *sc, bool retry_tx)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_txq *txq;
-	int i, npend = 0;
-
-	if (sc->sc_flags & SC_OP_INVALID)
-		return;
-
-	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-		if (ATH_TXQ_SETUP(sc, i)) {
-			txq = &sc->tx.txq[i];
-			ath9k_hw_stoptxdma(ah, txq->axq_qnum);
-			npend += ath9k_hw_numtxpending(ah, txq->axq_qnum);
-		}
-	}
-
-	if (npend) {
-		int r;
-
-		DPRINTF(sc, ATH_DBG_XMIT, "Unable to stop TxDMA. Reset HAL!\n");
-
-		spin_lock_bh(&sc->sc_resetlock);
-		r = ath9k_hw_reset(ah, sc->sc_ah->ah_curchan, true);
-		if (r)
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"Unable to reset hardware; reset status %u\n",
-				r);
-		spin_unlock_bh(&sc->sc_resetlock);
-	}
-
-	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-		if (ATH_TXQ_SETUP(sc, i))
-			ath_tx_draintxq(sc, &sc->tx.txq[i], retry_tx);
-	}
-}
-
 static void ath_txq_drain_pending_buffers(struct ath_softc *sc,
 					  struct ath_txq *txq)
 {
@@ -1120,17 +1083,19 @@ int ath_cabq_update(struct ath_softc *sc)
 	return 0;
 }
 
-void ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
+/*
+ * Drain a given TX queue (could be Beacon or Data)
+ *
+ * This assumes output has been stopped and
+ * we do not need to block ath_tx_tasklet.
+ */
+void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 {
 	struct ath_buf *bf, *lastbf;
 	struct list_head bf_head;
 
 	INIT_LIST_HEAD(&bf_head);
 
-	/*
-	 * NB: this assumes output has been stopped and
-	 *     we do not need to block ath_tx_tasklet
-	 */
 	for (;;) {
 		spin_lock_bh(&txq->axq_lock);
 
@@ -1180,18 +1145,51 @@ void ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 	}
 }
 
+void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
+{
+	struct ath_hal *ah = sc->sc_ah;
+	struct ath_txq *txq;
+	int i, npend = 0;
+
+	if (sc->sc_flags & SC_OP_INVALID)
+		return;
+
+	/* Stop beacon queue */
+	ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+
+	/* Stop data queues */
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
+		if (ATH_TXQ_SETUP(sc, i)) {
+			txq = &sc->tx.txq[i];
+			ath9k_hw_stoptxdma(ah, txq->axq_qnum);
+			npend += ath9k_hw_numtxpending(ah, txq->axq_qnum);
+		}
+	}
+
+	if (npend) {
+		int r;
+
+		DPRINTF(sc, ATH_DBG_XMIT, "Unable to stop TxDMA. Reset HAL!\n");
+
+		spin_lock_bh(&sc->sc_resetlock);
+		r = ath9k_hw_reset(ah, sc->sc_ah->ah_curchan, true);
+		if (r)
+			DPRINTF(sc, ATH_DBG_FATAL,
+				"Unable to reset hardware; reset status %u\n",
+				r);
+		spin_unlock_bh(&sc->sc_resetlock);
+	}
+
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
+		if (ATH_TXQ_SETUP(sc, i))
+			ath_draintxq(sc, &sc->tx.txq[i], retry_tx);
+	}
+}
+
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq)
 {
 	ath9k_hw_releasetxqueue(sc->sc_ah, txq->axq_qnum);
 	sc->tx.txqsetup &= ~(1<<txq->axq_qnum);
-}
-
-void ath_draintxq(struct ath_softc *sc, bool retry_tx)
-{
-	if (!(sc->sc_flags & SC_OP_INVALID))
-		(void) ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
-
-	ath_drain_txdataq(sc, retry_tx);
 }
 
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
