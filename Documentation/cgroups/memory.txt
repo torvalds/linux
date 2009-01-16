@@ -302,7 +302,7 @@ will be charged as a new owner of it.
 	unevictable		- # of pages cannot be reclaimed.(mlocked etc)
 
 	Below is depend on CONFIG_DEBUG_VM.
-	inactive_ratio		- VM inernal parameter. (see mm/page_alloc.c)
+	inactive_ratio		- VM internal parameter. (see mm/page_alloc.c)
 	recent_rotated_anon	- VM internal parameter. (see mm/vmscan.c)
 	recent_rotated_file	- VM internal parameter. (see mm/vmscan.c)
 	recent_scanned_anon 	- VM internal parameter. (see mm/vmscan.c)
