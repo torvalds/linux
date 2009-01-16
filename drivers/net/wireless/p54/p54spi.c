@@ -39,6 +39,20 @@
 MODULE_FIRMWARE("3826.arm");
 MODULE_ALIAS("stlc45xx");
 
+/*
+ * gpios should be handled in board files and provided via platform data,
+ * but because it's currently impossible for p54spi to have a header file
+ * in include/linux, let's use module paramaters for now
+ */
+
+static int p54spi_gpio_power = 97;
+module_param(p54spi_gpio_power, int, 0444);
+MODULE_PARM_DESC(p54spi_gpio_power, "gpio number for power line");
+
+static int p54spi_gpio_irq = 87;
+module_param(p54spi_gpio_irq, int, 0444);
+MODULE_PARM_DESC(p54spi_gpio_irq, "gpio number for irq line");
+
 static void p54spi_spi_read(struct p54s_priv *priv, u8 address,
 			      void *buf, size_t len)
 {
@@ -283,14 +297,14 @@ static int p54spi_upload_firmware(struct ieee80211_hw *dev)
 
 static void p54spi_power_off(struct p54s_priv *priv)
 {
-	disable_irq(gpio_to_irq(priv->config->irq_gpio));
-	gpio_set_value(priv->config->power_gpio, 0);
+	disable_irq(gpio_to_irq(p54spi_gpio_irq));
+	gpio_set_value(p54spi_gpio_power, 0);
 }
 
 static void p54spi_power_on(struct p54s_priv *priv)
 {
-	gpio_set_value(priv->config->power_gpio, 1);
-	enable_irq(gpio_to_irq(priv->config->irq_gpio));
+	gpio_set_value(p54spi_gpio_power, 1);
+	enable_irq(gpio_to_irq(p54spi_gpio_irq));
 
 	/*
 	 * need to wait a while before device can be accessed, the lenght
@@ -626,9 +640,6 @@ static int __devinit p54spi_probe(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev, priv);
 	priv->spi = spi;
 
-	priv->config = omap_get_config(OMAP_TAG_WLAN_CX3110X,
-				       struct omap_wlan_cx3110x_config);
-
 	spi->bits_per_word = 16;
 	spi->max_speed_hz = 24000000;
 
@@ -638,22 +649,22 @@ static int __devinit p54spi_probe(struct spi_device *spi)
 		goto err_free_common;
 	}
 
-	ret = gpio_request(priv->config->power_gpio, "p54spi power");
+	ret = gpio_request(p54spi_gpio_power, "p54spi power");
 	if (ret < 0) {
 		dev_err(&priv->spi->dev, "power GPIO request failed: %d", ret);
 		goto err_free_common;
 	}
 
-	ret = gpio_request(priv->config->irq_gpio, "p54spi irq");
+	ret = gpio_request(p54spi_gpio_irq, "p54spi irq");
 	if (ret < 0) {
 		dev_err(&priv->spi->dev, "irq GPIO request failed: %d", ret);
 		goto err_free_common;
 	}
 
-	gpio_direction_output(priv->config->power_gpio, 0);
-	gpio_direction_input(priv->config->irq_gpio);
+	gpio_direction_output(p54spi_gpio_power, 0);
+	gpio_direction_input(p54spi_gpio_irq);
 
-	ret = request_irq(OMAP_GPIO_IRQ(priv->config->irq_gpio),
+	ret = request_irq(gpio_to_irq(p54spi_gpio_irq),
 			  p54spi_interrupt, IRQF_DISABLED, "p54spi",
 			  priv->spi);
 	if (ret < 0) {
@@ -661,10 +672,10 @@ static int __devinit p54spi_probe(struct spi_device *spi)
 		goto err_free_common;
 	}
 
-	set_irq_type(gpio_to_irq(priv->config->irq_gpio),
+	set_irq_type(gpio_to_irq(p54spi_gpio_irq),
 		     IRQ_TYPE_EDGE_RISING);
 
-	disable_irq(gpio_to_irq(priv->config->irq_gpio));
+	disable_irq(gpio_to_irq(p54spi_gpio_irq));
 
 	INIT_WORK(&priv->work, p54spi_work);
 	init_completion(&priv->fw_comp);
@@ -705,10 +716,10 @@ static int __devexit p54spi_remove(struct spi_device *spi)
 
 	ieee80211_unregister_hw(priv->hw);
 
-	free_irq(gpio_to_irq(priv->config->irq_gpio), spi);
+	free_irq(gpio_to_irq(p54spi_gpio_irq), spi);
 
-	gpio_free(priv->config->power_gpio);
-	gpio_free(priv->config->irq_gpio);
+	gpio_free(p54spi_gpio_power);
+	gpio_free(p54spi_gpio_irq);
 	release_firmware(priv->firmware);
 
 	mutex_destroy(&priv->mutex);
