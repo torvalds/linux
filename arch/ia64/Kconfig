@@ -221,7 +221,11 @@ config IA64_HP_SIM
 
 config IA64_XEN_GUEST
 	bool "Xen guest"
+	select SWIOTLB
 	depends on XEN
+	help
+	  Build a kernel that runs on Xen guest domain. At this moment only
+	  16KB page size in supported.
 
 endchoice
 
