@@ -40,7 +40,6 @@
 #include <linux/ioctl.h>
 #include <linux/capability.h>
 #include <linux/uaccess.h>
-#include <linux/smp_lock.h>
 #include <mtd/ubi-user.h>
 #include <asm/div64.h>
 #include "ubi.h"
