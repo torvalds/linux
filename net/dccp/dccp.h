@@ -409,23 +409,21 @@ static inline void dccp_hdr_set_ack(struct dccp_hdr_ack_bits *dhack,
 static inline void dccp_update_gsr(struct sock *sk, u64 seq)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	const struct dccp_minisock *dmsk = dccp_msk(sk);
 
 	dp->dccps_gsr = seq;
-	dccp_set_seqno(&dp->dccps_swl,
-		       dp->dccps_gsr + 1 - (dmsk->dccpms_sequence_window / 4));
-	dccp_set_seqno(&dp->dccps_swh,
-		       dp->dccps_gsr + (3 * dmsk->dccpms_sequence_window) / 4);
+	/* Sequence validity window depends on remote Sequence Window (7.5.1) */
+	dp->dccps_swl = SUB48(ADD48(dp->dccps_gsr, 1), dp->dccps_r_seq_win / 4);
+	dp->dccps_swh = ADD48(dp->dccps_gsr, (3 * dp->dccps_r_seq_win) / 4);
 }
 
 static inline void dccp_update_gss(struct sock *sk, u64 seq)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
-	dp->dccps_awh = dp->dccps_gss = seq;
-	dccp_set_seqno(&dp->dccps_awl,
-		       (dp->dccps_gss -
-			dccp_msk(sk)->dccpms_sequence_window + 1));
+	dp->dccps_gss = seq;
+	/* Ack validity window depends on local Sequence Window value (7.5.1) */
+	dp->dccps_awl = SUB48(ADD48(dp->dccps_gss, 1), dp->dccps_l_seq_win);
+	dp->dccps_awh = dp->dccps_gss;
 }
 
 static inline int dccp_ack_pending(const struct sock *sk)
