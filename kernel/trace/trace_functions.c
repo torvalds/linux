@@ -133,6 +133,7 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip)
 
 	if (likely(disabled == 1)) {
 		pc = preempt_count();
+		trace_function(tr, data, ip, parent_ip, flags, pc);
 		/*
 		 * skip over 5 funcs:
 		 *    __ftrace_trace_stack,
@@ -154,24 +155,6 @@ static struct ftrace_ops trace_ops __read_mostly =
 	.func = function_trace_call,
 };
 
-void tracing_start_function_trace(void)
-{
-	ftrace_function_enabled = 0;
-
-	if (trace_flags & TRACE_ITER_PREEMPTONLY)
-		trace_ops.func = function_trace_call_preempt_only;
-	else
-		trace_ops.func = function_trace_call;
-
-	register_ftrace_function(&trace_ops);
-	ftrace_function_enabled = 1;
-}
-
-void tracing_stop_function_trace(void)
-{
-	ftrace_function_enabled = 0;
-	unregister_ftrace_function(&trace_ops);
-}
 static struct ftrace_ops trace_stack_ops __read_mostly =
 {
 	.func = function_stack_trace_call,
@@ -194,6 +177,31 @@ static struct tracer_flags func_flags = {
 	.opts = func_opts
 };
 
+void tracing_start_function_trace(void)
+{
+	ftrace_function_enabled = 0;
+
+	if (trace_flags & TRACE_ITER_PREEMPTONLY)
+		trace_ops.func = function_trace_call_preempt_only;
+	else
+		trace_ops.func = function_trace_call;
+
+	if (func_flags.val & TRACE_FUNC_OPT_STACK)
+		register_ftrace_function(&trace_stack_ops);
+	else
+		register_ftrace_function(&trace_ops);
+
+	ftrace_function_enabled = 1;
+}
+
+void tracing_stop_function_trace(void)
+{
+	ftrace_function_enabled = 0;
+	/* OK if they are not registered */
+	unregister_ftrace_function(&trace_stack_ops);
+	unregister_ftrace_function(&trace_ops);
+}
+
 static int func_set_flag(u32 old_flags, u32 bit, int set)
 {
 	if (bit == TRACE_FUNC_OPT_STACK) {
@@ -201,10 +209,13 @@ static int func_set_flag(u32 old_flags, u32 bit, int set)
 		if (!!set == !!(func_flags.val & TRACE_FUNC_OPT_STACK))
 			return 0;
 
-		if (set)
+		if (set) {
+			unregister_ftrace_function(&trace_ops);
 			register_ftrace_function(&trace_stack_ops);
-		else
+		} else {
 			unregister_ftrace_function(&trace_stack_ops);
+			register_ftrace_function(&trace_ops);
+		}
 
 		return 0;
 	}
@@ -214,14 +225,14 @@ static int func_set_flag(u32 old_flags, u32 bit, int set)
 
 static struct tracer function_trace __read_mostly =
 {
-	.name	     = "function",
-	.init	     = function_trace_init,
-	.reset	     = function_trace_reset,
-	.start	     = function_trace_start,
+	.name		= "function",
+	.init		= function_trace_init,
+	.reset		= function_trace_reset,
+	.start		= function_trace_start,
 	.flags		= &func_flags,
 	.set_flag	= func_set_flag,
 #ifdef CONFIG_FTRACE_SELFTEST
-	.selftest    = trace_selftest_startup_function,
+	.selftest	= trace_selftest_startup_function,
 #endif
 };
 
