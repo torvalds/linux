@@ -90,12 +90,12 @@ extern int initcall_debug;
 static async_cookie_t  __lowest_in_progress(struct list_head *running)
 {
 	struct async_entry *entry;
-	if (!list_empty(&async_pending)) {
-		entry = list_first_entry(&async_pending,
+	if (!list_empty(running)) {
+		entry = list_first_entry(running,
 			struct async_entry, list);
 		return entry->cookie;
-	} else if (!list_empty(running)) {
-		entry = list_first_entry(running,
+	} else if (!list_empty(&async_pending)) {
+		entry = list_first_entry(&async_pending,
 			struct async_entry, list);
 		return entry->cookie;
 	} else {
@@ -103,6 +103,17 @@ static async_cookie_t  __lowest_in_progress(struct list_head *running)
 		return next_cookie;
 	}
 
+}
+
+static async_cookie_t  lowest_in_progress(struct list_head *running)
+{
+	unsigned long flags;
+	async_cookie_t ret;
+
+	spin_lock_irqsave(&async_lock, flags);
+	ret = __lowest_in_progress(running);
+	spin_unlock_irqrestore(&async_lock, flags);
+	return ret;
 }
 /*
  * pick the first pending entry and run it
@@ -229,7 +240,7 @@ void async_synchronize_cookie_special(async_cookie_t cookie, struct list_head *r
 		starttime = ktime_get();
 	}
 
-	wait_event(async_done, __lowest_in_progress(running) >= cookie);
+	wait_event(async_done, lowest_in_progress(running) >= cookie);
 
 	if (initcall_debug && system_state == SYSTEM_BOOTING) {
 		endtime = ktime_get();

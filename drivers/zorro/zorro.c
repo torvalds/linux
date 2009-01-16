@@ -130,6 +130,7 @@ static int __init zorro_init(void)
 {
     struct zorro_dev *z;
     unsigned int i;
+    int error;
 
     if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(ZORRO))
 	return 0;
@@ -140,7 +141,11 @@ static int __init zorro_init(void)
     /* Initialize the Zorro bus */
     INIT_LIST_HEAD(&zorro_bus.devices);
     strcpy(zorro_bus.dev.bus_id, "zorro");
-    device_register(&zorro_bus.dev);
+    error = device_register(&zorro_bus.dev);
+    if (error) {
+	pr_err("Zorro: Error registering zorro_bus\n");
+	return error;
+    }
 
     /* Request the resources */
     zorro_bus.num_resources = AMIGAHW_PRESENT(ZORRO3) ? 4 : 2;
@@ -160,15 +165,19 @@ static int __init zorro_init(void)
 	zorro_name_device(z);
 	z->resource.name = z->name;
 	if (request_resource(zorro_find_parent_resource(z), &z->resource))
-	    printk(KERN_ERR "Zorro: Address space collision on device %s "
-		   "[%lx:%lx]\n",
-		   z->name, (unsigned long)zorro_resource_start(z),
-		   (unsigned long)zorro_resource_end(z));
+	    pr_err("Zorro: Address space collision on device %s %pR\n",
+		   z->name, &z->resource);
 	sprintf(z->dev.bus_id, "%02x", i);
 	z->dev.parent = &zorro_bus.dev;
 	z->dev.bus = &zorro_bus_type;
-	device_register(&z->dev);
-	zorro_create_sysfs_dev_files(z);
+	error = device_register(&z->dev);
+	if (error) {
+	    pr_err("Zorro: Error registering device %s\n", z->name);
+	    continue;
+	}
+	error = zorro_create_sysfs_dev_files(z);
+	if (error)
+	    dev_err(&z->dev, "Error creating sysfs files\n");
     }
 
     /* Mark all available Zorro II memory */

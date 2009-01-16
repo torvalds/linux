@@ -199,7 +199,9 @@ extern unsigned short ram_flags;
 extern int root_mountflags;
 
 char reboot_command[COMMAND_LINE_SIZE];
+
 enum sparc_cpu sparc_cpu_model;
+EXPORT_SYMBOL(sparc_cpu_model);
 
 struct tt_entry *sparc_ttable;
 
@@ -391,6 +393,7 @@ void sun_do_break(void)
 
 	prom_cmdline();
 }
+EXPORT_SYMBOL(sun_do_break);
 
 int stop_a_enabled = 1;
 

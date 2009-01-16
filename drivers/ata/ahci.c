@@ -2660,6 +2660,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	host->iomap = pcim_iomap_table(pdev);
 	host->private_data = hpriv;
 
+	if (!(hpriv->cap & HOST_CAP_SSS))
+		host->flags |= ATA_HOST_PARALLEL_SCAN;
+
 	if (pi.flags & ATA_FLAG_EM)
 		ahci_reset_em(host);
 

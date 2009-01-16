@@ -298,6 +298,10 @@ static void fib6_dump_end(struct netlink_callback *cb)
 	struct fib6_walker_t *w = (void*)cb->args[2];
 
 	if (w) {
+		if (cb->args[4]) {
+			cb->args[4] = 0;
+			fib6_walker_unlink(w);
+		}
 		cb->args[2] = 0;
 		kfree(w);
 	}
@@ -330,15 +334,12 @@ static int fib6_dump_table(struct fib6_table *table, struct sk_buff *skb,
 		read_lock_bh(&table->tb6_lock);
 		res = fib6_walk_continue(w);
 		read_unlock_bh(&table->tb6_lock);
-		if (res != 0) {
-			if (res < 0)
-				fib6_walker_unlink(w);
-			goto end;
+		if (res <= 0) {
+			fib6_walker_unlink(w);
+			cb->args[4] = 0;
 		}
-		fib6_walker_unlink(w);
-		cb->args[4] = 0;
 	}
-end:
+
 	return res;
 }
 

@@ -896,9 +896,9 @@ sys_getxpid:
 .end sys_getxpid
 
 	.align	4
-	.globl	sys_pipe
-	.ent	sys_pipe
-sys_pipe:
+	.globl	sys_alpha_pipe
+	.ent	sys_alpha_pipe
+sys_alpha_pipe:
 	lda	$sp, -16($sp)
 	stq	$26, 0($sp)
 	.prologue 0
@@ -916,7 +916,7 @@ sys_pipe:
 	stq	$1, 80+16($sp)
 1:	lda	$sp, 16($sp)
 	ret
-.end sys_pipe
+.end sys_alpha_pipe
 
 	.align	4
 	.globl	sys_execve

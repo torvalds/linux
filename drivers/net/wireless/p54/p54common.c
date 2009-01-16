@@ -138,6 +138,7 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 	u8 *fw_version = NULL;
 	size_t len;
 	int i;
+	int maxlen;
 
 	if (priv->rx_start)
 		return 0;
@@ -195,6 +196,16 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 			else
 				priv->rx_mtu = (size_t)
 					0x620 - priv->tx_hdr_len;
+			maxlen = priv->tx_hdr_len + /* USB devices */
+				 sizeof(struct p54_rx_data) +
+				 4 + /* rx alignment */
+				 IEEE80211_MAX_FRAG_THRESHOLD;
+			if (priv->rx_mtu > maxlen && PAGE_SIZE == 4096) {
+				printk(KERN_INFO "p54: rx_mtu reduced from %d "
+					         "to %d\n", priv->rx_mtu,
+						 maxlen);
+				priv->rx_mtu = maxlen;
+			}
 			break;
 			}
 		case BR_CODE_EXPOSED_IF:
@@ -575,6 +586,7 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	u16 freq = le16_to_cpu(hdr->freq);
 	size_t header_len = sizeof(*hdr);
 	u32 tsf32;
+	u8 rate = hdr->rate & 0xf;
 
 	/*
 	 * If the device is in a unspecified state we have to
@@ -603,8 +615,11 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	rx_status.qual = (100 * hdr->rssi) / 127;
 	if (hdr->rate & 0x10)
 		rx_status.flag |= RX_FLAG_SHORTPRE;
-	rx_status.rate_idx = (dev->conf.channel->band == IEEE80211_BAND_2GHZ ?
-			hdr->rate : (hdr->rate - 4)) & 0xf;
+	if (dev->conf.channel->band == IEEE80211_BAND_5GHZ)
+		rx_status.rate_idx = (rate < 4) ? 0 : rate - 4;
+	else
+		rx_status.rate_idx = rate;
+
 	rx_status.freq = freq;
 	rx_status.band =  dev->conf.channel->band;
 	rx_status.antenna = hdr->antenna;
@@ -798,6 +813,16 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 		info->status.ack_signal = p54_rssi_to_dbm(dev,
 				(int)payload->ack_rssi);
+
+		if (entry_data->key_type == P54_CRYPTO_TKIPMICHAEL) {
+			u8 *iv = (u8 *)(entry_data->align + pad +
+				        entry_data->crypt_offset);
+
+			/* Restore the original TKIP IV. */
+			iv[2] = iv[0];
+			iv[0] = iv[1];
+			iv[1] = (iv[0] | 0x20) & 0x7f;	/* WEPSeed - 8.3.2.2 */
+		}
 		skb_pull(entry, sizeof(*hdr) + pad + sizeof(*entry_data));
 		ieee80211_tx_status_irqsafe(dev, entry);
 		goto out;
@@ -1383,7 +1408,6 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	hdr->tries = ridx;
 	txhdr->rts_rate_idx = 0;
 	if (info->control.hw_key) {
-		crypt_offset += info->control.hw_key->iv_len;
 		txhdr->key_type = p54_convert_algo(info->control.hw_key->alg);
 		txhdr->key_len = min((u8)16, info->control.hw_key->keylen);
 		memcpy(txhdr->key, info->control.hw_key->key, txhdr->key_len);
@@ -1397,6 +1421,8 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		}
 		/* reserve some space for ICV */
 		len += info->control.hw_key->icv_len;
+		memset(skb_put(skb, info->control.hw_key->icv_len), 0,
+		       info->control.hw_key->icv_len);
 	} else {
 		txhdr->key_type = 0;
 		txhdr->key_len = 0;
@@ -1824,7 +1850,7 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 
 static int p54_config(struct ieee80211_hw *dev, u32 changed)
 {
-	int ret;
+	int ret = 0;
 	struct p54_common *priv = dev->priv;
 	struct ieee80211_conf *conf = &dev->conf;
 

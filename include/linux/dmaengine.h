@@ -270,8 +270,18 @@ struct dma_device {
 
 /* --- public DMA engine API --- */
 
+#ifdef CONFIG_DMA_ENGINE
 void dmaengine_get(void);
 void dmaengine_put(void);
+#else
+static inline void dmaengine_get(void)
+{
+}
+static inline void dmaengine_put(void)
+{
+}
+#endif
+
 dma_cookie_t dma_async_memcpy_buf_to_buf(struct dma_chan *chan,
 	void *dest, void *src, size_t len);
 dma_cookie_t dma_async_memcpy_buf_to_pg(struct dma_chan *chan,

@@ -1914,10 +1914,17 @@ static int xfrm_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 }
 #endif
 
+/* For the xfrm_usersa_info cases we have to work around some 32-bit vs.
+ * 64-bit compatability issues.  On 32-bit the structure is 220 bytes, but
+ * for 64-bit it gets padded out to 224 bytes.  Those bytes are just
+ * padding and don't have any content we care about.  Therefore as long
+ * as we have enough bytes for the content we can make both cases work.
+ */
+
 #define XMSGSIZE(type) sizeof(struct type)
 
 static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
-	[XFRM_MSG_NEWSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_info),
+	[XFRM_MSG_NEWSA       - XFRM_MSG_BASE] = 220, /* see above */
 	[XFRM_MSG_DELSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_id),
 	[XFRM_MSG_GETSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_id),
 	[XFRM_MSG_NEWPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_info),
@@ -1927,7 +1934,7 @@ static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 	[XFRM_MSG_ACQUIRE     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_acquire),
 	[XFRM_MSG_EXPIRE      - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_expire),
 	[XFRM_MSG_UPDPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_info),
-	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_info),
+	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = 220, /* see above */
 	[XFRM_MSG_POLEXPIRE   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_polexpire),
 	[XFRM_MSG_FLUSHSA     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_flush),
 	[XFRM_MSG_FLUSHPOLICY - XFRM_MSG_BASE] = 0,

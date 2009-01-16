@@ -9,6 +9,8 @@
 #include <linux/scatterlist.h>
 #include <asm/swiotlb.h>
 
+#define ARCH_HAS_DMA_GET_REQUIRED_MASK
+
 extern struct dma_map_ops *dma_ops;
 extern struct ia64_machine_vector ia64_mv;
 extern void set_iommu_machvec(void);

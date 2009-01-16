@@ -313,7 +313,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 		 * When preamble is enabled we should set the
 		 * preamble bit for the signal.
 		 */
-		if (rt2x00_get_rate_preamble(rate->hw_value))
+		if (rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 			txdesc->signal |= 0x08;
 	}
 }
