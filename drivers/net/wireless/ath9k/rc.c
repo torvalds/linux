@@ -19,7 +19,6 @@
 
 static struct ath_rate_table ar5416_11na_ratetable = {
 	42,
-	{0},
 	{
 		{ VALID, VALID, WLAN_RC_PHY_OFDM, 6000, /* 6 Mb */
 			5400, 0x0b, 0x00, 12,
@@ -158,7 +157,6 @@ static struct ath_rate_table ar5416_11na_ratetable = {
 
 static struct ath_rate_table ar5416_11ng_ratetable = {
 	46,
-	{0},
 	{
 		{ VALID_ALL, VALID_ALL, WLAN_RC_PHY_CCK, 1000, /* 1 Mb */
 			900, 0x1b, 0x00, 2,
@@ -306,7 +304,6 @@ static struct ath_rate_table ar5416_11ng_ratetable = {
 
 static struct ath_rate_table ar5416_11a_ratetable = {
 	8,
-	{0},
 	{
 		{ VALID, VALID, WLAN_RC_PHY_OFDM, 6000, /* 6 Mb */
 			5400, 0x0b, 0x00, (0x80|12),
@@ -340,7 +337,6 @@ static struct ath_rate_table ar5416_11a_ratetable = {
 
 static struct ath_rate_table ar5416_11g_ratetable = {
 	12,
-	{0},
 	{
 		{ VALID, VALID, WLAN_RC_PHY_CCK, 1000, /* 1 Mb */
 			900, 0x1b, 0x00, 2,
@@ -386,7 +382,6 @@ static struct ath_rate_table ar5416_11g_ratetable = {
 
 static struct ath_rate_table ar5416_11b_ratetable = {
 	4,
-	{0},
 	{
 		{ VALID, VALID, WLAN_RC_PHY_CCK, 1000, /* 1 Mb */
 			900, 0x1b,  0x00, (0x80|2),
@@ -1607,16 +1602,8 @@ static void ath_setup_rate_table(struct ath_softc *sc,
 {
 	int i;
 
-	for (i = 0; i < 256; i++)
-		rate_table->rateCodeToIndex[i] = (u8)-1;
-
 	for (i = 0; i < rate_table->rate_cnt; i++) {
-		u8 code = rate_table->info[i].ratecode;
 		u8 cix = rate_table->info[i].ctrl_rate;
-		u8 sh = rate_table->info[i].short_preamble;
-
-		rate_table->rateCodeToIndex[code] = i;
-		rate_table->rateCodeToIndex[code | sh] = i;
 
 		rate_table->info[i].lpAckDuration =
 			ath9k_hw_computetxtime(sc->sc_ah, rate_table,
