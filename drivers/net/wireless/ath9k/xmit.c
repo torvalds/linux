@@ -877,12 +877,6 @@ static u32 ath_txq_depth(struct ath_softc *sc, int qnum)
 	return sc->tx.txq[qnum].axq_depth;
 }
 
-static void ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	(void) ath9k_hw_stoptxdma(ah, txq->axq_qnum);
-}
-
 static void ath_get_beaconconfig(struct ath_softc *sc, int if_id,
 				 struct ath_beacon_config *conf)
 {
@@ -899,15 +893,17 @@ static void ath_get_beaconconfig(struct ath_softc *sc, int if_id,
 static void ath_drain_txdataq(struct ath_softc *sc, bool retry_tx)
 {
 	struct ath_hal *ah = sc->sc_ah;
+	struct ath_txq *txq;
 	int i, npend = 0;
 
-	if (!(sc->sc_flags & SC_OP_INVALID)) {
-		for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-			if (ATH_TXQ_SETUP(sc, i)) {
-				ath_tx_stopdma(sc, &sc->tx.txq[i]);
-				npend += ath9k_hw_numtxpending(ah,
-						       sc->tx.txq[i].axq_qnum);
-			}
+	if (sc->sc_flags & SC_OP_INVALID)
+		return;
+
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
+		if (ATH_TXQ_SETUP(sc, i)) {
+			txq = &sc->tx.txq[i];
+			ath9k_hw_stoptxdma(ah, txq->axq_qnum);
+			npend += ath9k_hw_numtxpending(ah, txq->axq_qnum);
 		}
 	}
 
