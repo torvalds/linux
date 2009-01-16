@@ -369,28 +369,9 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
   * Will be used to pass the state from dccp_request_sock to dccp_sock.
   *
   * @dccpms_sequence_window - Sequence Window Feature (section 7.5.2)
-  * @dccpms_pending - List of features being negotiated
-  * @dccpms_conf -
   */
 struct dccp_minisock {
 	__u64			dccpms_sequence_window;
-	struct list_head	dccpms_pending;
-	struct list_head	dccpms_conf;
-};
-
-struct dccp_opt_conf {
-	__u8			*dccpoc_val;
-	__u8			dccpoc_len;
-};
-
-struct dccp_opt_pend {
-	struct list_head	dccpop_node;
-	__u8			dccpop_type;
-	__u8			dccpop_feat;
-	__u8		        *dccpop_val;
-	__u8			dccpop_len;
-	int			dccpop_conf;
-	struct dccp_opt_conf    *dccpop_sc;
 };
 
 extern void dccp_minisock_init(struct dccp_minisock *dmsk);
