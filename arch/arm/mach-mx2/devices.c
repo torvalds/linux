@@ -281,6 +281,26 @@ struct platform_device mxc_fec_device = {
 };
 #endif
 
+static struct resource mxc_pwm_resources[] = {
+	[0] = {
+		.start	= PWM_BASE_ADDR,
+		.end	= PWM_BASE_ADDR + 0x0fff,
+		.flags	= IORESOURCE_MEM
+	},
+	[1] = {
+		.start   = MXC_INT_PWM,
+		.end     = MXC_INT_PWM,
+		.flags   = IORESOURCE_IRQ,
+	}
+};
+
+struct platform_device mxc_pwm_device = {
+	.name = "mxc_pwm",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_pwm_resources),
+	.resource = mxc_pwm_resources
+};
+
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	[0] = {
