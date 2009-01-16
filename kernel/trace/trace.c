@@ -1046,65 +1046,6 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 	local_irq_restore(flags);
 }
 
-#ifdef CONFIG_FUNCTION_TRACER
-static void
-function_trace_call_preempt_only(unsigned long ip, unsigned long parent_ip)
-{
-	struct trace_array *tr = &global_trace;
-	struct trace_array_cpu *data;
-	unsigned long flags;
-	long disabled;
-	int cpu, resched;
-	int pc;
-
-	if (unlikely(!ftrace_function_enabled))
-		return;
-
-	pc = preempt_count();
-	resched = ftrace_preempt_disable();
-	local_save_flags(flags);
-	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-
-	if (likely(disabled == 1))
-		trace_function(tr, data, ip, parent_ip, flags, pc);
-
-	atomic_dec(&data->disabled);
-	ftrace_preempt_enable(resched);
-}
-
-static void
-function_trace_call(unsigned long ip, unsigned long parent_ip)
-{
-	struct trace_array *tr = &global_trace;
-	struct trace_array_cpu *data;
-	unsigned long flags;
-	long disabled;
-	int cpu;
-	int pc;
-
-	if (unlikely(!ftrace_function_enabled))
-		return;
-
-	/*
-	 * Need to use raw, since this must be called before the
-	 * recursive protection is performed.
-	 */
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-
-	if (likely(disabled == 1)) {
-		pc = preempt_count();
-		trace_function(tr, data, ip, parent_ip, flags, pc);
-	}
-
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
-}
-
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 int trace_graph_entry(struct ftrace_graph_ent *trace)
 {
@@ -1161,31 +1102,6 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 	local_irq_restore(flags);
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-
-static struct ftrace_ops trace_ops __read_mostly =
-{
-	.func = function_trace_call,
-};
-
-void tracing_start_function_trace(void)
-{
-	ftrace_function_enabled = 0;
-
-	if (trace_flags & TRACE_ITER_PREEMPTONLY)
-		trace_ops.func = function_trace_call_preempt_only;
-	else
-		trace_ops.func = function_trace_call;
-
-	register_ftrace_function(&trace_ops);
-	ftrace_function_enabled = 1;
-}
-
-void tracing_stop_function_trace(void)
-{
-	ftrace_function_enabled = 0;
-	unregister_ftrace_function(&trace_ops);
-}
-#endif
 
 enum trace_file_type {
 	TRACE_FILE_LAT_FMT	= 1,
