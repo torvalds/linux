@@ -367,11 +367,6 @@ int po1030_start(struct sd *sd)
 		break;
 
 	case 640:
-		data = 0;
-		err = m5602_write_sensor(sd, PO1030_CONTROL3, &data, 1);
-		if (err < 0)
-			return err;
-
 		data = ((width + 7) >> 8) & 0xff;
 		err = m5602_write_sensor(sd, PO1030_WINDOWWIDTH_H, &data, 1);
 		if (err < 0)
@@ -394,12 +389,19 @@ int po1030_start(struct sd *sd)
 		width -= 2;
 		break;
 	}
+	err = m5602_write_bridge(sd, M5602_XB_SENSOR_TYPE, 0x0c);
+	if (err < 0)
+		return err;
 
 	err = m5602_write_bridge(sd, M5602_XB_LINE_OF_FRAME_H, 0x81);
 	if (err < 0)
 		return err;
 
 	err = m5602_write_bridge(sd, M5602_XB_PIX_OF_LINE_H, 0x82);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_SIG_INI, 0x01);
 	if (err < 0)
 		return err;
 
@@ -412,7 +414,8 @@ int po1030_start(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, 0);
+	for (i = 0; i < 2 && !err; i++)
+		err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, 0);
 	if (err < 0)
 		return err;
 
@@ -428,6 +431,9 @@ int po1030_start(struct sd *sd)
 		err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, 0);
 
 	for (i = 0; i < 2 && !err; i++)
+		err = m5602_write_bridge(sd, M5602_XB_SIG_INI, 0);
+
+	for (i = 0; i < 2 && !err; i++)
 		err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA, 0);
 	if (err < 0)
 		return err;
@@ -437,6 +443,10 @@ int po1030_start(struct sd *sd)
 		return err;
 
 	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA, (width & 0xff));
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_SIG_INI, 0);
 	return err;
 }
 
