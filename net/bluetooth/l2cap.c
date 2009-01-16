@@ -50,7 +50,7 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
-#define VERSION "2.11"
+#define VERSION "2.12"
 
 static u32 l2cap_feat_mask = 0x0000;
 

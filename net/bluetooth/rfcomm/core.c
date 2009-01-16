@@ -46,7 +46,7 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/rfcomm.h>
 
-#define VERSION "1.10"
+#define VERSION "1.11"
 
 static int disable_cfc = 0;
 static int channel_mtu = -1;

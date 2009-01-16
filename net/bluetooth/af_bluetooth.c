@@ -41,7 +41,7 @@
 
 #include <net/bluetooth/bluetooth.h>
 
-#define VERSION "2.14"
+#define VERSION "2.15"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
