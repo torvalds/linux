@@ -318,8 +318,6 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	} /* else count == 0 */
 
 	tty->driver_data = hp;
-	if (!hp->irq_requested)
-		tty->low_latency = 1; /* Makes flushes to ldisc synchronous. */
 
 	hp->tty = tty;
 

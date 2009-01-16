@@ -44,7 +44,7 @@ static ssize_t ps3flash_read_write_sectors(struct ps3_storage_device *dev,
 	u64 res = ps3stor_read_write_sectors(dev, lpar, start_sector, sectors,
 					     write);
 	if (res) {
-		dev_err(&dev->sbd.core, "%s:%u: %s failed 0x%lx\n", __func__,
+		dev_err(&dev->sbd.core, "%s:%u: %s failed 0x%llx\n", __func__,
 			__LINE__, write ? "write" : "read", res);
 		return -EIO;
 	}
@@ -59,7 +59,7 @@ static ssize_t ps3flash_read_sectors(struct ps3_storage_device *dev,
 
 	max_sectors = dev->bounce_size / dev->blk_size;
 	if (sectors > max_sectors) {
-		dev_dbg(&dev->sbd.core, "%s:%u Limiting sectors to %lu\n",
+		dev_dbg(&dev->sbd.core, "%s:%u Limiting sectors to %llu\n",
 			__func__, __LINE__, max_sectors);
 		sectors = max_sectors;
 	}
@@ -144,7 +144,7 @@ static ssize_t ps3flash_read(struct file *file, char __user *buf, size_t count,
 			goto fail;
 		}
 
-		n = min(remaining, sectors_read*dev->blk_size-offset);
+		n = min_t(u64, remaining, sectors_read*dev->blk_size-offset);
 		dev_dbg(&dev->sbd.core,
 			"%s:%u: copy %lu bytes from 0x%p to user 0x%p\n",
 			__func__, __LINE__, n, dev->bounce_buf+offset, buf);
@@ -225,7 +225,7 @@ static ssize_t ps3flash_write(struct file *file, const char __user *buf,
 		if (end_read_sector >= start_read_sector) {
 			/* Merge head and tail */
 			dev_dbg(&dev->sbd.core,
-				"Merged head and tail: %lu sectors at %lu\n",
+				"Merged head and tail: %llu sectors at %llu\n",
 				chunk_sectors, start_write_sector);
 			res = ps3flash_read_sectors(dev, start_write_sector,
 						    chunk_sectors, 0);
@@ -235,7 +235,7 @@ static ssize_t ps3flash_write(struct file *file, const char __user *buf,
 			if (head) {
 				/* Read head */
 				dev_dbg(&dev->sbd.core,
-					"head: %lu sectors at %lu\n", head,
+					"head: %llu sectors at %llu\n", head,
 					start_write_sector);
 				res = ps3flash_read_sectors(dev,
 							    start_write_sector,
@@ -247,7 +247,7 @@ static ssize_t ps3flash_write(struct file *file, const char __user *buf,
 			    start_write_sector+chunk_sectors) {
 				/* Read tail */
 				dev_dbg(&dev->sbd.core,
-					"tail: %lu sectors at %lu\n", tail,
+					"tail: %llu sectors at %llu\n", tail,
 					start_read_sector);
 				sec_off = start_read_sector-start_write_sector;
 				res = ps3flash_read_sectors(dev,
@@ -258,7 +258,7 @@ static ssize_t ps3flash_write(struct file *file, const char __user *buf,
 			}
 		}
 
-		n = min(remaining, dev->bounce_size-offset);
+		n = min_t(u64, remaining, dev->bounce_size-offset);
 		dev_dbg(&dev->sbd.core,
 			"%s:%u: copy %lu bytes from user 0x%p to 0x%p\n",
 			__func__, __LINE__, n, buf, dev->bounce_buf+offset);
@@ -299,11 +299,11 @@ static irqreturn_t ps3flash_interrupt(int irq, void *data)
 
 	if (tag != dev->tag)
 		dev_err(&dev->sbd.core,
-			"%s:%u: tag mismatch, got %lx, expected %lx\n",
+			"%s:%u: tag mismatch, got %llx, expected %llx\n",
 			__func__, __LINE__, tag, dev->tag);
 
 	if (res) {
-		dev_err(&dev->sbd.core, "%s:%u: res=%d status=0x%lx\n",
+		dev_err(&dev->sbd.core, "%s:%u: res=%d status=0x%llx\n",
 			__func__, __LINE__, res, status);
 	} else {
 		dev->lv1_status = status;
