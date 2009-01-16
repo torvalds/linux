@@ -220,6 +220,7 @@ loop:
 				tail->bi_next = old_head;
 			else
 				device->pending_bio_tail = tail;
+			device->running_pending = 0;
 
 			spin_unlock(&device->io_lock);
 			btrfs_requeue_work(&device->work);
