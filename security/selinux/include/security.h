@@ -37,10 +37,16 @@
 #define POLICYDB_VERSION_MAX	POLICYDB_VERSION_BOUNDARY
 #endif
 
+/* Mask for just the mount related flags */
+#define SE_MNTMASK	0x0f
+/* Super block security struct flags for mount options */
 #define CONTEXT_MNT	0x01
 #define FSCONTEXT_MNT	0x02
 #define ROOTCONTEXT_MNT	0x04
 #define DEFCONTEXT_MNT	0x08
+/* Non-mount related flags */
+#define SE_SBINITIALIZED	0x10
+#define SE_SBPROC		0x20
 
 #define CONTEXT_STR	"context="
 #define FSCONTEXT_STR	"fscontext="

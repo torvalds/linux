@@ -431,7 +431,7 @@ static int sb_finish_set_opts(struct super_block *sb)
 		}
 	}
 
-	sbsec->initialized = 1;
+	sbsec->flags |= SE_SBINITIALIZED;
 
 	if (sbsec->behavior > ARRAY_SIZE(labeling_behaviors))
 		printk(KERN_ERR "SELinux: initialized (dev %s, type %s), unknown behavior\n",
@@ -487,17 +487,13 @@ static int selinux_get_mnt_opts(const struct super_block *sb,
 
 	security_init_mnt_opts(opts);
 
-	if (!sbsec->initialized)
+	if (!(sbsec->flags & SE_SBINITIALIZED))
 		return -EINVAL;
 
 	if (!ss_initialized)
 		return -EINVAL;
 
-	/*
-	 * if we ever use sbsec flags for anything other than tracking mount
-	 * settings this is going to need a mask
-	 */
-	tmp = sbsec->flags;
+	tmp = sbsec->flags & SE_MNTMASK;
 	/* count the number of mount options for this sb */
 	for (i = 0; i < 8; i++) {
 		if (tmp & 0x01)
@@ -562,8 +558,10 @@ out_free:
 static int bad_option(struct superblock_security_struct *sbsec, char flag,
 		      u32 old_sid, u32 new_sid)
 {
+	char mnt_flags = sbsec->flags & SE_MNTMASK;
+
 	/* check if the old mount command had the same options */
-	if (sbsec->initialized)
+	if (sbsec->flags & SE_SBINITIALIZED)
 		if (!(sbsec->flags & flag) ||
 		    (old_sid != new_sid))
 			return 1;
@@ -571,8 +569,8 @@ static int bad_option(struct superblock_security_struct *sbsec, char flag,
 	/* check if we were passed the same options twice,
 	 * aka someone passed context=a,context=b
 	 */
-	if (!sbsec->initialized)
-		if (sbsec->flags & flag)
+	if (!(sbsec->flags & SE_SBINITIALIZED))
+		if (mnt_flags & flag)
 			return 1;
 	return 0;
 }
@@ -626,7 +624,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	 * this sb does not set any security options.  (The first options
 	 * will be used for both mounts)
 	 */
-	if (sbsec->initialized && (sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)
+	if ((sbsec->flags & SE_SBINITIALIZED) && (sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)
 	    && (num_opts == 0))
 		goto out;
 
@@ -690,19 +688,19 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 		}
 	}
 
-	if (sbsec->initialized) {
+	if (sbsec->flags & SE_SBINITIALIZED) {
 		/* previously mounted with options, but not on this attempt? */
-		if (sbsec->flags && !num_opts)
+		if ((sbsec->flags & SE_MNTMASK) && !num_opts)
 			goto out_double_mount;
 		rc = 0;
 		goto out;
 	}
 
 	if (strcmp(sb->s_type->name, "proc") == 0)
-		sbsec->proc = 1;
+		sbsec->flags |= SE_SBPROC;
 
 	/* Determine the labeling behavior to use for this filesystem type. */
-	rc = security_fs_use(sbsec->proc ? "proc" : sb->s_type->name, &sbsec->behavior, &sbsec->sid);
+	rc = security_fs_use((sbsec->flags & SE_SBPROC) ? "proc" : sb->s_type->name, &sbsec->behavior, &sbsec->sid);
 	if (rc) {
 		printk(KERN_WARNING "%s: security_fs_use(%s) returned %d\n",
 		       __func__, sb->s_type->name, rc);
@@ -806,10 +804,10 @@ static void selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	}
 
 	/* how can we clone if the old one wasn't set up?? */
-	BUG_ON(!oldsbsec->initialized);
+	BUG_ON(!(oldsbsec->flags & SE_SBINITIALIZED));
 
 	/* if fs is reusing a sb, just let its options stand... */
-	if (newsbsec->initialized)
+	if (newsbsec->flags & SE_SBINITIALIZED)
 		return;
 
 	mutex_lock(&newsbsec->lock);
@@ -1209,7 +1207,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		goto out_unlock;
 
 	sbsec = inode->i_sb->s_security;
-	if (!sbsec->initialized) {
+	if (!(sbsec->flags & SE_SBINITIALIZED)) {
 		/* Defer initialization until selinux_complete_init,
 		   after the initial policy is loaded and the security
 		   server is ready to handle calls. */
@@ -1326,7 +1324,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		/* Default to the fs superblock SID. */
 		isec->sid = sbsec->sid;
 
-		if (sbsec->proc && !S_ISLNK(inode->i_mode)) {
+		if ((sbsec->flags & SE_SBPROC) && !S_ISLNK(inode->i_mode)) {
 			struct proc_inode *proci = PROC_I(inode);
 			if (proci->pde) {
 				isec->sclass = inode_mode_to_security_class(inode->i_mode);
@@ -2585,7 +2583,7 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	}
 
 	/* Possibly defer initialization to selinux_complete_init. */
-	if (sbsec->initialized) {
+	if (sbsec->flags & SE_SBINITIALIZED) {
 		struct inode_security_struct *isec = inode->i_security;
 		isec->sclass = inode_mode_to_security_class(inode->i_mode);
 		isec->sid = newsid;
