@@ -1647,6 +1647,10 @@ static int ocfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail = buf->f_bfree;
 	buf->f_files = numbits;
 	buf->f_ffree = freebits;
+	buf->f_fsid.val[0] = crc32_le(0, osb->uuid_str, OCFS2_VOL_UUID_LEN)
+				& 0xFFFFFFFFUL;
+	buf->f_fsid.val[1] = crc32_le(0, osb->uuid_str + OCFS2_VOL_UUID_LEN,
+				OCFS2_VOL_UUID_LEN) & 0xFFFFFFFFUL;
 
 	brelse(bh);
 
