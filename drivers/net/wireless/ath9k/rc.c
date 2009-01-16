@@ -1361,6 +1361,8 @@ static void ath_rc_init(struct ath_softc *sc,
 		ath_rc_priv->ht_cap = (WLAN_RC_HT_FLAG | WLAN_RC_DS_FLAG);
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 			ath_rc_priv->ht_cap |= WLAN_RC_40_FLAG;
+		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40)
+			ath_rc_priv->ht_cap |= WLAN_RC_SGI_FLAG;
 	}
 
 	/* Initial rate table size. Will change depending
