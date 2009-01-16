@@ -86,9 +86,8 @@ void __cpuinit load_pda_offset(int cpu)
 }
 #ifndef CONFIG_SMP
 DEFINE_PER_CPU(struct x8664_pda, __pda);
-EXPORT_PER_CPU_SYMBOL(__pda);
 #endif
-
+EXPORT_PER_CPU_SYMBOL(__pda);
 #endif /* CONFIG_SMP && CONFIG_X86_64 */
 
 #ifdef CONFIG_X86_64
