@@ -32,7 +32,6 @@
 
 struct wm9713_priv {
 	u32 pll_in; /* PLL input frequency */
-	u32 pll_out; /* PLL output frequency */
 };
 
 static unsigned int ac97_read(struct snd_soc_codec *codec,
@@ -723,13 +722,13 @@ static int wm9713_set_pll(struct snd_soc_codec *codec,
 	struct _pll_div pll_div;
 
 	/* turn PLL off ? */
-	if (freq_in == 0 || freq_out == 0) {
+	if (freq_in == 0) {
 		/* disable PLL power and select ext source */
 		reg = ac97_read(codec, AC97_HANDSET_RATE);
 		ac97_write(codec, AC97_HANDSET_RATE, reg | 0x0080);
 		reg = ac97_read(codec, AC97_EXTENDED_MID);
 		ac97_write(codec, AC97_EXTENDED_MID, reg | 0x0200);
-		wm9713->pll_out = 0;
+		wm9713->pll_in = 0;
 		return 0;
 	}
 
@@ -773,7 +772,6 @@ static int wm9713_set_pll(struct snd_soc_codec *codec,
 	ac97_write(codec, AC97_EXTENDED_MID, reg & 0xfdff);
 	reg = ac97_read(codec, AC97_HANDSET_RATE);
 	ac97_write(codec, AC97_HANDSET_RATE, reg & 0xff7f);
-	wm9713->pll_out = freq_out;
 	wm9713->pll_in = freq_in;
 
 	/* wait 10ms AC97 link frames for the link to stabilise */
@@ -1149,8 +1147,8 @@ static int wm9713_soc_resume(struct platform_device *pdev)
 	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* do we need to re-start the PLL ? */
-	if (wm9713->pll_out)
-		wm9713_set_pll(codec, 0, wm9713->pll_in, wm9713->pll_out);
+	if (wm9713->pll_in)
+		wm9713_set_pll(codec, 0, wm9713->pll_in, 0);
 
 	/* only synchronise the codec if warm reset failed */
 	if (ret == 0) {
