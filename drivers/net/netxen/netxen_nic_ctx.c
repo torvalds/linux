@@ -76,7 +76,7 @@ netxen_api_unlock(struct netxen_adapter *adapter)
 static u32
 netxen_poll_rsp(struct netxen_adapter *adapter)
 {
-	u32 raw_rsp, rsp = NX_CDRP_RSP_OK;
+	u32 rsp = NX_CDRP_RSP_OK;
 	int	timeout = 0;
 
 	do {
@@ -86,10 +86,7 @@ netxen_poll_rsp(struct netxen_adapter *adapter)
 		if (++timeout > NX_OS_CRB_RETRY_COUNT)
 			return NX_CDRP_RSP_TIMEOUT;
 
-		netxen_nic_read_w1(adapter, NX_CDRP_CRB_OFFSET,
-				&raw_rsp);
-
-		rsp = le32_to_cpu(raw_rsp);
+		netxen_nic_read_w1(adapter, NX_CDRP_CRB_OFFSET, &rsp);
 	} while (!NX_CDRP_IS_RSP(rsp));
 
 	return rsp;
@@ -109,20 +106,16 @@ netxen_issue_cmd(struct netxen_adapter *adapter,
 	if (netxen_api_lock(adapter))
 		return NX_RCODE_TIMEOUT;
 
-	netxen_nic_write_w1(adapter, NX_SIGN_CRB_OFFSET,
-			cpu_to_le32(signature));
+	netxen_nic_write_w1(adapter, NX_SIGN_CRB_OFFSET, signature);
 
-	netxen_nic_write_w1(adapter, NX_ARG1_CRB_OFFSET,
-			cpu_to_le32(arg1));
+	netxen_nic_write_w1(adapter, NX_ARG1_CRB_OFFSET, arg1);
 
-	netxen_nic_write_w1(adapter, NX_ARG2_CRB_OFFSET,
-			cpu_to_le32(arg2));
+	netxen_nic_write_w1(adapter, NX_ARG2_CRB_OFFSET, arg2);
 
-	netxen_nic_write_w1(adapter, NX_ARG3_CRB_OFFSET,
-			cpu_to_le32(arg3));
+	netxen_nic_write_w1(adapter, NX_ARG3_CRB_OFFSET, arg3);
 
 	netxen_nic_write_w1(adapter, NX_CDRP_CRB_OFFSET,
-			cpu_to_le32(NX_CDRP_FORM_CMD(cmd)));
+			NX_CDRP_FORM_CMD(cmd));
 
 	rsp = netxen_poll_rsp(adapter);
 
@@ -133,7 +126,6 @@ netxen_issue_cmd(struct netxen_adapter *adapter,
 		rcode = NX_RCODE_TIMEOUT;
 	} else if (rsp == NX_CDRP_RSP_FAIL) {
 		netxen_nic_read_w1(adapter, NX_ARG1_CRB_OFFSET, &rcode);
-		rcode = le32_to_cpu(rcode);
 
 		printk(KERN_ERR "%s: failed card response code:0x%x\n",
 				netxen_nic_driver_name, rcode);
@@ -183,7 +175,7 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 
 	int i, nrds_rings, nsds_rings;
 	size_t rq_size, rsp_size;
-	u32 cap, reg;
+	u32 cap, reg, val;
 
 	int err;
 
@@ -225,11 +217,14 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 
 	prq->num_rds_rings = cpu_to_le16(nrds_rings);
 	prq->num_sds_rings = cpu_to_le16(nsds_rings);
-	prq->rds_ring_offset = 0;
-	prq->sds_ring_offset = prq->rds_ring_offset +
-		(sizeof(nx_hostrq_rds_ring_t) * nrds_rings);
+	prq->rds_ring_offset = cpu_to_le32(0);
 
-	prq_rds = (nx_hostrq_rds_ring_t *)(prq->data + prq->rds_ring_offset);
+	val = le32_to_cpu(prq->rds_ring_offset) +
+		(sizeof(nx_hostrq_rds_ring_t) * nrds_rings);
+	prq->sds_ring_offset = cpu_to_le32(val);
+
+	prq_rds = (nx_hostrq_rds_ring_t *)(prq->data +
+			le32_to_cpu(prq->rds_ring_offset));
 
 	for (i = 0; i < nrds_rings; i++) {
 
@@ -241,17 +236,14 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 		prq_rds[i].buff_size = cpu_to_le64(rds_ring->dma_size);
 	}
 
-	prq_sds = (nx_hostrq_sds_ring_t *)(prq->data + prq->sds_ring_offset);
+	prq_sds = (nx_hostrq_sds_ring_t *)(prq->data +
+			le32_to_cpu(prq->sds_ring_offset));
 
 	prq_sds[0].host_phys_addr =
 		cpu_to_le64(recv_ctx->rcv_status_desc_phys_addr);
 	prq_sds[0].ring_size = cpu_to_le32(adapter->max_rx_desc_count);
 	/* only one msix vector for now */
-	prq_sds[0].msi_index = cpu_to_le32(0);
-
-	/* now byteswap offsets */
-	prq->rds_ring_offset = cpu_to_le32(prq->rds_ring_offset);
-	prq->sds_ring_offset = cpu_to_le32(prq->sds_ring_offset);
+	prq_sds[0].msi_index = cpu_to_le16(0);
 
 	phys_addr = hostrq_phys_addr;
 	err = netxen_issue_cmd(adapter,
@@ -269,9 +261,9 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 
 
 	prsp_rds = ((nx_cardrsp_rds_ring_t *)
-			 &prsp->data[prsp->rds_ring_offset]);
+			 &prsp->data[le32_to_cpu(prsp->rds_ring_offset)]);
 
-	for (i = 0; i < le32_to_cpu(prsp->num_rds_rings); i++) {
+	for (i = 0; i < le16_to_cpu(prsp->num_rds_rings); i++) {
 		rds_ring = &recv_ctx->rds_rings[i];
 
 		reg = le32_to_cpu(prsp_rds[i].host_producer_crb);
@@ -279,7 +271,7 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 	}
 
 	prsp_sds = ((nx_cardrsp_sds_ring_t *)
-			&prsp->data[prsp->sds_ring_offset]);
+			&prsp->data[le32_to_cpu(prsp->sds_ring_offset)]);
 	reg = le32_to_cpu(prsp_sds[0].host_consumer_crb);
 	recv_ctx->crb_sts_consumer = NETXEN_NIC_REG(reg - 0x200);
 
@@ -288,7 +280,7 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 
 	recv_ctx->state = le32_to_cpu(prsp->host_ctx_state);
 	recv_ctx->context_id = le16_to_cpu(prsp->context_id);
-	recv_ctx->virt_port = le16_to_cpu(prsp->virt_port);
+	recv_ctx->virt_port = prsp->virt_port;
 
 out_free_rsp:
 	pci_free_consistent(adapter->pdev, rsp_size, prsp, cardrsp_phys_addr);
