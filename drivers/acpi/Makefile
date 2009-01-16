@@ -19,7 +19,7 @@ obj-y				+= osl.o utils.o reboot.o\
 
 # sleep related files
 obj-y				+= wakeup.o
-obj-y				+= main.o
+obj-y				+= sleep.o
 obj-$(CONFIG_ACPI_SLEEP)	+= proc.o
 
 
